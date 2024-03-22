@@ -1052,6 +1052,8 @@ static int starfive_jh7110_pinconf_set(struct pinctrl_dev *pctldev,
 		value = readl_relaxed(pctl->padctl_base +
 				pin_reg->io_conf_reg);
 		value = value|(configs[i] & 0xFF);
+		if (!(configs[i] & JH7110_PADCFG_IE))
+			value &= ~JH7110_PADCFG_IE;
 		writel_relaxed(value, pctl->padctl_base +
 				pin_reg->io_conf_reg);
 	}
