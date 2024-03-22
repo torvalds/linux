@@ -1323,6 +1323,28 @@ static struct pcie_link_state *pcie_aspm_get_link(struct pci_dev *pdev)
 	return bridge->link_state;
 }
 
+static u8 pci_calc_aspm_disable_mask(int state)
+{
+	state &= ~PCIE_LINK_STATE_CLKPM;
+
+	/* L1 PM substates require L1 */
+	if (state & PCIE_LINK_STATE_L1)
+		state |= PCIE_LINK_STATE_L1SS;
+
+	return state;
+}
+
+static u8 pci_calc_aspm_enable_mask(int state)
+{
+	state &= ~PCIE_LINK_STATE_CLKPM;
+
+	/* L1 PM substates require L1 */
+	if (state & PCIE_LINK_STATE_L1SS)
+		state |= PCIE_LINK_STATE_L1;
+
+	return state;
+}
+
 static int __pci_disable_link_state(struct pci_dev *pdev, int state, bool locked)
 {
 	struct pcie_link_state *link = pcie_aspm_get_link(pdev);
@@ -1345,19 +1367,7 @@ static int __pci_disable_link_state(struct pci_dev *pdev, int state, bool locked
 	if (!locked)
 		down_read(&pci_bus_sem);
 	mutex_lock(&aspm_lock);
-	if (state & PCIE_LINK_STATE_L0S)
-		link->aspm_disable |= PCIE_LINK_STATE_L0S;
-	if (state & PCIE_LINK_STATE_L1)
-		/* L1 PM substates require L1 */
-		link->aspm_disable |= PCIE_LINK_STATE_L1 | PCIE_LINK_STATE_L1SS;
-	if (state & PCIE_LINK_STATE_L1_1)
-		link->aspm_disable |= PCIE_LINK_STATE_L1_1;
-	if (state & PCIE_LINK_STATE_L1_2)
-		link->aspm_disable |= PCIE_LINK_STATE_L1_2;
-	if (state & PCIE_LINK_STATE_L1_1_PCIPM)
-		link->aspm_disable |= PCIE_LINK_STATE_L1_1_PCIPM;
-	if (state & PCIE_LINK_STATE_L1_2_PCIPM)
-		link->aspm_disable |= PCIE_LINK_STATE_L1_2_PCIPM;
+	link->aspm_disable |= pci_calc_aspm_disable_mask(state);
 	pcie_config_aspm_link(link, policy_to_aspm_state(link));
 
 	if (state & PCIE_LINK_STATE_CLKPM)
@@ -1413,20 +1423,7 @@ static int __pci_enable_link_state(struct pci_dev *pdev, int state, bool locked)
 	if (!locked)
 		down_read(&pci_bus_sem);
 	mutex_lock(&aspm_lock);
-	link->aspm_default = 0;
-	if (state & PCIE_LINK_STATE_L0S)
-		link->aspm_default |= PCIE_LINK_STATE_L0S;
-	if (state & PCIE_LINK_STATE_L1)
-		link->aspm_default |= PCIE_LINK_STATE_L1;
-	/* L1 PM substates require L1 */
-	if (state & PCIE_LINK_STATE_L1_1)
-		link->aspm_default |= PCIE_LINK_STATE_L1_1 | PCIE_LINK_STATE_L1;
-	if (state & PCIE_LINK_STATE_L1_2)
-		link->aspm_default |= PCIE_LINK_STATE_L1_2 | PCIE_LINK_STATE_L1;
-	if (state & PCIE_LINK_STATE_L1_1_PCIPM)
-		link->aspm_default |= PCIE_LINK_STATE_L1_1_PCIPM | PCIE_LINK_STATE_L1;
-	if (state & PCIE_LINK_STATE_L1_2_PCIPM)
-		link->aspm_default |= PCIE_LINK_STATE_L1_2_PCIPM | PCIE_LINK_STATE_L1;
+	link->aspm_default = pci_calc_aspm_enable_mask(state);
 	pcie_config_aspm_link(link, policy_to_aspm_state(link));
 
 	link->clkpm_default = (state & PCIE_LINK_STATE_CLKPM) ? 1 : 0;
