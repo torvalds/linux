@@ -30,7 +30,31 @@ struct mbt_ext4_super_block {
 #define MBT_CTX(_sb) (&MBT_SB(_sb)->mbt_ctx)
 #define MBT_GRP_CTX(_sb, _group) (&MBT_CTX(_sb)->grp_ctx[_group])
 
+static struct inode *mbt_alloc_inode(struct super_block *sb)
+{
+	struct ext4_inode_info *ei;
+
+	ei = kmalloc(sizeof(struct ext4_inode_info), GFP_KERNEL);
+	if (!ei)
+		return NULL;
+
+	INIT_LIST_HEAD(&ei->i_orphan);
+	init_rwsem(&ei->xattr_sem);
+	init_rwsem(&ei->i_data_sem);
+	inode_init_once(&ei->vfs_inode);
+	ext4_fc_init_inode(&ei->vfs_inode);
+
+	return &ei->vfs_inode;
+}
+
+static void mbt_free_inode(struct inode *inode)
+{
+	kfree(EXT4_I(inode));
+}
+
 static const struct super_operations mbt_sops = {
+	.alloc_inode	= mbt_alloc_inode,
+	.free_inode	= mbt_free_inode,
 };
 
 static void mbt_kill_sb(struct super_block *sb)
