@@ -27,7 +27,7 @@
 			riscv,isa-base = "rv64i";
 			riscv,isa-extensions = "i", "m", "a", "f", "d", "c",
 					       "zicntr", "zicsr", "zifencei",
-					       "zihpm";
+					       "zihpm", "xandespmu";
 			mmu-type = "riscv,sv39";
 			i-cache-size = <0x8000>;
 			i-cache-line-size = <0x40>;
@@ -39,7 +39,7 @@
 
 			cpu0_intc: interrupt-controller {
 				#interrupt-cells = <1>;
-				compatible = "riscv,cpu-intc";
+				compatible = "andestech,cpu-intc", "riscv,cpu-intc";
 				interrupt-controller;
 			};
 		};

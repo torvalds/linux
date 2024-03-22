@@ -10,6 +10,24 @@ struct mmu_gather;
 
 static void tlb_flush(struct mmu_gather *tlb);
 
+#ifdef CONFIG_MMU
+#include <linux/swap.h>
+
+/*
+ * While riscv platforms with riscv_ipi_for_rfence as true require an IPI to
+ * perform TLB shootdown, some platforms with riscv_ipi_for_rfence as false use
+ * SBI to perform TLB shootdown. To keep software pagetable walkers safe in this
+ * case we switch to RCU based table free (MMU_GATHER_RCU_TABLE_FREE). See the
+ * comment below 'ifdef CONFIG_MMU_GATHER_RCU_TABLE_FREE' in include/asm-generic/tlb.h
+ * for more details.
+ */
+static inline void __tlb_remove_table(void *table)
+{
+	free_page_and_swap_cache(table);
+}
+
+#endif /* CONFIG_MMU */
+
 #define tlb_flush tlb_flush
 #include <asm-generic/tlb.h>
 
