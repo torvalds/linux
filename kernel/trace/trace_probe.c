@@ -12,6 +12,7 @@
 #define pr_fmt(fmt)	"trace_probe: " fmt
 
 #include <linux/bpf.h>
+#include <linux/fs.h>
 #include "trace_btf.h"
 
 #include "trace_probe.h"
@@ -1751,35 +1752,47 @@ int traceprobe_expand_dentry_args(int argc, const char *argv[], char **buf)
 
 	used = 0;
 	for (i = 0; i < argc; i++) {
-		if (glob_match("*:%pd", argv[i])) {
-			char *tmp;
-			char *equal;
+		char *tmp;
+		char *equal;
+		size_t arg_len;
 
-			if (!tmpbuf) {
-				tmpbuf = kmalloc(bufsize, GFP_KERNEL);
-				if (!tmpbuf)
-					return -ENOMEM;
-			}
+		if (!glob_match("*:%p[dD]", argv[i]))
+			continue;
 
-			tmp = kstrdup(argv[i], GFP_KERNEL);
-			if (!tmp)
-				goto nomem;
+		if (!tmpbuf) {
+			tmpbuf = kmalloc(bufsize, GFP_KERNEL);
+			if (!tmpbuf)
+				return -ENOMEM;
+		}
 
-			equal = strchr(tmp, '=');
-			if (equal)
-				*equal = '\0';
-			tmp[strlen(argv[i]) - 4] = '\0';
+		tmp = kstrdup(argv[i], GFP_KERNEL);
+		if (!tmp)
+			goto nomem;
+
+		equal = strchr(tmp, '=');
+		if (equal)
+			*equal = '\0';
+		arg_len = strlen(argv[i]);
+		tmp[arg_len - 4] = '\0';
+		if (argv[i][arg_len - 1] == 'd')
 			ret = snprintf(tmpbuf + used, bufsize - used,
 				       "%s%s+0x0(+0x%zx(%s)):string",
 				       equal ? tmp : "", equal ? "=" : "",
 				       offsetof(struct dentry, d_name.name),
 				       equal ? equal + 1 : tmp);
-			kfree(tmp);
-			if (ret >= bufsize - used)
-				goto nomem;
-			argv[i] = tmpbuf + used;
-			used += ret + 1;
-		}
+		else
+			ret = snprintf(tmpbuf + used, bufsize - used,
+				       "%s%s+0x0(+0x%zx(+0x%zx(%s))):string",
+				       equal ? tmp : "", equal ? "=" : "",
+				       offsetof(struct dentry, d_name.name),
+				       offsetof(struct file, f_path.dentry),
+				       equal ? equal + 1 : tmp);
+
+		kfree(tmp);
+		if (ret >= bufsize - used)
+			goto nomem;
+		argv[i] = tmpbuf + used;
+		used += ret + 1;
 	}
 
 	*buf = tmpbuf;
