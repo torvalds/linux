@@ -1127,16 +1127,22 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 						    fs_info->sectorsize));
 				WARN_ON(!IS_ALIGNED(end, fs_info->sectorsize));
 				end--;
+				/* Take mmap lock to serialize with reflinks. */
+				if (!down_read_trylock(&BTRFS_I(inode)->i_mmap_lock))
+					continue;
 				ret = try_lock_extent(&BTRFS_I(inode)->io_tree,
 						      key.offset, end,
 						      &cached_state);
-				if (!ret)
+				if (!ret) {
+					up_read(&BTRFS_I(inode)->i_mmap_lock);
 					continue;
+				}
 
 				btrfs_drop_extent_map_range(BTRFS_I(inode),
 							    key.offset, end, true);
 				unlock_extent(&BTRFS_I(inode)->io_tree,
 					      key.offset, end, &cached_state);
+				up_read(&BTRFS_I(inode)->i_mmap_lock);
 			}
 		}
 
