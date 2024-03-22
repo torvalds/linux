@@ -510,6 +510,11 @@ static int umc_v12_0_aca_bank_parser(struct aca_handle *handle, struct aca_bank 
 	if (ret)
 		return ret;
 
+	amdgpu_umc_update_ecc_status(adev,
+		bank->regs[ACA_REG_IDX_STATUS],
+		bank->regs[ACA_REG_IDX_IPID],
+		bank->regs[ACA_REG_IDX_ADDR]);
+
 	ext_error_code = ACA_REG__STATUS__ERRORCODEEXT(status);
 	count = ext_error_code == 0 ?
 		ACA_REG__MISC0__ERRCNT(bank->regs[ACA_REG_IDX_MISC0]) : 1ULL;
