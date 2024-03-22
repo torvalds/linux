@@ -795,7 +795,7 @@ static int hgsl_init_global_db(struct qcom_hgsl *hgsl,
 	}
 
 	if (!is_sender && !hgsl->wq) {
-		hgsl->wq = create_workqueue("hgsl-wq");
+		hgsl->wq = alloc_workqueue("hgsl-wq", WQ_HIGHPRI, 0);
 		if (IS_ERR_OR_NULL(hgsl->wq)) {
 			LOGE("failed to create workqueue\n");
 			ret = PTR_ERR(hgsl->wq);
@@ -3197,7 +3197,7 @@ static int hgsl_init_release_wq(struct qcom_hgsl *hgsl)
 {
 	int ret = 0;
 
-	hgsl->release_wq = create_workqueue("hgsl-release-wq");
+	hgsl->release_wq = alloc_workqueue("hgsl-release-wq", WQ_HIGHPRI, 0);
 	if (IS_ERR_OR_NULL(hgsl->release_wq)) {
 		dev_err(hgsl->dev, "failed to create workqueue\n");
 		ret = PTR_ERR(hgsl->release_wq);
