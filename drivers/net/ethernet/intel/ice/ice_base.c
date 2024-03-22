@@ -121,7 +121,7 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 	q_vector->irq.index = -ENOENT;
 
 	if (vsi->type == ICE_VSI_VF) {
-		q_vector->reg_idx = ice_calc_vf_reg_idx(vsi->vf, q_vector);
+		ice_calc_vf_reg_idx(vsi->vf, q_vector);
 		goto out;
 	} else if (vsi->type == ICE_VSI_CTRL && vsi->vf) {
 		struct ice_vsi *ctrl_vsi = ice_get_vf_ctrl_vsi(pf, vsi);
@@ -145,6 +145,7 @@ static int ice_vsi_alloc_q_vector(struct ice_vsi *vsi, u16 v_idx)
 
 skip_alloc:
 	q_vector->reg_idx = q_vector->irq.index;
+	q_vector->vf_reg_idx = q_vector->irq.index;
 
 	/* only set affinity_mask if the CPU is online */
 	if (cpu_online(v_idx))

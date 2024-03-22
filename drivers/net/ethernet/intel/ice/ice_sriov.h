@@ -49,7 +49,7 @@ int ice_set_vf_link_state(struct net_device *netdev, int vf_id, int link_state);
 
 int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena);
 
-int ice_calc_vf_reg_idx(struct ice_vf *vf, struct ice_q_vector *q_vector);
+void ice_calc_vf_reg_idx(struct ice_vf *vf, struct ice_q_vector *q_vector);
 
 int
 ice_get_vf_stats(struct net_device *netdev, int vf_id,
@@ -130,11 +130,10 @@ ice_set_vf_bw(struct net_device __always_unused *netdev,
 	return -EOPNOTSUPP;
 }
 
-static inline int
+static inline void
 ice_calc_vf_reg_idx(struct ice_vf __always_unused *vf,
 		    struct ice_q_vector __always_unused *q_vector)
 {
-	return 0;
 }
 
 static inline int
