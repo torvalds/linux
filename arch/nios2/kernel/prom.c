@@ -21,7 +21,8 @@
 
 void __init early_init_devtree(void *params)
 {
-	__be32 *dtb = (u32 *)__dtb_start;
+	__be32 __maybe_unused *dtb = (u32 *)__dtb_start;
+
 #if defined(CONFIG_NIOS2_DTB_AT_PHYS_ADDR)
 	if (be32_to_cpup((__be32 *)CONFIG_NIOS2_DTB_PHYS_ADDR) ==
 		 OF_DT_HEADER) {
@@ -30,8 +31,11 @@ void __init early_init_devtree(void *params)
 		return;
 	}
 #endif
+
+#ifdef CONFIG_NIOS2_DTB_SOURCE_BOOL
 	if (be32_to_cpu((__be32) *dtb) == OF_DT_HEADER)
 		params = (void *)__dtb_start;
+#endif
 
 	early_init_dt_scan(params);
 }
