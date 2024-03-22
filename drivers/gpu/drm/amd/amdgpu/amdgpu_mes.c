@@ -105,7 +105,7 @@ static int amdgpu_mes_event_log_init(struct amdgpu_device *adev)
 	if (!amdgpu_mes_log_enable)
 		return 0;
 
-	r = amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
+	r = amdgpu_bo_create_kernel(adev, AMDGPU_MES_LOG_BUFFER_SIZE, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_GTT,
 				    &adev->mes.event_log_gpu_obj,
 				    &adev->mes.event_log_gpu_addr,
@@ -1552,11 +1552,10 @@ static int amdgpu_debugfs_mes_event_log_show(struct seq_file *m, void *unused)
 	uint32_t *mem = (uint32_t *)(adev->mes.event_log_cpu_addr);
 
 	seq_hex_dump(m, "", DUMP_PREFIX_OFFSET, 32, 4,
-		     mem, PAGE_SIZE, false);
+		     mem, AMDGPU_MES_LOG_BUFFER_SIZE, false);
 
 	return 0;
 }
-
 
 DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_mes_event_log);
 
