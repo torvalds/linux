@@ -3964,7 +3964,7 @@ static void gfx_v10_0_check_gfxoff_flag(struct amdgpu_device *adev)
 
 static int gfx_v10_0_init_microcode(struct amdgpu_device *adev)
 {
-	char fw_name[40];
+	char fw_name[53];
 	char ucode_prefix[30];
 	const char *wks = "";
 	int err;
