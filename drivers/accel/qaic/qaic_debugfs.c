@@ -98,6 +98,36 @@ static const struct file_operations fifo_size_fops = {
 	.release = single_release,
 };
 
+static int read_dbc_queued(struct seq_file *s, void *unused)
+{
+	struct dma_bridge_chan *dbc = s->private;
+	u32 tail = 0, head = 0;
+
+	qaic_data_get_fifo_info(dbc, &head, &tail);
+
+	if (head == U32_MAX || tail == U32_MAX)
+		seq_printf(s, "%u\n", 0);
+	else if (head > tail)
+		seq_printf(s, "%u\n", dbc->nelem - head + tail);
+	else
+		seq_printf(s, "%u\n", tail - head);
+
+	return 0;
+}
+
+static int queued_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, read_dbc_queued, inode->i_private);
+}
+
+static const struct file_operations queued_fops = {
+	.owner = THIS_MODULE,
+	.open = queued_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 void qaic_debugfs_init(struct qaic_drm_device *qddev)
 {
 	struct qaic_device *qdev = qddev->qdev;
@@ -117,6 +147,7 @@ void qaic_debugfs_init(struct qaic_drm_device *qddev)
 		snprintf(name, QAIC_DBC_DIR_NAME, "dbc%03u", i);
 		debugfs_dir = debugfs_create_dir(name, debugfs_root);
 		debugfs_create_file("fifo_size", 0400, debugfs_dir, &qdev->dbc[i], &fifo_size_fops);
+		debugfs_create_file("queued", 0400, debugfs_dir, &qdev->dbc[i], &queued_fops);
 	}
 }
 
