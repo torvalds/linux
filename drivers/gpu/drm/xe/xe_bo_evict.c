@@ -146,7 +146,7 @@ int xe_bo_restore_kernel(struct xe_device *xe)
 			return ret;
 		}
 
-		if (bo->flags & XE_BO_CREATE_GGTT_BIT) {
+		if (bo->flags & XE_BO_FLAG_GGTT) {
 			struct xe_tile *tile = bo->tile;
 
 			mutex_lock(&tile->mem.ggtt->lock);

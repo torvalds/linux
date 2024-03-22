@@ -130,8 +130,8 @@ static int query_compatibility_version(struct xe_gsc *gsc)
 
 	bo = xe_bo_create_pin_map(xe, tile, NULL, GSC_VER_PKT_SZ * 2,
 				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_SYSTEM_BIT |
-				  XE_BO_CREATE_GGTT_BIT);
+				  XE_BO_FLAG_SYSTEM |
+				  XE_BO_FLAG_GGTT);
 	if (IS_ERR(bo)) {
 		xe_gt_err(gt, "failed to allocate bo for GSC version query\n");
 		return PTR_ERR(bo);
@@ -468,8 +468,8 @@ int xe_gsc_init_post_hwconfig(struct xe_gsc *gsc)
 
 	bo = xe_bo_create_pin_map(xe, tile, NULL, SZ_4M,
 				  ttm_bo_type_kernel,
-				  XE_BO_CREATE_STOLEN_BIT |
-				  XE_BO_CREATE_GGTT_BIT);
+				  XE_BO_FLAG_STOLEN |
+				  XE_BO_FLAG_GGTT);
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 

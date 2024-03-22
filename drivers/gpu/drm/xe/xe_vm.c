@@ -3069,7 +3069,7 @@ int xe_vm_bind_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			goto put_obj;
 		}
 
-		if (bos[i]->flags & XE_BO_INTERNAL_64K) {
+		if (bos[i]->flags & XE_BO_FLAG_INTERNAL_64K) {
 			if (XE_IOCTL_DBG(xe, obj_offset &
 					 XE_64K_PAGE_MASK) ||
 			    XE_IOCTL_DBG(xe, addr & XE_64K_PAGE_MASK) ||

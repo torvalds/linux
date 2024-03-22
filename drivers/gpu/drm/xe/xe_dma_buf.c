@@ -217,7 +217,7 @@ xe_dma_buf_init_obj(struct drm_device *dev, struct xe_bo *storage,
 	dma_resv_lock(resv, NULL);
 	bo = ___xe_bo_create_locked(xe, storage, NULL, resv, NULL, dma_buf->size,
 				    0, /* Will require 1way or 2way for vm_bind */
-				    ttm_bo_type_sg, XE_BO_CREATE_SYSTEM_BIT);
+				    ttm_bo_type_sg, XE_BO_FLAG_SYSTEM);
 	if (IS_ERR(bo)) {
 		ret = PTR_ERR(bo);
 		goto error;

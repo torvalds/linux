@@ -99,21 +99,21 @@ static int __xe_pin_fb_vma_dpt(struct intel_framebuffer *fb,
 	if (IS_DGFX(xe))
 		dpt = xe_bo_create_pin_map(xe, tile0, NULL, dpt_size,
 					   ttm_bo_type_kernel,
-					   XE_BO_CREATE_VRAM0_BIT |
-					   XE_BO_CREATE_GGTT_BIT |
-					   XE_BO_PAGETABLE);
+					   XE_BO_FLAG_VRAM0 |
+					   XE_BO_FLAG_GGTT |
+					   XE_BO_FLAG_PAGETABLE);
 	else
 		dpt = xe_bo_create_pin_map(xe, tile0, NULL, dpt_size,
 					   ttm_bo_type_kernel,
-					   XE_BO_CREATE_STOLEN_BIT |
-					   XE_BO_CREATE_GGTT_BIT |
-					   XE_BO_PAGETABLE);
+					   XE_BO_FLAG_STOLEN |
+					   XE_BO_FLAG_GGTT |
+					   XE_BO_FLAG_PAGETABLE);
 	if (IS_ERR(dpt))
 		dpt = xe_bo_create_pin_map(xe, tile0, NULL, dpt_size,
 					   ttm_bo_type_kernel,
-					   XE_BO_CREATE_SYSTEM_BIT |
-					   XE_BO_CREATE_GGTT_BIT |
-					   XE_BO_PAGETABLE);
+					   XE_BO_FLAG_SYSTEM |
+					   XE_BO_FLAG_GGTT |
+					   XE_BO_FLAG_PAGETABLE);
 	if (IS_ERR(dpt))
 		return PTR_ERR(dpt);
 
@@ -262,7 +262,7 @@ static struct i915_vma *__xe_pin_fb_vma(struct intel_framebuffer *fb,
 
 	if (IS_DGFX(to_xe_device(bo->ttm.base.dev)) &&
 	    intel_fb_rc_ccs_cc_plane(&fb->base) >= 0 &&
-	    !(bo->flags & XE_BO_NEEDS_CPU_ACCESS)) {
+	    !(bo->flags & XE_BO_FLAG_NEEDS_CPU_ACCESS)) {
 		struct xe_tile *tile = xe_device_get_root_tile(xe);
 
 		/*
@@ -355,7 +355,7 @@ int intel_plane_pin_fb(struct intel_plane_state *plane_state)
 	struct i915_vma *vma;
 
 	/* We reject creating !SCANOUT fb's, so this is weird.. */
-	drm_WARN_ON(bo->ttm.base.dev, !(bo->flags & XE_BO_SCANOUT_BIT));
+	drm_WARN_ON(bo->ttm.base.dev, !(bo->flags & XE_BO_FLAG_SCANOUT));
 
 	vma = __xe_pin_fb_vma(to_intel_framebuffer(fb), &plane_state->view.gtt);
 	if (IS_ERR(vma))

@@ -224,11 +224,11 @@ int xe_ggtt_init(struct xe_ggtt *ggtt)
 	 * scratch entires, rather keep the scratch page in system memory on
 	 * platforms where 64K pages are needed for VRAM.
 	 */
-	flags = XE_BO_CREATE_PINNED_BIT;
+	flags = XE_BO_FLAG_PINNED;
 	if (ggtt->flags & XE_GGTT_FLAGS_64K)
-		flags |= XE_BO_CREATE_SYSTEM_BIT;
+		flags |= XE_BO_FLAG_SYSTEM;
 	else
-		flags |= XE_BO_CREATE_VRAM_IF_DGFX(ggtt->tile);
+		flags |= XE_BO_FLAG_VRAM_IF_DGFX(ggtt->tile);
 
 	ggtt->scratch = xe_managed_bo_create_pin_map(xe, ggtt->tile, XE_PAGE_SIZE, flags);
 	if (IS_ERR(ggtt->scratch)) {
@@ -375,7 +375,7 @@ int xe_ggtt_insert_special_node(struct xe_ggtt *ggtt, struct drm_mm_node *node,
 
 void xe_ggtt_map_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 {
-	u16 cache_mode = bo->flags & XE_BO_NEEDS_UC ? XE_CACHE_NONE : XE_CACHE_WB;
+	u16 cache_mode = bo->flags & XE_BO_FLAG_NEEDS_UC ? XE_CACHE_NONE : XE_CACHE_WB;
 	u16 pat_index = tile_to_xe(ggtt->tile)->pat.idx[cache_mode];
 	u64 start = bo->ggtt_node.start;
 	u64 offset, pte;
@@ -413,7 +413,7 @@ static int __xe_ggtt_insert_bo_at(struct xe_ggtt *ggtt, struct xe_bo *bo,
 		xe_ggtt_map_bo(ggtt, bo);
 	mutex_unlock(&ggtt->lock);
 
-	if (!err && bo->flags & XE_BO_GGTT_INVALIDATE)
+	if (!err && bo->flags & XE_BO_FLAG_GGTT_INVALIDATE)
 		xe_ggtt_invalidate(ggtt);
 	xe_device_mem_access_put(tile_to_xe(ggtt->tile));
 
@@ -457,7 +457,7 @@ void xe_ggtt_remove_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 	xe_tile_assert(ggtt->tile, bo->ggtt_node.size == bo->size);
 
 	xe_ggtt_remove_node(ggtt, &bo->ggtt_node,
-			    bo->flags & XE_BO_GGTT_INVALIDATE);
+			    bo->flags & XE_BO_FLAG_GGTT_INVALIDATE);
 }
 
 int xe_ggtt_dump(struct xe_ggtt *ggtt, struct drm_printer *p)

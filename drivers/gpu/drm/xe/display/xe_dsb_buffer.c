@@ -45,8 +45,8 @@ bool intel_dsb_buffer_create(struct intel_crtc *crtc, struct intel_dsb_buffer *d
 	obj = xe_bo_create_pin_map(i915, xe_device_get_root_tile(i915),
 				   NULL, PAGE_ALIGN(size),
 				   ttm_bo_type_kernel,
-				   XE_BO_CREATE_VRAM_IF_DGFX(xe_device_get_root_tile(i915)) |
-				   XE_BO_CREATE_GGTT_BIT);
+				   XE_BO_FLAG_VRAM_IF_DGFX(xe_device_get_root_tile(i915)) |
+				   XE_BO_FLAG_GGTT);
 	if (IS_ERR(obj)) {
 		kfree(vma);
 		return false;

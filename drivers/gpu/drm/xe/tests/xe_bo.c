@@ -116,7 +116,7 @@ static void ccs_test_run_tile(struct xe_device *xe, struct xe_tile *tile,
 	int ret;
 
 	/* TODO: Sanity check */
-	unsigned int bo_flags = XE_BO_CREATE_VRAM_IF_DGFX(tile);
+	unsigned int bo_flags = XE_BO_FLAG_VRAM_IF_DGFX(tile);
 
 	if (IS_DGFX(xe))
 		kunit_info(test, "Testing vram id %u\n", tile->id);
@@ -186,7 +186,7 @@ EXPORT_SYMBOL_IF_KUNIT(xe_ccs_migrate_kunit);
 static int evict_test_run_tile(struct xe_device *xe, struct xe_tile *tile, struct kunit *test)
 {
 	struct xe_bo *bo, *external;
-	unsigned int bo_flags = XE_BO_CREATE_VRAM_IF_DGFX(tile);
+	unsigned int bo_flags = XE_BO_FLAG_VRAM_IF_DGFX(tile);
 	struct xe_vm *vm = xe_migrate_get_vm(xe_device_get_root_tile(xe)->migrate);
 	struct xe_gt *__gt;
 	int err, i, id;
