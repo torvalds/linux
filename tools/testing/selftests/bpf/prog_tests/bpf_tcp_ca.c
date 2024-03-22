@@ -13,6 +13,7 @@
 #include "tcp_ca_write_sk_pacing.skel.h"
 #include "tcp_ca_incompl_cong_ops.skel.h"
 #include "tcp_ca_unsupp_cong_op.skel.h"
+#include "tcp_ca_kfunc.skel.h"
 
 #ifndef ENOTSUPP
 #define ENOTSUPP 524
@@ -518,6 +519,15 @@ static void test_link_replace(void)
 	tcp_ca_update__destroy(skel);
 }
 
+static void test_tcp_ca_kfunc(void)
+{
+	struct tcp_ca_kfunc *skel;
+
+	skel = tcp_ca_kfunc__open_and_load();
+	ASSERT_OK_PTR(skel, "tcp_ca_kfunc__open_and_load");
+	tcp_ca_kfunc__destroy(skel);
+}
+
 void test_bpf_tcp_ca(void)
 {
 	if (test__start_subtest("dctcp"))
@@ -546,4 +556,6 @@ void test_bpf_tcp_ca(void)
 		test_multi_links();
 	if (test__start_subtest("link_replace"))
 		test_link_replace();
+	if (test__start_subtest("tcp_ca_kfunc"))
+		test_tcp_ca_kfunc();
 }
