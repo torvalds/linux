@@ -59,36 +59,30 @@
 #define __force_percpu_prefix	"%%"__stringify(__percpu_seg)":"
 #define __my_cpu_offset		this_cpu_read(this_cpu_off)
 
-#ifdef CONFIG_USE_X86_SEG_SUPPORT
-/*
- * Efficient implementation for cases in which the compiler supports
- * named address spaces.  Allows the compiler to perform additional
- * optimizations that can save more instructions.
- */
-#define arch_raw_cpu_ptr(ptr)					\
-({								\
-	unsigned long tcp_ptr__;				\
-	tcp_ptr__ = __raw_cpu_read(, this_cpu_off);		\
-								\
-	tcp_ptr__ += (unsigned long)(ptr);			\
-	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;		\
-})
-#else /* CONFIG_USE_X86_SEG_SUPPORT */
+#ifdef CONFIG_X86_64
+#define __raw_my_cpu_offset	raw_cpu_read_8(this_cpu_off);
+#else
+#define __raw_my_cpu_offset	raw_cpu_read_4(this_cpu_off);
+#endif
+
 /*
  * Compared to the generic __my_cpu_offset version, the following
  * saves one instruction and avoids clobbering a temp register.
+ *
+ * arch_raw_cpu_ptr should not be used in 32-bit VDSO for a 64-bit
+ * kernel, because games are played with CONFIG_X86_64 there and
+ * sizeof(this_cpu_off) becames 4.
  */
-#define arch_raw_cpu_ptr(ptr)					\
+#ifndef BUILD_VDSO32_64
+#define arch_raw_cpu_ptr(_ptr)					\
 ({								\
-	unsigned long tcp_ptr__;				\
-	asm ("mov " __percpu_arg(1) ", %0"			\
-	     : "=r" (tcp_ptr__)					\
-	     : "m" (__my_cpu_var(this_cpu_off)));		\
-								\
-	tcp_ptr__ += (unsigned long)(ptr);			\
-	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;		\
+	unsigned long tcp_ptr__ = __raw_my_cpu_offset;		\
+	tcp_ptr__ += (unsigned long)(_ptr);			\
+	(typeof(*(_ptr)) __kernel __force *)tcp_ptr__;		\
 })
-#endif /* CONFIG_USE_X86_SEG_SUPPORT */
+#else
+#define arch_raw_cpu_ptr(_ptr) ({ BUILD_BUG(); (typeof(_ptr))0; })
+#endif
 
 #define PER_CPU_VAR(var)	%__percpu_seg:(var)__percpu_rel
 
