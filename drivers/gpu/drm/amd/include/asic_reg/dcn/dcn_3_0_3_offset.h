@@ -5695,6 +5695,16 @@
 #define mmDSCC0_DSCC_RATE_CONTROL_BUFFER2_MAX_FULLNESS_LEVEL_BASE_IDX                                  2
 #define mmDSCC0_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL                                           0x3035
 #define mmDSCC0_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL_BASE_IDX                                  2
+#define mmDSCC0_DSCC_TEST_DEBUG_BUS_ROTATE                                                             0x303a
+#define mmDSCC0_DSCC_TEST_DEBUG_BUS_ROTATE_BASE_IDX                                                    2
+#define mmDSCC0_DSCC_TEST_DEBUG_DATA0                                                                  0x303b
+#define mmDSCC0_DSCC_TEST_DEBUG_DATA0_BASE_IDX                                                         2
+#define mmDSCC0_DSCC_TEST_DEBUG_DATA1                                                                  0x303c
+#define mmDSCC0_DSCC_TEST_DEBUG_DATA1_BASE_IDX                                                         2
+#define mmDSCC0_DSCC_TEST_DEBUG_DATA2                                                                  0x303d
+#define mmDSCC0_DSCC_TEST_DEBUG_DATA2_BASE_IDX                                                         2
+#define mmDSCC0_DSCC_TEST_DEBUG_DATA3                                                                  0x303e
+#define mmDSCC0_DSCC_TEST_DEBUG_DATA3_BASE_IDX                                                         2
 
 
 // addressBlock: dce_dc_dsc0_dispdec_dsc_dcperfmon_dc_perfmon_dispdec
@@ -5825,6 +5835,16 @@
 #define mmDSCC1_DSCC_RATE_CONTROL_BUFFER2_MAX_FULLNESS_LEVEL_BASE_IDX                                  2
 #define mmDSCC1_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL                                           0x3091
 #define mmDSCC1_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL_BASE_IDX                                  2
+#define mmDSCC1_DSCC_TEST_DEBUG_BUS_ROTATE                                                             0x3096
+#define mmDSCC1_DSCC_TEST_DEBUG_BUS_ROTATE_BASE_IDX                                                    2
+#define mmDSCC1_DSCC_TEST_DEBUG_DATA0                                                                  0x3097
+#define mmDSCC1_DSCC_TEST_DEBUG_DATA0_BASE_IDX                                                         2
+#define mmDSCC1_DSCC_TEST_DEBUG_DATA1                                                                  0x3098
+#define mmDSCC1_DSCC_TEST_DEBUG_DATA1_BASE_IDX                                                         2
+#define mmDSCC1_DSCC_TEST_DEBUG_DATA2                                                                  0x3099
+#define mmDSCC1_DSCC_TEST_DEBUG_DATA2_BASE_IDX                                                         2
+#define mmDSCC1_DSCC_TEST_DEBUG_DATA3                                                                  0x309a
+#define mmDSCC1_DSCC_TEST_DEBUG_DATA3_BASE_IDX                                                         2
 
 
 // addressBlock: dce_dc_dsc1_dispdec_dsc_dcperfmon_dc_perfmon_dispdec

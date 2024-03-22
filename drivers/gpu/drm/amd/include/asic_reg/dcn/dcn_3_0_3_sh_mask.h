@@ -22265,7 +22265,9 @@
 #define DSC_TOP0_DSC_TOP_CONTROL__DSC_DSCCLK_R_GATE_DIS_MASK                                                  0x00000100L
 //DSC_TOP0_DSC_DEBUG_CONTROL
 #define DSC_TOP0_DSC_DEBUG_CONTROL__DSC_DBG_EN__SHIFT                                                         0x0
+#define DSC_TOP0_DSC_DEBUG_CONTROL__DSC_TEST_CLOCK_MUX_SEL__SHIFT                                             0x4
 #define DSC_TOP0_DSC_DEBUG_CONTROL__DSC_DBG_EN_MASK                                                           0x00000001L
+#define DSC_TOP0_DSC_DEBUG_CONTROL__DSC_TEST_CLOCK_MUX_SEL_MASK                                               0x00000070L
 
 
 // addressBlock: dce_dc_dsc0_dispdec_dsccif_dispdec
@@ -22638,6 +22640,15 @@
 //DSCC0_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL
 #define DSCC0_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL__DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL__SHIFT  0x0
 #define DSCC0_DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL__DSCC_RATE_CONTROL_BUFFER3_MAX_FULLNESS_LEVEL_MASK  0x0003FFFFL
+//DSCC0_DSCC_TEST_DEBUG_BUS_ROTATE
+#define DSCC0_DSCC_TEST_DEBUG_BUS_ROTATE__DSCC_TEST_DEBUG_BUS0_ROTATE__SHIFT                                  0x0
+#define DSCC0_DSCC_TEST_DEBUG_BUS_ROTATE__DSCC_TEST_DEBUG_BUS1_ROTATE__SHIFT                                  0x8
+#define DSCC0_DSCC_TEST_DEBUG_BUS_ROTATE__DSCC_TEST_DEBUG_BUS2_ROTATE__SHIFT                                  0x10
+#define DSCC0_DSCC_TEST_DEBUG_BUS_ROTATE__DSCC_TEST_DEBUG_BUS3_ROTATE__SHIFT                                  0x18
+#define DSCC0_DSCC_TEST_DEBUG_BUS_ROTATE__DSCC_TEST_DEBUG_BUS0_ROTATE_MASK                                    0x0000001FL
+#define DSCC0_DSCC_TEST_DEBUG_BUS_ROTATE__DSCC_TEST_DEBUG_BUS1_ROTATE_MASK                                    0x00001F00L
+#define DSCC0_DSCC_TEST_DEBUG_BUS_ROTATE__DSCC_TEST_DEBUG_BUS2_ROTATE_MASK                                    0x001F0000L
+#define DSCC0_DSCC_TEST_DEBUG_BUS_ROTATE__DSCC_TEST_DEBUG_BUS3_ROTATE_MASK                                    0x1F000000L
 
 
 // addressBlock: dce_dc_dsc0_dispdec_dsc_dcperfmon_dc_perfmon_dispdec
