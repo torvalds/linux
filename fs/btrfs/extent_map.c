@@ -76,6 +76,14 @@ static u64 range_end(u64 start, u64 len)
 	return start + len;
 }
 
+static void dec_evictable_extent_maps(struct btrfs_inode *inode)
+{
+	struct btrfs_fs_info *fs_info = inode->root->fs_info;
+
+	if (!btrfs_is_testing(fs_info) && is_fstree(btrfs_root_id(inode->root)))
+		percpu_counter_dec(&fs_info->evictable_extent_maps);
+}
+
 static int tree_insert(struct rb_root_cached *root, struct extent_map *em)
 {
 	struct rb_node **p = &root->rb_root.rb_node;
@@ -259,6 +267,7 @@ static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 			rb_erase_cached(&merge->rb_node, &tree->map);
 			RB_CLEAR_NODE(&merge->rb_node);
 			free_extent_map(merge);
+			dec_evictable_extent_maps(inode);
 		}
 	}
 
@@ -273,6 +282,7 @@ static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 		em->generation = max(em->generation, merge->generation);
 		em->flags |= EXTENT_FLAG_MERGED;
 		free_extent_map(merge);
+		dec_evictable_extent_maps(inode);
 	}
 }
 
@@ -372,6 +382,8 @@ static int add_extent_mapping(struct btrfs_inode *inode,
 			      struct extent_map *em, int modified)
 {
 	struct extent_map_tree *tree = &inode->extent_tree;
+	struct btrfs_root *root = inode->root;
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	int ret;
 
 	lockdep_assert_held_write(&tree->lock);
@@ -381,6 +393,9 @@ static int add_extent_mapping(struct btrfs_inode *inode,
 		return ret;
 
 	setup_extent_mapping(inode, em, modified);
+
+	if (!btrfs_is_testing(fs_info) && is_fstree(btrfs_root_id(root)))
+		percpu_counter_inc(&fs_info->evictable_extent_maps);
 
 	return 0;
 }
@@ -467,6 +482,8 @@ void remove_extent_mapping(struct btrfs_inode *inode, struct extent_map *em)
 	if (!(em->flags & EXTENT_FLAG_LOGGING))
 		list_del_init(&em->list);
 	RB_CLEAR_NODE(&em->rb_node);
+
+	dec_evictable_extent_maps(inode);
 }
 
 static void replace_extent_mapping(struct btrfs_inode *inode,

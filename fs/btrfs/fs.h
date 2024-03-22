@@ -630,6 +630,8 @@ struct btrfs_fs_info {
 	s32 dirty_metadata_batch;
 	s32 delalloc_batch;
 
+	struct percpu_counter evictable_extent_maps;
+
 	/* Protected by 'trans_lock'. */
 	struct list_head dirty_cowonly_roots;
 
