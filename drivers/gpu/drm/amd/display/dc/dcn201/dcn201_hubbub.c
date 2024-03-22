@@ -103,5 +103,5 @@ void hubbub201_construct(struct dcn20_hubbub *hubbub,
 	hubbub->masks = hubbub_mask;
 
 	hubbub->debug_test_index_pstate = 0xB;
-	hubbub->detile_buf_size = 164 * 1024;
+	hubbub->detile_buf_size = 164 * 1024; /* 164KB for DCN2.0 */
 }
