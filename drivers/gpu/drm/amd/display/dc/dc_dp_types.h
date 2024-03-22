@@ -917,16 +917,6 @@ struct dpcd_usb4_dp_tunneling_info {
 	uint8_t usb4_topology_id[DPCD_USB4_TOPOLOGY_ID_LEN];
 };
 
-#ifndef DP_DFP_CAPABILITY_EXTENSION_SUPPORT
-#define DP_DFP_CAPABILITY_EXTENSION_SUPPORT		0x0A3
-#endif
-#ifndef DP_TEST_264BIT_CUSTOM_PATTERN_7_0
-#define DP_TEST_264BIT_CUSTOM_PATTERN_7_0		0X2230
-#endif
-#ifndef DP_TEST_264BIT_CUSTOM_PATTERN_263_256
-#define DP_TEST_264BIT_CUSTOM_PATTERN_263_256		0X2250
-#endif
-
 union dp_main_line_channel_coding_cap {
 	struct {
 		uint8_t DP_8b_10b_SUPPORTED	:1;
