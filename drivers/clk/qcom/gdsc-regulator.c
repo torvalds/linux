@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -74,6 +74,8 @@ struct gdsc {
 	struct regmap           *domain_addr;
 	struct regmap           *hw_ctrl;
 	struct regmap           **sw_resets;
+	struct regmap           *acd_reset;
+	struct regmap           *acd_misc_reset;
 	struct collapse_vote	collapse_vote;
 	struct clk		**clocks;
 	struct mbox_client	mbox_client;
@@ -337,6 +339,12 @@ static int gdsc_enable(struct regulator_dev *rdev)
 				regmap_set_bits(sc->sw_resets[i], REG_OFFSET,
 						BCR_BLK_ARES_BIT);
 
+			if (sc->acd_reset)
+				regmap_set_bits(sc->acd_reset, REG_OFFSET, BCR_BLK_ARES_BIT);
+
+			if (sc->acd_misc_reset)
+				regmap_set_bits(sc->acd_misc_reset, REG_OFFSET, BCR_BLK_ARES_BIT);
+
 			/*
 			 * BLK_ARES should be kept asserted for 1us before
 			 * being de-asserted.
@@ -347,6 +355,12 @@ static int gdsc_enable(struct regulator_dev *rdev)
 			for (i = 0; i < sc->sw_reset_count; i++)
 				regmap_clear_bits(sc->sw_resets[i], REG_OFFSET,
 						  BCR_BLK_ARES_BIT);
+
+			if (sc->acd_reset)
+				regmap_clear_bits(sc->acd_reset, REG_OFFSET, BCR_BLK_ARES_BIT);
+
+			if (sc->acd_misc_reset)
+				regmap_clear_bits(sc->acd_misc_reset, REG_OFFSET, BCR_BLK_ARES_BIT);
 
 			/* Make sure de-assert goes through before continuing */
 			gdsc_mb(sc);
@@ -486,6 +500,12 @@ static int gdsc_disable(struct regulator_dev *rdev)
 		 * handle this during system sleep.
 		 */
 	} else if (sc->toggle_logic) {
+		if (sc->sw_reset_count) {
+			if (sc->acd_misc_reset)
+				regmap_set_bits(sc->acd_misc_reset, REG_OFFSET,
+					BCR_BLK_ARES_BIT);
+		}
+
 		/* Disable gdsc */
 		if (sc->collapse_count) {
 			for (i = 0; i < sc->collapse_count; i++)
@@ -745,6 +765,48 @@ void gdsc_debug_print_regs(struct regulator *regulator)
 }
 EXPORT_SYMBOL(gdsc_debug_print_regs);
 
+static int gdsc_parse_resets(struct gdsc *sc, struct device *dev)
+{
+	struct device_node *np;
+	int i;
+
+	if (of_find_property(dev->of_node, "sw-reset", NULL)) {
+		sc->sw_reset_count = of_count_phandle_with_args(dev->of_node,
+								"sw-reset", NULL);
+		sc->sw_resets = devm_kmalloc_array(dev, sc->sw_reset_count,
+						   sizeof(*sc->sw_resets), GFP_KERNEL);
+		if (!sc->sw_resets)
+			return -ENOMEM;
+
+		for (i = 0; i < sc->sw_reset_count; i++) {
+			np = of_parse_phandle(dev->of_node, "sw-reset", i);
+			if (!np)
+				return -ENODEV;
+
+			sc->sw_resets[i] = syscon_node_to_regmap(np);
+			of_node_put(np);
+			if (IS_ERR(sc->sw_resets[i]))
+				return PTR_ERR(sc->sw_resets[i]);
+		}
+	}
+
+	if (of_find_property(dev->of_node, "acd-reset", NULL)) {
+		sc->acd_reset = syscon_regmap_lookup_by_phandle(dev->of_node,
+								"acd-reset");
+		if (IS_ERR(sc->acd_reset))
+			return PTR_ERR(sc->acd_reset);
+	}
+
+	if (of_find_property(dev->of_node, "acd-misc-reset", NULL)) {
+		sc->acd_misc_reset = syscon_regmap_lookup_by_phandle(dev->of_node,
+							"acd-misc-reset");
+		if (IS_ERR(sc->acd_misc_reset))
+			return PTR_ERR(sc->acd_misc_reset);
+	}
+
+	return 0;
+}
+
 static int gdsc_parse_dt_data(struct gdsc *sc, struct device *dev,
 				struct regulator_init_data **init_data)
 {
@@ -770,25 +832,9 @@ static int gdsc_parse_dt_data(struct gdsc *sc, struct device *dev,
 			return PTR_ERR(sc->domain_addr);
 	}
 
-	if (of_find_property(dev->of_node, "sw-reset", NULL)) {
-		sc->sw_reset_count = of_count_phandle_with_args(dev->of_node,
-								"sw-reset", NULL);
-		sc->sw_resets = devm_kmalloc_array(dev, sc->sw_reset_count,
-						   sizeof(*sc->sw_resets), GFP_KERNEL);
-		if (!sc->sw_resets)
-			return -ENOMEM;
-
-		for (i = 0; i < sc->sw_reset_count; i++) {
-			np = of_parse_phandle(dev->of_node, "sw-reset", i);
-			if (!np)
-				return -ENODEV;
-
-			sc->sw_resets[i] = syscon_node_to_regmap(np);
-			of_node_put(np);
-			if (IS_ERR(sc->sw_resets[i]))
-				return PTR_ERR(sc->sw_resets[i]);
-		}
-	}
+	ret = gdsc_parse_resets(sc, dev);
+	if (ret)
+		return ret;
 
 	if (of_find_property(dev->of_node, "hw-ctrl-addr", NULL)) {
 		sc->hw_ctrl = syscon_regmap_lookup_by_phandle(dev->of_node,
