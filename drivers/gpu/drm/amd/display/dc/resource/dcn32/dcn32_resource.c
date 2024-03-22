@@ -1824,6 +1824,7 @@ int dcn32_populate_dml_pipes_from_context(
 	int num_subvp_main = 0;
 	int num_subvp_phantom = 0;
 	int num_subvp_none = 0;
+	int odm_slice_count;
 
 	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
 
@@ -1852,7 +1853,7 @@ int dcn32_populate_dml_pipes_from_context(
 			mall_type = dc_state_get_pipe_subvp_type(context, pipe);
 			if (mall_type == SUBVP_MAIN) {
 				if (resource_is_pipe_type(pipe, OTG_MASTER))
-					subvp_main_pipe_index = pipe_cnt;
+					subvp_main_pipe_index = i;
 			}
 			pipe_cnt++;
 		}
@@ -1878,22 +1879,23 @@ int dcn32_populate_dml_pipes_from_context(
 			mall_type = dc_state_get_pipe_subvp_type(context, pipe);
 			if (single_display_subvp && (mall_type == SUBVP_PHANTOM)) {
 				if (subvp_main_pipe_index < 0) {
+					odm_slice_count = -1;
 					ASSERT(0);
 				} else {
-					pipes[pipe_cnt].pipe.dest.odm_combine_policy =
-						pipes[subvp_main_pipe_index].pipe.dest.odm_combine_policy;
+					odm_slice_count = resource_get_odm_slice_count(&res_ctx->pipe_ctx[subvp_main_pipe_index]);
 				}
 			} else {
-				switch (resource_get_odm_slice_count(pipe)) {
-				case 2:
-					pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
-					break;
-				case 4:
-					pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_4to1;
-					break;
-				default:
-					pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
-				}
+				odm_slice_count = resource_get_odm_slice_count(pipe);
+			}
+			switch (odm_slice_count) {
+			case 2:
+				pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
+				break;
+			case 4:
+				pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_4to1;
+				break;
+			default:
+				pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
 			}
 		} else {
 			pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
