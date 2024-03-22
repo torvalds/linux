@@ -10,6 +10,7 @@
 #include <linux/types.h>
 
 extern const struct mtk_mdp_driver_data mt8183_mdp_driver_data;
+extern const struct mtk_mdp_driver_data mt8188_mdp_driver_data;
 extern const struct mtk_mdp_driver_data mt8195_mdp_driver_data;
 
 struct mdp_dev;
