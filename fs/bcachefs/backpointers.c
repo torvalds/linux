@@ -44,6 +44,11 @@ int bch2_backpointer_invalid(struct bch_fs *c, struct bkey_s_c k,
 			     struct printbuf *err)
 {
 	struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
+
+	/* these will be caught by fsck */
+	if (!bch2_dev_exists2(c, bp.k->p.inode))
+		return 0;
+
 	struct bpos bucket = bp_pos_to_bucket(c, bp.k->p);
 	int ret = 0;
 
