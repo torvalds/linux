@@ -33,7 +33,11 @@ int bch2_mark_snapshot(struct btree_trans *, enum btree_id, unsigned,
 
 static inline struct snapshot_t *__snapshot_t(struct snapshot_table *t, u32 id)
 {
-	return &t->s[U32_MAX - id];
+	u32 idx = U32_MAX - id;
+
+	return likely(t && idx < t->nr)
+		? &t->s[idx]
+		: NULL;
 }
 
 static inline const struct snapshot_t *snapshot_t(struct bch_fs *c, u32 id)

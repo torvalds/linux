@@ -151,36 +151,39 @@ out:
 static noinline struct snapshot_t *__snapshot_t_mut(struct bch_fs *c, u32 id)
 {
 	size_t idx = U32_MAX - id;
-	size_t new_size;
 	struct snapshot_table *new, *old;
 
-	new_size = max(16UL, roundup_pow_of_two(idx + 1));
+	size_t new_bytes = kmalloc_size_roundup(struct_size(new, s, idx + 1));
+	size_t new_size = (new_bytes - sizeof(*new)) / sizeof(new->s[0]);
 
-	new = kvzalloc(struct_size(new, s, new_size), GFP_KERNEL);
+	new = kvzalloc(new_bytes, GFP_KERNEL);
 	if (!new)
 		return NULL;
 
+	new->nr = new_size;
+
 	old = rcu_dereference_protected(c->snapshots, true);
 	if (old)
-		memcpy(new->s,
-		       rcu_dereference_protected(c->snapshots, true)->s,
-		       sizeof(new->s[0]) * c->snapshot_table_size);
+		memcpy(new->s, old->s, sizeof(old->s[0]) * old->nr);
 
 	rcu_assign_pointer(c->snapshots, new);
-	c->snapshot_table_size = new_size;
-	kvfree_rcu_mightsleep(old);
+	kvfree_rcu(old, rcu);
 
-	return &rcu_dereference_protected(c->snapshots, true)->s[idx];
+	return &rcu_dereference_protected(c->snapshots,
+				lockdep_is_held(&c->snapshot_table_lock))->s[idx];
 }
 
 static inline struct snapshot_t *snapshot_t_mut(struct bch_fs *c, u32 id)
 {
 	size_t idx = U32_MAX - id;
+	struct snapshot_table *table =
+		rcu_dereference_protected(c->snapshots,
+				lockdep_is_held(&c->snapshot_table_lock));
 
 	lockdep_assert_held(&c->snapshot_table_lock);
 
-	if (likely(idx < c->snapshot_table_size))
-		return &rcu_dereference_protected(c->snapshots, true)->s[idx];
+	if (likely(table && idx < table->nr))
+		return &table->s[idx];
 
 	return __snapshot_t_mut(c, id);
 }
