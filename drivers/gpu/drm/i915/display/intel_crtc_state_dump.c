@@ -286,6 +286,9 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	if (pipe_config->infoframes.enable &
 	    intel_hdmi_infoframe_enable(DP_SDP_VSC))
 		drm_dp_vsc_sdp_log(&p, &pipe_config->infoframes.vsc);
+	if (pipe_config->infoframes.enable &
+	    intel_hdmi_infoframe_enable(DP_SDP_ADAPTIVE_SYNC))
+		drm_dp_as_sdp_log(&p, &pipe_config->infoframes.as_sdp);
 
 	if (pipe_config->has_audio)
 		intel_dump_buffer("ELD: ", pipe_config->eld,
