@@ -417,7 +417,7 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 	};
 
 	flash@1 {
-		status = "okay";
+		status = "disabled";
 		m25p,fast-read;
 		label = "spi0:1";
 		spi-max-frequency = <12500000>;
@@ -471,7 +471,7 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 	};
 
 	flash@1 {
-		status = "okay";
+		status = "disabled";
 		m25p,fast-read;
 		label = "spi1:1";
 		spi-max-frequency = <12500000>;
