@@ -12,6 +12,7 @@
 #include <linux/overflow.h>
 #include <linux/pci.h>
 #include <linux/seq_file.h>
+#include <linux/sprintf.h>
 #include <linux/string.h>
 #include <linux/types.h>
 #include <linux/workqueue.h>
@@ -21,6 +22,7 @@
 
 #define BOOTLOG_POOL_SIZE		16
 #define BOOTLOG_MSG_SIZE		512
+#define QAIC_DBC_DIR_NAME		9
 
 struct bootlog_msg {
 	/* Buffer for bootlog messages */
@@ -75,14 +77,47 @@ static const struct file_operations bootlog_fops = {
 	.release = single_release,
 };
 
+static int read_dbc_fifo_size(struct seq_file *s, void *unused)
+{
+	struct dma_bridge_chan *dbc = s->private;
+
+	seq_printf(s, "%u\n", dbc->nelem);
+	return 0;
+}
+
+static int fifo_size_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, read_dbc_fifo_size, inode->i_private);
+}
+
+static const struct file_operations fifo_size_fops = {
+	.owner = THIS_MODULE,
+	.open = fifo_size_open,
+	.read = seq_read,
+	.llseek = seq_lseek,
+	.release = single_release,
+};
+
 void qaic_debugfs_init(struct qaic_drm_device *qddev)
 {
 	struct qaic_device *qdev = qddev->qdev;
 	struct dentry *debugfs_root;
+	struct dentry *debugfs_dir;
+	char name[QAIC_DBC_DIR_NAME];
+	u32 i;
 
 	debugfs_root = to_drm(qddev)->debugfs_root;
 
 	debugfs_create_file("bootlog", 0400, debugfs_root, qdev, &bootlog_fops);
+	/*
+	 * 256 dbcs per device is likely the max we will ever see and lets static checking see a
+	 * reasonable range.
+	 */
+	for (i = 0; i < qdev->num_dbc && i < 256; ++i) {
+		snprintf(name, QAIC_DBC_DIR_NAME, "dbc%03u", i);
+		debugfs_dir = debugfs_create_dir(name, debugfs_root);
+		debugfs_create_file("fifo_size", 0400, debugfs_dir, &qdev->dbc[i], &fifo_size_fops);
+	}
 }
 
 static struct bootlog_page *alloc_bootlog_page(struct qaic_device *qdev)
