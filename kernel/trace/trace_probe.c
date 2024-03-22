@@ -1739,6 +1739,56 @@ error:
 	return ERR_PTR(ret);
 }
 
+/* @buf: *buf must be equal to NULL. Caller must to free *buf */
+int traceprobe_expand_dentry_args(int argc, const char *argv[], char **buf)
+{
+	int i, used, ret;
+	const int bufsize = MAX_DENTRY_ARGS_LEN;
+	char *tmpbuf = NULL;
+
+	if (*buf)
+		return -EINVAL;
+
+	used = 0;
+	for (i = 0; i < argc; i++) {
+		if (glob_match("*:%pd", argv[i])) {
+			char *tmp;
+			char *equal;
+
+			if (!tmpbuf) {
+				tmpbuf = kmalloc(bufsize, GFP_KERNEL);
+				if (!tmpbuf)
+					return -ENOMEM;
+			}
+
+			tmp = kstrdup(argv[i], GFP_KERNEL);
+			if (!tmp)
+				goto nomem;
+
+			equal = strchr(tmp, '=');
+			if (equal)
+				*equal = '\0';
+			tmp[strlen(argv[i]) - 4] = '\0';
+			ret = snprintf(tmpbuf + used, bufsize - used,
+				       "%s%s+0x0(+0x%zx(%s)):string",
+				       equal ? tmp : "", equal ? "=" : "",
+				       offsetof(struct dentry, d_name.name),
+				       equal ? equal + 1 : tmp);
+			kfree(tmp);
+			if (ret >= bufsize - used)
+				goto nomem;
+			argv[i] = tmpbuf + used;
+			used += ret + 1;
+		}
+	}
+
+	*buf = tmpbuf;
+	return 0;
+nomem:
+	kfree(tmpbuf);
+	return -ENOMEM;
+}
+
 void traceprobe_finish_parse(struct traceprobe_parse_context *ctx)
 {
 	clear_btf_context(ctx);
