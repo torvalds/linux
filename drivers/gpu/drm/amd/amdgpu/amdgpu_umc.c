@@ -66,6 +66,8 @@ int amdgpu_umc_page_retirement_mca(struct amdgpu_device *adev,
 		goto out_fini_err_data;
 	}
 
+	err_data.err_addr_len = adev->umc.max_ras_err_cnt_per_query;
+
 	/*
 	 * Translate UMC channel address to Physical address
 	 */
@@ -121,6 +123,8 @@ void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 			if(!err_data->err_addr)
 				dev_warn(adev->dev, "Failed to alloc memory for "
 						"umc error address record!\n");
+			else
+				err_data->err_addr_len = adev->umc.max_ras_err_cnt_per_query;
 
 			/* umc query_ras_error_address is also responsible for clearing
 			 * error status
@@ -146,6 +150,8 @@ void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 			if(!err_data->err_addr)
 				dev_warn(adev->dev, "Failed to alloc memory for "
 						"umc error address record!\n");
+			else
+				err_data->err_addr_len = adev->umc.max_ras_err_cnt_per_query;
 
 			/* umc query_ras_error_address is also responsible for clearing
 			 * error status
@@ -389,14 +395,20 @@ int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
 	return 0;
 }
 
-void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
+int amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
 		uint64_t err_addr,
 		uint64_t retired_page,
 		uint32_t channel_index,
 		uint32_t umc_inst)
 {
-	struct eeprom_table_record *err_rec =
-		&err_data->err_addr[err_data->err_addr_cnt];
+	struct eeprom_table_record *err_rec;
+
+	if (!err_data ||
+	    !err_data->err_addr ||
+	    (err_data->err_addr_cnt >= err_data->err_addr_len))
+		return -EINVAL;
+
+	err_rec = &err_data->err_addr[err_data->err_addr_cnt];
 
 	err_rec->address = err_addr;
 	/* page frame address is saved */
@@ -408,6 +420,8 @@ void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
 	err_rec->mcumc_id = umc_inst;
 
 	err_data->err_addr_cnt++;
+
+	return 0;
 }
 
 int amdgpu_umc_loop_channels(struct amdgpu_device *adev,

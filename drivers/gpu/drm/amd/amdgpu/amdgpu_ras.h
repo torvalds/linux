@@ -579,6 +579,7 @@ struct ras_err_data {
 	unsigned long de_count;
 	unsigned long err_addr_cnt;
 	struct eeprom_table_record *err_addr;
+	unsigned long err_addr_len;
 	u32 err_list_count;
 	struct list_head err_node_list;
 };
