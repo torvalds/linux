@@ -87,7 +87,8 @@ config RISCV_PMU_SBI
 	  filtering, counter configuration.
 
 config STARFIVE_STARLINK_PMU
-	depends on ARCH_STARFIVE || (COMPILE_TEST && 64BIT)
+	depends on ARCH_STARFIVE || COMPILE_TEST
+	depends on 64BIT
 	bool "StarFive StarLink PMU"
 	help
 	   Provide support for StarLink Performance Monitor Unit.

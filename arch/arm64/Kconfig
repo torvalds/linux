@@ -120,6 +120,7 @@ config ARM64
 	select CLONE_BACKWARDS
 	select COMMON_CLK
 	select CPU_PM if (SUSPEND || CPU_IDLE)
+	select CPUMASK_OFFSTACK if NR_CPUS > 256
 	select CRC32
 	select DCACHE_WORD_ACCESS
 	select DYNAMIC_FTRACE if FUNCTION_TRACER
@@ -1425,7 +1426,7 @@ config SCHED_SMT
 config NR_CPUS
 	int "Maximum number of CPUs (2-4096)"
 	range 2 4096
-	default "256"
+	default "512"
 
 config HOTPLUG_CPU
 	bool "Support for hot-pluggable CPUs"
