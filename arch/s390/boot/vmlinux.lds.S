@@ -100,7 +100,8 @@ SECTIONS
 	_decompressor_end = .;
 
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
-	. = 0x100000;
+	. = ALIGN(PAGE_SIZE);
+	. += AMODE31_SIZE;		/* .amode31 section */
 #else
 	. = ALIGN(8);
 #endif

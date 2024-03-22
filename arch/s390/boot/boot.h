@@ -17,7 +17,6 @@ struct machine_info {
 };
 
 struct vmlinux_info {
-	unsigned long default_lma;
 	unsigned long entry;
 	unsigned long image_size;	/* does not include .bss */
 	unsigned long bss_size;		/* uncompressed image .bss size */

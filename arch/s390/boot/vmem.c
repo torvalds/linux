@@ -453,9 +453,6 @@ void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned l
 	 * To allow prefixing the lowcore must be mapped with 4KB pages.
 	 * To prevent creation of a large page at address 0 first map
 	 * the lowcore and create the identity mapping only afterwards.
-	 *
-	 * Skip 0x100000 bytes for kernel pgtables, as per the linker script:
-	 *	. = 0x100000;
 	 */
 	pgtable_populate(0, sizeof(struct lowcore), POPULATE_DIRECT);
 	for_each_physmem_usable_range(i, &start, &end) {
@@ -463,7 +460,7 @@ void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned l
 				 (unsigned long)__identity_va(end),
 				 POPULATE_IDENTITY);
 	}
-	pgtable_populate(kernel_start + 0x100000, kernel_end, POPULATE_KERNEL);
+	pgtable_populate(kernel_start, kernel_end, POPULATE_KERNEL);
 	pgtable_populate(AMODE31_START, AMODE31_END, POPULATE_DIRECT);
 	pgtable_populate(__abs_lowcore, __abs_lowcore + sizeof(struct lowcore),
 			 POPULATE_ABS_LOWCORE);
@@ -471,7 +468,7 @@ void setup_vmem(unsigned long kernel_start, unsigned long kernel_end, unsigned l
 			 POPULATE_NONE);
 	memcpy_real_ptep = __identity_va(__virt_to_kpte(__memcpy_real_area));
 
-	kasan_populate_shadow(kernel_start + 0x100000, kernel_end);
+	kasan_populate_shadow(kernel_start, kernel_end);
 
 	S390_lowcore.kernel_asce.val = swapper_pg_dir | asce_bits;
 	S390_lowcore.user_asce = s390_invalid_asce;
