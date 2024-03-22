@@ -7,6 +7,7 @@
  */
 
 #include <linux/crc32.h>
+#include <linux/cleanup.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
 #include <linux/io.h>
@@ -275,31 +276,60 @@ static const u32 bar_test_pattern[] = {
 	0xA5A5A5A5,
 };
 
+static int pci_endpoint_test_bar_memcmp(struct pci_endpoint_test *test,
+					enum pci_barno barno, int offset,
+					void *write_buf, void *read_buf,
+					int size)
+{
+	memset(write_buf, bar_test_pattern[barno], size);
+	memcpy_toio(test->bar[barno] + offset, write_buf, size);
+
+	memcpy_fromio(read_buf, test->bar[barno] + offset, size);
+
+	return memcmp(write_buf, read_buf, size);
+}
+
 static bool pci_endpoint_test_bar(struct pci_endpoint_test *test,
 				  enum pci_barno barno)
 {
-	int j;
-	u32 val;
-	int size;
+	int j, bar_size, buf_size, iters, remain;
+	void *write_buf __free(kfree) = NULL;
+	void *read_buf __free(kfree) = NULL;
 	struct pci_dev *pdev = test->pdev;
 
 	if (!test->bar[barno])
 		return false;
 
-	size = pci_resource_len(pdev, barno);
+	bar_size = pci_resource_len(pdev, barno);
 
 	if (barno == test->test_reg_bar)
-		size = 0x4;
+		bar_size = 0x4;
 
-	for (j = 0; j < size; j += 4)
-		pci_endpoint_test_bar_writel(test, barno, j,
-					     bar_test_pattern[barno]);
+	/*
+	 * Allocate a buffer of max size 1MB, and reuse that buffer while
+	 * iterating over the whole BAR size (which might be much larger).
+	 */
+	buf_size = min(SZ_1M, bar_size);
 
-	for (j = 0; j < size; j += 4) {
-		val = pci_endpoint_test_bar_readl(test, barno, j);
-		if (val != bar_test_pattern[barno])
+	write_buf = kmalloc(buf_size, GFP_KERNEL);
+	if (!write_buf)
+		return false;
+
+	read_buf = kmalloc(buf_size, GFP_KERNEL);
+	if (!read_buf)
+		return false;
+
+	iters = bar_size / buf_size;
+	for (j = 0; j < iters; j++)
+		if (pci_endpoint_test_bar_memcmp(test, barno, buf_size * j,
+						 write_buf, read_buf, buf_size))
 			return false;
-	}
+
+	remain = bar_size % buf_size;
+	if (remain)
+		if (pci_endpoint_test_bar_memcmp(test, barno, buf_size * iters,
+						 write_buf, read_buf, remain))
+			return false;
 
 	return true;
 }
