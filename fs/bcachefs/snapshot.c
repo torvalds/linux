@@ -93,8 +93,10 @@ static int bch2_snapshot_tree_create(struct btree_trans *trans,
 
 static bool __bch2_snapshot_is_ancestor_early(struct snapshot_table *t, u32 id, u32 ancestor)
 {
-	while (id && id < ancestor)
-		id = __snapshot_t(t, id)->parent;
+	while (id && id < ancestor) {
+		const struct snapshot_t *s = __snapshot_t(t, id);
+		id = s ? s->parent : 0;
+	}
 	return id == ancestor;
 }
 
@@ -110,6 +112,8 @@ static bool bch2_snapshot_is_ancestor_early(struct bch_fs *c, u32 id, u32 ancest
 static inline u32 get_ancestor_below(struct snapshot_table *t, u32 id, u32 ancestor)
 {
 	const struct snapshot_t *s = __snapshot_t(t, id);
+	if (!s)
+		return 0;
 
 	if (s->skip[2] <= ancestor)
 		return s->skip[2];

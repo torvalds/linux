@@ -14,6 +14,7 @@
 #include "move.h"
 #include "nocow_locking.h"
 #include "rebalance.h"
+#include "snapshot.h"
 #include "subvolume.h"
 #include "trace.h"
 
@@ -508,6 +509,14 @@ int bch2_data_update_init(struct btree_trans *trans,
 	unsigned i, reserve_sectors = k.k->size * data_opts.extra_replicas;
 	unsigned ptrs_locked = 0;
 	int ret = 0;
+
+	/*
+	 * fs is corrupt  we have a key for a snapshot node that doesn't exist,
+	 * and we have to check for this because we go rw before repairing the
+	 * snapshots table - just skip it, we can move it later.
+	 */
+	if (unlikely(k.k->p.snapshot && !bch2_snapshot_equiv(c, k.k->p.snapshot)))
+		return -BCH_ERR_data_update_done;
 
 	bch2_bkey_buf_init(&m->k);
 	bch2_bkey_buf_reassemble(&m->k, c, k);
