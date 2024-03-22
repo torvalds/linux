@@ -153,6 +153,14 @@ struct qaic_device {
 	struct mhi_device	*qts_ch;
 	/* Work queue for tasks related to MHI "QAIC_TIMESYNC" channel */
 	struct workqueue_struct	*qts_wq;
+	/* Head of list of page allocated by MHI bootlog device */
+	struct list_head        bootlog;
+	/* MHI bootlog channel device */
+	struct mhi_device       *bootlog_ch;
+	/* Work queue for tasks related to MHI bootlog device */
+	struct workqueue_struct *bootlog_wq;
+	/* Synchronizes access of pages in MHI bootlog device */
+	struct mutex            bootlog_mutex;
 };
 
 struct qaic_drm_device {
