@@ -117,8 +117,8 @@ static int mtk_plane_atomic_async_check(struct drm_plane *plane,
 	if (!plane->state->fb)
 		return -EINVAL;
 
-	ret = mtk_drm_crtc_plane_check(new_plane_state->crtc, plane,
-				       to_mtk_plane_state(new_plane_state));
+	ret = mtk_crtc_plane_check(new_plane_state->crtc, plane,
+				   to_mtk_plane_state(new_plane_state));
 	if (ret)
 		return ret;
 
@@ -232,7 +232,7 @@ static void mtk_plane_atomic_async_update(struct drm_plane *plane,
 	swap(plane->state->fb, new_state->fb);
 	wmb(); /* Make sure the above parameters are set before update */
 	new_plane_state->pending.async_dirty = true;
-	mtk_drm_crtc_async_update(new_state->crtc, plane, state);
+	mtk_crtc_async_update(new_state->crtc, plane, state);
 }
 
 static const struct drm_plane_funcs mtk_plane_funcs = {
@@ -260,8 +260,8 @@ static int mtk_plane_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!new_plane_state->crtc))
 		return 0;
 
-	ret = mtk_drm_crtc_plane_check(new_plane_state->crtc, plane,
-				       to_mtk_plane_state(new_plane_state));
+	ret = mtk_crtc_plane_check(new_plane_state->crtc, plane,
+				   to_mtk_plane_state(new_plane_state));
 	if (ret)
 		return ret;
 

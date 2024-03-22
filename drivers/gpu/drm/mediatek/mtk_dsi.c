@@ -662,7 +662,7 @@ static void mtk_dsi_poweroff(struct mtk_dsi *dsi)
 
 	/*
 	 * mtk_dsi_stop() and mtk_dsi_start() is asymmetric, since
-	 * mtk_dsi_stop() should be called after mtk_drm_crtc_atomic_disable(),
+	 * mtk_dsi_stop() should be called after mtk_crtc_atomic_disable(),
 	 * which needs irq for vblank, and mtk_dsi_stop() will disable irq.
 	 * mtk_dsi_start() needs to be called in mtk_output_dsi_enable(),
 	 * after dsi is fully set.
