@@ -76,6 +76,20 @@ static inline int folio_nr_pages_mapped(struct folio *folio)
 	return atomic_read(&folio->_nr_pages_mapped) & FOLIO_PAGES_MAPPED;
 }
 
+/*
+ * Retrieve the first entry of a folio based on a provided entry within the
+ * folio. We cannot rely on folio->swap as there is no guarantee that it has
+ * been initialized. Used for calling arch_swap_restore()
+ */
+static inline swp_entry_t folio_swap(swp_entry_t entry, struct folio *folio)
+{
+	swp_entry_t swap = {
+		.val = ALIGN_DOWN(entry.val, folio_nr_pages(folio)),
+	};
+
+	return swap;
+}
+
 static inline void *folio_raw_mapping(struct folio *folio)
 {
 	unsigned long mapping = (unsigned long)folio->mapping;
