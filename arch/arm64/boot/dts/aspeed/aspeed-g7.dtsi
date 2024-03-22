@@ -1356,6 +1356,7 @@
 			interrupts-extended = <&soc0_intc2 21>;
 			clocks = <&syscon1 AST2700_SOC1_CLK_APB>;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			ngpios = <256>;
 			bus-frequency = <12000000>;
 			pinctrl-names = "default";
@@ -1369,6 +1370,7 @@
 			compatible = "aspeed,ast2700-sgpiom";
 			reg = <0x0 0x14c0d000 0x0 0x100>;
 			interrupts-extended = <&soc0_intc2 24>;
+			#interrupt-cells = <2>;
 			clocks = <&syscon1 AST2700_SOC1_CLK_APB>;
 			interrupt-controller;
 			ngpios = <256>;
@@ -2045,6 +2047,7 @@
 			interrupts-extended = <&soc0_intc2 29>;
 			clocks = <&syscon1 AST2700_SOC1_CLK_APB>;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			ngpios = <136>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&pinctrl_sgps_default>;
