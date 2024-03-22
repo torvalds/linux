@@ -1162,6 +1162,7 @@ int bch2_btree_path_traverse_one(struct btree_trans *trans,
 		goto out_uptodate;
 
 	path->level = btree_path_up_until_good_node(trans, path, 0);
+	unsigned max_level = path->level;
 
 	EBUG_ON(btree_path_node(path, path->level) &&
 		!btree_node_locked(path, path->level));
@@ -1192,6 +1193,16 @@ int bch2_btree_path_traverse_one(struct btree_trans *trans,
 			goto out;
 		}
 	}
+
+	if (unlikely(max_level > path->level)) {
+		struct btree_path *linked;
+		unsigned iter;
+
+		trans_for_each_path_with_node(trans, path_l(path)->b, linked, iter)
+			for (unsigned j = path->level + 1; j < max_level; j++)
+				linked->l[j] = path->l[j];
+	}
+
 out_uptodate:
 	path->uptodate = BTREE_ITER_UPTODATE;
 out:
