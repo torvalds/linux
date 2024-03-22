@@ -14,11 +14,13 @@
 #include <asm/regdef.h>
 #include <asm/stackframe.h>
 #include <asm/thread_info.h>
+#include <asm/unwind_hints.h>
 
 	.text
 	.cfi_sections	.debug_frame
 	.align	5
 SYM_CODE_START(handle_syscall)
+	UNWIND_HINT_UNDEFINED
 	csrrd		t0, PERCPU_BASE_KS
 	la.pcrel	t1, kernelsp
 	add.d		t1, t1, t0
@@ -57,6 +59,7 @@ SYM_CODE_START(handle_syscall)
 	cfi_st		fp, PT_R22
 
 	SAVE_STATIC
+	UNWIND_HINT_REGS
 
 #ifdef CONFIG_KGDB
 	li.w		t1, CSR_CRMD_WE
@@ -75,6 +78,7 @@ SYM_CODE_END(handle_syscall)
 _ASM_NOKPROBE(handle_syscall)
 
 SYM_CODE_START(ret_from_fork)
+	UNWIND_HINT_REGS
 	bl		schedule_tail		# a0 = struct task_struct *prev
 	move		a0, sp
 	bl 		syscall_exit_to_user_mode
@@ -84,6 +88,7 @@ SYM_CODE_START(ret_from_fork)
 SYM_CODE_END(ret_from_fork)
 
 SYM_CODE_START(ret_from_kernel_thread)
+	UNWIND_HINT_REGS
 	bl		schedule_tail		# a0 = struct task_struct *prev
 	move		a0, s1
 	jirl		ra, s0, 0
