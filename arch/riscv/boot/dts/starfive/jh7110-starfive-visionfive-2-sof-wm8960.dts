@@ -5,10 +5,11 @@
  */
 
 /dts-v1/;
-#include "jh7110-visionfive-v2.dts"
-#include "codecs/sf_wm8960.dtsi"
+#include "jh7110-starfive-visionfive-2-v1.3b.dts"
+#include "codecs/sof_wm8960.dtsi"
 
 &i2c0 {
+	status = "okay";
 	wm8960: codec@1a {
 		compatible = "wlf,wm8960";
 		reg = <0x1a>;
@@ -18,10 +19,18 @@
 	};
 };
 
-&i2srx_3ch {
+&pdm {
+	status = "disabled";
+};
+
+&mailbox_client0 {
+	status = "disabled";
+};
+
+&sof_tdm {
 	status = "okay";
 };
 
-&i2stx_4ch1 {
+&sof_dsp {
 	status = "okay";
 };
