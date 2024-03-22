@@ -42,6 +42,7 @@
 #include <errno.h>
 #include <linux/bitmap.h>
 #include <linux/err.h>
+#include <inttypes.h>
 
 struct perf_annotate {
 	struct perf_tool tool;
@@ -332,6 +333,8 @@ static void print_annotated_data_header(struct hist_entry *he, struct evsel *evs
 	struct dso *dso = map__dso(he->ms.map);
 	int nr_members = 1;
 	int nr_samples = he->stat.nr_events;
+	int width = 7;
+	const char *val_hdr = "Percent";
 
 	if (evsel__is_group_event(evsel)) {
 		struct hist_entry *pair;
@@ -353,8 +356,30 @@ static void print_annotated_data_header(struct hist_entry *he, struct evsel *evs
 		nr_members = evsel->core.nr_members;
 	}
 
+	if (symbol_conf.show_total_period) {
+		width = 11;
+		val_hdr = "Period";
+	} else if (symbol_conf.show_nr_samples) {
+		width = 7;
+		val_hdr = "Samples";
+	}
+
 	printf("============================================================================\n");
-	printf("%*s %10s %10s  %s\n", 11 * nr_members, "samples", "offset", "size", "field");
+	printf("%*s %10s %10s  %s\n", (width + 1) * nr_members, val_hdr,
+	       "offset", "size", "field");
+}
+
+static void print_annotated_data_value(struct type_hist *h, u64 period, int nr_samples)
+{
+	double percent = h->period ? (100.0 * period / h->period) : 0;
+	const char *color = get_percent_color(percent);
+
+	if (symbol_conf.show_total_period)
+		color_fprintf(stdout, color, " %11" PRIu64, period);
+	else if (symbol_conf.show_nr_samples)
+		color_fprintf(stdout, color, " %7d", nr_samples);
+	else
+		color_fprintf(stdout, color, " %7.2f", percent);
 }
 
 static void print_annotated_data_type(struct annotated_data_type *mem_type,
@@ -364,10 +389,14 @@ static void print_annotated_data_type(struct annotated_data_type *mem_type,
 	struct annotated_member *child;
 	struct type_hist *h = mem_type->histograms[evsel->core.idx];
 	int i, nr_events = 1, samples = 0;
+	u64 period = 0;
+	int width = symbol_conf.show_total_period ? 11 : 7;
 
-	for (i = 0; i < member->size; i++)
+	for (i = 0; i < member->size; i++) {
 		samples += h->addr[member->offset + i].nr_samples;
-	printf(" %10d", samples);
+		period += h->addr[member->offset + i].period;
+	}
+	print_annotated_data_value(h, period, samples);
 
 	if (evsel__is_group_event(evsel)) {
 		struct evsel *pos;
@@ -376,9 +405,12 @@ static void print_annotated_data_type(struct annotated_data_type *mem_type,
 			h = mem_type->histograms[pos->core.idx];
 
 			samples = 0;
-			for (i = 0; i < member->size; i++)
+			period = 0;
+			for (i = 0; i < member->size; i++) {
 				samples += h->addr[member->offset + i].nr_samples;
-			printf(" %10d", samples);
+				period += h->addr[member->offset + i].period;
+			}
+			print_annotated_data_value(h, period, samples);
 		}
 		nr_events = evsel->core.nr_members;
 	}
@@ -394,7 +426,7 @@ static void print_annotated_data_type(struct annotated_data_type *mem_type,
 		print_annotated_data_type(mem_type, child, evsel, indent + 4);
 
 	if (!list_empty(&member->children))
-		printf("%*s}", 11 * nr_events + 24 + indent, "");
+		printf("%*s}", (width + 1) * nr_events + 24 + indent, "");
 	printf(";\n");
 }
 
