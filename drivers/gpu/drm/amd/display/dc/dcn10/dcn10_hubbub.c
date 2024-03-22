@@ -130,7 +130,7 @@ bool hubbub1_verify_allow_pstate_change_high(
 	static unsigned int max_sampled_pstate_wait_us; /* data collection */
 	static bool forced_pstate_allow; /* help with revert wa */
 
-	unsigned int debug_data;
+	unsigned int debug_data = 0;
 	unsigned int i;
 
 	if (forced_pstate_allow) {
