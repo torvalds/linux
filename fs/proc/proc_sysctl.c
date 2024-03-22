@@ -31,7 +31,7 @@ static const struct inode_operations proc_sys_dir_operations;
 
 /* Support for permanently empty directories */
 static struct ctl_table sysctl_mount_point[] = {
-	{.type = SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY }
+	{ }
 };
 
 /**
@@ -49,11 +49,11 @@ struct ctl_table_header *register_sysctl_mount_point(const char *path)
 EXPORT_SYMBOL(register_sysctl_mount_point);
 
 #define sysctl_is_perm_empty_ctl_header(hptr)		\
-	(hptr->ctl_table[0].type == SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY)
+	(hptr->type == SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY)
 #define sysctl_set_perm_empty_ctl_header(hptr)		\
-	(hptr->ctl_table[0].type = SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY)
+	(hptr->type = SYSCTL_TABLE_TYPE_PERMANENTLY_EMPTY)
 #define sysctl_clear_perm_empty_ctl_header(hptr)	\
-	(hptr->ctl_table[0].type = SYSCTL_TABLE_TYPE_DEFAULT)
+	(hptr->type = SYSCTL_TABLE_TYPE_DEFAULT)
 
 void proc_sys_poll_notify(struct ctl_table_poll *poll)
 {
@@ -208,6 +208,8 @@ static void init_header(struct ctl_table_header *head,
 			node++;
 		}
 	}
+	if (table == sysctl_mount_point)
+		sysctl_set_perm_empty_ctl_header(head);
 }
 
 static void erase_header(struct ctl_table_header *head)
