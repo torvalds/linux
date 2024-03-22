@@ -4,8 +4,8 @@
  * Author: CK Hu <ck.hu@mediatek.com>
  */
 
-#ifndef _MTK_DRM_PLANE_H_
-#define _MTK_DRM_PLANE_H_
+#ifndef _MTK_PLANE_H_
+#define _MTK_PLANE_H_
 
 #include <drm/drm_crtc.h>
 #include <linux/types.h>
