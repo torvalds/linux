@@ -24,6 +24,11 @@
 #define AST_USB_PHY3P0C		0x81C	/* PHY PCS Protocol Setting #4	*/
 #define AST_USB_DWC_CMD		0xB80	/* DWC3 Commands base address offest */
 
+#define PHY3P00_DEFAULT		0xCE70000F	/* PHY PCS Protocol Setting #1 default value */
+#define PHY3P04_DEFAULT		0x49C00014	/* PHY PCS Protocol Setting #2 default value */
+#define PHY3P08_DEFAULT		0x5E406825	/* PHY PCS Protocol Setting #3 default value */
+#define PHY3P0C_DEFAULT		0x00000001	/* PHY PCS Protocol Setting #4 default value */
+
 #define DWC_CRTL_NUM	2
 
 #define USB_PHY3_INIT_DONE	BIT(15)	/* BIT15: USB3.1 Phy internal SRAM iniitalization done */
@@ -106,9 +111,13 @@ static int aspeed_usb_phy3_probe(struct platform_device *pdev)
 		val |= USB_PHY3_SRAM_BYPASS;
 	writel(val, reg_base + AST_USB_PHY3S00);
 
-	/* Set PHY PCFGI[54]: protocol1_ext_rx_los_lfps_en for better compatibility */
-	val = readl(reg_base + AST_USB_PHY3P04) | BIT(22);
-	writel(val, reg_base + AST_USB_PHY3P04);
+	/* Set protocol1_ext signals as default PHY3 settings based on SNPS documents.
+	 * Including PCFGI[54]: protocol1_ext_rx_los_lfps_en for better compatibility
+	 */
+	writel(PHY3P00_DEFAULT, reg_base + AST_USB_PHY3P00);
+	writel(PHY3P04_DEFAULT, reg_base + AST_USB_PHY3P04);
+	writel(PHY3P08_DEFAULT, reg_base + AST_USB_PHY3P08);
+	writel(PHY3P0C_DEFAULT, reg_base + AST_USB_PHY3P0C);
 
 	/* xHCI DWC specific command initially set when PCIe xHCI enable */
 	for (i = 0, j = AST_USB_DWC_CMD; i < DWC_CRTL_NUM; i++) {
