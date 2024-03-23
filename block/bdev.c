@@ -776,17 +776,17 @@ void blkdev_put_no_open(struct block_device *bdev)
 
 static bool bdev_writes_blocked(struct block_device *bdev)
 {
-	return bdev->bd_writers == -1;
+	return bdev->bd_writers < 0;
 }
 
 static void bdev_block_writes(struct block_device *bdev)
 {
-	bdev->bd_writers = -1;
+	bdev->bd_writers--;
 }
 
 static void bdev_unblock_writes(struct block_device *bdev)
 {
-	bdev->bd_writers = 0;
+	bdev->bd_writers++;
 }
 
 static bool bdev_may_open(struct block_device *bdev, blk_mode_t mode)
