@@ -1257,7 +1257,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 	if ((c_chmask && g_audio->in_ep_fback)
 			|| (p_chmask && params->p_fu.id)
 			|| (c_chmask && params->c_fu.id))
-		strscpy(card->mixername, card_name, sizeof(card->driver));
+		strscpy(card->mixername, card_name);
 
 	if (c_chmask && g_audio->in_ep_fback) {
 		kctl = snd_ctl_new1(&u_audio_controls[UAC_FBACK_CTRL],
