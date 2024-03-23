@@ -1243,7 +1243,7 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 	if (err < 0)
 		goto snd_fail;
 
-	strscpy(pcm->name, pcm_name, sizeof(pcm->name));
+	strscpy(pcm->name, pcm_name);
 	pcm->private_data = uac;
 	uac->pcm = pcm;
 
@@ -1386,8 +1386,8 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 		prm->snd_kctl_rate = kctl;
 	}
 
-	strscpy(card->driver, card_name, sizeof(card->driver));
-	strscpy(card->shortname, card_name, sizeof(card->shortname));
+	strscpy(card->driver, card_name);
+	strscpy(card->shortname, card_name);
 	sprintf(card->longname, "%s %i", card_name, card->dev->id);
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
