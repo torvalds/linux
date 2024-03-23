@@ -132,4 +132,4 @@ Documentazione varia
 
 Ci sono documenti che sono difficili da inserire nell'attuale organizzazione
 della documentazione; altri hanno bisogno di essere migliorati e/o convertiti
-nel formato *ReStructured Text*; altri sono semplicamente troppo vecchi.
+nel formato *reStructuredText*; altri sono semplicamente troppo vecchi.
