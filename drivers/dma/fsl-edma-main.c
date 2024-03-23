@@ -483,14 +483,6 @@ static int fsl_edma_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (drvdata->flags & FSL_EDMA_DRV_HAS_CHCLK) {
-		fsl_edma->chclk = devm_clk_get_enabled(&pdev->dev, "mp");
-		if (IS_ERR(fsl_edma->chclk)) {
-			dev_err(&pdev->dev, "Missing MP block clock.\n");
-			return PTR_ERR(fsl_edma->chclk);
-		}
-	}
-
 	ret = of_property_read_variable_u32_array(np, "dma-channel-mask", chan_mask, 1, 2);
 
 	if (ret > 0) {
