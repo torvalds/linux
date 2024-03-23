@@ -10,7 +10,7 @@
  * devices, basing on HopeRfs rf69.
  *
  * The driver can also be extended, to support other modules of
- * HopeRf with a similar interace - e. g. RFM69HCW, RFM12, RFM95, ...
+ * HopeRf with a similar interface - e. g. RFM69HCW, RFM12, RFM95, ...
  *
  * Copyright (C) 2016 Wolf-Entwicklungen
  *	Marcus Wolf <linux@wolf-entwicklungen.de>
@@ -68,7 +68,7 @@ static const struct class pi433_class = {
  */
 /*
  * rx config is device specific
- * so we have just one rx config, ebedded in device struct
+ * so we have just one rx config, embedded in device struct
  */
 struct pi433_device {
 	/* device handling related values */
@@ -647,7 +647,7 @@ static int pi433_tx_thread(void *data)
 
 		/*
 		 * prevent race conditions
-		 * irq will be reenabled after tx config is set
+		 * irq will be re-enabled after tx config is set
 		 */
 		disable_irq(device->irq_num[DIO0]);
 		device->tx_active = true;
@@ -923,7 +923,7 @@ static long pi433_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	case PI433_IOC_WR_RX_CFG:
 		mutex_lock(&device->rx_lock);
 
-		/* during pendig read request, change of config not allowed */
+		/* during pending read request, change of config not allowed */
 		if (device->rx_active) {
 			mutex_unlock(&device->rx_lock);
 			return -EAGAIN;
