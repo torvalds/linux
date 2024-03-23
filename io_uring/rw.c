@@ -369,16 +369,9 @@ static inline loff_t *io_kiocb_update_pos(struct io_kiocb *req)
 	return NULL;
 }
 
-#ifdef CONFIG_BLOCK
-static void io_resubmit_prep(struct io_kiocb *req)
-{
-	struct io_async_rw *io = req->async_data;
-
-	iov_iter_restore(&io->iter, &io->iter_state);
-}
-
 static bool io_rw_should_reissue(struct io_kiocb *req)
 {
+#ifdef CONFIG_BLOCK
 	umode_t mode = file_inode(req->file)->i_mode;
 	struct io_ring_ctx *ctx = req->ctx;
 
@@ -394,23 +387,11 @@ static bool io_rw_should_reissue(struct io_kiocb *req)
 	 */
 	if (percpu_ref_is_dying(&ctx->refs))
 		return false;
-	/*
-	 * Play it safe and assume not safe to re-import and reissue if we're
-	 * not in the original thread group (or in task context).
-	 */
-	if (!same_thread_group(req->task, current) || !in_task())
-		return false;
 	return true;
-}
 #else
-static void io_resubmit_prep(struct io_kiocb *req)
-{
-}
-static bool io_rw_should_reissue(struct io_kiocb *req)
-{
 	return false;
-}
 #endif
+}
 
 static void io_req_end_write(struct io_kiocb *req)
 {
@@ -575,8 +556,10 @@ static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 	}
 
 	if (req->flags & REQ_F_REISSUE) {
+		struct io_async_rw *io = req->async_data;
+
 		req->flags &= ~REQ_F_REISSUE;
-		io_resubmit_prep(req);
+		iov_iter_restore(&io->iter, &io->iter_state);
 		return -EAGAIN;
 	}
 	return IOU_ISSUE_SKIP_COMPLETE;
@@ -897,9 +880,8 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 	int ret;
 
 	ret = __io_read(req, issue_flags);
-	if (ret >= 0) {
-		ret = kiocb_done(req, ret, issue_flags);
-	}
+	if (ret >= 0)
+		return kiocb_done(req, ret, issue_flags);
 
 	return ret;
 }
@@ -1061,7 +1043,7 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 			return -EAGAIN;
 		}
 done:
-		ret = kiocb_done(req, ret2, issue_flags);
+		return kiocb_done(req, ret2, issue_flags);
 	} else {
 ret_eagain:
 		iov_iter_restore(&io->iter, &io->iter_state);
@@ -1069,7 +1051,6 @@ ret_eagain:
 			io_req_end_write(req);
 		return -EAGAIN;
 	}
-	return ret;
 }
 
 void io_rw_fail(struct io_kiocb *req)
