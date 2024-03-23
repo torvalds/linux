@@ -2154,6 +2154,29 @@ nfsd4_verify(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	return status == nfserr_same ? nfs_ok : status;
 }
 
+static __be32
+nfsd4_get_dir_delegation(struct svc_rqst *rqstp,
+			 struct nfsd4_compound_state *cstate,
+			 union nfsd4_op_u *u)
+{
+	struct nfsd4_get_dir_delegation *gdd = &u->get_dir_delegation;
+
+	/*
+	 * RFC 8881, section 18.39.3 says:
+	 *
+	 * "The server may refuse to grant the delegation. In that case, the
+	 *  server will return NFS4ERR_DIRDELEG_UNAVAIL."
+	 *
+	 * This is sub-optimal, since it means that the server would need to
+	 * abort compound processing just because the delegation wasn't
+	 * available. RFC8881bis should change this to allow the server to
+	 * return NFS4_OK with a non-fatal status of GDD4_UNAVAIL in this
+	 * situation.
+	 */
+	gdd->gddrnf_status = GDD4_UNAVAIL;
+	return nfs_ok;
+}
+
 #ifdef CONFIG_NFSD_PNFS
 static const struct nfsd4_layout_ops *
 nfsd4_layout_verify(struct svc_export *exp, unsigned int layout_type)
@@ -3082,6 +3105,18 @@ static u32 nfsd4_copy_notify_rsize(const struct svc_rqst *rqstp,
 		* sizeof(__be32);
 }
 
+static u32 nfsd4_get_dir_delegation_rsize(const struct svc_rqst *rqstp,
+					  const struct nfsd4_op *op)
+{
+	return (op_encode_hdr_size +
+		1 /* gddr_status */ +
+		op_encode_verifier_maxsz +
+		op_encode_stateid_maxsz +
+		2 /* gddr_notification */ +
+		2 /* gddr_child_attributes */ +
+		2 /* gddr_dir_attributes */);
+}
+
 #ifdef CONFIG_NFSD_PNFS
 static u32 nfsd4_getdeviceinfo_rsize(const struct svc_rqst *rqstp,
 				     const struct nfsd4_op *op)
@@ -3469,6 +3504,12 @@ static const struct nfsd4_operation nfsd4_ops[] = {
 		.op_name = "OP_FREE_STATEID",
 		.op_get_currentstateid = nfsd4_get_freestateid,
 		.op_rsize_bop = nfsd4_only_status_rsize,
+	},
+	[OP_GET_DIR_DELEGATION] = {
+		.op_func = nfsd4_get_dir_delegation,
+		.op_flags = OP_MODIFIES_SOMETHING,
+		.op_name = "OP_GET_DIR_DELEGATION",
+		.op_rsize_bop = nfsd4_get_dir_delegation_rsize,
 	},
 #ifdef CONFIG_NFSD_PNFS
 	[OP_GETDEVICEINFO] = {
