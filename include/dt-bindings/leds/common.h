@@ -96,6 +96,8 @@
 #define LED_FUNCTION_PROGRAMMING "programming"
 #define LED_FUNCTION_RX "rx"
 #define LED_FUNCTION_SD "sd"
+#define LED_FUNCTION_SPEED_LAN "speed-lan"
+#define LED_FUNCTION_SPEED_WAN "speed-wan"
 #define LED_FUNCTION_STANDBY "standby"
 #define LED_FUNCTION_TORCH "torch"
 #define LED_FUNCTION_TX "tx"
