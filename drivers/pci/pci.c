@@ -2111,20 +2111,6 @@ static int pci_enable_device_flags(struct pci_dev *dev, unsigned long flags)
 }
 
 /**
- * pci_enable_device_io - Initialize a device for use with IO space
- * @dev: PCI device to be initialized
- *
- * Initialize device before it's used by a driver. Ask low-level code
- * to enable I/O resources. Wake up the device if it was suspended.
- * Beware, this function can fail.
- */
-int pci_enable_device_io(struct pci_dev *dev)
-{
-	return pci_enable_device_flags(dev, IORESOURCE_IO);
-}
-EXPORT_SYMBOL(pci_enable_device_io);
-
-/**
  * pci_enable_device_mem - Initialize a device for use with Memory space
  * @dev: PCI device to be initialized
  *

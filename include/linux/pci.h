@@ -1313,7 +1313,6 @@ int pci_user_write_config_word(struct pci_dev *dev, int where, u16 val);
 int pci_user_write_config_dword(struct pci_dev *dev, int where, u32 val);
 
 int __must_check pci_enable_device(struct pci_dev *dev);
-int __must_check pci_enable_device_io(struct pci_dev *dev);
 int __must_check pci_enable_device_mem(struct pci_dev *dev);
 int __must_check pci_reenable_device(struct pci_dev *);
 int __must_check pcim_enable_device(struct pci_dev *pdev);
