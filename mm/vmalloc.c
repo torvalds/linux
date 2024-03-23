@@ -2343,6 +2343,9 @@ struct vmap_area *find_vmap_area(unsigned long addr)
 	struct vmap_area *va;
 	int i, j;
 
+	if (unlikely(!vmap_initialized))
+		return NULL;
+
 	/*
 	 * An addr_to_node_id(addr) converts an address to a node index
 	 * where a VA is located. If VA spans several zones and passed
