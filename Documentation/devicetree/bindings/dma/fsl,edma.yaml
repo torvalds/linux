@@ -23,6 +23,7 @@ properties:
           - fsl,imx7ulp-edma
           - fsl,imx8qm-adma
           - fsl,imx8qm-edma
+          - fsl,imx8ulp-edma
           - fsl,imx93-edma3
           - fsl,imx93-edma4
           - fsl,imx95-edma5
@@ -43,6 +44,17 @@ properties:
     maxItems: 64
 
   "#dma-cells":
+    description: |
+      Specifies the number of cells needed to encode an DMA channel.
+
+      Encode for cells number 2:
+        cell 0: index of dma channel mux instance.
+        cell 1: peripheral dma request id.
+
+      Encode for cells number 3:
+        cell 0: peripheral dma request id.
+        cell 1: dma channel priority.
+        cell 2: bitmask, defined at include/dt-bindings/dma/fsl-edma.h
     enum:
       - 2
       - 3
@@ -53,11 +65,11 @@ properties:
 
   clocks:
     minItems: 1
-    maxItems: 2
+    maxItems: 33
 
   clock-names:
     minItems: 1
-    maxItems: 2
+    maxItems: 33
 
   big-endian:
     description: |
@@ -108,6 +120,7 @@ allOf:
       properties:
         clocks:
           minItems: 2
+          maxItems: 2
         clock-names:
           items:
             - const: dmamux0
@@ -136,6 +149,7 @@ allOf:
       properties:
         clock:
           minItems: 2
+          maxItems: 2
         clock-names:
           items:
             - const: dma
@@ -150,6 +164,28 @@ allOf:
           const: 2
         dma-channels:
           const: 32
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: fsl,imx8ulp-edma
+    then:
+      properties:
+        clocks:
+          minItems: 33
+        clock-names:
+          minItems: 33
+          items:
+            oneOf:
+              - const: dma
+              - pattern: "^ch(0[0-9]|[1-2][0-9]|3[01])$"
+
+        interrupt-names: false
+        interrupts:
+          minItems: 32
+        "#dma-cells":
+          const: 3
 
 unevaluatedProperties: false
 
