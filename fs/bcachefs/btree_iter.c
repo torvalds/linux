@@ -927,8 +927,22 @@ static __always_inline int btree_path_down(struct btree_trans *trans,
 		if (ret)
 			goto err;
 	} else {
-		bch2_bkey_buf_unpack(&tmp, c, l->b,
-				 bch2_btree_node_iter_peek(&l->iter, l->b));
+		struct bkey_packed *k = bch2_btree_node_iter_peek(&l->iter, l->b);
+		if (!k) {
+			struct printbuf buf = PRINTBUF;
+
+			prt_str(&buf, "node not found at pos ");
+			bch2_bpos_to_text(&buf, path->pos);
+			prt_str(&buf, " within parent node ");
+			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&l->b->key));
+
+			bch2_fs_fatal_error(c, "%s", buf.buf);
+			printbuf_exit(&buf);
+			ret = -BCH_ERR_btree_need_topology_repair;
+			goto err;
+		}
+
+		bch2_bkey_buf_unpack(&tmp, c, l->b, k);
 
 		if ((flags & BTREE_ITER_PREFETCH) &&
 		    c->opts.btree_node_prefetch) {
@@ -961,7 +975,6 @@ err:
 	bch2_bkey_buf_exit(&tmp, c);
 	return ret;
 }
-
 
 static int bch2_btree_path_traverse_all(struct btree_trans *trans)
 {

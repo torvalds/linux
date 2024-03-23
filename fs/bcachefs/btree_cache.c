@@ -808,7 +808,8 @@ static noinline void btree_bad_header(struct bch_fs *c, struct btree *b)
 	prt_printf(&buf, "\nmax ");
 	bch2_bpos_to_text(&buf, b->data->max_key);
 
-	bch2_fs_inconsistent(c, "%s", buf.buf);
+	bch2_fs_topology_error(c, "%s", buf.buf);
+
 	printbuf_exit(&buf);
 }
 

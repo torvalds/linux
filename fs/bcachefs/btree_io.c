@@ -1657,7 +1657,7 @@ void bch2_btree_node_read(struct btree_trans *trans, struct btree *b,
 
 		prt_str(&buf, "btree node read error: no device to read from\n at ");
 		bch2_btree_pos_to_text(&buf, c, b);
-		bch_err(c, "%s", buf.buf);
+		bch_err_ratelimited(c, "%s", buf.buf);
 
 		if (c->recovery_passes_explicit & BIT_ULL(BCH_RECOVERY_PASS_check_topology) &&
 		    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_topology)
