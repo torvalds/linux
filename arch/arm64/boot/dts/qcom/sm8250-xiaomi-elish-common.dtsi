@@ -668,6 +668,8 @@
 };
 
 &pm8150b_vbus {
+	regulator-min-microamp = <500000>;
+	regulator-max-microamp = <3000000>;
 	status = "okay";
 };
 
