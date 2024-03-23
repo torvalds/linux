@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * timer-ti-32k.c - OMAP2 32k Timer Support
  *
  * Copyright (C) 2009 Nokia Corporation
