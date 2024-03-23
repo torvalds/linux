@@ -1388,7 +1388,8 @@ int g_audio_setup(struct g_audio *g_audio, const char *pcm_name,
 
 	strscpy(card->driver, card_name);
 	strscpy(card->shortname, card_name);
-	sprintf(card->longname, "%s %i", card_name, card->dev->id);
+	snprintf(card->longname, sizeof(card->longname), "%s %i",
+		 card_name, card->dev->id);
 
 	snd_pcm_set_managed_buffer_all(pcm, SNDRV_DMA_TYPE_CONTINUOUS,
 				       NULL, 0, BUFF_SIZE_MAX);
