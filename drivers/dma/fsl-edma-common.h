@@ -151,7 +151,6 @@ struct fsl_edma_chan {
 	enum dma_status			status;
 	enum fsl_edma_pm_state		pm_state;
 	bool				idle;
-	u32				slave_id;
 	struct fsl_edma_engine		*edma;
 	struct fsl_edma_desc		*edesc;
 	struct dma_slave_config		cfg;

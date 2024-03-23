@@ -114,8 +114,8 @@ static struct dma_chan *fsl_edma_xlate(struct of_phandle_args *dma_spec,
 			if (chan) {
 				chan->device->privatecnt++;
 				fsl_chan = to_fsl_edma_chan(chan);
-				fsl_chan->slave_id = dma_spec->args[1];
-				fsl_edma_chan_mux(fsl_chan, fsl_chan->slave_id,
+				fsl_chan->srcid = dma_spec->args[1];
+				fsl_edma_chan_mux(fsl_chan, fsl_chan->srcid,
 						true);
 				mutex_unlock(&fsl_edma->fsl_edma_mutex);
 				return chan;
@@ -540,7 +540,7 @@ static int fsl_edma_probe(struct platform_device *pdev)
 
 		fsl_chan->edma = fsl_edma;
 		fsl_chan->pm_state = RUNNING;
-		fsl_chan->slave_id = 0;
+		fsl_chan->srcid = 0;
 		fsl_chan->idle = true;
 		fsl_chan->dma_dir = DMA_NONE;
 		fsl_chan->vchan.desc_free = fsl_edma_free_desc;
@@ -682,8 +682,8 @@ static int fsl_edma_resume_early(struct device *dev)
 			continue;
 		fsl_chan->pm_state = RUNNING;
 		edma_write_tcdreg(fsl_chan, 0, csr);
-		if (fsl_chan->slave_id != 0)
-			fsl_edma_chan_mux(fsl_chan, fsl_chan->slave_id, true);
+		if (fsl_chan->srcid != 0)
+			fsl_edma_chan_mux(fsl_chan, fsl_chan->srcid, true);
 	}
 
 	if (!(fsl_edma->drvdata->flags & FSL_EDMA_DRV_SPLIT_REG))
