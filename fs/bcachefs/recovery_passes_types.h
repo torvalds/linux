@@ -37,7 +37,6 @@
 	x(check_subvol_children,		35, PASS_ONLINE|PASS_FSCK)	\
 	x(delete_dead_snapshots,		21, PASS_ONLINE|PASS_FSCK)	\
 	x(fs_upgrade_for_subvolumes,		22, 0)				\
-	x(resume_logged_ops,			23, PASS_ALWAYS)		\
 	x(check_inodes,				24, PASS_FSCK)			\
 	x(check_extents,			25, PASS_FSCK)			\
 	x(check_indirect_extents,		26, PASS_FSCK)			\
@@ -47,6 +46,7 @@
 	x(check_subvolume_structure,		36, PASS_ONLINE|PASS_FSCK)	\
 	x(check_directory_structure,		30, PASS_ONLINE|PASS_FSCK)	\
 	x(check_nlinks,				31, PASS_FSCK)			\
+	x(resume_logged_ops,			23, PASS_ALWAYS)		\
 	x(delete_dead_inodes,			32, PASS_FSCK|PASS_UNCLEAN)	\
 	x(fix_reflink_p,			33, 0)				\
 	x(set_fs_needs_rebalance,		34, 0)				\
