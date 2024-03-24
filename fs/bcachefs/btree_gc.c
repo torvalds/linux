@@ -25,7 +25,7 @@
 #include "journal.h"
 #include "keylist.h"
 #include "move.h"
-#include "recovery.h"
+#include "recovery_passes.h"
 #include "reflink.h"
 #include "replicas.h"
 #include "super-io.h"

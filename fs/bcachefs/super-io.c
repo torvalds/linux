@@ -8,7 +8,7 @@
 #include "journal.h"
 #include "journal_sb.h"
 #include "journal_seq_blacklist.h"
-#include "recovery.h"
+#include "recovery_passes.h"
 #include "replicas.h"
 #include "quota.h"
 #include "sb-clean.h"

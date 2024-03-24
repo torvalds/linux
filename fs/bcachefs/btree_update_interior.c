@@ -19,7 +19,7 @@
 #include "journal.h"
 #include "journal_reclaim.h"
 #include "keylist.h"
-#include "recovery.h"
+#include "recovery_passes.h"
 #include "replicas.h"
 #include "super-io.h"
 #include "trace.h"

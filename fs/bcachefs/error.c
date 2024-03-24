@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
 #include "error.h"
-#include "recovery.h"
+#include "recovery_passes.h"
 #include "super.h"
 #include "thread_with_file.h"
 

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _BCACHEFS_RECOVERY_TYPES_H
-#define _BCACHEFS_RECOVERY_TYPES_H
+#ifndef _BCACHEFS_RECOVERY_PASSES_TYPES_H
+#define _BCACHEFS_RECOVERY_PASSES_TYPES_H
 
 #define PASS_SILENT		BIT(0)
 #define PASS_FSCK		BIT(1)
@@ -56,6 +56,7 @@ enum bch_recovery_pass {
 #define x(n, id, when)	BCH_RECOVERY_PASS_##n,
 	BCH_RECOVERY_PASSES()
 #undef x
+	BCH_RECOVERY_PASS_NR
 };
 
 /* But we also need stable identifiers that can be used in the superblock */
@@ -65,4 +66,4 @@ enum bch_recovery_pass_stable {
 #undef x
 };
 
-#endif /* _BCACHEFS_RECOVERY_TYPES_H */
+#endif /* _BCACHEFS_RECOVERY_PASSES_TYPES_H */
