@@ -1134,6 +1134,8 @@ void bch2_btree_node_evict(struct btree_trans *trans, const struct bkey_i *k)
 	b = btree_cache_find(bc, k);
 	if (!b)
 		return;
+
+	BUG_ON(b == btree_node_root(trans->c, b));
 wait_on_io:
 	/* not allowed to wait on io with btree locks held: */
 
