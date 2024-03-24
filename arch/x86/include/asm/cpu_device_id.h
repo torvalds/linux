@@ -190,6 +190,14 @@ struct x86_cpu_desc {
 	.x86_microcode_rev	= (revision),			\
 }
 
+#define AMD_CPU_DESC(fam, model, stepping, revision) {		\
+	.x86_family		= (fam),			\
+	.x86_vendor		= X86_VENDOR_AMD,		\
+	.x86_model		= (model),			\
+	.x86_stepping		= (stepping),			\
+	.x86_microcode_rev	= (revision),			\
+}
+
 extern const struct x86_cpu_id *x86_match_cpu(const struct x86_cpu_id *match);
 extern bool x86_cpu_has_min_microcode_rev(const struct x86_cpu_desc *table);
 
