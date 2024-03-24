@@ -612,11 +612,18 @@ int cifs_mknod(struct mnt_idmap *idmap, struct inode *inode,
 		goto mknod_out;
 	}
 
+	trace_smb3_mknod_enter(xid, tcon->ses->Suid, tcon->tid, full_path);
+
 	rc = tcon->ses->server->ops->make_node(xid, inode, direntry, tcon,
 					       full_path, mode,
 					       device_number);
 
 mknod_out:
+	if (rc)
+		trace_smb3_mknod_err(xid,  tcon->ses->Suid, tcon->tid, rc);
+	else
+		trace_smb3_mknod_done(xid, tcon->ses->Suid, tcon->tid);
+
 	free_dentry_path(page);
 	free_xid(xid);
 	cifs_put_tlink(tlink);
