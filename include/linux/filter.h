@@ -228,6 +228,16 @@ static inline bool insn_is_zext(const struct bpf_insn *insn)
 	return insn->code == (BPF_ALU | BPF_MOV | BPF_X) && insn->imm == 1;
 }
 
+/* addr_space_cast from as(0) to as(1) is for converting bpf arena pointers
+ * to pointers in user vma.
+ */
+static inline bool insn_is_cast_user(const struct bpf_insn *insn)
+{
+	return insn->code == (BPF_ALU64 | BPF_MOV | BPF_X) &&
+			      insn->off == BPF_ADDR_SPACE_CAST &&
+			      insn->imm == 1U << 16;
+}
+
 /* BPF_LD_IMM64 macro encodes single 'load 64-bit immediate' insn */
 #define BPF_LD_IMM64(DST, IMM)					\
 	BPF_LD_IMM64_RAW(DST, 0, IMM)
