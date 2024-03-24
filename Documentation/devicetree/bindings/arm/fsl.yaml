@@ -1544,6 +1544,12 @@ properties:
               - nxp,s32g274a-rdb2
           - const: nxp,s32g2
 
+      - description: S32G3 based Boards
+        items:
+          - enum:
+              - nxp,s32g399a-rdb3
+          - const: nxp,s32g3
+
       - description: S32V234 based Boards
         items:
           - enum:
