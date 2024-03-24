@@ -2,7 +2,7 @@
 /*
  * Common crypto library for storage encryption.
  *
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/crypto-qti-common.h>
@@ -188,14 +188,32 @@ static void ice_dump_test_bus(void __iomem *ice_mmio)
 static void ice_dump_config_regs(void __iomem *ice_mmio)
 {
 	int i = 0;
+	uint32_t version = 0;
+	uint32_t  major = 0;
+	uint32_t minor = 0;
 
-	for (i = 0; i < 64; i++) {
-		pr_err("ICE_CRYPTOCFG_r_16 slot %d: 0x%08x\n", i,
-			ice_readl(ice_mmio, ICE_LUT_KEYS_CRYPTOCFG_R_16 +
-				  ICE_LUT_KEYS_CRYPTOCFG_OFFSET*i));
-		pr_err("ICE_CRYPTOCFG_r_17 slot %d: 0x%08x\n", i,
-			ice_readl(ice_mmio, ICE_LUT_KEYS_CRYPTOCFG_R_17 +
-				  ICE_LUT_KEYS_CRYPTOCFG_OFFSET*i));
+	version = ice_readl(ice_mmio, ICE_REGS_VERSION);
+	major = (version & ICE_CORE_MAJOR_REV_MASK) >> ICE_CORE_MAJOR_REV;
+	minor = (version & ICE_CORE_MINOR_REV_MASK) >> ICE_CORE_MINOR_REV;
+
+	if (((major == 3) && (minor >= 2)) || (major > 3)) {
+		for (i = 0; i < 64; i++) {
+			pr_err("ICE_CRYPTOCFG_r_16 slot %d: 0x%08x\n", i,
+				ice_readl(ice_mmio, ICE_LUT_KEYS_CRYPTOCFG_R_16 +
+				ICE_LUT_KEYS_CRYPTOCFG_OFFSET*i));
+			pr_err("ICE_CRYPTOCFG_r_17 slot %d: 0x%08x\n", i,
+				ice_readl(ice_mmio, ICE_LUT_KEYS_CRYPTOCFG_R_17 +
+				ICE_LUT_KEYS_CRYPTOCFG_OFFSET*i));
+		}
+	} else {
+		for (i = 0; i < 32; i++) {
+			pr_err("ICE_CRYPTOCFG_r_16 slot %d: 0x%08x\n", i,
+				ice_readl(ice_mmio, ICE_LUT_KEYS_SW_CRYPTOCFG_R_16 +
+				ICE_LUT_KEYS_CRYPTOCFG_OFFSET*i));
+			pr_err("ICE_CRYPTOCFG_r_17 slot %d: 0x%08x\n", i,
+				ice_readl(ice_mmio, ICE_LUT_KEYS_SW_CRYPTOCFG_R_17 +
+				ICE_LUT_KEYS_CRYPTOCFG_OFFSET*i));
+		}
 	}
 }
 
