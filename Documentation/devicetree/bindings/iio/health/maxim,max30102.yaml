@@ -4,16 +4,20 @@
 $id: http://devicetree.org/schemas/iio/health/maxim,max30102.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: Maxim MAX30102 heart rate and pulse oximeter and MAX30105 particle-sensor
+title: Maxim MAX30101/2 heart rate and pulse oximeter and MAX30105 particle-sensor
 
 maintainers:
   - Matt Ranostay <matt.ranostay@konsulko.com>
 
 properties:
   compatible:
-    enum:
-      - maxim,max30102
-      - maxim,max30105
+    oneOf:
+      - enum:
+          - maxim,max30102
+          - maxim,max30105
+      - items:
+          - const: maxim,max30101
+          - const: maxim,max30105
 
   reg:
     maxItems: 1
