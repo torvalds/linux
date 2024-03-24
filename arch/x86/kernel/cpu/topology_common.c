@@ -140,7 +140,7 @@ static void parse_topology(struct topo_scan *tscan, bool early)
 	}
 }
 
-static void topo_set_ids(struct topo_scan *tscan)
+static void topo_set_ids(struct topo_scan *tscan, bool early)
 {
 	struct cpuinfo_x86 *c = tscan->c;
 	u32 apicid = c->topo.apicid;
@@ -148,8 +148,10 @@ static void topo_set_ids(struct topo_scan *tscan)
 	c->topo.pkg_id = topo_shift_apicid(apicid, TOPO_PKG_DOMAIN);
 	c->topo.die_id = topo_shift_apicid(apicid, TOPO_DIE_DOMAIN);
 
-	c->topo.logical_pkg_id = topology_get_logical_id(apicid, TOPO_PKG_DOMAIN);
-	c->topo.logical_die_id = topology_get_logical_id(apicid, TOPO_DIE_DOMAIN);
+	if (!early) {
+		c->topo.logical_pkg_id = topology_get_logical_id(apicid, TOPO_PKG_DOMAIN);
+		c->topo.logical_die_id = topology_get_logical_id(apicid, TOPO_DIE_DOMAIN);
+	}
 
 	/* Package relative core ID */
 	c->topo.core_id = (apicid & topo_domain_mask(TOPO_PKG_DOMAIN)) >>
@@ -187,7 +189,7 @@ void cpu_parse_topology(struct cpuinfo_x86 *c)
 		       tscan.dom_shifts[dom], x86_topo_system.dom_shifts[dom]);
 	}
 
-	topo_set_ids(&tscan);
+	topo_set_ids(&tscan, false);
 }
 
 void __init cpu_init_topology(struct cpuinfo_x86 *c)
@@ -208,7 +210,7 @@ void __init cpu_init_topology(struct cpuinfo_x86 *c)
 		x86_topo_system.dom_size[dom] = 1U << sft;
 	}
 
-	topo_set_ids(&tscan);
+	topo_set_ids(&tscan, true);
 
 	/*
 	 * AMD systems have Nodes per package which cannot be mapped to
