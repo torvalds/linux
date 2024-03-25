@@ -230,7 +230,8 @@ static int hdac_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	format_val = snd_hdac_stream_format(params_channels(params), bits, params_rate(params));
 	if (!format_val) {
 		dev_err(dai->dev,
-			"invalid format_val, rate=%d, ch=%d, format=%d, maxbps=%d\n",
+			"%s: invalid format_val, rate=%d, ch=%d, format=%d, maxbps=%d\n",
+			__func__,
 			params_rate(params), params_channels(params),
 			params_format(params), maxbps);
 
@@ -266,14 +267,12 @@ static int hdac_hda_dai_prepare(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct hda_pcm_stream *hda_stream;
 	struct hdac_hda_priv *hda_pvt;
-	struct hdac_device *hdev;
 	unsigned int format_val;
 	struct hda_pcm *pcm;
 	unsigned int stream;
 	int ret = 0;
 
 	hda_pvt = snd_soc_component_get_drvdata(component);
-	hdev = &hda_pvt->codec->core;
 	pcm = snd_soc_find_pcm_from_dai(hda_pvt, dai);
 	if (!pcm)
 		return -EINVAL;
@@ -286,7 +285,7 @@ static int hdac_hda_dai_prepare(struct snd_pcm_substream *substream,
 	ret = snd_hda_codec_prepare(hda_pvt->codec, hda_stream,
 				    stream, format_val, substream);
 	if (ret < 0)
-		dev_err(&hdev->dev, "codec prepare failed %d\n", ret);
+		dev_err(dai->dev, "%s: failed %d\n", __func__, ret);
 
 	return ret;
 }
@@ -298,6 +297,7 @@ static int hdac_hda_dai_open(struct snd_pcm_substream *substream,
 	struct hdac_hda_priv *hda_pvt;
 	struct hda_pcm_stream *hda_stream;
 	struct hda_pcm *pcm;
+	int ret;
 
 	hda_pvt = snd_soc_component_get_drvdata(component);
 	pcm = snd_soc_find_pcm_from_dai(hda_pvt, dai);
@@ -308,7 +308,11 @@ static int hdac_hda_dai_open(struct snd_pcm_substream *substream,
 
 	hda_stream = &pcm->stream[substream->stream];
 
-	return hda_stream->ops.open(hda_stream, hda_pvt->codec, substream);
+	ret = hda_stream->ops.open(hda_stream, hda_pvt->codec, substream);
+	if (ret < 0)
+		dev_err(dai->dev, "%s: failed %d\n", __func__, ret);
+
+	return ret;
 }
 
 static void hdac_hda_dai_close(struct snd_pcm_substream *substream,
@@ -367,7 +371,7 @@ static struct hda_pcm *snd_soc_find_pcm_from_dai(struct hdac_hda_priv *hda_pvt,
 		pcm_name = "HDMI 3";
 		break;
 	default:
-		dev_err(&hcodec->core.dev, "invalid dai id %d\n", dai->id);
+		dev_err(dai->dev, "%s: invalid dai id %d\n", __func__, dai->id);
 		return NULL;
 	}
 
@@ -381,7 +385,7 @@ static struct hda_pcm *snd_soc_find_pcm_from_dai(struct hdac_hda_priv *hda_pvt,
 		}
 	}
 
-	dev_err(&hcodec->core.dev, "didn't find PCM for DAI %s\n", dai->name);
+	dev_err(dai->dev, "%s: didn't find PCM for DAI %s\n", __func__, dai->name);
 	return NULL;
 }
 
@@ -411,7 +415,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 
 	hlink = snd_hdac_ext_bus_get_hlink_by_name(hdev->bus, dev_name(&hdev->dev));
 	if (!hlink) {
-		dev_err(&hdev->dev, "hdac link not found\n");
+		dev_err(&hdev->dev, "%s: hdac link not found\n", __func__);
 		return -EIO;
 	}
 
@@ -429,7 +433,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 	ret = snd_hda_codec_device_new(hcodec->bus, component->card->snd_card,
 				       hdev->addr, hcodec, true);
 	if (ret < 0) {
-		dev_err(&hdev->dev, "failed to create hda codec %d\n", ret);
+		dev_err(&hdev->dev, "%s: failed to create hda codec %d\n", __func__, ret);
 		goto error_no_pm;
 	}
 
@@ -446,7 +450,7 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 		if (fw) {
 			ret = snd_hda_load_patch(hcodec->bus, fw->size, fw->data);
 			if (ret < 0) {
-				dev_err(&hdev->dev, "failed to load hda patch %d\n", ret);
+				dev_err(&hdev->dev, "%s: failed to load hda patch %d\n", __func__, ret);
 				goto error_no_pm;
 			}
 			release_firmware(fw);
@@ -470,13 +474,13 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 
 	ret = snd_hda_codec_set_name(hcodec, hcodec->preset->name);
 	if (ret < 0) {
-		dev_err(&hdev->dev, "name failed %s\n", hcodec->preset->name);
+		dev_err(&hdev->dev, "%s: name failed %s\n", __func__, hcodec->preset->name);
 		goto error_pm;
 	}
 
 	ret = snd_hdac_regmap_init(&hcodec->core);
 	if (ret < 0) {
-		dev_err(&hdev->dev, "regmap init failed\n");
+		dev_err(&hdev->dev, "%s: regmap init failed\n", __func__);
 		goto error_pm;
 	}
 
@@ -484,16 +488,16 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 	if (patch) {
 		ret = patch(hcodec);
 		if (ret < 0) {
-			dev_err(&hdev->dev, "patch failed %d\n", ret);
+			dev_err(&hdev->dev, "%s: patch failed %d\n", __func__, ret);
 			goto error_regmap;
 		}
 	} else {
-		dev_dbg(&hdev->dev, "no patch file found\n");
+		dev_dbg(&hdev->dev, "%s: no patch file found\n", __func__);
 	}
 
 	ret = snd_hda_codec_parse_pcms(hcodec);
 	if (ret < 0) {
-		dev_err(&hdev->dev, "unable to map pcms to dai %d\n", ret);
+		dev_err(&hdev->dev, "%s: unable to map pcms to dai %d\n", __func__, ret);
 		goto error_patch;
 	}
 
@@ -501,8 +505,8 @@ static int hdac_hda_codec_probe(struct snd_soc_component *component)
 	if (!is_hdmi_codec(hcodec)) {
 		ret = snd_hda_codec_build_controls(hcodec);
 		if (ret < 0) {
-			dev_err(&hdev->dev, "unable to create controls %d\n",
-				ret);
+			dev_err(&hdev->dev, "%s: unable to create controls %d\n",
+				__func__, ret);
 			goto error_patch;
 		}
 	}
@@ -548,7 +552,7 @@ static void hdac_hda_codec_remove(struct snd_soc_component *component)
 
 	hlink = snd_hdac_ext_bus_get_hlink_by_name(hdev->bus, dev_name(&hdev->dev));
 	if (!hlink) {
-		dev_err(&hdev->dev, "hdac link not found\n");
+		dev_err(&hdev->dev, "%s: hdac link not found\n", __func__);
 		return;
 	}
 
@@ -624,7 +628,7 @@ static int hdac_hda_dev_probe(struct hdac_device *hdev)
 	/* hold the ref while we probe */
 	hlink = snd_hdac_ext_bus_get_hlink_by_name(hdev->bus, dev_name(&hdev->dev));
 	if (!hlink) {
-		dev_err(&hdev->dev, "hdac link not found\n");
+		dev_err(&hdev->dev, "%s: hdac link not found\n", __func__);
 		return -EIO;
 	}
 	snd_hdac_ext_bus_link_get(hdev->bus, hlink);
@@ -640,7 +644,7 @@ static int hdac_hda_dev_probe(struct hdac_device *hdev)
 						ARRAY_SIZE(hdac_hda_dais));
 
 	if (ret < 0) {
-		dev_err(&hdev->dev, "failed to register HDA codec %d\n", ret);
+		dev_err(&hdev->dev, "%s: failed to register HDA codec %d\n", __func__, ret);
 		return ret;
 	}
 
