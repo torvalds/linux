@@ -9463,7 +9463,7 @@ static int ipr_probe_ioa(struct pci_dev *pdev,
 		ipr_number_of_msix = IPR_MAX_MSIX_VECTORS;
 	}
 
-	irq_flag = PCI_IRQ_LEGACY;
+	irq_flag = PCI_IRQ_INTX;
 	if (ioa_cfg->ipr_chip->has_msi)
 		irq_flag |= PCI_IRQ_MSI | PCI_IRQ_MSIX;
 	rc = pci_alloc_irq_vectors(pdev, 1, ipr_number_of_msix, irq_flag);
