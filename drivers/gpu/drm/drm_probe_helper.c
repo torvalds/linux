@@ -37,6 +37,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
@@ -950,6 +951,32 @@ void drm_kms_helper_poll_fini(struct drm_device *dev)
 	dev->mode_config.poll_enabled = false;
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_fini);
+
+static void drm_kms_helper_poll_init_release(struct drm_device *dev, void *res)
+{
+	drm_kms_helper_poll_fini(dev);
+}
+
+/**
+ * drmm_kms_helper_poll_init - initialize and enable output polling
+ * @dev: drm_device
+ *
+ * This function initializes and then also enables output polling support for
+ * @dev similar to drm_kms_helper_poll_init(). Polling will automatically be
+ * cleaned up when the DRM device goes away.
+ *
+ * See drm_kms_helper_poll_init() for more information.
+ *
+ * Returns:
+ * 0 on success, or a negative errno code otherwise.
+ */
+int drmm_kms_helper_poll_init(struct drm_device *dev)
+{
+	drm_kms_helper_poll_init(dev);
+
+	return drmm_add_action_or_reset(dev, drm_kms_helper_poll_init_release, dev);
+}
+EXPORT_SYMBOL(drmm_kms_helper_poll_init);
 
 static bool check_connector_changed(struct drm_connector *connector)
 {
