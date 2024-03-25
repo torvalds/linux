@@ -213,8 +213,8 @@ EXPORT_SYMBOL(pci_disable_msix);
  *            * %PCI_IRQ_MSIX      Allow trying MSI-X vector allocations
  *            * %PCI_IRQ_MSI       Allow trying MSI vector allocations
  *
- *            * %PCI_IRQ_LEGACY    Allow trying legacy INTx interrupts, if
- *              and only if @min_vecs == 1
+ *            * %PCI_IRQ_INTX      Allow trying INTx interrupts, if and
+ *              only if @min_vecs == 1
  *
  *            * %PCI_IRQ_AFFINITY  Auto-manage IRQs affinity by spreading
  *              the vectors around available CPUs
@@ -279,8 +279,8 @@ int pci_alloc_irq_vectors_affinity(struct pci_dev *dev, unsigned int min_vecs,
 			return nvecs;
 	}
 
-	/* use legacy IRQ if allowed */
-	if (flags & PCI_IRQ_LEGACY) {
+	/* use INTx IRQ if allowed */
+	if (flags & PCI_IRQ_INTX) {
 		if (min_vecs == 1 && dev->irq) {
 			/*
 			 * Invoke the affinity spreading logic to ensure that
