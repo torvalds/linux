@@ -9,8 +9,13 @@
 #ifndef __ACPI_BUS_H__
 #define __ACPI_BUS_H__
 
+#include <linux/completion.h>
+#include <linux/container_of.h>
 #include <linux/device.h>
+#include <linux/kobject.h>
+#include <linux/mutex.h>
 #include <linux/property.h>
+#include <linux/types.h>
 
 struct acpi_handle_list {
 	u32 count;
