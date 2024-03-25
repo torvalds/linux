@@ -40,14 +40,14 @@ shared lock mode, SH. In GFS2 the DF mode is used exclusively for direct I/O
 operations. The glocks are basically a lock plus some routines which deal
 with cache management. The following rules apply for the cache:
 
-==========      ==========   ==============   ==========   ==============
-Glock mode      Cache data   Cache Metadata   Dirty Data   Dirty Metadata
-==========      ==========   ==============   ==========   ==============
-    UN             No              No             No            No
-    SH             Yes             Yes            No            No
-    DF             No              Yes            No            No
-    EX             Yes             Yes            Yes           Yes
-==========      ==========   ==============   ==========   ==============
+==========      ==============   ==========   ==========   ==============
+Glock mode      Cache Metadata   Cache data   Dirty Data   Dirty Metadata
+==========      ==============   ==========   ==========   ==============
+    UN                No            No            No            No
+    DF                Yes           No            No            No
+    SH                Yes           Yes           No            No
+    EX                Yes           Yes           Yes           Yes
+==========      ==============   ==========   ==========   ==============
 
 These rules are implemented using the various glock operations which
 are defined for each type of glock. Not all types of glocks use
@@ -55,23 +55,24 @@ all the modes. Only inode glocks use the DF mode for example.
 
 Table of glock operations and per type constants:
 
-=============      =============================================================
+==============     =============================================================
 Field              Purpose
-=============      =============================================================
-go_xmote_th        Called before remote state change (e.g. to sync dirty data)
+==============     =============================================================
+go_sync            Called before remote state change (e.g. to sync dirty data)
 go_xmote_bh        Called after remote state change (e.g. to refill cache)
 go_inval           Called if remote state change requires invalidating the cache
 go_demote_ok       Returns boolean value of whether its ok to demote a glock
                    (e.g. checks timeout, and that there is no cached data)
-go_lock            Called for the first local holder of a lock
-go_unlock          Called on the final local unlock of a lock
+go_instantiate     Called when a glock has been acquired
+go_held            Called every time a glock holder is acquired
 go_dump            Called to print content of object for debugfs file, or on
                    error to dump glock to the log.
-go_type            The type of the glock, ``LM_TYPE_*``
 go_callback	   Called if the DLM sends a callback to drop this lock
+go_unlocked        Called when a glock is unlocked (dlm_unlock())
+go_type            The type of the glock, ``LM_TYPE_*``
 go_flags	   GLOF_ASPACE is set, if the glock has an address space
                    associated with it
-=============      =============================================================
+==============     =============================================================
 
 The minimum hold time for each lock is the time after a remote lock
 grant for which we ignore remote demote requests. This is in order to
@@ -82,26 +83,25 @@ to by multiple nodes. By delaying the demotion in response to a
 remote callback, that gives the userspace program time to make
 some progress before the pages are unmapped.
 
-There is a plan to try and remove the go_lock and go_unlock callbacks
-if possible, in order to try and speed up the fast path though the locking.
-Also, eventually we hope to make the glock "EX" mode locally shared
-such that any local locking will be done with the i_mutex as required
-rather than via the glock.
+Eventually, we hope to make the glock "EX" mode locally shared such that any
+local locking will be done with the i_mutex as required rather than via the
+glock.
 
 Locking rules for glock operations:
 
-=============    ======================    =============================
+==============   ======================    =============================
 Operation        GLF_LOCK bit lock held    gl_lockref.lock spinlock held
-=============    ======================    =============================
-go_xmote_th           Yes                       No
+==============   ======================    =============================
+go_sync               Yes                       No
 go_xmote_bh           Yes                       No
 go_inval              Yes                       No
 go_demote_ok          Sometimes                 Yes
-go_lock               Yes                       No
-go_unlock             Yes                       No
+go_instantiate        No                        No
+go_held               No                        No
 go_dump               Sometimes                 Yes
 go_callback           Sometimes (N/A)           Yes
-=============    ======================    =============================
+go_unlocked           Yes                       No
+==============   ======================    =============================
 
 .. Note::
 
