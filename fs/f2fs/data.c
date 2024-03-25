@@ -1520,6 +1520,9 @@ static bool map_is_mergeable(struct f2fs_sb_info *sbi,
 		return true;
 	if (flag == F2FS_GET_BLOCK_PRE_DIO)
 		return true;
+	if (flag == F2FS_GET_BLOCK_DIO &&
+		map->m_pblk == NULL_ADDR && blkaddr == NULL_ADDR)
+		return true;
 	return false;
 }
 
@@ -1644,6 +1647,10 @@ next_block:
 				goto sync_out;
 			}
 			break;
+		case F2FS_GET_BLOCK_DIO:
+			if (map->m_next_pgofs)
+				*map->m_next_pgofs = pgofs + 1;
+			break;
 		default:
 			/* for defragment case */
 			if (map->m_next_pgofs)
@@ -1662,7 +1669,8 @@ next_block:
 		/* reserved delalloc block should be mapped for fiemap. */
 		if (blkaddr == NEW_ADDR)
 			map->m_flags |= F2FS_MAP_DELALLOC;
-		map->m_flags |= F2FS_MAP_MAPPED;
+		if (flag != F2FS_GET_BLOCK_DIO || !is_hole)
+			map->m_flags |= F2FS_MAP_MAPPED;
 
 		map->m_pblk = blkaddr;
 		map->m_len = 1;
@@ -4191,12 +4199,13 @@ static int f2fs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	 * We should never see delalloc or compressed extents here based on
 	 * prior flushing and checks.
 	 */
-	if (WARN_ON_ONCE(map.m_pblk == NEW_ADDR))
-		return -EINVAL;
 	if (WARN_ON_ONCE(map.m_pblk == COMPRESS_ADDR))
 		return -EINVAL;
 
 	if (map.m_flags & F2FS_MAP_MAPPED) {
+		if (WARN_ON_ONCE(map.m_pblk == NEW_ADDR))
+			return -EINVAL;
+
 		iomap->length = blks_to_bytes(inode, map.m_len);
 		iomap->type = IOMAP_MAPPED;
 		iomap->flags |= IOMAP_F_MERGED;
@@ -4205,9 +4214,17 @@ static int f2fs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 	} else {
 		if (flags & IOMAP_WRITE)
 			return -ENOTBLK;
-		iomap->length = blks_to_bytes(inode, next_pgofs) -
-				iomap->offset;
-		iomap->type = IOMAP_HOLE;
+
+		if (map.m_pblk == NULL_ADDR) {
+			iomap->length = blks_to_bytes(inode, next_pgofs) -
+								iomap->offset;
+			iomap->type = IOMAP_HOLE;
+		} else if (map.m_pblk == NEW_ADDR) {
+			iomap->length = blks_to_bytes(inode, map.m_len);
+			iomap->type = IOMAP_UNWRITTEN;
+		} else {
+			f2fs_bug_on(F2FS_I_SB(inode), 1);
+		}
 		iomap->addr = IOMAP_NULL_ADDR;
 	}
 
