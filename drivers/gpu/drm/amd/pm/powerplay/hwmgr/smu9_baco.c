@@ -28,7 +28,7 @@
 #include "vega10_inc.h"
 #include "smu9_baco.h"
 
-bool smu9_baco_get_capability(struct pp_hwmgr *hwmgr)
+bool smu9_get_bamaco_support(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
 	uint32_t reg, data;

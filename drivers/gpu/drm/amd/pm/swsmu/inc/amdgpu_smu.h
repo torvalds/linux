@@ -1174,9 +1174,11 @@ struct pptable_funcs {
 	int (*get_max_sustainable_clocks_by_dc)(struct smu_context *smu, struct pp_smu_nv_clock_table *max_clocks);
 
 	/**
-	 * @baco_is_support: Check if GPU supports BACO (Bus Active, Chip Off).
+	 * @get_bamaco_support: Check if GPU supports BACO/MACO
+	 * BACO: Bus Active, Chip Off
+	 * MACO: Memory Active, Chip Off
 	 */
-	bool (*baco_is_support)(struct smu_context *smu);
+	bool (*get_bamaco_support)(struct smu_context *smu);
 
 	/**
 	 * @baco_get_state: Get the current BACO state.

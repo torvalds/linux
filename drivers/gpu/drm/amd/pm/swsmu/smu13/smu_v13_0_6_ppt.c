@@ -2077,7 +2077,7 @@ static void smu_v13_0_6_get_unique_id(struct smu_context *smu)
 	adev->unique_id = pptable->PublicSerialNumber_AID;
 }
 
-static bool smu_v13_0_6_is_baco_supported(struct smu_context *smu)
+static bool smu_v13_0_6_get_bamaco_support(struct smu_context *smu)
 {
 	/* smu_13_0_6 does not support baco */
 
@@ -3188,7 +3188,7 @@ static const struct pptable_funcs smu_v13_0_6_ppt_funcs = {
 	.enable_thermal_alert = smu_v13_0_enable_thermal_alert,
 	.disable_thermal_alert = smu_v13_0_disable_thermal_alert,
 	.setup_pptable = smu_v13_0_6_setup_pptable,
-	.baco_is_support = smu_v13_0_6_is_baco_supported,
+	.get_bamaco_support = smu_v13_0_6_get_bamaco_support,
 	.get_dpm_ultimate_freq = smu_v13_0_6_get_dpm_ultimate_freq,
 	.set_soft_freq_limited_range = smu_v13_0_6_set_soft_freq_limited_range,
 	.od_edit_dpm_table = smu_v13_0_6_usr_edit_dpm_table,
