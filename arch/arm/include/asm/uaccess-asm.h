@@ -39,8 +39,9 @@
 #endif
 	.endm
 
-	.macro	uaccess_disable, tmp, isb=1
 #ifdef CONFIG_CPU_SW_DOMAIN_PAN
+
+	.macro	uaccess_disable, tmp, isb=1
 	/*
 	 * Whenever we re-enter userspace, the domains should always be
 	 * set appropriately.
@@ -50,11 +51,9 @@
 	.if	\isb
 	instr_sync
 	.endif
-#endif
 	.endm
 
 	.macro	uaccess_enable, tmp, isb=1
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
 	/*
 	 * Whenever we re-enter userspace, the domains should always be
 	 * set appropriately.
@@ -64,8 +63,17 @@
 	.if	\isb
 	instr_sync
 	.endif
-#endif
 	.endm
+
+#else
+
+	.macro	uaccess_disable, tmp, isb=1
+	.endm
+
+	.macro	uaccess_enable, tmp, isb=1
+	.endm
+
+#endif
 
 #if defined(CONFIG_CPU_SW_DOMAIN_PAN) || defined(CONFIG_CPU_USE_DOMAINS)
 #define DACR(x...)	x
