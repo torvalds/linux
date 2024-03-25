@@ -47,9 +47,6 @@ struct bq27xxx_access_methods {
 };
 
 struct bq27xxx_reg_cache {
-	int time_to_empty;
-	int time_to_empty_avg;
-	int time_to_full;
 	int charge_full;
 	int cycle_count;
 	int capacity;

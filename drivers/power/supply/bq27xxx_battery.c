@@ -1696,7 +1696,8 @@ static int bq27xxx_battery_read_cyct(struct bq27xxx_device_info *di)
  * Read a time register.
  * Return < 0 if something fails.
  */
-static int bq27xxx_battery_read_time(struct bq27xxx_device_info *di, u8 reg)
+static int bq27xxx_battery_read_time(struct bq27xxx_device_info *di, u8 reg,
+				     union power_supply_propval *val)
 {
 	int tval;
 
@@ -1710,7 +1711,9 @@ static int bq27xxx_battery_read_time(struct bq27xxx_device_info *di, u8 reg)
 	if (tval == 65535)
 		return -ENODATA;
 
-	return tval * 60;
+	val->intval = tval * 60;
+
+	return 0;
 }
 
 /*
@@ -1857,13 +1860,6 @@ static void bq27xxx_battery_update_unlocked(struct bq27xxx_device_info *di)
 	if ((cache.flags & 0xff) == 0xff)
 		cache.flags = -1; /* read error */
 	if (cache.flags >= 0) {
-		if (di->regs[BQ27XXX_REG_TTE] != INVALID_REG_ADDR)
-			cache.time_to_empty = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTE);
-		if (di->regs[BQ27XXX_REG_TTECP] != INVALID_REG_ADDR)
-			cache.time_to_empty_avg = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTECP);
-		if (di->regs[BQ27XXX_REG_TTF] != INVALID_REG_ADDR)
-			cache.time_to_full = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTF);
-
 		cache.charge_full = bq27xxx_battery_read_fcc(di);
 		cache.capacity = bq27xxx_battery_read_soc(di);
 		if (di->regs[BQ27XXX_REG_AE] != INVALID_REG_ADDR)
@@ -2046,13 +2042,13 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 		ret = bq27xxx_battery_read_temperature(di, val);
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
-		ret = bq27xxx_simple_value(di->cache.time_to_empty, val);
+		ret = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTE, val);
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_AVG:
-		ret = bq27xxx_simple_value(di->cache.time_to_empty_avg, val);
+		ret = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTECP, val);
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_FULL_NOW:
-		ret = bq27xxx_simple_value(di->cache.time_to_full, val);
+		ret = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTF, val);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		if (di->opts & BQ27XXX_O_MUL_CHEM)
