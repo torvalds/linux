@@ -232,6 +232,16 @@ void *tee_get_drvdata(struct tee_device *teedev);
  */
 struct tee_shm *tee_shm_alloc_priv_buf(struct tee_context *ctx, size_t size);
 
+int tee_dyn_shm_alloc_helper(struct tee_shm *shm, size_t size, size_t align,
+			     int (*shm_register)(struct tee_context *ctx,
+						 struct tee_shm *shm,
+						 struct page **pages,
+						 size_t num_pages,
+						 unsigned long start));
+void tee_dyn_shm_free_helper(struct tee_shm *shm,
+			     int (*shm_unregister)(struct tee_context *ctx,
+						   struct tee_shm *shm));
+
 /**
  * tee_shm_is_dynamic() - Check if shared memory object is of the dynamic kind
  * @shm:	Shared memory handle
