@@ -7360,7 +7360,7 @@ static int bnxt_get_total_vnics(struct bnxt *bp, int rx_rings)
 {
 	if (bp->flags & BNXT_FLAG_RFS) {
 		if (BNXT_SUPPORTS_NTUPLE_VNIC(bp))
-			return 2;
+			return 2 + bp->num_rss_ctx;
 		if (!(bp->flags & BNXT_FLAG_CHIP_P5_PLUS))
 			return rx_rings + 1;
 	}
@@ -12474,7 +12474,7 @@ static bool bnxt_rfs_supported(struct bnxt *bp)
 }
 
 /* If runtime conditions support RFS */
-static bool bnxt_rfs_capable(struct bnxt *bp)
+bool bnxt_rfs_capable(struct bnxt *bp, bool new_rss_ctx)
 {
 	struct bnxt_hw_rings hwr = {0};
 	int max_vnics, max_rss_ctxs;
@@ -12488,6 +12488,8 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 
 	hwr.grp = bp->rx_nr_rings;
 	hwr.vnic = bnxt_get_total_vnics(bp, bp->rx_nr_rings);
+	if (new_rss_ctx)
+		hwr.vnic++;
 	hwr.rss_ctx = bnxt_get_total_rss_ctxs(bp, &hwr);
 	max_vnics = bnxt_get_max_func_vnics(bp);
 	max_rss_ctxs = bnxt_get_max_func_rss_ctxs(bp);
@@ -12525,7 +12527,7 @@ static netdev_features_t bnxt_fix_features(struct net_device *dev,
 	struct bnxt *bp = netdev_priv(dev);
 	netdev_features_t vlan_features;
 
-	if ((features & NETIF_F_NTUPLE) && !bnxt_rfs_capable(bp))
+	if ((features & NETIF_F_NTUPLE) && !bnxt_rfs_capable(bp, false))
 		features &= ~NETIF_F_NTUPLE;
 
 	if ((bp->flags & BNXT_FLAG_NO_AGG_RINGS) || bp->xdp_prog)
@@ -13661,7 +13663,7 @@ static void bnxt_set_dflt_rfs(struct bnxt *bp)
 	bp->flags &= ~BNXT_FLAG_RFS;
 	if (bnxt_rfs_supported(bp)) {
 		dev->hw_features |= NETIF_F_NTUPLE;
-		if (bnxt_rfs_capable(bp)) {
+		if (bnxt_rfs_capable(bp, false)) {
 			bp->flags |= BNXT_FLAG_RFS;
 			dev->features |= NETIF_F_NTUPLE;
 		}
