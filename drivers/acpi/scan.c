@@ -1625,12 +1625,11 @@ static int acpi_iommu_configure_id(struct device *dev, const u32 *id_in)
 	if (!err && dev->bus)
 		err = iommu_probe_device(dev);
 
-	/* Ignore all other errors apart from EPROBE_DEFER */
-	if (err == -EPROBE_DEFER) {
+	if (err == -EPROBE_DEFER)
 		return err;
-	} else if (err) {
+	if (err) {
 		dev_dbg(dev, "Adding to IOMMU failed: %d\n", err);
-		return -ENODEV;
+		return err;
 	}
 	if (!acpi_iommu_fwspec_ops(dev))
 		return -ENODEV;
@@ -1671,13 +1670,14 @@ int acpi_dma_configure_id(struct device *dev, enum dev_dma_attr attr,
 
 	acpi_arch_dma_setup(dev);
 
+	/* Ignore all other errors apart from EPROBE_DEFER */
 	ret = acpi_iommu_configure_id(dev, input_id);
 	if (ret == -EPROBE_DEFER)
 		return -EPROBE_DEFER;
 
 	/*
 	 * Historically this routine doesn't fail driver probing due to errors
-	 * in acpi_iommu_configure_id()
+	 * in acpi_iommu_configure_id().
 	 */
 
 	arch_setup_dma_ops(dev, 0, U64_MAX, attr == DEV_DMA_COHERENT);
