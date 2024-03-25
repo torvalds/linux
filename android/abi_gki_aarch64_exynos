@@ -1413,6 +1413,7 @@
   drm_bridge_add
   drm_bridge_attach
   drm_bridge_chain_mode_set
+  drm_bridge_chain_post_disable
   drm_connector_atomic_hdr_metadata_equal
   drm_connector_attach_hdr_output_metadata_property
   drm_crtc_enable_color_mgmt
