@@ -4241,6 +4241,7 @@ static void bnxt_init_vnics(struct bnxt *bp)
 		int j;
 
 		vnic->fw_vnic_id = INVALID_HW_RING_ID;
+		vnic->vnic_id = i;
 		for (j = 0; j < BNXT_MAX_CTX_PER_VNIC; j++)
 			vnic->fw_rss_cos_lb_ctx[j] = INVALID_HW_RING_ID;
 
@@ -5938,9 +5939,9 @@ static void bnxt_hwrm_vnic_update_tunl_tpa(struct bnxt *bp,
 	req->tnl_tpa_en_bitmap = cpu_to_le32(tunl_tpa_bmap);
 }
 
-static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, u16 vnic_id, u32 tpa_flags)
+static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, struct bnxt_vnic_info *vnic,
+				  u32 tpa_flags)
 {
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	u16 max_aggs = VNIC_TPA_CFG_REQ_MAX_AGGS_MAX;
 	struct hwrm_vnic_tpa_cfg_input *req;
 	int rc;
@@ -6154,9 +6155,9 @@ __bnxt_hwrm_vnic_set_rss(struct bnxt *bp, struct hwrm_vnic_rss_cfg_input *req,
 	req->hash_key_tbl_addr = cpu_to_le64(vnic->rss_hash_key_dma_addr);
 }
 
-static int bnxt_hwrm_vnic_set_rss(struct bnxt *bp, u16 vnic_id, bool set_rss)
+static int bnxt_hwrm_vnic_set_rss(struct bnxt *bp, struct bnxt_vnic_info *vnic,
+				  bool set_rss)
 {
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	struct hwrm_vnic_rss_cfg_input *req;
 	int rc;
 
@@ -6174,9 +6175,9 @@ static int bnxt_hwrm_vnic_set_rss(struct bnxt *bp, u16 vnic_id, bool set_rss)
 	return hwrm_req_send(bp, req);
 }
 
-static int bnxt_hwrm_vnic_set_rss_p5(struct bnxt *bp, u16 vnic_id, bool set_rss)
+static int bnxt_hwrm_vnic_set_rss_p5(struct bnxt *bp,
+				     struct bnxt_vnic_info *vnic, bool set_rss)
 {
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	struct hwrm_vnic_rss_cfg_input *req;
 	dma_addr_t ring_tbl_map;
 	u32 i, nr_ctxs;
@@ -6229,9 +6230,8 @@ static void bnxt_hwrm_update_rss_hash_cfg(struct bnxt *bp)
 	hwrm_req_drop(bp, req);
 }
 
-static int bnxt_hwrm_vnic_set_hds(struct bnxt *bp, u16 vnic_id)
+static int bnxt_hwrm_vnic_set_hds(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 {
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	struct hwrm_vnic_plcmodes_cfg_input *req;
 	int rc;
 
@@ -6256,7 +6256,8 @@ static int bnxt_hwrm_vnic_set_hds(struct bnxt *bp, u16 vnic_id)
 	return hwrm_req_send(bp, req);
 }
 
-static void bnxt_hwrm_vnic_ctx_free_one(struct bnxt *bp, u16 vnic_id,
+static void bnxt_hwrm_vnic_ctx_free_one(struct bnxt *bp,
+					struct bnxt_vnic_info *vnic,
 					u16 ctx_idx)
 {
 	struct hwrm_vnic_rss_cos_lb_ctx_free_input *req;
@@ -6265,10 +6266,10 @@ static void bnxt_hwrm_vnic_ctx_free_one(struct bnxt *bp, u16 vnic_id,
 		return;
 
 	req->rss_cos_lb_ctx_id =
-		cpu_to_le16(bp->vnic_info[vnic_id].fw_rss_cos_lb_ctx[ctx_idx]);
+		cpu_to_le16(vnic->fw_rss_cos_lb_ctx[ctx_idx]);
 
 	hwrm_req_send(bp, req);
-	bp->vnic_info[vnic_id].fw_rss_cos_lb_ctx[ctx_idx] = INVALID_HW_RING_ID;
+	vnic->fw_rss_cos_lb_ctx[ctx_idx] = INVALID_HW_RING_ID;
 }
 
 static void bnxt_hwrm_vnic_ctx_free(struct bnxt *bp)
@@ -6280,13 +6281,14 @@ static void bnxt_hwrm_vnic_ctx_free(struct bnxt *bp)
 
 		for (j = 0; j < BNXT_MAX_CTX_PER_VNIC; j++) {
 			if (vnic->fw_rss_cos_lb_ctx[j] != INVALID_HW_RING_ID)
-				bnxt_hwrm_vnic_ctx_free_one(bp, i, j);
+				bnxt_hwrm_vnic_ctx_free_one(bp, vnic, j);
 		}
 	}
 	bp->rsscos_nr_ctxs = 0;
 }
 
-static int bnxt_hwrm_vnic_ctx_alloc(struct bnxt *bp, u16 vnic_id, u16 ctx_idx)
+static int bnxt_hwrm_vnic_ctx_alloc(struct bnxt *bp,
+				    struct bnxt_vnic_info *vnic, u16 ctx_idx)
 {
 	struct hwrm_vnic_rss_cos_lb_ctx_alloc_output *resp;
 	struct hwrm_vnic_rss_cos_lb_ctx_alloc_input *req;
@@ -6299,7 +6301,7 @@ static int bnxt_hwrm_vnic_ctx_alloc(struct bnxt *bp, u16 vnic_id, u16 ctx_idx)
 	resp = hwrm_req_hold(bp, req);
 	rc = hwrm_req_send(bp, req);
 	if (!rc)
-		bp->vnic_info[vnic_id].fw_rss_cos_lb_ctx[ctx_idx] =
+		vnic->fw_rss_cos_lb_ctx[ctx_idx] =
 			le16_to_cpu(resp->rss_cos_lb_ctx_id);
 	hwrm_req_drop(bp, req);
 
@@ -6313,10 +6315,9 @@ static u32 bnxt_get_roce_vnic_mode(struct bnxt *bp)
 	return VNIC_CFG_REQ_FLAGS_ROCE_DUAL_VNIC_MODE;
 }
 
-int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
+int bnxt_hwrm_vnic_cfg(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 {
 	struct bnxt_vnic_info *vnic0 = &bp->vnic_info[BNXT_VNIC_DEFAULT];
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	struct hwrm_vnic_cfg_input *req;
 	unsigned int ring = 0, grp_idx;
 	u16 def_vlan = 0;
@@ -6364,8 +6365,8 @@ int bnxt_hwrm_vnic_cfg(struct bnxt *bp, u16 vnic_id)
 	if (vnic->flags & BNXT_VNIC_RSS_FLAG)
 		ring = 0;
 	else if (vnic->flags & BNXT_VNIC_RFS_FLAG)
-		ring = vnic_id - 1;
-	else if ((vnic_id == 1) && BNXT_CHIP_TYPE_NITRO_A0(bp))
+		ring = vnic->vnic_id - 1;
+	else if ((vnic->vnic_id == 1) && BNXT_CHIP_TYPE_NITRO_A0(bp))
 		ring = bp->rx_nr_rings - 1;
 
 	grp_idx = bp->rx_ring[ring].bnapi->index;
@@ -6381,25 +6382,25 @@ vnic_mru:
 #endif
 	if ((bp->flags & BNXT_FLAG_STRIP_VLAN) || def_vlan)
 		req->flags |= cpu_to_le32(VNIC_CFG_REQ_FLAGS_VLAN_STRIP_MODE);
-	if (!vnic_id && bnxt_ulp_registered(bp->edev))
+	if (vnic->vnic_id == BNXT_VNIC_DEFAULT && bnxt_ulp_registered(bp->edev))
 		req->flags |= cpu_to_le32(bnxt_get_roce_vnic_mode(bp));
 
 	return hwrm_req_send(bp, req);
 }
 
-static void bnxt_hwrm_vnic_free_one(struct bnxt *bp, u16 vnic_id)
+static void bnxt_hwrm_vnic_free_one(struct bnxt *bp,
+				    struct bnxt_vnic_info *vnic)
 {
-	if (bp->vnic_info[vnic_id].fw_vnic_id != INVALID_HW_RING_ID) {
+	if (vnic->fw_vnic_id != INVALID_HW_RING_ID) {
 		struct hwrm_vnic_free_input *req;
 
 		if (hwrm_req_init(bp, req, HWRM_VNIC_FREE))
 			return;
 
-		req->vnic_id =
-			cpu_to_le32(bp->vnic_info[vnic_id].fw_vnic_id);
+		req->vnic_id = cpu_to_le32(vnic->fw_vnic_id);
 
 		hwrm_req_send(bp, req);
-		bp->vnic_info[vnic_id].fw_vnic_id = INVALID_HW_RING_ID;
+		vnic->fw_vnic_id = INVALID_HW_RING_ID;
 	}
 }
 
@@ -6408,15 +6409,14 @@ static void bnxt_hwrm_vnic_free(struct bnxt *bp)
 	u16 i;
 
 	for (i = 0; i < bp->nr_vnics; i++)
-		bnxt_hwrm_vnic_free_one(bp, i);
+		bnxt_hwrm_vnic_free_one(bp, &bp->vnic_info[i]);
 }
 
-static int bnxt_hwrm_vnic_alloc(struct bnxt *bp, u16 vnic_id,
+static int bnxt_hwrm_vnic_alloc(struct bnxt *bp, struct bnxt_vnic_info *vnic,
 				unsigned int start_rx_ring_idx,
 				unsigned int nr_rings)
 {
 	unsigned int i, j, grp_idx, end_idx = start_rx_ring_idx + nr_rings;
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	struct hwrm_vnic_alloc_output *resp;
 	struct hwrm_vnic_alloc_input *req;
 	int rc;
@@ -6442,7 +6442,7 @@ static int bnxt_hwrm_vnic_alloc(struct bnxt *bp, u16 vnic_id,
 vnic_no_ring_grps:
 	for (i = 0; i < BNXT_MAX_CTX_PER_VNIC; i++)
 		vnic->fw_rss_cos_lb_ctx[i] = INVALID_HW_RING_ID;
-	if (vnic_id == BNXT_VNIC_DEFAULT)
+	if (vnic->vnic_id == BNXT_VNIC_DEFAULT)
 		req->flags = cpu_to_le32(VNIC_ALLOC_REQ_FLAGS_DEFAULT);
 
 	resp = hwrm_req_hold(bp, req);
@@ -9676,7 +9676,7 @@ static int bnxt_set_tpa(struct bnxt *bp, bool set_tpa)
 	else if (BNXT_NO_FW_ACCESS(bp))
 		return 0;
 	for (i = 0; i < bp->nr_vnics; i++) {
-		rc = bnxt_hwrm_vnic_set_tpa(bp, i, tpa_flags);
+		rc = bnxt_hwrm_vnic_set_tpa(bp, &bp->vnic_info[i], tpa_flags);
 		if (rc) {
 			netdev_err(bp->dev, "hwrm vnic set tpa failure rc for vnic %d: %x\n",
 				   i, rc);
@@ -9691,7 +9691,7 @@ static void bnxt_hwrm_clear_vnic_rss(struct bnxt *bp)
 	int i;
 
 	for (i = 0; i < bp->nr_vnics; i++)
-		bnxt_hwrm_vnic_set_rss(bp, i, false);
+		bnxt_hwrm_vnic_set_rss(bp, &bp->vnic_info[i], false);
 }
 
 static void bnxt_clear_vnic(struct bnxt *bp)
@@ -9769,28 +9769,27 @@ static int bnxt_hwrm_set_cache_line_size(struct bnxt *bp, int size)
 	return hwrm_req_send(bp, req);
 }
 
-static int __bnxt_setup_vnic(struct bnxt *bp, u16 vnic_id)
+static int __bnxt_setup_vnic(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 {
-	struct bnxt_vnic_info *vnic = &bp->vnic_info[vnic_id];
 	int rc;
 
 	if (vnic->flags & BNXT_VNIC_RFS_NEW_RSS_FLAG)
 		goto skip_rss_ctx;
 
 	/* allocate context for vnic */
-	rc = bnxt_hwrm_vnic_ctx_alloc(bp, vnic_id, 0);
+	rc = bnxt_hwrm_vnic_ctx_alloc(bp, vnic, 0);
 	if (rc) {
 		netdev_err(bp->dev, "hwrm vnic %d alloc failure rc: %x\n",
-			   vnic_id, rc);
+			   vnic->vnic_id, rc);
 		goto vnic_setup_err;
 	}
 	bp->rsscos_nr_ctxs++;
 
 	if (BNXT_CHIP_TYPE_NITRO_A0(bp)) {
-		rc = bnxt_hwrm_vnic_ctx_alloc(bp, vnic_id, 1);
+		rc = bnxt_hwrm_vnic_ctx_alloc(bp, vnic, 1);
 		if (rc) {
 			netdev_err(bp->dev, "hwrm vnic %d cos ctx alloc failure rc: %x\n",
-				   vnic_id, rc);
+				   vnic->vnic_id, rc);
 			goto vnic_setup_err;
 		}
 		bp->rsscos_nr_ctxs++;
@@ -9798,26 +9797,26 @@ static int __bnxt_setup_vnic(struct bnxt *bp, u16 vnic_id)
 
 skip_rss_ctx:
 	/* configure default vnic, ring grp */
-	rc = bnxt_hwrm_vnic_cfg(bp, vnic_id);
+	rc = bnxt_hwrm_vnic_cfg(bp, vnic);
 	if (rc) {
 		netdev_err(bp->dev, "hwrm vnic %d cfg failure rc: %x\n",
-			   vnic_id, rc);
+			   vnic->vnic_id, rc);
 		goto vnic_setup_err;
 	}
 
 	/* Enable RSS hashing on vnic */
-	rc = bnxt_hwrm_vnic_set_rss(bp, vnic_id, true);
+	rc = bnxt_hwrm_vnic_set_rss(bp, vnic, true);
 	if (rc) {
 		netdev_err(bp->dev, "hwrm vnic %d set rss failure rc: %x\n",
-			   vnic_id, rc);
+			   vnic->vnic_id, rc);
 		goto vnic_setup_err;
 	}
 
 	if (bp->flags & BNXT_FLAG_AGG_RINGS) {
-		rc = bnxt_hwrm_vnic_set_hds(bp, vnic_id);
+		rc = bnxt_hwrm_vnic_set_hds(bp, vnic);
 		if (rc) {
 			netdev_err(bp->dev, "hwrm vnic %d set hds failure rc: %x\n",
-				   vnic_id, rc);
+				   vnic->vnic_id, rc);
 		}
 	}
 
@@ -9825,33 +9824,33 @@ vnic_setup_err:
 	return rc;
 }
 
-int bnxt_hwrm_vnic_rss_cfg_p5(struct bnxt *bp, u16 vnic_id)
+int bnxt_hwrm_vnic_rss_cfg_p5(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 {
 	int rc;
 
-	rc = bnxt_hwrm_vnic_set_rss_p5(bp, vnic_id, true);
+	rc = bnxt_hwrm_vnic_set_rss_p5(bp, vnic, true);
 	if (rc) {
 		netdev_err(bp->dev, "hwrm vnic %d set rss failure rc: %d\n",
-			   vnic_id, rc);
+			   vnic->vnic_id, rc);
 		return rc;
 	}
-	rc = bnxt_hwrm_vnic_cfg(bp, vnic_id);
+	rc = bnxt_hwrm_vnic_cfg(bp, vnic);
 	if (rc)
 		netdev_err(bp->dev, "hwrm vnic %d cfg failure rc: %x\n",
-			   vnic_id, rc);
+			   vnic->vnic_id, rc);
 	return rc;
 }
 
-static int __bnxt_setup_vnic_p5(struct bnxt *bp, u16 vnic_id)
+static int __bnxt_setup_vnic_p5(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 {
 	int rc, i, nr_ctxs;
 
 	nr_ctxs = bnxt_get_nr_rss_ctxs(bp, bp->rx_nr_rings);
 	for (i = 0; i < nr_ctxs; i++) {
-		rc = bnxt_hwrm_vnic_ctx_alloc(bp, vnic_id, i);
+		rc = bnxt_hwrm_vnic_ctx_alloc(bp, vnic, i);
 		if (rc) {
 			netdev_err(bp->dev, "hwrm vnic %d ctx %d alloc failure rc: %x\n",
-				   vnic_id, i, rc);
+				   vnic->vnic_id, i, rc);
 			break;
 		}
 		bp->rsscos_nr_ctxs++;
@@ -9859,55 +9858,57 @@ static int __bnxt_setup_vnic_p5(struct bnxt *bp, u16 vnic_id)
 	if (i < nr_ctxs)
 		return -ENOMEM;
 
-	rc = bnxt_hwrm_vnic_rss_cfg_p5(bp, vnic_id);
+	rc = bnxt_hwrm_vnic_rss_cfg_p5(bp, vnic);
 	if (rc)
 		return rc;
 
 	if (bp->flags & BNXT_FLAG_AGG_RINGS) {
-		rc = bnxt_hwrm_vnic_set_hds(bp, vnic_id);
+		rc = bnxt_hwrm_vnic_set_hds(bp, vnic);
 		if (rc) {
 			netdev_err(bp->dev, "hwrm vnic %d set hds failure rc: %x\n",
-				   vnic_id, rc);
+				   vnic->vnic_id, rc);
 		}
 	}
 	return rc;
 }
 
-static int bnxt_setup_vnic(struct bnxt *bp, u16 vnic_id)
+static int bnxt_setup_vnic(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 {
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
-		return __bnxt_setup_vnic_p5(bp, vnic_id);
+		return __bnxt_setup_vnic_p5(bp, vnic);
 	else
-		return __bnxt_setup_vnic(bp, vnic_id);
+		return __bnxt_setup_vnic(bp, vnic);
 }
 
-static int bnxt_alloc_and_setup_vnic(struct bnxt *bp, u16 vnic_id,
+static int bnxt_alloc_and_setup_vnic(struct bnxt *bp,
+				     struct bnxt_vnic_info *vnic,
 				     u16 start_rx_ring_idx, int rx_rings)
 {
 	int rc;
 
-	rc = bnxt_hwrm_vnic_alloc(bp, vnic_id, start_rx_ring_idx, rx_rings);
+	rc = bnxt_hwrm_vnic_alloc(bp, vnic, start_rx_ring_idx, rx_rings);
 	if (rc) {
 		netdev_err(bp->dev, "hwrm vnic %d alloc failure rc: %x\n",
-			   vnic_id, rc);
+			   vnic->vnic_id, rc);
 		return rc;
 	}
-	return bnxt_setup_vnic(bp, vnic_id);
+	return bnxt_setup_vnic(bp, vnic);
 }
 
 static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 {
+	struct bnxt_vnic_info *vnic;
 	int i, rc = 0;
 
-	if (BNXT_SUPPORTS_NTUPLE_VNIC(bp))
-		return bnxt_alloc_and_setup_vnic(bp, BNXT_VNIC_NTUPLE, 0,
-						 bp->rx_nr_rings);
+	if (BNXT_SUPPORTS_NTUPLE_VNIC(bp)) {
+		vnic = &bp->vnic_info[BNXT_VNIC_NTUPLE];
+		return bnxt_alloc_and_setup_vnic(bp, vnic, 0, bp->rx_nr_rings);
+	}
 
 	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
 		return 0;
 
 	for (i = 0; i < bp->rx_nr_rings; i++) {
-		struct bnxt_vnic_info *vnic;
 		u16 vnic_id = i + 1;
 		u16 ring_id = i;
 
@@ -9918,7 +9919,7 @@ static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 		vnic->flags |= BNXT_VNIC_RFS_FLAG;
 		if (bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP)
 			vnic->flags |= BNXT_VNIC_RFS_NEW_RSS_FLAG;
-		if (bnxt_alloc_and_setup_vnic(bp, vnic_id, ring_id, 1))
+		if (bnxt_alloc_and_setup_vnic(bp, &bp->vnic_info[vnic_id], ring_id, 1))
 			break;
 	}
 	return rc;
@@ -9936,16 +9937,17 @@ static bool bnxt_promisc_ok(struct bnxt *bp)
 
 static int bnxt_setup_nitroa0_vnic(struct bnxt *bp)
 {
+	struct bnxt_vnic_info *vnic = &bp->vnic_info[1];
 	unsigned int rc = 0;
 
-	rc = bnxt_hwrm_vnic_alloc(bp, 1, bp->rx_nr_rings - 1, 1);
+	rc = bnxt_hwrm_vnic_alloc(bp, vnic, bp->rx_nr_rings - 1, 1);
 	if (rc) {
 		netdev_err(bp->dev, "Cannot allocate special vnic for NS2 A0: %x\n",
 			   rc);
 		return rc;
 	}
 
-	rc = bnxt_hwrm_vnic_cfg(bp, 1);
+	rc = bnxt_hwrm_vnic_cfg(bp, vnic);
 	if (rc) {
 		netdev_err(bp->dev, "Cannot allocate special vnic for NS2 A0: %x\n",
 			   rc);
@@ -9988,7 +9990,7 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 		rx_nr_rings--;
 
 	/* default vnic 0 */
-	rc = bnxt_hwrm_vnic_alloc(bp, BNXT_VNIC_DEFAULT, 0, rx_nr_rings);
+	rc = bnxt_hwrm_vnic_alloc(bp, vnic, 0, rx_nr_rings);
 	if (rc) {
 		netdev_err(bp->dev, "hwrm vnic alloc failure rc: %x\n", rc);
 		goto err_out;
@@ -9997,7 +9999,7 @@ static int bnxt_init_chip(struct bnxt *bp, bool irq_re_init)
 	if (BNXT_VF(bp))
 		bnxt_hwrm_func_qcfg(bp);
 
-	rc = bnxt_setup_vnic(bp, BNXT_VNIC_DEFAULT);
+	rc = bnxt_setup_vnic(bp, vnic);
 	if (rc)
 		goto err_out;
 	if (bp->rss_cap & BNXT_RSS_CAP_RSS_HASH_TYPE_DELTA)
