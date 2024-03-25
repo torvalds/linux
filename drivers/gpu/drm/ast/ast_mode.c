@@ -1344,27 +1344,8 @@ static int ast_crtc_init(struct drm_device *dev)
  * VGA Connector
  */
 
-static int ast_vga_connector_helper_get_modes(struct drm_connector *connector)
-{
-	struct edid *edid;
-	int count;
-
-	edid = drm_get_edid(connector, connector->ddc);
-	if (!edid)
-		goto err_drm_get_edid;
-
-	count = drm_add_edid_modes(connector, edid);
-	kfree(edid);
-
-	return count;
-
-err_drm_get_edid:
-	drm_connector_update_edid_property(connector, NULL);
-	return 0;
-}
-
 static const struct drm_connector_helper_funcs ast_vga_connector_helper_funcs = {
-	.get_modes = ast_vga_connector_helper_get_modes,
+	.get_modes = drm_connector_helper_get_modes,
 };
 
 static const struct drm_connector_funcs ast_vga_connector_funcs = {
@@ -1431,27 +1412,8 @@ static int ast_vga_output_init(struct ast_device *ast)
  * SIL164 Connector
  */
 
-static int ast_sil164_connector_helper_get_modes(struct drm_connector *connector)
-{
-	struct edid *edid;
-	int count;
-
-	edid = drm_get_edid(connector, connector->ddc);
-	if (!edid)
-		goto err_drm_get_edid;
-
-	count = drm_add_edid_modes(connector, edid);
-	kfree(edid);
-
-	return count;
-
-err_drm_get_edid:
-	drm_connector_update_edid_property(connector, NULL);
-	return 0;
-}
-
 static const struct drm_connector_helper_funcs ast_sil164_connector_helper_funcs = {
-	.get_modes = ast_sil164_connector_helper_get_modes,
+	.get_modes = drm_connector_helper_get_modes,
 };
 
 static const struct drm_connector_funcs ast_sil164_connector_funcs = {
