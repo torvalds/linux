@@ -10,8 +10,9 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+
 #include "pmbus.h"
 
 /* Vendor specific registers. */
@@ -98,6 +99,11 @@ static const int mp2975_max_phases[][MP2975_PAGE_NUM] = {
 	[mp2971] = { MP2971_MAX_PHASE_RAIL1, MP2971_MAX_PHASE_RAIL2 },
 };
 
+struct mp2975_driver_info {
+	const struct pmbus_driver_info *info;
+	enum chips chip_id;
+};
+
 struct mp2975_data {
 	struct pmbus_driver_info info;
 	enum chips chip_id;
@@ -110,15 +116,6 @@ struct mp2975_data {
 	int vout_ov_fixed[MP2975_PAGE_NUM];
 	int curr_sense_gain[MP2975_PAGE_NUM];
 };
-
-static const struct i2c_device_id mp2975_id[] = {
-	{"mp2971", mp2971},
-	{"mp2973", mp2973},
-	{"mp2975", mp2975},
-	{}
-};
-
-MODULE_DEVICE_TABLE(i2c, mp2975_id);
 
 static const struct regulator_desc __maybe_unused mp2975_reg_desc[] = {
 	PMBUS_REGULATOR("vout", 0),
@@ -989,29 +986,34 @@ static const struct pmbus_driver_info mp2973_info = {
 #endif
 };
 
+static const struct mp2975_driver_info mp2975_ddinfo[] = {
+	[mp2975] = { .info = &mp2975_info, .chip_id = mp2975 },
+	[mp2973] = { .info = &mp2973_info, .chip_id = mp2973 },
+	[mp2971] = { .info = &mp2973_info, .chip_id = mp2971 },
+};
+
 static int mp2975_probe(struct i2c_client *client)
 {
+	const struct mp2975_driver_info *ddinfo;
 	struct pmbus_driver_info *info;
 	struct mp2975_data *data;
 	int ret;
+
+	ddinfo = i2c_get_match_data(client);
+	if (!ddinfo)
+		return -ENODEV;
 
 	data = devm_kzalloc(&client->dev, sizeof(struct mp2975_data),
 			    GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	if (client->dev.of_node)
-		data->chip_id = (enum chips)(unsigned long)of_device_get_match_data(&client->dev);
-	else
-		data->chip_id = i2c_match_id(mp2975_id, client)->driver_data;
+	data->chip_id = ddinfo->chip_id;
 
 	memcpy(data->max_phases, mp2975_max_phases[data->chip_id],
 	       sizeof(data->max_phases));
 
-	if (data->chip_id == mp2975)
-		memcpy(&data->info, &mp2975_info, sizeof(*info));
-	else
-		memcpy(&data->info, &mp2973_info, sizeof(*info));
+	memcpy(&data->info, ddinfo->info, sizeof(data->info));
 
 	info = &data->info;
 
@@ -1069,18 +1071,26 @@ static int mp2975_probe(struct i2c_client *client)
 	return pmbus_do_probe(client, info);
 }
 
-static const struct of_device_id __maybe_unused mp2975_of_match[] = {
-	{.compatible = "mps,mp2971", .data = (void *)mp2971},
-	{.compatible = "mps,mp2973", .data = (void *)mp2973},
-	{.compatible = "mps,mp2975", .data = (void *)mp2975},
+static const struct of_device_id mp2975_of_match[] = {
+	{.compatible = "mps,mp2971", .data = &mp2975_ddinfo[mp2971]},
+	{.compatible = "mps,mp2973", .data = &mp2975_ddinfo[mp2973]},
+	{.compatible = "mps,mp2975", .data = &mp2975_ddinfo[mp2975]},
 	{}
 };
 MODULE_DEVICE_TABLE(of, mp2975_of_match);
 
+static const struct i2c_device_id mp2975_id[] = {
+	{"mp2971", (kernel_ulong_t)&mp2975_ddinfo[mp2971]},
+	{"mp2973", (kernel_ulong_t)&mp2975_ddinfo[mp2973]},
+	{"mp2975", (kernel_ulong_t)&mp2975_ddinfo[mp2975]},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, mp2975_id);
+
 static struct i2c_driver mp2975_driver = {
 	.driver = {
 		.name = "mp2975",
-		.of_match_table = of_match_ptr(mp2975_of_match),
+		.of_match_table = mp2975_of_match,
 	},
 	.probe = mp2975_probe,
 	.id_table = mp2975_id,
