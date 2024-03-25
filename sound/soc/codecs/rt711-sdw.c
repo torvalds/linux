@@ -408,7 +408,7 @@ static int rt711_bus_config(struct sdw_slave *slave,
 
 	ret = rt711_clock_config(&slave->dev);
 	if (ret < 0)
-		dev_err(&slave->dev, "Invalid clk config");
+		dev_err(&slave->dev, "%s: Invalid clk config", __func__);
 
 	return ret;
 }
@@ -548,7 +548,7 @@ static int __maybe_unused rt711_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->initialization_complete,
 				msecs_to_jiffies(RT711_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Initialization not complete, timed out\n");
+		dev_err(&slave->dev, "%s: Initialization not complete, timed out\n", __func__);
 		return -ETIMEDOUT;
 	}
 
