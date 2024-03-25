@@ -2790,6 +2790,31 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 	struct btree_transaction_stats *s = btree_trans_stats(trans);
 	s->max_mem = max(s->max_mem, new_bytes);
 
+	if (trans->used_mempool) {
+		if (trans->mem_bytes >= new_bytes)
+			goto out_change_top;
+
+		/* No more space from mempool item, need malloc new one */
+		new_mem = kmalloc(new_bytes, GFP_NOWAIT|__GFP_NOWARN);
+		if (unlikely(!new_mem)) {
+			bch2_trans_unlock(trans);
+
+			new_mem = kmalloc(new_bytes, GFP_KERNEL);
+			if (!new_mem)
+				return ERR_PTR(-BCH_ERR_ENOMEM_trans_kmalloc);
+
+			ret = bch2_trans_relock(trans);
+			if (ret) {
+				kfree(new_mem);
+				return ERR_PTR(ret);
+			}
+		}
+		memcpy(new_mem, trans->mem, trans->mem_top);
+		trans->used_mempool = false;
+		mempool_free(trans->mem, &c->btree_trans_mem_pool);
+		goto out_new_mem;
+	}
+
 	new_mem = krealloc(trans->mem, new_bytes, GFP_NOWAIT|__GFP_NOWARN);
 	if (unlikely(!new_mem)) {
 		bch2_trans_unlock(trans);
@@ -2798,6 +2823,8 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 		if (!new_mem && new_bytes <= BTREE_TRANS_MEM_MAX) {
 			new_mem = mempool_alloc(&c->btree_trans_mem_pool, GFP_KERNEL);
 			new_bytes = BTREE_TRANS_MEM_MAX;
+			memcpy(new_mem, trans->mem, trans->mem_top);
+			trans->used_mempool = true;
 			kfree(trans->mem);
 		}
 
@@ -2811,7 +2838,7 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 		if (ret)
 			return ERR_PTR(ret);
 	}
-
+out_new_mem:
 	trans->mem = new_mem;
 	trans->mem_bytes = new_bytes;
 
@@ -2819,7 +2846,7 @@ void *__bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
 		trace_and_count(c, trans_restart_mem_realloced, trans, _RET_IP_, new_bytes);
 		return ERR_PTR(btree_trans_restart(trans, BCH_ERR_transaction_restart_mem_realloced));
 	}
-
+out_change_top:
 	p = trans->mem + trans->mem_top;
 	trans->mem_top += size;
 	memset(p, 0, size);
@@ -3093,7 +3120,7 @@ void bch2_trans_put(struct btree_trans *trans)
 	if (paths_allocated != trans->_paths_allocated)
 		kvfree_rcu_mightsleep(paths_allocated);
 
-	if (trans->mem_bytes == BTREE_TRANS_MEM_MAX)
+	if (trans->used_mempool)
 		mempool_free(trans->mem, &c->btree_trans_mem_pool);
 	else
 		kfree(trans->mem);
