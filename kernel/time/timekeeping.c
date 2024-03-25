@@ -381,20 +381,28 @@ static inline u64 timekeeping_delta_to_ns(const struct tk_read_base *tkr, u64 de
 	return nsec;
 }
 
-static inline u64 timekeeping_get_ns(const struct tk_read_base *tkr)
-{
-	u64 delta;
-
-	delta = timekeeping_get_delta(tkr);
-	return timekeeping_delta_to_ns(tkr, delta);
-}
-
 static inline u64 timekeeping_cycles_to_ns(const struct tk_read_base *tkr, u64 cycles)
 {
 	u64 delta;
 
 	/* calculate the delta since the last update_wall_time */
 	delta = clocksource_delta(cycles, tkr->cycle_last, tkr->mask);
+	return timekeeping_delta_to_ns(tkr, delta);
+}
+
+static __always_inline u64 fast_tk_get_delta_ns(struct tk_read_base *tkr)
+{
+	u64 delta, cycles = tk_clock_read(tkr);
+
+	delta = clocksource_delta(cycles, tkr->cycle_last, tkr->mask);
+	return timekeeping_delta_to_ns(tkr, delta);
+}
+
+static inline u64 timekeeping_get_ns(const struct tk_read_base *tkr)
+{
+	u64 delta;
+
+	delta = timekeeping_get_delta(tkr);
 	return timekeeping_delta_to_ns(tkr, delta);
 }
 
@@ -429,14 +437,6 @@ static void update_fast_timekeeper(const struct tk_read_base *tkr,
 
 	/* Update base[1] */
 	memcpy(base + 1, base, sizeof(*base));
-}
-
-static __always_inline u64 fast_tk_get_delta_ns(struct tk_read_base *tkr)
-{
-	u64 delta, cycles = tk_clock_read(tkr);
-
-	delta = clocksource_delta(cycles, tkr->cycle_last, tkr->mask);
-	return timekeeping_delta_to_ns(tkr, delta);
 }
 
 static __always_inline u64 __ktime_get_fast_ns(struct tk_fast *tkf)
