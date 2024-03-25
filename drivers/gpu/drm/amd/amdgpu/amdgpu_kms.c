@@ -133,6 +133,7 @@ void amdgpu_register_gpu_instance(struct amdgpu_device *adev)
 int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 {
 	struct drm_device *dev;
+	int bamaco_support = 0;
 	int r, acpi_status;
 
 	dev = adev_to_drm(adev);
@@ -158,8 +159,12 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 		   (amdgpu_runtime_pm != 0)) { /* enable boco as runtime mode */
 		adev->pm.rpm_mode = AMDGPU_RUNPM_BOCO;
 		dev_info(adev->dev, "Using BOCO for runtime pm\n");
-	} else if (amdgpu_device_supports_baco(dev) &&
-		   (amdgpu_runtime_pm != 0)) {
+	} else if (amdgpu_runtime_pm != 0) {
+		bamaco_support = amdgpu_device_supports_baco(dev);
+
+		if (!bamaco_support)
+			goto no_runtime_pm;
+
 		switch (adev->asic_type) {
 		case CHIP_VEGA20:
 		case CHIP_ARCTURUS:
@@ -178,9 +183,19 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 			break;
 		}
 
-		if (adev->pm.rpm_mode == AMDGPU_RUNPM_BACO)
-			dev_info(adev->dev, "Using BACO for runtime pm\n");
+		if (adev->pm.rpm_mode == AMDGPU_RUNPM_BACO) {
+			if (bamaco_support & MACO_SUPPORT) {
+				adev->pm.rpm_mode = AMDGPU_RUNPM_BAMACO;
+				dev_info(adev->dev, "Using BAMACO for runtime pm\n");
+			} else {
+				dev_info(adev->dev, "Using BACO for runtime pm\n");
+			}
+		}
 	}
+
+no_runtime_pm:
+	if (adev->pm.rpm_mode == AMDGPU_RUNPM_NONE)
+		dev_info(adev->dev, "NO pm mode for runtime pm\n");
 
 	/* Call ACPI methods: require modeset init
 	 * but failure is not fatal
