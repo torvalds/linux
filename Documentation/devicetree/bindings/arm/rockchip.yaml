@@ -243,6 +243,11 @@ properties:
           - const: friendlyarm,nanopc-t6
           - const: rockchip,rk3588
 
+      - description: GameForce Chi
+        items:
+          - const: gameforce,chi
+          - const: rockchip,rk3326
+
       - description: GeekBuying GeekBox
         items:
           - const: geekbuying,geekbox
