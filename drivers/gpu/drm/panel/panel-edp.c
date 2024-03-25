@@ -808,7 +808,10 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 	/* Power the panel on so we can read the EDID */
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		dev_err(dev, "Couldn't power on panel to read EDID: %d\n", ret);
+		dev_err(dev,
+			"Couldn't power on panel to ID it; using conservative timings: %d\n",
+			ret);
+		panel_edp_set_conservative_timings(panel, desc);
 		goto exit;
 	}
 
@@ -816,8 +819,8 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 	if (base_block) {
 		panel_id = drm_edid_get_panel_id(base_block);
 	} else {
-		dev_err(dev, "Couldn't identify panel via EDID\n");
-		ret = -EIO;
+		dev_err(dev, "Couldn't read EDID for ID; using conservative timings\n");
+		panel_edp_set_conservative_timings(panel, desc);
 		goto exit;
 	}
 	drm_edid_decode_panel_id(panel_id, vend, &product_id);
@@ -844,12 +847,11 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 		desc->delay = *panel->detected_panel->delay;
 	}
 
-	ret = 0;
 exit:
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
-	return ret;
+	return 0;
 }
 
 static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
