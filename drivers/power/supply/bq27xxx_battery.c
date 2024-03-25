@@ -1690,7 +1690,8 @@ static int bq27xxx_battery_read_temperature(struct bq27xxx_device_info *di,
  * Return the battery Cycle count total
  * Or < 0 if something fails.
  */
-static int bq27xxx_battery_read_cyct(struct bq27xxx_device_info *di)
+static int bq27xxx_battery_read_cyct(struct bq27xxx_device_info *di,
+				     union power_supply_propval *val)
 {
 	int cyct;
 
@@ -1698,7 +1699,9 @@ static int bq27xxx_battery_read_cyct(struct bq27xxx_device_info *di)
 	if (cyct < 0)
 		dev_err(di->dev, "error reading cycle count total\n");
 
-	return cyct;
+	val->intval = cyct;
+
+	return 0;
 }
 
 /*
@@ -1872,8 +1875,6 @@ static void bq27xxx_battery_update_unlocked(struct bq27xxx_device_info *di)
 		cache.capacity = bq27xxx_battery_read_soc(di);
 		di->cache.flags = cache.flags;
 		cache.health = bq27xxx_battery_read_health(di);
-		if (di->regs[BQ27XXX_REG_CYCT] != INVALID_REG_ADDR)
-			cache.cycle_count = bq27xxx_battery_read_cyct(di);
 
 		/*
 		 * On gauges with signed current reporting the current must be
@@ -2082,7 +2083,7 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 	case POWER_SUPPLY_PROP_VOLTAGE_MIN_DESIGN:
 		return -EINVAL;
 	case POWER_SUPPLY_PROP_CYCLE_COUNT:
-		ret = bq27xxx_simple_value(di->cache.cycle_count, val);
+		ret = bq27xxx_battery_read_cyct(di, val);
 		break;
 	case POWER_SUPPLY_PROP_ENERGY_NOW:
 		ret = bq27xxx_battery_read_energy(di, val);
