@@ -82,6 +82,17 @@
 		};
 	};
 
+	sdio_pwrseq: sdio-pwrseq {
+		compatible = "mmc-pwrseq-simple";
+		pinctrl-names = "default";
+		pinctrl-0 = <&wifi_en_pins_default>;
+		/* Internal power on time(Figure 8-3) * 2 */
+		post-power-on-delay-ms = <10>;
+		/* Re-enable time(Figure 8-2) + 20uS */
+		power-off-delay-us = <80>;
+		reset-gpios = <&main_gpio0 38 GPIO_ACTIVE_LOW>;
+	};
+
 	vsys_5v0: regulator-1 {
 		bootph-all;
 		compatible = "regulator-fixed";
@@ -102,20 +113,6 @@
 		vin-supply = <&vsys_5v0>;
 		regulator-always-on;
 		regulator-boot-on;
-	};
-
-	wlan_en: regulator-3 {
-		/* OUTPUT of SN74AVC2T244DQMR */
-		compatible = "regulator-fixed";
-		regulator-name = "wlan_en";
-		regulator-min-microvolt = <1800000>;
-		regulator-max-microvolt = <1800000>;
-		enable-active-high;
-		regulator-always-on;
-		vin-supply = <&vdd_3v3>;
-		gpio = <&main_gpio0 38 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&wifi_en_pins_default>;
 	};
 
 	vdd_3v3_sd: regulator-4 {
@@ -839,13 +836,13 @@
 };
 
 &sdhci2 {
-	vmmc-supply = <&wlan_en>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&wifi_pins_default>, <&wifi_32k_clk>;
 	non-removable;
 	ti,fails-without-test-cd;
 	cap-power-off-card;
 	keep-power-in-suspend;
+	mmc-pwrseq = <&sdio_pwrseq>;
 	assigned-clocks = <&k3_clks 157 158>;
 	assigned-clock-parents = <&k3_clks 157 160>;
 	#address-cells = <1>;
