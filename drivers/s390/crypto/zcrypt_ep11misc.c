@@ -556,7 +556,7 @@ static int check_reply_pl(const u8 *pl, const char *func)
 	pl += 2;
 	ret = *((u32 *)pl);
 	if (ret != 0) {
-		ZCRYPT_DBF_ERR("%s return value 0x%04x != 0\n", func, ret);
+		ZCRYPT_DBF_ERR("%s return value 0x%08x != 0\n", func, ret);
 		return -EIO;
 	}
 
