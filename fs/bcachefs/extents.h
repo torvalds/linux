@@ -596,30 +596,6 @@ static inline struct bch_devs_list bch2_bkey_cached_devs(struct bkey_s_c k)
 	return ret;
 }
 
-static inline unsigned bch2_bkey_ptr_data_type(struct bkey_s_c k, const struct bch_extent_ptr *ptr)
-{
-	switch (k.k->type) {
-	case KEY_TYPE_btree_ptr:
-	case KEY_TYPE_btree_ptr_v2:
-		return BCH_DATA_btree;
-	case KEY_TYPE_extent:
-	case KEY_TYPE_reflink_v:
-		return BCH_DATA_user;
-	case KEY_TYPE_stripe: {
-		struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
-
-		BUG_ON(ptr < s.v->ptrs ||
-		       ptr >= s.v->ptrs + s.v->nr_blocks);
-
-		return ptr >= s.v->ptrs + s.v->nr_blocks - s.v->nr_redundant
-			? BCH_DATA_parity
-			: BCH_DATA_user;
-	}
-	default:
-		BUG();
-	}
-}
-
 unsigned bch2_bkey_nr_ptrs(struct bkey_s_c);
 unsigned bch2_bkey_nr_ptrs_allocated(struct bkey_s_c);
 unsigned bch2_bkey_nr_ptrs_fully_allocated(struct bkey_s_c);

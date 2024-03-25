@@ -7,6 +7,7 @@
 #include "bcachefs.h"
 #include "alloc_background.h"
 #include "alloc_foreground.h"
+#include "backpointers.h"
 #include "bkey_methods.h"
 #include "bkey_buf.h"
 #include "btree_journal_iter.h"
@@ -508,7 +509,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 	bkey_for_each_ptr_decode(k->k, ptrs_c, p, entry_c) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 		struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
-		enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, &entry_c->ptr);
+		enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, p, entry_c);
 
 		if (fsck_err_on(!g->gen_valid,
 				c, ptr_to_missing_alloc_key,
@@ -574,7 +575,8 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 			continue;
 
 		if (fsck_err_on(bucket_data_type(g->data_type) &&
-				bucket_data_type(g->data_type) != data_type, c,
+				bucket_data_type(g->data_type) !=
+				bucket_data_type(data_type), c,
 				ptr_bucket_data_type_mismatch,
 				"bucket %u:%zu different types of data in same bucket: %s, %s\n"
 				"while marking %s",
@@ -615,18 +617,13 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 	}
 
 	if (do_update) {
-		struct bkey_ptrs ptrs;
-		union bch_extent_entry *entry;
-		struct bch_extent_ptr *ptr;
-		struct bkey_i *new;
-
 		if (is_root) {
 			bch_err(c, "cannot update btree roots yet");
 			ret = -EINVAL;
 			goto err;
 		}
 
-		new = kmalloc(bkey_bytes(k->k), GFP_KERNEL);
+		struct bkey_i *new = kmalloc(bkey_bytes(k->k), GFP_KERNEL);
 		if (!new) {
 			ret = -BCH_ERR_ENOMEM_gc_repair_key;
 			bch_err_msg(c, ret, "allocating new key");
@@ -641,7 +638,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 			 * btree node isn't there anymore, the read path will
 			 * sort it out:
 			 */
-			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
+			struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
 			bkey_for_each_ptr(ptrs, ptr) {
 				struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
 				struct bucket *g = PTR_GC_BUCKET(ca, ptr);
@@ -649,19 +646,26 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 				ptr->gen = g->gen;
 			}
 		} else {
-			bch2_bkey_drop_ptrs(bkey_i_to_s(new), ptr, ({
-				struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
-				struct bucket *g = PTR_GC_BUCKET(ca, ptr);
-				enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, ptr);
+			struct bkey_ptrs ptrs;
+			union bch_extent_entry *entry;
+restart_drop_ptrs:
+			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
+			bkey_for_each_ptr_decode(bkey_i_to_s(new).k, ptrs, p, entry) {
+				struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
+				struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
+				enum bch_data_type data_type = bch2_bkey_ptr_data_type(bkey_i_to_s_c(new), p, entry);
 
-				(ptr->cached &&
-				 (!g->gen_valid || gen_cmp(ptr->gen, g->gen) > 0)) ||
-				(!ptr->cached &&
-				 gen_cmp(ptr->gen, g->gen) < 0) ||
-				gen_cmp(g->gen, ptr->gen) > BUCKET_GC_GEN_MAX ||
-				(g->data_type &&
-				 g->data_type != data_type);
-			}));
+				if ((p.ptr.cached &&
+				     (!g->gen_valid || gen_cmp(p.ptr.gen, g->gen) > 0)) ||
+				    (!p.ptr.cached &&
+				     gen_cmp(p.ptr.gen, g->gen) < 0) ||
+				    gen_cmp(g->gen, p.ptr.gen) > BUCKET_GC_GEN_MAX ||
+				    (g->data_type &&
+				     g->data_type != data_type)) {
+					bch2_bkey_drop_ptr(bkey_i_to_s(new), &entry->ptr);
+					goto restart_drop_ptrs;
+				}
+			}
 again:
 			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
 			bkey_extent_entry_for_each(ptrs, entry) {
@@ -736,10 +740,6 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 		BUG_ON(bch2_journal_seq_verify &&
 		       k->k->version.lo > atomic64_read(&c->journal.seq));
 
-		ret = bch2_check_fix_ptrs(trans, btree_id, level, is_root, k);
-		if (ret)
-			goto err;
-
 		if (fsck_err_on(k->k->version.lo > atomic64_read(&c->key_version), c,
 				bkey_version_in_future,
 				"key version number higher than recorded: %llu > %llu",
@@ -748,8 +748,13 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 			atomic64_set(&c->key_version, k->k->version.lo);
 	}
 
+	ret = bch2_check_fix_ptrs(trans, btree_id, level, is_root, k);
+	if (ret)
+		goto err;
+
 	ret = commit_do(trans, NULL, NULL, 0,
-			bch2_key_trigger(trans, btree_id, level, old, unsafe_bkey_s_c_to_s(*k), BTREE_TRIGGER_GC));
+			bch2_key_trigger(trans, btree_id, level, old,
+					 unsafe_bkey_s_c_to_s(*k), BTREE_TRIGGER_GC));
 fsck_err:
 err:
 	bch_err_fn(c, ret);
