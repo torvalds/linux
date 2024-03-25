@@ -1287,7 +1287,7 @@ void ice_devlink_register(struct ice_pf *pf)
 {
 	struct devlink *devlink = priv_to_devlink(pf);
 
-	devlink_register(devlink);
+	devl_register(devlink);
 }
 
 /**
@@ -1298,21 +1298,21 @@ void ice_devlink_register(struct ice_pf *pf)
  */
 void ice_devlink_unregister(struct ice_pf *pf)
 {
-	devlink_unregister(priv_to_devlink(pf));
+	devl_unregister(priv_to_devlink(pf));
 }
 
 int ice_devlink_register_params(struct ice_pf *pf)
 {
 	struct devlink *devlink = priv_to_devlink(pf);
 
-	return devlink_params_register(devlink, ice_devlink_params,
-				       ARRAY_SIZE(ice_devlink_params));
+	return devl_params_register(devlink, ice_devlink_params,
+				    ARRAY_SIZE(ice_devlink_params));
 }
 
 void ice_devlink_unregister_params(struct ice_pf *pf)
 {
-	devlink_params_unregister(priv_to_devlink(pf), ice_devlink_params,
-				  ARRAY_SIZE(ice_devlink_params));
+	devl_params_unregister(priv_to_devlink(pf), ice_devlink_params,
+			       ARRAY_SIZE(ice_devlink_params));
 }
 
 #define ICE_DEVLINK_READ_BLK_SIZE (1024 * 1024)
@@ -1553,8 +1553,8 @@ void ice_devlink_init_regions(struct ice_pf *pf)
 	u64 nvm_size, sram_size;
 
 	nvm_size = pf->hw.flash.flash_size;
-	pf->nvm_region = devlink_region_create(devlink, &ice_nvm_region_ops, 1,
-					       nvm_size);
+	pf->nvm_region = devl_region_create(devlink, &ice_nvm_region_ops, 1,
+					    nvm_size);
 	if (IS_ERR(pf->nvm_region)) {
 		dev_err(dev, "failed to create NVM devlink region, err %ld\n",
 			PTR_ERR(pf->nvm_region));
@@ -1562,17 +1562,17 @@ void ice_devlink_init_regions(struct ice_pf *pf)
 	}
 
 	sram_size = pf->hw.flash.sr_words * 2u;
-	pf->sram_region = devlink_region_create(devlink, &ice_sram_region_ops,
-						1, sram_size);
+	pf->sram_region = devl_region_create(devlink, &ice_sram_region_ops,
+					     1, sram_size);
 	if (IS_ERR(pf->sram_region)) {
 		dev_err(dev, "failed to create shadow-ram devlink region, err %ld\n",
 			PTR_ERR(pf->sram_region));
 		pf->sram_region = NULL;
 	}
 
-	pf->devcaps_region = devlink_region_create(devlink,
-						   &ice_devcaps_region_ops, 10,
-						   ICE_AQ_MAX_BUF_LEN);
+	pf->devcaps_region = devl_region_create(devlink,
+						&ice_devcaps_region_ops, 10,
+						ICE_AQ_MAX_BUF_LEN);
 	if (IS_ERR(pf->devcaps_region)) {
 		dev_err(dev, "failed to create device-caps devlink region, err %ld\n",
 			PTR_ERR(pf->devcaps_region));
@@ -1589,11 +1589,11 @@ void ice_devlink_init_regions(struct ice_pf *pf)
 void ice_devlink_destroy_regions(struct ice_pf *pf)
 {
 	if (pf->nvm_region)
-		devlink_region_destroy(pf->nvm_region);
+		devl_region_destroy(pf->nvm_region);
 
 	if (pf->sram_region)
-		devlink_region_destroy(pf->sram_region);
+		devl_region_destroy(pf->sram_region);
 
 	if (pf->devcaps_region)
-		devlink_region_destroy(pf->devcaps_region);
+		devl_region_destroy(pf->devcaps_region);
 }
