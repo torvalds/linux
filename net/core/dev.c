@@ -11762,7 +11762,7 @@ static int net_page_pool_create(int cpuid)
 	struct page_pool_params page_pool_params = {
 		.pool_size = SYSTEM_PERCPU_PAGE_POOL_SIZE,
 		.flags = PP_FLAG_SYSTEM_POOL,
-		.nid = NUMA_NO_NODE,
+		.nid = cpu_to_mem(cpuid),
 	};
 	struct page_pool *pp_ptr;
 
