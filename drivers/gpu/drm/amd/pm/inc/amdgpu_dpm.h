@@ -50,7 +50,11 @@ enum amdgpu_runpm_mode {
 	AMDGPU_RUNPM_PX,
 	AMDGPU_RUNPM_BOCO,
 	AMDGPU_RUNPM_BACO,
+	AMDGPU_RUNPM_BAMACO,
 };
+
+#define BACO_SUPPORT (1<<0)
+#define MACO_SUPPORT (1<<1)
 
 struct amdgpu_ps {
 	u32 caps; /* vbios flags */
