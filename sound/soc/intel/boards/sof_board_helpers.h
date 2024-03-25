@@ -84,6 +84,17 @@ enum {
 	 (((k7) & SOF_LINK_IDS_MASK) << (SOF_LINK_IDS_SHIFT * 6)))
 
 /*
+ * sof_da7219_private: private data for da7219 machine driver
+ *
+ * @is_jsl_board: true for JSL boards
+ * @pll_bypass: true for PLL bypass mode
+ */
+struct sof_da7219_private {
+	bool is_jsl_board;
+	bool pll_bypass;
+};
+
+/*
  * sof_rt5682_private: private data for rt5682 machine driver
  *
  * @mclk: mclk clock data
@@ -112,6 +123,7 @@ struct sof_rt5682_private {
  * @amp_link: pointer to speaker amplifier dai link
  * @link_order_overwrite: custom DAI link order
  * @link_id_overwrite: custom DAI link ID
+ * @da7219: private data for da7219 machine driver
  * @rt5682: private data for rt5682 machine driver
  */
 struct sof_card_private {
@@ -142,6 +154,7 @@ struct sof_card_private {
 	unsigned long link_id_overwrite;
 
 	union {
+		struct sof_da7219_private da7219;
 		struct sof_rt5682_private rt5682;
 	};
 };
