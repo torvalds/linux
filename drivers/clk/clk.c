@@ -3838,8 +3838,6 @@ static int __clk_core_init(struct clk_core *core)
 	}
 
 	clk_core_reparent_orphans_nolock();
-
-	kref_init(&core->ref);
 out:
 	clk_pm_runtime_put(core);
 unlock:
@@ -4068,6 +4066,16 @@ static void clk_core_free_parent_map(struct clk_core *core)
 	kfree(core->parents);
 }
 
+/* Free memory allocated for a struct clk_core */
+static void __clk_release(struct kref *ref)
+{
+	struct clk_core *core = container_of(ref, struct clk_core, ref);
+
+	clk_core_free_parent_map(core);
+	kfree_const(core->name);
+	kfree(core);
+}
+
 static struct clk *
 __clk_register(struct device *dev, struct device_node *np, struct clk_hw *hw)
 {
@@ -4087,6 +4095,8 @@ __clk_register(struct device *dev, struct device_node *np, struct clk_hw *hw)
 		ret = -ENOMEM;
 		goto fail_out;
 	}
+
+	kref_init(&core->ref);
 
 	core->name = kstrdup_const(init->name, GFP_KERNEL);
 	if (!core->name) {
@@ -4142,12 +4152,10 @@ __clk_register(struct device *dev, struct device_node *np, struct clk_hw *hw)
 	hw->clk = NULL;
 
 fail_create_clk:
-	clk_core_free_parent_map(core);
 fail_parents:
 fail_ops:
-	kfree_const(core->name);
 fail_name:
-	kfree(core);
+	kref_put(&core->ref, __clk_release);
 fail_out:
 	return ERR_PTR(ret);
 }
@@ -4226,16 +4234,6 @@ int of_clk_hw_register(struct device_node *node, struct clk_hw *hw)
 	return PTR_ERR_OR_ZERO(__clk_register(NULL, node, hw));
 }
 EXPORT_SYMBOL_GPL(of_clk_hw_register);
-
-/* Free memory allocated for a clock. */
-static void __clk_release(struct kref *ref)
-{
-	struct clk_core *core = container_of(ref, struct clk_core, ref);
-
-	clk_core_free_parent_map(core);
-	kfree_const(core->name);
-	kfree(core);
-}
 
 /*
  * Empty clk_ops for unregistered clocks. These are used temporarily
