@@ -271,10 +271,10 @@ static int sof_audio_probe(struct platform_device *pdev)
 	case CODEC_RT1015P:
 		sof_rt1015p_codec_conf(&sof_audio_card_nau8825);
 		break;
-	case CODEC_NONE:
 	case CODEC_MAX98360A:
 	case CODEC_NAU8318:
 	case CODEC_RT1019P:
+	case CODEC_NONE:
 		/* no codec conf required */
 		break;
 	default:
@@ -297,14 +297,6 @@ static int sof_audio_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id board_ids[] = {
-	{
-		.name = "sof_nau8825",
-		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_CODEC(0) |
-					SOF_NUM_IDISP_HDMI(4) |
-					SOF_SSP_PORT_BT_OFFLOAD(2) |
-					SOF_BT_OFFLOAD_PRESENT),
-
-	},
 	{
 		.name = "adl_rt1019p_8825",
 		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_CODEC(0) |

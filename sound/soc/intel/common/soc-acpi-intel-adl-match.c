@@ -563,7 +563,7 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 	},
 	{
 		.id = "10508825",
-		.drv_name = "sof_nau8825",
+		.drv_name = "adl_nau8825_def",
 		.sof_tplg_filename = "sof-adl-nau8825.tplg",
 	},
 	{
