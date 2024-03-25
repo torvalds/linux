@@ -139,7 +139,6 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
 					SOF_SSP_PORT_CODEC(2) |
 					SOF_SSP_PORT_AMP(0) |
-					SOF_NUM_IDISP_HDMI(3) |
 					SOF_SSP_PORT_BT_OFFLOAD(1) |
 					SOF_BT_OFFLOAD_PRESENT
 					),
@@ -692,11 +691,11 @@ static int sof_audio_probe(struct platform_device *pdev)
 	case CODEC_RT1015P:
 		sof_rt1015p_codec_conf(&sof_audio_card_rt5682);
 		break;
-	case CODEC_NONE:
 	case CODEC_MAX98357A:
 	case CODEC_MAX98360A:
 	case CODEC_RT1019P:
 	case CODEC_RT5650:
+	case CODEC_NONE:
 		/* no codec conf required */
 		break;
 	default:
@@ -763,7 +762,6 @@ static const struct platform_device_id board_ids[] = {
 		.name = "adl_rt5682_c1_h02",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_SSP_PORT_CODEC(1) |
-					SOF_NUM_IDISP_HDMI(3) |
 					/* SSP 0 and SSP 2 are used for HDMI IN */
 					SOF_SSP_MASK_HDMI_CAPTURE(0x5)),
 	},
@@ -787,7 +785,6 @@ static const struct platform_device_id board_ids[] = {
 		.name = "rpl_rt5682_c1_h02",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_SSP_PORT_CODEC(1) |
-					SOF_NUM_IDISP_HDMI(3) |
 					/* SSP 0 and SSP 2 are used for HDMI IN */
 					SOF_SSP_MASK_HDMI_CAPTURE(0x5)),
 	},
@@ -796,7 +793,6 @@ static const struct platform_device_id board_ids[] = {
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_SSP_PORT_CODEC(0) |
 					SOF_SSP_PORT_AMP(1) |
-					SOF_NUM_IDISP_HDMI(3) |
 					SOF_SSP_PORT_BT_OFFLOAD(2) |
 					SOF_BT_OFFLOAD_PRESENT),
 	},
@@ -804,15 +800,13 @@ static const struct platform_device_id board_ids[] = {
 		.name = "mtl_mx98360_rt5682",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_SSP_PORT_CODEC(0) |
-					SOF_SSP_PORT_AMP(1) |
-					SOF_NUM_IDISP_HDMI(3)),
+					SOF_SSP_PORT_AMP(1)),
 	},
 	{
 		.name = "mtl_rt5682_def",
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_SSP_PORT_CODEC(2) |
 					SOF_SSP_PORT_AMP(0) |
-					SOF_NUM_IDISP_HDMI(3) |
 					SOF_SSP_PORT_BT_OFFLOAD(1) |
 					SOF_BT_OFFLOAD_PRESENT),
 	},
