@@ -109,7 +109,8 @@ static void bnxt_ptp_get_current_time(struct bnxt *bp)
 	spin_unlock_bh(&ptp->ptp_lock);
 }
 
-static int bnxt_hwrm_port_ts_query(struct bnxt *bp, u32 flags, u64 *ts)
+static int bnxt_hwrm_port_ts_query(struct bnxt *bp, u32 flags, u64 *ts,
+				   u32 txts_tmo)
 {
 	struct hwrm_port_ts_query_output *resp;
 	struct hwrm_port_ts_query_input *req;
@@ -122,10 +123,15 @@ static int bnxt_hwrm_port_ts_query(struct bnxt *bp, u32 flags, u64 *ts)
 	req->flags = cpu_to_le32(flags);
 	if ((flags & PORT_TS_QUERY_REQ_FLAGS_PATH) ==
 	    PORT_TS_QUERY_REQ_FLAGS_PATH_TX) {
+		u32 tmo_us = txts_tmo * 1000;
+
 		req->enables = cpu_to_le16(BNXT_PTP_QTS_TX_ENABLES);
 		req->ptp_seq_id = cpu_to_le32(bp->ptp_cfg->tx_seqid);
 		req->ptp_hdr_offset = cpu_to_le16(bp->ptp_cfg->tx_hdr_off);
-		req->ts_req_timeout = cpu_to_le16(BNXT_PTP_QTS_TIMEOUT);
+		if (!tmo_us)
+			tmo_us = BNXT_PTP_QTS_TIMEOUT;
+		tmo_us = min(tmo_us, BNXT_PTP_QTS_MAX_TMO_US);
+		req->ts_req_timeout = cpu_to_le16(txts_tmo);
 	}
 	resp = hwrm_req_hold(bp, req);
 
@@ -675,7 +681,8 @@ static void bnxt_stamp_tx_skb(struct bnxt *bp, struct sk_buff *skb)
 	u64 ts = 0, ns = 0;
 	int rc;
 
-	rc = bnxt_hwrm_port_ts_query(bp, PORT_TS_QUERY_REQ_FLAGS_PATH_TX, &ts);
+	rc = bnxt_hwrm_port_ts_query(bp, PORT_TS_QUERY_REQ_FLAGS_PATH_TX, &ts,
+				     0);
 	if (!rc) {
 		memset(&timestamp, 0, sizeof(timestamp));
 		spin_lock_bh(&ptp->ptp_lock);
@@ -891,7 +898,8 @@ int bnxt_ptp_init_rtc(struct bnxt *bp, bool phc_cfg)
 		if (rc)
 			return rc;
 	} else {
-		rc = bnxt_hwrm_port_ts_query(bp, PORT_TS_QUERY_REQ_FLAGS_CURRENT_TIME, &ns);
+		rc = bnxt_hwrm_port_ts_query(bp, PORT_TS_QUERY_REQ_FLAGS_CURRENT_TIME,
+					     &ns, 0);
 		if (rc)
 			return rc;
 	}
