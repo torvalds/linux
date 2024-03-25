@@ -441,6 +441,12 @@ int main(int argc, char **argv)
 	parse_test_type_arg(argv[1]);
 	bytes = atol(argv[2]) * 1024 * 1024;
 
+	if (test_type == TEST_HUGETLB &&
+	   get_free_hugepages() < bytes / page_size) {
+		printf("skip: Skipping userfaultfd... not enough hugepages\n");
+		return KSFT_SKIP;
+	}
+
 	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
 
 	nr_pages_per_cpu = bytes / page_size / nr_cpus;

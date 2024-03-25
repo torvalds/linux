@@ -14,7 +14,7 @@
 
 / {
 	model = "Orange Pi RK3399 Board";
-	compatible = "rockchip,rk3399-orangepi", "rockchip,rk3399";
+	compatible = "xunlong,rk3399-orangepi", "rockchip,rk3399";
 
 	aliases {
 		ethernet0 = &gmac;

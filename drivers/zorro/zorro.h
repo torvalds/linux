@@ -4,7 +4,7 @@
      *  Zorro bus
      */
 
-extern struct bus_type zorro_bus_type;
+extern const struct bus_type zorro_bus_type;
 
 
 #ifdef CONFIG_ZORRO_NAMES

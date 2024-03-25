@@ -471,7 +471,7 @@ static void __init arch_reserve_crashkernel(void)
 	bool high = false;
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_KEXEC_CORE))
+	if (!IS_ENABLED(CONFIG_CRASH_RESERVE))
 		return;
 
 	ret = parse_crashkernel(cmdline, memblock_phys_mem_size(),
@@ -1205,16 +1205,6 @@ void __init i386_reserve_resources(void)
 }
 
 #endif /* CONFIG_X86_32 */
-
-#ifndef CONFIG_SMP
-void __init smp_prepare_boot_cpu(void)
-{
-	struct cpuinfo_x86 *c = &cpu_data(0);
-
-	*c = boot_cpu_data;
-	c->initialized = true;
-}
-#endif
 
 static struct notifier_block kernel_offset_notifier = {
 	.notifier_call = dump_kernel_offset

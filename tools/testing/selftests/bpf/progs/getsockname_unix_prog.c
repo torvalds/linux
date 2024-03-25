@@ -27,8 +27,7 @@ int getsockname_unix_prog(struct bpf_sock_addr *ctx)
 	if (sa_kern->uaddrlen != unaddrlen)
 		return 1;
 
-	sa_kern_unaddr = bpf_rdonly_cast(sa_kern->uaddr,
-						bpf_core_type_id_kernel(struct sockaddr_un));
+	sa_kern_unaddr = bpf_core_cast(sa_kern->uaddr, struct sockaddr_un);
 	if (memcmp(sa_kern_unaddr->sun_path, SERVUN_REWRITE_ADDRESS,
 			sizeof(SERVUN_REWRITE_ADDRESS) - 1) != 0)
 		return 1;

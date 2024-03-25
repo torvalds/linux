@@ -284,7 +284,7 @@ static int set_clr_page_flags(struct x86_mapping_info *info,
 	pudp = pud_offset(p4dp, address);
 	pmdp = pmd_offset(pudp, address);
 
-	if (pmd_large(*pmdp))
+	if (pmd_leaf(*pmdp))
 		ptep = split_large_pmd(info, pmdp, address);
 	else
 		ptep = pte_offset_kernel(pmdp, address);
@@ -389,5 +389,5 @@ void do_boot_page_fault(struct pt_regs *regs, unsigned long error_code)
 
 void do_boot_nmi_trap(struct pt_regs *regs, unsigned long error_code)
 {
-	/* Empty handler to ignore NMI during early boot */
+	spurious_nmi_count++;
 }

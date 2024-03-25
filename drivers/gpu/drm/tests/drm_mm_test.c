@@ -188,7 +188,7 @@ out:
 
 static void drm_test_mm_debug(struct kunit *test)
 {
-	struct drm_printer p = drm_debug_printer(test->name);
+	struct drm_printer p = drm_dbg_printer(NULL, DRM_UT_CORE, test->name);
 	struct drm_mm mm;
 	struct drm_mm_node nodes[2];
 

@@ -738,8 +738,17 @@ static int ufs_qcom_pwr_change_notify(struct ufs_hba *hba,
 		 * the second init can program the optimal PHY settings. This allows one to start
 		 * the first init with either the minimum or the maximum support gear.
 		 */
-		if (hba->ufshcd_state == UFSHCD_STATE_RESET)
-			host->phy_gear = dev_req_params->gear_tx;
+		if (hba->ufshcd_state == UFSHCD_STATE_RESET) {
+			/*
+			 * Skip REINIT if the negotiated gear matches with the
+			 * initial phy_gear. Otherwise, update the phy_gear to
+			 * program the optimal gear setting during REINIT.
+			 */
+			if (host->phy_gear == dev_req_params->gear_tx)
+				hba->quirks &= ~UFSHCD_QUIRK_REINIT_AFTER_MAX_GEAR_SWITCH;
+			else
+				host->phy_gear = dev_req_params->gear_tx;
+		}
 
 		/* enable the device ref clock before changing to HS mode */
 		if (!ufshcd_is_hs_mode(&hba->pwr_info) &&
@@ -843,15 +852,20 @@ static void ufs_qcom_set_phy_gear(struct ufs_qcom_host *host)
 	struct ufs_host_params *host_params = &host->host_params;
 	u32 val, dev_major;
 
+	/*
+	 * Default to powering up the PHY to the max gear possible, which is
+	 * backwards compatible with lower gears but not optimal from
+	 * a power usage point of view. After device negotiation, if the
+	 * gear is lower a reinit will be performed to program the PHY
+	 * to the ideal gear for this combo of controller and device.
+	 */
 	host->phy_gear = host_params->hs_tx_gear;
 
 	if (host->hw_ver.major < 0x4) {
 		/*
-		 * For controllers whose major HW version is < 4, power up the
-		 * PHY using minimum supported gear (UFS_HS_G2). Switching to
-		 * max gear will be performed during reinit if supported.
-		 * For newer controllers, whose major HW version is >= 4, power
-		 * up the PHY using max supported gear.
+		 * These controllers only have one PHY init sequence,
+		 * let's power up the PHY using that (the minimum supported
+		 * gear, UFS_HS_G2).
 		 */
 		host->phy_gear = UFS_HS_G2;
 	} else if (host->hw_ver.major >= 0x5) {

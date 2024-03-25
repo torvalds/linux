@@ -206,8 +206,8 @@ static struct drm_i915_gem_object *create_lmem(struct intel_gt *gt)
 	 * of pages. To succeed with both allocations, especially in case of Small
 	 * BAR, try to allocate no more than quarter of mappable memory.
 	 */
-	if (mr && size > mr->io_size / 4)
-		size = mr->io_size / 4;
+	if (mr && size > resource_size(&mr->io) / 4)
+		size = resource_size(&mr->io) / 4;
 
 	return i915_gem_object_create_lmem(gt->i915, size, I915_BO_ALLOC_CONTIGUOUS);
 }

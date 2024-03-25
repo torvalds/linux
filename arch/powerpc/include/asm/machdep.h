@@ -22,6 +22,7 @@ struct pci_host_bridge;
 struct machdep_calls {
 	const char	*name;
 	const char	*compatible;
+	const char * const *compatibles;
 #ifdef CONFIG_PPC64
 #ifdef CONFIG_PM
 	void		(*iommu_restore)(void);

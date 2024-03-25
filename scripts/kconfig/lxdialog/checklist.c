@@ -188,9 +188,8 @@ do_resize:
 
 	print_buttons(dialog, height, width, 0);
 
-	wnoutrefresh(dialog);
-	wnoutrefresh(list);
-	doupdate();
+	wmove(list, choice, check_x + 1);
+	wrefresh(list);
 
 	while (key != KEY_ESC) {
 		key = wgetch(dialog);

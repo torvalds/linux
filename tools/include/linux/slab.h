@@ -18,7 +18,6 @@ bool slab_is_available(void);
 enum slab_state {
 	DOWN,
 	PARTIAL,
-	PARTIAL_NODE,
 	UP,
 	FULL
 };

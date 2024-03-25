@@ -567,6 +567,15 @@ snd_sof_set_mach_params(struct snd_soc_acpi_mach *mach,
 		sof_ops(sdev)->set_mach_params(mach, sdev);
 }
 
+static inline bool
+snd_sof_is_chain_dma_supported(struct snd_sof_dev *sdev, u32 dai_type)
+{
+	if (sof_ops(sdev) && sof_ops(sdev)->is_chain_dma_supported)
+		return sof_ops(sdev)->is_chain_dma_supported(sdev, dai_type);
+
+	return false;
+}
+
 /**
  * snd_sof_dsp_register_poll_timeout - Periodically poll an address
  * until a condition is met or a timeout occurs

@@ -222,7 +222,7 @@ static const struct regmap_config si476x_regmap_config = {
 	.reg_read = si476x_core_regmap_read,
 	.reg_write = si476x_core_regmap_write,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 struct regmap *devm_regmap_init_si476x(struct si476x_core *core)

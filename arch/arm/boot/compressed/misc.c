@@ -154,7 +154,7 @@ decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
 		putstr(" done, booting the kernel.\n");
 }
 
-void fortify_panic(const char *name)
+void __fortify_panic(const u8 reason, size_t avail, size_t size)
 {
 	error("detected buffer overflow");
 }

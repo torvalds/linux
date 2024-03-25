@@ -30,19 +30,26 @@ static void ivpu_cmdq_ring_db(struct ivpu_device *vdev, struct ivpu_cmdq *cmdq)
 
 static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv, u16 engine)
 {
+	struct xa_limit db_xa_limit = {.max = IVPU_MAX_DB, .min = IVPU_MIN_DB};
 	struct ivpu_device *vdev = file_priv->vdev;
 	struct vpu_job_queue_header *jobq_header;
 	struct ivpu_cmdq *cmdq;
+	int ret;
 
 	cmdq = kzalloc(sizeof(*cmdq), GFP_KERNEL);
 	if (!cmdq)
 		return NULL;
 
-	cmdq->mem = ivpu_bo_alloc_internal(vdev, 0, SZ_4K, DRM_IVPU_BO_WC);
-	if (!cmdq->mem)
-		goto cmdq_free;
+	ret = xa_alloc(&vdev->db_xa, &cmdq->db_id, NULL, db_xa_limit, GFP_KERNEL);
+	if (ret) {
+		ivpu_err(vdev, "Failed to allocate doorbell id: %d\n", ret);
+		goto err_free_cmdq;
+	}
 
-	cmdq->db_id = file_priv->ctx.id + engine * ivpu_get_context_count(vdev);
+	cmdq->mem = ivpu_bo_create_global(vdev, SZ_4K, DRM_IVPU_BO_WC | DRM_IVPU_BO_MAPPABLE);
+	if (!cmdq->mem)
+		goto err_erase_xa;
+
 	cmdq->entry_count = (u32)((ivpu_bo_size(cmdq->mem) - sizeof(struct vpu_job_queue_header)) /
 				  sizeof(struct vpu_job_queue_entry));
 
@@ -55,7 +62,9 @@ static struct ivpu_cmdq *ivpu_cmdq_alloc(struct ivpu_file_priv *file_priv, u16 e
 
 	return cmdq;
 
-cmdq_free:
+err_erase_xa:
+	xa_erase(&vdev->db_xa, cmdq->db_id);
+err_free_cmdq:
 	kfree(cmdq);
 	return NULL;
 }
@@ -65,7 +74,8 @@ static void ivpu_cmdq_free(struct ivpu_file_priv *file_priv, struct ivpu_cmdq *c
 	if (!cmdq)
 		return;
 
-	ivpu_bo_free_internal(cmdq->mem);
+	ivpu_bo_free(cmdq->mem);
+	xa_erase(&file_priv->vdev->db_xa, cmdq->db_id);
 	kfree(cmdq);
 }
 

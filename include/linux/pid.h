@@ -45,6 +45,8 @@
  * find_pid_ns() using the int nr and struct pid_namespace *ns.
  */
 
+#define RESERVED_PIDS 300
+
 struct upid {
 	int nr;
 	struct pid_namespace *ns;
@@ -55,10 +57,8 @@ struct pid
 	refcount_t count;
 	unsigned int level;
 	spinlock_t lock;
-#ifdef CONFIG_FS_PID
 	struct dentry *stashed;
-	unsigned long ino;
-#endif
+	u64 ino;
 	/* lists of tasks that use this pid */
 	struct hlist_head tasks[PIDTYPE_MAX];
 	struct hlist_head inodes;

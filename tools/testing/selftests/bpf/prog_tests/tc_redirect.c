@@ -188,6 +188,7 @@ static int netns_setup_links_and_routes(struct netns_setup_result *result)
 {
 	struct nstoken *nstoken = NULL;
 	char src_fwd_addr[IFADDR_STR_LEN+1] = {};
+	char src_addr[IFADDR_STR_LEN + 1] = {};
 	int err;
 
 	if (result->dev_mode == MODE_VETH) {
@@ -206,6 +207,9 @@ static int netns_setup_links_and_routes(struct netns_setup_result *result)
 	}
 
 	if (get_ifaddr("src_fwd", src_fwd_addr))
+		goto fail;
+
+	if (get_ifaddr("src", src_addr))
 		goto fail;
 
 	result->ifindex_src = if_nametoindex("src");
@@ -270,6 +274,13 @@ static int netns_setup_links_and_routes(struct netns_setup_result *result)
 	SYS(fail, "ip route add " IP4_DST "/32 dev dst_fwd scope global");
 	SYS(fail, "ip route add " IP6_DST "/128 dev dst_fwd scope global");
 
+	if (result->dev_mode == MODE_VETH) {
+		SYS(fail, "ip neigh add " IP4_SRC " dev src_fwd lladdr %s", src_addr);
+		SYS(fail, "ip neigh add " IP6_SRC " dev src_fwd lladdr %s", src_addr);
+		SYS(fail, "ip neigh add " IP4_DST " dev dst_fwd lladdr %s", MAC_DST);
+		SYS(fail, "ip neigh add " IP6_DST " dev dst_fwd lladdr %s", MAC_DST);
+	}
+
 	close_netns(nstoken);
 
 	/** setup in 'dst' namespace */
@@ -280,6 +291,7 @@ static int netns_setup_links_and_routes(struct netns_setup_result *result)
 	SYS(fail, "ip addr add " IP4_DST "/32 dev dst");
 	SYS(fail, "ip addr add " IP6_DST "/128 dev dst nodad");
 	SYS(fail, "ip link set dev dst up");
+	SYS(fail, "ip link set dev lo up");
 
 	SYS(fail, "ip route add " IP4_SRC "/32 dev dst scope global");
 	SYS(fail, "ip route add " IP4_NET "/16 dev dst scope global");
@@ -457,7 +469,7 @@ static int set_forwarding(bool enable)
 	return 0;
 }
 
-static void rcv_tstamp(int fd, const char *expected, size_t s)
+static int __rcv_tstamp(int fd, const char *expected, size_t s, __u64 *tstamp)
 {
 	struct __kernel_timespec pkt_ts = {};
 	char ctl[CMSG_SPACE(sizeof(pkt_ts))];
@@ -478,7 +490,7 @@ static void rcv_tstamp(int fd, const char *expected, size_t s)
 
 	ret = recvmsg(fd, &msg, 0);
 	if (!ASSERT_EQ(ret, s, "recvmsg"))
-		return;
+		return -1;
 	ASSERT_STRNEQ(data, expected, s, "expected rcv data");
 
 	cmsg = CMSG_FIRSTHDR(&msg);
@@ -487,6 +499,12 @@ static void rcv_tstamp(int fd, const char *expected, size_t s)
 		memcpy(&pkt_ts, CMSG_DATA(cmsg), sizeof(pkt_ts));
 
 	pkt_ns = pkt_ts.tv_sec * NSEC_PER_SEC + pkt_ts.tv_nsec;
+	if (tstamp) {
+		/* caller will check the tstamp itself */
+		*tstamp = pkt_ns;
+		return 0;
+	}
+
 	ASSERT_NEQ(pkt_ns, 0, "pkt rcv tstamp");
 
 	ret = clock_gettime(CLOCK_REALTIME, &now_ts);
@@ -496,6 +514,60 @@ static void rcv_tstamp(int fd, const char *expected, size_t s)
 	if (ASSERT_GE(now_ns, pkt_ns, "check rcv tstamp"))
 		ASSERT_LT(now_ns - pkt_ns, 5 * NSEC_PER_SEC,
 			  "check rcv tstamp");
+	return 0;
+}
+
+static void rcv_tstamp(int fd, const char *expected, size_t s)
+{
+	__rcv_tstamp(fd, expected, s, NULL);
+}
+
+static int wait_netstamp_needed_key(void)
+{
+	int opt = 1, srv_fd = -1, cli_fd = -1, nretries = 0, err, n;
+	char buf[] = "testing testing";
+	struct nstoken *nstoken;
+	__u64 tstamp = 0;
+
+	nstoken = open_netns(NS_DST);
+	if (!nstoken)
+		return -1;
+
+	srv_fd = start_server(AF_INET6, SOCK_DGRAM, "::1", 0, 0);
+	if (!ASSERT_GE(srv_fd, 0, "start_server"))
+		goto done;
+
+	err = setsockopt(srv_fd, SOL_SOCKET, SO_TIMESTAMPNS_NEW,
+			 &opt, sizeof(opt));
+	if (!ASSERT_OK(err, "setsockopt(SO_TIMESTAMPNS_NEW)"))
+		goto done;
+
+	cli_fd = connect_to_fd(srv_fd, TIMEOUT_MILLIS);
+	if (!ASSERT_GE(cli_fd, 0, "connect_to_fd"))
+		goto done;
+
+again:
+	n = write(cli_fd, buf, sizeof(buf));
+	if (!ASSERT_EQ(n, sizeof(buf), "send to server"))
+		goto done;
+	err = __rcv_tstamp(srv_fd, buf, sizeof(buf), &tstamp);
+	if (!ASSERT_OK(err, "__rcv_tstamp"))
+		goto done;
+	if (!tstamp && nretries++ < 5) {
+		sleep(1);
+		printf("netstamp_needed_key retry#%d\n", nretries);
+		goto again;
+	}
+
+done:
+	if (!tstamp && srv_fd != -1) {
+		close(srv_fd);
+		srv_fd = -1;
+	}
+	if (cli_fd != -1)
+		close(cli_fd);
+	close_netns(nstoken);
+	return srv_fd;
 }
 
 static void snd_tstamp(int fd, char *b, size_t s)
@@ -832,11 +904,20 @@ static void test_tc_redirect_dtime(struct netns_setup_result *setup_result)
 {
 	struct test_tc_dtime *skel;
 	struct nstoken *nstoken;
-	int err;
+	int hold_tstamp_fd, err;
+
+	/* Hold a sk with the SOCK_TIMESTAMP set to ensure there
+	 * is no delay in the kernel net_enable_timestamp().
+	 * This ensures the following tests must have
+	 * non zero rcv tstamp in the recvmsg().
+	 */
+	hold_tstamp_fd = wait_netstamp_needed_key();
+	if (!ASSERT_GE(hold_tstamp_fd, 0, "wait_netstamp_needed_key"))
+		return;
 
 	skel = test_tc_dtime__open();
 	if (!ASSERT_OK_PTR(skel, "test_tc_dtime__open"))
-		return;
+		goto done;
 
 	skel->rodata->IFINDEX_SRC = setup_result->ifindex_src_fwd;
 	skel->rodata->IFINDEX_DST = setup_result->ifindex_dst_fwd;
@@ -881,6 +962,7 @@ static void test_tc_redirect_dtime(struct netns_setup_result *setup_result)
 
 done:
 	test_tc_dtime__destroy(skel);
+	close(hold_tstamp_fd);
 }
 
 static void test_tc_redirect_neigh_fib(struct netns_setup_result *setup_result)

@@ -13,13 +13,11 @@
 #include "tree-log.h"
 #include "disk-io.h"
 #include "locking.h"
-#include "print-tree.h"
 #include "backref.h"
 #include "compression.h"
 #include "qgroup.h"
 #include "block-group.h"
 #include "space-info.h"
-#include "zoned.h"
 #include "inode-item.h"
 #include "fs.h"
 #include "accessors.h"
@@ -2820,6 +2818,52 @@ static void wait_for_writer(struct btrfs_root *root)
 	finish_wait(&root->log_writer_wait, &wait);
 }
 
+void btrfs_init_log_ctx(struct btrfs_log_ctx *ctx, struct inode *inode)
+{
+	ctx->log_ret = 0;
+	ctx->log_transid = 0;
+	ctx->log_new_dentries = false;
+	ctx->logging_new_name = false;
+	ctx->logging_new_delayed_dentries = false;
+	ctx->logged_before = false;
+	ctx->inode = inode;
+	INIT_LIST_HEAD(&ctx->list);
+	INIT_LIST_HEAD(&ctx->ordered_extents);
+	INIT_LIST_HEAD(&ctx->conflict_inodes);
+	ctx->num_conflict_inodes = 0;
+	ctx->logging_conflict_inodes = false;
+	ctx->scratch_eb = NULL;
+}
+
+void btrfs_init_log_ctx_scratch_eb(struct btrfs_log_ctx *ctx)
+{
+	struct btrfs_inode *inode = BTRFS_I(ctx->inode);
+
+	if (!test_bit(BTRFS_INODE_NEEDS_FULL_SYNC, &inode->runtime_flags) &&
+	    !test_bit(BTRFS_INODE_COPY_EVERYTHING, &inode->runtime_flags))
+		return;
+
+	/*
+	 * Don't care about allocation failure. This is just for optimization,
+	 * if we fail to allocate here, we will try again later if needed.
+	 */
+	ctx->scratch_eb = alloc_dummy_extent_buffer(inode->root->fs_info, 0);
+}
+
+void btrfs_release_log_ctx_extents(struct btrfs_log_ctx *ctx)
+{
+	struct btrfs_ordered_extent *ordered;
+	struct btrfs_ordered_extent *tmp;
+
+	ASSERT(inode_is_locked(ctx->inode));
+
+	list_for_each_entry_safe(ordered, tmp, &ctx->ordered_extents, log_list) {
+		list_del_init(&ordered->log_list);
+		btrfs_put_ordered_extent(ordered);
+	}
+}
+
+
 static inline void btrfs_remove_log_ctx(struct btrfs_root *root,
 					struct btrfs_log_ctx *ctx)
 {
@@ -3619,6 +3663,30 @@ out:
 	return ret;
 }
 
+static int clone_leaf(struct btrfs_path *path, struct btrfs_log_ctx *ctx)
+{
+	const int slot = path->slots[0];
+
+	if (ctx->scratch_eb) {
+		copy_extent_buffer_full(ctx->scratch_eb, path->nodes[0]);
+	} else {
+		ctx->scratch_eb = btrfs_clone_extent_buffer(path->nodes[0]);
+		if (!ctx->scratch_eb)
+			return -ENOMEM;
+	}
+
+	btrfs_release_path(path);
+	path->nodes[0] = ctx->scratch_eb;
+	path->slots[0] = slot;
+	/*
+	 * Add extra ref to scratch eb so that it is not freed when callers
+	 * release the path, so we can reuse it later if needed.
+	 */
+	atomic_inc(&ctx->scratch_eb->refs);
+
+	return 0;
+}
+
 static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
 				  struct btrfs_inode *inode,
 				  struct btrfs_path *path,
@@ -3633,23 +3701,20 @@ static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
 	bool last_found = false;
 	int batch_start = 0;
 	int batch_size = 0;
-	int i;
+	int ret;
 
 	/*
 	 * We need to clone the leaf, release the read lock on it, and use the
 	 * clone before modifying the log tree. See the comment at copy_items()
 	 * about why we need to do this.
 	 */
-	src = btrfs_clone_extent_buffer(path->nodes[0]);
-	if (!src)
-		return -ENOMEM;
+	ret = clone_leaf(path, ctx);
+	if (ret < 0)
+		return ret;
 
-	i = path->slots[0];
-	btrfs_release_path(path);
-	path->nodes[0] = src;
-	path->slots[0] = i;
+	src = path->nodes[0];
 
-	for (; i < nritems; i++) {
+	for (int i = path->slots[0]; i < nritems; i++) {
 		struct btrfs_dir_item *di;
 		struct btrfs_key key;
 		int ret;
@@ -4259,17 +4324,16 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 			       struct btrfs_path *dst_path,
 			       struct btrfs_path *src_path,
 			       int start_slot, int nr, int inode_only,
-			       u64 logged_isize)
+			       u64 logged_isize, struct btrfs_log_ctx *ctx)
 {
 	struct btrfs_root *log = inode->root->log_root;
 	struct btrfs_file_extent_item *extent;
 	struct extent_buffer *src;
-	int ret = 0;
+	int ret;
 	struct btrfs_key *ins_keys;
 	u32 *ins_sizes;
 	struct btrfs_item_batch batch;
 	char *ins_data;
-	int i;
 	int dst_index;
 	const bool skip_csum = (inode->flags & BTRFS_INODE_NODATASUM);
 	const u64 i_size = i_size_read(&inode->vfs_inode);
@@ -4302,14 +4366,11 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	 * while the other is holding the delayed node's mutex and wants to
 	 * write lock the same subvolume leaf for flushing delayed items.
 	 */
-	src = btrfs_clone_extent_buffer(src_path->nodes[0]);
-	if (!src)
-		return -ENOMEM;
+	ret = clone_leaf(src_path, ctx);
+	if (ret < 0)
+		return ret;
 
-	i = src_path->slots[0];
-	btrfs_release_path(src_path);
-	src_path->nodes[0] = src;
-	src_path->slots[0] = i;
+	src = src_path->nodes[0];
 
 	ins_data = kmalloc(nr * sizeof(struct btrfs_key) +
 			   nr * sizeof(u32), GFP_NOFS);
@@ -4324,7 +4385,7 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 	batch.nr = 0;
 
 	dst_index = 0;
-	for (i = 0; i < nr; i++) {
+	for (int i = 0; i < nr; i++) {
 		const int src_slot = start_slot + i;
 		struct btrfs_root *csum_root;
 		struct btrfs_ordered_sum *sums;
@@ -4431,7 +4492,7 @@ add_to_batch:
 		goto out;
 
 	dst_index = 0;
-	for (i = 0; i < nr; i++) {
+	for (int i = 0; i < nr; i++) {
 		const int src_slot = start_slot + i;
 		const int dst_slot = dst_path->slots[0] + dst_index;
 		struct btrfs_key key;
@@ -4704,7 +4765,8 @@ static int log_one_extent(struct btrfs_trans_handle *trans,
  */
 static int btrfs_log_prealloc_extents(struct btrfs_trans_handle *trans,
 				      struct btrfs_inode *inode,
-				      struct btrfs_path *path)
+				      struct btrfs_path *path,
+				      struct btrfs_log_ctx *ctx)
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_key key;
@@ -4770,7 +4832,7 @@ static int btrfs_log_prealloc_extents(struct btrfs_trans_handle *trans,
 		if (slot >= btrfs_header_nritems(leaf)) {
 			if (ins_nr > 0) {
 				ret = copy_items(trans, inode, dst_path, path,
-						 start_slot, ins_nr, 1, 0);
+						 start_slot, ins_nr, 1, 0, ctx);
 				if (ret < 0)
 					goto out;
 				ins_nr = 0;
@@ -4820,7 +4882,7 @@ static int btrfs_log_prealloc_extents(struct btrfs_trans_handle *trans,
 	}
 	if (ins_nr > 0)
 		ret = copy_items(trans, inode, dst_path, path,
-				 start_slot, ins_nr, 1, 0);
+				 start_slot, ins_nr, 1, 0, ctx);
 out:
 	btrfs_release_path(path);
 	btrfs_free_path(dst_path);
@@ -4899,7 +4961,7 @@ process:
 	write_unlock(&tree->lock);
 
 	if (!ret)
-		ret = btrfs_log_prealloc_extents(trans, inode, path);
+		ret = btrfs_log_prealloc_extents(trans, inode, path, ctx);
 	if (ret)
 		return ret;
 
@@ -4980,7 +5042,8 @@ static int logged_inode_size(struct btrfs_root *log, struct btrfs_inode *inode,
 static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
 				struct btrfs_inode *inode,
 				struct btrfs_path *path,
-				struct btrfs_path *dst_path)
+				struct btrfs_path *dst_path,
+				struct btrfs_log_ctx *ctx)
 {
 	struct btrfs_root *root = inode->root;
 	int ret;
@@ -5009,7 +5072,7 @@ static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
 		if (slot >= nritems) {
 			if (ins_nr > 0) {
 				ret = copy_items(trans, inode, dst_path, path,
-						 start_slot, ins_nr, 1, 0);
+						 start_slot, ins_nr, 1, 0, ctx);
 				if (ret < 0)
 					return ret;
 				ins_nr = 0;
@@ -5035,7 +5098,7 @@ static int btrfs_log_all_xattrs(struct btrfs_trans_handle *trans,
 	}
 	if (ins_nr > 0) {
 		ret = copy_items(trans, inode, dst_path, path,
-				 start_slot, ins_nr, 1, 0);
+				 start_slot, ins_nr, 1, 0, ctx);
 		if (ret < 0)
 			return ret;
 	}
@@ -5847,7 +5910,7 @@ again:
 				}
 				ret = copy_items(trans, inode, dst_path, path,
 						 ins_start_slot, ins_nr,
-						 inode_only, logged_isize);
+						 inode_only, logged_isize, ctx);
 				if (ret < 0)
 					return ret;
 				ins_nr = 0;
@@ -5866,7 +5929,7 @@ again:
 				goto next_slot;
 			ret = copy_items(trans, inode, dst_path, path,
 					 ins_start_slot,
-					 ins_nr, inode_only, logged_isize);
+					 ins_nr, inode_only, logged_isize, ctx);
 			if (ret < 0)
 				return ret;
 			ins_nr = 0;
@@ -5883,7 +5946,7 @@ again:
 		}
 
 		ret = copy_items(trans, inode, dst_path, path, ins_start_slot,
-				 ins_nr, inode_only, logged_isize);
+				 ins_nr, inode_only, logged_isize, ctx);
 		if (ret < 0)
 			return ret;
 		ins_nr = 1;
@@ -5898,7 +5961,7 @@ next_slot:
 		if (ins_nr) {
 			ret = copy_items(trans, inode, dst_path, path,
 					 ins_start_slot, ins_nr, inode_only,
-					 logged_isize);
+					 logged_isize, ctx);
 			if (ret < 0)
 				return ret;
 			ins_nr = 0;
@@ -5923,7 +5986,7 @@ next_key:
 	}
 	if (ins_nr) {
 		ret = copy_items(trans, inode, dst_path, path, ins_start_slot,
-				 ins_nr, inode_only, logged_isize);
+				 ins_nr, inode_only, logged_isize, ctx);
 		if (ret)
 			return ret;
 	}
@@ -5934,7 +5997,7 @@ next_key:
 		 * lock the same leaf with btrfs_log_prealloc_extents() below.
 		 */
 		btrfs_release_path(path);
-		ret = btrfs_log_prealloc_extents(trans, inode, dst_path);
+		ret = btrfs_log_prealloc_extents(trans, inode, dst_path, ctx);
 	}
 
 	return ret;
@@ -6526,7 +6589,7 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 
 	btrfs_release_path(path);
 	btrfs_release_path(dst_path);
-	ret = btrfs_log_all_xattrs(trans, inode, path, dst_path);
+	ret = btrfs_log_all_xattrs(trans, inode, path, dst_path, ctx);
 	if (ret)
 		goto out_unlock;
 	xattrs_logged = true;
@@ -6553,7 +6616,7 @@ log_extents:
 		 * BTRFS_INODE_COPY_EVERYTHING set.
 		 */
 		if (!xattrs_logged && inode->logged_trans < trans->transid) {
-			ret = btrfs_log_all_xattrs(trans, inode, path, dst_path);
+			ret = btrfs_log_all_xattrs(trans, inode, path, dst_path, ctx);
 			if (ret)
 				goto out_unlock;
 			btrfs_release_path(path);
@@ -7502,6 +7565,7 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 
 	btrfs_init_log_ctx(&ctx, &inode->vfs_inode);
 	ctx.logging_new_name = true;
+	btrfs_init_log_ctx_scratch_eb(&ctx);
 	/*
 	 * We don't care about the return value. If we fail to log the new name
 	 * then we know the next attempt to sync the log will fallback to a full
@@ -7510,6 +7574,7 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 	 * inconsistent state after a rename operation.
 	 */
 	btrfs_log_inode_parent(trans, inode, parent, LOG_INODE_EXISTS, &ctx);
+	free_extent_buffer(ctx.scratch_eb);
 	ASSERT(list_empty(&ctx.conflict_inodes));
 out:
 	/*

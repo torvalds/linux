@@ -27,6 +27,7 @@
 #include <linux/log2.h>
 #include <linux/kthread.h>
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/major.h>
 #include "ubi.h"
@@ -92,7 +93,7 @@ static struct ubi_device *ubi_devices[UBI_MAX_DEVICES];
 /* Serializes UBI devices creations and removals */
 DEFINE_MUTEX(ubi_devices_mutex);
 
-/* Protects @ubi_devices and @ubi->ref_count */
+/* Protects @ubi_devices, @ubi->ref_count and @ubi->is_dead */
 static DEFINE_SPINLOCK(ubi_devices_lock);
 
 /* "Show" method for files in '/<sysfs>/class/ubi/' */
@@ -260,6 +261,9 @@ struct ubi_device *ubi_get_device(int ubi_num)
 
 	spin_lock(&ubi_devices_lock);
 	ubi = ubi_devices[ubi_num];
+	if (ubi && ubi->is_dead)
+		ubi = NULL;
+
 	if (ubi) {
 		ubi_assert(ubi->ref_count >= 0);
 		ubi->ref_count += 1;
@@ -297,7 +301,7 @@ struct ubi_device *ubi_get_by_major(int major)
 	spin_lock(&ubi_devices_lock);
 	for (i = 0; i < UBI_MAX_DEVICES; i++) {
 		ubi = ubi_devices[i];
-		if (ubi && MAJOR(ubi->cdev.dev) == major) {
+		if (ubi && !ubi->is_dead && MAJOR(ubi->cdev.dev) == major) {
 			ubi_assert(ubi->ref_count >= 0);
 			ubi->ref_count += 1;
 			get_device(&ubi->dev);
@@ -326,7 +330,7 @@ int ubi_major2num(int major)
 	for (i = 0; i < UBI_MAX_DEVICES; i++) {
 		struct ubi_device *ubi = ubi_devices[i];
 
-		if (ubi && MAJOR(ubi->cdev.dev) == major) {
+		if (ubi && !ubi->is_dead && MAJOR(ubi->cdev.dev) == major) {
 			ubi_num = ubi->ubi_num;
 			break;
 		}
@@ -513,7 +517,7 @@ static void ubi_free_volumes_from(struct ubi_device *ubi, int from)
 	int i;
 
 	for (i = from; i < ubi->vtbl_slots + UBI_INT_VOL_COUNT; i++) {
-		if (!ubi->volumes[i])
+		if (!ubi->volumes[i] || ubi->volumes[i]->is_dead)
 			continue;
 		ubi_eba_replace_table(ubi->volumes[i], NULL);
 		ubi_fastmap_destroy_checkmap(ubi->volumes[i]);
@@ -1098,7 +1102,6 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 		return -EINVAL;
 
 	spin_lock(&ubi_devices_lock);
-	put_device(&ubi->dev);
 	ubi->ref_count -= 1;
 	if (ubi->ref_count) {
 		if (!anyway) {
@@ -1109,6 +1112,13 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 		ubi_err(ubi, "%s reference count %d, destroy anyway",
 			ubi->ubi_name, ubi->ref_count);
 	}
+	ubi->is_dead = true;
+	spin_unlock(&ubi_devices_lock);
+
+	ubi_notify_all(ubi, UBI_VOLUME_SHUTDOWN, NULL);
+
+	spin_lock(&ubi_devices_lock);
+	put_device(&ubi->dev);
 	ubi_devices[ubi_num] = NULL;
 	spin_unlock(&ubi_devices_lock);
 
@@ -1219,43 +1229,43 @@ static struct mtd_info * __init open_mtd_device(const char *mtd_dev)
 	return mtd;
 }
 
-static int __init ubi_init(void)
+static void ubi_notify_add(struct mtd_info *mtd)
+{
+	struct device_node *np = mtd_get_of_node(mtd);
+	int err;
+
+	if (!of_device_is_compatible(np, "linux,ubi"))
+		return;
+
+	/*
+	 * we are already holding &mtd_table_mutex, but still need
+	 * to bump refcount
+	 */
+	err = __get_mtd_device(mtd);
+	if (err)
+		return;
+
+	/* called while holding mtd_table_mutex */
+	mutex_lock_nested(&ubi_devices_mutex, SINGLE_DEPTH_NESTING);
+	err = ubi_attach_mtd_dev(mtd, UBI_DEV_NUM_AUTO, 0, 0, false, false);
+	mutex_unlock(&ubi_devices_mutex);
+	if (err < 0)
+		__put_mtd_device(mtd);
+}
+
+static void ubi_notify_remove(struct mtd_info *mtd)
+{
+	/* do nothing for now */
+}
+
+static struct mtd_notifier ubi_mtd_notifier = {
+	.add = ubi_notify_add,
+	.remove = ubi_notify_remove,
+};
+
+static int __init ubi_init_attach(void)
 {
 	int err, i, k;
-
-	/* Ensure that EC and VID headers have correct size */
-	BUILD_BUG_ON(sizeof(struct ubi_ec_hdr) != 64);
-	BUILD_BUG_ON(sizeof(struct ubi_vid_hdr) != 64);
-
-	if (mtd_devs > UBI_MAX_DEVICES) {
-		pr_err("UBI error: too many MTD devices, maximum is %d\n",
-		       UBI_MAX_DEVICES);
-		return -EINVAL;
-	}
-
-	/* Create base sysfs directory and sysfs files */
-	err = class_register(&ubi_class);
-	if (err < 0)
-		return err;
-
-	err = misc_register(&ubi_ctrl_cdev);
-	if (err) {
-		pr_err("UBI error: cannot register device\n");
-		goto out;
-	}
-
-	ubi_wl_entry_slab = kmem_cache_create("ubi_wl_entry_slab",
-					      sizeof(struct ubi_wl_entry),
-					      0, 0, NULL);
-	if (!ubi_wl_entry_slab) {
-		err = -ENOMEM;
-		goto out_dev_unreg;
-	}
-
-	err = ubi_debugfs_init();
-	if (err)
-		goto out_slab;
-
 
 	/* Attach MTD devices */
 	for (i = 0; i < mtd_devs; i++) {
@@ -1304,15 +1314,6 @@ static int __init ubi_init(void)
 		}
 	}
 
-	err = ubiblock_init();
-	if (err) {
-		pr_err("UBI error: block: cannot initialize, error %d\n", err);
-
-		/* See comment above re-ubi_is_module(). */
-		if (ubi_is_module())
-			goto out_detach;
-	}
-
 	return 0;
 
 out_detach:
@@ -1322,7 +1323,70 @@ out_detach:
 			ubi_detach_mtd_dev(ubi_devices[k]->ubi_num, 1);
 			mutex_unlock(&ubi_devices_mutex);
 		}
-	ubi_debugfs_exit();
+	return err;
+}
+#ifndef CONFIG_MTD_UBI_MODULE
+late_initcall(ubi_init_attach);
+#endif
+
+static int __init ubi_init(void)
+{
+	int err;
+
+	/* Ensure that EC and VID headers have correct size */
+	BUILD_BUG_ON(sizeof(struct ubi_ec_hdr) != 64);
+	BUILD_BUG_ON(sizeof(struct ubi_vid_hdr) != 64);
+
+	if (mtd_devs > UBI_MAX_DEVICES) {
+		pr_err("UBI error: too many MTD devices, maximum is %d\n",
+		       UBI_MAX_DEVICES);
+		return -EINVAL;
+	}
+
+	/* Create base sysfs directory and sysfs files */
+	err = class_register(&ubi_class);
+	if (err < 0)
+		return err;
+
+	err = misc_register(&ubi_ctrl_cdev);
+	if (err) {
+		pr_err("UBI error: cannot register device\n");
+		goto out;
+	}
+
+	ubi_wl_entry_slab = kmem_cache_create("ubi_wl_entry_slab",
+					      sizeof(struct ubi_wl_entry),
+					      0, 0, NULL);
+	if (!ubi_wl_entry_slab) {
+		err = -ENOMEM;
+		goto out_dev_unreg;
+	}
+
+	err = ubi_debugfs_init();
+	if (err)
+		goto out_slab;
+
+	err = ubiblock_init();
+	if (err) {
+		pr_err("UBI error: block: cannot initialize, error %d\n", err);
+
+		/* See comment above re-ubi_is_module(). */
+		if (ubi_is_module())
+			goto out_slab;
+	}
+
+	register_mtd_user(&ubi_mtd_notifier);
+
+	if (ubi_is_module()) {
+		err = ubi_init_attach();
+		if (err)
+			goto out_mtd_notifier;
+	}
+
+	return 0;
+
+out_mtd_notifier:
+	unregister_mtd_user(&ubi_mtd_notifier);
 out_slab:
 	kmem_cache_destroy(ubi_wl_entry_slab);
 out_dev_unreg:
@@ -1332,13 +1396,15 @@ out:
 	pr_err("UBI error: cannot initialize UBI, error %d\n", err);
 	return err;
 }
-late_initcall(ubi_init);
+device_initcall(ubi_init);
+
 
 static void __exit ubi_exit(void)
 {
 	int i;
 
 	ubiblock_exit();
+	unregister_mtd_user(&ubi_mtd_notifier);
 
 	for (i = 0; i < UBI_MAX_DEVICES; i++)
 		if (ubi_devices[i]) {

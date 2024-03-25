@@ -313,8 +313,8 @@ struct mnt_idmap *mnt_idmap_get(struct mnt_idmap *idmap);
 void mnt_idmap_put(struct mnt_idmap *idmap);
 struct stashed_operations {
 	void (*put_data)(void *data);
-	void (*init_inode)(struct inode *inode, void *data);
+	int (*init_inode)(struct inode *inode, void *data);
 };
-int path_from_stashed(struct dentry **stashed, unsigned long ino,
-		      struct vfsmount *mnt, void *data, struct path *path);
+int path_from_stashed(struct dentry **stashed, struct vfsmount *mnt, void *data,
+		      struct path *path);
 void stashed_dentry_prune(struct dentry *dentry);

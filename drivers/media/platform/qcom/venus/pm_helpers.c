@@ -455,7 +455,7 @@ static int poweroff_coreid(struct venus_core *core, unsigned int coreid_mask)
 		if (ret)
 			return ret;
 
-		ret = pm_runtime_put_sync(core->pmdomains[1]);
+		ret = pm_runtime_put_sync(core->pmdomains->pd_devs[1]);
 		if (ret < 0)
 			return ret;
 	}
@@ -471,7 +471,7 @@ static int poweroff_coreid(struct venus_core *core, unsigned int coreid_mask)
 		if (ret)
 			return ret;
 
-		ret = pm_runtime_put_sync(core->pmdomains[2]);
+		ret = pm_runtime_put_sync(core->pmdomains->pd_devs[2]);
 		if (ret < 0)
 			return ret;
 	}
@@ -484,7 +484,7 @@ static int poweron_coreid(struct venus_core *core, unsigned int coreid_mask)
 	int ret;
 
 	if (coreid_mask & VIDC_CORE_ID_1) {
-		ret = pm_runtime_get_sync(core->pmdomains[1]);
+		ret = pm_runtime_get_sync(core->pmdomains->pd_devs[1]);
 		if (ret < 0)
 			return ret;
 
@@ -502,7 +502,7 @@ static int poweron_coreid(struct venus_core *core, unsigned int coreid_mask)
 	}
 
 	if (coreid_mask & VIDC_CORE_ID_2) {
-		ret = pm_runtime_get_sync(core->pmdomains[2]);
+		ret = pm_runtime_get_sync(core->pmdomains->pd_devs[2]);
 		if (ret < 0)
 			return ret;
 
@@ -860,19 +860,18 @@ static int vcodec_domains_get(struct venus_core *core)
 	struct device **opp_virt_dev;
 	struct device *dev = core->dev;
 	const struct venus_resources *res = core->res;
-	struct device *pd;
-	unsigned int i;
+	struct dev_pm_domain_attach_data vcodec_data = {
+		.pd_names = res->vcodec_pmdomains,
+		.num_pd_names = res->vcodec_pmdomains_num,
+		.pd_flags = PD_FLAG_NO_DEV_LINK,
+	};
 
 	if (!res->vcodec_pmdomains_num)
 		goto skip_pmdomains;
 
-	for (i = 0; i < res->vcodec_pmdomains_num; i++) {
-		pd = dev_pm_domain_attach_by_name(dev,
-						  res->vcodec_pmdomains[i]);
-		if (IS_ERR_OR_NULL(pd))
-			return pd ? PTR_ERR(pd) : -ENODATA;
-		core->pmdomains[i] = pd;
-	}
+	ret = dev_pm_domain_attach_list(dev, &vcodec_data, &core->pmdomains);
+	if (ret < 0)
+		return ret;
 
 skip_pmdomains:
 	if (!core->res->opp_pmdomain)
@@ -896,30 +895,14 @@ skip_pmdomains:
 	return 0;
 
 opp_attach_err:
-	for (i = 0; i < res->vcodec_pmdomains_num; i++) {
-		if (IS_ERR_OR_NULL(core->pmdomains[i]))
-			continue;
-		dev_pm_domain_detach(core->pmdomains[i], true);
-	}
-
+	dev_pm_domain_detach_list(core->pmdomains);
 	return ret;
 }
 
 static void vcodec_domains_put(struct venus_core *core)
 {
-	const struct venus_resources *res = core->res;
-	unsigned int i;
+	dev_pm_domain_detach_list(core->pmdomains);
 
-	if (!res->vcodec_pmdomains_num)
-		goto skip_pmdomains;
-
-	for (i = 0; i < res->vcodec_pmdomains_num; i++) {
-		if (IS_ERR_OR_NULL(core->pmdomains[i]))
-			continue;
-		dev_pm_domain_detach(core->pmdomains[i], true);
-	}
-
-skip_pmdomains:
 	if (!core->has_opp_table)
 		return;
 
@@ -1035,7 +1018,8 @@ static void core_put_v4(struct venus_core *core)
 static int core_power_v4(struct venus_core *core, int on)
 {
 	struct device *dev = core->dev;
-	struct device *pmctrl = core->pmdomains[0];
+	struct device *pmctrl = core->pmdomains ?
+			core->pmdomains->pd_devs[0] : NULL;
 	int ret = 0;
 
 	if (on == POWER_ON) {

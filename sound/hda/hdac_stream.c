@@ -567,7 +567,7 @@ int snd_hdac_stream_setup_periods(struct hdac_stream *azx_dev)
 	return 0;
 
  error:
-	dev_err(bus->dev, "Too many BDL entries: buffer=%d, period=%d\n",
+	dev_dbg(bus->dev, "Too many BDL entries: buffer=%d, period=%d\n",
 		azx_dev->bufsize, period_bytes);
 	return -EINVAL;
 }

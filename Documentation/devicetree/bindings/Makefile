@@ -64,9 +64,6 @@ override DTC_FLAGS := \
 	-Wno-unique_unit_address \
 	-Wunique_unit_address_if_enabled
 
-# Disable undocumented compatible checks until warning free
-override DT_CHECKER_FLAGS ?=
-
 $(obj)/processed-schema.json: $(DT_DOCS) $(src)/.yamllint check_dtschema_version FORCE
 	$(call if_changed_rule,chkdt)
 

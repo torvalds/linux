@@ -15,6 +15,7 @@
 #include <asm/fpregdef.h>
 #include <asm/loongarch.h>
 #include <asm/regdef.h>
+#include <asm/unwind_hints.h>
 
 #define FPU_REG_WIDTH		8
 #define LSX_REG_WIDTH		16
@@ -526,3 +527,9 @@ SYM_FUNC_END(_restore_lasx_context)
 .L_fpu_fault:
 	li.w	a0, -EFAULT				# failure
 	jr	ra
+
+#ifdef CONFIG_CPU_HAS_LBT
+STACK_FRAME_NON_STANDARD _restore_fp
+STACK_FRAME_NON_STANDARD _restore_lsx
+STACK_FRAME_NON_STANDARD _restore_lasx
+#endif

@@ -41,7 +41,7 @@ static int serial_base_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-static struct bus_type serial_base_bus_type = {
+static const struct bus_type serial_base_bus_type = {
 	.name = "serial-base",
 	.match = serial_base_match,
 };

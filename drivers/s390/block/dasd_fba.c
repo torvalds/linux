@@ -78,7 +78,7 @@ define_extent(struct ccw1 * ccw, struct DE_fba_data *data, int rw,
 	ccw->cmd_code = DASD_FBA_CCW_DEFINE_EXTENT;
 	ccw->flags = 0;
 	ccw->count = 16;
-	ccw->cda = (__u32)virt_to_phys(data);
+	ccw->cda = virt_to_dma32(data);
 	memset(data, 0, sizeof (struct DE_fba_data));
 	if (rw == WRITE)
 		(data->mask).perm = 0x0;
@@ -98,7 +98,7 @@ locate_record(struct ccw1 * ccw, struct LO_fba_data *data, int rw,
 	ccw->cmd_code = DASD_FBA_CCW_LOCATE;
 	ccw->flags = 0;
 	ccw->count = 8;
-	ccw->cda = (__u32)virt_to_phys(data);
+	ccw->cda = virt_to_dma32(data);
 	memset(data, 0, sizeof (struct LO_fba_data));
 	if (rw == WRITE)
 		data->operation.cmd = 0x5;
@@ -257,7 +257,7 @@ static void ccw_write_zero(struct ccw1 *ccw, int count)
 	ccw->cmd_code = DASD_FBA_CCW_WRITE;
 	ccw->flags |= CCW_FLAG_SLI;
 	ccw->count = count;
-	ccw->cda = (__u32)virt_to_phys(dasd_fba_zero_page);
+	ccw->cda = virt_to_dma32(dasd_fba_zero_page);
 }
 
 /*
@@ -427,7 +427,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_regular(
 						struct request *req)
 {
 	struct dasd_fba_private *private = block->base->private;
-	unsigned long *idaws;
+	dma64_t *idaws;
 	struct LO_fba_data *LO_data;
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
@@ -487,7 +487,7 @@ static struct dasd_ccw_req *dasd_fba_build_cp_regular(
 	define_extent(ccw++, cqr->data, rq_data_dir(req),
 		      block->bp_block, blk_rq_pos(req), blk_rq_sectors(req));
 	/* Build locate_record + read/write ccws. */
-	idaws = (unsigned long *) (cqr->data + sizeof(struct DE_fba_data));
+	idaws = (dma64_t *)(cqr->data + sizeof(struct DE_fba_data));
 	LO_data = (struct LO_fba_data *) (idaws + cidaw);
 	/* Locate record for all blocks for smart devices. */
 	if (private->rdc_data.mode.bits.data_chain != 0) {
@@ -523,11 +523,11 @@ static struct dasd_ccw_req *dasd_fba_build_cp_regular(
 			ccw->cmd_code = cmd;
 			ccw->count = block->bp_block;
 			if (idal_is_needed(dst, blksize)) {
-				ccw->cda = (__u32)virt_to_phys(idaws);
+				ccw->cda = virt_to_dma32(idaws);
 				ccw->flags = CCW_FLAG_IDA;
 				idaws = idal_create_words(idaws, dst, blksize);
 			} else {
-				ccw->cda = (__u32)virt_to_phys(dst);
+				ccw->cda = virt_to_dma32(dst);
 				ccw->flags = 0;
 			}
 			ccw++;
@@ -585,9 +585,9 @@ dasd_fba_free_cp(struct dasd_ccw_req *cqr, struct request *req)
 				ccw++;
 			if (dst) {
 				if (ccw->flags & CCW_FLAG_IDA)
-					cda = *((char **)phys_to_virt(ccw->cda));
+					cda = *((char **)dma32_to_virt(ccw->cda));
 				else
-					cda = phys_to_virt(ccw->cda);
+					cda = dma32_to_virt(ccw->cda);
 				if (dst != cda) {
 					if (rq_data_dir(req) == READ)
 						memcpy(dst, cda, bv.bv_len);
@@ -672,7 +672,7 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 	len += sprintf(page + len, "in req: %px CS: 0x%02X DS: 0x%02X\n",
 		       req, irb->scsw.cmd.cstat, irb->scsw.cmd.dstat);
 	len += sprintf(page + len, "Failing CCW: %px\n",
-		       (void *) (addr_t) irb->scsw.cmd.cpa);
+		       (void *)(u64)dma32_to_u32(irb->scsw.cmd.cpa));
 	if (irb->esw.esw0.erw.cons) {
 		for (sl = 0; sl < 4; sl++) {
 			len += sprintf(page + len, "Sense(hex) %2d-%2d:",
@@ -701,7 +701,7 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 		for (count = 0; count < 32 && count < act->count;
 		     count += sizeof(int))
 			len += sprintf(page + len, " %08X",
-				       ((int *) (addr_t) act->cda)
+				       ((int *)dma32_to_virt(act->cda))
 				       [(count>>2)]);
 		len += sprintf(page + len, "\n");
 		act++;
@@ -710,18 +710,18 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 
 	/* print failing CCW area */
 	len = 0;
-	if (act <  ((struct ccw1 *)(addr_t) irb->scsw.cmd.cpa) - 2) {
-		act = ((struct ccw1 *)(addr_t) irb->scsw.cmd.cpa) - 2;
+	if (act < ((struct ccw1 *)dma32_to_virt(irb->scsw.cmd.cpa)) - 2) {
+		act = ((struct ccw1 *)dma32_to_virt(irb->scsw.cmd.cpa)) - 2;
 		len += sprintf(page + len, "......\n");
 	}
-	end = min((struct ccw1 *)(addr_t) irb->scsw.cmd.cpa + 2, last);
+	end = min((struct ccw1 *)dma32_to_virt(irb->scsw.cmd.cpa) + 2, last);
 	while (act <= end) {
 		len += sprintf(page + len, "CCW %px: %08X %08X DAT:",
 			       act, ((int *) act)[0], ((int *) act)[1]);
 		for (count = 0; count < 32 && count < act->count;
 		     count += sizeof(int))
 			len += sprintf(page + len, " %08X",
-				       ((int *) (addr_t) act->cda)
+				       ((int *)dma32_to_virt(act->cda))
 				       [(count>>2)]);
 		len += sprintf(page + len, "\n");
 		act++;
@@ -738,7 +738,7 @@ dasd_fba_dump_sense(struct dasd_device *device, struct dasd_ccw_req * req,
 		for (count = 0; count < 32 && count < act->count;
 		     count += sizeof(int))
 			len += sprintf(page + len, " %08X",
-				       ((int *) (addr_t) act->cda)
+				       ((int *)dma32_to_virt(act->cda))
 				       [(count>>2)]);
 		len += sprintf(page + len, "\n");
 		act++;

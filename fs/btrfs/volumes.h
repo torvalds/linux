@@ -6,12 +6,27 @@
 #ifndef BTRFS_VOLUMES_H
 #define BTRFS_VOLUMES_H
 
+#include <linux/blk_types.h>
+#include <linux/sizes.h>
+#include <linux/atomic.h>
 #include <linux/sort.h>
-#include <linux/btrfs.h>
-#include "async-thread.h"
+#include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/log2.h>
+#include <linux/kobject.h>
+#include <linux/refcount.h>
+#include <linux/completion.h>
+#include <linux/rbtree.h>
+#include <uapi/linux/btrfs.h>
 #include "messages.h"
-#include "tree-checker.h"
 #include "rcu-string.h"
+
+struct block_device;
+struct bdev_handle;
+struct btrfs_fs_info;
+struct btrfs_block_group;
+struct btrfs_trans_handle;
+struct btrfs_zoned_device_info;
 
 #define BTRFS_MAX_DATA_CHUNK_SIZE	(10ULL * SZ_1G)
 
@@ -77,7 +92,7 @@ enum btrfs_raid_types {
 #define BTRFS_DEV_STATE_FLUSH_SENT	(4)
 #define BTRFS_DEV_STATE_NO_READA	(5)
 
-struct btrfs_zoned_device_info;
+struct btrfs_fs_devices;
 
 struct btrfs_device {
 	struct list_head dev_list; /* device_list_mutex */
@@ -276,6 +291,25 @@ enum btrfs_read_policy {
 	BTRFS_NR_READ_POLICY,
 };
 
+#ifdef CONFIG_BTRFS_DEBUG
+/*
+ * Checksum mode - offload it to workqueues or do it synchronously in
+ * btrfs_submit_chunk().
+ */
+enum btrfs_offload_csum_mode {
+	/*
+	 * Choose offloading checksum or do it synchronously automatically.
+	 * Do it synchronously if the checksum is fast, or offload to workqueues
+	 * otherwise.
+	 */
+	BTRFS_OFFLOAD_CSUM_AUTO,
+	/* Always offload checksum to workqueues. */
+	BTRFS_OFFLOAD_CSUM_FORCE_ON,
+	/* Never offload checksum to workqueues. */
+	BTRFS_OFFLOAD_CSUM_FORCE_OFF,
+};
+#endif
+
 struct btrfs_fs_devices {
 	u8 fsid[BTRFS_FSID_SIZE]; /* FS specific uuid */
 
@@ -380,6 +414,11 @@ struct btrfs_fs_devices {
 
 	/* Policy used to read the mirrored stripes. */
 	enum btrfs_read_policy read_policy;
+
+#ifdef CONFIG_BTRFS_DEBUG
+	/* Checksum mode - offload it or do it synchronously. */
+	enum btrfs_offload_csum_mode offload_csum_mode;
+#endif
 };
 
 #define BTRFS_MAX_DEVS(info) ((BTRFS_MAX_ITEM_SIZE(info)	\
@@ -557,8 +596,6 @@ static inline void btrfs_free_chunk_map(struct btrfs_chunk_map *map)
 	}
 }
 
-struct btrfs_balance_args;
-struct btrfs_balance_progress;
 struct btrfs_balance_control {
 	struct btrfs_balance_args data;
 	struct btrfs_balance_args meta;
@@ -780,9 +817,7 @@ void btrfs_commit_device_sizes(struct btrfs_transaction *trans);
 struct list_head * __attribute_const__ btrfs_get_fs_uuids(void);
 bool btrfs_check_rw_degradable(struct btrfs_fs_info *fs_info,
 					struct btrfs_device *failing_dev);
-void btrfs_scratch_superblocks(struct btrfs_fs_info *fs_info,
-			       struct block_device *bdev,
-			       const char *device_path);
+void btrfs_scratch_superblocks(struct btrfs_fs_info *fs_info, struct btrfs_device *device);
 
 enum btrfs_raid_types __attribute_const__ btrfs_bg_flags_to_raid_index(u64 flags);
 int btrfs_bg_type_to_factor(u64 flags);

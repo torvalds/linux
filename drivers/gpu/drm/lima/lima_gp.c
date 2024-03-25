@@ -34,11 +34,11 @@ static irqreturn_t lima_gp_irq_handler(int irq, void *data)
 	if (state & LIMA_GP_IRQ_MASK_ERROR) {
 		if ((state & LIMA_GP_IRQ_MASK_ERROR) ==
 		    LIMA_GP_IRQ_PLBU_OUT_OF_MEM) {
-			dev_dbg(dev->dev, "gp out of heap irq status=%x\n",
-				status);
+			dev_dbg(dev->dev, "%s out of heap irq status=%x\n",
+				lima_ip_name(ip), status);
 		} else {
-			dev_err(dev->dev, "gp error irq state=%x status=%x\n",
-				state, status);
+			dev_err(dev->dev, "%s error irq state=%x status=%x\n",
+				lima_ip_name(ip), state, status);
 			if (task)
 				task->recoverable = false;
 		}
@@ -89,7 +89,8 @@ static int lima_gp_soft_reset_async_wait(struct lima_ip *ip)
 				 v & LIMA_GP_IRQ_RESET_COMPLETED,
 				 0, 100);
 	if (err) {
-		dev_err(dev->dev, "gp soft reset time out\n");
+		dev_err(dev->dev, "%s soft reset time out\n",
+			lima_ip_name(ip));
 		return err;
 	}
 
@@ -166,6 +167,11 @@ static void lima_gp_task_run(struct lima_sched_pipe *pipe,
 	gp_write(LIMA_GP_CMD, cmd);
 }
 
+static int lima_gp_bus_stop_poll(struct lima_ip *ip)
+{
+	return !!(gp_read(LIMA_GP_STATUS) & LIMA_GP_STATUS_BUS_STOPPED);
+}
+
 static int lima_gp_hard_reset_poll(struct lima_ip *ip)
 {
 	gp_write(LIMA_GP_PERF_CNT_0_LIMIT, 0xC01A0000);
@@ -179,16 +185,30 @@ static int lima_gp_hard_reset(struct lima_ip *ip)
 
 	gp_write(LIMA_GP_PERF_CNT_0_LIMIT, 0xC0FFE000);
 	gp_write(LIMA_GP_INT_MASK, 0);
+
+	gp_write(LIMA_GP_CMD, LIMA_GP_CMD_STOP_BUS);
+	ret = lima_poll_timeout(ip, lima_gp_bus_stop_poll, 10, 100);
+	if (ret) {
+		dev_err(dev->dev, "%s bus stop timeout\n", lima_ip_name(ip));
+		return ret;
+	}
 	gp_write(LIMA_GP_CMD, LIMA_GP_CMD_RESET);
 	ret = lima_poll_timeout(ip, lima_gp_hard_reset_poll, 10, 100);
 	if (ret) {
-		dev_err(dev->dev, "gp hard reset timeout\n");
+		dev_err(dev->dev, "%s hard reset timeout\n", lima_ip_name(ip));
 		return ret;
 	}
 
 	gp_write(LIMA_GP_PERF_CNT_0_LIMIT, 0);
 	gp_write(LIMA_GP_INT_CLEAR, LIMA_GP_IRQ_MASK_ALL);
 	gp_write(LIMA_GP_INT_MASK, LIMA_GP_IRQ_MASK_USED);
+
+	/*
+	 * if there was an async soft reset queued,
+	 * don't wait for it in the next job
+	 */
+	ip->data.async_reset = false;
+
 	return 0;
 }
 
@@ -201,8 +221,9 @@ static void lima_gp_task_error(struct lima_sched_pipe *pipe)
 {
 	struct lima_ip *ip = pipe->processor[0];
 
-	dev_err(ip->dev->dev, "gp task error int_state=%x status=%x\n",
-		gp_read(LIMA_GP_INT_STAT), gp_read(LIMA_GP_STATUS));
+	dev_err(ip->dev->dev, "%s task error int_state=%x status=%x\n",
+		lima_ip_name(ip), gp_read(LIMA_GP_INT_STAT),
+		gp_read(LIMA_GP_STATUS));
 
 	lima_gp_hard_reset(ip);
 }
@@ -305,7 +326,7 @@ int lima_gp_init(struct lima_ip *ip)
 	err = devm_request_irq(dev->dev, ip->irq, lima_gp_irq_handler,
 			       IRQF_SHARED, lima_ip_name(ip), ip);
 	if (err) {
-		dev_err(dev->dev, "gp %s fail to request irq\n",
+		dev_err(dev->dev, "%s fail to request irq\n",
 			lima_ip_name(ip));
 		return err;
 	}

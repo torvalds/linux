@@ -676,7 +676,7 @@ pte_t *lookup_address_in_pgd(pgd_t *pgd, unsigned long address,
 		return NULL;
 
 	*level = PG_LEVEL_512G;
-	if (p4d_large(*p4d) || !p4d_present(*p4d))
+	if (p4d_leaf(*p4d) || !p4d_present(*p4d))
 		return (pte_t *)p4d;
 
 	pud = pud_offset(p4d, address);
@@ -684,7 +684,7 @@ pte_t *lookup_address_in_pgd(pgd_t *pgd, unsigned long address,
 		return NULL;
 
 	*level = PG_LEVEL_1G;
-	if (pud_large(*pud) || !pud_present(*pud))
+	if (pud_leaf(*pud) || !pud_present(*pud))
 		return (pte_t *)pud;
 
 	pmd = pmd_offset(pud, address);
@@ -692,7 +692,7 @@ pte_t *lookup_address_in_pgd(pgd_t *pgd, unsigned long address,
 		return NULL;
 
 	*level = PG_LEVEL_2M;
-	if (pmd_large(*pmd) || !pmd_present(*pmd))
+	if (pmd_leaf(*pmd) || !pmd_present(*pmd))
 		return (pte_t *)pmd;
 
 	*level = PG_LEVEL_4K;
@@ -739,11 +739,11 @@ pmd_t *lookup_pmd_address(unsigned long address)
 		return NULL;
 
 	p4d = p4d_offset(pgd, address);
-	if (p4d_none(*p4d) || p4d_large(*p4d) || !p4d_present(*p4d))
+	if (p4d_none(*p4d) || p4d_leaf(*p4d) || !p4d_present(*p4d))
 		return NULL;
 
 	pud = pud_offset(p4d, address);
-	if (pud_none(*pud) || pud_large(*pud) || !pud_present(*pud))
+	if (pud_none(*pud) || pud_leaf(*pud) || !pud_present(*pud))
 		return NULL;
 
 	return pmd_offset(pud, address);
@@ -1233,7 +1233,7 @@ static void unmap_pmd_range(pud_t *pud, unsigned long start, unsigned long end)
 	 * Try to unmap in 2M chunks.
 	 */
 	while (end - start >= PMD_SIZE) {
-		if (pmd_large(*pmd))
+		if (pmd_leaf(*pmd))
 			pmd_clear(pmd);
 		else
 			__unmap_pmd_range(pud, pmd, start, start + PMD_SIZE);
@@ -1278,7 +1278,7 @@ static void unmap_pud_range(p4d_t *p4d, unsigned long start, unsigned long end)
 	 */
 	while (end - start >= PUD_SIZE) {
 
-		if (pud_large(*pud))
+		if (pud_leaf(*pud))
 			pud_clear(pud);
 		else
 			unmap_pmd_range(pud, start, start + PUD_SIZE);

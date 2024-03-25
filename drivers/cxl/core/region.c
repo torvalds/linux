@@ -4,6 +4,7 @@
 #include <linux/genalloc.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/memory.h>
 #include <linux/slab.h>
 #include <linux/uuid.h>
 #include <linux/sort.h>
@@ -29,6 +30,108 @@
  */
 
 static struct cxl_region *to_cxl_region(struct device *dev);
+
+#define __ACCESS_ATTR_RO(_level, _name) {				\
+	.attr	= { .name = __stringify(_name), .mode = 0444 },		\
+	.show	= _name##_access##_level##_show,			\
+}
+
+#define ACCESS_DEVICE_ATTR_RO(level, name)	\
+	struct device_attribute dev_attr_access##level##_##name = __ACCESS_ATTR_RO(level, name)
+
+#define ACCESS_ATTR_RO(level, attrib)					      \
+static ssize_t attrib##_access##level##_show(struct device *dev,	      \
+					  struct device_attribute *attr,      \
+					  char *buf)			      \
+{									      \
+	struct cxl_region *cxlr = to_cxl_region(dev);			      \
+									      \
+	if (cxlr->coord[level].attrib == 0)				      \
+		return -ENOENT;						      \
+									      \
+	return sysfs_emit(buf, "%u\n", cxlr->coord[level].attrib);	      \
+}									      \
+static ACCESS_DEVICE_ATTR_RO(level, attrib)
+
+ACCESS_ATTR_RO(0, read_bandwidth);
+ACCESS_ATTR_RO(0, read_latency);
+ACCESS_ATTR_RO(0, write_bandwidth);
+ACCESS_ATTR_RO(0, write_latency);
+
+#define ACCESS_ATTR_DECLARE(level, attrib)	\
+	(&dev_attr_access##level##_##attrib.attr)
+
+static struct attribute *access0_coordinate_attrs[] = {
+	ACCESS_ATTR_DECLARE(0, read_bandwidth),
+	ACCESS_ATTR_DECLARE(0, write_bandwidth),
+	ACCESS_ATTR_DECLARE(0, read_latency),
+	ACCESS_ATTR_DECLARE(0, write_latency),
+	NULL
+};
+
+ACCESS_ATTR_RO(1, read_bandwidth);
+ACCESS_ATTR_RO(1, read_latency);
+ACCESS_ATTR_RO(1, write_bandwidth);
+ACCESS_ATTR_RO(1, write_latency);
+
+static struct attribute *access1_coordinate_attrs[] = {
+	ACCESS_ATTR_DECLARE(1, read_bandwidth),
+	ACCESS_ATTR_DECLARE(1, write_bandwidth),
+	ACCESS_ATTR_DECLARE(1, read_latency),
+	ACCESS_ATTR_DECLARE(1, write_latency),
+	NULL
+};
+
+#define ACCESS_VISIBLE(level)						\
+static umode_t cxl_region_access##level##_coordinate_visible(		\
+		struct kobject *kobj, struct attribute *a, int n)	\
+{									\
+	struct device *dev = kobj_to_dev(kobj);				\
+	struct cxl_region *cxlr = to_cxl_region(dev);			\
+									\
+	if (a == &dev_attr_access##level##_read_latency.attr &&		\
+	    cxlr->coord[level].read_latency == 0)			\
+		return 0;						\
+									\
+	if (a == &dev_attr_access##level##_write_latency.attr &&	\
+	    cxlr->coord[level].write_latency == 0)			\
+		return 0;						\
+									\
+	if (a == &dev_attr_access##level##_read_bandwidth.attr &&	\
+	    cxlr->coord[level].read_bandwidth == 0)			\
+		return 0;						\
+									\
+	if (a == &dev_attr_access##level##_write_bandwidth.attr &&	\
+	    cxlr->coord[level].write_bandwidth == 0)			\
+		return 0;						\
+									\
+	return a->mode;							\
+}
+
+ACCESS_VISIBLE(0);
+ACCESS_VISIBLE(1);
+
+static const struct attribute_group cxl_region_access0_coordinate_group = {
+	.name = "access0",
+	.attrs = access0_coordinate_attrs,
+	.is_visible = cxl_region_access0_coordinate_visible,
+};
+
+static const struct attribute_group *get_cxl_region_access0_group(void)
+{
+	return &cxl_region_access0_coordinate_group;
+}
+
+static const struct attribute_group cxl_region_access1_coordinate_group = {
+	.name = "access1",
+	.attrs = access1_coordinate_attrs,
+	.is_visible = cxl_region_access1_coordinate_visible,
+};
+
+static const struct attribute_group *get_cxl_region_access1_group(void)
+{
+	return &cxl_region_access1_coordinate_group;
+}
 
 static ssize_t uuid_show(struct device *dev, struct device_attribute *attr,
 			 char *buf)
@@ -1752,6 +1855,8 @@ static int cxl_region_attach(struct cxl_region *cxlr,
 		return -EINVAL;
 	}
 
+	cxl_region_perf_data_calculate(cxlr, cxled);
+
 	if (test_bit(CXL_REGION_F_AUTO, &cxlr->flags)) {
 		int i;
 
@@ -2067,6 +2172,8 @@ static const struct attribute_group *region_groups[] = {
 	&cxl_base_attribute_group,
 	&cxl_region_group,
 	&cxl_region_target_group,
+	&cxl_region_access0_coordinate_group,
+	&cxl_region_access1_coordinate_group,
 	NULL,
 };
 
@@ -2120,6 +2227,7 @@ static void unregister_region(void *_cxlr)
 	struct cxl_region_params *p = &cxlr->params;
 	int i;
 
+	unregister_memory_notifier(&cxlr->memory_notifier);
 	device_del(&cxlr->dev);
 
 	/*
@@ -2162,6 +2270,63 @@ static struct cxl_region *cxl_region_alloc(struct cxl_root_decoder *cxlrd, int i
 	cxlr->id = id;
 
 	return cxlr;
+}
+
+static bool cxl_region_update_coordinates(struct cxl_region *cxlr, int nid)
+{
+	int cset = 0;
+	int rc;
+
+	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++) {
+		if (cxlr->coord[i].read_bandwidth) {
+			rc = 0;
+			if (cxl_need_node_perf_attrs_update(nid))
+				node_set_perf_attrs(nid, &cxlr->coord[i], i);
+			else
+				rc = cxl_update_hmat_access_coordinates(nid, cxlr, i);
+
+			if (rc == 0)
+				cset++;
+		}
+	}
+
+	if (!cset)
+		return false;
+
+	rc = sysfs_update_group(&cxlr->dev.kobj, get_cxl_region_access0_group());
+	if (rc)
+		dev_dbg(&cxlr->dev, "Failed to update access0 group\n");
+
+	rc = sysfs_update_group(&cxlr->dev.kobj, get_cxl_region_access1_group());
+	if (rc)
+		dev_dbg(&cxlr->dev, "Failed to update access1 group\n");
+
+	return true;
+}
+
+static int cxl_region_perf_attrs_callback(struct notifier_block *nb,
+					  unsigned long action, void *arg)
+{
+	struct cxl_region *cxlr = container_of(nb, struct cxl_region,
+					       memory_notifier);
+	struct cxl_region_params *p = &cxlr->params;
+	struct cxl_endpoint_decoder *cxled = p->targets[0];
+	struct cxl_decoder *cxld = &cxled->cxld;
+	struct memory_notify *mnb = arg;
+	int nid = mnb->status_change_nid;
+	int region_nid;
+
+	if (nid == NUMA_NO_NODE || action != MEM_ONLINE)
+		return NOTIFY_DONE;
+
+	region_nid = phys_to_target_node(cxld->hpa_range.start);
+	if (nid != region_nid)
+		return NOTIFY_DONE;
+
+	if (!cxl_region_update_coordinates(cxlr, nid))
+		return NOTIFY_DONE;
+
+	return NOTIFY_OK;
 }
 
 /**
@@ -2210,6 +2375,10 @@ static struct cxl_region *devm_cxl_add_region(struct cxl_root_decoder *cxlrd,
 	rc = device_add(dev);
 	if (rc)
 		goto err;
+
+	cxlr->memory_notifier.notifier_call = cxl_region_perf_attrs_callback;
+	cxlr->memory_notifier.priority = CXL_CALLBACK_PRI;
+	register_memory_notifier(&cxlr->memory_notifier);
 
 	rc = devm_add_action_or_reset(port->uport_dev, unregister_region, cxlr);
 	if (rc)

@@ -31,7 +31,6 @@ properties:
       - description: normal conversion, include EOC (End of Conversion),
           ECH (End of Chain), JEOC (End of Injected Conversion) and
           JECH (End of injected Chain).
-      - description: Self-testing Interrupts.
 
   clocks:
     maxItems: 1
@@ -70,8 +69,7 @@ examples:
             reg = <0x44530000 0x10000>;
             interrupts = <GIC_SPI 217 IRQ_TYPE_LEVEL_HIGH>,
                          <GIC_SPI 218 IRQ_TYPE_LEVEL_HIGH>,
-                         <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>,
-                         <GIC_SPI 268 IRQ_TYPE_LEVEL_HIGH>;
+                         <GIC_SPI 219 IRQ_TYPE_LEVEL_HIGH>;
             clocks = <&clk IMX93_CLK_ADC1_GATE>;
             clock-names = "ipg";
             vref-supply = <&reg_vref_1v8>;

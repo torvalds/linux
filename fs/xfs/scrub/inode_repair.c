@@ -37,12 +37,15 @@
 #include "xfs_attr_leaf.h"
 #include "xfs_log_priv.h"
 #include "xfs_health.h"
+#include "xfs_symlink_remote.h"
 #include "scrub/xfs_scrub.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
 #include "scrub/trace.h"
 #include "scrub/repair.h"
+#include "scrub/iscan.h"
+#include "scrub/readdir.h"
 
 /*
  * Inode Record Repair
@@ -126,6 +129,10 @@ struct xrep_inode {
 
 	/* Must we remove all access from this file? */
 	bool			zap_acls;
+
+	/* Inode scanner to see if we can find the ftype from dirents */
+	struct xchk_iscan	ftype_iscan;
+	uint8_t			alleged_ftype;
 };
 
 /*
@@ -227,26 +234,233 @@ xrep_dinode_header(
 	dip->di_gen = cpu_to_be32(sc->sm->sm_gen);
 }
 
-/* Turn di_mode into /something/ recognizable. */
-STATIC void
+/*
+ * If this directory entry points to the scrub target inode, then the directory
+ * we're scanning is the parent of the scrub target inode.
+ */
+STATIC int
+xrep_dinode_findmode_dirent(
+	struct xfs_scrub		*sc,
+	struct xfs_inode		*dp,
+	xfs_dir2_dataptr_t		dapos,
+	const struct xfs_name		*name,
+	xfs_ino_t			ino,
+	void				*priv)
+{
+	struct xrep_inode		*ri = priv;
+	int				error = 0;
+
+	if (xchk_should_terminate(ri->sc, &error))
+		return error;
+
+	if (ino != sc->sm->sm_ino)
+		return 0;
+
+	/* Ignore garbage directory entry names. */
+	if (name->len == 0 || !xfs_dir2_namecheck(name->name, name->len))
+		return -EFSCORRUPTED;
+
+	/* Don't pick up dot or dotdot entries; we only want child dirents. */
+	if (xfs_dir2_samename(name, &xfs_name_dotdot) ||
+	    xfs_dir2_samename(name, &xfs_name_dot))
+		return 0;
+
+	/*
+	 * Uhoh, more than one parent for this inode and they don't agree on
+	 * the file type?
+	 */
+	if (ri->alleged_ftype != XFS_DIR3_FT_UNKNOWN &&
+	    ri->alleged_ftype != name->type) {
+		trace_xrep_dinode_findmode_dirent_inval(ri->sc, dp, name->type,
+				ri->alleged_ftype);
+		return -EFSCORRUPTED;
+	}
+
+	/* We found a potential parent; remember the ftype. */
+	trace_xrep_dinode_findmode_dirent(ri->sc, dp, name->type);
+	ri->alleged_ftype = name->type;
+	return 0;
+}
+
+/*
+ * If this is a directory, walk the dirents looking for any that point to the
+ * scrub target inode.
+ */
+STATIC int
+xrep_dinode_findmode_walk_directory(
+	struct xrep_inode	*ri,
+	struct xfs_inode	*dp)
+{
+	struct xfs_scrub	*sc = ri->sc;
+	unsigned int		lock_mode;
+	int			error = 0;
+
+	/*
+	 * Scan the directory to see if there it contains an entry pointing to
+	 * the directory that we are repairing.
+	 */
+	lock_mode = xfs_ilock_data_map_shared(dp);
+
+	/*
+	 * If this directory is known to be sick, we cannot scan it reliably
+	 * and must abort.
+	 */
+	if (xfs_inode_has_sickness(dp, XFS_SICK_INO_CORE |
+				       XFS_SICK_INO_BMBTD |
+				       XFS_SICK_INO_DIR)) {
+		error = -EFSCORRUPTED;
+		goto out_unlock;
+	}
+
+	/*
+	 * We cannot complete our parent pointer scan if a directory looks as
+	 * though it has been zapped by the inode record repair code.
+	 */
+	if (xchk_dir_looks_zapped(dp)) {
+		error = -EBUSY;
+		goto out_unlock;
+	}
+
+	error = xchk_dir_walk(sc, dp, xrep_dinode_findmode_dirent, ri);
+	if (error)
+		goto out_unlock;
+
+out_unlock:
+	xfs_iunlock(dp, lock_mode);
+	return error;
+}
+
+/*
+ * Try to find the mode of the inode being repaired by looking for directories
+ * that point down to this file.
+ */
+STATIC int
+xrep_dinode_find_mode(
+	struct xrep_inode	*ri,
+	uint16_t		*mode)
+{
+	struct xfs_scrub	*sc = ri->sc;
+	struct xfs_inode	*dp;
+	int			error;
+
+	/* No ftype means we have no other metadata to consult. */
+	if (!xfs_has_ftype(sc->mp)) {
+		*mode = S_IFREG;
+		return 0;
+	}
+
+	/*
+	 * Scan all directories for parents that might point down to this
+	 * inode.  Skip the inode being repaired during the scan since it
+	 * cannot be its own parent.  Note that we still hold the AGI locked
+	 * so there's a real possibility that _iscan_iter can return EBUSY.
+	 */
+	xchk_iscan_start(sc, 5000, 100, &ri->ftype_iscan);
+	ri->ftype_iscan.skip_ino = sc->sm->sm_ino;
+	ri->alleged_ftype = XFS_DIR3_FT_UNKNOWN;
+	while ((error = xchk_iscan_iter(&ri->ftype_iscan, &dp)) == 1) {
+		if (S_ISDIR(VFS_I(dp)->i_mode))
+			error = xrep_dinode_findmode_walk_directory(ri, dp);
+		xchk_iscan_mark_visited(&ri->ftype_iscan, dp);
+		xchk_irele(sc, dp);
+		if (error < 0)
+			break;
+		if (xchk_should_terminate(sc, &error))
+			break;
+	}
+	xchk_iscan_iter_finish(&ri->ftype_iscan);
+	xchk_iscan_teardown(&ri->ftype_iscan);
+
+	if (error == -EBUSY) {
+		if (ri->alleged_ftype != XFS_DIR3_FT_UNKNOWN) {
+			/*
+			 * If we got an EBUSY after finding at least one
+			 * dirent, that means the scan found an inode on the
+			 * inactivation list and could not open it.  Accept the
+			 * alleged ftype and install a new mode below.
+			 */
+			error = 0;
+		} else if (!(sc->flags & XCHK_TRY_HARDER)) {
+			/*
+			 * Otherwise, retry the operation one time to see if
+			 * the reason for the delay is an inode from the same
+			 * cluster buffer waiting on the inactivation list.
+			 */
+			error = -EDEADLOCK;
+		}
+	}
+	if (error)
+		return error;
+
+	/*
+	 * Convert the discovered ftype into the file mode.  If all else fails,
+	 * return S_IFREG.
+	 */
+	switch (ri->alleged_ftype) {
+	case XFS_DIR3_FT_DIR:
+		*mode = S_IFDIR;
+		break;
+	case XFS_DIR3_FT_WHT:
+	case XFS_DIR3_FT_CHRDEV:
+		*mode = S_IFCHR;
+		break;
+	case XFS_DIR3_FT_BLKDEV:
+		*mode = S_IFBLK;
+		break;
+	case XFS_DIR3_FT_FIFO:
+		*mode = S_IFIFO;
+		break;
+	case XFS_DIR3_FT_SOCK:
+		*mode = S_IFSOCK;
+		break;
+	case XFS_DIR3_FT_SYMLINK:
+		*mode = S_IFLNK;
+		break;
+	default:
+		*mode = S_IFREG;
+		break;
+	}
+	return 0;
+}
+
+/* Turn di_mode into /something/ recognizable.  Returns true if we succeed. */
+STATIC int
 xrep_dinode_mode(
 	struct xrep_inode	*ri,
 	struct xfs_dinode	*dip)
 {
 	struct xfs_scrub	*sc = ri->sc;
 	uint16_t		mode = be16_to_cpu(dip->di_mode);
+	int			error;
 
 	trace_xrep_dinode_mode(sc, dip);
 
 	if (mode == 0 || xfs_mode_to_ftype(mode) != XFS_DIR3_FT_UNKNOWN)
-		return;
+		return 0;
+
+	/* Try to fix the mode.  If we cannot, then leave everything alone. */
+	error = xrep_dinode_find_mode(ri, &mode);
+	switch (error) {
+	case -EINTR:
+	case -EBUSY:
+	case -EDEADLOCK:
+		/* temporary failure or fatal signal */
+		return error;
+	case 0:
+		/* found mode */
+		break;
+	default:
+		/* some other error, assume S_IFREG */
+		mode = S_IFREG;
+		break;
+	}
 
 	/* bad mode, so we set it to a file that only root can read */
-	mode = S_IFREG;
 	dip->di_mode = cpu_to_be16(mode);
 	dip->di_uid = 0;
 	dip->di_gid = 0;
 	ri->zap_acls = true;
+	return 0;
 }
 
 /* Fix any conflicting flags that the verifiers complain about. */
@@ -1107,12 +1321,15 @@ xrep_dinode_core(
 	/* Fix everything the verifier will complain about. */
 	dip = xfs_buf_offset(bp, ri->imap.im_boffset);
 	xrep_dinode_header(sc, dip);
-	xrep_dinode_mode(ri, dip);
+	iget_error = xrep_dinode_mode(ri, dip);
+	if (iget_error)
+		goto write;
 	xrep_dinode_flags(sc, dip, ri->rt_extents > 0);
 	xrep_dinode_size(ri, dip);
 	xrep_dinode_extsize_hints(sc, dip);
 	xrep_dinode_zap_forks(ri, dip);
 
+write:
 	/* Write out the inode. */
 	trace_xrep_dinode_fixed(sc, dip);
 	xfs_dinode_calc_crc(sc->mp, dip);
@@ -1128,7 +1345,8 @@ xrep_dinode_core(
 	 * accessing the inode.  If iget fails, we still need to commit the
 	 * changes.
 	 */
-	iget_error = xchk_iget(sc, ino, &sc->ip);
+	if (!iget_error)
+		iget_error = xchk_iget(sc, ino, &sc->ip);
 	if (!iget_error)
 		xchk_ilock(sc, XFS_IOLOCK_EXCL);
 
@@ -1496,6 +1714,13 @@ xrep_inode(
 		ASSERT(ri != NULL);
 
 		error = xrep_dinode_problems(ri);
+		if (error == -EBUSY) {
+			/*
+			 * Directory scan to recover inode mode encountered a
+			 * busy inode, so we did not continue repairing things.
+			 */
+			return 0;
+		}
 		if (error)
 			return error;
 

@@ -119,10 +119,9 @@ static inline int convert_error(struct zcrypt_queue *zq,
 	case REP82_ERROR_MESSAGE_TYPE:		 /* 0x20 */
 	case REP82_ERROR_TRANSPORT_FAIL:	 /* 0x90 */
 		/*
-		 * Msg to wrong type or card/infrastructure failure.
-		 * Trigger rescan of the ap bus, trigger retry request.
+		 * Msg to wrong type or card/infrastructure failure. Return
+		 * EAGAIN, the upper layer may do a retry on the request.
 		 */
-		atomic_set(&zcrypt_rescan_req, 1);
 		/* For type 86 response show the apfs value (failure reason) */
 		if (ehdr->reply_code == REP82_ERROR_TRANSPORT_FAIL &&
 		    ehdr->type == TYPE86_RSP_CODE) {

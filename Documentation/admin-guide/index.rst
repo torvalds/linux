@@ -1,3 +1,4 @@
+=================================================
 The Linux kernel user's and administrator's guide
 =================================================
 
@@ -37,6 +38,7 @@ problems and bugs in particular.
    reporting-issues
    reporting-regressions
    quickly-build-trimmed-linux
+   verify-bugs-and-bisect-regressions
    bug-hunting
    bug-bisect
    tainted-kernels

@@ -137,7 +137,7 @@ KASAN受到通用 ``panic_on_warn`` 命令行參數的影響。當它被啓用�
 典型的KASAN報告如下所示::
 
     ==================================================================
-    BUG: KASAN: slab-out-of-bounds in kmalloc_oob_right+0xa8/0xbc [test_kasan]
+    BUG: KASAN: slab-out-of-bounds in kmalloc_oob_right+0xa8/0xbc [kasan_test]
     Write of size 1 at addr ffff8801f44ec37b by task insmod/2760
 
     CPU: 1 PID: 2760 Comm: insmod Not tainted 4.19.0-rc3+ #698
@@ -147,8 +147,8 @@ KASAN受到通用 ``panic_on_warn`` 命令行參數的影響。當它被啓用�
      print_address_description+0x73/0x280
      kasan_report+0x144/0x187
      __asan_report_store1_noabort+0x17/0x20
-     kmalloc_oob_right+0xa8/0xbc [test_kasan]
-     kmalloc_tests_init+0x16/0x700 [test_kasan]
+     kmalloc_oob_right+0xa8/0xbc [kasan_test]
+     kmalloc_tests_init+0x16/0x700 [kasan_test]
      do_one_initcall+0xa5/0x3ae
      do_init_module+0x1b6/0x547
      load_module+0x75df/0x8070
@@ -168,8 +168,8 @@ KASAN受到通用 ``panic_on_warn`` 命令行參數的影響。當它被啓用�
      save_stack+0x43/0xd0
      kasan_kmalloc+0xa7/0xd0
      kmem_cache_alloc_trace+0xe1/0x1b0
-     kmalloc_oob_right+0x56/0xbc [test_kasan]
-     kmalloc_tests_init+0x16/0x700 [test_kasan]
+     kmalloc_oob_right+0x56/0xbc [kasan_test]
+     kmalloc_tests_init+0x16/0x700 [kasan_test]
      do_one_initcall+0xa5/0x3ae
      do_init_module+0x1b6/0x547
      load_module+0x75df/0x8070
@@ -421,15 +421,15 @@ KASAN連接到vmap基礎架構以懶清理未使用的影子內存。
 
 當由於 ``kmalloc`` 失敗而導致測試失敗時::
 
-        # kmalloc_large_oob_right: ASSERTION FAILED at lib/test_kasan.c:163
+        # kmalloc_large_oob_right: ASSERTION FAILED at mm/kasan/kasan_test.c:245
         Expected ptr is not null, but is
-        not ok 4 - kmalloc_large_oob_right
+        not ok 5 - kmalloc_large_oob_right
 
 當由於缺少KASAN報告而導致測試失敗時::
 
-        # kmalloc_double_kzfree: EXPECTATION FAILED at lib/test_kasan.c:974
+        # kmalloc_double_kzfree: EXPECTATION FAILED at mm/kasan/kasan_test.c:709
         KASAN failure expected in "kfree_sensitive(ptr)", but none occurred
-        not ok 44 - kmalloc_double_kzfree
+        not ok 28 - kmalloc_double_kzfree
 
 
 最後打印所有KASAN測試的累積狀態。成功::
@@ -445,7 +445,7 @@ KASAN連接到vmap基礎架構以懶清理未使用的影子內存。
 1. 可加載模塊
 
    啓用 ``CONFIG_KUNIT`` 後，KASAN-KUnit測試可以構建爲可加載模塊，並通過使用
-   ``insmod`` 或 ``modprobe`` 加載 ``test_kasan.ko`` 來運行。
+   ``insmod`` 或 ``modprobe`` 加載 ``kasan_test.ko`` 來運行。
 
 2. 內置
 

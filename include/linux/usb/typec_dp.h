@@ -3,6 +3,7 @@
 #define __USB_TYPEC_DP_H
 
 #include <linux/usb/typec_altmode.h>
+#include <linux/bitfield.h>
 
 #define USB_TYPEC_DP_SID	0xff01
 /* USB IF has not assigned a Standard ID (SID) for VirtualLink,
@@ -67,21 +68,21 @@ enum {
 #define   DP_CAP_UFP_D			1
 #define   DP_CAP_DFP_D			2
 #define   DP_CAP_DFP_D_AND_UFP_D	3
-#define DP_CAP_DP_SIGNALLING(_cap_)	(((_cap_) & GENMASK(5, 2)) >> 2)
+#define DP_CAP_DP_SIGNALLING(_cap_)	FIELD_GET(GENMASK(5, 2), _cap_)
 #define   DP_CAP_SIGNALLING_HBR3	1
 #define   DP_CAP_SIGNALLING_UHBR10	2
 #define   DP_CAP_SIGNALLING_UHBR20	3
 #define DP_CAP_RECEPTACLE		BIT(6)
 #define DP_CAP_USB			BIT(7)
-#define DP_CAP_DFP_D_PIN_ASSIGN(_cap_)	(((_cap_) & GENMASK(15, 8)) >> 8)
-#define DP_CAP_UFP_D_PIN_ASSIGN(_cap_)	(((_cap_) & GENMASK(23, 16)) >> 16)
+#define DP_CAP_DFP_D_PIN_ASSIGN(_cap_)	FIELD_GET(GENMASK(15, 8), _cap_)
+#define DP_CAP_UFP_D_PIN_ASSIGN(_cap_)	FIELD_GET(GENMASK(23, 16), _cap_)
 /* Get pin assignment taking plug & receptacle into consideration */
 #define DP_CAP_PIN_ASSIGN_UFP_D(_cap_) ((_cap_ & DP_CAP_RECEPTACLE) ? \
 			DP_CAP_UFP_D_PIN_ASSIGN(_cap_) : DP_CAP_DFP_D_PIN_ASSIGN(_cap_))
 #define DP_CAP_PIN_ASSIGN_DFP_D(_cap_) ((_cap_ & DP_CAP_RECEPTACLE) ? \
 			DP_CAP_DFP_D_PIN_ASSIGN(_cap_) : DP_CAP_UFP_D_PIN_ASSIGN(_cap_))
 #define DP_CAP_UHBR_13_5_SUPPORT	BIT(26)
-#define DP_CAP_CABLE_TYPE(_cap_)	(((_cap_) & GENMASK(29, 28)) >> 28)
+#define DP_CAP_CABLE_TYPE(_cap_)	FIELD_GET(GENMASK(29, 28), _cap_)
 #define   DP_CAP_CABLE_TYPE_PASSIVE	0
 #define   DP_CAP_CABLE_TYPE_RE_TIMER	1
 #define   DP_CAP_CABLE_TYPE_RE_DRIVER	2
@@ -116,7 +117,7 @@ enum {
 
 /* Helper for setting/getting the pin assignment value to the configuration */
 #define DP_CONF_SET_PIN_ASSIGN(_a_)	((_a_) << 8)
-#define DP_CONF_GET_PIN_ASSIGN(_conf_)	(((_conf_) & GENMASK(15, 8)) >> 8)
+#define DP_CONF_GET_PIN_ASSIGN(_conf_)	FIELD_GET(GENMASK(15, 8), _conf_)
 #define DP_CONF_UHBR13_5_SUPPORT	BIT(26)
 #define DP_CONF_CABLE_TYPE_MASK		GENMASK(29, 28)
 #define DP_CONF_CABLE_TYPE_SHIFT	28

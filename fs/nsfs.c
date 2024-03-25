@@ -56,7 +56,7 @@ int ns_get_path_cb(struct path *path, ns_get_path_helper_t *ns_get_cb,
 	if (!ns)
 		return -ENOENT;
 
-	return path_from_stashed(&ns->stashed, ns->inum, nsfs_mnt, ns, path);
+	return path_from_stashed(&ns->stashed, nsfs_mnt, ns, path);
 }
 
 struct ns_get_path_task_args {
@@ -101,8 +101,7 @@ int open_related_ns(struct ns_common *ns,
 		return PTR_ERR(relative);
 	}
 
-	err = path_from_stashed(&relative->stashed, relative->inum, nsfs_mnt,
-				relative, &path);
+	err = path_from_stashed(&relative->stashed, nsfs_mnt, relative, &path);
 	if (err < 0) {
 		put_unused_fd(fd);
 		return err;
@@ -199,11 +198,15 @@ static const struct super_operations nsfs_ops = {
 	.show_path = nsfs_show_path,
 };
 
-static void nsfs_init_inode(struct inode *inode, void *data)
+static int nsfs_init_inode(struct inode *inode, void *data)
 {
+	struct ns_common *ns = data;
+
 	inode->i_private = data;
 	inode->i_mode |= S_IRUGO;
 	inode->i_fop = &ns_file_operations;
+	inode->i_ino = ns->inum;
+	return 0;
 }
 
 static void nsfs_put_data(void *data)

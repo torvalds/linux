@@ -220,7 +220,7 @@ void dump_backtrace(struct pt_regs *regs, struct task_struct *tsk,
 	unsigned int fp, mode;
 	int ok = 1;
 
-	printk("%sBacktrace: ", loglvl);
+	printk("%sCall trace: ", loglvl);
 
 	if (!tsk)
 		tsk = current;

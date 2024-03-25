@@ -26,7 +26,6 @@
 	mmc-pwrseq = <&wifi_pwrseq>;
 	non-removable;
 	ti,fails-without-test-cd;
-	ti,driver-strength-ohm = <50>;
 	vmmc-supply = <&reg_3v3>;
 	status = "okay";
 };

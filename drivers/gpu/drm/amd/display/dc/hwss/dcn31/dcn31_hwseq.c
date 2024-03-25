@@ -98,10 +98,8 @@ static void enable_memory_low_power(struct dc *dc)
 		for (i = 0; i < dc->res_pool->stream_enc_count; i++)
 			if (dc->res_pool->stream_enc[i]->vpg)
 				dc->res_pool->stream_enc[i]->vpg->funcs->vpg_powerdown(dc->res_pool->stream_enc[i]->vpg);
-#if defined(CONFIG_DRM_AMD_DC_FP)
 		for (i = 0; i < dc->res_pool->hpo_dp_stream_enc_count; i++)
 			dc->res_pool->hpo_dp_stream_enc[i]->vpg->funcs->vpg_powerdown(dc->res_pool->hpo_dp_stream_enc[i]->vpg);
-#endif
 	}
 
 }
@@ -616,4 +614,22 @@ void dcn31_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable)
 {
 	if (hws->ctx->dc->debug.hpo_optimization)
 		REG_UPDATE(HPO_TOP_HW_CONTROL, HPO_IO_EN, !!enable);
+}
+
+void dcn31_set_static_screen_control(struct pipe_ctx **pipe_ctx,
+		int num_pipes, const struct dc_static_screen_params *params)
+{
+	unsigned int i;
+	unsigned int triggers = 0;
+
+	if (params->triggers.surface_update)
+		triggers |= 0x100;
+	if (params->triggers.cursor_update)
+		triggers |= 0x8;
+	if (params->triggers.force_trigger)
+		triggers |= 0x1;
+
+	for (i = 0; i < num_pipes; i++)
+		pipe_ctx[i]->stream_res.tg->funcs->set_static_screen_control(pipe_ctx[i]->stream_res.tg,
+					triggers, params->num_frames);
 }

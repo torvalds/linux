@@ -1532,7 +1532,7 @@ put_dev:
 	return ret;
 }
 
-static int apple_nvme_remove(struct platform_device *pdev)
+static void apple_nvme_remove(struct platform_device *pdev)
 {
 	struct apple_nvme *anv = platform_get_drvdata(pdev);
 
@@ -1547,8 +1547,6 @@ static int apple_nvme_remove(struct platform_device *pdev)
 		apple_rtkit_shutdown(anv->rtk);
 
 	apple_nvme_detach_genpd(anv);
-
-	return 0;
 }
 
 static void apple_nvme_shutdown(struct platform_device *pdev)
@@ -1598,7 +1596,7 @@ static struct platform_driver apple_nvme_driver = {
 		.pm = pm_sleep_ptr(&apple_nvme_pm_ops),
 	},
 	.probe = apple_nvme_probe,
-	.remove = apple_nvme_remove,
+	.remove_new = apple_nvme_remove,
 	.shutdown = apple_nvme_shutdown,
 };
 module_platform_driver(apple_nvme_driver);

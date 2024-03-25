@@ -44,6 +44,53 @@ MODULE_PARM_DESC(datapath_polling, "Operate the datapath in polling mode");
 static bool link_up;
 static DEFINE_IDA(qaic_usrs);
 
+static void qaicm_wq_release(struct drm_device *dev, void *res)
+{
+	struct workqueue_struct *wq = res;
+
+	destroy_workqueue(wq);
+}
+
+static struct workqueue_struct *qaicm_wq_init(struct drm_device *dev, const char *fmt)
+{
+	struct workqueue_struct *wq;
+	int ret;
+
+	wq = alloc_workqueue(fmt, WQ_UNBOUND, 0);
+	if (!wq)
+		return ERR_PTR(-ENOMEM);
+	ret = drmm_add_action_or_reset(dev, qaicm_wq_release, wq);
+	if (ret)
+		return ERR_PTR(ret);
+
+	return wq;
+}
+
+static void qaicm_srcu_release(struct drm_device *dev, void *res)
+{
+	struct srcu_struct *lock = res;
+
+	cleanup_srcu_struct(lock);
+}
+
+static int qaicm_srcu_init(struct drm_device *dev, struct srcu_struct *lock)
+{
+	int ret;
+
+	ret = init_srcu_struct(lock);
+	if (ret)
+		return ret;
+
+	return drmm_add_action_or_reset(dev, qaicm_srcu_release, lock);
+}
+
+static void qaicm_pci_release(struct drm_device *dev, void *res)
+{
+	struct qaic_device *qdev = to_qaic_device(dev);
+
+	pci_set_drvdata(qdev->pdev, NULL);
+}
+
 static void free_usr(struct kref *kref)
 {
 	struct qaic_user *usr = container_of(kref, struct qaic_user, ref_count);
@@ -299,73 +346,72 @@ void qaic_dev_reset_clean_local_state(struct qaic_device *qdev)
 		release_dbc(qdev, i);
 }
 
-static void cleanup_qdev(struct qaic_device *qdev)
-{
-	int i;
-
-	for (i = 0; i < qdev->num_dbc; ++i)
-		cleanup_srcu_struct(&qdev->dbc[i].ch_lock);
-	cleanup_srcu_struct(&qdev->dev_lock);
-	pci_set_drvdata(qdev->pdev, NULL);
-	destroy_workqueue(qdev->cntl_wq);
-	destroy_workqueue(qdev->qts_wq);
-}
-
 static struct qaic_device *create_qdev(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	struct device *dev = &pdev->dev;
 	struct qaic_drm_device *qddev;
 	struct qaic_device *qdev;
-	int i;
+	struct drm_device *drm;
+	int i, ret;
 
-	qdev = devm_kzalloc(&pdev->dev, sizeof(*qdev), GFP_KERNEL);
+	qdev = devm_kzalloc(dev, sizeof(*qdev), GFP_KERNEL);
 	if (!qdev)
 		return NULL;
 
 	qdev->dev_state = QAIC_OFFLINE;
 	if (id->device == PCI_DEV_AIC100) {
 		qdev->num_dbc = 16;
-		qdev->dbc = devm_kcalloc(&pdev->dev, qdev->num_dbc, sizeof(*qdev->dbc), GFP_KERNEL);
+		qdev->dbc = devm_kcalloc(dev, qdev->num_dbc, sizeof(*qdev->dbc), GFP_KERNEL);
 		if (!qdev->dbc)
 			return NULL;
 	}
 
-	qdev->cntl_wq = alloc_workqueue("qaic_cntl", WQ_UNBOUND, 0);
-	if (!qdev->cntl_wq)
+	qddev = devm_drm_dev_alloc(&pdev->dev, &qaic_accel_driver, struct qaic_drm_device, drm);
+	if (IS_ERR(qddev))
 		return NULL;
 
-	qdev->qts_wq = alloc_workqueue("qaic_ts", WQ_UNBOUND, 0);
-	if (!qdev->qts_wq) {
-		destroy_workqueue(qdev->cntl_wq);
-		return NULL;
-	}
-
+	drm = to_drm(qddev);
 	pci_set_drvdata(pdev, qdev);
-	qdev->pdev = pdev;
 
-	mutex_init(&qdev->cntl_mutex);
+	ret = drmm_mutex_init(drm, &qddev->users_mutex);
+	if (ret)
+		return NULL;
+	ret = drmm_add_action_or_reset(drm, qaicm_pci_release, NULL);
+	if (ret)
+		return NULL;
+	ret = drmm_mutex_init(drm, &qdev->cntl_mutex);
+	if (ret)
+		return NULL;
+
+	qdev->cntl_wq = qaicm_wq_init(drm, "qaic_cntl");
+	if (IS_ERR(qdev->cntl_wq))
+		return NULL;
+	qdev->qts_wq = qaicm_wq_init(drm, "qaic_ts");
+	if (IS_ERR(qdev->qts_wq))
+		return NULL;
+
+	ret = qaicm_srcu_init(drm, &qdev->dev_lock);
+	if (ret)
+		return NULL;
+
+	qdev->qddev = qddev;
+	qdev->pdev = pdev;
+	qddev->qdev = qdev;
+
 	INIT_LIST_HEAD(&qdev->cntl_xfer_list);
-	init_srcu_struct(&qdev->dev_lock);
+	INIT_LIST_HEAD(&qddev->users);
 
 	for (i = 0; i < qdev->num_dbc; ++i) {
 		spin_lock_init(&qdev->dbc[i].xfer_lock);
 		qdev->dbc[i].qdev = qdev;
 		qdev->dbc[i].id = i;
 		INIT_LIST_HEAD(&qdev->dbc[i].xfer_list);
-		init_srcu_struct(&qdev->dbc[i].ch_lock);
+		ret = qaicm_srcu_init(drm, &qdev->dbc[i].ch_lock);
+		if (ret)
+			return NULL;
 		init_waitqueue_head(&qdev->dbc[i].dbc_release);
 		INIT_LIST_HEAD(&qdev->dbc[i].bo_lists);
 	}
-
-	qddev = devm_drm_dev_alloc(&pdev->dev, &qaic_accel_driver, struct qaic_drm_device, drm);
-	if (IS_ERR(qddev)) {
-		cleanup_qdev(qdev);
-		return NULL;
-	}
-
-	drmm_mutex_init(to_drm(qddev), &qddev->users_mutex);
-	INIT_LIST_HEAD(&qddev->users);
-	qddev->qdev = qdev;
-	qdev->qddev = qddev;
 
 	return qdev;
 }
@@ -472,35 +518,28 @@ static int qaic_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	ret = init_pci(qdev, pdev);
 	if (ret)
-		goto cleanup_qdev;
+		return ret;
 
 	for (i = 0; i < qdev->num_dbc; ++i)
 		qdev->dbc[i].dbc_base = qdev->bar_2 + QAIC_DBC_OFF(i);
 
 	mhi_irq = init_msi(qdev, pdev);
-	if (mhi_irq < 0) {
-		ret = mhi_irq;
-		goto cleanup_qdev;
-	}
+	if (mhi_irq < 0)
+		return mhi_irq;
 
 	ret = qaic_create_drm_device(qdev, QAIC_NO_PARTITION);
 	if (ret)
-		goto cleanup_qdev;
+		return ret;
 
 	qdev->mhi_cntrl = qaic_mhi_register_controller(pdev, qdev->bar_0, mhi_irq,
 						       qdev->single_msi);
 	if (IS_ERR(qdev->mhi_cntrl)) {
 		ret = PTR_ERR(qdev->mhi_cntrl);
-		goto cleanup_drm_dev;
+		qaic_destroy_drm_device(qdev, QAIC_NO_PARTITION);
+		return ret;
 	}
 
 	return 0;
-
-cleanup_drm_dev:
-	qaic_destroy_drm_device(qdev, QAIC_NO_PARTITION);
-cleanup_qdev:
-	cleanup_qdev(qdev);
-	return ret;
 }
 
 static void qaic_pci_remove(struct pci_dev *pdev)
@@ -511,9 +550,8 @@ static void qaic_pci_remove(struct pci_dev *pdev)
 		return;
 
 	qaic_dev_reset_clean_local_state(qdev);
-	qaic_destroy_drm_device(qdev, QAIC_NO_PARTITION);
 	qaic_mhi_free_controller(qdev->mhi_cntrl, link_up);
-	cleanup_qdev(qdev);
+	qaic_destroy_drm_device(qdev, QAIC_NO_PARTITION);
 }
 
 static void qaic_pci_shutdown(struct pci_dev *pdev)

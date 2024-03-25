@@ -51,6 +51,7 @@ config INTEL_IOMMU_SVM
 	depends on X86_64
 	select MMU_NOTIFIER
 	select IOMMU_SVA
+	select IOMMU_IOPF
 	help
 	  Shared Virtual Memory (SVM) provides a facility for devices
 	  to access DMA resources through process address space by
@@ -63,17 +64,6 @@ config INTEL_IOMMU_DEFAULT_ON
 	  Selecting this option will enable a DMAR device at boot time if
 	  one is found. If this option is not selected, DMAR support can
 	  be enabled by passing intel_iommu=on to the kernel.
-
-config INTEL_IOMMU_BROKEN_GFX_WA
-	bool "Workaround broken graphics drivers (going away soon)"
-	depends on BROKEN && X86
-	help
-	  Current Graphics drivers tend to use physical address
-	  for DMA and avoid using DMA APIs. Setting this config
-	  option permits the IOMMU driver to set a unity map for
-	  all the OS-visible memory. Hence the driver can continue
-	  to use physical addresses for DMA, at least until this
-	  option is removed in the 2.6.32 kernel.
 
 config INTEL_IOMMU_FLOPPY_WA
 	def_bool y
@@ -97,8 +87,8 @@ config INTEL_IOMMU_SCALABLE_MODE_DEFAULT_ON
 	  the default value.
 
 config INTEL_IOMMU_PERF_EVENTS
-	def_bool y
 	bool "Intel IOMMU performance events"
+	default y
 	depends on INTEL_IOMMU && PERF_EVENTS
 	help
 	  Selecting this option will enable the performance monitoring

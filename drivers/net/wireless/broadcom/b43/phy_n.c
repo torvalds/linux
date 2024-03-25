@@ -6246,7 +6246,7 @@ static void b43_nphy_channel_setup(struct b43_wldev *dev,
 		b43_write16(dev, B43_MMIO_PSM_PHY_HDR, tmp16 | 4);
 		/* Take BPHY out of the reset */
 		b43_phy_mask(dev, B43_PHY_B_BBCFG,
-			     (u16)~(B43_PHY_B_BBCFG_RSTCCA | B43_PHY_B_BBCFG_RSTRX));
+			     ~(B43_PHY_B_BBCFG_RSTCCA | B43_PHY_B_BBCFG_RSTRX) & 0xffff);
 		b43_write16(dev, B43_MMIO_PSM_PHY_HDR, tmp16);
 	}
 
@@ -6377,7 +6377,7 @@ static int b43_nphy_set_channel(struct b43_wldev *dev,
 	} else if (channel_type == NL80211_CHAN_HT40MINUS) {
 		b43_phy_mask(dev, B43_NPHY_RXCTL, ~B43_NPHY_RXCTL_BSELU20);
 		if (phy->rev >= 7)
-			b43_phy_mask(dev, 0x310, (u16)~0x8000);
+			b43_phy_mask(dev, 0x310, 0x7fff);
 	}
 
 	if (phy->rev >= 19) {

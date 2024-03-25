@@ -21,8 +21,8 @@ be queued in mm-stable [3]_ , and finally pull-requested to the mainline by the
 memory management subsystem maintainer.
 
 Note again the patches for review should be made against the mm-unstable
-tree[1] whenever possible.  damon/next is only for preview of others' works in
-progress.
+tree [1]_ whenever possible.  damon/next is only for preview of others' works
+in progress.
 
 Submit checklist addendum
 -------------------------
@@ -41,8 +41,8 @@ Further doing below and putting the results will be helpful.
 Key cycle dates
 ---------------
 
-Patches can be sent anytime.  Key cycle dates of the mm-unstable[1] and
-mm-stable[3] trees depend on the memory management subsystem maintainer.
+Patches can be sent anytime.  Key cycle dates of the mm-unstable [1]_ and
+mm-stable [3]_ trees depend on the memory management subsystem maintainer.
 
 Review cadence
 --------------

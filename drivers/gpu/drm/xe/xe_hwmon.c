@@ -10,12 +10,14 @@
 #include <drm/drm_managed.h>
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_mchbar_regs.h"
+#include "regs/xe_pcode_regs.h"
 #include "xe_device.h"
 #include "xe_gt.h"
 #include "xe_hwmon.h"
 #include "xe_mmio.h"
 #include "xe_pcode.h"
 #include "xe_pcode_api.h"
+#include "xe_sriov.h"
 
 enum xe_hwmon_reg {
 	REG_PKG_RAPL_LIMIT,
@@ -77,32 +79,32 @@ static u32 xe_hwmon_get_reg(struct xe_hwmon *hwmon, enum xe_hwmon_reg hwmon_reg)
 
 	switch (hwmon_reg) {
 	case REG_PKG_RAPL_LIMIT:
-		if (xe->info.platform == XE_DG2)
-			reg = PCU_CR_PACKAGE_RAPL_LIMIT;
-		else if (xe->info.platform == XE_PVC)
+		if (xe->info.platform == XE_PVC)
 			reg = PVC_GT0_PACKAGE_RAPL_LIMIT;
+		else if (xe->info.platform == XE_DG2)
+			reg = PCU_CR_PACKAGE_RAPL_LIMIT;
 		break;
 	case REG_PKG_POWER_SKU:
-		if (xe->info.platform == XE_DG2)
-			reg = PCU_CR_PACKAGE_POWER_SKU;
-		else if (xe->info.platform == XE_PVC)
+		if (xe->info.platform == XE_PVC)
 			reg = PVC_GT0_PACKAGE_POWER_SKU;
+		else if (xe->info.platform == XE_DG2)
+			reg = PCU_CR_PACKAGE_POWER_SKU;
 		break;
 	case REG_PKG_POWER_SKU_UNIT:
-		if (xe->info.platform == XE_DG2)
-			reg = PCU_CR_PACKAGE_POWER_SKU_UNIT;
-		else if (xe->info.platform == XE_PVC)
+		if (xe->info.platform == XE_PVC)
 			reg = PVC_GT0_PACKAGE_POWER_SKU_UNIT;
+		else if (xe->info.platform == XE_DG2)
+			reg = PCU_CR_PACKAGE_POWER_SKU_UNIT;
 		break;
 	case REG_GT_PERF_STATUS:
 		if (xe->info.platform == XE_DG2)
 			reg = GT_PERF_STATUS;
 		break;
 	case REG_PKG_ENERGY_STATUS:
-		if (xe->info.platform == XE_DG2)
-			reg = PCU_CR_PACKAGE_ENERGY_STATUS;
-		else if (xe->info.platform == XE_PVC)
+		if (xe->info.platform == XE_PVC)
 			reg = PVC_GT0_PLATFORM_ENERGY_STATUS;
+		else if (xe->info.platform == XE_DG2)
+			reg = PCU_CR_PACKAGE_ENERGY_STATUS;
 		break;
 	default:
 		drm_warn(&xe->drm, "Unknown xe hwmon reg id: %d\n", hwmon_reg);
@@ -402,7 +404,7 @@ static const struct attribute_group *hwmon_groups[] = {
 	NULL
 };
 
-static const struct hwmon_channel_info *hwmon_info[] = {
+static const struct hwmon_channel_info * const hwmon_info[] = {
 	HWMON_CHANNEL_INFO(power, HWMON_P_MAX | HWMON_P_RATED_MAX | HWMON_P_CRIT),
 	HWMON_CHANNEL_INFO(curr, HWMON_C_CRIT),
 	HWMON_CHANNEL_INFO(in, HWMON_I_INPUT),
@@ -743,6 +745,10 @@ void xe_hwmon_register(struct xe_device *xe)
 
 	/* hwmon is available only for dGfx */
 	if (!IS_DGFX(xe))
+		return;
+
+	/* hwmon is not available on VFs */
+	if (IS_SRIOV_VF(xe))
 		return;
 
 	hwmon = devm_kzalloc(dev, sizeof(*hwmon), GFP_KERNEL);

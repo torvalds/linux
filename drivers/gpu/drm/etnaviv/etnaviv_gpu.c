@@ -164,6 +164,26 @@ int etnaviv_gpu_get_param(struct etnaviv_gpu *gpu, u32 param, u64 *value)
 		*value = gpu->identity.eco_id;
 		break;
 
+	case ETNAVIV_PARAM_GPU_NN_CORE_COUNT:
+		*value = gpu->identity.nn_core_count;
+		break;
+
+	case ETNAVIV_PARAM_GPU_NN_MAD_PER_CORE:
+		*value = gpu->identity.nn_mad_per_core;
+		break;
+
+	case ETNAVIV_PARAM_GPU_TP_CORE_COUNT:
+		*value = gpu->identity.tp_core_count;
+		break;
+
+	case ETNAVIV_PARAM_GPU_ON_CHIP_SRAM_SIZE:
+		*value = gpu->identity.on_chip_sram_size;
+		break;
+
+	case ETNAVIV_PARAM_GPU_AXI_SRAM_SIZE:
+		*value = gpu->identity.axi_sram_size;
+		break;
+
 	default:
 		DBG("%s: invalid param: %u", dev_name(gpu->dev), param);
 		return -EINVAL;
@@ -513,8 +533,19 @@ static int etnaviv_hw_reset(struct etnaviv_gpu *gpu)
 	timeout = jiffies + msecs_to_jiffies(1000);
 
 	while (time_is_after_jiffies(timeout)) {
-		/* enable clock */
 		unsigned int fscale = 1 << (6 - gpu->freq_scale);
+		u32 pulse_eater = 0x01590880;
+
+		/* disable clock gating */
+		gpu_write_power(gpu, VIVS_PM_POWER_CONTROLS, 0x0);
+
+		/* disable pulse eater */
+		pulse_eater |= BIT(17);
+		gpu_write_power(gpu, VIVS_PM_PULSE_EATER, pulse_eater);
+		pulse_eater |= BIT(0);
+		gpu_write_power(gpu, VIVS_PM_PULSE_EATER, pulse_eater);
+
+		/* enable clock */
 		control = VIVS_HI_CLOCK_CONTROL_FSCALE_VAL(fscale);
 		etnaviv_gpu_load_clock(gpu, control);
 

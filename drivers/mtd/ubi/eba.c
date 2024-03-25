@@ -1456,7 +1456,14 @@ int ubi_eba_copy_leb(struct ubi_device *ubi, int from, int to,
 	}
 
 	ubi_assert(vol->eba_tbl->entries[lnum].pnum == from);
+
+	/**
+	 * The volumes_lock lock is needed here to prevent the expired old eba_tbl
+	 * being updated when the eba_tbl is copied in the ubi_resize_volume() process.
+	 */
+	spin_lock(&ubi->volumes_lock);
 	vol->eba_tbl->entries[lnum].pnum = to;
+	spin_unlock(&ubi->volumes_lock);
 
 out_unlock_buf:
 	mutex_unlock(&ubi->buf_mutex);

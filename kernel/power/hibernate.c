@@ -47,6 +47,15 @@ dev_t swsusp_resume_device;
 sector_t swsusp_resume_block;
 __visible int in_suspend __nosavedata;
 
+static char hibernate_compressor[CRYPTO_MAX_ALG_NAME] = CONFIG_HIBERNATION_DEF_COMP;
+
+/*
+ * Compression/decompression algorithm to be used while saving/loading
+ * image to/from disk. This would later be used in 'kernel/power/swap.c'
+ * to allocate comp streams.
+ */
+char hib_comp_algo[CRYPTO_MAX_ALG_NAME];
+
 enum {
 	HIBERNATION_INVALID,
 	HIBERNATION_PLATFORM,
@@ -718,6 +727,9 @@ static int load_image_and_restore(void)
 	return error;
 }
 
+#define COMPRESSION_ALGO_LZO "lzo"
+#define COMPRESSION_ALGO_LZ4 "lz4"
+
 /**
  * hibernate - Carry out system hibernation, including saving the image.
  */
@@ -730,6 +742,17 @@ int hibernate(void)
 	if (!hibernation_available()) {
 		pm_pr_dbg("Hibernation not available.\n");
 		return -EPERM;
+	}
+
+	/*
+	 * Query for the compression algorithm support if compression is enabled.
+	 */
+	if (!nocompress) {
+		strscpy(hib_comp_algo, hibernate_compressor, sizeof(hib_comp_algo));
+		if (crypto_has_comp(hib_comp_algo, 0, 0) != 1) {
+			pr_err("%s compression is not available\n", hib_comp_algo);
+			return -EOPNOTSUPP;
+		}
 	}
 
 	sleep_flags = lock_system_sleep();
@@ -766,10 +789,23 @@ int hibernate(void)
 
 		if (hibernation_mode == HIBERNATION_PLATFORM)
 			flags |= SF_PLATFORM_MODE;
-		if (nocompress)
+		if (nocompress) {
 			flags |= SF_NOCOMPRESS_MODE;
-		else
+		} else {
 		        flags |= SF_CRC32_MODE;
+
+			/*
+			 * By default, LZO compression is enabled. Use SF_COMPRESSION_ALG_LZ4
+			 * to override this behaviour and use LZ4.
+			 *
+			 * Refer kernel/power/power.h for more details
+			 */
+
+			if (!strcmp(hib_comp_algo, COMPRESSION_ALGO_LZ4))
+				flags |= SF_COMPRESSION_ALG_LZ4;
+			else
+				flags |= SF_COMPRESSION_ALG_LZO;
+		}
 
 		pm_pr_dbg("Writing hibernation image.\n");
 		error = swsusp_write(flags);
@@ -954,6 +990,22 @@ static int software_resume(void)
 	error = swsusp_check(true);
 	if (error)
 		goto Unlock;
+
+	/*
+	 * Check if the hibernation image is compressed. If so, query for
+	 * the algorithm support.
+	 */
+	if (!(swsusp_header_flags & SF_NOCOMPRESS_MODE)) {
+		if (swsusp_header_flags & SF_COMPRESSION_ALG_LZ4)
+			strscpy(hib_comp_algo, COMPRESSION_ALGO_LZ4, sizeof(hib_comp_algo));
+		else
+			strscpy(hib_comp_algo, COMPRESSION_ALGO_LZO, sizeof(hib_comp_algo));
+		if (crypto_has_comp(hib_comp_algo, 0, 0) != 1) {
+			pr_err("%s compression is not available\n", hib_comp_algo);
+			error = -EOPNOTSUPP;
+			goto Unlock;
+		}
+	}
 
 	/* The snapshot device should not be opened while we're running */
 	if (!hibernate_acquire()) {
@@ -1369,6 +1421,57 @@ static int __init nohibernate_setup(char *str)
 	nohibernate = 1;
 	return 1;
 }
+
+static const char * const comp_alg_enabled[] = {
+#if IS_ENABLED(CONFIG_CRYPTO_LZO)
+	COMPRESSION_ALGO_LZO,
+#endif
+#if IS_ENABLED(CONFIG_CRYPTO_LZ4)
+	COMPRESSION_ALGO_LZ4,
+#endif
+};
+
+static int hibernate_compressor_param_set(const char *compressor,
+		const struct kernel_param *kp)
+{
+	unsigned int sleep_flags;
+	int index, ret;
+
+	sleep_flags = lock_system_sleep();
+
+	index = sysfs_match_string(comp_alg_enabled, compressor);
+	if (index >= 0) {
+		ret = param_set_copystring(comp_alg_enabled[index], kp);
+		if (!ret)
+			strscpy(hib_comp_algo, comp_alg_enabled[index],
+				sizeof(hib_comp_algo));
+	} else {
+		ret = index;
+	}
+
+	unlock_system_sleep(sleep_flags);
+
+	if (ret)
+		pr_debug("Cannot set specified compressor %s\n",
+			 compressor);
+
+	return ret;
+}
+
+static const struct kernel_param_ops hibernate_compressor_param_ops = {
+	.set    = hibernate_compressor_param_set,
+	.get    = param_get_string,
+};
+
+static struct kparam_string hibernate_compressor_param_string = {
+	.maxlen = sizeof(hibernate_compressor),
+	.string = hibernate_compressor,
+};
+
+module_param_cb(compressor, &hibernate_compressor_param_ops,
+		&hibernate_compressor_param_string, 0644);
+MODULE_PARM_DESC(compressor,
+		 "Compression algorithm to be used with hibernation");
 
 __setup("noresume", noresume_setup);
 __setup("resume_offset=", resume_offset_setup);

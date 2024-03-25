@@ -2841,26 +2841,19 @@ static int vxlan_init(struct net_device *dev)
 	if (vxlan->cfg.flags & VXLAN_F_VNIFILTER)
 		vxlan_vnigroup_init(vxlan);
 
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats) {
-		err = -ENOMEM;
-		goto err_vnigroup_uninit;
-	}
-
 	err = gro_cells_init(&vxlan->gro_cells, dev);
 	if (err)
-		goto err_free_percpu;
+		goto err_vnigroup_uninit;
 
 	err = vxlan_mdb_init(vxlan);
 	if (err)
 		goto err_gro_cells_destroy;
 
+	netdev_lockdep_set_classes(dev);
 	return 0;
 
 err_gro_cells_destroy:
 	gro_cells_destroy(&vxlan->gro_cells);
-err_free_percpu:
-	free_percpu(dev->tstats);
 err_vnigroup_uninit:
 	if (vxlan->cfg.flags & VXLAN_F_VNIFILTER)
 		vxlan_vnigroup_uninit(vxlan);
@@ -2891,8 +2884,6 @@ static void vxlan_uninit(struct net_device *dev)
 	gro_cells_destroy(&vxlan->gro_cells);
 
 	vxlan_fdb_delete_default(vxlan, vxlan->cfg.vni);
-
-	free_percpu(dev->tstats);
 }
 
 /* Start ageing timer and join group when device is brought up */
@@ -3223,7 +3214,6 @@ static const struct net_device_ops vxlan_netdev_ether_ops = {
 	.ndo_open		= vxlan_open,
 	.ndo_stop		= vxlan_stop,
 	.ndo_start_xmit		= vxlan_xmit,
-	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_set_rx_mode	= vxlan_set_multicast_list,
 	.ndo_change_mtu		= vxlan_change_mtu,
 	.ndo_validate_addr	= eth_validate_addr,
@@ -3247,13 +3237,12 @@ static const struct net_device_ops vxlan_netdev_raw_ops = {
 	.ndo_open		= vxlan_open,
 	.ndo_stop		= vxlan_stop,
 	.ndo_start_xmit		= vxlan_xmit,
-	.ndo_get_stats64	= dev_get_tstats64,
 	.ndo_change_mtu		= vxlan_change_mtu,
 	.ndo_fill_metadata_dst	= vxlan_fill_metadata_dst,
 };
 
 /* Info for udev, that this is a virtual tunnel endpoint */
-static struct device_type vxlan_type = {
+static const struct device_type vxlan_type = {
 	.name = "vxlan",
 };
 
@@ -3315,6 +3304,7 @@ static void vxlan_setup(struct net_device *dev)
 	dev->min_mtu = ETH_MIN_MTU;
 	dev->max_mtu = ETH_MAX_MTU;
 
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 	INIT_LIST_HEAD(&vxlan->next);
 
 	timer_setup(&vxlan->age_timer, vxlan_cleanup, TIMER_DEFERRABLE);
@@ -4826,55 +4816,43 @@ static __net_init int vxlan_init_net(struct net *net)
 					 NULL);
 }
 
-static void vxlan_destroy_tunnels(struct net *net, struct list_head *head)
+static void __net_exit vxlan_destroy_tunnels(struct vxlan_net *vn,
+					     struct list_head *dev_to_kill)
 {
-	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 	struct vxlan_dev *vxlan, *next;
-	struct net_device *dev, *aux;
 
-	for_each_netdev_safe(net, dev, aux)
-		if (dev->rtnl_link_ops == &vxlan_link_ops)
-			unregister_netdevice_queue(dev, head);
-
-	list_for_each_entry_safe(vxlan, next, &vn->vxlan_list, next) {
-		/* If vxlan->dev is in the same netns, it has already been added
-		 * to the list by the previous loop.
-		 */
-		if (!net_eq(dev_net(vxlan->dev), net))
-			unregister_netdevice_queue(vxlan->dev, head);
-	}
-
+	list_for_each_entry_safe(vxlan, next, &vn->vxlan_list, next)
+		vxlan_dellink(vxlan->dev, dev_to_kill);
 }
 
-static void __net_exit vxlan_exit_batch_net(struct list_head *net_list)
+static void __net_exit vxlan_exit_batch_rtnl(struct list_head *net_list,
+					     struct list_head *dev_to_kill)
 {
 	struct net *net;
-	LIST_HEAD(list);
+
+	ASSERT_RTNL();
+	list_for_each_entry(net, net_list, exit_list) {
+		struct vxlan_net *vn = net_generic(net, vxlan_net_id);
+
+		__unregister_nexthop_notifier(net, &vn->nexthop_notifier_block);
+
+		vxlan_destroy_tunnels(vn, dev_to_kill);
+	}
+}
+
+static void __net_exit vxlan_exit_net(struct net *net)
+{
+	struct vxlan_net *vn = net_generic(net, vxlan_net_id);
 	unsigned int h;
 
-	list_for_each_entry(net, net_list, exit_list) {
-		struct vxlan_net *vn = net_generic(net, vxlan_net_id);
-
-		unregister_nexthop_notifier(net, &vn->nexthop_notifier_block);
-	}
-	rtnl_lock();
-	list_for_each_entry(net, net_list, exit_list)
-		vxlan_destroy_tunnels(net, &list);
-
-	unregister_netdevice_many(&list);
-	rtnl_unlock();
-
-	list_for_each_entry(net, net_list, exit_list) {
-		struct vxlan_net *vn = net_generic(net, vxlan_net_id);
-
-		for (h = 0; h < PORT_HASH_SIZE; ++h)
-			WARN_ON_ONCE(!hlist_empty(&vn->sock_list[h]));
-	}
+	for (h = 0; h < PORT_HASH_SIZE; ++h)
+		WARN_ON_ONCE(!hlist_empty(&vn->sock_list[h]));
 }
 
 static struct pernet_operations vxlan_net_ops = {
 	.init = vxlan_init_net,
-	.exit_batch = vxlan_exit_batch_net,
+	.exit_batch_rtnl = vxlan_exit_batch_rtnl,
+	.exit = vxlan_exit_net,
 	.id   = &vxlan_net_id,
 	.size = sizeof(struct vxlan_net),
 };

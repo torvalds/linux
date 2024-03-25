@@ -7,8 +7,8 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Bluetooth Chips
 
 maintainers:
-  - Balakrishna Godavarthi <bgodavar@codeaurora.org>
-  - Rocky Liao <rjliao@codeaurora.org>
+  - Balakrishna Godavarthi <quic_bgodavar@quicinc.com>
+  - Rocky Liao <quic_rjliao@quicinc.com>
 
 description:
   This binding describes Qualcomm UART-attached bluetooth chips.

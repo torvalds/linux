@@ -1500,8 +1500,7 @@ static int __init init_inodecache(void)
 {
 	ext4_inode_cachep = kmem_cache_create_usercopy("ext4_inode_cache",
 				sizeof(struct ext4_inode_info), 0,
-				(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD|
-					SLAB_ACCOUNT),
+				SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT,
 				offsetof(struct ext4_inode_info, i_data),
 				sizeof_field(struct ext4_inode_info, i_data),
 				init_once);
@@ -1600,7 +1599,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 static int ext4_quota_enable(struct super_block *sb, int type, int format_id,
 			     unsigned int flags);
 
-static struct dquot **ext4_get_dquots(struct inode *inode)
+static struct dquot __rcu **ext4_get_dquots(struct inode *inode)
 {
 	return EXT4_I(inode)->i_dquot;
 }
@@ -4422,22 +4421,6 @@ static int ext4_handle_clustersize(struct super_block *sb)
 		}
 		sbi->s_cluster_bits = le32_to_cpu(es->s_log_cluster_size) -
 			le32_to_cpu(es->s_log_block_size);
-		sbi->s_clusters_per_group =
-			le32_to_cpu(es->s_clusters_per_group);
-		if (sbi->s_clusters_per_group > sb->s_blocksize * 8) {
-			ext4_msg(sb, KERN_ERR,
-				 "#clusters per group too big: %lu",
-				 sbi->s_clusters_per_group);
-			return -EINVAL;
-		}
-		if (sbi->s_blocks_per_group !=
-		    (sbi->s_clusters_per_group * (clustersize / sb->s_blocksize))) {
-			ext4_msg(sb, KERN_ERR, "blocks per group (%lu) and "
-				 "clusters per group (%lu) inconsistent",
-				 sbi->s_blocks_per_group,
-				 sbi->s_clusters_per_group);
-			return -EINVAL;
-		}
 	} else {
 		if (clustersize != sb->s_blocksize) {
 			ext4_msg(sb, KERN_ERR,
@@ -4451,8 +4434,20 @@ static int ext4_handle_clustersize(struct super_block *sb)
 				 sbi->s_blocks_per_group);
 			return -EINVAL;
 		}
-		sbi->s_clusters_per_group = sbi->s_blocks_per_group;
 		sbi->s_cluster_bits = 0;
+	}
+	sbi->s_clusters_per_group = le32_to_cpu(es->s_clusters_per_group);
+	if (sbi->s_clusters_per_group > sb->s_blocksize * 8) {
+		ext4_msg(sb, KERN_ERR, "#clusters per group too big: %lu",
+			 sbi->s_clusters_per_group);
+		return -EINVAL;
+	}
+	if (sbi->s_blocks_per_group !=
+	    (sbi->s_clusters_per_group * (clustersize / sb->s_blocksize))) {
+		ext4_msg(sb, KERN_ERR,
+			 "blocks per group (%lu) and clusters per group (%lu) inconsistent",
+			 sbi->s_blocks_per_group, sbi->s_clusters_per_group);
+		return -EINVAL;
 	}
 	sbi->s_cluster_ratio = clustersize / sb->s_blocksize;
 
@@ -6865,6 +6860,10 @@ static int ext4_write_dquot(struct dquot *dquot)
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_commit(dquot);
+	if (ret < 0)
+		ext4_error_err(dquot->dq_sb, -ret,
+			       "Failed to commit dquot type %d",
+			       dquot->dq_id.type);
 	err = ext4_journal_stop(handle);
 	if (!ret)
 		ret = err;
@@ -6881,6 +6880,10 @@ static int ext4_acquire_dquot(struct dquot *dquot)
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 	ret = dquot_acquire(dquot);
+	if (ret < 0)
+		ext4_error_err(dquot->dq_sb, -ret,
+			      "Failed to acquire dquot type %d",
+			      dquot->dq_id.type);
 	err = ext4_journal_stop(handle);
 	if (!ret)
 		ret = err;
@@ -6900,6 +6903,10 @@ static int ext4_release_dquot(struct dquot *dquot)
 		return PTR_ERR(handle);
 	}
 	ret = dquot_release(dquot);
+	if (ret < 0)
+		ext4_error_err(dquot->dq_sb, -ret,
+			       "Failed to release dquot type %d",
+			       dquot->dq_id.type);
 	err = ext4_journal_stop(handle);
 	if (!ret)
 		ret = err;

@@ -30,7 +30,7 @@
 #define DEF_SRC_FMT_ENC	V4L2_PIX_FMT_NV12M
 #define DEF_DST_FMT_ENC	V4L2_PIX_FMT_H264
 
-static struct s5p_mfc_fmt formats[] = {
+static const struct s5p_mfc_fmt formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_NV12MT_16X16,
 		.codec_mode	= S5P_MFC_CODEC_NONE,
@@ -111,7 +111,7 @@ static struct s5p_mfc_fmt formats[] = {
 };
 
 #define NUM_FORMATS ARRAY_SIZE(formats)
-static struct s5p_mfc_fmt *find_format(struct v4l2_format *f, unsigned int t)
+static const struct s5p_mfc_fmt *find_format(struct v4l2_format *f, unsigned int t)
 {
 	unsigned int i;
 
@@ -1431,7 +1431,7 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct s5p_mfc_dev *dev = video_drvdata(file);
-	struct s5p_mfc_fmt *fmt;
+	const struct s5p_mfc_fmt *fmt;
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE) {
@@ -2392,7 +2392,7 @@ static const struct v4l2_ioctl_ops s5p_mfc_enc_ioctl_ops = {
 	.vidioc_unsubscribe_event = v4l2_event_unsubscribe,
 };
 
-static int check_vb_with_fmt(struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
+static int check_vb_with_fmt(const struct s5p_mfc_fmt *fmt, struct vb2_buffer *vb)
 {
 	int i;
 
@@ -2650,7 +2650,7 @@ static void s5p_mfc_buf_queue(struct vb2_buffer *vb)
 	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 }
 
-static struct vb2_ops s5p_mfc_enc_qops = {
+static const struct vb2_ops s5p_mfc_enc_qops = {
 	.queue_setup		= s5p_mfc_queue_setup,
 	.wait_prepare		= vb2_ops_wait_prepare,
 	.wait_finish		= vb2_ops_wait_finish,
@@ -2666,7 +2666,7 @@ const struct s5p_mfc_codec_ops *get_enc_codec_ops(void)
 	return &encoder_codec_ops;
 }
 
-struct vb2_ops *get_enc_queue_ops(void)
+const struct vb2_ops *get_enc_queue_ops(void)
 {
 	return &s5p_mfc_enc_qops;
 }

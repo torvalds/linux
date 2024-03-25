@@ -134,7 +134,7 @@ static void inject_abt32(struct kvm_vcpu *vcpu, bool is_pabt, u32 addr)
 	if (vcpu_read_sys_reg(vcpu, TCR_EL1) & TTBCR_EAE) {
 		fsr = DFSR_LPAE | DFSR_FSC_EXTABT_LPAE;
 	} else {
-		/* no need to shuffle FS[4] into DFSR[10] as its 0 */
+		/* no need to shuffle FS[4] into DFSR[10] as it's 0 */
 		fsr = DFSR_FSC_EXTABT_nLPAE;
 	}
 

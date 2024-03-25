@@ -524,7 +524,7 @@ static void __exit tpm_exit(void)
 subsys_initcall(tpm_init);
 module_exit(tpm_exit);
 
-MODULE_AUTHOR("Leendert van Doorn (leendert@watson.ibm.com)");
+MODULE_AUTHOR("Leendert van Doorn <leendert@watson.ibm.com>");
 MODULE_DESCRIPTION("TPM Driver");
 MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");

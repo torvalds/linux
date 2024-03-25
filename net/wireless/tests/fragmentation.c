@@ -2,7 +2,7 @@
 /*
  * KUnit tests for element fragmentation
  *
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  */
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
@@ -27,7 +27,12 @@ static void defragment_0(struct kunit *test)
 
 	ret = cfg80211_defragment_element((void *)input,
 					  input, sizeof(input),
-					  data, sizeof(input),
+					  NULL, 0,
+					  WLAN_EID_FRAGMENT);
+	KUNIT_EXPECT_EQ(test, ret, 253);
+	ret = cfg80211_defragment_element((void *)input,
+					  input, sizeof(input),
+					  data, ret,
 					  WLAN_EID_FRAGMENT);
 	KUNIT_EXPECT_EQ(test, ret, 253);
 	KUNIT_EXPECT_MEMEQ(test, data, input + 3, 253);
@@ -63,7 +68,12 @@ static void defragment_1(struct kunit *test)
 
 	ret = cfg80211_defragment_element((void *)input,
 					  input, sizeof(input),
-					  data, sizeof(input),
+					  NULL, 0,
+					  WLAN_EID_FRAGMENT);
+	KUNIT_EXPECT_EQ(test, ret, 254 + 7);
+	ret = cfg80211_defragment_element((void *)input,
+					  input, sizeof(input),
+					  data, ret,
 					  WLAN_EID_FRAGMENT);
 	/* this means the last fragment was not used */
 	KUNIT_EXPECT_EQ(test, ret, 254 + 7);
@@ -106,9 +116,14 @@ static void defragment_2(struct kunit *test)
 
 	ret = cfg80211_defragment_element((void *)input,
 					  input, sizeof(input),
-					  data, sizeof(input),
+					  NULL, 0,
 					  WLAN_EID_FRAGMENT);
 	/* this means the last fragment was not used */
+	KUNIT_EXPECT_EQ(test, ret, 254 + 255 + 1);
+	ret = cfg80211_defragment_element((void *)input,
+					  input, sizeof(input),
+					  data, ret,
+					  WLAN_EID_FRAGMENT);
 	KUNIT_EXPECT_EQ(test, ret, 254 + 255 + 1);
 	KUNIT_EXPECT_MEMEQ(test, data, input + 3, 254);
 	KUNIT_EXPECT_MEMEQ(test, data + 254, input + 257 + 2, 255);
@@ -134,7 +149,12 @@ static void defragment_at_end(struct kunit *test)
 
 	ret = cfg80211_defragment_element((void *)input,
 					  input, sizeof(input),
-					  data, sizeof(input),
+					  NULL, 0,
+					  WLAN_EID_FRAGMENT);
+	KUNIT_EXPECT_EQ(test, ret, 254 + 7);
+	ret = cfg80211_defragment_element((void *)input,
+					  input, sizeof(input),
+					  data, ret,
 					  WLAN_EID_FRAGMENT);
 	KUNIT_EXPECT_EQ(test, ret, 254 + 7);
 	KUNIT_EXPECT_MEMEQ(test, data, input + 3, 254);

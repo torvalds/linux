@@ -2151,6 +2151,8 @@ static struct ubifs_info *alloc_ubifs_info(struct ubi_volume_desc *ubi)
 		mutex_init(&c->bu_mutex);
 		mutex_init(&c->write_reserve_mutex);
 		init_waitqueue_head(&c->cmt_wq);
+		init_waitqueue_head(&c->reserve_space_wq);
+		atomic_set(&c->need_wait_space, 0);
 		c->buds = RB_ROOT;
 		c->old_idx = RB_ROOT;
 		c->size_tree = RB_ROOT;
@@ -2434,8 +2436,8 @@ static int __init ubifs_init(void)
 
 	ubifs_inode_slab = kmem_cache_create("ubifs_inode_slab",
 				sizeof(struct ubifs_inode), 0,
-				SLAB_MEM_SPREAD | SLAB_RECLAIM_ACCOUNT |
-				SLAB_ACCOUNT, &inode_slab_ctor);
+				SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT,
+				&inode_slab_ctor);
 	if (!ubifs_inode_slab)
 		return -ENOMEM;
 

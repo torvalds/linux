@@ -209,7 +209,8 @@ static inline bool vcpu_is_el2(const struct kvm_vcpu *vcpu)
 
 static inline bool __vcpu_el2_e2h_is_set(const struct kvm_cpu_context *ctxt)
 {
-	return ctxt_sys_reg(ctxt, HCR_EL2) & HCR_E2H;
+	return (!cpus_have_final_cap(ARM64_HAS_HCR_NV1) ||
+		(ctxt_sys_reg(ctxt, HCR_EL2) & HCR_E2H));
 }
 
 static inline bool vcpu_el2_e2h_is_set(const struct kvm_vcpu *vcpu)
@@ -425,15 +426,9 @@ static __always_inline bool kvm_vcpu_abt_issea(const struct kvm_vcpu *vcpu)
 {
 	switch (kvm_vcpu_trap_get_fault(vcpu)) {
 	case ESR_ELx_FSC_EXTABT:
-	case ESR_ELx_FSC_SEA_TTW0:
-	case ESR_ELx_FSC_SEA_TTW1:
-	case ESR_ELx_FSC_SEA_TTW2:
-	case ESR_ELx_FSC_SEA_TTW3:
+	case ESR_ELx_FSC_SEA_TTW(-1) ... ESR_ELx_FSC_SEA_TTW(3):
 	case ESR_ELx_FSC_SECC:
-	case ESR_ELx_FSC_SECC_TTW0:
-	case ESR_ELx_FSC_SECC_TTW1:
-	case ESR_ELx_FSC_SECC_TTW2:
-	case ESR_ELx_FSC_SECC_TTW3:
+	case ESR_ELx_FSC_SECC_TTW(-1) ... ESR_ELx_FSC_SECC_TTW(3):
 		return true;
 	default:
 		return false;

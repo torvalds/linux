@@ -31,6 +31,8 @@
 #define BIAS_MAX	(LONG_MAX >> 1)
 
 #ifdef CONFIG_PAGE_POOL_STATS
+static DEFINE_PER_CPU(struct page_pool_recycle_stats, pp_system_recycle_stats);
+
 /* alloc_stat_inc is intended to be used in softirq context */
 #define alloc_stat_inc(pool, __stat)	(pool->alloc_stats.__stat++)
 /* recycle_stat_inc is safe to use when preemption is possible. */
@@ -171,12 +173,15 @@ static void page_pool_producer_unlock(struct page_pool *pool,
 }
 
 static int page_pool_init(struct page_pool *pool,
-			  const struct page_pool_params *params)
+			  const struct page_pool_params *params,
+			  int cpuid)
 {
 	unsigned int ring_qsize = 1024; /* Default */
 
 	memcpy(&pool->p, &params->fast, sizeof(pool->p));
 	memcpy(&pool->slow, &params->slow, sizeof(pool->slow));
+
+	pool->cpuid = cpuid;
 
 	/* Validate only known flags were used */
 	if (pool->p.flags & ~(PP_FLAG_ALL))
@@ -217,14 +222,23 @@ static int page_pool_init(struct page_pool *pool,
 	pool->has_init_callback = !!pool->slow.init_callback;
 
 #ifdef CONFIG_PAGE_POOL_STATS
-	pool->recycle_stats = alloc_percpu(struct page_pool_recycle_stats);
-	if (!pool->recycle_stats)
-		return -ENOMEM;
+	if (!(pool->p.flags & PP_FLAG_SYSTEM_POOL)) {
+		pool->recycle_stats = alloc_percpu(struct page_pool_recycle_stats);
+		if (!pool->recycle_stats)
+			return -ENOMEM;
+	} else {
+		/* For system page pool instance we use a singular stats object
+		 * instead of allocating a separate percpu variable for each
+		 * (also percpu) page pool instance.
+		 */
+		pool->recycle_stats = &pp_system_recycle_stats;
+	}
 #endif
 
 	if (ptr_ring_init(&pool->ring, ring_qsize, GFP_KERNEL) < 0) {
 #ifdef CONFIG_PAGE_POOL_STATS
-		free_percpu(pool->recycle_stats);
+		if (!(pool->p.flags & PP_FLAG_SYSTEM_POOL))
+			free_percpu(pool->recycle_stats);
 #endif
 		return -ENOMEM;
 	}
@@ -248,15 +262,18 @@ static void page_pool_uninit(struct page_pool *pool)
 		put_device(pool->p.dev);
 
 #ifdef CONFIG_PAGE_POOL_STATS
-	free_percpu(pool->recycle_stats);
+	if (!(pool->p.flags & PP_FLAG_SYSTEM_POOL))
+		free_percpu(pool->recycle_stats);
 #endif
 }
 
 /**
- * page_pool_create() - create a page pool.
+ * page_pool_create_percpu() - create a page pool for a given cpu.
  * @params: parameters, see struct page_pool_params
+ * @cpuid: cpu identifier
  */
-struct page_pool *page_pool_create(const struct page_pool_params *params)
+struct page_pool *
+page_pool_create_percpu(const struct page_pool_params *params, int cpuid)
 {
 	struct page_pool *pool;
 	int err;
@@ -265,7 +282,7 @@ struct page_pool *page_pool_create(const struct page_pool_params *params)
 	if (!pool)
 		return ERR_PTR(-ENOMEM);
 
-	err = page_pool_init(pool, params);
+	err = page_pool_init(pool, params, cpuid);
 	if (err < 0)
 		goto err_free;
 
@@ -281,6 +298,16 @@ err_free:
 	pr_warn("%s() gave up with errno %d\n", __func__, err);
 	kfree(pool);
 	return ERR_PTR(err);
+}
+EXPORT_SYMBOL(page_pool_create_percpu);
+
+/**
+ * page_pool_create() - create a page pool
+ * @params: parameters, see struct page_pool_params
+ */
+struct page_pool *page_pool_create(const struct page_pool_params *params)
+{
+	return page_pool_create_percpu(params, -1);
 }
 EXPORT_SYMBOL(page_pool_create);
 
@@ -630,6 +657,11 @@ static bool page_pool_recycle_in_cache(struct page *page,
 	return true;
 }
 
+static bool __page_pool_page_can_be_recycled(const struct page *page)
+{
+	return page_ref_count(page) == 1 && !page_is_pfmemalloc(page);
+}
+
 /* If the page refcnt == 1, this will try to recycle the page.
  * if PP_FLAG_DMA_SYNC_DEV is set, we'll try to sync the DMA area for
  * the configured size min(dma_sync_size, pool->max_len).
@@ -651,7 +683,7 @@ __page_pool_put_page(struct page_pool *pool, struct page *page,
 	 * page is NOT reusable when allocated when system is under
 	 * some pressure. (page_is_pfmemalloc)
 	 */
-	if (likely(page_ref_count(page) == 1 && !page_is_pfmemalloc(page))) {
+	if (likely(__page_pool_page_can_be_recycled(page))) {
 		/* Read barrier done in page_ref_count / READ_ONCE */
 
 		if (pool->p.flags & PP_FLAG_DMA_SYNC_DEV)
@@ -766,7 +798,7 @@ static struct page *page_pool_drain_frag(struct page_pool *pool,
 	if (likely(page_pool_unref_page(page, drain_count)))
 		return NULL;
 
-	if (page_ref_count(page) == 1 && !page_is_pfmemalloc(page)) {
+	if (__page_pool_page_can_be_recycled(page)) {
 		if (pool->p.flags & PP_FLAG_DMA_SYNC_DEV)
 			page_pool_dma_sync_for_device(pool, page, -1);
 
@@ -934,8 +966,13 @@ void page_pool_use_xdp_mem(struct page_pool *pool, void (*disconnect)(void *),
 	pool->xdp_mem_id = mem->id;
 }
 
-void page_pool_unlink_napi(struct page_pool *pool)
+static void page_pool_disable_direct_recycling(struct page_pool *pool)
 {
+	/* Disable direct recycling based on pool->cpuid.
+	 * Paired with READ_ONCE() in napi_pp_put_page().
+	 */
+	WRITE_ONCE(pool->cpuid, -1);
+
 	if (!pool->p.napi)
 		return;
 
@@ -947,7 +984,6 @@ void page_pool_unlink_napi(struct page_pool *pool)
 
 	WRITE_ONCE(pool->p.napi, NULL);
 }
-EXPORT_SYMBOL(page_pool_unlink_napi);
 
 void page_pool_destroy(struct page_pool *pool)
 {
@@ -957,7 +993,7 @@ void page_pool_destroy(struct page_pool *pool)
 	if (!page_pool_put(pool))
 		return;
 
-	page_pool_unlink_napi(pool);
+	page_pool_disable_direct_recycling(pool);
 	page_pool_free_frag(pool);
 
 	if (!page_pool_release(pool))

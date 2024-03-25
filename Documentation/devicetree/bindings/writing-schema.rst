@@ -31,7 +31,7 @@ $schema
   Indicates the meta-schema the schema file adheres to.
 
 title
-  A one-line description on the contents of the binding schema.
+  A one-line description of the hardware being described in the binding schema.
 
 maintainers
   A DT specific property. Contains a list of email address(es)
@@ -39,7 +39,7 @@ maintainers
 
 description
   Optional. A multi-line text block containing any detailed
-  information about this binding. It should contain things such as what the block
+  information about this hardware. It should contain things such as what the block
   or device does, standards the device conforms to, and links to datasheets for
   more information.
 
@@ -71,9 +71,31 @@ required
   A list of DT properties from the 'properties' section that
   must always be present.
 
+additionalProperties / unevaluatedProperties
+  Keywords controlling how schema will validate properties not matched by this
+  schema's 'properties' or 'patternProperties'. Each schema is supposed to
+  have exactly one of these keywords in top-level part, so either
+  additionalProperties or unevaluatedProperties. Nested nodes, so properties
+  being objects, are supposed to have one as well.
+
+  * additionalProperties: false
+      Most common case, where no additional schema is referenced or if this
+      binding allows subset of properties from other referenced schemas.
+
+  * unevaluatedProperties: false
+      Used when this binding references other schema whose all properties
+      should be allowed.
+
+  * additionalProperties: true
+      Rare case, used for schemas implementing common set of properties. Such
+      schemas are supposed to be referenced by other schemas, which then use
+      'unevaluatedProperties: false'.  Typically bus or common-part schemas.
+
 examples
-  Optional. A list of one or more DTS hunks implementing the
-  binding. Note: YAML doesn't allow leading tabs, so spaces must be used instead.
+  Optional. A list of one or more DTS hunks implementing this binding only.
+  Example should not contain unrelated device nodes, e.g. consumer nodes in a
+  provider binding, other nodes referenced by phandle.
+  Note: YAML doesn't allow leading tabs, so spaces must be used instead.
 
 Unless noted otherwise, all properties are required.
 

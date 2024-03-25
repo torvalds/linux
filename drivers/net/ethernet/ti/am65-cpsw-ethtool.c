@@ -514,14 +514,14 @@ am65_cpsw_set_link_ksettings(struct net_device *ndev,
 	return phylink_ethtool_ksettings_set(salve->phylink, ecmd);
 }
 
-static int am65_cpsw_get_eee(struct net_device *ndev, struct ethtool_eee *edata)
+static int am65_cpsw_get_eee(struct net_device *ndev, struct ethtool_keee *edata)
 {
 	struct am65_cpsw_slave_data *salve = am65_ndev_to_slave(ndev);
 
 	return phylink_ethtool_get_eee(salve->phylink, edata);
 }
 
-static int am65_cpsw_set_eee(struct net_device *ndev, struct ethtool_eee *edata)
+static int am65_cpsw_set_eee(struct net_device *ndev, struct ethtool_keee *edata)
 {
 	struct am65_cpsw_slave_data *salve = am65_ndev_to_slave(ndev);
 

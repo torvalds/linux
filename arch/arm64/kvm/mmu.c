@@ -305,7 +305,7 @@ static void invalidate_icache_guest_page(void *va, size_t size)
  * does.
  */
 /**
- * unmap_stage2_range -- Clear stage2 page table entries to unmap a range
+ * __unmap_stage2_range -- Clear stage2 page table entries to unmap a range
  * @mmu:   The KVM stage-2 MMU pointer
  * @start: The intermediate physical base address of the range to unmap
  * @size:  The size of the area to unmap
@@ -805,7 +805,7 @@ static int get_user_mapping_size(struct kvm *kvm, u64 addr)
 		.pgd		= (kvm_pteref_t)kvm->mm->pgd,
 		.ia_bits	= vabits_actual,
 		.start_level	= (KVM_PGTABLE_LAST_LEVEL -
-				   CONFIG_PGTABLE_LEVELS + 1),
+				   ARM64_HW_PGTABLE_LEVELS(pgt.ia_bits) + 1),
 		.mm_ops		= &kvm_user_mm_ops,
 	};
 	unsigned long flags;
@@ -1381,7 +1381,7 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	int ret = 0;
 	bool write_fault, writable, force_pte = false;
 	bool exec_fault, mte_allowed;
-	bool device = false;
+	bool device = false, vfio_allow_any_uc = false;
 	unsigned long mmu_seq;
 	struct kvm *kvm = vcpu->kvm;
 	struct kvm_mmu_memory_cache *memcache = &vcpu->arch.mmu_page_cache;
@@ -1472,6 +1472,8 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	gfn = fault_ipa >> PAGE_SHIFT;
 	mte_allowed = kvm_vma_mte_allowed(vma);
 
+	vfio_allow_any_uc = vma->vm_flags & VM_ALLOW_ANY_UNCACHED;
+
 	/* Don't use the VMA after the unlock -- it may have vanished */
 	vma = NULL;
 
@@ -1557,10 +1559,14 @@ static int user_mem_abort(struct kvm_vcpu *vcpu, phys_addr_t fault_ipa,
 	if (exec_fault)
 		prot |= KVM_PGTABLE_PROT_X;
 
-	if (device)
-		prot |= KVM_PGTABLE_PROT_DEVICE;
-	else if (cpus_have_final_cap(ARM64_HAS_CACHE_DIC))
+	if (device) {
+		if (vfio_allow_any_uc)
+			prot |= KVM_PGTABLE_PROT_NORMAL_NC;
+		else
+			prot |= KVM_PGTABLE_PROT_DEVICE;
+	} else if (cpus_have_final_cap(ARM64_HAS_CACHE_DIC)) {
 		prot |= KVM_PGTABLE_PROT_X;
+	}
 
 	/*
 	 * Under the premise of getting a FSC_PERM fault, we just need to relax
@@ -1874,16 +1880,9 @@ int __init kvm_mmu_init(u32 *hyp_va_bits)
 	BUG_ON((hyp_idmap_start ^ (hyp_idmap_end - 1)) & PAGE_MASK);
 
 	/*
-	 * The ID map may be configured to use an extended virtual address
-	 * range. This is only the case if system RAM is out of range for the
-	 * currently configured page size and VA_BITS_MIN, in which case we will
-	 * also need the extended virtual range for the HYP ID map, or we won't
-	 * be able to enable the EL2 MMU.
-	 *
-	 * However, in some cases the ID map may be configured for fewer than
-	 * the number of VA bits used by the regular kernel stage 1. This
-	 * happens when VA_BITS=52 and the kernel image is placed in PA space
-	 * below 48 bits.
+	 * The ID map is always configured for 48 bits of translation, which
+	 * may be fewer than the number of VA bits used by the regular kernel
+	 * stage 1, when VA_BITS=52.
 	 *
 	 * At EL2, there is only one TTBR register, and we can't switch between
 	 * translation tables *and* update TCR_EL2.T0SZ at the same time. Bottom
@@ -1894,7 +1893,7 @@ int __init kvm_mmu_init(u32 *hyp_va_bits)
 	 * 1 VA bits to assure that the hypervisor can both ID map its code page
 	 * and map any kernel memory.
 	 */
-	idmap_bits = 64 - ((idmap_t0sz & TCR_T0SZ_MASK) >> TCR_T0SZ_OFFSET);
+	idmap_bits = IDMAP_VA_BITS;
 	kernel_bits = vabits_actual;
 	*hyp_va_bits = max(idmap_bits, kernel_bits);
 

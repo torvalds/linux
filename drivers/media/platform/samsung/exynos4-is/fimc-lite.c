@@ -738,7 +738,7 @@ static int fimc_lite_try_fmt_mplane(struct file *file, void *fh,
 static int fimc_lite_s_fmt_mplane(struct file *file, void *priv,
 				  struct v4l2_format *f)
 {
-	struct v4l2_pix_format_mplane *pixm = &f->fmt.pix_mp;
+	const struct v4l2_pix_format_mplane *pixm = &f->fmt.pix_mp;
 	struct fimc_lite *fimc = video_drvdata(file);
 	struct flite_frame *frame = &fimc->out_frame;
 	const struct fimc_fmt *fmt = NULL;

@@ -28,6 +28,8 @@ PING=ping
 PING6=ping6
 # Packet generator. Some distributions use 'mz'.
 MZ=mausezahn
+# mausezahn delay between transmissions in microseconds.
+MZ_DELAY=0
 # Time to wait after interfaces participating in the test are all UP
 WAIT_TIME=5
 # Whether to pause on failure or not.

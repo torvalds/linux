@@ -3,6 +3,7 @@
 #define _NET_CORE_DEV_H
 
 #include <linux/types.h>
+#include <linux/rwsem.h>
 
 struct net;
 struct net_device;
@@ -37,14 +38,13 @@ int dev_addr_init(struct net_device *dev);
 void dev_addr_check(struct net_device *dev);
 
 /* sysctls not referred to from outside net/core/ */
-extern int		netdev_budget;
-extern unsigned int	netdev_budget_usecs;
 extern unsigned int	sysctl_skb_defer_max;
-extern int		netdev_tstamp_prequeue;
 extern int		netdev_unregister_timeout_secs;
 extern int		weight_p;
 extern int		dev_weight_rx_bias;
 extern int		dev_weight_tx_bias;
+
+extern struct rw_semaphore dev_addr_sem;
 
 /* rtnl helpers */
 extern struct list_head net_todo_list;
@@ -56,6 +56,7 @@ struct netdev_name_node {
 	struct list_head list;
 	struct net_device *dev;
 	const char *name;
+	struct rcu_head rcu;
 };
 
 int netdev_get_name(struct net *net, char *name, int ifindex);

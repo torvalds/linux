@@ -48,6 +48,8 @@ obj-$(CONFIG_SND_SEQ_DEVICE)	+= snd-seq-device.o
 obj-$(CONFIG_SND_RAWMIDI)	+= snd-rawmidi.o
 obj-$(CONFIG_SND_UMP)		+= snd-ump.o
 
+obj-$(CONFIG_SND_CORE_TEST)	+= sound_kunit.o
+
 obj-$(CONFIG_SND_OSSEMUL)	+= oss/
 obj-$(CONFIG_SND_SEQUENCER)	+= seq/
 

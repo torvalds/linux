@@ -37,7 +37,7 @@ static int vchiq_bus_probe(struct device *dev)
 	return driver->probe(device);
 }
 
-struct bus_type vchiq_bus_type = {
+const struct bus_type vchiq_bus_type = {
 	.name   = "vchiq-bus",
 	.match  = vchiq_bus_type_match,
 	.uevent = vchiq_bus_uevent,

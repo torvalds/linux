@@ -100,7 +100,7 @@ static void __init arch_reserve_crashkernel(void)
 	bool high = false;
 	int ret;
 
-	if (!IS_ENABLED(CONFIG_KEXEC_CORE))
+	if (!IS_ENABLED(CONFIG_CRASH_RESERVE))
 		return;
 
 	ret = parse_crashkernel(cmdline, memblock_phys_mem_size(),
@@ -238,7 +238,7 @@ void __init arm64_memblock_init(void)
 	 * physical address of PAGE_OFFSET, we have to *subtract* from it.
 	 */
 	if (IS_ENABLED(CONFIG_ARM64_VA_BITS_52) && (vabits_actual != 52))
-		memstart_addr -= _PAGE_OFFSET(48) - _PAGE_OFFSET(52);
+		memstart_addr -= _PAGE_OFFSET(vabits_actual) - _PAGE_OFFSET(52);
 
 	/*
 	 * Apply the memory limit if it was set. Since the kernel may be loaded

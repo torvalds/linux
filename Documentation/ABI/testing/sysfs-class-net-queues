@@ -96,3 +96,26 @@ Description:
 		Indicates the absolute minimum limit of bytes allowed to be
 		queued on this network device transmit queue. Default value is
 		0.
+
+What:		/sys/class/net/<iface>/queues/tx-<queue>/byte_queue_limits/stall_thrs
+Date:		Jan 2024
+KernelVersion:	6.9
+Contact:	netdev@vger.kernel.org
+Description:
+		Tx completion stall detection threshold in ms. Kernel will
+		guarantee to detect all stalls longer than this threshold but
+		may also detect stalls longer than half of the threshold.
+
+What:		/sys/class/net/<iface>/queues/tx-<queue>/byte_queue_limits/stall_cnt
+Date:		Jan 2024
+KernelVersion:	6.9
+Contact:	netdev@vger.kernel.org
+Description:
+		Number of detected Tx completion stalls.
+
+What:		/sys/class/net/<iface>/queues/tx-<queue>/byte_queue_limits/stall_max
+Date:		Jan 2024
+KernelVersion:	6.9
+Contact:	netdev@vger.kernel.org
+Description:
+		Longest detected Tx completion stall. Write 0 to clear.

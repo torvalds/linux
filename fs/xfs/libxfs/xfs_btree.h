@@ -55,15 +55,8 @@ union xfs_btree_rec {
 #define	XFS_LOOKUP_LE	((xfs_lookup_t)XFS_LOOKUP_LEi)
 #define	XFS_LOOKUP_GE	((xfs_lookup_t)XFS_LOOKUP_GEi)
 
-#define	XFS_BTNUM_BNO	((xfs_btnum_t)XFS_BTNUM_BNOi)
-#define	XFS_BTNUM_CNT	((xfs_btnum_t)XFS_BTNUM_CNTi)
-#define	XFS_BTNUM_BMAP	((xfs_btnum_t)XFS_BTNUM_BMAPi)
-#define	XFS_BTNUM_INO	((xfs_btnum_t)XFS_BTNUM_INOi)
-#define	XFS_BTNUM_FINO	((xfs_btnum_t)XFS_BTNUM_FINOi)
-#define	XFS_BTNUM_RMAP	((xfs_btnum_t)XFS_BTNUM_RMAPi)
-#define	XFS_BTNUM_REFC	((xfs_btnum_t)XFS_BTNUM_REFCi)
-
-uint32_t xfs_btree_magic(int crc, xfs_btnum_t btnum);
+struct xfs_btree_ops;
+uint32_t xfs_btree_magic(struct xfs_mount *mp, const struct xfs_btree_ops *ops);
 
 /*
  * For logging record fields.
@@ -86,9 +79,11 @@ uint32_t xfs_btree_magic(int crc, xfs_btnum_t btnum);
  * Generic stats interface
  */
 #define XFS_BTREE_STATS_INC(cur, stat)	\
-	XFS_STATS_INC_OFF((cur)->bc_mp, (cur)->bc_statoff + __XBTS_ ## stat)
+	XFS_STATS_INC_OFF((cur)->bc_mp, \
+		(cur)->bc_ops->statoff + __XBTS_ ## stat)
 #define XFS_BTREE_STATS_ADD(cur, stat, val)	\
-	XFS_STATS_ADD_OFF((cur)->bc_mp, (cur)->bc_statoff + __XBTS_ ## stat, val)
+	XFS_STATS_ADD_OFF((cur)->bc_mp, \
+		(cur)->bc_ops->statoff + __XBTS_ ## stat, val)
 
 enum xbtree_key_contig {
 	XBTREE_KEY_GAP = 0,
@@ -111,10 +106,37 @@ static inline enum xbtree_key_contig xbtree_key_contig(uint64_t x, uint64_t y)
 	return XBTREE_KEY_OVERLAP;
 }
 
+#define XFS_BTREE_LONG_PTR_LEN		(sizeof(__be64))
+#define XFS_BTREE_SHORT_PTR_LEN		(sizeof(__be32))
+
+enum xfs_btree_type {
+	XFS_BTREE_TYPE_AG,
+	XFS_BTREE_TYPE_INODE,
+	XFS_BTREE_TYPE_MEM,
+};
+
 struct xfs_btree_ops {
-	/* size of the key and record structures */
-	size_t	key_len;
-	size_t	rec_len;
+	const char		*name;
+
+	/* Type of btree - AG-rooted or inode-rooted */
+	enum xfs_btree_type	type;
+
+	/* XFS_BTGEO_* flags that determine the geometry of the btree */
+	unsigned int		geom_flags;
+
+	/* size of the key, pointer, and record structures */
+	size_t			key_len;
+	size_t			ptr_len;
+	size_t			rec_len;
+
+	/* LRU refcount to set on each btree buffer created */
+	unsigned int		lru_refs;
+
+	/* offset of btree stats array */
+	unsigned int		statoff;
+
+	/* sick mask for health reporting (only for XFS_BTREE_TYPE_AG) */
+	unsigned int		sick_mask;
 
 	/* cursor operations */
 	struct xfs_btree_cur *(*dup_cursor)(struct xfs_btree_cur *);
@@ -199,6 +221,10 @@ struct xfs_btree_ops {
 			       const union xfs_btree_key *mask);
 };
 
+/* btree geometry flags */
+#define XFS_BTGEO_LASTREC_UPDATE	(1U << 0) /* track last rec externally */
+#define XFS_BTGEO_OVERLAPPING		(1U << 1) /* overlapping intervals */
+
 /*
  * Reasons for the update_lastrec method to be called.
  */
@@ -213,39 +239,6 @@ union xfs_btree_irec {
 	struct xfs_inobt_rec_incore	i;
 	struct xfs_rmap_irec		r;
 	struct xfs_refcount_irec	rc;
-};
-
-/* Per-AG btree information. */
-struct xfs_btree_cur_ag {
-	struct xfs_perag		*pag;
-	union {
-		struct xfs_buf		*agbp;
-		struct xbtree_afakeroot	*afake;	/* for staging cursor */
-	};
-	union {
-		struct {
-			unsigned int	nr_ops;	/* # record updates */
-			unsigned int	shape_changes;	/* # of extent splits */
-		} refc;
-		struct {
-			bool		active;	/* allocation cursor state */
-		} abt;
-	};
-};
-
-/* Btree-in-inode cursor information */
-struct xfs_btree_cur_ino {
-	struct xfs_inode		*ip;
-	struct xbtree_ifakeroot		*ifake;	/* for staging cursor */
-	int				allocated;
-	short				forksize;
-	char				whichfork;
-	char				flags;
-/* We are converting a delalloc reservation */
-#define	XFS_BTCUR_BMBT_WASDEL		(1 << 0)
-
-/* For extent swap, ignore owner check in verifier */
-#define	XFS_BTCUR_BMBT_INVALID_OWNER	(1 << 1)
 };
 
 struct xfs_btree_level {
@@ -272,21 +265,38 @@ struct xfs_btree_cur
 	const struct xfs_btree_ops *bc_ops;
 	struct kmem_cache	*bc_cache; /* cursor cache */
 	unsigned int		bc_flags; /* btree features - below */
-	xfs_btnum_t		bc_btnum; /* identifies which btree type */
 	union xfs_btree_irec	bc_rec;	/* current insert/search record value */
 	uint8_t			bc_nlevels; /* number of levels in the tree */
 	uint8_t			bc_maxlevels; /* maximum levels for this btree type */
-	int			bc_statoff; /* offset of btree stats array */
 
-	/*
-	 * Short btree pointers need an agno to be able to turn the pointers
-	 * into physical addresses for IO, so the btree cursor switches between
-	 * bc_ino and bc_ag based on whether XFS_BTREE_LONG_PTRS is set for the
-	 * cursor.
-	 */
+	/* per-type information */
 	union {
-		struct xfs_btree_cur_ag	bc_ag;
-		struct xfs_btree_cur_ino bc_ino;
+		struct {
+			struct xfs_inode	*ip;
+			short			forksize;
+			char			whichfork;
+			struct xbtree_ifakeroot	*ifake;	/* for staging cursor */
+		} bc_ino;
+		struct {
+			struct xfs_perag	*pag;
+			struct xfs_buf		*agbp;
+			struct xbtree_afakeroot	*afake;	/* for staging cursor */
+		} bc_ag;
+		struct {
+			struct xfbtree		*xfbtree;
+			struct xfs_perag	*pag;
+		} bc_mem;
+	};
+
+	/* per-format private data */
+	union {
+		struct {
+			int		allocated;
+		} bc_bmap;	/* bmapbt */
+		struct {
+			unsigned int	nr_ops;		/* # record updates */
+			unsigned int	shape_changes;	/* # of extent splits */
+		} bc_refc;	/* refcountbt */
 	};
 
 	/* Must be at the end of the struct! */
@@ -304,18 +314,22 @@ xfs_btree_cur_sizeof(unsigned int nlevels)
 	return struct_size_t(struct xfs_btree_cur, bc_levels, nlevels);
 }
 
-/* cursor flags */
-#define XFS_BTREE_LONG_PTRS		(1<<0)	/* pointers are 64bits long */
-#define XFS_BTREE_ROOT_IN_INODE		(1<<1)	/* root may be variable size */
-#define XFS_BTREE_LASTREC_UPDATE	(1<<2)	/* track last rec externally */
-#define XFS_BTREE_CRC_BLOCKS		(1<<3)	/* uses extended btree blocks */
-#define XFS_BTREE_OVERLAPPING		(1<<4)	/* overlapping intervals */
+/* cursor state flags */
 /*
  * The root of this btree is a fakeroot structure so that we can stage a btree
  * rebuild without leaving it accessible via primary metadata.  The ops struct
  * is dynamically allocated and must be freed when the cursor is deleted.
  */
-#define XFS_BTREE_STAGING		(1<<5)
+#define XFS_BTREE_STAGING		(1U << 0)
+
+/* We are converting a delalloc reservation (only for bmbt btrees) */
+#define	XFS_BTREE_BMBT_WASDEL		(1U << 1)
+
+/* For extent swap, ignore owner check in verifier (only for bmbt btrees) */
+#define	XFS_BTREE_BMBT_INVALID_OWNER	(1U << 2)
+
+/* Cursor is active (only for allocbt btrees) */
+#define	XFS_BTREE_ALLOCBT_ACTIVE	(1U << 3)
 
 #define	XFS_BTREE_NOERROR	0
 #define	XFS_BTREE_ERROR		1
@@ -325,14 +339,10 @@ xfs_btree_cur_sizeof(unsigned int nlevels)
  */
 #define	XFS_BUF_TO_BLOCK(bp)	((struct xfs_btree_block *)((bp)->b_addr))
 
-/*
- * Internal long and short btree block checks.  They return NULL if the
- * block is ok or the address of the failed check otherwise.
- */
-xfs_failaddr_t __xfs_btree_check_lblock(struct xfs_btree_cur *cur,
+xfs_failaddr_t __xfs_btree_check_block(struct xfs_btree_cur *cur,
 		struct xfs_btree_block *block, int level, struct xfs_buf *bp);
-xfs_failaddr_t __xfs_btree_check_sblock(struct xfs_btree_cur *cur,
-		struct xfs_btree_block *block, int level, struct xfs_buf *bp);
+int __xfs_btree_check_ptr(struct xfs_btree_cur *cur,
+		const union xfs_btree_ptr *ptr, int index, int level);
 
 /*
  * Check that block header is ok.
@@ -343,24 +353,6 @@ xfs_btree_check_block(
 	struct xfs_btree_block	*block,	/* generic btree block pointer */
 	int			level,	/* level of the btree block */
 	struct xfs_buf		*bp);	/* buffer containing block, if any */
-
-/*
- * Check that (long) pointer is ok.
- */
-bool					/* error (0 or EFSCORRUPTED) */
-xfs_btree_check_lptr(
-	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_fsblock_t		fsbno,	/* btree block disk address */
-	int			level);	/* btree block level */
-
-/*
- * Check that (short) pointer is ok.
- */
-bool					/* error (0 or EFSCORRUPTED) */
-xfs_btree_check_sptr(
-	struct xfs_btree_cur	*cur,	/* btree cursor */
-	xfs_agblock_t		agbno,	/* btree block disk address */
-	int			level);	/* btree block level */
 
 /*
  * Delete the btree cursor.
@@ -392,63 +384,14 @@ xfs_btree_offsets(
 	int			*last);	/* output: last byte offset */
 
 /*
- * Get a buffer for the block, return it read in.
- * Long-form addressing.
- */
-int					/* error */
-xfs_btree_read_bufl(
-	struct xfs_mount	*mp,	/* file system mount point */
-	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_fsblock_t		fsbno,	/* file system block number */
-	struct xfs_buf		**bpp,	/* buffer for fsbno */
-	int			refval,	/* ref count value for buffer */
-	const struct xfs_buf_ops *ops);
-
-/*
- * Read-ahead the block, don't wait for it, don't return a buffer.
- * Long-form addressing.
- */
-void					/* error */
-xfs_btree_reada_bufl(
-	struct xfs_mount	*mp,	/* file system mount point */
-	xfs_fsblock_t		fsbno,	/* file system block number */
-	xfs_extlen_t		count,	/* count of filesystem blocks */
-	const struct xfs_buf_ops *ops);
-
-/*
- * Read-ahead the block, don't wait for it, don't return a buffer.
- * Short-form addressing.
- */
-void					/* error */
-xfs_btree_reada_bufs(
-	struct xfs_mount	*mp,	/* file system mount point */
-	xfs_agnumber_t		agno,	/* allocation group number */
-	xfs_agblock_t		agbno,	/* allocation group block number */
-	xfs_extlen_t		count,	/* count of filesystem blocks */
-	const struct xfs_buf_ops *ops);
-
-/*
  * Initialise a new btree block header
  */
-void
-xfs_btree_init_block(
-	struct xfs_mount *mp,
-	struct xfs_buf	*bp,
-	xfs_btnum_t	btnum,
-	__u16		level,
-	__u16		numrecs,
-	__u64		owner);
-
-void
-xfs_btree_init_block_int(
-	struct xfs_mount	*mp,
-	struct xfs_btree_block	*buf,
-	xfs_daddr_t		blkno,
-	xfs_btnum_t		btnum,
-	__u16			level,
-	__u16			numrecs,
-	__u64			owner,
-	unsigned int		flags);
+void xfs_btree_init_buf(struct xfs_mount *mp, struct xfs_buf *bp,
+		const struct xfs_btree_ops *ops, __u16 level, __u16 numrecs,
+		__u64 owner);
+void xfs_btree_init_block(struct xfs_mount *mp,
+		struct xfs_btree_block *buf, const struct xfs_btree_ops *ops,
+		__u16 level, __u16 numrecs, __u64 owner);
 
 /*
  * Common btree core entry points.
@@ -467,10 +410,10 @@ int xfs_btree_change_owner(struct xfs_btree_cur *cur, uint64_t new_owner,
 /*
  * btree block CRC helpers
  */
-void xfs_btree_lblock_calc_crc(struct xfs_buf *);
-bool xfs_btree_lblock_verify_crc(struct xfs_buf *);
-void xfs_btree_sblock_calc_crc(struct xfs_buf *);
-bool xfs_btree_sblock_verify_crc(struct xfs_buf *);
+void xfs_btree_fsblock_calc_crc(struct xfs_buf *);
+bool xfs_btree_fsblock_verify_crc(struct xfs_buf *);
+void xfs_btree_agblock_calc_crc(struct xfs_buf *);
+bool xfs_btree_agblock_verify_crc(struct xfs_buf *);
 
 /*
  * Internal btree helpers also used by xfs_bmap.c.
@@ -510,12 +453,14 @@ static inline int xfs_btree_get_level(const struct xfs_btree_block *block)
 #define	XFS_FILBLKS_MIN(a,b)	min_t(xfs_filblks_t, (a), (b))
 #define	XFS_FILBLKS_MAX(a,b)	max_t(xfs_filblks_t, (a), (b))
 
-xfs_failaddr_t xfs_btree_sblock_v5hdr_verify(struct xfs_buf *bp);
-xfs_failaddr_t xfs_btree_sblock_verify(struct xfs_buf *bp,
+xfs_failaddr_t xfs_btree_agblock_v5hdr_verify(struct xfs_buf *bp);
+xfs_failaddr_t xfs_btree_agblock_verify(struct xfs_buf *bp,
 		unsigned int max_recs);
-xfs_failaddr_t xfs_btree_lblock_v5hdr_verify(struct xfs_buf *bp,
+xfs_failaddr_t xfs_btree_fsblock_v5hdr_verify(struct xfs_buf *bp,
 		uint64_t owner);
-xfs_failaddr_t xfs_btree_lblock_verify(struct xfs_buf *bp,
+xfs_failaddr_t xfs_btree_fsblock_verify(struct xfs_buf *bp,
+		unsigned int max_recs);
+xfs_failaddr_t xfs_btree_memblock_verify(struct xfs_buf *bp,
 		unsigned int max_recs);
 
 unsigned int xfs_btree_compute_maxlevels(const unsigned int *limits,
@@ -690,7 +635,7 @@ xfs_btree_islastblock(
 
 	block = xfs_btree_get_block(cur, level, &bp);
 
-	if (cur->bc_flags & XFS_BTREE_LONG_PTRS)
+	if (cur->bc_ops->ptr_len == XFS_BTREE_LONG_PTR_LEN)
 		return block->bb_u.l.bb_rightsib == cpu_to_be64(NULLFSBLOCK);
 	return block->bb_u.s.bb_rightsib == cpu_to_be32(NULLAGBLOCK);
 }
@@ -714,21 +659,28 @@ void xfs_btree_copy_ptrs(struct xfs_btree_cur *cur,
 void xfs_btree_copy_keys(struct xfs_btree_cur *cur,
 		union xfs_btree_key *dst_key,
 		const union xfs_btree_key *src_key, int numkeys);
+void xfs_btree_init_ptr_from_cur(struct xfs_btree_cur *cur,
+		union xfs_btree_ptr *ptr);
 
 static inline struct xfs_btree_cur *
 xfs_btree_alloc_cursor(
 	struct xfs_mount	*mp,
 	struct xfs_trans	*tp,
-	xfs_btnum_t		btnum,
+	const struct xfs_btree_ops *ops,
 	uint8_t			maxlevels,
 	struct kmem_cache	*cache)
 {
 	struct xfs_btree_cur	*cur;
 
-	cur = kmem_cache_zalloc(cache, GFP_NOFS | __GFP_NOFAIL);
+	ASSERT(ops->ptr_len == XFS_BTREE_LONG_PTR_LEN ||
+	       ops->ptr_len == XFS_BTREE_SHORT_PTR_LEN);
+
+	/* BMBT allocations can come through from non-transactional context. */
+	cur = kmem_cache_zalloc(cache,
+			GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
+	cur->bc_ops = ops;
 	cur->bc_tp = tp;
 	cur->bc_mp = mp;
-	cur->bc_btnum = btnum;
 	cur->bc_maxlevels = maxlevels;
 	cur->bc_cache = cache;
 
@@ -739,5 +691,15 @@ int __init xfs_btree_init_cur_caches(void);
 void xfs_btree_destroy_cur_caches(void);
 
 int xfs_btree_goto_left_edge(struct xfs_btree_cur *cur);
+
+/* Does this level of the cursor point to the inode root (and not a block)? */
+static inline bool
+xfs_btree_at_iroot(
+	const struct xfs_btree_cur	*cur,
+	int				level)
+{
+	return cur->bc_ops->type == XFS_BTREE_TYPE_INODE &&
+	       level == cur->bc_nlevels - 1;
+}
 
 #endif	/* __XFS_BTREE_H__ */

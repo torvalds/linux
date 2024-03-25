@@ -11,10 +11,27 @@
 
 #ifndef __ASSEMBLY__
 /* Performance Monitor Registers */
-#define mfpmr(rn)	({unsigned int rval; \
-			asm volatile("mfpmr %0," __stringify(rn) \
-				     : "=r" (rval)); rval;})
-#define mtpmr(rn, v)	asm volatile("mtpmr " __stringify(rn) ",%0" : : "r" (v))
+static __always_inline unsigned int mfpmr(unsigned int rn)
+{
+	unsigned int rval;
+
+	asm (".machine push; "
+	     ".machine e300; "
+	     "mfpmr %[rval], %[rn];"
+	     ".machine pop;"
+	     : [rval] "=r" (rval) : [rn] "i" (rn));
+
+	return rval;
+}
+
+static __always_inline void mtpmr(unsigned int rn, unsigned int val)
+{
+	asm (".machine push; "
+	     ".machine e300; "
+	     "mtpmr %[rn], %[val];"
+	     ".machine pop;"
+	     : [val] "=r" (val) : [rn] "i" (rn));
+}
 #endif /* __ASSEMBLY__ */
 
 /* Freescale Book E Performance Monitor APU Registers */
