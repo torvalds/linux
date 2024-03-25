@@ -82,6 +82,7 @@ struct jit_ctx {
 	__le32 *ro_image;
 	u32 stack_size;
 	int fpb_offset;
+	u64 user_vm_start;
 };
 
 struct bpf_plt {
@@ -868,6 +869,15 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	/* dst = src */
 	case BPF_ALU | BPF_MOV | BPF_X:
 	case BPF_ALU64 | BPF_MOV | BPF_X:
+		if (insn_is_cast_user(insn)) {
+			emit(A64_MOV(0, tmp, src), ctx); // 32-bit mov clears the upper 32 bits
+			emit_a64_mov_i(0, dst, ctx->user_vm_start >> 32, ctx);
+			emit(A64_LSL(1, dst, dst, 32), ctx);
+			emit(A64_CBZ(1, tmp, 2), ctx);
+			emit(A64_ORR(1, tmp, dst, tmp), ctx);
+			emit(A64_MOV(1, dst, tmp), ctx);
+			break;
+		}
 		switch (insn->off) {
 		case 0:
 			emit(A64_MOV(is64, dst, src), ctx);
@@ -1690,6 +1700,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	}
 
 	ctx.fpb_offset = find_fpb_offset(prog);
+	ctx.user_vm_start = bpf_arena_get_user_vm_start(prog->aux->arena);
 
 	/*
 	 * 1. Initial fake pass to compute ctx->idx and ctx->offset.
@@ -2508,6 +2519,11 @@ bool bpf_jit_supports_exceptions(void)
 	 * to walk kernel frames and reach BPF frames in the stack trace.
 	 * ARM64 kernel is aways compiled with CONFIG_FRAME_POINTER=y
 	 */
+	return true;
+}
+
+bool bpf_jit_supports_arena(void)
+{
 	return true;
 }
 
