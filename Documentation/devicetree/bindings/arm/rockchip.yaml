@@ -927,6 +927,11 @@ properties:
           - const: turing,rk1
           - const: rockchip,rk3588
 
+      - description: WolfVision PF5 mainboard
+        items:
+          - const: wolfvision,rk3568-pf5
+          - const: rockchip,rk3568
+
       - description: Xunlong Orange Pi 5 Plus
         items:
           - const: xunlong,orangepi-5-plus
