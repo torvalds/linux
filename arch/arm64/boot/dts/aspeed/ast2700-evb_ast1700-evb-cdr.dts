@@ -7,6 +7,8 @@
 #include "aspeed-ltpi1.dtsi"
 
 / {
+	model = "AST2700-EVB_AST1700-CDR-EVB";
+
 	/delete-node/ fan0;
 	/delete-node/ fan1;
 	/delete-node/ fan2;

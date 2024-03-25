@@ -5,7 +5,7 @@
 #include "ast2700-evb.dts"
 
 / {
-	model = "AST2700 NC-SI EVB";
+	model = "AST2700-NCSI";
 };
 
 &mac0 {

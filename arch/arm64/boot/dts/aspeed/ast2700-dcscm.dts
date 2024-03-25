@@ -7,7 +7,7 @@
 #include <dt-bindings/i2c/i2c.h>
 
 / {
-	model = "AST2700 DCSCM";
+	model = "AST2700-DCSCM";
 	compatible = "aspeed,ast2700";
 
 	chosen {

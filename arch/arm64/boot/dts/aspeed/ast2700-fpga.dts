@@ -6,7 +6,7 @@
 #include <dt-bindings/gpio/aspeed-gpio.h>
 
 / {
-	model = "AST2700 FPGA";
+	model = "AST2700-FPGA";
 	compatible = "aspeed,ast2700-fpga", "aspeed,ast2700";
 
 	chosen {

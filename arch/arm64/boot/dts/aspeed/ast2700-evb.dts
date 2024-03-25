@@ -6,7 +6,7 @@
 #include <dt-bindings/gpio/aspeed-gpio.h>
 
 / {
-	model = "AST2700 EVB";
+	model = "AST2700-EVB";
 	compatible = "aspeed,ast2700-evb", "aspeed,ast2700";
 
 	chosen {
