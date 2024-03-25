@@ -199,8 +199,8 @@ static void _isst_pbf_display_information(struct isst_id *id, FILE *outf, int le
 					  struct isst_pbf_info *pbf_info,
 					  int disp_level)
 {
-	char header[256];
-	char value[512];
+	static char header[256];
+	static char value[1024];
 
 	snprintf(header, sizeof(header), "speed-select-base-freq-properties");
 	format_and_print(outf, disp_level, header, NULL);
@@ -338,8 +338,8 @@ void isst_ctdp_display_core_info(struct isst_id *id, FILE *outf, char *prefix,
 void isst_ctdp_display_information(struct isst_id *id, FILE *outf, int tdp_level,
 				   struct isst_pkg_ctdp *pkg_dev)
 {
-	char header[256];
-	char value[512];
+	static char header[256];
+	static char value[1024];
 	static int level;
 	int trl_max_levels = isst_get_trl_max_levels();
 	int i;
