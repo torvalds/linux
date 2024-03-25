@@ -1262,10 +1262,7 @@ static ssize_t show_no_turbo(struct kobject *kobj,
 		return -EAGAIN;
 	}
 
-	if (global.turbo_disabled)
-		ret = sprintf(buf, "%u\n", global.turbo_disabled);
-	else
-		ret = sprintf(buf, "%u\n", global.no_turbo);
+	ret = sprintf(buf, "%u\n", global.no_turbo);
 
 	mutex_unlock(&intel_pstate_driver_lock);
 
@@ -1276,31 +1273,34 @@ static ssize_t store_no_turbo(struct kobject *a, struct kobj_attribute *b,
 			      const char *buf, size_t count)
 {
 	unsigned int input;
-	int ret;
+	bool no_turbo;
 
-	ret = sscanf(buf, "%u", &input);
-	if (ret != 1)
+	if (sscanf(buf, "%u", &input) != 1)
 		return -EINVAL;
 
 	mutex_lock(&intel_pstate_driver_lock);
 
 	if (!intel_pstate_driver) {
-		mutex_unlock(&intel_pstate_driver_lock);
-		return -EAGAIN;
+		count = -EAGAIN;
+		goto unlock_driver;
 	}
 
-	mutex_lock(&intel_pstate_limits_lock);
+	no_turbo = !!clamp_t(int, input, 0, 1);
+
+	if (no_turbo == global.no_turbo)
+		goto unlock_driver;
 
 	if (global.turbo_disabled) {
 		pr_notice_once("Turbo disabled by BIOS or unavailable on processor\n");
-		mutex_unlock(&intel_pstate_limits_lock);
-		mutex_unlock(&intel_pstate_driver_lock);
-		return -EPERM;
+		count = -EPERM;
+		goto unlock_driver;
 	}
 
-	global.no_turbo = clamp_t(int, input, 0, 1);
+	global.no_turbo = no_turbo;
 
-	if (global.no_turbo) {
+	mutex_lock(&intel_pstate_limits_lock);
+
+	if (no_turbo) {
 		struct cpudata *cpu = all_cpu_data[0];
 		int pct = cpu->pstate.max_pstate * 100 / cpu->pstate.turbo_pstate;
 
@@ -1312,8 +1312,9 @@ static ssize_t store_no_turbo(struct kobject *a, struct kobj_attribute *b,
 	mutex_unlock(&intel_pstate_limits_lock);
 
 	intel_pstate_update_policies();
-	arch_set_max_freq_ratio(global.no_turbo);
+	arch_set_max_freq_ratio(no_turbo);
 
+unlock_driver:
 	mutex_unlock(&intel_pstate_driver_lock);
 
 	return count;
@@ -3094,6 +3095,7 @@ static int intel_pstate_register_driver(struct cpufreq_driver *driver)
 	memset(&global, 0, sizeof(global));
 	global.max_perf_pct = 100;
 	global.turbo_disabled = turbo_is_disabled();
+	global.no_turbo = global.turbo_disabled;
 
 	arch_set_max_freq_ratio(global.turbo_disabled);
 
