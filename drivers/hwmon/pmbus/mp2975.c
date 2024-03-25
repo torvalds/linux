@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Nvidia Technologies Ltd.
  */
 
+#include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -396,7 +397,7 @@ static int mp2973_write_word_data(struct i2c_client *client, int page,
 				  int reg, u16 word)
 {
 	u8 target, mask;
-	int ret;
+	long ret;
 
 	if (reg != PMBUS_SMBALERT_MASK)
 		return -ENODATA;
@@ -415,7 +416,6 @@ static int mp2973_write_word_data(struct i2c_client *client, int page,
  * Set/Clear 'bit' in 'ret' based on condition followed by define for each bit in SMBALERT_MASK.
  * Also bit 2 & 15 are reserved.
  */
-#define SWAP(val, mask, cond, bit) (((mask) & (cond)) ? ((val) & ~BIT(bit)) : ((val) | BIT(bit)))
 
 #define MP2973_TEMP_OT		0
 #define MP2973_VIN_UVLO		1
@@ -434,36 +434,35 @@ static int mp2973_write_word_data(struct i2c_client *client, int page,
 
 	switch (target) {
 	case PMBUS_STATUS_CML:
-		ret = SWAP(ret, mask, PB_CML_FAULT_INVALID_DATA, MP2973_INVALID_DATA);
-		ret = SWAP(ret, mask, PB_CML_FAULT_INVALID_COMMAND,  MP2973_INVALID_COMMAND);
-		ret = SWAP(ret, mask, PB_CML_FAULT_OTHER_COMM, MP2973_OTHER_COMM);
-		ret = SWAP(ret, mask, PB_CML_FAULT_PACKET_ERROR, MP2973_PACKET_ERROR);
+		__assign_bit(MP2973_INVALID_DATA, &ret, !(mask & PB_CML_FAULT_INVALID_DATA));
+		__assign_bit(MP2973_INVALID_COMMAND, &ret, !(mask & PB_CML_FAULT_INVALID_COMMAND));
+		__assign_bit(MP2973_OTHER_COMM, &ret, !(mask & PB_CML_FAULT_OTHER_COMM));
+		__assign_bit(MP2973_PACKET_ERROR, &ret, !(mask & PB_CML_FAULT_PACKET_ERROR));
 		break;
 	case PMBUS_STATUS_VOUT:
-		ret = SWAP(ret, mask, PB_VOLTAGE_UV_FAULT, MP2973_VOLTAGE_UV);
-		ret = SWAP(ret, mask, PB_VOLTAGE_OV_FAULT, MP2973_VOLTAGE_OV);
+		__assign_bit(MP2973_VOLTAGE_UV, &ret, !(mask & PB_VOLTAGE_UV_FAULT));
+		__assign_bit(MP2973_VOLTAGE_OV, &ret, !(mask & PB_VOLTAGE_OV_FAULT));
 		break;
 	case PMBUS_STATUS_IOUT:
-		ret = SWAP(ret, mask, PB_IOUT_OC_FAULT, MP2973_IOUT_OC);
-		ret = SWAP(ret, mask, PB_IOUT_OC_LV_FAULT, MP2973_IOUT_OC_LV);
+		__assign_bit(MP2973_IOUT_OC, &ret, !(mask & PB_IOUT_OC_FAULT));
+		__assign_bit(MP2973_IOUT_OC_LV, &ret, !(mask & PB_IOUT_OC_LV_FAULT));
 		break;
 	case PMBUS_STATUS_TEMPERATURE:
-		ret = SWAP(ret, mask, PB_TEMP_OT_FAULT, MP2973_TEMP_OT);
+		__assign_bit(MP2973_TEMP_OT, &ret, !(mask & PB_TEMP_OT_FAULT));
 		break;
 	/*
 	 * Map remaining bits to MFR specific to let the PMBUS core mask
 	 * those bits by default.
 	 */
 	case PMBUS_STATUS_MFR_SPECIFIC:
-		ret = SWAP(ret, mask, BIT(1), MP2973_VIN_UVLO);
-		ret = SWAP(ret, mask, BIT(3), MP2973_VIN_OVP);
-		ret = SWAP(ret, mask, BIT(4), MP2973_MTP_FAULT);
-		ret = SWAP(ret, mask, BIT(6), MP2973_MTP_BLK_TRIG);
+		__assign_bit(MP2973_VIN_UVLO, &ret, !(mask & BIT(1)));
+		__assign_bit(MP2973_VIN_OVP, &ret, !(mask & BIT(3)));
+		__assign_bit(MP2973_MTP_FAULT, &ret, !(mask & BIT(4)));
+		__assign_bit(MP2973_MTP_BLK_TRIG, &ret, !(mask & BIT(6)));
 		break;
 	default:
 		return 0;
 	}
-#undef SWAP
 
 	return pmbus_write_word_data(client, 0, PMBUS_SMBALERT_MASK, ret);
 }
