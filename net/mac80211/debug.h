@@ -158,7 +158,7 @@ do {									\
 			_sdata_dbg(print, sdata, "[link %d] " fmt,	\
 				   link_id, ##__VA_ARGS__);		\
 		else							\
-			_sdata_dbg(1, sdata, fmt, ##__VA_ARGS__);	\
+			_sdata_dbg(print, sdata, fmt, ##__VA_ARGS__);	\
 	} while (0)
 #define link_dbg(link, fmt, ...)					\
 	_link_id_dbg(1, (link)->sdata, (link)->link_id,			\
