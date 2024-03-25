@@ -30,7 +30,7 @@
 static void ast_i2c_setsda(void *i2c_priv, int data)
 {
 	struct ast_ddc *ddc = i2c_priv;
-	struct ast_device *ast = to_ast_device(ddc->dev);
+	struct ast_device *ast = ddc->ast;
 	int i;
 	u8 ujcrb7, jtemp;
 
@@ -46,7 +46,7 @@ static void ast_i2c_setsda(void *i2c_priv, int data)
 static void ast_i2c_setscl(void *i2c_priv, int clock)
 {
 	struct ast_ddc *ddc = i2c_priv;
-	struct ast_device *ast = to_ast_device(ddc->dev);
+	struct ast_device *ast = ddc->ast;
 	int i;
 	u8 ujcrb7, jtemp;
 
@@ -62,7 +62,7 @@ static void ast_i2c_setscl(void *i2c_priv, int clock)
 static int ast_i2c_getsda(void *i2c_priv)
 {
 	struct ast_ddc *ddc = i2c_priv;
-	struct ast_device *ast = to_ast_device(ddc->dev);
+	struct ast_device *ast = ddc->ast;
 	uint32_t val, val2, count, pass;
 
 	count = 0;
@@ -84,7 +84,7 @@ static int ast_i2c_getsda(void *i2c_priv)
 static int ast_i2c_getscl(void *i2c_priv)
 {
 	struct ast_ddc *ddc = i2c_priv;
-	struct ast_device *ast = to_ast_device(ddc->dev);
+	struct ast_device *ast = ddc->ast;
 	uint32_t val, val2, count, pass;
 
 	count = 0;
@@ -121,7 +121,7 @@ struct ast_ddc *ast_ddc_create(struct ast_device *ast)
 	ddc = drmm_kzalloc(dev, sizeof(*ddc), GFP_KERNEL);
 	if (!ddc)
 		return ERR_PTR(-ENOMEM);
-	ddc->dev = dev;
+	ddc->ast = ast;
 
 	adapter = &ddc->adapter;
 	adapter->owner = THIS_MODULE;
