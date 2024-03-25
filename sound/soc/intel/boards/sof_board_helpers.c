@@ -427,6 +427,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 	int ret;
 	int ssp_hdmi_in = 0;
 	unsigned long link_order, link;
+	unsigned long link_ids, be_id;
 
 	num_links = calculate_num_links(ctx);
 
@@ -440,11 +441,25 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 	else
 		link_order = DEFAULT_LINK_ORDER;
 
-	dev_dbg(dev, "create dai links, link_order 0x%lx\n", link_order);
+	if (ctx->link_id_overwrite)
+		link_ids = ctx->link_id_overwrite;
+	else
+		link_ids = 0;
+
+	dev_dbg(dev, "create dai links, link_order 0x%lx, id_overwrite 0x%lx\n",
+		link_order, link_ids);
 
 	while (link_order) {
 		link = link_order & SOF_LINK_ORDER_MASK;
 		link_order >>= SOF_LINK_ORDER_SHIFT;
+
+		if (ctx->link_id_overwrite) {
+			be_id = link_ids & SOF_LINK_IDS_MASK;
+			link_ids >>= SOF_LINK_IDS_SHIFT;
+		} else {
+			/* use array index as link id */
+			be_id = idx;
+		}
 
 		switch (link) {
 		case SOF_LINK_CODEC:
@@ -453,7 +468,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 				continue;
 
 			ret = sof_intel_board_set_codec_link(dev, &links[idx],
-							     idx,
+							     be_id,
 							     ctx->codec_type,
 							     ctx->ssp_codec);
 			if (ret) {
@@ -472,7 +487,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 
 			/* at least we have dmic01 */
 			ret = sof_intel_board_set_dmic_link(dev, &links[idx],
-							    idx, SOF_DMIC_01);
+							    be_id, SOF_DMIC_01);
 			if (ret) {
 				dev_err(dev, "fail to set dmic01 link, ret %d\n",
 					ret);
@@ -488,7 +503,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 
 			/* set up 2 BE links at most */
 			ret = sof_intel_board_set_dmic_link(dev, &links[idx],
-							    idx, SOF_DMIC_16K);
+							    be_id, SOF_DMIC_16K);
 			if (ret) {
 				dev_err(dev, "fail to set dmic16k link, ret %d\n",
 					ret);
@@ -502,7 +517,8 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 			for (i = 1; i <= ctx->hdmi_num; i++) {
 				ret = sof_intel_board_set_intel_hdmi_link(dev,
 									  &links[idx],
-									  idx, i,
+									  be_id,
+									  i,
 									  ctx->hdmi.idisp_codec);
 				if (ret) {
 					dev_err(dev, "fail to set hdmi link, ret %d\n",
@@ -511,6 +527,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 				}
 
 				idx++;
+				be_id++;
 			}
 			break;
 		case SOF_LINK_AMP:
@@ -519,7 +536,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 				continue;
 
 			ret = sof_intel_board_set_ssp_amp_link(dev, &links[idx],
-							       idx,
+							       be_id,
 							       ctx->amp_type,
 							       ctx->ssp_amp);
 			if (ret) {
@@ -536,8 +553,8 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 			if (!ctx->bt_offload_present)
 				continue;
 
-			ret = sof_intel_board_set_bt_link(dev, &links[idx], idx,
-							  ctx->ssp_bt);
+			ret = sof_intel_board_set_bt_link(dev, &links[idx],
+							  be_id, ctx->ssp_bt);
 			if (ret) {
 				dev_err(dev, "fail to set bt link, ret %d\n",
 					ret);
@@ -551,7 +568,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 			for_each_set_bit(ssp_hdmi_in, &ctx->ssp_mask_hdmi_in, 32) {
 				ret = sof_intel_board_set_hdmi_in_link(dev,
 								       &links[idx],
-								       idx,
+								       be_id,
 								       ssp_hdmi_in);
 				if (ret) {
 					dev_err(dev, "fail to set hdmi-in link, ret %d\n",
@@ -560,6 +577,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 				}
 
 				idx++;
+				be_id++;
 			}
 			break;
 		case SOF_LINK_NONE:

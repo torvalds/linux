@@ -33,6 +33,18 @@ enum {
 	 (((k6) & SOF_LINK_ORDER_MASK) << (SOF_LINK_ORDER_SHIFT * 5)) | \
 	 (((k7) & SOF_LINK_ORDER_MASK) << (SOF_LINK_ORDER_SHIFT * 6)))
 
+#define SOF_LINK_IDS_MASK	(0xF)
+#define SOF_LINK_IDS_SHIFT	(4)
+
+#define SOF_LINK_IDS(k1, k2, k3, k4, k5, k6, k7) \
+	((((k1) & SOF_LINK_IDS_MASK) << (SOF_LINK_IDS_SHIFT * 0)) | \
+	 (((k2) & SOF_LINK_IDS_MASK) << (SOF_LINK_IDS_SHIFT * 1)) | \
+	 (((k3) & SOF_LINK_IDS_MASK) << (SOF_LINK_IDS_SHIFT * 2)) | \
+	 (((k4) & SOF_LINK_IDS_MASK) << (SOF_LINK_IDS_SHIFT * 3)) | \
+	 (((k5) & SOF_LINK_IDS_MASK) << (SOF_LINK_IDS_SHIFT * 4)) | \
+	 (((k6) & SOF_LINK_IDS_MASK) << (SOF_LINK_IDS_SHIFT * 5)) | \
+	 (((k7) & SOF_LINK_IDS_MASK) << (SOF_LINK_IDS_SHIFT * 6)))
+
 /*
  * sof_rt5682_private: private data for rt5682 machine driver
  *
@@ -61,6 +73,7 @@ struct sof_rt5682_private {
  * @codec_link: pointer to headset codec dai link
  * @amp_link: pointer to speaker amplifier dai link
  * @link_order_overwrite: custom DAI link order
+ * @link_id_overwrite: custom DAI link ID
  * @rt5682: private data for rt5682 machine driver
  */
 struct sof_card_private {
@@ -84,6 +97,11 @@ struct sof_card_private {
 	struct snd_soc_dai_link *amp_link;
 
 	unsigned long link_order_overwrite;
+	/*
+	 * A variable stores id for all BE DAI links, use SOF_LINK_IDS macro to
+	 * build the value; use DAI link array index as id if zero.
+	 */
+	unsigned long link_id_overwrite;
 
 	union {
 		struct sof_rt5682_private rt5682;
