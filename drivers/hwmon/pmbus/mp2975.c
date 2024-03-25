@@ -942,7 +942,7 @@ mp2975_vout_per_rail_config_get(struct i2c_client *client,
 	return 0;
 }
 
-static struct pmbus_driver_info mp2975_info = {
+static const struct pmbus_driver_info mp2975_info = {
 	.pages = 1,
 	.format[PSC_VOLTAGE_IN] = linear,
 	.format[PSC_VOLTAGE_OUT] = direct,
@@ -967,7 +967,7 @@ static struct pmbus_driver_info mp2975_info = {
 #endif
 };
 
-static struct pmbus_driver_info mp2973_info = {
+static const struct pmbus_driver_info mp2973_info = {
 	.pages = 1,
 	.format[PSC_VOLTAGE_IN] = linear,
 	.format[PSC_VOLTAGE_OUT] = direct,
