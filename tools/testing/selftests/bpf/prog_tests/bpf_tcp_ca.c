@@ -304,7 +304,7 @@ static void test_rel_setsockopt(void)
 	struct bpf_dctcp_release *rel_skel;
 	libbpf_print_fn_t old_print_fn;
 
-	err_str = "unknown func bpf_setsockopt";
+	err_str = "program of this type cannot use helper bpf_setsockopt";
 	found = false;
 
 	old_print_fn = libbpf_set_print(libbpf_debug_print);

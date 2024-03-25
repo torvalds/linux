@@ -10201,8 +10201,8 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 	if (env->ops->get_func_proto)
 		fn = env->ops->get_func_proto(func_id, env->prog);
 	if (!fn) {
-		verbose(env, "unknown func %s#%d\n", func_id_name(func_id),
-			func_id);
+		verbose(env, "program of this type cannot use helper %s#%d\n",
+			func_id_name(func_id), func_id);
 		return -EINVAL;
 	}
 
