@@ -9,7 +9,7 @@
 #include <linux/arm-smccc.h>
 #include <linux/rhashtable.h>
 #include <linux/semaphore.h>
-#include <linux/tee_drv.h>
+#include <linux/tee_core.h>
 #include <linux/types.h>
 #include "optee_msg.h"
 
