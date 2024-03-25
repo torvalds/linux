@@ -3016,11 +3016,10 @@ static int __init dquot_init(void)
 	if (!dquot_hash)
 		panic("Cannot create dquot hash table");
 
-	for (i = 0; i < _DQST_DQSTAT_LAST; i++) {
-		ret = percpu_counter_init(&dqstats.counter[i], 0, GFP_KERNEL);
-		if (ret)
-			panic("Cannot create dquot stat counters");
-	}
+	ret = percpu_counter_init_many(dqstats.counter, 0, GFP_KERNEL,
+				       _DQST_DQSTAT_LAST);
+	if (ret)
+		panic("Cannot create dquot stat counters");
 
 	/* Find power-of-two hlist_heads which can fit into allocation */
 	nr_hash = (1UL << order) * PAGE_SIZE / sizeof(struct hlist_head);
