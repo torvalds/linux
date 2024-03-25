@@ -587,6 +587,49 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 }
 EXPORT_SYMBOL_NS(sof_intel_board_set_dai_link, SND_SOC_INTEL_SOF_BOARD_HELPERS);
 
+struct sof_card_private *
+sof_intel_board_get_ctx(struct device *dev, unsigned long board_quirk)
+{
+	struct sof_card_private *ctx;
+
+	dev_dbg(dev, "create ctx, board_quirk 0x%lx\n", board_quirk);
+
+	ctx = devm_kzalloc(dev, sizeof(struct sof_card_private), GFP_KERNEL);
+	if (!ctx)
+		return NULL;
+
+	ctx->codec_type = sof_ssp_detect_codec_type(dev);
+	ctx->amp_type = sof_ssp_detect_amp_type(dev);
+
+	ctx->dmic_be_num = 2;
+	ctx->hdmi_num = (board_quirk & SOF_NUM_IDISP_HDMI_MASK) >>
+			SOF_NUM_IDISP_HDMI_SHIFT;
+	/* default number of HDMI DAI's */
+	if (!ctx->hdmi_num)
+		ctx->hdmi_num = 3;
+
+	/* port number/mask of peripherals attached to ssp interface */
+	if (ctx->codec_type != CODEC_NONE)
+		ctx->ssp_codec = (board_quirk & SOF_SSP_PORT_CODEC_MASK) >>
+				SOF_SSP_PORT_CODEC_SHIFT;
+
+	if (ctx->amp_type != CODEC_NONE)
+		ctx->ssp_amp = (board_quirk & SOF_SSP_PORT_AMP_MASK) >>
+				SOF_SSP_PORT_AMP_SHIFT;
+
+	if (board_quirk & SOF_BT_OFFLOAD_PRESENT) {
+		ctx->bt_offload_present = true;
+		ctx->ssp_bt = (board_quirk & SOF_SSP_PORT_BT_OFFLOAD_MASK) >>
+				SOF_SSP_PORT_BT_OFFLOAD_SHIFT;
+	}
+
+	ctx->ssp_mask_hdmi_in = (board_quirk & SOF_SSP_MASK_HDMI_CAPTURE_MASK) >>
+				SOF_SSP_MASK_HDMI_CAPTURE_SHIFT;
+
+	return ctx;
+}
+EXPORT_SYMBOL_NS(sof_intel_board_get_ctx, SND_SOC_INTEL_SOF_BOARD_HELPERS);
+
 struct snd_soc_dai *get_codec_dai_by_name(struct snd_soc_pcm_runtime *rtd,
 					  const char * const dai_name[], int num_dais)
 {
