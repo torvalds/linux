@@ -94,4 +94,21 @@
 
 #define TTBR1_SIZE	(((PAGE_OFFSET >> 30) - 1) << 16)
 
+/*
+ * TTBCR register bits.
+ */
+#define TTBCR_EAE		(1 << 31)
+#define TTBCR_IMP		(1 << 30)
+#define TTBCR_SH1_MASK		(3 << 28)
+#define TTBCR_ORGN1_MASK	(3 << 26)
+#define TTBCR_IRGN1_MASK	(3 << 24)
+#define TTBCR_EPD1		(1 << 23)
+#define TTBCR_A1		(1 << 22)
+#define TTBCR_T1SZ_MASK		(7 << 16)
+#define TTBCR_SH0_MASK		(3 << 12)
+#define TTBCR_ORGN0_MASK	(3 << 10)
+#define TTBCR_IRGN0_MASK	(3 << 8)
+#define TTBCR_EPD0		(1 << 7)
+#define TTBCR_T0SZ_MASK		(7 << 0)
+
 #endif
