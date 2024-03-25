@@ -1778,6 +1778,32 @@ static int bnxt_get_rxfh(struct net_device *dev,
 	return 0;
 }
 
+static void bnxt_modify_rss(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
+			    struct ethtool_rxfh_param *rxfh)
+{
+	if (rxfh->key) {
+		if (rss_ctx) {
+			memcpy(rss_ctx->vnic.rss_hash_key, rxfh->key,
+			       HW_HASH_KEY_SIZE);
+		} else {
+			memcpy(bp->rss_hash_key, rxfh->key, HW_HASH_KEY_SIZE);
+			bp->rss_hash_key_updated = true;
+		}
+	}
+	if (rxfh->indir) {
+		u32 i, pad, tbl_size = bnxt_get_rxfh_indir_size(bp->dev);
+		u16 *indir_tbl = bp->rss_indir_tbl;
+
+		if (rss_ctx)
+			indir_tbl = rss_ctx->rss_indir_tbl;
+		for (i = 0; i < tbl_size; i++)
+			indir_tbl[i] = rxfh->indir[i];
+		pad = bp->rss_indir_tbl_entries - tbl_size;
+		if (pad)
+			memset(&bp->rss_indir_tbl[i], 0, pad * sizeof(u16));
+	}
+}
+
 static int bnxt_set_rxfh(struct net_device *dev,
 			 struct ethtool_rxfh_param *rxfh,
 			 struct netlink_ext_ack *extack)
@@ -1788,20 +1814,8 @@ static int bnxt_set_rxfh(struct net_device *dev,
 	if (rxfh->hfunc && rxfh->hfunc != ETH_RSS_HASH_TOP)
 		return -EOPNOTSUPP;
 
-	if (rxfh->key) {
-		memcpy(bp->rss_hash_key, rxfh->key, HW_HASH_KEY_SIZE);
-		bp->rss_hash_key_updated = true;
-	}
+	bnxt_modify_rss(bp, NULL, rxfh);
 
-	if (rxfh->indir) {
-		u32 i, pad, tbl_size = bnxt_get_rxfh_indir_size(dev);
-
-		for (i = 0; i < tbl_size; i++)
-			bp->rss_indir_tbl[i] = rxfh->indir[i];
-		pad = bp->rss_indir_tbl_entries - tbl_size;
-		if (pad)
-			memset(&bp->rss_indir_tbl[i], 0, pad * sizeof(u16));
-	}
 	bnxt_clear_usr_fltrs(bp, false);
 	if (netif_running(bp->dev)) {
 		bnxt_close_nic(bp, false, false);
