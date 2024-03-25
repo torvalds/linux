@@ -8,6 +8,7 @@
 PING=${PING:=ping}
 PING6=${PING6:=ping6}
 MZ=${MZ:=mausezahn}
+MZ_DELAY=${MZ_DELAY:=0}
 ARPING=${ARPING:=arping}
 TEAMD=${TEAMD:=teamd}
 WAIT_TIME=${WAIT_TIME:=5}
@@ -29,23 +30,20 @@ STABLE_MAC_ADDRS=${STABLE_MAC_ADDRS:=no}
 TCPDUMP_EXTRA_FLAGS=${TCPDUMP_EXTRA_FLAGS:=}
 TROUTE6=${TROUTE6:=traceroute6}
 
-relative_path="${BASH_SOURCE%/*}"
-if [[ "$relative_path" == "${BASH_SOURCE}" ]]; then
-	relative_path="."
+net_forwarding_dir=$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")
+
+if [[ -f $net_forwarding_dir/forwarding.config ]]; then
+	source "$net_forwarding_dir/forwarding.config"
 fi
 
-if [[ -f $relative_path/forwarding.config ]]; then
-	source "$relative_path/forwarding.config"
-fi
+source "$net_forwarding_dir/../lib.sh"
 
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
-
-busywait()
+# timeout in seconds
+slowwait()
 {
 	local timeout=$1; shift
 
-	local start_time="$(date -u +%s%3N)"
+	local start_time="$(date -u +%s)"
 	while true
 	do
 		local out
@@ -56,11 +54,13 @@ busywait()
 			return 0
 		fi
 
-		local current_time="$(date -u +%s%3N)"
+		local current_time="$(date -u +%s)"
 		if ((current_time - start_time > timeout)); then
 			echo -n "$out"
 			return 1
 		fi
+
+		sleep 0.1
 	done
 }
 
@@ -505,6 +505,15 @@ busywait_for_counter()
 	busywait "$timeout" until_counter_is ">= $((base + delta))" "$@"
 }
 
+slowwait_for_counter()
+{
+	local timeout=$1; shift
+	local delta=$1; shift
+
+	local base=$("$@")
+	slowwait "$timeout" until_counter_is ">= $((base + delta))" "$@"
+}
+
 setup_wait_dev()
 {
 	local dev=$1; shift
@@ -889,6 +898,33 @@ hw_stats_get()
 
 	ip -j stats show dev $if_name group offload subgroup $suite |
 		jq ".[0].stats64.$dir.$stat"
+}
+
+__nh_stats_get()
+{
+	local key=$1; shift
+	local group_id=$1; shift
+	local member_id=$1; shift
+
+	ip -j -s -s nexthop show id $group_id |
+	    jq --argjson member_id "$member_id" --arg key "$key" \
+	       '.[].group_stats[] | select(.id == $member_id) | .[$key]'
+}
+
+nh_stats_get()
+{
+	local group_id=$1; shift
+	local member_id=$1; shift
+
+	__nh_stats_get packets "$group_id" "$member_id"
+}
+
+nh_stats_get_hw()
+{
+	local group_id=$1; shift
+	local member_id=$1; shift
+
+	__nh_stats_get packets_hw "$group_id" "$member_id"
 }
 
 humanize()
@@ -2000,4 +2036,11 @@ bail_on_lldpad()
 			return
 		fi
 	fi
+}
+
+absval()
+{
+	local v=$1; shift
+
+	echo $((v > 0 ? v : -v))
 }

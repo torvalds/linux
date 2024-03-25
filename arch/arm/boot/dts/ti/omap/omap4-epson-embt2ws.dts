@@ -85,6 +85,7 @@
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>; /* IRQ_SYS_1N cascaded to gic */
 		interrupt-controller;
 		#interrupt-cells = <1>;
+		system-power-controller;
 
 		rtc {
 			compatible = "ti,twl4030-rtc";

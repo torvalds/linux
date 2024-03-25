@@ -26,10 +26,10 @@ config VIDEO_XILINX_TPG
 	depends on VIDEO_XILINX
 	select VIDEO_XILINX_VTC
 	help
-	   Driver for the Xilinx Video Test Pattern Generator
+	  Driver for the Xilinx Video Test Pattern Generator
 
 config VIDEO_XILINX_VTC
 	tristate "Xilinx Video Timing Controller"
 	depends on VIDEO_XILINX
 	help
-	   Driver for the Xilinx Video Timing Controller
+	  Driver for the Xilinx Video Timing Controller

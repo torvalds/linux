@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2005-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -187,6 +187,7 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 	case IWL_CFG_RF_TYPE_HR1:
 	case IWL_CFG_RF_TYPE_HR2:
 		rf = "hr";
+		rf_step = 'b';
 		break;
 	case IWL_CFG_RF_TYPE_GF:
 		rf = "gf";
@@ -1424,35 +1425,25 @@ _iwl_op_mode_start(struct iwl_drv *drv, struct iwlwifi_opmode_table *op)
 	const struct iwl_op_mode_ops *ops = op->ops;
 	struct dentry *dbgfs_dir = NULL;
 	struct iwl_op_mode *op_mode = NULL;
-	int retry, max_retry = !!iwlwifi_mod_params.fw_restart * IWL_MAX_INIT_RETRY;
 
 	/* also protects start/stop from racing against each other */
 	lockdep_assert_held(&iwlwifi_opmode_table_mtx);
 
-	for (retry = 0; retry <= max_retry; retry++) {
-
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-		drv->dbgfs_op_mode = debugfs_create_dir(op->name,
-							drv->dbgfs_drv);
-		dbgfs_dir = drv->dbgfs_op_mode;
+	drv->dbgfs_op_mode = debugfs_create_dir(op->name,
+						drv->dbgfs_drv);
+	dbgfs_dir = drv->dbgfs_op_mode;
 #endif
 
-		op_mode = ops->start(drv->trans, drv->trans->cfg,
-				     &drv->fw, dbgfs_dir);
-
-		if (op_mode)
-			return op_mode;
-
-		if (test_bit(STATUS_TRANS_DEAD, &drv->trans->status))
-			break;
-
-		IWL_ERR(drv, "retry init count %d\n", retry);
+	op_mode = ops->start(drv->trans, drv->trans->cfg,
+			     &drv->fw, dbgfs_dir);
+	if (op_mode)
+		return op_mode;
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
-		debugfs_remove_recursive(drv->dbgfs_op_mode);
-		drv->dbgfs_op_mode = NULL;
+	debugfs_remove_recursive(drv->dbgfs_op_mode);
+	drv->dbgfs_op_mode = NULL;
 #endif
-	}
 
 	return NULL;
 }

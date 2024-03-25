@@ -3116,14 +3116,7 @@ static void tnc_destroy_cnext(struct ubifs_info *c)
 void ubifs_tnc_close(struct ubifs_info *c)
 {
 	tnc_destroy_cnext(c);
-	if (c->zroot.znode) {
-		long n, freed;
-
-		n = atomic_long_read(&c->clean_zn_cnt);
-		freed = ubifs_destroy_tnc_subtree(c, c->zroot.znode);
-		ubifs_assert(c, freed == n);
-		atomic_long_sub(n, &ubifs_clean_zn_cnt);
-	}
+	ubifs_destroy_tnc_tree(c);
 	kfree(c->gap_lebs);
 	kfree(c->ilebs);
 	destroy_old_idx(c);

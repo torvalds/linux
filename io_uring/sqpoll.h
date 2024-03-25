@@ -16,6 +16,7 @@ struct io_sq_data {
 	pid_t			task_pid;
 	pid_t			task_tgid;
 
+	u64			work_time;
 	unsigned long		state;
 	struct completion	exited;
 };

@@ -625,7 +625,6 @@ static void __exit ksmbd_server_exit(void)
 }
 
 MODULE_AUTHOR("Namjae Jeon <linkinjeon@kernel.org>");
-MODULE_VERSION(KSMBD_VERSION);
 MODULE_DESCRIPTION("Linux kernel CIFS/SMB SERVER");
 MODULE_LICENSE("GPL");
 MODULE_SOFTDEP("pre: ecb");

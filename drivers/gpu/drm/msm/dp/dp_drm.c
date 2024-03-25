@@ -353,7 +353,8 @@ int dp_bridge_init(struct msm_dp *dp_display, struct drm_device *dev,
 }
 
 /* connector initialization */
-struct drm_connector *dp_drm_connector_init(struct msm_dp *dp_display, struct drm_encoder *encoder)
+struct drm_connector *dp_drm_connector_init(struct msm_dp *dp_display, struct drm_encoder *encoder,
+					    bool yuv_supported)
 {
 	struct drm_connector *connector = NULL;
 
@@ -363,6 +364,9 @@ struct drm_connector *dp_drm_connector_init(struct msm_dp *dp_display, struct dr
 
 	if (!dp_display->is_edp)
 		drm_connector_attach_dp_subconnector_property(connector);
+
+	if (yuv_supported)
+		connector->ycbcr_420_allowed = true;
 
 	drm_connector_attach_encoder(connector, encoder);
 

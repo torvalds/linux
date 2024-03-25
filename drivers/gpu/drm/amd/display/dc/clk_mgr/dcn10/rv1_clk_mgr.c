@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/slab.h>
-
 #include "reg_helper.h"
 #include "core_types.h"
 #include "clk_mgr_internal.h"

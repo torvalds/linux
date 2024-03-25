@@ -439,7 +439,7 @@
 
 	/*
 	 * Ambient Light Sensor
-	 * http://www.rohm.com/products/databook/sensor/pdf/bh1780gli-e.pdf
+	 * https://www.rohm.com/products/databook/sensor/pdf/bh1780gli-e.pdf (defunct)
 	 */
 	bh1780@29 {
 		compatible = "rohm,bh1780";

@@ -401,13 +401,6 @@ static void early_init_intel(struct cpuinfo_x86 *c)
 	check_memory_type_self_snoop_errata(c);
 
 	/*
-	 * Get the number of SMT siblings early from the extended topology
-	 * leaf, if available. Otherwise try the legacy SMT detection.
-	 */
-	if (detect_extended_topology_early(c) < 0)
-		detect_ht_early(c);
-
-	/*
 	 * Adjust the number of physical bits early because it affects the
 	 * valid bits of the MTRR mask registers.
 	 */
@@ -609,24 +602,6 @@ static void init_intel(struct cpuinfo_x86 *c)
 	early_init_intel(c);
 
 	intel_workarounds(c);
-
-	/*
-	 * Detect the extended topology information if available. This
-	 * will reinitialise the initial_apicid which will be used
-	 * in init_intel_cacheinfo()
-	 */
-	detect_extended_topology(c);
-
-	if (!cpu_has(c, X86_FEATURE_XTOPOLOGY)) {
-		/*
-		 * let's use the legacy cpuid vector 0x1 and 0x4 for topology
-		 * detection.
-		 */
-		detect_num_cpu_cores(c);
-#ifdef CONFIG_X86_32
-		detect_ht(c);
-#endif
-	}
 
 	init_intel_cacheinfo(c);
 

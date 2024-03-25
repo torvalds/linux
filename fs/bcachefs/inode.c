@@ -324,7 +324,7 @@ int bch2_inode_unpack(struct bkey_s_c k,
 	return bch2_inode_unpack_slowpath(k, unpacked);
 }
 
-static int bch2_inode_peek_nowarn(struct btree_trans *trans,
+int bch2_inode_peek_nowarn(struct btree_trans *trans,
 		    struct btree_iter *iter,
 		    struct bch_inode_unpacked *inode,
 		    subvol_inum inum, unsigned flags)
@@ -382,6 +382,34 @@ int bch2_inode_write_flags(struct btree_trans *trans,
 	bch2_inode_pack_inlined(inode_p, inode);
 	inode_p->inode.k.p.snapshot = iter->snapshot;
 	return bch2_trans_update(trans, iter, &inode_p->inode.k_i, flags);
+}
+
+int __bch2_fsck_write_inode(struct btree_trans *trans,
+			 struct bch_inode_unpacked *inode,
+			 u32 snapshot)
+{
+	struct bkey_inode_buf *inode_p =
+		bch2_trans_kmalloc(trans, sizeof(*inode_p));
+
+	if (IS_ERR(inode_p))
+		return PTR_ERR(inode_p);
+
+	bch2_inode_pack(inode_p, inode);
+	inode_p->inode.k.p.snapshot = snapshot;
+
+	return bch2_btree_insert_nonextent(trans, BTREE_ID_inodes,
+				&inode_p->inode.k_i,
+				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+}
+
+int bch2_fsck_write_inode(struct btree_trans *trans,
+			    struct bch_inode_unpacked *inode,
+			    u32 snapshot)
+{
+	int ret = commit_do(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
+			    __bch2_fsck_write_inode(trans, inode, snapshot));
+	bch_err_fn(trans->c, ret);
+	return ret;
 }
 
 struct bkey_i *bch2_inode_to_v3(struct btree_trans *trans, struct bkey_i *k)
@@ -592,7 +620,8 @@ int bch2_trigger_inode(struct btree_trans *trans,
 		bool old_deleted = bkey_is_deleted_inode(old);
 		bool new_deleted = bkey_is_deleted_inode(new.s_c);
 		if (old_deleted != new_deleted) {
-			int ret = bch2_btree_bit_mod(trans, BTREE_ID_deleted_inodes, new.k->p, new_deleted);
+			int ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_deleted_inodes,
+							      new.k->p, new_deleted);
 			if (ret)
 				return ret;
 		}
@@ -1088,8 +1117,9 @@ static int may_delete_deleted_inode(struct btree_trans *trans,
 		goto out;
 
 	if (S_ISDIR(inode.bi_mode)) {
-		ret = bch2_empty_dir_snapshot(trans, pos.offset, pos.snapshot);
-		if (fsck_err_on(ret == -ENOTEMPTY, c, deleted_inode_is_dir,
+		ret = bch2_empty_dir_snapshot(trans, pos.offset, 0, pos.snapshot);
+		if (fsck_err_on(bch2_err_matches(ret, ENOTEMPTY),
+				c, deleted_inode_is_dir,
 				"non empty directory %llu:%u in deleted_inodes btree",
 				pos.offset, pos.snapshot))
 			goto delete;
@@ -1141,7 +1171,7 @@ fsck_err:
 	bch2_trans_iter_exit(trans, &inode_iter);
 	return ret;
 delete:
-	ret = bch2_btree_bit_mod(trans, BTREE_ID_deleted_inodes, pos, false);
+	ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_deleted_inodes, pos, false);
 	goto out;
 }
 
@@ -1151,6 +1181,15 @@ int bch2_delete_dead_inodes(struct bch_fs *c)
 	bool need_another_pass;
 	int ret;
 again:
+	/*
+	 * if we ran check_inodes() unlinked inodes will have already been
+	 * cleaned up but the write buffer will be out of sync; therefore we
+	 * alway need a write buffer flush
+	 */
+	ret = bch2_btree_write_buffer_flush_sync(trans);
+	if (ret)
+		goto err;
+
 	need_another_pass = false;
 
 	/*
@@ -1183,12 +1222,8 @@ again:
 		ret;
 	}));
 
-	if (!ret && need_another_pass) {
-		ret = bch2_btree_write_buffer_flush_sync(trans);
-		if (ret)
-			goto err;
+	if (!ret && need_another_pass)
 		goto again;
-	}
 err:
 	bch2_trans_put(trans);
 	return ret;

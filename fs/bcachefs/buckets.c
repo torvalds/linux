@@ -990,8 +990,8 @@ static int __trigger_extent(struct btree_trans *trans,
 				ret = !gc
 					? bch2_update_cached_sectors_list(trans, p.ptr.dev, disk_sectors)
 					: update_cached_sectors(c, k, p.ptr.dev, disk_sectors, 0, true);
-				bch2_fs_fatal_err_on(ret && gc, c, "%s(): no replicas entry while updating cached sectors",
-						     __func__);
+				bch2_fs_fatal_err_on(ret && gc, c, "%s: no replicas entry while updating cached sectors",
+						     bch2_err_str(ret));
 				if (ret)
 					return ret;
 			}
@@ -1020,7 +1020,7 @@ static int __trigger_extent(struct btree_trans *trans,
 			struct printbuf buf = PRINTBUF;
 
 			bch2_bkey_val_to_text(&buf, c, k);
-			bch2_fs_fatal_error(c, "%s(): no replicas entry for %s", __func__, buf.buf);
+			bch2_fs_fatal_error(c, ": no replicas entry for %s", buf.buf);
 			printbuf_exit(&buf);
 		}
 		if (ret)
@@ -1053,7 +1053,8 @@ int bch2_trigger_extent(struct btree_trans *trans,
 			  (int) bch2_bkey_needs_rebalance(c, old);
 
 		if (mod) {
-			int ret = bch2_btree_bit_mod(trans, BTREE_ID_rebalance_work, new.k->p, mod > 0);
+			int ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_rebalance_work,
+							      new.k->p, mod > 0);
 			if (ret)
 				return ret;
 		}
@@ -1335,7 +1336,7 @@ static void bucket_gens_free_rcu(struct rcu_head *rcu)
 	struct bucket_gens *buckets =
 		container_of(rcu, struct bucket_gens, rcu);
 
-	kvpfree(buckets, sizeof(*buckets) + buckets->nbuckets);
+	kvfree(buckets);
 }
 
 int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
@@ -1345,16 +1346,16 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	bool resize = ca->bucket_gens != NULL;
 	int ret;
 
-	if (!(bucket_gens	= kvpmalloc(sizeof(struct bucket_gens) + nbuckets,
-					    GFP_KERNEL|__GFP_ZERO))) {
+	if (!(bucket_gens	= kvmalloc(sizeof(struct bucket_gens) + nbuckets,
+					   GFP_KERNEL|__GFP_ZERO))) {
 		ret = -BCH_ERR_ENOMEM_bucket_gens;
 		goto err;
 	}
 
 	if ((c->opts.buckets_nouse &&
-	     !(buckets_nouse	= kvpmalloc(BITS_TO_LONGS(nbuckets) *
-					    sizeof(unsigned long),
-					    GFP_KERNEL|__GFP_ZERO)))) {
+	     !(buckets_nouse	= kvmalloc(BITS_TO_LONGS(nbuckets) *
+					   sizeof(unsigned long),
+					   GFP_KERNEL|__GFP_ZERO)))) {
 		ret = -BCH_ERR_ENOMEM_buckets_nouse;
 		goto err;
 	}
@@ -1397,8 +1398,7 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 
 	ret = 0;
 err:
-	kvpfree(buckets_nouse,
-		BITS_TO_LONGS(nbuckets) * sizeof(unsigned long));
+	kvfree(buckets_nouse);
 	if (bucket_gens)
 		call_rcu(&bucket_gens->rcu, bucket_gens_free_rcu);
 
@@ -1407,27 +1407,21 @@ err:
 
 void bch2_dev_buckets_free(struct bch_dev *ca)
 {
-	unsigned i;
+	kvfree(ca->buckets_nouse);
+	kvfree(rcu_dereference_protected(ca->bucket_gens, 1));
 
-	kvpfree(ca->buckets_nouse,
-		BITS_TO_LONGS(ca->mi.nbuckets) * sizeof(unsigned long));
-	kvpfree(rcu_dereference_protected(ca->bucket_gens, 1),
-		sizeof(struct bucket_gens) + ca->mi.nbuckets);
-
-	for (i = 0; i < ARRAY_SIZE(ca->usage); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(ca->usage); i++)
 		free_percpu(ca->usage[i]);
 	kfree(ca->usage_base);
 }
 
 int bch2_dev_buckets_alloc(struct bch_fs *c, struct bch_dev *ca)
 {
-	unsigned i;
-
 	ca->usage_base = kzalloc(sizeof(struct bch_dev_usage), GFP_KERNEL);
 	if (!ca->usage_base)
 		return -BCH_ERR_ENOMEM_usage_init;
 
-	for (i = 0; i < ARRAY_SIZE(ca->usage); i++) {
+	for (unsigned i = 0; i < ARRAY_SIZE(ca->usage); i++) {
 		ca->usage[i] = alloc_percpu(struct bch_dev_usage);
 		if (!ca->usage[i])
 			return -BCH_ERR_ENOMEM_usage_init;

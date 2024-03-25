@@ -128,7 +128,7 @@ struct sunxi_rsb {
 };
 
 /* bus / slave device related functions */
-static struct bus_type sunxi_rsb_bus;
+static const struct bus_type sunxi_rsb_bus;
 
 static int sunxi_rsb_device_match(struct device *dev, struct device_driver *drv)
 {
@@ -177,7 +177,7 @@ static int sunxi_rsb_device_modalias(const struct device *dev, struct kobj_ueven
 	return of_device_uevent_modalias(dev, env);
 }
 
-static struct bus_type sunxi_rsb_bus = {
+static const struct bus_type sunxi_rsb_bus = {
 	.name		= RSB_CTRL_NAME,
 	.match		= sunxi_rsb_device_match,
 	.probe		= sunxi_rsb_device_probe,

@@ -49,6 +49,8 @@ struct kernfs_root {
 	struct rw_semaphore	kernfs_rwsem;
 	struct rw_semaphore	kernfs_iattr_rwsem;
 	struct rw_semaphore	kernfs_supers_rwsem;
+
+	struct rcu_head		rcu;
 };
 
 /* +1 to avoid triggering overflow warning when negating it */

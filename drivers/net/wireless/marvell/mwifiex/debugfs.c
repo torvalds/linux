@@ -566,14 +566,8 @@ mwifiex_verext_write(struct file *file, const char __user *ubuf,
 	int ret;
 	u32 versionstrsel;
 	struct mwifiex_private *priv = (void *)file->private_data;
-	char buf[16];
 
-	memset(buf, 0, sizeof(buf));
-
-	if (copy_from_user(&buf, ubuf, min_t(size_t, sizeof(buf) - 1, count)))
-		return -EFAULT;
-
-	ret = kstrtou32(buf, 10, &versionstrsel);
+	ret = kstrtou32_from_user(ubuf, count, 10, &versionstrsel);
 	if (ret)
 		return ret;
 
@@ -874,19 +868,14 @@ mwifiex_timeshare_coex_write(struct file *file, const char __user *ubuf,
 {
 	bool timeshare_coex;
 	struct mwifiex_private *priv = file->private_data;
-	char kbuf[16];
 	int ret;
 
 	if (priv->adapter->fw_api_ver != MWIFIEX_FW_V15)
 		return -EOPNOTSUPP;
 
-	memset(kbuf, 0, sizeof(kbuf));
-
-	if (copy_from_user(&kbuf, ubuf, min_t(size_t, sizeof(kbuf) - 1, count)))
-		return -EFAULT;
-
-	if (kstrtobool(kbuf, &timeshare_coex))
-		return -EINVAL;
+	ret = kstrtobool_from_user(ubuf, count, &timeshare_coex);
+	if (ret)
+		return ret;
 
 	ret = mwifiex_send_cmd(priv, HostCmd_CMD_ROBUST_COEX,
 			       HostCmd_ACT_GEN_SET, 0, &timeshare_coex, true);
@@ -969,9 +958,6 @@ mwifiex_dev_debugfs_init(struct mwifiex_private *priv)
 
 	priv->dfs_dev_dir = debugfs_create_dir(priv->netdev->name,
 					       mwifiex_dfs_dir);
-
-	if (!priv->dfs_dev_dir)
-		return;
 
 	MWIFIEX_DFS_ADD_FILE(info);
 	MWIFIEX_DFS_ADD_FILE(debug);

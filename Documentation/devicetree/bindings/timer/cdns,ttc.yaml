@@ -32,11 +32,22 @@ properties:
     description: |
       Bit width of the timer, necessary if not 16.
 
+  "#pwm-cells":
+    const: 3
+
 required:
   - compatible
   - reg
-  - interrupts
   - clocks
+
+allOf:
+  - if:
+      not:
+        required:
+          - "#pwm-cells"
+    then:
+      required:
+        - interrupts
 
 additionalProperties: false
 
@@ -49,4 +60,13 @@ examples:
         reg = <0xF8001000 0x1000>;
         clocks = <&cpu_clk 3>;
         timer-width = <32>;
+    };
+
+  - |
+    pwm: pwm@f8002000 {
+        compatible = "cdns,ttc";
+        reg = <0xf8002000 0x1000>;
+        clocks = <&cpu_clk 3>;
+        timer-width = <32>;
+        #pwm-cells = <3>;
     };

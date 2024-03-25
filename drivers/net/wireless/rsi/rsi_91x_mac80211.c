@@ -740,7 +740,7 @@ u16 rsi_get_connected_channel(struct ieee80211_vif *vif)
 		return 0;
 
 	bss = &vif->bss_conf;
-	channel = bss->chandef.chan;
+	channel = bss->chanreq.oper.chan;
 
 	if (!channel)
 		return 0;
@@ -759,7 +759,7 @@ static void rsi_switch_channel(struct rsi_hw *adapter,
 	if (!vif)
 		return;
 
-	channel = vif->bss_conf.chandef.chan;
+	channel = vif->bss_conf.chanreq.oper.chan;
 
 	if (!channel)
 		return;
@@ -1957,6 +1957,10 @@ static int rsi_mac80211_resume(struct ieee80211_hw *hw)
 #endif
 
 static const struct ieee80211_ops mac80211_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx = rsi_mac80211_tx,
 	.wake_tx_queue = ieee80211_handle_wake_tx_queue,
 	.start = rsi_mac80211_start,

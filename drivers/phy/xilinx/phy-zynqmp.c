@@ -768,7 +768,7 @@ static const unsigned int icm_matrix[NUM_LANES][CONTROLLERS_PER_LANE] = {
 
 /* Translate OF phandle and args to PHY instance. */
 static struct phy *xpsgtr_xlate(struct device *dev,
-				struct of_phandle_args *args)
+				const struct of_phandle_args *args)
 {
 	struct xpsgtr_dev *gtr_dev = dev_get_drvdata(dev);
 	struct xpsgtr_phy *gtr_phy;

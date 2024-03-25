@@ -11,7 +11,6 @@
 #include <linux/mod_devicetable.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
-#include <linux/acpi.h>
 #include <linux/regmap.h>
 
 #include "bmc150_magn.h"
@@ -68,7 +67,7 @@ static struct i2c_driver bmc150_magn_driver = {
 	.driver = {
 		.name	= "bmc150_magn_i2c",
 		.of_match_table = bmc150_magn_of_match,
-		.acpi_match_table = ACPI_PTR(bmc150_magn_acpi_match),
+		.acpi_match_table = bmc150_magn_acpi_match,
 		.pm	= &bmc150_magn_pm_ops,
 	},
 	.probe		= bmc150_magn_i2c_probe,

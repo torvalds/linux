@@ -246,21 +246,12 @@ static int ublk_dev_param_zoned_validate(const struct ublk_device *ub)
 	return 0;
 }
 
-static int ublk_dev_param_zoned_apply(struct ublk_device *ub)
+static void ublk_dev_param_zoned_apply(struct ublk_device *ub)
 {
-	const struct ublk_param_zoned *p = &ub->params.zoned;
-
-	disk_set_zoned(ub->ub_disk);
 	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, ub->ub_disk->queue);
 	blk_queue_required_elevator_features(ub->ub_disk->queue,
 					     ELEVATOR_F_ZBD_SEQ_WRITE);
-	disk_set_max_active_zones(ub->ub_disk, p->max_active_zones);
-	disk_set_max_open_zones(ub->ub_disk, p->max_open_zones);
-	blk_queue_max_zone_append_sectors(ub->ub_disk->queue, p->max_zone_append_sectors);
-
 	ub->ub_disk->nr_zones = ublk_get_nr_zones(ub);
-
-	return 0;
 }
 
 /* Based on virtblk_alloc_report_buffer */
@@ -432,9 +423,8 @@ static int ublk_dev_param_zoned_validate(const struct ublk_device *ub)
 	return -EOPNOTSUPP;
 }
 
-static int ublk_dev_param_zoned_apply(struct ublk_device *ub)
+static void ublk_dev_param_zoned_apply(struct ublk_device *ub)
 {
-	return -EOPNOTSUPP;
 }
 
 static int ublk_revalidate_disk_zones(struct ublk_device *ub)
@@ -498,11 +488,6 @@ static void ublk_dev_param_basic_apply(struct ublk_device *ub)
 	struct request_queue *q = ub->ub_disk->queue;
 	const struct ublk_param_basic *p = &ub->params.basic;
 
-	blk_queue_logical_block_size(q, 1 << p->logical_bs_shift);
-	blk_queue_physical_block_size(q, 1 << p->physical_bs_shift);
-	blk_queue_io_min(q, 1 << p->io_min_shift);
-	blk_queue_io_opt(q, 1 << p->io_opt_shift);
-
 	blk_queue_write_cache(q, p->attrs & UBLK_ATTR_VOLATILE_CACHE,
 			p->attrs & UBLK_ATTR_FUA);
 	if (p->attrs & UBLK_ATTR_ROTATIONAL)
@@ -510,27 +495,10 @@ static void ublk_dev_param_basic_apply(struct ublk_device *ub)
 	else
 		blk_queue_flag_set(QUEUE_FLAG_NONROT, q);
 
-	blk_queue_max_hw_sectors(q, p->max_sectors);
-	blk_queue_chunk_sectors(q, p->chunk_sectors);
-	blk_queue_virt_boundary(q, p->virt_boundary_mask);
-
 	if (p->attrs & UBLK_ATTR_READ_ONLY)
 		set_disk_ro(ub->ub_disk, true);
 
 	set_capacity(ub->ub_disk, p->dev_sectors);
-}
-
-static void ublk_dev_param_discard_apply(struct ublk_device *ub)
-{
-	struct request_queue *q = ub->ub_disk->queue;
-	const struct ublk_param_discard *p = &ub->params.discard;
-
-	q->limits.discard_alignment = p->discard_alignment;
-	q->limits.discard_granularity = p->discard_granularity;
-	blk_queue_max_discard_sectors(q, p->max_discard_sectors);
-	blk_queue_max_write_zeroes_sectors(q,
-			p->max_write_zeroes_sectors);
-	blk_queue_max_discard_segments(q, p->max_discard_segments);
 }
 
 static int ublk_validate_params(const struct ublk_device *ub)
@@ -576,20 +544,12 @@ static int ublk_validate_params(const struct ublk_device *ub)
 	return 0;
 }
 
-static int ublk_apply_params(struct ublk_device *ub)
+static void ublk_apply_params(struct ublk_device *ub)
 {
-	if (!(ub->params.types & UBLK_PARAM_TYPE_BASIC))
-		return -EINVAL;
-
 	ublk_dev_param_basic_apply(ub);
 
-	if (ub->params.types & UBLK_PARAM_TYPE_DISCARD)
-		ublk_dev_param_discard_apply(ub);
-
 	if (ub->params.types & UBLK_PARAM_TYPE_ZONED)
-		return ublk_dev_param_zoned_apply(ub);
-
-	return 0;
+		ublk_dev_param_zoned_apply(ub);
 }
 
 static inline bool ublk_support_user_copy(const struct ublk_queue *ubq)
@@ -645,14 +605,16 @@ static inline bool ublk_need_get_data(const struct ublk_queue *ubq)
 	return ubq->flags & UBLK_F_NEED_GET_DATA;
 }
 
-static struct ublk_device *ublk_get_device(struct ublk_device *ub)
+/* Called in slow path only, keep it noinline for trace purpose */
+static noinline struct ublk_device *ublk_get_device(struct ublk_device *ub)
 {
 	if (kobject_get_unless_zero(&ub->cdev_dev.kobj))
 		return ub;
 	return NULL;
 }
 
-static void ublk_put_device(struct ublk_device *ub)
+/* Called in slow path only, keep it noinline for trace purpose */
+static noinline void ublk_put_device(struct ublk_device *ub)
 {
 	put_device(&ub->cdev_dev);
 }
@@ -711,7 +673,7 @@ static void ublk_free_disk(struct gendisk *disk)
 	struct ublk_device *ub = disk->private_data;
 
 	clear_bit(UB_STATE_USED, &ub->state);
-	put_device(&ub->cdev_dev);
+	ublk_put_device(ub);
 }
 
 static void ublk_store_owner_uid_gid(unsigned int *owner_uid,
@@ -2182,7 +2144,7 @@ static void ublk_remove(struct ublk_device *ub)
 	cancel_work_sync(&ub->stop_work);
 	cancel_work_sync(&ub->quiesce_work);
 	cdev_device_del(&ub->cdev, &ub->cdev_dev);
-	put_device(&ub->cdev_dev);
+	ublk_put_device(ub);
 	ublks_added--;
 }
 
@@ -2205,12 +2167,47 @@ static struct ublk_device *ublk_get_device_from_id(int idx)
 static int ublk_ctrl_start_dev(struct ublk_device *ub, struct io_uring_cmd *cmd)
 {
 	const struct ublksrv_ctrl_cmd *header = io_uring_sqe_cmd(cmd->sqe);
+	const struct ublk_param_basic *p = &ub->params.basic;
 	int ublksrv_pid = (int)header->data[0];
+	struct queue_limits lim = {
+		.logical_block_size	= 1 << p->logical_bs_shift,
+		.physical_block_size	= 1 << p->physical_bs_shift,
+		.io_min			= 1 << p->io_min_shift,
+		.io_opt			= 1 << p->io_opt_shift,
+		.max_hw_sectors		= p->max_sectors,
+		.chunk_sectors		= p->chunk_sectors,
+		.virt_boundary_mask	= p->virt_boundary_mask,
+
+	};
 	struct gendisk *disk;
 	int ret = -EINVAL;
 
 	if (ublksrv_pid <= 0)
 		return -EINVAL;
+	if (!(ub->params.types & UBLK_PARAM_TYPE_BASIC))
+		return -EINVAL;
+
+	if (ub->params.types & UBLK_PARAM_TYPE_DISCARD) {
+		const struct ublk_param_discard *pd = &ub->params.discard;
+
+		lim.discard_alignment = pd->discard_alignment;
+		lim.discard_granularity = pd->discard_granularity;
+		lim.max_hw_discard_sectors = pd->max_discard_sectors;
+		lim.max_write_zeroes_sectors = pd->max_write_zeroes_sectors;
+		lim.max_discard_segments = pd->max_discard_segments;
+	}
+
+	if (ub->params.types & UBLK_PARAM_TYPE_ZONED) {
+		const struct ublk_param_zoned *p = &ub->params.zoned;
+
+		if (!IS_ENABLED(CONFIG_BLK_DEV_ZONED))
+			return -EOPNOTSUPP;
+
+		lim.zoned = true;
+		lim.max_active_zones = p->max_active_zones;
+		lim.max_open_zones =  p->max_open_zones;
+		lim.max_zone_append_sectors = p->max_zone_append_sectors;
+	}
 
 	if (wait_for_completion_interruptible(&ub->completion) != 0)
 		return -EINTR;
@@ -2222,7 +2219,7 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub, struct io_uring_cmd *cmd)
 		goto out_unlock;
 	}
 
-	disk = blk_mq_alloc_disk(&ub->tag_set, NULL);
+	disk = blk_mq_alloc_disk(&ub->tag_set, &lim, NULL);
 	if (IS_ERR(disk)) {
 		ret = PTR_ERR(disk);
 		goto out_unlock;
@@ -2234,15 +2231,13 @@ static int ublk_ctrl_start_dev(struct ublk_device *ub, struct io_uring_cmd *cmd)
 	ub->dev_info.ublksrv_pid = ublksrv_pid;
 	ub->ub_disk = disk;
 
-	ret = ublk_apply_params(ub);
-	if (ret)
-		goto out_put_disk;
+	ublk_apply_params(ub);
 
 	/* don't probe partitions if any one ubq daemon is un-trusted */
 	if (ub->nr_privileged_daemon != ub->nr_queues_ready)
 		set_bit(GD_SUPPRESS_PART_SCAN, &disk->state);
 
-	get_device(&ub->cdev_dev);
+	ublk_get_device(ub);
 	ub->dev_info.state = UBLK_S_DEV_LIVE;
 
 	if (ublk_dev_is_zoned(ub)) {
@@ -2262,7 +2257,6 @@ out_put_cdev:
 		ub->dev_info.state = UBLK_S_DEV_DEAD;
 		ublk_put_device(ub);
 	}
-out_put_disk:
 	if (ret)
 		put_disk(disk);
 out_unlock:
@@ -2474,7 +2468,7 @@ static inline bool ublk_idr_freed(int id)
 	return ptr == NULL;
 }
 
-static int ublk_ctrl_del_dev(struct ublk_device **p_ub)
+static int ublk_ctrl_del_dev(struct ublk_device **p_ub, bool wait)
 {
 	struct ublk_device *ub = *p_ub;
 	int idx = ub->ub_number;
@@ -2508,7 +2502,7 @@ static int ublk_ctrl_del_dev(struct ublk_device **p_ub)
 	 * - the device number is freed already, we will not find this
 	 *   device via ublk_get_device_from_id()
 	 */
-	if (wait_event_interruptible(ublk_idr_wq, ublk_idr_freed(idx)))
+	if (wait && wait_event_interruptible(ublk_idr_wq, ublk_idr_freed(idx)))
 		return -EINTR;
 	return 0;
 }
@@ -2907,7 +2901,10 @@ static int ublk_ctrl_uring_cmd(struct io_uring_cmd *cmd,
 		ret = ublk_ctrl_add_dev(cmd);
 		break;
 	case UBLK_CMD_DEL_DEV:
-		ret = ublk_ctrl_del_dev(&ub);
+		ret = ublk_ctrl_del_dev(&ub, true);
+		break;
+	case UBLK_U_CMD_DEL_DEV_ASYNC:
+		ret = ublk_ctrl_del_dev(&ub, false);
 		break;
 	case UBLK_CMD_GET_QUEUE_AFFINITY:
 		ret = ublk_ctrl_get_queue_affinity(ub, cmd);

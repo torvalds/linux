@@ -74,16 +74,11 @@ static const struct hwspinlock_ops omap_hwspinlock_ops = {
 
 static int omap_hwspinlock_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node;
 	struct hwspinlock_device *bank;
-	struct hwspinlock *hwlock;
 	void __iomem *io_base;
 	int num_locks, i, ret;
 	/* Only a single hwspinlock block device is supported */
 	int base_id = 0;
-
-	if (!node)
-		return -ENODEV;
 
 	io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(io_base))
@@ -93,10 +88,10 @@ static int omap_hwspinlock_probe(struct platform_device *pdev)
 	 * make sure the module is enabled and clocked before reading
 	 * the module SYSSTATUS register
 	 */
-	pm_runtime_enable(&pdev->dev);
+	devm_pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0)
-		goto runtime_err;
+		return ret;
 
 	/* Determine number of locks */
 	i = readl(io_base + SYSSTATUS_OFFSET);
@@ -108,55 +103,24 @@ static int omap_hwspinlock_probe(struct platform_device *pdev)
 	 */
 	ret = pm_runtime_put(&pdev->dev);
 	if (ret < 0)
-		goto runtime_err;
+		return ret;
 
 	/* one of the four lsb's must be set, and nothing else */
-	if (hweight_long(i & 0xf) != 1 || i > 8) {
-		ret = -EINVAL;
-		goto runtime_err;
-	}
+	if (hweight_long(i & 0xf) != 1 || i > 8)
+		return -EINVAL;
 
 	num_locks = i * 32; /* actual number of locks in this device */
 
 	bank = devm_kzalloc(&pdev->dev, struct_size(bank, lock, num_locks),
 			    GFP_KERNEL);
-	if (!bank) {
-		ret = -ENOMEM;
-		goto runtime_err;
-	}
+	if (!bank)
+		return -ENOMEM;
 
-	platform_set_drvdata(pdev, bank);
+	for (i = 0; i < num_locks; i++)
+		bank->lock[i].priv = io_base + LOCK_BASE_OFFSET + sizeof(u32) * i;
 
-	for (i = 0, hwlock = &bank->lock[0]; i < num_locks; i++, hwlock++)
-		hwlock->priv = io_base + LOCK_BASE_OFFSET + sizeof(u32) * i;
-
-	ret = hwspin_lock_register(bank, &pdev->dev, &omap_hwspinlock_ops,
+	return devm_hwspin_lock_register(&pdev->dev, bank, &omap_hwspinlock_ops,
 						base_id, num_locks);
-	if (ret)
-		goto runtime_err;
-
-	dev_dbg(&pdev->dev, "Registered %d locks with HwSpinlock core\n",
-		num_locks);
-
-	return 0;
-
-runtime_err:
-	pm_runtime_disable(&pdev->dev);
-	return ret;
-}
-
-static void omap_hwspinlock_remove(struct platform_device *pdev)
-{
-	struct hwspinlock_device *bank = platform_get_drvdata(pdev);
-	int ret;
-
-	ret = hwspin_lock_unregister(bank);
-	if (ret) {
-		dev_err(&pdev->dev, "%s failed: %d\n", __func__, ret);
-		return;
-	}
-
-	pm_runtime_disable(&pdev->dev);
 }
 
 static const struct of_device_id omap_hwspinlock_of_match[] = {
@@ -169,7 +133,6 @@ MODULE_DEVICE_TABLE(of, omap_hwspinlock_of_match);
 
 static struct platform_driver omap_hwspinlock_driver = {
 	.probe		= omap_hwspinlock_probe,
-	.remove_new	= omap_hwspinlock_remove,
 	.driver		= {
 		.name	= "omap_hwspinlock",
 		.of_match_table = omap_hwspinlock_of_match,

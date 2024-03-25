@@ -53,6 +53,9 @@ properties:
   power-domains:
     maxItems: 1
 
+  vdd-gfx-supply:
+    description: Regulator supply for the VDD_GFX pads
+
   '#clock-cells':
     const: 1
 
@@ -73,6 +76,12 @@ required:
   - '#clock-cells'
   - '#reset-cells'
   - '#power-domain-cells'
+
+# Require that power-domains and vdd-gfx-supply are not both present
+not:
+  required:
+    - power-domains
+    - vdd-gfx-supply
 
 additionalProperties: false
 

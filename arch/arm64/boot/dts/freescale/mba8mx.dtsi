@@ -29,6 +29,12 @@
 		stdout-path = &uart3;
 	};
 
+	clk_xtal25: clk-xtal25 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <25000000>;
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -98,12 +104,6 @@
 				remote-endpoint = <&lvds_bridge_out>;
 			};
 		};
-	};
-
-	pcie0_refclk: pcie0-refclk {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <100000000>;
 	};
 
 	reg_12v: regulator-12v {
@@ -219,7 +219,7 @@
 			line-name = "BOOT_CFG_OE#";
 		};
 
-		rst-usb-hub-hog {
+		rst_usb_hub_hog: rst-usb-hub-hog {
 			gpio-hog;
 			gpios = <13 0>;
 			output-high;
@@ -263,6 +263,13 @@
 		reg = <0x57>;
 		pagesize = <16>;
 		vcc-supply = <&reg_vcc_3v3>;
+	};
+
+	pcieclk: clk@68 {
+		compatible = "renesas,9fgv0441";
+		reg = <0x68>;
+		clocks = <&clk_xtal25>;
+		#clock-cells = <1>;
 	};
 };
 

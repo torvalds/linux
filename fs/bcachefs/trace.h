@@ -1431,6 +1431,25 @@ DEFINE_EVENT(fs_str, data_update,
 	TP_ARGS(c, str)
 );
 
+TRACE_EVENT(error_downcast,
+	TP_PROTO(int bch_err, int std_err, unsigned long ip),
+	TP_ARGS(bch_err, std_err, ip),
+
+	TP_STRUCT__entry(
+		__array(char,		bch_err, 32		)
+		__array(char,		std_err, 32		)
+		__array(char,		ip, 32			)
+	),
+
+	TP_fast_assign(
+		strscpy(__entry->bch_err, bch2_err_str(bch_err), sizeof(__entry->bch_err));
+		strscpy(__entry->std_err, bch2_err_str(std_err), sizeof(__entry->std_err));
+		snprintf(__entry->ip, sizeof(__entry->ip), "%ps", (void *) ip);
+	),
+
+	TP_printk("%s -> %s %s", __entry->bch_err, __entry->std_err, __entry->ip)
+);
+
 #endif /* _TRACE_BCACHEFS_H */
 
 /* This part must be outside protection */

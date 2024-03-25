@@ -10,6 +10,7 @@
  */
 
 #include <linux/jhash.h>
+#include <linux/module.h>
 #include <linux/sizes.h>
 #include <linux/vmalloc.h>
 #include <net/pkt_cls.h>
@@ -563,6 +564,7 @@ static struct Qdisc_ops fq_pie_qdisc_ops __read_mostly = {
 	.dump_stats	= fq_pie_dump_stats,
 	.owner		= THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("fq_pie");
 
 static int __init fq_pie_module_init(void)
 {

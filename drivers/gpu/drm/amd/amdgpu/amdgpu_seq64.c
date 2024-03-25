@@ -36,13 +36,24 @@
  */
 
 /**
+ * amdgpu_seq64_get_va_base - Get the seq64 va base address
+ *
+ * @adev: amdgpu_device pointer
+ *
+ * Returns:
+ * va base address on success
+ */
+static inline u64 amdgpu_seq64_get_va_base(struct amdgpu_device *adev)
+{
+	return AMDGPU_VA_RESERVED_SEQ64_START(adev);
+}
+
+/**
  * amdgpu_seq64_map - Map the seq64 memory to VM
  *
  * @adev: amdgpu_device pointer
  * @vm: vm pointer
  * @bo_va: bo_va pointer
- * @seq64_addr: seq64 vaddr start address
- * @size: seq64 pool size
  *
  * Map the seq64 memory to the given VM.
  *
@@ -50,11 +61,11 @@
  * 0 on success or a negative error code on failure
  */
 int amdgpu_seq64_map(struct amdgpu_device *adev, struct amdgpu_vm *vm,
-		     struct amdgpu_bo_va **bo_va, u64 seq64_addr,
-		     uint32_t size)
+		     struct amdgpu_bo_va **bo_va)
 {
 	struct amdgpu_bo *bo;
 	struct drm_exec exec;
+	u64 seq64_addr;
 	int r;
 
 	bo = adev->seq64.sbo;
@@ -77,9 +88,9 @@ int amdgpu_seq64_map(struct amdgpu_device *adev, struct amdgpu_vm *vm,
 		goto error;
 	}
 
-	r = amdgpu_vm_bo_map(adev, *bo_va, seq64_addr, 0, size,
-			     AMDGPU_PTE_READABLE | AMDGPU_PTE_WRITEABLE |
-			     AMDGPU_PTE_EXECUTABLE);
+	seq64_addr = amdgpu_seq64_get_va_base(adev);
+	r = amdgpu_vm_bo_map(adev, *bo_va, seq64_addr, 0, AMDGPU_VA_RESERVED_SEQ64_SIZE,
+			     AMDGPU_PTE_READABLE);
 	if (r) {
 		DRM_ERROR("failed to do bo_map on userq sem, err=%d\n", r);
 		amdgpu_vm_bo_del(adev, *bo_va);
@@ -144,31 +155,25 @@ error:
  * amdgpu_seq64_alloc - Allocate a 64 bit memory
  *
  * @adev: amdgpu_device pointer
- * @gpu_addr: allocated gpu VA start address
- * @cpu_addr: allocated cpu VA start address
+ * @va: VA to access the seq in process address space
+ * @cpu_addr: CPU address to access the seq
  *
  * Alloc a 64 bit memory from seq64 pool.
  *
  * Returns:
  * 0 on success or a negative error code on failure
  */
-int amdgpu_seq64_alloc(struct amdgpu_device *adev, u64 *gpu_addr,
-		       u64 **cpu_addr)
+int amdgpu_seq64_alloc(struct amdgpu_device *adev, u64 *va, u64 **cpu_addr)
 {
 	unsigned long bit_pos;
-	u32 offset;
 
 	bit_pos = find_first_zero_bit(adev->seq64.used, adev->seq64.num_sem);
+	if (bit_pos >= adev->seq64.num_sem)
+		return -ENOSPC;
 
-	if (bit_pos < adev->seq64.num_sem) {
-		__set_bit(bit_pos, adev->seq64.used);
-		offset = bit_pos << 6; /* convert to qw offset */
-	} else {
-		return -EINVAL;
-	}
-
-	*gpu_addr = offset + AMDGPU_SEQ64_VADDR_START;
-	*cpu_addr = offset + adev->seq64.cpu_base_addr;
+	__set_bit(bit_pos, adev->seq64.used);
+	*va = bit_pos * sizeof(u64) + amdgpu_seq64_get_va_base(adev);
+	*cpu_addr = bit_pos + adev->seq64.cpu_base_addr;
 
 	return 0;
 }
@@ -177,20 +182,17 @@ int amdgpu_seq64_alloc(struct amdgpu_device *adev, u64 *gpu_addr,
  * amdgpu_seq64_free - Free the given 64 bit memory
  *
  * @adev: amdgpu_device pointer
- * @gpu_addr: gpu start address to be freed
+ * @va: gpu start address to be freed
  *
  * Free the given 64 bit memory from seq64 pool.
- *
  */
-void amdgpu_seq64_free(struct amdgpu_device *adev, u64 gpu_addr)
+void amdgpu_seq64_free(struct amdgpu_device *adev, u64 va)
 {
-	u32 offset;
+	unsigned long bit_pos;
 
-	offset = gpu_addr - AMDGPU_SEQ64_VADDR_START;
-
-	offset >>= 6;
-	if (offset < adev->seq64.num_sem)
-		__clear_bit(offset, adev->seq64.used);
+	bit_pos = (va - amdgpu_seq64_get_va_base(adev)) / sizeof(u64);
+	if (bit_pos < adev->seq64.num_sem)
+		__clear_bit(bit_pos, adev->seq64.used);
 }
 
 /**
@@ -229,7 +231,7 @@ int amdgpu_seq64_init(struct amdgpu_device *adev)
 	 * AMDGPU_MAX_SEQ64_SLOTS * sizeof(u64) * 8 = AMDGPU_MAX_SEQ64_SLOTS
 	 * 64bit slots
 	 */
-	r = amdgpu_bo_create_kernel(adev, AMDGPU_SEQ64_SIZE,
+	r = amdgpu_bo_create_kernel(adev, AMDGPU_VA_RESERVED_SEQ64_SIZE,
 				    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
 				    &adev->seq64.sbo, NULL,
 				    (void **)&adev->seq64.cpu_base_addr);
@@ -238,7 +240,7 @@ int amdgpu_seq64_init(struct amdgpu_device *adev)
 		return r;
 	}
 
-	memset(adev->seq64.cpu_base_addr, 0, AMDGPU_SEQ64_SIZE);
+	memset(adev->seq64.cpu_base_addr, 0, AMDGPU_VA_RESERVED_SEQ64_SIZE);
 
 	adev->seq64.num_sem = AMDGPU_MAX_SEQ64_SLOTS;
 	memset(&adev->seq64.used, 0, sizeof(adev->seq64.used));

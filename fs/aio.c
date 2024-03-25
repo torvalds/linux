@@ -589,8 +589,8 @@ static int aio_setup_ring(struct kioctx *ctx, unsigned int nr_events)
 
 void kiocb_set_cancel_fn(struct kiocb *iocb, kiocb_cancel_fn *cancel)
 {
-	struct aio_kiocb *req = container_of(iocb, struct aio_kiocb, rw);
-	struct kioctx *ctx = req->ki_ctx;
+	struct aio_kiocb *req;
+	struct kioctx *ctx;
 	unsigned long flags;
 
 	/*
@@ -600,8 +600,12 @@ void kiocb_set_cancel_fn(struct kiocb *iocb, kiocb_cancel_fn *cancel)
 	if (!(iocb->ki_flags & IOCB_AIO_RW))
 		return;
 
+	req = container_of(iocb, struct aio_kiocb, rw);
+
 	if (WARN_ON_ONCE(!list_empty(&req->ki_list)))
 		return;
+
+	ctx = req->ki_ctx;
 
 	spin_lock_irqsave(&ctx->ctx_lock, flags);
 	list_add_tail(&req->ki_list, &ctx->active_reqs);
@@ -2165,11 +2169,14 @@ COMPAT_SYSCALL_DEFINE3(io_submit, compat_aio_context_t, ctx_id,
 #endif
 
 /* sys_io_cancel:
- *	Attempts to cancel an iocb previously passed to io_submit(). If the
- *	operation is successfully cancelled 0 is returned. May fail with
- *	-EFAULT if any of the data structures pointed to are invalid. May
- *	fail with -EINVAL if aio_context specified by ctx_id is invalid. Will
- *	fail with -ENOSYS if not implemented.
+ *	Attempts to cancel an iocb previously passed to io_submit.  If
+ *	the operation is successfully cancelled, the resulting event is
+ *	copied into the memory pointed to by result without being placed
+ *	into the completion queue and 0 is returned.  May fail with
+ *	-EFAULT if any of the data structures pointed to are invalid.
+ *	May fail with -EINVAL if aio_context specified by ctx_id is
+ *	invalid.  May fail with -EAGAIN if the iocb specified was not
+ *	cancelled.  Will fail with -ENOSYS if not implemented.
  */
 SYSCALL_DEFINE3(io_cancel, aio_context_t, ctx_id, struct iocb __user *, iocb,
 		struct io_event __user *, result)
@@ -2200,12 +2207,14 @@ SYSCALL_DEFINE3(io_cancel, aio_context_t, ctx_id, struct iocb __user *, iocb,
 	}
 	spin_unlock_irq(&ctx->ctx_lock);
 
-	/*
-	 * The result argument is no longer used - the io_event is always
-	 * delivered via the ring buffer.
-	 */
-	if (ret == 0 && kiocb->rw.ki_flags & IOCB_AIO_RW)
-		aio_complete_rw(&kiocb->rw, -EINTR);
+	if (!ret) {
+		/*
+		 * The result argument is no longer used - the io_event is
+		 * always delivered via the ring buffer. -EINPROGRESS indicates
+		 * cancellation is progress:
+		 */
+		ret = -EINPROGRESS;
+	}
 
 	percpu_ref_put(&ctx->users);
 

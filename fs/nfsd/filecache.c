@@ -61,12 +61,9 @@ static DEFINE_PER_CPU(unsigned long, nfsd_file_total_age);
 static DEFINE_PER_CPU(unsigned long, nfsd_file_evictions);
 
 struct nfsd_fcache_disposal {
-	struct work_struct work;
 	spinlock_t lock;
 	struct list_head freeme;
 };
-
-static struct workqueue_struct *nfsd_filecache_wq __read_mostly;
 
 static struct kmem_cache		*nfsd_file_slab;
 static struct kmem_cache		*nfsd_file_mark_slab;
@@ -283,7 +280,7 @@ nfsd_file_free(struct nfsd_file *nf)
 		nfsd_file_mark_put(nf->nf_mark);
 	if (nf->nf_file) {
 		nfsd_file_check_write_error(nf);
-		filp_close(nf->nf_file, NULL);
+		nfsd_filp_close(nf->nf_file);
 	}
 
 	/*
@@ -421,7 +418,37 @@ nfsd_file_dispose_list_delayed(struct list_head *dispose)
 		spin_lock(&l->lock);
 		list_move_tail(&nf->nf_lru, &l->freeme);
 		spin_unlock(&l->lock);
-		queue_work(nfsd_filecache_wq, &l->work);
+		svc_wake_up(nn->nfsd_serv);
+	}
+}
+
+/**
+ * nfsd_file_net_dispose - deal with nfsd_files waiting to be disposed.
+ * @nn: nfsd_net in which to find files to be disposed.
+ *
+ * When files held open for nfsv3 are removed from the filecache, whether
+ * due to memory pressure or garbage collection, they are queued to
+ * a per-net-ns queue.  This function completes the disposal, either
+ * directly or by waking another nfsd thread to help with the work.
+ */
+void nfsd_file_net_dispose(struct nfsd_net *nn)
+{
+	struct nfsd_fcache_disposal *l = nn->fcache_disposal;
+
+	if (!list_empty(&l->freeme)) {
+		LIST_HEAD(dispose);
+		int i;
+
+		spin_lock(&l->lock);
+		for (i = 0; i < 8 && !list_empty(&l->freeme); i++)
+			list_move(l->freeme.next, &dispose);
+		spin_unlock(&l->lock);
+		if (!list_empty(&l->freeme))
+			/* Wake up another thread to share the work
+			 * *before* doing any actual disposing.
+			 */
+			svc_wake_up(nn->nfsd_serv);
+		nfsd_file_dispose_list(&dispose);
 	}
 }
 
@@ -631,28 +658,6 @@ nfsd_file_close_inode_sync(struct inode *inode)
 		list_del_init(&nf->nf_lru);
 		nfsd_file_free(nf);
 	}
-	flush_delayed_fput();
-}
-
-/**
- * nfsd_file_delayed_close - close unused nfsd_files
- * @work: dummy
- *
- * Scrape the freeme list for this nfsd_net, and then dispose of them
- * all.
- */
-static void
-nfsd_file_delayed_close(struct work_struct *work)
-{
-	LIST_HEAD(head);
-	struct nfsd_fcache_disposal *l = container_of(work,
-			struct nfsd_fcache_disposal, work);
-
-	spin_lock(&l->lock);
-	list_splice_init(&l->freeme, &head);
-	spin_unlock(&l->lock);
-
-	nfsd_file_dispose_list(&head);
 }
 
 static int
@@ -662,8 +667,8 @@ nfsd_file_lease_notifier_call(struct notifier_block *nb, unsigned long arg,
 	struct file_lock *fl = data;
 
 	/* Only close files for F_SETLEASE leases */
-	if (fl->fl_flags & FL_LEASE)
-		nfsd_file_close_inode(file_inode(fl->fl_file));
+	if (fl->c.flc_flags & FL_LEASE)
+		nfsd_file_close_inode(file_inode(fl->c.flc_file));
 	return 0;
 }
 
@@ -717,24 +722,17 @@ nfsd_file_cache_init(void)
 		return ret;
 
 	ret = -ENOMEM;
-	nfsd_filecache_wq = alloc_workqueue("nfsd_filecache", WQ_UNBOUND, 0);
-	if (!nfsd_filecache_wq)
-		goto out;
-
-	nfsd_file_slab = kmem_cache_create("nfsd_file",
-				sizeof(struct nfsd_file), 0, 0, NULL);
+	nfsd_file_slab = KMEM_CACHE(nfsd_file, 0);
 	if (!nfsd_file_slab) {
 		pr_err("nfsd: unable to create nfsd_file_slab\n");
 		goto out_err;
 	}
 
-	nfsd_file_mark_slab = kmem_cache_create("nfsd_file_mark",
-					sizeof(struct nfsd_file_mark), 0, 0, NULL);
+	nfsd_file_mark_slab = KMEM_CACHE(nfsd_file_mark, 0);
 	if (!nfsd_file_mark_slab) {
 		pr_err("nfsd: unable to create nfsd_file_mark_slab\n");
 		goto out_err;
 	}
-
 
 	ret = list_lru_init(&nfsd_file_lru);
 	if (ret) {
@@ -785,8 +783,6 @@ out_err:
 	nfsd_file_slab = NULL;
 	kmem_cache_destroy(nfsd_file_mark_slab);
 	nfsd_file_mark_slab = NULL;
-	destroy_workqueue(nfsd_filecache_wq);
-	nfsd_filecache_wq = NULL;
 	rhltable_destroy(&nfsd_file_rhltable);
 	goto out;
 }
@@ -832,7 +828,6 @@ nfsd_alloc_fcache_disposal(void)
 	l = kmalloc(sizeof(*l), GFP_KERNEL);
 	if (!l)
 		return NULL;
-	INIT_WORK(&l->work, nfsd_file_delayed_close);
 	spin_lock_init(&l->lock);
 	INIT_LIST_HEAD(&l->freeme);
 	return l;
@@ -841,7 +836,6 @@ nfsd_alloc_fcache_disposal(void)
 static void
 nfsd_free_fcache_disposal(struct nfsd_fcache_disposal *l)
 {
-	cancel_work_sync(&l->work);
 	nfsd_file_dispose_list(&l->freeme);
 	kfree(l);
 }
@@ -910,8 +904,6 @@ nfsd_file_cache_shutdown(void)
 	fsnotify_wait_marks_destroyed();
 	kmem_cache_destroy(nfsd_file_mark_slab);
 	nfsd_file_mark_slab = NULL;
-	destroy_workqueue(nfsd_filecache_wq);
-	nfsd_filecache_wq = NULL;
 	rhltable_destroy(&nfsd_file_rhltable);
 
 	for_each_possible_cpu(i) {

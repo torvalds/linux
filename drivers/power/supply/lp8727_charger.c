@@ -453,39 +453,20 @@ static int lp8727_register_psy(struct lp8727_chg *pchg)
 	psy_cfg.supplied_to = battery_supplied_to;
 	psy_cfg.num_supplicants = ARRAY_SIZE(battery_supplied_to);
 
-	psy->ac = power_supply_register(pchg->dev, &lp8727_ac_desc, &psy_cfg);
+	psy->ac = devm_power_supply_register(pchg->dev, &lp8727_ac_desc, &psy_cfg);
 	if (IS_ERR(psy->ac))
-		goto err_psy_ac;
+		return -EPERM;
 
-	psy->usb = power_supply_register(pchg->dev, &lp8727_usb_desc,
-					 &psy_cfg);
+	psy->usb = devm_power_supply_register(pchg->dev, &lp8727_usb_desc,
+					      &psy_cfg);
 	if (IS_ERR(psy->usb))
-		goto err_psy_usb;
+		return -EPERM;
 
-	psy->batt = power_supply_register(pchg->dev, &lp8727_batt_desc, NULL);
+	psy->batt = devm_power_supply_register(pchg->dev, &lp8727_batt_desc, NULL);
 	if (IS_ERR(psy->batt))
-		goto err_psy_batt;
+		return -EPERM;
 
 	return 0;
-
-err_psy_batt:
-	power_supply_unregister(psy->usb);
-err_psy_usb:
-	power_supply_unregister(psy->ac);
-err_psy_ac:
-	return -EPERM;
-}
-
-static void lp8727_unregister_psy(struct lp8727_chg *pchg)
-{
-	struct lp8727_psy *psy = pchg->psy;
-
-	if (!psy)
-		return;
-
-	power_supply_unregister(psy->ac);
-	power_supply_unregister(psy->usb);
-	power_supply_unregister(psy->batt);
 }
 
 #ifdef CONFIG_OF
@@ -583,7 +564,6 @@ static int lp8727_probe(struct i2c_client *cl)
 	ret = lp8727_setup_irq(pchg);
 	if (ret) {
 		dev_err(pchg->dev, "irq handler err: %d", ret);
-		lp8727_unregister_psy(pchg);
 		return ret;
 	}
 
@@ -595,7 +575,6 @@ static void lp8727_remove(struct i2c_client *cl)
 	struct lp8727_chg *pchg = i2c_get_clientdata(cl);
 
 	lp8727_release_irq(pchg);
-	lp8727_unregister_psy(pchg);
 }
 
 static const struct of_device_id lp8727_dt_ids[] __maybe_unused = {

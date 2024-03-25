@@ -21,6 +21,7 @@ struct dpll_device_ops {
 			enum dpll_mode *mode, struct netlink_ext_ack *extack);
 	int (*lock_status_get)(const struct dpll_device *dpll, void *dpll_priv,
 			       enum dpll_lock_status *status,
+			       enum dpll_lock_status_error *status_error,
 			       struct netlink_ext_ack *extack);
 	int (*temp_get)(const struct dpll_device *dpll, void *dpll_priv,
 			s32 *temp, struct netlink_ext_ack *extack);
@@ -122,15 +123,24 @@ struct dpll_pin_properties {
 };
 
 #if IS_ENABLED(CONFIG_DPLL)
-size_t dpll_msg_pin_handle_size(struct dpll_pin *pin);
-int dpll_msg_add_pin_handle(struct sk_buff *msg, struct dpll_pin *pin);
+void dpll_netdev_pin_set(struct net_device *dev, struct dpll_pin *dpll_pin);
+void dpll_netdev_pin_clear(struct net_device *dev);
+
+size_t dpll_netdev_pin_handle_size(const struct net_device *dev);
+int dpll_netdev_add_pin_handle(struct sk_buff *msg,
+			       const struct net_device *dev);
 #else
-static inline size_t dpll_msg_pin_handle_size(struct dpll_pin *pin)
+static inline void
+dpll_netdev_pin_set(struct net_device *dev, struct dpll_pin *dpll_pin) { }
+static inline void dpll_netdev_pin_clear(struct net_device *dev) { }
+
+static inline size_t dpll_netdev_pin_handle_size(const struct net_device *dev)
 {
 	return 0;
 }
 
-static inline int dpll_msg_add_pin_handle(struct sk_buff *msg, struct dpll_pin *pin)
+static inline int
+dpll_netdev_add_pin_handle(struct sk_buff *msg, const struct net_device *dev)
 {
 	return 0;
 }
@@ -168,14 +178,5 @@ void dpll_pin_on_pin_unregister(struct dpll_pin *parent, struct dpll_pin *pin,
 int dpll_device_change_ntf(struct dpll_device *dpll);
 
 int dpll_pin_change_ntf(struct dpll_pin *pin);
-
-#if !IS_ENABLED(CONFIG_DPLL)
-static inline struct dpll_pin *netdev_dpll_pin(const struct net_device *dev)
-{
-	return NULL;
-}
-#else
-struct dpll_pin *netdev_dpll_pin(const struct net_device *dev);
-#endif
 
 #endif

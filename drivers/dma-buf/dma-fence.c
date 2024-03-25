@@ -102,7 +102,7 @@ static atomic64_t dma_fence_context_counter = ATOMIC64_INIT(1);
  *
  * * Drivers are allowed to call dma_fence_wait() from their &mmu_notifier
  *   respectively &mmu_interval_notifier callbacks. This means any code required
- *   for fence completeion cannot allocate memory with GFP_NOFS or GFP_NOIO.
+ *   for fence completion cannot allocate memory with GFP_NOFS or GFP_NOIO.
  *   Only GFP_ATOMIC is permissible, which might fail.
  *
  * Note that only GPU drivers have a reasonable excuse for both requiring
@@ -522,7 +522,7 @@ dma_fence_wait_timeout(struct dma_fence *fence, bool intr, signed long timeout)
 EXPORT_SYMBOL(dma_fence_wait_timeout);
 
 /**
- * dma_fence_release - default relese function for fences
+ * dma_fence_release - default release function for fences
  * @kref: &dma_fence.recfount
  *
  * This is the default release functions for &dma_fence. Drivers shouldn't call
@@ -974,8 +974,8 @@ void dma_fence_set_deadline(struct dma_fence *fence, ktime_t deadline)
 EXPORT_SYMBOL(dma_fence_set_deadline);
 
 /**
- * dma_fence_describe - Dump fence describtion into seq_file
- * @fence: the 6fence to describe
+ * dma_fence_describe - Dump fence description into seq_file
+ * @fence: the fence to describe
  * @seq: the seq_file to put the textual description into
  *
  * Dump a textual description of the fence and it's state into the seq_file.

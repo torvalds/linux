@@ -29,6 +29,7 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
 			regs->csr_era = thread_saved_ra(task);
 		}
 		regs->regs[1] = 0;
+		regs->regs[22] = 0;
 	}
 
 	for (unwind_start(&state, task, regs);
@@ -37,6 +38,46 @@ void arch_stack_walk(stack_trace_consume_fn consume_entry, void *cookie,
 		if (!addr || !consume_entry(cookie, addr))
 			break;
 	}
+}
+
+int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
+			     void *cookie, struct task_struct *task)
+{
+	unsigned long addr;
+	struct pt_regs dummyregs;
+	struct pt_regs *regs = &dummyregs;
+	struct unwind_state state;
+
+	if (task == current) {
+		regs->regs[3] = (unsigned long)__builtin_frame_address(0);
+		regs->csr_era = (unsigned long)__builtin_return_address(0);
+	} else {
+		regs->regs[3] = thread_saved_fp(task);
+		regs->csr_era = thread_saved_ra(task);
+	}
+	regs->regs[1] = 0;
+	regs->regs[22] = 0;
+
+	for (unwind_start(&state, task, regs);
+	     !unwind_done(&state) && !unwind_error(&state); unwind_next_frame(&state)) {
+		addr = unwind_get_return_address(&state);
+
+		/*
+		 * A NULL or invalid return address probably means there's some
+		 * generated code which __kernel_text_address() doesn't know about.
+		 */
+		if (!addr)
+			return -EINVAL;
+
+		if (!consume_entry(cookie, addr))
+			return -EINVAL;
+	}
+
+	/* Check for stack corruption */
+	if (unwind_error(&state))
+		return -EINVAL;
+
+	return 0;
 }
 
 static int

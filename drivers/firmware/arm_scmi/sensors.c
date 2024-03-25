@@ -215,6 +215,8 @@ struct scmi_sensor_update_notify_payld {
 
 struct sensors_info {
 	u32 version;
+	bool notify_trip_point_cmd;
+	bool notify_continuos_update_cmd;
 	int num_sensors;
 	int max_requests;
 	u64 reg_addr;
@@ -246,6 +248,18 @@ static int scmi_sensor_attributes_get(const struct scmi_protocol_handle *ph,
 	}
 
 	ph->xops->xfer_put(ph, t);
+
+	if (!ret) {
+		if (!ph->hops->protocol_msg_check(ph,
+						  SENSOR_TRIP_POINT_NOTIFY, NULL))
+			si->notify_trip_point_cmd = true;
+
+		if (!ph->hops->protocol_msg_check(ph,
+						  SENSOR_CONTINUOUS_UPDATE_NOTIFY,
+						  NULL))
+			si->notify_continuos_update_cmd = true;
+	}
+
 	return ret;
 }
 
@@ -594,7 +608,8 @@ iter_sens_descr_process_response(const struct scmi_protocol_handle *ph,
 	 * Such bitfields are assumed to be zeroed on non
 	 * relevant fw versions...assuming fw not buggy !
 	 */
-	s->update = SUPPORTS_UPDATE_NOTIFY(attrl);
+	if (si->notify_continuos_update_cmd)
+		s->update = SUPPORTS_UPDATE_NOTIFY(attrl);
 	s->timestamped = SUPPORTS_TIMESTAMP(attrl);
 	if (s->timestamped)
 		s->tstamp_scale = S32_EXT(SENSOR_TSTAMP_EXP(attrl));
@@ -988,6 +1003,25 @@ static const struct scmi_sensor_proto_ops sensor_proto_ops = {
 	.config_set = scmi_sensor_config_set,
 };
 
+static bool scmi_sensor_notify_supported(const struct scmi_protocol_handle *ph,
+					 u8 evt_id, u32 src_id)
+{
+	bool supported = false;
+	const struct scmi_sensor_info *s;
+	struct sensors_info *sinfo = ph->get_priv(ph);
+
+	s = scmi_sensor_info_get(ph, src_id);
+	if (!s)
+		return false;
+
+	if (evt_id == SCMI_EVENT_SENSOR_TRIP_POINT_EVENT)
+		supported = sinfo->notify_trip_point_cmd;
+	else if (evt_id == SCMI_EVENT_SENSOR_UPDATE)
+		supported = s->update;
+
+	return supported;
+}
+
 static int scmi_sensor_set_notify_enabled(const struct scmi_protocol_handle *ph,
 					  u8 evt_id, u32 src_id, bool enable)
 {
@@ -1099,6 +1133,7 @@ static const struct scmi_event sensor_events[] = {
 };
 
 static const struct scmi_event_ops sensor_event_ops = {
+	.is_notify_supported = scmi_sensor_notify_supported,
 	.get_num_sources = scmi_sensor_get_num_sources,
 	.set_notify_enabled = scmi_sensor_set_notify_enabled,
 	.fill_custom_report = scmi_sensor_fill_custom_report,

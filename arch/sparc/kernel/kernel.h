@@ -138,10 +138,10 @@ extern unsigned int t_nmi[];
 extern unsigned int linux_trap_ipi15_sun4d[];
 extern unsigned int linux_trap_ipi15_sun4m[];
 
-extern struct tt_entry trapbase;
-extern struct tt_entry trapbase_cpu1;
-extern struct tt_entry trapbase_cpu2;
-extern struct tt_entry trapbase_cpu3;
+extern struct tt_entry trapbase[];
+extern struct tt_entry trapbase_cpu1[];
+extern struct tt_entry trapbase_cpu2[];
+extern struct tt_entry trapbase_cpu3[];
 
 extern char cputypval[];
 

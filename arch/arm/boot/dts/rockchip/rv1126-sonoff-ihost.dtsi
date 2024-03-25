@@ -8,6 +8,8 @@
 	aliases {
 		ethernet0 = &gmac;
 		mmc0 = &emmc;
+		mmc1 = &sdio;
+		mmc2 = &sdmmc;
 	};
 
 	chosen {
@@ -325,7 +327,7 @@
 	pmuio1-supply = <&vcc3v3_sys>;
 	vccio1-supply = <&vcc_1v8>;
 	vccio2-supply = <&vccio_sd>;
-	vccio3-supply = <&vcc_1v8>;
+	vccio3-supply = <&vcc3v3_sd>;
 	vccio4-supply = <&vcc_dovdd>;
 	vccio5-supply = <&vcc_1v8>;
 	vccio6-supply = <&vcc_1v8>;
@@ -343,14 +345,14 @@
 	cap-sd-highspeed;
 	cap-sdio-irq;
 	keep-power-in-suspend;
-	max-frequency = <100000000>;
+	max-frequency = <50000000>;
 	mmc-pwrseq = <&sdio_pwrseq>;
 	non-removable;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc1_clk &sdmmc1_cmd &sdmmc1_bus4>;
 	rockchip,default-sample-phase = <90>;
-	sd-uhs-sdr104;
-	vmmc-supply = <&vcc3v3_sys>;
+	sd-uhs-sdr50;
+	vmmc-supply = <&vcc3v3_sd>;
 	vqmmc-supply = <&vcc_1v8>;
 	status = "okay";
 };

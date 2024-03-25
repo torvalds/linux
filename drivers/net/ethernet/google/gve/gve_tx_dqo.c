@@ -188,13 +188,27 @@ static void gve_tx_clean_pending_packets(struct gve_tx_ring *tx)
 	}
 }
 
-static void gve_tx_free_ring_dqo(struct gve_priv *priv, int idx)
+void gve_tx_stop_ring_dqo(struct gve_priv *priv, int idx)
 {
+	int ntfy_idx = gve_tx_idx_to_ntfy(priv, idx);
 	struct gve_tx_ring *tx = &priv->tx[idx];
-	struct device *hdev = &priv->pdev->dev;
-	size_t bytes;
 
+	if (!gve_tx_was_added_to_block(priv, idx))
+		return;
+
+	gve_remove_napi(priv, ntfy_idx);
+	gve_clean_tx_done_dqo(priv, tx, /*napi=*/NULL);
+	netdev_tx_reset_queue(tx->netdev_txq);
+	gve_tx_clean_pending_packets(tx);
 	gve_tx_remove_from_block(priv, idx);
+}
+
+static void gve_tx_free_ring_dqo(struct gve_priv *priv, struct gve_tx_ring *tx,
+				 struct gve_tx_alloc_rings_cfg *cfg)
+{
+	struct device *hdev = &priv->pdev->dev;
+	int idx = tx->q_num;
+	size_t bytes;
 
 	if (tx->q_resources) {
 		dma_free_coherent(hdev, sizeof(*tx->q_resources),
@@ -223,7 +237,7 @@ static void gve_tx_free_ring_dqo(struct gve_priv *priv, int idx)
 	tx->dqo.tx_qpl_buf_next = NULL;
 
 	if (tx->dqo.qpl) {
-		gve_unassign_qpl(priv, tx->dqo.qpl->id);
+		gve_unassign_qpl(cfg->qpl_cfg, tx->dqo.qpl->id);
 		tx->dqo.qpl = NULL;
 	}
 
@@ -253,9 +267,22 @@ static int gve_tx_qpl_buf_init(struct gve_tx_ring *tx)
 	return 0;
 }
 
-static int gve_tx_alloc_ring_dqo(struct gve_priv *priv, int idx)
+void gve_tx_start_ring_dqo(struct gve_priv *priv, int idx)
 {
+	int ntfy_idx = gve_tx_idx_to_ntfy(priv, idx);
 	struct gve_tx_ring *tx = &priv->tx[idx];
+
+	gve_tx_add_to_block(priv, idx);
+
+	tx->netdev_txq = netdev_get_tx_queue(priv->dev, idx);
+	gve_add_napi(priv, ntfy_idx, gve_napi_poll_dqo);
+}
+
+static int gve_tx_alloc_ring_dqo(struct gve_priv *priv,
+				 struct gve_tx_alloc_rings_cfg *cfg,
+				 struct gve_tx_ring *tx,
+				 int idx)
+{
 	struct device *hdev = &priv->pdev->dev;
 	int num_pending_packets;
 	size_t bytes;
@@ -263,12 +290,11 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv, int idx)
 
 	memset(tx, 0, sizeof(*tx));
 	tx->q_num = idx;
-	tx->dev = &priv->pdev->dev;
-	tx->netdev_txq = netdev_get_tx_queue(priv->dev, idx);
+	tx->dev = hdev;
 	atomic_set_release(&tx->dqo_compl.hw_tx_head, 0);
 
 	/* Queue sizes must be a power of 2 */
-	tx->mask = priv->tx_desc_cnt - 1;
+	tx->mask = cfg->ring_size - 1;
 	tx->dqo.complq_mask = priv->queue_format == GVE_DQO_RDA_FORMAT ?
 		priv->options_dqo_rda.tx_comp_ring_entries - 1 :
 		tx->mask;
@@ -327,8 +353,8 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv, int idx)
 	if (!tx->q_resources)
 		goto err;
 
-	if (gve_is_qpl(priv)) {
-		tx->dqo.qpl = gve_assign_tx_qpl(priv, idx);
+	if (!cfg->raw_addressing) {
+		tx->dqo.qpl = gve_assign_tx_qpl(cfg, idx);
 		if (!tx->dqo.qpl)
 			goto err;
 
@@ -336,22 +362,45 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv, int idx)
 			goto err;
 	}
 
-	gve_tx_add_to_block(priv, idx);
-
 	return 0;
 
 err:
-	gve_tx_free_ring_dqo(priv, idx);
+	gve_tx_free_ring_dqo(priv, tx, cfg);
 	return -ENOMEM;
 }
 
-int gve_tx_alloc_rings_dqo(struct gve_priv *priv)
+int gve_tx_alloc_rings_dqo(struct gve_priv *priv,
+			   struct gve_tx_alloc_rings_cfg *cfg)
 {
+	struct gve_tx_ring *tx = cfg->tx;
 	int err = 0;
-	int i;
+	int i, j;
 
-	for (i = 0; i < priv->tx_cfg.num_queues; i++) {
-		err = gve_tx_alloc_ring_dqo(priv, i);
+	if (!cfg->raw_addressing && !cfg->qpls) {
+		netif_err(priv, drv, priv->dev,
+			  "Cannot alloc QPL ring before allocing QPLs\n");
+		return -EINVAL;
+	}
+
+	if (cfg->start_idx + cfg->num_rings > cfg->qcfg->max_queues) {
+		netif_err(priv, drv, priv->dev,
+			  "Cannot alloc more than the max num of Tx rings\n");
+		return -EINVAL;
+	}
+
+	if (cfg->start_idx == 0) {
+		tx = kvcalloc(cfg->qcfg->max_queues, sizeof(struct gve_tx_ring),
+			      GFP_KERNEL);
+		if (!tx)
+			return -ENOMEM;
+	} else if (!tx) {
+		netif_err(priv, drv, priv->dev,
+			  "Cannot alloc tx rings from a nonzero start idx without tx array\n");
+		return -EINVAL;
+	}
+
+	for (i = cfg->start_idx; i < cfg->start_idx + cfg->num_rings; i++) {
+		err = gve_tx_alloc_ring_dqo(priv, cfg, &tx[i], i);
 		if (err) {
 			netif_err(priv, drv, priv->dev,
 				  "Failed to alloc tx ring=%d: err=%d\n",
@@ -360,27 +409,32 @@ int gve_tx_alloc_rings_dqo(struct gve_priv *priv)
 		}
 	}
 
+	cfg->tx = tx;
 	return 0;
 
 err:
-	for (i--; i >= 0; i--)
-		gve_tx_free_ring_dqo(priv, i);
-
+	for (j = 0; j < i; j++)
+		gve_tx_free_ring_dqo(priv, &tx[j], cfg);
+	if (cfg->start_idx == 0)
+		kvfree(tx);
 	return err;
 }
 
-void gve_tx_free_rings_dqo(struct gve_priv *priv)
+void gve_tx_free_rings_dqo(struct gve_priv *priv,
+			   struct gve_tx_alloc_rings_cfg *cfg)
 {
+	struct gve_tx_ring *tx = cfg->tx;
 	int i;
 
-	for (i = 0; i < priv->tx_cfg.num_queues; i++) {
-		struct gve_tx_ring *tx = &priv->tx[i];
+	if (!tx)
+		return;
 
-		gve_clean_tx_done_dqo(priv, tx, /*napi=*/NULL);
-		netdev_tx_reset_queue(tx->netdev_txq);
-		gve_tx_clean_pending_packets(tx);
+	for (i = cfg->start_idx; i < cfg->start_idx + cfg->num_rings; i++)
+		gve_tx_free_ring_dqo(priv, &tx[i], cfg);
 
-		gve_tx_free_ring_dqo(priv, i);
+	if (cfg->start_idx == 0) {
+		kvfree(tx);
+		cfg->tx = NULL;
 	}
 }
 

@@ -394,15 +394,13 @@ err_clk_register:
 	return ret;
 }
 
-static int imx8_acm_clk_remove(struct platform_device *pdev)
+static void imx8_acm_clk_remove(struct platform_device *pdev)
 {
 	struct imx8_acm_priv *priv = dev_get_drvdata(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
 
 	clk_imx_acm_detach_pm_domains(&pdev->dev, &priv->dev_pm);
-
-	return 0;
 }
 
 static const struct imx8_acm_soc_data imx8qm_acm_data = {
@@ -470,7 +468,7 @@ static struct platform_driver imx8_acm_clk_driver = {
 		.pm = &imx8_acm_pm_ops,
 	},
 	.probe = imx8_acm_clk_probe,
-	.remove = imx8_acm_clk_remove,
+	.remove_new = imx8_acm_clk_remove,
 };
 module_platform_driver(imx8_acm_clk_driver);
 

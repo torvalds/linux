@@ -58,6 +58,7 @@
 #include <asm/module.h>
 #include <asm/msa.h>
 #include <asm/ptrace.h>
+#include <asm/regdef.h>
 #include <asm/sections.h>
 #include <asm/siginfo.h>
 #include <asm/tlbdebug.h>
@@ -2041,13 +2042,12 @@ void __init *set_except_vector(int n, void *addr)
 		unsigned long jump_mask = ~((1 << 28) - 1);
 #endif
 		u32 *buf = (u32 *)(ebase + 0x200);
-		unsigned int k0 = 26;
 		if ((handler & jump_mask) == ((ebase + 0x200) & jump_mask)) {
 			uasm_i_j(&buf, handler & ~jump_mask);
 			uasm_i_nop(&buf);
 		} else {
-			UASM_i_LA(&buf, k0, handler);
-			uasm_i_jr(&buf, k0);
+			UASM_i_LA(&buf, GPR_K0, handler);
+			uasm_i_jr(&buf, GPR_K0);
 			uasm_i_nop(&buf);
 		}
 		local_flush_icache_range(ebase + 0x200, (unsigned long)buf);
@@ -2299,7 +2299,7 @@ static const char panic_null_cerr[] =
 void set_uncached_handler(unsigned long offset, void *addr,
 	unsigned long size)
 {
-	unsigned long uncached_ebase = CKSEG1ADDR(ebase);
+	unsigned long uncached_ebase = CKSEG1ADDR_OR_64BIT(__pa(ebase));
 
 	if (!addr)
 		panic(panic_null_cerr);
@@ -2351,10 +2351,13 @@ void __init trap_init(void)
 		 * EVA is special though as it allows segments to be rearranged
 		 * and to become uncached during cache error handling.
 		 */
-		if (!IS_ENABLED(CONFIG_EVA) && !WARN_ON(ebase_pa >= 0x20000000))
+		if (!IS_ENABLED(CONFIG_EVA) && ebase_pa < 0x20000000)
 			ebase = CKSEG0ADDR(ebase_pa);
 		else
 			ebase = (unsigned long)phys_to_virt(ebase_pa);
+		if (ebase_pa >= 0x20000000)
+			pr_warn("ebase(%pa) should better be in KSeg0",
+				&ebase_pa);
 	}
 
 	if (cpu_has_mmips) {

@@ -62,6 +62,40 @@ properties:
        for the PHY.  The internal delay for the PHY is fixed to 3.5ns relative
        to transmit data.
 
+  ti,cfg-dac-minus-one-bp:
+    description: |
+       DP83826 PHY only.
+       Sets the voltage ratio (with respect to the nominal value)
+       of the logical level -1 for the MLT-3 encoded TX data.
+    enum: [5000, 5625, 6250, 6875, 7500, 8125, 8750, 9375, 10000,
+           10625, 11250, 11875, 12500, 13125, 13750, 14375, 15000]
+    default: 10000
+
+  ti,cfg-dac-plus-one-bp:
+    description: |
+       DP83826 PHY only.
+       Sets the voltage ratio (with respect to the nominal value)
+       of the logical level +1 for the MLT-3 encoded TX data.
+    enum: [5000, 5625, 6250, 6875, 7500, 8125, 8750, 9375, 10000,
+           10625, 11250, 11875, 12500, 13125, 13750, 14375, 15000]
+    default: 10000
+
+  ti,rmii-mode:
+    description: |
+       If present, select the RMII operation mode. Two modes are
+       available:
+         - RMII master, where the PHY outputs a 50MHz reference clock which can
+         be connected to the MAC.
+         - RMII slave, where the PHY expects a 50MHz reference clock input
+         shared with the MAC.
+       The RMII operation mode can also be configured by its straps.
+       If the strap pin is not set correctly or not set at all, then this can be
+       used to configure it.
+    $ref: /schemas/types.yaml#/definitions/string
+    enum:
+      - master
+      - slave
+
 required:
   - reg
 

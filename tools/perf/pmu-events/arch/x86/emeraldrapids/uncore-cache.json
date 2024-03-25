@@ -3565,6 +3565,15 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_PREF_CXL_EXP_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_PREF_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x20c8968201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Inserts : DRd_Prefs issued by iA Cores targeting DDR Mem that Missed the LLC",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_DRD_PREF_DDR",
@@ -3716,6 +3725,15 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFDATA_CXL_EXP_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFDATA_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x20ccd68201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Inserts; LLCPrefRFO misses from local IA",
         "EventCode": "0x35",
         "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFRFO",
@@ -3739,6 +3757,15 @@
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x10c8868201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFRFO_CXL_EXP_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_LLCPREFRFO_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x20c8868201",
         "Unit": "CHA"
     },
     {
@@ -3889,6 +3916,15 @@
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x10ccc68201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_PREF_CXL_EXP_LOCAL",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.IA_MISS_RFO_PREF_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x20ccc68201",
         "Unit": "CHA"
     },
     {
@@ -4426,6 +4462,46 @@
         "PerPkg": "1",
         "PublicDescription": "TOR Inserts : RRQ : Counts the number of entries successfully inserted into the TOR that match qualifications specified by the subevent.",
         "UMask": "0x40",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts for INVXTOM opcodes received from a remote socket which miss the L3 and target memory in a CXL type 3 memory expander local to this socket.",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.RRQ_MISS_INVXTOM_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "UMask": "0x20e87e8240",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts for RDCODE opcodes received from a remote socket which miss the L3 and target memory in a CXL type 3 memory expander local to this socket.",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.RRQ_MISS_RDCODE_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "UMask": "0x20e80e8240",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts for RDCUR opcodes received from a remote socket which miss the L3 and target memory in a CXL type 3 memory expander local to this socket.",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.RRQ_MISS_RDCUR_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "UMask": "0x20e8068240",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts for RDDATA opcodes received from a remote socket which miss the L3 and target memory in a CXL type 3 memory expander local to this socket.",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.RRQ_MISS_RDDATA_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "UMask": "0x20e8168240",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Inserts for RDINVOWN_OPT opcodes received from a remote socket which miss the L3 and target memory in a CXL type 3 memory expander local to this socket.",
+        "EventCode": "0x35",
+        "EventName": "UNC_CHA_TOR_INSERTS.RRQ_MISS_RDINVOWN_OPT_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "UMask": "0x20e8268240",
         "Unit": "CHA"
     },
     {
@@ -5012,6 +5088,15 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_PREF_CXL_EXP_LOCAL",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_PREF_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x20c8968201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Occupancy : DRd_Prefs issued by iA Cores targeting DDR Mem that Missed the LLC",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_DRD_PREF_DDR",
@@ -5163,6 +5248,15 @@
         "Unit": "CHA"
     },
     {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFDATA_CXL_EXP_LOCAL",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFDATA_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x20ccd68201",
+        "Unit": "CHA"
+    },
+    {
         "BriefDescription": "TOR Occupancy; LLCPrefRFO misses from local IA",
         "EventCode": "0x36",
         "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFRFO",
@@ -5186,6 +5280,15 @@
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x10c8868201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFRFO_CXL_EXP_LOCAL",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_LLCPREFRFO_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x20c8868201",
         "Unit": "CHA"
     },
     {
@@ -5336,6 +5439,15 @@
         "PerPkg": "1",
         "PortMask": "0x000",
         "UMask": "0x10ccc68201",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_PREF_CXL_EXP_LOCAL",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.IA_MISS_RFO_PREF_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "UMask": "0x20ccc68201",
         "Unit": "CHA"
     },
     {
@@ -5839,6 +5951,46 @@
         "PerPkg": "1",
         "PublicDescription": "TOR Occupancy : RRQ : For each cycle, this event accumulates the number of valid entries in the TOR that match qualifications specified by the subevent.   T",
         "UMask": "0x40",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Occupancy for INVXTOM opcodes received from a remote socket which miss the L3 and target memory in a CXL type 3 memory expander local to this socket.",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.RRQ_MISS_INVXTOM_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "UMask": "0x20e87e8240",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Occupancy for RDCODE opcodes received from a remote socket which miss the L3 and target memory in a CXL type 3 memory expander local to this socket.",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.RRQ_MISS_RDCODE_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "UMask": "0x20e80e8240",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Occupancy for RDCUR opcodes received from a remote socket which miss the L3 and target memory in a CXL type 3 memory expander local to this socket.",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.RRQ_MISS_RDCUR_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "UMask": "0x20e8068240",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Occupancy for RDDATA opcodes received from a remote socket which miss the L3 and target memory in a CXL type 3 memory expander local to this socket.",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.RRQ_MISS_RDDATA_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "UMask": "0x20e8168240",
+        "Unit": "CHA"
+    },
+    {
+        "BriefDescription": "TOR Occupancy for RDINVOWN_OPT opcodes received from a remote socket which miss the L3 and target memory in a CXL type 3 memory expander local to this socket.",
+        "EventCode": "0x36",
+        "EventName": "UNC_CHA_TOR_OCCUPANCY.RRQ_MISS_RDINVOWN_OPT_CXL_EXP_LOCAL",
+        "PerPkg": "1",
+        "UMask": "0x20e8268240",
         "Unit": "CHA"
     },
     {

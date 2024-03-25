@@ -1160,7 +1160,7 @@ __ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip)
  * Search a given @hash to see if a given instruction pointer (@ip)
  * exists in it.
  *
- * Returns the entry that holds the @ip if found. NULL otherwise.
+ * Returns: the entry that holds the @ip if found. NULL otherwise.
  */
 struct ftrace_func_entry *
 ftrace_lookup_ip(struct ftrace_hash *hash, unsigned long ip)
@@ -1282,7 +1282,7 @@ static void free_ftrace_hash_rcu(struct ftrace_hash *hash)
 
 /**
  * ftrace_free_filter - remove all filters for an ftrace_ops
- * @ops - the ops to remove the filters from
+ * @ops: the ops to remove the filters from
  */
 void ftrace_free_filter(struct ftrace_ops *ops)
 {
@@ -1587,7 +1587,7 @@ static struct dyn_ftrace *lookup_rec(unsigned long start, unsigned long end)
  * @end: end of range to search (inclusive). @end points to the last byte
  *	to check.
  *
- * Returns rec->ip if the related ftrace location is a least partly within
+ * Returns: rec->ip if the related ftrace location is a least partly within
  * the given address range. That is, the first address of the instruction
  * that is either a NOP or call to the function tracer. It checks the ftrace
  * internal tables to determine if the address belongs or not.
@@ -1607,9 +1607,10 @@ unsigned long ftrace_location_range(unsigned long start, unsigned long end)
  * ftrace_location - return the ftrace location
  * @ip: the instruction pointer to check
  *
- * If @ip matches the ftrace location, return @ip.
- * If @ip matches sym+0, return sym's ftrace location.
- * Otherwise, return 0.
+ * Returns:
+ * * If @ip matches the ftrace location, return @ip.
+ * * If @ip matches sym+0, return sym's ftrace location.
+ * * Otherwise, return 0.
  */
 unsigned long ftrace_location(unsigned long ip)
 {
@@ -1639,7 +1640,7 @@ out:
  * @start: start of range to search
  * @end: end of range to search (inclusive). @end points to the last byte to check.
  *
- * Returns 1 if @start and @end contains a ftrace location.
+ * Returns: 1 if @start and @end contains a ftrace location.
  * That is, the instruction that is either a NOP or call to
  * the function tracer. It checks the ftrace internal tables to
  * determine if the address belongs or not.
@@ -2574,7 +2575,7 @@ static void call_direct_funcs(unsigned long ip, unsigned long pip,
  * wants to convert to a callback that saves all regs. If FTRACE_FL_REGS
  * is not set, then it wants to convert to the normal callback.
  *
- * Returns the address of the trampoline to set to
+ * Returns: the address of the trampoline to set to
  */
 unsigned long ftrace_get_addr_new(struct dyn_ftrace *rec)
 {
@@ -2615,7 +2616,7 @@ unsigned long ftrace_get_addr_new(struct dyn_ftrace *rec)
  * a function that saves all the regs. Basically the '_EN' version
  * represents the current state of the function.
  *
- * Returns the address of the trampoline that is currently being called
+ * Returns: the address of the trampoline that is currently being called
  */
 unsigned long ftrace_get_addr_curr(struct dyn_ftrace *rec)
 {
@@ -2719,7 +2720,7 @@ struct ftrace_rec_iter {
 /**
  * ftrace_rec_iter_start - start up iterating over traced functions
  *
- * Returns an iterator handle that is used to iterate over all
+ * Returns: an iterator handle that is used to iterate over all
  * the records that represent address locations where functions
  * are traced.
  *
@@ -2751,7 +2752,7 @@ struct ftrace_rec_iter *ftrace_rec_iter_start(void)
  * ftrace_rec_iter_next - get the next record to process.
  * @iter: The handle to the iterator.
  *
- * Returns the next iterator after the given iterator @iter.
+ * Returns: the next iterator after the given iterator @iter.
  */
 struct ftrace_rec_iter *ftrace_rec_iter_next(struct ftrace_rec_iter *iter)
 {
@@ -2776,7 +2777,7 @@ struct ftrace_rec_iter *ftrace_rec_iter_next(struct ftrace_rec_iter *iter)
  * ftrace_rec_iter_record - get the record at the iterator location
  * @iter: The current iterator location
  *
- * Returns the record that the current @iter is at.
+ * Returns: the record that the current @iter is at.
  */
 struct dyn_ftrace *ftrace_rec_iter_record(struct ftrace_rec_iter *iter)
 {
@@ -4010,6 +4011,8 @@ ftrace_avail_addrs_open(struct inode *inode, struct file *file)
  * ftrace_notrace_write() if @flag has FTRACE_ITER_NOTRACE set.
  * tracing_lseek() should be used as the lseek routine, and
  * release must call ftrace_regex_release().
+ *
+ * Returns: 0 on success or a negative errno value on failure
  */
 int
 ftrace_regex_open(struct ftrace_ops *ops, int flag,
@@ -4626,7 +4629,7 @@ struct ftrace_func_mapper {
 /**
  * allocate_ftrace_func_mapper - allocate a new ftrace_func_mapper
  *
- * Returns a ftrace_func_mapper descriptor that can be used to map ips to data.
+ * Returns: a ftrace_func_mapper descriptor that can be used to map ips to data.
  */
 struct ftrace_func_mapper *allocate_ftrace_func_mapper(void)
 {
@@ -4646,7 +4649,7 @@ struct ftrace_func_mapper *allocate_ftrace_func_mapper(void)
  * @mapper: The mapper that has the ip maps
  * @ip: the instruction pointer to find the data for
  *
- * Returns the data mapped to @ip if found otherwise NULL. The return
+ * Returns: the data mapped to @ip if found otherwise NULL. The return
  * is actually the address of the mapper data pointer. The address is
  * returned for use cases where the data is no bigger than a long, and
  * the user can use the data pointer as its data instead of having to
@@ -4672,7 +4675,7 @@ void **ftrace_func_mapper_find_ip(struct ftrace_func_mapper *mapper,
  * @ip: The instruction pointer address to map @data to
  * @data: The data to map to @ip
  *
- * Returns 0 on success otherwise an error.
+ * Returns: 0 on success otherwise an error.
  */
 int ftrace_func_mapper_add_ip(struct ftrace_func_mapper *mapper,
 			      unsigned long ip, void *data)
@@ -4701,7 +4704,7 @@ int ftrace_func_mapper_add_ip(struct ftrace_func_mapper *mapper,
  * @mapper: The mapper that has the ip maps
  * @ip: The instruction pointer address to remove the data from
  *
- * Returns the data if it is found, otherwise NULL.
+ * Returns: the data if it is found, otherwise NULL.
  * Note, if the data pointer is used as the data itself, (see
  * ftrace_func_mapper_find_ip(), then the return value may be meaningless,
  * if the data pointer was set to zero.
@@ -5625,10 +5628,10 @@ EXPORT_SYMBOL_GPL(modify_ftrace_direct);
 
 /**
  * ftrace_set_filter_ip - set a function to filter on in ftrace by address
- * @ops - the ops to set the filter with
- * @ip - the address to add to or remove from the filter.
- * @remove - non zero to remove the ip from the filter
- * @reset - non zero to reset all filters before applying this filter.
+ * @ops: the ops to set the filter with
+ * @ip: the address to add to or remove from the filter.
+ * @remove: non zero to remove the ip from the filter
+ * @reset: non zero to reset all filters before applying this filter.
  *
  * Filters denote which functions should be enabled when tracing is enabled
  * If @ip is NULL, it fails to update filter.
@@ -5647,11 +5650,11 @@ EXPORT_SYMBOL_GPL(ftrace_set_filter_ip);
 
 /**
  * ftrace_set_filter_ips - set functions to filter on in ftrace by addresses
- * @ops - the ops to set the filter with
- * @ips - the array of addresses to add to or remove from the filter.
- * @cnt - the number of addresses in @ips
- * @remove - non zero to remove ips from the filter
- * @reset - non zero to reset all filters before applying this filter.
+ * @ops: the ops to set the filter with
+ * @ips: the array of addresses to add to or remove from the filter.
+ * @cnt: the number of addresses in @ips
+ * @remove: non zero to remove ips from the filter
+ * @reset: non zero to reset all filters before applying this filter.
  *
  * Filters denote which functions should be enabled when tracing is enabled
  * If @ips array or any ip specified within is NULL , it fails to update filter.
@@ -5670,7 +5673,7 @@ EXPORT_SYMBOL_GPL(ftrace_set_filter_ips);
 
 /**
  * ftrace_ops_set_global_filter - setup ops to use global filters
- * @ops - the ops which will use the global filters
+ * @ops: the ops which will use the global filters
  *
  * ftrace users who need global function trace filtering should call this.
  * It can set the global filter only if ops were not initialized before.
@@ -5694,10 +5697,10 @@ ftrace_set_regex(struct ftrace_ops *ops, unsigned char *buf, int len,
 
 /**
  * ftrace_set_filter - set a function to filter on in ftrace
- * @ops - the ops to set the filter with
- * @buf - the string that holds the function filter text.
- * @len - the length of the string.
- * @reset - non zero to reset all filters before applying this filter.
+ * @ops: the ops to set the filter with
+ * @buf: the string that holds the function filter text.
+ * @len: the length of the string.
+ * @reset: non-zero to reset all filters before applying this filter.
  *
  * Filters denote which functions should be enabled when tracing is enabled.
  * If @buf is NULL and reset is set, all functions will be enabled for tracing.
@@ -5716,10 +5719,10 @@ EXPORT_SYMBOL_GPL(ftrace_set_filter);
 
 /**
  * ftrace_set_notrace - set a function to not trace in ftrace
- * @ops - the ops to set the notrace filter with
- * @buf - the string that holds the function notrace text.
- * @len - the length of the string.
- * @reset - non zero to reset all filters before applying this filter.
+ * @ops: the ops to set the notrace filter with
+ * @buf: the string that holds the function notrace text.
+ * @len: the length of the string.
+ * @reset: non-zero to reset all filters before applying this filter.
  *
  * Notrace Filters denote which functions should not be enabled when tracing
  * is enabled. If @buf is NULL and reset is set, all functions will be enabled
@@ -5738,9 +5741,9 @@ int ftrace_set_notrace(struct ftrace_ops *ops, unsigned char *buf,
 EXPORT_SYMBOL_GPL(ftrace_set_notrace);
 /**
  * ftrace_set_global_filter - set a function to filter on with global tracers
- * @buf - the string that holds the function filter text.
- * @len - the length of the string.
- * @reset - non zero to reset all filters before applying this filter.
+ * @buf: the string that holds the function filter text.
+ * @len: the length of the string.
+ * @reset: non-zero to reset all filters before applying this filter.
  *
  * Filters denote which functions should be enabled when tracing is enabled.
  * If @buf is NULL and reset is set, all functions will be enabled for tracing.
@@ -5753,9 +5756,9 @@ EXPORT_SYMBOL_GPL(ftrace_set_global_filter);
 
 /**
  * ftrace_set_global_notrace - set a function to not trace with global tracers
- * @buf - the string that holds the function notrace text.
- * @len - the length of the string.
- * @reset - non zero to reset all filters before applying this filter.
+ * @buf: the string that holds the function notrace text.
+ * @len: the length of the string.
+ * @reset: non-zero to reset all filters before applying this filter.
  *
  * Notrace Filters denote which functions should not be enabled when tracing
  * is enabled. If @buf is NULL and reset is set, all functions will be enabled
@@ -7443,7 +7446,7 @@ NOKPROBE_SYMBOL(ftrace_ops_assist_func);
  * have its own recursion protection, then it should call the
  * ftrace_ops_assist_func() instead.
  *
- * Returns the function that the trampoline should call for @ops.
+ * Returns: the function that the trampoline should call for @ops.
  */
 ftrace_func_t ftrace_ops_get_func(struct ftrace_ops *ops)
 {
@@ -7897,7 +7900,7 @@ void ftrace_kill(void)
 /**
  * ftrace_is_dead - Test if ftrace is dead or not.
  *
- * Returns 1 if ftrace is "dead", zero otherwise.
+ * Returns: 1 if ftrace is "dead", zero otherwise.
  */
 int ftrace_is_dead(void)
 {
@@ -8142,8 +8145,7 @@ static int kallsyms_callback(void *data, const char *name, unsigned long addr)
  * @addrs array, which needs to be big enough to store at least @cnt
  * addresses.
  *
- * This function returns 0 if all provided symbols are found,
- * -ESRCH otherwise.
+ * Returns: 0 if all provided symbols are found, -ESRCH otherwise.
  */
 int ftrace_lookup_symbols(const char **sorted_syms, size_t cnt, unsigned long *addrs)
 {

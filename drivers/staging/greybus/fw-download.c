@@ -63,8 +63,7 @@ static void fw_req_release(struct kref *kref)
 	 * just hope that it never happens.
 	 */
 	if (!fw_req->timedout)
-		ida_simple_remove(&fw_req->fw_download->id_map,
-				  fw_req->firmware_id);
+		ida_free(&fw_req->fw_download->id_map, fw_req->firmware_id);
 
 	kfree(fw_req);
 }
@@ -171,7 +170,7 @@ static struct fw_request *find_firmware(struct fw_download *fw_download,
 		return ERR_PTR(-ENOMEM);
 
 	/* Allocate ids from 1 to 255 (u8-max), 0 is an invalid id */
-	ret = ida_simple_get(&fw_download->id_map, 1, 256, GFP_KERNEL);
+	ret = ida_alloc_range(&fw_download->id_map, 1, 255, GFP_KERNEL);
 	if (ret < 0) {
 		dev_err(fw_download->parent,
 			"failed to allocate firmware id (%d)\n", ret);
@@ -212,7 +211,7 @@ static struct fw_request *find_firmware(struct fw_download *fw_download,
 	return fw_req;
 
 err_free_id:
-	ida_simple_remove(&fw_download->id_map, fw_req->firmware_id);
+	ida_free(&fw_download->id_map, fw_req->firmware_id);
 err_free_req:
 	kfree(fw_req);
 
@@ -271,11 +270,11 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 	struct gb_connection *connection = op->connection;
 	struct fw_download *fw_download = gb_connection_get_data(connection);
 	struct gb_fw_download_fetch_firmware_request *request;
-	struct gb_fw_download_fetch_firmware_response *response;
 	struct fw_request *fw_req;
 	const struct firmware *fw;
 	unsigned int offset, size;
 	u8 firmware_id;
+	u8 *response;
 	int ret = 0;
 
 	if (op->request->payload_size != sizeof(*request)) {
@@ -325,8 +324,8 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 		goto put_fw;
 	}
 
-	if (!gb_operation_response_alloc(op, sizeof(*response) + size,
-					 GFP_KERNEL)) {
+	/* gb_fw_download_fetch_firmware_response contains only a byte array */
+	if (!gb_operation_response_alloc(op, size, GFP_KERNEL)) {
 		dev_err(fw_download->parent,
 			"error allocating fetch firmware response\n");
 		ret = -ENOMEM;
@@ -334,7 +333,7 @@ static int fw_download_fetch_firmware(struct gb_operation *op)
 	}
 
 	response = op->response->payload;
-	memcpy(response->data, fw->data + offset, size);
+	memcpy(response, fw->data + offset, size);
 
 	dev_dbg(fw_download->parent,
 		"responding with firmware (offs = %u, size = %u)\n", offset,

@@ -670,150 +670,6 @@ static struct qcom_icc_node xm_usb4_2 = {
 	.links = { X1E80100_SLAVE_AGGRE_USB_SOUTH },
 };
 
-static struct qcom_icc_node qnm_mnoc_hf_disp = {
-	.name = "qnm_mnoc_hf_disp",
-	.id = X1E80100_MASTER_MNOC_HF_MEM_NOC_DISP,
-	.channels = 2,
-	.buswidth = 32,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_LLCC_DISP },
-};
-
-static struct qcom_icc_node qnm_pcie_disp = {
-	.name = "qnm_pcie_disp",
-	.id = X1E80100_MASTER_ANOC_PCIE_GEM_NOC_DISP,
-	.channels = 1,
-	.buswidth = 64,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_LLCC_DISP },
-};
-
-static struct qcom_icc_node llcc_mc_disp = {
-	.name = "llcc_mc_disp",
-	.id = X1E80100_MASTER_LLCC_DISP,
-	.channels = 8,
-	.buswidth = 4,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_EBI1_DISP },
-};
-
-static struct qcom_icc_node qnm_mdp_disp = {
-	.name = "qnm_mdp_disp",
-	.id = X1E80100_MASTER_MDP_DISP,
-	.channels = 2,
-	.buswidth = 32,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_MNOC_HF_MEM_NOC_DISP },
-};
-
-static struct qcom_icc_node qnm_pcie_pcie = {
-	.name = "qnm_pcie_pcie",
-	.id = X1E80100_MASTER_ANOC_PCIE_GEM_NOC_PCIE,
-	.channels = 1,
-	.buswidth = 64,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_LLCC_PCIE },
-};
-
-static struct qcom_icc_node llcc_mc_pcie = {
-	.name = "llcc_mc_pcie",
-	.id = X1E80100_MASTER_LLCC_PCIE,
-	.channels = 8,
-	.buswidth = 4,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_EBI1_PCIE },
-};
-
-static struct qcom_icc_node qnm_pcie_north_gem_noc_pcie = {
-	.name = "qnm_pcie_north_gem_noc_pcie",
-	.id = X1E80100_MASTER_PCIE_NORTH_PCIE,
-	.channels = 1,
-	.buswidth = 64,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_ANOC_PCIE_GEM_NOC_PCIE },
-};
-
-static struct qcom_icc_node qnm_pcie_south_gem_noc_pcie = {
-	.name = "qnm_pcie_south_gem_noc_pcie",
-	.id = X1E80100_MASTER_PCIE_SOUTH_PCIE,
-	.channels = 1,
-	.buswidth = 64,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_ANOC_PCIE_GEM_NOC_PCIE },
-};
-
-static struct qcom_icc_node xm_pcie_3_pcie = {
-	.name = "xm_pcie_3_pcie",
-	.id = X1E80100_MASTER_PCIE_3_PCIE,
-	.channels = 1,
-	.buswidth = 64,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_PCIE_NORTH_PCIE },
-};
-
-static struct qcom_icc_node xm_pcie_4_pcie = {
-	.name = "xm_pcie_4_pcie",
-	.id = X1E80100_MASTER_PCIE_4_PCIE,
-	.channels = 1,
-	.buswidth = 8,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_PCIE_NORTH_PCIE },
-};
-
-static struct qcom_icc_node xm_pcie_5_pcie = {
-	.name = "xm_pcie_5_pcie",
-	.id = X1E80100_MASTER_PCIE_5_PCIE,
-	.channels = 1,
-	.buswidth = 8,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_PCIE_NORTH_PCIE },
-};
-
-static struct qcom_icc_node xm_pcie_0_pcie = {
-	.name = "xm_pcie_0_pcie",
-	.id = X1E80100_MASTER_PCIE_0_PCIE,
-	.channels = 1,
-	.buswidth = 16,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_PCIE_SOUTH_PCIE },
-};
-
-static struct qcom_icc_node xm_pcie_1_pcie = {
-	.name = "xm_pcie_1_pcie",
-	.id = X1E80100_MASTER_PCIE_1_PCIE,
-	.channels = 1,
-	.buswidth = 16,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_PCIE_SOUTH_PCIE },
-};
-
-static struct qcom_icc_node xm_pcie_2_pcie = {
-	.name = "xm_pcie_2_pcie",
-	.id = X1E80100_MASTER_PCIE_2_PCIE,
-	.channels = 1,
-	.buswidth = 16,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_PCIE_SOUTH_PCIE },
-};
-
-static struct qcom_icc_node xm_pcie_6a_pcie = {
-	.name = "xm_pcie_6a_pcie",
-	.id = X1E80100_MASTER_PCIE_6A_PCIE,
-	.channels = 1,
-	.buswidth = 32,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_PCIE_SOUTH_PCIE },
-};
-
-static struct qcom_icc_node xm_pcie_6b_pcie = {
-	.name = "xm_pcie_6b_pcie",
-	.id = X1E80100_MASTER_PCIE_6B_PCIE,
-	.channels = 1,
-	.buswidth = 16,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_PCIE_SOUTH_PCIE },
-};
-
 static struct qcom_icc_node qns_a1noc_snoc = {
 	.name = "qns_a1noc_snoc",
 	.id = X1E80100_SLAVE_A1NOC_SNOC,
@@ -1514,76 +1370,6 @@ static struct qcom_icc_node qns_aggre_usb_south_snoc = {
 	.links = { X1E80100_MASTER_AGGRE_USB_SOUTH },
 };
 
-static struct qcom_icc_node qns_llcc_disp = {
-	.name = "qns_llcc_disp",
-	.id = X1E80100_SLAVE_LLCC_DISP,
-	.channels = 8,
-	.buswidth = 16,
-	.num_links = 1,
-	.links = { X1E80100_MASTER_LLCC_DISP },
-};
-
-static struct qcom_icc_node ebi_disp = {
-	.name = "ebi_disp",
-	.id = X1E80100_SLAVE_EBI1_DISP,
-	.channels = 8,
-	.buswidth = 4,
-	.num_links = 0,
-};
-
-static struct qcom_icc_node qns_mem_noc_hf_disp = {
-	.name = "qns_mem_noc_hf_disp",
-	.id = X1E80100_SLAVE_MNOC_HF_MEM_NOC_DISP,
-	.channels = 2,
-	.buswidth = 32,
-	.num_links = 1,
-	.links = { X1E80100_MASTER_MNOC_HF_MEM_NOC_DISP },
-};
-
-static struct qcom_icc_node qns_llcc_pcie = {
-	.name = "qns_llcc_pcie",
-	.id = X1E80100_SLAVE_LLCC_PCIE,
-	.channels = 8,
-	.buswidth = 16,
-	.num_links = 1,
-	.links = { X1E80100_MASTER_LLCC_PCIE },
-};
-
-static struct qcom_icc_node ebi_pcie = {
-	.name = "ebi_pcie",
-	.id = X1E80100_SLAVE_EBI1_PCIE,
-	.channels = 8,
-	.buswidth = 4,
-	.num_links = 0,
-};
-
-static struct qcom_icc_node qns_pcie_mem_noc_pcie = {
-	.name = "qns_pcie_mem_noc_pcie",
-	.id = X1E80100_SLAVE_ANOC_PCIE_GEM_NOC_PCIE,
-	.channels = 1,
-	.buswidth = 64,
-	.num_links = 1,
-	.links = { X1E80100_MASTER_ANOC_PCIE_GEM_NOC_PCIE },
-};
-
-static struct qcom_icc_node qns_pcie_north_gem_noc_pcie = {
-	.name = "qns_pcie_north_gem_noc_pcie",
-	.id = X1E80100_SLAVE_PCIE_NORTH_PCIE,
-	.channels = 1,
-	.buswidth = 64,
-	.num_links = 1,
-	.links = { X1E80100_MASTER_PCIE_NORTH_PCIE },
-};
-
-static struct qcom_icc_node qns_pcie_south_gem_noc_pcie = {
-	.name = "qns_pcie_south_gem_noc_pcie",
-	.id = X1E80100_SLAVE_PCIE_SOUTH_PCIE,
-	.channels = 1,
-	.buswidth = 64,
-	.num_links = 1,
-	.links = { X1E80100_MASTER_PCIE_SOUTH_PCIE },
-};
-
 static struct qcom_icc_bcm bcm_acv = {
 	.name = "ACV",
 	.enable_mask = BIT(3),
@@ -1756,73 +1542,7 @@ static struct qcom_icc_bcm bcm_sn4 = {
 	.nodes = { &qnm_usb_anoc },
 };
 
-static struct qcom_icc_bcm bcm_acv_disp = {
-	.name = "ACV",
-	.num_nodes = 1,
-	.nodes = { &ebi_disp },
-};
-
-static struct qcom_icc_bcm bcm_mc0_disp = {
-	.name = "MC0",
-	.num_nodes = 1,
-	.nodes = { &ebi_disp },
-};
-
-static struct qcom_icc_bcm bcm_mm0_disp = {
-	.name = "MM0",
-	.num_nodes = 1,
-	.nodes = { &qns_mem_noc_hf_disp },
-};
-
-static struct qcom_icc_bcm bcm_mm1_disp = {
-	.name = "MM1",
-	.num_nodes = 1,
-	.nodes = { &qnm_mdp_disp },
-};
-
-static struct qcom_icc_bcm bcm_sh0_disp = {
-	.name = "SH0",
-	.num_nodes = 1,
-	.nodes = { &qns_llcc_disp },
-};
-
-static struct qcom_icc_bcm bcm_sh1_disp = {
-	.name = "SH1",
-	.num_nodes = 2,
-	.nodes = { &qnm_mnoc_hf_disp, &qnm_pcie_disp },
-};
-
-static struct qcom_icc_bcm bcm_acv_pcie = {
-	.name = "ACV",
-	.num_nodes = 1,
-	.nodes = { &ebi_pcie },
-};
-
-static struct qcom_icc_bcm bcm_mc0_pcie = {
-	.name = "MC0",
-	.num_nodes = 1,
-	.nodes = { &ebi_pcie },
-};
-
-static struct qcom_icc_bcm bcm_pc0_pcie = {
-	.name = "PC0",
-	.num_nodes = 1,
-	.nodes = { &qns_pcie_mem_noc_pcie },
-};
-
-static struct qcom_icc_bcm bcm_sh0_pcie = {
-	.name = "SH0",
-	.num_nodes = 1,
-	.nodes = { &qns_llcc_pcie },
-};
-
-static struct qcom_icc_bcm bcm_sh1_pcie = {
-	.name = "SH1",
-	.num_nodes = 1,
-	.nodes = { &qnm_pcie_pcie },
-};
-
-static struct qcom_icc_bcm *aggre1_noc_bcms[] = {
+static struct qcom_icc_bcm * const aggre1_noc_bcms[] = {
 };
 
 static struct qcom_icc_node * const aggre1_noc_nodes[] = {
@@ -1983,10 +1703,6 @@ static const struct qcom_icc_desc x1e80100_cnoc_main = {
 static struct qcom_icc_bcm * const gem_noc_bcms[] = {
 	&bcm_sh0,
 	&bcm_sh1,
-	&bcm_sh0_disp,
-	&bcm_sh1_disp,
-	&bcm_sh0_pcie,
-	&bcm_sh1_pcie,
 };
 
 static struct qcom_icc_node * const gem_noc_nodes[] = {
@@ -2005,11 +1721,6 @@ static struct qcom_icc_node * const gem_noc_nodes[] = {
 	[SLAVE_GEM_NOC_CNOC] = &qns_gem_noc_cnoc,
 	[SLAVE_LLCC] = &qns_llcc,
 	[SLAVE_MEM_NOC_PCIE_SNOC] = &qns_pcie,
-	[MASTER_MNOC_HF_MEM_NOC_DISP] = &qnm_mnoc_hf_disp,
-	[MASTER_ANOC_PCIE_GEM_NOC_DISP] = &qnm_pcie_disp,
-	[SLAVE_LLCC_DISP] = &qns_llcc_disp,
-	[MASTER_ANOC_PCIE_GEM_NOC_PCIE] = &qnm_pcie_pcie,
-	[SLAVE_LLCC_PCIE] = &qns_llcc_pcie,
 };
 
 static const struct qcom_icc_desc x1e80100_gem_noc = {
@@ -2019,7 +1730,7 @@ static const struct qcom_icc_desc x1e80100_gem_noc = {
 	.num_bcms = ARRAY_SIZE(gem_noc_bcms),
 };
 
-static struct qcom_icc_bcm *lpass_ag_noc_bcms[] = {
+static struct qcom_icc_bcm * const lpass_ag_noc_bcms[] = {
 };
 
 static struct qcom_icc_node * const lpass_ag_noc_nodes[] = {
@@ -2068,19 +1779,11 @@ static const struct qcom_icc_desc x1e80100_lpass_lpicx_noc = {
 static struct qcom_icc_bcm * const mc_virt_bcms[] = {
 	&bcm_acv,
 	&bcm_mc0,
-	&bcm_acv_disp,
-	&bcm_mc0_disp,
-	&bcm_acv_pcie,
-	&bcm_mc0_pcie,
 };
 
 static struct qcom_icc_node * const mc_virt_nodes[] = {
 	[MASTER_LLCC] = &llcc_mc,
 	[SLAVE_EBI1] = &ebi,
-	[MASTER_LLCC_DISP] = &llcc_mc_disp,
-	[SLAVE_EBI1_DISP] = &ebi_disp,
-	[MASTER_LLCC_PCIE] = &llcc_mc_pcie,
-	[SLAVE_EBI1_PCIE] = &ebi_pcie,
 };
 
 static const struct qcom_icc_desc x1e80100_mc_virt = {
@@ -2093,8 +1796,6 @@ static const struct qcom_icc_desc x1e80100_mc_virt = {
 static struct qcom_icc_bcm * const mmss_noc_bcms[] = {
 	&bcm_mm0,
 	&bcm_mm1,
-	&bcm_mm0_disp,
-	&bcm_mm1_disp,
 };
 
 static struct qcom_icc_node * const mmss_noc_nodes[] = {
@@ -2111,8 +1812,6 @@ static struct qcom_icc_node * const mmss_noc_nodes[] = {
 	[SLAVE_MNOC_HF_MEM_NOC] = &qns_mem_noc_hf,
 	[SLAVE_MNOC_SF_MEM_NOC] = &qns_mem_noc_sf,
 	[SLAVE_SERVICE_MNOC] = &srvc_mnoc,
-	[MASTER_MDP_DISP] = &qnm_mdp_disp,
-	[SLAVE_MNOC_HF_MEM_NOC_DISP] = &qns_mem_noc_hf_disp,
 };
 
 static const struct qcom_icc_desc x1e80100_mmss_noc = {
@@ -2140,16 +1839,12 @@ static const struct qcom_icc_desc x1e80100_nsp_noc = {
 
 static struct qcom_icc_bcm * const pcie_center_anoc_bcms[] = {
 	&bcm_pc0,
-	&bcm_pc0_pcie,
 };
 
 static struct qcom_icc_node * const pcie_center_anoc_nodes[] = {
 	[MASTER_PCIE_NORTH] = &qnm_pcie_north_gem_noc,
 	[MASTER_PCIE_SOUTH] = &qnm_pcie_south_gem_noc,
 	[SLAVE_ANOC_PCIE_GEM_NOC] = &qns_pcie_mem_noc,
-	[MASTER_PCIE_NORTH_PCIE] = &qnm_pcie_north_gem_noc_pcie,
-	[MASTER_PCIE_SOUTH_PCIE] = &qnm_pcie_south_gem_noc_pcie,
-	[SLAVE_ANOC_PCIE_GEM_NOC_PCIE] = &qns_pcie_mem_noc_pcie,
 };
 
 static const struct qcom_icc_desc x1e80100_pcie_center_anoc = {
@@ -2167,10 +1862,6 @@ static struct qcom_icc_node * const pcie_north_anoc_nodes[] = {
 	[MASTER_PCIE_4] = &xm_pcie_4,
 	[MASTER_PCIE_5] = &xm_pcie_5,
 	[SLAVE_PCIE_NORTH] = &qns_pcie_north_gem_noc,
-	[MASTER_PCIE_3_PCIE] = &xm_pcie_3_pcie,
-	[MASTER_PCIE_4_PCIE] = &xm_pcie_4_pcie,
-	[MASTER_PCIE_5_PCIE] = &xm_pcie_5_pcie,
-	[SLAVE_PCIE_NORTH_PCIE] = &qns_pcie_north_gem_noc_pcie,
 };
 
 static const struct qcom_icc_desc x1e80100_pcie_north_anoc = {
@@ -2180,7 +1871,7 @@ static const struct qcom_icc_desc x1e80100_pcie_north_anoc = {
 	.num_bcms = ARRAY_SIZE(pcie_north_anoc_bcms),
 };
 
-static struct qcom_icc_bcm *pcie_south_anoc_bcms[] = {
+static struct qcom_icc_bcm * const pcie_south_anoc_bcms[] = {
 };
 
 static struct qcom_icc_node * const pcie_south_anoc_nodes[] = {
@@ -2190,12 +1881,6 @@ static struct qcom_icc_node * const pcie_south_anoc_nodes[] = {
 	[MASTER_PCIE_6A] = &xm_pcie_6a,
 	[MASTER_PCIE_6B] = &xm_pcie_6b,
 	[SLAVE_PCIE_SOUTH] = &qns_pcie_south_gem_noc,
-	[MASTER_PCIE_0_PCIE] = &xm_pcie_0_pcie,
-	[MASTER_PCIE_1_PCIE] = &xm_pcie_1_pcie,
-	[MASTER_PCIE_2_PCIE] = &xm_pcie_2_pcie,
-	[MASTER_PCIE_6A_PCIE] = &xm_pcie_6a_pcie,
-	[MASTER_PCIE_6B_PCIE] = &xm_pcie_6b_pcie,
-	[SLAVE_PCIE_SOUTH_PCIE] = &qns_pcie_south_gem_noc_pcie,
 };
 
 static const struct qcom_icc_desc x1e80100_pcie_south_anoc = {
@@ -2205,7 +1890,7 @@ static const struct qcom_icc_desc x1e80100_pcie_south_anoc = {
 	.num_bcms = ARRAY_SIZE(pcie_south_anoc_bcms),
 };
 
-static struct qcom_icc_bcm *system_noc_bcms[] = {
+static struct qcom_icc_bcm * const system_noc_bcms[] = {
 	&bcm_sn0,
 	&bcm_sn2,
 	&bcm_sn3,
@@ -2243,7 +1928,7 @@ static const struct qcom_icc_desc x1e80100_usb_center_anoc = {
 	.num_bcms = ARRAY_SIZE(usb_center_anoc_bcms),
 };
 
-static struct qcom_icc_bcm *usb_north_anoc_bcms[] = {
+static struct qcom_icc_bcm * const usb_north_anoc_bcms[] = {
 };
 
 static struct qcom_icc_node * const usb_north_anoc_nodes[] = {
@@ -2259,7 +1944,7 @@ static const struct qcom_icc_desc x1e80100_usb_north_anoc = {
 	.num_bcms = ARRAY_SIZE(usb_north_anoc_bcms),
 };
 
-static struct qcom_icc_bcm *usb_south_anoc_bcms[] = {
+static struct qcom_icc_bcm * const usb_south_anoc_bcms[] = {
 };
 
 static struct qcom_icc_node * const usb_south_anoc_nodes[] = {

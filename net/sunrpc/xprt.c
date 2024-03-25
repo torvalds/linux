@@ -1398,6 +1398,12 @@ xprt_request_dequeue_transmit_locked(struct rpc_task *task)
 	if (!test_and_clear_bit(RPC_TASK_NEED_XMIT, &task->tk_runstate))
 		return;
 	if (!list_empty(&req->rq_xmit)) {
+		struct rpc_xprt *xprt = req->rq_xprt;
+
+		if (list_is_first(&req->rq_xmit, &xprt->xmit_queue) &&
+		    xprt->ops->abort_send_request)
+			xprt->ops->abort_send_request(req);
+
 		list_del(&req->rq_xmit);
 		if (!list_empty(&req->rq_xmit2)) {
 			struct rpc_rqst *next = list_first_entry(&req->rq_xmit2,
@@ -1540,6 +1546,9 @@ xprt_request_transmit(struct rpc_rqst *req, struct rpc_task *snd_task)
 	unsigned int connect_cookie;
 	int is_retrans = RPC_WAS_SENT(task);
 	int status;
+
+	if (test_bit(XPRT_CLOSE_WAIT, &xprt->state))
+		return -ENOTCONN;
 
 	if (!req->rq_bytes_sent) {
 		if (xprt_request_data_received(task)) {

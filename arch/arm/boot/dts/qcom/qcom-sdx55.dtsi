@@ -580,12 +580,16 @@
 					  <&gcc GCC_USB30_MASTER_CLK>;
 			assigned-clock-rates = <19200000>, <200000000>;
 
-			interrupts-extended = <&intc GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
-					      <&pdc 51 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>,
+					      <&intc GIC_SPI 131 IRQ_TYPE_LEVEL_HIGH>,
+					      <&pdc 10 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 11 IRQ_TYPE_EDGE_BOTH>,
-					      <&pdc 10 IRQ_TYPE_EDGE_BOTH>;
-			interrupt-names = "hs_phy_irq", "ss_phy_irq",
-					  "dm_hs_phy_irq", "dp_hs_phy_irq";
+					      <&pdc 51 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pwr_event",
+					  "hs_phy_irq",
+					  "dp_hs_phy_irq",
+					  "dm_hs_phy_irq",
+					  "ss_phy_irq";
 
 			power-domains = <&gcc USB30_GDSC>;
 
@@ -727,57 +731,57 @@
 
 			frame@17821000 {
 				frame-number = <0>;
-				interrupts = <GIC_SPI 7 0x4>,
-					     <GIC_SPI 6 0x4>;
+				interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
+					     <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17821000 0x1000>,
 				      <0x17822000 0x1000>;
 			};
 
 			frame@17823000 {
 				frame-number = <1>;
-				interrupts = <GIC_SPI 8 0x4>;
+				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17823000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17824000 {
 				frame-number = <2>;
-				interrupts = <GIC_SPI 9 0x4>;
+				interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17824000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17825000 {
 				frame-number = <3>;
-				interrupts = <GIC_SPI 10 0x4>;
+				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17825000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17826000 {
 				frame-number = <4>;
-				interrupts = <GIC_SPI 11 0x4>;
+				interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17826000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17827000 {
 				frame-number = <5>;
-				interrupts = <GIC_SPI 12 0x4>;
+				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17827000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17828000 {
 				frame-number = <6>;
-				interrupts = <GIC_SPI 13 0x4>;
+				interrupts = <GIC_SPI 13 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17828000 0x1000>;
 				status = "disabled";
 			};
 
 			frame@17829000 {
 				frame-number = <7>;
-				interrupts = <GIC_SPI 14 0x4>;
+				interrupts = <GIC_SPI 14 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x17829000 0x1000>;
 				status = "disabled";
 			};

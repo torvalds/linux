@@ -127,7 +127,7 @@ static void dp_aux_ep_shutdown(struct device *dev)
 		aux_ep_drv->shutdown(to_dp_aux_ep_dev(dev));
 }
 
-static struct bus_type dp_aux_bus_type = {
+static const struct bus_type dp_aux_bus_type = {
 	.name		= "dp-aux",
 	.match		= dp_aux_ep_match,
 	.probe		= dp_aux_ep_probe,

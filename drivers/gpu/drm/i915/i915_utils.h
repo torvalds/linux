@@ -391,4 +391,6 @@ static inline bool i915_run_as_guest(void)
 
 bool i915_vtd_active(struct drm_i915_private *i915);
 
+bool i915_direct_stolen_access(struct drm_i915_private *i915);
+
 #endif /* !__I915_UTILS_H */

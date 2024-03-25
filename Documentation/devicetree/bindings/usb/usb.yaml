@@ -25,6 +25,8 @@ properties:
 
   usb-phy:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      maxItems: 1
     description:
       List of all the USB PHYs on this HCD to be accepted by the legacy USB
       Physical Layer subsystem.

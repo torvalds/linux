@@ -18,7 +18,13 @@ allOf:
 
 properties:
   compatible:
-    const: xlnx,zynqmp-rtc
+    oneOf:
+      - const: xlnx,zynqmp-rtc
+      - items:
+          - enum:
+              - xlnx,versal-rtc
+              - xlnx,versal-net-rtc
+          - const: xlnx,zynqmp-rtc
 
   reg:
     maxItems: 1
@@ -47,6 +53,9 @@ properties:
     maximum: 0x1FFFFF
     default: 0x198233
     deprecated: true
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible

@@ -65,6 +65,10 @@ When the temperature and humidity readings move back between the hysteresis
 values, the alert bit is set to 0 and the alert pin on the sensor is set to
 low.
 
+The serial number exposed to debugfs allows for unique identification of the
+sensors. For sts32, sts33 and sht33, the manufacturer provides calibration
+certificates through an API.
+
 sysfs-Interface
 ---------------
 
@@ -98,4 +102,11 @@ repeatability:      write or read repeatability, higher repeatability means
                         - 0: low repeatability
                         - 1: medium repeatability
                         - 2: high repeatability
+=================== ============================================================
+
+debugfs-Interface
+-----------------
+
+=================== ============================================================
+serial_number:      unique serial number of the sensor in decimal
 =================== ============================================================

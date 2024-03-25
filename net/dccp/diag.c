@@ -58,6 +58,7 @@ static int dccp_diag_dump_one(struct netlink_callback *cb,
 }
 
 static const struct inet_diag_handler dccp_diag_handler = {
+	.owner		 = THIS_MODULE,
 	.dump		 = dccp_diag_dump,
 	.dump_one	 = dccp_diag_dump_one,
 	.idiag_get_info	 = dccp_diag_get_info,

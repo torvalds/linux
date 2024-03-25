@@ -4,7 +4,7 @@ ifneq ($(PY3),)
 
 TEST_PROGS := test_unprobed_devices.sh
 TEST_GEN_FILES := compatible_list
-TEST_FILES := compatible_ignore_list ktap_helpers.sh
+TEST_FILES := compatible_ignore_list
 
 include ../lib.mk
 

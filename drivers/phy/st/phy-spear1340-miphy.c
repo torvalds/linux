@@ -220,7 +220,7 @@ static SIMPLE_DEV_PM_OPS(spear1340_miphy_pm_ops, spear1340_miphy_suspend,
 			 spear1340_miphy_resume);
 
 static struct phy *spear1340_miphy_xlate(struct device *dev,
-					 struct of_phandle_args *args)
+					 const struct of_phandle_args *args)
 {
 	struct spear1340_miphy_priv *priv = dev_get_drvdata(dev);
 

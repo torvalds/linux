@@ -316,22 +316,12 @@ static ssize_t rtw_debugfs_set_single_input(struct file *filp,
 {
 	struct seq_file *seqpriv = (struct seq_file *)filp->private_data;
 	struct rtw_debugfs_priv *debugfs_priv = seqpriv->private;
-	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
-	char tmp[32 + 1];
 	u32 input;
-	int num;
 	int ret;
 
-	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 1);
+	ret = kstrtou32_from_user(buffer, count, 0, &input);
 	if (ret)
 		return ret;
-
-	num = kstrtoint(tmp, 0, &input);
-
-	if (num) {
-		rtw_warn(rtwdev, "kstrtoint failed\n");
-		return num;
-	}
 
 	debugfs_priv->cb_data = input;
 
@@ -485,18 +475,11 @@ static ssize_t rtw_debugfs_set_fix_rate(struct file *filp,
 	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
 	u8 fix_rate;
-	char tmp[32 + 1];
 	int ret;
 
-	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 1);
+	ret = kstrtou8_from_user(buffer, count, 0, &fix_rate);
 	if (ret)
 		return ret;
-
-	ret = kstrtou8(tmp, 0, &fix_rate);
-	if (ret) {
-		rtw_warn(rtwdev, "invalid args, [rate]\n");
-		return ret;
-	}
 
 	dm_info->fix_rate = fix_rate;
 
@@ -879,19 +862,12 @@ static ssize_t rtw_debugfs_set_coex_enable(struct file *filp,
 	struct rtw_debugfs_priv *debugfs_priv = seqpriv->private;
 	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
 	struct rtw_coex *coex = &rtwdev->coex;
-	char tmp[32 + 1];
 	bool enable;
 	int ret;
 
-	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 1);
+	ret = kstrtobool_from_user(buffer, count, &enable);
 	if (ret)
 		return ret;
-
-	ret = kstrtobool(tmp, &enable);
-	if (ret) {
-		rtw_warn(rtwdev, "invalid arguments\n");
-		return ret;
-	}
 
 	mutex_lock(&rtwdev->mutex);
 	coex->manual_control = !enable;
@@ -951,17 +927,12 @@ static ssize_t rtw_debugfs_set_fw_crash(struct file *filp,
 	struct seq_file *seqpriv = (struct seq_file *)filp->private_data;
 	struct rtw_debugfs_priv *debugfs_priv = seqpriv->private;
 	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
-	char tmp[32 + 1];
 	bool input;
 	int ret;
 
-	ret = rtw_debugfs_copy_from_user(tmp, sizeof(tmp), buffer, count, 1);
+	ret = kstrtobool_from_user(buffer, count, &input);
 	if (ret)
 		return ret;
-
-	ret = kstrtobool(tmp, &input);
-	if (ret)
-		return -EINVAL;
 
 	if (!input)
 		return -EINVAL;
@@ -1030,11 +1001,12 @@ static ssize_t rtw_debugfs_set_dm_cap(struct file *filp,
 	struct rtw_debugfs_priv *debugfs_priv = seqpriv->private;
 	struct rtw_dev *rtwdev = debugfs_priv->rtwdev;
 	struct rtw_dm_info *dm_info = &rtwdev->dm_info;
-	int bit;
+	int ret, bit;
 	bool en;
 
-	if (kstrtoint_from_user(buffer, count, 10, &bit))
-		return -EINVAL;
+	ret = kstrtoint_from_user(buffer, count, 10, &bit);
+	if (ret)
+		return ret;
 
 	en = bit > 0;
 	bit = abs(bit);

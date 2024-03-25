@@ -52,15 +52,50 @@ static bool btree_id_is_alloc(enum btree_id id)
 }
 
 /* for -o reconstruct_alloc: */
-static void drop_alloc_keys(struct journal_keys *keys)
+static void do_reconstruct_alloc(struct bch_fs *c)
 {
+	bch2_journal_log_msg(c, "dropping alloc info");
+	bch_info(c, "dropping and reconstructing all alloc info");
+
+	mutex_lock(&c->sb_lock);
+	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
+
+	__set_bit_le64(BCH_RECOVERY_PASS_STABLE_check_allocations, ext->recovery_passes_required);
+	__set_bit_le64(BCH_RECOVERY_PASS_STABLE_check_alloc_info, ext->recovery_passes_required);
+	__set_bit_le64(BCH_RECOVERY_PASS_STABLE_check_lrus, ext->recovery_passes_required);
+	__set_bit_le64(BCH_RECOVERY_PASS_STABLE_check_extents_to_backpointers, ext->recovery_passes_required);
+	__set_bit_le64(BCH_RECOVERY_PASS_STABLE_check_alloc_to_lru_refs, ext->recovery_passes_required);
+
+	__set_bit_le64(BCH_FSCK_ERR_ptr_to_missing_alloc_key, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_ptr_gen_newer_than_bucket_gen, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_stale_dirty_ptr, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_alloc_key_data_type_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_alloc_key_gen_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_alloc_key_dirty_sectors_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_alloc_key_stripe_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_alloc_key_stripe_redundancy_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_need_discard_key_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_freespace_key_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_bucket_gens_key_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_freespace_hole_missing, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_ptr_to_missing_backpointer, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_lru_entry_bad, ext->errors_silent);
+	c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
+
+	bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
+
+	c->recovery_passes_explicit |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
+
+	struct journal_keys *keys = &c->journal_keys;
 	size_t src, dst;
 
-	for (src = 0, dst = 0; src < keys->nr; src++)
-		if (!btree_id_is_alloc(keys->d[src].btree_id))
-			keys->d[dst++] = keys->d[src];
+	move_gap(keys, keys->nr);
 
-	keys->nr = dst;
+	for (src = 0, dst = 0; src < keys->nr; src++)
+		if (!btree_id_is_alloc(keys->data[src].btree_id))
+			keys->data[dst++] = keys->data[src];
+	keys->nr = keys->gap = dst;
 }
 
 /*
@@ -70,9 +105,7 @@ static void drop_alloc_keys(struct journal_keys *keys)
  */
 static void zero_out_btree_mem_ptr(struct journal_keys *keys)
 {
-	struct journal_key *i;
-
-	for (i = keys->d; i < keys->d + keys->nr; i++)
+	darray_for_each(*keys, i)
 		if (i->k->k.type == KEY_TYPE_btree_ptr_v2)
 			bkey_i_to_btree_ptr_v2(i->k)->v.mem_ptr = 0;
 }
@@ -124,6 +157,17 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 	if (ret)
 		goto out;
 
+	struct btree_path *path = btree_iter_path(trans, &iter);
+	if (unlikely(!btree_path_node(path, k->level))) {
+		bch2_trans_iter_exit(trans, &iter);
+		bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
+					  BTREE_MAX_DEPTH, 0, iter_flags);
+		ret =   bch2_btree_iter_traverse(&iter) ?:
+			bch2_btree_increase_depth(trans, iter.path, 0) ?:
+			-BCH_ERR_transaction_restart_nested;
+		goto out;
+	}
+
 	/* Must be checked with btree locked: */
 	if (k->overwritten)
 		goto out;
@@ -161,15 +205,15 @@ static int bch2_journal_replay(struct bch_fs *c)
 
 	BUG_ON(!atomic_read(&keys->ref));
 
+	move_gap(keys, keys->nr);
+
 	/*
 	 * First, attempt to replay keys in sorted order. This is more
 	 * efficient - better locality of btree access -  but some might fail if
 	 * that would cause a journal deadlock.
 	 */
-	for (size_t i = 0; i < keys->nr; i++) {
+	darray_for_each(*keys, k) {
 		cond_resched();
-
-		struct journal_key *k = keys->d + i;
 
 		/* Skip fastpath if we're low on space in the journal */
 		ret = c->journal.watermark ? -1 :
@@ -264,7 +308,7 @@ static int journal_replay_entry_early(struct bch_fs *c,
 			bkey_copy(&r->key, (struct bkey_i *) entry->start);
 			r->error = 0;
 		} else {
-			r->error = -EIO;
+			r->error = -BCH_ERR_btree_node_read_error;
 		}
 		r->alive = true;
 		break;
@@ -359,7 +403,7 @@ static int journal_replay_early(struct bch_fs *c,
 		genradix_for_each(&c->journal_entries, iter, _i) {
 			i = *_i;
 
-			if (!i || i->ignore)
+			if (journal_replay_ignore(i))
 				continue;
 
 			vstruct_for_each(&i->j, entry) {
@@ -388,11 +432,8 @@ static int read_btree_roots(struct bch_fs *c)
 		if (!r->alive)
 			continue;
 
-		if (btree_id_is_alloc(i) &&
-		    c->opts.reconstruct_alloc) {
-			c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
+		if (btree_id_is_alloc(i) && c->opts.reconstruct_alloc)
 			continue;
-		}
 
 		if (r->error) {
 			__fsck_err(c,
@@ -524,8 +565,7 @@ static int bch2_set_may_go_rw(struct bch_fs *c)
 	 * setting journal_key->overwritten: it will be accessed by multiple
 	 * threads
 	 */
-	move_gap(keys->d, keys->nr, keys->size, keys->gap, keys->nr);
-	keys->gap = keys->nr;
+	move_gap(keys, keys->nr);
 
 	set_bit(BCH_FS_may_go_rw, &c->flags);
 
@@ -862,7 +902,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 			goto out;
 
 		genradix_for_each_reverse(&c->journal_entries, iter, i)
-			if (*i && !(*i)->ignore) {
+			if (!journal_replay_ignore(*i)) {
 				last_journal_entry = &(*i)->j;
 				break;
 			}
@@ -887,7 +927,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 			genradix_for_each_reverse(&c->journal_entries, iter, i)
 				if (*i) {
 					last_journal_entry = &(*i)->j;
-					(*i)->ignore = false;
+					(*i)->ignore_blacklisted = false;
+					(*i)->ignore_not_dirty= false;
 					/*
 					 * This was probably a NO_FLUSH entry,
 					 * so last_seq was garbage - but we know
@@ -923,10 +964,8 @@ use_clean:
 	c->journal_replay_seq_start	= last_seq;
 	c->journal_replay_seq_end	= blacklist_seq - 1;
 
-	if (c->opts.reconstruct_alloc) {
-		c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
-		drop_alloc_keys(&c->journal_keys);
-	}
+	if (c->opts.reconstruct_alloc)
+		do_reconstruct_alloc(c);
 
 	zero_out_btree_mem_ptr(&c->journal_keys);
 
@@ -950,7 +989,7 @@ use_clean:
 			bch2_journal_seq_blacklist_add(c,
 					blacklist_seq, journal_seq);
 		if (ret) {
-			bch_err(c, "error creating new journal seq blacklist entry");
+			bch_err_msg(c, ret, "error creating new journal seq blacklist entry");
 			goto err;
 		}
 	}
@@ -960,9 +999,6 @@ use_clean:
 		bch2_fs_journal_start(&c->journal, journal_seq);
 	if (ret)
 		goto err;
-
-	if (c->opts.reconstruct_alloc)
-		bch2_journal_log_msg(c, "dropping alloc info");
 
 	/*
 	 * Skip past versions that might have possibly been used (as nonces),

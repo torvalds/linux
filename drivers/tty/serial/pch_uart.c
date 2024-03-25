@@ -237,9 +237,6 @@ struct eg20t_port {
 
 #define IRQ_NAME_SIZE 17
 	char				irq_name[IRQ_NAME_SIZE];
-
-	/* protect the eg20t_port private structure and io access to membase */
-	spinlock_t lock;
 };
 
 /**
@@ -567,7 +564,7 @@ static int pch_uart_hal_read(struct eg20t_port *priv, unsigned char *buf,
 			if (uart_handle_break(port))
 				continue;
 		}
-		if (uart_handle_sysrq_char(port, rbr))
+		if (uart_prepare_sysrq_char(port, rbr))
 			continue;
 
 		buf[i++] = rbr;
@@ -599,16 +596,14 @@ static void pch_uart_hal_set_break(struct eg20t_port *priv, int on)
 	iowrite8(lcr, priv->membase + UART_LCR);
 }
 
-static int push_rx(struct eg20t_port *priv, const unsigned char *buf,
-		   int size)
+static void push_rx(struct eg20t_port *priv, const unsigned char *buf,
+		    int size)
 {
 	struct uart_port *port = &priv->port;
 	struct tty_port *tport = &port->state->port;
 
 	tty_insert_flip_string(tport, buf, size);
 	tty_flip_buffer_push(tport);
-
-	return 0;
 }
 
 static int dma_push_rx(struct eg20t_port *priv, int size)
@@ -761,7 +756,7 @@ static int handle_rx_to(struct eg20t_port *priv)
 {
 	struct pch_uart_buffer *buf;
 	int rx_size;
-	int ret;
+
 	if (!priv->start_rx) {
 		pch_uart_hal_disable_interrupt(priv, PCH_UART_HAL_RX_INT |
 						     PCH_UART_HAL_RX_ERR_INT);
@@ -770,17 +765,10 @@ static int handle_rx_to(struct eg20t_port *priv)
 	buf = &priv->rxbuf;
 	do {
 		rx_size = pch_uart_hal_read(priv, buf->buf, buf->size);
-		ret = push_rx(priv, buf->buf, rx_size);
-		if (ret)
-			return 0;
+		push_rx(priv, buf->buf, rx_size);
 	} while (rx_size == buf->size);
 
 	return PCH_UART_HANDLED_RX_INT;
-}
-
-static int handle_rx(struct eg20t_port *priv)
-{
-	return handle_rx_to(priv);
 }
 
 static int dma_handle_rx(struct eg20t_port *priv)
@@ -1019,11 +1007,10 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 	u8 lsr;
 	int ret = 0;
 	unsigned char iid;
-	unsigned long flags;
 	int next = 1;
 	u8 msr;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	uart_port_lock(&priv->port);
 	handled = 0;
 	while (next) {
 		iid = pch_uart_hal_get_iid(priv);
@@ -1051,7 +1038,7 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 						PCH_UART_HAL_RX_INT |
 						PCH_UART_HAL_RX_ERR_INT);
 			} else {
-				ret = handle_rx(priv);
+				ret = handle_rx_to(priv);
 			}
 			break;
 		case PCH_UART_IID_RDR_TO:	/* Received Data Ready
@@ -1083,7 +1070,7 @@ static irqreturn_t pch_uart_interrupt(int irq, void *dev_id)
 		handled |= (unsigned int)ret;
 	}
 
-	spin_unlock_irqrestore(&priv->lock, flags);
+	uart_unlock_and_check_sysrq(&priv->port);
 	return IRQ_RETVAL(handled);
 }
 
@@ -1194,9 +1181,9 @@ static void pch_uart_break_ctl(struct uart_port *port, int ctl)
 	unsigned long flags;
 
 	priv = container_of(port, struct eg20t_port, port);
-	spin_lock_irqsave(&priv->lock, flags);
+	uart_port_lock_irqsave(&priv->port, &flags);
 	pch_uart_hal_set_break(priv, ctl);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	uart_port_unlock_irqrestore(&priv->port, flags);
 }
 
 /* Grab any interrupt resources and initialise any low level driver state. */
@@ -1346,8 +1333,7 @@ static void pch_uart_set_termios(struct uart_port *port,
 
 	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk / 16);
 
-	spin_lock_irqsave(&priv->lock, flags);
-	uart_port_lock(port);
+	uart_port_lock_irqsave(port, &flags);
 
 	uart_update_timeout(port, termios->c_cflag, baud);
 	rtn = pch_uart_hal_set_line(priv, baud, parity, bits, stb);
@@ -1360,8 +1346,7 @@ static void pch_uart_set_termios(struct uart_port *port,
 		tty_termios_encode_baud_rate(termios, baud, baud);
 
 out:
-	uart_port_unlock(port);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	uart_port_unlock_irqrestore(port, flags);
 }
 
 static const char *pch_uart_type(struct uart_port *port)
@@ -1565,27 +1550,17 @@ pch_console_write(struct console *co, const char *s, unsigned int count)
 {
 	struct eg20t_port *priv;
 	unsigned long flags;
-	int priv_locked = 1;
-	int port_locked = 1;
+	int locked = 1;
 	u8 ier;
 
 	priv = pch_uart_ports[co->index];
 
 	touch_nmi_watchdog();
 
-	local_irq_save(flags);
-	if (priv->port.sysrq) {
-		/* call to uart_handle_sysrq_char already took the priv lock */
-		priv_locked = 0;
-		/* serial8250_handle_port() already took the port lock */
-		port_locked = 0;
-	} else if (oops_in_progress) {
-		priv_locked = spin_trylock(&priv->lock);
-		port_locked = uart_port_trylock(&priv->port);
-	} else {
-		spin_lock(&priv->lock);
-		uart_port_lock(&priv->port);
-	}
+	if (oops_in_progress)
+		locked = uart_port_trylock_irqsave(&priv->port, &flags);
+	else
+		uart_port_lock_irqsave(&priv->port, &flags);
 
 	/*
 	 *	First save the IER then disable the interrupts
@@ -1603,11 +1578,8 @@ pch_console_write(struct console *co, const char *s, unsigned int count)
 	wait_for_xmitr(priv, UART_LSR_BOTH_EMPTY);
 	iowrite8(ier, priv->membase + UART_IER);
 
-	if (port_locked)
-		uart_port_unlock(&priv->port);
-	if (priv_locked)
-		spin_unlock(&priv->lock);
-	local_irq_restore(flags);
+	if (locked)
+		uart_port_unlock_irqrestore(&priv->port, flags);
 }
 
 static int __init pch_console_setup(struct console *co, char *options)
@@ -1704,8 +1676,6 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	pci_enable_msi(pdev);
 	pci_set_master(pdev);
 
-	spin_lock_init(&priv->lock);
-
 	iobase = pci_resource_start(pdev, 0);
 	mapbase = pci_resource_start(pdev, 1);
 	priv->mapbase = mapbase;
@@ -1734,8 +1704,6 @@ static struct eg20t_port *pch_uart_init_port(struct pci_dev *pdev,
 	snprintf(priv->irq_name, IRQ_NAME_SIZE,
 		 KBUILD_MODNAME ":" PCH_UART_DRIVER_DEVICE "%d",
 		 priv->port.line);
-
-	spin_lock_init(&priv->port.lock);
 
 	pci_set_drvdata(pdev, priv);
 	priv->trigger_level = 1;

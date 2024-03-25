@@ -22,6 +22,8 @@ properties:
     enum:
       # Anberic RG353V-V2 5.0" 640x480 TFT LCD panel
       - anbernic,rg353v-panel-v2
+      # Powkiddy RGB10MAX3 5.0" 720x1280 TFT LCD panel
+      - powkiddy,rgb10max3-panel
       # Powkiddy RGB30 3.0" 720x720 TFT LCD panel
       - powkiddy,rgb30-panel
       # Rocktech JH057N00900 5.5" 720x1440 TFT LCD panel
@@ -43,6 +45,7 @@ properties:
   reset-gpios: true
 
   backlight: true
+  rotation: true
 
 required:
   - compatible

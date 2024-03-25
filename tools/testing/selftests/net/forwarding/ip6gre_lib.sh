@@ -356,7 +356,7 @@ test_traffic_ip4ip6()
 		flower $TC_FLAG dst_ip 203.0.113.1 action pass
 
 	$MZ $h1 -c 1000 -p 64 -a $h1mac -b $ol1mac -A 198.51.100.1 \
-		-B 203.0.113.1 -t ip -q -d 1msec
+		-B 203.0.113.1 -t ip -q -d $MZ_DELAY
 
 	# Check ports after encap and after decap.
 	tc_check_at_least_x_packets "dev $ul1 egress" 101 1000
@@ -389,7 +389,7 @@ test_traffic_ip6ip6()
 		flower $TC_FLAG dst_ip 2001:db8:2::1 action pass
 
 	$MZ -6 $h1 -c 1000 -p 64 -a $h1mac -b $ol1mac -A 2001:db8:1::1 \
-		-B 2001:db8:2::1 -t ip -q -d 1msec
+		-B 2001:db8:2::1 -t ip -q -d $MZ_DELAY
 
 	# Check ports after encap and after decap.
 	tc_check_at_least_x_packets "dev $ul1 egress" 101 1000

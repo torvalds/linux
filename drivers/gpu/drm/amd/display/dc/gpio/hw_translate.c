@@ -111,6 +111,7 @@ bool dal_hw_translate_init(
 	case DCN_VERSION_3_2:
 	case DCN_VERSION_3_21:
 	case DCN_VERSION_3_5:
+	case DCN_VERSION_3_51:
 		dal_hw_translate_dcn32_init(translate);
 		return true;
 	default:

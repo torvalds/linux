@@ -238,7 +238,7 @@ static void encode_nlm_holder(struct xdr_stream *xdr,
 	u32 l_offset, l_len;
 	__be32 *p;
 
-	encode_bool(xdr, lock->fl.fl_type == F_RDLCK);
+	encode_bool(xdr, lock->fl.c.flc_type == F_RDLCK);
 	encode_int32(xdr, lock->svid);
 	encode_netobj(xdr, lock->oh.data, lock->oh.len);
 
@@ -265,7 +265,7 @@ static int decode_nlm_holder(struct xdr_stream *xdr, struct nlm_res *result)
 		goto out_overflow;
 	exclusive = be32_to_cpup(p++);
 	lock->svid = be32_to_cpup(p);
-	fl->fl_pid = (pid_t)lock->svid;
+	fl->c.flc_pid = (pid_t)lock->svid;
 
 	error = decode_netobj(xdr, &lock->oh);
 	if (unlikely(error))
@@ -275,8 +275,8 @@ static int decode_nlm_holder(struct xdr_stream *xdr, struct nlm_res *result)
 	if (unlikely(p == NULL))
 		goto out_overflow;
 
-	fl->fl_flags = FL_POSIX;
-	fl->fl_type  = exclusive != 0 ? F_WRLCK : F_RDLCK;
+	fl->c.flc_flags = FL_POSIX;
+	fl->c.flc_type  = exclusive != 0 ? F_WRLCK : F_RDLCK;
 	l_offset = be32_to_cpup(p++);
 	l_len = be32_to_cpup(p);
 	end = l_offset + l_len - 1;
@@ -357,7 +357,7 @@ static void nlm_xdr_enc_testargs(struct rpc_rqst *req,
 	const struct nlm_lock *lock = &args->lock;
 
 	encode_cookie(xdr, &args->cookie);
-	encode_bool(xdr, lock->fl.fl_type == F_WRLCK);
+	encode_bool(xdr, lock->fl.c.flc_type == F_WRLCK);
 	encode_nlm_lock(xdr, lock);
 }
 
@@ -380,7 +380,7 @@ static void nlm_xdr_enc_lockargs(struct rpc_rqst *req,
 
 	encode_cookie(xdr, &args->cookie);
 	encode_bool(xdr, args->block);
-	encode_bool(xdr, lock->fl.fl_type == F_WRLCK);
+	encode_bool(xdr, lock->fl.c.flc_type == F_WRLCK);
 	encode_nlm_lock(xdr, lock);
 	encode_bool(xdr, args->reclaim);
 	encode_int32(xdr, args->state);
@@ -403,7 +403,7 @@ static void nlm_xdr_enc_cancargs(struct rpc_rqst *req,
 
 	encode_cookie(xdr, &args->cookie);
 	encode_bool(xdr, args->block);
-	encode_bool(xdr, lock->fl.fl_type == F_WRLCK);
+	encode_bool(xdr, lock->fl.c.flc_type == F_WRLCK);
 	encode_nlm_lock(xdr, lock);
 }
 

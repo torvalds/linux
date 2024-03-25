@@ -185,11 +185,12 @@ properties:
 
       gpio-ranges:
         items:
-          - description: A phandle to the CODEC pinctrl node
-            minimum: 0
-          - const: 0
-          - const: 0
-          - const: 3
+          - items:
+              - description: A phandle to the CODEC pinctrl node
+                minimum: 0
+              - const: 0
+              - const: 0
+              - const: 3
 
     patternProperties:
       "-state$":

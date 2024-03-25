@@ -216,10 +216,8 @@ static void hisi_pcie_pmu_writeq(struct hisi_pcie_pmu *pcie_pmu, u32 reg_offset,
 	writeq_relaxed(val, pcie_pmu->base + offset);
 }
 
-static void hisi_pcie_pmu_config_filter(struct perf_event *event)
+static u64 hisi_pcie_pmu_get_event_ctrl_val(struct perf_event *event)
 {
-	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(event->pmu);
-	struct hw_perf_event *hwc = &event->hw;
 	u64 port, trig_len, thr_len, len_mode;
 	u64 reg = HISI_PCIE_INIT_SET;
 
@@ -256,10 +254,19 @@ static void hisi_pcie_pmu_config_filter(struct perf_event *event)
 	else
 		reg |= FIELD_PREP(HISI_PCIE_LEN_M, HISI_PCIE_LEN_M_DEFAULT);
 
+	return reg;
+}
+
+static void hisi_pcie_pmu_config_event_ctrl(struct perf_event *event)
+{
+	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(event->pmu);
+	struct hw_perf_event *hwc = &event->hw;
+	u64 reg = hisi_pcie_pmu_get_event_ctrl_val(event);
+
 	hisi_pcie_pmu_writeq(pcie_pmu, HISI_PCIE_EVENT_CTRL, hwc->idx, reg);
 }
 
-static void hisi_pcie_pmu_clear_filter(struct perf_event *event)
+static void hisi_pcie_pmu_clear_event_ctrl(struct perf_event *event)
 {
 	struct hisi_pcie_pmu *pcie_pmu = to_pcie_pmu(event->pmu);
 	struct hw_perf_event *hwc = &event->hw;
@@ -299,18 +306,24 @@ static bool hisi_pcie_pmu_valid_filter(struct perf_event *event,
 	if (hisi_pcie_get_trig_len(event) > HISI_PCIE_TRIG_MAX_VAL)
 		return false;
 
-	if (requester_id) {
-		if (!hisi_pcie_pmu_valid_requester_id(pcie_pmu, requester_id))
-			return false;
-	}
+	/* Need to explicitly set filter of "port" or "bdf" */
+	if (!hisi_pcie_get_port(event) &&
+	    !hisi_pcie_pmu_valid_requester_id(pcie_pmu, requester_id))
+		return false;
 
 	return true;
 }
 
+/*
+ * Check Whether two events share the same config. The same config means not
+ * only the event code, but also the filter settings of the two events are
+ * the same.
+ */
 static bool hisi_pcie_pmu_cmp_event(struct perf_event *target,
 					struct perf_event *event)
 {
-	return hisi_pcie_get_real_event(target) == hisi_pcie_get_real_event(event);
+	return hisi_pcie_pmu_get_event_ctrl_val(target) ==
+	       hisi_pcie_pmu_get_event_ctrl_val(event);
 }
 
 static bool hisi_pcie_pmu_validate_event_group(struct perf_event *event)
@@ -385,40 +398,32 @@ static u64 hisi_pcie_pmu_read_counter(struct perf_event *event)
 	return hisi_pcie_pmu_readq(pcie_pmu, event->hw.event_base, idx);
 }
 
-static int hisi_pcie_pmu_find_related_event(struct hisi_pcie_pmu *pcie_pmu,
-					    struct perf_event *event)
+/*
+ * Check all work events, if a relevant event is found then we return it
+ * first, otherwise return the first idle counter (need to reset).
+ */
+static int hisi_pcie_pmu_get_event_idx(struct hisi_pcie_pmu *pcie_pmu,
+					struct perf_event *event)
 {
+	int first_idle = -EAGAIN;
 	struct perf_event *sibling;
 	int idx;
 
 	for (idx = 0; idx < HISI_PCIE_MAX_COUNTERS; idx++) {
 		sibling = pcie_pmu->hw_events[idx];
-		if (!sibling)
+		if (!sibling) {
+			if (first_idle == -EAGAIN)
+				first_idle = idx;
 			continue;
-
-		if (!hisi_pcie_pmu_cmp_event(sibling, event))
-			continue;
+		}
 
 		/* Related events must be used in group */
-		if (sibling->group_leader == event->group_leader)
-			return idx;
-		else
-			return -EINVAL;
-	}
-
-	return idx;
-}
-
-static int hisi_pcie_pmu_get_event_idx(struct hisi_pcie_pmu *pcie_pmu)
-{
-	int idx;
-
-	for (idx = 0; idx < HISI_PCIE_MAX_COUNTERS; idx++) {
-		if (!pcie_pmu->hw_events[idx])
+		if (hisi_pcie_pmu_cmp_event(sibling, event) &&
+		    sibling->group_leader == event->group_leader)
 			return idx;
 	}
 
-	return -EINVAL;
+	return first_idle;
 }
 
 static void hisi_pcie_pmu_event_update(struct perf_event *event)
@@ -505,7 +510,7 @@ static void hisi_pcie_pmu_start(struct perf_event *event, int flags)
 	WARN_ON_ONCE(!(hwc->state & PERF_HES_UPTODATE));
 	hwc->state = 0;
 
-	hisi_pcie_pmu_config_filter(event);
+	hisi_pcie_pmu_config_event_ctrl(event);
 	hisi_pcie_pmu_enable_counter(pcie_pmu, hwc);
 	hisi_pcie_pmu_enable_int(pcie_pmu, hwc);
 	hisi_pcie_pmu_set_period(event);
@@ -526,7 +531,7 @@ static void hisi_pcie_pmu_stop(struct perf_event *event, int flags)
 	hisi_pcie_pmu_event_update(event);
 	hisi_pcie_pmu_disable_int(pcie_pmu, hwc);
 	hisi_pcie_pmu_disable_counter(pcie_pmu, hwc);
-	hisi_pcie_pmu_clear_filter(event);
+	hisi_pcie_pmu_clear_event_ctrl(event);
 	WARN_ON_ONCE(hwc->state & PERF_HES_STOPPED);
 	hwc->state |= PERF_HES_STOPPED;
 
@@ -544,27 +549,18 @@ static int hisi_pcie_pmu_add(struct perf_event *event, int flags)
 
 	hwc->state = PERF_HES_STOPPED | PERF_HES_UPTODATE;
 
-	/* Check all working events to find a related event. */
-	idx = hisi_pcie_pmu_find_related_event(pcie_pmu, event);
-	if (idx < 0)
-		return idx;
-
-	/* Current event shares an enabled counter with the related event */
-	if (idx < HISI_PCIE_MAX_COUNTERS) {
-		hwc->idx = idx;
-		goto start_count;
-	}
-
-	idx = hisi_pcie_pmu_get_event_idx(pcie_pmu);
+	idx = hisi_pcie_pmu_get_event_idx(pcie_pmu, event);
 	if (idx < 0)
 		return idx;
 
 	hwc->idx = idx;
-	pcie_pmu->hw_events[idx] = event;
-	/* Reset Counter to avoid previous statistic interference. */
-	hisi_pcie_pmu_reset_counter(pcie_pmu, idx);
 
-start_count:
+	/* No enabled counter found with related event, reset it */
+	if (!pcie_pmu->hw_events[idx]) {
+		hisi_pcie_pmu_reset_counter(pcie_pmu, idx);
+		pcie_pmu->hw_events[idx] = event;
+	}
+
 	if (flags & PERF_EF_START)
 		hisi_pcie_pmu_start(event, PERF_EF_RELOAD);
 
@@ -714,10 +710,18 @@ static struct attribute *hisi_pcie_pmu_events_attr[] = {
 	HISI_PCIE_PMU_EVENT_ATTR(rx_mrd_cnt, 0x10210),
 	HISI_PCIE_PMU_EVENT_ATTR(tx_mrd_latency, 0x0011),
 	HISI_PCIE_PMU_EVENT_ATTR(tx_mrd_cnt, 0x10011),
+	HISI_PCIE_PMU_EVENT_ATTR(rx_mwr_flux, 0x0104),
+	HISI_PCIE_PMU_EVENT_ATTR(rx_mwr_time, 0x10104),
 	HISI_PCIE_PMU_EVENT_ATTR(rx_mrd_flux, 0x0804),
 	HISI_PCIE_PMU_EVENT_ATTR(rx_mrd_time, 0x10804),
+	HISI_PCIE_PMU_EVENT_ATTR(rx_cpl_flux, 0x2004),
+	HISI_PCIE_PMU_EVENT_ATTR(rx_cpl_time, 0x12004),
+	HISI_PCIE_PMU_EVENT_ATTR(tx_mwr_flux, 0x0105),
+	HISI_PCIE_PMU_EVENT_ATTR(tx_mwr_time, 0x10105),
 	HISI_PCIE_PMU_EVENT_ATTR(tx_mrd_flux, 0x0405),
 	HISI_PCIE_PMU_EVENT_ATTR(tx_mrd_time, 0x10405),
+	HISI_PCIE_PMU_EVENT_ATTR(tx_cpl_flux, 0x1005),
+	HISI_PCIE_PMU_EVENT_ATTR(tx_cpl_time, 0x11005),
 	NULL
 };
 

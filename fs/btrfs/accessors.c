@@ -5,7 +5,8 @@
 
 #include <asm/unaligned.h>
 #include "messages.h"
-#include "ctree.h"
+#include "extent_io.h"
+#include "fs.h"
 #include "accessors.h"
 
 static bool check_setget_bounds(const struct extent_buffer *eb,
@@ -63,8 +64,8 @@ u##bits btrfs_get_token_##bits(struct btrfs_map_token *token,		\
 	const unsigned long idx = get_eb_folio_index(token->eb, member_offset); \
 	const unsigned long oil = get_eb_offset_in_folio(token->eb,	\
 							 member_offset);\
-	const int unit_size = folio_size(token->eb->folios[0]);		\
-	const int unit_shift = folio_shift(token->eb->folios[0]);	\
+	const int unit_size = token->eb->folio_size;			\
+	const int unit_shift = token->eb->folio_shift;			\
 	const int size = sizeof(u##bits);				\
 	u8 lebytes[sizeof(u##bits)];					\
 	const int part = unit_size - oil;				\
@@ -94,7 +95,7 @@ u##bits btrfs_get_##bits(const struct extent_buffer *eb,		\
 	const unsigned long idx = get_eb_folio_index(eb, member_offset);\
 	const unsigned long oil = get_eb_offset_in_folio(eb,		\
 							 member_offset);\
-	const int unit_size = folio_size(eb->folios[0]);		\
+	const int unit_size = eb->folio_size;				\
 	char *kaddr = folio_address(eb->folios[idx]);			\
 	const int size = sizeof(u##bits);				\
 	const int part = unit_size - oil;				\
@@ -117,8 +118,8 @@ void btrfs_set_token_##bits(struct btrfs_map_token *token,		\
 	const unsigned long idx = get_eb_folio_index(token->eb, member_offset); \
 	const unsigned long oil = get_eb_offset_in_folio(token->eb,	\
 							 member_offset);\
-	const int unit_size = folio_size(token->eb->folios[0]);		\
-	const int unit_shift = folio_shift(token->eb->folios[0]);	\
+	const int unit_size = token->eb->folio_size;			\
+	const int unit_shift = token->eb->folio_shift;			\
 	const int size = sizeof(u##bits);				\
 	u8 lebytes[sizeof(u##bits)];					\
 	const int part = unit_size - oil;				\
@@ -151,7 +152,7 @@ void btrfs_set_##bits(const struct extent_buffer *eb, void *ptr,	\
 	const unsigned long idx = get_eb_folio_index(eb, member_offset);\
 	const unsigned long oil = get_eb_offset_in_folio(eb,		\
 							 member_offset);\
-	const int unit_size = folio_size(eb->folios[0]);		\
+	const int unit_size = eb->folio_size;				\
 	char *kaddr = folio_address(eb->folios[idx]);			\
 	const int size = sizeof(u##bits);				\
 	const int part = unit_size - oil;				\
