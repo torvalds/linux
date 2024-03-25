@@ -328,9 +328,14 @@ static int atana33xc20_probe(struct dp_aux_ep_device *aux_ep)
 	ret = drm_panel_dp_aux_backlight(&panel->base, aux_ep->aux);
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
+
+	/*
+	 * Warn if we get an error, but don't consider it fatal. Having
+	 * a panel where we can't control the backlight is better than
+	 * no panel.
+	 */
 	if (ret)
-		return dev_err_probe(dev, ret,
-				     "failed to register dp aux backlight\n");
+		dev_warn(dev, "failed to register dp aux backlight: %d\n", ret);
 
 	drm_panel_add(&panel->base);
 

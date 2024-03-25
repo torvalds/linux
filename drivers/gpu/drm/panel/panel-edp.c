@@ -944,8 +944,14 @@ static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 		err = drm_panel_dp_aux_backlight(&panel->base, panel->aux);
 		pm_runtime_mark_last_busy(dev);
 		pm_runtime_put_autosuspend(dev);
+
+		/*
+		 * Warn if we get an error, but don't consider it fatal. Having
+		 * a panel where we can't control the backlight is better than
+		 * no panel.
+		 */
 		if (err)
-			goto err_finished_pm_runtime;
+			dev_warn(dev, "failed to register dp aux backlight: %d\n", err);
 	}
 
 	drm_panel_add(&panel->base);
