@@ -9825,6 +9825,23 @@ vnic_setup_err:
 	return rc;
 }
 
+int bnxt_hwrm_vnic_rss_cfg_p5(struct bnxt *bp, u16 vnic_id)
+{
+	int rc;
+
+	rc = bnxt_hwrm_vnic_set_rss_p5(bp, vnic_id, true);
+	if (rc) {
+		netdev_err(bp->dev, "hwrm vnic %d set rss failure rc: %d\n",
+			   vnic_id, rc);
+		return rc;
+	}
+	rc = bnxt_hwrm_vnic_cfg(bp, vnic_id);
+	if (rc)
+		netdev_err(bp->dev, "hwrm vnic %d cfg failure rc: %x\n",
+			   vnic_id, rc);
+	return rc;
+}
+
 static int __bnxt_setup_vnic_p5(struct bnxt *bp, u16 vnic_id)
 {
 	int rc, i, nr_ctxs;
@@ -9842,18 +9859,10 @@ static int __bnxt_setup_vnic_p5(struct bnxt *bp, u16 vnic_id)
 	if (i < nr_ctxs)
 		return -ENOMEM;
 
-	rc = bnxt_hwrm_vnic_set_rss_p5(bp, vnic_id, true);
-	if (rc) {
-		netdev_err(bp->dev, "hwrm vnic %d set rss failure rc: %d\n",
-			   vnic_id, rc);
+	rc = bnxt_hwrm_vnic_rss_cfg_p5(bp, vnic_id);
+	if (rc)
 		return rc;
-	}
-	rc = bnxt_hwrm_vnic_cfg(bp, vnic_id);
-	if (rc) {
-		netdev_err(bp->dev, "hwrm vnic %d cfg failure rc: %x\n",
-			   vnic_id, rc);
-		return rc;
-	}
+
 	if (bp->flags & BNXT_FLAG_AGG_RINGS) {
 		rc = bnxt_hwrm_vnic_set_hds(bp, vnic_id);
 		if (rc) {
