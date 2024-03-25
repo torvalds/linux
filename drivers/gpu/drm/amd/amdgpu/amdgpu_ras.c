@@ -2399,6 +2399,19 @@ out:
 	return ret;
 }
 
+static void amdgpu_ras_set_fed_all(struct amdgpu_device *adev,
+				   struct amdgpu_hive_info *hive, bool status)
+{
+	struct amdgpu_device *tmp_adev;
+
+	if (hive) {
+		list_for_each_entry(tmp_adev, &hive->device_list, gmc.xgmi.head)
+			amdgpu_ras_set_fed(tmp_adev, status);
+	} else {
+		amdgpu_ras_set_fed(adev, status);
+	}
+}
+
 static void amdgpu_ras_do_recovery(struct work_struct *work)
 {
 	struct amdgpu_ras *ras =
@@ -2408,8 +2421,21 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 	struct list_head device_list, *device_list_handle =  NULL;
 	struct amdgpu_hive_info *hive = amdgpu_get_xgmi_hive(adev);
 
-	if (hive)
+	if (hive) {
 		atomic_set(&hive->ras_recovery, 1);
+
+		/* If any device which is part of the hive received RAS fatal
+		 * error interrupt, set fatal error status on all. This
+		 * condition will need a recovery, and flag will be cleared
+		 * as part of recovery.
+		 */
+		list_for_each_entry(remote_adev, &hive->device_list,
+				    gmc.xgmi.head)
+			if (amdgpu_ras_get_fed_status(remote_adev)) {
+				amdgpu_ras_set_fed_all(adev, hive, true);
+				break;
+			}
+	}
 	if (!ras->disable_ras_err_cnt_harvest) {
 
 		/* Build list of devices to query RAS related errors */
@@ -2454,18 +2480,6 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 				ras->gpu_reset_flags &= ~AMDGPU_RAS_GPU_RESET_MODE1_RESET;
 				set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
 
-				/* For any RAS error that needs a full reset to
-				 * recover, set the fatal error status
-				 */
-				if (hive) {
-					list_for_each_entry(remote_adev,
-							    &hive->device_list,
-							    gmc.xgmi.head)
-						amdgpu_ras_set_fed(remote_adev,
-								   true);
-				} else {
-					amdgpu_ras_set_fed(adev, true);
-				}
 				psp_fatal_error_recovery_quirk(&adev->psp);
 			}
 		}
@@ -3550,6 +3564,7 @@ void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 		RAS_EVENT_LOG(adev, event_id, "uncorrectable hardware error"
 			      "(ERREVENT_ATHUB_INTERRUPT) detected!\n");
 
+		amdgpu_ras_set_fed(adev, true);
 		ras->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE1_RESET;
 		amdgpu_ras_reset_gpu(adev);
 	}
