@@ -24,6 +24,7 @@
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 
+#include "ast_ddc.h"
 #include "ast_drv.h"
 
 static void ast_i2c_setsda(void *i2c_priv, int data)
@@ -122,8 +123,7 @@ struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev)
 	i2c->adapter.dev.parent = dev->dev;
 	i2c->dev = dev;
 	i2c_set_adapdata(&i2c->adapter, i2c);
-	snprintf(i2c->adapter.name, sizeof(i2c->adapter.name),
-		 "AST i2c bit bus");
+	snprintf(i2c->adapter.name, sizeof(i2c->adapter.name), "AST DDC bus");
 	i2c->adapter.algo_data = &i2c->bit;
 
 	i2c->bit.udelay = 20;

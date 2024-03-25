@@ -46,6 +46,7 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
+#include "ast_ddc.h"
 #include "ast_drv.h"
 #include "ast_tables.h"
 
