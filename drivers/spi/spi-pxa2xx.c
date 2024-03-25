@@ -944,7 +944,6 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 				   struct spi_transfer *transfer)
 {
 	struct driver_data *drv_data = spi_controller_get_devdata(controller);
-	struct spi_message *message = controller->cur_msg;
 	struct chip_data *chip = spi_get_ctldata(spi);
 	u32 dma_thresh = chip->dma_threshold;
 	u32 dma_burst = chip->dma_burst_size;
@@ -959,16 +958,6 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 
 	/* Check if we can DMA this transfer */
 	if (transfer->len > MAX_DMA_LEN && chip->enable_dma) {
-
-		/* Reject already-mapped transfers; PIO won't always work */
-		if (message->is_dma_mapped
-				|| transfer->rx_dma || transfer->tx_dma) {
-			dev_err(&spi->dev,
-				"Mapped transfer length of %u is greater than %d\n",
-				transfer->len, MAX_DMA_LEN);
-			return -EINVAL;
-		}
-
 		/* Warn ... we force this to PIO mode */
 		dev_warn_ratelimited(&spi->dev,
 				     "DMA disabled for transfer length %u greater than %d\n",

@@ -194,9 +194,6 @@ The following logic is used to determine the type of I/O to be used on
 a per "spi_transfer" basis::
 
   if spi_message.len > 65536 then
-	if spi_message.is_dma_mapped or rx_dma_buf != 0 or tx_dma_buf != 0 then
-		reject premapped transfers
-
 	print "rate limited" warning
 	use PIO transfers
 

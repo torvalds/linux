@@ -3709,9 +3709,6 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
 	 * to the same values as *xferp, so tx_buf, rx_buf and len
 	 * are all identical (as well as most others)
 	 * so we just have to fix up len and the pointers.
-	 *
-	 * This also includes support for the depreciated
-	 * spi_message.is_dma_mapped interface.
 	 */
 
 	/*
@@ -3725,12 +3722,8 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
 		/* Update rx_buf, tx_buf and DMA */
 		if (xfers[i].rx_buf)
 			xfers[i].rx_buf += offset;
-		if (xfers[i].rx_dma)
-			xfers[i].rx_dma += offset;
 		if (xfers[i].tx_buf)
 			xfers[i].tx_buf += offset;
-		if (xfers[i].tx_dma)
-			xfers[i].tx_dma += offset;
 
 		/* Update length */
 		xfers[i].len = min(maxsize, xfers[i].len - offset);

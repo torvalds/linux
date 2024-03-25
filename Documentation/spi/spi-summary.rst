@@ -419,10 +419,6 @@ any more such messages.
     to make extra copies unless the hardware requires it (e.g. working
     around hardware errata that force the use of bounce buffering).
 
-    If standard dma_map_single() handling of these buffers is inappropriate,
-    you can use spi_message.is_dma_mapped to tell the controller driver
-    that you've already provided the relevant DMA addresses.
-
   - The basic I/O primitive is spi_async().  Async requests may be
     issued in any context (irq handler, task, etc) and completion
     is reported using a callback provided with the message.
