@@ -47,7 +47,6 @@ struct bq27xxx_access_methods {
 };
 
 struct bq27xxx_reg_cache {
-	int temperature;
 	int time_to_empty;
 	int time_to_empty_avg;
 	int time_to_full;

@@ -1652,10 +1652,11 @@ static int bq27xxx_battery_read_energy(struct bq27xxx_device_info *di)
 }
 
 /*
- * Return the battery temperature in tenths of degree Kelvin
+ * Return the battery temperature in tenths of degree Celsius
  * Or < 0 if something fails.
  */
-static int bq27xxx_battery_read_temperature(struct bq27xxx_device_info *di)
+static int bq27xxx_battery_read_temperature(struct bq27xxx_device_info *di,
+					    union power_supply_propval *val)
 {
 	int temp;
 
@@ -1668,7 +1669,12 @@ static int bq27xxx_battery_read_temperature(struct bq27xxx_device_info *di)
 	if (di->opts & BQ27XXX_O_ZERO)
 		temp = 5 * temp / 2;
 
-	return temp;
+	/* Convert decidegree Kelvin to Celsius */
+	temp -= 2731;
+
+	val->intval = temp;
+
+	return 0;
 }
 
 /*
@@ -1851,7 +1857,6 @@ static void bq27xxx_battery_update_unlocked(struct bq27xxx_device_info *di)
 	if ((cache.flags & 0xff) == 0xff)
 		cache.flags = -1; /* read error */
 	if (cache.flags >= 0) {
-		cache.temperature = bq27xxx_battery_read_temperature(di);
 		if (di->regs[BQ27XXX_REG_TTE] != INVALID_REG_ADDR)
 			cache.time_to_empty = bq27xxx_battery_read_time(di, BQ27XXX_REG_TTE);
 		if (di->regs[BQ27XXX_REG_TTECP] != INVALID_REG_ADDR)
@@ -2038,9 +2043,7 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 		ret = bq27xxx_battery_capacity_level(di, val);
 		break;
 	case POWER_SUPPLY_PROP_TEMP:
-		ret = bq27xxx_simple_value(di->cache.temperature, val);
-		if (ret == 0)
-			val->intval -= 2731; /* convert decidegree k to c */
+		ret = bq27xxx_battery_read_temperature(di, val);
 		break;
 	case POWER_SUPPLY_PROP_TIME_TO_EMPTY_NOW:
 		ret = bq27xxx_simple_value(di->cache.time_to_empty, val);
