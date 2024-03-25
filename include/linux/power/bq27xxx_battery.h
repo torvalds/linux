@@ -49,7 +49,6 @@ struct bq27xxx_access_methods {
 struct bq27xxx_reg_cache {
 	int capacity;
 	int flags;
-	int health;
 };
 
 struct bq27xxx_device_info {

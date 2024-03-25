@@ -1777,19 +1777,26 @@ static bool bq27xxx_battery_capacity_inaccurate(struct bq27xxx_device_info *di,
 		return false;
 }
 
-static int bq27xxx_battery_read_health(struct bq27xxx_device_info *di)
+static int bq27xxx_battery_read_health(struct bq27xxx_device_info *di,
+				       union power_supply_propval *val)
 {
+	int health;
+
 	/* Unlikely but important to return first */
 	if (unlikely(bq27xxx_battery_overtemp(di, di->cache.flags)))
-		return POWER_SUPPLY_HEALTH_OVERHEAT;
-	if (unlikely(bq27xxx_battery_undertemp(di, di->cache.flags)))
-		return POWER_SUPPLY_HEALTH_COLD;
-	if (unlikely(bq27xxx_battery_dead(di, di->cache.flags)))
-		return POWER_SUPPLY_HEALTH_DEAD;
-	if (unlikely(bq27xxx_battery_capacity_inaccurate(di, di->cache.flags)))
-		return POWER_SUPPLY_HEALTH_CALIBRATION_REQUIRED;
+		health = POWER_SUPPLY_HEALTH_OVERHEAT;
+	else if (unlikely(bq27xxx_battery_undertemp(di, di->cache.flags)))
+		health = POWER_SUPPLY_HEALTH_COLD;
+	else if (unlikely(bq27xxx_battery_dead(di, di->cache.flags)))
+		health = POWER_SUPPLY_HEALTH_DEAD;
+	else if (unlikely(bq27xxx_battery_capacity_inaccurate(di, di->cache.flags)))
+		health = POWER_SUPPLY_HEALTH_CALIBRATION_REQUIRED;
+	else
+		health = POWER_SUPPLY_HEALTH_GOOD;
 
-	return POWER_SUPPLY_HEALTH_GOOD;
+	val->intval = health;
+
+	return 0;
 }
 
 static bool bq27xxx_battery_is_full(struct bq27xxx_device_info *di, int flags)
@@ -1874,7 +1881,6 @@ static void bq27xxx_battery_update_unlocked(struct bq27xxx_device_info *di)
 	if (cache.flags >= 0) {
 		cache.capacity = bq27xxx_battery_read_soc(di);
 		di->cache.flags = cache.flags;
-		cache.health = bq27xxx_battery_read_health(di);
 
 		/*
 		 * On gauges with signed current reporting the current must be
@@ -2092,7 +2098,7 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 		ret = bq27xxx_battery_pwr_avg(di, val);
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
-		ret = bq27xxx_simple_value(di->cache.health, val);
+		ret = bq27xxx_battery_read_health(di, val);
 		break;
 	case POWER_SUPPLY_PROP_MANUFACTURER:
 		val->strval = BQ27XXX_MANUFACTURER;
