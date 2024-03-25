@@ -5,7 +5,7 @@
 
 #include "ice.h"
 #include "ice_lib.h"
-#include "ice_devlink.h"
+#include "devlink.h"
 #include "ice_eswitch.h"
 #include "ice_fw_update.h"
 #include "ice_dcb_lib.h"

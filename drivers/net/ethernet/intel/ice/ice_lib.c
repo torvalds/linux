@@ -7,7 +7,7 @@
 #include "ice_lib.h"
 #include "ice_fltr.h"
 #include "ice_dcb_lib.h"
-#include "ice_devlink.h"
+#include "devlink/devlink.h"
 #include "ice_vsi_vlan_ops.h"
 
 /**
