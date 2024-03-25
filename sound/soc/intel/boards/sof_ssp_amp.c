@@ -20,34 +20,12 @@
 #include "sof_board_helpers.h"
 #include "sof_realtek_common.h"
 #include "sof_cirrus_common.h"
-#include "sof_ssp_common.h"
 
-/* SSP port ID for speaker amplifier */
-#define SOF_AMPLIFIER_SSP(quirk)		((quirk) & GENMASK(3, 0))
-#define SOF_AMPLIFIER_SSP_MASK			(GENMASK(3, 0))
-
-/* HDMI capture*/
-#define SOF_HDMI_CAPTURE_SSP_MASK_SHIFT		4
-#define SOF_HDMI_CAPTURE_SSP_MASK_MASK		(GENMASK(9, 4))
-#define SOF_HDMI_CAPTURE_SSP_MASK(quirk)	\
-	(((quirk) << SOF_HDMI_CAPTURE_SSP_MASK_SHIFT) & SOF_HDMI_CAPTURE_SSP_MASK_MASK)
-
-/* HDMI playback */
-#define SOF_HDMI_PLAYBACK_PRESENT		BIT(13)
-#define SOF_NO_OF_HDMI_PLAYBACK_SHIFT		14
-#define SOF_NO_OF_HDMI_PLAYBACK_MASK		(GENMASK(16, 14))
-#define SOF_NO_OF_HDMI_PLAYBACK(quirk)	\
-	(((quirk) << SOF_NO_OF_HDMI_PLAYBACK_SHIFT) & SOF_NO_OF_HDMI_PLAYBACK_MASK)
-
-/* BT audio offload */
-#define SOF_SSP_BT_OFFLOAD_PRESENT		BIT(17)
-#define SOF_BT_OFFLOAD_SSP_SHIFT		18
-#define SOF_BT_OFFLOAD_SSP_MASK			(GENMASK(20, 18))
-#define SOF_BT_OFFLOAD_SSP(quirk)	\
-	(((quirk) << SOF_BT_OFFLOAD_SSP_SHIFT) & SOF_BT_OFFLOAD_SSP_MASK)
+/* Driver-specific board quirks: from bit 0 to 7 */
+#define SOF_HDMI_PLAYBACK_PRESENT		BIT(0)
 
 /* Default: SSP2  */
-static unsigned long sof_ssp_amp_quirk = SOF_AMPLIFIER_SSP(2);
+static unsigned long sof_ssp_amp_quirk = SOF_SSP_PORT_AMP(2);
 
 static const struct dmi_system_id chromebook_platforms[] = {
 	{
@@ -136,44 +114,26 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 	struct sof_card_private *ctx;
 	int ret;
 
-	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
-	if (!ctx)
-		return -ENOMEM;
-
 	if (pdev->id_entry && pdev->id_entry->driver_data)
 		sof_ssp_amp_quirk = (unsigned long)pdev->id_entry->driver_data;
 
-	ctx->amp_type = sof_ssp_detect_amp_type(&pdev->dev);
+	dev_dbg(&pdev->dev, "sof_ssp_amp_quirk = %lx\n", sof_ssp_amp_quirk);
 
-	if (dmi_check_system(chromebook_platforms) || mach->mach_params.dmic_num > 0)
-		ctx->dmic_be_num = 2;
-	else
+	/* initialize ctx with board quirk */
+	ctx = sof_intel_board_get_ctx(&pdev->dev, sof_ssp_amp_quirk);
+	if (!ctx)
+		return -ENOMEM;
+
+	if (!dmi_check_system(chromebook_platforms) &&
+	    (mach->mach_params.dmic_num == 0))
 		ctx->dmic_be_num = 0;
 
-	/* port number/mask of peripherals attached to ssp interface */
-	ctx->ssp_mask_hdmi_in = (sof_ssp_amp_quirk & SOF_HDMI_CAPTURE_SSP_MASK_MASK) >>
-			SOF_HDMI_CAPTURE_SSP_MASK_SHIFT;
-
-	ctx->ssp_bt = (sof_ssp_amp_quirk & SOF_BT_OFFLOAD_SSP_MASK) >>
-			SOF_BT_OFFLOAD_SSP_SHIFT;
-
-	ctx->ssp_amp = sof_ssp_amp_quirk & SOF_AMPLIFIER_SSP_MASK;
-
 	if (sof_ssp_amp_quirk & SOF_HDMI_PLAYBACK_PRESENT) {
-		ctx->hdmi_num = (sof_ssp_amp_quirk & SOF_NO_OF_HDMI_PLAYBACK_MASK) >>
-				SOF_NO_OF_HDMI_PLAYBACK_SHIFT;
-		/* default number of HDMI DAI's */
-		if (!ctx->hdmi_num)
-			ctx->hdmi_num = 3;
-
 		if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
 			ctx->hdmi.idisp_codec = true;
 	} else {
 		ctx->hdmi_num = 0;
 	}
-
-	if (sof_ssp_amp_quirk & SOF_SSP_BT_OFFLOAD_PRESENT)
-		ctx->bt_offload_present = true;
 
 	ctx->link_order_overwrite = SSP_AMP_LINK_ORDER;
 
@@ -220,38 +180,38 @@ static const struct platform_device_id board_ids[] = {
 	},
 	{
 		.name = "tgl_rt1308_hdmi_ssp",
-		.driver_data = (kernel_ulong_t)(SOF_AMPLIFIER_SSP(2) |
-					SOF_HDMI_CAPTURE_SSP_MASK(0x22)),
+		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_AMP(2) |
+					SOF_SSP_MASK_HDMI_CAPTURE(0x22)),
 					/* SSP 1 and SSP 5 are used for HDMI IN */
 	},
 	{
 		.name = "adl_cs35l41",
-		.driver_data = (kernel_ulong_t)(SOF_AMPLIFIER_SSP(1) |
-					SOF_NO_OF_HDMI_PLAYBACK(4) |
+		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_AMP(1) |
+					SOF_NUM_IDISP_HDMI(4) |
 					SOF_HDMI_PLAYBACK_PRESENT |
-					SOF_BT_OFFLOAD_SSP(2) |
-					SOF_SSP_BT_OFFLOAD_PRESENT),
+					SOF_SSP_PORT_BT_OFFLOAD(2) |
+					SOF_BT_OFFLOAD_PRESENT),
 	},
 	{
 		.name = "adl_lt6911_hdmi_ssp",
-		.driver_data = (kernel_ulong_t)(SOF_HDMI_CAPTURE_SSP_MASK(0x5) |
+		.driver_data = (kernel_ulong_t)(SOF_SSP_MASK_HDMI_CAPTURE(0x5) |
 					/* SSP 0 and SSP 2 are used for HDMI IN */
-					SOF_NO_OF_HDMI_PLAYBACK(3) |
+					SOF_NUM_IDISP_HDMI(3) |
 					SOF_HDMI_PLAYBACK_PRESENT),
 	},
 	{
 		.name = "rpl_lt6911_hdmi_ssp",
-		.driver_data = (kernel_ulong_t)(SOF_HDMI_CAPTURE_SSP_MASK(0x5) |
+		.driver_data = (kernel_ulong_t)(SOF_SSP_MASK_HDMI_CAPTURE(0x5) |
 					/* SSP 0 and SSP 2 are used for HDMI IN */
-					SOF_NO_OF_HDMI_PLAYBACK(3) |
+					SOF_NUM_IDISP_HDMI(3) |
 					SOF_HDMI_PLAYBACK_PRESENT),
 	},
 	{
 		.name = "mtl_lt6911_hdmi_ssp",
-		.driver_data = (kernel_ulong_t)(SOF_HDMI_CAPTURE_SSP_MASK(0x5) |
-				/* SSP 0 and SSP 2 are used for HDMI IN */
-				SOF_NO_OF_HDMI_PLAYBACK(3) |
-				SOF_HDMI_PLAYBACK_PRESENT),
+		.driver_data = (kernel_ulong_t)(SOF_SSP_MASK_HDMI_CAPTURE(0x5) |
+					/* SSP 0 and SSP 2 are used for HDMI IN */
+					SOF_NUM_IDISP_HDMI(3) |
+					SOF_HDMI_PLAYBACK_PRESENT),
 	},
 	{ }
 };
@@ -274,4 +234,3 @@ MODULE_LICENSE("GPL");
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_REALTEK_COMMON);
 MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_CIRRUS_COMMON);
-MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_SSP_COMMON);
