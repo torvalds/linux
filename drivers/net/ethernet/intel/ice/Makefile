@@ -30,6 +30,7 @@ ice-y := ice_main.o	\
 	 ice_flow.o	\
 	 ice_idc.o	\
 	 devlink/devlink.o	\
+	 devlink/devlink_port.o \
 	 ice_ddp.o	\
 	 ice_fw_update.o \
 	 ice_lag.o	\
