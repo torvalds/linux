@@ -28,7 +28,6 @@ struct imx_es8328_data {
 
 static struct snd_soc_jack_gpio headset_jack_gpios[] = {
 	{
-		.gpio = -1,
 		.name = "headset-gpio",
 		.report = SND_JACK_HEADSET,
 		.invert = 0,
