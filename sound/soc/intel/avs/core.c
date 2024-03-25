@@ -343,7 +343,7 @@ static int avs_hdac_acquire_irq(struct avs_dev *adev)
 	int ret;
 
 	/* request one and check that we only got one interrupt */
-	ret = pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_MSI | PCI_IRQ_LEGACY);
+	ret = pci_alloc_irq_vectors(pci, 1, 1, PCI_IRQ_MSI | PCI_IRQ_INTX);
 	if (ret != 1) {
 		dev_err(adev->dev, "Failed to allocate IRQ vector: %d\n", ret);
 		return ret;
