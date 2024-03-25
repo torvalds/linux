@@ -1545,7 +1545,8 @@ static int bq27xxx_battery_read_soc(struct bq27xxx_device_info *di)
  * Return a battery charge value in µAh
  * Or < 0 if something fails.
  */
-static int bq27xxx_battery_read_charge(struct bq27xxx_device_info *di, u8 reg)
+static int bq27xxx_battery_read_charge(struct bq27xxx_device_info *di, u8 reg,
+				       union power_supply_propval *val)
 {
 	int charge;
 
@@ -1561,34 +1562,39 @@ static int bq27xxx_battery_read_charge(struct bq27xxx_device_info *di, u8 reg)
 	else
 		charge *= 1000;
 
-	return charge;
+	val->intval = charge;
+
+	return 0;
 }
 
 /*
  * Return the battery Nominal available capacity in µAh
  * Or < 0 if something fails.
  */
-static inline int bq27xxx_battery_read_nac(struct bq27xxx_device_info *di)
+static inline int bq27xxx_battery_read_nac(struct bq27xxx_device_info *di,
+					   union power_supply_propval *val)
 {
-	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_NAC);
+	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_NAC, val);
 }
 
 /*
  * Return the battery Remaining Capacity in µAh
  * Or < 0 if something fails.
  */
-static inline int bq27xxx_battery_read_rc(struct bq27xxx_device_info *di)
+static inline int bq27xxx_battery_read_rc(struct bq27xxx_device_info *di,
+					  union power_supply_propval *val)
 {
-	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_RC);
+	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_RC, val);
 }
 
 /*
  * Return the battery Full Charge Capacity in µAh
  * Or < 0 if something fails.
  */
-static inline int bq27xxx_battery_read_fcc(struct bq27xxx_device_info *di)
+static inline int bq27xxx_battery_read_fcc(struct bq27xxx_device_info *di,
+					   union power_supply_propval *val)
 {
-	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_FCC);
+	return bq27xxx_battery_read_charge(di, BQ27XXX_REG_FCC, val);
 }
 
 /*
@@ -1860,7 +1866,6 @@ static void bq27xxx_battery_update_unlocked(struct bq27xxx_device_info *di)
 	if ((cache.flags & 0xff) == 0xff)
 		cache.flags = -1; /* read error */
 	if (cache.flags >= 0) {
-		cache.charge_full = bq27xxx_battery_read_fcc(di);
 		cache.capacity = bq27xxx_battery_read_soc(di);
 		if (di->regs[BQ27XXX_REG_AE] != INVALID_REG_ADDR)
 			cache.energy = bq27xxx_battery_read_energy(di);
@@ -2058,12 +2063,12 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_NOW:
 		if (di->regs[BQ27XXX_REG_NAC] != INVALID_REG_ADDR)
-			ret = bq27xxx_simple_value(bq27xxx_battery_read_nac(di), val);
+			ret = bq27xxx_battery_read_nac(di, val);
 		else
-			ret = bq27xxx_simple_value(bq27xxx_battery_read_rc(di), val);
+			ret = bq27xxx_battery_read_rc(di, val);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
-		ret = bq27xxx_simple_value(di->cache.charge_full, val);
+		ret = bq27xxx_battery_read_fcc(di, val);
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
 		ret = bq27xxx_battery_read_dcap(di, val);

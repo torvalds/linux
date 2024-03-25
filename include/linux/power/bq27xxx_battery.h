@@ -47,7 +47,6 @@ struct bq27xxx_access_methods {
 };
 
 struct bq27xxx_reg_cache {
-	int charge_full;
 	int cycle_count;
 	int capacity;
 	int energy;
