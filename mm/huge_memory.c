@@ -3006,28 +3006,40 @@ bool can_split_folio(struct folio *folio, int *pextra_pins)
 }
 
 /*
- * This function splits huge page into pages in @new_order. @page can point to
- * any subpage of huge page to split. Split doesn't change the position of
- * @page.
+ * This function splits a large folio into smaller folios of order @new_order.
+ * @page can point to any page of the large folio to split. The split operation
+ * does not change the position of @page.
  *
- * NOTE: order-1 anonymous folio is not supported because _deferred_list,
- * which is used by partially mapped folios, is stored in subpage 2 and an
- * order-1 folio only has subpage 0 and 1. File-backed order-1 folios are OK,
- * since they do not use _deferred_list.
+ * Prerequisites:
  *
- * Only caller must hold pin on the @page, otherwise split fails with -EBUSY.
- * The huge page must be locked.
+ * 1) The caller must hold a reference on the @page's owning folio, also known
+ *    as the large folio.
+ *
+ * 2) The large folio must be locked.
+ *
+ * 3) The folio must not be pinned. Any unexpected folio references, including
+ *    GUP pins, will result in the folio not getting split; instead, the caller
+ *    will receive an -EBUSY.
+ *
+ * 4) @new_order > 1, usually. Splitting to order-1 anonymous folios is not
+ *    supported for non-file-backed folios, because folio->_deferred_list, which
+ *    is used by partially mapped folios, is stored in subpage 2, but an order-1
+ *    folio only has subpages 0 and 1. File-backed order-1 folios are supported,
+ *    since they do not use _deferred_list.
+ *
+ * After splitting, the caller's folio reference will be transferred to @page,
+ * resulting in a raised refcount of @page after this call. The other pages may
+ * be freed if they are not mapped.
  *
  * If @list is null, tail pages will be added to LRU list, otherwise, to @list.
  *
- * Pages in new_order will inherit mapping, flags, and so on from the hugepage.
+ * Pages in @new_order will inherit the mapping, flags, and so on from the
+ * huge page.
  *
- * GUP pin and PG_locked transferred to @page or the compound page @page belongs
- * to. Rest subpages can be freed if they are not mapped.
+ * Returns 0 if the huge page was split successfully.
  *
- * Returns 0 if the hugepage is split successfully.
- * Returns -EBUSY if the page is pinned or if anon_vma disappeared from under
- * us.
+ * Returns -EBUSY if @page's folio is pinned, or if the anon_vma disappeared
+ * from under us.
  */
 int split_huge_page_to_list_to_order(struct page *page, struct list_head *list,
 				     unsigned int new_order)
