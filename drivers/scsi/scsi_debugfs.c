@@ -56,16 +56,20 @@ void scsi_show_rq(struct seq_file *m, struct request *rq)
 	struct scsi_cmnd *cmd = blk_mq_rq_to_pdu(rq);
 	int alloc_ms = jiffies_to_msecs(jiffies - cmd->jiffies_at_alloc);
 	int timeout_ms = jiffies_to_msecs(rq->timeout);
-	const char *list_info = scsi_cmd_list_info(cmd);
 	char buf[80] = "(?)";
 
-	__scsi_format_command(buf, sizeof(buf), cmd->cmnd, cmd->cmd_len);
-	seq_printf(m, ", .cmd=%s, .retries=%d, .allowed=%d, .result = %#x, %s%s.flags=",
-		   buf, cmd->retries, cmd->allowed, cmd->result,
-		   list_info ? : "", list_info ? ", " : "");
+	if (cmd->flags & SCMD_INITIALIZED) {
+		const char *list_info = scsi_cmd_list_info(cmd);
+
+		__scsi_format_command(buf, sizeof(buf), cmd->cmnd, cmd->cmd_len);
+		seq_printf(m, ", .cmd=%s, .retries=%d, .allowed=%d, .result = %#x%s%s",
+			   buf, cmd->retries, cmd->allowed, cmd->result,
+			   list_info ? ", " : "", list_info ? : "");
+		seq_printf(m, ", .timeout=%d.%03d, allocated %d.%03d s ago",
+			   timeout_ms / 1000, timeout_ms % 1000,
+			   alloc_ms / 1000, alloc_ms % 1000);
+	}
+	seq_printf(m, ", .flags=");
 	scsi_flags_show(m, cmd->flags, scsi_cmd_flags,
 			ARRAY_SIZE(scsi_cmd_flags));
-	seq_printf(m, ", .timeout=%d.%03d, allocated %d.%03d s ago",
-		   timeout_ms / 1000, timeout_ms % 1000,
-		   alloc_ms / 1000, alloc_ms % 1000);
 }
