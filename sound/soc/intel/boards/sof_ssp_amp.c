@@ -75,126 +75,64 @@ static struct snd_soc_card sof_ssp_amp_card = {
 #define HDMI_IN_BE_ID		0
 #define SPK_BE_ID		2
 #define DMIC01_BE_ID		3
-#define DMIC16K_BE_ID		4
 #define INTEL_HDMI_BE_ID	5
+/* extra BE links to support no-hdmi-in boards */
+#define DMIC16K_BE_ID		4
+#define BT_OFFLOAD_BE_ID	8
 
-static struct snd_soc_dai_link *
-sof_card_dai_links_create(struct device *dev, enum sof_ssp_codec amp_type,
-			  int ssp_amp, int dmic_be_num, int hdmi_num,
-			  bool idisp_codec)
+#define SSP_AMP_LINK_ORDER	SOF_LINK_ORDER(SOF_LINK_HDMI_IN, \
+					SOF_LINK_AMP,            \
+					SOF_LINK_DMIC01,         \
+					SOF_LINK_DMIC16K,        \
+					SOF_LINK_IDISP_HDMI,     \
+					SOF_LINK_BT_OFFLOAD,     \
+					SOF_LINK_NONE)
+
+#define SSP_AMP_LINK_IDS	SOF_LINK_ORDER(HDMI_IN_BE_ID, \
+					SPK_BE_ID,            \
+					DMIC01_BE_ID,         \
+					DMIC16K_BE_ID,        \
+					INTEL_HDMI_BE_ID,     \
+					BT_OFFLOAD_BE_ID,     \
+					0)
+
+static int
+sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
+			  struct sof_card_private *ctx)
 {
-	struct snd_soc_dai_link *links;
-	int i;
-	int id = 0;
 	int ret;
-	bool fixed_be = false;
-	int be_id;
-	unsigned long ssp_mask_hdmi_in;
 
-	links = devm_kcalloc(dev, sof_ssp_amp_card.num_links,
-					sizeof(struct snd_soc_dai_link), GFP_KERNEL);
-	if (!links)
-		return NULL;
+	ret = sof_intel_board_set_dai_link(dev, card, ctx);
+	if (ret)
+		return ret;
 
-	/* HDMI-In SSP */
-	ssp_mask_hdmi_in = (sof_ssp_amp_quirk & SOF_HDMI_CAPTURE_SSP_MASK_MASK) >>
-				SOF_HDMI_CAPTURE_SSP_MASK_SHIFT;
+	if (ctx->amp_type == CODEC_NONE)
+		return 0;
 
-	if (ssp_mask_hdmi_in) {
-		int port = 0;
-
-		/* the topology supports HDMI-IN uses fixed BE ID for DAI links */
-		fixed_be = true;
-
-		be_id = HDMI_IN_BE_ID;
-		for_each_set_bit(port, &ssp_mask_hdmi_in, 32) {
-			ret = sof_intel_board_set_hdmi_in_link(dev, &links[id],
-							       be_id, port);
-			if (ret)
-				return NULL;
-
-			id++;
-			be_id++;
-		}
+	if (!ctx->amp_link) {
+		dev_err(dev, "amp link not available");
+		return -EINVAL;
 	}
 
-	/* codec SSP */
-	if (amp_type != CODEC_NONE) {
-		be_id = fixed_be ? SPK_BE_ID : id;
-		ret = sof_intel_board_set_ssp_amp_link(dev, &links[id], be_id,
-						       amp_type, ssp_amp);
-		if (ret)
-			return NULL;
-
-		/* codec-specific fields */
-		switch (amp_type) {
-		case CODEC_CS35L41:
-			cs35l41_set_dai_link(&links[id]);
-			break;
-		case CODEC_RT1308:
-			sof_rt1308_dai_link(&links[id]);
-			break;
-		default:
-			dev_err(dev, "invalid amp type %d\n", amp_type);
-			return NULL;
-		}
-
-		id++;
+	/* codec-specific fields for speaker amplifier */
+	switch (ctx->amp_type) {
+	case CODEC_CS35L41:
+		cs35l41_set_dai_link(ctx->amp_link);
+		break;
+	case CODEC_RT1308:
+		sof_rt1308_dai_link(ctx->amp_link);
+		break;
+	default:
+		dev_err(dev, "invalid amp type %d\n", ctx->amp_type);
+		return -EINVAL;
 	}
 
-	/* dmic */
-	if (dmic_be_num > 0) {
-		/* at least we have dmic01 */
-		be_id = fixed_be ? DMIC01_BE_ID : id;
-		ret = sof_intel_board_set_dmic_link(dev, &links[id], be_id,
-						    SOF_DMIC_01);
-		if (ret)
-			return NULL;
-
-		id++;
-	}
-
-	if (dmic_be_num > 1) {
-		/* set up 2 BE links at most */
-		be_id = fixed_be ? DMIC16K_BE_ID : id;
-		ret = sof_intel_board_set_dmic_link(dev, &links[id], be_id,
-						    SOF_DMIC_16K);
-		if (ret)
-			return NULL;
-
-		id++;
-	}
-
-	/* HDMI playback */
-	for (i = 1; i <= hdmi_num; i++) {
-		be_id = fixed_be ? (INTEL_HDMI_BE_ID + i - 1) : id;
-		ret = sof_intel_board_set_intel_hdmi_link(dev, &links[id], be_id,
-							  i, idisp_codec);
-		if (ret)
-			return NULL;
-
-		id++;
-	}
-
-	/* BT audio offload */
-	if (sof_ssp_amp_quirk & SOF_SSP_BT_OFFLOAD_PRESENT) {
-		int port = (sof_ssp_amp_quirk & SOF_BT_OFFLOAD_SSP_MASK) >>
-				SOF_BT_OFFLOAD_SSP_SHIFT;
-
-		ret = sof_intel_board_set_bt_link(dev, &links[id], id, port);
-		if (ret)
-			return NULL;
-
-		id++;
-	}
-
-	return links;
+	return 0;
 }
 
 static int sof_ssp_amp_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
-	struct snd_soc_dai_link *dai_links;
 	struct sof_card_private *ctx;
 	int ret;
 
@@ -221,15 +159,6 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 
 	ctx->ssp_amp = sof_ssp_amp_quirk & SOF_AMPLIFIER_SSP_MASK;
 
-	/* set number of dai links */
-	sof_ssp_amp_card.num_links = ctx->dmic_be_num;
-
-	if (ctx->amp_type != CODEC_NONE)
-		sof_ssp_amp_card.num_links++;
-
-	if (ctx->ssp_mask_hdmi_in)
-		sof_ssp_amp_card.num_links += hweight32(ctx->ssp_mask_hdmi_in);
-
 	if (sof_ssp_amp_quirk & SOF_HDMI_PLAYBACK_PRESENT) {
 		ctx->hdmi_num = (sof_ssp_amp_quirk & SOF_NO_OF_HDMI_PLAYBACK_MASK) >>
 				SOF_NO_OF_HDMI_PLAYBACK_SHIFT;
@@ -239,25 +168,24 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 
 		if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
 			ctx->hdmi.idisp_codec = true;
-
-		sof_ssp_amp_card.num_links += ctx->hdmi_num;
 	} else {
 		ctx->hdmi_num = 0;
 	}
 
-	if (sof_ssp_amp_quirk & SOF_SSP_BT_OFFLOAD_PRESENT) {
+	if (sof_ssp_amp_quirk & SOF_SSP_BT_OFFLOAD_PRESENT)
 		ctx->bt_offload_present = true;
-		sof_ssp_amp_card.num_links++;
+
+	ctx->link_order_overwrite = SSP_AMP_LINK_ORDER;
+
+	if (ctx->ssp_mask_hdmi_in) {
+		/* the topology supports HDMI-IN uses fixed BE ID for DAI links */
+		ctx->link_id_overwrite = SSP_AMP_LINK_IDS;
 	}
 
-	dai_links = sof_card_dai_links_create(&pdev->dev, ctx->amp_type,
-					      ctx->ssp_amp, ctx->dmic_be_num,
-					      ctx->hdmi_num,
-					      ctx->hdmi.idisp_codec);
-	if (!dai_links)
-		return -ENOMEM;
-
-	sof_ssp_amp_card.dai_link = dai_links;
+	/* update dai_link */
+	ret = sof_card_dai_links_create(&pdev->dev, &sof_ssp_amp_card, ctx);
+	if (ret)
+		return ret;
 
 	/* update codec_conf */
 	switch (ctx->amp_type) {
