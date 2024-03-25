@@ -4256,7 +4256,7 @@ redo:
 	c = raw_cpu_ptr(s->cpu_slab);
 	tid = READ_ONCE(c->tid);
 
-	/* Same with comment on barrier() in slab_alloc_node() */
+	/* Same with comment on barrier() in __slab_alloc_node() */
 	barrier();
 
 	if (unlikely(slab != c->slab)) {
