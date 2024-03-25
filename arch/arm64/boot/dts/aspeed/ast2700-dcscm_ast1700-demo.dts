@@ -484,6 +484,10 @@ spd_ ## bus ## _ ## index: spd@addr,4cc5118 ## index ## 000 { \
 	status = "okay";
 };
 
+&peci0 {
+	status = "okay";
+};
+
 &chassis {
 	status = "okay";
 };
