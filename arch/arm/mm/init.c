@@ -418,7 +418,7 @@ static void set_section_perms(struct section_perm *perms, int n, bool set,
 
 }
 
-/**
+/*
  * update_sections_early intended to be called only through stop_machine
  * framework and executed by only one CPU while all other CPUs will spin and
  * wait, so no locking is required in this function.

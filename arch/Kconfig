@@ -799,7 +799,7 @@ config CFI_CLANG
 	depends on ARCH_SUPPORTS_CFI_CLANG
 	depends on $(cc-option,-fsanitize=kcfi)
 	help
-	  This option enables Clang’s forward-edge Control Flow Integrity
+	  This option enables Clang's forward-edge Control Flow Integrity
 	  (CFI) checking, where the compiler injects a runtime check to each
 	  indirect function call to ensure the target is a valid function with
 	  the correct static type. This restricts possible call targets and
@@ -1596,5 +1596,17 @@ config FUNCTION_ALIGNMENT
 	default 8 if FUNCTION_ALIGNMENT_8B
 	default 4 if FUNCTION_ALIGNMENT_4B
 	default 0
+
+config CC_HAS_MIN_FUNCTION_ALIGNMENT
+	# Detect availability of the GCC option -fmin-function-alignment which
+	# guarantees minimal alignment for all functions, unlike
+	# -falign-functions which the compiler ignores for cold functions.
+	def_bool $(cc-option, -fmin-function-alignment=8)
+
+config CC_HAS_SANE_FUNCTION_ALIGNMENT
+	# Set if the guaranteed alignment with -fmin-function-alignment is
+	# available or extra care is required in the kernel. Clang provides
+	# strict alignment always, even with -falign-functions.
+	def_bool CC_HAS_MIN_FUNCTION_ALIGNMENT || CC_IS_CLANG
 
 endmenu

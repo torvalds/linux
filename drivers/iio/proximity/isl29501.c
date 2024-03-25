@@ -995,17 +995,16 @@ static const struct i2c_device_id isl29501_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, isl29501_id);
 
-#if defined(CONFIG_OF)
 static const struct of_device_id isl29501_i2c_matches[] = {
 	{ .compatible = "renesas,isl29501" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, isl29501_i2c_matches);
-#endif
 
 static struct i2c_driver isl29501_driver = {
 	.driver = {
 		.name	= "isl29501",
+		.of_match_table = isl29501_i2c_matches,
 	},
 	.id_table	= isl29501_id,
 	.probe		= isl29501_probe,

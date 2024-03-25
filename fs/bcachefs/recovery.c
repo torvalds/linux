@@ -90,10 +90,12 @@ static void do_reconstruct_alloc(struct bch_fs *c)
 	struct journal_keys *keys = &c->journal_keys;
 	size_t src, dst;
 
+	move_gap(keys, keys->nr);
+
 	for (src = 0, dst = 0; src < keys->nr; src++)
 		if (!btree_id_is_alloc(keys->data[src].btree_id))
 			keys->data[dst++] = keys->data[src];
-	keys->nr = dst;
+	keys->nr = keys->gap = dst;
 }
 
 /*
@@ -202,6 +204,8 @@ static int bch2_journal_replay(struct bch_fs *c)
 	}
 
 	BUG_ON(!atomic_read(&keys->ref));
+
+	move_gap(keys, keys->nr);
 
 	/*
 	 * First, attempt to replay keys in sorted order. This is more

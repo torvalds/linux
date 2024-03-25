@@ -81,8 +81,6 @@ xmbuf_alloc(
 	/* ensure all writes are below EOF to avoid pagecache zeroing */
 	i_size_write(inode, inode->i_sb->s_maxbytes);
 
-	trace_xmbuf_create(btp);
-
 	error = xfs_buf_cache_init(btp->bt_cache);
 	if (error)
 		goto out_file;
@@ -98,6 +96,8 @@ xmbuf_alloc(
 	error = xfs_init_buftarg(btp, XMBUF_BLOCKSIZE, descr);
 	if (error)
 		goto out_bcache;
+
+	trace_xmbuf_create(btp);
 
 	*btpp = btp;
 	return 0;

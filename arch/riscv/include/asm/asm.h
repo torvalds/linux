@@ -183,6 +183,16 @@
 	REG_L x31, PT_T6(sp)
 	.endm
 
+/* Annotate a function as being unsuitable for kprobes. */
+#ifdef CONFIG_KPROBES
+#define ASM_NOKPROBE(name)				\
+	.pushsection "_kprobe_blacklist", "aw";		\
+	RISCV_PTR name;					\
+	.popsection
+#else
+#define ASM_NOKPROBE(name)
+#endif
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_RISCV_ASM_H */

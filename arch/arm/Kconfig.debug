@@ -90,9 +90,6 @@ config BACKTRACE_VERBOSE
 	  In most cases, say N here, unless you are intending to debug the
 	  kernel and have access to the kernel binary image.
 
-config FRAME_POINTER
-	bool
-
 config DEBUG_USER
 	bool "Verbose user fault messages"
 	help

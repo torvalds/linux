@@ -486,7 +486,6 @@ struct cifsFileInfo *cifs_new_fileinfo(struct cifs_fid *fid, struct file *file,
 	cfile->uid = current_fsuid();
 	cfile->dentry = dget(dentry);
 	cfile->f_flags = file->f_flags;
-	cfile->status_file_deleted = false;
 	cfile->invalidHandle = false;
 	cfile->deferred_close_scheduled = false;
 	cfile->tlink = cifs_get_tlink(tlink);
@@ -1073,6 +1072,19 @@ void smb2_deferred_work_close(struct work_struct *work)
 	_cifsFileInfo_put(cfile, true, false);
 }
 
+static bool
+smb2_can_defer_close(struct inode *inode, struct cifs_deferred_close *dclose)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+
+	return (cifs_sb->ctx->closetimeo && cinode->lease_granted && dclose &&
+			(cinode->oplock == CIFS_CACHE_RHW_FLG ||
+			 cinode->oplock == CIFS_CACHE_RH_FLG) &&
+			!test_bit(CIFS_INO_CLOSE_ON_LOCK, &cinode->flags));
+
+}
+
 int cifs_close(struct inode *inode, struct file *file)
 {
 	struct cifsFileInfo *cfile;
@@ -1086,10 +1098,8 @@ int cifs_close(struct inode *inode, struct file *file)
 		cfile = file->private_data;
 		file->private_data = NULL;
 		dclose = kmalloc(sizeof(struct cifs_deferred_close), GFP_KERNEL);
-		if ((cifs_sb->ctx->closetimeo && cinode->oplock == CIFS_CACHE_RHW_FLG)
-		    && cinode->lease_granted &&
-		    !test_bit(CIFS_INO_CLOSE_ON_LOCK, &cinode->flags) &&
-		    dclose && !(cfile->status_file_deleted)) {
+		if ((cfile->status_file_deleted == false) &&
+		    (smb2_can_defer_close(inode, dclose))) {
 			if (test_and_clear_bit(CIFS_INO_MODIFIED_ATTR, &cinode->flags)) {
 				inode_set_mtime_to_ts(inode,
 						      inode_set_ctime_current(inode));

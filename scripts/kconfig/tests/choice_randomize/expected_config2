@@ -1,0 +1,8 @@
+#
+# Automatically generated file; DO NOT EDIT.
+# Main menu
+#
+# CONFIG_A is not set
+CONFIG_B=y
+# CONFIG_X is not set
+CONFIG_Y=y

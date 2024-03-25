@@ -91,10 +91,6 @@ struct dialog_info {
 	struct dialog_color button_label_active;
 	struct dialog_color button_label_inactive;
 	struct dialog_color inputbox;
-	struct dialog_color inputbox_border;
-	struct dialog_color searchbox;
-	struct dialog_color searchbox_title;
-	struct dialog_color searchbox_border;
 	struct dialog_color position_indicator;
 	struct dialog_color menubox;
 	struct dialog_color menubox_border;
