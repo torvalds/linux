@@ -152,8 +152,8 @@ static int sof_ssp_amp_probe(struct platform_device *pdev)
 	case CODEC_CS35L41:
 		cs35l41_set_codec_conf(&sof_ssp_amp_card);
 		break;
-	case CODEC_NONE:
 	case CODEC_RT1308:
+	case CODEC_NONE:
 		/* no codec conf required */
 		break;
 	default:
@@ -196,21 +196,18 @@ static const struct platform_device_id board_ids[] = {
 		.name = "adl_lt6911_hdmi_ssp",
 		.driver_data = (kernel_ulong_t)(SOF_SSP_MASK_HDMI_CAPTURE(0x5) |
 					/* SSP 0 and SSP 2 are used for HDMI IN */
-					SOF_NUM_IDISP_HDMI(3) |
 					SOF_HDMI_PLAYBACK_PRESENT),
 	},
 	{
 		.name = "rpl_lt6911_hdmi_ssp",
 		.driver_data = (kernel_ulong_t)(SOF_SSP_MASK_HDMI_CAPTURE(0x5) |
 					/* SSP 0 and SSP 2 are used for HDMI IN */
-					SOF_NUM_IDISP_HDMI(3) |
 					SOF_HDMI_PLAYBACK_PRESENT),
 	},
 	{
 		.name = "mtl_lt6911_hdmi_ssp",
 		.driver_data = (kernel_ulong_t)(SOF_SSP_MASK_HDMI_CAPTURE(0x5) |
 					/* SSP 0 and SSP 2 are used for HDMI IN */
-					SOF_NUM_IDISP_HDMI(3) |
 					SOF_HDMI_PLAYBACK_PRESENT),
 	},
 	{ }
