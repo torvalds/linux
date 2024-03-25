@@ -563,6 +563,22 @@ static int check_reply_pl(const u8 *pl, const char *func)
 	return 0;
 }
 
+/* Check ep11 reply cprb, return 0 or suggested errno value. */
+static int check_reply_cprb(const struct ep11_cprb *rep, const char *func)
+{
+	/* check ep11 reply return code field */
+	if (rep->ret_code) {
+		ZCRYPT_DBF_ERR("%s ep11 reply ret_code=0x%08x\n", __func__,
+			       rep->ret_code);
+		if (rep->ret_code == 0x000c0003)
+			return -EBUSY;
+		else
+			return -EIO;
+	}
+
+	return 0;
+}
+
 /*
  * Helper function which does an ep11 query with given query type.
  */
@@ -627,6 +643,12 @@ static int ep11_query_info(u16 cardnr, u16 domain, u32 query_type,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -877,6 +899,12 @@ static int _ep11_genaeskey(u16 card, u16 domain,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -1028,6 +1056,12 @@ static int ep11_cryptsingle(u16 card, u16 domain,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -1185,6 +1219,12 @@ static int _ep11_unwrapkey(u16 card, u16 domain,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
@@ -1339,6 +1379,12 @@ static int _ep11_wrapkey(u16 card, u16 domain,
 		goto out;
 	}
 
+	/* check ep11 reply cprb */
+	rc = check_reply_cprb(rep, __func__);
+	if (rc)
+		goto out;
+
+	/* check payload */
 	rc = check_reply_pl((u8 *)rep_pl, __func__);
 	if (rc)
 		goto out;
