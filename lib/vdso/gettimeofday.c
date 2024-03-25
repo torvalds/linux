@@ -5,23 +5,12 @@
 #include <vdso/datapage.h>
 #include <vdso/helpers.h>
 
-#ifndef vdso_calc_delta
+#ifndef vdso_calc_ns
 
 #ifdef VDSO_DELTA_NOMASK
-# define VDSO_DELTA_MASK(mask)	U64_MAX
+# define VDSO_DELTA_MASK(vd)	U64_MAX
 #else
-# define VDSO_DELTA_MASK(mask)	(mask)
-#endif
-
-/*
- * Default implementation which works for all sane clocksources. That
- * obviously excludes x86/TSC.
- */
-static __always_inline
-u64 vdso_calc_delta(u64 cycles, u64 last, u64 mask, u32 mult)
-{
-	return ((cycles - last) & VDSO_DELTA_MASK(mask)) * mult;
-}
+# define VDSO_DELTA_MASK(vd)	(vd->mask)
 #endif
 
 #ifndef vdso_shift_ns
@@ -30,6 +19,18 @@ static __always_inline u64 vdso_shift_ns(u64 ns, u32 shift)
 	return ns >> shift;
 }
 #endif
+
+/*
+ * Default implementation which works for all sane clocksources. That
+ * obviously excludes x86/TSC.
+ */
+static __always_inline u64 vdso_calc_ns(const struct vdso_data *vd, u64 cycles, u64 base)
+{
+	u64 delta = (cycles - vd->cycle_last) & VDSO_DELTA_MASK(vd);
+
+	return vdso_shift_ns((delta * vd->mult) + base, vd->shift);
+}
+#endif /* vdso_calc_ns */
 
 #ifndef __arch_vdso_hres_capable
 static inline bool __arch_vdso_hres_capable(void)
@@ -56,10 +57,10 @@ static inline bool vdso_cycles_ok(u64 cycles)
 static __always_inline int do_hres_timens(const struct vdso_data *vdns, clockid_t clk,
 					  struct __kernel_timespec *ts)
 {
-	const struct vdso_data *vd;
 	const struct timens_offset *offs = &vdns->offset[clk];
 	const struct vdso_timestamp *vdso_ts;
-	u64 cycles, last, ns;
+	const struct vdso_data *vd;
+	u64 cycles, ns;
 	u32 seq;
 	s64 sec;
 
@@ -80,10 +81,7 @@ static __always_inline int do_hres_timens(const struct vdso_data *vdns, clockid_
 		cycles = __arch_get_hw_counter(vd->clock_mode, vd);
 		if (unlikely(!vdso_cycles_ok(cycles)))
 			return -1;
-		ns = vdso_ts->nsec;
-		last = vd->cycle_last;
-		ns += vdso_calc_delta(cycles, last, vd->mask, vd->mult);
-		ns = vdso_shift_ns(ns, vd->shift);
+		ns = vdso_calc_ns(vd, cycles, vdso_ts->nsec);
 		sec = vdso_ts->sec;
 	} while (unlikely(vdso_read_retry(vd, seq)));
 
@@ -118,7 +116,7 @@ static __always_inline int do_hres(const struct vdso_data *vd, clockid_t clk,
 				   struct __kernel_timespec *ts)
 {
 	const struct vdso_timestamp *vdso_ts = &vd->basetime[clk];
-	u64 cycles, last, sec, ns;
+	u64 cycles, sec, ns;
 	u32 seq;
 
 	/* Allows to compile the high resolution parts out */
@@ -151,10 +149,7 @@ static __always_inline int do_hres(const struct vdso_data *vd, clockid_t clk,
 		cycles = __arch_get_hw_counter(vd->clock_mode, vd);
 		if (unlikely(!vdso_cycles_ok(cycles)))
 			return -1;
-		ns = vdso_ts->nsec;
-		last = vd->cycle_last;
-		ns += vdso_calc_delta(cycles, last, vd->mask, vd->mult);
-		ns = vdso_shift_ns(ns, vd->shift);
+		ns = vdso_calc_ns(vd, cycles, vdso_ts->nsec);
 		sec = vdso_ts->sec;
 	} while (unlikely(vdso_read_retry(vd, seq)));
 
