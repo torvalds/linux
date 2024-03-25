@@ -167,6 +167,13 @@ static int da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
+static void da7219_codec_exit(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_component *component = snd_soc_rtd_to_codec(rtd, 0)->component;
+
+	snd_soc_component_set_jack(component, NULL, NULL);
+}
+
 static int max98373_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
@@ -245,6 +252,7 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 	ctx->codec_link->codecs = da7219_component;
 	ctx->codec_link->num_codecs = ARRAY_SIZE(da7219_component);
 	ctx->codec_link->init = da7219_codec_init;
+	ctx->codec_link->exit = da7219_codec_exit;
 
 	if (ctx->amp_type == CODEC_NONE)
 		return 0;
