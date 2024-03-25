@@ -5789,8 +5789,10 @@ void bnxt_fill_ipv6_mask(__be32 mask[4])
 static void
 bnxt_cfg_rfs_ring_tbl_idx(struct bnxt *bp,
 			  struct hwrm_cfa_ntuple_filter_alloc_input *req,
-			  u16 rxq)
+			  struct bnxt_ntuple_filter *fltr)
 {
+	u16 rxq = fltr->base.rxq;
+
 	if (BNXT_SUPPORTS_NTUPLE_VNIC(bp)) {
 		struct bnxt_vnic_info *vnic;
 		u32 enables;
@@ -5831,7 +5833,7 @@ int bnxt_hwrm_cfa_ntuple_filter_alloc(struct bnxt *bp,
 		req->flags =
 			cpu_to_le32(CFA_NTUPLE_FILTER_ALLOC_REQ_FLAGS_DROP);
 	} else if (bp->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V2) {
-		bnxt_cfg_rfs_ring_tbl_idx(bp, req, fltr->base.rxq);
+		bnxt_cfg_rfs_ring_tbl_idx(bp, req, fltr);
 	} else {
 		vnic = &bp->vnic_info[fltr->base.rxq + 1];
 		req->dst_id = cpu_to_le16(vnic->fw_vnic_id);
