@@ -37,4 +37,8 @@ int drm_connector_helper_get_modes_fixed(struct drm_connector *connector,
 int drm_connector_helper_get_modes(struct drm_connector *connector);
 int drm_connector_helper_tv_get_modes(struct drm_connector *connector);
 
+int drm_connector_helper_detect_from_ddc(struct drm_connector *connector,
+					 struct drm_modeset_acquire_ctx *ctx,
+					 bool force);
+
 #endif
