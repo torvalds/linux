@@ -124,8 +124,8 @@ static inline struct acpi_hotplug_profile *to_acpi_hotplug_profile(
 }
 
 struct acpi_scan_handler {
-	const struct acpi_device_id *ids;
 	struct list_head list_node;
+	const struct acpi_device_id *ids;
 	bool (*match)(const char *idstr, const struct acpi_device_id **matchid);
 	int (*attach)(struct acpi_device *dev, const struct acpi_device_id *id);
 	void (*detach)(struct acpi_device *dev);
@@ -269,6 +269,7 @@ struct acpi_device_power_flags {
 };
 
 struct acpi_device_power_state {
+	struct list_head resources;	/* Power resources referenced */
 	struct {
 		u8 valid:1;
 		u8 explicit_set:1;	/* _PSx present? */
@@ -276,7 +277,6 @@ struct acpi_device_power_state {
 	} flags;
 	int power;		/* % Power (compared to D0) */
 	int latency;		/* Dx->D0 time (microseconds) */
-	struct list_head resources;	/* Power resources referenced */
 };
 
 struct acpi_device_power {
@@ -342,16 +342,16 @@ struct acpi_device_wakeup {
 };
 
 struct acpi_device_physical_node {
-	unsigned int node_id;
 	struct list_head node;
 	struct device *dev;
+	unsigned int node_id;
 	bool put_online:1;
 };
 
 struct acpi_device_properties {
+	struct list_head list;
 	const guid_t *guid;
 	union acpi_object *properties;
-	struct list_head list;
 	void **bufs;
 };
 
@@ -488,12 +488,12 @@ struct acpi_device {
 
 /* Non-device subnode */
 struct acpi_data_node {
+	struct list_head sibling;
 	const char *name;
 	acpi_handle handle;
 	struct fwnode_handle fwnode;
 	struct fwnode_handle *parent;
 	struct acpi_device_data data;
-	struct list_head sibling;
 	struct kobject kobj;
 	struct completion kobj_done;
 };
