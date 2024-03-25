@@ -145,25 +145,6 @@ static int pc_action_reset(struct xe_guc_pc *pc)
 	return ret;
 }
 
-static int pc_action_shutdown(struct xe_guc_pc *pc)
-{
-	struct  xe_guc_ct *ct = &pc_to_guc(pc)->ct;
-	int ret;
-	u32 action[] = {
-		GUC_ACTION_HOST2GUC_PC_SLPC_REQUEST,
-		SLPC_EVENT(SLPC_EVENT_SHUTDOWN, 2),
-		xe_bo_ggtt_addr(pc->bo),
-		0,
-	};
-
-	ret = xe_guc_ct_send(ct, action, ARRAY_SIZE(action), 0, 0);
-	if (ret)
-		drm_err(&pc_to_xe(pc)->drm, "GuC PC shutdown %pe",
-			ERR_PTR(ret));
-
-	return ret;
-}
-
 static int pc_action_query_task_state(struct xe_guc_pc *pc)
 {
 	struct xe_guc_ct *ct = &pc_to_guc(pc)->ct;
@@ -893,7 +874,6 @@ out:
 int xe_guc_pc_stop(struct xe_guc_pc *pc)
 {
 	struct xe_device *xe = pc_to_xe(pc);
-	int ret;
 
 	if (xe->info.skip_guc_pc) {
 		xe_gt_idle_disable_c6(pc_to_gt(pc));
@@ -903,15 +883,6 @@ int xe_guc_pc_stop(struct xe_guc_pc *pc)
 	mutex_lock(&pc->freq_lock);
 	pc->freq_ready = false;
 	mutex_unlock(&pc->freq_lock);
-
-	ret = pc_action_shutdown(pc);
-	if (ret)
-		return ret;
-
-	if (wait_for_pc_state(pc, SLPC_GLOBAL_STATE_NOT_RUNNING)) {
-		drm_err(&pc_to_xe(pc)->drm, "GuC PC Shutdown failed\n");
-		return -EIO;
-	}
 
 	return 0;
 }
