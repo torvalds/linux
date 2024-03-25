@@ -127,7 +127,7 @@ void aq_nic_cfg_start(struct aq_nic_s *self)
 
 	cfg->irq_type = aq_pci_func_get_irq_type(self);
 
-	if ((cfg->irq_type == AQ_HW_IRQ_LEGACY) ||
+	if ((cfg->irq_type == AQ_HW_IRQ_INTX) ||
 	    (cfg->aq_hw_caps->vecs == 1U) ||
 	    (cfg->vecs == 1U)) {
 		cfg->is_rss = 0U;
