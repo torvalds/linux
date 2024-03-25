@@ -12479,27 +12479,18 @@ static bool bnxt_rfs_capable(struct bnxt *bp)
 	struct bnxt_hw_rings hwr = {0};
 	int max_vnics, max_rss_ctxs;
 
-	hwr.rss_ctx = 1;
-	if (BNXT_SUPPORTS_NTUPLE_VNIC(bp)) {
-		/* 2 VNICS: default + Ntuple */
-		hwr.vnic = 2;
-		hwr.rss_ctx = bnxt_get_nr_rss_ctxs(bp, bp->rx_nr_rings) *
-			      hwr.vnic;
-		goto check_reserve_vnic;
-	}
-	if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
+	if ((bp->flags & BNXT_FLAG_CHIP_P5_PLUS) &&
+	    !BNXT_SUPPORTS_NTUPLE_VNIC(bp))
 		return bnxt_rfs_supported(bp);
+
 	if (!(bp->flags & BNXT_FLAG_MSIX_CAP) || !bnxt_can_reserve_rings(bp) || !bp->rx_nr_rings)
 		return false;
 
-	hwr.vnic = 1 + bp->rx_nr_rings;
-check_reserve_vnic:
+	hwr.grp = bp->rx_nr_rings;
+	hwr.vnic = bnxt_get_total_vnics(bp, bp->rx_nr_rings);
+	hwr.rss_ctx = bnxt_get_total_rss_ctxs(bp, &hwr);
 	max_vnics = bnxt_get_max_func_vnics(bp);
 	max_rss_ctxs = bnxt_get_max_func_rss_ctxs(bp);
-
-	if (!(bp->flags & BNXT_FLAG_CHIP_P5_PLUS) &&
-	    !(bp->rss_cap & BNXT_RSS_CAP_NEW_RSS_CAP))
-		hwr.rss_ctx = hwr.vnic;
 
 	if (hwr.vnic > max_vnics || hwr.rss_ctx > max_rss_ctxs) {
 		if (bp->rx_nr_rings > 1)
