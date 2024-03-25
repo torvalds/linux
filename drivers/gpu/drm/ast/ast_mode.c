@@ -1388,18 +1388,18 @@ static const struct drm_connector_funcs ast_vga_connector_funcs = {
 
 static int ast_vga_connector_init(struct drm_device *dev, struct drm_connector *connector)
 {
-	struct ast_i2c_chan *i2c;
+	struct ast_ddc *ddc;
 	int ret;
 
-	i2c = ast_i2c_create(dev);
-	if (IS_ERR(i2c)) {
-		ret = PTR_ERR(i2c);
-		drm_err(dev, "failed to add ddc bus for connector; ret=%d\n", ret);
+	ddc = ast_ddc_create(dev);
+	if (IS_ERR(ddc)) {
+		ret = PTR_ERR(ddc);
+		drm_err(dev, "failed to add DDC bus for connector; ret=%d\n", ret);
 		return ret;
 	}
 
 	ret = drm_connector_init_with_ddc(dev, connector, &ast_vga_connector_funcs,
-					  DRM_MODE_CONNECTOR_VGA, &i2c->adapter);
+					  DRM_MODE_CONNECTOR_VGA, &ddc->adapter);
 	if (ret)
 		return ret;
 
@@ -1485,18 +1485,18 @@ static const struct drm_connector_funcs ast_sil164_connector_funcs = {
 
 static int ast_sil164_connector_init(struct drm_device *dev, struct drm_connector *connector)
 {
-	struct ast_i2c_chan *i2c;
+	struct ast_ddc *ddc;
 	int ret;
 
-	i2c = ast_i2c_create(dev);
-	if (IS_ERR(i2c)) {
-		ret = PTR_ERR(i2c);
-		drm_err(dev, "failed to add ddc bus for connector; ret=%d\n", ret);
+	ddc = ast_ddc_create(dev);
+	if (IS_ERR(ddc)) {
+		ret = PTR_ERR(ddc);
+		drm_err(dev, "failed to add DDC bus for connector; ret=%d\n", ret);
 		return ret;
 	}
 
 	ret = drm_connector_init_with_ddc(dev, connector, &ast_sil164_connector_funcs,
-					  DRM_MODE_CONNECTOR_DVII, &i2c->adapter);
+					  DRM_MODE_CONNECTOR_DVII, &ddc->adapter);
 	if (ret)
 		return ret;
 

@@ -8,12 +8,12 @@
 
 struct drm_device;
 
-struct ast_i2c_chan {
+struct ast_ddc {
 	struct i2c_adapter adapter;
 	struct drm_device *dev;
 	struct i2c_algo_bit_data bit;
 };
 
-struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev);
+struct ast_ddc *ast_ddc_create(struct drm_device *dev);
 
 #endif

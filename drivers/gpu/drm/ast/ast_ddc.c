@@ -29,8 +29,8 @@
 
 static void ast_i2c_setsda(void *i2c_priv, int data)
 {
-	struct ast_i2c_chan *i2c = i2c_priv;
-	struct ast_device *ast = to_ast_device(i2c->dev);
+	struct ast_ddc *ddc = i2c_priv;
+	struct ast_device *ast = to_ast_device(ddc->dev);
 	int i;
 	u8 ujcrb7, jtemp;
 
@@ -45,8 +45,8 @@ static void ast_i2c_setsda(void *i2c_priv, int data)
 
 static void ast_i2c_setscl(void *i2c_priv, int clock)
 {
-	struct ast_i2c_chan *i2c = i2c_priv;
-	struct ast_device *ast = to_ast_device(i2c->dev);
+	struct ast_ddc *ddc = i2c_priv;
+	struct ast_device *ast = to_ast_device(ddc->dev);
 	int i;
 	u8 ujcrb7, jtemp;
 
@@ -61,8 +61,8 @@ static void ast_i2c_setscl(void *i2c_priv, int clock)
 
 static int ast_i2c_getsda(void *i2c_priv)
 {
-	struct ast_i2c_chan *i2c = i2c_priv;
-	struct ast_device *ast = to_ast_device(i2c->dev);
+	struct ast_ddc *ddc = i2c_priv;
+	struct ast_device *ast = to_ast_device(ddc->dev);
 	uint32_t val, val2, count, pass;
 
 	count = 0;
@@ -83,8 +83,8 @@ static int ast_i2c_getsda(void *i2c_priv)
 
 static int ast_i2c_getscl(void *i2c_priv)
 {
-	struct ast_i2c_chan *i2c = i2c_priv;
-	struct ast_device *ast = to_ast_device(i2c->dev);
+	struct ast_ddc *ddc = i2c_priv;
+	struct ast_device *ast = to_ast_device(ddc->dev);
 	uint32_t val, val2, count, pass;
 
 	count = 0;
@@ -103,45 +103,50 @@ static int ast_i2c_getscl(void *i2c_priv)
 	return val & 1 ? 1 : 0;
 }
 
-static void ast_i2c_release(struct drm_device *dev, void *res)
+static void ast_ddc_release(struct drm_device *dev, void *res)
 {
-	struct ast_i2c_chan *i2c = res;
+	struct ast_ddc *ddc = res;
 
-	i2c_del_adapter(&i2c->adapter);
+	i2c_del_adapter(&ddc->adapter);
 }
 
-struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev)
+struct ast_ddc *ast_ddc_create(struct drm_device *dev)
 {
-	struct ast_i2c_chan *i2c;
+	struct ast_ddc *ddc;
+	struct i2c_adapter *adapter;
+	struct i2c_algo_bit_data *bit;
 	int ret;
 
-	i2c = drmm_kzalloc(dev->dev, sizeof(*i2c), GFP_KERNEL);
-	if (!i2c)
+	ddc = drmm_kzalloc(dev, sizeof(*ddc), GFP_KERNEL);
+	if (!ddc)
 		return ERR_PTR(-ENOMEM);
+	ddc->dev = dev;
 
-	i2c->adapter.owner = THIS_MODULE;
-	i2c->adapter.dev.parent = dev->dev;
-	i2c->dev = dev;
-	i2c_set_adapdata(&i2c->adapter, i2c);
-	snprintf(i2c->adapter.name, sizeof(i2c->adapter.name), "AST DDC bus");
-	i2c->adapter.algo_data = &i2c->bit;
+	adapter = &ddc->adapter;
+	adapter->owner = THIS_MODULE;
+	adapter->dev.parent = dev->dev;
+	i2c_set_adapdata(adapter, ddc);
+	snprintf(adapter->name, sizeof(adapter->name), "AST DDC bus");
 
-	i2c->bit.udelay = 20;
-	i2c->bit.timeout = 2;
-	i2c->bit.data = i2c;
-	i2c->bit.setsda = ast_i2c_setsda;
-	i2c->bit.setscl = ast_i2c_setscl;
-	i2c->bit.getsda = ast_i2c_getsda;
-	i2c->bit.getscl = ast_i2c_getscl;
-	ret = i2c_bit_add_bus(&i2c->adapter);
+	bit = &ddc->bit;
+	bit->udelay = 20;
+	bit->timeout = 2;
+	bit->data = ddc;
+	bit->setsda = ast_i2c_setsda;
+	bit->setscl = ast_i2c_setscl;
+	bit->getsda = ast_i2c_getsda;
+	bit->getscl = ast_i2c_getscl;
+
+	adapter->algo_data = bit;
+	ret = i2c_bit_add_bus(adapter);
 	if (ret) {
 		drm_err(dev, "Failed to register bit i2c\n");
 		return ERR_PTR(ret);
 	}
 
-	ret = drmm_add_action_or_reset(dev, ast_i2c_release, i2c);
+	ret = drmm_add_action_or_reset(dev, ast_ddc_release, ddc);
 	if (ret)
 		return ERR_PTR(ret);
 
-	return i2c;
+	return ddc;
 }
