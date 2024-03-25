@@ -682,6 +682,32 @@ static inline bool schedule_work(struct work_struct *work)
 	return queue_work(system_wq, work);
 }
 
+/**
+ * enable_and_queue_work - Enable and queue a work item on a specific workqueue
+ * @wq: The target workqueue
+ * @work: The work item to be enabled and queued
+ *
+ * This function combines the operations of enable_work() and queue_work(),
+ * providing a convenient way to enable and queue a work item in a single call.
+ * It invokes enable_work() on @work and then queues it if the disable depth
+ * reached 0. Returns %true if the disable depth reached 0 and @work is queued,
+ * and %false otherwise.
+ *
+ * Note that @work is always queued when disable depth reaches zero. If the
+ * desired behavior is queueing only if certain events took place while @work is
+ * disabled, the user should implement the necessary state tracking and perform
+ * explicit conditional queueing after enable_work().
+ */
+static inline bool enable_and_queue_work(struct workqueue_struct *wq,
+					 struct work_struct *work)
+{
+	if (enable_work(work)) {
+		queue_work(wq, work);
+		return true;
+	}
+	return false;
+}
+
 /*
  * Detect attempt to flush system-wide workqueues at compile time when possible.
  * Warn attempt to flush system-wide workqueues at runtime.
