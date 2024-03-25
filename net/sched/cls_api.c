@@ -410,6 +410,23 @@ static void tcf_proto_get(struct tcf_proto *tp)
 	refcount_inc(&tp->refcnt);
 }
 
+static void tcf_maintain_bypass(struct tcf_block *block)
+{
+	int filtercnt = atomic_read(&block->filtercnt);
+	int skipswcnt = atomic_read(&block->skipswcnt);
+	bool bypass_wanted = filtercnt > 0 && filtercnt == skipswcnt;
+
+	if (bypass_wanted != block->bypass_wanted) {
+#ifdef CONFIG_NET_CLS_ACT
+		if (bypass_wanted)
+			static_branch_inc(&tcf_bypass_check_needed_key);
+		else
+			static_branch_dec(&tcf_bypass_check_needed_key);
+#endif
+		block->bypass_wanted = bypass_wanted;
+	}
+}
+
 static void tcf_block_filter_cnt_update(struct tcf_block *block, bool *counted, bool add)
 {
 	lockdep_assert_not_held(&block->cb_lock);
@@ -424,6 +441,7 @@ static void tcf_block_filter_cnt_update(struct tcf_block *block, bool *counted, 
 			*counted = false;
 		}
 	}
+	tcf_maintain_bypass(block);
 	up_write(&block->cb_lock);
 }
 
