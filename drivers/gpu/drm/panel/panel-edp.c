@@ -760,6 +760,25 @@ static void panel_edp_parse_panel_timing_node(struct device *dev,
 
 static const struct edp_panel_entry *find_edp_panel(u32 panel_id, const struct drm_edid *edid);
 
+static void panel_edp_set_conservative_timings(struct panel_edp *panel, struct panel_desc *desc)
+{
+	/*
+	 * It's highly likely that the panel will work if we use very
+	 * conservative timings, so let's do that.
+	 *
+	 * Nearly all panels have a "unprepare" delay of 500 ms though
+	 * there are a few with 1000. Let's stick 2000 in just to be
+	 * super conservative.
+	 *
+	 * An "enable" delay of 80 ms seems the most common, but we'll
+	 * throw in 200 ms to be safe.
+	 */
+	desc->delay.unprepare = 2000;
+	desc->delay.enable = 200;
+
+	panel->detected_panel = ERR_PTR(-EINVAL);
+}
+
 static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 {
 	struct panel_desc *desc;
@@ -816,26 +835,7 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 		dev_warn(dev,
 			 "Unknown panel %s %#06x, using conservative timings\n",
 			 vend, product_id);
-
-		/*
-		 * It's highly likely that the panel will work if we use very
-		 * conservative timings, so let's do that. We already know that
-		 * the HPD-related delays must have worked since we got this
-		 * far, so we really just need the "unprepare" / "enable"
-		 * delays. We don't need "prepare_to_enable" since that
-		 * overlaps the "enable" delay anyway.
-		 *
-		 * Nearly all panels have a "unprepare" delay of 500 ms though
-		 * there are a few with 1000. Let's stick 2000 in just to be
-		 * super conservative.
-		 *
-		 * An "enable" delay of 80 ms seems the most common, but we'll
-		 * throw in 200 ms to be safe.
-		 */
-		desc->delay.unprepare = 2000;
-		desc->delay.enable = 200;
-
-		panel->detected_panel = ERR_PTR(-EINVAL);
+		panel_edp_set_conservative_timings(panel, desc);
 	} else {
 		dev_info(dev, "Detected %s %s (%#06x)\n",
 			 vend, panel->detected_panel->ident.name, product_id);
