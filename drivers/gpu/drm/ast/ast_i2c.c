@@ -107,7 +107,6 @@ static void ast_i2c_release(struct drm_device *dev, void *res)
 	struct ast_i2c_chan *i2c = res;
 
 	i2c_del_adapter(&i2c->adapter);
-	kfree(i2c);
 }
 
 struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev)
@@ -115,7 +114,7 @@ struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev)
 	struct ast_i2c_chan *i2c;
 	int ret;
 
-	i2c = kzalloc(sizeof(struct ast_i2c_chan), GFP_KERNEL);
+	i2c = drmm_kzalloc(dev->dev, sizeof(*i2c), GFP_KERNEL);
 	if (!i2c)
 		return ERR_PTR(-ENOMEM);
 
@@ -137,7 +136,7 @@ struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev)
 	ret = i2c_bit_add_bus(&i2c->adapter);
 	if (ret) {
 		drm_err(dev, "Failed to register bit i2c\n");
-		goto out_kfree;
+		return ERR_PTR(ret);
 	}
 
 	ret = drmm_add_action_or_reset(dev, ast_i2c_release, i2c);
@@ -145,8 +144,4 @@ struct ast_i2c_chan *ast_i2c_create(struct drm_device *dev)
 		return ERR_PTR(ret);
 
 	return i2c;
-
-out_kfree:
-	kfree(i2c);
-	return ERR_PTR(ret);
 }
