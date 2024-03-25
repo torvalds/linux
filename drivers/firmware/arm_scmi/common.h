@@ -301,6 +301,17 @@ extern const struct scmi_desc scmi_optee_desc;
 
 void scmi_rx_callback(struct scmi_chan_info *cinfo, u32 msg_hdr, void *priv);
 
+enum scmi_bad_msg {
+	MSG_UNEXPECTED = -1,
+	MSG_INVALID = -2,
+	MSG_UNKNOWN = -3,
+	MSG_NOMEM = -4,
+	MSG_MBOX_SPURIOUS = -5,
+};
+
+void scmi_bad_message_trace(struct scmi_chan_info *cinfo, u32 msg_hdr,
+			    enum scmi_bad_msg err);
+
 /* shmem related declarations */
 struct scmi_shared_mem;
 
