@@ -1507,6 +1507,22 @@ static bool f2fs_map_blocks_cached(struct inode *inode,
 	return true;
 }
 
+static bool map_is_mergeable(struct f2fs_sb_info *sbi,
+				struct f2fs_map_blocks *map,
+				block_t blkaddr, int flag, int bidx,
+				int ofs)
+{
+	if (map->m_multidev_dio && map->m_bdev != FDEV(bidx).bdev)
+		return false;
+	if (map->m_pblk != NEW_ADDR && blkaddr == (map->m_pblk + ofs))
+		return true;
+	if (map->m_pblk == NEW_ADDR && blkaddr == NEW_ADDR)
+		return true;
+	if (flag == F2FS_GET_BLOCK_PRE_DIO)
+		return true;
+	return false;
+}
+
 /*
  * f2fs_map_blocks() tries to find or build mapping relationship which
  * maps continuous logical blocks to physical blocks, and return such
@@ -1653,12 +1669,7 @@ next_block:
 
 		if (map->m_multidev_dio)
 			map->m_bdev = FDEV(bidx).bdev;
-	} else if ((map->m_pblk != NEW_ADDR &&
-			blkaddr == (map->m_pblk + ofs)) ||
-			(map->m_pblk == NEW_ADDR && blkaddr == NEW_ADDR) ||
-			flag == F2FS_GET_BLOCK_PRE_DIO) {
-		if (map->m_multidev_dio && map->m_bdev != FDEV(bidx).bdev)
-			goto sync_out;
+	} else if (map_is_mergeable(sbi, map, blkaddr, flag, bidx, ofs)) {
 		ofs++;
 		map->m_len++;
 	} else {
