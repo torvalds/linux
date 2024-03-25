@@ -2178,11 +2178,13 @@ static irqreturn_t dw_i3c_master_irq_handler(int irq, void *dev_id)
 		if (status & INTR_RESP_READY_STAT)
 			dw_i3c_target_handle_response_ready(master);
 	} else {
-		spin_lock(&master->xferqueue.lock);
-		dw_i3c_master_end_xfer_locked(master, status);
-		if (status & INTR_TRANSFER_ERR_STAT)
-			writel(INTR_TRANSFER_ERR_STAT, master->regs + INTR_STATUS);
-		spin_unlock(&master->xferqueue.lock);
+		if (status & INTR_RESP_READY_STAT) {
+			spin_lock(&master->xferqueue.lock);
+			dw_i3c_master_end_xfer_locked(master, status);
+			if (status & INTR_TRANSFER_ERR_STAT)
+				writel(INTR_TRANSFER_ERR_STAT, master->regs + INTR_STATUS);
+			spin_unlock(&master->xferqueue.lock);
+		}
 
 		if (status & INTR_IBI_THLD_STAT)
 			dw_i3c_master_irq_handle_ibis(master);
