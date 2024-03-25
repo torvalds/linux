@@ -20,6 +20,7 @@
 
 /* Driver-specific board quirks: from bit 0 to 7 */
 #define SOF_DA7219_JSL_BOARD			BIT(0)
+#define SOF_DA7219_MCLK_EN			BIT(1)
 
 #define DIALOG_CODEC_DAI	"da7219-hifi"
 
@@ -126,7 +127,8 @@ static int da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 	 * Use PLL bypass mode if MCLK is available, be sure to set the
 	 * frequency of MCLK to 12.288 or 24.576MHz on topology side.
 	 */
-	if (mclk_rate == 12288000 || mclk_rate == 24576000) {
+	if (ctx->da7219.mclk_en &&
+	    (mclk_rate == 12288000 || mclk_rate == 24576000)) {
 		/* PLL bypass mode */
 		dev_dbg(rtd->dev, "pll bypass mode, mclk rate %d\n", mclk_rate);
 
@@ -337,6 +339,9 @@ static int audio_probe(struct platform_device *pdev)
 		}
 	}
 
+	if (board_quirk & SOF_DA7219_MCLK_EN)
+		ctx->da7219.mclk_en = true;
+
 	/* update dai_link */
 	ret = sof_card_dai_links_create(&pdev->dev, &card_da7219, ctx);
 	if (ret)
@@ -383,7 +388,8 @@ static const struct platform_device_id board_ids[] = {
 	},
 	{
 		.name = "adl_mx98360_da7219",
-		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_CODEC(0) |
+		.driver_data = (kernel_ulong_t)(SOF_DA7219_MCLK_EN |
+					SOF_SSP_PORT_CODEC(0) |
 					SOF_SSP_PORT_AMP(1) |
 					SOF_NUM_IDISP_HDMI(4) |
 					SOF_SSP_PORT_BT_OFFLOAD(2) |
@@ -391,7 +397,8 @@ static const struct platform_device_id board_ids[] = {
 	},
 	{
 		.name = "rpl_mx98360_da7219",
-		.driver_data = (kernel_ulong_t)(SOF_SSP_PORT_CODEC(0) |
+		.driver_data = (kernel_ulong_t)(SOF_DA7219_MCLK_EN |
+					SOF_SSP_PORT_CODEC(0) |
 					SOF_SSP_PORT_AMP(1) |
 					SOF_NUM_IDISP_HDMI(4) |
 					SOF_SSP_PORT_BT_OFFLOAD(2) |

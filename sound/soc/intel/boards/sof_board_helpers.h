@@ -87,10 +87,12 @@ enum {
  * sof_da7219_private: private data for da7219 machine driver
  *
  * @is_jsl_board: true for JSL boards
+ * @mclk_en: true for mclk pin is connected
  * @pll_bypass: true for PLL bypass mode
  */
 struct sof_da7219_private {
 	bool is_jsl_board;
+	bool mclk_en;
 	bool pll_bypass;
 };
 
