@@ -381,6 +381,10 @@
 	};
 };
 
+&peci0 {
+	status = "okay";
+};
+
 &sgpiom0 {
 	status = "okay";
 };
