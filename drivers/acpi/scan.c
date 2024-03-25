@@ -73,8 +73,7 @@ void acpi_unlock_hp_context(void)
 
 void acpi_initialize_hp_context(struct acpi_device *adev,
 				struct acpi_hotplug_context *hp,
-				int (*notify)(struct acpi_device *, u32),
-				void (*uevent)(struct acpi_device *, u32))
+				acpi_hp_notify notify, acpi_hp_uevent uevent)
 {
 	acpi_lock_hp_context();
 	hp->notify = notify;
@@ -428,7 +427,7 @@ void acpi_device_hotplug(struct acpi_device *adev, u32 src)
 	} else if (adev->flags.hotplug_notify) {
 		error = acpi_generic_hotplug_event(adev, src);
 	} else {
-		int (*notify)(struct acpi_device *, u32);
+		acpi_hp_notify notify;
 
 		acpi_lock_hp_context();
 		notify = adev->hp ? adev->hp->notify : NULL;

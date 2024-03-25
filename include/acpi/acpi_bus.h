@@ -144,11 +144,15 @@ struct acpi_scan_handler {
  * --------------------
  */
 
+typedef int (*acpi_hp_notify) (struct acpi_device *, u32);
+typedef void (*acpi_hp_uevent) (struct acpi_device *, u32);
+typedef void (*acpi_hp_fixup) (struct acpi_device *);
+
 struct acpi_hotplug_context {
 	struct acpi_device *self;
-	int (*notify)(struct acpi_device *, u32);
-	void (*uevent)(struct acpi_device *, u32);
-	void (*fixup)(struct acpi_device *);
+	acpi_hp_notify notify;
+	acpi_hp_uevent uevent;
+	acpi_hp_fixup fixup;
 };
 
 /*
@@ -583,8 +587,7 @@ static inline void acpi_set_hp_context(struct acpi_device *adev,
 
 void acpi_initialize_hp_context(struct acpi_device *adev,
 				struct acpi_hotplug_context *hp,
-				int (*notify)(struct acpi_device *, u32),
-				void (*uevent)(struct acpi_device *, u32));
+				acpi_hp_notify notify, acpi_hp_uevent uevent);
 
 /* acpi_device.dev.bus == &acpi_bus_type */
 extern const struct bus_type acpi_bus_type;
