@@ -1639,7 +1639,8 @@ static int bq27xxx_battery_read_dcap(struct bq27xxx_device_info *di,
  * Return the battery Available energy in µWh
  * Or < 0 if something fails.
  */
-static int bq27xxx_battery_read_energy(struct bq27xxx_device_info *di)
+static int bq27xxx_battery_read_energy(struct bq27xxx_device_info *di,
+				       union power_supply_propval *val)
 {
 	int ae;
 
@@ -1654,7 +1655,9 @@ static int bq27xxx_battery_read_energy(struct bq27xxx_device_info *di)
 	else
 		ae *= 1000;
 
-	return ae;
+	val->intval = ae;
+
+	return 0;
 }
 
 /*
@@ -1867,8 +1870,6 @@ static void bq27xxx_battery_update_unlocked(struct bq27xxx_device_info *di)
 		cache.flags = -1; /* read error */
 	if (cache.flags >= 0) {
 		cache.capacity = bq27xxx_battery_read_soc(di);
-		if (di->regs[BQ27XXX_REG_AE] != INVALID_REG_ADDR)
-			cache.energy = bq27xxx_battery_read_energy(di);
 		di->cache.flags = cache.flags;
 		cache.health = bq27xxx_battery_read_health(di);
 		if (di->regs[BQ27XXX_REG_CYCT] != INVALID_REG_ADDR)
@@ -2084,7 +2085,7 @@ static int bq27xxx_battery_get_property(struct power_supply *psy,
 		ret = bq27xxx_simple_value(di->cache.cycle_count, val);
 		break;
 	case POWER_SUPPLY_PROP_ENERGY_NOW:
-		ret = bq27xxx_simple_value(di->cache.energy, val);
+		ret = bq27xxx_battery_read_energy(di, val);
 		break;
 	case POWER_SUPPLY_PROP_POWER_AVG:
 		ret = bq27xxx_battery_pwr_avg(di, val);
