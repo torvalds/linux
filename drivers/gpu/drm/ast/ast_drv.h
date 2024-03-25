@@ -160,7 +160,6 @@ struct ast_i2c_chan {
 
 struct ast_vga_connector {
 	struct drm_connector base;
-	struct ast_i2c_chan *i2c;
 };
 
 static inline struct ast_vga_connector *
@@ -171,7 +170,6 @@ to_ast_vga_connector(struct drm_connector *connector)
 
 struct ast_sil164_connector {
 	struct drm_connector base;
-	struct ast_i2c_chan *i2c;
 };
 
 static inline struct ast_sil164_connector *

@@ -1345,14 +1345,10 @@ static int ast_crtc_init(struct drm_device *dev)
 
 static int ast_vga_connector_helper_get_modes(struct drm_connector *connector)
 {
-	struct ast_vga_connector *ast_vga_connector = to_ast_vga_connector(connector);
 	struct drm_device *dev = connector->dev;
 	struct ast_device *ast = to_ast_device(dev);
 	struct edid *edid;
 	int count;
-
-	if (!ast_vga_connector->i2c)
-		goto err_drm_connector_update_edid_property;
 
 	/*
 	 * Protect access to I/O registers from concurrent modesetting
@@ -1360,7 +1356,7 @@ static int ast_vga_connector_helper_get_modes(struct drm_connector *connector)
 	 */
 	mutex_lock(&ast->modeset_lock);
 
-	edid = drm_get_edid(connector, &ast_vga_connector->i2c->adapter);
+	edid = drm_get_edid(connector, connector->ddc);
 	if (!edid)
 		goto err_mutex_unlock;
 
@@ -1373,7 +1369,6 @@ static int ast_vga_connector_helper_get_modes(struct drm_connector *connector)
 
 err_mutex_unlock:
 	mutex_unlock(&ast->modeset_lock);
-err_drm_connector_update_edid_property:
 	drm_connector_update_edid_property(connector, NULL);
 	return 0;
 }
@@ -1394,19 +1389,18 @@ static int ast_vga_connector_init(struct drm_device *dev,
 				  struct ast_vga_connector *ast_vga_connector)
 {
 	struct drm_connector *connector = &ast_vga_connector->base;
+	struct ast_i2c_chan *i2c;
 	int ret;
 
-	ast_vga_connector->i2c = ast_i2c_create(dev);
-	if (!ast_vga_connector->i2c)
-		drm_err(dev, "failed to add ddc bus for connector\n");
+	i2c = ast_i2c_create(dev);
+	if (IS_ERR(i2c)) {
+		ret = PTR_ERR(i2c);
+		drm_err(dev, "failed to add ddc bus for connector; ret=%d\n", ret);
+		return ret;
+	}
 
-	if (ast_vga_connector->i2c)
-		ret = drm_connector_init_with_ddc(dev, connector, &ast_vga_connector_funcs,
-						  DRM_MODE_CONNECTOR_VGA,
-						  &ast_vga_connector->i2c->adapter);
-	else
-		ret = drm_connector_init(dev, connector, &ast_vga_connector_funcs,
-					 DRM_MODE_CONNECTOR_VGA);
+	ret = drm_connector_init_with_ddc(dev, connector, &ast_vga_connector_funcs,
+					  DRM_MODE_CONNECTOR_VGA, &i2c->adapter);
 	if (ret)
 		return ret;
 
@@ -1451,14 +1445,10 @@ static int ast_vga_output_init(struct ast_device *ast)
 
 static int ast_sil164_connector_helper_get_modes(struct drm_connector *connector)
 {
-	struct ast_sil164_connector *ast_sil164_connector = to_ast_sil164_connector(connector);
 	struct drm_device *dev = connector->dev;
 	struct ast_device *ast = to_ast_device(dev);
 	struct edid *edid;
 	int count;
-
-	if (!ast_sil164_connector->i2c)
-		goto err_drm_connector_update_edid_property;
 
 	/*
 	 * Protect access to I/O registers from concurrent modesetting
@@ -1466,7 +1456,7 @@ static int ast_sil164_connector_helper_get_modes(struct drm_connector *connector
 	 */
 	mutex_lock(&ast->modeset_lock);
 
-	edid = drm_get_edid(connector, &ast_sil164_connector->i2c->adapter);
+	edid = drm_get_edid(connector, connector->ddc);
 	if (!edid)
 		goto err_mutex_unlock;
 
@@ -1479,7 +1469,6 @@ static int ast_sil164_connector_helper_get_modes(struct drm_connector *connector
 
 err_mutex_unlock:
 	mutex_unlock(&ast->modeset_lock);
-err_drm_connector_update_edid_property:
 	drm_connector_update_edid_property(connector, NULL);
 	return 0;
 }
@@ -1500,19 +1489,18 @@ static int ast_sil164_connector_init(struct drm_device *dev,
 				     struct ast_sil164_connector *ast_sil164_connector)
 {
 	struct drm_connector *connector = &ast_sil164_connector->base;
+	struct ast_i2c_chan *i2c;
 	int ret;
 
-	ast_sil164_connector->i2c = ast_i2c_create(dev);
-	if (!ast_sil164_connector->i2c)
-		drm_err(dev, "failed to add ddc bus for connector\n");
+	i2c = ast_i2c_create(dev);
+	if (IS_ERR(i2c)) {
+		ret = PTR_ERR(i2c);
+		drm_err(dev, "failed to add ddc bus for connector; ret=%d\n", ret);
+		return ret;
+	}
 
-	if (ast_sil164_connector->i2c)
-		ret = drm_connector_init_with_ddc(dev, connector, &ast_sil164_connector_funcs,
-						  DRM_MODE_CONNECTOR_DVII,
-						  &ast_sil164_connector->i2c->adapter);
-	else
-		ret = drm_connector_init(dev, connector, &ast_sil164_connector_funcs,
-					 DRM_MODE_CONNECTOR_DVII);
+	ret = drm_connector_init_with_ddc(dev, connector, &ast_sil164_connector_funcs,
+					  DRM_MODE_CONNECTOR_DVII, &i2c->adapter);
 	if (ret)
 		return ret;
 
