@@ -39,6 +39,7 @@ blocklist r820t
 blocklist rcutorture
 blocklist rtc-test
 blocklist si2157
+blocklist socinfo_dt
 blocklist tda18212
 blocklist tda18218
 blocklist tda18250
