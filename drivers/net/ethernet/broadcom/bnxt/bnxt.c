@@ -5939,8 +5939,8 @@ static void bnxt_hwrm_vnic_update_tunl_tpa(struct bnxt *bp,
 	req->tnl_tpa_en_bitmap = cpu_to_le32(tunl_tpa_bmap);
 }
 
-static int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, struct bnxt_vnic_info *vnic,
-				  u32 tpa_flags)
+int bnxt_hwrm_vnic_set_tpa(struct bnxt *bp, struct bnxt_vnic_info *vnic,
+			   u32 tpa_flags)
 {
 	u16 max_aggs = VNIC_TPA_CFG_REQ_MAX_AGGS_MAX;
 	struct hwrm_vnic_tpa_cfg_input *req;
@@ -6129,6 +6129,8 @@ static void bnxt_fill_hw_rss_tbl_p5(struct bnxt *bp,
 
 		if (vnic->flags & BNXT_VNIC_NTUPLE_FLAG)
 			j = ethtool_rxfh_indir_default(i, bp->rx_nr_rings);
+		else if (vnic->flags & BNXT_VNIC_RSSCTX_FLAG)
+			j = vnic->rss_ctx->rss_indir_tbl[i];
 		else
 			j = bp->rss_indir_tbl[i];
 		rxr = &bp->rx_ring[j];
@@ -6423,9 +6425,9 @@ static void bnxt_hwrm_vnic_free(struct bnxt *bp)
 		bnxt_hwrm_vnic_free_one(bp, &bp->vnic_info[i]);
 }
 
-static int bnxt_hwrm_vnic_alloc(struct bnxt *bp, struct bnxt_vnic_info *vnic,
-				unsigned int start_rx_ring_idx,
-				unsigned int nr_rings)
+int bnxt_hwrm_vnic_alloc(struct bnxt *bp, struct bnxt_vnic_info *vnic,
+			 unsigned int start_rx_ring_idx,
+			 unsigned int nr_rings)
 {
 	unsigned int i, j, grp_idx, end_idx = start_rx_ring_idx + nr_rings;
 	struct hwrm_vnic_alloc_output *resp;
@@ -9852,7 +9854,7 @@ int bnxt_hwrm_vnic_rss_cfg_p5(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 	return rc;
 }
 
-static int __bnxt_setup_vnic_p5(struct bnxt *bp, struct bnxt_vnic_info *vnic)
+int __bnxt_setup_vnic_p5(struct bnxt *bp, struct bnxt_vnic_info *vnic)
 {
 	int rc, i, nr_ctxs;
 
@@ -9939,13 +9941,44 @@ static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 void bnxt_del_one_rss_ctx(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 			  bool all)
 {
+	struct bnxt_vnic_info *vnic = &rss_ctx->vnic;
+	int i;
+
+	bnxt_hwrm_vnic_free_one(bp, &rss_ctx->vnic);
+	for (i = 0; i < BNXT_MAX_CTX_PER_VNIC; i++) {
+		if (vnic->fw_rss_cos_lb_ctx[i] != INVALID_HW_RING_ID)
+			bnxt_hwrm_vnic_ctx_free_one(bp, vnic, i);
+	}
 	if (!all)
 		return;
 
+	if (vnic->rss_table)
+		dma_free_coherent(&bp->pdev->dev, vnic->rss_table_size,
+				  vnic->rss_table,
+				  vnic->rss_table_dma_addr);
+	kfree(rss_ctx->rss_indir_tbl);
 	list_del(&rss_ctx->list);
 	bp->num_rss_ctx--;
 	clear_bit(rss_ctx->index, bp->rss_ctx_bmap);
 	kfree(rss_ctx);
+}
+
+static void bnxt_hwrm_realloc_rss_ctx_vnic(struct bnxt *bp)
+{
+	bool set_tpa = !!(bp->flags & BNXT_FLAG_TPA);
+	struct bnxt_rss_ctx *rss_ctx, *tmp;
+
+	list_for_each_entry_safe(rss_ctx, tmp, &bp->rss_ctx_list, list) {
+		struct bnxt_vnic_info *vnic = &rss_ctx->vnic;
+
+		if (bnxt_hwrm_vnic_alloc(bp, vnic, 0, bp->rx_nr_rings) ||
+		    bnxt_hwrm_vnic_set_tpa(bp, vnic, set_tpa) ||
+		    __bnxt_setup_vnic_p5(bp, vnic)) {
+			netdev_err(bp->dev, "Failed to restore RSS ctx %d\n",
+				   rss_ctx->index);
+			bnxt_del_one_rss_ctx(bp, rss_ctx, true);
+		}
+	}
 }
 
 struct bnxt_rss_ctx *bnxt_alloc_rss_ctx(struct bnxt *bp)
@@ -11829,6 +11862,8 @@ static int __bnxt_open_nic(struct bnxt *bp, bool irq_re_init, bool link_re_init)
 		bnxt_vf_reps_open(bp);
 	bnxt_ptp_init_rtc(bp, true);
 	bnxt_ptp_cfg_tstamp_filters(bp);
+	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
+		bnxt_hwrm_realloc_rss_ctx_vnic(bp);
 	bnxt_cfg_usr_fltrs(bp);
 	return 0;
 
@@ -11977,6 +12012,8 @@ static void __bnxt_close_nic(struct bnxt *bp, bool irq_re_init,
 	while (bnxt_drv_busy(bp))
 		msleep(20);
 
+	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
+		bnxt_clear_rss_ctxs(bp, false);
 	/* Flush rings and disable interrupts */
 	bnxt_shutdown_nic(bp, irq_re_init);
 
