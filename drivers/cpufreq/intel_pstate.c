@@ -1296,7 +1296,7 @@ static ssize_t store_no_turbo(struct kobject *a, struct kobj_attribute *b,
 		goto unlock_driver;
 	}
 
-	global.no_turbo = no_turbo;
+	WRITE_ONCE(global.no_turbo, no_turbo);
 
 	mutex_lock(&intel_pstate_limits_lock);
 
@@ -1748,7 +1748,7 @@ static u64 atom_get_val(struct cpudata *cpudata, int pstate)
 	u32 vid;
 
 	val = (u64)pstate << 8;
-	if (global.no_turbo && !global.turbo_disabled)
+	if (READ_ONCE(global.no_turbo) && !global.turbo_disabled)
 		val |= (u64)1 << 32;
 
 	vid_fp = cpudata->vid.min + mul_fp(
@@ -1913,7 +1913,7 @@ static u64 core_get_val(struct cpudata *cpudata, int pstate)
 	u64 val;
 
 	val = (u64)pstate << 8;
-	if (global.no_turbo && !global.turbo_disabled)
+	if (READ_ONCE(global.no_turbo) && !global.turbo_disabled)
 		val |= (u64)1 << 32;
 
 	return val;
@@ -2211,7 +2211,7 @@ static inline int32_t get_target_pstate(struct cpudata *cpu)
 
 	sample->busy_scaled = busy_frac * 100;
 
-	target = global.no_turbo || global.turbo_disabled ?
+	target = READ_ONCE(global.no_turbo) ?
 			cpu->pstate.max_pstate : cpu->pstate.turbo_pstate;
 	target += target >> 2;
 	target = mul_fp(target, busy_frac);
@@ -2473,7 +2473,7 @@ static void intel_pstate_clear_update_util_hook(unsigned int cpu)
 
 static int intel_pstate_get_max_freq(struct cpudata *cpu)
 {
-	return global.turbo_disabled || global.no_turbo ?
+	return READ_ONCE(global.no_turbo) ?
 			cpu->pstate.max_freq : cpu->pstate.turbo_freq;
 }
 
@@ -2610,7 +2610,7 @@ static void intel_pstate_verify_cpu_policy(struct cpudata *cpu,
 
 	if (hwp_active) {
 		intel_pstate_get_hwp_cap(cpu);
-		max_freq = global.no_turbo || global.turbo_disabled ?
+		max_freq = READ_ONCE(global.no_turbo) ?
 				cpu->pstate.max_freq : cpu->pstate.turbo_freq;
 	} else {
 		max_freq = intel_pstate_get_max_freq(cpu);
