@@ -2540,6 +2540,10 @@ scmi_txrx_setup(struct scmi_info *info, struct device_node *of_node,
 			ret = 0;
 	}
 
+	if (ret)
+		dev_err(info->dev,
+			"failed to setup channel for protocol:0x%X\n", prot_id);
+
 	return ret;
 }
 
@@ -2809,6 +2813,7 @@ static int scmi_debugfs_raw_mode_setup(struct scmi_info *info)
 static int scmi_probe(struct platform_device *pdev)
 {
 	int ret;
+	char *err_str = "probe failure\n";
 	struct scmi_handle *handle;
 	const struct scmi_desc *desc;
 	struct scmi_info *info;
@@ -2859,27 +2864,37 @@ static int scmi_probe(struct platform_device *pdev)
 
 	if (desc->ops->link_supplier) {
 		ret = desc->ops->link_supplier(dev);
-		if (ret)
+		if (ret) {
+			err_str = "transport not ready\n";
 			goto clear_ida;
+		}
 	}
 
 	/* Setup all channels described in the DT at first */
 	ret = scmi_channels_setup(info);
-	if (ret)
+	if (ret) {
+		err_str = "failed to setup channels\n";
 		goto clear_ida;
+	}
 
 	ret = bus_register_notifier(&scmi_bus_type, &info->bus_nb);
-	if (ret)
+	if (ret) {
+		err_str = "failed to register bus notifier\n";
 		goto clear_txrx_setup;
+	}
 
 	ret = blocking_notifier_chain_register(&scmi_requested_devices_nh,
 					       &info->dev_req_nb);
-	if (ret)
+	if (ret) {
+		err_str = "failed to register device notifier\n";
 		goto clear_bus_notifier;
+	}
 
 	ret = scmi_xfer_info_init(info);
-	if (ret)
+	if (ret) {
+		err_str = "failed to init xfers pool\n";
 		goto clear_dev_req_notifier;
+	}
 
 	if (scmi_top_dentry) {
 		info->dbg = scmi_debugfs_common_setup(info);
@@ -2916,9 +2931,11 @@ static int scmi_probe(struct platform_device *pdev)
 	 */
 	ret = scmi_protocol_acquire(handle, SCMI_PROTOCOL_BASE);
 	if (ret) {
-		dev_err(dev, "unable to communicate with SCMI\n");
-		if (coex)
+		err_str = "unable to communicate with SCMI\n";
+		if (coex) {
+			dev_err(dev, err_str);
 			return 0;
+		}
 		goto notification_exit;
 	}
 
@@ -2972,7 +2989,8 @@ clear_txrx_setup:
 	scmi_cleanup_txrx_channels(info);
 clear_ida:
 	ida_free(&scmi_id, info->id);
-	return ret;
+
+	return dev_err_probe(dev, ret, err_str);
 }
 
 static void scmi_remove(struct platform_device *pdev)
