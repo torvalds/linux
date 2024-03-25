@@ -320,10 +320,6 @@ struct pci_dev;
 #define CIO2_CSIRX_DLY_CNT_TERMEN_DEFAULT		0x4
 #define CIO2_CSIRX_DLY_CNT_SETTLE_DEFAULT		0x570
 
-#define CIO2_PMCSR_OFFSET				4U
-#define CIO2_PMCSR_D0D3_SHIFT				2U
-#define CIO2_PMCSR_D3					0x3
-
 struct cio2_csi2_timing {
 	s32 clk_termen;
 	s32 clk_settle;

@@ -1807,15 +1807,9 @@ static int __maybe_unused cio2_runtime_suspend(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cio2_device *cio2 = pci_get_drvdata(pci_dev);
 	void __iomem *const base = cio2->base;
-	u16 pm;
 
 	writel(CIO2_D0I3C_I3, base + CIO2_REG_D0I3C);
 	dev_dbg(dev, "cio2 runtime suspend.\n");
-
-	pci_read_config_word(pci_dev, pci_dev->pm_cap + CIO2_PMCSR_OFFSET, &pm);
-	pm = (pm >> CIO2_PMCSR_D0D3_SHIFT) << CIO2_PMCSR_D0D3_SHIFT;
-	pm |= CIO2_PMCSR_D3;
-	pci_write_config_word(pci_dev, pci_dev->pm_cap + CIO2_PMCSR_OFFSET, pm);
 
 	return 0;
 }
@@ -1825,14 +1819,9 @@ static int __maybe_unused cio2_runtime_resume(struct device *dev)
 	struct pci_dev *pci_dev = to_pci_dev(dev);
 	struct cio2_device *cio2 = pci_get_drvdata(pci_dev);
 	void __iomem *const base = cio2->base;
-	u16 pm;
 
 	writel(CIO2_D0I3C_RR, base + CIO2_REG_D0I3C);
 	dev_dbg(dev, "cio2 runtime resume.\n");
-
-	pci_read_config_word(pci_dev, pci_dev->pm_cap + CIO2_PMCSR_OFFSET, &pm);
-	pm = (pm >> CIO2_PMCSR_D0D3_SHIFT) << CIO2_PMCSR_D0D3_SHIFT;
-	pci_write_config_word(pci_dev, pci_dev->pm_cap + CIO2_PMCSR_OFFSET, pm);
 
 	return 0;
 }
