@@ -5,12 +5,10 @@
  * Copyright (C) 2024 Analog Devices, Inc.
  */
 #include <linux/bits.h>
-#include <linux/err.h>
 #include <linux/i2c.h>
-#include <linux/init.h>
-#include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
+
 #include "pmbus.h"
 
 static struct pmbus_driver_info adp1050_info = {
