@@ -1153,7 +1153,7 @@ static void intel_pstate_update_policies(void)
 static void __intel_pstate_update_max_freq(struct cpudata *cpudata,
 					   struct cpufreq_policy *policy)
 {
-	policy->cpuinfo.max_freq = global.turbo_disabled ?
+	policy->cpuinfo.max_freq = READ_ONCE(global.no_turbo) ?
 			cpudata->pstate.max_freq : cpudata->pstate.turbo_freq;
 	refresh_frequency_limits(policy);
 }
@@ -2704,7 +2704,7 @@ static int __intel_pstate_cpu_init(struct cpufreq_policy *policy)
 
 	/* cpuinfo and default policy values */
 	policy->cpuinfo.min_freq = cpu->pstate.min_freq;
-	policy->cpuinfo.max_freq = global.turbo_disabled ?
+	policy->cpuinfo.max_freq = READ_ONCE(global.no_turbo) ?
 			cpu->pstate.max_freq : cpu->pstate.turbo_freq;
 
 	policy->min = policy->cpuinfo.min_freq;
@@ -2907,8 +2907,9 @@ static void intel_cpufreq_adjust_perf(unsigned int cpunum,
 	int old_pstate = cpu->pstate.current_pstate;
 	int cap_pstate, min_pstate, max_pstate, target_pstate;
 
-	cap_pstate = global.turbo_disabled ? HWP_GUARANTEED_PERF(hwp_cap) :
-					     HWP_HIGHEST_PERF(hwp_cap);
+	cap_pstate = READ_ONCE(global.no_turbo) ?
+					HWP_GUARANTEED_PERF(hwp_cap) :
+					HWP_HIGHEST_PERF(hwp_cap);
 
 	/* Optimization: Avoid unnecessary divisions. */
 
