@@ -1388,10 +1388,11 @@ static const struct drm_connector_funcs ast_vga_connector_funcs = {
 
 static int ast_vga_connector_init(struct drm_device *dev, struct drm_connector *connector)
 {
+	struct ast_device *ast = to_ast_device(dev);
 	struct ast_ddc *ddc;
 	int ret;
 
-	ddc = ast_ddc_create(dev);
+	ddc = ast_ddc_create(ast);
 	if (IS_ERR(ddc)) {
 		ret = PTR_ERR(ddc);
 		drm_err(dev, "failed to add DDC bus for connector; ret=%d\n", ret);
@@ -1485,10 +1486,11 @@ static const struct drm_connector_funcs ast_sil164_connector_funcs = {
 
 static int ast_sil164_connector_init(struct drm_device *dev, struct drm_connector *connector)
 {
+	struct ast_device *ast = to_ast_device(dev);
 	struct ast_ddc *ddc;
 	int ret;
 
-	ddc = ast_ddc_create(dev);
+	ddc = ast_ddc_create(ast);
 	if (IS_ERR(ddc)) {
 		ret = PTR_ERR(ddc);
 		drm_err(dev, "failed to add DDC bus for connector; ret=%d\n", ret);

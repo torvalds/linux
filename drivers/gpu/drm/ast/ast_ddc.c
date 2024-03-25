@@ -110,8 +110,9 @@ static void ast_ddc_release(struct drm_device *dev, void *res)
 	i2c_del_adapter(&ddc->adapter);
 }
 
-struct ast_ddc *ast_ddc_create(struct drm_device *dev)
+struct ast_ddc *ast_ddc_create(struct ast_device *ast)
 {
+	struct drm_device *dev = &ast->base;
 	struct ast_ddc *ddc;
 	struct i2c_adapter *adapter;
 	struct i2c_algo_bit_data *bit;
