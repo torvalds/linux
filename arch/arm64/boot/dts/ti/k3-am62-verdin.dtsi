@@ -457,6 +457,13 @@
 		>;
 	};
 
+	/* Verdin SD_1_CD# as GPIO */
+	pinctrl_sd1_cd_gpio: main-gpio1-48-default-pins {
+		pinctrl-single,pins = <
+			AM62X_IOPAD(0x240, PIN_INPUT_PULLUP, 7) /* (D17) MMC1_SDCD.GPIO1_48 */ /* SODIMM 84 */
+		>;
+	};
+
 	/* Verdin DSI_1_INT# (pulled-up as active-low) */
 	pinctrl_dsi1_int: main-gpio1-49-default-pins {
 		pinctrl-single,pins = <
@@ -571,7 +578,6 @@
 			AM62X_IOPAD(0x22c, PIN_INPUT,        0) /* (B21) MMC1_DAT1 */ /* SODIMM 82 */
 			AM62X_IOPAD(0x228, PIN_INPUT,        0) /* (C21) MMC1_DAT2 */ /* SODIMM 70 */
 			AM62X_IOPAD(0x224, PIN_INPUT,        0) /* (D22) MMC1_DAT3 */ /* SODIMM 72 */
-			AM62X_IOPAD(0x240, PIN_INPUT_PULLUP, 0) /* (D17) MMC1_SDCD */ /* SODIMM 84 */
 		>;
 	};
 
@@ -1441,10 +1447,12 @@
 /* Verdin SD_1 */
 &sdhci1 {
 	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_sdhci1>;
+	pinctrl-0 = <&pinctrl_sdhci1>, <&pinctrl_sd1_cd_gpio>;
+	cd-gpios = <&main_gpio1 48 GPIO_ACTIVE_LOW>;
 	disable-wp;
 	vmmc-supply = <&reg_sdhc1_vmmc>;
 	vqmmc-supply = <&reg_sdhc1_vqmmc>;
+	ti,fails-without-test-cd;
 	status = "disabled";
 };
 
