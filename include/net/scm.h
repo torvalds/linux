@@ -32,6 +32,7 @@ struct scm_fp_list {
 	short			count_unix;
 	short			max;
 #ifdef CONFIG_UNIX
+	bool			inflight;
 	struct list_head	vertices;
 	struct unix_edge	*edges;
 #endif
