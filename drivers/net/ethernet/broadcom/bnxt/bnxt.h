@@ -1374,6 +1374,7 @@ struct bnxt_filter_base {
 #define BNXT_ACT_RING_DST	2
 #define BNXT_ACT_FUNC_DST	4
 #define BNXT_ACT_NO_AGING	8
+#define BNXT_ACT_RSS_CTX	0x10
 	u16			sw_id;
 	u16			rxq;
 	u16			fw_vnic_id;

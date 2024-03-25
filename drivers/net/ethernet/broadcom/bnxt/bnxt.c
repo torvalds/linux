@@ -5791,8 +5791,20 @@ bnxt_cfg_rfs_ring_tbl_idx(struct bnxt *bp,
 			  struct hwrm_cfa_ntuple_filter_alloc_input *req,
 			  struct bnxt_ntuple_filter *fltr)
 {
+	struct bnxt_rss_ctx *rss_ctx, *tmp;
 	u16 rxq = fltr->base.rxq;
 
+	if (fltr->base.flags & BNXT_ACT_RSS_CTX) {
+		list_for_each_entry_safe(rss_ctx, tmp, &bp->rss_ctx_list, list) {
+			if (rss_ctx->index == fltr->base.fw_vnic_id) {
+				struct bnxt_vnic_info *vnic = &rss_ctx->vnic;
+
+				req->dst_id = cpu_to_le16(vnic->fw_vnic_id);
+				break;
+			}
+		}
+		return;
+	}
 	if (BNXT_SUPPORTS_NTUPLE_VNIC(bp)) {
 		struct bnxt_vnic_info *vnic;
 		u32 enables;
@@ -9944,6 +9956,8 @@ void bnxt_del_one_rss_ctx(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 			  bool all)
 {
 	struct bnxt_vnic_info *vnic = &rss_ctx->vnic;
+	struct bnxt_filter_base *usr_fltr, *tmp;
+	struct bnxt_ntuple_filter *ntp_fltr;
 	int i;
 
 	bnxt_hwrm_vnic_free_one(bp, &rss_ctx->vnic);
@@ -9953,6 +9967,18 @@ void bnxt_del_one_rss_ctx(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
 	}
 	if (!all)
 		return;
+
+	list_for_each_entry_safe(usr_fltr, tmp, &bp->usr_fltr_list, list) {
+		if ((usr_fltr->flags & BNXT_ACT_RSS_CTX) &&
+		    usr_fltr->fw_vnic_id == rss_ctx->index) {
+			ntp_fltr = container_of(usr_fltr,
+						struct bnxt_ntuple_filter,
+						base);
+			bnxt_hwrm_cfa_ntuple_filter_free(bp, ntp_fltr);
+			bnxt_del_ntp_filter(bp, ntp_fltr);
+			bnxt_del_one_usr_fltr(bp, usr_fltr);
+		}
+	}
 
 	if (vnic->rss_table)
 		dma_free_coherent(&bp->pdev->dev, vnic->rss_table_size,
