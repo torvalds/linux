@@ -969,6 +969,8 @@ static int bnxt_set_channels(struct net_device *dev,
 	}
 
 	bnxt_clear_usr_fltrs(bp, true);
+	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
+		bnxt_clear_rss_ctxs(bp, false);
 	if (netif_running(dev)) {
 		if (BNXT_PF(bp)) {
 			/* TODO CHIMP_FW: Send message to all VF's

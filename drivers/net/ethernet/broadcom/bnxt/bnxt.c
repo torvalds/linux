@@ -9925,6 +9925,53 @@ static int bnxt_alloc_rfs_vnics(struct bnxt *bp)
 	return rc;
 }
 
+void bnxt_del_one_rss_ctx(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
+			  bool all)
+{
+	if (!all)
+		return;
+
+	list_del(&rss_ctx->list);
+	bp->num_rss_ctx--;
+	clear_bit(rss_ctx->index, bp->rss_ctx_bmap);
+	kfree(rss_ctx);
+}
+
+struct bnxt_rss_ctx *bnxt_alloc_rss_ctx(struct bnxt *bp)
+{
+	struct bnxt_rss_ctx *rss_ctx = NULL;
+
+	rss_ctx = kzalloc(sizeof(*rss_ctx), GFP_KERNEL);
+	if (rss_ctx) {
+		rss_ctx->vnic.rss_ctx = rss_ctx;
+		list_add_tail(&rss_ctx->list, &bp->rss_ctx_list);
+		bp->num_rss_ctx++;
+	}
+	return rss_ctx;
+}
+
+void bnxt_clear_rss_ctxs(struct bnxt *bp, bool all)
+{
+	struct bnxt_rss_ctx *rss_ctx, *tmp;
+
+	list_for_each_entry_safe(rss_ctx, tmp, &bp->rss_ctx_list, list)
+		bnxt_del_one_rss_ctx(bp, rss_ctx, all);
+
+	if (all)
+		bitmap_free(bp->rss_ctx_bmap);
+}
+
+static void bnxt_init_multi_rss_ctx(struct bnxt *bp)
+{
+	bp->rss_ctx_bmap = bitmap_zalloc(BNXT_RSS_CTX_BMAP_LEN, GFP_KERNEL);
+	if (bp->rss_ctx_bmap) {
+		/* burn index 0 since we cannot have context 0 */
+		__set_bit(0, bp->rss_ctx_bmap);
+		INIT_LIST_HEAD(&bp->rss_ctx_list);
+		bp->rss_cap |= BNXT_RSS_CAP_MULTI_RSS_CTX;
+	}
+}
+
 /* Allow PF, trusted VFs and VFs with default VLAN to be in promiscuous mode */
 static bool bnxt_promisc_ok(struct bnxt *bp)
 {
@@ -14612,6 +14659,8 @@ static void bnxt_remove_one(struct pci_dev *pdev)
 	unregister_netdev(dev);
 	bnxt_free_l2_filters(bp, true);
 	bnxt_free_ntp_fltrs(bp, true);
+	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
+		bnxt_clear_rss_ctxs(bp, true);
 	clear_bit(BNXT_STATE_IN_FW_RESET, &bp->state);
 	/* Flush any pending tasks */
 	cancel_work_sync(&bp->sp_task);
@@ -15223,6 +15272,9 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	INIT_LIST_HEAD(&bp->usr_fltr_list);
 
+	if (BNXT_SUPPORTS_NTUPLE_VNIC(bp))
+		bnxt_init_multi_rss_ctx(bp);
+
 	rc = register_netdev(dev);
 	if (rc)
 		goto init_err_cleanup;
@@ -15243,6 +15295,8 @@ init_err_dl:
 	bnxt_clear_int_mode(bp);
 
 init_err_pci_clean:
+	if (BNXT_SUPPORTS_MULTI_RSS_CTX(bp))
+		bnxt_clear_rss_ctxs(bp, true);
 	bnxt_hwrm_func_drv_unrgtr(bp);
 	bnxt_free_hwrm_resources(bp);
 	bnxt_hwmon_uninit(bp);

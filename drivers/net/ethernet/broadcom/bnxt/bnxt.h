@@ -1256,8 +1256,20 @@ struct bnxt_vnic_info {
 #define BNXT_VNIC_UCAST_FLAG	8
 #define BNXT_VNIC_RFS_NEW_RSS_FLAG	0x10
 #define BNXT_VNIC_NTUPLE_FLAG		0x20
+#define BNXT_VNIC_RSSCTX_FLAG		0x40
+	struct bnxt_rss_ctx	*rss_ctx;
 	u32		vnic_id;
 };
+
+struct bnxt_rss_ctx {
+	struct list_head list;
+	struct bnxt_vnic_info vnic;
+	u16	*rss_indir_tbl;
+	u8	index;
+};
+
+#define BNXT_MAX_ETH_RSS_CTX	32
+#define BNXT_RSS_CTX_BMAP_LEN	(BNXT_MAX_ETH_RSS_CTX + 1)
 
 struct bnxt_hw_rings {
 	int tx;
@@ -2228,6 +2240,9 @@ struct bnxt {
 	/* grp_info indexed by completion ring index */
 	struct bnxt_ring_grp_info	*grp_info;
 	struct bnxt_vnic_info	*vnic_info;
+	struct list_head	rss_ctx_list;
+	unsigned long		*rss_ctx_bmap;
+	u32			num_rss_ctx;
 	int			nr_vnics;
 	u16			*rss_indir_tbl;
 	u16			rss_indir_tbl_entries;
@@ -2242,6 +2257,7 @@ struct bnxt {
 #define BNXT_RSS_CAP_AH_V6_RSS_CAP		BIT(5)
 #define BNXT_RSS_CAP_ESP_V4_RSS_CAP		BIT(6)
 #define BNXT_RSS_CAP_ESP_V6_RSS_CAP		BIT(7)
+#define BNXT_RSS_CAP_MULTI_RSS_CTX		BIT(8)
 
 	u8			rss_hash_key[HW_HASH_KEY_SIZE];
 	u8			rss_hash_key_valid:1;
@@ -2340,6 +2356,10 @@ struct bnxt {
 				 ((bp)->fw_cap & BNXT_FW_CAP_PTP_RTC))
 #define BNXT_SUPPORTS_NTUPLE_VNIC(bp)	\
 	(BNXT_PF(bp) && ((bp)->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V3))
+
+#define BNXT_SUPPORTS_MULTI_RSS_CTX(bp)				\
+	(BNXT_PF(bp) && BNXT_SUPPORTS_NTUPLE_VNIC(bp) &&	\
+	 ((bp)->rss_cap & BNXT_RSS_CAP_MULTI_RSS_CTX))
 
 	u32			hwrm_spec_code;
 	u16			hwrm_cmd_seq;
@@ -2723,6 +2743,10 @@ int bnxt_hwrm_func_resc_qcaps(struct bnxt *bp, bool all);
 int bnxt_hwrm_func_qcaps(struct bnxt *bp);
 int bnxt_hwrm_fw_set_time(struct bnxt *);
 int bnxt_hwrm_vnic_rss_cfg_p5(struct bnxt *bp, struct bnxt_vnic_info *vnic);
+void bnxt_del_one_rss_ctx(struct bnxt *bp, struct bnxt_rss_ctx *rss_ctx,
+			  bool all);
+struct bnxt_rss_ctx *bnxt_alloc_rss_ctx(struct bnxt *bp);
+void bnxt_clear_rss_ctxs(struct bnxt *bp, bool all);
 int bnxt_open_nic(struct bnxt *, bool, bool);
 int bnxt_half_open_nic(struct bnxt *bp);
 void bnxt_half_close_nic(struct bnxt *bp);
