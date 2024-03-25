@@ -108,33 +108,9 @@ struct sof_card_private {
 	};
 };
 
-enum sof_dmic_be_type {
-	SOF_DMIC_01,
-	SOF_DMIC_16K,
-};
-
 int sof_intel_board_card_late_probe(struct snd_soc_card *card);
 int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 				 struct sof_card_private *ctx);
-
-int sof_intel_board_set_codec_link(struct device *dev,
-				   struct snd_soc_dai_link *link, int be_id,
-				   enum sof_ssp_codec codec_type, int ssp_codec);
-int sof_intel_board_set_dmic_link(struct device *dev,
-				  struct snd_soc_dai_link *link, int be_id,
-				  enum sof_dmic_be_type be_type);
-int sof_intel_board_set_intel_hdmi_link(struct device *dev,
-					struct snd_soc_dai_link *link, int be_id,
-					int hdmi_id, bool idisp_codec);
-int sof_intel_board_set_ssp_amp_link(struct device *dev,
-				     struct snd_soc_dai_link *link, int be_id,
-				     enum sof_ssp_codec amp_type, int ssp_amp);
-int sof_intel_board_set_bt_link(struct device *dev,
-				struct snd_soc_dai_link *link, int be_id,
-				int ssp_bt);
-int sof_intel_board_set_hdmi_in_link(struct device *dev,
-				     struct snd_soc_dai_link *link, int be_id,
-				     int ssp_hdmi);
 
 struct snd_soc_dai *get_codec_dai_by_name(struct snd_soc_pcm_runtime *rtd,
 					  const char * const dai_name[], int num_dais);
