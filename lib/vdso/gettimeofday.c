@@ -6,6 +6,13 @@
 #include <vdso/helpers.h>
 
 #ifndef vdso_calc_delta
+
+#ifdef VDSO_DELTA_NOMASK
+# define VDSO_DELTA_MASK(mask)	U64_MAX
+#else
+# define VDSO_DELTA_MASK(mask)	(mask)
+#endif
+
 /*
  * Default implementation which works for all sane clocksources. That
  * obviously excludes x86/TSC.
@@ -13,7 +20,7 @@
 static __always_inline
 u64 vdso_calc_delta(u64 cycles, u64 last, u64 mask, u32 mult)
 {
-	return ((cycles - last) & mask) * mult;
+	return ((cycles - last) & VDSO_DELTA_MASK(mask)) * mult;
 }
 #endif
 
