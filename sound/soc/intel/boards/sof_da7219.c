@@ -375,13 +375,7 @@ static int audio_probe(struct platform_device *pdev)
 
 static const struct platform_device_id board_ids[] = {
 	{
-		.name = "jsl_mx98373_da7219",
-		.driver_data = (kernel_ulong_t)(SOF_DA7219_JSL_BOARD |
-					SOF_SSP_PORT_CODEC(0) |
-					SOF_SSP_PORT_AMP(1)),
-	},
-	{
-		.name = "jsl_mx98360_da7219",
+		.name = "jsl_da7219_def",
 		.driver_data = (kernel_ulong_t)(SOF_DA7219_JSL_BOARD |
 					SOF_SSP_PORT_CODEC(0) |
 					SOF_SSP_PORT_AMP(1)),
