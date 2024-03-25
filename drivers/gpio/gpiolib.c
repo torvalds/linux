@@ -4237,7 +4237,7 @@ struct gpio_desc *gpiod_find_and_request(struct device *consumer,
 	ret = gpiod_configure_flags(desc, con_id, lookupflags, flags);
 	if (ret < 0) {
 		gpiod_put(desc);
-		dev_dbg(consumer, "setup of GPIO %s failed\n", name);
+		dev_err(consumer, "setup of GPIO %s failed: %d\n", name, ret);
 		return ERR_PTR(ret);
 	}
 
