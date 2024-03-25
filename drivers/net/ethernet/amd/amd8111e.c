@@ -1796,7 +1796,6 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 	lp = netdev_priv(dev);
 	lp->pci_dev = pdev;
 	lp->amd8111e_net_dev = dev;
-	lp->pm_cap = pdev->pm_cap;
 
 	spin_lock_init(&lp->lock);
 
