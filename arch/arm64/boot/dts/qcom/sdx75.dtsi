@@ -411,7 +411,7 @@
 		hwlocks = <&tcsr_mutex 3>;
 	};
 
-	soc: soc {
+	soc: soc@0 {
 		compatible = "simple-bus";
 		#address-cells = <2>;
 		#size-cells = <2>;
