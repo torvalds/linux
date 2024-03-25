@@ -59,6 +59,28 @@ static void ast_ddc_algo_bit_data_setscl(void *data, int state)
 	}
 }
 
+static int ast_ddc_algo_bit_data_pre_xfer(struct i2c_adapter *adapter)
+{
+	struct ast_ddc *ddc = i2c_get_adapdata(adapter);
+	struct ast_device *ast = ddc->ast;
+
+	/*
+	 * Protect access to I/O registers from concurrent modesetting
+	 * by acquiring the I/O-register lock.
+	 */
+	mutex_lock(&ast->modeset_lock);
+
+	return 0;
+}
+
+static void ast_ddc_algo_bit_data_post_xfer(struct i2c_adapter *adapter)
+{
+	struct ast_ddc *ddc = i2c_get_adapdata(adapter);
+	struct ast_device *ast = ddc->ast;
+
+	mutex_unlock(&ast->modeset_lock);
+}
+
 static int ast_ddc_algo_bit_data_getsda(void *data)
 {
 	struct ast_ddc *ddc = data;
@@ -137,6 +159,8 @@ struct ast_ddc *ast_ddc_create(struct ast_device *ast)
 	bit->setscl = ast_ddc_algo_bit_data_setscl;
 	bit->getsda = ast_ddc_algo_bit_data_getsda;
 	bit->getscl = ast_ddc_algo_bit_data_getscl;
+	bit->pre_xfer = ast_ddc_algo_bit_data_pre_xfer;
+	bit->post_xfer = ast_ddc_algo_bit_data_post_xfer;
 
 	adapter->algo_data = bit;
 	ret = i2c_bit_add_bus(adapter);

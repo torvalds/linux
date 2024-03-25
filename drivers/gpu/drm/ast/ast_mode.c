@@ -1346,30 +1346,19 @@ static int ast_crtc_init(struct drm_device *dev)
 
 static int ast_vga_connector_helper_get_modes(struct drm_connector *connector)
 {
-	struct drm_device *dev = connector->dev;
-	struct ast_device *ast = to_ast_device(dev);
 	struct edid *edid;
 	int count;
 
-	/*
-	 * Protect access to I/O registers from concurrent modesetting
-	 * by acquiring the I/O-register lock.
-	 */
-	mutex_lock(&ast->modeset_lock);
-
 	edid = drm_get_edid(connector, connector->ddc);
 	if (!edid)
-		goto err_mutex_unlock;
-
-	mutex_unlock(&ast->modeset_lock);
+		goto err_drm_get_edid;
 
 	count = drm_add_edid_modes(connector, edid);
 	kfree(edid);
 
 	return count;
 
-err_mutex_unlock:
-	mutex_unlock(&ast->modeset_lock);
+err_drm_get_edid:
 	drm_connector_update_edid_property(connector, NULL);
 	return 0;
 }
@@ -1444,30 +1433,19 @@ static int ast_vga_output_init(struct ast_device *ast)
 
 static int ast_sil164_connector_helper_get_modes(struct drm_connector *connector)
 {
-	struct drm_device *dev = connector->dev;
-	struct ast_device *ast = to_ast_device(dev);
 	struct edid *edid;
 	int count;
 
-	/*
-	 * Protect access to I/O registers from concurrent modesetting
-	 * by acquiring the I/O-register lock.
-	 */
-	mutex_lock(&ast->modeset_lock);
-
 	edid = drm_get_edid(connector, connector->ddc);
 	if (!edid)
-		goto err_mutex_unlock;
-
-	mutex_unlock(&ast->modeset_lock);
+		goto err_drm_get_edid;
 
 	count = drm_add_edid_modes(connector, edid);
 	kfree(edid);
 
 	return count;
 
-err_mutex_unlock:
-	mutex_unlock(&ast->modeset_lock);
+err_drm_get_edid:
 	drm_connector_update_edid_property(connector, NULL);
 	return 0;
 }
