@@ -27,15 +27,15 @@
 #include "ast_ddc.h"
 #include "ast_drv.h"
 
-static void ast_i2c_setsda(void *i2c_priv, int data)
+static void ast_ddc_algo_bit_data_setsda(void *data, int state)
 {
-	struct ast_ddc *ddc = i2c_priv;
+	struct ast_ddc *ddc = data;
 	struct ast_device *ast = ddc->ast;
 	int i;
 	u8 ujcrb7, jtemp;
 
 	for (i = 0; i < 0x10000; i++) {
-		ujcrb7 = ((data & 0x01) ? 0 : 1) << 2;
+		ujcrb7 = ((state & 0x01) ? 0 : 1) << 2;
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb7, 0xf1, ujcrb7);
 		jtemp = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xb7, 0x04);
 		if (ujcrb7 == jtemp)
@@ -43,15 +43,15 @@ static void ast_i2c_setsda(void *i2c_priv, int data)
 	}
 }
 
-static void ast_i2c_setscl(void *i2c_priv, int clock)
+static void ast_ddc_algo_bit_data_setscl(void *data, int state)
 {
-	struct ast_ddc *ddc = i2c_priv;
+	struct ast_ddc *ddc = data;
 	struct ast_device *ast = ddc->ast;
 	int i;
 	u8 ujcrb7, jtemp;
 
 	for (i = 0; i < 0x10000; i++) {
-		ujcrb7 = ((clock & 0x01) ? 0 : 1);
+		ujcrb7 = ((state & 0x01) ? 0 : 1);
 		ast_set_index_reg_mask(ast, AST_IO_VGACRI, 0xb7, 0xf4, ujcrb7);
 		jtemp = ast_get_index_reg_mask(ast, AST_IO_VGACRI, 0xb7, 0x01);
 		if (ujcrb7 == jtemp)
@@ -59,9 +59,9 @@ static void ast_i2c_setscl(void *i2c_priv, int clock)
 	}
 }
 
-static int ast_i2c_getsda(void *i2c_priv)
+static int ast_ddc_algo_bit_data_getsda(void *data)
 {
-	struct ast_ddc *ddc = i2c_priv;
+	struct ast_ddc *ddc = data;
 	struct ast_device *ast = ddc->ast;
 	uint32_t val, val2, count, pass;
 
@@ -81,9 +81,9 @@ static int ast_i2c_getsda(void *i2c_priv)
 	return val & 1 ? 1 : 0;
 }
 
-static int ast_i2c_getscl(void *i2c_priv)
+static int ast_ddc_algo_bit_data_getscl(void *data)
 {
-	struct ast_ddc *ddc = i2c_priv;
+	struct ast_ddc *ddc = data;
 	struct ast_device *ast = ddc->ast;
 	uint32_t val, val2, count, pass;
 
@@ -133,10 +133,10 @@ struct ast_ddc *ast_ddc_create(struct ast_device *ast)
 	bit->udelay = 20;
 	bit->timeout = 2;
 	bit->data = ddc;
-	bit->setsda = ast_i2c_setsda;
-	bit->setscl = ast_i2c_setscl;
-	bit->getsda = ast_i2c_getsda;
-	bit->getscl = ast_i2c_getscl;
+	bit->setsda = ast_ddc_algo_bit_data_setsda;
+	bit->setscl = ast_ddc_algo_bit_data_setscl;
+	bit->getsda = ast_ddc_algo_bit_data_getsda;
+	bit->getscl = ast_ddc_algo_bit_data_getscl;
 
 	adapter->algo_data = bit;
 	ret = i2c_bit_add_bus(adapter);
