@@ -545,6 +545,10 @@ static const struct platform_device_id board_ids[] = {
 		.name = "adl_mx98360_da7219",
 		/* no quirk needed for this board */
 	},
+	{
+		.name = "rpl_mx98360_da7219",
+		/* no quirk needed for this board */
+	},
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, board_ids);
