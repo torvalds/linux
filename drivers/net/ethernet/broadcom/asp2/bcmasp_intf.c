@@ -1044,10 +1044,6 @@ static int bcmasp_netif_init(struct net_device *dev, bool phy_connect)
 
 		/* Indicate that the MAC is responsible for PHY PM */
 		phydev->mac_managed_pm = true;
-	} else if (!intf->wolopts) {
-		ret = phy_resume(dev->phydev);
-		if (ret)
-			goto err_phy_disable;
 	}
 
 	umac_reset(intf);
@@ -1334,7 +1330,6 @@ int bcmasp_interface_suspend(struct bcmasp_intf *intf)
 {
 	struct device *kdev = &intf->parent->pdev->dev;
 	struct net_device *dev = intf->ndev;
-	int ret = 0;
 
 	if (!netif_running(dev))
 		return 0;
@@ -1344,10 +1339,6 @@ int bcmasp_interface_suspend(struct bcmasp_intf *intf)
 	bcmasp_netif_deinit(dev);
 
 	if (!intf->wolopts) {
-		ret = phy_suspend(dev->phydev);
-		if (ret)
-			goto out;
-
 		if (intf->internal_phy)
 			bcmasp_ephy_enable_set(intf, false);
 		else
@@ -1364,11 +1355,7 @@ int bcmasp_interface_suspend(struct bcmasp_intf *intf)
 
 	clk_disable_unprepare(intf->parent->clk);
 
-	return ret;
-
-out:
-	bcmasp_netif_init(dev, false);
-	return ret;
+	return 0;
 }
 
 static void bcmasp_resume_from_wol(struct bcmasp_intf *intf)
