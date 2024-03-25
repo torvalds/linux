@@ -242,6 +242,27 @@ static inline bool is_permission_fault(unsigned int fsr)
 	return false;
 }
 
+#ifdef CONFIG_CPU_TTBR0_PAN
+static inline bool ttbr0_usermode_access_allowed(struct pt_regs *regs)
+{
+	struct svc_pt_regs *svcregs;
+
+	/* If we are in user mode: permission granted */
+	if (user_mode(regs))
+		return true;
+
+	/* uaccess state saved above pt_regs on SVC exception entry */
+	svcregs = to_svc_pt_regs(regs);
+
+	return !(svcregs->ttbcr & TTBCR_EPD0);
+}
+#else
+static inline bool ttbr0_usermode_access_allowed(struct pt_regs *regs)
+{
+	return true;
+}
+#endif
+
 static int __kprobes
 do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 {
@@ -284,6 +305,14 @@ do_page_fault(unsigned long addr, unsigned int fsr, struct pt_regs *regs)
 	}
 
 	perf_sw_event(PERF_COUNT_SW_PAGE_FAULTS, 1, regs, addr);
+
+	/*
+	 * Privileged access aborts with CONFIG_CPU_TTBR0_PAN enabled are
+	 * routed via the translation fault mechanism. Check whether uaccess
+	 * is disabled while in kernel mode.
+	 */
+	if (!ttbr0_usermode_access_allowed(regs))
+		goto no_context;
 
 	if (!(flags & FAULT_FLAG_USER))
 		goto lock_mmap;

@@ -74,6 +74,7 @@
 #define PHYS_MASK_SHIFT		(40)
 #define PHYS_MASK		((1ULL << PHYS_MASK_SHIFT) - 1)
 
+#ifndef CONFIG_CPU_TTBR0_PAN
 /*
  * TTBR0/TTBR1 split (PAGE_OFFSET):
  *   0x40000000: T0SZ = 2, T1SZ = 0 (not used)
@@ -93,6 +94,14 @@
 #endif
 
 #define TTBR1_SIZE	(((PAGE_OFFSET >> 30) - 1) << 16)
+#else
+/*
+ * With CONFIG_CPU_TTBR0_PAN enabled, TTBR1 is only used during uaccess
+ * disabled regions when TTBR0 is disabled.
+ */
+#define TTBR1_OFFSET	0			/* pointing to swapper_pg_dir */
+#define TTBR1_SIZE	0			/* TTBR1 size controlled via TTBCR.T0SZ */
+#endif
 
 /*
  * TTBCR register bits.

@@ -14,6 +14,8 @@
 #include <asm/domain.h>
 #include <asm/unaligned.h>
 #include <asm/unified.h>
+#include <asm/pgtable.h>
+#include <asm/proc-fns.h>
 #include <asm/compiler.h>
 
 #include <asm/extable.h>
@@ -24,7 +26,7 @@
  * perform such accesses (eg, via list poison values) which could then
  * be exploited for priviledge escalation.
  */
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
+#if defined(CONFIG_CPU_SW_DOMAIN_PAN)
 
 static __always_inline unsigned int uaccess_save_and_enable(void)
 {
@@ -41,6 +43,28 @@ static __always_inline void uaccess_restore(unsigned int flags)
 {
 	/* Restore the user access mask */
 	set_domain(flags);
+}
+
+#elif defined(CONFIG_CPU_TTBR0_PAN)
+
+static inline unsigned int uaccess_save_and_enable(void)
+{
+	unsigned int old_ttbcr = cpu_get_ttbcr();
+
+	/*
+	 * Enable TTBR0 page table walks (T0SZ = 0, EDP0 = 0) and ASID from
+	 * TTBR0 (A1 = 0).
+	 */
+	cpu_set_ttbcr(old_ttbcr & ~(TTBCR_A1 | TTBCR_EPD0 | TTBCR_T0SZ_MASK));
+	isb();
+
+	return old_ttbcr;
+}
+
+static inline void uaccess_restore(unsigned int flags)
+{
+	cpu_set_ttbcr(flags);
+	isb();
 }
 
 #else

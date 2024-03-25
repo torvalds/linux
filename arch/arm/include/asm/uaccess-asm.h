@@ -39,7 +39,7 @@
 #endif
 	.endm
 
-#ifdef CONFIG_CPU_SW_DOMAIN_PAN
+#if defined(CONFIG_CPU_SW_DOMAIN_PAN)
 
 	.macro	uaccess_disable, tmp, isb=1
 	/*
@@ -65,6 +65,37 @@
 	.endif
 	.endm
 
+#elif defined(CONFIG_CPU_TTBR0_PAN)
+
+	.macro	uaccess_disable, tmp, isb=1
+	/*
+	 * Disable TTBR0 page table walks (EDP0 = 1), use the reserved ASID
+	 * from TTBR1 (A1 = 1) and enable TTBR1 page table walks for kernel
+	 * addresses by reducing TTBR0 range to 32MB (T0SZ = 7).
+	 */
+	mrc	p15, 0, \tmp, c2, c0, 2		@ read TTBCR
+	orr	\tmp, \tmp, #TTBCR_EPD0 | TTBCR_T0SZ_MASK
+	orr	\tmp, \tmp, #TTBCR_A1
+	mcr	p15, 0, \tmp, c2, c0, 2		@ write TTBCR
+	.if	\isb
+	instr_sync
+	.endif
+	.endm
+
+	.macro	uaccess_enable, tmp, isb=1
+	/*
+	 * Enable TTBR0 page table walks (T0SZ = 0, EDP0 = 0) and ASID from
+	 * TTBR0 (A1 = 0).
+	 */
+	mrc	p15, 0, \tmp, c2, c0, 2		@ read TTBCR
+	bic	\tmp, \tmp, #TTBCR_EPD0 | TTBCR_T0SZ_MASK
+	bic	\tmp, \tmp, #TTBCR_A1
+	mcr	p15, 0, \tmp, c2, c0, 2		@ write TTBCR
+	.if	\isb
+	instr_sync
+	.endif
+	.endm
+
 #else
 
 	.macro	uaccess_disable, tmp, isb=1
@@ -81,6 +112,12 @@
 #define DACR(x...)
 #endif
 
+#ifdef CONFIG_CPU_TTBR0_PAN
+#define PAN(x...)	x
+#else
+#define PAN(x...)
+#endif
+
 	/*
 	 * Save the address limit on entry to a privileged exception.
 	 *
@@ -94,6 +131,8 @@
 	.macro	uaccess_entry, tsk, tmp0, tmp1, tmp2, disable
  DACR(	mrc	p15, 0, \tmp0, c3, c0, 0)
  DACR(	str	\tmp0, [sp, #SVC_DACR])
+ PAN(	mrc	p15, 0, \tmp0, c2, c0, 2)
+ PAN(	str	\tmp0, [sp, #SVC_TTBCR])
 	.if \disable && IS_ENABLED(CONFIG_CPU_SW_DOMAIN_PAN)
 	/* kernel=client, user=no access */
 	mov	\tmp2, #DACR_UACCESS_DISABLE
@@ -112,8 +151,11 @@
 	.macro	uaccess_exit, tsk, tmp0, tmp1
  DACR(	ldr	\tmp0, [sp, #SVC_DACR])
  DACR(	mcr	p15, 0, \tmp0, c3, c0, 0)
+ PAN(	ldr	\tmp0, [sp, #SVC_TTBCR])
+ PAN(	mcr	p15, 0, \tmp0, c2, c0, 2)
 	.endm
 
 #undef DACR
+#undef PAN
 
 #endif /* __ASM_UACCESS_ASM_H__ */
