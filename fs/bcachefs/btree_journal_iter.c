@@ -363,7 +363,7 @@ static void btree_and_journal_iter_prefetch(struct btree_and_journal_iter *_iter
 
 struct bkey_s_c bch2_btree_and_journal_iter_peek(struct btree_and_journal_iter *iter)
 {
-	struct bkey_s_c btree_k, journal_k, ret;
+	struct bkey_s_c btree_k, journal_k = bkey_s_c_null, ret;
 
 	if (iter->prefetch && iter->journal.level)
 		btree_and_journal_iter_prefetch(iter);
@@ -375,9 +375,10 @@ again:
 	       bpos_lt(btree_k.k->p, iter->pos))
 		bch2_journal_iter_advance_btree(iter);
 
-	while ((journal_k = bch2_journal_iter_peek(&iter->journal)).k &&
-	       bpos_lt(journal_k.k->p, iter->pos))
-		bch2_journal_iter_advance(&iter->journal);
+	if (iter->trans->journal_replay_not_finished)
+		while ((journal_k = bch2_journal_iter_peek(&iter->journal)).k &&
+		       bpos_lt(journal_k.k->p, iter->pos))
+			bch2_journal_iter_advance(&iter->journal);
 
 	ret = journal_k.k &&
 		(!btree_k.k || bpos_le(journal_k.k->p, btree_k.k->p))
@@ -435,7 +436,9 @@ void bch2_btree_and_journal_iter_init_node_iter(struct btree_trans *trans,
 
 	bch2_btree_node_iter_init_from_start(&node_iter, b);
 	__bch2_btree_and_journal_iter_init_node_iter(trans, iter, b, node_iter, b->data->min_key);
-	list_add(&iter->journal.list, &trans->c->journal_iters);
+	if (trans->journal_replay_not_finished &&
+	    !test_bit(BCH_FS_may_go_rw, &trans->c->flags))
+		list_add(&iter->journal.list, &trans->c->journal_iters);
 }
 
 /* sort and dedup all keys in the journal: */
