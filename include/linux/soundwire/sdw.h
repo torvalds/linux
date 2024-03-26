@@ -543,21 +543,6 @@ enum sdw_reg_bank {
 };
 
 /**
- * struct sdw_bus_conf: Bus configuration
- *
- * @clk_freq: Clock frequency, in Hz
- * @num_rows: Number of rows in frame
- * @num_cols: Number of columns in frame
- * @bank: Next register bank
- */
-struct sdw_bus_conf {
-	unsigned int clk_freq;
-	unsigned int num_rows;
-	unsigned int num_cols;
-	unsigned int bank;
-};
-
-/**
  * struct sdw_prepare_ch: Prepare/De-prepare Data Port channel
  *
  * @num: Port number
