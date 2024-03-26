@@ -367,14 +367,48 @@ static bool skip_entry(char *name)
 	return false;
 }
 
+/* Do comparision by ignoring '.llvm.<hash>' suffixes. */
+static int compare_name(const char *name1, const char *name2)
+{
+	const char *res1, *res2;
+	int len1, len2;
+
+	res1 = strstr(name1, ".llvm.");
+	res2 = strstr(name2, ".llvm.");
+	len1 = res1 ? res1 - name1 : strlen(name1);
+	len2 = res2 ? res2 - name2 : strlen(name2);
+
+	if (len1 == len2)
+		return strncmp(name1, name2, len1);
+	if (len1 < len2)
+		return strncmp(name1, name2, len1) <= 0 ? -1 : 1;
+	return strncmp(name1, name2, len2) >= 0 ? 1 : -1;
+}
+
+static int load_kallsyms_compare(const void *p1, const void *p2)
+{
+	return compare_name(((const struct ksym *)p1)->name, ((const struct ksym *)p2)->name);
+}
+
+static int search_kallsyms_compare(const void *p1, const struct ksym *p2)
+{
+	return compare_name(p1, p2->name);
+}
+
 static int get_syms(char ***symsp, size_t *cntp, bool kernel)
 {
-	size_t cap = 0, cnt = 0, i;
-	char *name = NULL, **syms = NULL;
+	size_t cap = 0, cnt = 0;
+	char *name = NULL, *ksym_name, **syms = NULL;
 	struct hashmap *map;
+	struct ksyms *ksyms;
+	struct ksym *ks;
 	char buf[256];
 	FILE *f;
 	int err = 0;
+
+	ksyms = load_kallsyms_custom_local(load_kallsyms_compare);
+	if (!ASSERT_OK_PTR(ksyms, "load_kallsyms_custom_local"))
+		return -EINVAL;
 
 	/*
 	 * The available_filter_functions contains many duplicates,
@@ -408,7 +442,14 @@ static int get_syms(char ***symsp, size_t *cntp, bool kernel)
 		if (skip_entry(name))
 			continue;
 
-		err = hashmap__add(map, name, 0);
+		ks = search_kallsyms_custom_local(ksyms, name, search_kallsyms_compare);
+		if (!ks) {
+			err = -EINVAL;
+			goto error;
+		}
+
+		ksym_name = ks->name;
+		err = hashmap__add(map, ksym_name, 0);
 		if (err == -EEXIST) {
 			err = 0;
 			continue;
@@ -421,8 +462,7 @@ static int get_syms(char ***symsp, size_t *cntp, bool kernel)
 		if (err)
 			goto error;
 
-		syms[cnt++] = name;
-		name = NULL;
+		syms[cnt++] = ksym_name;
 	}
 
 	*symsp = syms;
@@ -432,11 +472,8 @@ error:
 	free(name);
 	fclose(f);
 	hashmap__free(map);
-	if (err) {
-		for (i = 0; i < cnt; i++)
-			free(syms[i]);
+	if (err)
 		free(syms);
-	}
 	return err;
 }
 
@@ -472,7 +509,7 @@ static void test_kprobe_multi_bench_attach(bool kernel)
 	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
 	struct kprobe_multi_empty *skel = NULL;
 	char **syms = NULL;
-	size_t cnt = 0, i;
+	size_t cnt = 0;
 
 	if (!ASSERT_OK(get_syms(&syms, &cnt, kernel), "get_syms"))
 		return;
@@ -488,11 +525,8 @@ static void test_kprobe_multi_bench_attach(bool kernel)
 
 cleanup:
 	kprobe_multi_empty__destroy(skel);
-	if (syms) {
-		for (i = 0; i < cnt; i++)
-			free(syms[i]);
+	if (syms)
 		free(syms);
-	}
 }
 
 static void test_attach_override(void)
