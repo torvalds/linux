@@ -1443,6 +1443,24 @@ static int parse_device_properties(struct axi_dma_chip *chip)
 	return 0;
 }
 
+static int axi_req_irqs(struct platform_device *pdev, struct axi_dma_chip *chip)
+{
+	int irq_count = platform_irq_count(pdev);
+	int ret;
+
+	for (int i = 0; i < irq_count; i++) {
+		chip->irq[i] = platform_get_irq(pdev, i);
+		if (chip->irq[i] < 0)
+			return chip->irq[i];
+		ret = devm_request_irq(chip->dev, chip->irq[i], dw_axi_dma_interrupt,
+				IRQF_SHARED, KBUILD_MODNAME, chip);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int dw_probe(struct platform_device *pdev)
 {
 	struct axi_dma_chip *chip;
@@ -1468,10 +1486,6 @@ static int dw_probe(struct platform_device *pdev)
 	chip->dw = dw;
 	chip->dev = &pdev->dev;
 	chip->dw->hdata = hdata;
-
-	chip->irq = platform_get_irq(pdev, 0);
-	if (chip->irq < 0)
-		return chip->irq;
 
 	chip->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(chip->regs))
@@ -1513,8 +1527,7 @@ static int dw_probe(struct platform_device *pdev)
 	if (!dw->chan)
 		return -ENOMEM;
 
-	ret = devm_request_irq(chip->dev, chip->irq, dw_axi_dma_interrupt,
-			       IRQF_SHARED, KBUILD_MODNAME, chip);
+	ret = axi_req_irqs(pdev, chip);
 	if (ret)
 		return ret;
 
@@ -1627,7 +1640,9 @@ static void dw_remove(struct platform_device *pdev)
 	pm_runtime_disable(chip->dev);
 	axi_dma_suspend(chip);
 
-	devm_free_irq(chip->dev, chip->irq, chip);
+	for (i = 0; i < DMAC_MAX_CHANNELS; i++)
+		if (chip->irq[i] > 0)
+			devm_free_irq(chip->dev, chip->irq[i], chip);
 
 	of_dma_controller_free(chip->dev->of_node);
 
