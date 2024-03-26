@@ -1283,12 +1283,37 @@ static bool is_unique_device(const struct snd_soc_acpi_link_adr *adr_link,
 	return true;
 }
 
+static const char *get_codec_name(struct device *dev,
+				  const struct sof_sdw_codec_info *codec_info,
+				  const struct snd_soc_acpi_link_adr *adr_link,
+				  int adr_index)
+{
+	u64 adr = adr_link->adr_d[adr_index].adr;
+	unsigned int sdw_version = SDW_VERSION(adr);
+	unsigned int link_id = SDW_DISCO_LINK_ID(adr);
+	unsigned int unique_id = SDW_UNIQUE_ID(adr);
+	unsigned int mfg_id = SDW_MFG_ID(adr);
+	unsigned int part_id = SDW_PART_ID(adr);
+	unsigned int class_id = SDW_CLASS_ID(adr);
+
+	if (codec_info->codec_name)
+		return devm_kstrdup(dev, codec_info->codec_name, GFP_KERNEL);
+	else if (is_unique_device(adr_link, sdw_version, mfg_id, part_id,
+				  class_id, adr_index))
+		return devm_kasprintf(dev, GFP_KERNEL, "sdw:0:%01x:%04x:%04x:%02x",
+				      link_id, mfg_id, part_id, class_id);
+	else
+		return devm_kasprintf(dev, GFP_KERNEL, "sdw:0:%01x:%04x:%04x:%02x:%01x",
+				      link_id, mfg_id, part_id, class_id, unique_id);
+
+	return NULL;
+}
+
 static int fill_sdw_codec_dlc(struct device *dev,
 			      const struct snd_soc_acpi_link_adr *adr_link,
 			      struct snd_soc_dai_link_component *codec,
 			      int adr_index, int dai_index)
 {
-	unsigned int sdw_version, unique_id, mfg_id, link_id, part_id, class_id;
 	u64 adr = adr_link->adr_d[adr_index].adr;
 	struct sof_sdw_codec_info *codec_info;
 
@@ -1296,25 +1321,7 @@ static int fill_sdw_codec_dlc(struct device *dev,
 	if (!codec_info)
 		return -EINVAL;
 
-	sdw_version = SDW_VERSION(adr);
-	link_id = SDW_DISCO_LINK_ID(adr);
-	unique_id = SDW_UNIQUE_ID(adr);
-	mfg_id = SDW_MFG_ID(adr);
-	part_id = SDW_PART_ID(adr);
-	class_id = SDW_CLASS_ID(adr);
-
-	if (codec_info->codec_name)
-		codec->name = devm_kstrdup(dev, codec_info->codec_name, GFP_KERNEL);
-	else if (is_unique_device(adr_link, sdw_version, mfg_id, part_id,
-				  class_id, adr_index))
-		codec->name = devm_kasprintf(dev, GFP_KERNEL,
-					     "sdw:0:%01x:%04x:%04x:%02x", link_id,
-					     mfg_id, part_id, class_id);
-	else
-		codec->name = devm_kasprintf(dev, GFP_KERNEL,
-					     "sdw:0:%01x:%04x:%04x:%02x:%01x", link_id,
-					     mfg_id, part_id, class_id, unique_id);
-
+	codec->name = get_codec_name(dev, codec_info, adr_link, adr_index);
 	if (!codec->name)
 		return -ENOMEM;
 
