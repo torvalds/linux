@@ -518,11 +518,6 @@ int btf_ext_visit_str_offs(struct btf_ext *btf_ext, str_off_visit_fn visit, void
 __s32 btf__find_by_name_kind_own(const struct btf *btf, const char *type_name,
 				 __u32 kind);
 
-typedef int (*kallsyms_cb_t)(unsigned long long sym_addr, char sym_type,
-			     const char *sym_name, void *ctx);
-
-int libbpf_kallsyms_parse(kallsyms_cb_t cb, void *arg);
-
 /* handle direct returned errors */
 static inline int libbpf_err(int ret)
 {
