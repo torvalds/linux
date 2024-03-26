@@ -6745,16 +6745,16 @@ void __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
 /*
  * This function returns a stable result only if called under zone lock.
  */
-bool is_free_buddy_page(struct page *page)
+bool is_free_buddy_page(const struct page *page)
 {
 	unsigned long pfn = page_to_pfn(page);
 	unsigned int order;
 
 	for (order = 0; order < NR_PAGE_ORDERS; order++) {
-		struct page *page_head = page - (pfn & ((1 << order) - 1));
+		const struct page *head = page - (pfn & ((1 << order) - 1));
 
-		if (PageBuddy(page_head) &&
-		    buddy_order_unsafe(page_head) >= order)
+		if (PageBuddy(head) &&
+		    buddy_order_unsafe(head) >= order)
 			break;
 	}
 
