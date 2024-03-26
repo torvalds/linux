@@ -189,12 +189,17 @@ int bch2_btree_ptr_v2_invalid(struct bch_fs *c, struct bkey_s_c k,
 			      enum bkey_invalid_flags flags,
 			      struct printbuf *err)
 {
+	struct bkey_s_c_btree_ptr_v2 bp = bkey_s_c_to_btree_ptr_v2(k);
 	int ret = 0;
 
-	bkey_fsck_err_on(bkey_val_u64s(k.k) > BKEY_BTREE_PTR_VAL_U64s_MAX, c, err,
-			 btree_ptr_v2_val_too_big,
+	bkey_fsck_err_on(bkey_val_u64s(k.k) > BKEY_BTREE_PTR_VAL_U64s_MAX,
+			 c, err, btree_ptr_v2_val_too_big,
 			 "value too big (%zu > %zu)",
 			 bkey_val_u64s(k.k), BKEY_BTREE_PTR_VAL_U64s_MAX);
+
+	bkey_fsck_err_on(bpos_ge(bp.v->min_key, bp.k->p),
+			 c, err, btree_ptr_v2_min_key_bad,
+			 "min_key > key");
 
 	ret = bch2_bkey_ptrs_invalid(c, k, flags, err);
 fsck_err:
