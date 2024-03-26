@@ -33,6 +33,20 @@ static void intel_shim_vs_init(struct sdw_intel *sdw)
 	usleep_range(10, 15);
 }
 
+static void intel_shim_vs_set_clock_source(struct sdw_intel *sdw, u32 source)
+{
+	void __iomem *shim_vs = sdw->link_res->shim_vs;
+	u32 val;
+
+	val = intel_readl(shim_vs, SDW_SHIM2_INTEL_VS_LVSCTL);
+
+	u32p_replace_bits(&val, source, SDW_SHIM2_INTEL_VS_LVSCTL_MLCS);
+
+	intel_writel(shim_vs, SDW_SHIM2_INTEL_VS_LVSCTL, val);
+
+	dev_dbg(sdw->cdns.dev, "clock source %d LVSCTL %#x\n", source, val);
+}
+
 static int intel_shim_check_wake(struct sdw_intel *sdw)
 {
 	void __iomem *shim_vs;
@@ -99,6 +113,8 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 			__func__, ret);
 		goto out;
 	}
+
+	intel_shim_vs_set_clock_source(sdw, clock_source);
 
 	if (!*shim_mask) {
 		/* we first need to program the SyncPRD/CPU registers */
