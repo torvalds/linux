@@ -42,6 +42,7 @@ FIXTURE_VARIANT(bind_wildcard)
 	int expected_errno;
 };
 
+/* (IPv4, IPv6) */
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_any)
 {
 	.family = {AF_INET, AF_INET6},
@@ -95,6 +96,63 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_v4mapped_local)
 {
 	.family = {AF_INET, AF_INET6},
 	.addr = {&in4addr_loopback, &in6addr_v4mapped_loopback},
+	.expected_errno = EADDRINUSE,
+};
+
+/* (IPv6, IPv4) */
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v4_any)
+{
+	.family = {AF_INET6, AF_INET},
+	.addr = {&in6addr_any, &in4addr_any},
+	.expected_errno = EADDRINUSE,
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v4_local)
+{
+	.family = {AF_INET6, AF_INET},
+	.addr = {&in6addr_any, &in4addr_loopback},
+	.expected_errno = EADDRINUSE,
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v4_any)
+{
+	.family = {AF_INET6, AF_INET},
+	.addr = {&in6addr_loopback, &in4addr_any},
+	.expected_errno = 0,
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v4_local)
+{
+	.family = {AF_INET6, AF_INET},
+	.addr = {&in6addr_loopback, &in4addr_loopback},
+	.expected_errno = 0,
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v4_any)
+{
+	.family = {AF_INET6, AF_INET},
+	.addr = {&in6addr_v4mapped_any, &in4addr_any},
+	.expected_errno = EADDRINUSE,
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v4_local)
+{
+	.family = {AF_INET6, AF_INET},
+	.addr = {&in6addr_v4mapped_any, &in4addr_loopback},
+	.expected_errno = EADDRINUSE,
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_local_v4_any)
+{
+	.family = {AF_INET6, AF_INET},
+	.addr = {&in6addr_v4mapped_loopback, &in4addr_any},
+	.expected_errno = EADDRINUSE,
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_local_v4_local)
+{
+	.family = {AF_INET6, AF_INET},
+	.addr = {&in6addr_v4mapped_loopback, &in4addr_loopback},
 	.expected_errno = EADDRINUSE,
 };
 
@@ -167,18 +225,11 @@ void bind_sockets(struct __test_metadata *_metadata,
 	close(fd[0]);
 }
 
-TEST_F(bind_wildcard, v4_v6)
+TEST_F(bind_wildcard, plain)
 {
 	bind_sockets(_metadata, self, variant->expected_errno,
 		     &self->addr[0].addr, self->addrlen[0],
 		     &self->addr[1].addr, self->addrlen[1]);
-}
-
-TEST_F(bind_wildcard, v6_v4)
-{
-	bind_sockets(_metadata, self, variant->expected_errno,
-		     &self->addr[1].addr, self->addrlen[1],
-		     &self->addr[0].addr, self->addrlen[0]);
 }
 
 TEST_HARNESS_MAIN
