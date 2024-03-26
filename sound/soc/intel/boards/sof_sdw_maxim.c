@@ -139,7 +139,6 @@ static int mx8373_sdw_late_probe(struct snd_soc_card *card)
 }
 
 int sof_sdw_maxim_init(struct snd_soc_card *card,
-		       const struct snd_soc_acpi_link_adr *link,
 		       struct snd_soc_dai_link *dai_links,
 		       struct sof_sdw_codec_info *info,
 		       bool playback)
