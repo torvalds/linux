@@ -71,7 +71,7 @@ again:
 		return migrate_vma_collect_hole(start, end, -1, walk);
 
 	if (pmd_trans_huge(*pmdp)) {
-		struct page *page;
+		struct folio *folio;
 
 		ptl = pmd_lock(mm, pmdp);
 		if (unlikely(!pmd_trans_huge(*pmdp))) {
@@ -79,21 +79,21 @@ again:
 			goto again;
 		}
 
-		page = pmd_page(*pmdp);
-		if (is_huge_zero_page(page)) {
+		folio = pmd_folio(*pmdp);
+		if (is_huge_zero_folio(folio)) {
 			spin_unlock(ptl);
 			split_huge_pmd(vma, pmdp, addr);
 		} else {
 			int ret;
 
-			get_page(page);
+			folio_get(folio);
 			spin_unlock(ptl);
-			if (unlikely(!trylock_page(page)))
+			if (unlikely(!folio_trylock(folio)))
 				return migrate_vma_collect_skip(start, end,
 								walk);
-			ret = split_huge_page(page);
-			unlock_page(page);
-			put_page(page);
+			ret = split_folio(folio);
+			folio_unlock(folio);
+			folio_put(folio);
 			if (ret)
 				return migrate_vma_collect_skip(start, end,
 								walk);
