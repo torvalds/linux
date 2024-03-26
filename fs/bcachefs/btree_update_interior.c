@@ -1543,6 +1543,7 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 	u64 start_time = local_clock();
 	int ret = 0;
 
+	bch2_verify_btree_nr_keys(b);
 	BUG_ON(!parent && (b != btree_node_root(c, b)));
 	BUG_ON(parent && !btree_node_intent_locked(trans->paths + path, b->c.level + 1));
 

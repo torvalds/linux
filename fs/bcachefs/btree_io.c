@@ -654,6 +654,7 @@ void bch2_btree_node_drop_keys_outside_node(struct btree *b)
 	 */
 	bch2_bset_set_no_aux_tree(b, b->set);
 	bch2_btree_build_aux_trees(b);
+	b->nr = bch2_btree_node_count_keys(b);
 
 	struct bkey_s_c k;
 	struct bkey unpacked;
