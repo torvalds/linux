@@ -23,7 +23,6 @@
  *
  */
 
-#include <linux/delay.h>
 #include "dcn30_clk_mgr_smu_msg.h"
 
 #include "clk_mgr_internal.h"
