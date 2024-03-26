@@ -66,7 +66,7 @@
 		assigned-clock-parents = <&k3_clks 153 8>, <&k3_clks 153 4>;
 		ti,serdes-clk = <&serdes0_clk>;
 		#clock-cells = <1>;
-		mux-controls = <&serdes_mux 0>;
+		mux-controls = <&serdes0_mux 0>;
 	};
 
 	serdes1: serdes@910000 {
@@ -81,7 +81,7 @@
 		assigned-clock-parents = <&k3_clks 154 9>, <&k3_clks 154 5>;
 		ti,serdes-clk = <&serdes1_clk>;
 		#clock-cells = <1>;
-		mux-controls = <&serdes_mux 1>;
+		mux-controls = <&serdes1_mux 0>;
 	};
 
 	main_uart0: serial@2800000 {
@@ -484,18 +484,23 @@
 		serdes0_clk: clock@4080 {
 			compatible = "ti,am654-serdes-ctrl", "syscon";
 			reg = <0x4080 0x4>;
+
+			serdes0_mux: mux-controller {
+				compatible = "mmio-mux";
+				#mux-control-cells = <1>;
+				mux-reg-masks = <0x0 0x3>; /* lane select */
+			};
 		};
 
 		serdes1_clk: clock@4090 {
 			compatible = "ti,am654-serdes-ctrl", "syscon";
 			reg = <0x4090 0x4>;
-		};
 
-		serdes_mux: mux-controller {
-			compatible = "mmio-mux";
-			#mux-control-cells = <1>;
-			mux-reg-masks = <0x4080 0x3>, /* SERDES0 lane select */
-					<0x4090 0x3>; /* SERDES1 lane select */
+			serdes1_mux: mux-controller {
+				compatible = "mmio-mux";
+				#mux-control-cells = <1>;
+				mux-reg-masks = <0x0 0x3>; /* lane select */
+			};
 		};
 
 		dss_oldi_io_ctrl: dss-oldi-io-ctrl@41e0 {
