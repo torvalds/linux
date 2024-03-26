@@ -3146,6 +3146,10 @@ S: Triftstra=DFe 55
 S: 13353 Berlin
 S: Germany
 
+N: Gustavo Pimental
+E: gustavo.pimentel@synopsys.com
+D: PCI driver for Synopsys DesignWare
+
 N: Emanuel Pirker
 E: epirker@edu.uni-klu.ac.at
 D: AIC5800 IEEE 1394, RAW I/O on 1394
