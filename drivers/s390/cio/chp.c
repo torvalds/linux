@@ -127,10 +127,9 @@ static int s390_vary_chpid(struct chp_id chpid, int on)
 /*
  * Channel measurement related functions
  */
-static ssize_t chp_measurement_chars_read(struct file *filp,
-					  struct kobject *kobj,
-					  struct bin_attribute *bin_attr,
-					  char *buf, loff_t off, size_t count)
+static ssize_t measurement_chars_read(struct file *filp, struct kobject *kobj,
+				      struct bin_attribute *bin_attr,
+				      char *buf, loff_t off, size_t count)
 {
 	struct channel_path *chp;
 	struct device *device;
@@ -143,15 +142,7 @@ static ssize_t chp_measurement_chars_read(struct file *filp,
 	return memory_read_from_buffer(buf, count, &off, &chp->cmg_chars,
 				       sizeof(chp->cmg_chars));
 }
-
-static const struct bin_attribute chp_measurement_chars_attr = {
-	.attr = {
-		.name = "measurement_chars",
-		.mode = S_IRUSR,
-	},
-	.size = sizeof(struct cmg_chars),
-	.read = chp_measurement_chars_read,
-};
+static BIN_ATTR_ADMIN_RO(measurement_chars, sizeof(struct cmg_chars));
 
 static void chp_measurement_copy_block(struct cmg_entry *buf,
 				       struct channel_subsystem *css,
@@ -175,9 +166,9 @@ static void chp_measurement_copy_block(struct cmg_entry *buf,
 	} while (reference_buf.values[0] != buf->values[0]);
 }
 
-static ssize_t chp_measurement_read(struct file *filp, struct kobject *kobj,
-				    struct bin_attribute *bin_attr,
-				    char *buf, loff_t off, size_t count)
+static ssize_t measurement_read(struct file *filp, struct kobject *kobj,
+				struct bin_attribute *bin_attr,
+				char *buf, loff_t off, size_t count)
 {
 	struct channel_path *chp;
 	struct channel_subsystem *css;
@@ -197,33 +188,23 @@ static ssize_t chp_measurement_read(struct file *filp, struct kobject *kobj,
 	count = size;
 	return count;
 }
+static BIN_ATTR_ADMIN_RO(measurement, sizeof(struct cmg_entry));
 
-static const struct bin_attribute chp_measurement_attr = {
-	.attr = {
-		.name = "measurement",
-		.mode = S_IRUSR,
-	},
-	.size = sizeof(struct cmg_entry),
-	.read = chp_measurement_read,
+static struct bin_attribute *measurement_attrs[] = {
+	&bin_attr_measurement_chars,
+	&bin_attr_measurement,
+	NULL,
 };
+BIN_ATTRIBUTE_GROUPS(measurement);
 
 void chp_remove_cmg_attr(struct channel_path *chp)
 {
-	device_remove_bin_file(&chp->dev, &chp_measurement_chars_attr);
-	device_remove_bin_file(&chp->dev, &chp_measurement_attr);
+	device_remove_groups(&chp->dev, measurement_groups);
 }
 
 int chp_add_cmg_attr(struct channel_path *chp)
 {
-	int ret;
-
-	ret = device_create_bin_file(&chp->dev, &chp_measurement_chars_attr);
-	if (ret)
-		return ret;
-	ret = device_create_bin_file(&chp->dev, &chp_measurement_attr);
-	if (ret)
-		device_remove_bin_file(&chp->dev, &chp_measurement_chars_attr);
-	return ret;
+	return device_add_groups(&chp->dev, measurement_groups);
 }
 
 /*
