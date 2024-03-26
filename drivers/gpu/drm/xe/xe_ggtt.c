@@ -12,6 +12,7 @@
 #include <drm/i915_drm.h>
 
 #include "regs/xe_gt_regs.h"
+#include "regs/xe_gtt_defs.h"
 #include "regs/xe_regs.h"
 #include "xe_assert.h"
 #include "xe_bo.h"
@@ -22,12 +23,6 @@
 #include "xe_map.h"
 #include "xe_sriov.h"
 #include "xe_wopcm.h"
-
-#define XELPG_GGTT_PTE_PAT0	BIT_ULL(52)
-#define XELPG_GGTT_PTE_PAT1	BIT_ULL(53)
-
-/* GuC addresses above GUC_GGTT_TOP also don't map through the GTT */
-#define GUC_GGTT_TOP	0xFEE00000
 
 static u64 xelp_ggtt_pte_encode_bo(struct xe_bo *bo, u64 bo_offset,
 				   u16 pat_index)
