@@ -5,6 +5,7 @@
  *  sof_sdw - ASOC Machine driver for Intel SoundWire platforms
  */
 
+#include <linux/bitmap.h>
 #include <linux/device.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
@@ -1644,7 +1645,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	char *codec_name, *codec_dai_name;
 	int i, j, be_id = 0;
 	int hdmi_num;
-	int ssp_mask;
+	unsigned long ssp_mask;
 	int ret;
 
 	ret = get_dailink_info(dev, adr_link, &sdw_be_num, &codec_conf_num);
@@ -1782,11 +1783,9 @@ SSP:
 	if (!ssp_num)
 		goto DMIC;
 
-	for (i = 0, j = 0; ssp_mask; i++, ssp_mask >>= 1) {
+	j = 0;
+	for_each_set_bit(i, &ssp_mask, BITS_PER_TYPE(ssp_mask)) {
 		int playback, capture;
-
-		if (!(ssp_mask & 0x1))
-			continue;
 
 		name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", i);
 		cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", i);
