@@ -1559,6 +1559,34 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 	return 0;
 }
 
+static int create_sdw_dailinks(struct snd_soc_card *card,
+			       struct snd_soc_dai_link **dai_links, int *be_id,
+			       struct sof_sdw_dailink *sof_dais)
+{
+	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
+	int ret, i;
+
+	for (i = 0; i < SDW_MAX_LINKS; i++)
+		ctx->sdw_pin_index[i] = SDW_INTEL_BIDIR_PDI_BASE;
+
+	/* generate DAI links by each sdw link */
+	while (sof_dais->initialised) {
+		int current_be_id;
+
+		ret = create_sdw_dailink(card, sof_dais, dai_links, &current_be_id);
+		if (ret)
+			return ret;
+
+		/* Update the be_id to match the highest ID used for SDW link */
+		if (*be_id < current_be_id)
+			*be_id = current_be_id;
+
+		sof_dais++;
+	}
+
+	return 0;
+}
+
 static int create_ssp_dailinks(struct snd_soc_card *card,
 			       struct snd_soc_dai_link **dai_links, int *be_id,
 			       struct sof_sdw_codec_info *ssp_info,
@@ -1692,7 +1720,7 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	int num_ends = 0;
 	struct snd_soc_dai_link *dai_links;
 	int num_links;
-	int i, be_id = 0;
+	int be_id = 0;
 	int hdmi_num;
 	unsigned long ssp_mask;
 	int ret;
@@ -1774,28 +1802,12 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	card->num_links = num_links;
 
 	/* SDW */
-	if (!sdw_be_num)
-		goto SSP;
-
-	for (i = 0; i < SDW_MAX_LINKS; i++)
-		ctx->sdw_pin_index[i] = SDW_INTEL_BIDIR_PDI_BASE;
-
-	/* generate DAI links by each sdw link */
-	while (sof_dais->initialised) {
-		int current_be_id;
-
-		ret = create_sdw_dailink(card, sof_dais, &dai_links, &current_be_id);
+	if (sdw_be_num) {
+		ret = create_sdw_dailinks(card, &dai_links, &be_id, sof_dais);
 		if (ret)
 			goto err_end;
-
-		/* Update the be_id to match the highest ID used for SDW link */
-		if (be_id < current_be_id)
-			be_id = current_be_id;
-
-		sof_dais++;
 	}
 
-SSP:
 	/* SSP */
 	if (ssp_num) {
 		ret = create_ssp_dailinks(card, &dai_links, &be_id,
