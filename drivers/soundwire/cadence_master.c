@@ -1319,6 +1319,12 @@ static void cdns_init_clock_ctrl(struct sdw_cdns *cdns)
 	u32 ssp_interval;
 	int divider;
 
+	dev_dbg(cdns->dev, "mclk %d max %d row %d col %d\n",
+		prop->mclk_freq,
+		prop->max_clk_freq,
+		prop->default_row,
+		prop->default_col);
+
 	/* Set clock divider */
 	divider	= (prop->mclk_freq / prop->max_clk_freq) - 1;
 
