@@ -497,16 +497,19 @@ static u8 gmin_get_pmic_id_and_addr(struct device *dev)
 	if (pmic_id)
 		return pmic_i2c_addr;
 
-	if (gmin_i2c_dev_exists(dev, PMIC_ACPI_TI, &power))
+	if (gmin_i2c_dev_exists(dev, PMIC_ACPI_TI, &power)) {
 		pmic_id = PMIC_TI;
-	else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_AXP, &power))
+	} else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_AXP, &power)) {
 		pmic_id = PMIC_AXP;
-	else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_CRYSTALCOVE, &power))
+	} else if (gmin_i2c_dev_exists(dev, PMIC_ACPI_CRYSTALCOVE, &power)) {
 		pmic_id = PMIC_CRYSTALCOVE;
-	else
+	} else {
 		pmic_id = PMIC_REGULATOR;
+		return 0;
+	}
 
-	pmic_i2c_addr = power ? power->addr : 0;
+	pmic_i2c_addr = power->addr;
+	put_device(&power->dev);
 	return pmic_i2c_addr;
 }
 
