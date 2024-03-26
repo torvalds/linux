@@ -161,12 +161,12 @@ static void chp_measurement_copy_block(struct cmg_entry *buf,
 	struct cmg_entry *entry, reference_buf;
 	int idx;
 
-	if (chpid.id < 128) {
-		area = css->cub_addr1;
+	if (chpid.id < CSS_CUES_PER_PAGE) {
+		area = css->cub[0];
 		idx = chpid.id;
 	} else {
-		area = css->cub_addr2;
-		idx = chpid.id - 128;
+		area = css->cub[1];
+		idx = chpid.id - CSS_CUES_PER_PAGE;
 	}
 	entry = area + (idx * sizeof(struct cmg_entry));
 	do {

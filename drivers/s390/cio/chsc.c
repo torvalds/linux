@@ -874,19 +874,16 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 		u32 : 30;
 		u32 key : 4;
 		u32 : 28;
-		u32 zeroes1;
-		dma32_t cub_addr1;
-		u32 zeroes2;
-		dma32_t cub_addr2;
+		dma64_t cub[CSS_NUM_CUB_PAGES];
 		u32 reserved[13];
 		struct chsc_header response;
 		u32 status : 8;
 		u32 : 4;
 		u32 fmt : 4;
 		u32 : 16;
-	} *secm_area;
+	} __packed *secm_area;
 	unsigned long flags;
-	int ret, ccode;
+	int ret, ccode, i;
 
 	spin_lock_irqsave(&chsc_page_lock, flags);
 	memset(chsc_page, 0, PAGE_SIZE);
@@ -895,8 +892,9 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 	secm_area->request.code = 0x0016;
 
 	secm_area->key = PAGE_DEFAULT_KEY >> 4;
-	secm_area->cub_addr1 = virt_to_dma32(css->cub_addr1);
-	secm_area->cub_addr2 = virt_to_dma32(css->cub_addr2);
+
+	for (i = 0; i < CSS_NUM_CUB_PAGES; i++)
+		secm_area->cub[i] = (__force dma64_t)virt_to_dma32(css->cub[i]);
 
 	secm_area->operation_code = enable ? 0 : 1;
 
@@ -922,19 +920,38 @@ out:
 	return ret;
 }
 
+static int cub_alloc(struct channel_subsystem *css)
+{
+	int i;
+
+	for (i = 0; i < CSS_NUM_CUB_PAGES; i++) {
+		css->cub[i] = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+		if (!css->cub[i])
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+static void cub_free(struct channel_subsystem *css)
+{
+	int i;
+
+	for (i = 0; i < CSS_NUM_CUB_PAGES; i++) {
+		free_page((unsigned long)css->cub[i]);
+		css->cub[i] = NULL;
+	}
+}
+
 int
 chsc_secm(struct channel_subsystem *css, int enable)
 {
 	int ret;
 
 	if (enable && !css->cm_enabled) {
-		css->cub_addr1 = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
-		css->cub_addr2 = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
-		if (!css->cub_addr1 || !css->cub_addr2) {
-			free_page((unsigned long)css->cub_addr1);
-			free_page((unsigned long)css->cub_addr2);
-			return -ENOMEM;
-		}
+		ret = cub_alloc(css);
+		if (ret)
+			goto out;
 	}
 	ret = __chsc_do_secm(css, enable);
 	if (!ret) {
@@ -948,10 +965,11 @@ chsc_secm(struct channel_subsystem *css, int enable)
 		} else
 			chsc_remove_cmg_attr(css);
 	}
-	if (!css->cm_enabled) {
-		free_page((unsigned long)css->cub_addr1);
-		free_page((unsigned long)css->cub_addr2);
-	}
+
+out:
+	if (!css->cm_enabled)
+		cub_free(css);
+
 	return ret;
 }
 
