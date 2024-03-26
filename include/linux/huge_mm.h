@@ -367,12 +367,7 @@ static inline bool is_huge_zero_pud(pud_t pud)
 }
 
 struct folio *mm_get_huge_zero_folio(struct mm_struct *mm);
-void mm_put_huge_zero_page(struct mm_struct *mm);
-
-static inline struct page *mm_get_huge_zero_page(struct mm_struct *mm)
-{
-	return &mm_get_huge_zero_folio(mm)->page;
-}
+void mm_put_huge_zero_folio(struct mm_struct *mm);
 
 #define mk_huge_pmd(page, prot) pmd_mkhuge(mk_pmd(page, prot))
 
@@ -500,7 +495,7 @@ static inline bool is_huge_zero_pud(pud_t pud)
 	return false;
 }
 
-static inline void mm_put_huge_zero_page(struct mm_struct *mm)
+static inline void mm_put_huge_zero_folio(struct mm_struct *mm)
 {
 	return;
 }
