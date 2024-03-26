@@ -693,7 +693,7 @@ static int uss720_probe(struct usb_interface *intf,
 
 	interface = intf->cur_altsetting;
 
-	if (interface->desc.bNumEndpoints < 3) {
+	if (interface->desc.bNumEndpoints < 2) {
 		usb_put_dev(usbdev);
 		return -ENODEV;
 	}
@@ -719,7 +719,9 @@ static int uss720_probe(struct usb_interface *intf,
 
 	priv->pp = pp;
 	pp->private_data = priv;
-	pp->modes = PARPORT_MODE_PCSPP | PARPORT_MODE_TRISTATE | PARPORT_MODE_EPP | PARPORT_MODE_ECP | PARPORT_MODE_COMPAT;
+	pp->modes = PARPORT_MODE_PCSPP | PARPORT_MODE_TRISTATE | PARPORT_MODE_EPP | PARPORT_MODE_COMPAT;
+	if (interface->desc.bNumEndpoints >= 3)
+		pp->modes |= PARPORT_MODE_ECP;
 	pp->dev = &usbdev->dev;
 
 	/* set the USS720 control register to manual mode, no ECP compression, enable all ints */
@@ -774,6 +776,7 @@ static const struct usb_device_id uss720_table[] = {
 	{ USB_DEVICE(0x050d, 0x1202) }, /* Belkin F5U120-PC */
 	{ USB_DEVICE(0x0557, 0x2001) },
 	{ USB_DEVICE(0x05ab, 0x0002) }, /* Belkin F5U002 ISD-101 */
+	{ USB_DEVICE(0x05ab, 0x1001) }, /* Belkin F5U002 P80453-A */
 	{ USB_DEVICE(0x06c6, 0x0100) }, /* Infowave ISD-103 */
 	{ USB_DEVICE(0x0729, 0x1284) },
 	{ USB_DEVICE(0x1293, 0x0002) },
