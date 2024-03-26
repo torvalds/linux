@@ -3967,7 +3967,7 @@ F:	kernel/bpf/bpf_lru*
 F:	kernel/bpf/cgroup.c
 
 BPF [TOOLING] (bpftool)
-M:	Quentin Monnet <quentin@isovalent.com>
+M:	Quentin Monnet <qmo@kernel.org>
 L:	bpf@vger.kernel.org
 S:	Maintained
 F:	kernel/bpf/disasm.*
