@@ -304,7 +304,6 @@
 		compatible = "ti,j721e-uart", "ti,am654-uart";
 		reg = <0x00 0x42300000 0x00 0x200>;
 		interrupts = <GIC_SPI 897 IRQ_TYPE_LEVEL_HIGH>;
-		current-speed = <115200>;
 		clocks = <&k3_clks 397 0>;
 		clock-names = "fclk";
 		power-domains = <&k3_pds 397 TI_SCI_PD_EXCLUSIVE>;
@@ -315,7 +314,6 @@
 		compatible = "ti,j721e-uart", "ti,am654-uart";
 		reg = <0x00 0x40a00000 0x00 0x200>;
 		interrupts = <GIC_SPI 846 IRQ_TYPE_LEVEL_HIGH>;
-		current-speed = <115200>;
 		clocks = <&k3_clks 149 0>;
 		clock-names = "fclk";
 		power-domains = <&k3_pds 149 TI_SCI_PD_EXCLUSIVE>;
