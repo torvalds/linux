@@ -1126,10 +1126,6 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 	chp->cmg = scmc_area->cmg;
 	chp->shared = scmc_area->shared;
 	chp->extended = scmc_area->extended;
-	if (chp->cmg != 2 && chp->cmg != 3) {
-		/* No cmg-dependent data. */
-		goto out;
-	}
 	chsc_initialize_cmg_chars(chp, scmc_area->cmcv,
 				  (struct cmg_chars *) &scmc_area->data);
 out:
