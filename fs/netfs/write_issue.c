@@ -519,6 +519,7 @@ int new_netfs_writepages(struct address_space *mapping,
 	}
 
 	trace_netfs_write(wreq, netfs_write_trace_writeback);
+	netfs_stat(&netfs_n_wh_writepages);
 
 	do {
 		_debug("wbiter %lx %llx", folio->index, wreq->start + wreq->submitted);
