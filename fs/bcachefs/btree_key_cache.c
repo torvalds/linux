@@ -169,6 +169,7 @@ static void bkey_cached_move_to_freelist(struct btree_key_cache *bc,
 	} else {
 		mutex_lock(&bc->lock);
 		list_move_tail(&ck->list, &bc->freed_pcpu);
+		bc->nr_freed_pcpu++;
 		mutex_unlock(&bc->lock);
 	}
 }
@@ -245,6 +246,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 		if (!list_empty(&bc->freed_pcpu)) {
 			ck = list_last_entry(&bc->freed_pcpu, struct bkey_cached, list);
 			list_del_init(&ck->list);
+			bc->nr_freed_pcpu--;
 		}
 		mutex_unlock(&bc->lock);
 	}
