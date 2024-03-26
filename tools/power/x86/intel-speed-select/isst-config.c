@@ -18,7 +18,7 @@ struct process_cmd_struct {
 
 static const char *version_str = "v1.18";
 
-static const int supported_api_ver = 2;
+static const int supported_api_ver = 3;
 static struct isst_if_platform_info isst_platform_info;
 static char *progname;
 static int debug_flag;
