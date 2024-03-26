@@ -98,8 +98,7 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 		return;
 	}
 
-	if (settcpca(lfd, tcp_ca) || settcpca(fd, tcp_ca) ||
-	    settimeo(lfd, 0) || settimeo(fd, 0))
+	if (settcpca(lfd, tcp_ca) || settcpca(fd, tcp_ca))
 		goto done;
 
 	if (sk_stg_map) {
