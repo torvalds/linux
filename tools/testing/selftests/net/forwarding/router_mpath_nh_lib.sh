@@ -69,7 +69,7 @@ nh_stats_test_dispatch_swhw()
 		nh_stats_do_test "HW $what" "$nh1_id" "$nh2_id" "$group_id" \
 				 nh_stats_get_hw "${mz[@]}"
 	elif [[ $kind == veth ]]; then
-		log_test_skip "HW stats not offloaded on veth topology"
+		log_test_xfail "HW stats not offloaded on veth topology"
 	fi
 }
 
