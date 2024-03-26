@@ -333,7 +333,7 @@ int panthor_gpu_block_power_on(struct panthor_device *ptdev,
 						 val, (mask32 & val) == mask32,
 						 100, timeout_us);
 		if (ret) {
-			drm_err(&ptdev->base, "timeout waiting on %s:%llx readyness",
+			drm_err(&ptdev->base, "timeout waiting on %s:%llx readiness",
 				blk_name, mask);
 			return ret;
 		}
