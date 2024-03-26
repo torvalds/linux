@@ -182,6 +182,7 @@ static struct _vcs_dpi_soc_bounding_box_st dcn201_soc = {
 				.socclk_mhz = 1254.0,
 				.dram_speed_mts = 14000.0,
 			},
+			/* state4 is not an actual state, just defines unsupported for dml*/
 			{
 				.state = 4,
 				.dscclk_mhz = 400.0,

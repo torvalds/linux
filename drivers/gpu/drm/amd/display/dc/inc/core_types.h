@@ -339,7 +339,9 @@ struct stream_resource {
 };
 
 struct plane_resource {
+	/* scl_data is scratch space required to program a plane */
 	struct scaler_data scl_data;
+	/* Below pointers to hw objects are required to enable the plane */
 	struct hubp *hubp;
 	struct mem_input *mi;
 	struct input_pixel_processor *ipp;
