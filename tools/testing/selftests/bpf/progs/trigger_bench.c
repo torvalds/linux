@@ -56,6 +56,19 @@ int trigger_driver(void *ctx)
 	return 0;
 }
 
+extern int bpf_modify_return_test_tp(int nonce) __ksym __weak;
+
+SEC("?raw_tp")
+int trigger_driver_kfunc(void *ctx)
+{
+	int i;
+
+	for (i = 0; i < batch_iters; i++)
+		(void)bpf_modify_return_test_tp(0); /* attach point for benchmarking */
+
+	return 0;
+}
+
 SEC("?kprobe/bpf_get_numa_node_id")
 int bench_trigger_kprobe(void *ctx)
 {
@@ -93,6 +106,27 @@ int bench_trigger_fentry(void *ctx)
 
 SEC("?fexit/bpf_get_numa_node_id")
 int bench_trigger_fexit(void *ctx)
+{
+	inc_counter();
+	return 0;
+}
+
+SEC("?fmod_ret/bpf_modify_return_test_tp")
+int bench_trigger_fmodret(void *ctx)
+{
+	inc_counter();
+	return -22;
+}
+
+SEC("?tp/bpf_test_run/bpf_trigger_tp")
+int bench_trigger_tp(void *ctx)
+{
+	inc_counter();
+	return 0;
+}
+
+SEC("?raw_tp/bpf_trigger_tp")
+int bench_trigger_rawtp(void *ctx)
 {
 	inc_counter();
 	return 0;

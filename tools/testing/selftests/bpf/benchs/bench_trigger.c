@@ -233,6 +233,42 @@ static void trigger_fexit_setup(void)
 	attach_bpf(ctx.skel->progs.bench_trigger_fexit);
 }
 
+static void trigger_fmodret_setup(void)
+{
+	setup_ctx();
+	bpf_program__set_autoload(ctx.skel->progs.trigger_driver, false);
+	bpf_program__set_autoload(ctx.skel->progs.trigger_driver_kfunc, true);
+	bpf_program__set_autoload(ctx.skel->progs.bench_trigger_fmodret, true);
+	load_ctx();
+	/* override driver program */
+	ctx.driver_prog_fd = bpf_program__fd(ctx.skel->progs.trigger_driver_kfunc);
+	attach_bpf(ctx.skel->progs.bench_trigger_fmodret);
+}
+
+static void trigger_tp_setup(void)
+{
+	setup_ctx();
+	bpf_program__set_autoload(ctx.skel->progs.trigger_driver, false);
+	bpf_program__set_autoload(ctx.skel->progs.trigger_driver_kfunc, true);
+	bpf_program__set_autoload(ctx.skel->progs.bench_trigger_tp, true);
+	load_ctx();
+	/* override driver program */
+	ctx.driver_prog_fd = bpf_program__fd(ctx.skel->progs.trigger_driver_kfunc);
+	attach_bpf(ctx.skel->progs.bench_trigger_tp);
+}
+
+static void trigger_rawtp_setup(void)
+{
+	setup_ctx();
+	bpf_program__set_autoload(ctx.skel->progs.trigger_driver, false);
+	bpf_program__set_autoload(ctx.skel->progs.trigger_driver_kfunc, true);
+	bpf_program__set_autoload(ctx.skel->progs.bench_trigger_rawtp, true);
+	load_ctx();
+	/* override driver program */
+	ctx.driver_prog_fd = bpf_program__fd(ctx.skel->progs.trigger_driver_kfunc);
+	attach_bpf(ctx.skel->progs.bench_trigger_rawtp);
+}
+
 /* make sure call is not inlined and not avoided by compiler, so __weak and
  * inline asm volatile in the body of the function
  *
@@ -395,6 +431,9 @@ BENCH_TRIG_KERNEL(kprobe_multi, "kprobe-multi");
 BENCH_TRIG_KERNEL(kretprobe_multi, "kretprobe-multi");
 BENCH_TRIG_KERNEL(fentry, "fentry");
 BENCH_TRIG_KERNEL(fexit, "fexit");
+BENCH_TRIG_KERNEL(fmodret, "fmodret");
+BENCH_TRIG_KERNEL(tp, "tp");
+BENCH_TRIG_KERNEL(rawtp, "rawtp");
 
 /* uprobe benchmarks */
 #define BENCH_TRIG_USERMODE(KIND, PRODUCER, NAME)			\
