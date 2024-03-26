@@ -27,7 +27,7 @@ static const struct snd_kcontrol_new rt722_spk_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Speaker"),
 };
 
-static int rt722_spk_init(struct snd_soc_pcm_runtime *rtd)
+int rt722_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	int ret;
@@ -59,39 +59,3 @@ static int rt722_spk_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-int sof_sdw_rt722_spk_init(struct snd_soc_card *card,
-			   const struct snd_soc_acpi_link_adr *link,
-			   struct snd_soc_dai_link *dai_links,
-			   struct sof_sdw_codec_info *info,
-			   bool playback)
-{
-	dai_links->init = rt722_spk_init;
-
-	return 0;
-}
-
-static int rt722_sdca_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_card *card = rtd->card;
-	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
-	struct snd_soc_component *component = codec_dai->component;
-
-	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
-					  "%s mic:%s",
-					  card->components, component->name_prefix);
-	if (!card->components)
-		return -ENOMEM;
-
-	return 0;
-}
-
-int sof_sdw_rt722_sdca_dmic_init(struct snd_soc_card *card,
-				 const struct snd_soc_acpi_link_adr *link,
-				 struct snd_soc_dai_link *dai_links,
-				 struct sof_sdw_codec_info *info,
-				 bool playback)
-{
-	dai_links->init = rt722_sdca_dmic_rtd_init;
-
-	return 0;
-}

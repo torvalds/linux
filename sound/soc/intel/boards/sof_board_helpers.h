@@ -167,7 +167,4 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 struct sof_card_private *
 sof_intel_board_get_ctx(struct device *dev, unsigned long board_quirk);
 
-struct snd_soc_dai *get_codec_dai_by_name(struct snd_soc_pcm_runtime *rtd,
-					  const char * const dai_name[], int num_dais);
-
 #endif /* __SOF_INTEL_BOARD_HELPERS_H */
