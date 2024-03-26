@@ -4,7 +4,8 @@
 ##############################################################################
 # Defines
 
-WAIT_TIMEOUT=${WAIT_TIMEOUT:=20}
+: "${WAIT_TIMEOUT:=20}"
+
 BUSYWAIT_TIMEOUT=$((WAIT_TIMEOUT * 1000)) # ms
 
 # Kselftest framework requirement - SKIP code is 4.

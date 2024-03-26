@@ -5,30 +5,30 @@
 # Defines
 
 # Can be overridden by the configuration file.
-PING=${PING:=ping}
-PING6=${PING6:=ping6}
-MZ=${MZ:=mausezahn}
-MZ_DELAY=${MZ_DELAY:=0}
-ARPING=${ARPING:=arping}
-TEAMD=${TEAMD:=teamd}
-WAIT_TIME=${WAIT_TIME:=5}
-PAUSE_ON_FAIL=${PAUSE_ON_FAIL:=no}
-PAUSE_ON_CLEANUP=${PAUSE_ON_CLEANUP:=no}
-NETIF_TYPE=${NETIF_TYPE:=veth}
-NETIF_CREATE=${NETIF_CREATE:=yes}
-MCD=${MCD:=smcrouted}
-MC_CLI=${MC_CLI:=smcroutectl}
-PING_COUNT=${PING_COUNT:=10}
-PING_TIMEOUT=${PING_TIMEOUT:=5}
-WAIT_TIMEOUT=${WAIT_TIMEOUT:=20}
-INTERFACE_TIMEOUT=${INTERFACE_TIMEOUT:=600}
-LOW_AGEING_TIME=${LOW_AGEING_TIME:=1000}
-REQUIRE_JQ=${REQUIRE_JQ:=yes}
-REQUIRE_MZ=${REQUIRE_MZ:=yes}
-REQUIRE_MTOOLS=${REQUIRE_MTOOLS:=no}
-STABLE_MAC_ADDRS=${STABLE_MAC_ADDRS:=no}
-TCPDUMP_EXTRA_FLAGS=${TCPDUMP_EXTRA_FLAGS:=}
-TROUTE6=${TROUTE6:=traceroute6}
+: "${PING:=ping}"
+: "${PING6:=ping6}"
+: "${MZ:=mausezahn}"
+: "${MZ_DELAY:=0}"
+: "${ARPING:=arping}"
+: "${TEAMD:=teamd}"
+: "${WAIT_TIME:=5}"
+: "${PAUSE_ON_FAIL:=no}"
+: "${PAUSE_ON_CLEANUP:=no}"
+: "${NETIF_TYPE:=veth}"
+: "${NETIF_CREATE:=yes}"
+: "${MCD:=smcrouted}"
+: "${MC_CLI:=smcroutectl}"
+: "${PING_COUNT:=10}"
+: "${PING_TIMEOUT:=5}"
+: "${WAIT_TIMEOUT:=20}"
+: "${INTERFACE_TIMEOUT:=600}"
+: "${LOW_AGEING_TIME:=1000}"
+: "${REQUIRE_JQ:=yes}"
+: "${REQUIRE_MZ:=yes}"
+: "${REQUIRE_MTOOLS:=no}"
+: "${STABLE_MAC_ADDRS:=no}"
+: "${TCPDUMP_EXTRA_FLAGS:=}"
+: "${TROUTE6:=traceroute6}"
 
 net_forwarding_dir=$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")
 
