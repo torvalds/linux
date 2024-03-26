@@ -325,7 +325,7 @@ static inline void panthor_ ## __name ## _irq_suspend(struct panthor_irq *pirq)	
 {												\
 	int cookie;										\
 												\
-	atomic_set(&pirq->suspended, true);							\
+	pirq->mask = 0;										\
 												\
 	if (drm_dev_enter(&pirq->ptdev->base, &cookie)) {					\
 		gpu_write(pirq->ptdev, __reg_prefix ## _INT_MASK, 0);				\
@@ -333,7 +333,7 @@ static inline void panthor_ ## __name ## _irq_suspend(struct panthor_irq *pirq)	
 		drm_dev_exit(cookie);								\
 	}											\
 												\
-	pirq->mask = 0;										\
+	atomic_set(&pirq->suspended, true);							\
 }												\
 												\
 static inline void panthor_ ## __name ## _irq_resume(struct panthor_irq *pirq, u32 mask)	\
