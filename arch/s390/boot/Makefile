@@ -112,7 +112,7 @@ $(obj)/vmlinux.bin: vmlinux FORCE
 
 ifndef CONFIG_PIE_BUILD
 CMD_RELOCS=arch/s390/tools/relocs
-quiet_cmd_relocs = RELOCS $@
+quiet_cmd_relocs = RELOCS  $@
 	cmd_relocs = $(CMD_RELOCS) $< > $@
 $(obj)/relocs.S: vmlinux FORCE
 	$(call if_changed,relocs)
