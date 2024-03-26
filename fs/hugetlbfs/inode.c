@@ -249,11 +249,11 @@ generic_hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 	}
 
 	/*
-	 * Use mm->get_unmapped_area value as a hint to use topdown routine.
+	 * Use MMF_TOPDOWN flag as a hint to use topdown routine.
 	 * If architectures have special needs, they should define their own
 	 * version of hugetlb_get_unmapped_area.
 	 */
-	if (mm->get_unmapped_area == arch_get_unmapped_area_topdown)
+	if (test_bit(MMF_TOPDOWN, &mm->flags))
 		return hugetlb_get_unmapped_area_topdown(file, addr, len,
 				pgoff, flags);
 	return hugetlb_get_unmapped_area_bottomup(file, addr, len,

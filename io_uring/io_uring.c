@@ -3525,7 +3525,7 @@ static unsigned long io_uring_mmu_get_unmapped_area(struct file *filp,
 #else
 	addr = 0UL;
 #endif
-	return current->mm->get_unmapped_area(filp, addr, len, pgoff, flags);
+	return mm_get_unmapped_area(current->mm, filp, addr, len, pgoff, flags);
 }
 
 #else /* !CONFIG_MMU */

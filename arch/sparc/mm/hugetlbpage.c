@@ -123,7 +123,7 @@ hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 		    (!vma || addr + len <= vm_start_gap(vma)))
 			return addr;
 	}
-	if (mm->get_unmapped_area == arch_get_unmapped_area)
+	if (!test_bit(MMF_TOPDOWN, &mm->flags))
 		return hugetlb_get_unmapped_area_bottomup(file, addr, len,
 				pgoff, flags);
 	else

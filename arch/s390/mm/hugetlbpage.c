@@ -318,7 +318,7 @@ unsigned long hugetlb_get_unmapped_area(struct file *file, unsigned long addr,
 			goto check_asce_limit;
 	}
 
-	if (mm->get_unmapped_area == arch_get_unmapped_area)
+	if (!test_bit(MMF_TOPDOWN, &mm->flags))
 		addr = hugetlb_get_unmapped_area_bottomup(file, addr, len,
 				pgoff, flags);
 	else

@@ -1812,7 +1812,8 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 		unsigned long pgoff, unsigned long flags)
 {
 	unsigned long (*get_area)(struct file *, unsigned long,
-				  unsigned long, unsigned long, unsigned long);
+				  unsigned long, unsigned long, unsigned long)
+				  = NULL;
 
 	unsigned long error = arch_mmap_check(addr, len, flags);
 	if (error)
@@ -1822,7 +1823,6 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 	if (len > TASK_SIZE)
 		return -ENOMEM;
 
-	get_area = current->mm->get_unmapped_area;
 	if (file) {
 		if (file->f_op->get_unmapped_area)
 			get_area = file->f_op->get_unmapped_area;
@@ -1841,7 +1841,11 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 	if (!file)
 		pgoff = 0;
 
-	addr = get_area(file, addr, len, pgoff, flags);
+	if (get_area)
+		addr = get_area(file, addr, len, pgoff, flags);
+	else
+		addr = mm_get_unmapped_area(current->mm, file, addr, len,
+					    pgoff, flags);
 	if (IS_ERR_VALUE(addr))
 		return addr;
 
@@ -1855,6 +1859,17 @@ get_unmapped_area(struct file *file, unsigned long addr, unsigned long len,
 }
 
 EXPORT_SYMBOL(get_unmapped_area);
+
+unsigned long
+mm_get_unmapped_area(struct mm_struct *mm, struct file *file,
+		     unsigned long addr, unsigned long len,
+		     unsigned long pgoff, unsigned long flags)
+{
+	if (test_bit(MMF_TOPDOWN, &mm->flags))
+		return arch_get_unmapped_area_topdown(file, addr, len, pgoff, flags);
+	return arch_get_unmapped_area(file, addr, len, pgoff, flags);
+}
+EXPORT_SYMBOL(mm_get_unmapped_area);
 
 /**
  * find_vma_intersection() - Look up the first VMA which intersects the interval

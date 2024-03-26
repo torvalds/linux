@@ -544,7 +544,7 @@ static unsigned long get_unmapped_area_zero(struct file *file,
 	}
 
 	/* Otherwise flags & MAP_PRIVATE: with no shmem object beneath it */
-	return current->mm->get_unmapped_area(file, addr, len, pgoff, flags);
+	return mm_get_unmapped_area(current->mm, file, addr, len, pgoff, flags);
 #else
 	return -ENOSYS;
 #endif

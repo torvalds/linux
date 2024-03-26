@@ -816,8 +816,8 @@ static unsigned long __thp_get_unmapped_area(struct file *filp,
 	if (len_pad < len || (off + len_pad) < off)
 		return 0;
 
-	ret = current->mm->get_unmapped_area(filp, addr, len_pad,
-					      off >> PAGE_SHIFT, flags);
+	ret = mm_get_unmapped_area(current->mm, filp, addr, len_pad,
+				   off >> PAGE_SHIFT, flags);
 
 	/*
 	 * The failure might be due to length padding. The caller will retry
@@ -835,8 +835,7 @@ static unsigned long __thp_get_unmapped_area(struct file *filp,
 
 	off_sub = (off - ret) & (size - 1);
 
-	if (current->mm->get_unmapped_area == arch_get_unmapped_area_topdown &&
-	    !off_sub)
+	if (test_bit(MMF_TOPDOWN, &current->mm->flags) && !off_sub)
 		return ret + size;
 
 	ret += off_sub;
@@ -853,7 +852,7 @@ unsigned long thp_get_unmapped_area(struct file *filp, unsigned long addr,
 	if (ret)
 		return ret;
 
-	return current->mm->get_unmapped_area(filp, addr, len, pgoff, flags);
+	return mm_get_unmapped_area(current->mm, filp, addr, len, pgoff, flags);
 }
 EXPORT_SYMBOL_GPL(thp_get_unmapped_area);
 
