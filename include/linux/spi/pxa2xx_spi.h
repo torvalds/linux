@@ -17,7 +17,7 @@ struct dma_chan;
  * (resides in device.platform_data).
  */
 struct pxa2xx_spi_controller {
-	u16 num_chipselect;
+	u8 num_chipselect;
 	u8 enable_dma;
 	u8 dma_burst_size;
 	bool is_target;
@@ -44,13 +44,5 @@ struct pxa2xx_spi_chip {
 	u8 dma_burst_size;
 	u32 timeout;
 };
-
-#if defined(CONFIG_ARCH_PXA) || defined(CONFIG_ARCH_MMP)
-
-#include <linux/clk.h>
-
-extern void pxa2xx_set_spi_info(unsigned id, struct pxa2xx_spi_controller *info);
-
-#endif
 
 #endif	/* __LINUX_SPI_PXA2XX_SPI_H */

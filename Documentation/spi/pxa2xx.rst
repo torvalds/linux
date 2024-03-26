@@ -24,7 +24,7 @@ arch/.../mach-*/board-*.c as a "platform device". The host controller configurat
 is passed to the driver via a table found in include/linux/spi/pxa2xx_spi.h::
 
   struct pxa2xx_spi_controller {
-	u16 num_chipselect;
+	u8 num_chipselect;
 	u8 enable_dma;
 	...
   };
