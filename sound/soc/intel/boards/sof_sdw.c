@@ -1625,6 +1625,40 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 	return 0;
 }
 
+static int create_ssp_dailinks(struct snd_soc_card *card,
+			       struct snd_soc_dai_link **dai_links, int *be_id,
+			       struct sof_sdw_codec_info *ssp_info,
+			       unsigned long ssp_mask)
+{
+	struct device *dev = card->dev;
+	int i, j = 0;
+	int ret;
+
+	for_each_set_bit(i, &ssp_mask, BITS_PER_TYPE(ssp_mask)) {
+		char *name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", i);
+		char *cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", i);
+		char *codec_name = devm_kasprintf(dev, GFP_KERNEL, "i2c-%s:0%d",
+						  ssp_info->acpi_id, j++);
+		int playback = ssp_info->dais[0].direction[SNDRV_PCM_STREAM_PLAYBACK];
+		int capture = ssp_info->dais[0].direction[SNDRV_PCM_STREAM_CAPTURE];
+
+		ret = init_simple_dai_link(dev, *dai_links, be_id, name,
+					   playback, capture, cpu_dai_name,
+					   codec_name, ssp_info->dais[0].dai_name,
+					   NULL, ssp_info->ops);
+		if (ret)
+			return ret;
+
+		ret = ssp_info->dais[0].init(card, NULL, *dai_links, ssp_info, 0);
+		if (ret < 0)
+			return ret;
+
+		(*dai_links)++;
+	}
+
+	return 0;
+}
+
 static int sof_card_dai_links_create(struct snd_soc_card *card)
 {
 	struct device *dev = card->dev;
@@ -1780,36 +1814,13 @@ out:
 
 SSP:
 	/* SSP */
-	if (!ssp_num)
-		goto DMIC;
-
-	j = 0;
-	for_each_set_bit(i, &ssp_mask, BITS_PER_TYPE(ssp_mask)) {
-		int playback, capture;
-
-		name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", i);
-		cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", i);
-		codec_name = devm_kasprintf(dev, GFP_KERNEL, "i2c-%s:0%d",
-					    ssp_info->acpi_id, j++);
-
-		playback = ssp_info->dais[0].direction[SNDRV_PCM_STREAM_PLAYBACK];
-		capture = ssp_info->dais[0].direction[SNDRV_PCM_STREAM_CAPTURE];
-
-		ret = init_simple_dai_link(dev, dai_links, &be_id, name,
-					   playback, capture, cpu_dai_name,
-					   codec_name, ssp_info->dais[0].dai_name,
-					   NULL, ssp_info->ops);
+	if (ssp_num) {
+		ret = create_ssp_dailinks(card, &dai_links, &be_id,
+					  ssp_info, ssp_mask);
 		if (ret)
 			return ret;
-
-		ret = ssp_info->dais[0].init(card, NULL, dai_links, ssp_info, 0);
-		if (ret < 0)
-			return ret;
-
-		dai_links++;
 	}
 
-DMIC:
 	/* dmic */
 	if (dmic_num > 0) {
 		if (ctx->ignore_pch_dmic) {
