@@ -42,6 +42,7 @@ FIXTURE_VARIANT(bind_wildcard)
 {
 	sa_family_t family[2];
 	const void *addr[2];
+	bool ipv6_only[2];
 
 	/* 6 bind() calls below follow two bind() for the defined 2 addresses:
 	 *
@@ -87,6 +88,17 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_any)
 			   EADDRINUSE, EADDRINUSE},
 };
 
+FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_any_only)
+{
+	.family = {AF_INET, AF_INET6},
+	.addr = {&in4addr_any, &in6addr_any},
+	.ipv6_only = {false, true},
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
+};
+
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_local)
 {
 	.family = {AF_INET, AF_INET6},
@@ -124,6 +136,17 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_any)
 	.expected_errno = {0, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_any_only)
+{
+	.family = {AF_INET, AF_INET6},
+	.addr = {&in4addr_loopback, &in6addr_any},
+	.ipv6_only = {false, true},
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
 };
 
@@ -168,11 +191,33 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v4_any)
 			   EADDRINUSE, EADDRINUSE},
 };
 
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v4_any)
+{
+	.family = {AF_INET6, AF_INET},
+	.addr = {&in6addr_any, &in4addr_any},
+	.ipv6_only = {true, false},
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
+};
+
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v4_local)
 {
 	.family = {AF_INET6, AF_INET},
 	.addr = {&in6addr_any, &in4addr_loopback},
 	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v4_local)
+{
+	.family = {AF_INET6, AF_INET},
+	.addr = {&in6addr_any, &in4addr_loopback},
+	.ipv6_only = {true, false},
+	.expected_errno = {0, 0,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
@@ -249,11 +294,33 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_local)
 			   EADDRINUSE, EADDRINUSE},
 };
 
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v6_local)
+{
+	.family = {AF_INET6, AF_INET6},
+	.addr = {&in6addr_any, &in6addr_loopback},
+	.ipv6_only = {true, false},
+	.expected_errno = {0, EADDRINUSE,
+			   0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
+};
+
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_v4mapped_any)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_any, &in6addr_v4mapped_any},
 	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v6_v4mapped_any)
+{
+	.family = {AF_INET6, AF_INET6},
+	.addr = {&in6addr_any, &in6addr_v4mapped_any},
+	.ipv6_only = {true, false},
+	.expected_errno = {0, 0,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
@@ -269,10 +336,32 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_v4mapped_local)
 			   EADDRINUSE, EADDRINUSE},
 };
 
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v6_v4mapped_local)
+{
+	.family = {AF_INET6, AF_INET6},
+	.addr = {&in6addr_any, &in6addr_v4mapped_loopback},
+	.ipv6_only = {true, false},
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
+};
+
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v6_any)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_loopback, &in6addr_any},
+	.expected_errno = {0, EADDRINUSE,
+			   0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v6_any_only)
+{
+	.family = {AF_INET6, AF_INET6},
+	.addr = {&in6addr_loopback, &in6addr_any},
+	.ipv6_only = {false, true},
 	.expected_errno = {0, EADDRINUSE,
 			   0, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
@@ -309,6 +398,17 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_any)
 			   EADDRINUSE, EADDRINUSE},
 };
 
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_any_only)
+{
+	.family = {AF_INET6, AF_INET6},
+	.addr = {&in6addr_v4mapped_any, &in6addr_any},
+	.ipv6_only = {false, true},
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
+};
+
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_local)
 {
 	.family = {AF_INET6, AF_INET6},
@@ -336,6 +436,17 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_loopback_v6_any)
 	.expected_errno = {0, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_loopback_v6_any_only)
+{
+	.family = {AF_INET6, AF_INET6},
+	.addr = {&in6addr_v4mapped_loopback, &in6addr_any},
+	.ipv6_only = {false, true},
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
 };
 
@@ -414,6 +525,11 @@ void bind_socket(struct __test_metadata *_metadata,
 
 	self->fd[i] = socket(self->addr[i].addr.sa_family, SOCK_STREAM, 0);
 	ASSERT_GT(self->fd[i], 0);
+
+	if (i < 2 && variant->ipv6_only[i]) {
+		ret = setsockopt(self->fd[i], SOL_IPV6, IPV6_V6ONLY, &(int){1}, sizeof(int));
+		ASSERT_EQ(ret, 0);
+	}
 
 	self->addr[i].addr4.sin_port = self->addr[0].addr4.sin_port;
 
