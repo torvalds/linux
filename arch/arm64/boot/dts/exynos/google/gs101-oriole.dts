@@ -103,8 +103,6 @@
 };
 
 &serial_0 {
-	pinctrl-0 = <&uart0_bus>;
-	pinctrl-names = "default";
 	status = "okay";
 };
 
