@@ -1200,7 +1200,7 @@ static inline int is_vmalloc_or_module_addr(const void *x)
  * debugging purposes - it does not include PTE-mapped sub-pages; look
  * at folio_mapcount() or page_mapcount() instead.
  */
-static inline int folio_entire_mapcount(struct folio *folio)
+static inline int folio_entire_mapcount(const struct folio *folio)
 {
 	VM_BUG_ON_FOLIO(!folio_test_large(folio), folio);
 	return atomic_read(&folio->_entire_mapcount) + 1;
@@ -1240,7 +1240,7 @@ static inline int page_mapcount(struct page *page)
 	return mapcount;
 }
 
-int folio_total_mapcount(struct folio *folio);
+int folio_total_mapcount(const struct folio *folio);
 
 /**
  * folio_mapcount() - Calculate the number of mappings of this folio.
@@ -1253,14 +1253,14 @@ int folio_total_mapcount(struct folio *folio);
  *
  * Return: The number of times this folio is mapped.
  */
-static inline int folio_mapcount(struct folio *folio)
+static inline int folio_mapcount(const struct folio *folio)
 {
 	if (likely(!folio_test_large(folio)))
 		return atomic_read(&folio->_mapcount) + 1;
 	return folio_total_mapcount(folio);
 }
 
-static inline bool folio_large_is_mapped(struct folio *folio)
+static inline bool folio_large_is_mapped(const struct folio *folio)
 {
 	/*
 	 * Reading _entire_mapcount below could be omitted if hugetlb
@@ -1288,7 +1288,7 @@ static inline bool folio_mapped(struct folio *folio)
  * For compound page it returns true if any sub-page of compound page is mapped,
  * even if this particular sub-page is not itself mapped by any PTE or PMD.
  */
-static inline bool page_mapped(struct page *page)
+static inline bool page_mapped(const struct page *page)
 {
 	if (likely(!PageCompound(page)))
 		return atomic_read(&page->_mapcount) >= 0;
@@ -2070,7 +2070,7 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
  *
  * Return: A positive power of two.
  */
-static inline long folio_nr_pages(struct folio *folio)
+static inline long folio_nr_pages(const struct folio *folio)
 {
 	if (!folio_test_large(folio))
 		return 1;

@@ -71,7 +71,7 @@ void page_writeback_init(void);
  * How many individual pages have an elevated _mapcount.  Excludes
  * the folio's entire_mapcount.
  */
-static inline int folio_nr_pages_mapped(struct folio *folio)
+static inline int folio_nr_pages_mapped(const struct folio *folio)
 {
 	return atomic_read(&folio->_nr_pages_mapped) & FOLIO_PAGES_MAPPED;
 }
@@ -81,7 +81,8 @@ static inline int folio_nr_pages_mapped(struct folio *folio)
  * folio. We cannot rely on folio->swap as there is no guarantee that it has
  * been initialized. Used for calling arch_swap_restore()
  */
-static inline swp_entry_t folio_swap(swp_entry_t entry, struct folio *folio)
+static inline swp_entry_t folio_swap(swp_entry_t entry,
+		const struct folio *folio)
 {
 	swp_entry_t swap = {
 		.val = ALIGN_DOWN(entry.val, folio_nr_pages(folio)),
@@ -90,7 +91,7 @@ static inline swp_entry_t folio_swap(swp_entry_t entry, struct folio *folio)
 	return swap;
 }
 
-static inline void *folio_raw_mapping(struct folio *folio)
+static inline void *folio_raw_mapping(const struct folio *folio)
 {
 	unsigned long mapping = (unsigned long)folio->mapping;
 
