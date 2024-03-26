@@ -1722,6 +1722,27 @@ static int create_hdmi_dailinks(struct snd_soc_card *card,
 	return 0;
 }
 
+static int create_bt_dailinks(struct snd_soc_card *card,
+			      struct snd_soc_dai_link **dai_links, int *be_id)
+{
+	struct device *dev = card->dev;
+	int port = (sof_sdw_quirk & SOF_BT_OFFLOAD_SSP_MASK) >>
+			SOF_BT_OFFLOAD_SSP_SHIFT;
+	char *name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-BT", port);
+	char *cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", port);
+	int ret;
+
+	ret = init_simple_dai_link(dev, *dai_links, be_id, name,
+				   1, 1, cpu_dai_name, snd_soc_dummy_dlc.name,
+				   snd_soc_dummy_dlc.dai_name, NULL, NULL);
+	if (ret)
+		return ret;
+
+	(*dai_links)++;
+
+	return 0;
+}
+
 static int sof_card_dai_links_create(struct snd_soc_card *card)
 {
 	struct device *dev = card->dev;
@@ -1738,7 +1759,6 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	bool group_generated[SDW_MAX_GROUPS] = { };
 	struct snd_soc_dai_link *dai_links;
 	int num_links;
-	char *name, *cpu_dai_name;
 	int i, j, be_id = 0;
 	int hdmi_num;
 	unsigned long ssp_mask;
@@ -1899,20 +1919,11 @@ SSP:
 	if (ret)
 		return ret;
 
+	/* BT */
 	if (sof_sdw_quirk & SOF_SSP_BT_OFFLOAD_PRESENT) {
-		int port = (sof_sdw_quirk & SOF_BT_OFFLOAD_SSP_MASK) >>
-				SOF_BT_OFFLOAD_SSP_SHIFT;
-
-		name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-BT", port);
-		cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", port);
-
-		ret = init_simple_dai_link(dev, dai_links, &be_id, name,
-					   1, 1, cpu_dai_name, snd_soc_dummy_dlc.name,
-					   snd_soc_dummy_dlc.dai_name, NULL, NULL);
+		ret = create_bt_dailinks(card, &dai_links, &be_id);
 		if (ret)
 			return ret;
-
-		dai_links++;
 	}
 
 	WARN_ON(dai_links != card->dai_link + card->num_links);
