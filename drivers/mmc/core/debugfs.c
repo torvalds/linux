@@ -389,6 +389,7 @@ void mmc_add_card_debugfs(struct mmc_card *card)
 	card->debugfs_root = root;
 
 	debugfs_create_x32("state", 0400, root, &card->state);
+	debugfs_create_x32("quirks", 0400, root, &card->quirks);
 }
 
 void mmc_remove_card_debugfs(struct mmc_card *card)
