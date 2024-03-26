@@ -1687,6 +1687,41 @@ static int create_dmic_dailinks(struct snd_soc_card *card,
 	return 0;
 }
 
+static int create_hdmi_dailinks(struct snd_soc_card *card,
+				struct snd_soc_dai_link **dai_links, int *be_id,
+				int hdmi_num)
+{
+	struct device *dev = card->dev;
+	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
+	int i, ret;
+
+	for (i = 0; i < hdmi_num; i++) {
+		char *name = devm_kasprintf(dev, GFP_KERNEL, "iDisp%d", i + 1);
+		char *cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "iDisp%d Pin", i + 1);
+		char *codec_name, *codec_dai_name;
+
+		if (ctx->hdmi.idisp_codec) {
+			codec_name = "ehdaudio0D2";
+			codec_dai_name = devm_kasprintf(dev, GFP_KERNEL,
+							"intel-hdmi-hifi%d", i + 1);
+		} else {
+			codec_name = "snd-soc-dummy";
+			codec_dai_name = "snd-soc-dummy-dai";
+		}
+
+		ret = init_simple_dai_link(dev, *dai_links, be_id, name,
+					   1, 0, // HDMI only supports playback
+					   cpu_dai_name, codec_name, codec_dai_name,
+					   i == 0 ? sof_sdw_hdmi_init : NULL, NULL);
+		if (ret)
+			return ret;
+
+		(*dai_links)++;
+	}
+
+	return 0;
+}
+
 static int sof_card_dai_links_create(struct snd_soc_card *card)
 {
 	struct device *dev = card->dev;
@@ -1704,7 +1739,6 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	struct snd_soc_dai_link *dai_links;
 	int num_links;
 	char *name, *cpu_dai_name;
-	char *codec_name, *codec_dai_name;
 	int i, j, be_id = 0;
 	int hdmi_num;
 	unsigned long ssp_mask;
@@ -1861,28 +1895,9 @@ SSP:
 	}
 
 	/* HDMI */
-	for (i = 0; i < hdmi_num; i++) {
-		name = devm_kasprintf(dev, GFP_KERNEL, "iDisp%d", i + 1);
-		cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "iDisp%d Pin", i + 1);
-
-		if (ctx->hdmi.idisp_codec) {
-			codec_name = "ehdaudio0D2";
-			codec_dai_name = devm_kasprintf(dev, GFP_KERNEL,
-							"intel-hdmi-hifi%d", i + 1);
-		} else {
-			codec_name = "snd-soc-dummy";
-			codec_dai_name = "snd-soc-dummy-dai";
-		}
-
-		ret = init_simple_dai_link(dev, dai_links, &be_id, name,
-					   1, 0, // HDMI only supports playback
-					   cpu_dai_name, codec_name, codec_dai_name,
-					   i == 0 ? sof_sdw_hdmi_init : NULL, NULL);
-		if (ret)
-			return ret;
-
-		dai_links++;
-	}
+	ret = create_hdmi_dailinks(card, &dai_links, &be_id, hdmi_num);
+	if (ret)
+		return ret;
 
 	if (sof_sdw_quirk & SOF_SSP_BT_OFFLOAD_PRESENT) {
 		int port = (sof_sdw_quirk & SOF_BT_OFFLOAD_SSP_MASK) >>
