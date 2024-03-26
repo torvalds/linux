@@ -1726,7 +1726,7 @@ static void add_hugetlb_folio(struct hstate *h, struct folio *folio,
 		 */
 		return;
 
-	arch_clear_hugepage_flags(&folio->page);
+	arch_clear_hugetlb_flags(folio);
 	enqueue_hugetlb_folio(h, folio);
 }
 
@@ -2024,7 +2024,7 @@ void free_huge_folio(struct folio *folio)
 		spin_unlock_irqrestore(&hugetlb_lock, flags);
 		update_and_free_hugetlb_folio(h, folio, true);
 	} else {
-		arch_clear_hugepage_flags(&folio->page);
+		arch_clear_hugetlb_flags(folio);
 		enqueue_hugetlb_folio(h, folio);
 		spin_unlock_irqrestore(&hugetlb_lock, flags);
 	}

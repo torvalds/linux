@@ -836,9 +836,9 @@ static inline int is_hugepage_only_range(struct mm_struct *mm,
 #define is_hugepage_only_range is_hugepage_only_range
 #endif
 
-#ifndef arch_clear_hugepage_flags
-static inline void arch_clear_hugepage_flags(struct page *page) { }
-#define arch_clear_hugepage_flags arch_clear_hugepage_flags
+#ifndef arch_clear_hugetlb_flags
+static inline void arch_clear_hugetlb_flags(struct folio *folio) { }
+#define arch_clear_hugetlb_flags arch_clear_hugetlb_flags
 #endif
 
 #ifndef arch_make_huge_pte
