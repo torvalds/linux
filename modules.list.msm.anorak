@@ -67,3 +67,5 @@ crypto-qti.ko
 phy-qcom-ufs-qmp-v4-waipio.ko
 ufs_qcom.ko
 phy-qcom-ufs.ko
+spmi-pmic-arb.ko
+qti-regmap-debugfs.ko
