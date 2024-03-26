@@ -161,8 +161,6 @@ static void tas2781_hda_playback_hook(struct device *dev, int action)
 		pm_runtime_put_autosuspend(dev);
 		break;
 	default:
-		dev_dbg(tas_hda->dev, "Playback action not supported: %d\n",
-			action);
 		break;
 	}
 }
