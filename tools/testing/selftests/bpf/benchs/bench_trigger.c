@@ -133,8 +133,6 @@ static void trigger_measure(struct bench_res *res)
 
 static void setup_ctx(void)
 {
-	int err;
-
 	setup_libbpf();
 
 	ctx.skel = trigger_bench__open();
@@ -143,7 +141,15 @@ static void setup_ctx(void)
 		exit(1);
 	}
 
+	/* default "driver" BPF program */
+	bpf_program__set_autoload(ctx.skel->progs.trigger_driver, true);
+
 	ctx.skel->rodata->batch_iters = args.batch_iters;
+}
+
+static void load_ctx(void)
+{
+	int err;
 
 	err = trigger_bench__load(ctx.skel);
 	if (err) {
@@ -172,6 +178,9 @@ static void trigger_syscall_count_setup(void)
 static void trigger_kernel_count_setup(void)
 {
 	setup_ctx();
+	bpf_program__set_autoload(ctx.skel->progs.trigger_driver, false);
+	bpf_program__set_autoload(ctx.skel->progs.trigger_count, true);
+	load_ctx();
 	/* override driver program */
 	ctx.driver_prog_fd = bpf_program__fd(ctx.skel->progs.trigger_count);
 }
@@ -179,36 +188,48 @@ static void trigger_kernel_count_setup(void)
 static void trigger_kprobe_setup(void)
 {
 	setup_ctx();
+	bpf_program__set_autoload(ctx.skel->progs.bench_trigger_kprobe, true);
+	load_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_kprobe);
 }
 
 static void trigger_kretprobe_setup(void)
 {
 	setup_ctx();
+	bpf_program__set_autoload(ctx.skel->progs.bench_trigger_kretprobe, true);
+	load_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_kretprobe);
 }
 
 static void trigger_kprobe_multi_setup(void)
 {
 	setup_ctx();
+	bpf_program__set_autoload(ctx.skel->progs.bench_trigger_kprobe_multi, true);
+	load_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_kprobe_multi);
 }
 
 static void trigger_kretprobe_multi_setup(void)
 {
 	setup_ctx();
+	bpf_program__set_autoload(ctx.skel->progs.bench_trigger_kretprobe_multi, true);
+	load_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_kretprobe_multi);
 }
 
 static void trigger_fentry_setup(void)
 {
 	setup_ctx();
+	bpf_program__set_autoload(ctx.skel->progs.bench_trigger_fentry, true);
+	load_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_fentry);
 }
 
 static void trigger_fexit_setup(void)
 {
 	setup_ctx();
+	bpf_program__set_autoload(ctx.skel->progs.bench_trigger_fexit, true);
+	load_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_fexit);
 }
 
@@ -279,12 +300,21 @@ static void usetup(bool use_retprobe, void *target_addr)
 {
 	size_t uprobe_offset;
 	struct bpf_link *link;
+	int err;
 
 	setup_libbpf();
 
-	ctx.skel = trigger_bench__open_and_load();
+	ctx.skel = trigger_bench__open();
 	if (!ctx.skel) {
 		fprintf(stderr, "failed to open skeleton\n");
+		exit(1);
+	}
+
+	bpf_program__set_autoload(ctx.skel->progs.bench_trigger_uprobe, true);
+
+	err = trigger_bench__load(ctx.skel);
+	if (err) {
+		fprintf(stderr, "failed to load skeleton\n");
 		exit(1);
 	}
 
