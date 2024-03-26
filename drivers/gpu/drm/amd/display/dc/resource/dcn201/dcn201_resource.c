@@ -566,6 +566,8 @@ static const struct resource_caps res_cap_dnc201 = {
 		.num_audio = 2,
 		.num_stream_encoder = 2,
 		.num_pll = 2,
+		.num_dwb = 0,
+		.num_dsc = 0,
 		.num_ddc = 2,
 };
 
@@ -612,7 +614,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.scl_reset_length10 = true,
 		.sanity_checks = false,
 		.underflow_assert_delay_us = 0xFFFFFFFF,
-		.enable_tri_buf = false,
+		.enable_tri_buf = true,
 		.enable_legacy_fast_update = true,
 		.using_dml2 = false,
 };
