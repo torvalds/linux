@@ -36,7 +36,7 @@ static void log_quirks(struct device *dev)
 		dev_dbg(dev, "SSP port %ld\n",
 			SOF_SSP_GET_PORT(sof_sdw_quirk));
 	if (sof_sdw_quirk & SOF_SDW_NO_AGGREGATION)
-		dev_dbg(dev, "quirk SOF_SDW_NO_AGGREGATION enabled\n");
+		dev_err(dev, "quirk SOF_SDW_NO_AGGREGATION enabled but no longer supported\n");
 }
 
 static int sof_sdw_quirk_cb(const struct dmi_system_id *id)
@@ -1136,11 +1136,9 @@ static int get_dailink_info(struct device *dev,
 			    int *sdw_be_num, int *codecs_num)
 {
 	bool group_visited[SDW_MAX_GROUPS];
-	bool no_aggregation;
 	int i;
 	int j;
 
-	no_aggregation = sof_sdw_quirk & SOF_SDW_NO_AGGREGATION;
 	*sdw_be_num  = 0;
 
 	if (!adr_link)
@@ -1187,7 +1185,7 @@ static int get_dailink_info(struct device *dev,
 						continue;
 
 					/* count BE for each non-aggregated slave or group */
-					if (!endpoint->aggregated || no_aggregation ||
+					if (!endpoint->aggregated ||
 					    !group_visited[endpoint->group_id])
 						(*sdw_be_num)++;
 				}
@@ -1393,10 +1391,9 @@ static int get_slave_info(const struct snd_soc_acpi_link_adr *adr_link,
 			  int *codec_num, unsigned int *group_id,
 			  int adr_index)
 {
-	bool no_aggregation = sof_sdw_quirk & SOF_SDW_NO_AGGREGATION;
 	int i;
 
-	if (!adr_link->adr_d[adr_index].endpoints->aggregated || no_aggregation) {
+	if (!adr_link->adr_d[adr_index].endpoints->aggregated) {
 		cpu_dai_id[0] = ffs(adr_link->mask) - 1;
 		*cpu_dai_num = 1;
 		*codec_num = 1;
@@ -1758,7 +1755,6 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct snd_soc_acpi_mach_params *mach_params = &mach->mach_params;
 	const struct snd_soc_acpi_link_adr *adr_link = mach_params->links;
-	bool aggregation = !(sof_sdw_quirk & SOF_SDW_NO_AGGREGATION);
 	struct snd_soc_codec_conf *codec_conf;
 	struct sof_sdw_codec_info *codec_info;
 	struct sof_sdw_codec_info *ssp_info;
@@ -1896,7 +1892,7 @@ out:
 					be_id = current_be_id;
 			}
 
-			if (aggregation && endpoint->aggregated)
+			if (endpoint->aggregated)
 				group_generated[endpoint->group_id] = true;
 		}
 	}
