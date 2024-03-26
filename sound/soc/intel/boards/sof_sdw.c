@@ -1462,7 +1462,160 @@ static int sof_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
+struct sof_sdw_endpoint {
+	struct list_head list;
+
+	u32 link_mask;
+	const char *codec_name;
+
+	const struct snd_soc_acpi_link_adr *adr_link;
+	struct sof_sdw_codec_info *codec_info;
+	const struct sof_sdw_dai_info *dai_info;
+};
+
+struct sof_sdw_dailink {
+	bool initialised;
+
+	u8 group_id;
+	u32 link_mask[SNDRV_PCM_STREAM_LAST + 1];
+	int num_devs[SNDRV_PCM_STREAM_LAST + 1];
+	struct list_head endpoints;
+};
+
 static const char * const type_strings[] = {"SimpleJack", "SmartAmp", "SmartMic"};
+
+static int count_sdw_endpoints(struct snd_soc_card *card, int *num_devs, int *num_ends)
+{
+	struct device *dev = card->dev;
+	struct snd_soc_acpi_mach *mach = dev_get_platdata(dev);
+	struct snd_soc_acpi_mach_params *mach_params = &mach->mach_params;
+	const struct snd_soc_acpi_link_adr *adr_link;
+	int i;
+
+	for (adr_link = mach_params->links; adr_link->num_adr; adr_link++) {
+		*num_devs += adr_link->num_adr;
+
+		for (i = 0; i < adr_link->num_adr; i++)
+			*num_ends += adr_link->adr_d[i].num_endpoints;
+	}
+
+	dev_dbg(dev, "Found %d devices with %d endpoints\n", *num_devs, *num_ends);
+
+	return 0;
+}
+
+static struct sof_sdw_dailink *find_dailink(struct sof_sdw_dailink *dailinks,
+					    const struct snd_soc_acpi_endpoint *new)
+{
+	while (dailinks->initialised) {
+		if (new->aggregated && dailinks->group_id == new->group_id)
+			return dailinks;
+
+		dailinks++;
+	}
+
+	INIT_LIST_HEAD(&dailinks->endpoints);
+	dailinks->group_id = new->group_id;
+	dailinks->initialised = true;
+
+	return dailinks;
+}
+
+static int parse_sdw_endpoints(struct snd_soc_card *card,
+			       struct sof_sdw_dailink *sof_dais,
+			       struct sof_sdw_endpoint *sof_ends)
+{
+	struct device *dev = card->dev;
+	struct snd_soc_acpi_mach *mach = dev_get_platdata(dev);
+	struct snd_soc_acpi_mach_params *mach_params = &mach->mach_params;
+	const struct snd_soc_acpi_link_adr *adr_link;
+	struct sof_sdw_endpoint *sof_end = sof_ends;
+	int num_dais = 0;
+	int i, j;
+
+	for (adr_link = mach_params->links; adr_link->num_adr; adr_link++) {
+		if (!is_power_of_2(adr_link->mask)) {
+			dev_err(dev, "link with multiple mask bits: 0x%x\n",
+				adr_link->mask);
+			return -EINVAL;
+		}
+
+		for (i = 0; i < adr_link->num_adr; i++) {
+			const struct snd_soc_acpi_adr_device *adr_dev = &adr_link->adr_d[i];
+			struct sof_sdw_codec_info *codec_info;
+			const char *codec_name;
+
+			if (!adr_dev->name_prefix) {
+				dev_err(dev, "codec 0x%llx does not have a name prefix\n",
+					adr_dev->adr);
+				return -EINVAL;
+			}
+
+			codec_info = find_codec_info_part(adr_dev->adr);
+			if (!codec_info)
+				return -EINVAL;
+
+			codec_name = get_codec_name(dev, codec_info, adr_link, i);
+			if (!codec_name)
+				return -ENOMEM;
+
+			for (j = 0; j < adr_dev->num_endpoints; j++) {
+				const struct snd_soc_acpi_endpoint *adr_end;
+				const struct sof_sdw_dai_info *dai_info;
+				struct sof_sdw_dailink *sof_dai;
+				int stream;
+
+				adr_end = &adr_dev->endpoints[j];
+				dai_info = &codec_info->dais[adr_end->num];
+				sof_dai = find_dailink(sof_dais, adr_end);
+
+				dev_dbg(dev,
+					"Add dev: %d, 0x%llx end: %d, %s, %c/%c to %s: %d\n",
+					ffs(adr_link->mask) - 1, adr_dev->adr,
+					adr_end->num, type_strings[dai_info->dai_type],
+					dai_info->direction[SNDRV_PCM_STREAM_PLAYBACK] ? 'P' : '-',
+					dai_info->direction[SNDRV_PCM_STREAM_CAPTURE] ? 'C' : '-',
+					adr_end->aggregated ? "group" : "solo",
+					adr_end->group_id);
+
+				if (adr_end->num >= codec_info->dai_num) {
+					dev_err(dev,
+						"%d is too many endpoints for codec: 0x%x\n",
+						adr_end->num, codec_info->part_id);
+					return -EINVAL;
+				}
+
+				for_each_pcm_streams(stream) {
+					if (dai_info->direction[stream] &&
+					    dai_info->dailink[stream] < 0) {
+						dev_err(dev,
+							"Invalid dailink id %d for codec: 0x%x\n",
+							dai_info->dailink[stream],
+							codec_info->part_id);
+						return -EINVAL;
+					}
+
+					if (dai_info->direction[stream]) {
+						num_dais += !sof_dai->num_devs[stream];
+						sof_dai->num_devs[stream]++;
+						sof_dai->link_mask[stream] |= adr_link->mask;
+					}
+				}
+
+				list_add_tail(&sof_end->list, &sof_dai->endpoints);
+
+				sof_end->link_mask = adr_link->mask;
+				sof_end->codec_name = codec_name;
+				sof_end->adr_link = adr_link;
+				sof_end->codec_info = codec_info;
+				sof_end->dai_info = dai_info;
+				sof_end++;
+			}
+		}
+	}
+
+	return num_dais;
+}
 
 static int create_sdw_dailink(struct snd_soc_card *card,
 			      struct snd_soc_dai_link **dai_links,
@@ -1758,7 +1911,11 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	struct snd_soc_codec_conf *codec_conf;
 	struct sof_sdw_codec_info *codec_info;
 	struct sof_sdw_codec_info *ssp_info;
+	struct sof_sdw_endpoint *sof_ends;
+	struct sof_sdw_dailink *sof_dais;
 	int codec_conf_num = 0;
+	int num_devs = 0;
+	int num_ends = 0;
 	bool group_generated[SDW_MAX_GROUPS] = { };
 	struct snd_soc_dai_link *dai_links;
 	int num_links;
@@ -1767,10 +1924,32 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	unsigned long ssp_mask;
 	int ret;
 
+	ret = count_sdw_endpoints(card, &num_devs, &num_ends);
+	if (ret < 0) {
+		dev_err(dev, "failed to count devices/endpoints: %d\n", ret);
+		return ret;
+	}
+
+	/* One per DAI link, worst case is a DAI link for every endpoint */
+	sof_dais = kcalloc(num_ends, sizeof(*sof_dais), GFP_KERNEL);
+	if (!sof_dais)
+		return -ENOMEM;
+
+	/* One per endpoint, ie. each DAI on each codec/amp */
+	sof_ends = kcalloc(num_ends, sizeof(*sof_ends), GFP_KERNEL);
+	if (!sof_ends) {
+		ret = -ENOMEM;
+		goto err_dai;
+	}
+
+	ret = parse_sdw_endpoints(card, sof_dais, sof_ends);
+	if (ret < 0)
+		goto err_end;
+
 	ret = get_dailink_info(dev, adr_link, &sdw_be_num, &codec_conf_num);
 	if (ret < 0) {
 		dev_err(dev, "failed to get sdw link info %d\n", ret);
-		return ret;
+		goto err_end;
 	}
 
 	/*
@@ -1807,14 +1986,18 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	/* allocate BE dailinks */
 	num_links = sdw_be_num + ssp_num + dmic_num + hdmi_num + bt_num;
 	dai_links = devm_kcalloc(dev, num_links, sizeof(*dai_links), GFP_KERNEL);
-	if (!dai_links)
-		return -ENOMEM;
+	if (!dai_links) {
+		ret = -ENOMEM;
+		goto err_end;
+	}
 
 	/* allocate codec conf, will be populated when dailinks are created */
 	codec_conf = devm_kcalloc(dev, codec_conf_num, sizeof(*codec_conf),
 				  GFP_KERNEL);
-	if (!codec_conf)
-		return -ENOMEM;
+	if (!codec_conf) {
+		ret = -ENOMEM;
+		goto err_end;
+	}
 
 	card->dai_link = dai_links;
 	card->num_links = num_links;
@@ -1838,8 +2021,10 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		for (i = 0; i < adr_link->num_adr; i++) {
 			/* find codec info to get dai_num */
 			codec_info = find_codec_info_part(adr_link->adr_d[i].adr);
-			if (!codec_info)
-				return -EINVAL;
+			if (!codec_info) {
+				ret = -EINVAL;
+				goto err_end;
+			}
 			if (codec_info->dai_num > 1) {
 				ctx->append_dai_type = true;
 				goto out;
@@ -1871,8 +2056,10 @@ out:
 
 			/* find codec info to get dai_num */
 			codec_info = find_codec_info_part(adr_link->adr_d[i].adr);
-			if (!codec_info)
-				return -EINVAL;
+			if (!codec_info) {
+				ret = -EINVAL;
+				goto err_end;
+			}
 
 			for (j = 0; j < codec_info->dai_num ; j++) {
 				int current_be_id;
@@ -1903,7 +2090,7 @@ SSP:
 		ret = create_ssp_dailinks(card, &dai_links, &be_id,
 					  ssp_info, ssp_mask);
 		if (ret)
-			return ret;
+			goto err_end;
 	}
 
 	/* dmic */
@@ -1913,25 +2100,30 @@ SSP:
 		} else {
 			ret = create_dmic_dailinks(card, &dai_links, &be_id);
 			if (ret)
-				return ret;
+				goto err_end;
 		}
 	}
 
 	/* HDMI */
 	ret = create_hdmi_dailinks(card, &dai_links, &be_id, hdmi_num);
 	if (ret)
-		return ret;
+		goto err_end;
 
 	/* BT */
 	if (sof_sdw_quirk & SOF_SSP_BT_OFFLOAD_PRESENT) {
 		ret = create_bt_dailinks(card, &dai_links, &be_id);
 		if (ret)
-			return ret;
+			goto err_end;
 	}
 
 	WARN_ON(dai_links != card->dai_link + card->num_links);
 
-	return 0;
+err_end:
+	kfree(sof_ends);
+err_dai:
+	kfree(sof_dais);
+
+	return ret;
 }
 
 static int sof_sdw_card_late_probe(struct snd_soc_card *card)
