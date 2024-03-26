@@ -7,7 +7,6 @@
 #define _UFS_MEDIATEK_H
 
 #include <linux/bitops.h>
-#include <linux/soc/mediatek/mtk_sip_svc.h>
 
 /*
  * MCQ define and struct
@@ -100,18 +99,6 @@ enum {
 };
 
 /*
- * SiP commands
- */
-#define MTK_SIP_UFS_CONTROL               MTK_SIP_SMC_CMD(0x276)
-#define UFS_MTK_SIP_VA09_PWR_CTRL         BIT(0)
-#define UFS_MTK_SIP_DEVICE_RESET          BIT(1)
-#define UFS_MTK_SIP_CRYPTO_CTRL           BIT(2)
-#define UFS_MTK_SIP_REF_CLK_NOTIFICATION  BIT(3)
-#define UFS_MTK_SIP_HOST_PWR_CTRL         BIT(5)
-#define UFS_MTK_SIP_GET_VCC_NUM           BIT(6)
-#define UFS_MTK_SIP_DEVICE_PWR_CTRL       BIT(7)
-
-/*
  * VS_DEBUGCLOCKENABLE
  */
 enum {
@@ -135,7 +122,17 @@ enum ufs_mtk_host_caps {
 	UFS_MTK_CAP_VA09_PWR_CTRL              = 1 << 1,
 	UFS_MTK_CAP_DISABLE_AH8                = 1 << 2,
 	UFS_MTK_CAP_BROKEN_VCC                 = 1 << 3,
+
+	/*
+	 * Override UFS_MTK_CAP_BROKEN_VCC's behavior to
+	 * allow vccqx upstream to enter LPM
+	 */
+	UFS_MTK_CAP_ALLOW_VCCQX_LPM            = 1 << 5,
 	UFS_MTK_CAP_PMC_VIA_FASTAUTO           = 1 << 6,
+	UFS_MTK_CAP_TX_SKEW_FIX                = 1 << 7,
+	UFS_MTK_CAP_DISABLE_MCQ                = 1 << 8,
+	/* Control MTCMOS with RTFF */
+	UFS_MTK_CAP_RTFF_MTCMOS                = 1 << 9,
 };
 
 struct ufs_mtk_crypt_cfg {
@@ -170,6 +167,7 @@ struct ufs_mtk_host {
 	struct reset_control *hci_reset;
 	struct reset_control *unipro_reset;
 	struct reset_control *crypto_reset;
+	struct reset_control *mphy_reset;
 	struct ufs_hba *hba;
 	struct ufs_mtk_crypt_cfg *crypt;
 	struct ufs_mtk_clk mclk;
@@ -190,71 +188,5 @@ struct ufs_mtk_host {
 
 /* MTK delay of autosuspend: 500 ms */
 #define MTK_RPM_AUTOSUSPEND_DELAY_MS 500
-
-/*
- * Multi-VCC by Numbering
- */
-enum ufs_mtk_vcc_num {
-	UFS_VCC_NONE = 0,
-	UFS_VCC_1,
-	UFS_VCC_2,
-	UFS_VCC_MAX
-};
-
-/*
- * Host Power Control options
- */
-enum {
-	HOST_PWR_HCI = 0,
-	HOST_PWR_MPHY
-};
-
-/*
- * SMC call wrapper function
- */
-struct ufs_mtk_smc_arg {
-	unsigned long cmd;
-	struct arm_smccc_res *res;
-	unsigned long v1;
-	unsigned long v2;
-	unsigned long v3;
-	unsigned long v4;
-	unsigned long v5;
-	unsigned long v6;
-	unsigned long v7;
-};
-
-static void _ufs_mtk_smc(struct ufs_mtk_smc_arg s)
-{
-	arm_smccc_smc(MTK_SIP_UFS_CONTROL,
-		      s.cmd, s.v1, s.v2, s.v3, s.v4, s.v5, s.v6, s.res);
-}
-
-#define ufs_mtk_smc(...) \
-	_ufs_mtk_smc((struct ufs_mtk_smc_arg) {__VA_ARGS__})
-
-/*
- * SMC call interface
- */
-#define ufs_mtk_va09_pwr_ctrl(res, on) \
-	ufs_mtk_smc(UFS_MTK_SIP_VA09_PWR_CTRL, &(res), on)
-
-#define ufs_mtk_crypto_ctrl(res, enable) \
-	ufs_mtk_smc(UFS_MTK_SIP_CRYPTO_CTRL, &(res), enable)
-
-#define ufs_mtk_ref_clk_notify(on, stage, res) \
-	ufs_mtk_smc(UFS_MTK_SIP_REF_CLK_NOTIFICATION, &(res), on, stage)
-
-#define ufs_mtk_device_reset_ctrl(high, res) \
-	ufs_mtk_smc(UFS_MTK_SIP_DEVICE_RESET, &(res), high)
-
-#define ufs_mtk_host_pwr_ctrl(opt, on, res) \
-	ufs_mtk_smc(UFS_MTK_SIP_HOST_PWR_CTRL, &(res), opt, on)
-
-#define ufs_mtk_get_vcc_num(res) \
-	ufs_mtk_smc(UFS_MTK_SIP_GET_VCC_NUM, &(res))
-
-#define ufs_mtk_device_pwr_ctrl(on, ufs_ver, res) \
-	ufs_mtk_smc(UFS_MTK_SIP_DEVICE_PWR_CTRL, &(res), on, ufs_ver)
 
 #endif /* !_UFS_MEDIATEK_H */
