@@ -1126,79 +1126,6 @@ static struct sof_sdw_codec_info *find_codec_info_dai(const char *dai_name,
 	return NULL;
 }
 
-/*
- * get BE dailink number and CPU DAI number based on sdw link adr.
- * Since some sdw slaves may be aggregated, the CPU DAI number
- * may be larger than the number of BE dailinks.
- */
-static int get_dailink_info(struct device *dev,
-			    const struct snd_soc_acpi_link_adr *adr_link,
-			    int *sdw_be_num, int *codecs_num)
-{
-	bool group_visited[SDW_MAX_GROUPS];
-	int i;
-	int j;
-
-	*sdw_be_num  = 0;
-
-	if (!adr_link)
-		return -EINVAL;
-
-	for (i = 0; i < SDW_MAX_GROUPS; i++)
-		group_visited[i] = false;
-
-	for (; adr_link->num_adr; adr_link++) {
-		const struct snd_soc_acpi_endpoint *endpoint;
-		struct sof_sdw_codec_info *codec_info;
-		int stream;
-		u64 adr;
-
-		/* make sure the link mask has a single bit set */
-		if (!is_power_of_2(adr_link->mask))
-			return -EINVAL;
-
-		for (i = 0; i < adr_link->num_adr; i++) {
-			adr = adr_link->adr_d[i].adr;
-			codec_info = find_codec_info_part(adr);
-			if (!codec_info)
-				return -EINVAL;
-
-			*codecs_num += codec_info->dai_num;
-
-			if (!adr_link->adr_d[i].name_prefix) {
-				dev_err(dev, "codec 0x%llx does not have a name prefix\n",
-					adr_link->adr_d[i].adr);
-				return -EINVAL;
-			}
-
-			endpoint = adr_link->adr_d[i].endpoints;
-			if (endpoint->aggregated && !endpoint->group_id) {
-				dev_err(dev, "invalid group id on link %x\n",
-					adr_link->mask);
-				return -EINVAL;
-			}
-
-			for (j = 0; j < codec_info->dai_num; j++) {
-				/* count DAI number for playback and capture */
-				for_each_pcm_streams(stream) {
-					if (!codec_info->dais[j].direction[stream])
-						continue;
-
-					/* count BE for each non-aggregated slave or group */
-					if (!endpoint->aggregated ||
-					    !group_visited[endpoint->group_id])
-						(*sdw_be_num)++;
-				}
-			}
-
-			if (endpoint->aggregated)
-				group_visited[endpoint->group_id] = true;
-		}
-	}
-
-	return 0;
-}
-
 static void init_dai_link(struct device *dev, struct snd_soc_dai_link *dai_links,
 			  int *be_id, char *name, int playback, int capture,
 			  struct snd_soc_dai_link_component *cpus, int cpus_num,
@@ -1528,6 +1455,7 @@ static int parse_sdw_endpoints(struct snd_soc_card *card,
 	struct device *dev = card->dev;
 	struct snd_soc_acpi_mach *mach = dev_get_platdata(dev);
 	struct snd_soc_acpi_mach_params *mach_params = &mach->mach_params;
+	struct snd_soc_codec_conf *codec_conf = card->codec_conf;
 	const struct snd_soc_acpi_link_adr *adr_link;
 	struct sof_sdw_endpoint *sof_end = sof_ends;
 	int num_dais = 0;
@@ -1558,6 +1486,13 @@ static int parse_sdw_endpoints(struct snd_soc_card *card,
 			codec_name = get_codec_name(dev, codec_info, adr_link, i);
 			if (!codec_name)
 				return -ENOMEM;
+
+			codec_conf->dlc.name = codec_name;
+			codec_conf->name_prefix = adr_dev->name_prefix;
+			codec_conf++;
+
+			dev_dbg(dev, "Adding prefix %s for %s\n",
+				adr_dev->name_prefix, codec_name);
 
 			for (j = 0; j < adr_dev->num_endpoints; j++) {
 				const struct snd_soc_acpi_endpoint *adr_end;
@@ -1614,13 +1549,14 @@ static int parse_sdw_endpoints(struct snd_soc_card *card,
 		}
 	}
 
+	WARN_ON(codec_conf != card->codec_conf + card->num_configs);
+
 	return num_dais;
 }
 
 static int create_sdw_dailink(struct snd_soc_card *card,
 			      struct snd_soc_dai_link **dai_links,
 			      const struct snd_soc_acpi_link_adr *adr_link,
-			      struct snd_soc_codec_conf **codec_conf,
 			      int *be_id, int adr_index, int dai_index)
 {
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
@@ -1672,26 +1608,16 @@ static int create_sdw_dailink(struct snd_soc_card *card,
 					 endpoints->group_id != group_id))
 				continue;
 
-			/* sanity check */
-			if (*codec_conf >= card->codec_conf + card->num_configs) {
-				dev_err(dev, "codec_conf array overflowed\n");
-				return -EINVAL;
-			}
-
 			ret = fill_sdw_codec_dlc(dev, adr_link_next,
 						 &codecs[codec_dlc_index],
 						 j, dai_index);
 			if (ret)
 				return ret;
 
-			(*codec_conf)->dlc = codecs[codec_dlc_index];
-			(*codec_conf)->name_prefix = adr_link_next->adr_d[j].name_prefix;
-
 			sdw_codec_ch_maps[codec_dlc_index].cpu = i;
 			sdw_codec_ch_maps[codec_dlc_index].codec = codec_dlc_index;
 
 			codec_dlc_index++;
-			(*codec_conf)++;
 		}
 		j = 0;
 
@@ -1913,7 +1839,6 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	struct sof_sdw_codec_info *ssp_info;
 	struct sof_sdw_endpoint *sof_ends;
 	struct sof_sdw_dailink *sof_dais;
-	int codec_conf_num = 0;
 	int num_devs = 0;
 	int num_ends = 0;
 	bool group_generated[SDW_MAX_GROUPS] = { };
@@ -1942,15 +1867,21 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		goto err_dai;
 	}
 
+	/* will be populated when acpi endpoints are parsed */
+	codec_conf = devm_kcalloc(dev, num_devs, sizeof(*codec_conf), GFP_KERNEL);
+	if (!codec_conf) {
+		ret = -ENOMEM;
+		goto err_end;
+	}
+
+	card->codec_conf = codec_conf;
+	card->num_configs = num_devs;
+
 	ret = parse_sdw_endpoints(card, sof_dais, sof_ends);
 	if (ret < 0)
 		goto err_end;
 
-	ret = get_dailink_info(dev, adr_link, &sdw_be_num, &codec_conf_num);
-	if (ret < 0) {
-		dev_err(dev, "failed to get sdw link info %d\n", ret);
-		goto err_end;
-	}
+	sdw_be_num = ret;
 
 	/*
 	 * on generic tgl platform, I2S or sdw mode is supported
@@ -1991,18 +1922,8 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 		goto err_end;
 	}
 
-	/* allocate codec conf, will be populated when dailinks are created */
-	codec_conf = devm_kcalloc(dev, codec_conf_num, sizeof(*codec_conf),
-				  GFP_KERNEL);
-	if (!codec_conf) {
-		ret = -ENOMEM;
-		goto err_end;
-	}
-
 	card->dai_link = dai_links;
 	card->num_links = num_links;
-	card->codec_conf = codec_conf;
-	card->num_configs = codec_conf_num;
 
 	/* SDW */
 	if (!sdw_be_num)
@@ -2065,8 +1986,7 @@ out:
 				int current_be_id;
 
 				ret = create_sdw_dailink(card, &dai_links, adr_link,
-							 &codec_conf, &current_be_id,
-							 i, j);
+							 &current_be_id, i, j);
 				if (ret < 0) {
 					dev_err(dev,
 						"failed to create dai link %d on 0x%x\n",
