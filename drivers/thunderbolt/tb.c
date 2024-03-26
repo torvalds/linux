@@ -1801,6 +1801,12 @@ static struct tb_port *tb_find_dp_out(struct tb *tb, struct tb_port *in)
 			continue;
 		}
 
+		/* Needs to be on different routers */
+		if (in->sw == port->sw) {
+			tb_port_dbg(port, "skipping DP OUT on same router\n");
+			continue;
+		}
+
 		tb_port_dbg(port, "DP OUT available\n");
 
 		/*
