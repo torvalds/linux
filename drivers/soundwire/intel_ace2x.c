@@ -93,6 +93,13 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 
 	mutex_lock(sdw->link_res->shim_lock);
 
+	ret = hdac_bus_eml_sdw_power_up_unlocked(sdw->link_res->hbus, link_id);
+	if (ret < 0) {
+		dev_err(sdw->cdns.dev, "%s: hdac_bus_eml_sdw_power_up failed: %d\n",
+			__func__, ret);
+		goto out;
+	}
+
 	if (!*shim_mask) {
 		/* we first need to program the SyncPRD/CPU registers */
 		dev_dbg(sdw->cdns.dev, "first link up, programming SYNCPRD\n");
@@ -103,16 +110,7 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 				__func__, ret);
 			goto out;
 		}
-	}
 
-	ret = hdac_bus_eml_sdw_power_up_unlocked(sdw->link_res->hbus, link_id);
-	if (ret < 0) {
-		dev_err(sdw->cdns.dev, "%s: hdac_bus_eml_sdw_power_up failed: %d\n",
-			__func__, ret);
-		goto out;
-	}
-
-	if (!*shim_mask) {
 		/* SYNCPU will change once link is active */
 		ret =  hdac_bus_eml_sdw_wait_syncpu_unlocked(sdw->link_res->hbus);
 		if (ret < 0) {
