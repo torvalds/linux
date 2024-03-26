@@ -79,6 +79,11 @@ declare -A NETIFS=(
 # Flags for TC filters.
 : "${TC_FLAG:=skip_hw}"
 
+# Whether the machine is "slow" -- i.e. might be incapable of running tests
+# involving heavy traffic. This might be the case on a debug kernel, a VM, or
+# e.g. a low-power board.
+: "${KSFT_MACHINE_SLOW:=no}"
+
 net_forwarding_dir=$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")
 
 if [[ -f $net_forwarding_dir/forwarding.config ]]; then
@@ -407,13 +412,20 @@ ret_set_ksft_status()
 	fi
 }
 
+# Whether FAILs should be interpreted as XFAILs. Internal.
+FAIL_TO_XFAIL=
+
 check_err()
 {
 	local err=$1
 	local msg=$2
 
 	if ((err)); then
-		ret_set_ksft_status $ksft_fail "$msg"
+		if [[ $FAIL_TO_XFAIL = yes ]]; then
+			ret_set_ksft_status $ksft_xfail "$msg"
+		else
+			ret_set_ksft_status $ksft_fail "$msg"
+		fi
 	fi
 }
 
@@ -435,6 +447,15 @@ check_err_fail()
 		check_fail $err "$what succeeded, but should have failed"
 	else
 		check_err $err "$what failed"
+	fi
+}
+
+xfail_on_slow()
+{
+	if [[ $KSFT_MACHINE_SLOW = yes ]]; then
+		FAIL_TO_XFAIL=yes "$@"
+	else
+		"$@"
 	fi
 }
 
