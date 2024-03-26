@@ -14,6 +14,7 @@
 /* BPF triggering benchmarks */
 static struct trigger_ctx {
 	struct trigger_bench *skel;
+	bool usermode_counters;
 } ctx;
 
 static struct counter base_hits[MAX_BUCKETS];
@@ -74,7 +75,10 @@ static void *trigger_producer(void *input)
 
 static void trigger_measure(struct bench_res *res)
 {
-	res->hits = sum_and_reset_counters(ctx.skel->bss->hits);
+	if (ctx.usermode_counters)
+		res->hits = sum_and_reset_counters(base_hits);
+	else
+		res->hits = sum_and_reset_counters(ctx.skel->bss->hits);
 }
 
 static void setup_ctx(void)
@@ -192,7 +196,7 @@ __nocf_check __weak void uprobe_target_ret(void)
 	asm volatile ("");
 }
 
-static void *uprobe_base_producer(void *input)
+static void *uprobe_producer_count(void *input)
 {
 	while (true) {
 		uprobe_target_nop();
@@ -248,32 +252,37 @@ static void usetup(bool use_retprobe, void *target_addr)
 	ctx.skel->links.bench_trigger_uprobe = link;
 }
 
-static void uprobe_setup_nop(void)
+static void usermode_count_setup(void)
+{
+	ctx.usermode_counters = true;
+}
+
+static void uprobe_nop_setup(void)
 {
 	usetup(false, &uprobe_target_nop);
 }
 
-static void uretprobe_setup_nop(void)
+static void uretprobe_nop_setup(void)
 {
 	usetup(true, &uprobe_target_nop);
 }
 
-static void uprobe_setup_push(void)
+static void uprobe_push_setup(void)
 {
 	usetup(false, &uprobe_target_push);
 }
 
-static void uretprobe_setup_push(void)
+static void uretprobe_push_setup(void)
 {
 	usetup(true, &uprobe_target_push);
 }
 
-static void uprobe_setup_ret(void)
+static void uprobe_ret_setup(void)
 {
 	usetup(false, &uprobe_target_ret);
 }
 
-static void uretprobe_setup_ret(void)
+static void uretprobe_ret_setup(void)
 {
 	usetup(true, &uprobe_target_ret);
 }
@@ -387,65 +396,22 @@ const struct bench bench_trig_fmodret = {
 	.report_final = hits_drops_report_final,
 };
 
-const struct bench bench_trig_uprobe_base = {
-	.name = "trig-uprobe-base",
-	.setup = NULL, /* no uprobe/uretprobe is attached */
-	.producer_thread = uprobe_base_producer,
-	.measure = trigger_base_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
+/* uprobe benchmarks */
+#define BENCH_TRIG_USERMODE(KIND, PRODUCER, NAME)			\
+const struct bench bench_trig_##KIND = {				\
+	.name = "trig-" NAME,						\
+	.validate = trigger_validate,					\
+	.setup = KIND##_setup,						\
+	.producer_thread = uprobe_producer_##PRODUCER,			\
+	.measure = trigger_measure,					\
+	.report_progress = hits_drops_report_progress,			\
+	.report_final = hits_drops_report_final,			\
+}
 
-const struct bench bench_trig_uprobe_nop = {
-	.name = "trig-uprobe-nop",
-	.setup = uprobe_setup_nop,
-	.producer_thread = uprobe_producer_nop,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_uretprobe_nop = {
-	.name = "trig-uretprobe-nop",
-	.setup = uretprobe_setup_nop,
-	.producer_thread = uprobe_producer_nop,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_uprobe_push = {
-	.name = "trig-uprobe-push",
-	.setup = uprobe_setup_push,
-	.producer_thread = uprobe_producer_push,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_uretprobe_push = {
-	.name = "trig-uretprobe-push",
-	.setup = uretprobe_setup_push,
-	.producer_thread = uprobe_producer_push,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_uprobe_ret = {
-	.name = "trig-uprobe-ret",
-	.setup = uprobe_setup_ret,
-	.producer_thread = uprobe_producer_ret,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_uretprobe_ret = {
-	.name = "trig-uretprobe-ret",
-	.setup = uretprobe_setup_ret,
-	.producer_thread = uprobe_producer_ret,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
+BENCH_TRIG_USERMODE(usermode_count, count, "usermode-count");
+BENCH_TRIG_USERMODE(uprobe_nop, nop, "uprobe-nop");
+BENCH_TRIG_USERMODE(uprobe_push, push, "uprobe-push");
+BENCH_TRIG_USERMODE(uprobe_ret, ret, "uprobe-ret");
+BENCH_TRIG_USERMODE(uretprobe_nop, nop, "uretprobe-nop");
+BENCH_TRIG_USERMODE(uretprobe_push, push, "uretprobe-push");
+BENCH_TRIG_USERMODE(uretprobe_ret, ret, "uretprobe-ret");

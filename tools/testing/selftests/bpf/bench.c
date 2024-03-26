@@ -491,7 +491,12 @@ extern const struct bench bench_rename_kretprobe;
 extern const struct bench bench_rename_rawtp;
 extern const struct bench bench_rename_fentry;
 extern const struct bench bench_rename_fexit;
+
+/* pure counting benchmarks to establish theoretical lmits */
+extern const struct bench bench_trig_usermode_count;
 extern const struct bench bench_trig_base;
+
+/* kernel-side syscall-triggered benchmarks */
 extern const struct bench bench_trig_tp;
 extern const struct bench bench_trig_rawtp;
 extern const struct bench bench_trig_kprobe;
@@ -502,13 +507,15 @@ extern const struct bench bench_trig_fentry;
 extern const struct bench bench_trig_fexit;
 extern const struct bench bench_trig_fentry_sleep;
 extern const struct bench bench_trig_fmodret;
-extern const struct bench bench_trig_uprobe_base;
+
+/* uprobe/uretprobe benchmarks */
 extern const struct bench bench_trig_uprobe_nop;
 extern const struct bench bench_trig_uretprobe_nop;
 extern const struct bench bench_trig_uprobe_push;
 extern const struct bench bench_trig_uretprobe_push;
 extern const struct bench bench_trig_uprobe_ret;
 extern const struct bench bench_trig_uretprobe_ret;
+
 extern const struct bench bench_rb_libbpf;
 extern const struct bench bench_rb_custom;
 extern const struct bench bench_pb_libbpf;
@@ -539,7 +546,10 @@ static const struct bench *benchs[] = {
 	&bench_rename_rawtp,
 	&bench_rename_fentry,
 	&bench_rename_fexit,
+	/* pure counting benchmarks for establishing theoretical limits */
+	&bench_trig_usermode_count,
 	&bench_trig_base,
+	/* syscall-driven triggering benchmarks */
 	&bench_trig_tp,
 	&bench_trig_rawtp,
 	&bench_trig_kprobe,
@@ -550,7 +560,7 @@ static const struct bench *benchs[] = {
 	&bench_trig_fexit,
 	&bench_trig_fentry_sleep,
 	&bench_trig_fmodret,
-	&bench_trig_uprobe_base,
+	/* uprobes */
 	&bench_trig_uprobe_nop,
 	&bench_trig_uretprobe_nop,
 	&bench_trig_uprobe_push,
