@@ -1,0 +1,108 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+
+/dts-v1/;
+
+#include "ast2700-dcscm.dts"
+#include "aspeed-ltpi0.dtsi"
+
+/ {
+	model = "AST2700-DCSCM_AST1700-EVB";
+};
+
+&ltpi0_i3c4 {
+	initial-role = "target";
+	pid = <0x000007ec 0x06000000>;
+	dcr = /bits/ 8 <0xcc>;
+	status = "okay";
+};
+
+&ltpi0_i3c5 {
+	initial-role = "primary";
+	status = "okay";
+};
+
+&ltpi0_i3c6 {
+	initial-role = "target";
+	pid = <0x000007ec 0x06000000>;
+	dcr = /bits/ 8 <0xcc>;
+	status = "okay";
+};
+
+&ltpi0_i3c7 {
+	initial-role = "primary";
+	status = "okay";
+};
+
+&ltpi0_i3c8 {
+	initial-role = "target";
+	pid = <0x000007ec 0x06000000>;
+	dcr = /bits/ 8 <0xcc>;
+	status = "okay";
+};
+
+&ltpi0_i3c9 {
+	initial-role = "primary";
+	status = "okay";
+};
+
+&ltpi0_i3c10 {
+	initial-role = "target";
+	pid = <0x000007ec 0x06000000>;
+	dcr = /bits/ 8 <0xcc>;
+	status = "okay";
+};
+
+&ltpi0_i3c11 {
+	initial-role = "primary";
+	status = "okay";
+};
+
+&i2c0 {
+	status = "disabled";
+};
+
+&i2c1 {
+	status = "disabled";
+};
+
+&i2c2 {
+	status = "disabled";
+};
+
+&i2c3 {
+	status = "disabled";
+};
+
+&i2c4 {
+	status = "disabled";
+};
+
+&i2c5 {
+	status = "disabled";
+};
+
+&ltpi0_i2c0 {
+	/* SMB_PMBUS1_SCM */
+	status = "okay";
+};
+
+&ltpi0_i2c1 {
+	/* SMB_PMBUS2_SCM */
+	status = "okay";
+};
+
+&ltpi0_i2c2 {
+	status = "okay";
+};
+
+&ltpi0_i2c3 {
+	status = "okay";
+};
+
+&ltpi0_i2c4 {
+	status = "okay";
+};
+
+&ltpi0_i2c5 {
+	status = "okay";
+};
