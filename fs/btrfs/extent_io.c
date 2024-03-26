@@ -4193,6 +4193,7 @@ void set_extent_buffer_dirty(struct extent_buffer *eb)
 	num_folios = num_extent_folios(eb);
 	WARN_ON(atomic_read(&eb->refs) == 0);
 	WARN_ON(!test_bit(EXTENT_BUFFER_TREE_REF, &eb->bflags));
+	WARN_ON(test_bit(EXTENT_BUFFER_ZONED_ZEROOUT, &eb->bflags));
 
 	if (!was_dirty) {
 		bool subpage = eb->fs_info->nodesize < PAGE_SIZE;
