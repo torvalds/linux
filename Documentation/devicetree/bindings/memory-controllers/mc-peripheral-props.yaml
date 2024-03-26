@@ -37,5 +37,6 @@ allOf:
   - $ref: ingenic,nemc-peripherals.yaml#
   - $ref: intel,ixp4xx-expansion-peripheral-props.yaml#
   - $ref: ti,gpmc-child.yaml#
+  - $ref: fsl/fsl,imx-weim-peripherals.yaml
 
 additionalProperties: true

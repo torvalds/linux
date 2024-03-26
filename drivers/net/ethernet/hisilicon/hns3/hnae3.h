@@ -388,6 +388,7 @@ struct hnae3_dev_specs {
 	u16 mc_mac_size;
 	u32 mac_stats_num;
 	u8 tnl_num;
+	u8 hilink_version;
 };
 
 struct hnae3_client_ops {
@@ -819,6 +820,7 @@ struct hnae3_tc_info {
 	u8 max_tc; /* Total number of TCs */
 	u8 num_tc; /* Total number of enabled TCs */
 	bool mqprio_active;
+	bool mqprio_destroy;
 	bool dcb_ets_active;
 };
 

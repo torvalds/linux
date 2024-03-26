@@ -271,7 +271,7 @@ EXPORT_SYMBOL_GPL(nvdimm_clear_poison);
 
 static int nvdimm_bus_match(struct device *dev, struct device_driver *drv);
 
-static struct bus_type nvdimm_bus_type = {
+static const struct bus_type nvdimm_bus_type = {
 	.name = "nd",
 	.uevent = nvdimm_bus_uevent,
 	.match = nvdimm_bus_match,

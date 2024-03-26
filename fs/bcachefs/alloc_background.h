@@ -269,6 +269,7 @@ u64 bch2_min_rw_member_capacity(struct bch_fs *);
 void bch2_dev_allocator_remove(struct bch_fs *, struct bch_dev *);
 void bch2_dev_allocator_add(struct bch_fs *, struct bch_dev *);
 
+void bch2_fs_allocator_background_exit(struct bch_fs *);
 void bch2_fs_allocator_background_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_ALLOC_BACKGROUND_H */

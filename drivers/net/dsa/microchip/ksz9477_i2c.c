@@ -104,6 +104,10 @@ static const struct of_device_id ksz9477_dt_ids[] = {
 		.data = &ksz_switch_chips[KSZ8563]
 	},
 	{
+		.compatible = "microchip,ksz8567",
+		.data = &ksz_switch_chips[KSZ8567]
+	},
+	{
 		.compatible = "microchip,ksz9567",
 		.data = &ksz_switch_chips[KSZ9567]
 	},

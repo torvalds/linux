@@ -1347,6 +1347,10 @@ static void wcn36xx_sta_statistics(struct ieee80211_hw *hw, struct ieee80211_vif
 }
 
 static const struct ieee80211_ops wcn36xx_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.start			= wcn36xx_start,
 	.stop			= wcn36xx_stop,
 	.add_interface		= wcn36xx_add_interface,

@@ -668,17 +668,14 @@ static int wf_rm31_probe(struct platform_device *dev)
 	return 0;
 }
 
-static int wf_rm31_remove(struct platform_device *dev)
+static void wf_rm31_remove(struct platform_device *dev)
 {
 	wf_unregister_client(&rm31_events);
-
-	/* should release all sensors and controls */
-	return 0;
 }
 
 static struct platform_driver wf_rm31_driver = {
 	.probe	= wf_rm31_probe,
-	.remove	= wf_rm31_remove,
+	.remove_new = wf_rm31_remove,
 	.driver	= {
 		.name = "windfarm",
 	},

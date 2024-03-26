@@ -507,7 +507,6 @@ static int max8925_power_probe(struct platform_device *pdev)
 	struct power_supply_config psy_cfg = {}; /* Only for ac and usb */
 	struct max8925_power_pdata *pdata = NULL;
 	struct max8925_power_info *info;
-	int ret;
 
 	pdata = max8925_power_dt_init(pdev);
 	if (!pdata) {
@@ -528,25 +527,19 @@ static int max8925_power_probe(struct platform_device *pdev)
 	psy_cfg.supplied_to = pdata->supplied_to;
 	psy_cfg.num_supplicants = pdata->num_supplicants;
 
-	info->ac = power_supply_register(&pdev->dev, &ac_desc, &psy_cfg);
-	if (IS_ERR(info->ac)) {
-		ret = PTR_ERR(info->ac);
-		goto out;
-	}
+	info->ac = devm_power_supply_register(&pdev->dev, &ac_desc, &psy_cfg);
+	if (IS_ERR(info->ac))
+		return PTR_ERR(info->ac);
 	info->ac->dev.parent = &pdev->dev;
 
-	info->usb = power_supply_register(&pdev->dev, &usb_desc, &psy_cfg);
-	if (IS_ERR(info->usb)) {
-		ret = PTR_ERR(info->usb);
-		goto out_unregister_ac;
-	}
+	info->usb = devm_power_supply_register(&pdev->dev, &usb_desc, &psy_cfg);
+	if (IS_ERR(info->usb))
+		return PTR_ERR(info->usb);
 	info->usb->dev.parent = &pdev->dev;
 
-	info->battery = power_supply_register(&pdev->dev, &battery_desc, NULL);
-	if (IS_ERR(info->battery)) {
-		ret = PTR_ERR(info->battery);
-		goto out_unregister_usb;
-	}
+	info->battery = devm_power_supply_register(&pdev->dev, &battery_desc, NULL);
+	if (IS_ERR(info->battery))
+		return PTR_ERR(info->battery);
 	info->battery->dev.parent = &pdev->dev;
 
 	info->batt_detect = pdata->batt_detect;
@@ -558,24 +551,14 @@ static int max8925_power_probe(struct platform_device *pdev)
 
 	max8925_init_charger(chip, info);
 	return 0;
-out_unregister_usb:
-	power_supply_unregister(info->usb);
-out_unregister_ac:
-	power_supply_unregister(info->ac);
-out:
-	return ret;
 }
 
 static void max8925_power_remove(struct platform_device *pdev)
 {
 	struct max8925_power_info *info = platform_get_drvdata(pdev);
 
-	if (info) {
-		power_supply_unregister(info->ac);
-		power_supply_unregister(info->usb);
-		power_supply_unregister(info->battery);
+	if (info)
 		max8925_deinit_charger(info);
-	}
 }
 
 static struct platform_driver max8925_power_driver = {

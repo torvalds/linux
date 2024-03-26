@@ -1794,8 +1794,6 @@ qed_rdma_create_srq(void *rdma_cxt,
 		goto err;
 
 	opaque_fid = p_hwfn->hw_info.opaque_fid;
-
-	opaque_fid = p_hwfn->hw_info.opaque_fid;
 	init_data.opaque_fid = opaque_fid;
 	init_data.comp_mode = QED_SPQ_MODE_EBLOCK;
 

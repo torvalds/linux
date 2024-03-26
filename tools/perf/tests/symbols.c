@@ -41,6 +41,30 @@ static void exit_test_info(struct test_info *ti)
 	machine__delete(ti->machine);
 }
 
+struct dso_map {
+	struct dso *dso;
+	struct map *map;
+};
+
+static int find_map_cb(struct map *map, void *d)
+{
+	struct dso_map *data = d;
+
+	if (map__dso(map) != data->dso)
+		return 0;
+	data->map = map;
+	return 1;
+}
+
+static struct map *find_module_map(struct machine *machine, struct dso *dso)
+{
+	struct dso_map data = { .dso = dso };
+
+	machine__for_each_kernel_map(machine, find_map_cb, &data);
+
+	return data.map;
+}
+
 static void get_test_dso_filename(char *filename, size_t max_sz)
 {
 	if (dso_to_test)
@@ -51,6 +75,26 @@ static void get_test_dso_filename(char *filename, size_t max_sz)
 
 static int create_map(struct test_info *ti, char *filename, struct map **map_p)
 {
+	struct dso *dso = machine__findnew_dso(ti->machine, filename);
+
+	/*
+	 * If 'filename' matches a current kernel module, must use a kernel
+	 * map. Find the one that already exists.
+	 */
+	if (dso && dso->kernel) {
+		*map_p = find_module_map(ti->machine, dso);
+		dso__put(dso);
+		if (!*map_p) {
+			pr_debug("Failed to find map for current kernel module %s",
+				 filename);
+			return TEST_FAIL;
+		}
+		map__get(*map_p);
+		return TEST_OK;
+	}
+
+	dso__put(dso);
+
 	/* Create a dummy map at 0x100000 */
 	*map_p = map__new(ti->machine, 0x100000, 0xffffffff, 0, NULL,
 			  PROT_EXEC, 0, NULL, filename, ti->thread);
@@ -97,6 +141,26 @@ static int test_dso(struct dso *dso)
 	return ret;
 }
 
+static int subdivided_dso_cb(struct dso *dso, struct machine *machine __maybe_unused, void *d)
+{
+	struct dso *text_dso = d;
+
+	if (dso != text_dso && strstarts(dso->short_name, text_dso->short_name))
+		if (test_dso(dso) != TEST_OK)
+			return -1;
+
+	return 0;
+}
+
+static int process_subdivided_dso(struct machine *machine, struct dso *dso)
+{
+	int ret;
+
+	ret = machine__for_each_dso(machine, subdivided_dso_cb, dso);
+
+	return ret < 0 ? TEST_FAIL : TEST_OK;
+}
+
 static int test_file(struct test_info *ti, char *filename)
 {
 	struct map *map = NULL;
@@ -124,6 +188,10 @@ static int test_file(struct test_info *ti, char *filename)
 	}
 
 	ret = test_dso(dso);
+
+	/* Module dso is split into many dsos by section */
+	if (ret == TEST_OK && dso->kernel)
+		ret = process_subdivided_dso(ti->machine, dso);
 out_put:
 	map__put(map);
 

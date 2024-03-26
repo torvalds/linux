@@ -426,7 +426,7 @@ static void qeth_setup_ccw(struct ccw1 *ccw, u8 cmd_code, u8 flags, u32 len,
 	ccw->cmd_code = cmd_code;
 	ccw->flags = flags | CCW_FLAG_SLI;
 	ccw->count = len;
-	ccw->cda = (__u32)virt_to_phys(data);
+	ccw->cda = virt_to_dma32(data);
 }
 
 static int __qeth_issue_next_read(struct qeth_card *card)
@@ -1359,7 +1359,7 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 	qeth_tx_complete_buf(queue, buf, error, budget);
 
 	for (i = 0; i < queue->max_elements; ++i) {
-		void *data = phys_to_virt(buf->buffer->element[i].addr);
+		void *data = dma64_to_virt(buf->buffer->element[i].addr);
 
 		if (__test_and_clear_bit(i, buf->from_kmem_cache) && data)
 			kmem_cache_free(qeth_core_header_cache, data);
@@ -1404,7 +1404,7 @@ static void qeth_tx_complete_pending_bufs(struct qeth_card *card,
 			for (i = 0;
 			     i < aob->sb_count && i < queue->max_elements;
 			     i++) {
-				void *data = phys_to_virt(aob->sba[i]);
+				void *data = dma64_to_virt(aob->sba[i]);
 
 				if (test_bit(i, buf->from_kmem_cache) && data)
 					kmem_cache_free(qeth_core_header_cache,
@@ -2918,8 +2918,8 @@ static int qeth_init_input_buffer(struct qeth_card *card,
 	 */
 	for (i = 0; i < QETH_MAX_BUFFER_ELEMENTS(card); ++i) {
 		buf->buffer->element[i].length = PAGE_SIZE;
-		buf->buffer->element[i].addr =
-			page_to_phys(pool_entry->elements[i]);
+		buf->buffer->element[i].addr = u64_to_dma64(
+			page_to_phys(pool_entry->elements[i]));
 		if (i == QETH_MAX_BUFFER_ELEMENTS(card) - 1)
 			buf->buffer->element[i].eflags = SBAL_EFLAGS_LAST_ENTRY;
 		else
@@ -3765,9 +3765,9 @@ static void qeth_qdio_cq_handler(struct qeth_card *card, unsigned int qdio_err,
 
 		while ((e < QDIO_MAX_ELEMENTS_PER_BUFFER) &&
 		       buffer->element[e].addr) {
-			unsigned long phys_aob_addr = buffer->element[e].addr;
+			dma64_t phys_aob_addr = buffer->element[e].addr;
 
-			qeth_qdio_handle_aob(card, phys_to_virt(phys_aob_addr));
+			qeth_qdio_handle_aob(card, dma64_to_virt(phys_aob_addr));
 			++e;
 		}
 		qeth_scrub_qdio_buffer(buffer, QDIO_MAX_ELEMENTS_PER_BUFFER);
@@ -4042,7 +4042,7 @@ static unsigned int qeth_fill_buffer(struct qeth_qdio_out_buffer *buf,
 	if (hd_len) {
 		is_first_elem = false;
 
-		buffer->element[element].addr = virt_to_phys(hdr);
+		buffer->element[element].addr = virt_to_dma64(hdr);
 		buffer->element[element].length = hd_len;
 		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
 
@@ -4063,7 +4063,7 @@ static unsigned int qeth_fill_buffer(struct qeth_qdio_out_buffer *buf,
 		elem_length = min_t(unsigned int, length,
 				    PAGE_SIZE - offset_in_page(data));
 
-		buffer->element[element].addr = virt_to_phys(data);
+		buffer->element[element].addr = virt_to_dma64(data);
 		buffer->element[element].length = elem_length;
 		length -= elem_length;
 		if (is_first_elem) {
@@ -4093,7 +4093,7 @@ static unsigned int qeth_fill_buffer(struct qeth_qdio_out_buffer *buf,
 			elem_length = min_t(unsigned int, length,
 					    PAGE_SIZE - offset_in_page(data));
 
-			buffer->element[element].addr = virt_to_phys(data);
+			buffer->element[element].addr = virt_to_dma64(data);
 			buffer->element[element].length = elem_length;
 			buffer->element[element].eflags =
 				SBAL_EFLAGS_MIDDLE_FRAG;
@@ -5569,7 +5569,7 @@ next_packet:
 		offset = 0;
 	}
 
-	hdr = phys_to_virt(element->addr) + offset;
+	hdr = dma64_to_virt(element->addr) + offset;
 	offset += sizeof(*hdr);
 	skb = NULL;
 
@@ -5661,7 +5661,7 @@ use_skb:
 walk_packet:
 	while (skb_len) {
 		int data_len = min(skb_len, (int)(element->length - offset));
-		char *data = phys_to_virt(element->addr) + offset;
+		char *data = dma64_to_virt(element->addr) + offset;
 
 		skb_len -= data_len;
 		offset += data_len;

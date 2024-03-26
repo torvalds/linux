@@ -250,7 +250,7 @@ err_clk_dis:
 	return ret;
 }
 
-static int wave5_vpu_remove(struct platform_device *pdev)
+static void wave5_vpu_remove(struct platform_device *pdev)
 {
 	struct vpu_device *dev = dev_get_drvdata(&pdev->dev);
 
@@ -262,8 +262,6 @@ static int wave5_vpu_remove(struct platform_device *pdev)
 	v4l2_device_unregister(&dev->v4l2_dev);
 	wave5_vdi_release(&pdev->dev);
 	ida_destroy(&dev->inst_ida);
-
-	return 0;
 }
 
 static const struct wave5_match_data ti_wave521c_data = {
@@ -283,7 +281,7 @@ static struct platform_driver wave5_vpu_driver = {
 		.of_match_table = of_match_ptr(wave5_dt_ids),
 		},
 	.probe = wave5_vpu_probe,
-	.remove = wave5_vpu_remove,
+	.remove_new = wave5_vpu_remove,
 };
 
 module_platform_driver(wave5_vpu_driver);

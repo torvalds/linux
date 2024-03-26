@@ -74,6 +74,10 @@ definitions:
     name: queue-type
     type: enum
     entries: [ rx, tx ]
+  -
+    name: qstats-scope
+    type: flags
+    entries: [ queue ]
 
 attribute-sets:
   -
@@ -265,6 +269,73 @@ attribute-sets:
         doc: ID of the NAPI instance which services this queue.
         type: u32
 
+  -
+    name: qstats
+    doc: |
+      Get device statistics, scoped to a device or a queue.
+      These statistics extend (and partially duplicate) statistics available
+      in struct rtnl_link_stats64.
+      Value of the `scope` attribute determines how statistics are
+      aggregated. When aggregated for the entire device the statistics
+      represent the total number of events since last explicit reset of
+      the device (i.e. not a reconfiguration like changing queue count).
+      When reported per-queue, however, the statistics may not add
+      up to the total number of events, will only be reported for currently
+      active objects, and will likely report the number of events since last
+      reconfiguration.
+    attributes:
+      -
+        name: ifindex
+        doc: ifindex of the netdevice to which stats belong.
+        type: u32
+        checks:
+          min: 1
+      -
+        name: queue-type
+        doc: Queue type as rx, tx, for queue-id.
+        type: u32
+        enum: queue-type
+      -
+        name: queue-id
+        doc: Queue ID, if stats are scoped to a single queue instance.
+        type: u32
+      -
+        name: scope
+        doc: |
+          What object type should be used to iterate over the stats.
+        type: uint
+        enum: qstats-scope
+      -
+        name: rx-packets
+        doc: |
+          Number of wire packets successfully received and passed to the stack.
+          For drivers supporting XDP, XDP is considered the first layer
+          of the stack, so packets consumed by XDP are still counted here.
+        type: uint
+        value: 8 # reserve some attr ids in case we need more metadata later
+      -
+        name: rx-bytes
+        doc: Successfully received bytes, see `rx-packets`.
+        type: uint
+      -
+        name: tx-packets
+        doc: |
+          Number of wire packets successfully sent. Packet is considered to be
+          successfully sent once it is in device memory (usually this means
+          the device has issued a DMA completion for the packet).
+        type: uint
+      -
+        name: tx-bytes
+        doc: Successfully sent bytes, see `tx-packets`.
+        type: uint
+      -
+        name: rx-alloc-fail
+        doc: |
+          Number of times skb or buffer allocation failed on the Rx datapath.
+          Allocation failure may, or may not result in a packet drop, depending
+          on driver implementation and whether system recovers quickly.
+        type: uint
+
 operations:
   list:
     -
@@ -405,6 +476,26 @@ operations:
           attributes:
             - ifindex
         reply: *napi-get-op
+    -
+      name: qstats-get
+      doc: |
+        Get / dump fine grained statistics. Which statistics are reported
+        depends on the device and the driver, and whether the driver stores
+        software counters per-queue.
+      attribute-set: qstats
+      dump:
+        request:
+          attributes:
+            - scope
+        reply:
+          attributes:
+            - ifindex
+            - queue-type
+            - queue-id
+            - rx-packets
+            - rx-bytes
+            - tx-packets
+            - tx-bytes
 
 mcast-groups:
   list:

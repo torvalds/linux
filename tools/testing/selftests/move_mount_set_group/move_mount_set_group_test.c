@@ -218,7 +218,7 @@ static bool move_mount_set_group_supported(void)
 	if (mount(NULL, SET_GROUP_FROM, NULL, MS_SHARED, 0))
 		return -1;
 
-	ret = syscall(SYS_move_mount, AT_FDCWD, SET_GROUP_FROM,
+	ret = syscall(__NR_move_mount, AT_FDCWD, SET_GROUP_FROM,
 		      AT_FDCWD, SET_GROUP_TO, MOVE_MOUNT_SET_GROUP);
 	umount2("/tmp", MNT_DETACH);
 
@@ -363,7 +363,7 @@ TEST_F(move_mount_set_group, complex_sharing_copying)
 		       CLONE_VM | CLONE_FILES); ASSERT_GT(pid, 0);
 	ASSERT_EQ(wait_for_pid(pid), 0);
 
-	ASSERT_EQ(syscall(SYS_move_mount, ca_from.mntfd, "",
+	ASSERT_EQ(syscall(__NR_move_mount, ca_from.mntfd, "",
 			  ca_to.mntfd, "", MOVE_MOUNT_SET_GROUP
 			  | MOVE_MOUNT_F_EMPTY_PATH | MOVE_MOUNT_T_EMPTY_PATH),
 		  0);

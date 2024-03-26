@@ -691,7 +691,7 @@ static int brcmf_net_mon_open(struct net_device *ndev)
 {
 	struct brcmf_if *ifp = netdev_priv(ndev);
 	struct brcmf_pub *drvr = ifp->drvr;
-	u32 monitor;
+	u32 monitor = 0;
 	int err;
 
 	brcmf_dbg(TRACE, "Enter\n");
@@ -1348,12 +1348,16 @@ int brcmf_attach(struct device *dev)
 		goto fail;
 	}
 
+	/* attach firmware event handler */
+	ret = brcmf_fweh_attach(drvr);
+	if (ret != 0) {
+		bphy_err(drvr, "brcmf_fweh_attach failed\n");
+		goto fail;
+	}
+
 	/* Attach to events important for core code */
 	brcmf_fweh_register(drvr, BRCMF_E_PSM_WATCHDOG,
 			    brcmf_psm_watchdog_notify);
-
-	/* attach firmware event handler */
-	brcmf_fweh_attach(drvr);
 
 	ret = brcmf_bus_started(drvr, drvr->ops);
 	if (ret != 0) {

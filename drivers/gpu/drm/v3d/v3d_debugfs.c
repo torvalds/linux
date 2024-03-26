@@ -219,7 +219,7 @@ static int v3d_debugfs_bo_stats(struct seq_file *m, void *unused)
 	seq_printf(m, "allocated bos:          %d\n",
 		   v3d->bo_stats.num_allocated);
 	seq_printf(m, "allocated bo size (kb): %ld\n",
-		   (long)v3d->bo_stats.pages_allocated << (PAGE_SHIFT - 10));
+		   (long)v3d->bo_stats.pages_allocated << (V3D_MMU_PAGE_SHIFT - 10));
 	mutex_unlock(&v3d->bo_lock);
 
 	return 0;
@@ -260,11 +260,26 @@ static int v3d_measure_clock(struct seq_file *m, void *unused)
 	return 0;
 }
 
+static int v3d_debugfs_mm(struct seq_file *m, void *unused)
+{
+	struct drm_printer p = drm_seq_file_printer(m);
+	struct drm_debugfs_entry *entry = m->private;
+	struct drm_device *dev = entry->dev;
+	struct v3d_dev *v3d = to_v3d_dev(dev);
+
+	spin_lock(&v3d->mm_lock);
+	drm_mm_print(&v3d->mm, &p);
+	spin_unlock(&v3d->mm_lock);
+
+	return 0;
+}
+
 static const struct drm_debugfs_info v3d_debugfs_list[] = {
 	{"v3d_ident", v3d_v3d_debugfs_ident, 0},
 	{"v3d_regs", v3d_v3d_debugfs_regs, 0},
 	{"measure_clock", v3d_measure_clock, 0},
 	{"bo_stats", v3d_debugfs_bo_stats, 0},
+	{"v3d_mm", v3d_debugfs_mm, 0},
 };
 
 void

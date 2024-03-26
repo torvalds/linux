@@ -108,7 +108,8 @@ retry:
 		goto retry;
 
 	bch2_fs_fatal_err_on(bch2_err_matches(ret, ENOENT), c,
-			     "inode %u:%llu not found when updating",
+			     "%s: inode %u:%llu not found when updating",
+			     bch2_err_str(ret),
 			     inode_inum(inode).subvol,
 			     inode_inum(inode).inum);
 
@@ -176,45 +177,88 @@ static unsigned bch2_inode_hash(subvol_inum inum)
 	return jhash_3words(inum.subvol, inum.inum >> 32, inum.inum, JHASH_INITVAL);
 }
 
-struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
+static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_inode_info *inode)
 {
-	struct bch_inode_unpacked inode_u;
-	struct bch_inode_info *inode;
-	struct btree_trans *trans;
-	struct bch_subvolume subvol;
-	int ret;
+	subvol_inum inum = inode_inum(inode);
+	struct bch_inode_info *old = to_bch_ei(inode_insert5(&inode->v,
+				      bch2_inode_hash(inum),
+				      bch2_iget5_test,
+				      bch2_iget5_set,
+				      &inum));
+	BUG_ON(!old);
 
-	inode = to_bch_ei(iget5_locked(c->vfs_sb,
-				       bch2_inode_hash(inum),
-				       bch2_iget5_test,
-				       bch2_iget5_set,
-				       &inum));
-	if (unlikely(!inode))
-		return ERR_PTR(-ENOMEM);
-	if (!(inode->v.i_state & I_NEW))
-		return &inode->v;
-
-	trans = bch2_trans_get(c);
-	ret = lockrestart_do(trans,
-		bch2_subvolume_get(trans, inum.subvol, true, 0, &subvol) ?:
-		bch2_inode_find_by_inum_trans(trans, inum, &inode_u));
-
-	if (!ret)
-		bch2_vfs_inode_init(trans, inum, inode, &inode_u, &subvol);
-	bch2_trans_put(trans);
-
-	if (ret) {
-		iget_failed(&inode->v);
-		return ERR_PTR(bch2_err_class(ret));
+	if (unlikely(old != inode)) {
+		discard_new_inode(&inode->v);
+		inode = old;
+	} else {
+		mutex_lock(&c->vfs_inodes_lock);
+		list_add(&inode->ei_vfs_inode_list, &c->vfs_inodes_list);
+		mutex_unlock(&c->vfs_inodes_lock);
+		/*
+		 * we really don't want insert_inode_locked2() to be setting
+		 * I_NEW...
+		 */
+		unlock_new_inode(&inode->v);
 	}
 
-	mutex_lock(&c->vfs_inodes_lock);
-	list_add(&inode->ei_vfs_inode_list, &c->vfs_inodes_list);
-	mutex_unlock(&c->vfs_inodes_lock);
+	return inode;
+}
 
-	unlock_new_inode(&inode->v);
+#define memalloc_flags_do(_flags, _do)						\
+({										\
+	unsigned _saved_flags = memalloc_flags_save(_flags);			\
+	typeof(_do) _ret = _do;							\
+	memalloc_noreclaim_restore(_saved_flags);				\
+	_ret;									\
+})
 
-	return &inode->v;
+/*
+ * Allocate a new inode, dropping/retaking btree locks if necessary:
+ */
+static struct bch_inode_info *bch2_new_inode(struct btree_trans *trans)
+{
+	struct bch_fs *c = trans->c;
+
+	struct bch_inode_info *inode =
+		memalloc_flags_do(PF_MEMALLOC_NORECLAIM|PF_MEMALLOC_NOWARN,
+				  to_bch_ei(new_inode(c->vfs_sb)));
+
+	if (unlikely(!inode)) {
+		int ret = drop_locks_do(trans, (inode = to_bch_ei(new_inode(c->vfs_sb))) ? 0 : -ENOMEM);
+		if (ret && inode)
+			discard_new_inode(&inode->v);
+		if (ret)
+			return ERR_PTR(ret);
+	}
+
+	return inode;
+}
+
+struct inode *bch2_vfs_inode_get(struct bch_fs *c, subvol_inum inum)
+{
+	struct bch_inode_info *inode =
+		to_bch_ei(ilookup5_nowait(c->vfs_sb,
+					  bch2_inode_hash(inum),
+					  bch2_iget5_test,
+					  &inum));
+	if (inode)
+		return &inode->v;
+
+	struct btree_trans *trans = bch2_trans_get(c);
+
+	struct bch_inode_unpacked inode_u;
+	struct bch_subvolume subvol;
+	int ret = lockrestart_do(trans,
+		bch2_subvolume_get(trans, inum.subvol, true, 0, &subvol) ?:
+		bch2_inode_find_by_inum_trans(trans, inum, &inode_u)) ?:
+		PTR_ERR_OR_ZERO(inode = bch2_new_inode(trans));
+	if (!ret) {
+		bch2_vfs_inode_init(trans, inum, inode, &inode_u, &subvol);
+		inode = bch2_inode_insert(c, inode);
+	}
+	bch2_trans_put(trans);
+
+	return ret ? ERR_PTR(ret) : &inode->v;
 }
 
 struct bch_inode_info *
@@ -226,7 +270,7 @@ __bch2_create(struct mnt_idmap *idmap,
 	struct bch_fs *c = dir->v.i_sb->s_fs_info;
 	struct btree_trans *trans;
 	struct bch_inode_unpacked dir_u;
-	struct bch_inode_info *inode, *old;
+	struct bch_inode_info *inode;
 	struct bch_inode_unpacked inode_u;
 	struct posix_acl *default_acl = NULL, *acl = NULL;
 	subvol_inum inum;
@@ -293,7 +337,6 @@ err_before_quota:
 		mutex_unlock(&dir->ei_update_lock);
 	}
 
-	bch2_iget5_set(&inode->v, &inum);
 	bch2_vfs_inode_init(trans, inum, inode, &inode_u, &subvol);
 
 	set_cached_acl(&inode->v, ACL_TYPE_ACCESS, acl);
@@ -304,36 +347,7 @@ err_before_quota:
 	 * bch2_trans_exit() and dropping locks, else we could race with another
 	 * thread pulling the inode in and modifying it:
 	 */
-
-	inode->v.i_state |= I_CREATING;
-
-	old = to_bch_ei(inode_insert5(&inode->v,
-				      bch2_inode_hash(inum),
-				      bch2_iget5_test,
-				      bch2_iget5_set,
-				      &inum));
-	BUG_ON(!old);
-
-	if (unlikely(old != inode)) {
-		/*
-		 * We raced, another process pulled the new inode into cache
-		 * before us:
-		 */
-		make_bad_inode(&inode->v);
-		iput(&inode->v);
-
-		inode = old;
-	} else {
-		mutex_lock(&c->vfs_inodes_lock);
-		list_add(&inode->ei_vfs_inode_list, &c->vfs_inodes_list);
-		mutex_unlock(&c->vfs_inodes_lock);
-		/*
-		 * we really don't want insert_inode_locked2() to be setting
-		 * I_NEW...
-		 */
-		unlock_new_inode(&inode->v);
-	}
-
+	inode = bch2_inode_insert(c, inode);
 	bch2_trans_put(trans);
 err:
 	posix_acl_release(default_acl);
@@ -352,23 +366,78 @@ err_trans:
 
 /* methods */
 
+static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
+			subvol_inum dir, struct bch_hash_info *dir_hash_info,
+			const struct qstr *name)
+{
+	struct bch_fs *c = trans->c;
+	struct btree_iter dirent_iter = {};
+	subvol_inum inum = {};
+
+	int ret = bch2_hash_lookup(trans, &dirent_iter, bch2_dirent_hash_desc,
+				   dir_hash_info, dir, name, 0);
+	if (ret)
+		return ERR_PTR(ret);
+
+	struct bkey_s_c k = bch2_btree_iter_peek_slot(&dirent_iter);
+	ret = bkey_err(k);
+	if (ret)
+		goto err;
+
+	ret = bch2_dirent_read_target(trans, dir, bkey_s_c_to_dirent(k), &inum);
+	if (ret > 0)
+		ret = -ENOENT;
+	if (ret)
+		goto err;
+
+	struct bch_inode_info *inode =
+		to_bch_ei(ilookup5_nowait(c->vfs_sb,
+					  bch2_inode_hash(inum),
+					  bch2_iget5_test,
+					  &inum));
+	if (inode)
+		goto out;
+
+	struct bch_subvolume subvol;
+	struct bch_inode_unpacked inode_u;
+	ret =   bch2_subvolume_get(trans, inum.subvol, true, 0, &subvol) ?:
+		bch2_inode_find_by_inum_nowarn_trans(trans, inum, &inode_u) ?:
+		PTR_ERR_OR_ZERO(inode = bch2_new_inode(trans));
+	if (bch2_err_matches(ret, ENOENT)) {
+		struct printbuf buf = PRINTBUF;
+
+		bch2_bkey_val_to_text(&buf, c, k);
+		bch_err(c, "%s points to missing inode", buf.buf);
+		printbuf_exit(&buf);
+	}
+	if (ret)
+		goto err;
+
+	bch2_vfs_inode_init(trans, inum, inode, &inode_u, &subvol);
+	inode = bch2_inode_insert(c, inode);
+out:
+	bch2_trans_iter_exit(trans, &dirent_iter);
+	return inode;
+err:
+	inode = ERR_PTR(ret);
+	goto out;
+}
+
 static struct dentry *bch2_lookup(struct inode *vdir, struct dentry *dentry,
 				  unsigned int flags)
 {
 	struct bch_fs *c = vdir->i_sb->s_fs_info;
 	struct bch_inode_info *dir = to_bch_ei(vdir);
 	struct bch_hash_info hash = bch2_hash_info_init(c, &dir->ei_inode);
-	struct inode *vinode = NULL;
-	subvol_inum inum = { .subvol = 1 };
-	int ret;
 
-	ret = bch2_dirent_lookup(c, inode_inum(dir), &hash,
-				 &dentry->d_name, &inum);
+	struct bch_inode_info *inode;
+	bch2_trans_do(c, NULL, NULL, 0,
+		PTR_ERR_OR_ZERO(inode = bch2_lookup_trans(trans, inode_inum(dir),
+							  &hash, &dentry->d_name)));
+	if (IS_ERR(inode))
+		inode = NULL;
 
-	if (!ret)
-		vinode = bch2_vfs_inode_get(c, inum);
-
-	return d_splice_alias(vinode, dentry);
+	return d_splice_alias(&inode->v, dentry);
 }
 
 static int bch2_mknod(struct mnt_idmap *idmap,
@@ -1372,6 +1441,7 @@ static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
 				struct bch_inode_unpacked *bi,
 				struct bch_subvolume *subvol)
 {
+	bch2_iget5_set(&inode->v, &inum);
 	bch2_inode_update_after_write(trans, inode, bi, ~0);
 
 	if (BCH_SUBVOLUME_SNAP(subvol))
@@ -1572,7 +1642,6 @@ static int bch2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	 * number:
 	 */
 	u64 avail_inodes = ((usage.capacity - usage.used) << 3);
-	u64 fsid;
 
 	buf->f_type	= BCACHEFS_STATFS_MAGIC;
 	buf->f_bsize	= sb->s_blocksize;
@@ -1583,10 +1652,7 @@ static int bch2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files	= usage.nr_inodes + avail_inodes;
 	buf->f_ffree	= avail_inodes;
 
-	fsid = le64_to_cpup((void *) c->sb.user_uuid.b) ^
-	       le64_to_cpup((void *) c->sb.user_uuid.b + sizeof(u64));
-	buf->f_fsid.val[0] = fsid & 0xFFFFFFFFUL;
-	buf->f_fsid.val[1] = (fsid >> 32) & 0xFFFFFFFFUL;
+	buf->f_fsid	= uuid_to_fsid(c->sb.user_uuid.b);
 	buf->f_namelen	= BCH_NAME_MAX;
 
 	return 0;
@@ -1805,8 +1871,10 @@ static struct dentry *bch2_mount(struct file_system_type *fs_type,
 	opt_set(opts, read_only, (flags & SB_RDONLY) != 0);
 
 	ret = bch2_parse_mount_opts(NULL, &opts, data);
-	if (ret)
+	if (ret) {
+		ret = bch2_err_class(ret);
 		return ERR_PTR(ret);
+	}
 
 	if (!dev_name || strlen(dev_name) == 0)
 		return ERR_PTR(-EINVAL);
@@ -1882,6 +1950,7 @@ got_sb:
 	sb->s_time_gran		= c->sb.nsec_per_time_unit;
 	sb->s_time_min		= div_s64(S64_MIN, c->sb.time_units_per_sec) + 1;
 	sb->s_time_max		= div_s64(S64_MAX, c->sb.time_units_per_sec);
+	sb->s_uuid		= c->sb.user_uuid;
 	c->vfs_sb		= sb;
 	strscpy(sb->s_id, c->name, sizeof(sb->s_id));
 

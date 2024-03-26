@@ -1,0 +1,129 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright 2022 Google LLC
+ */
+
+/dts-v1/;
+#include "mt8186-corsola.dtsi"
+#include <dt-bindings/gpio/gpio.h>
+
+/ {
+	aliases {
+		i2c4 = &i2c4;
+	};
+};
+
+&dsi_out {
+	remote-endpoint = <&ps8640_in>;
+};
+
+&i2c0 {
+	clock-frequency = <400000>;
+
+	edp-bridge@8 {
+		compatible = "parade,ps8640";
+		reg = <0x8>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ps8640_pins>;
+		powerdown-gpios = <&pio 96 GPIO_ACTIVE_LOW>;
+		reset-gpios = <&pio 98 GPIO_ACTIVE_LOW>;
+		vdd12-supply = <&mt6366_vrf12_reg>;
+		vdd33-supply = <&mt6366_vcn33_reg>;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				ps8640_in: endpoint {
+					remote-endpoint = <&dsi_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				ps8640_out: endpoint {
+					remote-endpoint = <&panel_in>;
+				};
+			};
+		};
+
+		aux-bus {
+			panel {
+				compatible = "edp-panel";
+				power-supply = <&pp3300_disp_x>;
+				backlight = <&backlight_lcd0>;
+
+				port {
+					panel_in: endpoint {
+						remote-endpoint = <&ps8640_out>;
+					};
+				};
+			};
+		};
+	};
+};
+
+&i2c1 {
+	i2c-scl-internal-delay-ns = <10000>;
+
+	touchscreen: touchscreen@10 {
+		compatible = "hid-over-i2c";
+		reg = <0x10>;
+		interrupts-extended = <&pio 12 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&touchscreen_pins>;
+		post-power-on-delay-ms = <10>;
+		hid-descr-addr = <0x0001>;
+		vdd-supply = <&pp3300_s3>;
+	};
+};
+
+&i2c4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c4_pins>;
+	clock-frequency = <400000>;
+	status = "okay";
+
+	proximity@28 {
+		compatible = "semtech,sx9324";
+		reg = <0x28>;
+		#io-channel-cells = <1>;
+		interrupts-extended = <&pio 5 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sar_sensor_pins>;
+		vdd-supply = <&mt6366_vio18_reg>;
+		svdd-supply = <&mt6366_vio18_reg>;
+	};
+};
+
+&pio {
+	i2c4_pins: i2c4-pins {
+		pins-bus {
+			pinmux = <PINMUX_GPIO136__FUNC_SDA4>,
+				 <PINMUX_GPIO135__FUNC_SCL4>;
+			bias-disable;
+			drive-strength = <4>;
+			input-enable;
+		};
+	};
+
+	ps8640_pins: ps8640-pins {
+		pins-pwrdn-rst {
+			pinmux = <PINMUX_GPIO96__FUNC_GPIO96>,
+				 <PINMUX_GPIO98__FUNC_GPIO98>;
+			output-low;
+		};
+	};
+
+	sar_sensor_pins: sar-sensor-pins {
+		pins-irq {
+			pinmux = <PINMUX_GPIO5__FUNC_GPIO5>;
+			input-enable;
+			bias-pull-up;
+		};
+	};
+};

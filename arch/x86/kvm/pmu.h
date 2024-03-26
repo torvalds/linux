@@ -4,6 +4,8 @@
 
 #include <linux/nospec.h>
 
+#include <asm/kvm_host.h>
+
 #define vcpu_to_pmu(vcpu) (&(vcpu)->arch.pmu)
 #define pmu_to_vcpu(pmu)  (container_of((pmu), struct kvm_vcpu, arch.pmu))
 #define pmc_to_pmu(pmc)   (&(pmc)->vcpu->arch.pmu)
@@ -18,13 +20,18 @@
 #define VMWARE_BACKDOOR_PMC_REAL_TIME		0x10001
 #define VMWARE_BACKDOOR_PMC_APPARENT_TIME	0x10002
 
+#define KVM_FIXED_PMC_BASE_IDX INTEL_PMC_IDX_FIXED
+
+struct kvm_pmu_emulated_event_selectors {
+	u64 INSTRUCTIONS_RETIRED;
+	u64 BRANCH_INSTRUCTIONS_RETIRED;
+};
+
 struct kvm_pmu_ops {
-	bool (*hw_event_available)(struct kvm_pmc *pmc);
-	struct kvm_pmc *(*pmc_idx_to_pmc)(struct kvm_pmu *pmu, int pmc_idx);
 	struct kvm_pmc *(*rdpmc_ecx_to_pmc)(struct kvm_vcpu *vcpu,
 		unsigned int idx, u64 *mask);
 	struct kvm_pmc *(*msr_idx_to_pmc)(struct kvm_vcpu *vcpu, u32 msr);
-	bool (*is_valid_rdpmc_ecx)(struct kvm_vcpu *vcpu, unsigned int idx);
+	int (*check_rdpmc_early)(struct kvm_vcpu *vcpu, unsigned int idx);
 	bool (*is_valid_msr)(struct kvm_vcpu *vcpu, u32 msr);
 	int (*get_msr)(struct kvm_vcpu *vcpu, struct msr_data *msr_info);
 	int (*set_msr)(struct kvm_vcpu *vcpu, struct msr_data *msr_info);
@@ -54,6 +61,38 @@ static inline bool kvm_pmu_has_perf_global_ctrl(struct kvm_pmu *pmu)
 	 */
 	return pmu->version > 1;
 }
+
+/*
+ * KVM tracks all counters in 64-bit bitmaps, with general purpose counters
+ * mapped to bits 31:0 and fixed counters mapped to 63:32, e.g. fixed counter 0
+ * is tracked internally via index 32.  On Intel, (AMD doesn't support fixed
+ * counters), this mirrors how fixed counters are mapped to PERF_GLOBAL_CTRL
+ * and similar MSRs, i.e. tracking fixed counters at base index 32 reduces the
+ * amounter of boilerplate needed to iterate over PMCs *and* simplifies common
+ * enabling/disable/reset operations.
+ *
+ * WARNING!  This helper is only for lookups that are initiated by KVM, it is
+ * NOT safe for guest lookups, e.g. will do the wrong thing if passed a raw
+ * ECX value from RDPMC (fixed counters are accessed by setting bit 30 in ECX
+ * for RDPMC, not by adding 32 to the fixed counter index).
+ */
+static inline struct kvm_pmc *kvm_pmc_idx_to_pmc(struct kvm_pmu *pmu, int idx)
+{
+	if (idx < pmu->nr_arch_gp_counters)
+		return &pmu->gp_counters[idx];
+
+	idx -= KVM_FIXED_PMC_BASE_IDX;
+	if (idx >= 0 && idx < pmu->nr_arch_fixed_counters)
+		return &pmu->fixed_counters[idx];
+
+	return NULL;
+}
+
+#define kvm_for_each_pmc(pmu, pmc, i, bitmap)			\
+	for_each_set_bit(i, bitmap, X86_PMC_IDX_MAX)		\
+		if (!(pmc = kvm_pmc_idx_to_pmc(pmu, i)))	\
+			continue;				\
+		else						\
 
 static inline u64 pmc_bitmask(struct kvm_pmc *pmc)
 {
@@ -131,12 +170,13 @@ static inline bool pmc_speculative_in_use(struct kvm_pmc *pmc)
 
 	if (pmc_is_fixed(pmc))
 		return fixed_ctrl_field(pmu->fixed_ctr_ctrl,
-					pmc->idx - INTEL_PMC_IDX_FIXED) & 0x3;
+					pmc->idx - KVM_FIXED_PMC_BASE_IDX) & 0x3;
 
 	return pmc->eventsel & ARCH_PERFMON_EVENTSEL_ENABLE;
 }
 
 extern struct x86_pmu_capability kvm_pmu_cap;
+extern struct kvm_pmu_emulated_event_selectors kvm_pmu_eventsel;
 
 static inline void kvm_init_pmu_capability(const struct kvm_pmu_ops *pmu_ops)
 {
@@ -178,6 +218,11 @@ static inline void kvm_init_pmu_capability(const struct kvm_pmu_ops *pmu_ops)
 					  pmu_ops->MAX_NR_GP_COUNTERS);
 	kvm_pmu_cap.num_counters_fixed = min(kvm_pmu_cap.num_counters_fixed,
 					     KVM_PMC_MAX_FIXED);
+
+	kvm_pmu_eventsel.INSTRUCTIONS_RETIRED =
+		perf_get_hw_event_config(PERF_COUNT_HW_INSTRUCTIONS);
+	kvm_pmu_eventsel.BRANCH_INSTRUCTIONS_RETIRED =
+		perf_get_hw_event_config(PERF_COUNT_HW_BRANCH_INSTRUCTIONS);
 }
 
 static inline void kvm_pmu_request_counter_reprogram(struct kvm_pmc *pmc)
@@ -216,7 +261,7 @@ static inline bool pmc_is_globally_enabled(struct kvm_pmc *pmc)
 void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu);
 void kvm_pmu_handle_event(struct kvm_vcpu *vcpu);
 int kvm_pmu_rdpmc(struct kvm_vcpu *vcpu, unsigned pmc, u64 *data);
-bool kvm_pmu_is_valid_rdpmc_ecx(struct kvm_vcpu *vcpu, unsigned int idx);
+int kvm_pmu_check_rdpmc_early(struct kvm_vcpu *vcpu, unsigned int idx);
 bool kvm_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr);
 int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info);
 int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info);
@@ -225,7 +270,7 @@ void kvm_pmu_init(struct kvm_vcpu *vcpu);
 void kvm_pmu_cleanup(struct kvm_vcpu *vcpu);
 void kvm_pmu_destroy(struct kvm_vcpu *vcpu);
 int kvm_vm_ioctl_set_pmu_event_filter(struct kvm *kvm, void __user *argp);
-void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 perf_hw_id);
+void kvm_pmu_trigger_event(struct kvm_vcpu *vcpu, u64 eventsel);
 
 bool is_vmware_backdoor_pmc(u32 pmc_idx);
 

@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvmem/nvmem-provider.yaml#
+$schema: http://devicetree.org/meta-schemas/base.yaml#
+
+title: NVMEM (Non Volatile Memory) Provider
+
+maintainers:
+  - Srinivas Kandagatla <srinivas.kandagatla@linaro.org>
+
+select: true
+
+properties:
+  '#nvmem-cell-cells':
+    enum: [0, 1]
+
+additionalProperties: true

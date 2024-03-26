@@ -46,8 +46,8 @@ static void remap_isa_base(phys_addr_t pa, unsigned long size)
 	WARN_ON_ONCE(size & ~PAGE_MASK);
 
 	if (slab_is_available()) {
-		if (ioremap_page_range(ISA_IO_BASE, ISA_IO_BASE + size, pa,
-				pgprot_noncached(PAGE_KERNEL)))
+		if (vmap_page_range(ISA_IO_BASE, ISA_IO_BASE + size, pa,
+				    pgprot_noncached(PAGE_KERNEL)))
 			vunmap_range(ISA_IO_BASE, ISA_IO_BASE + size);
 	} else {
 		early_ioremap_range(ISA_IO_BASE, pa, size,

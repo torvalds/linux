@@ -141,7 +141,7 @@ scmi_revision_area_get(const struct scmi_protocol_handle *ph);
 void scmi_setup_protocol_implemented(const struct scmi_protocol_handle *ph,
 				     u8 *prot_imp);
 
-extern struct bus_type scmi_bus_type;
+extern const struct bus_type scmi_bus_type;
 
 #define SCMI_BUS_NOTIFY_DEVICE_REQUEST		0
 #define SCMI_BUS_NOTIFY_DEVICE_UNREQUEST	1

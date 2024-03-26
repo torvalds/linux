@@ -15,6 +15,7 @@
 #include "../../../util/pmu.h"
 #include "../../../util/fncache.h"
 #include "../../../util/pmus.h"
+#include "mem-events.h"
 #include "env.h"
 
 void perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused)
@@ -30,14 +31,14 @@ void perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused)
 		pmu->selectable = true;
 	}
 #endif
-}
 
-int perf_pmus__num_mem_pmus(void)
-{
-	/* AMD uses IBS OP pmu and not a core PMU for perf mem/c2c */
-	if (x86__is_amd_cpu())
-		return 1;
-
-	/* Intel uses core pmus for perf mem/c2c */
-	return perf_pmus__num_core_pmus();
+	if (x86__is_amd_cpu()) {
+		if (!strcmp(pmu->name, "ibs_op"))
+			pmu->mem_events = perf_mem_events_amd;
+	} else if (pmu->is_core) {
+		if (perf_pmu__have_event(pmu, "mem-loads-aux"))
+			pmu->mem_events = perf_mem_events_intel_aux;
+		else
+			pmu->mem_events = perf_mem_events_intel;
+	}
 }

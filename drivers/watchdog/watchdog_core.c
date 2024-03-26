@@ -260,12 +260,12 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 	if (wdd->parent) {
 		ret = of_alias_get_id(wdd->parent->of_node, "watchdog");
 		if (ret >= 0)
-			id = ida_simple_get(&watchdog_ida, ret,
-					    ret + 1, GFP_KERNEL);
+			id = ida_alloc_range(&watchdog_ida, ret, ret,
+					     GFP_KERNEL);
 	}
 
 	if (id < 0)
-		id = ida_simple_get(&watchdog_ida, 0, MAX_DOGS, GFP_KERNEL);
+		id = ida_alloc_max(&watchdog_ida, MAX_DOGS - 1, GFP_KERNEL);
 
 	if (id < 0)
 		return id;
@@ -273,19 +273,20 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 
 	ret = watchdog_dev_register(wdd);
 	if (ret) {
-		ida_simple_remove(&watchdog_ida, id);
+		ida_free(&watchdog_ida, id);
 		if (!(id == 0 && ret == -EBUSY))
 			return ret;
 
 		/* Retry in case a legacy watchdog module exists */
-		id = ida_simple_get(&watchdog_ida, 1, MAX_DOGS, GFP_KERNEL);
+		id = ida_alloc_range(&watchdog_ida, 1, MAX_DOGS - 1,
+				     GFP_KERNEL);
 		if (id < 0)
 			return id;
 		wdd->id = id;
 
 		ret = watchdog_dev_register(wdd);
 		if (ret) {
-			ida_simple_remove(&watchdog_ida, id);
+			ida_free(&watchdog_ida, id);
 			return ret;
 		}
 	}
@@ -309,7 +310,7 @@ static int __watchdog_register_device(struct watchdog_device *wdd)
 				pr_err("watchdog%d: Cannot register reboot notifier (%d)\n",
 					wdd->id, ret);
 				watchdog_dev_unregister(wdd);
-				ida_simple_remove(&watchdog_ida, id);
+				ida_free(&watchdog_ida, id);
 				return ret;
 			}
 		}
@@ -382,7 +383,7 @@ static void __watchdog_unregister_device(struct watchdog_device *wdd)
 		unregister_reboot_notifier(&wdd->reboot_nb);
 
 	watchdog_dev_unregister(wdd);
-	ida_simple_remove(&watchdog_ida, wdd->id);
+	ida_free(&watchdog_ida, wdd->id);
 }
 
 /**

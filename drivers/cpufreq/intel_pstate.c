@@ -25,6 +25,7 @@
 #include <linux/acpi.h>
 #include <linux/vmalloc.h>
 #include <linux/pm_qos.h>
+#include <linux/bitfield.h>
 #include <trace/events/power.h>
 
 #include <asm/cpu.h>
@@ -201,8 +202,6 @@ struct global_params {
  * @prev_aperf:		Last APERF value read from APERF MSR
  * @prev_mperf:		Last MPERF value read from MPERF MSR
  * @prev_tsc:		Last timestamp counter (TSC) value
- * @prev_cummulative_iowait: IO Wait time difference from last and
- *			current sample
  * @sample:		Storage for storing last Sample data
  * @min_perf_ratio:	Minimum capacity in terms of PERF or HWP ratios
  * @max_perf_ratio:	Maximum capacity in terms of PERF or HWP ratios
@@ -241,7 +240,6 @@ struct cpudata {
 	u64	prev_aperf;
 	u64	prev_mperf;
 	u64	prev_tsc;
-	u64	prev_cummulative_iowait;
 	struct sample sample;
 	int32_t	min_perf_ratio;
 	int32_t	max_perf_ratio;
@@ -3407,14 +3405,31 @@ static bool intel_pstate_hwp_is_enabled(void)
 	return !!(value & 0x1);
 }
 
-static const struct x86_cpu_id intel_epp_balance_perf[] = {
+#define POWERSAVE_MASK			GENMASK(7, 0)
+#define BALANCE_POWER_MASK		GENMASK(15, 8)
+#define BALANCE_PERFORMANCE_MASK	GENMASK(23, 16)
+#define PERFORMANCE_MASK		GENMASK(31, 24)
+
+#define HWP_SET_EPP_VALUES(powersave, balance_power, balance_perf, performance) \
+	(FIELD_PREP_CONST(POWERSAVE_MASK, powersave) |\
+	 FIELD_PREP_CONST(BALANCE_POWER_MASK, balance_power) |\
+	 FIELD_PREP_CONST(BALANCE_PERFORMANCE_MASK, balance_perf) |\
+	 FIELD_PREP_CONST(PERFORMANCE_MASK, performance))
+
+#define HWP_SET_DEF_BALANCE_PERF_EPP(balance_perf) \
+	(HWP_SET_EPP_VALUES(HWP_EPP_POWERSAVE, HWP_EPP_BALANCE_POWERSAVE,\
+	 balance_perf, HWP_EPP_PERFORMANCE))
+
+static const struct x86_cpu_id intel_epp_default[] = {
 	/*
 	 * Set EPP value as 102, this is the max suggested EPP
 	 * which can result in one core turbo frequency for
 	 * AlderLake Mobile CPUs.
 	 */
-	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L, 102),
-	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X, 32),
+	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L, HWP_SET_DEF_BALANCE_PERF_EPP(102)),
+	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X, HWP_SET_DEF_BALANCE_PERF_EPP(32)),
+	X86_MATCH_INTEL_FAM6_MODEL(METEORLAKE_L, HWP_SET_EPP_VALUES(HWP_EPP_POWERSAVE,
+							HWP_EPP_BALANCE_POWERSAVE, 115, 16)),
 	{}
 };
 
@@ -3512,11 +3527,24 @@ hwp_cpu_matched:
 	intel_pstate_sysfs_expose_params();
 
 	if (hwp_active) {
-		const struct x86_cpu_id *id = x86_match_cpu(intel_epp_balance_perf);
+		const struct x86_cpu_id *id = x86_match_cpu(intel_epp_default);
 		const struct x86_cpu_id *hybrid_id = x86_match_cpu(intel_hybrid_scaling_factor);
 
-		if (id)
-			epp_values[EPP_INDEX_BALANCE_PERFORMANCE] = id->driver_data;
+		if (id) {
+			epp_values[EPP_INDEX_POWERSAVE] =
+					FIELD_GET(POWERSAVE_MASK, id->driver_data);
+			epp_values[EPP_INDEX_BALANCE_POWERSAVE] =
+					FIELD_GET(BALANCE_POWER_MASK, id->driver_data);
+			epp_values[EPP_INDEX_BALANCE_PERFORMANCE] =
+					FIELD_GET(BALANCE_PERFORMANCE_MASK, id->driver_data);
+			epp_values[EPP_INDEX_PERFORMANCE] =
+					FIELD_GET(PERFORMANCE_MASK, id->driver_data);
+			pr_debug("Updated EPPs powersave:%x balanced power:%x balanced perf:%x performance:%x\n",
+				 epp_values[EPP_INDEX_POWERSAVE],
+				 epp_values[EPP_INDEX_BALANCE_POWERSAVE],
+				 epp_values[EPP_INDEX_BALANCE_PERFORMANCE],
+				 epp_values[EPP_INDEX_PERFORMANCE]);
+		}
 
 		if (hybrid_id) {
 			hybrid_scaling_factor = hybrid_id->driver_data;

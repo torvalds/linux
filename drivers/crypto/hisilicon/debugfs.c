@@ -24,6 +24,8 @@
 #define QM_DFX_QN_SHIFT			16
 #define QM_DFX_CNT_CLR_CE		0x100118
 #define QM_DBG_WRITE_LEN		1024
+#define QM_IN_IDLE_ST_REG		0x1040e4
+#define QM_IN_IDLE_STATE		0x1
 
 static const char * const qm_debug_file_name[] = {
 	[CURRENT_QM]   = "current_qm",
@@ -81,6 +83,30 @@ static const struct debugfs_reg32 qm_dfx_regs[] = {
 	{"QM_DFX_FF_ST5                 ",  0x1040dc},
 	{"QM_DFX_FF_ST6                 ",  0x1040e0},
 	{"QM_IN_IDLE_ST                 ",  0x1040e4},
+	{"QM_CACHE_CTL                  ",  0x100050},
+	{"QM_TIMEOUT_CFG                ",  0x100070},
+	{"QM_DB_TIMEOUT_CFG             ",  0x100074},
+	{"QM_FLR_PENDING_TIME_CFG       ",  0x100078},
+	{"QM_ARUSR_MCFG1                ",  0x100088},
+	{"QM_AWUSR_MCFG1                ",  0x100098},
+	{"QM_AXI_M_CFG_ENABLE           ",  0x1000B0},
+	{"QM_RAS_CE_THRESHOLD           ",  0x1000F8},
+	{"QM_AXI_TIMEOUT_CTRL           ",  0x100120},
+	{"QM_AXI_TIMEOUT_STATUS         ",  0x100124},
+	{"QM_CQE_AGGR_TIMEOUT_CTRL      ",  0x100144},
+	{"ACC_RAS_MSI_INT_SEL           ",  0x1040fc},
+	{"QM_CQE_OUT                    ",  0x104100},
+	{"QM_EQE_OUT                    ",  0x104104},
+	{"QM_AEQE_OUT                   ",  0x104108},
+	{"QM_DB_INFO0                   ",  0x104180},
+	{"QM_DB_INFO1                   ",  0x104184},
+	{"QM_AM_CTRL_GLOBAL             ",  0x300000},
+	{"QM_AM_CURR_PORT_STS           ",  0x300100},
+	{"QM_AM_CURR_TRANS_RETURN       ",  0x300150},
+	{"QM_AM_CURR_RD_MAX_TXID        ",  0x300154},
+	{"QM_AM_CURR_WR_MAX_TXID        ",  0x300158},
+	{"QM_AM_ALARM_RRESP             ",  0x300180},
+	{"QM_AM_ALARM_BRESP             ",  0x300184},
 };
 
 static const struct debugfs_reg32 qm_vf_dfx_regs[] = {
@@ -1001,6 +1027,30 @@ static int qm_diff_regs_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(qm_diff_regs);
 
+static int qm_state_show(struct seq_file *s, void *unused)
+{
+	struct hisi_qm *qm = s->private;
+	u32 val;
+	int ret;
+
+	/* If device is in suspended, directly return the idle state. */
+	ret = hisi_qm_get_dfx_access(qm);
+	if (!ret) {
+		val = readl(qm->io_base + QM_IN_IDLE_ST_REG);
+		hisi_qm_put_dfx_access(qm);
+	} else if (ret == -EAGAIN) {
+		val = QM_IN_IDLE_STATE;
+	} else {
+		return ret;
+	}
+
+	seq_printf(s, "%u\n", val);
+
+	return 0;
+}
+
+DEFINE_SHOW_ATTRIBUTE(qm_state);
+
 static ssize_t qm_status_read(struct file *filp, char __user *buffer,
 			      size_t count, loff_t *pos)
 {
@@ -1062,6 +1112,7 @@ DEFINE_DEBUGFS_ATTRIBUTE(qm_atomic64_ops, qm_debugfs_atomic64_get,
 void hisi_qm_debug_init(struct hisi_qm *qm)
 {
 	struct dfx_diff_registers *qm_regs = qm->debug.qm_diff_regs;
+	struct qm_dev_dfx *dev_dfx = &qm->debug.dev_dfx;
 	struct qm_dfx *dfx = &qm->debug.dfx;
 	struct dentry *qm_d;
 	void *data;
@@ -1072,6 +1123,9 @@ void hisi_qm_debug_init(struct hisi_qm *qm)
 
 	/* only show this in PF */
 	if (qm->fun_type == QM_HW_PF) {
+		debugfs_create_file("qm_state", 0444, qm->debug.qm_d,
+					qm, &qm_state_fops);
+
 		qm_create_debugfs_file(qm, qm->debug.debug_root, CURRENT_QM);
 		for (i = CURRENT_Q; i < DEBUG_FILE_NUM; i++)
 			qm_create_debugfs_file(qm, qm->debug.qm_d, i);
@@ -1087,6 +1141,10 @@ void hisi_qm_debug_init(struct hisi_qm *qm)
 
 	debugfs_create_file("status", 0444, qm->debug.qm_d, qm,
 			&qm_status_fops);
+
+	debugfs_create_u32("dev_state", 0444, qm->debug.qm_d, &dev_dfx->dev_state);
+	debugfs_create_u32("dev_timeout", 0644, qm->debug.qm_d, &dev_dfx->dev_timeout);
+
 	for (i = 0; i < ARRAY_SIZE(qm_dfx_files); i++) {
 		data = (atomic64_t *)((uintptr_t)dfx + qm_dfx_files[i].offset);
 		debugfs_create_file(qm_dfx_files[i].name,

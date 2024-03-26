@@ -82,12 +82,12 @@ void flush_icache_mm(struct mm_struct *mm, bool local)
 #endif /* CONFIG_SMP */
 
 #ifdef CONFIG_MMU
-void flush_icache_pte(pte_t pte)
+void flush_icache_pte(struct mm_struct *mm, pte_t pte)
 {
 	struct folio *folio = page_folio(pte_page(pte));
 
 	if (!test_bit(PG_dcache_clean, &folio->flags)) {
-		flush_icache_all();
+		flush_icache_mm(mm, false);
 		set_bit(PG_dcache_clean, &folio->flags);
 	}
 }

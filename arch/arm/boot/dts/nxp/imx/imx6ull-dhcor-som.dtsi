@@ -28,10 +28,14 @@
 	/*
 	 * Due to the design as a solderable SOM, there are no capacitors
 	 * below the SoC, therefore higher voltages are required.
+	 * Due to CPU lifetime consideration of the SoC manufacturer and
+	 * the preferred area of operation in the industrial related
+	 * environment, set the maximum frequency for each DHCOM i.MX6ULL
+	 * to 792MHz, as with the industrial type.
 	 */
+	clock-frequency = <792000000>;
 	operating-points = <
 		/* kHz	uV */
-		900000	1275000
 		792000	1250000 /* Voltage increased */
 		528000	1175000
 		396000	1025000
@@ -39,7 +43,6 @@
 	>;
 	fsl,soc-operating-points = <
 		/* KHz	uV */
-		900000	1250000
 		792000	1250000 /* Voltage increased */
 		528000	1175000
 		396000	1175000

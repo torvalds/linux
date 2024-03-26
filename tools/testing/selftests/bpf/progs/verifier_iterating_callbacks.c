@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-
-#include <linux/bpf.h>
-#include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
+#include "bpf_experimental.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
@@ -307,6 +305,105 @@ int iter_limit_bug(struct __sk_buff *skb)
 	: "r1"
 	);
 	return 0;
+}
+
+#define ARR_SZ 1000000
+int zero;
+char arr[ARR_SZ];
+
+SEC("socket")
+__success __retval(0xd495cdc0)
+int cond_break1(const void *ctx)
+{
+	unsigned long i;
+	unsigned int sum = 0;
+
+	for (i = zero; i < ARR_SZ; cond_break, i++)
+		sum += i;
+	for (i = zero; i < ARR_SZ; i++) {
+		barrier_var(i);
+		sum += i + arr[i];
+		cond_break;
+	}
+
+	return sum;
+}
+
+SEC("socket")
+__success __retval(999000000)
+int cond_break2(const void *ctx)
+{
+	int i, j;
+	int sum = 0;
+
+	for (i = zero; i < 1000; cond_break, i++)
+		for (j = zero; j < 1000; j++) {
+			sum += i + j;
+			cond_break;
+		}
+
+	return sum;
+}
+
+static __noinline int loop(void)
+{
+	int i, sum = 0;
+
+	for (i = zero; i <= 1000000; i++, cond_break)
+		sum += i;
+
+	return sum;
+}
+
+SEC("socket")
+__success __retval(0x6a5a2920)
+int cond_break3(const void *ctx)
+{
+	return loop();
+}
+
+SEC("socket")
+__success __retval(1)
+int cond_break4(const void *ctx)
+{
+	int cnt = zero;
+
+	for (;;) {
+		/* should eventually break out of the loop */
+		cond_break;
+		cnt++;
+	}
+	/* if we looped a bit, it's a success */
+	return cnt > 1 ? 1 : 0;
+}
+
+static __noinline int static_subprog(void)
+{
+	int cnt = zero;
+
+	for (;;) {
+		cond_break;
+		cnt++;
+	}
+
+	return cnt;
+}
+
+SEC("socket")
+__success __retval(1)
+int cond_break5(const void *ctx)
+{
+	int cnt1 = zero, cnt2;
+
+	for (;;) {
+		cond_break;
+		cnt1++;
+	}
+
+	cnt2 = static_subprog();
+
+	/* main and subprog have to loop a bit */
+	return cnt1 > 1 && cnt2 > 1 ? 1 : 0;
 }
 
 char _license[] SEC("license") = "GPL";

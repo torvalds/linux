@@ -630,6 +630,7 @@ enum iwl_location_frame_format {
  * @IWL_LOCATION_BW_20MHZ: 20MHz
  * @IWL_LOCATION_BW_40MHZ: 40MHz
  * @IWL_LOCATION_BW_80MHZ: 80MHz
+ * @IWL_LOCATION_BW_160MHZ: 160MHz
  */
 enum iwl_location_bw {
 	IWL_LOCATION_BW_20MHZ,

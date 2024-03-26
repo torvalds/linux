@@ -24,7 +24,7 @@ struct meson_cvbs_mode {
 /* Modes supported by the CVBS output */
 extern struct meson_cvbs_mode meson_cvbs_modes[MESON_CVBS_MODES_COUNT];
 
-int meson_encoder_cvbs_init(struct meson_drm *priv);
+int meson_encoder_cvbs_probe(struct meson_drm *priv);
 void meson_encoder_cvbs_remove(struct meson_drm *priv);
 
 #endif /* __MESON_VENC_CVBS_H */

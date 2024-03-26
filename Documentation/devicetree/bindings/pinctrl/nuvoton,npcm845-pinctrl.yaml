@@ -152,7 +152,6 @@ patternProperties:
         description:
           Debouncing periods in microseconds, one period per interrupt
           bank found in the controller
-        $ref: /schemas/types.yaml#/definitions/uint32-array
         minItems: 1
         maxItems: 4
 
@@ -160,7 +159,6 @@ patternProperties:
         description: |
           0: Low rate
           1: High rate
-        $ref: /schemas/types.yaml#/definitions/uint32
         enum: [0, 1]
 
       drive-strength:

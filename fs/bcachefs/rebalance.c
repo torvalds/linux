@@ -412,11 +412,11 @@ void bch2_rebalance_status_to_text(struct printbuf *out, struct bch_fs *c)
 		u64 now = atomic64_read(&c->io_clock[WRITE].now);
 
 		prt_str(out, "io wait duration:  ");
-		bch2_prt_human_readable_s64(out, r->wait_iotime_end - r->wait_iotime_start);
+		bch2_prt_human_readable_s64(out, (r->wait_iotime_end - r->wait_iotime_start) << 9);
 		prt_newline(out);
 
 		prt_str(out, "io wait remaining: ");
-		bch2_prt_human_readable_s64(out, r->wait_iotime_end - now);
+		bch2_prt_human_readable_s64(out, (r->wait_iotime_end - now) << 9);
 		prt_newline(out);
 
 		prt_str(out, "duration waited:   ");

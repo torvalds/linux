@@ -2,7 +2,7 @@
 /*
 * Portions of this file
 * Copyright(c) 2016 Intel Deutschland GmbH
-* Copyright (C) 2018 - 2019, 2021 - 2023 Intel Corporation
+* Copyright (C) 2018-2019, 2021-2024 Intel Corporation
 */
 
 #ifndef __MAC80211_DRIVER_OPS
@@ -1180,8 +1180,9 @@ drv_post_channel_switch(struct ieee80211_link_data *link)
 }
 
 static inline void
-drv_abort_channel_switch(struct ieee80211_sub_if_data *sdata)
+drv_abort_channel_switch(struct ieee80211_link_data *link)
 {
+	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 
 	might_sleep();
@@ -1193,7 +1194,8 @@ drv_abort_channel_switch(struct ieee80211_sub_if_data *sdata)
 	trace_drv_abort_channel_switch(local, sdata);
 
 	if (local->ops->abort_channel_switch)
-		local->ops->abort_channel_switch(&local->hw, &sdata->vif);
+		local->ops->abort_channel_switch(&local->hw, &sdata->vif,
+						 link->conf);
 }
 
 static inline void
@@ -1695,4 +1697,23 @@ int drv_change_sta_links(struct ieee80211_local *local,
 			 struct ieee80211_sta *sta,
 			 u16 old_links, u16 new_links);
 
+static inline enum ieee80211_neg_ttlm_res
+drv_can_neg_ttlm(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_neg_ttlm *neg_ttlm)
+{
+	enum ieee80211_neg_ttlm_res res = NEG_TTLM_RES_REJECT;
+
+	might_sleep();
+	if (!check_sdata_in_driver(sdata))
+		return -EIO;
+
+	trace_drv_can_neg_ttlm(local, sdata, neg_ttlm);
+	if (local->ops->can_neg_ttlm)
+		res = local->ops->can_neg_ttlm(&local->hw, &sdata->vif,
+					       neg_ttlm);
+	trace_drv_neg_ttlm_res(local, sdata, res, neg_ttlm);
+
+	return res;
+}
 #endif /* __MAC80211_DRIVER_OPS */

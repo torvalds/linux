@@ -1196,7 +1196,7 @@ static int lan743x_sgmii_config(struct lan743x_adapter *adapter)
 	ret = lan743x_is_sgmii_2_5G_mode(adapter, &status);
 	if (ret < 0) {
 		netif_err(adapter, drv, adapter->netdev,
-			  "erro %d SGMII get mode failed\n", ret);
+			  "error %d SGMII get mode failed\n", ret);
 		return ret;
 	}
 

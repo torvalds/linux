@@ -219,7 +219,7 @@ mega_query_adapter(adapter_t *adapter)
 	raw_mbox[3] = ENQ3_GET_SOLICITED_FULL;	/* i.e. 0x02 */
 
 	/* Issue a blocking command to the card */
-	if ((retval = issue_scb_block(adapter, raw_mbox))) {
+	if (issue_scb_block(adapter, raw_mbox)) {
 		/* the adapter does not support 40ld */
 
 		mraid_ext_inquiry	*ext_inq;

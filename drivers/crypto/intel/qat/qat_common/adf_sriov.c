@@ -60,7 +60,6 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 		/* This ptr will be populated when VFs will be created */
 		vf_info->accel_dev = accel_dev;
 		vf_info->vf_nr = i;
-		vf_info->vf_compat_ver = 0;
 
 		mutex_init(&vf_info->pf2vf_lock);
 		ratelimit_state_init(&vf_info->vf2pf_ratelimit,
@@ -84,6 +83,32 @@ static int adf_enable_sriov(struct adf_accel_dev *accel_dev)
 	return pci_enable_sriov(pdev, totalvfs);
 }
 
+void adf_reenable_sriov(struct adf_accel_dev *accel_dev)
+{
+	struct pci_dev *pdev = accel_to_pci_dev(accel_dev);
+	char cfg[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {0};
+	unsigned long val = 0;
+
+	if (adf_cfg_get_param_value(accel_dev, ADF_GENERAL_SEC,
+				    ADF_SRIOV_ENABLED, cfg))
+		return;
+
+	if (!accel_dev->pf.vf_info)
+		return;
+
+	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_CY,
+					&val, ADF_DEC))
+		return;
+
+	if (adf_cfg_add_key_value_param(accel_dev, ADF_KERNEL_SEC, ADF_NUM_DC,
+					&val, ADF_DEC))
+		return;
+
+	set_bit(ADF_STATUS_CONFIGURED, &accel_dev->status);
+	dev_dbg(&pdev->dev, "Re-enabling SRIOV\n");
+	adf_enable_sriov(accel_dev);
+}
+
 /**
  * adf_disable_sriov() - Disable SRIOV for the device
  * @accel_dev:  Pointer to accel device.
@@ -103,6 +128,7 @@ void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 		return;
 
 	adf_pf2vf_notify_restarting(accel_dev);
+	adf_pf2vf_wait_for_restarting_complete(accel_dev);
 	pci_disable_sriov(accel_to_pci_dev(accel_dev));
 
 	/* Disable VF to PF interrupts */
@@ -115,8 +141,10 @@ void adf_disable_sriov(struct adf_accel_dev *accel_dev)
 	for (i = 0, vf = accel_dev->pf.vf_info; i < totalvfs; i++, vf++)
 		mutex_destroy(&vf->pf2vf_lock);
 
-	kfree(accel_dev->pf.vf_info);
-	accel_dev->pf.vf_info = NULL;
+	if (!test_bit(ADF_STATUS_RESTARTING, &accel_dev->status)) {
+		kfree(accel_dev->pf.vf_info);
+		accel_dev->pf.vf_info = NULL;
+	}
 }
 EXPORT_SYMBOL_GPL(adf_disable_sriov);
 
@@ -193,6 +221,10 @@ int adf_sriov_configure(struct pci_dev *pdev, int numvfs)
 	ret = adf_enable_sriov(accel_dev);
 	if (ret)
 		return ret;
+
+	val = 1;
+	adf_cfg_add_key_value_param(accel_dev, ADF_GENERAL_SEC, ADF_SRIOV_ENABLED,
+				    &val, ADF_DEC);
 
 	return numvfs;
 }

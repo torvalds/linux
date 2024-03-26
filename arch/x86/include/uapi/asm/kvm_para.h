@@ -92,7 +92,7 @@ struct kvm_clock_pairing {
 #define KVM_ASYNC_PF_DELIVERY_AS_INT		(1 << 3)
 
 /* MSR_KVM_ASYNC_PF_INT */
-#define KVM_ASYNC_PF_VEC_MASK			GENMASK(7, 0)
+#define KVM_ASYNC_PF_VEC_MASK			__GENMASK(7, 0)
 
 /* MSR_KVM_MIGRATION_CONTROL */
 #define KVM_MIGRATION_READY		(1 << 0)

@@ -145,7 +145,7 @@ static int netkit_get_iflink(const struct net_device *dev)
 	rcu_read_lock();
 	peer = rcu_dereference(nk->peer);
 	if (peer)
-		iflink = peer->ifindex;
+		iflink = READ_ONCE(peer->ifindex);
 	rcu_read_unlock();
 	return iflink;
 }

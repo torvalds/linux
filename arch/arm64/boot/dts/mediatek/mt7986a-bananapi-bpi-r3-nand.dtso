@@ -15,7 +15,7 @@
 		__overlay__ {
 			#address-cells = <1>;
 			#size-cells = <0>;
-			spi_nand: spi_nand@0 {
+			spi_nand: flash@0 {
 				compatible = "spi-nand";
 				reg = <0>;
 				spi-max-frequency = <10000000>;

@@ -2,11 +2,13 @@
 
 menu "Kexec and crash features"
 
-config CRASH_CORE
+config CRASH_RESERVE
+	bool
+
+config VMCORE_INFO
 	bool
 
 config KEXEC_CORE
-	select CRASH_CORE
 	bool
 
 config KEXEC_ELF
@@ -95,9 +97,11 @@ config KEXEC_JUMP
 
 config CRASH_DUMP
 	bool "kernel crash dumps"
+	default y
 	depends on ARCH_SUPPORTS_CRASH_DUMP
-	select CRASH_CORE
-	select KEXEC_CORE
+	depends on KEXEC_CORE
+	select VMCORE_INFO
+	select CRASH_RESERVE
 	help
 	  Generate crash dump after being started by kexec.
 	  This should be normally only set in special crash dump kernels

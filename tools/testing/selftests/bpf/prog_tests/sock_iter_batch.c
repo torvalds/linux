@@ -112,7 +112,7 @@ void test_sock_iter_batch(void)
 {
 	struct nstoken *nstoken = NULL;
 
-	SYS_NOFAIL("ip netns del " TEST_NS " &> /dev/null");
+	SYS_NOFAIL("ip netns del " TEST_NS);
 	SYS(done, "ip netns add %s", TEST_NS);
 	SYS(done, "ip -net %s link set dev lo up", TEST_NS);
 
@@ -131,5 +131,5 @@ void test_sock_iter_batch(void)
 	close_netns(nstoken);
 
 done:
-	SYS_NOFAIL("ip netns del " TEST_NS " &> /dev/null");
+	SYS_NOFAIL("ip netns del " TEST_NS);
 }

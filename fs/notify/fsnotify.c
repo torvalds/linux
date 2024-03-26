@@ -141,7 +141,7 @@ void __fsnotify_update_child_dentry_flags(struct inode *inode)
 }
 
 /* Are inode/sb/mount interested in parent and name info with this event? */
-static bool fsnotify_event_needs_parent(struct inode *inode, struct mount *mnt,
+static bool fsnotify_event_needs_parent(struct inode *inode, __u32 mnt_mask,
 					__u32 mask)
 {
 	__u32 marks_mask = 0;
@@ -160,11 +160,20 @@ static bool fsnotify_event_needs_parent(struct inode *inode, struct mount *mnt,
 	/* Did either inode/sb/mount subscribe for events with parent/name? */
 	marks_mask |= fsnotify_parent_needed_mask(inode->i_fsnotify_mask);
 	marks_mask |= fsnotify_parent_needed_mask(inode->i_sb->s_fsnotify_mask);
-	if (mnt)
-		marks_mask |= fsnotify_parent_needed_mask(mnt->mnt_fsnotify_mask);
+	marks_mask |= fsnotify_parent_needed_mask(mnt_mask);
 
 	/* Did they subscribe for this event with parent/name info? */
 	return mask & marks_mask;
+}
+
+/* Are there any inode/mount/sb objects that are interested in this event? */
+static inline bool fsnotify_object_watched(struct inode *inode, __u32 mnt_mask,
+					   __u32 mask)
+{
+	__u32 marks_mask = inode->i_fsnotify_mask | mnt_mask |
+			   inode->i_sb->s_fsnotify_mask;
+
+	return mask & marks_mask & ALL_FSNOTIFY_EVENTS;
 }
 
 /*
@@ -179,7 +188,7 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 		      int data_type)
 {
 	const struct path *path = fsnotify_data_path(data, data_type);
-	struct mount *mnt = path ? real_mount(path->mnt) : NULL;
+	__u32 mnt_mask = path ? real_mount(path->mnt)->mnt_fsnotify_mask : 0;
 	struct inode *inode = d_inode(dentry);
 	struct dentry *parent;
 	bool parent_watched = dentry->d_flags & DCACHE_FSNOTIFY_PARENT_WATCHED;
@@ -190,16 +199,13 @@ int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data,
 	struct qstr *file_name = NULL;
 	int ret = 0;
 
-	/*
-	 * Do inode/sb/mount care about parent and name info on non-dir?
-	 * Do they care about any event at all?
-	 */
-	if (!inode->i_fsnotify_marks && !inode->i_sb->s_fsnotify_marks &&
-	    (!mnt || !mnt->mnt_fsnotify_marks) && !parent_watched)
+	/* Optimize the likely case of nobody watching this path */
+	if (likely(!parent_watched &&
+		   !fsnotify_object_watched(inode, mnt_mask, mask)))
 		return 0;
 
 	parent = NULL;
-	parent_needed = fsnotify_event_needs_parent(inode, mnt, mask);
+	parent_needed = fsnotify_event_needs_parent(inode, mnt_mask, mask);
 	if (!parent_watched && !parent_needed)
 		goto notify;
 

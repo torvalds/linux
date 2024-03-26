@@ -176,27 +176,13 @@ static u32 get_residency(struct intel_gt *gt, enum intel_rc6_res_type id)
 	return DIV_ROUND_CLOSEST_ULL(res, 1000);
 }
 
-static u8 get_rc6_mask(struct intel_gt *gt)
-{
-	u8 mask = 0;
-
-	if (HAS_RC6(gt->i915))
-		mask |= BIT(0);
-	if (HAS_RC6p(gt->i915))
-		mask |= BIT(1);
-	if (HAS_RC6pp(gt->i915))
-		mask |= BIT(2);
-
-	return mask;
-}
-
 static ssize_t rc6_enable_show(struct kobject *kobj,
 			       struct kobj_attribute *attr,
 			       char *buff)
 {
 	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(kobj, attr->attr.name);
 
-	return sysfs_emit(buff, "%x\n", get_rc6_mask(gt));
+	return sysfs_emit(buff, "%x\n", gt->rc6.enabled);
 }
 
 static ssize_t rc6_enable_dev_show(struct device *dev,
@@ -205,7 +191,7 @@ static ssize_t rc6_enable_dev_show(struct device *dev,
 {
 	struct intel_gt *gt = intel_gt_sysfs_get_drvdata(&dev->kobj, attr->attr.name);
 
-	return sysfs_emit(buff, "%x\n", get_rc6_mask(gt));
+	return sysfs_emit(buff, "%x\n", gt->rc6.enabled);
 }
 
 static u32 __rc6_residency_ms_show(struct intel_gt *gt)

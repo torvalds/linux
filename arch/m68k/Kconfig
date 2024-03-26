@@ -3,6 +3,7 @@ config M68K
 	bool
 	default y
 	select ARCH_32BIT_OFF_T
+	select ARCH_HAS_CPU_CACHE_ALIASING
 	select ARCH_HAS_BINFMT_FLAT
 	select ARCH_HAS_CPU_FINALIZE_INIT if MMU
 	select ARCH_HAS_CURRENT_STACK_POINTER
@@ -84,12 +85,15 @@ config MMU
 
 config MMU_MOTOROLA
 	bool
+	select HAVE_PAGE_SIZE_4KB
 
 config MMU_COLDFIRE
+	select HAVE_PAGE_SIZE_8KB
 	bool
 
 config MMU_SUN3
 	bool
+	select HAVE_PAGE_SIZE_8KB
 	depends on MMU && !MMU_MOTOROLA && !MMU_COLDFIRE
 
 config ARCH_SUPPORTS_KEXEC

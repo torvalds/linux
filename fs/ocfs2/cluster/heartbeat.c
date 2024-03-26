@@ -213,7 +213,7 @@ struct o2hb_region {
 	unsigned int		hr_num_pages;
 
 	struct page             **hr_slot_data;
-	struct bdev_handle	*hr_bdev_handle;
+	struct file		*hr_bdev_file;
 	struct o2hb_disk_slot	*hr_slots;
 
 	/* live node map of this region */
@@ -263,7 +263,7 @@ struct o2hb_region {
 
 static inline struct block_device *reg_bdev(struct o2hb_region *reg)
 {
-	return reg->hr_bdev_handle ? reg->hr_bdev_handle->bdev : NULL;
+	return reg->hr_bdev_file ? file_bdev(reg->hr_bdev_file) : NULL;
 }
 
 struct o2hb_bio_wait_ctxt {
@@ -1509,8 +1509,8 @@ static void o2hb_region_release(struct config_item *item)
 		kfree(reg->hr_slot_data);
 	}
 
-	if (reg->hr_bdev_handle)
-		bdev_release(reg->hr_bdev_handle);
+	if (reg->hr_bdev_file)
+		fput(reg->hr_bdev_file);
 
 	kfree(reg->hr_slots);
 
@@ -1569,7 +1569,7 @@ static ssize_t o2hb_region_block_bytes_store(struct config_item *item,
 	unsigned long block_bytes;
 	unsigned int block_bits;
 
-	if (reg->hr_bdev_handle)
+	if (reg->hr_bdev_file)
 		return -EINVAL;
 
 	status = o2hb_read_block_input(reg, page, &block_bytes,
@@ -1598,7 +1598,7 @@ static ssize_t o2hb_region_start_block_store(struct config_item *item,
 	char *p = (char *)page;
 	ssize_t ret;
 
-	if (reg->hr_bdev_handle)
+	if (reg->hr_bdev_file)
 		return -EINVAL;
 
 	ret = kstrtoull(p, 0, &tmp);
@@ -1623,7 +1623,7 @@ static ssize_t o2hb_region_blocks_store(struct config_item *item,
 	unsigned long tmp;
 	char *p = (char *)page;
 
-	if (reg->hr_bdev_handle)
+	if (reg->hr_bdev_file)
 		return -EINVAL;
 
 	tmp = simple_strtoul(p, &p, 0);
@@ -1642,7 +1642,7 @@ static ssize_t o2hb_region_dev_show(struct config_item *item, char *page)
 {
 	unsigned int ret = 0;
 
-	if (to_o2hb_region(item)->hr_bdev_handle)
+	if (to_o2hb_region(item)->hr_bdev_file)
 		ret = sprintf(page, "%pg\n", reg_bdev(to_o2hb_region(item)));
 
 	return ret;
@@ -1753,7 +1753,7 @@ out:
 }
 
 /*
- * this is acting as commit; we set up all of hr_bdev_handle and hr_task or
+ * this is acting as commit; we set up all of hr_bdev_file and hr_task or
  * nothing
  */
 static ssize_t o2hb_region_dev_store(struct config_item *item,
@@ -1769,7 +1769,7 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 	ssize_t ret = -EINVAL;
 	int live_threshold;
 
-	if (reg->hr_bdev_handle)
+	if (reg->hr_bdev_file)
 		goto out;
 
 	/* We can't heartbeat without having had our node number
@@ -1795,11 +1795,11 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 	if (!S_ISBLK(f.file->f_mapping->host->i_mode))
 		goto out2;
 
-	reg->hr_bdev_handle = bdev_open_by_dev(f.file->f_mapping->host->i_rdev,
+	reg->hr_bdev_file = bdev_file_open_by_dev(f.file->f_mapping->host->i_rdev,
 			BLK_OPEN_WRITE | BLK_OPEN_READ, NULL, NULL);
-	if (IS_ERR(reg->hr_bdev_handle)) {
-		ret = PTR_ERR(reg->hr_bdev_handle);
-		reg->hr_bdev_handle = NULL;
+	if (IS_ERR(reg->hr_bdev_file)) {
+		ret = PTR_ERR(reg->hr_bdev_file);
+		reg->hr_bdev_file = NULL;
 		goto out2;
 	}
 
@@ -1903,8 +1903,8 @@ static ssize_t o2hb_region_dev_store(struct config_item *item,
 
 out3:
 	if (ret < 0) {
-		bdev_release(reg->hr_bdev_handle);
-		reg->hr_bdev_handle = NULL;
+		fput(reg->hr_bdev_file);
+		reg->hr_bdev_file = NULL;
 	}
 out2:
 	fdput(f);

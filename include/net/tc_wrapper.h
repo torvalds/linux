@@ -4,7 +4,7 @@
 
 #include <net/pkt_cls.h>
 
-#if IS_ENABLED(CONFIG_RETPOLINE)
+#if IS_ENABLED(CONFIG_MITIGATION_RETPOLINE)
 
 #include <linux/cpufeature.h>
 #include <linux/static_key.h>
