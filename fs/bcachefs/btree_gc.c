@@ -691,12 +691,6 @@ found:
 			}
 		}
 
-		ret = bch2_journal_key_insert_take(c, btree_id, level, new);
-		if (ret) {
-			kfree(new);
-			goto err;
-		}
-
 		if (level)
 			bch2_btree_node_update_key_early(trans, btree_id, level - 1, *k, new);
 
@@ -708,6 +702,12 @@ found:
 			printbuf_reset(&buf);
 			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(new));
 			bch_info(c, "new key %s", buf.buf);
+		}
+
+		ret = bch2_journal_key_insert_take(c, btree_id, level, new);
+		if (ret) {
+			kfree(new);
+			goto err;
 		}
 
 		*k = bkey_i_to_s_c(new);
