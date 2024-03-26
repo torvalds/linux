@@ -3831,15 +3831,20 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	else
 		cs_slot = &unconf->cl_cs_slot;
 	status = check_slot_seqid(cr_ses->seqid, cs_slot->sl_seqid, 0);
-	if (status) {
-		if (status == nfserr_replay_cache) {
-			status = nfsd4_replay_create_session(cr_ses, cs_slot);
-			goto out_free_conn;
-		}
+	switch (status) {
+	case nfs_ok:
+		cs_slot->sl_seqid++;
+		cr_ses->seqid = cs_slot->sl_seqid;
+		break;
+	case nfserr_replay_cache:
+		status = nfsd4_replay_create_session(cr_ses, cs_slot);
+		fallthrough;
+	case nfserr_jukebox:
+		/* The server MUST NOT cache NFS4ERR_DELAY */
+		goto out_free_conn;
+	default:
 		goto out_cache_error;
 	}
-	cs_slot->sl_seqid++;
-	cr_ses->seqid = cs_slot->sl_seqid;
 
 	/* RFC 8881 Section 18.36.4 Phase 3: Client ID confirmation. */
 	if (conf) {
@@ -3859,10 +3864,8 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 		old = find_confirmed_client_by_name(&unconf->cl_name, nn);
 		if (old) {
 			status = mark_client_expired_locked(old);
-			if (status) {
-				old = NULL;
-				goto out_cache_error;
-			}
+			if (status)
+				goto out_expired_error;
 			trace_nfsd_clid_replaced(&old->cl_clientid);
 		}
 		move_to_confirmed(unconf);
@@ -3894,6 +3897,17 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 		expire_client(old);
 	return status;
 
+out_expired_error:
+	old = NULL;
+	/*
+	 * Revert the slot seq_nr change so the server will process
+	 * the client's resend instead of returning a cached response.
+	 */
+	if (status == nfserr_jukebox) {
+		cs_slot->sl_seqid--;
+		cr_ses->seqid = cs_slot->sl_seqid;
+		goto out_free_conn;
+	}
 out_cache_error:
 	nfsd4_cache_create_session(cr_ses, cs_slot, status);
 out_free_conn:
