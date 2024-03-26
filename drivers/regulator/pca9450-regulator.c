@@ -53,7 +53,7 @@ static const struct regmap_config pca9450_regmap_config = {
 	.val_bits = 8,
 	.volatile_table = &pca9450_volatile_regs,
 	.max_register = PCA9450_MAX_REGISTER - 1,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /*
