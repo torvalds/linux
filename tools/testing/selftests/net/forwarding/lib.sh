@@ -2,33 +2,82 @@
 # SPDX-License-Identifier: GPL-2.0
 
 ##############################################################################
+# Topology description. p1 looped back to p2, p3 to p4 and so on.
+
+declare -A NETIFS=(
+    [p1]=veth0
+    [p2]=veth1
+    [p3]=veth2
+    [p4]=veth3
+    [p5]=veth4
+    [p6]=veth5
+    [p7]=veth6
+    [p8]=veth7
+    [p9]=veth8
+    [p10]=veth9
+)
+
+# Port that does not have a cable connected.
+: "${NETIF_NO_CABLE:=eth8}"
+
+##############################################################################
 # Defines
 
-# Can be overridden by the configuration file.
+# Networking utilities.
 : "${PING:=ping}"
-: "${PING6:=ping6}"
-: "${MZ:=mausezahn}"
-: "${MZ_DELAY:=0}"
+: "${PING6:=ping6}"	# Some distros just use ping.
 : "${ARPING:=arping}"
+: "${TROUTE6:=traceroute6}"
+
+# Packet generator.
+: "${MZ:=mausezahn}"	# Some distributions use 'mz'.
+: "${MZ_DELAY:=0}"
+
+# Host configuration tools.
 : "${TEAMD:=teamd}"
-: "${WAIT_TIME:=5}"
-: "${PAUSE_ON_FAIL:=no}"
-: "${PAUSE_ON_CLEANUP:=no}"
-: "${NETIF_TYPE:=veth}"
-: "${NETIF_CREATE:=yes}"
 : "${MCD:=smcrouted}"
 : "${MC_CLI:=smcroutectl}"
-: "${PING_COUNT:=10}"
-: "${PING_TIMEOUT:=5}"
-: "${WAIT_TIMEOUT:=20}"
+
+# Constants for netdevice bring-up:
+# Default time in seconds to wait for an interface to come up before giving up
+# and bailing out. Used during initial setup.
 : "${INTERFACE_TIMEOUT:=600}"
+# Like INTERFACE_TIMEOUT, but default for ad-hoc waiting in testing scripts.
+: "${WAIT_TIMEOUT:=20}"
+# Time to wait after interfaces participating in the test are all UP.
+: "${WAIT_TIME:=5}"
+
+# Whether to pause on, respectively, after a failure and before cleanup.
+: "${PAUSE_ON_FAIL:=no}"
+: "${PAUSE_ON_CLEANUP:=no}"
+
+# Whether to create virtual interfaces, and what netdevice type they should be.
+: "${NETIF_CREATE:=yes}"
+: "${NETIF_TYPE:=veth}"
+
+# Constants for ping tests:
+# How many packets should be sent.
+: "${PING_COUNT:=10}"
+# Timeout (in seconds) before ping exits regardless of how many packets have
+# been sent or received
+: "${PING_TIMEOUT:=5}"
+
+# Minimum ageing_time (in centiseconds) supported by hardware
 : "${LOW_AGEING_TIME:=1000}"
+
+# Whether to check for availability of certain tools.
 : "${REQUIRE_JQ:=yes}"
 : "${REQUIRE_MZ:=yes}"
 : "${REQUIRE_MTOOLS:=no}"
+
+# Whether to override MAC addresses on interfaces participating in the test.
 : "${STABLE_MAC_ADDRS:=no}"
+
+# Flags for tcpdump
 : "${TCPDUMP_EXTRA_FLAGS:=}"
-: "${TROUTE6:=traceroute6}"
+
+# Flags for TC filters.
+: "${TC_FLAG:=skip_hw}"
 
 net_forwarding_dir=$(dirname "$(readlink -e "${BASH_SOURCE[0]}")")
 
