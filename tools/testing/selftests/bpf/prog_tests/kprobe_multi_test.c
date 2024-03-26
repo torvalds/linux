@@ -336,6 +336,37 @@ static bool symbol_equal(long key1, long key2, void *ctx __maybe_unused)
 	return strcmp((const char *) key1, (const char *) key2) == 0;
 }
 
+static bool is_invalid_entry(char *buf, bool kernel)
+{
+	if (kernel && strchr(buf, '['))
+		return true;
+	if (!kernel && !strchr(buf, '['))
+		return true;
+	return false;
+}
+
+static bool skip_entry(char *name)
+{
+	/*
+	 * We attach to almost all kernel functions and some of them
+	 * will cause 'suspicious RCU usage' when fprobe is attached
+	 * to them. Filter out the current culprits - arch_cpu_idle
+	 * default_idle and rcu_* functions.
+	 */
+	if (!strcmp(name, "arch_cpu_idle"))
+		return true;
+	if (!strcmp(name, "default_idle"))
+		return true;
+	if (!strncmp(name, "rcu_", 4))
+		return true;
+	if (!strcmp(name, "bpf_dispatcher_xdp_func"))
+		return true;
+	if (!strncmp(name, "__ftrace_invalid_address__",
+		     sizeof("__ftrace_invalid_address__") - 1))
+		return true;
+	return false;
+}
+
 static int get_syms(char ***symsp, size_t *cntp, bool kernel)
 {
 	size_t cap = 0, cnt = 0, i;
@@ -368,30 +399,13 @@ static int get_syms(char ***symsp, size_t *cntp, bool kernel)
 	}
 
 	while (fgets(buf, sizeof(buf), f)) {
-		if (kernel && strchr(buf, '['))
-			continue;
-		if (!kernel && !strchr(buf, '['))
+		if (is_invalid_entry(buf, kernel))
 			continue;
 
 		free(name);
 		if (sscanf(buf, "%ms$*[^\n]\n", &name) != 1)
 			continue;
-		/*
-		 * We attach to almost all kernel functions and some of them
-		 * will cause 'suspicious RCU usage' when fprobe is attached
-		 * to them. Filter out the current culprits - arch_cpu_idle
-		 * default_idle and rcu_* functions.
-		 */
-		if (!strcmp(name, "arch_cpu_idle"))
-			continue;
-		if (!strcmp(name, "default_idle"))
-			continue;
-		if (!strncmp(name, "rcu_", 4))
-			continue;
-		if (!strcmp(name, "bpf_dispatcher_xdp_func"))
-			continue;
-		if (!strncmp(name, "__ftrace_invalid_address__",
-			     sizeof("__ftrace_invalid_address__") - 1))
+		if (skip_entry(name))
 			continue;
 
 		err = hashmap__add(map, name, 0);
@@ -426,14 +440,37 @@ error:
 	return err;
 }
 
-static void test_kprobe_multi_bench_attach(bool kernel)
+static void do_bench_test(struct kprobe_multi_empty *skel, struct bpf_kprobe_multi_opts *opts)
 {
-	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
-	struct kprobe_multi_empty *skel = NULL;
 	long attach_start_ns, attach_end_ns;
 	long detach_start_ns, detach_end_ns;
 	double attach_delta, detach_delta;
 	struct bpf_link *link = NULL;
+
+	attach_start_ns = get_time_ns();
+	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_empty,
+						     NULL, opts);
+	attach_end_ns = get_time_ns();
+
+	if (!ASSERT_OK_PTR(link, "bpf_program__attach_kprobe_multi_opts"))
+		return;
+
+	detach_start_ns = get_time_ns();
+	bpf_link__destroy(link);
+	detach_end_ns = get_time_ns();
+
+	attach_delta = (attach_end_ns - attach_start_ns) / 1000000000.0;
+	detach_delta = (detach_end_ns - detach_start_ns) / 1000000000.0;
+
+	printf("%s: found %lu functions\n", __func__, opts->cnt);
+	printf("%s: attached in %7.3lfs\n", __func__, attach_delta);
+	printf("%s: detached in %7.3lfs\n", __func__, detach_delta);
+}
+
+static void test_kprobe_multi_bench_attach(bool kernel)
+{
+	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
+	struct kprobe_multi_empty *skel = NULL;
 	char **syms = NULL;
 	size_t cnt = 0, i;
 
@@ -447,24 +484,7 @@ static void test_kprobe_multi_bench_attach(bool kernel)
 	opts.syms = (const char **) syms;
 	opts.cnt = cnt;
 
-	attach_start_ns = get_time_ns();
-	link = bpf_program__attach_kprobe_multi_opts(skel->progs.test_kprobe_empty,
-						     NULL, &opts);
-	attach_end_ns = get_time_ns();
-
-	if (!ASSERT_OK_PTR(link, "bpf_program__attach_kprobe_multi_opts"))
-		goto cleanup;
-
-	detach_start_ns = get_time_ns();
-	bpf_link__destroy(link);
-	detach_end_ns = get_time_ns();
-
-	attach_delta = (attach_end_ns - attach_start_ns) / 1000000000.0;
-	detach_delta = (detach_end_ns - detach_start_ns) / 1000000000.0;
-
-	printf("%s: found %lu functions\n", __func__, cnt);
-	printf("%s: attached in %7.3lfs\n", __func__, attach_delta);
-	printf("%s: detached in %7.3lfs\n", __func__, detach_delta);
+	do_bench_test(skel, &opts);
 
 cleanup:
 	kprobe_multi_empty__destroy(skel);
