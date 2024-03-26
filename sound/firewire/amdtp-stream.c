@@ -1180,13 +1180,11 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 		(void)fw_card_read_cycle_time(fw_parent_device(s->unit)->card, &curr_cycle_time);
 
 	for (i = 0; i < packets; ++i) {
-		struct {
-			struct fw_iso_packet params;
-			__be32 header[CIP_HEADER_QUADLETS];
-		} template = { {0}, {0} };
+		DEFINE_FLEX(struct fw_iso_packet, template, header,
+			    header_length, CIP_HEADER_QUADLETS);
 		bool sched_irq = false;
 
-		build_it_pkt_header(s, desc->cycle, &template.params, pkt_header_length,
+		build_it_pkt_header(s, desc->cycle, template, pkt_header_length,
 				    desc->data_blocks, desc->data_block_counter,
 				    desc->syt, i, curr_cycle_time);
 
@@ -1198,7 +1196,7 @@ static void process_rx_packets(struct fw_iso_context *context, u32 tstamp, size_
 			}
 		}
 
-		if (queue_out_packet(s, &template.params, sched_irq) < 0) {
+		if (queue_out_packet(s, template, sched_irq) < 0) {
 			cancel_stream(s);
 			return;
 		}

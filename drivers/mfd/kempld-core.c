@@ -428,50 +428,13 @@ static int kempld_detect_device(struct kempld_device_data *pld)
 #ifdef CONFIG_ACPI
 static int kempld_get_acpi_data(struct platform_device *pdev)
 {
-	struct list_head resource_list;
-	struct resource *resources;
-	struct resource_entry *rentry;
 	struct device *dev = &pdev->dev;
-	struct acpi_device *acpi_dev = ACPI_COMPANION(dev);
 	const struct kempld_platform_data *pdata;
 	int ret;
-	int count;
 
 	pdata = acpi_device_get_match_data(dev);
 	ret = platform_device_add_data(pdev, pdata,
 				       sizeof(struct kempld_platform_data));
-	if (ret)
-		return ret;
-
-	INIT_LIST_HEAD(&resource_list);
-	ret = acpi_dev_get_resources(acpi_dev, &resource_list, NULL, NULL);
-	if (ret < 0)
-		goto out;
-
-	count = ret;
-
-	if (count == 0) {
-		ret = platform_device_add_resources(pdev, pdata->ioresource, 1);
-		goto out;
-	}
-
-	resources = devm_kcalloc(&acpi_dev->dev, count, sizeof(*resources),
-				 GFP_KERNEL);
-	if (!resources) {
-		ret = -ENOMEM;
-		goto out;
-	}
-
-	count = 0;
-	list_for_each_entry(rentry, &resource_list, node) {
-		memcpy(&resources[count], rentry->res,
-		       sizeof(*resources));
-		count++;
-	}
-	ret = platform_device_add_resources(pdev, resources, count);
-
-out:
-	acpi_dev_free_resource_list(&resource_list);
 
 	return ret;
 }

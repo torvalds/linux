@@ -39,9 +39,13 @@ properties:
   compatible:
     items:
       - enum:
+          # Admatec 9904379 10.1" 1024x600 LVDS panel
+          - admatec,9904379
           - auo,b101ew05
           # Chunghwa Picture Tubes Ltd. 7" WXGA (800x1280) TFT LCD LVDS panel
           - chunghwa,claa070wp03xg
+          # EDT ETML0700Z9NDHA 7.0" WSVGA (1024x600) color TFT LCD LVDS panel
+          - edt,etml0700z9ndha
           # HannStar Display Corp. HSD101PWW2 10.1" WXGA (1280x800) LVDS panel
           - hannstar,hsd101pww2
           # Hydis Technologies 7" WXGA (800x1280) TFT LCD LVDS panel

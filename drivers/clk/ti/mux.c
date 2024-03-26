@@ -189,7 +189,7 @@ static void of_mux_clk_setup(struct device_node *node)
 	if (ti_clk_get_reg_addr(node, 0, &reg))
 		goto cleanup;
 
-	of_property_read_u32(node, "ti,bit-shift", &shift);
+	shift = reg.bit;
 
 	of_property_read_u32(node, "ti,latch-bit", &latch);
 
@@ -252,7 +252,6 @@ static void __init of_ti_composite_mux_clk_setup(struct device_node *node)
 {
 	struct clk_omap_mux *mux;
 	unsigned int num_parents;
-	u32 val;
 
 	mux = kzalloc(sizeof(*mux), GFP_KERNEL);
 	if (!mux)
@@ -261,8 +260,7 @@ static void __init of_ti_composite_mux_clk_setup(struct device_node *node)
 	if (ti_clk_get_reg_addr(node, 0, &mux->reg))
 		goto cleanup;
 
-	if (!of_property_read_u32(node, "ti,bit-shift", &val))
-		mux->shift = val;
+	mux->shift = mux->reg.bit;
 
 	if (of_property_read_bool(node, "ti,index-starts-at-one"))
 		mux->flags |= CLK_MUX_INDEX_ONE;

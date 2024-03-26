@@ -1915,19 +1915,13 @@ four of those five higher level data structures.
 The fifth use case is discussed in the :ref:`realtime summary <rtsummary>` case
 study.
 
-The most general storage interface supported by the xfile enables the reading
-and writing of arbitrary quantities of data at arbitrary offsets in the xfile.
-This capability is provided by ``xfile_pread`` and ``xfile_pwrite`` functions,
-which behave similarly to their userspace counterparts.
 XFS is very record-based, which suggests that the ability to load and store
 complete records is important.
-To support these cases, a pair of ``xfile_obj_load`` and ``xfile_obj_store``
-functions are provided to read and persist objects into an xfile.
-They are internally the same as pread and pwrite, except that they treat any
-error as an out of memory error.
-For online repair, squashing error conditions in this manner is an acceptable
-behavior because the only reaction is to abort the operation back to userspace.
-All five xfile usecases can be serviced by these four functions.
+To support these cases, a pair of ``xfile_load`` and ``xfile_store``
+functions are provided to read and persist objects into an xfile that treat any
+error as an out of memory error.  For online repair, squashing error conditions
+in this manner is an acceptable behavior because the only reaction is to abort
+the operation back to userspace.
 
 However, no discussion of file access idioms is complete without answering the
 question, "But what about mmap?"
@@ -1939,15 +1933,14 @@ tmpfs can only push a pagecache folio to the swap cache if the folio is neither
 pinned nor locked, which means the xfile must not pin too many folios.
 
 Short term direct access to xfile contents is done by locking the pagecache
-folio and mapping it into kernel address space.
-Programmatic access (e.g. pread and pwrite) uses this mechanism.
-Folio locks are not supposed to be held for long periods of time, so long
-term direct access to xfile contents is done by bumping the folio refcount,
+folio and mapping it into kernel address space.  Object load and store uses this
+mechanism.  Folio locks are not supposed to be held for long periods of time, so
+long term direct access to xfile contents is done by bumping the folio refcount,
 mapping it into kernel address space, and dropping the folio lock.
 These long term users *must* be responsive to memory reclaim by hooking into
 the shrinker infrastructure to know when to release folios.
 
-The ``xfile_get_page`` and ``xfile_put_page`` functions are provided to
+The ``xfile_get_folio`` and ``xfile_put_folio`` functions are provided to
 retrieve the (locked) folio that backs part of an xfile and to release it.
 The only code to use these folio lease functions are the xfarray
 :ref:`sorting<xfarray_sort>` algorithms and the :ref:`in-memory
@@ -2277,13 +2270,12 @@ follows:
    pointing to the xfile.
 
 3. Pass the buffer cache target, buffer ops, and other information to
-   ``xfbtree_create`` to write an initial tree header and root block to the
-   xfile.
+   ``xfbtree_init`` to initialize the passed in ``struct xfbtree`` and write an
+   initial root block to the xfile.
    Each btree type should define a wrapper that passes necessary arguments to
    the creation function.
    For example, rmap btrees define ``xfs_rmapbt_mem_create`` to take care of
    all the necessary details for callers.
-   A ``struct xfbtree`` object will be returned.
 
 4. Pass the xfbtree object to the btree cursor creation function for the
    btree type.

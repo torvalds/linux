@@ -40,7 +40,8 @@ void gve_parse_device_option(struct gve_priv *priv,
 			     struct gve_device_option_gqi_qpl **dev_op_gqi_qpl,
 			     struct gve_device_option_dqo_rda **dev_op_dqo_rda,
 			     struct gve_device_option_jumbo_frames **dev_op_jumbo_frames,
-			     struct gve_device_option_dqo_qpl **dev_op_dqo_qpl)
+			     struct gve_device_option_dqo_qpl **dev_op_dqo_qpl,
+			     struct gve_device_option_buffer_sizes **dev_op_buffer_sizes)
 {
 	u32 req_feat_mask = be32_to_cpu(option->required_features_mask);
 	u16 option_length = be16_to_cpu(option->option_length);
@@ -147,6 +148,23 @@ void gve_parse_device_option(struct gve_priv *priv,
 		}
 		*dev_op_jumbo_frames = (void *)(option + 1);
 		break;
+	case GVE_DEV_OPT_ID_BUFFER_SIZES:
+		if (option_length < sizeof(**dev_op_buffer_sizes) ||
+		    req_feat_mask != GVE_DEV_OPT_REQ_FEAT_MASK_BUFFER_SIZES) {
+			dev_warn(&priv->pdev->dev, GVE_DEVICE_OPTION_ERROR_FMT,
+				 "Buffer Sizes",
+				 (int)sizeof(**dev_op_buffer_sizes),
+				 GVE_DEV_OPT_REQ_FEAT_MASK_BUFFER_SIZES,
+				 option_length, req_feat_mask);
+			break;
+		}
+
+		if (option_length > sizeof(**dev_op_buffer_sizes))
+			dev_warn(&priv->pdev->dev,
+				 GVE_DEVICE_OPTION_TOO_BIG_FMT,
+				 "Buffer Sizes");
+		*dev_op_buffer_sizes = (void *)(option + 1);
+		break;
 	default:
 		/* If we don't recognize the option just continue
 		 * without doing anything.
@@ -164,7 +182,8 @@ gve_process_device_options(struct gve_priv *priv,
 			   struct gve_device_option_gqi_qpl **dev_op_gqi_qpl,
 			   struct gve_device_option_dqo_rda **dev_op_dqo_rda,
 			   struct gve_device_option_jumbo_frames **dev_op_jumbo_frames,
-			   struct gve_device_option_dqo_qpl **dev_op_dqo_qpl)
+			   struct gve_device_option_dqo_qpl **dev_op_dqo_qpl,
+			   struct gve_device_option_buffer_sizes **dev_op_buffer_sizes)
 {
 	const int num_options = be16_to_cpu(descriptor->num_device_options);
 	struct gve_device_option *dev_opt;
@@ -185,7 +204,7 @@ gve_process_device_options(struct gve_priv *priv,
 		gve_parse_device_option(priv, descriptor, dev_opt,
 					dev_op_gqi_rda, dev_op_gqi_qpl,
 					dev_op_dqo_rda, dev_op_jumbo_frames,
-					dev_op_dqo_qpl);
+					dev_op_dqo_qpl, dev_op_buffer_sizes);
 		dev_opt = next_opt;
 	}
 
@@ -640,6 +659,9 @@ static int gve_adminq_create_rx_queue(struct gve_priv *priv, u32 queue_index)
 			cpu_to_be16(rx_buff_ring_entries);
 		cmd.create_rx_queue.enable_rsc =
 			!!(priv->dev->features & NETIF_F_LRO);
+		if (priv->header_split_enabled)
+			cmd.create_rx_queue.header_buffer_size =
+				cpu_to_be16(priv->header_buf_size);
 	}
 
 	return gve_adminq_issue_cmd(priv, &cmd);
@@ -755,7 +777,9 @@ static void gve_enable_supported_features(struct gve_priv *priv,
 					  const struct gve_device_option_jumbo_frames
 					  *dev_op_jumbo_frames,
 					  const struct gve_device_option_dqo_qpl
-					  *dev_op_dqo_qpl)
+					  *dev_op_dqo_qpl,
+					  const struct gve_device_option_buffer_sizes
+					  *dev_op_buffer_sizes)
 {
 	/* Before control reaches this point, the page-size-capped max MTU from
 	 * the gve_device_descriptor field has already been stored in
@@ -779,10 +803,22 @@ static void gve_enable_supported_features(struct gve_priv *priv,
 		if (priv->rx_pages_per_qpl == 0)
 			priv->rx_pages_per_qpl = DQO_QPL_DEFAULT_RX_PAGES;
 	}
+
+	if (dev_op_buffer_sizes &&
+	    (supported_features_mask & GVE_SUP_BUFFER_SIZES_MASK)) {
+		priv->max_rx_buffer_size =
+			be16_to_cpu(dev_op_buffer_sizes->packet_buffer_size);
+		priv->header_buf_size =
+			be16_to_cpu(dev_op_buffer_sizes->header_buffer_size);
+		dev_info(&priv->pdev->dev,
+			 "BUFFER SIZES device option enabled with max_rx_buffer_size of %u, header_buf_size of %u.\n",
+			 priv->max_rx_buffer_size, priv->header_buf_size);
+	}
 }
 
 int gve_adminq_describe_device(struct gve_priv *priv)
 {
+	struct gve_device_option_buffer_sizes *dev_op_buffer_sizes = NULL;
 	struct gve_device_option_jumbo_frames *dev_op_jumbo_frames = NULL;
 	struct gve_device_option_gqi_rda *dev_op_gqi_rda = NULL;
 	struct gve_device_option_gqi_qpl *dev_op_gqi_qpl = NULL;
@@ -816,7 +852,8 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	err = gve_process_device_options(priv, descriptor, &dev_op_gqi_rda,
 					 &dev_op_gqi_qpl, &dev_op_dqo_rda,
 					 &dev_op_jumbo_frames,
-					 &dev_op_dqo_qpl);
+					 &dev_op_dqo_qpl,
+					 &dev_op_buffer_sizes);
 	if (err)
 		goto free_device_descriptor;
 
@@ -885,7 +922,8 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 	priv->default_num_queues = be16_to_cpu(descriptor->default_num_queues);
 
 	gve_enable_supported_features(priv, supported_features_mask,
-				      dev_op_jumbo_frames, dev_op_dqo_qpl);
+				      dev_op_jumbo_frames, dev_op_dqo_qpl,
+				      dev_op_buffer_sizes);
 
 free_device_descriptor:
 	dma_pool_free(priv->adminq_pool, descriptor, descriptor_bus);

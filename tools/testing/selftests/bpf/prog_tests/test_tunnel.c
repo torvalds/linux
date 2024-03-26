@@ -118,9 +118,9 @@ fail:
 static void cleanup(void)
 {
 	SYS_NOFAIL("test -f /var/run/netns/at_ns0 && ip netns delete at_ns0");
-	SYS_NOFAIL("ip link del veth1 2> /dev/null");
-	SYS_NOFAIL("ip link del %s 2> /dev/null", VXLAN_TUNL_DEV1);
-	SYS_NOFAIL("ip link del %s 2> /dev/null", IP6VXLAN_TUNL_DEV1);
+	SYS_NOFAIL("ip link del veth1");
+	SYS_NOFAIL("ip link del %s", VXLAN_TUNL_DEV1);
+	SYS_NOFAIL("ip link del %s", IP6VXLAN_TUNL_DEV1);
 }
 
 static int add_vxlan_tunnel(void)
@@ -265,9 +265,9 @@ fail:
 static void delete_ipip_tunnel(void)
 {
 	SYS_NOFAIL("ip -n at_ns0 link delete dev %s", IPIP_TUNL_DEV0);
-	SYS_NOFAIL("ip -n at_ns0 fou del port 5555 2> /dev/null");
+	SYS_NOFAIL("ip -n at_ns0 fou del port 5555");
 	SYS_NOFAIL("ip link delete dev %s", IPIP_TUNL_DEV1);
-	SYS_NOFAIL("ip fou del port 5555 2> /dev/null");
+	SYS_NOFAIL("ip fou del port 5555");
 }
 
 static int add_xfrm_tunnel(void)
@@ -346,13 +346,13 @@ fail:
 
 static void delete_xfrm_tunnel(void)
 {
-	SYS_NOFAIL("ip xfrm policy delete dir out src %s/32 dst %s/32 2> /dev/null",
+	SYS_NOFAIL("ip xfrm policy delete dir out src %s/32 dst %s/32",
 		   IP4_ADDR_TUNL_DEV1, IP4_ADDR_TUNL_DEV0);
-	SYS_NOFAIL("ip xfrm policy delete dir in src %s/32 dst %s/32 2> /dev/null",
+	SYS_NOFAIL("ip xfrm policy delete dir in src %s/32 dst %s/32",
 		   IP4_ADDR_TUNL_DEV0, IP4_ADDR_TUNL_DEV1);
-	SYS_NOFAIL("ip xfrm state delete src %s dst %s proto esp spi %d 2> /dev/null",
+	SYS_NOFAIL("ip xfrm state delete src %s dst %s proto esp spi %d",
 		   IP4_ADDR_VETH0, IP4_ADDR1_VETH1, XFRM_SPI_IN_TO_OUT);
-	SYS_NOFAIL("ip xfrm state delete src %s dst %s proto esp spi %d 2> /dev/null",
+	SYS_NOFAIL("ip xfrm state delete src %s dst %s proto esp spi %d",
 		   IP4_ADDR1_VETH1, IP4_ADDR_VETH0, XFRM_SPI_OUT_TO_IN);
 }
 

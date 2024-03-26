@@ -582,7 +582,7 @@ void acpi_initialize_hp_context(struct acpi_device *adev,
 				void (*uevent)(struct acpi_device *, u32));
 
 /* acpi_device.dev.bus == &acpi_bus_type */
-extern struct bus_type acpi_bus_type;
+extern const struct bus_type acpi_bus_type;
 
 int acpi_bus_for_each_dev(int (*fn)(struct device *, void *), void *data);
 int acpi_dev_for_each_child(struct acpi_device *adev,
@@ -749,6 +749,7 @@ bool acpi_device_override_status(struct acpi_device *adev, unsigned long long *s
 bool acpi_quirk_skip_acpi_ac_and_battery(void);
 int acpi_install_cmos_rtc_space_handler(acpi_handle handle);
 void acpi_remove_cmos_rtc_space_handler(acpi_handle handle);
+int acpi_quirk_skip_serdev_enumeration(struct device *controller_parent, bool *skip);
 #else
 static inline bool acpi_device_override_status(struct acpi_device *adev,
 					       unsigned long long *status)
@@ -766,22 +767,21 @@ static inline int acpi_install_cmos_rtc_space_handler(acpi_handle handle)
 static inline void acpi_remove_cmos_rtc_space_handler(acpi_handle handle)
 {
 }
-#endif
-
-#if IS_ENABLED(CONFIG_X86_ANDROID_TABLETS)
-bool acpi_quirk_skip_i2c_client_enumeration(struct acpi_device *adev);
-int acpi_quirk_skip_serdev_enumeration(struct device *controller_parent, bool *skip);
-bool acpi_quirk_skip_gpio_event_handlers(void);
-#else
-static inline bool acpi_quirk_skip_i2c_client_enumeration(struct acpi_device *adev)
-{
-	return false;
-}
 static inline int
 acpi_quirk_skip_serdev_enumeration(struct device *controller_parent, bool *skip)
 {
 	*skip = false;
 	return 0;
+}
+#endif
+
+#if IS_ENABLED(CONFIG_X86_ANDROID_TABLETS)
+bool acpi_quirk_skip_i2c_client_enumeration(struct acpi_device *adev);
+bool acpi_quirk_skip_gpio_event_handlers(void);
+#else
+static inline bool acpi_quirk_skip_i2c_client_enumeration(struct acpi_device *adev)
+{
+	return false;
 }
 static inline bool acpi_quirk_skip_gpio_event_handlers(void)
 {

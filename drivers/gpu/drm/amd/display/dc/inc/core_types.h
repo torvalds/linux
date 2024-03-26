@@ -522,6 +522,25 @@ struct dc_dmub_cmd {
 	enum dm_dmub_wait_type wait_type;
 };
 
+struct dc_scratch_space {
+	/* used to temporarily backup plane states of a stream during
+	 * dc update. The reason is that plane states are overwritten
+	 * with surface updates in dc update. Once they are overwritten
+	 * current state is no longer valid. We want to temporarily
+	 * store current value in plane states so we can still recover
+	 * a valid current state during dc update.
+	 */
+	struct dc_plane_state plane_states[MAX_SURFACE_NUM];
+	struct dc_gamma gamma_correction[MAX_SURFACE_NUM];
+	struct dc_transfer_func in_transfer_func[MAX_SURFACE_NUM];
+	struct dc_3dlut lut3d_func[MAX_SURFACE_NUM];
+	struct dc_transfer_func in_shaper_func[MAX_SURFACE_NUM];
+	struct dc_transfer_func blend_tf[MAX_SURFACE_NUM];
+
+	struct dc_stream_state stream_state;
+	struct dc_transfer_func out_transfer_func;
+};
+
 /**
  * struct dc_state - The full description of a state requested by users
  */
@@ -604,16 +623,8 @@ struct dc_state {
 		unsigned int stutter_period_us;
 	} perf_params;
 
-	struct {
-		/* used to temporarily backup plane states of a stream during
-		 * dc update. The reason is that plane states are overwritten
-		 * with surface updates in dc update. Once they are overwritten
-		 * current state is no longer valid. We want to temporarily
-		 * store current value in plane states so we can still recover
-		 * a valid current state during dc update.
-		 */
-		struct dc_plane_state plane_states[MAX_SURFACE_NUM];
-	} scratch;
+
+	struct dc_scratch_space scratch;
 };
 
 struct replay_context {

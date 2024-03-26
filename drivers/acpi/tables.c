@@ -253,7 +253,7 @@ int __init_or_acpilib acpi_table_parse_entries_array(
 
 	count = acpi_parse_entries_array(id, table_size,
 					 (union fw_table_header *)table_header,
-					 proc, proc_num, max_entries);
+					 0, proc, proc_num, max_entries);
 
 	acpi_put_table(table_header);
 	return count;

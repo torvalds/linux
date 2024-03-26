@@ -1213,6 +1213,9 @@ struct bnxt_ring_grp_info {
 	u16	cp_fw_ring_id;
 };
 
+#define BNXT_VNIC_DEFAULT	0
+#define BNXT_VNIC_NTUPLE	1
+
 struct bnxt_vnic_info {
 	u16		fw_vnic_id; /* returned by Chimp during alloc */
 #define BNXT_MAX_CTX_PER_VNIC	8
@@ -1252,11 +1255,24 @@ struct bnxt_vnic_info {
 #define BNXT_VNIC_MCAST_FLAG	4
 #define BNXT_VNIC_UCAST_FLAG	8
 #define BNXT_VNIC_RFS_NEW_RSS_FLAG	0x10
+#define BNXT_VNIC_NTUPLE_FLAG		0x20
+};
+
+struct bnxt_hw_rings {
+	int tx;
+	int rx;
+	int grp;
+	int cp;
+	int cp_p5;
+	int stat;
+	int vnic;
+	int rss_ctx;
 };
 
 struct bnxt_hw_resc {
 	u16	min_rsscos_ctxs;
 	u16	max_rsscos_ctxs;
+	u16	resv_rsscos_ctxs;
 	u16	min_cp_rings;
 	u16	max_cp_rings;
 	u16	resv_cp_rings;
@@ -1281,6 +1297,12 @@ struct bnxt_hw_resc {
 	u16	max_nqs;
 	u16	max_irqs;
 	u16	resv_irqs;
+	u32	max_encap_records;
+	u32	max_decap_records;
+	u32	max_tx_em_flows;
+	u32	max_tx_wm_flows;
+	u32	max_rx_em_flows;
+	u32	max_rx_wm_flows;
 };
 
 #if defined(CONFIG_BNXT_SRIOV)
@@ -1315,12 +1337,6 @@ struct bnxt_pf_info {
 	u16	active_vfs;
 	u16	registered_vfs;
 	u16	max_vfs;
-	u32	max_encap_records;
-	u32	max_decap_records;
-	u32	max_tx_em_flows;
-	u32	max_tx_wm_flows;
-	u32	max_rx_em_flows;
-	u32	max_rx_wm_flows;
 	unsigned long	*vf_event_bmap;
 	u16	hwrm_cmd_req_pages;
 	u8	vf_resv_strategy;
@@ -1334,6 +1350,7 @@ struct bnxt_pf_info {
 
 struct bnxt_filter_base {
 	struct hlist_node	hash;
+	struct list_head	list;
 	__le64			filter_id;
 	u8			type;
 #define BNXT_FLTR_TYPE_NTUPLE	1
@@ -1355,19 +1372,21 @@ struct bnxt_filter_base {
 	struct rcu_head         rcu;
 };
 
+struct bnxt_flow_masks {
+	struct flow_dissector_key_ports ports;
+	struct flow_dissector_key_addrs addrs;
+};
+
+extern const struct bnxt_flow_masks BNXT_FLOW_MASK_NONE;
+extern const struct bnxt_flow_masks BNXT_FLOW_IPV6_MASK_ALL;
+extern const struct bnxt_flow_masks BNXT_FLOW_IPV4_MASK_ALL;
+
 struct bnxt_ntuple_filter {
+	/* base filter must be the first member */
 	struct bnxt_filter_base	base;
 	struct flow_keys	fkeys;
+	struct bnxt_flow_masks	fmasks;
 	struct bnxt_l2_filter	*l2_fltr;
-	u32			ntuple_flags;
-#define BNXT_NTUPLE_MATCH_SRC_IP	1
-#define BNXT_NTUPLE_MATCH_DST_IP	2
-#define BNXT_NTUPLE_MATCH_SRC_PORT	4
-#define BNXT_NTUPLE_MATCH_DST_PORT	8
-#define BNXT_NTUPLE_MATCH_ALL		(BNXT_NTUPLE_MATCH_SRC_IP |	\
-					 BNXT_NTUPLE_MATCH_DST_IP |	\
-					 BNXT_NTUPLE_MATCH_SRC_PORT |	\
-					 BNXT_NTUPLE_MATCH_DST_PORT)
 	u32			flow_id;
 };
 
@@ -1394,6 +1413,7 @@ struct bnxt_ipv6_tuple {
 #define BNXT_L2_KEY_SIZE	(sizeof(struct bnxt_l2_key) / 4)
 
 struct bnxt_l2_filter {
+	/* base filter must be the first member */
 	struct bnxt_filter_base	base;
 	struct bnxt_l2_key	l2_key;
 	atomic_t		refcnt;
@@ -2217,6 +2237,14 @@ struct bnxt {
 #define BNXT_RSS_CAP_UDP_RSS_CAP		BIT(1)
 #define BNXT_RSS_CAP_NEW_RSS_CAP		BIT(2)
 #define BNXT_RSS_CAP_RSS_TCAM			BIT(3)
+#define BNXT_RSS_CAP_AH_V4_RSS_CAP		BIT(4)
+#define BNXT_RSS_CAP_AH_V6_RSS_CAP		BIT(5)
+#define BNXT_RSS_CAP_ESP_V4_RSS_CAP		BIT(6)
+#define BNXT_RSS_CAP_ESP_V6_RSS_CAP		BIT(7)
+
+	u8			rss_hash_key[HW_HASH_KEY_SIZE];
+	u8			rss_hash_key_valid:1;
+	u8			rss_hash_key_updated:1;
 
 	u16			max_mtu;
 	u8			max_tc;
@@ -2301,12 +2329,17 @@ struct bnxt {
 	#define BNXT_FW_CAP_PRE_RESV_VNICS		BIT_ULL(35)
 	#define BNXT_FW_CAP_BACKING_STORE_V2		BIT_ULL(36)
 	#define BNXT_FW_CAP_VNIC_TUNNEL_TPA		BIT_ULL(37)
+	#define BNXT_FW_CAP_CFA_NTUPLE_RX_EXT_IP_PROTO	BIT_ULL(38)
+	#define BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V3	BIT_ULL(39)
 
 	u32			fw_dbg_cap;
 
 #define BNXT_NEW_RM(bp)		((bp)->fw_cap & BNXT_FW_CAP_NEW_RM)
 #define BNXT_PTP_USE_RTC(bp)	(!BNXT_MH(bp) && \
 				 ((bp)->fw_cap & BNXT_FW_CAP_PTP_RTC))
+#define BNXT_SUPPORTS_NTUPLE_VNIC(bp)	\
+	(BNXT_PF(bp) && ((bp)->fw_cap & BNXT_FW_CAP_CFA_RFS_RING_TBL_IDX_V3))
+
 	u32			hwrm_spec_code;
 	u16			hwrm_cmd_seq;
 	u16                     hwrm_cmd_kong_seq;
@@ -2428,6 +2461,7 @@ struct bnxt {
 
 	unsigned long		*ntp_fltr_bmap;
 	int			ntp_fltr_count;
+	int			max_fltr;
 
 #define BNXT_L2_FLTR_MAX_FLTR	1024
 #define BNXT_L2_FLTR_HASH_SIZE	32
@@ -2437,12 +2471,14 @@ struct bnxt {
 	u32			hash_seed;
 	u64			toeplitz_prefix;
 
+	struct list_head	usr_fltr_list;
+
 	/* To protect link related settings during link changes and
 	 * ethtool settings changes.
 	 */
 	struct mutex		link_lock;
 	struct bnxt_link_info	link_info;
-	struct ethtool_eee	eee;
+	struct ethtool_keee	eee;
 	u32			lpi_tmr_lo;
 	u32			lpi_tmr_hi;
 
@@ -2641,10 +2677,16 @@ u32 bnxt_fw_health_readl(struct bnxt *bp, int reg_idx);
 void bnxt_set_tpa_flags(struct bnxt *bp);
 void bnxt_set_ring_params(struct bnxt *);
 int bnxt_set_rx_skb_mode(struct bnxt *bp, bool page_mode);
+void bnxt_insert_usr_fltr(struct bnxt *bp, struct bnxt_filter_base *fltr);
+void bnxt_del_one_usr_fltr(struct bnxt *bp, struct bnxt_filter_base *fltr);
+void bnxt_clear_usr_fltrs(struct bnxt *bp, bool all);
 int bnxt_hwrm_func_drv_rgtr(struct bnxt *bp, unsigned long *bmap,
 			    int bmap_size, bool async_only);
 int bnxt_hwrm_func_drv_unrgtr(struct bnxt *bp);
 void bnxt_del_l2_filter(struct bnxt *bp, struct bnxt_l2_filter *fltr);
+struct bnxt_l2_filter *bnxt_alloc_new_l2_filter(struct bnxt *bp,
+						struct bnxt_l2_key *key,
+						u16 flags);
 int bnxt_hwrm_l2_filter_free(struct bnxt *bp, struct bnxt_l2_filter *fltr);
 int bnxt_hwrm_l2_filter_alloc(struct bnxt *bp, struct bnxt_l2_filter *fltr);
 int bnxt_hwrm_cfa_ntuple_filter_free(struct bnxt *bp,

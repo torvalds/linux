@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2023 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  */
 #include "rs.h"
 #include "fw-api.h"
@@ -479,8 +479,14 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 	}
 
 	if (flags & IWL_TLC_NOTIF_FLAG_AMSDU && !mvm_link_sta->orig_amsdu_len) {
+		u32 enabled = le32_to_cpu(notif->amsdu_enabled);
 		u16 size = le32_to_cpu(notif->amsdu_size);
 		int i;
+
+		if (size < 2000) {
+			size = 0;
+			enabled = 0;
+		}
 
 		if (link_sta->agg.max_amsdu_len < size) {
 			/*
@@ -492,7 +498,7 @@ void iwl_mvm_tlc_update_notif(struct iwl_mvm *mvm,
 			goto out;
 		}
 
-		mvmsta->amsdu_enabled = le32_to_cpu(notif->amsdu_enabled);
+		mvmsta->amsdu_enabled = enabled;
 		mvmsta->max_amsdu_len = size;
 		link_sta->agg.max_rc_amsdu_len = mvmsta->max_amsdu_len;
 
@@ -525,10 +531,10 @@ u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta,
 	const struct ieee80211_sta_ht_cap *ht_cap = &link_sta->ht_cap;
 	const struct ieee80211_sta_eht_cap *eht_cap = &link_sta->eht_cap;
 
-	if (WARN_ON_ONCE(!link_conf->chandef.chan))
+	if (WARN_ON_ONCE(!link_conf->chanreq.oper.chan))
 		return IEEE80211_MAX_MPDU_LEN_VHT_3895;
 
-	if (link_conf->chandef.chan->band == NL80211_BAND_6GHZ) {
+	if (link_conf->chanreq.oper.chan->band == NL80211_BAND_6GHZ) {
 		switch (le16_get_bits(link_sta->he_6ghz_capa.capa,
 				      IEEE80211_HE_6GHZ_CAP_MAX_MPDU_LEN)) {
 		case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
@@ -538,7 +544,7 @@ u16 rs_fw_get_max_amsdu_len(struct ieee80211_sta *sta,
 		default:
 			return IEEE80211_MAX_MPDU_LEN_VHT_3895;
 		}
-	} else if (link_conf->chandef.chan->band == NL80211_BAND_2GHZ &&
+	} else if (link_conf->chanreq.oper.chan->band == NL80211_BAND_2GHZ &&
 		   eht_cap->has_eht) {
 		switch (u8_get_bits(eht_cap->eht_cap_elem.mac_cap_info[0],
 				    IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_MASK)) {

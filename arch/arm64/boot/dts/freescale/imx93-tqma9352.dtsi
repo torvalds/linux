@@ -122,10 +122,8 @@
 
 	/* protectable identification memory (part of M24C64-D @57) */
 	eeprom@5f {
-		compatible = "st,24c64", "atmel,24c64";
+		compatible = "atmel,24c64d-wl";
 		reg = <0x5f>;
-		size = <32>;
-		pagesize = <32>;
 		vcc-supply = <&reg_v3v3>;
 	};
 

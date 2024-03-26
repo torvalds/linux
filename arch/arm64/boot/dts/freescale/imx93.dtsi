@@ -294,7 +294,7 @@
 				status = "disabled";
 			};
 
-			i3c1: i3c-master@44330000 {
+			i3c1: i3c@44330000 {
 				compatible = "silvaco,i3c-master-v1";
 				reg = <0x44330000 0x10000>;
 				interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_HIGH>;
@@ -671,7 +671,7 @@
 				status = "disabled";
 			};
 
-			i3c2: i3c-master@42520000 {
+			i3c2: i3c@42520000 {
 				compatible = "silvaco,i3c-master-v1";
 				reg = <0x42520000 0x10000>;
 				interrupts = <GIC_SPI 61 IRQ_TYPE_LEVEL_HIGH>;

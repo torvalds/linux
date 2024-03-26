@@ -41,34 +41,8 @@ static void rtw89_wow_leave_lps(struct rtw89_dev *rtwdev)
 static int rtw89_wow_config_mac(struct rtw89_dev *rtwdev, bool enable_wow)
 {
 	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
-	int ret;
 
-	if (enable_wow) {
-		ret = rtw89_mac_resize_ple_rx_quota(rtwdev, true);
-		if (ret) {
-			rtw89_err(rtwdev, "[ERR]patch rx qta %d\n", ret);
-			return ret;
-		}
-		rtw89_write32_set(rtwdev, R_AX_RX_FUNCTION_STOP, B_AX_HDR_RX_STOP);
-		rtw89_write32_clr(rtwdev, mac->rx_fltr, B_AX_SNIFFER_MODE);
-		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, false);
-		rtw89_write32(rtwdev, R_AX_ACTION_FWD0, 0);
-		rtw89_write32(rtwdev, R_AX_ACTION_FWD1, 0);
-		rtw89_write32(rtwdev, R_AX_TF_FWD, 0);
-		rtw89_write32(rtwdev, R_AX_HW_RPT_FWD, 0);
-	} else {
-		ret = rtw89_mac_resize_ple_rx_quota(rtwdev, false);
-		if (ret) {
-			rtw89_err(rtwdev, "[ERR]patch rx qta %d\n", ret);
-			return ret;
-		}
-		rtw89_write32_clr(rtwdev, R_AX_RX_FUNCTION_STOP, B_AX_HDR_RX_STOP);
-		rtw89_mac_cfg_ppdu_status(rtwdev, RTW89_MAC_0, true);
-		rtw89_write32(rtwdev, R_AX_ACTION_FWD0, TRXCFG_MPDU_PROC_ACT_FRWD);
-		rtw89_write32(rtwdev, R_AX_TF_FWD, TRXCFG_MPDU_PROC_TF_FRWD);
-	}
-
-	return 0;
+	return mac->wow_config_mac(rtwdev, enable_wow);
 }
 
 static void rtw89_wow_set_rx_filter(struct rtw89_dev *rtwdev, bool enable)
@@ -85,21 +59,14 @@ static void rtw89_wow_set_rx_filter(struct rtw89_dev *rtwdev, bool enable)
 
 static void rtw89_wow_show_wakeup_reason(struct rtw89_dev *rtwdev)
 {
-	enum rtw89_core_chip_id chip_id = rtwdev->chip->chip_id;
+	u32 wow_reason_reg = rtwdev->chip->wow_reason_reg;
 	struct cfg80211_wowlan_nd_info nd_info;
 	struct cfg80211_wowlan_wakeup wakeup = {
 		.pattern_idx = -1,
 	};
-	u32 wow_reason_reg;
 	u8 reason;
 
-	if (chip_id == RTL8852A || chip_id == RTL8852B || chip_id == RTL8851B)
-		wow_reason_reg = R_AX_C2HREG_DATA3 + 3;
-	else
-		wow_reason_reg = R_AX_C2HREG_DATA3_V1 + 3;
-
 	reason = rtw89_read8(rtwdev, wow_reason_reg);
-
 	switch (reason) {
 	case RTW89_WOW_RSN_RX_DEAUTH:
 		wakeup.disconnect = true;
@@ -470,13 +437,14 @@ static int rtw89_wow_cfg_wake(struct rtw89_dev *rtwdev, bool wow)
 
 static int rtw89_wow_check_fw_status(struct rtw89_dev *rtwdev, bool wow_enable)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u8 polling;
 	int ret;
 
 	ret = read_poll_timeout_atomic(rtw89_read8_mask, polling,
 				       wow_enable == !!polling,
 				       50, 50000, false, rtwdev,
-				       R_AX_WOW_CTRL, B_AX_WOW_WOWEN);
+				       mac->wow_ctrl.addr, mac->wow_ctrl.mask);
 	if (ret)
 		rtw89_err(rtwdev, "failed to check wow status %s\n",
 			  wow_enable ? "enabled" : "disabled");
@@ -519,7 +487,7 @@ static int rtw89_wow_swap_fw(struct rtw89_dev *rtwdev, bool wow)
 		return ret;
 	}
 
-	ret = rtw89_fw_h2c_assoc_cmac_tbl(rtwdev, wow_vif, wow_sta);
+	ret = rtw89_chip_h2c_assoc_cmac_tbl(rtwdev, wow_vif, wow_sta);
 	if (ret) {
 		rtw89_warn(rtwdev, "failed to send h2c assoc cmac tbl\n");
 		return ret;
@@ -566,7 +534,7 @@ static int rtw89_wow_enable_trx_pre(struct rtw89_dev *rtwdev)
 
 	rtw89_mac_ptk_drop_by_band_and_wait(rtwdev, RTW89_MAC_0);
 
-	ret = rtw89_hci_poll_txdma_ch(rtwdev);
+	ret = rtw89_hci_poll_txdma_ch_idle(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "txdma ch busy\n");
 		return ret;
@@ -589,7 +557,7 @@ static int rtw89_wow_enable_trx_post(struct rtw89_dev *rtwdev)
 	rtw89_hci_disable_intr(rtwdev);
 	rtw89_hci_ctrl_trxhci(rtwdev, false);
 
-	ret = rtw89_hci_poll_txdma_ch(rtwdev);
+	ret = rtw89_hci_poll_txdma_ch_idle(rtwdev);
 	if (ret) {
 		rtw89_err(rtwdev, "failed to poll txdma ch idle pcie\n");
 		return ret;
@@ -699,13 +667,13 @@ static int rtw89_wow_fw_stop(struct rtw89_dev *rtwdev)
 		goto out;
 	}
 
+	rtw89_fw_release_general_pkt_list(rtwdev, true);
+
 	ret = rtw89_wow_cfg_wake(rtwdev, false);
 	if (ret) {
 		rtw89_err(rtwdev, "wow: failed to disable config wake\n");
 		goto out;
 	}
-
-	rtw89_fw_release_general_pkt_list(rtwdev, true);
 
 	ret = rtw89_wow_check_fw_status(rtwdev, false);
 	if (ret) {

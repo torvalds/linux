@@ -1238,6 +1238,8 @@ static struct option stat_options[] = {
 		     "aggregate counts per processor socket", AGGR_SOCKET),
 	OPT_SET_UINT(0, "per-die", &stat_config.aggr_mode,
 		     "aggregate counts per processor die", AGGR_DIE),
+	OPT_SET_UINT(0, "per-cluster", &stat_config.aggr_mode,
+		     "aggregate counts per processor cluster", AGGR_CLUSTER),
 	OPT_CALLBACK_OPTARG(0, "per-cache", &stat_config.aggr_mode, &stat_config.aggr_level,
 			    "cache level", "aggregate count at this cache level (Default: LLC)",
 			    parse_cache_level),
@@ -1428,6 +1430,7 @@ static struct aggr_cpu_id aggr_cpu_id__cache(struct perf_cpu cpu, void *data)
 static const char *const aggr_mode__string[] = {
 	[AGGR_CORE] = "core",
 	[AGGR_CACHE] = "cache",
+	[AGGR_CLUSTER] = "cluster",
 	[AGGR_DIE] = "die",
 	[AGGR_GLOBAL] = "global",
 	[AGGR_NODE] = "node",
@@ -1453,6 +1456,12 @@ static struct aggr_cpu_id perf_stat__get_cache_id(struct perf_stat_config *confi
 						  struct perf_cpu cpu)
 {
 	return aggr_cpu_id__cache(cpu, /*data=*/NULL);
+}
+
+static struct aggr_cpu_id perf_stat__get_cluster(struct perf_stat_config *config __maybe_unused,
+						 struct perf_cpu cpu)
+{
+	return aggr_cpu_id__cluster(cpu, /*data=*/NULL);
 }
 
 static struct aggr_cpu_id perf_stat__get_core(struct perf_stat_config *config __maybe_unused,
@@ -1507,6 +1516,12 @@ static struct aggr_cpu_id perf_stat__get_die_cached(struct perf_stat_config *con
 	return perf_stat__get_aggr(config, perf_stat__get_die, cpu);
 }
 
+static struct aggr_cpu_id perf_stat__get_cluster_cached(struct perf_stat_config *config,
+							struct perf_cpu cpu)
+{
+	return perf_stat__get_aggr(config, perf_stat__get_cluster, cpu);
+}
+
 static struct aggr_cpu_id perf_stat__get_cache_id_cached(struct perf_stat_config *config,
 							 struct perf_cpu cpu)
 {
@@ -1544,6 +1559,8 @@ static aggr_cpu_id_get_t aggr_mode__get_aggr(enum aggr_mode aggr_mode)
 		return aggr_cpu_id__socket;
 	case AGGR_DIE:
 		return aggr_cpu_id__die;
+	case AGGR_CLUSTER:
+		return aggr_cpu_id__cluster;
 	case AGGR_CACHE:
 		return aggr_cpu_id__cache;
 	case AGGR_CORE:
@@ -1569,6 +1586,8 @@ static aggr_get_id_t aggr_mode__get_id(enum aggr_mode aggr_mode)
 		return perf_stat__get_socket_cached;
 	case AGGR_DIE:
 		return perf_stat__get_die_cached;
+	case AGGR_CLUSTER:
+		return perf_stat__get_cluster_cached;
 	case AGGR_CACHE:
 		return perf_stat__get_cache_id_cached;
 	case AGGR_CORE:
@@ -1737,6 +1756,21 @@ static struct aggr_cpu_id perf_env__get_cache_aggr_by_cpu(struct perf_cpu cpu,
 	return id;
 }
 
+static struct aggr_cpu_id perf_env__get_cluster_aggr_by_cpu(struct perf_cpu cpu,
+							    void *data)
+{
+	struct perf_env *env = data;
+	struct aggr_cpu_id id = aggr_cpu_id__empty();
+
+	if (cpu.cpu != -1) {
+		id.socket = env->cpu[cpu.cpu].socket_id;
+		id.die = env->cpu[cpu.cpu].die_id;
+		id.cluster = env->cpu[cpu.cpu].cluster_id;
+	}
+
+	return id;
+}
+
 static struct aggr_cpu_id perf_env__get_core_aggr_by_cpu(struct perf_cpu cpu, void *data)
 {
 	struct perf_env *env = data;
@@ -1744,12 +1778,12 @@ static struct aggr_cpu_id perf_env__get_core_aggr_by_cpu(struct perf_cpu cpu, vo
 
 	if (cpu.cpu != -1) {
 		/*
-		 * core_id is relative to socket and die,
-		 * we need a global id. So we set
-		 * socket, die id and core id
+		 * core_id is relative to socket, die and cluster, we need a
+		 * global id. So we set socket, die id, cluster id and core id.
 		 */
 		id.socket = env->cpu[cpu.cpu].socket_id;
 		id.die = env->cpu[cpu.cpu].die_id;
+		id.cluster = env->cpu[cpu.cpu].cluster_id;
 		id.core = env->cpu[cpu.cpu].core_id;
 	}
 
@@ -1805,6 +1839,12 @@ static struct aggr_cpu_id perf_stat__get_die_file(struct perf_stat_config *confi
 	return perf_env__get_die_aggr_by_cpu(cpu, &perf_stat.session->header.env);
 }
 
+static struct aggr_cpu_id perf_stat__get_cluster_file(struct perf_stat_config *config __maybe_unused,
+						      struct perf_cpu cpu)
+{
+	return perf_env__get_cluster_aggr_by_cpu(cpu, &perf_stat.session->header.env);
+}
+
 static struct aggr_cpu_id perf_stat__get_cache_file(struct perf_stat_config *config __maybe_unused,
 						    struct perf_cpu cpu)
 {
@@ -1842,6 +1882,8 @@ static aggr_cpu_id_get_t aggr_mode__get_aggr_file(enum aggr_mode aggr_mode)
 		return perf_env__get_socket_aggr_by_cpu;
 	case AGGR_DIE:
 		return perf_env__get_die_aggr_by_cpu;
+	case AGGR_CLUSTER:
+		return perf_env__get_cluster_aggr_by_cpu;
 	case AGGR_CACHE:
 		return perf_env__get_cache_aggr_by_cpu;
 	case AGGR_CORE:
@@ -1867,6 +1909,8 @@ static aggr_get_id_t aggr_mode__get_id_file(enum aggr_mode aggr_mode)
 		return perf_stat__get_socket_file;
 	case AGGR_DIE:
 		return perf_stat__get_die_file;
+	case AGGR_CLUSTER:
+		return perf_stat__get_cluster_file;
 	case AGGR_CACHE:
 		return perf_stat__get_cache_file;
 	case AGGR_CORE:
@@ -2398,6 +2442,8 @@ static int __cmd_report(int argc, const char **argv)
 		     "aggregate counts per processor socket", AGGR_SOCKET),
 	OPT_SET_UINT(0, "per-die", &perf_stat.aggr_mode,
 		     "aggregate counts per processor die", AGGR_DIE),
+	OPT_SET_UINT(0, "per-cluster", &perf_stat.aggr_mode,
+		     "aggregate counts perf processor cluster", AGGR_CLUSTER),
 	OPT_CALLBACK_OPTARG(0, "per-cache", &perf_stat.aggr_mode, &perf_stat.aggr_level,
 			    "cache level",
 			    "aggregate count at this cache level (Default: LLC)",

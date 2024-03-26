@@ -87,6 +87,7 @@ enum fixed_addresses {
 	FIX_PTE,
 	FIX_PMD,
 	FIX_PUD,
+	FIX_P4D,
 	FIX_PGD,
 
 	__end_of_fixed_addresses
@@ -100,7 +101,6 @@ enum fixed_addresses {
 #define FIXMAP_PAGE_IO     __pgprot(PROT_DEVICE_nGnRE)
 
 void __init early_fixmap_init(void);
-void __init fixmap_copy(pgd_t *pgdir);
 
 #define __early_set_fixmap __set_fixmap
 

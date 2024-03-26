@@ -9,15 +9,14 @@ title: Imagis IST30XXC family touchscreen controller
 maintainers:
   - Markuss Broks <markuss.broks@gmail.com>
 
-allOf:
-  - $ref: touchscreen.yaml#
-
 properties:
   $nodename:
     pattern: "^touchscreen@[0-9a-f]+$"
 
   compatible:
     enum:
+      - imagis,ist3032c
+      - imagis,ist3038b
       - imagis,ist3038c
 
   reg:
@@ -32,6 +31,10 @@ properties:
   vddio-supply:
     description: Power supply regulator for the I2C bus
 
+  linux,keycodes:
+    description: Keycodes for the touch keys
+    maxItems: 5
+
   touchscreen-size-x: true
   touchscreen-size-y: true
   touchscreen-fuzz-x: true
@@ -41,6 +44,18 @@ properties:
   touchscreen-swapped-x-y: true
 
 additionalProperties: false
+
+allOf:
+  - $ref: touchscreen.yaml#
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: imagis,ist3032c
+    then:
+      properties:
+        linux,keycodes: false
 
 required:
   - compatible

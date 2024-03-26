@@ -46,8 +46,8 @@ void skl_watermark_ipc_update(struct drm_i915_private *i915);
 bool skl_watermark_ipc_enabled(struct drm_i915_private *i915);
 void skl_watermark_debugfs_register(struct drm_i915_private *i915);
 
-unsigned int skl_watermark_max_latency(struct drm_i915_private *i915);
-
+unsigned int skl_watermark_max_latency(struct drm_i915_private *i915,
+				       int initial_wm_level);
 void skl_wm_init(struct drm_i915_private *i915);
 
 struct intel_dbuf_state {

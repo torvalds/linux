@@ -352,6 +352,111 @@ static inline void FWCMD_SET_ADDR_BSSID_BSSID5(void *cmd, u32 value)
 	le32p_replace_bits((__le32 *)(cmd) + 14, value, GENMASK(31, 24));
 }
 
+struct rtw89_h2c_dctlinfo_ud_v2 {
+	__le32 c0;
+	__le32 w0;
+	__le32 w1;
+	__le32 w2;
+	__le32 w3;
+	__le32 w4;
+	__le32 w5;
+	__le32 w6;
+	__le32 w7;
+	__le32 w8;
+	__le32 w9;
+	__le32 w10;
+	__le32 w11;
+	__le32 w12;
+	__le32 w13;
+	__le32 w14;
+	__le32 w15;
+	__le32 m0;
+	__le32 m1;
+	__le32 m2;
+	__le32 m3;
+	__le32 m4;
+	__le32 m5;
+	__le32 m6;
+	__le32 m7;
+	__le32 m8;
+	__le32 m9;
+	__le32 m10;
+	__le32 m11;
+	__le32 m12;
+	__le32 m13;
+	__le32 m14;
+	__le32 m15;
+} __packed;
+
+#define DCTLINFO_V2_C0_MACID GENMASK(6, 0)
+#define DCTLINFO_V2_C0_OP BIT(7)
+
+#define DCTLINFO_V2_W0_QOS_FIELD_H GENMASK(7, 0)
+#define DCTLINFO_V2_W0_HW_EXSEQ_MACID GENMASK(14, 8)
+#define DCTLINFO_V2_W0_QOS_DATA BIT(15)
+#define DCTLINFO_V2_W0_AES_IV_L GENMASK(31, 16)
+#define DCTLINFO_V2_W0_ALL GENMASK(31, 0)
+#define DCTLINFO_V2_W1_AES_IV_H GENMASK(31, 0)
+#define DCTLINFO_V2_W1_ALL GENMASK(31, 0)
+#define DCTLINFO_V2_W2_SEQ0 GENMASK(11, 0)
+#define DCTLINFO_V2_W2_SEQ1 GENMASK(23, 12)
+#define DCTLINFO_V2_W2_AMSDU_MAX_LEN GENMASK(26, 24)
+#define DCTLINFO_V2_W2_STA_AMSDU_EN BIT(27)
+#define DCTLINFO_V2_W2_CHKSUM_OFLD_EN BIT(28)
+#define DCTLINFO_V2_W2_WITH_LLC BIT(29)
+#define DCTLINFO_V2_W2_NAT25_EN BIT(30)
+#define DCTLINFO_V2_W2_IS_MLD BIT(31)
+#define DCTLINFO_V2_W2_ALL GENMASK(31, 0)
+#define DCTLINFO_V2_W3_SEQ2 GENMASK(11, 0)
+#define DCTLINFO_V2_W3_SEQ3 GENMASK(23, 12)
+#define DCTLINFO_V2_W3_TGT_IND GENMASK(27, 24)
+#define DCTLINFO_V2_W3_TGT_IND_EN BIT(28)
+#define DCTLINFO_V2_W3_HTC_LB GENMASK(31, 29)
+#define DCTLINFO_V2_W3_ALL GENMASK(31, 0)
+#define DCTLINFO_V2_W4_VLAN_TAG_SEL GENMASK(7, 5)
+#define DCTLINFO_V2_W4_HTC_ORDER BIT(8)
+#define DCTLINFO_V2_W4_SEC_KEY_ID GENMASK(10, 9)
+#define DCTLINFO_V2_W4_VLAN_RX_DYNAMIC_PCP_EN BIT(11)
+#define DCTLINFO_V2_W4_VLAN_RX_PKT_DROP BIT(12)
+#define DCTLINFO_V2_W4_VLAN_RX_VALID BIT(13)
+#define DCTLINFO_V2_W4_VLAN_TX_VALID BIT(14)
+#define DCTLINFO_V2_W4_WAPI BIT(15)
+#define DCTLINFO_V2_W4_SEC_ENT_MODE GENMASK(17, 16)
+#define DCTLINFO_V2_W4_SEC_ENT0_KEYID GENMASK(19, 18)
+#define DCTLINFO_V2_W4_SEC_ENT1_KEYID GENMASK(21, 20)
+#define DCTLINFO_V2_W4_SEC_ENT2_KEYID GENMASK(23, 22)
+#define DCTLINFO_V2_W4_SEC_ENT3_KEYID GENMASK(25, 24)
+#define DCTLINFO_V2_W4_SEC_ENT4_KEYID GENMASK(27, 26)
+#define DCTLINFO_V2_W4_SEC_ENT5_KEYID GENMASK(29, 28)
+#define DCTLINFO_V2_W4_SEC_ENT6_KEYID GENMASK(31, 30)
+#define DCTLINFO_V2_W4_ALL GENMASK(31, 5)
+#define DCTLINFO_V2_W5_SEC_ENT7_KEYID GENMASK(1, 0)
+#define DCTLINFO_V2_W5_SEC_ENT8_KEYID GENMASK(3, 2)
+#define DCTLINFO_V2_W5_SEC_ENT_VALID_V1 GENMASK(23, 8)
+#define DCTLINFO_V2_W5_SEC_ENT0_V1 GENMASK(31, 24)
+#define DCTLINFO_V2_W5_ALL (GENMASK(31, 8) | GENMASK(3, 0))
+#define DCTLINFO_V2_W6_SEC_ENT1_V1 GENMASK(7, 0)
+#define DCTLINFO_V2_W6_SEC_ENT2_V1 GENMASK(15, 8)
+#define DCTLINFO_V2_W6_SEC_ENT3_V1 GENMASK(23, 16)
+#define DCTLINFO_V2_W6_SEC_ENT4_V1 GENMASK(31, 24)
+#define DCTLINFO_V2_W6_ALL GENMASK(31, 0)
+#define DCTLINFO_V2_W7_SEC_ENT5_V1 GENMASK(7, 0)
+#define DCTLINFO_V2_W7_SEC_ENT6_V1 GENMASK(15, 8)
+#define DCTLINFO_V2_W7_SEC_ENT7 GENMASK(23, 16)
+#define DCTLINFO_V2_W7_SEC_ENT8 GENMASK(31, 24)
+#define DCTLINFO_V2_W7_ALL GENMASK(31, 0)
+#define DCTLINFO_V2_W8_MLD_SMA_L_V1 GENMASK(31, 0)
+#define DCTLINFO_V2_W8_ALL GENMASK(31, 0)
+#define DCTLINFO_V2_W9_MLD_SMA_H_V1 GENMASK(15, 0)
+#define DCTLINFO_V2_W9_MLD_TMA_L_V1 GENMASK(31, 16)
+#define DCTLINFO_V2_W9_ALL GENMASK(31, 0)
+#define DCTLINFO_V2_W10_MLD_TMA_H_V1 GENMASK(31, 0)
+#define DCTLINFO_V2_W10_ALL GENMASK(31, 0)
+#define DCTLINFO_V2_W11_MLD_TA_BSSID_L_V1 GENMASK(31, 0)
+#define DCTLINFO_V2_W11_ALL GENMASK(31, 0)
+#define DCTLINFO_V2_W12_MLD_TA_BSSID_H_V1 GENMASK(15, 0)
+#define DCTLINFO_V2_W12_ALL GENMASK(15, 0)
+
 int rtw89_cam_init(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
 void rtw89_cam_deinit(struct rtw89_dev *rtwdev, struct rtw89_vif *vif);
 int rtw89_cam_init_addr_cam(struct rtw89_dev *rtwdev,
@@ -373,6 +478,10 @@ void rtw89_cam_fill_dctl_sec_cam_info_v1(struct rtw89_dev *rtwdev,
 					 struct rtw89_vif *rtwvif,
 					 struct rtw89_sta *rtwsta,
 					 u8 *cmd);
+void rtw89_cam_fill_dctl_sec_cam_info_v2(struct rtw89_dev *rtwdev,
+					 struct rtw89_vif *rtwvif,
+					 struct rtw89_sta *rtwsta,
+					 struct rtw89_h2c_dctlinfo_ud_v2 *h2c);
 int rtw89_cam_fill_bssid_cam_info(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif *rtwvif,
 				  struct rtw89_sta *rtwsta, u8 *cmd);

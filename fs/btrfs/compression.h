@@ -7,10 +7,18 @@
 #define BTRFS_COMPRESSION_H
 
 #include <linux/sizes.h>
+#include <linux/mm.h>
+#include <linux/list.h>
+#include <linux/workqueue.h>
+#include <linux/wait.h>
 #include "bio.h"
 
+struct address_space;
+struct page;
+struct inode;
 struct btrfs_inode;
 struct btrfs_ordered_extent;
+struct btrfs_bio;
 
 /*
  * We want to make sure that amount of RAM required to uncompress an extent is
@@ -31,8 +39,6 @@ static_assert((BTRFS_MAX_COMPRESSED % PAGE_SIZE) == 0);
 #define BTRFS_MAX_UNCOMPRESSED		(SZ_128K)
 
 #define	BTRFS_ZLIB_DEFAULT_LEVEL		3
-
-struct page;
 
 struct compressed_bio {
 	/* Number of compressed pages in the array */
@@ -169,7 +175,7 @@ int zstd_compress_pages(struct list_head *ws, struct address_space *mapping,
 		unsigned long *total_in, unsigned long *total_out);
 int zstd_decompress_bio(struct list_head *ws, struct compressed_bio *cb);
 int zstd_decompress(struct list_head *ws, const u8 *data_in,
-		struct page *dest_page, unsigned long start_byte, size_t srclen,
+		struct page *dest_page, unsigned long dest_pgoff, size_t srclen,
 		size_t destlen);
 void zstd_init_workspace_manager(void);
 void zstd_cleanup_workspace_manager(void);

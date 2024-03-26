@@ -3,7 +3,17 @@
 #ifndef BTRFS_ROOT_TREE_H
 #define BTRFS_ROOT_TREE_H
 
+#include <linux/types.h>
+
 struct fscrypt_str;
+struct extent_buffer;
+struct btrfs_key;
+struct btrfs_root;
+struct btrfs_root_item;
+struct btrfs_path;
+struct btrfs_fs_info;
+struct btrfs_block_rsv;
+struct btrfs_trans_handle;
 
 int btrfs_subvolume_reserve_metadata(struct btrfs_root *root,
 				     struct btrfs_block_rsv *rsv,

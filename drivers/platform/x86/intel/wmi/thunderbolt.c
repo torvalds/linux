@@ -63,6 +63,7 @@ static struct wmi_driver intel_wmi_thunderbolt_driver = {
 		.dev_groups = tbt_groups,
 	},
 	.id_table = intel_wmi_thunderbolt_id_table,
+	.no_singleton = true,
 };
 
 module_wmi_driver(intel_wmi_thunderbolt_driver);

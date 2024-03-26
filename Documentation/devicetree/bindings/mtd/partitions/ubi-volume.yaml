@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/mtd/partitions/ubi-volume.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: UBI volume
+
+description: |
+  This binding describes a single UBI volume. Volumes can be matches either
+  by their ID or their name, or both.
+
+maintainers:
+  - Daniel Golle <daniel@makrotopia.org>
+
+properties:
+  volid:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Match UBI volume ID
+
+  volname:
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      Match UBI volume ID
+
+  nvmem-layout:
+    $ref: /schemas/nvmem/layouts/nvmem-layout.yaml#
+    description:
+      This container may reference an NVMEM layout parser.
+
+anyOf:
+  - required:
+      - volid
+
+  - required:
+      - volname
+
+# This is a generic file other binding inherit from and extend
+additionalProperties: true

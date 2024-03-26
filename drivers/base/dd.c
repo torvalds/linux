@@ -313,7 +313,7 @@ static void deferred_probe_timeout_work_func(struct work_struct *work)
 
 	mutex_lock(&deferred_probe_mutex);
 	list_for_each_entry(p, &deferred_probe_pending_list, deferred_probe)
-		dev_info(p->device, "deferred probe pending: %s", p->deferred_probe_reason ?: "(reason unknown)\n");
+		dev_warn(p->device, "deferred probe pending: %s", p->deferred_probe_reason ?: "(reason unknown)\n");
 	mutex_unlock(&deferred_probe_mutex);
 
 	fw_devlink_probing_done();
@@ -397,13 +397,12 @@ bool device_is_bound(struct device *dev)
 static void driver_bound(struct device *dev)
 {
 	if (device_is_bound(dev)) {
-		pr_warn("%s: device %s already bound\n",
-			__func__, kobject_name(&dev->kobj));
+		dev_warn(dev, "%s: device already bound\n", __func__);
 		return;
 	}
 
-	pr_debug("driver: '%s': %s: bound to device '%s'\n", dev->driver->name,
-		 __func__, dev_name(dev));
+	dev_dbg(dev, "driver: '%s': %s: bound to device\n", dev->driver->name,
+		__func__);
 
 	klist_add_tail(&dev->p->knode_driver, &dev->driver->p->klist_devices);
 	device_links_driver_bound(dev);
@@ -587,13 +586,13 @@ static int call_driver_probe(struct device *dev, struct device_driver *drv)
 		break;
 	case -ENODEV:
 	case -ENXIO:
-		pr_debug("%s: probe of %s rejects match %d\n",
-			 drv->name, dev_name(dev), ret);
+		dev_dbg(dev, "probe with driver %s rejects match %d\n",
+			drv->name, ret);
 		break;
 	default:
 		/* driver matched but the probe failed */
-		pr_warn("%s: probe of %s failed with error %d\n",
-			drv->name, dev_name(dev), ret);
+		dev_err(dev, "probe with driver %s failed with error %d\n",
+			drv->name, ret);
 		break;
 	}
 
@@ -620,8 +619,8 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 	if (link_ret == -EPROBE_DEFER)
 		return link_ret;
 
-	pr_debug("bus: '%s': %s: probing driver %s with device %s\n",
-		 drv->bus->name, __func__, drv->name, dev_name(dev));
+	dev_dbg(dev, "bus: '%s': %s: probing driver %s with device\n",
+		drv->bus->name, __func__, drv->name);
 	if (!list_empty(&dev->devres_head)) {
 		dev_crit(dev, "Resources present before probing\n");
 		ret = -EBUSY;
@@ -644,8 +643,7 @@ re_probe:
 
 	ret = driver_sysfs_add(dev);
 	if (ret) {
-		pr_err("%s: driver_sysfs_add(%s) failed\n",
-		       __func__, dev_name(dev));
+		dev_err(dev, "%s: driver_sysfs_add failed\n", __func__);
 		goto sysfs_failed;
 	}
 
@@ -706,8 +704,8 @@ re_probe:
 		dev->pm_domain->sync(dev);
 
 	driver_bound(dev);
-	pr_debug("bus: '%s': %s: bound device %s to driver %s\n",
-		 drv->bus->name, __func__, dev_name(dev), drv->name);
+	dev_dbg(dev, "bus: '%s': %s: bound device to driver %s\n",
+		drv->bus->name, __func__, drv->name);
 	goto done;
 
 dev_sysfs_state_synced_failed:
@@ -786,8 +784,8 @@ static int __driver_probe_device(struct device_driver *drv, struct device *dev)
 		return -EBUSY;
 
 	dev->can_match = true;
-	pr_debug("bus: '%s': %s: matched device %s with driver %s\n",
-		 drv->bus->name, __func__, dev_name(dev), drv->name);
+	dev_dbg(dev, "bus: '%s': %s: matched device with driver %s\n",
+		drv->bus->name, __func__, drv->name);
 
 	pm_runtime_get_suppliers(dev);
 	if (dev->parent)

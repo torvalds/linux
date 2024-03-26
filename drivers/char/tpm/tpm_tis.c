@@ -347,6 +347,7 @@ static void tpm_tis_plat_remove(struct platform_device *pdev)
 
 #ifdef CONFIG_OF
 static const struct of_device_id tis_of_platform_match[] = {
+	{.compatible = "atmel,at97sc3204"},
 	{.compatible = "tcg,tpm-tis-mmio"},
 	{},
 };
@@ -428,7 +429,7 @@ static void __exit cleanup_tis(void)
 
 module_init(init_tis);
 module_exit(cleanup_tis);
-MODULE_AUTHOR("Leendert van Doorn (leendert@watson.ibm.com)");
+MODULE_AUTHOR("Leendert van Doorn <leendert@watson.ibm.com>");
 MODULE_DESCRIPTION("TPM Driver");
 MODULE_VERSION("2.0");
 MODULE_LICENSE("GPL");

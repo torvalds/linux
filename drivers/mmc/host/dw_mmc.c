@@ -35,7 +35,6 @@
 #include <linux/bitops.h>
 #include <linux/regulator/consumer.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/mmc/slot-gpio.h>
 
 #include "dw_mmc.h"

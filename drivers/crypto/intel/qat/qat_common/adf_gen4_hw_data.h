@@ -235,5 +235,6 @@ int adf_gen4_ring_pair_reset(struct adf_accel_dev *accel_dev, u32 bank_number);
 void adf_gen4_set_msix_default_rttable(struct adf_accel_dev *accel_dev);
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev);
 int adf_gen4_init_thd2arb_map(struct adf_accel_dev *accel_dev);
+u16 adf_gen4_get_ring_to_svc_map(struct adf_accel_dev *accel_dev);
 
 #endif

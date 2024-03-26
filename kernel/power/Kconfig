@@ -39,9 +39,9 @@ config HIBERNATION
 	bool "Hibernation (aka 'suspend to disk')"
 	depends on SWAP && ARCH_HIBERNATION_POSSIBLE
 	select HIBERNATE_CALLBACKS
-	select LZO_COMPRESS
-	select LZO_DECOMPRESS
 	select CRC32
+	select CRYPTO
+	select CRYPTO_LZO
 	help
 	  Enable the suspend to disk (STD) functionality, which is usually
 	  called "hibernation" in user interfaces.  STD checkpoints the
@@ -91,6 +91,28 @@ config HIBERNATION_SNAPSHOT_DEV
 	  reduces the attack surface of the kernel.
 
 	  If in doubt, say Y.
+
+choice
+	prompt "Default compressor"
+	default HIBERNATION_COMP_LZO
+	depends on HIBERNATION
+
+config HIBERNATION_COMP_LZO
+	bool "lzo"
+	depends on CRYPTO_LZO
+
+config HIBERNATION_COMP_LZ4
+	bool "lz4"
+	depends on CRYPTO_LZ4
+
+endchoice
+
+config HIBERNATION_DEF_COMP
+	string
+	default "lzo" if HIBERNATION_COMP_LZO
+	default "lz4" if HIBERNATION_COMP_LZ4
+	help
+	  Default compressor to be used for hibernation.
 
 config PM_STD_PARTITION
 	string "Default resume partition"

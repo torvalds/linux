@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/auxdisplay/gpio-7-segment.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: GPIO based LED segment display
+
+maintainers:
+  - Chris Packham <chris.packham@alliedtelesis.co.nz>
+
+properties:
+  compatible:
+    const: gpio-7-segment
+
+  segment-gpios:
+    description: |
+      An array of GPIOs one per segment. The first GPIO corresponds to the A
+      segment, the seventh GPIO corresponds to the G segment. Some LED blocks
+      also have a decimal point which can be specified as an optional eighth
+      segment.
+
+               -a-
+              |   |
+              f   b
+              |   |
+               -g-
+              |   |
+              e   c
+              |   |
+               -d-  dp
+
+    minItems: 7
+    maxItems: 8
+
+required:
+  - segment-gpios
+
+additionalProperties: false
+
+examples:
+  - |
+
+    #include <dt-bindings/gpio/gpio.h>
+
+    led-7seg {
+        compatible = "gpio-7-segment";
+        segment-gpios = <&gpio 0 GPIO_ACTIVE_LOW>,
+                        <&gpio 1 GPIO_ACTIVE_LOW>,
+                        <&gpio 2 GPIO_ACTIVE_LOW>,
+                        <&gpio 3 GPIO_ACTIVE_LOW>,
+                        <&gpio 4 GPIO_ACTIVE_LOW>,
+                        <&gpio 5 GPIO_ACTIVE_LOW>,
+                        <&gpio 6 GPIO_ACTIVE_LOW>;
+    };

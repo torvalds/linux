@@ -4634,6 +4634,14 @@ unsigned long ceph_check_delayed_caps(struct ceph_mds_client *mdsc)
 			iput(inode);
 			spin_lock(&mdsc->cap_delay_lock);
 		}
+
+		/*
+		 * Make sure too many dirty caps or general
+		 * slowness doesn't block mdsc delayed work,
+		 * preventing send_renew_caps() from running.
+		 */
+		if (jiffies - loop_start >= 5 * HZ)
+			break;
 	}
 	spin_unlock(&mdsc->cap_delay_lock);
 	doutc(cl, "done\n");

@@ -123,10 +123,14 @@ TEST_FILES := devlink_lib.sh \
 	mirror_gre_topo_lib.sh \
 	mirror_lib.sh \
 	mirror_topo_lib.sh \
+	router_mpath_nh_lib.sh \
 	sch_ets_core.sh \
 	sch_ets_tests.sh \
 	sch_tbf_core.sh \
 	sch_tbf_etsprio.sh \
 	tc_common.sh
+
+TEST_INCLUDES := \
+	../lib.sh
 
 include ../../lib.mk

@@ -83,7 +83,7 @@ static int tcm_loop_show_info(struct seq_file *m, struct Scsi_Host *host)
 static int tcm_loop_driver_probe(struct device *);
 static void tcm_loop_driver_remove(struct device *);
 
-static struct bus_type tcm_loop_lld_bus = {
+static const struct bus_type tcm_loop_lld_bus = {
 	.name			= "tcm_loop_bus",
 	.probe			= tcm_loop_driver_probe,
 	.remove			= tcm_loop_driver_remove,

@@ -263,48 +263,6 @@ u32 mdp5_encoder_get_framecount(struct drm_encoder *encoder)
 	return mdp5_read(mdp5_kms, REG_MDP5_INTF_FRAME_COUNT(intf));
 }
 
-int mdp5_vid_encoder_set_split_display(struct drm_encoder *encoder,
-				       struct drm_encoder *slave_encoder)
-{
-	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);
-	struct mdp5_encoder *mdp5_slave_enc = to_mdp5_encoder(slave_encoder);
-	struct mdp5_kms *mdp5_kms;
-	struct device *dev;
-	int intf_num;
-	u32 data = 0;
-
-	if (!encoder || !slave_encoder)
-		return -EINVAL;
-
-	mdp5_kms = get_kms(encoder);
-	intf_num = mdp5_encoder->intf->num;
-
-	/* Switch slave encoder's TimingGen Sync mode,
-	 * to use the master's enable signal for the slave encoder.
-	 */
-	if (intf_num == 1)
-		data |= MDP5_SPLIT_DPL_LOWER_INTF2_TG_SYNC;
-	else if (intf_num == 2)
-		data |= MDP5_SPLIT_DPL_LOWER_INTF1_TG_SYNC;
-	else
-		return -EINVAL;
-
-	dev = &mdp5_kms->pdev->dev;
-	/* Make sure clocks are on when connectors calling this function. */
-	pm_runtime_get_sync(dev);
-
-	/* Dumb Panel, Sync mode */
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_UPPER, 0);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_LOWER, data);
-	mdp5_write(mdp5_kms, REG_MDP5_SPLIT_DPL_EN, 1);
-
-	mdp5_ctl_pair(mdp5_encoder->ctl, mdp5_slave_enc->ctl, true);
-
-	pm_runtime_put_sync(dev);
-
-	return 0;
-}
-
 void mdp5_encoder_set_intf_mode(struct drm_encoder *encoder, bool cmd_mode)
 {
 	struct mdp5_encoder *mdp5_encoder = to_mdp5_encoder(encoder);

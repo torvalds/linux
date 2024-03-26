@@ -915,6 +915,9 @@
 			reg = <0x1c>;
 
 			realtek,dmic1-data-pin = <1>;
+
+			clocks = <&tegra_pmc TEGRA_PMC_CLK_OUT_1>;
+			clock-names = "mclk";
 		};
 
 		nct72: temperature-sensor@4c {

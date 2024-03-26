@@ -698,7 +698,7 @@ gelic_card_get_next_tx_descr(struct gelic_card *card)
 }
 
 /**
- * gelic_net_set_txdescr_cmdstat - sets the tx descriptor command field
+ * gelic_descr_set_tx_cmdstat - sets the tx descriptor command field
  * @descr: descriptor structure to fill out
  * @skb: packet to consider
  *
@@ -1461,7 +1461,7 @@ static void gelic_ether_setup_netdev_ops(struct net_device *netdev,
 }
 
 /**
- * gelic_ether_setup_netdev - initialization of net_device
+ * gelic_net_setup_netdev - initialization of net_device
  * @netdev: net_device structure
  * @card: card structure
  *
@@ -1518,14 +1518,16 @@ int gelic_net_setup_netdev(struct net_device *netdev, struct gelic_card *card)
 	return 0;
 }
 
+#define GELIC_ALIGN (32)
+
 /**
  * gelic_alloc_card_net - allocates net_device and card structure
+ * @netdev: interface device structure
  *
  * returns the card structure or NULL in case of errors
  *
  * the card and net_device structures are linked to each other
  */
-#define GELIC_ALIGN (32)
 static struct gelic_card *gelic_alloc_card_net(struct net_device **netdev)
 {
 	struct gelic_card *card;

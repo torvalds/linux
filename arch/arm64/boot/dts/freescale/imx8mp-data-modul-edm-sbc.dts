@@ -6,6 +6,7 @@
 /dts-v1/;
 
 #include <dt-bindings/net/qca-ar803x.h>
+#include <dt-bindings/phy/phy-imx8-pcie.h>
 #include "imx8mp.dtsi"
 
 / {
@@ -45,6 +46,19 @@
 		clock-frequency = <25000000>;
 	};
 
+	clk_pwm4: clock-pwm4 {
+		compatible = "pwm-clock";
+		#clock-cells = <0>;
+		clock-frequency = <12000000>;
+		clock-output-names = "codec-pwm4";
+		/*
+		 * 1 / 83 ns ~= 12 MHz , but since the PWM input clock is 24 MHz
+		 * and the calculated PWM period is 1 and duty cycle is 50%, the
+		 * result is exactly 12 MHz, which is fine for SGTL5000 MCLK.
+		 */
+		pwms = <&pwm4 0 83 0>;
+	};
+
 	panel: panel {
 		/* Compatible string is filled in by panel board DT Overlay. */
 		backlight = <&backlight>;
@@ -80,6 +94,24 @@
 		off-on-delay-us = <12000>;
 		startup-delay-us = <100>;
 		vin-supply = <&buck4>;
+	};
+
+	sound {
+		compatible = "simple-audio-card";
+		simple-audio-card,name = "SGTL5000-Card";
+		simple-audio-card,format = "i2s";
+		simple-audio-card,bitclock-master = <&codec_dai>;
+		simple-audio-card,frame-master = <&codec_dai>;
+		simple-audio-card,widgets = "Headphone", "Headphone Jack";
+		simple-audio-card,routing = "Headphone Jack", "HP_OUT";
+
+		cpu_dai: simple-audio-card,cpu {
+			sound-dai = <&sai3>;
+		};
+
+		codec_dai: simple-audio-card,codec {
+			sound-dai = <&sgtl5000>;
+		};
 	};
 
 	watchdog { /* TPS3813 */
@@ -121,7 +153,7 @@
 	flash@0 {	/* W25Q128JVEI */
 		compatible = "jedec,spi-nor";
 		reg = <0>;
-		spi-max-frequency = <100000000>;	/* Up to 133 MHz */
+		spi-max-frequency = <40000000>;
 		spi-tx-bus-width = <1>;
 		spi-rx-bus-width = <1>;
 	};
@@ -288,6 +320,15 @@
 	sda-gpios = <&gpio5 15 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 
+	sgtl5000: audio-codec@a {
+		compatible = "fsl,sgtl5000";
+		reg = <0x0a>;
+		#sound-dai-cells = <0>;
+		clocks = <&clk_pwm4>;
+		VDDA-supply = <&buck4>;
+		VDDIO-supply = <&buck4>;
+	};
+
 	usb-hub@2c {
 		compatible = "microchip,usb2514bi";
 		reg = <0x2c>;
@@ -429,11 +470,43 @@
 	status = "okay";
 };
 
+&pcie_phy {
+	clocks = <&pcieclk 0>;
+	clock-names = "ref";
+	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
+	status = "okay";
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pcie0>;
+	fsl,max-link-speed = <3>;
+	reset-gpio = <&gpio1 5 GPIO_ACTIVE_LOW>;
+	status = "okay";
+};
+
 &pwm1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_panel_pwm>;
 	/* Disabled by default, unless display board plugged in. */
 	status = "disabled";
+};
+
+&pwm4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_pwm4>;
+	status = "okay";
+};
+
+&sai3 {
+	#clock-cells = <0>;
+	#sound-dai-cells = <0>;
+	assigned-clocks = <&clk IMX8MP_CLK_SAI3>;
+	assigned-clock-parents = <&clk IMX8MP_AUDIO_PLL1_OUT>;
+	assigned-clock-rates = <12288000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sai3>;
+	status = "okay";
 };
 
 /* SD slot */
@@ -785,6 +858,12 @@
 		>;
 	};
 
+	pinctrl_pwm4: pwm4-grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SAI3_MCLK__PWM4_OUT		0xd6
+		>;
+	};
+
 	pinctrl_rtc: rtc-grp {
 		fsl,pins = <
 			/* RTC_IRQ# */
@@ -816,7 +895,6 @@
 			MX8MP_IOMUXC_SAI3_TXFS__AUDIOMIX_SAI3_TX_SYNC	0xd6
 			MX8MP_IOMUXC_SAI3_TXD__AUDIOMIX_SAI3_TX_DATA00	0xd6
 			MX8MP_IOMUXC_SAI3_TXC__AUDIOMIX_SAI3_TX_BCLK	0xd6
-			MX8MP_IOMUXC_SAI3_MCLK__AUDIOMIX_SAI3_MCLK	0xd6
 			MX8MP_IOMUXC_SAI3_RXD__AUDIOMIX_SAI3_RX_DATA00	0xd6
 		>;
 	};

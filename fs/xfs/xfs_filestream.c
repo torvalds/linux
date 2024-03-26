@@ -44,7 +44,7 @@ xfs_fstrm_free_func(
 	atomic_dec(&pag->pagf_fstrms);
 	xfs_perag_rele(pag);
 
-	kmem_free(item);
+	kfree(item);
 }
 
 /*
@@ -313,7 +313,7 @@ xfs_filestream_create_association(
 	 * we return a referenced AG, the allocation can still go ahead just
 	 * fine.
 	 */
-	item = kmem_alloc(sizeof(*item), KM_MAYFAIL);
+	item = kmalloc(sizeof(*item), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!item)
 		goto out_put_fstrms;
 
@@ -326,7 +326,7 @@ xfs_filestream_create_association(
 
 out_free_item:
 	xfs_perag_rele(item->pag);
-	kmem_free(item);
+	kfree(item);
 out_put_fstrms:
 	atomic_dec(&args->pag->pagf_fstrms);
 	return 0;

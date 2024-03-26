@@ -380,7 +380,7 @@ tgafb_set_par(struct fb_info *info)
 		BT463_LOAD_ADDR(par, 0x0000);
 		TGA_WRITE_REG(par, BT463_PALETTE << 2, TGA_RAMDAC_SETUP_REG);
 
-#ifdef CONFIG_HW_CONSOLE
+#ifdef CONFIG_VT
 		for (i = 0; i < 16; i++) {
 			int j = color_table[i];
 

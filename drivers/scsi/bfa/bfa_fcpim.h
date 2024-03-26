@@ -155,11 +155,38 @@ struct bfa_fcp_mod_s {
 };
 
 /*
+ * IO state machine events
+ */
+enum bfa_ioim_event {
+	BFA_IOIM_SM_START	= 1,	/*  io start request from host */
+	BFA_IOIM_SM_COMP_GOOD	= 2,	/*  io good comp, resource free */
+	BFA_IOIM_SM_COMP	= 3,	/*  io comp, resource is free */
+	BFA_IOIM_SM_COMP_UTAG	= 4,	/*  io comp, resource is free */
+	BFA_IOIM_SM_DONE	= 5,	/*  io comp, resource not free */
+	BFA_IOIM_SM_FREE	= 6,	/*  io resource is freed */
+	BFA_IOIM_SM_ABORT	= 7,	/*  abort request from scsi stack */
+	BFA_IOIM_SM_ABORT_COMP	= 8,	/*  abort from f/w */
+	BFA_IOIM_SM_ABORT_DONE	= 9,	/*  abort completion from f/w */
+	BFA_IOIM_SM_QRESUME	= 10,	/*  CQ space available to queue IO */
+	BFA_IOIM_SM_SGALLOCED	= 11,	/*  SG page allocation successful */
+	BFA_IOIM_SM_SQRETRY	= 12,	/*  sequence recovery retry */
+	BFA_IOIM_SM_HCB		= 13,	/*  bfa callback complete */
+	BFA_IOIM_SM_CLEANUP	= 14,	/*  IO cleanup from itnim */
+	BFA_IOIM_SM_TMSTART	= 15,	/*  IO cleanup from tskim */
+	BFA_IOIM_SM_TMDONE	= 16,	/*  IO cleanup from tskim */
+	BFA_IOIM_SM_HWFAIL	= 17,	/*  IOC h/w failure event */
+	BFA_IOIM_SM_IOTOV	= 18,	/*  ITN offline TOV */
+};
+
+struct bfa_ioim_s;
+typedef void (*bfa_ioim_sm_t)(struct bfa_ioim_s *, enum bfa_ioim_event);
+
+/*
  * BFA IO (initiator mode)
  */
 struct bfa_ioim_s {
 	struct list_head	qe;		/*  queue elememt	*/
-	bfa_sm_t		sm;		/*  BFA ioim state machine */
+	bfa_ioim_sm_t		sm;		/*  BFA ioim state machine */
 	struct bfa_s		*bfa;		/*  BFA module	*/
 	struct bfa_fcpim_s	*fcpim;		/*  parent fcpim module */
 	struct bfa_itnim_s	*itnim;		/*  i-t-n nexus for this IO  */
@@ -186,12 +213,27 @@ struct bfa_ioim_sp_s {
 	struct bfa_tskim_s	*tskim;		/*  Relevant TM cmd	*/
 };
 
+enum bfa_tskim_event {
+	BFA_TSKIM_SM_START	= 1,	/*  TM command start		*/
+	BFA_TSKIM_SM_DONE	= 2,	/*  TM completion		*/
+	BFA_TSKIM_SM_QRESUME	= 3,	/*  resume after qfull		*/
+	BFA_TSKIM_SM_HWFAIL	= 5,	/*  IOC h/w failure event	*/
+	BFA_TSKIM_SM_HCB	= 6,	/*  BFA callback completion	*/
+	BFA_TSKIM_SM_IOS_DONE	= 7,	/*  IO and sub TM completions	*/
+	BFA_TSKIM_SM_CLEANUP	= 8,	/*  TM cleanup on ITN offline	*/
+	BFA_TSKIM_SM_CLEANUP_DONE = 9,	/*  TM abort completion	*/
+	BFA_TSKIM_SM_UTAG	= 10,	/*  TM completion unknown tag  */
+};
+
+struct bfa_tskim_s;
+typedef void (*bfa_tskim_sm_t)(struct bfa_tskim_s *, enum bfa_tskim_event);
+
 /*
  * BFA Task management command (initiator mode)
  */
 struct bfa_tskim_s {
 	struct list_head	qe;
-	bfa_sm_t		sm;
+	bfa_tskim_sm_t		sm;
 	struct bfa_s		*bfa;	/*  BFA module  */
 	struct bfa_fcpim_s	*fcpim;	/*  parent fcpim module	*/
 	struct bfa_itnim_s	*itnim;	/*  i-t-n nexus for this IO  */
@@ -209,11 +251,29 @@ struct bfa_tskim_s {
 };
 
 /*
+ *  itnim state machine event
+ */
+enum bfa_itnim_event {
+	BFA_ITNIM_SM_CREATE = 1,	/*  itnim is created */
+	BFA_ITNIM_SM_ONLINE = 2,	/*  itnim is online */
+	BFA_ITNIM_SM_OFFLINE = 3,	/*  itnim is offline */
+	BFA_ITNIM_SM_FWRSP = 4,		/*  firmware response */
+	BFA_ITNIM_SM_DELETE = 5,	/*  deleting an existing itnim */
+	BFA_ITNIM_SM_CLEANUP = 6,	/*  IO cleanup completion */
+	BFA_ITNIM_SM_SLER = 7,		/*  second level error recovery */
+	BFA_ITNIM_SM_HWFAIL = 8,	/*  IOC h/w failure event */
+	BFA_ITNIM_SM_QRESUME = 9,	/*  queue space available */
+};
+
+struct bfa_itnim_s;
+typedef void (*bfa_itnim_sm_t)(struct bfa_itnim_s *, enum bfa_itnim_event);
+
+/*
  * BFA i-t-n (initiator mode)
  */
 struct bfa_itnim_s {
 	struct list_head	qe;	/*  queue element	*/
-	bfa_sm_t		sm;	/*  i-t-n im BFA state machine  */
+	bfa_itnim_sm_t		sm;	/*  i-t-n im BFA state machine  */
 	struct bfa_s		*bfa;	/*  bfa instance	*/
 	struct bfa_rport_s	*rport;	/*  bfa rport	*/
 	void			*ditn;	/*  driver i-t-n structure	*/

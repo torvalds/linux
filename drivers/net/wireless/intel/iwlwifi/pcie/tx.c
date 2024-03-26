@@ -1331,7 +1331,7 @@ static int iwl_fill_data_tbs_amsdu(struct iwl_trans *trans, struct sk_buff *skb,
 			     trans->txqs.tfd.size,
 			     &dev_cmd->hdr, IWL_FIRST_TB_SIZE + tb1_len, 0);
 
-	ip_hdrlen = skb_transport_header(skb) - skb_network_header(skb);
+	ip_hdrlen = skb_network_header_len(skb);
 	snap_ip_tcp_hdrlen = 8 + ip_hdrlen + tcp_hdrlen(skb);
 	total_len = skb->len - snap_ip_tcp_hdrlen - hdr_len - iv_len;
 	amsdu_pad = 0;

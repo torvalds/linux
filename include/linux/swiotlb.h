@@ -120,6 +120,8 @@ struct io_tlb_pool {
  *		debugfs.
  * @used_hiwater: The high water mark for total_used.  Used only for reporting
  *		in debugfs.
+ * @transient_nslabs: The total number of slots in all transient pools that
+ *		are currently used across all areas.
  */
 struct io_tlb_mem {
 	struct io_tlb_pool defpool;
@@ -137,6 +139,7 @@ struct io_tlb_mem {
 #ifdef CONFIG_DEBUG_FS
 	atomic_long_t total_used;
 	atomic_long_t used_hiwater;
+	atomic_long_t transient_nslabs;
 #endif
 };
 

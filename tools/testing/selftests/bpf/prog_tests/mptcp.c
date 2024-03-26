@@ -79,7 +79,7 @@ static void cleanup_netns(struct nstoken *nstoken)
 	if (nstoken)
 		close_netns(nstoken);
 
-	SYS_NOFAIL("ip netns del %s &> /dev/null", NS_TEST);
+	SYS_NOFAIL("ip netns del %s", NS_TEST);
 }
 
 static int verify_tsk(int map_fd, int client_fd)

@@ -349,7 +349,7 @@ static int ipvlan_get_iflink(const struct net_device *dev)
 {
 	struct ipvl_dev *ipvlan = netdev_priv(dev);
 
-	return ipvlan->phy_dev->ifindex;
+	return READ_ONCE(ipvlan->phy_dev->ifindex);
 }
 
 static const struct net_device_ops ipvlan_netdev_ops = {

@@ -55,6 +55,7 @@ static struct kfd_gpu_cache_info kaveri_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -64,6 +65,7 @@ static struct kfd_gpu_cache_info kaveri_cache_info[] = {
 		/* Scalar L1 Instruction Cache (in SQC module) per bank */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -73,6 +75,7 @@ static struct kfd_gpu_cache_info kaveri_cache_info[] = {
 		/* Scalar L1 Data Cache (in SQC module) per bank */
 		.cache_size = 8,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -88,6 +91,7 @@ static struct kfd_gpu_cache_info carrizo_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -95,8 +99,9 @@ static struct kfd_gpu_cache_info carrizo_cache_info[] = {
 	},
 	{
 		/* Scalar L1 Instruction Cache (in SQC module) per bank */
-		.cache_size = 8,
+		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -104,8 +109,9 @@ static struct kfd_gpu_cache_info carrizo_cache_info[] = {
 	},
 	{
 		/* Scalar L1 Data Cache (in SQC module) per bank. */
-		.cache_size = 4,
+		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -135,6 +141,7 @@ static struct kfd_gpu_cache_info vega10_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -144,6 +151,7 @@ static struct kfd_gpu_cache_info vega10_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -153,6 +161,7 @@ static struct kfd_gpu_cache_info vega10_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -162,6 +171,7 @@ static struct kfd_gpu_cache_info vega10_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 4096,
 		.cache_level = 2,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -174,6 +184,7 @@ static struct kfd_gpu_cache_info raven_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -183,6 +194,7 @@ static struct kfd_gpu_cache_info raven_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -192,6 +204,7 @@ static struct kfd_gpu_cache_info raven_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -201,6 +214,7 @@ static struct kfd_gpu_cache_info raven_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 1024,
 		.cache_level = 2,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -213,6 +227,7 @@ static struct kfd_gpu_cache_info renoir_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -222,6 +237,7 @@ static struct kfd_gpu_cache_info renoir_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -231,6 +247,7 @@ static struct kfd_gpu_cache_info renoir_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -240,6 +257,7 @@ static struct kfd_gpu_cache_info renoir_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 1024,
 		.cache_level = 2,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -252,6 +270,7 @@ static struct kfd_gpu_cache_info vega12_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -261,6 +280,7 @@ static struct kfd_gpu_cache_info vega12_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -270,6 +290,7 @@ static struct kfd_gpu_cache_info vega12_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -279,6 +300,7 @@ static struct kfd_gpu_cache_info vega12_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 2048,
 		.cache_level = 2,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -291,6 +313,7 @@ static struct kfd_gpu_cache_info vega20_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -300,6 +323,7 @@ static struct kfd_gpu_cache_info vega20_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -309,6 +333,7 @@ static struct kfd_gpu_cache_info vega20_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -318,6 +343,7 @@ static struct kfd_gpu_cache_info vega20_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 8192,
 		.cache_level = 2,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -330,6 +356,7 @@ static struct kfd_gpu_cache_info aldebaran_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -339,6 +366,7 @@ static struct kfd_gpu_cache_info aldebaran_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -348,6 +376,7 @@ static struct kfd_gpu_cache_info aldebaran_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -357,6 +386,7 @@ static struct kfd_gpu_cache_info aldebaran_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 8192,
 		.cache_level = 2,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -369,6 +399,7 @@ static struct kfd_gpu_cache_info navi10_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -378,6 +409,7 @@ static struct kfd_gpu_cache_info navi10_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -387,6 +419,7 @@ static struct kfd_gpu_cache_info navi10_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -396,6 +429,7 @@ static struct kfd_gpu_cache_info navi10_cache_info[] = {
 		/* GL1 Data Cache per SA */
 		.cache_size = 128,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -405,6 +439,7 @@ static struct kfd_gpu_cache_info navi10_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 4096,
 		.cache_level = 2,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -417,6 +452,7 @@ static struct kfd_gpu_cache_info vangogh_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -426,6 +462,7 @@ static struct kfd_gpu_cache_info vangogh_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -435,6 +472,7 @@ static struct kfd_gpu_cache_info vangogh_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -444,6 +482,7 @@ static struct kfd_gpu_cache_info vangogh_cache_info[] = {
 		/* GL1 Data Cache per SA */
 		.cache_size = 128,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -453,6 +492,7 @@ static struct kfd_gpu_cache_info vangogh_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 1024,
 		.cache_level = 2,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -465,6 +505,7 @@ static struct kfd_gpu_cache_info navi14_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -474,6 +515,7 @@ static struct kfd_gpu_cache_info navi14_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -483,6 +525,7 @@ static struct kfd_gpu_cache_info navi14_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -492,6 +535,7 @@ static struct kfd_gpu_cache_info navi14_cache_info[] = {
 		/* GL1 Data Cache per SA */
 		.cache_size = 128,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -501,6 +545,7 @@ static struct kfd_gpu_cache_info navi14_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 2048,
 		.cache_level = 2,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -513,6 +558,7 @@ static struct kfd_gpu_cache_info sienna_cichlid_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -522,6 +568,7 @@ static struct kfd_gpu_cache_info sienna_cichlid_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -531,6 +578,7 @@ static struct kfd_gpu_cache_info sienna_cichlid_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -540,6 +588,7 @@ static struct kfd_gpu_cache_info sienna_cichlid_cache_info[] = {
 		/* GL1 Data Cache per SA */
 		.cache_size = 128,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -549,6 +598,7 @@ static struct kfd_gpu_cache_info sienna_cichlid_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 4096,
 		.cache_level = 2,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -558,6 +608,7 @@ static struct kfd_gpu_cache_info sienna_cichlid_cache_info[] = {
 		/* L3 Data Cache per GPU */
 		.cache_size = 128*1024,
 		.cache_level = 3,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -570,6 +621,7 @@ static struct kfd_gpu_cache_info navy_flounder_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -579,6 +631,7 @@ static struct kfd_gpu_cache_info navy_flounder_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -588,6 +641,7 @@ static struct kfd_gpu_cache_info navy_flounder_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -597,6 +651,7 @@ static struct kfd_gpu_cache_info navy_flounder_cache_info[] = {
 		/* GL1 Data Cache per SA */
 		.cache_size = 128,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -606,6 +661,7 @@ static struct kfd_gpu_cache_info navy_flounder_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 3072,
 		.cache_level = 2,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -615,6 +671,7 @@ static struct kfd_gpu_cache_info navy_flounder_cache_info[] = {
 		/* L3 Data Cache per GPU */
 		.cache_size = 96*1024,
 		.cache_level = 3,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -627,6 +684,7 @@ static struct kfd_gpu_cache_info dimgrey_cavefish_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -636,6 +694,7 @@ static struct kfd_gpu_cache_info dimgrey_cavefish_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -645,6 +704,7 @@ static struct kfd_gpu_cache_info dimgrey_cavefish_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -654,6 +714,7 @@ static struct kfd_gpu_cache_info dimgrey_cavefish_cache_info[] = {
 		/* GL1 Data Cache per SA */
 		.cache_size = 128,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -663,6 +724,7 @@ static struct kfd_gpu_cache_info dimgrey_cavefish_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 2048,
 		.cache_level = 2,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -672,6 +734,7 @@ static struct kfd_gpu_cache_info dimgrey_cavefish_cache_info[] = {
 		/* L3 Data Cache per GPU */
 		.cache_size = 32*1024,
 		.cache_level = 3,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -684,6 +747,7 @@ static struct kfd_gpu_cache_info beige_goby_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -693,6 +757,7 @@ static struct kfd_gpu_cache_info beige_goby_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -702,6 +767,7 @@ static struct kfd_gpu_cache_info beige_goby_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -711,6 +777,7 @@ static struct kfd_gpu_cache_info beige_goby_cache_info[] = {
 		/* GL1 Data Cache per SA */
 		.cache_size = 128,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -720,6 +787,7 @@ static struct kfd_gpu_cache_info beige_goby_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 1024,
 		.cache_level = 2,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -729,6 +797,7 @@ static struct kfd_gpu_cache_info beige_goby_cache_info[] = {
 		/* L3 Data Cache per GPU */
 		.cache_size = 16*1024,
 		.cache_level = 3,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -741,6 +810,7 @@ static struct kfd_gpu_cache_info yellow_carp_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -750,6 +820,7 @@ static struct kfd_gpu_cache_info yellow_carp_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -759,6 +830,7 @@ static struct kfd_gpu_cache_info yellow_carp_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -768,6 +840,7 @@ static struct kfd_gpu_cache_info yellow_carp_cache_info[] = {
 		/* GL1 Data Cache per SA */
 		.cache_size = 128,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -777,6 +850,7 @@ static struct kfd_gpu_cache_info yellow_carp_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 2048,
 		.cache_level = 2,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -789,6 +863,7 @@ static struct kfd_gpu_cache_info gfx1037_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -798,6 +873,7 @@ static struct kfd_gpu_cache_info gfx1037_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -807,6 +883,7 @@ static struct kfd_gpu_cache_info gfx1037_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -816,6 +893,7 @@ static struct kfd_gpu_cache_info gfx1037_cache_info[] = {
 		/* GL1 Data Cache per SA */
 		.cache_size = 128,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -825,6 +903,7 @@ static struct kfd_gpu_cache_info gfx1037_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 256,
 		.cache_level = 2,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -837,6 +916,7 @@ static struct kfd_gpu_cache_info gc_10_3_6_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 			  CRAT_CACHE_FLAGS_DATA_CACHE |
 			  CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -846,6 +926,7 @@ static struct kfd_gpu_cache_info gc_10_3_6_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 			  CRAT_CACHE_FLAGS_INST_CACHE |
 			  CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -855,6 +936,7 @@ static struct kfd_gpu_cache_info gc_10_3_6_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 			  CRAT_CACHE_FLAGS_DATA_CACHE |
 			  CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -864,6 +946,7 @@ static struct kfd_gpu_cache_info gc_10_3_6_cache_info[] = {
 		/* GL1 Data Cache per SA */
 		.cache_size = 128,
 		.cache_level = 1,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 			  CRAT_CACHE_FLAGS_DATA_CACHE |
 			  CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -873,6 +956,7 @@ static struct kfd_gpu_cache_info gc_10_3_6_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 256,
 		.cache_level = 2,
+		.cache_line_size = 128,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 			  CRAT_CACHE_FLAGS_DATA_CACHE |
 			  CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -885,6 +969,7 @@ static struct kfd_gpu_cache_info dummy_cache_info[] = {
 		/* TCP L1 Cache per CU */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -894,6 +979,7 @@ static struct kfd_gpu_cache_info dummy_cache_info[] = {
 		/* Scalar L1 Instruction Cache per SQC */
 		.cache_size = 32,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_INST_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -903,6 +989,7 @@ static struct kfd_gpu_cache_info dummy_cache_info[] = {
 		/* Scalar L1 Data Cache per SQC */
 		.cache_size = 16,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -912,6 +999,7 @@ static struct kfd_gpu_cache_info dummy_cache_info[] = {
 		/* GL1 Data Cache per SA */
 		.cache_size = 128,
 		.cache_level = 1,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -921,6 +1009,7 @@ static struct kfd_gpu_cache_info dummy_cache_info[] = {
 		/* L2 Data Cache per GPU (Total Tex Cache) */
 		.cache_size = 2048,
 		.cache_level = 2,
+		.cache_line_size = 64,
 		.flags = (CRAT_CACHE_FLAGS_ENABLED |
 				CRAT_CACHE_FLAGS_DATA_CACHE |
 				CRAT_CACHE_FLAGS_SIMD_CACHE),
@@ -1587,6 +1676,7 @@ int kfd_get_gpu_cache_info(struct kfd_node *kdev, struct kfd_gpu_cache_info **pc
 		case IP_VERSION(11, 0, 3):
 		case IP_VERSION(11, 0, 4):
 		case IP_VERSION(11, 5, 0):
+		case IP_VERSION(11, 5, 1):
 			num_of_cache_types =
 				kfd_fill_gpu_cache_info_from_gfx_config(kdev->kfd, *pcache_info);
 			break;

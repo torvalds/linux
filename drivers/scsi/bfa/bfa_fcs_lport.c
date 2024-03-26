@@ -103,19 +103,6 @@ static struct {
 	},
 };
 
-/*
- *  fcs_port_sm FCS logical port state machine
- */
-
-enum bfa_fcs_lport_event {
-	BFA_FCS_PORT_SM_CREATE = 1,
-	BFA_FCS_PORT_SM_ONLINE = 2,
-	BFA_FCS_PORT_SM_OFFLINE = 3,
-	BFA_FCS_PORT_SM_DELETE = 4,
-	BFA_FCS_PORT_SM_DELRPORT = 5,
-	BFA_FCS_PORT_SM_STOP = 6,
-};
-
 static void     bfa_fcs_lport_sm_uninit(struct bfa_fcs_lport_s *port,
 					enum bfa_fcs_lport_event event);
 static void     bfa_fcs_lport_sm_init(struct bfa_fcs_lport_s *port,
@@ -1425,20 +1412,6 @@ u32	bfa_fcs_fdmi_convert_speed(enum bfa_port_speed pport_speed);
 /*
  *  fcs_fdmi_sm FCS FDMI state machine
  */
-
-/*
- *  FDMI State Machine events
- */
-enum port_fdmi_event {
-	FDMISM_EVENT_PORT_ONLINE = 1,
-	FDMISM_EVENT_PORT_OFFLINE = 2,
-	FDMISM_EVENT_RSP_OK = 4,
-	FDMISM_EVENT_RSP_ERROR = 5,
-	FDMISM_EVENT_TIMEOUT = 6,
-	FDMISM_EVENT_RHBA_SENT = 7,
-	FDMISM_EVENT_RPRT_SENT = 8,
-	FDMISM_EVENT_RPA_SENT = 9,
-};
 
 static void     bfa_fcs_lport_fdmi_sm_offline(struct bfa_fcs_lport_fdmi_s *fdmi,
 					     enum port_fdmi_event event);
@@ -2863,19 +2836,6 @@ static void     bfa_fcs_lport_ms_gfn_response(void *fcsarg,
  *  fcs_ms_sm FCS MS state machine
  */
 
-/*
- *  MS State Machine events
- */
-enum port_ms_event {
-	MSSM_EVENT_PORT_ONLINE = 1,
-	MSSM_EVENT_PORT_OFFLINE = 2,
-	MSSM_EVENT_RSP_OK = 3,
-	MSSM_EVENT_RSP_ERROR = 4,
-	MSSM_EVENT_TIMEOUT = 5,
-	MSSM_EVENT_FCXP_SENT = 6,
-	MSSM_EVENT_PORT_FABRIC_RSCN = 7
-};
-
 static void     bfa_fcs_lport_ms_sm_offline(struct bfa_fcs_lport_ms_s *ms,
 					   enum port_ms_event event);
 static void     bfa_fcs_lport_ms_sm_plogi_sending(struct bfa_fcs_lport_ms_s *ms,
@@ -3643,25 +3603,6 @@ static void bfa_fcs_lport_ns_boot_target_disc(bfa_fcs_lport_t *port);
 /*
  *  fcs_ns_sm FCS nameserver interface state machine
  */
-
-/*
- * VPort NS State Machine events
- */
-enum vport_ns_event {
-	NSSM_EVENT_PORT_ONLINE = 1,
-	NSSM_EVENT_PORT_OFFLINE = 2,
-	NSSM_EVENT_PLOGI_SENT = 3,
-	NSSM_EVENT_RSP_OK = 4,
-	NSSM_EVENT_RSP_ERROR = 5,
-	NSSM_EVENT_TIMEOUT = 6,
-	NSSM_EVENT_NS_QUERY = 7,
-	NSSM_EVENT_RSPNID_SENT = 8,
-	NSSM_EVENT_RFTID_SENT = 9,
-	NSSM_EVENT_RFFID_SENT = 10,
-	NSSM_EVENT_GIDFT_SENT = 11,
-	NSSM_EVENT_RNNID_SENT = 12,
-	NSSM_EVENT_RSNN_NN_SENT = 13,
-};
 
 static void     bfa_fcs_lport_ns_sm_offline(struct bfa_fcs_lport_ns_s *ns,
 					   enum vport_ns_event event);
@@ -5239,18 +5180,6 @@ static void     bfa_fcs_lport_scn_timeout(void *arg);
  *  fcs_scm_sm FCS SCN state machine
  */
 
-/*
- * VPort SCN State Machine events
- */
-enum port_scn_event {
-	SCNSM_EVENT_PORT_ONLINE = 1,
-	SCNSM_EVENT_PORT_OFFLINE = 2,
-	SCNSM_EVENT_RSP_OK = 3,
-	SCNSM_EVENT_RSP_ERROR = 4,
-	SCNSM_EVENT_TIMEOUT = 5,
-	SCNSM_EVENT_SCR_SENT = 6,
-};
-
 static void     bfa_fcs_lport_scn_sm_offline(struct bfa_fcs_lport_scn_s *scn,
 					    enum port_scn_event event);
 static void     bfa_fcs_lport_scn_sm_sending_scr(
@@ -5989,27 +5918,6 @@ static void     bfa_fcs_vport_free(struct bfa_fcs_vport_s *vport);
  *  fcs_vport_sm FCS virtual port state machine
  */
 
-/*
- * VPort State Machine events
- */
-enum bfa_fcs_vport_event {
-	BFA_FCS_VPORT_SM_CREATE = 1,	/*  vport create event */
-	BFA_FCS_VPORT_SM_DELETE = 2,	/*  vport delete event */
-	BFA_FCS_VPORT_SM_START = 3,	/*  vport start request */
-	BFA_FCS_VPORT_SM_STOP = 4,	/*  stop: unsupported */
-	BFA_FCS_VPORT_SM_ONLINE = 5,	/*  fabric online */
-	BFA_FCS_VPORT_SM_OFFLINE = 6,	/*  fabric offline event */
-	BFA_FCS_VPORT_SM_FRMSENT = 7,	/*  fdisc/logo sent events */
-	BFA_FCS_VPORT_SM_RSP_OK = 8,	/*  good response */
-	BFA_FCS_VPORT_SM_RSP_ERROR = 9,	/*  error/bad response */
-	BFA_FCS_VPORT_SM_TIMEOUT = 10,	/*  delay timer event */
-	BFA_FCS_VPORT_SM_DELCOMP = 11,	/*  lport delete completion */
-	BFA_FCS_VPORT_SM_RSP_DUP_WWN = 12,	/*  Dup wnn error*/
-	BFA_FCS_VPORT_SM_RSP_FAILED = 13,	/*  non-retryable failure */
-	BFA_FCS_VPORT_SM_STOPCOMP = 14,	/* vport delete completion */
-	BFA_FCS_VPORT_SM_FABRIC_MAX = 15, /* max vports on fabric */
-};
-
 static void     bfa_fcs_vport_sm_uninit(struct bfa_fcs_vport_s *vport,
 					enum bfa_fcs_vport_event event);
 static void     bfa_fcs_vport_sm_created(struct bfa_fcs_vport_s *vport,
@@ -6037,7 +5945,23 @@ static void	bfa_fcs_vport_sm_stopping(struct bfa_fcs_vport_s *vport,
 static void	bfa_fcs_vport_sm_logo_for_stop(struct bfa_fcs_vport_s *vport,
 					enum bfa_fcs_vport_event event);
 
-static struct bfa_sm_table_s  vport_sm_table[] = {
+struct bfa_fcs_vport_sm_table_s {
+	bfa_fcs_vport_sm_t sm;		/*  state machine function	*/
+	enum bfa_vport_state state;	/*  state machine encoding	*/
+	char		*name;		/*  state name for display	*/
+};
+
+static inline enum bfa_vport_state
+bfa_vport_sm_to_state(struct bfa_fcs_vport_sm_table_s *smt, bfa_fcs_vport_sm_t sm)
+{
+	int i = 0;
+
+	while (smt[i].sm && smt[i].sm != sm)
+		i++;
+	return smt[i].state;
+}
+
+static struct bfa_fcs_vport_sm_table_s  vport_sm_table[] = {
 	{BFA_SM(bfa_fcs_vport_sm_uninit), BFA_FCS_VPORT_UNINIT},
 	{BFA_SM(bfa_fcs_vport_sm_created), BFA_FCS_VPORT_CREATED},
 	{BFA_SM(bfa_fcs_vport_sm_offline), BFA_FCS_VPORT_OFFLINE},
@@ -6864,7 +6788,7 @@ bfa_fcs_vport_get_attr(struct bfa_fcs_vport_s *vport,
 	memset(attr, 0, sizeof(struct bfa_vport_attr_s));
 
 	bfa_fcs_lport_get_attr(&vport->lport, &attr->port_attr);
-	attr->vport_state = bfa_sm_to_state(vport_sm_table, vport->sm);
+	attr->vport_state = bfa_vport_sm_to_state(vport_sm_table, vport->sm);
 }
 
 

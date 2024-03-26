@@ -52,6 +52,7 @@ struct port_io_ops pio_ops;
 
 memptr free_mem_ptr;
 memptr free_mem_end_ptr;
+int spurious_nmi_count;
 
 static char *vidmem;
 static int vidport;
@@ -164,21 +165,34 @@ void __putstr(const char *s)
 	outb(0xff & (pos >> 1), vidport+1);
 }
 
+static noinline void __putnum(unsigned long value, unsigned int base,
+			      int mindig)
+{
+	char buf[8*sizeof(value)+1];
+	char *p;
+
+	p = buf + sizeof(buf);
+	*--p = '\0';
+
+	while (mindig-- > 0 || value) {
+		unsigned char digit = value % base;
+		digit += (digit >= 10) ? ('a'-10) : '0';
+		*--p = digit;
+
+		value /= base;
+	}
+
+	__putstr(p);
+}
+
 void __puthex(unsigned long value)
 {
-	char alpha[2] = "0";
-	int bits;
+	__putnum(value, 16, sizeof(value)*2);
+}
 
-	for (bits = sizeof(value) * 8 - 4; bits >= 0; bits -= 4) {
-		unsigned long digit = (value >> bits) & 0xf;
-
-		if (digit < 0xA)
-			alpha[0] = '0' + digit;
-		else
-			alpha[0] = 'a' + (digit - 0xA);
-
-		__putstr(alpha);
-	}
+void __putdec(unsigned long value)
+{
+	__putnum(value, 10, 1);
 }
 
 #ifdef CONFIG_X86_NEED_RELOCS
@@ -330,6 +344,7 @@ static size_t parse_elf(void *output)
 	return ehdr.e_entry - LOAD_PHYSICAL_ADDR;
 }
 
+const unsigned long kernel_text_size = VO___start_rodata - VO__text;
 const unsigned long kernel_total_size = VO__end - VO__text;
 
 static u8 boot_heap[BOOT_HEAP_SIZE] __aligned(4);
@@ -355,6 +370,19 @@ unsigned long decompress_kernel(unsigned char *outbuf, unsigned long virt_addr,
 	handle_relocations(outbuf, output_len, virt_addr);
 
 	return entry;
+}
+
+/*
+ * Set the memory encryption xloadflag based on the mem_encrypt= command line
+ * parameter, if provided.
+ */
+static void parse_mem_encrypt(struct setup_header *hdr)
+{
+	int on = cmdline_find_option_bool("mem_encrypt=on");
+	int off = cmdline_find_option_bool("mem_encrypt=off");
+
+	if (on > off)
+		hdr->xloadflags |= XLF_MEM_ENCRYPTION;
 }
 
 /*
@@ -386,6 +414,8 @@ asmlinkage __visible void *extract_kernel(void *rmode, unsigned char *output)
 
 	/* Clear flags intended for solely in-kernel use. */
 	boot_params_ptr->hdr.loadflags &= ~KASLR_FLAG;
+
+	parse_mem_encrypt(&boot_params_ptr->hdr);
 
 	sanitize_boot_params(boot_params_ptr);
 
@@ -493,10 +523,16 @@ asmlinkage __visible void *extract_kernel(void *rmode, unsigned char *output)
 	/* Disable exception handling before booting the kernel */
 	cleanup_exception_handling();
 
+	if (spurious_nmi_count) {
+		error_putstr("Spurious early NMIs ignored: ");
+		error_putdec(spurious_nmi_count);
+		error_putstr("\n");
+	}
+
 	return output + entry_offset;
 }
 
-void fortify_panic(const char *name)
+void __fortify_panic(const u8 reason, size_t avail, size_t size)
 {
 	error("detected buffer overflow");
 }

@@ -306,8 +306,6 @@ static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt, bool sync)
 	_iwl_dbg_tlv_time_point(fwrt, tp_id, NULL, sync);
 }
 
-void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt);
-
 static inline void iwl_fwrt_update_fw_versions(struct iwl_fw_runtime *fwrt,
 					       struct iwl_lmac_alive *lmac,
 					       struct iwl_umac_alive *umac)

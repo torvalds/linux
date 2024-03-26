@@ -297,30 +297,30 @@ struct mhi_ring_element {
 	__le32 dword[2];
 };
 
+#define MHI_STATE_LIST				\
+	mhi_state(RESET,	"RESET")	\
+	mhi_state(READY,	"READY")	\
+	mhi_state(M0,		"M0")		\
+	mhi_state(M1,		"M1")		\
+	mhi_state(M2,		"M2")		\
+	mhi_state(M3,		"M3")		\
+	mhi_state(M3_FAST,	"M3_FAST")	\
+	mhi_state(BHI,		"BHI")		\
+	mhi_state_end(SYS_ERR,	"SYS ERROR")
+
+#undef mhi_state
+#undef mhi_state_end
+
+#define mhi_state(a, b)		case MHI_STATE_##a: return b;
+#define mhi_state_end(a, b)	case MHI_STATE_##a: return b;
+
 static inline const char *mhi_state_str(enum mhi_state state)
 {
 	switch (state) {
-	case MHI_STATE_RESET:
-		return "RESET";
-	case MHI_STATE_READY:
-		return "READY";
-	case MHI_STATE_M0:
-		return "M0";
-	case MHI_STATE_M1:
-		return "M1";
-	case MHI_STATE_M2:
-		return "M2";
-	case MHI_STATE_M3:
-		return "M3";
-	case MHI_STATE_M3_FAST:
-		return "M3 FAST";
-	case MHI_STATE_BHI:
-		return "BHI";
-	case MHI_STATE_SYS_ERR:
-		return "SYS ERROR";
+	MHI_STATE_LIST
 	default:
 		return "Unknown state";
 	}
-};
+}
 
 #endif /* _MHI_COMMON_H */

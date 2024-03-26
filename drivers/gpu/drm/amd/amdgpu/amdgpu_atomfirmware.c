@@ -941,5 +941,6 @@ int amdgpu_atomfirmware_asic_init(struct amdgpu_device *adev, bool fb_reset)
 		return -EINVAL;
 	}
 
-	return amdgpu_atom_execute_table(ctx, ATOM_CMD_INIT, (uint32_t *)&asic_init_ps_v2_1);
+	return amdgpu_atom_execute_table(ctx, ATOM_CMD_INIT, (uint32_t *)&asic_init_ps_v2_1,
+		sizeof(asic_init_ps_v2_1));
 }

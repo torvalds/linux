@@ -1994,7 +1994,7 @@ static int ataflop_alloc_disk(unsigned int drive, unsigned int type)
 {
 	struct gendisk *disk;
 
-	disk = blk_mq_alloc_disk(&unit[drive].tag_set, NULL);
+	disk = blk_mq_alloc_disk(&unit[drive].tag_set, NULL, NULL);
 	if (IS_ERR(disk))
 		return PTR_ERR(disk);
 

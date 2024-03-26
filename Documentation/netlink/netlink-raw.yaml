@@ -11,7 +11,7 @@ $defs:
     minimum: 0
   len-or-define:
     type: [ string, integer ]
-    pattern: ^[0-9A-Za-z_]+( - 1)?$
+    pattern: ^[0-9A-Za-z_-]+( - 1)?$
     minimum: 0
 
 # Schema for specs
@@ -152,14 +152,23 @@ properties:
                   the right formatting mechanism when displaying values of this
                   type.
                 enum: [ hex, mac, fddi, ipv4, ipv6, uuid ]
+              struct:
+                description: Name of the nested struct type.
+                type: string
             if:
               properties:
                 type:
-                  oneOf:
-                    - const: binary
-                    - const: pad
+                  const: pad
             then:
               required: [ len ]
+            if:
+              properties:
+                type:
+                  const: binary
+            then:
+              oneOf:
+                - required: [ len ]
+                - required: [ struct ]
         # End genetlink-legacy
 
   attribute-sets:
@@ -180,8 +189,9 @@ properties:
             Prefix for the C enum name of the attributes. Default family[name]-set[name]-a-
           type: string
         enum-name:
-          description: Name for the enum type of the attribute.
-          type: string
+          description: |
+            Name for the enum type of the attribute, if empty no name will be used.
+          type: [ string, "null" ]
         doc:
           description: Documentation of the space.
           type: string
@@ -261,6 +271,11 @@ properties:
                   exact-len:
                     description: Exact length for a string or a binary attribute.
                     $ref: '#/$defs/len-or-define'
+                  unterminated-ok:
+                    description: |
+                      For string attributes, do not check whether attribute
+                      contains the terminating null character.
+                    type: boolean
               sub-type: *attr-type
               display-hint: *display-hint
               # Start genetlink-c
@@ -362,14 +377,16 @@ properties:
           the prefix with the upper case name of the command, with dashes replaced by underscores.
         type: string
       enum-name:
-        description: Name for the enum type with commands.
-        type: string
+        description: |
+          Name for the enum type with commands, if empty no name will be used.
+        type: [ string, "null" ]
       async-prefix:
         description: Same as name-prefix but used to render notifications and events to separate enum.
         type: string
       async-enum:
-        description: Name for the enum type with notifications/events.
-        type: string
+        description: |
+          Name for the enum type with commands, if empty no name will be used.
+        type: [ string, "null" ]
       # Start genetlink-legacy
       fixed-header: &fixed-header
         description: |

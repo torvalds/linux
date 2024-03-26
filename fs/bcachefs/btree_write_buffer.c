@@ -378,7 +378,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		}
 	}
 err:
-	bch2_fs_fatal_err_on(ret, c, "%s: insert error %s", __func__, bch2_err_str(ret));
+	bch2_fs_fatal_err_on(ret, c, "%s", bch2_err_str(ret));
 	trace_write_buffer_flush(trans, wb->flushing.keys.nr, skipped, fast, 0);
 	bch2_journal_pin_drop(j, &wb->flushing.pin);
 	wb->flushing.keys.nr = 0;
@@ -574,8 +574,6 @@ void bch2_journal_keys_to_write_buffer_end(struct bch_fs *c, struct journal_keys
 static int bch2_journal_keys_to_write_buffer(struct bch_fs *c, struct journal_buf *buf)
 {
 	struct journal_keys_to_wb dst;
-	struct jset_entry *entry;
-	struct bkey_i *k;
 	int ret = 0;
 
 	bch2_journal_keys_to_write_buffer_start(c, &dst, le64_to_cpu(buf->data->seq));
@@ -590,7 +588,9 @@ static int bch2_journal_keys_to_write_buffer(struct bch_fs *c, struct journal_bu
 		entry->type = BCH_JSET_ENTRY_btree_keys;
 	}
 
+	spin_lock(&c->journal.lock);
 	buf->need_flush_to_write_buffer = false;
+	spin_unlock(&c->journal.lock);
 out:
 	bch2_journal_keys_to_write_buffer_end(c, &dst);
 	return ret;

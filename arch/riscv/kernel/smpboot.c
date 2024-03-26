@@ -28,7 +28,6 @@
 
 #include <asm/cpufeature.h>
 #include <asm/cpu_ops.h>
-#include <asm/cpufeature.h>
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/numa.h>
@@ -41,10 +40,6 @@
 #include "head.h"
 
 static DECLARE_COMPLETION(cpu_running);
-
-void __init smp_prepare_boot_cpu(void)
-{
-}
 
 void __init smp_prepare_cpus(unsigned int max_cpus)
 {

@@ -51,7 +51,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.266"
+#define DC_VER "3.2.273"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -429,12 +429,12 @@ struct dc_config {
 	bool force_bios_enable_lttpr;
 	uint8_t force_bios_fixed_vs;
 	int sdpif_request_limit_words_per_umc;
-	bool use_old_fixed_vs_sequence;
 	bool dc_mode_clk_limit_support;
 	bool EnableMinDispClkODM;
 	bool enable_auto_dpm_test_logs;
 	unsigned int disable_ips;
 	unsigned int disable_ips_in_vpb;
+	bool usb4_bw_alloc_support;
 };
 
 enum visual_confirm {
@@ -987,9 +987,11 @@ struct dc_debug_options {
 	bool psp_disabled_wa;
 	unsigned int ips2_eval_delay_us;
 	unsigned int ips2_entry_delay_us;
+	bool disable_dmub_reallow_idle;
 	bool disable_timeout;
 	bool disable_extblankadj;
 	unsigned int static_screen_wait_frames;
+	bool force_chroma_subsampling_1tap;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -1068,6 +1070,7 @@ struct dc {
 	} scratch;
 
 	struct dml2_configuration_options dml2_options;
+	enum dc_acpi_cm_power_state power_state;
 };
 
 enum frame_buffer_mode {
@@ -1249,6 +1252,7 @@ union surface_update_flags {
 		uint32_t rotation_change:1;
 		uint32_t swizzle_change:1;
 		uint32_t scaling_change:1;
+		uint32_t clip_size_change: 1;
 		uint32_t position_change:1;
 		uint32_t in_transfer_func_change:1;
 		uint32_t input_csc_change:1;
@@ -1568,7 +1572,19 @@ struct dc_link {
 	enum engine_id dpia_preferred_eng_id;
 
 	bool test_pattern_enabled;
+	/* Pending/Current test pattern are only used to perform and track
+	 * FIXED_VS retimer test pattern/lane adjustment override state.
+	 * Pending allows link HWSS to differentiate PHY vs non-PHY pattern,
+	 * to perform specific lane adjust overrides before setting certain
+	 * PHY test patterns. In cases when lane adjust and set test pattern
+	 * calls are not performed atomically (i.e. performing link training),
+	 * pending_test_pattern will be invalid or contain a non-PHY test pattern
+	 * and current_test_pattern will contain required context for any future
+	 * set pattern/set lane adjust to transition between override state(s).
+	 * */
 	enum dp_test_pattern current_test_pattern;
+	enum dp_test_pattern pending_test_pattern;
+
 	union compliance_test_state compliance_test_state;
 
 	void *priv;
@@ -2219,11 +2235,9 @@ struct dc_sink_dsc_caps {
 	// 'true' if these are virtual DPCD's DSC caps (immediately upstream of sink in MST topology),
 	// 'false' if they are sink's DSC caps
 	bool is_virtual_dpcd_dsc;
-#if defined(CONFIG_DRM_AMD_DC_FP)
 	// 'true' if MST topology supports DSC passthrough for sink
 	// 'false' if MST topology does not support DSC passthrough
 	bool is_dsc_passthrough_supported;
-#endif
 	struct dsc_dec_dpcd_caps dsc_dec_caps;
 };
 
@@ -2325,6 +2339,7 @@ bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc, struct dc_plane_
 				struct dc_cursor_attributes *cursor_attr);
 
 void dc_allow_idle_optimizations(struct dc *dc, bool allow);
+void dc_exit_ips_for_hw_access(struct dc *dc);
 bool dc_dmub_is_ips_idle_state(struct dc *dc);
 
 /* set min and max memory clock to lowest and highest DPM level, respectively */

@@ -470,6 +470,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 	int bit, chunk;
 	struct ocfs2_recovery_chunk *rchunk, *next;
 	qsize_t spacechange, inodechange;
+	unsigned int memalloc;
 
 	trace_ocfs2_recover_local_quota_file((unsigned long)lqinode->i_ino, type);
 
@@ -521,6 +522,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 				goto out_drop_lock;
 			}
 			down_write(&sb_dqopt(sb)->dqio_sem);
+			memalloc = memalloc_nofs_save();
 			spin_lock(&dquot->dq_dqb_lock);
 			/* Add usage from quota entry into quota changes
 			 * of our node. Auxiliary variables are important
@@ -553,6 +555,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 			unlock_buffer(qbh);
 			ocfs2_journal_dirty(handle, qbh);
 out_commit:
+			memalloc_nofs_restore(memalloc);
 			up_write(&sb_dqopt(sb)->dqio_sem);
 			ocfs2_commit_trans(OCFS2_SB(sb), handle);
 out_drop_lock:

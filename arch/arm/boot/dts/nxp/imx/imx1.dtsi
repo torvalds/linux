@@ -251,7 +251,7 @@
 			};
 		};
 
-		weim: weim@220000 {
+		weim: memory-controller@220000 {
 			#address-cells = <2>;
 			#size-cells = <1>;
 			compatible = "fsl,imx1-weim";

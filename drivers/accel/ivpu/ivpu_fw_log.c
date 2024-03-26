@@ -20,7 +20,7 @@
 unsigned int ivpu_log_level = IVPU_FW_LOG_ERROR;
 module_param(ivpu_log_level, uint, 0444);
 MODULE_PARM_DESC(ivpu_log_level,
-		 "VPU firmware default trace level: debug=" __stringify(IVPU_FW_LOG_DEBUG)
+		 "NPU firmware default trace level: debug=" __stringify(IVPU_FW_LOG_DEBUG)
 		 " info=" __stringify(IVPU_FW_LOG_INFO)
 		 " warn=" __stringify(IVPU_FW_LOG_WARN)
 		 " error=" __stringify(IVPU_FW_LOG_ERROR)
@@ -121,11 +121,11 @@ void ivpu_fw_log_print(struct ivpu_device *vdev, bool only_new_msgs, struct drm_
 	u32 next = 0;
 
 	while (fw_log_ptr(vdev, vdev->fw->mem_log_crit, &next, &log_header) == 0)
-		fw_log_print_buffer(vdev, log_header, "VPU critical", only_new_msgs, p);
+		fw_log_print_buffer(vdev, log_header, "NPU critical", only_new_msgs, p);
 
 	next = 0;
 	while (fw_log_ptr(vdev, vdev->fw->mem_log_verb, &next, &log_header) == 0)
-		fw_log_print_buffer(vdev, log_header, "VPU verbose", only_new_msgs, p);
+		fw_log_print_buffer(vdev, log_header, "NPU verbose", only_new_msgs, p);
 }
 
 void ivpu_fw_log_clear(struct ivpu_device *vdev)

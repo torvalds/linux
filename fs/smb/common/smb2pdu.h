@@ -208,38 +208,45 @@ struct smb2_transform_hdr {
 	__le64  SessionId;
 } __packed;
 
-
-/* See MS-SMB2 2.2.42 */
-struct smb2_compression_transform_hdr_unchained {
-	__le32 ProtocolId;	/* 0xFC 'S' 'M' 'B' */
-	__le32 OriginalCompressedSegmentSize;
-	__le16 CompressionAlgorithm;
-	__le16 Flags;
-	__le16 Length; /* if chained it is length, else offset */
-} __packed;
-
-/* See MS-SMB2 2.2.42.1 */
+/*
+ * These are simplified versions from the spec, as we don't need a fully fledged
+ * form of both unchained and chained structs.
+ *
+ * Moreover, even in chained compressed payloads, the initial compression header
+ * has the form of the unchained one -- i.e. it never has the
+ * OriginalPayloadSize field and ::Offset field always represent an offset
+ * (instead of a length, as it is in the chained header).
+ *
+ * See MS-SMB2 2.2.42 for more details.
+ */
 #define SMB2_COMPRESSION_FLAG_NONE	0x0000
 #define SMB2_COMPRESSION_FLAG_CHAINED	0x0001
 
-struct compression_payload_header {
+struct smb2_compression_hdr {
+	__le32 ProtocolId; /* 0xFC 'S' 'M' 'B' */
+	__le32 OriginalCompressedSegmentSize;
+	__le16 CompressionAlgorithm;
+	__le16 Flags;
+	__le32 Offset; /* this is the size of the uncompressed SMB2 header below */
+	/* uncompressed SMB2 header (READ or WRITE) goes here */
+	/* compressed data goes here */
+} __packed;
+
+/*
+ * ... OTOH, set compression payload header to always have OriginalPayloadSize
+ * as it's easier to pass the struct size minus sizeof(OriginalPayloadSize)
+ * than to juggle around the header/data memory.
+ */
+struct smb2_compression_payload_hdr {
 	__le16	CompressionAlgorithm;
 	__le16	Flags;
 	__le32	Length; /* length of compressed playload including field below if present */
-	/* __le32 OriginalPayloadSize; */ /* optional, present when LZNT1, LZ77, LZ77+Huffman */
+	__le32 OriginalPayloadSize; /* accounted when LZNT1, LZ77, LZ77+Huffman */
 } __packed;
 
-/* See MS-SMB2 2.2.42.2 */
-struct smb2_compression_transform_hdr_chained {
-	__le32 ProtocolId;	/* 0xFC 'S' 'M' 'B' */
-	__le32 OriginalCompressedSegmentSize;
-	/* struct compression_payload_header[] */
-} __packed;
-
-/* See MS-SMB2 2.2.42.2.2 */
-struct compression_pattern_payload_v1 {
-	__le16	Pattern;
-	__le16	Reserved1;
+struct smb2_compression_pattern_v1 {
+	__u8	Pattern;
+	__u8	Reserved1;
 	__le16	Reserved2;
 	__le32	Repetitions;
 } __packed;
@@ -273,15 +280,16 @@ struct smb3_blob_data {
 #define SE_GROUP_RESOURCE		0x20000000
 #define SE_GROUP_LOGON_ID		0xC0000000
 
-/* struct sid_attr_data is SidData array in BlobData format then le32 Attr */
-
 struct sid_array_data {
 	__le16 SidAttrCount;
 	/* SidAttrList - array of sid_attr_data structs */
 } __packed;
 
-struct luid_attr_data {
-
+/* struct sid_attr_data is SidData array in BlobData format then le32 Attr */
+struct sid_attr_data {
+	__le16 BlobSize;
+	__u8 BlobData[];
+	/* __le32 Attr */
 } __packed;
 
 /*
@@ -495,6 +503,7 @@ struct smb2_encryption_neg_context {
 #define SMB3_COMPRESS_LZ77_HUFF	cpu_to_le16(0x0003)
 /* Pattern scanning algorithm See MS-SMB2 3.1.4.4.1 */
 #define SMB3_COMPRESS_PATTERN	cpu_to_le16(0x0004) /* Pattern_V1 */
+#define SMB3_COMPRESS_LZ4	cpu_to_le16(0x0005)
 
 /* Compression Flags */
 #define SMB2_COMPRESSION_CAPABILITIES_FLAG_NONE		cpu_to_le32(0x00000000)

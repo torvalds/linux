@@ -42,7 +42,7 @@ static DEFINE_IDA(iio_ida);
 static dev_t iio_devt;
 
 #define IIO_DEV_MAX 256
-struct bus_type iio_bus_type = {
+const struct bus_type iio_bus_type = {
 	.name = "iio",
 };
 EXPORT_SYMBOL(iio_bus_type);
@@ -213,9 +213,7 @@ bool iio_buffer_enabled(struct iio_dev *indio_dev)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
 
-	return iio_dev_opaque->currentmode &
-	       (INDIO_BUFFER_HARDWARE | INDIO_BUFFER_SOFTWARE |
-		INDIO_BUFFER_TRIGGERED);
+	return iio_dev_opaque->currentmode & INDIO_ALL_BUFFER_MODES;
 }
 EXPORT_SYMBOL_GPL(iio_buffer_enabled);
 

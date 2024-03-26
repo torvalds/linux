@@ -61,8 +61,8 @@ struct fbcon_ops {
 		      int fg, int bg);
 	void (*clear_margins)(struct vc_data *vc, struct fb_info *info,
 			      int color, int bottom_only);
-	void (*cursor)(struct vc_data *vc, struct fb_info *info, int mode,
-		       int fg, int bg);
+	void (*cursor)(struct vc_data *vc, struct fb_info *info,
+		       bool enable, int fg, int bg);
 	int  (*update_start)(struct fb_info *info);
 	int  (*rotate_font)(struct fb_info *info, struct vc_data *vc);
 	struct fb_var_screeninfo var;  /* copy of the current fb_var_screeninfo */

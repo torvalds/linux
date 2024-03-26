@@ -32,11 +32,9 @@
 # define __DEP_MAP_MUTEX_INITIALIZER(lockname)
 #endif
 
-#ifndef CONFIG_PREEMPT_RT
-
 #ifdef CONFIG_DEBUG_MUTEXES
 
-#define __DEBUG_MUTEX_INITIALIZER(lockname)				\
+# define __DEBUG_MUTEX_INITIALIZER(lockname)				\
 	, .magic = &lockname
 
 extern void mutex_destroy(struct mutex *lock);
@@ -49,6 +47,7 @@ static inline void mutex_destroy(struct mutex *lock) {}
 
 #endif
 
+#ifndef CONFIG_PREEMPT_RT
 /**
  * mutex_init - initialize the mutex
  * @mutex: the mutex to be initialized
@@ -101,9 +100,6 @@ extern bool mutex_is_locked(struct mutex *lock);
 
 extern void __mutex_rt_init(struct mutex *lock, const char *name,
 			    struct lock_class_key *key);
-extern int mutex_trylock(struct mutex *lock);
-
-static inline void mutex_destroy(struct mutex *lock) { }
 
 #define mutex_is_locked(l)	rt_mutex_base_is_locked(&(l)->rtmutex)
 

@@ -1264,6 +1264,7 @@ static struct Qdisc_ops fq_qdisc_ops __read_mostly = {
 	.dump_stats	=	fq_dump_stats,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("fq");
 
 static int __init fq_module_init(void)
 {

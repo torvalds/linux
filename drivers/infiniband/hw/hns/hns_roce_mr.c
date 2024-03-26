@@ -32,6 +32,7 @@
  */
 
 #include <linux/vmalloc.h>
+#include <linux/count_zeros.h>
 #include <rdma/ib_umem.h>
 #include <linux/math.h>
 #include "hns_roce_device.h"
@@ -103,14 +104,21 @@ static int alloc_mr_pbl(struct hns_roce_dev *hr_dev, struct hns_roce_mr *mr,
 	buf_attr.user_access = mr->access;
 	/* fast MR's buffer is alloced before mapping, not at creation */
 	buf_attr.mtt_only = is_fast;
+	buf_attr.iova = mr->iova;
+	/* pagesize and hopnum is fixed for fast MR */
+	buf_attr.adaptive = !is_fast;
+	buf_attr.type = MTR_PBL;
 
 	err = hns_roce_mtr_create(hr_dev, &mr->pbl_mtr, &buf_attr,
 				  hr_dev->caps.pbl_ba_pg_sz + PAGE_SHIFT,
 				  udata, start);
-	if (err)
+	if (err) {
 		ibdev_err(ibdev, "failed to alloc pbl mtr, ret = %d.\n", err);
-	else
-		mr->npages = mr->pbl_mtr.hem_cfg.buf_pg_count;
+		return err;
+	}
+
+	mr->npages = mr->pbl_mtr.hem_cfg.buf_pg_count;
+	mr->pbl_hop_num = buf_attr.region[0].hopnum;
 
 	return err;
 }
@@ -695,7 +703,7 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		mtr->umem = NULL;
 		mtr->kmem = hns_roce_buf_alloc(hr_dev, total_size,
 					       buf_attr->page_shift,
-					       mtr->hem_cfg.is_direct ?
+					       !mtr_has_mtt(buf_attr) ?
 					       HNS_ROCE_BUF_DIRECT : 0);
 		if (IS_ERR(mtr->kmem)) {
 			ibdev_err(ibdev, "failed to alloc kmem, ret = %ld.\n",
@@ -707,14 +715,41 @@ static int mtr_alloc_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	return 0;
 }
 
-static int mtr_map_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-			int page_count, unsigned int page_shift)
+static int cal_mtr_pg_cnt(struct hns_roce_mtr *mtr)
+{
+	struct hns_roce_buf_region *region;
+	int page_cnt = 0;
+	int i;
+
+	for (i = 0; i < mtr->hem_cfg.region_count; i++) {
+		region = &mtr->hem_cfg.region[i];
+		page_cnt += region->count;
+	}
+
+	return page_cnt;
+}
+
+static bool need_split_huge_page(struct hns_roce_mtr *mtr)
+{
+	/* When HEM buffer uses 0-level addressing, the page size is
+	 * equal to the whole buffer size. If the current MTR has multiple
+	 * regions, we split the buffer into small pages(4k, required by hns
+	 * ROCEE). These pages will be used in multiple regions.
+	 */
+	return mtr->hem_cfg.is_direct && mtr->hem_cfg.region_count > 1;
+}
+
+static int mtr_map_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
+	int page_count = cal_mtr_pg_cnt(mtr);
+	unsigned int page_shift;
 	dma_addr_t *pages;
 	int npage;
 	int ret;
 
+	page_shift = need_split_huge_page(mtr) ? HNS_HW_PAGE_SHIFT :
+						 mtr->hem_cfg.buf_pg_shift;
 	/* alloc a tmp array to store buffer's dma address */
 	pages = kvcalloc(page_count, sizeof(dma_addr_t), GFP_KERNEL);
 	if (!pages)
@@ -734,7 +769,7 @@ static int mtr_map_bufs(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 		goto err_alloc_list;
 	}
 
-	if (mtr->hem_cfg.is_direct && npage > 1) {
+	if (need_split_huge_page(mtr) && npage > 1) {
 		ret = mtr_check_direct_pages(pages, npage, page_shift);
 		if (ret) {
 			ibdev_err(ibdev, "failed to check %s page: %d / %d.\n",
@@ -809,47 +844,53 @@ int hns_roce_mtr_map(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	return ret;
 }
 
-int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
-		      u32 offset, u64 *mtt_buf, int mtt_max, u64 *base_addr)
+static int hns_roce_get_direct_addr_mtt(struct hns_roce_hem_cfg *cfg,
+					u32 start_index, u64 *mtt_buf,
+					int mtt_cnt)
 {
-	struct hns_roce_hem_cfg *cfg = &mtr->hem_cfg;
-	int mtt_count, left;
-	u32 start_index;
+	int mtt_count;
 	int total = 0;
-	__le64 *mtts;
 	u32 npage;
 	u64 addr;
 
-	if (!mtt_buf || mtt_max < 1)
-		goto done;
+	if (mtt_cnt > cfg->region_count)
+		return -EINVAL;
 
-	/* no mtt memory in direct mode, so just return the buffer address */
-	if (cfg->is_direct) {
-		start_index = offset >> HNS_HW_PAGE_SHIFT;
-		for (mtt_count = 0; mtt_count < cfg->region_count &&
-		     total < mtt_max; mtt_count++) {
-			npage = cfg->region[mtt_count].offset;
-			if (npage < start_index)
-				continue;
+	for (mtt_count = 0; mtt_count < cfg->region_count && total < mtt_cnt;
+	     mtt_count++) {
+		npage = cfg->region[mtt_count].offset;
+		if (npage < start_index)
+			continue;
 
-			addr = cfg->root_ba + (npage << HNS_HW_PAGE_SHIFT);
-			mtt_buf[total] = addr;
+		addr = cfg->root_ba + (npage << HNS_HW_PAGE_SHIFT);
+		mtt_buf[total] = addr;
 
-			total++;
-		}
-
-		goto done;
+		total++;
 	}
 
-	start_index = offset >> cfg->buf_pg_shift;
-	left = mtt_max;
+	if (!total)
+		return -ENOENT;
+
+	return 0;
+}
+
+static int hns_roce_get_mhop_mtt(struct hns_roce_dev *hr_dev,
+				 struct hns_roce_mtr *mtr, u32 start_index,
+				 u64 *mtt_buf, int mtt_cnt)
+{
+	int left = mtt_cnt;
+	int total = 0;
+	int mtt_count;
+	__le64 *mtts;
+	u32 npage;
+
 	while (left > 0) {
 		mtt_count = 0;
 		mtts = hns_roce_hem_list_find_mtt(hr_dev, &mtr->hem_list,
 						  start_index + total,
 						  &mtt_count);
 		if (!mtts || !mtt_count)
-			goto done;
+			break;
 
 		npage = min(mtt_count, left);
 		left -= npage;
@@ -857,69 +898,165 @@ int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			mtt_buf[total++] = le64_to_cpu(mtts[mtt_count]);
 	}
 
-done:
-	if (base_addr)
-		*base_addr = cfg->root_ba;
+	if (!total)
+		return -ENOENT;
 
-	return total;
+	return 0;
+}
+
+int hns_roce_mtr_find(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
+		      u32 offset, u64 *mtt_buf, int mtt_max)
+{
+	struct hns_roce_hem_cfg *cfg = &mtr->hem_cfg;
+	u32 start_index;
+	int ret;
+
+	if (!mtt_buf || mtt_max < 1)
+		return -EINVAL;
+
+	/* no mtt memory in direct mode, so just return the buffer address */
+	if (cfg->is_direct) {
+		start_index = offset >> HNS_HW_PAGE_SHIFT;
+		ret = hns_roce_get_direct_addr_mtt(cfg, start_index,
+						   mtt_buf, mtt_max);
+	} else {
+		start_index = offset >> cfg->buf_pg_shift;
+		ret = hns_roce_get_mhop_mtt(hr_dev, mtr, start_index,
+					    mtt_buf, mtt_max);
+	}
+	return ret;
+}
+
+static int get_best_page_shift(struct hns_roce_dev *hr_dev,
+			       struct hns_roce_mtr *mtr,
+			       struct hns_roce_buf_attr *buf_attr)
+{
+	unsigned int page_sz;
+
+	if (!buf_attr->adaptive || buf_attr->type != MTR_PBL || !mtr->umem)
+		return 0;
+
+	page_sz = ib_umem_find_best_pgsz(mtr->umem,
+					 hr_dev->caps.page_size_cap,
+					 buf_attr->iova);
+	if (!page_sz)
+		return -EINVAL;
+
+	buf_attr->page_shift = order_base_2(page_sz);
+	return 0;
+}
+
+static int get_best_hop_num(struct hns_roce_dev *hr_dev,
+			    struct hns_roce_mtr *mtr,
+			    struct hns_roce_buf_attr *buf_attr,
+			    unsigned int ba_pg_shift)
+{
+#define INVALID_HOPNUM -1
+#define MIN_BA_CNT 1
+	size_t buf_pg_sz = 1 << buf_attr->page_shift;
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+	size_t ba_pg_sz = 1 << ba_pg_shift;
+	int hop_num = INVALID_HOPNUM;
+	size_t unit = MIN_BA_CNT;
+	size_t ba_cnt;
+	int j;
+
+	if (!buf_attr->adaptive || buf_attr->type != MTR_PBL)
+		return 0;
+
+	/* Caculating the number of buf pages, each buf page need a BA */
+	if (mtr->umem)
+		ba_cnt = ib_umem_num_dma_blocks(mtr->umem, buf_pg_sz);
+	else
+		ba_cnt = DIV_ROUND_UP(buf_attr->region[0].size, buf_pg_sz);
+
+	for (j = 0; j <= HNS_ROCE_MAX_HOP_NUM; j++) {
+		if (ba_cnt <= unit) {
+			hop_num = j;
+			break;
+		}
+		/* Number of BAs can be represented at per hop */
+		unit *= ba_pg_sz / BA_BYTE_LEN;
+	}
+
+	if (hop_num < 0) {
+		ibdev_err(ibdev,
+			  "failed to calculate a valid hopnum.\n");
+		return -EINVAL;
+	}
+
+	buf_attr->region[0].hopnum = hop_num;
+
+	return 0;
+}
+
+static bool is_buf_attr_valid(struct hns_roce_dev *hr_dev,
+			      struct hns_roce_buf_attr *attr)
+{
+	struct ib_device *ibdev = &hr_dev->ib_dev;
+
+	if (attr->region_count > ARRAY_SIZE(attr->region) ||
+	    attr->region_count < 1 || attr->page_shift < HNS_HW_PAGE_SHIFT) {
+		ibdev_err(ibdev,
+			  "invalid buf attr, region count %d, page shift %u.\n",
+			  attr->region_count, attr->page_shift);
+		return false;
+	}
+
+	return true;
 }
 
 static int mtr_init_buf_cfg(struct hns_roce_dev *hr_dev,
-			    struct hns_roce_buf_attr *attr,
-			    struct hns_roce_hem_cfg *cfg,
-			    unsigned int *buf_page_shift, u64 unalinged_size)
+			    struct hns_roce_mtr *mtr,
+			    struct hns_roce_buf_attr *attr)
 {
+	struct hns_roce_hem_cfg *cfg = &mtr->hem_cfg;
 	struct hns_roce_buf_region *r;
-	u64 first_region_padding;
-	int page_cnt, region_cnt;
-	unsigned int page_shift;
+	size_t buf_pg_sz;
 	size_t buf_size;
+	int page_cnt, i;
+	u64 pgoff = 0;
+
+	if (!is_buf_attr_valid(hr_dev, attr))
+		return -EINVAL;
 
 	/* If mtt is disabled, all pages must be within a continuous range */
 	cfg->is_direct = !mtr_has_mtt(attr);
+	cfg->region_count = attr->region_count;
 	buf_size = mtr_bufs_size(attr);
-	if (cfg->is_direct) {
-		/* When HEM buffer uses 0-level addressing, the page size is
-		 * equal to the whole buffer size, and we split the buffer into
-		 * small pages which is used to check whether the adjacent
-		 * units are in the continuous space and its size is fixed to
-		 * 4K based on hns ROCEE's requirement.
-		 */
-		page_shift = HNS_HW_PAGE_SHIFT;
-
-		/* The ROCEE requires the page size to be 4K * 2 ^ N. */
+	if (need_split_huge_page(mtr)) {
+		buf_pg_sz = HNS_HW_PAGE_SIZE;
 		cfg->buf_pg_count = 1;
+		/* The ROCEE requires the page size to be 4K * 2 ^ N. */
 		cfg->buf_pg_shift = HNS_HW_PAGE_SHIFT +
 			order_base_2(DIV_ROUND_UP(buf_size, HNS_HW_PAGE_SIZE));
-		first_region_padding = 0;
 	} else {
-		page_shift = attr->page_shift;
-		cfg->buf_pg_count = DIV_ROUND_UP(buf_size + unalinged_size,
-						 1 << page_shift);
-		cfg->buf_pg_shift = page_shift;
-		first_region_padding = unalinged_size;
+		buf_pg_sz = 1 << attr->page_shift;
+		cfg->buf_pg_count = mtr->umem ?
+			ib_umem_num_dma_blocks(mtr->umem, buf_pg_sz) :
+			DIV_ROUND_UP(buf_size, buf_pg_sz);
+		cfg->buf_pg_shift = attr->page_shift;
+		pgoff = mtr->umem ? mtr->umem->address & ~PAGE_MASK : 0;
 	}
 
 	/* Convert buffer size to page index and page count for each region and
 	 * the buffer's offset needs to be appended to the first region.
 	 */
-	for (page_cnt = 0, region_cnt = 0; region_cnt < attr->region_count &&
-	     region_cnt < ARRAY_SIZE(cfg->region); region_cnt++) {
-		r = &cfg->region[region_cnt];
+	for (page_cnt = 0, i = 0; i < attr->region_count; i++) {
+		r = &cfg->region[i];
 		r->offset = page_cnt;
-		buf_size = hr_hw_page_align(attr->region[region_cnt].size +
-					    first_region_padding);
-		r->count = DIV_ROUND_UP(buf_size, 1 << page_shift);
-		first_region_padding = 0;
+		buf_size = hr_hw_page_align(attr->region[i].size + pgoff);
+		if (attr->type == MTR_PBL && mtr->umem)
+			r->count = ib_umem_num_dma_blocks(mtr->umem, buf_pg_sz);
+		else
+			r->count = DIV_ROUND_UP(buf_size, buf_pg_sz);
+
+		pgoff = 0;
 		page_cnt += r->count;
-		r->hopnum = to_hr_hem_hopnum(attr->region[region_cnt].hopnum,
-					     r->count);
+		r->hopnum = to_hr_hem_hopnum(attr->region[i].hopnum, r->count);
 	}
 
-	cfg->region_count = region_cnt;
-	*buf_page_shift = page_shift;
-
-	return page_cnt;
+	return 0;
 }
 
 static u64 cal_pages_per_l1ba(unsigned int ba_per_bt, unsigned int hopnum)
@@ -1007,24 +1144,7 @@ int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 			unsigned long user_addr)
 {
 	struct ib_device *ibdev = &hr_dev->ib_dev;
-	unsigned int buf_page_shift = 0;
-	int buf_page_cnt;
 	int ret;
-
-	buf_page_cnt = mtr_init_buf_cfg(hr_dev, buf_attr, &mtr->hem_cfg,
-					&buf_page_shift,
-					udata ? user_addr & ~PAGE_MASK : 0);
-	if (buf_page_cnt < 1 || buf_page_shift < HNS_HW_PAGE_SHIFT) {
-		ibdev_err(ibdev, "failed to init mtr cfg, count %d shift %u.\n",
-			  buf_page_cnt, buf_page_shift);
-		return -EINVAL;
-	}
-
-	ret = mtr_alloc_mtt(hr_dev, mtr, ba_page_shift);
-	if (ret) {
-		ibdev_err(ibdev, "failed to alloc mtr mtt, ret = %d.\n", ret);
-		return ret;
-	}
 
 	/* The caller has its own buffer list and invokes the hns_roce_mtr_map()
 	 * to finish the MTT configuration.
@@ -1032,25 +1152,50 @@ int hns_roce_mtr_create(struct hns_roce_dev *hr_dev, struct hns_roce_mtr *mtr,
 	if (buf_attr->mtt_only) {
 		mtr->umem = NULL;
 		mtr->kmem = NULL;
-		return 0;
+	} else {
+		ret = mtr_alloc_bufs(hr_dev, mtr, buf_attr, udata, user_addr);
+		if (ret) {
+			ibdev_err(ibdev,
+				  "failed to alloc mtr bufs, ret = %d.\n", ret);
+			return ret;
+		}
+
+		ret = get_best_page_shift(hr_dev, mtr, buf_attr);
+		if (ret)
+			goto err_init_buf;
+
+		ret = get_best_hop_num(hr_dev, mtr, buf_attr, ba_page_shift);
+		if (ret)
+			goto err_init_buf;
 	}
 
-	ret = mtr_alloc_bufs(hr_dev, mtr, buf_attr, udata, user_addr);
+	ret = mtr_init_buf_cfg(hr_dev, mtr, buf_attr);
+	if (ret)
+		goto err_init_buf;
+
+	ret = mtr_alloc_mtt(hr_dev, mtr, ba_page_shift);
 	if (ret) {
-		ibdev_err(ibdev, "failed to alloc mtr bufs, ret = %d.\n", ret);
+		ibdev_err(ibdev, "failed to alloc mtr mtt, ret = %d.\n", ret);
+		goto err_init_buf;
+	}
+
+	if (buf_attr->mtt_only)
+		return 0;
+
+	/* Write buffer's dma address to MTT */
+	ret = mtr_map_bufs(hr_dev, mtr);
+	if (ret) {
+		ibdev_err(ibdev, "failed to map mtr bufs, ret = %d.\n", ret);
 		goto err_alloc_mtt;
 	}
 
-	/* Write buffer's dma address to MTT */
-	ret = mtr_map_bufs(hr_dev, mtr, buf_page_cnt, buf_page_shift);
-	if (ret)
-		ibdev_err(ibdev, "failed to map mtr bufs, ret = %d.\n", ret);
-	else
-		return 0;
+	return 0;
 
-	mtr_free_bufs(hr_dev, mtr);
 err_alloc_mtt:
 	mtr_free_mtt(hr_dev, mtr);
+err_init_buf:
+	mtr_free_bufs(hr_dev, mtr);
+
 	return ret;
 }
 

@@ -74,6 +74,8 @@
 			enable-method = "psci";
 			next-level-cache = <&l2>;
 			clocks = <&scpi_dvfs 0>;
+			dynamic-power-coefficient = <140>;
+			#cooling-cells = <2>;
 		};
 
 		cpu1: cpu@1 {
@@ -83,6 +85,8 @@
 			enable-method = "psci";
 			next-level-cache = <&l2>;
 			clocks = <&scpi_dvfs 0>;
+			dynamic-power-coefficient = <140>;
+			#cooling-cells = <2>;
 		};
 
 		cpu2: cpu@2 {
@@ -92,6 +96,8 @@
 			enable-method = "psci";
 			next-level-cache = <&l2>;
 			clocks = <&scpi_dvfs 0>;
+			dynamic-power-coefficient = <140>;
+			#cooling-cells = <2>;
 		};
 
 		cpu3: cpu@3 {
@@ -101,6 +107,8 @@
 			enable-method = "psci";
 			next-level-cache = <&l2>;
 			clocks = <&scpi_dvfs 0>;
+			dynamic-power-coefficient = <140>;
+			#cooling-cells = <2>;
 		};
 
 		l2: l2-cache0 {

@@ -362,7 +362,7 @@ int sun8i_ce_hash_run(struct crypto_engine *engine, void *breq)
 		digestsize = SHA512_DIGEST_SIZE;
 
 	/* the padding could be up to two block. */
-	buf = kzalloc(bs * 2, GFP_KERNEL | GFP_DMA);
+	buf = kcalloc(2, bs, GFP_KERNEL | GFP_DMA);
 	if (!buf) {
 		err = -ENOMEM;
 		goto theend;

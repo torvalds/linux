@@ -711,25 +711,11 @@ static int gtp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	return ret;
 }
 
-static int gtp_dev_init(struct net_device *dev)
-{
-	struct gtp_dev *gtp = netdev_priv(dev);
-
-	gtp->dev = dev;
-
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
-
-	return 0;
-}
-
 static void gtp_dev_uninit(struct net_device *dev)
 {
 	struct gtp_dev *gtp = netdev_priv(dev);
 
 	gtp_encap_disable(gtp);
-	free_percpu(dev->tstats);
 }
 
 static inline void gtp0_push_header(struct sk_buff *skb, struct pdp_ctx *pctx)
@@ -942,10 +928,8 @@ tx_err:
 }
 
 static const struct net_device_ops gtp_netdev_ops = {
-	.ndo_init		= gtp_dev_init,
 	.ndo_uninit		= gtp_dev_uninit,
 	.ndo_start_xmit		= gtp_dev_xmit,
-	.ndo_get_stats64	= dev_get_tstats64,
 };
 
 static const struct device_type gtp_type = {
@@ -957,6 +941,7 @@ static void gtp_link_setup(struct net_device *dev)
 	unsigned int max_gtp_header_len = sizeof(struct iphdr) +
 					  sizeof(struct udphdr) +
 					  sizeof(struct gtp0_header);
+	struct gtp_dev *gtp = netdev_priv(dev);
 
 	dev->netdev_ops		= &gtp_netdev_ops;
 	dev->needs_free_netdev	= true;
@@ -970,11 +955,13 @@ static void gtp_link_setup(struct net_device *dev)
 	dev->type = ARPHRD_NONE;
 	dev->flags = IFF_POINTOPOINT | IFF_NOARP | IFF_MULTICAST;
 
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 	dev->priv_flags	|= IFF_NO_QUEUE;
 	dev->features	|= NETIF_F_LLTX;
 	netif_keep_dst(dev);
 
 	dev->needed_headroom	= LL_MAX_HEADER + max_gtp_header_len;
+	gtp->dev = dev;
 }
 
 static int gtp_hashtable_new(struct gtp_dev *gtp, int hsize);
@@ -1876,23 +1863,23 @@ static int __net_init gtp_net_init(struct net *net)
 	return 0;
 }
 
-static void __net_exit gtp_net_exit(struct net *net)
+static void __net_exit gtp_net_exit_batch_rtnl(struct list_head *net_list,
+					       struct list_head *dev_to_kill)
 {
-	struct gtp_net *gn = net_generic(net, gtp_net_id);
-	struct gtp_dev *gtp;
-	LIST_HEAD(list);
+	struct net *net;
 
-	rtnl_lock();
-	list_for_each_entry(gtp, &gn->gtp_dev_list, list)
-		gtp_dellink(gtp->dev, &list);
+	list_for_each_entry(net, net_list, exit_list) {
+		struct gtp_net *gn = net_generic(net, gtp_net_id);
+		struct gtp_dev *gtp;
 
-	unregister_netdevice_many(&list);
-	rtnl_unlock();
+		list_for_each_entry(gtp, &gn->gtp_dev_list, list)
+			gtp_dellink(gtp->dev, dev_to_kill);
+	}
 }
 
 static struct pernet_operations gtp_net_ops = {
 	.init	= gtp_net_init,
-	.exit	= gtp_net_exit,
+	.exit_batch_rtnl = gtp_net_exit_batch_rtnl,
 	.id	= &gtp_net_id,
 	.size	= sizeof(struct gtp_net),
 };

@@ -30,7 +30,7 @@ struct work_struct;
 
 bool bch2_inconsistent_error(struct bch_fs *);
 
-void bch2_topology_error(struct bch_fs *);
+int bch2_topology_error(struct bch_fs *);
 
 #define bch2_fs_inconsistent(c, ...)					\
 ({									\
@@ -191,9 +191,9 @@ do {									\
 
 void bch2_fatal_error(struct bch_fs *);
 
-#define bch2_fs_fatal_error(c, ...)					\
+#define bch2_fs_fatal_error(c, _msg, ...)				\
 do {									\
-	bch_err(c, __VA_ARGS__);					\
+	bch_err(c, "%s(): fatal error " _msg, __func__, ##__VA_ARGS__);	\
 	bch2_fatal_error(c);						\
 } while (0)
 

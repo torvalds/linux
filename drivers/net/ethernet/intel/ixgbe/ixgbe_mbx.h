@@ -96,11 +96,11 @@ enum ixgbe_pfvf_api_rev {
 #define IXGBE_VF_MBX_INIT_TIMEOUT 2000 /* number of retries on mailbox */
 #define IXGBE_VF_MBX_INIT_DELAY   500  /* microseconds between retries */
 
-s32 ixgbe_read_mbx(struct ixgbe_hw *, u32 *, u16, u16);
-s32 ixgbe_write_mbx(struct ixgbe_hw *, u32 *, u16, u16);
-s32 ixgbe_check_for_msg(struct ixgbe_hw *, u16);
-s32 ixgbe_check_for_ack(struct ixgbe_hw *, u16);
-s32 ixgbe_check_for_rst(struct ixgbe_hw *, u16);
+int ixgbe_read_mbx(struct ixgbe_hw *, u32 *, u16, u16);
+int ixgbe_write_mbx(struct ixgbe_hw *, u32 *, u16, u16);
+int ixgbe_check_for_msg(struct ixgbe_hw *, u16);
+int ixgbe_check_for_ack(struct ixgbe_hw *, u16);
+int ixgbe_check_for_rst(struct ixgbe_hw *, u16);
 #ifdef CONFIG_PCI_IOV
 void ixgbe_init_mbx_params_pf(struct ixgbe_hw *);
 #endif /* CONFIG_PCI_IOV */

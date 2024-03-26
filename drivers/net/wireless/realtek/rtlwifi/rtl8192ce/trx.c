@@ -350,7 +350,6 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	bool defaultadapter = true;
 	__le32 *pdesc = (__le32 *)pdesc8;
 	u16 seq_number;
 	__le16 fc = hdr->frame_control;
@@ -503,9 +502,6 @@ void rtl92ce_tx_fill_desc(struct ieee80211_hw *hw,
 	if ((!ieee80211_is_data_qos(fc)) && ppsc->fwctrl_lps) {
 		set_tx_desc_hwseq_en(pdesc, 1);
 		set_tx_desc_pkt_id(pdesc, 8);
-
-		if (!defaultadapter)
-			set_tx_desc_qos(pdesc, 1);
 	}
 
 	set_tx_desc_more_frag(pdesc, (lastseg ? 0 : 1));

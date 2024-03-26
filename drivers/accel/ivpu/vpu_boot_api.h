@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 /*
- * Copyright (C) 2020-2023 Intel Corporation
+ * Copyright (c) 2020-2023, Intel Corporation.
  */
 
 #ifndef VPU_BOOT_API_H
@@ -27,12 +27,12 @@
  * Minor version changes when API backward compatibility is preserved.
  * Resets to 0 if Major version is incremented.
  */
-#define VPU_BOOT_API_VER_MINOR 20
+#define VPU_BOOT_API_VER_MINOR 22
 
 /*
  * API header changed (field names, documentation, formatting) but API itself has not been changed
  */
-#define VPU_BOOT_API_VER_PATCH 4
+#define VPU_BOOT_API_VER_PATCH 0
 
 /*
  * Index in the API version table
@@ -41,7 +41,7 @@
 #define VPU_BOOT_API_VER_INDEX 0
 /* ------------ FW API version information end ---------------------*/
 
-#pragma pack(push, 1)
+#pragma pack(push, 4)
 
 /*
  * Firmware image header format
@@ -66,9 +66,17 @@ struct vpu_firmware_header {
 	/* Size of memory require for firmware execution */
 	u32 runtime_size;
 	u32 shave_nn_fw_size;
-	/* Size of primary preemption buffer. */
+	/*
+	 * Size of primary preemption buffer, assuming a 2-job submission queue.
+	 * NOTE: host driver is expected to adapt size accordingly to actual
+	 * submission queue size and device capabilities.
+	 */
 	u32 preemption_buffer_1_size;
-	/* Size of secondary preemption buffer. */
+	/*
+	 * Size of secondary preemption buffer, assuming a 2-job submission queue.
+	 * NOTE: host driver is expected to adapt size accordingly to actual
+	 * submission queue size and device capabilities.
+	 */
 	u32 preemption_buffer_2_size;
 	/* Space reserved for future preemption-related fields. */
 	u32 preemption_reserved[6];
@@ -181,10 +189,10 @@ struct vpu_warm_boot_section {
 #define VPU_PRESENT_CALL_PERIOD_MS_MAX	   10000
 
 /**
- * Macros to enable various operation modes within the VPU.
+ * Macros to enable various power profiles within the NPU.
  * To be defined as part of 32 bit mask.
  */
-#define VPU_OP_MODE_SURVIVABILITY 0x1
+#define POWER_PROFILE_SURVIVABILITY 0x1
 
 struct vpu_boot_params {
 	u32 magic;
@@ -317,7 +325,15 @@ struct vpu_boot_params {
 	u64 d0i3_residency_time_us;
 	/* Value of VPU perf counter at the time of entering D0i3 state . */
 	u64 d0i3_entry_vpu_ts;
-	u32 pad4[20];
+	/*
+	 * The system time of the host operating system in microseconds.
+	 * E.g the number of microseconds since 1st of January 1970, or whatever date the
+	 * host operating system uses to maintain system time.
+	 * This value will be used to track system time on the VPU.
+	 * The KMD is required to update this value on every VPU reset.
+	 */
+	u64 system_time_us;
+	u32 pad4[18];
 	/* Warm boot information: 0x400 - 0x43F */
 	u32 warm_boot_sections_count;
 	u32 warm_boot_start_address_reference;
@@ -344,10 +360,14 @@ struct vpu_boot_params {
 	u32 vpu_focus_present_timer_ms;
 	/* VPU ECC Signaling */
 	u32 vpu_uses_ecc_mca_signal;
-	/* Values defined by VPU_OP_MODE* macros */
-	u32 vpu_operation_mode;
-	/* Unused/reserved: 0x480 - 0xFFF */
-	u32 pad6[736];
+	/* Values defined by POWER_PROFILE* macros */
+	u32 power_profile;
+	/* Microsecond value for DCT active cycle */
+	u32 dct_active_us;
+	/* Microsecond value for DCT inactive cycle */
+	u32 dct_inactive_us;
+	/* Unused/reserved: 0x488 - 0xFFF */
+	u32 pad6[734];
 };
 
 /*
