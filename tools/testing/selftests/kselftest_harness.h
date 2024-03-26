@@ -383,6 +383,7 @@
 		FIXTURE_DATA(fixture_name) self; \
 		pid_t child = 1; \
 		int status = 0; \
+		bool jmp = false; \
 		memset(&self, 0, sizeof(FIXTURE_DATA(fixture_name))); \
 		if (setjmp(_metadata->env) == 0) { \
 			/* Use the same _metadata. */ \
@@ -399,8 +400,10 @@
 				_metadata->exit_code = KSFT_FAIL; \
 			} \
 		} \
+		else \
+			jmp = true; \
 		if (child == 0) { \
-			if (_metadata->setup_completed && !_metadata->teardown_parent) \
+			if (_metadata->setup_completed && !_metadata->teardown_parent && !jmp) \
 				fixture_name##_teardown(_metadata, &self, variant->data); \
 			_exit(0); \
 		} \
