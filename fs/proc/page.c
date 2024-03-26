@@ -155,7 +155,7 @@ u64 stable_page_flags(const struct page *page)
 	else if (folio_test_large(folio)) {
 		if ((k & (1 << PG_lru)) || is_anon)
 			u |= 1 << KPF_THP;
-		else if (is_huge_zero_page(&folio->page)) {
+		else if (is_huge_zero_folio(folio)) {
 			u |= 1 << KPF_ZERO_PAGE;
 			u |= 1 << KPF_THP;
 		}

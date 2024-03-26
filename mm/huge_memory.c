@@ -789,12 +789,12 @@ struct deferred_split *get_deferred_split_queue(struct folio *folio)
 }
 #endif
 
-static inline bool is_transparent_hugepage(struct folio *folio)
+static inline bool is_transparent_hugepage(const struct folio *folio)
 {
 	if (!folio_test_large(folio))
 		return false;
 
-	return is_huge_zero_page(&folio->page) ||
+	return is_huge_zero_folio(folio) ||
 		folio_test_large_rmappable(folio);
 }
 
@@ -3085,7 +3085,7 @@ int split_huge_page_to_list_to_order(struct page *page, struct list_head *list,
 	}
 
 
-	is_hzp = is_huge_zero_page(&folio->page);
+	is_hzp = is_huge_zero_folio(folio);
 	if (is_hzp) {
 		pr_warn_ratelimited("Called split_huge_page for huge zero page\n");
 		return -EBUSY;

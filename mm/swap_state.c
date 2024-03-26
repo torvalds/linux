@@ -301,7 +301,7 @@ void free_page_and_swap_cache(struct page *page)
 	struct folio *folio = page_folio(page);
 
 	free_swap_cache(folio);
-	if (!is_huge_zero_page(page))
+	if (!is_huge_zero_folio(folio))
 		folio_put(folio);
 }
 
