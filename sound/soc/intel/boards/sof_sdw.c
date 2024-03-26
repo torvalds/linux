@@ -514,6 +514,24 @@ static struct snd_soc_dai_link_component platform_component[] = {
 	}
 };
 
+struct snd_soc_dai *get_codec_dai_by_name(struct snd_soc_pcm_runtime *rtd,
+					  const char * const dai_name[],
+					  int num_dais)
+{
+	struct snd_soc_dai *dai;
+	int index;
+	int i;
+
+	for (index = 0; index < num_dais; index++)
+		for_each_rtd_codec_dais(rtd, i, dai)
+			if (strstr(dai->name, dai_name[index])) {
+				dev_dbg(rtd->card->dev, "get dai %s\n", dai->name);
+				return dai;
+			}
+
+	return NULL;
+}
+
 /* these wrappers are only needed to avoid typecast compilation errors */
 int sdw_startup(struct snd_pcm_substream *substream)
 {

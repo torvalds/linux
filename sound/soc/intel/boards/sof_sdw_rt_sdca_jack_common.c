@@ -15,7 +15,6 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
-#include "sof_board_helpers.h"
 #include "sof_sdw_common.h"
 
 /*

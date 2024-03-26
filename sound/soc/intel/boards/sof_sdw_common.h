@@ -107,6 +107,10 @@ struct mc_private {
 
 extern unsigned long sof_sdw_quirk;
 
+struct snd_soc_dai *get_codec_dai_by_name(struct snd_soc_pcm_runtime *rtd,
+					  const char * const dai_name[],
+					  int num_dais);
+
 int sdw_startup(struct snd_pcm_substream *substream);
 int sdw_prepare(struct snd_pcm_substream *substream);
 int sdw_trigger(struct snd_pcm_substream *substream, int cmd);
