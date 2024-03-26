@@ -26,6 +26,17 @@
 #define IPV6_TBID_ADDR		"fd00::FFFF"
 #define IPV6_TBID_NET		"fd00::"
 #define IPV6_TBID_DST		"fd00::2"
+#define MARK_NO_POLICY		33
+#define MARK			42
+#define MARK_TABLE		"200"
+#define IPV4_REMOTE_DST		"1.2.3.4"
+#define IPV4_LOCAL		"10.4.0.3"
+#define IPV4_GW1		"10.4.0.1"
+#define IPV4_GW2		"10.4.0.2"
+#define IPV6_REMOTE_DST		"be:ef::b0:10"
+#define IPV6_LOCAL		"fd01::3"
+#define IPV6_GW1		"fd01::1"
+#define IPV6_GW2		"fd01::2"
 #define DMAC			"11:11:11:11:11:11"
 #define DMAC_INIT { 0x11, 0x11, 0x11, 0x11, 0x11, 0x11, }
 #define DMAC2			"01:01:01:01:01:01"
@@ -36,9 +47,11 @@ struct fib_lookup_test {
 	const char *daddr;
 	int expected_ret;
 	const char *expected_src;
+	const char *expected_dst;
 	int lookup_flags;
 	__u32 tbid;
 	__u8 dmac[6];
+	__u32 mark;
 };
 
 static const struct fib_lookup_test tests[] = {
@@ -90,9 +103,46 @@ static const struct fib_lookup_test tests[] = {
 	  .daddr = IPV6_ADDR_DST, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
 	  .expected_src = IPV6_IFACE_ADDR_SEC,
 	  .lookup_flags = BPF_FIB_LOOKUP_SRC | BPF_FIB_LOOKUP_SKIP_NEIGH, },
+	/* policy routing */
+	{ .desc = "IPv4 policy routing, default",
+	  .daddr = IPV4_REMOTE_DST, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
+	  .expected_dst = IPV4_GW1,
+	  .lookup_flags = BPF_FIB_LOOKUP_MARK | BPF_FIB_LOOKUP_SKIP_NEIGH, },
+	{ .desc = "IPv4 policy routing, mark doesn't point to a policy",
+	  .daddr = IPV4_REMOTE_DST, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
+	  .expected_dst = IPV4_GW1,
+	  .lookup_flags = BPF_FIB_LOOKUP_MARK | BPF_FIB_LOOKUP_SKIP_NEIGH,
+	  .mark = MARK_NO_POLICY, },
+	{ .desc = "IPv4 policy routing, mark points to a policy",
+	  .daddr = IPV4_REMOTE_DST, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
+	  .expected_dst = IPV4_GW2,
+	  .lookup_flags = BPF_FIB_LOOKUP_MARK | BPF_FIB_LOOKUP_SKIP_NEIGH,
+	  .mark = MARK, },
+	{ .desc = "IPv4 policy routing, mark points to a policy, but no flag",
+	  .daddr = IPV4_REMOTE_DST, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
+	  .expected_dst = IPV4_GW1,
+	  .lookup_flags = BPF_FIB_LOOKUP_SKIP_NEIGH,
+	  .mark = MARK, },
+	{ .desc = "IPv6 policy routing, default",
+	  .daddr = IPV6_REMOTE_DST, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
+	  .expected_dst = IPV6_GW1,
+	  .lookup_flags = BPF_FIB_LOOKUP_MARK | BPF_FIB_LOOKUP_SKIP_NEIGH, },
+	{ .desc = "IPv6 policy routing, mark doesn't point to a policy",
+	  .daddr = IPV6_REMOTE_DST, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
+	  .expected_dst = IPV6_GW1,
+	  .lookup_flags = BPF_FIB_LOOKUP_MARK | BPF_FIB_LOOKUP_SKIP_NEIGH,
+	  .mark = MARK_NO_POLICY, },
+	{ .desc = "IPv6 policy routing, mark points to a policy",
+	  .daddr = IPV6_REMOTE_DST, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
+	  .expected_dst = IPV6_GW2,
+	  .lookup_flags = BPF_FIB_LOOKUP_MARK | BPF_FIB_LOOKUP_SKIP_NEIGH,
+	  .mark = MARK, },
+	{ .desc = "IPv6 policy routing, mark points to a policy, but no flag",
+	  .daddr = IPV6_REMOTE_DST, .expected_ret = BPF_FIB_LKUP_RET_SUCCESS,
+	  .expected_dst = IPV6_GW1,
+	  .lookup_flags = BPF_FIB_LOOKUP_SKIP_NEIGH,
+	  .mark = MARK, },
 };
-
-static int ifindex;
 
 static int setup_netns(void)
 {
@@ -144,12 +194,24 @@ static int setup_netns(void)
 	if (!ASSERT_OK(err, "write_sysctl(net.ipv6.conf.veth1.forwarding)"))
 		goto fail;
 
+	/* Setup for policy routing tests */
+	SYS(fail, "ip addr add %s/24 dev veth1", IPV4_LOCAL);
+	SYS(fail, "ip addr add %s/64 dev veth1 nodad", IPV6_LOCAL);
+	SYS(fail, "ip route add %s/32 via %s", IPV4_REMOTE_DST, IPV4_GW1);
+	SYS(fail, "ip route add %s/32 via %s table %s", IPV4_REMOTE_DST, IPV4_GW2, MARK_TABLE);
+	SYS(fail, "ip -6 route add %s/128 via %s", IPV6_REMOTE_DST, IPV6_GW1);
+	SYS(fail, "ip -6 route add %s/128 via %s table %s", IPV6_REMOTE_DST, IPV6_GW2, MARK_TABLE);
+	SYS(fail, "ip rule add prio 2 fwmark %d lookup %s", MARK, MARK_TABLE);
+	SYS(fail, "ip -6 rule add prio 2 fwmark %d lookup %s", MARK, MARK_TABLE);
+
 	return 0;
 fail:
 	return -1;
 }
 
-static int set_lookup_params(struct bpf_fib_lookup *params, const struct fib_lookup_test *test)
+static int set_lookup_params(struct bpf_fib_lookup *params,
+			     const struct fib_lookup_test *test,
+			     int ifindex)
 {
 	int ret;
 
@@ -158,6 +220,7 @@ static int set_lookup_params(struct bpf_fib_lookup *params, const struct fib_loo
 	params->l4_protocol = IPPROTO_TCP;
 	params->ifindex = ifindex;
 	params->tbid = test->tbid;
+	params->mark = test->mark;
 
 	if (inet_pton(AF_INET6, test->daddr, params->ipv6_dst) == 1) {
 		params->family = AF_INET6;
@@ -190,38 +253,43 @@ static void mac_str(char *b, const __u8 *mac)
 		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 }
 
-static void assert_src_ip(struct bpf_fib_lookup *fib_params, const char *expected_src)
+static void assert_ip_address(int family, void *addr, const char *expected_str)
 {
+	char str[INET6_ADDRSTRLEN];
+	u8 expected_addr[16];
+	int addr_len = 0;
 	int ret;
-	__u32 src6[4];
-	__be32 src4;
 
-	switch (fib_params->family) {
+	switch (family) {
 	case AF_INET6:
-		ret = inet_pton(AF_INET6, expected_src, src6);
-		ASSERT_EQ(ret, 1, "inet_pton(expected_src)");
-
-		ret = memcmp(src6, fib_params->ipv6_src, sizeof(fib_params->ipv6_src));
-		if (!ASSERT_EQ(ret, 0, "fib_lookup ipv6 src")) {
-			char str_src6[64];
-
-			inet_ntop(AF_INET6, fib_params->ipv6_src, str_src6,
-				  sizeof(str_src6));
-			printf("ipv6 expected %s actual %s ", expected_src,
-			       str_src6);
-		}
-
+		ret = inet_pton(AF_INET6, expected_str, expected_addr);
+		ASSERT_EQ(ret, 1, "inet_pton(AF_INET6, expected_str)");
+		addr_len = 16;
 		break;
 	case AF_INET:
-		ret = inet_pton(AF_INET, expected_src, &src4);
-		ASSERT_EQ(ret, 1, "inet_pton(expected_src)");
-
-		ASSERT_EQ(fib_params->ipv4_src, src4, "fib_lookup ipv4 src");
-
+		ret = inet_pton(AF_INET, expected_str, expected_addr);
+		ASSERT_EQ(ret, 1, "inet_pton(AF_INET, expected_str)");
+		addr_len = 4;
 		break;
 	default:
-		PRINT_FAIL("invalid addr family: %d", fib_params->family);
+		PRINT_FAIL("invalid address family: %d", family);
+		break;
 	}
+
+	if (memcmp(addr, expected_addr, addr_len)) {
+		inet_ntop(family, addr, str, sizeof(str));
+		PRINT_FAIL("expected %s actual %s ", expected_str, str);
+	}
+}
+
+static void assert_src_ip(struct bpf_fib_lookup *params, const char *expected)
+{
+	assert_ip_address(params->family, params->ipv6_src, expected);
+}
+
+static void assert_dst_ip(struct bpf_fib_lookup *params, const char *expected)
+{
+	assert_ip_address(params->family, params->ipv6_dst, expected);
 }
 
 void test_fib_lookup(void)
@@ -256,15 +324,18 @@ void test_fib_lookup(void)
 	if (setup_netns())
 		goto fail;
 
-	ifindex = if_nametoindex("veth1");
-	skb.ifindex = ifindex;
+	skb.ifindex = if_nametoindex("veth1");
+	if (!ASSERT_NEQ(skb.ifindex, 0, "if_nametoindex(veth1)"))
+		goto fail;
+
 	fib_params = &skel->bss->fib_params;
 
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
 		printf("Testing %s ", tests[i].desc);
 
-		if (set_lookup_params(fib_params, &tests[i]))
+		if (set_lookup_params(fib_params, &tests[i], skb.ifindex))
 			continue;
+
 		skel->bss->fib_lookup_ret = -1;
 		skel->bss->lookup_flags = tests[i].lookup_flags;
 
@@ -277,6 +348,9 @@ void test_fib_lookup(void)
 
 		if (tests[i].expected_src)
 			assert_src_ip(fib_params, tests[i].expected_src);
+
+		if (tests[i].expected_dst)
+			assert_dst_ip(fib_params, tests[i].expected_dst);
 
 		ret = memcmp(tests[i].dmac, fib_params->dmac, sizeof(tests[i].dmac));
 		if (!ASSERT_EQ(ret, 0, "dmac not match")) {
