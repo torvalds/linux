@@ -610,6 +610,8 @@ struct dc_clocks {
 	int max_supported_dispclk_khz;
 	int bw_dppclk_khz; /*a copy of dppclk_khz*/
 	int bw_dispclk_khz;
+	int idle_dramclk_khz;
+	int idle_fclk_khz;
 };
 
 struct dc_bw_validation_profile {
@@ -1035,6 +1037,7 @@ struct dc_debug_options {
 	uint32_t dml21_force_pstate_method_value;
 	uint32_t dml21_disable_pstate_method_mask;
 	union dmub_fams2_global_feature_config fams2_config;
+	bool enable_legacy_clock_update;
 	unsigned int force_cositing;
 };
 

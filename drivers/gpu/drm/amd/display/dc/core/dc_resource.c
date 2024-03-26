@@ -204,7 +204,8 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 			dc_version = DCN_VERSION_3_51;
 		break;
 	case AMDGPU_FAMILY_GC_12_0_0:
-		if (ASICREV_IS_DCN401(asic_id.hw_internal_rev))
+		if (ASICREV_IS_GC_12_0_1_A0(asic_id.hw_internal_rev) ||
+			ASICREV_IS_GC_12_0_0_A0(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_4_01;
 		break;
 	default:

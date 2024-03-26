@@ -17,5 +17,15 @@ void dcn401_smu_send_cab_for_uclk_message(struct clk_mgr_internal *clk_mgr, unsi
 void dcn401_smu_transfer_wm_table_dram_2_smu(struct clk_mgr_internal *clk_mgr);
 void dcn401_smu_set_pme_workaround(struct clk_mgr_internal *clk_mgr);
 unsigned int dcn401_smu_set_hard_min_by_freq(struct clk_mgr_internal *clk_mgr, uint32_t clk, uint16_t freq_mhz);
+void dcn401_smu_wait_for_dmub_ack_mclk(struct clk_mgr_internal *clk_mgr, bool enable);
+void dcn401_smu_indicate_drr_status(struct clk_mgr_internal *clk_mgr, bool mod_drr_for_pstate);
+bool dcn401_smu_set_idle_uclk_fclk_hardmin(struct clk_mgr_internal *clk_mgr,
+		uint16_t uclk_freq_mhz,
+		uint16_t fclk_freq_mhz);
+bool dcn401_smu_set_active_uclk_fclk_hardmin(struct clk_mgr_internal *clk_mgr,
+		uint16_t uclk_freq_mhz,
+		uint16_t fclk_freq_mhz);
+void dcn401_smu_set_min_deep_sleep_dcef_clk(struct clk_mgr_internal *clk_mgr, uint32_t freq_mhz);
+void dcn401_smu_set_num_of_displays(struct clk_mgr_internal *clk_mgr, uint32_t num_displays);
 
 #endif /* __DCN401_CLK_MGR_SMU_MSG_H_ */

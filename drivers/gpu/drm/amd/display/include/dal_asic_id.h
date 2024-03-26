@@ -266,6 +266,9 @@ enum {
 	GC_12_UNKNOWN = 0xFF,
 };
 
+#define ASICREV_IS_GC_12_0_1_A0(eChipRev)        (eChipRev >= GC_12_0_1_A0 && eChipRev < GC_12_0_0_A0)
+#define ASICREV_IS_GC_12_0_0_A0(eChipRev)        (eChipRev >= GC_12_0_0_A0 && eChipRev < 0xFF)
+
 #define ASICREV_IS_DCN4(eChipRev)	(eChipRev >= GC_12_0_1_A0 && eChipRev < GC_12_0_0_A0)
 #define ASICREV_IS_DCN401(eChipRev)	(eChipRev >= GC_12_0_0_A0 && eChipRev < GC_12_UNKNOWN)
 

@@ -105,6 +105,7 @@ void dcn401_smu_set_pme_workaround(struct clk_mgr_internal *clk_mgr)
 unsigned int dcn401_smu_set_hard_min_by_freq(struct clk_mgr_internal *clk_mgr, uint32_t clk, uint16_t freq_mhz)
 {
 	uint32_t response = 0;
+	bool hard_min_done = false;
 
 	/* bits 23:16 for clock type, lower 16 bits for frequency in MHz */
 	uint32_t param = (clk << 16) | freq_mhz;
@@ -114,7 +115,84 @@ unsigned int dcn401_smu_set_hard_min_by_freq(struct clk_mgr_internal *clk_mgr, u
 	dcn401_smu_send_msg_with_param(clk_mgr,
 			DALSMC_MSG_SetHardMinByFreq, param, &response);
 
-	smu_print("SMU Frequency set = %d KHz\n", response);
+	/* wait until hardmin acknowledged */
+	//hard_min_done = dcn401_smu_wait_get_hard_min_status(clk_mgr, clk);
+	smu_print("SMU Frequency set = %d KHz hard_min_done %d\n", response, hard_min_done);
 
 	return response;
+}
+
+void dcn401_smu_wait_for_dmub_ack_mclk(struct clk_mgr_internal *clk_mgr, bool enable)
+{
+	smu_print("SMU to wait for DMCUB ack for MCLK : %d\n", enable);
+
+	dcn401_smu_send_msg_with_param(clk_mgr, DALSMC_MSG_SetAlwaysWaitDmcubResp, enable ? 1 : 0, NULL);
+}
+
+void dcn401_smu_indicate_drr_status(struct clk_mgr_internal *clk_mgr, bool mod_drr_for_pstate)
+{
+	smu_print("SMU Set indicate drr status = %d\n", mod_drr_for_pstate);
+
+	dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_IndicateDrrStatus, mod_drr_for_pstate ? 1 : 0, NULL);
+}
+
+bool dcn401_smu_set_idle_uclk_fclk_hardmin(struct clk_mgr_internal *clk_mgr,
+		uint16_t uclk_freq_mhz,
+		uint16_t fclk_freq_mhz)
+{
+	uint32_t response = 0;
+	bool success;
+
+	/* 15:0 for uclk, 32:16 for fclk */
+	uint32_t param = (fclk_freq_mhz << 16) | uclk_freq_mhz;
+
+	smu_print("SMU Set idle hardmin by freq: uclk_freq_mhz = %d MHz, fclk_freq_mhz = %d MHz\n", uclk_freq_mhz, fclk_freq_mhz);
+
+	success = dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_IdleUclkFclk, param, &response);
+
+	/* wait until hardmin acknowledged */
+	//success &= dcn401_smu_wait_get_hard_min_status(clk_mgr, PPCLK_UCLK);
+	smu_print("SMU hard_min_done %d\n", success);
+
+	return success;
+}
+
+bool dcn401_smu_set_active_uclk_fclk_hardmin(struct clk_mgr_internal *clk_mgr,
+		uint16_t uclk_freq_mhz,
+		uint16_t fclk_freq_mhz)
+{
+	uint32_t response = 0;
+	bool success;
+
+	/* 15:0 for uclk, 32:16 for fclk */
+	uint32_t param = (fclk_freq_mhz << 16) | uclk_freq_mhz;
+
+	smu_print("SMU Set active hardmin by freq: uclk_freq_mhz = %d MHz, fclk_freq_mhz = %d MHz\n", uclk_freq_mhz, fclk_freq_mhz);
+
+	success = dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_ActiveUclkFclk, param, &response);
+
+	/* wait until hardmin acknowledged */
+	//success &= dcn401_smu_wait_get_hard_min_status(clk_mgr, PPCLK_UCLK);
+	smu_print("SMU hard_min_done %d\n", success);
+
+	return success;
+}
+
+void dcn401_smu_set_min_deep_sleep_dcef_clk(struct clk_mgr_internal *clk_mgr, uint32_t freq_mhz)
+{
+	smu_print("SMU Set min deep sleep dcef clk: freq_mhz = %d MHz\n", freq_mhz);
+
+	dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_SetMinDeepSleepDcfclk, freq_mhz, NULL);
+}
+
+void dcn401_smu_set_num_of_displays(struct clk_mgr_internal *clk_mgr, uint32_t num_displays)
+{
+	smu_print("SMU Set num of displays: num_displays = %d\n", num_displays);
+
+	dcn401_smu_send_msg_with_param(clk_mgr,
+			DALSMC_MSG_NumOfDisplays, num_displays, NULL);
 }
