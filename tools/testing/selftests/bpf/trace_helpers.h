@@ -13,6 +13,8 @@ struct ksym {
 };
 struct ksyms;
 
+typedef int (*ksym_cmp_t)(const void *p1, const void *p2);
+
 int load_kallsyms(void);
 struct ksym *ksym_search(long key);
 long ksym_get_addr(const char *name);

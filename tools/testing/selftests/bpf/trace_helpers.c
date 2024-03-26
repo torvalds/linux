@@ -61,12 +61,7 @@ void free_kallsyms_local(struct ksyms *ksyms)
 	free(ksyms);
 }
 
-static int ksym_cmp(const void *p1, const void *p2)
-{
-	return ((struct ksym *)p1)->addr - ((struct ksym *)p2)->addr;
-}
-
-struct ksyms *load_kallsyms_local(void)
+static struct ksyms *load_kallsyms_local_common(ksym_cmp_t cmp_cb)
 {
 	FILE *f;
 	char func[256], buf[256];
@@ -100,13 +95,23 @@ struct ksyms *load_kallsyms_local(void)
 			goto error;
 	}
 	fclose(f);
-	qsort(ksyms->syms, ksyms->sym_cnt, sizeof(struct ksym), ksym_cmp);
+	qsort(ksyms->syms, ksyms->sym_cnt, sizeof(struct ksym), cmp_cb);
 	return ksyms;
 
 error:
 	fclose(f);
 	free_kallsyms_local(ksyms);
 	return NULL;
+}
+
+static int ksym_cmp(const void *p1, const void *p2)
+{
+	return ((struct ksym *)p1)->addr - ((struct ksym *)p2)->addr;
+}
+
+struct ksyms *load_kallsyms_local(void)
+{
+	return load_kallsyms_local_common(ksym_cmp);
 }
 
 int load_kallsyms(void)
