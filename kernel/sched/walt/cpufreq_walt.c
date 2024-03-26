@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2016, Intel Corporation
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -1228,9 +1228,8 @@ static void waltgov_limits(struct cpufreq_policy *policy)
 			 * to do any sort of additional validation here.
 			 */
 			final_freq = cpufreq_driver_resolve_freq(policy, freq);
-
-			if (waltgov_update_next_freq(wg_policy, now, final_freq,
-				final_freq)) {
+			if (wg_policy->next_freq != final_freq) {
+				__waltgov_update_next_freq(wg_policy, now, final_freq, final_freq);
 				waltgov_fast_switch(wg_policy, now, final_freq);
 			}
 		}
