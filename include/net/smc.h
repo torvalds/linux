@@ -26,9 +26,6 @@ struct smc_hashinfo {
 	struct hlist_head ht;
 };
 
-int smc_hash_sk(struct sock *sk);
-void smc_unhash_sk(struct sock *sk);
-
 /* SMCD/ISM device driver interface */
 struct smcd_dmb {
 	u64 dmb_tok;
