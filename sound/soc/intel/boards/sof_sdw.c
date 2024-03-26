@@ -1463,6 +1463,8 @@ static int parse_sdw_endpoints(struct snd_soc_card *card,
 	int i, j;
 
 	for (adr_link = mach_params->links; adr_link->num_adr; adr_link++) {
+		int num_link_dailinks = 0;
+
 		if (!is_power_of_2(adr_link->mask)) {
 			dev_err(dev, "link with multiple mask bits: 0x%x\n",
 				adr_link->mask);
@@ -1540,6 +1542,7 @@ static int parse_sdw_endpoints(struct snd_soc_card *card,
 					}
 				}
 
+				num_link_dailinks += !!list_empty(&sof_dai->endpoints);
 				list_add_tail(&sof_end->list, &sof_dai->endpoints);
 
 				sof_end->link_mask = adr_link->mask;
@@ -1550,6 +1553,8 @@ static int parse_sdw_endpoints(struct snd_soc_card *card,
 				sof_end++;
 			}
 		}
+
+		ctx->append_dai_type |= (num_link_dailinks > 1);
 	}
 
 	WARN_ON(codec_conf != card->codec_conf + card->num_configs);
@@ -1932,37 +1937,6 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 
 	for (i = 0; i < SDW_MAX_LINKS; i++)
 		ctx->sdw_pin_index[i] = SDW_INTEL_BIDIR_PDI_BASE;
-
-	for (; adr_link->num_adr; adr_link++) {
-		/*
-		 * If there are two or more different devices on the same sdw link, we have to
-		 * append the codec type to the dai link name to prevent duplicated dai link name.
-		 * The same type devices on the same sdw link will be in the same
-		 * snd_soc_acpi_adr_device array. They won't be described in different adr_links.
-		 */
-		for (i = 0; i < adr_link->num_adr; i++) {
-			/* find codec info to get dai_num */
-			codec_info = find_codec_info_part(adr_link->adr_d[i].adr);
-			if (!codec_info) {
-				ret = -EINVAL;
-				goto err_end;
-			}
-			if (codec_info->dai_num > 1) {
-				ctx->append_dai_type = true;
-				goto out;
-			}
-			for (j = 0; j < i; j++) {
-				if ((SDW_PART_ID(adr_link->adr_d[i].adr) !=
-				    SDW_PART_ID(adr_link->adr_d[j].adr)) ||
-				    (SDW_MFG_ID(adr_link->adr_d[i].adr) !=
-				    SDW_MFG_ID(adr_link->adr_d[j].adr))) {
-					ctx->append_dai_type = true;
-					goto out;
-				}
-			}
-		}
-	}
-out:
 
 	/* generate DAI links by each sdw link */
 	for (adr_link = mach_params->links ; adr_link->num_adr; adr_link++) {
