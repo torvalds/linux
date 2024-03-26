@@ -52,6 +52,7 @@ struct channel_path {
 	int cmg;
 	int shared;
 	int extended;
+	unsigned long speed;
 	struct cmg_chars cmg_chars;
 };
 

@@ -392,6 +392,35 @@ static ssize_t chp_esc_show(struct device *dev,
 }
 static DEVICE_ATTR(esc, 0444, chp_esc_show, NULL);
 
+static char apply_max_suffix(unsigned long *value, unsigned long base)
+{
+	static char suffixes[] = { 0, 'K', 'M', 'G', 'T' };
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(suffixes) - 1; i++) {
+		if (*value < base || *value % base != 0)
+			break;
+		*value /= base;
+	}
+
+	return suffixes[i];
+}
+
+static ssize_t speed_bps_show(struct device *dev,
+			      struct device_attribute *attr, char *buf)
+{
+	struct channel_path *chp = to_channelpath(dev);
+	unsigned long speed = chp->speed;
+	char suffix;
+
+	suffix = apply_max_suffix(&speed, 1000);
+
+	return suffix ? sysfs_emit(buf, "%lu%c\n", speed, suffix) :
+			sysfs_emit(buf, "%lu\n", speed);
+}
+
+static DEVICE_ATTR_RO(speed_bps);
+
 static ssize_t util_string_read(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *attr, char *buf,
 				loff_t off, size_t count)
@@ -423,6 +452,7 @@ static struct attribute *chp_attrs[] = {
 	&dev_attr_chid.attr,
 	&dev_attr_chid_external.attr,
 	&dev_attr_esc.attr,
+	&dev_attr_speed_bps.attr,
 	NULL,
 };
 static struct attribute_group chp_attr_group = {

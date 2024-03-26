@@ -1066,6 +1066,18 @@ chsc_initialize_cmg_chars(struct channel_path *chp, u8 cmcv,
 	}
 }
 
+static unsigned long scmc_get_speed(u32 s, u32 p)
+{
+	unsigned long speed = s;
+
+	if (!p)
+		p = 8;
+	while (p--)
+		speed *= 10;
+
+	return speed;
+}
+
 int chsc_get_channel_measurement_chars(struct channel_path *chp)
 {
 	unsigned long flags;
@@ -1086,16 +1098,19 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 		u32 : 21;
 		u32 chpid : 8;
 		u32 cmcv : 5;
-		u32 : 11;
+		u32 : 7;
+		u32 cmgp : 4;
 		u32 cmgq : 8;
 		u32 cmg : 8;
-		u32 zeroes3;
+		u32 : 16;
+		u32 cmgs : 16;
 		u32 data[NR_MEASUREMENT_CHARS];
 	} *scmc_area;
 
 	chp->shared = -1;
 	chp->cmg = -1;
 	chp->extended = 0;
+	chp->speed = 0;
 
 	if (!css_chsc_characteristics.scmc || !css_chsc_characteristics.secm)
 		return -EINVAL;
@@ -1126,6 +1141,7 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 	chp->cmg = scmc_area->cmg;
 	chp->shared = scmc_area->shared;
 	chp->extended = scmc_area->extended;
+	chp->speed = scmc_get_speed(scmc_area->cmgs, scmc_area->cmgp);
 	chsc_initialize_cmg_chars(chp, scmc_area->cmcv,
 				  (struct cmg_chars *) &scmc_area->data);
 out:
