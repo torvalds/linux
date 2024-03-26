@@ -74,19 +74,28 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 	struct sdw_master_prop *prop = &bus->prop;
 	u32 *shim_mask = sdw->link_res->shim_mask;
 	unsigned int link_id = sdw->instance;
+	u32 clock_source;
 	u32 syncprd;
 	int ret;
+
+	if (prop->mclk_freq % 6000000) {
+		if (prop->mclk_freq % 2400000) {
+			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_24_576;
+			clock_source = SDW_SHIM2_MLCS_CARDINAL_CLK;
+		} else {
+			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_38_4;
+			clock_source = SDW_SHIM2_MLCS_XTAL_CLK;
+		}
+	} else {
+		syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_96;
+		clock_source = SDW_SHIM2_MLCS_AUDIO_PLL_CLK;
+	}
 
 	mutex_lock(sdw->link_res->shim_lock);
 
 	if (!*shim_mask) {
 		/* we first need to program the SyncPRD/CPU registers */
 		dev_dbg(sdw->cdns.dev, "first link up, programming SYNCPRD\n");
-
-		if (prop->mclk_freq % 6000000)
-			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_38_4;
-		else
-			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_24;
 
 		ret =  hdac_bus_eml_sdw_set_syncprd_unlocked(sdw->link_res->hbus, syncprd);
 		if (ret < 0) {
