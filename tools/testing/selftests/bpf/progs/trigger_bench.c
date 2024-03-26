@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2020 Facebook
-
 #include <linux/bpf.h>
 #include <asm/unistd.h>
 #include <bpf/bpf_helpers.h>
@@ -99,6 +98,72 @@ int bench_trigger_fmodret(void *ctx)
 
 SEC("uprobe")
 int bench_trigger_uprobe(void *ctx)
+{
+	inc_counter();
+	return 0;
+}
+
+const volatile int batch_iters = 0;
+
+SEC("raw_tp")
+int trigger_count(void *ctx)
+{
+	int i;
+
+	for (i = 0; i < batch_iters; i++)
+		inc_counter();
+
+	return 0;
+}
+
+SEC("raw_tp")
+int trigger_driver(void *ctx)
+{
+	int i;
+
+	for (i = 0; i < batch_iters; i++)
+		(void)bpf_get_numa_node_id(); /* attach point for benchmarking */
+
+	return 0;
+}
+
+SEC("kprobe/bpf_get_numa_node_id")
+int bench_trigger_kprobe_batch(void *ctx)
+{
+	inc_counter();
+	return 0;
+}
+
+SEC("kretprobe/bpf_get_numa_node_id")
+int bench_trigger_kretprobe_batch(void *ctx)
+{
+	inc_counter();
+	return 0;
+}
+
+SEC("kprobe.multi/bpf_get_numa_node_id")
+int bench_trigger_kprobe_multi_batch(void *ctx)
+{
+	inc_counter();
+	return 0;
+}
+
+SEC("kretprobe.multi/bpf_get_numa_node_id")
+int bench_trigger_kretprobe_multi_batch(void *ctx)
+{
+	inc_counter();
+	return 0;
+}
+
+SEC("fentry/bpf_get_numa_node_id")
+int bench_trigger_fentry_batch(void *ctx)
+{
+	inc_counter();
+	return 0;
+}
+
+SEC("fexit/bpf_get_numa_node_id")
+int bench_trigger_fexit_batch(void *ctx)
 {
 	inc_counter();
 	return 0;

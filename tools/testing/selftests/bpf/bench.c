@@ -280,6 +280,7 @@ extern struct argp bench_strncmp_argp;
 extern struct argp bench_hashmap_lookup_argp;
 extern struct argp bench_local_storage_create_argp;
 extern struct argp bench_htab_mem_argp;
+extern struct argp bench_trigger_batch_argp;
 
 static const struct argp_child bench_parsers[] = {
 	{ &bench_ringbufs_argp, 0, "Ring buffers benchmark", 0 },
@@ -292,6 +293,7 @@ static const struct argp_child bench_parsers[] = {
 	{ &bench_hashmap_lookup_argp, 0, "Hashmap lookup benchmark", 0 },
 	{ &bench_local_storage_create_argp, 0, "local-storage-create benchmark", 0 },
 	{ &bench_htab_mem_argp, 0, "hash map memory benchmark", 0 },
+	{ &bench_trigger_batch_argp, 0, "BPF triggering benchmark", 0 },
 	{},
 };
 
@@ -508,6 +510,15 @@ extern const struct bench bench_trig_fexit;
 extern const struct bench bench_trig_fentry_sleep;
 extern const struct bench bench_trig_fmodret;
 
+/* batched, staying mostly in-kernel benchmarks */
+extern const struct bench bench_trig_kernel_count;
+extern const struct bench bench_trig_kprobe_batch;
+extern const struct bench bench_trig_kretprobe_batch;
+extern const struct bench bench_trig_kprobe_multi_batch;
+extern const struct bench bench_trig_kretprobe_multi_batch;
+extern const struct bench bench_trig_fentry_batch;
+extern const struct bench bench_trig_fexit_batch;
+
 /* uprobe/uretprobe benchmarks */
 extern const struct bench bench_trig_uprobe_nop;
 extern const struct bench bench_trig_uretprobe_nop;
@@ -548,7 +559,7 @@ static const struct bench *benchs[] = {
 	&bench_rename_fexit,
 	/* pure counting benchmarks for establishing theoretical limits */
 	&bench_trig_usermode_count,
-	&bench_trig_base,
+	&bench_trig_kernel_count,
 	/* syscall-driven triggering benchmarks */
 	&bench_trig_tp,
 	&bench_trig_rawtp,
@@ -560,6 +571,13 @@ static const struct bench *benchs[] = {
 	&bench_trig_fexit,
 	&bench_trig_fentry_sleep,
 	&bench_trig_fmodret,
+	/* batched, staying mostly in-kernel triggers */
+	&bench_trig_kprobe_batch,
+	&bench_trig_kretprobe_batch,
+	&bench_trig_kprobe_multi_batch,
+	&bench_trig_kretprobe_multi_batch,
+	&bench_trig_fentry_batch,
+	&bench_trig_fexit_batch,
 	/* uprobes */
 	&bench_trig_uprobe_nop,
 	&bench_trig_uretprobe_nop,
@@ -567,6 +585,7 @@ static const struct bench *benchs[] = {
 	&bench_trig_uretprobe_push,
 	&bench_trig_uprobe_ret,
 	&bench_trig_uretprobe_ret,
+	/* ringbuf/perfbuf benchmarks */
 	&bench_rb_libbpf,
 	&bench_rb_custom,
 	&bench_pb_libbpf,

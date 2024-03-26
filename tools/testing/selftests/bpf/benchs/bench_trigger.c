@@ -1,10 +1,56 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2020 Facebook */
 #define _GNU_SOURCE
+#include <argp.h>
 #include <unistd.h>
+#include <stdint.h>
 #include "bench.h"
 #include "trigger_bench.skel.h"
 #include "trace_helpers.h"
+
+#define MAX_TRIG_BATCH_ITERS 1000
+
+static struct {
+	__u32 batch_iters;
+} args = {
+	.batch_iters = 100,
+};
+
+enum {
+	ARG_TRIG_BATCH_ITERS = 7000,
+};
+
+static const struct argp_option opts[] = {
+	{ "trig-batch-iters", ARG_TRIG_BATCH_ITERS, "BATCH_ITER_CNT", 0,
+		"Number of in-kernel iterations per one driver test run"},
+	{},
+};
+
+static error_t parse_arg(int key, char *arg, struct argp_state *state)
+{
+	long ret;
+
+	switch (key) {
+	case ARG_TRIG_BATCH_ITERS:
+		ret = strtol(arg, NULL, 10);
+		if (ret < 1 || ret > MAX_TRIG_BATCH_ITERS) {
+			fprintf(stderr, "invalid --trig-batch-iters value (should be between %d and %d)\n",
+				1, MAX_TRIG_BATCH_ITERS);
+			argp_usage(state);
+		}
+		args.batch_iters = ret;
+		break;
+	default:
+		return ARGP_ERR_UNKNOWN;
+	}
+
+	return 0;
+}
+
+const struct argp bench_trigger_batch_argp = {
+	.options = opts,
+	.parser = parse_arg,
+};
 
 /* adjust slot shift in inc_hits() if changing */
 #define MAX_BUCKETS 256
@@ -15,6 +61,7 @@
 static struct trigger_ctx {
 	struct trigger_bench *skel;
 	bool usermode_counters;
+	int driver_prog_fd;
 } ctx;
 
 static struct counter base_hits[MAX_BUCKETS];
@@ -73,6 +120,16 @@ static void *trigger_producer(void *input)
 	return NULL;
 }
 
+static void *trigger_producer_batch(void *input)
+{
+	int fd = ctx.driver_prog_fd ?: bpf_program__fd(ctx.skel->progs.trigger_driver);
+
+	while (true)
+		bpf_prog_test_run_opts(fd, NULL);
+
+	return NULL;
+}
+
 static void trigger_measure(struct bench_res *res)
 {
 	if (ctx.usermode_counters)
@@ -83,10 +140,20 @@ static void trigger_measure(struct bench_res *res)
 
 static void setup_ctx(void)
 {
+	int err;
+
 	setup_libbpf();
 
-	ctx.skel = trigger_bench__open_and_load();
+	ctx.skel = trigger_bench__open();
 	if (!ctx.skel) {
+		fprintf(stderr, "failed to open skeleton\n");
+		exit(1);
+	}
+
+	ctx.skel->rodata->batch_iters = args.batch_iters;
+
+	err = trigger_bench__load(ctx.skel);
+	if (err) {
 		fprintf(stderr, "failed to open skeleton\n");
 		exit(1);
 	}
@@ -161,6 +228,50 @@ static void trigger_fmodret_setup(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_fmodret);
+}
+
+/* Batched, staying mostly in-kernel triggering setups */
+static void trigger_kernel_count_setup(void)
+{
+	setup_ctx();
+	/* override driver program */
+	ctx.driver_prog_fd = bpf_program__fd(ctx.skel->progs.trigger_count);
+}
+
+static void trigger_kprobe_batch_setup(void)
+{
+	setup_ctx();
+	attach_bpf(ctx.skel->progs.bench_trigger_kprobe_batch);
+}
+
+static void trigger_kretprobe_batch_setup(void)
+{
+	setup_ctx();
+	attach_bpf(ctx.skel->progs.bench_trigger_kretprobe_batch);
+}
+
+static void trigger_kprobe_multi_batch_setup(void)
+{
+	setup_ctx();
+	attach_bpf(ctx.skel->progs.bench_trigger_kprobe_multi_batch);
+}
+
+static void trigger_kretprobe_multi_batch_setup(void)
+{
+	setup_ctx();
+	attach_bpf(ctx.skel->progs.bench_trigger_kretprobe_multi_batch);
+}
+
+static void trigger_fentry_batch_setup(void)
+{
+	setup_ctx();
+	attach_bpf(ctx.skel->progs.bench_trigger_fentry_batch);
+}
+
+static void trigger_fexit_batch_setup(void)
+{
+	setup_ctx();
+	attach_bpf(ctx.skel->progs.bench_trigger_fexit_batch);
 }
 
 /* make sure call is not inlined and not avoided by compiler, so __weak and
@@ -395,6 +506,26 @@ const struct bench bench_trig_fmodret = {
 	.report_progress = hits_drops_report_progress,
 	.report_final = hits_drops_report_final,
 };
+
+/* batched (staying mostly in kernel) kprobe/fentry benchmarks */
+#define BENCH_TRIG_BATCH(KIND, NAME)					\
+const struct bench bench_trig_##KIND = {				\
+	.name = "trig-" NAME,						\
+	.setup = trigger_##KIND##_setup,				\
+	.producer_thread = trigger_producer_batch,			\
+	.measure = trigger_measure,					\
+	.report_progress = hits_drops_report_progress,			\
+	.report_final = hits_drops_report_final,			\
+	.argp = &bench_trigger_batch_argp,				\
+}
+
+BENCH_TRIG_BATCH(kernel_count, "kernel-count");
+BENCH_TRIG_BATCH(kprobe_batch, "kprobe-batch");
+BENCH_TRIG_BATCH(kretprobe_batch, "kretprobe-batch");
+BENCH_TRIG_BATCH(kprobe_multi_batch, "kprobe-multi-batch");
+BENCH_TRIG_BATCH(kretprobe_multi_batch, "kretprobe-multi-batch");
+BENCH_TRIG_BATCH(fentry_batch, "fentry-batch");
+BENCH_TRIG_BATCH(fexit_batch, "fexit-batch");
 
 /* uprobe benchmarks */
 #define BENCH_TRIG_USERMODE(KIND, PRODUCER, NAME)			\
