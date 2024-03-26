@@ -440,7 +440,6 @@
 		reg = <0x00 0x02800000 0x00 0x100>;
 		interrupts = <GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
 		power-domains = <&k3_pds 146 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 146 2>;
 		clock-names = "fclk";
@@ -452,7 +451,6 @@
 		reg = <0x00 0x02810000 0x00 0x100>;
 		interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
 		power-domains = <&k3_pds 278 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 278 2>;
 		clock-names = "fclk";
@@ -464,7 +462,6 @@
 		reg = <0x00 0x02820000 0x00 0x100>;
 		interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
 		power-domains = <&k3_pds 279 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 279 2>;
 		clock-names = "fclk";
@@ -476,7 +473,6 @@
 		reg = <0x00 0x02830000 0x00 0x100>;
 		interrupts = <GIC_SPI 195 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
 		power-domains = <&k3_pds 280 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 280 2>;
 		clock-names = "fclk";
@@ -488,7 +484,6 @@
 		reg = <0x00 0x02840000 0x00 0x100>;
 		interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
 		power-domains = <&k3_pds 281 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 281 2>;
 		clock-names = "fclk";
@@ -500,7 +495,6 @@
 		reg = <0x00 0x02850000 0x00 0x100>;
 		interrupts = <GIC_SPI 197 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
 		power-domains = <&k3_pds 282 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 282 2>;
 		clock-names = "fclk";
@@ -512,7 +506,6 @@
 		reg = <0x00 0x02860000 0x00 0x100>;
 		interrupts = <GIC_SPI 198 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
 		power-domains = <&k3_pds 283 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 283 2>;
 		clock-names = "fclk";
@@ -524,7 +517,6 @@
 		reg = <0x00 0x02870000 0x00 0x100>;
 		interrupts = <GIC_SPI 199 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
 		power-domains = <&k3_pds 284 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 284 2>;
 		clock-names = "fclk";
@@ -536,7 +528,6 @@
 		reg = <0x00 0x02880000 0x00 0x100>;
 		interrupts = <GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
 		power-domains = <&k3_pds 285 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 285 2>;
 		clock-names = "fclk";
@@ -548,7 +539,6 @@
 		reg = <0x00 0x02890000 0x00 0x100>;
 		interrupts = <GIC_SPI 249 IRQ_TYPE_LEVEL_HIGH>;
 		clock-frequency = <48000000>;
-		current-speed = <115200>;
 		power-domains = <&k3_pds 286 TI_SCI_PD_EXCLUSIVE>;
 		clocks = <&k3_clks 286 2>;
 		clock-names = "fclk";
