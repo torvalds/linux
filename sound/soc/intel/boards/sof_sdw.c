@@ -1407,19 +1407,6 @@ static int get_slave_info(const struct snd_soc_acpi_link_adr *adr_link,
 	return 0;
 }
 
-static void set_dailink_map(struct snd_soc_dai_link_ch_map *sdw_codec_ch_maps,
-			    int codec_num, int cpu_num)
-{
-	int step;
-	int i;
-
-	step = codec_num / cpu_num;
-	for (i = 0; i < codec_num; i++) {
-		sdw_codec_ch_maps[i].cpu	= i / step;
-		sdw_codec_ch_maps[i].codec	= i;
-	}
-}
-
 static int sof_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct sof_sdw_codec_info *codec_info;
@@ -1466,6 +1453,7 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
 	struct device *dev = card->dev;
 	const struct snd_soc_acpi_link_adr *adr_link_next;
+	struct snd_soc_dai_link_ch_map *sdw_codec_ch_maps;
 	struct snd_soc_dai_link_component *codecs;
 	struct snd_soc_dai_link_component *cpus;
 	struct sof_sdw_codec_info *codec_info;
@@ -1486,6 +1474,11 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 
 	codecs = devm_kcalloc(dev, codec_num, sizeof(*codecs), GFP_KERNEL);
 	if (!codecs)
+		return -ENOMEM;
+
+	sdw_codec_ch_maps = devm_kcalloc(dev, codec_num,
+					 sizeof(*sdw_codec_ch_maps), GFP_KERNEL);
+	if (!sdw_codec_ch_maps)
 		return -ENOMEM;
 
 	/* generate codec name on different links in the same group */
@@ -1521,6 +1514,9 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 			(*codec_conf)->dlc = codecs[codec_dlc_index];
 			(*codec_conf)->name_prefix = adr_link_next->adr_d[j].name_prefix;
 
+			sdw_codec_ch_maps[codec_dlc_index].cpu = i;
+			sdw_codec_ch_maps[codec_dlc_index].codec = codec_dlc_index;
+
 			codec_dlc_index++;
 			(*codec_conf)++;
 		}
@@ -1539,7 +1535,6 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 		*ignore_pch_dmic = true;
 
 	for_each_pcm_streams(stream) {
-		struct snd_soc_dai_link_ch_map *sdw_codec_ch_maps;
 		char *name, *cpu_name;
 		int playback, capture;
 		static const char * const sdw_stream_name[] = {
@@ -1557,11 +1552,6 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 			dev_err(dev, "Invalid dailink id %d\n", *be_id);
 			return -EINVAL;
 		}
-
-		sdw_codec_ch_maps = devm_kcalloc(dev, codec_num,
-						 sizeof(*sdw_codec_ch_maps), GFP_KERNEL);
-		if (!sdw_codec_ch_maps)
-			return -ENOMEM;
 
 		/* create stream name according to first link id */
 		if (append_dai_type) {
@@ -1614,9 +1604,8 @@ static int create_sdw_dailink(struct snd_soc_card *card, int *link_index,
 		 * based on wait_for_completion(), tag them as 'nonatomic'.
 		 */
 		dai_links[*link_index].nonatomic = true;
-
-		set_dailink_map(sdw_codec_ch_maps, codec_num, cpu_dai_num);
 		dai_links[*link_index].ch_maps = sdw_codec_ch_maps;
+
 		ret = set_codec_init_func(card, adr_link, dai_links + (*link_index)++,
 					  playback, group_id, adr_index, dai_index);
 		if (ret < 0) {
