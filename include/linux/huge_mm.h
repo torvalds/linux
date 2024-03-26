@@ -351,7 +351,7 @@ vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf);
 extern struct page *huge_zero_page;
 extern unsigned long huge_zero_pfn;
 
-static inline bool is_huge_zero_page(struct page *page)
+static inline bool is_huge_zero_page(const struct page *page)
 {
 	return READ_ONCE(huge_zero_page) == page;
 }
@@ -480,7 +480,7 @@ static inline vm_fault_t do_huge_pmd_numa_page(struct vm_fault *vmf)
 	return 0;
 }
 
-static inline bool is_huge_zero_page(struct page *page)
+static inline bool is_huge_zero_page(const struct page *page)
 {
 	return false;
 }
