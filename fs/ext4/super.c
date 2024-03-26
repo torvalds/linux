@@ -5668,7 +5668,7 @@ failed_mount:
 	brelse(sbi->s_sbh);
 	if (sbi->s_journal_bdev_file) {
 		invalidate_bdev(file_bdev(sbi->s_journal_bdev_file));
-		fput(sbi->s_journal_bdev_file);
+		bdev_fput(sbi->s_journal_bdev_file);
 	}
 out_fail:
 	invalidate_bdev(sb->s_bdev);
@@ -5913,7 +5913,7 @@ static struct file *ext4_get_journal_blkdev(struct super_block *sb,
 out_bh:
 	brelse(bh);
 out_bdev:
-	fput(bdev_file);
+	bdev_fput(bdev_file);
 	return ERR_PTR(errno);
 }
 
@@ -5952,7 +5952,7 @@ static journal_t *ext4_open_dev_journal(struct super_block *sb,
 out_journal:
 	jbd2_journal_destroy(journal);
 out_bdev:
-	fput(bdev_file);
+	bdev_fput(bdev_file);
 	return ERR_PTR(errno);
 }
 
@@ -7327,7 +7327,7 @@ static void ext4_kill_sb(struct super_block *sb)
 	kill_block_super(sb);
 
 	if (bdev_file)
-		fput(bdev_file);
+		bdev_fput(bdev_file);
 }
 
 static struct file_system_type ext4_fs_type = {
