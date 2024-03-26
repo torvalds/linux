@@ -369,7 +369,7 @@
 
 &i2c13 {
 	status = "okay";
-	bus-frequency = <400000>;
+	bus-frequency = <100000>;
 	multi-master;
 
 	ipmb@10 {
