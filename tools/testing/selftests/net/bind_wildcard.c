@@ -25,21 +25,34 @@ static const struct in6_addr in6addr_v4mapped_loopback = {
 	}
 };
 
+#define NR_SOCKETS 8
+
 FIXTURE(bind_wildcard)
 {
-	socklen_t addrlen[2];
+	int fd[NR_SOCKETS];
+	socklen_t addrlen[NR_SOCKETS];
 	union {
 		struct sockaddr addr;
 		struct sockaddr_in addr4;
 		struct sockaddr_in6 addr6;
-	} addr[2];
+	} addr[NR_SOCKETS];
 };
 
 FIXTURE_VARIANT(bind_wildcard)
 {
 	sa_family_t family[2];
 	const void *addr[2];
-	int expected_errno;
+
+	/* 6 bind() calls below follow two bind() for the defined 2 addresses:
+	 *
+	 *   0.0.0.0
+	 *   127.0.0.1
+	 *   ::
+	 *   ::1
+	 *   ::ffff:0.0.0.0
+	 *   ::ffff:127.0.0.1
+	 */
+	int expected_errno[NR_SOCKETS];
 };
 
 /* (IPv4, IPv4) */
@@ -47,14 +60,20 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v4_local)
 {
 	.family = {AF_INET, AF_INET},
 	.addr = {&in4addr_any, &in4addr_loopback},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v4_any)
 {
 	.family = {AF_INET, AF_INET},
 	.addr = {&in4addr_loopback, &in4addr_any},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 /* (IPv4, IPv6) */
@@ -62,56 +81,80 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_any)
 {
 	.family = {AF_INET, AF_INET6},
 	.addr = {&in4addr_any, &in6addr_any},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_local)
 {
 	.family = {AF_INET, AF_INET6},
 	.addr = {&in4addr_any, &in6addr_loopback},
-	.expected_errno = 0,
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_v4mapped_any)
 {
 	.family = {AF_INET, AF_INET6},
 	.addr = {&in4addr_any, &in6addr_v4mapped_any},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_v4mapped_local)
 {
 	.family = {AF_INET, AF_INET6},
 	.addr = {&in4addr_any, &in6addr_v4mapped_loopback},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_any)
 {
 	.family = {AF_INET, AF_INET6},
 	.addr = {&in4addr_loopback, &in6addr_any},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_local)
 {
 	.family = {AF_INET, AF_INET6},
 	.addr = {&in4addr_loopback, &in6addr_loopback},
-	.expected_errno = 0,
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_v4mapped_any)
 {
 	.family = {AF_INET, AF_INET6},
 	.addr = {&in4addr_loopback, &in6addr_v4mapped_any},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_v4mapped_local)
 {
 	.family = {AF_INET, AF_INET6},
 	.addr = {&in4addr_loopback, &in6addr_v4mapped_loopback},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 /* (IPv6, IPv4) */
@@ -119,56 +162,80 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v4_any)
 {
 	.family = {AF_INET6, AF_INET},
 	.addr = {&in6addr_any, &in4addr_any},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v4_local)
 {
 	.family = {AF_INET6, AF_INET},
 	.addr = {&in6addr_any, &in4addr_loopback},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v4_any)
 {
 	.family = {AF_INET6, AF_INET},
 	.addr = {&in6addr_loopback, &in4addr_any},
-	.expected_errno = 0,
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v4_local)
 {
 	.family = {AF_INET6, AF_INET},
 	.addr = {&in6addr_loopback, &in4addr_loopback},
-	.expected_errno = 0,
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v4_any)
 {
 	.family = {AF_INET6, AF_INET},
 	.addr = {&in6addr_v4mapped_any, &in4addr_any},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v4_local)
 {
 	.family = {AF_INET6, AF_INET},
 	.addr = {&in6addr_v4mapped_any, &in4addr_loopback},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_local_v4_any)
 {
 	.family = {AF_INET6, AF_INET},
 	.addr = {&in6addr_v4mapped_loopback, &in4addr_any},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_local_v4_local)
 {
 	.family = {AF_INET6, AF_INET},
 	.addr = {&in6addr_v4mapped_loopback, &in4addr_loopback},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 /* (IPv6, IPv6) */
@@ -176,84 +243,120 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_local)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_any, &in6addr_loopback},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_v4mapped_any)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_any, &in6addr_v4mapped_any},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_v4mapped_local)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_any, &in6addr_v4mapped_loopback},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v6_any)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_loopback, &in6addr_any},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v6_v4mapped_any)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_loopback, &in6addr_v4mapped_any},
-	.expected_errno = 0,
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v6_v4mapped_local)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_loopback, &in6addr_v4mapped_loopback},
-	.expected_errno = 0,
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_any)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_v4mapped_any, &in6addr_any},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_local)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_v4mapped_any, &in6addr_loopback},
-	.expected_errno = 0,
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_v4mapped_local)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_v4mapped_any, &in6addr_v4mapped_loopback},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_loopback_v6_any)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_v4mapped_loopback, &in6addr_any},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_loopback_v6_local)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_v4mapped_loopback, &in6addr_loopback},
-	.expected_errno = 0,
+	.expected_errno = {0, 0,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_loopback_v6_v4mapped_any)
 {
 	.family = {AF_INET6, AF_INET6},
 	.addr = {&in6addr_v4mapped_loopback, &in6addr_v4mapped_any},
-	.expected_errno = EADDRINUSE,
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, 0,
+			   EADDRINUSE, EADDRINUSE},
 };
 
 static void setup_addr(FIXTURE_DATA(bind_wildcard) *self, int i,
@@ -284,52 +387,56 @@ FIXTURE_SETUP(bind_wildcard)
 {
 	setup_addr(self, 0, variant->family[0], variant->addr[0]);
 	setup_addr(self, 1, variant->family[1], variant->addr[1]);
+
+	setup_addr(self, 2, AF_INET, &in4addr_any);
+	setup_addr(self, 3, AF_INET, &in4addr_loopback);
+
+	setup_addr(self, 4, AF_INET6, &in6addr_any);
+	setup_addr(self, 5, AF_INET6, &in6addr_loopback);
+	setup_addr(self, 6, AF_INET6, &in6addr_v4mapped_any);
+	setup_addr(self, 7, AF_INET6, &in6addr_v4mapped_loopback);
 }
 
 FIXTURE_TEARDOWN(bind_wildcard)
 {
+	int i;
+
+	for (i = 0; i < NR_SOCKETS; i++)
+		close(self->fd[i]);
 }
 
-void bind_sockets(struct __test_metadata *_metadata,
-		  FIXTURE_DATA(bind_wildcard) *self,
-		  int expected_errno,
-		  struct sockaddr *addr1, socklen_t addrlen1,
-		  struct sockaddr *addr2, socklen_t addrlen2)
+void bind_socket(struct __test_metadata *_metadata,
+		 FIXTURE_DATA(bind_wildcard) *self,
+		 const FIXTURE_VARIANT(bind_wildcard) *variant,
+		 int i)
 {
-	int fd[2];
 	int ret;
 
-	fd[0] = socket(addr1->sa_family, SOCK_STREAM, 0);
-	ASSERT_GT(fd[0], 0);
+	self->fd[i] = socket(self->addr[i].addr.sa_family, SOCK_STREAM, 0);
+	ASSERT_GT(self->fd[i], 0);
 
-	ret = bind(fd[0], addr1, addrlen1);
-	ASSERT_EQ(ret, 0);
+	self->addr[i].addr4.sin_port = self->addr[0].addr4.sin_port;
 
-	ret = getsockname(fd[0], addr1, &addrlen1);
-	ASSERT_EQ(ret, 0);
-
-	((struct sockaddr_in *)addr2)->sin_port = ((struct sockaddr_in *)addr1)->sin_port;
-
-	fd[1] = socket(addr2->sa_family, SOCK_STREAM, 0);
-	ASSERT_GT(fd[1], 0);
-
-	ret = bind(fd[1], addr2, addrlen2);
-	if (expected_errno) {
+	ret = bind(self->fd[i], &self->addr[i].addr, self->addrlen[i]);
+	if (variant->expected_errno[i]) {
 		ASSERT_EQ(ret, -1);
-		ASSERT_EQ(errno, expected_errno);
+		ASSERT_EQ(errno, variant->expected_errno[i]);
 	} else {
 		ASSERT_EQ(ret, 0);
 	}
 
-	close(fd[1]);
-	close(fd[0]);
+	if (i == 0) {
+		ret = getsockname(self->fd[0], &self->addr[0].addr, &self->addrlen[0]);
+		ASSERT_EQ(ret, 0);
+	}
 }
 
 TEST_F(bind_wildcard, plain)
 {
-	bind_sockets(_metadata, self, variant->expected_errno,
-		     &self->addr[0].addr, self->addrlen[0],
-		     &self->addr[1].addr, self->addrlen[1]);
+	int i;
+
+	for (i = 0; i < NR_SOCKETS; i++)
+		bind_socket(_metadata, self, variant, i);
 }
 
 TEST_HARNESS_MAIN
