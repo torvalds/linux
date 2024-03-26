@@ -19,6 +19,36 @@ NS_LIST=""
 
 ##############################################################################
 # Helpers
+
+__ksft_status_merge()
+{
+	local a=$1; shift
+	local b=$1; shift
+	local -A weights
+	local weight=0
+
+	for i in "$@"; do
+		weights[$i]=$((weight++))
+	done
+
+	if [[ ${weights[$a]} > ${weights[$b]} ]]; then
+		echo "$a"
+		return 0
+	else
+		echo "$b"
+		return 1
+	fi
+}
+
+ksft_status_merge()
+{
+	local a=$1; shift
+	local b=$1; shift
+
+	__ksft_status_merge "$a" "$b" \
+		$ksft_pass $ksft_xfail $ksft_skip $ksft_fail
+}
+
 busywait()
 {
 	local timeout=$1; shift
