@@ -103,6 +103,8 @@ struct mc_private {
 	struct device *amp_dev1, *amp_dev2;
 	/* To store SDW Pin index for each SoundWire link */
 	unsigned int sdw_pin_index[SDW_MAX_LINKS];
+	bool append_dai_type;
+	bool ignore_pch_dmic;
 };
 
 extern unsigned long sof_sdw_quirk;
