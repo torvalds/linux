@@ -141,6 +141,9 @@ void arch_crash_handle_hotplug_event(struct kimage *image, void *arg);
 
 int arch_crash_hotplug_support(struct kimage *image, unsigned long kexec_flags);
 #define arch_crash_hotplug_support arch_crash_hotplug_support
+
+unsigned int arch_crash_get_elfcorehdr_size(void);
+#define crash_get_elfcorehdr_size arch_crash_get_elfcorehdr_size
 #endif /* CONFIG_CRASH_HOTPLUG */
 
 extern int crashing_cpu;
