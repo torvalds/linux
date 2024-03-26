@@ -2098,17 +2098,21 @@ static int check_root_trans(struct btree_trans *trans)
 
 	if (mustfix_fsck_err_on(ret, c, root_subvol_missing,
 				"root subvol missing")) {
-		struct bkey_i_subvolume root_subvol;
+		struct bkey_i_subvolume *root_subvol =
+			bch2_trans_kmalloc(trans, sizeof(*root_subvol));
+		ret = PTR_ERR_OR_ZERO(root_subvol);
+		if (ret)
+			goto err;
 
 		snapshot	= U32_MAX;
 		inum		= BCACHEFS_ROOT_INO;
 
-		bkey_subvolume_init(&root_subvol.k_i);
-		root_subvol.k.p.offset = BCACHEFS_ROOT_SUBVOL;
-		root_subvol.v.flags	= 0;
-		root_subvol.v.snapshot	= cpu_to_le32(snapshot);
-		root_subvol.v.inode	= cpu_to_le64(inum);
-		ret = bch2_btree_insert_trans(trans, BTREE_ID_subvolumes, &root_subvol.k_i, 0);
+		bkey_subvolume_init(&root_subvol->k_i);
+		root_subvol->k.p.offset = BCACHEFS_ROOT_SUBVOL;
+		root_subvol->v.flags	= 0;
+		root_subvol->v.snapshot	= cpu_to_le32(snapshot);
+		root_subvol->v.inode	= cpu_to_le64(inum);
+		ret = bch2_btree_insert_trans(trans, BTREE_ID_subvolumes, &root_subvol->k_i, 0);
 		bch_err_msg(c, ret, "writing root subvol");
 		if (ret)
 			goto err;
