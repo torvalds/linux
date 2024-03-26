@@ -7,7 +7,8 @@ ALL_TESTS="
 "
 
 NUM_NETIFS=2
-source lib.sh
+lib_dir=$(dirname "$0")
+source "$lib_dir"/../../../net/forwarding/lib.sh
 
 ETH_FCS_LEN=4
 ETH_HLEN=$((6+6+2))

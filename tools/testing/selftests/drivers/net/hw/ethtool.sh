@@ -10,7 +10,8 @@ ALL_TESTS="
 	different_speeds_autoneg_on
 "
 NUM_NETIFS=2
-source lib.sh
+lib_dir=$(dirname "$0")
+source "$lib_dir"/../../../net/forwarding/lib.sh
 source ethtool_lib.sh
 
 h1_create()

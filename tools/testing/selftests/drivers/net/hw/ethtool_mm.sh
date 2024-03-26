@@ -14,7 +14,8 @@ ALL_TESTS="
 NUM_NETIFS=2
 REQUIRE_MZ=no
 PREEMPTIBLE_PRIO=0
-source lib.sh
+lib_dir=$(dirname "$0")
+source "$lib_dir"/../../../net/forwarding/lib.sh
 
 traffic_test()
 {

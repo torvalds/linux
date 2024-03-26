@@ -48,7 +48,8 @@ ALL_TESTS="
 	test_double_enable
 "
 NUM_NETIFS=4
-source lib.sh
+lib_dir=$(dirname "$0")
+source "$lib_dir"/../../../net/forwarding/lib.sh
 
 h1_create()
 {
