@@ -365,30 +365,6 @@ static int panthor_request_ ## __name ## _irq(struct panthor_device *ptdev,			\
 					 pirq);							\
 }
 
-/**
- * panthor_device_mmio_offset() - Turn a user MMIO offset into a kernel one
- * @offset: Offset to convert.
- *
- * With 32-bit systems being limited by the 32-bit representation of mmap2's
- * pgoffset field, we need to make the MMIO offset arch specific. This function
- * converts a user MMIO offset into something the kernel driver understands.
- *
- * If the kernel and userspace architecture match, the offset is unchanged. If
- * the kernel is 64-bit and userspace is 32-bit, the offset is adjusted to match
- * 64-bit offsets. 32-bit kernel with 64-bit userspace is impossible.
- *
- * Return: Adjusted offset.
- */
-static inline u64 panthor_device_mmio_offset(u64 offset)
-{
-#ifdef CONFIG_ARM64
-	if (test_tsk_thread_flag(current, TIF_32BIT))
-		offset += DRM_PANTHOR_USER_MMIO_OFFSET_64BIT - DRM_PANTHOR_USER_MMIO_OFFSET_32BIT;
-#endif
-
-	return offset;
-}
-
 extern struct workqueue_struct *panthor_cleanup_wq;
 
 #endif
