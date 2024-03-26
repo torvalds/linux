@@ -54,6 +54,7 @@ FIXTURE_VARIANT(bind_wildcard)
 	 *   ::ffff:127.0.0.1
 	 */
 	int expected_errno[NR_SOCKETS];
+	int expected_reuse_errno[NR_SOCKETS];
 };
 
 /* (IPv4, IPv4) */
@@ -65,6 +66,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v4_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, 0,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v4_any)
@@ -75,6 +80,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v4_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, 0,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 /* (IPv4, IPv6) */
@@ -86,6 +95,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_any_only)
@@ -97,6 +110,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_any_only)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_local)
@@ -107,6 +124,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_v4mapped_any)
@@ -117,6 +138,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_v4mapped_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, 0,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_v4mapped_local)
@@ -127,6 +152,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_any_v6_v4mapped_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, 0,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_any)
@@ -137,6 +166,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_any_only)
@@ -148,6 +181,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_any_only)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_local)
@@ -158,6 +195,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_v4mapped_any)
@@ -168,6 +209,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_v4mapped_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, 0,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_v4mapped_local)
@@ -178,6 +223,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v4_local_v6_v4mapped_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, 0,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 /* (IPv6, IPv4) */
@@ -189,6 +238,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v4_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v4_any)
@@ -200,6 +253,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v4_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v4_local)
@@ -210,6 +267,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v4_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v4_local)
@@ -221,6 +282,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v4_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v4_any)
@@ -231,6 +296,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v4_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v4_local)
@@ -241,6 +310,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v4_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v4_any)
@@ -251,6 +324,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v4_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, 0,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v4_local)
@@ -261,6 +338,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v4_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, 0,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_local_v4_any)
@@ -271,6 +352,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_local_v4_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, 0,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_local_v4_local)
@@ -281,9 +366,72 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_local_v4_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, 0,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 /* (IPv6, IPv6) */
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_any)
+{
+	.family = {AF_INET6, AF_INET6},
+	.addr = {&in6addr_any, &in6addr_any},
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v6_any)
+{
+	.family = {AF_INET6, AF_INET6},
+	.addr = {&in6addr_any, &in6addr_any},
+	.ipv6_only = {true, false},
+	.expected_errno = {0, EADDRINUSE,
+			   0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_any_only)
+{
+	.family = {AF_INET6, AF_INET6},
+	.addr = {&in6addr_any, &in6addr_any},
+	.ipv6_only = {false, true},
+	.expected_errno = {0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
+};
+
+FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v6_any_only)
+{
+	.family = {AF_INET6, AF_INET6},
+	.addr = {&in6addr_any, &in6addr_any},
+	.ipv6_only = {true, true},
+	.expected_errno = {0, EADDRINUSE,
+			   0, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE,
+			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 0, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
+};
+
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_local)
 {
 	.family = {AF_INET6, AF_INET6},
@@ -292,6 +440,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v6_local)
@@ -303,6 +455,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v6_local)
 			   0, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 0, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_v4mapped_any)
@@ -313,6 +469,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_v4mapped_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v6_v4mapped_any)
@@ -324,6 +484,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v6_v4mapped_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_v4mapped_local)
@@ -334,6 +498,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_v6_v4mapped_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v6_v4mapped_local)
@@ -345,6 +513,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_any_only_v6_v4mapped_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v6_any)
@@ -355,6 +527,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v6_any)
 			   0, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v6_any_only)
@@ -366,6 +542,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v6_any_only)
 			   0, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 0, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v6_v4mapped_any)
@@ -376,6 +556,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v6_v4mapped_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v6_v4mapped_local)
@@ -386,6 +570,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_local_v6_v4mapped_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_any)
@@ -396,6 +584,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_any_only)
@@ -407,6 +599,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_any_only)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_local)
@@ -417,6 +613,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_v4mapped_local)
@@ -427,6 +627,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_any_v6_v4mapped_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, 0,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_loopback_v6_any)
@@ -437,6 +641,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_loopback_v6_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_loopback_v6_any_only)
@@ -448,6 +656,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_loopback_v6_any_only)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_loopback_v6_local)
@@ -458,6 +670,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_loopback_v6_local)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_loopback_v6_v4mapped_any)
@@ -468,6 +684,10 @@ FIXTURE_VARIANT_ADD(bind_wildcard, v6_v4mapped_loopback_v6_v4mapped_any)
 			   EADDRINUSE, EADDRINUSE,
 			   EADDRINUSE, 0,
 			   EADDRINUSE, EADDRINUSE},
+	.expected_reuse_errno = {0, 0,
+				 EADDRINUSE, EADDRINUSE,
+				 EADDRINUSE, 0,
+				 EADDRINUSE, EADDRINUSE},
 };
 
 static void setup_addr(FIXTURE_DATA(bind_wildcard) *self, int i,
@@ -519,7 +739,7 @@ FIXTURE_TEARDOWN(bind_wildcard)
 void bind_socket(struct __test_metadata *_metadata,
 		 FIXTURE_DATA(bind_wildcard) *self,
 		 const FIXTURE_VARIANT(bind_wildcard) *variant,
-		 int i)
+		 int i, int reuse)
 {
 	int ret;
 
@@ -531,14 +751,29 @@ void bind_socket(struct __test_metadata *_metadata,
 		ASSERT_EQ(ret, 0);
 	}
 
+	if (i < 2 && reuse) {
+		ret = setsockopt(self->fd[i], SOL_SOCKET, reuse, &(int){1}, sizeof(int));
+		ASSERT_EQ(ret, 0);
+	}
+
 	self->addr[i].addr4.sin_port = self->addr[0].addr4.sin_port;
 
 	ret = bind(self->fd[i], &self->addr[i].addr, self->addrlen[i]);
-	if (variant->expected_errno[i]) {
-		ASSERT_EQ(ret, -1);
-		ASSERT_EQ(errno, variant->expected_errno[i]);
+
+	if (reuse) {
+		if (variant->expected_reuse_errno[i]) {
+			ASSERT_EQ(ret, -1);
+			ASSERT_EQ(errno, variant->expected_reuse_errno[i]);
+		} else {
+			ASSERT_EQ(ret, 0);
+		}
 	} else {
-		ASSERT_EQ(ret, 0);
+		if (variant->expected_errno[i]) {
+			ASSERT_EQ(ret, -1);
+			ASSERT_EQ(errno, variant->expected_errno[i]);
+		} else {
+			ASSERT_EQ(ret, 0);
+		}
 	}
 
 	if (i == 0) {
@@ -552,7 +787,23 @@ TEST_F(bind_wildcard, plain)
 	int i;
 
 	for (i = 0; i < NR_SOCKETS; i++)
-		bind_socket(_metadata, self, variant, i);
+		bind_socket(_metadata, self, variant, i, 0);
+}
+
+TEST_F(bind_wildcard, reuseaddr)
+{
+	int i;
+
+	for (i = 0; i < NR_SOCKETS; i++)
+		bind_socket(_metadata, self, variant, i, SO_REUSEADDR);
+}
+
+TEST_F(bind_wildcard, reuseport)
+{
+	int i;
+
+	for (i = 0; i < NR_SOCKETS; i++)
+		bind_socket(_metadata, self, variant, i, SO_REUSEPORT);
 }
 
 TEST_HARNESS_MAIN
