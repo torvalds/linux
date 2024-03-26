@@ -94,7 +94,8 @@ union amd_sriov_msg_feature_flags {
 		uint32_t reg_indirect_acc  : 1;
 		uint32_t av1_support       : 1;
 		uint32_t vcn_rb_decouple   : 1;
-		uint32_t reserved          : 24;
+		uint32_t mes_info_enable   : 1;
+		uint32_t reserved          : 23;
 	} flags;
 	uint32_t all;
 };
@@ -221,7 +222,7 @@ struct amd_sriov_msg_vf2pf_info_header {
 	uint32_t reserved[2];
 };
 
-#define AMD_SRIOV_MSG_VF2PF_INFO_FILLED_SIZE (70)
+#define AMD_SRIOV_MSG_VF2PF_INFO_FILLED_SIZE (73)
 struct amd_sriov_msg_vf2pf_info {
 	/* header contains size and version */
 	struct amd_sriov_msg_vf2pf_info_header header;
@@ -265,7 +266,9 @@ struct amd_sriov_msg_vf2pf_info {
 		uint32_t version;
 	} ucode_info[AMD_SRIOV_MSG_RESERVE_UCODE];
 	uint64_t dummy_page_addr;
-
+	/* FB allocated for guest MES to record UQ info */
+	uint64_t mes_info_addr;
+	uint32_t mes_info_size;
 	/* reserved */
 	uint32_t reserved[256 - AMD_SRIOV_MSG_VF2PF_INFO_FILLED_SIZE];
 };

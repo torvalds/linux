@@ -141,6 +141,12 @@ struct amdgpu_mes {
 
 	/* ip specific functions */
 	const struct amdgpu_mes_funcs   *funcs;
+
+	/* mes resource_1 bo*/
+	struct amdgpu_bo    *resource_1;
+	uint64_t            resource_1_gpu_addr;
+	void                *resource_1_addr;
+
 };
 
 struct amdgpu_mes_process {
