@@ -85,7 +85,7 @@ static struct snd_soc_jack_pin rt_sdca_jack_pins[] = {
 };
 
 static const char * const jack_codecs[] = {
-	"rt711", "rt712", "rt713"
+	"rt711", "rt712", "rt713", "rt722"
 };
 
 int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd)
