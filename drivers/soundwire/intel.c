@@ -345,8 +345,10 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 	u32 spa_mask, cpa_mask;
 	u32 link_control;
 	int ret = 0;
+	u32 clock_source;
 	u32 syncprd;
 	u32 sync_reg;
+	bool lcap_mlcs;
 
 	mutex_lock(sdw->link_res->shim_lock);
 
@@ -358,12 +360,35 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 	 * is only dependent on the oscillator clock provided to
 	 * the IP, so adjust based on _DSD properties reported in DSDT
 	 * tables. The values reported are based on either 24MHz
-	 * (CNL/CML) or 38.4 MHz (ICL/TGL+).
+	 * (CNL/CML) or 38.4 MHz (ICL/TGL+). On MeteorLake additional
+	 * frequencies are available with the MLCS clock source selection.
 	 */
-	if (prop->mclk_freq % 6000000)
-		syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_38_4;
-	else
-		syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_24;
+	lcap_mlcs = intel_readl(shim, SDW_SHIM_LCAP) & SDW_SHIM_LCAP_MLCS_MASK;
+
+	if (prop->mclk_freq % 6000000) {
+		if (prop->mclk_freq % 2400000) {
+			if (lcap_mlcs) {
+				syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_24_576;
+				clock_source = SDW_SHIM_MLCS_CARDINAL_CLK;
+			} else {
+				dev_err(sdw->cdns.dev, "%s: invalid clock configuration, mclk %d lcap_mlcs %d\n",
+					__func__, prop->mclk_freq, lcap_mlcs);
+				ret = -EINVAL;
+				goto out;
+			}
+		} else {
+			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_38_4;
+			clock_source = SDW_SHIM_MLCS_XTAL_CLK;
+		}
+	} else {
+		if (lcap_mlcs) {
+			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_96;
+			clock_source = SDW_SHIM_MLCS_AUDIO_PLL_CLK;
+		} else {
+			syncprd = SDW_SHIM_SYNC_SYNCPRD_VAL_24;
+			clock_source = SDW_SHIM_MLCS_XTAL_CLK;
+		}
+	}
 
 	if (!*shim_mask) {
 		dev_dbg(sdw->cdns.dev, "powering up all links\n");
@@ -402,6 +427,13 @@ static int intel_link_power_up(struct sdw_intel *sdw)
 			dev_err(sdw->cdns.dev,
 				"Failed to set SHIM_SYNC: %d\n", ret);
 			goto out;
+		}
+
+		/* update link clock if needed */
+		if (lcap_mlcs) {
+			link_control = intel_readl(shim, SDW_SHIM_LCTL);
+			u32p_replace_bits(&link_control, clock_source, SDW_SHIM_LCTL_MLCS_MASK);
+			intel_writel(shim, SDW_SHIM_LCTL, link_control);
 		}
 	}
 
@@ -1087,4 +1119,3 @@ const struct sdw_intel_hw_ops sdw_intel_cnl_hw_ops = {
 	.sync_check_cmdsync_unlocked = intel_check_cmdsync_unlocked,
 };
 EXPORT_SYMBOL_NS(sdw_intel_cnl_hw_ops, SOUNDWIRE_INTEL);
-
