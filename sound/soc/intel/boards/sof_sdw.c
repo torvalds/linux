@@ -1076,18 +1076,18 @@ static struct sof_sdw_codec_info *find_codec_info_part(const u64 adr)
 
 }
 
-static inline int find_codec_info_acpi(const u8 *acpi_id)
+static struct sof_sdw_codec_info *find_codec_info_acpi(const u8 *acpi_id)
 {
 	int i;
 
 	if (!acpi_id[0])
-		return -EINVAL;
+		return NULL;
 
 	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++)
 		if (!memcmp(codec_info_list[i].acpi_id, acpi_id, ACPI_ID_LEN))
-			return i;
+			return &codec_info_list[i];
 
-	return -EINVAL;
+	return NULL;
 }
 
 /*
@@ -1643,18 +1643,19 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	bool aggregation = !(sof_sdw_quirk & SOF_SDW_NO_AGGREGATION);
 	struct snd_soc_codec_conf *codec_conf;
 	struct sof_sdw_codec_info *codec_info;
+	struct sof_sdw_codec_info *ssp_info;
 	bool append_dai_type = false;
 	bool ignore_pch_dmic = false;
 	int codec_conf_num = 0;
 	int codec_conf_index = 0;
 	bool group_generated[SDW_MAX_GROUPS] = { };
-	int ssp_codec_index, ssp_mask;
 	struct snd_soc_dai_link *dai_links;
 	int num_links, link_index = 0;
 	char *name, *cpu_dai_name;
 	char *codec_name, *codec_dai_name;
 	int i, j, be_id = 0;
 	int hdmi_num;
+	int ssp_mask;
 	int ret;
 
 	ret = get_dailink_info(dev, adr_link, &sdw_be_num, &codec_conf_num);
@@ -1669,8 +1670,8 @@ static int sof_card_dai_links_create(struct snd_soc_card *card)
 	 * system only when I2S mode is supported, not sdw mode.
 	 * Here check ACPI ID to confirm I2S is supported.
 	 */
-	ssp_codec_index = find_codec_info_acpi(mach->id);
-	if (ssp_codec_index >= 0) {
+	ssp_info = find_codec_info_acpi(mach->id);
+	if (ssp_info) {
 		ssp_mask = SOF_SSP_GET_PORT(sof_sdw_quirk);
 		ssp_num = hweight_long(ssp_mask);
 	}
@@ -1788,30 +1789,28 @@ SSP:
 		goto DMIC;
 
 	for (i = 0, j = 0; ssp_mask; i++, ssp_mask >>= 1) {
-		struct sof_sdw_codec_info *info;
 		int playback, capture;
 
 		if (!(ssp_mask & 0x1))
 			continue;
 
-		info = &codec_info_list[ssp_codec_index];
-
 		name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d-Codec", i);
 		cpu_dai_name = devm_kasprintf(dev, GFP_KERNEL, "SSP%d Pin", i);
 		codec_name = devm_kasprintf(dev, GFP_KERNEL, "i2c-%s:0%d",
-					    info->acpi_id, j++);
+					    ssp_info->acpi_id, j++);
 
-		playback = info->dais[0].direction[SNDRV_PCM_STREAM_PLAYBACK];
-		capture = info->dais[0].direction[SNDRV_PCM_STREAM_CAPTURE];
+		playback = ssp_info->dais[0].direction[SNDRV_PCM_STREAM_PLAYBACK];
+		capture = ssp_info->dais[0].direction[SNDRV_PCM_STREAM_CAPTURE];
 
 		ret = init_simple_dai_link(dev, dai_links + link_index, &be_id, name,
 					   playback, capture, cpu_dai_name,
-					   codec_name, info->dais[0].dai_name,
-					   NULL, info->ops);
+					   codec_name, ssp_info->dais[0].dai_name,
+					   NULL, ssp_info->ops);
 		if (ret)
 			return ret;
 
-		ret = info->dais[0].init(card, NULL, dai_links + link_index, info, 0);
+		ret = ssp_info->dais[0].init(card, NULL, dai_links + link_index,
+					     ssp_info, 0);
 		if (ret < 0)
 			return ret;
 
