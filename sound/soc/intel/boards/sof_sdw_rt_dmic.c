@@ -15,6 +15,7 @@
 static const char * const dmics[] = {
 	"rt715",
 	"rt712-sdca-dmic",
+	"rt722-sdca",
 };
 
 int rt_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
