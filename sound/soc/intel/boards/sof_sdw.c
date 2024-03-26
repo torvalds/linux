@@ -1090,6 +1090,23 @@ static struct sof_sdw_codec_info *find_codec_info_acpi(const u8 *acpi_id)
 	return NULL;
 }
 
+static struct sof_sdw_codec_info *find_codec_info_dai(const char *dai_name,
+						      int *dai_index)
+{
+	int i, j;
+
+	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++) {
+		for (j = 0; j < codec_info_list[i].dai_num; j++) {
+			if (!strcmp(codec_info_list[i].dais[j].dai_name, dai_name)) {
+				*dai_index = j;
+				return &codec_info_list[i];
+			}
+		}
+	}
+
+	return NULL;
+}
+
 /*
  * get BE dailink number and CPU DAI number based on sdw link adr.
  * Since some sdw slaves may be aggregated, the CPU DAI number
@@ -1403,37 +1420,19 @@ static void set_dailink_map(struct snd_soc_dai_link_ch_map *sdw_codec_ch_maps,
 	}
 }
 
-static inline int find_codec_info_dai(const char *dai_name, int *dai_index)
-{
-	int i, j;
-
-	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++) {
-		for (j = 0; j < codec_info_list[i].dai_num; j++) {
-			if (!strcmp(codec_info_list[i].dais[j].dai_name, dai_name)) {
-				*dai_index = j;
-				return i;
-			}
-		}
-	}
-
-	return -EINVAL;
-}
-
 static int sof_sdw_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct sof_sdw_codec_info *codec_info;
 	struct snd_soc_dai *dai;
-	int codec_index;
 	int dai_index;
 	int ret;
 	int i;
 
 	for_each_rtd_codec_dais(rtd, i, dai) {
-		codec_index = find_codec_info_dai(dai->name, &dai_index);
-		if (codec_index < 0)
+		codec_info = find_codec_info_dai(dai->name, &dai_index);
+		if (!codec_info)
 			return -EINVAL;
 
-		codec_info = &codec_info_list[codec_index];
 		/*
 		 * A codec dai can be connected to different dai links for capture and playback,
 		 * but we only need to call the rtd_init function once.
