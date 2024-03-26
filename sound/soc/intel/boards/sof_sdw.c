@@ -838,7 +838,7 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 		.dais = {
 			{
 				.direction = {false, true},
-				.dai_name = "rt715-aif2",
+				.dai_name = "rt715-sdca-aif2",
 				.dai_type = SOF_SDW_DAI_TYPE_MIC,
 				.dailink = {SDW_UNUSED_DAI_ID, SDW_DMIC_DAI_ID},
 				.rtd_init = rt_dmic_rtd_init,
@@ -853,7 +853,7 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 		.dais = {
 			{
 				.direction = {false, true},
-				.dai_name = "rt715-aif2",
+				.dai_name = "rt715-sdca-aif2",
 				.dai_type = SOF_SDW_DAI_TYPE_MIC,
 				.dailink = {SDW_UNUSED_DAI_ID, SDW_DMIC_DAI_ID},
 				.rtd_init = rt_dmic_rtd_init,

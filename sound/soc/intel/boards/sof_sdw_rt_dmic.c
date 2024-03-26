@@ -14,6 +14,7 @@
 
 static const char * const dmics[] = {
 	"rt715",
+	"rt715-sdca",
 	"rt712-sdca-dmic",
 	"rt722-sdca",
 };
