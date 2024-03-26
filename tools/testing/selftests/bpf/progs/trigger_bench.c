@@ -25,77 +25,6 @@ static __always_inline void inc_counter(void)
 	__sync_add_and_fetch(&hits[cpu & CPU_MASK].value, 1);
 }
 
-SEC("tp/syscalls/sys_enter_getpgid")
-int bench_trigger_tp(void *ctx)
-{
-	inc_counter();
-	return 0;
-}
-
-SEC("raw_tp/sys_enter")
-int BPF_PROG(bench_trigger_raw_tp, struct pt_regs *regs, long id)
-{
-	if (id == __NR_getpgid)
-		inc_counter();
-	return 0;
-}
-
-SEC("kprobe/" SYS_PREFIX "sys_getpgid")
-int bench_trigger_kprobe(void *ctx)
-{
-	inc_counter();
-	return 0;
-}
-
-SEC("kretprobe/" SYS_PREFIX "sys_getpgid")
-int bench_trigger_kretprobe(void *ctx)
-{
-	inc_counter();
-	return 0;
-}
-
-SEC("kprobe.multi/" SYS_PREFIX "sys_getpgid")
-int bench_trigger_kprobe_multi(void *ctx)
-{
-	inc_counter();
-	return 0;
-}
-
-SEC("kretprobe.multi/" SYS_PREFIX "sys_getpgid")
-int bench_trigger_kretprobe_multi(void *ctx)
-{
-	inc_counter();
-	return 0;
-}
-
-SEC("fentry/" SYS_PREFIX "sys_getpgid")
-int bench_trigger_fentry(void *ctx)
-{
-	inc_counter();
-	return 0;
-}
-
-SEC("fexit/" SYS_PREFIX "sys_getpgid")
-int bench_trigger_fexit(void *ctx)
-{
-	inc_counter();
-	return 0;
-}
-
-SEC("fentry.s/" SYS_PREFIX "sys_getpgid")
-int bench_trigger_fentry_sleep(void *ctx)
-{
-	inc_counter();
-	return 0;
-}
-
-SEC("fmod_ret/" SYS_PREFIX "sys_getpgid")
-int bench_trigger_fmodret(void *ctx)
-{
-	inc_counter();
-	return -22;
-}
-
 SEC("uprobe")
 int bench_trigger_uprobe(void *ctx)
 {
@@ -128,42 +57,42 @@ int trigger_driver(void *ctx)
 }
 
 SEC("kprobe/bpf_get_numa_node_id")
-int bench_trigger_kprobe_batch(void *ctx)
+int bench_trigger_kprobe(void *ctx)
 {
 	inc_counter();
 	return 0;
 }
 
 SEC("kretprobe/bpf_get_numa_node_id")
-int bench_trigger_kretprobe_batch(void *ctx)
+int bench_trigger_kretprobe(void *ctx)
 {
 	inc_counter();
 	return 0;
 }
 
 SEC("kprobe.multi/bpf_get_numa_node_id")
-int bench_trigger_kprobe_multi_batch(void *ctx)
+int bench_trigger_kprobe_multi(void *ctx)
 {
 	inc_counter();
 	return 0;
 }
 
 SEC("kretprobe.multi/bpf_get_numa_node_id")
-int bench_trigger_kretprobe_multi_batch(void *ctx)
+int bench_trigger_kretprobe_multi(void *ctx)
 {
 	inc_counter();
 	return 0;
 }
 
 SEC("fentry/bpf_get_numa_node_id")
-int bench_trigger_fentry_batch(void *ctx)
+int bench_trigger_fentry(void *ctx)
 {
 	inc_counter();
 	return 0;
 }
 
 SEC("fexit/bpf_get_numa_node_id")
-int bench_trigger_fexit_batch(void *ctx)
+int bench_trigger_fexit(void *ctx)
 {
 	inc_counter();
 	return 0;

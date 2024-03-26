@@ -496,28 +496,16 @@ extern const struct bench bench_rename_fexit;
 
 /* pure counting benchmarks to establish theoretical lmits */
 extern const struct bench bench_trig_usermode_count;
-extern const struct bench bench_trig_base;
+extern const struct bench bench_trig_syscall_count;
+extern const struct bench bench_trig_kernel_count;
 
-/* kernel-side syscall-triggered benchmarks */
-extern const struct bench bench_trig_tp;
-extern const struct bench bench_trig_rawtp;
+/* batched, staying mostly in-kernel benchmarks */
 extern const struct bench bench_trig_kprobe;
 extern const struct bench bench_trig_kretprobe;
 extern const struct bench bench_trig_kprobe_multi;
 extern const struct bench bench_trig_kretprobe_multi;
 extern const struct bench bench_trig_fentry;
 extern const struct bench bench_trig_fexit;
-extern const struct bench bench_trig_fentry_sleep;
-extern const struct bench bench_trig_fmodret;
-
-/* batched, staying mostly in-kernel benchmarks */
-extern const struct bench bench_trig_kernel_count;
-extern const struct bench bench_trig_kprobe_batch;
-extern const struct bench bench_trig_kretprobe_batch;
-extern const struct bench bench_trig_kprobe_multi_batch;
-extern const struct bench bench_trig_kretprobe_multi_batch;
-extern const struct bench bench_trig_fentry_batch;
-extern const struct bench bench_trig_fexit_batch;
 
 /* uprobe/uretprobe benchmarks */
 extern const struct bench bench_trig_uprobe_nop;
@@ -560,24 +548,14 @@ static const struct bench *benchs[] = {
 	/* pure counting benchmarks for establishing theoretical limits */
 	&bench_trig_usermode_count,
 	&bench_trig_kernel_count,
-	/* syscall-driven triggering benchmarks */
-	&bench_trig_tp,
-	&bench_trig_rawtp,
+	&bench_trig_syscall_count,
+	/* batched, staying mostly in-kernel triggers */
 	&bench_trig_kprobe,
 	&bench_trig_kretprobe,
 	&bench_trig_kprobe_multi,
 	&bench_trig_kretprobe_multi,
 	&bench_trig_fentry,
 	&bench_trig_fexit,
-	&bench_trig_fentry_sleep,
-	&bench_trig_fmodret,
-	/* batched, staying mostly in-kernel triggers */
-	&bench_trig_kprobe_batch,
-	&bench_trig_kretprobe_batch,
-	&bench_trig_kprobe_multi_batch,
-	&bench_trig_kretprobe_multi_batch,
-	&bench_trig_fentry_batch,
-	&bench_trig_fexit_batch,
 	/* uprobes */
 	&bench_trig_uprobe_nop,
 	&bench_trig_uretprobe_nop,

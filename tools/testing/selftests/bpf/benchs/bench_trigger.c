@@ -99,24 +99,17 @@ static void trigger_validate(void)
 	}
 }
 
-static void *trigger_base_producer(void *input)
-{
-	while (true) {
-		(void)syscall(__NR_getpgid);
-		inc_counter(base_hits);
-	}
-	return NULL;
-}
-
-static void trigger_base_measure(struct bench_res *res)
-{
-	res->hits = sum_and_reset_counters(base_hits);
-}
-
 static void *trigger_producer(void *input)
 {
-	while (true)
-		(void)syscall(__NR_getpgid);
+	if (ctx.usermode_counters) {
+		while (true) {
+			(void)syscall(__NR_getpgid);
+			inc_counter(base_hits);
+		}
+	} else {
+		while (true)
+			(void)syscall(__NR_getpgid);
+	}
 	return NULL;
 }
 
@@ -170,16 +163,17 @@ static void attach_bpf(struct bpf_program *prog)
 	}
 }
 
-static void trigger_tp_setup(void)
+static void trigger_syscall_count_setup(void)
 {
-	setup_ctx();
-	attach_bpf(ctx.skel->progs.bench_trigger_tp);
+	ctx.usermode_counters = true;
 }
 
-static void trigger_rawtp_setup(void)
+/* Batched, staying mostly in-kernel triggering setups */
+static void trigger_kernel_count_setup(void)
 {
 	setup_ctx();
-	attach_bpf(ctx.skel->progs.bench_trigger_raw_tp);
+	/* override driver program */
+	ctx.driver_prog_fd = bpf_program__fd(ctx.skel->progs.trigger_count);
 }
 
 static void trigger_kprobe_setup(void)
@@ -216,62 +210,6 @@ static void trigger_fexit_setup(void)
 {
 	setup_ctx();
 	attach_bpf(ctx.skel->progs.bench_trigger_fexit);
-}
-
-static void trigger_fentry_sleep_setup(void)
-{
-	setup_ctx();
-	attach_bpf(ctx.skel->progs.bench_trigger_fentry_sleep);
-}
-
-static void trigger_fmodret_setup(void)
-{
-	setup_ctx();
-	attach_bpf(ctx.skel->progs.bench_trigger_fmodret);
-}
-
-/* Batched, staying mostly in-kernel triggering setups */
-static void trigger_kernel_count_setup(void)
-{
-	setup_ctx();
-	/* override driver program */
-	ctx.driver_prog_fd = bpf_program__fd(ctx.skel->progs.trigger_count);
-}
-
-static void trigger_kprobe_batch_setup(void)
-{
-	setup_ctx();
-	attach_bpf(ctx.skel->progs.bench_trigger_kprobe_batch);
-}
-
-static void trigger_kretprobe_batch_setup(void)
-{
-	setup_ctx();
-	attach_bpf(ctx.skel->progs.bench_trigger_kretprobe_batch);
-}
-
-static void trigger_kprobe_multi_batch_setup(void)
-{
-	setup_ctx();
-	attach_bpf(ctx.skel->progs.bench_trigger_kprobe_multi_batch);
-}
-
-static void trigger_kretprobe_multi_batch_setup(void)
-{
-	setup_ctx();
-	attach_bpf(ctx.skel->progs.bench_trigger_kretprobe_multi_batch);
-}
-
-static void trigger_fentry_batch_setup(void)
-{
-	setup_ctx();
-	attach_bpf(ctx.skel->progs.bench_trigger_fentry_batch);
-}
-
-static void trigger_fexit_batch_setup(void)
-{
-	setup_ctx();
-	attach_bpf(ctx.skel->progs.bench_trigger_fexit_batch);
 }
 
 /* make sure call is not inlined and not avoided by compiler, so __weak and
@@ -398,109 +336,10 @@ static void uretprobe_ret_setup(void)
 	usetup(true, &uprobe_target_ret);
 }
 
-const struct bench bench_trig_base = {
-	.name = "trig-base",
+const struct bench bench_trig_syscall_count = {
+	.name = "trig-syscall-count",
 	.validate = trigger_validate,
-	.producer_thread = trigger_base_producer,
-	.measure = trigger_base_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_tp = {
-	.name = "trig-tp",
-	.validate = trigger_validate,
-	.setup = trigger_tp_setup,
-	.producer_thread = trigger_producer,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_rawtp = {
-	.name = "trig-rawtp",
-	.validate = trigger_validate,
-	.setup = trigger_rawtp_setup,
-	.producer_thread = trigger_producer,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_kprobe = {
-	.name = "trig-kprobe",
-	.validate = trigger_validate,
-	.setup = trigger_kprobe_setup,
-	.producer_thread = trigger_producer,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_kretprobe = {
-	.name = "trig-kretprobe",
-	.validate = trigger_validate,
-	.setup = trigger_kretprobe_setup,
-	.producer_thread = trigger_producer,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_kprobe_multi = {
-	.name = "trig-kprobe-multi",
-	.validate = trigger_validate,
-	.setup = trigger_kprobe_multi_setup,
-	.producer_thread = trigger_producer,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_kretprobe_multi = {
-	.name = "trig-kretprobe-multi",
-	.validate = trigger_validate,
-	.setup = trigger_kretprobe_multi_setup,
-	.producer_thread = trigger_producer,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_fentry = {
-	.name = "trig-fentry",
-	.validate = trigger_validate,
-	.setup = trigger_fentry_setup,
-	.producer_thread = trigger_producer,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_fexit = {
-	.name = "trig-fexit",
-	.validate = trigger_validate,
-	.setup = trigger_fexit_setup,
-	.producer_thread = trigger_producer,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_fentry_sleep = {
-	.name = "trig-fentry-sleep",
-	.validate = trigger_validate,
-	.setup = trigger_fentry_sleep_setup,
-	.producer_thread = trigger_producer,
-	.measure = trigger_measure,
-	.report_progress = hits_drops_report_progress,
-	.report_final = hits_drops_report_final,
-};
-
-const struct bench bench_trig_fmodret = {
-	.name = "trig-fmodret",
-	.validate = trigger_validate,
-	.setup = trigger_fmodret_setup,
+	.setup = trigger_syscall_count_setup,
 	.producer_thread = trigger_producer,
 	.measure = trigger_measure,
 	.report_progress = hits_drops_report_progress,
@@ -508,7 +347,7 @@ const struct bench bench_trig_fmodret = {
 };
 
 /* batched (staying mostly in kernel) kprobe/fentry benchmarks */
-#define BENCH_TRIG_BATCH(KIND, NAME)					\
+#define BENCH_TRIG_KERNEL(KIND, NAME)					\
 const struct bench bench_trig_##KIND = {				\
 	.name = "trig-" NAME,						\
 	.setup = trigger_##KIND##_setup,				\
@@ -519,13 +358,13 @@ const struct bench bench_trig_##KIND = {				\
 	.argp = &bench_trigger_batch_argp,				\
 }
 
-BENCH_TRIG_BATCH(kernel_count, "kernel-count");
-BENCH_TRIG_BATCH(kprobe_batch, "kprobe-batch");
-BENCH_TRIG_BATCH(kretprobe_batch, "kretprobe-batch");
-BENCH_TRIG_BATCH(kprobe_multi_batch, "kprobe-multi-batch");
-BENCH_TRIG_BATCH(kretprobe_multi_batch, "kretprobe-multi-batch");
-BENCH_TRIG_BATCH(fentry_batch, "fentry-batch");
-BENCH_TRIG_BATCH(fexit_batch, "fexit-batch");
+BENCH_TRIG_KERNEL(kernel_count, "kernel-count");
+BENCH_TRIG_KERNEL(kprobe, "kprobe");
+BENCH_TRIG_KERNEL(kretprobe, "kretprobe");
+BENCH_TRIG_KERNEL(kprobe_multi, "kprobe-multi");
+BENCH_TRIG_KERNEL(kretprobe_multi, "kretprobe-multi");
+BENCH_TRIG_KERNEL(fentry, "fentry");
+BENCH_TRIG_KERNEL(fexit, "fexit");
 
 /* uprobe benchmarks */
 #define BENCH_TRIG_USERMODE(KIND, PRODUCER, NAME)			\

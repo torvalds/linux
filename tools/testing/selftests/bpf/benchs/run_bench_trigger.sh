@@ -4,12 +4,9 @@ set -eufo pipefail
 
 def_tests=( \
 	usermode-count kernel-count syscall-count \
-	fentry-batch fexit-batch \
-	kprobe-batch kprobe-multi-batch \
-	kretprobe-batch kretprobe-multi-batch \
-	fentry fexit fmodret \
-	rawtp tp \
-	kprobe kprobe-multi kretprobe kretprobe-multi \
+	fentry fexit \
+	kprobe kprobe-multi \
+	kretprobe kretprobe-multi \
 )
 
 tests=("$@")
@@ -21,5 +18,5 @@ p=${PROD_CNT:-1}
 
 for t in "${tests[@]}"; do
 	summary=$(sudo ./bench -w2 -d5 -a -p$p trig-$t | tail -n1 | cut -d'(' -f1 | cut -d' ' -f3-)
-	printf "%-21s: %s\n" $t "$summary"
+	printf "%-15s: %s\n" $t "$summary"
 done
