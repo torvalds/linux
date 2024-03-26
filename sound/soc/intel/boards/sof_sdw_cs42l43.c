@@ -30,6 +30,17 @@ static const struct snd_soc_dapm_route cs42l43_hs_map[] = {
 	{ "cs42l43 ADC1_IN1_N", NULL, "Headset Mic" },
 };
 
+static const struct snd_soc_dapm_widget cs42l43_spk_widgets[] = {
+	SND_SOC_DAPM_SPK("Speaker", NULL),
+};
+
+static const struct snd_soc_dapm_route cs42l43_spk_map[] = {
+	{ "Speaker", NULL, "cs42l43 AMP1_OUT_P", },
+	{ "Speaker", NULL, "cs42l43 AMP1_OUT_N", },
+	{ "Speaker", NULL, "cs42l43 AMP2_OUT_P", },
+	{ "Speaker", NULL, "cs42l43 AMP2_OUT_N", },
+};
+
 static const struct snd_soc_dapm_widget cs42l43_dmic_widgets[] = {
 	SND_SOC_DAPM_MIC("DMIC", NULL),
 };
@@ -106,6 +117,45 @@ int cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd)
 		dev_err(card->dev, "Failed to set sysclk: %d\n", ret);
 
 	return ret;
+}
+
+int cs42l43_spk_rtd_init(struct snd_soc_pcm_runtime *rtd)
+{
+	struct snd_soc_card *card = rtd->card;
+	int ret;
+
+	card->components = devm_kasprintf(card->dev, GFP_KERNEL, "%s spk:cs42l43-spk",
+					  card->components);
+	if (!card->components)
+		return -ENOMEM;
+
+	ret = snd_soc_dapm_new_controls(&card->dapm, cs42l43_spk_widgets,
+					ARRAY_SIZE(cs42l43_spk_widgets));
+	if (ret) {
+		dev_err(card->dev, "cs42l43 speaker widgets addition failed: %d\n", ret);
+		return ret;
+	}
+
+	ret = snd_soc_dapm_add_routes(&card->dapm, cs42l43_spk_map,
+				      ARRAY_SIZE(cs42l43_spk_map));
+	if (ret)
+		dev_err(card->dev, "cs42l43 speaker map addition failed: %d\n", ret);
+
+	return ret;
+}
+
+int sof_sdw_cs42l43_spk_init(struct snd_soc_card *card,
+			     struct snd_soc_dai_link *dai_links,
+			     struct sof_sdw_codec_info *info,
+			     bool playback)
+{
+	/* Do init on playback link only. */
+	if (!playback)
+		return 0;
+
+	info->amp_num++;
+
+	return 0;
 }
 
 int cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)

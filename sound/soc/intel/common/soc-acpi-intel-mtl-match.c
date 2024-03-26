@@ -357,6 +357,12 @@ static const struct snd_soc_acpi_endpoint cs42l43_endpoints[] = {
 		.group_position = 0,
 		.group_id = 0,
 	},
+	{ /* Speaker Playback Endpoint */
+		.num = 3,
+		.aggregated = 0,
+		.group_position = 0,
+		.group_id = 0,
+	},
 };
 
 static const struct snd_soc_acpi_adr_device cs42l43_0_adr[] = {
