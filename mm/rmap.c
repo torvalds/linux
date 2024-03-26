@@ -23,7 +23,7 @@
  * inode->i_rwsem	(while writing or truncating, not reading or faulting)
  *   mm->mmap_lock
  *     mapping->invalidate_lock (in filemap_fault)
- *       page->flags PG_locked (lock_page)
+ *       folio_lock
  *         hugetlbfs_i_mmap_rwsem_key (in huge_pmd_share, see hugetlbfs below)
  *           vma_start_write
  *             mapping->i_mmap_rwsem
@@ -50,7 +50,7 @@
  *   hugetlb_fault_mutex (hugetlbfs specific page fault mutex)
  *     vma_lock (hugetlb specific lock for pmd_sharing)
  *       mapping->i_mmap_rwsem (also used for hugetlb pmd sharing)
- *         page->flags PG_locked (lock_page)
+ *         folio_lock
  */
 
 #include <linux/mm.h>

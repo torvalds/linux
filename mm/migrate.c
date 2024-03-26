@@ -113,7 +113,7 @@ bool isolate_movable_page(struct page *page, isolate_mode_t mode)
 	if (!mops->isolate_page(&folio->page, mode))
 		goto out_no_isolated;
 
-	/* Driver shouldn't use PG_isolated bit of page->flags */
+	/* Driver shouldn't use the isolated flag */
 	WARN_ON_ONCE(folio_test_isolated(folio));
 	folio_set_isolated(folio);
 	folio_unlock(folio);

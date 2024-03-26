@@ -300,14 +300,14 @@ When oom event notifier is registered, event will be delivered.
 
 Lock order is as follows::
 
-  Page lock (PG_locked bit of page->flags)
+  folio_lock
     mm->page_table_lock or split pte_lock
       folio_memcg_lock (memcg->move_lock)
         mapping->i_pages lock
           lruvec->lru_lock.
 
 Per-node-per-memcgroup LRU (cgroup's private LRU) is guarded by
-lruvec->lru_lock; PG_lru bit of page->flags is cleared before
+lruvec->lru_lock; the folio LRU flag is cleared before
 isolating a page from its LRU under lruvec->lru_lock.
 
 .. _cgroup-v1-memory-kernel-extension:
