@@ -94,12 +94,8 @@ struct mana_ib_cq {
 struct mana_ib_qp {
 	struct ib_qp ibqp;
 
-	/* Work queue info */
-	struct ib_umem *sq_umem;
-	int sqe;
-	u64 sq_gdma_region;
-	u64 sq_id;
-	mana_handle_t tx_object;
+	mana_handle_t qp_handle;
+	struct mana_ib_queue raw_sq;
 
 	/* The port on the IB device, starting with 1 */
 	u32 port;
