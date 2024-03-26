@@ -13,7 +13,7 @@
  * If there is not enough space to store Idle and Young bits in page flags, use
  * page ext flags instead.
  */
-static inline bool folio_test_young(struct folio *folio)
+static inline bool folio_test_young(const struct folio *folio)
 {
 	struct page_ext *page_ext = page_ext_get(&folio->page);
 	bool page_young;
@@ -52,7 +52,7 @@ static inline bool folio_test_clear_young(struct folio *folio)
 	return page_young;
 }
 
-static inline bool folio_test_idle(struct folio *folio)
+static inline bool folio_test_idle(const struct folio *folio)
 {
 	struct page_ext *page_ext = page_ext_get(&folio->page);
 	bool page_idle;
@@ -60,7 +60,7 @@ static inline bool folio_test_idle(struct folio *folio)
 	if (unlikely(!page_ext))
 		return false;
 
-	page_idle =  test_bit(PAGE_EXT_IDLE, &page_ext->flags);
+	page_idle = test_bit(PAGE_EXT_IDLE, &page_ext->flags);
 	page_ext_put(page_ext);
 
 	return page_idle;
@@ -91,7 +91,7 @@ static inline void folio_clear_idle(struct folio *folio)
 
 #else /* !CONFIG_PAGE_IDLE_FLAG */
 
-static inline bool folio_test_young(struct folio *folio)
+static inline bool folio_test_young(const struct folio *folio)
 {
 	return false;
 }
@@ -105,7 +105,7 @@ static inline bool folio_test_clear_young(struct folio *folio)
 	return false;
 }
 
-static inline bool folio_test_idle(struct folio *folio)
+static inline bool folio_test_idle(const struct folio *folio)
 {
 	return false;
 }
