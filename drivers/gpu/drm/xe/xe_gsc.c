@@ -17,6 +17,7 @@
 #include "xe_gsc_proxy.h"
 #include "xe_gsc_submit.h"
 #include "xe_gt.h"
+#include "xe_gt_mcr.h"
 #include "xe_gt_printk.h"
 #include "xe_huc.h"
 #include "xe_map.h"
@@ -252,9 +253,30 @@ static int gsc_upload(struct xe_gsc *gsc)
 static int gsc_upload_and_init(struct xe_gsc *gsc)
 {
 	struct xe_gt *gt = gsc_to_gt(gsc);
+	struct xe_tile *tile = gt_to_tile(gt);
 	int ret;
 
+	if (XE_WA(gt, 14018094691)) {
+		ret = xe_force_wake_get(gt_to_fw(tile->primary_gt), XE_FORCEWAKE_ALL);
+
+		/*
+		 * If the forcewake fails we want to keep going, because the worst
+		 * case outcome in failing to apply the WA is that PXP won't work,
+		 * which is not fatal. We still throw a warning so the issue is
+		 * seen if it happens.
+		 */
+		xe_gt_WARN_ON(tile->primary_gt, ret);
+
+		xe_gt_mcr_multicast_write(tile->primary_gt,
+					  EU_SYSTOLIC_LIC_THROTTLE_CTL_WITH_LOCK,
+					  EU_SYSTOLIC_LIC_THROTTLE_CTL_LOCK_BIT);
+	}
+
 	ret = gsc_upload(gsc);
+
+	if (XE_WA(gt, 14018094691))
+		xe_force_wake_put(gt_to_fw(tile->primary_gt), XE_FORCEWAKE_ALL);
+
 	if (ret)
 		return ret;
 
