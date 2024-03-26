@@ -31,6 +31,7 @@
 #define __INLINE_STREAM2MMIO__
 #endif
 
+#include <linux/args.h>
 #include <linux/string.h> /* for strscpy() */
 
 #include "ia_css_debug.h"
@@ -861,7 +862,7 @@ void ia_css_debug_wake_up_sp(void)
 }
 
 #define FIND_DMEM_PARAMS_TYPE(stream, kernel, type) \
-	(struct HRTCAT(HRTCAT(sh_css_isp_, type), _params) *) \
+	(struct CONCATENATE(CONCATENATE(sh_css_isp_, type), _params) *) \
 	findf_dmem_params(stream, offsetof(struct ia_css_memory_offsets, dmem.kernel))
 
 #define FIND_DMEM_PARAMS(stream, kernel) FIND_DMEM_PARAMS_TYPE(stream, kernel, kernel)
