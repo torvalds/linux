@@ -514,7 +514,7 @@ void __meminit pgdat_page_ext_init(struct pglist_data *pgdat)
  * Context: Any context.  Caller may not sleep until they have called
  * page_ext_put().
  */
-struct page_ext *page_ext_get(struct page *page)
+struct page_ext *page_ext_get(const struct page *page)
 {
 	struct page_ext *page_ext;
 

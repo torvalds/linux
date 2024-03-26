@@ -12,8 +12,6 @@
 #include <linux/page_ext.h>
 
 extern struct page_ext_operations page_alloc_tagging_ops;
-extern struct page_ext *page_ext_get(struct page *page);
-extern void page_ext_put(struct page_ext *page_ext);
 
 static inline union codetag_ref *codetag_ref_from_page_ext(struct page_ext *page_ext)
 {
