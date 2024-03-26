@@ -62,14 +62,14 @@ DEFINE_PMD_FAULT_EVENT(dax_pmd_fault_done);
 
 DECLARE_EVENT_CLASS(dax_pmd_load_hole_class,
 	TP_PROTO(struct inode *inode, struct vm_fault *vmf,
-		struct page *zero_page,
+		struct folio *zero_folio,
 		void *radix_entry),
-	TP_ARGS(inode, vmf, zero_page, radix_entry),
+	TP_ARGS(inode, vmf, zero_folio, radix_entry),
 	TP_STRUCT__entry(
 		__field(unsigned long, ino)
 		__field(unsigned long, vm_flags)
 		__field(unsigned long, address)
-		__field(struct page *, zero_page)
+		__field(struct folio *, zero_folio)
 		__field(void *, radix_entry)
 		__field(dev_t, dev)
 	),
@@ -78,17 +78,17 @@ DECLARE_EVENT_CLASS(dax_pmd_load_hole_class,
 		__entry->ino = inode->i_ino;
 		__entry->vm_flags = vmf->vma->vm_flags;
 		__entry->address = vmf->address;
-		__entry->zero_page = zero_page;
+		__entry->zero_folio = zero_folio;
 		__entry->radix_entry = radix_entry;
 	),
-	TP_printk("dev %d:%d ino %#lx %s address %#lx zero_page %p "
+	TP_printk("dev %d:%d ino %#lx %s address %#lx zero_folio %p "
 			"radix_entry %#lx",
 		MAJOR(__entry->dev),
 		MINOR(__entry->dev),
 		__entry->ino,
 		__entry->vm_flags & VM_SHARED ? "shared" : "private",
 		__entry->address,
-		__entry->zero_page,
+		__entry->zero_folio,
 		(unsigned long)__entry->radix_entry
 	)
 )
@@ -96,8 +96,8 @@ DECLARE_EVENT_CLASS(dax_pmd_load_hole_class,
 #define DEFINE_PMD_LOAD_HOLE_EVENT(name) \
 DEFINE_EVENT(dax_pmd_load_hole_class, name, \
 	TP_PROTO(struct inode *inode, struct vm_fault *vmf, \
-		struct page *zero_page, void *radix_entry), \
-	TP_ARGS(inode, vmf, zero_page, radix_entry))
+		struct folio *zero_folio, void *radix_entry), \
+	TP_ARGS(inode, vmf, zero_folio, radix_entry))
 
 DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole);
 DEFINE_PMD_LOAD_HOLE_EVENT(dax_pmd_load_hole_fallback);
