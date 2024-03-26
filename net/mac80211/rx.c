@@ -3780,6 +3780,10 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		}
 		break;
 	case WLAN_CATEGORY_PROTECTED_EHT:
+		if (len < offsetofend(typeof(*mgmt),
+				      u.action.u.ttlm_req.action_code))
+			break;
+
 		switch (mgmt->u.action.u.ttlm_req.action_code) {
 		case WLAN_PROTECTED_EHT_ACTION_TTLM_REQ:
 			if (sdata->vif.type != NL80211_IFTYPE_STATION)
