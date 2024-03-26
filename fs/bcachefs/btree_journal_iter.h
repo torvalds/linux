@@ -40,8 +40,8 @@ int bch2_journal_key_insert(struct bch_fs *, enum btree_id,
 			    unsigned, struct bkey_i *);
 int bch2_journal_key_delete(struct bch_fs *, enum btree_id,
 			    unsigned, struct bpos);
-void bch2_journal_key_overwritten(struct bch_fs *, enum btree_id,
-				  unsigned, struct bpos);
+bool bch2_key_deleted_in_journal(struct btree_trans *, enum btree_id, unsigned, struct bpos);
+void bch2_journal_key_overwritten(struct bch_fs *, enum btree_id, unsigned, struct bpos);
 
 void bch2_btree_and_journal_iter_advance(struct btree_and_journal_iter *);
 struct bkey_s_c bch2_btree_and_journal_iter_peek(struct btree_and_journal_iter *);

@@ -1380,9 +1380,16 @@ static void __btree_split_node(struct btree_update *as,
 		if (bkey_deleted(k))
 			continue;
 
+		uk = bkey_unpack_key(b, k);
+
+		if (b->c.level &&
+		    u64s < n1_u64s &&
+		    u64s + k->u64s >= n1_u64s &&
+		    bch2_key_deleted_in_journal(trans, b->c.btree_id, b->c.level, uk.p))
+			n1_u64s += k->u64s;
+
 		i = u64s >= n1_u64s;
 		u64s += k->u64s;
-		uk = bkey_unpack_key(b, k);
 		if (!i)
 			n1_pos = uk.p;
 		bch2_bkey_format_add_key(&format[i], &uk);

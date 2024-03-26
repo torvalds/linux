@@ -261,6 +261,22 @@ int bch2_journal_key_delete(struct bch_fs *c, enum btree_id id,
 	return bch2_journal_key_insert(c, id, level, &whiteout);
 }
 
+bool bch2_key_deleted_in_journal(struct btree_trans *trans, enum btree_id btree,
+				 unsigned level, struct bpos pos)
+{
+	struct journal_keys *keys = &trans->c->journal_keys;
+	size_t idx = bch2_journal_key_search(keys, btree, level, pos);
+
+	if (!trans->journal_replay_not_finished)
+		return false;
+
+	return (idx < keys->size &&
+		keys->data[idx].btree_id	== btree &&
+		keys->data[idx].level		== level &&
+		bpos_eq(keys->data[idx].k->k.p, pos) &&
+		bkey_deleted(&keys->data[idx].k->k));
+}
+
 void bch2_journal_key_overwritten(struct bch_fs *c, enum btree_id btree,
 				  unsigned level, struct bpos pos)
 {
