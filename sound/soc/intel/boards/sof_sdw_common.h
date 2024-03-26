@@ -52,6 +52,8 @@ enum {
 #define SOF_SSP_GET_PORT(quirk)	(((quirk) >> 7) & GENMASK(5, 0))
 /* Deprecated and no longer supported by the code */
 #define SOF_SDW_NO_AGGREGATION		BIT(14)
+/* If a CODEC has an optional speaker output, this quirk will enable it */
+#define SOF_CODEC_SPKR			BIT(15)
 
 /* BT audio offload: reserve 3 bits for future */
 #define SOF_BT_OFFLOAD_SSP_SHIFT	15
@@ -80,6 +82,7 @@ struct sof_sdw_dai_info {
 	int (*exit)(struct snd_soc_card *card, struct snd_soc_dai_link *dai_link);
 	int (*rtd_init)(struct snd_soc_pcm_runtime *rtd);
 	bool rtd_init_done; /* Indicate that the rtd_init callback is done */
+	unsigned long quirk;
 };
 
 struct sof_sdw_codec_info {

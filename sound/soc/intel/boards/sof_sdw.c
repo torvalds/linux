@@ -37,6 +37,8 @@ static void log_quirks(struct device *dev)
 			SOF_SSP_GET_PORT(sof_sdw_quirk));
 	if (sof_sdw_quirk & SOF_SDW_NO_AGGREGATION)
 		dev_err(dev, "quirk SOF_SDW_NO_AGGREGATION enabled but no longer supported\n");
+	if (sof_sdw_quirk & SOF_CODEC_SPKR)
+		dev_dbg(dev, "quirk SOF_CODEC_SPKR enabled\n");
 }
 
 static int sof_sdw_quirk_cb(const struct dmi_system_id *id)
@@ -1381,6 +1383,9 @@ static int parse_sdw_endpoints(struct snd_soc_card *card,
 				adr_end = &adr_dev->endpoints[j];
 				dai_info = &codec_info->dais[adr_end->num];
 				sof_dai = find_dailink(sof_dais, adr_end);
+
+				if (dai_info->quirk && !(dai_info->quirk & sof_sdw_quirk))
+					continue;
 
 				dev_dbg(dev,
 					"Add dev: %d, 0x%llx end: %d, %s, %c/%c to %s: %d\n",
