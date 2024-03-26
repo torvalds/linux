@@ -25,6 +25,7 @@
 #include <generated/utsrelease.h>
 #include <linux/devcoredump.h>
 #include "amdgpu_dev_coredump.h"
+#include "atom.h"
 
 #ifndef CONFIG_DEV_COREDUMP
 void amdgpu_coredump(struct amdgpu_device *adev, bool vram_lost,
@@ -68,6 +69,130 @@ const char *hw_ip_names[MAX_HWIP] = {
 	[DCI_HWIP]		= "DCI",
 	[PCIE_HWIP]		= "PCIE",
 };
+
+static void amdgpu_devcoredump_fw_info(struct amdgpu_device *adev,
+				       struct drm_printer *p)
+{
+	uint32_t version;
+	uint32_t feature;
+	uint8_t smu_program, smu_major, smu_minor, smu_debug;
+	struct atom_context *ctx = adev->mode_info.atom_context;
+
+	drm_printf(p, "VCE feature version: %u, fw version: 0x%08x\n",
+		   adev->vce.fb_version, adev->vce.fw_version);
+	drm_printf(p, "UVD feature version: %u, fw version: 0x%08x\n", 0,
+		   adev->uvd.fw_version);
+	drm_printf(p, "GMC feature version: %u, fw version: 0x%08x\n", 0,
+		   adev->gmc.fw_version);
+	drm_printf(p, "ME feature version: %u, fw version: 0x%08x\n",
+		   adev->gfx.me_feature_version, adev->gfx.me_fw_version);
+	drm_printf(p, "PFP feature version: %u, fw version: 0x%08x\n",
+		   adev->gfx.pfp_feature_version, adev->gfx.pfp_fw_version);
+	drm_printf(p, "CE feature version: %u, fw version: 0x%08x\n",
+		   adev->gfx.ce_feature_version, adev->gfx.ce_fw_version);
+	drm_printf(p, "RLC feature version: %u, fw version: 0x%08x\n",
+		   adev->gfx.rlc_feature_version, adev->gfx.rlc_fw_version);
+
+	drm_printf(p, "RLC SRLC feature version: %u, fw version: 0x%08x\n",
+		   adev->gfx.rlc_srlc_feature_version,
+		   adev->gfx.rlc_srlc_fw_version);
+	drm_printf(p, "RLC SRLG feature version: %u, fw version: 0x%08x\n",
+		   adev->gfx.rlc_srlg_feature_version,
+		   adev->gfx.rlc_srlg_fw_version);
+	drm_printf(p, "RLC SRLS feature version: %u, fw version: 0x%08x\n",
+		   adev->gfx.rlc_srls_feature_version,
+		   adev->gfx.rlc_srls_fw_version);
+	drm_printf(p, "RLCP feature version: %u, fw version: 0x%08x\n",
+		   adev->gfx.rlcp_ucode_feature_version,
+		   adev->gfx.rlcp_ucode_version);
+	drm_printf(p, "RLCV feature version: %u, fw version: 0x%08x\n",
+		   adev->gfx.rlcv_ucode_feature_version,
+		   adev->gfx.rlcv_ucode_version);
+	drm_printf(p, "MEC feature version: %u, fw version: 0x%08x\n",
+		   adev->gfx.mec_feature_version, adev->gfx.mec_fw_version);
+
+	if (adev->gfx.mec2_fw)
+		drm_printf(p, "MEC2 feature version: %u, fw version: 0x%08x\n",
+			   adev->gfx.mec2_feature_version,
+			   adev->gfx.mec2_fw_version);
+
+	drm_printf(p, "IMU feature version: %u, fw version: 0x%08x\n", 0,
+		   adev->gfx.imu_fw_version);
+	drm_printf(p, "PSP SOS feature version: %u, fw version: 0x%08x\n",
+		   adev->psp.sos.feature_version, adev->psp.sos.fw_version);
+	drm_printf(p, "PSP ASD feature version: %u, fw version: 0x%08x\n",
+		   adev->psp.asd_context.bin_desc.feature_version,
+		   adev->psp.asd_context.bin_desc.fw_version);
+
+	drm_printf(p, "TA XGMI feature version: 0x%08x, fw version: 0x%08x\n",
+		   adev->psp.xgmi_context.context.bin_desc.feature_version,
+		   adev->psp.xgmi_context.context.bin_desc.fw_version);
+	drm_printf(p, "TA RAS feature version: 0x%08x, fw version: 0x%08x\n",
+		   adev->psp.ras_context.context.bin_desc.feature_version,
+		   adev->psp.ras_context.context.bin_desc.fw_version);
+	drm_printf(p, "TA HDCP feature version: 0x%08x, fw version: 0x%08x\n",
+		   adev->psp.hdcp_context.context.bin_desc.feature_version,
+		   adev->psp.hdcp_context.context.bin_desc.fw_version);
+	drm_printf(p, "TA DTM feature version: 0x%08x, fw version: 0x%08x\n",
+		   adev->psp.dtm_context.context.bin_desc.feature_version,
+		   adev->psp.dtm_context.context.bin_desc.fw_version);
+	drm_printf(p, "TA RAP feature version: 0x%08x, fw version: 0x%08x\n",
+		   adev->psp.rap_context.context.bin_desc.feature_version,
+		   adev->psp.rap_context.context.bin_desc.fw_version);
+	drm_printf(p,
+		   "TA SECURE DISPLAY feature version: 0x%08x, fw version: 0x%08x\n",
+		   adev->psp.securedisplay_context.context.bin_desc.feature_version,
+		   adev->psp.securedisplay_context.context.bin_desc.fw_version);
+
+	/* SMC firmware */
+	version = adev->pm.fw_version;
+
+	smu_program = (version >> 24) & 0xff;
+	smu_major = (version >> 16) & 0xff;
+	smu_minor = (version >> 8) & 0xff;
+	smu_debug = (version >> 0) & 0xff;
+	drm_printf(p,
+		   "SMC feature version: %u, program: %d, fw version: 0x%08x (%d.%d.%d)\n",
+		   0, smu_program, version, smu_major, smu_minor, smu_debug);
+
+	/* SDMA firmware */
+	for (int i = 0; i < adev->sdma.num_instances; i++) {
+		drm_printf(p,
+			   "SDMA%d feature version: %u, firmware version: 0x%08x\n",
+			   i, adev->sdma.instance[i].feature_version,
+			   adev->sdma.instance[i].fw_version);
+	}
+
+	drm_printf(p, "VCN feature version: %u, fw version: 0x%08x\n", 0,
+		   adev->vcn.fw_version);
+	drm_printf(p, "DMCU feature version: %u, fw version: 0x%08x\n", 0,
+		   adev->dm.dmcu_fw_version);
+	drm_printf(p, "DMCUB feature version: %u, fw version: 0x%08x\n", 0,
+		   adev->dm.dmcub_fw_version);
+	drm_printf(p, "PSP TOC feature version: %u, fw version: 0x%08x\n",
+		   adev->psp.toc.feature_version, adev->psp.toc.fw_version);
+
+	version = adev->mes.kiq_version & AMDGPU_MES_VERSION_MASK;
+	feature = (adev->mes.kiq_version & AMDGPU_MES_FEAT_VERSION_MASK) >>
+		  AMDGPU_MES_FEAT_VERSION_SHIFT;
+	drm_printf(p, "MES_KIQ feature version: %u, fw version: 0x%08x\n",
+		   feature, version);
+
+	version = adev->mes.sched_version & AMDGPU_MES_VERSION_MASK;
+	feature = (adev->mes.sched_version & AMDGPU_MES_FEAT_VERSION_MASK) >>
+		  AMDGPU_MES_FEAT_VERSION_SHIFT;
+	drm_printf(p, "MES feature version: %u, fw version: 0x%08x\n", feature,
+		   version);
+
+	drm_printf(p, "VPE feature version: %u, fw version: 0x%08x\n",
+		   adev->vpe.feature_version, adev->vpe.fw_version);
+
+	drm_printf(p, "\nVBIOS Information\n");
+	drm_printf(p, "name: %s\n", ctx->name);
+	drm_printf(p, "pn %s\n", ctx->vbios_pn);
+	drm_printf(p, "version: %s\n", ctx->vbios_ver_str);
+	drm_printf(p, "date: %s\n", ctx->date);
+}
 
 static ssize_t
 amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
@@ -117,6 +242,10 @@ amdgpu_devcoredump_read(char *buffer, loff_t offset, size_t count,
 					   IP_VERSION_SUBREV(ver));
 		}
 	}
+
+	/* IP firmware information */
+	drm_printf(&p, "\nIP Firmwares\n");
+	amdgpu_devcoredump_fw_info(coredump->adev, &p);
 
 	if (coredump->ring) {
 		drm_printf(&p, "\nRing timed out details\n");
