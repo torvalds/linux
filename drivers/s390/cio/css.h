@@ -40,6 +40,8 @@
 
 #define CSS_NUM_CUB_PAGES		2
 #define CSS_CUES_PER_PAGE		128
+#define CSS_NUM_ECUB_PAGES		4
+#define CSS_ECUES_PER_PAGE		64
 
 /*
  * Conditions used to specify which subchannels need evaluation
@@ -130,6 +132,7 @@ struct channel_subsystem {
 	/* channel measurement related */
 	int cm_enabled;
 	void *cub[CSS_NUM_CUB_PAGES];
+	void *ecub[CSS_NUM_ECUB_PAGES];
 	/* for orphaned ccw devices */
 	struct subchannel *pseudo_subchannel;
 };

@@ -51,6 +51,7 @@ struct channel_path {
 	/* Channel-measurement related stuff: */
 	int cmg;
 	int shared;
+	int extended;
 	struct cmg_chars cmg_chars;
 };
 

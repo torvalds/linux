@@ -871,11 +871,14 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 	struct {
 		struct chsc_header request;
 		u32 operation_code : 2;
-		u32 : 30;
+		u32 : 1;
+		u32 e : 1;
+		u32 : 28;
 		u32 key : 4;
 		u32 : 28;
 		dma64_t cub[CSS_NUM_CUB_PAGES];
-		u32 reserved[13];
+		dma64_t ecub[CSS_NUM_ECUB_PAGES];
+		u32 reserved[5];
 		struct chsc_header response;
 		u32 status : 8;
 		u32 : 4;
@@ -892,9 +895,12 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 	secm_area->request.code = 0x0016;
 
 	secm_area->key = PAGE_DEFAULT_KEY >> 4;
+	secm_area->e = 1;
 
 	for (i = 0; i < CSS_NUM_CUB_PAGES; i++)
 		secm_area->cub[i] = (__force dma64_t)virt_to_dma32(css->cub[i]);
+	for (i = 0; i < CSS_NUM_ECUB_PAGES; i++)
+		secm_area->ecub[i] = virt_to_dma64(css->ecub[i]);
 
 	secm_area->operation_code = enable ? 0 : 1;
 
@@ -929,6 +935,11 @@ static int cub_alloc(struct channel_subsystem *css)
 		if (!css->cub[i])
 			return -ENOMEM;
 	}
+	for (i = 0; i < CSS_NUM_ECUB_PAGES; i++) {
+		css->ecub[i] = (void *)get_zeroed_page(GFP_KERNEL);
+		if (!css->ecub[i])
+			return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -940,6 +951,10 @@ static void cub_free(struct channel_subsystem *css)
 	for (i = 0; i < CSS_NUM_CUB_PAGES; i++) {
 		free_page((unsigned long)css->cub[i]);
 		css->cub[i] = NULL;
+	}
+	for (i = 0; i < CSS_NUM_ECUB_PAGES; i++) {
+		free_page((unsigned long)css->ecub[i]);
+		css->ecub[i] = NULL;
 	}
 }
 
@@ -1067,7 +1082,8 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 		u32 zeroes2;
 		u32 not_valid : 1;
 		u32 shared : 1;
-		u32 : 22;
+		u32 extended : 1;
+		u32 : 21;
 		u32 chpid : 8;
 		u32 cmcv : 5;
 		u32 : 11;
@@ -1079,6 +1095,7 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 
 	chp->shared = -1;
 	chp->cmg = -1;
+	chp->extended = 0;
 
 	if (!css_chsc_characteristics.scmc || !css_chsc_characteristics.secm)
 		return -EINVAL;
@@ -1108,6 +1125,7 @@ int chsc_get_channel_measurement_chars(struct channel_path *chp)
 
 	chp->cmg = scmc_area->cmg;
 	chp->shared = scmc_area->shared;
+	chp->extended = scmc_area->extended;
 	if (chp->cmg != 2 && chp->cmg != 3) {
 		/* No cmg-dependent data. */
 		goto out;

@@ -144,55 +144,65 @@ static ssize_t measurement_chars_read(struct file *filp, struct kobject *kobj,
 }
 static BIN_ATTR_ADMIN_RO(measurement_chars, sizeof(struct cmg_chars));
 
-static void chp_measurement_copy_block(struct cmg_entry *buf,
-				       struct channel_subsystem *css,
-				       struct chp_id chpid)
+static ssize_t chp_measurement_copy_block(void *buf, loff_t off, size_t count,
+					  struct kobject *kobj, bool extended)
 {
-	void *area;
-	struct cmg_entry *entry, reference_buf;
-	int idx;
+	struct channel_path *chp;
+	struct channel_subsystem *css;
+	struct device *device;
+	unsigned int size;
+	void *area, *entry;
+	int id, idx;
 
-	if (chpid.id < CSS_CUES_PER_PAGE) {
-		area = css->cub[0];
-		idx = chpid.id;
+	device = kobj_to_dev(kobj);
+	chp = to_channelpath(device);
+	css = to_css(chp->dev.parent);
+	id = chp->chpid.id;
+
+	if (extended) {
+		/* Check if extended measurement data is available. */
+		if (!chp->extended)
+			return 0;
+
+		size = sizeof(struct cmg_ext_entry);
+		area = css->ecub[id / CSS_ECUES_PER_PAGE];
+		idx = id % CSS_ECUES_PER_PAGE;
 	} else {
-		area = css->cub[1];
-		idx = chpid.id - CSS_CUES_PER_PAGE;
+		size = sizeof(struct cmg_entry);
+		area = css->cub[id / CSS_CUES_PER_PAGE];
+		idx = id % CSS_CUES_PER_PAGE;
 	}
-	entry = area + (idx * sizeof(struct cmg_entry));
-	do {
-		memcpy(buf, entry, sizeof(*entry));
-		memcpy(&reference_buf, entry, sizeof(*entry));
-	} while (reference_buf.values[0] != buf->values[0]);
+	entry = area + (idx * size);
+
+	/* Only allow single reads. */
+	if (off || count < size)
+		return 0;
+
+	memcpy(buf, entry, size);
+
+	return size;
 }
 
 static ssize_t measurement_read(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t off, size_t count)
 {
-	struct channel_path *chp;
-	struct channel_subsystem *css;
-	struct device *device;
-	unsigned int size;
-
-	device = kobj_to_dev(kobj);
-	chp = to_channelpath(device);
-	css = to_css(chp->dev.parent);
-
-	size = sizeof(struct cmg_entry);
-
-	/* Only allow single reads. */
-	if (off || count < size)
-		return 0;
-	chp_measurement_copy_block((struct cmg_entry *)buf, css, chp->chpid);
-	count = size;
-	return count;
+	return chp_measurement_copy_block(buf, off, count, kobj, false);
 }
 static BIN_ATTR_ADMIN_RO(measurement, sizeof(struct cmg_entry));
+
+static ssize_t ext_measurement_read(struct file *filp, struct kobject *kobj,
+				    struct bin_attribute *bin_attr,
+				    char *buf, loff_t off, size_t count)
+{
+	return chp_measurement_copy_block(buf, off, count, kobj, true);
+}
+static BIN_ATTR_ADMIN_RO(ext_measurement, sizeof(struct cmg_ext_entry));
 
 static struct bin_attribute *measurement_attrs[] = {
 	&bin_attr_measurement_chars,
 	&bin_attr_measurement,
+	&bin_attr_ext_measurement,
 	NULL,
 };
 BIN_ATTRIBUTE_GROUPS(measurement);
