@@ -135,6 +135,14 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 		ppc_save_regs(newregs);
 }
 
+#ifdef CONFIG_CRASH_HOTPLUG
+void arch_crash_handle_hotplug_event(struct kimage *image, void *arg);
+#define arch_crash_handle_hotplug_event arch_crash_handle_hotplug_event
+
+int arch_crash_hotplug_support(struct kimage *image, unsigned long kexec_flags);
+#define arch_crash_hotplug_support arch_crash_hotplug_support
+#endif /* CONFIG_CRASH_HOTPLUG */
+
 extern int crashing_cpu;
 extern void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *));
 extern void crash_ipi_callback(struct pt_regs *regs);
