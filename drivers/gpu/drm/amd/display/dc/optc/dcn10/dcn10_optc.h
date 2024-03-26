@@ -517,12 +517,15 @@ struct dcn_optc_registers {
 	type MANUAL_FLOW_CONTROL;\
 	type MANUAL_FLOW_CONTROL_SEL;
 
+#define V_TOTAL_REGS(type)
+
 #define TG_REG_FIELD_LIST(type) \
 	TG_REG_FIELD_LIST_DCN1_0(type)\
 	type OTG_V_SYNC_MODE;\
 	type OTG_DRR_TRIGGER_WINDOW_START_X;\
 	type OTG_DRR_TRIGGER_WINDOW_END_X;\
 	type OTG_DRR_V_TOTAL_CHANGE_LIMIT;\
+	V_TOTAL_REGS(type)\
 	type OTG_OUT_MUX;\
 	type OTG_M_CONST_DTO_PHASE;\
 	type OTG_M_CONST_DTO_MODULO;\
