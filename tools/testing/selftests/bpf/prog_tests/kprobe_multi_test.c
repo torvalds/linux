@@ -477,6 +477,69 @@ error:
 	return err;
 }
 
+static int get_addrs(unsigned long **addrsp, size_t *cntp, bool kernel)
+{
+	unsigned long *addr, *addrs, *tmp_addrs;
+	int err = 0, max_cnt, inc_cnt;
+	char *name = NULL;
+	size_t cnt = 0;
+	char buf[256];
+	FILE *f;
+
+	if (access("/sys/kernel/tracing/trace", F_OK) == 0)
+		f = fopen("/sys/kernel/tracing/available_filter_functions_addrs", "r");
+	else
+		f = fopen("/sys/kernel/debug/tracing/available_filter_functions_addrs", "r");
+
+	if (!f)
+		return -ENOENT;
+
+	/* In my local setup, the number of entries is 50k+ so Let us initially
+	 * allocate space to hold 64k entries. If 64k is not enough, incrementally
+	 * increase 1k each time.
+	 */
+	max_cnt = 65536;
+	inc_cnt = 1024;
+	addrs = malloc(max_cnt * sizeof(long));
+	if (addrs == NULL) {
+		err = -ENOMEM;
+		goto error;
+	}
+
+	while (fgets(buf, sizeof(buf), f)) {
+		if (is_invalid_entry(buf, kernel))
+			continue;
+
+		free(name);
+		if (sscanf(buf, "%p %ms$*[^\n]\n", &addr, &name) != 2)
+			continue;
+		if (skip_entry(name))
+			continue;
+
+		if (cnt == max_cnt) {
+			max_cnt += inc_cnt;
+			tmp_addrs = realloc(addrs, max_cnt);
+			if (!tmp_addrs) {
+				err = -ENOMEM;
+				goto error;
+			}
+			addrs = tmp_addrs;
+		}
+
+		addrs[cnt++] = (unsigned long)addr;
+	}
+
+	*addrsp = addrs;
+	*cntp = cnt;
+
+error:
+	free(name);
+	fclose(f);
+	if (err)
+		free(addrs);
+	return err;
+}
+
 static void do_bench_test(struct kprobe_multi_empty *skel, struct bpf_kprobe_multi_opts *opts)
 {
 	long attach_start_ns, attach_end_ns;
@@ -529,6 +592,37 @@ cleanup:
 		free(syms);
 }
 
+static void test_kprobe_multi_bench_attach_addr(bool kernel)
+{
+	LIBBPF_OPTS(bpf_kprobe_multi_opts, opts);
+	struct kprobe_multi_empty *skel = NULL;
+	unsigned long *addrs = NULL;
+	size_t cnt = 0;
+	int err;
+
+	err = get_addrs(&addrs, &cnt, kernel);
+	if (err == -ENOENT) {
+		test__skip();
+		return;
+	}
+
+	if (!ASSERT_OK(err, "get_addrs"))
+		return;
+
+	skel = kprobe_multi_empty__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "kprobe_multi_empty__open_and_load"))
+		goto cleanup;
+
+	opts.addrs = addrs;
+	opts.cnt = cnt;
+
+	do_bench_test(skel, &opts);
+
+cleanup:
+	kprobe_multi_empty__destroy(skel);
+	free(addrs);
+}
+
 static void test_attach_override(void)
 {
 	struct kprobe_multi_override *skel = NULL;
@@ -569,6 +663,10 @@ void serial_test_kprobe_multi_bench_attach(void)
 		test_kprobe_multi_bench_attach(true);
 	if (test__start_subtest("modules"))
 		test_kprobe_multi_bench_attach(false);
+	if (test__start_subtest("kernel"))
+		test_kprobe_multi_bench_attach_addr(true);
+	if (test__start_subtest("modules"))
+		test_kprobe_multi_bench_attach_addr(false);
 }
 
 void test_kprobe_multi_test(void)
