@@ -336,10 +336,10 @@ struct drm_panthor_gpu_info {
 	/** @tiler_present: Bitmask encoding the tiler units exposed by the GPU. */
 	__u64 tiler_present;
 
-	/* @core_features: Used to discriminate core variants when they exist. */
+	/** @core_features: Used to discriminate core variants when they exist. */
 	__u32 core_features;
 
-	/* @pad: MBZ. */
+	/** @pad: MBZ. */
 	__u32 pad;
 };
 
