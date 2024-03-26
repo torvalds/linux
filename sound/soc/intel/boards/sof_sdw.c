@@ -1659,6 +1659,34 @@ static int create_ssp_dailinks(struct snd_soc_card *card,
 	return 0;
 }
 
+static int create_dmic_dailinks(struct snd_soc_card *card,
+				struct snd_soc_dai_link **dai_links, int *be_id)
+{
+	struct device *dev = card->dev;
+	int ret;
+
+	ret = init_simple_dai_link(dev, *dai_links, be_id, "dmic01",
+				   0, 1, // DMIC only supports capture
+				   "DMIC01 Pin", "dmic-codec", "dmic-hifi",
+				   sof_sdw_dmic_init, NULL);
+	if (ret)
+		return ret;
+
+	(*dai_links)++;
+
+	ret = init_simple_dai_link(dev, *dai_links, be_id, "dmic16k",
+				   0, 1, // DMIC only supports capture
+				   "DMIC16k Pin", "dmic-codec", "dmic-hifi",
+				   /* don't call sof_sdw_dmic_init() twice */
+				   NULL, NULL);
+	if (ret)
+		return ret;
+
+	(*dai_links)++;
+
+	return 0;
+}
+
 static int sof_card_dai_links_create(struct snd_soc_card *card)
 {
 	struct device *dev = card->dev;
@@ -1825,30 +1853,13 @@ SSP:
 	if (dmic_num > 0) {
 		if (ctx->ignore_pch_dmic) {
 			dev_warn(dev, "Ignoring PCH DMIC\n");
-			goto HDMI;
+		} else {
+			ret = create_dmic_dailinks(card, &dai_links, &be_id);
+			if (ret)
+				return ret;
 		}
-
-		ret = init_simple_dai_link(dev, dai_links, &be_id, "dmic01",
-					   0, 1, // DMIC only supports capture
-					   "DMIC01 Pin", "dmic-codec", "dmic-hifi",
-					   sof_sdw_dmic_init, NULL);
-		if (ret)
-			return ret;
-
-		dai_links++;
-
-		ret = init_simple_dai_link(dev, dai_links, &be_id, "dmic16k",
-					   0, 1, // DMIC only supports capture
-					   "DMIC16k Pin", "dmic-codec", "dmic-hifi",
-					   /* don't call sof_sdw_dmic_init() twice */
-					   NULL, NULL);
-		if (ret)
-			return ret;
-
-		dai_links++;
 	}
 
-HDMI:
 	/* HDMI */
 	for (i = 0; i < hdmi_num; i++) {
 		name = devm_kasprintf(dev, GFP_KERNEL, "iDisp%d", i + 1);
