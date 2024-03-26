@@ -270,6 +270,9 @@ unsigned long thp_vma_allowable_orders(struct vm_area_struct *vma,
 
 unsigned long thp_get_unmapped_area(struct file *filp, unsigned long addr,
 		unsigned long len, unsigned long pgoff, unsigned long flags);
+unsigned long thp_get_unmapped_area_vmflags(struct file *filp, unsigned long addr,
+		unsigned long len, unsigned long pgoff, unsigned long flags,
+		vm_flags_t vm_flags);
 
 bool can_split_folio(struct folio *folio, int *pextra_pins);
 int split_huge_page_to_list_to_order(struct page *page, struct list_head *list,
@@ -412,6 +415,14 @@ static inline unsigned long thp_vma_allowable_orders(struct vm_area_struct *vma,
 #define transparent_hugepage_flags 0UL
 
 #define thp_get_unmapped_area	NULL
+
+static inline unsigned long
+thp_get_unmapped_area_vmflags(struct file *filp, unsigned long addr,
+			      unsigned long len, unsigned long pgoff,
+			      unsigned long flags, vm_flags_t vm_flags)
+{
+	return 0;
+}
 
 static inline bool
 can_split_folio(struct folio *folio, int *pextra_pins)
