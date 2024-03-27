@@ -693,7 +693,7 @@ static int hsmp_create_non_acpi_sysfs_if(struct device *dev)
 		hsmp_create_attr_list(attr_grp, dev, i);
 	}
 
-	return devm_device_add_groups(dev, hsmp_attr_grps);
+	return device_add_groups(dev, hsmp_attr_grps);
 }
 
 static int hsmp_create_acpi_sysfs_if(struct device *dev)
