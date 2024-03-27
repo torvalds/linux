@@ -381,7 +381,7 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 
 	if (mapunit != BITS_PER_U64) {
 		pr_err("SELinux: ebitmap: map size %u does not "
-		       "match my size %zd (high bit was %d)\n",
+		       "match my size %zd (high bit was %u)\n",
 		       mapunit, BITS_PER_U64, e->highbit);
 		goto bad;
 	}
@@ -407,13 +407,13 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 		startbit = le32_to_cpu(ebitmap_start);
 
 		if (startbit & (mapunit - 1)) {
-			pr_err("SELinux: ebitmap start bit (%d) is "
+			pr_err("SELinux: ebitmap start bit (%u) is "
 			       "not a multiple of the map unit size (%u)\n",
 			       startbit, mapunit);
 			goto bad;
 		}
 		if (startbit > e->highbit - mapunit) {
-			pr_err("SELinux: ebitmap start bit (%d) is "
+			pr_err("SELinux: ebitmap start bit (%u) is "
 			       "beyond the end of the bitmap (%u)\n",
 			       startbit, (e->highbit - mapunit));
 			goto bad;
@@ -436,8 +436,8 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 				e->node = tmp;
 			n = tmp;
 		} else if (startbit <= n->startbit) {
-			pr_err("SELinux: ebitmap: start bit %d"
-			       " comes after start bit %d\n",
+			pr_err("SELinux: ebitmap: start bit %u"
+			       " comes after start bit %u\n",
 			       startbit, n->startbit);
 			goto bad;
 		}
@@ -461,7 +461,7 @@ int ebitmap_read(struct ebitmap *e, void *fp)
 	}
 
 	if (n && n->startbit + EBITMAP_SIZE != e->highbit) {
-		pr_err("SELinux: ebitmap: high bit %d is not equal to the expected value %ld\n",
+		pr_err("SELinux: ebitmap: high bit %u is not equal to the expected value %zu\n",
 		       e->highbit, n->startbit + EBITMAP_SIZE);
 		goto bad;
 	}
