@@ -1399,13 +1399,21 @@
 		clock-div = <1>;
 	};
 
-	dpll_per_byp_mux: clock-dpll-per-byp-mux-23@14c {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_per_byp_mux";
-		clocks = <&sys_clkin1>, <&per_dpll_hs_clk_div>;
-		ti,bit-shift = <23>;
-		reg = <0x014c>;
+	/* CM_CLKSEL_DPLL_PER */
+	clock@14c {
+		compatible = "ti,clksel";
+		reg = <0x14c>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_per_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_per_byp_mux";
+			clocks = <&sys_clkin1>, <&per_dpll_hs_clk_div>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_per_ck: clock@140 {
