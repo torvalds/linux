@@ -263,7 +263,6 @@ static const struct dev_pm_ops mi0283qt_pm_ops = {
 static struct spi_driver mi0283qt_spi_driver = {
 	.driver = {
 		.name = "mi0283qt",
-		.owner = THIS_MODULE,
 		.of_match_table = mi0283qt_of_match,
 		.pm = &mi0283qt_pm_ops,
 	},
