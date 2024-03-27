@@ -16,6 +16,8 @@ SIZE=256
 NAME_MAX=int(subprocess.check_output(["getconf", "NAME_MAX", "."]))
 
 test_num=0
+pass_num=0
+fail_num=0
 
 code='''#!/usr/bin/perl
 print "Executed interpreter! Args:\n";
@@ -42,7 +44,7 @@ foreach my $a (@ARGV) {
 # ...
 def test(name, size, good=True, leading="", root="./", target="/perl",
                      fill="A", arg="", newline="\n", hashbang="#!"):
-    global test_num, tests, NAME_MAX
+    global test_num, pass_num, fail_num, tests, NAME_MAX
     test_num += 1
     if test_num > tests:
         raise ValueError("more binfmt_script tests than expected! (want %d, expected %d)"
@@ -80,16 +82,20 @@ def test(name, size, good=True, leading="", root="./", target="/perl",
         if good:
             print("ok %d - binfmt_script %s (successful good exec)"
                   % (test_num, name))
+            pass_num += 1
         else:
             print("not ok %d - binfmt_script %s succeeded when it should have failed"
                   % (test_num, name))
+            fail_num = 1
     else:
         if good:
             print("not ok %d - binfmt_script %s failed when it should have succeeded (rc:%d)"
                   % (test_num, name, proc.returncode))
+            fail_num = 1
         else:
             print("ok %d - binfmt_script %s (correctly failed bad exec)"
                   % (test_num, name))
+            pass_num += 1
 
     # Clean up crazy binaries
     os.unlink(script)
@@ -165,6 +171,8 @@ test(name="two-under-no-nl",     size=int(SIZE/2), newline="")
 test(name="two-under-trunc-arg", size=int(SIZE/2), arg=" ")
 test(name="two-under-leading",   size=int(SIZE/2), leading=" ")
 test(name="two-under-lead-trunc-arg", size=int(SIZE/2), leading=" ", arg=" ")
+
+print("# Totals: pass:%d fail:%d xfail:0 xpass:0 skip:0 error:0" % (pass_num, fail_num))
 
 if test_num != tests:
     raise ValueError("fewer binfmt_script tests than expected! (ran %d, expected %d"
