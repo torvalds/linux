@@ -666,13 +666,21 @@
 		clock-div = <1>;
 	};
 
-	dpll_eve_byp_mux: clock-dpll-eve-byp-mux-23@290 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_eve_byp_mux";
-		clocks = <&sys_clkin1>, <&eve_dpll_hs_clk_div>;
-		ti,bit-shift = <23>;
-		reg = <0x0290>;
+	/* CM_CLKSEL_DPLL_EVE */
+	clock@290 {
+		compatible = "ti,clksel";
+		reg = <0x290>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_eve_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_eve_byp_mux";
+			clocks = <&sys_clkin1>, <&eve_dpll_hs_clk_div>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_eve_ck: clock@284 {
