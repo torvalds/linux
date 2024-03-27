@@ -350,6 +350,81 @@ int amdgpu_device_supports_baco(struct drm_device *dev)
 	return amdgpu_asic_supports_baco(adev);
 }
 
+void amdgpu_device_detect_runtime_pm_mode(struct amdgpu_device *adev)
+{
+	struct drm_device *dev;
+	int bamaco_support;
+
+	dev = adev_to_drm(adev);
+
+	adev->pm.rpm_mode = AMDGPU_RUNPM_NONE;
+	bamaco_support = amdgpu_device_supports_baco(dev);
+
+	switch (amdgpu_runtime_pm) {
+	case 2:
+		if (bamaco_support & MACO_SUPPORT) {
+			adev->pm.rpm_mode = AMDGPU_RUNPM_BAMACO;
+			dev_info(adev->dev, "Forcing BAMACO for runtime pm\n");
+		} else if (bamaco_support == BACO_SUPPORT) {
+			adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
+			dev_info(adev->dev, "Requested mode BAMACO not available,fallback to use BACO\n");
+		}
+		break;
+	case 1:
+		if (bamaco_support & BACO_SUPPORT) {
+			adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
+			dev_info(adev->dev, "Forcing BACO for runtime pm\n");
+		}
+		break;
+	case -1:
+	case -2:
+		if (amdgpu_device_supports_px(dev)) { /* enable PX as runtime mode */
+			adev->pm.rpm_mode = AMDGPU_RUNPM_PX;
+			dev_info(adev->dev, "Using ATPX for runtime pm\n");
+		} else if (amdgpu_device_supports_boco(dev)) { /* enable boco as runtime mode */
+			adev->pm.rpm_mode = AMDGPU_RUNPM_BOCO;
+			dev_info(adev->dev, "Using BOCO for runtime pm\n");
+		} else {
+			if (!bamaco_support)
+				goto no_runtime_pm;
+
+			switch (adev->asic_type) {
+			case CHIP_VEGA20:
+			case CHIP_ARCTURUS:
+				/* BACO are not supported on vega20 and arctrus */
+				break;
+			case CHIP_VEGA10:
+				/* enable BACO as runpm mode if noretry=0 */
+				if (!adev->gmc.noretry)
+					adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
+				break;
+			default:
+				/* enable BACO as runpm mode on CI+ */
+				adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
+				break;
+			}
+
+			if (adev->pm.rpm_mode == AMDGPU_RUNPM_BACO) {
+				if (bamaco_support & MACO_SUPPORT) {
+					adev->pm.rpm_mode = AMDGPU_RUNPM_BAMACO;
+					dev_info(adev->dev, "Using BAMACO for runtime pm\n");
+				} else {
+					dev_info(adev->dev, "Using BACO for runtime pm\n");
+				}
+			}
+		}
+		break;
+	case 0:
+		dev_info(adev->dev, "runtime pm is manually disabled\n");
+		break;
+	default:
+		break;
+	}
+
+no_runtime_pm:
+	if (adev->pm.rpm_mode == AMDGPU_RUNPM_NONE)
+		dev_info(adev->dev, "Runtime PM not available\n");
+}
 /**
  * amdgpu_device_supports_smart_shift - Is the device dGPU with
  * smart shift support
