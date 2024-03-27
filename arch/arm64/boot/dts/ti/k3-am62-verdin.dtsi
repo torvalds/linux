@@ -1413,6 +1413,15 @@
 		"",
 		"",
 		"";
+
+	verdin_pcie_1_reset_hog: pcie-1-reset-hog {
+		gpio-hog;
+		/* Verdin PCIE_1_RESET# (SODIMM 244) */
+		gpios = <0 GPIO_ACTIVE_LOW>;
+		line-name = "PCIE_1_RESET#";
+		output-low;
+		status = "disabled";
+	};
 };
 
 /* Verdin CAN_2 */

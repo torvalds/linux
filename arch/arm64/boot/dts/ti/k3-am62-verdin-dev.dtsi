@@ -181,7 +181,8 @@
 	pinctrl-0 = <&pinctrl_gpio_1>,
 		    <&pinctrl_gpio_2>,
 		    <&pinctrl_gpio_3>,
-		    <&pinctrl_gpio_4>;
+		    <&pinctrl_gpio_4>,
+		    <&pinctrl_pcie_1_reset>;
 };
 
 /* Verdin I2C_3_HDMI */
@@ -229,6 +230,11 @@
 
 /* Verdin CTRL_WAKE1_MICO# */
 &verdin_gpio_keys {
+	status = "okay";
+};
+
+/* Verdin PCIE_1_RESET# */
+&verdin_pcie_1_reset_hog {
 	status = "okay";
 };
 
