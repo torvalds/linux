@@ -186,13 +186,11 @@ NOKPROBE_SYMBOL(patch_insn_set);
 
 int patch_text_set_nosync(void *addr, u8 c, size_t len)
 {
-	u32 *tp = addr;
 	int ret;
 
-	ret = patch_insn_set(tp, c, len);
-
+	ret = patch_insn_set(addr, c, len);
 	if (!ret)
-		flush_icache_range((uintptr_t)tp, (uintptr_t)tp + len);
+		flush_icache_range((uintptr_t)addr, (uintptr_t)addr + len);
 
 	return ret;
 }
@@ -224,13 +222,11 @@ NOKPROBE_SYMBOL(patch_insn_write);
 
 int patch_text_nosync(void *addr, const void *insns, size_t len)
 {
-	u32 *tp = addr;
 	int ret;
 
-	ret = patch_insn_write(tp, insns, len);
-
+	ret = patch_insn_write(addr, insns, len);
 	if (!ret)
-		flush_icache_range((uintptr_t) tp, (uintptr_t) tp + len);
+		flush_icache_range((uintptr_t)addr, (uintptr_t)addr + len);
 
 	return ret;
 }
