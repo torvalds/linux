@@ -1351,8 +1351,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 			break;
 
 		case BPF_ALU64 | BPF_MOV | BPF_X:
-			if (insn->off == BPF_ADDR_SPACE_CAST &&
-			    insn->imm == 1U << 16) {
+			if (insn_is_cast_user(insn)) {
 				if (dst_reg != src_reg)
 					/* 32-bit mov */
 					emit_mov_reg(&prog, false, dst_reg, src_reg);
@@ -3004,12 +3003,9 @@ void arch_free_bpf_trampoline(void *image, unsigned int size)
 	bpf_prog_pack_free(image, size);
 }
 
-void arch_protect_bpf_trampoline(void *image, unsigned int size)
+int arch_protect_bpf_trampoline(void *image, unsigned int size)
 {
-}
-
-void arch_unprotect_bpf_trampoline(void *image, unsigned int size)
-{
+	return 0;
 }
 
 int arch_prepare_bpf_trampoline(struct bpf_tramp_image *im, void *image, void *image_end,

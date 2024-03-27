@@ -573,6 +573,115 @@ cleanup:
 		close(lsm_fd);
 }
 
+static void tp_btf_subtest(struct test_bpf_cookie *skel)
+{
+	__u64 cookie;
+	int prog_fd, link_fd = -1;
+	struct bpf_link *link = NULL;
+	LIBBPF_OPTS(bpf_link_create_opts, link_opts);
+	LIBBPF_OPTS(bpf_raw_tp_opts, raw_tp_opts);
+	LIBBPF_OPTS(bpf_trace_opts, trace_opts);
+
+	/* There are three different ways to attach tp_btf (BTF-aware raw
+	 * tracepoint) programs. Let's test all of them.
+	 */
+	prog_fd = bpf_program__fd(skel->progs.handle_tp_btf);
+
+	/* low-level BPF_RAW_TRACEPOINT_OPEN command wrapper */
+	skel->bss->tp_btf_res = 0;
+
+	raw_tp_opts.cookie = cookie = 0x11000000000000L;
+	link_fd = bpf_raw_tracepoint_open_opts(prog_fd, &raw_tp_opts);
+	if (!ASSERT_GE(link_fd, 0, "bpf_raw_tracepoint_open_opts"))
+		goto cleanup;
+
+	usleep(1); /* trigger */
+	close(link_fd); /* detach */
+	link_fd = -1;
+
+	ASSERT_EQ(skel->bss->tp_btf_res, cookie, "raw_tp_open_res");
+
+	/* low-level generic bpf_link_create() API */
+	skel->bss->tp_btf_res = 0;
+
+	link_opts.tracing.cookie = cookie = 0x22000000000000L;
+	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_RAW_TP, &link_opts);
+	if (!ASSERT_GE(link_fd, 0, "bpf_link_create"))
+		goto cleanup;
+
+	usleep(1); /* trigger */
+	close(link_fd); /* detach */
+	link_fd = -1;
+
+	ASSERT_EQ(skel->bss->tp_btf_res, cookie, "link_create_res");
+
+	/* high-level bpf_link-based bpf_program__attach_trace_opts() API */
+	skel->bss->tp_btf_res = 0;
+
+	trace_opts.cookie = cookie = 0x33000000000000L;
+	link = bpf_program__attach_trace_opts(skel->progs.handle_tp_btf, &trace_opts);
+	if (!ASSERT_OK_PTR(link, "attach_trace_opts"))
+		goto cleanup;
+
+	usleep(1); /* trigger */
+	bpf_link__destroy(link); /* detach */
+	link = NULL;
+
+	ASSERT_EQ(skel->bss->tp_btf_res, cookie, "attach_trace_opts_res");
+
+cleanup:
+	if (link_fd >= 0)
+		close(link_fd);
+	bpf_link__destroy(link);
+}
+
+static void raw_tp_subtest(struct test_bpf_cookie *skel)
+{
+	__u64 cookie;
+	int prog_fd, link_fd = -1;
+	struct bpf_link *link = NULL;
+	LIBBPF_OPTS(bpf_raw_tp_opts, raw_tp_opts);
+	LIBBPF_OPTS(bpf_raw_tracepoint_opts, opts);
+
+	/* There are two different ways to attach raw_tp programs */
+	prog_fd = bpf_program__fd(skel->progs.handle_raw_tp);
+
+	/* low-level BPF_RAW_TRACEPOINT_OPEN command wrapper */
+	skel->bss->raw_tp_res = 0;
+
+	raw_tp_opts.tp_name = "sys_enter";
+	raw_tp_opts.cookie = cookie = 0x55000000000000L;
+	link_fd = bpf_raw_tracepoint_open_opts(prog_fd, &raw_tp_opts);
+	if (!ASSERT_GE(link_fd, 0, "bpf_raw_tracepoint_open_opts"))
+		goto cleanup;
+
+	usleep(1); /* trigger */
+	close(link_fd); /* detach */
+	link_fd = -1;
+
+	ASSERT_EQ(skel->bss->raw_tp_res, cookie, "raw_tp_open_res");
+
+	/* high-level bpf_link-based bpf_program__attach_raw_tracepoint_opts() API */
+	skel->bss->raw_tp_res = 0;
+
+	opts.cookie = cookie = 0x66000000000000L;
+	link = bpf_program__attach_raw_tracepoint_opts(skel->progs.handle_raw_tp,
+						       "sys_enter", &opts);
+	if (!ASSERT_OK_PTR(link, "attach_raw_tp_opts"))
+		goto cleanup;
+
+	usleep(1); /* trigger */
+	bpf_link__destroy(link); /* detach */
+	link = NULL;
+
+	ASSERT_EQ(skel->bss->raw_tp_res, cookie, "attach_raw_tp_opts_res");
+
+cleanup:
+	if (link_fd >= 0)
+		close(link_fd);
+	bpf_link__destroy(link);
+}
+
 void test_bpf_cookie(void)
 {
 	struct test_bpf_cookie *skel;
@@ -601,6 +710,9 @@ void test_bpf_cookie(void)
 		tracing_subtest(skel);
 	if (test__start_subtest("lsm"))
 		lsm_subtest(skel);
-
+	if (test__start_subtest("tp_btf"))
+		tp_btf_subtest(skel);
+	if (test__start_subtest("raw_tp"))
+		raw_tp_subtest(skel);
 	test_bpf_cookie__destroy(skel);
 }

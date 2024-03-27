@@ -14544,7 +14544,19 @@ static void regs_refine_cond_op(struct bpf_reg_state *reg1, struct bpf_reg_state
 	struct tnum t;
 	u64 val;
 
-again:
+	/* In case of GE/GT/SGE/JST, reuse LE/LT/SLE/SLT logic from below */
+	switch (opcode) {
+	case BPF_JGE:
+	case BPF_JGT:
+	case BPF_JSGE:
+	case BPF_JSGT:
+		opcode = flip_opcode(opcode);
+		swap(reg1, reg2);
+		break;
+	default:
+		break;
+	}
+
 	switch (opcode) {
 	case BPF_JEQ:
 		if (is_jmp32) {
@@ -14687,14 +14699,6 @@ again:
 			reg2->smin_value = max(reg1->smin_value + 1, reg2->smin_value);
 		}
 		break;
-	case BPF_JGE:
-	case BPF_JGT:
-	case BPF_JSGE:
-	case BPF_JSGT:
-		/* just reuse LE/LT logic above */
-		opcode = flip_opcode(opcode);
-		swap(reg1, reg2);
-		goto again;
 	default:
 		return;
 	}
@@ -19158,6 +19162,7 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		if (bpf_prog_calc_tag(func[i]))
 			goto out_free;
 		func[i]->is_func = 1;
+		func[i]->sleepable = prog->sleepable;
 		func[i]->aux->func_idx = i;
 		/* Below members will be freed only at prog->aux */
 		func[i]->aux->btf = prog->aux->btf;
@@ -19262,9 +19267,13 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 	 * bpf_prog_load will add the kallsyms for the main program.
 	 */
 	for (i = 1; i < env->subprog_cnt; i++) {
-		bpf_prog_lock_ro(func[i]);
-		bpf_prog_kallsyms_add(func[i]);
+		err = bpf_prog_lock_ro(func[i]);
+		if (err)
+			goto out_free;
 	}
+
+	for (i = 1; i < env->subprog_cnt; i++)
+		bpf_prog_kallsyms_add(func[i]);
 
 	/* Last step: make now unused interpreter insns from main
 	 * prog consistent for later dump requests, so they can

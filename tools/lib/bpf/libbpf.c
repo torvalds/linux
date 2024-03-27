@@ -1132,8 +1132,26 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 		const char *mname;
 
 		mname = btf__name_by_offset(btf, member->name_off);
+		moff = member->offset / 8;
+		mdata = data + moff;
+		msize = btf__resolve_size(btf, member->type);
+		if (msize < 0) {
+			pr_warn("struct_ops init_kern %s: failed to resolve the size of member %s\n",
+				map->name, mname);
+			return msize;
+		}
+
 		kern_member = find_member_by_name(kern_btf, kern_type, mname);
 		if (!kern_member) {
+			/* Skip all zeros or null fields if they are not
+			 * presented in the kernel BTF.
+			 */
+			if (libbpf_is_mem_zeroed(mdata, msize)) {
+				pr_info("struct_ops %s: member %s not found in kernel, skipping it as it's set to zero\n",
+					map->name, mname);
+				continue;
+			}
+
 			pr_warn("struct_ops init_kern %s: Cannot find member %s in kernel BTF\n",
 				map->name, mname);
 			return -ENOTSUP;
@@ -1147,10 +1165,7 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 			return -ENOTSUP;
 		}
 
-		moff = member->offset / 8;
 		kern_moff = kern_member->offset / 8;
-
-		mdata = data + moff;
 		kern_mdata = kern_data + kern_moff;
 
 		mtype = skip_mods_and_typedefs(btf, member->type, &mtype_id);
@@ -1230,9 +1245,8 @@ static int bpf_map__init_kern_struct_ops(struct bpf_map *map)
 			continue;
 		}
 
-		msize = btf__resolve_size(btf, mtype_id);
 		kern_msize = btf__resolve_size(kern_btf, kern_mtype_id);
-		if (msize < 0 || kern_msize < 0 || msize != kern_msize) {
+		if (kern_msize < 0 || msize != kern_msize) {
 			pr_warn("struct_ops init_kern %s: Error in size of member %s: %zd != %zd(kernel)\n",
 				map->name, mname, (ssize_t)msize,
 				(ssize_t)kern_msize);
@@ -7317,9 +7331,9 @@ static int bpf_object_load_prog(struct bpf_object *obj, struct bpf_program *prog
 	char *cp, errmsg[STRERR_BUFSIZE];
 	size_t log_buf_size = 0;
 	char *log_buf = NULL, *tmp;
-	int btf_fd, ret, err;
 	bool own_log_buf = true;
 	__u32 log_level = prog->log_level;
+	int ret, err;
 
 	if (prog->type == BPF_PROG_TYPE_UNSPEC) {
 		/*
@@ -7343,9 +7357,8 @@ static int bpf_object_load_prog(struct bpf_object *obj, struct bpf_program *prog
 	load_attr.prog_ifindex = prog->prog_ifindex;
 
 	/* specify func_info/line_info only if kernel supports them */
-	btf_fd = btf__fd(obj->btf);
-	if (btf_fd >= 0 && kernel_supports(obj, FEAT_BTF_FUNC)) {
-		load_attr.prog_btf_fd = btf_fd;
+	if (obj->btf && btf__fd(obj->btf) >= 0 && kernel_supports(obj, FEAT_BTF_FUNC)) {
+		load_attr.prog_btf_fd = btf__fd(obj->btf);
 		load_attr.func_info = prog->func_info;
 		load_attr.func_info_rec_size = prog->func_info_rec_size;
 		load_attr.func_info_cnt = prog->func_info_cnt;
@@ -8559,6 +8572,11 @@ int bpf_map__pin(struct bpf_map *map, const char *path)
 		return libbpf_err(-EINVAL);
 	}
 
+	if (map->fd < 0) {
+		pr_warn("map '%s': can't pin BPF map without FD (was it created?)\n", map->name);
+		return libbpf_err(-EINVAL);
+	}
+
 	if (map->pin_path) {
 		if (path && strcmp(path, map->pin_path)) {
 			pr_warn("map '%s' already has pin path '%s' different from '%s'\n",
@@ -9294,6 +9312,7 @@ static const struct bpf_sec_def section_defs[] = {
 	SEC_DEF("sockops",		SOCK_OPS, BPF_CGROUP_SOCK_OPS, SEC_ATTACHABLE_OPT),
 	SEC_DEF("sk_skb/stream_parser",	SK_SKB, BPF_SK_SKB_STREAM_PARSER, SEC_ATTACHABLE_OPT),
 	SEC_DEF("sk_skb/stream_verdict",SK_SKB, BPF_SK_SKB_STREAM_VERDICT, SEC_ATTACHABLE_OPT),
+	SEC_DEF("sk_skb/verdict",	SK_SKB, BPF_SK_SKB_VERDICT, SEC_ATTACHABLE_OPT),
 	SEC_DEF("sk_skb",		SK_SKB, 0, SEC_NONE),
 	SEC_DEF("sk_msg",		SK_MSG, BPF_SK_MSG_VERDICT, SEC_ATTACHABLE_OPT),
 	SEC_DEF("lirc_mode2",		LIRC_MODE2, BPF_LIRC_MODE2, SEC_ATTACHABLE_OPT),
@@ -10303,6 +10322,11 @@ static int validate_map_op(const struct bpf_map *map, size_t key_sz,
 		return -EINVAL;
 	}
 
+	if (map->fd < 0) {
+		pr_warn("map '%s': can't use BPF map without FD (was it created?)\n", map->name);
+		return -EINVAL;
+	}
+
 	if (!check_value_sz)
 		return 0;
 
@@ -10415,8 +10439,15 @@ long libbpf_get_error(const void *ptr)
 int bpf_link__update_program(struct bpf_link *link, struct bpf_program *prog)
 {
 	int ret;
+	int prog_fd = bpf_program__fd(prog);
 
-	ret = bpf_link_update(bpf_link__fd(link), bpf_program__fd(prog), NULL);
+	if (prog_fd < 0) {
+		pr_warn("prog '%s': can't use BPF program without FD (was it loaded?)\n",
+			prog->name);
+		return libbpf_err(-EINVAL);
+	}
+
+	ret = bpf_link_update(bpf_link__fd(link), prog_fd, NULL);
 	return libbpf_err_errno(ret);
 }
 
@@ -10610,7 +10641,7 @@ struct bpf_link *bpf_program__attach_perf_event_opts(const struct bpf_program *p
 	}
 	prog_fd = bpf_program__fd(prog);
 	if (prog_fd < 0) {
-		pr_warn("prog '%s': can't attach BPF program w/o FD (did you load it?)\n",
+		pr_warn("prog '%s': can't attach BPF program without FD (was it loaded?)\n",
 			prog->name);
 		return libbpf_err_ptr(-EINVAL);
 	}
@@ -11334,6 +11365,13 @@ bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 	if (!OPTS_VALID(opts, bpf_kprobe_multi_opts))
 		return libbpf_err_ptr(-EINVAL);
 
+	prog_fd = bpf_program__fd(prog);
+	if (prog_fd < 0) {
+		pr_warn("prog '%s': can't attach BPF program without FD (was it loaded?)\n",
+			prog->name);
+		return libbpf_err_ptr(-EINVAL);
+	}
+
 	syms    = OPTS_GET(opts, syms, false);
 	addrs   = OPTS_GET(opts, addrs, false);
 	cnt     = OPTS_GET(opts, cnt, false);
@@ -11374,7 +11412,6 @@ bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 	}
 	link->detach = &bpf_link__detach_fd;
 
-	prog_fd = bpf_program__fd(prog);
 	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_KPROBE_MULTI, &lopts);
 	if (link_fd < 0) {
 		err = -errno;
@@ -11757,6 +11794,13 @@ bpf_program__attach_uprobe_multi(const struct bpf_program *prog,
 	if (!OPTS_VALID(opts, bpf_uprobe_multi_opts))
 		return libbpf_err_ptr(-EINVAL);
 
+	prog_fd = bpf_program__fd(prog);
+	if (prog_fd < 0) {
+		pr_warn("prog '%s': can't attach BPF program without FD (was it loaded?)\n",
+			prog->name);
+		return libbpf_err_ptr(-EINVAL);
+	}
+
 	syms = OPTS_GET(opts, syms, NULL);
 	offsets = OPTS_GET(opts, offsets, NULL);
 	ref_ctr_offsets = OPTS_GET(opts, ref_ctr_offsets, NULL);
@@ -11832,7 +11876,6 @@ bpf_program__attach_uprobe_multi(const struct bpf_program *prog,
 	}
 	link->detach = &bpf_link__detach_fd;
 
-	prog_fd = bpf_program__fd(prog);
 	link_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_UPROBE_MULTI, &lopts);
 	if (link_fd < 0) {
 		err = -errno;
@@ -12076,7 +12119,7 @@ struct bpf_link *bpf_program__attach_usdt(const struct bpf_program *prog,
 		return libbpf_err_ptr(-EINVAL);
 
 	if (bpf_program__fd(prog) < 0) {
-		pr_warn("prog '%s': can't attach BPF program w/o FD (did you load it?)\n",
+		pr_warn("prog '%s': can't attach BPF program without FD (was it loaded?)\n",
 			prog->name);
 		return libbpf_err_ptr(-EINVAL);
 	}
@@ -12267,12 +12310,18 @@ static int attach_tp(const struct bpf_program *prog, long cookie, struct bpf_lin
 	return libbpf_get_error(*link);
 }
 
-struct bpf_link *bpf_program__attach_raw_tracepoint(const struct bpf_program *prog,
-						    const char *tp_name)
+struct bpf_link *
+bpf_program__attach_raw_tracepoint_opts(const struct bpf_program *prog,
+					const char *tp_name,
+					struct bpf_raw_tracepoint_opts *opts)
 {
+	LIBBPF_OPTS(bpf_raw_tp_opts, raw_opts);
 	char errmsg[STRERR_BUFSIZE];
 	struct bpf_link *link;
 	int prog_fd, pfd;
+
+	if (!OPTS_VALID(opts, bpf_raw_tracepoint_opts))
+		return libbpf_err_ptr(-EINVAL);
 
 	prog_fd = bpf_program__fd(prog);
 	if (prog_fd < 0) {
@@ -12285,7 +12334,9 @@ struct bpf_link *bpf_program__attach_raw_tracepoint(const struct bpf_program *pr
 		return libbpf_err_ptr(-ENOMEM);
 	link->detach = &bpf_link__detach_fd;
 
-	pfd = bpf_raw_tracepoint_open(tp_name, prog_fd);
+	raw_opts.tp_name = tp_name;
+	raw_opts.cookie = OPTS_GET(opts, cookie, 0);
+	pfd = bpf_raw_tracepoint_open_opts(prog_fd, &raw_opts);
 	if (pfd < 0) {
 		pfd = -errno;
 		free(link);
@@ -12295,6 +12346,12 @@ struct bpf_link *bpf_program__attach_raw_tracepoint(const struct bpf_program *pr
 	}
 	link->fd = pfd;
 	return link;
+}
+
+struct bpf_link *bpf_program__attach_raw_tracepoint(const struct bpf_program *prog,
+						    const char *tp_name)
+{
+	return bpf_program__attach_raw_tracepoint_opts(prog, tp_name, NULL);
 }
 
 static int attach_raw_tp(const struct bpf_program *prog, long cookie, struct bpf_link **link)
@@ -12658,6 +12715,12 @@ struct bpf_link *bpf_program__attach(const struct bpf_program *prog)
 	if (!prog->sec_def || !prog->sec_def->prog_attach_fn)
 		return libbpf_err_ptr(-EOPNOTSUPP);
 
+	if (bpf_program__fd(prog) < 0) {
+		pr_warn("prog '%s': can't attach BPF program without FD (was it loaded?)\n",
+			prog->name);
+		return libbpf_err_ptr(-EINVAL);
+	}
+
 	err = prog->sec_def->prog_attach_fn(prog, prog->sec_def->cookie, &link);
 	if (err)
 		return libbpf_err_ptr(err);
@@ -12698,8 +12761,13 @@ struct bpf_link *bpf_map__attach_struct_ops(const struct bpf_map *map)
 	__u32 zero = 0;
 	int err, fd;
 
-	if (!bpf_map__is_struct_ops(map) || map->fd == -1)
+	if (!bpf_map__is_struct_ops(map))
 		return libbpf_err_ptr(-EINVAL);
+
+	if (map->fd < 0) {
+		pr_warn("map '%s': can't attach BPF map without FD (was it created?)\n", map->name);
+		return libbpf_err_ptr(-EINVAL);
+	}
 
 	link = calloc(1, sizeof(*link));
 	if (!link)
@@ -12747,8 +12815,13 @@ int bpf_link__update_map(struct bpf_link *link, const struct bpf_map *map)
 	__u32 zero = 0;
 	int err;
 
-	if (!bpf_map__is_struct_ops(map) || !map_is_created(map))
+	if (!bpf_map__is_struct_ops(map))
 		return -EINVAL;
+
+	if (map->fd < 0) {
+		pr_warn("map '%s': can't use BPF map without FD (was it created?)\n", map->name);
+		return -EINVAL;
+	}
 
 	st_ops_link = container_of(link, struct bpf_link_struct_ops, link);
 	/* Ensure the type of a link is correct */

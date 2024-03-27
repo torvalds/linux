@@ -89,7 +89,7 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 
 	WRITE_ONCE(stop, 0);
 
-	lfd = socket(AF_INET6, SOCK_STREAM, 0);
+	lfd = start_server(AF_INET6, SOCK_STREAM, NULL, 0, 0);
 	if (!ASSERT_NEQ(lfd, -1, "socket"))
 		return;
 
@@ -103,19 +103,8 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 	    settimeo(lfd, 0) || settimeo(fd, 0))
 		goto done;
 
-	/* bind, listen and start server thread to accept */
-	sa6.sin6_family = AF_INET6;
-	sa6.sin6_addr = in6addr_loopback;
-	err = bind(lfd, (struct sockaddr *)&sa6, addrlen);
-	if (!ASSERT_NEQ(err, -1, "bind"))
-		goto done;
-
 	err = getsockname(lfd, (struct sockaddr *)&sa6, &addrlen);
 	if (!ASSERT_NEQ(err, -1, "getsockname"))
-		goto done;
-
-	err = listen(lfd, 1);
-	if (!ASSERT_NEQ(err, -1, "listen"))
 		goto done;
 
 	if (sk_stg_map) {

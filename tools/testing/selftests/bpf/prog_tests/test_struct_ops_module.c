@@ -93,9 +93,56 @@ cleanup:
 	struct_ops_module__destroy(skel);
 }
 
+static void test_struct_ops_not_zeroed(void)
+{
+	struct struct_ops_module *skel;
+	int err;
+
+	/* zeroed is 0, and zeroed_op is null */
+	skel = struct_ops_module__open();
+	if (!ASSERT_OK_PTR(skel, "struct_ops_module_open"))
+		return;
+
+	err = struct_ops_module__load(skel);
+	ASSERT_OK(err, "struct_ops_module_load");
+
+	struct_ops_module__destroy(skel);
+
+	/* zeroed is not 0 */
+	skel = struct_ops_module__open();
+	if (!ASSERT_OK_PTR(skel, "struct_ops_module_open_not_zeroed"))
+		return;
+
+	/* libbpf should reject the testmod_zeroed since struct
+	 * bpf_testmod_ops in the kernel has no "zeroed" field and the
+	 * value of "zeroed" is non-zero.
+	 */
+	skel->struct_ops.testmod_zeroed->zeroed = 0xdeadbeef;
+	err = struct_ops_module__load(skel);
+	ASSERT_ERR(err, "struct_ops_module_load_not_zeroed");
+
+	struct_ops_module__destroy(skel);
+
+	/* zeroed_op is not null */
+	skel = struct_ops_module__open();
+	if (!ASSERT_OK_PTR(skel, "struct_ops_module_open_not_zeroed_op"))
+		return;
+
+	/* libbpf should reject the testmod_zeroed since the value of its
+	 * "zeroed_op" is not null.
+	 */
+	skel->struct_ops.testmod_zeroed->zeroed_op = skel->progs.test_3;
+	err = struct_ops_module__load(skel);
+	ASSERT_ERR(err, "struct_ops_module_load_not_zeroed_op");
+
+	struct_ops_module__destroy(skel);
+}
+
 void serial_test_struct_ops_module(void)
 {
 	if (test__start_subtest("test_struct_ops_load"))
 		test_struct_ops_load();
+	if (test__start_subtest("test_struct_ops_not_zeroed"))
+		test_struct_ops_not_zeroed();
 }
 

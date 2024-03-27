@@ -1131,7 +1131,8 @@ static void gen_st_ops_shadow_init(struct btf *btf, struct bpf_object *obj)
 			continue;
 		codegen("\
 			\n\
-				obj->struct_ops.%1$s = bpf_map__initial_value(obj->maps.%1$s, NULL);\n\
+				obj->struct_ops.%1$s = (typeof(obj->struct_ops.%1$s))\n\
+					bpf_map__initial_value(obj->maps.%1$s, NULL);\n\
 			\n\
 			", ident);
 	}

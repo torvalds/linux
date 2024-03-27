@@ -15,6 +15,8 @@ __u64 uprobe_res;
 __u64 uretprobe_res;
 __u64 tp_res;
 __u64 pe_res;
+__u64 raw_tp_res;
+__u64 tp_btf_res;
 __u64 fentry_res;
 __u64 fexit_res;
 __u64 fmod_ret_res;
@@ -84,6 +86,20 @@ SEC("perf_event")
 int handle_pe(struct pt_regs *ctx)
 {
 	update(ctx, &pe_res);
+	return 0;
+}
+
+SEC("raw_tp/sys_enter")
+int handle_raw_tp(void *ctx)
+{
+	update(ctx, &raw_tp_res);
+	return 0;
+}
+
+SEC("tp_btf/sys_enter")
+int handle_tp_btf(void *ctx)
+{
+	update(ctx, &tp_btf_res);
 	return 0;
 }
 
