@@ -570,6 +570,9 @@ is_downstream_to_pci_bridge(struct device *dev, struct device *bridge)
 {
 	struct pci_dev *pdev, *pbridge;
 
+	if (!dev)
+		return false
+
 	if (!dev_is_pci(dev) || !dev_is_pci(bridge))
 		return false;
 
