@@ -39,6 +39,20 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	dp-connector {
+		compatible = "dp-connector";
+		label = "DP";
+		type = "mini";
+
+		hpd-gpios = <&tlmm 60 GPIO_ACTIVE_HIGH>;
+
+		port {
+			dp_connector_in: endpoint {
+				remote-endpoint = <&mdss_edp_out>;
+			};
+		};
+	};
+
 	reserved-memory {
 		xbl_mem: xbl@80700000 {
 			reg = <0x0 0x80700000 0x0 0x100000>;
@@ -471,6 +485,25 @@
 			   <GCC_WPSS_RSCP_CLK>;
 };
 
+&mdss {
+	status = "okay";
+};
+
+&mdss_edp {
+	status = "okay";
+};
+
+&mdss_edp_out {
+	data-lanes = <0 1 2 3>;
+	link-frequencies = /bits/ 64 <1620000000 2700000000 5400000000 8100000000>;
+
+	remote-endpoint = <&dp_connector_in>;
+};
+
+&mdss_edp_phy {
+	status = "okay";
+};
+
 &qupv3_id_0 {
 	status = "okay";
 };
@@ -510,4 +543,11 @@
 
 &wifi {
 	memory-region = <&wlan_fw_mem>;
+};
+
+/* PINCTRL - ADDITIONS TO NODES IN PARENT DEVICE TREE FILES */
+
+&edp_hot_plug_det {
+	function = "gpio";
+	bias-disable;
 };
