@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * quickstart.c - ACPI Direct App Launch driver
+ * ACPI Direct App Launch driver
  *
  * Copyright (C) 2024 Armin Wolf <W_Armin@gmx.de>
  * Copyright (C) 2022 Arvid Norlander <lkml@vorapal.se>
@@ -10,15 +10,18 @@
  * <https://archive.org/details/microsoft-acpi-dirapplaunch>
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
-
 #include <linux/acpi.h>
+#include <linux/device.h>
+#include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
-#include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/pm_wakeup.h>
+#include <linux/printk.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
 
@@ -165,7 +168,8 @@ static int quickstart_probe(struct platform_device *pdev)
 	data->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, data);
 
-	/* We have to initialize the device wakeup before evaluating GHID because
+	/*
+	 * We have to initialize the device wakeup before evaluating GHID because
 	 * doing so will notify the device if the button was used to wake the machine
 	 * from S5.
 	 */
@@ -202,7 +206,7 @@ static int quickstart_probe(struct platform_device *pdev)
 }
 
 static const struct acpi_device_id quickstart_device_ids[] = {
-	{ "PNP0C32", 0 },
+	{ "PNP0C32" },
 	{ }
 };
 MODULE_DEVICE_TABLE(acpi, quickstart_device_ids);
