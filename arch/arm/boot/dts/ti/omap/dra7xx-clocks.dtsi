@@ -975,12 +975,21 @@
 		ti,index-starts-at-one;
 	};
 
-	abe_dpll_sys_clk_mux: clock-abe-dpll-sys-clk-mux@118 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "abe_dpll_sys_clk_mux";
-		clocks = <&sys_clkin1>, <&sys_clkin2>;
-		reg = <0x0118>;
+	/* CM_CLKSEL_ABE_PLL_SYS */
+	clock@118 {
+		compatible = "ti,clksel";
+		reg = <0x118>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		abe_dpll_sys_clk_mux: clock@0 {
+			reg = <0>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "abe_dpll_sys_clk_mux";
+			clocks = <&sys_clkin1>, <&sys_clkin2>;
+			#clock-cells = <0>;
+		};
 	};
 
 	abe_dpll_bypass_clk_mux: clock-abe-dpll-bypass-clk-mux@114 {
