@@ -1112,7 +1112,6 @@ MODULE_DEVICE_TABLE(spi, encx24j600_spi_id_table);
 static struct spi_driver encx24j600_spi_net_driver = {
 	.driver = {
 		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
 		.bus	= &spi_bus_type,
 	},
 	.probe		= encx24j600_spi_probe,
