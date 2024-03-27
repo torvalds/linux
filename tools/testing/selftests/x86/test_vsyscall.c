@@ -21,6 +21,7 @@
 #include <sys/uio.h>
 
 #include "helpers.h"
+#include "../kselftest.h"
 
 #ifdef __x86_64__
 # define VSYS(x) (x)
@@ -38,18 +39,6 @@
 
 /* max length of lines in /proc/self/maps - anything longer is skipped here */
 #define MAPS_LINE_LEN 128
-
-static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
-		       int flags)
-{
-	struct sigaction sa;
-	memset(&sa, 0, sizeof(sa));
-	sa.sa_sigaction = handler;
-	sa.sa_flags = SA_SIGINFO | flags;
-	sigemptyset(&sa.sa_mask);
-	if (sigaction(sig, &sa, 0))
-		err(1, "sigaction");
-}
 
 /* vsyscalls and vDSO */
 bool vsyscall_map_r = false, vsyscall_map_x = false;
@@ -96,64 +85,6 @@ static void init_vdso(void)
 		printf("[WARN]\tfailed to find getcpu in vDSO\n");
 }
 
-static int init_vsys(void)
-{
-#ifdef __x86_64__
-	int nerrs = 0;
-	FILE *maps;
-	char line[MAPS_LINE_LEN];
-	bool found = false;
-
-	maps = fopen("/proc/self/maps", "r");
-	if (!maps) {
-		printf("[WARN]\tCould not open /proc/self/maps -- assuming vsyscall is r-x\n");
-		vsyscall_map_r = true;
-		return 0;
-	}
-
-	while (fgets(line, MAPS_LINE_LEN, maps)) {
-		char r, x;
-		void *start, *end;
-		char name[MAPS_LINE_LEN];
-
-		/* sscanf() is safe here as strlen(name) >= strlen(line) */
-		if (sscanf(line, "%p-%p %c-%cp %*x %*x:%*x %*u %s",
-			   &start, &end, &r, &x, name) != 5)
-			continue;
-
-		if (strcmp(name, "[vsyscall]"))
-			continue;
-
-		printf("\tvsyscall map: %s", line);
-
-		if (start != (void *)0xffffffffff600000 ||
-		    end != (void *)0xffffffffff601000) {
-			printf("[FAIL]\taddress range is nonsense\n");
-			nerrs++;
-		}
-
-		printf("\tvsyscall permissions are %c-%c\n", r, x);
-		vsyscall_map_r = (r == 'r');
-		vsyscall_map_x = (x == 'x');
-
-		found = true;
-		break;
-	}
-
-	fclose(maps);
-
-	if (!found) {
-		printf("\tno vsyscall map in /proc/self/maps\n");
-		vsyscall_map_r = false;
-		vsyscall_map_x = false;
-	}
-
-	return nerrs;
-#else
-	return 0;
-#endif
-}
-
 /* syscalls */
 static inline long sys_gtod(struct timeval *tv, struct timezone *tz)
 {
@@ -174,17 +105,6 @@ static inline long sys_getcpu(unsigned * cpu, unsigned * node,
 			      void* cache)
 {
 	return syscall(SYS_getcpu, cpu, node, cache);
-}
-
-static jmp_buf jmpbuf;
-static volatile unsigned long segv_err;
-
-static void sigsegv(int sig, siginfo_t *info, void *ctx_void)
-{
-	ucontext_t *ctx = (ucontext_t *)ctx_void;
-
-	segv_err =  ctx->uc_mcontext.gregs[REG_ERR];
-	siglongjmp(jmpbuf, 1);
 }
 
 static double tv_diff(const struct timeval *a, const struct timeval *b)
@@ -396,9 +316,33 @@ static int test_getcpu(int cpu)
 	return nerrs;
 }
 
+#ifdef __x86_64__
+
+static jmp_buf jmpbuf;
+static volatile unsigned long segv_err;
+
+static void sethandler(int sig, void (*handler)(int, siginfo_t *, void *),
+		       int flags)
+{
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_sigaction = handler;
+	sa.sa_flags = SA_SIGINFO | flags;
+	sigemptyset(&sa.sa_mask);
+	if (sigaction(sig, &sa, 0))
+		err(1, "sigaction");
+}
+
+static void sigsegv(int sig, siginfo_t *info, void *ctx_void)
+{
+	ucontext_t *ctx = (ucontext_t *)ctx_void;
+
+	segv_err =  ctx->uc_mcontext.gregs[REG_ERR];
+	siglongjmp(jmpbuf, 1);
+}
+
 static int test_vsys_r(void)
 {
-#ifdef __x86_64__
 	printf("[RUN]\tChecking read access to the vsyscall page\n");
 	bool can_read;
 	if (sigsetjmp(jmpbuf, 1) == 0) {
@@ -420,14 +364,12 @@ static int test_vsys_r(void)
 		printf("[OK]\tWe do not have read access: #PF(0x%lx)\n",
 		       segv_err);
 	}
-#endif
 
 	return 0;
 }
 
 static int test_vsys_x(void)
 {
-#ifdef __x86_64__
 	if (vsyscall_map_x) {
 		/* We already tested this adequately. */
 		return 0;
@@ -454,8 +396,6 @@ static int test_vsys_x(void)
 		       segv_err);
 		return 1;
 	}
-#endif
-
 	return 0;
 }
 
@@ -472,7 +412,6 @@ static int test_vsys_x(void)
  */
 static int test_process_vm_readv(void)
 {
-#ifdef __x86_64__
 	char buf[4096];
 	struct iovec local, remote;
 	int ret;
@@ -504,12 +443,63 @@ static int test_process_vm_readv(void)
 		printf("[FAIL]\tprocess_rm_readv() succeeded, but it should have failed in this configuration\n");
 		return 1;
 	}
-#endif
-
 	return 0;
 }
 
-#ifdef __x86_64__
+static int init_vsys(void)
+{
+	int nerrs = 0;
+	FILE *maps;
+	char line[MAPS_LINE_LEN];
+	bool found = false;
+
+	maps = fopen("/proc/self/maps", "r");
+	if (!maps) {
+		printf("[WARN]\tCould not open /proc/self/maps -- assuming vsyscall is r-x\n");
+		vsyscall_map_r = true;
+		return 0;
+	}
+
+	while (fgets(line, MAPS_LINE_LEN, maps)) {
+		char r, x;
+		void *start, *end;
+		char name[MAPS_LINE_LEN];
+
+		/* sscanf() is safe here as strlen(name) >= strlen(line) */
+		if (sscanf(line, "%p-%p %c-%cp %*x %*x:%*x %*u %s",
+			   &start, &end, &r, &x, name) != 5)
+			continue;
+
+		if (strcmp(name, "[vsyscall]"))
+			continue;
+
+		printf("\tvsyscall map: %s", line);
+
+		if (start != (void *)0xffffffffff600000 ||
+		    end != (void *)0xffffffffff601000) {
+			printf("[FAIL]\taddress range is nonsense\n");
+			nerrs++;
+		}
+
+		printf("\tvsyscall permissions are %c-%c\n", r, x);
+		vsyscall_map_r = (r == 'r');
+		vsyscall_map_x = (x == 'x');
+
+		found = true;
+		break;
+	}
+
+	fclose(maps);
+
+	if (!found) {
+		printf("\tno vsyscall map in /proc/self/maps\n");
+		vsyscall_map_r = false;
+		vsyscall_map_x = false;
+	}
+
+	return nerrs;
+}
+
 static volatile sig_atomic_t num_vsyscall_traps;
 
 static void sigtrap(int sig, siginfo_t *info, void *ctx_void)
@@ -559,20 +549,20 @@ int main(int argc, char **argv)
 	int nerrs = 0;
 
 	init_vdso();
+#ifdef __x86_64__
 	nerrs += init_vsys();
+#endif
 
 	nerrs += test_gtod();
 	nerrs += test_time();
 	nerrs += test_getcpu(0);
 	nerrs += test_getcpu(1);
 
+#ifdef __x86_64__
 	sethandler(SIGSEGV, sigsegv, 0);
 	nerrs += test_vsys_r();
 	nerrs += test_vsys_x();
-
 	nerrs += test_process_vm_readv();
-
-#ifdef __x86_64__
 	nerrs += test_emulation();
 #endif
 
