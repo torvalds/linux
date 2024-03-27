@@ -894,15 +894,23 @@
 		clock-div = <1>;
 	};
 
-	l3_iclk_div: clock-l3-iclk-div-4@100 {
-		#clock-cells = <0>;
-		compatible = "ti,divider-clock";
-		clock-output-names = "l3_iclk_div";
-		ti,max-div = <2>;
-		ti,bit-shift = <4>;
-		reg = <0x0100>;
-		clocks = <&dpll_core_h12x2_ck>;
-		ti,index-power-of-two;
+	/* CM_CLKSEL_CORE */
+	clock@100 {
+		compatible = "ti,clksel";
+		reg = <0x100>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		l3_iclk_div: clock@4 {
+			reg = <4>;
+			compatible = "ti,divider-clock";
+			clock-output-names = "l3_iclk_div";
+			ti,max-div = <2>;
+			clocks = <&dpll_core_h12x2_ck>;
+			ti,index-power-of-two;
+			#clock-cells = <0>;
+		};
 	};
 
 	l4_root_clk_div: clock-l4-root-clk-div {
