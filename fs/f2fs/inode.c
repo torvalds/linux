@@ -161,7 +161,8 @@ bool f2fs_inode_chksum_verify(struct f2fs_sb_info *sbi, struct page *page)
 	if (!f2fs_enable_inode_chksum(sbi, page))
 #else
 	if (!f2fs_enable_inode_chksum(sbi, page) ||
-			PageDirty(page) || PageWriteback(page))
+			PageDirty(page) ||
+			folio_test_writeback(page_folio(page)))
 #endif
 		return true;
 

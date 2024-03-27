@@ -1484,7 +1484,7 @@ continue_unlock:
 		if (!PageDirty(cc->rpages[i]))
 			goto continue_unlock;
 
-		if (PageWriteback(cc->rpages[i])) {
+		if (folio_test_writeback(page_folio(cc->rpages[i]))) {
 			if (wbc->sync_mode == WB_SYNC_NONE)
 				goto continue_unlock;
 			f2fs_wait_on_page_writeback(cc->rpages[i], DATA, true, true);

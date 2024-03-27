@@ -1434,7 +1434,7 @@ static int move_data_page(struct inode *inode, block_t bidx, int gc_type,
 		goto out;
 
 	if (gc_type == BG_GC) {
-		if (PageWriteback(page)) {
+		if (folio_test_writeback(page_folio(page))) {
 			err = -EAGAIN;
 			goto out;
 		}

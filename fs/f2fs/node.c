@@ -1743,7 +1743,7 @@ int f2fs_move_node_page(struct page *node_page, int gc_type)
 		goto release_page;
 	} else {
 		/* set page dirty and write it */
-		if (!PageWriteback(node_page))
+		if (!folio_test_writeback(page_folio(node_page)))
 			set_page_dirty(node_page);
 	}
 out_page:

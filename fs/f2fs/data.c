@@ -2704,8 +2704,7 @@ got_it:
 		if (err) {
 			if (fscrypt_inode_uses_fs_layer_crypto(inode))
 				fscrypt_finalize_bounce_page(&fio->encrypted_page);
-			if (PageWriteback(page))
-				end_page_writeback(page);
+			end_page_writeback(page);
 		} else {
 			set_inode_flag(inode, FI_UPDATE_WRITE);
 		}

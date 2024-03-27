@@ -3614,13 +3614,13 @@ skip_new_segment:
 	mutex_unlock(&curseg->curseg_mutex);
 	f2fs_up_read(&SM_I(sbi)->curseg_lock);
 	return 0;
+
 out_err:
 	*new_blkaddr = NULL_ADDR;
 	up_write(&sit_i->sentry_lock);
 	mutex_unlock(&curseg->curseg_mutex);
 	f2fs_up_read(&SM_I(sbi)->curseg_lock);
 	return ret;
-
 }
 
 void f2fs_update_device_state(struct f2fs_sb_info *sbi, nid_t ino,
@@ -3662,8 +3662,7 @@ static void do_write_page(struct f2fs_summary *sum, struct f2fs_io_info *fio)
 			&fio->new_blkaddr, sum, type, fio)) {
 		if (fscrypt_inode_uses_fs_layer_crypto(fio->page->mapping->host))
 			fscrypt_finalize_bounce_page(&fio->encrypted_page);
-		if (PageWriteback(fio->page))
-			end_page_writeback(fio->page);
+		end_page_writeback(fio->page);
 		if (f2fs_in_warm_node_list(fio->sbi, fio->page))
 			f2fs_del_fsync_node_entry(fio->sbi, fio->page);
 		goto out;
@@ -3906,7 +3905,7 @@ void f2fs_replace_block(struct f2fs_sb_info *sbi, struct dnode_of_data *dn,
 void f2fs_wait_on_page_writeback(struct page *page,
 				enum page_type type, bool ordered, bool locked)
 {
-	if (PageWriteback(page)) {
+	if (folio_test_writeback(page_folio(page))) {
 		struct f2fs_sb_info *sbi = F2FS_P_SB(page);
 
 		/* submit cached LFS IO */
@@ -3915,7 +3914,8 @@ void f2fs_wait_on_page_writeback(struct page *page,
 		f2fs_submit_merged_ipu_write(sbi, NULL, page);
 		if (ordered) {
 			wait_on_page_writeback(page);
-			f2fs_bug_on(sbi, locked && PageWriteback(page));
+			f2fs_bug_on(sbi, locked &&
+				folio_test_writeback(page_folio(page)));
 		} else {
 			wait_for_stable_page(page);
 		}

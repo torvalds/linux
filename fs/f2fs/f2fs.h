@@ -4660,7 +4660,7 @@ static inline void f2fs_truncate_meta_inode_pages(struct f2fs_sb_info *sbi,
 
 		page = find_get_page(META_MAPPING(sbi), blkaddr + i);
 		if (page) {
-			if (PageWriteback(page))
+			if (folio_test_writeback(page_folio(page)))
 				need_submit = true;
 			f2fs_put_page(page, 0);
 		}
