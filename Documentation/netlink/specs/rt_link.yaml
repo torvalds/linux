@@ -50,7 +50,16 @@ definitions:
         name: dormant
       -
         name: echo
-
+  -
+    name: vlan-protocols
+    type: enum
+    entries:
+      -
+        name: 8021q
+        value: 33024
+      -
+        name: 8021ad
+        value: 34984
   -
     name: rtgenmsg
     type: struct
@@ -729,7 +738,38 @@ definitions:
       -
         name: filter-mask
         type: u32
-
+  -
+    name: ifla-vlan-flags
+    type: struct
+    members:
+      -
+        name: flags
+        type: u32
+        enum: vlan-flags
+        enum-as-flags: true
+      -
+        name: mask
+        type: u32
+        display-hint: hex
+  -
+    name: vlan-flags
+    type: flags
+    entries:
+      - reorder-hdr
+      - gvrp
+      - loose-binding
+      - mvrp
+      - bridge-binding
+  -
+    name: ifla-vlan-qos-mapping
+    type: struct
+    members:
+      -
+        name: from
+        type: u32
+      -
+        name: to
+        type: u32
 
 attribute-sets:
   -
@@ -1508,6 +1548,39 @@ attribute-sets:
         name: num-disabled-queues
         type: u32
   -
+    name: linkinfo-vlan-attrs
+    name-prefix: ifla-vlan-
+    attributes:
+      -
+        name: id
+        type: u16
+      -
+        name: flag
+        type: binary
+        struct: ifla-vlan-flags
+      -
+        name: egress-qos
+        type: nest
+        nested-attributes: ifla-vlan-qos
+      -
+        name: ingress-qos
+        type: nest
+        nested-attributes: ifla-vlan-qos
+      -
+        name: protocol
+        type: u16
+        enum: vlan-protocols
+        byte-order: big-endian
+  -
+    name: ifla-vlan-qos
+    name-prefix: ifla-vlan-qos
+    attributes:
+      -
+        name: mapping
+        type: binary
+        multi-attr: true
+        struct: ifla-vlan-qos-mapping
+  -
     name: linkinfo-vrf-attrs
     name-prefix: ifla-vrf-
     attributes:
@@ -1666,6 +1739,9 @@ sub-messages:
       -
         value: tun
         attribute-set: linkinfo-tun-attrs
+      -
+        value: vlan
+        attribute-set: linkinfo-vlan-attrs
       -
         value: vrf
         attribute-set: linkinfo-vrf-attrs
