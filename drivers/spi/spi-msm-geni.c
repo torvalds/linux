@@ -1955,6 +1955,8 @@ dma_unprep:
 	if (spi->slave && !mas->dis_autosuspend)
 		pm_runtime_put_sync_suspend(mas->dev);
 
+	mas->is_xfer_in_progress = false;
+
 }
 
 static int spi_geni_transfer_one(struct spi_master *spi,
@@ -2124,6 +2126,7 @@ static int spi_geni_transfer_one(struct spi_master *spi,
 err_gsi_geni_transfer_one:
 	geni_spi_se_dump_dbg_regs(&mas->spi_rsc, mas->base, mas->ipc);
 	mutex_unlock(&mas->spi_ssr.ssr_lock);
+	mas->is_xfer_in_progress = false;
 	dmaengine_terminate_all(mas->tx);
 	if (mas->is_le_vm)
 		mas->le_gpi_reset_done = true;
