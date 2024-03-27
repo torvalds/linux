@@ -71,6 +71,8 @@ struct xdma_chan {
 	enum dma_transfer_direction	dir;
 	struct dma_slave_config		cfg;
 	u32				irq;
+	struct completion		last_interrupt;
+	bool				stop_requested;
 };
 
 /**
@@ -376,6 +378,8 @@ static int xdma_xfer_start(struct xdma_chan *xchan)
 		return ret;
 
 	xchan->busy = true;
+	xchan->stop_requested = false;
+	reinit_completion(&xchan->last_interrupt);
 
 	return 0;
 }
@@ -387,7 +391,6 @@ static int xdma_xfer_start(struct xdma_chan *xchan)
 static int xdma_xfer_stop(struct xdma_chan *xchan)
 {
 	int ret;
-	u32 val;
 	struct xdma_device *xdev = xchan->xdev_hdl;
 
 	/* clear run stop bit to prevent any further auto-triggering */
@@ -395,13 +398,7 @@ static int xdma_xfer_stop(struct xdma_chan *xchan)
 			   CHAN_CTRL_RUN_STOP);
 	if (ret)
 		return ret;
-
-	/* Clear the channel status register */
-	ret = regmap_read(xdev->rmap, xchan->base + XDMA_CHAN_STATUS_RC, &val);
-	if (ret)
-		return ret;
-
-	return 0;
+	return ret;
 }
 
 /**
@@ -474,6 +471,8 @@ static int xdma_alloc_channels(struct xdma_device *xdev,
 		xchan->xdev_hdl = xdev;
 		xchan->base = base + i * XDMA_CHAN_STRIDE;
 		xchan->dir = dir;
+		xchan->stop_requested = false;
+		init_completion(&xchan->last_interrupt);
 
 		ret = xdma_channel_init(xchan);
 		if (ret)
@@ -521,6 +520,7 @@ static int xdma_terminate_all(struct dma_chan *chan)
 	spin_lock_irqsave(&xdma_chan->vchan.lock, flags);
 
 	xdma_chan->busy = false;
+	xdma_chan->stop_requested = true;
 	vd = vchan_next_desc(&xdma_chan->vchan);
 	if (vd) {
 		list_del(&vd->node);
@@ -542,6 +542,13 @@ static int xdma_terminate_all(struct dma_chan *chan)
 static void xdma_synchronize(struct dma_chan *chan)
 {
 	struct xdma_chan *xdma_chan = to_xdma_chan(chan);
+	struct xdma_device *xdev = xdma_chan->xdev_hdl;
+	int st = 0;
+
+	/* If the engine continues running, wait for the last interrupt */
+	regmap_read(xdev->rmap, xdma_chan->base + XDMA_CHAN_STATUS, &st);
+	if (st & XDMA_CHAN_STATUS_BUSY)
+		wait_for_completion_timeout(&xdma_chan->last_interrupt, msecs_to_jiffies(1000));
 
 	vchan_synchronize(&xdma_chan->vchan);
 }
@@ -875,6 +882,9 @@ static irqreturn_t xdma_channel_isr(int irq, void *dev_id)
 	int ret;
 	u32 st;
 	bool repeat_tx;
+
+	if (xchan->stop_requested)
+		complete(&xchan->last_interrupt);
 
 	spin_lock(&xchan->vchan.lock);
 
