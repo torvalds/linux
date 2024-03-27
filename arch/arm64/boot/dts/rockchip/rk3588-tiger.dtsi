@@ -139,6 +139,11 @@
 	snps,reset-delays-us = <0 10000 100000>;
 };
 
+&gpu {
+	mali-supply = <&vdd_gpu_s0>;
+	status = "okay";
+};
+
 &i2c1 {
 	pinctrl-0 = <&i2c1m0_xfer>;
 };
