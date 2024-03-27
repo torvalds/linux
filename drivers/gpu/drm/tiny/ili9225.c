@@ -447,7 +447,6 @@ static void ili9225_shutdown(struct spi_device *spi)
 static struct spi_driver ili9225_spi_driver = {
 	.driver = {
 		.name = "ili9225",
-		.owner = THIS_MODULE,
 		.of_match_table = ili9225_of_match,
 	},
 	.id_table = ili9225_id,
