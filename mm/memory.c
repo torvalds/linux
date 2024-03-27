@@ -1536,7 +1536,9 @@ static inline int zap_present_ptes(struct mmu_gather *tlb,
 		ptep_get_and_clear_full(mm, addr, pte, tlb->fullmm);
 		arch_check_zapped_pte(vma, ptent);
 		tlb_remove_tlb_entry(tlb, pte, addr);
-		VM_WARN_ON_ONCE(userfaultfd_wp(vma));
+		if (userfaultfd_pte_wp(vma, ptent))
+			zap_install_uffd_wp_if_needed(vma, addr, pte, 1,
+						      details, ptent);
 		ksm_might_unmap_zero_page(mm, ptent);
 		return 1;
 	}
