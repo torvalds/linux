@@ -335,11 +335,8 @@ static const struct ip_tunnel_flags_test ip_tunnel_flags_test[] = {
 			     ip_tunnel_flags_1),
 	IP_TUNNEL_FLAGS_TEST("conflict", ip_tunnel_flags_2_src, true,
 			     VTI_ISVTI, ip_tunnel_flags_2_exp),
-	IP_TUNNEL_FLAGS_TEST("new", ip_tunnel_flags_3_src,
-			     /* This must be set to ``false`` once
-			      * ``__IP_TUNNEL_FLAG_NUM`` goes above 17.
-			      */
-			     true, cpu_to_be16(BIT(IP_TUNNEL_VXLAN_OPT_BIT)),
+	IP_TUNNEL_FLAGS_TEST("new", ip_tunnel_flags_3_src, false,
+			     cpu_to_be16(BIT(IP_TUNNEL_VXLAN_OPT_BIT)),
 			     ip_tunnel_flags_3_exp),
 };
 

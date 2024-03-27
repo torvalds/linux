@@ -212,6 +212,9 @@ enum {
 	IP_TUNNEL_VTI_BIT,
 	IP_TUNNEL_SIT_ISATAP_BIT	= IP_TUNNEL_VTI_BIT,
 
+	/* Flags starting from here are not available via the old UAPI */
+	IP_TUNNEL_PFCP_OPT_BIT,		/* OPTIONS_PRESENT */
+
 	__IP_TUNNEL_FLAG_NUM,
 };
 

@@ -216,6 +216,7 @@ static inline void ip_tunnel_set_options_present(unsigned long *flags)
 	__set_bit(IP_TUNNEL_VXLAN_OPT_BIT, present);
 	__set_bit(IP_TUNNEL_ERSPAN_OPT_BIT, present);
 	__set_bit(IP_TUNNEL_GTP_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_PFCP_OPT_BIT, present);
 
 	ip_tunnel_flags_or(flags, flags, present);
 }
@@ -228,6 +229,7 @@ static inline void ip_tunnel_clear_options_present(unsigned long *flags)
 	__set_bit(IP_TUNNEL_VXLAN_OPT_BIT, present);
 	__set_bit(IP_TUNNEL_ERSPAN_OPT_BIT, present);
 	__set_bit(IP_TUNNEL_GTP_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_PFCP_OPT_BIT, present);
 
 	__ipt_flag_op(bitmap_andnot, flags, flags, present);
 }
@@ -240,6 +242,7 @@ static inline bool ip_tunnel_is_options_present(const unsigned long *flags)
 	__set_bit(IP_TUNNEL_VXLAN_OPT_BIT, present);
 	__set_bit(IP_TUNNEL_ERSPAN_OPT_BIT, present);
 	__set_bit(IP_TUNNEL_GTP_OPT_BIT, present);
+	__set_bit(IP_TUNNEL_PFCP_OPT_BIT, present);
 
 	return ip_tunnel_flags_intersect(flags, present);
 }
