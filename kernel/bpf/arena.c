@@ -37,7 +37,7 @@
  */
 
 /* number of bytes addressable by LDX/STX insn with 16-bit 'off' field */
-#define GUARD_SZ (1ull << sizeof(((struct bpf_insn *)0)->off) * 8)
+#define GUARD_SZ (1ull << sizeof_field(struct bpf_insn, off) * 8)
 #define KERN_VM_SZ (SZ_4G + GUARD_SZ)
 
 struct bpf_arena {
