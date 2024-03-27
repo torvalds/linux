@@ -2120,7 +2120,7 @@ static bool dcn32_apply_merge_split_flags_helper(
 			struct pipe_ctx *otg_master = resource_get_otg_master_for_stream(&context->res_ctx,
 					context->streams[i]);
 
-			if (otg_master && otg_master->stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE)
+			if (otg_master)
 				resource_build_test_pattern_params(&context->res_ctx, otg_master);
 		}
 	}

@@ -2329,8 +2329,8 @@ static bool update_pipe_params_after_odm_slice_count_change(
 	if (pool->funcs->build_pipe_pix_clk_params)
 		pool->funcs->build_pipe_pix_clk_params(otg_master);
 
-	if (otg_master->stream->test_pattern.type != DP_TEST_PATTERN_VIDEO_MODE)
-		resource_build_test_pattern_params(&context->res_ctx, otg_master);
+	resource_build_test_pattern_params(&context->res_ctx, otg_master);
+
 	return result;
 }
 
