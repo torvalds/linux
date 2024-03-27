@@ -609,6 +609,8 @@ static int rockchip_pcie_ep_probe(struct platform_device *pdev)
 	rockchip_pcie_write(rockchip, PCIE_CLIENT_CONF_ENABLE,
 			    PCIE_CLIENT_CONFIG);
 
+	pci_epc_init_notify(epc);
+
 	return 0;
 err_epc_mem_exit:
 	pci_epc_mem_exit(epc);
