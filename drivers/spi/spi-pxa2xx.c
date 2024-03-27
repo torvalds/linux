@@ -1355,6 +1355,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device *parent = dev->parent;
 	enum pxa_ssp_type type = SSP_UNDEFINED;
+	struct ssp_device *ssp = NULL;
 	const void *match;
 	bool is_lpss_priv;
 	int status;
@@ -1372,6 +1373,10 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 			return ERR_PTR(status);
 
 		type = (enum pxa_ssp_type)value;
+	} else {
+		ssp = pxa_ssp_request(pdev->id, pdev->name);
+		if (ssp)
+			type = ssp->type;
 	}
 
 	/* Validate the SSP type correctness */
@@ -1393,6 +1398,10 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	pdata->num_chipselect = 1;
 	pdata->enable_dma = true;
 	pdata->dma_burst_size = 1;
+
+	/* If SSP has been already enumerated, use it */
+	if (ssp)
+		return pdata;
 
 	status = pxa2xx_spi_init_ssp(pdev, &pdata->ssp, type);
 	if (status)
