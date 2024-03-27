@@ -130,13 +130,16 @@ static int ipip_err(struct sk_buff *skb, u32 info)
 	struct net *net = dev_net(skb->dev);
 	struct ip_tunnel_net *itn = net_generic(net, ipip_net_id);
 	const struct iphdr *iph = (const struct iphdr *)skb->data;
+	IP_TUNNEL_DECLARE_FLAGS(flags) = { };
 	const int type = icmp_hdr(skb)->type;
 	const int code = icmp_hdr(skb)->code;
 	struct ip_tunnel *t;
 	int err = 0;
 
-	t = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
-			     iph->daddr, iph->saddr, 0);
+	__set_bit(IP_TUNNEL_NO_KEY_BIT, flags);
+
+	t = ip_tunnel_lookup(itn, skb->dev->ifindex, flags, iph->daddr,
+			     iph->saddr, 0);
 	if (!t) {
 		err = -ENOENT;
 		goto out;
@@ -213,13 +216,16 @@ static int ipip_tunnel_rcv(struct sk_buff *skb, u8 ipproto)
 {
 	struct net *net = dev_net(skb->dev);
 	struct ip_tunnel_net *itn = net_generic(net, ipip_net_id);
+	IP_TUNNEL_DECLARE_FLAGS(flags) = { };
 	struct metadata_dst *tun_dst = NULL;
 	struct ip_tunnel *tunnel;
 	const struct iphdr *iph;
 
+	__set_bit(IP_TUNNEL_NO_KEY_BIT, flags);
+
 	iph = ip_hdr(skb);
-	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, TUNNEL_NO_KEY,
-			iph->saddr, iph->daddr, 0);
+	tunnel = ip_tunnel_lookup(itn, skb->dev->ifindex, flags, iph->saddr,
+				  iph->daddr, 0);
 	if (tunnel) {
 		const struct tnl_ptk_info *tpi;
 
@@ -238,7 +244,9 @@ static int ipip_tunnel_rcv(struct sk_buff *skb, u8 ipproto)
 		if (iptunnel_pull_header(skb, 0, tpi->proto, false))
 			goto drop;
 		if (tunnel->collect_md) {
-			tun_dst = ip_tun_rx_dst(skb, 0, 0, 0);
+			ip_tunnel_flags_zero(flags);
+
+			tun_dst = ip_tun_rx_dst(skb, flags, 0, 0);
 			if (!tun_dst)
 				return 0;
 			ip_tunnel_md_udp_encap(skb, &tun_dst->u.tun_info);
@@ -340,7 +348,8 @@ ipip_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm_kern *p, int cmd)
 	}
 
 	p->i_key = p->o_key = 0;
-	p->i_flags = p->o_flags = 0;
+	ip_tunnel_flags_zero(p->i_flags);
+	ip_tunnel_flags_zero(p->o_flags);
 	return ip_tunnel_ctl(dev, p, cmd);
 }
 

@@ -57,16 +57,12 @@ static unsigned int ip_tunnel_hash(__be32 key, __be32 remote)
 }
 
 static bool ip_tunnel_key_match(const struct ip_tunnel_parm_kern *p,
-				__be16 flags, __be32 key)
+				const unsigned long *flags, __be32 key)
 {
-	if (p->i_flags & TUNNEL_KEY) {
-		if (flags & TUNNEL_KEY)
-			return key == p->i_key;
-		else
-			/* key expected, none present */
-			return false;
-	} else
-		return !(flags & TUNNEL_KEY);
+	if (!test_bit(IP_TUNNEL_KEY_BIT, flags))
+		return !test_bit(IP_TUNNEL_KEY_BIT, p->i_flags);
+
+	return test_bit(IP_TUNNEL_KEY_BIT, p->i_flags) && p->i_key == key;
 }
 
 /* Fallback tunnel: no source, no destination, no key, no options
@@ -81,7 +77,7 @@ static bool ip_tunnel_key_match(const struct ip_tunnel_parm_kern *p,
    Given src, dst and key, find appropriate for input tunnel.
 */
 struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
-				   int link, __be16 flags,
+				   int link, const unsigned long *flags,
 				   __be32 remote, __be32 local,
 				   __be32 key)
 {
@@ -143,7 +139,8 @@ struct ip_tunnel *ip_tunnel_lookup(struct ip_tunnel_net *itn,
 	}
 
 	hlist_for_each_entry_rcu(t, head, hash_node) {
-		if ((!(flags & TUNNEL_NO_KEY) && t->parms.i_key != key) ||
+		if ((!test_bit(IP_TUNNEL_NO_KEY_BIT, flags) &&
+		     t->parms.i_key != key) ||
 		    t->parms.iph.saddr != 0 ||
 		    t->parms.iph.daddr != 0 ||
 		    !(t->dev->flags & IFF_UP))
@@ -182,7 +179,8 @@ static struct hlist_head *ip_bucket(struct ip_tunnel_net *itn,
 	else
 		remote = 0;
 
-	if (!(parms->i_flags & TUNNEL_KEY) && (parms->i_flags & VTI_ISVTI))
+	if (!test_bit(IP_TUNNEL_KEY_BIT, parms->i_flags) &&
+	    test_bit(IP_TUNNEL_VTI_BIT, parms->i_flags))
 		i_key = 0;
 
 	h = ip_tunnel_hash(i_key, remote);
@@ -211,11 +209,13 @@ static struct ip_tunnel *ip_tunnel_find(struct ip_tunnel_net *itn,
 {
 	__be32 remote = parms->iph.daddr;
 	__be32 local = parms->iph.saddr;
+	IP_TUNNEL_DECLARE_FLAGS(flags);
 	__be32 key = parms->i_key;
-	__be16 flags = parms->i_flags;
 	int link = parms->link;
 	struct ip_tunnel *t = NULL;
 	struct hlist_head *head = ip_bucket(itn, parms);
+
+	ip_tunnel_flags_copy(flags, parms->i_flags);
 
 	hlist_for_each_entry_rcu(t, head, hash_node) {
 		if (local == t->parms.iph.saddr &&
@@ -386,15 +386,15 @@ int ip_tunnel_rcv(struct ip_tunnel *tunnel, struct sk_buff *skb,
 	}
 #endif
 
-	if ((!(tpi->flags&TUNNEL_CSUM) &&  (tunnel->parms.i_flags&TUNNEL_CSUM)) ||
-	     ((tpi->flags&TUNNEL_CSUM) && !(tunnel->parms.i_flags&TUNNEL_CSUM))) {
+	if (test_bit(IP_TUNNEL_CSUM_BIT, tunnel->parms.i_flags) !=
+	    test_bit(IP_TUNNEL_CSUM_BIT, tpi->flags)) {
 		DEV_STATS_INC(tunnel->dev, rx_crc_errors);
 		DEV_STATS_INC(tunnel->dev, rx_errors);
 		goto drop;
 	}
 
-	if (tunnel->parms.i_flags&TUNNEL_SEQ) {
-		if (!(tpi->flags&TUNNEL_SEQ) ||
+	if (test_bit(IP_TUNNEL_SEQ_BIT, tunnel->parms.i_flags)) {
+		if (!test_bit(IP_TUNNEL_SEQ_BIT, tpi->flags) ||
 		    (tunnel->i_seqno && (s32)(ntohl(tpi->seq) - tunnel->i_seqno) < 0)) {
 			DEV_STATS_INC(tunnel->dev, rx_fifo_errors);
 			DEV_STATS_INC(tunnel->dev, rx_errors);
@@ -638,7 +638,7 @@ void ip_md_tunnel_xmit(struct sk_buff *skb, struct net_device *dev,
 		goto tx_error;
 	}
 
-	if (key->tun_flags & TUNNEL_DONT_FRAGMENT)
+	if (test_bit(IP_TUNNEL_DONT_FRAGMENT_BIT, key->tun_flags))
 		df = htons(IP_DF);
 	if (tnl_update_pmtu(dev, skb, rt, df, inner_iph, tunnel_hlen,
 			    key->u.ipv4.dst, true)) {
@@ -928,10 +928,10 @@ int ip_tunnel_ctl(struct net_device *dev, struct ip_tunnel_parm_kern *p,
 			goto done;
 		if (p->iph.ttl)
 			p->iph.frag_off |= htons(IP_DF);
-		if (!(p->i_flags & VTI_ISVTI)) {
-			if (!(p->i_flags & TUNNEL_KEY))
+		if (!test_bit(IP_TUNNEL_VTI_BIT, p->i_flags)) {
+			if (!test_bit(IP_TUNNEL_KEY_BIT, p->i_flags))
 				p->i_key = 0;
-			if (!(p->o_flags & TUNNEL_KEY))
+			if (!test_bit(IP_TUNNEL_KEY_BIT, p->o_flags))
 				p->o_key = 0;
 		}
 
@@ -1016,8 +1016,8 @@ bool ip_tunnel_parm_from_user(struct ip_tunnel_parm_kern *kp,
 
 	strscpy(kp->name, p.name);
 	kp->link = p.link;
-	kp->i_flags = p.i_flags;
-	kp->o_flags = p.o_flags;
+	ip_tunnel_flags_from_be16(kp->i_flags, p.i_flags);
+	ip_tunnel_flags_from_be16(kp->o_flags, p.o_flags);
 	kp->i_key = p.i_key;
 	kp->o_key = p.o_key;
 	memcpy(&kp->iph, &p.iph, min(sizeof(kp->iph), sizeof(p.iph)));
@@ -1030,10 +1030,14 @@ bool ip_tunnel_parm_to_user(void __user *data, struct ip_tunnel_parm_kern *kp)
 {
 	struct ip_tunnel_parm p;
 
+	if (!ip_tunnel_flags_is_be16_compat(kp->i_flags) ||
+	    !ip_tunnel_flags_is_be16_compat(kp->o_flags))
+		return false;
+
 	strscpy(p.name, kp->name);
 	p.link = kp->link;
-	p.i_flags = kp->i_flags;
-	p.o_flags = kp->o_flags;
+	p.i_flags = ip_tunnel_flags_to_be16(kp->i_flags);
+	p.o_flags = ip_tunnel_flags_to_be16(kp->o_flags);
 	p.i_key = kp->i_key;
 	p.o_key = kp->o_key;
 	memcpy(&p.iph, &kp->iph, min(sizeof(p.iph), sizeof(kp->iph)));

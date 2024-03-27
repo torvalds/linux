@@ -27,23 +27,23 @@ mlxsw_sp_ipip_netdev_parms6(const struct net_device *ol_dev)
 static bool
 mlxsw_sp_ipip_parms4_has_ikey(const struct ip_tunnel_parm_kern *parms)
 {
-	return !!(parms->i_flags & TUNNEL_KEY);
+	return test_bit(IP_TUNNEL_KEY_BIT, parms->i_flags);
 }
 
 static bool mlxsw_sp_ipip_parms6_has_ikey(const struct __ip6_tnl_parm *parms)
 {
-	return !!(parms->i_flags & TUNNEL_KEY);
+	return test_bit(IP_TUNNEL_KEY_BIT, parms->i_flags);
 }
 
 static bool
 mlxsw_sp_ipip_parms4_has_okey(const struct ip_tunnel_parm_kern *parms)
 {
-	return !!(parms->o_flags & TUNNEL_KEY);
+	return test_bit(IP_TUNNEL_KEY_BIT, parms->o_flags);
 }
 
 static bool mlxsw_sp_ipip_parms6_has_okey(const struct __ip6_tnl_parm *parms)
 {
-	return !!(parms->o_flags & TUNNEL_KEY);
+	return test_bit(IP_TUNNEL_KEY_BIT, parms->o_flags);
 }
 
 static u32 mlxsw_sp_ipip_parms4_ikey(const struct ip_tunnel_parm_kern *parms)
@@ -242,12 +242,15 @@ static bool mlxsw_sp_ipip_can_offload_gre4(const struct mlxsw_sp *mlxsw_sp,
 					   const struct net_device *ol_dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(ol_dev);
-	__be16 okflags = TUNNEL_KEY; /* We can't offload any other features. */
 	bool inherit_ttl = tunnel->parms.iph.ttl == 0;
 	bool inherit_tos = tunnel->parms.iph.tos & 0x1;
+	IP_TUNNEL_DECLARE_FLAGS(okflags) = { };
 
-	return (tunnel->parms.i_flags & ~okflags) == 0 &&
-	       (tunnel->parms.o_flags & ~okflags) == 0 &&
+	/* We can't offload any other features. */
+	__set_bit(IP_TUNNEL_KEY_BIT, okflags);
+
+	return ip_tunnel_flags_subset(tunnel->parms.i_flags, okflags) &&
+	       ip_tunnel_flags_subset(tunnel->parms.o_flags, okflags) &&
 	       inherit_ttl && inherit_tos &&
 	       mlxsw_sp_ipip_tunnel_complete(MLXSW_SP_L3_PROTO_IPV4, ol_dev);
 }
@@ -443,10 +446,13 @@ static bool mlxsw_sp_ipip_can_offload_gre6(const struct mlxsw_sp *mlxsw_sp,
 	struct __ip6_tnl_parm tparm = mlxsw_sp_ipip_netdev_parms6(ol_dev);
 	bool inherit_tos = tparm.flags & IP6_TNL_F_USE_ORIG_TCLASS;
 	bool inherit_ttl = tparm.hop_limit == 0;
-	__be16 okflags = TUNNEL_KEY; /* We can't offload any other features. */
+	IP_TUNNEL_DECLARE_FLAGS(okflags) = { };
 
-	return (tparm.i_flags & ~okflags) == 0 &&
-	       (tparm.o_flags & ~okflags) == 0 &&
+	/* We can't offload any other features. */
+	__set_bit(IP_TUNNEL_KEY_BIT, okflags);
+
+	return ip_tunnel_flags_subset(tparm.i_flags, okflags) &&
+	       ip_tunnel_flags_subset(tparm.o_flags, okflags) &&
 	       inherit_ttl && inherit_tos &&
 	       mlxsw_sp_ipip_tunnel_complete(MLXSW_SP_L3_PROTO_IPV6, ol_dev);
 }

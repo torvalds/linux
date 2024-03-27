@@ -461,7 +461,8 @@ mlxsw_sp_span_entry_gretap4_parms(struct mlxsw_sp *mlxsw_sp,
 
 	if (!(to_dev->flags & IFF_UP) ||
 	    /* Reject tunnels with GRE keys, checksums, etc. */
-	    tparm.i_flags || tparm.o_flags ||
+	    !ip_tunnel_flags_empty(tparm.i_flags) ||
+	    !ip_tunnel_flags_empty(tparm.o_flags) ||
 	    /* Require a fixed TTL and a TOS copied from the mirrored packet. */
 	    inherit_ttl || !inherit_tos ||
 	    /* A destination address may not be "any". */
@@ -565,7 +566,8 @@ mlxsw_sp_span_entry_gretap6_parms(struct mlxsw_sp *mlxsw_sp,
 
 	if (!(to_dev->flags & IFF_UP) ||
 	    /* Reject tunnels with GRE keys, checksums, etc. */
-	    tparm.i_flags || tparm.o_flags ||
+	    !ip_tunnel_flags_empty(tparm.i_flags) ||
+	    !ip_tunnel_flags_empty(tparm.o_flags) ||
 	    /* Require a fixed TTL and a TOS copied from the mirrored packet. */
 	    inherit_ttl || !inherit_tos ||
 	    /* A destination address may not be "any". */

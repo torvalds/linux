@@ -207,7 +207,7 @@ static int ipip6_tunnel_create(struct net_device *dev)
 	__dev_addr_set(dev, &t->parms.iph.saddr, 4);
 	memcpy(dev->broadcast, &t->parms.iph.daddr, 4);
 
-	if ((__force u16)t->parms.i_flags & SIT_ISATAP)
+	if (test_bit(IP_TUNNEL_SIT_ISATAP_BIT, t->parms.i_flags))
 		dev->priv_flags |= IFF_ISATAP;
 
 	dev->rtnl_link_ops = &sit_link_ops;
@@ -1700,7 +1700,8 @@ static int ipip6_fill_info(struct sk_buff *skb, const struct net_device *dev)
 	    nla_put_u8(skb, IFLA_IPTUN_PMTUDISC,
 		       !!(parm->iph.frag_off & htons(IP_DF))) ||
 	    nla_put_u8(skb, IFLA_IPTUN_PROTO, parm->iph.protocol) ||
-	    nla_put_be16(skb, IFLA_IPTUN_FLAGS, parm->i_flags) ||
+	    nla_put_be16(skb, IFLA_IPTUN_FLAGS,
+			 ip_tunnel_flags_to_be16(parm->i_flags)) ||
 	    nla_put_u32(skb, IFLA_IPTUN_FWMARK, tunnel->fwmark))
 		goto nla_put_failure;
 

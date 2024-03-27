@@ -64,7 +64,7 @@ __bpf_kfunc int bpf_skb_set_fou_encap(struct __sk_buff *skb_ctx,
 		info->encap.type = TUNNEL_ENCAP_NONE;
 	}
 
-	if (info->key.tun_flags & TUNNEL_CSUM)
+	if (test_bit(IP_TUNNEL_CSUM_BIT, info->key.tun_flags))
 		info->encap.flags |= TUNNEL_ENCAP_FLAG_CSUM;
 
 	info->encap.sport = encap->sport;
