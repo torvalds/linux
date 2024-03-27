@@ -59,7 +59,7 @@ config DRM_DISPLAY_DP_AUX_CHARDEV
 	  read and write values to arbitrary DPCD registers on the DP aux
 	  channel.
 
-config DRM_DP_CEC
+config DRM_DISPLAY_DP_AUX_CEC
 	bool "Enable DisplayPort CEC-Tunneling-over-AUX HDMI support"
 	depends on DRM && DRM_DISPLAY_HELPER
 	select DRM_DISPLAY_DP_HELPER

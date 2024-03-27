@@ -733,7 +733,7 @@ static inline int drm_panel_dp_aux_backlight(struct drm_panel *panel,
 
 #endif
 
-#ifdef CONFIG_DRM_DP_CEC
+#ifdef CONFIG_DRM_DISPLAY_DP_AUX_CEC
 void drm_dp_cec_irq(struct drm_dp_aux *aux);
 void drm_dp_cec_register_connector(struct drm_dp_aux *aux,
 				   struct drm_connector *connector);
