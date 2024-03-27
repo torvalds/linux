@@ -704,7 +704,7 @@ xdma_prep_dma_cyclic(struct dma_chan *chan, dma_addr_t address,
 	desc_num = 0;
 	for (i = 0; i < periods; i++) {
 		desc_num += xdma_fill_descs(sw_desc, *src, *dst, period_size, desc_num);
-		addr += i * period_size;
+		addr += period_size;
 	}
 
 	tx_desc = vchan_tx_prep(&xdma_chan->vchan, &sw_desc->vdesc, flags);
