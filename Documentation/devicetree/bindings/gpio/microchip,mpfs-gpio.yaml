@@ -44,6 +44,7 @@ properties:
     default: 32
 
   gpio-controller: true
+  gpio-line-names: true
 
 patternProperties:
   "^.+-hog(-[0-9]+)?$":
