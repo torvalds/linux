@@ -981,7 +981,8 @@ static ssize_t sas_ncq_prio_supported_show(struct device *device,
 	return sysfs_emit(buf, "%d\n", supported);
 }
 
-DEVICE_ATTR(ncq_prio_supported, S_IRUGO, sas_ncq_prio_supported_show, NULL);
+static struct device_attribute dev_attr_sas_ncq_prio_supported =
+	__ATTR(ncq_prio_supported, S_IRUGO, sas_ncq_prio_supported_show, NULL);
 
 static ssize_t sas_ncq_prio_enable_show(struct device *device,
 					struct device_attribute *attr,
@@ -1019,12 +1020,13 @@ static ssize_t sas_ncq_prio_enable_store(struct device *device,
 	return len;
 }
 
-DEVICE_ATTR(ncq_prio_enable, S_IRUGO | S_IWUSR,
-	    sas_ncq_prio_enable_show, sas_ncq_prio_enable_store);
+static struct device_attribute dev_attr_sas_ncq_prio_enable =
+	__ATTR(ncq_prio_enable, S_IRUGO | S_IWUSR,
+	       sas_ncq_prio_enable_show, sas_ncq_prio_enable_store);
 
 static struct attribute *sas_ata_sdev_attrs[] = {
-	&dev_attr_ncq_prio_supported.attr,
-	&dev_attr_ncq_prio_enable.attr,
+	&dev_attr_sas_ncq_prio_supported.attr,
+	&dev_attr_sas_ncq_prio_enable.attr,
 	NULL
 };
 
