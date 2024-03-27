@@ -8752,10 +8752,9 @@ S:	Maintained
 F:	drivers/usb/gadget/udc/fsl*
 
 FREESCALE USB PHY DRIVER
-M:	Ran Wang <ran.wang_1@nxp.com>
 L:	linux-usb@vger.kernel.org
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Maintained
+S:	Orphan
 F:	drivers/usb/phy/phy-fsl-usb*
 
 FREEVXFS FILESYSTEM
