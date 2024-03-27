@@ -892,10 +892,8 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	struct wireless_dev *wdev = request->wdev;
 	struct wil6210_vif *vif = wdev_to_vif(wil, wdev);
-	struct {
-		struct wmi_start_scan_cmd cmd;
-		u16 chnl[4];
-	} __packed cmd;
+	DEFINE_FLEX(struct wmi_start_scan_cmd, cmd,
+		    channel_list, num_channels, 4);
 	uint i, n;
 	int rc;
 
@@ -977,9 +975,8 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	vif->scan_request = request;
 	mod_timer(&vif->scan_timer, jiffies + WIL6210_SCAN_TO);
 
-	memset(&cmd, 0, sizeof(cmd));
-	cmd.cmd.scan_type = WMI_ACTIVE_SCAN;
-	cmd.cmd.num_channels = 0;
+	cmd->scan_type = WMI_ACTIVE_SCAN;
+	cmd->num_channels = 0;
 	n = min(request->n_channels, 4U);
 	for (i = 0; i < n; i++) {
 		int ch = request->channels[i]->hw_value;
@@ -991,7 +988,8 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 			continue;
 		}
 		/* 0-based channel indexes */
-		cmd.cmd.channel_list[cmd.cmd.num_channels++].channel = ch - 1;
+		cmd->num_channels++;
+		cmd->channel_list[cmd->num_channels - 1].channel = ch - 1;
 		wil_dbg_misc(wil, "Scan for ch %d  : %d MHz\n", ch,
 			     request->channels[i]->center_freq);
 	}
@@ -1007,16 +1005,15 @@ static int wil_cfg80211_scan(struct wiphy *wiphy,
 	if (rc)
 		goto out_restore;
 
-	if (wil->discovery_mode && cmd.cmd.scan_type == WMI_ACTIVE_SCAN) {
-		cmd.cmd.discovery_mode = 1;
+	if (wil->discovery_mode && cmd->scan_type == WMI_ACTIVE_SCAN) {
+		cmd->discovery_mode = 1;
 		wil_dbg_misc(wil, "active scan with discovery_mode=1\n");
 	}
 
 	if (vif->mid == 0)
 		wil->radio_wdev = wdev;
 	rc = wmi_send(wil, WMI_START_SCAN_CMDID, vif->mid,
-		      &cmd, sizeof(cmd.cmd) +
-		      cmd.cmd.num_channels * sizeof(cmd.cmd.channel_list[0]));
+		      cmd, struct_size(cmd, channel_list, cmd->num_channels));
 
 out_restore:
 	if (rc) {
