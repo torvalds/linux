@@ -738,8 +738,6 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (err)
 		return err;
 
-	xe_sriov_probe_early(xe, desc->has_sriov);
-
 	err = xe_device_probe_early(xe);
 	if (err)
 		return err;

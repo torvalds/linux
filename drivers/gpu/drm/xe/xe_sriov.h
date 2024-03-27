@@ -12,7 +12,7 @@
 
 const char *xe_sriov_mode_to_string(enum xe_sriov_mode mode);
 
-void xe_sriov_probe_early(struct xe_device *xe, bool has_sriov);
+void xe_sriov_probe_early(struct xe_device *xe);
 int xe_sriov_init(struct xe_device *xe);
 
 static inline enum xe_sriov_mode xe_device_sriov_mode(struct xe_device *xe)
