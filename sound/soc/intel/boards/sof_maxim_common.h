@@ -11,7 +11,7 @@
 #define __SOF_MAXIM_COMMON_H
 
 #include <sound/soc.h>
-#include "sof_ssp_common.h"
+#include "../common/sof_ssp_common.h"
 
 /*
  * Maxim MAX98373

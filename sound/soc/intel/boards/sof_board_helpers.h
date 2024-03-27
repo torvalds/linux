@@ -8,7 +8,7 @@
 
 #include <sound/soc.h>
 #include "sof_hdmi_common.h"
-#include "sof_ssp_common.h"
+#include "../common/sof_ssp_common.h"
 
 /*
  * Common board quirks: from bit 8 to 31, LSB 8 bits reserved for machine

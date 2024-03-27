@@ -9,7 +9,7 @@
 #define __SOF_NUVOTON_COMMON_H
 
 #include <sound/soc.h>
-#include "sof_ssp_common.h"
+#include "../common/sof_ssp_common.h"
 
 /*
  * Nuvoton NAU8318
