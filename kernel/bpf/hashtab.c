@@ -1490,6 +1490,7 @@ static void delete_all_elements(struct bpf_htab *htab)
 			hlist_nulls_del_rcu(&l->hash_node);
 			htab_elem_free(htab, l);
 		}
+		cond_resched();
 	}
 	migrate_enable();
 }
