@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__
@@ -2039,11 +2039,13 @@ static int qpnp_lpg_probe(struct platform_device *pdev)
 		lpg = &chip->lpgs[i];
 		lpg->output_type = PWM_OUTPUT_FIXED;
 
-		rc = qpnp_lpg_pwm_src_enable(lpg, false);
-		if (rc < 0) {
-			dev_err(chip->dev, "Disable PWM output failed for channel %d, rc=%d\n",
+		if (chip->lut != NULL) {
+			rc = qpnp_lpg_pwm_src_enable(lpg, false);
+			if (rc < 0) {
+				dev_err(chip->dev, "Disable PWM output failed for channel %d, rc=%d\n",
 					lpg->lpg_idx, rc);
-			return rc;
+				return rc;
+			}
 		}
 
 		if (lpg->enable_pfm) {
