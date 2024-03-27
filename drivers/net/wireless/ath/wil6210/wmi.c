@@ -4015,27 +4015,22 @@ int wmi_set_cqm_rssi_config(struct wil6210_priv *wil,
 	struct wil6210_vif *vif = ndev_to_vif(ndev);
 	int rc;
 	struct {
-		struct wmi_set_link_monitor_cmd cmd;
-		s8 rssi_thold;
-	} __packed cmd = {
-		.cmd = {
-			.rssi_hyst = rssi_hyst,
-			.rssi_thresholds_list_size = 1,
-		},
-		.rssi_thold = rssi_thold,
-	};
-	struct {
 		struct wmi_cmd_hdr hdr;
 		struct wmi_set_link_monitor_event evt;
 	} __packed reply = {
 		.evt = {.status = WMI_FW_STATUS_FAILURE},
 	};
+	DEFINE_FLEX(struct wmi_set_link_monitor_cmd, cmd,
+		    rssi_thresholds_list, rssi_thresholds_list_size, 1);
+
+	cmd->rssi_hyst = rssi_hyst;
+	cmd->rssi_thresholds_list[0] = rssi_thold;
 
 	if (rssi_thold > S8_MAX || rssi_thold < S8_MIN || rssi_hyst > U8_MAX)
 		return -EINVAL;
 
-	rc = wmi_call(wil, WMI_SET_LINK_MONITOR_CMDID, vif->mid, &cmd,
-		      sizeof(cmd), WMI_SET_LINK_MONITOR_EVENTID,
+	rc = wmi_call(wil, WMI_SET_LINK_MONITOR_CMDID, vif->mid, cmd,
+		      __struct_size(cmd), WMI_SET_LINK_MONITOR_EVENTID,
 		      &reply, sizeof(reply), WIL_WMI_CALL_GENERAL_TO_MS);
 	if (rc) {
 		wil_err(wil, "WMI_SET_LINK_MONITOR_CMDID failed, rc %d\n", rc);
