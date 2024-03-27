@@ -203,7 +203,8 @@ static void ucsi_acpi_notify(acpi_handle handle, u32 event, void *data)
 	    !test_bit(UCSI_ACPI_SUPPRESS_EVENT, &ua->flags))
 		ucsi_connector_change(ua->ucsi, UCSI_CCI_CONNECTOR(cci));
 
-	if (cci & UCSI_CCI_ACK_COMPLETE && test_bit(ACK_PENDING, &ua->flags))
+	if (cci & UCSI_CCI_ACK_COMPLETE &&
+	    test_bit(UCSI_ACPI_ACK_PENDING, &ua->flags))
 		complete(&ua->complete);
 	if (cci & UCSI_CCI_COMMAND_COMPLETE &&
 	    test_bit(UCSI_ACPI_COMMAND_PENDING, &ua->flags))
