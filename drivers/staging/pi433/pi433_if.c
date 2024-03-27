@@ -1366,7 +1366,6 @@ MODULE_DEVICE_TABLE(of, pi433_dt_ids);
 static struct spi_driver pi433_spi_driver = {
 	.driver = {
 		.name =		"pi433",
-		.owner =	THIS_MODULE,
 		.of_match_table = of_match_ptr(pi433_dt_ids),
 	},
 	.probe =	pi433_probe,
