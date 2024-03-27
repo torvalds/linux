@@ -145,7 +145,7 @@ static int regcache_maple_drop(struct regmap *map, unsigned int min,
 			upper_index = max + 1;
 			upper_last = mas.last;
 
-			upper = kmemdup(&entry[max + 1],
+			upper = kmemdup(&entry[max - mas.index + 1],
 					((mas.last - max) *
 					 sizeof(unsigned long)),
 					map->alloc_flags);
