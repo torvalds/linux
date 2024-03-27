@@ -285,13 +285,21 @@
 		ti,invert-autoidle-bit;
 	};
 
-	dpll_core_byp_mux: clock-dpll-core-byp-mux-23@12c {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_core_byp_mux";
-		clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
-		ti,bit-shift = <23>;
-		reg = <0x012c>;
+	/* CM_CLKSEL_DPLL_CORE */
+	clock@12c {
+		compatible = "ti,clksel";
+		reg = <0x12c>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_core_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_core_byp_mux";
+			clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_core_ck: clock@120 {
