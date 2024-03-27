@@ -239,7 +239,6 @@ static int otm3225a_probe(struct spi_device *spi)
 static struct spi_driver otm3225a_driver = {
 	.driver = {
 		.name = "otm3225a",
-		.owner = THIS_MODULE,
 	},
 	.probe = otm3225a_probe,
 };
