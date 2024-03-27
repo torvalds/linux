@@ -8,16 +8,12 @@
 
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
+#include <sound/soc-acpi-intel-ssp-common.h>
 #include "soc-acpi-intel-sdw-mockup-match.h"
 
 static const struct snd_soc_acpi_codecs essx_83x6 = {
 	.num_codecs = 3,
 	.codecs = { "ESSX8316", "ESSX8326", "ESSX8336"},
-};
-
-static const struct snd_soc_acpi_codecs tgl_codecs = {
-	.num_codecs = 1,
-	.codecs = {"MX98357A"}
 };
 
 static const struct snd_soc_acpi_endpoint single_endpoint = {
@@ -499,19 +495,9 @@ static const struct snd_soc_acpi_link_adr tgl_cs42l43_cs35l56[] = {
 	{}
 };
 
-static const struct snd_soc_acpi_codecs tgl_max98373_amp = {
-	.num_codecs = 1,
-	.codecs = {"MX98373"}
-};
-
-static const struct snd_soc_acpi_codecs tgl_rt1011_amp = {
-	.num_codecs = 1,
-	.codecs = {"10EC1011"}
-};
-
 static const struct snd_soc_acpi_codecs tgl_rt5682_rt5682s_hp = {
 	.num_codecs = 2,
-	.codecs = {"10EC5682", "RTL5682"},
+	.codecs = {RT5682_ACPI_HID, RT5682S_ACPI_HID},
 };
 
 static const struct snd_soc_acpi_codecs tgl_lt6911_hdmi = {
@@ -521,27 +507,6 @@ static const struct snd_soc_acpi_codecs tgl_lt6911_hdmi = {
 
 struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_machines[] = {
 	{
-		.comp_ids = &tgl_rt5682_rt5682s_hp,
-		.drv_name = "tgl_rt5682_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &tgl_codecs,
-		.sof_tplg_filename = "sof-tgl-max98357a-rt5682.tplg",
-	},
-	{
-		.comp_ids = &tgl_rt5682_rt5682s_hp,
-		.drv_name = "tgl_rt5682_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &tgl_max98373_amp,
-		.sof_tplg_filename = "sof-tgl-max98373-rt5682.tplg",
-	},
-	{
-		.comp_ids = &tgl_rt5682_rt5682s_hp,
-		.drv_name = "tgl_rt5682_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &tgl_rt1011_amp,
-		.sof_tplg_filename = "sof-tgl-rt1011-rt5682.tplg",
-	},
-	{
 		.comp_ids = &essx_83x6,
 		.drv_name = "sof-essx8336",
 		.sof_tplg_filename = "sof-tgl-es8336", /* the tplg suffix is added at run time */
@@ -549,6 +514,17 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_tgl_machines[] = {
 					SND_SOC_ACPI_TPLG_INTEL_SSP_MSB |
 					SND_SOC_ACPI_TPLG_INTEL_DMIC_NUMBER,
 	},
+	/* place boards for each headphone codec: sof driver will complete the
+	 * tplg name and machine driver will detect the amp type
+	 */
+	{
+		.comp_ids = &tgl_rt5682_rt5682s_hp,
+		.drv_name = "tgl_rt5682_def",
+		.sof_tplg_filename = "sof-tgl", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_AMP_NAME |
+					SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME,
+	},
+	/* place amp-only boards in the end of table */
 	{
 		.id = "10EC1308",
 		.drv_name = "tgl_rt1308_hdmi_ssp",
