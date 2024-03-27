@@ -850,6 +850,12 @@ config READ_ONLY_THP_FOR_FS
 endif # TRANSPARENT_HUGEPAGE
 
 #
+# The architecture supports pgtable leaves that is larger than PAGE_SIZE
+#
+config PGTABLE_HAS_HUGE_LEAVES
+	def_bool TRANSPARENT_HUGEPAGE || HUGETLB_PAGE
+
+#
 # UP and nommu archs use km based percpu allocator
 #
 config NEED_PER_CPU_KM
