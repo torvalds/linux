@@ -1581,11 +1581,11 @@ out:
 	adev->unique_id = ((uint64_t)upper32 << 32) | lower32;
 }
 
-static bool aldebaran_get_bamaco_support(struct smu_context *smu)
+static int aldebaran_get_bamaco_support(struct smu_context *smu)
 {
 	/* aldebaran is not support baco */
 
-	return false;
+	return 0;
 }
 
 static int aldebaran_set_df_cstate(struct smu_context *smu,

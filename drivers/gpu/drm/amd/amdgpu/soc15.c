@@ -502,7 +502,7 @@ static int soc15_asic_baco_reset(struct amdgpu_device *adev)
 static enum amd_reset_method
 soc15_asic_reset_method(struct amdgpu_device *adev)
 {
-	bool baco_reset = false;
+	int baco_reset = 0;
 	bool connected_to_cpu = false;
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
@@ -540,7 +540,7 @@ soc15_asic_reset_method(struct amdgpu_device *adev)
 			 */
 			if (ras && adev->ras_enabled &&
 			    adev->pm.fw_version <= 0x283400)
-				baco_reset = false;
+				baco_reset = 0;
 		} else {
 			baco_reset = amdgpu_dpm_is_baco_supported(adev);
 		}
@@ -620,7 +620,7 @@ static int soc15_asic_reset(struct amdgpu_device *adev)
 	}
 }
 
-static bool soc15_supports_baco(struct amdgpu_device *adev)
+static int soc15_supports_baco(struct amdgpu_device *adev)
 {
 	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 	case IP_VERSION(9, 0, 0):
@@ -628,13 +628,13 @@ static bool soc15_supports_baco(struct amdgpu_device *adev)
 		if (adev->asic_type == CHIP_VEGA20) {
 			if (adev->psp.sos.fw_version >= 0x80067)
 				return amdgpu_dpm_is_baco_supported(adev);
-			return false;
+			return 0;
 		} else {
 			return amdgpu_dpm_is_baco_supported(adev);
 		}
 		break;
 	default:
-		return false;
+		return 0;
 	}
 }
 

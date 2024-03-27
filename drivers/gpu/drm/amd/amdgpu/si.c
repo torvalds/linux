@@ -1409,9 +1409,9 @@ static int si_gpu_pci_config_reset(struct amdgpu_device *adev)
 	return r;
 }
 
-static bool si_asic_supports_baco(struct amdgpu_device *adev)
+static int si_asic_supports_baco(struct amdgpu_device *adev)
 {
-	return false;
+	return 0;
 }
 
 static enum amd_reset_method

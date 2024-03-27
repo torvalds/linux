@@ -2077,11 +2077,11 @@ static void smu_v13_0_6_get_unique_id(struct smu_context *smu)
 	adev->unique_id = pptable->PublicSerialNumber_AID;
 }
 
-static bool smu_v13_0_6_get_bamaco_support(struct smu_context *smu)
+static int smu_v13_0_6_get_bamaco_support(struct smu_context *smu)
 {
 	/* smu_13_0_6 does not support baco */
 
-	return false;
+	return 0;
 }
 
 static const char *const throttling_logging_label[] = {

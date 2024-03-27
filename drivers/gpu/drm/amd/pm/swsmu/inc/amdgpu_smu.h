@@ -1178,7 +1178,7 @@ struct pptable_funcs {
 	 * BACO: Bus Active, Chip Off
 	 * MACO: Memory Active, Chip Off
 	 */
-	bool (*get_bamaco_support)(struct smu_context *smu);
+	int (*get_bamaco_support)(struct smu_context *smu);
 
 	/**
 	 * @baco_get_state: Get the current BACO state.
