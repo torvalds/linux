@@ -7,6 +7,7 @@
 
 #include <sound/soc-acpi.h>
 #include <sound/soc-acpi-intel-match.h>
+#include <sound/soc-acpi-intel-ssp-common.h>
 
 static const struct snd_soc_acpi_codecs essx_83x6 = {
 	.num_codecs = 3,
@@ -467,11 +468,6 @@ static const struct snd_soc_acpi_codecs adl_rt5682_rt5682s_hp = {
 	.codecs = {"10EC5682", "RTL5682"},
 };
 
-static const struct snd_soc_acpi_codecs adl_rt1015p_amp = {
-	.num_codecs = 1,
-	.codecs = {"RTL1015"}
-};
-
 static const struct snd_soc_acpi_codecs adl_rt1019p_amp = {
 	.num_codecs = 1,
 	.codecs = {"RTL1019"}
@@ -485,11 +481,6 @@ static const struct snd_soc_acpi_codecs adl_max98390_amp = {
 static const struct snd_soc_acpi_codecs adl_lt6911_hdmi = {
 	.num_codecs = 1,
 	.codecs = {"INTC10B0"}
-};
-
-static const struct snd_soc_acpi_codecs adl_nau8318_amp = {
-	.num_codecs = 1,
-	.codecs = {"NVTN2012"}
 };
 
 static struct snd_soc_acpi_codecs adl_rt5650_amp = {
@@ -527,44 +518,11 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.sof_tplg_filename = "sof-adl-rt1019-nau8825.tplg",
 	},
 	{
-		.id = "10508825",
-		.drv_name = "adl_nau8825_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_max98373_amp,
-		.sof_tplg_filename = "sof-adl-max98373-nau8825.tplg",
-	},
-	{
-		.id = "10508825",
-		.drv_name = "adl_nau8825_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_max98360a_amp,
-		.sof_tplg_filename = "sof-adl-max98360a-nau8825.tplg",
-	},
-	{
 		.comp_ids = &adl_rt5682_rt5682s_hp,
 		.drv_name = "adl_rt5682_def",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_rt1019p_amp,
 		.sof_tplg_filename = "sof-adl-rt1019-rt5682.tplg",
-	},
-	{
-		.id = "10508825",
-		.drv_name = "adl_nau8825_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_rt1015p_amp,
-		.sof_tplg_filename = "sof-adl-rt1015-nau8825.tplg",
-	},
-	{
-		.id = "10508825",
-		.drv_name = "adl_nau8825_def",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &adl_nau8318_amp,
-		.sof_tplg_filename = "sof-adl-nau8318-nau8825.tplg",
-	},
-	{
-		.id = "10508825",
-		.drv_name = "adl_nau8825_def",
-		.sof_tplg_filename = "sof-adl-nau8825.tplg",
 	},
 	{
 		.comp_ids = &adl_rt5682_rt5682s_hp,
@@ -620,6 +578,16 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_max98360a_amp,
 		.sof_tplg_filename = "sof-adl-max98360a-da7219.tplg",
+	},
+	/* place boards for each headphone codec: sof driver will complete the
+	 * tplg name and machine driver will detect the amp type
+	 */
+	{
+		.id = NAU8825_ACPI_HID,
+		.drv_name = "adl_nau8825_def",
+		.sof_tplg_filename = "sof-adl", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_AMP_NAME |
+					SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME,
 	},
 	/* place amp-only boards in the end of table */
 	{
