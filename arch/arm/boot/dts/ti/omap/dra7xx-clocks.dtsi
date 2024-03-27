@@ -426,13 +426,21 @@
 		clock-div = <1>;
 	};
 
-	dpll_iva_byp_mux: clock-dpll-iva-byp-mux-23@1ac {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_iva_byp_mux";
-		clocks = <&sys_clkin1>, <&iva_dpll_hs_clk_div>;
-		ti,bit-shift = <23>;
-		reg = <0x01ac>;
+	/* CM_CLKSEL_DPLL_IVA */
+	clock@1ac {
+		compatible = "ti,clksel";
+		reg = <0x1ac>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_iva_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_iva_byp_mux";
+			clocks = <&sys_clkin1>, <&iva_dpll_hs_clk_div>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_iva_ck: clock@1a0 {
