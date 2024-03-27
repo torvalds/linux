@@ -420,7 +420,7 @@ static int hyp_unmap_walker(u64 addr, u64 end, u32 level, kvm_pte_t *ptep,
 
 		kvm_clear_pte(ptep);
 		dsb(ishst);
-		__tlbi_level(vae2is, __TLBI_VADDR(addr, 0), level);
+		__tlbi_level(vae2is, __TLBI_VADDR(addr, 0), 0);
 	} else {
 		if (end - addr < granule)
 			return -EINVAL;
@@ -661,10 +661,15 @@ static bool stage2_pte_needs_update(struct kvm_pgtable *pgt,
 static void stage2_clear_pte(kvm_pte_t *ptep, struct kvm_s2_mmu *mmu, u64 addr,
 			     u32 level)
 {
-	if (!kvm_pte_valid(*ptep))
+	kvm_pte_t pte = *ptep;
+
+	if (!kvm_pte_valid(pte))
 		return;
 
 	kvm_clear_pte(ptep);
+
+	if (kvm_pte_table(pte, level))
+		level = 0;
 	kvm_call_hyp(__kvm_tlb_flush_vmid_ipa, mmu, addr, level);
 }
 
