@@ -151,6 +151,30 @@ config ARM_SUN8I_A33_MBUS_DEVFREQ
 	  This adds the DEVFREQ driver for the MBUS controller in some
 	  Allwinner sun8i (A33 through H3) and sun50i (A64 and H5) SoCs.
 
+config QCOM_DEVFREQ_ICC
+	bool "Qualcomm Technologies Inc. DEVFREQ device for device master <-> slave IB/AB BW voting"
+	depends on ARCH_QCOM
+	select DEVFREQ_GOV_PERFORMANCE
+	select DEVFREQ_GOV_POWERSAVE
+	select DEVFREQ_GOV_USERSPACE
+	select DEVFREQ_GOV_CPUFREQ
+	select INTERCONNECT
+	default n
+	help
+	  Different devfreq governors use this devfreq device to make CPU to
+	  DDR IB/AB bandwidth votes. This driver provides a SoC topology
+	  agnostic interface to so that some of the devfreq governors can be
+	  shared across SoCs.
+
+config QCOM_BIMC_BWMON
+	tristate "QCOM BIMC Bandwidth monitor hardware"
+	depends on ARCH_QCOM
+	help
+	  The BIMC Bandwidth monitor hardware allows for monitoring the
+	  traffic coming from each master port connected to the BIMC. It also
+	  has the capability to raise an IRQ when the count exceeds a
+	  programmable limit.
+
 source "drivers/devfreq/event/Kconfig"
 
 endif # PM_DEVFREQ
