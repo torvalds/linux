@@ -12,6 +12,8 @@
 #include <linux/types.h>
 #include <asm/asm.h>
 
+#define HAVE_JUMP_LABEL_BATCH
+
 #define JUMP_LABEL_NOP_SIZE 4
 
 static __always_inline bool arch_static_branch(struct static_key * const key,
