@@ -103,22 +103,15 @@ static void __flush_tlb_range(struct cpumask *cmask, unsigned long asid,
 			      unsigned long start, unsigned long size,
 			      unsigned long stride)
 {
-	bool broadcast;
+	unsigned int cpu;
 
 	if (cpumask_empty(cmask))
 		return;
 
-	if (cmask != cpu_online_mask) {
-		unsigned int cpuid;
+	cpu = get_cpu();
 
-		cpuid = get_cpu();
-		/* check if the tlbflush needs to be sent to other CPUs */
-		broadcast = cpumask_any_but(cmask, cpuid) < nr_cpu_ids;
-	} else {
-		broadcast = true;
-	}
-
-	if (!broadcast) {
+	/* Check if the TLB flush needs to be sent to other CPUs. */
+	if (cpumask_any_but(cmask, cpu) >= nr_cpu_ids) {
 		local_flush_tlb_range_asid(start, size, stride, asid);
 	} else if (riscv_use_sbi_for_rfence()) {
 		sbi_remote_sfence_vma_asid(cmask, start, size, asid);
@@ -132,8 +125,7 @@ static void __flush_tlb_range(struct cpumask *cmask, unsigned long asid,
 		on_each_cpu_mask(cmask, __ipi_flush_tlb_range_asid, &ftd, 1);
 	}
 
-	if (cmask != cpu_online_mask)
-		put_cpu();
+	put_cpu();
 }
 
 static inline unsigned long get_mm_asid(struct mm_struct *mm)
