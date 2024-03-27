@@ -879,9 +879,8 @@ void iwl_mvm_rx_session_protect_notif(struct iwl_mvm *mvm,
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	struct iwl_mvm_session_prot_notif *notif = (void *)pkt->data;
 	unsigned int ver =
-		iwl_fw_lookup_cmd_ver(mvm->fw,
-				      WIDE_ID(MAC_CONF_GROUP,
-					      SESSION_PROTECTION_CMD), 2);
+		iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
+					SESSION_PROTECTION_NOTIF, 2);
 	int id = le32_to_cpu(notif->mac_link_id);
 	struct ieee80211_vif *vif;
 	struct iwl_mvm_vif *mvmvif;
