@@ -538,13 +538,21 @@
 		clock-div = <1>;
 	};
 
-	dpll_ddr_byp_mux: clock-dpll-ddr-byp-mux-23@21c {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_ddr_byp_mux";
-		clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
-		ti,bit-shift = <23>;
-		reg = <0x021c>;
+	/* CM_CLKSEL_DPLL_DDR */
+	clock@21c {
+		compatible = "ti,clksel";
+		reg = <0x21c>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_ddr_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_ddr_byp_mux";
+			clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_ddr_ck: clock@210 {
