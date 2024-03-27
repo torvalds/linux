@@ -12,6 +12,10 @@
 #define IPCC_MPROC_SIGNAL_SMP2P		2
 #define IPCC_MPROC_SIGNAL_PING		3
 
+/* Signal IDs for COMPUTE_L0 protocol */
+#define IPCC_COMPUTE_L0_SIGNAL_MSG	3
+#define IPCC_COMPUTE_L0_SIGNAL_ACK	4
+
 /* Client IDs */
 #define IPCC_CLIENT_AOP			0
 #define IPCC_CLIENT_TZ			1
@@ -33,6 +37,9 @@
 #define IPCC_CLIENT_NSP1		18
 #define IPCC_CLIENT_TME			23
 #define IPCC_CLIENT_WPSS		24
+#define IPCC_CLIENT_GPDSP0		31
+#define IPCC_CLIENT_GPDSP1		32
+#define IPCC_CLIENT_APSS_NS1		33
 #define IPCC_CLIENT_SOCCP		46
 #define IPCC_CLIENT_BROADCAST           0xF000
 
