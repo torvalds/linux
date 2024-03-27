@@ -476,13 +476,21 @@
 		clock-div = <1>;
 	};
 
-	dpll_gpu_byp_mux: clock-dpll-gpu-byp-mux-23@2e4 {
-		#clock-cells = <0>;
-		compatible = "ti,mux-clock";
-		clock-output-names = "dpll_gpu_byp_mux";
-		clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
-		ti,bit-shift = <23>;
-		reg = <0x02e4>;
+	/* CM_CLKSEL_DPLL_GPU */
+	clock@2e4 {
+		compatible = "ti,clksel";
+		reg = <0x2e4>;
+		#clock-cells = <2>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		dpll_gpu_byp_mux: clock@23 {
+			reg = <23>;
+			compatible = "ti,mux-clock";
+			clock-output-names = "dpll_gpu_byp_mux";
+			clocks = <&sys_clkin1>, <&dpll_abe_m3x2_ck>;
+			#clock-cells = <0>;
+		};
 	};
 
 	dpll_gpu_ck: clock@2d8 {
