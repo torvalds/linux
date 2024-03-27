@@ -70,6 +70,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_machines[] = {
 	 * tplg name and machine driver will detect the amp type
 	 */
 	{
+		.id = CS42L42_ACPI_HID,
+		.drv_name = "mtl_cs42l42_def",
+		.sof_tplg_filename = "sof-mtl", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_AMP_NAME |
+					SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME,
+	},
+	{
 		.id = NAU8825_ACPI_HID,
 		.drv_name = "mtl_nau8825_def",
 		.sof_tplg_filename = "sof-mtl", /* the tplg suffix is added at run time */
