@@ -98,7 +98,6 @@ config DRM_ITE_IT6505
 	depends on DRM_DISPLAY_HELPER
 	depends on OF
 	select DRM_KMS_HELPER
-	select DRM_DP_HELPER
 	select EXTCON
 	select CRYPTO
 	select CRYPTO_HASH
