@@ -1260,7 +1260,7 @@ static void l2cap_le_connect(struct l2cap_chan *chan)
 
 struct l2cap_ecred_conn_data {
 	struct {
-		struct l2cap_ecred_conn_req req;
+		struct l2cap_ecred_conn_req_hdr req;
 		__le16 scid[5];
 	} __packed pdu;
 	struct l2cap_chan *chan;
@@ -3740,7 +3740,7 @@ static void l2cap_ecred_list_defer(struct l2cap_chan *chan, void *data)
 
 struct l2cap_ecred_rsp_data {
 	struct {
-		struct l2cap_ecred_conn_rsp rsp;
+		struct l2cap_ecred_conn_rsp_hdr rsp;
 		__le16 scid[L2CAP_ECRED_MAX_CID];
 	} __packed pdu;
 	int count;
@@ -3749,6 +3749,8 @@ struct l2cap_ecred_rsp_data {
 static void l2cap_ecred_rsp_defer(struct l2cap_chan *chan, void *data)
 {
 	struct l2cap_ecred_rsp_data *rsp = data;
+	struct l2cap_ecred_conn_rsp *rsp_flex =
+		container_of(&rsp->pdu.rsp, struct l2cap_ecred_conn_rsp, hdr);
 
 	if (test_bit(FLAG_ECRED_CONN_REQ_SENT, &chan->flags))
 		return;
@@ -3758,7 +3760,7 @@ static void l2cap_ecred_rsp_defer(struct l2cap_chan *chan, void *data)
 
 	/* Include all channels pending with the same ident */
 	if (!rsp->pdu.rsp.result)
-		rsp->pdu.rsp.dcid[rsp->count++] = cpu_to_le16(chan->scid);
+		rsp_flex->dcid[rsp->count++] = cpu_to_le16(chan->scid);
 	else
 		l2cap_chan_del(chan, ECONNRESET);
 }
@@ -4996,10 +4998,7 @@ static inline int l2cap_ecred_conn_req(struct l2cap_conn *conn,
 				       u8 *data)
 {
 	struct l2cap_ecred_conn_req *req = (void *) data;
-	struct {
-		struct l2cap_ecred_conn_rsp rsp;
-		__le16 dcid[L2CAP_ECRED_MAX_CID];
-	} __packed pdu;
+	DEFINE_RAW_FLEX(struct l2cap_ecred_conn_rsp, pdu, dcid, L2CAP_ECRED_MAX_CID);
 	struct l2cap_chan *chan, *pchan;
 	u16 mtu, mps;
 	__le16 psm;
@@ -5018,7 +5017,7 @@ static inline int l2cap_ecred_conn_req(struct l2cap_conn *conn,
 	cmd_len -= sizeof(*req);
 	num_scid = cmd_len / sizeof(u16);
 
-	if (num_scid > ARRAY_SIZE(pdu.dcid)) {
+	if (num_scid > L2CAP_ECRED_MAX_CID) {
 		result = L2CAP_CR_LE_INVALID_PARAMS;
 		goto response;
 	}
@@ -5047,7 +5046,7 @@ static inline int l2cap_ecred_conn_req(struct l2cap_conn *conn,
 
 	BT_DBG("psm 0x%2.2x mtu %u mps %u", __le16_to_cpu(psm), mtu, mps);
 
-	memset(&pdu, 0, sizeof(pdu));
+	memset(pdu, 0, sizeof(*pdu));
 
 	/* Check if we have socket listening on psm */
 	pchan = l2cap_global_chan_by_psm(BT_LISTEN, psm, &conn->hcon->src,
@@ -5073,8 +5072,8 @@ static inline int l2cap_ecred_conn_req(struct l2cap_conn *conn,
 
 		BT_DBG("scid[%d] 0x%4.4x", i, scid);
 
-		pdu.dcid[i] = 0x0000;
-		len += sizeof(*pdu.dcid);
+		pdu->dcid[i] = 0x0000;
+		len += sizeof(*pdu->dcid);
 
 		/* Check for valid dynamic CID range */
 		if (scid < L2CAP_CID_DYN_START || scid > L2CAP_CID_LE_DYN_END) {
@@ -5108,13 +5107,13 @@ static inline int l2cap_ecred_conn_req(struct l2cap_conn *conn,
 		l2cap_ecred_init(chan, __le16_to_cpu(req->credits));
 
 		/* Init response */
-		if (!pdu.rsp.credits) {
-			pdu.rsp.mtu = cpu_to_le16(chan->imtu);
-			pdu.rsp.mps = cpu_to_le16(chan->mps);
-			pdu.rsp.credits = cpu_to_le16(chan->rx_credits);
+		if (!pdu->credits) {
+			pdu->mtu = cpu_to_le16(chan->imtu);
+			pdu->mps = cpu_to_le16(chan->mps);
+			pdu->credits = cpu_to_le16(chan->rx_credits);
 		}
 
-		pdu.dcid[i] = cpu_to_le16(chan->scid);
+		pdu->dcid[i] = cpu_to_le16(chan->scid);
 
 		__set_chan_timer(chan, chan->ops->get_sndtimeo(chan));
 
@@ -5136,13 +5135,13 @@ unlock:
 	l2cap_chan_put(pchan);
 
 response:
-	pdu.rsp.result = cpu_to_le16(result);
+	pdu->result = cpu_to_le16(result);
 
 	if (defer)
 		return 0;
 
 	l2cap_send_cmd(conn, cmd->ident, L2CAP_ECRED_CONN_RSP,
-		       sizeof(pdu.rsp) + len, &pdu);
+		       sizeof(*pdu) + len, pdu);
 
 	return 0;
 }
@@ -7113,14 +7112,11 @@ EXPORT_SYMBOL_GPL(l2cap_chan_connect);
 static void l2cap_ecred_reconfigure(struct l2cap_chan *chan)
 {
 	struct l2cap_conn *conn = chan->conn;
-	struct {
-		struct l2cap_ecred_reconf_req req;
-		__le16 scid;
-	} pdu;
+	DEFINE_RAW_FLEX(struct l2cap_ecred_reconf_req, pdu, scid, 1);
 
-	pdu.req.mtu = cpu_to_le16(chan->imtu);
-	pdu.req.mps = cpu_to_le16(chan->mps);
-	pdu.scid    = cpu_to_le16(chan->scid);
+	pdu->mtu = cpu_to_le16(chan->imtu);
+	pdu->mps = cpu_to_le16(chan->mps);
+	pdu->scid[0] = cpu_to_le16(chan->scid);
 
 	chan->ident = l2cap_get_ident(conn);
 
