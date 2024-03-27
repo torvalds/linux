@@ -1657,6 +1657,10 @@ mt7915_net_fill_forward_path(struct ieee80211_hw *hw,
 #endif
 
 const struct ieee80211_ops mt7915_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx = mt7915_tx,
 	.start = mt7915_start,
 	.stop = mt7915_stop,
