@@ -54,7 +54,7 @@ static __always_inline void *patch_map(void *addr, const unsigned int fixmap)
 	BUG_ON(!page);
 
 	return (void *)set_fixmap_offset(fixmap, page_to_phys(page) +
-					 (uintaddr & ~PAGE_MASK));
+					 offset_in_page(addr));
 }
 
 static void patch_unmap(int fixmap)
@@ -65,8 +65,8 @@ NOKPROBE_SYMBOL(patch_unmap);
 
 static int __patch_insn_set(void *addr, u8 c, size_t len)
 {
+	bool across_pages = (offset_in_page(addr) + len) > PAGE_SIZE;
 	void *waddr = addr;
-	bool across_pages = (((uintptr_t)addr & ~PAGE_MASK) + len) > PAGE_SIZE;
 
 	/*
 	 * Only two pages can be mapped at a time for writing.
@@ -102,8 +102,8 @@ NOKPROBE_SYMBOL(__patch_insn_set);
 
 static int __patch_insn_write(void *addr, const void *insn, size_t len)
 {
+	bool across_pages = (offset_in_page(addr) + len) > PAGE_SIZE;
 	void *waddr = addr;
-	bool across_pages = (((uintptr_t) addr & ~PAGE_MASK) + len) > PAGE_SIZE;
 	int ret;
 
 	/*
