@@ -133,11 +133,9 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		}
 	}
 
-	if (flag == FLAG_AMD_LEGACY_ONLY_DMIC) {
-		ret = check_acp_pdm(pci, chip);
-		if (ret < 0)
-			goto skip_pdev_creation;
-	}
+	ret = check_acp_pdm(pci, chip);
+	if (ret < 0)
+		goto skip_pdev_creation;
 
 	chip->flag = flag;
 	memset(&pdevinfo, 0, sizeof(pdevinfo));
