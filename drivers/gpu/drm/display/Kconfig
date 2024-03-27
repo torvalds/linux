@@ -25,7 +25,7 @@ config DRM_DISPLAY_DP_TUNNEL
 	  DP tunnel features like the Bandwidth Allocation mode to maximize the
 	  BW utilization for display streams on Thunderbolt links.
 
-config DRM_DISPLAY_DEBUG_DP_TUNNEL_STATE
+config DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 	bool "Enable debugging the DP tunnel state"
 	depends on REF_TRACKER
 	depends on DRM_DISPLAY_DP_TUNNEL
