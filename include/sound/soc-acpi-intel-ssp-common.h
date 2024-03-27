@@ -73,4 +73,9 @@ snd_soc_acpi_intel_detect_amp_type(struct device *dev);
 const char *
 snd_soc_acpi_intel_get_codec_name(enum snd_soc_acpi_intel_codec codec_type);
 
+const char *
+snd_soc_acpi_intel_get_codec_tplg_suffix(enum snd_soc_acpi_intel_codec codec_type);
+const char *
+snd_soc_acpi_intel_get_amp_tplg_suffix(enum snd_soc_acpi_intel_codec codec_type);
+
 #endif /* __LINUX_SND_SOC_ACPI_INTEL_SSP_COMMON_H */
