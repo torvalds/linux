@@ -1314,19 +1314,50 @@ static bool pxa2xx_spi_idma_filter(struct dma_chan *chan, void *param)
 	return param == chan->device->dev;
 }
 
+static int
+pxa2xx_spi_init_ssp(struct platform_device *pdev, struct ssp_device *ssp, enum pxa_ssp_type type)
+{
+	struct device *dev = &pdev->dev;
+	struct resource *res;
+	int status;
+	u64 uid;
+
+	ssp->mmio_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(ssp->mmio_base))
+		return PTR_ERR(ssp->mmio_base);
+
+	ssp->phys_base = res->start;
+
+	ssp->clk = devm_clk_get(dev, NULL);
+	if (IS_ERR(ssp->clk))
+		return PTR_ERR(ssp->clk);
+
+	ssp->irq = platform_get_irq(pdev, 0);
+	if (ssp->irq < 0)
+		return ssp->irq;
+
+	ssp->type = type;
+	ssp->dev = dev;
+
+	status = acpi_dev_uid_to_integer(ACPI_COMPANION(dev), &uid);
+	if (status)
+		ssp->port_id = -1;
+	else
+		ssp->port_id = uid;
+
+	return 0;
+}
+
 static struct pxa2xx_spi_controller *
 pxa2xx_spi_init_pdata(struct platform_device *pdev)
 {
 	struct pxa2xx_spi_controller *pdata;
 	struct device *dev = &pdev->dev;
 	struct device *parent = dev->parent;
-	struct ssp_device *ssp;
-	struct resource *res;
 	enum pxa_ssp_type type = SSP_UNDEFINED;
 	const void *match;
 	bool is_lpss_priv;
 	int status;
-	u64 uid;
 
 	is_lpss_priv = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lpss_priv");
 
@@ -1351,14 +1382,6 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	if (!pdata)
 		return ERR_PTR(-ENOMEM);
 
-	ssp = &pdata->ssp;
-
-	ssp->mmio_base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
-	if (IS_ERR(ssp->mmio_base))
-		return ERR_CAST(ssp->mmio_base);
-
-	ssp->phys_base = res->start;
-
 	/* Platforms with iDMA 64-bit */
 	if (is_lpss_priv) {
 		pdata->tx_param = parent;
@@ -1366,27 +1389,14 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 		pdata->dma_filter = pxa2xx_spi_idma_filter;
 	}
 
-	ssp->clk = devm_clk_get(dev, NULL);
-	if (IS_ERR(ssp->clk))
-		return ERR_CAST(ssp->clk);
-
-	ssp->irq = platform_get_irq(pdev, 0);
-	if (ssp->irq < 0)
-		return ERR_PTR(ssp->irq);
-
-	ssp->type = type;
-	ssp->dev = dev;
-
-	status = acpi_dev_uid_to_integer(ACPI_COMPANION(dev), &uid);
-	if (status)
-		ssp->port_id = -1;
-	else
-		ssp->port_id = uid;
-
 	pdata->is_target = device_property_read_bool(dev, "spi-slave");
 	pdata->num_chipselect = 1;
 	pdata->enable_dma = true;
 	pdata->dma_burst_size = 1;
+
+	status = pxa2xx_spi_init_ssp(pdev, &pdata->ssp, type);
+	if (status)
+		return ERR_PTR(status);
 
 	return pdata;
 }
