@@ -360,7 +360,32 @@ static void mmio_fini(struct drm_device *drm, void *arg)
 		iounmap(xe->mem.vram.mapping);
 }
 
-static int xe_verify_lmem_ready(struct xe_device *xe)
+int xe_mmio_init(struct xe_device *xe)
+{
+	struct xe_tile *root_tile = xe_device_get_root_tile(xe);
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
+	const int mmio_bar = 0;
+
+	/*
+	 * Map the entire BAR.
+	 * The first 16MB of the BAR, belong to the root tile, and include:
+	 * registers (0-4MB), reserved space (4MB-8MB) and GGTT (8MB-16MB).
+	 */
+	xe->mmio.size = pci_resource_len(pdev, mmio_bar);
+	xe->mmio.regs = pci_iomap(pdev, mmio_bar, 0);
+	if (xe->mmio.regs == NULL) {
+		drm_err(&xe->drm, "failed to map registers\n");
+		return -EIO;
+	}
+
+	/* Setup first tile; other tiles (if present) will be setup later. */
+	root_tile->mmio.size = SZ_16M;
+	root_tile->mmio.regs = xe->mmio.regs;
+
+	return drmm_add_action_or_reset(&xe->drm, mmio_fini, xe);
+}
+
+int xe_mmio_verify_vram(struct xe_device *xe)
 {
 	struct xe_gt *gt = xe_root_mmio_gt(xe);
 
@@ -380,42 +405,6 @@ static int xe_verify_lmem_ready(struct xe_device *xe)
 		drm_err(&xe->drm, "VRAM not initialized by firmware\n");
 		return -ENODEV;
 	}
-
-	return 0;
-}
-
-int xe_mmio_init(struct xe_device *xe)
-{
-	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-	const int mmio_bar = 0;
-
-	/*
-	 * Map the entire BAR.
-	 * The first 16MB of the BAR, belong to the root tile, and include:
-	 * registers (0-4MB), reserved space (4MB-8MB) and GGTT (8MB-16MB).
-	 */
-	xe->mmio.size = pci_resource_len(pdev, mmio_bar);
-	xe->mmio.regs = pci_iomap(pdev, mmio_bar, 0);
-	if (xe->mmio.regs == NULL) {
-		drm_err(&xe->drm, "failed to map registers\n");
-		return -EIO;
-	}
-
-	return drmm_add_action_or_reset(&xe->drm, mmio_fini, xe);
-}
-
-int xe_mmio_root_tile_init(struct xe_device *xe)
-{
-	struct xe_tile *root_tile = xe_device_get_root_tile(xe);
-	int err;
-
-	/* Setup first tile; other tiles (if present) will be setup later. */
-	root_tile->mmio.size = SZ_16M;
-	root_tile->mmio.regs = xe->mmio.regs;
-
-	err = xe_verify_lmem_ready(xe);
-	if (err)
-		return err;
 
 	return 0;
 }

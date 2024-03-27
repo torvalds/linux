@@ -424,7 +424,7 @@ int xe_device_probe_early(struct xe_device *xe)
 	if (err)
 		return err;
 
-	err = xe_mmio_root_tile_init(xe);
+	err = xe_mmio_verify_vram(xe);
 	if (err)
 		return err;
 
