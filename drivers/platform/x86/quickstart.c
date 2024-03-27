@@ -18,6 +18,7 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/platform_device.h>
 #include <linux/pm_wakeup.h>
 #include <linux/printk.h>
@@ -38,6 +39,7 @@
 
 struct quickstart_data {
 	struct device *dev;
+	struct mutex input_lock;	/* Protects input sequence during notify */
 	struct input_dev *input_device;
 	char input_name[32];
 	char phys[32];
@@ -76,7 +78,10 @@ static void quickstart_notify(acpi_handle handle, u32 event, void *context)
 
 	switch (event) {
 	case QUICKSTART_EVENT_RUNTIME:
+		mutex_lock(&data->input_lock);
 		sparse_keymap_report_event(data->input_device, 0x1, 1, true);
+		mutex_unlock(&data->input_lock);
+
 		acpi_bus_generate_netlink_event(DRIVER_NAME, dev_name(data->dev), event, 0);
 		break;
 	default:
@@ -150,6 +155,13 @@ static void quickstart_notify_remove(void *context)
 	acpi_remove_notify_handler(handle, ACPI_DEVICE_NOTIFY, quickstart_notify);
 }
 
+static void quickstart_mutex_destroy(void *data)
+{
+	struct mutex *lock = data;
+
+	mutex_destroy(lock);
+}
+
 static int quickstart_probe(struct platform_device *pdev)
 {
 	struct quickstart_data *data;
@@ -167,6 +179,11 @@ static int quickstart_probe(struct platform_device *pdev)
 
 	data->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, data);
+
+	mutex_init(&data->input_lock);
+	ret = devm_add_action_or_reset(&pdev->dev, quickstart_mutex_destroy, &data->input_lock);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * We have to initialize the device wakeup before evaluating GHID because
