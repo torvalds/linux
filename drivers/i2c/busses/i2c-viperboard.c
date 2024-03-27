@@ -416,7 +416,6 @@ static void vprbrd_i2c_remove(struct platform_device *pdev)
 
 static struct platform_driver vprbrd_i2c_driver = {
 	.driver.name	= "viperboard-i2c",
-	.driver.owner	= THIS_MODULE,
 	.probe		= vprbrd_i2c_probe,
 	.remove_new	= vprbrd_i2c_remove,
 };
