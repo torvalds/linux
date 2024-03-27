@@ -1237,7 +1237,6 @@ static void st95hf_remove(struct spi_device *nfc_spi_dev)
 static struct spi_driver st95hf_driver = {
 	.driver = {
 		.name = "st95hf",
-		.owner = THIS_MODULE,
 		.of_match_table = of_match_ptr(st95hf_spi_of_match),
 	},
 	.id_table = st95hf_id,
