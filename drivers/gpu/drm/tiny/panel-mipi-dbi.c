@@ -384,7 +384,6 @@ MODULE_DEVICE_TABLE(spi, panel_mipi_dbi_spi_id);
 static struct spi_driver panel_mipi_dbi_spi_driver = {
 	.driver = {
 		.name = "panel-mipi-dbi-spi",
-		.owner = THIS_MODULE,
 		.of_match_table = panel_mipi_dbi_spi_of_match,
 		.pm = &panel_mipi_dbi_pm_ops,
 	},
