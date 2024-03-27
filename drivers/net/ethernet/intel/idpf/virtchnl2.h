@@ -4,6 +4,8 @@
 #ifndef _VIRTCHNL2_H_
 #define _VIRTCHNL2_H_
 
+#include <linux/if_ether.h>
+
 /* All opcodes associated with virtchnl2 are prefixed with virtchnl2 or
  * VIRTCHNL2. Any future opcodes, offloads/capabilities, structures,
  * and defines must be prefixed with virtchnl2 or VIRTCHNL2 to avoid confusion.
@@ -16,8 +18,6 @@
  * This is an interface definition file where existing enums and their values
  * must remain unchanged over time, so we specify explicit values for all enums.
  */
-
-#include "virtchnl2_lan_desc.h"
 
 /* This macro is used to generate compilation errors if a structure
  * is not exactly the correct length.
