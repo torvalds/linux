@@ -232,6 +232,7 @@ struct sun8i_codec {
 	struct delayed_work		jack_work;
 	int				jack_irq;
 	int				jack_status;
+	int				jack_type;
 	int				jack_last_sample;
 	ktime_t				jack_hbias_ready;
 	struct mutex			jack_mutex;
@@ -1352,7 +1353,6 @@ static void sun8i_codec_jack_work(struct work_struct *work)
 	struct sun8i_codec *scodec = container_of(work, struct sun8i_codec,
 						  jack_work.work);
 	unsigned int mdata;
-	int type_mask = scodec->jack->jack->type;
 	int type;
 
 	guard(mutex)(&scodec->jack_mutex);
@@ -1363,7 +1363,7 @@ static void sun8i_codec_jack_work(struct work_struct *work)
 
 		scodec->jack_last_sample = -1;
 
-		if (type_mask & SND_JACK_MICROPHONE) {
+		if (scodec->jack_type & SND_JACK_MICROPHONE) {
 			/*
 			 * If we were in disconnected state, we enable HBIAS and
 			 * wait 600ms before reading initial HDATA value.
@@ -1376,7 +1376,7 @@ static void sun8i_codec_jack_work(struct work_struct *work)
 			scodec->jack_status = SUN8I_JACK_STATUS_WAITING_HBIAS;
 		} else {
 			snd_soc_jack_report(scodec->jack, SND_JACK_HEADPHONE,
-					    type_mask);
+					    scodec->jack_type);
 			scodec->jack_status = SUN8I_JACK_STATUS_CONNECTED;
 		}
 	} else if (scodec->jack_status == SUN8I_JACK_STATUS_WAITING_HBIAS) {
@@ -1417,17 +1417,17 @@ static void sun8i_codec_jack_work(struct work_struct *work)
 		if (type == SND_JACK_HEADPHONE)
 			sun8i_codec_set_hmic_bias(scodec, false);
 
-		snd_soc_jack_report(scodec->jack, type, type_mask);
+		snd_soc_jack_report(scodec->jack, type, scodec->jack_type);
 		scodec->jack_status = SUN8I_JACK_STATUS_CONNECTED;
 	} else if (scodec->jack_status == SUN8I_JACK_STATUS_CONNECTED) {
 		if (scodec->last_hmic_irq != SUN8I_HMIC_STS_JACK_OUT_IRQ_ST)
 			return;
 
 		scodec->jack_status = SUN8I_JACK_STATUS_DISCONNECTED;
-		if (type_mask & SND_JACK_MICROPHONE)
+		if (scodec->jack_type & SND_JACK_MICROPHONE)
 			sun8i_codec_set_hmic_bias(scodec, false);
 
-		snd_soc_jack_report(scodec->jack, 0, type_mask);
+		snd_soc_jack_report(scodec->jack, 0, scodec->jack_type);
 	}
 }
 
@@ -1491,7 +1491,7 @@ static irqreturn_t sun8i_codec_jack_irq(int irq, void *dev_id)
 		if (scodec->jack_last_sample >= 0 &&
 		    scodec->jack_last_sample == value)
 			snd_soc_jack_report(scodec->jack, type,
-					    scodec->jack->jack->type);
+					    scodec->jack_type);
 
 		scodec->jack_last_sample = value;
 	}
