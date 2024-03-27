@@ -14,4 +14,7 @@
 #define   LMEM_EN			REG_BIT(31)
 #define   LMTT_DIR_PTR			REG_GENMASK(30, 0) /* in multiples of 64KB */
 
+#define VF_CAP_REG			XE_REG(0x1901f8, XE_REG_OPTION_VF)
+#define   VF_CAP			REG_BIT(0)
+
 #endif
