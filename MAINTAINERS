@@ -5229,7 +5229,6 @@ F:	lib/closure.c
 
 CMPC ACPI DRIVER
 M:	Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
-M:	Daniel Oliveira Nascimento <don@syst.com.br>
 L:	platform-driver-x86@vger.kernel.org
 S:	Supported
 F:	drivers/platform/x86/classmate-laptop.c
