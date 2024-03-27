@@ -19,7 +19,7 @@
 struct codec_map {
 	const char *name;
 	const char *acpi_hid;
-	enum sof_ssp_codec codec_type;
+	enum snd_soc_acpi_intel_codec codec_type;
 };
 
 static const struct codec_map codecs[] = {
@@ -64,7 +64,8 @@ static const struct codec_map amps[] = {
 	CODEC_MAP_ENTRY("RT1308", RT1308_ACPI_HID, CODEC_RT1308),
 };
 
-enum sof_ssp_codec sof_ssp_detect_codec_type(struct device *dev)
+enum snd_soc_acpi_intel_codec
+snd_soc_acpi_intel_detect_codec_type(struct device *dev)
 {
 	int i;
 
@@ -78,9 +79,10 @@ enum sof_ssp_codec sof_ssp_detect_codec_type(struct device *dev)
 
 	return CODEC_NONE;
 }
-EXPORT_SYMBOL_NS(sof_ssp_detect_codec_type, SND_SOC_INTEL_SOF_SSP_COMMON);
+EXPORT_SYMBOL_NS(snd_soc_acpi_intel_detect_codec_type, SND_SOC_INTEL_SOF_SSP_COMMON);
 
-enum sof_ssp_codec sof_ssp_detect_amp_type(struct device *dev)
+enum snd_soc_acpi_intel_codec
+snd_soc_acpi_intel_detect_amp_type(struct device *dev)
 {
 	int i;
 
@@ -94,9 +96,10 @@ enum sof_ssp_codec sof_ssp_detect_amp_type(struct device *dev)
 
 	return CODEC_NONE;
 }
-EXPORT_SYMBOL_NS(sof_ssp_detect_amp_type, SND_SOC_INTEL_SOF_SSP_COMMON);
+EXPORT_SYMBOL_NS(snd_soc_acpi_intel_detect_amp_type, SND_SOC_INTEL_SOF_SSP_COMMON);
 
-const char *sof_ssp_get_codec_name(enum sof_ssp_codec codec_type)
+const char *
+snd_soc_acpi_intel_get_codec_name(enum snd_soc_acpi_intel_codec codec_type)
 {
 	int i;
 
@@ -115,7 +118,7 @@ const char *sof_ssp_get_codec_name(enum sof_ssp_codec codec_type)
 
 	return NULL;
 }
-EXPORT_SYMBOL_NS(sof_ssp_get_codec_name, SND_SOC_INTEL_SOF_SSP_COMMON);
+EXPORT_SYMBOL_NS(snd_soc_acpi_intel_get_codec_name, SND_SOC_INTEL_SOF_SSP_COMMON);
 
 MODULE_DESCRIPTION("ASoC Intel SOF Common Machine Driver Helpers");
 MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");
