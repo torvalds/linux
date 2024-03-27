@@ -15,6 +15,7 @@
 #include "io_uring.h"
 #include "opdef.h"
 #include "kbuf.h"
+#include "memmap.h"
 
 #define IO_BUFFER_LIST_BUF_PER_PAGE (PAGE_SIZE / sizeof(struct io_uring_buf))
 
