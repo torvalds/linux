@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef HGSL_MEMORY_INCLUDED
@@ -13,6 +13,33 @@
 #include "hgsl_types.h"
 #include "hgsl_utils.h"
 
+#define GSL_MEMTYPE_MASK		0x0000FF00
+#define GSL_MEMTYPE_SHIFT			8
+#define GET_MEMTYPE(x) \
+	((x & GSL_MEMTYPE_MASK) >> GSL_MEMTYPE_SHIFT)
+#define GSL_MEMTYPE_OBJECTANY			0x0
+#define GSL_MEMTYPE_FRAMEBUFFER			0x1
+#define GSL_MEMTYPE_RENDERBUFFER		0x2
+#define GSL_MEMTYPE_ARRAYBUFFER			0x3
+#define GSL_MEMTYPE_ELEMENTARRAYBUFFER		0x4
+#define GSL_MEMTYPE_VERTEXARRAYBUFFER		0x5
+#define GSL_MEMTYPE_TEXTURE			0x6
+#define GSL_MEMTYPE_SURFACE			0x7
+#define GSL_MEMTYPE_EGL_SURFACE			0x8
+#define GSL_MEMTYPE_GL				0x9
+#define GSL_MEMTYPE_CL				0xa
+#define GSL_MEMTYPE_CL_BUFFER_MAP		0xb
+#define GSL_MEMTYPE_CL_BUFFER_NOMAP		0xc
+#define GSL_MEMTYPE_CL_IMAGE_MAP		0xd
+#define GSL_MEMTYPE_CL_IMAGE_NOMAP		0xe
+#define GSL_MEMTYPE_CL_KERNEL_STACK		0xf
+#define GSL_MEMTYPE_COMMAND			0x10
+#define GSL_MEMTYPE_2D				0x11
+#define GSL_MEMTYPE_EGL_IMAGE			0x12
+#define GSL_MEMTYPE_EGL_SHADOW			0x13
+#define GSL_MEMTYPE_MULTISAMPLE			0x14
+#define GSL_MEMTYPE_VISIBLE_MAS			0x15
+#define GSL_MEMTYPE_KERNEL			0xff
 #define HGSL_MEM_META_MAX_SIZE         128
 enum gsl_user_mem_type_t {
 	GSL_USER_MEM_TYPE_PMEM         = 0x00000000,
@@ -54,5 +81,7 @@ void hgsl_put_sgt(struct hgsl_mem_node *mem_node, bool internal);
 
 struct hgsl_mem_node *hgsl_mem_find_base_locked(struct list_head *head,
 	uint64_t gpuaddr, uint64_t size);
+
+void *hgsl_mem_node_zalloc(bool iocoherency);
 
 #endif

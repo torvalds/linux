@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _UAPI_MSM_HGSL_H
@@ -549,5 +549,18 @@ struct hgsl_timeline_wait {
 
 #define HGSL_IOCTL_TIMELINE_WAIT \
 				HGSL_IOW(0x1C, struct hgsl_timeline_wait)
+
+/**
+ * struct hgsl_ioctl_mem_get_fd_params - get fd from memdesc
+ * @memdesc: According to memdesc to find the mem node
+ * @fd: The fd of dmabuf mem node
+ */
+struct hgsl_ioctl_mem_get_fd_params {
+	__u64 memdesc;
+	__s32 fd;
+};
+
+#define HGSL_IOCTL_MEM_GET_FD \
+				HGSL_IORW(0x1D, struct hgsl_ioctl_mem_get_fd_params)
 
 #endif /* _UAPI_MSM_HGSL_H */

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "hgsl_memory.h"
@@ -267,9 +267,9 @@ static int hgsl_mem_dma_buf_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 
 	if (IS_ERR_OR_NULL(mem_node->vmapping))
 		mem_node->vmapping = vmap(mem_node->pages,
-				mem_node->page_count,
-				VM_IOREMAP,
-				prot);
+			    mem_node->page_count,
+			    VM_IOREMAP,
+			    prot);
 
 	if (!IS_ERR_OR_NULL(mem_node->vmapping))
 		mem_node->vmap_count++;
@@ -616,6 +616,20 @@ struct hgsl_mem_node *hgsl_mem_find_base_locked(struct list_head *head,
 	}
 
 	return node_found;
+}
+
+void *hgsl_mem_node_zalloc(bool iocoherency)
+{
+	struct hgsl_mem_node *mem_node = NULL;
+
+	mem_node = hgsl_zalloc(sizeof(*mem_node));
+	if (mem_node == NULL)
+		goto out;
+
+	mem_node->default_iocoherency = iocoherency;
+
+out:
+	return mem_node;
 }
 
 MODULE_IMPORT_NS(DMA_BUF);
