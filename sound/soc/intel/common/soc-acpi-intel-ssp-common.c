@@ -4,7 +4,7 @@
 
 #include <linux/device.h>
 #include <sound/soc-acpi.h>
-#include "sof_ssp_common.h"
+#include <sound/soc-acpi-intel-ssp-common.h>
 
 /*
  * Codec probe function
