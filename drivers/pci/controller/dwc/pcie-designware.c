@@ -655,7 +655,7 @@ int dw_pcie_wait_for_link(struct dw_pcie *pci)
 		if (dw_pcie_link_up(pci))
 			break;
 
-		usleep_range(LINK_WAIT_USLEEP_MIN, LINK_WAIT_USLEEP_MAX);
+		msleep(LINK_WAIT_SLEEP_MS);
 	}
 
 	if (retries >= LINK_WAIT_MAX_RETRIES) {
