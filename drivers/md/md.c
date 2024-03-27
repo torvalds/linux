@@ -8087,7 +8087,8 @@ void md_wakeup_thread(struct md_thread __rcu *thread)
 	if (t) {
 		pr_debug("md: waking up MD thread %s.\n", t->tsk->comm);
 		set_bit(THREAD_WAKEUP, &t->flags);
-		wake_up(&t->wqueue);
+		if (wq_has_sleeper(&t->wqueue))
+			wake_up(&t->wqueue);
 	}
 	rcu_read_unlock();
 }
