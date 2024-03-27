@@ -74,6 +74,16 @@ config DEVFREQ_GOV_PASSIVE
 	  through sysfs entries. The passive governor recommends that
 	  devfreq device uses the OPP table to get the frequency/voltage.
 
+config DEVFREQ_GOV_QCOM_BW_HWMON
+	tristate "HW monitor based governor for device BW"
+	depends on QCOM_BIMC_BWMON
+	help
+	  HW monitor based governor for device to DDR bandwidth voting.
+	  This governor sets the CPU BW vote by using BIMC counters to monitor
+	  the CPU's use of DDR. Since this uses target specific counters it
+	  can conflict with existing profiling tools.  This governor is unlikely
+	  to be useful for non-QCOM devices.
+
 comment "DEVFREQ Drivers"
 
 config ARM_EXYNOS_BUS_DEVFREQ
