@@ -160,7 +160,6 @@ static struct pci_driver loongson_i2s_driver = {
 	.id_table = loongson_i2s_ids,
 	.probe = loongson_i2s_pci_probe,
 	.driver = {
-		.owner = THIS_MODULE,
 		.pm = pm_sleep_ptr(&loongson_i2s_pm),
 	},
 };
