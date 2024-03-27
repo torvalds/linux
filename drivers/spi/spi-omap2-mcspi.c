@@ -1175,13 +1175,6 @@ static int omap2_mcspi_transfer_one(struct spi_controller *ctlr,
 		    t->bits_per_word == spi->bits_per_word)
 			par_override = 0;
 	}
-	if (cd && cd->cs_per_word) {
-		chconf = mcspi->ctx.modulctrl;
-		chconf &= ~OMAP2_MCSPI_MODULCTRL_SINGLE;
-		mcspi_write_reg(ctlr, OMAP2_MCSPI_MODULCTRL, chconf);
-		mcspi->ctx.modulctrl =
-			mcspi_read_cs_reg(spi, OMAP2_MCSPI_MODULCTRL);
-	}
 
 	chconf = mcspi_cached_chconf0(spi);
 	chconf &= ~OMAP2_MCSPI_CHCONF_TRM_MASK;
@@ -1238,14 +1231,6 @@ out:
 	if (par_override) {
 		par_override = 0;
 		status = omap2_mcspi_setup_transfer(spi, NULL);
-	}
-
-	if (cd && cd->cs_per_word) {
-		chconf = mcspi->ctx.modulctrl;
-		chconf |= OMAP2_MCSPI_MODULCTRL_SINGLE;
-		mcspi_write_reg(ctlr, OMAP2_MCSPI_MODULCTRL, chconf);
-		mcspi->ctx.modulctrl =
-			mcspi_read_cs_reg(spi, OMAP2_MCSPI_MODULCTRL);
 	}
 
 	omap2_mcspi_set_enable(spi, 0);
