@@ -2011,10 +2011,9 @@ static inline int pci_register_driver(struct pci_driver *drv)
 static inline void pci_unregister_driver(struct pci_driver *drv) { }
 static inline u8 pci_find_capability(struct pci_dev *dev, int cap)
 { return 0; }
-static inline int pci_find_next_capability(struct pci_dev *dev, u8 post,
-					   int cap)
+static inline u8 pci_find_next_capability(struct pci_dev *dev, u8 post, int cap)
 { return 0; }
-static inline int pci_find_ext_capability(struct pci_dev *dev, int cap)
+static inline u16 pci_find_ext_capability(struct pci_dev *dev, int cap)
 { return 0; }
 
 static inline u64 pci_get_dsn(struct pci_dev *dev)
