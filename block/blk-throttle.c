@@ -1494,11 +1494,8 @@ static u64 tg_prfill_limit(struct seq_file *sf, struct blkg_policy_data *pd,
 {
 	struct throtl_grp *tg = pd_to_tg(pd);
 	const char *dname = blkg_dev_name(pd->blkg);
-	char bufs[4][21] = { "max", "max", "max", "max" };
 	u64 bps_dft;
 	unsigned int iops_dft;
-	char idle_time[26] = "";
-	char latency_time[26] = "";
 
 	if (!dname)
 		return 0;
@@ -1520,35 +1517,39 @@ static u64 tg_prfill_limit(struct seq_file *sf, struct blkg_policy_data *pd,
 	      tg->latency_target_conf == DFL_LATENCY_TARGET)))
 		return 0;
 
-	if (tg->bps_conf[READ][off] != U64_MAX)
-		snprintf(bufs[0], sizeof(bufs[0]), "%llu",
-			tg->bps_conf[READ][off]);
-	if (tg->bps_conf[WRITE][off] != U64_MAX)
-		snprintf(bufs[1], sizeof(bufs[1]), "%llu",
-			tg->bps_conf[WRITE][off]);
-	if (tg->iops_conf[READ][off] != UINT_MAX)
-		snprintf(bufs[2], sizeof(bufs[2]), "%u",
-			tg->iops_conf[READ][off]);
-	if (tg->iops_conf[WRITE][off] != UINT_MAX)
-		snprintf(bufs[3], sizeof(bufs[3]), "%u",
-			tg->iops_conf[WRITE][off]);
+	seq_printf(sf, "%s", dname);
+	if (tg->bps_conf[READ][off] == U64_MAX)
+		seq_printf(sf, " rbps=max");
+	else
+		seq_printf(sf, " rbps=%llu", tg->bps_conf[READ][off]);
+
+	if (tg->bps_conf[WRITE][off] == U64_MAX)
+		seq_printf(sf, " wbps=max");
+	else
+		seq_printf(sf, " wbps=%llu", tg->bps_conf[WRITE][off]);
+
+	if (tg->iops_conf[READ][off] == UINT_MAX)
+		seq_printf(sf, " riops=max");
+	else
+		seq_printf(sf, " riops=%u", tg->iops_conf[READ][off]);
+
+	if (tg->iops_conf[WRITE][off] == UINT_MAX)
+		seq_printf(sf, " wiops=max");
+	else
+		seq_printf(sf, " wiops=%u", tg->iops_conf[WRITE][off]);
+
 	if (off == LIMIT_LOW) {
 		if (tg->idletime_threshold_conf == ULONG_MAX)
-			strcpy(idle_time, " idle=max");
+			seq_printf(sf, " idle=max");
 		else
-			snprintf(idle_time, sizeof(idle_time), " idle=%lu",
-				tg->idletime_threshold_conf);
+			seq_printf(sf, " idle=%lu", tg->idletime_threshold_conf);
 
 		if (tg->latency_target_conf == ULONG_MAX)
-			strcpy(latency_time, " latency=max");
+			seq_printf(sf, " latency=max");
 		else
-			snprintf(latency_time, sizeof(latency_time),
-				" latency=%lu", tg->latency_target_conf);
+			seq_printf(sf, " latency=%lu", tg->latency_target_conf);
 	}
-
-	seq_printf(sf, "%s rbps=%s wbps=%s riops=%s wiops=%s%s%s\n",
-		   dname, bufs[0], bufs[1], bufs[2], bufs[3], idle_time,
-		   latency_time);
+	seq_printf(sf, "\n");
 	return 0;
 }
 
