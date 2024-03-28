@@ -107,6 +107,8 @@ enum plda_int_event {
 
 #define PLDA_NUM_DMA_EVENTS			16
 
+#define EVENT_PM_MSI_INT_INTX			(PLDA_NUM_DMA_EVENTS + PLDA_INTX)
+#define EVENT_PM_MSI_INT_MSI			(PLDA_NUM_DMA_EVENTS + PLDA_MSI)
 #define PLDA_MAX_EVENT_NUM			(PLDA_NUM_DMA_EVENTS + PLDA_INT_EVENT_NUM)
 
 /*
@@ -116,21 +118,22 @@ enum plda_int_event {
  * +--+--+--+-+------+-+-+-+-+-+-+-+-+-----------+-----------+
  * |12|11|10|9| intx |7|6|5|4|3|2|1|0| DMA error | DMA end   |
  * +--+--+--+-+------+-+-+-+-+-+-+-+-+-----------+-----------+
- * bit 0-7  DMA interrupt end : reserved for vendor implement
- * bit 8-15 DMA error : reserved for vendor implement
- * 0:  AXI post error (PLDA_AXI_POST_ERR)
- * 1:  AXI fetch error (PLDA_AXI_FETCH_ERR)
- * 2:  AXI discard error (PLDA_AXI_DISCARD_ERR)
- * 3:  AXI doorbell (PLDA_PCIE_DOORBELL)
- * 4:  PCIe post error (PLDA_PCIE_POST_ERR)
- * 5:  PCIe fetch error (PLDA_PCIE_FETCH_ERR)
- * 6:  PCIe discard error (PLDA_PCIE_DISCARD_ERR)
- * 7:  PCIe doorbell (PLDA_PCIE_DOORBELL)
- * 8:  4 INTx interruts (PLDA_INTX)
- * 9:  MSI interrupt (PLDA_MSI)
- * 10: AER event (PLDA_AER_EVENT)
- * 11: PM/LTR/Hotplug (PLDA_MISC_EVENTS)
- * 12: System error (PLDA_SYS_ERR)
+ * event  bit
+ * 0-7   (0-7)   DMA interrupt end : reserved for vendor implement
+ * 8-15  (8-15)  DMA error : reserved for vendor implement
+ * 16    (16)    AXI post error (PLDA_AXI_POST_ERR)
+ * 17    (17)    AXI fetch error (PLDA_AXI_FETCH_ERR)
+ * 18    (18)    AXI discard error (PLDA_AXI_DISCARD_ERR)
+ * 19    (19)    AXI doorbell (PLDA_PCIE_DOORBELL)
+ * 20    (20)    PCIe post error (PLDA_PCIE_POST_ERR)
+ * 21    (21)    PCIe fetch error (PLDA_PCIE_FETCH_ERR)
+ * 22    (22)    PCIe discard error (PLDA_PCIE_DISCARD_ERR)
+ * 23    (23)    PCIe doorbell (PLDA_PCIE_DOORBELL)
+ * 24    (27-24) INTx interruts (PLDA_INTX)
+ * 25    (28):   MSI interrupt (PLDA_MSI)
+ * 26    (29):   AER event (PLDA_AER_EVENT)
+ * 27    (30):   PM/LTR/Hotplug (PLDA_MISC_EVENTS)
+ * 28    (31):   System error (PLDA_SYS_ERR)
  */
 
 struct plda_pcie_rp;
@@ -155,6 +158,7 @@ struct plda_pcie_rp {
 	raw_spinlock_t lock;
 	struct plda_msi msi;
 	const struct plda_event_ops *event_ops;
+	const struct irq_chip *event_irq_chip;
 	void __iomem *bridge_addr;
 	int num_events;
 };
