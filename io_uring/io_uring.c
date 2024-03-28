@@ -1098,9 +1098,10 @@ void tctx_task_work(struct callback_head *cb)
 	WARN_ON_ONCE(ret);
 }
 
-static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
+static inline void io_req_local_work_add(struct io_kiocb *req,
+					 struct io_ring_ctx *ctx,
+					 unsigned flags)
 {
-	struct io_ring_ctx *ctx = req->ctx;
 	unsigned nr_wait, nr_tw, nr_tw_prev;
 	struct llist_node *head;
 
@@ -1113,6 +1114,8 @@ static inline void io_req_local_work_add(struct io_kiocb *req, unsigned flags)
 	 */
 	if (req->flags & (REQ_F_LINK | REQ_F_HARDLINK))
 		flags &= ~IOU_F_TWQ_LAZY_WAKE;
+
+	guard(rcu)();
 
 	head = READ_ONCE(ctx->work_llist.first);
 	do {
@@ -1195,13 +1198,18 @@ static void io_req_normal_work_add(struct io_kiocb *req)
 
 void __io_req_task_work_add(struct io_kiocb *req, unsigned flags)
 {
-	if (req->ctx->flags & IORING_SETUP_DEFER_TASKRUN) {
-		rcu_read_lock();
-		io_req_local_work_add(req, flags);
-		rcu_read_unlock();
-	} else {
+	if (req->ctx->flags & IORING_SETUP_DEFER_TASKRUN)
+		io_req_local_work_add(req, req->ctx, flags);
+	else
 		io_req_normal_work_add(req);
-	}
+}
+
+void io_req_task_work_add_remote(struct io_kiocb *req, struct io_ring_ctx *ctx,
+				 unsigned flags)
+{
+	if (WARN_ON_ONCE(!(ctx->flags & IORING_SETUP_DEFER_TASKRUN)))
+		return;
+	io_req_local_work_add(req, ctx, flags);
 }
 
 static void __cold io_move_task_work_from_local(struct io_ring_ctx *ctx)
