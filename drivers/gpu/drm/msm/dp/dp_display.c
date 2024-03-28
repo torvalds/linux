@@ -93,7 +93,6 @@ struct dp_display_private {
 	struct dp_link    *link;
 	struct dp_panel   *panel;
 	struct dp_ctrl    *ctrl;
-	struct dp_debug   *debug;
 
 	struct dp_display_mode dp_mode;
 	struct msm_dp dp_display;
@@ -1459,14 +1458,9 @@ void dp_display_debugfs_init(struct msm_dp *dp_display, struct dentry *root, boo
 	dp = container_of(dp_display, struct dp_display_private, dp_display);
 	dev = &dp->dp_display.pdev->dev;
 
-	dp->debug = dp_debug_get(dev, dp->panel,
-					dp->link, dp->dp_display.connector,
-					root, is_edp);
-	if (IS_ERR(dp->debug)) {
-		rc = PTR_ERR(dp->debug);
+	rc = dp_debug_init(dev, dp->panel, dp->link, dp->dp_display.connector, root, is_edp);
+	if (rc)
 		DRM_ERROR("failed to initialize debug, rc = %d\n", rc);
-		dp->debug = NULL;
-	}
 }
 
 int msm_dp_modeset_init(struct msm_dp *dp_display, struct drm_device *dev,
