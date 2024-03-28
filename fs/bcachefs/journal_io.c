@@ -1366,7 +1366,7 @@ int bch2_journal_read(struct bch_fs *c,
 			fsck_err(c, journal_entries_missing,
 				 "journal entries %llu-%llu missing! (replaying %llu-%llu)\n"
 				 "  prev at %s\n"
-				 "  next at %s",
+				 "  next at %s, continue?",
 				 missing_start, missing_end,
 				 *last_seq, *blacklist_seq - 1,
 				 buf1.buf, buf2.buf);

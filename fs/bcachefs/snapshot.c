@@ -1018,7 +1018,7 @@ int bch2_reconstruct_snapshots(struct bch_fs *c)
 		darray_for_each(*t, id) {
 			if (fsck_err_on(!bch2_snapshot_equiv(c, *id),
 					c, snapshot_node_missing,
-					"snapshot node %u from tree %s missing", *id, buf.buf)) {
+					"snapshot node %u from tree %s missing, recreate?", *id, buf.buf)) {
 				if (t->nr > 1) {
 					bch_err(c, "cannot reconstruct snapshot trees with multiple nodes");
 					ret = -BCH_ERR_fsck_repair_unimplemented;
