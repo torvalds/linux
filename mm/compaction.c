@@ -3350,7 +3350,6 @@ static struct ctl_table vm_compaction[] = {
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
 	},
-	{ }
 };
 
 static int __init kcompactd_init(void)
