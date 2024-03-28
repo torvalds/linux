@@ -1641,7 +1641,7 @@ unlock:
 	spin_lock(&gl->gl_lockref.lock);
 	add_to_queue(gh);
 	if (unlikely((LM_FLAG_NOEXP & gh->gh_flags) &&
-		     test_and_clear_bit(GLF_FROZEN, &gl->gl_flags))) {
+		     test_and_clear_bit(GLF_HAVE_FROZEN_REPLY, &gl->gl_flags))) {
 		set_bit(GLF_HAVE_REPLY, &gl->gl_flags);
 		gl->gl_lockref.count++;
 		gfs2_glock_queue_work(gl, 0);
@@ -1986,7 +1986,7 @@ void gfs2_glock_complete(struct gfs2_glock *gl, int ret)
 
 	if (unlikely(test_bit(DFL_BLOCK_LOCKS, &ls->ls_recover_flags))) {
 		if (gfs2_should_freeze(gl)) {
-			set_bit(GLF_FROZEN, &gl->gl_flags);
+			set_bit(GLF_HAVE_FROZEN_REPLY, &gl->gl_flags);
 			spin_unlock(&gl->gl_lockref.lock);
 			return;
 		}
@@ -2180,7 +2180,7 @@ void gfs2_flush_delete_work(struct gfs2_sbd *sdp)
 
 static void thaw_glock(struct gfs2_glock *gl)
 {
-	if (!test_and_clear_bit(GLF_FROZEN, &gl->gl_flags))
+	if (!test_and_clear_bit(GLF_HAVE_FROZEN_REPLY, &gl->gl_flags))
 		return;
 	if (!lockref_get_not_dead(&gl->gl_lockref))
 		return;
@@ -2368,7 +2368,7 @@ static const char *gflags2str(char *buf, const struct gfs2_glock *gl)
 		*p++ = 'r';
 	if (test_bit(GLF_INITIAL, gflags))
 		*p++ = 'I';
-	if (test_bit(GLF_FROZEN, gflags))
+	if (test_bit(GLF_HAVE_FROZEN_REPLY, gflags))
 		*p++ = 'F';
 	if (!list_empty(&gl->gl_holders))
 		*p++ = 'q';
