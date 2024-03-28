@@ -74,7 +74,6 @@ struct dp_event {
 };
 
 struct dp_display_private {
-	char *name;
 	int irq;
 
 	unsigned int id;
@@ -82,11 +81,9 @@ struct dp_display_private {
 	/* state variables */
 	bool core_initialized;
 	bool phy_initialized;
-	bool hpd_irq_on;
 	bool audio_supported;
 
 	struct drm_device *drm_dev;
-	struct dentry *root;
 
 	struct dp_catalog *catalog;
 	struct drm_dp_aux *aux;
@@ -809,7 +806,6 @@ static int dp_display_set_mode(struct msm_dp *dp_display,
 
 	drm_mode_copy(&dp->panel->dp_mode.drm_mode, &mode->drm_mode);
 	dp->panel->dp_mode.bpp = mode->bpp;
-	dp->panel->dp_mode.capabilities = mode->capabilities;
 	dp->panel->dp_mode.out_fmt_is_yuv_420 = mode->out_fmt_is_yuv_420;
 	dp_panel_init_panel_info(dp->panel);
 	return 0;
@@ -1288,7 +1284,6 @@ static int dp_display_probe(struct platform_device *pdev)
 		return -EINVAL;
 
 	dp->dp_display.pdev = pdev;
-	dp->name = "drm_dp";
 	dp->id = desc->id;
 	dp->dp_display.connector_type = dp_display_get_connector_type(pdev, desc);
 	dp->wide_bus_supported = desc->wide_bus_supported;

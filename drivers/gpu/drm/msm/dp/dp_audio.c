@@ -22,9 +22,7 @@ struct dp_audio_private {
 	struct platform_device *pdev;
 	struct drm_device *drm_dev;
 	struct dp_catalog *catalog;
-	struct dp_panel *panel;
 
-	bool engine_on;
 	u32 channels;
 
 	struct dp_audio dp_audio;
@@ -356,8 +354,6 @@ static void dp_audio_enable(struct dp_audio_private *audio, bool enable)
 
 	catalog->audio_data = enable;
 	dp_catalog_audio_enable(catalog);
-
-	audio->engine_on = enable;
 }
 
 static struct dp_audio_private *dp_audio_get_data(struct platform_device *pdev)
@@ -571,7 +567,6 @@ struct dp_audio *dp_audio_get(struct platform_device *pdev,
 	}
 
 	audio->pdev = pdev;
-	audio->panel = panel;
 	audio->catalog = catalog;
 
 	dp_audio = &audio->dp_audio;
