@@ -14581,11 +14581,8 @@ static int bnxt_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 	if (!br_spec)
 		return -EINVAL;
 
-	nla_for_each_nested(attr, br_spec, rem) {
+	nla_for_each_nested_type(attr, IFLA_BRIDGE_MODE, br_spec, rem) {
 		u16 mode;
-
-		if (nla_type(attr) != IFLA_BRIDGE_MODE)
-			continue;
 
 		mode = nla_get_u16(attr);
 		if (mode == bp->br_mode)
