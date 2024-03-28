@@ -1544,7 +1544,7 @@ int __udp_enqueue_schedule_skb(struct sock *sk, struct sk_buff *skb)
 			INDIRECT_CALL_1(sk->sk_data_ready,
 					sock_def_readable, sk);
 		else
-			sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
+			sk_wake_async_rcu(sk, SOCK_WAKE_WAITD, POLL_IN);
 	}
 	busylock_release(busy);
 	return 0;
