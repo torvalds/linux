@@ -2677,7 +2677,7 @@ static int guc_context_policy_init_v70(struct intel_context *ce, bool loop)
 	execution_quantum = engine->props.timeslice_duration_ms * 1000;
 	preemption_timeout = engine->props.preempt_timeout_ms * 1000;
 
-	if (ce && (ce->flags & BIT(CONTEXT_LOW_LATENCY)))
+	if (ce->flags & BIT(CONTEXT_LOW_LATENCY))
 		slpc_ctx_freq_req |= SLPC_CTX_FREQ_REQ_IS_COMPUTE;
 
 	__guc_context_policy_start_klv(&policy, ce->guc_id.id);
