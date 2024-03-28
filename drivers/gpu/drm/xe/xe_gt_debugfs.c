@@ -269,6 +269,13 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 	}
 
 	/*
+	 * Store the xe_gt pointer as private data of the gt/ directory node
+	 * so other GT specific attributes under that directory may refer to
+	 * it by looking at its parent node private data.
+	 */
+	root->d_inode->i_private = gt;
+
+	/*
 	 * Allocate local copy as we need to pass in the GT to the debugfs
 	 * entry and drm_debugfs_create_files just references the drm_info_list
 	 * passed in (e.g. can't define this on the stack).
