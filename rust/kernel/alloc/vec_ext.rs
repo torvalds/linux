@@ -2,8 +2,8 @@
 
 //! Extensions to [`Vec`] for fallible allocations.
 
-use super::Flags;
-use alloc::{alloc::AllocError, vec::Vec};
+use super::{AllocError, Flags};
+use alloc::vec::Vec;
 use core::result::Result;
 
 /// Extensions to [`Vec`].

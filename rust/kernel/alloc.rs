@@ -8,6 +8,10 @@ mod allocator;
 pub mod box_ext;
 pub mod vec_ext;
 
+/// Indicates an allocation error.
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+pub struct AllocError;
+
 /// Flags to be used when allocating memory.
 ///
 /// They can be combined with the operators `|`, `&`, and `!`.

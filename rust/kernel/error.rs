@@ -4,9 +4,9 @@
 //!
 //! C header: [`include/uapi/asm-generic/errno-base.h`](srctree/include/uapi/asm-generic/errno-base.h)
 
-use crate::str::CStr;
+use crate::{alloc::AllocError, str::CStr};
 
-use alloc::alloc::{AllocError, LayoutError};
+use alloc::alloc::LayoutError;
 
 use core::convert::From;
 use core::fmt;
