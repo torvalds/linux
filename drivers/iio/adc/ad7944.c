@@ -51,6 +51,8 @@ static const char * const ad7944_spi_modes[] = {
 struct ad7944_adc {
 	struct spi_device *spi;
 	enum ad7944_spi_mode spi_mode;
+	struct spi_transfer xfers[3];
+	struct spi_message msg;
 	/* Chip-specific timing specifications. */
 	const struct ad7944_timing_spec *timing_spec;
 	/* GPIO connected to CNV pin. */
@@ -130,6 +132,88 @@ AD7944_DEFINE_CHIP_INFO(ad7985, ad7944, 16, 0);
 /* fully differential */
 AD7944_DEFINE_CHIP_INFO(ad7986, ad7986, 18, 1);
 
+static void ad7944_unoptimize_msg(void *msg)
+{
+	spi_unoptimize_message(msg);
+}
+
+static int ad7944_3wire_cs_mode_init_msg(struct device *dev, struct ad7944_adc *adc,
+					 const struct iio_chan_spec *chan)
+{
+	unsigned int t_conv_ns = adc->always_turbo ? adc->timing_spec->turbo_conv_ns
+						   : adc->timing_spec->conv_ns;
+	struct spi_transfer *xfers = adc->xfers;
+	int ret;
+
+	/*
+	 * NB: can get better performance from some SPI controllers if we use
+	 * the same bits_per_word in every transfer.
+	 */
+	xfers[0].bits_per_word = chan->scan_type.realbits;
+	/*
+	 * CS is tied to CNV and we need a low to high transition to start the
+	 * conversion, so place CNV low for t_QUIET to prepare for this.
+	 */
+	xfers[0].delay.value = T_QUIET_NS;
+	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	/*
+	 * CS has to be high for full conversion time to avoid triggering the
+	 * busy indication.
+	 */
+	xfers[1].cs_off = 1;
+	xfers[1].delay.value = t_conv_ns;
+	xfers[1].delay.unit = SPI_DELAY_UNIT_NSECS;
+	xfers[1].bits_per_word = chan->scan_type.realbits;
+
+	/* Then we can read the data during the acquisition phase */
+	xfers[2].rx_buf = &adc->sample.raw;
+	xfers[2].len = BITS_TO_BYTES(chan->scan_type.storagebits);
+	xfers[2].bits_per_word = chan->scan_type.realbits;
+
+	spi_message_init_with_transfers(&adc->msg, xfers, 3);
+
+	ret = spi_optimize_message(adc->spi, &adc->msg);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dev, ad7944_unoptimize_msg, &adc->msg);
+}
+
+static int ad7944_4wire_mode_init_msg(struct device *dev, struct ad7944_adc *adc,
+				      const struct iio_chan_spec *chan)
+{
+	unsigned int t_conv_ns = adc->always_turbo ? adc->timing_spec->turbo_conv_ns
+						   : adc->timing_spec->conv_ns;
+	struct spi_transfer *xfers = adc->xfers;
+	int ret;
+
+	/*
+	 * NB: can get better performance from some SPI controllers if we use
+	 * the same bits_per_word in every transfer.
+	 */
+	xfers[0].bits_per_word = chan->scan_type.realbits;
+	/*
+	 * CS has to be high for full conversion time to avoid triggering the
+	 * busy indication.
+	 */
+	xfers[0].cs_off = 1;
+	xfers[0].delay.value = t_conv_ns;
+	xfers[0].delay.unit = SPI_DELAY_UNIT_NSECS;
+
+	xfers[1].rx_buf = &adc->sample.raw;
+	xfers[1].len = BITS_TO_BYTES(chan->scan_type.storagebits);
+	xfers[1].bits_per_word = chan->scan_type.realbits;
+
+	spi_message_init_with_transfers(&adc->msg, xfers, 2);
+
+	ret = spi_optimize_message(adc->spi, &adc->msg);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dev, ad7944_unoptimize_msg, &adc->msg);
+}
+
 /*
  * ad7944_3wire_cs_mode_conversion - Perform a 3-wire CS mode conversion and
  *                                   acquisition
@@ -145,48 +229,7 @@ AD7944_DEFINE_CHIP_INFO(ad7986, ad7986, 18, 1);
 static int ad7944_3wire_cs_mode_conversion(struct ad7944_adc *adc,
 					   const struct iio_chan_spec *chan)
 {
-	unsigned int t_conv_ns = adc->always_turbo ? adc->timing_spec->turbo_conv_ns
-						   : adc->timing_spec->conv_ns;
-	struct spi_transfer xfers[] = {
-		{
-			/*
-			 * NB: can get better performance from some SPI
-			 * controllers if we use the same bits_per_word
-			 * in every transfer.
-			 */
-			.bits_per_word = chan->scan_type.realbits,
-			/*
-			 * CS is tied to CNV and we need a low to high
-			 * transition to start the conversion, so place CNV
-			 * low for t_QUIET to prepare for this.
-			 */
-			.delay = {
-				.value = T_QUIET_NS,
-				.unit = SPI_DELAY_UNIT_NSECS,
-			},
-
-		},
-		{
-			.bits_per_word = chan->scan_type.realbits,
-			/*
-			 * CS has to be high for full conversion time to avoid
-			 * triggering the busy indication.
-			 */
-			.cs_off = 1,
-			.delay = {
-				.value = t_conv_ns,
-				.unit = SPI_DELAY_UNIT_NSECS,
-			},
-		},
-		{
-			/* Then we can read the data during the acquisition phase */
-			.rx_buf = &adc->sample.raw,
-			.len = BITS_TO_BYTES(chan->scan_type.storagebits),
-			.bits_per_word = chan->scan_type.realbits,
-		},
-	};
-
-	return spi_sync_transfer(adc->spi, xfers, ARRAY_SIZE(xfers));
+	return spi_sync(adc->spi, &adc->msg);
 }
 
 /*
@@ -200,33 +243,6 @@ static int ad7944_3wire_cs_mode_conversion(struct ad7944_adc *adc,
 static int ad7944_4wire_mode_conversion(struct ad7944_adc *adc,
 					const struct iio_chan_spec *chan)
 {
-	unsigned int t_conv_ns = adc->always_turbo ? adc->timing_spec->turbo_conv_ns
-						   : adc->timing_spec->conv_ns;
-	struct spi_transfer xfers[] = {
-		{
-			/*
-			 * NB: can get better performance from some SPI
-			 * controllers if we use the same bits_per_word
-			 * in every transfer.
-			 */
-			.bits_per_word = chan->scan_type.realbits,
-			/*
-			 * CS has to be high for full conversion time to avoid
-			 * triggering the busy indication.
-			 */
-			.cs_off = 1,
-			.delay = {
-				.value = t_conv_ns,
-				.unit = SPI_DELAY_UNIT_NSECS,
-			},
-
-		},
-		{
-			.rx_buf = &adc->sample.raw,
-			.len = BITS_TO_BYTES(chan->scan_type.storagebits),
-			.bits_per_word = chan->scan_type.realbits,
-		},
-	};
 	int ret;
 
 	/*
@@ -234,7 +250,7 @@ static int ad7944_4wire_mode_conversion(struct ad7944_adc *adc,
 	 * and acquisition process.
 	 */
 	gpiod_set_value_cansleep(adc->cnv, 1);
-	ret = spi_sync_transfer(adc->spi, xfers, ARRAY_SIZE(xfers));
+	ret = spi_sync(adc->spi, &adc->msg);
 	gpiod_set_value_cansleep(adc->cnv, 0);
 
 	return ret;
@@ -393,10 +409,6 @@ static int ad7944_probe(struct spi_device *spi)
 	else
 		adc->spi_mode = ret;
 
-	if (adc->spi_mode == AD7944_SPI_MODE_CHAIN)
-		return dev_err_probe(dev, -EINVAL,
-				     "chain mode is not implemented\n");
-
 	/*
 	 * Some chips use unusual word sizes, so check now instead of waiting
 	 * for the first xfer.
@@ -488,6 +500,23 @@ static int ad7944_probe(struct spi_device *spi)
 	if (adc->spi_mode == AD7944_SPI_MODE_CHAIN && adc->always_turbo)
 		return dev_err_probe(dev, -EINVAL,
 			"cannot have both chain mode and always turbo\n");
+
+	switch (adc->spi_mode) {
+	case AD7944_SPI_MODE_DEFAULT:
+		ret = ad7944_4wire_mode_init_msg(dev, adc, &chip_info->channels[0]);
+		if (ret)
+			return ret;
+
+		break;
+	case AD7944_SPI_MODE_SINGLE:
+		ret = ad7944_3wire_cs_mode_init_msg(dev, adc, &chip_info->channels[0]);
+		if (ret)
+			return ret;
+
+		break;
+	case AD7944_SPI_MODE_CHAIN:
+		return dev_err_probe(dev, -EINVAL, "chain mode is not implemented\n");
+	}
 
 	indio_dev->name = chip_info->name;
 	indio_dev->modes = INDIO_DIRECT_MODE;
