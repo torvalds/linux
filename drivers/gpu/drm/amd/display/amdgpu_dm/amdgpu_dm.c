@@ -148,6 +148,9 @@ MODULE_FIRMWARE(FIRMWARE_NAVI12_DMCU);
 #define FIRMWARE_DCN_35_DMUB "amdgpu/dcn_3_5_dmcub.bin"
 MODULE_FIRMWARE(FIRMWARE_DCN_35_DMUB);
 
+#define FIRMWARE_DCN_351_DMUB "amdgpu/dcn_3_5_1_dmcub.bin"
+MODULE_FIRMWARE(FIRMWARE_DCN_351_DMUB);
+
 /* Number of bytes in PSP header for firmware. */
 #define PSP_HEADER_BYTES 0x100
 
@@ -4820,8 +4823,10 @@ static int dm_init_microcode(struct amdgpu_device *adev)
 		fw_name_dmub = FIRMWARE_DCN_V3_2_1_DMCUB;
 		break;
 	case IP_VERSION(3, 5, 0):
-	case IP_VERSION(3, 5, 1):
 		fw_name_dmub = FIRMWARE_DCN_35_DMUB;
+		break;
+	case IP_VERSION(3, 5, 1):
+		fw_name_dmub = FIRMWARE_DCN_351_DMUB;
 		break;
 	default:
 		/* ASIC doesn't support DMUB. */
