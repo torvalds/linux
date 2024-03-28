@@ -1153,18 +1153,32 @@ static void intel_pstate_update_policies(void)
 static void __intel_pstate_update_max_freq(struct cpudata *cpudata,
 					   struct cpufreq_policy *policy)
 {
+	intel_pstate_get_hwp_cap(cpudata);
+
 	policy->cpuinfo.max_freq = READ_ONCE(global.no_turbo) ?
 			cpudata->pstate.max_freq : cpudata->pstate.turbo_freq;
+
 	refresh_frequency_limits(policy);
 }
 
 static void intel_pstate_update_limits(unsigned int cpu)
 {
-	mutex_lock(&intel_pstate_driver_lock);
+	struct cpufreq_policy *policy = cpufreq_cpu_acquire(cpu);
 
-	cpufreq_update_policy(cpu);
+	if (!policy)
+		return;
 
-	mutex_unlock(&intel_pstate_driver_lock);
+	__intel_pstate_update_max_freq(all_cpu_data[cpu], policy);
+
+	cpufreq_cpu_release(policy);
+}
+
+static void intel_pstate_update_limits_for_all(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		intel_pstate_update_limits(cpu);
 }
 
 /************************** sysfs begin ************************/
@@ -1311,7 +1325,7 @@ static ssize_t store_no_turbo(struct kobject *a, struct kobj_attribute *b,
 
 	mutex_unlock(&intel_pstate_limits_lock);
 
-	intel_pstate_update_policies();
+	intel_pstate_update_limits_for_all();
 	arch_set_max_freq_ratio(no_turbo);
 
 unlock_driver:
@@ -1595,7 +1609,6 @@ static void intel_pstate_notify_work(struct work_struct *work)
 	struct cpufreq_policy *policy = cpufreq_cpu_acquire(cpudata->cpu);
 
 	if (policy) {
-		intel_pstate_get_hwp_cap(cpudata);
 		__intel_pstate_update_max_freq(cpudata, policy);
 
 		cpufreq_cpu_release(policy);
