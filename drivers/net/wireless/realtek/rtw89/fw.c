@@ -4692,6 +4692,7 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 	struct rtw89_h2c_scanofld_be_macc_role *macc_role;
 	struct rtw89_chan *op = &scan_info->op_chan;
 	struct rtw89_h2c_scanofld_be_opch *opch;
+	struct rtw89_pktofld_info *pkt_info;
 	struct rtw89_h2c_scanofld_be *h2c;
 	struct sk_buff *skb;
 	u8 macc_role_size = sizeof(*macc_role) * option->num_macc_role;
@@ -4715,6 +4716,16 @@ int rtw89_fw_h2c_scan_offload_be(struct rtw89_dev *rtwdev,
 	skb_put(skb, len);
 	h2c = (struct rtw89_h2c_scanofld_be *)skb->data;
 	ptr = skb->data;
+
+	memset(probe_id, RTW89_SCANOFLD_PKT_NONE, sizeof(probe_id));
+
+	list_for_each_entry(pkt_info, &scan_info->pkt_list[NL80211_BAND_6GHZ], list) {
+		if (pkt_info->wildcard_6ghz) {
+			/* Provide wildcard as template */
+			probe_id[NL80211_BAND_6GHZ] = pkt_info->id;
+			break;
+		}
+	}
 
 	h2c->w0 = le32_encode_bits(option->operation, RTW89_H2C_SCANOFLD_BE_W0_OP) |
 		  le32_encode_bits(option->scan_mode,
@@ -5553,6 +5564,7 @@ static bool rtw89_is_6ghz_wildcard_probe_req(struct rtw89_dev *rtwdev,
 		info->ssid_len = req->ssids[ssid_idx].ssid_len;
 		return false;
 	} else {
+		info->wildcard_6ghz = true;
 		return true;
 	}
 }
@@ -5587,12 +5599,8 @@ static int rtw89_append_probe_req_ie(struct rtw89_dev *rtwdev,
 			goto out;
 		}
 
-		if (rtw89_is_6ghz_wildcard_probe_req(rtwdev, rtwvif, info, band,
-						     ssid_idx)) {
-			kfree_skb(new);
-			kfree(info);
-			goto out;
-		}
+		rtw89_is_6ghz_wildcard_probe_req(rtwdev, rtwvif, info, band,
+						 ssid_idx);
 
 		ret = rtw89_fw_h2c_add_pkt_offload(rtwdev, &info->id, new);
 		if (ret) {
@@ -5750,6 +5758,10 @@ static void rtw89_hw_scan_add_chan(struct rtw89_dev *rtwdev, int chan_type,
 				continue;
 			else if (info->channel_6ghz && probe_count != 0)
 				ch_info->period += RTW89_CHANNEL_TIME_6G;
+
+			if (info->wildcard_6ghz)
+				continue;
+
 			ch_info->pkt_id[probe_count++] = info->id;
 			if (probe_count >= RTW89_SCANOFLD_MAX_SSID)
 				break;
@@ -5804,6 +5816,10 @@ static void rtw89_hw_scan_add_chan_be(struct rtw89_dev *rtwdev, int chan_type,
 			if (info->channel_6ghz &&
 			    ch_info->pri_ch != info->channel_6ghz)
 				continue;
+
+			if (info->wildcard_6ghz)
+				continue;
+
 			ch_info->pkt_id[probe_count++] = info->id;
 			if (probe_count >= RTW89_SCANOFLD_MAX_SSID)
 				break;

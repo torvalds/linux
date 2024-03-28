@@ -340,8 +340,9 @@ struct rtw89_mac_chinfo_be {
 struct rtw89_pktofld_info {
 	struct list_head list;
 	u8 id;
+	bool wildcard_6ghz;
 
-	/* Below fields are for 6 GHz RNR use only */
+	/* Below fields are for WiFi 6 chips 6 GHz RNR use only */
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 ssid_len;
 	u8 bssid[ETH_ALEN];
