@@ -292,7 +292,7 @@ struct pstate_funcs {
 
 static struct pstate_funcs pstate_funcs __read_mostly;
 
-static int hwp_active __read_mostly;
+static bool hwp_active __ro_after_init;
 static int hwp_mode_bdw __read_mostly;
 static bool per_cpu_limits __read_mostly;
 static bool hwp_boost __read_mostly;
@@ -1636,11 +1636,10 @@ static cpumask_t hwp_intr_enable_mask;
 void notify_hwp_interrupt(void)
 {
 	unsigned int this_cpu = smp_processor_id();
-	struct cpudata *cpudata;
 	unsigned long flags;
 	u64 value;
 
-	if (!READ_ONCE(hwp_active) || !boot_cpu_has(X86_FEATURE_HWP_NOTIFY))
+	if (!hwp_active || !boot_cpu_has(X86_FEATURE_HWP_NOTIFY))
 		return;
 
 	rdmsrl_safe(MSR_HWP_STATUS, &value);
@@ -1652,24 +1651,8 @@ void notify_hwp_interrupt(void)
 	if (!cpumask_test_cpu(this_cpu, &hwp_intr_enable_mask))
 		goto ack_intr;
 
-	/*
-	 * Currently we never free all_cpu_data. And we can't reach here
-	 * without this allocated. But for safety for future changes, added
-	 * check.
-	 */
-	if (unlikely(!READ_ONCE(all_cpu_data)))
-		goto ack_intr;
-
-	/*
-	 * The free is done during cleanup, when cpufreq registry is failed.
-	 * We wouldn't be here if it fails on init or switch status. But for
-	 * future changes, added check.
-	 */
-	cpudata = READ_ONCE(all_cpu_data[this_cpu]);
-	if (unlikely(!cpudata))
-		goto ack_intr;
-
-	schedule_delayed_work(&cpudata->hwp_notify_work, msecs_to_jiffies(10));
+	schedule_delayed_work(&all_cpu_data[this_cpu]->hwp_notify_work,
+			      msecs_to_jiffies(10));
 
 	spin_unlock_irqrestore(&hwp_notify_lock, flags);
 
@@ -3464,7 +3447,7 @@ static int __init intel_pstate_init(void)
 		 * deal with it.
 		 */
 		if ((!no_hwp && boot_cpu_has(X86_FEATURE_HWP_EPP)) || hwp_forced) {
-			WRITE_ONCE(hwp_active, 1);
+			hwp_active = true;
 			hwp_mode_bdw = id->driver_data;
 			intel_pstate.attr = hwp_cpufreq_attrs;
 			intel_cpufreq.attr = hwp_cpufreq_attrs;
