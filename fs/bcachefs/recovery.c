@@ -189,6 +189,7 @@ int bch2_journal_replay(struct bch_fs *c)
 	u64 start_seq	= c->journal_replay_seq_start;
 	u64 end_seq	= c->journal_replay_seq_start;
 	struct btree_trans *trans = bch2_trans_get(c);
+	bool immediate_flush = false;
 	int ret = 0;
 
 	if (keys->nr) {
@@ -209,6 +210,13 @@ int bch2_journal_replay(struct bch_fs *c)
 	 */
 	darray_for_each(*keys, k) {
 		cond_resched();
+
+		/*
+		 * k->allocated means the key wasn't read in from the journal,
+		 * rather it was from early repair code
+		 */
+		if (k->allocated)
+			immediate_flush = true;
 
 		/* Skip fastpath if we're low on space in the journal */
 		ret = c->journal.watermark ? -1 :
@@ -268,6 +276,12 @@ int bch2_journal_replay(struct bch_fs *c)
 	j->replay_journal_seq = 0;
 
 	bch2_journal_set_replay_done(j);
+
+	/* if we did any repair, flush it immediately */
+	if (immediate_flush) {
+		bch2_journal_flush_all_pins(&c->journal);
+		ret = bch2_journal_meta(&c->journal);
+	}
 
 	if (keys->nr)
 		bch2_journal_log_msg(c, "journal replay finished");
@@ -777,6 +791,12 @@ use_clean:
 		goto err;
 
 	clear_bit(BCH_FS_fsck_running, &c->flags);
+
+	/* fsync if we fixed errors */
+	if (test_bit(BCH_FS_errors_fixed, &c->flags)) {
+		bch2_journal_flush_all_pins(&c->journal);
+		bch2_journal_meta(&c->journal);
+	}
 
 	/* If we fixed errors, verify that fs is actually clean now: */
 	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG) &&
