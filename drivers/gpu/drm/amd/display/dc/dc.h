@@ -290,6 +290,7 @@ struct dc_caps {
 	uint32_t max_disp_clock_khz_at_vmin;
 	uint8_t subvp_drr_vblank_start_margin_us;
 	bool cursor_not_scaled;
+	bool dcmode_power_limits_present;
 };
 
 struct dc_bug_wa {
