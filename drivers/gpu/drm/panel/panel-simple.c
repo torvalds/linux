@@ -2591,22 +2591,22 @@ static const struct panel_desc innolux_g121i1_l01 = {
 	.connector_type = DRM_MODE_CONNECTOR_LVDS,
 };
 
-static const struct drm_display_mode innolux_g121x1_l03_mode = {
-	.clock = 65000,
-	.hdisplay = 1024,
-	.hsync_start = 1024 + 0,
-	.hsync_end = 1024 + 1,
-	.htotal = 1024 + 0 + 1 + 320,
-	.vdisplay = 768,
-	.vsync_start = 768 + 38,
-	.vsync_end = 768 + 38 + 1,
-	.vtotal = 768 + 38 + 1 + 0,
-	.flags = DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC,
+static const struct display_timing innolux_g121x1_l03_timings = {
+	.pixelclock = { 57500000, 64900000, 74400000 },
+	.hactive = { 1024, 1024, 1024 },
+	.hfront_porch = { 90, 140, 190 },
+	.hback_porch = { 90, 140, 190 },
+	.hsync_len = { 36, 40, 60 },
+	.vactive = { 768, 768, 768 },
+	.vfront_porch = { 2, 15, 30 },
+	.vback_porch = { 2, 15, 30 },
+	.vsync_len = { 2, 8, 20 },
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW,
 };
 
 static const struct panel_desc innolux_g121x1_l03 = {
-	.modes = &innolux_g121x1_l03_mode,
-	.num_modes = 1,
+	.timings = &innolux_g121x1_l03_timings,
+	.num_timings = 1,
 	.bpc = 6,
 	.size = {
 		.width = 246,
