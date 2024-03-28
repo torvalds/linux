@@ -485,9 +485,9 @@
 			no-map;
 		};
 
-		/* Merged aop_config, tme_crash_dump, tme_log and uefi_log regions */
+		/* Merged aop_config, tme_crash_dump, tme_log, uefi_log, and chipinfo regions */
 		aop_tme_uefi_merged_mem: aop-tme-uefi-merged@81c80000 {
-			reg = <0 0x81c80000 0 0x74000>;
+			reg = <0 0x81c80000 0 0x75000>;
 			no-map;
 		};
 
@@ -4845,6 +4845,8 @@
 
 					label = "adsp";
 
+					qcom,non-secure-domain;
+
 					#address-cells = <1>;
 					#size-cells = <0>;
 
@@ -5001,6 +5003,8 @@
 					qcom,glink-channels = "fastrpcglink-apps-dsp";
 
 					label = "cdsp";
+
+					qcom,non-secure-domain;
 
 					#address-cells = <1>;
 					#size-cells = <0>;
