@@ -7,6 +7,7 @@
 /dts-v1/;
 
 #include "meson-a1.dtsi"
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	compatible = "amlogic,ad402", "amlogic,a1";
@@ -113,6 +114,50 @@
 		spi-max-frequency = <96000000>;
 		spi-tx-bus-width = <4>;
 		spi-rx-bus-width = <4>;
+	};
+
+	thermal-zones {
+		soc_thermal: soc_thermal {
+			polling-delay = <1000>;
+			polling-delay-passive = <100>;
+			sustainable-power = <130>;
+
+			thermal-sensors = <&cpu_temp>;
+
+			trips {
+				soc_passive: soc-passive {
+					temperature = <70000>;
+					hysteresis = <2000>;
+					type = "passive";
+				};
+
+				soc_hot: soc-hot {
+					temperature = <85000>;
+					hysteresis = <5000>;
+					type = "hot";
+				};
+
+				soc_critical: soc-critical {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+
+			soc_cooling_maps: cooling-maps {
+				map0 {
+					trip = <&soc_passive>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+
+				map1 {
+					trip = <&soc_hot>;
+					cooling-device = <&cpu0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&cpu1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
 	};
 };
 
