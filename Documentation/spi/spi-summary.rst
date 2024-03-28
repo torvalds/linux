@@ -348,7 +348,6 @@ SPI protocol drivers somewhat resemble platform device drivers::
 	static struct spi_driver CHIP_driver = {
 		.driver = {
 			.name		= "CHIP",
-			.owner		= THIS_MODULE,
 			.pm		= &CHIP_pm_ops,
 		},
 
