@@ -325,6 +325,8 @@ next_pte:
  */
 int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
 {
+	struct folio *folio = page_folio(page);
+	pgoff_t pgoff = folio->index + folio_page_idx(folio, page);
 	struct page_vma_mapped_walk pvmw = {
 		.pfn = page_to_pfn(page),
 		.nr_pages = 1,
@@ -332,7 +334,7 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
 		.flags = PVMW_SYNC,
 	};
 
-	pvmw.address = vma_address(page, vma);
+	pvmw.address = vma_pgoff_address(pgoff, 1, vma);
 	if (pvmw.address == -EFAULT)
 		return 0;
 	if (!page_vma_mapped_walk(&pvmw))
