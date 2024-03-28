@@ -544,14 +544,19 @@ static bool binder_has_work_ilocked(struct binder_thread *thread,
 				    bool do_proc_work)
 {
 	int ret = 0;
+	bool has_work = false;
 
 	trace_android_vh_binder_has_work_ilocked(thread, do_proc_work, &ret);
 	if (ret)
 		return true;
-	return thread->process_todo ||
+	has_work =
+		thread->process_todo ||
 		thread->looper_need_return ||
 		(do_proc_work &&
 		 !binder_worklist_empty_ilocked(&thread->proc->todo));
+	trace_android_vh_binder_has_special_work_ilocked(thread, do_proc_work, &has_work);
+
+	return has_work;
 }
 
 static bool binder_has_work(struct binder_thread *thread, bool do_proc_work)
@@ -560,7 +565,6 @@ static bool binder_has_work(struct binder_thread *thread, bool do_proc_work)
 
 	binder_inner_proc_lock(thread->proc);
 	has_work = binder_has_work_ilocked(thread, do_proc_work);
-	trace_android_vh_binder_has_special_work_ilocked(thread, do_proc_work, &has_work);
 	binder_inner_proc_unlock(thread->proc);
 
 	return has_work;
