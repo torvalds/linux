@@ -2572,9 +2572,19 @@ bool vhost_enable_notify(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 		       &vq->avail->idx, r);
 		return false;
 	}
-	vq->avail_idx = vhost16_to_cpu(vq, avail_idx);
 
-	return vq->avail_idx != vq->last_avail_idx;
+	vq->avail_idx = vhost16_to_cpu(vq, avail_idx);
+	if (vq->avail_idx != vq->last_avail_idx) {
+		/* Since we have updated avail_idx, the following
+		 * call to vhost_get_vq_desc() will read available
+		 * ring entries. Make sure that read happens after
+		 * the avail_idx read.
+		 */
+		smp_rmb();
+		return true;
+	}
+
+	return false;
 }
 EXPORT_SYMBOL_GPL(vhost_enable_notify);
 
