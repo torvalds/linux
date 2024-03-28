@@ -2,6 +2,7 @@
 
 //! String representations.
 
+use crate::alloc::vec_ext::VecExt;
 use alloc::alloc::AllocError;
 use alloc::vec::Vec;
 use core::fmt::{self, Write};
