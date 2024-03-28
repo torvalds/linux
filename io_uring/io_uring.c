@@ -643,12 +643,6 @@ static inline void __io_cq_lock(struct io_ring_ctx *ctx)
 		spin_lock(&ctx->completion_lock);
 }
 
-static inline void __io_cq_unlock(struct io_ring_ctx *ctx)
-{
-	if (!ctx->lockless_cq)
-		spin_unlock(&ctx->completion_lock);
-}
-
 static inline void io_cq_lock(struct io_ring_ctx *ctx)
 	__acquires(ctx->completion_lock)
 {
