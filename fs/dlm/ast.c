@@ -105,8 +105,13 @@ int dlm_enqueue_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 
 	list_add_tail(&cb->list, &lkb->lkb_callbacks);
 
-	if (flags & DLM_CB_CAST)
+	if (flags & DLM_CB_BAST) {
+		lkb->lkb_last_bast_time = ktime_get();
+		lkb->lkb_last_bast_mode = cb->mode;
+	} else if (flags & DLM_CB_CAST) {
 		dlm_callback_set_last_ptr(&lkb->lkb_last_cast, cb);
+		lkb->lkb_last_cast_time = ktime_get();
+	}
 
 	dlm_callback_set_last_ptr(&lkb->lkb_last_cb, cb);
 
@@ -194,8 +199,6 @@ void dlm_callback_work(struct work_struct *work)
 			trace_dlm_bast(ls->ls_global_id, lkb->lkb_id,
 				       cb->mode, rsb->res_name,
 				       rsb->res_length);
-			lkb->lkb_last_bast_time = ktime_get();
-			lkb->lkb_last_bast_mode = cb->mode;
 			bastfn(lkb->lkb_astparam, cb->mode);
 		} else if (cb->flags & DLM_CB_CAST) {
 			lkb->lkb_lksb->sb_status = cb->sb_status;
@@ -203,7 +206,6 @@ void dlm_callback_work(struct work_struct *work)
 			trace_dlm_ast(ls->ls_global_id, lkb->lkb_id,
 				      cb->sb_flags, cb->sb_status,
 				      rsb->res_name, rsb->res_length);
-			lkb->lkb_last_cast_time = ktime_get();
 			castfn(lkb->lkb_astparam);
 		}
 
