@@ -75,7 +75,7 @@ pub use new_condvar;
 ///     Box::pin_init(pin_init!(Example {
 ///         value <- new_mutex!(0),
 ///         value_changed <- new_condvar!(),
-///     }))
+///     }), GFP_KERNEL)
 /// }
 /// ```
 ///

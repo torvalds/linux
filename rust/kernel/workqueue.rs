@@ -53,7 +53,7 @@
 //!         Arc::pin_init(pin_init!(MyStruct {
 //!             value,
 //!             work <- new_work!("MyStruct::work"),
-//!         }))
+//!         }), GFP_KERNEL)
 //!     }
 //! }
 //!
@@ -101,7 +101,7 @@
 //!             value_2,
 //!             work_1 <- new_work!("MyStruct::work_1"),
 //!             work_2 <- new_work!("MyStruct::work_2"),
-//!         }))
+//!         }), GFP_KERNEL)
 //!     }
 //! }
 //!
@@ -132,6 +132,7 @@
 //!
 //! C header: [`include/linux/workqueue.h`](srctree/include/linux/workqueue.h)
 
+use crate::alloc::Flags;
 use crate::{bindings, prelude::*, sync::Arc, sync::LockClassKey, types::Opaque};
 use alloc::alloc::AllocError;
 use alloc::boxed::Box;
@@ -210,13 +211,17 @@ impl Queue {
     /// Tries to spawn the given function or closure as a work item.
     ///
     /// This method can fail because it allocates memory to store the work item.
-    pub fn try_spawn<T: 'static + Send + FnOnce()>(&self, func: T) -> Result<(), AllocError> {
+    pub fn try_spawn<T: 'static + Send + FnOnce()>(
+        &self,
+        flags: Flags,
+        func: T,
+    ) -> Result<(), AllocError> {
         let init = pin_init!(ClosureWork {
             work <- new_work!("Queue::try_spawn"),
             func: Some(func),
         });
 
-        self.enqueue(Box::pin_init(init).map_err(|_| AllocError)?);
+        self.enqueue(Box::pin_init(init, flags).map_err(|_| AllocError)?);
         Ok(())
     }
 }

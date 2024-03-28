@@ -182,22 +182,22 @@ impl<T> Arc<T> {
     ///
     /// If `T: !Unpin` it will not be able to move afterwards.
     #[inline]
-    pub fn pin_init<E>(init: impl PinInit<T, E>) -> error::Result<Self>
+    pub fn pin_init<E>(init: impl PinInit<T, E>, flags: Flags) -> error::Result<Self>
     where
         Error: From<E>,
     {
-        UniqueArc::pin_init(init).map(|u| u.into())
+        UniqueArc::pin_init(init, flags).map(|u| u.into())
     }
 
     /// Use the given initializer to in-place initialize a `T`.
     ///
     /// This is equivalent to [`Arc<T>::pin_init`], since an [`Arc`] is always pinned.
     #[inline]
-    pub fn init<E>(init: impl Init<T, E>) -> error::Result<Self>
+    pub fn init<E>(init: impl Init<T, E>, flags: Flags) -> error::Result<Self>
     where
         Error: From<E>,
     {
-        UniqueArc::init(init).map(|u| u.into())
+        UniqueArc::init(init, flags).map(|u| u.into())
     }
 }
 
@@ -565,13 +565,16 @@ impl<T> UniqueArc<T> {
     }
 
     /// Tries to allocate a new [`UniqueArc`] instance whose contents are not initialised yet.
-    pub fn new_uninit(_flags: Flags) -> Result<UniqueArc<MaybeUninit<T>>, AllocError> {
+    pub fn new_uninit(flags: Flags) -> Result<UniqueArc<MaybeUninit<T>>, AllocError> {
         // INVARIANT: The refcount is initialised to a non-zero value.
-        let inner = Box::try_init::<AllocError>(try_init!(ArcInner {
-            // SAFETY: There are no safety requirements for this FFI call.
-            refcount: Opaque::new(unsafe { bindings::REFCOUNT_INIT(1) }),
-            data <- init::uninit::<T, AllocError>(),
-        }? AllocError))?;
+        let inner = Box::try_init::<AllocError>(
+            try_init!(ArcInner {
+                // SAFETY: There are no safety requirements for this FFI call.
+                refcount: Opaque::new(unsafe { bindings::REFCOUNT_INIT(1) }),
+                data <- init::uninit::<T, AllocError>(),
+            }? AllocError),
+            flags,
+        )?;
         Ok(UniqueArc {
             // INVARIANT: The newly-created object has a refcount of 1.
             // SAFETY: The pointer from the `Box` is valid.
