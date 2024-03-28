@@ -592,12 +592,6 @@ struct dm_thin_endio_hook {
 	struct dm_bio_prison_cell *cell;
 };
 
-static void __merge_bio_list(struct bio_list *bios, struct bio_list *master)
-{
-	bio_list_merge(bios, master);
-	bio_list_init(master);
-}
-
 static void error_bio_list(struct bio_list *bios, blk_status_t error)
 {
 	struct bio *bio;
@@ -616,7 +610,7 @@ static void error_thin_bio_list(struct thin_c *tc, struct bio_list *master,
 	bio_list_init(&bios);
 
 	spin_lock_irq(&tc->lock);
-	__merge_bio_list(&bios, master);
+	bio_list_merge_init(&bios, master);
 	spin_unlock_irq(&tc->lock);
 
 	error_bio_list(&bios, error);
@@ -645,8 +639,8 @@ static void requeue_io(struct thin_c *tc)
 	bio_list_init(&bios);
 
 	spin_lock_irq(&tc->lock);
-	__merge_bio_list(&bios, &tc->deferred_bio_list);
-	__merge_bio_list(&bios, &tc->retry_on_resume_list);
+	bio_list_merge_init(&bios, &tc->deferred_bio_list);
+	bio_list_merge_init(&bios, &tc->retry_on_resume_list);
 	spin_unlock_irq(&tc->lock);
 
 	error_bio_list(&bios, BLK_STS_DM_REQUEUE);

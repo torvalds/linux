@@ -115,8 +115,7 @@ static void __commit(struct work_struct *_ws)
 	 */
 	spin_lock_irq(&b->lock);
 	list_splice_init(&b->work_items, &work_items);
-	bio_list_merge(&bios, &b->bios);
-	bio_list_init(&b->bios);
+	bio_list_merge_init(&bios, &b->bios);
 	b->commit_scheduled = false;
 	spin_unlock_irq(&b->lock);
 
@@ -565,8 +564,7 @@ static void defer_bio(struct cache *cache, struct bio *bio)
 static void defer_bios(struct cache *cache, struct bio_list *bios)
 {
 	spin_lock_irq(&cache->lock);
-	bio_list_merge(&cache->deferred_bios, bios);
-	bio_list_init(bios);
+	bio_list_merge_init(&cache->deferred_bios, bios);
 	spin_unlock_irq(&cache->lock);
 
 	wake_deferred_bio_worker(cache);
@@ -1816,8 +1814,7 @@ static void process_deferred_bios(struct work_struct *ws)
 	bio_list_init(&bios);
 
 	spin_lock_irq(&cache->lock);
-	bio_list_merge(&bios, &cache->deferred_bios);
-	bio_list_init(&cache->deferred_bios);
+	bio_list_merge_init(&bios, &cache->deferred_bios);
 	spin_unlock_irq(&cache->lock);
 
 	while ((bio = bio_list_pop(&bios))) {
@@ -1847,8 +1844,7 @@ static void requeue_deferred_bios(struct cache *cache)
 	struct bio_list bios;
 
 	bio_list_init(&bios);
-	bio_list_merge(&bios, &cache->deferred_bios);
-	bio_list_init(&cache->deferred_bios);
+	bio_list_merge_init(&bios, &cache->deferred_bios);
 
 	while ((bio = bio_list_pop(&bios))) {
 		bio->bi_status = BLK_STS_DM_REQUEUE;

@@ -1272,8 +1272,7 @@ static void process_deferred_bios(struct era *era)
 	bio_list_init(&marked_bios);
 
 	spin_lock(&era->deferred_lock);
-	bio_list_merge(&deferred_bios, &era->deferred_bios);
-	bio_list_init(&era->deferred_bios);
+	bio_list_merge_init(&deferred_bios, &era->deferred_bios);
 	spin_unlock(&era->deferred_lock);
 
 	if (bio_list_empty(&deferred_bios))

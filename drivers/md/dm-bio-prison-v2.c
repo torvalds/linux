@@ -321,8 +321,7 @@ static bool __unlock(struct dm_bio_prison_v2 *prison,
 {
 	BUG_ON(!cell->exclusive_lock);
 
-	bio_list_merge(bios, &cell->bios);
-	bio_list_init(&cell->bios);
+	bio_list_merge_init(bios, &cell->bios);
 
 	if (cell->shared_count) {
 		cell->exclusive_lock = false;
