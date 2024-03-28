@@ -48,9 +48,6 @@ enum dp_catalog_audio_header_type {
 };
 
 struct dp_catalog {
-	enum dp_catalog_audio_sdp_type sdp_type;
-	enum dp_catalog_audio_header_type sdp_header;
-	u32 audio_data;
 	bool wide_bus_en;
 };
 
@@ -115,12 +112,17 @@ void dp_catalog_panel_tpg_disable(struct dp_catalog *dp_catalog);
 struct dp_catalog *dp_catalog_get(struct device *dev);
 
 /* DP Audio APIs */
-void dp_catalog_audio_get_header(struct dp_catalog *catalog);
-void dp_catalog_audio_set_header(struct dp_catalog *catalog);
-void dp_catalog_audio_config_acr(struct dp_catalog *catalog);
-void dp_catalog_audio_enable(struct dp_catalog *catalog);
+u32 dp_catalog_audio_get_header(struct dp_catalog *dp_catalog,
+				enum dp_catalog_audio_sdp_type sdp,
+				enum dp_catalog_audio_header_type header);
+void dp_catalog_audio_set_header(struct dp_catalog *dp_catalog,
+				 enum dp_catalog_audio_sdp_type sdp,
+				 enum dp_catalog_audio_header_type header,
+				 u32 data);
+void dp_catalog_audio_config_acr(struct dp_catalog *catalog, u32 select);
+void dp_catalog_audio_enable(struct dp_catalog *catalog, bool enable);
 void dp_catalog_audio_config_sdp(struct dp_catalog *catalog);
 void dp_catalog_audio_init(struct dp_catalog *catalog);
-void dp_catalog_audio_sfe_level(struct dp_catalog *catalog);
+void dp_catalog_audio_sfe_level(struct dp_catalog *catalog, u32 safe_to_exit_level);
 
 #endif /* _DP_CATALOG_H_ */
