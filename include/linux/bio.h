@@ -615,6 +615,13 @@ static inline void bio_list_merge(struct bio_list *bl, struct bio_list *bl2)
 	bl->tail = bl2->tail;
 }
 
+static inline void bio_list_merge_init(struct bio_list *bl,
+		struct bio_list *bl2)
+{
+	bio_list_merge(bl, bl2);
+	bio_list_init(bl2);
+}
+
 static inline void bio_list_merge_head(struct bio_list *bl,
 				       struct bio_list *bl2)
 {
