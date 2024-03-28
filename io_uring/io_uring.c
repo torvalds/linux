@@ -171,7 +171,6 @@ static struct ctl_table kernel_io_uring_disabled_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{},
 };
 #endif
 
