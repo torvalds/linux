@@ -278,8 +278,8 @@
 
 		vreg_l7b_2p952: ldo7 {
 			regulator-name = "vreg_l7b_2p952";
-			regulator-min-microvolt = <2400000>;
-			regulator-max-microvolt = <3544000>;
+			regulator-min-microvolt = <2952000>;
+			regulator-max-microvolt = <2952000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
 		};
 
@@ -293,8 +293,11 @@
 		vreg_l9b_1p2: ldo9 {
 			regulator-name = "vreg_l9b_1p2";
 			regulator-min-microvolt = <1200000>;
-			regulator-max-microvolt = <1304000>;
+			regulator-max-microvolt = <1200000>;
 			regulator-initial-mode = <RPMH_REGULATOR_MODE_HPM>;
+			regulator-allow-set-load;
+			regulator-allowed-modes = <RPMH_REGULATOR_MODE_LPM
+						   RPMH_REGULATOR_MODE_HPM>;
 		};
 
 		vreg_l11b_1p504: ldo11 {
@@ -668,6 +671,25 @@
 
 &usb_dp_qmpphy_dp_in {
 	remote-endpoint = <&mdss_dp_out>;
+};
+
+&ufs_mem_hc {
+	reset-gpios = <&tlmm 175 GPIO_ACTIVE_LOW>;
+	vcc-supply = <&vreg_l7b_2p952>;
+	vcc-max-microamp = <800000>;
+	vccq-supply = <&vreg_l9b_1p2>;
+	vccq-max-microamp = <900000>;
+	vccq2-supply = <&vreg_l9b_1p2>;
+	vccq2-max-microamp = <900000>;
+
+	status = "okay";
+};
+
+&ufs_mem_phy {
+	vdda-phy-supply = <&vreg_l10c_0p88>;
+	vdda-pll-supply = <&vreg_l6b_1p2>;
+
+	status = "okay";
 };
 
 &wifi {
