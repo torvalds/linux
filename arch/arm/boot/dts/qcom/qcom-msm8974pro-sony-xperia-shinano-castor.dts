@@ -12,6 +12,8 @@
 	chassis-type = "tablet";
 
 	aliases {
+		mmc0 = &sdhc_1;
+		mmc1 = &sdhc_2;
 		serial0 = &blsp1_uart2;
 		serial1 = &blsp2_uart1;
 	};
@@ -23,35 +25,21 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_keys_pin_a>;
+		pinctrl-names = "default";
 
 		key-volume-down {
 			label = "volume_down";
 			gpios = <&pm8941_gpios 2 GPIO_ACTIVE_LOW>;
-			linux,input-type = <1>;
 			linux,code = <KEY_VOLUMEDOWN>;
-		};
-
-		key-camera-snapshot {
-			label = "camera_snapshot";
-			gpios = <&pm8941_gpios 3 GPIO_ACTIVE_LOW>;
-			linux,input-type = <1>;
-			linux,code = <KEY_CAMERA>;
-		};
-
-		key-camera-focus {
-			label = "camera_focus";
-			gpios = <&pm8941_gpios 4 GPIO_ACTIVE_LOW>;
-			linux,input-type = <1>;
-			linux,code = <KEY_CAMERA_FOCUS>;
+			debounce-interval = <15>;
 		};
 
 		key-volume-up {
 			label = "volume_up";
 			gpios = <&pm8941_gpios 5 GPIO_ACTIVE_LOW>;
-			linux,input-type = <1>;
 			linux,code = <KEY_VOLUMEUP>;
+			debounce-interval = <15>;
 		};
 	};
 
@@ -67,8 +55,8 @@
 		vin-supply = <&pm8941_s3>;
 		startup-delay-us = <70000>;
 
-		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_backlight_en_pin_a>;
+		pinctrl-names = "default";
 	};
 
 	vreg_vsp: lcd-dcdc-regulator {
@@ -80,8 +68,8 @@
 		gpio = <&pm8941_gpios 20 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
-		pinctrl-names = "default";
 		pinctrl-0 = <&lcd_dcdc_en_pin_a>;
+		pinctrl-names = "default";
 	};
 
 	vreg_boost: vreg-boost {
@@ -121,8 +109,8 @@
 		gpio = <&pm8941_gpios 18 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 
-		pinctrl-names = "default";
 		pinctrl-0 = <&wlan_regulator_pin>;
+		pinctrl-names = "default";
 	};
 };
 
@@ -131,8 +119,9 @@
 };
 
 &blsp2_i2c2 {
-	status = "okay";
 	clock-frequency = <355000>;
+
+	status = "okay";
 
 	synaptics@2c {
 		compatible = "syna,rmi4-i2c";
@@ -147,8 +136,8 @@
 		vdd-supply = <&pm8941_l22>;
 		vio-supply = <&pm8941_lvs3>;
 
-		pinctrl-names = "default";
 		pinctrl-0 = <&ts_int_pin>;
+		pinctrl-names = "default";
 
 		syna,startup-delay-ms = <100>;
 
@@ -166,8 +155,9 @@
 };
 
 &blsp2_i2c5 {
-	status = "okay";
 	clock-frequency = <355000>;
+
+	status = "okay";
 
 	lp8566_wled: backlight@2c {
 		compatible = "ti,lp8556";
@@ -232,8 +222,8 @@
 		compatible = "brcm,bcm43438-bt";
 		max-speed = <3000000>;
 
-		pinctrl-names = "default";
 		pinctrl-0 = <&bt_host_wake_pin>, <&bt_dev_wake_pin>, <&bt_reg_on_pin>;
+		pinctrl-names = "default";
 
 		host-wakeup-gpios = <&tlmm 95 GPIO_ACTIVE_HIGH>;
 		device-wakeup-gpios = <&tlmm 96 GPIO_ACTIVE_HIGH>;
@@ -242,17 +232,16 @@
 };
 
 &pm8941_coincell {
-	status = "okay";
-
 	qcom,rset-ohms = <2100>;
 	qcom,vset-millivolts = <3000>;
+
+	status = "okay";
 };
 
 &pm8941_gpios {
 	gpio_keys_pin_a: gpio-keys-active-state {
 		pins = "gpio2", "gpio5";
 		function = "normal";
-
 		bias-pull-up;
 		power-source = <PM8941_GPIO_S3>;
 	};
@@ -260,7 +249,6 @@
 	bt_reg_on_pin: bt-reg-on-state {
 		pins = "gpio16";
 		function = "normal";
-
 		output-low;
 		power-source = <PM8941_GPIO_S3>;
 	};
@@ -268,7 +256,6 @@
 	wlan_sleep_clk_pin: wl-sleep-clk-state {
 		pins = "gpio17";
 		function = "func2";
-
 		output-high;
 		power-source = <PM8941_GPIO_S3>;
 	};
@@ -276,7 +263,6 @@
 	wlan_regulator_pin: wl-reg-active-state {
 		pins = "gpio18";
 		function = "normal";
-
 		bias-disable;
 		power-source = <PM8941_GPIO_S3>;
 	};
@@ -284,19 +270,17 @@
 	lcd_dcdc_en_pin_a: lcd-dcdc-en-active-state {
 		pins = "gpio20";
 		function = "normal";
-
 		bias-disable;
 		power-source = <PM8941_GPIO_S3>;
 		input-disable;
 		output-low;
 	};
-
 };
 
 &pm8941_lpg {
-	status = "okay";
-
 	qcom,power-source = <1>;
+
+	status = "okay";
 
 	multi-led {
 		color = <LED_COLOR_ID_RGB>;
@@ -530,50 +514,47 @@
 };
 
 &sdhc_1 {
-	status = "okay";
-
 	vmmc-supply = <&pm8941_l20>;
 	vqmmc-supply = <&pm8941_s3>;
 
-	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sdc1_on>;
 	pinctrl-1 = <&sdc1_off>;
+	pinctrl-names = "default", "sleep";
+
+	status = "okay";
 };
 
 &sdhc_2 {
-	status = "okay";
-
 	vmmc-supply = <&pm8941_l21>;
 	vqmmc-supply = <&pm8941_l13>;
 
 	cd-gpios = <&tlmm 62 GPIO_ACTIVE_LOW>;
 
-	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&sdc2_on>;
 	pinctrl-1 = <&sdc2_off>;
+	pinctrl-names = "default", "sleep";
+
+	status = "okay";
 };
 
 &sdhc_3 {
-	status = "okay";
-
 	max-frequency = <100000000>;
 	vmmc-supply = <&vreg_wlan>;
 	non-removable;
 
-	pinctrl-names = "default";
 	pinctrl-0 = <&sdc3_on>;
+	pinctrl-names = "default";
 
-	#address-cells = <1>;
-	#size-cells = <0>;
+	status = "okay";
 
-	bcrmf@1 {
+	wifi@1 {
 		compatible = "brcm,bcm4339-fmac", "brcm,bcm4329-fmac";
 		reg = <1>;
 
 		brcm,drive-strength = <10>;
 
-		pinctrl-names = "default";
 		pinctrl-0 = <&wlan_sleep_clk_pin>;
+		pinctrl-names = "default";
 	};
 };
 
@@ -682,8 +663,6 @@
 };
 
 &usb {
-	status = "okay";
-
 	phys = <&usb_hs1_phy>;
 	phy-select = <&tcsr 0xb000 0>;
 	extcon = <&smbb>, <&usb_id>;
@@ -692,14 +671,16 @@
 	hnp-disable;
 	srp-disable;
 	adp-disable;
+
+	status = "okay";
 };
 
 &usb_hs1_phy {
-	status = "okay";
-
 	v1p8-supply = <&pm8941_l6>;
 	v3p3-supply = <&pm8941_l24>;
 
 	extcon = <&smbb>;
 	qcom,init-seq = /bits/ 8 <0x1 0x64>;
+
+	status = "okay";
 };
