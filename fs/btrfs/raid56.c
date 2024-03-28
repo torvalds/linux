@@ -331,12 +331,11 @@ static void steal_rbio(struct btrfs_raid_bio *src, struct btrfs_raid_bio *dest)
 static void merge_rbio(struct btrfs_raid_bio *dest,
 		       struct btrfs_raid_bio *victim)
 {
-	bio_list_merge(&dest->bio_list, &victim->bio_list);
+	bio_list_merge_init(&dest->bio_list, &victim->bio_list);
 	dest->bio_list_bytes += victim->bio_list_bytes;
 	/* Also inherit the bitmaps from @victim. */
 	bitmap_or(&dest->dbitmap, &victim->dbitmap, &dest->dbitmap,
 		  dest->stripe_nsectors);
-	bio_list_init(&victim->bio_list);
 }
 
 /*
