@@ -2055,7 +2055,6 @@ struct imgu_css_buffer *imgu_css_buf_dequeue(struct imgu_css *css)
 			return ERR_PTR(-EIO);
 		}
 
-		css_pipe = &css->pipes[pipe];
 		dev_dbg(css->dev, "event: pipeline done 0x%8x for pipe %d\n",
 			event, pipe);
 		break;
