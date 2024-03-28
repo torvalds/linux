@@ -382,7 +382,7 @@ static int bch2_check_btree_backpointer(struct btree_trans *trans, struct btree_
 			backpointer_to_missing_alloc,
 			"backpointer for nonexistent alloc key: %llu:%llu:0\n%s",
 			alloc_iter.pos.inode, alloc_iter.pos.offset,
-			(bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
+			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 		ret = bch2_btree_delete_at(trans, bp_iter, 0);
 		goto out;
 	}
