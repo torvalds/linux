@@ -805,6 +805,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 	struct dlm_lkb *lkb;
 	DECLARE_WAITQUEUE(wait, current);
 	struct dlm_callback *cb;
+	struct dlm_rsb *rsb;
 	int rv, ret;
 
 	if (count == sizeof(struct dlm_device_version)) {
@@ -887,12 +888,16 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 	}
 	spin_unlock(&proc->asts_spin);
 
+	rsb = lkb->lkb_resource;
 	if (cb->flags & DLM_CB_BAST) {
-		trace_dlm_bast(lkb->lkb_resource->res_ls, lkb, cb->mode);
+		trace_dlm_bast(rsb->res_ls->ls_global_id, lkb->lkb_id,
+			       cb->mode, rsb->res_name, rsb->res_length);
 	} else if (cb->flags & DLM_CB_CAST) {
 		lkb->lkb_lksb->sb_status = cb->sb_status;
 		lkb->lkb_lksb->sb_flags = cb->sb_flags;
-		trace_dlm_ast(lkb->lkb_resource->res_ls, lkb);
+		trace_dlm_ast(rsb->res_ls->ls_global_id, lkb->lkb_id,
+			      cb->sb_flags, cb->sb_status, rsb->res_name,
+			      rsb->res_length);
 	}
 
 	ret = copy_result_to_user(lkb->lkb_ua,

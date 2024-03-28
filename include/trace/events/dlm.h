@@ -189,29 +189,25 @@ TRACE_EVENT(dlm_lock_end,
 
 TRACE_EVENT(dlm_bast,
 
-	TP_PROTO(struct dlm_ls *ls, struct dlm_lkb *lkb, int mode),
+	TP_PROTO(__u32 ls_id, __u32 lkb_id, int mode,
+		 const char *res_name, size_t res_length),
 
-	TP_ARGS(ls, lkb, mode),
+	TP_ARGS(ls_id, lkb_id, mode, res_name, res_length),
 
 	TP_STRUCT__entry(
 		__field(__u32, ls_id)
 		__field(__u32, lkb_id)
 		__field(int, mode)
-		__dynamic_array(unsigned char, res_name,
-				lkb->lkb_resource ? lkb->lkb_resource->res_length : 0)
+		__dynamic_array(unsigned char, res_name, res_length)
 	),
 
 	TP_fast_assign(
-		struct dlm_rsb *r;
-
-		__entry->ls_id = ls->ls_global_id;
-		__entry->lkb_id = lkb->lkb_id;
+		__entry->ls_id = ls_id;
+		__entry->lkb_id = lkb_id;
 		__entry->mode = mode;
 
-		r = lkb->lkb_resource;
-		if (r)
-			memcpy(__get_dynamic_array(res_name), r->res_name,
-			       __get_dynamic_array_len(res_name));
+		memcpy(__get_dynamic_array(res_name), res_name,
+		       __get_dynamic_array_len(res_name));
 	),
 
 	TP_printk("ls_id=%u lkb_id=%x mode=%s res_name=%s",
@@ -224,31 +220,27 @@ TRACE_EVENT(dlm_bast,
 
 TRACE_EVENT(dlm_ast,
 
-	TP_PROTO(struct dlm_ls *ls, struct dlm_lkb *lkb),
+	TP_PROTO(__u32 ls_id, __u32 lkb_id, __u8 sb_flags, int sb_status,
+		 const char *res_name, size_t res_length),
 
-	TP_ARGS(ls, lkb),
+	TP_ARGS(ls_id, lkb_id, sb_flags, sb_status, res_name, res_length),
 
 	TP_STRUCT__entry(
 		__field(__u32, ls_id)
 		__field(__u32, lkb_id)
-		__field(u8, sb_flags)
+		__field(__u8, sb_flags)
 		__field(int, sb_status)
-		__dynamic_array(unsigned char, res_name,
-				lkb->lkb_resource ? lkb->lkb_resource->res_length : 0)
+		__dynamic_array(unsigned char, res_name, res_length)
 	),
 
 	TP_fast_assign(
-		struct dlm_rsb *r;
+		__entry->ls_id = ls_id;
+		__entry->lkb_id = lkb_id;
+		__entry->sb_flags = sb_flags;
+		__entry->sb_status = sb_status;
 
-		__entry->ls_id = ls->ls_global_id;
-		__entry->lkb_id = lkb->lkb_id;
-		__entry->sb_flags = lkb->lkb_lksb->sb_flags;
-		__entry->sb_status = lkb->lkb_lksb->sb_status;
-
-		r = lkb->lkb_resource;
-		if (r)
-			memcpy(__get_dynamic_array(res_name), r->res_name,
-			       __get_dynamic_array_len(res_name));
+		memcpy(__get_dynamic_array(res_name), res_name,
+		       __get_dynamic_array_len(res_name));
 	),
 
 	TP_printk("ls_id=%u lkb_id=%x sb_flags=%s sb_status=%d res_name=%s",

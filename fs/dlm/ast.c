@@ -171,6 +171,7 @@ void dlm_callback_work(struct work_struct *work)
 {
 	struct dlm_lkb *lkb = container_of(work, struct dlm_lkb, lkb_cb_work);
 	struct dlm_ls *ls = lkb->lkb_resource->res_ls;
+	struct dlm_rsb *rsb = lkb->lkb_resource;
 	void (*castfn) (void *astparam);
 	void (*bastfn) (void *astparam, int mode);
 	struct dlm_callback *cb;
@@ -190,14 +191,18 @@ void dlm_callback_work(struct work_struct *work)
 		bastfn = lkb->lkb_bastfn;
 
 		if (cb->flags & DLM_CB_BAST) {
-			trace_dlm_bast(ls, lkb, cb->mode);
+			trace_dlm_bast(ls->ls_global_id, lkb->lkb_id,
+				       cb->mode, rsb->res_name,
+				       rsb->res_length);
 			lkb->lkb_last_bast_time = ktime_get();
 			lkb->lkb_last_bast_mode = cb->mode;
 			bastfn(lkb->lkb_astparam, cb->mode);
 		} else if (cb->flags & DLM_CB_CAST) {
 			lkb->lkb_lksb->sb_status = cb->sb_status;
 			lkb->lkb_lksb->sb_flags = cb->sb_flags;
-			trace_dlm_ast(ls, lkb);
+			trace_dlm_ast(ls->ls_global_id, lkb->lkb_id,
+				      cb->sb_flags, cb->sb_status,
+				      rsb->res_name, rsb->res_length);
 			lkb->lkb_last_cast_time = ktime_get();
 			castfn(lkb->lkb_astparam);
 		}
