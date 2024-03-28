@@ -14,6 +14,8 @@
 #[doc(no_inline)]
 pub use core::pin::Pin;
 
+pub use crate::alloc::vec_ext::VecExt;
+
 #[doc(no_inline)]
 pub use alloc::{boxed::Box, vec::Vec};
 

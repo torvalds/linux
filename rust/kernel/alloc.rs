@@ -5,3 +5,4 @@
 #[cfg(not(test))]
 #[cfg(not(testlib))]
 mod allocator;
+pub mod vec_ext;
