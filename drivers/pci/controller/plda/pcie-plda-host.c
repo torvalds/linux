@@ -533,11 +533,10 @@ void plda_pcie_setup_window(void __iomem *bridge_base_addr, u32 index,
 }
 EXPORT_SYMBOL_GPL(plda_pcie_setup_window);
 
-int plda_pcie_setup_iomems(struct platform_device *pdev,
+int plda_pcie_setup_iomems(struct pci_host_bridge *bridge,
 			   struct plda_pcie_rp *port)
 {
 	void __iomem *bridge_base_addr = port->bridge_addr;
-	struct pci_host_bridge *bridge = platform_get_drvdata(pdev);
 	struct resource_entry *entry;
 	u64 pci_addr;
 	u32 index = 1;
