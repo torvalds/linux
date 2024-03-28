@@ -863,6 +863,7 @@ const struct file_operations def_blk_fops = {
 	.splice_read	= filemap_splice_read,
 	.splice_write	= iter_file_splice_write,
 	.fallocate	= blkdev_fallocate,
+	.fop_flags	= FOP_BUFFER_RASYNC,
 };
 
 static __init int blkdev_init(void)

@@ -1230,8 +1230,7 @@ xfs_file_open(
 {
 	if (xfs_is_shutdown(XFS_M(inode->i_sb)))
 		return -EIO;
-	file->f_mode |= FMODE_NOWAIT | FMODE_BUF_RASYNC | FMODE_BUF_WASYNC |
-			FMODE_DIO_PARALLEL_WRITE | FMODE_CAN_ODIRECT;
+	file->f_mode |= FMODE_NOWAIT | FMODE_CAN_ODIRECT;
 	return generic_file_open(inode, file);
 }
 
@@ -1490,7 +1489,6 @@ const struct file_operations xfs_file_operations = {
 	.compat_ioctl	= xfs_file_compat_ioctl,
 #endif
 	.mmap		= xfs_file_mmap,
-	.mmap_supported_flags = MAP_SYNC,
 	.open		= xfs_file_open,
 	.release	= xfs_file_release,
 	.fsync		= xfs_file_fsync,
@@ -1498,6 +1496,8 @@ const struct file_operations xfs_file_operations = {
 	.fallocate	= xfs_file_fallocate,
 	.fadvise	= xfs_file_fadvise,
 	.remap_file_range = xfs_file_remap_range,
+	.fop_flags	= FOP_MMAP_SYNC | FOP_BUFFER_RASYNC | FOP_BUFFER_WASYNC |
+			  FOP_DIO_PARALLEL_WRITE,
 };
 
 const struct file_operations xfs_dir_file_operations = {
@@ -1510,4 +1510,6 @@ const struct file_operations xfs_dir_file_operations = {
 	.compat_ioctl	= xfs_file_compat_ioctl,
 #endif
 	.fsync		= xfs_dir_fsync,
+	.fop_flags	= FOP_MMAP_SYNC | FOP_BUFFER_RASYNC | FOP_BUFFER_WASYNC |
+			  FOP_DIO_PARALLEL_WRITE,
 };
