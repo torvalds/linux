@@ -4097,6 +4097,8 @@ static inline void dev_put(struct net_device *dev)
 	netdev_put(dev, NULL);
 }
 
+DEFINE_FREE(dev_put, struct net_device *, if (_T) dev_put(_T))
+
 static inline void netdev_ref_replace(struct net_device *odev,
 				      struct net_device *ndev,
 				      netdevice_tracker *tracker,
