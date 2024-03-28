@@ -155,7 +155,7 @@ static int copy_sc_from_user(struct pt_regs *regs,
 			     struct sigcontext __user *from)
 {
 	struct sigcontext sc;
-	int err, pid;
+	int err;
 
 	/* Always make any pending restarted system calls return -EINTR */
 	current->restart_block.fn = do_no_restart_syscall;
@@ -201,10 +201,10 @@ static int copy_sc_from_user(struct pt_regs *regs,
 
 #undef GETREG
 
-	pid = userspace_pid[current_thread_info()->cpu];
 #ifdef CONFIG_X86_32
 	if (have_fpx_regs) {
 		struct user_fxsr_struct fpx;
+		int pid = userspace_pid[current_thread_info()->cpu];
 
 		err = copy_from_user(&fpx,
 			&((struct _fpstate __user *)sc.fpstate)->_fxsr_env[0],
@@ -240,7 +240,7 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 {
 	struct sigcontext sc;
 	struct faultinfo * fi = &current->thread.arch.faultinfo;
-	int err, pid;
+	int err;
 	memset(&sc, 0, sizeof(struct sigcontext));
 
 #define PUTREG(regno, regname) sc.regname = regs->regs.gp[HOST_##regno]
@@ -288,10 +288,9 @@ static int copy_sc_to_user(struct sigcontext __user *to,
 	if (err)
 		return 1;
 
-	pid = userspace_pid[current_thread_info()->cpu];
-
 #ifdef CONFIG_X86_32
 	if (have_fpx_regs) {
+		int pid = userspace_pid[current_thread_info()->cpu];
 		struct user_fxsr_struct fpx;
 
 		err = save_fpx_registers(pid, (unsigned long *) &fpx);
