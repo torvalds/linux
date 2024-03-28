@@ -109,7 +109,7 @@ int get_current_pid(void)
  */
 void new_thread_handler(void)
 {
-	int (*fn)(void *), n;
+	int (*fn)(void *);
 	void *arg;
 
 	if (current->thread.prev_sched != NULL)
@@ -122,7 +122,7 @@ void new_thread_handler(void)
 	/*
 	 * callback returns only if the kernel thread execs a process
 	 */
-	n = fn(arg);
+	fn(arg);
 	userspace(&current->thread.regs.regs, current_thread_info()->aux_fp_regs);
 }
 
