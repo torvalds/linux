@@ -160,11 +160,10 @@ void dlm_add_cb(struct dlm_lkb *lkb, uint32_t flags, int mode, int status,
 		}
 		spin_unlock(&ls->ls_cb_lock);
 		break;
-	case DLM_ENQUEUE_CALLBACK_FAILURE:
-		WARN_ON_ONCE(1);
-		break;
 	case DLM_ENQUEUE_CALLBACK_SUCCESS:
 		break;
+	case DLM_ENQUEUE_CALLBACK_FAILURE:
+		fallthrough;
 	default:
 		WARN_ON_ONCE(1);
 		break;

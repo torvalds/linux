@@ -231,10 +231,6 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 
 	rv = dlm_enqueue_lkb_callback(lkb, flags, mode, status, sbflags);
 	switch (rv) {
-	case DLM_ENQUEUE_CALLBACK_FAILURE:
-		spin_unlock(&proc->asts_spin);
-		WARN_ON_ONCE(1);
-		goto out;
 	case DLM_ENQUEUE_CALLBACK_NEED_SCHED:
 		kref_get(&lkb->lkb_ref);
 		list_add_tail(&lkb->lkb_cb_list, &proc->asts);
@@ -242,9 +238,12 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, uint32_t flags, int mode,
 		break;
 	case DLM_ENQUEUE_CALLBACK_SUCCESS:
 		break;
+	case DLM_ENQUEUE_CALLBACK_FAILURE:
+		fallthrough;
 	default:
+		spin_unlock(&proc->asts_spin);
 		WARN_ON_ONCE(1);
-		break;
+		goto out;
 	}
 	spin_unlock(&proc->asts_spin);
 
