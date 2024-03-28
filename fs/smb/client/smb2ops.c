@@ -3913,7 +3913,7 @@ smb21_set_oplock_level(struct cifsInodeInfo *cinode, __u32 oplock,
 		strcat(message, "W");
 	}
 	if (!new_oplock)
-		strncpy(message, "None", sizeof(message));
+		strscpy(message, "None");
 
 	cinode->oplock = new_oplock;
 	cifs_dbg(FYI, "%s Lease granted on inode %p\n", message,
