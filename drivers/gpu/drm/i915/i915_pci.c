@@ -38,6 +38,9 @@
 #include "i915_reg.h"
 #include "intel_pci_config.h"
 
+__diag_push();
+__diag_ignore_all("-Woverride-init", "Allow field initialization overrides for device info");
+
 #define PLATFORM(x) .platform = (x)
 #define GEN(x) \
 	.__runtime.graphics.ip.ver = (x), \
@@ -784,6 +787,8 @@ static const struct intel_device_info mtl_info = {
 };
 
 #undef PLATFORM
+
+__diag_pop();
 
 /*
  * Make sure any device matches here are from most specific to most
