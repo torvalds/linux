@@ -1189,7 +1189,7 @@ impl<T> InPlaceInit<T> for UniqueArc<T> {
     where
         E: From<AllocError>,
     {
-        let mut this = UniqueArc::try_new_uninit()?;
+        let mut this = UniqueArc::new_uninit(GFP_KERNEL)?;
         let slot = this.as_mut_ptr();
         // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
         // slot is valid and will not be moved, because we pin it later.
@@ -1203,7 +1203,7 @@ impl<T> InPlaceInit<T> for UniqueArc<T> {
     where
         E: From<AllocError>,
     {
-        let mut this = UniqueArc::try_new_uninit()?;
+        let mut this = UniqueArc::new_uninit(GFP_KERNEL)?;
         let slot = this.as_mut_ptr();
         // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
         // slot is valid.
