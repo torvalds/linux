@@ -2951,8 +2951,6 @@ void blk_mq_submit_bio(struct bio *bio)
 		bio = __bio_split_to_limits(bio, &q->limits, &nr_segs);
 		if (!bio)
 			return;
-	} else if (bio->bi_vcnt == 1) {
-		nr_segs = blk_segments(&q->limits, bio->bi_io_vec[0].bv_len);
 	}
 
 	if (!bio_integrity_prep(bio))
