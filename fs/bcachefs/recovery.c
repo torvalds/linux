@@ -938,6 +938,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	int ret;
 
 	bch_notice(c, "initializing new filesystem");
+	set_bit(BCH_FS_new_fs, &c->flags);
 
 	mutex_lock(&c->sb_lock);
 	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_extents_above_btree_updates_done);

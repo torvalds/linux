@@ -615,6 +615,7 @@ struct bch_dev {
  */
 
 #define BCH_FS_FLAGS()			\
+	x(new_fs)			\
 	x(started)			\
 	x(may_go_rw)			\
 	x(rw)				\

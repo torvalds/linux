@@ -268,7 +268,8 @@
 	x(btree_node_bkey_bad_u64s,				260)	\
 	x(btree_node_topology_empty_interior_node,		261)	\
 	x(btree_ptr_v2_min_key_bad,				262)	\
-	x(btree_root_unreadable_and_scan_found_nothing,		263)
+	x(btree_root_unreadable_and_scan_found_nothing,		263)	\
+	x(snapshot_node_missing,				264)
 
 enum bch_sb_error_id {
 #define x(t, n) BCH_FSCK_ERR_##t = n,
