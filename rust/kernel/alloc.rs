@@ -5,6 +5,7 @@
 #[cfg(not(test))]
 #[cfg(not(testlib))]
 mod allocator;
+pub mod box_ext;
 pub mod vec_ext;
 
 /// Flags to be used when allocating memory.

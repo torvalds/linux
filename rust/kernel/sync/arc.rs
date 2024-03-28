@@ -16,6 +16,7 @@
 //! [`Arc`]: https://doc.rust-lang.org/std/sync/struct.Arc.html
 
 use crate::{
+    alloc::{box_ext::BoxExt, flags::*},
     bindings,
     error::{self, Error},
     init::{self, InPlaceInit, Init, PinInit},
@@ -170,7 +171,7 @@ impl<T> Arc<T> {
             data: contents,
         };
 
-        let inner = Box::try_new(value)?;
+        let inner = <Box<_> as BoxExt<_>>::new(value, GFP_KERNEL)?;
 
         // SAFETY: We just created `inner` with a reference count of 1, which is owned by the new
         // `Arc` object.

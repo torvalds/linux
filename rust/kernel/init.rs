@@ -210,6 +210,7 @@
 //! [`pin_init!`]: crate::pin_init!
 
 use crate::{
+    alloc::{box_ext::BoxExt, flags::*},
     error::{self, Error},
     sync::UniqueArc,
     types::{Opaque, ScopeGuard},
@@ -305,9 +306,9 @@ macro_rules! stack_pin_init {
 ///
 /// stack_try_pin_init!(let foo: Result<Pin<&mut Foo>, AllocError> = pin_init!(Foo {
 ///     a <- new_mutex!(42),
-///     b: Box::try_new(Bar {
+///     b: Box::new(Bar {
 ///         x: 64,
-///     })?,
+///     }, GFP_KERNEL)?,
 /// }));
 /// let foo = foo.unwrap();
 /// pr_info!("a: {}", &*foo.a.lock());
@@ -331,9 +332,9 @@ macro_rules! stack_pin_init {
 ///
 /// stack_try_pin_init!(let foo: Pin<&mut Foo> =? pin_init!(Foo {
 ///     a <- new_mutex!(42),
-///     b: Box::try_new(Bar {
+///     b: Box::new(Bar {
 ///         x: 64,
-///     })?,
+///     }, GFP_KERNEL)?,
 /// }));
 /// pr_info!("a: {}", &*foo.a.lock());
 /// # Ok::<_, AllocError>(())
@@ -1158,7 +1159,7 @@ impl<T> InPlaceInit<T> for Box<T> {
     where
         E: From<AllocError>,
     {
-        let mut this = Box::try_new_uninit()?;
+        let mut this = <Box<_> as BoxExt<_>>::new_uninit(GFP_KERNEL)?;
         let slot = this.as_mut_ptr();
         // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
         // slot is valid and will not be moved, because we pin it later.
@@ -1172,7 +1173,7 @@ impl<T> InPlaceInit<T> for Box<T> {
     where
         E: From<AllocError>,
     {
-        let mut this = Box::try_new_uninit()?;
+        let mut this = <Box<_> as BoxExt<_>>::new_uninit(GFP_KERNEL)?;
         let slot = this.as_mut_ptr();
         // SAFETY: When init errors/panics, slot will get deallocated but not dropped,
         // slot is valid.
