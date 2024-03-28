@@ -61,12 +61,7 @@ void free_kallsyms_local(struct ksyms *ksyms)
 	free(ksyms);
 }
 
-static int ksym_cmp(const void *p1, const void *p2)
-{
-	return ((struct ksym *)p1)->addr - ((struct ksym *)p2)->addr;
-}
-
-struct ksyms *load_kallsyms_local(void)
+static struct ksyms *load_kallsyms_local_common(ksym_cmp_t cmp_cb)
 {
 	FILE *f;
 	char func[256], buf[256];
@@ -100,13 +95,28 @@ struct ksyms *load_kallsyms_local(void)
 			goto error;
 	}
 	fclose(f);
-	qsort(ksyms->syms, ksyms->sym_cnt, sizeof(struct ksym), ksym_cmp);
+	qsort(ksyms->syms, ksyms->sym_cnt, sizeof(struct ksym), cmp_cb);
 	return ksyms;
 
 error:
 	fclose(f);
 	free_kallsyms_local(ksyms);
 	return NULL;
+}
+
+static int ksym_cmp(const void *p1, const void *p2)
+{
+	return ((struct ksym *)p1)->addr - ((struct ksym *)p2)->addr;
+}
+
+struct ksyms *load_kallsyms_local(void)
+{
+	return load_kallsyms_local_common(ksym_cmp);
+}
+
+struct ksyms *load_kallsyms_custom_local(ksym_cmp_t cmp_cb)
+{
+	return load_kallsyms_local_common(cmp_cb);
 }
 
 int load_kallsyms(void)
@@ -146,6 +156,28 @@ struct ksym *ksym_search_local(struct ksyms *ksyms, long key)
 
 	/* out of range. return _stext */
 	return &ksyms->syms[0];
+}
+
+struct ksym *search_kallsyms_custom_local(struct ksyms *ksyms, const void *p,
+					  ksym_search_cmp_t cmp_cb)
+{
+	int start = 0, mid, end = ksyms->sym_cnt;
+	struct ksym *ks;
+	int result;
+
+	while (start < end) {
+		mid = start + (end - start) / 2;
+		ks = &ksyms->syms[mid];
+		result = cmp_cb(p, ks);
+		if (result < 0)
+			end = mid;
+		else if (result > 0)
+			start = mid + 1;
+		else
+			return ks;
+	}
+
+	return NULL;
 }
 
 struct ksym *ksym_search(long key)
