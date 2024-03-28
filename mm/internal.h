@@ -805,17 +805,16 @@ void mlock_drain_remote(int cpu);
 extern pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma);
 
 /**
- * vma_pgoff_address - Find the virtual address a page range is mapped at
+ * vma_address - Find the virtual address a page range is mapped at
+ * @vma: The vma which maps this object.
  * @pgoff: The page offset within its object.
  * @nr_pages: The number of pages to consider.
- * @vma: The vma which maps this object.
  *
  * If any page in this range is mapped by this VMA, return the first address
  * where any of these pages appear.  Otherwise, return -EFAULT.
  */
-static inline unsigned long
-vma_pgoff_address(pgoff_t pgoff, unsigned long nr_pages,
-		  struct vm_area_struct *vma)
+static inline unsigned long vma_address(struct vm_area_struct *vma,
+		pgoff_t pgoff, unsigned long nr_pages)
 {
 	unsigned long address;
 

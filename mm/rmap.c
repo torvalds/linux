@@ -794,7 +794,7 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 
 	/* The !page__anon_vma above handles KSM folios */
 	pgoff = folio->index + folio_page_idx(folio, page);
-	return vma_pgoff_address(pgoff, 1, vma);
+	return vma_address(vma, pgoff, 1);
 }
 
 /*
@@ -1132,7 +1132,7 @@ int pfn_mkclean_range(unsigned long pfn, unsigned long nr_pages, pgoff_t pgoff,
 	if (invalid_mkclean_vma(vma, NULL))
 		return 0;
 
-	pvmw.address = vma_pgoff_address(pgoff, nr_pages, vma);
+	pvmw.address = vma_address(vma, pgoff, nr_pages);
 	VM_BUG_ON_VMA(pvmw.address == -EFAULT, vma);
 
 	return page_vma_mkclean_one(&pvmw);
@@ -2592,8 +2592,8 @@ static void rmap_walk_anon(struct folio *folio,
 	anon_vma_interval_tree_foreach(avc, &anon_vma->rb_root,
 			pgoff_start, pgoff_end) {
 		struct vm_area_struct *vma = avc->vma;
-		unsigned long address = vma_pgoff_address(pgoff_start,
-				folio_nr_pages(folio), vma);
+		unsigned long address = vma_address(vma, pgoff_start,
+				folio_nr_pages(folio));
 
 		VM_BUG_ON_VMA(address == -EFAULT, vma);
 		cond_resched();
@@ -2654,8 +2654,8 @@ static void rmap_walk_file(struct folio *folio,
 lookup:
 	vma_interval_tree_foreach(vma, &mapping->i_mmap,
 			pgoff_start, pgoff_end) {
-		unsigned long address = vma_pgoff_address(pgoff_start,
-			       folio_nr_pages(folio), vma);
+		unsigned long address = vma_address(vma, pgoff_start,
+			       folio_nr_pages(folio));
 
 		VM_BUG_ON_VMA(address == -EFAULT, vma);
 		cond_resched();

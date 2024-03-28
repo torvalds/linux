@@ -334,7 +334,7 @@ int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma)
 		.flags = PVMW_SYNC,
 	};
 
-	pvmw.address = vma_pgoff_address(pgoff, 1, vma);
+	pvmw.address = vma_address(vma, pgoff, 1);
 	if (pvmw.address == -EFAULT)
 		return 0;
 	if (!page_vma_mapped_walk(&pvmw))
