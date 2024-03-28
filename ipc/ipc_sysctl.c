@@ -178,7 +178,6 @@ static struct ctl_table ipc_sysctls[] = {
 		.extra2		= SYSCTL_INT_MAX,
 	},
 #endif
-	{}
 };
 
 static struct ctl_table_set *set_lookup(struct ctl_table_root *root)
