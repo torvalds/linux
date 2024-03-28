@@ -1987,6 +1987,14 @@ static int glock_cmp(void *priv, const struct list_head *a,
 	return 0;
 }
 
+static bool can_free_glock(struct gfs2_glock *gl)
+{
+	bool held = gl->gl_state != LM_ST_UNLOCKED;
+
+	return !test_bit(GLF_LOCK, &gl->gl_flags) &&
+	       gl->gl_lockref.count == held;
+}
+
 /**
  * gfs2_dispose_glock_lru - Demote a list of glocks
  * @list: The list to dispose of
@@ -2020,7 +2028,7 @@ add_back_to_lru:
 			atomic_inc(&lru_count);
 			continue;
 		}
-		if (test_bit(GLF_LOCK, &gl->gl_flags)) {
+		if (!can_free_glock(gl)) {
 			spin_unlock(&gl->gl_lockref.lock);
 			goto add_back_to_lru;
 		}
@@ -2052,16 +2060,10 @@ static long gfs2_scan_glock_lru(int nr)
 	list_for_each_entry_safe(gl, next, &lru_list, gl_lru) {
 		if (nr-- <= 0)
 			break;
-		/* Test for being demotable */
-		if (!test_bit(GLF_LOCK, &gl->gl_flags)) {
-			if (!spin_trylock(&gl->gl_lockref.lock))
-				continue;
-			if (!gl->gl_lockref.count) {
-				list_move(&gl->gl_lru, &dispose);
-				atomic_dec(&lru_count);
-				freed++;
-			}
-			spin_unlock(&gl->gl_lockref.lock);
+		if (can_free_glock(gl)) {
+			list_move(&gl->gl_lru, &dispose);
+			atomic_dec(&lru_count);
+			freed++;
 		}
 	}
 	if (!list_empty(&dispose))
