@@ -226,8 +226,7 @@ static DEFINE_MUTEX(close_lock);
 
 struct kmem_cache *dlm_midcomms_cache_create(void)
 {
-	return kmem_cache_create("dlm_mhandle", sizeof(struct dlm_mhandle),
-				 0, 0, NULL);
+	return KMEM_CACHE(dlm_mhandle, 0);
 }
 
 static inline const char *dlm_state_str(int state)
