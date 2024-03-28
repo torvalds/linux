@@ -284,7 +284,7 @@ What else is there to known about regressions?
 Check out Documentation/admin-guide/reporting-regressions.rst, it covers a lot
 of other aspects you want might want to be aware of:
 
- * the purpose of the "no regressions rule"
+ * the purpose of the "no regressions" rule
 
  * what issues actually qualify as regression
 
