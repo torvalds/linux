@@ -874,7 +874,7 @@ struct root_domain {
 	 * - More than one runnable task
 	 * - Running task is misfit
 	 */
-	int			overload;
+	int			overloaded;
 
 	/* Indicate one or more cpus over-utilized (tipping point) */
 	int			overutilized;
@@ -932,13 +932,13 @@ extern void sched_put_rd(struct root_domain *rd);
 
 static inline int get_rd_overload(struct root_domain *rd)
 {
-	return READ_ONCE(rd->overload);
+	return READ_ONCE(rd->overloaded);
 }
 
 static inline void set_rd_overload(struct root_domain *rd, int status)
 {
 	if (get_rd_overload(rd) != status)
-		WRITE_ONCE(rd->overload, status);
+		WRITE_ONCE(rd->overloaded, status);
 }
 
 #ifdef HAVE_RT_PUSH_IPI
