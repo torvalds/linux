@@ -16,6 +16,7 @@
  * This is the main header file to be included in each DLM source file.
  */
 
+#include <uapi/linux/dlm_device.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/types.h>
@@ -204,8 +205,7 @@ struct dlm_args {
 #define DLM_IFL_OVERLAP_CANCEL_BIT 20
 #define DLM_IFL_ENDOFLIFE_BIT	21
 #define DLM_IFL_DEADLOCK_CANCEL_BIT 24
-#define DLM_IFL_CB_PENDING_BIT	25
-#define __DLM_IFL_MAX_BIT	DLM_IFL_CB_PENDING_BIT
+#define __DLM_IFL_MAX_BIT	DLM_IFL_DEADLOCK_CANCEL_BIT
 
 /* lkb_dflags */
 
@@ -217,12 +217,45 @@ struct dlm_args {
 #define DLM_CB_CAST		0x00000001
 #define DLM_CB_BAST		0x00000002
 
+/* much of this is just saving user space pointers associated with the
+ * lock that we pass back to the user lib with an ast
+ */
+
+struct dlm_user_args {
+	struct dlm_user_proc	*proc; /* each process that opens the lockspace
+					* device has private data
+					* (dlm_user_proc) on the struct file,
+					* the process's locks point back to it
+					*/
+	struct dlm_lksb		lksb;
+	struct dlm_lksb __user	*user_lksb;
+	void __user		*castparam;
+	void __user		*castaddr;
+	void __user		*bastparam;
+	void __user		*bastaddr;
+	uint64_t		xid;
+};
+
 struct dlm_callback {
 	uint32_t		flags;		/* DLM_CBF_ */
 	int			sb_status;	/* copy to lksb status */
 	uint8_t			sb_flags;	/* copy to lksb flags */
 	int8_t			mode; /* rq mode of bast, gr mode of cast */
-	int			copy_lvb;
+	bool			copy_lvb;
+	struct dlm_lksb		*lkb_lksb;
+	unsigned char		lvbptr[DLM_USER_LVB_LEN];
+
+	union {
+		void			*astparam;	/* caller's ast arg */
+		struct dlm_user_args	ua;
+	};
+	struct work_struct	work;
+	void			(*bastfn)(void *astparam, int mode);
+	void			(*astfn)(void *astparam);
+	char			res_name[DLM_RESNAME_MAXLEN];
+	size_t			res_length;
+	uint32_t		ls_id;
+	uint32_t		lkb_id;
 
 	struct list_head	list;
 	struct kref		ref;
@@ -256,10 +289,6 @@ struct dlm_lkb {
 	struct list_head	lkb_ownqueue;	/* list of locks for a process */
 	ktime_t			lkb_timestamp;
 
-	spinlock_t		lkb_cb_lock;
-	struct work_struct	lkb_cb_work;
-	struct list_head	lkb_cb_list; /* for ls_cb_delay or proc->asts */
-	struct list_head	lkb_callbacks;
 	struct dlm_callback	*lkb_last_cast;
 	struct dlm_callback	*lkb_last_cb;
 	int			lkb_last_bast_mode;
@@ -687,23 +716,6 @@ struct dlm_ls {
 #define LSFL_UEVENT_WAIT	7
 #define LSFL_CB_DELAY		9
 #define LSFL_NODIR		10
-
-/* much of this is just saving user space pointers associated with the
-   lock that we pass back to the user lib with an ast */
-
-struct dlm_user_args {
-	struct dlm_user_proc	*proc; /* each process that opens the lockspace
-					  device has private data
-					  (dlm_user_proc) on the struct file,
-					  the process's locks point back to it*/
-	struct dlm_lksb		lksb;
-	struct dlm_lksb __user	*user_lksb;
-	void __user		*castparam;
-	void __user		*castaddr;
-	void __user		*bastparam;
-	void __user		*bastaddr;
-	uint64_t		xid;
-};
 
 #define DLM_PROC_FLAGS_CLOSING 1
 #define DLM_PROC_FLAGS_COMPAT  2
