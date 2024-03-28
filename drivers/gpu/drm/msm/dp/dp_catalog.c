@@ -881,19 +881,17 @@ u32 dp_catalog_ctrl_read_phy_pattern(struct dp_catalog *dp_catalog)
 }
 
 /* panel related catalog functions */
-int dp_catalog_panel_timing_cfg(struct dp_catalog *dp_catalog)
+int dp_catalog_panel_timing_cfg(struct dp_catalog *dp_catalog, u32 total,
+				u32 sync_start, u32 width_blanking, u32 dp_active)
 {
 	struct dp_catalog_private *catalog = container_of(dp_catalog,
 				struct dp_catalog_private, dp_catalog);
 	u32 reg;
 
-	dp_write_link(catalog, REG_DP_TOTAL_HOR_VER,
-				dp_catalog->total);
-	dp_write_link(catalog, REG_DP_START_HOR_VER_FROM_SYNC,
-				dp_catalog->sync_start);
-	dp_write_link(catalog, REG_DP_HSYNC_VSYNC_WIDTH_POLARITY,
-				dp_catalog->width_blanking);
-	dp_write_link(catalog, REG_DP_ACTIVE_HOR_VER, dp_catalog->dp_active);
+	dp_write_link(catalog, REG_DP_TOTAL_HOR_VER, total);
+	dp_write_link(catalog, REG_DP_START_HOR_VER_FROM_SYNC, sync_start);
+	dp_write_link(catalog, REG_DP_HSYNC_VSYNC_WIDTH_POLARITY, width_blanking);
+	dp_write_link(catalog, REG_DP_ACTIVE_HOR_VER, dp_active);
 
 	reg = dp_read_p0(catalog, MMSS_DP_INTF_CONFIG);
 
