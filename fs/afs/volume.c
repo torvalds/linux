@@ -32,8 +32,13 @@ static struct afs_volume *afs_insert_volume_into_cell(struct afs_cell *cell,
 		} else if (p->vid > volume->vid) {
 			pp = &(*pp)->rb_right;
 		} else {
-			volume = afs_get_volume(p, afs_volume_trace_get_cell_insert);
-			goto found;
+			if (afs_try_get_volume(p, afs_volume_trace_get_cell_insert)) {
+				volume = p;
+				goto found;
+			}
+
+			set_bit(AFS_VOLUME_RM_TREE, &volume->flags);
+			rb_replace_node_rcu(&p->cell_node, &volume->cell_node, &cell->volumes);
 		}
 	}
 
@@ -56,7 +61,8 @@ static void afs_remove_volume_from_cell(struct afs_volume *volume)
 				 afs_volume_trace_remove);
 		write_seqlock(&cell->volume_lock);
 		hlist_del_rcu(&volume->proc_link);
-		rb_erase(&volume->cell_node, &cell->volumes);
+		if (!test_and_set_bit(AFS_VOLUME_RM_TREE, &volume->flags))
+			rb_erase(&volume->cell_node, &cell->volumes);
 		write_sequnlock(&cell->volume_lock);
 	}
 }
@@ -233,6 +239,20 @@ static void afs_destroy_volume(struct afs_net *net, struct afs_volume *volume)
 	kfree_rcu(volume, rcu);
 
 	_leave(" [destroyed]");
+}
+
+/*
+ * Try to get a reference on a volume record.
+ */
+bool afs_try_get_volume(struct afs_volume *volume, enum afs_volume_trace reason)
+{
+	int r;
+
+	if (__refcount_inc_not_zero(&volume->ref, &r)) {
+		trace_afs_volume(volume->vid, r + 1, reason);
+		return true;
+	}
+	return false;
 }
 
 /*

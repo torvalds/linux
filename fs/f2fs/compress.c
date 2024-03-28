@@ -317,8 +317,6 @@ static const struct f2fs_compress_ops f2fs_lz4_ops = {
 #endif
 
 #ifdef CONFIG_F2FS_FS_ZSTD
-#define F2FS_ZSTD_DEFAULT_CLEVEL	1
-
 static int zstd_init_compress_ctx(struct compress_ctx *cc)
 {
 	zstd_parameters params;
@@ -327,6 +325,7 @@ static int zstd_init_compress_ctx(struct compress_ctx *cc)
 	unsigned int workspace_size;
 	unsigned char level = F2FS_I(cc->inode)->i_compress_level;
 
+	/* Need to remain this for backward compatibility */
 	if (!level)
 		level = F2FS_ZSTD_DEFAULT_CLEVEL;
 

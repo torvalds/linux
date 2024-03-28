@@ -31,16 +31,29 @@ struct prefix_info {
 	__u8			length;
 	__u8			prefix_len;
 
+/*
+ * ANDROID: crc fix for commit 9354e0acdb74 ("net: ipv6: support
+ * reporting otherwise unknown prefix * flags in RTM_NEWPREFIX")
+ */
+#ifndef __GENKSYMS__
+	union __packed {
+		__u8		flags;
+		struct __packed {
+#endif
 #if defined(__BIG_ENDIAN_BITFIELD)
-	__u8			onlink : 1,
+			__u8	onlink : 1,
 			 	autoconf : 1,
 				reserved : 6;
 #elif defined(__LITTLE_ENDIAN_BITFIELD)
-	__u8			reserved : 6,
+			__u8	reserved : 6,
 				autoconf : 1,
 				onlink : 1;
 #else
 #error "Please fix <asm/byteorder.h>"
+#endif
+#ifndef __GENKSYMS__
+		};
+	};
 #endif
 	__be32			valid;
 	__be32			prefered;
@@ -48,6 +61,9 @@ struct prefix_info {
 
 	struct in6_addr		prefix;
 };
+
+/* rfc4861 4.6.2: IPv6 PIO is 32 bytes in size */
+static_assert(sizeof(struct prefix_info) == 32);
 
 #include <linux/ipv6.h>
 #include <linux/netdevice.h>

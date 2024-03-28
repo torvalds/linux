@@ -284,7 +284,7 @@ struct rpc_xprt *_xprt_switch_find_current_entry(struct list_head *head,
 		if (cur == pos)
 			found = true;
 		if (found && ((find_active && xprt_is_active(pos)) ||
-			      (!find_active && xprt_is_active(pos))))
+			      (!find_active && !xprt_is_active(pos))))
 			return pos;
 	}
 	return NULL;

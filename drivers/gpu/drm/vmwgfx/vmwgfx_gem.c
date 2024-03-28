@@ -133,6 +133,22 @@ void vmw_gem_destroy(struct ttm_buffer_object *bo)
 	kfree(vbo);
 }
 
+int vmw_gem_object_create(struct vmw_private *vmw,
+			  size_t size, struct ttm_placement *placement,
+			  bool interruptible, bool pin,
+			  void (*bo_free)(struct ttm_buffer_object *bo),
+			  struct vmw_buffer_object **p_bo)
+{
+	int ret = vmw_bo_create(vmw, size, placement, interruptible, pin, bo_free, p_bo);
+
+	if (ret != 0)
+		goto out_no_bo;
+
+	(*p_bo)->base.base.funcs = &vmw_gem_object_funcs;
+out_no_bo:
+	return ret;
+}
+
 int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 				      struct drm_file *filp,
 				      uint32_t size,
@@ -141,15 +157,13 @@ int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 {
 	int ret;
 
-	ret = vmw_bo_create(dev_priv, size,
-			    (dev_priv->has_mob) ?
+	ret = vmw_gem_object_create(dev_priv, size,
+				    (dev_priv->has_mob) ?
 				    &vmw_sys_placement :
 				    &vmw_vram_sys_placement,
-			    true, false, &vmw_gem_destroy, p_vbo);
+				    true, false, &vmw_gem_destroy, p_vbo);
 	if (ret != 0)
 		goto out_no_bo;
-
-	(*p_vbo)->base.base.funcs = &vmw_gem_object_funcs;
 
 	ret = drm_gem_handle_create(filp, &(*p_vbo)->base.base, handle);
 out_no_bo:

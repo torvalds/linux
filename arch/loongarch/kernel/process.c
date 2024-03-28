@@ -82,6 +82,7 @@ void start_thread(struct pt_regs *regs, unsigned long pc, unsigned long sp)
 	euen = regs->csr_euen & ~(CSR_EUEN_FPEN);
 	regs->csr_euen = euen;
 	lose_fpu(0);
+	current->thread.fpu.fcsr = boot_cpu_data.fpu_csr0;
 
 	clear_thread_flag(TIF_LSX_CTX_LIVE);
 	clear_thread_flag(TIF_LASX_CTX_LIVE);
