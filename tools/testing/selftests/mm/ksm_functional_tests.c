@@ -475,6 +475,36 @@ static void test_prctl(void)
 	ksft_test_result_pass("Setting/clearing PR_SET_MEMORY_MERGE works\n");
 }
 
+static int test_child_ksm(void)
+{
+	const unsigned int size = 2 * MiB;
+	char *map;
+
+	/* Test if KSM is enabled for the process. */
+	if (prctl(PR_GET_MEMORY_MERGE, 0, 0, 0, 0) != 1)
+		return -1;
+
+	/* Test if merge could really happen. */
+	map = __mmap_and_merge_range(0xcf, size, PROT_READ | PROT_WRITE, KSM_MERGE_NONE);
+	if (map == MAP_MERGE_FAIL)
+		return -2;
+	else if (map == MAP_MERGE_SKIP)
+		return -3;
+
+	munmap(map, size);
+	return 0;
+}
+
+static void test_child_ksm_err(int status)
+{
+	if (status == -1)
+		ksft_test_result_fail("unexpected PR_GET_MEMORY_MERGE result in child\n");
+	else if (status == -2)
+		ksft_test_result_fail("Merge in child failed\n");
+	else if (status == -3)
+		ksft_test_result_skip("Merge in child skipped\n");
+}
+
 /* Verify that prctl ksm flag is inherited. */
 static void test_prctl_fork(void)
 {
@@ -494,7 +524,7 @@ static void test_prctl_fork(void)
 
 	child_pid = fork();
 	if (!child_pid) {
-		exit(prctl(PR_GET_MEMORY_MERGE, 0, 0, 0, 0));
+		exit(test_child_ksm());
 	} else if (child_pid < 0) {
 		ksft_test_result_fail("fork() failed\n");
 		return;
@@ -503,8 +533,11 @@ static void test_prctl_fork(void)
 	if (waitpid(child_pid, &status, 0) < 0) {
 		ksft_test_result_fail("waitpid() failed\n");
 		return;
-	} else if (WEXITSTATUS(status) != 1) {
-		ksft_test_result_fail("unexpected PR_GET_MEMORY_MERGE result in child\n");
+	}
+
+	status = WEXITSTATUS(status);
+	if (status) {
+		test_child_ksm_err(status);
 		return;
 	}
 
@@ -514,12 +547,6 @@ static void test_prctl_fork(void)
 	}
 
 	ksft_test_result_pass("PR_SET_MEMORY_MERGE value is inherited\n");
-}
-
-static int ksm_fork_exec_child(void)
-{
-	/* Test if KSM is enabled for the process. */
-	return prctl(PR_GET_MEMORY_MERGE, 0, 0, 0, 0) == 1;
 }
 
 static void test_prctl_fork_exec(void)
@@ -554,7 +581,7 @@ static void test_prctl_fork_exec(void)
 		if (WIFEXITED(status)) {
 			status = WEXITSTATUS(status);
 			if (status) {
-				ksft_test_result_fail("KSM not enabled\n");
+				test_child_ksm_err(status);
 				return;
 			}
 		} else {
@@ -635,7 +662,7 @@ int main(int argc, char **argv)
 	int err;
 
 	if (argc > 1 && !strcmp(argv[1], FORK_EXEC_CHILD_PRG_NAME)) {
-		exit(ksm_fork_exec_child() == 1 ? 0 : 1);
+		exit(test_child_ksm());
 	}
 
 #ifdef __NR_userfaultfd
