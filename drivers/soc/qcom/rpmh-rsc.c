@@ -1154,7 +1154,7 @@ static int __init rpmh_driver_init(void)
 {
 	return platform_driver_register(&rpmh_driver);
 }
-arch_initcall(rpmh_driver_init);
+core_initcall(rpmh_driver_init);
 
 MODULE_DESCRIPTION("Qualcomm Technologies, Inc. RPMh Driver");
 MODULE_LICENSE("GPL v2");
