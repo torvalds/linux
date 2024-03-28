@@ -24,6 +24,58 @@
 #include "xe_uc_debugfs.h"
 #include "xe_wa.h"
 
+/**
+ * xe_gt_debugfs_simple_show - A show callback for struct drm_info_list
+ * @m: the &seq_file
+ * @data: data used by the drm debugfs helpers
+ *
+ * This callback can be used in struct drm_info_list to describe debugfs
+ * files that are &xe_gt specific.
+ *
+ * It is assumed that those debugfs files will be created on directory entry
+ * which struct dentry d_inode->i_private points to &xe_gt.
+ *
+ * This function assumes that &m->private will be set to the &struct
+ * drm_info_node corresponding to the instance of the info on a given &struct
+ * drm_minor (see struct drm_info_list.show for details).
+ *
+ * This function also assumes that struct drm_info_list.data will point to the
+ * function code that will actually print a file content::
+ *
+ *   int (*print)(struct xe_gt *, struct drm_printer *)
+ *
+ * Example::
+ *
+ *    int foo(struct xe_gt *gt, struct drm_printer *p)
+ *    {
+ *        drm_printf(p, "GT%u\n", gt->info.id);
+ *        return 0;
+ *    }
+ *
+ *    static const struct drm_info_list bar[] = {
+ *        { name = "foo", .show = xe_gt_debugfs_simple_show, .data = foo },
+ *    };
+ *
+ *    dir = debugfs_create_dir("gt", parent);
+ *    dir->d_inode->i_private = gt;
+ *    drm_debugfs_create_files(bar, ARRAY_SIZE(bar), dir, minor);
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_gt_debugfs_simple_show(struct seq_file *m, void *data)
+{
+	struct drm_printer p = drm_seq_file_printer(m);
+	struct drm_info_node *node = m->private;
+	struct dentry *parent = node->dent->d_parent;
+	struct xe_gt *gt = parent->d_inode->i_private;
+	int (*print)(struct xe_gt *, struct drm_printer *) = node->info_ent->data;
+
+	if (WARN_ON(!print))
+		return -EINVAL;
+
+	return print(gt, &p);
+}
+
 static struct xe_gt *node_to_gt(struct drm_info_node *node)
 {
 	return node->info_ent->data;
