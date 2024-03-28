@@ -1260,15 +1260,15 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 	if (IS_ERR_OR_NULL(vif))
 		return 1;
 
-	if (ieee80211_vif_is_mld(vif) && vif->cfg.assoc) {
+	if (hweight16(vif->active_links) > 1) {
 		/*
-		 * Select the 'best' link. May need to revisit, it seems
-		 * better to not optimize for throughput but rather range,
-		 * reliability and power here - and select 2.4 GHz ...
+		 * Select the 'best' link.
+		 * May need to revisit, it seems better to not optimize
+		 * for throughput but rather range, reliability and
+		 * power here - and select 2.4 GHz ...
 		 */
-		primary_link =
-			iwl_mvm_mld_get_primary_link(mvm, vif,
-						     vif->active_links);
+		primary_link = iwl_mvm_mld_get_primary_link(mvm, vif,
+							    vif->active_links);
 
 		if (WARN_ONCE(primary_link < 0, "no primary link in 0x%x\n",
 			      vif->active_links))
@@ -1277,6 +1277,8 @@ static int __iwl_mvm_suspend(struct ieee80211_hw *hw,
 		ret = ieee80211_set_active_links(vif, BIT(primary_link));
 		if (ret)
 			return ret;
+	} else if (vif->active_links) {
+		primary_link = __ffs(vif->active_links);
 	} else {
 		primary_link = 0;
 	}

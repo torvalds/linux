@@ -360,7 +360,7 @@ int iwl_mvm_mac_setup_register(struct iwl_mvm *mvm)
 	if (mvm->mld_api_is_used && mvm->nvm_data->sku_cap_11be_enable &&
 	    !iwlwifi_mod_params.disable_11ax &&
 	    !iwlwifi_mod_params.disable_11be)
-		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
+		hw->wiphy->flags |= WIPHY_FLAG_DISABLE_WEXT;
 
 	/* With MLD FW API, it tracks timing by itself,
 	 * no need for any timing from the host
@@ -1577,7 +1577,13 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	mvmvif->mvm = mvm;
 
 	/* the first link always points to the default one */
+	mvmvif->deflink.fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;
+	mvmvif->deflink.active = 0;
 	mvmvif->link[0] = &mvmvif->deflink;
+
+	ret = iwl_mvm_set_link_mapping(mvm, vif, &vif->bss_conf);
+	if (ret)
+		goto out;
 
 	/*
 	 * Not much to do here. The stack will not allow interface
@@ -1783,6 +1789,7 @@ static void iwl_mvm_mac_remove_interface(struct ieee80211_hw *hw,
 		mvm->p2p_device_vif = NULL;
 	}
 
+	iwl_mvm_unset_link_mapping(mvm, vif, &vif->bss_conf);
 	iwl_mvm_mac_ctxt_remove(mvm, vif);
 
 	RCU_INIT_POINTER(mvm->vif_id_to_mac[mvmvif->id], NULL);
