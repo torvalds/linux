@@ -123,9 +123,9 @@ audio_subsys: bus@59000000 {
 		compatible = "fsl,imx8qm-sai";
 		reg = <0x59040000 0x10000>;
 		interrupts = <GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&sai0_lpcg 1>,
+		clocks = <&sai0_lpcg IMX_LPCG_CLK_4>,
 			 <&clk_dummy>,
-			 <&sai0_lpcg 0>,
+			 <&sai0_lpcg IMX_LPCG_CLK_0>,
 			 <&clk_dummy>,
 			 <&clk_dummy>;
 		clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
@@ -139,9 +139,9 @@ audio_subsys: bus@59000000 {
 		compatible = "fsl,imx8qm-sai";
 		reg = <0x59050000 0x10000>;
 		interrupts = <GIC_SPI 316 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&sai1_lpcg 1>,
+		clocks = <&sai1_lpcg IMX_LPCG_CLK_4>,
 			 <&clk_dummy>,
-			 <&sai1_lpcg 0>,
+			 <&sai1_lpcg IMX_LPCG_CLK_0>,
 			 <&clk_dummy>,
 			 <&clk_dummy>;
 		clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
@@ -155,9 +155,9 @@ audio_subsys: bus@59000000 {
 		compatible = "fsl,imx8qm-sai";
 		reg = <0x59060000 0x10000>;
 		interrupts = <GIC_SPI 318 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&sai2_lpcg 1>,
+		clocks = <&sai2_lpcg IMX_LPCG_CLK_4>,
 			 <&clk_dummy>,
-			 <&sai2_lpcg 0>,
+			 <&sai2_lpcg IMX_LPCG_CLK_0>,
 			 <&clk_dummy>,
 			 <&clk_dummy>;
 		clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
@@ -171,9 +171,9 @@ audio_subsys: bus@59000000 {
 		compatible = "fsl,imx8qm-sai";
 		reg = <0x59070000 0x10000>;
 		interrupts = <GIC_SPI 323 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&sai3_lpcg 1>,
+		clocks = <&sai3_lpcg IMX_LPCG_CLK_4>,
 			 <&clk_dummy>,
-			 <&sai3_lpcg 0>,
+			 <&sai3_lpcg IMX_LPCG_CLK_0>,
 			 <&clk_dummy>,
 			 <&clk_dummy>;
 		clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
