@@ -2981,6 +2981,7 @@ struct rtw89_h2c_scanofld_be {
 	__le32 w5;
 	__le32 w6;
 	__le32 w7;
+	__le32 w8;
 	struct rtw89_h2c_scanofld_be_macc_role role[];
 } __packed;
 
