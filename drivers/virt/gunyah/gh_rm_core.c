@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
@@ -76,6 +76,7 @@ const static struct {
 	{GH_TRUSTED_VM, "trustedvm", "qcom,trustedvm"},
 	{GH_CPUSYS_VM, "cpusys_vm", "qcom,cpusysvm"},
 	{GH_OEM_VM, "oem_vm", "qcom,oemvm"},
+	{GH_AUTO_VM, "autoghgvm", "qcom,autoghgvm"},
 };
 
 static gh_virtio_mmio_cb_t gh_virtio_mmio_fn;
