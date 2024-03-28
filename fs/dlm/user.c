@@ -864,7 +864,7 @@ static ssize_t device_read(struct file *file, char __user *buf, size_t count,
 	ret = copy_result_to_user(&cb->ua,
 				  test_bit(DLM_PROC_FLAGS_COMPAT, &proc->flags),
 				  cb->flags, cb->mode, cb->copy_lvb, buf, count);
-	kref_put(&cb->ref, dlm_release_callback);
+	dlm_free_cb(cb);
 	return ret;
 }
 

@@ -258,7 +258,6 @@ struct dlm_callback {
 	uint32_t		lkb_id;
 
 	struct list_head	list;
-	struct kref		ref;
 };
 
 struct dlm_lkb {
@@ -289,9 +288,10 @@ struct dlm_lkb {
 	struct list_head	lkb_ownqueue;	/* list of locks for a process */
 	ktime_t			lkb_timestamp;
 
-	struct dlm_callback	*lkb_last_cast;
-	struct dlm_callback	*lkb_last_cb;
-	int			lkb_last_bast_mode;
+	int8_t			lkb_last_cast_cb_mode;
+	int8_t			lkb_last_bast_cb_mode;
+	int8_t			lkb_last_cb_mode;
+	uint8_t			lkb_last_cb_flags;
 	ktime_t			lkb_last_cast_time;	/* for debugging */
 	ktime_t			lkb_last_bast_time;	/* for debugging */
 

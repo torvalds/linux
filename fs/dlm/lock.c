@@ -1197,7 +1197,9 @@ static int _create_lkb(struct dlm_ls *ls, struct dlm_lkb **lkb_ret,
 	if (!lkb)
 		return -ENOMEM;
 
-	lkb->lkb_last_bast_mode = -1;
+	lkb->lkb_last_bast_cb_mode = DLM_LOCK_IV;
+	lkb->lkb_last_cast_cb_mode = DLM_LOCK_IV;
+	lkb->lkb_last_cb_mode = DLM_LOCK_IV;
 	lkb->lkb_nodeid = -1;
 	lkb->lkb_grmode = DLM_LOCK_IV;
 	kref_init(&lkb->lkb_ref);
@@ -6031,7 +6033,7 @@ void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 
 	list_for_each_entry_safe(cb, cb_safe, &proc->asts, list) {
 		list_del(&cb->list);
-		kref_put(&cb->ref, dlm_release_callback);
+		dlm_free_cb(cb);
 	}
 
 	spin_unlock(&ls->ls_clear_proc_locks);
@@ -6072,7 +6074,7 @@ static void purge_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc)
 	spin_lock(&proc->asts_spin);
 	list_for_each_entry_safe(cb, cb_safe, &proc->asts, list) {
 		list_del(&cb->list);
-		kref_put(&cb->ref, dlm_release_callback);
+		dlm_free_cb(cb);
 	}
 	spin_unlock(&proc->asts_spin);
 }

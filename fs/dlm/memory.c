@@ -127,10 +127,6 @@ void dlm_free_lkb(struct dlm_lkb *lkb)
 		}
 	}
 
-	/* drop references if they are set */
-	dlm_callback_set_last_ptr(&lkb->lkb_last_cast, NULL);
-	dlm_callback_set_last_ptr(&lkb->lkb_last_cb, NULL);
-
 	kmem_cache_free(lkb_cache, lkb);
 }
 

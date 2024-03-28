@@ -18,25 +18,6 @@
 #include "user.h"
 #include "ast.h"
 
-void dlm_release_callback(struct kref *ref)
-{
-	struct dlm_callback *cb = container_of(ref, struct dlm_callback, ref);
-
-	dlm_free_cb(cb);
-}
-
-void dlm_callback_set_last_ptr(struct dlm_callback **from,
-			       struct dlm_callback *to)
-{
-	if (*from)
-		kref_put(&(*from)->ref, dlm_release_callback);
-
-	if (to)
-		kref_get(&to->ref);
-
-	*from = to;
-}
-
 static void dlm_callback_work(struct work_struct *work)
 {
 	struct dlm_callback *cb = container_of(work, struct dlm_callback, work);
@@ -53,7 +34,7 @@ static void dlm_callback_work(struct work_struct *work)
 		cb->astfn(cb->astparam);
 	}
 
-	kref_put(&cb->ref, dlm_release_callback);
+	dlm_free_cb(cb);
 }
 
 int dlm_queue_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
@@ -70,11 +51,11 @@ int dlm_queue_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 		/* if cb is a bast, it should be skipped if the blocking mode is
 		 * compatible with the last granted mode
 		 */
-		if (lkb->lkb_last_cast) {
-			if (dlm_modes_compat(mode, lkb->lkb_last_cast->mode)) {
+		if (lkb->lkb_last_cast_cb_mode != -1) {
+			if (dlm_modes_compat(mode, lkb->lkb_last_cast_cb_mode)) {
 				log_debug(ls, "skip %x bast mode %d for cast mode %d",
 					  lkb->lkb_id, mode,
-					  lkb->lkb_last_cast->mode);
+					  lkb->lkb_last_cast_cb_mode);
 				goto out;
 			}
 		}
@@ -85,8 +66,9 @@ int dlm_queue_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 		 * is a bast for the same mode or a more restrictive mode.
 		 * (the addional > PR check is needed for PR/CW inversion)
 		 */
-		if (lkb->lkb_last_cb && lkb->lkb_last_cb->flags & DLM_CB_BAST) {
-			prev_mode = lkb->lkb_last_cb->mode;
+		if (lkb->lkb_last_cb_mode != -1 &&
+		    lkb->lkb_last_cb_flags & DLM_CB_BAST) {
+			prev_mode = lkb->lkb_last_cb_mode;
 
 			if ((prev_mode == mode) ||
 			    (prev_mode > mode && prev_mode > DLM_LOCK_PR)) {
@@ -95,18 +77,24 @@ int dlm_queue_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 				goto out;
 			}
 		}
+
+		lkb->lkb_last_bast_time = ktime_get();
+		lkb->lkb_last_bast_cb_mode = mode;
 	} else if (flags & DLM_CB_CAST) {
 		if (test_bit(DLM_DFL_USER_BIT, &lkb->lkb_dflags)) {
-			if (lkb->lkb_last_cast)
-				prev_mode = lkb->lkb_last_cb->mode;
-			else
-				prev_mode = -1;
+			prev_mode = lkb->lkb_last_cast_cb_mode;
 
 			if (!status && lkb->lkb_lksb->sb_lvbptr &&
 			    dlm_lvb_operations[prev_mode + 1][mode + 1])
 				copy_lvb = 1;
 		}
+
+		lkb->lkb_last_cast_cb_mode = mode;
+		lkb->lkb_last_cast_time = ktime_get();
 	}
+
+	lkb->lkb_last_cb_mode = mode;
+	lkb->lkb_last_cb_flags = flags;
 
 	*cb = dlm_allocate_cb();
 	if (!*cb) {
@@ -126,17 +114,7 @@ int dlm_queue_lkb_callback(struct dlm_lkb *lkb, uint32_t flags, int mode,
 	(*cb)->sb_flags = (sbflags & 0x000000FF);
 	(*cb)->copy_lvb = copy_lvb;
 	(*cb)->lkb_lksb = lkb->lkb_lksb;
-	kref_init(&(*cb)->ref);
 
-	if (flags & DLM_CB_BAST) {
-		lkb->lkb_last_bast_time = ktime_get();
-		lkb->lkb_last_bast_mode = mode;
-	} else if (flags & DLM_CB_CAST) {
-		dlm_callback_set_last_ptr(&lkb->lkb_last_cast, *cb);
-		lkb->lkb_last_cast_time = ktime_get();
-	}
-
-	dlm_callback_set_last_ptr(&lkb->lkb_last_cb, *cb);
 	rv = DLM_ENQUEUE_CALLBACK_NEED_SCHED;
 
 out:
