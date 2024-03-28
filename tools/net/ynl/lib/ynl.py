@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 
 from collections import namedtuple
+from enum import Enum
 import functools
 import os
 import random
@@ -76,6 +77,25 @@ class Netlink:
     NLMSGERR_ATTR_MISS_TYPE = 5
     NLMSGERR_ATTR_MISS_NEST = 6
 
+    # Policy types
+    NL_POLICY_TYPE_ATTR_TYPE = 1
+    NL_POLICY_TYPE_ATTR_MIN_VALUE_S = 2
+    NL_POLICY_TYPE_ATTR_MAX_VALUE_S = 3
+    NL_POLICY_TYPE_ATTR_MIN_VALUE_U = 4
+    NL_POLICY_TYPE_ATTR_MAX_VALUE_U = 5
+    NL_POLICY_TYPE_ATTR_MIN_LENGTH = 6
+    NL_POLICY_TYPE_ATTR_MAX_LENGTH = 7
+    NL_POLICY_TYPE_ATTR_POLICY_IDX = 8
+    NL_POLICY_TYPE_ATTR_POLICY_MAXTYPE = 9
+    NL_POLICY_TYPE_ATTR_BITFIELD32_MASK = 10
+    NL_POLICY_TYPE_ATTR_PAD = 11
+    NL_POLICY_TYPE_ATTR_MASK = 12
+
+    AttrType = Enum('AttrType', ['flag', 'u8', 'u16', 'u32', 'u64',
+                                  's8', 's16', 's32', 's64',
+                                  'binary', 'string', 'nul-string',
+                                  'nested', 'nested-array',
+                                  'bitfield32', 'sint', 'uint'])
 
 class NlError(Exception):
   def __init__(self, nl_msg):
@@ -198,6 +218,8 @@ class NlMsg:
                     self.extack['miss-nest'] = extack.as_scalar('u32')
                 elif extack.type == Netlink.NLMSGERR_ATTR_OFFS:
                     self.extack['bad-attr-offs'] = extack.as_scalar('u32')
+                elif extack.type == Netlink.NLMSGERR_ATTR_POLICY:
+                    self.extack['policy'] = self._decode_policy(extack.raw)
                 else:
                     if 'unknown' not in self.extack:
                         self.extack['unknown'] = []
@@ -213,6 +235,30 @@ class NlMsg:
                         if 'doc' in spec:
                             desc += f" ({spec['doc']})"
                         self.extack['miss-type'] = desc
+
+    def _decode_policy(self, raw):
+        policy = {}
+        for attr in NlAttrs(raw):
+            if attr.type == Netlink.NL_POLICY_TYPE_ATTR_TYPE:
+                type = attr.as_scalar('u32')
+                policy['type'] = Netlink.AttrType(type).name
+            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_VALUE_S:
+                policy['min-value'] = attr.as_scalar('s64')
+            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_VALUE_S:
+                policy['max-value'] = attr.as_scalar('s64')
+            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_VALUE_U:
+                policy['min-value'] = attr.as_scalar('u64')
+            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_VALUE_U:
+                policy['max-value'] = attr.as_scalar('u64')
+            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MIN_LENGTH:
+                policy['min-length'] = attr.as_scalar('u32')
+            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MAX_LENGTH:
+                policy['max-length'] = attr.as_scalar('u32')
+            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_BITFIELD32_MASK:
+                policy['bitfield32-mask'] = attr.as_scalar('u32')
+            elif attr.type == Netlink.NL_POLICY_TYPE_ATTR_MASK:
+                policy['mask'] = attr.as_scalar('u64')
+        return policy
 
     def cmd(self):
         return self.nl_type
