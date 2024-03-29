@@ -129,18 +129,9 @@ void retransmit_timer(struct timer_list *t)
 
 void rxe_comp_queue_pkt(struct rxe_qp *qp, struct sk_buff *skb)
 {
-	int must_sched;
-
-	must_sched = skb_queue_len(&qp->resp_pkts) > 0;
-	if (must_sched != 0)
-		rxe_counter_inc(SKB_TO_PKT(skb)->rxe, RXE_CNT_SENDER_SCHED);
-
+	rxe_counter_inc(SKB_TO_PKT(skb)->rxe, RXE_CNT_SENDER_SCHED);
 	skb_queue_tail(&qp->resp_pkts, skb);
-
-	if (must_sched)
-		rxe_sched_task(&qp->send_task);
-	else
-		rxe_run_task(&qp->send_task);
+	rxe_sched_task(&qp->send_task);
 }
 
 static inline enum comp_state get_wqe(struct rxe_qp *qp,
