@@ -816,10 +816,8 @@ static int aw9523_init_irq(struct aw9523 *awi, int irq)
 
 	ret = devm_request_threaded_irq(dev, irq, NULL, aw9523_irq_thread_func,
 					IRQF_ONESHOT, dev_name(dev), awi);
-	if (ret) {
-		dev_err(dev, "Failed to request irq %d\n", irq);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to request irq %d\n", irq);
 
 	girq = &awi->gpio.irq;
 	gpio_irq_chip_set_chip(girq, &aw9523_irq_chip);
@@ -1016,8 +1014,7 @@ static int aw9523_probe(struct i2c_client *client)
 
 	awi->pctl = devm_pinctrl_register(dev, pdesc, awi);
 	if (IS_ERR(awi->pctl)) {
-		ret = PTR_ERR(awi->pctl);
-		dev_err(dev, "Cannot register pinctrl: %d", ret);
+		ret = dev_err_probe(dev, PTR_ERR(awi->pctl), "Cannot register pinctrl");
 		goto err_disable_vregs;
 	}
 
