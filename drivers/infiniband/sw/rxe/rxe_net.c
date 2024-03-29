@@ -371,12 +371,7 @@ static int rxe_send(struct sk_buff *skb, struct rxe_pkt_info *pkt)
 	else
 		err = ip6_local_out(dev_net(skb_dst(skb)->dev), skb->sk, skb);
 
-	if (unlikely(net_xmit_eval(err))) {
-		rxe_dbg_qp(pkt->qp, "error sending packet: %d\n", err);
-		return -EAGAIN;
-	}
-
-	return 0;
+	return err;
 }
 
 /* fix up a send packet to match the packets

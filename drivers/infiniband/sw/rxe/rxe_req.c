@@ -802,18 +802,8 @@ int rxe_requester(struct rxe_qp *qp)
 
 	err = rxe_xmit_packet(qp, &pkt, skb);
 	if (err) {
-		if (err != -EAGAIN) {
-			wqe->status = IB_WC_LOC_QP_OP_ERR;
-			goto err;
-		}
-
-		/* force a delay until the dropped packet is freed and
-		 * the send queue is drained below the low water mark
-		 */
-		qp->need_req_skb = 1;
-
-		rxe_sched_task(&qp->send_task);
-		goto exit;
+		wqe->status = IB_WC_LOC_QP_OP_ERR;
+		goto err;
 	}
 
 	update_wqe_state(qp, wqe, &pkt);
