@@ -88,10 +88,16 @@ properties:
   '#address-cells':
     description: Number of address cells for the MDIO bus.
     const: 1
+    deprecated: true
 
   '#size-cells':
     description: Number of size cells on the MDIO bus.
     const: 0
+    deprecated: true
+
+  mdio:
+    $ref: /schemas/net/mdio.yaml#
+    unevaluatedProperties: false
 
   renesas,no-ether-link:
     type: boolean
@@ -110,9 +116,13 @@ properties:
   tx-internal-delay-ps:
     enum: [0, 2000]
 
+# In older bindings there where no mdio child-node to describe the MDIO bus
+# and the PHY. To not fail older bindings accept any node with an address. New
+# users should describe the PHY inside the mdio child-node.
 patternProperties:
   "@[0-9a-f]$":
     type: object
+    deprecated: true
 
 required:
   - compatible
@@ -123,8 +133,6 @@ required:
   - resets
   - phy-mode
   - phy-handle
-  - '#address-cells'
-  - '#size-cells'
 
 allOf:
   - $ref: ethernet-controller.yaml#
