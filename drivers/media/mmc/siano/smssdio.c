@@ -344,30 +344,7 @@ static struct sdio_driver smssdio_driver = {
 	.probe = smssdio_probe,
 	.remove = smssdio_remove,
 };
-
-/*******************************************************************/
-/* Module functions                                                */
-/*******************************************************************/
-
-static int __init smssdio_module_init(void)
-{
-	int ret = 0;
-
-	printk(KERN_INFO "smssdio: Siano SMS1xxx SDIO driver\n");
-	printk(KERN_INFO "smssdio: Copyright Pierre Ossman\n");
-
-	ret = sdio_register_driver(&smssdio_driver);
-
-	return ret;
-}
-
-static void __exit smssdio_module_exit(void)
-{
-	sdio_unregister_driver(&smssdio_driver);
-}
-
-module_init(smssdio_module_init);
-module_exit(smssdio_module_exit);
+module_sdio_driver(smssdio_driver);
 
 MODULE_DESCRIPTION("Siano SMS1xxx SDIO driver");
 MODULE_AUTHOR("Pierre Ossman");
