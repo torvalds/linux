@@ -707,6 +707,31 @@ struct siox_master *siox_master_alloc(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(siox_master_alloc);
 
+static void devm_siox_master_put(void *data)
+{
+	struct siox_master *smaster = data;
+
+	siox_master_put(smaster);
+}
+
+struct siox_master *devm_siox_master_alloc(struct device *dev,
+					   size_t size)
+{
+	struct siox_master *smaster;
+	int ret;
+
+	smaster = siox_master_alloc(dev, size);
+	if (!smaster)
+		return NULL;
+
+	ret = devm_add_action_or_reset(dev, devm_siox_master_put, smaster);
+	if (ret)
+		return NULL;
+
+	return smaster;
+}
+EXPORT_SYMBOL_GPL(devm_siox_master_alloc);
+
 int siox_master_register(struct siox_master *smaster)
 {
 	int ret;
@@ -716,6 +741,8 @@ int siox_master_register(struct siox_master *smaster)
 
 	if (!smaster->pushpull)
 		return -EINVAL;
+
+	get_device(&smaster->dev);
 
 	dev_set_name(&smaster->dev, "siox-%d", smaster->busno);
 
@@ -767,6 +794,25 @@ void siox_master_unregister(struct siox_master *smaster)
 	put_device(&smaster->dev);
 }
 EXPORT_SYMBOL_GPL(siox_master_unregister);
+
+static void devm_siox_master_unregister(void *data)
+{
+	struct siox_master *smaster = data;
+
+	siox_master_unregister(smaster);
+}
+
+int devm_siox_master_register(struct device *dev, struct siox_master *smaster)
+{
+	int ret;
+
+	ret = siox_master_register(smaster);
+	if (ret)
+		return ret;
+
+	return devm_add_action_or_reset(dev, devm_siox_master_unregister, smaster);
+}
+EXPORT_SYMBOL_GPL(devm_siox_master_register);
 
 static struct siox_device *siox_device_add(struct siox_master *smaster,
 					   const char *type, size_t inbytes,

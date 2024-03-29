@@ -792,7 +792,7 @@ static int uio_mmap_dma_coherent(struct vm_area_struct *vma)
 	 */
 	vma->vm_pgoff = 0;
 
-	addr = (void *)mem->addr;
+	addr = (void *)(uintptr_t)mem->addr;
 	ret = dma_mmap_coherent(mem->dma_device,
 				vma,
 				addr,

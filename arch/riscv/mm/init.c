@@ -764,6 +764,11 @@ static int __init print_no5lvl(char *p)
 }
 early_param("no5lvl", print_no5lvl);
 
+static void __init set_mmap_rnd_bits_max(void)
+{
+	mmap_rnd_bits_max = MMAP_VA_BITS - PAGE_SHIFT - 3;
+}
+
 /*
  * There is a simple way to determine if 4-level is supported by the
  * underlying hardware: establish 1:1 mapping in 4-level page table mode
@@ -1078,6 +1083,7 @@ asmlinkage void __init setup_vm(uintptr_t dtb_pa)
 
 #if defined(CONFIG_64BIT) && !defined(CONFIG_XIP_KERNEL)
 	set_satp_mode(dtb_pa);
+	set_mmap_rnd_bits_max();
 #endif
 
 	/*

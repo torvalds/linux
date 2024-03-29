@@ -2703,18 +2703,6 @@ config MEMCPY_KUNIT_TEST
 
 	  If unsure, say N.
 
-config MEMCPY_SLOW_KUNIT_TEST
-	bool "Include exhaustive memcpy tests"
-	depends on MEMCPY_KUNIT_TEST
-	default y
-	help
-	  Some memcpy tests are quite exhaustive in checking for overlaps
-	  and bit ranges. These can be very slow, so they are split out
-	  as a separate config, in case they need to be disabled.
-
-	  Note this config option will be replaced by the use of KUnit test
-	  attributes.
-
 config IS_SIGNED_TYPE_KUNIT_TEST
 	tristate "Test is_signed_type() macro" if !KUNIT_ALL_TESTS
 	depends on KUNIT

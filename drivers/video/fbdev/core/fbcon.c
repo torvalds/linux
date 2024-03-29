@@ -2479,12 +2479,12 @@ static int fbcon_set_font(struct vc_data *vc, const struct console_font *font,
 	    h > FBCON_SWAP(info->var.rotate, info->var.yres, info->var.xres))
 		return -EINVAL;
 
-	if (font->width > 32 || font->height > 32)
+	if (font->width > FB_MAX_BLIT_WIDTH || font->height > FB_MAX_BLIT_HEIGHT)
 		return -EINVAL;
 
 	/* Make sure drawing engine can handle the font */
-	if (!(info->pixmap.blit_x & BIT(font->width - 1)) ||
-	    !(info->pixmap.blit_y & BIT(font->height - 1)))
+	if (!test_bit(font->width - 1, info->pixmap.blit_x) ||
+	    !test_bit(font->height - 1, info->pixmap.blit_y))
 		return -EINVAL;
 
 	/* Make sure driver can handle the font length */
@@ -3050,8 +3050,8 @@ void fbcon_get_requirement(struct fb_info *info,
 			vc = vc_cons[i].d;
 			if (vc && vc->vc_mode == KD_TEXT &&
 			    info->node == con2fb_map[i]) {
-				caps->x |= 1 << (vc->vc_font.width - 1);
-				caps->y |= 1 << (vc->vc_font.height - 1);
+				set_bit(vc->vc_font.width - 1, caps->x);
+				set_bit(vc->vc_font.height - 1, caps->y);
 				charcnt = vc->vc_font.charcount;
 				if (caps->len < charcnt)
 					caps->len = charcnt;
@@ -3062,8 +3062,10 @@ void fbcon_get_requirement(struct fb_info *info,
 
 		if (vc && vc->vc_mode == KD_TEXT &&
 		    info->node == con2fb_map[fg_console]) {
-			caps->x = 1 << (vc->vc_font.width - 1);
-			caps->y = 1 << (vc->vc_font.height - 1);
+			bitmap_zero(caps->x, FB_MAX_BLIT_WIDTH);
+			set_bit(vc->vc_font.width - 1, caps->x);
+			bitmap_zero(caps->y, FB_MAX_BLIT_HEIGHT);
+			set_bit(vc->vc_font.height - 1, caps->y);
 			caps->len = vc->vc_font.charcount;
 		}
 	}

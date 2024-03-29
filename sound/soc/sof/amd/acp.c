@@ -20,11 +20,14 @@
 #include "acp.h"
 #include "acp-dsp-offset.h"
 
-#define SECURED_FIRMWARE 1
-
 static bool enable_fw_debug;
 module_param(enable_fw_debug, bool, 0444);
 MODULE_PARM_DESC(enable_fw_debug, "Enable Firmware debug");
+
+static struct acp_quirk_entry quirk_valve_galileo = {
+	.signed_fw_image = true,
+	.skip_iram_dram_size_mod = true,
+};
 
 const struct dmi_system_id acp_sof_quirk_table[] = {
 	{
@@ -33,7 +36,7 @@ const struct dmi_system_id acp_sof_quirk_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Valve"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Galileo"),
 		},
-		.driver_data = (void *)SECURED_FIRMWARE,
+		.driver_data = &quirk_valve_galileo,
 	},
 	{}
 };
@@ -254,7 +257,7 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 		}
 	}
 
-	if (adata->signed_fw_image)
+	if (adata->quirks && adata->quirks->signed_fw_image)
 		snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_INCLUDE_HDR, ACP_SHA_HEADER);
 
 	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_SHA_DMA_STRT_ADDR, start_addr);
@@ -278,7 +281,7 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 	}
 
 	/* psp_send_cmd only required for vangogh platform (rev - 5) */
-	if (desc->rev == 5) {
+	if (desc->rev == 5 && !(adata->quirks && adata->quirks->skip_iram_dram_size_mod)) {
 		/* Modify IRAM and DRAM size */
 		ret = psp_send_cmd(adata, MBOX_ACP_IRAM_DRAM_FENCE_COMMAND | IRAM_DRAM_FENCE_2);
 		if (ret)
@@ -738,26 +741,27 @@ skip_soundwire:
 	sdev->debug_box.offset = sdev->host_box.offset + sdev->host_box.size;
 	sdev->debug_box.size = BOX_SIZE_1024;
 
-	adata->signed_fw_image = false;
 	dmi_id = dmi_first_match(acp_sof_quirk_table);
-	if (dmi_id && dmi_id->driver_data) {
-		adata->fw_code_bin = devm_kasprintf(sdev->dev, GFP_KERNEL,
-						    "sof-%s-code.bin",
-						    chip->name);
-		if (!adata->fw_code_bin) {
-			ret = -ENOMEM;
-			goto free_ipc_irq;
-		}
+	if (dmi_id) {
+		adata->quirks = dmi_id->driver_data;
 
-		adata->fw_data_bin = devm_kasprintf(sdev->dev, GFP_KERNEL,
-						    "sof-%s-data.bin",
-						    chip->name);
-		if (!adata->fw_data_bin) {
-			ret = -ENOMEM;
-			goto free_ipc_irq;
-		}
+		if (adata->quirks->signed_fw_image) {
+			adata->fw_code_bin = devm_kasprintf(sdev->dev, GFP_KERNEL,
+							    "sof-%s-code.bin",
+							    chip->name);
+			if (!adata->fw_code_bin) {
+				ret = -ENOMEM;
+				goto free_ipc_irq;
+			}
 
-		adata->signed_fw_image = dmi_id->driver_data;
+			adata->fw_data_bin = devm_kasprintf(sdev->dev, GFP_KERNEL,
+							    "sof-%s-data.bin",
+							    chip->name);
+			if (!adata->fw_data_bin) {
+				ret = -ENOMEM;
+				goto free_ipc_irq;
+			}
+		}
 	}
 
 	adata->enable_fw_debug = enable_fw_debug;

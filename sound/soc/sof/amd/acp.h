@@ -207,6 +207,11 @@ struct sof_amd_acp_desc {
 	u64 sdw_acpi_dev_addr;
 };
 
+struct acp_quirk_entry {
+	bool signed_fw_image;
+	bool skip_iram_dram_size_mod;
+};
+
 /* Common device data struct for ACP devices */
 struct acp_dev_data {
 	struct snd_sof_dev  *dev;
@@ -236,7 +241,7 @@ struct acp_dev_data {
 	u8 *data_buf;
 	dma_addr_t sram_dma_addr;
 	u8 *sram_data_buf;
-	bool signed_fw_image;
+	struct acp_quirk_entry *quirks;
 	struct dma_descriptor dscr_info[ACP_MAX_DESC];
 	struct acp_dsp_stream stream_buf[ACP_MAX_STREAM];
 	struct acp_dsp_stream *dtrace_stream;

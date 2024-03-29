@@ -9,8 +9,9 @@
 #include <linux/hugetlb.h>
 #include <linux/export.h>
 
-#include <asm/cpu.h>
 #include <asm/bootinfo.h>
+#include <asm/cpu.h>
+#include <asm/exception.h>
 #include <asm/mmu_context.h>
 #include <asm/pgtable.h>
 #include <asm/tlb.h>
@@ -266,24 +267,20 @@ static void setup_tlb_handler(int cpu)
 	setup_ptwalker();
 	local_flush_tlb_all();
 
+	if (cpu_has_ptw) {
+		exception_table[EXCCODE_TLBI] = handle_tlb_load_ptw;
+		exception_table[EXCCODE_TLBL] = handle_tlb_load_ptw;
+		exception_table[EXCCODE_TLBS] = handle_tlb_store_ptw;
+		exception_table[EXCCODE_TLBM] = handle_tlb_modify_ptw;
+	}
+
 	/* The tlb handlers are generated only once */
 	if (cpu == 0) {
 		memcpy((void *)tlbrentry, handle_tlb_refill, 0x80);
 		local_flush_icache_range(tlbrentry, tlbrentry + 0x80);
-		if (!cpu_has_ptw) {
-			set_handler(EXCCODE_TLBI * VECSIZE, handle_tlb_load, VECSIZE);
-			set_handler(EXCCODE_TLBL * VECSIZE, handle_tlb_load, VECSIZE);
-			set_handler(EXCCODE_TLBS * VECSIZE, handle_tlb_store, VECSIZE);
-			set_handler(EXCCODE_TLBM * VECSIZE, handle_tlb_modify, VECSIZE);
-		} else {
-			set_handler(EXCCODE_TLBI * VECSIZE, handle_tlb_load_ptw, VECSIZE);
-			set_handler(EXCCODE_TLBL * VECSIZE, handle_tlb_load_ptw, VECSIZE);
-			set_handler(EXCCODE_TLBS * VECSIZE, handle_tlb_store_ptw, VECSIZE);
-			set_handler(EXCCODE_TLBM * VECSIZE, handle_tlb_modify_ptw, VECSIZE);
-		}
-		set_handler(EXCCODE_TLBNR * VECSIZE, handle_tlb_protect, VECSIZE);
-		set_handler(EXCCODE_TLBNX * VECSIZE, handle_tlb_protect, VECSIZE);
-		set_handler(EXCCODE_TLBPE * VECSIZE, handle_tlb_protect, VECSIZE);
+
+		for (int i = EXCCODE_TLBL; i <= EXCCODE_TLBPE; i++)
+			set_handler(i * VECSIZE, exception_table[i], VECSIZE);
 	} else {
 		int vec_sz __maybe_unused;
 		void *addr __maybe_unused;
