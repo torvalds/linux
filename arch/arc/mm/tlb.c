@@ -212,7 +212,7 @@ void local_flush_tlb_range(struct vm_area_struct *vma, unsigned long start,
 	unsigned long flags;
 
 	/* If range @start to @end is more than 32 TLB entries deep,
-	 * its better to move to a new ASID rather than searching for
+	 * it's better to move to a new ASID rather than searching for
 	 * individual entries and then shooting them down
 	 *
 	 * The calc above is rough, doesn't account for unaligned parts,
@@ -408,7 +408,7 @@ static void create_tlb(struct vm_area_struct *vma, unsigned long vaddr, pte_t *p
 	 * -More importantly it makes this handler inconsistent with fast-path
 	 *  TLB Refill handler which always deals with "current"
 	 *
-	 * Lets see the use cases when current->mm != vma->mm and we land here
+	 * Let's see the use cases when current->mm != vma->mm and we land here
 	 *  1. execve->copy_strings()->__get_user_pages->handle_mm_fault
 	 *     Here VM wants to pre-install a TLB entry for user stack while
 	 *     current->mm still points to pre-execve mm (hence the condition).

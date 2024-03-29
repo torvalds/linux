@@ -95,7 +95,7 @@ ENTRY(EV_MachineCheck)
 	lr  r0, [efa]
 	mov r1, sp
 
-	; MC excpetions disable MMU
+	; MC exceptions disable MMU
 	ARC_MMU_REENABLE r3
 
 	lsr  	r3, r10, 8
@@ -209,7 +209,7 @@ trap_with_param:
 
 ; ---------------------------------------------
 ; syscall TRAP
-; ABI: (r0-r7) upto 8 args, (r8) syscall number
+; ABI: (r0-r7) up to 8 args, (r8) syscall number
 ; ---------------------------------------------
 
 ENTRY(EV_Trap)

@@ -5,7 +5,7 @@
  * Copyright (C) 2013 Synopsys, Inc. (www.synopsys.com)
  */
 
-#include <linux/linkage.h>   /* ARC_{EXTRY,EXIT} */
+#include <linux/linkage.h>   /* ARC_{ENTRY,EXIT} */
 #include <asm/entry.h>       /* SAVE_ALL_{INT1,INT2,TRAP...} */
 #include <asm/errno.h>
 #include <asm/arcregs.h>
@@ -31,7 +31,7 @@ VECTOR	res_service		; Reset Vector
 VECTOR	mem_service		; Mem exception
 VECTOR	instr_service		; Instrn Error
 VECTOR	EV_MachineCheck		; Fatal Machine check
-VECTOR	EV_TLBMissI		; Intruction TLB miss
+VECTOR	EV_TLBMissI		; Instruction TLB miss
 VECTOR	EV_TLBMissD		; Data TLB miss
 VECTOR	EV_TLBProtV		; Protection Violation
 VECTOR	EV_PrivilegeV		; Privilege Violation
@@ -76,11 +76,11 @@ ENTRY(handle_interrupt)
 	# query in hard ISR path would return false (since .IE is set) which would
 	# trips genirq interrupt handling asserts.
 	#
-	# So do a "soft" disable of interrutps here.
+	# So do a "soft" disable of interrupts here.
 	#
 	# Note this disable is only for consistent book-keeping as further interrupts
 	# will be disabled anyways even w/o this. Hardware tracks active interrupts
-	# seperately in AUX_IRQ_ACT.active and will not take new interrupts
+	# separately in AUX_IRQ_ACT.active and will not take new interrupts
 	# unless this one returns (or higher prio becomes pending in 2-prio scheme)
 
 	IRQ_DISABLE

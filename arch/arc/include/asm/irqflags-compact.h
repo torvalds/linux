@@ -46,7 +46,7 @@
  * IRQ Control Macros
  *
  * All of them have "memory" clobber (compiler barrier) which is needed to
- * ensure that LD/ST requiring irq safetly (R-M-W when LLSC is not available)
+ * ensure that LD/ST requiring irq safety (R-M-W when LLSC is not available)
  * are redone after IRQs are re-enabled (and gcc doesn't reuse stale register)
  *
  * Noted at the time of Abilis Timer List corruption

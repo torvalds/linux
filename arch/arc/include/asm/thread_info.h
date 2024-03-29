@@ -38,7 +38,7 @@
 struct thread_info {
 	unsigned long flags;		/* low level flags */
 	unsigned long ksp;		/* kernel mode stack top in __switch_to */
-	int preempt_count;		/* 0 => preemptable, <0 => BUG */
+	int preempt_count;		/* 0 => preemptible, <0 => BUG */
 	int cpu;			/* current CPU */
 	unsigned long thr_ptr;		/* TLS ptr */
 	struct task_struct *task;	/* main task structure */
