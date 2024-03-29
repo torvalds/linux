@@ -757,6 +757,11 @@ static struct ins_ops ret_ops = {
 	.scnprintf = ins__raw_scnprintf,
 };
 
+bool ins__is_nop(const struct ins *ins)
+{
+	return ins->ops == &nop_ops;
+}
+
 bool ins__is_ret(const struct ins *ins)
 {
 	return ins->ops == &ret_ops;
@@ -1785,7 +1790,7 @@ static void delete_last_nop(struct symbol *sym)
 		dl = list_entry(list->prev, struct disasm_line, al.node);
 
 		if (dl->ins.ops) {
-			if (dl->ins.ops != &nop_ops)
+			if (!ins__is_nop(&dl->ins))
 				return;
 		} else {
 			if (!strstr(dl->al.line, " nop ") &&
