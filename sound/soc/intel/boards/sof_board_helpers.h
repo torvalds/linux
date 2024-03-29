@@ -7,8 +7,8 @@
 #define __SOF_INTEL_BOARD_HELPERS_H
 
 #include <sound/soc.h>
+#include <sound/soc-acpi-intel-ssp-common.h>
 #include "sof_hdmi_common.h"
-#include "sof_ssp_common.h"
 
 /*
  * Common board quirks: from bit 8 to 31, LSB 8 bits reserved for machine
@@ -132,8 +132,8 @@ struct sof_card_private {
 	struct snd_soc_jack headset_jack;
 	struct sof_hdmi_private hdmi;
 
-	enum sof_ssp_codec codec_type;
-	enum sof_ssp_codec amp_type;
+	enum snd_soc_acpi_intel_codec codec_type;
+	enum snd_soc_acpi_intel_codec amp_type;
 
 	int dmic_be_num;
 	int hdmi_num;
