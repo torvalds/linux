@@ -312,13 +312,16 @@ static void pmic_glink_ucsi_destroy(void *data)
 }
 
 static unsigned long quirk_sc8180x = UCSI_NO_PARTNER_PDOS;
+static unsigned long quirk_sc8280xp = UCSI_NO_PARTNER_PDOS | UCSI_DELAY_DEVICE_PDOS;
+static unsigned long quirk_sm8450 = UCSI_DELAY_DEVICE_PDOS;
 
 static const struct of_device_id pmic_glink_ucsi_of_quirks[] = {
 	{ .compatible = "qcom,qcm6490-pmic-glink", .data = &quirk_sc8180x, },
 	{ .compatible = "qcom,sc8180x-pmic-glink", .data = &quirk_sc8180x, },
-	{ .compatible = "qcom,sc8280xp-pmic-glink", .data = &quirk_sc8180x, },
+	{ .compatible = "qcom,sc8280xp-pmic-glink", .data = &quirk_sc8280xp, },
 	{ .compatible = "qcom,sm8350-pmic-glink", .data = &quirk_sc8180x, },
-	{ .compatible = "qcom,sm8550-pmic-glink", .data = &quirk_sc8180x, },
+	{ .compatible = "qcom,sm8450-pmic-glink", .data = &quirk_sm8450, },
+	{ .compatible = "qcom,sm8550-pmic-glink", .data = &quirk_sc8280xp, },
 	{}
 };
 
