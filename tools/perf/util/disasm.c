@@ -1368,6 +1368,12 @@ static int open_capstone_handle(struct annotate_args *args, bool is_64bit,
 	    !strcmp(opt->disassembler_style, "att"))
 		cs_option(*handle, CS_OPT_SYNTAX, CS_OPT_SYNTAX_ATT);
 
+	/*
+	 * Resolving address operands to symbols is implemented
+	 * on x86 by investigating instruction details.
+	 */
+	cs_option(*handle, CS_OPT_DETAIL, CS_OPT_ON);
+
 	return 0;
 }
 
@@ -1386,6 +1392,63 @@ static int find_file_offset(u64 start, u64 len, u64 pgoff, void *arg)
 		return 1;
 	}
 	return 0;
+}
+
+static void print_capstone_detail(cs_insn *insn, char *buf, size_t len,
+				  struct annotate_args *args, u64 addr)
+{
+	int i;
+	struct map *map = args->ms.map;
+	struct symbol *sym;
+
+	/* TODO: support more architectures */
+	if (!arch__is(args->arch, "x86"))
+		return;
+
+	if (insn->detail == NULL)
+		return;
+
+	for (i = 0; i < insn->detail->x86.op_count; i++) {
+		cs_x86_op *op = &insn->detail->x86.operands[i];
+		u64 orig_addr;
+
+		if (op->type != X86_OP_MEM)
+			continue;
+
+		/* only print RIP-based global symbols for now */
+		if (op->mem.base != X86_REG_RIP)
+			continue;
+
+		/* get the target address */
+		orig_addr = addr + insn->size + op->mem.disp;
+		addr = map__objdump_2mem(map, orig_addr);
+
+		if (map__dso(map)->kernel) {
+			/*
+			 * The kernel maps can be splitted into sections,
+			 * let's find the map first and the search the symbol.
+			 */
+			map = maps__find(map__kmaps(map), addr);
+			if (map == NULL)
+				continue;
+		}
+
+		/* convert it to map-relative address for search */
+		addr = map__map_ip(map, addr);
+
+		sym = map__find_symbol(map, addr);
+		if (sym == NULL)
+			continue;
+
+		if (addr == sym->start) {
+			scnprintf(buf, len, "\t# %"PRIx64" <%s>",
+				  orig_addr, sym->name);
+		} else {
+			scnprintf(buf, len, "\t# %"PRIx64" <%s+%#"PRIx64">",
+				  orig_addr, sym->name, addr - sym->start);
+		}
+		break;
+	}
 }
 
 static int symbol__disassemble_capstone(char *filename, struct symbol *sym,
@@ -1458,9 +1521,14 @@ static int symbol__disassemble_capstone(char *filename, struct symbol *sym,
 
 	count = cs_disasm(handle, buf, len, start, len, &insn);
 	for (i = 0, offset = 0; i < count; i++) {
-		scnprintf(disasm_buf, sizeof(disasm_buf),
-			  "       %-7s %s",
-			  insn[i].mnemonic, insn[i].op_str);
+		int printed;
+
+		printed = scnprintf(disasm_buf, sizeof(disasm_buf),
+				    "       %-7s %s",
+				    insn[i].mnemonic, insn[i].op_str);
+		print_capstone_detail(&insn[i], disasm_buf + printed,
+				      sizeof(disasm_buf) - printed, args,
+				      start + offset);
 
 		args->offset = offset;
 		args->line = disasm_buf;
