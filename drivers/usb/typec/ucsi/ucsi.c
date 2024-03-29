@@ -620,7 +620,9 @@ static int ucsi_read_pdos(struct ucsi_connector *con,
 	int ret;
 
 	if (is_partner &&
-	    ucsi->quirks & UCSI_NO_PARTNER_PDOS)
+	    ucsi->quirks & UCSI_NO_PARTNER_PDOS &&
+	    ((con->status.flags & UCSI_CONSTAT_PWR_DIR) ||
+	     !is_source(role)))
 		return 0;
 
 	command = UCSI_COMMAND(UCSI_GET_PDOS) | UCSI_CONNECTOR_NUMBER(con->num);
