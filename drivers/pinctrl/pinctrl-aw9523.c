@@ -67,18 +67,6 @@ struct aw9523_irq {
 };
 
 /*
- * struct aw9523_pinmux - Pin mux params
- * @name: Name of the mux
- * @grps: Groups of the mux
- * @num_grps: Number of groups (sizeof array grps)
- */
-struct aw9523_pinmux {
-	const char *name;
-	const char * const *grps;
-	const u8 num_grps;
-};
-
-/*
  * struct aw9523 - Main driver structure
  * @dev: device handle
  * @regmap: regmap handle for current device
@@ -158,17 +146,9 @@ static const char * const gpio_pwm_groups[] = {
 };
 
 /* Warning: Do NOT reorder this array */
-static const struct aw9523_pinmux aw9523_pmx[] = {
-	{
-		.name = "pwm",
-		.grps = gpio_pwm_groups,
-		.num_grps = ARRAY_SIZE(gpio_pwm_groups),
-	},
-	{
-		.name = "gpio",
-		.grps = gpio_pwm_groups,
-		.num_grps = ARRAY_SIZE(gpio_pwm_groups),
-	},
+static const struct pinfunction aw9523_pmx[] = {
+	PINCTRL_PINFUNCTION("pwm", gpio_pwm_groups, ARRAY_SIZE(gpio_pwm_groups)),
+	PINCTRL_PINFUNCTION("gpio", gpio_pwm_groups, ARRAY_SIZE(gpio_pwm_groups)),
 };
 
 static int aw9523_pmx_get_funcs_count(struct pinctrl_dev *pctl)
@@ -184,10 +164,10 @@ static const char *aw9523_pmx_get_fname(struct pinctrl_dev *pctl,
 
 static int aw9523_pmx_get_groups(struct pinctrl_dev *pctl, unsigned int sel,
 				 const char * const **groups,
-				 unsigned int * const num_groups)
+				 unsigned int * const ngroups)
 {
-	*groups = aw9523_pmx[sel].grps;
-	*num_groups = aw9523_pmx[sel].num_grps;
+	*groups = aw9523_pmx[sel].groups;
+	*ngroups = aw9523_pmx[sel].ngroups;
 	return 0;
 }
 
