@@ -7484,18 +7484,6 @@ u32 ieee80211_calc_tx_airtime(struct ieee80211_hw *hw,
 			      struct ieee80211_tx_info *info,
 			      int len);
 /**
- * ieee80211_set_hw_80211_encap - enable hardware encapsulation offloading.
- *
- * This function is used to notify mac80211 that a vif can be passed raw 802.3
- * frames. The driver needs to then handle the 802.11 encapsulation inside the
- * hardware or firmware.
- *
- * @vif: &struct ieee80211_vif pointer from the add_interface callback.
- * @enable: indicate if the feature should be turned on or off
- */
-bool ieee80211_set_hw_80211_encap(struct ieee80211_vif *vif, bool enable);
-
-/**
  * ieee80211_get_fils_discovery_tmpl - Get FILS discovery template.
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
