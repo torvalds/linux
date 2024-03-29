@@ -2237,8 +2237,7 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 	else
 		hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 					     BIT(NL80211_IFTYPE_AP) |
-					     BIT(NL80211_IFTYPE_ADHOC) |
-					     BIT(NL80211_IFTYPE_MESH_POINT);
+					     BIT(NL80211_IFTYPE_ADHOC);
 	hw->wiphy->available_antennas_tx = hal->antenna_tx;
 	hw->wiphy->available_antennas_rx = hal->antenna_rx;
 
