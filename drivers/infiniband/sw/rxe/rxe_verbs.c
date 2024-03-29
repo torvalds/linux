@@ -907,11 +907,6 @@ static int rxe_post_send_kernel(struct rxe_qp *qp,
 	if (good)
 		rxe_sched_task(&qp->req.task);
 
-	spin_lock_irqsave(&qp->state_lock, flags);
-	if (qp_state(qp) == IB_QPS_ERR)
-		rxe_sched_task(&qp->comp.task);
-	spin_unlock_irqrestore(&qp->state_lock, flags);
-
 	return err;
 }
 
