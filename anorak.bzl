@@ -55,6 +55,7 @@ def define_anorak():
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/power/reset/qcom-dload-mode.ko",
         "drivers/power/reset/qcom-reboot-reason.ko",
+        "drivers/regulator/ap72200-regulator.ko",
         "drivers/regulator/debug-regulator.ko",
         "drivers/regulator/proxy-consumer.ko",
         "drivers/regulator/qti-fixed-regulator.ko",
