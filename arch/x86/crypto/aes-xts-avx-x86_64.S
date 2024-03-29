@@ -798,3 +798,12 @@ SYM_FUNC_END(aes_xts_encrypt_iv)
 // incremental computation, but |len| must always be >= 16 (AES_BLOCK_SIZE), and
 // |len| must be a multiple of 16 except on the last call.  If |len| is a
 // multiple of 16, then this function updates |tweak| to contain the next tweak.
+
+.set	VL, 16
+.set	USE_AVX10, 0
+SYM_TYPED_FUNC_START(aes_xts_encrypt_aesni_avx)
+	_aes_xts_crypt	1
+SYM_FUNC_END(aes_xts_encrypt_aesni_avx)
+SYM_TYPED_FUNC_START(aes_xts_decrypt_aesni_avx)
+	_aes_xts_crypt	0
+SYM_FUNC_END(aes_xts_decrypt_aesni_avx)

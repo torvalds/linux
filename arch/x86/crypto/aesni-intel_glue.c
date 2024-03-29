@@ -1135,7 +1135,196 @@ static struct skcipher_alg aesni_xctr = {
 };
 
 static struct simd_skcipher_alg *aesni_simd_xctr;
-#endif /* CONFIG_X86_64 */
+
+asmlinkage void aes_xts_encrypt_iv(const struct crypto_aes_ctx *tweak_key,
+				   u8 iv[AES_BLOCK_SIZE]);
+
+typedef void (*xts_asm_func)(const struct crypto_aes_ctx *key,
+			     const u8 *src, u8 *dst, size_t len,
+			     u8 tweak[AES_BLOCK_SIZE]);
+
+/* This handles cases where the source and/or destination span pages. */
+static noinline int
+xts_crypt_slowpath(struct skcipher_request *req, xts_asm_func asm_func)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	const struct aesni_xts_ctx *ctx = aes_xts_ctx(tfm);
+	int tail = req->cryptlen % AES_BLOCK_SIZE;
+	struct scatterlist sg_src[2], sg_dst[2];
+	struct skcipher_request subreq;
+	struct skcipher_walk walk;
+	struct scatterlist *src, *dst;
+	int err;
+
+	/*
+	 * If the message length isn't divisible by the AES block size, then
+	 * separate off the last full block and the partial block.  This ensures
+	 * that they are processed in the same call to the assembly function,
+	 * which is required for ciphertext stealing.
+	 */
+	if (tail) {
+		skcipher_request_set_tfm(&subreq, tfm);
+		skcipher_request_set_callback(&subreq,
+					      skcipher_request_flags(req),
+					      NULL, NULL);
+		skcipher_request_set_crypt(&subreq, req->src, req->dst,
+					   req->cryptlen - tail - AES_BLOCK_SIZE,
+					   req->iv);
+		req = &subreq;
+	}
+
+	err = skcipher_walk_virt(&walk, req, false);
+
+	while (walk.nbytes) {
+		unsigned int nbytes = walk.nbytes;
+
+		if (nbytes < walk.total)
+			nbytes = round_down(nbytes, AES_BLOCK_SIZE);
+
+		kernel_fpu_begin();
+		(*asm_func)(&ctx->crypt_ctx, walk.src.virt.addr,
+			    walk.dst.virt.addr, nbytes, req->iv);
+		kernel_fpu_end();
+		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+	}
+
+	if (err || !tail)
+		return err;
+
+	/* Do ciphertext stealing with the last full block and partial block. */
+
+	dst = src = scatterwalk_ffwd(sg_src, req->src, req->cryptlen);
+	if (req->dst != req->src)
+		dst = scatterwalk_ffwd(sg_dst, req->dst, req->cryptlen);
+
+	skcipher_request_set_crypt(req, src, dst, AES_BLOCK_SIZE + tail,
+				   req->iv);
+
+	err = skcipher_walk_virt(&walk, req, false);
+	if (err)
+		return err;
+
+	kernel_fpu_begin();
+	(*asm_func)(&ctx->crypt_ctx, walk.src.virt.addr, walk.dst.virt.addr,
+		    walk.nbytes, req->iv);
+	kernel_fpu_end();
+
+	return skcipher_walk_done(&walk, 0);
+}
+
+/* __always_inline to avoid indirect call in fastpath */
+static __always_inline int
+xts_crypt2(struct skcipher_request *req, xts_asm_func asm_func)
+{
+	struct crypto_skcipher *tfm = crypto_skcipher_reqtfm(req);
+	const struct aesni_xts_ctx *ctx = aes_xts_ctx(tfm);
+	const unsigned int cryptlen = req->cryptlen;
+	struct scatterlist *src = req->src;
+	struct scatterlist *dst = req->dst;
+
+	if (unlikely(cryptlen < AES_BLOCK_SIZE))
+		return -EINVAL;
+
+	kernel_fpu_begin();
+	aes_xts_encrypt_iv(&ctx->tweak_ctx, req->iv);
+
+	/*
+	 * In practice, virtually all XTS plaintexts and ciphertexts are either
+	 * 512 or 4096 bytes, aligned such that they don't span page boundaries.
+	 * To optimize the performance of these cases, and also any other case
+	 * where no page boundary is spanned, the below fast-path handles
+	 * single-page sources and destinations as efficiently as possible.
+	 */
+	if (likely(src->length >= cryptlen && dst->length >= cryptlen &&
+		   src->offset + cryptlen <= PAGE_SIZE &&
+		   dst->offset + cryptlen <= PAGE_SIZE)) {
+		struct page *src_page = sg_page(src);
+		struct page *dst_page = sg_page(dst);
+		void *src_virt = kmap_local_page(src_page) + src->offset;
+		void *dst_virt = kmap_local_page(dst_page) + dst->offset;
+
+		(*asm_func)(&ctx->crypt_ctx, src_virt, dst_virt, cryptlen,
+			    req->iv);
+		kunmap_local(dst_virt);
+		kunmap_local(src_virt);
+		kernel_fpu_end();
+		return 0;
+	}
+	kernel_fpu_end();
+	return xts_crypt_slowpath(req, asm_func);
+}
+
+#define DEFINE_XTS_ALG(suffix, driver_name, priority)			       \
+									       \
+asmlinkage void aes_xts_encrypt_##suffix(const struct crypto_aes_ctx *key,     \
+					 const u8 *src, u8 *dst, size_t len,   \
+					 u8 tweak[AES_BLOCK_SIZE]);	       \
+asmlinkage void aes_xts_decrypt_##suffix(const struct crypto_aes_ctx *key,     \
+					 const u8 *src, u8 *dst, size_t len,   \
+					 u8 tweak[AES_BLOCK_SIZE]);	       \
+									       \
+static int xts_encrypt_##suffix(struct skcipher_request *req)		       \
+{									       \
+	return xts_crypt2(req, aes_xts_encrypt_##suffix);		       \
+}									       \
+									       \
+static int xts_decrypt_##suffix(struct skcipher_request *req)		       \
+{									       \
+	return xts_crypt2(req, aes_xts_decrypt_##suffix);		       \
+}									       \
+									       \
+static struct skcipher_alg aes_xts_alg_##suffix = {			       \
+	.base = {							       \
+		.cra_name		= "__xts(aes)",			       \
+		.cra_driver_name	= "__" driver_name,		       \
+		.cra_priority		= priority,			       \
+		.cra_flags		= CRYPTO_ALG_INTERNAL,		       \
+		.cra_blocksize		= AES_BLOCK_SIZE,		       \
+		.cra_ctxsize		= XTS_AES_CTX_SIZE,		       \
+		.cra_module		= THIS_MODULE,			       \
+	},								       \
+	.min_keysize	= 2 * AES_MIN_KEY_SIZE,				       \
+	.max_keysize	= 2 * AES_MAX_KEY_SIZE,				       \
+	.ivsize		= AES_BLOCK_SIZE,				       \
+	.walksize	= 2 * AES_BLOCK_SIZE,				       \
+	.setkey		= xts_aesni_setkey,				       \
+	.encrypt	= xts_encrypt_##suffix,				       \
+	.decrypt	= xts_decrypt_##suffix,				       \
+};									       \
+									       \
+static struct simd_skcipher_alg *aes_xts_simdalg_##suffix
+
+DEFINE_XTS_ALG(aesni_avx, "xts-aes-aesni-avx", 500);
+
+static int __init register_xts_algs(void)
+{
+	int err;
+
+	if (!boot_cpu_has(X86_FEATURE_AVX))
+		return 0;
+	err = simd_register_skciphers_compat(&aes_xts_alg_aesni_avx, 1,
+					     &aes_xts_simdalg_aesni_avx);
+	if (err)
+		return err;
+	return 0;
+}
+
+static void unregister_xts_algs(void)
+{
+	if (aes_xts_simdalg_aesni_avx)
+		simd_unregister_skciphers(&aes_xts_alg_aesni_avx, 1,
+					  &aes_xts_simdalg_aesni_avx);
+}
+#else /* CONFIG_X86_64 */
+static int __init register_xts_algs(void)
+{
+	return 0;
+}
+
+static void unregister_xts_algs(void)
+{
+}
+#endif /* !CONFIG_X86_64 */
 
 #ifdef CONFIG_X86_64
 static int generic_gcmaes_set_key(struct crypto_aead *aead, const u8 *key,
@@ -1274,13 +1463,21 @@ static int __init aesni_init(void)
 		goto unregister_aeads;
 #endif /* CONFIG_X86_64 */
 
+	err = register_xts_algs();
+	if (err)
+		goto unregister_xts;
+
 	return 0;
 
+unregister_xts:
+	unregister_xts_algs();
 #ifdef CONFIG_X86_64
+	if (aesni_simd_xctr)
+		simd_unregister_skciphers(&aesni_xctr, 1, &aesni_simd_xctr);
 unregister_aeads:
+#endif /* CONFIG_X86_64 */
 	simd_unregister_aeads(aesni_aeads, ARRAY_SIZE(aesni_aeads),
 				aesni_simd_aeads);
-#endif /* CONFIG_X86_64 */
 
 unregister_skciphers:
 	simd_unregister_skciphers(aesni_skciphers, ARRAY_SIZE(aesni_skciphers),
@@ -1301,6 +1498,7 @@ static void __exit aesni_exit(void)
 	if (boot_cpu_has(X86_FEATURE_AVX))
 		simd_unregister_skciphers(&aesni_xctr, 1, &aesni_simd_xctr);
 #endif /* CONFIG_X86_64 */
+	unregister_xts_algs();
 }
 
 late_initcall(aesni_init);
