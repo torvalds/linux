@@ -113,6 +113,7 @@ struct rxe_req_info {
 	int			need_retry;
 	int			wait_for_rnr_timer;
 	int			noack_pkts;
+	int			again;
 };
 
 struct rxe_comp_info {

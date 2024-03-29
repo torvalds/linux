@@ -325,7 +325,7 @@ static inline enum comp_state check_ack(struct rxe_qp *qp,
 					qp->comp.psn = pkt->psn;
 					if (qp->req.wait_psn) {
 						qp->req.wait_psn = 0;
-						rxe_sched_task(&qp->send_task);
+						qp->req.again = 1;
 					}
 				}
 				return COMPST_ERROR_RETRY;
@@ -476,7 +476,7 @@ static void do_complete(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	 */
 	if (qp->req.wait_fence) {
 		qp->req.wait_fence = 0;
-		rxe_sched_task(&qp->send_task);
+		qp->req.again = 1;
 	}
 }
 
@@ -515,7 +515,7 @@ static inline enum comp_state complete_ack(struct rxe_qp *qp,
 		if (qp->req.need_rd_atomic) {
 			qp->comp.timeout_retry = 0;
 			qp->req.need_rd_atomic = 0;
-			rxe_sched_task(&qp->send_task);
+			qp->req.again = 1;
 		}
 	}
 
@@ -541,7 +541,7 @@ static inline enum comp_state complete_wqe(struct rxe_qp *qp,
 
 		if (qp->req.wait_psn) {
 			qp->req.wait_psn = 0;
-			rxe_sched_task(&qp->send_task);
+			qp->req.again = 1;
 		}
 	}
 
@@ -654,6 +654,8 @@ int rxe_completer(struct rxe_qp *qp)
 	int ret;
 	unsigned long flags;
 
+	qp->req.again = 0;
+
 	spin_lock_irqsave(&qp->state_lock, flags);
 	if (!qp->valid || qp_state(qp) == IB_QPS_ERR ||
 			  qp_state(qp) == IB_QPS_RESET) {
@@ -737,7 +739,7 @@ int rxe_completer(struct rxe_qp *qp)
 
 			if (qp->req.wait_psn) {
 				qp->req.wait_psn = 0;
-				rxe_sched_task(&qp->send_task);
+				qp->req.again = 1;
 			}
 
 			state = COMPST_DONE;
@@ -792,7 +794,7 @@ int rxe_completer(struct rxe_qp *qp)
 							RXE_CNT_COMP_RETRY);
 					qp->req.need_retry = 1;
 					qp->comp.started_retry = 1;
-					rxe_sched_task(&qp->send_task);
+					qp->req.again = 1;
 				}
 				goto done;
 
@@ -843,8 +845,9 @@ done:
 	ret = 0;
 	goto out;
 exit:
-	ret = -EAGAIN;
+	ret = (qp->req.again) ? 0 : -EAGAIN;
 out:
+	qp->req.again = 0;
 	if (pkt)
 		free_pkt(pkt);
 	return ret;
