@@ -819,7 +819,10 @@ class YnlFamily(SpecFamily):
         if display_hint == 'mac':
             formatted = ':'.join('%02x' % b for b in raw)
         elif display_hint == 'hex':
-            formatted = bytes.hex(raw, ' ')
+            if isinstance(raw, int):
+                formatted = hex(raw)
+            else:
+                formatted = bytes.hex(raw, ' ')
         elif display_hint in [ 'ipv4', 'ipv6' ]:
             formatted = format(ipaddress.ip_address(raw))
         elif display_hint == 'uuid':
