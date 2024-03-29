@@ -3237,9 +3237,10 @@ struct softnet_data {
 	unsigned int		input_queue_tail;
 #endif
 	unsigned int		received_rps;
-	unsigned int		dropped;
 	struct sk_buff_head	input_pkt_queue;
 	struct napi_struct	backlog;
+
+	atomic_t		dropped ____cacheline_aligned_in_smp;
 
 	/* Another possibly contended cache line */
 	spinlock_t		defer_lock ____cacheline_aligned_in_smp;
