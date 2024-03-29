@@ -56,21 +56,12 @@ nh_stats_test_dispatch_swhw()
 	local group_id=$1; shift
 	local mz="$@"
 
-	local used
-
 	nh_stats_do_test "$what" "$nh1_id" "$nh2_id" "$group_id" \
 			 nh_stats_get "${mz[@]}"
 
-	used=$(ip -s -j -d nexthop show id $group_id |
-		   jq '.[].hw_stats.used')
-	kind=$(ip -j -d link show dev $rp11 |
-		   jq -r '.[].linkinfo.info_kind')
-	if [[ $used == true ]]; then
+	xfail_on_veth $rp11 \
 		nh_stats_do_test "HW $what" "$nh1_id" "$nh2_id" "$group_id" \
 				 nh_stats_get_hw "${mz[@]}"
-	elif [[ $kind == veth ]]; then
-		log_test_skip "HW stats not offloaded on veth topology"
-	fi
 }
 
 nh_stats_test_dispatch()
@@ -83,7 +74,6 @@ nh_stats_test_dispatch()
 	local mz="$@"
 
 	local enabled
-	local kind
 
 	if ! ip nexthop help 2>&1 | grep -q hw_stats; then
 		log_test_skip "NH stats test: ip doesn't support HW stats"

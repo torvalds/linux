@@ -48,7 +48,8 @@ ALL_TESTS="
 	test_double_enable
 "
 NUM_NETIFS=4
-source lib.sh
+lib_dir=$(dirname "$0")
+source "$lib_dir"/../../../net/forwarding/lib.sh
 
 h1_create()
 {
@@ -324,17 +325,9 @@ setup_wait
 
 used=$(ip -j stats show dev $rp1.200 group offload subgroup hw_stats_info |
 	   jq '.[].info.l3_stats.used')
-kind=$(ip -j -d link show dev $rp1 |
-	   jq -r '.[].linkinfo.info_kind')
-if [[ $used != true ]]; then
-	if [[ $kind == veth ]]; then
-		log_test_skip "l3_stats not offloaded on veth interface"
-		EXIT_STATUS=$ksft_skip
-	else
-		RET=1 log_test "l3_stats not offloaded"
-	fi
-else
-	tests_run
-fi
+[[ $used = true ]]
+check_err $? "hw_stats_info.used=$used"
+log_test "l3_stats offloaded"
+tests_run
 
 exit $EXIT_STATUS

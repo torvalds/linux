@@ -7,7 +7,8 @@ ALL_TESTS="
 "
 
 NUM_NETIFS=2
-source lib.sh
+lib_dir=$(dirname "$0")
+source "$lib_dir"/../../../net/forwarding/lib.sh
 
 ETH_FCS_LEN=4
 ETH_HLEN=$((6+6+2))
@@ -78,7 +79,7 @@ rmon_histogram()
 
 		for if in $iface $neigh; do
 			if ! ensure_mtu $if ${bucket[0]}; then
-				log_test_skip "$if does not support the required MTU for $step"
+				log_test_xfail "$if does not support the required MTU for $step"
 				return
 			fi
 		done
@@ -93,7 +94,7 @@ rmon_histogram()
 		jq -r ".[0].rmon[\"${set}-pktsNtoM\"][]|[.low, .high]|@tsv" 2>/dev/null)
 
 	if [ $nbuckets -eq 0 ]; then
-		log_test_skip "$iface does not support $set histogram counters"
+		log_test_xfail "$iface does not support $set histogram counters"
 		return
 	fi
 }

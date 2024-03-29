@@ -12,8 +12,9 @@ ALL_TESTS="
 	test_stats_tx
 "
 NUM_NETIFS=6
-source lib.sh
-source ipip_lib.sh
+lib_dir=$(dirname "$0")
+source "$lib_dir"/../../../net/forwarding/lib.sh
+source "$lib_dir"/../../../net/forwarding/ipip_lib.sh
 
 setup_prepare()
 {
@@ -98,8 +99,6 @@ test_stats_rx()
 {
 	test_stats g2a rx
 }
-
-skip_on_veth
 
 trap cleanup EXIT
 

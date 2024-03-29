@@ -6,8 +6,9 @@ ksft_skip=4
 
 ALL_TESTS="loopback_test"
 NUM_NETIFS=2
-source tc_common.sh
-source lib.sh
+lib_dir=$(dirname "$0")
+source "$lib_dir"/../../../net/forwarding/tc_common.sh
+source "$lib_dir"/../../../net/forwarding/lib.sh
 
 h1_create()
 {
