@@ -147,10 +147,7 @@ struct inet_connection_sock {
 #define ICSK_TIME_LOSS_PROBE	5	/* Tail loss probe timer */
 #define ICSK_TIME_REO_TIMEOUT	6	/* Reordering timer */
 
-static inline struct inet_connection_sock *inet_csk(const struct sock *sk)
-{
-	return (struct inet_connection_sock *)sk;
-}
+#define inet_csk(ptr) container_of_const(ptr, struct inet_connection_sock, icsk_inet.sk)
 
 static inline void *inet_csk_ca(const struct sock *sk)
 {

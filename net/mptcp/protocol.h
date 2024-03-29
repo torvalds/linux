@@ -558,7 +558,7 @@ struct mptcp_subflow_context {
 static inline struct mptcp_subflow_context *
 mptcp_subflow_ctx(const struct sock *sk)
 {
-	struct inet_connection_sock *icsk = inet_csk(sk);
+	const struct inet_connection_sock *icsk = inet_csk(sk);
 
 	/* Use RCU on icsk_ulp_data only for sock diag code */
 	return (__force struct mptcp_subflow_context *)icsk->icsk_ulp_data;
