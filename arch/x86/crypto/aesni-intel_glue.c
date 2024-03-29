@@ -1298,7 +1298,28 @@ DEFINE_XTS_ALG(aesni_avx, "xts-aes-aesni-avx", 500);
 #if defined(CONFIG_AS_VAES) && defined(CONFIG_AS_VPCLMULQDQ)
 DEFINE_XTS_ALG(vaes_avx2, "xts-aes-vaes-avx2", 600);
 DEFINE_XTS_ALG(vaes_avx10_256, "xts-aes-vaes-avx10_256", 700);
+DEFINE_XTS_ALG(vaes_avx10_512, "xts-aes-vaes-avx10_512", 800);
 #endif
+
+/*
+ * This is a list of CPU models that are known to suffer from downclocking when
+ * zmm registers (512-bit vectors) are used.  On these CPUs, the AES-XTS
+ * implementation with zmm registers won't be used by default.  An
+ * implementation with ymm registers (256-bit vectors) will be used instead.
+ */
+static const struct x86_cpu_id zmm_exclusion_list[] = {
+	{ .vendor = X86_VENDOR_INTEL, .family = 6, .model = INTEL_FAM6_SKYLAKE_X },
+	{ .vendor = X86_VENDOR_INTEL, .family = 6, .model = INTEL_FAM6_ICELAKE_X },
+	{ .vendor = X86_VENDOR_INTEL, .family = 6, .model = INTEL_FAM6_ICELAKE_D },
+	{ .vendor = X86_VENDOR_INTEL, .family = 6, .model = INTEL_FAM6_ICELAKE },
+	{ .vendor = X86_VENDOR_INTEL, .family = 6, .model = INTEL_FAM6_ICELAKE_L },
+	{ .vendor = X86_VENDOR_INTEL, .family = 6, .model = INTEL_FAM6_ICELAKE_NNPI },
+	{ .vendor = X86_VENDOR_INTEL, .family = 6, .model = INTEL_FAM6_TIGERLAKE_L },
+	{ .vendor = X86_VENDOR_INTEL, .family = 6, .model = INTEL_FAM6_TIGERLAKE },
+	/* Allow Rocket Lake and later, and Sapphire Rapids and later. */
+	/* Also allow AMD CPUs (starting with Zen 4, the first with AVX-512). */
+	{},
+};
 
 static int __init register_xts_algs(void)
 {
@@ -1333,6 +1354,14 @@ static int __init register_xts_algs(void)
 					     &aes_xts_simdalg_vaes_avx10_256);
 	if (err)
 		return err;
+
+	if (x86_match_cpu(zmm_exclusion_list))
+		aes_xts_alg_vaes_avx10_512.base.cra_priority = 1;
+
+	err = simd_register_skciphers_compat(&aes_xts_alg_vaes_avx10_512, 1,
+					     &aes_xts_simdalg_vaes_avx10_512);
+	if (err)
+		return err;
 #endif /* CONFIG_AS_VAES && CONFIG_AS_VPCLMULQDQ */
 	return 0;
 }
@@ -1349,6 +1378,9 @@ static void unregister_xts_algs(void)
 	if (aes_xts_simdalg_vaes_avx10_256)
 		simd_unregister_skciphers(&aes_xts_alg_vaes_avx10_256, 1,
 					  &aes_xts_simdalg_vaes_avx10_256);
+	if (aes_xts_simdalg_vaes_avx10_512)
+		simd_unregister_skciphers(&aes_xts_alg_vaes_avx10_512, 1,
+					  &aes_xts_simdalg_vaes_avx10_512);
 #endif
 }
 #else /* CONFIG_X86_64 */
