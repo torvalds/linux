@@ -573,30 +573,6 @@ static void update_wqe_psn(struct rxe_qp *qp,
 		qp->req.psn = (qp->req.psn + 1) & BTH_PSN_MASK;
 }
 
-static void save_state(struct rxe_send_wqe *wqe,
-		       struct rxe_qp *qp,
-		       struct rxe_send_wqe *rollback_wqe,
-		       u32 *rollback_psn)
-{
-	rollback_wqe->state = wqe->state;
-	rollback_wqe->first_psn = wqe->first_psn;
-	rollback_wqe->last_psn = wqe->last_psn;
-	rollback_wqe->dma = wqe->dma;
-	*rollback_psn = qp->req.psn;
-}
-
-static void rollback_state(struct rxe_send_wqe *wqe,
-			   struct rxe_qp *qp,
-			   struct rxe_send_wqe *rollback_wqe,
-			   u32 rollback_psn)
-{
-	wqe->state = rollback_wqe->state;
-	wqe->first_psn = rollback_wqe->first_psn;
-	wqe->last_psn = rollback_wqe->last_psn;
-	wqe->dma = rollback_wqe->dma;
-	qp->req.psn = rollback_psn;
-}
-
 static void update_state(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 {
 	qp->req.opcode = pkt->opcode;
@@ -676,8 +652,6 @@ int rxe_requester(struct rxe_qp *qp)
 	int opcode;
 	int err;
 	int ret;
-	struct rxe_send_wqe rollback_wqe;
-	u32 rollback_psn;
 	struct rxe_queue *q = qp->sq.queue;
 	struct rxe_ah *ah;
 	struct rxe_av *av;
@@ -799,9 +773,6 @@ int rxe_requester(struct rxe_qp *qp)
 	pkt.mask = rxe_opcode[opcode].mask;
 	pkt.wqe = wqe;
 
-	/* save wqe state before we build and send packet */
-	save_state(wqe, qp, &rollback_wqe, &rollback_psn);
-
 	av = rxe_get_av(&pkt, &ah);
 	if (unlikely(!av)) {
 		rxe_dbg_qp(qp, "Failed no address vector\n");
@@ -834,21 +805,12 @@ int rxe_requester(struct rxe_qp *qp)
 	if (ah)
 		rxe_put(ah);
 
-	/* update wqe state as though we had sent it */
-	update_wqe_state(qp, wqe, &pkt);
-	update_wqe_psn(qp, wqe, &pkt, payload);
-
 	err = rxe_xmit_packet(qp, &pkt, skb);
 	if (err) {
 		if (err != -EAGAIN) {
 			wqe->status = IB_WC_LOC_QP_OP_ERR;
 			goto err;
 		}
-
-		/* the packet was dropped so reset wqe to the state
-		 * before we sent it so we can try to resend
-		 */
-		rollback_state(wqe, qp, &rollback_wqe, rollback_psn);
 
 		/* force a delay until the dropped packet is freed and
 		 * the send queue is drained below the low water mark
@@ -859,6 +821,8 @@ int rxe_requester(struct rxe_qp *qp)
 		goto exit;
 	}
 
+	update_wqe_state(qp, wqe, &pkt);
+	update_wqe_psn(qp, wqe, &pkt, payload);
 	update_state(qp, &pkt);
 
 	/* A non-zero return value will cause rxe_do_task to
