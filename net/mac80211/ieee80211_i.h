@@ -686,7 +686,7 @@ struct mesh_csa_settings {
 };
 
 /**
- * struct mesh_table
+ * struct mesh_table - mesh hash table
  *
  * @known_gates: list of known mesh gates and their mpaths by the station. The
  * gate's mpath may or may not be resolved and active.
