@@ -6,6 +6,7 @@
  */
 
 #include <linux/bitfield.h>
+#include <linux/errno.h>
 #include <linux/gpio/consumer.h>
 #include <linux/gpio/driver.h>
 #include <linux/i2c.h>
@@ -239,7 +240,7 @@ static int aw9523_pcfg_param_to_reg(enum pin_config_param pcp, int pin, u8 *r)
 		reg = AW9523_REG_OUT_STATE(pin);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -ENOTSUPP;
 	}
 	*r = reg;
 
@@ -290,7 +291,7 @@ static int aw9523_pconf_get(struct pinctrl_dev *pctldev, unsigned int pin,
 			val = FIELD_GET(AW9523_GCR_GPOMD_MASK, val);
 		break;
 	default:
-		return -EOPNOTSUPP;
+		return -ENOTSUPP;
 	}
 	if (val < 1)
 		return -EINVAL;
@@ -344,7 +345,7 @@ static int aw9523_pconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PIN_CONFIG_DRIVE_OPEN_DRAIN:
 			/* Open-Drain is supported only on port 0 */
 			if (pin >= AW9523_PINS_PER_PORT) {
-				rc = -EOPNOTSUPP;
+				rc = -ENOTSUPP;
 				goto end;
 			}
 			mask = AW9523_GCR_GPOMD_MASK;
@@ -361,7 +362,7 @@ static int aw9523_pconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			val = AW9523_GCR_GPOMD_MASK;
 			break;
 		default:
-			rc = -EOPNOTSUPP;
+			rc = -ENOTSUPP;
 			goto end;
 		}
 
