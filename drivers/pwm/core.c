@@ -1525,10 +1525,12 @@ EXPORT_SYMBOL_GPL(pwm_get);
  */
 void pwm_put(struct pwm_device *pwm)
 {
-	struct pwm_chip *chip = pwm->chip;
+	struct pwm_chip *chip;
 
 	if (!pwm)
 		return;
+
+	chip = pwm->chip;
 
 	mutex_lock(&pwm_lock);
 
