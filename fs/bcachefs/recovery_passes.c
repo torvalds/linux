@@ -27,7 +27,7 @@ const char * const bch2_recovery_passes[] = {
 
 static int bch2_check_allocations(struct bch_fs *c)
 {
-	return bch2_gc(c, true, c->opts.norecovery);
+	return bch2_gc(c, true, false);
 }
 
 static int bch2_set_may_go_rw(struct bch_fs *c)
@@ -144,8 +144,6 @@ static bool should_run_recovery_pass(struct bch_fs *c, enum bch_recovery_pass pa
 {
 	struct recovery_pass_fn *p = recovery_pass_fns + pass;
 
-	if (c->opts.norecovery && pass > BCH_RECOVERY_PASS_snapshots_read)
-		return false;
 	if (c->recovery_passes_explicit & BIT_ULL(pass))
 		return true;
 	if ((p->when & PASS_FSCK) && c->opts.fsck)
@@ -201,6 +199,10 @@ int bch2_run_recovery_passes(struct bch_fs *c)
 	int ret = 0;
 
 	while (c->curr_recovery_pass < ARRAY_SIZE(recovery_pass_fns)) {
+		if (c->opts.recovery_pass_last &&
+		    c->curr_recovery_pass > c->opts.recovery_pass_last)
+			break;
+
 		if (should_run_recovery_pass(c, c->curr_recovery_pass)) {
 			unsigned pass = c->curr_recovery_pass;
 
@@ -213,8 +215,10 @@ int bch2_run_recovery_passes(struct bch_fs *c)
 
 			c->recovery_passes_complete |= BIT_ULL(c->curr_recovery_pass);
 		}
-		c->curr_recovery_pass++;
+
 		c->recovery_pass_done = max(c->recovery_pass_done, c->curr_recovery_pass);
+
+		c->curr_recovery_pass++;
 	}
 
 	return ret;

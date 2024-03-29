@@ -269,7 +269,8 @@ int bch2_journal_replay(struct bch_fs *c)
 	bch2_trans_put(trans);
 	trans = NULL;
 
-	if (!c->opts.keep_journal)
+	if (!c->opts.keep_journal &&
+	    c->recovery_pass_done >= BCH_RECOVERY_PASS_journal_replay)
 		bch2_journal_keys_put_initial(c);
 
 	replay_now_at(j, j->replay_journal_seq_end);
@@ -584,11 +585,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
-	if (c->opts.fsck && c->opts.norecovery) {
-		bch_err(c, "cannot select both norecovery and fsck");
-		ret = -EINVAL;
-		goto err;
-	}
+	if (c->opts.norecovery)
+		c->opts.recovery_pass_last = BCH_RECOVERY_PASS_journal_replay - 1;
 
 	if (!c->opts.nochanges) {
 		mutex_lock(&c->sb_lock);
