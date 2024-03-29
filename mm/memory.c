@@ -1506,6 +1506,12 @@ static __always_inline void zap_present_folio_ptes(struct mmu_gather *tlb,
 		if (unlikely(page_mapcount(page) < 0))
 			print_bad_pte(vma, addr, ptent, page);
 	}
+
+	if (want_init_mlocked_on_free() && folio_test_mlocked(folio) &&
+	    !delay_rmap && folio_test_anon(folio)) {
+		kernel_init_pages(page, folio_nr_pages(folio));
+	}
+
 	if (unlikely(__tlb_remove_folio_pages(tlb, page, nr, delay_rmap))) {
 		*force_flush = true;
 		*force_break = true;
