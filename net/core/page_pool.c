@@ -772,7 +772,10 @@ void page_pool_put_page_bulk(struct page_pool *pool, void **data,
 			     int count)
 {
 	int i, bulk_len = 0;
+	bool allow_direct;
 	bool in_softirq;
+
+	allow_direct = page_pool_napi_local(pool);
 
 	for (i = 0; i < count; i++) {
 		struct page *page = virt_to_head_page(data[i]);
@@ -781,13 +784,13 @@ void page_pool_put_page_bulk(struct page_pool *pool, void **data,
 		if (!page_pool_is_last_ref(page))
 			continue;
 
-		page = __page_pool_put_page(pool, page, -1, false);
+		page = __page_pool_put_page(pool, page, -1, allow_direct);
 		/* Approved for bulk recycling in ptr_ring cache */
 		if (page)
 			data[bulk_len++] = page;
 	}
 
-	if (unlikely(!bulk_len))
+	if (!bulk_len)
 		return;
 
 	/* Bulk producer into ptr_ring page_pool cache */
