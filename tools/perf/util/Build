@@ -12,6 +12,7 @@ perf-y += config.o
 perf-y += copyfile.o
 perf-y += ctype.o
 perf-y += db-export.o
+perf-y += disasm.o
 perf-y += env.o
 perf-y += event.o
 perf-y += evlist.o

@@ -13,10 +13,10 @@
 #include "mutex.h"
 #include "spark.h"
 #include "hashmap.h"
+#include "disasm.h"
 
 struct hist_browser_timer;
 struct hist_entry;
-struct ins_ops;
 struct map;
 struct map_symbol;
 struct addr_map_symbol;
@@ -25,60 +25,6 @@ struct perf_sample;
 struct evsel;
 struct symbol;
 struct annotated_data_type;
-
-struct ins {
-	const char     *name;
-	struct ins_ops *ops;
-};
-
-struct ins_operands {
-	char	*raw;
-	struct {
-		char	*raw;
-		char	*name;
-		struct symbol *sym;
-		u64	addr;
-		s64	offset;
-		bool	offset_avail;
-		bool	outside;
-		bool	multi_regs;
-	} target;
-	union {
-		struct {
-			char	*raw;
-			char	*name;
-			u64	addr;
-			bool	multi_regs;
-		} source;
-		struct {
-			struct ins	    ins;
-			struct ins_operands *ops;
-		} locked;
-		struct {
-			char	*raw_comment;
-			char	*raw_func_start;
-		} jump;
-	};
-};
-
-struct arch;
-
-bool arch__is(struct arch *arch, const char *name);
-
-struct ins_ops {
-	void (*free)(struct ins_operands *ops);
-	int (*parse)(struct arch *arch, struct ins_operands *ops, struct map_symbol *ms);
-	int (*scnprintf)(struct ins *ins, char *bf, size_t size,
-			 struct ins_operands *ops, int max_ins_name);
-};
-
-bool ins__is_jump(const struct ins *ins);
-bool ins__is_call(const struct ins *ins);
-bool ins__is_nop(const struct ins *ins);
-bool ins__is_ret(const struct ins *ins);
-bool ins__is_lock(const struct ins *ins);
-int ins__scnprintf(struct ins *ins, char *bf, size_t size, struct ins_operands *ops, int max_ins_name);
-bool ins__is_fused(struct arch *arch, const char *ins1, const char *ins2);
 
 #define ANNOTATION__IPC_WIDTH 6
 #define ANNOTATION__CYCLES_WIDTH 6
@@ -172,6 +118,8 @@ struct disasm_line {
 	struct annotation_line	 al;
 };
 
+void annotation_line__add(struct annotation_line *al, struct list_head *head);
+
 static inline double annotation_data__percent(struct annotation_data *data,
 					      unsigned int which)
 {
@@ -213,7 +161,6 @@ static inline bool disasm_line__has_local_offset(const struct disasm_line *dl)
  */
 bool disasm_line__is_valid_local_jump(struct disasm_line *dl, struct symbol *sym);
 
-void disasm_line__free(struct disasm_line *dl);
 struct annotation_line *
 annotation_line__next(struct annotation_line *pos, struct list_head *head);
 
@@ -236,7 +183,6 @@ int __annotation__scnprintf_samples_period(struct annotation *notes,
 					   struct evsel *evsel,
 					   bool show_freq);
 
-int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool raw, int max_ins_name);
 size_t disasm__fprintf(struct list_head *head, FILE *fp);
 void symbol__calc_percent(struct symbol *sym, struct evsel *evsel);
 
