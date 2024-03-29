@@ -23,6 +23,7 @@ def define_autoghgvm():
         "drivers/net/virtio_net.ko",
         "drivers/pinctrl/qcom/pinctrl-lemans.ko",
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
+        "drivers/remoteproc/rproc_qcom_common.ko",
         "drivers/soc/qcom/hab/msm_hab.ko",
         "drivers/soc/qcom/hgsl/qcom_hgsl.ko",
         "drivers/soc/qcom/mem_buf/mem_buf.ko",
