@@ -474,7 +474,6 @@ static const struct dev_pm_ops rt711_sdca_pm = {
 static struct sdw_driver rt711_sdca_sdw_driver = {
 	.driver = {
 		.name = "rt711-sdca",
-		.owner = THIS_MODULE,
 		.pm = &rt711_sdca_pm,
 	},
 	.probe = rt711_sdca_sdw_probe,

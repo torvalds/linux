@@ -855,7 +855,6 @@ static const struct dev_pm_ops rt1318_pm = {
 static struct sdw_driver rt1318_sdw_driver = {
 	.driver = {
 		.name = "rt1318-sdca",
-		.owner = THIS_MODULE,
 		.pm = &rt1318_pm,
 	},
 	.probe = rt1318_sdw_probe,
