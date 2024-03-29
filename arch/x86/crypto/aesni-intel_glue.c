@@ -1297,6 +1297,7 @@ static struct simd_skcipher_alg *aes_xts_simdalg_##suffix
 DEFINE_XTS_ALG(aesni_avx, "xts-aes-aesni-avx", 500);
 #if defined(CONFIG_AS_VAES) && defined(CONFIG_AS_VPCLMULQDQ)
 DEFINE_XTS_ALG(vaes_avx2, "xts-aes-vaes-avx2", 600);
+DEFINE_XTS_ALG(vaes_avx10_256, "xts-aes-vaes-avx10_256", 700);
 #endif
 
 static int __init register_xts_algs(void)
@@ -1320,6 +1321,18 @@ static int __init register_xts_algs(void)
 					     &aes_xts_simdalg_vaes_avx2);
 	if (err)
 		return err;
+
+	if (!boot_cpu_has(X86_FEATURE_AVX512BW) ||
+	    !boot_cpu_has(X86_FEATURE_AVX512VL) ||
+	    !boot_cpu_has(X86_FEATURE_BMI2) ||
+	    !cpu_has_xfeatures(XFEATURE_MASK_SSE | XFEATURE_MASK_YMM |
+			       XFEATURE_MASK_AVX512, NULL))
+		return 0;
+
+	err = simd_register_skciphers_compat(&aes_xts_alg_vaes_avx10_256, 1,
+					     &aes_xts_simdalg_vaes_avx10_256);
+	if (err)
+		return err;
 #endif /* CONFIG_AS_VAES && CONFIG_AS_VPCLMULQDQ */
 	return 0;
 }
@@ -1333,6 +1346,9 @@ static void unregister_xts_algs(void)
 	if (aes_xts_simdalg_vaes_avx2)
 		simd_unregister_skciphers(&aes_xts_alg_vaes_avx2, 1,
 					  &aes_xts_simdalg_vaes_avx2);
+	if (aes_xts_simdalg_vaes_avx10_256)
+		simd_unregister_skciphers(&aes_xts_alg_vaes_avx10_256, 1,
+					  &aes_xts_simdalg_vaes_avx10_256);
 #endif
 }
 #else /* CONFIG_X86_64 */
