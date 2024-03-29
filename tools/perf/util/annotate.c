@@ -3665,7 +3665,7 @@ int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 	struct annotated_op_loc *op_loc;
 	int i;
 
-	if (!strcmp(dl->ins.name, "lock"))
+	if (ins__is_lock(&dl->ins))
 		ops = dl->ops.locked.ops;
 	else
 		ops = &dl->ops;
@@ -3763,7 +3763,7 @@ static struct disasm_line *find_disasm_line(struct symbol *sym, u64 ip,
 			 * llvm-objdump places "lock" in a separate line and
 			 * in that case, we want to get the next line.
 			 */
-			if (!strcmp(dl->ins.name, "lock") &&
+			if (ins__is_lock(&dl->ins) &&
 			    *dl->ops.raw == '\0' && allow_update) {
 				ip++;
 				continue;
@@ -4093,10 +4093,10 @@ static bool process_basic_block(struct basic_block_data *bb_data,
 		if (dl == last_dl)
 			break;
 		/* 'return' instruction finishes the block */
-		if (dl->ins.ops == &ret_ops)
+		if (ins__is_ret(&dl->ins))
 			break;
 		/* normal instructions are part of the basic block */
-		if (dl->ins.ops != &jump_ops)
+		if (!ins__is_jump(&dl->ins))
 			continue;
 		/* jump to a different function, tail call or return */
 		if (dl->ops.target.outside)
