@@ -18,4 +18,6 @@ struct ntsync_sem_args {
 
 #define NTSYNC_IOC_CREATE_SEM		_IOWR('N', 0x80, struct ntsync_sem_args)
 
+#define NTSYNC_IOC_SEM_POST		_IOWR('N', 0x81, __u32)
+
 #endif
