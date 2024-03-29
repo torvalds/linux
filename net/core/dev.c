@@ -4801,12 +4801,13 @@ static int enqueue_to_backlog(struct sk_buff *skb, int cpu,
 	unsigned long flags;
 	unsigned int qlen;
 
-	reason = SKB_DROP_REASON_NOT_SPECIFIED;
+	reason = SKB_DROP_REASON_DEV_READY;
+	if (!netif_running(skb->dev))
+		goto bad_dev;
+
 	sd = &per_cpu(softnet_data, cpu);
 
 	backlog_lock_irq_save(sd, &flags);
-	if (!netif_running(skb->dev))
-		goto drop;
 	qlen = skb_queue_len(&sd->input_pkt_queue);
 	if (qlen <= READ_ONCE(net_hotdata.max_backlog) &&
 	    !skb_flow_limit(skb, qlen)) {
@@ -4827,10 +4828,10 @@ enqueue:
 	}
 	reason = SKB_DROP_REASON_CPU_BACKLOG;
 
-drop:
 	sd->dropped++;
 	backlog_unlock_irq_restore(sd, &flags);
 
+bad_dev:
 	dev_core_stats_rx_dropped_inc(skb->dev);
 	kfree_skb_reason(skb, reason);
 	return NET_RX_DROP;
