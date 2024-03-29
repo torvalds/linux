@@ -1676,9 +1676,6 @@ DEFINE_DEBUGFS_ATTRIBUTE(fops_io_tlb_hiwater, io_tlb_hiwater_get,
 static void swiotlb_create_debugfs_files(struct io_tlb_mem *mem,
 					 const char *dirname)
 {
-	atomic_long_set(&mem->total_used, 0);
-	atomic_long_set(&mem->used_hiwater, 0);
-
 	mem->debugfs = debugfs_create_dir(dirname, io_tlb_default_mem.debugfs);
 	if (!mem->nslabs)
 		return;
@@ -1689,7 +1686,6 @@ static void swiotlb_create_debugfs_files(struct io_tlb_mem *mem,
 	debugfs_create_file("io_tlb_used_hiwater", 0600, mem->debugfs, mem,
 			&fops_io_tlb_hiwater);
 #ifdef CONFIG_SWIOTLB_DYNAMIC
-	atomic_long_set(&mem->transient_nslabs, 0);
 	debugfs_create_file("io_tlb_transient_nslabs", 0400, mem->debugfs,
 			    mem, &fops_io_tlb_transient_used);
 #endif
