@@ -500,6 +500,7 @@ struct amdgpu_ras {
 	wait_queue_head_t page_retirement_wq;
 	struct mutex page_retirement_lock;
 	atomic_t page_retirement_req_cnt;
+	struct mutex page_rsv_lock;
 	/* Fatal error detected flag */
 	atomic_t fed;
 
@@ -909,4 +910,7 @@ bool amdgpu_ras_get_fed_status(struct amdgpu_device *adev);
 
 bool amdgpu_ras_event_id_is_valid(struct amdgpu_device *adev, u64 id);
 u64 amdgpu_ras_acquire_event_id(struct amdgpu_device *adev, enum ras_event_type type);
+
+int amdgpu_ras_reserve_page(struct amdgpu_device *adev, uint64_t pfn);
+
 #endif
