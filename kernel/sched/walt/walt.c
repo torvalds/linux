@@ -5515,7 +5515,7 @@ static void walt_init(struct work_struct *work)
 
 	wait_for_completion_interruptible(&tick_sched_clock_completion);
 
-	if (!rcu_dereference(rd->pd)) {
+	if (!rcu_access_pointer(rd->pd)) {
 		/*
 		 * perf domains not properly configured.  this is a must as
 		 * create_util_to_cost depends on rd->pd being properly
@@ -5534,7 +5534,7 @@ static void walt_init(struct work_struct *work)
 	 * see walt_find_energy_efficient_cpu(), and
 	 * create_util_to_cost().
 	 */
-	if (!rcu_dereference(rd->pd) && num_sched_clusters > 1)
+	if (!rcu_access_pointer(rd->pd) && num_sched_clusters > 1)
 		WALT_BUG(WALT_BUG_WALT, NULL,
 			 "root domain's perf-domain values not initialized rd->pd=%d.",
 			 rd->pd);
