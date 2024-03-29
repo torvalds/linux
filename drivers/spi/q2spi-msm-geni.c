@@ -1812,8 +1812,8 @@ static int __q2spi_transfer(struct q2spi_geni *q2spi, struct q2spi_request q2spi
 		timeout = wait_for_completion_interruptible_timeout
 					(&q2spi_pkt->bulk_wait, xfer_timeout);
 		if (timeout <= 0) {
-			Q2SPI_ERROR(q2spi, "%s q2spi_pkt:%p Err timeout for bulk_wait\n",
-				    __func__, q2spi_pkt);
+			Q2SPI_ERROR(q2spi, "%s q2spi_pkt:%p Err timeout %ld for bulk_wait\n",
+				    __func__, q2spi_pkt, timeout);
 			return -ETIMEDOUT;
 		} else if (atomic_read(&q2spi->retry)) {
 			atomic_dec(&q2spi->retry);
@@ -2754,7 +2754,8 @@ int q2spi_process_hrf_flow_after_lra(struct q2spi_geni *q2spi, struct q2spi_pack
 	xfer_timeout = msecs_to_jiffies(XFER_TIMEOUT_OFFSET);
 	timeout = wait_for_completion_interruptible_timeout(&q2spi_pkt->wait_for_db, xfer_timeout);
 	if (timeout <= 0) {
-		Q2SPI_ERROR(q2spi, "%s Err timeout for doorbell_wait\n", __func__);
+		Q2SPI_ERROR(q2spi, "%s Err timeout for doorbell_wait timeout:%ld\n",
+			    __func__, timeout);
 		return -ETIMEDOUT;
 	}
 
@@ -2856,7 +2857,7 @@ int __q2spi_send_messages(struct q2spi_geni *q2spi, void *ptr)
 	if (!cm_flow_pkt && atomic_read(&q2spi->doorbell_pending)) {
 		atomic_inc(&q2spi->retry);
 		Q2SPI_DEBUG(q2spi, "%s doorbell pending retry\n", __func__);
-		complete(&q2spi_pkt->bulk_wait);
+		complete_all(&q2spi_pkt->bulk_wait);
 		q2spi_unmap_var_bufs(q2spi, q2spi_pkt);
 		ret = -EAGAIN;
 		goto send_msg_exit;
@@ -3584,7 +3585,7 @@ void q2spi_find_pkt_by_flow_id(struct q2spi_geni *q2spi, struct q2spi_cr_packet 
 		Q2SPI_DEBUG(q2spi, "%s Found q2spi_pkt %p with flow_id %d\n",
 			    __func__, q2spi_pkt, flow_id);
 		/* wakeup HRF flow which is waiting for this CR doorbell */
-		complete(&q2spi_pkt->wait_for_db);
+		complete_all(&q2spi_pkt->wait_for_db);
 		return;
 	}
 	Q2SPI_DEBUG(q2spi, "%s Err q2spi_pkt not found for flow_id %d\n", __func__, flow_id);
@@ -3654,7 +3655,7 @@ void q2spi_complete_bulk_status(struct q2spi_geni *q2spi, struct q2spi_cr_packet
 		Q2SPI_DEBUG(q2spi, "%s Found q2spi_pkt %p with flow_id %d\n",
 			    __func__, q2spi_pkt, flow_id);
 		q2spi_copy_cr_data_to_pkt(q2spi_pkt, cr_pkt, idx);
-		complete(&q2spi_pkt->bulk_wait);
+		complete_all(&q2spi_pkt->bulk_wait);
 	} else {
 		Q2SPI_DEBUG(q2spi, "%s Err q2spi_pkt not found for flow_id %d\n",
 			    __func__, flow_id);
