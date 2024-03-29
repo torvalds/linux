@@ -3183,7 +3183,7 @@ static struct mwifiex_if_ops sdio_ops = {
 	.up_dev = mwifiex_sdio_up_dev,
 };
 
-module_driver(mwifiex_sdio, sdio_register_driver, sdio_unregister_driver);
+module_sdio_driver(mwifiex_sdio);
 
 MODULE_AUTHOR("Marvell International Ltd.");
 MODULE_DESCRIPTION("Marvell WiFi-Ex SDIO Driver version " SDIO_VERSION);
