@@ -79,11 +79,9 @@ done:
 
 static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 {
-	struct sockaddr_in6 sa6 = {};
 	ssize_t nr_recv = 0, bytes = 0;
 	int lfd = -1, fd = -1;
 	pthread_t srv_thread;
-	socklen_t addrlen = sizeof(sa6);
 	void *thread_ret;
 	char batch[1500];
 	int err;
@@ -100,12 +98,7 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 		return;
 	}
 
-	if (settcpca(lfd, tcp_ca) || settcpca(fd, tcp_ca) ||
-	    settimeo(lfd, 0) || settimeo(fd, 0))
-		goto done;
-
-	err = getsockname(lfd, (struct sockaddr *)&sa6, &addrlen);
-	if (!ASSERT_NEQ(err, -1, "getsockname"))
+	if (settcpca(lfd, tcp_ca) || settcpca(fd, tcp_ca))
 		goto done;
 
 	if (sk_stg_map) {
@@ -116,7 +109,7 @@ static void do_test(const char *tcp_ca, const struct bpf_map *sk_stg_map)
 	}
 
 	/* connect to server */
-	err = connect(fd, (struct sockaddr *)&sa6, addrlen);
+	err = connect_fd_to_fd(fd, lfd, 0);
 	if (!ASSERT_NEQ(err, -1, "connect"))
 		goto done;
 
