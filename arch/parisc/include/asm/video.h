@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_FB_H_
-#define _ASM_FB_H_
+#ifndef _ASM_VIDEO_H_
+#define _ASM_VIDEO_H_
 
 #include <linux/types.h>
 
@@ -11,6 +11,6 @@ bool video_is_primary_device(struct device *dev);
 #define video_is_primary_device video_is_primary_device
 #endif
 
-#include <asm-generic/fb.h>
+#include <asm-generic/video.h>
 
-#endif /* _ASM_FB_H_ */
+#endif /* _ASM_VIDEO_H_ */

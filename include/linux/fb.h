@@ -12,7 +12,7 @@
 #include <linux/types.h>
 #include <linux/workqueue.h>
 
-#include <asm/fb.h>
+#include <asm/video.h>
 
 struct backlight_device;
 struct device;

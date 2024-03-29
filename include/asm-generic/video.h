@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-#ifndef __ASM_GENERIC_FB_H_
-#define __ASM_GENERIC_FB_H_
+#ifndef __ASM_GENERIC_VIDEO_H_
+#define __ASM_GENERIC_VIDEO_H_
 
 /*
  * Only include this header file from your architecture's <asm/fb.h>.
@@ -133,4 +133,4 @@ static inline void fb_memset_io(volatile void __iomem *addr, int c, size_t n)
 #define fb_memset fb_memset_io
 #endif
 
-#endif /* __ASM_GENERIC_FB_H_ */
+#endif /* __ASM_GENERIC_VIDEO_H_ */

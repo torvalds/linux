@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _SPARC_FB_H_
-#define _SPARC_FB_H_
+#ifndef _SPARC_VIDEO_H_
+#define _SPARC_VIDEO_H_
 
 #include <linux/io.h>
 #include <linux/types.h>
@@ -40,6 +40,6 @@ static inline void fb_memset_io(volatile void __iomem *addr, int c, size_t n)
 }
 #define fb_memset fb_memset_io
 
-#include <asm-generic/fb.h>
+#include <asm-generic/video.h>
 
-#endif /* _SPARC_FB_H_ */
+#endif /* _SPARC_VIDEO_H_ */

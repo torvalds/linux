@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
-#ifndef _ASM_FB_H_
-#define _ASM_FB_H_
+#ifndef _ASM_VIDEO_H_
+#define _ASM_VIDEO_H_
 
 #include <asm/page.h>
 #include <asm/setup.h>
@@ -27,6 +27,6 @@ static inline pgprot_t pgprot_framebuffer(pgprot_t prot,
 }
 #define pgprot_framebuffer pgprot_framebuffer
 
-#include <asm-generic/fb.h>
+#include <asm-generic/video.h>
 
-#endif /* _ASM_FB_H_ */
+#endif /* _ASM_VIDEO_H_ */

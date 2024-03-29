@@ -4,8 +4,8 @@
 #include <linux/device.h>
 #include <linux/module.h>
 
-#include <asm/fb.h>
 #include <asm/prom.h>
+#include <asm/video.h>
 
 bool video_is_primary_device(struct device *dev)
 {
@@ -21,5 +21,5 @@ bool video_is_primary_device(struct device *dev)
 }
 EXPORT_SYMBOL(video_is_primary_device);
 
-MODULE_DESCRIPTION("Sparc fbdev helpers");
+MODULE_DESCRIPTION("Sparc video helpers");
 MODULE_LICENSE("GPL");

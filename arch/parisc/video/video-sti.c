@@ -9,7 +9,7 @@
 
 #include <video/sticore.h>
 
-#include <asm/fb.h>
+#include <asm/video.h>
 
 bool video_is_primary_device(struct device *dev)
 {
