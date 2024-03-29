@@ -58,9 +58,9 @@ void rxe_resp_queue_pkt(struct rxe_qp *qp, struct sk_buff *skb)
 			(skb_queue_len(&qp->req_pkts) > 1);
 
 	if (must_sched)
-		rxe_sched_task(&qp->resp.task);
+		rxe_sched_task(&qp->recv_task);
 	else
-		rxe_run_task(&qp->resp.task);
+		rxe_run_task(&qp->recv_task);
 }
 
 static inline enum resp_states get_req(struct rxe_qp *qp,
@@ -1485,7 +1485,7 @@ static void flush_recv_queue(struct rxe_qp *qp, bool notify)
 	qp->resp.wqe = NULL;
 }
 
-int rxe_responder(struct rxe_qp *qp)
+int rxe_receiver(struct rxe_qp *qp)
 {
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	enum resp_states state;

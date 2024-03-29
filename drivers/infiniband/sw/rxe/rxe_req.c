@@ -108,7 +108,7 @@ void rnr_nak_timer(struct timer_list *t)
 		/* request a send queue retry */
 		qp->req.need_retry = 1;
 		qp->req.wait_for_rnr_timer = 0;
-		rxe_sched_task(&qp->req.task);
+		rxe_sched_task(&qp->send_task);
 	}
 	spin_unlock_irqrestore(&qp->state_lock, flags);
 }
@@ -659,7 +659,7 @@ static int rxe_do_local_ops(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	 * which can lead to a deadlock. So go ahead and complete
 	 * it now.
 	 */
-	rxe_sched_task(&qp->comp.task);
+	rxe_sched_task(&qp->send_task);
 
 	return 0;
 }
@@ -786,7 +786,7 @@ int rxe_requester(struct rxe_qp *qp)
 						       qp->req.wqe_index);
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
-			rxe_sched_task(&qp->comp.task);
+			rxe_sched_task(&qp->send_task);
 			goto done;
 		}
 		payload = mtu;
@@ -855,7 +855,7 @@ int rxe_requester(struct rxe_qp *qp)
 		 */
 		qp->need_req_skb = 1;
 
-		rxe_sched_task(&qp->req.task);
+		rxe_sched_task(&qp->send_task);
 		goto exit;
 	}
 
@@ -877,4 +877,21 @@ exit:
 	ret = -EAGAIN;
 out:
 	return ret;
+}
+
+int rxe_sender(struct rxe_qp *qp)
+{
+	int req_ret;
+	int comp_ret;
+
+	/* process the send queue */
+	req_ret = rxe_requester(qp);
+
+	/* process the response queue */
+	comp_ret = rxe_completer(qp);
+
+	/* exit the task loop if both requester and completer
+	 * are ready
+	 */
+	return (req_ret && comp_ret) ? -EAGAIN : 0;
 }
