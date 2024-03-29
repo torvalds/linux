@@ -545,6 +545,8 @@ static void update_wqe_state(struct rxe_qp *qp,
 	if (pkt->mask & RXE_END_MASK) {
 		if (qp_type(qp) == IB_QPT_RC)
 			wqe->state = wqe_state_pending;
+		else
+			wqe->state = wqe_state_done;
 	} else {
 		wqe->state = wqe_state_processing;
 	}
@@ -630,12 +632,6 @@ static int rxe_do_local_ops(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	wqe->state = wqe_state_done;
 	wqe->status = IB_WC_SUCCESS;
 	qp->req.wqe_index = queue_next_index(qp->sq.queue, qp->req.wqe_index);
-
-	/* There is no ack coming for local work requests
-	 * which can lead to a deadlock. So go ahead and complete
-	 * it now.
-	 */
-	rxe_sched_task(&qp->send_task);
 
 	return 0;
 }
@@ -760,7 +756,6 @@ int rxe_requester(struct rxe_qp *qp)
 						       qp->req.wqe_index);
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
-			rxe_sched_task(&qp->send_task);
 			goto done;
 		}
 		payload = mtu;
