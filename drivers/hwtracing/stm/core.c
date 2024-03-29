@@ -573,7 +573,7 @@ stm_assign_first_policy(struct stm_device *stm, struct stm_output *output,
  * @buf:	data payload buffer
  * @count:	data payload size
  */
-ssize_t notrace stm_data_write(struct stm_data *data, unsigned int m,
+ssize_t notrace __nocfi stm_data_write(struct stm_data *data, unsigned int m,
 			       unsigned int c, bool ts_first, const void *buf,
 			       size_t count)
 {
@@ -598,7 +598,7 @@ ssize_t notrace stm_data_write(struct stm_data *data, unsigned int m,
 }
 EXPORT_SYMBOL_GPL(stm_data_write);
 
-static ssize_t notrace
+static ssize_t notrace __nocfi
 stm_write(struct stm_device *stm, struct stm_output *output,
 	  unsigned int chan, const char *buf, size_t count)
 {
@@ -1124,13 +1124,13 @@ static void stm_source_link_drop(struct stm_source_device *src)
 	int idx, ret;
 
 retry:
-	idx = srcu_read_lock(&stm_source_srcu);
+	idx = srcu_read_lock_notrace(&stm_source_srcu);
 	/*
 	 * The stm device will be valid for the duration of this
 	 * read section, but the link may change before we grab
 	 * the src::link_lock in __stm_source_link_drop().
 	 */
-	stm = srcu_dereference(src->link, &stm_source_srcu);
+	stm = srcu_dereference_notrace(src->link, &stm_source_srcu);
 
 	ret = 0;
 	if (stm) {
@@ -1139,7 +1139,7 @@ retry:
 		mutex_unlock(&stm->link_mutex);
 	}
 
-	srcu_read_unlock(&stm_source_srcu, idx);
+	srcu_read_unlock_notrace(&stm_source_srcu, idx);
 
 	/* if it did change, retry */
 	if (ret == -EAGAIN)
@@ -1154,11 +1154,11 @@ static ssize_t stm_source_link_show(struct device *dev,
 	struct stm_device *stm;
 	int idx, ret;
 
-	idx = srcu_read_lock(&stm_source_srcu);
-	stm = srcu_dereference(src->link, &stm_source_srcu);
+	idx = srcu_read_lock_notrace(&stm_source_srcu);
+	stm = srcu_dereference_notrace(src->link, &stm_source_srcu);
 	ret = sprintf(buf, "%s\n",
 		      stm ? dev_name(&stm->dev) : "<none>");
-	srcu_read_unlock(&stm_source_srcu, idx);
+	srcu_read_unlock_notrace(&stm_source_srcu, idx);
 
 	return ret;
 }
@@ -1283,7 +1283,7 @@ void stm_source_unregister_device(struct stm_source_data *data)
 }
 EXPORT_SYMBOL_GPL(stm_source_unregister_device);
 
-int notrace stm_source_write(struct stm_source_data *data,
+int notrace __nocfi stm_source_write(struct stm_source_data *data,
 			     unsigned int chan,
 			     const char *buf, size_t count)
 {
@@ -1297,15 +1297,15 @@ int notrace stm_source_write(struct stm_source_data *data,
 	if (chan >= src->output.nr_chans)
 		return -EINVAL;
 
-	idx = srcu_read_lock(&stm_source_srcu);
+	idx = srcu_read_lock_notrace(&stm_source_srcu);
 
-	stm = srcu_dereference(src->link, &stm_source_srcu);
+	stm = srcu_dereference_notrace(src->link, &stm_source_srcu);
 	if (stm)
 		count = stm_write(stm, &src->output, chan, buf, count);
 	else
 		count = -ENODEV;
 
-	srcu_read_unlock(&stm_source_srcu, idx);
+	srcu_read_unlock_notrace(&stm_source_srcu, idx);
 
 	return count;
 }

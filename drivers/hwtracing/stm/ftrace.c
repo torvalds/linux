@@ -33,7 +33,7 @@ static struct stm_ftrace {
  * @buf:	buffer containing the data packet
  * @len:	length of the data packet
  */
-static void notrace
+static void notrace __nocfi
 stm_ftrace_write(struct trace_export *export, const void *buf, unsigned int len)
 {
 	struct stm_ftrace *stm = container_of(export, struct stm_ftrace, ftrace);
