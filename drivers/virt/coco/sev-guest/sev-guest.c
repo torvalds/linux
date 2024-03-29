@@ -1203,8 +1203,13 @@ static void __exit sev_guest_remove(struct platform_device *pdev)
  * This driver is meant to be a common SEV guest interface driver and to
  * support any SEV guest API. As such, even though it has been introduced
  * with the SEV-SNP support, it is named "sev-guest".
+ *
+ * sev_guest_remove() lives in .exit.text. For drivers registered via
+ * module_platform_driver_probe() this is ok because they cannot get unbound
+ * at runtime. So mark the driver struct with __refdata to prevent modpost
+ * triggering a section mismatch warning.
  */
-static struct platform_driver sev_guest_driver = {
+static struct platform_driver sev_guest_driver __refdata = {
 	.remove_new	= __exit_p(sev_guest_remove),
 	.driver		= {
 		.name = "sev-guest",
