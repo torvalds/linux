@@ -1775,7 +1775,7 @@ static struct edid *anx7625_get_edid(struct anx7625_data *ctx)
 	}
 
 	pm_runtime_get_sync(dev);
-	_anx7625_hpd_polling(ctx, 5000 * 100);
+	_anx7625_hpd_polling(ctx, 5000 * 10);
 	edid_num = sp_tx_edid_read(ctx, p_edid->edid_raw_data);
 	pm_runtime_put_sync(dev);
 
@@ -2456,7 +2456,7 @@ static void anx7625_bridge_atomic_enable(struct drm_bridge *bridge,
 	ctx->connector = connector;
 
 	pm_runtime_get_sync(dev);
-	_anx7625_hpd_polling(ctx, 5000 * 100);
+	_anx7625_hpd_polling(ctx, 5000 * 10);
 
 	anx7625_dp_start(ctx);
 }
@@ -2577,7 +2577,7 @@ static int __maybe_unused anx7625_runtime_pm_resume(struct device *dev)
 
 	anx7625_power_on_init(ctx);
 
-	_anx7625_hpd_polling(ctx, 5000 * 100);
+	_anx7625_hpd_polling(ctx, 5000 * 10);
 
 	mutex_unlock(&ctx->lock);
 
@@ -2775,7 +2775,7 @@ static int anx7625_i2c_probe(struct i2c_client *client)
 	if (!platform->pdata.low_power_mode) {
 		anx7625_disable_pd_protocol(platform);
 		pm_runtime_get_sync(dev);
-		_anx7625_hpd_polling(platform, 5000 * 100);
+		_anx7625_hpd_polling(platform, 5000 * 10);
 	}
 
 	/* Add work function */
