@@ -291,7 +291,7 @@ def parse_yaml(obj: Dict[str, Any]) -> str:
 
     title = f"Family ``{obj['name']}`` netlink specification"
     lines.append(rst_title(title))
-    lines.append(rst_paragraph(".. contents::\n"))
+    lines.append(rst_paragraph(".. contents:: :depth: 3\n"))
 
     if "doc" in obj:
         lines.append(rst_subtitle("Summary"))
