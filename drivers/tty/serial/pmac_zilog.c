@@ -1695,7 +1695,7 @@ static void pmz_dispose_port(struct uart_pmac_port *uap)
 	memset(uap, 0, sizeof(struct uart_pmac_port));
 }
 
-static int __init pmz_attach(struct platform_device *pdev)
+static int pmz_attach(struct platform_device *pdev)
 {
 	struct uart_pmac_port *uap;
 	int i;
@@ -1714,7 +1714,7 @@ static int __init pmz_attach(struct platform_device *pdev)
 	return uart_add_one_port(&pmz_uart_reg, &uap->port);
 }
 
-static void __exit pmz_detach(struct platform_device *pdev)
+static void pmz_detach(struct platform_device *pdev)
 {
 	struct uart_pmac_port *uap = platform_get_drvdata(pdev);
 
@@ -1789,7 +1789,8 @@ static struct macio_driver pmz_driver = {
 #else
 
 static struct platform_driver pmz_driver = {
-	.remove_new	= __exit_p(pmz_detach),
+	.probe		= pmz_attach,
+	.remove_new	= pmz_detach,
 	.driver		= {
 		.name		= "scc",
 	},
@@ -1837,7 +1838,7 @@ static int __init init_pmz(void)
 #ifdef CONFIG_PPC_PMAC
 	return macio_register_driver(&pmz_driver);
 #else
-	return platform_driver_probe(&pmz_driver, pmz_attach);
+	return platform_driver_register(&pmz_driver);
 #endif
 }
 
