@@ -1326,7 +1326,6 @@ struct platform_driver fimd_driver = {
 	.remove_new	= fimd_remove,
 	.driver		= {
 		.name	= "exynos4-fb",
-		.owner	= THIS_MODULE,
 		.pm	= pm_ptr(&exynos_fimd_pm_ops),
 		.of_match_table = fimd_driver_dt_match,
 	},
