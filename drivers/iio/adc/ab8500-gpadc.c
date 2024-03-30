@@ -1021,8 +1021,8 @@ static int ab8500_gpadc_parse_channel(struct device *dev,
 /**
  * ab8500_gpadc_parse_channels() - Parse the GPADC channels from DT
  * @gpadc: the GPADC to configure the channels for
- * @chans: the IIO channels we parsed
- * @nchans: the number of IIO channels we parsed
+ * @chans_parsed: the IIO channels we parsed
+ * @nchans_parsed: the number of IIO channels we parsed
  */
 static int ab8500_gpadc_parse_channels(struct ab8500_gpadc *gpadc,
 				       struct iio_chan_spec **chans_parsed,
