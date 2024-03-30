@@ -629,6 +629,5 @@ struct platform_driver mtk_disp_ovl_adaptor_driver = {
 	.remove_new	= mtk_disp_ovl_adaptor_remove,
 	.driver		= {
 		.name	= "mediatek-disp-ovl-adaptor",
-		.owner	= THIS_MODULE,
 	},
 };
