@@ -801,51 +801,45 @@ static int ad3552r_configure_custom_gain(struct ad3552r_desc *dac,
 					 u32 ch)
 {
 	struct device *dev = &dac->spi->dev;
-	struct fwnode_handle *gain_child;
 	u32 val;
 	int err;
 	u8 addr;
 	u16 reg = 0, offset;
 
-	gain_child = fwnode_get_named_child_node(child,
-						 "custom-output-range-config");
-	if (!gain_child) {
-		dev_err(dev,
-			"mandatory custom-output-range-config property missing\n");
-		return -EINVAL;
-	}
+	struct fwnode_handle *gain_child __free(fwnode_handle)
+		= fwnode_get_named_child_node(child,
+					      "custom-output-range-config");
+	if (!gain_child)
+		return dev_err_probe(dev, -EINVAL,
+				     "mandatory custom-output-range-config property missing\n");
 
 	dac->ch_data[ch].range_override = 1;
 	reg |= ad3552r_field_prep(1, AD3552R_MASK_CH_RANGE_OVERRIDE);
 
 	err = fwnode_property_read_u32(gain_child, "adi,gain-scaling-p", &val);
-	if (err) {
-		dev_err(dev, "mandatory adi,gain-scaling-p property missing\n");
-		goto put_child;
-	}
+	if (err)
+		return dev_err_probe(dev, err,
+				     "mandatory adi,gain-scaling-p property missing\n");
 	reg |= ad3552r_field_prep(val, AD3552R_MASK_CH_GAIN_SCALING_P);
 	dac->ch_data[ch].p = val;
 
 	err = fwnode_property_read_u32(gain_child, "adi,gain-scaling-n", &val);
-	if (err) {
-		dev_err(dev, "mandatory adi,gain-scaling-n property missing\n");
-		goto put_child;
-	}
+	if (err)
+		return dev_err_probe(dev, err,
+				     "mandatory adi,gain-scaling-n property missing\n");
 	reg |= ad3552r_field_prep(val, AD3552R_MASK_CH_GAIN_SCALING_N);
 	dac->ch_data[ch].n = val;
 
 	err = fwnode_property_read_u32(gain_child, "adi,rfb-ohms", &val);
-	if (err) {
-		dev_err(dev, "mandatory adi,rfb-ohms property missing\n");
-		goto put_child;
-	}
+	if (err)
+		return dev_err_probe(dev, err,
+				     "mandatory adi,rfb-ohms property missing\n");
 	dac->ch_data[ch].rfb = val;
 
 	err = fwnode_property_read_u32(gain_child, "adi,gain-offset", &val);
-	if (err) {
-		dev_err(dev, "mandatory adi,gain-offset property missing\n");
-		goto put_child;
-	}
+	if (err)
+		return dev_err_probe(dev, err,
+				     "mandatory adi,gain-offset property missing\n");
 	dac->ch_data[ch].gain_offset = val;
 
 	offset = abs((s32)val);
@@ -855,21 +849,14 @@ static int ad3552r_configure_custom_gain(struct ad3552r_desc *dac,
 	addr = AD3552R_REG_ADDR_CH_GAIN(ch);
 	err = ad3552r_write_reg(dac, addr,
 				offset & AD3552R_MASK_CH_OFFSET_BITS_0_7);
-	if (err) {
-		dev_err(dev, "Error writing register\n");
-		goto put_child;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "Error writing register\n");
 
 	err = ad3552r_write_reg(dac, addr, reg);
-	if (err) {
-		dev_err(dev, "Error writing register\n");
-		goto put_child;
-	}
+	if (err)
+		return dev_err_probe(dev, err, "Error writing register\n");
 
-put_child:
-	fwnode_handle_put(gain_child);
-
-	return err;
+	return 0;
 }
 
 static void ad3552r_reg_disable(void *reg)
