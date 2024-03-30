@@ -592,15 +592,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 
 	if (!c->opts.nochanges) {
 		mutex_lock(&c->sb_lock);
+		struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
 		bool write_sb = false;
-
-		struct bch_sb_field_ext *ext =
-			bch2_sb_field_get_minsize(&c->disk_sb, ext, sizeof(*ext) / sizeof(u64));
-		if (!ext) {
-			ret = -BCH_ERR_ENOSPC_sb;
-			mutex_unlock(&c->sb_lock);
-			goto err;
-		}
 
 		if (BCH_SB_HAS_TOPOLOGY_ERRORS(c->disk_sb.sb)) {
 			ext->recovery_passes_required[0] |=
@@ -832,6 +825,7 @@ use_clean:
 	}
 
 	mutex_lock(&c->sb_lock);
+	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
 	bool write_sb = false;
 
 	if (BCH_SB_VERSION_UPGRADE_COMPLETE(c->disk_sb.sb) != le16_to_cpu(c->disk_sb.sb->version)) {
@@ -845,15 +839,12 @@ use_clean:
 		write_sb = true;
 	}
 
-	if (!test_bit(BCH_FS_error, &c->flags)) {
-		struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
-		if (ext &&
-		    (!bch2_is_zero(ext->recovery_passes_required, sizeof(ext->recovery_passes_required)) ||
-		     !bch2_is_zero(ext->errors_silent, sizeof(ext->errors_silent)))) {
-			memset(ext->recovery_passes_required, 0, sizeof(ext->recovery_passes_required));
-			memset(ext->errors_silent, 0, sizeof(ext->errors_silent));
-			write_sb = true;
-		}
+	if (!test_bit(BCH_FS_error, &c->flags) &&
+	    (!bch2_is_zero(ext->recovery_passes_required, sizeof(ext->recovery_passes_required)) ||
+	     !bch2_is_zero(ext->errors_silent, sizeof(ext->errors_silent)))) {
+		memset(ext->recovery_passes_required, 0, sizeof(ext->recovery_passes_required));
+		memset(ext->errors_silent, 0, sizeof(ext->errors_silent));
+		write_sb = true;
 	}
 
 	if (c->opts.fsck &&

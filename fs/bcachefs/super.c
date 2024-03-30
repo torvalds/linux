@@ -1015,7 +1015,15 @@ int bch2_fs_start(struct bch_fs *c)
 	for_each_online_member(c, ca)
 		bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx)->last_mount = cpu_to_le64(now);
 
+	struct bch_sb_field_ext *ext =
+		bch2_sb_field_get_minsize(&c->disk_sb, ext, sizeof(*ext) / sizeof(u64));
 	mutex_unlock(&c->sb_lock);
+
+	if (!ext) {
+		bch_err(c, "insufficient space in superblock for sb_field_ext");
+		ret = -BCH_ERR_ENOSPC_sb;
+		goto err;
+	}
 
 	for_each_rw_member(c, ca)
 		bch2_dev_allocator_add(c, ca);
