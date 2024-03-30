@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
@@ -3049,6 +3049,7 @@ static struct platform_driver qnoc_driver = {
 	.driver = {
 		.name = "qnoc-niobe",
 		.of_match_table = qnoc_of_match,
+		.sync_state = qcom_icc_rpmh_sync_state,
 	},
 };
 
