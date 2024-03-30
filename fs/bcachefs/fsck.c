@@ -1372,10 +1372,6 @@ static int check_overlapping_extents(struct btree_trans *trans,
 			goto err;
 	}
 
-	ret = extent_ends_at(c, extent_ends, seen, k);
-	if (ret)
-		goto err;
-
 	extent_ends->last_pos = k.k->p;
 err:
 	return ret;
@@ -1504,6 +1500,12 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 		}
 
 		i->seen_this_pos = true;
+	}
+
+	if (k.k->type != KEY_TYPE_whiteout) {
+		ret = extent_ends_at(c, extent_ends, s, k);
+		if (ret)
+			goto err;
 	}
 out:
 err:
