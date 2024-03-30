@@ -36,7 +36,6 @@
 #define DRIVER_AUTHOR	"Stephen Hemminger <sthemmin at microsoft.com>"
 #define DRIVER_DESC	"Generic UIO driver for VMBus devices"
 
-#define HV_RING_SIZE	 512	/* pages */
 #define SEND_BUFFER_SIZE (16 * 1024 * 1024)
 #define RECV_BUFFER_SIZE (31 * 1024 * 1024)
 
@@ -146,7 +145,7 @@ static const struct bin_attribute ring_buffer_bin_attr = {
 		.name = "ring",
 		.mode = 0600,
 	},
-	.size = 2 * HV_RING_SIZE * PAGE_SIZE,
+	.size = 2 * SZ_2M,
 	.mmap = hv_uio_ring_mmap,
 };
 
@@ -156,7 +155,7 @@ hv_uio_new_channel(struct vmbus_channel *new_sc)
 {
 	struct hv_device *hv_dev = new_sc->primary_channel->device_obj;
 	struct device *device = &hv_dev->device;
-	const size_t ring_bytes = HV_RING_SIZE * PAGE_SIZE;
+	const size_t ring_bytes = SZ_2M;
 	int ret;
 
 	/* Create host communication ring */
@@ -244,7 +243,7 @@ hv_uio_probe(struct hv_device *dev,
 	size_t ring_size = hv_dev_ring_size(channel);
 
 	if (!ring_size)
-		ring_size = HV_RING_SIZE * PAGE_SIZE;
+		ring_size = SZ_2M;
 
 	pdata = devm_kzalloc(&dev->device, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
