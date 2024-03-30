@@ -334,7 +334,6 @@ struct platform_driver mtk_disp_gamma_driver = {
 	.remove_new	= mtk_disp_gamma_remove,
 	.driver		= {
 		.name	= "mediatek-disp-gamma",
-		.owner	= THIS_MODULE,
 		.of_match_table = mtk_disp_gamma_driver_dt_match,
 	},
 };
