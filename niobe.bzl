@@ -100,6 +100,7 @@ def define_niobe():
         "drivers/power/reset/reboot-mode.ko",
         "drivers/power/supply/qti_battery_charger.ko",
         "drivers/pwm/pwm-qti-lpg.ko",
+        "drivers/regulator/ap72200-regulator.ko",
         "drivers/regulator/debug-regulator.ko",
         "drivers/regulator/proxy-consumer.ko",
         "drivers/regulator/qti-fixed-regulator.ko",
