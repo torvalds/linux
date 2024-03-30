@@ -479,7 +479,6 @@ struct platform_driver vidi_driver = {
 	.remove_new	= vidi_remove,
 	.driver		= {
 		.name	= "exynos-drm-vidi",
-		.owner	= THIS_MODULE,
 		.dev_groups = vidi_groups,
 	},
 };
