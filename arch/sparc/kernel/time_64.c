@@ -33,6 +33,7 @@
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
 #include <linux/platform_device.h>
+#include <linux/sched/clock.h>
 #include <linux/ftrace.h>
 
 #include <asm/oplib.h>
