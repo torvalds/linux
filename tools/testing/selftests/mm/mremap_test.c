@@ -70,6 +70,27 @@ enum {
 	.expect_failure = should_fail				\
 }
 
+/* compute square root using binary search */
+static unsigned long get_sqrt(unsigned long val)
+{
+	unsigned long low = 1;
+
+	/* assuming rand_size is less than 1TB */
+	unsigned long high = (1UL << 20);
+
+	while (low <= high) {
+		unsigned long mid = low + (high - low) / 2;
+		unsigned long temp = mid * mid;
+
+		if (temp == val)
+			return mid;
+		if (temp < val)
+			low = mid + 1;
+		high = mid - 1;
+	}
+	return low;
+}
+
 /*
  * Returns false if the requested remap region overlaps with an
  * existing mapping (e.g text, stack) else returns true.
@@ -355,14 +376,14 @@ out:
 
 /* Returns the time taken for the remap on success else returns -1. */
 static long long remap_region(struct config c, unsigned int threshold_mb,
-			      unsigned int pattern_seed, char *rand_addr)
+			      char *rand_addr)
 {
 	void *addr, *src_addr, *dest_addr, *dest_preamble_addr;
-	int d;
-	unsigned long long t;
+	unsigned long long t, d;
 	struct timespec t_start = {0, 0}, t_end = {0, 0};
 	long long  start_ns, end_ns, align_mask, ret, offset;
 	unsigned long long threshold;
+	unsigned long num_chunks;
 
 	if (threshold_mb == VALIDATION_NO_THRESHOLD)
 		threshold = c.region_size;
@@ -430,15 +451,42 @@ static long long remap_region(struct config c, unsigned int threshold_mb,
 		goto clean_up_dest_preamble;
 	}
 
-	/* Verify byte pattern after remapping */
-	srand(pattern_seed);
-	for (t = 0; t < threshold; t++) {
-		char c = (char) rand();
+	/*
+	 * Verify byte pattern after remapping. Employ an algorithm with a
+	 * square root time complexity in threshold: divide the range into
+	 * chunks, if memcmp() returns non-zero, only then perform an
+	 * iteration in that chunk to find the mismatch index.
+	 */
+	num_chunks = get_sqrt(threshold);
+	for (unsigned long i = 0; i < num_chunks; ++i) {
+		size_t chunk_size = threshold / num_chunks;
+		unsigned long shift = i * chunk_size;
 
-		if (((char *) dest_addr)[t] != c) {
+		if (!memcmp(dest_addr + shift, rand_addr + shift, chunk_size))
+			continue;
+
+		/* brute force iteration only over mismatch segment */
+		for (t = shift; t < shift + chunk_size; ++t) {
+			if (((char *) dest_addr)[t] != rand_addr[t]) {
+				ksft_print_msg("Data after remap doesn't match at offset %llu\n",
+						t);
+				ksft_print_msg("Expected: %#x\t Got: %#x\n", rand_addr[t] & 0xff,
+						((char *) dest_addr)[t] & 0xff);
+				ret = -1;
+				goto clean_up_dest;
+			}
+		}
+	}
+
+	/*
+	 * if threshold is not divisible by num_chunks, then check the
+	 * last chunk
+	 */
+	for (t = num_chunks * (threshold / num_chunks); t < threshold; ++t) {
+		if (((char *) dest_addr)[t] != rand_addr[t]) {
 			ksft_print_msg("Data after remap doesn't match at offset %llu\n",
-				       t);
-			ksft_print_msg("Expected: %#x\t Got: %#x\n", c & 0xff,
+					t);
+			ksft_print_msg("Expected: %#x\t Got: %#x\n", rand_addr[t] & 0xff,
 					((char *) dest_addr)[t] & 0xff);
 			ret = -1;
 			goto clean_up_dest;
@@ -446,22 +494,44 @@ static long long remap_region(struct config c, unsigned int threshold_mb,
 	}
 
 	/* Verify the dest preamble byte pattern after remapping */
-	if (c.dest_preamble_size) {
-		srand(pattern_seed);
-		for (d = 0; d < c.dest_preamble_size; d++) {
-			char c = (char) rand();
+	if (!c.dest_preamble_size)
+		goto no_preamble;
 
-			if (((char *) dest_preamble_addr)[d] != c) {
-				ksft_print_msg("Preamble data after remap doesn't match at offset %d\n",
-					       d);
-				ksft_print_msg("Expected: %#x\t Got: %#x\n", c & 0xff,
-					       ((char *) dest_preamble_addr)[d] & 0xff);
+	num_chunks = get_sqrt(c.dest_preamble_size);
+
+	for (unsigned long i = 0; i < num_chunks; ++i) {
+		size_t chunk_size = c.dest_preamble_size / num_chunks;
+		unsigned long shift = i * chunk_size;
+
+		if (!memcmp(dest_preamble_addr + shift, rand_addr + shift,
+			    chunk_size))
+			continue;
+
+		/* brute force iteration only over mismatched segment */
+		for (d = shift; d < shift + chunk_size; ++d) {
+			if (((char *) dest_preamble_addr)[d] != rand_addr[d]) {
+				ksft_print_msg("Preamble data after remap doesn't match at offset %llu\n",
+						d);
+				ksft_print_msg("Expected: %#x\t Got: %#x\n", rand_addr[d] & 0xff,
+						((char *) dest_preamble_addr)[d] & 0xff);
 				ret = -1;
 				goto clean_up_dest;
 			}
 		}
 	}
 
+	for (d = num_chunks * (c.dest_preamble_size / num_chunks); d < c.dest_preamble_size; ++d) {
+		if (((char *) dest_preamble_addr)[d] != rand_addr[d]) {
+			ksft_print_msg("Preamble data after remap doesn't match at offset %llu\n",
+					d);
+			ksft_print_msg("Expected: %#x\t Got: %#x\n", rand_addr[d] & 0xff,
+					((char *) dest_preamble_addr)[d] & 0xff);
+			ret = -1;
+			goto clean_up_dest;
+		}
+	}
+
+no_preamble:
 	start_ns = t_start.tv_sec * NS_PER_SEC + t_start.tv_nsec;
 	end_ns = t_end.tv_sec * NS_PER_SEC + t_end.tv_nsec;
 	ret = end_ns - start_ns;
@@ -563,7 +633,7 @@ static void run_mremap_test_case(struct test test_case, int *failures,
 				 unsigned int pattern_seed, char *rand_addr)
 {
 	long long remap_time = remap_region(test_case.config, threshold_mb,
-					    pattern_seed, rand_addr);
+					    rand_addr);
 
 	if (remap_time < 0) {
 		if (test_case.expect_failure)
