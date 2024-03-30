@@ -164,7 +164,6 @@ struct platform_driver mtk_disp_color_driver = {
 	.remove_new	= mtk_disp_color_remove,
 	.driver		= {
 		.name	= "mediatek-disp-color",
-		.owner	= THIS_MODULE,
 		.of_match_table = mtk_disp_color_driver_dt_match,
 	},
 };
