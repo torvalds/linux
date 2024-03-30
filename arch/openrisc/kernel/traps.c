@@ -182,6 +182,7 @@ asmlinkage void do_fpe_trap(struct pt_regs *regs, unsigned long address)
 {
 	if (user_mode(regs)) {
 		int code = FPE_FLTUNK;
+#ifdef CONFIG_FPU
 		unsigned long fpcsr = regs->fpcsr;
 
 		if (fpcsr & SPR_FPCSR_IVF)
@@ -197,7 +198,7 @@ asmlinkage void do_fpe_trap(struct pt_regs *regs, unsigned long address)
 
 		/* Clear all flags */
 		regs->fpcsr &= ~SPR_FPCSR_ALLF;
-
+#endif
 		force_sig_fault(SIGFPE, code, (void __user *)regs->pc);
 	} else {
 		pr_emerg("KERNEL: Illegal fpe exception 0x%.8lx\n", regs->pc);
