@@ -2126,7 +2126,6 @@ struct platform_driver hdmi_driver = {
 	.remove_new	= hdmi_remove,
 	.driver		= {
 		.name	= "exynos-hdmi",
-		.owner	= THIS_MODULE,
 		.pm	= &exynos_hdmi_pm_ops,
 		.of_match_table = hdmi_match_types,
 	},
