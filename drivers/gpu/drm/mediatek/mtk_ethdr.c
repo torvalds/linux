@@ -363,7 +363,6 @@ struct platform_driver mtk_ethdr_driver = {
 	.remove_new	= mtk_ethdr_remove,
 	.driver		= {
 		.name	= "mediatek-disp-ethdr",
-		.owner	= THIS_MODULE,
 		.of_match_table = mtk_ethdr_driver_dt_match,
 	},
 };
