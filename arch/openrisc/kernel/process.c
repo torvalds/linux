@@ -65,7 +65,7 @@ void machine_restart(char *cmd)
 }
 
 /*
- * This is used if pm_power_off has not been set by a power management
+ * This is used if a sys-off handler was not set by a power management
  * driver, in this case we can assume we are on a simulator.  On
  * OpenRISC simulators l.nop 1 will trigger the simulator exit.
  */
@@ -89,10 +89,8 @@ void machine_halt(void)
 void machine_power_off(void)
 {
 	printk(KERN_INFO "*** MACHINE POWER OFF ***\n");
-	if (pm_power_off != NULL)
-		pm_power_off();
-	else
-		default_power_off();
+	do_kernel_power_off();
+	default_power_off();
 }
 
 /*
