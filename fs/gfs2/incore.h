@@ -230,7 +230,6 @@ struct gfs2_glock_operations {
 	const unsigned long go_flags;
 #define GLOF_ASPACE 1 /* address space attached */
 #define GLOF_LVB    2 /* Lock Value Block attached */
-#define GLOF_LRU    4 /* LRU managed */
 #define GLOF_NONDISK   8 /* not I/O related */
 };
 
