@@ -910,7 +910,6 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 	struct device *dev = indio_dev->dev.parent;
 	struct iio_chan_spec *chan_arr, *chan;
 	unsigned int ain[2], chan_index = 0;
-	struct fwnode_handle *child;
 	int ref_sel, ret;
 
 	chan_arr = devm_kcalloc(dev, sizeof(*indio_dev->channels),
@@ -940,23 +939,19 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 		chan_index++;
 	}
 
-	device_for_each_child_node(dev, child) {
+	device_for_each_child_node_scoped(dev, child) {
 		chan = &chan_arr[chan_index];
 		chan_st_priv = &chans_st_arr[chan_index];
 		ret = fwnode_property_read_u32_array(child, "diff-channels",
 						     ain, ARRAY_SIZE(ain));
-		if (ret) {
-			fwnode_handle_put(child);
+		if (ret)
 			return ret;
-		}
 
 		if (ain[0] >= st->info->num_inputs ||
-		    ain[1] >= st->info->num_inputs) {
-			fwnode_handle_put(child);
+		    ain[1] >= st->info->num_inputs)
 			return dev_err_probe(dev, -EINVAL,
 				"Input pin number out of range for pair (%d %d).\n",
 				ain[0], ain[1]);
-		}
 
 		ret = fwnode_property_match_property_string(child,
 							    "adi,reference-select",
@@ -968,24 +963,19 @@ static int ad7173_fw_parse_channel_config(struct iio_dev *indio_dev)
 			ref_sel = ret;
 
 		if (ref_sel == AD7173_SETUP_REF_SEL_INT_REF &&
-		    !st->info->has_int_ref) {
-			fwnode_handle_put(child);
+		    !st->info->has_int_ref)
 			return dev_err_probe(dev, -EINVAL,
 				"Internal reference is not available on current model.\n");
-		}
 
-		if (ref_sel == AD7173_SETUP_REF_SEL_EXT_REF2 && !st->info->has_ref2) {
-			fwnode_handle_put(child);
+		if (ref_sel == AD7173_SETUP_REF_SEL_EXT_REF2 && !st->info->has_ref2)
 			return dev_err_probe(dev, -EINVAL,
 				"External reference 2 is not available on current model.\n");
-		}
 
 		ret = ad7173_get_ref_voltage_milli(st, ref_sel);
-		if (ret < 0) {
-			fwnode_handle_put(child);
+		if (ret < 0)
 			return dev_err_probe(dev, ret,
 					     "Cannot use reference %u\n", ref_sel);
-		}
+
 		if (ref_sel == AD7173_SETUP_REF_SEL_INT_REF)
 			st->adc_mode |= AD7173_ADC_MODE_REF_EN;
 		chan_st_priv->cfg.ref_sel = ref_sel;
