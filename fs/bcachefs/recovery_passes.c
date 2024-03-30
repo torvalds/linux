@@ -16,6 +16,7 @@
 #include "snapshot.h"
 #include "subvolume.h"
 #include "super.h"
+#include "super-io.h"
 
 const char * const bch2_recovery_passes[] = {
 #define x(_fn, ...)	#_fn,
@@ -110,6 +111,23 @@ int bch2_run_explicit_recovery_pass(struct bch_fs *c,
 	} else {
 		return 0;
 	}
+}
+
+int bch2_run_explicit_recovery_pass_persistent(struct bch_fs *c,
+					       enum bch_recovery_pass pass)
+{
+	__le64 s = cpu_to_le64(bch2_recovery_passes_to_stable(BIT_ULL(pass)));
+
+	mutex_lock(&c->sb_lock);
+	struct bch_sb_field_ext *ext = bch2_sb_field_get(c->disk_sb.sb, ext);
+
+	if (!(ext->recovery_passes_required[0] & s)) {
+		ext->recovery_passes_required[0] |= s;
+		bch2_write_super(c);
+	}
+	mutex_unlock(&c->sb_lock);
+
+	return bch2_run_explicit_recovery_pass(c, pass);
 }
 
 u64 bch2_fsck_recovery_passes(void)
