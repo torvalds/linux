@@ -599,7 +599,7 @@ static void __init init_sparc64_elf_hwcap(void)
 		pause_patch();
 }
 
-void __init alloc_irqstack_bootmem(void)
+static void __init alloc_irqstack_bootmem(void)
 {
 	unsigned int i, node;
 
