@@ -1137,11 +1137,7 @@ static void glock_work_func(struct work_struct *work)
 		gfs2_glock_queue_work(gl, delay);
 	}
 
-	/*
-	 * Drop the remaining glock references manually here. (Mind that
-	 * gfs2_glock_queue_work depends on the lockref spinlock begin held
-	 * here as well.)
-	 */
+	/* Drop the remaining glock references manually. */
 	gl->gl_lockref.count -= drop_refs;
 	if (!gl->gl_lockref.count) {
 		__gfs2_glock_put(gl);
