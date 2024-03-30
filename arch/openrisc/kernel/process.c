@@ -36,6 +36,7 @@
 #include <linux/reboot.h>
 
 #include <linux/uaccess.h>
+#include <asm/fpu.h>
 #include <asm/io.h>
 #include <asm/processor.h>
 #include <asm/spr_defs.h>
@@ -244,6 +245,8 @@ struct task_struct *__switch_to(struct task_struct *old,
 
 	local_irq_save(flags);
 
+	save_fpu(current);
+
 	/* current_set is an array of saved current pointers
 	 * (one for each cpu). we need them at user->kernel transition,
 	 * while we save them at kernel->user transition
@@ -255,6 +258,8 @@ struct task_struct *__switch_to(struct task_struct *old,
 
 	current_thread_info_set[smp_processor_id()] = new_ti;
 	last = (_switch(old_ti, new_ti))->task;
+
+	restore_fpu(current);
 
 	local_irq_restore(flags);
 

@@ -98,9 +98,7 @@ static int fpregs_get(struct task_struct *target,
 		       const struct user_regset *regset,
 		       struct membuf to)
 {
-	const struct pt_regs *regs = task_pt_regs(target);
-
-	return membuf_store(&to, regs->fpcsr);
+	return membuf_store(&to, target->thread.fpcsr);
 }
 
 static int fpregs_set(struct task_struct *target,
@@ -108,13 +106,9 @@ static int fpregs_set(struct task_struct *target,
 		       unsigned int pos, unsigned int count,
 		       const void *kbuf, const void __user *ubuf)
 {
-	struct pt_regs *regs = task_pt_regs(target);
-	int ret;
-
 	/* FPCSR */
-	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
-				 &regs->fpcsr, 0, 4);
-	return ret;
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.fpcsr, 0, 4);
 }
 #endif
 
