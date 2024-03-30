@@ -1259,7 +1259,6 @@ struct platform_driver cdn_dp_driver = {
 	.shutdown = cdn_dp_shutdown,
 	.driver = {
 		   .name = "cdn-dp",
-		   .owner = THIS_MODULE,
 		   .of_match_table = cdn_dp_dt_ids,
 		   .pm = &cdn_dp_pm_ops,
 	},
