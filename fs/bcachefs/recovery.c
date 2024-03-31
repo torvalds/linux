@@ -658,7 +658,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
-	if (!c->sb.clean || c->opts.fsck || c->opts.retain_recovery_info) {
+	if (!c->sb.clean || c->opts.retain_recovery_info) {
 		struct genradix_iter iter;
 		struct journal_replay **i;
 
