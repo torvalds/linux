@@ -63,9 +63,7 @@ static int subvol_lookup(struct btree_trans *trans, u32 subvol,
 			 u32 *snapshot, u64 *inum)
 {
 	struct bch_subvolume s;
-	int ret;
-
-	ret = bch2_subvolume_get(trans, subvol, false, 0, &s);
+	int ret = bch2_subvolume_get(trans, subvol, false, 0, &s);
 
 	*snapshot = le32_to_cpu(s.snapshot);
 	*inum = le64_to_cpu(s.inode);
@@ -170,7 +168,8 @@ err:
 
 /* Get lost+found, create if it doesn't exist: */
 static int lookup_lostfound(struct btree_trans *trans, u32 snapshot,
-			    struct bch_inode_unpacked *lostfound)
+			    struct bch_inode_unpacked *lostfound,
+			    u64 reattaching_inum)
 {
 	struct bch_fs *c = trans->c;
 	struct qstr lostfound_str = QSTR("lost+found");
@@ -185,19 +184,36 @@ static int lookup_lostfound(struct btree_trans *trans, u32 snapshot,
 		return ret;
 
 	subvol_inum root_inum = { .subvol = le32_to_cpu(st.master_subvol) };
-	u32 subvol_snapshot;
 
-	ret = subvol_lookup(trans, le32_to_cpu(st.master_subvol),
-			    &subvol_snapshot, &root_inum.inum);
-	bch_err_msg(c, ret, "looking up root subvol");
+	struct bch_subvolume subvol;
+	ret = bch2_subvolume_get(trans, le32_to_cpu(st.master_subvol),
+				 false, 0, &subvol);
+	bch_err_msg(c, ret, "looking up root subvol %u for snapshot %u",
+		    le32_to_cpu(st.master_subvol), snapshot);
 	if (ret)
 		return ret;
+
+	if (!subvol.inode) {
+		struct btree_iter iter;
+		struct bkey_i_subvolume *subvol = bch2_bkey_get_mut_typed(trans, &iter,
+				BTREE_ID_subvolumes, POS(0, le32_to_cpu(st.master_subvol)),
+				0, subvolume);
+		ret = PTR_ERR_OR_ZERO(subvol);
+		if (ret)
+			return ret;
+
+		subvol->v.inode = cpu_to_le64(reattaching_inum);
+		bch2_trans_iter_exit(trans, &iter);
+	}
+
+	root_inum.inum = le64_to_cpu(subvol.inode);
 
 	struct bch_inode_unpacked root_inode;
 	struct bch_hash_info root_hash_info;
 	u32 root_inode_snapshot = snapshot;
 	ret = lookup_inode(trans, root_inum.inum, &root_inode, &root_inode_snapshot);
-	bch_err_msg(c, ret, "looking up root inode");
+	bch_err_msg(c, ret, "looking up root inode %llu for subvol %u",
+		    root_inum.inum, le32_to_cpu(st.master_subvol));
 	if (ret)
 		return ret;
 
@@ -293,7 +309,7 @@ static int reattach_inode(struct btree_trans *trans,
 		snprintf(name_buf, sizeof(name_buf), "%llu", inode->bi_inum);
 	}
 
-	ret = lookup_lostfound(trans, dirent_snapshot, &lostfound);
+	ret = lookup_lostfound(trans, dirent_snapshot, &lostfound, inode->bi_inum);
 	if (ret)
 		return ret;
 
@@ -362,6 +378,85 @@ static int reattach_subvol(struct btree_trans *trans, struct bkey_s_c_subvolume 
 	ret = reattach_inode(trans, &inode, le32_to_cpu(s.v->snapshot));
 	bch_err_msg(c, ret, "reattaching inode %llu", inode.bi_inum);
 	return ret;
+}
+
+static int reconstruct_subvol(struct btree_trans *trans, u32 snapshotid, u32 subvolid, u64 inum)
+{
+	struct bch_fs *c = trans->c;
+
+	if (!bch2_snapshot_is_leaf(c, snapshotid)) {
+		bch_err(c, "need to reconstruct subvol, but have interior node snapshot");
+		return -BCH_ERR_fsck_repair_unimplemented;
+	}
+
+	/*
+	 * If inum isn't set, that means we're being called from check_dirents,
+	 * not check_inodes - the root of this subvolume doesn't exist or we
+	 * would have found it there:
+	 */
+	if (!inum) {
+		struct btree_iter inode_iter = {};
+		struct bch_inode_unpacked new_inode;
+		u64 cpu = raw_smp_processor_id();
+
+		bch2_inode_init_early(c, &new_inode);
+		bch2_inode_init_late(&new_inode, bch2_current_time(c), 0, 0, S_IFDIR|0755, 0, NULL);
+
+		new_inode.bi_subvol = subvolid;
+
+		int ret = bch2_inode_create(trans, &inode_iter, &new_inode, snapshotid, cpu) ?:
+			  bch2_btree_iter_traverse(&inode_iter) ?:
+			  bch2_inode_write(trans, &inode_iter, &new_inode);
+		bch2_trans_iter_exit(trans, &inode_iter);
+		if (ret)
+			return ret;
+
+		inum = new_inode.bi_inum;
+	}
+
+	bch_info(c, "reconstructing subvol %u with root inode %llu", subvolid, inum);
+
+	struct bkey_i_subvolume *new_subvol = bch2_trans_kmalloc(trans, sizeof(*new_subvol));
+	int ret = PTR_ERR_OR_ZERO(new_subvol);
+	if (ret)
+		return ret;
+
+	bkey_subvolume_init(&new_subvol->k_i);
+	new_subvol->k.p.offset	= subvolid;
+	new_subvol->v.snapshot	= cpu_to_le32(snapshotid);
+	new_subvol->v.inode	= cpu_to_le64(inum);
+	ret = bch2_btree_insert_trans(trans, BTREE_ID_subvolumes, &new_subvol->k_i, 0);
+	if (ret)
+		return ret;
+
+	struct btree_iter iter;
+	struct bkey_i_snapshot *s = bch2_bkey_get_mut_typed(trans, &iter,
+			BTREE_ID_snapshots, POS(0, snapshotid),
+			0, snapshot);
+	ret = PTR_ERR_OR_ZERO(s);
+	bch_err_msg(c, ret, "getting snapshot %u", snapshotid);
+	if (ret)
+		return ret;
+
+	u32 snapshot_tree = le32_to_cpu(s->v.tree);
+
+	s->v.subvol = cpu_to_le32(subvolid);
+	SET_BCH_SNAPSHOT_SUBVOL(&s->v, true);
+	bch2_trans_iter_exit(trans, &iter);
+
+	struct bkey_i_snapshot_tree *st = bch2_bkey_get_mut_typed(trans, &iter,
+			BTREE_ID_snapshot_trees, POS(0, snapshot_tree),
+			0, snapshot_tree);
+	ret = PTR_ERR_OR_ZERO(st);
+	bch_err_msg(c, ret, "getting snapshot tree %u", snapshot_tree);
+	if (ret)
+		return ret;
+
+	if (!st->v.master_subvol)
+		st->v.master_subvol = cpu_to_le32(subvolid);
+
+	bch2_trans_iter_exit(trans, &iter);
+	return 0;
 }
 
 struct snapshots_seen_entry {
@@ -1065,6 +1160,11 @@ static int check_inode(struct btree_trans *trans,
 		if (ret && !bch2_err_matches(ret, ENOENT))
 			goto err;
 
+		if (ret && (c->sb.btrees_lost_data & BIT_ULL(BTREE_ID_subvolumes))) {
+			ret = reconstruct_subvol(trans, k.k->p.snapshot, u.bi_subvol, u.bi_inum);
+			goto do_update;
+		}
+
 		if (fsck_err_on(ret,
 				c, inode_bi_subvol_missing,
 				"inode %llu:%u bi_subvol points to missing subvolume %u",
@@ -1082,7 +1182,7 @@ static int check_inode(struct btree_trans *trans,
 			do_update = true;
 		}
 	}
-
+do_update:
 	if (do_update) {
 		ret = __bch2_fsck_write_inode(trans, &u, iter->pos.snapshot);
 		bch_err_msg(c, ret, "in fsck updating inode");
@@ -1785,6 +1885,7 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 	u32 parent_subvol = le32_to_cpu(d.v->d_parent_subvol);
 	u32 target_subvol = le32_to_cpu(d.v->d_child_subvol);
 	u32 parent_snapshot;
+	u32 new_parent_subvol = 0;
 	u64 parent_inum;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
@@ -1792,6 +1893,27 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 	ret = subvol_lookup(trans, parent_subvol, &parent_snapshot, &parent_inum);
 	if (ret && !bch2_err_matches(ret, ENOENT))
 		return ret;
+
+	if (ret ||
+	    (!ret && !bch2_snapshot_is_ancestor(c, parent_snapshot, d.k->p.snapshot))) {
+		int ret2 = find_snapshot_subvol(trans, d.k->p.snapshot, &new_parent_subvol);
+		if (ret2 && !bch2_err_matches(ret, ENOENT))
+			return ret2;
+	}
+
+	if (ret &&
+	    !new_parent_subvol &&
+	    (c->sb.btrees_lost_data & BIT_ULL(BTREE_ID_subvolumes))) {
+		/*
+		 * Couldn't find a subvol for dirent's snapshot - but we lost
+		 * subvols, so we need to reconstruct:
+		 */
+		ret = reconstruct_subvol(trans, d.k->p.snapshot, parent_subvol, 0);
+		if (ret)
+			return ret;
+
+		parent_snapshot = d.k->p.snapshot;
+	}
 
 	if (fsck_err_on(ret, c, dirent_to_missing_parent_subvol,
 			"dirent parent_subvol points to missing subvolume\n%s",
@@ -1801,10 +1923,10 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 			"dirent not visible in parent_subvol (not an ancestor of subvol snap %u)\n%s",
 			parent_snapshot,
 			(bch2_bkey_val_to_text(&buf, c, d.s_c), buf.buf))) {
-		u32 new_parent_subvol;
-		ret = find_snapshot_subvol(trans, d.k->p.snapshot, &new_parent_subvol);
-		if (ret)
-			goto err;
+		if (!new_parent_subvol) {
+			bch_err(c, "could not find a subvol for snapshot %u", d.k->p.snapshot);
+			return -BCH_ERR_fsck_repair_unimplemented;
+		}
 
 		struct bkey_i_dirent *new_dirent = bch2_bkey_make_mut_typed(trans, iter, &d.s_c, 0, dirent);
 		ret = PTR_ERR_OR_ZERO(new_dirent);
@@ -1850,9 +1972,16 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 
 	ret = lookup_inode(trans, target_inum, &subvol_root, &target_snapshot);
 	if (ret && !bch2_err_matches(ret, ENOENT))
-		return ret;
+		goto err;
 
-	if (fsck_err_on(parent_subvol != subvol_root.bi_parent_subvol,
+	if (ret) {
+		bch_err(c, "subvol %u points to missing inode root %llu", target_subvol, target_inum);
+		ret = -BCH_ERR_fsck_repair_unimplemented;
+		ret = 0;
+		goto err;
+	}
+
+	if (fsck_err_on(!ret && parent_subvol != subvol_root.bi_parent_subvol,
 			c, inode_bi_parent_wrong,
 			"subvol root %llu has wrong bi_parent_subvol: got %u, should be %u",
 			target_inum,
@@ -1860,13 +1989,13 @@ static int check_dirent_to_subvol(struct btree_trans *trans, struct btree_iter *
 		subvol_root.bi_parent_subvol = parent_subvol;
 		ret = __bch2_fsck_write_inode(trans, &subvol_root, target_snapshot);
 		if (ret)
-			return ret;
+			goto err;
 	}
 
 	ret = check_dirent_target(trans, iter, d, &subvol_root,
 				  target_snapshot);
 	if (ret)
-		return ret;
+		goto err;
 out:
 err:
 fsck_err:
