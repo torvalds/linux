@@ -9651,7 +9651,9 @@ L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/hid/hid-logitech-hidpp.c
 
-HIGH-RESOLUTION TIMERS, CLOCKEVENTS
+HIGH-RESOLUTION TIMERS, TIMER WHEEL, CLOCKEVENTS
+M:	Anna-Maria Behnsen <anna-maria@linutronix.de>
+M:	Frederic Weisbecker <frederic@kernel.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
@@ -9659,9 +9661,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
 F:	Documentation/timers/
 F:	include/linux/clockchips.h
 F:	include/linux/hrtimer.h
+F:	include/linux/timer.h
 F:	kernel/time/clockevents.c
 F:	kernel/time/hrtimer.c
-F:	kernel/time/timer_*.c
+F:	kernel/time/timer.c
+F:	kernel/time/timer_list.c
+F:	kernel/time/timer_migration.*
+F:	tools/testing/selftests/timers/
 
 HIGH-SPEED SCC DRIVER FOR AX.25
 L:	linux-hams@vger.kernel.org
@@ -15626,9 +15632,10 @@ F:	drivers/misc/nsm.c
 F:	include/uapi/linux/nsm.h
 
 NOHZ, DYNTICKS SUPPORT
+M:	Anna-Maria Behnsen <anna-maria@linutronix.de>
 M:	Frederic Weisbecker <frederic@kernel.org>
-M:	Thomas Gleixner <tglx@linutronix.de>
 M:	Ingo Molnar <mingo@kernel.org>
+M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/nohz
@@ -17589,15 +17596,20 @@ F:	drivers/pnp/
 F:	include/linux/pnp.h
 
 POSIX CLOCKS and TIMERS
+M:	Anna-Maria Behnsen <anna-maria@linutronix.de>
+M:	Frederic Weisbecker <frederic@kernel.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
 F:	fs/timerfd.c
 F:	include/linux/time_namespace.h
-F:	include/linux/timer*
+F:	include/linux/timerfd.h
+F:	include/uapi/linux/time.h
+F:	include/uapi/linux/timerfd.h
 F:	include/trace/events/timer*
-F:	kernel/time/*timer*
+F:	kernel/time/itimer.c
+F:	kernel/time/posix-*
 F:	kernel/time/namespace.c
 
 POWER MANAGEMENT CORE
@@ -22279,13 +22291,20 @@ S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
 F:	include/linux/clocksource.h
 F:	include/linux/time.h
+F:	include/linux/timekeeper_internal.h
+F:	include/linux/timekeeping.h
 F:	include/linux/timex.h
 F:	include/uapi/linux/time.h
 F:	include/uapi/linux/timex.h
 F:	kernel/time/alarmtimer.c
-F:	kernel/time/clocksource.c
-F:	kernel/time/ntp.c
-F:	kernel/time/time*.c
+F:	kernel/time/clocksource*
+F:	kernel/time/ntp*
+F:	kernel/time/time.c
+F:	kernel/time/timeconst.bc
+F:	kernel/time/timeconv.c
+F:	kernel/time/timecounter.c
+F:	kernel/time/timekeeping*
+F:	kernel/time/time_test.c
 F:	tools/testing/selftests/timers/
 
 TIPC NETWORK LAYER
