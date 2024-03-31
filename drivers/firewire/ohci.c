@@ -3631,7 +3631,7 @@ static int pci_probe(struct pci_dev *dev,
 	struct fw_ohci *ohci;
 	u32 bus_options, max_receive, link_speed, version;
 	u64 guid;
-	int i, err;
+	int i, flags, err;
 	size_t size;
 
 	if (dev->vendor == PCI_VENDOR_ID_PINNACLE_SYSTEMS) {
@@ -3756,8 +3756,13 @@ static int pci_probe(struct pci_dev *dev,
 	guid = ((u64) reg_read(ohci, OHCI1394_GUIDHi) << 32) |
 		reg_read(ohci, OHCI1394_GUIDLo);
 
+	flags = PCI_IRQ_INTX;
 	if (!(ohci->quirks & QUIRK_NO_MSI))
-		pci_enable_msi(dev);
+		flags |= PCI_IRQ_MSI;
+	err = pci_alloc_irq_vectors(dev, 1, 1, flags);
+	if (err < 0)
+		return err;
+
 	err = request_threaded_irq(dev->irq, irq_handler, NULL,
 				   pci_dev_msi_enabled(dev) ? 0 : IRQF_SHARED, ohci_driver_name,
 				   ohci);
@@ -3784,7 +3789,7 @@ static int pci_probe(struct pci_dev *dev,
  fail_irq:
 	free_irq(dev->irq, ohci);
  fail_msi:
-	pci_disable_msi(dev);
+	pci_free_irq_vectors(dev);
 
 	return err;
 }
@@ -3812,7 +3817,7 @@ static void pci_remove(struct pci_dev *dev)
 	software_reset(ohci);
 
 	free_irq(dev->irq, ohci);
-	pci_disable_msi(dev);
+	pci_free_irq_vectors(dev);
 
 	dev_notice(&dev->dev, "removing fw-ohci device\n");
 }
