@@ -21,7 +21,7 @@ SYNOPSIS
 *COMMANDS* := { **pin** | **help** }
 
 ITER COMMANDS
-===================
+=============
 
 | **bpftool** **iter pin** *OBJ* *PATH* [**map** *MAP*]
 | **bpftool** **iter help**

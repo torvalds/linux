@@ -110,7 +110,7 @@ bpftool gen skeleton *FILE*
     - **example__open_and_load** combines **example__open** and
       **example__load** invocations in one commonly used operation.
 
-    - **example__attach** and **example__detach**
+    - **example__attach** and **example__detach**.
       This pair of functions allow to attach and detach, correspondingly,
       already loaded BPF object. Only BPF programs of types supported by libbpf
       for auto-attachment will be auto-attached and their corresponding BPF
@@ -119,7 +119,7 @@ bpftool gen skeleton *FILE*
       **example__detach** will detach both links created automatically, as well
       as those populated by user manually.
 
-    - **example__destroy**
+    - **example__destroy**.
       Detach and unload BPF programs, free up all the resources used by
       skeleton and BPF object.
 
@@ -146,11 +146,11 @@ bpftool gen subskeleton *FILE*
 
     Consequently, there are only two functions defined for subskeletons:
 
-    - **example__open(bpf_object\*)**
+    - **example__open(bpf_object\*)**.
       Instantiates a subskeleton from an already opened (but not necessarily
       loaded) **bpf_object**.
 
-    - **example__destroy()**
+    - **example__destroy()**.
       Frees the storage for the subskeleton but *does not* unload any BPF
       programs or maps.
 

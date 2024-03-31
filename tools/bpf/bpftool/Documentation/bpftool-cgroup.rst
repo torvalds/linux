@@ -90,41 +90,36 @@ bpftool cgroup attach *CGROUP* *ATTACH_TYPE* *PROG* [*ATTACH_FLAGS*]
 
     Non-default *ATTACH_FLAGS* are supported by kernel version 4.14 and later.
 
-    *ATTACH_TYPE* can be on of:
-    **ingress** ingress path of the inet socket (since 4.10);
-    **egress** egress path of the inet socket (since 4.10);
-    **sock_create** opening of an inet socket (since 4.10);
-    **sock_ops** various socket operations (since 4.12);
-    **device** device access (since 4.15);
-    **bind4** call to bind(2) for an inet4 socket (since 4.17);
-    **bind6** call to bind(2) for an inet6 socket (since 4.17);
-    **post_bind4** return from bind(2) for an inet4 socket (since 4.17);
-    **post_bind6** return from bind(2) for an inet6 socket (since 4.17);
-    **connect4** call to connect(2) for an inet4 socket (since 4.17);
-    **connect6** call to connect(2) for an inet6 socket (since 4.17);
-    **connect_unix** call to connect(2) for a unix socket (since 6.7);
-    **sendmsg4** call to sendto(2), sendmsg(2), sendmmsg(2) for an unconnected
-    udp4 socket (since 4.18);
-    **sendmsg6** call to sendto(2), sendmsg(2), sendmmsg(2) for an unconnected
-    udp6 socket (since 4.18);
-    **sendmsg_unix** call to sendto(2), sendmsg(2), sendmmsg(2) for an
-    unconnected unix socket (since 6.7);
-    **recvmsg4** call to recvfrom(2), recvmsg(2), recvmmsg(2) for an
-    unconnected udp4 socket (since 5.2);
-    **recvmsg6** call to recvfrom(2), recvmsg(2), recvmmsg(2) for an
-    unconnected udp6 socket (since 5.2);
-    **recvmsg_unix** call to recvfrom(2), recvmsg(2), recvmmsg(2) for an
-    unconnected unix socket (since 6.7);
-    **sysctl** sysctl access (since 5.2);
-    **getsockopt** call to getsockopt (since 5.3);
-    **setsockopt** call to setsockopt (since 5.3);
-    **getpeername4** call to getpeername(2) for an inet4 socket (since 5.8);
-    **getpeername6** call to getpeername(2) for an inet6 socket (since 5.8);
-    **getpeername_unix** call to getpeername(2) for a unix socket (since 6.7);
-    **getsockname4** call to getsockname(2) for an inet4 socket (since 5.8);
-    **getsockname6** call to getsockname(2) for an inet6 socket (since 5.8).
-    **getsockname_unix** call to getsockname(2) for a unix socket (since 6.7);
-    **sock_release** closing an userspace inet socket (since 5.9).
+    *ATTACH_TYPE* can be one of:
+
+    - **ingress** ingress path of the inet socket (since 4.10)
+    - **egress** egress path of the inet socket (since 4.10)
+    - **sock_create** opening of an inet socket (since 4.10)
+    - **sock_ops** various socket operations (since 4.12)
+    - **device** device access (since 4.15)
+    - **bind4** call to bind(2) for an inet4 socket (since 4.17)
+    - **bind6** call to bind(2) for an inet6 socket (since 4.17)
+    - **post_bind4** return from bind(2) for an inet4 socket (since 4.17)
+    - **post_bind6** return from bind(2) for an inet6 socket (since 4.17)
+    - **connect4** call to connect(2) for an inet4 socket (since 4.17)
+    - **connect6** call to connect(2) for an inet6 socket (since 4.17)
+    - **connect_unix** call to connect(2) for a unix socket (since 6.7)
+    - **sendmsg4** call to sendto(2), sendmsg(2), sendmmsg(2) for an unconnected udp4 socket (since 4.18)
+    - **sendmsg6** call to sendto(2), sendmsg(2), sendmmsg(2) for an unconnected udp6 socket (since 4.18)
+    - **sendmsg_unix** call to sendto(2), sendmsg(2), sendmmsg(2) for an unconnected unix socket (since 6.7)
+    - **recvmsg4** call to recvfrom(2), recvmsg(2), recvmmsg(2) for an unconnected udp4 socket (since 5.2)
+    - **recvmsg6** call to recvfrom(2), recvmsg(2), recvmmsg(2) for an unconnected udp6 socket (since 5.2)
+    - **recvmsg_unix** call to recvfrom(2), recvmsg(2), recvmmsg(2) for an unconnected unix socket (since 6.7)
+    - **sysctl** sysctl access (since 5.2)
+    - **getsockopt** call to getsockopt (since 5.3)
+    - **setsockopt** call to setsockopt (since 5.3)
+    - **getpeername4** call to getpeername(2) for an inet4 socket (since 5.8)
+    - **getpeername6** call to getpeername(2) for an inet6 socket (since 5.8)
+    - **getpeername_unix** call to getpeername(2) for a unix socket (since 6.7)
+    - **getsockname4** call to getsockname(2) for an inet4 socket (since 5.8)
+    - **getsockname6** call to getsockname(2) for an inet6 socket (since 5.8)
+    - **getsockname_unix** call to getsockname(2) for a unix socket (since 6.7)
+    - **sock_release** closing a userspace inet socket (since 5.9)
 
 bpftool cgroup detach *CGROUP* *ATTACH_TYPE* *PROG*
     Detach *PROG* from the cgroup *CGROUP* and attach type *ATTACH_TYPE*.
