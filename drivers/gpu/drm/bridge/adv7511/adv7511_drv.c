@@ -17,6 +17,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_edid.h>
+#include <drm/drm_of.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -951,6 +952,12 @@ static int adv7511_bridge_attach(struct drm_bridge *bridge,
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
 	int ret = 0;
 
+	if (adv->next_bridge) {
+		ret = drm_bridge_attach(bridge->encoder, adv->next_bridge, bridge, flags);
+		if (ret)
+			return ret;
+	}
+
 	if (!(flags & DRM_BRIDGE_ATTACH_NO_CONNECTOR)) {
 		ret = adv7511_connector_init(adv);
 		if (ret < 0)
@@ -1220,6 +1227,11 @@ static int adv7511_probe(struct i2c_client *i2c)
 	adv7511->info = i2c_get_match_data(i2c);
 
 	memset(&link_config, 0, sizeof(link_config));
+
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1, NULL,
+					  &adv7511->next_bridge);
+	if (ret && ret != -ENODEV)
+		return ret;
 
 	if (adv7511->info->link_config)
 		ret = adv7511_parse_dt(dev->of_node, &link_config);
