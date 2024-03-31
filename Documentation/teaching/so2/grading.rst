@@ -22,7 +22,7 @@ You can solve exercises at home, but you will have to start from scratch in the 
 
 2. Final deadline for submitting assignments
 --------------------------------------------
-The final deadline for submitting SO2 assignments is TODO.
+The final deadline for submitting SO2 assignments is **Wednesday, May 29, 2024, 23:59.**.
 Beyond this date, assignments cannot be submitted anymore.
 Please ensure timely submission of assignments with complete information to be graded.
 We will not accept assignments submitted after this date or assignments not submitted on vmchecker-next.
@@ -71,13 +71,13 @@ Avoid testing an assignment on a colleague's system.
 There may be exceptions; you can help someone troubleshoot, but please ensure that it does not transition from "let's solve this problem together" to "let me solve your assignment for you".
 However, we recommend using the discussion list or the SO2 team to ask questions.
 
-5. Penalties for Copied Assignments
+5. Penalties for Plagiarized Assignments
 -----------------------------------
 
 In general, we consider punitive measures as a last resort.
-As long as the assignment is completed individually, without problematic source code contribution from external sources, then it is not a copied assignment.
+As long as the assignment is completed individually, without problematic source code contribution from external sources, then it is not a plagiarized assignment.
 
-The notion of a copied assignment refers to, without limitation, situations such as:
+The notion of a plagiarized assignment refers to, without limitation, situations such as:
 
     * Two assignments that are similar enough to draw this conclusion;
     * Using source code from the internet that is an obvious solution to the assignment;
@@ -87,16 +87,16 @@ The notion of a copied assignment refers to, without limitation, situations such
     * Following another colleague's code;
     * Direct assistance in completing the assignment (someone else wrote or dictated the code);
     * Someone else wrote the assignment (voluntarily, for payment, or other benefits).
-    * If two assignments are considered copied, both the source and destination will be penalized equally, without discussions about who copied from whom and whose fault it is.
+    * If two assignments are considered plagiarized, both the source and destination will be penalized equally, without discussions about who plagiarized from whom and whose fault it is.
 
 .. warning::
 
-    Copying an assignment results in the elimination of points for the assignments completed up to that session.
+    Plagiarizing an assignment results in the elimination of points for the assignments completed up to that session.
     Any assignment submitted until that session receives a score of 0 and cannot be resubmitted during the current academic year.
-    If there were instances of copied assignments during the semester, it will be possible to obtain points in the summer, for the September session, from assignments **not yet** submitted.
-    We reiterate that our goal is not and will not be penalization for copying.
-    We consider copying to be dishonest behavior that will be punished if it occurs.
-    However, our goal is to prevent copying; for this purpose, we offer support and resources from the team in all its forms (discussion list, face-to-face discussions with the SO2 team).
+    If there were instances of plagiarized assignments during the semester, it will be possible to obtain points in the summer, for the September session, from assignments **not yet** submitted.
+    We reiterate that our goal is not and will not be penalization for plagiarism.
+    We consider cheating to be dishonest behavior that will be punished if it occurs.
+    However, our goal is to prevent cheating; for this purpose, we offer support and resources from the team in all its forms (discussion list, face-to-face discussions with the SO2 team).
     Please use them with confidence; we believe that an honest approach to completing assignments will also result in a gain of knowledge and skills for you.
 
 6. Retake/Grade Increase
@@ -105,8 +105,8 @@ The notion of a copied assignment refers to, without limitation, situations such
 In the retake/grade increase session in September, only assignments can be submitted, only the final exam can be retaken, or both.
 You can continue to submit assignments with the deadlines from the semester, meaning you can achieve a maximum grade of 7 for each assignment.
 Assignments are submitted using the vmchecker-next interface.
-If you did not have copied assignments during the semester, you can (re)submit any assignments.
-If there were instances of copied assignments during the semester, you can submit only assignments not yet submitted during the semester.
+If you did not have plagiarized assignments during the semester, you can (re)submit any assignments.
+If there were instances of plagiarized assignments during the semester, you can submit only assignments not yet submitted during the semester.
 The submission deadline is TODO
 
 If you do not wish to retake the final exam, you can choose not to participate in the exam.
@@ -120,7 +120,7 @@ In the case of retaking the final exam, the higher grade will be retained (betwe
 
 You can participate in only one exam during a session.
 
-7. Discipline Redo
+7. Class Redo
 -------------------
 
 If you prefer, you can keep the score from the previous academic year for the entire semester's activity (labs, assignments, course work), and only retake the final exam.
@@ -137,10 +137,10 @@ Grading
 
 You must achieve at least 4.5 points out of 10 to pass.
 
-1. Course (3 points)
+1. Lectures (3 points)
 ----------------------
 * Completion of the course is conditioned by obtaining 30% (3 out of 10) of the course score.
-* The course score will be obtained from 11 course assignments to be completed before each class (one assignment is a bonus).
+* The lecture score will be obtained from 11 lecture quizzes to be completed before each class (one quiz is a bonus).
 * Each course assignment contains a set of 4 questions from the material covered in the previous class (one question is a bonus).
     * There will be no final exam.
     * Each question is scored with 0 or 1.
@@ -186,7 +186,7 @@ You must achieve at least 4.5 points out of 10 to pass.
     else
         assignment_grade = 5 + (S - 5) * course_grade / 3; // 0 <= course_grade <=3
 
-* The verification, correction, and scoring of assignments:
+* The verification and scoring of assignments:
     * Assignments are tested against plagiarism.
     * Assignments will be automatically verified using the `vmchecker-next <https://github.com/systems-cs-pub-ro/vmchecker-next/wiki/Student-Handbook>`__ infrastructure integrated with moodle.
     * The verification tests are public.
@@ -203,6 +203,5 @@ You must achieve at least 4.5 points out of 10 to pass.
     * The deduction is from the grade (maximum 10), not from the score. An assignment incurs deductions of 0.25 points per day from the maximum grade (10), regardless of its score.
     * For example, if for assignment 3 (scored with 1.5 points) the delay is 4 days, you will receive a deduction of 4 * 0.25 = 1 point from the grade, resulting in a maximum grade of 9, equivalent to a maximum score of 1.35 points.
     * After 12 days, no further deductions will be made; a maximum grade of 7 can be obtained for an assignment submitted 13 days after the deadline expiration, or 50 days, or more, including during the retake session.
-
 
 
