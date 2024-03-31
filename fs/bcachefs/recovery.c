@@ -838,9 +838,7 @@ use_clean:
 	}
 
 	if (!test_bit(BCH_FS_error, &c->flags) &&
-	    (!bch2_is_zero(ext->recovery_passes_required, sizeof(ext->recovery_passes_required)) ||
-	     !bch2_is_zero(ext->errors_silent, sizeof(ext->errors_silent)))) {
-		memset(ext->recovery_passes_required, 0, sizeof(ext->recovery_passes_required));
+	    !bch2_is_zero(ext->errors_silent, sizeof(ext->errors_silent))) {
 		memset(ext->errors_silent, 0, sizeof(ext->errors_silent));
 		write_sb = true;
 	}
