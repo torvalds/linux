@@ -22,14 +22,14 @@ extern int do_sys_settimeofday64(const struct timespec64 *tv,
 				 const struct timezone *tz);
 
 /*
- * ktime_get() family: read the current time in a multitude of ways,
+ * ktime_get() family - read the current time in a multitude of ways.
  *
  * The default time reference is CLOCK_MONOTONIC, starting at
  * boot time but not counting the time spent in suspend.
  * For other references, use the functions with "real", "clocktai",
  * "boottime" and "raw" suffixes.
  *
- * To get the time in a different format, use the ones wit
+ * To get the time in a different format, use the ones with
  * "ns", "ts64" and "seconds" suffix.
  *
  * See Documentation/core-api/timekeeping.rst for more details.
@@ -74,6 +74,8 @@ extern u32 ktime_get_resolution_ns(void);
 
 /**
  * ktime_get_real - get the real (wall-) time in ktime_t format
+ *
+ * Returns: real (wall) time in ktime_t format
  */
 static inline ktime_t ktime_get_real(void)
 {
@@ -86,10 +88,12 @@ static inline ktime_t ktime_get_coarse_real(void)
 }
 
 /**
- * ktime_get_boottime - Returns monotonic time since boot in ktime_t format
+ * ktime_get_boottime - Get monotonic time since boot in ktime_t format
  *
  * This is similar to CLOCK_MONTONIC/ktime_get, but also includes the
  * time spent in suspend.
+ *
+ * Returns: monotonic time since boot in ktime_t format
  */
 static inline ktime_t ktime_get_boottime(void)
 {
@@ -102,7 +106,9 @@ static inline ktime_t ktime_get_coarse_boottime(void)
 }
 
 /**
- * ktime_get_clocktai - Returns the TAI time of day in ktime_t format
+ * ktime_get_clocktai - Get the TAI time of day in ktime_t format
+ *
+ * Returns: the TAI time of day in ktime_t format
  */
 static inline ktime_t ktime_get_clocktai(void)
 {
@@ -144,32 +150,60 @@ static inline u64 ktime_get_coarse_clocktai_ns(void)
 
 /**
  * ktime_mono_to_real - Convert monotonic time to clock realtime
+ * @mono: monotonic time to convert
+ *
+ * Returns: time converted to realtime clock
  */
 static inline ktime_t ktime_mono_to_real(ktime_t mono)
 {
 	return ktime_mono_to_any(mono, TK_OFFS_REAL);
 }
 
+/**
+ * ktime_get_ns - Get the current time in nanoseconds
+ *
+ * Returns: current time converted to nanoseconds
+ */
 static inline u64 ktime_get_ns(void)
 {
 	return ktime_to_ns(ktime_get());
 }
 
+/**
+ * ktime_get_real_ns - Get the current real/wall time in nanoseconds
+ *
+ * Returns: current real time converted to nanoseconds
+ */
 static inline u64 ktime_get_real_ns(void)
 {
 	return ktime_to_ns(ktime_get_real());
 }
 
+/**
+ * ktime_get_boottime_ns - Get the monotonic time since boot in nanoseconds
+ *
+ * Returns: current boottime converted to nanoseconds
+ */
 static inline u64 ktime_get_boottime_ns(void)
 {
 	return ktime_to_ns(ktime_get_boottime());
 }
 
+/**
+ * ktime_get_clocktai_ns - Get the current TAI time of day in nanoseconds
+ *
+ * Returns: current TAI time converted to nanoseconds
+ */
 static inline u64 ktime_get_clocktai_ns(void)
 {
 	return ktime_to_ns(ktime_get_clocktai());
 }
 
+/**
+ * ktime_get_raw_ns - Get the raw monotonic time in nanoseconds
+ *
+ * Returns: current raw monotonic time converted to nanoseconds
+ */
 static inline u64 ktime_get_raw_ns(void)
 {
 	return ktime_to_ns(ktime_get_raw());
@@ -224,8 +258,8 @@ extern bool timekeeping_rtc_skipresume(void);
 
 extern void timekeeping_inject_sleeptime64(const struct timespec64 *delta);
 
-/*
- * struct ktime_timestanps - Simultaneous mono/boot/real timestamps
+/**
+ * struct ktime_timestamps - Simultaneous mono/boot/real timestamps
  * @mono:	Monotonic timestamp
  * @boot:	Boottime timestamp
  * @real:	Realtime timestamp
@@ -242,7 +276,8 @@ struct ktime_timestamps {
  * @cycles:	Clocksource counter value to produce the system times
  * @real:	Realtime system time
  * @raw:	Monotonic raw system time
- * @clock_was_set_seq:	The sequence number of clock was set events
+ * @cs_id:	Clocksource ID
+ * @clock_was_set_seq:	The sequence number of clock-was-set events
  * @cs_was_changed_seq:	The sequence number of clocksource change events
  */
 struct system_time_snapshot {
