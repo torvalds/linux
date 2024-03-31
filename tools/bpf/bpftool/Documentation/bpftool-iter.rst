@@ -31,7 +31,7 @@ ITER COMMANDS
 
 DESCRIPTION
 ===========
-**bpftool iter pin** *OBJ* *PATH* [**map** *MAP*]
+bpftool iter pin *OBJ* *PATH* [map *MAP*]
     A bpf iterator combines a kernel iterating of particular kernel data (e.g.,
     tasks, bpf_maps, etc.) and a bpf program called for each kernel data object
     (e.g., one task, one bpf_map, etc.). User space can *read* kernel iterator
@@ -48,7 +48,7 @@ DESCRIPTION
 
     User can then *cat PATH* to see the bpf iterator output.
 
-**bpftool iter help**
+bpftool iter help
     Print short help message.
 
 OPTIONS

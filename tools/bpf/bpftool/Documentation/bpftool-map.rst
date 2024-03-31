@@ -59,7 +59,7 @@ MAP COMMANDS
 
 DESCRIPTION
 ===========
-**bpftool map { show | list }**   [*MAP*]
+bpftool map { show | list }   [*MAP*]
     Show information about loaded maps.  If *MAP* is specified show information
     only about given maps, otherwise list all maps currently loaded on the
     system.  In case of **name**, *MAP* may match several maps which will all
@@ -72,7 +72,7 @@ DESCRIPTION
     that hold open file descriptors (FDs) against BPF maps. On such kernels
     bpftool will automatically emit this information as well.
 
-**bpftool map create** *FILE* **type** *TYPE* **key** *KEY_SIZE* **value** *VALUE_SIZE*  **entries** *MAX_ENTRIES* **name** *NAME* [**flags** *FLAGS*] [**inner_map** *MAP*] [**offload_dev** *NAME*]
+bpftool map create *FILE* type *TYPE* key *KEY_SIZE* value *VALUE_SIZE*  entries *MAX_ENTRIES* name *NAME* [flags *FLAGS*] [inner_map *MAP*] [offload_dev *NAME*]
     Create a new map with given parameters and pin it to *bpffs* as *FILE*.
 
     *FLAGS* should be an integer which is the combination of desired flags,
@@ -86,11 +86,11 @@ DESCRIPTION
     Keyword **offload_dev** expects a network interface name, and is used to
     request hardware offload for the map.
 
-**bpftool map dump**    *MAP*
+bpftool map dump    *MAP*
     Dump all entries in a given *MAP*.  In case of **name**, *MAP* may match
     several maps which will all be dumped.
 
-**bpftool map update**  *MAP* [**key** *DATA*] [**value** *VALUE*] [*UPDATE_FLAGS*]
+bpftool map update  *MAP* [key *DATA*] [value *VALUE*] [*UPDATE_FLAGS*]
     Update map entry for a given *KEY*.
 
     *UPDATE_FLAGS* can be one of: **any** update existing entry or add if
@@ -103,22 +103,22 @@ DESCRIPTION
     unless a "0x" prefix (for hexadecimal) or a "0" prefix (for octal) is
     provided.
 
-**bpftool map lookup**  *MAP* [**key** *DATA*]
+bpftool map lookup  *MAP* [key *DATA*]
     Lookup **key** in the map.
 
-**bpftool map getnext** *MAP* [**key** *DATA*]
+bpftool map getnext *MAP* [key *DATA*]
     Get next key.  If *key* is not specified, get first key.
 
-**bpftool map delete**  *MAP*  **key** *DATA*
+bpftool map delete  *MAP*  key *DATA*
     Remove entry from the map.
 
-**bpftool map pin**     *MAP*  *FILE*
+bpftool map pin     *MAP*  *FILE*
     Pin map *MAP* as *FILE*.
 
     Note: *FILE* must be located in *bpffs* mount. It must not contain a dot
     character ('.'), which is reserved for future extensions of *bpffs*.
 
-**bpftool** **map event_pipe** *MAP* [**cpu** *N* **index** *M*]
+bpftool map event_pipe *MAP* [cpu *N* index *M*]
     Read events from a **BPF_MAP_TYPE_PERF_EVENT_ARRAY** map.
 
     Install perf rings into a perf event array map and dump output of any
@@ -133,29 +133,29 @@ DESCRIPTION
     existing ring.  Any other application will stop receiving events if it
     installed its rings earlier.
 
-**bpftool map peek**  *MAP*
+bpftool map peek  *MAP*
     Peek next value in the queue or stack.
 
-**bpftool map push**  *MAP* **value** *VALUE*
+bpftool map push  *MAP* value *VALUE*
     Push *VALUE* onto the stack.
 
-**bpftool map pop**  *MAP*
+bpftool map pop  *MAP*
     Pop and print value from the stack.
 
-**bpftool map enqueue**  *MAP* **value** *VALUE*
+bpftool map enqueue  *MAP* value *VALUE*
     Enqueue *VALUE* into the queue.
 
-**bpftool map dequeue**  *MAP*
+bpftool map dequeue  *MAP*
     Dequeue and print value from the queue.
 
-**bpftool map freeze**  *MAP*
+bpftool map freeze  *MAP*
     Freeze the map as read-only from user space. Entries from a frozen map can
     not longer be updated or deleted with the **bpf**\ () system call. This
     operation is not reversible, and the map remains immutable from user space
     until its destruction. However, read and write permissions for BPF programs
     to the map remain unchanged.
 
-**bpftool map help**
+bpftool map help
     Print short help message.
 
 OPTIONS

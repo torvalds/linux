@@ -32,7 +32,7 @@ FEATURE COMMANDS
 
 DESCRIPTION
 ===========
-**bpftool feature probe** [**kernel**] [**full**] [**macros** [**prefix** *PREFIX*]]
+bpftool feature probe [kernel] [full] [macros [prefix *PREFIX*]]
     Probe the running kernel and dump a number of eBPF-related parameters, such
     as availability of the **bpf**\ () system call, JIT status, eBPF program
     types availability, eBPF helper functions availability, and more.
@@ -59,14 +59,14 @@ DESCRIPTION
     bpftool is inadvertently run as non-root, for example. This keyword is
     unavailable if bpftool was compiled without libcap.
 
-**bpftool feature probe dev** *NAME* [**full**] [**macros** [**prefix** *PREFIX*]]
+bpftool feature probe dev *NAME* [full] [macros [prefix *PREFIX*]]
     Probe network device for supported eBPF features and dump results to the
     console.
 
     The keywords **full**, **macros** and **prefix** have the same role as when
     probing the kernel.
 
-**bpftool feature list_builtins** *GROUP*
+bpftool feature list_builtins *GROUP*
     List items known to bpftool. These can be BPF program types
     (**prog_types**), BPF map types (**map_types**), attach types
     (**attach_types**), link types (**link_types**), or BPF helper functions
@@ -75,7 +75,7 @@ DESCRIPTION
     (for all object types) or from the BPF UAPI header (list of helpers). This
     can be used in scripts to iterate over BPF types or helpers.
 
-**bpftool feature help**
+bpftool feature help
     Print short help message.
 
 OPTIONS

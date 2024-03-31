@@ -33,7 +33,7 @@ NET COMMANDS
 
 DESCRIPTION
 ===========
-**bpftool net { show | list }** [ **dev** *NAME* ]
+bpftool net { show | list } [ dev *NAME* ]
     List bpf program attachments in the kernel networking subsystem.
 
     Currently, device driver xdp attachments, tcx, netkit and old-style tc
@@ -58,7 +58,7 @@ DESCRIPTION
     then all bpf programs attached to non clsact qdiscs, and finally all bpf
     programs attached to root and clsact qdisc.
 
-**bpftool** **net attach** *ATTACH_TYPE* *PROG* **dev** *NAME* [ **overwrite** ]
+bpftool net attach *ATTACH_TYPE* *PROG* dev *NAME* [ overwrite ]
     Attach bpf program *PROG* to network interface *NAME* with type specified
     by *ATTACH_TYPE*. Previously attached bpf program can be replaced by the
     command used with **overwrite** option. Currently, only XDP-related modes
@@ -70,13 +70,13 @@ DESCRIPTION
     **xdpdrv** - Native XDP. runs earliest point in driver's receive path;
     **xdpoffload** - Offload XDP. runs directly on NIC on each packet reception;
 
-**bpftool** **net detach** *ATTACH_TYPE* **dev** *NAME*
+bpftool net detach *ATTACH_TYPE* dev *NAME*
     Detach bpf program attached to network interface *NAME* with type specified
     by *ATTACH_TYPE*. To detach bpf program, same *ATTACH_TYPE* previously used
     for attach must be specified. Currently, only XDP-related modes are
     supported for *ATTACH_TYPE*.
 
-**bpftool net help**
+bpftool net help
     Print short help message.
 
 OPTIONS

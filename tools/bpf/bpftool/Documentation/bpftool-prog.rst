@@ -67,7 +67,7 @@ PROG COMMANDS
 
 DESCRIPTION
 ===========
-**bpftool prog { show | list }** [*PROG*]
+bpftool prog { show | list } [*PROG*]
     Show information about loaded programs.  If *PROG* is specified show
     information only about given programs, otherwise list all programs
     currently loaded on the system. In case of **tag** or **name**, *PROG* may
@@ -87,7 +87,7 @@ DESCRIPTION
     that hold open file descriptors (FDs) against BPF programs. On such kernels
     bpftool will automatically emit this information as well.
 
-**bpftool prog dump xlated** *PROG* [{ **file** *FILE* | [**opcodes**] [**linum**] [**visual**] }]
+bpftool prog dump xlated *PROG* [{ file *FILE* | [opcodes] [linum] [visual] }]
     Dump eBPF instructions of the programs from the kernel. By default, eBPF
     will be disassembled and printed to standard output in human-readable
     format. In this case, **opcodes** controls if raw opcodes should be printed
@@ -108,7 +108,7 @@ DESCRIPTION
     displayed.  If **linum** is specified, the filename, line number and line
     column will also be displayed.
 
-**bpftool prog dump jited**  *PROG* [{ **file** *FILE* | [**opcodes**] [**linum**] }]
+bpftool prog dump jited  *PROG* [{ file *FILE* | [opcodes] [linum] }]
     Dump jited image (host machine code) of the program.
 
     If *FILE* is specified image will be written to a file, otherwise it will
@@ -121,13 +121,13 @@ DESCRIPTION
     **linum** is specified, the filename, line number and line column will also
     be displayed.
 
-**bpftool prog pin** *PROG* *FILE*
+bpftool prog pin *PROG* *FILE*
     Pin program *PROG* as *FILE*.
 
     Note: *FILE* must be located in *bpffs* mount. It must not contain a dot
     character ('.'), which is reserved for future extensions of *bpffs*.
 
-**bpftool prog { load | loadall }** *OBJ* *PATH* [**type** *TYPE*] [**map** { **idx** *IDX* | **name** *NAME* } *MAP*] [{ **offload_dev** | **xdpmeta_dev** } *NAME*] [**pinmaps** *MAP_DIR*] [**autoattach**]
+bpftool prog { load | loadall } *OBJ* *PATH* [type *TYPE*] [map { idx *IDX* | name *NAME* } *MAP*] [{ offload_dev | xdpmeta_dev } *NAME*] [pinmaps *MAP_DIR*] [autoattach]
     Load bpf program(s) from binary *OBJ* and pin as *PATH*. **bpftool prog
     load** pins only the first program from the *OBJ* as *PATH*. **bpftool prog
     loadall** pins all programs from the *OBJ* under *PATH* directory. **type**
@@ -156,24 +156,24 @@ DESCRIPTION
     Note: *PATH* must be located in *bpffs* mount. It must not contain a dot
     character ('.'), which is reserved for future extensions of *bpffs*.
 
-**bpftool prog attach** *PROG* *ATTACH_TYPE* [*MAP*]
+bpftool prog attach *PROG* *ATTACH_TYPE* [*MAP*]
     Attach bpf program *PROG* (with type specified by *ATTACH_TYPE*). Most
     *ATTACH_TYPEs* require a *MAP* parameter, with the exception of
     *flow_dissector* which is attached to current networking name space.
 
-**bpftool prog detach** *PROG* *ATTACH_TYPE* [*MAP*]
+bpftool prog detach *PROG* *ATTACH_TYPE* [*MAP*]
     Detach bpf program *PROG* (with type specified by *ATTACH_TYPE*). Most
     *ATTACH_TYPEs* require a *MAP* parameter, with the exception of
     *flow_dissector* which is detached from the current networking name space.
 
-**bpftool prog tracelog**
+bpftool prog tracelog
     Dump the trace pipe of the system to the console (stdout). Hit <Ctrl+C> to
     stop printing. BPF programs can write to this trace pipe at runtime with
     the **bpf_trace_printk**\ () helper. This should be used only for debugging
     purposes. For streaming data from BPF programs to user space, one can use
     perf events (see also **bpftool-map**\ (8)).
 
-**bpftool prog run** *PROG* **data_in** *FILE* [**data_out** *FILE* [**data_size_out** *L*]] [**ctx_in** *FILE* [**ctx_out** *FILE* [**ctx_size_out** *M*]]] [**repeat** *N*]
+bpftool prog run *PROG* data_in *FILE* [data_out *FILE* [data_size_out *L*]] [ctx_in *FILE* [ctx_out *FILE* [ctx_size_out *M*]]] [repeat *N*]
     Run BPF program *PROG* in the kernel testing infrastructure for BPF,
     meaning that the program works on the data and context provided by the
     user, and not on actual packets or monitored functions etc. Return value
@@ -201,12 +201,12 @@ DESCRIPTION
     them can take the **ctx_in**/**ctx_out** arguments. bpftool does not
     perform checks on program types.
 
-**bpftool prog profile** *PROG* [**duration** *DURATION*] *METRICs*
+bpftool prog profile *PROG* [duration *DURATION*] *METRICs*
     Profile *METRICs* for bpf program *PROG* for *DURATION* seconds or until
     user hits <Ctrl+C>. *DURATION* is optional. If *DURATION* is not specified,
     the profiling will run up to **UINT_MAX** seconds.
 
-**bpftool prog help**
+bpftool prog help
     Print short help message.
 
 OPTIONS

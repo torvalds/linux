@@ -31,7 +31,7 @@ GEN COMMANDS
 
 DESCRIPTION
 ===========
-**bpftool gen object** *OUTPUT_FILE* *INPUT_FILE* [*INPUT_FILE*...]
+bpftool gen object *OUTPUT_FILE* *INPUT_FILE* [*INPUT_FILE*...]
     Statically link (combine) together one or more *INPUT_FILE*'s into a single
     resulting *OUTPUT_FILE*. All the files involved are BPF ELF object files.
 
@@ -48,7 +48,7 @@ DESCRIPTION
     command) or passed directly into **libbpf** (using **bpf_object__open()**
     family of APIs).
 
-**bpftool gen skeleton** *FILE*
+bpftool gen skeleton *FILE*
     Generate BPF skeleton C header file for a given *FILE*.
 
     BPF skeleton is an alternative interface to existing libbpf APIs for
@@ -132,7 +132,7 @@ DESCRIPTION
     used to fetch and update (non-read-only) data from userspace, with same
     simplicity as for BPF side.
 
-**bpftool gen subskeleton** *FILE*
+bpftool gen subskeleton *FILE*
     Generate BPF subskeleton C header file for a given *FILE*.
 
     Subskeletons are similar to skeletons, except they do not own the
@@ -154,7 +154,7 @@ DESCRIPTION
       Frees the storage for the subskeleton but *does not* unload any BPF
       programs or maps.
 
-**bpftool** **gen min_core_btf** *INPUT* *OUTPUT* *OBJECT* [*OBJECT*...]
+bpftool gen min_core_btf *INPUT* *OUTPUT* *OBJECT* [*OBJECT*...]
     Generate a minimum BTF file as *OUTPUT*, derived from a given *INPUT* BTF
     file, containing all needed BTF types so one, or more, given eBPF objects
     CO-RE relocations may be satisfied.
@@ -174,7 +174,7 @@ DESCRIPTION
 
     Check examples bellow for more information how to use it.
 
-**bpftool gen help**
+bpftool gen help
     Print short help message.
 
 OPTIONS

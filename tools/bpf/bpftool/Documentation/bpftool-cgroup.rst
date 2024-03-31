@@ -49,7 +49,7 @@ CGROUP COMMANDS
 
 DESCRIPTION
 ===========
-**bpftool cgroup { show | list }** *CGROUP* [**effective**]
+bpftool cgroup { show | list } *CGROUP* [effective]
     List all programs attached to the cgroup *CGROUP*.
 
     Output will start with program ID followed by attach type, attach flags and
@@ -59,7 +59,7 @@ DESCRIPTION
     for events within a cgroup. This includes inherited along with attached
     ones.
 
-**bpftool cgroup tree** [*CGROUP_ROOT*] [**effective**]
+bpftool cgroup tree [*CGROUP_ROOT*] [effective]
     Iterate over all cgroups in *CGROUP_ROOT* and list all attached programs.
     If *CGROUP_ROOT* is not specified, bpftool uses cgroup v2 mountpoint.
 
@@ -71,7 +71,7 @@ DESCRIPTION
     for events within a cgroup. This includes inherited along with attached
     ones.
 
-**bpftool cgroup attach** *CGROUP* *ATTACH_TYPE* *PROG* [*ATTACH_FLAGS*]
+bpftool cgroup attach *CGROUP* *ATTACH_TYPE* *PROG* [*ATTACH_FLAGS*]
     Attach program *PROG* to the cgroup *CGROUP* with attach type *ATTACH_TYPE*
     and optional *ATTACH_FLAGS*.
 
@@ -126,10 +126,10 @@ DESCRIPTION
     **getsockname_unix** call to getsockname(2) for a unix socket (since 6.7);
     **sock_release** closing an userspace inet socket (since 5.9).
 
-**bpftool cgroup detach** *CGROUP* *ATTACH_TYPE* *PROG*
+bpftool cgroup detach *CGROUP* *ATTACH_TYPE* *PROG*
     Detach *PROG* from the cgroup *CGROUP* and attach type *ATTACH_TYPE*.
 
-**bpftool prog help**
+bpftool prog help
     Print short help message.
 
 OPTIONS

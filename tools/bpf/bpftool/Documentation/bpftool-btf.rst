@@ -34,7 +34,7 @@ BTF COMMANDS
 
 DESCRIPTION
 ===========
-**bpftool btf { show | list }** [**id** *BTF_ID*]
+bpftool btf { show | list } [id *BTF_ID*]
     Show information about loaded BTF objects. If a BTF ID is specified, show
     information only about given BTF object, otherwise list all BTF objects
     currently loaded on the system.
@@ -43,7 +43,7 @@ DESCRIPTION
     that hold open file descriptors (FDs) against BTF objects. On such kernels
     bpftool will automatically emit this information as well.
 
-**bpftool btf dump** *BTF_SRC*
+bpftool btf dump *BTF_SRC*
     Dump BTF entries from a given *BTF_SRC*.
 
     When **id** is specified, BTF object with that ID will be loaded and all
@@ -65,7 +65,7 @@ DESCRIPTION
     **format** option can be used to override default (raw) output format. Raw
     (**raw**) or C-syntax (**c**) output formats are supported.
 
-**bpftool btf help**
+bpftool btf help
     Print short help message.
 
 OPTIONS

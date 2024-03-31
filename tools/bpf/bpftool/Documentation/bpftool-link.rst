@@ -33,7 +33,7 @@ LINK COMMANDS
 
 DESCRIPTION
 ===========
-**bpftool link { show | list }** [*LINK*]
+bpftool link { show | list } [*LINK*]
     Show information about active links. If *LINK* is specified show
     information only about given link, otherwise list all links currently
     active on the system.
@@ -45,19 +45,19 @@ DESCRIPTION
     that hold open file descriptors (FDs) against BPF links. On such kernels
     bpftool will automatically emit this information as well.
 
-**bpftool link pin** *LINK* *FILE*
+bpftool link pin *LINK* *FILE*
     Pin link *LINK* as *FILE*.
 
     Note: *FILE* must be located in *bpffs* mount. It must not contain a dot
     character ('.'), which is reserved for future extensions of *bpffs*.
 
-**bpftool link detach** *LINK*
+bpftool link detach *LINK*
     Force-detach link *LINK*. BPF link and its underlying BPF program will stay
     valid, but they will be detached from the respective BPF hook and BPF link
     will transition into a defunct state until last open file descriptor for
     that link is closed.
 
-**bpftool link help**
+bpftool link help
     Print short help message.
 
 OPTIONS

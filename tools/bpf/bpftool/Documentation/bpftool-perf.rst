@@ -29,7 +29,7 @@ PERF COMMANDS
 
 DESCRIPTION
 ===========
-**bpftool perf { show | list }**
+bpftool perf { show | list }
     List all raw_tracepoint, tracepoint, kprobe attachment in the system.
 
     Output will start with process id and file descriptor in that process,
@@ -39,7 +39,7 @@ DESCRIPTION
     kernel virtual address. The attachment point for u[ret]probe is the file
     name and the file offset.
 
-**bpftool perf help**
+bpftool perf help
     Print short help message.
 
 OPTIONS
