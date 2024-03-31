@@ -1053,6 +1053,11 @@ static int psp_asd_initialize(struct psp_context *psp)
 	if (amdgpu_sriov_vf(psp->adev) || !psp->asd_context.bin_desc.size_bytes)
 		return 0;
 
+	/* bypass asd if display hardware is not available */
+	if (!amdgpu_device_has_display_hardware(psp->adev) &&
+	    amdgpu_ip_version(psp->adev, MP0_HWIP, 0) >= IP_VERSION(13, 0, 10))
+		return 0;
+
 	psp->asd_context.mem_context.shared_mc_addr  = 0;
 	psp->asd_context.mem_context.shared_mem_size = PSP_ASD_SHARED_MEM_SIZE;
 	psp->asd_context.ta_load_type                = GFX_CMD_ID_LOAD_ASD;
