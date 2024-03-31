@@ -3631,7 +3631,7 @@ static int pci_probe(struct pci_dev *dev,
 	struct fw_ohci *ohci;
 	u32 bus_options, max_receive, link_speed, version;
 	u64 guid;
-	int i, flags, err;
+	int i, flags, irq, err;
 	size_t size;
 
 	if (dev->vendor == PCI_VENDOR_ID_PINNACLE_SYSTEMS) {
@@ -3762,12 +3762,17 @@ static int pci_probe(struct pci_dev *dev,
 	err = pci_alloc_irq_vectors(dev, 1, 1, flags);
 	if (err < 0)
 		return err;
+	irq = pci_irq_vector(dev, 0);
+	if (irq < 0) {
+		err = irq;
+		goto fail_msi;
+	}
 
-	err = request_threaded_irq(dev->irq, irq_handler, NULL,
+	err = request_threaded_irq(irq, irq_handler, NULL,
 				   pci_dev_msi_enabled(dev) ? 0 : IRQF_SHARED, ohci_driver_name,
 				   ohci);
 	if (err < 0) {
-		ohci_err(ohci, "failed to allocate interrupt %d\n", dev->irq);
+		ohci_err(ohci, "failed to allocate interrupt %d\n", irq);
 		goto fail_msi;
 	}
 
@@ -3787,7 +3792,7 @@ static int pci_probe(struct pci_dev *dev,
 	return 0;
 
  fail_irq:
-	free_irq(dev->irq, ohci);
+	free_irq(irq, ohci);
  fail_msi:
 	pci_free_irq_vectors(dev);
 
@@ -3797,6 +3802,7 @@ static int pci_probe(struct pci_dev *dev,
 static void pci_remove(struct pci_dev *dev)
 {
 	struct fw_ohci *ohci = pci_get_drvdata(dev);
+	int irq;
 
 	/*
 	 * If the removal is happening from the suspend state, LPS won't be
@@ -3816,7 +3822,9 @@ static void pci_remove(struct pci_dev *dev)
 
 	software_reset(ohci);
 
-	free_irq(dev->irq, ohci);
+	irq = pci_irq_vector(dev, 0);
+	if (irq >= 0)
+		free_irq(irq, ohci);
 	pci_free_irq_vectors(dev);
 
 	dev_notice(&dev->dev, "removing fw-ohci device\n");
