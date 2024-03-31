@@ -3758,16 +3758,17 @@ static int pci_probe(struct pci_dev *dev,
 
 	if (!(ohci->quirks & QUIRK_NO_MSI))
 		pci_enable_msi(dev);
-	err = devm_request_irq(&dev->dev, dev->irq, irq_handler,
-			       pci_dev_msi_enabled(dev) ? 0 : IRQF_SHARED, ohci_driver_name, ohci);
-	if (err < 0) {
+	if (request_irq(dev->irq, irq_handler,
+			pci_dev_msi_enabled(dev) ? 0 : IRQF_SHARED,
+			ohci_driver_name, ohci)) {
 		ohci_err(ohci, "failed to allocate interrupt %d\n", dev->irq);
+		err = -EIO;
 		goto fail_msi;
 	}
 
 	err = fw_card_add(&ohci->card, max_receive, link_speed, guid);
 	if (err)
-		goto fail_msi;
+		goto fail_irq;
 
 	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
 	ohci_notice(ohci,
@@ -3780,8 +3781,9 @@ static int pci_probe(struct pci_dev *dev,
 
 	return 0;
 
+ fail_irq:
+	free_irq(dev->irq, ohci);
  fail_msi:
-	devm_free_irq(&dev->dev, dev->irq, ohci);
 	pci_disable_msi(dev);
 
 	return err;
@@ -3809,7 +3811,7 @@ static void pci_remove(struct pci_dev *dev)
 
 	software_reset(ohci);
 
-	devm_free_irq(&dev->dev, dev->irq, ohci);
+	free_irq(dev->irq, ohci);
 	pci_disable_msi(dev);
 
 	dev_notice(&dev->dev, "removing fw-ohci device\n");
