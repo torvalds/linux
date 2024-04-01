@@ -178,7 +178,7 @@ yet. Bug reports are always welcome at the issue tracker below!
      - ``LLVM=1``
    * - s390
      - Maintained
-     - ``CC=clang``
+     - ``LLVM=1`` (LLVM >= 18.1.0), ``CC=clang`` (LLVM < 18.1.0)
    * - um (User Mode)
      - Maintained
      - ``LLVM=1``

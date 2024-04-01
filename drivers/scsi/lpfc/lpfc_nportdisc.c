@@ -300,7 +300,7 @@ lpfc_defer_plogi_acc(struct lpfc_hba *phba, LPFC_MBOXQ_t *login_mbox)
 	int rc;
 
 	ndlp = login_mbox->ctx_ndlp;
-	save_iocb = login_mbox->context3;
+	save_iocb = login_mbox->ctx_u.save_iocb;
 
 	if (mb->mbxStatus == MBX_SUCCESS) {
 		/* Now that REG_RPI completed successfully,
@@ -640,7 +640,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	if (!login_mbox->ctx_ndlp)
 		goto out;
 
-	login_mbox->context3 = save_iocb; /* For PLOGI ACC */
+	login_mbox->ctx_u.save_iocb = save_iocb; /* For PLOGI ACC */
 
 	spin_lock_irq(&ndlp->lock);
 	ndlp->nlp_flag |= (NLP_ACC_REGLOGIN | NLP_RCV_PLOGI);
@@ -682,8 +682,8 @@ lpfc_mbx_cmpl_resume_rpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	struct lpfc_nodelist *ndlp;
 	uint32_t cmd;
 
-	elsiocb = (struct lpfc_iocbq *)mboxq->ctx_buf;
-	ndlp = (struct lpfc_nodelist *)mboxq->ctx_ndlp;
+	elsiocb = mboxq->ctx_u.save_iocb;
+	ndlp = mboxq->ctx_ndlp;
 	vport = mboxq->vport;
 	cmd = elsiocb->drvrTimeout;
 
@@ -1875,7 +1875,7 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 	/* cleanup any ndlp on mbox q waiting for reglogin cmpl */
 	if ((mb = phba->sli.mbox_active)) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
-		   (ndlp == (struct lpfc_nodelist *)mb->ctx_ndlp)) {
+		   (ndlp == mb->ctx_ndlp)) {
 			ndlp->nlp_flag &= ~NLP_REG_LOGIN_SEND;
 			lpfc_nlp_put(ndlp);
 			mb->ctx_ndlp = NULL;
@@ -1886,7 +1886,7 @@ lpfc_rcv_logo_reglogin_issue(struct lpfc_vport *vport,
 	spin_lock_irq(&phba->hbalock);
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
-		   (ndlp == (struct lpfc_nodelist *)mb->ctx_ndlp)) {
+		   (ndlp == mb->ctx_ndlp)) {
 			ndlp->nlp_flag &= ~NLP_REG_LOGIN_SEND;
 			lpfc_nlp_put(ndlp);
 			list_del(&mb->list);

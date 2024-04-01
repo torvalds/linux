@@ -1574,11 +1574,7 @@ int btrfs_load_block_group_zone_info(struct btrfs_block_group *cache, bool new)
 	if (!map)
 		return -EINVAL;
 
-	cache->physical_map = btrfs_clone_chunk_map(map, GFP_NOFS);
-	if (!cache->physical_map) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	cache->physical_map = map;
 
 	zone_info = kcalloc(map->num_stripes, sizeof(*zone_info), GFP_NOFS);
 	if (!zone_info) {
@@ -1690,7 +1686,6 @@ out:
 	}
 	bitmap_free(active);
 	kfree(zone_info);
-	btrfs_free_chunk_map(map);
 
 	return ret;
 }
@@ -2175,6 +2170,7 @@ static int do_zone_finish(struct btrfs_block_group *block_group, bool fully_writ
 	struct btrfs_chunk_map *map;
 	const bool is_metadata = (block_group->flags &
 			(BTRFS_BLOCK_GROUP_METADATA | BTRFS_BLOCK_GROUP_SYSTEM));
+	struct btrfs_dev_replace *dev_replace = &fs_info->dev_replace;
 	int ret = 0;
 	int i;
 
@@ -2250,6 +2246,7 @@ static int do_zone_finish(struct btrfs_block_group *block_group, bool fully_writ
 	btrfs_clear_data_reloc_bg(block_group);
 	spin_unlock(&block_group->lock);
 
+	down_read(&dev_replace->rwsem);
 	map = block_group->physical_map;
 	for (i = 0; i < map->num_stripes; i++) {
 		struct btrfs_device *device = map->stripes[i].dev;
@@ -2266,13 +2263,16 @@ static int do_zone_finish(struct btrfs_block_group *block_group, bool fully_writ
 				       zinfo->zone_size >> SECTOR_SHIFT);
 		memalloc_nofs_restore(nofs_flags);
 
-		if (ret)
+		if (ret) {
+			up_read(&dev_replace->rwsem);
 			return ret;
+		}
 
 		if (!(block_group->flags & BTRFS_BLOCK_GROUP_DATA))
 			zinfo->reserved_active_zones++;
 		btrfs_dev_clear_active_zone(device, physical);
 	}
+	up_read(&dev_replace->rwsem);
 
 	if (!fully_written)
 		btrfs_dec_block_group_ro(block_group);
