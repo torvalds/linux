@@ -459,6 +459,33 @@ static int reconstruct_subvol(struct btree_trans *trans, u32 snapshotid, u32 sub
 	return 0;
 }
 
+static int reconstruct_inode(struct btree_trans *trans, u32 snapshot, u64 inum, u64 size, unsigned mode)
+{
+	struct bch_fs *c = trans->c;
+	struct bch_inode_unpacked new_inode;
+
+	bch2_inode_init_early(c, &new_inode);
+	bch2_inode_init_late(&new_inode, bch2_current_time(c), 0, 0, mode|0755, 0, NULL);
+	new_inode.bi_size = size;
+	new_inode.bi_inum = inum;
+
+	return __bch2_fsck_write_inode(trans, &new_inode, snapshot);
+}
+
+static int reconstruct_reg_inode(struct btree_trans *trans, u32 snapshot, u64 inum)
+{
+	struct btree_iter iter = {};
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents, SPOS(inum, U64_MAX, snapshot), 0);
+	struct bkey_s_c k = bch2_btree_iter_peek_prev(&iter);
+	bch2_trans_iter_exit(trans, &iter);
+	int ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	return reconstruct_inode(trans, snapshot, inum, k.k->p.offset << 9, S_IFREG);
+}
+
 struct snapshots_seen_entry {
 	u32				id;
 	u32				equiv;
@@ -1535,6 +1562,17 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 		goto err;
 
 	if (k.k->type != KEY_TYPE_whiteout) {
+		if (!i && (c->sb.btrees_lost_data & BIT_ULL(BTREE_ID_inodes))) {
+			ret =   reconstruct_reg_inode(trans, k.k->p.snapshot, k.k->p.inode) ?:
+				bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
+			if (ret)
+				goto err;
+
+			inode->last_pos.inode--;
+			ret = -BCH_ERR_transaction_restart_nested;
+			goto err;
+		}
+
 		if (fsck_err_on(!i, c, extent_in_missing_inode,
 				"extent in missing inode:\n  %s",
 				(printbuf_reset(&buf),
@@ -2012,7 +2050,6 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 			struct snapshots_seen *s)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_s_c_dirent d;
 	struct inode_walker_entry *i;
 	struct printbuf buf = PRINTBUF;
 	struct bpos equiv;
@@ -2051,6 +2088,17 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 		*hash_info = bch2_hash_info_init(c, &dir->inodes.data[0].inode);
 	dir->first_this_inode = false;
 
+	if (!i && (c->sb.btrees_lost_data & BIT_ULL(BTREE_ID_inodes))) {
+		ret =   reconstruct_inode(trans, k.k->p.snapshot, k.k->p.inode, 0, S_IFDIR) ?:
+			bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
+		if (ret)
+			goto err;
+
+		dir->last_pos.inode--;
+		ret = -BCH_ERR_transaction_restart_nested;
+		goto err;
+	}
+
 	if (fsck_err_on(!i, c, dirent_in_missing_dir_inode,
 			"dirent in nonexisting directory:\n%s",
 			(printbuf_reset(&buf),
@@ -2085,7 +2133,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 	if (k.k->type != KEY_TYPE_dirent)
 		goto out;
 
-	d = bkey_s_c_to_dirent(k);
+	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(k);
 
 	if (d.v->d_type == DT_SUBVOL) {
 		ret = check_dirent_to_subvol(trans, iter, d);
