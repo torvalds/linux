@@ -5344,7 +5344,7 @@ static ssize_t bus_vote_store(struct device *dev,
 		mdwc->override_bus_vote = BUS_VOTE_MIN;
 	} else if (sysfs_streq(buf, "max")) {
 		bv_fixed = true;
-		mdwc->override_bus_vote = BUS_VOTE_MAX;
+		mdwc->override_bus_vote = BUS_VOTE_NOMINAL;
 	} else if (sysfs_streq(buf, "cancel")) {
 		bv_fixed = false;
 		mdwc->override_bus_vote = BUS_VOTE_NONE;
