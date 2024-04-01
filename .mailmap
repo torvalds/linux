@@ -340,7 +340,8 @@ Lee Jones <lee@kernel.org> <joneslee@google.com>
 Lee Jones <lee@kernel.org> <lee.jones@canonical.com>
 Lee Jones <lee@kernel.org> <lee.jones@linaro.org>
 Lee Jones <lee@kernel.org> <lee@ubuntu.com>
-Leonard Crestez <leonard.crestez@nxp.com> Leonard Crestez <cdleonard@gmail.com>
+Leonard Crestez <cdleonard@gmail.com> <leonard.crestez@nxp.com>
+Leonard Crestez <cdleonard@gmail.com> <leonard.crestez@intel.com>
 Leonardo Bras <leobras.c@gmail.com> <leonardo@linux.ibm.com>
 Leonard Göhrs <l.goehrs@pengutronix.de>
 Leonid I Ananiev <leonid.i.ananiev@intel.com>
@@ -497,7 +498,8 @@ Prasad Sodagudi <quic_psodagud@quicinc.com> <psodagud@codeaurora.org>
 Punit Agrawal <punitagrawal@gmail.com> <punit.agrawal@arm.com>
 Qais Yousef <qyousef@layalina.io> <qais.yousef@imgtec.com>
 Qais Yousef <qyousef@layalina.io> <qais.yousef@arm.com>
-Quentin Monnet <quentin@isovalent.com> <quentin.monnet@netronome.com>
+Quentin Monnet <qmo@kernel.org> <quentin.monnet@netronome.com>
+Quentin Monnet <qmo@kernel.org> <quentin@isovalent.com>
 Quentin Perret <qperret@qperret.net> <quentin.perret@arm.com>
 Rafael J. Wysocki <rjw@rjwysocki.net> <rjw@sisk.pl>
 Rajeev Nandan <quic_rajeevny@quicinc.com> <rajeevny@codeaurora.org>

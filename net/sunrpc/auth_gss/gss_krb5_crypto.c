@@ -921,8 +921,6 @@ out_err:
  * Caller provides the truncation length of the output token (h) in
  * cksumout.len.
  *
- * Note that for RPCSEC, the "initial cipher state" is always all zeroes.
- *
  * Return values:
  *   %GSS_S_COMPLETE: Digest computed, @cksumout filled in
  *   %GSS_S_FAILURE: Call failed
@@ -933,19 +931,22 @@ u32 krb5_etm_checksum(struct crypto_sync_skcipher *cipher,
 		      int body_offset, struct xdr_netobj *cksumout)
 {
 	unsigned int ivsize = crypto_sync_skcipher_ivsize(cipher);
-	static const u8 iv[GSS_KRB5_MAX_BLOCKSIZE];
 	struct ahash_request *req;
 	struct scatterlist sg[1];
+	u8 *iv, *checksumdata;
 	int err = -ENOMEM;
-	u8 *checksumdata;
 
 	checksumdata = kmalloc(crypto_ahash_digestsize(tfm), GFP_KERNEL);
 	if (!checksumdata)
 		return GSS_S_FAILURE;
+	/* For RPCSEC, the "initial cipher state" is always all zeroes. */
+	iv = kzalloc(ivsize, GFP_KERNEL);
+	if (!iv)
+		goto out_free_mem;
 
 	req = ahash_request_alloc(tfm, GFP_KERNEL);
 	if (!req)
-		goto out_free_cksumdata;
+		goto out_free_mem;
 	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_SLEEP, NULL, NULL);
 	err = crypto_ahash_init(req);
 	if (err)
@@ -969,7 +970,8 @@ u32 krb5_etm_checksum(struct crypto_sync_skcipher *cipher,
 
 out_free_ahash:
 	ahash_request_free(req);
-out_free_cksumdata:
+out_free_mem:
+	kfree(iv);
 	kfree_sensitive(checksumdata);
 	return err ? GSS_S_FAILURE : GSS_S_COMPLETE;
 }

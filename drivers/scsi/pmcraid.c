@@ -61,7 +61,9 @@ static atomic_t pmcraid_adapter_count = ATOMIC_INIT(0);
  * pmcraid_minor - minor number(s) to use
  */
 static unsigned int pmcraid_major;
-static struct class *pmcraid_class;
+static const struct class pmcraid_class = {
+	.name = PMCRAID_DEVFILE,
+};
 static DECLARE_BITMAP(pmcraid_minor, PMCRAID_MAX_ADAPTERS);
 
 /*
@@ -4723,7 +4725,7 @@ static int pmcraid_setup_chrdev(struct pmcraid_instance *pinstance)
 	if (error)
 		pmcraid_release_minor(minor);
 	else
-		device_create(pmcraid_class, NULL, MKDEV(pmcraid_major, minor),
+		device_create(&pmcraid_class, NULL, MKDEV(pmcraid_major, minor),
 			      NULL, "%s%u", PMCRAID_DEVFILE, minor);
 	return error;
 }
@@ -4739,7 +4741,7 @@ static int pmcraid_setup_chrdev(struct pmcraid_instance *pinstance)
 static void pmcraid_release_chrdev(struct pmcraid_instance *pinstance)
 {
 	pmcraid_release_minor(MINOR(pinstance->cdev.dev));
-	device_destroy(pmcraid_class,
+	device_destroy(&pmcraid_class,
 		       MKDEV(pmcraid_major, MINOR(pinstance->cdev.dev)));
 	cdev_del(&pinstance->cdev);
 }
@@ -5390,10 +5392,10 @@ static int __init pmcraid_init(void)
 	}
 
 	pmcraid_major = MAJOR(dev);
-	pmcraid_class = class_create(PMCRAID_DEVFILE);
 
-	if (IS_ERR(pmcraid_class)) {
-		error = PTR_ERR(pmcraid_class);
+	error = class_register(&pmcraid_class);
+
+	if (error) {
 		pmcraid_err("failed to register with sysfs, error = %x\n",
 			    error);
 		goto out_unreg_chrdev;
@@ -5402,7 +5404,7 @@ static int __init pmcraid_init(void)
 	error = pmcraid_netlink_init();
 
 	if (error) {
-		class_destroy(pmcraid_class);
+		class_unregister(&pmcraid_class);
 		goto out_unreg_chrdev;
 	}
 
@@ -5413,7 +5415,7 @@ static int __init pmcraid_init(void)
 
 	pmcraid_err("failed to register pmcraid driver, error = %x\n",
 		     error);
-	class_destroy(pmcraid_class);
+	class_unregister(&pmcraid_class);
 	pmcraid_netlink_release();
 
 out_unreg_chrdev:
@@ -5432,7 +5434,7 @@ static void __exit pmcraid_exit(void)
 	unregister_chrdev_region(MKDEV(pmcraid_major, 0),
 				 PMCRAID_MAX_ADAPTERS);
 	pci_unregister_driver(&pmcraid_driver);
-	class_destroy(pmcraid_class);
+	class_unregister(&pmcraid_class);
 }
 
 module_init(pmcraid_init);

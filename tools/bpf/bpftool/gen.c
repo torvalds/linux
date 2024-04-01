@@ -121,7 +121,7 @@ static bool get_datasec_ident(const char *sec_name, char *buf, size_t buf_sz)
 	int i, n;
 
 	/* recognize hard coded LLVM section name */
-	if (strcmp(sec_name, ".arena.1") == 0) {
+	if (strcmp(sec_name, ".addr_space.1") == 0) {
 		/* this is the name to use in skeleton */
 		snprintf(buf, buf_sz, "arena");
 		return true;
