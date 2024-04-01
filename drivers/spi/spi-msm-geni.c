@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -2829,6 +2829,34 @@ static int spi_geni_resume(struct device *dev)
 	return 0;
 }
 
+/**
+ * spi_geni_deep_sleep_enable_check() - spi geni deep sleep enable check
+ *
+ * @geni_mas: pointer to the spi geni master structure.
+ *
+ * Return: None
+ */
+#ifdef CONFIG_DEEPSLEEP
+void spi_geni_deep_sleep_enable_check(struct spi_geni_master *geni_mas)
+{
+	if (pm_suspend_target_state == PM_SUSPEND_MEM) {
+		SPI_LOG_ERR(geni_mas->ipc, true, geni_mas->dev,
+			    "%s:DEEP SLEEP ENTRY", __func__);
+		geni_mas->is_deep_sleep = true;
+
+		/* for dma/fifo mode, master setup config required */
+		if (!geni_mas->gsi_mode) {
+			geni_mas->setup = false;
+			geni_mas->slave_setup = false;
+		}
+	}
+}
+#else
+void spi_geni_deep_sleep_enable_check(struct spi_geni_master *geni_mas)
+{
+}
+#endif
+
 static int spi_geni_suspend(struct device *dev)
 {
 	int ret = 0;
@@ -2852,17 +2880,7 @@ static int spi_geni_suspend(struct device *dev)
 		return ret;
 	}
 
-	if (pm_suspend_target_state == PM_SUSPEND_MEM) {
-		SPI_LOG_ERR(geni_mas->ipc, true, dev,
-			    "%s:DEEP SLEEP ENTRY", __func__);
-		geni_mas->is_deep_sleep = true;
-
-		/* for dma/fifo mode, master setup config rquired */
-		if (!geni_mas->gsi_mode) {
-			geni_mas->setup = false;
-			geni_mas->slave_setup = false;
-		}
-	}
+	spi_geni_deep_sleep_enable_check(geni_mas);
 
 	if (!pm_runtime_status_suspended(dev)) {
 		if (list_empty(&spi->queue) && !spi->cur_msg) {
