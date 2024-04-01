@@ -136,6 +136,7 @@ enum perf_output_field {
 	PERF_OUTPUT_RETIRE_LAT      = 1ULL << 40,
 	PERF_OUTPUT_DSOFF           = 1ULL << 41,
 	PERF_OUTPUT_DISASM          = 1ULL << 42,
+	PERF_OUTPUT_BRSTACKDISASM   = 1ULL << 43,
 };
 
 struct perf_script {
@@ -210,6 +211,7 @@ struct output_option {
 	{.str = "vcpu", .field = PERF_OUTPUT_VCPU},
 	{.str = "cgroup", .field = PERF_OUTPUT_CGROUP},
 	{.str = "retire_lat", .field = PERF_OUTPUT_RETIRE_LAT},
+	{.str = "brstackdisasm", .field = PERF_OUTPUT_BRSTACKDISASM},
 };
 
 enum {
@@ -510,7 +512,8 @@ static int evsel__check_attr(struct evsel *evsel, struct perf_session *session)
 		       "selected. Hence, no address to lookup the source line number.\n");
 		return -EINVAL;
 	}
-	if ((PRINT_FIELD(BRSTACKINSN) || PRINT_FIELD(BRSTACKINSNLEN)) && !allow_user_set &&
+	if ((PRINT_FIELD(BRSTACKINSN) || PRINT_FIELD(BRSTACKINSNLEN) || PRINT_FIELD(BRSTACKDISASM))
+	    && !allow_user_set &&
 	    !(evlist__combined_branch_type(session->evlist) & PERF_SAMPLE_BRANCH_ANY)) {
 		pr_err("Display of branch stack assembler requested, but non all-branch filter set\n"
 		       "Hint: run 'perf record -b ...'\n");
@@ -1162,6 +1165,20 @@ out:
 	return ret;
 }
 
+static const char *any_dump_insn(struct perf_event_attr *attr __maybe_unused,
+			struct perf_insn *x, uint64_t ip,
+			u8 *inbuf, int inlen, int *lenp)
+{
+#ifdef HAVE_LIBCAPSTONE_SUPPORT
+	if (PRINT_FIELD(BRSTACKDISASM)) {
+		const char *p = cs_dump_insn(x, ip, inbuf, inlen, lenp);
+		if (p)
+			return p;
+	}
+#endif
+	return dump_insn(x, ip, inbuf, inlen, lenp);
+}
+
 static int ip__fprintf_jump(uint64_t ip, struct branch_entry *en,
 			    struct perf_insn *x, u8 *inbuf, int len,
 			    int insn, FILE *fp, int *total_cycles,
@@ -1170,7 +1187,7 @@ static int ip__fprintf_jump(uint64_t ip, struct branch_entry *en,
 {
 	int ilen = 0;
 	int printed = fprintf(fp, "\t%016" PRIx64 "\t%-30s\t", ip,
-			      dump_insn(x, ip, inbuf, len, &ilen));
+			      any_dump_insn(attr, x, ip, inbuf, len, &ilen));
 
 	if (PRINT_FIELD(BRSTACKINSNLEN))
 		printed += fprintf(fp, "ilen: %d\t", ilen);
@@ -1262,6 +1279,7 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 		nr = max_blocks + 1;
 
 	x.thread = thread;
+	x.machine = machine;
 	x.cpu = sample->cpu;
 
 	printed += fprintf(fp, "%c", '\n');
@@ -1313,7 +1331,7 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 			} else {
 				ilen = 0;
 				printed += fprintf(fp, "\t%016" PRIx64 "\t%s", ip,
-						   dump_insn(&x, ip, buffer + off, len - off, &ilen));
+						   any_dump_insn(attr, &x, ip, buffer + off, len - off, &ilen));
 				if (PRINT_FIELD(BRSTACKINSNLEN))
 					printed += fprintf(fp, "\tilen: %d", ilen);
 				printed += fprintf(fp, "\n");
@@ -1361,7 +1379,7 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 			goto out;
 		ilen = 0;
 		printed += fprintf(fp, "\t%016" PRIx64 "\t%s", sample->ip,
-			dump_insn(&x, sample->ip, buffer, len, &ilen));
+			any_dump_insn(attr, &x, sample->ip, buffer, len, &ilen));
 		if (PRINT_FIELD(BRSTACKINSNLEN))
 			printed += fprintf(fp, "\tilen: %d", ilen);
 		printed += fprintf(fp, "\n");
@@ -1372,7 +1390,7 @@ static int perf_sample__fprintf_brstackinsn(struct perf_sample *sample,
 	for (off = 0; off <= end - start; off += ilen) {
 		ilen = 0;
 		printed += fprintf(fp, "\t%016" PRIx64 "\t%s", start + off,
-				   dump_insn(&x, start + off, buffer + off, len - off, &ilen));
+				   any_dump_insn(attr, &x, start + off, buffer + off, len - off, &ilen));
 		if (PRINT_FIELD(BRSTACKINSNLEN))
 			printed += fprintf(fp, "\tilen: %d", ilen);
 		printed += fprintf(fp, "\n");
@@ -1534,7 +1552,7 @@ static int perf_sample__fprintf_insn(struct perf_sample *sample,
 		printed += fprintf(fp, "\t\t");
 		printed += sample__fprintf_insn_asm(sample, thread, machine, fp, al);
 	}
-	if (PRINT_FIELD(BRSTACKINSN) || PRINT_FIELD(BRSTACKINSNLEN))
+	if (PRINT_FIELD(BRSTACKINSN) || PRINT_FIELD(BRSTACKINSNLEN) || PRINT_FIELD(BRSTACKDISASM))
 		printed += perf_sample__fprintf_brstackinsn(sample, thread, attr, machine, fp);
 
 	return printed;
@@ -3940,7 +3958,7 @@ int cmd_script(int argc, const char **argv)
 		     "Fields: comm,tid,pid,time,cpu,event,trace,ip,sym,dso,dsoff,"
 		     "addr,symoff,srcline,period,iregs,uregs,brstack,"
 		     "brstacksym,flags,data_src,weight,bpf-output,brstackinsn,"
-		     "brstackinsnlen,brstackoff,callindent,insn,disasm,insnlen,synth,"
+		     "brstackinsnlen,brstackdisasm,brstackoff,callindent,insn,disasm,insnlen,synth,"
 		     "phys_addr,metric,misc,srccode,ipc,tod,data_page_size,"
 		     "code_page_size,ins_lat,machine_pid,vcpu,cgroup,retire_lat",
 		     parse_output_fields),

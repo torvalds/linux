@@ -12,6 +12,7 @@
 #include "machine.h"
 #include "thread.h"
 #include "print_insn.h"
+#include "dump-insn.h"
 #include "map.h"
 #include "dso.h"
 
@@ -69,6 +70,57 @@ static int capstone_init(struct machine *machine, csh *cs_handle, bool is64)
 	}
 
 	return 0;
+}
+
+static void dump_insn_x86(struct thread *thread, cs_insn *insn, struct perf_insn *x)
+{
+	struct addr_location al;
+	bool printed = false;
+
+	if (insn->detail && insn->detail->x86.op_count == 1) {
+		cs_x86_op *op = &insn->detail->x86.operands[0];
+
+		addr_location__init(&al);
+		if (op->type == X86_OP_IMM &&
+		    thread__find_symbol(thread, x->cpumode, op->imm, &al) &&
+		    al.sym &&
+		    al.addr < al.sym->end) {
+			snprintf(x->out, sizeof(x->out), "%s %s+%#" PRIx64 " [%#" PRIx64 "]", insn[0].mnemonic,
+					al.sym->name, al.addr - al.sym->start, op->imm);
+			printed = true;
+		}
+		addr_location__exit(&al);
+	}
+
+	if (!printed)
+		snprintf(x->out, sizeof(x->out), "%s %s", insn[0].mnemonic, insn[0].op_str);
+}
+
+const char *cs_dump_insn(struct perf_insn *x, uint64_t ip,
+			 u8 *inbuf, int inlen, int *lenp)
+{
+	int ret;
+	int count;
+	cs_insn *insn;
+	csh cs_handle;
+
+	ret = capstone_init(x->machine, &cs_handle, x->is64bit);
+	if (ret < 0)
+		return NULL;
+
+	count = cs_disasm(cs_handle, (uint8_t *)inbuf, inlen, ip, 1, &insn);
+	if (count > 0) {
+		if (machine__normalized_is(x->machine, "x86"))
+			dump_insn_x86(x->thread, &insn[0], x);
+		else
+			snprintf(x->out, sizeof(x->out), "%s %s",
+					insn[0].mnemonic, insn[0].op_str);
+		*lenp = insn->size;
+		cs_free(insn, count);
+	} else {
+		return NULL;
+	}
+	return x->out;
 }
 
 static size_t print_insn_x86(struct perf_sample *sample, struct thread *thread,
