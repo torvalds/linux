@@ -5,6 +5,15 @@
  */
 #include "internal.h"
 
+static atomic_long_t erofs_global_shrink_cnt;	/* for all mounted instances */
+/* protected by 'erofs_sb_list_lock' */
+static unsigned int shrinker_run_no;
+
+/* protects the mounted 'erofs_sb_list' */
+static DEFINE_SPINLOCK(erofs_sb_list_lock);
+static LIST_HEAD(erofs_sb_list);
+static struct shrinker *erofs_shrinker_info;
+
 struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp)
 {
 	struct page *page = *pagepool;
@@ -12,10 +21,9 @@ struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp)
 	if (page) {
 		DBG_BUGON(page_ref_count(page) != 1);
 		*pagepool = (struct page *)page_private(page);
-	} else {
-		page = alloc_page(gfp);
+		return page;
 	}
-	return page;
+	return alloc_page(gfp);
 }
 
 void erofs_release_pages(struct page **pagepool)
@@ -27,10 +35,6 @@ void erofs_release_pages(struct page **pagepool)
 		put_page(page);
 	}
 }
-
-#ifdef CONFIG_EROFS_FS_ZIP
-/* global shrink count (for all mounted EROFS instances) */
-static atomic_long_t erofs_global_shrink_cnt;
 
 static bool erofs_workgroup_get(struct erofs_workgroup *grp)
 {
@@ -171,13 +175,6 @@ static unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
 	return freed;
 }
 
-/* protected by 'erofs_sb_list_lock' */
-static unsigned int shrinker_run_no;
-
-/* protects the mounted 'erofs_sb_list' */
-static DEFINE_SPINLOCK(erofs_sb_list_lock);
-static LIST_HEAD(erofs_sb_list);
-
 void erofs_shrinker_register(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
@@ -264,8 +261,6 @@ static unsigned long erofs_shrink_scan(struct shrinker *shrink,
 	return freed;
 }
 
-static struct shrinker *erofs_shrinker_info;
-
 int __init erofs_init_shrinker(void)
 {
 	erofs_shrinker_info = shrinker_alloc(0, "erofs-shrinker");
@@ -274,9 +269,7 @@ int __init erofs_init_shrinker(void)
 
 	erofs_shrinker_info->count_objects = erofs_shrink_count;
 	erofs_shrinker_info->scan_objects = erofs_shrink_scan;
-
 	shrinker_register(erofs_shrinker_info);
-
 	return 0;
 }
 
@@ -284,4 +277,3 @@ void erofs_exit_shrinker(void)
 {
 	shrinker_free(erofs_shrinker_info);
 }
-#endif	/* !CONFIG_EROFS_FS_ZIP */
