@@ -2233,6 +2233,10 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name,
 						 GFP_KERNEL);
 	if (!clp->cl_ownerstr_hashtbl)
 		goto err_no_hashtbl;
+	clp->cl_callback_wq = alloc_ordered_workqueue("nfsd4_callbacks", 0);
+	if (!clp->cl_callback_wq)
+		goto err_no_callback_wq;
+
 	for (i = 0; i < OWNER_HASH_SIZE; i++)
 		INIT_LIST_HEAD(&clp->cl_ownerstr_hashtbl[i]);
 	INIT_LIST_HEAD(&clp->cl_sessions);
@@ -2255,6 +2259,8 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name,
 	spin_lock_init(&clp->cl_lock);
 	rpc_init_wait_queue(&clp->cl_cb_waitq, "Backchannel slot table");
 	return clp;
+err_no_callback_wq:
+	kfree(clp->cl_ownerstr_hashtbl);
 err_no_hashtbl:
 	kfree(clp->cl_name.data);
 err_no_name:
@@ -2268,6 +2274,7 @@ static void __free_client(struct kref *k)
 	struct nfs4_client *clp = container_of(c, struct nfs4_client, cl_nfsdfs);
 
 	free_svc_cred(&clp->cl_cred);
+	destroy_workqueue(clp->cl_callback_wq);
 	kfree(clp->cl_ownerstr_hashtbl);
 	kfree(clp->cl_name.data);
 	kfree(clp->cl_nii_domain.data);
@@ -8636,12 +8643,6 @@ nfs4_state_start(void)
 	if (ret)
 		return ret;
 
-	ret = nfsd4_create_callback_queue();
-	if (ret) {
-		rhltable_destroy(&nfs4_file_rhltable);
-		return ret;
-	}
-
 	set_max_delegations();
 	return 0;
 }
@@ -8682,7 +8683,6 @@ nfs4_state_shutdown_net(struct net *net)
 void
 nfs4_state_shutdown(void)
 {
-	nfsd4_destroy_callback_queue();
 	rhltable_destroy(&nfs4_file_rhltable);
 }
 
