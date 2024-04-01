@@ -138,8 +138,6 @@
 	reg = <0x700680 0x50>;
 
 	flash@0 {
-		#address-cells = <0x1>;
-		#size-cells = <0x1>;
 		compatible = "jedec,spi-nor";
 		reg = <0x0>;
 		/* On-board MUX does not allow higher frequencies */
