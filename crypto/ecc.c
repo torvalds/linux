@@ -1520,7 +1520,7 @@ int ecc_make_pub_key(unsigned int curve_id, unsigned int ndigits,
 	u64 priv[ECC_MAX_DIGITS];
 	const struct ecc_curve *curve = ecc_get_curve(curve_id);
 
-	if (!private_key || !curve || ndigits > ARRAY_SIZE(priv)) {
+	if (!private_key || ndigits > ARRAY_SIZE(priv)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1622,7 +1622,7 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 	unsigned int nbytes;
 	const struct ecc_curve *curve = ecc_get_curve(curve_id);
 
-	if (!private_key || !public_key || !curve ||
+	if (!private_key || !public_key ||
 	    ndigits > ARRAY_SIZE(priv) || ndigits > ARRAY_SIZE(rand_z)) {
 		ret = -EINVAL;
 		goto out;
