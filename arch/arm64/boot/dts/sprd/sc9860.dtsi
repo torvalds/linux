@@ -135,18 +135,6 @@
 		};
 	};
 
-	gic: interrupt-controller@12001000 {
-		compatible = "arm,gic-400";
-		reg = <0 0x12001000 0 0x1000>,
-		      <0 0x12002000 0 0x2000>,
-		      <0 0x12004000 0 0x2000>,
-		      <0 0x12006000 0 0x2000>;
-		#interrupt-cells = <3>;
-		interrupt-controller;
-		interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8)
-					| IRQ_TYPE_LEVEL_HIGH)>;
-	};
-
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
@@ -185,6 +173,18 @@
 	};
 
 	soc {
+		gic: interrupt-controller@12001000 {
+			compatible = "arm,gic-400";
+			reg = <0 0x12001000 0 0x1000>,
+			      <0 0x12002000 0 0x2000>,
+			      <0 0x12004000 0 0x2000>,
+			      <0 0x12006000 0 0x2000>;
+			#interrupt-cells = <3>;
+			interrupt-controller;
+			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(8)
+						| IRQ_TYPE_LEVEL_HIGH)>;
+		};
+
 		pmu_gate: pmu-gate {
 			compatible = "sprd,sc9860-pmu-gate";
 			sprd,syscon = <&pmu_regs>; /* 0x402b0000 */
