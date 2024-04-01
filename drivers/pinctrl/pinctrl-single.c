@@ -81,8 +81,6 @@ struct pcs_conf_type {
  * @name:	pinctrl function name
  * @vals:	register and vals array
  * @nvals:	number of entries in vals array
- * @pgnames:	array of pingroup names the function uses
- * @npgnames:	number of pingroup names the function uses
  * @conf:	array of pin configurations
  * @nconfs:	number of pin configurations available
  * @node:	list node
@@ -91,8 +89,6 @@ struct pcs_function {
 	const char *name;
 	struct pcs_func_vals *vals;
 	unsigned nvals;
-	const char **pgnames;
-	int npgnames;
 	struct pcs_conf_vals *conf;
 	int nconfs;
 	struct list_head node;
