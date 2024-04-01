@@ -303,7 +303,7 @@ static struct btree *__bch2_btree_node_alloc(struct btree_trans *trans,
 	struct open_buckets obs = { .nr = 0 };
 	struct bch_devs_list devs_have = (struct bch_devs_list) { 0 };
 	enum bch_watermark watermark = flags & BCH_WATERMARK_MASK;
-	unsigned nr_reserve = watermark > BCH_WATERMARK_reclaim
+	unsigned nr_reserve = watermark < BCH_WATERMARK_reclaim
 		? BTREE_NODE_RESERVE
 		: 0;
 	int ret;
