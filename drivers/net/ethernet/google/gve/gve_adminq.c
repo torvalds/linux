@@ -745,31 +745,19 @@ int gve_adminq_destroy_rx_queues(struct gve_priv *priv, u32 num_queues)
 	return gve_adminq_kick_and_wait(priv);
 }
 
-static int gve_set_desc_cnt(struct gve_priv *priv,
-			    struct gve_device_descriptor *descriptor)
-{
-	priv->tx_desc_cnt = be16_to_cpu(descriptor->tx_queue_entries);
-	priv->rx_desc_cnt = be16_to_cpu(descriptor->rx_queue_entries);
-	return 0;
-}
-
-static int
-gve_set_desc_cnt_dqo(struct gve_priv *priv,
-		     const struct gve_device_descriptor *descriptor,
-		     const struct gve_device_option_dqo_rda *dev_op_dqo_rda)
+static void gve_set_default_desc_cnt(struct gve_priv *priv,
+			const struct gve_device_descriptor *descriptor,
+			const struct gve_device_option_dqo_rda *dev_op_dqo_rda)
 {
 	priv->tx_desc_cnt = be16_to_cpu(descriptor->tx_queue_entries);
 	priv->rx_desc_cnt = be16_to_cpu(descriptor->rx_queue_entries);
 
-	if (priv->queue_format == GVE_DQO_QPL_FORMAT)
-		return 0;
-
-	priv->options_dqo_rda.tx_comp_ring_entries =
-		be16_to_cpu(dev_op_dqo_rda->tx_comp_ring_entries);
-	priv->options_dqo_rda.rx_buff_ring_entries =
-		be16_to_cpu(dev_op_dqo_rda->rx_buff_ring_entries);
-
-	return 0;
+	if (priv->queue_format == GVE_DQO_RDA_FORMAT) {
+		priv->options_dqo_rda.tx_comp_ring_entries =
+			be16_to_cpu(dev_op_dqo_rda->tx_comp_ring_entries);
+		priv->options_dqo_rda.rx_buff_ring_entries =
+			be16_to_cpu(dev_op_dqo_rda->rx_buff_ring_entries);
+	}
 }
 
 static void gve_enable_supported_features(struct gve_priv *priv,
@@ -888,15 +876,13 @@ int gve_adminq_describe_device(struct gve_priv *priv)
 		dev_info(&priv->pdev->dev,
 			 "Driver is running with GQI QPL queue format.\n");
 	}
-	if (gve_is_gqi(priv)) {
-		err = gve_set_desc_cnt(priv, descriptor);
-	} else {
-		/* DQO supports LRO. */
+
+	/* set default descriptor counts */
+	gve_set_default_desc_cnt(priv, descriptor, dev_op_dqo_rda);
+
+	/* DQO supports LRO. */
+	if (!gve_is_gqi(priv))
 		priv->dev->hw_features |= NETIF_F_LRO;
-		err = gve_set_desc_cnt_dqo(priv, descriptor, dev_op_dqo_rda);
-	}
-	if (err)
-		goto free_device_descriptor;
 
 	priv->max_registered_pages =
 				be64_to_cpu(descriptor->max_registered_pages);
