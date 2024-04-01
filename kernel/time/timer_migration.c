@@ -762,8 +762,11 @@ bool tmigr_update_events(struct tmigr_group *group, struct tmigr_group *child,
 	 * queue when the expiry time changed only or when it could be ignored.
 	 */
 	if (timerqueue_node_queued(&evt->nextevt)) {
-		if ((evt->nextevt.expires == nextexp) && !evt->ignore)
+		if ((evt->nextevt.expires == nextexp) && !evt->ignore) {
+			/* Make sure not to miss a new CPU event with the same expiry */
+			evt->cpu = first_childevt->cpu;
 			goto check_toplvl;
+		}
 
 		if (!timerqueue_del(&group->events, &evt->nextevt))
 			WRITE_ONCE(group->next_expiry, KTIME_MAX);
