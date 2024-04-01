@@ -54,7 +54,9 @@ properties:
           - const: amlogic,meson-gx-uart
       - description: UART controller on S4 compatible SoCs
         items:
-          - const: amlogic,t7-uart
+          - enum:
+              - amlogic,a4-uart
+              - amlogic,t7-uart
           - const: amlogic,meson-s4-uart
 
   reg:
