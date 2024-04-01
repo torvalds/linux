@@ -110,7 +110,7 @@ TRACE_EVENT(sock_exceed_buf_limit,
 	),
 
 	TP_fast_assign(
-		strncpy(__entry->name, prot->name, 32);
+		strscpy(__entry->name, prot->name, 32);
 		__entry->sysctl_mem[0] = READ_ONCE(prot->sysctl_mem[0]);
 		__entry->sysctl_mem[1] = READ_ONCE(prot->sysctl_mem[1]);
 		__entry->sysctl_mem[2] = READ_ONCE(prot->sysctl_mem[2]);

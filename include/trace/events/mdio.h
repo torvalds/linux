@@ -25,7 +25,7 @@ TRACE_EVENT_CONDITION(mdio_access,
 	),
 
 	TP_fast_assign(
-		strncpy(__entry->busid, bus->id, MII_BUS_ID_SIZE);
+		strscpy(__entry->busid, bus->id, MII_BUS_ID_SIZE);
 		__entry->read = read;
 		__entry->addr = addr;
 		__entry->regnum = regnum;
