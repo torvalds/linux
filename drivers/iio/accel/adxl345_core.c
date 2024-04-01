@@ -229,17 +229,17 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap)
 	if (!data->info)
 		return -ENODEV;
 
-	/* Enable full-resolution mode */
-	ret = regmap_update_bits(regmap, ADXL345_REG_DATA_FORMAT,
-			data_format_mask, ADXL345_DATA_FORMAT_FULL_RES);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to set data range\n");
-
 	indio_dev->name = data->info->name;
 	indio_dev->info = &adxl345_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = adxl345_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adxl345_channels);
+
+	/* Enable full-resolution mode */
+	ret = regmap_update_bits(regmap, ADXL345_REG_DATA_FORMAT,
+			data_format_mask, ADXL345_DATA_FORMAT_FULL_RES);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to set data range\n");
 
 	/* Enable measurement mode */
 	ret = adxl345_powerup(data->regmap);
