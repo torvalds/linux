@@ -2125,8 +2125,7 @@ static bool commit_minimal_transition_state(struct dc *dc,
  * dc_commit_streams - Commit current stream state
  *
  * @dc: DC object with the commit state to be configured in the hardware
- * @streams: Array with a list of stream state
- * @stream_count: Total of streams
+ * @params: Parameters for the commit, including the streams to be committed
  *
  * Function responsible for commit streams change to the hardware.
  *
