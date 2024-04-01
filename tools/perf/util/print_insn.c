@@ -12,6 +12,8 @@
 #include "machine.h"
 #include "thread.h"
 #include "print_insn.h"
+#include "map.h"
+#include "dso.h"
 
 size_t sample__fprintf_insn_raw(struct perf_sample *sample, FILE *fp)
 {
@@ -28,12 +30,12 @@ size_t sample__fprintf_insn_raw(struct perf_sample *sample, FILE *fp)
 #ifdef HAVE_LIBCAPSTONE_SUPPORT
 #include <capstone/capstone.h>
 
-static int capstone_init(struct machine *machine, csh *cs_handle)
+static int capstone_init(struct machine *machine, csh *cs_handle, bool is64)
 {
 	cs_arch arch;
 	cs_mode mode;
 
-	if (machine__is(machine, "x86_64")) {
+	if (machine__is(machine, "x86_64") && is64) {
 		arch = CS_ARCH_X86;
 		mode = CS_MODE_64;
 	} else if (machine__normalized_is(machine, "x86")) {
@@ -93,17 +95,31 @@ static size_t print_insn_x86(struct perf_sample *sample, struct thread *thread,
 	return printed;
 }
 
+static bool is64bitip(struct machine *machine, struct addr_location *al)
+{
+	const struct dso *dso = al->map ? map__dso(al->map) : NULL;
+
+	if (dso)
+		return dso->is_64_bit;
+
+	return machine__is(machine, "x86_64") ||
+		machine__normalized_is(machine, "arm64") ||
+		machine__normalized_is(machine, "s390");
+}
+
 size_t sample__fprintf_insn_asm(struct perf_sample *sample, struct thread *thread,
-				struct machine *machine, FILE *fp)
+				struct machine *machine, FILE *fp,
+				struct addr_location *al)
 {
 	csh cs_handle;
 	cs_insn *insn;
 	size_t count;
 	size_t printed = 0;
 	int ret;
+	bool is64bit = is64bitip(machine, al);
 
 	/* TODO: Try to initiate capstone only once but need a proper place. */
-	ret = capstone_init(machine, &cs_handle);
+	ret = capstone_init(machine, &cs_handle, is64bit);
 	if (ret < 0) {
 		/* fallback */
 		return sample__fprintf_insn_raw(sample, fp);
@@ -128,7 +144,8 @@ size_t sample__fprintf_insn_asm(struct perf_sample *sample, struct thread *threa
 size_t sample__fprintf_insn_asm(struct perf_sample *sample __maybe_unused,
 				struct thread *thread __maybe_unused,
 				struct machine *machine __maybe_unused,
-				FILE *fp __maybe_unused)
+				FILE *fp __maybe_unused,
+				struct addr_location *al __maybe_unused)
 {
 	return 0;
 }

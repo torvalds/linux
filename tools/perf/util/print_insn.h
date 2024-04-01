@@ -10,7 +10,7 @@ struct thread;
 struct machine;
 
 size_t sample__fprintf_insn_asm(struct perf_sample *sample, struct thread *thread,
-				struct machine *machine, FILE *fp);
+				struct machine *machine, FILE *fp, struct addr_location *al);
 size_t sample__fprintf_insn_raw(struct perf_sample *sample, FILE *fp);
 
 #endif /* PERF_PRINT_INSN_H */
