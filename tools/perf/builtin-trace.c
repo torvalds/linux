@@ -4916,7 +4916,7 @@ int cmd_trace(int argc, const char **argv)
 		goto out;
 	}
 	trace.syscalls.events.bpf_output = evlist__last(trace.evlist);
-	assert(!strcmp(evsel__name(trace.syscalls.events.bpf_output), "__augmented_syscalls__"));
+	assert(evsel__name_is(trace.syscalls.events.bpf_output, "__augmented_syscalls__"));
 skip_augmentation:
 #endif
 	err = -1;
@@ -4973,7 +4973,7 @@ skip_augmentation:
 	 */
 	if (trace.syscalls.events.bpf_output) {
 		evlist__for_each_entry(trace.evlist, evsel) {
-			bool raw_syscalls_sys_exit = strcmp(evsel__name(evsel), "raw_syscalls:sys_exit") == 0;
+			bool raw_syscalls_sys_exit = evsel__name_is(evsel, "raw_syscalls:sys_exit");
 
 			if (raw_syscalls_sys_exit) {
 				trace.raw_augmented_syscalls = true;
