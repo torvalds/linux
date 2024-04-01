@@ -384,8 +384,8 @@ dma_subsys: bus@5a000000 {
 		reg = <0x5a8d0000 0x10000>;
 		interrupts = <GIC_SPI 235 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&can0_lpcg 1>,
-			 <&can0_lpcg 0>;
+		clocks = <&can0_lpcg IMX_LPCG_CLK_4>,
+			 <&can0_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "ipg", "per";
 		assigned-clocks = <&clk IMX_SC_R_CAN_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <40000000>;
@@ -405,8 +405,8 @@ dma_subsys: bus@5a000000 {
 		 * CAN1 shares CAN0's clock and to enable CAN0's clock it
 		 * has to be powered on.
 		 */
-		clocks = <&can0_lpcg 1>,
-			 <&can0_lpcg 0>;
+		clocks = <&can0_lpcg IMX_LPCG_CLK_4>,
+			 <&can0_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "ipg", "per";
 		assigned-clocks = <&clk IMX_SC_R_CAN_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <40000000>;
@@ -426,8 +426,8 @@ dma_subsys: bus@5a000000 {
 		 * CAN2 shares CAN0's clock and to enable CAN0's clock it
 		 * has to be powered on.
 		 */
-		clocks = <&can0_lpcg 1>,
-			 <&can0_lpcg 0>;
+		clocks = <&can0_lpcg IMX_LPCG_CLK_4>,
+			 <&can0_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "ipg", "per";
 		assigned-clocks = <&clk IMX_SC_R_CAN_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <40000000>;
