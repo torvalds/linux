@@ -3827,9 +3827,20 @@ static int arm_smmu_pm_prepare(struct device *dev)
 
 	if (atomic_read(&dev->power.usage_count) == 1) {
 		ret = pm_runtime_put_sync_suspend(dev);
+		/*
+		 * sync suspend would decrement the usage count before rpm suspend
+		 * and this causes usage count under flow in the next sequence of
+		 * runtime suspend operations. due to this underflow, system suspend
+		 * will fail and keeps smmu alive and further it is observed by adreno
+		 * while resuming. which is  warning for every 5 seconds by dumping
+		 * these votes.
+		 * to avoid this problem incremented the usage count back to make sure
+		 * the usage count is align before prepare and after suspend when
+		 * sync supend is invoked.
+		 */
+		pm_runtime_get_noresume(dev);
 		if (ret < 0) {
 			dev_err(dev, "sync supend failed to suspend the rpm\n");
-			pm_runtime_get_noresume(dev);
 			return -EAGAIN;
 		}
 	}
