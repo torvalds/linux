@@ -1060,7 +1060,9 @@ static int xgmi_v6_4_0_aca_bank_parser(struct aca_handle *handle, struct aca_ban
 
 	switch (type) {
 	case ACA_SMU_TYPE_UE:
-		count = ext_error_code == 0 ? count : 0ULL;
+		if (ext_error_code != 0 && ext_error_code != 9)
+			count = 0ULL;
+
 		ret = aca_error_cache_log_bank_error(handle, &info, ACA_ERROR_TYPE_UE, count);
 		break;
 	case ACA_SMU_TYPE_CE:
