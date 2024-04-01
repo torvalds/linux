@@ -1314,10 +1314,10 @@ static void gve_rx_get_curr_alloc_cfg(struct gve_priv *priv,
 	cfg->rx = priv->rx;
 }
 
-static void gve_get_curr_alloc_cfgs(struct gve_priv *priv,
-				    struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
-				    struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
-				    struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
+void gve_get_curr_alloc_cfgs(struct gve_priv *priv,
+			     struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
+			     struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
+			     struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
 {
 	gve_qpls_get_curr_alloc_cfg(priv, qpls_alloc_cfg);
 	gve_tx_get_curr_alloc_cfg(priv, tx_alloc_cfg);
@@ -1867,10 +1867,10 @@ static int gve_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	}
 }
 
-static int gve_adjust_config(struct gve_priv *priv,
-			     struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
-			     struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
-			     struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
+int gve_adjust_config(struct gve_priv *priv,
+		      struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
+		      struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
+		      struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
 {
 	int err;
 

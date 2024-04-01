@@ -1159,6 +1159,14 @@ int gve_set_hsplit_config(struct gve_priv *priv, u8 tcp_data_split);
 /* Reset */
 void gve_schedule_reset(struct gve_priv *priv);
 int gve_reset(struct gve_priv *priv, bool attempt_teardown);
+void gve_get_curr_alloc_cfgs(struct gve_priv *priv,
+			     struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
+			     struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
+			     struct gve_rx_alloc_rings_cfg *rx_alloc_cfg);
+int gve_adjust_config(struct gve_priv *priv,
+		      struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
+		      struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
+		      struct gve_rx_alloc_rings_cfg *rx_alloc_cfg);
 int gve_adjust_queues(struct gve_priv *priv,
 		      struct gve_queue_config new_rx_config,
 		      struct gve_queue_config new_tx_config);
