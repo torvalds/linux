@@ -305,8 +305,7 @@ static int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 	size_t size;
 	int i;
 
-	const u32 buffer_queue_slots = cfg->raw_addressing ?
-		priv->options_dqo_rda.rx_buff_ring_entries : cfg->ring_size;
+	const u32 buffer_queue_slots = cfg->ring_size;
 	const u32 completion_queue_slots = cfg->ring_size;
 
 	netif_dbg(priv, drv, priv->dev, "allocating rx ring DQO\n");

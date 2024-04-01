@@ -621,11 +621,6 @@ struct gve_qpl_config {
 	unsigned long *qpl_id_map; /* bitmap of used qpl ids */
 };
 
-struct gve_options_dqo_rda {
-	u16 tx_comp_ring_entries; /* number of tx_comp descriptors */
-	u16 rx_buff_ring_entries; /* number of rx_buff descriptors */
-};
-
 struct gve_irq_db {
 	__be32 index;
 } ____cacheline_aligned;
@@ -792,7 +787,6 @@ struct gve_priv {
 	u64 link_speed;
 	bool up_before_suspend; /* True if dev was up before suspend */
 
-	struct gve_options_dqo_rda options_dqo_rda;
 	struct gve_ptype_lut *ptype_lut_dqo;
 
 	/* Must be a power of two. */
