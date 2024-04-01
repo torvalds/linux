@@ -2547,7 +2547,7 @@ struct resource_pool *dcn32_create_resource_pool(
  * full update which delays the flip for 1 frame. If we use the original pipe
  * we don't have to toggle its power. So we can flip faster.
  */
-static int find_optimal_free_pipe_as_secondary_dpp_pipe(
+int dcn32_find_optimal_free_pipe_as_secondary_dpp_pipe(
 		const struct resource_context *cur_res_ctx,
 		struct resource_context *new_res_ctx,
 		const struct resource_pool *pool,
@@ -2730,7 +2730,7 @@ struct pipe_ctx *dcn32_acquire_free_pipe_as_secondary_dpp_pipe(
 		return dcn32_acquire_idle_pipe_for_head_pipe_in_layer(
 				new_ctx, pool, opp_head_pipe->stream, opp_head_pipe);
 
-	free_pipe_idx = find_optimal_free_pipe_as_secondary_dpp_pipe(
+	free_pipe_idx = dcn32_find_optimal_free_pipe_as_secondary_dpp_pipe(
 					&cur_ctx->res_ctx, &new_ctx->res_ctx,
 					pool, opp_head_pipe);
 	if (free_pipe_idx >= 0) {
