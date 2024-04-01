@@ -50,6 +50,10 @@
 /* PTYPEs are always 10 bits. */
 #define GVE_NUM_PTYPES	1024
 
+/* Default minimum ring size */
+#define GVE_DEFAULT_MIN_TX_RING_SIZE 256
+#define GVE_DEFAULT_MIN_RX_RING_SIZE 512
+
 #define GVE_DEFAULT_RX_BUFFER_SIZE 2048
 
 #define GVE_MAX_RX_BUFFER_SIZE 4096
@@ -712,6 +716,12 @@ struct gve_priv {
 	u16 num_event_counters;
 	u16 tx_desc_cnt; /* num desc per ring */
 	u16 rx_desc_cnt; /* num desc per ring */
+	u16 max_tx_desc_cnt;
+	u16 max_rx_desc_cnt;
+	u16 min_tx_desc_cnt;
+	u16 min_rx_desc_cnt;
+	bool modify_ring_size_enabled;
+	bool default_min_ring_size;
 	u16 tx_pages_per_qpl; /* Suggested number of pages per qpl for TX queues by NIC */
 	u64 max_registered_pages;
 	u64 num_registered_pages; /* num pages registered with NIC */
