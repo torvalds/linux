@@ -16,6 +16,9 @@ qcom_ipc_logging.ko
 debug_symbol.ko
 qcom_cpu_vendor_hooks.ko
 minidump.ko
+qcom_va_minidump.ko
+qcom_logbuf_vendor_hooks.ko
+qcom_logbuf_boot_log.ko
 qcom_hwspinlock.ko
 smem.ko
 socinfo.ko
