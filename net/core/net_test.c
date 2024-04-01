@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 #include <kunit/test.h>
+
+/* GSO */
+
 #include <linux/skbuff.h>
 
 static const char hdr[] = "abcdefgh";
@@ -258,17 +261,127 @@ free_gso_skb:
 	consume_skb(skb);
 }
 
-static struct kunit_case gso_test_cases[] = {
+/* IP tunnel flags */
+
+#include <net/ip_tunnels.h>
+
+struct ip_tunnel_flags_test {
+	const char	*name;
+
+	const u16	*src_bits;
+	const u16	*exp_bits;
+	u8		src_num;
+	u8		exp_num;
+
+	__be16		exp_val;
+	bool		exp_comp;
+};
+
+#define IP_TUNNEL_FLAGS_TEST(n, src, comp, eval, exp) {	\
+	.name		= (n),				\
+	.src_bits	= (src),			\
+	.src_num	= ARRAY_SIZE(src),		\
+	.exp_comp	= (comp),			\
+	.exp_val	= (eval),			\
+	.exp_bits	= (exp),			\
+	.exp_num	= ARRAY_SIZE(exp),		\
+}
+
+/* These are __be16-compatible and can be compared as is */
+static const u16 ip_tunnel_flags_1[] = {
+	IP_TUNNEL_KEY_BIT,
+	IP_TUNNEL_STRICT_BIT,
+	IP_TUNNEL_ERSPAN_OPT_BIT,
+};
+
+/* Due to the previous flags design limitation, setting either
+ * ``IP_TUNNEL_CSUM_BIT`` (on Big Endian) or ``IP_TUNNEL_DONT_FRAGMENT_BIT``
+ * (on Little) also sets VTI/ISATAP bit. In the bitmap implementation, they
+ * correspond to ``BIT(16)``, which is bigger than ``U16_MAX``, but still is
+ * backward-compatible.
+ */
+#ifdef __LITTLE_ENDIAN
+#define IP_TUNNEL_CONFLICT_BIT	IP_TUNNEL_DONT_FRAGMENT_BIT
+#else
+#define IP_TUNNEL_CONFLICT_BIT	IP_TUNNEL_CSUM_BIT
+#endif
+
+static const u16 ip_tunnel_flags_2_src[] = {
+	IP_TUNNEL_CONFLICT_BIT,
+};
+
+static const u16 ip_tunnel_flags_2_exp[] = {
+	IP_TUNNEL_CONFLICT_BIT,
+	IP_TUNNEL_SIT_ISATAP_BIT,
+};
+
+/* Bits 17 and higher are not compatible with __be16 flags */
+static const u16 ip_tunnel_flags_3_src[] = {
+	IP_TUNNEL_VXLAN_OPT_BIT,
+	17,
+	18,
+	20,
+};
+
+static const u16 ip_tunnel_flags_3_exp[] = {
+	IP_TUNNEL_VXLAN_OPT_BIT,
+};
+
+static const struct ip_tunnel_flags_test ip_tunnel_flags_test[] = {
+	IP_TUNNEL_FLAGS_TEST("compat", ip_tunnel_flags_1, true,
+			     cpu_to_be16(BIT(IP_TUNNEL_KEY_BIT) |
+					 BIT(IP_TUNNEL_STRICT_BIT) |
+					 BIT(IP_TUNNEL_ERSPAN_OPT_BIT)),
+			     ip_tunnel_flags_1),
+	IP_TUNNEL_FLAGS_TEST("conflict", ip_tunnel_flags_2_src, true,
+			     VTI_ISVTI, ip_tunnel_flags_2_exp),
+	IP_TUNNEL_FLAGS_TEST("new", ip_tunnel_flags_3_src, false,
+			     cpu_to_be16(BIT(IP_TUNNEL_VXLAN_OPT_BIT)),
+			     ip_tunnel_flags_3_exp),
+};
+
+static void
+ip_tunnel_flags_test_case_to_desc(const struct ip_tunnel_flags_test *t,
+				  char *desc)
+{
+	strscpy(desc, t->name, KUNIT_PARAM_DESC_SIZE);
+}
+KUNIT_ARRAY_PARAM(ip_tunnel_flags_test, ip_tunnel_flags_test,
+		  ip_tunnel_flags_test_case_to_desc);
+
+static void ip_tunnel_flags_test_run(struct kunit *test)
+{
+	const struct ip_tunnel_flags_test *t = test->param_value;
+	IP_TUNNEL_DECLARE_FLAGS(src) = { };
+	IP_TUNNEL_DECLARE_FLAGS(exp) = { };
+	IP_TUNNEL_DECLARE_FLAGS(out);
+
+	for (u32 j = 0; j < t->src_num; j++)
+		__set_bit(t->src_bits[j], src);
+	for (u32 j = 0; j < t->exp_num; j++)
+		__set_bit(t->exp_bits[j], exp);
+
+	KUNIT_ASSERT_EQ(test, t->exp_comp,
+			ip_tunnel_flags_is_be16_compat(src));
+	KUNIT_ASSERT_EQ(test, (__force u16)t->exp_val,
+			(__force u16)ip_tunnel_flags_to_be16(src));
+
+	ip_tunnel_flags_from_be16(out, t->exp_val);
+	KUNIT_ASSERT_TRUE(test, __ipt_flag_op(bitmap_equal, exp, out));
+}
+
+static struct kunit_case net_test_cases[] = {
 	KUNIT_CASE_PARAM(gso_test_func, gso_test_gen_params),
-	{}
+	KUNIT_CASE_PARAM(ip_tunnel_flags_test_run,
+			 ip_tunnel_flags_test_gen_params),
+	{ },
 };
 
-static struct kunit_suite gso_test_suite = {
-	.name = "net_core_gso",
-	.test_cases = gso_test_cases,
+static struct kunit_suite net_test_suite = {
+	.name		= "net_core",
+	.test_cases	= net_test_cases,
 };
+kunit_test_suite(net_test_suite);
 
-kunit_test_suite(gso_test_suite);
-
+MODULE_DESCRIPTION("KUnit tests for networking core");
 MODULE_LICENSE("GPL");
-MODULE_DESCRIPTION("KUnit tests for segmentation offload");
