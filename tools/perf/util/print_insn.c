@@ -4,6 +4,7 @@
  *
  * Author(s): Changbin Du <changbin.du@huawei.com>
  */
+#include <inttypes.h>
 #include <string.h>
 #include <stdbool.h>
 #include "debug.h"
@@ -72,59 +73,8 @@ static int capstone_init(struct machine *machine, csh *cs_handle, bool is64)
 	return 0;
 }
 
-static void dump_insn_x86(struct thread *thread, cs_insn *insn, struct perf_insn *x)
-{
-	struct addr_location al;
-	bool printed = false;
-
-	if (insn->detail && insn->detail->x86.op_count == 1) {
-		cs_x86_op *op = &insn->detail->x86.operands[0];
-
-		addr_location__init(&al);
-		if (op->type == X86_OP_IMM &&
-		    thread__find_symbol(thread, x->cpumode, op->imm, &al) &&
-		    al.sym &&
-		    al.addr < al.sym->end) {
-			snprintf(x->out, sizeof(x->out), "%s %s+%#" PRIx64 " [%#" PRIx64 "]", insn[0].mnemonic,
-					al.sym->name, al.addr - al.sym->start, op->imm);
-			printed = true;
-		}
-		addr_location__exit(&al);
-	}
-
-	if (!printed)
-		snprintf(x->out, sizeof(x->out), "%s %s", insn[0].mnemonic, insn[0].op_str);
-}
-
-const char *cs_dump_insn(struct perf_insn *x, uint64_t ip,
-			 u8 *inbuf, int inlen, int *lenp)
-{
-	int ret;
-	int count;
-	cs_insn *insn;
-	csh cs_handle;
-
-	ret = capstone_init(x->machine, &cs_handle, x->is64bit);
-	if (ret < 0)
-		return NULL;
-
-	count = cs_disasm(cs_handle, (uint8_t *)inbuf, inlen, ip, 1, &insn);
-	if (count > 0) {
-		if (machine__normalized_is(x->machine, "x86"))
-			dump_insn_x86(x->thread, &insn[0], x);
-		else
-			snprintf(x->out, sizeof(x->out), "%s %s",
-					insn[0].mnemonic, insn[0].op_str);
-		*lenp = insn->size;
-		cs_free(insn, count);
-	} else {
-		return NULL;
-	}
-	return x->out;
-}
-
-static size_t print_insn_x86(struct perf_sample *sample, struct thread *thread,
-			     cs_insn *insn, FILE *fp)
+static size_t print_insn_x86(struct thread *thread, u8 cpumode, cs_insn *insn,
+			     int print_opts, FILE *fp)
 {
 	struct addr_location al;
 	size_t printed = 0;
@@ -134,9 +84,11 @@ static size_t print_insn_x86(struct perf_sample *sample, struct thread *thread,
 
 		addr_location__init(&al);
 		if (op->type == X86_OP_IMM &&
-		    thread__find_symbol(thread, sample->cpumode, op->imm, &al)) {
+		    thread__find_symbol(thread, cpumode, op->imm, &al)) {
 			printed += fprintf(fp, "%s ", insn[0].mnemonic);
 			printed += symbol__fprintf_symname_offs(al.sym, &al, fp);
+			if (print_opts & PRINT_INSN_IMM_HEX)
+				printed += fprintf(fp, " [%#" PRIx64 "]", op->imm);
 			addr_location__exit(&al);
 			return printed;
 		}
@@ -159,37 +111,51 @@ static bool is64bitip(struct machine *machine, struct addr_location *al)
 		machine__normalized_is(machine, "s390");
 }
 
+ssize_t fprintf_insn_asm(struct machine *machine, struct thread *thread, u8 cpumode,
+			 bool is64bit, const uint8_t *code, size_t code_size,
+			 uint64_t ip, int *lenp, int print_opts, FILE *fp)
+{
+	size_t printed;
+	cs_insn *insn;
+	csh cs_handle;
+	size_t count;
+	int ret;
+
+	/* TODO: Try to initiate capstone only once but need a proper place. */
+	ret = capstone_init(machine, &cs_handle, is64bit);
+	if (ret < 0)
+		return ret;
+
+	count = cs_disasm(cs_handle, code, code_size, ip, 1, &insn);
+	if (count > 0) {
+		if (machine__normalized_is(machine, "x86"))
+			printed = print_insn_x86(thread, cpumode, &insn[0], print_opts, fp);
+		else
+			printed = fprintf(fp, "%s %s", insn[0].mnemonic, insn[0].op_str);
+		if (lenp)
+			*lenp = insn->size;
+		cs_free(insn, count);
+	} else {
+		printed = -1;
+	}
+
+	cs_close(&cs_handle);
+	return printed;
+}
+
 size_t sample__fprintf_insn_asm(struct perf_sample *sample, struct thread *thread,
 				struct machine *machine, FILE *fp,
 				struct addr_location *al)
 {
-	csh cs_handle;
-	cs_insn *insn;
-	size_t count;
-	size_t printed = 0;
-	int ret;
 	bool is64bit = is64bitip(machine, al);
+	ssize_t printed;
 
-	/* TODO: Try to initiate capstone only once but need a proper place. */
-	ret = capstone_init(machine, &cs_handle, is64bit);
-	if (ret < 0) {
-		/* fallback */
+	printed = fprintf_insn_asm(machine, thread, sample->cpumode, is64bit,
+				   (uint8_t *)sample->insn, sample->insn_len,
+				   sample->ip, NULL, 0, fp);
+	if (printed < 0)
 		return sample__fprintf_insn_raw(sample, fp);
-	}
 
-	count = cs_disasm(cs_handle, (uint8_t *)sample->insn, sample->insn_len,
-			  sample->ip, 1, &insn);
-	if (count > 0) {
-		if (machine__normalized_is(machine, "x86"))
-			printed += print_insn_x86(sample, thread, &insn[0], fp);
-		else
-			printed += fprintf(fp, "%s %s", insn[0].mnemonic, insn[0].op_str);
-		cs_free(insn, count);
-	} else {
-		printed += fprintf(fp, "illegal instruction");
-	}
-
-	cs_close(&cs_handle);
 	return printed;
 }
 #else
