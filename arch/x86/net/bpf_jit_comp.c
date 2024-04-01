@@ -816,9 +816,10 @@ done:
 static void emit_mov_imm64(u8 **pprog, u32 dst_reg,
 			   const u32 imm32_hi, const u32 imm32_lo)
 {
+	u64 imm64 = ((u64)imm32_hi << 32) | (u32)imm32_lo;
 	u8 *prog = *pprog;
 
-	if (is_uimm32(((u64)imm32_hi << 32) | (u32)imm32_lo)) {
+	if (is_uimm32(imm64)) {
 		/*
 		 * For emitting plain u32, where sign bit must not be
 		 * propagated LLVM tends to load imm64 over mov32
@@ -826,6 +827,8 @@ static void emit_mov_imm64(u8 **pprog, u32 dst_reg,
 		 * 'mov %eax, imm32' instead.
 		 */
 		emit_mov_imm32(&prog, false, dst_reg, imm32_lo);
+	} else if (is_simm32(imm64)) {
+		emit_mov_imm32(&prog, true, dst_reg, imm32_lo);
 	} else {
 		/* movabsq rax, imm64 */
 		EMIT2(add_1mod(0x48, dst_reg), add_1reg(0xB8, dst_reg));

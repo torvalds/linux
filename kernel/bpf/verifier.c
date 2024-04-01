@@ -19147,12 +19147,19 @@ static int jit_subprogs(struct bpf_verifier_env *env)
 		env->insn_aux_data[i].call_imm = insn->imm;
 		/* point imm to __bpf_call_base+1 from JITs point of view */
 		insn->imm = 1;
-		if (bpf_pseudo_func(insn))
+		if (bpf_pseudo_func(insn)) {
+#if defined(MODULES_VADDR)
+			u64 addr = MODULES_VADDR;
+#else
+			u64 addr = VMALLOC_START;
+#endif
 			/* jit (e.g. x86_64) may emit fewer instructions
 			 * if it learns a u32 imm is the same as a u64 imm.
-			 * Force a non zero here.
+			 * Set close enough to possible prog address.
 			 */
-			insn[1].imm = 1;
+			insn[0].imm = (u32)addr;
+			insn[1].imm = addr >> 32;
+		}
 	}
 
 	err = bpf_prog_alloc_jited_linfo(prog);
