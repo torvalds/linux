@@ -3594,9 +3594,9 @@ static struct platform_device *msm_otg_add_pdev(
 		struct platform_device *ofdev, const char *name)
 {
 	struct platform_device *pdev;
-	const struct resource *res = ofdev->resource;
-	unsigned int num = ofdev->num_resources;
-	int retval;
+	struct resource *res;
+	struct resource child_res[2];
+	int irq, retval;
 	struct ci13xxx_platform_data ci_pdata;
 	struct msm_otg_platform_data *otg_pdata;
 	struct msm_otg *motg;
@@ -3611,11 +3611,27 @@ static struct platform_device *msm_otg_add_pdev(
 	pdev->dev.dma_mask = &msm_otg_dma_mask;
 	pdev->dev.parent = &ofdev->dev;
 
-	if (num) {
-		retval = platform_device_add_resources(pdev, res, num);
-		if (retval)
-			goto error;
+	res = platform_get_resource_byname(ofdev, IORESOURCE_MEM, "core");
+	if (!res) {
+		retval = -1;
+		goto error;
 	}
+
+	child_res[0].flags = res->flags;
+	child_res[0].start = res->start;
+	child_res[0].end = child_res[0].start + 1024;
+
+	irq = platform_get_irq(ofdev, 0);
+	if (irq < 0) {
+		retval = irq;
+		goto error;
+	}
+	child_res[1].flags = IORESOURCE_IRQ;
+	child_res[1].start = child_res[1].end = irq;
+
+	retval = platform_device_add_resources(pdev, child_res, 2);
+	if (retval)
+		goto error;
 
 	if (!strcmp(name, "msm_hsusb")) {
 		otg_pdata =
