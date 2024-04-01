@@ -1861,7 +1861,7 @@ static void btree_node_write_work(struct work_struct *work)
 	} else {
 		ret = bch2_trans_do(c, NULL, NULL, 0,
 			bch2_btree_node_update_key_get_iter(trans, b, &wbio->key,
-					BCH_WATERMARK_reclaim|
+					BCH_WATERMARK_interior_updates|
 					BCH_TRANS_COMMIT_journal_reclaim|
 					BCH_TRANS_COMMIT_no_enospc|
 					BCH_TRANS_COMMIT_no_check_rw,

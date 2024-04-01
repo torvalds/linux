@@ -687,7 +687,7 @@ static void btree_update_nodes_written(struct btree_update *as)
 	 * which may require allocations as well.
 	 */
 	ret = commit_do(trans, &as->disk_res, &journal_seq,
-			BCH_WATERMARK_reclaim|
+			BCH_WATERMARK_interior_updates|
 			BCH_TRANS_COMMIT_no_enospc|
 			BCH_TRANS_COMMIT_no_check_rw|
 			BCH_TRANS_COMMIT_journal_reclaim,
@@ -1121,7 +1121,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		unsigned journal_flags = watermark|JOURNAL_RES_GET_CHECK;
 
 		if ((flags & BCH_TRANS_COMMIT_journal_reclaim) &&
-		    watermark != BCH_WATERMARK_reclaim)
+		    watermark < BCH_WATERMARK_reclaim)
 			journal_flags |= JOURNAL_RES_GET_NONBLOCK;
 
 		ret = drop_locks_do(trans,
@@ -1217,7 +1217,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		 */
 		if (bch2_err_matches(ret, ENOSPC) &&
 		    (flags & BCH_TRANS_COMMIT_journal_reclaim) &&
-		    watermark != BCH_WATERMARK_reclaim) {
+		    watermark < BCH_WATERMARK_reclaim) {
 			ret = -BCH_ERR_journal_reclaim_would_deadlock;
 			goto err;
 		}

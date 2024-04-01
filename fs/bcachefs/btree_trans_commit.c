@@ -887,6 +887,7 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 			    int ret, unsigned long trace_ip)
 {
 	struct bch_fs *c = trans->c;
+	enum bch_watermark watermark = flags & BCH_WATERMARK_MASK;
 
 	switch (ret) {
 	case -BCH_ERR_btree_insert_btree_node_full:
@@ -905,7 +906,7 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 		 * flag
 		 */
 		if ((flags & BCH_TRANS_COMMIT_journal_reclaim) &&
-		    (flags & BCH_WATERMARK_MASK) != BCH_WATERMARK_reclaim) {
+		    watermark < BCH_WATERMARK_reclaim) {
 			ret = -BCH_ERR_journal_reclaim_would_deadlock;
 			break;
 		}
