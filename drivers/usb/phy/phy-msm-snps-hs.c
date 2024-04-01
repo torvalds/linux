@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -450,8 +450,9 @@ static int msm_hsphy_init(struct usb_phy *uphy)
 				qcom_scm_io_writel(phy->eud_reg, 0x0);
 				phy->re_enable_eud = true;
 			} else {
-				ret = msm_hsphy_enable_power(phy, true);
-				return ret;
+				msm_hsphy_enable_power(phy, true);
+				msm_hsphy_enable_clocks(phy, true);
+				return 0;
 			}
 		}
 	}
@@ -642,6 +643,7 @@ suspend:
 		}
 		phy->suspended = true;
 	} else { /* Bus resume and cable connect */
+		msm_hsphy_enable_power(phy, true);
 		msm_hsphy_enable_clocks(phy, true);
 		phy->suspended = false;
 	}
@@ -1007,8 +1009,11 @@ static int msm_hsphy_probe(struct platform_device *pdev)
 	 * kernel boot till USB phy driver is initialized based on cable status,
 	 * keep LDOs on here.
 	 */
-	if (phy->eud_enable_reg && readl_relaxed(phy->eud_enable_reg))
+	if (phy->eud_enable_reg && readl_relaxed(phy->eud_enable_reg)) {
 		msm_hsphy_enable_power(phy, true);
+		msm_hsphy_enable_clocks(phy, true);
+	}
+
 	return 0;
 
 err_ret:
