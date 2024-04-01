@@ -1103,13 +1103,13 @@ free_qpls:
 	return err;
 }
 
-static int gve_alloc_qpls(struct gve_priv *priv,
-			  struct gve_qpls_alloc_cfg *cfg)
+static int gve_alloc_qpls(struct gve_priv *priv, struct gve_qpls_alloc_cfg *cfg,
+			  struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
 {
 	int max_queues = cfg->tx_cfg->max_queues + cfg->rx_cfg->max_queues;
 	int rx_start_id, tx_num_qpls, rx_num_qpls;
 	struct gve_queue_page_list *qpls;
-	int page_count;
+	u32 page_count;
 	int err;
 
 	if (cfg->raw_addressing)
@@ -1141,8 +1141,12 @@ static int gve_alloc_qpls(struct gve_priv *priv,
 	/* For GQI_QPL number of pages allocated have 1:1 relationship with
 	 * number of descriptors. For DQO, number of pages required are
 	 * more than descriptors (because of out of order completions).
+	 * Set it to twice the number of descriptors.
 	 */
-	page_count = cfg->is_gqi ? priv->rx_data_slot_cnt : priv->rx_pages_per_qpl;
+	if (cfg->is_gqi)
+		page_count = rx_alloc_cfg->ring_size;
+	else
+		page_count = gve_get_rx_pages_per_qpl_dqo(rx_alloc_cfg->ring_size);
 	rx_num_qpls = gve_num_rx_qpls(cfg->rx_cfg, gve_is_qpl(priv));
 	err = gve_alloc_n_qpls(priv, qpls, page_count, rx_start_id, rx_num_qpls);
 	if (err)
@@ -1363,7 +1367,7 @@ static int gve_queues_mem_alloc(struct gve_priv *priv,
 {
 	int err;
 
-	err = gve_alloc_qpls(priv, qpls_alloc_cfg);
+	err = gve_alloc_qpls(priv, qpls_alloc_cfg, rx_alloc_cfg);
 	if (err) {
 		netif_err(priv, drv, priv->dev, "Failed to alloc QPLs\n");
 		return err;
