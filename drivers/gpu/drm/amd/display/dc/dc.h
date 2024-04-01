@@ -1003,6 +1003,7 @@ struct dc_debug_options {
 	unsigned int static_screen_wait_frames;
 	bool force_chroma_subsampling_1tap;
 	bool disable_422_left_edge_pixel;
+	unsigned int force_cositing;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -1285,6 +1286,7 @@ struct dc_plane_state {
 	struct tg_color visual_confirm_color;
 
 	bool is_statically_allocated;
+	enum chroma_cositing cositing;
 };
 
 struct dc_plane_info {
@@ -1303,6 +1305,7 @@ struct dc_plane_info {
 	int  global_alpha_value;
 	bool input_csc_enabled;
 	int layer_index;
+	enum chroma_cositing cositing;
 };
 
 #include "dc_stream.h"
