@@ -6,8 +6,6 @@ use super::{flags::*, Flags};
 use core::alloc::{GlobalAlloc, Layout};
 use core::ptr;
 
-use crate::bindings;
-
 struct KernelAllocator;
 
 /// Calls `krealloc` with a proper size to alloc a new object aligned to `new_layout`'s alignment.

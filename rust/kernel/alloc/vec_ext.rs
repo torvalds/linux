@@ -4,7 +4,6 @@
 
 use super::{AllocError, Flags};
 use alloc::vec::Vec;
-use core::result::Result;
 
 /// Extensions to [`Vec`].
 pub trait VecExt<T>: Sized {

@@ -131,10 +131,8 @@
 //! C header: [`include/linux/workqueue.h`](srctree/include/linux/workqueue.h)
 
 use crate::alloc::{AllocError, Flags};
-use crate::{bindings, prelude::*, sync::Arc, sync::LockClassKey, types::Opaque};
-use alloc::boxed::Box;
+use crate::{prelude::*, sync::Arc, sync::LockClassKey, types::Opaque};
 use core::marker::PhantomData;
-use core::pin::Pin;
 
 /// Creates a [`Work`] initialiser with the given name and a newly-created lock class.
 #[macro_export]

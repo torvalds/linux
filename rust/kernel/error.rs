@@ -8,7 +8,6 @@ use crate::{alloc::AllocError, str::CStr};
 
 use alloc::alloc::LayoutError;
 
-use core::convert::From;
 use core::fmt;
 use core::num::TryFromIntError;
 use core::str::Utf8Error;

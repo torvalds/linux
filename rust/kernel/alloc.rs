@@ -46,7 +46,6 @@ impl core::ops::Not for Flags {
 /// These are meant to be used in functions that can allocate memory.
 pub mod flags {
     use super::Flags;
-    use crate::bindings;
 
     /// Zeroes out the allocated memory.
     ///

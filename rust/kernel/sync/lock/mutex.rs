@@ -4,8 +4,6 @@
 //!
 //! This module allows Rust code to use the kernel's `struct mutex`.
 
-use crate::bindings;
-
 /// Creates a [`Mutex`] initialiser with the given name and a newly-created lock class.
 ///
 /// It uses the name if one is given, otherwise it generates one based on the file name and line

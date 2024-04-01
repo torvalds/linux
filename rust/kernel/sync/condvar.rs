@@ -7,7 +7,6 @@
 
 use super::{lock::Backend, lock::Guard, LockClassKey};
 use crate::{
-    bindings,
     init::PinInit,
     pin_init,
     str::CStr,

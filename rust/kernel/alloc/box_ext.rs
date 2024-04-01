@@ -5,7 +5,6 @@
 use super::{AllocError, Flags};
 use alloc::boxed::Box;
 use core::mem::MaybeUninit;
-use core::result::Result;
 
 /// Extensions to [`Box`].
 pub trait BoxExt<T>: Sized {

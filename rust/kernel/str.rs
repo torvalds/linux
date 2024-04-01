@@ -7,10 +7,7 @@ use alloc::vec::Vec;
 use core::fmt::{self, Write};
 use core::ops::{self, Deref, DerefMut, Index};
 
-use crate::{
-    bindings,
-    error::{code::*, Error},
-};
+use crate::error::{code::*, Error};
 
 /// Byte string without UTF-8 validity guarantee.
 #[repr(transparent)]
