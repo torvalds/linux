@@ -355,8 +355,8 @@ dma_subsys: bus@5a000000 {
 		reg = <0x5a880000 0x10000>;
 		interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&adc0_lpcg 0>,
-			 <&adc0_lpcg 1>;
+		clocks = <&adc0_lpcg IMX_LPCG_CLK_0>,
+			 <&adc0_lpcg IMX_LPCG_CLK_4>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX_SC_R_ADC_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
@@ -370,8 +370,8 @@ dma_subsys: bus@5a000000 {
 		reg = <0x5a890000 0x10000>;
 		interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&adc1_lpcg 0>,
-			 <&adc1_lpcg 1>;
+		clocks = <&adc1_lpcg IMX_LPCG_CLK_0>,
+			 <&adc1_lpcg IMX_LPCG_CLK_4>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX_SC_R_ADC_1 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
