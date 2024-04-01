@@ -90,6 +90,7 @@ struct doorbell_context_queue {
 	uint32_t indirect_ibs_gmuaddr;
 	uint32_t queue_size;
 	int irq_idx;
+	uint32_t indirect_ib_ts;
 };
 
 struct qcom_hgsl {

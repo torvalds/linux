@@ -93,8 +93,9 @@ enum HGSL_DBQ_METADATA_COMMAND_INFO {
 #define HGSL_DBQ_WRITE_INDEX_OFFSET_IN_DWORD (0x0)
 #define HGSL_DBQ_READ_INDEX_OFFSET_IN_DWORD  (0x1)
 
-#define HGSL_DBQ_IBDESC_SHORT_WAIT_MSEC (5)
-#define HGSL_DBQ_IBDESC_LONG_WAIT_MSEC (30000)
+#define HGSL_DBQ_IBDESC_SHORT_WAIT_MSEC      (5)
+#define HGSL_DBQ_IBDESC_LONG_WAIT_MSEC       (30000)
+#define HGSL_DBCQ_IBDESC_SHORT_WAIT_MSEC     (5000)
 
 enum HGSL_DBQ_METADATA_COOPERATIVE_RESET_INFO {
 	HGSL_DBQ_HOST_TO_GVM_HARDRESET_REQ,
@@ -134,8 +135,15 @@ enum HGSL_DBQ_IBDESC_WAIT_TYPE {
 #define HGSL_CTXT_QUEUE_BODY_DWSIZE          (256)
 #define HGSL_CTXT_QUEUE_BODY_SIZE            (HGSL_CTXT_QUEUE_BODY_DWSIZE * sizeof(uint32_t))
 #define HGSL_CTXT_QUEUE_BODY_OFFSET          ALIGN_ADDRESS_4DWORD(sizeof(struct ctx_queue_header))
-#define HGSL_CTXT_QUEUE_TOTAL_SIZE           PAGE_ALIGN(HGSL_CTXT_QUEUE_BODY_SIZE +\
-							HGSL_CTXT_QUEUE_BODY_OFFSET)
+
+// Use indirect submission when the ib number is too big to be submitted inside hfi cmd.
+#define HGSL_CTXT_QUEUE_INDIRECT_IB_DWSIZE   (6000)
+#define HGSL_CTXT_QUEUE_INDIRECT_IB_SIZE     (HGSL_CTXT_QUEUE_INDIRECT_IB_DWSIZE * sizeof(uint32_t))
+#define HGSL_CTXT_QUEUE_INDIRECT_IB_OFFSET   ALIGN_ADDRESS_4DWORD(HGSL_CTXT_QUEUE_BODY_OFFSET +\
+							HGSL_CTXT_QUEUE_BODY_SIZE)
+
+#define HGSL_CTXT_QUEUE_TOTAL_SIZE           PAGE_ALIGN(HGSL_CTXT_QUEUE_INDIRECT_IB_SIZE +\
+							HGSL_CTXT_QUEUE_INDIRECT_IB_OFFSET)
 
 struct ctx_queue_header {
 	uint32_t version;             // Version of the context queue header
@@ -163,6 +171,10 @@ static void _signal_contexts(struct qcom_hgsl *hgsl);
 static int db_get_busy_state(void *dbq_base);
 static void db_set_busy_state(void *dbq_base, int in_busy);
 
+static int dbcq_get_free_indirect_ib_buffer(struct hgsl_priv  *priv,
+				struct hgsl_context *ctxt,
+				uint32_t ts, uint32_t timeout_in_ms);
+
 static struct hgsl_context *hgsl_get_context(struct qcom_hgsl *hgsl,
 				uint32_t context_id);
 static void hgsl_put_context(struct hgsl_context *ctxt);
@@ -173,6 +185,9 @@ static bool dbq_check_ibdesc_state(struct qcom_hgsl *hgsl, struct hgsl_context *
 static int dbq_wait_free_ibdesc(struct qcom_hgsl *hgsl,
 		struct hgsl_context *context, uint32_t request_type,
 		uint32_t wait_type);
+
+static int hgsl_wait_timestamp(struct qcom_hgsl *hgsl,
+				struct hgsl_wait_ts_info *param);
 
 static uint32_t hgsl_dbq_get_state_info(uint32_t *va_base, uint32_t command,
 				uint32_t ctxt_id, uint32_t offset)
@@ -582,7 +597,7 @@ static int dbcq_send_msg(struct hgsl_priv  *priv,
 		move_dwords = queue_size_dword - wptr;
 		resid_move_dwords = msg_req->msg_dwords - move_dwords;
 		dst = (uint8_t *)dbcq->queue_body;
-		src = msg_req->ptr_data + (move_dwords << 2);
+		src = (uint8_t *)msg_req->ptr_data + (move_dwords << 2);
 		memcpy(dst, src, (resid_move_dwords << 2));
 	}
 
@@ -932,6 +947,8 @@ static void hgsl_dbcq_init(struct hgsl_priv *priv,
 	dbcq->irq_idx = irq_idx;
 	dbcq->queue_header_gmuaddr = gmuaddr;
 	dbcq->queue_body_gmuaddr = dbcq->queue_header_gmuaddr + HGSL_CTXT_QUEUE_BODY_OFFSET;
+	dbcq->indirect_ibs_gmuaddr =
+		dbcq->queue_header_gmuaddr + HGSL_CTXT_QUEUE_INDIRECT_IB_OFFSET;
 	ctxt->tcsr_idx = tcsr_idx;
 	ctxt->dbcq = dbcq;
 	return;
@@ -1012,7 +1029,8 @@ static int hgsl_dbcq_open(struct hgsl_priv *priv,
 
 	dbcq->queue_header = dbcq->map.vaddr;
 	dbcq->queue_body = (void *)((uint8_t *)dbcq->queue_header + HGSL_CTXT_QUEUE_BODY_OFFSET);
-	dbcq->indirect_ibs = NULL;
+	dbcq->indirect_ibs =
+		(void *)((uint8_t *)dbcq->queue_header + HGSL_CTXT_QUEUE_INDIRECT_IB_OFFSET);
 	dbcq->queue_size = HGSL_CTXT_QUEUE_BODY_DWSIZE;
 
 	queue_header = (struct ctx_queue_header *)dbcq->queue_header;
@@ -1052,12 +1070,14 @@ static int hgsl_dbcq_issue_cmd(struct hgsl_priv  *priv,
 	int ret;
 	uint32_t msg_dwords;
 	uint32_t msg_buf_sz;
+	uint32_t msg_dwords_aligned;
 	struct hgsl_db_cmds *cmds = NULL;
 	struct db_msg_request req;
 	struct db_msg_response resp;
 	struct db_msg_id db_msg_id;
 	struct doorbell_context_queue *dbcq = NULL;
 	struct qcom_hgsl  *hgsl = priv->dev;
+	bool is_batch_ibdesc = false;
 
 	mutex_lock(&ctxt->lock);
 
@@ -1069,22 +1089,28 @@ static int hgsl_dbcq_issue_cmd(struct hgsl_priv  *priv,
 	db_msg_id.msg_id = HTOF_MSG_ISSUE_CMD;
 	db_msg_id.seq_no = dbcq->seq_num++;
 
+	if ((num_ibs > ECP_MAX_NUM_IB1) ||
+		(HGSL_CTXT_QUEUE_INDIRECT_IB_SIZE < (num_ibs * sizeof(struct hgsl_fw_ib_desc)))) {
+		LOGE("Invalid num_ibs %d for context %d", num_ibs, ctxt->context_id);
+		LOGE("max ib num %d, max indirect ib buffer size %d",
+				ECP_MAX_NUM_IB1, HGSL_CTXT_QUEUE_INDIRECT_IB_SIZE);
+		ret = -EINVAL;
+		goto out;
+	}
+
 	msg_dwords = MSG_ISSUE_INF_SZ() + MSG_ISSUE_IBS_SZ(num_ibs);
-	msg_buf_sz = ALIGN(msg_dwords, 4) << 2;
+	msg_dwords_aligned = ALIGN(msg_dwords, 4);
 
-	if (num_ibs > ECP_MAX_NUM_IB1) {
-		LOGE("number of ibs %d exceed max %d",
-			num_ibs, ECP_MAX_NUM_IB1);
-		ret = -EINVAL;
-		goto out;
+	// check if we need to do batch submission
+	if ((msg_dwords_aligned >= dbcq->queue_size) ||
+		(msg_dwords_aligned > (MSG_SZ_MASK >> MSG_SZ_SHIFT))) {
+		msg_dwords = MSG_ISSUE_INF_SZ();
+		msg_dwords_aligned = ALIGN(msg_dwords, 4);
+		is_batch_ibdesc = true;
+		LOGI("Number of IBs exceeded. Proceeding with CMDBATCH_IBDESC");
 	}
 
-	if ((msg_buf_sz >= dbcq->queue_size) || (msg_buf_sz > (MSG_SZ_MASK >> MSG_SZ_SHIFT))) {
-		LOGE("msg size %d exceed queue size %d or max hfi cmd size %d",
-			msg_buf_sz, dbcq->queue_size, (MSG_SZ_MASK >> MSG_SZ_SHIFT));
-		ret = -EINVAL;
-		goto out;
-	}
+	msg_buf_sz = msg_dwords_aligned << 2;
 
 	ret = hgsl_db_next_timestamp(ctxt, timestamp);
 	if (ret)
@@ -1104,7 +1130,20 @@ static int hgsl_dbcq_issue_cmd(struct hgsl_priv  *priv,
 	cmds->cmd_flags = gmu_cmd_flags;
 	cmds->timestamp = *timestamp;
 	cmds->user_profile_gpuaddr = user_profile_gpuaddr;
-	memcpy(cmds->ib_descs, ib_descs, sizeof(ib_descs[0]) * num_ibs);
+
+	if (is_batch_ibdesc) {
+		// wait for IB buffer
+		ret = dbcq_get_free_indirect_ib_buffer(priv, ctxt, *timestamp,
+					HGSL_DBCQ_IBDESC_SHORT_WAIT_MSEC);
+		if (ret)
+			goto out;
+
+		cmds->ib_desc_gmuaddr = dbcq->indirect_ibs_gmuaddr;
+		cmds->cmd_flags |= CMDBATCH_INDIRECT;
+		memcpy(dbcq->indirect_ibs, ib_descs, sizeof(ib_descs[0]) * num_ibs);
+	} else {
+		memcpy(cmds->ib_descs, ib_descs, sizeof(ib_descs[0]) * num_ibs);
+	}
 
 	req.msg_has_response = 0;
 	req.msg_has_ret_packet = 0;
@@ -1123,8 +1162,18 @@ static int hgsl_dbcq_issue_cmd(struct hgsl_priv  *priv,
 		ret = 0;
 	}
 
-	if (ret == 0)
+	if (ret == 0) {
 		ctxt->queued_ts = *timestamp;
+		if (!is_batch_ibdesc) {
+			/*
+			 * Check if we can release the indirect ib buffer.
+			 * If indirect ib has retired, set dbcq->indirect_ib_ts to 0.
+			 * We send timeout as 0 as we just want to do a quick check.
+			 * If ts didn't retire, just check next time when we do submission.
+			 */
+			dbcq_get_free_indirect_ib_buffer(priv, ctxt, 0, 0);
+		}
+	}
 out:
 	hgsl_free(cmds);
 	mutex_unlock(&ctxt->lock);
@@ -1141,6 +1190,7 @@ static int hgsl_db_issue_cmd(struct hgsl_priv  *priv,
 	int ret = 0;
 	uint32_t msg_dwords;
 	uint32_t msg_buf_sz;
+	uint32_t msg_dwords_aligned;
 	struct hgsl_db_cmds *cmds;
 	struct db_msg_request req;
 	struct db_msg_response resp;
@@ -1166,7 +1216,7 @@ static int hgsl_db_issue_cmd(struct hgsl_priv  *priv,
 		return -EINVAL;
 
 	msg_dwords = MSG_ISSUE_INF_SZ() + MSG_ISSUE_IBS_SZ(num_ibs);
-	msg_buf_sz = ALIGN(msg_dwords, 4) << 2;
+	msg_dwords_aligned = ALIGN(msg_dwords, 4);
 
 	if (num_ibs > ECP_MAX_NUM_IB1) {
 		LOGE("number of ibs %d exceed max %d",
@@ -1174,10 +1224,11 @@ static int hgsl_db_issue_cmd(struct hgsl_priv  *priv,
 		return -EINVAL;
 	}
 
-	if ((msg_buf_sz >= dbq->data.dwords) || (msg_buf_sz > (MSG_SZ_MASK >> MSG_SZ_SHIFT))) {
+	if ((msg_dwords_aligned >= dbq->data.dwords) ||
+		(msg_dwords_aligned > (MSG_SZ_MASK >> MSG_SZ_SHIFT))) {
 		if ((MSG_ISSUE_IBS_SZ(num_ibs) << 2) <= dbq->ibdesc_max_size) {
 			msg_dwords = MSG_ISSUE_INF_SZ();
-			msg_buf_sz = ALIGN(msg_dwords, 4) << 2;
+			msg_dwords_aligned = ALIGN(msg_dwords, 4);
 			is_batch_ibdesc = true;
 			LOGI("Number of IBs exceed. Proceeding with CMDBATCH_IBDESC");
 		} else {
@@ -1185,6 +1236,8 @@ static int hgsl_db_issue_cmd(struct hgsl_priv  *priv,
 			return -EINVAL;
 		}
 	}
+
+	msg_buf_sz = msg_dwords_aligned << 2;
 
 	ret = hgsl_db_next_timestamp(ctxt, timestamp);
 	if (ret)
@@ -1775,6 +1828,49 @@ static int dbq_wait_free_ibdesc(struct qcom_hgsl *hgsl,
 
 	return ret;
 }
+
+static int dbcq_get_free_indirect_ib_buffer(struct hgsl_priv  *priv,
+				struct hgsl_context *ctxt,
+				uint32_t ts, uint32_t timeout_in_ms)
+{
+	int ret = 0;
+	struct qcom_hgsl  *hgsl = priv->dev;
+	struct doorbell_context_queue *dbcq = ctxt->dbcq;
+	struct hgsl_wait_ts_info wait_ts_info = { 0 };
+	bool expired = false;
+
+	if (dbcq->indirect_ib_ts != 0x0U) {
+		ret = hgsl_check_shadow_timestamp(ctxt, GSL_TIMESTAMP_RETIRED,
+					dbcq->indirect_ib_ts, &expired);
+		if (!ret && expired) {
+			// already retired, go out to set indirect_ib_ts to claim the buffer.
+			goto out;
+		}
+
+		/* Populate the hgsl structure parameters*/
+		wait_ts_info.devhandle = ctxt->devhandle;
+		wait_ts_info.context_id = ctxt->context_id;
+		wait_ts_info.timestamp = dbcq->indirect_ib_ts;
+		wait_ts_info.timeout = timeout_in_ms;
+		if (ret)
+			ret = hgsl_hyp_wait_timestamp(&priv->hyp_priv, &wait_ts_info);
+		else if (timeout_in_ms != 0)
+			ret = hgsl_wait_timestamp(hgsl, &wait_ts_info);
+
+		if (ret) {
+			if (ret == -ETIMEDOUT) {
+				LOGI("Timed out waiting for indirect submission buffer %d", ret);
+				ret = -EAGAIN;
+			}
+			return ret;
+		}
+	}
+
+out:
+	dbcq->indirect_ib_ts = ts;
+	return ret;
+}
+
 
 static int hgsl_ctxt_create_dbq(struct hgsl_priv *priv,
 	struct hgsl_hab_channel_t *hab_channel,
