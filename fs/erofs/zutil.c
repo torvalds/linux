@@ -6,6 +6,14 @@
 #include "internal.h"
 #include <linux/pagevec.h>
 
+static atomic_long_t erofs_global_shrink_cnt;	/* for all mounted instances */
+/* protected by 'erofs_sb_list_lock' */
+static unsigned int shrinker_run_no;
+
+/* protects the mounted 'erofs_sb_list' */
+static DEFINE_SPINLOCK(erofs_sb_list_lock);
+static LIST_HEAD(erofs_sb_list);
+
 struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp)
 {
 	struct page *page = *pagepool;
@@ -13,10 +21,9 @@ struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp)
 	if (page) {
 		DBG_BUGON(page_ref_count(page) != 1);
 		*pagepool = (struct page *)page_private(page);
-	} else {
-		page = alloc_page(gfp);
+		return page;
 	}
-	return page;
+	return alloc_page(gfp);
 }
 
 void erofs_release_pages(struct page **pagepool)
@@ -28,10 +35,6 @@ void erofs_release_pages(struct page **pagepool)
 		put_page(page);
 	}
 }
-
-#ifdef CONFIG_EROFS_FS_ZIP
-/* global shrink count (for all mounted EROFS instances) */
-static atomic_long_t erofs_global_shrink_cnt;
 
 static int erofs_workgroup_get(struct erofs_workgroup *grp)
 {
@@ -181,13 +184,6 @@ static unsigned long erofs_shrink_workstation(struct erofs_sb_info *sbi,
 	return freed;
 }
 
-/* protected by 'erofs_sb_list_lock' */
-static unsigned int shrinker_run_no;
-
-/* protects the mounted 'erofs_sb_list' */
-static DEFINE_SPINLOCK(erofs_sb_list_lock);
-static LIST_HEAD(erofs_sb_list);
-
 void erofs_shrinker_register(struct super_block *sb)
 {
 	struct erofs_sb_info *sbi = EROFS_SB(sb);
@@ -289,4 +285,3 @@ void erofs_exit_shrinker(void)
 {
 	unregister_shrinker(&erofs_shrinker_info);
 }
-#endif	/* !CONFIG_EROFS_FS_ZIP */
