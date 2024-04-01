@@ -207,7 +207,7 @@
 			#clock-cells = <1>;
 		};
 
-		aon_prediv: aon-prediv {
+		aon_prediv: aon-prediv@402d0000 {
 			compatible = "sprd,sc9860-aon-prediv";
 			reg = <0 0x402d0000 0 0x400>;
 			clocks = <&ext_26m>, <&pll 0>,
