@@ -1968,6 +1968,8 @@
   __seq_open_private
   seq_printf
   seq_putc
+  seq_put_decimal_ll
+  seq_put_decimal_ull
   seq_puts
   seq_read
   seq_release
