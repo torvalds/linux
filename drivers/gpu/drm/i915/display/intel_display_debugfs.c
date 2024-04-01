@@ -191,7 +191,7 @@ static void intel_hdcp_info(struct seq_file *m,
 			    struct intel_connector *intel_connector,
 			    bool remote_req)
 {
-	bool hdcp_cap, hdcp2_cap;
+	bool hdcp_cap = false, hdcp2_cap = false;
 
 	if (!intel_connector->hdcp.shim) {
 		seq_puts(m, "No Connector Support");
