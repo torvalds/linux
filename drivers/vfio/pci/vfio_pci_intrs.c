@@ -23,11 +23,12 @@
 #include "vfio_pci_priv.h"
 
 struct vfio_pci_irq_ctx {
-	struct eventfd_ctx	*trigger;
-	struct virqfd		*unmask;
-	struct virqfd		*mask;
-	char			*name;
-	bool			masked;
+	struct vfio_pci_core_device	*vdev;
+	struct eventfd_ctx		*trigger;
+	struct virqfd			*unmask;
+	struct virqfd			*mask;
+	char				*name;
+	bool				masked;
 	struct irq_bypass_producer	producer;
 };
 
@@ -228,14 +229,10 @@ void vfio_pci_intx_unmask(struct vfio_pci_core_device *vdev)
 
 static irqreturn_t vfio_intx_handler(int irq, void *dev_id)
 {
-	struct vfio_pci_core_device *vdev = dev_id;
-	struct vfio_pci_irq_ctx *ctx;
+	struct vfio_pci_irq_ctx *ctx = dev_id;
+	struct vfio_pci_core_device *vdev = ctx->vdev;
 	unsigned long flags;
 	int ret = IRQ_NONE;
-
-	ctx = vfio_irq_ctx_get(vdev, 0);
-	if (WARN_ON_ONCE(!ctx))
-		return ret;
 
 	spin_lock_irqsave(&vdev->irqlock, flags);
 
@@ -282,6 +279,7 @@ static int vfio_intx_enable(struct vfio_pci_core_device *vdev,
 
 	ctx->name = name;
 	ctx->trigger = trigger;
+	ctx->vdev = vdev;
 
 	/*
 	 * Fill the initial masked state based on virq_disabled.  After
@@ -312,7 +310,7 @@ static int vfio_intx_enable(struct vfio_pci_core_device *vdev,
 	vdev->irq_type = VFIO_PCI_INTX_IRQ_INDEX;
 
 	ret = request_irq(pdev->irq, vfio_intx_handler,
-			  irqflags, ctx->name, vdev);
+			  irqflags, ctx->name, ctx);
 	if (ret) {
 		vdev->irq_type = VFIO_PCI_NUM_IRQS;
 		kfree(name);
@@ -358,7 +356,7 @@ static void vfio_intx_disable(struct vfio_pci_core_device *vdev)
 	if (ctx) {
 		vfio_virqfd_disable(&ctx->unmask);
 		vfio_virqfd_disable(&ctx->mask);
-		free_irq(pdev->irq, vdev);
+		free_irq(pdev->irq, ctx);
 		if (ctx->trigger)
 			eventfd_ctx_put(ctx->trigger);
 		kfree(ctx->name);
