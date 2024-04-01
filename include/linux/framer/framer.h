@@ -181,12 +181,12 @@ static inline int framer_notifier_unregister(struct framer *framer,
 	return -ENOSYS;
 }
 
-struct framer *framer_get(struct device *dev, const char *con_id)
+static inline struct framer *framer_get(struct device *dev, const char *con_id)
 {
 	return ERR_PTR(-ENOSYS);
 }
 
-void framer_put(struct device *dev, struct framer *framer)
+static inline void framer_put(struct device *dev, struct framer *framer)
 {
 }
 
