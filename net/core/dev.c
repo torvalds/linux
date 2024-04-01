@@ -4528,7 +4528,7 @@ set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 	out:
 #endif
 		rflow->last_qtail =
-			per_cpu(softnet_data, next_cpu).input_queue_head;
+			READ_ONCE(per_cpu(softnet_data, next_cpu).input_queue_head);
 	}
 
 	rflow->cpu = next_cpu;
@@ -4610,8 +4610,8 @@ static int get_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		 */
 		if (unlikely(tcpu != next_cpu) &&
 		    (tcpu >= nr_cpu_ids || !cpu_online(tcpu) ||
-		     ((int)(per_cpu(softnet_data, tcpu).input_queue_head -
-		      rflow->last_qtail)) >= 0)) {
+		     ((int)(READ_ONCE(per_cpu(softnet_data, tcpu).input_queue_head) -
+		      READ_ONCE(rflow->last_qtail))) >= 0)) {
 			tcpu = next_cpu;
 			rflow = set_rps_cpu(dev, skb, rflow, next_cpu);
 		}
@@ -4665,8 +4665,8 @@ bool rps_may_expire_flow(struct net_device *dev, u16 rxq_index,
 		rflow = &flow_table->flows[flow_id];
 		cpu = READ_ONCE(rflow->cpu);
 		if (rflow->filter == filter_id && cpu < nr_cpu_ids &&
-		    ((int)(per_cpu(softnet_data, cpu).input_queue_head -
-			   rflow->last_qtail) <
+		    ((int)(READ_ONCE(per_cpu(softnet_data, cpu).input_queue_head) -
+			   READ_ONCE(rflow->last_qtail)) <
 		     (int)(10 * flow_table->mask)))
 			expire = false;
 	}
@@ -4800,37 +4800,45 @@ static int enqueue_to_backlog(struct sk_buff *skb, int cpu,
 	struct softnet_data *sd;
 	unsigned long flags;
 	unsigned int qlen;
+	int max_backlog;
+	u32 tail;
 
-	reason = SKB_DROP_REASON_NOT_SPECIFIED;
+	reason = SKB_DROP_REASON_DEV_READY;
+	if (!netif_running(skb->dev))
+		goto bad_dev;
+
+	reason = SKB_DROP_REASON_CPU_BACKLOG;
 	sd = &per_cpu(softnet_data, cpu);
 
+	qlen = skb_queue_len_lockless(&sd->input_pkt_queue);
+	max_backlog = READ_ONCE(net_hotdata.max_backlog);
+	if (unlikely(qlen > max_backlog))
+		goto cpu_backlog_drop;
 	backlog_lock_irq_save(sd, &flags);
-	if (!netif_running(skb->dev))
-		goto drop;
 	qlen = skb_queue_len(&sd->input_pkt_queue);
-	if (qlen <= READ_ONCE(net_hotdata.max_backlog) &&
-	    !skb_flow_limit(skb, qlen)) {
-		if (qlen) {
-enqueue:
-			__skb_queue_tail(&sd->input_pkt_queue, skb);
-			input_queue_tail_incr_save(sd, qtail);
-			backlog_unlock_irq_restore(sd, &flags);
-			return NET_RX_SUCCESS;
+	if (qlen <= max_backlog && !skb_flow_limit(skb, qlen)) {
+		if (!qlen) {
+			/* Schedule NAPI for backlog device. We can use
+			 * non atomic operation as we own the queue lock.
+			 */
+			if (!__test_and_set_bit(NAPI_STATE_SCHED,
+						&sd->backlog.state))
+				napi_schedule_rps(sd);
 		}
+		__skb_queue_tail(&sd->input_pkt_queue, skb);
+		tail = rps_input_queue_tail_incr(sd);
+		backlog_unlock_irq_restore(sd, &flags);
 
-		/* Schedule NAPI for backlog device
-		 * We can use non atomic operation since we own the queue lock
-		 */
-		if (!__test_and_set_bit(NAPI_STATE_SCHED, &sd->backlog.state))
-			napi_schedule_rps(sd);
-		goto enqueue;
+		/* save the tail outside of the critical section */
+		rps_input_queue_tail_save(qtail, tail);
+		return NET_RX_SUCCESS;
 	}
-	reason = SKB_DROP_REASON_CPU_BACKLOG;
 
-drop:
-	sd->dropped++;
 	backlog_unlock_irq_restore(sd, &flags);
 
+cpu_backlog_drop:
+	atomic_inc(&sd->dropped);
+bad_dev:
 	dev_core_stats_rx_dropped_inc(skb->dev);
 	kfree_skb_reason(skb, reason);
 	return NET_RX_DROP;
@@ -5900,7 +5908,7 @@ static void flush_backlog(struct work_struct *work)
 		if (skb->dev->reg_state == NETREG_UNREGISTERING) {
 			__skb_unlink(skb, &sd->input_pkt_queue);
 			dev_kfree_skb_irq(skb);
-			input_queue_head_incr(sd);
+			rps_input_queue_head_incr(sd);
 		}
 	}
 	backlog_unlock_irq_enable(sd);
@@ -5909,7 +5917,7 @@ static void flush_backlog(struct work_struct *work)
 		if (skb->dev->reg_state == NETREG_UNREGISTERING) {
 			__skb_unlink(skb, &sd->process_queue);
 			kfree_skb(skb);
-			input_queue_head_incr(sd);
+			rps_input_queue_head_incr(sd);
 		}
 	}
 	local_bh_enable();
@@ -6037,9 +6045,10 @@ static int process_backlog(struct napi_struct *napi, int quota)
 			rcu_read_lock();
 			__netif_receive_skb(skb);
 			rcu_read_unlock();
-			input_queue_head_incr(sd);
-			if (++work >= quota)
+			if (++work >= quota) {
+				rps_input_queue_head_add(sd, work);
 				return work;
+			}
 
 		}
 
@@ -6062,6 +6071,8 @@ static int process_backlog(struct napi_struct *napi, int quota)
 		backlog_unlock_irq_enable(sd);
 	}
 
+	if (work)
+		rps_input_queue_head_add(sd, work);
 	return work;
 }
 
@@ -11451,11 +11462,11 @@ static int dev_cpu_dead(unsigned int oldcpu)
 	/* Process offline CPU's input_pkt_queue */
 	while ((skb = __skb_dequeue(&oldsd->process_queue))) {
 		netif_rx(skb);
-		input_queue_head_incr(oldsd);
+		rps_input_queue_head_incr(oldsd);
 	}
 	while ((skb = skb_dequeue(&oldsd->input_pkt_queue))) {
 		netif_rx(skb);
-		input_queue_head_incr(oldsd);
+		rps_input_queue_head_incr(oldsd);
 	}
 
 	return 0;
