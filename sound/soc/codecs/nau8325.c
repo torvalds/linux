@@ -174,13 +174,20 @@ static bool nau8325_volatile_reg(struct device *dev, unsigned int reg)
 	}
 }
 
-static const char * const nau8325_dac_oversampl[] = {
-	"64", "256", "128", "", "32" };
+static const char * const nau8325_dac_oversampl_texts[] = {
+	"64", "256", "128", "32",
+};
+
+static const unsigned int nau8325_dac_oversampl_values[] = {
+	0, 1, 2, 4,
+};
 
 static const struct soc_enum nau8325_dac_oversampl_enum =
-	SOC_ENUM_SINGLE(NAU8325_R29_DAC_CTRL1, NAU8325_DAC_OVERSAMPLE_SFT,
-			ARRAY_SIZE(nau8325_dac_oversampl),
-			nau8325_dac_oversampl);
+	SOC_VALUE_ENUM_SINGLE(NAU8325_R29_DAC_CTRL1,
+			      NAU8325_DAC_OVERSAMPLE_SFT, 0x7,
+			      ARRAY_SIZE(nau8325_dac_oversampl_texts),
+			      nau8325_dac_oversampl_texts,
+			      nau8325_dac_oversampl_values);
 
 static const DECLARE_TLV_DB_MINMAX_MUTE(dac_vol_tlv, -8000, 600);
 
