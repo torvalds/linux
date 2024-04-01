@@ -217,3 +217,8 @@
 # required by mount_state.ko
   get_fs_type
   iterate_supers_type
+
+# required by thermal_core_skip_irq.ko
+  __traceiter_android_vh_thermal_pm_notify_suspend
+  __tracepoint_android_vh_thermal_pm_notify_suspend
+  tracepoint_probe_register
