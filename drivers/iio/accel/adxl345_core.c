@@ -180,37 +180,6 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 					 ADXL345_DATA_FORMAT_SELF_TEST);
 	int ret;
 
-	if (setup) {
-		/* Perform optional initial bus specific configuration */
-		ret = setup(dev, regmap);
-		if (ret)
-			return ret;
-
-		/* Enable full-resolution mode */
-		ret = regmap_update_bits(regmap, ADXL345_REG_DATA_FORMAT,
-					 data_format_mask,
-					 ADXL345_DATA_FORMAT_FULL_RES);
-		if (ret)
-			return dev_err_probe(dev, ret,
-					     "Failed to set data range\n");
-
-	} else {
-		/* Enable full-resolution mode (init all data_format bits) */
-		ret = regmap_write(regmap, ADXL345_REG_DATA_FORMAT,
-				   ADXL345_DATA_FORMAT_FULL_RES);
-		if (ret)
-			return dev_err_probe(dev, ret,
-					     "Failed to set data range\n");
-	}
-
-	ret = regmap_read(regmap, ADXL345_REG_DEVID, &regval);
-	if (ret < 0)
-		return dev_err_probe(dev, ret, "Error reading device ID\n");
-
-	if (regval != ADXL345_DEVID)
-		return dev_err_probe(dev, -ENODEV, "Invalid device ID: %x, expected %x\n",
-				     regval, ADXL345_DEVID);
-
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*data));
 	if (!indio_dev)
 		return -ENOMEM;
@@ -226,6 +195,37 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = adxl345_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adxl345_channels);
+
+	if (setup) {
+		/* Perform optional initial bus specific configuration */
+		ret = setup(dev, data->regmap);
+		if (ret)
+			return ret;
+
+		/* Enable full-resolution mode */
+		ret = regmap_update_bits(data->regmap, ADXL345_REG_DATA_FORMAT,
+					 data_format_mask,
+					 ADXL345_DATA_FORMAT_FULL_RES);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to set data range\n");
+
+	} else {
+		/* Enable full-resolution mode (init all data_format bits) */
+		ret = regmap_write(data->regmap, ADXL345_REG_DATA_FORMAT,
+				   ADXL345_DATA_FORMAT_FULL_RES);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to set data range\n");
+	}
+
+	ret = regmap_read(data->regmap, ADXL345_REG_DEVID, &regval);
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Error reading device ID\n");
+
+	if (regval != ADXL345_DEVID)
+		return dev_err_probe(dev, -ENODEV, "Invalid device ID: %x, expected %x\n",
+				     regval, ADXL345_DEVID);
 
 	/* Enable measurement mode */
 	ret = adxl345_powerup(data->regmap);
