@@ -58,4 +58,18 @@ bool dc_stream_is_refresh_rate_range_flickerless(struct dc_stream_state *stream,
 						  int hz2,
 						  bool is_gaming);
 
+/*
+ * Determines the max instant vtotal delta increase that can be applied without
+ * flickering for a given stream
+ */
+unsigned int dc_stream_get_max_flickerless_instant_vtotal_decrease(struct dc_stream_state *stream,
+									  bool is_gaming);
+
+/*
+ * Determines the max instant vtotal delta decrease that can be applied without
+ * flickering for a given stream
+ */
+unsigned int dc_stream_get_max_flickerless_instant_vtotal_increase(struct dc_stream_state *stream,
+									  bool is_gaming);
+
 #endif // _DC_STREAM_PRIV_H_

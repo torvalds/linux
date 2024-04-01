@@ -833,7 +833,7 @@ static int dc_stream_get_brightness_millinits_linear_interpolation (struct dc_st
 								     int index2,
 								     int refresh_hz)
 {
-	int slope = 0;
+	long long slope = 0;
 	if (stream->lumin_data.refresh_rate_hz[index2] != stream->lumin_data.refresh_rate_hz[index1]) {
 		slope = (stream->lumin_data.luminance_millinits[index2] - stream->lumin_data.luminance_millinits[index1]) /
 			    (stream->lumin_data.refresh_rate_hz[index2] - stream->lumin_data.refresh_rate_hz[index1]);
@@ -852,7 +852,7 @@ static int dc_stream_get_refresh_hz_linear_interpolation (struct dc_stream_state
 							   int index2,
 							   int brightness_millinits)
 {
-	int slope = 1;
+	long long slope = 1;
 	if (stream->lumin_data.refresh_rate_hz[index2] != stream->lumin_data.refresh_rate_hz[index1]) {
 		slope = (stream->lumin_data.luminance_millinits[index2] - stream->lumin_data.luminance_millinits[index1]) /
 				(stream->lumin_data.refresh_rate_hz[index2] - stream->lumin_data.refresh_rate_hz[index1]);
@@ -860,7 +860,7 @@ static int dc_stream_get_refresh_hz_linear_interpolation (struct dc_stream_state
 
 	int y_intercept = stream->lumin_data.luminance_millinits[index2] - slope * stream->lumin_data.refresh_rate_hz[index2];
 
-	return ((brightness_millinits - y_intercept) / slope);
+	return ((int)div64_s64((brightness_millinits - y_intercept), slope));
 }
 
 /*
@@ -884,8 +884,9 @@ static int dc_stream_get_brightness_millinits_from_refresh (struct dc_stream_sta
 }
 
 /*
- * Finds the lowest refresh rate that can be achieved
- * from starting_refresh_hz while staying within flicker criteria
+ * Finds the lowest/highest refresh rate (depending on search_for_max_increase)
+ * that can be achieved from starting_refresh_hz while staying
+ * within flicker criteria
  */
 static int dc_stream_calculate_flickerless_refresh_rate(struct dc_stream_state *stream,
 							 int current_brightness,
@@ -942,7 +943,7 @@ static int dc_stream_calculate_flickerless_refresh_rate(struct dc_stream_state *
 	}
 
 	if (search_for_max_increase)
-		return stream->lumin_data.refresh_rate_hz[LUMINANCE_DATA_TABLE_SIZE - 1];
+		return (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, stream->timing.v_total*stream->timing.h_total);
 	else
 		return stream->lumin_data.refresh_rate_hz[0];
 }
@@ -980,6 +981,31 @@ static int dc_stream_get_max_delta_lumin_millinits(struct dc_stream_state *strea
 	}
 
 	return (max - min);
+}
+
+/*
+ * Determines the max flickerless instant vtotal delta for a stream.
+ * Determines vtotal increase/decrease based on the bool "increase"
+ */
+static unsigned int dc_stream_get_max_flickerless_instant_vtotal_delta(struct dc_stream_state *stream, bool is_gaming, bool increase)
+{
+	if (stream->timing.v_total * stream->timing.h_total == 0)
+		return 0;
+
+	int current_refresh_hz = (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, stream->timing.v_total*stream->timing.h_total);
+
+	int safe_refresh_hz = dc_stream_calculate_flickerless_refresh_rate(stream,
+							 dc_stream_get_brightness_millinits_from_refresh(stream, current_refresh_hz),
+							 current_refresh_hz,
+							 is_gaming,
+							 increase);
+
+	int safe_refresh_v_total = (int)div64_s64((long long)stream->timing.pix_clk_100hz*100, safe_refresh_hz*stream->timing.h_total);
+
+	if (increase)
+		return ((stream->timing.v_total - safe_refresh_v_total) >= 0) ? (stream->timing.v_total - safe_refresh_v_total) : 0;
+
+	return ((safe_refresh_v_total - stream->timing.v_total) >= 0) ? (safe_refresh_v_total - stream->timing.v_total) : 0;
 }
 
 /*
@@ -1037,4 +1063,30 @@ bool dc_stream_is_refresh_rate_range_flickerless(struct dc_stream_state *stream,
 					  stream->lumin_data.flicker_criteria_milli_nits_STATIC;
 
 	return (dl <= flicker_criteria_millinits);
+}
+
+/*
+ * Determines the max instant vtotal delta increase that can be applied without
+ * flickering for a given stream
+ */
+unsigned int dc_stream_get_max_flickerless_instant_vtotal_decrease(struct dc_stream_state *stream,
+									  bool is_gaming)
+{
+	if (!stream->lumin_data.is_valid)
+		return 0;
+
+	return dc_stream_get_max_flickerless_instant_vtotal_delta(stream, is_gaming, true);
+}
+
+/*
+ * Determines the max instant vtotal delta decrease that can be applied without
+ * flickering for a given stream
+ */
+unsigned int dc_stream_get_max_flickerless_instant_vtotal_increase(struct dc_stream_state *stream,
+									  bool is_gaming)
+{
+	if (!stream->lumin_data.is_valid)
+		return 0;
+
+	return dc_stream_get_max_flickerless_instant_vtotal_delta(stream, is_gaming, false);
 }

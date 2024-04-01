@@ -474,7 +474,7 @@ static bool is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(
 	if (refresh_rate_max_stretch_100hz < min_refresh_100hz)
 		return false;
 
-	if (fpo_candidate_stream->ctx->dc->config.enable_fpo_flicker_detection > 0 &&
+	if (fpo_candidate_stream->ctx->dc->config.enable_fpo_flicker_detection == 1 &&
 			!dc_stream_is_refresh_rate_range_flickerless(fpo_candidate_stream, (refresh_rate_max_stretch_100hz / 100), current_refresh_rate, false))
 		return false;
 

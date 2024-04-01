@@ -104,6 +104,9 @@ struct dml2_dc_callbacks {
 		struct dc_state *state,
 		const struct dc_stream_state *stream);
 	struct dc_stream_state *(*get_stream_from_id)(const struct dc_state *state, unsigned int id);
+	unsigned int (*get_max_flickerless_instant_vtotal_increase)(
+			struct dc_stream_state *stream,
+			bool is_gaming);
 };
 
 struct dml2_dc_svp_callbacks {

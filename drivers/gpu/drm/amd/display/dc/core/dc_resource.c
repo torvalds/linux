@@ -43,6 +43,8 @@
 #include "link.h"
 #include "clk_mgr.h"
 #include "dc_state_priv.h"
+#include "dc_stream_priv.h"
+
 #include "virtual/virtual_link_hwss.h"
 #include "link/hwss/link_hwss_dio.h"
 #include "link/hwss/link_hwss_dpia.h"
@@ -5195,6 +5197,7 @@ void resource_init_common_dml2_callbacks(struct dc *dc, struct dml2_configuratio
 	dml2_options->callbacks.get_dpp_pipes_for_plane = &resource_get_dpp_pipes_for_plane;
 	dml2_options->callbacks.get_stream_status = &dc_state_get_stream_status;
 	dml2_options->callbacks.get_stream_from_id = &dc_state_get_stream_from_id;
+	dml2_options->callbacks.get_max_flickerless_instant_vtotal_increase = &dc_stream_get_max_flickerless_instant_vtotal_increase;
 
 	dml2_options->svp_pstate.callbacks.dc = dc;
 	dml2_options->svp_pstate.callbacks.add_phantom_plane = &dc_state_add_phantom_plane;
