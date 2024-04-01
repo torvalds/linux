@@ -28,8 +28,8 @@ dma_subsys: bus@5a000000 {
 		#size-cells = <0>;
 		interrupts = <GIC_SPI 336 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&spi0_lpcg 0>,
-			 <&spi0_lpcg 1>;
+		clocks = <&spi0_lpcg IMX_LPCG_CLK_0>,
+			 <&spi0_lpcg IMX_LPCG_CLK_4>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX_SC_R_SPI_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <60000000>;
@@ -44,8 +44,8 @@ dma_subsys: bus@5a000000 {
 		#size-cells = <0>;
 		interrupts = <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&spi1_lpcg 0>,
-			 <&spi1_lpcg 1>;
+		clocks = <&spi1_lpcg IMX_LPCG_CLK_0>,
+			 <&spi1_lpcg IMX_LPCG_CLK_4>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX_SC_R_SPI_1 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <60000000>;
@@ -60,8 +60,8 @@ dma_subsys: bus@5a000000 {
 		#size-cells = <0>;
 		interrupts = <GIC_SPI 338 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&spi2_lpcg 0>,
-			 <&spi2_lpcg 1>;
+		clocks = <&spi2_lpcg IMX_LPCG_CLK_0>,
+			 <&spi2_lpcg IMX_LPCG_CLK_4>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX_SC_R_SPI_2 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <60000000>;
@@ -76,8 +76,8 @@ dma_subsys: bus@5a000000 {
 		#size-cells = <0>;
 		interrupts = <GIC_SPI 339 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&spi3_lpcg 0>,
-			 <&spi3_lpcg 1>;
+		clocks = <&spi3_lpcg IMX_LPCG_CLK_0>,
+			 <&spi3_lpcg IMX_LPCG_CLK_4>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX_SC_R_SPI_3 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <60000000>;
