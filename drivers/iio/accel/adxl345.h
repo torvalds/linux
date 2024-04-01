@@ -31,6 +31,7 @@
 #define ADXL345_DATA_FORMAT_RANGE	GENMASK(1, 0)	/* Set the g range */
 #define ADXL345_DATA_FORMAT_JUSTIFY	BIT(2)	/* Left-justified (MSB) mode */
 #define ADXL345_DATA_FORMAT_FULL_RES	BIT(3)	/* Up to 13-bits resolution */
+#define ADXL345_DATA_FORMAT_SPI_3WIRE	BIT(6)	/* 3-wire SPI mode */
 #define ADXL345_DATA_FORMAT_SELF_TEST	BIT(7)	/* Enable a self test */
 
 #define ADXL345_DATA_FORMAT_2G		0
