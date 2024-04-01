@@ -41,7 +41,7 @@ conn_subsys: bus@5b000000 {
 		interrupts = <GIC_SPI 267 IRQ_TYPE_LEVEL_HIGH>;
 		fsl,usbphy = <&usbphy1>;
 		fsl,usbmisc = <&usbmisc1 0>;
-		clocks = <&usb2_lpcg 0>;
+		clocks = <&usb2_lpcg IMX_LPCG_CLK_6>;
 		ahb-burst-config = <0x0>;
 		tx-burst-size-dword = <0x10>;
 		rx-burst-size-dword = <0x10>;
@@ -58,7 +58,7 @@ conn_subsys: bus@5b000000 {
 	usbphy1: usbphy@5b100000 {
 		compatible = "fsl,imx7ulp-usbphy";
 		reg = <0x5b100000 0x1000>;
-		clocks = <&usb2_lpcg 1>;
+		clocks = <&usb2_lpcg IMX_LPCG_CLK_7>;
 		power-domains = <&pd IMX_SC_R_USB_0_PHY>;
 		status = "disabled";
 	};
