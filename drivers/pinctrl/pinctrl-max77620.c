@@ -88,7 +88,6 @@ struct max77620_pingroup {
 
 struct max77620_pin_info {
 	enum max77620_pin_ppdrv drv_type;
-	int pull_config;
 };
 
 struct max77620_fps_config {
@@ -104,7 +103,6 @@ struct max77620_pctrl_info {
 	struct device *dev;
 	struct pinctrl_dev *pctl;
 	struct regmap *rmap;
-	int pins_current_opt[MAX77620_GPIO_NR];
 	const struct max77620_pin_function *functions;
 	unsigned int num_functions;
 	const struct max77620_pingroup *pin_groups;
