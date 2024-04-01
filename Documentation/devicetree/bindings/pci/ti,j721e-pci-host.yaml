@@ -68,6 +68,7 @@ properties:
       - 0xb00d
       - 0xb00f
       - 0xb010
+      - 0xb012
       - 0xb013
 
   msi-map: true
