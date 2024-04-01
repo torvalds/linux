@@ -168,7 +168,8 @@ static void adxl345_powerdown(void *regmap)
 	regmap_write(regmap, ADXL345_REG_POWER_CTL, ADXL345_POWER_CTL_STANDBY);
 }
 
-int adxl345_core_probe(struct device *dev, struct regmap *regmap)
+int adxl345_core_probe(struct device *dev, struct regmap *regmap,
+		       int (*setup)(struct device*, struct regmap*))
 {
 	struct adxl345_data *data;
 	struct iio_dev *indio_dev;
@@ -178,6 +179,29 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap)
 					 ADXL345_DATA_FORMAT_FULL_RES |
 					 ADXL345_DATA_FORMAT_SELF_TEST);
 	int ret;
+
+	if (setup) {
+		/* Perform optional initial bus specific configuration */
+		ret = setup(dev, regmap);
+		if (ret)
+			return ret;
+
+		/* Enable full-resolution mode */
+		ret = regmap_update_bits(regmap, ADXL345_REG_DATA_FORMAT,
+					 data_format_mask,
+					 ADXL345_DATA_FORMAT_FULL_RES);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to set data range\n");
+
+	} else {
+		/* Enable full-resolution mode (init all data_format bits) */
+		ret = regmap_write(regmap, ADXL345_REG_DATA_FORMAT,
+				   ADXL345_DATA_FORMAT_FULL_RES);
+		if (ret)
+			return dev_err_probe(dev, ret,
+					     "Failed to set data range\n");
+	}
 
 	ret = regmap_read(regmap, ADXL345_REG_DEVID, &regval);
 	if (ret < 0)
@@ -202,12 +226,6 @@ int adxl345_core_probe(struct device *dev, struct regmap *regmap)
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = adxl345_channels;
 	indio_dev->num_channels = ARRAY_SIZE(adxl345_channels);
-
-	/* Enable full-resolution mode */
-	ret = regmap_update_bits(regmap, ADXL345_REG_DATA_FORMAT,
-			data_format_mask, ADXL345_DATA_FORMAT_FULL_RES);
-	if (ret)
-		return dev_err_probe(dev, ret, "Failed to set data range\n");
 
 	/* Enable measurement mode */
 	ret = adxl345_powerup(data->regmap);
