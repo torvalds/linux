@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/err.h>
@@ -149,7 +149,7 @@ static void pdc_enable_intr(struct irq_data *d, bool on)
 		pdc_reg_write(IRQ_i_CFG, index, enable);
 	}
 	raw_spin_unlock_irqrestore(&pdc_lock, flags);
-	ipc_log_string(pdc_ipc_log, "PIN=%d enable=%d", d->hwirq, on);
+	ipc_log_string(pdc_ipc_log, "PIN=%lu enable=%d", d->hwirq, on);
 }
 
 static void qcom_pdc_gic_disable(struct irq_data *d)
@@ -232,7 +232,7 @@ static int qcom_pdc_gic_set_type(struct irq_data *d, unsigned int type)
 	old_pdc_type = pdc_reg_read(IRQ_i_CFG, d->hwirq);
 	pdc_type |= (old_pdc_type & ~IRQ_i_CFG_TYPE_MASK);
 	pdc_reg_write(IRQ_i_CFG, d->hwirq, pdc_type);
-	ipc_log_string(pdc_ipc_log, "Set type: PIN=%d pdc_type=%d gic_type=%d",
+	ipc_log_string(pdc_ipc_log, "Set type: PIN=%lu pdc_type=%d gic_type=%d",
 		       d->hwirq, pdc_type, type);
 
 	/* Additionally, configure (only) the GPIO in the f/w */
@@ -329,7 +329,7 @@ static int qcom_pdc_alloc(struct irq_domain *domain, unsigned int virq,
 	parent_fwspec.param[1]    = pin_to_hwirq(region, hwirq);
 	parent_fwspec.param[2]    = type;
 
-	ipc_log_string(pdc_ipc_log, "Alloc: PIN=%d", hwirq);
+	ipc_log_string(pdc_ipc_log, "Alloc: PIN=%lu", hwirq);
 	return irq_domain_alloc_irqs_parent(domain, virq, nr_irqs,
 					    &parent_fwspec);
 }
