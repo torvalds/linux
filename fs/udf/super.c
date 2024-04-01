@@ -895,7 +895,7 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 	int ret;
 	struct timestamp *ts;
 
-	outstr = kmalloc(128, GFP_KERNEL);
+	outstr = kzalloc(128, GFP_KERNEL);
 	if (!outstr)
 		return -ENOMEM;
 
@@ -921,11 +921,11 @@ static int udf_load_pvoldesc(struct super_block *sb, sector_t block)
 
 	ret = udf_dstrCS0toChar(sb, outstr, 31, pvoldesc->volIdent, 32);
 	if (ret < 0) {
-		strcpy(UDF_SB(sb)->s_volume_ident, "InvalidName");
+		strscpy_pad(UDF_SB(sb)->s_volume_ident, "InvalidName");
 		pr_warn("incorrect volume identification, setting to "
 			"'InvalidName'\n");
 	} else {
-		strncpy(UDF_SB(sb)->s_volume_ident, outstr, ret);
+		strscpy_pad(UDF_SB(sb)->s_volume_ident, outstr);
 	}
 	udf_debug("volIdent[] = '%s'\n", UDF_SB(sb)->s_volume_ident);
 
