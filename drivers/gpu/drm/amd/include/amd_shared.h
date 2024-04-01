@@ -321,6 +321,7 @@ struct amd_ip_funcs {
 	int (*set_powergating_state)(void *handle,
 				     enum amd_powergating_state state);
 	void (*get_clockgating_state)(void *handle, u64 *flags);
+	void (*dump_ip_state)(void *handle);
 };
 
 

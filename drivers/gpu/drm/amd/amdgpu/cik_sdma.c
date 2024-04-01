@@ -1228,6 +1228,7 @@ static const struct amd_ip_funcs cik_sdma_ip_funcs = {
 	.soft_reset = cik_sdma_soft_reset,
 	.set_clockgating_state = cik_sdma_set_clockgating_state,
 	.set_powergating_state = cik_sdma_set_powergating_state,
+	.dump_ip_state = NULL,
 };
 
 static const struct amdgpu_ring_funcs cik_sdma_ring_funcs = {

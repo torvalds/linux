@@ -3121,6 +3121,7 @@ static const struct amd_ip_funcs amdgpu_dm_funcs = {
 	.soft_reset = dm_soft_reset,
 	.set_clockgating_state = dm_set_clockgating_state,
 	.set_powergating_state = dm_set_powergating_state,
+	.dump_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version dm_ip_block = {

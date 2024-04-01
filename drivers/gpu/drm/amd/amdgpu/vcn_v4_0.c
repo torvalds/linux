@@ -2131,6 +2131,7 @@ static const struct amd_ip_funcs vcn_v4_0_ip_funcs = {
 	.post_soft_reset = NULL,
 	.set_clockgating_state = vcn_v4_0_set_clockgating_state,
 	.set_powergating_state = vcn_v4_0_set_powergating_state,
+	.dump_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version vcn_v4_0_ip_block = {
