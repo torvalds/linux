@@ -145,8 +145,8 @@ dma_subsys: bus@5a000000 {
 		compatible = "fsl,imx8qxp-pwm", "fsl,imx27-pwm";
 		reg = <0x5a190000 0x1000>;
 		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&adma_pwm_lpcg 1>,
-			 <&adma_pwm_lpcg 0>;
+		clocks = <&adma_pwm_lpcg IMX_LPCG_CLK_4>,
+			 <&adma_pwm_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "ipg", "per";
 		assigned-clocks = <&clk IMX_SC_R_LCD_0_PWM_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
