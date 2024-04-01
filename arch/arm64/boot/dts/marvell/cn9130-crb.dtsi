@@ -82,7 +82,6 @@
 		tx-disable-gpios = <&expander0 2 GPIO_ACTIVE_HIGH>;
 		tx-fault-gpios = <&cp0_gpio1 24 GPIO_ACTIVE_HIGH>;
 		maximum-power-milliwatt = <3000>;
-		status = "okay";
 	};
 };
 
