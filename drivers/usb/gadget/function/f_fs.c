@@ -46,6 +46,8 @@
 
 #define FUNCTIONFS_MAGIC	0xa647361 /* Chosen by a honest dice roll ;) */
 
+#define DMABUF_ENQUEUE_TIMEOUT_MS 5000
+
 MODULE_IMPORT_NS(DMA_BUF);
 
 /* Reference counter handling */
@@ -1580,9 +1582,11 @@ static int ffs_dmabuf_transfer(struct file *file,
 	struct usb_request *usb_req;
 	enum dma_resv_usage resv_dir;
 	struct dma_buf *dmabuf;
+	unsigned long timeout;
 	struct ffs_ep *ep;
 	bool cookie;
 	u32 seqno;
+	long retl;
 	int ret;
 
 	if (req->flags & ~USB_FFS_DMABUF_TRANSFER_MASK)
@@ -1616,17 +1620,14 @@ static int ffs_dmabuf_transfer(struct file *file,
 		goto err_attachment_put;
 
 	/* Make sure we don't have writers */
-	if (!dma_resv_test_signaled(dmabuf->resv, DMA_RESV_USAGE_WRITE)) {
-		pr_vdebug("FFS WRITE fence is not signaled\n");
-		ret = -EBUSY;
-		goto err_resv_unlock;
-	}
-
-	/* If we're writing to the DMABUF, make sure we don't have readers */
-	if (epfile->in &&
-	    !dma_resv_test_signaled(dmabuf->resv, DMA_RESV_USAGE_READ)) {
-		pr_vdebug("FFS READ fence is not signaled\n");
-		ret = -EBUSY;
+	timeout = nonblock ? 0 : msecs_to_jiffies(DMABUF_ENQUEUE_TIMEOUT_MS);
+	retl = dma_resv_wait_timeout(dmabuf->resv,
+				     dma_resv_usage_rw(epfile->in),
+				     true, timeout);
+	if (retl == 0)
+		retl = -EBUSY;
+	if (retl < 0) {
+		ret = (int)retl;
 		goto err_resv_unlock;
 	}
 
