@@ -67,6 +67,20 @@ properties:
   "#sound-dai-cells":
     const: 0
 
+  ti,T1-framing-tx:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      If the property is present, tx data delay is set to 2 bit clock periods.
+      McBSP will insert a blank period (high-impedance period) before the first
+      data bit. This can be used to interface to T1-framing devices.
+
+  ti,T1-framing-rx:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      If the property is present, rx data delay is set to 2 bit clock periods.
+      McBSP will discard the bit preceding the data stream (called framing bit).
+      This can be used to interface to T1-framing devices.
+
 required:
   - "#sound-dai-cells"
   - compatible
