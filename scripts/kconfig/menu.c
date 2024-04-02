@@ -282,7 +282,7 @@ static void sym_check_prop(struct symbol *sym)
 	}
 }
 
-void menu_finalize(struct menu *parent)
+static void _menu_finalize(struct menu *parent, bool inside_choice)
 {
 	struct menu *menu, *last_menu;
 	struct symbol *sym;
@@ -296,7 +296,12 @@ void menu_finalize(struct menu *parent)
 		 * and propagate parent dependencies before moving on.
 		 */
 
-		if (sym && sym_is_choice(sym)) {
+		bool is_choice = false;
+
+		if (sym && sym_is_choice(sym))
+			is_choice = true;
+
+		if (is_choice) {
 			if (sym->type == S_UNKNOWN) {
 				/* find the first choice value to find out choice type */
 				current_entry = parent;
@@ -394,7 +399,7 @@ void menu_finalize(struct menu *parent)
 			}
 		}
 
-		if (sym && sym_is_choice(sym))
+		if (is_choice)
 			expr_free(parentdep);
 
 		/*
@@ -402,8 +407,8 @@ void menu_finalize(struct menu *parent)
 		 * moving on
 		 */
 		for (menu = parent->list; menu; menu = menu->next)
-			menu_finalize(menu);
-	} else if (sym) {
+			_menu_finalize(menu, is_choice);
+	} else if (!inside_choice && sym) {
 		/*
 		 * Automatic submenu creation. If sym is a symbol and A, B, C,
 		 * ... are consecutive items (symbols, menus, ifs, etc.) that
@@ -463,7 +468,7 @@ void menu_finalize(struct menu *parent)
 			/* Superset, put in submenu */
 			expr_free(dep2);
 		next:
-			menu_finalize(menu);
+			_menu_finalize(menu, false);
 			menu->parent = parent;
 			last_menu = menu;
 		}
@@ -580,6 +585,11 @@ void menu_finalize(struct menu *parent)
 				expr_alloc_and(parent->prompt->visible.expr,
 					expr_alloc_symbol(&symbol_mod)));
 	}
+}
+
+void menu_finalize(void)
+{
+	_menu_finalize(&rootmenu, false);
 }
 
 bool menu_has_prompt(struct menu *menu)

@@ -574,7 +574,7 @@ Memory b/w domain is L3 cache.
 	MB:<cache_id0>=bandwidth0;<cache_id1>=bandwidth1;...
 
 Memory bandwidth Allocation specified in MiBps
----------------------------------------------
+----------------------------------------------
 
 Memory bandwidth domain is L3 cache.
 ::
