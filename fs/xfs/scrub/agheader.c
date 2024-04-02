@@ -166,8 +166,7 @@ xchk_superblock(
 		xchk_block_set_corrupt(sc, bp);
 
 	/* Check sb_versionnum bits that are set at mkfs time. */
-	vernum_mask = cpu_to_be16(~XFS_SB_VERSION_OKBITS |
-				  XFS_SB_VERSION_NUMBITS |
+	vernum_mask = cpu_to_be16(XFS_SB_VERSION_NUMBITS |
 				  XFS_SB_VERSION_ALIGNBIT |
 				  XFS_SB_VERSION_DALIGNBIT |
 				  XFS_SB_VERSION_SHAREDBIT |
