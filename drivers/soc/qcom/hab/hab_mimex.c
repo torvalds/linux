@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include "hab.h"
 #include "hab_grantable.h"
@@ -425,7 +425,7 @@ int hab_mem_unexport(struct uhab_context *ctx,
 	exp = idr_find(&vchan->pchan->expid_idr, param->exportid);
 	if (!exp) {
 		spin_unlock_bh(&vchan->pchan->expid_lock);
-		pr_err("unexp fail, cannot find exp id %d\n", param->exportid);
+		pr_err("unexp fail, cannot find exp id %d on vc %x\n", param->exportid, vchan->id);
 		ret = -EINVAL;
 		goto err_novchan;
 	}
@@ -437,8 +437,9 @@ int hab_mem_unexport(struct uhab_context *ctx,
 		idr_remove(&vchan->pchan->expid_idr, param->exportid);
 	else {
 		ret = exp_super->remote_imported == 0 ? -EINVAL : -EBUSY;
-		pr_err("unexp exp id %d fail, exp state %d, remote imp %d\n",
-				param->exportid, exp_super->exp_state, exp_super->remote_imported);
+		pr_err("unexp expid %d fail on vc %x, state %d, remote imp %d\n",
+			param->exportid, vchan->id,
+			exp_super->exp_state, exp_super->remote_imported);
 		spin_unlock_bh(&vchan->pchan->expid_lock);
 		goto err_novchan;
 	}
@@ -536,8 +537,8 @@ int hab_mem_import(struct uhab_context *ctx,
 			/* not allowed to import one exp desc more than once */
 			if (exp_super->import_state == EXP_DESC_IMPORTED
 				|| exp_super->import_state == EXP_DESC_IMPORTING) {
-				pr_err("not allowed to import one exp desc (export id %u) more than once\n",
-						exp->export_id);
+				pr_err("vc %x not allowed to import expid %u more than once\n",
+					vchan->id, exp->export_id);
 				spin_unlock_bh(&ctx->imp_lock);
 				ret = -EINVAL;
 				goto err_imp;
@@ -555,15 +556,15 @@ int hab_mem_import(struct uhab_context *ctx,
 	spin_unlock_bh(&ctx->imp_lock);
 
 	if (!found) {
-		pr_err("Fail to get export descriptor from export id %d\n",
-			param->exportid);
+		pr_err("vc %x fail to get export descriptor from export id %d\n",
+			vchan->id, param->exportid);
 		ret = -ENODEV;
 		goto err_imp;
 	}
 
 	if ((exp->payload_count << PAGE_SHIFT) != param->sizebytes) {
-		pr_err("input size %d don't match buffer size %d\n",
-			param->sizebytes, exp->payload_count << PAGE_SHIFT);
+		pr_err("vc %x input size %d don't match buffer size %d\n",
+			vchan->id, param->sizebytes, exp->payload_count << PAGE_SHIFT);
 		ret = -EINVAL;
 		exp_super->import_state = EXP_DESC_INIT;
 		goto err_imp;
@@ -571,8 +572,8 @@ int hab_mem_import(struct uhab_context *ctx,
 
 	ret = habmem_imp_hyp_map(ctx->import_ctx, param, exp, kernel);
 	if (ret) {
-		pr_err("Import fail ret:%d pcnt:%d rem:%d 1st_ref:0x%X\n",
-			ret, exp->payload_count,
+		pr_err("Import fail on vc %x ret:%d pcnt:%d rem:%d 1st_ref:0x%X\n",
+			vchan->id, ret, exp->payload_count,
 			exp->domid_local, *((uint32_t *)exp->payload));
 		exp_super->import_state = EXP_DESC_INIT;
 		goto err_imp;
@@ -637,8 +638,8 @@ int hab_mem_unimport(struct uhab_context *ctx,
 				ctx->import_total--;
 				found = 1;
 			} else
-				pr_err("exp desc id:%u status:%d is found, invalid to unimport\n",
-						exp->export_id, exp_super->import_state);
+				pr_err("vc %x exp id:%u status:%d is found, invalid to unimport\n",
+					vchan->id, exp->export_id, exp_super->import_state);
 			break;
 		}
 	}
