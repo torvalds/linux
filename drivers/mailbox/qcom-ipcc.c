@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/bitfield.h>
@@ -10,6 +11,7 @@
 #include <linux/mailbox_controller.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/suspend.h>
 
 #include <dt-bindings/mailbox/qcom-ipcc.h>
 
@@ -34,6 +36,7 @@
 struct qcom_ipcc_chan_info {
 	u16 client_id;
 	u16 signal_id;
+	u16 is_signal_enabled;
 };
 
 /**
@@ -88,11 +91,31 @@ static irqreturn_t qcom_ipcc_irq_fn(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static void qcom_ipcc_update_irq_status(struct qcom_ipcc *ipcc,
+		irq_hw_number_t hwirq, bool is_enabled)
+{
+	struct qcom_ipcc_chan_info *qcom_ipcc_chan_info;
+	int chan_id;
+
+	for (chan_id = 0; chan_id < ipcc->num_chans; chan_id++) {
+		qcom_ipcc_chan_info = ipcc->chans[chan_id].con_priv;
+		if (!qcom_ipcc_chan_info)
+			break;
+
+		if (qcom_ipcc_chan_info->client_id == FIELD_GET(IPCC_CLIENT_ID_MASK, hwirq) &&
+			qcom_ipcc_chan_info->signal_id == FIELD_GET(IPCC_SIGNAL_ID_MASK, hwirq)) {
+			qcom_ipcc_chan_info->is_signal_enabled = is_enabled;
+			break;
+		}
+	}
+}
+
 static void qcom_ipcc_mask_irq(struct irq_data *irqd)
 {
 	struct qcom_ipcc *ipcc = irq_data_get_irq_chip_data(irqd);
 	irq_hw_number_t hwirq = irqd_to_hwirq(irqd);
 
+	qcom_ipcc_update_irq_status(ipcc, hwirq, 0);
 	writel(hwirq, ipcc->base + IPCC_REG_RECV_SIGNAL_DISABLE);
 }
 
@@ -101,6 +124,7 @@ static void qcom_ipcc_unmask_irq(struct irq_data *irqd)
 	struct qcom_ipcc *ipcc = irq_data_get_irq_chip_data(irqd);
 	irq_hw_number_t hwirq = irqd_to_hwirq(irqd);
 
+	qcom_ipcc_update_irq_status(ipcc, hwirq, 1);
 	writel(hwirq, ipcc->base + IPCC_REG_RECV_SIGNAL_ENABLE);
 }
 
@@ -253,11 +277,42 @@ static int qcom_ipcc_setup_mbox(struct qcom_ipcc *ipcc,
 	return devm_mbox_controller_register(dev, mbox);
 }
 
+static void qcom_ipcc_restore_unmask_irq(struct device *dev)
+{
+	struct qcom_ipcc_chan_info *qcom_ipcc_chan_info;
+	int chan_id;
+	u32 packed_id;
+	struct qcom_ipcc *ipcc = dev_get_drvdata(dev);
+
+	if (!ipcc || !ipcc->num_chans)
+		return;
+
+	for (chan_id = 0; chan_id < ipcc->num_chans; chan_id++) {
+		qcom_ipcc_chan_info = ipcc->chans[chan_id].con_priv;
+		if (!qcom_ipcc_chan_info)
+			break;
+
+		packed_id = qcom_ipcc_get_hwirq(qcom_ipcc_chan_info->client_id,
+				qcom_ipcc_chan_info->signal_id);
+		if (qcom_ipcc_chan_info->is_signal_enabled) {
+			dev_dbg(dev,
+				"%s: restore 0x%lx for client_id: %u signal_id: %u\n",
+				__func__, packed_id, qcom_ipcc_chan_info->client_id,
+				qcom_ipcc_chan_info->signal_id);
+			writel(packed_id,
+				ipcc->base + IPCC_REG_RECV_SIGNAL_ENABLE);
+		}
+	}
+}
+
 static int qcom_ipcc_pm_resume(struct device *dev)
 {
 	struct qcom_ipcc *ipcc = dev_get_drvdata(dev);
 	u32 hwirq;
 	int virq;
+
+	if (pm_suspend_target_state == PM_SUSPEND_MEM)
+		qcom_ipcc_restore_unmask_irq(dev);
 
 	hwirq = readl(ipcc->base + IPCC_REG_RECV_ID);
 	if (hwirq == IPCC_NO_PENDING_IRQ)
