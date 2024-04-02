@@ -70,7 +70,7 @@
 	unsigned long tcp_ptr__;				\
 	tcp_ptr__ = __raw_cpu_read(, this_cpu_off);		\
 								\
-	tcp_ptr__ += (unsigned long)(ptr);			\
+	tcp_ptr__ += (__force unsigned long)(ptr);		\
 	(typeof(*(ptr)) __kernel __force *)tcp_ptr__;		\
 })
 #else /* CONFIG_USE_X86_SEG_SUPPORT */
@@ -102,8 +102,8 @@
 #endif /* CONFIG_SMP */
 
 #define __my_cpu_type(var)	typeof(var) __percpu_seg_override
-#define __my_cpu_ptr(ptr)	(__my_cpu_type(*ptr) *)(uintptr_t)(ptr)
-#define __my_cpu_var(var)	(*__my_cpu_ptr(&var))
+#define __my_cpu_ptr(ptr)	(__my_cpu_type(*ptr)*)(__force uintptr_t)(ptr)
+#define __my_cpu_var(var)	(*__my_cpu_ptr(&(var)))
 #define __percpu_arg(x)		__percpu_prefix "%" #x
 #define __force_percpu_arg(x)	__force_percpu_prefix "%" #x
 
