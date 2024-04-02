@@ -765,42 +765,6 @@ static u8 mlxsw_pci_cq_elem_size(const struct mlxsw_pci_queue *q)
 					       MLXSW_PCI_CQE01_SIZE;
 }
 
-static int mlxsw_pci_eq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
-			     struct mlxsw_pci_queue *q)
-{
-	int i;
-	int err;
-
-	q->consumer_counter = 0;
-
-	for (i = 0; i < q->count; i++) {
-		char *elem = mlxsw_pci_queue_elem_get(q, i);
-
-		mlxsw_pci_eqe_owner_set(elem, 1);
-	}
-
-	mlxsw_cmd_mbox_sw2hw_eq_int_msix_set(mbox, 1); /* MSI-X used */
-	mlxsw_cmd_mbox_sw2hw_eq_st_set(mbox, 1); /* armed */
-	mlxsw_cmd_mbox_sw2hw_eq_log_eq_size_set(mbox, ilog2(q->count));
-	for (i = 0; i < MLXSW_PCI_AQ_PAGES; i++) {
-		dma_addr_t mapaddr = __mlxsw_pci_queue_page_get(q, i);
-
-		mlxsw_cmd_mbox_sw2hw_eq_pa_set(mbox, i, mapaddr);
-	}
-	err = mlxsw_cmd_sw2hw_eq(mlxsw_pci->core, mbox, q->num);
-	if (err)
-		return err;
-	mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
-	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
-	return 0;
-}
-
-static void mlxsw_pci_eq_fini(struct mlxsw_pci *mlxsw_pci,
-			      struct mlxsw_pci_queue *q)
-{
-	mlxsw_cmd_hw2sw_eq(mlxsw_pci->core, q->num);
-}
-
 static void mlxsw_pci_eq_cmd_event(struct mlxsw_pci *mlxsw_pci, char *eqe)
 {
 	mlxsw_pci->cmd.comp.status = mlxsw_pci_eqe_cmd_status_get(eqe);
@@ -875,6 +839,42 @@ static void mlxsw_pci_eq_tasklet(struct tasklet_struct *t)
 		q = mlxsw_pci_cq_get(mlxsw_pci, cqn);
 		mlxsw_pci_queue_tasklet_schedule(q);
 	}
+}
+
+static int mlxsw_pci_eq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
+			     struct mlxsw_pci_queue *q)
+{
+	int i;
+	int err;
+
+	q->consumer_counter = 0;
+
+	for (i = 0; i < q->count; i++) {
+		char *elem = mlxsw_pci_queue_elem_get(q, i);
+
+		mlxsw_pci_eqe_owner_set(elem, 1);
+	}
+
+	mlxsw_cmd_mbox_sw2hw_eq_int_msix_set(mbox, 1); /* MSI-X used */
+	mlxsw_cmd_mbox_sw2hw_eq_st_set(mbox, 1); /* armed */
+	mlxsw_cmd_mbox_sw2hw_eq_log_eq_size_set(mbox, ilog2(q->count));
+	for (i = 0; i < MLXSW_PCI_AQ_PAGES; i++) {
+		dma_addr_t mapaddr = __mlxsw_pci_queue_page_get(q, i);
+
+		mlxsw_cmd_mbox_sw2hw_eq_pa_set(mbox, i, mapaddr);
+	}
+	err = mlxsw_cmd_sw2hw_eq(mlxsw_pci->core, mbox, q->num);
+	if (err)
+		return err;
+	mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
+	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
+	return 0;
+}
+
+static void mlxsw_pci_eq_fini(struct mlxsw_pci *mlxsw_pci,
+			      struct mlxsw_pci_queue *q)
+{
+	mlxsw_cmd_hw2sw_eq(mlxsw_pci->core, q->num);
 }
 
 struct mlxsw_pci_queue_ops {
