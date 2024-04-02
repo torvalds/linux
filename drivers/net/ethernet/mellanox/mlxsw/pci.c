@@ -111,7 +111,6 @@ struct mlxsw_pci {
 		struct mlxsw_pci_mem_item out_mbox;
 		struct mlxsw_pci_mem_item in_mbox;
 		struct mutex lock; /* Lock access to command registers */
-		bool nopoll;
 		wait_queue_head_t wait;
 		bool wait_done;
 		struct {
@@ -1105,8 +1104,6 @@ static int mlxsw_pci_aqs_init(struct mlxsw_pci *mlxsw_pci, char *mbox)
 		goto err_rdqs_init;
 	}
 
-	/* We have to poll in command interface until queues are initialized */
-	mlxsw_pci->cmd.nopoll = true;
 	return 0;
 
 err_rdqs_init:
@@ -1120,7 +1117,6 @@ err_cqs_init:
 
 static void mlxsw_pci_aqs_fini(struct mlxsw_pci *mlxsw_pci)
 {
-	mlxsw_pci->cmd.nopoll = false;
 	mlxsw_pci_queue_group_fini(mlxsw_pci, &mlxsw_pci_rdq_ops);
 	mlxsw_pci_queue_group_fini(mlxsw_pci, &mlxsw_pci_sdq_ops);
 	mlxsw_pci_queue_group_fini(mlxsw_pci, &mlxsw_pci_cq_ops);
@@ -1848,9 +1844,9 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 {
 	struct mlxsw_pci *mlxsw_pci = bus_priv;
 	dma_addr_t in_mapaddr = 0, out_mapaddr = 0;
-	bool evreq = mlxsw_pci->cmd.nopoll;
 	unsigned long timeout = msecs_to_jiffies(MLXSW_PCI_CIR_TIMEOUT_MSECS);
 	bool *p_wait_done = &mlxsw_pci->cmd.wait_done;
+	unsigned long end;
 	int err;
 
 	*p_status = MLXSW_CMD_STATUS_OK;
@@ -1879,28 +1875,20 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 	wmb(); /* all needs to be written before we write control register */
 	mlxsw_pci_write32(mlxsw_pci, CIR_CTRL,
 			  MLXSW_PCI_CIR_CTRL_GO_BIT |
-			  (evreq ? MLXSW_PCI_CIR_CTRL_EVREQ_BIT : 0) |
 			  (opcode_mod << MLXSW_PCI_CIR_CTRL_OPCODE_MOD_SHIFT) |
 			  opcode);
 
-	if (!evreq) {
-		unsigned long end;
+	end = jiffies + timeout;
+	do {
+		u32 ctrl = mlxsw_pci_read32(mlxsw_pci, CIR_CTRL);
 
-		end = jiffies + timeout;
-		do {
-			u32 ctrl = mlxsw_pci_read32(mlxsw_pci, CIR_CTRL);
-
-			if (!(ctrl & MLXSW_PCI_CIR_CTRL_GO_BIT)) {
-				*p_wait_done = true;
-				*p_status = ctrl >> MLXSW_PCI_CIR_CTRL_STATUS_SHIFT;
-				break;
-			}
-			cond_resched();
-		} while (time_before(jiffies, end));
-	} else {
-		wait_event_timeout(mlxsw_pci->cmd.wait, *p_wait_done, timeout);
-		*p_status = mlxsw_pci->cmd.comp.status;
-	}
+		if (!(ctrl & MLXSW_PCI_CIR_CTRL_GO_BIT)) {
+			*p_wait_done = true;
+			*p_status = ctrl >> MLXSW_PCI_CIR_CTRL_STATUS_SHIFT;
+			break;
+		}
+		cond_resched();
+	} while (time_before(jiffies, end));
 
 	err = 0;
 	if (*p_wait_done) {
@@ -1917,14 +1905,12 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 		 */
 		__be32 tmp;
 
-		if (!evreq) {
-			tmp = cpu_to_be32(mlxsw_pci_read32(mlxsw_pci,
-							   CIR_OUT_PARAM_HI));
-			memcpy(out_mbox, &tmp, sizeof(tmp));
-			tmp = cpu_to_be32(mlxsw_pci_read32(mlxsw_pci,
-							   CIR_OUT_PARAM_LO));
-			memcpy(out_mbox + sizeof(tmp), &tmp, sizeof(tmp));
-		}
+		tmp = cpu_to_be32(mlxsw_pci_read32(mlxsw_pci,
+						   CIR_OUT_PARAM_HI));
+		memcpy(out_mbox, &tmp, sizeof(tmp));
+		tmp = cpu_to_be32(mlxsw_pci_read32(mlxsw_pci,
+						   CIR_OUT_PARAM_LO));
+		memcpy(out_mbox + sizeof(tmp), &tmp, sizeof(tmp));
 	} else if (!err && out_mbox) {
 		memcpy(out_mbox, mlxsw_pci->cmd.out_mbox.buf, out_mbox_size);
 	}
