@@ -168,6 +168,7 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		if (dso == NULL)
 			goto out_delete;
 
+		assert(!dso->kernel);
 		map__init(result, start, start + len, pgoff, dso);
 
 		if (anon || no_dso) {
@@ -552,10 +553,6 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
 	if (dso->rel)
 		return rip - map__pgoff(map);
 
-	/*
-	 * kernel modules also have DSO_TYPE_USER in dso->kernel,
-	 * but all kernel modules are ET_REL, so won't get here.
-	 */
 	if (dso->kernel == DSO_SPACE__USER)
 		return rip + dso->text_offset;
 
@@ -584,10 +581,6 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 	if (dso->rel)
 		return map__unmap_ip(map, ip + map__pgoff(map));
 
-	/*
-	 * kernel modules also have DSO_TYPE_USER in dso->kernel,
-	 * but all kernel modules are ET_REL, so won't get here.
-	 */
 	if (dso->kernel == DSO_SPACE__USER)
 		return map__unmap_ip(map, ip - dso->text_offset);
 

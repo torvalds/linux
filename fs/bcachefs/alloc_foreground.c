@@ -236,8 +236,7 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 		if (cl)
 			closure_wait(&c->open_buckets_wait, cl);
 
-		track_event_change(&c->times[BCH_TIME_blocked_allocate_open_bucket],
-				   &c->blocked_allocate_open_bucket, true);
+		track_event_change(&c->times[BCH_TIME_blocked_allocate_open_bucket], true);
 		spin_unlock(&c->freelist_lock);
 		return ERR_PTR(-BCH_ERR_open_buckets_empty);
 	}
@@ -263,11 +262,8 @@ static struct open_bucket *__try_alloc_bucket(struct bch_fs *c, struct bch_dev *
 	ca->nr_open_buckets++;
 	bch2_open_bucket_hash_add(c, ob);
 
-	track_event_change(&c->times[BCH_TIME_blocked_allocate_open_bucket],
-			   &c->blocked_allocate_open_bucket, false);
-
-	track_event_change(&c->times[BCH_TIME_blocked_allocate],
-			   &c->blocked_allocate, false);
+	track_event_change(&c->times[BCH_TIME_blocked_allocate_open_bucket], false);
+	track_event_change(&c->times[BCH_TIME_blocked_allocate], false);
 
 	spin_unlock(&c->freelist_lock);
 	return ob;
@@ -555,8 +551,7 @@ again:
 			goto again;
 		}
 
-		track_event_change(&c->times[BCH_TIME_blocked_allocate],
-				   &c->blocked_allocate, true);
+		track_event_change(&c->times[BCH_TIME_blocked_allocate], true);
 
 		ob = ERR_PTR(-BCH_ERR_freelist_empty);
 		goto err;
@@ -1361,15 +1356,17 @@ retry:
 
 		/* Don't retry from all devices if we're out of open buckets: */
 		if (bch2_err_matches(ret, BCH_ERR_open_buckets_empty)) {
-			int ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
+			int ret2 = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
 					      target, erasure_code,
 					      nr_replicas, &nr_effective,
 					      &have_cache, watermark,
 					      flags, cl);
-			if (!ret ||
-			    bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
-			    bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
+			if (!ret2 ||
+			    bch2_err_matches(ret2, BCH_ERR_transaction_restart) ||
+			    bch2_err_matches(ret2, BCH_ERR_open_buckets_empty)) {
+				ret = ret2;
 				goto alloc_done;
+			}
 		}
 
 		/*

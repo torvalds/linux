@@ -191,7 +191,7 @@ static void show_pte(unsigned long addr)
 		if (!ptep)
 			break;
 
-		pte = READ_ONCE(*ptep);
+		pte = __ptep_get(ptep);
 		pr_cont(", pte=%016llx", pte_val(pte));
 		pte_unmap(ptep);
 	} while(0);
@@ -205,16 +205,16 @@ static void show_pte(unsigned long addr)
  *
  * It needs to cope with hardware update of the accessed/dirty state by other
  * agents in the system and can safely skip the __sync_icache_dcache() call as,
- * like set_pte_at(), the PTE is never changed from no-exec to exec here.
+ * like __set_ptes(), the PTE is never changed from no-exec to exec here.
  *
  * Returns whether or not the PTE actually changed.
  */
-int ptep_set_access_flags(struct vm_area_struct *vma,
-			  unsigned long address, pte_t *ptep,
-			  pte_t entry, int dirty)
+int __ptep_set_access_flags(struct vm_area_struct *vma,
+			    unsigned long address, pte_t *ptep,
+			    pte_t entry, int dirty)
 {
 	pteval_t old_pteval, pteval;
-	pte_t pte = READ_ONCE(*ptep);
+	pte_t pte = __ptep_get(ptep);
 
 	if (pte_same(pte, entry))
 		return 0;
@@ -257,16 +257,14 @@ static bool is_el1_data_abort(unsigned long esr)
 static inline bool is_el1_permission_fault(unsigned long addr, unsigned long esr,
 					   struct pt_regs *regs)
 {
-	unsigned long fsc_type = esr & ESR_ELx_FSC_TYPE;
-
 	if (!is_el1_data_abort(esr) && !is_el1_instruction_abort(esr))
 		return false;
 
-	if (fsc_type == ESR_ELx_FSC_PERM)
+	if (esr_fsc_is_permission_fault(esr))
 		return true;
 
 	if (is_ttbr0_addr(addr) && system_uses_ttbr0_pan())
-		return fsc_type == ESR_ELx_FSC_FAULT &&
+		return esr_fsc_is_translation_fault(esr) &&
 			(regs->pstate & PSR_PAN_BIT);
 
 	return false;
@@ -279,8 +277,7 @@ static bool __kprobes is_spurious_el1_translation_fault(unsigned long addr,
 	unsigned long flags;
 	u64 par, dfsc;
 
-	if (!is_el1_data_abort(esr) ||
-	    (esr & ESR_ELx_FSC_TYPE) != ESR_ELx_FSC_FAULT)
+	if (!is_el1_data_abort(esr) || !esr_fsc_is_translation_fault(esr))
 		return false;
 
 	local_irq_save(flags);
@@ -301,7 +298,7 @@ static bool __kprobes is_spurious_el1_translation_fault(unsigned long addr,
 	 * treat the translation fault as spurious.
 	 */
 	dfsc = FIELD_GET(SYS_PAR_EL1_FST, par);
-	return (dfsc & ESR_ELx_FSC_TYPE) != ESR_ELx_FSC_FAULT;
+	return !esr_fsc_is_translation_fault(dfsc);
 }
 
 static void die_kernel_fault(const char *msg, unsigned long addr,
@@ -368,11 +365,6 @@ static bool is_el1_mte_sync_tag_check_fault(unsigned long esr)
 	return false;
 }
 
-static bool is_translation_fault(unsigned long esr)
-{
-	return (esr & ESR_ELx_FSC_TYPE) == ESR_ELx_FSC_FAULT;
-}
-
 static void __do_kernel_fault(unsigned long addr, unsigned long esr,
 			      struct pt_regs *regs)
 {
@@ -405,7 +397,7 @@ static void __do_kernel_fault(unsigned long addr, unsigned long esr,
 	} else if (addr < PAGE_SIZE) {
 		msg = "NULL pointer dereference";
 	} else {
-		if (is_translation_fault(esr) &&
+		if (esr_fsc_is_translation_fault(esr) &&
 		    kfence_handle_page_fault(addr, esr & ESR_ELx_WNR, regs))
 			return;
 
@@ -782,18 +774,18 @@ static const struct fault_info fault_info[] = {
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 1 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 2 translation fault"	},
 	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level 3 translation fault"	},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 8"			},
+	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 0 access flag fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 1 access flag fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 2 access flag fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 3 access flag fault"	},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 12"			},
+	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 0 permission fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 1 permission fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 2 permission fault"	},
 	{ do_page_fault,	SIGSEGV, SEGV_ACCERR,	"level 3 permission fault"	},
 	{ do_sea,		SIGBUS,  BUS_OBJERR,	"synchronous external abort"	},
 	{ do_tag_check_fault,	SIGSEGV, SEGV_MTESERR,	"synchronous tag check fault"	},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 18"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 19"			},
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level -1 (translation table walk)"	},
 	{ do_sea,		SIGKILL, SI_KERNEL,	"level 0 (translation table walk)"	},
 	{ do_sea,		SIGKILL, SI_KERNEL,	"level 1 (translation table walk)"	},
 	{ do_sea,		SIGKILL, SI_KERNEL,	"level 2 (translation table walk)"	},
@@ -801,7 +793,7 @@ static const struct fault_info fault_info[] = {
 	{ do_sea,		SIGBUS,  BUS_OBJERR,	"synchronous parity or ECC error" },	// Reserved when RAS is implemented
 	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 25"			},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 26"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 27"			},
+	{ do_sea,		SIGKILL, SI_KERNEL,	"level -1 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
 	{ do_sea,		SIGKILL, SI_KERNEL,	"level 0 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
 	{ do_sea,		SIGKILL, SI_KERNEL,	"level 1 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
 	{ do_sea,		SIGKILL, SI_KERNEL,	"level 2 synchronous parity error (translation table walk)"	},	// Reserved when RAS is implemented
@@ -815,9 +807,9 @@ static const struct fault_info fault_info[] = {
 	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 38"			},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 39"			},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 40"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 41"			},
+	{ do_bad,		SIGKILL, SI_KERNEL,	"level -1 address size fault"	},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 42"			},
-	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 43"			},
+	{ do_translation_fault,	SIGSEGV, SEGV_MAPERR,	"level -1 translation fault"	},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 44"			},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 45"			},
 	{ do_bad,		SIGKILL, SI_KERNEL,	"unknown 46"			},

@@ -522,7 +522,7 @@ static int dtpm_for_each_child(const struct dtpm_node *hierarchy,
 
 /**
  * dtpm_create_hierarchy - Create the dtpm hierarchy
- * @hierarchy: An array of struct dtpm_node describing the hierarchy
+ * @dtpm_match_table: Pointer to the array of device ID structures
  *
  * The function is called by the platform specific code with the
  * description of the different node in the hierarchy. It creates the

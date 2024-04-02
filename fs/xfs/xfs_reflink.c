@@ -29,6 +29,7 @@
 #include "xfs_iomap.h"
 #include "xfs_ag.h"
 #include "xfs_ag_resv.h"
+#include "xfs_health.h"
 
 /*
  * Copy on Write of Shared Blocks
@@ -527,7 +528,7 @@ xfs_reflink_allocate_cow(
 	int			error;
 	bool			found;
 
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL);
 	if (!ip->i_cowfp) {
 		ASSERT(!xfs_is_reflink_inode(ip));
 		xfs_ifork_init_cow(ip);
@@ -805,7 +806,7 @@ xfs_reflink_end_cow_extent(
 		 * If the extent we're remapping is backed by storage (written
 		 * or not), unmap the extent and drop its refcount.
 		 */
-		xfs_bmap_unmap_extent(tp, ip, &data);
+		xfs_bmap_unmap_extent(tp, ip, XFS_DATA_FORK, &data);
 		xfs_refcount_decrease_extent(tp, &data);
 		xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_BCOUNT,
 				-data.br_blockcount);
@@ -829,7 +830,7 @@ xfs_reflink_end_cow_extent(
 	xfs_refcount_free_cow_extent(tp, del.br_startblock, del.br_blockcount);
 
 	/* Map the new blocks into the data fork. */
-	xfs_bmap_map_extent(tp, ip, &del);
+	xfs_bmap_map_extent(tp, ip, XFS_DATA_FORK, &del);
 
 	/* Charge this new data fork mapping to the on-disk quota. */
 	xfs_trans_mod_dquot_byino(tp, ip, XFS_TRANS_DQ_DELBCOUNT,
@@ -1227,8 +1228,10 @@ xfs_reflink_remap_extent(
 	 * extent if they're both holes or both the same physical extent.
 	 */
 	if (dmap->br_startblock == smap.br_startblock) {
-		if (dmap->br_state != smap.br_state)
+		if (dmap->br_state != smap.br_state) {
+			xfs_bmap_mark_sick(ip, XFS_DATA_FORK);
 			error = -EFSCORRUPTED;
+		}
 		goto out_cancel;
 	}
 
@@ -1291,7 +1294,7 @@ xfs_reflink_remap_extent(
 		 * If the extent we're unmapping is backed by storage (written
 		 * or not), unmap the extent and drop its refcount.
 		 */
-		xfs_bmap_unmap_extent(tp, ip, &smap);
+		xfs_bmap_unmap_extent(tp, ip, XFS_DATA_FORK, &smap);
 		xfs_refcount_decrease_extent(tp, &smap);
 		qdelta -= smap.br_blockcount;
 	} else if (smap.br_startblock == DELAYSTARTBLOCK) {
@@ -1316,7 +1319,7 @@ xfs_reflink_remap_extent(
 	 */
 	if (dmap_written) {
 		xfs_refcount_increase_extent(tp, dmap);
-		xfs_bmap_map_extent(tp, ip, dmap);
+		xfs_bmap_map_extent(tp, ip, XFS_DATA_FORK, dmap);
 		qdelta += dmap->br_blockcount;
 	}
 
@@ -1391,6 +1394,7 @@ xfs_reflink_remap_blocks(
 		ASSERT(nimaps == 1 && imap.br_startoff == srcoff);
 		if (imap.br_startblock == DELAYSTARTBLOCK) {
 			ASSERT(imap.br_startblock != DELAYSTARTBLOCK);
+			xfs_bmap_mark_sick(src, XFS_DATA_FORK);
 			error = -EFSCORRUPTED;
 			break;
 		}

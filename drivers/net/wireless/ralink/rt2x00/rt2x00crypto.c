@@ -197,10 +197,7 @@ void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
 		transfer += header_length;
 	} else {
 		skb_push(skb, iv_len + align);
-		if (align < icv_len)
-			skb_put(skb, icv_len - align);
-		else if (align > icv_len)
-			skb_trim(skb, rxdesc->size + iv_len + icv_len);
+		skb_put(skb, icv_len - align);
 
 		/* Move ieee80211 header */
 		memmove(skb->data + transfer,

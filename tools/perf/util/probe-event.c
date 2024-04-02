@@ -358,6 +358,7 @@ static int kernel_get_module_dso(const char *module, struct dso **pdso)
 		map = maps__find_by_name(machine__kernel_maps(host_machine), module_name);
 		if (map) {
 			dso = map__dso(map);
+			map__put(map);
 			goto found;
 		}
 		pr_debug("Failed to find module %s.\n", module);
@@ -2273,9 +2274,7 @@ static int find_perf_probe_point_from_map(struct probe_trace_point *tp,
 	ret = pp->function ? 0 : -ENOMEM;
 
 out:
-	if (map && !is_kprobe) {
-		map__put(map);
-	}
+	map__put(map);
 
 	return ret;
 }

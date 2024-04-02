@@ -231,9 +231,11 @@ sof_ipc4_update_pipeline_state(struct snd_sof_dev *sdev, int state, int cmd,
  */
 
 static int sof_ipc4_chain_dma_trigger(struct snd_sof_dev *sdev,
+				      int direction,
 				      struct snd_sof_pcm_stream_pipeline_list *pipeline_list,
 				      int state, int cmd)
 {
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
 	bool allocate, enable, set_fifo_size;
 	struct sof_ipc4_msg msg = {{ 0 }};
 	int i;
@@ -294,6 +296,20 @@ static int sof_ipc4_chain_dma_trigger(struct snd_sof_dev *sdev,
 			msg.extension |= pipeline->msg.extension;
 	}
 
+	if (direction == SNDRV_PCM_STREAM_CAPTURE) {
+		/*
+		 * For ChainDMA the DMA ids are unique with the following mapping:
+		 * playback:  0 - (num_playback_streams - 1)
+		 * capture:   num_playback_streams - (num_playback_streams +
+		 *				      num_capture_streams - 1)
+		 *
+		 * Add the num_playback_streams offset to the DMA ids stored in
+		 * msg.primary in case capture
+		 */
+		msg.primary +=  SOF_IPC4_GLB_CHAIN_DMA_HOST_ID(ipc4_data->num_playback_streams);
+		msg.primary +=  SOF_IPC4_GLB_CHAIN_DMA_LINK_ID(ipc4_data->num_playback_streams);
+	}
+
 	if (allocate)
 		msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_ALLOCATE_MASK;
 
@@ -340,7 +356,8 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	 * trigger function that handles the rest for the substream.
 	 */
 	if (pipeline->use_chain_dma)
-		return sof_ipc4_chain_dma_trigger(sdev, pipeline_list, state, cmd);
+		return sof_ipc4_chain_dma_trigger(sdev, substream->stream,
+						  pipeline_list, state, cmd);
 
 	/* allocate memory for the pipeline data */
 	trigger_list = kzalloc(struct_size(trigger_list, pipeline_instance_ids,

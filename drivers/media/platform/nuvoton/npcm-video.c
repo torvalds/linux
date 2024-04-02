@@ -1785,7 +1785,7 @@ static int npcm_video_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int npcm_video_remove(struct platform_device *pdev)
+static void npcm_video_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct v4l2_device *v4l2_dev = dev_get_drvdata(dev);
@@ -1798,8 +1798,6 @@ static int npcm_video_remove(struct platform_device *pdev)
 	if (video->ece.enable)
 		npcm_video_ece_stop(video);
 	of_reserved_mem_device_release(dev);
-
-	return 0;
 }
 
 static const struct of_device_id npcm_video_match[] = {
@@ -1816,7 +1814,7 @@ static struct platform_driver npcm_video_driver = {
 		.of_match_table = npcm_video_match,
 	},
 	.probe = npcm_video_probe,
-	.remove = npcm_video_remove,
+	.remove_new = npcm_video_remove,
 };
 
 module_platform_driver(npcm_video_driver);

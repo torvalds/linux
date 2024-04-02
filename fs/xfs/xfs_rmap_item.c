@@ -36,9 +36,9 @@ STATIC void
 xfs_rui_item_free(
 	struct xfs_rui_log_item	*ruip)
 {
-	kmem_free(ruip->rui_item.li_lv_shadow);
+	kvfree(ruip->rui_item.li_lv_shadow);
 	if (ruip->rui_format.rui_nextents > XFS_RUI_MAX_FAST_EXTENTS)
-		kmem_free(ruip);
+		kfree(ruip);
 	else
 		kmem_cache_free(xfs_rui_cache, ruip);
 }
@@ -142,7 +142,8 @@ xfs_rui_init(
 
 	ASSERT(nextents > 0);
 	if (nextents > XFS_RUI_MAX_FAST_EXTENTS)
-		ruip = kmem_zalloc(xfs_rui_log_item_sizeof(nextents), 0);
+		ruip = kzalloc(xfs_rui_log_item_sizeof(nextents),
+				GFP_KERNEL | __GFP_NOFAIL);
 	else
 		ruip = kmem_cache_zalloc(xfs_rui_cache,
 					 GFP_KERNEL | __GFP_NOFAIL);
@@ -205,7 +206,7 @@ xfs_rud_item_release(
 	struct xfs_rud_log_item	*rudp = RUD_ITEM(lip);
 
 	xfs_rui_release(rudp->rud_ruip);
-	kmem_free(rudp->rud_item.li_lv_shadow);
+	kvfree(rudp->rud_item.li_lv_shadow);
 	kmem_cache_free(xfs_rud_cache, rudp);
 }
 
@@ -454,7 +455,7 @@ xfs_rui_recover_work(
 {
 	struct xfs_rmap_intent		*ri;
 
-	ri = kmem_cache_alloc(xfs_rmap_intent_cache, GFP_NOFS | __GFP_NOFAIL);
+	ri = kmem_cache_alloc(xfs_rmap_intent_cache, GFP_KERNEL | __GFP_NOFAIL);
 
 	switch (map->me_flags & XFS_RMAP_EXTENT_TYPE_MASK) {
 	case XFS_RMAP_EXTENT_MAP:

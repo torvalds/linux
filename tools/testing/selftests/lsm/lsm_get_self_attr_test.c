@@ -40,7 +40,7 @@ TEST(size_null_lsm_get_self_attr)
 TEST(ctx_null_lsm_get_self_attr)
 {
 	const long page_size = sysconf(_SC_PAGESIZE);
-	size_t size = page_size;
+	__u32 size = page_size;
 	int rc;
 
 	rc = lsm_get_self_attr(LSM_ATTR_CURRENT, NULL, &size, 0);
@@ -57,7 +57,7 @@ TEST(size_too_small_lsm_get_self_attr)
 {
 	const long page_size = sysconf(_SC_PAGESIZE);
 	struct lsm_ctx *ctx = calloc(page_size, 1);
-	size_t size = 1;
+	__u32 size = 1;
 
 	ASSERT_NE(NULL, ctx);
 	errno = 0;
@@ -77,7 +77,7 @@ TEST(flags_zero_lsm_get_self_attr)
 	const long page_size = sysconf(_SC_PAGESIZE);
 	struct lsm_ctx *ctx = calloc(page_size, 1);
 	__u64 *syscall_lsms = calloc(page_size, 1);
-	size_t size;
+	__u32 size;
 	int lsmcount;
 	int i;
 
@@ -117,7 +117,7 @@ TEST(flags_overset_lsm_get_self_attr)
 {
 	const long page_size = sysconf(_SC_PAGESIZE);
 	struct lsm_ctx *ctx = calloc(page_size, 1);
-	size_t size;
+	__u32 size;
 
 	ASSERT_NE(NULL, ctx);
 
@@ -140,7 +140,7 @@ TEST(flags_overset_lsm_get_self_attr)
 TEST(basic_lsm_get_self_attr)
 {
 	const long page_size = sysconf(_SC_PAGESIZE);
-	size_t size = page_size;
+	__u32 size = page_size;
 	struct lsm_ctx *ctx = calloc(page_size, 1);
 	struct lsm_ctx *tctx = NULL;
 	__u64 *syscall_lsms = calloc(page_size, 1);

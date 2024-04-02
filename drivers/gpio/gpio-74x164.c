@@ -127,8 +127,6 @@ static int gen_74x164_probe(struct spi_device *spi)
 	if (IS_ERR(chip->gpiod_oe))
 		return PTR_ERR(chip->gpiod_oe);
 
-	gpiod_set_value_cansleep(chip->gpiod_oe, 1);
-
 	spi_set_drvdata(spi, chip);
 
 	chip->gpio_chip.label = spi->modalias;
@@ -152,6 +150,8 @@ static int gen_74x164_probe(struct spi_device *spi)
 		dev_err(&spi->dev, "Failed writing: %d\n", ret);
 		goto exit_destroy;
 	}
+
+	gpiod_set_value_cansleep(chip->gpiod_oe, 1);
 
 	ret = gpiochip_add_data(&chip->gpio_chip, chip);
 	if (!ret)

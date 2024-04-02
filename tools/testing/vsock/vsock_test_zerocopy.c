@@ -152,9 +152,9 @@ static void test_client(const struct test_opts *opts,
 	int fd;
 
 	if (sock_seqpacket)
-		fd = vsock_seqpacket_connect(opts->peer_cid, 1234);
+		fd = vsock_seqpacket_connect(opts->peer_cid, opts->peer_port);
 	else
-		fd = vsock_stream_connect(opts->peer_cid, 1234);
+		fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
 
 	if (fd < 0) {
 		perror("connect");
@@ -248,9 +248,9 @@ static void test_server(const struct test_opts *opts,
 	int fd;
 
 	if (sock_seqpacket)
-		fd = vsock_seqpacket_accept(VMADDR_CID_ANY, 1234, NULL);
+		fd = vsock_seqpacket_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	else
-		fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+		fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 
 	if (fd < 0) {
 		perror("accept");
@@ -323,7 +323,7 @@ void test_stream_msgzcopy_empty_errq_client(const struct test_opts *opts)
 	ssize_t res;
 	int fd;
 
-	fd = vsock_stream_connect(opts->peer_cid, 1234);
+	fd = vsock_stream_connect(opts->peer_cid, opts->peer_port);
 	if (fd < 0) {
 		perror("connect");
 		exit(EXIT_FAILURE);
@@ -347,7 +347,7 @@ void test_stream_msgzcopy_empty_errq_server(const struct test_opts *opts)
 {
 	int fd;
 
-	fd = vsock_stream_accept(VMADDR_CID_ANY, 1234, NULL);
+	fd = vsock_stream_accept(VMADDR_CID_ANY, opts->peer_port, NULL);
 	if (fd < 0) {
 		perror("accept");
 		exit(EXIT_FAILURE);

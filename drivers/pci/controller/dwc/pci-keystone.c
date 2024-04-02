@@ -924,12 +924,12 @@ static const struct pci_epc_features ks_pcie_am654_epc_features = {
 	.linkup_notifier = false,
 	.msi_capable = true,
 	.msix_capable = true,
-	.reserved_bar = 1 << BAR_0 | 1 << BAR_1,
-	.bar_fixed_64bit = 1 << BAR_0,
-	.bar_fixed_size[2] = SZ_1M,
-	.bar_fixed_size[3] = SZ_64K,
-	.bar_fixed_size[4] = 256,
-	.bar_fixed_size[5] = SZ_1M,
+	.bar[BAR_0] = { .type = BAR_RESERVED, },
+	.bar[BAR_1] = { .type = BAR_RESERVED, },
+	.bar[BAR_2] = { .type = BAR_FIXED, .fixed_size = SZ_1M, },
+	.bar[BAR_3] = { .type = BAR_FIXED, .fixed_size = SZ_64K, },
+	.bar[BAR_4] = { .type = BAR_FIXED, .fixed_size = 256, },
+	.bar[BAR_5] = { .type = BAR_FIXED, .fixed_size = SZ_1M, },
 	.align = SZ_1M,
 };
 

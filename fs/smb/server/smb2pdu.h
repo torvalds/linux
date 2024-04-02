@@ -72,6 +72,18 @@ struct create_durable_req_v2 {
 	__u8 CreateGuid[16];
 } __packed;
 
+struct create_durable_reconn_req {
+	struct create_context ccontext;
+	__u8   Name[8];
+	union {
+		__u8  Reserved[16];
+		struct {
+			__u64 PersistentFileId;
+			__u64 VolatileFileId;
+		} Fid;
+	} Data;
+} __packed;
+
 struct create_durable_reconn_v2_req {
 	struct create_context ccontext;
 	__u8   Name[8];
@@ -98,6 +110,9 @@ struct create_durable_rsp {
 	} Data;
 } __packed;
 
+/* See MS-SMB2 2.2.13.2.11 */
+/* Flags */
+#define SMB2_DHANDLE_FLAG_PERSISTENT	0x00000002
 struct create_durable_v2_rsp {
 	struct create_context ccontext;
 	__u8   Name[8];

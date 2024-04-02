@@ -13,6 +13,6 @@ static inline struct bbpos BBPOS(enum btree_id btree, struct bpos pos)
 }
 
 #define BBPOS_MIN	BBPOS(0, POS_MIN)
-#define BBPOS_MAX	BBPOS(BTREE_ID_NR - 1, POS_MAX)
+#define BBPOS_MAX	BBPOS(BTREE_ID_NR - 1, SPOS_MAX)
 
 #endif /* _BCACHEFS_BBPOS_TYPES_H */

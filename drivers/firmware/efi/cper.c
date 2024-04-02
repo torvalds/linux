@@ -445,8 +445,8 @@ static void cper_print_pcie(const char *pfx, const struct cper_sec_pcie *pcie,
 		printk("%saer_uncor_severity: 0x%08x\n",
 		       pfx, aer->uncor_severity);
 		printk("%sTLP Header: %08x %08x %08x %08x\n", pfx,
-		       aer->header_log.dw0, aer->header_log.dw1,
-		       aer->header_log.dw2, aer->header_log.dw3);
+		       aer->header_log.dw[0], aer->header_log.dw[1],
+		       aer->header_log.dw[2], aer->header_log.dw[3]);
 	}
 }
 

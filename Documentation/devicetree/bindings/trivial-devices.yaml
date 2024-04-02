@@ -28,6 +28,7 @@ properties:
 
   compatible:
     items:
+      # Entries are sorted alphanumerically by the compatible
       - enum:
             # Acbel fsg032 power supply
           - acbel,fsg032
@@ -47,14 +48,16 @@ properties:
           - adi,lt7182s
             # AMS iAQ-Core VOC Sensor
           - ams,iaq-core
+            # Temperature monitoring of Astera Labs PT5161L PCIe retimer
+          - asteralabs,pt5161l
             # i2c serial eeprom (24cxx)
           - at,24c08
+            # i2c h/w elliptic curve crypto module
+          - atmel,atecc508a
             # ATSHA204 - i2c h/w symmetric crypto module
           - atmel,atsha204
             # ATSHA204A - i2c h/w symmetric crypto module
           - atmel,atsha204a
-            # i2c h/w elliptic curve crypto module
-          - atmel,atecc508a
             # BPA-RS600: Power Supply
           - blutek,bpa-rs600
             # Bosch Sensortec pressure, temperature, humididty and VOC sensor
@@ -115,20 +118,6 @@ properties:
           - fsl,mpl3115
             # MPR121: Proximity Capacitive Touch Sensor Controller
           - fsl,mpr121
-            # Monolithic Power Systems Inc. multi-phase controller mp2856
-          - mps,mp2856
-            # Monolithic Power Systems Inc. multi-phase controller mp2857
-          - mps,mp2857
-            # Monolithic Power Systems Inc. multi-phase controller mp2888
-          - mps,mp2888
-            # Monolithic Power Systems Inc. multi-phase controller mp2971
-          - mps,mp2971
-            # Monolithic Power Systems Inc. multi-phase controller mp2973
-          - mps,mp2973
-            # Monolithic Power Systems Inc. multi-phase controller mp2975
-          - mps,mp2975
-            # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5990
-          - mps,mp5990
             # Honeywell Humidicon HIH-6130 humidity/temperature sensor
           - honeywell,hi6130
             # IBM Common Form Factor Power Supply Versions (all versions)
@@ -137,16 +126,10 @@ properties:
           - ibm,cffps1
             # IBM Common Form Factor Power Supply Versions 2
           - ibm,cffps2
+            # Infineon barometric pressure and temperature sensor
+          - infineon,dps310
             # Infineon IR36021 digital POL buck controller
           - infineon,ir36021
-            # Infineon IR38060 Voltage Regulator
-          - infineon,ir38060
-            # Infineon IR38064 Voltage Regulator
-          - infineon,ir38064
-            # Infineon IR38164 Voltage Regulator
-          - infineon,ir38164
-            # Infineon IR38263 Voltage Regulator
-          - infineon,ir38263
             # Infineon IRPS5401 Voltage Regulator (PMIC)
           - infineon,irps5401
             # Infineon TLV493D-A1B6 I2C 3D Magnetic Sensor
@@ -195,6 +178,8 @@ properties:
           - maxim,max1237
             # Temperature Sensor, I2C interface
           - maxim,max1619
+            # 3-Channel Remote Temperature Sensor
+          - maxim,max31730
             # 10-bit 10 kOhm linear programmable voltage divider
           - maxim,max5481
             # 10-bit 50 kOhm linear programmable voltage divider
@@ -207,8 +192,6 @@ properties:
           - maxim,max6621
             # 9-Bit/12-Bit Temperature Sensors with I²C-Compatible Serial Interface
           - maxim,max6625
-            # 3-Channel Remote Temperature Sensor
-          - maxim,max31730
             # mCube 3-axis 8-bit digital accelerometer
           - mcube,mc3230
             # Measurement Specialities I2C temperature and humidity sensor
@@ -239,8 +222,6 @@ properties:
           - memsic,mxc6655
             # Menlo on-board CPLD trivial SPI device
           - menlo,m53cpld
-            # Micron SPI NOR Authenta
-          - micron,spi-authenta
             # Microchip differential I2C ADC, 1 Channel, 18 bit
           - microchip,mcp3421
             # Microchip differential I2C ADC, 2 Channel, 18 bit
@@ -257,40 +238,58 @@ properties:
           - microchip,mcp3427
             # Microchip differential I2C ADC, 4 Channel, 16 bit
           - microchip,mcp3428
-            # Microchip 7-bit Single I2C Digital POT (5k)
-          - microchip,mcp4017-502
             # Microchip 7-bit Single I2C Digital POT (10k)
           - microchip,mcp4017-103
-            # Microchip 7-bit Single I2C Digital POT (50k)
-          - microchip,mcp4017-503
             # Microchip 7-bit Single I2C Digital POT (100k)
           - microchip,mcp4017-104
             # Microchip 7-bit Single I2C Digital POT (5k)
-          - microchip,mcp4018-502
+          - microchip,mcp4017-502
+            # Microchip 7-bit Single I2C Digital POT (50k)
+          - microchip,mcp4017-503
             # Microchip 7-bit Single I2C Digital POT (10k)
           - microchip,mcp4018-103
-            # Microchip 7-bit Single I2C Digital POT (50k)
-          - microchip,mcp4018-503
             # Microchip 7-bit Single I2C Digital POT (100k)
           - microchip,mcp4018-104
             # Microchip 7-bit Single I2C Digital POT (5k)
-          - microchip,mcp4019-502
+          - microchip,mcp4018-502
+            # Microchip 7-bit Single I2C Digital POT (50k)
+          - microchip,mcp4018-503
             # Microchip 7-bit Single I2C Digital POT (10k)
           - microchip,mcp4019-103
-            # Microchip 7-bit Single I2C Digital POT (50k)
-          - microchip,mcp4019-503
             # Microchip 7-bit Single I2C Digital POT (100k)
           - microchip,mcp4019-104
+            # Microchip 7-bit Single I2C Digital POT (5k)
+          - microchip,mcp4019-502
+            # Microchip 7-bit Single I2C Digital POT (50k)
+          - microchip,mcp4019-503
             # PWM Fan Speed Controller With Fan Fault Detection
           - microchip,tc654
             # PWM Fan Speed Controller With Fan Fault Detection
           - microchip,tc655
+            # Micron SPI NOR Authenta
+          - micron,spi-authenta
             # MiraMEMS DA226 2-axis 14-bit digital accelerometer
           - miramems,da226
             # MiraMEMS DA280 3-axis 14-bit digital accelerometer
           - miramems,da280
             # MiraMEMS DA311 3-axis 12-bit digital accelerometer
           - miramems,da311
+            # Monolithic Power Systems Inc. multi-phase controller mp2856
+          - mps,mp2856
+            # Monolithic Power Systems Inc. multi-phase controller mp2857
+          - mps,mp2857
+            # Monolithic Power Systems Inc. multi-phase controller mp2888
+          - mps,mp2888
+            # Monolithic Power Systems Inc. multi-phase controller mp2971
+          - mps,mp2971
+            # Monolithic Power Systems Inc. multi-phase controller mp2973
+          - mps,mp2973
+            # Monolithic Power Systems Inc. multi-phase controller mp2975
+          - mps,mp2975
+            # Monolithic Power Systems Inc. multi-phase hot-swap controller mp5990
+          - mps,mp5990
+            # Monolithic Power Systems Inc. synchronous step-down converter mpq8785
+          - mps,mpq8785
             # Temperature sensor with integrated fan control
           - national,lm63
             # Serial Interface ACPI-Compatible Microprocessor System Hardware Monitor
@@ -321,12 +320,12 @@ properties:
           - samsung,exynos-sataphy-i2c
             # Semtech sx1301 baseband processor
           - semtech,sx1301
-            # Sensirion low power multi-pixel gas sensor with I2C interface
-          - sensirion,sgpc3
             # Sensirion multi-pixel gas sensor with I2C interface
           - sensirion,sgp30
             # Sensirion gas sensor with I2C interface
           - sensirion,sgp40
+            # Sensirion low power multi-pixel gas sensor with I2C interface
+          - sensirion,sgpc3
             # Sensirion temperature & humidity sensor with I2C interface
           - sensirion,sht4x
             # Sensortek 3 axis accelerometer
@@ -372,8 +371,6 @@ properties:
           - ti,lm74
             # Temperature sensor with integrated fan control
           - ti,lm96000
-            # I2C Touch-Screen Controller
-          - ti,tsc2003
             # Low Power Digital Temperature Sensor with SMBUS/Two Wire Serial Interface
           - ti,tmp103
             # Thermometer with SPI interface
@@ -395,10 +392,12 @@ properties:
           - ti,tps544b25
           - ti,tps544c20
           - ti,tps544c25
-            # Winbond/Nuvoton H/W Monitor
-          - winbond,w83793
+            # I2C Touch-Screen Controller
+          - ti,tsc2003
             # Vicor Corporation Digital Supervisor
           - vicor,pli1209bc
+            # Winbond/Nuvoton H/W Monitor
+          - winbond,w83793
 
 required:
   - compatible

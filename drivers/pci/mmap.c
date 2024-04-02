@@ -11,6 +11,8 @@
 #include <linux/mm.h>
 #include <linux/pci.h>
 
+#include "pci.h"
+
 #ifdef ARCH_GENERIC_PCI_MMAP_RESOURCE
 
 static const struct vm_operations_struct pci_phys_vm_ops = {
@@ -47,6 +49,33 @@ int pci_mmap_resource_range(struct pci_dev *pdev, int bar,
 	return io_remap_pfn_range(vma, vma->vm_start, vma->vm_pgoff,
 				  vma->vm_end - vma->vm_start,
 				  vma->vm_page_prot);
+}
+
+#endif
+
+#if (defined(CONFIG_SYSFS) || defined(CONFIG_PROC_FS)) && \
+    (defined(HAVE_PCI_MMAP) || defined(ARCH_GENERIC_PCI_MMAP_RESOURCE))
+
+int pci_mmap_fits(struct pci_dev *pdev, int resno, struct vm_area_struct *vma,
+		  enum pci_mmap_api mmap_api)
+{
+	resource_size_t pci_start = 0, pci_end;
+	unsigned long nr, start, size;
+
+	if (pci_resource_len(pdev, resno) == 0)
+		return 0;
+	nr = vma_pages(vma);
+	start = vma->vm_pgoff;
+	size = ((pci_resource_len(pdev, resno) - 1) >> PAGE_SHIFT) + 1;
+	if (mmap_api == PCI_MMAP_PROCFS) {
+		pci_resource_to_user(pdev, resno, &pdev->resource[resno],
+				     &pci_start, &pci_end);
+		pci_start >>= PAGE_SHIFT;
+	}
+	if (start >= pci_start && start < pci_start + size &&
+	    start + nr <= pci_start + size)
+		return 1;
+	return 0;
 }
 
 #endif

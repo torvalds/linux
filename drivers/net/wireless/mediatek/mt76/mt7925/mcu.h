@@ -159,6 +159,20 @@ enum {
 	UNI_EVENT_SCAN_DONE_NLO = 3,
 };
 
+enum connac3_mcu_cipher_type {
+	CONNAC3_CIPHER_NONE = 0,
+	CONNAC3_CIPHER_WEP40 = 1,
+	CONNAC3_CIPHER_TKIP = 2,
+	CONNAC3_CIPHER_AES_CCMP = 4,
+	CONNAC3_CIPHER_WEP104 = 5,
+	CONNAC3_CIPHER_BIP_CMAC_128 = 6,
+	CONNAC3_CIPHER_WEP128 = 7,
+	CONNAC3_CIPHER_WAPI = 8,
+	CONNAC3_CIPHER_CCMP_256 = 10,
+	CONNAC3_CIPHER_GCMP = 11,
+	CONNAC3_CIPHER_GCMP_256 = 12,
+};
+
 struct mt7925_mcu_scan_chinfo_event {
 	u8 nr_chan;
 	u8 alpha2[3];
@@ -208,7 +222,7 @@ struct scan_req_tlv {
 	__le16 channel_dwell_time; /* channel Dwell interval */
 	__le16 timeout_value;
 	__le16 probe_delay_time;
-	u8 func_mask_ext;
+	__le32 func_mask_ext;
 };
 
 struct scan_ssid_tlv {
@@ -334,7 +348,8 @@ struct bss_req_hdr {
 struct bss_rate_tlv {
 	__le16 tag;
 	__le16 len;
-	u8 __rsv1[4];
+	u8 __rsv1[2];
+	__le16 basic_rate;
 	__le16 bc_trans;
 	__le16 mc_trans;
 	u8 short_preamble;
@@ -382,25 +397,22 @@ struct sta_rec_eht {
 	u8 _rsv2[3];
 } __packed;
 
-struct sec_key_uni {
-	__le16 wlan_idx;
-	u8 mgmt_prot;
-	u8 cipher_id;
-	u8 cipher_len;
-	u8 key_id;
-	u8 key_len;
-	u8 need_resp;
-	u8 key[32];
-} __packed;
-
 struct sta_rec_sec_uni {
 	__le16 tag;
 	__le16 len;
 	u8 add;
-	u8 n_cipher;
-	u8 rsv[2];
-
-	struct sec_key_uni key[2];
+	u8 tx_key;
+	u8 key_type;
+	u8 is_authenticator;
+	u8 peer_addr[6];
+	u8 bss_idx;
+	u8 cipher_id;
+	u8 key_id;
+	u8 key_len;
+	u8 wlan_idx;
+	u8 mgmt_prot;
+	u8 key[32];
+	u8 key_rsc[16];
 } __packed;
 
 struct sta_rec_hdr_trans {
@@ -428,6 +440,22 @@ struct sta_rec_mld {
 	} __packed link[2];
 } __packed;
 
+struct bss_ifs_time_tlv {
+	__le16 tag;
+	__le16 len;
+	u8 slot_valid;
+	u8 sifs_valid;
+	u8 rifs_valid;
+	u8 eifs_valid;
+	__le16 slot_time;
+	__le16 sifs_time;
+	__le16 rifs_time;
+	__le16 eifs_time;
+	u8 eifs_cck_valid;
+	u8 rsv;
+	__le16 eifs_cck_time;
+} __packed;
+
 #define MT7925_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +		\
 					 sizeof(struct sta_rec_basic) +		\
 					 sizeof(struct sta_rec_bf) +		\
@@ -440,7 +468,7 @@ struct sta_rec_mld {
 					 sizeof(struct sta_rec_bfee) +		\
 					 sizeof(struct sta_rec_phy) +		\
 					 sizeof(struct sta_rec_ra) +		\
-					 sizeof(struct sta_rec_sec) +		\
+					 sizeof(struct sta_rec_sec_uni) +   \
 					 sizeof(struct sta_rec_ra_fixed) +	\
 					 sizeof(struct sta_rec_he_6g_capa) +	\
 					 sizeof(struct sta_rec_eht) +		\
@@ -455,6 +483,7 @@ struct sta_rec_mld {
 					 sizeof(struct bss_mld_tlv) +			\
 					 sizeof(struct bss_info_uni_he) +		\
 					 sizeof(struct bss_info_uni_bss_color) +	\
+					 sizeof(struct bss_ifs_time_tlv) +		\
 					 sizeof(struct tlv))
 
 #define MT_CONNAC3_SKU_POWER_LIMIT      449
@@ -509,6 +538,33 @@ struct mt7925_wow_pattern_tlv {
 	u8 rsv[4];
 } __packed;
 
+static inline enum connac3_mcu_cipher_type
+mt7925_mcu_get_cipher(int cipher)
+{
+	switch (cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		return CONNAC3_CIPHER_WEP40;
+	case WLAN_CIPHER_SUITE_WEP104:
+		return CONNAC3_CIPHER_WEP104;
+	case WLAN_CIPHER_SUITE_TKIP:
+		return CONNAC3_CIPHER_TKIP;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		return CONNAC3_CIPHER_BIP_CMAC_128;
+	case WLAN_CIPHER_SUITE_CCMP:
+		return CONNAC3_CIPHER_AES_CCMP;
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		return CONNAC3_CIPHER_CCMP_256;
+	case WLAN_CIPHER_SUITE_GCMP:
+		return CONNAC3_CIPHER_GCMP;
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		return CONNAC3_CIPHER_GCMP_256;
+	case WLAN_CIPHER_SUITE_SMS4:
+		return CONNAC3_CIPHER_WAPI;
+	default:
+		return CONNAC3_CIPHER_NONE;
+	}
+}
+
 int mt7925_mcu_set_dbdc(struct mt76_phy *phy);
 int mt7925_mcu_hw_scan(struct mt76_phy *phy, struct ieee80211_vif *vif,
 		       struct ieee80211_scan_request *scan_req);
@@ -525,6 +581,8 @@ int mt7925_mcu_add_bss_info(struct mt792x_phy *phy,
 			    struct ieee80211_vif *vif,
 			    struct ieee80211_sta *sta,
 			    int enable);
+int mt7925_mcu_set_timing(struct mt792x_phy *phy,
+			  struct ieee80211_vif *vif);
 int mt7925_mcu_set_deep_sleep(struct mt792x_dev *dev, bool enable);
 int mt7925_mcu_set_channel_domain(struct mt76_phy *phy);
 int mt7925_mcu_set_radio_en(struct mt792x_phy *phy, bool enable);

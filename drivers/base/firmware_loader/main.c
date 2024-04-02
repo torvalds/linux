@@ -551,12 +551,16 @@ fw_get_filesystem_firmware(struct device *device, struct fw_priv *fw_priv,
 						       file_size_ptr,
 						       READING_FIRMWARE);
 		if (rc < 0) {
-			if (rc != -ENOENT)
-				dev_warn(device, "loading %s failed with error %d\n",
-					 path, rc);
-			else
-				dev_dbg(device, "loading %s failed for no such file or directory.\n",
-					 path);
+			if (!(fw_priv->opt_flags & FW_OPT_NO_WARN)) {
+				if (rc != -ENOENT)
+					dev_warn(device,
+						 "loading %s failed with error %d\n",
+						 path, rc);
+				else
+					dev_dbg(device,
+						"loading %s failed for no such file or directory.\n",
+						path);
+			}
 			continue;
 		}
 		size = rc;

@@ -334,8 +334,8 @@ struct trace_array {
 	 */
 	struct array_buffer	max_buffer;
 	bool			allocated_snapshot;
-#endif
-#ifdef CONFIG_TRACER_MAX_TRACE
+	spinlock_t		snapshot_trigger_lock;
+	unsigned int		snapshot;
 	unsigned long		max_latency;
 #ifdef CONFIG_FSNOTIFY
 	struct dentry		*d_max_latency;
@@ -1375,6 +1375,16 @@ static inline void trace_buffer_unlock_commit(struct trace_array *tr,
 	trace_buffer_unlock_commit_regs(tr, buffer, event, trace_ctx, NULL);
 }
 
+DECLARE_PER_CPU(bool, trace_taskinfo_save);
+int trace_save_cmdline(struct task_struct *tsk);
+int trace_create_savedcmd(void);
+int trace_alloc_tgid_map(void);
+void trace_free_saved_cmdlines_buffer(void);
+
+extern const struct file_operations tracing_saved_cmdlines_fops;
+extern const struct file_operations tracing_saved_tgids_fops;
+extern const struct file_operations tracing_saved_cmdlines_size_fops;
+
 DECLARE_PER_CPU(struct ring_buffer_event *, trace_buffered_event);
 DECLARE_PER_CPU(int, trace_buffered_event_cnt);
 void trace_buffered_event_disable(void);
@@ -1973,12 +1983,16 @@ static inline void trace_event_eval_update(struct trace_eval_map **map, int len)
 #ifdef CONFIG_TRACER_SNAPSHOT
 void tracing_snapshot_instance(struct trace_array *tr);
 int tracing_alloc_snapshot_instance(struct trace_array *tr);
+int tracing_arm_snapshot(struct trace_array *tr);
+void tracing_disarm_snapshot(struct trace_array *tr);
 #else
 static inline void tracing_snapshot_instance(struct trace_array *tr) { }
 static inline int tracing_alloc_snapshot_instance(struct trace_array *tr)
 {
 	return 0;
 }
+static inline int tracing_arm_snapshot(struct trace_array *tr) { return 0; }
+static inline void tracing_disarm_snapshot(struct trace_array *tr) { }
 #endif
 
 #ifdef CONFIG_PREEMPT_TRACER

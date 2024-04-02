@@ -260,11 +260,11 @@ extern void bpf_throw(u64 cookie) __ksym;
 
 #define __is_signed_type(type) (((type)(-1)) < (type)1)
 
-#define __bpf_cmp(LHS, OP, SIGN, PRED, RHS, DEFAULT)						\
+#define __bpf_cmp(LHS, OP, PRED, RHS, DEFAULT)						\
 	({											\
 		__label__ l_true;								\
 		bool ret = DEFAULT;								\
-		asm volatile goto("if %[lhs] " SIGN #OP " %[rhs] goto %l[l_true]"		\
+		asm volatile goto("if %[lhs] " OP " %[rhs] goto %l[l_true]"		\
 				  :: [lhs] "r"((short)LHS), [rhs] PRED (RHS) :: l_true);	\
 		ret = !DEFAULT;									\
 l_true:												\
@@ -276,7 +276,7 @@ l_true:												\
  * __lhs OP __rhs below will catch the mistake.
  * Be aware that we check only __lhs to figure out the sign of compare.
  */
-#define _bpf_cmp(LHS, OP, RHS, NOFLIP)								\
+#define _bpf_cmp(LHS, OP, RHS, UNLIKELY)								\
 	({											\
 		typeof(LHS) __lhs = (LHS);							\
 		typeof(RHS) __rhs = (RHS);							\
@@ -285,14 +285,17 @@ l_true:												\
 		(void)(__lhs OP __rhs);								\
 		if (__cmp_cannot_be_signed(OP) || !__is_signed_type(typeof(__lhs))) {		\
 			if (sizeof(__rhs) == 8)							\
-				ret = __bpf_cmp(__lhs, OP, "", "r", __rhs, NOFLIP);		\
+				/* "i" will truncate 64-bit constant into s32,			\
+				 * so we have to use extra register via "r".			\
+				 */								\
+				ret = __bpf_cmp(__lhs, #OP, "r", __rhs, UNLIKELY);		\
 			else									\
-				ret = __bpf_cmp(__lhs, OP, "", "i", __rhs, NOFLIP);		\
+				ret = __bpf_cmp(__lhs, #OP, "ri", __rhs, UNLIKELY);		\
 		} else {									\
 			if (sizeof(__rhs) == 8)							\
-				ret = __bpf_cmp(__lhs, OP, "s", "r", __rhs, NOFLIP);		\
+				ret = __bpf_cmp(__lhs, "s"#OP, "r", __rhs, UNLIKELY);		\
 			else									\
-				ret = __bpf_cmp(__lhs, OP, "s", "i", __rhs, NOFLIP);		\
+				ret = __bpf_cmp(__lhs, "s"#OP, "ri", __rhs, UNLIKELY);		\
 		}										\
 		ret;										\
        })
@@ -304,7 +307,7 @@ l_true:												\
 #ifndef bpf_cmp_likely
 #define bpf_cmp_likely(LHS, OP, RHS)								\
 	({											\
-		bool ret;									\
+		bool ret = 0;									\
 		if (__builtin_strcmp(#OP, "==") == 0)						\
 			ret = _bpf_cmp(LHS, !=, RHS, false);					\
 		else if (__builtin_strcmp(#OP, "!=") == 0)					\
@@ -318,14 +321,69 @@ l_true:												\
 		else if (__builtin_strcmp(#OP, ">=") == 0)					\
 			ret = _bpf_cmp(LHS, <, RHS, false);					\
 		else										\
-			(void) "bug";								\
+			asm volatile("r0 " #OP " invalid compare");				\
 		ret;										\
        })
 #endif
 
+#define cond_break					\
+	({ __label__ l_break, l_continue;		\
+	 asm volatile goto("1:.byte 0xe5;			\
+		      .byte 0;				\
+		      .long ((%l[l_break] - 1b - 8) / 8) & 0xffff;	\
+		      .short 0"				\
+		      :::: l_break);			\
+	goto l_continue;				\
+	l_break: break;					\
+	l_continue:;					\
+	})
+
 #ifndef bpf_nop_mov
 #define bpf_nop_mov(var) \
 	asm volatile("%[reg]=%[reg]"::[reg]"r"((short)var))
+#endif
+
+/* emit instruction:
+ * rX = rX .off = BPF_ADDR_SPACE_CAST .imm32 = (dst_as << 16) | src_as
+ */
+#ifndef bpf_addr_space_cast
+#define bpf_addr_space_cast(var, dst_as, src_as)\
+	asm volatile(".byte 0xBF;		\
+		     .ifc %[reg], r0;		\
+		     .byte 0x00;		\
+		     .endif;			\
+		     .ifc %[reg], r1;		\
+		     .byte 0x11;		\
+		     .endif;			\
+		     .ifc %[reg], r2;		\
+		     .byte 0x22;		\
+		     .endif;			\
+		     .ifc %[reg], r3;		\
+		     .byte 0x33;		\
+		     .endif;			\
+		     .ifc %[reg], r4;		\
+		     .byte 0x44;		\
+		     .endif;			\
+		     .ifc %[reg], r5;		\
+		     .byte 0x55;		\
+		     .endif;			\
+		     .ifc %[reg], r6;		\
+		     .byte 0x66;		\
+		     .endif;			\
+		     .ifc %[reg], r7;		\
+		     .byte 0x77;		\
+		     .endif;			\
+		     .ifc %[reg], r8;		\
+		     .byte 0x88;		\
+		     .endif;			\
+		     .ifc %[reg], r9;		\
+		     .byte 0x99;		\
+		     .endif;			\
+		     .short %[off];		\
+		     .long %[as]"		\
+		     : [reg]"+r"(var)		\
+		     : [off]"i"(BPF_ADDR_SPACE_CAST) \
+		     , [as]"i"((dst_as << 16) | src_as));
 #endif
 
 /* Description

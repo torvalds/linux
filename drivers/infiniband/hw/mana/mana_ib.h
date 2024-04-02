@@ -142,8 +142,29 @@ struct mana_ib_query_adapter_caps_resp {
 	u32 max_inline_data_size;
 }; /* HW Data */
 
-int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
-				 mana_handle_t *gdma_region);
+static inline struct gdma_context *mdev_to_gc(struct mana_ib_dev *mdev)
+{
+	return mdev->gdma_dev->gdma_context;
+}
+
+static inline struct net_device *mana_ib_get_netdev(struct ib_device *ibdev, u32 port)
+{
+	struct mana_ib_dev *mdev = container_of(ibdev, struct mana_ib_dev, ib_dev);
+	struct gdma_context *gc = mdev_to_gc(mdev);
+	struct mana_context *mc = gc->mana.driver_data;
+
+	if (port < 1 || port > mc->num_ports)
+		return NULL;
+	return mc->ports[port - 1];
+}
+
+int mana_ib_install_cq_cb(struct mana_ib_dev *mdev, struct mana_ib_cq *cq);
+
+int mana_ib_create_zero_offset_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
+					  mana_handle_t *gdma_region);
+
+int mana_ib_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
+			      mana_handle_t *gdma_region, u64 virt);
 
 int mana_ib_gd_destroy_dma_region(struct mana_ib_dev *dev,
 				  mana_handle_t gdma_region);
@@ -210,6 +231,4 @@ int mana_ib_query_gid(struct ib_device *ibdev, u32 port, int index,
 void mana_ib_disassociate_ucontext(struct ib_ucontext *ibcontext);
 
 int mana_ib_gd_query_adapter_caps(struct mana_ib_dev *mdev);
-
-void mana_ib_cq_handler(void *ctx, struct gdma_queue *gdma_cq);
 #endif

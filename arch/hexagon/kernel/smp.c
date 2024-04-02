@@ -114,10 +114,6 @@ void send_ipi(const struct cpumask *cpumask, enum ipi_message_type msg)
 	local_irq_restore(flags);
 }
 
-void __init smp_prepare_boot_cpu(void)
-{
-}
-
 /*
  * interrupts should already be disabled from the VM
  * SP should already be correct; need to set THREADINFO_REG

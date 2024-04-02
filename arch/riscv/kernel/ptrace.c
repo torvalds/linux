@@ -377,14 +377,14 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 	return ret;
 }
+#else
+static const struct user_regset_view compat_riscv_user_native_view = {};
 #endif /* CONFIG_COMPAT */
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
-#ifdef CONFIG_COMPAT
-	if (test_tsk_thread_flag(task, TIF_32BIT))
+	if (is_compat_thread(&task->thread_info))
 		return &compat_riscv_user_native_view;
 	else
-#endif
 		return &riscv_user_native_view;
 }

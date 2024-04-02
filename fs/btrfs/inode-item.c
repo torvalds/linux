@@ -9,7 +9,6 @@
 #include "inode-item.h"
 #include "disk-io.h"
 #include "transaction.h"
-#include "print-tree.h"
 #include "space-info.h"
 #include "accessors.h"
 #include "extent-tree.h"

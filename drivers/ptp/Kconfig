@@ -155,6 +155,18 @@ config PTP_1588_CLOCK_IDTCM
 	  To compile this driver as a module, choose M here: the module
 	  will be called ptp_clockmatrix.
 
+config PTP_1588_CLOCK_FC3W
+	tristate "RENESAS FemtoClock3 Wireless as PTP clock"
+	depends on PTP_1588_CLOCK && I2C
+	default n
+	help
+	  This driver adds support for using Renesas FemtoClock3 Wireless
+	  as a PTP clock. This clock is only useful if your time stamping
+	  MAC is connected to the RENESAS chip.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called ptp_fc3.
+
 config PTP_1588_CLOCK_MOCK
 	tristate "Mock-up PTP clock"
 	depends on PTP_1588_CLOCK

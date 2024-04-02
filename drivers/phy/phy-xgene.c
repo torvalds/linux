@@ -1611,7 +1611,7 @@ static const struct phy_ops xgene_phy_ops = {
 };
 
 static struct phy *xgene_phy_xlate(struct device *dev,
-				   struct of_phandle_args *args)
+				   const struct of_phandle_args *args)
 {
 	struct xgene_phy_ctx *ctx = dev_get_drvdata(dev);
 

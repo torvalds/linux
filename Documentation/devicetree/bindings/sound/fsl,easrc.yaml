@@ -51,8 +51,8 @@ properties:
       - const: ctx3_tx
 
   firmware-name:
-    $ref: /schemas/types.yaml#/definitions/string
-    const: imx/easrc/easrc-imx8mn.bin
+    items:
+      - const: imx/easrc/easrc-imx8mn.bin
     description: The coefficient table for the filters
 
   fsl,asrc-rate:

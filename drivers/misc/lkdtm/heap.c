@@ -48,7 +48,7 @@ static void lkdtm_VMALLOC_LINEAR_OVERFLOW(void)
  * correctly.
  *
  * This should get caught by either memory tagging, KASan, or by using
- * CONFIG_SLUB_DEBUG=y and slub_debug=ZF (or CONFIG_SLUB_DEBUG_ON=y).
+ * CONFIG_SLUB_DEBUG=y and slab_debug=ZF (or CONFIG_SLUB_DEBUG_ON=y).
  */
 static void lkdtm_SLAB_LINEAR_OVERFLOW(void)
 {

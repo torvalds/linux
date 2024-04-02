@@ -17,6 +17,10 @@ struct brcmf_pub;
 struct brcmf_if;
 struct brcmf_cfg80211_info;
 
+#define BRCMF_ABSTRACT_EVENT_BIT	BIT(31)
+#define BRCMF_ABSTRACT_ENUM_DEF(_id, _val) \
+	BRCMF_ENUM_DEF(_id, (BRCMF_ABSTRACT_EVENT_BIT | (_val)))
+
 /* list of firmware events */
 #define BRCMF_FWEH_EVENT_ENUM_DEFLIST \
 	BRCMF_ENUM_DEF(SET_SSID, 0) \
@@ -98,15 +102,8 @@ struct brcmf_cfg80211_info;
 /* firmware event codes sent by the dongle */
 enum brcmf_fweh_event_code {
 	BRCMF_FWEH_EVENT_ENUM_DEFLIST
-	/* this determines event mask length which must match
-	 * minimum length check in device firmware so it is
-	 * hard-coded here.
-	 */
-	BRCMF_E_LAST = 139
 };
 #undef BRCMF_ENUM_DEF
-
-#define BRCMF_EVENTING_MASK_LEN		DIV_ROUND_UP(BRCMF_E_LAST, 8)
 
 /* flags field values in struct brcmf_event_msg */
 #define BRCMF_EVENT_MSG_LINK		0x01
@@ -288,27 +285,66 @@ typedef int (*brcmf_fweh_handler_t)(struct brcmf_if *ifp,
 				    void *data);
 
 /**
+ * struct brcmf_fweh_event_map_item - fweh event and firmware event pair.
+ *
+ * @code: fweh event code as used by higher layers.
+ * @fwevt_code: firmware event code as used by firmware.
+ *
+ * This mapping is needed when a functionally identical event has a
+ * different numerical definition between vendors. When such mapping
+ * is needed the higher layer event code should not collide with the
+ * firmware event.
+ */
+struct brcmf_fweh_event_map_item {
+	enum brcmf_fweh_event_code code;
+	u32 fwevt_code;
+};
+
+/**
+ * struct brcmf_fweh_event_map - mapping between firmware event and fweh event.
+ *
+ * @n_items: number of mapping items.
+ * @items: array of fweh event and firmware event pairs.
+ */
+struct brcmf_fweh_event_map {
+	u32 n_items;
+	const struct brcmf_fweh_event_map_item items[] __counted_by(n_items);
+};
+
+/**
  * struct brcmf_fweh_info - firmware event handling information.
  *
  * @p2pdev_setup_ongoing: P2P device creation in progress.
  * @event_work: event worker.
  * @evt_q_lock: lock for event queue protection.
  * @event_q: event queue.
- * @evt_handler: registered event handlers.
+ * @event_mask_len: length of @event_mask used to enable firmware events.
+ * @event_mask: byte array used in 'event_msgs' iovar command.
+ * @event_map: mapping between fweh event and firmware event which
+ *	may be provided by vendor-specific module for events that need
+ *	mapping.
+ * @num_event_codes: number of firmware events supported by firmware which
+ *	does a minimum length check for the @event_mask. This value is to
+ *	be provided by vendor-specific module determining @event_mask_len
+ *	and consequently the allocation size for @event_mask.
+ * @evt_handler: event handler registry indexed by firmware event code.
  */
 struct brcmf_fweh_info {
+	struct brcmf_pub *drvr;
 	bool p2pdev_setup_ongoing;
 	struct work_struct event_work;
 	spinlock_t evt_q_lock;
 	struct list_head event_q;
-	int (*evt_handler[BRCMF_E_LAST])(struct brcmf_if *ifp,
-					 const struct brcmf_event_msg *evtmsg,
-					 void *data);
+	uint event_mask_len;
+	u8 *event_mask;
+	struct brcmf_fweh_event_map *event_map;
+	uint num_event_codes;
+	brcmf_fweh_handler_t evt_handler[] __counted_by(num_event_codes);
 };
 
 const char *brcmf_fweh_event_name(enum brcmf_fweh_event_code code);
 
-void brcmf_fweh_attach(struct brcmf_pub *drvr);
+int brcmf_fweh_attach(struct brcmf_pub *drvr);
 void brcmf_fweh_detach(struct brcmf_pub *drvr);
 int brcmf_fweh_register(struct brcmf_pub *drvr, enum brcmf_fweh_event_code code,
 			int (*handler)(struct brcmf_if *ifp,

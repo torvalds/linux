@@ -190,7 +190,7 @@
 
 	cpu-pmu {
 		compatible = "qcom,krait-pmu";
-		interrupts = <1 10 0x304>;
+		interrupts = <GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_LEVEL_HIGH)>;
 	};
 
 	clocks {
@@ -244,7 +244,7 @@
 
 		modem_smsm: modem@1 {
 			reg = <1>;
-			interrupts = <0 38 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 38 IRQ_TYPE_EDGE_RISING>;
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -252,7 +252,7 @@
 
 		q6_smsm: q6@2 {
 			reg = <2>;
-			interrupts = <0 89 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 89 IRQ_TYPE_EDGE_RISING>;
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -260,7 +260,7 @@
 
 		wcnss_smsm: wcnss@3 {
 			reg = <3>;
-			interrupts = <0 204 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 204 IRQ_TYPE_EDGE_RISING>;
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -268,7 +268,7 @@
 
 		dsps_smsm: dsps@4 {
 			reg = <4>;
-			interrupts = <0 137 IRQ_TYPE_EDGE_RISING>;
+			interrupts = <GIC_SPI 137 IRQ_TYPE_EDGE_RISING>;
 
 			interrupt-controller;
 			#interrupt-cells = <2>;
@@ -299,7 +299,7 @@
 			#gpio-cells = <2>;
 			interrupt-controller;
 			#interrupt-cells = <2>;
-			interrupts = <0 16 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
 
 			pinctrl-names = "default";
 			pinctrl-0 = <&ps_hold>;
@@ -321,9 +321,9 @@
 		timer@200a000 {
 			compatible = "qcom,kpss-wdt-apq8064", "qcom,kpss-timer",
 				     "qcom,msm-timer";
-			interrupts = <1 1 0x301>,
-				     <1 2 0x301>,
-				     <1 3 0x301>;
+			interrupts = <GIC_PPI 1 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+				     <GIC_PPI 2 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>,
+				     <GIC_PPI 3 (GIC_CPU_MASK_SIMPLE(2) | IRQ_TYPE_EDGE_RISING)>;
 			reg = <0x0200a000 0x100>;
 			clock-frequency = <27000000>;
 			cpu-offset = <0x80000>;
@@ -365,28 +365,44 @@
 			#clock-cells = <0>;
 		};
 
-		saw0: power-controller@2089000 {
+		saw0: power-manager@2089000 {
 			compatible = "qcom,apq8064-saw2-v1.1-cpu", "qcom,saw2";
 			reg = <0x02089000 0x1000>, <0x02009000 0x1000>;
-			regulator;
+
+			saw0_vreg: regulator {
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1300000>;
+			};
 		};
 
-		saw1: power-controller@2099000 {
+		saw1: power-manager@2099000 {
 			compatible = "qcom,apq8064-saw2-v1.1-cpu", "qcom,saw2";
 			reg = <0x02099000 0x1000>, <0x02009000 0x1000>;
-			regulator;
+
+			saw1_vreg: regulator {
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1300000>;
+			};
 		};
 
-		saw2: power-controller@20a9000 {
+		saw2: power-manager@20a9000 {
 			compatible = "qcom,apq8064-saw2-v1.1-cpu", "qcom,saw2";
 			reg = <0x020a9000 0x1000>, <0x02009000 0x1000>;
-			regulator;
+
+			saw2_vreg: regulator {
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1300000>;
+			};
 		};
 
-		saw3: power-controller@20b9000 {
+		saw3: power-manager@20b9000 {
 			compatible = "qcom,apq8064-saw2-v1.1-cpu", "qcom,saw2";
 			reg = <0x020b9000 0x1000>, <0x02009000 0x1000>;
-			regulator;
+
+			saw3_vreg: regulator {
+				regulator-min-microvolt = <850000>;
+				regulator-max-microvolt = <1300000>;
+			};
 		};
 
 		sps_sic_non_secure: sps-sic-non-secure@12100000 {
@@ -411,7 +427,7 @@
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x12450000 0x100>,
 				      <0x12400000 0x03>;
-				interrupts = <0 193 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 193 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI1_UART_CLK>, <&gcc GSBI1_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
@@ -423,7 +439,7 @@
 				pinctrl-1 = <&i2c1_pins_sleep>;
 				pinctrl-names = "default", "sleep";
 				reg = <0x12460000 0x1000>;
-				interrupts = <0 194 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 194 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI1_QUP_CLK>, <&gcc GSBI1_H_CLK>;
 				clock-names = "core", "iface";
 				#address-cells = <1>;
@@ -452,7 +468,7 @@
 				pinctrl-0 = <&i2c2_pins>;
 				pinctrl-1 = <&i2c2_pins_sleep>;
 				pinctrl-names = "default", "sleep";
-				interrupts = <0 196 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 196 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI2_QUP_CLK>, <&gcc GSBI2_H_CLK>;
 				clock-names = "core", "iface";
 				#address-cells = <1>;
@@ -539,7 +555,7 @@
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x1a240000 0x100>,
 				      <0x1a200000 0x03>;
-				interrupts = <0 154 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 154 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI5_UART_CLK>, <&gcc GSBI5_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
@@ -548,7 +564,7 @@
 			gsbi5_spi: spi@1a280000 {
 				compatible = "qcom,spi-qup-v1.1.1";
 				reg = <0x1a280000 0x1000>;
-				interrupts = <0 155 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 155 IRQ_TYPE_LEVEL_HIGH>;
 				pinctrl-0 = <&spi5_default>;
 				pinctrl-1 = <&spi5_sleep>;
 				pinctrl-names = "default", "sleep";
@@ -575,7 +591,7 @@
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x16540000 0x100>,
 				      <0x16500000 0x03>;
-				interrupts = <0 156 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 156 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI6_UART_CLK>, <&gcc GSBI6_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
@@ -611,7 +627,7 @@
 				compatible = "qcom,msm-uartdm-v1.3", "qcom,msm-uartdm";
 				reg = <0x16640000 0x1000>,
 				      <0x16600000 0x1000>;
-				interrupts = <0 158 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <GIC_SPI 158 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&gcc GSBI7_UART_CLK>, <&gcc GSBI7_H_CLK>;
 				clock-names = "core", "iface";
 				status = "disabled";
@@ -908,7 +924,7 @@
 		sdcc3bam: dma-controller@12182000 {
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x12182000 0x8000>;
-			interrupts = <0 96 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc SDC3_H_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
@@ -936,7 +952,7 @@
 		sdcc4bam: dma-controller@121c2000 {
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x121c2000 0x8000>;
-			interrupts = <0 95 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc SDC4_H_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;
@@ -965,7 +981,7 @@
 		sdcc1bam: dma-controller@12402000 {
 			compatible = "qcom,bam-v1.3.0";
 			reg = <0x12402000 0x8000>;
-			interrupts = <0 98 IRQ_TYPE_LEVEL_HIGH>;
+			interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&gcc SDC1_H_CLK>;
 			clock-names = "bam_clk";
 			#dma-cells = <1>;

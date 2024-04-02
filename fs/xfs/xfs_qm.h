@@ -68,6 +68,10 @@ struct xfs_quotainfo {
 	/* Minimum and maximum quota expiration timestamp values. */
 	time64_t		qi_expiry_min;
 	time64_t		qi_expiry_max;
+
+	/* Hook to feed quota counter updates to an active online repair. */
+	struct xfs_hooks	qi_mod_ino_dqtrx_hooks;
+	struct xfs_hooks	qi_apply_dqtrx_hooks;
 };
 
 static inline struct radix_tree_root *
@@ -103,6 +107,18 @@ xfs_quota_inode(struct xfs_mount *mp, xfs_dqtype_t type)
 	}
 	return NULL;
 }
+
+/*
+ * Parameters for tracking dqtrx changes on behalf of an inode.  The hook
+ * function arg parameter is the field being updated.
+ */
+struct xfs_mod_ino_dqtrx_params {
+	uintptr_t		tx_id;
+	xfs_ino_t		ino;
+	xfs_dqtype_t		q_type;
+	xfs_dqid_t		q_id;
+	int64_t			delta;
+};
 
 extern void	xfs_trans_mod_dquot(struct xfs_trans *tp, struct xfs_dquot *dqp,
 				    uint field, int64_t delta);

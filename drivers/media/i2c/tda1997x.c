@@ -2310,7 +2310,7 @@ static int tda1997x_parse_dt(struct tda1997x_state *state)
 	pdata->vidout_sel_de = DE_FREF_SEL_DE_VHREF;
 
 	np = state->client->dev.of_node;
-	ep = of_graph_get_next_endpoint(np, NULL);
+	ep = of_graph_get_endpoint_by_regs(np, 0, -1);
 	if (!ep)
 		return -EINVAL;
 

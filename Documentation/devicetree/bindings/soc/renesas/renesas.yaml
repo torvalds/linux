@@ -348,11 +348,24 @@ properties:
               - renesas,white-hawk-cpu # White Hawk CPU board (RTP8A779G0ASKB0FC0SA000)
           - const: renesas,r8a779g0
 
+      - description: R-Car V4H (R8A779G2)
+        items:
+          - enum:
+              - renesas,white-hawk-single # White Hawk Single board (RTP8A779G2ASKB0F10SA001)
+          - const: renesas,r8a779g2
+          - const: renesas,r8a779g0
+
       - items:
           - enum:
               - renesas,white-hawk-breakout # White Hawk BreakOut board (RTP8A779G0ASKB0SB0SA000)
           - const: renesas,white-hawk-cpu
           - const: renesas,r8a779g0
+
+      - description: R-Car V4M (R8A779H0)
+        items:
+          - enum:
+              - renesas,gray-hawk-single # Gray Hawk Single board (RTP8A779H0ASKB0F10S)
+          - const: renesas,r8a779h0
 
       - description: R-Car H3e (R8A779M0)
         items:
@@ -475,12 +488,6 @@ properties:
               - renesas,r9a07g054l2 # Dual Cortex-A55 RZ/V2L
           - const: renesas,r9a07g054
 
-      - description: RZ/V2M (R9A09G011)
-        items:
-          - enum:
-              - renesas,rzv2mevk2   # RZ/V2M Eval Board v2.0
-          - const: renesas,r9a09g011
-
       - description: RZ/G3S (R9A08G045)
         items:
           - enum:
@@ -499,6 +506,12 @@ properties:
           - const: renesas,rzg3s-smarcm # RZ/G3S SMARC SoM
           - const: renesas,r9a08g045s33 # PCIe support
           - const: renesas,r9a08g045
+
+      - description: RZ/V2M (R9A09G011)
+        items:
+          - enum:
+              - renesas,rzv2mevk2   # RZ/V2M Eval Board v2.0
+          - const: renesas,r9a09g011
 
 additionalProperties: true
 

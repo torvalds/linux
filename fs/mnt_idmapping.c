@@ -214,7 +214,7 @@ static int copy_mnt_idmap(struct uid_gid_map *map_from,
 	 * anything at all.
 	 */
 	if (nr_extents == 0)
-		return 0;
+		return -EINVAL;
 
 	/*
 	 * Here we know that nr_extents is greater than zero which means

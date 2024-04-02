@@ -15,6 +15,7 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
+#include "sof_board_helpers.h"
 #include "sof_sdw_common.h"
 
 /*
@@ -84,15 +85,24 @@ static struct snd_soc_jack_pin rt_sdca_jack_pins[] = {
 	},
 };
 
-static int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd)
+static const char * const jack_codecs[] = {
+	"rt711", "rt712", "rt713"
+};
+
+int rt_sdca_jack_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
-	struct snd_soc_component *component = codec_dai->component;
+	struct snd_soc_dai *codec_dai;
+	struct snd_soc_component *component;
 	struct snd_soc_jack *jack;
 	int ret;
 
+	codec_dai = get_codec_dai_by_name(rtd, jack_codecs, ARRAY_SIZE(jack_codecs));
+	if (!codec_dai)
+		return -EINVAL;
+
+	component = codec_dai->component;
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
 					  "%s hs:%s-sdca",
 					  card->components, component->name_prefix);
@@ -209,7 +219,6 @@ int sof_sdw_rt_sdca_jack_init(struct snd_soc_card *card,
 	}
 	ctx->headset_codec_dev = sdw_dev;
 
-	dai_links->init = rt_sdca_jack_rtd_init;
-
 	return 0;
 }
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);

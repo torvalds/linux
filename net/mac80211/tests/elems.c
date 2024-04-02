@@ -2,7 +2,7 @@
 /*
  * KUnit tests for element parsing
  *
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  */
 #include <kunit/test.h>
 #include "../ieee80211_i.h"
@@ -14,6 +14,7 @@ static void mle_defrag(struct kunit *test)
 	struct ieee80211_elems_parse_params parse_params = {
 		.link_id = 12,
 		.from_ap = true,
+		.mode = IEEE80211_CONN_MODE_EHT,
 	};
 	struct ieee802_11_elems *parsed;
 	struct sk_buff *skb;
@@ -68,7 +69,7 @@ static void mle_defrag(struct kunit *test)
 	if (IS_ERR_OR_NULL(parsed))
 		goto free_skb;
 
-	KUNIT_EXPECT_NOT_NULL(test, parsed->ml_basic_elem);
+	KUNIT_EXPECT_NOT_NULL(test, parsed->ml_basic);
 	KUNIT_EXPECT_EQ(test,
 			parsed->ml_basic_len,
 			2 /* control */ +

@@ -144,7 +144,7 @@ struct ipv6_ac_socklist {
 struct ifacaddr6 {
 	struct in6_addr		aca_addr;
 	struct fib6_info	*aca_rt;
-	struct ifacaddr6	*aca_next;
+	struct ifacaddr6 __rcu	*aca_next;
 	struct hlist_node	aca_addr_lst;
 	int			aca_users;
 	refcount_t		aca_refcnt;
@@ -196,7 +196,7 @@ struct inet6_dev {
 	spinlock_t		mc_report_lock;	/* mld query report lock */
 	struct mutex		mc_lock;	/* mld global lock */
 
-	struct ifacaddr6	*ac_list;
+	struct ifacaddr6 __rcu	*ac_list;
 	rwlock_t		lock;
 	refcount_t		refcnt;
 	__u32			if_flags;

@@ -516,8 +516,16 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	else
 		nfs_show_nfsv4_options(m, nfss, showdefaults);
 
-	if (nfss->options & NFS_OPTION_FSCACHE)
+	if (nfss->options & NFS_OPTION_FSCACHE) {
+#ifdef CONFIG_NFS_FSCACHE
+		if (nfss->fscache_uniq)
+			seq_printf(m, ",fsc=%s", nfss->fscache_uniq);
+		else
+			seq_puts(m, ",fsc");
+#else
 		seq_puts(m, ",fsc");
+#endif
+	}
 
 	if (nfss->options & NFS_OPTION_MIGRATION)
 		seq_puts(m, ",migration");

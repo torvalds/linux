@@ -2,11 +2,13 @@ acpi_dock_ops
 address_space_operations
 backlight_ops
 block_device_operations
+bus_type
 clk_ops
 comedi_lrange
 component_ops
 dentry_operations
 dev_pm_ops
+device_type
 dma_map_ops
 driver_info
 drm_connector_funcs

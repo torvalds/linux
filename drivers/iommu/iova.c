@@ -24,24 +24,8 @@ static bool iova_rcache_insert(struct iova_domain *iovad,
 static unsigned long iova_rcache_get(struct iova_domain *iovad,
 				     unsigned long size,
 				     unsigned long limit_pfn);
-static void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad);
 static void free_iova_rcaches(struct iova_domain *iovad);
-
-unsigned long iova_rcache_range(void)
-{
-	return PAGE_SIZE << (IOVA_RANGE_CACHE_MAX_SIZE - 1);
-}
-
-static int iova_cpuhp_dead(unsigned int cpu, struct hlist_node *node)
-{
-	struct iova_domain *iovad;
-
-	iovad = hlist_entry_safe(node, struct iova_domain, cpuhp_dead);
-
-	free_cpu_cached_iovas(cpu, iovad);
-	return 0;
-}
-
+static void free_cpu_cached_iovas(unsigned int cpu, struct iova_domain *iovad);
 static void free_global_cached_iovas(struct iova_domain *iovad);
 
 static struct iova *to_iova(struct rb_node *node)
@@ -251,54 +235,6 @@ static void free_iova_mem(struct iova *iova)
 	if (iova->pfn_lo != IOVA_ANCHOR)
 		kmem_cache_free(iova_cache, iova);
 }
-
-int iova_cache_get(void)
-{
-	mutex_lock(&iova_cache_mutex);
-	if (!iova_cache_users) {
-		int ret;
-
-		ret = cpuhp_setup_state_multi(CPUHP_IOMMU_IOVA_DEAD, "iommu/iova:dead", NULL,
-					iova_cpuhp_dead);
-		if (ret) {
-			mutex_unlock(&iova_cache_mutex);
-			pr_err("Couldn't register cpuhp handler\n");
-			return ret;
-		}
-
-		iova_cache = kmem_cache_create(
-			"iommu_iova", sizeof(struct iova), 0,
-			SLAB_HWCACHE_ALIGN, NULL);
-		if (!iova_cache) {
-			cpuhp_remove_multi_state(CPUHP_IOMMU_IOVA_DEAD);
-			mutex_unlock(&iova_cache_mutex);
-			pr_err("Couldn't create iova cache\n");
-			return -ENOMEM;
-		}
-	}
-
-	iova_cache_users++;
-	mutex_unlock(&iova_cache_mutex);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(iova_cache_get);
-
-void iova_cache_put(void)
-{
-	mutex_lock(&iova_cache_mutex);
-	if (WARN_ON(!iova_cache_users)) {
-		mutex_unlock(&iova_cache_mutex);
-		return;
-	}
-	iova_cache_users--;
-	if (!iova_cache_users) {
-		cpuhp_remove_multi_state(CPUHP_IOMMU_IOVA_DEAD);
-		kmem_cache_destroy(iova_cache);
-	}
-	mutex_unlock(&iova_cache_mutex);
-}
-EXPORT_SYMBOL_GPL(iova_cache_put);
 
 /**
  * alloc_iova - allocates an iova
@@ -654,11 +590,18 @@ struct iova_rcache {
 	struct delayed_work work;
 };
 
+static struct kmem_cache *iova_magazine_cache;
+
+unsigned long iova_rcache_range(void)
+{
+	return PAGE_SIZE << (IOVA_RANGE_CACHE_MAX_SIZE - 1);
+}
+
 static struct iova_magazine *iova_magazine_alloc(gfp_t flags)
 {
 	struct iova_magazine *mag;
 
-	mag = kmalloc(sizeof(*mag), flags);
+	mag = kmem_cache_alloc(iova_magazine_cache, flags);
 	if (mag)
 		mag->size = 0;
 
@@ -667,7 +610,7 @@ static struct iova_magazine *iova_magazine_alloc(gfp_t flags)
 
 static void iova_magazine_free(struct iova_magazine *mag)
 {
-	kfree(mag);
+	kmem_cache_free(iova_magazine_cache, mag);
 }
 
 static void
@@ -990,5 +933,71 @@ static void free_global_cached_iovas(struct iova_domain *iovad)
 		spin_unlock_irqrestore(&rcache->lock, flags);
 	}
 }
+
+static int iova_cpuhp_dead(unsigned int cpu, struct hlist_node *node)
+{
+	struct iova_domain *iovad;
+
+	iovad = hlist_entry_safe(node, struct iova_domain, cpuhp_dead);
+
+	free_cpu_cached_iovas(cpu, iovad);
+	return 0;
+}
+
+int iova_cache_get(void)
+{
+	int err = -ENOMEM;
+
+	mutex_lock(&iova_cache_mutex);
+	if (!iova_cache_users) {
+		iova_cache = kmem_cache_create("iommu_iova", sizeof(struct iova), 0,
+					       SLAB_HWCACHE_ALIGN, NULL);
+		if (!iova_cache)
+			goto out_err;
+
+		iova_magazine_cache = kmem_cache_create("iommu_iova_magazine",
+							sizeof(struct iova_magazine),
+							0, SLAB_HWCACHE_ALIGN, NULL);
+		if (!iova_magazine_cache)
+			goto out_err;
+
+		err = cpuhp_setup_state_multi(CPUHP_IOMMU_IOVA_DEAD, "iommu/iova:dead",
+					      NULL, iova_cpuhp_dead);
+		if (err) {
+			pr_err("IOVA: Couldn't register cpuhp handler: %pe\n", ERR_PTR(err));
+			goto out_err;
+		}
+	}
+
+	iova_cache_users++;
+	mutex_unlock(&iova_cache_mutex);
+
+	return 0;
+
+out_err:
+	kmem_cache_destroy(iova_cache);
+	kmem_cache_destroy(iova_magazine_cache);
+	mutex_unlock(&iova_cache_mutex);
+	return err;
+}
+EXPORT_SYMBOL_GPL(iova_cache_get);
+
+void iova_cache_put(void)
+{
+	mutex_lock(&iova_cache_mutex);
+	if (WARN_ON(!iova_cache_users)) {
+		mutex_unlock(&iova_cache_mutex);
+		return;
+	}
+	iova_cache_users--;
+	if (!iova_cache_users) {
+		cpuhp_remove_multi_state(CPUHP_IOMMU_IOVA_DEAD);
+		kmem_cache_destroy(iova_cache);
+		kmem_cache_destroy(iova_magazine_cache);
+	}
+	mutex_unlock(&iova_cache_mutex);
+}
+EXPORT_SYMBOL_GPL(iova_cache_put);
+
 MODULE_AUTHOR("Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>");
 MODULE_LICENSE("GPL");

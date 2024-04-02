@@ -20,6 +20,7 @@
 #include <linux/kernel.h>
 #include <asm/alternative.h>
 #include <asm/inst.h>
+#include <asm/unwind.h>
 
 static int rela_stack_push(s64 stack_value, s64 *rela_stack, size_t *rela_stack_top)
 {
@@ -515,15 +516,28 @@ static void module_init_ftrace_plt(const Elf_Ehdr *hdr,
 int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs, struct module *mod)
 {
-	const Elf_Shdr *s, *se;
 	const char *secstrs = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
+	const Elf_Shdr *s, *alt = NULL, *orc = NULL, *orc_ip = NULL, *ftrace = NULL;
 
-	for (s = sechdrs, se = sechdrs + hdr->e_shnum; s < se; s++) {
+	for (s = sechdrs; s < sechdrs + hdr->e_shnum; s++) {
 		if (!strcmp(".altinstructions", secstrs + s->sh_name))
-			apply_alternatives((void *)s->sh_addr, (void *)s->sh_addr + s->sh_size);
+			alt = s;
+		if (!strcmp(".orc_unwind", secstrs + s->sh_name))
+			orc = s;
+		if (!strcmp(".orc_unwind_ip", secstrs + s->sh_name))
+			orc_ip = s;
 		if (!strcmp(".ftrace_trampoline", secstrs + s->sh_name))
-			module_init_ftrace_plt(hdr, s, mod);
+			ftrace = s;
 	}
+
+	if (alt)
+		apply_alternatives((void *)alt->sh_addr, (void *)alt->sh_addr + alt->sh_size);
+
+	if (orc && orc_ip)
+		unwind_module_init(mod, (void *)orc_ip->sh_addr, orc_ip->sh_size, (void *)orc->sh_addr, orc->sh_size);
+
+	if (ftrace)
+		module_init_ftrace_plt(hdr, ftrace, mod);
 
 	return 0;
 }

@@ -67,6 +67,7 @@ properties:
               - renesas,sdhi-r8a779a0  # R-Car V3U
               - renesas,sdhi-r8a779f0  # R-Car S4-8
               - renesas,sdhi-r8a779g0  # R-Car V4H
+              - renesas,sdhi-r8a779h0  # R-Car V4M
           - const: renesas,rcar-gen4-sdhi # R-Car Gen4
 
   reg:

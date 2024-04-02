@@ -2252,7 +2252,6 @@ static int __init dell_init(void)
 	if (dell_smbios_find_token(GLOBAL_MIC_MUTE_DISABLE) &&
 	    dell_smbios_find_token(GLOBAL_MIC_MUTE_ENABLE) &&
 	    !dell_privacy_has_mic_mute()) {
-		micmute_led_cdev.brightness = ledtrig_audio_get(LED_AUDIO_MICMUTE);
 		ret = led_classdev_register(&platform_device->dev, &micmute_led_cdev);
 		if (ret < 0)
 			goto fail_led;
@@ -2261,7 +2260,6 @@ static int __init dell_init(void)
 
 	if (dell_smbios_find_token(GLOBAL_MUTE_DISABLE) &&
 	    dell_smbios_find_token(GLOBAL_MUTE_ENABLE)) {
-		mute_led_cdev.brightness = ledtrig_audio_get(LED_AUDIO_MUTE);
 		ret = led_classdev_register(&platform_device->dev, &mute_led_cdev);
 		if (ret < 0)
 			goto fail_backlight;

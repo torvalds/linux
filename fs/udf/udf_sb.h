@@ -23,6 +23,7 @@
 #define UDF_FLAG_STRICT			5
 #define UDF_FLAG_UNDELETE		6
 #define UDF_FLAG_UNHIDE			7
+#define UDF_FLAG_NOVRS			8
 #define UDF_FLAG_UID_FORGET     11    /* save -1 for uid to disk */
 #define UDF_FLAG_GID_FORGET     12
 #define UDF_FLAG_UID_SET	13

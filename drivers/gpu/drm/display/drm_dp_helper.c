@@ -4111,6 +4111,13 @@ int drm_dp_bw_overhead(int lane_count, int hactive,
 	u32 overhead = 1000000;
 	int symbol_cycles;
 
+	if (lane_count == 0 || hactive == 0 || bpp_x16 == 0) {
+		DRM_DEBUG_KMS("Invalid BW overhead params: lane_count %d, hactive %d, bpp_x16 %d.%04d\n",
+			      lane_count, hactive,
+			      bpp_x16 >> 4, (bpp_x16 & 0xf) * 625);
+		return 0;
+	}
+
 	/*
 	 * DP Standard v2.1 2.6.4.1
 	 * SSC downspread and ref clock variation margin:

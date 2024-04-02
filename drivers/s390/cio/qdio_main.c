@@ -82,7 +82,7 @@ static inline int do_siga_input(unsigned long schid, unsigned long mask,
  */
 static inline int do_siga_output(unsigned long schid, unsigned long mask,
 				 unsigned int *bb, unsigned long fc,
-				 unsigned long aob)
+				 dma64_t aob)
 {
 	int cc;
 
@@ -321,7 +321,7 @@ static inline int qdio_siga_sync_q(struct qdio_q *q)
 }
 
 static int qdio_siga_output(struct qdio_q *q, unsigned int count,
-			    unsigned int *busy_bit, unsigned long aob)
+			    unsigned int *busy_bit, dma64_t aob)
 {
 	unsigned long schid = *((u32 *) &q->irq_ptr->schid);
 	unsigned int fc = QDIO_SIGA_WRITE;
@@ -628,7 +628,7 @@ int qdio_inspect_output_queue(struct ccw_device *cdev, unsigned int nr,
 EXPORT_SYMBOL_GPL(qdio_inspect_output_queue);
 
 static int qdio_kick_outbound_q(struct qdio_q *q, unsigned int count,
-				unsigned long aob)
+				dma64_t aob)
 {
 	int retries = 0, cc;
 	unsigned int busy_bit;
@@ -1070,7 +1070,7 @@ int qdio_establish(struct ccw_device *cdev,
 	irq_ptr->ccw->cmd_code = ciw->cmd;
 	irq_ptr->ccw->flags = CCW_FLAG_SLI;
 	irq_ptr->ccw->count = ciw->count;
-	irq_ptr->ccw->cda = (u32) virt_to_phys(irq_ptr->qdr);
+	irq_ptr->ccw->cda = virt_to_dma32(irq_ptr->qdr);
 
 	spin_lock_irq(get_ccwdev_lock(cdev));
 	ccw_device_set_options_mask(cdev, 0);
@@ -1263,9 +1263,9 @@ static int handle_outbound(struct qdio_q *q, unsigned int bufnr, unsigned int co
 		qperf_inc(q, outbound_queue_full);
 
 	if (queue_type(q) == QDIO_IQDIO_QFMT) {
-		unsigned long phys_aob = aob ? virt_to_phys(aob) : 0;
+		dma64_t phys_aob = aob ? virt_to_dma64(aob) : 0;
 
-		WARN_ON_ONCE(!IS_ALIGNED(phys_aob, 256));
+		WARN_ON_ONCE(!IS_ALIGNED(dma64_to_u64(phys_aob), 256));
 		rc = qdio_kick_outbound_q(q, count, phys_aob);
 	} else if (qdio_need_siga_sync(q->irq_ptr)) {
 		rc = qdio_sync_output_queue(q);

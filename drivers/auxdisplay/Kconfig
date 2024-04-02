@@ -177,6 +177,20 @@ config HT16K33
 	  Say yes here to add support for Holtek HT16K33, RAM mapping 16*8
 	  LED controller driver with keyscan.
 
+config MAX6959
+	tristate "Maxim MAX6958/6959 7-segment LED controller"
+	depends on I2C
+	select REGMAP_I2C
+	select LINEDISP
+	help
+	  If you say yes here you get support for the following Maxim chips
+	  (I2C 7-segment LED display controller):
+	  - MAX6958
+	  - MAX6959 (input support)
+
+	  This driver can also be built as a module. If so, the module
+	  will be called max6959.
+
 config LCD2S
 	tristate "lcd2s 20x4 character display over I2C console"
 	depends on I2C
@@ -196,6 +210,17 @@ config ARM_CHARLCD
 	  very much more than display the text "ARM Linux" on the first
 	  line and the Linux version on the second line, but that's
 	  still useful.
+
+config SEG_LED_GPIO
+	tristate "Generic 7-segment LED display"
+	depends on GPIOLIB || COMPILE_TEST
+	select LINEDISP
+	help
+	  This driver supports a generic 7-segment LED display made up
+	  of GPIO pins connected to the individual segments.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called seg-led-gpio.
 
 menuconfig PARPORT_PANEL
 	tristate "Parallel port LCD/Keypad Panel support"

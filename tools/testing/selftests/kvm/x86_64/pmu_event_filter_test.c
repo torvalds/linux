@@ -11,72 +11,18 @@
  */
 
 #define _GNU_SOURCE /* for program_invocation_short_name */
-#include "test_util.h"
+
 #include "kvm_util.h"
+#include "pmu.h"
 #include "processor.h"
-
-/*
- * In lieu of copying perf_event.h into tools...
- */
-#define ARCH_PERFMON_EVENTSEL_OS			(1ULL << 17)
-#define ARCH_PERFMON_EVENTSEL_ENABLE			(1ULL << 22)
-
-/* End of stuff taken from perf_event.h. */
-
-/* Oddly, this isn't in perf_event.h. */
-#define ARCH_PERFMON_BRANCHES_RETIRED		5
+#include "test_util.h"
 
 #define NUM_BRANCHES 42
-#define INTEL_PMC_IDX_FIXED		32
-
-/* Matches KVM_PMU_EVENT_FILTER_MAX_EVENTS in pmu.c */
-#define MAX_FILTER_EVENTS		300
 #define MAX_TEST_EVENTS		10
 
 #define PMU_EVENT_FILTER_INVALID_ACTION		(KVM_PMU_EVENT_DENY + 1)
 #define PMU_EVENT_FILTER_INVALID_FLAGS			(KVM_PMU_EVENT_FLAGS_VALID_MASK << 1)
-#define PMU_EVENT_FILTER_INVALID_NEVENTS		(MAX_FILTER_EVENTS + 1)
-
-/*
- * This is how the event selector and unit mask are stored in an AMD
- * core performance event-select register. Intel's format is similar,
- * but the event selector is only 8 bits.
- */
-#define EVENT(select, umask) ((select & 0xf00UL) << 24 | (select & 0xff) | \
-			      (umask & 0xff) << 8)
-
-/*
- * "Branch instructions retired", from the Intel SDM, volume 3,
- * "Pre-defined Architectural Performance Events."
- */
-
-#define INTEL_BR_RETIRED EVENT(0xc4, 0)
-
-/*
- * "Retired branch instructions", from Processor Programming Reference
- * (PPR) for AMD Family 17h Model 01h, Revision B1 Processors,
- * Preliminary Processor Programming Reference (PPR) for AMD Family
- * 17h Model 31h, Revision B0 Processors, and Preliminary Processor
- * Programming Reference (PPR) for AMD Family 19h Model 01h, Revision
- * B1 Processors Volume 1 of 2.
- */
-
-#define AMD_ZEN_BR_RETIRED EVENT(0xc2, 0)
-
-
-/*
- * "Retired instructions", from Processor Programming Reference
- * (PPR) for AMD Family 17h Model 01h, Revision B1 Processors,
- * Preliminary Processor Programming Reference (PPR) for AMD Family
- * 17h Model 31h, Revision B0 Processors, and Preliminary Processor
- * Programming Reference (PPR) for AMD Family 19h Model 01h, Revision
- * B1 Processors Volume 1 of 2.
- *                      --- and ---
- * "Instructions retired", from the Intel SDM, volume 3,
- * "Pre-defined Architectural Performance Events."
- */
-
-#define INST_RETIRED EVENT(0xc0, 0)
+#define PMU_EVENT_FILTER_INVALID_NEVENTS		(KVM_PMU_EVENT_FILTER_MAX_EVENTS + 1)
 
 struct __kvm_pmu_event_filter {
 	__u32 action;
@@ -84,26 +30,28 @@ struct __kvm_pmu_event_filter {
 	__u32 fixed_counter_bitmap;
 	__u32 flags;
 	__u32 pad[4];
-	__u64 events[MAX_FILTER_EVENTS];
+	__u64 events[KVM_PMU_EVENT_FILTER_MAX_EVENTS];
 };
 
 /*
- * This event list comprises Intel's eight architectural events plus
- * AMD's "retired branch instructions" for Zen[123] (and possibly
- * other AMD CPUs).
+ * This event list comprises Intel's known architectural events, plus AMD's
+ * "retired branch instructions" for Zen1-Zen3 (and* possibly other AMD CPUs).
+ * Note, AMD and Intel use the same encoding for instructions retired.
  */
+kvm_static_assert(INTEL_ARCH_INSTRUCTIONS_RETIRED == AMD_ZEN_INSTRUCTIONS_RETIRED);
+
 static const struct __kvm_pmu_event_filter base_event_filter = {
 	.nevents = ARRAY_SIZE(base_event_filter.events),
 	.events = {
-		EVENT(0x3c, 0),
-		INST_RETIRED,
-		EVENT(0x3c, 1),
-		EVENT(0x2e, 0x4f),
-		EVENT(0x2e, 0x41),
-		EVENT(0xc4, 0),
-		EVENT(0xc5, 0),
-		EVENT(0xa4, 1),
-		AMD_ZEN_BR_RETIRED,
+		INTEL_ARCH_CPU_CYCLES,
+		INTEL_ARCH_INSTRUCTIONS_RETIRED,
+		INTEL_ARCH_REFERENCE_CYCLES,
+		INTEL_ARCH_LLC_REFERENCES,
+		INTEL_ARCH_LLC_MISSES,
+		INTEL_ARCH_BRANCHES_RETIRED,
+		INTEL_ARCH_BRANCHES_MISPREDICTED,
+		INTEL_ARCH_TOPDOWN_SLOTS,
+		AMD_ZEN_BRANCHES_RETIRED,
 	},
 };
 
@@ -165,9 +113,9 @@ static void intel_guest_code(void)
 	for (;;) {
 		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 		wrmsr(MSR_P6_EVNTSEL0, ARCH_PERFMON_EVENTSEL_ENABLE |
-		      ARCH_PERFMON_EVENTSEL_OS | INTEL_BR_RETIRED);
+		      ARCH_PERFMON_EVENTSEL_OS | INTEL_ARCH_BRANCHES_RETIRED);
 		wrmsr(MSR_P6_EVNTSEL1, ARCH_PERFMON_EVENTSEL_ENABLE |
-		      ARCH_PERFMON_EVENTSEL_OS | INST_RETIRED);
+		      ARCH_PERFMON_EVENTSEL_OS | INTEL_ARCH_INSTRUCTIONS_RETIRED);
 		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0x3);
 
 		run_and_measure_loop(MSR_IA32_PMC0);
@@ -189,9 +137,9 @@ static void amd_guest_code(void)
 	for (;;) {
 		wrmsr(MSR_K7_EVNTSEL0, 0);
 		wrmsr(MSR_K7_EVNTSEL0, ARCH_PERFMON_EVENTSEL_ENABLE |
-		      ARCH_PERFMON_EVENTSEL_OS | AMD_ZEN_BR_RETIRED);
+		      ARCH_PERFMON_EVENTSEL_OS | AMD_ZEN_BRANCHES_RETIRED);
 		wrmsr(MSR_K7_EVNTSEL1, ARCH_PERFMON_EVENTSEL_ENABLE |
-		      ARCH_PERFMON_EVENTSEL_OS | INST_RETIRED);
+		      ARCH_PERFMON_EVENTSEL_OS | AMD_ZEN_INSTRUCTIONS_RETIRED);
 
 		run_and_measure_loop(MSR_K7_PERFCTR0);
 		GUEST_SYNC(0);
@@ -312,7 +260,7 @@ static void test_amd_deny_list(struct kvm_vcpu *vcpu)
 		.action = KVM_PMU_EVENT_DENY,
 		.nevents = 1,
 		.events = {
-			EVENT(0x1C2, 0),
+			RAW_EVENT(0x1C2, 0),
 		},
 	};
 
@@ -347,9 +295,9 @@ static void test_not_member_deny_list(struct kvm_vcpu *vcpu)
 
 	f.action = KVM_PMU_EVENT_DENY;
 
-	remove_event(&f, INST_RETIRED);
-	remove_event(&f, INTEL_BR_RETIRED);
-	remove_event(&f, AMD_ZEN_BR_RETIRED);
+	remove_event(&f, INTEL_ARCH_INSTRUCTIONS_RETIRED);
+	remove_event(&f, INTEL_ARCH_BRANCHES_RETIRED);
+	remove_event(&f, AMD_ZEN_BRANCHES_RETIRED);
 	test_with_filter(vcpu, &f);
 
 	ASSERT_PMC_COUNTING_INSTRUCTIONS();
@@ -361,9 +309,9 @@ static void test_not_member_allow_list(struct kvm_vcpu *vcpu)
 
 	f.action = KVM_PMU_EVENT_ALLOW;
 
-	remove_event(&f, INST_RETIRED);
-	remove_event(&f, INTEL_BR_RETIRED);
-	remove_event(&f, AMD_ZEN_BR_RETIRED);
+	remove_event(&f, INTEL_ARCH_INSTRUCTIONS_RETIRED);
+	remove_event(&f, INTEL_ARCH_BRANCHES_RETIRED);
+	remove_event(&f, AMD_ZEN_BRANCHES_RETIRED);
 	test_with_filter(vcpu, &f);
 
 	ASSERT_PMC_NOT_COUNTING_INSTRUCTIONS();
@@ -452,9 +400,9 @@ static bool use_amd_pmu(void)
  *  - Sapphire Rapids, Ice Lake, Cascade Lake, Skylake.
  */
 #define MEM_INST_RETIRED		0xD0
-#define MEM_INST_RETIRED_LOAD		EVENT(MEM_INST_RETIRED, 0x81)
-#define MEM_INST_RETIRED_STORE		EVENT(MEM_INST_RETIRED, 0x82)
-#define MEM_INST_RETIRED_LOAD_STORE	EVENT(MEM_INST_RETIRED, 0x83)
+#define MEM_INST_RETIRED_LOAD		RAW_EVENT(MEM_INST_RETIRED, 0x81)
+#define MEM_INST_RETIRED_STORE		RAW_EVENT(MEM_INST_RETIRED, 0x82)
+#define MEM_INST_RETIRED_LOAD_STORE	RAW_EVENT(MEM_INST_RETIRED, 0x83)
 
 static bool supports_event_mem_inst_retired(void)
 {
@@ -486,9 +434,9 @@ static bool supports_event_mem_inst_retired(void)
  * B1 Processors Volume 1 of 2.
  */
 #define LS_DISPATCH		0x29
-#define LS_DISPATCH_LOAD	EVENT(LS_DISPATCH, BIT(0))
-#define LS_DISPATCH_STORE	EVENT(LS_DISPATCH, BIT(1))
-#define LS_DISPATCH_LOAD_STORE	EVENT(LS_DISPATCH, BIT(2))
+#define LS_DISPATCH_LOAD	RAW_EVENT(LS_DISPATCH, BIT(0))
+#define LS_DISPATCH_STORE	RAW_EVENT(LS_DISPATCH, BIT(1))
+#define LS_DISPATCH_LOAD_STORE	RAW_EVENT(LS_DISPATCH, BIT(2))
 
 #define INCLUDE_MASKED_ENTRY(event_select, mask, match) \
 	KVM_PMU_ENCODE_MASKED_ENTRY(event_select, mask, match, false)
@@ -729,14 +677,14 @@ static void add_dummy_events(uint64_t *events, int nevents)
 
 static void test_masked_events(struct kvm_vcpu *vcpu)
 {
-	int nevents = MAX_FILTER_EVENTS - MAX_TEST_EVENTS;
-	uint64_t events[MAX_FILTER_EVENTS];
+	int nevents = KVM_PMU_EVENT_FILTER_MAX_EVENTS - MAX_TEST_EVENTS;
+	uint64_t events[KVM_PMU_EVENT_FILTER_MAX_EVENTS];
 
 	/* Run the test cases against a sparse PMU event filter. */
 	run_masked_events_tests(vcpu, events, 0);
 
 	/* Run the test cases against a dense PMU event filter. */
-	add_dummy_events(events, MAX_FILTER_EVENTS);
+	add_dummy_events(events, KVM_PMU_EVENT_FILTER_MAX_EVENTS);
 	run_masked_events_tests(vcpu, events, nevents);
 }
 
@@ -809,20 +757,19 @@ static void test_filter_ioctl(struct kvm_vcpu *vcpu)
 	TEST_ASSERT(!r, "Masking non-existent fixed counters should be allowed");
 }
 
-static void intel_run_fixed_counter_guest_code(uint8_t fixed_ctr_idx)
+static void intel_run_fixed_counter_guest_code(uint8_t idx)
 {
 	for (;;) {
 		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0);
-		wrmsr(MSR_CORE_PERF_FIXED_CTR0 + fixed_ctr_idx, 0);
+		wrmsr(MSR_CORE_PERF_FIXED_CTR0 + idx, 0);
 
 		/* Only OS_EN bit is enabled for fixed counter[idx]. */
-		wrmsr(MSR_CORE_PERF_FIXED_CTR_CTRL, BIT_ULL(4 * fixed_ctr_idx));
-		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL,
-		      BIT_ULL(INTEL_PMC_IDX_FIXED + fixed_ctr_idx));
+		wrmsr(MSR_CORE_PERF_FIXED_CTR_CTRL, FIXED_PMC_CTRL(idx, FIXED_PMC_KERNEL));
+		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, FIXED_PMC_GLOBAL_CTRL_ENABLE(idx));
 		__asm__ __volatile__("loop ." : "+c"((int){NUM_BRANCHES}));
 		wrmsr(MSR_CORE_PERF_GLOBAL_CTRL, 0);
 
-		GUEST_SYNC(rdmsr(MSR_CORE_PERF_FIXED_CTR0 + fixed_ctr_idx));
+		GUEST_SYNC(rdmsr(MSR_CORE_PERF_FIXED_CTR0 + idx));
 	}
 }
 
@@ -920,7 +867,7 @@ int main(int argc, char *argv[])
 	struct kvm_vcpu *vcpu, *vcpu2 = NULL;
 	struct kvm_vm *vm;
 
-	TEST_REQUIRE(get_kvm_param_bool("enable_pmu"));
+	TEST_REQUIRE(kvm_is_pmu_enabled());
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_PMU_EVENT_FILTER));
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_PMU_EVENT_MASKED_EVENTS));
 

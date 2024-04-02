@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
+ * Copyright (C) 2023 Intel Corporation
  * Copyright (C) 2013-2014, 2018-2019 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
@@ -170,7 +171,11 @@ enum iwl_bt_ci_compliance {
  * @bt_activity_grading: the activity of BT &enum iwl_bt_activity_grading
  * @ttc_status: is TTC enabled - one bit per PHY
  * @rrc_status: is RRC enabled - one bit per PHY
- * @reserved: reserved
+ * The following fields are only for version 5, and are reserved in version 4:
+ * @wifi_loss_low_rssi: The predicted lost WiFi rate (% of air time that BT is
+ *	utilizing) when the RSSI is low (<= -65 dBm)
+ * @wifi_loss_mid_high_rssi: The predicted lost WiFi rate (% of air time that
+ *	BT is utilizing) when the RSSI is mid/high (>= -65 dBm)
  */
 struct iwl_bt_coex_profile_notif {
 	__le32 mbox_msg[4];
@@ -182,7 +187,10 @@ struct iwl_bt_coex_profile_notif {
 	__le32 bt_activity_grading;
 	u8 ttc_status;
 	u8 rrc_status;
-	__le16 reserved;
-} __packed; /* BT_COEX_PROFILE_NTFY_API_S_VER_4 */
+	u8 wifi_loss_low_rssi;
+	u8 wifi_loss_mid_high_rssi;
+} __packed; /* BT_COEX_PROFILE_NTFY_API_S_VER_4
+	     * BT_COEX_PROFILE_NTFY_API_S_VER_5
+	     */
 
 #endif /* __iwl_fw_api_coex_h__ */

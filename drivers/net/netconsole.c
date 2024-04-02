@@ -42,14 +42,20 @@ MODULE_AUTHOR("Maintainer: Matt Mackall <mpm@selenic.com>");
 MODULE_DESCRIPTION("Console driver for network interfaces");
 MODULE_LICENSE("GPL");
 
-#define MAX_PARAM_LENGTH	256
-#define MAX_PRINT_CHUNK		1000
+#define MAX_PARAM_LENGTH		256
+#define MAX_USERDATA_ENTRY_LENGTH	256
+#define MAX_USERDATA_VALUE_LENGTH	200
+/* The number 3 comes from userdata entry format characters (' ', '=', '\n') */
+#define MAX_USERDATA_NAME_LENGTH	(MAX_USERDATA_ENTRY_LENGTH - \
+					MAX_USERDATA_VALUE_LENGTH - 3)
+#define MAX_USERDATA_ITEMS		16
+#define MAX_PRINT_CHUNK			1000
 
 static char config[MAX_PARAM_LENGTH];
 module_param_string(netconsole, config, MAX_PARAM_LENGTH, 0);
 MODULE_PARM_DESC(netconsole, " netconsole=[src-port]@[src-ip]/[dev],[tgt-port]@<tgt-ip>/[tgt-macaddr]");
 
-static bool oops_only = false;
+static bool oops_only;
 module_param(oops_only, bool, 0600);
 MODULE_PARM_DESC(oops_only, "Only log oops messages");
 
@@ -79,7 +85,10 @@ static struct console netconsole_ext;
 /**
  * struct netconsole_target - Represents a configured netconsole target.
  * @list:	Links this target into the target_list.
- * @item:	Links us into the configfs subsystem hierarchy.
+ * @group:	Links us into the configfs subsystem hierarchy.
+ * @userdata_group:	Links to the userdata configfs hierarchy
+ * @userdata_complete:	Cached, formatted string of append
+ * @userdata_length:	String length of userdata_complete
  * @enabled:	On / off knob to enable / disable target.
  *		Visible from userspace (read-write).
  *		We maintain a strict 1:1 correspondence between this and
@@ -102,7 +111,10 @@ static struct console netconsole_ext;
 struct netconsole_target {
 	struct list_head	list;
 #ifdef	CONFIG_NETCONSOLE_DYNAMIC
-	struct config_item	item;
+	struct config_group	group;
+	struct config_group	userdata_group;
+	char userdata_complete[MAX_USERDATA_ENTRY_LENGTH * MAX_USERDATA_ITEMS];
+	size_t			userdata_length;
 #endif
 	bool			enabled;
 	bool			extended;
@@ -134,14 +146,14 @@ static void __exit dynamic_netconsole_exit(void)
  */
 static void netconsole_target_get(struct netconsole_target *nt)
 {
-	if (config_item_name(&nt->item))
-		config_item_get(&nt->item);
+	if (config_item_name(&nt->group.cg_item))
+		config_group_get(&nt->group);
 }
 
 static void netconsole_target_put(struct netconsole_target *nt)
 {
-	if (config_item_name(&nt->item))
-		config_item_put(&nt->item);
+	if (config_item_name(&nt->group.cg_item))
+		config_group_put(&nt->group);
 }
 
 #else	/* !CONFIG_NETCONSOLE_DYNAMIC */
@@ -215,15 +227,33 @@ static struct netconsole_target *alloc_and_init(void)
  *				|	remote_ip
  *				|	local_mac
  *				|	remote_mac
+ *				|	userdata/
+ *				|		<key>/
+ *				|			value
+ *				|		...
  *				|
  *				<target>/...
  */
 
 static struct netconsole_target *to_target(struct config_item *item)
 {
-	return item ?
-		container_of(item, struct netconsole_target, item) :
-		NULL;
+	struct config_group *cfg_group;
+
+	cfg_group = to_config_group(item);
+	if (!cfg_group)
+		return NULL;
+	return container_of(to_config_group(item),
+			    struct netconsole_target, group);
+}
+
+/* Get rid of possible trailing newline, returning the new length */
+static void trim_newline(char *s, size_t maxlen)
+{
+	size_t len;
+
+	len = strnlen(s, maxlen);
+	if (s[len - 1] == '\n')
+		s[len - 1] = '\0';
 }
 
 /*
@@ -370,7 +400,7 @@ static ssize_t release_store(struct config_item *item, const char *buf,
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
-		       config_item_name(&nt->item));
+		       config_item_name(&nt->group.cg_item));
 		err = -EINVAL;
 		goto out_unlock;
 	}
@@ -398,7 +428,7 @@ static ssize_t extended_store(struct config_item *item, const char *buf,
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
-		       config_item_name(&nt->item));
+		       config_item_name(&nt->group.cg_item));
 		err = -EINVAL;
 		goto out_unlock;
 	}
@@ -420,22 +450,17 @@ static ssize_t dev_name_store(struct config_item *item, const char *buf,
 		size_t count)
 {
 	struct netconsole_target *nt = to_target(item);
-	size_t len;
 
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
-		       config_item_name(&nt->item));
+		       config_item_name(&nt->group.cg_item));
 		mutex_unlock(&dynamic_netconsole_mutex);
 		return -EINVAL;
 	}
 
 	strscpy(nt->np.dev_name, buf, IFNAMSIZ);
-
-	/* Get rid of possible trailing newline from echo(1) */
-	len = strnlen(nt->np.dev_name, IFNAMSIZ);
-	if (nt->np.dev_name[len - 1] == '\n')
-		nt->np.dev_name[len - 1] = '\0';
+	trim_newline(nt->np.dev_name, IFNAMSIZ);
 
 	mutex_unlock(&dynamic_netconsole_mutex);
 	return strnlen(buf, count);
@@ -450,7 +475,7 @@ static ssize_t local_port_store(struct config_item *item, const char *buf,
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
-		       config_item_name(&nt->item));
+		       config_item_name(&nt->group.cg_item));
 		goto out_unlock;
 	}
 
@@ -473,7 +498,7 @@ static ssize_t remote_port_store(struct config_item *item,
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
-		       config_item_name(&nt->item));
+		       config_item_name(&nt->group.cg_item));
 		goto out_unlock;
 	}
 
@@ -495,12 +520,13 @@ static ssize_t local_ip_store(struct config_item *item, const char *buf,
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
-		       config_item_name(&nt->item));
+		       config_item_name(&nt->group.cg_item));
 		goto out_unlock;
 	}
 
 	if (strnchr(buf, count, ':')) {
 		const char *end;
+
 		if (in6_pton(buf, count, nt->np.local_ip.in6.s6_addr, -1, &end) > 0) {
 			if (*end && *end != '\n') {
 				pr_err("invalid IPv6 address at: <%c>\n", *end);
@@ -510,9 +536,9 @@ static ssize_t local_ip_store(struct config_item *item, const char *buf,
 		} else
 			goto out_unlock;
 	} else {
-		if (!nt->np.ipv6) {
+		if (!nt->np.ipv6)
 			nt->np.local_ip.ip = in_aton(buf);
-		} else
+		else
 			goto out_unlock;
 	}
 
@@ -531,12 +557,13 @@ static ssize_t remote_ip_store(struct config_item *item, const char *buf,
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
-		       config_item_name(&nt->item));
+		       config_item_name(&nt->group.cg_item));
 		goto out_unlock;
 	}
 
 	if (strnchr(buf, count, ':')) {
 		const char *end;
+
 		if (in6_pton(buf, count, nt->np.remote_ip.in6.s6_addr, -1, &end) > 0) {
 			if (*end && *end != '\n') {
 				pr_err("invalid IPv6 address at: <%c>\n", *end);
@@ -546,9 +573,9 @@ static ssize_t remote_ip_store(struct config_item *item, const char *buf,
 		} else
 			goto out_unlock;
 	} else {
-		if (!nt->np.ipv6) {
+		if (!nt->np.ipv6)
 			nt->np.remote_ip.ip = in_aton(buf);
-		} else
+		else
 			goto out_unlock;
 	}
 
@@ -568,7 +595,7 @@ static ssize_t remote_mac_store(struct config_item *item, const char *buf,
 	mutex_lock(&dynamic_netconsole_mutex);
 	if (nt->enabled) {
 		pr_err("target (%s) is enabled, disable to update parameters\n",
-		       config_item_name(&nt->item));
+		       config_item_name(&nt->group.cg_item));
 		goto out_unlock;
 	}
 
@@ -584,6 +611,180 @@ out_unlock:
 	mutex_unlock(&dynamic_netconsole_mutex);
 	return -EINVAL;
 }
+
+struct userdatum {
+	struct config_item item;
+	char value[MAX_USERDATA_VALUE_LENGTH];
+};
+
+static struct userdatum *to_userdatum(struct config_item *item)
+{
+	return container_of(item, struct userdatum, item);
+}
+
+struct userdata {
+	struct config_group group;
+};
+
+static struct userdata *to_userdata(struct config_item *item)
+{
+	return container_of(to_config_group(item), struct userdata, group);
+}
+
+static struct netconsole_target *userdata_to_target(struct userdata *ud)
+{
+	struct config_group *netconsole_group;
+
+	netconsole_group = to_config_group(ud->group.cg_item.ci_parent);
+	return to_target(&netconsole_group->cg_item);
+}
+
+static ssize_t userdatum_value_show(struct config_item *item, char *buf)
+{
+	return sysfs_emit(buf, "%s\n", &(to_userdatum(item)->value[0]));
+}
+
+static void update_userdata(struct netconsole_target *nt)
+{
+	int complete_idx = 0, child_count = 0;
+	struct list_head *entry;
+
+	/* Clear the current string in case the last userdatum was deleted */
+	nt->userdata_length = 0;
+	nt->userdata_complete[0] = 0;
+
+	list_for_each(entry, &nt->userdata_group.cg_children) {
+		struct userdatum *udm_item;
+		struct config_item *item;
+
+		if (child_count >= MAX_USERDATA_ITEMS)
+			break;
+		child_count++;
+
+		item = container_of(entry, struct config_item, ci_entry);
+		udm_item = to_userdatum(item);
+
+		/* Skip userdata with no value set */
+		if (strnlen(udm_item->value, MAX_USERDATA_VALUE_LENGTH) == 0)
+			continue;
+
+		/* This doesn't overflow userdata_complete since it will write
+		 * one entry length (1/MAX_USERDATA_ITEMS long), entry count is
+		 * checked to not exceed MAX items with child_count above
+		 */
+		complete_idx += scnprintf(&nt->userdata_complete[complete_idx],
+					  MAX_USERDATA_ENTRY_LENGTH, " %s=%s\n",
+					  item->ci_name, udm_item->value);
+	}
+	nt->userdata_length = strnlen(nt->userdata_complete,
+				      sizeof(nt->userdata_complete));
+}
+
+static ssize_t userdatum_value_store(struct config_item *item, const char *buf,
+				     size_t count)
+{
+	struct userdatum *udm = to_userdatum(item);
+	struct netconsole_target *nt;
+	struct userdata *ud;
+	int ret;
+
+	if (count > MAX_USERDATA_VALUE_LENGTH)
+		return -EMSGSIZE;
+
+	mutex_lock(&dynamic_netconsole_mutex);
+
+	ret = strscpy(udm->value, buf, sizeof(udm->value));
+	if (ret < 0)
+		goto out_unlock;
+	trim_newline(udm->value, sizeof(udm->value));
+
+	ud = to_userdata(item->ci_parent);
+	nt = userdata_to_target(ud);
+	update_userdata(nt);
+
+	mutex_unlock(&dynamic_netconsole_mutex);
+	return count;
+out_unlock:
+	mutex_unlock(&dynamic_netconsole_mutex);
+	return ret;
+}
+
+CONFIGFS_ATTR(userdatum_, value);
+
+static struct configfs_attribute *userdatum_attrs[] = {
+	&userdatum_attr_value,
+	NULL,
+};
+
+static void userdatum_release(struct config_item *item)
+{
+	kfree(to_userdatum(item));
+}
+
+static struct configfs_item_operations userdatum_ops = {
+	.release = userdatum_release,
+};
+
+static const struct config_item_type userdatum_type = {
+	.ct_item_ops	= &userdatum_ops,
+	.ct_attrs	= userdatum_attrs,
+	.ct_owner	= THIS_MODULE,
+};
+
+static struct config_item *userdatum_make_item(struct config_group *group,
+					       const char *name)
+{
+	struct netconsole_target *nt;
+	struct userdatum *udm;
+	struct userdata *ud;
+	size_t child_count;
+
+	if (strlen(name) > MAX_USERDATA_NAME_LENGTH)
+		return ERR_PTR(-ENAMETOOLONG);
+
+	ud = to_userdata(&group->cg_item);
+	nt = userdata_to_target(ud);
+	child_count = list_count_nodes(&nt->userdata_group.cg_children);
+	if (child_count >= MAX_USERDATA_ITEMS)
+		return ERR_PTR(-ENOSPC);
+
+	udm = kzalloc(sizeof(*udm), GFP_KERNEL);
+	if (!udm)
+		return ERR_PTR(-ENOMEM);
+
+	config_item_init_type_name(&udm->item, name, &userdatum_type);
+	return &udm->item;
+}
+
+static void userdatum_drop(struct config_group *group, struct config_item *item)
+{
+	struct netconsole_target *nt;
+	struct userdata *ud;
+
+	ud = to_userdata(&group->cg_item);
+	nt = userdata_to_target(ud);
+
+	mutex_lock(&dynamic_netconsole_mutex);
+	update_userdata(nt);
+	config_item_put(item);
+	mutex_unlock(&dynamic_netconsole_mutex);
+}
+
+static struct configfs_attribute *userdata_attrs[] = {
+	NULL,
+};
+
+static struct configfs_group_operations userdata_ops = {
+	.make_item		= userdatum_make_item,
+	.drop_item		= userdatum_drop,
+};
+
+static struct config_item_type userdata_type = {
+	.ct_item_ops	= &userdatum_ops,
+	.ct_group_ops	= &userdata_ops,
+	.ct_attrs	= userdata_attrs,
+	.ct_owner	= THIS_MODULE,
+};
 
 CONFIGFS_ATTR(, enabled);
 CONFIGFS_ATTR(, extended);
@@ -629,6 +830,15 @@ static const struct config_item_type netconsole_target_type = {
 	.ct_owner		= THIS_MODULE,
 };
 
+static void init_target_config_group(struct netconsole_target *nt,
+				     const char *name)
+{
+	config_group_init_type_name(&nt->group, name, &netconsole_target_type);
+	config_group_init_type_name(&nt->userdata_group, "userdata",
+				    &userdata_type);
+	configfs_add_default_group(&nt->userdata_group, &nt->group);
+}
+
 static struct netconsole_target *find_cmdline_target(const char *name)
 {
 	struct netconsole_target *nt, *ret = NULL;
@@ -636,7 +846,7 @@ static struct netconsole_target *find_cmdline_target(const char *name)
 
 	spin_lock_irqsave(&target_list_lock, flags);
 	list_for_each_entry(nt, &target_list, list) {
-		if (!strcmp(nt->item.ci_name, name)) {
+		if (!strcmp(nt->group.cg_item.ci_name, name)) {
 			ret = nt;
 			break;
 		}
@@ -650,8 +860,8 @@ static struct netconsole_target *find_cmdline_target(const char *name)
  * Group operations and type for netconsole_subsys.
  */
 
-static struct config_item *make_netconsole_target(struct config_group *group,
-						  const char *name)
+static struct config_group *make_netconsole_target(struct config_group *group,
+						   const char *name)
 {
 	struct netconsole_target *nt;
 	unsigned long flags;
@@ -663,23 +873,25 @@ static struct config_item *make_netconsole_target(struct config_group *group,
 	if (!strncmp(name, NETCONSOLE_PARAM_TARGET_PREFIX,
 		     strlen(NETCONSOLE_PARAM_TARGET_PREFIX))) {
 		nt = find_cmdline_target(name);
-		if (nt)
-			return &nt->item;
+		if (nt) {
+			init_target_config_group(nt, name);
+			return &nt->group;
+		}
 	}
 
 	nt = alloc_and_init();
 	if (!nt)
 		return ERR_PTR(-ENOMEM);
 
-	/* Initialize the config_item member */
-	config_item_init_type_name(&nt->item, name, &netconsole_target_type);
+	/* Initialize the config_group member */
+	init_target_config_group(nt, name);
 
 	/* Adding, but it is disabled */
 	spin_lock_irqsave(&target_list_lock, flags);
 	list_add(&nt->list, &target_list);
 	spin_unlock_irqrestore(&target_list_lock, flags);
 
-	return &nt->item;
+	return &nt->group;
 }
 
 static void drop_netconsole_target(struct config_group *group,
@@ -699,11 +911,11 @@ static void drop_netconsole_target(struct config_group *group,
 	if (nt->enabled)
 		netpoll_cleanup(&nt->np);
 
-	config_item_put(&nt->item);
+	config_item_put(&nt->group.cg_item);
 }
 
 static struct configfs_group_operations netconsole_subsys_group_ops = {
-	.make_item	= make_netconsole_target,
+	.make_group	= make_netconsole_target,
 	.drop_item	= drop_netconsole_target,
 };
 
@@ -729,8 +941,7 @@ static void populate_configfs_item(struct netconsole_target *nt,
 
 	snprintf(target_name, sizeof(target_name), "%s%d",
 		 NETCONSOLE_PARAM_TARGET_PREFIX, cmdline_count);
-	config_item_init_type_name(&nt->item, target_name,
-				   &netconsole_target_type);
+	init_target_config_group(nt, target_name);
 }
 
 #endif	/* CONFIG_NETCONSOLE_DYNAMIC */
@@ -781,6 +992,7 @@ restart:
 	spin_unlock_irqrestore(&target_list_lock, flags);
 	if (stopped) {
 		const char *msg = "had an event";
+
 		switch (event) {
 		case NETDEV_UNREGISTER:
 			msg = "unregistered";
@@ -824,19 +1036,34 @@ static void send_ext_msg_udp(struct netconsole_target *nt, const char *msg,
 	const char *msg_ready = msg;
 	const char *release;
 	int release_len = 0;
+	int userdata_len = 0;
+	char *userdata = NULL;
+
+#ifdef CONFIG_NETCONSOLE_DYNAMIC
+	userdata = nt->userdata_complete;
+	userdata_len = nt->userdata_length;
+#endif
 
 	if (nt->release) {
 		release = init_utsname()->release;
 		release_len = strlen(release) + 1;
 	}
 
-	if (msg_len + release_len <= MAX_PRINT_CHUNK) {
+	if (msg_len + release_len + userdata_len <= MAX_PRINT_CHUNK) {
 		/* No fragmentation needed */
 		if (nt->release) {
 			scnprintf(buf, MAX_PRINT_CHUNK, "%s,%s", release, msg);
 			msg_len += release_len;
-			msg_ready = buf;
+		} else {
+			memcpy(buf, msg, msg_len);
 		}
+
+		if (userdata)
+			msg_len += scnprintf(&buf[msg_len],
+					     MAX_PRINT_CHUNK - msg_len,
+					     "%s", userdata);
+
+		msg_ready = buf;
 		netpoll_send_udp(&nt->np, msg_ready, msg_len);
 		return;
 	}
@@ -860,24 +1087,48 @@ static void send_ext_msg_udp(struct netconsole_target *nt, const char *msg,
 	memcpy(buf + release_len, header, header_len);
 	header_len += release_len;
 
-	while (offset < body_len) {
+	while (offset < body_len + userdata_len) {
 		int this_header = header_len;
-		int this_chunk;
+		int this_offset = 0;
+		int this_chunk = 0;
 
 		this_header += scnprintf(buf + this_header,
 					 sizeof(buf) - this_header,
-					 ",ncfrag=%d/%d;", offset, body_len);
+					 ",ncfrag=%d/%d;", offset,
+					 body_len + userdata_len);
 
-		this_chunk = min(body_len - offset,
-				 MAX_PRINT_CHUNK - this_header);
-		if (WARN_ON_ONCE(this_chunk <= 0))
-			return;
+		/* Not all body data has been written yet */
+		if (offset < body_len) {
+			this_chunk = min(body_len - offset,
+					 MAX_PRINT_CHUNK - this_header);
+			if (WARN_ON_ONCE(this_chunk <= 0))
+				return;
+			memcpy(buf + this_header, body + offset, this_chunk);
+			this_offset += this_chunk;
+		}
+		/* Body is fully written and there is pending userdata to write,
+		 * append userdata in this chunk
+		 */
+		if (offset + this_offset >= body_len &&
+		    offset + this_offset < userdata_len + body_len) {
+			int sent_userdata = (offset + this_offset) - body_len;
+			int preceding_bytes = this_chunk + this_header;
 
-		memcpy(buf + this_header, body + offset, this_chunk);
+			if (WARN_ON_ONCE(sent_userdata < 0))
+				return;
 
-		netpoll_send_udp(&nt->np, buf, this_header + this_chunk);
+			this_chunk = min(userdata_len - sent_userdata,
+					 MAX_PRINT_CHUNK - preceding_bytes);
+			if (WARN_ON_ONCE(this_chunk <= 0))
+				return;
+			memcpy(buf + this_header + this_offset,
+			       userdata + sent_userdata,
+			       this_chunk);
+			this_offset += this_chunk;
+		}
 
-		offset += this_chunk;
+		netpoll_send_udp(&nt->np, buf, this_header + this_offset);
+		offset += this_offset;
 	}
 }
 

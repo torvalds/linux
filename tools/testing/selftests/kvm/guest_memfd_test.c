@@ -167,6 +167,9 @@ static void test_create_guest_memfd_multiple(struct kvm_vm *vm)
 	TEST_ASSERT(ret != -1, "memfd fstat should succeed");
 	TEST_ASSERT(st1.st_size == 4096, "first memfd st_size should still match requested size");
 	TEST_ASSERT(st1.st_ino != st2.st_ino, "different memfd should have different inode numbers");
+
+	close(fd2);
+	close(fd1);
 }
 
 int main(int argc, char *argv[])

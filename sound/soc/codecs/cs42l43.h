@@ -6,19 +6,14 @@
  *                         Cirrus Logic International Semiconductor Ltd.
  */
 
-#include <linux/clk.h>
-#include <linux/completion.h>
-#include <linux/device.h>
-#include <linux/mutex.h>
-#include <linux/regmap.h>
-#include <linux/soundwire/sdw.h>
-#include <linux/types.h>
-#include <sound/cs42l43.h>
-#include <sound/pcm.h>
-#include <sound/soc-jack.h>
-
 #ifndef CS42L43_ASOC_INT_H
 #define CS42L43_ASOC_INT_H
+
+#include <linux/completion.h>
+#include <linux/mutex.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
+#include <sound/pcm.h>
 
 #define CS42L43_INTERNAL_SYSCLK		24576000
 #define CS42L43_DEFAULT_SLOTS		0x3F
@@ -36,6 +31,14 @@
 #define CS42L43_N_EQ_COEFFS		15
 
 #define CS42L43_N_BUTTONS	6
+
+struct clk;
+struct device;
+
+struct snd_soc_component;
+struct snd_soc_jack;
+
+struct cs42l43;
 
 struct cs42l43_codec {
 	struct device *dev;

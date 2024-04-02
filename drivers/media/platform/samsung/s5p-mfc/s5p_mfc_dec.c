@@ -27,7 +27,7 @@
 #include "s5p_mfc_opr.h"
 #include "s5p_mfc_pm.h"
 
-static struct s5p_mfc_fmt formats[] = {
+static const struct s5p_mfc_fmt formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_NV12MT_16X16,
 		.codec_mode	= S5P_MFC_CODEC_NONE,
@@ -177,7 +177,7 @@ static struct s5p_mfc_fmt formats[] = {
 #define NUM_FORMATS ARRAY_SIZE(formats)
 
 /* Find selected format description */
-static struct s5p_mfc_fmt *find_format(struct v4l2_format *f, unsigned int t)
+static const struct s5p_mfc_fmt *find_format(struct v4l2_format *f, unsigned int t)
 {
 	unsigned int i;
 
@@ -406,7 +406,7 @@ static int vidioc_g_fmt(struct file *file, void *priv, struct v4l2_format *f)
 static int vidioc_try_fmt(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct s5p_mfc_dev *dev = video_drvdata(file);
-	struct s5p_mfc_fmt *fmt;
+	const struct s5p_mfc_fmt *fmt;
 
 	mfc_debug(2, "Type is %d\n", f->type);
 	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
@@ -445,7 +445,7 @@ static int vidioc_s_fmt(struct file *file, void *priv, struct v4l2_format *f)
 	struct s5p_mfc_ctx *ctx = fh_to_ctx(priv);
 	int ret = 0;
 	struct v4l2_pix_format_mplane *pix_mp;
-	struct s5p_mfc_buf_size *buf_size = dev->variant->buf_size;
+	const struct s5p_mfc_buf_size *buf_size = dev->variant->buf_size;
 
 	mfc_debug_enter();
 	ret = vidioc_try_fmt(file, priv, f);
@@ -496,7 +496,7 @@ static int reqbufs_output(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx,
 {
 	int ret = 0;
 
-	s5p_mfc_clock_on();
+	s5p_mfc_clock_on(dev);
 
 	if (reqbufs->count == 0) {
 		mfc_debug(2, "Freeing buffers\n");
@@ -533,7 +533,7 @@ static int reqbufs_output(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx,
 		ret = -EINVAL;
 	}
 out:
-	s5p_mfc_clock_off();
+	s5p_mfc_clock_off(dev);
 	if (ret)
 		mfc_err("Failed allocating buffers for OUTPUT queue\n");
 	return ret;
@@ -544,7 +544,7 @@ static int reqbufs_capture(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx,
 {
 	int ret = 0;
 
-	s5p_mfc_clock_on();
+	s5p_mfc_clock_on(dev);
 
 	if (reqbufs->count == 0) {
 		mfc_debug(2, "Freeing buffers\n");
@@ -587,7 +587,7 @@ static int reqbufs_capture(struct s5p_mfc_dev *dev, struct s5p_mfc_ctx *ctx,
 		ret = -EINVAL;
 	}
 out:
-	s5p_mfc_clock_off();
+	s5p_mfc_clock_off(dev);
 	if (ret)
 		mfc_err("Failed allocating buffers for CAPTURE queue\n");
 	return ret;
@@ -1159,7 +1159,7 @@ static void s5p_mfc_buf_queue(struct vb2_buffer *vb)
 	s5p_mfc_hw_call(dev->mfc_ops, try_run, dev);
 }
 
-static struct vb2_ops s5p_mfc_dec_qops = {
+static const struct vb2_ops s5p_mfc_dec_qops = {
 	.queue_setup		= s5p_mfc_queue_setup,
 	.wait_prepare		= vb2_ops_wait_prepare,
 	.wait_finish		= vb2_ops_wait_finish,
@@ -1174,7 +1174,7 @@ const struct s5p_mfc_codec_ops *get_dec_codec_ops(void)
 	return &decoder_codec_ops;
 }
 
-struct vb2_ops *get_dec_queue_ops(void)
+const struct vb2_ops *get_dec_queue_ops(void)
 {
 	return &s5p_mfc_dec_qops;
 }

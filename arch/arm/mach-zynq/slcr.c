@@ -10,7 +10,6 @@
 #include <linux/mfd/syscon.h>
 #include <linux/of_address.h>
 #include <linux/regmap.h>
-#include <linux/clk/zynq.h>
 #include "common.h"
 
 /* register offsets */
@@ -146,7 +145,7 @@ void zynq_slcr_cpu_stop(int cpu)
 }
 
 /**
- * zynq_slcr_cpu_state - Read/write cpu state
+ * zynq_slcr_cpu_state_read - Read cpu state
  * @cpu:	cpu number
  *
  * SLCR_REBOOT_STATUS save upper 2 bits (31/30 cpu states for cpu0 and cpu1)
@@ -165,7 +164,7 @@ bool zynq_slcr_cpu_state_read(int cpu)
 }
 
 /**
- * zynq_slcr_cpu_state - Read/write cpu state
+ * zynq_slcr_cpu_state_write - Write cpu state
  * @cpu:	cpu number
  * @die:	cpu state - true if cpu is going to die
  *

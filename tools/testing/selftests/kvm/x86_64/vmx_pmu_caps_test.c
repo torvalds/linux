@@ -15,10 +15,11 @@
 
 #include <linux/bitmap.h>
 
+#include "kvm_test_harness.h"
 #include "kvm_util.h"
 #include "vmx.h"
 
-union perf_capabilities {
+static union perf_capabilities {
 	struct {
 		u64	lbr_format:6;
 		u64	pebs_trap:1;
@@ -32,7 +33,7 @@ union perf_capabilities {
 		u64	anythread_deprecated:1;
 	};
 	u64	capabilities;
-};
+} host_cap;
 
 /*
  * The LBR format and most PEBS features are immutable, all other features are
@@ -73,19 +74,19 @@ static void guest_code(uint64_t current_val)
 	GUEST_DONE();
 }
 
+KVM_ONE_VCPU_TEST_SUITE(vmx_pmu_caps);
+
 /*
  * Verify that guest WRMSRs to PERF_CAPABILITIES #GP regardless of the value
  * written, that the guest always sees the userspace controlled value, and that
  * PERF_CAPABILITIES is immutable after KVM_RUN.
  */
-static void test_guest_wrmsr_perf_capabilities(union perf_capabilities host_cap)
+KVM_ONE_VCPU_TEST(vmx_pmu_caps, guest_wrmsr_perf_capabilities, guest_code)
 {
-	struct kvm_vcpu *vcpu;
-	struct kvm_vm *vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	struct ucall uc;
 	int r, i;
 
-	vm_init_descriptor_tables(vm);
+	vm_init_descriptor_tables(vcpu->vm);
 	vcpu_init_descriptor_tables(vcpu);
 
 	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, host_cap.capabilities);
@@ -117,31 +118,21 @@ static void test_guest_wrmsr_perf_capabilities(union perf_capabilities host_cap)
 		TEST_ASSERT(!r, "Post-KVM_RUN write '0x%llx'didn't fail",
 			    host_cap.capabilities ^ BIT_ULL(i));
 	}
-
-	kvm_vm_free(vm);
 }
 
 /*
  * Verify KVM allows writing PERF_CAPABILITIES with all KVM-supported features
  * enabled, as well as '0' (to disable all features).
  */
-static void test_basic_perf_capabilities(union perf_capabilities host_cap)
+KVM_ONE_VCPU_TEST(vmx_pmu_caps, basic_perf_capabilities, guest_code)
 {
-	struct kvm_vcpu *vcpu;
-	struct kvm_vm *vm = vm_create_with_one_vcpu(&vcpu, NULL);
-
 	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, 0);
 	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, host_cap.capabilities);
-
-	kvm_vm_free(vm);
 }
 
-static void test_fungible_perf_capabilities(union perf_capabilities host_cap)
+KVM_ONE_VCPU_TEST(vmx_pmu_caps, fungible_perf_capabilities, guest_code)
 {
 	const uint64_t fungible_caps = host_cap.capabilities & ~immutable_caps.capabilities;
-
-	struct kvm_vcpu *vcpu;
-	struct kvm_vm *vm = vm_create_with_one_vcpu(&vcpu, NULL);
 	int bit;
 
 	for_each_set_bit(bit, &fungible_caps, 64) {
@@ -150,8 +141,6 @@ static void test_fungible_perf_capabilities(union perf_capabilities host_cap)
 			     host_cap.capabilities & ~BIT_ULL(bit));
 	}
 	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, host_cap.capabilities);
-
-	kvm_vm_free(vm);
 }
 
 /*
@@ -160,14 +149,11 @@ static void test_fungible_perf_capabilities(union perf_capabilities host_cap)
  * separately as they are multi-bit values, e.g. toggling or setting a single
  * bit can generate a false positive without dedicated safeguards.
  */
-static void test_immutable_perf_capabilities(union perf_capabilities host_cap)
+KVM_ONE_VCPU_TEST(vmx_pmu_caps, immutable_perf_capabilities, guest_code)
 {
 	const uint64_t reserved_caps = (~host_cap.capabilities |
 					immutable_caps.capabilities) &
 				       ~format_caps.capabilities;
-
-	struct kvm_vcpu *vcpu;
-	struct kvm_vm *vm = vm_create_with_one_vcpu(&vcpu, NULL);
 	union perf_capabilities val = host_cap;
 	int r, bit;
 
@@ -201,8 +187,6 @@ static void test_immutable_perf_capabilities(union perf_capabilities host_cap)
 		TEST_ASSERT(!r, "Bad PEBS FMT = 0x%x didn't fail, host = 0x%x",
 			    val.pebs_format, host_cap.pebs_format);
 	}
-
-	kvm_vm_free(vm);
 }
 
 /*
@@ -211,16 +195,12 @@ static void test_immutable_perf_capabilities(union perf_capabilities host_cap)
  * LBR_TOS as those bits are writable across all uarch implementations (arch
  * LBRs will need to poke a different MSR).
  */
-static void test_lbr_perf_capabilities(union perf_capabilities host_cap)
+KVM_ONE_VCPU_TEST(vmx_pmu_caps, lbr_perf_capabilities, guest_code)
 {
-	struct kvm_vcpu *vcpu;
-	struct kvm_vm *vm;
 	int r;
 
 	if (!host_cap.lbr_format)
 		return;
-
-	vm = vm_create_with_one_vcpu(&vcpu, NULL);
 
 	vcpu_set_msr(vcpu, MSR_IA32_PERF_CAPABILITIES, host_cap.capabilities);
 	vcpu_set_msr(vcpu, MSR_LBR_TOS, 7);
@@ -229,15 +209,11 @@ static void test_lbr_perf_capabilities(union perf_capabilities host_cap)
 
 	r = _vcpu_set_msr(vcpu, MSR_LBR_TOS, 7);
 	TEST_ASSERT(!r, "Writing LBR_TOS should fail after disabling vPMU");
-
-	kvm_vm_free(vm);
 }
 
 int main(int argc, char *argv[])
 {
-	union perf_capabilities host_cap;
-
-	TEST_REQUIRE(get_kvm_param_bool("enable_pmu"));
+	TEST_REQUIRE(kvm_is_pmu_enabled());
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_PDCM));
 
 	TEST_REQUIRE(kvm_cpu_has_p(X86_PROPERTY_PMU_VERSION));
@@ -248,9 +224,5 @@ int main(int argc, char *argv[])
 	TEST_ASSERT(host_cap.full_width_write,
 		    "Full-width writes should always be supported");
 
-	test_basic_perf_capabilities(host_cap);
-	test_fungible_perf_capabilities(host_cap);
-	test_immutable_perf_capabilities(host_cap);
-	test_guest_wrmsr_perf_capabilities(host_cap);
-	test_lbr_perf_capabilities(host_cap);
+	return test_harness_run(argc, argv);
 }

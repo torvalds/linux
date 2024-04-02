@@ -431,7 +431,7 @@ static int ntfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	 * fnd contains tree's path to insert to.
 	 * If fnd is not NULL then dir is locked.
 	 */
-	inode = ntfs_create_inode(mnt_idmap(file->f_path.mnt), dir, dentry, uni,
+	inode = ntfs_create_inode(file_mnt_idmap(file), dir, dentry, uni,
 				  mode, 0, NULL, 0, fnd);
 	err = IS_ERR(inode) ? PTR_ERR(inode) :
 			      finish_open(file, dentry, ntfs_file_open);

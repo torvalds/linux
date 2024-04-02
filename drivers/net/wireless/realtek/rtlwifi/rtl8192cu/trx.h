@@ -4,14 +4,11 @@
 #ifndef __RTL92CU_TRX_H__
 #define __RTL92CU_TRX_H__
 
-#define RTL92C_USB_BULK_IN_NUM			1
 #define RTL92C_NUM_RX_URBS			8
 #define RTL92C_NUM_TX_URBS			32
 
 #define RTL92C_SIZE_MAX_RX_BUFFER		15360   /* 8192 */
 #define RX_DRV_INFO_SIZE_UNIT			8
-
-#define RTL_AGG_ON				1
 
 enum usb_rx_agg_mode {
 	USB_RX_AGG_DISABLE,

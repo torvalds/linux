@@ -31,7 +31,7 @@ devlink_wait()
 
 fw_flash_test()
 {
-	DUMMYFILE=$(find /lib/firmware -maxdepth 1 -type f  -printf '%f\n' |head -1)
+	DUMMYFILE=$(find /lib/firmware -type f -printf '%P\n' | head -1)
 	RET=0
 
 	if [ -z "$DUMMYFILE" ]

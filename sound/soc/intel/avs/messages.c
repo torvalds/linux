@@ -381,6 +381,7 @@ int avs_ipc_set_d0ix(struct avs_dev *adev, bool enable_pg, bool streaming)
 
 	msg.ext.set_d0ix.wake = enable_pg;
 	msg.ext.set_d0ix.streaming = streaming;
+	msg.ext.set_d0ix.prevent_pg = !enable_pg;
 
 	request.header = msg.val;
 

@@ -12,35 +12,28 @@
 #ifndef _S390_CHECKSUM_H
 #define _S390_CHECKSUM_H
 
-#include <linux/kasan-checks.h>
+#include <linux/instrumented.h>
 #include <linux/in6.h>
 
-/*
- * Computes the checksum of a memory block at buff, length len,
- * and adds in "sum" (32-bit).
- *
- * Returns a 32-bit number suitable for feeding into itself
- * or csum_tcpudp_magic.
- *
- * This function must be called with even lengths, except
- * for the last fragment, which may be odd.
- *
- * It's best to have buff aligned on a 32-bit boundary.
- */
-static inline __wsum csum_partial(const void *buff, int len, __wsum sum)
+static inline __wsum cksm(const void *buff, int len, __wsum sum)
 {
 	union register_pair rp = {
-		.even = (unsigned long) buff,
-		.odd = (unsigned long) len,
+		.even = (unsigned long)buff,
+		.odd = (unsigned long)len,
 	};
 
-	kasan_check_read(buff, len);
-	asm volatile(
+	instrument_read(buff, len);
+	asm volatile("\n"
 		"0:	cksm	%[sum],%[rp]\n"
 		"	jo	0b\n"
 		: [sum] "+&d" (sum), [rp] "+&d" (rp.pair) : : "cc", "memory");
 	return sum;
 }
+
+__wsum csum_partial(const void *buff, int len, __wsum sum);
+
+#define _HAVE_ARCH_CSUM_AND_COPY
+__wsum csum_partial_copy_nocheck(const void *src, void *dst, int len);
 
 /*
  * Fold a partial checksum without adding pseudo headers.

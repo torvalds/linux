@@ -232,7 +232,7 @@ static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 	struct cgx_link_user_info *linfo;
 	struct cgx_link_info_msg *msg;
 	unsigned long pfmap;
-	int err, pfid;
+	int pfid;
 
 	linfo = &event->link_uinfo;
 	pfmap = cgxlmac_to_pfmap(rvu, event->cgx_id, event->lmac_id);
@@ -255,16 +255,22 @@ static void cgx_notify_pfs(struct cgx_link_event *event, struct rvu *rvu)
 			continue;
 		}
 
+		mutex_lock(&rvu->mbox_lock);
+
 		/* Send mbox message to PF */
 		msg = otx2_mbox_alloc_msg_cgx_link_event(rvu, pfid);
-		if (!msg)
+		if (!msg) {
+			mutex_unlock(&rvu->mbox_lock);
 			continue;
+		}
+
 		msg->link_info = *linfo;
-		otx2_mbox_msg_send(&rvu->afpf_wq_info.mbox_up, pfid);
-		err = otx2_mbox_wait_for_rsp(&rvu->afpf_wq_info.mbox_up, pfid);
-		if (err)
-			dev_warn(rvu->dev, "notification to pf %d failed\n",
-				 pfid);
+
+		otx2_mbox_wait_for_zero(&rvu->afpf_wq_info.mbox_up, pfid);
+
+		otx2_mbox_msg_send_up(&rvu->afpf_wq_info.mbox_up, pfid);
+
+		mutex_unlock(&rvu->mbox_lock);
 	} while (pfmap);
 }
 

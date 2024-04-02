@@ -404,9 +404,9 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 	psy_cfg.drv_data		= mbc;
 
 	/* Create power supplies */
-	mbc->adapter = power_supply_register(&pdev->dev,
-					     &pcf50633_mbc_adapter_desc,
-					     &psy_cfg);
+	mbc->adapter = devm_power_supply_register(&pdev->dev,
+						  &pcf50633_mbc_adapter_desc,
+						  &psy_cfg);
 	if (IS_ERR(mbc->adapter)) {
 		dev_err(mbc->pcf->dev, "failed to register adapter\n");
 		return PTR_ERR(mbc->adapter);
@@ -415,20 +415,19 @@ static int pcf50633_mbc_probe(struct platform_device *pdev)
 	usb_psy_cfg = psy_cfg;
 	usb_psy_cfg.attr_grp = pcf50633_mbc_sysfs_groups;
 
-	mbc->usb = power_supply_register(&pdev->dev, &pcf50633_mbc_usb_desc,
-					 &usb_psy_cfg);
+	mbc->usb = devm_power_supply_register(&pdev->dev,
+					      &pcf50633_mbc_usb_desc,
+					      &usb_psy_cfg);
 	if (IS_ERR(mbc->usb)) {
 		dev_err(mbc->pcf->dev, "failed to register usb\n");
-		power_supply_unregister(mbc->adapter);
 		return PTR_ERR(mbc->usb);
 	}
 
-	mbc->ac = power_supply_register(&pdev->dev, &pcf50633_mbc_ac_desc,
-					&psy_cfg);
+	mbc->ac = devm_power_supply_register(&pdev->dev,
+					     &pcf50633_mbc_ac_desc,
+					     &psy_cfg);
 	if (IS_ERR(mbc->ac)) {
 		dev_err(mbc->pcf->dev, "failed to register ac\n");
-		power_supply_unregister(mbc->adapter);
-		power_supply_unregister(mbc->usb);
 		return PTR_ERR(mbc->ac);
 	}
 
@@ -449,10 +448,6 @@ static void pcf50633_mbc_remove(struct platform_device *pdev)
 	/* Remove IRQ handlers */
 	for (i = 0; i < ARRAY_SIZE(mbc_irq_handlers); i++)
 		pcf50633_free_irq(mbc->pcf, mbc_irq_handlers[i]);
-
-	power_supply_unregister(mbc->usb);
-	power_supply_unregister(mbc->adapter);
-	power_supply_unregister(mbc->ac);
 }
 
 static struct platform_driver pcf50633_mbc_driver = {

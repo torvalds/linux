@@ -123,7 +123,6 @@ struct cs_dsp_client_ops;
  * @sysclk_mask:	Mask of frequency bits within sysclk register (ADSP1 only)
  * @sysclk_shift:	Shift of frequency bits within sysclk register (ADSP1 only)
  * @alg_regions:	List of currently loaded algorithm regions
- * @fw_file_name:	Filename of the current firmware
  * @fw_name:		Name of the current firmware
  * @fw_id:		ID of the current firmware, obtained from the wmfw
  * @fw_id_version:	Version of the firmware, obtained from the wmfw

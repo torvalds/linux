@@ -1647,7 +1647,7 @@ static const struct dvb_frontend_ops cx24117_ops = {
 
 
 MODULE_DESCRIPTION("DVB Frontend module for Conexant cx24117/cx24132 hardware");
-MODULE_AUTHOR("Luis Alves (ljalvs@gmail.com)");
+MODULE_AUTHOR("Luis Alves <ljalvs@gmail.com>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("1.1");
 MODULE_FIRMWARE(CX24117_DEFAULT_FIRMWARE);

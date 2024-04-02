@@ -20,7 +20,10 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
+#include "bpf_compiler.h"
 #include "test_cls_redirect.h"
+
+#pragma GCC diagnostic ignored "-Waddress-of-packed-member"
 
 #ifdef SUBPROGS
 #define INLINING __noinline
@@ -267,7 +270,7 @@ static INLINING void pkt_ipv4_checksum(struct iphdr *iph)
 	uint32_t acc = 0;
 	uint16_t *ipw = (uint16_t *)iph;
 
-#pragma clang loop unroll(full)
+	__pragma_loop_unroll_full
 	for (size_t i = 0; i < sizeof(struct iphdr) / 2; i++) {
 		acc += ipw[i];
 	}
@@ -294,7 +297,7 @@ bool pkt_skip_ipv6_extension_headers(buf_t *pkt,
 	};
 	*is_fragment = false;
 
-#pragma clang loop unroll(full)
+	__pragma_loop_unroll_full
 	for (int i = 0; i < 6; i++) {
 		switch (exthdr.next) {
 		case IPPROTO_FRAGMENT:

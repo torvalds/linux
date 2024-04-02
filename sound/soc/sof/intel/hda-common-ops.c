@@ -83,6 +83,7 @@ struct snd_sof_dsp_ops sof_hda_common_ops = {
 	/* DAI drivers */
 	.drv		= skl_dai,
 	.num_drv	= SOF_SKL_NUM_DAIS,
+	.is_chain_dma_supported	= hda_is_chain_dma_supported,
 
 	/* PM */
 	.suspend		= hda_dsp_suspend,

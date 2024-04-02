@@ -384,18 +384,18 @@ static int gelic_descr_prepare_rx(struct gelic_card *card,
 	if (gelic_descr_get_status(descr) !=  GELIC_DESCR_DMA_NOT_IN_USE)
 		dev_info(ctodev(card), "%s: ERROR status\n", __func__);
 
-	descr->skb = netdev_alloc_skb(*card->netdev, rx_skb_size);
-	if (!descr->skb) {
-		descr->hw_regs.payload.dev_addr = 0; /* tell DMAC don't touch memory */
-		return -ENOMEM;
-	}
 	descr->hw_regs.dmac_cmd_status = 0;
 	descr->hw_regs.result_size = 0;
 	descr->hw_regs.valid_size = 0;
 	descr->hw_regs.data_error = 0;
 	descr->hw_regs.payload.dev_addr = 0;
 	descr->hw_regs.payload.size = 0;
-	descr->skb = NULL;
+
+	descr->skb = netdev_alloc_skb(*card->netdev, rx_skb_size);
+	if (!descr->skb) {
+		descr->hw_regs.payload.dev_addr = 0; /* tell DMAC don't touch memory */
+		return -ENOMEM;
+	}
 
 	offset = ((unsigned long)descr->skb->data) &
 		(GELIC_NET_RXBUF_ALIGN - 1);
@@ -698,7 +698,7 @@ gelic_card_get_next_tx_descr(struct gelic_card *card)
 }
 
 /**
- * gelic_net_set_txdescr_cmdstat - sets the tx descriptor command field
+ * gelic_descr_set_tx_cmdstat - sets the tx descriptor command field
  * @descr: descriptor structure to fill out
  * @skb: packet to consider
  *
@@ -1461,7 +1461,7 @@ static void gelic_ether_setup_netdev_ops(struct net_device *netdev,
 }
 
 /**
- * gelic_ether_setup_netdev - initialization of net_device
+ * gelic_net_setup_netdev - initialization of net_device
  * @netdev: net_device structure
  * @card: card structure
  *
@@ -1518,14 +1518,16 @@ int gelic_net_setup_netdev(struct net_device *netdev, struct gelic_card *card)
 	return 0;
 }
 
+#define GELIC_ALIGN (32)
+
 /**
  * gelic_alloc_card_net - allocates net_device and card structure
+ * @netdev: interface device structure
  *
  * returns the card structure or NULL in case of errors
  *
  * the card and net_device structures are linked to each other
  */
-#define GELIC_ALIGN (32)
 static struct gelic_card *gelic_alloc_card_net(struct net_device **netdev)
 {
 	struct gelic_card *card;

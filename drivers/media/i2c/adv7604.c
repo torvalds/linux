@@ -3204,8 +3204,8 @@ static int adv76xx_parse_dt(struct adv76xx_state *state)
 
 	np = state->i2c_clients[ADV76XX_PAGE_IO]->dev.of_node;
 
-	/* Parse the endpoint. */
-	endpoint = of_graph_get_next_endpoint(np, NULL);
+	/* FIXME: Parse the endpoint. */
+	endpoint = of_graph_get_endpoint_by_regs(np, -1, -1);
 	if (!endpoint)
 		return -EINVAL;
 

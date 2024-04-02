@@ -237,6 +237,7 @@ static int udplite_diag_destroy(struct sk_buff *in_skb,
 #endif
 
 static const struct inet_diag_handler udp_diag_handler = {
+	.owner		 = THIS_MODULE,
 	.dump		 = udp_diag_dump,
 	.dump_one	 = udp_diag_dump_one,
 	.idiag_get_info  = udp_diag_get_info,
@@ -260,6 +261,7 @@ static int udplite_diag_dump_one(struct netlink_callback *cb,
 }
 
 static const struct inet_diag_handler udplite_diag_handler = {
+	.owner		 = THIS_MODULE,
 	.dump		 = udplite_diag_dump,
 	.dump_one	 = udplite_diag_dump_one,
 	.idiag_get_info  = udp_diag_get_info,

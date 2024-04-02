@@ -51,6 +51,6 @@
 
 #define FRAME_DELTA_DEFAULT		1
 
-struct s5p_mfc_hw_ops *s5p_mfc_init_hw_ops_v6(void);
+const struct s5p_mfc_hw_ops *s5p_mfc_init_hw_ops_v6(void);
 const struct s5p_mfc_regs *s5p_mfc_init_regs_v6_plus(struct s5p_mfc_dev *dev);
 #endif /* S5P_MFC_OPR_V6_H_ */

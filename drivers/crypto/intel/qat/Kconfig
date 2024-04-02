@@ -106,3 +106,17 @@ config CRYPTO_DEV_QAT_C62XVF
 
 	  To compile this as a module, choose M here: the module
 	  will be called qat_c62xvf.
+
+config CRYPTO_DEV_QAT_ERROR_INJECTION
+	bool "Support for Intel(R) QAT Devices Heartbeat Error Injection"
+	depends on CRYPTO_DEV_QAT
+	depends on DEBUG_FS
+	help
+	  Enables a mechanism that allows to inject a heartbeat error on
+	  Intel(R) QuickAssist devices for testing purposes.
+
+	  This is intended for developer use only.
+	  If unsure, say N.
+
+	  This functionality is available via debugfs entry of the Intel(R)
+	  QuickAssist device

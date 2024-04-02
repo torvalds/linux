@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_QMI_H
@@ -15,7 +15,6 @@
 #define ATH12K_QMI_MAX_BDF_FILE_NAME_SIZE	64
 #define ATH12K_QMI_CALDB_ADDRESS		0x4BA00000
 #define ATH12K_QMI_WLANFW_MAX_BUILD_ID_LEN_V01	128
-#define ATH12K_QMI_WLFW_NODE_ID_BASE		0x07
 #define ATH12K_QMI_WLFW_SERVICE_ID_V01		0x45
 #define ATH12K_QMI_WLFW_SERVICE_VERS_V01	0x01
 #define ATH12K_QMI_WLFW_SERVICE_INS_ID_V01	0x02
@@ -141,6 +140,7 @@ struct ath12k_qmi {
 	u32 target_mem_mode;
 	bool target_mem_delayed;
 	u8 cal_done;
+	u8 num_radios;
 	struct target_info target;
 	struct m3_mem_region m3_mem;
 	unsigned int service_ins_id;
@@ -249,6 +249,22 @@ struct qmi_wlanfw_host_cap_req_msg_v01 {
 
 struct qmi_wlanfw_host_cap_resp_msg_v01 {
 	struct qmi_response_type_v01 resp;
+};
+
+#define QMI_WLANFW_PHY_CAP_REQ_MSG_V01_MAX_LEN		0
+#define QMI_WLANFW_PHY_CAP_REQ_V01			0x0057
+#define QMI_WLANFW_PHY_CAP_RESP_MSG_V01_MAX_LEN		18
+#define QMI_WLANFW_PHY_CAP_RESP_V01			0x0057
+
+struct qmi_wlanfw_phy_cap_req_msg_v01 {
+};
+
+struct qmi_wlanfw_phy_cap_resp_msg_v01 {
+	struct qmi_response_type_v01 resp;
+	u8 num_phy_valid;
+	u8 num_phy;
+	u8 board_id_valid;
+	u32 board_id;
 };
 
 #define QMI_WLANFW_IND_REGISTER_REQ_MSG_V01_MAX_LEN		54
@@ -556,6 +572,21 @@ struct qmi_wlanfw_wlan_cfg_req_msg_v01 {
 };
 
 struct qmi_wlanfw_wlan_cfg_resp_msg_v01 {
+	struct qmi_response_type_v01 resp;
+};
+
+#define ATH12K_QMI_WLANFW_WLAN_INI_REQ_V01	0x002F
+#define ATH12K_QMI_WLANFW_WLAN_INI_RESP_V01	0x002F
+#define QMI_WLANFW_WLAN_INI_REQ_MSG_V01_MAX_LEN		7
+#define QMI_WLANFW_WLAN_INI_RESP_MSG_V01_MAX_LEN	7
+
+struct qmi_wlanfw_wlan_ini_req_msg_v01 {
+	/* Must be set to true if enable_fwlog is being passed */
+	u8 enable_fwlog_valid;
+	u8 enable_fwlog;
+};
+
+struct qmi_wlanfw_wlan_ini_resp_msg_v01 {
 	struct qmi_response_type_v01 resp;
 };
 

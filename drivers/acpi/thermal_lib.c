@@ -100,7 +100,7 @@ static int thermal_temp(int error, int temp_decik, int *ret_temp)
  */
 int thermal_acpi_active_trip_temp(struct acpi_device *adev, int id, int *ret_temp)
 {
-	int temp_decik;
+	int temp_decik = 0;
 	int ret = acpi_active_trip_temp(adev, id, &temp_decik);
 
 	return thermal_temp(ret, temp_decik, ret_temp);
@@ -119,7 +119,7 @@ EXPORT_SYMBOL_GPL(thermal_acpi_active_trip_temp);
  */
 int thermal_acpi_passive_trip_temp(struct acpi_device *adev, int *ret_temp)
 {
-	int temp_decik;
+	int temp_decik = 0;
 	int ret = acpi_passive_trip_temp(adev, &temp_decik);
 
 	return thermal_temp(ret, temp_decik, ret_temp);
@@ -139,7 +139,7 @@ EXPORT_SYMBOL_GPL(thermal_acpi_passive_trip_temp);
  */
 int thermal_acpi_hot_trip_temp(struct acpi_device *adev, int *ret_temp)
 {
-	int temp_decik;
+	int temp_decik = 0;
 	int ret = acpi_hot_trip_temp(adev, &temp_decik);
 
 	return thermal_temp(ret, temp_decik, ret_temp);
@@ -158,7 +158,7 @@ EXPORT_SYMBOL_GPL(thermal_acpi_hot_trip_temp);
  */
 int thermal_acpi_critical_trip_temp(struct acpi_device *adev, int *ret_temp)
 {
-	int temp_decik;
+	int temp_decik = 0;
 	int ret = acpi_critical_trip_temp(adev, &temp_decik);
 
 	return thermal_temp(ret, temp_decik, ret_temp);

@@ -84,42 +84,44 @@ additionalProperties: false
 examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
-    auxdisplay {
-            compatible = "hit,hd44780";
+    display-controller {
+        compatible = "hit,hd44780";
 
-            data-gpios = <&hc595 0 GPIO_ACTIVE_HIGH>,
-                         <&hc595 1 GPIO_ACTIVE_HIGH>,
-                         <&hc595 2 GPIO_ACTIVE_HIGH>,
-                         <&hc595 3 GPIO_ACTIVE_HIGH>;
-            enable-gpios = <&hc595 4 GPIO_ACTIVE_HIGH>;
-            rs-gpios = <&hc595 5 GPIO_ACTIVE_HIGH>;
+        data-gpios = <&hc595 0 GPIO_ACTIVE_HIGH>,
+                     <&hc595 1 GPIO_ACTIVE_HIGH>,
+                     <&hc595 2 GPIO_ACTIVE_HIGH>,
+                     <&hc595 3 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&hc595 4 GPIO_ACTIVE_HIGH>;
+        rs-gpios = <&hc595 5 GPIO_ACTIVE_HIGH>;
 
-            display-height-chars = <2>;
-            display-width-chars = <16>;
+        display-height-chars = <2>;
+        display-width-chars = <16>;
     };
+
   - |
     #include <dt-bindings/gpio/gpio.h>
     i2c {
-            #address-cells = <1>;
-            #size-cells = <0>;
+        #address-cells = <1>;
+        #size-cells = <0>;
 
-            pcf8574: pcf8574@27 {
-                    compatible = "nxp,pcf8574";
-                    reg = <0x27>;
-                    gpio-controller;
-                    #gpio-cells = <2>;
-            };
+        pcf8574: gpio-expander@27 {
+            compatible = "nxp,pcf8574";
+            reg = <0x27>;
+            gpio-controller;
+            #gpio-cells = <2>;
+        };
     };
-    hd44780 {
-            compatible = "hit,hd44780";
-            display-height-chars = <2>;
-            display-width-chars = <16>;
-            data-gpios = <&pcf8574 4 0>,
-                         <&pcf8574 5 0>,
-                         <&pcf8574 6 0>,
-                         <&pcf8574 7 0>;
-            enable-gpios = <&pcf8574 2 0>;
-            rs-gpios = <&pcf8574 0 0>;
-            rw-gpios = <&pcf8574 1 0>;
-            backlight-gpios = <&pcf8574 3 0>;
+
+    display-controller {
+        compatible = "hit,hd44780";
+        display-height-chars = <2>;
+        display-width-chars = <16>;
+        data-gpios = <&pcf8574 4 GPIO_ACTIVE_HIGH>,
+                     <&pcf8574 5 GPIO_ACTIVE_HIGH>,
+                     <&pcf8574 6 GPIO_ACTIVE_HIGH>,
+                     <&pcf8574 7 GPIO_ACTIVE_HIGH>;
+        enable-gpios = <&pcf8574 2 GPIO_ACTIVE_HIGH>;
+        rs-gpios = <&pcf8574 0 GPIO_ACTIVE_HIGH>;
+        rw-gpios = <&pcf8574 1 GPIO_ACTIVE_HIGH>;
+        backlight-gpios = <&pcf8574 3 GPIO_ACTIVE_HIGH>;
     };

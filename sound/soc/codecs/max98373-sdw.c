@@ -821,7 +821,7 @@ static int max98373_bus_config(struct sdw_slave *slave,
  * slave_ops: callbacks for get_clock_stop_mode, clock_stop and
  * port_prep are not defined for now
  */
-static struct sdw_slave_ops max98373_slave_ops = {
+static const struct sdw_slave_ops max98373_slave_ops = {
 	.read_prop = max98373_read_prop,
 	.update_status = max98373_update_status,
 	.bus_config = max98373_bus_config,

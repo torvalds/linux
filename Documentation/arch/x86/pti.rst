@@ -26,9 +26,9 @@ comments in pti.c).
 
 This approach helps to ensure that side-channel attacks leveraging
 the paging structures do not function when PTI is enabled.  It can be
-enabled by setting CONFIG_PAGE_TABLE_ISOLATION=y at compile time.
-Once enabled at compile-time, it can be disabled at boot with the
-'nopti' or 'pti=' kernel parameters (see kernel-parameters.txt).
+enabled by setting CONFIG_MITIGATION_PAGE_TABLE_ISOLATION=y at compile
+time.  Once enabled at compile-time, it can be disabled at boot with
+the 'nopti' or 'pti=' kernel parameters (see kernel-parameters.txt).
 
 Page Table Management
 =====================

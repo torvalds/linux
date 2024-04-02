@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_MAC_H
@@ -12,6 +12,8 @@
 
 struct ath12k;
 struct ath12k_base;
+struct ath12k_hw;
+struct ath12k_pdev_map;
 
 struct ath12k_generic_iter {
 	struct ath12k *ar;

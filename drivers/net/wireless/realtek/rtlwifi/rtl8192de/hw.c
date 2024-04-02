@@ -1669,10 +1669,8 @@ static void _rtl92de_efuse_update_chip_version(struct ieee80211_hw *hw)
 	u8 cutvalue[2];
 	u16 chipvalue;
 
-	rtlpriv->intf_ops->read_efuse_byte(hw, EEPROME_CHIP_VERSION_H,
-					   &cutvalue[1]);
-	rtlpriv->intf_ops->read_efuse_byte(hw, EEPROME_CHIP_VERSION_L,
-					   &cutvalue[0]);
+	read_efuse_byte(hw, EEPROME_CHIP_VERSION_H, &cutvalue[1]);
+	read_efuse_byte(hw, EEPROME_CHIP_VERSION_L, &cutvalue[0]);
 	chipvalue = (cutvalue[1] << 8) | cutvalue[0];
 	switch (chipvalue) {
 	case 0xAA55:

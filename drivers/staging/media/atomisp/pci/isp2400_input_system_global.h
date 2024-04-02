@@ -19,7 +19,7 @@
 #define		N_CSI_PORTS (3)
 //AM: Use previous define for this.
 
-//MIPI allows upto 4 channels.
+//MIPI allows up to 4 channels.
 #define		N_CHANNELS  (4)
 // 12KB = 256bit x 384 words
 #define		IB_CAPACITY_IN_WORDS (384)

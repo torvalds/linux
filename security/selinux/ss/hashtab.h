@@ -8,6 +8,7 @@
  *
  * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
+
 #ifndef _SS_HASHTAB_H_
 #define _SS_HASHTAB_H_
 
@@ -15,12 +16,11 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 
-#define HASHTAB_MAX_NODES	U32_MAX
+#define HASHTAB_MAX_NODES U32_MAX
 
 struct hashtab_key_params {
-	u32 (*hash)(const void *key);	/* hash function */
-	int (*cmp)(const void *key1, const void *key2);
-					/* key comparison function */
+	u32 (*hash)(const void *key); /* hash func */
+	int (*cmp)(const void *key1, const void *key2); /* comparison func */
 };
 
 struct hashtab_node {
@@ -30,9 +30,9 @@ struct hashtab_node {
 };
 
 struct hashtab {
-	struct hashtab_node **htable;	/* hash table */
-	u32 size;			/* number of slots in hash table */
-	u32 nel;			/* number of elements in hash table */
+	struct hashtab_node **htable; /* hash table */
+	u32 size; /* number of slots in hash table */
+	u32 nel; /* number of elements in hash table */
 };
 
 struct hashtab_info {
@@ -48,8 +48,8 @@ struct hashtab_info {
  */
 int hashtab_init(struct hashtab *h, u32 nel_hint);
 
-int __hashtab_insert(struct hashtab *h, struct hashtab_node **dst,
-		     void *key, void *datum);
+int __hashtab_insert(struct hashtab *h, struct hashtab_node **dst, void *key,
+		     void *datum);
 
 /*
  * Inserts the specified (key, datum) pair into the specified hash table.
@@ -84,8 +84,8 @@ static inline int hashtab_insert(struct hashtab *h, void *key, void *datum,
 		cur = cur->next;
 	}
 
-	return __hashtab_insert(h, prev ? &prev->next : &h->htable[hvalue],
-				key, datum);
+	return __hashtab_insert(h, prev ? &prev->next : &h->htable[hvalue], key,
+				datum);
 }
 
 /*
@@ -133,15 +133,13 @@ void hashtab_destroy(struct hashtab *h);
  * iterating through the hash table and will propagate the error
  * return to its caller.
  */
-int hashtab_map(struct hashtab *h,
-		int (*apply)(void *k, void *d, void *args),
+int hashtab_map(struct hashtab *h, int (*apply)(void *k, void *d, void *args),
 		void *args);
 
 int hashtab_duplicate(struct hashtab *new, struct hashtab *orig,
-		int (*copy)(struct hashtab_node *new,
-			struct hashtab_node *orig, void *args),
-		int (*destroy)(void *k, void *d, void *args),
-		void *args);
+		      int (*copy)(struct hashtab_node *new,
+				  struct hashtab_node *orig, void *args),
+		      int (*destroy)(void *k, void *d, void *args), void *args);
 
 #ifdef CONFIG_SECURITY_SELINUX_DEBUG
 /* Fill info with some hash table statistics */
@@ -149,7 +147,8 @@ void hashtab_stat(struct hashtab *h, struct hashtab_info *info);
 #else
 static inline void hashtab_stat(struct hashtab *h, struct hashtab_info *info)
 {
+	return;
 }
 #endif
 
-#endif	/* _SS_HASHTAB_H */
+#endif /* _SS_HASHTAB_H */

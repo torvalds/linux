@@ -6659,6 +6659,6 @@ static void __exit mlxplat_exit(void)
 }
 module_exit(mlxplat_exit);
 
-MODULE_AUTHOR("Vadim Pasternak (vadimp@mellanox.com)");
+MODULE_AUTHOR("Vadim Pasternak <vadimp@mellanox.com>");
 MODULE_DESCRIPTION("Mellanox platform driver");
 MODULE_LICENSE("Dual BSD/GPL");

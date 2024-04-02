@@ -422,6 +422,13 @@ static int drm_helper_probe_get_modes(struct drm_connector *connector)
 
 	count = connector_funcs->get_modes(connector);
 
+	/* The .get_modes() callback should not return negative values. */
+	if (count < 0) {
+		drm_err(connector->dev, ".get_modes() returned %pe\n",
+			ERR_PTR(count));
+		count = 0;
+	}
+
 	/*
 	 * Fallback for when DDC probe failed in drm_get_edid() and thus skipped
 	 * override/firmware EDID.
@@ -767,9 +774,11 @@ static void output_poll_execute(struct work_struct *work)
 	changed = dev->mode_config.delayed_event;
 	dev->mode_config.delayed_event = false;
 
-	if (!drm_kms_helper_poll && dev->mode_config.poll_running) {
-		drm_kms_helper_disable_hpd(dev);
-		dev->mode_config.poll_running = false;
+	if (!drm_kms_helper_poll) {
+		if (dev->mode_config.poll_running) {
+			drm_kms_helper_disable_hpd(dev);
+			dev->mode_config.poll_running = false;
+		}
 		goto out;
 	}
 

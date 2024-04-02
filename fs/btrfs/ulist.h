@@ -7,6 +7,7 @@
 #ifndef BTRFS_ULIST_H
 #define BTRFS_ULIST_H
 
+#include <linux/types.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
 

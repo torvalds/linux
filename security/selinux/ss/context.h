@@ -13,6 +13,7 @@
  *
  * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
+
 #ifndef _SS_CONTEXT_H_
 #define _SS_CONTEXT_H_
 
@@ -28,9 +29,9 @@ struct context {
 	u32 user;
 	u32 role;
 	u32 type;
-	u32 len;        /* length of string in bytes */
+	u32 len; /* length of string in bytes */
 	struct mls_range range;
-	char *str;	/* string representation if context cannot be mapped. */
+	char *str; /* string representation if context cannot be mapped. */
 };
 
 static inline void mls_context_init(struct context *c)
@@ -38,7 +39,8 @@ static inline void mls_context_init(struct context *c)
 	memset(&c->range, 0, sizeof(c->range));
 }
 
-static inline int mls_context_cpy(struct context *dst, const struct context *src)
+static inline int mls_context_cpy(struct context *dst,
+				  const struct context *src)
 {
 	int rc;
 
@@ -58,7 +60,8 @@ out:
 /*
  * Sets both levels in the MLS range of 'dst' to the low level of 'src'.
  */
-static inline int mls_context_cpy_low(struct context *dst, const struct context *src)
+static inline int mls_context_cpy_low(struct context *dst,
+				      const struct context *src)
 {
 	int rc;
 
@@ -78,7 +81,8 @@ out:
 /*
  * Sets both levels in the MLS range of 'dst' to the high level of 'src'.
  */
-static inline int mls_context_cpy_high(struct context *dst, const struct context *src)
+static inline int mls_context_cpy_high(struct context *dst,
+				       const struct context *src)
 {
 	int rc;
 
@@ -95,9 +99,9 @@ out:
 	return rc;
 }
 
-
 static inline int mls_context_glblub(struct context *dst,
-				     const struct context *c1, const struct context *c2)
+				     const struct context *c1,
+				     const struct context *c2)
 {
 	struct mls_range *dr = &dst->range;
 	const struct mls_range *r1 = &c1->range, *r2 = &c2->range;
@@ -114,13 +118,13 @@ static inline int mls_context_glblub(struct context *dst,
 	/* Take the least of the high */
 	dr->level[1].sens = min(r1->level[1].sens, r2->level[1].sens);
 
-	rc = ebitmap_and(&dr->level[0].cat,
-			 &r1->level[0].cat, &r2->level[0].cat);
+	rc = ebitmap_and(&dr->level[0].cat, &r1->level[0].cat,
+			 &r2->level[0].cat);
 	if (rc)
 		goto out;
 
-	rc = ebitmap_and(&dr->level[1].cat,
-			 &r1->level[1].cat, &r2->level[1].cat);
+	rc = ebitmap_and(&dr->level[1].cat, &r1->level[1].cat,
+			 &r2->level[1].cat);
 	if (rc)
 		goto out;
 
@@ -128,7 +132,8 @@ out:
 	return rc;
 }
 
-static inline int mls_context_cmp(const struct context *c1, const struct context *c2)
+static inline int mls_context_cmp(const struct context *c1,
+				  const struct context *c2)
 {
 	return ((c1->range.level[0].sens == c2->range.level[0].sens) &&
 		ebitmap_cmp(&c1->range.level[0].cat, &c2->range.level[0].cat) &&
@@ -183,19 +188,17 @@ static inline void context_destroy(struct context *c)
 	mls_context_destroy(c);
 }
 
-static inline int context_cmp(const struct context *c1, const struct context *c2)
+static inline int context_cmp(const struct context *c1,
+			      const struct context *c2)
 {
 	if (c1->len && c2->len)
 		return (c1->len == c2->len && !strcmp(c1->str, c2->str));
 	if (c1->len || c2->len)
 		return 0;
-	return ((c1->user == c2->user) &&
-		(c1->role == c2->role) &&
-		(c1->type == c2->type) &&
-		mls_context_cmp(c1, c2));
+	return ((c1->user == c2->user) && (c1->role == c2->role) &&
+		(c1->type == c2->type) && mls_context_cmp(c1, c2));
 }
 
 u32 context_compute_hash(const struct context *c);
 
-#endif	/* _SS_CONTEXT_H_ */
-
+#endif /* _SS_CONTEXT_H_ */

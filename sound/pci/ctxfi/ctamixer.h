@@ -43,8 +43,8 @@ struct sum_mgr {
 };
 
 /* Constructor and destructor of daio resource manager */
-int sum_mgr_create(struct hw *hw, struct sum_mgr **rsum_mgr);
-int sum_mgr_destroy(struct sum_mgr *sum_mgr);
+int sum_mgr_create(struct hw *hw, void **ptr);
+int sum_mgr_destroy(void *ptr);
 
 /* Define the descriptor of a amixer resource */
 struct amixer_rsc_ops;
@@ -89,7 +89,7 @@ struct amixer_mgr {
 };
 
 /* Constructor and destructor of amixer resource manager */
-int amixer_mgr_create(struct hw *hw, struct amixer_mgr **ramixer_mgr);
-int amixer_mgr_destroy(struct amixer_mgr *amixer_mgr);
+int amixer_mgr_create(struct hw *hw, void **ramixer_mgr);
+int amixer_mgr_destroy(void *amixer_mgr);
 
 #endif /* CTAMIXER_H */

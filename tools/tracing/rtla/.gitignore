@@ -1,1 +1,6 @@
-/rtla
+# SPDX-License-Identifier: GPL-2.0-only
+rtla
+rtla-static
+fixdep
+feature
+FEATURE-DUMP

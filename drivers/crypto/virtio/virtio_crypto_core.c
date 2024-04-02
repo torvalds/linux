@@ -42,8 +42,6 @@ static void virtcrypto_ctrlq_callback(struct virtqueue *vq)
 			virtio_crypto_ctrlq_callback(vc_ctrl_req);
 			spin_lock_irqsave(&vcrypto->ctrl_lock, flags);
 		}
-		if (unlikely(virtqueue_is_broken(vq)))
-			break;
 	} while (!virtqueue_enable_cb(vq));
 	spin_unlock_irqrestore(&vcrypto->ctrl_lock, flags);
 }

@@ -496,8 +496,8 @@ int bpf_xdp_query(int ifindex, int xdp_flags, struct bpf_xdp_query_opts *opts)
 	if (err)
 		return libbpf_err(err);
 
-	opts->feature_flags = md.flags;
-	opts->xdp_zc_max_segs = md.xdp_zc_max_segs;
+	OPTS_SET(opts, feature_flags, md.flags);
+	OPTS_SET(opts, xdp_zc_max_segs, md.xdp_zc_max_segs);
 
 skip_feature_flags:
 	return 0;

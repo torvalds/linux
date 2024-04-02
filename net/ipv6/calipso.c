@@ -657,11 +657,8 @@ static int calipso_map_cat_ntoh(const struct calipso_doi *doi_def,
 					  net_clen_bits,
 					  spot + 1,
 					  1);
-		if (spot < 0) {
-			if (spot == -2)
-				return -EFAULT;
+		if (spot < 0)
 			return 0;
-		}
 
 		ret_val = netlbl_catmap_setbit(&secattr->attr.mls.cat,
 					       spot,

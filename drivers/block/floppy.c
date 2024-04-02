@@ -530,14 +530,13 @@ static struct format_descr format_req;
 static char *floppy_track_buffer;
 static int max_buffer_sectors;
 
-typedef void (*done_f)(int);
 static const struct cont_t {
 	void (*interrupt)(void);
 				/* this is called after the interrupt of the
 				 * main command */
 	void (*redo)(void);	/* this is called to retry the operation */
 	void (*error)(void);	/* this is called to tally an error */
-	done_f done;		/* this is called to say if the operation has
+	void (*done)(int);	/* this is called to say if the operation has
 				 * succeeded/failed */
 } *cont;
 
@@ -982,6 +981,10 @@ static void scandrives(void)
 }
 
 static void empty(void)
+{
+}
+
+static void empty_done(int result)
 {
 }
 
@@ -1998,14 +2001,14 @@ static const struct cont_t wakeup_cont = {
 	.interrupt	= empty,
 	.redo		= do_wakeup,
 	.error		= empty,
-	.done		= (done_f)empty
+	.done		= empty_done,
 };
 
 static const struct cont_t intr_cont = {
 	.interrupt	= empty,
 	.redo		= process_fd_request,
 	.error		= empty,
-	.done		= (done_f)empty
+	.done		= empty_done,
 };
 
 /* schedules handler, waiting for completion. May be interrupted, will then
@@ -2784,7 +2787,6 @@ do_request:
 		pending = set_next_request();
 		spin_unlock_irq(&floppy_lock);
 		if (!pending) {
-			do_floppy = NULL;
 			unlock_fdc();
 			return;
 		}
@@ -4513,13 +4515,15 @@ static bool floppy_available(int drive)
 
 static int floppy_alloc_disk(unsigned int drive, unsigned int type)
 {
+	struct queue_limits lim = {
+		.max_hw_sectors = 64,
+	};
 	struct gendisk *disk;
 
-	disk = blk_mq_alloc_disk(&tag_sets[drive], NULL);
+	disk = blk_mq_alloc_disk(&tag_sets[drive], &lim, NULL);
 	if (IS_ERR(disk))
 		return PTR_ERR(disk);
 
-	blk_queue_max_hw_sectors(disk->queue, 64);
 	disk->major = FLOPPY_MAJOR;
 	disk->first_minor = TOMINOR(drive) | (type << 2);
 	disk->minors = 1;

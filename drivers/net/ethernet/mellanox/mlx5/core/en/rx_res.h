@@ -18,6 +18,7 @@ struct mlx5e_rss_params_hash;
 enum mlx5e_rx_res_features {
 	MLX5E_RX_RES_FEATURE_INNER_FT = BIT(0),
 	MLX5E_RX_RES_FEATURE_PTP = BIT(1),
+	MLX5E_RX_RES_FEATURE_MULTI_VHCA = BIT(2),
 };
 
 /* Setup */

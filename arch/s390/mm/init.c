@@ -37,7 +37,6 @@
 #include <asm/pgalloc.h>
 #include <asm/ctlreg.h>
 #include <asm/kfence.h>
-#include <asm/ptdump.h>
 #include <asm/dma.h>
 #include <asm/abs_lowcore.h>
 #include <asm/tlb.h>
@@ -109,7 +108,6 @@ void mark_rodata_ro(void)
 
 	__set_memory_ro(__start_ro_after_init, __end_ro_after_init);
 	pr_info("Write protected read-only-after-init data: %luk\n", size >> 10);
-	debug_checkwx();
 }
 
 int set_memory_encrypted(unsigned long vaddr, int numpages)
@@ -280,9 +278,6 @@ int arch_add_memory(int nid, u64 start, u64 size,
 	unsigned long start_pfn = PFN_DOWN(start);
 	unsigned long size_pages = PFN_DOWN(size);
 	int rc;
-
-	if (WARN_ON_ONCE(params->altmap))
-		return -EINVAL;
 
 	if (WARN_ON_ONCE(params->pgprot.pgprot != PAGE_KERNEL.pgprot))
 		return -EINVAL;

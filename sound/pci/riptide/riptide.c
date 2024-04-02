@@ -448,9 +448,7 @@ struct snd_riptide {
 
 	unsigned long received_irqs;
 	unsigned long handled_irqs;
-#ifdef CONFIG_PM_SLEEP
 	int in_suspend;
-#endif
 };
 
 struct sgd {			/* scatter gather desriptor */
@@ -1142,7 +1140,6 @@ static irqreturn_t riptide_handleirq(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int riptide_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
@@ -1166,11 +1163,7 @@ static int riptide_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(riptide_pm, riptide_suspend, riptide_resume);
-#define RIPTIDE_PM_OPS	&riptide_pm
-#else
-#define RIPTIDE_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
+static DEFINE_SIMPLE_DEV_PM_OPS(riptide_pm, riptide_suspend, riptide_resume);
 
 static int try_to_load_firmware(struct cmdif *cif, struct snd_riptide *chip)
 {
@@ -2135,7 +2128,7 @@ static struct pci_driver driver = {
 	.id_table = snd_riptide_ids,
 	.probe = snd_card_riptide_probe,
 	.driver = {
-		.pm = RIPTIDE_PM_OPS,
+		.pm = &riptide_pm,
 	},
 };
 

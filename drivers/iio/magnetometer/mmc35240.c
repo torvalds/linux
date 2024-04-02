@@ -10,11 +10,11 @@
  */
 
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/regmap.h>
-#include <linux/acpi.h>
 #include <linux/pm.h>
 
 #include <linux/iio/iio.h>
@@ -573,7 +573,7 @@ static struct i2c_driver mmc35240_driver = {
 		.name = MMC35240_DRV_NAME,
 		.of_match_table = mmc35240_of_match,
 		.pm = pm_sleep_ptr(&mmc35240_pm_ops),
-		.acpi_match_table = ACPI_PTR(mmc35240_acpi_match),
+		.acpi_match_table = mmc35240_acpi_match,
 	},
 	.probe		= mmc35240_probe,
 	.id_table	= mmc35240_id,

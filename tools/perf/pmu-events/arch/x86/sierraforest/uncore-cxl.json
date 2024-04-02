@@ -1,0 +1,10 @@
+[
+    {
+        "BriefDescription": "B2CXL Clockticks",
+        "EventCode": "0x01",
+        "EventName": "UNC_B2CXL_CLOCKTICKS",
+        "PerPkg": "1",
+        "PortMask": "0x000",
+        "Unit": "B2CXL"
+    }
+]

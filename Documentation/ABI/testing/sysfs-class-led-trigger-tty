@@ -1,11 +1,11 @@
-What:		/sys/class/leds/<led>/ttyname
+What:		/sys/class/leds/<tty_led>/ttyname
 Date:		Dec 2020
 KernelVersion:	5.10
 Contact:	linux-leds@vger.kernel.org
 Description:
 		Specifies the tty device name of the triggering tty
 
-What:		/sys/class/leds/<led>/rx
+What:		/sys/class/leds/<tty_led>/rx
 Date:		February 2024
 KernelVersion:	6.8
 Description:
@@ -13,7 +13,7 @@ Description:
 		If set to 0, the LED will not blink on reception.
 		If set to 1 (default), the LED will blink on reception.
 
-What:		/sys/class/leds/<led>/tx
+What:		/sys/class/leds/<tty_led>/tx
 Date:		February 2024
 KernelVersion:	6.8
 Description:
@@ -21,7 +21,7 @@ Description:
 		If set to 0, the LED will not blink on transmission.
 		If set to 1 (default), the LED will blink on transmission.
 
-What:		/sys/class/leds/<led>/cts
+What:		/sys/class/leds/<tty_led>/cts
 Date:		February 2024
 KernelVersion:	6.8
 Description:
@@ -31,7 +31,7 @@ Description:
 		If set to 0 (default), the LED will not evaluate CTS.
 		If set to 1, the LED will evaluate CTS.
 
-What:		/sys/class/leds/<led>/dsr
+What:		/sys/class/leds/<tty_led>/dsr
 Date:		February 2024
 KernelVersion:	6.8
 Description:
@@ -41,7 +41,7 @@ Description:
 		If set to 0 (default), the LED will not evaluate DSR.
 		If set to 1, the LED will evaluate DSR.
 
-What:		/sys/class/leds/<led>/dcd
+What:		/sys/class/leds/<tty_led>/dcd
 Date:		February 2024
 KernelVersion:	6.8
 Description:
@@ -51,7 +51,7 @@ Description:
 		If set to 0 (default), the LED will not evaluate CAR (DCD).
 		If set to 1, the LED will evaluate CAR (DCD).
 
-What:		/sys/class/leds/<led>/rng
+What:		/sys/class/leds/<tty_led>/rng
 Date:		February 2024
 KernelVersion:	6.8
 Description:

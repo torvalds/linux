@@ -73,6 +73,16 @@ static int dmic_init(struct snd_soc_pcm_runtime *rtd)
 /*
  * DAI Link Helpers
  */
+
+/* DEFAULT_LINK_ORDER: the order used in sof_rt5682 */
+#define DEFAULT_LINK_ORDER	SOF_LINK_ORDER(SOF_LINK_CODEC, \
+					SOF_LINK_DMIC01,       \
+					SOF_LINK_DMIC16K,      \
+					SOF_LINK_IDISP_HDMI,   \
+					SOF_LINK_AMP,          \
+					SOF_LINK_BT_OFFLOAD,   \
+					SOF_LINK_HDMI_IN)
+
 static struct snd_soc_dai_link_component dmic_component[] = {
 	{
 		.name = "dmic-codec",
@@ -416,6 +426,7 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 	int idx = 0;
 	int ret;
 	int ssp_hdmi_in = 0;
+	unsigned long link_order, link;
 
 	num_links = calculate_num_links(ctx);
 
@@ -424,94 +435,140 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 	if (!links)
 		return -ENOMEM;
 
-	/* headphone codec */
-	if (ctx->codec_type != CODEC_NONE) {
-		ret = sof_intel_board_set_codec_link(dev, &links[idx], idx,
-						     ctx->codec_type,
-						     ctx->ssp_codec);
-		if (ret) {
-			dev_err(dev, "fail to set codec link, ret %d\n", ret);
-			return ret;
+	if (ctx->link_order_overwrite)
+		link_order = ctx->link_order_overwrite;
+	else
+		link_order = DEFAULT_LINK_ORDER;
+
+	dev_dbg(dev, "create dai links, link_order 0x%lx\n", link_order);
+
+	while (link_order) {
+		link = link_order & SOF_LINK_ORDER_MASK;
+		link_order >>= SOF_LINK_ORDER_SHIFT;
+
+		switch (link) {
+		case SOF_LINK_CODEC:
+			/* headphone codec */
+			if (ctx->codec_type == CODEC_NONE)
+				continue;
+
+			ret = sof_intel_board_set_codec_link(dev, &links[idx],
+							     idx,
+							     ctx->codec_type,
+							     ctx->ssp_codec);
+			if (ret) {
+				dev_err(dev, "fail to set codec link, ret %d\n",
+					ret);
+				return ret;
+			}
+
+			ctx->codec_link = &links[idx];
+			idx++;
+			break;
+		case SOF_LINK_DMIC01:
+			/* dmic01 */
+			if (ctx->dmic_be_num == 0)
+				continue;
+
+			/* at least we have dmic01 */
+			ret = sof_intel_board_set_dmic_link(dev, &links[idx],
+							    idx, SOF_DMIC_01);
+			if (ret) {
+				dev_err(dev, "fail to set dmic01 link, ret %d\n",
+					ret);
+				return ret;
+			}
+
+			idx++;
+			break;
+		case SOF_LINK_DMIC16K:
+			/* dmic16k */
+			if (ctx->dmic_be_num <= 1)
+				continue;
+
+			/* set up 2 BE links at most */
+			ret = sof_intel_board_set_dmic_link(dev, &links[idx],
+							    idx, SOF_DMIC_16K);
+			if (ret) {
+				dev_err(dev, "fail to set dmic16k link, ret %d\n",
+					ret);
+				return ret;
+			}
+
+			idx++;
+			break;
+		case SOF_LINK_IDISP_HDMI:
+			/* idisp HDMI */
+			for (i = 1; i <= ctx->hdmi_num; i++) {
+				ret = sof_intel_board_set_intel_hdmi_link(dev,
+									  &links[idx],
+									  idx, i,
+									  ctx->hdmi.idisp_codec);
+				if (ret) {
+					dev_err(dev, "fail to set hdmi link, ret %d\n",
+						ret);
+					return ret;
+				}
+
+				idx++;
+			}
+			break;
+		case SOF_LINK_AMP:
+			/* speaker amp */
+			if (ctx->amp_type == CODEC_NONE)
+				continue;
+
+			ret = sof_intel_board_set_ssp_amp_link(dev, &links[idx],
+							       idx,
+							       ctx->amp_type,
+							       ctx->ssp_amp);
+			if (ret) {
+				dev_err(dev, "fail to set amp link, ret %d\n",
+					ret);
+				return ret;
+			}
+
+			ctx->amp_link = &links[idx];
+			idx++;
+			break;
+		case SOF_LINK_BT_OFFLOAD:
+			/* BT audio offload */
+			if (!ctx->bt_offload_present)
+				continue;
+
+			ret = sof_intel_board_set_bt_link(dev, &links[idx], idx,
+							  ctx->ssp_bt);
+			if (ret) {
+				dev_err(dev, "fail to set bt link, ret %d\n",
+					ret);
+				return ret;
+			}
+
+			idx++;
+			break;
+		case SOF_LINK_HDMI_IN:
+			/* HDMI-In */
+			for_each_set_bit(ssp_hdmi_in, &ctx->ssp_mask_hdmi_in, 32) {
+				ret = sof_intel_board_set_hdmi_in_link(dev,
+								       &links[idx],
+								       idx,
+								       ssp_hdmi_in);
+				if (ret) {
+					dev_err(dev, "fail to set hdmi-in link, ret %d\n",
+						ret);
+					return ret;
+				}
+
+				idx++;
+			}
+			break;
+		case SOF_LINK_NONE:
+			/* caught here if it's not used as terminator in macro */
+			fallthrough;
+		default:
+			dev_err(dev, "invalid link type %ld\n", link);
+			return -EINVAL;
 		}
-
-		ctx->codec_link = &links[idx];
-		idx++;
-	}
-
-	/* dmic01 and dmic16k */
-	if (ctx->dmic_be_num > 0) {
-		/* at least we have dmic01 */
-		ret = sof_intel_board_set_dmic_link(dev, &links[idx], idx,
-						    SOF_DMIC_01);
-		if (ret) {
-			dev_err(dev, "fail to set dmic01 link, ret %d\n", ret);
-			return ret;
-		}
-
-		idx++;
-	}
-
-	if (ctx->dmic_be_num > 1) {
-		/* set up 2 BE links at most */
-		ret = sof_intel_board_set_dmic_link(dev, &links[idx], idx,
-						    SOF_DMIC_16K);
-		if (ret) {
-			dev_err(dev, "fail to set dmic16k link, ret %d\n", ret);
-			return ret;
-		}
-
-		idx++;
-	}
-
-	/* idisp HDMI */
-	for (i = 1; i <= ctx->hdmi_num; i++) {
-		ret = sof_intel_board_set_intel_hdmi_link(dev, &links[idx], idx,
-							  i,
-							  ctx->hdmi.idisp_codec);
-		if (ret) {
-			dev_err(dev, "fail to set hdmi link, ret %d\n", ret);
-			return ret;
-		}
-
-		idx++;
-	}
-
-	/* speaker amp */
-	if (ctx->amp_type != CODEC_NONE) {
-		ret = sof_intel_board_set_ssp_amp_link(dev, &links[idx], idx,
-						       ctx->amp_type,
-						       ctx->ssp_amp);
-		if (ret) {
-			dev_err(dev, "fail to set amp link, ret %d\n", ret);
-			return ret;
-		}
-
-		ctx->amp_link = &links[idx];
-		idx++;
-	}
-
-	/* BT audio offload */
-	if (ctx->bt_offload_present) {
-		ret = sof_intel_board_set_bt_link(dev, &links[idx], idx,
-						  ctx->ssp_bt);
-		if (ret) {
-			dev_err(dev, "fail to set bt link, ret %d\n", ret);
-			return ret;
-		}
-
-		idx++;
-	}
-
-	/* HDMI-In */
-	for_each_set_bit(ssp_hdmi_in, &ctx->ssp_mask_hdmi_in, 32) {
-		ret = sof_intel_board_set_hdmi_in_link(dev, &links[idx], idx,
-						       ssp_hdmi_in);
-		if (ret) {
-			dev_err(dev, "fail to set hdmi-in link, ret %d\n", ret);
-			return ret;
-		}
-
-		idx++;
 	}
 
 	if (idx != num_links) {
@@ -526,6 +583,24 @@ int sof_intel_board_set_dai_link(struct device *dev, struct snd_soc_card *card,
 	return 0;
 }
 EXPORT_SYMBOL_NS(sof_intel_board_set_dai_link, SND_SOC_INTEL_SOF_BOARD_HELPERS);
+
+struct snd_soc_dai *get_codec_dai_by_name(struct snd_soc_pcm_runtime *rtd,
+					  const char * const dai_name[], int num_dais)
+{
+	struct snd_soc_dai *dai;
+	int index;
+	int i;
+
+	for (index = 0; index < num_dais; index++)
+		for_each_rtd_codec_dais(rtd, i, dai)
+			if (strstr(dai->name, dai_name[index])) {
+				dev_dbg(rtd->card->dev, "get dai %s\n", dai->name);
+				return dai;
+			}
+
+	return NULL;
+}
+EXPORT_SYMBOL_NS(get_codec_dai_by_name, SND_SOC_INTEL_SOF_BOARD_HELPERS);
 
 MODULE_DESCRIPTION("ASoC Intel SOF Machine Driver Board Helpers");
 MODULE_AUTHOR("Brent Lu <brent.lu@intel.com>");

@@ -28,7 +28,6 @@ static struct acp_card_drvdata sof_rt5682_rt1019_data = {
 	.hs_codec_id = RT5682,
 	.amp_codec_id = RT1019,
 	.dmic_codec_id = DMIC,
-	.tdm_mode = false,
 };
 
 static struct acp_card_drvdata sof_rt5682_max_data = {
@@ -38,7 +37,6 @@ static struct acp_card_drvdata sof_rt5682_max_data = {
 	.hs_codec_id = RT5682,
 	.amp_codec_id = MAX98360A,
 	.dmic_codec_id = DMIC,
-	.tdm_mode = false,
 };
 
 static struct acp_card_drvdata sof_rt5682s_rt1019_data = {
@@ -49,7 +47,6 @@ static struct acp_card_drvdata sof_rt5682s_rt1019_data = {
 	.amp_codec_id = RT1019,
 	.dmic_codec_id = DMIC,
 	.platform = RENOIR,
-	.tdm_mode = false,
 };
 
 static struct acp_card_drvdata sof_rt5682s_max_data = {
@@ -60,7 +57,6 @@ static struct acp_card_drvdata sof_rt5682s_max_data = {
 	.amp_codec_id = MAX98360A,
 	.dmic_codec_id = DMIC,
 	.platform = RENOIR,
-	.tdm_mode = false,
 };
 
 static struct acp_card_drvdata sof_nau8825_data = {
@@ -72,7 +68,6 @@ static struct acp_card_drvdata sof_nau8825_data = {
 	.dmic_codec_id = DMIC,
 	.platform = REMBRANDT,
 	.soc_mclk = true,
-	.tdm_mode = false,
 };
 
 static struct acp_card_drvdata sof_rt5682s_hs_rt1019_data = {
@@ -84,20 +79,15 @@ static struct acp_card_drvdata sof_rt5682s_hs_rt1019_data = {
 	.dmic_codec_id = DMIC,
 	.platform = REMBRANDT,
 	.soc_mclk = true,
-	.tdm_mode = false,
 };
 
 static struct acp_card_drvdata sof_nau8821_max98388_data = {
 	.hs_cpu_id = I2S_SP,
 	.amp_cpu_id = I2S_HS,
 	.bt_cpu_id = I2S_BT,
-	.dmic_cpu_id = NONE,
 	.hs_codec_id = NAU8821,
 	.amp_codec_id = MAX98388,
-	.bt_codec_id = NONE,
-	.dmic_codec_id = NONE,
 	.soc_mclk = true,
-	.tdm_mode = false,
 };
 
 static int acp_sof_probe(struct platform_device *pdev)
@@ -126,16 +116,14 @@ static int acp_sof_probe(struct platform_device *pdev)
 	if (dmi_id && dmi_id->driver_data)
 		acp_card_drvdata->tdm_mode = dmi_id->driver_data;
 
-	acp_sofdsp_dai_links_create(card);
+	ret = acp_sofdsp_dai_links_create(card);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret, "Failed to create DAI links\n");
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
-	if (ret) {
-		dev_err(&pdev->dev,
-				"devm_snd_soc_register_card(%s) failed: %d\n",
-				card->name, ret);
-		return ret;
-	}
-
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to register card(%s)\n", card->name);
 	return 0;
 }
 
@@ -182,7 +170,7 @@ static struct platform_driver acp_asoc_audio = {
 module_platform_driver(acp_asoc_audio);
 
 MODULE_IMPORT_NS(SND_SOC_AMD_MACH);
-MODULE_DESCRIPTION("ACP chrome SOF audio support");
+MODULE_DESCRIPTION("ACP SOF Machine Driver");
 MODULE_ALIAS("platform:rt5682-rt1019");
 MODULE_ALIAS("platform:rt5682-max");
 MODULE_ALIAS("platform:rt5682s-max");

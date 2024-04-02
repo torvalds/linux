@@ -204,6 +204,6 @@ static struct platform_driver esp_jazz_driver = {
 module_platform_driver(esp_jazz_driver);
 
 MODULE_DESCRIPTION("JAZZ ESP SCSI driver");
-MODULE_AUTHOR("Thomas Bogendoerfer (tsbogend@alpha.franken.de)");
+MODULE_AUTHOR("Thomas Bogendoerfer <tsbogend@alpha.franken.de>");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);

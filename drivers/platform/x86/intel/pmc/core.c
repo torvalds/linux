@@ -1389,6 +1389,15 @@ static int pmc_core_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	pmcdev->pmcs[PMC_IDX_MAIN] = primary_pmc;
 
+	/* The last element in msr_map is empty */
+	pmcdev->num_of_pkgc = ARRAY_SIZE(msr_map) - 1;
+	pmcdev->pkgc_res_cnt = devm_kcalloc(&pdev->dev,
+					    pmcdev->num_of_pkgc,
+					    sizeof(*pmcdev->pkgc_res_cnt),
+					    GFP_KERNEL);
+	if (!pmcdev->pkgc_res_cnt)
+		return -ENOMEM;
+
 	/*
 	 * Coffee Lake has CPU ID of Kaby Lake and Cannon Lake PCH. So here
 	 * Sunrisepoint PCH regmap can't be used. Use Cannon Lake PCH regmap
@@ -1432,6 +1441,7 @@ static __maybe_unused int pmc_core_suspend(struct device *dev)
 {
 	struct pmc_dev *pmcdev = dev_get_drvdata(dev);
 	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_MAIN];
+	unsigned int i;
 
 	if (pmcdev->suspend)
 		pmcdev->suspend(pmcdev);
@@ -1440,9 +1450,11 @@ static __maybe_unused int pmc_core_suspend(struct device *dev)
 	if (pm_suspend_via_firmware())
 		return 0;
 
-	/* Save PC10 residency for checking later */
-	if (rdmsrl_safe(MSR_PKG_C10_RESIDENCY, &pmcdev->pc10_counter))
-		return -EIO;
+	/* Save PKGC residency for checking later */
+	for (i = 0; i < pmcdev->num_of_pkgc; i++) {
+		if (rdmsrl_safe(msr_map[i].bit_mask, &pmcdev->pkgc_res_cnt[i]))
+			return -EIO;
+	}
 
 	/* Save S0ix residency for checking later */
 	if (pmc_core_dev_state_get(pmc, &pmcdev->s0ix_counter))
@@ -1451,14 +1463,15 @@ static __maybe_unused int pmc_core_suspend(struct device *dev)
 	return 0;
 }
 
-static inline bool pmc_core_is_pc10_failed(struct pmc_dev *pmcdev)
+static inline bool pmc_core_is_deepest_pkgc_failed(struct pmc_dev *pmcdev)
 {
-	u64 pc10_counter;
+	u32 deepest_pkgc_msr = msr_map[pmcdev->num_of_pkgc - 1].bit_mask;
+	u64 deepest_pkgc_residency;
 
-	if (rdmsrl_safe(MSR_PKG_C10_RESIDENCY, &pc10_counter))
+	if (rdmsrl_safe(deepest_pkgc_msr, &deepest_pkgc_residency))
 		return false;
 
-	if (pc10_counter == pmcdev->pc10_counter)
+	if (deepest_pkgc_residency == pmcdev->pkgc_res_cnt[pmcdev->num_of_pkgc - 1])
 		return true;
 
 	return false;
@@ -1497,10 +1510,22 @@ int pmc_core_resume_common(struct pmc_dev *pmcdev)
 	if (!warn_on_s0ix_failures)
 		return 0;
 
-	if (pmc_core_is_pc10_failed(pmcdev)) {
-		/* S0ix failed because of PC10 entry failure */
-		dev_info(dev, "CPU did not enter PC10!!! (PC10 cnt=0x%llx)\n",
-			 pmcdev->pc10_counter);
+	if (pmc_core_is_deepest_pkgc_failed(pmcdev)) {
+		/* S0ix failed because of deepest PKGC entry failure */
+		dev_info(dev, "CPU did not enter %s!!! (%s cnt=0x%llx)\n",
+			 msr_map[pmcdev->num_of_pkgc - 1].name,
+			 msr_map[pmcdev->num_of_pkgc - 1].name,
+			 pmcdev->pkgc_res_cnt[pmcdev->num_of_pkgc - 1]);
+
+		for (i = 0; i < pmcdev->num_of_pkgc; i++) {
+			u64 pc_cnt;
+
+			if (!rdmsrl_safe(msr_map[i].bit_mask, &pc_cnt)) {
+				dev_info(dev, "Prev %s cnt = 0x%llx, Current %s cnt = 0x%llx\n",
+					 msr_map[i].name, pmcdev->pkgc_res_cnt[i],
+					 msr_map[i].name, pc_cnt);
+			}
+		}
 		return 0;
 	}
 

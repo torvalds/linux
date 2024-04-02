@@ -3,7 +3,7 @@
 #include <linux/regmap.h>
 #include <linux/iio/iio.h>
 #include <linux/module.h>
-#include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
 
 #include "bmg160.h"
 
@@ -66,7 +66,7 @@ MODULE_DEVICE_TABLE(of, bmg160_of_match);
 static struct i2c_driver bmg160_i2c_driver = {
 	.driver = {
 		.name	= "bmg160_i2c",
-		.acpi_match_table = ACPI_PTR(bmg160_acpi_match),
+		.acpi_match_table = bmg160_acpi_match,
 		.of_match_table = bmg160_of_match,
 		.pm	= &bmg160_pm_ops,
 	},

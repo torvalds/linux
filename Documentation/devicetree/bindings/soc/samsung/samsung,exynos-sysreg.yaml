@@ -72,6 +72,8 @@ allOf:
         compatible:
           contains:
             enum:
+              - google,gs101-peric0-sysreg
+              - google,gs101-peric1-sysreg
               - samsung,exynos850-cmgp-sysreg
               - samsung,exynos850-peri-sysreg
               - samsung,exynos850-sysreg

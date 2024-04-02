@@ -81,6 +81,7 @@ static void est_irq_status(struct stmmac_priv *priv, struct net_device *dev,
 	u32 status, value, feqn, hbfq, hbfs, btrl, btrl_max;
 	void __iomem *est_addr = priv->estaddr;
 	u32 txqcnt_mask = BIT(txqcnt) - 1;
+	int i;
 
 	status = readl(est_addr + EST_STATUS);
 
@@ -124,6 +125,11 @@ static void est_irq_status(struct stmmac_priv *priv, struct net_device *dev,
 		hbfs = value & EST_SZ_CAP_HBFS_MASK;
 
 		x->mtl_est_hlbf++;
+
+		for (i = 0; i < txqcnt; i++) {
+			if (feqn & BIT(i))
+				x->mtl_est_txq_hlbf[i]++;
+		}
 
 		/* Clear Interrupt */
 		writel(feqn, est_addr + EST_FRM_SZ_ERR);

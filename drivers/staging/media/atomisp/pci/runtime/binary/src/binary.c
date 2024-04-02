@@ -534,7 +534,7 @@ ia_css_binary_uninit(void) {
 static int
 binary_grid_deci_factor_log2(int width, int height)
 {
-	/* 3A/Shading decimation factor spcification (at August 2008)
+	/* 3A/Shading decimation factor specification (at August 2008)
 	 * ------------------------------------------------------------------
 	 * [Image Width (BQ)] [Decimation Factor (BQ)] [Resulting grid cells]
 	 * 1280 ?c             32                       40 ?c

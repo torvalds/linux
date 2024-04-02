@@ -8,7 +8,7 @@
 # Example invocation:
 #	scripts/check-sysctl-docs -vtable="kernel" \
 #		Documentation/admin-guide/sysctl/kernel.rst \
-#		$(git grep -l register_sysctl_)
+#		$(git grep -l register_sysctl)
 #
 # Specify -vdebug=1 to see debugging information
 
@@ -20,14 +20,10 @@ BEGIN {
 }
 
 # The following globals are used:
-# children: maps ctl_table names and procnames to child ctl_table names
 # documented: maps documented entries (each key is an entry)
 # entries: maps ctl_table names and procnames to counts (so
 #          enumerating the subkeys for a given ctl_table lists its
 #          procnames)
-# files: maps procnames to source file names
-# paths: maps ctl_path names to paths
-# curpath: the name of the current ctl_path struct
 # curtable: the name of the current ctl_table struct
 # curentry: the name of the current proc entry (procname when parsing
 #           a ctl_table, constructed path when parsing a ctl_path)
@@ -94,42 +90,23 @@ FNR == NR {
 
 # Stage 2: process each file and find all sysctl tables
 BEGINFILE {
-    delete children
     delete entries
-    delete paths
-    curpath = ""
     curtable = ""
     curentry = ""
+    delete vars
     if (debug) print "Processing file " FILENAME
 }
 
-/^static struct ctl_path/ {
-    match($0, /static struct ctl_path ([^][]+)/, tables)
-    curpath = tables[1]
-    if (debug) print "Processing path " curpath
-}
-
-/^static struct ctl_table/ {
-    match($0, /static struct ctl_table ([^][]+)/, tables)
-    curtable = tables[1]
+/^static( const)? struct ctl_table/ {
+    match($0, /static( const)? struct ctl_table ([^][]+)/, tables)
+    curtable = tables[2]
     if (debug) print "Processing table " curtable
 }
 
 /^};$/ {
-    curpath = ""
     curtable = ""
     curentry = ""
-}
-
-curpath && /\.procname[\t ]*=[\t ]*".+"/ {
-    match($0, /.procname[\t ]*=[\t ]*"([^"]+)"/, names)
-    if (curentry) {
-	curentry = curentry "/" names[1]
-    } else {
-	curentry = names[1]
-    }
-    if (debug) print "Setting path " curpath " to " curentry
-    paths[curpath] = curentry
+    delete vars
 }
 
 curtable && /\.procname[\t ]*=[\t ]*".+"/ {
@@ -140,10 +117,32 @@ curtable && /\.procname[\t ]*=[\t ]*".+"/ {
     file[curentry] = FILENAME
 }
 
-/\.child[\t ]*=/ {
-    child = trimpunct($NF)
-    if (debug) print "Linking child " child " to table " curtable " entry " curentry
-    children[curtable][curentry] = child
+/register_sysctl.*/ {
+    match($0, /register_sysctl(|_init|_sz)\("([^"]+)" *, *([^,)]+)/, tables)
+    if (debug) print "Registering table " tables[3] " at " tables[2]
+    if (tables[2] == table) {
+        for (entry in entries[tables[3]]) {
+            printentry(entry)
+        }
+    }
+}
+
+/kmemdup.*/ {
+    match($0, /([^ \t]+) *= *kmemdup\(([^,]+) *,/, names)
+    if (debug) print "Found variable " names[1] " for table " names[2]
+    if (names[2] in entries) {
+        vars[names[1]] = names[2]
+    }
+}
+
+/__register_sysctl_table.*/ {
+    match($0, /__register_sysctl_table\([^,]+, *"([^"]+)" *, *([^,]+)/, tables)
+    if (debug) print "Registering variable table " tables[2] " at " tables[1]
+    if (tables[1] == table && tables[2] in vars) {
+        for (entry in entries[vars[tables[2]]]) {
+            printentry(entry)
+        }
+    }
 }
 
 END {

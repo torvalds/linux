@@ -72,6 +72,6 @@ fail:
 		bpf_tc_hook_destroy(&qdisc_hook);
 		close_netns(nstoken);
 	}
-	SYS_NOFAIL("ip netns del " NS_TEST " &> /dev/null");
+	SYS_NOFAIL("ip netns del " NS_TEST);
 	decap_sanity__destroy(skel);
 }

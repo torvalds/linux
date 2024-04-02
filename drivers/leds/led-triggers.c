@@ -23,7 +23,7 @@
  * Nests outside led_cdev->trigger_lock
  */
 static DECLARE_RWSEM(triggers_list_lock);
-LIST_HEAD(trigger_list);
+static LIST_HEAD(trigger_list);
 
  /* Used by LED Class */
 
@@ -247,9 +247,23 @@ void led_trigger_remove(struct led_classdev *led_cdev)
 }
 EXPORT_SYMBOL_GPL(led_trigger_remove);
 
+static bool led_match_default_trigger(struct led_classdev *led_cdev,
+				      struct led_trigger *trig)
+{
+	if (!strcmp(led_cdev->default_trigger, trig->name) &&
+	    trigger_relevant(led_cdev, trig)) {
+		led_cdev->flags |= LED_INIT_DEFAULT_TRIGGER;
+		led_trigger_set(led_cdev, trig);
+		return true;
+	}
+
+	return false;
+}
+
 void led_trigger_set_default(struct led_classdev *led_cdev)
 {
 	struct led_trigger *trig;
+	bool found = false;
 
 	if (!led_cdev->default_trigger)
 		return;
@@ -257,15 +271,19 @@ void led_trigger_set_default(struct led_classdev *led_cdev)
 	down_read(&triggers_list_lock);
 	down_write(&led_cdev->trigger_lock);
 	list_for_each_entry(trig, &trigger_list, next_trig) {
-		if (!strcmp(led_cdev->default_trigger, trig->name) &&
-		    trigger_relevant(led_cdev, trig)) {
-			led_cdev->flags |= LED_INIT_DEFAULT_TRIGGER;
-			led_trigger_set(led_cdev, trig);
+		found = led_match_default_trigger(led_cdev, trig);
+		if (found)
 			break;
-		}
 	}
 	up_write(&led_cdev->trigger_lock);
 	up_read(&triggers_list_lock);
+
+	/*
+	 * If default trigger wasn't found, maybe trigger module isn't loaded yet.
+	 * Once loaded it will re-probe with all led_cdev's.
+	 */
+	if (!found)
+		request_module_nowait("ledtrig:%s", led_cdev->default_trigger);
 }
 EXPORT_SYMBOL_GPL(led_trigger_set_default);
 
@@ -297,12 +315,8 @@ int led_trigger_register(struct led_trigger *trig)
 	down_read(&leds_list_lock);
 	list_for_each_entry(led_cdev, &leds_list, node) {
 		down_write(&led_cdev->trigger_lock);
-		if (!led_cdev->trigger && led_cdev->default_trigger &&
-		    !strcmp(led_cdev->default_trigger, trig->name) &&
-		    trigger_relevant(led_cdev, trig)) {
-			led_cdev->flags |= LED_INIT_DEFAULT_TRIGGER;
-			led_trigger_set(led_cdev, trig);
-		}
+		if (!led_cdev->trigger && led_cdev->default_trigger)
+			led_match_default_trigger(led_cdev, trig);
 		up_write(&led_cdev->trigger_lock);
 	}
 	up_read(&leds_list_lock);

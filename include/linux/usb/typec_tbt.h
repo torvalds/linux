@@ -3,6 +3,7 @@
 #define __USB_TYPEC_TBT_H
 
 #include <linux/usb/typec_altmode.h>
+#include <linux/bitfield.h>
 
 #define USB_TYPEC_VENDOR_INTEL		0x8087
 /* Alias for convenience */
@@ -25,7 +26,7 @@ struct typec_thunderbolt_data {
 
 /* TBT3 Device Discover Mode VDO bits */
 #define TBT_MODE			BIT(0)
-#define TBT_ADAPTER(_vdo_)		(((_vdo_) & BIT(16)) >> 16)
+#define TBT_ADAPTER(_vdo_)		FIELD_GET(BIT(16), _vdo_)
 #define   TBT_ADAPTER_LEGACY		0
 #define   TBT_ADAPTER_TBT3		1
 #define TBT_INTEL_SPECIFIC_B0		BIT(26)
@@ -35,12 +36,12 @@ struct typec_thunderbolt_data {
 #define TBT_SET_ADAPTER(a)		(((a) & 1) << 16)
 
 /* TBT3 Cable Discover Mode VDO bits */
-#define TBT_CABLE_SPEED(_vdo_)		(((_vdo_) & GENMASK(18, 16)) >> 16)
+#define TBT_CABLE_SPEED(_vdo_)		FIELD_GET(GENMASK(18, 16), _vdo_)
 #define   TBT_CABLE_USB3_GEN1		1
 #define   TBT_CABLE_USB3_PASSIVE	2
 #define   TBT_CABLE_10_AND_20GBPS	3
-#define TBT_CABLE_ROUNDED_SUPPORT(_vdo_) \
-					(((_vdo_) & GENMASK(20, 19)) >> 19)
+#define TBT_CABLE_ROUNDED_SUPPORT(_vdo_) FIELD_GET(GENMASK(20, 19), _vdo_)
+
 #define   TBT_GEN3_NON_ROUNDED                 0
 #define   TBT_GEN3_GEN4_ROUNDED_NON_ROUNDED    1
 #define TBT_CABLE_OPTICAL		BIT(21)

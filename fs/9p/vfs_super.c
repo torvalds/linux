@@ -110,7 +110,6 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	struct inode *inode = NULL;
 	struct dentry *root = NULL;
 	struct v9fs_session_info *v9ses = NULL;
-	umode_t mode = 0777 | S_ISVTX;
 	struct p9_fid *fid;
 	int retval = 0;
 
@@ -140,7 +139,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	else
 		sb->s_d_op = &v9fs_dentry_operations;
 
-	inode = v9fs_get_inode(sb, S_IFDIR | mode, 0);
+	inode = v9fs_get_inode_from_fid(v9ses, fid, sb);
 	if (IS_ERR(inode)) {
 		retval = PTR_ERR(inode);
 		goto release_sb;
@@ -152,32 +151,6 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 		goto release_sb;
 	}
 	sb->s_root = root;
-	if (v9fs_proto_dotl(v9ses)) {
-		struct p9_stat_dotl *st = NULL;
-
-		st = p9_client_getattr_dotl(fid, P9_STATS_BASIC);
-		if (IS_ERR(st)) {
-			retval = PTR_ERR(st);
-			goto release_sb;
-		}
-		d_inode(root)->i_ino = v9fs_qid2ino(&st->qid);
-		v9fs_stat2inode_dotl(st, d_inode(root), 0);
-		kfree(st);
-	} else {
-		struct p9_wstat *st = NULL;
-
-		st = p9_client_stat(fid);
-		if (IS_ERR(st)) {
-			retval = PTR_ERR(st);
-			goto release_sb;
-		}
-
-		d_inode(root)->i_ino = v9fs_qid2ino(&st->qid);
-		v9fs_stat2inode(st, d_inode(root), sb, 0);
-
-		p9stat_free(st);
-		kfree(st);
-	}
 	retval = v9fs_get_acl(inode, fid);
 	if (retval)
 		goto release_sb;
@@ -271,21 +244,6 @@ done:
 	return res;
 }
 
-static int v9fs_drop_inode(struct inode *inode)
-{
-	struct v9fs_session_info *v9ses;
-
-	v9ses = v9fs_inode2v9ses(inode);
-	if (v9ses->cache & (CACHE_META|CACHE_LOOSE))
-		return generic_drop_inode(inode);
-	/*
-	 * in case of non cached mode always drop the
-	 * inode because we want the inode attribute
-	 * to always match that on the server.
-	 */
-	return 1;
-}
-
 static int v9fs_write_inode(struct inode *inode,
 			    struct writeback_control *wbc)
 {
@@ -320,7 +278,6 @@ static const struct super_operations v9fs_super_ops_dotl = {
 	.alloc_inode = v9fs_alloc_inode,
 	.free_inode = v9fs_free_inode,
 	.statfs = v9fs_statfs,
-	.drop_inode = v9fs_drop_inode,
 	.evict_inode = v9fs_evict_inode,
 	.show_options = v9fs_show_options,
 	.umount_begin = v9fs_umount_begin,

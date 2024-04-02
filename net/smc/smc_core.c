@@ -1535,7 +1535,7 @@ void smc_smcd_terminate(struct smcd_dev *dev, struct smcd_gid *peer_gid,
 	list_for_each_entry_safe(lgr, l, &dev->lgr_list, list) {
 		if ((!peer_gid->gid ||
 		     (lgr->peer_gid.gid == peer_gid->gid &&
-		      !smc_ism_is_virtual(dev) ? 1 :
+		      !smc_ism_is_emulated(dev) ? 1 :
 		      lgr->peer_gid.gid_ext == peer_gid->gid_ext)) &&
 		    (vlan == VLAN_VID_MASK || lgr->vlan_id == vlan)) {
 			if (peer_gid->gid) /* peer triggered termination */
@@ -1881,7 +1881,7 @@ static bool smcd_lgr_match(struct smc_link_group *lgr,
 	    lgr->smcd != smcismdev)
 		return false;
 
-	if (smc_ism_is_virtual(smcismdev) &&
+	if (smc_ism_is_emulated(smcismdev) &&
 	    lgr->peer_gid.gid_ext != peer_gid->gid_ext)
 		return false;
 

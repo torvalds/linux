@@ -157,6 +157,7 @@ struct arm_cspmu {
 	int cycle_counter_logical_idx;
 
 	struct arm_cspmu_hw_events hw_events;
+	const struct attribute_group *attr_groups[5];
 
 	struct arm_cspmu_impl impl;
 };

@@ -55,7 +55,7 @@
 	thermal-zones {
 		cpu0_thermal: cpu0-thermal {
 			thermal-sensors = <&tmu_cpu0>;
-			polling-delay-passive = <250>;
+			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			trips {
 				cpu0_alert0: cpu-alert-0 {
@@ -78,12 +78,6 @@
 					hysteresis = <0>; /* millicelsius */
 					type = "critical";
 				};
-				/*
-				 * Exynos542x supports only 4 trip-points
-				 * so for these polling mode is required.
-				 * Start polling at temperature level of last
-				 * interrupt-driven trip: cpu0_alert2
-				 */
 				cpu0_alert3: cpu-alert-3 {
 					temperature = <70000>; /* millicelsius */
 					hysteresis = <10000>; /* millicelsius */
@@ -144,7 +138,7 @@
 		};
 		cpu1_thermal: cpu1-thermal {
 			thermal-sensors = <&tmu_cpu1>;
-			polling-delay-passive = <250>;
+			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			trips {
 				cpu1_alert0: cpu-alert-0 {
@@ -217,7 +211,7 @@
 		};
 		cpu2_thermal: cpu2-thermal {
 			thermal-sensors = <&tmu_cpu2>;
-			polling-delay-passive = <250>;
+			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			trips {
 				cpu2_alert0: cpu-alert-0 {
@@ -290,7 +284,7 @@
 		};
 		cpu3_thermal: cpu3-thermal {
 			thermal-sensors = <&tmu_cpu3>;
-			polling-delay-passive = <250>;
+			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			trips {
 				cpu3_alert0: cpu-alert-0 {
@@ -363,7 +357,7 @@
 		};
 		gpu_thermal: gpu-thermal {
 			thermal-sensors = <&tmu_gpu>;
-			polling-delay-passive = <250>;
+			polling-delay-passive = <0>;
 			polling-delay = <0>;
 			trips {
 				gpu_alert0: gpu-alert-0 {

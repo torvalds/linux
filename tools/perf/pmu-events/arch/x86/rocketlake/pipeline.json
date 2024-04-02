@@ -529,7 +529,7 @@
         "BriefDescription": "Cycles when Reservation Station (RS) is empty for the thread",
         "EventCode": "0x5e",
         "EventName": "RS_EVENTS.EMPTY_CYCLES",
-        "PublicDescription": "Counts cycles during which the reservation station (RS) is empty for this logical processor. This is usually caused when the front-end pipeline runs into stravation periods (e.g. branch mispredictions or i-cache misses)",
+        "PublicDescription": "Counts cycles during which the reservation station (RS) is empty for this logical processor. This is usually caused when the front-end pipeline runs into starvation periods (e.g. branch mispredictions or i-cache misses)",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
     },
@@ -551,14 +551,6 @@
         "PublicDescription": "Counts the number of Top-down Microarchitecture Analysis (TMA) method's  slots where no micro-operations were being issued from front-end to back-end of the machine due to lack of back-end resources.",
         "SampleAfterValue": "10000003",
         "UMask": "0x2"
-    },
-    {
-        "BriefDescription": "TMA slots wasted due to incorrect speculation by branch mispredictions",
-        "EventCode": "0xa4",
-        "EventName": "TOPDOWN.BR_MISPREDICT_SLOTS",
-        "PublicDescription": "Number of TMA slots that were wasted due to incorrect speculation by branch mispredictions. This event estimates number of operations that were issued but not retired from the speculative path as well as the out-of-order engine recovery past a branch misprediction.",
-        "SampleAfterValue": "10000003",
-        "UMask": "0x8"
     },
     {
         "BriefDescription": "TMA slots available for an unhalted logical processor. Fixed counter - architectural event",

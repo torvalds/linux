@@ -18,6 +18,7 @@
  */
 
 /delete-node/ &cdsp_mem;
+/delete-node/ &domain_idle_states;
 /delete-node/ &gpu_zap_mem;
 /delete-node/ &gpu_zap_shader;
 /delete-node/ &hyp_mem;
@@ -26,6 +27,18 @@
 /delete-node/ &sec_apps_mem;
 
 / {
+	cpus {
+		domain_idle_states: domain-idle-states {
+			CLUSTER_SLEEP_0: cluster-sleep-0 {
+				compatible = "domain-idle-state";
+				arm,psci-suspend-param = <0x40003444>;
+				entry-latency-us = <2752>;
+				exit-latency-us = <6562>;
+				min-residency-us = <9926>;
+			};
+		};
+	};
+
 	reserved-memory {
 		camera_mem: memory@8ad00000 {
 			reg = <0x0 0x8ad00000 0x0 0x500000>;
@@ -37,6 +50,10 @@
 			no-map;
 		};
 	};
+};
+
+&CLUSTER_PD {
+	domain-idle-states = <&CLUSTER_SLEEP_0>;
 };
 
 &lpass_aon {
@@ -117,6 +134,17 @@
 &scm {
 	/* TF-A firmware maps memory cached so mark dma-coherent to match. */
 	dma-coherent;
+};
+
+&venus {
+	iommus = <&apps_smmu 0x2180 0x20>,
+		 <&apps_smmu 0x2184 0x20>;
+
+	status = "okay";
+
+	video-firmware {
+		iommus = <&apps_smmu 0x21a2 0x0>;
+	};
 };
 
 &watchdog {

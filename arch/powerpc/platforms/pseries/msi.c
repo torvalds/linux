@@ -26,6 +26,7 @@ static int query_token, change_token;
 #define RTAS_CHANGE_MSI_FN	3
 #define RTAS_CHANGE_MSIX_FN	4
 #define RTAS_CHANGE_32MSI_FN	5
+#define RTAS_CHANGE_32MSIX_FN	6
 
 /* RTAS Helpers */
 
@@ -41,7 +42,7 @@ static int rtas_change_msi(struct pci_dn *pdn, u32 func, u32 num_irqs)
 	seq_num = 1;
 	do {
 		if (func == RTAS_CHANGE_MSI_FN || func == RTAS_CHANGE_MSIX_FN ||
-		    func == RTAS_CHANGE_32MSI_FN)
+		    func == RTAS_CHANGE_32MSI_FN || func == RTAS_CHANGE_32MSIX_FN)
 			rc = rtas_call(change_token, 6, 4, rtas_ret, addr,
 					BUID_HI(buid), BUID_LO(buid),
 					func, num_irqs, seq_num);
@@ -406,8 +407,12 @@ again:
 
 		if (use_32bit_msi_hack && rc > 0)
 			rtas_hack_32bit_msi_gen2(pdev);
-	} else
-		rc = rtas_change_msi(pdn, RTAS_CHANGE_MSIX_FN, nvec);
+	} else {
+		if (pdev->no_64bit_msi)
+			rc = rtas_change_msi(pdn, RTAS_CHANGE_32MSIX_FN, nvec);
+		else
+			rc = rtas_change_msi(pdn, RTAS_CHANGE_MSIX_FN, nvec);
+	}
 
 	if (rc != nvec) {
 		if (nvec != nvec_in) {

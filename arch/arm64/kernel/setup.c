@@ -166,21 +166,6 @@ static void __init smp_build_mpidr_hash(void)
 		pr_warn("Large number of MPIDR hash buckets detected\n");
 }
 
-static void *early_fdt_ptr __initdata;
-
-void __init *get_early_fdt_ptr(void)
-{
-	return early_fdt_ptr;
-}
-
-asmlinkage void __init early_fdt_map(u64 dt_phys)
-{
-	int fdt_size;
-
-	early_fixmap_init();
-	early_fdt_ptr = fixmap_remap_fdt(dt_phys, &fdt_size, PAGE_KERNEL);
-}
-
 static void __init setup_machine_fdt(phys_addr_t dt_phys)
 {
 	int size;
@@ -298,13 +283,6 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 
 	kaslr_init();
 
-	/*
-	 * If know now we are going to need KPTI then use non-global
-	 * mappings from the start, avoiding the cost of rewriting
-	 * everything later.
-	 */
-	arm64_use_ng_mappings = kaslr_requires_kpti();
-
 	early_fixmap_init();
 	early_ioremap_init();
 
@@ -320,9 +298,8 @@ void __init __no_sanitize_address setup_arch(char **cmdline_p)
 	dynamic_scs_init();
 
 	/*
-	 * Unmask asynchronous aborts and fiq after bringing up possible
-	 * earlycon. (Report possible System Errors once we can report this
-	 * occurred).
+	 * Unmask SError as soon as possible after initializing earlycon so
+	 * that we can report any SErrors immediately.
 	 */
 	local_daif_restore(DAIF_PROCCTX_NOIRQ);
 

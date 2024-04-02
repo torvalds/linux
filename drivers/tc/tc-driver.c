@@ -95,7 +95,7 @@ static int tc_bus_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
-struct bus_type tc_bus_type = {
+const struct bus_type tc_bus_type = {
 	.name	= "tc",
 	.match	= tc_bus_match,
 };

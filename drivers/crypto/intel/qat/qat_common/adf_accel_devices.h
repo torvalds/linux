@@ -248,6 +248,7 @@ struct adf_hw_device_data {
 	void (*set_msix_rttable)(struct adf_accel_dev *accel_dev);
 	const char *(*uof_get_name)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	u32 (*uof_get_num_objs)(struct adf_accel_dev *accel_dev);
+	int (*uof_get_obj_type)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	u32 (*uof_get_ae_mask)(struct adf_accel_dev *accel_dev, u32 obj_num);
 	int (*get_rp_group)(struct adf_accel_dev *accel_dev, u32 ae_mask);
 	u32 (*get_ena_thd_mask)(struct adf_accel_dev *accel_dev, u32 obj_num);
@@ -332,6 +333,7 @@ struct adf_accel_vf_info {
 	struct ratelimit_state vf2pf_ratelimit;
 	u32 vf_nr;
 	bool init;
+	bool restarting;
 	u8 vf_compat_ver;
 };
 
@@ -401,6 +403,7 @@ struct adf_accel_dev {
 	struct adf_error_counters ras_errors;
 	struct mutex state_lock; /* protect state of the device */
 	bool is_vf;
+	bool autoreset_on_error;
 	u32 accel_id;
 };
 #endif

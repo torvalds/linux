@@ -214,6 +214,9 @@ devtlb_invalidation_with_pasid(struct intel_iommu *iommu,
 	if (!info || !info->ats_enabled)
 		return;
 
+	if (pci_dev_is_disconnected(to_pci_dev(dev)))
+		return;
+
 	sid = info->bus << 8 | info->devfn;
 	qdep = info->ats_qdep;
 	pfsid = info->pfsid;
@@ -666,4 +669,206 @@ int intel_pasid_setup_nested(struct intel_iommu *iommu, struct device *dev,
 	pasid_flush_caches(iommu, pte, pasid, did);
 
 	return 0;
+}
+
+/*
+ * Interfaces to setup or teardown a pasid table to the scalable-mode
+ * context table entry:
+ */
+
+static void device_pasid_table_teardown(struct device *dev, u8 bus, u8 devfn)
+{
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
+	struct intel_iommu *iommu = info->iommu;
+	struct context_entry *context;
+
+	spin_lock(&iommu->lock);
+	context = iommu_context_addr(iommu, bus, devfn, false);
+	if (!context) {
+		spin_unlock(&iommu->lock);
+		return;
+	}
+
+	context_clear_entry(context);
+	__iommu_flush_cache(iommu, context, sizeof(*context));
+	spin_unlock(&iommu->lock);
+
+	/*
+	 * Cache invalidation for changes to a scalable-mode context table
+	 * entry.
+	 *
+	 * Section 6.5.3.3 of the VT-d spec:
+	 * - Device-selective context-cache invalidation;
+	 * - Domain-selective PASID-cache invalidation to affected domains
+	 *   (can be skipped if all PASID entries were not-present);
+	 * - Domain-selective IOTLB invalidation to affected domains;
+	 * - Global Device-TLB invalidation to affected functions.
+	 *
+	 * The iommu has been parked in the blocking state. All domains have
+	 * been detached from the device or PASID. The PASID and IOTLB caches
+	 * have been invalidated during the domain detach path.
+	 */
+	iommu->flush.flush_context(iommu, 0, PCI_DEVID(bus, devfn),
+				   DMA_CCMD_MASK_NOBIT, DMA_CCMD_DEVICE_INVL);
+	devtlb_invalidation_with_pasid(iommu, dev, IOMMU_NO_PASID);
+}
+
+static int pci_pasid_table_teardown(struct pci_dev *pdev, u16 alias, void *data)
+{
+	struct device *dev = data;
+
+	if (dev == &pdev->dev)
+		device_pasid_table_teardown(dev, PCI_BUS_NUM(alias), alias & 0xff);
+
+	return 0;
+}
+
+void intel_pasid_teardown_sm_context(struct device *dev)
+{
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
+
+	if (!dev_is_pci(dev)) {
+		device_pasid_table_teardown(dev, info->bus, info->devfn);
+		return;
+	}
+
+	pci_for_each_dma_alias(to_pci_dev(dev), pci_pasid_table_teardown, dev);
+}
+
+/*
+ * Get the PASID directory size for scalable mode context entry.
+ * Value of X in the PDTS field of a scalable mode context entry
+ * indicates PASID directory with 2^(X + 7) entries.
+ */
+static unsigned long context_get_sm_pds(struct pasid_table *table)
+{
+	unsigned long pds, max_pde;
+
+	max_pde = table->max_pasid >> PASID_PDE_SHIFT;
+	pds = find_first_bit(&max_pde, MAX_NR_PASID_BITS);
+	if (pds < 7)
+		return 0;
+
+	return pds - 7;
+}
+
+static int context_entry_set_pasid_table(struct context_entry *context,
+					 struct device *dev)
+{
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
+	struct pasid_table *table = info->pasid_table;
+	struct intel_iommu *iommu = info->iommu;
+	unsigned long pds;
+
+	context_clear_entry(context);
+
+	pds = context_get_sm_pds(table);
+	context->lo = (u64)virt_to_phys(table->table) | context_pdts(pds);
+	context_set_sm_rid2pasid(context, IOMMU_NO_PASID);
+
+	if (info->ats_supported)
+		context_set_sm_dte(context);
+	if (info->pri_supported)
+		context_set_sm_pre(context);
+	if (info->pasid_supported)
+		context_set_pasid(context);
+
+	context_set_fault_enable(context);
+	context_set_present(context);
+	__iommu_flush_cache(iommu, context, sizeof(*context));
+
+	return 0;
+}
+
+static int device_pasid_table_setup(struct device *dev, u8 bus, u8 devfn)
+{
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
+	struct intel_iommu *iommu = info->iommu;
+	struct context_entry *context;
+
+	spin_lock(&iommu->lock);
+	context = iommu_context_addr(iommu, bus, devfn, true);
+	if (!context) {
+		spin_unlock(&iommu->lock);
+		return -ENOMEM;
+	}
+
+	if (context_present(context) && !context_copied(iommu, bus, devfn)) {
+		spin_unlock(&iommu->lock);
+		return 0;
+	}
+
+	if (context_copied(iommu, bus, devfn)) {
+		context_clear_entry(context);
+		__iommu_flush_cache(iommu, context, sizeof(*context));
+
+		/*
+		 * For kdump cases, old valid entries may be cached due to
+		 * the in-flight DMA and copied pgtable, but there is no
+		 * unmapping behaviour for them, thus we need explicit cache
+		 * flushes for all affected domain IDs and PASIDs used in
+		 * the copied PASID table. Given that we have no idea about
+		 * which domain IDs and PASIDs were used in the copied tables,
+		 * upgrade them to global PASID and IOTLB cache invalidation.
+		 */
+		iommu->flush.flush_context(iommu, 0,
+					   PCI_DEVID(bus, devfn),
+					   DMA_CCMD_MASK_NOBIT,
+					   DMA_CCMD_DEVICE_INVL);
+		qi_flush_pasid_cache(iommu, 0, QI_PC_GLOBAL, 0);
+		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_GLOBAL_FLUSH);
+		devtlb_invalidation_with_pasid(iommu, dev, IOMMU_NO_PASID);
+
+		/*
+		 * At this point, the device is supposed to finish reset at
+		 * its driver probe stage, so no in-flight DMA will exist,
+		 * and we don't need to worry anymore hereafter.
+		 */
+		clear_context_copied(iommu, bus, devfn);
+	}
+
+	context_entry_set_pasid_table(context, dev);
+	spin_unlock(&iommu->lock);
+
+	/*
+	 * It's a non-present to present mapping. If hardware doesn't cache
+	 * non-present entry we don't need to flush the caches. If it does
+	 * cache non-present entries, then it does so in the special
+	 * domain #0, which we have to flush:
+	 */
+	if (cap_caching_mode(iommu->cap)) {
+		iommu->flush.flush_context(iommu, 0,
+					   PCI_DEVID(bus, devfn),
+					   DMA_CCMD_MASK_NOBIT,
+					   DMA_CCMD_DEVICE_INVL);
+		iommu->flush.flush_iotlb(iommu, 0, 0, 0, DMA_TLB_DSI_FLUSH);
+	}
+
+	return 0;
+}
+
+static int pci_pasid_table_setup(struct pci_dev *pdev, u16 alias, void *data)
+{
+	struct device *dev = data;
+
+	if (dev != &pdev->dev)
+		return 0;
+
+	return device_pasid_table_setup(dev, PCI_BUS_NUM(alias), alias & 0xff);
+}
+
+/*
+ * Set the device's PASID table to its context table entry.
+ *
+ * The PASID table is set to the context entries of both device itself
+ * and its alias requester ID for DMA.
+ */
+int intel_pasid_setup_sm_context(struct device *dev)
+{
+	struct device_domain_info *info = dev_iommu_priv_get(dev);
+
+	if (!dev_is_pci(dev))
+		return device_pasid_table_setup(dev, info->bus, info->devfn);
+
+	return pci_for_each_dma_alias(to_pci_dev(dev), pci_pasid_table_setup, dev);
 }

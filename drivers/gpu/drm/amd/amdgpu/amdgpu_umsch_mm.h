@@ -33,13 +33,6 @@ enum UMSCH_SWIP_ENGINE_TYPE {
 	UMSCH_SWIP_ENGINE_TYPE_MAX
 };
 
-enum UMSCH_SWIP_AFFINITY_TYPE {
-	UMSCH_SWIP_AFFINITY_TYPE_ANY = 0,
-	UMSCH_SWIP_AFFINITY_TYPE_VCN0 = 1,
-	UMSCH_SWIP_AFFINITY_TYPE_VCN1 = 2,
-	UMSCH_SWIP_AFFINITY_TYPE_MAX
-};
-
 enum UMSCH_CONTEXT_PRIORITY_LEVEL {
 	CONTEXT_PRIORITY_LEVEL_IDLE = 0,
 	CONTEXT_PRIORITY_LEVEL_NORMAL = 1,
@@ -51,13 +44,15 @@ enum UMSCH_CONTEXT_PRIORITY_LEVEL {
 struct umsch_mm_set_resource_input {
 	uint32_t vmid_mask_mm_vcn;
 	uint32_t vmid_mask_mm_vpe;
+	uint32_t collaboration_mask_vpe;
 	uint32_t logging_vmid;
 	uint32_t engine_mask;
 	union {
 		struct {
 			uint32_t disable_reset : 1;
 			uint32_t disable_umsch_mm_log : 1;
-			uint32_t reserved : 30;
+			uint32_t use_rs64mem_for_proc_ctx_csa : 1;
+			uint32_t reserved : 29;
 		};
 		uint32_t uint32_all;
 	};
@@ -78,15 +73,18 @@ struct umsch_mm_add_queue_input {
 	uint32_t doorbell_offset_1;
 	enum UMSCH_SWIP_ENGINE_TYPE engine_type;
 	uint32_t affinity;
-	enum UMSCH_SWIP_AFFINITY_TYPE affinity_type;
 	uint64_t mqd_addr;
 	uint64_t h_context;
 	uint64_t h_queue;
 	uint32_t vm_context_cntl;
 
+	uint32_t process_csa_array_index;
+	uint32_t context_csa_array_index;
+
 	struct {
 		uint32_t is_context_suspended : 1;
-		uint32_t reserved : 31;
+		uint32_t collaboration_mode : 1;
+		uint32_t reserved : 30;
 	};
 };
 
@@ -94,6 +92,7 @@ struct umsch_mm_remove_queue_input {
 	uint32_t doorbell_offset_0;
 	uint32_t doorbell_offset_1;
 	uint64_t context_csa_addr;
+	uint32_t context_csa_array_index;
 };
 
 struct MQD_INFO {
@@ -103,6 +102,7 @@ struct MQD_INFO {
 	uint32_t wptr_val;
 	uint32_t rptr_val;
 	uint32_t unmapped;
+	uint32_t vmid;
 };
 
 struct amdgpu_umsch_mm;

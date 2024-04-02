@@ -132,7 +132,7 @@ static u16 nvmet_passthru_override_id_ctrl(struct nvmet_req *req)
 
 	id->sqes = min_t(__u8, ((0x6 << 4) | 0x6), id->sqes);
 	id->cqes = min_t(__u8, ((0x4 << 4) | 0x4), id->cqes);
-	id->maxcmd = cpu_to_le16(NVMET_MAX_CMD);
+	id->maxcmd = cpu_to_le16(NVMET_MAX_CMD(ctrl));
 
 	/* don't support fuse commands */
 	id->fuses = 0;

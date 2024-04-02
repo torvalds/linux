@@ -667,7 +667,7 @@ static int ax88179_set_link_ksettings(struct net_device *net,
 }
 
 static int
-ax88179_ethtool_get_eee(struct usbnet *dev, struct ethtool_eee *data)
+ax88179_ethtool_get_eee(struct usbnet *dev, struct ethtool_keee *data)
 {
 	int val;
 
@@ -676,29 +676,29 @@ ax88179_ethtool_get_eee(struct usbnet *dev, struct ethtool_eee *data)
 					    MDIO_MMD_PCS);
 	if (val < 0)
 		return val;
-	data->supported = mmd_eee_cap_to_ethtool_sup_t(val);
+	mii_eee_cap1_mod_linkmode_t(data->supported, val);
 
 	/* Get advertisement EEE */
 	val = ax88179_phy_read_mmd_indirect(dev, MDIO_AN_EEE_ADV,
 					    MDIO_MMD_AN);
 	if (val < 0)
 		return val;
-	data->advertised = mmd_eee_adv_to_ethtool_adv_t(val);
+	mii_eee_cap1_mod_linkmode_t(data->advertised, val);
 
 	/* Get LP advertisement EEE */
 	val = ax88179_phy_read_mmd_indirect(dev, MDIO_AN_EEE_LPABLE,
 					    MDIO_MMD_AN);
 	if (val < 0)
 		return val;
-	data->lp_advertised = mmd_eee_adv_to_ethtool_adv_t(val);
+	mii_eee_cap1_mod_linkmode_t(data->lp_advertised, val);
 
 	return 0;
 }
 
 static int
-ax88179_ethtool_set_eee(struct usbnet *dev, struct ethtool_eee *data)
+ax88179_ethtool_set_eee(struct usbnet *dev, struct ethtool_keee *data)
 {
-	u16 tmp16 = ethtool_adv_to_mmd_eee_adv_t(data->advertised);
+	u16 tmp16 = linkmode_to_mii_eee_cap1_t(data->advertised);
 
 	return ax88179_phy_write_mmd_indirect(dev, MDIO_AN_EEE_ADV,
 					      MDIO_MMD_AN, tmp16);
@@ -807,7 +807,7 @@ static void ax88179_enable_eee(struct usbnet *dev)
 			  GMII_PHY_PAGE_SELECT, 2, &tmp16);
 }
 
-static int ax88179_get_eee(struct net_device *net, struct ethtool_eee *edata)
+static int ax88179_get_eee(struct net_device *net, struct ethtool_keee *edata)
 {
 	struct usbnet *dev = netdev_priv(net);
 	struct ax88179_data *priv = dev->driver_priv;
@@ -818,7 +818,7 @@ static int ax88179_get_eee(struct net_device *net, struct ethtool_eee *edata)
 	return ax88179_ethtool_get_eee(dev, edata);
 }
 
-static int ax88179_set_eee(struct net_device *net, struct ethtool_eee *edata)
+static int ax88179_set_eee(struct net_device *net, struct ethtool_keee *edata)
 {
 	struct usbnet *dev = netdev_priv(net);
 	struct ax88179_data *priv = dev->driver_priv;
@@ -1587,7 +1587,7 @@ static int ax88179_reset(struct usbnet *dev)
 	u16 *tmp16;
 	u8 *tmp;
 	struct ax88179_data *ax179_data = dev->driver_priv;
-	struct ethtool_eee eee_data;
+	struct ethtool_keee eee_data;
 
 	tmp16 = (u16 *)buf;
 	tmp = (u8 *)buf;
@@ -1663,7 +1663,7 @@ static int ax88179_reset(struct usbnet *dev)
 	ax88179_disable_eee(dev);
 
 	ax88179_ethtool_get_eee(dev, &eee_data);
-	eee_data.advertised = 0;
+	linkmode_zero(eee_data.advertised);
 	ax88179_ethtool_set_eee(dev, &eee_data);
 
 	/* Restart autoneg */

@@ -116,3 +116,10 @@ config SND_SOC_AMD_SOF_MACH
 	  This option enables SOF sound card support for ACP audio.
 
 endif # SND_SOC_AMD_ACP_COMMON
+
+config SND_AMD_SOUNDWIRE_ACPI
+	tristate
+	depends on ACPI
+	help
+	  This options enables ACPI helper functions for SoundWire
+	  interface for AMD platforms.

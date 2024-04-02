@@ -15,8 +15,8 @@
  */
 
 /**
- * struct spi_gpio_platform_data - parameter for bitbanged SPI master
- * @num_chipselect: how many slaves to allow
+ * struct spi_gpio_platform_data - parameter for bitbanged SPI host controller
+ * @num_chipselect: how many target devices to allow
  */
 struct spi_gpio_platform_data {
 	u16		num_chipselect;

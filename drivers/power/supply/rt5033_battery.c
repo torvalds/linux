@@ -159,24 +159,17 @@ static int rt5033_battery_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	i2c_set_clientdata(client, battery);
 	psy_cfg.of_node = client->dev.of_node;
 	psy_cfg.drv_data = battery;
 
-	battery->psy = power_supply_register(&client->dev,
-					     &rt5033_battery_desc, &psy_cfg);
+	battery->psy = devm_power_supply_register(&client->dev,
+						  &rt5033_battery_desc,
+						  &psy_cfg);
 	if (IS_ERR(battery->psy))
 		return dev_err_probe(&client->dev, PTR_ERR(battery->psy),
 				     "Failed to register power supply\n");
 
 	return 0;
-}
-
-static void rt5033_battery_remove(struct i2c_client *client)
-{
-	struct rt5033_battery *battery = i2c_get_clientdata(client);
-
-	power_supply_unregister(battery->psy);
 }
 
 static const struct i2c_device_id rt5033_battery_id[] = {
@@ -197,7 +190,6 @@ static struct i2c_driver rt5033_battery_driver = {
 		.of_match_table = rt5033_battery_of_match,
 	},
 	.probe = rt5033_battery_probe,
-	.remove = rt5033_battery_remove,
 	.id_table = rt5033_battery_id,
 };
 module_i2c_driver(rt5033_battery_driver);

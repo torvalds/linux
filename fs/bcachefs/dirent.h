@@ -35,7 +35,7 @@ static inline unsigned dirent_val_u64s(unsigned len)
 int bch2_dirent_read_target(struct btree_trans *, subvol_inum,
 			    struct bkey_s_c_dirent, subvol_inum *);
 
-int bch2_dirent_create_snapshot(struct btree_trans *, u64, u32,
+int bch2_dirent_create_snapshot(struct btree_trans *, u32, u64, u32,
 			const struct bch_hash_info *, u8,
 			const struct qstr *, u64, u64 *,
 			bch_str_hash_flags_t);
@@ -62,14 +62,14 @@ int bch2_dirent_rename(struct btree_trans *,
 		       const struct qstr *, subvol_inum *, u64 *,
 		       enum bch_rename_mode);
 
-int __bch2_dirent_lookup_trans(struct btree_trans *, struct btree_iter *,
+int bch2_dirent_lookup_trans(struct btree_trans *, struct btree_iter *,
 			       subvol_inum, const struct bch_hash_info *,
 			       const struct qstr *, subvol_inum *, unsigned);
 u64 bch2_dirent_lookup(struct bch_fs *, subvol_inum,
 		       const struct bch_hash_info *,
 		       const struct qstr *, subvol_inum *);
 
-int bch2_empty_dir_snapshot(struct btree_trans *, u64, u32);
+int bch2_empty_dir_snapshot(struct btree_trans *, u64, u32, u32);
 int bch2_empty_dir_trans(struct btree_trans *, subvol_inum);
 int bch2_readdir(struct bch_fs *, subvol_inum, struct dir_context *);
 

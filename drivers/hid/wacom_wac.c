@@ -2990,11 +2990,11 @@ void wacom_wac_report(struct hid_device *hdev, struct hid_report *report)
 
 	wacom_wac_battery_pre_report(hdev, report);
 
-	if (pad_in_hid_field && wacom->wacom_wac.pad_input)
+	if (pad_in_hid_field && wacom_wac->pad_input)
 		wacom_wac_pad_pre_report(hdev, report);
-	if (pen_in_hid_field && wacom->wacom_wac.pen_input)
+	if (pen_in_hid_field && wacom_wac->pen_input)
 		wacom_wac_pen_pre_report(hdev, report);
-	if (finger_in_hid_field && wacom->wacom_wac.touch_input)
+	if (finger_in_hid_field && wacom_wac->touch_input)
 		wacom_wac_finger_pre_report(hdev, report);
 
 	for (r = 0; r < report->maxfield; r++) {
@@ -3010,7 +3010,7 @@ void wacom_wac_report(struct hid_device *hdev, struct hid_report *report)
 
 	wacom_wac_battery_report(hdev, report);
 
-	if (true_pad && wacom->wacom_wac.pad_input)
+	if (true_pad && wacom_wac->pad_input)
 		wacom_wac_pad_report(hdev, report, field);
 }
 

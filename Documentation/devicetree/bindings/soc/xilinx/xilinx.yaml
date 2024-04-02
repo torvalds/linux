@@ -117,20 +117,70 @@ properties:
           - const: xlnx,zynqmp
 
       - description: Xilinx Kria SOMs
+        minItems: 3
         items:
-          - const: xlnx,zynqmp-sm-k26-rev1
-          - const: xlnx,zynqmp-sm-k26-revB
-          - const: xlnx,zynqmp-sm-k26-revA
-          - const: xlnx,zynqmp-sm-k26
-          - const: xlnx,zynqmp
+          enum:
+            - xlnx,zynqmp-sm-k26-rev2
+            - xlnx,zynqmp-sm-k26-rev1
+            - xlnx,zynqmp-sm-k26-revB
+            - xlnx,zynqmp-sm-k26-revA
+            - xlnx,zynqmp-sm-k26
+            - xlnx,zynqmp
+        allOf:
+          - contains:
+              const: xlnx,zynqmp
+          - contains:
+              const: xlnx,zynqmp-sm-k26
 
       - description: Xilinx Kria SOMs (starter)
+        minItems: 3
         items:
-          - const: xlnx,zynqmp-smk-k26-rev1
-          - const: xlnx,zynqmp-smk-k26-revB
-          - const: xlnx,zynqmp-smk-k26-revA
-          - const: xlnx,zynqmp-smk-k26
-          - const: xlnx,zynqmp
+          enum:
+            - xlnx,zynqmp-smk-k26-rev2
+            - xlnx,zynqmp-smk-k26-rev1
+            - xlnx,zynqmp-smk-k26-revB
+            - xlnx,zynqmp-smk-k26-revA
+            - xlnx,zynqmp-smk-k26
+            - xlnx,zynqmp
+        allOf:
+          - contains:
+              const: xlnx,zynqmp
+          - contains:
+              const: xlnx,zynqmp-smk-k26
+
+      - description: Xilinx Kria SOM KV260 revA/Y/Z
+        minItems: 3
+        items:
+          enum:
+            - xlnx,zynqmp-sk-kv260-revA
+            - xlnx,zynqmp-sk-kv260-revY
+            - xlnx,zynqmp-sk-kv260-revZ
+            - xlnx,zynqmp-sk-kv260
+            - xlnx,zynqmp
+        allOf:
+          - contains:
+              const: xlnx,zynqmp-sk-kv260-revA
+          - contains:
+              const: xlnx,zynqmp-sk-kv260
+          - contains:
+              const: xlnx,zynqmp
+
+      - description: Xilinx Kria SOM KV260 rev2/1/B
+        minItems: 3
+        items:
+          enum:
+            - xlnx,zynqmp-sk-kv260-rev2
+            - xlnx,zynqmp-sk-kv260-rev1
+            - xlnx,zynqmp-sk-kv260-revB
+            - xlnx,zynqmp-sk-kv260
+            - xlnx,zynqmp
+        allOf:
+          - contains:
+              const: xlnx,zynqmp-sk-kv260-revB
+          - contains:
+              const: xlnx,zynqmp-sk-kv260
+          - contains:
+              const: xlnx,zynqmp
 
       - description: AMD MicroBlaze V (QEMU)
         items:

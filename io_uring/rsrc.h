@@ -2,8 +2,6 @@
 #ifndef IOU_RSRC_H
 #define IOU_RSRC_H
 
-#include <net/af_unix.h>
-
 #include "alloc_cache.h"
 
 #define IO_NODE_ALLOC_CACHE_MAX 32

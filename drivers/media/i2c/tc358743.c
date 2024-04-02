@@ -1895,7 +1895,7 @@ static int tc358743_probe_of(struct tc358743_state *state)
 		return dev_err_probe(dev, PTR_ERR(refclk),
 				     "failed to get refclk\n");
 
-	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
+	ep = of_graph_get_endpoint_by_regs(dev->of_node, 0, -1);
 	if (!ep) {
 		dev_err(dev, "missing endpoint node\n");
 		return -EINVAL;
