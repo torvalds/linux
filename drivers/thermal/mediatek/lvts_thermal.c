@@ -107,9 +107,22 @@ struct lvts_ctrl_data {
 	struct lvts_sensor_data lvts_sensor[LVTS_SENSOR_MAX];
 	int cal_offset[LVTS_SENSOR_MAX];
 	int num_lvts_sensor;
+	u8 valid_sensor_mask;
 	int offset;
 	int mode;
 };
+
+#define VALID_SENSOR_MAP(s0, s1, s2, s3) \
+	.valid_sensor_mask = (((s0) ? BIT(0) : 0) | \
+			      ((s1) ? BIT(1) : 0) | \
+			      ((s2) ? BIT(2) : 0) | \
+			      ((s3) ? BIT(3) : 0))
+
+#define lvts_for_each_valid_sensor(i, lvts_ctrl_data) \
+	for ((i) = 0; (i) < LVTS_SENSOR_MAX; (i)++) \
+		if (!((lvts_ctrl_data)->valid_sensor_mask & BIT(i))) \
+			continue; \
+		else
 
 struct lvts_data {
 	const struct lvts_ctrl_data *lvts_ctrl;
@@ -134,7 +147,6 @@ struct lvts_ctrl {
 	const struct lvts_data *lvts_data;
 	u32 calibration[LVTS_SENSOR_MAX];
 	u32 hw_tshut_raw_temp;
-	int num_lvts_sensor;
 	int mode;
 	void __iomem *base;
 	int low_thresh;
@@ -346,7 +358,7 @@ static bool lvts_should_update_thresh(struct lvts_ctrl *lvts_ctrl, int high)
 	if (high > lvts_ctrl->high_thresh)
 		return true;
 
-	for (i = 0; i < lvts_ctrl->num_lvts_sensor; i++)
+	lvts_for_each_valid_sensor(i, lvts_ctrl->lvts_data->lvts_ctrl)
 		if (lvts_ctrl->sensors[i].high_thresh == lvts_ctrl->high_thresh
 		    && lvts_ctrl->sensors[i].low_thresh == lvts_ctrl->low_thresh)
 			return false;
@@ -550,6 +562,7 @@ static int lvts_sensor_init(struct device *dev, struct lvts_ctrl *lvts_ctrl,
 					const struct lvts_ctrl_data *lvts_ctrl_data)
 {
 	struct lvts_sensor *lvts_sensor = lvts_ctrl->sensors;
+
 	void __iomem *msr_regs[] = {
 		LVTS_MSR0(lvts_ctrl->base),
 		LVTS_MSR1(lvts_ctrl->base),
@@ -566,7 +579,7 @@ static int lvts_sensor_init(struct device *dev, struct lvts_ctrl *lvts_ctrl,
 
 	int i;
 
-	for (i = 0; i < lvts_ctrl_data->num_lvts_sensor; i++) {
+	lvts_for_each_valid_sensor(i, lvts_ctrl_data) {
 
 		int dt_id = lvts_ctrl_data->lvts_sensor[i].dt_id;
 
@@ -605,8 +618,6 @@ static int lvts_sensor_init(struct device *dev, struct lvts_ctrl *lvts_ctrl,
 		lvts_sensor[i].low_thresh = INT_MIN;
 		lvts_sensor[i].high_thresh = INT_MIN;
 	};
-
-	lvts_ctrl->num_lvts_sensor = lvts_ctrl_data->num_lvts_sensor;
 
 	return 0;
 }
@@ -678,7 +689,7 @@ static int lvts_calibration_init(struct device *dev, struct lvts_ctrl *lvts_ctrl
 {
 	int i;
 
-	for (i = 0; i < lvts_ctrl_data->num_lvts_sensor; i++) {
+	lvts_for_each_valid_sensor(i, lvts_ctrl_data) {
 		const struct lvts_sensor_data *sensor =
 					&lvts_ctrl_data->lvts_sensor[i];
 
@@ -1103,7 +1114,7 @@ static int lvts_ctrl_start(struct device *dev, struct lvts_ctrl *lvts_ctrl)
 	u32 *sensor_bitmap = lvts_ctrl->mode == LVTS_MSR_IMMEDIATE_MODE ?
 			     sensor_imm_bitmap : sensor_filt_bitmap;
 
-	for (i = 0; i < lvts_ctrl->num_lvts_sensor; i++) {
+	lvts_for_each_valid_sensor(i, lvts_ctrl->lvts_data->lvts_ctrl) {
 
 		int dt_id = lvts_sensors[i].dt_id;
 
@@ -1326,7 +1337,7 @@ static const struct lvts_ctrl_data mt7988_lvts_ap_data_ctrl[] = {
 			{ .dt_id = MT7988_ETH2P5G_1,
 			  .cal_offsets = { 0x0c, 0x0d, 0x0e } }
 		},
-		.num_lvts_sensor = 4,
+		VALID_SENSOR_MAP(1, 1, 1, 1),
 		.offset = 0x0,
 	},
 	{
@@ -1340,7 +1351,7 @@ static const struct lvts_ctrl_data mt7988_lvts_ap_data_ctrl[] = {
 			{ .dt_id = MT7988_ETHWARP_1,
 			   .cal_offsets = { 0x20, 0x21, 0x22 } }
 		},
-		.num_lvts_sensor = 4,
+		VALID_SENSOR_MAP(1, 1, 1, 1),
 		.offset = 0x100,
 	}
 };
@@ -1403,7 +1414,7 @@ static const struct lvts_ctrl_data mt8186_lvts_data_ctrl[] = {
 			{ .dt_id = MT8186_CAM,
 			  .cal_offsets = { 12, 13, 14 } }
 		},
-		.num_lvts_sensor = 4,
+		VALID_SENSOR_MAP(1, 1, 1, 1),
 		.offset = 0x0,
 	},
 	{
@@ -1413,7 +1424,7 @@ static const struct lvts_ctrl_data mt8186_lvts_data_ctrl[] = {
 			{ .dt_id = MT8186_BIG_CPU1,
 			  .cal_offsets = { 27, 20, 21 } }
 		},
-		.num_lvts_sensor = 2,
+		VALID_SENSOR_MAP(1, 1, 0, 0),
 		.offset = 0x100,
 	},
 	{
@@ -1425,7 +1436,7 @@ static const struct lvts_ctrl_data mt8186_lvts_data_ctrl[] = {
 			{ .dt_id = MT8186_MFG,
 			  .cal_offsets = { 39, 32, 33 } }
 		},
-		.num_lvts_sensor = 3,
+		VALID_SENSOR_MAP(1, 1, 1, 0),
 		.offset = 0x200,
 	}
 };
@@ -1438,7 +1449,7 @@ static const struct lvts_ctrl_data mt8192_lvts_mcu_data_ctrl[] = {
 			{ .dt_id = MT8192_MCU_BIG_CPU1,
 			  .cal_offsets = { 0x08, 0x09, 0x0a } }
 		},
-		.num_lvts_sensor = 2,
+		VALID_SENSOR_MAP(1, 1, 0, 0),
 		.offset = 0x0,
 		.mode = LVTS_MSR_FILTERED_MODE,
 	},
@@ -1449,7 +1460,7 @@ static const struct lvts_ctrl_data mt8192_lvts_mcu_data_ctrl[] = {
 			{ .dt_id = MT8192_MCU_BIG_CPU3,
 			  .cal_offsets = { 0x10, 0x11, 0x12 } }
 		},
-		.num_lvts_sensor = 2,
+		VALID_SENSOR_MAP(1, 1, 0, 0),
 		.offset = 0x100,
 		.mode = LVTS_MSR_FILTERED_MODE,
 	},
@@ -1464,7 +1475,7 @@ static const struct lvts_ctrl_data mt8192_lvts_mcu_data_ctrl[] = {
 			{ .dt_id = MT8192_MCU_LITTLE_CPU3,
 			  .cal_offsets = { 0x20, 0x21, 0x22 } }
 		},
-		.num_lvts_sensor = 4,
+		VALID_SENSOR_MAP(1, 1, 1, 1),
 		.offset = 0x200,
 		.mode = LVTS_MSR_FILTERED_MODE,
 	}
@@ -1478,7 +1489,7 @@ static const struct lvts_ctrl_data mt8192_lvts_ap_data_ctrl[] = {
 			{ .dt_id = MT8192_AP_VPU1,
 			  .cal_offsets = { 0x28, 0x29, 0x2a } }
 		},
-		.num_lvts_sensor = 2,
+		VALID_SENSOR_MAP(1, 1, 0, 0),
 		.offset = 0x0,
 	},
 	{
@@ -1488,7 +1499,7 @@ static const struct lvts_ctrl_data mt8192_lvts_ap_data_ctrl[] = {
 			{ .dt_id = MT8192_AP_GPU1,
 			  .cal_offsets = { 0x30, 0x31, 0x32 } }
 		},
-		.num_lvts_sensor = 2,
+		VALID_SENSOR_MAP(1, 1, 0, 0),
 		.offset = 0x100,
 	},
 	{
@@ -1498,7 +1509,7 @@ static const struct lvts_ctrl_data mt8192_lvts_ap_data_ctrl[] = {
 			{ .dt_id = MT8192_AP_CAM,
 			  .cal_offsets = { 0x38, 0x39, 0x3a } },
 		},
-		.num_lvts_sensor = 2,
+		VALID_SENSOR_MAP(1, 1, 0, 0),
 		.offset = 0x200,
 	},
 	{
@@ -1510,7 +1521,7 @@ static const struct lvts_ctrl_data mt8192_lvts_ap_data_ctrl[] = {
 			{ .dt_id = MT8192_AP_MD2,
 			  .cal_offsets = { 0x44, 0x45, 0x46 } }
 		},
-		.num_lvts_sensor = 3,
+		VALID_SENSOR_MAP(1, 1, 1, 0),
 		.offset = 0x300,
 	}
 };
@@ -1523,7 +1534,7 @@ static const struct lvts_ctrl_data mt8195_lvts_mcu_data_ctrl[] = {
 			{ .dt_id = MT8195_MCU_BIG_CPU1,
 			  .cal_offsets = { 0x07, 0x08, 0x09 } }
 		},
-		.num_lvts_sensor = 2,
+		VALID_SENSOR_MAP(1, 1, 0, 0),
 		.offset = 0x0,
 	},
 	{
@@ -1533,7 +1544,7 @@ static const struct lvts_ctrl_data mt8195_lvts_mcu_data_ctrl[] = {
 			{ .dt_id = MT8195_MCU_BIG_CPU3,
 			  .cal_offsets = { 0x10, 0x11, 0x12 } }
 		},
-		.num_lvts_sensor = 2,
+		VALID_SENSOR_MAP(1, 1, 0, 0),
 		.offset = 0x100,
 	},
 	{
@@ -1547,7 +1558,7 @@ static const struct lvts_ctrl_data mt8195_lvts_mcu_data_ctrl[] = {
 			{ .dt_id = MT8195_MCU_LITTLE_CPU3,
 			  .cal_offsets = { 0x1f, 0x20, 0x21 } }
 		},
-		.num_lvts_sensor = 4,
+		VALID_SENSOR_MAP(1, 1, 1, 1),
 		.offset = 0x200,
 	}
 };
@@ -1560,7 +1571,7 @@ static const struct lvts_ctrl_data mt8195_lvts_ap_data_ctrl[] = {
 			{ .dt_id = MT8195_AP_VPU1,
 			  .cal_offsets = { 0x28, 0x29, 0x2a } }
 		},
-		.num_lvts_sensor = 2,
+		VALID_SENSOR_MAP(1, 1, 0, 0),
 		.offset = 0x0,
 	},
 	{
@@ -1570,7 +1581,7 @@ static const struct lvts_ctrl_data mt8195_lvts_ap_data_ctrl[] = {
 			{ .dt_id = MT8195_AP_GPU1,
 			  .cal_offsets = { 0x31, 0x32, 0x33 } }
 		},
-		.num_lvts_sensor = 2,
+		VALID_SENSOR_MAP(1, 1, 0, 0),
 		.offset = 0x100,
 	},
 	{
@@ -1582,7 +1593,7 @@ static const struct lvts_ctrl_data mt8195_lvts_ap_data_ctrl[] = {
 			{ .dt_id = MT8195_AP_INFRA,
 			  .cal_offsets = { 0x3d, 0x3e, 0x3f } }
 		},
-		.num_lvts_sensor = 3,
+		VALID_SENSOR_MAP(1, 1, 1, 0),
 		.offset = 0x200,
 	},
 	{
@@ -1592,7 +1603,7 @@ static const struct lvts_ctrl_data mt8195_lvts_ap_data_ctrl[] = {
 			{ .dt_id = MT8195_AP_CAM1,
 			  .cal_offsets = { 0x46, 0x47, 0x48 } }
 		},
-		.num_lvts_sensor = 2,
+		VALID_SENSOR_MAP(1, 1, 0, 0),
 		.offset = 0x300,
 	}
 };
