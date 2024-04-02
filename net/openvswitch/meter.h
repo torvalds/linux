@@ -11,7 +11,6 @@
 #include <linux/kernel.h>
 #include <linux/netlink.h>
 #include <linux/openvswitch.h>
-#include <linux/genetlink.h>
 #include <linux/skbuff.h>
 #include <linux/bits.h>
 
