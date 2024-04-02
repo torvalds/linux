@@ -123,6 +123,7 @@ struct mlxsw_pci {
 	struct mlxsw_bus_info bus_info;
 	const struct pci_device_id *id;
 	enum mlxsw_pci_cqe_v max_cqe_ver; /* Maximal supported CQE version */
+	u8 num_cqs; /* Number of CQs */
 	u8 num_sdqs; /* Number of SDQs */
 	bool skip_reset;
 };
@@ -177,20 +178,6 @@ mlxsw_pci_queue_type_group_get(struct mlxsw_pci *mlxsw_pci,
 			       enum mlxsw_pci_queue_type q_type)
 {
 	return &mlxsw_pci->queues[q_type];
-}
-
-static u8 __mlxsw_pci_queue_count(struct mlxsw_pci *mlxsw_pci,
-				  enum mlxsw_pci_queue_type q_type)
-{
-	struct mlxsw_pci_queue_type_group *queue_group;
-
-	queue_group = mlxsw_pci_queue_type_group_get(mlxsw_pci, q_type);
-	return queue_group->count;
-}
-
-static u8 mlxsw_pci_cq_count(struct mlxsw_pci *mlxsw_pci)
-{
-	return __mlxsw_pci_queue_count(mlxsw_pci, MLXSW_PCI_QUEUE_TYPE_CQ);
 }
 
 static struct mlxsw_pci_queue *
@@ -850,7 +837,7 @@ static void mlxsw_pci_eq_tasklet(struct tasklet_struct *t)
 	mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
 	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
 
-	cq_count = mlxsw_pci_cq_count(mlxsw_pci);
+	cq_count = mlxsw_pci->num_cqs;
 	for_each_set_bit(cqn, active_cqns, cq_count) {
 		q = mlxsw_pci_cq_get(mlxsw_pci, cqn);
 		mlxsw_pci_queue_tasklet_schedule(q);
@@ -1107,6 +1094,7 @@ static int mlxsw_pci_aqs_init(struct mlxsw_pci *mlxsw_pci, char *mbox)
 		return -EINVAL;
 	}
 
+	mlxsw_pci->num_cqs = num_cqs;
 	mlxsw_pci->num_sdqs = num_sdqs;
 
 	err = mlxsw_pci_queue_group_init(mlxsw_pci, mbox, &mlxsw_pci_eq_ops,
