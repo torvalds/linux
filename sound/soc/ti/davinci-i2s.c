@@ -134,6 +134,7 @@ struct davinci_mcbsp_dev {
 	int				mode;
 	u32				pcr;
 	struct clk			*clk;
+	struct clk			*ext_clk;
 	/*
 	 * Combining both channels into 1 element will at least double the
 	 * amount of time between servicing the dma channel, increase
@@ -364,7 +365,8 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct davinci_mcbsp_dev *dev = snd_soc_dai_get_drvdata(dai);
 	struct snd_interval *i = NULL;
 	int mcbsp_word_length, master;
-	unsigned int rcr, xcr, srgr, clk_div, freq, framesize;
+	unsigned int rcr, xcr, clk_div, freq, framesize;
+	unsigned int srgr = 0;
 	u32 spcr;
 	snd_pcm_format_t fmt;
 	unsigned element_cnt = 1;
@@ -385,9 +387,13 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	switch (master) {
 	case SND_SOC_DAIFMT_BP_FP:
-		freq = clk_get_rate(dev->clk);
-		srgr = DAVINCI_MCBSP_SRGR_FSGM |
-		       DAVINCI_MCBSP_SRGR_CLKSM;
+		if (dev->ext_clk) {
+			freq = clk_get_rate(dev->ext_clk);
+		} else {
+			freq = clk_get_rate(dev->clk);
+			srgr = DAVINCI_MCBSP_SRGR_CLKSM;
+		}
+		srgr |= DAVINCI_MCBSP_SRGR_FSGM;
 		srgr |= DAVINCI_MCBSP_SRGR_FWID(mcbsp_word_length *
 						8 - 1);
 		if (dev->i2s_accurate_sck) {
@@ -691,12 +697,36 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	dev->clk = clk_get(&pdev->dev, NULL);
+	/*
+	 * The optional is there for backward compatibility.
+	 * If 'fck' is not present, the clk_get(dev, NULL) that follows may find something
+	 */
+	dev->clk = devm_clk_get_optional(&pdev->dev, "fck");
 	if (IS_ERR(dev->clk))
-		return -ENODEV;
-	ret = clk_enable(dev->clk);
+		return dev_err_probe(&pdev->dev, PTR_ERR(dev->clk), "Invalid functional clock\n");
+	if (!dev->clk) {
+		dev->clk = devm_clk_get(&pdev->dev, NULL);
+		if (IS_ERR(dev->clk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(dev->clk),
+					     "Missing functional clock\n");
+	}
+
+	dev->ext_clk = devm_clk_get_optional(&pdev->dev, "clks");
+	if (IS_ERR(dev->ext_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(dev->ext_clk), "Invalid external clock\n");
+
+	ret = clk_prepare_enable(dev->clk);
 	if (ret)
-		goto err_put_clk;
+		return ret;
+
+	if (dev->ext_clk) {
+		dev_dbg(&pdev->dev, "External clock used for sample rate generator\n");
+		ret = clk_prepare_enable(dev->ext_clk);
+		if (ret) {
+			dev_err_probe(&pdev->dev, ret, "Failed to enable external clock\n");
+			goto err_disable_clk;
+		}
+	}
 
 	dev->dev = &pdev->dev;
 	dev_set_drvdata(&pdev->dev, dev);
@@ -704,7 +734,7 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 	ret = snd_soc_register_component(&pdev->dev, &davinci_i2s_component,
 					 &davinci_i2s_dai, 1);
 	if (ret != 0)
-		goto err_release_clk;
+		goto err_disable_ext_clk;
 
 	ret = edma_pcm_platform_register(&pdev->dev);
 	if (ret) {
@@ -716,10 +746,12 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 
 err_unregister_component:
 	snd_soc_unregister_component(&pdev->dev);
-err_release_clk:
-	clk_disable(dev->clk);
-err_put_clk:
-	clk_put(dev->clk);
+err_disable_ext_clk:
+	if (dev->ext_clk)
+		clk_disable_unprepare(dev->ext_clk);
+err_disable_clk:
+	clk_disable_unprepare(dev->clk);
+
 	return ret;
 }
 
@@ -729,9 +761,10 @@ static void davinci_i2s_remove(struct platform_device *pdev)
 
 	snd_soc_unregister_component(&pdev->dev);
 
-	clk_disable(dev->clk);
-	clk_put(dev->clk);
-	dev->clk = NULL;
+	clk_disable_unprepare(dev->clk);
+
+	if (dev->ext_clk)
+		clk_disable_unprepare(dev->ext_clk);
 }
 
 static const struct of_device_id davinci_i2s_match[] __maybe_unused = {
