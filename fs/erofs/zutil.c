@@ -60,63 +60,58 @@ void z_erofs_put_gbuf(void *ptr) __releases(gbuf->lock)
 int z_erofs_gbuf_growsize(unsigned int nrpages)
 {
 	static DEFINE_MUTEX(gbuf_resize_mutex);
-	struct page *pagepool = NULL;
-	int delta, ret, i, j;
+	struct page **tmp_pages = NULL;
+	struct z_erofs_gbuf *gbuf;
+	void *ptr, *old_ptr;
+	int last, i, j;
 
 	mutex_lock(&gbuf_resize_mutex);
-	delta = nrpages - z_erofs_gbuf_nrpages;
-	ret = 0;
 	/* avoid shrinking gbufs, since no idea how many fses rely on */
-	if (delta <= 0)
-		goto out;
+	if (nrpages <= z_erofs_gbuf_nrpages) {
+		mutex_unlock(&gbuf_resize_mutex);
+		return 0;
+	}
 
 	for (i = 0; i < z_erofs_gbuf_count; ++i) {
-		struct z_erofs_gbuf *gbuf = &z_erofs_gbufpool[i];
-		struct page **pages, **tmp_pages;
-		void *ptr, *old_ptr = NULL;
-
-		ret = -ENOMEM;
+		gbuf = &z_erofs_gbufpool[i];
 		tmp_pages = kcalloc(nrpages, sizeof(*tmp_pages), GFP_KERNEL);
 		if (!tmp_pages)
-			break;
-		for (j = 0; j < nrpages; ++j) {
-			tmp_pages[j] = erofs_allocpage(&pagepool, GFP_KERNEL);
-			if (!tmp_pages[j])
-				goto free_pagearray;
-		}
+			goto out;
+
+		for (j = 0; j < gbuf->nrpages; ++j)
+			tmp_pages[j] = gbuf->pages[j];
+		do {
+			last = j;
+			j = alloc_pages_bulk_array(GFP_KERNEL, nrpages,
+						   tmp_pages);
+			if (last == j)
+				goto out;
+		} while (j != nrpages);
+
 		ptr = vmap(tmp_pages, nrpages, VM_MAP, PAGE_KERNEL);
 		if (!ptr)
-			goto free_pagearray;
+			goto out;
 
-		pages = tmp_pages;
 		spin_lock(&gbuf->lock);
+		kfree(gbuf->pages);
+		gbuf->pages = tmp_pages;
 		old_ptr = gbuf->ptr;
 		gbuf->ptr = ptr;
-		tmp_pages = gbuf->pages;
-		gbuf->pages = pages;
-		j = gbuf->nrpages;
 		gbuf->nrpages = nrpages;
 		spin_unlock(&gbuf->lock);
-		ret = 0;
-		if (!tmp_pages) {
-			DBG_BUGON(old_ptr);
-			continue;
-		}
-
 		if (old_ptr)
 			vunmap(old_ptr);
-free_pagearray:
-		while (j)
-			erofs_pagepool_add(&pagepool, tmp_pages[--j]);
-		kfree(tmp_pages);
-		if (ret)
-			break;
 	}
 	z_erofs_gbuf_nrpages = nrpages;
-	erofs_release_pages(&pagepool);
 out:
+	if (i < z_erofs_gbuf_count && tmp_pages) {
+		for (j = 0; j < nrpages; ++j)
+			if (tmp_pages[j] && tmp_pages[j] != gbuf->pages[j])
+				__free_page(tmp_pages[j]);
+		kfree(tmp_pages);
+	}
 	mutex_unlock(&gbuf_resize_mutex);
-	return ret;
+	return i < z_erofs_gbuf_count ? -ENOMEM : 0;
 }
 
 int __init z_erofs_gbuf_init(void)
