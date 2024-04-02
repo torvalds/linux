@@ -672,13 +672,19 @@ static int lvts_sensor_init(struct device *dev, struct lvts_ctrl *lvts_ctrl,
  */
 static int lvts_calibration_init(struct device *dev, struct lvts_ctrl *lvts_ctrl,
 					const struct lvts_ctrl_data *lvts_ctrl_data,
-					u8 *efuse_calibration)
+					u8 *efuse_calibration,
+					size_t calib_len)
 {
 	int i;
 
 	for (i = 0; i < lvts_ctrl_data->num_lvts_sensor; i++) {
 		const struct lvts_sensor_data *sensor =
 					&lvts_ctrl_data->lvts_sensor[i];
+
+		if (sensor->cal_offsets[0] >= calib_len ||
+		    sensor->cal_offsets[1] >= calib_len ||
+		    sensor->cal_offsets[2] >= calib_len)
+			return -EINVAL;
 
 		lvts_ctrl->calibration[i] =
 			(efuse_calibration[sensor->cal_offsets[0]] << 0) +
@@ -791,7 +797,8 @@ static int lvts_ctrl_init(struct device *dev, struct lvts_domain *lvts_td,
 
 		ret = lvts_calibration_init(dev, &lvts_ctrl[i],
 					    &lvts_data->lvts_ctrl[i],
-					    lvts_td->calib);
+					    lvts_td->calib,
+					    lvts_td->calib_len);
 		if (ret)
 			return ret;
 
