@@ -1279,20 +1279,19 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 	struct extent_buffer *leaf = path->nodes[0];
 	const int slot = path->slots[0];
 	struct btrfs_key key;
-	u64 extent_start, extent_end;
+	u64 extent_start;
 	u64 bytenr;
 	u8 type = btrfs_file_extent_type(leaf, fi);
 	int compress_type = btrfs_file_extent_compression(leaf, fi);
 
 	btrfs_item_key_to_cpu(leaf, &key, slot);
 	extent_start = key.offset;
-	extent_end = btrfs_file_extent_end(path);
 	em->ram_bytes = btrfs_file_extent_ram_bytes(leaf, fi);
 	em->generation = btrfs_file_extent_generation(leaf, fi);
 	if (type == BTRFS_FILE_EXTENT_REG ||
 	    type == BTRFS_FILE_EXTENT_PREALLOC) {
 		em->start = extent_start;
-		em->len = extent_end - extent_start;
+		em->len = btrfs_file_extent_end(path) - extent_start;
 		em->orig_start = extent_start -
 			btrfs_file_extent_offset(leaf, fi);
 		em->orig_block_len = btrfs_file_extent_disk_num_bytes(leaf, fi);
@@ -1313,9 +1312,12 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 				em->flags |= EXTENT_FLAG_PREALLOC;
 		}
 	} else if (type == BTRFS_FILE_EXTENT_INLINE) {
+		/* Tree-checker has ensured this. */
+		ASSERT(extent_start == 0);
+
 		em->block_start = EXTENT_MAP_INLINE;
-		em->start = extent_start;
-		em->len = extent_end - extent_start;
+		em->start = 0;
+		em->len = fs_info->sectorsize;
 		/*
 		 * Initialize orig_start and block_len with the same values
 		 * as in inode.c:btrfs_get_extent().
@@ -1348,12 +1350,10 @@ u64 btrfs_file_extent_end(const struct btrfs_path *path)
 	ASSERT(key.type == BTRFS_EXTENT_DATA_KEY);
 	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
 
-	if (btrfs_file_extent_type(leaf, fi) == BTRFS_FILE_EXTENT_INLINE) {
-		end = btrfs_file_extent_ram_bytes(leaf, fi);
-		end = ALIGN(key.offset + end, leaf->fs_info->sectorsize);
-	} else {
+	if (btrfs_file_extent_type(leaf, fi) == BTRFS_FILE_EXTENT_INLINE)
+		end = leaf->fs_info->sectorsize;
+	else
 		end = key.offset + btrfs_file_extent_num_bytes(leaf, fi);
-	}
 
 	return end;
 }
