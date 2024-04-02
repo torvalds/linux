@@ -1059,7 +1059,7 @@ static int mlxsw_pci_aqs_init(struct mlxsw_pci *mlxsw_pci, char *mbox)
 
 	if (num_sdqs + num_rdqs > num_cqs ||
 	    num_sdqs < MLXSW_PCI_SDQS_MIN ||
-	    num_cqs > MLXSW_PCI_CQS_MAX || num_eqs != MLXSW_PCI_EQS_COUNT) {
+	    num_cqs > MLXSW_PCI_CQS_MAX || num_eqs != MLXSW_PCI_EQS_MAX) {
 		dev_err(&pdev->dev, "Unsupported number of queues\n");
 		return -EINVAL;
 	}
@@ -1416,7 +1416,7 @@ static irqreturn_t mlxsw_pci_eq_irq_handler(int irq, void *dev_id)
 	struct mlxsw_pci_queue *q;
 	int i;
 
-	for (i = 0; i < MLXSW_PCI_EQS_COUNT; i++) {
+	for (i = 0; i < MLXSW_PCI_EQS_MAX; i++) {
 		q = mlxsw_pci_eq_get(mlxsw_pci, i);
 		mlxsw_pci_queue_tasklet_schedule(q);
 	}
