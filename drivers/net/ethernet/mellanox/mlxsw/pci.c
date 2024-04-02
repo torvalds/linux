@@ -783,15 +783,14 @@ static char *mlxsw_pci_eq_sw_eqe_get(struct mlxsw_pci_queue *q)
 
 static void mlxsw_pci_eq_tasklet(struct tasklet_struct *t)
 {
+	unsigned long active_cqns[BITS_TO_LONGS(MLXSW_PCI_CQS_MAX)];
 	struct mlxsw_pci_queue *q = from_tasklet(q, t, tasklet);
 	struct mlxsw_pci *mlxsw_pci = q->pci;
-	u8 cq_count = mlxsw_pci_cq_count(mlxsw_pci);
-	unsigned long active_cqns[BITS_TO_LONGS(MLXSW_PCI_CQS_MAX)];
-	char *eqe;
-	u8 cqn;
-	bool cq_handle = false;
-	int items = 0;
 	int credits = q->count >> 1;
+	bool cq_handle = false;
+	u8 cqn, cq_count;
+	int items = 0;
+	char *eqe;
 
 	memset(&active_cqns, 0, sizeof(active_cqns));
 
@@ -816,13 +815,17 @@ static void mlxsw_pci_eq_tasklet(struct tasklet_struct *t)
 		if (++items == credits)
 			break;
 	}
-	if (items) {
-		mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
-		mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
-	}
+
+	if (!items)
+		return;
+
+	mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
+	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
 
 	if (!cq_handle)
 		return;
+
+	cq_count = mlxsw_pci_cq_count(mlxsw_pci);
 	for_each_set_bit(cqn, active_cqns, cq_count) {
 		q = mlxsw_pci_cq_get(mlxsw_pci, cqn);
 		mlxsw_pci_queue_tasklet_schedule(q);
