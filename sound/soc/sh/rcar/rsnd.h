@@ -20,20 +20,11 @@
 #include <sound/soc.h>
 #include <sound/pcm_params.h>
 
-#define RSND_GEN1_SRU	0
-#define RSND_GEN1_ADG	1
-#define RSND_GEN1_SSI	2
-
-#define RSND_GEN2_SCU	0
-#define RSND_GEN2_ADG	1
-#define RSND_GEN2_SSIU	2
-#define RSND_GEN2_SSI	3
-
-#define RSND_GEN4_ADG	0
-#define RSND_GEN4_SSIU	1
-#define RSND_GEN4_SSI	2
-#define RSND_GEN4_SDMC	3
-
+#define RSND_BASE_ADG	0
+#define RSND_BASE_SSI	1
+#define RSND_BASE_SSIU	2
+#define RSND_BASE_SCU	3	// for Gen2/Gen3
+#define RSND_BASE_SDMC	3	// for Gen4	reuse
 #define RSND_BASE_MAX	4
 
 /*

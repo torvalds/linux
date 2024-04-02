@@ -259,7 +259,7 @@ static void rsnd_mix_debug_info(struct seq_file *m,
 				struct rsnd_dai_stream *io,
 				struct rsnd_mod *mod)
 {
-	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SCU,
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_BASE_SCU,
 				  0xd00 + rsnd_mod_id(mod) * 0x40, 0x30);
 }
 #define DEBUG_INFO .debug_info = rsnd_mix_debug_info

@@ -284,7 +284,7 @@ static void rsnd_ctu_debug_info(struct seq_file *m,
 				struct rsnd_dai_stream *io,
 				struct rsnd_mod *mod)
 {
-	rsnd_debugfs_mod_reg_show(m, mod, RSND_GEN2_SCU,
+	rsnd_debugfs_mod_reg_show(m, mod, RSND_BASE_SCU,
 				  0x500 + rsnd_mod_id_raw(mod) * 0x100, 0x100);
 }
 #define DEBUG_INFO .debug_info = rsnd_ctu_debug_info

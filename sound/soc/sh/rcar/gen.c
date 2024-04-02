@@ -178,8 +178,6 @@ static int _rsnd_gen_regmap_init(struct rsnd_priv *priv,
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
 	if (!res)
-		res = platform_get_resource(pdev, IORESOURCE_MEM, reg_id);
-	if (!res)
 		return -ENODEV;
 
 	base = devm_ioremap_resource(dev, res);
@@ -425,10 +423,10 @@ static int rsnd_gen4_probe(struct rsnd_priv *priv)
 	 * ssiu: SSIU0
 	 * ssi : SSI0
 	 */
-	int ret_ssiu = rsnd_gen_regmap_init(priv, 1, RSND_GEN4_SSIU, "ssiu", conf_common_ssiu);
-	int ret_ssi  = rsnd_gen_regmap_init(priv, 1, RSND_GEN4_SSI,  "ssi",  conf_common_ssi);
-	int ret_adg  = rsnd_gen_regmap_init(priv, 1, RSND_GEN4_ADG,  "adg",  conf_common_adg);
-	int ret_sdmc = rsnd_gen_regmap_init(priv, 1, RSND_GEN4_SDMC, "sdmc", conf_null);
+	int ret_ssiu = rsnd_gen_regmap_init(priv, 1, RSND_BASE_SSIU, "ssiu", conf_common_ssiu);
+	int ret_ssi  = rsnd_gen_regmap_init(priv, 1, RSND_BASE_SSI,  "ssi",  conf_common_ssi);
+	int ret_adg  = rsnd_gen_regmap_init(priv, 1, RSND_BASE_ADG,  "adg",  conf_common_adg);
+	int ret_sdmc = rsnd_gen_regmap_init(priv, 1, RSND_BASE_SDMC, "sdmc", conf_null);
 
 	return ret_adg | ret_ssiu | ret_ssi | ret_sdmc;
 }
@@ -443,10 +441,10 @@ static int rsnd_gen2_probe(struct rsnd_priv *priv)
 	 * ssiu: SSIU0 - SSIU9
 	 * scu : SRC0  - SRC9 etc
 	 */
-	int ret_ssi  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SSI,  "ssi",  conf_common_ssi);
-	int ret_ssiu = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SSIU, "ssiu", conf_common_ssiu);
-	int ret_scu  = rsnd_gen_regmap_init(priv, 10, RSND_GEN2_SCU,  "scu",  conf_common_scu);
-	int ret_adg  = rsnd_gen_regmap_init(priv,  1, RSND_GEN2_ADG,  "adg",  conf_common_adg);
+	int ret_ssi  = rsnd_gen_regmap_init(priv, 10, RSND_BASE_SSI,  "ssi",  conf_common_ssi);
+	int ret_ssiu = rsnd_gen_regmap_init(priv, 10, RSND_BASE_SSIU, "ssiu", conf_common_ssiu);
+	int ret_scu  = rsnd_gen_regmap_init(priv, 10, RSND_BASE_SCU,  "scu",  conf_common_scu);
+	int ret_adg  = rsnd_gen_regmap_init(priv,  1, RSND_BASE_ADG,  "adg",  conf_common_adg);
 
 	return ret_ssi | ret_ssiu | ret_scu | ret_adg;
 }
@@ -460,8 +458,8 @@ static int rsnd_gen1_probe(struct rsnd_priv *priv)
 	/*
 	 * ssi : SSI0 - SSI8
 	 */
-	int ret_ssi  = rsnd_gen_regmap_init(priv, 9, RSND_GEN1_SSI, "ssi", conf_common_ssi);
-	int ret_adg  = rsnd_gen_regmap_init(priv, 1, RSND_GEN1_ADG, "adg", conf_common_adg);
+	int ret_ssi  = rsnd_gen_regmap_init(priv, 9, RSND_BASE_SSI, "ssi", conf_common_ssi);
+	int ret_adg  = rsnd_gen_regmap_init(priv, 1, RSND_BASE_ADG, "adg", conf_common_adg);
 
 	return ret_adg | ret_ssi;
 }
