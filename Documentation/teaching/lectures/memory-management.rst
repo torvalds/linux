@@ -149,7 +149,7 @@ Page allocation
    * If not, look for a free block in the 2N-size list
 
    * Split the 2N-size block in two N-size blocks and add them to the
-     N-size block
+     N-size list
 
    * Now that we have the N-size list populated, pick the first free
      block from that list
