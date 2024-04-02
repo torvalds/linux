@@ -1013,6 +1013,42 @@
 		};
 	};
 
+	eth0: ethernet-0 {
+		compatible = "hisilicon,hns-nic-v2";
+		ae-handle = <&dsaf0>;
+		port-idx-in-ae = <4>;
+		local-mac-address = [00 00 00 00 00 00];
+		status = "disabled";
+		dma-coherent;
+	};
+
+	eth1: ethernet-1 {
+		compatible = "hisilicon,hns-nic-v2";
+		ae-handle = <&dsaf0>;
+		port-idx-in-ae = <5>;
+		local-mac-address = [00 00 00 00 00 00];
+		status = "disabled";
+		dma-coherent;
+	};
+
+	eth2: ethernet-2 {
+		compatible = "hisilicon,hns-nic-v2";
+		ae-handle = <&dsaf0>;
+		port-idx-in-ae = <0>;
+		local-mac-address = [00 00 00 00 00 00];
+		status = "disabled";
+		dma-coherent;
+	};
+
+	eth3: ethernet-3 {
+		compatible = "hisilicon,hns-nic-v2";
+		ae-handle = <&dsaf0>;
+		port-idx-in-ae = <1>;
+		local-mac-address = [00 00 00 00 00 00];
+		status = "disabled";
+		dma-coherent;
+	};
+
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 13 IRQ_TYPE_LEVEL_LOW>,
@@ -1481,42 +1517,6 @@
 				mc-mac-mask = [ff f0 00 00 00 00];
 				media-type = "copper";
 			};
-		};
-
-		eth0: ethernet@4 {
-			compatible = "hisilicon,hns-nic-v2";
-			ae-handle = <&dsaf0>;
-			port-idx-in-ae = <4>;
-			local-mac-address = [00 00 00 00 00 00];
-			status = "disabled";
-			dma-coherent;
-		};
-
-		eth1: ethernet@5 {
-			compatible = "hisilicon,hns-nic-v2";
-			ae-handle = <&dsaf0>;
-			port-idx-in-ae = <5>;
-			local-mac-address = [00 00 00 00 00 00];
-			status = "disabled";
-			dma-coherent;
-		};
-
-		eth2: ethernet@0 {
-			compatible = "hisilicon,hns-nic-v2";
-			ae-handle = <&dsaf0>;
-			port-idx-in-ae = <0>;
-			local-mac-address = [00 00 00 00 00 00];
-			status = "disabled";
-			dma-coherent;
-		};
-
-		eth3: ethernet@1 {
-			compatible = "hisilicon,hns-nic-v2";
-			ae-handle = <&dsaf0>;
-			port-idx-in-ae = <1>;
-			local-mac-address = [00 00 00 00 00 00];
-			status = "disabled";
-			dma-coherent;
 		};
 
 		infiniband@c4000000 {
