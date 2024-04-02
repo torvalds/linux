@@ -81,6 +81,7 @@
 #include <linux/mman.h>
 #include <linux/netdev.h>
 #include <linux/bitmap.h>
+#include <linux/ethtool.h>
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <locale.h>
@@ -105,10 +106,14 @@
 #include "../kselftest.h"
 #include "xsk_xdp_common.h"
 
+#include <network_helpers.h>
+
 static bool opt_verbose;
 static bool opt_print_tests;
 static enum test_mode opt_mode = TEST_MODE_ALL;
 static u32 opt_run_test = RUN_ALL_TESTS;
+
+void test__fail(void) { /* for network_helpers.c */ }
 
 static void __exit_with_error(int error, const char *file, const char *func, int line)
 {
@@ -409,6 +414,33 @@ static void parse_command_line(struct ifobject *ifobj_tx, struct ifobject *ifobj
 	}
 }
 
+static int set_ring_size(struct ifobject *ifobj)
+{
+	int ret;
+	u32 ctr = 0;
+
+	while (ctr++ < SOCK_RECONF_CTR) {
+		ret = set_hw_ring_size(ifobj->ifname, &ifobj->ring);
+		if (!ret)
+			break;
+
+		/* Retry if it fails */
+		if (ctr >= SOCK_RECONF_CTR || errno != EBUSY)
+			return -errno;
+
+		usleep(USLEEP_MAX);
+	}
+
+	return ret;
+}
+
+static int hw_ring_size_reset(struct ifobject *ifobj)
+{
+	ifobj->ring.tx_pending = ifobj->set_ring.default_tx;
+	ifobj->ring.rx_pending = ifobj->set_ring.default_rx;
+	return set_ring_size(ifobj);
+}
+
 static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 			     struct ifobject *ifobj_rx)
 {
@@ -452,12 +484,16 @@ static void __test_spec_init(struct test_spec *test, struct ifobject *ifobj_tx,
 		}
 	}
 
+	if (ifobj_tx->hw_ring_size_supp)
+		hw_ring_size_reset(ifobj_tx);
+
 	test->ifobj_tx = ifobj_tx;
 	test->ifobj_rx = ifobj_rx;
 	test->current_step = 0;
 	test->total_steps = 1;
 	test->nb_sockets = 1;
 	test->fail = false;
+	test->set_ring = false;
 	test->mtu = MAX_ETH_PKT_SIZE;
 	test->xdp_prog_rx = ifobj_rx->xdp_progs->progs.xsk_def_prog;
 	test->xskmap_rx = ifobj_rx->xdp_progs->maps.xsk;
@@ -1862,6 +1898,14 @@ static int testapp_validate_traffic(struct test_spec *test)
 		return TEST_SKIP;
 	}
 
+	if (test->set_ring) {
+		if (ifobj_tx->hw_ring_size_supp)
+			return set_ring_size(ifobj_tx);
+
+	ksft_test_result_skip("Changing HW ring size not supported.\n");
+	return TEST_SKIP;
+	}
+
 	xsk_attach_xdp_progs(test, ifobj_rx, ifobj_tx);
 	return __testapp_validate_traffic(test, ifobj_rx, ifobj_tx);
 }
@@ -2479,7 +2523,7 @@ static const struct test_spec tests[] = {
 	{.name = "ALIGNED_INV_DESC_MULTI_BUFF", .test_func = testapp_aligned_inv_desc_mb},
 	{.name = "UNALIGNED_INV_DESC_MULTI_BUFF", .test_func = testapp_unaligned_inv_desc_mb},
 	{.name = "TOO_MANY_FRAGS", .test_func = testapp_too_many_frags},
-};
+	};
 
 static void print_tests(void)
 {
@@ -2499,6 +2543,7 @@ int main(int argc, char **argv)
 	int modes = TEST_MODE_SKB + 1;
 	struct test_spec test;
 	bool shared_netdev;
+	int ret;
 
 	/* Use libbpf 1.0 API mode */
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
@@ -2534,6 +2579,13 @@ int main(int argc, char **argv)
 		modes++;
 		if (ifobj_zc_avail(ifobj_tx))
 			modes++;
+	}
+
+	ret = get_hw_ring_size(ifobj_tx->ifname, &ifobj_tx->ring);
+	if (!ret) {
+		ifobj_tx->hw_ring_size_supp = true;
+		ifobj_tx->set_ring.default_tx = ifobj_tx->ring.tx_pending;
+		ifobj_tx->set_ring.default_rx = ifobj_tx->ring.rx_pending;
 	}
 
 	init_iface(ifobj_rx, worker_testapp_validate_rx);
@@ -2582,6 +2634,9 @@ int main(int argc, char **argv)
 				failed_tests++;
 		}
 	}
+
+	if (ifobj_tx->hw_ring_size_supp)
+		hw_ring_size_reset(ifobj_tx);
 
 	pkt_stream_delete(tx_pkt_stream_default);
 	pkt_stream_delete(rx_pkt_stream_default);
