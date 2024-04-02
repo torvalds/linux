@@ -310,6 +310,12 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		pcr = DAVINCI_MCBSP_PCR_FSRM | DAVINCI_MCBSP_PCR_FSXM;
 		pcr |= DAVINCI_MCBSP_PCR_SCLKME;
 		break;
+	case SND_SOC_DAIFMT_BP_FC:
+		/* cpu is bitclock provider */
+		pcr = DAVINCI_MCBSP_PCR_CLKXM |
+			DAVINCI_MCBSP_PCR_CLKRM;
+		break;
+
 	case SND_SOC_DAIFMT_BC_FC:
 		if (dev->tdm_slots || dev->slot_width) {
 			dev_err(dev->dev, "TDM is not supported for BC_FC format\n");
@@ -497,6 +503,23 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 		clk_div = dev->clk_div - 1;
 		srgr |= DAVINCI_MCBSP_SRGR_FWID(mcbsp_word_length * 8 - 1);
 		srgr |= DAVINCI_MCBSP_SRGR_FPER(mcbsp_word_length * 16 - 1);
+		clk_div &= 0xFF;
+		srgr |= clk_div;
+		break;
+	case SND_SOC_DAIFMT_BP_FC:
+		if (dev->ext_clk) {
+			freq = clk_get_rate(dev->ext_clk);
+		} else {
+			freq = clk_get_rate(dev->clk);
+			srgr = DAVINCI_MCBSP_SRGR_CLKSM;
+		}
+		if (dev->tdm_slots && dev->slot_width) {
+			clk_div = freq / (params->rate_num * params->rate_den)
+				 / (dev->tdm_slots * dev->slot_width) - 1;
+		} else {
+			clk_div = freq / (mcbsp_word_length * 16) /
+				  params->rate_num * params->rate_den;
+		}
 		clk_div &= 0xFF;
 		srgr |= clk_div;
 		break;
