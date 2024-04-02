@@ -470,7 +470,8 @@ static const struct snd_soc_dai_ops dmic_dai_ops = {
 int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 			  struct snd_pcm_hw_params *params,
 			  struct snd_soc_dai *cpu_dai,
-			  int link_id)
+			  int link_id,
+			  int intel_alh_id)
 {
 	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);

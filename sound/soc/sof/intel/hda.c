@@ -159,7 +159,8 @@ static int sdw_ace2x_params_stream(struct device *dev,
 	return sdw_hda_dai_hw_params(params_data->substream,
 				     params_data->hw_params,
 				     params_data->dai,
-				     params_data->link_id);
+				     params_data->link_id,
+				     params_data->alh_stream_id);
 }
 
 static int sdw_ace2x_free_stream(struct device *dev,
