@@ -196,9 +196,8 @@ static int sof_pcm_hw_free(struct snd_soc_component *component,
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
-	const struct sof_ipc_pcm_ops *pcm_ops = sof_ipc_get_ops(sdev, pcm);
 	struct snd_sof_pcm *spcm;
-	int ret, err = 0;
+	int ret;
 
 	/* nothing to do for BE */
 	if (rtd->dai_link->no_pcm)
@@ -211,42 +210,18 @@ static int sof_pcm_hw_free(struct snd_soc_component *component,
 	dev_dbg(component->dev, "pcm: free stream %d dir %d\n",
 		spcm->pcm.pcm_id, substream->stream);
 
-	if (spcm->prepared[substream->stream]) {
-		/* stop DMA first if needed */
-		if (pcm_ops && pcm_ops->platform_stop_during_hw_free)
-			snd_sof_pcm_platform_trigger(sdev, substream, SNDRV_PCM_TRIGGER_STOP);
-
-		/* free PCM in the DSP */
-		if (pcm_ops && pcm_ops->hw_free) {
-			ret = pcm_ops->hw_free(component, substream);
-			if (ret < 0)
-				err = ret;
-		}
-
-		spcm->prepared[substream->stream] = false;
-	}
-
-	/* reset DMA */
-	ret = snd_sof_pcm_platform_hw_free(sdev, substream);
-	if (ret < 0) {
-		dev_err(component->dev, "error: platform hw free failed\n");
-		err = ret;
-	}
-
-	/* free the DAPM widget list */
-	ret = sof_widget_list_free(sdev, spcm, substream->stream);
-	if (ret < 0)
-		err = ret;
+	ret = sof_pcm_stream_free(sdev, substream, spcm, substream->stream, true);
 
 	cancel_work_sync(&spcm->stream[substream->stream].period_elapsed_work);
 
-	return err;
+	return ret;
 }
 
 static int sof_pcm_prepare(struct snd_soc_component *component,
 			   struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(component);
 	struct snd_sof_pcm *spcm;
 	int ret;
 
@@ -258,8 +233,18 @@ static int sof_pcm_prepare(struct snd_soc_component *component,
 	if (!spcm)
 		return -EINVAL;
 
-	if (spcm->prepared[substream->stream])
-		return 0;
+	if (spcm->prepared[substream->stream]) {
+		if (!spcm->pending_stop[substream->stream])
+			return 0;
+
+		/*
+		 * this case should be reached in case of xruns where we absolutely
+		 * want to free-up and reset all PCM/DMA resources
+		 */
+		ret = sof_pcm_stream_free(sdev, substream, spcm, substream->stream, true);
+		if (ret < 0)
+			return ret;
+	}
 
 	dev_dbg(component->dev, "pcm: prepare stream %d dir %d\n",
 		spcm->pcm.pcm_id, substream->stream);
@@ -301,6 +286,8 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 
 	dev_dbg(component->dev, "pcm: trigger stream %d dir %d cmd %d\n",
 		spcm->pcm.pcm_id, substream->stream, cmd);
+
+	spcm->pending_stop[substream->stream] = false;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
@@ -371,6 +358,15 @@ static int sof_pcm_trigger(struct snd_soc_component *component,
 		/* invoke platform trigger to stop DMA even if pcm_ops isn't set or if it failed */
 		if (!pcm_ops || !pcm_ops->platform_stop_during_hw_free)
 			snd_sof_pcm_platform_trigger(sdev, substream, cmd);
+
+		/*
+		 * set the pending_stop flag to indicate that pipeline stop has been delayed.
+		 * This will be used later to stop the pipelines during prepare when recovering
+		 * from xruns.
+		 */
+		if (pcm_ops && pcm_ops->platform_stop_during_hw_free &&
+		    cmd == SNDRV_PCM_TRIGGER_STOP)
+			spcm->pending_stop[substream->stream] = true;
 		break;
 	default:
 		break;
