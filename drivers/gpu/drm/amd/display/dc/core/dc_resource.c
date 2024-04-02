@@ -1500,9 +1500,6 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 		return false;
 	}
 
-	pipe_ctx->plane_res.scl_data.format = convert_pixel_format_to_dalsurface(
-			pipe_ctx->plane_state->format);
-
 	/* Timing borders are part of vactive that we are also supposed to skip in addition
 	 * to any stream dst offset. Since dm logic assumes dst is in addressable
 	 * space we need to add the left and top borders to dst offsets temporarily.
@@ -1514,6 +1511,8 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	/* Calculate H and V active size */
 	pipe_ctx->plane_res.scl_data.h_active = odm_slice_rec.width;
 	pipe_ctx->plane_res.scl_data.v_active = odm_slice_rec.height;
+	pipe_ctx->plane_res.scl_data.format = convert_pixel_format_to_dalsurface(
+			pipe_ctx->plane_state->format);
 
 	/* depends on h_active */
 	calculate_recout(pipe_ctx);
