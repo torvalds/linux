@@ -50,9 +50,23 @@ properties:
       Definition of the regulator used as digital power supply.
 
   port:
-    $ref: /schemas/graph.yaml#/properties/port
     description:
       A node containing an output port node.
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    additionalProperties: false
+
+    properties:
+      endpoint:
+        $ref: /schemas/media/video-interfaces.yaml#
+        additionalProperties: false
+
+        properties:
+          link-frequencies: true
+
+          remote-endpoint: true
+
+        required:
+          - link-frequencies
 
 required:
   - compatible
@@ -89,6 +103,7 @@ examples:
                 port {
                         ov2680_to_mipi: endpoint {
                                 remote-endpoint = <&mipi_from_sensor>;
+                                link-frequencies = /bits/ 64 <330000000>;
                         };
                 };
         };
