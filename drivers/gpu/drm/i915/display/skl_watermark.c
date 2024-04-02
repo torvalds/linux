@@ -3788,16 +3788,20 @@ void intel_dbuf_pre_plane_update(struct intel_atomic_state *state)
 		intel_atomic_get_new_dbuf_state(state);
 	const struct intel_dbuf_state *old_dbuf_state =
 		intel_atomic_get_old_dbuf_state(state);
+	u8 old_slices, new_slices;
 
-	if (!new_dbuf_state ||
-	    new_dbuf_state->enabled_slices == old_dbuf_state->enabled_slices)
+	if (!new_dbuf_state)
+		return;
+
+	old_slices = old_dbuf_state->enabled_slices;
+	new_slices = old_dbuf_state->enabled_slices | new_dbuf_state->enabled_slices;
+
+	if (old_slices == new_slices)
 		return;
 
 	WARN_ON(!new_dbuf_state->base.changed);
 
-	gen9_dbuf_slices_update(i915,
-				old_dbuf_state->enabled_slices |
-				new_dbuf_state->enabled_slices);
+	gen9_dbuf_slices_update(i915, new_slices);
 }
 
 void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
@@ -3807,15 +3811,20 @@ void intel_dbuf_post_plane_update(struct intel_atomic_state *state)
 		intel_atomic_get_new_dbuf_state(state);
 	const struct intel_dbuf_state *old_dbuf_state =
 		intel_atomic_get_old_dbuf_state(state);
+	u8 old_slices, new_slices;
 
-	if (!new_dbuf_state ||
-	    new_dbuf_state->enabled_slices == old_dbuf_state->enabled_slices)
+	if (!new_dbuf_state)
+		return;
+
+	old_slices = old_dbuf_state->enabled_slices | new_dbuf_state->enabled_slices;
+	new_slices = new_dbuf_state->enabled_slices;
+
+	if (old_slices == new_slices)
 		return;
 
 	WARN_ON(!new_dbuf_state->base.changed);
 
-	gen9_dbuf_slices_update(i915,
-				new_dbuf_state->enabled_slices);
+	gen9_dbuf_slices_update(i915, new_slices);
 }
 
 static int skl_watermark_ipc_status_show(struct seq_file *m, void *data)
