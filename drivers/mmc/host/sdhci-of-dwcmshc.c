@@ -626,6 +626,7 @@ static int th1520_execute_tuning(struct sdhci_host *host, u32 opcode)
 
 	/* perform tuning */
 	sdhci_start_tuning(host);
+	host->tuning_loop_count = 128;
 	host->tuning_err = __sdhci_execute_tuning(host, opcode);
 	if (host->tuning_err) {
 		/* disable auto-tuning upon tuning error */
