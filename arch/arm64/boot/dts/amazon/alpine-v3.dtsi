@@ -318,7 +318,7 @@
 		#size-cells = <2>;
 		ranges;
 
-		gic: interrupt-controller@f0000000 {
+		gic: interrupt-controller@f0800000 {
 			compatible = "arm,gic-v3";
 			#interrupt-cells = <3>;
 			interrupt-controller;
