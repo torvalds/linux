@@ -80,18 +80,9 @@ struct mlxsw_pci_queue {
 	enum mlxsw_pci_queue_type type;
 	struct tasklet_struct tasklet; /* queue processing tasklet */
 	struct mlxsw_pci *pci;
-	union {
-		struct {
-			u32 comp_sdq_count;
-			u32 comp_rdq_count;
-			enum mlxsw_pci_cqe_v v;
-		} cq;
-		struct {
-			u32 ev_cmd_count;
-			u32 ev_comp_count;
-			u32 ev_other_count;
-		} eq;
-	} u;
+	struct {
+		enum mlxsw_pci_cqe_v v;
+	} cq;
 };
 
 struct mlxsw_pci_queue_type_group {
@@ -462,12 +453,12 @@ static void mlxsw_pci_rdq_fini(struct mlxsw_pci *mlxsw_pci,
 static void mlxsw_pci_cq_pre_init(struct mlxsw_pci *mlxsw_pci,
 				  struct mlxsw_pci_queue *q)
 {
-	q->u.cq.v = mlxsw_pci->max_cqe_ver;
+	q->cq.v = mlxsw_pci->max_cqe_ver;
 
-	if (q->u.cq.v == MLXSW_PCI_CQE_V2 &&
+	if (q->cq.v == MLXSW_PCI_CQE_V2 &&
 	    q->num < mlxsw_pci->num_sdq_cqs &&
 	    !mlxsw_core_sdq_supports_cqe_v2(mlxsw_pci->core))
-		q->u.cq.v = MLXSW_PCI_CQE_V1;
+		q->cq.v = MLXSW_PCI_CQE_V1;
 }
 
 static unsigned int mlxsw_pci_read32_off(struct mlxsw_pci *mlxsw_pci,
@@ -663,7 +654,7 @@ static char *mlxsw_pci_cq_sw_cqe_get(struct mlxsw_pci_queue *q)
 
 	elem_info = mlxsw_pci_queue_elem_info_consumer_get(q);
 	elem = elem_info->elem;
-	owner_bit = mlxsw_pci_cqe_owner_get(q->u.cq.v, elem);
+	owner_bit = mlxsw_pci_cqe_owner_get(q->cq.v, elem);
 	if (mlxsw_pci_elem_hw_owned(q, owner_bit))
 		return NULL;
 	q->consumer_counter++;
@@ -681,8 +672,8 @@ static void mlxsw_pci_cq_tasklet(struct tasklet_struct *t)
 
 	while ((cqe = mlxsw_pci_cq_sw_cqe_get(q))) {
 		u16 wqe_counter = mlxsw_pci_cqe_wqe_counter_get(cqe);
-		u8 sendq = mlxsw_pci_cqe_sr_get(q->u.cq.v, cqe);
-		u8 dqn = mlxsw_pci_cqe_dqn_get(q->u.cq.v, cqe);
+		u8 sendq = mlxsw_pci_cqe_sr_get(q->cq.v, cqe);
+		u8 dqn = mlxsw_pci_cqe_dqn_get(q->cq.v, cqe);
 		char ncqe[MLXSW_PCI_CQE_SIZE_MAX];
 
 		memcpy(ncqe, cqe, q->elem_size);
@@ -693,15 +684,13 @@ static void mlxsw_pci_cq_tasklet(struct tasklet_struct *t)
 
 			sdq = mlxsw_pci_sdq_get(mlxsw_pci, dqn);
 			mlxsw_pci_cqe_sdq_handle(mlxsw_pci, sdq,
-						 wqe_counter, q->u.cq.v, ncqe);
-			q->u.cq.comp_sdq_count++;
+						 wqe_counter, q->cq.v, ncqe);
 		} else {
 			struct mlxsw_pci_queue *rdq;
 
 			rdq = mlxsw_pci_rdq_get(mlxsw_pci, dqn);
 			mlxsw_pci_cqe_rdq_handle(mlxsw_pci, rdq,
-						 wqe_counter, q->u.cq.v, ncqe);
-			q->u.cq.comp_rdq_count++;
+						 wqe_counter, q->cq.v, ncqe);
 		}
 		if (++items == credits)
 			break;
@@ -721,13 +710,13 @@ static int mlxsw_pci_cq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	for (i = 0; i < q->count; i++) {
 		char *elem = mlxsw_pci_queue_elem_get(q, i);
 
-		mlxsw_pci_cqe_owner_set(q->u.cq.v, elem, 1);
+		mlxsw_pci_cqe_owner_set(q->cq.v, elem, 1);
 	}
 
-	if (q->u.cq.v == MLXSW_PCI_CQE_V1)
+	if (q->cq.v == MLXSW_PCI_CQE_V1)
 		mlxsw_cmd_mbox_sw2hw_cq_cqe_ver_set(mbox,
 				MLXSW_CMD_MBOX_SW2HW_CQ_CQE_VER_1);
-	else if (q->u.cq.v == MLXSW_PCI_CQE_V2)
+	else if (q->cq.v == MLXSW_PCI_CQE_V2)
 		mlxsw_cmd_mbox_sw2hw_cq_cqe_ver_set(mbox,
 				MLXSW_CMD_MBOX_SW2HW_CQ_CQE_VER_2);
 
@@ -756,13 +745,13 @@ static void mlxsw_pci_cq_fini(struct mlxsw_pci *mlxsw_pci,
 
 static u16 mlxsw_pci_cq_elem_count(const struct mlxsw_pci_queue *q)
 {
-	return q->u.cq.v == MLXSW_PCI_CQE_V2 ? MLXSW_PCI_CQE2_COUNT :
-					       MLXSW_PCI_CQE01_COUNT;
+	return q->cq.v == MLXSW_PCI_CQE_V2 ? MLXSW_PCI_CQE2_COUNT :
+					     MLXSW_PCI_CQE01_COUNT;
 }
 
 static u8 mlxsw_pci_cq_elem_size(const struct mlxsw_pci_queue *q)
 {
-	return q->u.cq.v == MLXSW_PCI_CQE_V2 ? MLXSW_PCI_CQE2_SIZE :
+	return q->cq.v == MLXSW_PCI_CQE_V2 ? MLXSW_PCI_CQE2_SIZE :
 					       MLXSW_PCI_CQE01_SIZE;
 }
 
@@ -815,16 +804,14 @@ static void mlxsw_pci_eq_tasklet(struct tasklet_struct *t)
 		switch (q->num) {
 		case MLXSW_PCI_EQ_ASYNC_NUM:
 			mlxsw_pci_eq_cmd_event(mlxsw_pci, eqe);
-			q->u.eq.ev_cmd_count++;
 			break;
 		case MLXSW_PCI_EQ_COMP_NUM:
 			cqn = mlxsw_pci_eqe_cqn_get(eqe);
 			set_bit(cqn, active_cqns);
 			cq_handle = true;
-			q->u.eq.ev_comp_count++;
 			break;
 		default:
-			q->u.eq.ev_other_count++;
+			WARN_ON_ONCE(1);
 		}
 		if (++items == credits)
 			break;
