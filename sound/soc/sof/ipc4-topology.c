@@ -1700,6 +1700,8 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 			 */
 			i = 0;
 			list_for_each_entry(w, &sdev->widget_list, list) {
+				u32 node_type;
+
 				if (w->widget->sname &&
 				    strcmp(w->widget->sname, swidget->widget->sname))
 					continue;
@@ -1707,7 +1709,10 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 				dai = w->private;
 				alh_copier = (struct sof_ipc4_copier *)dai->private;
 				alh_data = &alh_copier->data;
-				blob->alh_cfg.mapping[i].device = alh_data->gtw_cfg.node_id;
+				node_type = SOF_IPC4_GET_NODE_TYPE(alh_data->gtw_cfg.node_id);
+				blob->alh_cfg.mapping[i].device = SOF_IPC4_NODE_TYPE(node_type);
+				blob->alh_cfg.mapping[i].device |=
+					SOF_IPC4_NODE_INDEX(alh_copier->dai_index);
 
 				/*
 				 * The mapping[i] device in ALH blob should be the same as the
@@ -2830,12 +2835,15 @@ static int sof_ipc4_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *
 		/*
 		 * Do not clear the node ID when this op is invoked with
 		 * SOF_DAI_CONFIG_FLAGS_HW_FREE. It is needed to free the group_ida during
-		 * unprepare.
+		 * unprepare. The node_id for multi-gateway DAI's will be overwritten with the
+		 * group_id during copier's ipc_prepare op.
 		 */
 		if (flags & SOF_DAI_CONFIG_FLAGS_HW_PARAMS) {
+			ipc4_copier->dai_index = data->dai_node_id;
 			copier_data->gtw_cfg.node_id &= ~SOF_IPC4_NODE_INDEX_MASK;
 			copier_data->gtw_cfg.node_id |= SOF_IPC4_NODE_INDEX(data->dai_node_id);
 		}
+
 		break;
 	case SOF_DAI_INTEL_DMIC:
 	case SOF_DAI_INTEL_SSP:

@@ -164,6 +164,7 @@ static int sdw_params_free(struct device *dev, struct sdw_intel_stream_free_data
 		struct sof_ipc4_copier *ipc4_copier;
 
 		ipc4_copier = dai->private;
+		ipc4_copier->dai_index = 0;
 		copier_data = &ipc4_copier->data;
 
 		/* clear the node ID */
