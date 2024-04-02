@@ -279,6 +279,15 @@ static void __init dtb_apic_setup(void)
 	dtb_ioapic_setup();
 }
 
+static void __init x86_dtb_parse_smp_config(void)
+{
+	if (!of_have_populated_dt())
+		return;
+
+	dtb_setup_hpet();
+	dtb_apic_setup();
+}
+
 void __init x86_flattree_get_config(void)
 {
 #ifdef CONFIG_OF_EARLY_FLATTREE
@@ -306,13 +315,4 @@ void __init x86_flattree_get_config(void)
 #endif
 	if (of_have_populated_dt())
 		x86_init.mpparse.parse_smp_cfg = x86_dtb_parse_smp_config;
-}
-
-void __init x86_dtb_parse_smp_config(void)
-{
-	if (!of_have_populated_dt())
-		return;
-
-	dtb_setup_hpet();
-	dtb_apic_setup();
 }
