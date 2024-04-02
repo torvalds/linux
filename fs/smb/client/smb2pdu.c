@@ -3452,9 +3452,9 @@ __SMB2_close(const unsigned int xid, struct cifs_tcon *tcon,
 			memcpy(&pbuf->network_open_info,
 			       &rsp->network_open_info,
 			       sizeof(pbuf->network_open_info));
+		atomic_dec(&tcon->num_remote_opens);
 	}
 
-	atomic_dec(&tcon->num_remote_opens);
 close_exit:
 	SMB2_close_free(&rqst);
 	free_rsp_buf(resp_buftype, rsp);
