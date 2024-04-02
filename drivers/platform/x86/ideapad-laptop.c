@@ -513,11 +513,8 @@ static ssize_t fan_mode_store(struct device *dev,
 
 static DEVICE_ATTR_RW(fan_mode);
 
-static ssize_t fn_lock_show(struct device *dev,
-			    struct device_attribute *attr,
-			    char *buf)
+static int ideapad_fn_lock_get(struct ideapad_private *priv)
 {
-	struct ideapad_private *priv = dev_get_drvdata(dev);
 	unsigned long hals;
 	int err;
 
@@ -525,7 +522,27 @@ static ssize_t fn_lock_show(struct device *dev,
 	if (err)
 		return err;
 
-	return sysfs_emit(buf, "%d\n", !!test_bit(HALS_FNLOCK_STATE_BIT, &hals));
+	return !!test_bit(HALS_FNLOCK_STATE_BIT, &hals);
+}
+
+static int ideapad_fn_lock_set(struct ideapad_private *priv, bool state)
+{
+	return exec_sals(priv->adev->handle,
+		state ? SALS_FNLOCK_ON : SALS_FNLOCK_OFF);
+}
+
+static ssize_t fn_lock_show(struct device *dev,
+			    struct device_attribute *attr,
+			    char *buf)
+{
+	struct ideapad_private *priv = dev_get_drvdata(dev);
+	int brightness;
+
+	brightness = ideapad_fn_lock_get(priv);
+	if (brightness < 0)
+		return brightness;
+
+	return sysfs_emit(buf, "%d\n", brightness);
 }
 
 static ssize_t fn_lock_store(struct device *dev,
@@ -540,7 +557,7 @@ static ssize_t fn_lock_store(struct device *dev,
 	if (err)
 		return err;
 
-	err = exec_sals(priv->adev->handle, state ? SALS_FNLOCK_ON : SALS_FNLOCK_OFF);
+	err = ideapad_fn_lock_set(priv, state);
 	if (err)
 		return err;
 
@@ -1709,7 +1726,6 @@ static void ideapad_wmi_notify(struct wmi_device *wdev, union acpi_object *data)
 {
 	struct ideapad_wmi_private *wpriv = dev_get_drvdata(&wdev->dev);
 	struct ideapad_private *priv;
-	unsigned long result;
 
 	mutex_lock(&ideapad_shared_mutex);
 
@@ -1722,11 +1738,11 @@ static void ideapad_wmi_notify(struct wmi_device *wdev, union acpi_object *data)
 		ideapad_input_report(priv, 128);
 		break;
 	case IDEAPAD_WMI_EVENT_FN_KEYS:
-		if (priv->features.set_fn_lock_led &&
-		    !eval_hals(priv->adev->handle, &result)) {
-			bool state = test_bit(HALS_FNLOCK_STATE_BIT, &result);
+		if (priv->features.set_fn_lock_led) {
+			int brightness = ideapad_fn_lock_get(priv);
 
-			exec_sals(priv->adev->handle, state ? SALS_FNLOCK_ON : SALS_FNLOCK_OFF);
+			if (brightness >= 0)
+				ideapad_fn_lock_set(priv, brightness);
 		}
 
 		if (data->type != ACPI_TYPE_INTEGER) {
