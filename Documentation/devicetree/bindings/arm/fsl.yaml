@@ -1235,7 +1235,7 @@ properties:
               - fsl,imx8dxl-evk           # i.MX8DXL EVK Board
           - const: fsl,imx8dxl
 
-      - description: i.MX8QXP Boards with Toradex Colibri iMX8X Modules
+      - description: i.MX8QXP/i.MX8DX Boards with Toradex Colibri iMX8X Modules
         items:
           - enum:
               - toradex,colibri-imx8x-aster   # Colibri iMX8X Module on Aster Board
@@ -1243,7 +1243,9 @@ properties:
               - toradex,colibri-imx8x-iris    # Colibri iMX8X Module on Iris Board
               - toradex,colibri-imx8x-iris-v2 # Colibri iMX8X Module on Iris Board V2
           - const: toradex,colibri-imx8x
-          - const: fsl,imx8qxp
+          - enum:
+              - fsl,imx8qxp
+              - fsl,imx8dx
 
       - description:
           TQMa8Xx is a series of SOM featuring NXP i.MX8X system-on-chip
