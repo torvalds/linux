@@ -44,7 +44,7 @@
 #define MAX_ETH_JUMBO_SIZE 9000
 #define USLEEP_MAX 10000
 #define SOCK_RECONF_CTR 10
-#define BATCH_SIZE 64
+#define DEFAULT_BATCH_SIZE 64
 #define POLL_TMOUT 1000
 #define THREAD_TMOUT 3
 #define DEFAULT_PKT_CNT (4 * 1024)
@@ -91,6 +91,7 @@ struct xsk_socket_info {
 	struct pkt_stream *pkt_stream;
 	u32 outstanding_tx;
 	u32 rxqsize;
+	u32 batch_size;
 	u8 dst_mac[ETH_ALEN];
 	u8 src_mac[ETH_ALEN];
 };
