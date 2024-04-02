@@ -60,7 +60,7 @@ all configurable using the following module options:
 - node_types:
 
 	which devices should each driver instance create. An array of
-	hexadecimal values, one for each instance. The default is 0x1d3d.
+	hexadecimal values, one for each instance. The default is 0xe1d3d.
 	Each value is a bitmask with the following meaning:
 
 		- bit 0: Video Capture node

@@ -455,7 +455,7 @@ struct syscore_ops intc_syscore_ops = {
 	.resume		= intc_resume,
 };
 
-struct bus_type intc_subsys = {
+const struct bus_type intc_subsys = {
 	.name		= "intc",
 	.dev_name	= "intc",
 };

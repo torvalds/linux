@@ -38,10 +38,6 @@
 	msr	daifset, #0xf
 	.endm
 
-	.macro enable_daif
-	msr	daifclr, #0xf
-	.endm
-
 /*
  * Save/restore interrupts.
  */
@@ -346,20 +342,6 @@ alternative_cb_end
 	.endm
 
 /*
- * idmap_get_t0sz - get the T0SZ value needed to cover the ID map
- *
- * Calculate the maximum allowed value for TCR_EL1.T0SZ so that the
- * entire ID map region can be mapped. As T0SZ == (64 - #bits used),
- * this number conveniently equals the number of leading zeroes in
- * the physical address of _end.
- */
-	.macro	idmap_get_t0sz, reg
-	adrp	\reg, _end
-	orr	\reg, \reg, #(1 << VA_BITS_MIN) - 1
-	clz	\reg, \reg
-	.endm
-
-/*
  * tcr_compute_pa_size - set TCR.(I)PS to the highest supported
  * ID_AA64MMFR0_EL1.PARange value
  *
@@ -590,18 +572,27 @@ alternative_endif
 	.endm
 
 /*
- * Offset ttbr1 to allow for 48-bit kernel VAs set with 52-bit PTRS_PER_PGD.
+ * If the kernel is built for 52-bit virtual addressing but the hardware only
+ * supports 48 bits, we cannot program the pgdir address into TTBR1 directly,
+ * but we have to add an offset so that the TTBR1 address corresponds with the
+ * pgdir entry that covers the lowest 48-bit addressable VA.
+ *
+ * Note that this trick is only used for LVA/64k pages - LPA2/4k pages uses an
+ * additional paging level, and on LPA2/16k pages, we would end up with a root
+ * level table with only 2 entries, which is suboptimal in terms of TLB
+ * utilization, so there we fall back to 47 bits of translation if LPA2 is not
+ * supported.
+ *
  * orr is used as it can cover the immediate value (and is idempotent).
- * In future this may be nop'ed out when dealing with 52-bit kernel VAs.
  * 	ttbr: Value of ttbr to set, modified.
  */
 	.macro	offset_ttbr1, ttbr, tmp
-#ifdef CONFIG_ARM64_VA_BITS_52
-	mrs_s	\tmp, SYS_ID_AA64MMFR2_EL1
-	and	\tmp, \tmp, #(0xf << ID_AA64MMFR2_EL1_VARange_SHIFT)
-	cbnz	\tmp, .Lskipoffs_\@
-	orr	\ttbr, \ttbr, #TTBR1_BADDR_4852_OFFSET
-.Lskipoffs_\@ :
+#if defined(CONFIG_ARM64_VA_BITS_52) && !defined(CONFIG_ARM64_LPA2)
+	mrs	\tmp, tcr_el1
+	and	\tmp, \tmp, #TCR_T1SZ_MASK
+	cmp	\tmp, #TCR_T1SZ(VA_BITS_MIN)
+	orr	\tmp, \ttbr, #TTBR1_BADDR_4852_OFFSET
+	csel	\ttbr, \tmp, \ttbr, eq
 #endif
 	.endm
 
@@ -623,22 +614,10 @@ alternative_endif
 
 	.macro	phys_to_pte, pte, phys
 #ifdef CONFIG_ARM64_PA_BITS_52
-	/*
-	 * We assume \phys is 64K aligned and this is guaranteed by only
-	 * supporting this configuration with 64K pages.
-	 */
-	orr	\pte, \phys, \phys, lsr #36
-	and	\pte, \pte, #PTE_ADDR_MASK
+	orr	\pte, \phys, \phys, lsr #PTE_ADDR_HIGH_SHIFT
+	and	\pte, \pte, #PHYS_TO_PTE_ADDR_MASK
 #else
 	mov	\pte, \phys
-#endif
-	.endm
-
-	.macro	pte_to_phys, phys, pte
-	and	\phys, \pte, #PTE_ADDR_MASK
-#ifdef CONFIG_ARM64_PA_BITS_52
-	orr	\phys, \phys, \phys, lsl #PTE_ADDR_HIGH_SHIFT
-	and	\phys, \phys, GENMASK_ULL(PHYS_MASK_SHIFT - 1, PAGE_SHIFT)
 #endif
 	.endm
 

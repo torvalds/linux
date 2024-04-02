@@ -29,11 +29,11 @@
 #include "fimc-reg.h"
 #include "media-dev.h"
 
-static char *fimc_clocks[MAX_FIMC_CLOCKS] = {
+static const char *fimc_clocks[MAX_FIMC_CLOCKS] = {
 	"sclk_fimc", "fimc"
 };
 
-static struct fimc_fmt fimc_formats[] = {
+static const struct fimc_fmt fimc_formats[] = {
 	{
 		.fourcc		= V4L2_PIX_FMT_RGB565,
 		.depth		= { 16 },
@@ -180,7 +180,7 @@ static struct fimc_fmt fimc_formats[] = {
 	},
 };
 
-struct fimc_fmt *fimc_get_format(unsigned int index)
+const struct fimc_fmt *fimc_get_format(unsigned int index)
 {
 	if (index >= ARRAY_SIZE(fimc_formats))
 		return NULL;
@@ -228,8 +228,8 @@ int fimc_set_scaler_info(struct fimc_ctx *ctx)
 	const struct fimc_variant *variant = ctx->fimc_dev->variant;
 	struct device *dev = &ctx->fimc_dev->pdev->dev;
 	struct fimc_scaler *sc = &ctx->scaler;
-	struct fimc_frame *s_frame = &ctx->s_frame;
-	struct fimc_frame *d_frame = &ctx->d_frame;
+	const struct fimc_frame *s_frame = &ctx->s_frame;
+	const struct fimc_frame *d_frame = &ctx->d_frame;
 	int tx, ty, sx, sy;
 	int ret;
 
@@ -326,7 +326,7 @@ out:
 
 /* The color format (colplanes, memplanes) must be already configured. */
 int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
-		      struct fimc_frame *frame, struct fimc_addr *addr)
+		      const struct fimc_frame *frame, struct fimc_addr *addr)
 {
 	int ret = 0;
 	u32 pix_size;
@@ -670,7 +670,7 @@ void fimc_alpha_ctrl_update(struct fimc_ctx *ctx)
 	v4l2_ctrl_unlock(ctrl);
 }
 
-void __fimc_get_format(struct fimc_frame *frame, struct v4l2_format *f)
+void __fimc_get_format(const struct fimc_frame *frame, struct v4l2_format *f)
 {
 	struct v4l2_pix_format_mplane *pixm = &f->fmt.pix_mp;
 	int i;
@@ -695,7 +695,7 @@ void __fimc_get_format(struct fimc_frame *frame, struct v4l2_format *f)
  * @height: requested pixel height
  * @pix: multi-plane format to adjust
  */
-void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
+void fimc_adjust_mplane_format(const struct fimc_fmt *fmt, u32 width, u32 height,
 			       struct v4l2_pix_format_mplane *pix)
 {
 	u32 bytesperline = 0;
@@ -752,10 +752,11 @@ void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
  * @mask: the color flags to match
  * @index: offset in the fimc_formats array, ignored if negative
  */
-struct fimc_fmt *fimc_find_format(const u32 *pixelformat, const u32 *mbus_code,
-				  unsigned int mask, int index)
+const struct fimc_fmt *fimc_find_format(const u32 *pixelformat,
+					const u32 *mbus_code,
+					unsigned int mask, int index)
 {
-	struct fimc_fmt *fmt, *def_fmt = NULL;
+	const struct fimc_fmt *fmt, *def_fmt = NULL;
 	unsigned int i;
 	int id = 0;
 

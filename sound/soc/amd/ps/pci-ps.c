@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0+
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * AMD Pink Sardine ACP PCI Driver
  *
@@ -17,6 +17,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/iopoll.h>
 #include <linux/soundwire/sdw_amd.h>
+#include "../mach-config.h"
 
 #include "acp63.h"
 
@@ -104,10 +105,8 @@ static irqreturn_t acp63_irq_thread(int irq, void *context)
 	struct sdw_dma_dev_data *sdw_dma_data;
 	struct acp63_dev_data *adata = context;
 	u32 stream_index;
-	u16 pdev_index;
 
-	pdev_index = adata->sdw_dma_dev_index;
-	sdw_dma_data = dev_get_drvdata(&adata->pdev[pdev_index]->dev);
+	sdw_dma_data = dev_get_drvdata(&adata->sdw_dma_dev->dev);
 
 	for (stream_index = 0; stream_index < ACP63_SDW0_DMA_MAX_STREAMS; stream_index++) {
 		if (adata->sdw0_dma_intr_stat[stream_index]) {
@@ -135,7 +134,6 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	u32 stream_id = 0;
 	u16 irq_flag = 0;
 	u16 sdw_dma_irq_flag = 0;
-	u16 pdev_index;
 	u16 index;
 
 	adata = dev_id;
@@ -149,8 +147,7 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	ext_intr_stat = readl(adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
 	if (ext_intr_stat & ACP_SDW0_STAT) {
 		writel(ACP_SDW0_STAT, adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
-		pdev_index = adata->sdw0_dev_index;
-		amd_manager = dev_get_drvdata(&adata->pdev[pdev_index]->dev);
+		amd_manager = dev_get_drvdata(&adata->sdw->pdev[0]->dev);
 		if (amd_manager)
 			schedule_work(&amd_manager->amd_sdw_irq_thread);
 		irq_flag = 1;
@@ -159,8 +156,7 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	ext_intr_stat1 = readl(adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
 	if (ext_intr_stat1 & ACP_SDW1_STAT) {
 		writel(ACP_SDW1_STAT, adata->acp63_base + ACP_EXTERNAL_INTR_STAT1);
-		pdev_index = adata->sdw1_dev_index;
-		amd_manager = dev_get_drvdata(&adata->pdev[pdev_index]->dev);
+		amd_manager = dev_get_drvdata(&adata->sdw->pdev[1]->dev);
 		if (amd_manager)
 			schedule_work(&amd_manager->amd_sdw_irq_thread);
 		irq_flag = 1;
@@ -176,8 +172,7 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 	}
 
 	if (ext_intr_stat & BIT(PDM_DMA_STAT)) {
-		pdev_index = adata->pdm_dev_index;
-		ps_pdm_data = dev_get_drvdata(&adata->pdev[pdev_index]->dev);
+		ps_pdm_data = dev_get_drvdata(&adata->pdm_dev->dev);
 		writel(BIT(PDM_DMA_STAT), adata->acp63_base + ACP_EXTERNAL_INTR_STAT);
 		if (ps_pdm_data->capture_stream)
 			snd_pcm_period_elapsed(ps_pdm_data->capture_stream);
@@ -237,122 +232,165 @@ static irqreturn_t acp63_irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 }
 
-static int sdw_amd_scan_controller(struct device *dev)
+#if IS_ENABLED(CONFIG_SND_SOC_AMD_SOUNDWIRE)
+static int acp_scan_sdw_devices(struct device *dev, u64 addr)
+{
+	struct acpi_device *sdw_dev;
+	struct acp63_dev_data *acp_data;
+
+	acp_data = dev_get_drvdata(dev);
+	if (!addr)
+		return -ENODEV;
+
+	sdw_dev = acpi_find_child_device(ACPI_COMPANION(dev), addr, 0);
+	if (!sdw_dev)
+		return -ENODEV;
+
+	acp_data->info.handle = sdw_dev->handle;
+	acp_data->info.count = AMD_SDW_MAX_MANAGERS;
+	return amd_sdw_scan_controller(&acp_data->info);
+}
+
+static int amd_sdw_probe(struct device *dev)
 {
 	struct acp63_dev_data *acp_data;
-	struct fwnode_handle *link;
-	char name[32];
-	u32 sdw_manager_bitmap;
-	u8 count = 0;
-	u32 acp_sdw_power_mode = 0;
-	int index;
+	struct sdw_amd_res sdw_res;
 	int ret;
 
 	acp_data = dev_get_drvdata(dev);
-	/*
-	 * Current implementation is based on MIPI DisCo 2.0 spec.
-	 * Found controller, find links supported.
-	 */
-	ret = fwnode_property_read_u32_array((acp_data->sdw_fw_node), "mipi-sdw-manager-list",
-					     &sdw_manager_bitmap, 1);
+	memset(&sdw_res, 0, sizeof(sdw_res));
+	sdw_res.addr = acp_data->addr;
+	sdw_res.reg_range = acp_data->reg_range;
+	sdw_res.handle = acp_data->info.handle;
+	sdw_res.parent = dev;
+	sdw_res.dev = dev;
+	sdw_res.acp_lock = &acp_data->acp_lock;
+	sdw_res.count = acp_data->info.count;
+	sdw_res.mmio_base = acp_data->acp63_base;
+	sdw_res.link_mask = acp_data->info.link_mask;
+	ret = sdw_amd_probe(&sdw_res, &acp_data->sdw);
+	if (ret)
+		dev_err(dev, "error: SoundWire probe failed\n");
+	return ret;
+}
 
-	if (ret) {
-		dev_dbg(dev, "Failed to read mipi-sdw-manager-list: %d\n", ret);
-		return -EINVAL;
-	}
-	count = hweight32(sdw_manager_bitmap);
-	/* Check count is within bounds */
-	if (count > AMD_SDW_MAX_MANAGERS) {
-		dev_err(dev, "Manager count %d exceeds max %d\n", count, AMD_SDW_MAX_MANAGERS);
-		return -EINVAL;
-	}
+static int amd_sdw_exit(struct acp63_dev_data *acp_data)
+{
+	if (acp_data->sdw)
+		sdw_amd_exit(acp_data->sdw);
+	acp_data->sdw = NULL;
 
-	if (!count) {
-		dev_dbg(dev, "No SoundWire Managers detected\n");
-		return -EINVAL;
+	return 0;
+}
+
+static struct snd_soc_acpi_mach *acp63_sdw_machine_select(struct device *dev)
+{
+	struct snd_soc_acpi_mach *mach;
+	const struct snd_soc_acpi_link_adr *link;
+	struct acp63_dev_data *acp_data = dev_get_drvdata(dev);
+	int ret, i;
+
+	if (acp_data->info.count) {
+		ret = sdw_amd_get_slave_info(acp_data->sdw);
+		if (ret) {
+			dev_dbg(dev, "failed to read slave information\n");
+			return NULL;
+		}
+		for (mach = acp_data->machines; mach; mach++) {
+			if (!mach->links)
+				break;
+			link = mach->links;
+			for (i = 0; i < acp_data->info.count && link->num_adr; link++, i++) {
+				if (!snd_soc_acpi_sdw_link_slaves_found(dev, link,
+									acp_data->sdw->ids,
+									acp_data->sdw->num_slaves))
+					break;
+			}
+			if (i == acp_data->info.count || !link->num_adr)
+				break;
+		}
+		if (mach && mach->link_mask) {
+			mach->mach_params.links = mach->links;
+			mach->mach_params.link_mask = mach->link_mask;
+			return mach;
+		}
 	}
-	dev_dbg(dev, "ACPI reports %d SoundWire Manager devices\n", count);
-	acp_data->sdw_manager_count = count;
-	for (index = 0; index < count; index++) {
-		scnprintf(name, sizeof(name), "mipi-sdw-link-%d-subproperties", index);
-		link = fwnode_get_named_child_node(acp_data->sdw_fw_node, name);
-		if (!link) {
-			dev_err(dev, "Manager node %s not found\n", name);
-			return -EIO;
+	dev_dbg(dev, "No SoundWire machine driver found\n");
+	return NULL;
+}
+#else
+static int acp_scan_sdw_devices(struct device *dev, u64 addr)
+{
+	return 0;
+}
+
+static int amd_sdw_probe(struct device *dev)
+{
+	return 0;
+}
+
+static int amd_sdw_exit(struct acp63_dev_data *acp_data)
+{
+	return 0;
+}
+
+static struct snd_soc_acpi_mach *acp63_sdw_machine_select(struct device *dev)
+{
+	return NULL;
+}
+#endif
+
+static int acp63_machine_register(struct device *dev)
+{
+	struct snd_soc_acpi_mach *mach;
+	struct acp63_dev_data *adata = dev_get_drvdata(dev);
+	int size;
+
+	if (adata->is_sdw_dev && adata->is_sdw_config) {
+		size = sizeof(*adata->machines);
+		mach = acp63_sdw_machine_select(dev);
+		if (mach) {
+			adata->mach_dev = platform_device_register_data(dev, mach->drv_name,
+									PLATFORM_DEVID_NONE, mach,
+									size);
+			if (IS_ERR(adata->mach_dev)) {
+				dev_err(dev,
+					"cannot register Machine device for SoundWire Interface\n");
+				return PTR_ERR(adata->mach_dev);
+			}
 		}
 
-		ret = fwnode_property_read_u32(link, "amd-sdw-power-mode", &acp_sdw_power_mode);
-		if (ret)
-			return ret;
-		/*
-		 * when SoundWire configuration is selected from acp pin config,
-		 * based on manager instances count, acp init/de-init sequence should be
-		 * executed as part of PM ops only when Bus reset is applied for the active
-		 * SoundWire manager instances.
-		 */
-		if (acp_sdw_power_mode != AMD_SDW_POWER_OFF_MODE) {
-			acp_data->acp_reset = false;
-			return 0;
+	} else if (adata->is_pdm_dev && !adata->is_sdw_dev && adata->is_pdm_config) {
+		adata->mach_dev = platform_device_register_data(dev, "acp_ps_mach",
+								PLATFORM_DEVID_NONE, NULL, 0);
+		if (IS_ERR(adata->mach_dev)) {
+			dev_err(dev, "cannot register amd_ps_mach device\n");
+			return PTR_ERR(adata->mach_dev);
 		}
 	}
 	return 0;
 }
 
-static int get_acp63_device_config(u32 config, struct pci_dev *pci, struct acp63_dev_data *acp_data)
+static int get_acp63_device_config(struct pci_dev *pci, struct acp63_dev_data *acp_data)
 {
-	struct acpi_device *dmic_dev;
-	struct acpi_device *sdw_dev;
+	struct acpi_device *pdm_dev;
 	const union acpi_object *obj;
+	u32 config;
 	bool is_dmic_dev = false;
 	bool is_sdw_dev = false;
 	int ret;
 
-	dmic_dev = acpi_find_child_device(ACPI_COMPANION(&pci->dev), ACP63_DMIC_ADDR, 0);
-	if (dmic_dev) {
-		/* is_dmic_dev flag will be set when ACP PDM controller device exists */
-		if (!acpi_dev_get_property(dmic_dev, "acp-audio-device-type",
-					   ACPI_TYPE_INTEGER, &obj) &&
-					   obj->integer.value == ACP_DMIC_DEV)
-			is_dmic_dev = true;
-	}
-
-	sdw_dev = acpi_find_child_device(ACPI_COMPANION(&pci->dev), ACP63_SDW_ADDR, 0);
-	if (sdw_dev) {
-		acp_data->sdw_fw_node = acpi_fwnode_handle(sdw_dev);
-		ret = sdw_amd_scan_controller(&pci->dev);
-		/* is_sdw_dev flag will be set when SoundWire Manager device exists */
-		if (!ret)
-			is_sdw_dev = true;
-	}
-	if (!is_dmic_dev && !is_sdw_dev)
-		return -ENODEV;
-	dev_dbg(&pci->dev, "Audio Mode %d\n", config);
+	config = readl(acp_data->acp63_base + ACP_PIN_CONFIG);
 	switch (config) {
 	case ACP_CONFIG_4:
 	case ACP_CONFIG_5:
 	case ACP_CONFIG_10:
 	case ACP_CONFIG_11:
-		if (is_dmic_dev) {
-			acp_data->pdev_config = ACP63_PDM_DEV_CONFIG;
-			acp_data->pdev_count = ACP63_PDM_MODE_DEVS;
-		}
+		acp_data->is_pdm_config = true;
 		break;
 	case ACP_CONFIG_2:
 	case ACP_CONFIG_3:
-		if (is_sdw_dev) {
-			switch (acp_data->sdw_manager_count) {
-			case 1:
-				acp_data->pdev_config = ACP63_SDW_DEV_CONFIG;
-				acp_data->pdev_count = ACP63_SDW0_MODE_DEVS;
-				break;
-			case 2:
-				acp_data->pdev_config = ACP63_SDW_DEV_CONFIG;
-				acp_data->pdev_count = ACP63_SDW0_SDW1_MODE_DEVS;
-				break;
-			default:
-				return -EINVAL;
-			}
-		}
+		acp_data->is_sdw_config = true;
 		break;
 	case ACP_CONFIG_6:
 	case ACP_CONFIG_7:
@@ -360,39 +398,35 @@ static int get_acp63_device_config(u32 config, struct pci_dev *pci, struct acp63
 	case ACP_CONFIG_8:
 	case ACP_CONFIG_13:
 	case ACP_CONFIG_14:
-		if (is_dmic_dev && is_sdw_dev) {
-			switch (acp_data->sdw_manager_count) {
-			case 1:
-				acp_data->pdev_config = ACP63_SDW_PDM_DEV_CONFIG;
-				acp_data->pdev_count = ACP63_SDW0_PDM_MODE_DEVS;
-				break;
-			case 2:
-				acp_data->pdev_config = ACP63_SDW_PDM_DEV_CONFIG;
-				acp_data->pdev_count = ACP63_SDW0_SDW1_PDM_MODE_DEVS;
-				break;
-			default:
-				return -EINVAL;
-			}
-		} else if (is_dmic_dev) {
-			acp_data->pdev_config = ACP63_PDM_DEV_CONFIG;
-			acp_data->pdev_count = ACP63_PDM_MODE_DEVS;
-		} else if (is_sdw_dev) {
-			switch (acp_data->sdw_manager_count) {
-			case 1:
-				acp_data->pdev_config = ACP63_SDW_DEV_CONFIG;
-				acp_data->pdev_count = ACP63_SDW0_MODE_DEVS;
-				break;
-			case 2:
-				acp_data->pdev_config = ACP63_SDW_DEV_CONFIG;
-				acp_data->pdev_count = ACP63_SDW0_SDW1_MODE_DEVS;
-				break;
-			default:
-				return -EINVAL;
-			}
-		}
+		acp_data->is_pdm_config = true;
+		acp_data->is_sdw_config = true;
 		break;
 	default:
 		break;
+	}
+
+	if (acp_data->is_pdm_config) {
+		pdm_dev = acpi_find_child_device(ACPI_COMPANION(&pci->dev), ACP63_DMIC_ADDR, 0);
+		if (pdm_dev) {
+			/* is_dmic_dev flag will be set when ACP PDM controller device exists */
+			if (!acpi_dev_get_property(pdm_dev, "acp-audio-device-type",
+						   ACPI_TYPE_INTEGER, &obj) &&
+						   obj->integer.value == ACP_DMIC_DEV)
+				is_dmic_dev = true;
+		}
+	}
+
+	if (acp_data->is_sdw_config) {
+		ret = acp_scan_sdw_devices(&pci->dev, ACP63_SDW_ADDR);
+		if (!ret && acp_data->info.link_mask)
+			is_sdw_dev = true;
+	}
+
+	acp_data->is_pdm_dev = is_dmic_dev;
+	acp_data->is_sdw_dev = is_sdw_dev;
+	if (!is_dmic_dev && !is_sdw_dev) {
+		dev_dbg(&pci->dev, "No PDM or SoundWire manager devices found\n");
+		return -ENODEV;
 	}
 	return 0;
 }
@@ -418,17 +452,13 @@ static void acp63_fill_platform_dev_info(struct platform_device_info *pdevinfo,
 
 static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data *adata, u32 addr)
 {
-	struct acp_sdw_pdata *sdw_pdata;
-	struct platform_device_info pdevinfo[ACP63_DEVS];
+	struct platform_device_info pdevinfo;
 	struct device *parent;
-	int index;
 	int ret;
 
 	parent = &pci->dev;
-	dev_dbg(&pci->dev,
-		"%s pdev_config:0x%x pdev_count:0x%x\n", __func__, adata->pdev_config,
-		adata->pdev_count);
-	if (adata->pdev_config) {
+
+	if (adata->is_sdw_dev || adata->is_pdm_dev) {
 		adata->res = devm_kzalloc(&pci->dev, sizeof(struct resource), GFP_KERNEL);
 		if (!adata->res) {
 			ret = -ENOMEM;
@@ -440,130 +470,57 @@ static int create_acp63_platform_devs(struct pci_dev *pci, struct acp63_dev_data
 		memset(&pdevinfo, 0, sizeof(pdevinfo));
 	}
 
-	switch (adata->pdev_config) {
-	case ACP63_PDM_DEV_CONFIG:
-		adata->pdm_dev_index  = 0;
-		acp63_fill_platform_dev_info(&pdevinfo[0], parent, NULL, "acp_ps_pdm_dma",
+	if (adata->is_pdm_dev && adata->is_pdm_config) {
+		acp63_fill_platform_dev_info(&pdevinfo, parent, NULL, "acp_ps_pdm_dma",
 					     0, adata->res, 1, NULL, 0);
-		acp63_fill_platform_dev_info(&pdevinfo[1], parent, NULL, "dmic-codec",
-					     0, NULL, 0, NULL, 0);
-		acp63_fill_platform_dev_info(&pdevinfo[2], parent, NULL, "acp_ps_mach",
-					     0, NULL, 0, NULL, 0);
-		break;
-	case ACP63_SDW_DEV_CONFIG:
-		if (adata->pdev_count == ACP63_SDW0_MODE_DEVS) {
-			sdw_pdata = devm_kzalloc(&pci->dev, sizeof(struct acp_sdw_pdata),
-						 GFP_KERNEL);
-			if (!sdw_pdata) {
-				ret = -ENOMEM;
-				goto de_init;
-			}
 
-			sdw_pdata->instance = 0;
-			sdw_pdata->acp_sdw_lock = &adata->acp_lock;
-			adata->sdw0_dev_index = 0;
-			adata->sdw_dma_dev_index = 1;
-			acp63_fill_platform_dev_info(&pdevinfo[0], parent, adata->sdw_fw_node,
-						     "amd_sdw_manager", 0, adata->res, 1,
-						     sdw_pdata, sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[1], parent, NULL, "amd_ps_sdw_dma",
-						     0, adata->res, 1, NULL, 0);
-		} else if (adata->pdev_count == ACP63_SDW0_SDW1_MODE_DEVS) {
-			sdw_pdata = devm_kzalloc(&pci->dev, sizeof(struct acp_sdw_pdata) * 2,
-						 GFP_KERNEL);
-			if (!sdw_pdata) {
-				ret = -ENOMEM;
-				goto de_init;
-			}
-
-			sdw_pdata[0].instance = 0;
-			sdw_pdata[1].instance = 1;
-			sdw_pdata[0].acp_sdw_lock = &adata->acp_lock;
-			sdw_pdata[1].acp_sdw_lock = &adata->acp_lock;
-			sdw_pdata->acp_sdw_lock = &adata->acp_lock;
-			adata->sdw0_dev_index = 0;
-			adata->sdw1_dev_index = 1;
-			adata->sdw_dma_dev_index = 2;
-			acp63_fill_platform_dev_info(&pdevinfo[0], parent, adata->sdw_fw_node,
-						     "amd_sdw_manager", 0, adata->res, 1,
-						     &sdw_pdata[0], sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[1], parent, adata->sdw_fw_node,
-						     "amd_sdw_manager", 1, adata->res, 1,
-						     &sdw_pdata[1], sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[2], parent, NULL, "amd_ps_sdw_dma",
-						     0, adata->res, 1, NULL, 0);
-		}
-		break;
-	case ACP63_SDW_PDM_DEV_CONFIG:
-		if (adata->pdev_count == ACP63_SDW0_PDM_MODE_DEVS) {
-			sdw_pdata = devm_kzalloc(&pci->dev, sizeof(struct acp_sdw_pdata),
-						 GFP_KERNEL);
-			if (!sdw_pdata) {
-				ret = -ENOMEM;
-				goto de_init;
-			}
-
-			sdw_pdata->instance = 0;
-			sdw_pdata->acp_sdw_lock = &adata->acp_lock;
-			adata->pdm_dev_index = 0;
-			adata->sdw0_dev_index = 1;
-			adata->sdw_dma_dev_index = 2;
-			acp63_fill_platform_dev_info(&pdevinfo[0], parent, NULL, "acp_ps_pdm_dma",
-						     0, adata->res, 1, NULL, 0);
-			acp63_fill_platform_dev_info(&pdevinfo[1], parent, adata->sdw_fw_node,
-						     "amd_sdw_manager", 0, adata->res, 1,
-						     sdw_pdata, sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[2], parent, NULL, "amd_ps_sdw_dma",
-						     0, adata->res, 1, NULL, 0);
-			acp63_fill_platform_dev_info(&pdevinfo[3], parent, NULL, "dmic-codec",
-						     0, NULL, 0, NULL, 0);
-		} else if (adata->pdev_count == ACP63_SDW0_SDW1_PDM_MODE_DEVS) {
-			sdw_pdata = devm_kzalloc(&pci->dev, sizeof(struct acp_sdw_pdata) * 2,
-						 GFP_KERNEL);
-			if (!sdw_pdata) {
-				ret = -ENOMEM;
-				goto de_init;
-			}
-			sdw_pdata[0].instance = 0;
-			sdw_pdata[1].instance = 1;
-			sdw_pdata[0].acp_sdw_lock = &adata->acp_lock;
-			sdw_pdata[1].acp_sdw_lock = &adata->acp_lock;
-			adata->pdm_dev_index = 0;
-			adata->sdw0_dev_index = 1;
-			adata->sdw1_dev_index = 2;
-			adata->sdw_dma_dev_index = 3;
-			acp63_fill_platform_dev_info(&pdevinfo[0], parent, NULL, "acp_ps_pdm_dma",
-						     0, adata->res, 1, NULL, 0);
-			acp63_fill_platform_dev_info(&pdevinfo[1], parent, adata->sdw_fw_node,
-						     "amd_sdw_manager", 0, adata->res, 1,
-						     &sdw_pdata[0], sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[2], parent, adata->sdw_fw_node,
-						     "amd_sdw_manager", 1, adata->res, 1,
-						     &sdw_pdata[1], sizeof(struct acp_sdw_pdata));
-			acp63_fill_platform_dev_info(&pdevinfo[3], parent, NULL, "amd_ps_sdw_dma",
-						     0, adata->res, 1, NULL, 0);
-			acp63_fill_platform_dev_info(&pdevinfo[4], parent, NULL, "dmic-codec",
-						     0, NULL, 0, NULL, 0);
-		}
-		break;
-	default:
-		dev_dbg(&pci->dev, "No PDM or SoundWire manager devices found\n");
-		return 0;
-	}
-
-	for (index = 0; index < adata->pdev_count; index++) {
-		adata->pdev[index] = platform_device_register_full(&pdevinfo[index]);
-		if (IS_ERR(adata->pdev[index])) {
+		adata->pdm_dev = platform_device_register_full(&pdevinfo);
+		if (IS_ERR(adata->pdm_dev)) {
 			dev_err(&pci->dev,
-				"cannot register %s device\n", pdevinfo[index].name);
-			ret = PTR_ERR(adata->pdev[index]);
-			goto unregister_devs;
+				"cannot register %s device\n", pdevinfo.name);
+			ret = PTR_ERR(adata->pdm_dev);
+			goto de_init;
+		}
+		memset(&pdevinfo, 0, sizeof(pdevinfo));
+		acp63_fill_platform_dev_info(&pdevinfo, parent, NULL, "dmic-codec",
+					     0, NULL, 0, NULL, 0);
+		adata->dmic_codec_dev = platform_device_register_full(&pdevinfo);
+		if (IS_ERR(adata->dmic_codec_dev)) {
+			dev_err(&pci->dev,
+				"cannot register %s device\n", pdevinfo.name);
+			ret = PTR_ERR(adata->dmic_codec_dev);
+			goto unregister_pdm_dev;
 		}
 	}
+	if (adata->is_sdw_dev && adata->is_sdw_config) {
+		ret = amd_sdw_probe(&pci->dev);
+		if (ret) {
+			if (adata->is_pdm_dev)
+				goto unregister_dmic_codec_dev;
+			else
+				goto de_init;
+		}
+		memset(&pdevinfo, 0, sizeof(pdevinfo));
+		acp63_fill_platform_dev_info(&pdevinfo, parent, NULL, "amd_ps_sdw_dma",
+					     0, adata->res, 1, NULL, 0);
+
+		adata->sdw_dma_dev = platform_device_register_full(&pdevinfo);
+		if (IS_ERR(adata->sdw_dma_dev)) {
+			dev_err(&pci->dev,
+				"cannot register %s device\n", pdevinfo.name);
+			ret = PTR_ERR(adata->sdw_dma_dev);
+			if (adata->is_pdm_dev)
+				goto unregister_dmic_codec_dev;
+			else
+				goto de_init;
+		}
+	}
+
 	return 0;
-unregister_devs:
-	for (--index; index >= 0; index--)
-		platform_device_unregister(adata->pdev[index]);
+unregister_dmic_codec_dev:
+		platform_device_unregister(adata->dmic_codec_dev);
+unregister_pdm_dev:
+		platform_device_unregister(adata->pdm_dev);
 de_init:
 	if (acp63_deinit(adata->acp63_base, &pci->dev))
 		dev_err(&pci->dev, "ACP de-init failed\n");
@@ -576,7 +533,6 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	struct acp63_dev_data *adata;
 	u32 addr;
 	u32 irqflags, flag;
-	int val;
 	int ret;
 
 	irqflags = IRQF_SHARED;
@@ -618,13 +574,8 @@ static int snd_acp63_probe(struct pci_dev *pci,
 		ret = -ENOMEM;
 		goto release_regions;
 	}
-	/*
-	 * By default acp_reset flag is set to true. i.e acp_deinit() and acp_init()
-	 * will be invoked for all ACP configurations during suspend/resume callbacks.
-	 * This flag should be set to false only when SoundWire manager power mode
-	 * set to ClockStopMode.
-	 */
-	adata->acp_reset = true;
+	adata->addr = addr;
+	adata->reg_range = ACP63_REG_END - ACP63_REG_START;
 	pci_set_master(pci);
 	pci_set_drvdata(pci, adata);
 	mutex_init(&adata->acp_lock);
@@ -637,8 +588,7 @@ static int snd_acp63_probe(struct pci_dev *pci,
 		dev_err(&pci->dev, "ACP PCI IRQ request failed\n");
 		goto de_init;
 	}
-	val = readl(adata->acp63_base + ACP_PIN_CONFIG);
-	ret = get_acp63_device_config(val, pci, adata);
+	ret = get_acp63_device_config(pci, adata);
 	/* ACP PCI driver probe should be continued even PDM or SoundWire Devices are not found */
 	if (ret) {
 		dev_dbg(&pci->dev, "get acp device config failed:%d\n", ret);
@@ -647,6 +597,11 @@ static int snd_acp63_probe(struct pci_dev *pci,
 	ret = create_acp63_platform_devs(pci, adata, addr);
 	if (ret < 0) {
 		dev_err(&pci->dev, "ACP platform devices creation failed\n");
+		goto de_init;
+	}
+	ret = acp63_machine_register(&pci->dev);
+	if (ret) {
+		dev_err(&pci->dev, "ACP machine register failed\n");
 		goto de_init;
 	}
 skip_pdev_creation:
@@ -667,47 +622,103 @@ disable_pci:
 	return ret;
 }
 
+static bool check_acp_sdw_enable_status(struct acp63_dev_data *adata)
+{
+	u32 sdw0_en, sdw1_en;
+
+	sdw0_en = readl(adata->acp63_base + ACP_SW0_EN);
+	sdw1_en = readl(adata->acp63_base + ACP_SW1_EN);
+	return (sdw0_en || sdw1_en);
+}
+
+static void handle_acp63_sdw_pme_event(struct acp63_dev_data *adata)
+{
+	u32 val;
+
+	val = readl(adata->acp63_base + ACP_SW0_WAKE_EN);
+	if (val && adata->sdw->pdev[0])
+		pm_request_resume(&adata->sdw->pdev[0]->dev);
+
+	val = readl(adata->acp63_base + ACP_SW1_WAKE_EN);
+	if (val && adata->sdw->pdev[1])
+		pm_request_resume(&adata->sdw->pdev[1]->dev);
+}
+
 static int __maybe_unused snd_acp63_suspend(struct device *dev)
 {
 	struct acp63_dev_data *adata;
-	int ret = 0;
+	int ret;
 
 	adata = dev_get_drvdata(dev);
-	if (adata->acp_reset) {
-		ret = acp63_deinit(adata->acp63_base, dev);
-		if (ret)
-			dev_err(dev, "ACP de-init failed\n");
+	if (adata->is_sdw_dev) {
+		adata->sdw_en_stat = check_acp_sdw_enable_status(adata);
+		if (adata->sdw_en_stat)
+			return 0;
 	}
+	ret = acp63_deinit(adata->acp63_base, dev);
+	if (ret)
+		dev_err(dev, "ACP de-init failed\n");
+
 	return ret;
+}
+
+static int __maybe_unused snd_acp63_runtime_resume(struct device *dev)
+{
+	struct acp63_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+	if (adata->sdw_en_stat)
+		return 0;
+
+	ret = acp63_init(adata->acp63_base, dev);
+	if (ret) {
+		dev_err(dev, "ACP init failed\n");
+		return ret;
+	}
+
+	if (!adata->sdw_en_stat)
+		handle_acp63_sdw_pme_event(adata);
+	return 0;
 }
 
 static int __maybe_unused snd_acp63_resume(struct device *dev)
 {
 	struct acp63_dev_data *adata;
-	int ret = 0;
+	int ret;
 
 	adata = dev_get_drvdata(dev);
-	if (adata->acp_reset) {
-		ret = acp63_init(adata->acp63_base, dev);
-		if (ret)
-			dev_err(dev, "ACP init failed\n");
-	}
+	if (adata->sdw_en_stat)
+		return 0;
+
+	ret = acp63_init(adata->acp63_base, dev);
+	if (ret)
+		dev_err(dev, "ACP init failed\n");
+
 	return ret;
 }
 
 static const struct dev_pm_ops acp63_pm_ops = {
-	SET_RUNTIME_PM_OPS(snd_acp63_suspend, snd_acp63_resume, NULL)
+	SET_RUNTIME_PM_OPS(snd_acp63_suspend, snd_acp63_runtime_resume, NULL)
 	SET_SYSTEM_SLEEP_PM_OPS(snd_acp63_suspend, snd_acp63_resume)
 };
 
 static void snd_acp63_remove(struct pci_dev *pci)
 {
 	struct acp63_dev_data *adata;
-	int ret, index;
+	int ret;
 
 	adata = pci_get_drvdata(pci);
-	for (index = 0; index < adata->pdev_count; index++)
-		platform_device_unregister(adata->pdev[index]);
+	if (adata->sdw) {
+		amd_sdw_exit(adata);
+		platform_device_unregister(adata->sdw_dma_dev);
+	}
+	if (adata->is_pdm_dev) {
+		platform_device_unregister(adata->pdm_dev);
+		platform_device_unregister(adata->dmic_codec_dev);
+	}
+	if (adata->mach_dev)
+		platform_device_unregister(adata->mach_dev);
 	ret = acp63_deinit(adata->acp63_base, &pci->dev);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
@@ -740,4 +751,6 @@ module_pci_driver(ps_acp63_driver);
 MODULE_AUTHOR("Vijendar.Mukunda@amd.com");
 MODULE_AUTHOR("Syed.SabaKareem@amd.com");
 MODULE_DESCRIPTION("AMD ACP Pink Sardine PCI driver");
+MODULE_IMPORT_NS(SOUNDWIRE_AMD_INIT);
+MODULE_IMPORT_NS(SND_AMD_SOUNDWIRE_ACPI);
 MODULE_LICENSE("GPL v2");

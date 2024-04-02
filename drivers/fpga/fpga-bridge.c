@@ -30,7 +30,7 @@ int fpga_bridge_enable(struct fpga_bridge *bridge)
 {
 	dev_dbg(&bridge->dev, "enable\n");
 
-	if (bridge->br_ops && bridge->br_ops->enable_set)
+	if (bridge->br_ops->enable_set)
 		return bridge->br_ops->enable_set(bridge, 1);
 
 	return 0;
@@ -48,7 +48,7 @@ int fpga_bridge_disable(struct fpga_bridge *bridge)
 {
 	dev_dbg(&bridge->dev, "disable\n");
 
-	if (bridge->br_ops && bridge->br_ops->enable_set)
+	if (bridge->br_ops->enable_set)
 		return bridge->br_ops->enable_set(bridge, 0);
 
 	return 0;
@@ -296,7 +296,7 @@ static ssize_t state_show(struct device *dev,
 	struct fpga_bridge *bridge = to_fpga_bridge(dev);
 	int state = 1;
 
-	if (bridge->br_ops && bridge->br_ops->enable_show) {
+	if (bridge->br_ops->enable_show) {
 		state = bridge->br_ops->enable_show(bridge);
 		if (state < 0)
 			return state;
@@ -401,7 +401,7 @@ void fpga_bridge_unregister(struct fpga_bridge *bridge)
 	 * If the low level driver provides a method for putting bridge into
 	 * a desired state upon unregister, do it.
 	 */
-	if (bridge->br_ops && bridge->br_ops->fpga_bridge_remove)
+	if (bridge->br_ops->fpga_bridge_remove)
 		bridge->br_ops->fpga_bridge_remove(bridge);
 
 	device_unregister(&bridge->dev);

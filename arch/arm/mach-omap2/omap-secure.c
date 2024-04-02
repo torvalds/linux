@@ -47,7 +47,7 @@ static void __init omap_optee_init_check(void)
 }
 
 /**
- * omap_sec_dispatcher: Routine to dispatch low power secure
+ * omap_secure_dispatcher - Routine to dispatch low power secure
  * service routines
  * @idx: The HAL API index
  * @flag: The flag indicating criticality of operation
@@ -183,7 +183,7 @@ static u32 rx51_secure_dispatcher(u32 idx, u32 process, u32 flag, u32 nargs,
 /**
  * rx51_secure_update_aux_cr: Routine to modify the contents of Auxiliary Control Register
  *  @set_bits: bits to set in ACR
- *  @clr_bits: bits to clear in ACR
+ *  @clear_bits: bits to clear in ACR
  *
  * Return the non-zero error value on failure.
 */

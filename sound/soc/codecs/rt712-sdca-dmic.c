@@ -944,7 +944,7 @@ static const struct dev_pm_ops rt712_sdca_dmic_pm = {
 };
 
 
-static struct sdw_slave_ops rt712_sdca_dmic_slave_ops = {
+static const struct sdw_slave_ops rt712_sdca_dmic_slave_ops = {
 	.read_prop = rt712_sdca_dmic_read_prop,
 	.update_status = rt712_sdca_dmic_update_status,
 };

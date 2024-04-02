@@ -17,13 +17,17 @@ properties:
     pattern: "^touchscreen(@.*)?$"
 
   compatible:
-    items:
+    oneOf:
       - enum:
           - melfas,mms114
           - melfas,mms134s
           - melfas,mms136
           - melfas,mms152
           - melfas,mms345l
+      - items:
+          - enum:
+              - melfas,mms252
+          - const: melfas,mms114
 
   reg:
     description: I2C address

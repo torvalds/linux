@@ -878,7 +878,8 @@ Protocol:	2.10+
   address if possible.
 
   A non-relocatable kernel will unconditionally move itself and to run
-  at this address.
+  at this address. A relocatable kernel will move itself to this address if it
+  loaded below this address.
 
 ============	=======
 Field name:	init_size

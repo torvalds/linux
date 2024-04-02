@@ -8,7 +8,7 @@
 #include <asm/asmmacro.h>
 #include <asm/loongarch.h>
 #include <asm/regdef.h>
-#include <asm/stackframe.h>
+#include <asm/unwind_hints.h>
 
 #define HGPR_OFFSET(x)		(PT_R0 + 8*x)
 #define GGPR_OFFSET(x)		(KVM_ARCH_GGPR + 8*x)
@@ -112,6 +112,7 @@
 	.text
 	.cfi_sections	.debug_frame
 SYM_CODE_START(kvm_exc_entry)
+	UNWIND_HINT_UNDEFINED
 	csrwr	a2,   KVM_TEMP_KS
 	csrrd	a2,   KVM_VCPU_KS
 	addi.d	a2,   a2, KVM_VCPU_ARCH
@@ -213,12 +214,6 @@ SYM_FUNC_START(kvm_enter_guest)
 	/* Save host GPRs */
 	kvm_save_host_gpr a2
 
-	/* Save host CRMD, PRMD to stack */
-	csrrd	a3, LOONGARCH_CSR_CRMD
-	st.d	a3, a2, PT_CRMD
-	csrrd	a3, LOONGARCH_CSR_PRMD
-	st.d	a3, a2, PT_PRMD
-
 	addi.d	a2, a1, KVM_VCPU_ARCH
 	st.d	sp, a2, KVM_ARCH_HSP
 	st.d	tp, a2, KVM_ARCH_HTP
@@ -279,3 +274,9 @@ SYM_FUNC_END(kvm_restore_lasx)
 	.section ".rodata"
 SYM_DATA(kvm_exception_size, .quad kvm_exc_entry_end - kvm_exc_entry)
 SYM_DATA(kvm_enter_guest_size, .quad kvm_enter_guest_end - kvm_enter_guest)
+
+#ifdef CONFIG_CPU_HAS_LBT
+STACK_FRAME_NON_STANDARD kvm_restore_fpu
+STACK_FRAME_NON_STANDARD kvm_restore_lsx
+STACK_FRAME_NON_STANDARD kvm_restore_lasx
+#endif

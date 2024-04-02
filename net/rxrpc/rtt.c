@@ -11,8 +11,8 @@
 #include <linux/net.h>
 #include "ar-internal.h"
 
-#define RXRPC_RTO_MAX	((unsigned)(120 * HZ))
-#define RXRPC_TIMEOUT_INIT ((unsigned)(1*HZ))	/* RFC6298 2.1 initial RTO value	*/
+#define RXRPC_RTO_MAX	(120 * USEC_PER_SEC)
+#define RXRPC_TIMEOUT_INIT ((unsigned int)(1 * MSEC_PER_SEC)) /* RFC6298 2.1 initial RTO value */
 #define rxrpc_jiffies32 ((u32)jiffies)		/* As rxrpc_jiffies32 */
 
 static u32 rxrpc_rto_min_us(struct rxrpc_peer *peer)
@@ -22,7 +22,7 @@ static u32 rxrpc_rto_min_us(struct rxrpc_peer *peer)
 
 static u32 __rxrpc_set_rto(const struct rxrpc_peer *peer)
 {
-	return usecs_to_jiffies((peer->srtt_us >> 3) + peer->rttvar_us);
+	return (peer->srtt_us >> 3) + peer->rttvar_us;
 }
 
 static u32 rxrpc_bound_rto(u32 rto)
@@ -124,7 +124,7 @@ static void rxrpc_set_rto(struct rxrpc_peer *peer)
 	/* NOTE: clamping at RXRPC_RTO_MIN is not required, current algo
 	 * guarantees that rto is higher.
 	 */
-	peer->rto_j = rxrpc_bound_rto(rto);
+	peer->rto_us = rxrpc_bound_rto(rto);
 }
 
 static void rxrpc_ack_update_rtt(struct rxrpc_peer *peer, long rtt_us)
@@ -163,33 +163,33 @@ void rxrpc_peer_add_rtt(struct rxrpc_call *call, enum rxrpc_rtt_rx_trace why,
 	spin_unlock(&peer->rtt_input_lock);
 
 	trace_rxrpc_rtt_rx(call, why, rtt_slot, send_serial, resp_serial,
-			   peer->srtt_us >> 3, peer->rto_j);
+			   peer->srtt_us >> 3, peer->rto_us);
 }
 
 /*
- * Get the retransmission timeout to set in jiffies, backing it off each time
- * we retransmit.
+ * Get the retransmission timeout to set in nanoseconds, backing it off each
+ * time we retransmit.
  */
-unsigned long rxrpc_get_rto_backoff(struct rxrpc_peer *peer, bool retrans)
+ktime_t rxrpc_get_rto_backoff(struct rxrpc_peer *peer, bool retrans)
 {
-	u64 timo_j;
-	u8 backoff = READ_ONCE(peer->backoff);
+	u64 timo_us;
+	u32 backoff = READ_ONCE(peer->backoff);
 
-	timo_j = peer->rto_j;
-	timo_j <<= backoff;
-	if (retrans && timo_j * 2 <= RXRPC_RTO_MAX)
+	timo_us = peer->rto_us;
+	timo_us <<= backoff;
+	if (retrans && timo_us * 2 <= RXRPC_RTO_MAX)
 		WRITE_ONCE(peer->backoff, backoff + 1);
 
-	if (timo_j < 1)
-		timo_j = 1;
+	if (timo_us < 1)
+		timo_us = 1;
 
-	return timo_j;
+	return ns_to_ktime(timo_us * NSEC_PER_USEC);
 }
 
 void rxrpc_peer_init_rtt(struct rxrpc_peer *peer)
 {
-	peer->rto_j	= RXRPC_TIMEOUT_INIT;
-	peer->mdev_us	= jiffies_to_usecs(RXRPC_TIMEOUT_INIT);
+	peer->rto_us	= RXRPC_TIMEOUT_INIT;
+	peer->mdev_us	= RXRPC_TIMEOUT_INIT;
 	peer->backoff	= 0;
 	//minmax_reset(&peer->rtt_min, rxrpc_jiffies32, ~0U);
 }

@@ -73,9 +73,9 @@ static int rapl_cpu_online(unsigned int cpu)
 {
 	struct rapl_package *rp;
 
-	rp = rapl_find_package_domain(cpu, rapl_msr_priv, true);
+	rp = rapl_find_package_domain_cpuslocked(cpu, rapl_msr_priv, true);
 	if (!rp) {
-		rp = rapl_add_package(cpu, rapl_msr_priv, true);
+		rp = rapl_add_package_cpuslocked(cpu, rapl_msr_priv, true);
 		if (IS_ERR(rp))
 			return PTR_ERR(rp);
 	}
@@ -88,14 +88,14 @@ static int rapl_cpu_down_prep(unsigned int cpu)
 	struct rapl_package *rp;
 	int lead_cpu;
 
-	rp = rapl_find_package_domain(cpu, rapl_msr_priv, true);
+	rp = rapl_find_package_domain_cpuslocked(cpu, rapl_msr_priv, true);
 	if (!rp)
 		return 0;
 
 	cpumask_clear_cpu(cpu, &rp->cpumask);
 	lead_cpu = cpumask_first(&rp->cpumask);
 	if (lead_cpu >= nr_cpu_ids)
-		rapl_remove_package(rp);
+		rapl_remove_package_cpuslocked(rp);
 	else if (rp->lead_cpu == cpu)
 		rp->lead_cpu = lead_cpu;
 	return 0;
@@ -197,11 +197,10 @@ out:
 	return ret;
 }
 
-static int rapl_msr_remove(struct platform_device *pdev)
+static void rapl_msr_remove(struct platform_device *pdev)
 {
 	cpuhp_remove_state(rapl_msr_priv->pcap_rapl_online);
 	powercap_unregister_control_type(rapl_msr_priv->control_type);
-	return 0;
 }
 
 static const struct platform_device_id rapl_msr_ids[] = {
@@ -212,7 +211,7 @@ MODULE_DEVICE_TABLE(platform, rapl_msr_ids);
 
 static struct platform_driver intel_rapl_msr_driver = {
 	.probe = rapl_msr_probe,
-	.remove = rapl_msr_remove,
+	.remove_new = rapl_msr_remove,
 	.id_table = rapl_msr_ids,
 	.driver = {
 		.name = "intel_rapl_msr",

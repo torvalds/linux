@@ -331,6 +331,7 @@ config NET_RX_BUSY_POLL
 
 config BQL
 	bool
+	prompt "Enable Byte Queue Limits"
 	depends on SYSFS
 	select DQL
 	default y

@@ -122,6 +122,7 @@ struct zpci_dev {
 	struct rcu_head rcu;
 	struct hotplug_slot hotplug_slot;
 
+	struct mutex state_lock;	/* protect state changes */
 	enum zpci_state state;
 	u32		fid;		/* function ID, used by sclp */
 	u32		fh;		/* function handle, used by insn's */
@@ -142,7 +143,6 @@ struct zpci_dev {
 	u8		reserved	: 2;
 	unsigned int	devfn;		/* DEVFN part of the RID*/
 
-	struct mutex lock;
 	u8 pfip[CLP_PFIP_NR_SEGMENTS];	/* pci function internal path */
 	u32 uid;			/* user defined id */
 	u8 util_str[CLP_UTIL_STR_LEN];	/* utility string */
@@ -170,6 +170,7 @@ struct zpci_dev {
 	u64		dma_mask;	/* DMA address space mask */
 
 	/* Function measurement block */
+	struct mutex fmb_lock;
 	struct zpci_fmb *fmb;
 	u16		fmb_update;	/* update interval */
 	u16		fmb_length;

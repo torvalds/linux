@@ -39,63 +39,6 @@
  */
 
 /*
- * Don't allow staging cursors to be duplicated because they're supposed to be
- * kept private to a single thread.
- */
-STATIC struct xfs_btree_cur *
-xfs_btree_fakeroot_dup_cursor(
-	struct xfs_btree_cur	*cur)
-{
-	ASSERT(0);
-	return NULL;
-}
-
-/*
- * Don't allow block allocation for a staging cursor, because staging cursors
- * do not support regular btree modifications.
- *
- * Bulk loading uses a separate callback to obtain new blocks from a
- * preallocated list, which prevents ENOSPC failures during loading.
- */
-STATIC int
-xfs_btree_fakeroot_alloc_block(
-	struct xfs_btree_cur		*cur,
-	const union xfs_btree_ptr	*start_bno,
-	union xfs_btree_ptr		*new_bno,
-	int				*stat)
-{
-	ASSERT(0);
-	return -EFSCORRUPTED;
-}
-
-/*
- * Don't allow block freeing for a staging cursor, because staging cursors
- * do not support regular btree modifications.
- */
-STATIC int
-xfs_btree_fakeroot_free_block(
-	struct xfs_btree_cur	*cur,
-	struct xfs_buf		*bp)
-{
-	ASSERT(0);
-	return -EFSCORRUPTED;
-}
-
-/* Initialize a pointer to the root block from the fakeroot. */
-STATIC void
-xfs_btree_fakeroot_init_ptr_from_cur(
-	struct xfs_btree_cur	*cur,
-	union xfs_btree_ptr	*ptr)
-{
-	struct xbtree_afakeroot	*afake;
-
-	ASSERT(cur->bc_flags & XFS_BTREE_STAGING);
-
-	afake = cur->bc_ag.afake;
-	ptr->s = cpu_to_be32(afake->af_root);
-}
-
-/*
  * Bulk Loading for AG Btrees
  * ==========================
  *
@@ -109,47 +52,20 @@ xfs_btree_fakeroot_init_ptr_from_cur(
  * cursor into a regular btree cursor.
  */
 
-/* Update the btree root information for a per-AG fake root. */
-STATIC void
-xfs_btree_afakeroot_set_root(
-	struct xfs_btree_cur		*cur,
-	const union xfs_btree_ptr	*ptr,
-	int				inc)
-{
-	struct xbtree_afakeroot	*afake = cur->bc_ag.afake;
-
-	ASSERT(cur->bc_flags & XFS_BTREE_STAGING);
-	afake->af_root = be32_to_cpu(ptr->s);
-	afake->af_levels += inc;
-}
-
 /*
  * Initialize a AG-rooted btree cursor with the given AG btree fake root.
- * The btree cursor's bc_ops will be overridden as needed to make the staging
- * functionality work.
  */
 void
 xfs_btree_stage_afakeroot(
 	struct xfs_btree_cur		*cur,
 	struct xbtree_afakeroot		*afake)
 {
-	struct xfs_btree_ops		*nops;
-
 	ASSERT(!(cur->bc_flags & XFS_BTREE_STAGING));
-	ASSERT(!(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE));
+	ASSERT(cur->bc_ops->type != XFS_BTREE_TYPE_INODE);
 	ASSERT(cur->bc_tp == NULL);
-
-	nops = kmem_alloc(sizeof(struct xfs_btree_ops), KM_NOFS);
-	memcpy(nops, cur->bc_ops, sizeof(struct xfs_btree_ops));
-	nops->alloc_block = xfs_btree_fakeroot_alloc_block;
-	nops->free_block = xfs_btree_fakeroot_free_block;
-	nops->init_ptr_from_cur = xfs_btree_fakeroot_init_ptr_from_cur;
-	nops->set_root = xfs_btree_afakeroot_set_root;
-	nops->dup_cursor = xfs_btree_fakeroot_dup_cursor;
 
 	cur->bc_ag.afake = afake;
 	cur->bc_nlevels = afake->af_levels;
-	cur->bc_ops = nops;
 	cur->bc_flags |= XFS_BTREE_STAGING;
 }
 
@@ -163,17 +79,15 @@ void
 xfs_btree_commit_afakeroot(
 	struct xfs_btree_cur		*cur,
 	struct xfs_trans		*tp,
-	struct xfs_buf			*agbp,
-	const struct xfs_btree_ops	*ops)
+	struct xfs_buf			*agbp)
 {
 	ASSERT(cur->bc_flags & XFS_BTREE_STAGING);
 	ASSERT(cur->bc_tp == NULL);
 
 	trace_xfs_btree_commit_afakeroot(cur);
 
-	kmem_free((void *)cur->bc_ops);
+	cur->bc_ag.afake = NULL;
 	cur->bc_ag.agbp = agbp;
-	cur->bc_ops = ops;
 	cur->bc_flags &= ~XFS_BTREE_STAGING;
 	cur->bc_tp = tp;
 }
@@ -211,29 +125,16 @@ xfs_btree_commit_afakeroot(
 void
 xfs_btree_stage_ifakeroot(
 	struct xfs_btree_cur		*cur,
-	struct xbtree_ifakeroot		*ifake,
-	struct xfs_btree_ops		**new_ops)
+	struct xbtree_ifakeroot		*ifake)
 {
-	struct xfs_btree_ops		*nops;
-
 	ASSERT(!(cur->bc_flags & XFS_BTREE_STAGING));
-	ASSERT(cur->bc_flags & XFS_BTREE_ROOT_IN_INODE);
+	ASSERT(cur->bc_ops->type == XFS_BTREE_TYPE_INODE);
 	ASSERT(cur->bc_tp == NULL);
-
-	nops = kmem_alloc(sizeof(struct xfs_btree_ops), KM_NOFS);
-	memcpy(nops, cur->bc_ops, sizeof(struct xfs_btree_ops));
-	nops->alloc_block = xfs_btree_fakeroot_alloc_block;
-	nops->free_block = xfs_btree_fakeroot_free_block;
-	nops->init_ptr_from_cur = xfs_btree_fakeroot_init_ptr_from_cur;
-	nops->dup_cursor = xfs_btree_fakeroot_dup_cursor;
 
 	cur->bc_ino.ifake = ifake;
 	cur->bc_nlevels = ifake->if_levels;
-	cur->bc_ops = nops;
+	cur->bc_ino.forksize = ifake->if_fork_size;
 	cur->bc_flags |= XFS_BTREE_STAGING;
-
-	if (new_ops)
-		*new_ops = nops;
 }
 
 /*
@@ -246,18 +147,15 @@ void
 xfs_btree_commit_ifakeroot(
 	struct xfs_btree_cur		*cur,
 	struct xfs_trans		*tp,
-	int				whichfork,
-	const struct xfs_btree_ops	*ops)
+	int				whichfork)
 {
 	ASSERT(cur->bc_flags & XFS_BTREE_STAGING);
 	ASSERT(cur->bc_tp == NULL);
 
 	trace_xfs_btree_commit_ifakeroot(cur);
 
-	kmem_free((void *)cur->bc_ops);
 	cur->bc_ino.ifake = NULL;
 	cur->bc_ino.whichfork = whichfork;
-	cur->bc_ops = ops;
 	cur->bc_flags &= ~XFS_BTREE_STAGING;
 	cur->bc_tp = tp;
 }
@@ -397,8 +295,7 @@ xfs_btree_bload_prep_block(
 	struct xfs_btree_block		*new_block;
 	int				ret;
 
-	if ((cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) &&
-	    level == cur->bc_nlevels - 1) {
+	if (xfs_btree_at_iroot(cur, level)) {
 		struct xfs_ifork	*ifp = xfs_btree_ifork_ptr(cur);
 		size_t			new_size;
 
@@ -406,14 +303,12 @@ xfs_btree_bload_prep_block(
 
 		/* Allocate a new incore btree root block. */
 		new_size = bbl->iroot_size(cur, level, nr_this_block, priv);
-		ifp->if_broot = kmem_zalloc(new_size, 0);
+		ifp->if_broot = kzalloc(new_size, GFP_KERNEL | __GFP_NOFAIL);
 		ifp->if_broot_bytes = (int)new_size;
 
 		/* Initialize it and send it out. */
-		xfs_btree_init_block_int(cur->bc_mp, ifp->if_broot,
-				XFS_BUF_DADDR_NULL, cur->bc_btnum, level,
-				nr_this_block, cur->bc_ino.ip->i_ino,
-				cur->bc_flags);
+		xfs_btree_init_block(cur->bc_mp, ifp->if_broot, cur->bc_ops,
+				level, nr_this_block, cur->bc_ino.ip->i_ino);
 
 		*bpp = NULL;
 		*blockp = ifp->if_broot;
@@ -704,7 +599,7 @@ xfs_btree_bload_compute_geometry(
 		xfs_btree_bload_level_geometry(cur, bbl, level, nr_this_level,
 				&avg_per_block, &level_blocks, &dontcare64);
 
-		if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) {
+		if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE) {
 			/*
 			 * If all the items we want to store at this level
 			 * would fit in the inode root block, then we have our
@@ -763,7 +658,7 @@ xfs_btree_bload_compute_geometry(
 		return -EOVERFLOW;
 
 	bbl->btree_height = cur->bc_nlevels;
-	if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE)
+	if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE)
 		bbl->nr_blocks = nr_blocks - 1;
 	else
 		bbl->nr_blocks = nr_blocks;
@@ -890,7 +785,7 @@ xfs_btree_bload(
 	}
 
 	/* Initialize the new root. */
-	if (cur->bc_flags & XFS_BTREE_ROOT_IN_INODE) {
+	if (cur->bc_ops->type == XFS_BTREE_TYPE_INODE) {
 		ASSERT(xfs_btree_ptr_is_null(cur, &ptr));
 		cur->bc_ino.ifake->if_levels = cur->bc_nlevels;
 		cur->bc_ino.ifake->if_blocks = total_blocks - 1;

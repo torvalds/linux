@@ -1890,17 +1890,7 @@ static struct platform_driver camcc_sm6350_driver = {
 	},
 };
 
-static int __init camcc_sm6350_init(void)
-{
-	return platform_driver_register(&camcc_sm6350_driver);
-}
-subsys_initcall(camcc_sm6350_init);
-
-static void __exit camcc_sm6350_exit(void)
-{
-	platform_driver_unregister(&camcc_sm6350_driver);
-}
-module_exit(camcc_sm6350_exit);
+module_platform_driver(camcc_sm6350_driver);
 
 MODULE_DESCRIPTION("QTI CAMCC SM6350 Driver");
 MODULE_LICENSE("GPL");

@@ -378,11 +378,36 @@ static void hpwdt_exit(struct pci_dev *dev)
 	pci_disable_device(dev);
 }
 
+static int hpwdt_suspend(struct device *dev)
+{
+	if (watchdog_active(&hpwdt_dev))
+		hpwdt_stop();
+
+	return 0;
+}
+
+static int hpwdt_resume(struct device *dev)
+{
+	if (watchdog_active(&hpwdt_dev))
+		hpwdt_start(&hpwdt_dev);
+
+	return 0;
+}
+
+static const struct dev_pm_ops hpwdt_pm_ops = {
+	LATE_SYSTEM_SLEEP_PM_OPS(hpwdt_suspend, hpwdt_resume)
+};
+
 static struct pci_driver hpwdt_driver = {
 	.name = "hpwdt",
 	.id_table = hpwdt_devices,
 	.probe = hpwdt_init_one,
 	.remove = hpwdt_exit,
+
+	.driver = {
+		.name = "hpwdt",
+		.pm = &hpwdt_pm_ops,
+	}
 };
 
 MODULE_AUTHOR("Tom Mingarelli");

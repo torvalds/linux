@@ -37,11 +37,16 @@ static int update_pd_power_uw(struct dtpm *dtpm)
 	struct devfreq *devfreq = dtpm_devfreq->devfreq;
 	struct device *dev = devfreq->dev.parent;
 	struct em_perf_domain *pd = em_pd_get(dev);
+	struct em_perf_state *table;
 
-	dtpm->power_min = pd->table[0].power;
+	rcu_read_lock();
+	table = em_perf_state_from_pd(pd);
 
-	dtpm->power_max = pd->table[pd->nr_perf_states - 1].power;
+	dtpm->power_min = table[0].power;
 
+	dtpm->power_max = table[pd->nr_perf_states - 1].power;
+
+	rcu_read_unlock();
 	return 0;
 }
 
@@ -51,19 +56,22 @@ static u64 set_pd_power_limit(struct dtpm *dtpm, u64 power_limit)
 	struct devfreq *devfreq = dtpm_devfreq->devfreq;
 	struct device *dev = devfreq->dev.parent;
 	struct em_perf_domain *pd = em_pd_get(dev);
+	struct em_perf_state *table;
 	unsigned long freq;
 	int i;
 
+	rcu_read_lock();
+	table = em_perf_state_from_pd(pd);
 	for (i = 0; i < pd->nr_perf_states; i++) {
-		if (pd->table[i].power > power_limit)
+		if (table[i].power > power_limit)
 			break;
 	}
 
-	freq = pd->table[i - 1].frequency;
+	freq = table[i - 1].frequency;
+	power_limit = table[i - 1].power;
+	rcu_read_unlock();
 
 	dev_pm_qos_update_request(&dtpm_devfreq->qos_req, freq);
-
-	power_limit = pd->table[i - 1].power;
 
 	return power_limit;
 }
@@ -89,8 +97,9 @@ static u64 get_pd_power_uw(struct dtpm *dtpm)
 	struct device *dev = devfreq->dev.parent;
 	struct em_perf_domain *pd = em_pd_get(dev);
 	struct devfreq_dev_status status;
+	struct em_perf_state *table;
 	unsigned long freq;
-	u64 power;
+	u64 power = 0;
 	int i;
 
 	mutex_lock(&devfreq->lock);
@@ -100,19 +109,22 @@ static u64 get_pd_power_uw(struct dtpm *dtpm)
 	freq = DIV_ROUND_UP(status.current_frequency, HZ_PER_KHZ);
 	_normalize_load(&status);
 
+	rcu_read_lock();
+	table = em_perf_state_from_pd(pd);
 	for (i = 0; i < pd->nr_perf_states; i++) {
 
-		if (pd->table[i].frequency < freq)
+		if (table[i].frequency < freq)
 			continue;
 
-		power = pd->table[i].power;
+		power = table[i].power;
 		power *= status.busy_time;
 		power >>= 10;
 
-		return power;
+		break;
 	}
+	rcu_read_unlock();
 
-	return 0;
+	return power;
 }
 
 static void pd_release(struct dtpm *dtpm)

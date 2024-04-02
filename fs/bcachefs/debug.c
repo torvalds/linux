@@ -137,7 +137,7 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 	mutex_lock(&c->verify_lock);
 
 	if (!c->verify_ondisk) {
-		c->verify_ondisk = kvpmalloc(btree_buf_bytes(b), GFP_KERNEL);
+		c->verify_ondisk = kvmalloc(btree_buf_bytes(b), GFP_KERNEL);
 		if (!c->verify_ondisk)
 			goto out;
 	}
@@ -170,7 +170,7 @@ void __bch2_btree_verify(struct bch_fs *c, struct btree *b)
 		struct printbuf buf = PRINTBUF;
 
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&b->key));
-		bch2_fs_fatal_error(c, "btree node verify failed for : %s\n", buf.buf);
+		bch2_fs_fatal_error(c, ": btree node verify failed for: %s\n", buf.buf);
 		printbuf_exit(&buf);
 	}
 out:
@@ -199,7 +199,7 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 		return;
 	}
 
-	n_ondisk = kvpmalloc(btree_buf_bytes(b), GFP_KERNEL);
+	n_ondisk = kvmalloc(btree_buf_bytes(b), GFP_KERNEL);
 	if (!n_ondisk) {
 		prt_printf(out, "memory allocation failure\n");
 		goto out;
@@ -293,7 +293,7 @@ void bch2_btree_node_ondisk_to_text(struct printbuf *out, struct bch_fs *c,
 out:
 	if (bio)
 		bio_put(bio);
-	kvpfree(n_ondisk, btree_buf_bytes(b));
+	kvfree(n_ondisk);
 	percpu_ref_put(&ca->io_ref);
 }
 

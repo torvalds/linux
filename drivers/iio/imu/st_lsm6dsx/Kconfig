@@ -11,11 +11,32 @@ config IIO_ST_LSM6DSX
 	select IIO_ST_LSM6DSX_I3C if (I3C)
 	help
 	  Say yes here to build support for STMicroelectronics LSM6DSx imu
-	  sensor. Supported devices: lsm6ds3, lsm6ds3h, lsm6dsl, lsm6dsm,
-	  ism330dlc, lsm6dso, lsm6dsox, asm330lhh, asm330lhhx, lsm6dsr,
-	  lsm6ds3tr-c, ism330dhcx, lsm6dsrx, lsm6ds0, lsm6dsop, lsm6dstx,
-	  lsm6dsv, lsm6dsv16x, lsm6dso16is, ism330is, asm330lhb, lsm6dst
-	  and the accelerometer/gyroscope of lsm9ds1.
+	  sensor.
+	  Supported devices:
+	  - asm330lhb
+	  - asm330lhh
+	  - asm330lhhx
+	  - asm330lhhxg1
+	  - ism330dhcx
+	  - ism330dlc
+	  - ism330is
+	  - lsm6ds0
+	  - lsm6ds3
+	  - lsm6ds3h
+	  - lsm6ds3tr-c
+	  - lsm6dsl
+	  - lsm6dsm
+	  - lsm6dso
+	  - lsm6dso16is
+	  - lsm6dsop
+	  - lsm6dsox
+	  - lsm6dsr
+	  - lsm6dsrx
+	  - lsm6dst
+	  - lsm6dstx
+	  - lsm6dsv
+	  - lsm6dsv16x
+	  - lsm9ds1
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called st_lsm6dsx.

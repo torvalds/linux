@@ -25,7 +25,7 @@ TEST(size_too_small_lsm_set_self_attr)
 {
 	const long page_size = sysconf(_SC_PAGESIZE);
 	struct lsm_ctx *ctx = calloc(page_size, 1);
-	size_t size = page_size;
+	__u32 size = page_size;
 
 	ASSERT_NE(NULL, ctx);
 	if (attr_lsm_count()) {
@@ -41,7 +41,7 @@ TEST(flags_zero_lsm_set_self_attr)
 {
 	const long page_size = sysconf(_SC_PAGESIZE);
 	struct lsm_ctx *ctx = calloc(page_size, 1);
-	size_t size = page_size;
+	__u32 size = page_size;
 
 	ASSERT_NE(NULL, ctx);
 	if (attr_lsm_count()) {
@@ -57,7 +57,7 @@ TEST(flags_overset_lsm_set_self_attr)
 {
 	const long page_size = sysconf(_SC_PAGESIZE);
 	char *ctx = calloc(page_size, 1);
-	size_t size = page_size;
+	__u32 size = page_size;
 	struct lsm_ctx *tctx = (struct lsm_ctx *)ctx;
 
 	ASSERT_NE(NULL, ctx);

@@ -20,6 +20,24 @@
 #include <asm/processor.h>
 #include <asm/sclp.h>
 
+static inline void kvm_s390_fpu_store(struct kvm_run *run)
+{
+	fpu_stfpc(&run->s.regs.fpc);
+	if (cpu_has_vx())
+		save_vx_regs((__vector128 *)&run->s.regs.vrs);
+	else
+		save_fp_regs((freg_t *)&run->s.regs.fprs);
+}
+
+static inline void kvm_s390_fpu_load(struct kvm_run *run)
+{
+	fpu_lfpc_safe(&run->s.regs.fpc);
+	if (cpu_has_vx())
+		load_vx_regs((__vector128 *)&run->s.regs.vrs);
+	else
+		load_fp_regs((freg_t *)&run->s.regs.fprs);
+}
+
 /* Transactional Memory Execution related macros */
 #define IS_TE_ENABLED(vcpu)	((vcpu->arch.sie_block->ecb & ECB_TE))
 #define TDB_FORMAT1		1

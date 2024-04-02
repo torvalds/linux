@@ -27,23 +27,6 @@ struct {
 	__type(value, long);
 } map_b SEC(".maps");
 
-SEC("fentry/bpf_local_storage_lookup")
-int BPF_PROG(on_lookup)
-{
-	struct task_struct *task = bpf_get_current_task_btf();
-
-	if (!test_pid || task->pid != test_pid)
-		return 0;
-
-	/* The bpf_task_storage_delete will call
-	 * bpf_local_storage_lookup.  The prog->active will
-	 * stop the recursion.
-	 */
-	bpf_task_storage_delete(&map_a, task);
-	bpf_task_storage_delete(&map_b, task);
-	return 0;
-}
-
 SEC("fentry/bpf_local_storage_update")
 int BPF_PROG(on_update)
 {

@@ -34,6 +34,7 @@
 #include <linux/mlx5/fs.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <net/rps.h>
 #include "en.h"
 
 #define ARFS_HASH_SHIFT BITS_PER_BYTE

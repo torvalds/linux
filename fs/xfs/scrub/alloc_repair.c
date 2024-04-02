@@ -687,8 +687,8 @@ xrep_abt_reset_counters(
 	 * height values before re-initializing the perag info from the updated
 	 * AGF to capture all the new values.
 	 */
-	pag->pagf_repair_levels[XFS_BTNUM_BNOi] = pag->pagf_levels[XFS_BTNUM_BNOi];
-	pag->pagf_repair_levels[XFS_BTNUM_CNTi] = pag->pagf_levels[XFS_BTNUM_CNTi];
+	pag->pagf_repair_bno_level = pag->pagf_bno_level;
+	pag->pagf_repair_cnt_level = pag->pagf_cnt_level;
 
 	/* Reinitialize with the values we just logged. */
 	return xrep_reinit_pagf(sc);
@@ -735,10 +735,11 @@ xrep_abt_build_new_trees(
 	ra->new_cntbt.bload.claim_block = xrep_abt_claim_block;
 
 	/* Allocate cursors for the staged btrees. */
-	bno_cur = xfs_allocbt_stage_cursor(sc->mp, &ra->new_bnobt.afake,
-			pag, XFS_BTNUM_BNO);
-	cnt_cur = xfs_allocbt_stage_cursor(sc->mp, &ra->new_cntbt.afake,
-			pag, XFS_BTNUM_CNT);
+	bno_cur = xfs_bnobt_init_cursor(sc->mp, NULL, NULL, pag);
+	xfs_btree_stage_afakeroot(bno_cur, &ra->new_bnobt.afake);
+
+	cnt_cur = xfs_cntbt_init_cursor(sc->mp, NULL, NULL, pag);
+	xfs_btree_stage_afakeroot(cnt_cur, &ra->new_cntbt.afake);
 
 	/* Last chance to abort before we start committing fixes. */
 	if (xchk_should_terminate(sc, &error))
@@ -765,10 +766,8 @@ xrep_abt_build_new_trees(
 	 * height so that we don't trip the verifiers when writing the new
 	 * btree blocks to disk.
 	 */
-	pag->pagf_repair_levels[XFS_BTNUM_BNOi] =
-					ra->new_bnobt.bload.btree_height;
-	pag->pagf_repair_levels[XFS_BTNUM_CNTi] =
-					ra->new_cntbt.bload.btree_height;
+	pag->pagf_repair_bno_level = ra->new_bnobt.bload.btree_height;
+	pag->pagf_repair_cnt_level = ra->new_cntbt.bload.btree_height;
 
 	/* Load the free space by length tree. */
 	ra->array_cur = XFARRAY_CURSOR_INIT;
@@ -807,8 +806,8 @@ xrep_abt_build_new_trees(
 	return xrep_roll_ag_trans(sc);
 
 err_levels:
-	pag->pagf_repair_levels[XFS_BTNUM_BNOi] = 0;
-	pag->pagf_repair_levels[XFS_BTNUM_CNTi] = 0;
+	pag->pagf_repair_bno_level = 0;
+	pag->pagf_repair_cnt_level = 0;
 err_cur:
 	xfs_btree_del_cursor(cnt_cur, error);
 	xfs_btree_del_cursor(bno_cur, error);
@@ -838,8 +837,8 @@ xrep_abt_remove_old_trees(
 	 * Now that we've zapped all the old allocbt blocks we can turn off
 	 * the alternate height mechanism.
 	 */
-	pag->pagf_repair_levels[XFS_BTNUM_BNOi] = 0;
-	pag->pagf_repair_levels[XFS_BTNUM_CNTi] = 0;
+	pag->pagf_repair_bno_level = 0;
+	pag->pagf_repair_cnt_level = 0;
 	return 0;
 }
 

@@ -2,7 +2,7 @@
 /*
  * KUnit tests for inform_bss functions
  *
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  */
 #include <linux/ieee80211.h>
 #include <net/cfg80211.h>
@@ -406,9 +406,32 @@ static struct inform_bss_ml_sta_case {
 	const char *desc;
 	int mld_id;
 	bool sta_prof_vendor_elems;
+	bool include_oper_class;
+	bool nstr;
 } inform_bss_ml_sta_cases[] = {
-	{ .desc = "no_mld_id", .mld_id = 0, .sta_prof_vendor_elems = false },
-	{ .desc = "mld_id_eq_1", .mld_id = 1, .sta_prof_vendor_elems = true },
+	{
+		.desc = "zero_mld_id",
+		.mld_id = 0,
+		.sta_prof_vendor_elems = false,
+	}, {
+		.desc = "zero_mld_id_with_oper_class",
+		.mld_id = 0,
+		.sta_prof_vendor_elems = false,
+		.include_oper_class = true,
+	}, {
+		.desc = "mld_id_eq_1",
+		.mld_id = 1,
+		.sta_prof_vendor_elems = true,
+	}, {
+		.desc = "mld_id_eq_1_with_oper_class",
+		.mld_id = 1,
+		.sta_prof_vendor_elems = true,
+		.include_oper_class = true,
+	}, {
+		.desc = "nstr",
+		.mld_id = 0,
+		.nstr = true,
+	},
 };
 KUNIT_ARRAY_PARAM_DESC(inform_bss_ml_sta, inform_bss_ml_sta_cases, desc)
 
@@ -440,7 +463,7 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 	struct {
 		struct ieee80211_neighbor_ap_info info;
 		struct ieee80211_tbtt_info_ge_11 ap;
-	} __packed rnr = {
+	} __packed rnr_normal = {
 		.info = {
 			.tbtt_info_hdr = u8_encode_bits(0, IEEE80211_AP_INFO_TBTT_HDR_COUNT),
 			.tbtt_info_len = sizeof(struct ieee80211_tbtt_info_ge_11),
@@ -459,6 +482,28 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 						 IEEE80211_RNR_MLD_PARAMS_LINK_ID),
 		}
 	};
+	struct {
+		struct ieee80211_neighbor_ap_info info;
+		struct ieee80211_rnr_mld_params mld_params;
+	} __packed rnr_nstr = {
+		.info = {
+			.tbtt_info_hdr =
+				u8_encode_bits(0, IEEE80211_AP_INFO_TBTT_HDR_COUNT) |
+				u8_encode_bits(IEEE80211_TBTT_INFO_TYPE_MLD,
+					       IEEE80211_AP_INFO_TBTT_HDR_TYPE),
+			.tbtt_info_len = sizeof(struct ieee80211_rnr_mld_params),
+			.op_class = 81,
+			.channel = 11,
+		},
+		.mld_params = {
+			.mld_id = params->mld_id,
+			.params =
+				le16_encode_bits(link_id,
+						 IEEE80211_RNR_MLD_PARAMS_LINK_ID),
+		}
+	};
+	size_t rnr_len = params->nstr ? sizeof(rnr_nstr) : sizeof(rnr_normal);
+	void *rnr = params->nstr ? (void *)&rnr_nstr : (void *)&rnr_normal;
 	struct {
 		__le16 control;
 		u8 var_len;
@@ -498,7 +543,7 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 				    u16_encode_bits(link_id,
 						    IEEE80211_MLE_STA_CONTROL_LINK_ID)),
 		.var_len = sizeof(sta_prof) - 2 - 2,
-		.bssid = { *rnr.ap.bssid },
+		.bssid = { *rnr_normal.ap.bssid },
 		.beacon_int = cpu_to_le16(101),
 		.tsf_offset = cpu_to_le64(-123ll),
 		.capabilities = cpu_to_le16(0xdead),
@@ -515,9 +560,15 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 	skb_put_u8(input, 4);
 	skb_put_data(input, "TEST", 4);
 
+	if (params->include_oper_class) {
+		skb_put_u8(input, WLAN_EID_SUPPORTED_REGULATORY_CLASSES);
+		skb_put_u8(input, 1);
+		skb_put_u8(input, 81);
+	}
+
 	skb_put_u8(input, WLAN_EID_REDUCED_NEIGHBOR_REPORT);
-	skb_put_u8(input, sizeof(rnr));
-	skb_put_data(input, &rnr, sizeof(rnr));
+	skb_put_u8(input, rnr_len);
+	skb_put_data(input, rnr, rnr_len);
 
 	/* build a multi-link element */
 	skb_put_u8(input, WLAN_EID_EXTENSION);
@@ -563,9 +614,10 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ctx.inform_bss_count, 2);
 
 	/* Check link_bss *****************************************************/
-	link_bss = cfg80211_get_bss(wiphy, NULL, sta_prof.bssid, NULL, 0,
-				    IEEE80211_BSS_TYPE_ANY,
-				    IEEE80211_PRIVACY_ANY);
+	link_bss = __cfg80211_get_bss(wiphy, NULL, sta_prof.bssid, NULL, 0,
+				      IEEE80211_BSS_TYPE_ANY,
+				      IEEE80211_PRIVACY_ANY,
+				      0);
 	KUNIT_ASSERT_NOT_NULL(test, link_bss);
 	KUNIT_EXPECT_EQ(test, link_bss->signal, 0);
 	KUNIT_EXPECT_EQ(test, link_bss->beacon_interval,
@@ -576,26 +628,214 @@ static void test_inform_bss_ml_sta(struct kunit *test)
 	KUNIT_EXPECT_PTR_EQ(test, link_bss->channel,
 			    ieee80211_get_channel_khz(wiphy, MHZ_TO_KHZ(2462)));
 
+	/* Test wiphy does not set WIPHY_FLAG_SUPPORTS_NSTR_NONPRIMARY */
+	if (params->nstr) {
+		KUNIT_EXPECT_EQ(test, link_bss->use_for, 0);
+		KUNIT_EXPECT_EQ(test, link_bss->cannot_use_reasons,
+				NL80211_BSS_CANNOT_USE_NSTR_NONPRIMARY);
+		KUNIT_EXPECT_NULL(test,
+				  cfg80211_get_bss(wiphy, NULL, sta_prof.bssid,
+						   NULL, 0,
+						   IEEE80211_BSS_TYPE_ANY,
+						   IEEE80211_PRIVACY_ANY));
+	} else {
+		KUNIT_EXPECT_EQ(test, link_bss->use_for,
+				NL80211_BSS_USE_FOR_ALL);
+		KUNIT_EXPECT_EQ(test, link_bss->cannot_use_reasons, 0);
+	}
+
 	rcu_read_lock();
 	ies = rcu_dereference(link_bss->ies);
 	KUNIT_EXPECT_NOT_NULL(test, ies);
 	KUNIT_EXPECT_EQ(test, ies->tsf, tsf + le64_to_cpu(sta_prof.tsf_offset));
 	/* Resulting length should be:
 	 * SSID (inherited) + RNR (inherited) + vendor element(s) +
+	 * operating class (if requested) +
+	 * generated RNR (if MLD ID == 0 and not NSTR) +
 	 * MLE common info + MLE header and control
 	 */
 	if (params->sta_prof_vendor_elems)
 		KUNIT_EXPECT_EQ(test, ies->len,
-				6 + 2 + sizeof(rnr) + 2 + 160 + 2 + 165 +
+				6 + 2 + rnr_len + 2 + 160 + 2 + 165 +
+				(params->include_oper_class ? 3 : 0) +
+				(!params->mld_id && !params->nstr ? 22 : 0) +
 				mle_basic_common_info.var_len + 5);
 	else
 		KUNIT_EXPECT_EQ(test, ies->len,
-				6 + 2 + sizeof(rnr) + 2 + 155 +
+				6 + 2 + rnr_len + 2 + 155 +
+				(params->include_oper_class ? 3 : 0) +
+				(!params->mld_id && !params->nstr ? 22 : 0) +
 				mle_basic_common_info.var_len + 5);
 	rcu_read_unlock();
 
 	cfg80211_put_bss(wiphy, bss);
 	cfg80211_put_bss(wiphy, link_bss);
+}
+
+static struct cfg80211_parse_colocated_ap_case {
+	const char *desc;
+	u8 op_class;
+	u8 channel;
+	struct ieee80211_neighbor_ap_info info;
+	union {
+		struct ieee80211_tbtt_info_ge_11 tbtt_long;
+		struct ieee80211_tbtt_info_7_8_9 tbtt_short;
+	};
+	bool add_junk;
+	bool same_ssid;
+	bool valid;
+} cfg80211_parse_colocated_ap_cases[] = {
+	{
+		.desc = "wrong_band",
+		.info.op_class = 81,
+		.info.channel = 11,
+		.tbtt_long = {
+			.bssid = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 },
+			.bss_params = IEEE80211_RNR_TBTT_PARAMS_COLOC_AP,
+		},
+		.valid = false,
+	},
+	{
+		.desc = "wrong_type",
+		/* IEEE80211_AP_INFO_TBTT_HDR_TYPE is in the least significant bits */
+		.info.tbtt_info_hdr = IEEE80211_TBTT_INFO_TYPE_MLD,
+		.tbtt_long = {
+			.bssid = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 },
+			.bss_params = IEEE80211_RNR_TBTT_PARAMS_COLOC_AP,
+		},
+		.valid = false,
+	},
+	{
+		.desc = "colocated_invalid_len_short",
+		.info.tbtt_info_len = 6,
+		.tbtt_short = {
+			.bssid = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 },
+			.bss_params = IEEE80211_RNR_TBTT_PARAMS_COLOC_AP |
+				      IEEE80211_RNR_TBTT_PARAMS_SAME_SSID,
+		},
+		.valid = false,
+	},
+	{
+		.desc = "colocated_invalid_len_short_mld",
+		.info.tbtt_info_len = 10,
+		.tbtt_long = {
+			.bssid = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 },
+			.bss_params = IEEE80211_RNR_TBTT_PARAMS_COLOC_AP,
+		},
+		.valid = false,
+	},
+	{
+		.desc = "colocated_non_mld",
+		.info.tbtt_info_len = sizeof(struct ieee80211_tbtt_info_7_8_9),
+		.tbtt_short = {
+			.bssid = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 },
+			.bss_params = IEEE80211_RNR_TBTT_PARAMS_COLOC_AP |
+				      IEEE80211_RNR_TBTT_PARAMS_SAME_SSID,
+		},
+		.same_ssid = true,
+		.valid = true,
+	},
+	{
+		.desc = "colocated_non_mld_invalid_bssid",
+		.info.tbtt_info_len = sizeof(struct ieee80211_tbtt_info_7_8_9),
+		.tbtt_short = {
+			.bssid = { 0xff, 0x11, 0x22, 0x33, 0x44, 0x55 },
+			.bss_params = IEEE80211_RNR_TBTT_PARAMS_COLOC_AP |
+				      IEEE80211_RNR_TBTT_PARAMS_SAME_SSID,
+		},
+		.same_ssid = true,
+		.valid = false,
+	},
+	{
+		.desc = "colocated_mld",
+		.tbtt_long = {
+			.bssid = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 },
+			.bss_params = IEEE80211_RNR_TBTT_PARAMS_COLOC_AP,
+		},
+		.valid = true,
+	},
+	{
+		.desc = "colocated_mld",
+		.tbtt_long = {
+			.bssid = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 },
+			.bss_params = IEEE80211_RNR_TBTT_PARAMS_COLOC_AP,
+		},
+		.add_junk = true,
+		.valid = false,
+	},
+	{
+		.desc = "colocated_disabled_mld",
+		.tbtt_long = {
+			.bssid = { 0x00, 0x11, 0x22, 0x33, 0x44, 0x55 },
+			.bss_params = IEEE80211_RNR_TBTT_PARAMS_COLOC_AP,
+			.mld_params.params = cpu_to_le16(IEEE80211_RNR_MLD_PARAMS_DISABLED_LINK),
+		},
+		.valid = false,
+	},
+};
+KUNIT_ARRAY_PARAM_DESC(cfg80211_parse_colocated_ap, cfg80211_parse_colocated_ap_cases, desc)
+
+static void test_cfg80211_parse_colocated_ap(struct kunit *test)
+{
+	const struct cfg80211_parse_colocated_ap_case *params = test->param_value;
+	struct sk_buff *input = kunit_zalloc_skb(test, 1024, GFP_KERNEL);
+	struct cfg80211_bss_ies *ies;
+	struct ieee80211_neighbor_ap_info info;
+	LIST_HEAD(coloc_ap_list);
+	int count;
+
+	KUNIT_ASSERT_NOT_NULL(test, input);
+
+	info = params->info;
+
+	/* Reasonable values for a colocated AP */
+	if (!info.tbtt_info_len)
+		info.tbtt_info_len = sizeof(params->tbtt_long);
+	if (!info.op_class)
+		info.op_class = 131;
+	if (!info.channel)
+		info.channel = 33;
+	/* Zero is the correct default for .btt_info_hdr (one entry, TBTT type) */
+
+	skb_put_u8(input, WLAN_EID_SSID);
+	skb_put_u8(input, 4);
+	skb_put_data(input, "TEST", 4);
+
+	skb_put_u8(input, WLAN_EID_REDUCED_NEIGHBOR_REPORT);
+	skb_put_u8(input, sizeof(info) + info.tbtt_info_len + (params->add_junk ? 3 : 0));
+	skb_put_data(input, &info, sizeof(info));
+	skb_put_data(input, &params->tbtt_long, info.tbtt_info_len);
+
+	if (params->add_junk)
+		skb_put_data(input, "123", 3);
+
+	ies = kunit_kzalloc(test, struct_size(ies, data, input->len), GFP_KERNEL);
+	ies->len = input->len;
+	memcpy(ies->data, input->data, input->len);
+
+	count = cfg80211_parse_colocated_ap(ies, &coloc_ap_list);
+
+	KUNIT_EXPECT_EQ(test, count, params->valid);
+	KUNIT_EXPECT_EQ(test, list_count_nodes(&coloc_ap_list), params->valid);
+
+	if (params->valid && !list_empty(&coloc_ap_list)) {
+		struct cfg80211_colocated_ap *ap;
+
+		ap = list_first_entry(&coloc_ap_list, typeof(*ap), list);
+		if (info.tbtt_info_len <= sizeof(params->tbtt_short))
+			KUNIT_EXPECT_MEMEQ(test, ap->bssid, params->tbtt_short.bssid, ETH_ALEN);
+		else
+			KUNIT_EXPECT_MEMEQ(test, ap->bssid, params->tbtt_long.bssid, ETH_ALEN);
+
+		if (params->same_ssid) {
+			KUNIT_EXPECT_EQ(test, ap->ssid_len, 4);
+			KUNIT_EXPECT_MEMEQ(test, ap->ssid, "TEST", 4);
+		} else {
+			KUNIT_EXPECT_EQ(test, ap->ssid_len, 0);
+		}
+	}
+
+	cfg80211_free_coloc_ap_list(&coloc_ap_list);
 }
 
 static struct kunit_case gen_new_ie_test_cases[] = {
@@ -623,3 +863,16 @@ static struct kunit_suite inform_bss = {
 };
 
 kunit_test_suite(inform_bss);
+
+static struct kunit_case scan_6ghz_cases[] = {
+	KUNIT_CASE_PARAM(test_cfg80211_parse_colocated_ap,
+			 cfg80211_parse_colocated_ap_gen_params),
+	{}
+};
+
+static struct kunit_suite scan_6ghz = {
+	.name = "cfg80211-scan-6ghz",
+	.test_cases = scan_6ghz_cases,
+};
+
+kunit_test_suite(scan_6ghz);

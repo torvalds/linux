@@ -625,7 +625,7 @@ The PCI subsystem-level callbacks they correspond to::
 	pci_pm_poweroff()
 	pci_pm_poweroff_noirq()
 
-work in analogy with pci_pm_suspend() and pci_pm_poweroff_noirq(), respectively,
+work in analogy with pci_pm_suspend() and pci_pm_suspend_noirq(), respectively,
 although they don't attempt to save the device's standard configuration
 registers.
 

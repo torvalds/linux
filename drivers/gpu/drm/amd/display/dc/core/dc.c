@@ -1302,6 +1302,54 @@ static void disable_vbios_mode_if_required(
 	}
 }
 
+/**
+ * wait_for_blank_complete - wait for all active OPPs to finish pending blank
+ * pattern updates
+ *
+ * @dc: [in] dc reference
+ * @context: [in] hardware context in use
+ */
+static void wait_for_blank_complete(struct dc *dc,
+		struct dc_state *context)
+{
+	struct pipe_ctx *opp_head;
+	struct dce_hwseq *hws = dc->hwseq;
+	int i;
+
+	if (!hws->funcs.wait_for_blank_complete)
+		return;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		opp_head = &context->res_ctx.pipe_ctx[i];
+
+		if (!resource_is_pipe_type(opp_head, OPP_HEAD) ||
+				dc_state_get_pipe_subvp_type(context, opp_head) == SUBVP_PHANTOM)
+			continue;
+
+		hws->funcs.wait_for_blank_complete(opp_head->stream_res.opp);
+	}
+}
+
+static void wait_for_odm_update_pending_complete(struct dc *dc, struct dc_state *context)
+{
+	struct pipe_ctx *otg_master;
+	struct timing_generator *tg;
+	int i;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		otg_master = &context->res_ctx.pipe_ctx[i];
+		if (!resource_is_pipe_type(otg_master, OTG_MASTER) ||
+				dc_state_get_pipe_subvp_type(context, otg_master) == SUBVP_PHANTOM)
+			continue;
+		tg = otg_master->stream_res.tg;
+		if (tg->funcs->wait_odm_doublebuffer_pending_clear)
+			tg->funcs->wait_odm_doublebuffer_pending_clear(tg);
+	}
+
+	/* ODM update may require to reprogram blank pattern for each OPP */
+	wait_for_blank_complete(dc, context);
+}
+
 static void wait_for_no_pipes_pending(struct dc *dc, struct dc_state *context)
 {
 	int i;
@@ -1993,6 +2041,11 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 		context->stream_count == 0) {
 		/* Must wait for no flips to be pending before doing optimize bw */
 		wait_for_no_pipes_pending(dc, context);
+		/*
+		 * optimized dispclk depends on ODM setup. Need to wait for ODM
+		 * update pending complete before optimizing bandwidth.
+		 */
+		wait_for_odm_update_pending_complete(dc, context);
 		/* pplib is notified if disp_num changed */
 		dc->hwss.optimize_bandwidth(dc, context);
 		/* Need to do otg sync again as otg could be out of sync due to otg
@@ -2032,7 +2085,7 @@ static enum dc_status dc_commit_state_no_check(struct dc *dc, struct dc_state *c
 	return result;
 }
 
-static bool commit_minimal_transition_state(struct dc *dc,
+static bool commit_minimal_transition_state_legacy(struct dc *dc,
 		struct dc_state *transition_base_context);
 
 /**
@@ -2098,7 +2151,7 @@ enum dc_status dc_commit_streams(struct dc *dc,
 	}
 
 	if (handle_exit_odm2to1)
-		res = commit_minimal_transition_state(dc, dc->current_state);
+		res = commit_minimal_transition_state_legacy(dc, dc->current_state);
 
 	context = dc_state_create_current_copy(dc);
 	if (!context)
@@ -2952,8 +3005,8 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	}
 }
 
-static void backup_plane_states_for_stream(
-		struct dc_plane_state plane_states[MAX_SURFACE_NUM],
+static void backup_planes_and_stream_state(
+		struct dc_scratch_space *scratch,
 		struct dc_stream_state *stream)
 {
 	int i;
@@ -2962,12 +3015,21 @@ static void backup_plane_states_for_stream(
 	if (!status)
 		return;
 
-	for (i = 0; i < status->plane_count; i++)
-		plane_states[i] = *status->plane_states[i];
+	for (i = 0; i < status->plane_count; i++) {
+		scratch->plane_states[i] = *status->plane_states[i];
+		scratch->gamma_correction[i] = *status->plane_states[i]->gamma_correction;
+		scratch->in_transfer_func[i] = *status->plane_states[i]->in_transfer_func;
+		scratch->lut3d_func[i] = *status->plane_states[i]->lut3d_func;
+		scratch->in_shaper_func[i] = *status->plane_states[i]->in_shaper_func;
+		scratch->blend_tf[i] = *status->plane_states[i]->blend_tf;
+	}
+	scratch->stream_state = *stream;
+	if (stream->out_transfer_func)
+		scratch->out_transfer_func = *stream->out_transfer_func;
 }
 
-static void restore_plane_states_for_stream(
-		struct dc_plane_state plane_states[MAX_SURFACE_NUM],
+static void restore_planes_and_stream_state(
+		struct dc_scratch_space *scratch,
 		struct dc_stream_state *stream)
 {
 	int i;
@@ -2976,8 +3038,17 @@ static void restore_plane_states_for_stream(
 	if (!status)
 		return;
 
-	for (i = 0; i < status->plane_count; i++)
-		*status->plane_states[i] = plane_states[i];
+	for (i = 0; i < status->plane_count; i++) {
+		*status->plane_states[i] = scratch->plane_states[i];
+		*status->plane_states[i]->gamma_correction = scratch->gamma_correction[i];
+		*status->plane_states[i]->in_transfer_func = scratch->in_transfer_func[i];
+		*status->plane_states[i]->lut3d_func = scratch->lut3d_func[i];
+		*status->plane_states[i]->in_shaper_func = scratch->in_shaper_func[i];
+		*status->plane_states[i]->blend_tf = scratch->blend_tf[i];
+	}
+	*stream = scratch->stream_state;
+	if (stream->out_transfer_func)
+		*stream->out_transfer_func = scratch->out_transfer_func;
 }
 
 static bool update_planes_and_stream_state(struct dc *dc,
@@ -3003,7 +3074,7 @@ static bool update_planes_and_stream_state(struct dc *dc,
 	}
 
 	context = dc->current_state;
-	backup_plane_states_for_stream(dc->current_state->scratch.plane_states, stream);
+	backup_planes_and_stream_state(&dc->current_state->scratch, stream);
 	update_type = dc_check_update_surfaces_for_stream(
 			dc, srf_updates, surface_count, stream_update, stream_status);
 
@@ -3103,7 +3174,7 @@ static bool update_planes_and_stream_state(struct dc *dc,
 
 	*new_context = context;
 	*new_update_type = update_type;
-	backup_plane_states_for_stream(context->scratch.plane_states, stream);
+	backup_planes_and_stream_state(&context->scratch, stream);
 
 	return true;
 
@@ -3252,6 +3323,9 @@ static bool dc_dmub_should_send_dirty_rect_cmd(struct dc *dc, struct dc_stream_s
 		return true;
 
 	if (stream->link->replay_settings.config.replay_supported)
+		return true;
+
+	if (stream->ctx->dce_version >= DCN_VERSION_3_5 && stream->abm_level)
 		return true;
 
 	return false;
@@ -3477,7 +3551,7 @@ static void commit_planes_for_stream_fast(struct dc *dc,
 		top_pipe_to_program->stream->update_flags.raw = 0;
 }
 
-static void wait_for_outstanding_hw_updates(struct dc *dc, const struct dc_state *dc_context)
+static void wait_for_outstanding_hw_updates(struct dc *dc, struct dc_state *dc_context)
 {
 /*
  * This function calls HWSS to wait for any potentially double buffered
@@ -3515,6 +3589,7 @@ static void wait_for_outstanding_hw_updates(struct dc *dc, const struct dc_state
 			}
 		}
 	}
+	wait_for_odm_update_pending_complete(dc, dc_context);
 }
 
 static void commit_planes_for_stream(struct dc *dc,
@@ -4047,7 +4122,23 @@ static struct dc_state *create_minimal_transition_state(struct dc *dc,
 	return minimal_transition_context;
 }
 
-static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
+
+/**
+ * commit_minimal_transition_state - Commit a minimal state based on current or new context
+ *
+ * @dc: DC structure, used to get the current state
+ * @context: New context
+ * @stream: Stream getting the update for the flip
+ *
+ * The function takes in current state and new state and determine a minimal transition state
+ * as the intermediate step which could make the transition between current and new states
+ * seamless. If found, it will commit the minimal transition state and update current state to
+ * this minimal transition state and return true, if not, it will return false.
+ *
+ * Return:
+ * Return True if the minimal transition succeeded, false otherwise
+ */
+static bool commit_minimal_transition_state(struct dc *dc,
 		struct dc_state *context,
 		struct dc_stream_state *stream)
 {
@@ -4056,12 +4147,6 @@ static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
 	struct pipe_split_policy_backup policy;
 
 	/* commit based on new context */
-	/* Since all phantom pipes are removed in full validation,
-	 * we have to save and restore the subvp/mall config when
-	 * we do a minimal transition since the flags marking the
-	 * pipe as subvp/phantom will be cleared (dc copy constructor
-	 * creates a shallow copy).
-	 */
 	minimal_transition_context = create_minimal_transition_state(dc,
 			context, &policy);
 	if (minimal_transition_context) {
@@ -4078,7 +4163,7 @@ static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
 
 	if (!success) {
 		/* commit based on current context */
-		restore_plane_states_for_stream(dc->current_state->scratch.plane_states, stream);
+		restore_planes_and_stream_state(&dc->current_state->scratch, stream);
 		minimal_transition_context = create_minimal_transition_state(dc,
 				dc->current_state, &policy);
 		if (minimal_transition_context) {
@@ -4091,7 +4176,7 @@ static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
 			}
 			release_minimal_transition_state(dc, minimal_transition_context, &policy);
 		}
-		restore_plane_states_for_stream(context->scratch.plane_states, stream);
+		restore_planes_and_stream_state(&context->scratch, stream);
 	}
 
 	ASSERT(success);
@@ -4099,7 +4184,7 @@ static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
 }
 
 /**
- * commit_minimal_transition_state - Create a transition pipe split state
+ * commit_minimal_transition_state_legacy - Create a transition pipe split state
  *
  * @dc: Used to get the current state status
  * @transition_base_context: New transition state
@@ -4116,7 +4201,7 @@ static bool commit_minimal_transition_state_for_windowed_mpo_odm(struct dc *dc,
  * Return:
  * Return false if something is wrong in the transition state.
  */
-static bool commit_minimal_transition_state(struct dc *dc,
+static bool commit_minimal_transition_state_legacy(struct dc *dc,
 		struct dc_state *transition_base_context)
 {
 	struct dc_state *transition_context;
@@ -4354,53 +4439,6 @@ static bool fast_update_only(struct dc *dc,
 			&& !full_update_required(dc, srf_updates, surface_count, stream_update, stream);
 }
 
-static bool should_commit_minimal_transition_for_windowed_mpo_odm(struct dc *dc,
-		struct dc_stream_state *stream,
-		struct dc_state *context)
-{
-	struct pipe_ctx *cur_pipe, *new_pipe;
-	bool cur_is_odm_in_use, new_is_odm_in_use;
-	struct dc_stream_status *cur_stream_status = stream_get_status(dc->current_state, stream);
-	struct dc_stream_status *new_stream_status = stream_get_status(context, stream);
-
-	if (!dc->debug.enable_single_display_2to1_odm_policy ||
-			!dc->config.enable_windowed_mpo_odm)
-		/* skip the check if windowed MPO ODM or dynamic ODM is turned
-		 * off.
-		 */
-		return false;
-
-	if (context == dc->current_state)
-		/* skip the check for fast update */
-		return false;
-
-	if (new_stream_status->plane_count != cur_stream_status->plane_count)
-		/* plane count changed, not a plane scaling update so not the
-		 * case we are looking for
-		 */
-		return false;
-
-	cur_pipe = resource_get_otg_master_for_stream(&dc->current_state->res_ctx, stream);
-	new_pipe = resource_get_otg_master_for_stream(&context->res_ctx, stream);
-	if (!cur_pipe || !new_pipe)
-		return false;
-	cur_is_odm_in_use = resource_get_odm_slice_count(cur_pipe) > 1;
-	new_is_odm_in_use = resource_get_odm_slice_count(new_pipe) > 1;
-	if (cur_is_odm_in_use == new_is_odm_in_use)
-		/* ODM state isn't changed, not the case we are looking for */
-		return false;
-
-	if (dc->hwss.is_pipe_topology_transition_seamless &&
-			dc->hwss.is_pipe_topology_transition_seamless(
-					dc, dc->current_state, context))
-		/* transition can be achieved without the need for committing
-		 * minimal transition state first
-		 */
-		return false;
-
-	return true;
-}
-
 bool dc_update_planes_and_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates, int surface_count,
 		struct dc_stream_state *stream,
@@ -4433,7 +4471,7 @@ bool dc_update_planes_and_stream(struct dc *dc,
 
 	/* on plane addition, minimal state is the current one */
 	if (force_minimal_pipe_splitting && is_plane_addition &&
-		!commit_minimal_transition_state(dc, dc->current_state))
+		!commit_minimal_transition_state_legacy(dc, dc->current_state))
 				return false;
 
 	if (!update_planes_and_stream_state(
@@ -4448,32 +4486,19 @@ bool dc_update_planes_and_stream(struct dc *dc,
 
 	/* on plane removal, minimal state is the new one */
 	if (force_minimal_pipe_splitting && !is_plane_addition) {
-		/* Since all phantom pipes are removed in full validation,
-		 * we have to save and restore the subvp/mall config when
-		 * we do a minimal transition since the flags marking the
-		 * pipe as subvp/phantom will be cleared (dc copy constructor
-		 * creates a shallow copy).
-		 */
-		if (!commit_minimal_transition_state(dc, context)) {
+		if (!commit_minimal_transition_state_legacy(dc, context)) {
 			dc_state_release(context);
 			return false;
 		}
 		update_type = UPDATE_TYPE_FULL;
 	}
 
-	/* when windowed MPO ODM is supported, we need to handle a special case
-	 * where we can transition between ODM combine and MPC combine due to
-	 * plane scaling update. This transition will require us to commit
-	 * minimal transition state. The condition to trigger this update can't
-	 * be predicted by could_mpcc_tree_change_for_active_pipes because we
-	 * can only determine it after DML validation. Therefore we can't rely
-	 * on the existing commit minimal transition state sequence. Instead
-	 * we have to add additional handling here to handle this transition
-	 * with its own special sequence.
-	 */
-	if (should_commit_minimal_transition_for_windowed_mpo_odm(dc, stream, context))
-		commit_minimal_transition_state_for_windowed_mpo_odm(dc,
+	if (dc->hwss.is_pipe_topology_transition_seamless &&
+			!dc->hwss.is_pipe_topology_transition_seamless(
+					dc, dc->current_state, context)) {
+		commit_minimal_transition_state(dc,
 				context, stream);
+	}
 	update_seamless_boot_flags(dc, context, surface_count, stream);
 	if (is_fast_update_only && !dc->debug.enable_legacy_fast_update) {
 		commit_planes_for_stream_fast(dc,
@@ -4878,22 +4903,16 @@ void dc_exit_ips_for_hw_access(struct dc *dc)
 
 bool dc_dmub_is_ips_idle_state(struct dc *dc)
 {
-	uint32_t idle_state = 0;
-
 	if (dc->debug.disable_idle_power_optimizations)
 		return false;
 
 	if (!dc->caps.ips_support || (dc->config.disable_ips == DMUB_IPS_DISABLE_ALL))
 		return false;
 
-	if (dc->hwss.get_idle_state)
-		idle_state = dc->hwss.get_idle_state(dc);
+	if (!dc->ctx->dmub_srv)
+		return false;
 
-	if (!(idle_state & DMUB_IPS1_ALLOW_MASK) ||
-		!(idle_state & DMUB_IPS2_ALLOW_MASK))
-		return true;
-
-	return false;
+	return dc->ctx->dmub_srv->idle_allowed;
 }
 
 /* set min and max memory clock to lowest and highest DPM level, respectively */

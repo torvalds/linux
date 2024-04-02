@@ -37,8 +37,9 @@ properties:
     maxItems: 1
 
   irq-gpios:
-    description: GPIO pin used for IRQ. The driver uses the interrupt gpio pin
-      as output to reset the device.
+    description: GPIO pin used for IRQ input. Additionally, this line is
+      sampled by the device on reset deassertion to select the I2C client
+      address, thus it can be driven by the host during the reset sequence.
     maxItems: 1
 
   reset-gpios:

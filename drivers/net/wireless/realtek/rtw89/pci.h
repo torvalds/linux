@@ -42,6 +42,7 @@
 #define B_AX_DBI_WFLAG			BIT(16)
 #define B_AX_DBI_WREN_MSK		GENMASK(15, 12)
 #define B_AX_DBI_ADDR_MSK		GENMASK(11, 2)
+#define B_AX_DBI_2LSB			GENMASK(1, 0)
 #define R_AX_DBI_WDATA			0x1094
 #define R_AX_DBI_RDATA			0x1098
 
@@ -281,6 +282,21 @@
 #define B_BE_PCIE_EN_SWENT_L23 BIT(1)
 #define B_BE_SEL_REQ_EXIT_L1 BIT(0)
 
+#define R_BE_PCIE_MIX_CFG 0x300C
+#define B_BE_L1SS_TIMEOUT_CTRL BIT(18)
+#define B_BE_ASPM_CTRL_L1 BIT(17)
+#define B_BE_ASPM_CTRL_L0 BIT(16)
+#define B_BE_XFER_PENDING_FW BIT(11)
+#define B_BE_XFER_PENDING BIT(10)
+#define B_BE_REQ_EXIT_L1 BIT(9)
+#define B_BE_REQ_ENTR_L1 BIT(8)
+#define B_BE_L1SUB_ENABLE BIT(0)
+
+#define R_BE_L1_CLK_CTRL 0x3010
+#define B_BE_RAS_SD_HOLD_LTSSM BIT(12)
+#define B_BE_CLK_REQ_N BIT(1)
+#define B_BE_CLK_PM_EN BIT(0)
+
 #define R_BE_PCIE_LAT_CTRL 0x3044
 #define B_BE_ELBI_PHY_REMAP_MASK GENMASK(29, 24)
 #define B_BE_SYS_SUS_L12_EN BIT(17)
@@ -289,6 +305,8 @@
 #define B_BE_RTK_LDO_POWER_LATENCY_MASK GENMASK(11, 10)
 #define B_BE_RTK_LDO_BIAS_LATENCY_MASK GENMASK(9, 8)
 #define B_BE_CLK_REQ_LAT_MASK GENMASK(7, 4)
+#define B_BE_RTK_PM_SEL_OPT BIT(1)
+#define B_BE_CLK_REQ_SEL BIT(0)
 
 #define R_BE_PCIE_HIMR0 0x30B0
 #define B_BE_PCIE_HB1_IND_INTA_IMR BIT(31)
@@ -924,6 +942,8 @@
 #define B_BE_SER_L1SUB_IMR BIT(1)
 #define B_BE_SER_PMU_IMR BIT(0)
 
+#define R_BE_REG_PL1_ISR 0x34B4
+
 #define R_BE_RX_APPEND_MODE 0x8920
 #define B_BE_APPEND_OFFSET_MASK GENMASK(23, 16)
 #define B_BE_APPEND_LEN_MASK GENMASK(15, 0)
@@ -996,7 +1016,7 @@
 #define RTW89_PCI_TXWD_NUM_MAX		512
 #define RTW89_PCI_TXWD_PAGE_SIZE	128
 #define RTW89_PCI_ADDRINFO_MAX		4
-#define RTW89_PCI_RX_BUF_SIZE		11460
+#define RTW89_PCI_RX_BUF_SIZE		(11454 + 40) /* +40 for rtw89_rxdesc_long_v2 */
 
 #define RTW89_PCI_POLL_BDRAM_RST_CNT	100
 #define RTW89_PCI_MULTITAG		8
@@ -1063,6 +1083,15 @@ enum rtw89_pcie_clkdly_hw {
 	PCIE_CLKDLY_HW_100US = 0x3,
 	PCIE_CLKDLY_HW_150US = 0x4,
 	PCIE_CLKDLY_HW_200US = 0x5,
+};
+
+enum rtw89_pcie_clkdly_hw_v1 {
+	PCIE_CLKDLY_HW_V1_0 = 0,
+	PCIE_CLKDLY_HW_V1_16US = 0x1,
+	PCIE_CLKDLY_HW_V1_32US = 0x2,
+	PCIE_CLKDLY_HW_V1_64US = 0x3,
+	PCIE_CLKDLY_HW_V1_80US = 0x4,
+	PCIE_CLKDLY_HW_V1_96US = 0x5,
 };
 
 enum mac_ax_bd_trunc_mode {
@@ -1215,6 +1244,14 @@ struct rtw89_pci_gen_def {
 
 	int (*lv1rst_stop_dma)(struct rtw89_dev *rtwdev);
 	int (*lv1rst_start_dma)(struct rtw89_dev *rtwdev);
+
+	void (*ctrl_txdma_ch)(struct rtw89_dev *rtwdev, bool enable);
+	void (*ctrl_txdma_fw_ch)(struct rtw89_dev *rtwdev, bool enable);
+	int (*poll_txdma_ch_idle)(struct rtw89_dev *rtwdev);
+
+	void (*aspm_set)(struct rtw89_dev *rtwdev, bool enable);
+	void (*clkreq_set)(struct rtw89_dev *rtwdev, bool enable);
+	void (*l1ss_set)(struct rtw89_dev *rtwdev, bool enable);
 };
 
 struct rtw89_pci_info {
@@ -1234,6 +1271,7 @@ struct rtw89_pci_info {
 	enum mac_ax_pcie_func_ctrl io_rcy_en;
 	enum mac_ax_io_rcy_tmr io_rcy_tmr;
 	bool rx_ring_eq_is_full;
+	bool check_rx_tag;
 
 	u32 init_cfg_reg;
 	u32 txhci_en_bit;
@@ -1276,7 +1314,7 @@ struct rtw89_pci_tx_data {
 
 struct rtw89_pci_rx_info {
 	dma_addr_t dma;
-	u32 fs:1, ls:1, tag:11, len:14;
+	u32 fs:1, ls:1, tag:13, len:14;
 };
 
 #define RTW89_PCI_TXBD_OPTION_LS	BIT(14)
@@ -1405,6 +1443,7 @@ struct rtw89_pci_rx_ring {
 	u32 buf_sz;
 	struct sk_buff *diliver_skb;
 	struct rtw89_rx_desc_info diliver_desc;
+	u32 target_rx_tag:13;
 };
 
 struct rtw89_pci_isrs {
@@ -1521,6 +1560,7 @@ static inline bool rtw89_pci_ltr_is_err_reg_val(u32 val)
 }
 
 extern const struct dev_pm_ops rtw89_pm_ops;
+extern const struct dev_pm_ops rtw89_pm_ops_be;
 extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set;
 extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_v1;
 extern const struct rtw89_pci_ch_dma_addr_set rtw89_pci_ch_dma_addr_set_be;
@@ -1676,4 +1716,27 @@ static inline int rtw89_pci_reset_bdram(struct rtw89_dev *rtwdev)
 	return gen_def->rst_bdram(rtwdev);
 }
 
+static inline void rtw89_pci_ctrl_txdma_ch(struct rtw89_dev *rtwdev, bool enable)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
+
+	return gen_def->ctrl_txdma_ch(rtwdev, enable);
+}
+
+static inline void rtw89_pci_ctrl_txdma_fw_ch(struct rtw89_dev *rtwdev, bool enable)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
+
+	return gen_def->ctrl_txdma_fw_ch(rtwdev, enable);
+}
+
+static inline int rtw89_pci_poll_txdma_ch_idle(struct rtw89_dev *rtwdev)
+{
+	const struct rtw89_pci_info *info = rtwdev->pci_info;
+	const struct rtw89_pci_gen_def *gen_def = info->gen_def;
+
+	return gen_def->poll_txdma_ch_idle(rtwdev);
+}
 #endif

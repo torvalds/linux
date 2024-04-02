@@ -16,6 +16,7 @@
 #ifndef _SSP_PL022_H
 #define _SSP_PL022_H
 
+#include <linux/dmaengine.h>
 #include <linux/types.h>
 
 /**
@@ -224,6 +225,7 @@ struct dma_chan;
  * struct pl022_ssp_master - device.platform_data for SPI controller devices.
  * @bus_id: identifier for this bus
  * @enable_dma: if true enables DMA driven transfers.
+ * @dma_filter: callback filter for dma_request_channel.
  * @dma_rx_param: parameter to locate an RX DMA channel.
  * @dma_tx_param: parameter to locate a TX DMA channel.
  * @autosuspend_delay: delay in ms following transfer completion before the
@@ -235,7 +237,7 @@ struct dma_chan;
 struct pl022_ssp_controller {
 	u16 bus_id;
 	u8 enable_dma:1;
-	bool (*dma_filter)(struct dma_chan *chan, void *filter_param);
+	dma_filter_fn dma_filter;
 	void *dma_rx_param;
 	void *dma_tx_param;
 	int autosuspend_delay;

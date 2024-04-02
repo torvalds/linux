@@ -208,17 +208,24 @@ static void default_print_metric(void *ps,
 	if (!print_state->last_metricgroups ||
 	    strcmp(print_state->last_metricgroups, group ?: "")) {
 		if (group && print_state->metricgroups) {
-			if (print_state->name_only)
+			if (print_state->name_only) {
 				fprintf(fp, "%s ", group);
-			else if (print_state->metrics) {
-				const char *gdesc = describe_metricgroup(group);
+			} else {
+				const char *gdesc = print_state->desc
+					? describe_metricgroup(group)
+					: NULL;
+				const char *print_colon = "";
+
+				if (print_state->metrics) {
+					print_colon = ":";
+					fputc('\n', fp);
+				}
 
 				if (gdesc)
-					fprintf(fp, "\n%s: [%s]\n", group, gdesc);
+					fprintf(fp, "%s%s [%s]\n", group, print_colon, gdesc);
 				else
-					fprintf(fp, "\n%s:\n", group);
-			} else
-				fprintf(fp, "%s\n", group);
+					fprintf(fp, "%s%s\n", group, print_colon);
+			}
 		}
 		zfree(&print_state->last_metricgroups);
 		print_state->last_metricgroups = strdup(group ?: "");

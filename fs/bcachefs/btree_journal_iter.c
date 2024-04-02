@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "bkey_buf.h"
 #include "bset.h"
+#include "btree_cache.h"
 #include "btree_journal_iter.h"
 #include "journal_io.h"
 
@@ -40,7 +42,7 @@ static inline size_t idx_to_pos(struct journal_keys *keys, size_t idx)
 
 static inline struct journal_key *idx_to_key(struct journal_keys *keys, size_t idx)
 {
-	return keys->d + idx_to_pos(keys, idx);
+	return keys->data + idx_to_pos(keys, idx);
 }
 
 static size_t __bch2_journal_key_search(struct journal_keys *keys,
@@ -180,10 +182,10 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 	BUG_ON(test_bit(BCH_FS_rw, &c->flags));
 
 	if (idx < keys->size &&
-	    journal_key_cmp(&n, &keys->d[idx]) == 0) {
-		if (keys->d[idx].allocated)
-			kfree(keys->d[idx].k);
-		keys->d[idx] = n;
+	    journal_key_cmp(&n, &keys->data[idx]) == 0) {
+		if (keys->data[idx].allocated)
+			kfree(keys->data[idx].k);
+		keys->data[idx] = n;
 		return 0;
 	}
 
@@ -196,17 +198,17 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 			.size			= max_t(size_t, keys->size, 8) * 2,
 		};
 
-		new_keys.d = kvmalloc_array(new_keys.size, sizeof(new_keys.d[0]), GFP_KERNEL);
-		if (!new_keys.d) {
+		new_keys.data = kvmalloc_array(new_keys.size, sizeof(new_keys.data[0]), GFP_KERNEL);
+		if (!new_keys.data) {
 			bch_err(c, "%s: error allocating new key array (size %zu)",
 				__func__, new_keys.size);
 			return -BCH_ERR_ENOMEM_journal_key_insert;
 		}
 
 		/* Since @keys was full, there was no gap: */
-		memcpy(new_keys.d, keys->d, sizeof(keys->d[0]) * keys->nr);
-		kvfree(keys->d);
-		keys->d		= new_keys.d;
+		memcpy(new_keys.data, keys->data, sizeof(keys->data[0]) * keys->nr);
+		kvfree(keys->data);
+		keys->data	= new_keys.data;
 		keys->nr	= new_keys.nr;
 		keys->size	= new_keys.size;
 
@@ -216,11 +218,10 @@ int bch2_journal_key_insert_take(struct bch_fs *c, enum btree_id id,
 
 	journal_iters_move_gap(c, keys->gap, idx);
 
-	move_gap(keys->d, keys->nr, keys->size, keys->gap, idx);
-	keys->gap = idx;
+	move_gap(keys, idx);
 
 	keys->nr++;
-	keys->d[keys->gap++] = n;
+	keys->data[keys->gap++] = n;
 
 	journal_iters_fix(c);
 
@@ -267,10 +268,10 @@ void bch2_journal_key_overwritten(struct bch_fs *c, enum btree_id btree,
 	size_t idx = bch2_journal_key_search(keys, btree, level, pos);
 
 	if (idx < keys->size &&
-	    keys->d[idx].btree_id	== btree &&
-	    keys->d[idx].level		== level &&
-	    bpos_eq(keys->d[idx].k->k.p, pos))
-		keys->d[idx].overwritten = true;
+	    keys->data[idx].btree_id	== btree &&
+	    keys->data[idx].level	== level &&
+	    bpos_eq(keys->data[idx].k->k.p, pos))
+		keys->data[idx].overwritten = true;
 }
 
 static void bch2_journal_iter_advance(struct journal_iter *iter)
@@ -284,16 +285,16 @@ static void bch2_journal_iter_advance(struct journal_iter *iter)
 
 static struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *iter)
 {
-	struct journal_key *k = iter->keys->d + iter->idx;
+	struct journal_key *k = iter->keys->data + iter->idx;
 
-	while (k < iter->keys->d + iter->keys->size &&
+	while (k < iter->keys->data + iter->keys->size &&
 	       k->btree_id	== iter->btree_id &&
 	       k->level		== iter->level) {
 		if (!k->overwritten)
 			return bkey_i_to_s_c(k->k);
 
 		bch2_journal_iter_advance(iter);
-		k = iter->keys->d + iter->idx;
+		k = iter->keys->data + iter->idx;
 	}
 
 	return bkey_s_c_null;
@@ -334,9 +335,38 @@ void bch2_btree_and_journal_iter_advance(struct btree_and_journal_iter *iter)
 		iter->pos = bpos_successor(iter->pos);
 }
 
+static void btree_and_journal_iter_prefetch(struct btree_and_journal_iter *_iter)
+{
+	struct btree_and_journal_iter iter = *_iter;
+	struct bch_fs *c = iter.trans->c;
+	unsigned level = iter.journal.level;
+	struct bkey_buf tmp;
+	unsigned nr = test_bit(BCH_FS_started, &c->flags)
+		? (level > 1 ? 0 :  2)
+		: (level > 1 ? 1 : 16);
+
+	iter.prefetch = false;
+	bch2_bkey_buf_init(&tmp);
+
+	while (nr--) {
+		bch2_btree_and_journal_iter_advance(&iter);
+		struct bkey_s_c k = bch2_btree_and_journal_iter_peek(&iter);
+		if (!k.k)
+			break;
+
+		bch2_bkey_buf_reassemble(&tmp, c, k);
+		bch2_btree_node_prefetch(iter.trans, NULL, tmp.k, iter.journal.btree_id, level - 1);
+	}
+
+	bch2_bkey_buf_exit(&tmp, c);
+}
+
 struct bkey_s_c bch2_btree_and_journal_iter_peek(struct btree_and_journal_iter *iter)
 {
 	struct bkey_s_c btree_k, journal_k, ret;
+
+	if (iter->prefetch && iter->journal.level)
+		btree_and_journal_iter_prefetch(iter);
 again:
 	if (iter->at_end)
 		return bkey_s_c_null;
@@ -376,17 +406,18 @@ void bch2_btree_and_journal_iter_exit(struct btree_and_journal_iter *iter)
 	bch2_journal_iter_exit(&iter->journal);
 }
 
-void __bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *iter,
-						  struct bch_fs *c,
+void __bch2_btree_and_journal_iter_init_node_iter(struct btree_trans *trans,
+						  struct btree_and_journal_iter *iter,
 						  struct btree *b,
 						  struct btree_node_iter node_iter,
 						  struct bpos pos)
 {
 	memset(iter, 0, sizeof(*iter));
 
+	iter->trans = trans;
 	iter->b = b;
 	iter->node_iter = node_iter;
-	bch2_journal_iter_init(c, &iter->journal, b->c.btree_id, b->c.level, pos);
+	bch2_journal_iter_init(trans->c, &iter->journal, b->c.btree_id, b->c.level, pos);
 	INIT_LIST_HEAD(&iter->journal.list);
 	iter->pos = b->data->min_key;
 	iter->at_end = false;
@@ -396,15 +427,15 @@ void __bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter 
  * this version is used by btree_gc before filesystem has gone RW and
  * multithreaded, so uses the journal_iters list:
  */
-void bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *iter,
-						struct bch_fs *c,
+void bch2_btree_and_journal_iter_init_node_iter(struct btree_trans *trans,
+						struct btree_and_journal_iter *iter,
 						struct btree *b)
 {
 	struct btree_node_iter node_iter;
 
 	bch2_btree_node_iter_init_from_start(&node_iter, b);
-	__bch2_btree_and_journal_iter_init_node_iter(iter, c, b, node_iter, b->data->min_key);
-	list_add(&iter->journal.list, &c->journal_iters);
+	__bch2_btree_and_journal_iter_init_node_iter(trans, iter, b, node_iter, b->data->min_key);
+	list_add(&iter->journal.list, &trans->c->journal_iters);
 }
 
 /* sort and dedup all keys in the journal: */
@@ -415,9 +446,7 @@ void bch2_journal_entries_free(struct bch_fs *c)
 	struct genradix_iter iter;
 
 	genradix_for_each(&c->journal_entries, iter, i)
-		if (*i)
-			kvpfree(*i, offsetof(struct journal_replay, j) +
-				vstruct_bytes(&(*i)->j));
+		kvfree(*i);
 	genradix_free(&c->journal_entries);
 }
 
@@ -437,22 +466,20 @@ static int journal_sort_key_cmp(const void *_l, const void *_r)
 void bch2_journal_keys_put(struct bch_fs *c)
 {
 	struct journal_keys *keys = &c->journal_keys;
-	struct journal_key *i;
 
 	BUG_ON(atomic_read(&keys->ref) <= 0);
 
 	if (!atomic_dec_and_test(&keys->ref))
 		return;
 
-	move_gap(keys->d, keys->nr, keys->size, keys->gap, keys->nr);
-	keys->gap = keys->nr;
+	move_gap(keys, keys->nr);
 
-	for (i = keys->d; i < keys->d + keys->nr; i++)
+	darray_for_each(*keys, i)
 		if (i->allocated)
 			kfree(i->k);
 
-	kvfree(keys->d);
-	keys->d = NULL;
+	kvfree(keys->data);
+	keys->data = NULL;
 	keys->nr = keys->gap = keys->size = 0;
 
 	bch2_journal_entries_free(c);
@@ -460,89 +487,56 @@ void bch2_journal_keys_put(struct bch_fs *c)
 
 static void __journal_keys_sort(struct journal_keys *keys)
 {
-	struct journal_key *src, *dst;
+	sort(keys->data, keys->nr, sizeof(keys->data[0]), journal_sort_key_cmp, NULL);
 
-	sort(keys->d, keys->nr, sizeof(keys->d[0]), journal_sort_key_cmp, NULL);
+	struct journal_key *dst = keys->data;
 
-	src = dst = keys->d;
-	while (src < keys->d + keys->nr) {
-		while (src + 1 < keys->d + keys->nr &&
-		       !journal_key_cmp(src, src + 1))
-			src++;
+	darray_for_each(*keys, src) {
+		if (src + 1 < &darray_top(*keys) &&
+		    !journal_key_cmp(src, src + 1))
+			continue;
 
-		*dst++ = *src++;
+		*dst++ = *src;
 	}
 
-	keys->nr = dst - keys->d;
+	keys->nr = dst - keys->data;
 }
 
 int bch2_journal_keys_sort(struct bch_fs *c)
 {
 	struct genradix_iter iter;
 	struct journal_replay *i, **_i;
-	struct jset_entry *entry;
-	struct bkey_i *k;
 	struct journal_keys *keys = &c->journal_keys;
-	size_t nr_keys = 0, nr_read = 0;
+	size_t nr_read = 0;
 
 	genradix_for_each(&c->journal_entries, iter, _i) {
 		i = *_i;
 
-		if (!i || i->ignore)
-			continue;
-
-		for_each_jset_key(k, entry, &i->j)
-			nr_keys++;
-	}
-
-	if (!nr_keys)
-		return 0;
-
-	keys->size = roundup_pow_of_two(nr_keys);
-
-	keys->d = kvmalloc_array(keys->size, sizeof(keys->d[0]), GFP_KERNEL);
-	if (!keys->d) {
-		bch_err(c, "Failed to allocate buffer for sorted journal keys (%zu keys); trying slowpath",
-			nr_keys);
-
-		do {
-			keys->size >>= 1;
-			keys->d = kvmalloc_array(keys->size, sizeof(keys->d[0]), GFP_KERNEL);
-		} while (!keys->d && keys->size > nr_keys / 8);
-
-		if (!keys->d) {
-			bch_err(c, "Failed to allocate %zu size buffer for sorted journal keys; exiting",
-				keys->size);
-			return -BCH_ERR_ENOMEM_journal_keys_sort;
-		}
-	}
-
-	genradix_for_each(&c->journal_entries, iter, _i) {
-		i = *_i;
-
-		if (!i || i->ignore)
+		if (journal_replay_ignore(i))
 			continue;
 
 		cond_resched();
 
 		for_each_jset_key(k, entry, &i->j) {
-			if (keys->nr == keys->size) {
-				__journal_keys_sort(keys);
-
-				if (keys->nr > keys->size * 7 / 8) {
-					bch_err(c, "Too many journal keys for slowpath; have %zu compacted, buf size %zu, processed %zu/%zu",
-						keys->nr, keys->size, nr_read, nr_keys);
-					return -BCH_ERR_ENOMEM_journal_keys_sort;
-				}
-			}
-
-			keys->d[keys->nr++] = (struct journal_key) {
+			struct journal_key n = (struct journal_key) {
 				.btree_id	= entry->btree_id,
 				.level		= entry->level,
 				.k		= k,
 				.journal_seq	= le64_to_cpu(i->j.seq),
 				.journal_offset	= k->_data - i->j._data,
 			};
+
+			if (darray_push(keys, n)) {
+				__journal_keys_sort(keys);
+
+				if (keys->nr * 8 > keys->size * 7) {
+					bch_err(c, "Too many journal keys for slowpath; have %zu compacted, buf size %zu, processed %zu keys at seq %llu",
+						keys->nr, keys->size, nr_read, le64_to_cpu(i->j.seq));
+					return -BCH_ERR_ENOMEM_journal_keys_sort;
+				}
+
+				BUG_ON(darray_push(keys, n));
+			}
 
 			nr_read++;
 		}
@@ -551,6 +545,6 @@ int bch2_journal_keys_sort(struct bch_fs *c)
 	__journal_keys_sort(keys);
 	keys->gap = keys->nr;
 
-	bch_verbose(c, "Journal keys: %zu read, %zu after sorting and compacting", nr_keys, keys->nr);
+	bch_verbose(c, "Journal keys: %zu read, %zu after sorting and compacting", nr_read, keys->nr);
 	return 0;
 }

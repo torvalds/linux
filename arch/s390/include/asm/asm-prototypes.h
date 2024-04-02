@@ -3,7 +3,7 @@
 
 #include <linux/kvm_host.h>
 #include <linux/ftrace.h>
-#include <asm/fpu/api.h>
+#include <asm/fpu.h>
 #include <asm-generic/asm-prototypes.h>
 
 __int128_t __ashlti3(__int128_t a, int b);

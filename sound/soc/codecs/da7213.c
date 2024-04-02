@@ -2101,18 +2101,14 @@ static int da7213_probe(struct snd_soc_component *component)
 	pm_runtime_put_sync(component->dev);
 
 	/* Check if MCLK provided */
-	da7213->mclk = devm_clk_get(component->dev, "mclk");
-	if (IS_ERR(da7213->mclk)) {
-		if (PTR_ERR(da7213->mclk) != -ENOENT)
-			return PTR_ERR(da7213->mclk);
-		else
-			da7213->mclk = NULL;
-	} else {
+	da7213->mclk = devm_clk_get_optional(component->dev, "mclk");
+	if (IS_ERR(da7213->mclk))
+		return PTR_ERR(da7213->mclk);
+	if (da7213->mclk)
 		/* Do automatic PLL handling assuming fixed clock until
 		 * set_pll() has been called. This makes the codec usable
 		 * with the simple-audio-card driver. */
 		da7213->fixed_clk_auto_pll = true;
-	}
 
 	/* Default infinite tone gen, start/stop by Kcontrol */
 	snd_soc_component_write(component, DA7213_TONE_GEN_CYCLES, DA7213_BEEP_CYCLES_MASK);

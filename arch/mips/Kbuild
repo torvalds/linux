@@ -11,6 +11,7 @@ obj- := $(platform-y)
 # mips object files
 # The object files are linked as core-y files would be linked
 
+obj-y += generic/
 obj-y += kernel/
 obj-y += mm/
 obj-y += net/

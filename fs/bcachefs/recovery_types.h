@@ -13,11 +13,11 @@
  * must never change:
  */
 #define BCH_RECOVERY_PASSES()							\
+	x(check_topology,			 4, 0)				\
 	x(alloc_read,				 0, PASS_ALWAYS)		\
 	x(stripes_read,				 1, PASS_ALWAYS)		\
 	x(initialize_subvolumes,		 2, 0)				\
 	x(snapshots_read,			 3, PASS_ALWAYS)		\
-	x(check_topology,			 4, 0)				\
 	x(check_allocations,			 5, PASS_FSCK)			\
 	x(trans_mark_dev_sbs,			 6, PASS_ALWAYS|PASS_SILENT)	\
 	x(fs_journal_alloc,			 7, PASS_ALWAYS|PASS_SILENT)	\
@@ -34,6 +34,7 @@
 	x(check_snapshot_trees,			18, PASS_ONLINE|PASS_FSCK)	\
 	x(check_snapshots,			19, PASS_ONLINE|PASS_FSCK)	\
 	x(check_subvols,			20, PASS_ONLINE|PASS_FSCK)	\
+	x(check_subvol_children,		35, PASS_ONLINE|PASS_FSCK)	\
 	x(delete_dead_snapshots,		21, PASS_ONLINE|PASS_FSCK)	\
 	x(fs_upgrade_for_subvolumes,		22, 0)				\
 	x(resume_logged_ops,			23, PASS_ALWAYS)		\
@@ -43,6 +44,7 @@
 	x(check_dirents,			27, PASS_FSCK)			\
 	x(check_xattrs,				28, PASS_FSCK)			\
 	x(check_root,				29, PASS_ONLINE|PASS_FSCK)	\
+	x(check_subvolume_structure,		36, PASS_ONLINE|PASS_FSCK)	\
 	x(check_directory_structure,		30, PASS_ONLINE|PASS_FSCK)	\
 	x(check_nlinks,				31, PASS_FSCK)			\
 	x(delete_dead_inodes,			32, PASS_FSCK|PASS_UNCLEAN)	\

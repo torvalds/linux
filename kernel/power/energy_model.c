@@ -23,6 +23,12 @@
  */
 static DEFINE_MUTEX(em_pd_mutex);
 
+static void em_cpufreq_update_efficiencies(struct device *dev,
+					   struct em_perf_state *table);
+static void em_check_capacity_update(void);
+static void em_update_workfn(struct work_struct *work);
+static DECLARE_DELAYED_WORK(em_update_work, em_update_workfn);
+
 static bool _is_cpu_device(struct device *dev)
 {
 	return (dev->bus == &cpu_subsys);
@@ -31,19 +37,65 @@ static bool _is_cpu_device(struct device *dev)
 #ifdef CONFIG_DEBUG_FS
 static struct dentry *rootdir;
 
-static void em_debug_create_ps(struct em_perf_state *ps, struct dentry *pd)
+struct em_dbg_info {
+	struct em_perf_domain *pd;
+	int ps_id;
+};
+
+#define DEFINE_EM_DBG_SHOW(name, fname)					\
+static int em_debug_##fname##_show(struct seq_file *s, void *unused)	\
+{									\
+	struct em_dbg_info *em_dbg = s->private;			\
+	struct em_perf_state *table;					\
+	unsigned long val;						\
+									\
+	rcu_read_lock();						\
+	table = em_perf_state_from_pd(em_dbg->pd);			\
+	val = table[em_dbg->ps_id].name;				\
+	rcu_read_unlock();						\
+									\
+	seq_printf(s, "%lu\n", val);					\
+	return 0;							\
+}									\
+DEFINE_SHOW_ATTRIBUTE(em_debug_##fname)
+
+DEFINE_EM_DBG_SHOW(frequency, frequency);
+DEFINE_EM_DBG_SHOW(power, power);
+DEFINE_EM_DBG_SHOW(cost, cost);
+DEFINE_EM_DBG_SHOW(performance, performance);
+DEFINE_EM_DBG_SHOW(flags, inefficiency);
+
+static void em_debug_create_ps(struct em_perf_domain *em_pd,
+			       struct em_dbg_info *em_dbg, int i,
+			       struct dentry *pd)
 {
+	struct em_perf_state *table;
+	unsigned long freq;
 	struct dentry *d;
 	char name[24];
 
-	snprintf(name, sizeof(name), "ps:%lu", ps->frequency);
+	em_dbg[i].pd = em_pd;
+	em_dbg[i].ps_id = i;
+
+	rcu_read_lock();
+	table = em_perf_state_from_pd(em_pd);
+	freq = table[i].frequency;
+	rcu_read_unlock();
+
+	snprintf(name, sizeof(name), "ps:%lu", freq);
 
 	/* Create per-ps directory */
 	d = debugfs_create_dir(name, pd);
-	debugfs_create_ulong("frequency", 0444, d, &ps->frequency);
-	debugfs_create_ulong("power", 0444, d, &ps->power);
-	debugfs_create_ulong("cost", 0444, d, &ps->cost);
-	debugfs_create_ulong("inefficient", 0444, d, &ps->flags);
+	debugfs_create_file("frequency", 0444, d, &em_dbg[i],
+			    &em_debug_frequency_fops);
+	debugfs_create_file("power", 0444, d, &em_dbg[i],
+			    &em_debug_power_fops);
+	debugfs_create_file("cost", 0444, d, &em_dbg[i],
+			    &em_debug_cost_fops);
+	debugfs_create_file("performance", 0444, d, &em_dbg[i],
+			    &em_debug_performance_fops);
+	debugfs_create_file("inefficient", 0444, d, &em_dbg[i],
+			    &em_debug_inefficiency_fops);
 }
 
 static int em_debug_cpus_show(struct seq_file *s, void *unused)
@@ -66,6 +118,7 @@ DEFINE_SHOW_ATTRIBUTE(em_debug_flags);
 
 static void em_debug_create_pd(struct device *dev)
 {
+	struct em_dbg_info *em_dbg;
 	struct dentry *d;
 	int i;
 
@@ -79,9 +132,14 @@ static void em_debug_create_pd(struct device *dev)
 	debugfs_create_file("flags", 0444, d, dev->em_pd,
 			    &em_debug_flags_fops);
 
+	em_dbg = devm_kcalloc(dev, dev->em_pd->nr_perf_states,
+			      sizeof(*em_dbg), GFP_KERNEL);
+	if (!em_dbg)
+		return;
+
 	/* Create a sub-directory for each performance state */
 	for (i = 0; i < dev->em_pd->nr_perf_states; i++)
-		em_debug_create_ps(&dev->em_pd->table[i], d);
+		em_debug_create_ps(dev->em_pd, em_dbg, i, d);
 
 }
 
@@ -103,72 +161,105 @@ static void em_debug_create_pd(struct device *dev) {}
 static void em_debug_remove_pd(struct device *dev) {}
 #endif
 
-static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
-				int nr_states, struct em_data_callback *cb,
-				unsigned long flags)
+static void em_destroy_table_rcu(struct rcu_head *rp)
 {
-	unsigned long power, freq, prev_freq = 0, prev_cost = ULONG_MAX;
-	struct em_perf_state *table;
-	int i, ret;
-	u64 fmax;
+	struct em_perf_table __rcu *table;
 
-	table = kcalloc(nr_states, sizeof(*table), GFP_KERNEL);
+	table = container_of(rp, struct em_perf_table, rcu);
+	kfree(table);
+}
+
+static void em_release_table_kref(struct kref *kref)
+{
+	struct em_perf_table __rcu *table;
+
+	/* It was the last owner of this table so we can free */
+	table = container_of(kref, struct em_perf_table, kref);
+
+	call_rcu(&table->rcu, em_destroy_table_rcu);
+}
+
+/**
+ * em_table_free() - Handles safe free of the EM table when needed
+ * @table : EM table which is going to be freed
+ *
+ * No return values.
+ */
+void em_table_free(struct em_perf_table __rcu *table)
+{
+	kref_put(&table->kref, em_release_table_kref);
+}
+
+/**
+ * em_table_alloc() - Allocate a new EM table
+ * @pd		: EM performance domain for which this must be done
+ *
+ * Allocate a new EM table and initialize its kref to indicate that it
+ * has a user.
+ * Returns allocated table or NULL.
+ */
+struct em_perf_table __rcu *em_table_alloc(struct em_perf_domain *pd)
+{
+	struct em_perf_table __rcu *table;
+	int table_size;
+
+	table_size = sizeof(struct em_perf_state) * pd->nr_perf_states;
+
+	table = kzalloc(sizeof(*table) + table_size, GFP_KERNEL);
 	if (!table)
-		return -ENOMEM;
+		return NULL;
 
-	/* Build the list of performance states for this performance domain */
-	for (i = 0, freq = 0; i < nr_states; i++, freq++) {
-		/*
-		 * active_power() is a driver callback which ceils 'freq' to
-		 * lowest performance state of 'dev' above 'freq' and updates
-		 * 'power' and 'freq' accordingly.
-		 */
-		ret = cb->active_power(dev, &power, &freq);
-		if (ret) {
-			dev_err(dev, "EM: invalid perf. state: %d\n",
-				ret);
-			goto free_ps_table;
-		}
+	kref_init(&table->kref);
 
-		/*
-		 * We expect the driver callback to increase the frequency for
-		 * higher performance states.
-		 */
-		if (freq <= prev_freq) {
-			dev_err(dev, "EM: non-increasing freq: %lu\n",
-				freq);
-			goto free_ps_table;
-		}
+	return table;
+}
 
-		/*
-		 * The power returned by active_state() is expected to be
-		 * positive and be in range.
-		 */
-		if (!power || power > EM_MAX_POWER) {
-			dev_err(dev, "EM: invalid power: %lu\n",
-				power);
-			goto free_ps_table;
-		}
+static void em_init_performance(struct device *dev, struct em_perf_domain *pd,
+				struct em_perf_state *table, int nr_states)
+{
+	u64 fmax, max_cap;
+	int i, cpu;
 
-		table[i].power = power;
-		table[i].frequency = prev_freq = freq;
-	}
+	/* This is needed only for CPUs and EAS skip other devices */
+	if (!_is_cpu_device(dev))
+		return;
+
+	cpu = cpumask_first(em_span_cpus(pd));
+
+	/*
+	 * Calculate the performance value for each frequency with
+	 * linear relationship. The final CPU capacity might not be ready at
+	 * boot time, but the EM will be updated a bit later with correct one.
+	 */
+	fmax = (u64) table[nr_states - 1].frequency;
+	max_cap = (u64) arch_scale_cpu_capacity(cpu);
+	for (i = 0; i < nr_states; i++)
+		table[i].performance = div64_u64(max_cap * table[i].frequency,
+						 fmax);
+}
+
+static int em_compute_costs(struct device *dev, struct em_perf_state *table,
+			    struct em_data_callback *cb, int nr_states,
+			    unsigned long flags)
+{
+	unsigned long prev_cost = ULONG_MAX;
+	int i, ret;
 
 	/* Compute the cost of each performance state. */
-	fmax = (u64) table[nr_states - 1].frequency;
 	for (i = nr_states - 1; i >= 0; i--) {
 		unsigned long power_res, cost;
 
-		if (flags & EM_PERF_DOMAIN_ARTIFICIAL) {
+		if ((flags & EM_PERF_DOMAIN_ARTIFICIAL) && cb->get_cost) {
 			ret = cb->get_cost(dev, table[i].frequency, &cost);
 			if (ret || !cost || cost > EM_MAX_POWER) {
 				dev_err(dev, "EM: invalid cost %lu %d\n",
 					cost, ret);
-				goto free_ps_table;
+				return -EINVAL;
 			}
 		} else {
-			power_res = table[i].power;
-			cost = div64_u64(fmax * power_res, table[i].frequency);
+			/* increase resolution of 'cost' precision */
+			power_res = table[i].power * 10;
+			cost = power_res / table[i].performance;
 		}
 
 		table[i].cost = cost;
@@ -182,20 +273,133 @@ static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
 		}
 	}
 
-	pd->table = table;
-	pd->nr_perf_states = nr_states;
+	return 0;
+}
+
+/**
+ * em_dev_compute_costs() - Calculate cost values for new runtime EM table
+ * @dev		: Device for which the EM table is to be updated
+ * @table	: The new EM table that is going to get the costs calculated
+ * @nr_states	: Number of performance states
+ *
+ * Calculate the em_perf_state::cost values for new runtime EM table. The
+ * values are used for EAS during task placement. It also calculates and sets
+ * the efficiency flag for each performance state. When the function finish
+ * successfully the EM table is ready to be updated and used by EAS.
+ *
+ * Return 0 on success or a proper error in case of failure.
+ */
+int em_dev_compute_costs(struct device *dev, struct em_perf_state *table,
+			 int nr_states)
+{
+	return em_compute_costs(dev, table, NULL, nr_states, 0);
+}
+
+/**
+ * em_dev_update_perf_domain() - Update runtime EM table for a device
+ * @dev		: Device for which the EM is to be updated
+ * @new_table	: The new EM table that is going to be used from now
+ *
+ * Update EM runtime modifiable table for the @dev using the provided @table.
+ *
+ * This function uses a mutex to serialize writers, so it must not be called
+ * from a non-sleeping context.
+ *
+ * Return 0 on success or an error code on failure.
+ */
+int em_dev_update_perf_domain(struct device *dev,
+			      struct em_perf_table __rcu *new_table)
+{
+	struct em_perf_table __rcu *old_table;
+	struct em_perf_domain *pd;
+
+	if (!dev)
+		return -EINVAL;
+
+	/* Serialize update/unregister or concurrent updates */
+	mutex_lock(&em_pd_mutex);
+
+	if (!dev->em_pd) {
+		mutex_unlock(&em_pd_mutex);
+		return -EINVAL;
+	}
+	pd = dev->em_pd;
+
+	kref_get(&new_table->kref);
+
+	old_table = pd->em_table;
+	rcu_assign_pointer(pd->em_table, new_table);
+
+	em_cpufreq_update_efficiencies(dev, new_table->state);
+
+	em_table_free(old_table);
+
+	mutex_unlock(&em_pd_mutex);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(em_dev_update_perf_domain);
+
+static int em_create_perf_table(struct device *dev, struct em_perf_domain *pd,
+				struct em_perf_state *table,
+				struct em_data_callback *cb,
+				unsigned long flags)
+{
+	unsigned long power, freq, prev_freq = 0;
+	int nr_states = pd->nr_perf_states;
+	int i, ret;
+
+	/* Build the list of performance states for this performance domain */
+	for (i = 0, freq = 0; i < nr_states; i++, freq++) {
+		/*
+		 * active_power() is a driver callback which ceils 'freq' to
+		 * lowest performance state of 'dev' above 'freq' and updates
+		 * 'power' and 'freq' accordingly.
+		 */
+		ret = cb->active_power(dev, &power, &freq);
+		if (ret) {
+			dev_err(dev, "EM: invalid perf. state: %d\n",
+				ret);
+			return -EINVAL;
+		}
+
+		/*
+		 * We expect the driver callback to increase the frequency for
+		 * higher performance states.
+		 */
+		if (freq <= prev_freq) {
+			dev_err(dev, "EM: non-increasing freq: %lu\n",
+				freq);
+			return -EINVAL;
+		}
+
+		/*
+		 * The power returned by active_state() is expected to be
+		 * positive and be in range.
+		 */
+		if (!power || power > EM_MAX_POWER) {
+			dev_err(dev, "EM: invalid power: %lu\n",
+				power);
+			return -EINVAL;
+		}
+
+		table[i].power = power;
+		table[i].frequency = prev_freq = freq;
+	}
+
+	em_init_performance(dev, pd, table, nr_states);
+
+	ret = em_compute_costs(dev, table, cb, nr_states, flags);
+	if (ret)
+		return -EINVAL;
 
 	return 0;
-
-free_ps_table:
-	kfree(table);
-	return -EINVAL;
 }
 
 static int em_create_pd(struct device *dev, int nr_states,
 			struct em_data_callback *cb, cpumask_t *cpus,
 			unsigned long flags)
 {
+	struct em_perf_table __rcu *em_table;
 	struct em_perf_domain *pd;
 	struct device *cpu_dev;
 	int cpu, ret, num_cpus;
@@ -220,11 +424,17 @@ static int em_create_pd(struct device *dev, int nr_states,
 			return -ENOMEM;
 	}
 
-	ret = em_create_perf_table(dev, pd, nr_states, cb, flags);
-	if (ret) {
-		kfree(pd);
-		return ret;
-	}
+	pd->nr_perf_states = nr_states;
+
+	em_table = em_table_alloc(pd);
+	if (!em_table)
+		goto free_pd;
+
+	ret = em_create_perf_table(dev, pd, em_table->state, cb, flags);
+	if (ret)
+		goto free_pd_table;
+
+	rcu_assign_pointer(pd->em_table, em_table);
 
 	if (_is_cpu_device(dev))
 		for_each_cpu(cpu, cpus) {
@@ -235,26 +445,37 @@ static int em_create_pd(struct device *dev, int nr_states,
 	dev->em_pd = pd;
 
 	return 0;
+
+free_pd_table:
+	kfree(em_table);
+free_pd:
+	kfree(pd);
+	return -EINVAL;
 }
 
-static void em_cpufreq_update_efficiencies(struct device *dev)
+static void
+em_cpufreq_update_efficiencies(struct device *dev, struct em_perf_state *table)
 {
 	struct em_perf_domain *pd = dev->em_pd;
-	struct em_perf_state *table;
 	struct cpufreq_policy *policy;
 	int found = 0;
-	int i;
+	int i, cpu;
 
-	if (!_is_cpu_device(dev) || !pd)
+	if (!_is_cpu_device(dev))
 		return;
 
-	policy = cpufreq_cpu_get(cpumask_first(em_span_cpus(pd)));
-	if (!policy) {
-		dev_warn(dev, "EM: Access to CPUFreq policy failed");
+	/* Try to get a CPU which is active and in this PD */
+	cpu = cpumask_first_and(em_span_cpus(pd), cpu_active_mask);
+	if (cpu >= nr_cpu_ids) {
+		dev_warn(dev, "EM: No online CPU for CPUFreq policy\n");
 		return;
 	}
 
-	table = pd->table;
+	policy = cpufreq_cpu_get(cpu);
+	if (!policy) {
+		dev_warn(dev, "EM: Access to CPUFreq policy failed\n");
+		return;
+	}
 
 	for (i = 0; i < pd->nr_perf_states; i++) {
 		if (!(table[i].flags & EM_PERF_STATE_INEFFICIENT))
@@ -391,19 +612,34 @@ int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 	else if (cb->get_cost)
 		flags |= EM_PERF_DOMAIN_ARTIFICIAL;
 
+	/*
+	 * EM only supports uW (exception is artificial EM).
+	 * Therefore, check and force the drivers to provide
+	 * power in uW.
+	 */
+	if (!microwatts && !(flags & EM_PERF_DOMAIN_ARTIFICIAL)) {
+		dev_err(dev, "EM: only supports uW power values\n");
+		ret = -EINVAL;
+		goto unlock;
+	}
+
 	ret = em_create_pd(dev, nr_states, cb, cpus, flags);
 	if (ret)
 		goto unlock;
 
 	dev->em_pd->flags |= flags;
 
-	em_cpufreq_update_efficiencies(dev);
+	em_cpufreq_update_efficiencies(dev, dev->em_pd->em_table->state);
 
 	em_debug_create_pd(dev);
 	dev_info(dev, "EM: created perf domain\n");
 
 unlock:
 	mutex_unlock(&em_pd_mutex);
+
+	if (_is_cpu_device(dev))
+		em_check_capacity_update();
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(em_dev_register_perf_domain);
@@ -430,9 +666,125 @@ void em_dev_unregister_perf_domain(struct device *dev)
 	mutex_lock(&em_pd_mutex);
 	em_debug_remove_pd(dev);
 
-	kfree(dev->em_pd->table);
+	em_table_free(dev->em_pd->em_table);
+
 	kfree(dev->em_pd);
 	dev->em_pd = NULL;
 	mutex_unlock(&em_pd_mutex);
 }
 EXPORT_SYMBOL_GPL(em_dev_unregister_perf_domain);
+
+/*
+ * Adjustment of CPU performance values after boot, when all CPUs capacites
+ * are correctly calculated.
+ */
+static void em_adjust_new_capacity(struct device *dev,
+				   struct em_perf_domain *pd,
+				   u64 max_cap)
+{
+	struct em_perf_table __rcu *em_table;
+	struct em_perf_state *ps, *new_ps;
+	int ret, ps_size;
+
+	em_table = em_table_alloc(pd);
+	if (!em_table) {
+		dev_warn(dev, "EM: allocation failed\n");
+		return;
+	}
+
+	new_ps = em_table->state;
+
+	rcu_read_lock();
+	ps = em_perf_state_from_pd(pd);
+	/* Initialize data based on old table */
+	ps_size = sizeof(struct em_perf_state) * pd->nr_perf_states;
+	memcpy(new_ps, ps, ps_size);
+
+	rcu_read_unlock();
+
+	em_init_performance(dev, pd, new_ps, pd->nr_perf_states);
+	ret = em_compute_costs(dev, new_ps, NULL, pd->nr_perf_states,
+			       pd->flags);
+	if (ret) {
+		dev_warn(dev, "EM: compute costs failed\n");
+		return;
+	}
+
+	ret = em_dev_update_perf_domain(dev, em_table);
+	if (ret)
+		dev_warn(dev, "EM: update failed %d\n", ret);
+
+	/*
+	 * This is one-time-update, so give up the ownership in this updater.
+	 * The EM framework has incremented the usage counter and from now
+	 * will keep the reference (then free the memory when needed).
+	 */
+	em_table_free(em_table);
+}
+
+static void em_check_capacity_update(void)
+{
+	cpumask_var_t cpu_done_mask;
+	struct em_perf_state *table;
+	struct em_perf_domain *pd;
+	unsigned long cpu_capacity;
+	int cpu;
+
+	if (!zalloc_cpumask_var(&cpu_done_mask, GFP_KERNEL)) {
+		pr_warn("no free memory\n");
+		return;
+	}
+
+	/* Check if CPUs capacity has changed than update EM */
+	for_each_possible_cpu(cpu) {
+		struct cpufreq_policy *policy;
+		unsigned long em_max_perf;
+		struct device *dev;
+
+		if (cpumask_test_cpu(cpu, cpu_done_mask))
+			continue;
+
+		policy = cpufreq_cpu_get(cpu);
+		if (!policy) {
+			pr_debug("Accessing cpu%d policy failed\n", cpu);
+			schedule_delayed_work(&em_update_work,
+					      msecs_to_jiffies(1000));
+			break;
+		}
+		cpufreq_cpu_put(policy);
+
+		pd = em_cpu_get(cpu);
+		if (!pd || em_is_artificial(pd))
+			continue;
+
+		cpumask_or(cpu_done_mask, cpu_done_mask,
+			   em_span_cpus(pd));
+
+		cpu_capacity = arch_scale_cpu_capacity(cpu);
+
+		rcu_read_lock();
+		table = em_perf_state_from_pd(pd);
+		em_max_perf = table[pd->nr_perf_states - 1].performance;
+		rcu_read_unlock();
+
+		/*
+		 * Check if the CPU capacity has been adjusted during boot
+		 * and trigger the update for new performance values.
+		 */
+		if (em_max_perf == cpu_capacity)
+			continue;
+
+		pr_debug("updating cpu%d cpu_cap=%lu old capacity=%lu\n",
+			 cpu, cpu_capacity, em_max_perf);
+
+		dev = get_cpu_device(cpu);
+		em_adjust_new_capacity(dev, pd, cpu_capacity);
+	}
+
+	free_cpumask_var(cpu_done_mask);
+}
+
+static void em_update_workfn(struct work_struct *work)
+{
+	em_check_capacity_update();
+}

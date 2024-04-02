@@ -757,7 +757,7 @@ int atomisp_css_init(struct atomisp_device *isp)
 		return ret;
 
 	/* Init ISP */
-	err = ia_css_init(isp->dev, &isp->css_env.isp_css_env, NULL,
+	err = ia_css_init(isp->dev, &isp->css_env.isp_css_env,
 			  (uint32_t)mmu_base_addr, IA_CSS_IRQ_TYPE_PULSE);
 	if (err) {
 		dev_err(isp->dev, "css init failed --- bad firmware?\n");

@@ -150,6 +150,7 @@ impl Display for TryReserveError {
 
 /// An intermediate trait for specialization of `Extend`.
 #[doc(hidden)]
+#[cfg(not(no_global_oom_handling))]
 trait SpecExtend<I: IntoIterator> {
     /// Extends `self` with the contents of the given iterator.
     fn spec_extend(&mut self, iter: I);

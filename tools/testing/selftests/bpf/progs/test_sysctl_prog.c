@@ -9,6 +9,8 @@
 
 #include <bpf/bpf_helpers.h>
 
+#include "bpf_compiler.h"
+
 /* Max supported length of a string with unsigned long in base 10 (pow2 - 1). */
 #define MAX_ULONG_STR_LEN 0xF
 
@@ -31,7 +33,7 @@ static __always_inline int is_tcp_mem(struct bpf_sysctl *ctx)
 	if (ret < 0 || ret != sizeof(tcp_mem_name) - 1)
 		return 0;
 
-#pragma clang loop unroll(full)
+	__pragma_loop_unroll_full
 	for (i = 0; i < sizeof(tcp_mem_name); ++i)
 		if (name[i] != tcp_mem_name[i])
 			return 0;
@@ -57,7 +59,7 @@ int sysctl_tcp_mem(struct bpf_sysctl *ctx)
 	if (ret < 0 || ret >= MAX_VALUE_STR_LEN)
 		return 0;
 
-#pragma clang loop unroll(full)
+	__pragma_loop_unroll_full
 	for (i = 0; i < ARRAY_SIZE(tcp_mem); ++i) {
 		ret = bpf_strtoul(value + off, MAX_ULONG_STR_LEN, 0,
 				  tcp_mem + i);

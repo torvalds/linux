@@ -858,6 +858,10 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 	pydict_set_item_string_decref(dict, "ev_name", _PyUnicode_FromString(evsel__name(evsel)));
 	pydict_set_item_string_decref(dict, "attr", _PyBytes_FromStringAndSize((const char *)&evsel->core.attr, sizeof(evsel->core.attr)));
 
+	pydict_set_item_string_decref(dict_sample, "id",
+			PyLong_FromUnsignedLongLong(sample->id));
+	pydict_set_item_string_decref(dict_sample, "stream_id",
+			PyLong_FromUnsignedLongLong(sample->stream_id));
 	pydict_set_item_string_decref(dict_sample, "pid",
 			_PyLong_FromLong(sample->pid));
 	pydict_set_item_string_decref(dict_sample, "tid",
@@ -1306,7 +1310,7 @@ static void python_export_sample_table(struct db_export *dbe,
 	struct tables *tables = container_of(dbe, struct tables, dbe);
 	PyObject *t;
 
-	t = tuple_new(25);
+	t = tuple_new(27);
 
 	tuple_set_d64(t, 0, es->db_id);
 	tuple_set_d64(t, 1, es->evsel->db_id);
@@ -1333,6 +1337,8 @@ static void python_export_sample_table(struct db_export *dbe,
 	tuple_set_d64(t, 22, es->sample->insn_cnt);
 	tuple_set_d64(t, 23, es->sample->cyc_cnt);
 	tuple_set_s32(t, 24, es->sample->flags);
+	tuple_set_d64(t, 25, es->sample->id);
+	tuple_set_d64(t, 26, es->sample->stream_id);
 
 	call_object(tables->sample_handler, t, "sample_table");
 

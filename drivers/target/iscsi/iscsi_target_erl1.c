@@ -583,7 +583,7 @@ int iscsit_dataout_datapduinorder_no_fbit(
 	struct iscsi_pdu *pdu)
 {
 	int i, send_recovery_r2t = 0, recovery = 0;
-	u32 length = 0, offset = 0, pdu_count = 0, xfer_len = 0;
+	u32 length = 0, offset = 0, pdu_count = 0;
 	struct iscsit_conn *conn = cmd->conn;
 	struct iscsi_pdu *first_pdu = NULL;
 
@@ -596,7 +596,6 @@ int iscsit_dataout_datapduinorder_no_fbit(
 			if (cmd->pdu_list[i].seq_no == pdu->seq_no) {
 				if (!first_pdu)
 					first_pdu = &cmd->pdu_list[i];
-				xfer_len += cmd->pdu_list[i].length;
 				pdu_count++;
 			} else if (pdu_count)
 				break;

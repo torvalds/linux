@@ -127,24 +127,11 @@ static void __init vsmp_cap_cpus(void)
 #endif
 }
 
-static u32 apicid_phys_pkg_id(u32 initial_apic_id, int index_msb)
-{
-	return read_apic_id() >> index_msb;
-}
-
-static void vsmp_apic_post_init(void)
-{
-	/* need to update phys_pkg_id */
-	apic->phys_pkg_id = apicid_phys_pkg_id;
-}
-
 void __init vsmp_init(void)
 {
 	detect_vsmp_box();
 	if (!is_vsmp_box())
 		return;
-
-	x86_platform.apic_post_init = vsmp_apic_post_init;
 
 	vsmp_cap_cpus();
 

@@ -129,6 +129,4 @@ static inline bool __init __early_cpu_has_rndr(void)
 	return (ftr >> ID_AA64ISAR0_EL1_RNDR_SHIFT) & 0xf;
 }
 
-u64 kaslr_early_init(void *fdt);
-
 #endif /* _ASM_ARCHRANDOM_H */

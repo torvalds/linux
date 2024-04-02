@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) Siemens AG, 2018-2021
  *
@@ -11,6 +11,7 @@
 
 #include "k3-am652.dtsi"
 #include "k3-am65-iot2050-common.dtsi"
+#include "k3-am65-iot2050-arduino-connector.dtsi"
 
 / {
 	memory@80000000 {
@@ -39,9 +40,4 @@
 	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_uart0_pins_default>;
-};
-
-&mcu_r5fss0 {
-	/* lock-step mode not supported on Basic boards */
-	ti,cluster-mode = <0>;
 };

@@ -781,17 +781,7 @@ static struct platform_driver disp_cc_sm6350_driver = {
 	},
 };
 
-static int __init disp_cc_sm6350_init(void)
-{
-	return platform_driver_register(&disp_cc_sm6350_driver);
-}
-subsys_initcall(disp_cc_sm6350_init);
-
-static void __exit disp_cc_sm6350_exit(void)
-{
-	platform_driver_unregister(&disp_cc_sm6350_driver);
-}
-module_exit(disp_cc_sm6350_exit);
+module_platform_driver(disp_cc_sm6350_driver);
 
 MODULE_DESCRIPTION("QTI DISP_CC SM6350 Driver");
 MODULE_LICENSE("GPL v2");

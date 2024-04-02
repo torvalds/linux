@@ -549,7 +549,6 @@ static const struct of_device_id __maybe_unused max6621_of_match[] = {
 MODULE_DEVICE_TABLE(of, max6621_of_match);
 
 static struct i2c_driver max6621_driver = {
-	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name = MAX6621_DRV_NAME,
 		.of_match_table = of_match_ptr(max6621_of_match),

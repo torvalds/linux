@@ -145,7 +145,7 @@ static void __schizo_check_stc_error_pbm(struct pci_pbm_info *pbm,
 
 	/* This is __REALLY__ dangerous.  When we put the
 	 * streaming buffer into diagnostic mode to probe
-	 * it's tags and error status, we _must_ clear all
+	 * its tags and error status, we _must_ clear all
 	 * of the line tag valid bits before re-enabling
 	 * the streaming buffer.  If any dirty data lives
 	 * in the STC when we do this, we will end up
@@ -275,7 +275,7 @@ static void schizo_check_iommu_error_pbm(struct pci_pbm_info *pbm,
 		       pbm->name, type_string);
 
 		/* Put the IOMMU into diagnostic mode and probe
-		 * it's TLB for entries with error status.
+		 * its TLB for entries with error status.
 		 *
 		 * It is very possible for another DVMA to occur
 		 * while we do this probe, and corrupt the system

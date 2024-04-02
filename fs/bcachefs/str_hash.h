@@ -259,7 +259,7 @@ int bch2_hash_needs_whiteout(struct btree_trans *trans,
 }
 
 static __always_inline
-int bch2_hash_set_snapshot(struct btree_trans *trans,
+int bch2_hash_set_in_snapshot(struct btree_trans *trans,
 			   const struct bch_hash_desc desc,
 			   const struct bch_hash_info *info,
 			   subvol_inum inum, u32 snapshot,
@@ -328,17 +328,12 @@ int bch2_hash_set(struct btree_trans *trans,
 		  struct bkey_i *insert,
 		  bch_str_hash_flags_t str_hash_flags)
 {
-	u32 snapshot;
-	int ret;
-
-	ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
-	if (ret)
-		return ret;
-
 	insert->k.p.inode = inum.inum;
 
-	return bch2_hash_set_snapshot(trans, desc, info, inum,
-				      snapshot, insert, str_hash_flags, 0);
+	u32 snapshot;
+	return  bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot) ?:
+		bch2_hash_set_in_snapshot(trans, desc, info, inum,
+					  snapshot, insert, str_hash_flags, 0);
 }
 
 static __always_inline

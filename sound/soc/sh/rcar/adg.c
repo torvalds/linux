@@ -111,6 +111,13 @@ static u32 rsnd_adg_ssi_ws_timing_gen2(struct rsnd_dai_stream *io)
 			ws = 7;
 			break;
 		}
+	} else {
+		/*
+		 * SSI8 is not connected to ADG.
+		 * Thus SSI9 is using ws = 8
+		 */
+		if (id == 9)
+			ws = 8;
 	}
 
 	return (0x6 + ws) << 8;

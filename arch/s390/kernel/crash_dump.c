@@ -22,7 +22,7 @@
 #include <asm/ipl.h>
 #include <asm/sclp.h>
 #include <asm/maccess.h>
-#include <asm/fpu/api.h>
+#include <asm/fpu.h>
 
 #define PTR_ADD(x, y) (((char *) (x)) + ((unsigned long) (y)))
 #define PTR_SUB(x, y) (((char *) (x)) - ((unsigned long) (y)))

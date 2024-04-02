@@ -4,6 +4,62 @@
 
 #include <linux/netdevice.h>
 
+/* See the netdev.yaml spec for definition of each statistic */
+struct netdev_queue_stats_rx {
+	u64 bytes;
+	u64 packets;
+	u64 alloc_fail;
+};
+
+struct netdev_queue_stats_tx {
+	u64 bytes;
+	u64 packets;
+};
+
+/**
+ * struct netdev_stat_ops - netdev ops for fine grained stats
+ * @get_queue_stats_rx:	get stats for a given Rx queue
+ * @get_queue_stats_tx:	get stats for a given Tx queue
+ * @get_base_stats:	get base stats (not belonging to any live instance)
+ *
+ * Query stats for a given object. The values of the statistics are undefined
+ * on entry (specifically they are *not* zero-initialized). Drivers should
+ * assign values only to the statistics they collect. Statistics which are not
+ * collected must be left undefined.
+ *
+ * Queue objects are not necessarily persistent, and only currently active
+ * queues are queried by the per-queue callbacks. This means that per-queue
+ * statistics will not generally add up to the total number of events for
+ * the device. The @get_base_stats callback allows filling in the delta
+ * between events for currently live queues and overall device history.
+ * When the statistics for the entire device are queried, first @get_base_stats
+ * is issued to collect the delta, and then a series of per-queue callbacks.
+ * Only statistics which are set in @get_base_stats will be reported
+ * at the device level, meaning that unlike in queue callbacks, setting
+ * a statistic to zero in @get_base_stats is a legitimate thing to do.
+ * This is because @get_base_stats has a second function of designating which
+ * statistics are in fact correct for the entire device (e.g. when history
+ * for some of the events is not maintained, and reliable "total" cannot
+ * be provided).
+ *
+ * Device drivers can assume that when collecting total device stats,
+ * the @get_base_stats and subsequent per-queue calls are performed
+ * "atomically" (without releasing the rtnl_lock).
+ *
+ * Device drivers are encouraged to reset the per-queue statistics when
+ * number of queues change. This is because the primary use case for
+ * per-queue statistics is currently to detect traffic imbalance.
+ */
+struct netdev_stat_ops {
+	void (*get_queue_stats_rx)(struct net_device *dev, int idx,
+				   struct netdev_queue_stats_rx *stats);
+	void (*get_queue_stats_tx)(struct net_device *dev, int idx,
+				   struct netdev_queue_stats_tx *stats);
+	void (*get_base_stats)(struct net_device *dev,
+			       struct netdev_queue_stats_rx *rx,
+			       struct netdev_queue_stats_tx *tx);
+};
+
 /**
  * DOC: Lockless queue stopping / waking helpers.
  *

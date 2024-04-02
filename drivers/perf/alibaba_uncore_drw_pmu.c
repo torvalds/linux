@@ -729,7 +729,7 @@ static int ali_drw_pmu_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int ali_drw_pmu_remove(struct platform_device *pdev)
+static void ali_drw_pmu_remove(struct platform_device *pdev)
 {
 	struct ali_drw_pmu *drw_pmu = platform_get_drvdata(pdev);
 
@@ -739,8 +739,6 @@ static int ali_drw_pmu_remove(struct platform_device *pdev)
 
 	ali_drw_pmu_uninit_irq(drw_pmu);
 	perf_pmu_unregister(&drw_pmu->pmu);
-
-	return 0;
 }
 
 static int ali_drw_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
@@ -795,7 +793,7 @@ static struct platform_driver ali_drw_pmu_driver = {
 		   .acpi_match_table = ali_drw_acpi_match,
 		   },
 	.probe = ali_drw_pmu_probe,
-	.remove = ali_drw_pmu_remove,
+	.remove_new = ali_drw_pmu_remove,
 };
 
 static int __init ali_drw_pmu_init(void)

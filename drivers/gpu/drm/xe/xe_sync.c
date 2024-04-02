@@ -19,7 +19,7 @@
 #include "xe_macros.h"
 #include "xe_sched_job_types.h"
 
-struct user_fence {
+struct xe_user_fence {
 	struct xe_device *xe;
 	struct kref refcount;
 	struct dma_fence_cb cb;
@@ -27,31 +27,32 @@ struct user_fence {
 	struct mm_struct *mm;
 	u64 __user *addr;
 	u64 value;
+	int signalled;
 };
 
 static void user_fence_destroy(struct kref *kref)
 {
-	struct user_fence *ufence = container_of(kref, struct user_fence,
+	struct xe_user_fence *ufence = container_of(kref, struct xe_user_fence,
 						 refcount);
 
 	mmdrop(ufence->mm);
 	kfree(ufence);
 }
 
-static void user_fence_get(struct user_fence *ufence)
+static void user_fence_get(struct xe_user_fence *ufence)
 {
 	kref_get(&ufence->refcount);
 }
 
-static void user_fence_put(struct user_fence *ufence)
+static void user_fence_put(struct xe_user_fence *ufence)
 {
 	kref_put(&ufence->refcount, user_fence_destroy);
 }
 
-static struct user_fence *user_fence_create(struct xe_device *xe, u64 addr,
-					    u64 value)
+static struct xe_user_fence *user_fence_create(struct xe_device *xe, u64 addr,
+					       u64 value)
 {
-	struct user_fence *ufence;
+	struct xe_user_fence *ufence;
 
 	ufence = kmalloc(sizeof(*ufence), GFP_KERNEL);
 	if (!ufence)
@@ -69,7 +70,7 @@ static struct user_fence *user_fence_create(struct xe_device *xe, u64 addr,
 
 static void user_fence_worker(struct work_struct *w)
 {
-	struct user_fence *ufence = container_of(w, struct user_fence, worker);
+	struct xe_user_fence *ufence = container_of(w, struct xe_user_fence, worker);
 
 	if (mmget_not_zero(ufence->mm)) {
 		kthread_use_mm(ufence->mm);
@@ -80,10 +81,11 @@ static void user_fence_worker(struct work_struct *w)
 	}
 
 	wake_up_all(&ufence->xe->ufence_wq);
+	WRITE_ONCE(ufence->signalled, 1);
 	user_fence_put(ufence);
 }
 
-static void kick_ufence(struct user_fence *ufence, struct dma_fence *fence)
+static void kick_ufence(struct xe_user_fence *ufence, struct dma_fence *fence)
 {
 	INIT_WORK(&ufence->worker, user_fence_worker);
 	queue_work(ufence->xe->ordered_wq, &ufence->worker);
@@ -92,7 +94,7 @@ static void kick_ufence(struct user_fence *ufence, struct dma_fence *fence)
 
 static void user_fence_cb(struct dma_fence *fence, struct dma_fence_cb *cb)
 {
-	struct user_fence *ufence = container_of(cb, struct user_fence, cb);
+	struct xe_user_fence *ufence = container_of(cb, struct xe_user_fence, cb);
 
 	kick_ufence(ufence, fence);
 }
@@ -339,4 +341,40 @@ err_out:
 	kfree(cf);
 
 	return ERR_PTR(-ENOMEM);
+}
+
+/**
+ * xe_sync_ufence_get() - Get user fence from sync
+ * @sync: input sync
+ *
+ * Get a user fence reference from sync.
+ *
+ * Return: xe_user_fence pointer with reference
+ */
+struct xe_user_fence *xe_sync_ufence_get(struct xe_sync_entry *sync)
+{
+	user_fence_get(sync->ufence);
+
+	return sync->ufence;
+}
+
+/**
+ * xe_sync_ufence_put() - Put user fence reference
+ * @ufence: user fence reference
+ *
+ */
+void xe_sync_ufence_put(struct xe_user_fence *ufence)
+{
+	user_fence_put(ufence);
+}
+
+/**
+ * xe_sync_ufence_get_status() - Get user fence status
+ * @ufence: user fence
+ *
+ * Return: 1 if signalled, 0 not signalled, <0 on error
+ */
+int xe_sync_ufence_get_status(struct xe_user_fence *ufence)
+{
+	return READ_ONCE(ufence->signalled);
 }

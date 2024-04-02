@@ -4,6 +4,18 @@
 
 / {
 	model = "SolidRun Clearfog GTR L8";
+	compatible = "solidrun,clearfog-gtr-l8", "marvell,armada385",
+		     "marvell,armada380";
+
+	/* CON25 */
+	sfp1: sfp-1 {
+		compatible = "sff,sfp";
+		pinctrl-0 = <&cf_gtr_sfp1_pins>;
+		pinctrl-names = "default";
+		i2c-bus = <&i2c0>;
+		mod-def0-gpio = <&gpio0 24 GPIO_ACTIVE_LOW>;
+		tx-disable-gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+	};
 };
 
 &mdio {
@@ -20,57 +32,65 @@
 
 			ethernet-port@1 {
 				reg = <1>;
-				label = "lan8";
+				label = "lan1";
 				phy-handle = <&switch0phy0>;
 			};
 
 			ethernet-port@2 {
 				reg = <2>;
-				label = "lan7";
+				label = "lan2";
 				phy-handle = <&switch0phy1>;
 			};
 
 			ethernet-port@3 {
 				reg = <3>;
-				label = "lan6";
+				label = "lan3";
 				phy-handle = <&switch0phy2>;
 			};
 
 			ethernet-port@4 {
 				reg = <4>;
-				label = "lan5";
+				label = "lan4";
 				phy-handle = <&switch0phy3>;
 			};
 
 			ethernet-port@5 {
 				reg = <5>;
-				label = "lan4";
+				label = "lan5";
 				phy-handle = <&switch0phy4>;
 			};
 
 			ethernet-port@6 {
 				reg = <6>;
-				label = "lan3";
+				label = "lan6";
 				phy-handle = <&switch0phy5>;
 			};
 
 			ethernet-port@7 {
 				reg = <7>;
-				label = "lan2";
+				label = "lan7";
 				phy-handle = <&switch0phy6>;
 			};
 
 			ethernet-port@8 {
 				reg = <8>;
-				label = "lan1";
+				label = "lan8";
 				phy-handle = <&switch0phy7>;
+			};
+
+			ethernet-port@9 {
+				reg = <9>;
+				label = "lan-sfp";
+				phy-mode = "sgmii";
+				sfp = <&sfp1>;
+				managed = "in-band-status";
 			};
 
 			ethernet-port@10 {
 				reg = <10>;
 				phy-mode = "2500base-x";
-
 				ethernet = <&eth1>;
+
 				fixed-link {
 					speed = <2500>;
 					full-duplex;

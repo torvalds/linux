@@ -1746,17 +1746,7 @@ static struct platform_driver cam_cc_sdm845_driver = {
 	},
 };
 
-static int __init cam_cc_sdm845_init(void)
-{
-	return platform_driver_register(&cam_cc_sdm845_driver);
-}
-subsys_initcall(cam_cc_sdm845_init);
-
-static void __exit cam_cc_sdm845_exit(void)
-{
-	platform_driver_unregister(&cam_cc_sdm845_driver);
-}
-module_exit(cam_cc_sdm845_exit);
+module_platform_driver(cam_cc_sdm845_driver);
 
 MODULE_DESCRIPTION("QTI CAM_CC SDM845 Driver");
 MODULE_LICENSE("GPL v2");

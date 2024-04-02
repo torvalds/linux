@@ -1,2 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
 huge_count_read_write
+debugfs_target_ids_read_before_terminate_race
+debugfs_target_ids_pid_leak
+access_memory

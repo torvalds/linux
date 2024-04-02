@@ -58,14 +58,9 @@ static int int340x_thermal_set_trip_temp(struct thermal_zone_device *zone,
 
 static void int340x_thermal_critical(struct thermal_zone_device *zone)
 {
-	dev_dbg(&zone->device, "%s: critical temperature reached\n", zone->type);
+	dev_dbg(thermal_zone_device(zone), "%s: critical temperature reached\n",
+		thermal_zone_device_type(zone));
 }
-
-static struct thermal_zone_device_ops int340x_thermal_zone_ops = {
-	.get_temp       = int340x_thermal_get_zone_temp,
-	.set_trip_temp	= int340x_thermal_set_trip_temp,
-	.critical	= int340x_thermal_critical,
-};
 
 static inline void *int_to_trip_priv(int i)
 {
@@ -126,11 +121,15 @@ static struct thermal_zone_params int340x_thermal_params = {
 struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 						     int (*get_temp) (struct thermal_zone_device *, int *))
 {
+	const struct thermal_zone_device_ops zone_ops = {
+		.set_trip_temp = int340x_thermal_set_trip_temp,
+		.critical = int340x_thermal_critical,
+		.get_temp = get_temp ? get_temp : int340x_thermal_get_zone_temp,
+	};
 	struct int34x_thermal_zone *int34x_zone;
 	struct thermal_trip *zone_trips;
 	unsigned long long trip_cnt = 0;
 	unsigned long long hyst;
-	int trip_mask = 0;
 	acpi_status status;
 	int i, ret;
 
@@ -140,21 +139,9 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 
 	int34x_zone->adev = adev;
 
-	int34x_zone->ops = kmemdup(&int340x_thermal_zone_ops,
-				   sizeof(int340x_thermal_zone_ops), GFP_KERNEL);
-	if (!int34x_zone->ops) {
-		ret = -ENOMEM;
-		goto err_ops_alloc;
-	}
-
-	if (get_temp)
-		int34x_zone->ops->get_temp = get_temp;
-
 	status = acpi_evaluate_integer(adev->handle, "PATC", NULL, &trip_cnt);
-	if (ACPI_SUCCESS(status)) {
+	if (ACPI_SUCCESS(status))
 		int34x_zone->aux_trip_nr = trip_cnt;
-		trip_mask = BIT(trip_cnt) - 1;
-	}
 
 	zone_trips = kzalloc(sizeof(*zone_trips) * (trip_cnt + INT340X_THERMAL_MAX_TRIP_COUNT),
 			     GFP_KERNEL);
@@ -166,6 +153,7 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 	for (i = 0; i < trip_cnt; i++) {
 		zone_trips[i].type = THERMAL_TRIP_PASSIVE;
 		zone_trips[i].temperature = THERMAL_TEMP_INVALID;
+		zone_trips[i].flags |= THERMAL_TRIP_FLAG_RW_TEMP;
 	}
 
 	trip_cnt = int340x_thermal_read_trips(adev, zone_trips, trip_cnt);
@@ -179,17 +167,17 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 	for (i = 0; i < trip_cnt; ++i)
 		zone_trips[i].hysteresis = hyst;
 
-	int34x_zone->trips = zone_trips;
-
 	int34x_zone->lpat_table = acpi_lpat_get_conversion_table(adev->handle);
 
 	int34x_zone->zone = thermal_zone_device_register_with_trips(
 							acpi_device_bid(adev),
 							zone_trips, trip_cnt,
-							trip_mask, int34x_zone,
-							int34x_zone->ops,
+							int34x_zone,
+							&zone_ops,
 							&int340x_thermal_params,
 							0, 0);
+	kfree(zone_trips);
+
 	if (IS_ERR(int34x_zone->zone)) {
 		ret = PTR_ERR(int34x_zone->zone);
 		goto err_thermal_zone;
@@ -203,11 +191,8 @@ struct int34x_thermal_zone *int340x_thermal_zone_add(struct acpi_device *adev,
 err_enable:
 	thermal_zone_device_unregister(int34x_zone->zone);
 err_thermal_zone:
-	kfree(int34x_zone->trips);
 	acpi_lpat_free_conversion_table(int34x_zone->lpat_table);
 err_trips_alloc:
-	kfree(int34x_zone->ops);
-err_ops_alloc:
 	kfree(int34x_zone);
 	return ERR_PTR(ret);
 }
@@ -217,8 +202,6 @@ void int340x_thermal_zone_remove(struct int34x_thermal_zone *int34x_zone)
 {
 	thermal_zone_device_unregister(int34x_zone->zone);
 	acpi_lpat_free_conversion_table(int34x_zone->lpat_table);
-	kfree(int34x_zone->trips);
-	kfree(int34x_zone->ops);
 	kfree(int34x_zone);
 }
 EXPORT_SYMBOL_GPL(int340x_thermal_zone_remove);

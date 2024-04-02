@@ -113,6 +113,12 @@ static int dump_midi(struct snd_rawmidi_substream *substream, const char *buf, i
 	return 0;
 }
 
+/* callback for snd_seq_dump_var_event(), bridging to dump_midi() */
+static int __dump_midi(void *ptr, void *buf, int count)
+{
+	return dump_midi(ptr, buf, count);
+}
+
 static int event_process_midi(struct snd_seq_event *ev, int direct,
 			      void *private_data, int atomic, int hop)
 {
@@ -132,7 +138,7 @@ static int event_process_midi(struct snd_seq_event *ev, int direct,
 			pr_debug("ALSA: seq_midi: invalid sysex event flags = 0x%x\n", ev->flags);
 			return 0;
 		}
-		snd_seq_dump_var_event(ev, (snd_seq_dump_func_t)dump_midi, substream);
+		snd_seq_dump_var_event(ev, __dump_midi, substream);
 		snd_midi_event_reset_decode(msynth->parser);
 	} else {
 		if (msynth->parser == NULL)
@@ -264,8 +270,8 @@ snd_seq_midisynth_probe(struct device *_dev)
 	struct snd_seq_device *dev = to_seq_dev(_dev);
 	struct seq_midisynth_client *client;
 	struct seq_midisynth *msynth, *ms;
-	struct snd_seq_port_info *port;
-	struct snd_rawmidi_info *info;
+	struct snd_seq_port_info *port __free(kfree) = NULL;
+	struct snd_rawmidi_info *info __free(kfree) = NULL;
 	struct snd_rawmidi *rmidi = dev->private_data;
 	int newclient = 0;
 	unsigned int p, ports;
@@ -291,31 +297,24 @@ snd_seq_midisynth_probe(struct device *_dev)
 	ports = output_count;
 	if (ports < input_count)
 		ports = input_count;
-	if (ports == 0) {
-		kfree(info);
+	if (ports == 0)
 		return -ENODEV;
-	}
 	if (ports > (256 / SNDRV_RAWMIDI_DEVICES))
 		ports = 256 / SNDRV_RAWMIDI_DEVICES;
 
-	mutex_lock(&register_mutex);
+	guard(mutex)(&register_mutex);
 	client = synths[card->number];
 	if (client == NULL) {
 		newclient = 1;
 		client = kzalloc(sizeof(*client), GFP_KERNEL);
-		if (client == NULL) {
-			mutex_unlock(&register_mutex);
-			kfree(info);
+		if (client == NULL)
 			return -ENOMEM;
-		}
 		client->seq_client =
 			snd_seq_create_kernel_client(
 				card, 0, "%s", card->shortname[0] ?
 				(const char *)card->shortname : "External MIDI");
 		if (client->seq_client < 0) {
 			kfree(client);
-			mutex_unlock(&register_mutex);
-			kfree(info);
 			return -ENOMEM;
 		}
 	}
@@ -396,9 +395,6 @@ snd_seq_midisynth_probe(struct device *_dev)
 	client->num_ports++;
 	if (newclient)
 		synths[card->number] = client;
-	mutex_unlock(&register_mutex);
-	kfree(info);
-	kfree(port);
 	return 0;	/* success */
 
       __nomem:
@@ -411,9 +407,6 @@ snd_seq_midisynth_probe(struct device *_dev)
 		snd_seq_delete_kernel_client(client->seq_client);
 		kfree(client);
 	}
-	kfree(info);
-	kfree(port);
-	mutex_unlock(&register_mutex);
 	return -ENOMEM;
 }
 
@@ -427,12 +420,10 @@ snd_seq_midisynth_remove(struct device *_dev)
 	struct snd_card *card = dev->card;
 	int device = dev->device, p, ports;
 	
-	mutex_lock(&register_mutex);
+	guard(mutex)(&register_mutex);
 	client = synths[card->number];
-	if (client == NULL || client->ports[device] == NULL) {
-		mutex_unlock(&register_mutex);
+	if (client == NULL || client->ports[device] == NULL)
 		return -ENODEV;
-	}
 	ports = client->ports_per_device[device];
 	client->ports_per_device[device] = 0;
 	msynth = client->ports[device];
@@ -446,7 +437,6 @@ snd_seq_midisynth_remove(struct device *_dev)
 		synths[card->number] = NULL;
 		kfree(client);
 	}
-	mutex_unlock(&register_mutex);
 	return 0;
 }
 

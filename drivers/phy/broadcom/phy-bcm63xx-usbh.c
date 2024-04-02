@@ -366,7 +366,7 @@ static const struct phy_ops bcm63xx_usbh_phy_ops = {
 };
 
 static struct phy *bcm63xx_usbh_phy_xlate(struct device *dev,
-					  struct of_phandle_args *args)
+					  const struct of_phandle_args *args)
 {
 	struct bcm63xx_usbh_phy *usbh = dev_get_drvdata(dev);
 

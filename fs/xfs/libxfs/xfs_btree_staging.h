@@ -22,7 +22,7 @@ struct xbtree_afakeroot {
 void xfs_btree_stage_afakeroot(struct xfs_btree_cur *cur,
 		struct xbtree_afakeroot *afake);
 void xfs_btree_commit_afakeroot(struct xfs_btree_cur *cur, struct xfs_trans *tp,
-		struct xfs_buf *agbp, const struct xfs_btree_ops *ops);
+		struct xfs_buf *agbp);
 
 /* Fake root for an inode-rooted btree. */
 struct xbtree_ifakeroot {
@@ -41,10 +41,9 @@ struct xbtree_ifakeroot {
 
 /* Cursor interactions with fake roots for inode-rooted btrees. */
 void xfs_btree_stage_ifakeroot(struct xfs_btree_cur *cur,
-		struct xbtree_ifakeroot *ifake,
-		struct xfs_btree_ops **new_ops);
+		struct xbtree_ifakeroot *ifake);
 void xfs_btree_commit_ifakeroot(struct xfs_btree_cur *cur, struct xfs_trans *tp,
-		int whichfork, const struct xfs_btree_ops *ops);
+		int whichfork);
 
 /* Bulk loading of staged btrees. */
 typedef int (*xfs_btree_bload_get_records_fn)(struct xfs_btree_cur *cur,
@@ -76,8 +75,7 @@ struct xfs_btree_bload {
 
 	/*
 	 * This function should return the size of the in-core btree root
-	 * block.  It is only necessary for XFS_BTREE_ROOT_IN_INODE btree
-	 * types.
+	 * block.  It is only necessary for XFS_BTREE_TYPE_INODE btrees.
 	 */
 	xfs_btree_bload_iroot_size_fn	iroot_size;
 

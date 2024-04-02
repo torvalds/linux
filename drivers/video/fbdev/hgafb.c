@@ -670,7 +670,7 @@ static void __exit hgafb_exit(void)
  *
  * ------------------------------------------------------------------------- */
 
-MODULE_AUTHOR("Ferenc Bakonyi (fero@drama.obuda.kando.hu)");
+MODULE_AUTHOR("Ferenc Bakonyi <fero@drama.obuda.kando.hu>");
 MODULE_DESCRIPTION("FBDev driver for Hercules Graphics Adaptor");
 MODULE_LICENSE("GPL");
 

@@ -8,6 +8,7 @@
 struct inet_hashinfo;
 
 struct inet_diag_handler {
+	struct module	*owner;
 	void		(*dump)(struct sk_buff *skb,
 				struct netlink_callback *cb,
 				const struct inet_diag_req_v2 *r);

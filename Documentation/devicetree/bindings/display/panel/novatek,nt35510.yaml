@@ -31,6 +31,7 @@ properties:
   vddi-supply:
     description: regulator that supplies the vddi voltage
   backlight: true
+  port: true
 
 required:
   - compatible

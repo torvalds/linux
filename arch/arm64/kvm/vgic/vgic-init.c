@@ -53,9 +53,9 @@ void kvm_vgic_early_init(struct kvm *kvm)
 {
 	struct vgic_dist *dist = &kvm->arch.vgic;
 
-	INIT_LIST_HEAD(&dist->lpi_list_head);
 	INIT_LIST_HEAD(&dist->lpi_translation_cache);
 	raw_spin_lock_init(&dist->lpi_list_lock);
+	xa_init_flags(&dist->lpi_xa, XA_FLAGS_LOCK_IRQ);
 }
 
 /* CREATION */
@@ -309,7 +309,7 @@ int vgic_init(struct kvm *kvm)
 		vgic_lpi_translation_cache_init(kvm);
 
 	/*
-	 * If we have GICv4.1 enabled, unconditionnaly request enable the
+	 * If we have GICv4.1 enabled, unconditionally request enable the
 	 * v4 support so that we get HW-accelerated vSGIs. Otherwise, only
 	 * enable it if we present a virtual ITS to the guest.
 	 */
@@ -366,6 +366,8 @@ static void kvm_vgic_dist_destroy(struct kvm *kvm)
 
 	if (vgic_supports_direct_msis(kvm))
 		vgic_v4_teardown(kvm);
+
+	xa_destroy(&dist->lpi_xa);
 }
 
 static void __kvm_vgic_vcpu_destroy(struct kvm_vcpu *vcpu)
@@ -445,13 +447,15 @@ int vgic_lazy_init(struct kvm *kvm)
 /* RESOURCE MAPPING */
 
 /**
+ * kvm_vgic_map_resources - map the MMIO regions
+ * @kvm: kvm struct pointer
+ *
  * Map the MMIO regions depending on the VGIC model exposed to the guest
  * called on the first VCPU run.
  * Also map the virtual CPU interface into the VM.
  * v2 calls vgic_init() if not already done.
  * v3 and derivatives return an error if the VGIC is not initialized.
  * vgic_ready() returns true if this function has succeeded.
- * @kvm: kvm struct pointer
  */
 int kvm_vgic_map_resources(struct kvm *kvm)
 {

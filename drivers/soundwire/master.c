@@ -112,7 +112,7 @@ static const struct dev_pm_ops master_dev_pm = {
 			   pm_generic_runtime_resume, NULL)
 };
 
-struct device_type sdw_master_type = {
+const struct device_type sdw_master_type = {
 	.name =		"soundwire_master",
 	.release =	sdw_master_device_release,
 	.pm = &master_dev_pm,

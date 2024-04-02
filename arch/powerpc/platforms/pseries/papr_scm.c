@@ -1521,7 +1521,7 @@ err:	kfree(p);
 	return rc;
 }
 
-static int papr_scm_remove(struct platform_device *pdev)
+static void papr_scm_remove(struct platform_device *pdev)
 {
 	struct papr_scm_priv *p = platform_get_drvdata(pdev);
 
@@ -1538,8 +1538,6 @@ static int papr_scm_remove(struct platform_device *pdev)
 	pdev->archdata.priv = NULL;
 	kfree(p->bus_desc.provider_name);
 	kfree(p);
-
-	return 0;
 }
 
 static const struct of_device_id papr_scm_match[] = {
@@ -1550,7 +1548,7 @@ static const struct of_device_id papr_scm_match[] = {
 
 static struct platform_driver papr_scm_driver = {
 	.probe = papr_scm_probe,
-	.remove = papr_scm_remove,
+	.remove_new = papr_scm_remove,
 	.driver = {
 		.name = "papr_scm",
 		.of_match_table = papr_scm_match,

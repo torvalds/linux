@@ -16,6 +16,7 @@
 #include <linux/fs_context.h>
 #include <linux/fs_parser.h>
 #include <linux/highmem.h>
+#include <linux/cleanup.h>
 #include <linux/uio.h>
 #include "fuse_i.h"
 
@@ -30,6 +31,9 @@
  */
 static DEFINE_MUTEX(virtio_fs_mutex);
 static LIST_HEAD(virtio_fs_instances);
+
+/* The /sys/fs/virtio_fs/ kset */
+static struct kset *virtio_fs_kset;
 
 enum {
 	VQ_HIPRIO,
@@ -55,7 +59,7 @@ struct virtio_fs_vq {
 
 /* A virtio-fs device instance */
 struct virtio_fs {
-	struct kref refcount;
+	struct kobject kobj;
 	struct list_head list;    /* on virtio_fs_instances */
 	char *tag;
 	struct virtio_fs_vq *vqs;
@@ -161,18 +165,40 @@ static inline void dec_in_flight_req(struct virtio_fs_vq *fsvq)
 		complete(&fsvq->in_flight_zero);
 }
 
-static void release_virtio_fs_obj(struct kref *ref)
+static ssize_t tag_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
 {
-	struct virtio_fs *vfs = container_of(ref, struct virtio_fs, refcount);
+	struct virtio_fs *fs = container_of(kobj, struct virtio_fs, kobj);
+
+	return sysfs_emit(buf, fs->tag);
+}
+
+static struct kobj_attribute virtio_fs_tag_attr = __ATTR_RO(tag);
+
+static struct attribute *virtio_fs_attrs[] = {
+	&virtio_fs_tag_attr.attr,
+	NULL
+};
+ATTRIBUTE_GROUPS(virtio_fs);
+
+static void virtio_fs_ktype_release(struct kobject *kobj)
+{
+	struct virtio_fs *vfs = container_of(kobj, struct virtio_fs, kobj);
 
 	kfree(vfs->vqs);
 	kfree(vfs);
 }
 
+static const struct kobj_type virtio_fs_ktype = {
+	.release = virtio_fs_ktype_release,
+	.sysfs_ops = &kobj_sysfs_ops,
+	.default_groups = virtio_fs_groups,
+};
+
 /* Make sure virtiofs_mutex is held */
 static void virtio_fs_put(struct virtio_fs *fs)
 {
-	kref_put(&fs->refcount, release_virtio_fs_obj);
+	kobject_put(&fs->kobj);
 }
 
 static void virtio_fs_fiq_release(struct fuse_iqueue *fiq)
@@ -243,25 +269,46 @@ static void virtio_fs_start_all_queues(struct virtio_fs *fs)
 }
 
 /* Add a new instance to the list or return -EEXIST if tag name exists*/
-static int virtio_fs_add_instance(struct virtio_fs *fs)
+static int virtio_fs_add_instance(struct virtio_device *vdev,
+				  struct virtio_fs *fs)
 {
 	struct virtio_fs *fs2;
-	bool duplicate = false;
+	int ret;
 
 	mutex_lock(&virtio_fs_mutex);
 
 	list_for_each_entry(fs2, &virtio_fs_instances, list) {
-		if (strcmp(fs->tag, fs2->tag) == 0)
-			duplicate = true;
+		if (strcmp(fs->tag, fs2->tag) == 0) {
+			mutex_unlock(&virtio_fs_mutex);
+			return -EEXIST;
+		}
 	}
 
-	if (!duplicate)
-		list_add_tail(&fs->list, &virtio_fs_instances);
+	/* Use the virtio_device's index as a unique identifier, there is no
+	 * need to allocate our own identifiers because the virtio_fs instance
+	 * is only visible to userspace as long as the underlying virtio_device
+	 * exists.
+	 */
+	fs->kobj.kset = virtio_fs_kset;
+	ret = kobject_add(&fs->kobj, NULL, "%d", vdev->index);
+	if (ret < 0) {
+		mutex_unlock(&virtio_fs_mutex);
+		return ret;
+	}
+
+	ret = sysfs_create_link(&fs->kobj, &vdev->dev.kobj, "device");
+	if (ret < 0) {
+		kobject_del(&fs->kobj);
+		mutex_unlock(&virtio_fs_mutex);
+		return ret;
+	}
+
+	list_add_tail(&fs->list, &virtio_fs_instances);
 
 	mutex_unlock(&virtio_fs_mutex);
 
-	if (duplicate)
-		return -EEXIST;
+	kobject_uevent(&fs->kobj, KOBJ_ADD);
+
 	return 0;
 }
 
@@ -274,7 +321,7 @@ static struct virtio_fs *virtio_fs_find_instance(const char *tag)
 
 	list_for_each_entry(fs, &virtio_fs_instances, list) {
 		if (strcmp(fs->tag, tag) == 0) {
-			kref_get(&fs->refcount);
+			kobject_get(&fs->kobj);
 			goto found;
 		}
 	}
@@ -323,6 +370,16 @@ static int virtio_fs_read_tag(struct virtio_device *vdev, struct virtio_fs *fs)
 		return -ENOMEM;
 	memcpy(fs->tag, tag_buf, len);
 	fs->tag[len] = '\0';
+
+	/* While the VIRTIO specification allows any character, newlines are
+	 * awkward on mount(8) command-lines and cause problems in the sysfs
+	 * "tag" attr and uevent TAG= properties. Forbid them.
+	 */
+	if (strchr(fs->tag, '\n')) {
+		dev_dbg(&vdev->dev, "refusing virtiofs tag with newline character\n");
+		return -EINVAL;
+	}
+
 	return 0;
 }
 
@@ -345,7 +402,7 @@ static void virtio_fs_hiprio_done_work(struct work_struct *work)
 			kfree(req);
 			dec_in_flight_req(fsvq);
 		}
-	} while (!virtqueue_enable_cb(vq) && likely(!virtqueue_is_broken(vq)));
+	} while (!virtqueue_enable_cb(vq));
 	spin_unlock(&fsvq->lock);
 }
 
@@ -627,7 +684,7 @@ static void virtio_fs_requests_done_work(struct work_struct *work)
 			list_move_tail(&req->list, &reqs);
 			spin_unlock(&fpq->lock);
 		}
-	} while (!virtqueue_enable_cb(vq) && likely(!virtqueue_is_broken(vq)));
+	} while (!virtqueue_enable_cb(vq));
 	spin_unlock(&fsvq->lock);
 
 	/* End requests */
@@ -795,14 +852,23 @@ static void virtio_fs_cleanup_dax(void *data)
 	put_dax(dax_dev);
 }
 
+DEFINE_FREE(cleanup_dax, struct dax_dev *, if (!IS_ERR_OR_NULL(_T)) virtio_fs_cleanup_dax(_T))
+
 static int virtio_fs_setup_dax(struct virtio_device *vdev, struct virtio_fs *fs)
 {
+	struct dax_device *dax_dev __free(cleanup_dax) = NULL;
 	struct virtio_shm_region cache_reg;
 	struct dev_pagemap *pgmap;
 	bool have_cache;
 
 	if (!IS_ENABLED(CONFIG_FUSE_DAX))
 		return 0;
+
+	dax_dev = alloc_dax(fs, &virtio_fs_dax_ops);
+	if (IS_ERR(dax_dev)) {
+		int rc = PTR_ERR(dax_dev);
+		return rc == -EOPNOTSUPP ? 0 : rc;
+	}
 
 	/* Get cache region */
 	have_cache = virtio_get_shm_region(vdev, &cache_reg,
@@ -849,10 +915,7 @@ static int virtio_fs_setup_dax(struct virtio_device *vdev, struct virtio_fs *fs)
 	dev_dbg(&vdev->dev, "%s: window kaddr 0x%px phys_addr 0x%llx len 0x%llx\n",
 		__func__, fs->window_kaddr, cache_reg.addr, cache_reg.len);
 
-	fs->dax_dev = alloc_dax(fs, &virtio_fs_dax_ops);
-	if (IS_ERR(fs->dax_dev))
-		return PTR_ERR(fs->dax_dev);
-
+	fs->dax_dev = no_free_ptr(dax_dev);
 	return devm_add_action_or_reset(&vdev->dev, virtio_fs_cleanup_dax,
 					fs->dax_dev);
 }
@@ -865,7 +928,7 @@ static int virtio_fs_probe(struct virtio_device *vdev)
 	fs = kzalloc(sizeof(*fs), GFP_KERNEL);
 	if (!fs)
 		return -ENOMEM;
-	kref_init(&fs->refcount);
+	kobject_init(&fs->kobj, &virtio_fs_ktype);
 	vdev->priv = fs;
 
 	ret = virtio_fs_read_tag(vdev, fs);
@@ -887,7 +950,7 @@ static int virtio_fs_probe(struct virtio_device *vdev)
 	 */
 	virtio_device_ready(vdev);
 
-	ret = virtio_fs_add_instance(fs);
+	ret = virtio_fs_add_instance(vdev, fs);
 	if (ret < 0)
 		goto out_vqs;
 
@@ -896,11 +959,10 @@ static int virtio_fs_probe(struct virtio_device *vdev)
 out_vqs:
 	virtio_reset_device(vdev);
 	virtio_fs_cleanup_vqs(vdev);
-	kfree(fs->vqs);
 
 out:
 	vdev->priv = NULL;
-	kfree(fs);
+	kobject_put(&fs->kobj);
 	return ret;
 }
 
@@ -924,6 +986,8 @@ static void virtio_fs_remove(struct virtio_device *vdev)
 	mutex_lock(&virtio_fs_mutex);
 	/* This device is going away. No one should get new reference */
 	list_del_init(&fs->list);
+	sysfs_remove_link(&fs->kobj, "device");
+	kobject_del(&fs->kobj);
 	virtio_fs_stop_all_queues(fs);
 	virtio_fs_drain_all_queues_locked(fs);
 	virtio_reset_device(vdev);
@@ -1510,21 +1574,56 @@ static struct file_system_type virtio_fs_type = {
 	.kill_sb	= virtio_kill_sb,
 };
 
+static int virtio_fs_uevent(const struct kobject *kobj, struct kobj_uevent_env *env)
+{
+	const struct virtio_fs *fs = container_of(kobj, struct virtio_fs, kobj);
+
+	add_uevent_var(env, "TAG=%s", fs->tag);
+	return 0;
+}
+
+static const struct kset_uevent_ops virtio_fs_uevent_ops = {
+	.uevent = virtio_fs_uevent,
+};
+
+static int __init virtio_fs_sysfs_init(void)
+{
+	virtio_fs_kset = kset_create_and_add("virtiofs", &virtio_fs_uevent_ops,
+					     fs_kobj);
+	if (!virtio_fs_kset)
+		return -ENOMEM;
+	return 0;
+}
+
+static void virtio_fs_sysfs_exit(void)
+{
+	kset_unregister(virtio_fs_kset);
+	virtio_fs_kset = NULL;
+}
+
 static int __init virtio_fs_init(void)
 {
 	int ret;
 
-	ret = register_virtio_driver(&virtio_fs_driver);
+	ret = virtio_fs_sysfs_init();
 	if (ret < 0)
 		return ret;
 
+	ret = register_virtio_driver(&virtio_fs_driver);
+	if (ret < 0)
+		goto sysfs_exit;
+
 	ret = register_filesystem(&virtio_fs_type);
-	if (ret < 0) {
-		unregister_virtio_driver(&virtio_fs_driver);
-		return ret;
-	}
+	if (ret < 0)
+		goto unregister_virtio_driver;
 
 	return 0;
+
+unregister_virtio_driver:
+	unregister_virtio_driver(&virtio_fs_driver);
+sysfs_exit:
+	virtio_fs_sysfs_exit();
+	return ret;
 }
 module_init(virtio_fs_init);
 
@@ -1532,6 +1631,7 @@ static void __exit virtio_fs_exit(void)
 {
 	unregister_filesystem(&virtio_fs_type);
 	unregister_virtio_driver(&virtio_fs_driver);
+	virtio_fs_sysfs_exit();
 }
 module_exit(virtio_fs_exit);
 

@@ -90,10 +90,15 @@ static void ionic_get_regs(struct net_device *netdev, struct ethtool_regs *regs,
 			   void *p)
 {
 	struct ionic_lif *lif = netdev_priv(netdev);
+	struct ionic_dev *idev;
 	unsigned int offset;
 	unsigned int size;
 
 	regs->version = IONIC_DEV_CMD_REG_VERSION;
+
+	idev = &lif->ionic->idev;
+	if (!idev->dev_info_regs)
+		return;
 
 	offset = 0;
 	size = IONIC_DEV_INFO_REG_COUNT * sizeof(u32);
@@ -101,7 +106,7 @@ static void ionic_get_regs(struct net_device *netdev, struct ethtool_regs *regs,
 
 	offset += size;
 	size = IONIC_DEV_CMD_REG_COUNT * sizeof(u32);
-	memcpy_fromio(p + offset, lif->ionic->idev.dev_cmd_regs->words, size);
+	memcpy_fromio(p + offset, idev->dev_cmd_regs->words, size);
 }
 
 static void ionic_get_link_ext_stats(struct net_device *netdev,
@@ -720,6 +725,11 @@ static int ionic_set_channels(struct net_device *netdev,
 		return -EBUSY;
 
 	ionic_init_queue_params(lif, &qparam);
+
+	if ((ch->rx_count || ch->tx_count) && lif->xdp_prog) {
+		netdev_info(lif->netdev, "Split Tx/Rx interrupts not available when using XDP\n");
+		return -EOPNOTSUPP;
+	}
 
 	if (ch->rx_count != ch->tx_count) {
 		netdev_info(netdev, "The rx and tx count must be equal\n");

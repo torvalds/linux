@@ -118,7 +118,7 @@
 #define av1_mcomp_filt_type		AV1_DEC_REG(11, 8, 0x7)
 #define av1_multicore_expect_context_update	AV1_DEC_REG(11, 11, 0x1)
 #define av1_multicore_sbx_offset	AV1_DEC_REG(11, 12, 0x7f)
-#define av1_ulticore_tile_col		AV1_DEC_REG(11, 19, 0x7f)
+#define av1_multicore_tile_col		AV1_DEC_REG(11, 19, 0x7f)
 #define av1_transform_mode		AV1_DEC_REG(11, 27, 0x7)
 #define av1_dec_tile_size_mag		AV1_DEC_REG(11, 30, 0x3)
 

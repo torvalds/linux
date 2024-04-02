@@ -2386,7 +2386,7 @@ static int journal_read(struct super_block *sb)
 
 	cur_dblock = SB_ONDISK_JOURNAL_1st_BLOCK(sb);
 	reiserfs_info(sb, "checking transaction log (%pg)\n",
-		      journal->j_bdev_handle->bdev);
+		      file_bdev(journal->j_bdev_file));
 	start = ktime_get_seconds();
 
 	/*
@@ -2447,7 +2447,7 @@ static int journal_read(struct super_block *sb)
 		 * device and journal device to be the same
 		 */
 		d_bh =
-		    reiserfs_breada(journal->j_bdev_handle->bdev, cur_dblock,
+		    reiserfs_breada(file_bdev(journal->j_bdev_file), cur_dblock,
 				    sb->s_blocksize,
 				    SB_ONDISK_JOURNAL_1st_BLOCK(sb) +
 				    SB_ONDISK_JOURNAL_SIZE(sb));
@@ -2588,9 +2588,9 @@ static void journal_list_init(struct super_block *sb)
 
 static void release_journal_dev(struct reiserfs_journal *journal)
 {
-	if (journal->j_bdev_handle) {
-		bdev_release(journal->j_bdev_handle);
-		journal->j_bdev_handle = NULL;
+	if (journal->j_bdev_file) {
+		fput(journal->j_bdev_file);
+		journal->j_bdev_file = NULL;
 	}
 }
 
@@ -2605,7 +2605,7 @@ static int journal_init_dev(struct super_block *super,
 
 	result = 0;
 
-	journal->j_bdev_handle = NULL;
+	journal->j_bdev_file = NULL;
 	jdev = SB_ONDISK_JOURNAL_DEVICE(super) ?
 	    new_decode_dev(SB_ONDISK_JOURNAL_DEVICE(super)) : super->s_dev;
 
@@ -2616,37 +2616,37 @@ static int journal_init_dev(struct super_block *super,
 	if ((!jdev_name || !jdev_name[0])) {
 		if (jdev == super->s_dev)
 			holder = NULL;
-		journal->j_bdev_handle = bdev_open_by_dev(jdev, blkdev_mode,
+		journal->j_bdev_file = bdev_file_open_by_dev(jdev, blkdev_mode,
 							  holder, NULL);
-		if (IS_ERR(journal->j_bdev_handle)) {
-			result = PTR_ERR(journal->j_bdev_handle);
-			journal->j_bdev_handle = NULL;
+		if (IS_ERR(journal->j_bdev_file)) {
+			result = PTR_ERR(journal->j_bdev_file);
+			journal->j_bdev_file = NULL;
 			reiserfs_warning(super, "sh-458",
 					 "cannot init journal device unknown-block(%u,%u): %i",
 					 MAJOR(jdev), MINOR(jdev), result);
 			return result;
 		} else if (jdev != super->s_dev)
-			set_blocksize(journal->j_bdev_handle->bdev,
+			set_blocksize(file_bdev(journal->j_bdev_file),
 				      super->s_blocksize);
 
 		return 0;
 	}
 
-	journal->j_bdev_handle = bdev_open_by_path(jdev_name, blkdev_mode,
+	journal->j_bdev_file = bdev_file_open_by_path(jdev_name, blkdev_mode,
 						   holder, NULL);
-	if (IS_ERR(journal->j_bdev_handle)) {
-		result = PTR_ERR(journal->j_bdev_handle);
-		journal->j_bdev_handle = NULL;
+	if (IS_ERR(journal->j_bdev_file)) {
+		result = PTR_ERR(journal->j_bdev_file);
+		journal->j_bdev_file = NULL;
 		reiserfs_warning(super, "sh-457",
 				 "journal_init_dev: Cannot open '%s': %i",
 				 jdev_name, result);
 		return result;
 	}
 
-	set_blocksize(journal->j_bdev_handle->bdev, super->s_blocksize);
+	set_blocksize(file_bdev(journal->j_bdev_file), super->s_blocksize);
 	reiserfs_info(super,
 		      "journal_init_dev: journal device: %pg\n",
-		      journal->j_bdev_handle->bdev);
+		      file_bdev(journal->j_bdev_file));
 	return 0;
 }
 
@@ -2804,7 +2804,7 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 				 "journal header magic %x (device %pg) does "
 				 "not match to magic found in super block %x",
 				 jh->jh_journal.jp_journal_magic,
-				 journal->j_bdev_handle->bdev,
+				 file_bdev(journal->j_bdev_file),
 				 sb_jp_journal_magic(rs));
 		brelse(bhjh);
 		goto free_and_return;
@@ -2828,7 +2828,7 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 	reiserfs_info(sb, "journal params: device %pg, size %u, "
 		      "journal first block %u, max trans len %u, max batch %u, "
 		      "max commit age %u, max trans age %u\n",
-		      journal->j_bdev_handle->bdev,
+		      file_bdev(journal->j_bdev_file),
 		      SB_ONDISK_JOURNAL_SIZE(sb),
 		      SB_ONDISK_JOURNAL_1st_BLOCK(sb),
 		      journal->j_trans_max,

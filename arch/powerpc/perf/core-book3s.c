@@ -256,7 +256,7 @@ static bool regs_sipr(struct pt_regs *regs)
 
 static inline u32 perf_flags_from_msr(struct pt_regs *regs)
 {
-	if (regs->msr & MSR_PR)
+	if (user_mode(regs))
 		return PERF_RECORD_MISC_USER;
 	if ((regs->msr & MSR_HV) && freeze_events_kernel != MMCR0_FCHV)
 		return PERF_RECORD_MISC_HYPERVISOR;
@@ -2592,6 +2592,8 @@ static int __init init_ppc64_pmu(void)
 	else if (!init_power9_pmu())
 		return 0;
 	else if (!init_power10_pmu())
+		return 0;
+	else if (!init_power11_pmu())
 		return 0;
 	else if (!init_ppc970_pmu())
 		return 0;

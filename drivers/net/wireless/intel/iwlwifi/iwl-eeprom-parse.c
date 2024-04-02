@@ -270,7 +270,7 @@ enum iwl_eeprom_enhanced_txpwr_flags {
 };
 
 /**
- * struct iwl_eeprom_enhanced_txpwr
+ * struct iwl_eeprom_enhanced_txpwr - enhanced regulatory TX power limits
  * @flags: entry flags
  * @channel: channel number
  * @chain_a_max: chain a max power in 1/2 dBm

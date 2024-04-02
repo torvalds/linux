@@ -121,11 +121,6 @@ static inline int cpuset_do_page_mem_spread(void)
 	return task_spread_page(current);
 }
 
-static inline int cpuset_do_slab_mem_spread(void)
-{
-	return task_spread_slab(current);
-}
-
 extern bool current_cpuset_is_being_rebound(void);
 
 extern void rebuild_sched_domains(void);
@@ -260,11 +255,6 @@ static inline int cpuset_slab_spread_node(void)
 }
 
 static inline int cpuset_do_page_mem_spread(void)
-{
-	return 0;
-}
-
-static inline int cpuset_do_slab_mem_spread(void)
 {
 	return 0;
 }

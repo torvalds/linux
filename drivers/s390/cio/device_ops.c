@@ -823,13 +823,14 @@ EXPORT_SYMBOL_GPL(ccw_device_get_chid);
  * the subchannels dma pool. Maximal size of allocation supported
  * is PAGE_SIZE.
  */
-void *ccw_device_dma_zalloc(struct ccw_device *cdev, size_t size)
+void *ccw_device_dma_zalloc(struct ccw_device *cdev, size_t size,
+			    dma32_t *dma_handle)
 {
 	void *addr;
 
 	if (!get_device(&cdev->dev))
 		return NULL;
-	addr = cio_gp_dma_zalloc(cdev->private->dma_pool, &cdev->dev, size);
+	addr = __cio_gp_dma_zalloc(cdev->private->dma_pool, &cdev->dev, size, dma_handle);
 	if (IS_ERR_OR_NULL(addr))
 		put_device(&cdev->dev);
 	return addr;

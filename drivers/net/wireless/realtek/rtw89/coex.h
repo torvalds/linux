@@ -7,6 +7,8 @@
 
 #include "core.h"
 
+#define BTC_H2C_MAXLEN 2020
+
 enum btc_mode {
 	BTC_MODE_NORMAL,
 	BTC_MODE_WL,
@@ -23,6 +25,7 @@ enum btc_wl_rfk_type {
 	BTC_WRFKT_DACK = 4,
 	BTC_WRFKT_RXDCK = 5,
 	BTC_WRFKT_TSSI = 6,
+	BTC_WRFKT_CHLK = 7,
 };
 
 #define NM_EXEC false
@@ -152,6 +155,10 @@ enum btc_lps_state {
 
 #define BTC_REG_NOTFOUND 0xff
 
+#define R_BTC_ZB_COEX_TBL_0 0xE328
+#define R_BTC_ZB_COEX_TBL_1 0xE32c
+#define R_BTC_ZB_BREAK_TBL  0xE350
+
 enum btc_ant_div_pos {
 	BTC_ANT_DIV_MAIN = 0,
 	BTC_ANT_DIV_AUX = 1,
@@ -178,6 +185,20 @@ enum btc_btgctrl_type {
 	BTC_BTGCTRL_ENABLE,
 	BTC_BTGCTRL_BB_GNT_FWCTRL,
 	BTC_BTGCTRL_BB_GNT_NOTFOUND,
+};
+
+enum btc_wa_type {
+	BTC_WA_5G_HI_CH_RX = BIT(0),
+	BTC_WA_NULL_AP = BIT(1),
+	BTC_WA_HFP_ZB = BIT(2),  /* HFP PTA req bit4 define issue */
+};
+
+enum btc_3cx_type {
+	BTC_3CX_NONE = 0,
+	BTC_3CX_BT2 = BIT(0),
+	BTC_3CX_ZB = BIT(1),
+	BTC_3CX_LTE = BIT(2),
+	BTC_3CX_MAX,
 };
 
 void rtw89_btc_ntfy_poweron(struct rtw89_dev *rtwdev);

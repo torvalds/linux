@@ -4,7 +4,7 @@
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/input/gpio-keys.h>
 
-#include "tegra234-p3767-0000.dtsi"
+#include "tegra234-p3767.dtsi"
 #include "tegra234-p3768-0000.dtsi"
 
 / {
@@ -37,7 +37,6 @@
 
 		hda@3510000 {
 			nvidia,model = "NVIDIA Jetson Orin NX HDA";
-			status = "okay";
 		};
 
 		padctl@3520000 {
@@ -83,6 +82,10 @@
 		regulator-max-microvolt = <3300000>;
 		gpio = <&gpio_aon TEGRA234_AON_GPIO(AA, 5) GPIO_ACTIVE_HIGH>;
 		enable-active-high;
+	};
+
+	sound {
+		label = "NVIDIA Jetson Orin NX APE";
 	};
 
 	thermal-zones {

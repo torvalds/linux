@@ -28,8 +28,8 @@
 #include <linux/cpu.h>
 #include <linux/entry-common.h>
 #include <asm/asm-extable.h>
-#include <asm/fpu/api.h>
 #include <asm/vtime.h>
+#include <asm/fpu.h>
 #include "entry.h"
 
 static inline void __user *get_trap_ip(struct pt_regs *regs)
@@ -201,8 +201,8 @@ static void vector_exception(struct pt_regs *regs)
 	}
 
 	/* get vector interrupt code from fpc */
-	save_fpu_regs();
-	vic = (current->thread.fpu.fpc & 0xf00) >> 8;
+	save_user_fpu_regs();
+	vic = (current->thread.ufpu.fpc & 0xf00) >> 8;
 	switch (vic) {
 	case 1: /* invalid vector operation */
 		si_code = FPE_FLTINV;
@@ -227,9 +227,9 @@ static void vector_exception(struct pt_regs *regs)
 
 static void data_exception(struct pt_regs *regs)
 {
-	save_fpu_regs();
-	if (current->thread.fpu.fpc & FPC_DXC_MASK)
-		do_fp_trap(regs, current->thread.fpu.fpc);
+	save_user_fpu_regs();
+	if (current->thread.ufpu.fpc & FPC_DXC_MASK)
+		do_fp_trap(regs, current->thread.ufpu.fpc);
 	else
 		do_trap(regs, SIGILL, ILL_ILLOPN, "data exception");
 }

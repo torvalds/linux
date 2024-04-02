@@ -8,6 +8,7 @@ title: Qualcomm Technologies ath10k wireless devices
 
 maintainers:
   - Kalle Valo <kvalo@kernel.org>
+  - Jeff Johnson <jjohnson@kernel.org>
 
 description:
   Qualcomm Technologies, Inc. IEEE 802.11ac devices.

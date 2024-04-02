@@ -38,7 +38,7 @@ struct efivar_entry {
 
 int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *,
 			    struct list_head *),
-		void *data, bool duplicates, struct list_head *head);
+		void *data, struct list_head *head);
 
 int efivar_entry_add(struct efivar_entry *entry, struct list_head *head);
 void __efivar_entry_add(struct efivar_entry *entry, struct list_head *head);

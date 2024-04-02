@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2022 - 2023 Intel Corporation
+ * Copyright (C) 2022 - 2024 Intel Corporation
  */
 #include "mvm.h"
 #include "time-event.h"
@@ -46,6 +46,27 @@ static int iwl_mvm_link_cmd_send(struct iwl_mvm *mvm,
 	return ret;
 }
 
+int iwl_mvm_set_link_mapping(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			     struct ieee80211_bss_conf *link_conf)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif_link_info *link_info =
+		mvmvif->link[link_conf->link_id];
+
+	if (link_info->fw_link_id == IWL_MVM_FW_LINK_ID_INVALID) {
+		link_info->fw_link_id = iwl_mvm_get_free_fw_link_id(mvm,
+								    mvmvif);
+		if (link_info->fw_link_id >=
+		    ARRAY_SIZE(mvm->link_id_to_link_conf))
+			return -EINVAL;
+
+		rcu_assign_pointer(mvm->link_id_to_link_conf[link_info->fw_link_id],
+				   link_conf);
+	}
+
+	return 0;
+}
+
 int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		     struct ieee80211_bss_conf *link_conf)
 {
@@ -53,19 +74,16 @@ int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	unsigned int link_id = link_conf->link_id;
 	struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
 	struct iwl_link_config_cmd cmd = {};
+	unsigned int cmd_id = WIDE_ID(MAC_CONF_GROUP, LINK_CONFIG_CMD);
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 1);
+	int ret;
 
 	if (WARN_ON_ONCE(!link_info))
 		return -EINVAL;
 
-	if (link_info->fw_link_id == IWL_MVM_FW_LINK_ID_INVALID) {
-		link_info->fw_link_id = iwl_mvm_get_free_fw_link_id(mvm,
-								    mvmvif);
-		if (link_info->fw_link_id >= ARRAY_SIZE(mvm->link_id_to_link_conf))
-			return -EINVAL;
-
-		rcu_assign_pointer(mvm->link_id_to_link_conf[link_info->fw_link_id],
-				   link_conf);
-	}
+	ret = iwl_mvm_set_link_mapping(mvm, vif, link_conf);
+	if (ret)
+		return ret;
 
 	/* Update SF - Disable if needed. if this fails, SF might still be on
 	 * while many macs are bound, which is forbidden - so fail the binding.
@@ -84,7 +102,8 @@ int iwl_mvm_add_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (vif->type == NL80211_IFTYPE_ADHOC && link_conf->bssid)
 		memcpy(cmd.ibss_bssid_addr, link_conf->bssid, ETH_ALEN);
 
-	cmd.listen_lmac = cpu_to_le32(link_info->listen_lmac);
+	if (cmd_ver < 2)
+		cmd.listen_lmac = cpu_to_le32(link_info->listen_lmac);
 
 	return iwl_mvm_link_cmd_send(mvm, &cmd, FW_CTXT_ACTION_ADD);
 }
@@ -100,6 +119,8 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_link_config_cmd cmd = {};
 	u32 ht_flag, flags = 0, flags_mask = 0;
 	int ret;
+	unsigned int cmd_id = WIDE_ID(MAC_CONF_GROUP, LINK_CONFIG_CMD);
+	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id, 1);
 
 	if (WARN_ON_ONCE(!link_info ||
 			 link_info->fw_link_id == IWL_MVM_FW_LINK_ID_INVALID))
@@ -190,12 +211,21 @@ int iwl_mvm_link_changed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	}
 
 	if (changes & LINK_CONTEXT_MODIFY_EHT_PARAMS) {
+		struct ieee80211_chanctx_conf *ctx;
+		struct cfg80211_chan_def *def = NULL;
+
+		rcu_read_lock();
+		ctx = rcu_dereference(link_conf->chanctx_conf);
+		if (ctx)
+			def = iwl_mvm_chanctx_def(mvm, ctx);
+
 		if (iwlwifi_mod_params.disable_11be ||
-		    !link_conf->eht_support)
+		    !link_conf->eht_support || !def ||
+		    iwl_fw_lookup_cmd_ver(mvm->fw, PHY_CONTEXT_CMD, 1) >= 6)
 			changes &= ~LINK_CONTEXT_MODIFY_EHT_PARAMS;
 		else
-			cmd.puncture_mask =
-				cpu_to_le16(link_conf->eht_puncturing);
+			cmd.puncture_mask = cpu_to_le16(def->punctured);
+		rcu_read_unlock();
 	}
 
 	cmd.bss_color = link_conf->he_bss_color.color;
@@ -224,13 +254,32 @@ send_cmd:
 	cmd.flags = cpu_to_le32(flags);
 	cmd.flags_mask = cpu_to_le32(flags_mask);
 	cmd.spec_link_id = link_conf->link_id;
-	cmd.listen_lmac = cpu_to_le32(link_info->listen_lmac);
+	if (cmd_ver < 2)
+		cmd.listen_lmac = cpu_to_le32(link_info->listen_lmac);
 
 	ret = iwl_mvm_link_cmd_send(mvm, &cmd, FW_CTXT_ACTION_MODIFY);
 	if (!ret && (changes & LINK_CONTEXT_MODIFY_ACTIVE))
 		link_info->active = active;
 
 	return ret;
+}
+
+int iwl_mvm_unset_link_mapping(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       struct ieee80211_bss_conf *link_conf)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif_link_info *link_info =
+		mvmvif->link[link_conf->link_id];
+
+	/* mac80211 thought we have the link, but it was never configured */
+	if (WARN_ON(!link_info ||
+		    link_info->fw_link_id >=
+		    ARRAY_SIZE(mvm->link_id_to_link_conf)))
+		return -EINVAL;
+
+	RCU_INIT_POINTER(mvm->link_id_to_link_conf[link_info->fw_link_id],
+			 NULL);
+	return 0;
 }
 
 int iwl_mvm_remove_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -242,13 +291,10 @@ int iwl_mvm_remove_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	struct iwl_link_config_cmd cmd = {};
 	int ret;
 
-	/* mac80211 thought we have the link, but it was never configured */
-	if (WARN_ON(!link_info ||
-		    link_info->fw_link_id >= ARRAY_SIZE(mvm->link_id_to_link_conf)))
+	ret = iwl_mvm_unset_link_mapping(mvm, vif, link_conf);
+	if (ret)
 		return 0;
 
-	RCU_INIT_POINTER(mvm->link_id_to_link_conf[link_info->fw_link_id],
-			 NULL);
 	cmd.link_id = cpu_to_le32(link_info->fw_link_id);
 	iwl_mvm_release_fw_link_id(mvm, link_info->fw_link_id);
 	link_info->fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;

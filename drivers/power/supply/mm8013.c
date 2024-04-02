@@ -71,7 +71,6 @@ static int mm8013_checkdevice(struct mm8013_chip *chip)
 
 static enum power_supply_property mm8013_battery_props[] = {
 	POWER_SUPPLY_PROP_CAPACITY,
-	POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR,
 	POWER_SUPPLY_PROP_CHARGE_FULL,
 	POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN,
 	POWER_SUPPLY_PROP_CHARGE_NOW,
@@ -102,16 +101,6 @@ static int mm8013_get_property(struct power_supply *psy,
 			return ret;
 
 		val->intval = regval;
-		break;
-	case POWER_SUPPLY_PROP_CHARGE_BEHAVIOUR:
-		ret = regmap_read(chip->regmap, REG_FLAGS, &regval);
-		if (ret < 0)
-			return ret;
-
-		if (regval & MM8013_FLAG_CHG_INH)
-			val->intval = POWER_SUPPLY_CHARGE_BEHAVIOUR_INHIBIT_CHARGE;
-		else
-			val->intval = POWER_SUPPLY_CHARGE_BEHAVIOUR_AUTO;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		ret = regmap_read(chip->regmap, REG_FULL_CHARGE_CAPACITY, &regval);
@@ -187,6 +176,8 @@ static int mm8013_get_property(struct power_supply *psy,
 
 		if (regval & MM8013_FLAG_DSG)
 			val->intval = POWER_SUPPLY_STATUS_DISCHARGING;
+		else if (regval & MM8013_FLAG_CHG_INH)
+			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		else if (regval & MM8013_FLAG_CHG)
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else if (regval & MM8013_FLAG_FC)

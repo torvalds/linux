@@ -654,6 +654,6 @@ static struct i2c_driver i2c_nuvoton_driver = {
 
 module_i2c_driver(i2c_nuvoton_driver);
 
-MODULE_AUTHOR("Dan Morav (dan.morav@nuvoton.com)");
+MODULE_AUTHOR("Dan Morav <dan.morav@nuvoton.com>");
 MODULE_DESCRIPTION("Nuvoton TPM I2C Driver");
 MODULE_LICENSE("GPL");

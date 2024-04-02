@@ -50,6 +50,35 @@ enum dpll_lock_status {
 	DPLL_LOCK_STATUS_MAX = (__DPLL_LOCK_STATUS_MAX - 1)
 };
 
+/**
+ * enum dpll_lock_status_error - if previous status change was done due to a
+ *   failure, this provides information of dpll device lock status error. Valid
+ *   values for DPLL_A_LOCK_STATUS_ERROR attribute
+ * @DPLL_LOCK_STATUS_ERROR_NONE: dpll device lock status was changed without
+ *   any error
+ * @DPLL_LOCK_STATUS_ERROR_UNDEFINED: dpll device lock status was changed due
+ *   to undefined error. Driver fills this value up in case it is not able to
+ *   obtain suitable exact error type.
+ * @DPLL_LOCK_STATUS_ERROR_MEDIA_DOWN: dpll device lock status was changed
+ *   because of associated media got down. This may happen for example if dpll
+ *   device was previously locked on an input pin of type
+ *   PIN_TYPE_SYNCE_ETH_PORT.
+ * @DPLL_LOCK_STATUS_ERROR_FRACTIONAL_FREQUENCY_OFFSET_TOO_HIGH: the FFO
+ *   (Fractional Frequency Offset) between the RX and TX symbol rate on the
+ *   media got too high. This may happen for example if dpll device was
+ *   previously locked on an input pin of type PIN_TYPE_SYNCE_ETH_PORT.
+ */
+enum dpll_lock_status_error {
+	DPLL_LOCK_STATUS_ERROR_NONE = 1,
+	DPLL_LOCK_STATUS_ERROR_UNDEFINED,
+	DPLL_LOCK_STATUS_ERROR_MEDIA_DOWN,
+	DPLL_LOCK_STATUS_ERROR_FRACTIONAL_FREQUENCY_OFFSET_TOO_HIGH,
+
+	/* private: */
+	__DPLL_LOCK_STATUS_ERROR_MAX,
+	DPLL_LOCK_STATUS_ERROR_MAX = (__DPLL_LOCK_STATUS_ERROR_MAX - 1)
+};
+
 #define DPLL_TEMP_DIVIDER	1000
 
 /**
@@ -150,6 +179,7 @@ enum dpll_a {
 	DPLL_A_LOCK_STATUS,
 	DPLL_A_TEMP,
 	DPLL_A_TYPE,
+	DPLL_A_LOCK_STATUS_ERROR,
 
 	__DPLL_A_MAX,
 	DPLL_A_MAX = (__DPLL_A_MAX - 1)

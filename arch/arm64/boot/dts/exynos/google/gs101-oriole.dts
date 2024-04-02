@@ -63,6 +63,20 @@
 	clock-frequency = <200000000>;
 };
 
+&hsi2c_8 {
+	status = "okay";
+
+	eeprom: eeprom@50 {
+		compatible = "atmel,24c08";
+		reg = <0x50>;
+	};
+};
+
+&hsi2c_12 {
+	status = "okay";
+	/* TODO: add the devices once drivers exist */
+};
+
 &pinctrl_far_alive {
 	key_voldown: key-voldown-pins {
 		samsung,pins = "gpa7-3";
@@ -96,6 +110,16 @@
 
 &usi_uart {
 	samsung,clkreq-on; /* needed for UART mode */
+	status = "okay";
+};
+
+&usi8 {
+	samsung,mode = <USI_V2_I2C>;
+	status = "okay";
+};
+
+&usi12 {
+	samsung,mode = <USI_V2_I2C>;
 	status = "okay";
 };
 

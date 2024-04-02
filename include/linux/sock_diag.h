@@ -13,6 +13,7 @@ struct nlmsghdr;
 struct sock;
 
 struct sock_diag_handler {
+	struct module *owner;
 	__u8 family;
 	int (*dump)(struct sk_buff *skb, struct nlmsghdr *nlh);
 	int (*get_info)(struct sk_buff *skb, struct sock *sk);
@@ -22,8 +23,13 @@ struct sock_diag_handler {
 int sock_diag_register(const struct sock_diag_handler *h);
 void sock_diag_unregister(const struct sock_diag_handler *h);
 
-void sock_diag_register_inet_compat(int (*fn)(struct sk_buff *skb, struct nlmsghdr *nlh));
-void sock_diag_unregister_inet_compat(int (*fn)(struct sk_buff *skb, struct nlmsghdr *nlh));
+struct sock_diag_inet_compat {
+	struct module *owner;
+	int (*fn)(struct sk_buff *skb, struct nlmsghdr *nlh);
+};
+
+void sock_diag_register_inet_compat(const struct sock_diag_inet_compat *ptr);
+void sock_diag_unregister_inet_compat(const struct sock_diag_inet_compat *ptr);
 
 u64 __sock_gen_cookie(struct sock *sk);
 

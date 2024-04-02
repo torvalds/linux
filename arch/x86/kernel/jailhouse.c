@@ -89,7 +89,7 @@ static void __init jailhouse_x2apic_init(void)
 #endif
 }
 
-static void __init jailhouse_get_smp_config(unsigned int early)
+static void __init jailhouse_parse_smp_config(void)
 {
 	struct ioapic_domain_cfg ioapic_cfg = {
 		.type = IOAPIC_DOMAIN_STRICT,
@@ -102,7 +102,7 @@ static void __init jailhouse_get_smp_config(unsigned int early)
 	register_lapic_address(0xfee00000);
 
 	for (cpu = 0; cpu < setup_data.v1.num_cpus; cpu++)
-		generic_processor_info(setup_data.v1.cpu_ids[cpu]);
+		topology_register_apic(setup_data.v1.cpu_ids[cpu], CPU_ACPIID_INVALID, true);
 
 	smp_found_config = 1;
 
@@ -201,21 +201,23 @@ static void __init jailhouse_init_platform(void)
 	struct setup_data header;
 	void *mapping;
 
-	x86_init.irqs.pre_vector_init	= x86_init_noop;
-	x86_init.timers.timer_init	= jailhouse_timer_init;
-	x86_init.mpparse.get_smp_config	= jailhouse_get_smp_config;
-	x86_init.pci.arch_init		= jailhouse_pci_arch_init;
+	x86_init.irqs.pre_vector_init		= x86_init_noop;
+	x86_init.timers.timer_init		= jailhouse_timer_init;
+	x86_init.mpparse.find_mptable		= x86_init_noop;
+	x86_init.mpparse.early_parse_smp_cfg	= x86_init_noop;
+	x86_init.mpparse.parse_smp_cfg		= jailhouse_parse_smp_config;
+	x86_init.pci.arch_init			= jailhouse_pci_arch_init;
 
-	x86_platform.calibrate_cpu	= jailhouse_get_tsc;
-	x86_platform.calibrate_tsc	= jailhouse_get_tsc;
-	x86_platform.get_wallclock	= jailhouse_get_wallclock;
-	x86_platform.legacy.rtc		= 0;
-	x86_platform.legacy.warm_reset	= 0;
-	x86_platform.legacy.i8042	= X86_LEGACY_I8042_PLATFORM_ABSENT;
+	x86_platform.calibrate_cpu		= jailhouse_get_tsc;
+	x86_platform.calibrate_tsc		= jailhouse_get_tsc;
+	x86_platform.get_wallclock		= jailhouse_get_wallclock;
+	x86_platform.legacy.rtc			= 0;
+	x86_platform.legacy.warm_reset		= 0;
+	x86_platform.legacy.i8042		= X86_LEGACY_I8042_PLATFORM_ABSENT;
 
-	legacy_pic			= &null_legacy_pic;
+	legacy_pic				= &null_legacy_pic;
 
-	machine_ops.emergency_restart	= jailhouse_no_restart;
+	machine_ops.emergency_restart		= jailhouse_no_restart;
 
 	while (pa_data) {
 		mapping = early_memremap(pa_data, sizeof(header));

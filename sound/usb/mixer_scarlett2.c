@@ -173,7 +173,12 @@
 
 /* some gui mixers can't handle negative ctl values */
 #define SCARLETT2_VOLUME_BIAS 127
-#define SCARLETT2_GAIN_BIAS 70
+
+/* maximum preamp input gain and value
+ * values are from 0 to 70, preamp gain is from 0 to 69 dB
+ */
+#define SCARLETT2_MAX_GAIN_VALUE 70
+#define SCARLETT2_MAX_GAIN_DB 69
 
 /* mixer range from -80dB to +6dB in 0.5dB steps */
 #define SCARLETT2_MIXER_MIN_DB -80
@@ -284,14 +289,22 @@ static const char *const scarlett2_dim_mute_names[SCARLETT2_DIM_MUTE_COUNT] = {
 	"Mute Playback Switch", "Dim Playback Switch"
 };
 
-/* Autogain Status Values */
-enum {
-	SCARLETT2_AUTOGAIN_STATUS_STOPPED,
-	SCARLETT2_AUTOGAIN_STATUS_RUNNING,
-	SCARLETT2_AUTOGAIN_STATUS_FAILED,
-	SCARLETT2_AUTOGAIN_STATUS_CANCELLED,
-	SCARLETT2_AUTOGAIN_STATUS_UNKNOWN,
-	SCARLETT2_AUTOGAIN_STATUS_COUNT
+/* The autogain_status is set based on the autogain_switch and
+ * raw_autogain_status values.
+ *
+ * If autogain_switch is set, autogain_status is set to 0 (Running).
+ * The other status values are from the raw_autogain_status value + 1.
+ */
+static const char *const scarlett2_autogain_status_texts[] = {
+	"Running",
+	"Success",
+	"SuccessDRover",
+	"WarnMinGainLimit",
+	"FailDRunder",
+	"FailMaxGainLimit",
+	"FailClipped",
+	"Cancelled",
+	"Invalid"
 };
 
 /* Power Status Values */
@@ -415,7 +428,7 @@ enum {
 	SCARLETT2_CONFIG_INPUT_SELECT_SWITCH,
 	SCARLETT2_CONFIG_INPUT_LINK_SWITCH,
 	SCARLETT2_CONFIG_POWER_EXT,
-	SCARLETT2_CONFIG_POWER_STATUS,
+	SCARLETT2_CONFIG_POWER_LOW,
 	SCARLETT2_CONFIG_PCM_INPUT_SWITCH,
 	SCARLETT2_CONFIG_DIRECT_MONITOR_GAIN,
 	SCARLETT2_CONFIG_COUNT
@@ -723,8 +736,8 @@ static const struct scarlett2_config_set scarlett2_config_set_gen4_4i4 = {
 		[SCARLETT2_CONFIG_POWER_EXT] = {
 			.offset = 0x168 },
 
-		[SCARLETT2_CONFIG_POWER_STATUS] = {
-			.offset = 0x66 }
+		[SCARLETT2_CONFIG_POWER_LOW] = {
+			.offset = 0x16d }
 	}
 };
 
@@ -2835,9 +2848,9 @@ static int scarlett2_autogain_is_running(struct scarlett2_data *private)
 {
 	int i;
 
+	/* autogain_status[] is 0 if autogain is running */
 	for (i = 0; i < private->info->gain_input_count; i++)
-		if (private->autogain_status[i] ==
-		    SCARLETT2_AUTOGAIN_STATUS_RUNNING)
+		if (!private->autogain_status[i])
 			return 1;
 
 	return 0;
@@ -2867,25 +2880,25 @@ static int scarlett2_update_autogain(struct usb_mixer_interface *mixer)
 		return err;
 
 	/* Translate autogain_switch and raw_autogain_status into
-	 * autogain_status
+	 * autogain_status.
+	 *
+	 * When autogain_switch[] is set, the status is the first
+	 * element in scarlett2_autogain_status_texts[] (Running). The
+	 * subsequent elements correspond to the status value from the
+	 * device (raw_autogain_status[]) + 1. The last element is
+	 * "Invalid", in case the device reports a status outside the
+	 * range of scarlett2_autogain_status_texts[].
 	 */
 	for (i = 0; i < info->gain_input_count; i++)
 		if (private->autogain_switch[i])
+			private->autogain_status[i] = 0;
+		else if (raw_autogain_status[i] <
+				ARRAY_SIZE(scarlett2_autogain_status_texts) - 1)
 			private->autogain_status[i] =
-				SCARLETT2_AUTOGAIN_STATUS_RUNNING;
-		else if (raw_autogain_status[i] == 0)
-			private->autogain_status[i] =
-				SCARLETT2_AUTOGAIN_STATUS_STOPPED;
-		else if (raw_autogain_status[i] >= 2 &&
-			 raw_autogain_status[i] <= 5)
-			private->autogain_status[i] =
-				SCARLETT2_AUTOGAIN_STATUS_FAILED;
-		else if (raw_autogain_status[i] == 6)
-			private->autogain_status[i] =
-				SCARLETT2_AUTOGAIN_STATUS_CANCELLED;
+				raw_autogain_status[i] + 1;
 		else
 			private->autogain_status[i] =
-				SCARLETT2_AUTOGAIN_STATUS_UNKNOWN;
+				ARRAY_SIZE(scarlett2_autogain_status_texts) - 1;
 
 	return 0;
 }
@@ -3111,12 +3124,10 @@ unlock:
 static int scarlett2_autogain_status_ctl_info(
 	struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
 {
-	static const char *const values[SCARLETT2_AUTOGAIN_STATUS_COUNT] = {
-		"Stopped", "Running", "Failed", "Cancelled", "Unknown"
-	};
-
 	return snd_ctl_enum_info(
-		uinfo, 1, SCARLETT2_AUTOGAIN_STATUS_COUNT, values);
+		uinfo, 1,
+		ARRAY_SIZE(scarlett2_autogain_status_texts),
+		scarlett2_autogain_status_texts);
 }
 
 static const struct snd_kcontrol_new scarlett2_autogain_switch_ctl = {
@@ -3458,7 +3469,7 @@ static int scarlett2_input_gain_ctl_info(struct snd_kcontrol *kctl,
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = elem->channels;
 	uinfo->value.integer.min = 0;
-	uinfo->value.integer.max = SCARLETT2_GAIN_BIAS;
+	uinfo->value.integer.max = SCARLETT2_MAX_GAIN_VALUE;
 	uinfo->value.integer.step = 1;
 
 unlock:
@@ -3535,7 +3546,7 @@ unlock:
 }
 
 static const DECLARE_TLV_DB_MINMAX(
-	db_scale_scarlett2_gain, -SCARLETT2_GAIN_BIAS * 100, 0
+	db_scale_scarlett2_gain, 0, SCARLETT2_MAX_GAIN_DB * 100
 );
 
 static const struct snd_kcontrol_new scarlett2_input_gain_ctl = {
@@ -6294,8 +6305,7 @@ static int scarlett2_update_power_status(struct usb_mixer_interface *mixer)
 {
 	struct scarlett2_data *private = mixer->private_data;
 	int err;
-	u8 power_ext;
-	u8 power_status;
+	u8 power_ext, power_low;
 
 	private->power_status_updated = 0;
 
@@ -6304,12 +6314,12 @@ static int scarlett2_update_power_status(struct usb_mixer_interface *mixer)
 	if (err < 0)
 		return err;
 
-	err = scarlett2_usb_get_config(mixer, SCARLETT2_CONFIG_POWER_STATUS,
-				       1, &power_status);
+	err = scarlett2_usb_get_config(mixer, SCARLETT2_CONFIG_POWER_LOW,
+				       1, &power_low);
 	if (err < 0)
 		return err;
 
-	if (power_status > 1)
+	if (power_low)
 		private->power_status = SCARLETT2_POWER_STATUS_FAIL;
 	else if (power_ext)
 		private->power_status = SCARLETT2_POWER_STATUS_EXT;

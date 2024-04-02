@@ -88,8 +88,8 @@ svcxdr_decode_lock(struct xdr_stream *xdr, struct nlm_lock *lock)
 		return false;
 
 	locks_init_lock(fl);
-	fl->fl_flags = FL_POSIX;
-	fl->fl_type  = F_RDLCK;
+	fl->c.flc_flags = FL_POSIX;
+	fl->c.flc_type  = F_RDLCK;
 	end = start + len - 1;
 	fl->fl_start = s32_to_loff_t(start);
 	if (len == 0 || end < 0)
@@ -107,7 +107,7 @@ svcxdr_encode_holder(struct xdr_stream *xdr, const struct nlm_lock *lock)
 	s32 start, len;
 
 	/* exclusive */
-	if (xdr_stream_encode_bool(xdr, fl->fl_type != F_RDLCK) < 0)
+	if (xdr_stream_encode_bool(xdr, fl->c.flc_type != F_RDLCK) < 0)
 		return false;
 	if (xdr_stream_encode_u32(xdr, lock->svid) < 0)
 		return false;
@@ -164,7 +164,7 @@ nlmsvc_decode_testargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	if (!svcxdr_decode_lock(xdr, &argp->lock))
 		return false;
 	if (exclusive)
-		argp->lock.fl.fl_type = F_WRLCK;
+		argp->lock.fl.c.flc_type = F_WRLCK;
 
 	return true;
 }
@@ -184,7 +184,7 @@ nlmsvc_decode_lockargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	if (!svcxdr_decode_lock(xdr, &argp->lock))
 		return false;
 	if (exclusive)
-		argp->lock.fl.fl_type = F_WRLCK;
+		argp->lock.fl.c.flc_type = F_WRLCK;
 	if (xdr_stream_decode_bool(xdr, &argp->reclaim) < 0)
 		return false;
 	if (xdr_stream_decode_u32(xdr, &argp->state) < 0)
@@ -209,7 +209,7 @@ nlmsvc_decode_cancargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 	if (!svcxdr_decode_lock(xdr, &argp->lock))
 		return false;
 	if (exclusive)
-		argp->lock.fl.fl_type = F_WRLCK;
+		argp->lock.fl.c.flc_type = F_WRLCK;
 
 	return true;
 }
@@ -223,7 +223,7 @@ nlmsvc_decode_unlockargs(struct svc_rqst *rqstp, struct xdr_stream *xdr)
 		return false;
 	if (!svcxdr_decode_lock(xdr, &argp->lock))
 		return false;
-	argp->lock.fl.fl_type = F_UNLCK;
+	argp->lock.fl.c.flc_type = F_UNLCK;
 
 	return true;
 }

@@ -820,7 +820,7 @@ int btrfs_bin_search(struct extent_buffer *eb, int first_slot,
 	}
 
 	while (low < high) {
-		const int unit_size = folio_size(eb->folios[0]);
+		const int unit_size = eb->folio_size;
 		unsigned long oil;
 		unsigned long offset;
 		struct btrfs_disk_key *tmp;
@@ -4280,6 +4280,10 @@ void btrfs_setup_item_for_insert(struct btrfs_trans_handle *trans,
 /*
  * Given a key and some data, insert items into the tree.
  * This does all the path init required, making room in the tree if needed.
+ *
+ * Returns: 0        on success
+ *          -EEXIST  if the first key already exists
+ *          < 0      on other errors
  */
 int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root,
@@ -5082,9 +5086,7 @@ int btrfs_previous_extent_item(struct btrfs_root *root,
 
 int __init btrfs_ctree_init(void)
 {
-	btrfs_path_cachep = kmem_cache_create("btrfs_path",
-			sizeof(struct btrfs_path), 0,
-			SLAB_MEM_SPREAD, NULL);
+	btrfs_path_cachep = KMEM_CACHE(btrfs_path, 0);
 	if (!btrfs_path_cachep)
 		return -ENOMEM;
 	return 0;

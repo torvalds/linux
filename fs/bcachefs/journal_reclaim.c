@@ -62,12 +62,9 @@ void bch2_journal_set_watermark(struct journal *j)
 		? BCH_WATERMARK_reclaim
 		: BCH_WATERMARK_stripe;
 
-	if (track_event_change(&c->times[BCH_TIME_blocked_journal_low_on_space],
-			       &j->low_on_space_start, low_on_space) ||
-	    track_event_change(&c->times[BCH_TIME_blocked_journal_low_on_pin],
-			       &j->low_on_pin_start, low_on_pin) ||
-	    track_event_change(&c->times[BCH_TIME_blocked_write_buffer_full],
-			       &j->write_buffer_full_start, low_on_wb))
+	if (track_event_change(&c->times[BCH_TIME_blocked_journal_low_on_space], low_on_space) ||
+	    track_event_change(&c->times[BCH_TIME_blocked_journal_low_on_pin], low_on_pin) ||
+	    track_event_change(&c->times[BCH_TIME_blocked_write_buffer_full], low_on_wb))
 		trace_and_count(c, journal_full, c);
 
 	swap(watermark, j->watermark);
@@ -394,8 +391,6 @@ void bch2_journal_pin_copy(struct journal *j,
 			   struct journal_entry_pin *src,
 			   journal_pin_flush_fn flush_fn)
 {
-	bool reclaim;
-
 	spin_lock(&j->lock);
 
 	u64 seq = READ_ONCE(src->seq);
@@ -411,44 +406,44 @@ void bch2_journal_pin_copy(struct journal *j,
 		return;
 	}
 
-	reclaim = __journal_pin_drop(j, dst);
+	bool reclaim = __journal_pin_drop(j, dst);
 
 	bch2_journal_pin_set_locked(j, seq, dst, flush_fn, journal_pin_type(flush_fn));
 
 	if (reclaim)
 		bch2_journal_reclaim_fast(j);
-	spin_unlock(&j->lock);
 
 	/*
 	 * If the journal is currently full,  we might want to call flush_fn
 	 * immediately:
 	 */
-	journal_wake(j);
+	if (seq == journal_last_seq(j))
+		journal_wake(j);
+	spin_unlock(&j->lock);
 }
 
 void bch2_journal_pin_set(struct journal *j, u64 seq,
 			  struct journal_entry_pin *pin,
 			  journal_pin_flush_fn flush_fn)
 {
-	bool reclaim;
-
 	spin_lock(&j->lock);
 
 	BUG_ON(seq < journal_last_seq(j));
 
-	reclaim = __journal_pin_drop(j, pin);
+	bool reclaim = __journal_pin_drop(j, pin);
 
 	bch2_journal_pin_set_locked(j, seq, pin, flush_fn, journal_pin_type(flush_fn));
 
 	if (reclaim)
 		bch2_journal_reclaim_fast(j);
-	spin_unlock(&j->lock);
-
 	/*
 	 * If the journal is currently full,  we might want to call flush_fn
 	 * immediately:
 	 */
-	journal_wake(j);
+	if (seq == journal_last_seq(j))
+		journal_wake(j);
+
+	spin_unlock(&j->lock);
 }
 
 /**

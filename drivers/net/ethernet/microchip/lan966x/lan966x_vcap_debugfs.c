@@ -25,6 +25,8 @@ static void lan966x_vcap_is1_port_keys(struct lan966x_port *port,
 	for (int l = 0; l < admin->lookups; ++l) {
 		out->prf(out->dst, "\n    Lookup %d: ", l);
 
+		val = lan_rd(lan966x, ANA_VCAP_S1_CFG(port->chip_port, l));
+
 		out->prf(out->dst, "\n      other: ");
 		switch (ANA_VCAP_S1_CFG_KEY_OTHER_CFG_GET(val)) {
 		case VCAP_IS1_PS_OTHER_NORMAL:

@@ -731,7 +731,6 @@ static int __init tracefs_init(void)
 	tracefs_inode_cachep = kmem_cache_create("tracefs_inode_cache",
 						 sizeof(struct tracefs_inode),
 						 0, (SLAB_RECLAIM_ACCOUNT|
-						     SLAB_MEM_SPREAD|
 						     SLAB_ACCOUNT),
 						 init_once);
 	if (!tracefs_inode_cachep)

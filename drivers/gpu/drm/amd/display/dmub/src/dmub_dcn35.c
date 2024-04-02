@@ -555,8 +555,14 @@ uint32_t dmub_dcn35_read_inbox0_ack_register(struct dmub_srv *dmub)
 bool dmub_dcn35_is_hw_powered_up(struct dmub_srv *dmub)
 {
 	union dmub_fw_boot_status status;
+	uint32_t is_enable;
+
+	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_enable);
+	if (is_enable == 0)
+		return false;
 
 	status.all = REG_READ(DMCUB_SCRATCH0);
 
-	return status.bits.hw_power_init_done;
+	return (status.bits.dal_fw && status.bits.hw_power_init_done && status.bits.mailbox_rdy) ||
+	       (!status.bits.dal_fw && status.bits.mailbox_rdy);
 }

@@ -171,7 +171,6 @@ static int wm831x_backup_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	devdata->wm831x = wm831x;
-	platform_set_drvdata(pdev, devdata);
 
 	/* We ignore configuration failures since we can still read
 	 * back the status without enabling the charger (which may
@@ -191,22 +190,14 @@ static int wm831x_backup_probe(struct platform_device *pdev)
 	devdata->backup_desc.properties = wm831x_backup_props;
 	devdata->backup_desc.num_properties = ARRAY_SIZE(wm831x_backup_props);
 	devdata->backup_desc.get_property = wm831x_backup_get_prop;
-	devdata->backup = power_supply_register(&pdev->dev,
-						&devdata->backup_desc, NULL);
+	devdata->backup = devm_power_supply_register(&pdev->dev,
+						     &devdata->backup_desc, NULL);
 
 	return PTR_ERR_OR_ZERO(devdata->backup);
 }
 
-static void wm831x_backup_remove(struct platform_device *pdev)
-{
-	struct wm831x_backup *devdata = platform_get_drvdata(pdev);
-
-	power_supply_unregister(devdata->backup);
-}
-
 static struct platform_driver wm831x_backup_driver = {
 	.probe = wm831x_backup_probe,
-	.remove_new = wm831x_backup_remove,
 	.driver = {
 		.name = "wm831x-backup",
 	},

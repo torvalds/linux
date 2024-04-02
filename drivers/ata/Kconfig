@@ -116,15 +116,14 @@ config SATA_AHCI
 	  If unsure, say N.
 
 config SATA_MOBILE_LPM_POLICY
-	int "Default SATA Link Power Management policy for low power chipsets"
+	int "Default SATA Link Power Management policy"
 	range 0 4
 	default 0
 	depends on SATA_AHCI
 	help
 	  Select the Default SATA Link Power Management (LPM) policy to use
 	  for chipsets / "South Bridges" supporting low-power modes. Such
-	  chipsets are typically found on most laptops but desktops and
-	  servers now also widely use chipsets supporting low power modes.
+	  chipsets are ubiquitous across laptops, desktops and servers.
 
 	  The value set has the following meanings:
 		0 => Keep firmware settings

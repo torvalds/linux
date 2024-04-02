@@ -37,6 +37,7 @@
 #include "dmub_dcn316.h"
 #include "dmub_dcn32.h"
 #include "dmub_dcn35.h"
+#include "dmub_dcn351.h"
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -315,6 +316,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		break;
 
 	case DMUB_ASIC_DCN35:
+	case DMUB_ASIC_DCN351:
 			dmub->regs_dcn35 = &dmub_srv_dcn35_regs;
 			funcs->configure_dmub_in_system_memory = dmub_dcn35_configure_dmub_in_system_memory;
 			funcs->send_inbox0_cmd = dmub_dcn35_send_inbox0_cmd;
@@ -351,6 +353,8 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 			funcs->get_diagnostic_data = dmub_dcn35_get_diagnostic_data;
 
 			funcs->init_reg_offsets = dmub_srv_dcn35_regs_init;
+			if (asic == DMUB_ASIC_DCN351)
+                                funcs->init_reg_offsets = dmub_srv_dcn351_regs_init;
 
 			funcs->is_hw_powered_up = dmub_dcn35_is_hw_powered_up;
 			funcs->should_detect = dmub_dcn35_should_detect;
@@ -800,20 +804,13 @@ enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub)
 
 bool dmub_srv_is_hw_pwr_up(struct dmub_srv *dmub)
 {
-	union dmub_fw_boot_status status;
-
 	if (!dmub->hw_funcs.is_hw_powered_up)
 		return true;
 
 	if (!dmub->hw_funcs.is_hw_powered_up(dmub))
 		return false;
 
-	if (!dmub->hw_funcs.is_hw_init(dmub))
-		return false;
-
-	status = dmub->hw_funcs.get_fw_status(dmub);
-
-	return status.bits.dal_fw && status.bits.mailbox_rdy;
+	return true;
 }
 
 enum dmub_status dmub_srv_wait_for_hw_pwr_up(struct dmub_srv *dmub,

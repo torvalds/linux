@@ -13,6 +13,7 @@
 #include "xfs_inode.h"
 #include "xfs_symlink.h"
 #include "xfs_health.h"
+#include "xfs_symlink_remote.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/health.h"
@@ -67,7 +68,7 @@ xchk_symlink(
 	}
 
 	/* Remote symlink; must read the contents. */
-	error = xfs_readlink_bmap_ilocked(sc->ip, sc->buf);
+	error = xfs_symlink_remote_read(sc->ip, sc->buf);
 	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, 0, &error))
 		return error;
 	if (strnlen(sc->buf, XFS_SYMLINK_MAXLEN) < len)

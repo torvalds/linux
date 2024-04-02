@@ -25,6 +25,7 @@
 #include <linux/moduleparam.h>
 #include <linux/pm.h>
 #include <linux/property.h>
+#include <linux/reset.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/types.h>
@@ -232,6 +233,7 @@ static int
 sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct sp805_wdt *wdt;
+	struct reset_control *rst;
 	u64 rate = 0;
 	int ret = 0;
 
@@ -263,6 +265,12 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 		dev_err(&adev->dev, "no clock-frequency property\n");
 		return -ENODEV;
 	}
+
+	rst = devm_reset_control_get_optional_exclusive(&adev->dev, NULL);
+	if (IS_ERR(rst))
+		return dev_err_probe(&adev->dev, PTR_ERR(rst), "Can not get reset\n");
+
+	reset_control_deassert(rst);
 
 	wdt->adev = adev;
 	wdt->wdd.info = &wdt_info;

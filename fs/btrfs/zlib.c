@@ -398,7 +398,7 @@ int zlib_decompress(struct list_head *ws, const u8 *data_in,
 
 out:
 	if (unlikely(to_copy != destlen)) {
-		pr_warn_ratelimited("BTRFS: infalte failed, decompressed=%lu expected=%zu\n",
+		pr_warn_ratelimited("BTRFS: inflate failed, decompressed=%lu expected=%zu\n",
 					to_copy, destlen);
 		ret = -EIO;
 	} else {

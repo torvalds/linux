@@ -7,6 +7,7 @@
 #define __LINUX_USB_PD_VDO_H
 
 #include "pd.h"
+#include <linux/bitfield.h>
 
 /*
  * VDO : Vendor Defined Message Object
@@ -86,12 +87,15 @@
  *
  * Request is simply properly formatted SVDM header
  *
- * Response is 4 data objects:
+ * Response is 4 data objects for Power Delivery 2.0 and Passive Cables for
+ * Power Delivery 3.0. Active Cables in Power Delivery 3.0 have 5 data objects.
  * [0] :: SVDM header
  * [1] :: Identitiy header
  * [2] :: Cert Stat VDO
  * [3] :: (Product | Cable) VDO
+ * [4] :: Cable VDO 1
  * [4] :: AMA VDO
+ * [5] :: Cable VDO 2
  *
  */
 #define VDO_INDEX_HDR		0
@@ -100,6 +104,8 @@
 #define VDO_INDEX_CABLE		3
 #define VDO_INDEX_PRODUCT	3
 #define VDO_INDEX_AMA		4
+#define VDO_INDEX_CABLE_1	4
+#define VDO_INDEX_CABLE_2	5
 
 /*
  * SVDM Identity Header
@@ -150,6 +156,7 @@
 #define PD_IDH_MODAL_SUPP(vdo)	((vdo) & (1 << 26))
 #define PD_IDH_DFP_PTYPE(vdo)	(((vdo) >> 23) & 0x7)
 #define PD_IDH_CONN_TYPE(vdo)	(((vdo) >> 21) & 0x3)
+#define PD_IDH_HOST_SUPP(vdo)  ((vdo) & (1 << 31))
 
 /*
  * Cert Stat VDO
@@ -182,7 +189,7 @@
  * <5:3>   :: Alternate modes
  * <2:0>   :: USB highest speed
  */
-#define PD_VDO_UFP_DEVCAP(vdo)	(((vdo) & GENMASK(27, 24)) >> 24)
+#define PD_VDO_UFP_DEVCAP(vdo)	FIELD_GET(GENMASK(27, 24), vdo)
 
 /* UFP VDO Version */
 #define UFP_VDO_VER1_2		2
@@ -241,7 +248,7 @@
  * <21:5>  :: Reserved
  * <4:0>   :: Port number
  */
-#define PD_VDO_DFP_HOSTCAP(vdo)	(((vdo) & GENMASK(26, 24)) >> 24)
+#define PD_VDO_DFP_HOSTCAP(vdo)	FIELD_GET(GENMASK(26, 24), vdo)
 
 #define DFP_VDO_VER1_1		1
 #define HOST_USB2_CAPABLE	BIT(0)

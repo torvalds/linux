@@ -174,7 +174,7 @@ static struct promote_op *__promote_alloc(struct btree_trans *trans,
 	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_promote))
 		return ERR_PTR(-BCH_ERR_nopromote_no_writes);
 
-	op = kzalloc(sizeof(*op) + sizeof(struct bio_vec) * pages, GFP_KERNEL);
+	op = kzalloc(struct_size(op, bi_inline_vecs, pages), GFP_KERNEL);
 	if (!op) {
 		ret = -BCH_ERR_nopromote_enomem;
 		goto err;

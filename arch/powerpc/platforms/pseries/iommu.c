@@ -574,29 +574,6 @@ static void iommu_table_setparms(struct pci_controller *phb,
 
 struct iommu_table_ops iommu_table_lpar_multi_ops;
 
-/*
- * iommu_table_setparms_lpar
- *
- * Function: On pSeries LPAR systems, return TCE table info, given a pci bus.
- */
-static void iommu_table_setparms_lpar(struct pci_controller *phb,
-				      struct device_node *dn,
-				      struct iommu_table *tbl,
-				      struct iommu_table_group *table_group,
-				      const __be32 *dma_window)
-{
-	unsigned long offset, size, liobn;
-
-	of_parse_dma_window(dn, dma_window, &liobn, &offset, &size);
-
-	iommu_table_setparms_common(tbl, phb->bus->number, liobn, offset, size, IOMMU_PAGE_SHIFT_4K, NULL,
-				    &iommu_table_lpar_multi_ops);
-
-
-	table_group->tce32_start = offset;
-	table_group->tce32_size = size;
-}
-
 struct iommu_table_ops iommu_table_pseries_ops = {
 	.set = tce_build_pSeries,
 	.clear = tce_free_pSeries,
@@ -724,26 +701,71 @@ struct iommu_table_ops iommu_table_lpar_multi_ops = {
  * dynamic 64bit DMA window, walking up the device tree.
  */
 static struct device_node *pci_dma_find(struct device_node *dn,
-					const __be32 **dma_window)
+					struct dynamic_dma_window_prop *prop)
 {
-	const __be32 *dw = NULL;
+	const __be32 *default_prop = NULL;
+	const __be32 *ddw_prop = NULL;
+	struct device_node *rdn = NULL;
+	bool default_win = false, ddw_win = false;
 
 	for ( ; dn && PCI_DN(dn); dn = dn->parent) {
-		dw = of_get_property(dn, "ibm,dma-window", NULL);
-		if (dw) {
-			if (dma_window)
-				*dma_window = dw;
-			return dn;
+		default_prop = of_get_property(dn, "ibm,dma-window", NULL);
+		if (default_prop) {
+			rdn = dn;
+			default_win = true;
 		}
-		dw = of_get_property(dn, DIRECT64_PROPNAME, NULL);
-		if (dw)
-			return dn;
-		dw = of_get_property(dn, DMA64_PROPNAME, NULL);
-		if (dw)
-			return dn;
+		ddw_prop = of_get_property(dn, DIRECT64_PROPNAME, NULL);
+		if (ddw_prop) {
+			rdn = dn;
+			ddw_win = true;
+			break;
+		}
+		ddw_prop = of_get_property(dn, DMA64_PROPNAME, NULL);
+		if (ddw_prop) {
+			rdn = dn;
+			ddw_win = true;
+			break;
+		}
+
+		/* At least found default window, which is the case for normal boot */
+		if (default_win)
+			break;
 	}
 
-	return NULL;
+	/* For PCI devices there will always be a DMA window, either on the device
+	 * or parent bus
+	 */
+	WARN_ON(!(default_win | ddw_win));
+
+	/* caller doesn't want to get DMA window property */
+	if (!prop)
+		return rdn;
+
+	/* parse DMA window property. During normal system boot, only default
+	 * DMA window is passed in OF. But, for kdump, a dedicated adapter might
+	 * have both default and DDW in FDT. In this scenario, DDW takes precedence
+	 * over default window.
+	 */
+	if (ddw_win) {
+		struct dynamic_dma_window_prop *p;
+
+		p = (struct dynamic_dma_window_prop *)ddw_prop;
+		prop->liobn = p->liobn;
+		prop->dma_base = p->dma_base;
+		prop->tce_shift = p->tce_shift;
+		prop->window_shift = p->window_shift;
+	} else if (default_win) {
+		unsigned long offset, size, liobn;
+
+		of_parse_dma_window(rdn, default_prop, &liobn, &offset, &size);
+
+		prop->liobn = cpu_to_be32((u32)liobn);
+		prop->dma_base = cpu_to_be64(offset);
+		prop->tce_shift = cpu_to_be32(IOMMU_PAGE_SHIFT_4K);
+		prop->window_shift = cpu_to_be32(order_base_2(size));
+	}
+
+	return rdn;
 }
 
 static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
@@ -751,17 +773,20 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 	struct iommu_table *tbl;
 	struct device_node *dn, *pdn;
 	struct pci_dn *ppci;
-	const __be32 *dma_window = NULL;
+	struct dynamic_dma_window_prop prop;
 
 	dn = pci_bus_to_OF_node(bus);
 
 	pr_debug("pci_dma_bus_setup_pSeriesLP: setting up bus %pOF\n",
 		 dn);
 
-	pdn = pci_dma_find(dn, &dma_window);
+	pdn = pci_dma_find(dn, &prop);
 
-	if (dma_window == NULL)
-		pr_debug("  no ibm,dma-window property !\n");
+	/* In PPC architecture, there will always be DMA window on bus or one of the
+	 * parent bus. During reboot, there will be ibm,dma-window property to
+	 * define DMA window. For kdump, there will at least be default window or DDW
+	 * or both.
+	 */
 
 	ppci = PCI_DN(pdn);
 
@@ -771,13 +796,24 @@ static void pci_dma_bus_setup_pSeriesLP(struct pci_bus *bus)
 	if (!ppci->table_group) {
 		ppci->table_group = iommu_pseries_alloc_group(ppci->phb->node);
 		tbl = ppci->table_group->tables[0];
-		if (dma_window) {
-			iommu_table_setparms_lpar(ppci->phb, pdn, tbl,
-						  ppci->table_group, dma_window);
 
-			if (!iommu_init_table(tbl, ppci->phb->node, 0, 0))
-				panic("Failed to initialize iommu table");
-		}
+		iommu_table_setparms_common(tbl, ppci->phb->bus->number,
+				be32_to_cpu(prop.liobn),
+				be64_to_cpu(prop.dma_base),
+				1ULL << be32_to_cpu(prop.window_shift),
+				be32_to_cpu(prop.tce_shift), NULL,
+				&iommu_table_lpar_multi_ops);
+
+		/* Only for normal boot with default window. Doesn't matter even
+		 * if we set these with DDW which is 64bit during kdump, since
+		 * these will not be used during kdump.
+		 */
+		ppci->table_group->tce32_start = be64_to_cpu(prop.dma_base);
+		ppci->table_group->tce32_size = 1 << be32_to_cpu(prop.window_shift);
+
+		if (!iommu_init_table(tbl, ppci->phb->node, 0, 0))
+			panic("Failed to initialize iommu table");
+
 		iommu_register_group(ppci->table_group,
 				pci_domain_nr(bus), 0);
 		pr_debug("  created table: %p\n", ppci->table_group);
@@ -968,6 +1004,12 @@ static void find_existing_ddw_windows_named(const char *name)
 			continue;
 		}
 
+		/* If at the time of system initialization, there are DDWs in OF,
+		 * it means this is during kexec. DDW could be direct or dynamic.
+		 * We will just mark DDWs as "dynamic" since this is kdump path,
+		 * no need to worry about perforance. ddw_list_new_entry() will
+		 * set window->direct = false.
+		 */
 		window = ddw_list_new_entry(pdn, dma64);
 		if (!window) {
 			of_node_put(pdn);
@@ -1524,8 +1566,8 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 {
 	struct device_node *pdn, *dn;
 	struct iommu_table *tbl;
-	const __be32 *dma_window = NULL;
 	struct pci_dn *pci;
+	struct dynamic_dma_window_prop prop;
 
 	pr_debug("pci_dma_dev_setup_pSeriesLP: %s\n", pci_name(dev));
 
@@ -1538,7 +1580,7 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 	dn = pci_device_to_OF_node(dev);
 	pr_debug("  node is %pOF\n", dn);
 
-	pdn = pci_dma_find(dn, &dma_window);
+	pdn = pci_dma_find(dn, &prop);
 	if (!pdn || !PCI_DN(pdn)) {
 		printk(KERN_WARNING "pci_dma_dev_setup_pSeriesLP: "
 		       "no DMA window found for pci dev=%s dn=%pOF\n",
@@ -1551,8 +1593,20 @@ static void pci_dma_dev_setup_pSeriesLP(struct pci_dev *dev)
 	if (!pci->table_group) {
 		pci->table_group = iommu_pseries_alloc_group(pci->phb->node);
 		tbl = pci->table_group->tables[0];
-		iommu_table_setparms_lpar(pci->phb, pdn, tbl,
-				pci->table_group, dma_window);
+
+		iommu_table_setparms_common(tbl, pci->phb->bus->number,
+				be32_to_cpu(prop.liobn),
+				be64_to_cpu(prop.dma_base),
+				1ULL << be32_to_cpu(prop.window_shift),
+				be32_to_cpu(prop.tce_shift), NULL,
+				&iommu_table_lpar_multi_ops);
+
+		/* Only for normal boot with default window. Doesn't matter even
+		 * if we set these with DDW which is 64bit during kdump, since
+		 * these will not be used during kdump.
+		 */
+		pci->table_group->tce32_start = be64_to_cpu(prop.dma_base);
+		pci->table_group->tce32_size = 1 << be32_to_cpu(prop.window_shift);
 
 		iommu_init_table(tbl, pci->phb->node, 0, 0);
 		iommu_register_group(pci->table_group,

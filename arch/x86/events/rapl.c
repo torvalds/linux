@@ -674,7 +674,7 @@ static const struct attribute_group *rapl_attr_update[] = {
 
 static int __init init_rapl_pmus(void)
 {
-	int maxdie = topology_max_packages() * topology_max_die_per_package();
+	int maxdie = topology_max_packages() * topology_max_dies_per_package();
 	size_t size;
 
 	size = sizeof(*rapl_pmus) + maxdie * sizeof(struct rapl_pmu *);

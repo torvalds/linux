@@ -14,6 +14,8 @@
 #include <linux/pm_opp.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
+#include <linux/mfd/syscon.h>
+#include <linux/regmap.h>
 
 #define PU_SOC_VOLTAGE_NORMAL	1250000
 #define PU_SOC_VOLTAGE_HIGH	1275000
@@ -225,8 +227,6 @@ static void imx6x_disable_freq_in_opp(struct device *dev, unsigned long freq)
 
 static int imx6q_opp_check_speed_grading(struct device *dev)
 {
-	struct device_node *np;
-	void __iomem *base;
 	u32 val;
 	int ret;
 
@@ -235,16 +235,11 @@ static int imx6q_opp_check_speed_grading(struct device *dev)
 		if (ret)
 			return ret;
 	} else {
-		np = of_find_compatible_node(NULL, NULL, "fsl,imx6q-ocotp");
-		if (!np)
-			return -ENOENT;
+		struct regmap *ocotp;
 
-		base = of_iomap(np, 0);
-		of_node_put(np);
-		if (!base) {
-			dev_err(dev, "failed to map ocotp\n");
-			return -EFAULT;
-		}
+		ocotp = syscon_regmap_lookup_by_compatible("fsl,imx6q-ocotp");
+		if (IS_ERR(ocotp))
+			return -ENOENT;
 
 		/*
 		 * SPEED_GRADING[1:0] defines the max speed of ARM:
@@ -254,8 +249,7 @@ static int imx6q_opp_check_speed_grading(struct device *dev)
 		 * 2b'00: 792000000Hz;
 		 * We need to set the max speed of ARM according to fuse map.
 		 */
-		val = readl_relaxed(base + OCOTP_CFG3);
-		iounmap(base);
+		regmap_read(ocotp, OCOTP_CFG3, &val);
 	}
 
 	val >>= OCOTP_CFG3_SPEED_SHIFT;
@@ -290,25 +284,16 @@ static int imx6ul_opp_check_speed_grading(struct device *dev)
 		if (ret)
 			return ret;
 	} else {
-		struct device_node *np;
-		void __iomem *base;
+		struct regmap *ocotp;
 
-		np = of_find_compatible_node(NULL, NULL, "fsl,imx6ul-ocotp");
-		if (!np)
-			np = of_find_compatible_node(NULL, NULL,
-						     "fsl,imx6ull-ocotp");
-		if (!np)
+		ocotp = syscon_regmap_lookup_by_compatible("fsl,imx6ul-ocotp");
+		if (IS_ERR(ocotp))
+			ocotp = syscon_regmap_lookup_by_compatible("fsl,imx6ull-ocotp");
+
+		if (IS_ERR(ocotp))
 			return -ENOENT;
 
-		base = of_iomap(np, 0);
-		of_node_put(np);
-		if (!base) {
-			dev_err(dev, "failed to map ocotp\n");
-			return -EFAULT;
-		}
-
-		val = readl_relaxed(base + OCOTP_CFG3);
-		iounmap(base);
+		regmap_read(ocotp, OCOTP_CFG3, &val);
 	}
 
 	/*

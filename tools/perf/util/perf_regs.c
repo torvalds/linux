@@ -21,7 +21,14 @@ uint64_t __weak arch__user_reg_mask(void)
 	return 0;
 }
 
-#ifdef HAVE_PERF_REGS_SUPPORT
+static const struct sample_reg sample_reg_masks[] = {
+	SMPL_REG_END
+};
+
+const struct sample_reg * __weak arch__sample_reg_masks(void)
+{
+	return sample_reg_masks;
+}
 
 const char *perf_reg_name(int id, const char *arch)
 {
@@ -125,5 +132,3 @@ uint64_t perf_arch_reg_sp(const char *arch)
 	pr_err("Fail to find SP register for arch %s, returns 0\n", arch);
 	return 0;
 }
-
-#endif

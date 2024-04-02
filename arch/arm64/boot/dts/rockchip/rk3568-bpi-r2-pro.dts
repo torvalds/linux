@@ -13,7 +13,7 @@
 
 / {
 	model = "Bananapi-R2 Pro (RK3568) DDR4 Board";
-	compatible = "rockchip,rk3568-bpi-r2pro", "rockchip,rk3568";
+	compatible = "sinovoip,rk3568-bpi-r2pro", "rockchip,rk3568";
 
 	aliases {
 		ethernet0 = &gmac0;

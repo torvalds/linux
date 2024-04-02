@@ -145,7 +145,10 @@ static void qlink_free(struct qlist_node *qlink, struct kmem_cache *cache)
 	void *object = qlink_to_object(qlink, cache);
 	struct kasan_free_meta *free_meta = kasan_get_free_meta(cache, object);
 
-	kasan_release_object_meta(cache, object);
+	/*
+	 * Note: Keep per-object metadata to allow KASAN print stack traces for
+	 * use-after-free-before-realloc bugs.
+	 */
 
 	/*
 	 * If init_on_free is enabled and KASAN's free metadata is stored in

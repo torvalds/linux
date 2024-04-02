@@ -25,6 +25,7 @@
 #include "scrub/btree.h"
 #include "scrub/bitmap.h"
 #include "scrub/agb_bitmap.h"
+#include "scrub/repair.h"
 
 /*
  * Set us up to scrub reverse mapping btrees.
@@ -35,6 +36,14 @@ xchk_setup_ag_rmapbt(
 {
 	if (xchk_need_intent_drain(sc))
 		xchk_fsgates_enable(sc, XCHK_FSGATES_DRAIN);
+
+	if (xchk_could_repair(sc)) {
+		int		error;
+
+		error = xrep_setup_ag_rmapbt(sc);
+		if (error)
+			return error;
+	}
 
 	return xchk_setup_ag_btree(sc, false);
 }
@@ -349,7 +358,7 @@ xchk_rmapbt_rec(
 	struct xfs_rmap_irec	irec;
 
 	if (xfs_rmap_btrec_to_irec(rec, &irec) != NULL ||
-	    xfs_rmap_check_irec(bs->cur, &irec) != NULL) {
+	    xfs_rmap_check_irec(bs->cur->bc_ag.pag, &irec) != NULL) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 		return 0;
 	}
@@ -412,8 +421,8 @@ xchk_rmapbt_walk_ag_metadata(
 	/* OWN_AG: bnobt, cntbt, rmapbt, and AGFL */
 	cur = sc->sa.bno_cur;
 	if (!cur)
-		cur = xfs_allocbt_init_cursor(sc->mp, sc->tp, sc->sa.agf_bp,
-				sc->sa.pag, XFS_BTNUM_BNO);
+		cur = xfs_bnobt_init_cursor(sc->mp, sc->tp, sc->sa.agf_bp,
+				sc->sa.pag);
 	error = xagb_bitmap_set_btblocks(&cr->ag_owned, cur);
 	if (cur != sc->sa.bno_cur)
 		xfs_btree_del_cursor(cur, error);
@@ -422,8 +431,8 @@ xchk_rmapbt_walk_ag_metadata(
 
 	cur = sc->sa.cnt_cur;
 	if (!cur)
-		cur = xfs_allocbt_init_cursor(sc->mp, sc->tp, sc->sa.agf_bp,
-				sc->sa.pag, XFS_BTNUM_CNT);
+		cur = xfs_cntbt_init_cursor(sc->mp, sc->tp, sc->sa.agf_bp,
+				sc->sa.pag);
 	error = xagb_bitmap_set_btblocks(&cr->ag_owned, cur);
 	if (cur != sc->sa.cnt_cur)
 		xfs_btree_del_cursor(cur, error);
@@ -447,8 +456,7 @@ xchk_rmapbt_walk_ag_metadata(
 	/* OWN_INOBT: inobt, finobt */
 	cur = sc->sa.ino_cur;
 	if (!cur)
-		cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp, sc->sa.agi_bp,
-				XFS_BTNUM_INO);
+		cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp, sc->sa.agi_bp);
 	error = xagb_bitmap_set_btblocks(&cr->inobt_owned, cur);
 	if (cur != sc->sa.ino_cur)
 		xfs_btree_del_cursor(cur, error);
@@ -458,8 +466,8 @@ xchk_rmapbt_walk_ag_metadata(
 	if (xfs_has_finobt(sc->mp)) {
 		cur = sc->sa.fino_cur;
 		if (!cur)
-			cur = xfs_inobt_init_cursor(sc->sa.pag, sc->tp,
-					sc->sa.agi_bp, XFS_BTNUM_FINO);
+			cur = xfs_finobt_init_cursor(sc->sa.pag, sc->tp,
+					sc->sa.agi_bp);
 		error = xagb_bitmap_set_btblocks(&cr->inobt_owned, cur);
 		if (cur != sc->sa.fino_cur)
 			xfs_btree_del_cursor(cur, error);

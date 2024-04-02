@@ -260,7 +260,7 @@ out:
 }
 
 
-static int gpio_mdio_remove(struct platform_device *dev)
+static void gpio_mdio_remove(struct platform_device *dev)
 {
 	struct mii_bus *bus = dev_get_drvdata(&dev->dev);
 
@@ -271,8 +271,6 @@ static int gpio_mdio_remove(struct platform_device *dev)
 	kfree(bus->priv);
 	bus->priv = NULL;
 	mdiobus_free(bus);
-
-	return 0;
 }
 
 static const struct of_device_id gpio_mdio_match[] =
@@ -287,7 +285,7 @@ MODULE_DEVICE_TABLE(of, gpio_mdio_match);
 static struct platform_driver gpio_mdio_driver =
 {
 	.probe		= gpio_mdio_probe,
-	.remove		= gpio_mdio_remove,
+	.remove_new	= gpio_mdio_remove,
 	.driver = {
 		.name = "gpio-mdio-bitbang",
 		.of_match_table = gpio_mdio_match,

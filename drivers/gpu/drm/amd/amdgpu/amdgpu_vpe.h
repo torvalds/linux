@@ -27,6 +27,8 @@
 #include "amdgpu_irq.h"
 #include "vpe_6_1_fw_if.h"
 
+#define AMDGPU_MAX_VPE_INSTANCES 2
+
 struct amdgpu_vpe;
 
 struct vpe_funcs {
@@ -74,6 +76,9 @@ struct amdgpu_vpe {
 	uint32_t			*cmdbuf_cpu_addr;
 	struct delayed_work		idle_work;
 	bool				context_started;
+
+	uint32_t			num_instances;
+	bool				collaborate_mode;
 };
 
 int amdgpu_vpe_psp_update_sram(struct amdgpu_device *adev);

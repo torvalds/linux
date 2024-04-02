@@ -98,7 +98,8 @@ config FONT_10x18
 
 config FONT_SUN8x16
 	bool "Sparc console 8x16 font"
-	depends on (FRAMEBUFFER_CONSOLE && (FONTS || SPARC)) || BOOTX_TEXT
+	depends on (FRAMEBUFFER_CONSOLE && (FONTS || SPARC)) || \
+		   BOOTX_TEXT || EARLYFB
 	help
 	  This is the high resolution console font for Sun machines. Say Y.
 

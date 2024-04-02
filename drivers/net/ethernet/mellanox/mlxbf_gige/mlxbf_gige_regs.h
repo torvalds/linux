@@ -99,4 +99,34 @@
 #define MLXBF_GIGE_100M_IPG_SIZE                      119
 #define MLXBF_GIGE_10M_IPG_SIZE                       1199
 
+/* Offsets into OOB LLU block for pause frame counters */
+#define MLXBF_GIGE_BF2_TX_PAUSE_CNT_HI                0x33d8
+#define MLXBF_GIGE_BF2_TX_PAUSE_CNT_LO                0x33dc
+#define MLXBF_GIGE_BF2_RX_PAUSE_CNT_HI                0x3210
+#define MLXBF_GIGE_BF2_RX_PAUSE_CNT_LO                0x3214
+
+#define MLXBF_GIGE_BF3_TX_PAUSE_CNT_HI                0x3a88
+#define MLXBF_GIGE_BF3_TX_PAUSE_CNT_LO                0x3a8c
+#define MLXBF_GIGE_BF3_RX_PAUSE_CNT_HI                0x38c0
+#define MLXBF_GIGE_BF3_RX_PAUSE_CNT_LO                0x38c4
+
+#define MLXBF_GIGE_TX_PAUSE_CNT_HI ((priv->hw_version == MLXBF_GIGE_VERSION_BF2) ? \
+				    MLXBF_GIGE_BF2_TX_PAUSE_CNT_HI :    \
+				    MLXBF_GIGE_BF3_TX_PAUSE_CNT_HI)
+#define MLXBF_GIGE_TX_PAUSE_CNT_LO ((priv->hw_version == MLXBF_GIGE_VERSION_BF2) ? \
+				    MLXBF_GIGE_BF2_TX_PAUSE_CNT_LO : \
+				    MLXBF_GIGE_BF3_TX_PAUSE_CNT_LO)
+#define MLXBF_GIGE_RX_PAUSE_CNT_HI ((priv->hw_version == MLXBF_GIGE_VERSION_BF2) ? \
+				    MLXBF_GIGE_BF2_RX_PAUSE_CNT_HI : \
+				    MLXBF_GIGE_BF3_RX_PAUSE_CNT_HI)
+#define MLXBF_GIGE_RX_PAUSE_CNT_LO ((priv->hw_version == MLXBF_GIGE_VERSION_BF2) ? \
+				    MLXBF_GIGE_BF2_RX_PAUSE_CNT_LO : \
+				    MLXBF_GIGE_BF3_RX_PAUSE_CNT_LO)
+
+#define MLXBF_GIGE_BF2_LLU_GENERAL_CONFIG             0x2110
+#define MLXBF_GIGE_BF3_LLU_GENERAL_CONFIG             0x2030
+
+#define MLXBF_GIGE_BF2_LLU_COUNTERS_EN                BIT(0)
+#define MLXBF_GIGE_BF3_LLU_COUNTERS_EN                BIT(4)
+
 #endif /* !defined(__MLXBF_GIGE_REGS_H__) */

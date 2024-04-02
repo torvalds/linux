@@ -64,6 +64,9 @@ static void virtsnd_event_dispatch(struct virtio_snd *snd,
 	case VIRTIO_SND_EVT_PCM_XRUN:
 		virtsnd_pcm_event(snd, event);
 		break;
+	case VIRTIO_SND_EVT_CTL_NOTIFY:
+		virtsnd_kctl_event(snd, event);
+		break;
 	}
 }
 
@@ -233,6 +236,12 @@ static int virtsnd_build_devs(struct virtio_snd *snd)
 	if (rc)
 		return rc;
 
+	if (virtio_has_feature(vdev, VIRTIO_SND_F_CTLS)) {
+		rc = virtsnd_kctl_parse_cfg(snd);
+		if (rc)
+			return rc;
+	}
+
 	if (snd->njacks) {
 		rc = virtsnd_jack_build_devs(snd);
 		if (rc)
@@ -247,6 +256,12 @@ static int virtsnd_build_devs(struct virtio_snd *snd)
 
 	if (snd->nchmaps) {
 		rc = virtsnd_chmap_build_devs(snd);
+		if (rc)
+			return rc;
+	}
+
+	if (snd->nkctls) {
+		rc = virtsnd_kctl_build_devs(snd);
 		if (rc)
 			return rc;
 	}
@@ -417,10 +432,16 @@ static const struct virtio_device_id id_table[] = {
 	{ 0 },
 };
 
+static unsigned int features[] = {
+	VIRTIO_SND_F_CTLS
+};
+
 static struct virtio_driver virtsnd_driver = {
 	.driver.name = KBUILD_MODNAME,
 	.driver.owner = THIS_MODULE,
 	.id_table = id_table,
+	.feature_table = features,
+	.feature_table_size = ARRAY_SIZE(features),
 	.validate = virtsnd_validate,
 	.probe = virtsnd_probe,
 	.remove = virtsnd_remove,

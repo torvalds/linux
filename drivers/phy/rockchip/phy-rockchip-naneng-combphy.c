@@ -251,7 +251,7 @@ static const struct phy_ops rochchip_combphy_ops = {
 	.owner = THIS_MODULE,
 };
 
-static struct phy *rockchip_combphy_xlate(struct device *dev, struct of_phandle_args *args)
+static struct phy *rockchip_combphy_xlate(struct device *dev, const struct of_phandle_args *args)
 {
 	struct rockchip_combphy_priv *priv = dev_get_drvdata(dev);
 
