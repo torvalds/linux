@@ -173,8 +173,12 @@ EXPORT_SYMBOL(sp32___change_bit);
 		return prev;					\
 	}
 
+CMPXCHG(u8)
+CMPXCHG(u16)
 CMPXCHG(u32)
 CMPXCHG(u64)
+EXPORT_SYMBOL(__cmpxchg_u8);
+EXPORT_SYMBOL(__cmpxchg_u16);
 EXPORT_SYMBOL(__cmpxchg_u32);
 EXPORT_SYMBOL(__cmpxchg_u64);
 
