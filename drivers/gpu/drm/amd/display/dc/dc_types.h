@@ -1035,6 +1035,7 @@ enum replay_FW_Message_type {
 	Replay_Set_Timing_Sync_Supported,
 	Replay_Set_Residency_Frameupdate_Timer,
 	Replay_Set_Pseudo_VTotal,
+	Replay_Disabled_Adaptive_Sync_SDP,
 };
 
 union replay_error_status {
