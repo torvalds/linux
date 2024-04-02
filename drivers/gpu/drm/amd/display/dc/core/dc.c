@@ -5042,8 +5042,13 @@ void dc_interrupt_ack(struct dc *dc, enum dc_irq_source src)
 void dc_power_down_on_boot(struct dc *dc)
 {
 	if (dc->ctx->dce_environment != DCE_ENV_VIRTUAL_HW &&
-			dc->hwss.power_down_on_boot)
+			dc->hwss.power_down_on_boot) {
+
+			if (dc->caps.ips_support)
+				dc_exit_ips_for_hw_access(dc);
+
 		dc->hwss.power_down_on_boot(dc);
+	}
 }
 
 void dc_set_power_state(
