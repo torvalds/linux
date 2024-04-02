@@ -12,10 +12,12 @@ struct z_erofs_gbuf {
 	unsigned int nrpages;
 };
 
-static struct z_erofs_gbuf *z_erofs_gbufpool;
-static unsigned int z_erofs_gbuf_count, z_erofs_gbuf_nrpages;
+static struct z_erofs_gbuf *z_erofs_gbufpool, *z_erofs_rsvbuf;
+static unsigned int z_erofs_gbuf_count, z_erofs_gbuf_nrpages,
+		z_erofs_rsv_nrpages;
 
 module_param_named(global_buffers, z_erofs_gbuf_count, uint, 0444);
+module_param_named(reserved_pages, z_erofs_rsv_nrpages, uint, 0444);
 
 static atomic_long_t erofs_global_shrink_cnt;	/* for all mounted instances */
 /* protected by 'erofs_sb_list_lock' */
@@ -116,19 +118,30 @@ out:
 
 int __init z_erofs_gbuf_init(void)
 {
-	unsigned int i = num_possible_cpus();
+	unsigned int i, total = num_possible_cpus();
 
-	if (!z_erofs_gbuf_count)
-		z_erofs_gbuf_count = i;
-	else
-		z_erofs_gbuf_count = min(z_erofs_gbuf_count, i);
+	if (z_erofs_gbuf_count)
+		total = min(z_erofs_gbuf_count, total);
+	z_erofs_gbuf_count = total;
 
-	z_erofs_gbufpool = kcalloc(z_erofs_gbuf_count,
-			sizeof(*z_erofs_gbufpool), GFP_KERNEL);
+	/* The last (special) global buffer is the reserved buffer */
+	total += !!z_erofs_rsv_nrpages;
+
+	z_erofs_gbufpool = kcalloc(total, sizeof(*z_erofs_gbufpool),
+				   GFP_KERNEL);
 	if (!z_erofs_gbufpool)
 		return -ENOMEM;
 
-	for (i = 0; i < z_erofs_gbuf_count; ++i)
+	if (z_erofs_rsv_nrpages) {
+		z_erofs_rsvbuf = &z_erofs_gbufpool[total - 1];
+		z_erofs_rsvbuf->pages = kcalloc(z_erofs_rsv_nrpages,
+				sizeof(*z_erofs_rsvbuf->pages), GFP_KERNEL);
+		if (!z_erofs_rsvbuf->pages) {
+			z_erofs_rsvbuf = NULL;
+			z_erofs_rsv_nrpages = 0;
+		}
+	}
+	for (i = 0; i < total; ++i)
 		spin_lock_init(&z_erofs_gbufpool[i].lock);
 	return 0;
 }
@@ -137,7 +150,7 @@ void z_erofs_gbuf_exit(void)
 {
 	int i;
 
-	for (i = 0; i < z_erofs_gbuf_count; ++i) {
+	for (i = 0; i < z_erofs_gbuf_count + (!!z_erofs_rsvbuf); ++i) {
 		struct z_erofs_gbuf *gbuf = &z_erofs_gbufpool[i];
 
 		if (gbuf->ptr) {
@@ -157,16 +170,22 @@ void z_erofs_gbuf_exit(void)
 	kfree(z_erofs_gbufpool);
 }
 
-struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp)
+struct page *__erofs_allocpage(struct page **pagepool, gfp_t gfp, bool tryrsv)
 {
 	struct page *page = *pagepool;
 
 	if (page) {
-		DBG_BUGON(page_ref_count(page) != 1);
 		*pagepool = (struct page *)page_private(page);
-		return page;
+	} else if (tryrsv && z_erofs_rsvbuf && z_erofs_rsvbuf->nrpages) {
+		spin_lock(&z_erofs_rsvbuf->lock);
+		if (z_erofs_rsvbuf->nrpages)
+			page = z_erofs_rsvbuf->pages[--z_erofs_rsvbuf->nrpages];
+		spin_unlock(&z_erofs_rsvbuf->lock);
 	}
-	return alloc_page(gfp);
+	if (!page)
+		page = alloc_page(gfp);
+	DBG_BUGON(page && page_ref_count(page) != 1);
+	return page;
 }
 
 void erofs_release_pages(struct page **pagepool)
@@ -175,6 +194,18 @@ void erofs_release_pages(struct page **pagepool)
 		struct page *page = *pagepool;
 
 		*pagepool = (struct page *)page_private(page);
+		/* try to fill reserved global pool first */
+		if (z_erofs_rsvbuf && z_erofs_rsvbuf->nrpages <
+				z_erofs_rsv_nrpages) {
+			spin_lock(&z_erofs_rsvbuf->lock);
+			if (z_erofs_rsvbuf->nrpages < z_erofs_rsv_nrpages) {
+				z_erofs_rsvbuf->pages[z_erofs_rsvbuf->nrpages++]
+						= page;
+				spin_unlock(&z_erofs_rsvbuf->lock);
+				continue;
+			}
+			spin_unlock(&z_erofs_rsvbuf->lock);
+		}
 		put_page(page);
 	}
 }
