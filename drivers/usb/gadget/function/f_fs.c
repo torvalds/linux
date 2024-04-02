@@ -1578,6 +1578,7 @@ static int ffs_dmabuf_transfer(struct file *file,
 	struct ffs_dmabuf_priv *priv;
 	struct ffs_dma_fence *fence;
 	struct usb_request *usb_req;
+	enum dma_resv_usage resv_dir;
 	struct dma_buf *dmabuf;
 	struct ffs_ep *ep;
 	bool cookie;
@@ -1665,8 +1666,9 @@ static int ffs_dmabuf_transfer(struct file *file,
 	dma_fence_init(&fence->base, &ffs_dmabuf_fence_ops,
 		       &priv->lock, priv->context, seqno);
 
-	dma_resv_add_fence(dmabuf->resv, &fence->base,
-			   dma_resv_usage_rw(epfile->in));
+	resv_dir = epfile->in ? DMA_RESV_USAGE_WRITE : DMA_RESV_USAGE_READ;
+
+	dma_resv_add_fence(dmabuf->resv, &fence->base, resv_dir);
 	dma_resv_unlock(dmabuf->resv);
 
 	/* Now that the dma_fence is in place, queue the transfer. */
