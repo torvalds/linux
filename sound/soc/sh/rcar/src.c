@@ -310,7 +310,7 @@ static void rsnd_src_set_convert_rate(struct rsnd_dai_stream *io,
 	/*
 	 * E3 need to overwrite
 	 */
-	if (rsnd_is_e3(priv))
+	if (rsnd_is_gen3_e3(priv))
 		switch (rsnd_mod_id(mod)) {
 		case 0:
 		case 4:

@@ -703,7 +703,7 @@ struct rsnd_priv {
 #define rsnd_is_gen2(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN2)
 #define rsnd_is_gen3(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN3)
 #define rsnd_is_gen4(priv)	(((priv)->flags & RSND_GEN_MASK) == RSND_GEN4)
-#define rsnd_is_e3(priv)	(((priv)->flags & \
+#define rsnd_is_gen3_e3(priv)	(((priv)->flags & \
 					(RSND_GEN_MASK | RSND_SOC_MASK)) == \
 					(RSND_GEN3 | RSND_SOC_E))
 
