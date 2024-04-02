@@ -958,12 +958,13 @@ static void cxl_mem_get_records_log(struct cxl_memdev_state *mds,
 		.payload_in = &log_type,
 		.size_in = sizeof(log_type),
 		.payload_out = payload,
-		.size_out = mds->payload_size,
 		.min_out = struct_size(payload, records, 0),
 	};
 
 	do {
 		int rc, i;
+
+		mbox_cmd.size_out = mds->payload_size;
 
 		rc = cxl_internal_send_cmd(mds, &mbox_cmd);
 		if (rc) {
