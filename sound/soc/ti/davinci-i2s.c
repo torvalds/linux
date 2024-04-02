@@ -161,6 +161,9 @@ struct davinci_mcbsp_dev {
 
 	int tdm_slots;
 	int slot_width;
+
+	bool tx_framing_bit;
+	bool rx_framing_bit;
 };
 
 static inline void davinci_mcbsp_write_reg(struct davinci_mcbsp_dev *dev,
@@ -580,6 +583,15 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 		xcr |= DAVINCI_MCBSP_XCR_XDATDLY(1);
 	}
 
+	if (dev->tx_framing_bit) {
+		xcr &= ~DAVINCI_MCBSP_XCR_XDATDLY(1);
+		xcr |= DAVINCI_MCBSP_XCR_XDATDLY(2);
+	}
+	if (dev->rx_framing_bit) {
+		rcr &= ~DAVINCI_MCBSP_RCR_RDATDLY(1);
+		rcr |= DAVINCI_MCBSP_RCR_RDATDLY(2);
+	}
+
 	if (params_channels(params) == 2) {
 		element_cnt = 2;
 		if (double_fmt[fmt] && dev->enable_channel_combine) {
@@ -795,6 +807,9 @@ static int davinci_i2s_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dev->base = io_base;
+
+	dev->tx_framing_bit = of_property_read_bool(pdev->dev.of_node, "ti,T1-framing-tx");
+	dev->rx_framing_bit = of_property_read_bool(pdev->dev.of_node, "ti,T1-framing-rx");
 
 	/* setup DMA, first TX, then RX */
 	dma_data = &dev->dma_data[SNDRV_PCM_STREAM_PLAYBACK];
