@@ -1,7 +1,7 @@
 /*
    BlueZ - Bluetooth protocol stack for Linux
    Copyright (c) 2000-2001, 2010, Code Aurora Forum. All rights reserved.
-   Copyright 2023 NXP
+   Copyright 2023-2024 NXP
 
    Written 2000,2001 by Maxim Krasnyansky <maxk@qualcomm.com>
 
@@ -6492,14 +6492,16 @@ static void hci_le_pa_sync_estabilished_evt(struct hci_dev *hdev, void *data,
 	if (!(flags & HCI_PROTO_DEFER))
 		goto unlock;
 
+	/* Add connection to indicate PA sync event */
+	pa_sync = hci_conn_add_unset(hdev, ISO_LINK, BDADDR_ANY,
+				     HCI_ROLE_SLAVE);
+
+	if (!pa_sync)
+		goto unlock;
+
+	pa_sync->sync_handle = le16_to_cpu(ev->handle);
+
 	if (ev->status) {
-		/* Add connection to indicate the failed PA sync event */
-		pa_sync = hci_conn_add_unset(hdev, ISO_LINK, BDADDR_ANY,
-					     HCI_ROLE_SLAVE);
-
-		if (!pa_sync)
-			goto unlock;
-
 		set_bit(HCI_CONN_PA_SYNC_FAILED, &pa_sync->flags);
 
 		/* Notify iso layer */
@@ -6516,6 +6518,7 @@ static void hci_le_per_adv_report_evt(struct hci_dev *hdev, void *data,
 	struct hci_ev_le_per_adv_report *ev = data;
 	int mask = hdev->link_mode;
 	__u8 flags = 0;
+	struct hci_conn *pa_sync;
 
 	bt_dev_dbg(hdev, "sync_handle 0x%4.4x", le16_to_cpu(ev->sync_handle));
 
@@ -6523,8 +6526,28 @@ static void hci_le_per_adv_report_evt(struct hci_dev *hdev, void *data,
 
 	mask |= hci_proto_connect_ind(hdev, BDADDR_ANY, ISO_LINK, &flags);
 	if (!(mask & HCI_LM_ACCEPT))
-		hci_le_pa_term_sync(hdev, ev->sync_handle);
+		goto unlock;
 
+	if (!(flags & HCI_PROTO_DEFER))
+		goto unlock;
+
+	pa_sync = hci_conn_hash_lookup_pa_sync_handle
+			(hdev,
+			le16_to_cpu(ev->sync_handle));
+
+	if (!pa_sync)
+		goto unlock;
+
+	if (ev->data_status == LE_PA_DATA_COMPLETE &&
+	    !test_and_set_bit(HCI_CONN_PA_SYNC, &pa_sync->flags)) {
+		/* Notify iso layer */
+		hci_connect_cfm(pa_sync, 0);
+
+		/* Notify MGMT layer */
+		mgmt_device_connected(hdev, pa_sync, NULL, 0);
+	}
+
+unlock:
 	hci_dev_unlock(hdev);
 }
 
@@ -7059,10 +7082,8 @@ static void hci_le_big_info_adv_report_evt(struct hci_dev *hdev, void *data,
 	hci_dev_lock(hdev);
 
 	mask |= hci_proto_connect_ind(hdev, BDADDR_ANY, ISO_LINK, &flags);
-	if (!(mask & HCI_LM_ACCEPT)) {
-		hci_le_pa_term_sync(hdev, ev->sync_handle);
+	if (!(mask & HCI_LM_ACCEPT))
 		goto unlock;
-	}
 
 	if (!(flags & HCI_PROTO_DEFER))
 		goto unlock;
@@ -7071,24 +7092,11 @@ static void hci_le_big_info_adv_report_evt(struct hci_dev *hdev, void *data,
 			(hdev,
 			le16_to_cpu(ev->sync_handle));
 
-	if (pa_sync)
-		goto unlock;
-
-	/* Add connection to indicate the PA sync event */
-	pa_sync = hci_conn_add_unset(hdev, ISO_LINK, BDADDR_ANY,
-				     HCI_ROLE_SLAVE);
-
 	if (!pa_sync)
 		goto unlock;
 
-	pa_sync->sync_handle = le16_to_cpu(ev->sync_handle);
-	set_bit(HCI_CONN_PA_SYNC, &pa_sync->flags);
-
 	/* Notify iso layer */
-	hci_connect_cfm(pa_sync, 0x00);
-
-	/* Notify MGMT layer */
-	mgmt_device_connected(hdev, pa_sync, NULL, 0);
+	hci_connect_cfm(pa_sync, 0);
 
 unlock:
 	hci_dev_unlock(hdev);

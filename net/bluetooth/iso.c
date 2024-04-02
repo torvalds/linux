@@ -54,7 +54,6 @@ static void iso_sock_kill(struct sock *sk);
 enum {
 	BT_SK_BIG_SYNC,
 	BT_SK_PA_SYNC,
-	BT_SK_PA_SYNC_TERM,
 };
 
 struct iso_pinfo {
@@ -81,6 +80,7 @@ static bool check_ucast_qos(struct bt_iso_qos *qos);
 static bool check_bcast_qos(struct bt_iso_qos *qos);
 static bool iso_match_sid(struct sock *sk, void *data);
 static bool iso_match_sync_handle(struct sock *sk, void *data);
+static bool iso_match_sync_handle_pa_report(struct sock *sk, void *data);
 static void iso_sock_disconn(struct sock *sk);
 
 typedef bool (*iso_sock_match_t)(struct sock *sk, void *data);
@@ -197,21 +197,10 @@ static void iso_chan_del(struct sock *sk, int err)
 	sock_set_flag(sk, SOCK_ZAPPED);
 }
 
-static bool iso_match_conn_sync_handle(struct sock *sk, void *data)
-{
-	struct hci_conn *hcon = data;
-
-	if (test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags))
-		return false;
-
-	return hcon->sync_handle == iso_pi(sk)->sync_handle;
-}
-
 static void iso_conn_del(struct hci_conn *hcon, int err)
 {
 	struct iso_conn *conn = hcon->iso_data;
 	struct sock *sk;
-	struct sock *parent;
 
 	if (!conn)
 		return;
@@ -227,26 +216,6 @@ static void iso_conn_del(struct hci_conn *hcon, int err)
 
 	if (sk) {
 		lock_sock(sk);
-
-		/* While a PA sync hcon is in the process of closing,
-		 * mark parent socket with a flag, so that any residual
-		 * BIGInfo adv reports that arrive before PA sync is
-		 * terminated are not processed anymore.
-		 */
-		if (test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags)) {
-			parent = iso_get_sock(&hcon->src,
-					      &hcon->dst,
-					      BT_LISTEN,
-					      iso_match_conn_sync_handle,
-					      hcon);
-
-			if (parent) {
-				set_bit(BT_SK_PA_SYNC_TERM,
-					&iso_pi(parent)->flags);
-				sock_put(parent);
-			}
-		}
-
 		iso_sock_clear_timer(sk);
 		iso_chan_del(sk, err);
 		release_sock(sk);
@@ -860,6 +829,7 @@ static struct sock *iso_sock_alloc(struct net *net, struct socket *sock,
 	iso_pi(sk)->src_type = BDADDR_LE_PUBLIC;
 
 	iso_pi(sk)->qos = default_qos;
+	iso_pi(sk)->sync_handle = -1;
 
 	bt_sock_link(&iso_sk_list, sk);
 	return sk;
@@ -907,7 +877,6 @@ static int iso_sock_bind_bc(struct socket *sock, struct sockaddr *addr,
 		return -EINVAL;
 
 	iso_pi(sk)->dst_type = sa->iso_bc->bc_bdaddr_type;
-	iso_pi(sk)->sync_handle = -1;
 
 	if (sa->iso_bc->bc_sid > 0x0f)
 		return -EINVAL;
@@ -984,7 +953,8 @@ static int iso_sock_bind(struct socket *sock, struct sockaddr *addr,
 	/* Allow the user to bind a PA sync socket to a number
 	 * of BISes to sync to.
 	 */
-	if (sk->sk_state == BT_CONNECT2 &&
+	if ((sk->sk_state == BT_CONNECT2 ||
+	     sk->sk_state == BT_CONNECTED) &&
 	    test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags)) {
 		err = iso_sock_bind_pa_sk(sk, sa, addr_len);
 		goto done;
@@ -1396,6 +1366,16 @@ static int iso_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 			}
 			release_sock(sk);
 			return 0;
+		case BT_CONNECTED:
+			if (test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags)) {
+				iso_conn_big_sync(sk);
+				sk->sk_state = BT_LISTEN;
+				release_sock(sk);
+				return 0;
+			}
+
+			release_sock(sk);
+			break;
 		case BT_CONNECT:
 			release_sock(sk);
 			return iso_connect_cis(sk);
@@ -1541,7 +1521,9 @@ static int iso_sock_setsockopt(struct socket *sock, int level, int optname,
 
 	case BT_ISO_QOS:
 		if (sk->sk_state != BT_OPEN && sk->sk_state != BT_BOUND &&
-		    sk->sk_state != BT_CONNECT2) {
+		    sk->sk_state != BT_CONNECT2 &&
+		    (!test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags) ||
+		    sk->sk_state != BT_CONNECTED)) {
 			err = -EINVAL;
 			break;
 		}
@@ -1762,7 +1744,7 @@ static void iso_conn_ready(struct iso_conn *conn)
 	struct sock *sk = conn->sk;
 	struct hci_ev_le_big_sync_estabilished *ev = NULL;
 	struct hci_ev_le_pa_sync_established *ev2 = NULL;
-	struct hci_evt_le_big_info_adv_report *ev3 = NULL;
+	struct hci_ev_le_per_adv_report *ev3 = NULL;
 	struct hci_conn *hcon;
 
 	BT_DBG("conn %p", conn);
@@ -1799,12 +1781,12 @@ static void iso_conn_ready(struct iso_conn *conn)
 						      iso_match_sid, ev2);
 		} else if (test_bit(HCI_CONN_PA_SYNC, &hcon->flags)) {
 			ev3 = hci_recv_event_data(hcon->hdev,
-						  HCI_EVT_LE_BIG_INFO_ADV_REPORT);
+						  HCI_EV_LE_PER_ADV_REPORT);
 			if (ev3)
 				parent = iso_get_sock(&hcon->src,
 						      &hcon->dst,
 						      BT_LISTEN,
-						      iso_match_sync_handle,
+						      iso_match_sync_handle_pa_report,
 						      ev3);
 		}
 
@@ -1847,7 +1829,6 @@ static void iso_conn_ready(struct iso_conn *conn)
 
 		if (ev3) {
 			iso_pi(sk)->qos = iso_pi(parent)->qos;
-			iso_pi(sk)->qos.bcast.encryption = ev3->encryption;
 			hcon->iso_qos = iso_pi(sk)->qos;
 			iso_pi(sk)->bc_num_bis = iso_pi(parent)->bc_num_bis;
 			memcpy(iso_pi(sk)->bc_bis, iso_pi(parent)->bc_bis, ISO_MAX_NUM_BIS);
@@ -1941,25 +1922,28 @@ int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 
 	ev2 = hci_recv_event_data(hdev, HCI_EVT_LE_BIG_INFO_ADV_REPORT);
 	if (ev2) {
-		/* Try to get PA sync listening socket, if it exists */
-		sk = iso_get_sock(&hdev->bdaddr, bdaddr, BT_LISTEN,
-				  iso_match_pa_sync_flag, NULL);
-
-		if (!sk) {
-			sk = iso_get_sock(&hdev->bdaddr, bdaddr, BT_LISTEN,
-					  iso_match_sync_handle, ev2);
-
-			/* If PA Sync is in process of terminating,
-			 * do not handle any more BIGInfo adv reports.
-			 */
-
-			if (sk && test_bit(BT_SK_PA_SYNC_TERM,
-					   &iso_pi(sk)->flags))
-				return 0;
+		/* Check if BIGInfo report has already been handled */
+		sk = iso_get_sock(&hdev->bdaddr, bdaddr, BT_CONNECTED,
+				  iso_match_sync_handle, ev2);
+		if (sk) {
+			sock_put(sk);
+			sk = NULL;
+			goto done;
 		}
+
+		/* Try to get PA sync socket, if it exists */
+		sk = iso_get_sock(&hdev->bdaddr, bdaddr, BT_CONNECT2,
+				  iso_match_sync_handle, ev2);
+		if (!sk)
+			sk = iso_get_sock(&hdev->bdaddr, bdaddr,
+					  BT_LISTEN,
+					  iso_match_sync_handle,
+					  ev2);
 
 		if (sk) {
 			int err;
+
+			iso_pi(sk)->qos.bcast.encryption = ev2->encryption;
 
 			if (ev2->num_bis < iso_pi(sk)->bc_num_bis)
 				iso_pi(sk)->bc_num_bis = ev2->num_bis;
@@ -1979,6 +1963,8 @@ int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 				}
 			}
 		}
+
+		goto done;
 	}
 
 	ev3 = hci_recv_event_data(hdev, HCI_EV_LE_PER_ADV_REPORT);
