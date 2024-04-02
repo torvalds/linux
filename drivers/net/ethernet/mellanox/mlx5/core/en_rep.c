@@ -143,9 +143,9 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(sw_rep)
 	int i;
 
 	for (i = 0; i < NUM_VPORT_REP_SW_COUNTERS; i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(&priv->stats.sw,
-						   sw_rep_stats_desc, i);
-	return idx;
+		mlx5e_ethtool_put_stat(
+			data, MLX5E_READ_CTR64_CPU(&priv->stats.sw,
+						   sw_rep_stats_desc, i));
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(sw_rep)
@@ -184,12 +184,14 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(vport_rep)
 	int i;
 
 	for (i = 0; i < NUM_VPORT_REP_HW_COUNTERS; i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(&priv->stats.rep_stats,
-						   vport_rep_stats_desc, i);
+		mlx5e_ethtool_put_stat(
+			data, MLX5E_READ_CTR64_CPU(&priv->stats.rep_stats,
+						   vport_rep_stats_desc, i));
 	for (i = 0; i < NUM_VPORT_REP_LOOPBACK_COUNTERS(priv->mdev); i++)
-		data[idx++] = MLX5E_READ_CTR64_CPU(&priv->stats.rep_stats,
-						   vport_rep_loopback_stats_desc, i);
-	return idx;
+		mlx5e_ethtool_put_stat(
+			data,
+			MLX5E_READ_CTR64_CPU(&priv->stats.rep_stats,
+					     vport_rep_loopback_stats_desc, i));
 }
 
 static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(vport_rep)

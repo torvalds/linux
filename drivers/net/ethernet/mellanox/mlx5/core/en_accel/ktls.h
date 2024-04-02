@@ -96,7 +96,7 @@ void mlx5e_ktls_cleanup(struct mlx5e_priv *priv);
 
 int mlx5e_ktls_get_count(struct mlx5e_priv *priv);
 void mlx5e_ktls_get_strings(struct mlx5e_priv *priv, uint8_t **data);
-int mlx5e_ktls_get_stats(struct mlx5e_priv *priv, u64 *data);
+void mlx5e_ktls_get_stats(struct mlx5e_priv *priv, u64 **data);
 
 #else
 static inline void mlx5e_ktls_build_netdev(struct mlx5e_priv *priv)
@@ -146,10 +146,7 @@ static inline void mlx5e_ktls_cleanup(struct mlx5e_priv *priv) { }
 static inline int mlx5e_ktls_get_count(struct mlx5e_priv *priv) { return 0; }
 static inline void mlx5e_ktls_get_strings(struct mlx5e_priv *priv, uint8_t **data) { }
 
-static inline int mlx5e_ktls_get_stats(struct mlx5e_priv *priv, u64 *data)
-{
-	return 0;
-}
+static inline void mlx5e_ktls_get_stats(struct mlx5e_priv *priv, u64 **data) { }
 #endif
 
 #endif /* __MLX5E_TLS_H__ */
