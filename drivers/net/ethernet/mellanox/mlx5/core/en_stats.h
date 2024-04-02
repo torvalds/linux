@@ -71,7 +71,7 @@ struct mlx5e_priv;
 struct mlx5e_stats_grp {
 	u16 update_stats_mask;
 	int (*get_num_stats)(struct mlx5e_priv *priv);
-	int (*fill_strings)(struct mlx5e_priv *priv, u8 *data, int idx);
+	void (*fill_strings)(struct mlx5e_priv *priv, u8 **data);
 	int (*fill_stats)(struct mlx5e_priv *priv, u64 *data, int idx);
 	void (*update_stats)(struct mlx5e_priv *priv);
 };
@@ -87,7 +87,7 @@ typedef const struct mlx5e_stats_grp *const mlx5e_stats_grp_t;
 	void MLX5E_STATS_GRP_OP(grp, update_stats)(struct mlx5e_priv *priv)
 
 #define MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(grp) \
-	int MLX5E_STATS_GRP_OP(grp, fill_strings)(struct mlx5e_priv *priv, u8 *data, int idx)
+	void MLX5E_STATS_GRP_OP(grp, fill_strings)(struct mlx5e_priv *priv, u8 **data)
 
 #define MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(grp) \
 	int MLX5E_STATS_GRP_OP(grp, fill_stats)(struct mlx5e_priv *priv, u64 *data, int idx)
