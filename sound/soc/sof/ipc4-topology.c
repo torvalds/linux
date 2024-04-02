@@ -1672,6 +1672,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 		 */
 		if (ipc4_copier->dai_type == SOF_DAI_INTEL_ALH) {
 			struct sof_ipc4_alh_configuration_blob *blob;
+			struct sof_ipc4_dma_config *dma_config;
 			struct sof_ipc4_copier_data *alh_data;
 			struct sof_ipc4_copier *alh_copier;
 			struct snd_sof_widget *w;
@@ -1711,6 +1712,18 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 				alh_copier = (struct sof_ipc4_copier *)dai->private;
 				alh_data = &alh_copier->data;
 				blob->alh_cfg.mapping[i].device = alh_data->gtw_cfg.node_id;
+
+				/*
+				 * The mapping[i] device in ALH blob should be the same as the
+				 * dma_config_tlv[i] mapping device if a dma_config_tlv is present.
+				 * The device id will be used for DMA tlv mapping purposes.
+				 */
+				if (ipc4_copier->dma_config_tlv[i].length) {
+					dma_config = &ipc4_copier->dma_config_tlv[i].dma_config;
+					blob->alh_cfg.mapping[i].device =
+						dma_config->dma_stream_channel_map.mapping[0].device;
+				}
+
 				/*
 				 * Set the same channel mask for playback as the audio data is
 				 * duplicated for all speakers. For capture, split the channels

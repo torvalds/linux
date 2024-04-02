@@ -346,6 +346,7 @@ static int non_hda_dai_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *cpu_dai)
 {
 	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sof_ipc4_dma_config_tlv *dma_config_tlv;
 	const struct hda_dai_widget_dma_ops *ops;
 	struct sof_ipc4_dma_config *dma_config;
@@ -353,6 +354,8 @@ static int non_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	struct hdac_ext_stream *hext_stream;
 	struct hdac_stream *hstream;
 	struct snd_sof_dev *sdev;
+	struct snd_soc_dai *dai;
+	int cpu_dai_id;
 	int stream_id;
 	int ret;
 
@@ -392,7 +395,12 @@ static int non_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	/* configure TLV */
 	ipc4_copier = widget_to_copier(w);
 
-	dma_config_tlv = &ipc4_copier->dma_config_tlv[0];
+	for_each_rtd_cpu_dais(rtd, cpu_dai_id, dai) {
+		if (dai == cpu_dai)
+			break;
+	}
+
+	dma_config_tlv = &ipc4_copier->dma_config_tlv[cpu_dai_id];
 	dma_config_tlv->type = SOF_IPC4_GTW_DMA_CONFIG_ID;
 	/* dma_config_priv_size is zero */
 	dma_config_tlv->length = sizeof(dma_config_tlv->dma_config);
@@ -403,7 +411,11 @@ static int non_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	dma_config->pre_allocated_by_host = 1;
 	dma_config->dma_channel_id = stream_id - 1;
 	dma_config->stream_id = stream_id;
-	dma_config->dma_stream_channel_map.device_count = 0; /* mapping not used */
+	/*
+	 * Currently we use a DMA for each device in ALH blob. The device will
+	 * be copied in sof_ipc4_prepare_copier_module.
+	 */
+	dma_config->dma_stream_channel_map.device_count = 1;
 	dma_config->dma_priv_config_size = 0;
 
 skip_tlv:
@@ -440,7 +452,10 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct sof_ipc4_dma_config_tlv *dma_config_tlv;
 	const struct hda_dai_widget_dma_ops *ops;
+	struct sof_ipc4_dma_config *dma_config;
+	struct sof_ipc4_copier *ipc4_copier;
 	struct hdac_ext_stream *hext_stream;
 	struct snd_soc_dai *dai;
 	struct snd_sof_dev *sdev;
@@ -448,6 +463,7 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	int cpu_dai_id;
 	int ch_mask;
 	int ret;
+	int i;
 
 	ret = non_hda_dai_hw_params(substream, params, cpu_dai);
 	if (ret < 0) {
@@ -489,6 +505,22 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+	ipc4_copier = widget_to_copier(w);
+	dma_config_tlv = &ipc4_copier->dma_config_tlv[cpu_dai_id];
+	dma_config = &dma_config_tlv->dma_config;
+	dma_config->dma_stream_channel_map.mapping[0].device = link_id << 8 | cpu_dai->id;
+	dma_config->dma_stream_channel_map.mapping[0].channel_mask = ch_mask;
+
+	/*
+	 * copy the dma_config_tlv to all ipc4_copier in the same link. Because only one copier
+	 * will be handled in sof_ipc4_prepare_copier_module.
+	 */
+	for_each_rtd_cpu_dais(rtd, i, dai) {
+		w = snd_soc_dai_get_widget(dai, substream->stream);
+		ipc4_copier = widget_to_copier(w);
+		memcpy(&ipc4_copier->dma_config_tlv[cpu_dai_id], dma_config_tlv,
+		       sizeof(*dma_config_tlv));
+	}
 	return 0;
 }
 
