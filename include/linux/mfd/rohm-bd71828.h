@@ -4,6 +4,7 @@
 #ifndef __LINUX_MFD_BD71828_H__
 #define __LINUX_MFD_BD71828_H__
 
+#include <linux/bits.h>
 #include <linux/mfd/rohm-generic.h>
 #include <linux/mfd/rohm-shared.h>
 
@@ -40,6 +41,8 @@ enum {
 #define BD71828_REG_PS_CTRL_1		0x04
 #define BD71828_REG_PS_CTRL_2		0x05
 #define BD71828_REG_PS_CTRL_3		0x06
+
+#define BD71828_MASK_STATE_HBNT		BIT(1)
 
 //#define BD71828_REG_SWRESET		0x06
 #define BD71828_MASK_RUN_LVL_CTRL	0x30
