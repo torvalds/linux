@@ -180,6 +180,7 @@ static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned
 	int disposition;
 	struct TCP_Server_Info *server = tcon->ses->server;
 	struct cifs_open_parms oparms;
+	int rdwr_for_fscache = 0;
 
 	*oplock = 0;
 	if (tcon->ses->server->oplocks)
@@ -190,6 +191,10 @@ static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned
 		free_dentry_path(page);
 		return PTR_ERR(full_path);
 	}
+
+	/* If we're caching, we need to be able to fill in around partial writes. */
+	if (cifs_fscache_enabled(inode) && (oflags & O_ACCMODE) == O_WRONLY)
+		rdwr_for_fscache = 1;
 
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 	if (tcon->unix_ext && cap_unix(tcon->ses) && !tcon->broken_posix_open &&
@@ -267,6 +272,8 @@ static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned
 		desired_access |= GENERIC_READ; /* is this too little? */
 	if (OPEN_FMODE(oflags) & FMODE_WRITE)
 		desired_access |= GENERIC_WRITE;
+	if (rdwr_for_fscache == 1)
+		desired_access |= GENERIC_READ;
 
 	disposition = FILE_OVERWRITE_IF;
 	if ((oflags & (O_CREAT | O_EXCL)) == (O_CREAT | O_EXCL))
@@ -295,6 +302,7 @@ static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned
 	if (!tcon->unix_ext && (mode & S_IWUGO) == 0)
 		create_options |= CREATE_OPTION_READONLY;
 
+retry_open:
 	oparms = (struct cifs_open_parms) {
 		.tcon = tcon,
 		.cifs_sb = cifs_sb,
@@ -308,8 +316,15 @@ static int cifs_do_create(struct inode *inode, struct dentry *direntry, unsigned
 	rc = server->ops->open(xid, &oparms, oplock, buf);
 	if (rc) {
 		cifs_dbg(FYI, "cifs_create returned 0x%x\n", rc);
+		if (rc == -EACCES && rdwr_for_fscache == 1) {
+			desired_access &= ~GENERIC_READ;
+			rdwr_for_fscache = 2;
+			goto retry_open;
+		}
 		goto out;
 	}
+	if (rdwr_for_fscache == 2)
+		cifs_invalidate_cache(inode, FSCACHE_INVAL_DIO_WRITE);
 
 #ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 	/*
