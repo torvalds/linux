@@ -1551,6 +1551,14 @@ static void ilk_crtc_enable(struct intel_atomic_state *state,
 	intel_set_pch_fifo_underrun_reporting(dev_priv, pipe, true);
 }
 
+/* Display WA #1180: WaDisableScalarClockGating: glk */
+static bool glk_need_scaler_clock_gating_wa(const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+
+	return DISPLAY_VER(i915) == 10 && crtc_state->pch_pfit.enabled;
+}
+
 static void glk_pipe_scaler_clock_gating_wa(struct intel_crtc *crtc, bool enable)
 {
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
@@ -1635,7 +1643,6 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder = new_crtc_state->cpu_transcoder;
 	enum pipe hsw_workaround_pipe;
-	bool psl_clkgate_wa;
 
 	if (drm_WARN_ON(&dev_priv->drm, crtc->active))
 		return;
@@ -1668,10 +1675,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 
 	crtc->active = true;
 
-	/* Display WA #1180: WaDisableScalarClockGating: glk */
-	psl_clkgate_wa = DISPLAY_VER(dev_priv) == 10 &&
-		new_crtc_state->pch_pfit.enabled;
-	if (psl_clkgate_wa)
+	if (glk_need_scaler_clock_gating_wa(new_crtc_state))
 		glk_pipe_scaler_clock_gating_wa(crtc, true);
 
 	if (DISPLAY_VER(dev_priv) >= 9)
@@ -1702,7 +1706,7 @@ static void hsw_crtc_enable(struct intel_atomic_state *state,
 
 	intel_encoders_enable(state, crtc);
 
-	if (psl_clkgate_wa) {
+	if (glk_need_scaler_clock_gating_wa(new_crtc_state)) {
 		intel_crtc_wait_for_next_vblank(crtc);
 		glk_pipe_scaler_clock_gating_wa(crtc, false);
 	}
