@@ -160,6 +160,9 @@ struct davinci_mcbsp_dev {
 	unsigned int fmt;
 	int clk_div;
 	bool i2s_accurate_sck;
+
+	int tdm_slots;
+	int slot_width;
 };
 
 static inline void davinci_mcbsp_write_reg(struct davinci_mcbsp_dev *dev,
@@ -213,6 +216,63 @@ static void davinci_mcbsp_stop(struct davinci_mcbsp_dev *dev, int playback)
 	toggle_clock(dev, playback);
 }
 
+static int davinci_i2s_tdm_word_length(int tdm_slot_width)
+{
+	switch (tdm_slot_width) {
+	case 8:
+		return DAVINCI_MCBSP_WORD_8;
+	case 12:
+		return DAVINCI_MCBSP_WORD_12;
+	case 16:
+		return DAVINCI_MCBSP_WORD_16;
+	case 20:
+		return DAVINCI_MCBSP_WORD_20;
+	case 24:
+		return DAVINCI_MCBSP_WORD_24;
+	case 32:
+		return DAVINCI_MCBSP_WORD_32;
+	default:
+		return -EINVAL;
+	}
+}
+
+static int davinci_i2s_set_tdm_slot(struct snd_soc_dai *cpu_dai,
+				    unsigned int tx_mask,
+				    unsigned int rx_mask,
+				    int slots, int slot_width)
+{
+	struct davinci_mcbsp_dev *dev = snd_soc_dai_get_drvdata(cpu_dai);
+
+	dev_dbg(dev->dev, "slots %d, slot_width %d\n", slots, slot_width);
+
+	if (slots > 128 || !slots) {
+		dev_err(dev->dev, "Invalid number of slots\n");
+		return -EINVAL;
+	}
+
+	if (rx_mask != (1 << slots) - 1) {
+		dev_err(dev->dev, "Invalid RX mask (0x%08x) : all slots must be used by McBSP\n",
+			rx_mask);
+		return -EINVAL;
+	}
+
+	if (tx_mask != (1 << slots) - 1) {
+		dev_err(dev->dev, "Invalid TX mask (0x%08x) : all slots must be used by McBSP\n",
+			tx_mask);
+		return -EINVAL;
+	}
+
+	if (davinci_i2s_tdm_word_length(slot_width) < 0) {
+		dev_err(dev->dev, "%s: Unsupported slot_width %d\n", __func__, slot_width);
+		return -EINVAL;
+	}
+
+	dev->tdm_slots = slots;
+	dev->slot_width = slot_width;
+
+	return 0;
+}
+
 #define DEFAULT_BITPERSAMPLE	16
 
 static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
@@ -238,6 +298,11 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 			DAVINCI_MCBSP_PCR_CLKRM;
 		break;
 	case SND_SOC_DAIFMT_BC_FP:
+		if (dev->tdm_slots || dev->slot_width) {
+			dev_err(dev->dev, "TDM is not supported for BC_FP format\n");
+			return -EINVAL;
+		}
+
 		/*
 		 * McBSP CLKR pin is the input for the Sample Rate Generator.
 		 * McBSP FSR and FSX are driven by the Sample Rate Generator.
@@ -246,6 +311,11 @@ static int davinci_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		pcr |= DAVINCI_MCBSP_PCR_SCLKME;
 		break;
 	case SND_SOC_DAIFMT_BC_FC:
+		if (dev->tdm_slots || dev->slot_width) {
+			dev_err(dev->dev, "TDM is not supported for BC_FC format\n");
+			return -EINVAL;
+		}
+
 		/* codec is master */
 		pcr = 0;
 		break;
@@ -383,7 +453,13 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 
 	master = dev->fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
 	fmt = params_format(params);
-	mcbsp_word_length = asp_word_length[fmt];
+	if (dev->slot_width)
+		mcbsp_word_length = davinci_i2s_tdm_word_length(dev->slot_width);
+	else
+		mcbsp_word_length = asp_word_length[fmt];
+
+	if (mcbsp_word_length < 0)
+		return mcbsp_word_length;
 
 	switch (master) {
 	case SND_SOC_DAIFMT_BP_FP:
@@ -483,8 +559,13 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 	switch (master) {
 	case SND_SOC_DAIFMT_BP_FP:
 	case SND_SOC_DAIFMT_BP_FC:
-		rcr |= DAVINCI_MCBSP_RCR_RFRLEN1(0);
-		xcr |= DAVINCI_MCBSP_XCR_XFRLEN1(0);
+		if (dev->tdm_slots > 0) {
+			rcr |= DAVINCI_MCBSP_RCR_RFRLEN1(dev->tdm_slots - 1);
+			xcr |= DAVINCI_MCBSP_XCR_XFRLEN1(dev->tdm_slots - 1);
+		} else {
+			rcr |= DAVINCI_MCBSP_RCR_RFRLEN1(0);
+			xcr |= DAVINCI_MCBSP_XCR_XFRLEN1(0);
+		}
 		break;
 	case SND_SOC_DAIFMT_BC_FC:
 	case SND_SOC_DAIFMT_BC_FP:
@@ -609,19 +690,20 @@ static const struct snd_soc_dai_ops davinci_i2s_dai_ops = {
 	.hw_params	= davinci_i2s_hw_params,
 	.set_fmt	= davinci_i2s_set_dai_fmt,
 	.set_clkdiv	= davinci_i2s_dai_set_clkdiv,
+	.set_tdm_slot   = davinci_i2s_set_tdm_slot,
 
 };
 
 static struct snd_soc_dai_driver davinci_i2s_dai = {
 	.playback = {
 		.channels_min = 2,
-		.channels_max = 2,
+		.channels_max = 128,
 		.rates = DAVINCI_I2S_RATES,
 		.formats = DAVINCI_I2S_FORMATS,
 	},
 	.capture = {
 		.channels_min = 2,
-		.channels_max = 2,
+		.channels_max = 128,
 		.rates = DAVINCI_I2S_RATES,
 		.formats = DAVINCI_I2S_FORMATS,
 	},
