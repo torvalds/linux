@@ -77,7 +77,7 @@
 #define arch_raw_cpu_ptr(_ptr)					\
 ({								\
 	unsigned long tcp_ptr__ = __raw_my_cpu_offset;		\
-	tcp_ptr__ += (unsigned long)(_ptr);			\
+	tcp_ptr__ += (__force unsigned long)(_ptr);		\
 	(typeof(*(_ptr)) __kernel __force *)tcp_ptr__;		\
 })
 #else
@@ -96,8 +96,8 @@
 #endif /* CONFIG_SMP */
 
 #define __my_cpu_type(var)	typeof(var) __percpu_seg_override
-#define __my_cpu_ptr(ptr)	(__my_cpu_type(*ptr) *)(uintptr_t)(ptr)
-#define __my_cpu_var(var)	(*__my_cpu_ptr(&var))
+#define __my_cpu_ptr(ptr)	(__my_cpu_type(*ptr)*)(__force uintptr_t)(ptr)
+#define __my_cpu_var(var)	(*__my_cpu_ptr(&(var)))
 #define __percpu_arg(x)		__percpu_prefix "%" #x
 #define __force_percpu_arg(x)	__force_percpu_prefix "%" #x
 
