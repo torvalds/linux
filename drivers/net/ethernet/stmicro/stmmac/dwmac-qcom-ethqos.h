@@ -3,6 +3,18 @@
 #ifndef	_DWMAC_QCOM_ETHQOS_H
 #define	_DWMAC_QCOM_ETHQOS_H
 
+#include <linux/inetdevice.h>
+#include <linux/inet.h>
+
+#include <net/addrconf.h>
+#include <net/ipv6.h>
+#include <net/inet_common.h>
+
+#include <linux/uaccess.h>
+
+#define QCOM_ETH_QOS_MAC_ADDR_LEN 6
+#define QCOM_ETH_QOS_MAC_ADDR_STR_LEN 18
+
 #define DRV_NAME "qcom-ethqos"
 #define ETHQOSDBG(fmt, args...) \
 	pr_debug(DRV_NAME " %s:%d " fmt, __func__, __LINE__, ## args)
@@ -86,6 +98,27 @@ struct qcom_ethqos {
 	/* Boolean flag for turning off GDSC during suspend */
 	bool gdsc_off_on_suspend;
 
+	/* early ethernet parameters */
+	struct work_struct early_eth;
+	struct delayed_work ipv4_addr_assign_wq;
+	struct delayed_work ipv6_addr_assign_wq;
+	bool early_eth_enabled;
+	/* Key Performance Indicators */
+	bool print_kpi;
+
+};
+
+struct ip_params {
+	unsigned char mac_addr[QCOM_ETH_QOS_MAC_ADDR_LEN];
+	bool is_valid_mac_addr;
+	char link_speed[32];
+	bool is_valid_link_speed;
+	char ipv4_addr_str[32];
+	struct in_addr ipv4_addr;
+	bool is_valid_ipv4_addr;
+	char ipv6_addr_str[48];
+	struct in6_ifreq ipv6_addr;
+	bool is_valid_ipv6_addr;
 };
 
 int ethqos_init_regulators(struct qcom_ethqos *ethqos);
