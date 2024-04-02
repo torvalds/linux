@@ -30,8 +30,6 @@ enum {
 	ENUM_BIT(EXTENT_FLAG_PREALLOC),
 	/* Logging this extent */
 	ENUM_BIT(EXTENT_FLAG_LOGGING),
-	/* Filling in a preallocated extent */
-	ENUM_BIT(EXTENT_FLAG_FILLING),
 	/* This em is merged from two or more physically adjacent ems */
 	ENUM_BIT(EXTENT_FLAG_MERGED),
 };
@@ -46,8 +44,6 @@ struct extent_map {
 	/* all of these are in bytes */
 	u64 start;
 	u64 len;
-	u64 mod_start;
-	u64 mod_len;
 	u64 orig_start;
 	u64 orig_block_len;
 	u64 ram_bytes;

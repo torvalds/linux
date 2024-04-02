@@ -4574,8 +4574,8 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 	struct btrfs_root *csum_root;
 	u64 csum_offset;
 	u64 csum_len;
-	u64 mod_start = em->mod_start;
-	u64 mod_len = em->mod_len;
+	u64 mod_start = em->start;
+	u64 mod_len = em->len;
 	LIST_HEAD(ordered_sums);
 	int ret = 0;
 

@@ -7337,9 +7337,7 @@ static struct extent_map *create_io_em(struct btrfs_inode *inode, u64 start,
 	em->ram_bytes = ram_bytes;
 	em->generation = -1;
 	em->flags |= EXTENT_FLAG_PINNED;
-	if (type == BTRFS_ORDERED_PREALLOC)
-		em->flags |= EXTENT_FLAG_FILLING;
-	else if (type == BTRFS_ORDERED_COMPRESSED)
+	if (type == BTRFS_ORDERED_COMPRESSED)
 		extent_map_set_compression(em, compress_type);
 
 	ret = btrfs_replace_extent_map_range(inode, em, true);

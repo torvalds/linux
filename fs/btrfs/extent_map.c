@@ -252,8 +252,6 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 			em->len += merge->len;
 			em->block_len += merge->block_len;
 			em->block_start = merge->block_start;
-			em->mod_len = (em->mod_len + em->mod_start) - merge->mod_start;
-			em->mod_start = merge->mod_start;
 			em->generation = max(em->generation, merge->generation);
 			em->flags |= EXTENT_FLAG_MERGED;
 
@@ -271,7 +269,6 @@ static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
 		em->block_len += merge->block_len;
 		rb_erase_cached(&merge->rb_node, &tree->map);
 		RB_CLEAR_NODE(&merge->rb_node);
-		em->mod_len = (merge->mod_start + merge->mod_len) - em->mod_start;
 		em->generation = max(em->generation, merge->generation);
 		em->flags |= EXTENT_FLAG_MERGED;
 		free_extent_map(merge);
@@ -300,7 +297,6 @@ int unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen)
 	struct extent_map_tree *tree = &inode->extent_tree;
 	int ret = 0;
 	struct extent_map *em;
-	bool prealloc = false;
 
 	write_lock(&tree->lock);
 	em = lookup_extent_mapping(tree, start, len);
@@ -325,20 +321,8 @@ int unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen)
 
 	em->generation = gen;
 	em->flags &= ~EXTENT_FLAG_PINNED;
-	em->mod_start = em->start;
-	em->mod_len = em->len;
-
-	if (em->flags & EXTENT_FLAG_FILLING) {
-		prealloc = true;
-		em->flags &= ~EXTENT_FLAG_FILLING;
-	}
 
 	try_merge_map(tree, em);
-
-	if (prealloc) {
-		em->mod_start = em->start;
-		em->mod_len = em->len;
-	}
 
 out:
 	write_unlock(&tree->lock);
@@ -361,8 +345,6 @@ static inline void setup_extent_mapping(struct extent_map_tree *tree,
 					int modified)
 {
 	refcount_inc(&em->refs);
-	em->mod_start = em->start;
-	em->mod_len = em->len;
 
 	ASSERT(list_empty(&em->list));
 
