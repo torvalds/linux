@@ -12,7 +12,7 @@
 #include "fsck.h"
 #include "inode.h"
 #include "keylist.h"
-#include "recovery.h"
+#include "recovery_passes.h"
 #include "snapshot.h"
 #include "super.h"
 #include "xattr.h"
@@ -158,9 +158,10 @@ static int __remove_dirent(struct btree_trans *trans, struct bpos pos)
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_dirents, pos, BTREE_ITER_INTENT);
 
-	ret = bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
-				  &dir_hash_info, &iter,
-				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+	ret =   bch2_btree_iter_traverse(&iter) ?:
+		bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
+				    &dir_hash_info, &iter,
+				    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
 	bch2_trans_iter_exit(trans, &iter);
 err:
 	bch_err_fn(c, ret);
@@ -1371,10 +1372,6 @@ static int check_overlapping_extents(struct btree_trans *trans,
 			goto err;
 	}
 
-	ret = extent_ends_at(c, extent_ends, seen, k);
-	if (ret)
-		goto err;
-
 	extent_ends->last_pos = k.k->p;
 err:
 	return ret;
@@ -1503,6 +1500,12 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 		}
 
 		i->seen_this_pos = true;
+	}
+
+	if (k.k->type != KEY_TYPE_whiteout) {
+		ret = extent_ends_at(c, extent_ends, s, k);
+		if (ret)
+			goto err;
 	}
 out:
 err:
@@ -2098,17 +2101,21 @@ static int check_root_trans(struct btree_trans *trans)
 
 	if (mustfix_fsck_err_on(ret, c, root_subvol_missing,
 				"root subvol missing")) {
-		struct bkey_i_subvolume root_subvol;
+		struct bkey_i_subvolume *root_subvol =
+			bch2_trans_kmalloc(trans, sizeof(*root_subvol));
+		ret = PTR_ERR_OR_ZERO(root_subvol);
+		if (ret)
+			goto err;
 
 		snapshot	= U32_MAX;
 		inum		= BCACHEFS_ROOT_INO;
 
-		bkey_subvolume_init(&root_subvol.k_i);
-		root_subvol.k.p.offset = BCACHEFS_ROOT_SUBVOL;
-		root_subvol.v.flags	= 0;
-		root_subvol.v.snapshot	= cpu_to_le32(snapshot);
-		root_subvol.v.inode	= cpu_to_le64(inum);
-		ret = bch2_btree_insert_trans(trans, BTREE_ID_subvolumes, &root_subvol.k_i, 0);
+		bkey_subvolume_init(&root_subvol->k_i);
+		root_subvol->k.p.offset = BCACHEFS_ROOT_SUBVOL;
+		root_subvol->v.flags	= 0;
+		root_subvol->v.snapshot	= cpu_to_le32(snapshot);
+		root_subvol->v.inode	= cpu_to_le64(inum);
+		ret = bch2_btree_insert_trans(trans, BTREE_ID_subvolumes, &root_subvol->k_i, 0);
 		bch_err_msg(c, ret, "writing root subvol");
 		if (ret)
 			goto err;

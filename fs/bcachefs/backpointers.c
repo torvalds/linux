@@ -29,8 +29,7 @@ static bool extent_matches_bp(struct bch_fs *c,
 		if (p.ptr.cached)
 			continue;
 
-		bch2_extent_ptr_to_bp(c, btree_id, level, k, p,
-				      &bucket2, &bp2);
+		bch2_extent_ptr_to_bp(c, btree_id, level, k, p, entry, &bucket2, &bp2);
 		if (bpos_eq(bucket, bucket2) &&
 		    !memcmp(&bp, &bp2, sizeof(bp)))
 			return true;
@@ -44,6 +43,11 @@ int bch2_backpointer_invalid(struct bch_fs *c, struct bkey_s_c k,
 			     struct printbuf *err)
 {
 	struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
+
+	/* these will be caught by fsck */
+	if (!bch2_dev_exists2(c, bp.k->p.inode))
+		return 0;
+
 	struct bpos bucket = bp_pos_to_bucket(c, bp.k->p);
 	int ret = 0;
 
@@ -378,7 +382,7 @@ static int bch2_check_btree_backpointer(struct btree_trans *trans, struct btree_
 			backpointer_to_missing_alloc,
 			"backpointer for nonexistent alloc key: %llu:%llu:0\n%s",
 			alloc_iter.pos.inode, alloc_iter.pos.offset,
-			(bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
+			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 		ret = bch2_btree_delete_at(trans, bp_iter, 0);
 		goto out;
 	}
@@ -502,8 +506,7 @@ static int check_extent_to_backpointers(struct btree_trans *trans,
 		if (p.ptr.cached)
 			continue;
 
-		bch2_extent_ptr_to_bp(c, btree, level,
-				      k, p, &bucket_pos, &bp);
+		bch2_extent_ptr_to_bp(c, btree, level, k, p, entry, &bucket_pos, &bp);
 
 		ret = check_bp_exists(trans, s, bucket_pos, bp, k);
 		if (ret)

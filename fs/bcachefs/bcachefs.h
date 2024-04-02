@@ -209,7 +209,7 @@
 #include "fifo.h"
 #include "nocow_locking_types.h"
 #include "opts.h"
-#include "recovery_types.h"
+#include "recovery_passes_types.h"
 #include "sb-errors_types.h"
 #include "seqmutex.h"
 #include "time_stats.h"
@@ -810,7 +810,6 @@ struct bch_fs {
 
 	/* snapshot.c: */
 	struct snapshot_table __rcu *snapshots;
-	size_t			snapshot_table_size;
 	struct mutex		snapshot_table_lock;
 	struct rw_semaphore	snapshot_create_lock;
 

@@ -265,7 +265,9 @@
 	x(subvol_children_bad,					257)	\
 	x(subvol_loop,						258)	\
 	x(subvol_unreachable,					259)	\
-	x(btree_node_bkey_bad_u64s,				260)
+	x(btree_node_bkey_bad_u64s,				260)	\
+	x(btree_node_topology_empty_interior_node,		261)	\
+	x(btree_ptr_v2_min_key_bad,				262)
 
 enum bch_sb_error_id {
 #define x(t, n) BCH_FSCK_ERR_##t = n,

@@ -10,6 +10,8 @@
 
 #define BTREE_UPDATE_JOURNAL_RES	(BTREE_UPDATE_NODES_MAX * (BKEY_BTREE_PTR_U64s_MAX + 1))
 
+int bch2_btree_node_check_topology(struct btree_trans *, struct btree *);
+
 /*
  * Tracks an in progress split/rewrite of a btree node and the update to the
  * parent node:
