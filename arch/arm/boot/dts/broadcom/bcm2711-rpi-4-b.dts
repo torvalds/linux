@@ -15,6 +15,13 @@
 		stdout-path = "serial1:115200n8";
 	};
 
+	cam1_reg: regulator-cam1 {
+		compatible = "regulator-fixed";
+		regulator-name = "cam1-reg";
+		enable-active-high;
+		gpio = <&expgpio 5 GPIO_ACTIVE_HIGH>;
+	};
+
 	sd_io_1v8_reg: regulator-sd-io-1v8 {
 		compatible = "regulator-gpio";
 		regulator-name = "vdd-sd-io";
