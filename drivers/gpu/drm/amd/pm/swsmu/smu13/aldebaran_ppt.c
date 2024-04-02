@@ -759,8 +759,11 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 	switch (type) {
 
 	case SMU_OD_SCLK:
-		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "GFXCLK");
-		fallthrough;
+		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "OD_SCLK");
+		*offset += sysfs_emit_at(buf, *offset, "0: %uMhz\n1: %uMhz\n",
+				      pstate_table->gfxclk_pstate.curr.min,
+				      pstate_table->gfxclk_pstate.curr.max);
+		return 0;
 	case SMU_SCLK:
 		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_GFXCLK, &cur_value);
 		if (ret) {
@@ -788,8 +791,11 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 		break;
 
 	case SMU_OD_MCLK:
-		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "MCLK");
-		fallthrough;
+		*offset += sysfs_emit_at(buf, *offset, "%s:\n", "OD_MCLK");
+		*offset += sysfs_emit_at(buf, *offset, "0: %uMhz\n1: %uMhz\n",
+				      pstate_table->uclk_pstate.curr.min,
+				      pstate_table->uclk_pstate.curr.max);
+		return 0;
 	case SMU_MCLK:
 		ret = aldebaran_get_current_clk_freq_by_table(smu, SMU_UCLK, &cur_value);
 		if (ret) {
@@ -850,7 +856,6 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 	}
 
 	switch (type) {
-	case SMU_OD_SCLK:
 	case SMU_SCLK:
 		for (i = 0; i < display_levels; i++) {
 			clock_mhz = freq_values[i];
@@ -863,7 +868,6 @@ static int aldebaran_emit_clk_levels(struct smu_context *smu,
 		}
 		break;
 
-	case SMU_OD_MCLK:
 	case SMU_MCLK:
 	case SMU_SOCCLK:
 	case SMU_FCLK:
