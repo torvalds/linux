@@ -521,7 +521,11 @@ int __init erofs_init_sysfs(void);
 void erofs_exit_sysfs(void);
 
 /* utils.c / zdata.c */
-struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp);
+struct page *__erofs_allocpage(struct page **pagepool, gfp_t gfp, bool tryrsv);
+static inline struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp)
+{
+	return __erofs_allocpage(pagepool, gfp, false);
+}
 static inline void erofs_pagepool_add(struct page **pagepool,
 		struct page *page)
 {
