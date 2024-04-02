@@ -159,7 +159,7 @@ unsigned long sp32___change_bit(unsigned long *addr, unsigned long mask)
 }
 EXPORT_SYMBOL(sp32___change_bit);
 
-unsigned long __cmpxchg_u32(volatile u32 *ptr, u32 old, u32 new)
+u32 __cmpxchg_u32(volatile u32 *ptr, u32 old, u32 new)
 {
 	unsigned long flags;
 	u32 prev;
@@ -169,7 +169,7 @@ unsigned long __cmpxchg_u32(volatile u32 *ptr, u32 old, u32 new)
 		*ptr = new;
 	spin_unlock_irqrestore(ATOMIC_HASH(ptr), flags);
 
-	return (unsigned long)prev;
+	return prev;
 }
 EXPORT_SYMBOL(__cmpxchg_u32);
 
