@@ -1278,21 +1278,12 @@ int dfs_cache_remount_fs(struct cifs_sb_info *cifs_sb)
 void dfs_cache_refresh(struct work_struct *work)
 {
 	struct TCP_Server_Info *server;
-	struct dfs_root_ses *rses;
 	struct cifs_tcon *tcon;
 	struct cifs_ses *ses;
 
 	tcon = container_of(work, struct cifs_tcon, dfs_cache_work.work);
-	ses = tcon->ses;
-	server = ses->server;
 
-	mutex_lock(&server->refpath_lock);
-	if (server->leaf_fullpath)
-		__refresh_tcon(server->leaf_fullpath + 1, ses, false);
-	mutex_unlock(&server->refpath_lock);
-
-	list_for_each_entry(rses, &tcon->dfs_ses_list, list) {
-		ses = rses->ses;
+	for (ses = tcon->ses; ses; ses = ses->dfs_root_ses) {
 		server = ses->server;
 		mutex_lock(&server->refpath_lock);
 		if (server->leaf_fullpath)
