@@ -6953,6 +6953,8 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 		intel_pre_update_crtc(state, crtc);
 	}
 
+	intel_dbuf_mbus_pre_ddb_update(state);
+
 	while (update_pipes) {
 		for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 						    new_crtc_state, i) {
@@ -6982,6 +6984,8 @@ static void skl_commit_modeset_enables(struct intel_atomic_state *state)
 				intel_crtc_wait_for_next_vblank(crtc);
 		}
 	}
+
+	intel_dbuf_mbus_post_ddb_update(state);
 
 	update_pipes = modeset_pipes;
 
@@ -7229,7 +7233,6 @@ static void intel_atomic_commit_tail(struct intel_atomic_state *state)
 	intel_encoders_update_prepare(state);
 
 	intel_dbuf_pre_plane_update(state);
-	intel_mbus_dbox_update(state);
 
 	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
 		if (new_crtc_state->do_async_flip)
