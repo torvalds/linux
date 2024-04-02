@@ -277,9 +277,9 @@ static void __init dtb_apic_setup(void)
 	dtb_ioapic_setup();
 }
 
-#ifdef CONFIG_OF_EARLY_FLATTREE
 void __init x86_flattree_get_config(void)
 {
+#ifdef CONFIG_OF_EARLY_FLATTREE
 	u32 size, map_len;
 	void *dt;
 
@@ -301,8 +301,10 @@ void __init x86_flattree_get_config(void)
 
 	if (initial_dtb)
 		early_memunmap(dt, map_len);
-}
 #endif
+	if (of_have_populated_dt())
+		x86_init.mpparse.parse_smp_cfg = x86_dtb_parse_smp_config;
+}
 
 void __init x86_dtb_parse_smp_config(void)
 {
