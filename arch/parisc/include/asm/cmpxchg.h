@@ -57,8 +57,7 @@ __arch_xchg(unsigned long x, volatile void *ptr, int size)
 extern void __cmpxchg_called_with_bad_pointer(void);
 
 /* __cmpxchg_u32/u64 defined in arch/parisc/lib/bitops.c */
-extern unsigned long __cmpxchg_u32(volatile unsigned int *m, unsigned int old,
-				   unsigned int new_);
+extern u32 __cmpxchg_u32(volatile u32 *m, u32 old, u32 new_);
 extern u64 __cmpxchg_u64(volatile u64 *ptr, u64 old, u64 new_);
 extern u8 __cmpxchg_u8(volatile u8 *ptr, u8 old, u8 new_);
 

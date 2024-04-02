@@ -68,16 +68,16 @@ u64 notrace __cmpxchg_u64(volatile u64 *ptr, u64 old, u64 new)
 	return prev;
 }
 
-unsigned long notrace __cmpxchg_u32(volatile unsigned int *ptr, unsigned int old, unsigned int new)
+u32 notrace __cmpxchg_u32(volatile u32 *ptr, u32 old, u32 new)
 {
 	unsigned long flags;
-	unsigned int prev;
+	u32 prev;
 
 	_atomic_spin_lock_irqsave(ptr, flags);
 	if ((prev = *ptr) == old)
 		*ptr = new;
 	_atomic_spin_unlock_irqrestore(ptr, flags);
-	return (unsigned long)prev;
+	return prev;
 }
 
 u8 notrace __cmpxchg_u8(volatile u8 *ptr, u8 old, u8 new)
