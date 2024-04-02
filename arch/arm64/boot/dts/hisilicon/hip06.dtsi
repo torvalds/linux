@@ -472,7 +472,7 @@
 			};
 		};
 
-		dsaf0: dsa@c7000000 {
+		dsaf0: dsa@c5000000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "hisilicon,hns-dsaf-v2";
@@ -733,7 +733,7 @@
 			status = "disabled";
 		};
 
-		pcie0: pcie@a0090000 {
+		pcie0: pcie@b0000000 {
 			compatible = "hisilicon,hip06-pcie-ecam";
 			reg = <0 0xb0000000 0 0x2000000>,
 			      <0 0xa0090000 0 0x10000>;
