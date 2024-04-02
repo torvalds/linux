@@ -2814,25 +2814,6 @@ int intel_crtc_compute_min_cdclk(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->dsc.compression_enable)
 		min_cdclk = max(min_cdclk, intel_vdsc_min_cdclk(crtc_state));
 
-	/*
-	 * HACK. Currently for TGL/DG2 platforms we calculate
-	 * min_cdclk initially based on pixel_rate divided
-	 * by 2, accounting for also plane requirements,
-	 * however in some cases the lowest possible CDCLK
-	 * doesn't work and causing the underruns.
-	 * Explicitly stating here that this seems to be currently
-	 * rather a Hack, than final solution.
-	 */
-	if (IS_TIGERLAKE(dev_priv) || IS_DG2(dev_priv)) {
-		/*
-		 * Clamp to max_cdclk_freq in case pixel rate is higher,
-		 * in order not to break an 8K, but still leave W/A at place.
-		 */
-		min_cdclk = max_t(int, min_cdclk,
-				  min_t(int, crtc_state->pixel_rate,
-					dev_priv->display.cdclk.max_cdclk_freq));
-	}
-
 	return min_cdclk;
 }
 
