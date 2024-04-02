@@ -35,19 +35,72 @@ enum {
 };
 
 /*
+ * This structure represents file extents and holes.
+ *
+ * Unlike on-disk file extent items, extent maps can be merged to save memory.
+ * This means members only match file extent items before any merging.
+ *
  * Keep this structure as compact as possible, as we can have really large
  * amounts of allocated extent maps at any time.
  */
 struct extent_map {
 	struct rb_node rb_node;
 
-	/* all of these are in bytes */
+	/* All of these are in bytes. */
+
+	/* File offset matching the offset of a BTRFS_EXTENT_ITEM_KEY key. */
 	u64 start;
+
+	/*
+	 * Length of the file extent.
+	 *
+	 * For non-inlined file extents it's btrfs_file_extent_item::num_bytes.
+	 * For inline extents it's sectorsize, since inline data starts at
+	 * offsetof(struct btrfs_file_extent_item, disk_bytenr) thus
+	 * btrfs_file_extent_item::num_bytes is not valid.
+	 */
 	u64 len;
+
+	/*
+	 * The file offset of the original file extent before splitting.
+	 *
+	 * This is an in-memory only member, matching
+	 * extent_map::start - btrfs_file_extent_item::offset for
+	 * regular/preallocated extents. EXTENT_MAP_HOLE otherwise.
+	 */
 	u64 orig_start;
+
+	/*
+	 * The full on-disk extent length, matching
+	 * btrfs_file_extent_item::disk_num_bytes.
+	 */
 	u64 orig_block_len;
+
+	/*
+	 * The decompressed size of the whole on-disk extent, matching
+	 * btrfs_file_extent_item::ram_bytes.
+	 */
 	u64 ram_bytes;
+
+	/*
+	 * The on-disk logical bytenr for the file extent.
+	 *
+	 * For compressed extents it matches btrfs_file_extent_item::disk_bytenr.
+	 * For uncompressed extents it matches
+	 * btrfs_file_extent_item::disk_bytenr + btrfs_file_extent_item::offset
+	 *
+	 * For holes it is EXTENT_MAP_HOLE and for inline extents it is
+	 * EXTENT_MAP_INLINE.
+	 */
 	u64 block_start;
+
+	/*
+	 * The on-disk length for the file extent.
+	 *
+	 * For compressed extents it matches btrfs_file_extent_item::disk_num_bytes.
+	 * For uncompressed extents it matches extent_map::len.
+	 * For holes and inline extents it's -1 and shouldn't be used.
+	 */
 	u64 block_len;
 
 	/*
