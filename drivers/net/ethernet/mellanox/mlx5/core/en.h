@@ -1160,7 +1160,7 @@ void mlx5e_vxlan_set_netdev_info(struct mlx5e_priv *priv);
 void mlx5e_ethtool_get_drvinfo(struct mlx5e_priv *priv,
 			       struct ethtool_drvinfo *drvinfo);
 void mlx5e_ethtool_get_strings(struct mlx5e_priv *priv,
-			       uint32_t stringset, uint8_t *data);
+			       u32 stringset, u8 *data);
 int mlx5e_ethtool_get_sset_count(struct mlx5e_priv *priv, int sset);
 void mlx5e_ethtool_get_ethtool_stats(struct mlx5e_priv *priv,
 				     struct ethtool_stats *stats, u64 *data);

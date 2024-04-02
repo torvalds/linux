@@ -274,7 +274,7 @@ out:
 }
 
 static void mlx5e_rep_get_strings(struct net_device *dev,
-				  u32 stringset, uint8_t *data)
+				  u32 stringset, u8 *data)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 

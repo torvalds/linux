@@ -58,7 +58,7 @@ int mlx5e_ktls_get_count(struct mlx5e_priv *priv)
 	return ARRAY_SIZE(mlx5e_ktls_sw_stats_desc);
 }
 
-void mlx5e_ktls_get_strings(struct mlx5e_priv *priv, uint8_t **data)
+void mlx5e_ktls_get_strings(struct mlx5e_priv *priv, u8 **data)
 {
 	unsigned int i, n;
 
