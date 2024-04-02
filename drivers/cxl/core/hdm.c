@@ -888,8 +888,12 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 	}
 	rc = eig_to_granularity(FIELD_GET(CXL_HDM_DECODER0_CTRL_IG_MASK, ctrl),
 				 &cxld->interleave_granularity);
-	if (rc)
+	if (rc) {
+		dev_warn(&port->dev,
+			 "decoder%d.%d: Invalid interleave granularity (ctrl: %#x)\n",
+			 port->id, cxld->id, ctrl);
 		return rc;
+	}
 
 	dev_dbg(&port->dev, "decoder%d.%d: range: %#llx-%#llx iw: %d ig: %d\n",
 		port->id, cxld->id, cxld->hpa_range.start, cxld->hpa_range.end,
