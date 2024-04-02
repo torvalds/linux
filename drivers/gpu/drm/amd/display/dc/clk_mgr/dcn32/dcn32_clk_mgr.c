@@ -29,6 +29,7 @@
 #include "dcn20/dcn20_clk_mgr.h"
 #include "dce100/dce_clk_mgr.h"
 #include "dcn31/dcn31_clk_mgr.h"
+#include "dcn32/dcn32_clk_mgr.h"
 #include "reg_helper.h"
 #include "core_types.h"
 #include "dm_helpers.h"

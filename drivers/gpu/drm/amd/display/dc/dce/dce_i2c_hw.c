@@ -22,9 +22,6 @@
  * Authors: AMD
  *
  */
-
-#include <linux/delay.h>
-
 #include "resource.h"
 #include "dce_i2c.h"
 #include "dce_i2c_hw.h"
