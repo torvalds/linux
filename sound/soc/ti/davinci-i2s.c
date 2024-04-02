@@ -61,6 +61,9 @@
 
 #define DAVINCI_MCBSP_SPCR_RRST		(1 << 0)
 #define DAVINCI_MCBSP_SPCR_RINTM(v)	((v) << 4)
+#define DAVINCI_MCBSP_SPCR_RJUST(v)	((v) << 13)
+#define DAVINCI_MCBSP_SPCR_RJUST_Z_LE	DAVINCI_MCBSP_SPCR_RJUST(0)
+#define DAVINCI_MCBSP_SPCR_RJUST_S_LE	DAVINCI_MCBSP_SPCR_RJUST(1)
 #define DAVINCI_MCBSP_SPCR_XRST		(1 << 16)
 #define DAVINCI_MCBSP_SPCR_XINTM(v)	((v) << 20)
 #define DAVINCI_MCBSP_SPCR_GRST		(1 << 22)
@@ -107,15 +110,10 @@ enum {
 	DAVINCI_MCBSP_WORD_32,
 };
 
-static const unsigned char data_type[SNDRV_PCM_FORMAT_S32_LE + 1] = {
-	[SNDRV_PCM_FORMAT_S8]		= 1,
-	[SNDRV_PCM_FORMAT_S16_LE]	= 2,
-	[SNDRV_PCM_FORMAT_S32_LE]	= 4,
-};
-
 static const unsigned char asp_word_length[SNDRV_PCM_FORMAT_S32_LE + 1] = {
 	[SNDRV_PCM_FORMAT_S8]		= DAVINCI_MCBSP_WORD_8,
 	[SNDRV_PCM_FORMAT_S16_LE]	= DAVINCI_MCBSP_WORD_16,
+	[SNDRV_PCM_FORMAT_S24_LE]	= DAVINCI_MCBSP_WORD_24,
 	[SNDRV_PCM_FORMAT_S32_LE]	= DAVINCI_MCBSP_WORD_32,
 };
 
@@ -467,8 +465,23 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 	snd_pcm_format_t fmt;
 	unsigned element_cnt = 1;
 
-	/* general line settings */
 	spcr = davinci_mcbsp_read_reg(dev, DAVINCI_MCBSP_SPCR_REG);
+
+	/* Determine xfer data type */
+	fmt = params_format(params);
+	switch (fmt) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+	case SNDRV_PCM_FORMAT_S32_LE:
+		break;
+	case SNDRV_PCM_FORMAT_S24_LE:
+		spcr |= DAVINCI_MCBSP_SPCR_RJUST_S_LE;
+		break;
+	default:
+		dev_warn(dev->dev, "davinci-i2s: unsupported PCM format\n");
+		return -EINVAL;
+	}
+
+	/* general line settings */
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
 		spcr |= DAVINCI_MCBSP_SPCR_RINTM(3);
 		davinci_mcbsp_write_reg(dev, DAVINCI_MCBSP_SPCR_REG, spcr);
@@ -565,12 +578,6 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 	} else {
 		rcr |= DAVINCI_MCBSP_RCR_RDATDLY(1);
 		xcr |= DAVINCI_MCBSP_XCR_XDATDLY(1);
-	}
-	/* Determine xfer data type */
-	fmt = params_format(params);
-	if ((fmt > SNDRV_PCM_FORMAT_S32_LE) || !data_type[fmt]) {
-		printk(KERN_WARNING "davinci-i2s: unsupported PCM format\n");
-		return -EINVAL;
 	}
 
 	if (params_channels(params) == 2) {
@@ -710,6 +717,7 @@ static void davinci_i2s_shutdown(struct snd_pcm_substream *substream,
 
 #define DAVINCI_I2S_RATES	SNDRV_PCM_RATE_8000_96000
 #define DAVINCI_I2S_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
+				 SNDRV_PCM_FMTBIT_S24_LE | \
 				 SNDRV_PCM_FMTBIT_S32_LE)
 
 static int davinci_i2s_dai_probe(struct snd_soc_dai *dai)
