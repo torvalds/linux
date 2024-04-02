@@ -62,23 +62,17 @@ static void dlm_release_masters_list(struct dlm_ls *ls)
 	write_unlock(&ls->ls_masters_lock);
 }
 
-static void dlm_create_root_list(struct dlm_ls *ls)
+static void dlm_create_root_list(struct dlm_ls *ls, struct list_head *root_list)
 {
 	struct rb_node *n;
 	struct dlm_rsb *r;
 	int i;
 
-	down_write(&ls->ls_root_sem);
-	if (!list_empty(&ls->ls_root_list)) {
-		log_error(ls, "root list not empty");
-		goto out;
-	}
-
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
 		spin_lock_bh(&ls->ls_rsbtbl[i].lock);
 		for (n = rb_first(&ls->ls_rsbtbl[i].keep); n; n = rb_next(n)) {
 			r = rb_entry(n, struct dlm_rsb, res_hashnode);
-			list_add(&r->res_root_list, &ls->ls_root_list);
+			list_add(&r->res_root_list, root_list);
 			dlm_hold_rsb(r);
 		}
 
@@ -86,20 +80,16 @@ static void dlm_create_root_list(struct dlm_ls *ls)
 			log_error(ls, "%s toss not empty", __func__);
 		spin_unlock_bh(&ls->ls_rsbtbl[i].lock);
 	}
- out:
-	up_write(&ls->ls_root_sem);
 }
 
-static void dlm_release_root_list(struct dlm_ls *ls)
+static void dlm_release_root_list(struct list_head *root_list)
 {
 	struct dlm_rsb *r, *safe;
 
-	down_write(&ls->ls_root_sem);
-	list_for_each_entry_safe(r, safe, &ls->ls_root_list, res_root_list) {
+	list_for_each_entry_safe(r, safe, root_list, res_root_list) {
 		list_del_init(&r->res_root_list);
 		dlm_put_rsb(r);
 	}
-	up_write(&ls->ls_root_sem);
 }
 
 /* If the start for which we're re-enabling locking (seq) has been superseded
@@ -131,6 +121,7 @@ static int enable_locking(struct dlm_ls *ls, uint64_t seq)
 
 static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 {
+	LIST_HEAD(root_list);
 	unsigned long start;
 	int error, neg = 0;
 
@@ -147,7 +138,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	 * routines.
 	 */
 
-	dlm_create_root_list(ls);
+	dlm_create_root_list(ls, &root_list);
 
 	/*
 	 * Add or remove nodes from the lockspace's ls_nodes list.
@@ -163,7 +154,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		goto fail;
 	}
 
-	dlm_recover_dir_nodeid(ls);
+	dlm_recover_dir_nodeid(ls, &root_list);
 
 	/* Create a snapshot of all active rsbs were we are the master of.
 	 * During the barrier between dlm_recover_members_wait() and
@@ -179,7 +170,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	error = dlm_create_masters_list(ls);
 	if (error) {
 		log_rinfo(ls, "dlm_create_masters_list error %d", error);
-		goto fail;
+		goto fail_root_list;
 	}
 
 	ls->ls_recover_dir_sent_res = 0;
@@ -192,7 +183,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	if (error) {
 		log_rinfo(ls, "dlm_recover_members_wait error %d", error);
 		dlm_release_masters_list(ls);
-		goto fail;
+		goto fail_root_list;
 	}
 
 	start = jiffies;
@@ -206,7 +197,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	if (error) {
 		log_rinfo(ls, "dlm_recover_directory error %d", error);
 		dlm_release_masters_list(ls);
-		goto fail;
+		goto fail_root_list;
 	}
 
 	dlm_set_recover_status(ls, DLM_RS_DIR);
@@ -215,7 +206,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	if (error) {
 		log_rinfo(ls, "dlm_recover_directory_wait error %d", error);
 		dlm_release_masters_list(ls);
-		goto fail;
+		goto fail_root_list;
 	}
 
 	dlm_release_masters_list(ls);
@@ -233,7 +224,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	if (dlm_recovery_stopped(ls)) {
 		error = -EINTR;
-		goto fail;
+		goto fail_root_list;
 	}
 
 	if (neg || dlm_no_directory(ls)) {
@@ -241,27 +232,27 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		 * Clear lkb's for departed nodes.
 		 */
 
-		dlm_recover_purge(ls);
+		dlm_recover_purge(ls, &root_list);
 
 		/*
 		 * Get new master nodeid's for rsb's that were mastered on
 		 * departed nodes.
 		 */
 
-		error = dlm_recover_masters(ls, rv->seq);
+		error = dlm_recover_masters(ls, rv->seq, &root_list);
 		if (error) {
 			log_rinfo(ls, "dlm_recover_masters error %d", error);
-			goto fail;
+			goto fail_root_list;
 		}
 
 		/*
 		 * Send our locks on remastered rsb's to the new masters.
 		 */
 
-		error = dlm_recover_locks(ls, rv->seq);
+		error = dlm_recover_locks(ls, rv->seq, &root_list);
 		if (error) {
 			log_rinfo(ls, "dlm_recover_locks error %d", error);
-			goto fail;
+			goto fail_root_list;
 		}
 
 		dlm_set_recover_status(ls, DLM_RS_LOCKS);
@@ -269,7 +260,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		error = dlm_recover_locks_wait(ls, rv->seq);
 		if (error) {
 			log_rinfo(ls, "dlm_recover_locks_wait error %d", error);
-			goto fail;
+			goto fail_root_list;
 		}
 
 		log_rinfo(ls, "dlm_recover_locks %u in",
@@ -281,7 +272,7 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		 * settings.
 		 */
 
-		dlm_recover_rsbs(ls);
+		dlm_recover_rsbs(ls, &root_list);
 	} else {
 		/*
 		 * Other lockspace members may be going through the "neg" steps
@@ -293,11 +284,11 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		error = dlm_recover_locks_wait(ls, rv->seq);
 		if (error) {
 			log_rinfo(ls, "dlm_recover_locks_wait error %d", error);
-			goto fail;
+			goto fail_root_list;
 		}
 	}
 
-	dlm_release_root_list(ls);
+	dlm_release_root_list(&root_list);
 
 	/*
 	 * Purge directory-related requests that are saved in requestqueue.
@@ -346,8 +337,9 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	return 0;
 
+ fail_root_list:
+	dlm_release_root_list(&root_list);
  fail:
-	dlm_release_root_list(ls);
 	mutex_unlock(&ls->ls_recoverd_active);
 
 	return error;
