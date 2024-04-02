@@ -38,7 +38,7 @@ static int xiaomi_wmi_probe(struct wmi_device *wdev, const void *context)
 	struct xiaomi_wmi *data;
 	int ret;
 
-	if (wdev == NULL || context == NULL)
+	if (!context)
 		return -EINVAL;
 
 	data = devm_kzalloc(&wdev->dev, sizeof(struct xiaomi_wmi), GFP_KERNEL);
@@ -66,14 +66,7 @@ static int xiaomi_wmi_probe(struct wmi_device *wdev, const void *context)
 
 static void xiaomi_wmi_notify(struct wmi_device *wdev, union acpi_object *dummy)
 {
-	struct xiaomi_wmi *data;
-
-	if (wdev == NULL)
-		return;
-
-	data = dev_get_drvdata(&wdev->dev);
-	if (data == NULL)
-		return;
+	struct xiaomi_wmi *data = dev_get_drvdata(&wdev->dev);
 
 	mutex_lock(&data->key_lock);
 	input_report_key(data->input_dev, data->key_code, 1);
