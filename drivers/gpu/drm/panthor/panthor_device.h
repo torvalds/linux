@@ -323,8 +323,6 @@ static irqreturn_t panthor_ ## __name ## _irq_threaded_handler(int irq, void *da
 												\
 static inline void panthor_ ## __name ## _irq_suspend(struct panthor_irq *pirq)			\
 {												\
-	int cookie;										\
-												\
 	pirq->mask = 0;										\
 	gpu_write(pirq->ptdev, __reg_prefix ## _INT_MASK, 0);					\
 	synchronize_irq(pirq->irq);								\
@@ -333,8 +331,6 @@ static inline void panthor_ ## __name ## _irq_suspend(struct panthor_irq *pirq)	
 												\
 static inline void panthor_ ## __name ## _irq_resume(struct panthor_irq *pirq, u32 mask)	\
 {												\
-	int cookie;										\
-												\
 	atomic_set(&pirq->suspended, false);							\
 	pirq->mask = mask;									\
 	gpu_write(pirq->ptdev, __reg_prefix ## _INT_CLEAR, mask);				\
