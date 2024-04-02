@@ -179,7 +179,7 @@ static void test_send_signal_nmi(bool signal_thread)
 	pmu_fd = syscall(__NR_perf_event_open, &attr, 0 /* pid */,
 			 -1 /* cpu */, -1 /* group_fd */, 0 /* flags */);
 	if (pmu_fd == -1) {
-		if (errno == ENOENT) {
+		if (errno == ENOENT || errno == EOPNOTSUPP) {
 			printf("%s:SKIP:no PERF_COUNT_HW_CPU_CYCLES\n",
 			       __func__);
 			test__skip();
