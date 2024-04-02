@@ -706,8 +706,8 @@ static void mlxsw_pci_cq_tasklet(struct tasklet_struct *t)
 		if (++items == credits)
 			break;
 	}
-	if (items)
-		mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
+
+	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
 }
 
 static int mlxsw_pci_cq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
