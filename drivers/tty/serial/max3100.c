@@ -34,8 +34,6 @@
  * struct plat_max3100 - MAX3100 SPI UART platform data
  * @loopback:            force MAX3100 in loopback
  * @crystal:             1 for 3.6864 Mhz, 0 for 1.8432
- * @poll_time:           poll time for CTS signal in ms, 0 disables (so no hw
- *                       flow ctrl is possible but you have less CPU usage)
  *
  * You should use this structure in your machine description to specify
  * how the MAX3100 is connected.
@@ -43,7 +41,6 @@
 struct plat_max3100 {
 	int loopback;
 	int crystal;
-	int poll_time;
 };
 
 #define MAX3100_C    (1<<14)
@@ -122,9 +119,6 @@ struct max3100_port {
 	/* need to know we are suspending to avoid deadlock on workqueue */
 	int suspending;
 
-	/* poll time (in ms) for ctrl lines */
-	int poll_time;
-	/* and its timer */
 	struct timer_list	timer;
 };
 
@@ -177,10 +171,8 @@ static void max3100_timeout(struct timer_list *t)
 {
 	struct max3100_port *s = from_timer(s, t, timer);
 
-	if (s->port.state) {
-		max3100_dowork(s);
-		mod_timer(&s->timer, jiffies + s->poll_time);
-	}
+	max3100_dowork(s);
+	mod_timer(&s->timer, jiffies + uart_poll_timeout(&s->port));
 }
 
 static int max3100_sr(struct max3100_port *s, u16 tx, u16 *rx)
@@ -342,8 +334,7 @@ static void max3100_enable_ms(struct uart_port *port)
 					      struct max3100_port,
 					      port);
 
-	if (s->poll_time > 0)
-		mod_timer(&s->timer, jiffies);
+	mod_timer(&s->timer, jiffies);
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 }
 
@@ -526,9 +517,7 @@ max3100_set_termios(struct uart_port *port, struct ktermios *termios,
 			MAX3100_STATUS_PE | MAX3100_STATUS_FE |
 			MAX3100_STATUS_OE;
 
-	if (s->poll_time > 0)
-		del_timer_sync(&s->timer);
-
+	del_timer_sync(&s->timer);
 	uart_update_timeout(port, termios->c_cflag, baud);
 
 	spin_lock(&s->conf_lock);
@@ -556,8 +545,7 @@ static void max3100_shutdown(struct uart_port *port)
 
 	s->force_end_work = 1;
 
-	if (s->poll_time > 0)
-		del_timer_sync(&s->timer);
+	del_timer_sync(&s->timer);
 
 	if (s->workqueue) {
 		destroy_workqueue(s->workqueue);
@@ -769,9 +757,6 @@ static int max3100_probe(struct spi_device *spi)
 	pdata = dev_get_platdata(&spi->dev);
 	max3100s[i]->crystal = pdata->crystal;
 	max3100s[i]->loopback = pdata->loopback;
-	max3100s[i]->poll_time = msecs_to_jiffies(pdata->poll_time);
-	if (pdata->poll_time > 0 && max3100s[i]->poll_time == 0)
-		max3100s[i]->poll_time = 1;
 	max3100s[i]->minor = i;
 	timer_setup(&max3100s[i]->timer, max3100_timeout, 0);
 
