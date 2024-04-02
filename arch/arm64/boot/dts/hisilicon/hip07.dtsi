@@ -1379,7 +1379,7 @@
 			};
 		};
 
-		dsaf0: dsa@c7000000 {
+		dsaf0: dsa@c5000000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
 			compatible = "hisilicon,hns-dsaf-v2";
@@ -1724,7 +1724,7 @@
 			status = "disabled";
 		};
 
-		p0_pcie2_a: pcie@a00a0000 {
+		p0_pcie2_a: pcie@af800000 {
 			compatible = "hisilicon,hip07-pcie-ecam";
 			reg = <0 0xaf800000 0 0x800000>,
 			      <0 0xa00a0000 0 0x10000>;
@@ -1745,7 +1745,7 @@
 					 0x0 0 0 4 &mbigen_pcie2_a 671 4>;
 			status = "disabled";
 		};
-		p0_sec_a: crypto@d2000000 {
+		p0_sec_a: crypto@d0000000 {
 			compatible = "hisilicon,hip07-sec";
 			reg = <0x0 0xd0000000 0x0 0x10000>,
 			      <0x0 0xd2000000 0x0 0x10000>,
@@ -1786,7 +1786,7 @@
 				     <605 1>, <606 4>,
 				     <607 1>, <608 4>;
 		};
-		p0_sec_b: crypto@8,d2000000 {
+		p0_sec_b: crypto@8d0000000 {
 			compatible = "hisilicon,hip07-sec";
 			reg = <0x8 0xd0000000 0x0 0x10000>,
 			      <0x8 0xd2000000 0x0 0x10000>,
@@ -1827,7 +1827,7 @@
 				     <605 1>, <606 4>,
 				     <607 1>, <608 4>;
 		};
-		p1_sec_a: crypto@400,d2000000 {
+		p1_sec_a: crypto@400d0000000 {
 			compatible = "hisilicon,hip07-sec";
 			reg = <0x400 0xd0000000 0x0 0x10000>,
 			      <0x400 0xd2000000 0x0 0x10000>,
@@ -1868,7 +1868,7 @@
 				     <605 1>, <606 4>,
 				     <607 1>, <608 4>;
 		};
-		p1_sec_b: crypto@408,d2000000 {
+		p1_sec_b: crypto@408d0000000 {
 			compatible = "hisilicon,hip07-sec";
 			reg = <0x408 0xd0000000 0x0 0x10000>,
 			      <0x408 0xd2000000 0x0 0x10000>,
