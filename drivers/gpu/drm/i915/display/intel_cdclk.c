@@ -2576,6 +2576,17 @@ static void intel_cdclk_pcode_post_notify(struct intel_atomic_state *state)
 			   update_cdclk, update_pipe_count);
 }
 
+bool intel_cdclk_is_decreasing_later(struct intel_atomic_state *state)
+{
+	const struct intel_cdclk_state *old_cdclk_state =
+		intel_atomic_get_old_cdclk_state(state);
+	const struct intel_cdclk_state *new_cdclk_state =
+		intel_atomic_get_new_cdclk_state(state);
+
+	return new_cdclk_state && !new_cdclk_state->disable_pipes &&
+		new_cdclk_state->actual.cdclk < old_cdclk_state->actual.cdclk;
+}
+
 /**
  * intel_set_cdclk_pre_plane_update - Push the CDCLK state to the hardware
  * @state: intel atomic state
