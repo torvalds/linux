@@ -1131,8 +1131,8 @@ static int check_i_sectors_notnested(struct btree_trans *trans, struct inode_wal
 			i->count = count2;
 
 		if (i->count != count2) {
-			bch_err(c, "fsck counted i_sectors wrong for inode %llu:%u: got %llu should be %llu",
-				w->last_pos.inode, i->snapshot, i->count, count2);
+			bch_err_ratelimited(c, "fsck counted i_sectors wrong for inode %llu:%u: got %llu should be %llu",
+					    w->last_pos.inode, i->snapshot, i->count, count2);
 			return -BCH_ERR_internal_fsck_err;
 		}
 
@@ -1587,8 +1587,8 @@ static int check_subdir_count_notnested(struct btree_trans *trans, struct inode_
 			return count2;
 
 		if (i->count != count2) {
-			bch_err(c, "fsck counted subdirectories wrong: got %llu should be %llu",
-				i->count, count2);
+			bch_err_ratelimited(c, "fsck counted subdirectories wrong for inum %llu:%u: got %llu should be %llu",
+					    w->last_pos.inode, i->snapshot, i->count, count2);
 			i->count = count2;
 			if (i->inode.bi_nlink == i->count)
 				continue;
