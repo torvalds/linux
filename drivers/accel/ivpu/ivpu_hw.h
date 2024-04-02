@@ -21,6 +21,7 @@ struct ivpu_hw_ops {
 	u32 (*profiling_freq_get)(struct ivpu_device *vdev);
 	void (*profiling_freq_drive)(struct ivpu_device *vdev, bool enable);
 	u32 (*reg_pll_freq_get)(struct ivpu_device *vdev);
+	u32 (*ratio_to_freq)(struct ivpu_device *vdev, u32 ratio);
 	u32 (*reg_telemetry_offset_get)(struct ivpu_device *vdev);
 	u32 (*reg_telemetry_size_get)(struct ivpu_device *vdev);
 	u32 (*reg_telemetry_enable_get)(struct ivpu_device *vdev);
@@ -129,6 +130,11 @@ static inline u32 ivpu_hw_reg_pll_freq_get(struct ivpu_device *vdev)
 {
 	return vdev->hw->ops->reg_pll_freq_get(vdev);
 };
+
+static inline u32 ivpu_hw_ratio_to_freq(struct ivpu_device *vdev, u32 ratio)
+{
+	return vdev->hw->ops->ratio_to_freq(vdev, ratio);
+}
 
 static inline u32 ivpu_hw_reg_telemetry_offset_get(struct ivpu_device *vdev)
 {

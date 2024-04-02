@@ -803,12 +803,12 @@ static void ivpu_hw_37xx_profiling_freq_drive(struct ivpu_device *vdev, bool ena
 	/* Profiling freq - is a debug feature. Unavailable on VPU 37XX. */
 }
 
-static u32 ivpu_hw_37xx_pll_to_freq(u32 ratio, u32 config)
+static u32 ivpu_hw_37xx_ratio_to_freq(struct ivpu_device *vdev, u32 ratio)
 {
 	u32 pll_clock = PLL_REF_CLK_FREQ * ratio;
 	u32 cpu_clock;
 
-	if ((config & 0xff) == PLL_RATIO_4_3)
+	if ((vdev->hw->config & 0xff) == PLL_RATIO_4_3)
 		cpu_clock = pll_clock * 2 / 4;
 	else
 		cpu_clock = pll_clock * 2 / 5;
@@ -827,7 +827,7 @@ static u32 ivpu_hw_37xx_reg_pll_freq_get(struct ivpu_device *vdev)
 	if (!ivpu_is_silicon(vdev))
 		return PLL_SIMULATION_FREQ;
 
-	return ivpu_hw_37xx_pll_to_freq(pll_curr_ratio, vdev->hw->config);
+	return ivpu_hw_37xx_ratio_to_freq(vdev, pll_curr_ratio);
 }
 
 static u32 ivpu_hw_37xx_reg_telemetry_offset_get(struct ivpu_device *vdev)
@@ -1050,6 +1050,7 @@ const struct ivpu_hw_ops ivpu_hw_37xx_ops = {
 	.profiling_freq_get = ivpu_hw_37xx_profiling_freq_get,
 	.profiling_freq_drive = ivpu_hw_37xx_profiling_freq_drive,
 	.reg_pll_freq_get = ivpu_hw_37xx_reg_pll_freq_get,
+	.ratio_to_freq = ivpu_hw_37xx_ratio_to_freq,
 	.reg_telemetry_offset_get = ivpu_hw_37xx_reg_telemetry_offset_get,
 	.reg_telemetry_size_get = ivpu_hw_37xx_reg_telemetry_size_get,
 	.reg_telemetry_enable_get = ivpu_hw_37xx_reg_telemetry_enable_get,
