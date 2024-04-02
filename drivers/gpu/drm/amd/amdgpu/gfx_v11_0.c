@@ -5465,6 +5465,7 @@ static void gfx_v11_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	/* Make sure that we can't skip the SET_Q_MODE packets when the VM
 	 * changed in any way.
 	 */
+	ring->set_q_mode_offs = 0;
 	ring->set_q_mode_ptr = NULL;
 }
 
