@@ -2525,6 +2525,9 @@ static bool bnxt_event_error_report(struct bnxt *bp, u32 data1, u32 data2)
 		}
 		return false;
 	}
+	case ASYNC_EVENT_CMPL_ERROR_REPORT_BASE_EVENT_DATA1_ERROR_TYPE_DUAL_DATA_RATE_NOT_SUPPORTED:
+		netdev_warn(bp->dev, "Speed change not supported with dual rate transceivers on this board\n");
+		break;
 	default:
 		netdev_err(bp->dev, "FW reported unknown error type %u\n",
 			   err_type);
