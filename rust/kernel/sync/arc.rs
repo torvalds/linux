@@ -291,6 +291,68 @@ impl<T: ?Sized> Arc<T> {
     pub fn ptr_eq(this: &Self, other: &Self) -> bool {
         core::ptr::eq(this.ptr.as_ptr(), other.ptr.as_ptr())
     }
+
+    /// Converts this [`Arc`] into a [`UniqueArc`], or destroys it if it is not unique.
+    ///
+    /// When this destroys the `Arc`, it does so while properly avoiding races. This means that
+    /// this method will never call the destructor of the value.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use kernel::sync::{Arc, UniqueArc};
+    ///
+    /// let arc = Arc::new(42, GFP_KERNEL)?;
+    /// let unique_arc = arc.into_unique_or_drop();
+    ///
+    /// // The above conversion should succeed since refcount of `arc` is 1.
+    /// assert!(unique_arc.is_some());
+    ///
+    /// assert_eq!(*(unique_arc.unwrap()), 42);
+    ///
+    /// # Ok::<(), Error>(())
+    /// ```
+    ///
+    /// ```
+    /// use kernel::sync::{Arc, UniqueArc};
+    ///
+    /// let arc = Arc::new(42, GFP_KERNEL)?;
+    /// let another = arc.clone();
+    ///
+    /// let unique_arc = arc.into_unique_or_drop();
+    ///
+    /// // The above conversion should fail since refcount of `arc` is >1.
+    /// assert!(unique_arc.is_none());
+    ///
+    /// # Ok::<(), Error>(())
+    /// ```
+    pub fn into_unique_or_drop(self) -> Option<Pin<UniqueArc<T>>> {
+        // We will manually manage the refcount in this method, so we disable the destructor.
+        let me = ManuallyDrop::new(self);
+        // SAFETY: We own a refcount, so the pointer is still valid.
+        let refcount = unsafe { me.ptr.as_ref() }.refcount.get();
+
+        // If the refcount reaches a non-zero value, then we have destroyed this `Arc` and will
+        // return without further touching the `Arc`. If the refcount reaches zero, then there are
+        // no other arcs, and we can create a `UniqueArc`.
+        //
+        // SAFETY: We own a refcount, so the pointer is not dangling.
+        let is_zero = unsafe { bindings::refcount_dec_and_test(refcount) };
+        if is_zero {
+            // SAFETY: We have exclusive access to the arc, so we can perform unsynchronized
+            // accesses to the refcount.
+            unsafe { core::ptr::write(refcount, bindings::REFCOUNT_INIT(1)) };
+
+            // INVARIANT: We own the only refcount to this arc, so we may create a `UniqueArc`. We
+            // must pin the `UniqueArc` because the values was previously in an `Arc`, and they pin
+            // their values.
+            Some(Pin::from(UniqueArc {
+                inner: ManuallyDrop::into_inner(me),
+            }))
+        } else {
+            None
+        }
+    }
 }
 
 impl<T: 'static> ForeignOwnable for Arc<T> {
