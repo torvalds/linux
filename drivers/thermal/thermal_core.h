@@ -120,8 +120,11 @@ void thermal_governor_update_tz(struct thermal_zone_device *tz,
 				enum thermal_notify_event reason);
 
 /* Helpers */
-#define for_each_trip(__tz, __trip)	\
-	for (__trip = __tz->trips; __trip - __tz->trips < __tz->num_trips; __trip++)
+#define for_each_trip_desc(__tz, __td)	\
+	for (__td = __tz->trips; __td - __tz->trips < __tz->num_trips; __td++)
+
+#define trip_to_trip_desc(__trip)	\
+	container_of(__trip, struct thermal_trip_desc, trip)
 
 void __thermal_zone_set_trips(struct thermal_zone_device *tz);
 int thermal_zone_trip_id(const struct thermal_zone_device *tz,

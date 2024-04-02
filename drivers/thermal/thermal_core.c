@@ -361,17 +361,19 @@ static void handle_critical_trips(struct thermal_zone_device *tz,
 }
 
 static void handle_thermal_trip(struct thermal_zone_device *tz,
-				struct thermal_trip *trip)
+				struct thermal_trip_desc *td)
 {
+	const struct thermal_trip *trip = &td->trip;
+
 	if (trip->temperature == THERMAL_TEMP_INVALID)
 		return;
 
 	if (tz->last_temperature == THERMAL_TEMP_INVALID) {
 		/* Initialization. */
-		trip->threshold = trip->temperature;
-		if (tz->temperature >= trip->threshold)
-			trip->threshold -= trip->hysteresis;
-	} else if (tz->last_temperature < trip->threshold) {
+		td->threshold = trip->temperature;
+		if (tz->temperature >= td->threshold)
+			td->threshold -= trip->hysteresis;
+	} else if (tz->last_temperature < td->threshold) {
 		/*
 		 * The trip threshold is equal to the trip temperature, unless
 		 * the latter has changed in the meantime.  In either case,
@@ -382,9 +384,9 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		if (tz->temperature >= trip->temperature) {
 			thermal_notify_tz_trip_up(tz, trip);
 			thermal_debug_tz_trip_up(tz, trip);
-			trip->threshold = trip->temperature - trip->hysteresis;
+			td->threshold = trip->temperature - trip->hysteresis;
 		} else {
-			trip->threshold = trip->temperature;
+			td->threshold = trip->temperature;
 		}
 	} else {
 		/*
@@ -400,9 +402,9 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		if (tz->temperature < trip->temperature - trip->hysteresis) {
 			thermal_notify_tz_trip_down(tz, trip);
 			thermal_debug_tz_trip_down(tz, trip);
-			trip->threshold = trip->temperature;
+			td->threshold = trip->temperature;
 		} else {
-			trip->threshold = trip->temperature - trip->hysteresis;
+			td->threshold = trip->temperature - trip->hysteresis;
 		}
 	}
 
@@ -458,7 +460,7 @@ static void thermal_zone_device_init(struct thermal_zone_device *tz)
 void __thermal_zone_device_update(struct thermal_zone_device *tz,
 				  enum thermal_notify_event event)
 {
-	struct thermal_trip *trip;
+	struct thermal_trip_desc *td;
 
 	if (tz->suspended)
 		return;
@@ -472,8 +474,8 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 
 	tz->notify_event = event;
 
-	for_each_trip(tz, trip)
-		handle_thermal_trip(tz, trip);
+	for_each_trip_desc(tz, td)
+		handle_thermal_trip(tz, td);
 
 	monitor_thermal_zone(tz);
 }
@@ -766,7 +768,7 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	if (trip_index < 0 || trip_index >= tz->num_trips)
 		return -EINVAL;
 
-	return thermal_bind_cdev_to_trip(tz, &tz->trips[trip_index], cdev,
+	return thermal_bind_cdev_to_trip(tz, &tz->trips[trip_index].trip, cdev,
 					 upper, lower, weight);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_bind_cooling_device);
@@ -825,7 +827,7 @@ int thermal_zone_unbind_cooling_device(struct thermal_zone_device *tz,
 	if (trip_index < 0 || trip_index >= tz->num_trips)
 		return -EINVAL;
 
-	return thermal_unbind_cdev_from_trip(tz, &tz->trips[trip_index], cdev);
+	return thermal_unbind_cdev_from_trip(tz, &tz->trips[trip_index].trip, cdev);
 }
 EXPORT_SYMBOL_GPL(thermal_zone_unbind_cooling_device);
 
@@ -1221,16 +1223,19 @@ static void thermal_set_delay_jiffies(unsigned long *delay_jiffies, int delay_ms
 
 int thermal_zone_get_crit_temp(struct thermal_zone_device *tz, int *temp)
 {
-	int i, ret = -EINVAL;
+	const struct thermal_trip_desc *td;
+	int ret = -EINVAL;
 
 	if (tz->ops.get_crit_temp)
 		return tz->ops.get_crit_temp(tz, temp);
 
 	mutex_lock(&tz->lock);
 
-	for (i = 0; i < tz->num_trips; i++) {
-		if (tz->trips[i].type == THERMAL_TRIP_CRITICAL) {
-			*temp = tz->trips[i].temperature;
+	for_each_trip_desc(tz, td) {
+		const struct thermal_trip *trip = &td->trip;
+
+		if (trip->type == THERMAL_TRIP_CRITICAL) {
+			*temp = trip->temperature;
 			ret = 0;
 			break;
 		}
@@ -1274,7 +1279,9 @@ thermal_zone_device_register_with_trips(const char *type,
 					const struct thermal_zone_params *tzp,
 					int passive_delay, int polling_delay)
 {
+	const struct thermal_trip *trip = trips;
 	struct thermal_zone_device *tz;
+	struct thermal_trip_desc *td;
 	int id;
 	int result;
 	struct thermal_governor *governor;
@@ -1339,7 +1346,8 @@ thermal_zone_device_register_with_trips(const char *type,
 	tz->device.class = thermal_class;
 	tz->devdata = devdata;
 	tz->num_trips = num_trips;
-	memcpy(tz->trips, trips, num_trips * sizeof(*trips));
+	for_each_trip_desc(tz, td)
+		td->trip = *trip++;
 
 	thermal_set_delay_jiffies(&tz->passive_delay_jiffies, passive_delay);
 	thermal_set_delay_jiffies(&tz->polling_delay_jiffies, polling_delay);

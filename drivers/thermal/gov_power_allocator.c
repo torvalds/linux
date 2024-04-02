@@ -496,9 +496,11 @@ static void get_governor_trips(struct thermal_zone_device *tz,
 	const struct thermal_trip *first_passive = NULL;
 	const struct thermal_trip *last_passive = NULL;
 	const struct thermal_trip *last_active = NULL;
-	const struct thermal_trip *trip;
+	const struct thermal_trip_desc *td;
 
-	for_each_trip(tz, trip) {
+	for_each_trip_desc(tz, td) {
+		const struct thermal_trip *trip = &td->trip;
+
 		switch (trip->type) {
 		case THERMAL_TRIP_PASSIVE:
 			if (!first_passive) {

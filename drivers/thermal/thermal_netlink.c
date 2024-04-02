@@ -445,7 +445,7 @@ out_cancel_nest:
 static int thermal_genl_cmd_tz_get_trip(struct param *p)
 {
 	struct sk_buff *msg = p->msg;
-	const struct thermal_trip *trip;
+	const struct thermal_trip_desc *td;
 	struct thermal_zone_device *tz;
 	struct nlattr *start_trip;
 	int id;
@@ -465,7 +465,9 @@ static int thermal_genl_cmd_tz_get_trip(struct param *p)
 
 	mutex_lock(&tz->lock);
 
-	for_each_trip(tz, trip) {
+	for_each_trip_desc(tz, td) {
+		const struct thermal_trip *trip = &td->trip;
+
 		if (nla_put_u32(msg, THERMAL_GENL_ATTR_TZ_TRIP_ID,
 				thermal_zone_trip_id(tz, trip)) ||
 		    nla_put_u32(msg, THERMAL_GENL_ATTR_TZ_TRIP_TYPE, trip->type) ||

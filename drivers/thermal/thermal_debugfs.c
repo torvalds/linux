@@ -744,7 +744,7 @@ static void tze_seq_stop(struct seq_file *s, void *v)
 static int tze_seq_show(struct seq_file *s, void *v)
 {
 	struct thermal_zone_device *tz = s->private;
-	struct thermal_trip *trip;
+	struct thermal_trip_desc *td;
 	struct tz_episode *tze;
 	const char *type;
 	int trip_id;
@@ -757,7 +757,9 @@ static int tze_seq_show(struct seq_file *s, void *v)
 
 	seq_printf(s, "| trip |     type | temp(°mC) | hyst(°mC) |  duration  |  avg(°mC) |  min(°mC) |  max(°mC) |\n");
 
-	for_each_trip(tz, trip) {
+	for_each_trip_desc(tz, td) {
+		const struct thermal_trip *trip = &td->trip;
+
 		/*
 		 * There is no possible mitigation happening at the
 		 * critical trip point, so the stats will be always

@@ -17,10 +17,13 @@
 
 static int get_trip_level(struct thermal_zone_device *tz)
 {
-	const struct thermal_trip *trip, *level_trip = NULL;
+	const struct thermal_trip *level_trip = NULL;
+	const struct thermal_trip_desc *td;
 	int trip_level = -1;
 
-	for_each_trip(tz, trip) {
+	for_each_trip_desc(tz, td) {
+		const struct thermal_trip *trip = &td->trip;
+
 		if (trip->temperature >= tz->temperature)
 			continue;
 
