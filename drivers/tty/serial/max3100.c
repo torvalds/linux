@@ -159,22 +159,6 @@ static void max3100_calc_parity(struct max3100_port *s, u16 *c)
 		*c |= max3100_do_parity(s, *c) << 8;
 }
 
-static void max3100_work(struct work_struct *w);
-
-static void max3100_dowork(struct max3100_port *s)
-{
-	if (!s->force_end_work && !freezing(current) && !s->suspending)
-		queue_work(s->workqueue, &s->work);
-}
-
-static void max3100_timeout(struct timer_list *t)
-{
-	struct max3100_port *s = from_timer(s, t, timer);
-
-	max3100_dowork(s);
-	mod_timer(&s->timer, jiffies + uart_poll_timeout(&s->port));
-}
-
 static int max3100_sr(struct max3100_port *s, u16 tx, u16 *rx)
 {
 	struct spi_message message;
@@ -316,6 +300,20 @@ static void max3100_work(struct work_struct *w)
 
 	if (rxchars > 0)
 		tty_flip_buffer_push(&s->port.state->port);
+}
+
+static void max3100_dowork(struct max3100_port *s)
+{
+	if (!s->force_end_work && !freezing(current) && !s->suspending)
+		queue_work(s->workqueue, &s->work);
+}
+
+static void max3100_timeout(struct timer_list *t)
+{
+	struct max3100_port *s = from_timer(s, t, timer);
+
+	max3100_dowork(s);
+	mod_timer(&s->timer, jiffies + uart_poll_timeout(&s->port));
 }
 
 static irqreturn_t max3100_irq(int irqno, void *dev_id)
