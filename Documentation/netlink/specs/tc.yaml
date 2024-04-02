@@ -1100,6 +1100,19 @@ definitions:
         name: offmask
         type: s32
   -
+    name: tc-u32-mark
+    type: struct
+    members:
+      -
+        name: val
+        type: u32
+      -
+        name: mask
+        type: u32
+      -
+        name: success
+        type: u32
+  -
     name: tc-u32-sel
     type: struct
     members:
@@ -1774,6 +1787,44 @@ attribute-sets:
       -
         name: key-ex
         type: binary
+  -
+    name: tc-act-police-attrs
+    attributes:
+      -
+        name: tbf
+        type: binary
+        struct: tc-police
+      -
+        name: rate
+        type: binary # TODO
+      -
+        name: peakrate
+        type: binary # TODO
+      -
+        name: avrate
+        type: u32
+      -
+        name: result
+        type: u32
+      -
+        name: tm
+        type: binary
+        struct: tcf-t
+      -
+        name: pad
+        type: pad
+      -
+        name: rate64
+        type: u64
+      -
+        name: peakrate64
+        type: u64
+      -
+        name: pktrate64
+        type: u64
+      -
+        name: pktburst64
+        type: u64
   -
     name: tc-act-simple-attrs
     attributes:
