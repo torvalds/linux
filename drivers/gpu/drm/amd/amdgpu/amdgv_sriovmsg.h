@@ -158,7 +158,7 @@ struct amd_sriov_msg_pf2vf_info_header {
 	uint32_t reserved[2];
 };
 
-#define AMD_SRIOV_MSG_PF2VF_INFO_FILLED_SIZE (48)
+#define AMD_SRIOV_MSG_PF2VF_INFO_FILLED_SIZE (49)
 struct amd_sriov_msg_pf2vf_info {
 	/* header contains size and version */
 	struct amd_sriov_msg_pf2vf_info_header header;
@@ -209,6 +209,8 @@ struct amd_sriov_msg_pf2vf_info {
 	struct amd_sriov_msg_uuid_info uuid_info;
 	/* PCIE atomic ops support flag */
 	uint32_t pcie_atomic_ops_support_flags;
+	/* Portion of GPU memory occupied by VF.  MAX value is 65535, but set to uint32_t to maintain alignment with reserved size */
+	uint32_t gpu_capacity;
 	/* reserved */
 	uint32_t reserved[256 - AMD_SRIOV_MSG_PF2VF_INFO_FILLED_SIZE];
 };
