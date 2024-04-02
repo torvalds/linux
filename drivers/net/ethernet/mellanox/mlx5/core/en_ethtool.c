@@ -269,8 +269,7 @@ void mlx5e_ethtool_get_strings(struct mlx5e_priv *priv, u32 stringset, u8 *data)
 	switch (stringset) {
 	case ETH_SS_PRIV_FLAGS:
 		for (i = 0; i < MLX5E_NUM_PFLAGS; i++)
-			strcpy(data + i * ETH_GSTRING_LEN,
-			       mlx5e_priv_flags[i].name);
+			ethtool_puts(&data, mlx5e_priv_flags[i].name);
 		break;
 
 	case ETH_SS_TEST:
