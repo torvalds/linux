@@ -74,33 +74,26 @@ static void nop_reset(struct usb_phy_generic *nop)
 }
 
 /* interface to regulator framework */
-static void nop_set_vbus_draw(struct usb_phy_generic *nop, unsigned mA)
+static int nop_set_vbus(struct usb_otg *otg, bool enable)
 {
-	struct regulator *vbus_draw = nop->vbus_draw;
-	int enabled;
-	int ret;
+	int ret = 0;
+	struct usb_phy_generic *nop = dev_get_drvdata(otg->usb_phy->dev);
 
-	if (!vbus_draw)
-		return;
+	if (!nop->vbus_draw)
+		return 0;
 
-	enabled = nop->vbus_draw_enabled;
-	if (mA) {
-		regulator_set_current_limit(vbus_draw, 0, 1000 * mA);
-		if (!enabled) {
-			ret = regulator_enable(vbus_draw);
-			if (ret < 0)
-				return;
-			nop->vbus_draw_enabled = 1;
-		}
-	} else {
-		if (enabled) {
-			ret = regulator_disable(vbus_draw);
-			if (ret < 0)
-				return;
-			nop->vbus_draw_enabled = 0;
-		}
+	if (enable && !nop->vbus_draw_enabled) {
+		ret = regulator_enable(nop->vbus_draw);
+		if (ret)
+			nop->vbus_draw_enabled = false;
+		else
+			nop->vbus_draw_enabled = true;
+
+	} else if (!enable && nop->vbus_draw_enabled) {
+		ret = regulator_disable(nop->vbus_draw);
+		nop->vbus_draw_enabled = false;
 	}
-	nop->mA = mA;
+	return ret;
 }
 
 
@@ -120,14 +113,9 @@ static irqreturn_t nop_gpio_vbus_thread(int irq, void *data)
 		otg->state = OTG_STATE_B_PERIPHERAL;
 		nop->phy.last_event = status;
 
-		/* drawing a "unit load" is *always* OK, except for OTG */
-		nop_set_vbus_draw(nop, 100);
-
 		atomic_notifier_call_chain(&nop->phy.notifier, status,
 					   otg->gadget);
 	} else {
-		nop_set_vbus_draw(nop, 0);
-
 		status = USB_EVENT_NONE;
 		otg->state = OTG_STATE_B_IDLE;
 		nop->phy.last_event = status;
@@ -274,6 +262,13 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 		return dev_err_probe(dev, PTR_ERR(nop->vbus_draw),
 				     "could not get vbus regulator\n");
 
+	nop->vbus_draw = devm_regulator_get_exclusive(dev, "vbus");
+	if (PTR_ERR(nop->vbus_draw) == -ENODEV)
+		nop->vbus_draw = NULL;
+	if (IS_ERR(nop->vbus_draw))
+		return dev_err_probe(dev, PTR_ERR(nop->vbus_draw),
+				     "could not get vbus regulator\n");
+
 	nop->dev		= dev;
 	nop->phy.dev		= nop->dev;
 	nop->phy.label		= "nop-xceiv";
@@ -284,6 +279,7 @@ int usb_phy_gen_create_phy(struct device *dev, struct usb_phy_generic *nop)
 	nop->phy.otg->usb_phy		= &nop->phy;
 	nop->phy.otg->set_host		= nop_set_host;
 	nop->phy.otg->set_peripheral	= nop_set_peripheral;
+	nop->phy.otg->set_vbus          = nop_set_vbus;
 
 	return 0;
 }
@@ -341,6 +337,9 @@ static void usb_phy_generic_remove(struct platform_device *pdev)
 	struct usb_phy_generic *nop = platform_get_drvdata(pdev);
 
 	usb_remove_phy(&nop->phy);
+
+	if (nop->vbus_draw && nop->vbus_draw_enabled)
+		regulator_disable(nop->vbus_draw);
 }
 
 static const struct of_device_id nop_xceiv_dt_ids[] = {

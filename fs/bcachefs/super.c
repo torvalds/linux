@@ -87,20 +87,28 @@ const char * const bch2_fs_flag_strs[] = {
 	NULL
 };
 
+__printf(2, 0)
+static void bch2_print_maybe_redirect(struct stdio_redirect *stdio, const char *fmt, va_list args)
+{
+#ifdef __KERNEL__
+	if (unlikely(stdio)) {
+		if (fmt[0] == KERN_SOH[0])
+			fmt += 2;
+
+		bch2_stdio_redirect_vprintf(stdio, true, fmt, args);
+		return;
+	}
+#endif
+	vprintk(fmt, args);
+}
+
 void bch2_print_opts(struct bch_opts *opts, const char *fmt, ...)
 {
 	struct stdio_redirect *stdio = (void *)(unsigned long)opts->stdio;
 
 	va_list args;
 	va_start(args, fmt);
-	if (likely(!stdio)) {
-		vprintk(fmt, args);
-	} else {
-		if (fmt[0] == KERN_SOH[0])
-			fmt += 2;
-
-		bch2_stdio_redirect_vprintf(stdio, true, fmt, args);
-	}
+	bch2_print_maybe_redirect(stdio, fmt, args);
 	va_end(args);
 }
 
@@ -110,14 +118,7 @@ void __bch2_print(struct bch_fs *c, const char *fmt, ...)
 
 	va_list args;
 	va_start(args, fmt);
-	if (likely(!stdio)) {
-		vprintk(fmt, args);
-	} else {
-		if (fmt[0] == KERN_SOH[0])
-			fmt += 2;
-
-		bch2_stdio_redirect_vprintf(stdio, true, fmt, args);
-	}
+	bch2_print_maybe_redirect(stdio, fmt, args);
 	va_end(args);
 }
 

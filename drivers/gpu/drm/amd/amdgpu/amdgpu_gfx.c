@@ -687,7 +687,7 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 	r = amdgpu_ring_test_helper(kiq_ring);
 	spin_unlock(&kiq->ring_lock);
 	if (r)
-		DRM_ERROR("KCQ enable failed\n");
+		DRM_ERROR("KGQ enable failed\n");
 
 	return r;
 }

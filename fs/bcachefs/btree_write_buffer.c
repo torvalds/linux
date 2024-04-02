@@ -378,7 +378,7 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		}
 	}
 err:
-	bch2_fs_fatal_err_on(ret, c, "%s: insert error %s", __func__, bch2_err_str(ret));
+	bch2_fs_fatal_err_on(ret, c, "%s", bch2_err_str(ret));
 	trace_write_buffer_flush(trans, wb->flushing.keys.nr, skipped, fast, 0);
 	bch2_journal_pin_drop(j, &wb->flushing.pin);
 	wb->flushing.keys.nr = 0;

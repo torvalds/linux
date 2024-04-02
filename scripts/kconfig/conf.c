@@ -14,6 +14,7 @@
 #include <sys/time.h>
 #include <errno.h>
 
+#include "internal.h"
 #include "lkc.h"
 
 static void conf(struct menu *menu);
@@ -171,7 +172,7 @@ enum conf_def_mode {
 static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 {
 	struct symbol *sym, *csym;
-	int i, cnt;
+	int cnt;
 	/*
 	 * can't go as the default in switch-case below, otherwise gcc whines
 	 * about -Wmaybe-uninitialized
@@ -226,7 +227,7 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 		}
 	}
 
-	for_all_symbols(i, sym) {
+	for_all_symbols(sym) {
 		if (sym_has_value(sym) || sym->flags & SYMBOL_VALID)
 			continue;
 		switch (sym_get_type(sym)) {
@@ -278,14 +279,14 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 	 * and the rest to no.
 	 */
 	if (mode != def_random) {
-		for_all_symbols(i, csym) {
+		for_all_symbols(csym) {
 			if ((sym_is_choice(csym) && !sym_has_value(csym)) ||
 			    sym_is_choice_value(csym))
 				csym->flags |= SYMBOL_NEED_SET_CHOICE_VALUES;
 		}
 	}
 
-	for_all_symbols(i, csym) {
+	for_all_symbols(csym) {
 		if (sym_has_value(csym) || !sym_is_choice(csym))
 			continue;
 
@@ -304,9 +305,8 @@ static bool conf_set_all_new_symbols(enum conf_def_mode mode)
 static void conf_rewrite_tristates(tristate old_val, tristate new_val)
 {
 	struct symbol *sym;
-	int i;
 
-	for_all_symbols(i, sym) {
+	for_all_symbols(sym) {
 		if (sym_get_type(sym) == S_TRISTATE &&
 		    sym->def[S_DEF_USER].tri == old_val)
 			sym->def[S_DEF_USER].tri = new_val;

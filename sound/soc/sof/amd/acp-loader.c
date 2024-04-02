@@ -173,7 +173,7 @@ int acp_dsp_pre_fw_run(struct snd_sof_dev *sdev)
 
 	adata = sdev->pdata->hw_pdata;
 
-	if (adata->signed_fw_image)
+	if (adata->quirks && adata->quirks->signed_fw_image)
 		size_fw = adata->fw_bin_size - ACP_FIRMWARE_SIGNATURE;
 	else
 		size_fw = adata->fw_bin_size;

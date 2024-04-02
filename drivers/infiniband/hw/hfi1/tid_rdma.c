@@ -315,7 +315,7 @@ int hfi1_kern_exp_rcv_init(struct hfi1_ctxtdata *rcd, int reinit)
  * This routine returns the receive context associated
  * with a a qp's qpn.
  *
- * Returns the context.
+ * Return: the context.
  */
 static struct hfi1_ctxtdata *qp_to_rcd(struct rvt_dev_info *rdi,
 				       struct rvt_qp *qp)
@@ -710,7 +710,7 @@ void hfi1_tid_rdma_flush_wait(struct rvt_qp *qp)
  * The exp_lock must be held.
  *
  * Return:
- * On success: a value postive value between 0 and RXE_NUM_TID_FLOWS - 1
+ * On success: a value positive value between 0 and RXE_NUM_TID_FLOWS - 1
  * On failure: -EAGAIN
  */
 static int kern_reserve_flow(struct hfi1_ctxtdata *rcd, int last)
@@ -1007,7 +1007,7 @@ static u32 tid_flush_pages(struct tid_rdma_pageset *list,
  * pages are tested two at a time, i, i + 1 for contiguous
  * pages and i - 1 and i contiguous pages.
  *
- * If any condition is false, any accumlated pages are flushed and
+ * If any condition is false, any accumulated pages are flushed and
  * v0,v1 are emitted as separate PAGE_SIZE pagesets
  *
  * Otherwise, the current 8k is totaled for a future flush.
@@ -1434,7 +1434,7 @@ static void kern_program_rcvarray(struct tid_rdma_flow *flow)
  * (5) computes a tidarray with formatted TID entries which can be sent
  *     to the sender
  * (6) Reserves and programs HW flows.
- * (7) It also manages queing the QP when TID/flow resources are not
+ * (7) It also manages queueing the QP when TID/flow resources are not
  *     available.
  *
  * @req points to struct tid_rdma_request of which the segments are a part. The
@@ -1604,7 +1604,7 @@ void hfi1_kern_exp_rcv_clear_all(struct tid_rdma_request *req)
 }
 
 /**
- * hfi1_kern_exp_rcv_free_flows - free priviously allocated flow information
+ * hfi1_kern_exp_rcv_free_flows - free previously allocated flow information
  * @req: the tid rdma request to be cleaned
  */
 static void hfi1_kern_exp_rcv_free_flows(struct tid_rdma_request *req)
@@ -2055,7 +2055,7 @@ static int tid_rdma_rcv_error(struct hfi1_packet *packet,
 		 * req->clear_tail is advanced). However, when an earlier
 		 * request is received, this request will not be complete any
 		 * more (qp->s_tail_ack_queue is moved back, see below).
-		 * Consequently, we need to update the TID flow info everytime
+		 * Consequently, we need to update the TID flow info every time
 		 * a duplicate request is received.
 		 */
 		bth0 = be32_to_cpu(ohdr->bth[0]);
@@ -2219,7 +2219,7 @@ void hfi1_rc_rcv_tid_rdma_read_req(struct hfi1_packet *packet)
 	/*
 	 * 1. Verify TID RDMA READ REQ as per IB_OPCODE_RC_RDMA_READ
 	 *    (see hfi1_rc_rcv())
-	 * 2. Put TID RDMA READ REQ into the response queueu (s_ack_queue)
+	 * 2. Put TID RDMA READ REQ into the response queue (s_ack_queue)
 	 *     - Setup struct tid_rdma_req with request info
 	 *     - Initialize struct tid_rdma_flow info;
 	 *     - Copy TID entries;
@@ -2439,7 +2439,7 @@ find_tid_request(struct rvt_qp *qp, u32 psn, enum ib_wr_opcode opcode)
 
 void hfi1_rc_rcv_tid_rdma_read_resp(struct hfi1_packet *packet)
 {
-	/* HANDLER FOR TID RDMA READ RESPONSE packet (Requestor side */
+	/* HANDLER FOR TID RDMA READ RESPONSE packet (Requester side) */
 
 	/*
 	 * 1. Find matching SWQE
@@ -3649,7 +3649,7 @@ void hfi1_rc_rcv_tid_rdma_write_req(struct hfi1_packet *packet)
 	 * 1. Verify TID RDMA WRITE REQ as per IB_OPCODE_RC_RDMA_WRITE_FIRST
 	 *    (see hfi1_rc_rcv())
 	 *     - Don't allow 0-length requests.
-	 * 2. Put TID RDMA WRITE REQ into the response queueu (s_ack_queue)
+	 * 2. Put TID RDMA WRITE REQ into the response queue (s_ack_queue)
 	 *     - Setup struct tid_rdma_req with request info
 	 *     - Prepare struct tid_rdma_flow array?
 	 * 3. Set the qp->s_ack_state as state diagram in design doc.
@@ -4026,7 +4026,7 @@ unlock_r_lock:
 
 void hfi1_rc_rcv_tid_rdma_write_resp(struct hfi1_packet *packet)
 {
-	/* HANDLER FOR TID RDMA WRITE RESPONSE packet (Requestor side */
+	/* HANDLER FOR TID RDMA WRITE RESPONSE packet (Requester side) */
 
 	/*
 	 * 1. Find matching SWQE
@@ -5440,8 +5440,9 @@ static bool _hfi1_schedule_tid_send(struct rvt_qp *qp)
  * the two state machines can step on each other with respect to the
  * RVT_S_BUSY flag.
  * Therefore, a modified test is used.
- * @return true if the second leg is scheduled;
- *  false if the second leg is not scheduled.
+ *
+ * Return: %true if the second leg is scheduled;
+ *  %false if the second leg is not scheduled.
  */
 bool hfi1_schedule_tid_send(struct rvt_qp *qp)
 {

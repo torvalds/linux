@@ -101,8 +101,8 @@ void bch2_logged_op_finish(struct btree_trans *trans, struct bkey_i *k)
 		struct printbuf buf = PRINTBUF;
 
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(k));
-		bch2_fs_fatal_error(c, "%s: error deleting logged operation %s: %s",
-				     __func__, buf.buf, bch2_err_str(ret));
+		bch2_fs_fatal_error(c, "deleting logged operation %s: %s",
+				    buf.buf, bch2_err_str(ret));
 		printbuf_exit(&buf);
 	}
 }

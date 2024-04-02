@@ -249,15 +249,30 @@ cleanup
 create_ns
 ip -n $NS_DST link set dev veth$DST up
 ip -n $NS_DST link set dev veth$DST xdp object ${BPF_FILE} section xdp
-chk_gro_flag "gro vs xdp while down - gro flag on" $DST on
+chk_gro_flag "gro vs xdp while down - gro flag off" $DST off
 ip -n $NS_DST link set dev veth$DST down
-chk_gro_flag "                      - after down" $DST on
+chk_gro_flag "                      - after down" $DST off
 ip -n $NS_DST link set dev veth$DST xdp off
 chk_gro_flag "                      - after xdp off" $DST off
 ip -n $NS_DST link set dev veth$DST up
 chk_gro_flag "                      - after up" $DST off
 ip -n $NS_SRC link set dev veth$SRC xdp object ${BPF_FILE} section xdp
 chk_gro_flag "                      - after peer xdp" $DST off
+cleanup
+
+create_ns
+ip -n $NS_DST link set dev veth$DST up
+ip -n $NS_DST link set dev veth$DST xdp object ${BPF_FILE} section xdp
+ip netns exec $NS_DST ethtool -K veth$DST generic-receive-offload on
+chk_gro_flag "gro vs xdp while down - gro flag on" $DST on
+ip -n $NS_DST link set dev veth$DST down
+chk_gro_flag "                      - after down" $DST on
+ip -n $NS_DST link set dev veth$DST xdp off
+chk_gro_flag "                      - after xdp off" $DST on
+ip -n $NS_DST link set dev veth$DST up
+chk_gro_flag "                      - after up" $DST on
+ip -n $NS_SRC link set dev veth$SRC xdp object ${BPF_FILE} section xdp
+chk_gro_flag "                      - after peer xdp" $DST on
 cleanup
 
 create_ns
@@ -327,11 +342,14 @@ if [ $CPUS -gt 2 ]; then
 fi
 
 ip -n $NS_DST link set dev veth$DST xdp object ${BPF_FILE} section xdp 2>/dev/null
-chk_gro_flag "with xdp attached - gro flag" $DST on
+chk_gro_flag "with xdp attached - gro flag" $DST off
 chk_gro_flag "        - peer gro flag" $SRC off
 chk_tso_flag "        - tso flag" $SRC off
 chk_tso_flag "        - peer tso flag" $DST on
 ip netns exec $NS_DST ethtool -K veth$DST rx-udp-gro-forwarding on
+chk_gro "        - no aggregation" 10
+ip netns exec $NS_DST ethtool -K veth$DST generic-receive-offload on
+chk_gro_flag "        - gro flag with GRO on" $DST on
 chk_gro "        - aggregation" 1
 
 

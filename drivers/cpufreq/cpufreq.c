@@ -653,14 +653,16 @@ static ssize_t store_local_boost(struct cpufreq_policy *policy,
 	if (policy->boost_enabled == enable)
 		return count;
 
+	policy->boost_enabled = enable;
+
 	cpus_read_lock();
 	ret = cpufreq_driver->set_boost(policy, enable);
 	cpus_read_unlock();
 
-	if (ret)
+	if (ret) {
+		policy->boost_enabled = !policy->boost_enabled;
 		return ret;
-
-	policy->boost_enabled = enable;
+	}
 
 	return count;
 }
@@ -1427,6 +1429,9 @@ static int cpufreq_online(unsigned int cpu)
 				 __LINE__);
 			goto out_free_policy;
 		}
+
+		/* Let the per-policy boost flag mirror the cpufreq_driver boost during init */
+		policy->boost_enabled = cpufreq_boost_enabled() && policy_has_boost_freq(policy);
 
 		/*
 		 * The initialization has succeeded and the policy is online.
@@ -2769,11 +2774,12 @@ int cpufreq_boost_trigger_state(int state)
 
 	cpus_read_lock();
 	for_each_active_policy(policy) {
-		ret = cpufreq_driver->set_boost(policy, state);
-		if (ret)
-			goto err_reset_state;
-
 		policy->boost_enabled = state;
+		ret = cpufreq_driver->set_boost(policy, state);
+		if (ret) {
+			policy->boost_enabled = !policy->boost_enabled;
+			goto err_reset_state;
+		}
 	}
 	cpus_read_unlock();
 

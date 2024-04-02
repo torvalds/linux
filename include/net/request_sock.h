@@ -61,7 +61,11 @@ struct request_sock {
 	struct request_sock		*dl_next;
 	u16				mss;
 	u8				num_retrans; /* number of retransmits */
-	u8				syncookie:1; /* syncookie: encode tcpopts in timestamp */
+	u8				syncookie:1; /* True if
+						      * 1) tcpopts needs to be encoded in
+						      *    TS of SYN+ACK
+						      * 2) ACK is validated by BPF kfunc.
+						      */
 	u8				num_timeout:7; /* number of timeouts */
 	u32				ts_recent;
 	struct timer_list		rsk_timer;
@@ -144,6 +148,7 @@ reqsk_alloc(const struct request_sock_ops *ops, struct sock *sk_listener,
 	sk_node_init(&req_to_sk(req)->sk_node);
 	sk_tx_queue_clear(req_to_sk(req));
 	req->saved_syn = NULL;
+	req->syncookie = 0;
 	req->timeout = 0;
 	req->num_timeout = 0;
 	req->num_retrans = 0;

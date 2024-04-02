@@ -108,17 +108,17 @@ static inline void extent_entry_drop(struct bkey_s k, union bch_extent_entry *en
 
 static inline bool extent_entry_is_ptr(const union bch_extent_entry *e)
 {
-	return extent_entry_type(e) == BCH_EXTENT_ENTRY_ptr;
+	return __extent_entry_type(e) == BCH_EXTENT_ENTRY_ptr;
 }
 
 static inline bool extent_entry_is_stripe_ptr(const union bch_extent_entry *e)
 {
-	return extent_entry_type(e) == BCH_EXTENT_ENTRY_stripe_ptr;
+	return __extent_entry_type(e) == BCH_EXTENT_ENTRY_stripe_ptr;
 }
 
 static inline bool extent_entry_is_crc(const union bch_extent_entry *e)
 {
-	switch (extent_entry_type(e)) {
+	switch (__extent_entry_type(e)) {
 	case BCH_EXTENT_ENTRY_crc32:
 	case BCH_EXTENT_ENTRY_crc64:
 	case BCH_EXTENT_ENTRY_crc128:

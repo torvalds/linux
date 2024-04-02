@@ -954,7 +954,7 @@ static u16 hal_EfuseGetCurrentSize_WiFi(
 #endif
 	u16 efuse_addr = 0;
 	u16 start_addr = 0; /*  for debug */
-	u8 hoffset = 0, hworden = 0;
+	u8 hworden = 0;
 	u8 efuse_data, word_cnts = 0;
 	u32 count = 0; /*  for debug */
 
@@ -1001,16 +1001,13 @@ static u16 hal_EfuseGetCurrentSize_WiFi(
 		}
 
 		if (EXT_HEADER(efuse_data)) {
-			hoffset = GET_HDR_OFFSET_2_0(efuse_data);
 			efuse_addr++;
 			efuse_OneByteRead(padapter, efuse_addr, &efuse_data, bPseudoTest);
 			if (ALL_WORDS_DISABLED(efuse_data))
 				continue;
 
-			hoffset |= ((efuse_data & 0xF0) >> 1);
 			hworden = efuse_data & 0x0F;
 		} else {
-			hoffset = (efuse_data>>4) & 0x0F;
 			hworden = efuse_data & 0x0F;
 		}
 
@@ -1047,7 +1044,7 @@ static u16 hal_EfuseGetCurrentSize_BT(struct adapter *padapter, u8 bPseudoTest)
 	u16 btusedbytes;
 	u16 efuse_addr;
 	u8 bank, startBank;
-	u8 hoffset = 0, hworden = 0;
+	u8 hworden = 0;
 	u8 efuse_data, word_cnts = 0;
 	u16 retU2 = 0;
 
@@ -1085,7 +1082,6 @@ static u16 hal_EfuseGetCurrentSize_BT(struct adapter *padapter, u8 bPseudoTest)
 				break;
 
 			if (EXT_HEADER(efuse_data)) {
-				hoffset = GET_HDR_OFFSET_2_0(efuse_data);
 				efuse_addr++;
 				efuse_OneByteRead(padapter, efuse_addr, &efuse_data, bPseudoTest);
 
@@ -1094,11 +1090,8 @@ static u16 hal_EfuseGetCurrentSize_BT(struct adapter *padapter, u8 bPseudoTest)
 					continue;
 				}
 
-/* 				hoffset = ((hoffset & 0xE0) >> 5) | ((efuse_data & 0xF0) >> 1); */
-				hoffset |= ((efuse_data & 0xF0) >> 1);
 				hworden = efuse_data & 0x0F;
 			} else {
-				hoffset = (efuse_data>>4) & 0x0F;
 				hworden =  efuse_data & 0x0F;
 			}
 
@@ -1114,18 +1107,15 @@ static u16 hal_EfuseGetCurrentSize_BT(struct adapter *padapter, u8 bPseudoTest)
 	) {
 			if (efuse_data != 0xFF) {
 				if ((efuse_data&0x1F) == 0x0F) { /* extended header */
-					hoffset = efuse_data;
 					efuse_addr++;
 					efuse_OneByteRead(padapter, efuse_addr, &efuse_data, bPseudoTest);
 					if ((efuse_data & 0x0F) == 0x0F) {
 						efuse_addr++;
 						continue;
 					} else {
-						hoffset = ((hoffset & 0xE0) >> 5) | ((efuse_data & 0xF0) >> 1);
 						hworden = efuse_data & 0x0F;
 					}
 				} else {
-					hoffset = (efuse_data>>4) & 0x0F;
 					hworden =  efuse_data & 0x0F;
 				}
 				word_cnts = Efuse_CalculateWordCnts(hworden);

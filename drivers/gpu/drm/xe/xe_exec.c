@@ -235,6 +235,29 @@ retry:
 			goto err_unlock_list;
 	}
 
+	if (!args->num_batch_buffer) {
+		err = xe_vm_lock(vm, true);
+		if (err)
+			goto err_unlock_list;
+
+		if (!xe_vm_in_lr_mode(vm)) {
+			struct dma_fence *fence;
+
+			fence = xe_sync_in_fence_get(syncs, num_syncs, q, vm);
+			if (IS_ERR(fence)) {
+				err = PTR_ERR(fence);
+				goto err_unlock_list;
+			}
+			for (i = 0; i < num_syncs; i++)
+				xe_sync_entry_signal(&syncs[i], NULL, fence);
+			xe_exec_queue_last_fence_set(q, vm, fence);
+			dma_fence_put(fence);
+		}
+
+		xe_vm_unlock(vm);
+		goto err_unlock_list;
+	}
+
 	vm_exec.vm = &vm->gpuvm;
 	vm_exec.flags = DRM_EXEC_INTERRUPTIBLE_WAIT;
 	if (xe_vm_in_lr_mode(vm)) {
@@ -251,24 +274,6 @@ retry:
 	if (xe_vm_is_closed_or_banned(q->vm)) {
 		drm_warn(&xe->drm, "Trying to schedule after vm is closed or banned\n");
 		err = -ECANCELED;
-		goto err_exec;
-	}
-
-	if (!args->num_batch_buffer) {
-		if (!xe_vm_in_lr_mode(vm)) {
-			struct dma_fence *fence;
-
-			fence = xe_sync_in_fence_get(syncs, num_syncs, q, vm);
-			if (IS_ERR(fence)) {
-				err = PTR_ERR(fence);
-				goto err_exec;
-			}
-			for (i = 0; i < num_syncs; i++)
-				xe_sync_entry_signal(&syncs[i], NULL, fence);
-			xe_exec_queue_last_fence_set(q, vm, fence);
-			dma_fence_put(fence);
-		}
-
 		goto err_exec;
 	}
 

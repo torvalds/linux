@@ -36,10 +36,9 @@ void zconf_starthelp(void);
 FILE *zconf_fopen(const char *name);
 void zconf_initscan(const char *name);
 void zconf_nextfile(const char *name);
-int zconf_lineno(void);
-const char *zconf_curname(void);
 
 /* confdata.c */
+extern struct gstr autoconf_cmd;
 const char *conf_get_configname(void);
 void set_all_choice_values(struct symbol *csym);
 
@@ -53,7 +52,8 @@ static inline void xfwrite(const void *str, size_t len, size_t count, FILE *out)
 }
 
 /* util.c */
-struct file *file_lookup(const char *name);
+unsigned int strhash(const char *s);
+const char *file_lookup(const char *name);
 void *xmalloc(size_t size);
 void *xcalloc(size_t nmemb, size_t size);
 void *xrealloc(void *p, size_t size);

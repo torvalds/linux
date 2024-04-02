@@ -583,7 +583,7 @@ config MEMORY_BALLOON
 # support for memory balloon compaction
 config BALLOON_COMPACTION
 	bool "Allow for balloon memory compaction/migration"
-	def_bool y
+	default y
 	depends on COMPACTION && MEMORY_BALLOON
 	help
 	  Memory fragmentation introduced by ballooning might reduce
@@ -598,7 +598,7 @@ config BALLOON_COMPACTION
 # support for memory compaction
 config COMPACTION
 	bool "Allow for memory compaction"
-	def_bool y
+	default y
 	select MIGRATION
 	depends on MMU
 	help
@@ -621,7 +621,6 @@ config COMPACT_UNEVICTABLE_DEFAULT
 # support for free page reporting
 config PAGE_REPORTING
 	bool "Free page reporting"
-	def_bool n
 	help
 	  Free page reporting allows for the incremental acquisition of
 	  free pages from the buddy allocator for the purpose of reporting
@@ -633,7 +632,7 @@ config PAGE_REPORTING
 #
 config MIGRATION
 	bool "Page migration"
-	def_bool y
+	default y
 	depends on (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU
 	help
 	  Allows the migration of the physical location of pages of processes

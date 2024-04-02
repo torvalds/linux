@@ -39,6 +39,7 @@ struct timerlat_hist_params {
 	int			hk_cpus;
 	int			no_aa;
 	int			dump_tasks;
+	int			user_workload;
 	int			user_hist;
 	cpu_set_t		hk_cpu_set;
 	struct sched_attr	sched_param;
@@ -534,6 +535,7 @@ static void timerlat_hist_usage(char *usage)
 		"		d:runtime[us|ms|s]:period[us|ms|s] - use SCHED_DEADLINE with runtime and period",
 		"						       in nanoseconds",
 		"	  -u/--user-threads: use rtla user-space threads instead of in-kernel timerlat threads",
+		"	  -U/--user-load: enable timerlat for user-defined user-space workload",
 		NULL,
 	};
 
@@ -595,6 +597,7 @@ static struct timerlat_hist_params
 			{"thread",		required_argument,	0, 'T'},
 			{"trace",		optional_argument,	0, 't'},
 			{"user-threads",	no_argument,		0, 'u'},
+			{"user-load",		no_argument,		0, 'U'},
 			{"event",		required_argument,	0, 'e'},
 			{"no-irq",		no_argument,		0, '0'},
 			{"no-thread",		no_argument,		0, '1'},
@@ -613,7 +616,7 @@ static struct timerlat_hist_params
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:C::b:d:e:E:DhH:i:np:P:s:t::T:u0123456:7:8:9\1",
+		c = getopt_long(argc, argv, "a:c:C::b:d:e:E:DhH:i:np:P:s:t::T:uU0123456:7:8:9\1",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -724,6 +727,9 @@ static struct timerlat_hist_params
 				params->trace_output = "timerlat_trace.txt";
 			break;
 		case 'u':
+			params->user_workload = 1;
+			/* fallback: -u implies in -U */
+		case 'U':
 			params->user_hist = 1;
 			break;
 		case '0': /* no irq */
@@ -985,7 +991,7 @@ int timerlat_hist_main(int argc, char *argv[])
 		}
 	}
 
-	if (params->cgroup && !params->user_hist) {
+	if (params->cgroup && !params->user_workload) {
 		retval = set_comm_cgroup("timerlat/", params->cgroup_name);
 		if (!retval) {
 			err_msg("Failed to move threads to cgroup\n");
@@ -1049,7 +1055,7 @@ int timerlat_hist_main(int argc, char *argv[])
 	tool->start_time = time(NULL);
 	timerlat_hist_set_signals(params);
 
-	if (params->user_hist) {
+	if (params->user_workload) {
 		/* rtla asked to stop */
 		params_u.should_run = 1;
 		/* all threads left */
@@ -1086,14 +1092,14 @@ int timerlat_hist_main(int argc, char *argv[])
 			break;
 
 		/* is there still any user-threads ? */
-		if (params->user_hist) {
+		if (params->user_workload) {
 			if (params_u.stopped_running) {
 				debug_msg("timerlat user-space threads stopped!\n");
 				break;
 			}
 		}
 	}
-	if (params->user_hist && !params_u.stopped_running) {
+	if (params->user_workload && !params_u.stopped_running) {
 		params_u.should_run = 0;
 		sleep(1);
 	}

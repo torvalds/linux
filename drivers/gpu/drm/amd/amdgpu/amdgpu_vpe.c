@@ -575,9 +575,6 @@ static unsigned int vpe_ring_init_cond_exec(struct amdgpu_ring *ring,
 {
 	unsigned int ret;
 
-	if (ring->adev->vpe.collaborate_mode)
-		return ~0;
-
 	amdgpu_ring_write(ring, VPE_CMD_HEADER(VPE_CMD_OPCODE_COND_EXE, 0));
 	amdgpu_ring_write(ring, lower_32_bits(addr));
 	amdgpu_ring_write(ring, upper_32_bits(addr));

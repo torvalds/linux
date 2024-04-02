@@ -115,7 +115,7 @@ static const struct attribute_group vdpa_dev_group = {
 };
 __ATTRIBUTE_GROUPS(vdpa_dev);
 
-static struct bus_type vdpa_bus = {
+static const struct bus_type vdpa_bus = {
 	.name  = "vdpa",
 	.dev_groups = vdpa_dev_groups,
 	.match = vdpa_dev_match,
@@ -945,6 +945,215 @@ static int vdpa_dev_net_config_fill(struct vdpa_device *vdev, struct sk_buff *ms
 }
 
 static int
+vdpa_dev_blk_capacity_config_fill(struct sk_buff *msg,
+				  const struct virtio_blk_config *config)
+{
+	u64 val_u64;
+
+	val_u64 = __virtio64_to_cpu(true, config->capacity);
+
+	return nla_put_u64_64bit(msg, VDPA_ATTR_DEV_BLK_CFG_CAPACITY,
+				 val_u64, VDPA_ATTR_PAD);
+}
+
+static int
+vdpa_dev_blk_seg_size_config_fill(struct sk_buff *msg, u64 features,
+				  const struct virtio_blk_config *config)
+{
+	u32 val_u32;
+
+	if ((features & BIT_ULL(VIRTIO_BLK_F_SIZE_MAX)) == 0)
+		return 0;
+
+	val_u32 = __virtio32_to_cpu(true, config->size_max);
+
+	return nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_SEG_SIZE, val_u32);
+}
+
+/* fill the block size*/
+static int
+vdpa_dev_blk_block_size_config_fill(struct sk_buff *msg, u64 features,
+				    const struct virtio_blk_config *config)
+{
+	u32 val_u32;
+
+	if ((features & BIT_ULL(VIRTIO_BLK_F_BLK_SIZE)) == 0)
+		return 0;
+
+	val_u32 = __virtio32_to_cpu(true, config->blk_size);
+
+	return nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_BLK_SIZE, val_u32);
+}
+
+static int
+vdpa_dev_blk_seg_max_config_fill(struct sk_buff *msg, u64 features,
+				 const struct virtio_blk_config *config)
+{
+	u32 val_u32;
+
+	if ((features & BIT_ULL(VIRTIO_BLK_F_SEG_MAX)) == 0)
+		return 0;
+
+	val_u32 = __virtio32_to_cpu(true, config->seg_max);
+
+	return nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_SEG_MAX, val_u32);
+}
+
+static int vdpa_dev_blk_mq_config_fill(struct sk_buff *msg, u64 features,
+				       const struct virtio_blk_config *config)
+{
+	u16 val_u16;
+
+	if ((features & BIT_ULL(VIRTIO_BLK_F_MQ)) == 0)
+		return 0;
+
+	val_u16 = __virtio16_to_cpu(true, config->num_queues);
+
+	return nla_put_u16(msg, VDPA_ATTR_DEV_BLK_CFG_NUM_QUEUES, val_u16);
+}
+
+static int vdpa_dev_blk_topology_config_fill(struct sk_buff *msg, u64 features,
+				       const struct virtio_blk_config *config)
+{
+	u16 min_io_size;
+	u32 opt_io_size;
+
+	if ((features & BIT_ULL(VIRTIO_BLK_F_TOPOLOGY)) == 0)
+		return 0;
+
+	min_io_size = __virtio16_to_cpu(true, config->min_io_size);
+	opt_io_size = __virtio32_to_cpu(true, config->opt_io_size);
+
+	if (nla_put_u8(msg, VDPA_ATTR_DEV_BLK_CFG_PHY_BLK_EXP,
+	    config->physical_block_exp))
+		return -EMSGSIZE;
+
+	if (nla_put_u8(msg, VDPA_ATTR_DEV_BLK_CFG_ALIGN_OFFSET,
+	    config->alignment_offset))
+		return -EMSGSIZE;
+
+	if (nla_put_u16(msg, VDPA_ATTR_DEV_BLK_CFG_MIN_IO_SIZE, min_io_size))
+		return -EMSGSIZE;
+
+	if (nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_OPT_IO_SIZE, opt_io_size))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int vdpa_dev_blk_discard_config_fill(struct sk_buff *msg, u64 features,
+				       const struct virtio_blk_config *config)
+{
+	u32 val_u32;
+
+	if ((features & BIT_ULL(VIRTIO_BLK_F_DISCARD)) == 0)
+		return 0;
+
+	val_u32 = __virtio32_to_cpu(true, config->max_discard_sectors);
+	if (nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_MAX_DISCARD_SEC, val_u32))
+		return -EMSGSIZE;
+
+	val_u32 = __virtio32_to_cpu(true, config->max_discard_seg);
+	if (nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_MAX_DISCARD_SEG, val_u32))
+		return -EMSGSIZE;
+
+	val_u32 = __virtio32_to_cpu(true, config->discard_sector_alignment);
+	if (nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_DISCARD_SEC_ALIGN, val_u32))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int
+vdpa_dev_blk_write_zeroes_config_fill(struct sk_buff *msg, u64 features,
+				     const struct virtio_blk_config *config)
+{
+	u32 val_u32;
+
+	if ((features & BIT_ULL(VIRTIO_BLK_F_WRITE_ZEROES)) == 0)
+		return 0;
+
+	val_u32 = __virtio32_to_cpu(true, config->max_write_zeroes_sectors);
+	if (nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_MAX_WRITE_ZEROES_SEC, val_u32))
+		return -EMSGSIZE;
+
+	val_u32 = __virtio32_to_cpu(true, config->max_write_zeroes_seg);
+	if (nla_put_u32(msg, VDPA_ATTR_DEV_BLK_CFG_MAX_WRITE_ZEROES_SEG, val_u32))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int vdpa_dev_blk_ro_config_fill(struct sk_buff *msg, u64 features)
+{
+	u8 ro;
+
+	ro = ((features & BIT_ULL(VIRTIO_BLK_F_RO)) == 0) ? 0 : 1;
+	if (nla_put_u8(msg, VDPA_ATTR_DEV_BLK_CFG_READ_ONLY, ro))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int vdpa_dev_blk_flush_config_fill(struct sk_buff *msg, u64 features)
+{
+	u8 flush;
+
+	flush = ((features & BIT_ULL(VIRTIO_BLK_F_FLUSH)) == 0) ? 0 : 1;
+	if (nla_put_u8(msg, VDPA_ATTR_DEV_BLK_CFG_FLUSH, flush))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int vdpa_dev_blk_config_fill(struct vdpa_device *vdev,
+				    struct sk_buff *msg)
+{
+	struct virtio_blk_config config = {};
+	u64 features_device;
+
+	vdev->config->get_config(vdev, 0, &config, sizeof(config));
+
+	features_device = vdev->config->get_device_features(vdev);
+
+	if (nla_put_u64_64bit(msg, VDPA_ATTR_DEV_FEATURES, features_device,
+			      VDPA_ATTR_PAD))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_capacity_config_fill(msg, &config))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_seg_size_config_fill(msg, features_device, &config))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_block_size_config_fill(msg, features_device, &config))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_seg_max_config_fill(msg, features_device, &config))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_mq_config_fill(msg, features_device, &config))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_topology_config_fill(msg, features_device, &config))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_discard_config_fill(msg, features_device, &config))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_write_zeroes_config_fill(msg, features_device, &config))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_ro_config_fill(msg, features_device))
+		return -EMSGSIZE;
+
+	if (vdpa_dev_blk_flush_config_fill(msg, features_device))
+		return -EMSGSIZE;
+
+	return 0;
+}
+
+static int
 vdpa_dev_config_fill(struct vdpa_device *vdev, struct sk_buff *msg, u32 portid, u32 seq,
 		     int flags, struct netlink_ext_ack *extack)
 {
@@ -987,6 +1196,9 @@ vdpa_dev_config_fill(struct vdpa_device *vdev, struct sk_buff *msg, u32 portid, 
 	switch (device_id) {
 	case VIRTIO_ID_NET:
 		err = vdpa_dev_net_config_fill(vdev, msg);
+		break;
+	case VIRTIO_ID_BLOCK:
+		err = vdpa_dev_blk_config_fill(vdev, msg);
 		break;
 	default:
 		err = -EOPNOTSUPP;

@@ -4626,6 +4626,7 @@ TRACE_EVENT(xmbuf_create,
 		char		*path;
 		struct file	*file = btp->bt_file;
 
+		__entry->dev = btp->bt_mount->m_super->s_dev;
 		__entry->ino = file_inode(file)->i_ino;
 		memset(pathname, 0, sizeof(pathname));
 		path = file_path(file, pathname, sizeof(pathname) - 1);
@@ -4633,7 +4634,8 @@ TRACE_EVENT(xmbuf_create,
 			path = "(unknown)";
 		strncpy(__entry->pathname, path, sizeof(__entry->pathname));
 	),
-	TP_printk("xmino 0x%lx path '%s'",
+	TP_printk("dev %d:%d xmino 0x%lx path '%s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->pathname)
 );
@@ -4642,6 +4644,7 @@ TRACE_EVENT(xmbuf_free,
 	TP_PROTO(struct xfs_buftarg *btp),
 	TP_ARGS(btp),
 	TP_STRUCT__entry(
+		__field(dev_t, dev)
 		__field(unsigned long, ino)
 		__field(unsigned long long, bytes)
 		__field(loff_t, size)
@@ -4650,11 +4653,13 @@ TRACE_EVENT(xmbuf_free,
 		struct file	*file = btp->bt_file;
 		struct inode	*inode = file_inode(file);
 
+		__entry->dev = btp->bt_mount->m_super->s_dev;
 		__entry->size = i_size_read(inode);
 		__entry->bytes = (inode->i_blocks << SECTOR_SHIFT) + inode->i_bytes;
 		__entry->ino = inode->i_ino;
 	),
-	TP_printk("xmino 0x%lx mem_bytes 0x%llx isize 0x%llx",
+	TP_printk("dev %d:%d xmino 0x%lx mem_bytes 0x%llx isize 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->bytes,
 		  __entry->size)

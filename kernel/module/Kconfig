@@ -362,8 +362,7 @@ config MODPROBE_PATH
 	  userspace can still load modules explicitly).
 
 config TRIM_UNUSED_KSYMS
-	bool "Trim unused exported kernel symbols" if EXPERT
-	depends on !COMPILE_TEST
+	bool "Trim unused exported kernel symbols"
 	help
 	  The kernel and some modules make many symbols available for
 	  other modules to use via EXPORT_SYMBOL() and variants. Depending

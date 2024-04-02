@@ -87,8 +87,8 @@ struct tb {
 };
 
 extern const struct bus_type tb_bus_type;
-extern struct device_type tb_service_type;
-extern struct device_type tb_xdomain_type;
+extern const struct device_type tb_service_type;
+extern const struct device_type tb_xdomain_type;
 
 #define TB_LINKS_PER_PHY_PORT	2
 

@@ -1356,15 +1356,17 @@ retry:
 
 		/* Don't retry from all devices if we're out of open buckets: */
 		if (bch2_err_matches(ret, BCH_ERR_open_buckets_empty)) {
-			int ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
+			int ret2 = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,
 					      target, erasure_code,
 					      nr_replicas, &nr_effective,
 					      &have_cache, watermark,
 					      flags, cl);
-			if (!ret ||
-			    bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
-			    bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
+			if (!ret2 ||
+			    bch2_err_matches(ret2, BCH_ERR_transaction_restart) ||
+			    bch2_err_matches(ret2, BCH_ERR_open_buckets_empty)) {
+				ret = ret2;
 				goto alloc_done;
+			}
 		}
 
 		/*

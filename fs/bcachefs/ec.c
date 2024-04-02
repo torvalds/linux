@@ -448,7 +448,7 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 			struct printbuf buf = PRINTBUF;
 
 			bch2_bkey_val_to_text(&buf, c, new);
-			bch2_fs_fatal_error(c, "no replicas entry for %s", buf.buf);
+			bch2_fs_fatal_error(c, ": no replicas entry for %s", buf.buf);
 			printbuf_exit(&buf);
 			return ret;
 		}
@@ -1868,10 +1868,10 @@ static int __bch2_ec_stripe_head_reuse(struct btree_trans *trans, struct ec_stri
 		return -BCH_ERR_stripe_alloc_blocked;
 
 	ret = get_stripe_key_trans(trans, idx, &h->s->existing_stripe);
+	bch2_fs_fatal_err_on(ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart), c,
+			     "reading stripe key: %s", bch2_err_str(ret));
 	if (ret) {
 		bch2_stripe_close(c, h->s);
-		if (!bch2_err_matches(ret, BCH_ERR_transaction_restart))
-			bch2_fs_fatal_error(c, "error reading stripe key: %s", bch2_err_str(ret));
 		return ret;
 	}
 

@@ -22,8 +22,11 @@
 #include <linux/types.h>
 #include <linux/units.h>
 
+#include <linux/iio/buffer.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/iio/trigger_consumer.h>
+#include <linux/iio/triggered_buffer.h>
 
 #include <asm/unaligned.h>
 
@@ -297,6 +300,29 @@ static int hsc_get_measurement(struct hsc_data *data)
 	return 0;
 }
 
+static irqreturn_t hsc_trigger_handler(int irq, void *private)
+{
+	struct iio_poll_func *pf = private;
+	struct iio_dev *indio_dev = pf->indio_dev;
+	struct hsc_data *data = iio_priv(indio_dev);
+	int ret;
+
+	ret = hsc_get_measurement(data);
+	if (ret)
+		goto error;
+
+	memcpy(&data->scan.chan[0], &data->buffer[0], 2);
+	memcpy(&data->scan.chan[1], &data->buffer[2], 2);
+
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
+					   iio_get_time_ns(indio_dev));
+
+error:
+	iio_trigger_notify_done(indio_dev->trig);
+
+	return IRQ_HANDLED;
+}
+
 /*
  * IIO ABI expects
  * value = (conv + offset) * scale
@@ -382,13 +408,29 @@ static const struct iio_chan_spec hsc_channels[] = {
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 				      BIT(IIO_CHAN_INFO_SCALE) |
 				      BIT(IIO_CHAN_INFO_OFFSET),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 14,
+			.storagebits = 16,
+			.endianness = IIO_BE,
+		},
 	},
 	{
 		.type = IIO_TEMP,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 				      BIT(IIO_CHAN_INFO_SCALE) |
 				      BIT(IIO_CHAN_INFO_OFFSET),
+		.scan_index = 1,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 11,
+			.storagebits = 16,
+			.shift = 5,
+			.endianness = IIO_BE,
+		},
 	},
+	IIO_CHAN_SOFT_TIMESTAMP(2),
 };
 
 static const struct iio_info hsc_info = {
@@ -406,7 +448,7 @@ int hsc_common_probe(struct device *dev, hsc_recv_fn recv)
 	struct hsc_data *hsc;
 	struct iio_dev *indio_dev;
 	const char *triplet;
-	u64 tmp;
+	s64 tmp;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(dev, sizeof(*hsc));
@@ -484,6 +526,11 @@ int hsc_common_probe(struct device *dev, hsc_recv_fn recv)
 	indio_dev->info = &hsc_info;
 	indio_dev->channels = hsc->chip->channels;
 	indio_dev->num_channels = hsc->chip->num_channels;
+
+	ret = devm_iio_triggered_buffer_setup(dev, indio_dev, NULL,
+					      hsc_trigger_handler, NULL);
+	if (ret)
+		return ret;
 
 	return devm_iio_device_register(dev, indio_dev);
 }

@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/pm_qos.h>
 #include <linux/component.h>
+#include <linux/usb/of.h>
 
 #include "hub.h"
 
@@ -429,7 +430,7 @@ static const struct dev_pm_ops usb_port_pm_ops = {
 #endif
 };
 
-struct device_type usb_port_device_type = {
+const struct device_type usb_port_device_type = {
 	.name =		"usb_port",
 	.release =	usb_port_device_release,
 	.pm =		&usb_port_pm_ops,
@@ -709,6 +710,7 @@ int usb_hub_create_port_device(struct usb_hub *hub, int port1)
 		return -ENOMEM;
 	}
 
+	port_dev->connect_type = usb_of_get_connect_type(hdev, port1);
 	hub->ports[port1 - 1] = port_dev;
 	port_dev->portnum = port1;
 	set_bit(port1, hub->power_bits);
