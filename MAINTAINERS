@@ -484,7 +484,7 @@ M:	Radu Sabau <radu.sabau@analog.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Supported
 W:	https://ez.analog.com/linux-software-drivers
-F:	Dcumentation/devicetree/bindings/hwmon/pmbus/adi,adp1050.yaml
+F:	Documentation/devicetree/bindings/hwmon/pmbus/adi,adp1050.yaml
 
 ADP1653 FLASH CONTROLLER DRIVER
 M:	Sakari Ailus <sakari.ailus@iki.fi>
