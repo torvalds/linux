@@ -221,15 +221,15 @@ static int __maybe_unused hda_dai_hw_free(struct snd_pcm_substream *substream,
 	return hda_link_dma_cleanup(substream, hext_stream, cpu_dai);
 }
 
-static int __maybe_unused hda_dai_hw_params(struct snd_pcm_substream *substream,
-					    struct snd_pcm_hw_params *params,
-					    struct snd_soc_dai *dai)
+static int __maybe_unused hda_dai_hw_params_data(struct snd_pcm_substream *substream,
+						 struct snd_pcm_hw_params *params,
+						 struct snd_soc_dai *dai,
+						 struct snd_sof_dai_config_data *data,
+						 unsigned int flags)
 {
 	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(dai, substream->stream);
 	const struct hda_dai_widget_dma_ops *ops = hda_dai_get_ops(substream, dai);
 	struct hdac_ext_stream *hext_stream;
-	struct snd_sof_dai_config_data data = { 0 };
-	unsigned int flags = SOF_DAI_CONFIG_FLAGS_HW_PARAMS;
 	struct snd_sof_dev *sdev = widget_to_sdev(w);
 	int ret;
 
@@ -249,9 +249,19 @@ static int __maybe_unused hda_dai_hw_params(struct snd_pcm_substream *substream,
 	hext_stream = ops->get_hext_stream(sdev, dai, substream);
 
 	flags |= SOF_DAI_CONFIG_FLAGS_2_STEP_STOP << SOF_DAI_CONFIG_FLAGS_QUIRK_SHIFT;
-	data.dai_data = hdac_stream(hext_stream)->stream_tag - 1;
+	data->dai_data = hdac_stream(hext_stream)->stream_tag - 1;
 
-	return hda_dai_config(w, flags, &data);
+	return hda_dai_config(w, flags, data);
+}
+
+static int __maybe_unused hda_dai_hw_params(struct snd_pcm_substream *substream,
+					    struct snd_pcm_hw_params *params,
+					    struct snd_soc_dai *dai)
+{
+	struct snd_sof_dai_config_data data = { 0 };
+	unsigned int flags = SOF_DAI_CONFIG_FLAGS_HW_PARAMS;
+
+	return hda_dai_hw_params_data(substream, params, dai, &data, flags);
 }
 
 /*
@@ -341,9 +351,11 @@ static struct sof_ipc4_copier *widget_to_copier(struct snd_soc_dapm_widget *w)
 	return ipc4_copier;
 }
 
-static int non_hda_dai_hw_params(struct snd_pcm_substream *substream,
-				 struct snd_pcm_hw_params *params,
-				 struct snd_soc_dai *cpu_dai)
+static int non_hda_dai_hw_params_data(struct snd_pcm_substream *substream,
+				      struct snd_pcm_hw_params *params,
+				      struct snd_soc_dai *cpu_dai,
+				      struct snd_sof_dai_config_data *data,
+				      unsigned int flags)
 {
 	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
@@ -366,9 +378,9 @@ static int non_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	/* use HDaudio stream handling */
-	ret = hda_dai_hw_params(substream, params, cpu_dai);
+	ret = hda_dai_hw_params_data(substream, params, cpu_dai, data, flags);
 	if (ret < 0) {
-		dev_err(cpu_dai->dev, "%s: hda_dai_hw_params failed: %d\n", __func__, ret);
+		dev_err(cpu_dai->dev, "%s: hda_dai_hw_params_data failed: %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -422,6 +434,16 @@ skip_tlv:
 	return 0;
 }
 
+static int non_hda_dai_hw_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *cpu_dai)
+{
+	struct snd_sof_dai_config_data data = { 0 };
+	unsigned int flags = SOF_DAI_CONFIG_FLAGS_HW_PARAMS;
+
+	return non_hda_dai_hw_params_data(substream, params, cpu_dai, &data, flags);
+}
+
 static int non_hda_dai_prepare(struct snd_pcm_substream *substream,
 			       struct snd_soc_dai *cpu_dai)
 {
@@ -453,6 +475,8 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct sof_ipc4_dma_config_tlv *dma_config_tlv;
+	struct snd_sof_dai_config_data data = { 0 };
+	unsigned int flags = SOF_DAI_CONFIG_FLAGS_HW_PARAMS;
 	const struct hda_dai_widget_dma_ops *ops;
 	struct sof_ipc4_dma_config *dma_config;
 	struct sof_ipc4_copier *ipc4_copier;
@@ -465,7 +489,8 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	int ret;
 	int i;
 
-	ret = non_hda_dai_hw_params(substream, params, cpu_dai);
+	data.dai_index = (link_id << 8) | cpu_dai->id;
+	ret = non_hda_dai_hw_params_data(substream, params, cpu_dai, &data, flags);
 	if (ret < 0) {
 		dev_err(cpu_dai->dev, "%s: non_hda_dai_hw_params failed %d\n", __func__, ret);
 		return ret;
