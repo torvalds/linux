@@ -138,7 +138,7 @@ static const struct cmn2asic_msg_mapping smu_v13_0_6_message_map[SMU_MSG_MAX_COU
 	MSG_MAP(SetToolsDramAddrHigh,		     PPSMC_MSG_SetToolsDramAddrHigh,		0),
 	MSG_MAP(SetToolsDramAddrLow,		     PPSMC_MSG_SetToolsDramAddrLow,		0),
 	MSG_MAP(SetSoftMinByFreq,		     PPSMC_MSG_SetSoftMinByFreq,		0),
-	MSG_MAP(SetSoftMaxByFreq,		     PPSMC_MSG_SetSoftMaxByFreq,		0),
+	MSG_MAP(SetSoftMaxByFreq,		     PPSMC_MSG_SetSoftMaxByFreq,		1),
 	MSG_MAP(GetMinDpmFreq,			     PPSMC_MSG_GetMinDpmFreq,			1),
 	MSG_MAP(GetMaxDpmFreq,			     PPSMC_MSG_GetMaxDpmFreq,			1),
 	MSG_MAP(GetDpmFreqByIndex,		     PPSMC_MSG_GetDpmFreqByIndex,		1),
@@ -1676,6 +1676,11 @@ static int smu_v13_0_6_set_soft_freq_limited_range(struct smu_context *smu,
 		if (clk_type == SMU_UCLK) {
 			if (max == pstate_table->uclk_pstate.curr.max)
 				return 0;
+			/* For VF, only allowed in FW versions 85.102 or greater */
+			if (amdgpu_sriov_vf(adev) &&
+			    ((smu->smc_fw_version < 0x556600) ||
+			     (adev->flags & AMD_IS_APU)))
+				return -EOPNOTSUPP;
 			/* Only max clock limiting is allowed for UCLK */
 			ret = smu_v13_0_set_soft_freq_limited_range(
 				smu, SMU_UCLK, 0, max);
