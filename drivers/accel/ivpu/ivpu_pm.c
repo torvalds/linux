@@ -71,10 +71,10 @@ static int ivpu_resume(struct ivpu_device *vdev)
 {
 	int ret;
 
-	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D0);
-	pci_restore_state(to_pci_dev(vdev->drm.dev));
-
 retry:
+	pci_restore_state(to_pci_dev(vdev->drm.dev));
+	pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D0);
+
 	ret = ivpu_hw_power_up(vdev);
 	if (ret) {
 		ivpu_err(vdev, "Failed to power up HW: %d\n", ret);
