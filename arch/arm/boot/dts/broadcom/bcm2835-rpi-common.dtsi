@@ -7,13 +7,6 @@
 
 #include <dt-bindings/power/raspberrypi-power.h>
 
-&firmware {
-	firmware_clocks: clocks {
-		compatible = "raspberrypi,firmware-clocks";
-		#clock-cells = <1>;
-	};
-};
-
 &hdmi {
 	clocks = <&firmware_clocks 9>,
 		 <&firmware_clocks 13>;
