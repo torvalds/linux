@@ -318,7 +318,7 @@ int wcn36xx_rx_skb(struct wcn36xx *wcn, struct sk_buff *skb)
 	memset(&status, 0, sizeof(status));
 
 	bd = (struct wcn36xx_rx_bd *)skb->data;
-	buff_to_be((u32 *)bd, sizeof(*bd)/sizeof(u32));
+	buff_to_be(bd, sizeof(*bd)/sizeof(u32));
 	wcn36xx_dbg_dump(WCN36XX_DBG_RX_DUMP,
 			 "BD   <<< ", (char *)bd,
 			 sizeof(struct wcn36xx_rx_bd));
@@ -692,7 +692,7 @@ int wcn36xx_start_tx(struct wcn36xx *wcn,
 		/* MGMT and CTRL frames are handeld here*/
 		wcn36xx_set_tx_mgmt(&bd, wcn, &vif_priv, skb, bcast);
 
-	buff_to_be((u32 *)&bd, sizeof(bd)/sizeof(u32));
+	buff_to_be(&bd, sizeof(bd)/sizeof(u32));
 	bd.tx_bd_sign = 0xbdbdbdbd;
 
 	ret = wcn36xx_dxe_tx_frame(wcn, vif_priv, &bd, skb, is_low);

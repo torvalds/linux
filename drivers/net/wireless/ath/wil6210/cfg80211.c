@@ -2735,7 +2735,7 @@ int wil_cfg80211_iface_combinations_from_fw(
 		return 0;
 	}
 
-	combo = conc->combos;
+	combo = (const struct wil_fw_concurrency_combo *)(conc + 1);
 	n_combos = le16_to_cpu(conc->n_combos);
 	for (i = 0; i < n_combos; i++) {
 		total_limits += combo->n_limits;
@@ -2751,7 +2751,7 @@ int wil_cfg80211_iface_combinations_from_fw(
 		return -ENOMEM;
 	iface_limit = (struct ieee80211_iface_limit *)(iface_combinations +
 						       n_combos);
-	combo = conc->combos;
+	combo = (const struct wil_fw_concurrency_combo *)(conc + 1);
 	for (i = 0; i < n_combos; i++) {
 		iface_combinations[i].max_interfaces = combo->max_interfaces;
 		iface_combinations[i].num_different_channels =
