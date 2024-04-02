@@ -35,6 +35,11 @@ enum mlxsw_pci_queue_type {
 
 #define MLXSW_PCI_QUEUE_TYPE_COUNT	4
 
+enum mlxsw_pci_cq_type {
+	MLXSW_PCI_CQ_SDQ,
+	MLXSW_PCI_CQ_RDQ,
+};
+
 static const u16 mlxsw_pci_doorbell_type_offset[] = {
 	MLXSW_PCI_DOORBELL_SDQ_OFFSET,	/* for type MLXSW_PCI_QUEUE_TYPE_SDQ */
 	MLXSW_PCI_DOORBELL_RDQ_OFFSET,	/* for type MLXSW_PCI_QUEUE_TYPE_RDQ */
@@ -658,7 +663,7 @@ static char *mlxsw_pci_cq_sw_cqe_get(struct mlxsw_pci_queue *q)
 	return elem;
 }
 
-static void mlxsw_pci_cq_tasklet(struct tasklet_struct *t)
+static void mlxsw_pci_cq_rx_tasklet(struct tasklet_struct *t)
 {
 	struct mlxsw_pci_queue *q = from_tasklet(q, t, tasklet);
 	struct mlxsw_pci *mlxsw_pci = q->pci;
@@ -671,28 +676,85 @@ static void mlxsw_pci_cq_tasklet(struct tasklet_struct *t)
 		u8 sendq = mlxsw_pci_cqe_sr_get(q->cq.v, cqe);
 		u8 dqn = mlxsw_pci_cqe_dqn_get(q->cq.v, cqe);
 		char ncqe[MLXSW_PCI_CQE_SIZE_MAX];
+		struct mlxsw_pci_queue *rdq;
+
+		if (unlikely(sendq)) {
+			WARN_ON_ONCE(1);
+			continue;
+		}
 
 		memcpy(ncqe, cqe, q->elem_size);
 		mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
 
-		if (sendq) {
-			struct mlxsw_pci_queue *sdq;
+		rdq = mlxsw_pci_rdq_get(mlxsw_pci, dqn);
+		mlxsw_pci_cqe_rdq_handle(mlxsw_pci, rdq,
+					 wqe_counter, q->cq.v, ncqe);
 
-			sdq = mlxsw_pci_sdq_get(mlxsw_pci, dqn);
-			mlxsw_pci_cqe_sdq_handle(mlxsw_pci, sdq,
-						 wqe_counter, q->cq.v, ncqe);
-		} else {
-			struct mlxsw_pci_queue *rdq;
-
-			rdq = mlxsw_pci_rdq_get(mlxsw_pci, dqn);
-			mlxsw_pci_cqe_rdq_handle(mlxsw_pci, rdq,
-						 wqe_counter, q->cq.v, ncqe);
-		}
 		if (++items == credits)
 			break;
 	}
 
 	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
+}
+
+static void mlxsw_pci_cq_tx_tasklet(struct tasklet_struct *t)
+{
+	struct mlxsw_pci_queue *q = from_tasklet(q, t, tasklet);
+	struct mlxsw_pci *mlxsw_pci = q->pci;
+	int credits = q->count >> 1;
+	int items = 0;
+	char *cqe;
+
+	while ((cqe = mlxsw_pci_cq_sw_cqe_get(q))) {
+		u16 wqe_counter = mlxsw_pci_cqe_wqe_counter_get(cqe);
+		u8 sendq = mlxsw_pci_cqe_sr_get(q->cq.v, cqe);
+		u8 dqn = mlxsw_pci_cqe_dqn_get(q->cq.v, cqe);
+		char ncqe[MLXSW_PCI_CQE_SIZE_MAX];
+		struct mlxsw_pci_queue *sdq;
+
+		if (unlikely(!sendq)) {
+			WARN_ON_ONCE(1);
+			continue;
+		}
+
+		memcpy(ncqe, cqe, q->elem_size);
+		mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
+
+		sdq = mlxsw_pci_sdq_get(mlxsw_pci, dqn);
+		mlxsw_pci_cqe_sdq_handle(mlxsw_pci, sdq,
+					 wqe_counter, q->cq.v, ncqe);
+
+		if (++items == credits)
+			break;
+	}
+
+	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
+}
+
+static enum mlxsw_pci_cq_type
+mlxsw_pci_cq_type(const struct mlxsw_pci *mlxsw_pci,
+		  const struct mlxsw_pci_queue *q)
+{
+	/* Each CQ is mapped to one DQ. The first 'num_sdq_cqs' queues are used
+	 * for SDQs and the rest are used for RDQs.
+	 */
+	if (q->num < mlxsw_pci->num_sdq_cqs)
+		return MLXSW_PCI_CQ_SDQ;
+
+	return MLXSW_PCI_CQ_RDQ;
+}
+
+static void mlxsw_pci_cq_tasklet_setup(struct mlxsw_pci_queue *q,
+				       enum mlxsw_pci_cq_type cq_type)
+{
+	switch (cq_type) {
+	case MLXSW_PCI_CQ_SDQ:
+		tasklet_setup(&q->tasklet, mlxsw_pci_cq_tx_tasklet);
+		break;
+	case MLXSW_PCI_CQ_RDQ:
+		tasklet_setup(&q->tasklet, mlxsw_pci_cq_rx_tasklet);
+		break;
+	}
 }
 
 static int mlxsw_pci_cq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
@@ -727,7 +789,7 @@ static int mlxsw_pci_cq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	err = mlxsw_cmd_sw2hw_cq(mlxsw_pci->core, mbox, q->num);
 	if (err)
 		return err;
-	tasklet_setup(&q->tasklet, mlxsw_pci_cq_tasklet);
+	mlxsw_pci_cq_tasklet_setup(q, mlxsw_pci_cq_type(mlxsw_pci, q));
 	mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
 	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
 	return 0;
