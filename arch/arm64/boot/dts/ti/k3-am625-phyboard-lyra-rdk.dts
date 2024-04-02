@@ -31,7 +31,7 @@
 	can_tc1: can-phy0 {
 		compatible = "ti,tcan1042";
 		#phy-cells = <0>;
-		max-bitrate = <5000000>;
+		max-bitrate = <8000000>;
 		standby-gpios = <&gpio_exp 1 GPIO_ACTIVE_HIGH>;
 	};
 
