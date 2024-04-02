@@ -34,8 +34,6 @@
  * struct plat_max3100 - MAX3100 SPI UART platform data
  * @loopback:            force MAX3100 in loopback
  * @crystal:             1 for 3.6864 Mhz, 0 for 1.8432
- * @max3100_hw_suspend:  MAX3100 has a shutdown pin. This is a hook
- *                       called on suspend and resume to activate it.
  * @poll_time:           poll time for CTS signal in ms, 0 disables (so no hw
  *                       flow ctrl is possible but you have less CPU usage)
  *
@@ -45,7 +43,6 @@
 struct plat_max3100 {
 	int loopback;
 	int crystal;
-	void (*max3100_hw_suspend) (int suspend);
 	int poll_time;
 };
 
@@ -124,9 +121,6 @@ struct max3100_port {
 	int  force_end_work;
 	/* need to know we are suspending to avoid deadlock on workqueue */
 	int suspending;
-
-	/* hook for suspending MAX3100 via dedicated pin */
-	void (*max3100_hw_suspend) (int suspend);
 
 	/* poll time (in ms) for ctrl lines */
 	int poll_time;
@@ -553,6 +547,7 @@ static void max3100_shutdown(struct uart_port *port)
 	struct max3100_port *s = container_of(port,
 					      struct max3100_port,
 					      port);
+	u16 rx;
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
@@ -572,14 +567,7 @@ static void max3100_shutdown(struct uart_port *port)
 		free_irq(s->irq, s);
 
 	/* set shutdown mode to save power */
-	if (s->max3100_hw_suspend)
-		s->max3100_hw_suspend(1);
-	else  {
-		u16 tx, rx;
-
-		tx = MAX3100_WC | MAX3100_SHDN;
-		max3100_sr(s, tx, &rx);
-	}
+	max3100_sr(s, MAX3100_WC | MAX3100_SHDN, &rx);
 }
 
 static int max3100_startup(struct uart_port *port)
@@ -625,8 +613,6 @@ static int max3100_startup(struct uart_port *port)
 		max3100_sr(s, tx, &rx);
 	}
 
-	if (s->max3100_hw_suspend)
-		s->max3100_hw_suspend(0);
 	s->conf_commit = 1;
 	max3100_dowork(s);
 	/* wait for clock to settle */
@@ -745,7 +731,7 @@ static int max3100_probe(struct spi_device *spi)
 {
 	int i, retval;
 	struct plat_max3100 *pdata;
-	u16 tx, rx;
+	u16 rx;
 
 	mutex_lock(&max3100s_lock);
 
@@ -786,7 +772,6 @@ static int max3100_probe(struct spi_device *spi)
 	max3100s[i]->poll_time = msecs_to_jiffies(pdata->poll_time);
 	if (pdata->poll_time > 0 && max3100s[i]->poll_time == 0)
 		max3100s[i]->poll_time = 1;
-	max3100s[i]->max3100_hw_suspend = pdata->max3100_hw_suspend;
 	max3100s[i]->minor = i;
 	timer_setup(&max3100s[i]->timer, max3100_timeout, 0);
 
@@ -806,12 +791,7 @@ static int max3100_probe(struct spi_device *spi)
 			 i, retval);
 
 	/* set shutdown mode to save power. Will be woken-up on open */
-	if (max3100s[i]->max3100_hw_suspend)
-		max3100s[i]->max3100_hw_suspend(1);
-	else {
-		tx = MAX3100_WC | MAX3100_SHDN;
-		max3100_sr(max3100s[i], tx, &rx);
-	}
+	max3100_sr(max3100s[i], MAX3100_WC | MAX3100_SHDN, &rx);
 	mutex_unlock(&max3100s_lock);
 	return 0;
 }
@@ -853,6 +833,7 @@ static void max3100_remove(struct spi_device *spi)
 static int max3100_suspend(struct device *dev)
 {
 	struct max3100_port *s = dev_get_drvdata(dev);
+	u16 rx;
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
@@ -861,15 +842,8 @@ static int max3100_suspend(struct device *dev)
 	s->suspending = 1;
 	uart_suspend_port(&max3100_uart_driver, &s->port);
 
-	if (s->max3100_hw_suspend)
-		s->max3100_hw_suspend(1);
-	else {
-		/* no HW suspend, so do SW one */
-		u16 tx, rx;
-
-		tx = MAX3100_WC | MAX3100_SHDN;
-		max3100_sr(s, tx, &rx);
-	}
+	/* no HW suspend, so do SW one */
+	max3100_sr(s, MAX3100_WC | MAX3100_SHDN, &rx);
 	return 0;
 }
 
@@ -879,8 +853,6 @@ static int max3100_resume(struct device *dev)
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
-	if (s->max3100_hw_suspend)
-		s->max3100_hw_suspend(0);
 	uart_resume_port(&max3100_uart_driver, &s->port);
 	s->suspending = 0;
 
