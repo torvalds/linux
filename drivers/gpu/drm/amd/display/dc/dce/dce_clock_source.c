@@ -1081,7 +1081,7 @@ static bool dcn401_program_pix_clk(
 	dto_params.signal = pix_clk_params->signal_type;
 
 	// all but TMDS gets Driver to program DP_DTO without calling VBIOS Command table
-	if (!dc_is_hdmi_tmds_signal(pix_clk_params->signal_type)) {
+	if (!dc_is_tmds_signal(pix_clk_params->signal_type)) {
 		long long ref_dtbclk_khz = clock_source->ctx->dc->clk_mgr->funcs->get_dtb_ref_clk_frequency(clock_source->ctx->dc->clk_mgr);
 		long long dprefclk_khz = clock_source->ctx->dc->clk_mgr->dprefclk_khz;
 		long long dtbclk_p_src_clk_khz;
