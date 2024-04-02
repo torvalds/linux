@@ -3647,6 +3647,9 @@ void intel_dbuf_mdclk_cdclk_ratio_update(struct drm_i915_private *i915, u8 ratio
 	if (joined_mbus)
 		ratio *= 2;
 
+	drm_dbg_kms(&i915->drm, "Updating dbuf ratio to %d (mbus joined: %s)\n",
+		    ratio, str_yes_no(joined_mbus));
+
 	for_each_dbuf_slice(i915, slice)
 		intel_de_rmw(i915, DBUF_CTL_S(slice),
 			     DBUF_MIN_TRACKER_STATE_SERVICE_MASK,
@@ -3680,9 +3683,15 @@ static void intel_dbuf_mdclk_min_tracker_update(struct intel_atomic_state *state
 static void intel_dbuf_mbus_join_update(struct intel_atomic_state *state)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	const struct intel_dbuf_state *old_dbuf_state =
+		intel_atomic_get_old_dbuf_state(state);
 	const struct intel_dbuf_state *new_dbuf_state =
 		intel_atomic_get_new_dbuf_state(state);
 	u32 mbus_ctl;
+
+	drm_dbg_kms(&i915->drm, "Changing mbus joined: %s -> %s\n",
+		    str_yes_no(old_dbuf_state->joined_mbus),
+		    str_yes_no(new_dbuf_state->joined_mbus));
 
 	/*
 	 * TODO: Implement vblank synchronized MBUS joining changes.
