@@ -859,7 +859,10 @@ static int __init erofs_module_init(void)
 	if (err)
 		goto deflate_err;
 
-	erofs_pcpubuf_init();
+	err = z_erofs_gbuf_init();
+	if (err)
+		goto gbuf_err;
+
 	err = z_erofs_init_zip_subsystem();
 	if (err)
 		goto zip_err;
@@ -879,6 +882,8 @@ fs_err:
 sysfs_err:
 	z_erofs_exit_zip_subsystem();
 zip_err:
+	z_erofs_gbuf_exit();
+gbuf_err:
 	z_erofs_deflate_exit();
 deflate_err:
 	z_erofs_lzma_exit();
@@ -902,7 +907,7 @@ static void __exit erofs_module_exit(void)
 	z_erofs_lzma_exit();
 	erofs_exit_shrinker();
 	kmem_cache_destroy(erofs_inode_cachep);
-	erofs_pcpubuf_exit();
+	z_erofs_gbuf_exit();
 }
 
 static int erofs_statfs(struct dentry *dentry, struct kstatfs *buf)

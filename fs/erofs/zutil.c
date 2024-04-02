@@ -5,6 +5,18 @@
  */
 #include "internal.h"
 
+struct z_erofs_gbuf {
+	spinlock_t lock;
+	void *ptr;
+	struct page **pages;
+	unsigned int nrpages;
+};
+
+static struct z_erofs_gbuf *z_erofs_gbufpool;
+static unsigned int z_erofs_gbuf_count, z_erofs_gbuf_nrpages;
+
+module_param_named(global_buffers, z_erofs_gbuf_count, uint, 0444);
+
 static atomic_long_t erofs_global_shrink_cnt;	/* for all mounted instances */
 /* protected by 'erofs_sb_list_lock' */
 static unsigned int shrinker_run_no;
@@ -13,6 +25,142 @@ static unsigned int shrinker_run_no;
 static DEFINE_SPINLOCK(erofs_sb_list_lock);
 static LIST_HEAD(erofs_sb_list);
 static struct shrinker *erofs_shrinker_info;
+
+static unsigned int z_erofs_gbuf_id(void)
+{
+	return raw_smp_processor_id() % z_erofs_gbuf_count;
+}
+
+void *z_erofs_get_gbuf(unsigned int requiredpages)
+	__acquires(gbuf->lock)
+{
+	struct z_erofs_gbuf *gbuf;
+
+	gbuf = &z_erofs_gbufpool[z_erofs_gbuf_id()];
+	spin_lock(&gbuf->lock);
+	/* check if the buffer is too small */
+	if (requiredpages > gbuf->nrpages) {
+		spin_unlock(&gbuf->lock);
+		/* (for sparse checker) pretend gbuf->lock is still taken */
+		__acquire(gbuf->lock);
+		return NULL;
+	}
+	return gbuf->ptr;
+}
+
+void z_erofs_put_gbuf(void *ptr) __releases(gbuf->lock)
+{
+	struct z_erofs_gbuf *gbuf;
+
+	gbuf = &z_erofs_gbufpool[z_erofs_gbuf_id()];
+	DBG_BUGON(gbuf->ptr != ptr);
+	spin_unlock(&gbuf->lock);
+}
+
+int z_erofs_gbuf_growsize(unsigned int nrpages)
+{
+	static DEFINE_MUTEX(gbuf_resize_mutex);
+	struct page *pagepool = NULL;
+	int delta, ret, i, j;
+
+	mutex_lock(&gbuf_resize_mutex);
+	delta = nrpages - z_erofs_gbuf_nrpages;
+	ret = 0;
+	/* avoid shrinking gbufs, since no idea how many fses rely on */
+	if (delta <= 0)
+		goto out;
+
+	for (i = 0; i < z_erofs_gbuf_count; ++i) {
+		struct z_erofs_gbuf *gbuf = &z_erofs_gbufpool[i];
+		struct page **pages, **tmp_pages;
+		void *ptr, *old_ptr = NULL;
+
+		ret = -ENOMEM;
+		tmp_pages = kcalloc(nrpages, sizeof(*tmp_pages), GFP_KERNEL);
+		if (!tmp_pages)
+			break;
+		for (j = 0; j < nrpages; ++j) {
+			tmp_pages[j] = erofs_allocpage(&pagepool, GFP_KERNEL);
+			if (!tmp_pages[j])
+				goto free_pagearray;
+		}
+		ptr = vmap(tmp_pages, nrpages, VM_MAP, PAGE_KERNEL);
+		if (!ptr)
+			goto free_pagearray;
+
+		pages = tmp_pages;
+		spin_lock(&gbuf->lock);
+		old_ptr = gbuf->ptr;
+		gbuf->ptr = ptr;
+		tmp_pages = gbuf->pages;
+		gbuf->pages = pages;
+		j = gbuf->nrpages;
+		gbuf->nrpages = nrpages;
+		spin_unlock(&gbuf->lock);
+		ret = 0;
+		if (!tmp_pages) {
+			DBG_BUGON(old_ptr);
+			continue;
+		}
+
+		if (old_ptr)
+			vunmap(old_ptr);
+free_pagearray:
+		while (j)
+			erofs_pagepool_add(&pagepool, tmp_pages[--j]);
+		kfree(tmp_pages);
+		if (ret)
+			break;
+	}
+	z_erofs_gbuf_nrpages = nrpages;
+	erofs_release_pages(&pagepool);
+out:
+	mutex_unlock(&gbuf_resize_mutex);
+	return ret;
+}
+
+int __init z_erofs_gbuf_init(void)
+{
+	unsigned int i = num_possible_cpus();
+
+	if (!z_erofs_gbuf_count)
+		z_erofs_gbuf_count = i;
+	else
+		z_erofs_gbuf_count = min(z_erofs_gbuf_count, i);
+
+	z_erofs_gbufpool = kcalloc(z_erofs_gbuf_count,
+			sizeof(*z_erofs_gbufpool), GFP_KERNEL);
+	if (!z_erofs_gbufpool)
+		return -ENOMEM;
+
+	for (i = 0; i < z_erofs_gbuf_count; ++i)
+		spin_lock_init(&z_erofs_gbufpool[i].lock);
+	return 0;
+}
+
+void z_erofs_gbuf_exit(void)
+{
+	int i;
+
+	for (i = 0; i < z_erofs_gbuf_count; ++i) {
+		struct z_erofs_gbuf *gbuf = &z_erofs_gbufpool[i];
+
+		if (gbuf->ptr) {
+			vunmap(gbuf->ptr);
+			gbuf->ptr = NULL;
+		}
+
+		if (!gbuf->pages)
+			continue;
+
+		for (i = 0; i < gbuf->nrpages; ++i)
+			if (gbuf->pages[i])
+				put_page(gbuf->pages[i]);
+		kfree(gbuf->pages);
+		gbuf->pages = NULL;
+	}
+	kfree(z_erofs_gbufpool);
+}
 
 struct page *erofs_allocpage(struct page **pagepool, gfp_t gfp)
 {
