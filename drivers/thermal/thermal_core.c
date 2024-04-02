@@ -364,6 +364,7 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 				struct thermal_trip_desc *td)
 {
 	const struct thermal_trip *trip = &td->trip;
+	int old_threshold;
 
 	if (trip->temperature == THERMAL_TEMP_INVALID)
 		return;
@@ -375,25 +376,11 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 	 * is what needs to be compared with the previous zone temperature
 	 * to decide which action to take.
 	 */
-	if (tz->last_temperature == THERMAL_TEMP_INVALID) {
-		/* Initialization. */
-		td->threshold = trip->temperature;
-		if (tz->temperature >= td->threshold)
-			td->threshold -= trip->hysteresis;
-	} else if (tz->last_temperature < td->threshold) {
-		/*
-		 * There is no mitigation under way, so it needs to be started
-		 * if the zone temperature exceeds the trip one.  The new
-		 * threshold is then set to the low temperature of the trip.
-		 */
-		if (tz->temperature >= trip->temperature) {
-			thermal_notify_tz_trip_up(tz, trip);
-			thermal_debug_tz_trip_up(tz, trip);
-			td->threshold = trip->temperature - trip->hysteresis;
-		} else {
-			td->threshold = trip->temperature;
-		}
-	} else {
+	old_threshold = td->threshold;
+	td->threshold = trip->temperature;
+
+	if (tz->last_temperature >= old_threshold &&
+	    tz->last_temperature != THERMAL_TEMP_INVALID) {
 		/*
 		 * Mitigation is under way, so it needs to stop if the zone
 		 * temperature falls below the low temperature of the trip.
@@ -402,10 +389,18 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		if (tz->temperature < trip->temperature - trip->hysteresis) {
 			thermal_notify_tz_trip_down(tz, trip);
 			thermal_debug_tz_trip_down(tz, trip);
-			td->threshold = trip->temperature;
 		} else {
-			td->threshold = trip->temperature - trip->hysteresis;
+			td->threshold -= trip->hysteresis;
 		}
+	} else if (tz->temperature >= trip->temperature) {
+		/*
+		 * There is no mitigation under way, so it needs to be started
+		 * if the zone temperature exceeds the trip one.  The new
+		 * threshold is then set to the low temperature of the trip.
+		 */
+		thermal_notify_tz_trip_up(tz, trip);
+		thermal_debug_tz_trip_up(tz, trip);
+		td->threshold -= trip->hysteresis;
 	}
 
 	if (trip->type == THERMAL_TRIP_CRITICAL || trip->type == THERMAL_TRIP_HOT)
