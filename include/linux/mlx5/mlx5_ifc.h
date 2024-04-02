@@ -1485,7 +1485,9 @@ enum {
 };
 
 struct mlx5_ifc_cmd_hca_cap_bits {
-	u8         reserved_at_0[0x10];
+	u8         reserved_at_0[0x6];
+	u8         page_request_disable[0x1];
+	u8         reserved_at_7[0x9];
 	u8         shared_object_to_user_object_allowed[0x1];
 	u8         reserved_at_13[0xe];
 	u8         vhca_resource_manager[0x1];
