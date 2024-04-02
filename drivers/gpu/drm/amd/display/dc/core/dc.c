@@ -3446,6 +3446,7 @@ void dc_dmub_update_dirty_rect(struct dc *dc,
 		if (srf_updates[i].surface->flip_immediate)
 			continue;
 
+		update_dirty_rect->cmd_version = DMUB_CMD_PSR_CONTROL_VERSION_1;
 		update_dirty_rect->dirty_rect_count = flip_addr->dirty_rect_count;
 		memcpy(update_dirty_rect->src_dirty_rects, flip_addr->dirty_rects,
 				sizeof(flip_addr->dirty_rects));
