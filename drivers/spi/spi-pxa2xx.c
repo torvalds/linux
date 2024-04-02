@@ -1375,8 +1375,10 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 		type = (enum pxa_ssp_type)value;
 	} else {
 		ssp = pxa_ssp_request(pdev->id, pdev->name);
-		if (ssp)
+		if (ssp) {
 			type = ssp->type;
+			pxa_ssp_free(ssp);
+		}
 	}
 
 	/* Validate the SSP type correctness */
