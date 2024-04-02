@@ -1375,6 +1375,59 @@ static int lvts_resume(struct device *dev)
 	return 0;
 }
 
+/*
+ * The MT8186 calibration data is stored as packed 3-byte little-endian
+ * values using a weird layout that makes sense only when viewed as a 32-bit
+ * hexadecimal word dump. Let's suppose SxBy where x = sensor number and
+ * y = byte number where the LSB is y=0. We then have:
+ *
+ *   [S0B2-S0B1-S0B0-S1B2] [S1B1-S1B0-S2B2-S2B1] [S2B0-S3B2-S3B1-S3B0]
+ *
+ * However, when considering a byte stream, those appear as follows:
+ *
+ *   [S1B2] [S0B0[ [S0B1] [S0B2] [S2B1] [S2B2] [S1B0] [S1B1] [S3B0] [S3B1] [S3B2] [S2B0]
+ *
+ * Hence the rather confusing offsets provided below.
+ */
+static const struct lvts_ctrl_data mt8186_lvts_data_ctrl[] = {
+	{
+		.lvts_sensor = {
+			{ .dt_id = MT8186_LITTLE_CPU0,
+			  .cal_offsets = { 5, 6, 7 } },
+			{ .dt_id = MT8186_LITTLE_CPU1,
+			  .cal_offsets = { 10, 11, 4 } },
+			{ .dt_id = MT8186_LITTLE_CPU2,
+			  .cal_offsets = { 15, 8, 9 } },
+			{ .dt_id = MT8186_CAM,
+			  .cal_offsets = { 12, 13, 14 } }
+		},
+		.num_lvts_sensor = 4,
+		.offset = 0x0,
+	},
+	{
+		.lvts_sensor = {
+			{ .dt_id = MT8186_BIG_CPU0,
+			  .cal_offsets = { 22, 23, 16 } },
+			{ .dt_id = MT8186_BIG_CPU1,
+			  .cal_offsets = { 27, 20, 21 } }
+		},
+		.num_lvts_sensor = 2,
+		.offset = 0x100,
+	},
+	{
+		.lvts_sensor = {
+			{ .dt_id = MT8186_NNA,
+			  .cal_offsets = { 29, 30, 31 } },
+			{ .dt_id = MT8186_ADSP,
+			  .cal_offsets = { 34, 35, 28 } },
+			{ .dt_id = MT8186_MFG,
+			  .cal_offsets = { 39, 32, 33 } }
+		},
+		.num_lvts_sensor = 3,
+		.offset = 0x200,
+	}
+};
+
 static const struct lvts_ctrl_data mt8192_lvts_mcu_data_ctrl[] = {
 	{
 		.lvts_sensor = {
@@ -1549,6 +1602,13 @@ static const struct lvts_data mt7988_lvts_ap_data = {
 	.temp_offset	= LVTS_COEFF_B_MT7988,
 };
 
+static const struct lvts_data mt8186_lvts_data = {
+	.lvts_ctrl	= mt8186_lvts_data_ctrl,
+	.num_lvts_ctrl	= ARRAY_SIZE(mt8186_lvts_data_ctrl),
+	.temp_factor	= LVTS_COEFF_A_MT7988,
+	.temp_offset	= LVTS_COEFF_B_MT7988,
+};
+
 static const struct lvts_data mt8192_lvts_mcu_data = {
 	.lvts_ctrl	= mt8192_lvts_mcu_data_ctrl,
 	.num_lvts_ctrl	= ARRAY_SIZE(mt8192_lvts_mcu_data_ctrl),
@@ -1579,6 +1639,7 @@ static const struct lvts_data mt8195_lvts_ap_data = {
 
 static const struct of_device_id lvts_of_match[] = {
 	{ .compatible = "mediatek,mt7988-lvts-ap", .data = &mt7988_lvts_ap_data },
+	{ .compatible = "mediatek,mt8186-lvts", .data = &mt8186_lvts_data },
 	{ .compatible = "mediatek,mt8192-lvts-mcu", .data = &mt8192_lvts_mcu_data },
 	{ .compatible = "mediatek,mt8192-lvts-ap", .data = &mt8192_lvts_ap_data },
 	{ .compatible = "mediatek,mt8195-lvts-mcu", .data = &mt8195_lvts_mcu_data },
