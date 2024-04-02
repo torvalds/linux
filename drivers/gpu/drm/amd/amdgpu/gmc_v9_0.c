@@ -1457,7 +1457,6 @@ static void gmc_v9_0_set_umc_funcs(struct amdgpu_device *adev)
 		adev->umc.channel_offs = UMC_V12_0_PER_CHANNEL_OFFSET;
 		adev->umc.active_mask = adev->aid_mask;
 		adev->umc.retire_unit = UMC_V12_0_BAD_PAGE_NUM_PER_CHANNEL;
-		adev->umc.channel_idx_tbl = &umc_v12_0_channel_idx_tbl[0][0][0];
 		if (!adev->gmc.xgmi.connected_to_cpu && !adev->gmc.is_app_apu)
 			adev->umc.ras = &umc_v12_0_ras;
 		break;

@@ -28,28 +28,6 @@
 #include "umc/umc_12_0_0_sh_mask.h"
 #include "mp/mp_13_0_6_sh_mask.h"
 
-const uint32_t
-	umc_v12_0_channel_idx_tbl[]
-			[UMC_V12_0_UMC_INSTANCE_NUM]
-			[UMC_V12_0_CHANNEL_INSTANCE_NUM] = {
-		{{3,   7,   11,  15,  2,   6,   10,  14},  {1,   5,   9,   13,  0,   4,   8,   12},
-		 {19,  23,  27,  31,  18,  22,  26,  30},  {17,  21,  25,  29,  16,  20,  24,  28}},
-		{{47,  43,  39,  35,  46,  42,  38,  34},  {45,  41,  37,  33,  44,  40,  36,  32},
-		 {63,  59,  55,  51,  62,  58,  54,  50},  {61,  57,  53,  49,  60,  56,  52,  48}},
-		{{79,  75,  71,  67,  78,  74,  70,  66},  {77,  73,  69,  65,  76,  72,  68,  64},
-		 {95,  91,  87,  83,  94,  90,  86,  82},  {93,  89,  85,  81,  92,  88,  84,  80}},
-		{{99,  103, 107, 111, 98,  102, 106, 110}, {97,  101, 105, 109, 96,  100, 104, 108},
-		 {115, 119, 123, 127, 114, 118, 122, 126}, {113, 117, 121, 125, 112, 116, 120, 124}}
-	};
-
-/* mapping of MCA error address to normalized address */
-static const uint32_t umc_v12_0_ma2na_mapping[] = {
-	0,  5,  6,  8,  9,  14, 12, 13,
-	10, 11, 15, 16, 17, 18, 19, 20,
-	21, 22, 23, 24, 25, 26, 27, 28,
-	24, 7,  29, 30,
-};
-
 static inline uint64_t get_umc_v12_0_reg_offset(struct amdgpu_device *adev,
 					    uint32_t node_inst,
 					    uint32_t umc_inst,
@@ -192,79 +170,6 @@ static void umc_v12_0_query_ras_error_count(struct amdgpu_device *adev,
 	umc_v12_0_reset_error_count(adev);
 }
 
-static bool umc_v12_0_bit_wise_xor(uint32_t val)
-{
-	bool result = 0;
-	int i;
-
-	for (i = 0; i < 32; i++)
-		result = result ^ ((val >> i) & 0x1);
-
-	return result;
-}
-
-static void umc_v12_0_mca_addr_to_pa(struct amdgpu_device *adev,
-					uint64_t err_addr, uint32_t ch_inst, uint32_t umc_inst,
-					uint32_t node_inst,
-					struct ta_ras_query_address_output *addr_out)
-{
-	uint32_t channel_index, i;
-	uint64_t na, soc_pa;
-	uint32_t bank_hash0, bank_hash1, bank_hash2, bank_hash3, col, row;
-	uint32_t bank0, bank1, bank2, bank3, bank;
-
-	bank_hash0 = (err_addr >> UMC_V12_0_MCA_B0_BIT) & 0x1ULL;
-	bank_hash1 = (err_addr >> UMC_V12_0_MCA_B1_BIT) & 0x1ULL;
-	bank_hash2 = (err_addr >> UMC_V12_0_MCA_B2_BIT) & 0x1ULL;
-	bank_hash3 = (err_addr >> UMC_V12_0_MCA_B3_BIT) & 0x1ULL;
-	col = (err_addr >> 1) & 0x1fULL;
-	row = (err_addr >> 10) & 0x3fffULL;
-
-	/* apply bank hash algorithm */
-	bank0 =
-		bank_hash0 ^ (UMC_V12_0_XOR_EN0 &
-		(umc_v12_0_bit_wise_xor(col & UMC_V12_0_COL_XOR0) ^
-		(umc_v12_0_bit_wise_xor(row & UMC_V12_0_ROW_XOR0))));
-	bank1 =
-		bank_hash1 ^ (UMC_V12_0_XOR_EN1 &
-		(umc_v12_0_bit_wise_xor(col & UMC_V12_0_COL_XOR1) ^
-		(umc_v12_0_bit_wise_xor(row & UMC_V12_0_ROW_XOR1))));
-	bank2 =
-		bank_hash2 ^ (UMC_V12_0_XOR_EN2 &
-		(umc_v12_0_bit_wise_xor(col & UMC_V12_0_COL_XOR2) ^
-		(umc_v12_0_bit_wise_xor(row & UMC_V12_0_ROW_XOR2))));
-	bank3 =
-		bank_hash3 ^ (UMC_V12_0_XOR_EN3 &
-		(umc_v12_0_bit_wise_xor(col & UMC_V12_0_COL_XOR3) ^
-		(umc_v12_0_bit_wise_xor(row & UMC_V12_0_ROW_XOR3))));
-
-	bank = bank0 | (bank1 << 1) | (bank2 << 2) | (bank3 << 3);
-	err_addr &= ~0x3c0ULL;
-	err_addr |= (bank << UMC_V12_0_MCA_B0_BIT);
-
-	na = 0x0;
-	/* convert mca error address to normalized address */
-	for (i = 1; i < ARRAY_SIZE(umc_v12_0_ma2na_mapping); i++)
-		na |= ((err_addr >> i) & 0x1ULL) << umc_v12_0_ma2na_mapping[i];
-
-	channel_index =
-		adev->umc.channel_idx_tbl[node_inst * adev->umc.umc_inst_num *
-			adev->umc.channel_inst_num +
-			umc_inst * adev->umc.channel_inst_num +
-			ch_inst];
-	/* translate umc channel address to soc pa, 3 parts are included */
-	soc_pa = ADDR_OF_32KB_BLOCK(na) |
-		ADDR_OF_256B_BLOCK(channel_index) |
-		OFFSET_IN_256B_BLOCK(na);
-
-	/* the umc channel bits are not original values, they are hashed */
-	UMC_V12_0_SET_CHANNEL_HASH(channel_index, soc_pa);
-
-	addr_out->pa.pa = soc_pa;
-	addr_out->pa.bank = bank;
-	addr_out->pa.channel_idx = channel_index;
-}
-
 static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 					struct ras_err_data *err_data,
 					struct ta_ras_query_address_input *addr_in)
@@ -275,10 +180,12 @@ static void umc_v12_0_convert_error_address(struct amdgpu_device *adev,
 
 	err_addr = addr_in->ma.err_addr;
 	addr_in->addr_type = TA_RAS_MCA_TO_PA;
-	if (psp_ras_query_address(&adev->psp, addr_in, &addr_out))
-		/* fallback to old path if fail to get pa from psp */
-		umc_v12_0_mca_addr_to_pa(adev, err_addr, addr_in->ma.ch_inst,
-				addr_in->ma.umc_inst, addr_in->ma.node_inst, &addr_out);
+	if (psp_ras_query_address(&adev->psp, addr_in, &addr_out)) {
+		dev_warn(adev->dev, "Failed to query RAS physical address for 0x%llx",
+			err_addr);
+
+		return;
+	}
 
 	soc_pa = addr_out.pa.pa;
 	bank = addr_out.pa.bank;
