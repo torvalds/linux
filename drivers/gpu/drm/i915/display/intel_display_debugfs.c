@@ -1402,20 +1402,6 @@ out:	drm_modeset_unlock(&i915->drm.mode_config.connection_mutex);
 	return ret;
 }
 
-static int i915_bigjoiner_enable_show(struct seq_file *m, void *data)
-{
-	struct intel_connector *connector = m->private;
-	struct drm_crtc *crtc;
-
-	crtc = connector->base.state->crtc;
-	if (connector->base.status != connector_status_connected || !crtc)
-		return -ENODEV;
-
-	seq_printf(m, "Bigjoiner enable: %d\n", connector->force_bigjoiner_enable);
-
-	return 0;
-}
-
 static ssize_t i915_dsc_output_format_write(struct file *file,
 					    const char __user *ubuf,
 					    size_t len, loff_t *offp)
@@ -1432,30 +1418,6 @@ static ssize_t i915_dsc_output_format_write(struct file *file,
 		return ret;
 
 	intel_dp->force_dsc_output_format = dsc_output_format;
-	*offp += len;
-
-	return len;
-}
-
-static ssize_t i915_bigjoiner_enable_write(struct file *file,
-					   const char __user *ubuf,
-					   size_t len, loff_t *offp)
-{
-	struct seq_file *m = file->private_data;
-	struct intel_connector *connector = m->private;
-	struct drm_crtc *crtc;
-	bool bigjoiner_en = 0;
-	int ret;
-
-	crtc = connector->base.state->crtc;
-	if (connector->base.status != connector_status_connected || !crtc)
-		return -ENODEV;
-
-	ret = kstrtobool_from_user(ubuf, len, &bigjoiner_en);
-	if (ret < 0)
-		return ret;
-
-	connector->force_bigjoiner_enable = bigjoiner_en;
 	*offp += len;
 
 	return len;
@@ -1554,8 +1516,6 @@ static const struct file_operations i915_dsc_fractional_bpp_fops = {
 	.write = i915_dsc_fractional_bpp_write
 };
 
-DEFINE_SHOW_STORE_ATTRIBUTE(i915_bigjoiner_enable);
-
 /*
  * Returns the Current CRTC's bpc.
  * Example usage: cat /sys/kernel/debug/dri/0/crtc-0/i915_current_bpc
@@ -1640,8 +1600,8 @@ void intel_connector_debugfs_add(struct intel_connector *connector)
 	if (DISPLAY_VER(i915) >= 11 &&
 	    (connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	     connector_type == DRM_MODE_CONNECTOR_eDP)) {
-		debugfs_create_file("i915_bigjoiner_force_enable", 0644, root,
-				    connector, &i915_bigjoiner_enable_fops);
+		debugfs_create_bool("i915_bigjoiner_force_enable", 0644, root,
+				    &connector->force_bigjoiner_enable);
 	}
 
 	if (connector_type == DRM_MODE_CONNECTOR_DSI ||
