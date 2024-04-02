@@ -8,7 +8,6 @@
 #include <linux/device.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
-#include <linux/wait.h>
 #include <linux/types.h>
 #include <linux/skbuff.h>
 #include <linux/if_vlan.h>
@@ -111,8 +110,6 @@ struct mlxsw_pci {
 		struct mlxsw_pci_mem_item out_mbox;
 		struct mlxsw_pci_mem_item in_mbox;
 		struct mutex lock; /* Lock access to command registers */
-		wait_queue_head_t wait;
-		bool wait_done;
 		struct {
 			u8 status;
 			u64 out_param;
@@ -1821,8 +1818,8 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 	struct mlxsw_pci *mlxsw_pci = bus_priv;
 	dma_addr_t in_mapaddr = 0, out_mapaddr = 0;
 	unsigned long timeout = msecs_to_jiffies(MLXSW_PCI_CIR_TIMEOUT_MSECS);
-	bool *p_wait_done = &mlxsw_pci->cmd.wait_done;
 	unsigned long end;
+	bool wait_done;
 	int err;
 
 	*p_status = MLXSW_CMD_STATUS_OK;
@@ -1846,7 +1843,7 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 	mlxsw_pci_write32(mlxsw_pci, CIR_IN_MODIFIER, in_mod);
 	mlxsw_pci_write32(mlxsw_pci, CIR_TOKEN, 0);
 
-	*p_wait_done = false;
+	wait_done = false;
 
 	wmb(); /* all needs to be written before we write control register */
 	mlxsw_pci_write32(mlxsw_pci, CIR_CTRL,
@@ -1859,7 +1856,7 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 		u32 ctrl = mlxsw_pci_read32(mlxsw_pci, CIR_CTRL);
 
 		if (!(ctrl & MLXSW_PCI_CIR_CTRL_GO_BIT)) {
-			*p_wait_done = true;
+			wait_done = true;
 			*p_status = ctrl >> MLXSW_PCI_CIR_CTRL_STATUS_SHIFT;
 			break;
 		}
@@ -1867,7 +1864,7 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 	} while (time_before(jiffies, end));
 
 	err = 0;
-	if (*p_wait_done) {
+	if (wait_done) {
 		if (*p_status)
 			err = -EIO;
 	} else {
@@ -1965,7 +1962,6 @@ static int mlxsw_pci_cmd_init(struct mlxsw_pci *mlxsw_pci)
 	int err;
 
 	mutex_init(&mlxsw_pci->cmd.lock);
-	init_waitqueue_head(&mlxsw_pci->cmd.wait);
 
 	err = mlxsw_pci_mbox_alloc(mlxsw_pci, &mlxsw_pci->cmd.in_mbox);
 	if (err)
