@@ -465,12 +465,12 @@ int check_gsi_transfer_completion(struct q2spi_geni *q2spi)
 		}
 	}
 err_gsi_geni_transfer:
-	if (q2spi->gsi->qup_gsi_err) {
+	if (q2spi->gsi->qup_gsi_err || !timeout) {
+		ret = -ETIMEDOUT;
 		Q2SPI_ERROR(q2spi, "%s Err QUP Gsi Error\n", __func__);
 		q2spi->gsi->qup_gsi_err = false;
 		q2spi->setup_config0 = false;
-		geni_gsi_disconnect_doorbell_stop_ch(q2spi->gsi->tx_c, true);
-		geni_gsi_ch_start(q2spi->gsi->tx_c);
+		dmaengine_terminate_all(q2spi->gsi->tx_c);
 	}
 	return ret;
 }
@@ -614,7 +614,7 @@ int q2spi_setup_gsi_xfer(struct q2spi_packet *q2spi_pkt)
 								 q2spi->gsi->rx_sg,
 								 rx_nent, DMA_DEV_TO_MEM, flags);
 		if (IS_ERR_OR_NULL(q2spi->gsi->db_rx_desc)) {
-			Q2SPI_ERROR(q2spi, "%s db_rx_desc fail\n", __func__);
+			Q2SPI_ERROR(q2spi, "%s Err db_rx_desc fail\n", __func__);
 			return -EIO;
 		}
 		q2spi->gsi->db_rx_desc->callback = q2spi_gsi_rx_callback;
@@ -678,6 +678,8 @@ void q2spi_gsi_ch_ev_cb(struct dma_chan *ch, struct msm_gpi_cb const *cb, void *
 			    __func__, cb->error_log.routine, cb->error_log.type,
 			    cb->error_log.error_code);
 		q2spi->gsi->qup_gsi_err = true;
+		complete_all(&q2spi->tx_cb);
+		complete_all(&q2spi->rx_cb);
 		break;
 	case MSM_GPI_QUP_CR_HEADER:
 		q2spi_cr_hdr_event = &cb->q2spi_cr_header_event;
