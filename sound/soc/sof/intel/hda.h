@@ -1000,4 +1000,12 @@ int hda_dai_config(struct snd_soc_dapm_widget *w, unsigned int flags,
 int hda_link_dma_cleanup(struct snd_pcm_substream *substream, struct hdac_ext_stream *hext_stream,
 			 struct snd_soc_dai *cpu_dai);
 
+static inline struct snd_sof_dev *widget_to_sdev(struct snd_soc_dapm_widget *w)
+{
+	struct snd_sof_widget *swidget = w->dobj.private;
+	struct snd_soc_component *component = swidget->scomp;
+
+	return snd_soc_component_get_drvdata(component);
+}
+
 #endif
