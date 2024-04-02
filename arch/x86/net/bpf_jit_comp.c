@@ -1382,6 +1382,17 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 				maybe_emit_mod(&prog, AUX_REG, dst_reg, true);
 				EMIT3(0x0F, 0x44, add_2reg(0xC0, AUX_REG, dst_reg));
 				break;
+			} else if (insn_is_mov_percpu_addr(insn)) {
+				u32 off = (u32)(unsigned long)&this_cpu_off;
+
+				/* mov <dst>, <src> (if necessary) */
+				EMIT_mov(dst_reg, src_reg);
+
+				/* add <dst>, gs:[<off>] */
+				EMIT2(0x65, add_1mod(0x48, dst_reg));
+				EMIT3(0x03, add_1reg(0x04, dst_reg), 0x25);
+				EMIT(off, 4);
+				break;
 			}
 			fallthrough;
 		case BPF_ALU | BPF_MOV | BPF_X:
@@ -3361,6 +3372,11 @@ void *bpf_arch_text_copy(void *dst, void *src, size_t len)
 
 /* Indicate the JIT backend supports mixing bpf2bpf and tailcalls. */
 bool bpf_jit_supports_subprog_tailcalls(void)
+{
+	return true;
+}
+
+bool bpf_jit_supports_percpu_insn(void)
 {
 	return true;
 }

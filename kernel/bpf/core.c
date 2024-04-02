@@ -2945,6 +2945,11 @@ bool __weak bpf_jit_supports_subprog_tailcalls(void)
 	return false;
 }
 
+bool __weak bpf_jit_supports_percpu_insn(void)
+{
+	return false;
+}
+
 bool __weak bpf_jit_supports_kfunc_call(void)
 {
 	return false;
