@@ -157,10 +157,6 @@ int rsnd_cmd_probe(struct rsnd_priv *priv)
 	struct rsnd_cmd *cmd;
 	int i, nr;
 
-	/* This driver doesn't support Gen1 at this point */
-	if (rsnd_is_gen1(priv))
-		return 0;
-
 	/* same number as DVC */
 	nr = priv->dvc_nr;
 	if (!nr)

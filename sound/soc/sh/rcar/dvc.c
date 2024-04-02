@@ -331,10 +331,6 @@ int rsnd_dvc_probe(struct rsnd_priv *priv)
 	char name[RSND_DVC_NAME_SIZE];
 	int i, nr, ret;
 
-	/* This driver doesn't support Gen1 at this point */
-	if (rsnd_is_gen1(priv))
-		return 0;
-
 	node = rsnd_dvc_of_node(priv);
 	if (!node)
 		return 0; /* not used is not error */
