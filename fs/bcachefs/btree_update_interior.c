@@ -26,6 +26,13 @@
 
 #include <linux/random.h>
 
+const char * const bch2_btree_update_modes[] = {
+#define x(t) #t,
+	BCH_WATERMARKS()
+#undef x
+	NULL
+};
+
 static int bch2_btree_insert_node(struct btree_update *, struct btree_trans *,
 				  btree_path_idx_t, struct btree *, struct keylist *);
 static void bch2_btree_update_add_new_node(struct btree_update *, struct btree *);
@@ -846,11 +853,11 @@ static void btree_update_updated_node(struct btree_update *as, struct btree *b)
 	mutex_lock(&c->btree_interior_update_lock);
 	list_add_tail(&as->unwritten_list, &c->btree_interior_updates_unwritten);
 
-	BUG_ON(as->mode != BTREE_INTERIOR_NO_UPDATE);
+	BUG_ON(as->mode != BTREE_UPDATE_none);
 	BUG_ON(!btree_node_dirty(b));
 	BUG_ON(!b->c.level);
 
-	as->mode	= BTREE_INTERIOR_UPDATING_NODE;
+	as->mode	= BTREE_UPDATE_node;
 	as->b		= b;
 
 	set_btree_node_write_blocked(b);
@@ -873,7 +880,7 @@ static void btree_update_reparent(struct btree_update *as,
 	lockdep_assert_held(&c->btree_interior_update_lock);
 
 	child->b = NULL;
-	child->mode = BTREE_INTERIOR_UPDATING_AS;
+	child->mode = BTREE_UPDATE_update;
 
 	bch2_journal_pin_copy(&c->journal, &as->journal, &child->journal,
 			      bch2_update_reparent_journal_pin_flush);
@@ -884,7 +891,7 @@ static void btree_update_updated_root(struct btree_update *as, struct btree *b)
 	struct bkey_i *insert = &b->key;
 	struct bch_fs *c = as->c;
 
-	BUG_ON(as->mode != BTREE_INTERIOR_NO_UPDATE);
+	BUG_ON(as->mode != BTREE_UPDATE_none);
 
 	BUG_ON(as->journal_u64s + jset_u64s(insert->k.u64s) >
 	       ARRAY_SIZE(as->journal_entries));
@@ -898,7 +905,7 @@ static void btree_update_updated_root(struct btree_update *as, struct btree *b)
 	mutex_lock(&c->btree_interior_update_lock);
 	list_add_tail(&as->unwritten_list, &c->btree_interior_updates_unwritten);
 
-	as->mode	= BTREE_INTERIOR_UPDATING_ROOT;
+	as->mode	= BTREE_UPDATE_root;
 	mutex_unlock(&c->btree_interior_update_lock);
 }
 
@@ -1076,7 +1083,7 @@ static void bch2_btree_update_done(struct btree_update *as, struct btree_trans *
 	struct bch_fs *c = as->c;
 	u64 start_time = as->start_time;
 
-	BUG_ON(as->mode == BTREE_INTERIOR_NO_UPDATE);
+	BUG_ON(as->mode == BTREE_UPDATE_none);
 
 	if (as->took_gc_lock)
 		up_read(&as->c->gc_lock);
@@ -1172,7 +1179,8 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	as->c		= c;
 	as->start_time	= start_time;
 	as->ip_started	= _RET_IP_;
-	as->mode	= BTREE_INTERIOR_NO_UPDATE;
+	as->mode	= BTREE_UPDATE_none;
+	as->watermark	= watermark;
 	as->took_gc_lock = true;
 	as->btree_id	= path->btree_id;
 	as->update_level = update_level;
@@ -2509,18 +2517,25 @@ void bch2_btree_root_alloc(struct bch_fs *c, enum btree_id id)
 	bch2_trans_run(c, __bch2_btree_root_alloc(trans, id));
 }
 
+static void bch2_btree_update_to_text(struct printbuf *out, struct btree_update *as)
+{
+	prt_printf(out, "%ps: btree=%s watermark=%s mode=%s nodes_written=%u cl.remaining=%u journal_seq=%llu\n",
+		   (void *) as->ip_started,
+		   bch2_btree_id_str(as->btree_id),
+		   bch2_watermarks[as->watermark],
+		   bch2_btree_update_modes[as->mode],
+		   as->nodes_written,
+		   closure_nr_remaining(&as->cl),
+		   as->journal.seq);
+}
+
 void bch2_btree_updates_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	struct btree_update *as;
 
 	mutex_lock(&c->btree_interior_update_lock);
 	list_for_each_entry(as, &c->btree_interior_update_list, list)
-		prt_printf(out, "%ps: mode=%u nodes_written=%u cl.remaining=%u journal_seq=%llu\n",
-			   (void *) as->ip_started,
-			   as->mode,
-			   as->nodes_written,
-			   closure_nr_remaining(&as->cl),
-			   as->journal.seq);
+		bch2_btree_update_to_text(out, as);
 	mutex_unlock(&c->btree_interior_update_lock);
 }
 
