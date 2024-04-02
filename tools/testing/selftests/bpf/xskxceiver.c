@@ -2439,6 +2439,30 @@ static int testapp_hw_sw_min_ring_size(struct test_spec *test)
 	return testapp_validate_traffic(test);
 }
 
+static int testapp_hw_sw_max_ring_size(struct test_spec *test)
+{
+	u32 max_descs = XSK_RING_PROD__DEFAULT_NUM_DESCS * 2;
+	int ret;
+
+	test->set_ring = true;
+	test->total_steps = 2;
+	test->ifobj_tx->ring.tx_pending = test->ifobj_tx->ring.tx_max_pending;
+	test->ifobj_tx->ring.rx_pending  = test->ifobj_tx->ring.rx_max_pending;
+	test->ifobj_rx->umem->num_frames = max_descs;
+	test->ifobj_rx->xsk->rxqsize = max_descs;
+	test->ifobj_tx->xsk->batch_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
+	test->ifobj_rx->xsk->batch_size = XSK_RING_PROD__DEFAULT_NUM_DESCS;
+
+	ret = testapp_validate_traffic(test);
+	if (ret)
+		return ret;
+
+	/* Set batch_size to 4095 */
+	test->ifobj_tx->xsk->batch_size = max_descs - 1;
+	test->ifobj_rx->xsk->batch_size = max_descs - 1;
+	return testapp_validate_traffic(test);
+}
+
 static void run_pkt_test(struct test_spec *test)
 {
 	int ret;
@@ -2544,6 +2568,7 @@ static const struct test_spec tests[] = {
 	{.name = "UNALIGNED_INV_DESC_MULTI_BUFF", .test_func = testapp_unaligned_inv_desc_mb},
 	{.name = "TOO_MANY_FRAGS", .test_func = testapp_too_many_frags},
 	{.name = "HW_SW_MIN_RING_SIZE", .test_func = testapp_hw_sw_min_ring_size},
+	{.name = "HW_SW_MAX_RING_SIZE", .test_func = testapp_hw_sw_max_ring_size},
 	};
 
 static void print_tests(void)
