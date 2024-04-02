@@ -2177,13 +2177,13 @@ static struct folio *alloc_buddy_hugetlb_folio(struct hstate *h,
 		nodemask_t *node_alloc_noretry)
 {
 	int order = huge_page_order(h);
-	struct page *page;
+	struct folio *folio;
 	bool alloc_try_hard = true;
 	bool retry = true;
 
 	/*
-	 * By default we always try hard to allocate the page with
-	 * __GFP_RETRY_MAYFAIL flag.  However, if we are allocating pages in
+	 * By default we always try hard to allocate the folio with
+	 * __GFP_RETRY_MAYFAIL flag.  However, if we are allocating folios in
 	 * a loop (to adjust global huge page counts) and previous allocation
 	 * failed, do not continue to try hard on the same node.  Use the
 	 * node_alloc_noretry bitmap to manage this state information.
@@ -2196,43 +2196,42 @@ static struct folio *alloc_buddy_hugetlb_folio(struct hstate *h,
 	if (nid == NUMA_NO_NODE)
 		nid = numa_mem_id();
 retry:
-	page = __alloc_pages(gfp_mask, order, nid, nmask);
+	folio = __folio_alloc(gfp_mask, order, nid, nmask);
 
-	/* Freeze head page */
-	if (page && !page_ref_freeze(page, 1)) {
-		__free_pages(page, order);
+	if (folio && !folio_ref_freeze(folio, 1)) {
+		folio_put(folio);
 		if (retry) {	/* retry once */
 			retry = false;
 			goto retry;
 		}
 		/* WOW!  twice in a row. */
-		pr_warn("HugeTLB head page unexpected inflated ref count\n");
-		page = NULL;
+		pr_warn("HugeTLB unexpected inflated folio ref count\n");
+		folio = NULL;
 	}
 
 	/*
-	 * If we did not specify __GFP_RETRY_MAYFAIL, but still got a page this
-	 * indicates an overall state change.  Clear bit so that we resume
-	 * normal 'try hard' allocations.
+	 * If we did not specify __GFP_RETRY_MAYFAIL, but still got a
+	 * folio this indicates an overall state change.  Clear bit so
+	 * that we resume normal 'try hard' allocations.
 	 */
-	if (node_alloc_noretry && page && !alloc_try_hard)
+	if (node_alloc_noretry && folio && !alloc_try_hard)
 		node_clear(nid, *node_alloc_noretry);
 
 	/*
-	 * If we tried hard to get a page but failed, set bit so that
+	 * If we tried hard to get a folio but failed, set bit so that
 	 * subsequent attempts will not try as hard until there is an
 	 * overall state change.
 	 */
-	if (node_alloc_noretry && !page && alloc_try_hard)
+	if (node_alloc_noretry && !folio && alloc_try_hard)
 		node_set(nid, *node_alloc_noretry);
 
-	if (!page) {
+	if (!folio) {
 		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
 		return NULL;
 	}
 
 	__count_vm_event(HTLB_BUDDY_PGALLOC);
-	return page_folio(page);
+	return folio;
 }
 
 static struct folio *__alloc_fresh_hugetlb_folio(struct hstate *h,
