@@ -1277,7 +1277,6 @@ static void sof_ipc4_unprepare_copier_module(struct snd_sof_widget *swidget)
 		}
 
 		if (ipc4_copier->dai_type == SOF_DAI_INTEL_ALH) {
-			struct sof_ipc4_copier_data *copier_data = &ipc4_copier->data;
 			struct sof_ipc4_alh_configuration_blob *blob;
 			unsigned int group_id;
 
@@ -1287,9 +1286,6 @@ static void sof_ipc4_unprepare_copier_module(struct snd_sof_widget *swidget)
 					   ALH_MULTI_GTW_BASE;
 				ida_free(&alh_group_ida, group_id);
 			}
-
-			/* clear the node ID */
-			copier_data->gtw_cfg.node_id &= ~SOF_IPC4_NODE_INDEX_MASK;
 		}
 	}
 
