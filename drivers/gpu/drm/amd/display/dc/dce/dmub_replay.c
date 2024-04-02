@@ -362,6 +362,18 @@ static void dmub_replay_send_cmd(struct dmub_replay *dmub,
 		cmd.replay_set_pseudo_vtotal.data.vtotal =
 			cmd_element->pseudo_vtotal_data.vtotal;
 		break;
+	case Replay_Disabled_Adaptive_Sync_SDP:
+		//Header
+		cmd.replay_disabled_adaptive_sync_sdp.header.sub_type =
+			DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP;
+		cmd.replay_disabled_adaptive_sync_sdp.header.payload_bytes =
+			sizeof(struct dmub_rb_cmd_replay_set_pseudo_vtotal);
+		//Cmd Body
+		cmd.replay_disabled_adaptive_sync_sdp.data.panel_inst =
+			cmd_element->disabled_adaptive_sync_sdp_data.panel_inst;
+		cmd.replay_disabled_adaptive_sync_sdp.data.force_disabled =
+			cmd_element->disabled_adaptive_sync_sdp_data.force_disabled;
+		break;
 	case Replay_Msg_Not_Support:
 	default:
 		return;
