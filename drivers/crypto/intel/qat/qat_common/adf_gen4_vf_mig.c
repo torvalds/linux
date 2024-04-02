@@ -976,7 +976,7 @@ static int adf_gen4_vfmig_load_setup(struct qat_mig_dev *mdev, int len)
 	ret = adf_mstate_mgr_init_from_remote(vfmig->mstate_mgr, mdev->state,
 					      setup_size, NULL, NULL);
 	if (ret) {
-		dev_err(&GET_DEV(accel_dev), "Invalide setup for vf_nr %d\n",
+		dev_err(&GET_DEV(accel_dev), "Invalid setup for vf_nr %d\n",
 			vf_nr);
 		return ret;
 	}
