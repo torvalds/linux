@@ -517,7 +517,7 @@ struct panthor_group {
 	/** @max_compute_cores: Maximum number of shader cores used for compute jobs. */
 	u8 max_compute_cores;
 
-	/** @max_compute_cores: Maximum number of shader cores used for fragment jobs. */
+	/** @max_fragment_cores: Maximum number of shader cores used for fragment jobs. */
 	u8 max_fragment_cores;
 
 	/** @max_tiler_cores: Maximum number of tiler cores used for tiler jobs. */
@@ -993,7 +993,7 @@ cs_slot_prog_locked(struct panthor_device *ptdev, u32 csg_id, u32 cs_id)
 }
 
 /**
- * @cs_slot_reset_locked() - Reset a queue slot
+ * cs_slot_reset_locked() - Reset a queue slot
  * @ptdev: Device.
  * @csg_id: Group slot.
  * @cs_id: Queue slot.
@@ -1591,7 +1591,7 @@ static void sched_process_idle_event_locked(struct panthor_device *ptdev)
 }
 
 /**
- * panthor_sched_process_global_irq() - Process the scheduling part of a global IRQ
+ * sched_process_global_irq_locked() - Process the scheduling part of a global IRQ
  * @ptdev: Device.
  */
 static void sched_process_global_irq_locked(struct panthor_device *ptdev)
@@ -1660,8 +1660,6 @@ static const struct dma_fence_ops panthor_queue_fence_ops = {
 	.get_timeline_name = queue_fence_get_timeline_name,
 };
 
-/**
- */
 struct panthor_csg_slots_upd_ctx {
 	u32 update_mask;
 	u32 timedout_mask;
