@@ -1893,8 +1893,8 @@ static u32 xe2lpd_mdclk_source_sel(struct drm_i915_private *i915)
 	return MDCLK_SOURCE_SEL_CD2XCLK;
 }
 
-u8 intel_mdclk_cdclk_ratio(struct drm_i915_private *i915,
-			   const struct intel_cdclk_config *cdclk_config)
+int intel_mdclk_cdclk_ratio(struct drm_i915_private *i915,
+			    const struct intel_cdclk_config *cdclk_config)
 {
 	if (mdclk_source_is_cdclk_pll(i915))
 		return DIV_ROUND_UP(cdclk_config->vco, cdclk_config->cdclk);
@@ -3333,7 +3333,7 @@ int intel_modeset_calc_cdclk(struct intel_atomic_state *state)
 
 	if (intel_mdclk_cdclk_ratio(dev_priv, &old_cdclk_state->actual) !=
 	    intel_mdclk_cdclk_ratio(dev_priv, &new_cdclk_state->actual)) {
-		u8 ratio = intel_mdclk_cdclk_ratio(dev_priv, &new_cdclk_state->actual);
+		int ratio = intel_mdclk_cdclk_ratio(dev_priv, &new_cdclk_state->actual);
 
 		ret = intel_dbuf_state_set_mdclk_cdclk_ratio(state, ratio);
 		if (ret)
