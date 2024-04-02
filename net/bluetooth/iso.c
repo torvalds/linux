@@ -85,8 +85,9 @@ static void iso_sock_disconn(struct sock *sk);
 
 typedef bool (*iso_sock_match_t)(struct sock *sk, void *data);
 
-static struct sock *iso_get_sock_listen(bdaddr_t *src, bdaddr_t *dst,
-					iso_sock_match_t match, void *data);
+static struct sock *iso_get_sock(bdaddr_t *src, bdaddr_t *dst,
+				 enum bt_sock_state state,
+				 iso_sock_match_t match, void *data);
 
 /* ---- ISO timers ---- */
 #define ISO_CONN_TIMEOUT	(HZ * 40)
@@ -233,10 +234,11 @@ static void iso_conn_del(struct hci_conn *hcon, int err)
 		 * terminated are not processed anymore.
 		 */
 		if (test_bit(BT_SK_PA_SYNC, &iso_pi(sk)->flags)) {
-			parent = iso_get_sock_listen(&hcon->src,
-						     &hcon->dst,
-						     iso_match_conn_sync_handle,
-						     hcon);
+			parent = iso_get_sock(&hcon->src,
+					      &hcon->dst,
+					      BT_LISTEN,
+					      iso_match_conn_sync_handle,
+					      hcon);
 
 			if (parent) {
 				set_bit(BT_SK_PA_SYNC_TERM,
@@ -581,22 +583,23 @@ static struct sock *__iso_get_sock_listen_by_sid(bdaddr_t *ba, bdaddr_t *bc,
 	return NULL;
 }
 
-/* Find socket listening:
+/* Find socket in given state:
  * source bdaddr (Unicast)
  * destination bdaddr (Broadcast only)
  * match func - pass NULL to ignore
  * match func data - pass -1 to ignore
  * Returns closest match.
  */
-static struct sock *iso_get_sock_listen(bdaddr_t *src, bdaddr_t *dst,
-					iso_sock_match_t match, void *data)
+static struct sock *iso_get_sock(bdaddr_t *src, bdaddr_t *dst,
+				 enum bt_sock_state state,
+				 iso_sock_match_t match, void *data)
 {
 	struct sock *sk = NULL, *sk1 = NULL;
 
 	read_lock(&iso_sk_list.lock);
 
 	sk_for_each(sk, &iso_sk_list.head) {
-		if (sk->sk_state != BT_LISTEN)
+		if (sk->sk_state != state)
 			continue;
 
 		/* Match Broadcast destination */
@@ -1777,32 +1780,37 @@ static void iso_conn_ready(struct iso_conn *conn)
 						 HCI_EVT_LE_BIG_SYNC_ESTABILISHED);
 
 			/* Get reference to PA sync parent socket, if it exists */
-			parent = iso_get_sock_listen(&hcon->src,
-						     &hcon->dst,
-						     iso_match_pa_sync_flag, NULL);
+			parent = iso_get_sock(&hcon->src, &hcon->dst,
+					      BT_LISTEN,
+					      iso_match_pa_sync_flag,
+					      NULL);
 			if (!parent && ev)
-				parent = iso_get_sock_listen(&hcon->src,
-							     &hcon->dst,
-							     iso_match_big, ev);
+				parent = iso_get_sock(&hcon->src,
+						      &hcon->dst,
+						      BT_LISTEN,
+						      iso_match_big, ev);
 		} else if (test_bit(HCI_CONN_PA_SYNC_FAILED, &hcon->flags)) {
 			ev2 = hci_recv_event_data(hcon->hdev,
 						  HCI_EV_LE_PA_SYNC_ESTABLISHED);
 			if (ev2)
-				parent = iso_get_sock_listen(&hcon->src,
-							     &hcon->dst,
-							     iso_match_sid, ev2);
+				parent = iso_get_sock(&hcon->src,
+						      &hcon->dst,
+						      BT_LISTEN,
+						      iso_match_sid, ev2);
 		} else if (test_bit(HCI_CONN_PA_SYNC, &hcon->flags)) {
 			ev3 = hci_recv_event_data(hcon->hdev,
 						  HCI_EVT_LE_BIG_INFO_ADV_REPORT);
 			if (ev3)
-				parent = iso_get_sock_listen(&hcon->src,
-							     &hcon->dst,
-							     iso_match_sync_handle, ev3);
+				parent = iso_get_sock(&hcon->src,
+						      &hcon->dst,
+						      BT_LISTEN,
+						      iso_match_sync_handle,
+						      ev3);
 		}
 
 		if (!parent)
-			parent = iso_get_sock_listen(&hcon->src,
-							BDADDR_ANY, NULL, NULL);
+			parent = iso_get_sock(&hcon->src, BDADDR_ANY,
+					      BT_LISTEN, NULL, NULL);
 
 		if (!parent)
 			return;
@@ -1923,8 +1931,8 @@ int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 	 */
 	ev1 = hci_recv_event_data(hdev, HCI_EV_LE_PA_SYNC_ESTABLISHED);
 	if (ev1) {
-		sk = iso_get_sock_listen(&hdev->bdaddr, bdaddr, iso_match_sid,
-					 ev1);
+		sk = iso_get_sock(&hdev->bdaddr, bdaddr, BT_LISTEN,
+				  iso_match_sid, ev1);
 		if (sk && !ev1->status)
 			iso_pi(sk)->sync_handle = le16_to_cpu(ev1->handle);
 
@@ -1934,12 +1942,12 @@ int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 	ev2 = hci_recv_event_data(hdev, HCI_EVT_LE_BIG_INFO_ADV_REPORT);
 	if (ev2) {
 		/* Try to get PA sync listening socket, if it exists */
-		sk = iso_get_sock_listen(&hdev->bdaddr, bdaddr,
-						iso_match_pa_sync_flag, NULL);
+		sk = iso_get_sock(&hdev->bdaddr, bdaddr, BT_LISTEN,
+				  iso_match_pa_sync_flag, NULL);
 
 		if (!sk) {
-			sk = iso_get_sock_listen(&hdev->bdaddr, bdaddr,
-						 iso_match_sync_handle, ev2);
+			sk = iso_get_sock(&hdev->bdaddr, bdaddr, BT_LISTEN,
+					  iso_match_sync_handle, ev2);
 
 			/* If PA Sync is in process of terminating,
 			 * do not handle any more BIGInfo adv reports.
@@ -1979,8 +1987,8 @@ int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 		u8 *base;
 		struct hci_conn *hcon;
 
-		sk = iso_get_sock_listen(&hdev->bdaddr, bdaddr,
-					 iso_match_sync_handle_pa_report, ev3);
+		sk = iso_get_sock(&hdev->bdaddr, bdaddr, BT_LISTEN,
+				  iso_match_sync_handle_pa_report, ev3);
 		if (!sk)
 			goto done;
 
@@ -2029,7 +2037,8 @@ int iso_connect_ind(struct hci_dev *hdev, bdaddr_t *bdaddr, __u8 *flags)
 			hcon->le_per_adv_data_len = 0;
 		}
 	} else {
-		sk = iso_get_sock_listen(&hdev->bdaddr, BDADDR_ANY, NULL, NULL);
+		sk = iso_get_sock(&hdev->bdaddr, BDADDR_ANY,
+				  BT_LISTEN, NULL, NULL);
 	}
 
 done:
