@@ -173,8 +173,6 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		goto fail_root_list;
 	}
 
-	ls->ls_recover_dir_sent_res = 0;
-	ls->ls_recover_dir_sent_msg = 0;
 	ls->ls_recover_locks_in = 0;
 
 	dlm_set_recover_status(ls, DLM_RS_NODES);
@@ -210,9 +208,6 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	}
 
 	dlm_release_masters_list(ls);
-
-	log_rinfo(ls, "dlm_recover_directory %u out %u messages",
-		  ls->ls_recover_dir_sent_res, ls->ls_recover_dir_sent_msg);
 
 	/*
 	 * We may have outstanding operations that are waiting for a reply from
