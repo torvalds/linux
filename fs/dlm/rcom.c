@@ -55,7 +55,7 @@ static int create_rcom(struct dlm_ls *ls, int to_nodeid, int type, int len,
 	struct dlm_mhandle *mh;
 	char *mb;
 
-	mh = dlm_midcomms_get_mhandle(to_nodeid, mb_len, GFP_NOFS, &mb);
+	mh = dlm_midcomms_get_mhandle(to_nodeid, mb_len, &mb);
 	if (!mh) {
 		log_print("%s to %d type %d len %d ENOBUFS",
 			  __func__, to_nodeid, type, len);
@@ -75,8 +75,7 @@ static int create_rcom_stateless(struct dlm_ls *ls, int to_nodeid, int type,
 	struct dlm_msg *msg;
 	char *mb;
 
-	msg = dlm_lowcomms_new_msg(to_nodeid, mb_len, GFP_NOFS, &mb,
-				   NULL, NULL);
+	msg = dlm_lowcomms_new_msg(to_nodeid, mb_len, &mb, NULL, NULL);
 	if (!msg) {
 		log_print("create_rcom to %d type %d len %d ENOBUFS",
 			  to_nodeid, type, len);
@@ -510,7 +509,7 @@ int dlm_send_ls_not_ready(int nodeid, const struct dlm_rcom *rc_in)
 	char *mb;
 	int mb_len = sizeof(struct dlm_rcom) + sizeof(struct rcom_config);
 
-	mh = dlm_midcomms_get_mhandle(nodeid, mb_len, GFP_NOFS, &mb);
+	mh = dlm_midcomms_get_mhandle(nodeid, mb_len, &mb);
 	if (!mh)
 		return -ENOBUFS;
 

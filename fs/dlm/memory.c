@@ -130,9 +130,9 @@ void dlm_free_lkb(struct dlm_lkb *lkb)
 	kmem_cache_free(lkb_cache, lkb);
 }
 
-struct dlm_mhandle *dlm_allocate_mhandle(gfp_t allocation)
+struct dlm_mhandle *dlm_allocate_mhandle(void)
 {
-	return kmem_cache_alloc(mhandle_cache, allocation);
+	return kmem_cache_alloc(mhandle_cache, GFP_ATOMIC);
 }
 
 void dlm_free_mhandle(struct dlm_mhandle *mhandle)
@@ -150,9 +150,9 @@ void dlm_free_writequeue(struct writequeue_entry *writequeue)
 	kmem_cache_free(writequeue_cache, writequeue);
 }
 
-struct dlm_msg *dlm_allocate_msg(gfp_t allocation)
+struct dlm_msg *dlm_allocate_msg(void)
 {
-	return kmem_cache_alloc(msg_cache, allocation);
+	return kmem_cache_alloc(msg_cache, GFP_ATOMIC);
 }
 
 void dlm_free_msg(struct dlm_msg *msg)

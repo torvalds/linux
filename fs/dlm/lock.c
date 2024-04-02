@@ -3330,8 +3330,7 @@ int dlm_unlock(dlm_lockspace_t *lockspace,
 static int _create_message(struct dlm_ls *ls, int mb_len,
 			   int to_nodeid, int mstype,
 			   struct dlm_message **ms_ret,
-			   struct dlm_mhandle **mh_ret,
-			   gfp_t allocation)
+			   struct dlm_mhandle **mh_ret)
 {
 	struct dlm_message *ms;
 	struct dlm_mhandle *mh;
@@ -3341,7 +3340,7 @@ static int _create_message(struct dlm_ls *ls, int mb_len,
 	   pass into midcomms_commit and a message buffer (mb) that we
 	   write our data into */
 
-	mh = dlm_midcomms_get_mhandle(to_nodeid, mb_len, allocation, &mb);
+	mh = dlm_midcomms_get_mhandle(to_nodeid, mb_len, &mb);
 	if (!mh)
 		return -ENOBUFS;
 
@@ -3363,8 +3362,7 @@ static int _create_message(struct dlm_ls *ls, int mb_len,
 static int create_message(struct dlm_rsb *r, struct dlm_lkb *lkb,
 			  int to_nodeid, int mstype,
 			  struct dlm_message **ms_ret,
-			  struct dlm_mhandle **mh_ret,
-			  gfp_t allocation)
+			  struct dlm_mhandle **mh_ret)
 {
 	int mb_len = sizeof(struct dlm_message);
 
@@ -3385,7 +3383,7 @@ static int create_message(struct dlm_rsb *r, struct dlm_lkb *lkb,
 	}
 
 	return _create_message(r->res_ls, mb_len, to_nodeid, mstype,
-			       ms_ret, mh_ret, allocation);
+			       ms_ret, mh_ret);
 }
 
 /* further lowcomms enhancements or alternate implementations may make
@@ -3454,7 +3452,7 @@ static int send_common(struct dlm_rsb *r, struct dlm_lkb *lkb, int mstype)
 	if (error)
 		return error;
 
-	error = create_message(r, lkb, to_nodeid, mstype, &ms, &mh, GFP_NOFS);
+	error = create_message(r, lkb, to_nodeid, mstype, &ms, &mh);
 	if (error)
 		goto fail;
 
@@ -3514,8 +3512,7 @@ static int send_grant(struct dlm_rsb *r, struct dlm_lkb *lkb)
 
 	to_nodeid = lkb->lkb_nodeid;
 
-	error = create_message(r, lkb, to_nodeid, DLM_MSG_GRANT, &ms, &mh,
-			       GFP_NOFS);
+	error = create_message(r, lkb, to_nodeid, DLM_MSG_GRANT, &ms, &mh);
 	if (error)
 		goto out;
 
@@ -3536,8 +3533,7 @@ static int send_bast(struct dlm_rsb *r, struct dlm_lkb *lkb, int mode)
 
 	to_nodeid = lkb->lkb_nodeid;
 
-	error = create_message(r, NULL, to_nodeid, DLM_MSG_BAST, &ms, &mh,
-			       GFP_NOFS);
+	error = create_message(r, NULL, to_nodeid, DLM_MSG_BAST, &ms, &mh);
 	if (error)
 		goto out;
 
@@ -3562,8 +3558,7 @@ static int send_lookup(struct dlm_rsb *r, struct dlm_lkb *lkb)
 	if (error)
 		return error;
 
-	error = create_message(r, NULL, to_nodeid, DLM_MSG_LOOKUP, &ms, &mh,
-			       GFP_NOFS);
+	error = create_message(r, NULL, to_nodeid, DLM_MSG_LOOKUP, &ms, &mh);
 	if (error)
 		goto fail;
 
@@ -3587,8 +3582,7 @@ static int send_remove(struct dlm_rsb *r)
 
 	to_nodeid = dlm_dir_nodeid(r);
 
-	error = create_message(r, NULL, to_nodeid, DLM_MSG_REMOVE, &ms, &mh,
-			       GFP_ATOMIC);
+	error = create_message(r, NULL, to_nodeid, DLM_MSG_REMOVE, &ms, &mh);
 	if (error)
 		goto out;
 
@@ -3609,7 +3603,7 @@ static int send_common_reply(struct dlm_rsb *r, struct dlm_lkb *lkb,
 
 	to_nodeid = lkb->lkb_nodeid;
 
-	error = create_message(r, lkb, to_nodeid, mstype, &ms, &mh, GFP_NOFS);
+	error = create_message(r, lkb, to_nodeid, mstype, &ms, &mh);
 	if (error)
 		goto out;
 
@@ -3651,8 +3645,7 @@ static int send_lookup_reply(struct dlm_ls *ls,
 	struct dlm_mhandle *mh;
 	int error, nodeid = le32_to_cpu(ms_in->m_header.h_nodeid);
 
-	error = create_message(r, NULL, nodeid, DLM_MSG_LOOKUP_REPLY, &ms, &mh,
-			       GFP_NOFS);
+	error = create_message(r, NULL, nodeid, DLM_MSG_LOOKUP_REPLY, &ms, &mh);
 	if (error)
 		goto out;
 
@@ -6103,7 +6096,7 @@ static int send_purge(struct dlm_ls *ls, int nodeid, int pid)
 	int error;
 
 	error = _create_message(ls, sizeof(struct dlm_message), nodeid,
-				DLM_MSG_PURGE, &ms, &mh, GFP_NOFS);
+				DLM_MSG_PURGE, &ms, &mh);
 	if (error)
 		return error;
 	ms->m_nodeid = cpu_to_le32(nodeid);

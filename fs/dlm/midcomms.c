@@ -379,8 +379,7 @@ static int dlm_send_ack(int nodeid, uint32_t seq)
 	struct dlm_msg *msg;
 	char *ppc;
 
-	msg = dlm_lowcomms_new_msg(nodeid, mb_len, GFP_ATOMIC, &ppc,
-				   NULL, NULL);
+	msg = dlm_lowcomms_new_msg(nodeid, mb_len, &ppc, NULL, NULL);
 	if (!msg)
 		return -ENOMEM;
 
@@ -428,7 +427,7 @@ static int dlm_send_fin(struct midcomms_node *node,
 	struct dlm_mhandle *mh;
 	char *ppc;
 
-	mh = dlm_midcomms_get_mhandle(node->nodeid, mb_len, GFP_ATOMIC, &ppc);
+	mh = dlm_midcomms_get_mhandle(node->nodeid, mb_len, &ppc);
 	if (!mh)
 		return -ENOMEM;
 
@@ -976,13 +975,13 @@ static void midcomms_new_msg_cb(void *data)
 }
 
 static struct dlm_msg *dlm_midcomms_get_msg_3_2(struct dlm_mhandle *mh, int nodeid,
-						int len, gfp_t allocation, char **ppc)
+						int len, char **ppc)
 {
 	struct dlm_opts *opts;
 	struct dlm_msg *msg;
 
 	msg = dlm_lowcomms_new_msg(nodeid, len + DLM_MIDCOMMS_OPT_LEN,
-				   allocation, ppc, midcomms_new_msg_cb, mh);
+				   ppc, midcomms_new_msg_cb, mh);
 	if (!msg)
 		return NULL;
 
@@ -1001,8 +1000,7 @@ static struct dlm_msg *dlm_midcomms_get_msg_3_2(struct dlm_mhandle *mh, int node
  * dlm_midcomms_commit_mhandle which is a must call if success
  */
 #ifndef __CHECKER__
-struct dlm_mhandle *dlm_midcomms_get_mhandle(int nodeid, int len,
-					     gfp_t allocation, char **ppc)
+struct dlm_mhandle *dlm_midcomms_get_mhandle(int nodeid, int len, char **ppc)
 {
 	struct midcomms_node *node;
 	struct dlm_mhandle *mh;
@@ -1017,7 +1015,7 @@ struct dlm_mhandle *dlm_midcomms_get_mhandle(int nodeid, int len,
 	/* this is a bug, however we going on and hope it will be resolved */
 	WARN_ON_ONCE(test_bit(DLM_NODE_FLAG_STOP_TX, &node->flags));
 
-	mh = dlm_allocate_mhandle(allocation);
+	mh = dlm_allocate_mhandle();
 	if (!mh)
 		goto err;
 
@@ -1028,8 +1026,7 @@ struct dlm_mhandle *dlm_midcomms_get_mhandle(int nodeid, int len,
 
 	switch (node->version) {
 	case DLM_VERSION_3_1:
-		msg = dlm_lowcomms_new_msg(nodeid, len, allocation, ppc,
-					   NULL, NULL);
+		msg = dlm_lowcomms_new_msg(nodeid, len, ppc, NULL, NULL);
 		if (!msg) {
 			dlm_free_mhandle(mh);
 			goto err;
@@ -1040,8 +1037,7 @@ struct dlm_mhandle *dlm_midcomms_get_mhandle(int nodeid, int len,
 		/* send ack back if necessary */
 		dlm_send_ack_threshold(node, DLM_SEND_ACK_BACK_MSG_THRESHOLD);
 
-		msg = dlm_midcomms_get_msg_3_2(mh, nodeid, len, allocation,
-					       ppc);
+		msg = dlm_midcomms_get_msg_3_2(mh, nodeid, len, ppc);
 		if (!msg) {
 			dlm_free_mhandle(mh);
 			goto err;
@@ -1501,8 +1497,8 @@ int dlm_midcomms_rawmsg_send(struct midcomms_node *node, void *buf,
 	rd.node = node;
 	rd.buf = buf;
 
-	msg = dlm_lowcomms_new_msg(node->nodeid, buflen, GFP_NOFS,
-				   &msgbuf, midcomms_new_rawmsg_cb, &rd);
+	msg = dlm_lowcomms_new_msg(node->nodeid, buflen, &msgbuf,
+				   midcomms_new_rawmsg_cb, &rd);
 	if (!msg)
 		return -ENOMEM;
 

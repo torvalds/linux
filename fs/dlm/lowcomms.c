@@ -1229,14 +1229,13 @@ out:
 };
 
 static struct dlm_msg *dlm_lowcomms_new_msg_con(struct connection *con, int len,
-						gfp_t allocation, char **ppc,
-						void (*cb)(void *data),
+						char **ppc, void (*cb)(void *data),
 						void *data)
 {
 	struct writequeue_entry *e;
 	struct dlm_msg *msg;
 
-	msg = dlm_allocate_msg(allocation);
+	msg = dlm_allocate_msg();
 	if (!msg)
 		return NULL;
 
@@ -1261,9 +1260,8 @@ static struct dlm_msg *dlm_lowcomms_new_msg_con(struct connection *con, int len,
  * dlm_lowcomms_commit_msg which is a must call if success
  */
 #ifndef __CHECKER__
-struct dlm_msg *dlm_lowcomms_new_msg(int nodeid, int len, gfp_t allocation,
-				     char **ppc, void (*cb)(void *data),
-				     void *data)
+struct dlm_msg *dlm_lowcomms_new_msg(int nodeid, int len, char **ppc,
+				     void (*cb)(void *data), void *data)
 {
 	struct connection *con;
 	struct dlm_msg *msg;
@@ -1284,7 +1282,7 @@ struct dlm_msg *dlm_lowcomms_new_msg(int nodeid, int len, gfp_t allocation,
 		return NULL;
 	}
 
-	msg = dlm_lowcomms_new_msg_con(con, len, allocation, ppc, cb, data);
+	msg = dlm_lowcomms_new_msg_con(con, len, ppc, cb, data);
 	if (!msg) {
 		srcu_read_unlock(&connections_srcu, idx);
 		return NULL;
@@ -1348,8 +1346,8 @@ int dlm_lowcomms_resend_msg(struct dlm_msg *msg)
 	if (msg->retransmit)
 		return 1;
 
-	msg_resend = dlm_lowcomms_new_msg_con(msg->entry->con, msg->len,
-					      GFP_ATOMIC, &ppc, NULL, NULL);
+	msg_resend = dlm_lowcomms_new_msg_con(msg->entry->con, msg->len, &ppc,
+					      NULL, NULL);
 	if (!msg_resend)
 		return -ENOMEM;
 
