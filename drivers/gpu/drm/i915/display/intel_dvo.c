@@ -231,9 +231,6 @@ intel_dvo_mode_valid(struct drm_connector *_connector,
 	if (status != MODE_OK)
 		return status;
 
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
-
 	/* XXX: Validate clock range */
 
 	if (fixed_mode) {

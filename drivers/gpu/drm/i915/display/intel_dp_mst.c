@@ -1302,11 +1302,6 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	if (*status != MODE_OK)
 		return 0;
 
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN) {
-		*status = MODE_NO_DBLESCAN;
-		return 0;
-	}
-
 	max_link_clock = intel_dp_max_link_rate(intel_dp);
 	max_lanes = intel_dp_max_lane_count(intel_dp);
 

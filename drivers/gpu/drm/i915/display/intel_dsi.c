@@ -69,9 +69,6 @@ enum drm_mode_status intel_dsi_mode_valid(struct drm_connector *connector,
 
 	drm_dbg_kms(&dev_priv->drm, "\n");
 
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
-
 	status = intel_panel_mode_valid(intel_connector, mode);
 	if (status != MODE_OK)
 		return status;

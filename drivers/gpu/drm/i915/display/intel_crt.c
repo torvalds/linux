@@ -356,9 +356,6 @@ intel_crt_mode_valid(struct drm_connector *connector,
 	if (status != MODE_OK)
 		return status;
 
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
-
 	if (mode->clock < 25000)
 		return MODE_CLOCK_LOW;
 

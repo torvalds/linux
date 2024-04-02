@@ -399,9 +399,6 @@ intel_lvds_mode_valid(struct drm_connector *_connector,
 	if (status != MODE_OK)
 		return status;
 
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
-
 	status = intel_panel_mode_valid(connector, mode);
 	if (status != MODE_OK)
 		return status;

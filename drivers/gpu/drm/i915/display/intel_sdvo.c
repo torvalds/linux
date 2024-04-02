@@ -1952,9 +1952,6 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 	if (status != MODE_OK)
 		return status;
 
-	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
-		return MODE_NO_DBLESCAN;
-
 	if (clock > max_dotclk)
 		return MODE_CLOCK_HIGH;
 
