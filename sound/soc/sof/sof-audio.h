@@ -91,6 +91,7 @@ struct snd_sof_pcm;
 struct snd_sof_dai_config_data {
 	int dai_index;
 	int dai_data; /* contains DAI-specific information */
+	int dai_node_id; /* contains DAI-specific information for Gateway configuration */
 };
 
 /**
