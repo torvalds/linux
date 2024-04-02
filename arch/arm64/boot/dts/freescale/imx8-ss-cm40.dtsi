@@ -20,6 +20,18 @@ cm40_subsys: bus@34000000 {
 	ranges = <0x34000000 0x0 0x34000000 0x4000000>;
 	interrupt-parent = <&cm40_intmux>;
 
+	cm40_lpuart: serial@37220000 {
+		compatible = "fsl,imx8qxp-lpuart";
+		reg = <0x37220000 0x1000>;
+		interrupts = <7 IRQ_TYPE_LEVEL_HIGH>;
+		clocks = <&cm40_uart_lpcg IMX_LPCG_CLK_1>, <&cm40_uart_lpcg IMX_LPCG_CLK_0>;
+		clock-names = "ipg", "baud";
+		assigned-clocks = <&clk IMX_SC_R_M4_0_UART IMX_SC_PM_CLK_PER>;
+		assigned-clock-rates = <24000000>;
+		power-domains = <&pd IMX_SC_R_M4_0_UART>;
+		status = "disabled";
+	};
+
 	cm40_i2c: i2c@37230000 {
 		compatible = "fsl,imx8qxp-lpi2c", "fsl,imx7ulp-lpi2c";
 		reg = <0x37230000 0x1000>;
@@ -51,6 +63,18 @@ cm40_subsys: bus@34000000 {
 		clock-names = "ipg";
 		power-domains = <&pd IMX_SC_R_M4_0_INTMUX>;
 		status = "disabled";
+	};
+
+	cm40_uart_lpcg: clock-controller@37620000 {
+		compatible = "fsl,imx8qxp-lpcg";
+		reg = <0x37620000 0x1000>;
+		#clock-cells = <1>;
+		clocks = <&clk IMX_SC_R_M4_0_UART IMX_SC_PM_CLK_PER>,
+			 <&cm40_ipg_clk>;
+		clock-indices = <IMX_LPCG_CLK_0>, <IMX_LPCG_CLK_1>;
+		clock-output-names = "cm40_lpcg_uart_clk",
+				     "cm40_lpcg_uart_ipg_clk";
+		power-domains = <&pd IMX_SC_R_M4_0_UART>;
 	};
 
 	cm40_i2c_lpcg: clock-controller@37630000 {
