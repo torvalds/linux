@@ -91,9 +91,7 @@
 #define LVTS_MSR_READ_TIMEOUT_US	400
 #define LVTS_MSR_READ_WAIT_US		(LVTS_MSR_READ_TIMEOUT_US / 2)
 
-#define LVTS_HW_SHUTDOWN_MT7988		105000
-#define LVTS_HW_SHUTDOWN_MT8192		105000
-#define LVTS_HW_SHUTDOWN_MT8195		105000
+#define LVTS_HW_TSHUT_TEMP		105000
 
 #define LVTS_MINIMUM_THRESHOLD		20000
 
@@ -107,7 +105,6 @@ struct lvts_sensor_data {
 struct lvts_ctrl_data {
 	struct lvts_sensor_data lvts_sensor[LVTS_SENSOR_MAX];
 	int cal_offset[LVTS_SENSOR_MAX];
-	int hw_tshut_temp;
 	int num_lvts_sensor;
 	int offset;
 	int mode;
@@ -801,7 +798,7 @@ static int lvts_ctrl_init(struct device *dev, struct lvts_domain *lvts_td,
 		 * after initializing the calibration.
 		 */
 		lvts_ctrl[i].hw_tshut_raw_temp =
-			lvts_temp_to_raw(lvts_data->lvts_ctrl[i].hw_tshut_temp,
+			lvts_temp_to_raw(LVTS_HW_TSHUT_TEMP,
 					 lvts_data->temp_factor);
 
 		lvts_ctrl[i].low_thresh = INT_MIN;
@@ -1311,7 +1308,6 @@ static const struct lvts_ctrl_data mt7988_lvts_ap_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 4,
 		.offset = 0x0,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT7988,
 	},
 	{
 		.cal_offset = { 0x14, 0x18, 0x1c, 0x20 },
@@ -1323,7 +1319,6 @@ static const struct lvts_ctrl_data mt7988_lvts_ap_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 4,
 		.offset = 0x100,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT7988,
 	}
 };
 
@@ -1368,7 +1363,6 @@ static const struct lvts_ctrl_data mt8192_lvts_mcu_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 2,
 		.offset = 0x0,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8192,
 		.mode = LVTS_MSR_FILTERED_MODE,
 	},
 	{
@@ -1379,7 +1373,6 @@ static const struct lvts_ctrl_data mt8192_lvts_mcu_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 2,
 		.offset = 0x100,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8192,
 		.mode = LVTS_MSR_FILTERED_MODE,
 	},
 	{
@@ -1392,7 +1385,6 @@ static const struct lvts_ctrl_data mt8192_lvts_mcu_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 4,
 		.offset = 0x200,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8192,
 		.mode = LVTS_MSR_FILTERED_MODE,
 	}
 };
@@ -1406,7 +1398,6 @@ static const struct lvts_ctrl_data mt8192_lvts_ap_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 2,
 		.offset = 0x0,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8192,
 	},
 	{
 		.cal_offset = { 0x2c, 0x30 },
@@ -1416,7 +1407,6 @@ static const struct lvts_ctrl_data mt8192_lvts_ap_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 2,
 		.offset = 0x100,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8192,
 	},
 	{
 		.cal_offset = { 0x34, 0x38 },
@@ -1426,7 +1416,6 @@ static const struct lvts_ctrl_data mt8192_lvts_ap_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 2,
 		.offset = 0x200,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8192,
 	},
 	{
 		.cal_offset = { 0x3c, 0x40, 0x44 },
@@ -1437,7 +1426,6 @@ static const struct lvts_ctrl_data mt8192_lvts_ap_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 3,
 		.offset = 0x300,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8192,
 	}
 };
 
@@ -1450,7 +1438,6 @@ static const struct lvts_ctrl_data mt8195_lvts_mcu_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 2,
 		.offset = 0x0,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8195,
 	},
 	{
 		.cal_offset = { 0x0d, 0x10 },
@@ -1460,7 +1447,6 @@ static const struct lvts_ctrl_data mt8195_lvts_mcu_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 2,
 		.offset = 0x100,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8195,
 	},
 	{
 		.cal_offset = { 0x16, 0x19, 0x1c, 0x1f },
@@ -1472,7 +1458,6 @@ static const struct lvts_ctrl_data mt8195_lvts_mcu_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 4,
 		.offset = 0x200,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8195,
 	}
 };
 
@@ -1485,7 +1470,6 @@ static const struct lvts_ctrl_data mt8195_lvts_ap_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 2,
 		.offset = 0x0,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8195,
 	},
 	{
 		.cal_offset = { 0x2e, 0x31 },
@@ -1495,7 +1479,6 @@ static const struct lvts_ctrl_data mt8195_lvts_ap_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 2,
 		.offset = 0x100,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8195,
 	},
 	{
 		.cal_offset = { 0x37, 0x3a, 0x3d },
@@ -1506,7 +1489,6 @@ static const struct lvts_ctrl_data mt8195_lvts_ap_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 3,
 		.offset = 0x200,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8195,
 	},
 	{
 		.cal_offset = { 0x43, 0x46 },
@@ -1516,7 +1498,6 @@ static const struct lvts_ctrl_data mt8195_lvts_ap_data_ctrl[] = {
 		},
 		.num_lvts_sensor = 2,
 		.offset = 0x300,
-		.hw_tshut_temp = LVTS_HW_SHUTDOWN_MT8195,
 	}
 };
 
