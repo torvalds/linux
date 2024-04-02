@@ -662,9 +662,9 @@ static void mlxsw_pci_cq_tasklet(struct tasklet_struct *t)
 {
 	struct mlxsw_pci_queue *q = from_tasklet(q, t, tasklet);
 	struct mlxsw_pci *mlxsw_pci = q->pci;
-	char *cqe;
-	int items = 0;
 	int credits = q->count >> 1;
+	int items = 0;
+	char *cqe;
 
 	while ((cqe = mlxsw_pci_cq_sw_cqe_get(q))) {
 		u16 wqe_counter = mlxsw_pci_cqe_wqe_counter_get(cqe);
