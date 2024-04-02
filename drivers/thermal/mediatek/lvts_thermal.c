@@ -1441,6 +1441,84 @@ static const struct lvts_ctrl_data mt8186_lvts_data_ctrl[] = {
 	}
 };
 
+static const struct lvts_ctrl_data mt8188_lvts_mcu_data_ctrl[] = {
+	{
+		.lvts_sensor = {
+			{ .dt_id = MT8188_MCU_LITTLE_CPU0,
+			  .cal_offsets = { 22, 23, 24 } },
+			{ .dt_id = MT8188_MCU_LITTLE_CPU1,
+			  .cal_offsets = { 25, 26, 27 } },
+			{ .dt_id = MT8188_MCU_LITTLE_CPU2,
+			  .cal_offsets = { 28, 29, 30 } },
+			{ .dt_id = MT8188_MCU_LITTLE_CPU3,
+			  .cal_offsets = { 31, 32, 33 } },
+		},
+		VALID_SENSOR_MAP(1, 1, 1, 1),
+		.offset = 0x0,
+		.mode = LVTS_MSR_FILTERED_MODE,
+	},
+	{
+		.lvts_sensor = {
+			{ .dt_id = MT8188_MCU_BIG_CPU0,
+			  .cal_offsets = { 34, 35, 36 } },
+			{ .dt_id = MT8188_MCU_BIG_CPU1,
+			  .cal_offsets = { 37, 38, 39 } },
+		},
+		VALID_SENSOR_MAP(1, 1, 0, 0),
+		.offset = 0x100,
+		.mode = LVTS_MSR_FILTERED_MODE,
+	}
+};
+
+static const struct lvts_ctrl_data mt8188_lvts_ap_data_ctrl[] = {
+	{
+		.lvts_sensor = {
+
+			{ /* unused */ },
+			{ .dt_id = MT8188_AP_APU,
+			  .cal_offsets = { 40, 41, 42 } },
+		},
+		VALID_SENSOR_MAP(0, 1, 0, 0),
+		.offset = 0x0,
+		.mode = LVTS_MSR_FILTERED_MODE,
+	},
+	{
+		.lvts_sensor = {
+			{ .dt_id = MT8188_AP_GPU1,
+			  .cal_offsets = { 43, 44, 45 } },
+			{ .dt_id = MT8188_AP_GPU2,
+			  .cal_offsets = { 46, 47, 48 } },
+			{ .dt_id = MT8188_AP_SOC1,
+			  .cal_offsets = { 49, 50, 51 } },
+		},
+		VALID_SENSOR_MAP(1, 1, 1, 0),
+		.offset = 0x100,
+		.mode = LVTS_MSR_FILTERED_MODE,
+	},
+	{
+		.lvts_sensor = {
+			{ .dt_id = MT8188_AP_SOC2,
+			  .cal_offsets = { 52, 53, 54 } },
+			{ .dt_id = MT8188_AP_SOC3,
+			  .cal_offsets = { 55, 56, 57 } },
+		},
+		VALID_SENSOR_MAP(1, 1, 0, 0),
+		.offset = 0x200,
+		.mode = LVTS_MSR_FILTERED_MODE,
+	},
+	{
+		.lvts_sensor = {
+			{ .dt_id = MT8188_AP_CAM1,
+			  .cal_offsets = { 58, 59, 60 } },
+			{ .dt_id = MT8188_AP_CAM2,
+			  .cal_offsets = { 61, 62, 63 } },
+		},
+		VALID_SENSOR_MAP(1, 1, 0, 0),
+		.offset = 0x300,
+		.mode = LVTS_MSR_FILTERED_MODE,
+	}
+};
+
 static const struct lvts_ctrl_data mt8192_lvts_mcu_data_ctrl[] = {
 	{
 		.lvts_sensor = {
@@ -1624,6 +1702,22 @@ static const struct lvts_data mt8186_lvts_data = {
 	.gt_calib_bit_offset = 24,
 };
 
+static const struct lvts_data mt8188_lvts_mcu_data = {
+	.lvts_ctrl	= mt8188_lvts_mcu_data_ctrl,
+	.num_lvts_ctrl	= ARRAY_SIZE(mt8188_lvts_mcu_data_ctrl),
+	.temp_factor	= LVTS_COEFF_A_MT8195,
+	.temp_offset	= LVTS_COEFF_B_MT8195,
+	.gt_calib_bit_offset = 20,
+};
+
+static const struct lvts_data mt8188_lvts_ap_data = {
+	.lvts_ctrl	= mt8188_lvts_ap_data_ctrl,
+	.num_lvts_ctrl	= ARRAY_SIZE(mt8188_lvts_ap_data_ctrl),
+	.temp_factor	= LVTS_COEFF_A_MT8195,
+	.temp_offset	= LVTS_COEFF_B_MT8195,
+	.gt_calib_bit_offset = 20,
+};
+
 static const struct lvts_data mt8192_lvts_mcu_data = {
 	.lvts_ctrl	= mt8192_lvts_mcu_data_ctrl,
 	.num_lvts_ctrl	= ARRAY_SIZE(mt8192_lvts_mcu_data_ctrl),
@@ -1659,6 +1753,8 @@ static const struct lvts_data mt8195_lvts_ap_data = {
 static const struct of_device_id lvts_of_match[] = {
 	{ .compatible = "mediatek,mt7988-lvts-ap", .data = &mt7988_lvts_ap_data },
 	{ .compatible = "mediatek,mt8186-lvts", .data = &mt8186_lvts_data },
+	{ .compatible = "mediatek,mt8188-lvts-mcu", .data = &mt8188_lvts_mcu_data },
+	{ .compatible = "mediatek,mt8188-lvts-ap", .data = &mt8188_lvts_ap_data },
 	{ .compatible = "mediatek,mt8192-lvts-mcu", .data = &mt8192_lvts_mcu_data },
 	{ .compatible = "mediatek,mt8192-lvts-ap", .data = &mt8192_lvts_ap_data },
 	{ .compatible = "mediatek,mt8195-lvts-mcu", .data = &mt8195_lvts_mcu_data },
