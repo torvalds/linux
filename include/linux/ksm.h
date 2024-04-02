@@ -45,16 +45,8 @@ static inline void ksm_might_unmap_zero_page(struct mm_struct *mm, pte_t pte)
 
 static inline int ksm_fork(struct mm_struct *mm, struct mm_struct *oldmm)
 {
-	int ret;
-
-	if (test_bit(MMF_VM_MERGEABLE, &oldmm->flags)) {
-		ret = __ksm_enter(mm);
-		if (ret)
-			return ret;
-	}
-
-	if (test_bit(MMF_VM_MERGE_ANY, &oldmm->flags))
-		set_bit(MMF_VM_MERGE_ANY, &mm->flags);
+	if (test_bit(MMF_VM_MERGEABLE, &oldmm->flags))
+		return __ksm_enter(mm);
 
 	return 0;
 }
