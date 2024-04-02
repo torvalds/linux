@@ -223,10 +223,10 @@ static struct mlxsw_pci_queue *mlxsw_pci_cq_get(struct mlxsw_pci *mlxsw_pci,
 	return __mlxsw_pci_queue_get(mlxsw_pci, MLXSW_PCI_QUEUE_TYPE_CQ, q_num);
 }
 
-static struct mlxsw_pci_queue *mlxsw_pci_eq_get(struct mlxsw_pci *mlxsw_pci,
-						u8 q_num)
+static struct mlxsw_pci_queue *mlxsw_pci_eq_get(struct mlxsw_pci *mlxsw_pci)
 {
-	return __mlxsw_pci_queue_get(mlxsw_pci, MLXSW_PCI_QUEUE_TYPE_EQ, q_num);
+	/* There is only one EQ at index 0. */
+	return __mlxsw_pci_queue_get(mlxsw_pci, MLXSW_PCI_QUEUE_TYPE_EQ, 0);
 }
 
 static void __mlxsw_pci_queue_doorbell_set(struct mlxsw_pci *mlxsw_pci,
@@ -754,16 +754,6 @@ static u8 mlxsw_pci_cq_elem_size(const struct mlxsw_pci_queue *q)
 					       MLXSW_PCI_CQE01_SIZE;
 }
 
-static void mlxsw_pci_eq_cmd_event(struct mlxsw_pci *mlxsw_pci, char *eqe)
-{
-	mlxsw_pci->cmd.comp.status = mlxsw_pci_eqe_cmd_status_get(eqe);
-	mlxsw_pci->cmd.comp.out_param =
-		((u64) mlxsw_pci_eqe_cmd_out_param_h_get(eqe)) << 32 |
-		mlxsw_pci_eqe_cmd_out_param_l_get(eqe);
-	mlxsw_pci->cmd.wait_done = true;
-	wake_up(&mlxsw_pci->cmd.wait);
-}
-
 static char *mlxsw_pci_eq_sw_eqe_get(struct mlxsw_pci_queue *q)
 {
 	struct mlxsw_pci_queue_elem_info *elem_info;
@@ -786,7 +776,6 @@ static void mlxsw_pci_eq_tasklet(struct tasklet_struct *t)
 	struct mlxsw_pci_queue *q = from_tasklet(q, t, tasklet);
 	struct mlxsw_pci *mlxsw_pci = q->pci;
 	int credits = q->count >> 1;
-	bool cq_handle = false;
 	u8 cqn, cq_count;
 	int items = 0;
 	char *eqe;
@@ -794,23 +783,9 @@ static void mlxsw_pci_eq_tasklet(struct tasklet_struct *t)
 	memset(&active_cqns, 0, sizeof(active_cqns));
 
 	while ((eqe = mlxsw_pci_eq_sw_eqe_get(q))) {
+		cqn = mlxsw_pci_eqe_cqn_get(eqe);
+		set_bit(cqn, active_cqns);
 
-		/* Command interface completion events are always received on
-		 * queue MLXSW_PCI_EQ_ASYNC_NUM (EQ0) and completion events
-		 * are mapped to queue MLXSW_PCI_EQ_COMP_NUM (EQ1).
-		 */
-		switch (q->num) {
-		case MLXSW_PCI_EQ_ASYNC_NUM:
-			mlxsw_pci_eq_cmd_event(mlxsw_pci, eqe);
-			break;
-		case MLXSW_PCI_EQ_COMP_NUM:
-			cqn = mlxsw_pci_eqe_cqn_get(eqe);
-			set_bit(cqn, active_cqns);
-			cq_handle = true;
-			break;
-		default:
-			WARN_ON_ONCE(1);
-		}
 		if (++items == credits)
 			break;
 	}
@@ -820,9 +795,6 @@ static void mlxsw_pci_eq_tasklet(struct tasklet_struct *t)
 
 	mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
 	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
-
-	if (!cq_handle)
-		return;
 
 	cq_count = mlxsw_pci_cq_count(mlxsw_pci);
 	for_each_set_bit(cqn, active_cqns, cq_count) {
@@ -836,6 +808,13 @@ static int mlxsw_pci_eq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 {
 	int i;
 	int err;
+
+	/* We expect to initialize only one EQ, which gets num=0 as it is
+	 * located at index zero. We use the EQ as EQ1, so set the number for
+	 * future use.
+	 */
+	WARN_ON_ONCE(q->num);
+	q->num = MLXSW_PCI_EQ_COMP_NUM;
 
 	q->consumer_counter = 0;
 
@@ -1077,7 +1056,7 @@ static int mlxsw_pci_aqs_init(struct mlxsw_pci *mlxsw_pci, char *mbox)
 	mlxsw_pci->num_sdq_cqs = num_sdqs;
 
 	err = mlxsw_pci_queue_group_init(mlxsw_pci, mbox, &mlxsw_pci_eq_ops,
-					 num_eqs);
+					 MLXSW_PCI_EQS_COUNT);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to initialize event queues\n");
 		return err;
@@ -1414,12 +1393,9 @@ static irqreturn_t mlxsw_pci_eq_irq_handler(int irq, void *dev_id)
 {
 	struct mlxsw_pci *mlxsw_pci = dev_id;
 	struct mlxsw_pci_queue *q;
-	int i;
 
-	for (i = 0; i < MLXSW_PCI_EQS_MAX; i++) {
-		q = mlxsw_pci_eq_get(mlxsw_pci, i);
-		mlxsw_pci_queue_tasklet_schedule(q);
-	}
+	q = mlxsw_pci_eq_get(mlxsw_pci);
+	mlxsw_pci_queue_tasklet_schedule(q);
 	return IRQ_HANDLED;
 }
 
