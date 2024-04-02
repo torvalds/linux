@@ -734,11 +734,15 @@ static int lvts_calibration_read(struct device *dev, struct lvts_domain *lvts_td
 	return 0;
 }
 
-static int lvts_golden_temp_init(struct device *dev, u32 *value, int temp_offset)
+static int lvts_golden_temp_init(struct device *dev, u8 *calib, int temp_offset)
 {
 	u32 gt;
 
-	gt = (*value) >> 24;
+	/*
+	 * The golden temp information is contained in the 4th byte (index = 3)
+	 * of efuse data.
+	 */
+	gt = calib[3];
 
 	if (gt && gt < LVTS_GOLDEN_TEMP_MAX)
 		golden_temp = gt;
@@ -762,11 +766,7 @@ static int lvts_ctrl_init(struct device *dev, struct lvts_domain *lvts_td,
 	if (ret)
 		return ret;
 
-	/*
-	 * The golden temp information is contained in the first chunk
-	 * of efuse data.
-	 */
-	ret = lvts_golden_temp_init(dev, (u32 *)lvts_td->calib, lvts_data->temp_offset);
+	ret = lvts_golden_temp_init(dev, lvts_td->calib, lvts_data->temp_offset);
 	if (ret)
 		return ret;
 
