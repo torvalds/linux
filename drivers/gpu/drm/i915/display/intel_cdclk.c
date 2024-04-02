@@ -2434,18 +2434,9 @@ static void intel_pcode_notify(struct drm_i915_private *i915,
 			ret);
 }
 
-/**
- * intel_set_cdclk - Push the CDCLK configuration to the hardware
- * @dev_priv: i915 device
- * @cdclk_config: new CDCLK configuration
- * @pipe: pipe with which to synchronize the update
- *
- * Program the hardware based on the passed in CDCLK state,
- * if necessary.
- */
 static void intel_set_cdclk(struct drm_i915_private *dev_priv,
 			    const struct intel_cdclk_config *cdclk_config,
-			    enum pipe pipe)
+			    enum pipe pipe, const char *context)
 {
 	struct intel_encoder *encoder;
 
@@ -2455,7 +2446,7 @@ static void intel_set_cdclk(struct drm_i915_private *dev_priv,
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, !dev_priv->display.funcs.cdclk->set_cdclk))
 		return;
 
-	intel_cdclk_dump_config(dev_priv, cdclk_config, "Changing CDCLK to");
+	intel_cdclk_dump_config(dev_priv, cdclk_config, context);
 
 	for_each_intel_encoder_with_psr(&dev_priv->drm, encoder) {
 		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
@@ -2628,7 +2619,8 @@ intel_set_cdclk_pre_plane_update(struct intel_atomic_state *state)
 
 	drm_WARN_ON(&i915->drm, !new_cdclk_state->base.changed);
 
-	intel_set_cdclk(i915, &cdclk_config, pipe);
+	intel_set_cdclk(i915, &cdclk_config, pipe,
+			"Pre changing CDCLK to");
 }
 
 /**
@@ -2663,7 +2655,8 @@ intel_set_cdclk_post_plane_update(struct intel_atomic_state *state)
 
 	drm_WARN_ON(&i915->drm, !new_cdclk_state->base.changed);
 
-	intel_set_cdclk(i915, &new_cdclk_state->actual, pipe);
+	intel_set_cdclk(i915, &new_cdclk_state->actual, pipe,
+			"Post changing CDCLK to");
 }
 
 static int intel_pixel_rate_to_cdclk(const struct intel_crtc_state *crtc_state)
