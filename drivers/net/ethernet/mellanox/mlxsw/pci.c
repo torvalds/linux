@@ -123,7 +123,7 @@ struct mlxsw_pci {
 	struct mlxsw_bus_info bus_info;
 	const struct pci_device_id *id;
 	enum mlxsw_pci_cqe_v max_cqe_ver; /* Maximal supported CQE version */
-	u8 num_sdq_cqs; /* Number of CQs used for SDQs */
+	u8 num_sdqs; /* Number of SDQs */
 	bool skip_reset;
 };
 
@@ -186,11 +186,6 @@ static u8 __mlxsw_pci_queue_count(struct mlxsw_pci *mlxsw_pci,
 
 	queue_group = mlxsw_pci_queue_type_group_get(mlxsw_pci, q_type);
 	return queue_group->count;
-}
-
-static u8 mlxsw_pci_sdq_count(struct mlxsw_pci *mlxsw_pci)
-{
-	return __mlxsw_pci_queue_count(mlxsw_pci, MLXSW_PCI_QUEUE_TYPE_SDQ);
 }
 
 static u8 mlxsw_pci_cq_count(struct mlxsw_pci *mlxsw_pci)
@@ -391,7 +386,7 @@ static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 			      struct mlxsw_pci_queue *q)
 {
 	struct mlxsw_pci_queue_elem_info *elem_info;
-	u8 sdq_count = mlxsw_pci_sdq_count(mlxsw_pci);
+	u8 sdq_count = mlxsw_pci->num_sdqs;
 	int i;
 	int err;
 
@@ -457,7 +452,7 @@ static void mlxsw_pci_cq_pre_init(struct mlxsw_pci *mlxsw_pci,
 	q->cq.v = mlxsw_pci->max_cqe_ver;
 
 	if (q->cq.v == MLXSW_PCI_CQE_V2 &&
-	    q->num < mlxsw_pci->num_sdq_cqs &&
+	    q->num < mlxsw_pci->num_sdqs &&
 	    !mlxsw_core_sdq_supports_cqe_v2(mlxsw_pci->core))
 		q->cq.v = MLXSW_PCI_CQE_V1;
 }
@@ -735,10 +730,10 @@ static enum mlxsw_pci_cq_type
 mlxsw_pci_cq_type(const struct mlxsw_pci *mlxsw_pci,
 		  const struct mlxsw_pci_queue *q)
 {
-	/* Each CQ is mapped to one DQ. The first 'num_sdq_cqs' queues are used
+	/* Each CQ is mapped to one DQ. The first 'num_sdqs' queues are used
 	 * for SDQs and the rest are used for RDQs.
 	 */
-	if (q->num < mlxsw_pci->num_sdq_cqs)
+	if (q->num < mlxsw_pci->num_sdqs)
 		return MLXSW_PCI_CQ_SDQ;
 
 	return MLXSW_PCI_CQ_RDQ;
@@ -1112,7 +1107,7 @@ static int mlxsw_pci_aqs_init(struct mlxsw_pci *mlxsw_pci, char *mbox)
 		return -EINVAL;
 	}
 
-	mlxsw_pci->num_sdq_cqs = num_sdqs;
+	mlxsw_pci->num_sdqs = num_sdqs;
 
 	err = mlxsw_pci_queue_group_init(mlxsw_pci, mbox, &mlxsw_pci_eq_ops,
 					 MLXSW_PCI_EQS_COUNT);
@@ -1780,7 +1775,7 @@ static struct mlxsw_pci_queue *
 mlxsw_pci_sdq_pick(struct mlxsw_pci *mlxsw_pci,
 		   const struct mlxsw_tx_info *tx_info)
 {
-	u8 ctl_sdq_count = mlxsw_pci_sdq_count(mlxsw_pci) - 1;
+	u8 ctl_sdq_count = mlxsw_pci->num_sdqs - 1;
 	u8 sdqn;
 
 	if (tx_info->is_emad) {
