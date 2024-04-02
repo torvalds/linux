@@ -441,7 +441,6 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dapm_widget *w = snd_soc_dai_get_widget(cpu_dai, substream->stream);
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	const struct hda_dai_widget_dma_ops *ops;
-	struct snd_soc_dai_link_ch_map *ch_maps;
 	struct hdac_ext_stream *hext_stream;
 	struct snd_soc_dai *dai;
 	struct snd_sof_dev *sdev;
@@ -449,7 +448,6 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	int cpu_dai_id;
 	int ch_mask;
 	int ret;
-	int j;
 
 	ret = non_hda_dai_hw_params(substream, params, cpu_dai);
 	if (ret < 0) {
@@ -479,11 +477,7 @@ int sdw_hda_dai_hw_params(struct snd_pcm_substream *substream,
 	if (!cpu_dai_found)
 		return -ENODEV;
 
-	ch_mask = 0;
-	for_each_link_ch_maps(rtd->dai_link, j, ch_maps) {
-		if (ch_maps->cpu == cpu_dai_id)
-			ch_mask |= ch_maps->ch_mask;
-	}
+	ch_mask = GENMASK(params_channels(params) - 1, 0);
 
 	ret = hdac_bus_eml_sdw_map_stream_ch(sof_to_bus(sdev), link_id, cpu_dai->id,
 					     ch_mask,
