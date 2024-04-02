@@ -50,12 +50,16 @@ properties:
       - const: tx
 
   clocks:
+    minItems: 1
     items:
       - description: functional clock
+      - description: external input clock for sample rate generator.
 
   clock-names:
+    minItems: 1
     items:
       - const: fck
+      - const: clks
 
   power-domains:
     maxItems: 1
