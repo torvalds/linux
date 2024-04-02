@@ -279,6 +279,23 @@
 #define MII_VCT7_CTRL_METERS			BIT(10)
 #define MII_VCT7_CTRL_CENTIMETERS		0
 
+#define MII_VCT_TXPINS			0x1A
+#define MII_VCT_RXPINS			0x1B
+#define MII_VCT_TXPINS_ENVCT		BIT(15)
+#define MII_VCT_TXRXPINS_VCTTST		GENMASK(14, 13)
+#define MII_VCT_TXRXPINS_VCTTST_SHIFT	13
+#define MII_VCT_TXRXPINS_VCTTST_OK	0
+#define MII_VCT_TXRXPINS_VCTTST_SHORT	1
+#define MII_VCT_TXRXPINS_VCTTST_OPEN	2
+#define MII_VCT_TXRXPINS_VCTTST_FAIL	3
+#define MII_VCT_TXRXPINS_AMPRFLN	GENMASK(12, 8)
+#define MII_VCT_TXRXPINS_AMPRFLN_SHIFT	8
+#define MII_VCT_TXRXPINS_DISTRFLN	GENMASK(7, 0)
+#define MII_VCT_TXRXPINS_DISTRFLN_MAX	0xff
+
+#define M88E3082_PAIR_A		BIT(0)
+#define M88E3082_PAIR_B		BIT(1)
+
 #define LPA_PAUSE_FIBER		0x180
 #define LPA_PAUSE_ASYM_FIBER	0x100
 
@@ -301,6 +318,12 @@ static struct marvell_hw_stat marvell_hw_stats[] = {
 	{ "phy_receive_errors_fiber", 1, 21, 16},
 };
 
+enum {
+	M88E3082_VCT_OFF,
+	M88E3082_VCT_PHASE1,
+	M88E3082_VCT_PHASE2,
+};
+
 struct marvell_priv {
 	u64 stats[ARRAY_SIZE(marvell_hw_stats)];
 	char *hwmon_name;
@@ -310,6 +333,7 @@ struct marvell_priv {
 	u32 last;
 	u32 step;
 	s8 pair;
+	u8 vct_phase;
 };
 
 static int marvell_read_page(struct phy_device *phydev)
@@ -2417,6 +2441,188 @@ static int marvell_vct7_cable_test_get_status(struct phy_device *phydev,
 	return 0;
 }
 
+static int m88e3082_vct_cable_test_start(struct phy_device *phydev)
+{
+	struct marvell_priv *priv = phydev->priv;
+	int ret;
+
+	/* It needs some magic workarounds described in VCT manual for this PHY.
+	 */
+	ret = phy_write(phydev, 29, 0x0003);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write(phydev, 30, 0x6440);
+	if (ret < 0)
+		return ret;
+
+	if (priv->vct_phase == M88E3082_VCT_PHASE1) {
+		ret = phy_write(phydev, 29, 0x000a);
+		if (ret < 0)
+			return ret;
+
+		ret = phy_write(phydev, 30, 0x0002);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = phy_write(phydev, MII_BMCR,
+			BMCR_RESET | BMCR_SPEED100 | BMCR_FULLDPLX);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write(phydev, MII_VCT_TXPINS, MII_VCT_TXPINS_ENVCT);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write(phydev, 29, 0x0003);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write(phydev, 30, 0x0);
+	if (ret < 0)
+		return ret;
+
+	if (priv->vct_phase == M88E3082_VCT_OFF) {
+		priv->vct_phase = M88E3082_VCT_PHASE1;
+		priv->pair = 0;
+
+		return 0;
+	}
+
+	ret = phy_write(phydev, 29, 0x000a);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write(phydev, 30, 0x0);
+	if (ret < 0)
+		return ret;
+
+	priv->vct_phase = M88E3082_VCT_PHASE2;
+
+	return 0;
+}
+
+static int m88e3082_vct_cable_test_report_trans(int result, u8 distance)
+{
+	switch (result) {
+	case MII_VCT_TXRXPINS_VCTTST_OK:
+		if (distance == MII_VCT_TXRXPINS_DISTRFLN_MAX)
+			return ETHTOOL_A_CABLE_RESULT_CODE_OK;
+		return ETHTOOL_A_CABLE_RESULT_CODE_IMPEDANCE_MISMATCH;
+	case MII_VCT_TXRXPINS_VCTTST_SHORT:
+		return ETHTOOL_A_CABLE_RESULT_CODE_SAME_SHORT;
+	case MII_VCT_TXRXPINS_VCTTST_OPEN:
+		return ETHTOOL_A_CABLE_RESULT_CODE_OPEN;
+	default:
+		return ETHTOOL_A_CABLE_RESULT_CODE_UNSPEC;
+	}
+}
+
+static u32 m88e3082_vct_distrfln_2_cm(u8 distrfln)
+{
+	if (distrfln < 24)
+		return 0;
+
+	/* Original function for meters: y = 0.7861x - 18.862 */
+	return (7861 * distrfln - 188620) / 100;
+}
+
+static int m88e3082_vct_cable_test_get_status(struct phy_device *phydev,
+					      bool *finished)
+{
+	u8 tx_vcttst_res, rx_vcttst_res, tx_distrfln, rx_distrfln;
+	struct marvell_priv *priv = phydev->priv;
+	int ret, tx_result, rx_result;
+	bool done_phase = true;
+
+	*finished = false;
+
+	ret = phy_read(phydev, MII_VCT_TXPINS);
+	if (ret < 0)
+		return ret;
+	else if (ret & MII_VCT_TXPINS_ENVCT)
+		return 0;
+
+	tx_distrfln = ret & MII_VCT_TXRXPINS_DISTRFLN;
+	tx_vcttst_res = (ret & MII_VCT_TXRXPINS_VCTTST) >>
+			MII_VCT_TXRXPINS_VCTTST_SHIFT;
+
+	ret = phy_read(phydev, MII_VCT_RXPINS);
+	if (ret < 0)
+		return ret;
+
+	rx_distrfln = ret & MII_VCT_TXRXPINS_DISTRFLN;
+	rx_vcttst_res = (ret & MII_VCT_TXRXPINS_VCTTST) >>
+			MII_VCT_TXRXPINS_VCTTST_SHIFT;
+
+	*finished = true;
+
+	switch (priv->vct_phase) {
+	case M88E3082_VCT_PHASE1:
+		tx_result = m88e3082_vct_cable_test_report_trans(tx_vcttst_res,
+								 tx_distrfln);
+		rx_result = m88e3082_vct_cable_test_report_trans(rx_vcttst_res,
+								 rx_distrfln);
+
+		ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_A,
+					tx_result);
+		ethnl_cable_test_result(phydev, ETHTOOL_A_CABLE_PAIR_B,
+					rx_result);
+
+		if (tx_vcttst_res == MII_VCT_TXRXPINS_VCTTST_OPEN) {
+			done_phase = false;
+			priv->pair |= M88E3082_PAIR_A;
+		} else if (tx_distrfln < MII_VCT_TXRXPINS_DISTRFLN_MAX) {
+			u8 pair = ETHTOOL_A_CABLE_PAIR_A;
+			u32 cm = m88e3082_vct_distrfln_2_cm(tx_distrfln);
+
+			ethnl_cable_test_fault_length(phydev, pair, cm);
+		}
+
+		if (rx_vcttst_res == MII_VCT_TXRXPINS_VCTTST_OPEN) {
+			done_phase = false;
+			priv->pair |= M88E3082_PAIR_B;
+		} else if (rx_distrfln < MII_VCT_TXRXPINS_DISTRFLN_MAX) {
+			u8 pair = ETHTOOL_A_CABLE_PAIR_B;
+			u32 cm = m88e3082_vct_distrfln_2_cm(rx_distrfln);
+
+			ethnl_cable_test_fault_length(phydev, pair, cm);
+		}
+
+		break;
+	case M88E3082_VCT_PHASE2:
+		if (priv->pair & M88E3082_PAIR_A &&
+		    tx_vcttst_res == MII_VCT_TXRXPINS_VCTTST_OPEN &&
+		    tx_distrfln < MII_VCT_TXRXPINS_DISTRFLN_MAX) {
+			u8 pair = ETHTOOL_A_CABLE_PAIR_A;
+			u32 cm = m88e3082_vct_distrfln_2_cm(tx_distrfln);
+
+			ethnl_cable_test_fault_length(phydev, pair, cm);
+		}
+		if (priv->pair & M88E3082_PAIR_B &&
+		    rx_vcttst_res == MII_VCT_TXRXPINS_VCTTST_OPEN &&
+		    rx_distrfln < MII_VCT_TXRXPINS_DISTRFLN_MAX) {
+			u8 pair = ETHTOOL_A_CABLE_PAIR_B;
+			u32 cm = m88e3082_vct_distrfln_2_cm(rx_distrfln);
+
+			ethnl_cable_test_fault_length(phydev, pair, cm);
+		}
+
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (!done_phase) {
+		*finished = false;
+		return m88e3082_vct_cable_test_start(phydev);
+	}
+	if (*finished)
+		priv->vct_phase = M88E3082_VCT_OFF;
+	return 0;
+}
+
 #ifdef CONFIG_HWMON
 struct marvell_hwmon_ops {
 	int (*config)(struct phy_device *phydev);
@@ -3300,6 +3506,8 @@ static struct phy_driver marvell_drivers[] = {
 		.read_status = marvell_read_status,
 		.resume = genphy_resume,
 		.suspend = genphy_suspend,
+		.cable_test_start = m88e3082_vct_cable_test_start,
+		.cable_test_get_status = m88e3082_vct_cable_test_get_status,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1112,
