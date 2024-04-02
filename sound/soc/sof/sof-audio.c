@@ -852,6 +852,7 @@ int sof_pcm_stream_free(struct snd_sof_dev *sdev, struct snd_pcm_substream *subs
 		}
 
 		spcm->prepared[substream->stream] = false;
+		spcm->pending_stop[substream->stream] = false;
 	}
 
 	/* reset the DMA */
