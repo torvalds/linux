@@ -49,14 +49,13 @@
 	(((isp)->media_dev.hw_revision & ATOMISP_HW_REVISION_MASK) == \
 	 ((rev) << ATOMISP_HW_REVISION_SHIFT))
 
-#define ATOMISP_PCI_DEVICE_SOC_MASK	0xfff8
+#define ATOMISP_PCI_DEVICE_SOC_BYT	0x0f38
 /* MRFLD with 0x1178: ISP freq can burst to 457MHz */
 #define ATOMISP_PCI_DEVICE_SOC_MRFLD	0x1178
 /* MRFLD with 0x1179: max ISP freq limited to 400MHz */
 #define ATOMISP_PCI_DEVICE_SOC_MRFLD_1179	0x1179
 /* MRFLD with 0x117a: max ISP freq is 400MHz and max freq at Vmin is 200MHz */
 #define ATOMISP_PCI_DEVICE_SOC_MRFLD_117A	0x117a
-#define ATOMISP_PCI_DEVICE_SOC_BYT	0x0f38
 #define ATOMISP_PCI_DEVICE_SOC_ANN	0x1478
 #define ATOMISP_PCI_DEVICE_SOC_CHT	0x22b8
 

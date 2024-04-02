@@ -1226,7 +1226,8 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	const struct atomisp_platform_data *pdata;
 	struct atomisp_device *isp;
 	unsigned int start;
-	int err, val;
+	u32 val;
+	int err;
 
 	/* Pointer to struct device. */
 	atomisp_dev = &pdev->dev;
@@ -1254,8 +1255,10 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	pci_set_drvdata(pdev, isp);
 
-	switch (id->device & ATOMISP_PCI_DEVICE_SOC_MASK) {
+	switch (id->device) {
 	case ATOMISP_PCI_DEVICE_SOC_MRFLD:
+	case ATOMISP_PCI_DEVICE_SOC_MRFLD_1179:
+	case ATOMISP_PCI_DEVICE_SOC_MRFLD_117A:
 		isp->media_dev.hw_revision =
 		    (ATOMISP_HW_REVISION_ISP2400
 		     << ATOMISP_HW_REVISION_SHIFT) |
@@ -1408,28 +1411,25 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	 */
 	atomisp_css2_hw_store_32(MRFLD_CSI_RECEIVER_SELECTION_REG, 1);
 
-	if ((id->device & ATOMISP_PCI_DEVICE_SOC_MASK) ==
-	    ATOMISP_PCI_DEVICE_SOC_MRFLD) {
-		u32 csi_afe_trim;
-
+	switch (id->device) {
+	case ATOMISP_PCI_DEVICE_SOC_MRFLD:
+	case ATOMISP_PCI_DEVICE_SOC_MRFLD_1179:
+	case ATOMISP_PCI_DEVICE_SOC_MRFLD_117A:
 		/*
 		 * Workaround for imbalance data eye issue which is observed
 		 * on TNG B0.
 		 */
-		pci_read_config_dword(pdev, MRFLD_PCI_CSI_AFE_TRIM_CONTROL, &csi_afe_trim);
-		csi_afe_trim &= ~((MRFLD_PCI_CSI_HSRXCLKTRIM_MASK <<
-				   MRFLD_PCI_CSI1_HSRXCLKTRIM_SHIFT) |
-				  (MRFLD_PCI_CSI_HSRXCLKTRIM_MASK <<
-				   MRFLD_PCI_CSI2_HSRXCLKTRIM_SHIFT) |
-				  (MRFLD_PCI_CSI_HSRXCLKTRIM_MASK <<
-				   MRFLD_PCI_CSI3_HSRXCLKTRIM_SHIFT));
-		csi_afe_trim |= (MRFLD_PCI_CSI1_HSRXCLKTRIM <<
-				 MRFLD_PCI_CSI1_HSRXCLKTRIM_SHIFT) |
-				(MRFLD_PCI_CSI2_HSRXCLKTRIM <<
-				 MRFLD_PCI_CSI2_HSRXCLKTRIM_SHIFT) |
-				(MRFLD_PCI_CSI3_HSRXCLKTRIM <<
-				 MRFLD_PCI_CSI3_HSRXCLKTRIM_SHIFT);
-		pci_write_config_dword(pdev, MRFLD_PCI_CSI_AFE_TRIM_CONTROL, csi_afe_trim);
+		pci_read_config_dword(pdev, MRFLD_PCI_CSI_AFE_TRIM_CONTROL, &val);
+		val &= ~((MRFLD_PCI_CSI_HSRXCLKTRIM_MASK << MRFLD_PCI_CSI1_HSRXCLKTRIM_SHIFT) |
+			 (MRFLD_PCI_CSI_HSRXCLKTRIM_MASK << MRFLD_PCI_CSI2_HSRXCLKTRIM_SHIFT) |
+			 (MRFLD_PCI_CSI_HSRXCLKTRIM_MASK << MRFLD_PCI_CSI3_HSRXCLKTRIM_SHIFT));
+		val |= (MRFLD_PCI_CSI1_HSRXCLKTRIM << MRFLD_PCI_CSI1_HSRXCLKTRIM_SHIFT) |
+		       (MRFLD_PCI_CSI2_HSRXCLKTRIM << MRFLD_PCI_CSI2_HSRXCLKTRIM_SHIFT) |
+		       (MRFLD_PCI_CSI3_HSRXCLKTRIM << MRFLD_PCI_CSI3_HSRXCLKTRIM_SHIFT);
+		pci_write_config_dword(pdev, MRFLD_PCI_CSI_AFE_TRIM_CONTROL, val);
+		break;
+	default:
+		break;
 	}
 
 	err = atomisp_initialize_modules(isp);
