@@ -43,6 +43,17 @@
 	KVM_ARCH_REQ_FLAGS(5, KVM_REQUEST_WAIT | KVM_REQUEST_NO_WAKEUP)
 #define KVM_REQ_STEAL_UPDATE		KVM_ARCH_REQ(6)
 
+#define KVM_HEDELEG_DEFAULT		(BIT(EXC_INST_MISALIGNED) | \
+					 BIT(EXC_BREAKPOINT)      | \
+					 BIT(EXC_SYSCALL)         | \
+					 BIT(EXC_INST_PAGE_FAULT) | \
+					 BIT(EXC_LOAD_PAGE_FAULT) | \
+					 BIT(EXC_STORE_PAGE_FAULT))
+
+#define KVM_HIDELEG_DEFAULT		(BIT(IRQ_VS_SOFT)  | \
+					 BIT(IRQ_VS_TIMER) | \
+					 BIT(IRQ_VS_EXT))
+
 enum kvm_riscv_hfence_type {
 	KVM_RISCV_HFENCE_UNKNOWN = 0,
 	KVM_RISCV_HFENCE_GVMA_VMID_GPA,
@@ -169,6 +180,7 @@ struct kvm_vcpu_csr {
 struct kvm_vcpu_config {
 	u64 henvcfg;
 	u64 hstateen0;
+	unsigned long hedeleg;
 };
 
 struct kvm_vcpu_smstateen_csr {

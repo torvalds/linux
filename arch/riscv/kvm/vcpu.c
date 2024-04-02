@@ -475,8 +475,15 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 					struct kvm_guest_debug *dbg)
 {
-	/* TODO; To be implemented later. */
-	return -EINVAL;
+	if (dbg->control & KVM_GUESTDBG_ENABLE) {
+		vcpu->guest_debug = dbg->control;
+		vcpu->arch.cfg.hedeleg &= ~BIT(EXC_BREAKPOINT);
+	} else {
+		vcpu->guest_debug = 0;
+		vcpu->arch.cfg.hedeleg |= BIT(EXC_BREAKPOINT);
+	}
+
+	return 0;
 }
 
 static void kvm_riscv_vcpu_setup_config(struct kvm_vcpu *vcpu)
@@ -505,6 +512,10 @@ static void kvm_riscv_vcpu_setup_config(struct kvm_vcpu *vcpu)
 		if (riscv_isa_extension_available(isa, SMSTATEEN))
 			cfg->hstateen0 |= SMSTATEEN0_SSTATEEN0;
 	}
+
+	cfg->hedeleg = KVM_HEDELEG_DEFAULT;
+	if (vcpu->guest_debug)
+		cfg->hedeleg &= ~BIT(EXC_BREAKPOINT);
 }
 
 void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
@@ -519,6 +530,7 @@ void kvm_arch_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	csr_write(CSR_VSEPC, csr->vsepc);
 	csr_write(CSR_VSCAUSE, csr->vscause);
 	csr_write(CSR_VSTVAL, csr->vstval);
+	csr_write(CSR_HEDELEG, cfg->hedeleg);
 	csr_write(CSR_HVIP, csr->hvip);
 	csr_write(CSR_VSATP, csr->vsatp);
 	csr_write(CSR_HENVCFG, cfg->henvcfg);
