@@ -423,6 +423,7 @@ static int get_rsb_struct(struct dlm_ls *ls, const void *name, int len,
 	INIT_LIST_HEAD(&r->res_waitqueue);
 	INIT_LIST_HEAD(&r->res_root_list);
 	INIT_LIST_HEAD(&r->res_recover_list);
+	INIT_LIST_HEAD(&r->res_masters_list);
 
 	*r_ret = r;
 	return 0;
@@ -1168,6 +1169,7 @@ static void kill_rsb(struct kref *kref)
 	DLM_ASSERT(list_empty(&r->res_waitqueue), dlm_dump_rsb(r););
 	DLM_ASSERT(list_empty(&r->res_root_list), dlm_dump_rsb(r););
 	DLM_ASSERT(list_empty(&r->res_recover_list), dlm_dump_rsb(r););
+	DLM_ASSERT(list_empty(&r->res_masters_list), dlm_dump_rsb(r););
 }
 
 /* Attaching/detaching lkb's from rsb's is for rsb reference counting.
