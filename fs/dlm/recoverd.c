@@ -26,7 +26,7 @@ static int dlm_create_masters_list(struct dlm_ls *ls)
 	struct dlm_rsb *r;
 	int i, error = 0;
 
-	write_lock(&ls->ls_masters_lock);
+	write_lock_bh(&ls->ls_masters_lock);
 	if (!list_empty(&ls->ls_masters_list)) {
 		log_error(ls, "root list not empty");
 		error = -EINVAL;
@@ -46,7 +46,7 @@ static int dlm_create_masters_list(struct dlm_ls *ls)
 		spin_unlock_bh(&ls->ls_rsbtbl[i].lock);
 	}
  out:
-	write_unlock(&ls->ls_masters_lock);
+	write_unlock_bh(&ls->ls_masters_lock);
 	return error;
 }
 
@@ -54,12 +54,12 @@ static void dlm_release_masters_list(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r, *safe;
 
-	write_lock(&ls->ls_masters_lock);
+	write_lock_bh(&ls->ls_masters_lock);
 	list_for_each_entry_safe(r, safe, &ls->ls_masters_list, res_masters_list) {
 		list_del_init(&r->res_masters_list);
 		dlm_put_rsb(r);
 	}
-	write_unlock(&ls->ls_masters_lock);
+	write_unlock_bh(&ls->ls_masters_lock);
 }
 
 static void dlm_create_root_list(struct dlm_ls *ls, struct list_head *root_list)
@@ -103,9 +103,9 @@ static int enable_locking(struct dlm_ls *ls, uint64_t seq)
 {
 	int error = -EINTR;
 
-	write_lock(&ls->ls_recv_active);
+	write_lock_bh(&ls->ls_recv_active);
 
-	spin_lock(&ls->ls_recover_lock);
+	spin_lock_bh(&ls->ls_recover_lock);
 	if (ls->ls_recover_seq == seq) {
 		set_bit(LSFL_RUNNING, &ls->ls_flags);
 		/* unblocks processes waiting to enter the dlm */
@@ -113,9 +113,9 @@ static int enable_locking(struct dlm_ls *ls, uint64_t seq)
 		clear_bit(LSFL_RECOVER_LOCK, &ls->ls_flags);
 		error = 0;
 	}
-	spin_unlock(&ls->ls_recover_lock);
+	spin_unlock_bh(&ls->ls_recover_lock);
 
-	write_unlock(&ls->ls_recv_active);
+	write_unlock_bh(&ls->ls_recv_active);
 	return error;
 }
 
@@ -349,12 +349,12 @@ static void do_ls_recovery(struct dlm_ls *ls)
 	struct dlm_recover *rv = NULL;
 	int error;
 
-	spin_lock(&ls->ls_recover_lock);
+	spin_lock_bh(&ls->ls_recover_lock);
 	rv = ls->ls_recover_args;
 	ls->ls_recover_args = NULL;
 	if (rv && ls->ls_recover_seq == rv->seq)
 		clear_bit(LSFL_RECOVER_STOP, &ls->ls_flags);
-	spin_unlock(&ls->ls_recover_lock);
+	spin_unlock_bh(&ls->ls_recover_lock);
 
 	if (rv) {
 		error = ls_recover(ls, rv);

@@ -204,12 +204,12 @@ static struct dlm_rsb *find_rsb_root(struct dlm_ls *ls, const char *name,
 	hash = jhash(name, len, 0);
 	bucket = hash & (ls->ls_rsbtbl_size - 1);
 
-	spin_lock(&ls->ls_rsbtbl[bucket].lock);
+	spin_lock_bh(&ls->ls_rsbtbl[bucket].lock);
 	rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[bucket].keep, name, len, &r);
 	if (rv)
 		rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[bucket].toss,
 					 name, len, &r);
-	spin_unlock(&ls->ls_rsbtbl[bucket].lock);
+	spin_unlock_bh(&ls->ls_rsbtbl[bucket].lock);
 
 	if (!rv)
 		return r;
@@ -245,7 +245,7 @@ static void drop_dir_ctx(struct dlm_ls *ls, int nodeid)
 {
 	struct dlm_dir_dump *dd, *safe;
 
-	write_lock(&ls->ls_dir_dump_lock);
+	write_lock_bh(&ls->ls_dir_dump_lock);
 	list_for_each_entry_safe(dd, safe, &ls->ls_dir_dump_list, list) {
 		if (dd->nodeid_init == nodeid) {
 			log_error(ls, "drop dump seq %llu",
@@ -254,21 +254,21 @@ static void drop_dir_ctx(struct dlm_ls *ls, int nodeid)
 			kfree(dd);
 		}
 	}
-	write_unlock(&ls->ls_dir_dump_lock);
+	write_unlock_bh(&ls->ls_dir_dump_lock);
 }
 
 static struct dlm_dir_dump *lookup_dir_dump(struct dlm_ls *ls, int nodeid)
 {
 	struct dlm_dir_dump *iter, *dd = NULL;
 
-	read_lock(&ls->ls_dir_dump_lock);
+	read_lock_bh(&ls->ls_dir_dump_lock);
 	list_for_each_entry(iter, &ls->ls_dir_dump_list, list) {
 		if (iter->nodeid_init == nodeid) {
 			dd = iter;
 			break;
 		}
 	}
-	read_unlock(&ls->ls_dir_dump_lock);
+	read_unlock_bh(&ls->ls_dir_dump_lock);
 
 	return dd;
 }
@@ -291,9 +291,9 @@ static struct dlm_dir_dump *init_dir_dump(struct dlm_ls *ls, int nodeid)
 	dd->seq_init = ls->ls_recover_seq;
 	dd->nodeid_init = nodeid;
 
-	write_lock(&ls->ls_dir_dump_lock);
+	write_lock_bh(&ls->ls_dir_dump_lock);
 	list_add(&dd->list, &ls->ls_dir_dump_list);
-	write_unlock(&ls->ls_dir_dump_lock);
+	write_unlock_bh(&ls->ls_dir_dump_lock);
 
 	return dd;
 }
@@ -311,7 +311,7 @@ void dlm_copy_master_names(struct dlm_ls *ls, const char *inbuf, int inlen,
 	struct dlm_dir_dump *dd;
 	__be16 be_namelen;
 
-	read_lock(&ls->ls_masters_lock);
+	read_lock_bh(&ls->ls_masters_lock);
 
 	if (inlen > 1) {
 		dd = lookup_dir_dump(ls, nodeid);
@@ -397,12 +397,12 @@ void dlm_copy_master_names(struct dlm_ls *ls, const char *inbuf, int inlen,
 		log_rinfo(ls, "dlm_recover_directory nodeid %d sent %u res out %u messages",
 			  nodeid, dd->sent_res, dd->sent_msg);
 
-		write_lock(&ls->ls_dir_dump_lock);
+		write_lock_bh(&ls->ls_dir_dump_lock);
 		list_del_init(&dd->list);
-		write_unlock(&ls->ls_dir_dump_lock);
+		write_unlock_bh(&ls->ls_dir_dump_lock);
 		kfree(dd);
 	}
  out:
-	read_unlock(&ls->ls_masters_lock);
+	read_unlock_bh(&ls->ls_masters_lock);
 }
 
