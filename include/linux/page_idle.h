@@ -6,9 +6,7 @@
 #include <linux/page-flags.h>
 #include <linux/page_ext.h>
 
-#ifdef CONFIG_PAGE_IDLE_FLAG
-
-#ifndef CONFIG_64BIT
+#if defined(CONFIG_PAGE_IDLE_FLAG) && !defined(CONFIG_64BIT)
 /*
  * If there is not enough space to store Idle and Young bits in page flags, use
  * page ext flags instead.
@@ -87,36 +85,5 @@ static inline void folio_clear_idle(struct folio *folio)
 	clear_bit(PAGE_EXT_IDLE, &page_ext->flags);
 	page_ext_put(page_ext);
 }
-#endif /* !CONFIG_64BIT */
-
-#else /* !CONFIG_PAGE_IDLE_FLAG */
-
-static inline bool folio_test_young(const struct folio *folio)
-{
-	return false;
-}
-
-static inline void folio_set_young(struct folio *folio)
-{
-}
-
-static inline bool folio_test_clear_young(struct folio *folio)
-{
-	return false;
-}
-
-static inline bool folio_test_idle(const struct folio *folio)
-{
-	return false;
-}
-
-static inline void folio_set_idle(struct folio *folio)
-{
-}
-
-static inline void folio_clear_idle(struct folio *folio)
-{
-}
-
-#endif /* CONFIG_PAGE_IDLE_FLAG */
+#endif /* CONFIG_PAGE_IDLE_FLAG && !64BIT */
 #endif /* _LINUX_MM_PAGE_IDLE_H */
