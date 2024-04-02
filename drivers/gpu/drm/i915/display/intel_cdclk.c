@@ -2617,6 +2617,12 @@ intel_set_cdclk_pre_plane_update(struct intel_atomic_state *state)
 						 old_cdclk_state->actual.voltage_level);
 	}
 
+	/*
+	 * mbus joining will be changed later by
+	 * intel_dbuf_mbus_{pre,post}_ddb_update()
+	 */
+	cdclk_config.joined_mbus = old_cdclk_state->actual.joined_mbus;
+
 	drm_WARN_ON(&i915->drm, !new_cdclk_state->base.changed);
 
 	intel_set_cdclk(i915, &cdclk_config, pipe,
