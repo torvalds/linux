@@ -1454,6 +1454,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	u32 deep_buffer_dma_ms = 0;
 	int output_fmt_index;
 	bool single_output_format;
+	int i;
 
 	dev_dbg(sdev->dev, "copier %s, type %d", swidget->widget->name, swidget->id);
 
@@ -1679,7 +1680,6 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 			u32 ch_map;
 			u32 step;
 			u32 mask;
-			int i;
 
 			blob = (struct sof_ipc4_alh_configuration_blob *)ipc4_copier->copier_config;
 
@@ -1789,19 +1789,18 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	gtw_cfg_config_length = copier_data->gtw_cfg.config_length * 4;
 	ipc_size = sizeof(*copier_data) + gtw_cfg_config_length;
 
-	if (ipc4_copier->dma_config_tlv.type == SOF_IPC4_GTW_DMA_CONFIG_ID &&
-	    ipc4_copier->dma_config_tlv.length) {
-		dma_config_tlv_size = sizeof(ipc4_copier->dma_config_tlv) +
-			ipc4_copier->dma_config_tlv.dma_config.dma_priv_config_size;
+	dma_config_tlv_size = 0;
+	for (i = 0; i < SOF_IPC4_DMA_DEVICE_MAX_COUNT; i++) {
+		if (ipc4_copier->dma_config_tlv[i].type != SOF_IPC4_GTW_DMA_CONFIG_ID)
+			continue;
+		dma_config_tlv_size += ipc4_copier->dma_config_tlv[i].length;
+		dma_config_tlv_size +=
+			ipc4_copier->dma_config_tlv[i].dma_config.dma_priv_config_size;
+		dma_config_tlv_size += (sizeof(ipc4_copier->dma_config_tlv[i]) -
+			sizeof(ipc4_copier->dma_config_tlv[i].dma_config));
+	}
 
-		/* paranoia check on TLV size/length */
-		if (dma_config_tlv_size != ipc4_copier->dma_config_tlv.length +
-		    sizeof(uint32_t) * 2) {
-			dev_err(sdev->dev, "Invalid configuration, TLV size %d length %d\n",
-				dma_config_tlv_size, ipc4_copier->dma_config_tlv.length);
-			return -EINVAL;
-		}
-
+	if (dma_config_tlv_size) {
 		ipc_size += dma_config_tlv_size;
 
 		/* we also need to increase the size at the gtw level */
