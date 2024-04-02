@@ -154,6 +154,16 @@ config VIDEO_IMX274
 	  This is a V4L2 sensor driver for the Sony IMX274
 	  CMOS image sensor.
 
+config VIDEO_IMX283
+	tristate "Sony IMX283 sensor support"
+	select V4L2_CCI_I2C
+	help
+	  This is a V4L2 sensor driver for the Sony IMX283
+	  CMOS image sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx283.
+
 config VIDEO_IMX290
 	tristate "Sony IMX290 sensor support"
 	select REGMAP_I2C
