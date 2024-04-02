@@ -3559,14 +3559,15 @@ static void bnxt_free_rx_rings(struct bnxt *bp)
 }
 
 static int bnxt_alloc_rx_page_pool(struct bnxt *bp,
-				   struct bnxt_rx_ring_info *rxr)
+				   struct bnxt_rx_ring_info *rxr,
+				   int numa_node)
 {
 	struct page_pool_params pp = { 0 };
 
 	pp.pool_size = bp->rx_agg_ring_size;
 	if (BNXT_RX_PAGE_MODE(bp))
 		pp.pool_size += bp->rx_ring_size;
-	pp.nid = dev_to_node(&bp->pdev->dev);
+	pp.nid = numa_node;
 	pp.napi = &rxr->bnapi->napi;
 	pp.netdev = bp->dev;
 	pp.dev = &bp->pdev->dev;
@@ -3586,7 +3587,8 @@ static int bnxt_alloc_rx_page_pool(struct bnxt *bp,
 
 static int bnxt_alloc_rx_rings(struct bnxt *bp)
 {
-	int i, rc = 0, agg_rings = 0;
+	int numa_node = dev_to_node(&bp->pdev->dev);
+	int i, rc = 0, agg_rings = 0, cpu;
 
 	if (!bp->rx_ring)
 		return -ENOMEM;
@@ -3597,10 +3599,15 @@ static int bnxt_alloc_rx_rings(struct bnxt *bp)
 	for (i = 0; i < bp->rx_nr_rings; i++) {
 		struct bnxt_rx_ring_info *rxr = &bp->rx_ring[i];
 		struct bnxt_ring_struct *ring;
+		int cpu_node;
 
 		ring = &rxr->rx_ring_struct;
 
-		rc = bnxt_alloc_rx_page_pool(bp, rxr);
+		cpu = cpumask_local_spread(i, numa_node);
+		cpu_node = cpu_to_node(cpu);
+		netdev_dbg(bp->dev, "Allocating page pool for rx_ring[%d] on numa_node: %d\n",
+			   i, cpu_node);
+		rc = bnxt_alloc_rx_page_pool(bp, rxr, cpu_node);
 		if (rc)
 			return rc;
 
