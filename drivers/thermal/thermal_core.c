@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/kdev_t.h>
 #include <linux/idr.h>
+#include <linux/list_sort.h>
 #include <linux/thermal.h>
 #include <linux/reboot.h>
 #include <linux/string.h>
@@ -361,7 +362,9 @@ static void handle_critical_trips(struct thermal_zone_device *tz,
 }
 
 static void handle_thermal_trip(struct thermal_zone_device *tz,
-				struct thermal_trip_desc *td)
+				struct thermal_trip_desc *td,
+				struct list_head *way_up_list,
+				struct list_head *way_down_list)
 {
 	const struct thermal_trip *trip = &td->trip;
 	int old_threshold;
@@ -387,8 +390,8 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		 * In that case, the trip temperature becomes the new threshold.
 		 */
 		if (tz->temperature < trip->temperature - trip->hysteresis) {
-			thermal_notify_tz_trip_down(tz, trip);
-			thermal_debug_tz_trip_down(tz, trip);
+			list_add(&td->notify_list_node, way_down_list);
+			td->notify_temp = trip->temperature - trip->hysteresis;
 		} else {
 			td->threshold -= trip->hysteresis;
 		}
@@ -398,8 +401,8 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		 * if the zone temperature exceeds the trip one.  The new
 		 * threshold is then set to the low temperature of the trip.
 		 */
-		thermal_notify_tz_trip_up(tz, trip);
-		thermal_debug_tz_trip_up(tz, trip);
+		list_add_tail(&td->notify_list_node, way_up_list);
+		td->notify_temp = trip->temperature;
 		td->threshold -= trip->hysteresis;
 	}
 
@@ -452,10 +455,24 @@ static void thermal_zone_device_init(struct thermal_zone_device *tz)
 		pos->initialized = false;
 }
 
+static int thermal_trip_notify_cmp(void *ascending, const struct list_head *a,
+				   const struct list_head *b)
+{
+	struct thermal_trip_desc *tda = container_of(a, struct thermal_trip_desc,
+						     notify_list_node);
+	struct thermal_trip_desc *tdb = container_of(b, struct thermal_trip_desc,
+						     notify_list_node);
+	int ret = tdb->notify_temp - tda->notify_temp;
+
+	return ascending ? ret : -ret;
+}
+
 void __thermal_zone_device_update(struct thermal_zone_device *tz,
 				  enum thermal_notify_event event)
 {
 	struct thermal_trip_desc *td;
+	LIST_HEAD(way_down_list);
+	LIST_HEAD(way_up_list);
 
 	if (tz->suspended)
 		return;
@@ -470,7 +487,19 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 	tz->notify_event = event;
 
 	for_each_trip_desc(tz, td)
-		handle_thermal_trip(tz, td);
+		handle_thermal_trip(tz, td, &way_up_list, &way_down_list);
+
+	list_sort(&way_up_list, &way_up_list, thermal_trip_notify_cmp);
+	list_for_each_entry(td, &way_up_list, notify_list_node) {
+		thermal_notify_tz_trip_up(tz, &td->trip);
+		thermal_debug_tz_trip_up(tz, &td->trip);
+	}
+
+	list_sort(NULL, &way_down_list, thermal_trip_notify_cmp);
+	list_for_each_entry(td, &way_down_list, notify_list_node) {
+		thermal_notify_tz_trip_down(tz, &td->trip);
+		thermal_debug_tz_trip_down(tz, &td->trip);
+	}
 
 	monitor_thermal_zone(tz);
 }

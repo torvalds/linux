@@ -17,6 +17,8 @@
 
 struct thermal_trip_desc {
 	struct thermal_trip trip;
+	struct list_head notify_list_node;
+	int notify_temp;
 	int threshold;
 };
 
