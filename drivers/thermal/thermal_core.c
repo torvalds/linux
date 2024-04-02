@@ -368,6 +368,13 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 	if (trip->temperature == THERMAL_TEMP_INVALID)
 		return;
 
+	/*
+	 * If the trip temperature or hysteresis has been updated recently,
+	 * the threshold needs to be computed again using the new values.
+	 * However, its initial value still reflects the old ones and that
+	 * is what needs to be compared with the previous zone temperature
+	 * to decide which action to take.
+	 */
 	if (tz->last_temperature == THERMAL_TEMP_INVALID) {
 		/* Initialization. */
 		td->threshold = trip->temperature;
@@ -375,11 +382,9 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 			td->threshold -= trip->hysteresis;
 	} else if (tz->last_temperature < td->threshold) {
 		/*
-		 * The trip threshold is equal to the trip temperature, unless
-		 * the latter has changed in the meantime.  In either case,
-		 * the trip is crossed if the current zone temperature is at
-		 * least equal to its temperature, but otherwise ensure that
-		 * the threshold and the trip temperature will be equal.
+		 * There is no mitigation under way, so it needs to be started
+		 * if the zone temperature exceeds the trip one.  The new
+		 * threshold is then set to the low temperature of the trip.
 		 */
 		if (tz->temperature >= trip->temperature) {
 			thermal_notify_tz_trip_up(tz, trip);
@@ -390,14 +395,9 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		}
 	} else {
 		/*
-		 * The previous zone temperature was above or equal to the trip
-		 * threshold, which would be equal to the "low temperature" of
-		 * the trip (its temperature minus its hysteresis), unless the
-		 * trip temperature or hysteresis had changed.  In either case,
-		 * the trip is crossed if the current zone temperature is below
-		 * the low temperature of the trip, but otherwise ensure that
-		 * the trip threshold will be equal to the low temperature of
-		 * the trip.
+		 * Mitigation is under way, so it needs to stop if the zone
+		 * temperature falls below the low temperature of the trip.
+		 * In that case, the trip temperature becomes the new threshold.
 		 */
 		if (tz->temperature < trip->temperature - trip->hysteresis) {
 			thermal_notify_tz_trip_down(tz, trip);
