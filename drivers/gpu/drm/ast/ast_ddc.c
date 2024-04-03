@@ -21,11 +21,21 @@
  * of the Software.
  */
 
+#include <linux/i2c-algo-bit.h>
+#include <linux/i2c.h>
+
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 
 #include "ast_ddc.h"
 #include "ast_drv.h"
+
+struct ast_ddc {
+	struct ast_device *ast;
+
+	struct i2c_algo_bit_data bit;
+	struct i2c_adapter adapter;
+};
 
 static void ast_ddc_algo_bit_data_setsda(void *data, int state)
 {
@@ -132,7 +142,7 @@ static void ast_ddc_release(struct drm_device *dev, void *res)
 	i2c_del_adapter(&ddc->adapter);
 }
 
-struct ast_ddc *ast_ddc_create(struct ast_device *ast)
+struct i2c_adapter *ast_ddc_create(struct ast_device *ast)
 {
 	struct drm_device *dev = &ast->base;
 	struct ast_ddc *ddc;
@@ -173,5 +183,5 @@ struct ast_ddc *ast_ddc_create(struct ast_device *ast)
 	if (ret)
 		return ERR_PTR(ret);
 
-	return ddc;
+	return &ddc->adapter;
 }

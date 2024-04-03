@@ -1360,7 +1360,7 @@ static const struct drm_connector_funcs ast_vga_connector_funcs = {
 static int ast_vga_connector_init(struct drm_device *dev, struct drm_connector *connector)
 {
 	struct ast_device *ast = to_ast_device(dev);
-	struct ast_ddc *ddc;
+	struct i2c_adapter *ddc;
 	int ret;
 
 	ddc = ast_ddc_create(ast);
@@ -1371,7 +1371,7 @@ static int ast_vga_connector_init(struct drm_device *dev, struct drm_connector *
 	}
 
 	ret = drm_connector_init_with_ddc(dev, connector, &ast_vga_connector_funcs,
-					  DRM_MODE_CONNECTOR_VGA, &ddc->adapter);
+					  DRM_MODE_CONNECTOR_VGA, ddc);
 	if (ret)
 		return ret;
 
@@ -1429,7 +1429,7 @@ static const struct drm_connector_funcs ast_sil164_connector_funcs = {
 static int ast_sil164_connector_init(struct drm_device *dev, struct drm_connector *connector)
 {
 	struct ast_device *ast = to_ast_device(dev);
-	struct ast_ddc *ddc;
+	struct i2c_adapter *ddc;
 	int ret;
 
 	ddc = ast_ddc_create(ast);
@@ -1440,7 +1440,7 @@ static int ast_sil164_connector_init(struct drm_device *dev, struct drm_connecto
 	}
 
 	ret = drm_connector_init_with_ddc(dev, connector, &ast_sil164_connector_funcs,
-					  DRM_MODE_CONNECTOR_DVII, &ddc->adapter);
+					  DRM_MODE_CONNECTOR_DVII, ddc);
 	if (ret)
 		return ret;
 
