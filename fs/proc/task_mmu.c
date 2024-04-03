@@ -2549,28 +2549,29 @@ struct numa_maps_private {
 static void gather_stats(struct page *page, struct numa_maps *md, int pte_dirty,
 			unsigned long nr_pages)
 {
+	struct folio *folio = page_folio(page);
 	int count = page_mapcount(page);
 
 	md->pages += nr_pages;
-	if (pte_dirty || PageDirty(page))
+	if (pte_dirty || folio_test_dirty(folio))
 		md->dirty += nr_pages;
 
-	if (PageSwapCache(page))
+	if (folio_test_swapcache(folio))
 		md->swapcache += nr_pages;
 
-	if (PageActive(page) || PageUnevictable(page))
+	if (folio_test_active(folio) || folio_test_unevictable(folio))
 		md->active += nr_pages;
 
-	if (PageWriteback(page))
+	if (folio_test_writeback(folio))
 		md->writeback += nr_pages;
 
-	if (PageAnon(page))
+	if (folio_test_anon(folio))
 		md->anon += nr_pages;
 
 	if (count > md->mapcount_max)
 		md->mapcount_max = count;
 
-	md->node[page_to_nid(page)] += nr_pages;
+	md->node[folio_nid(folio)] += nr_pages;
 }
 
 static struct page *can_gather_numa_stats(pte_t pte, struct vm_area_struct *vma,
