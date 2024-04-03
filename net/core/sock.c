@@ -2526,13 +2526,12 @@ EXPORT_SYMBOL(skb_set_owner_w);
 
 static bool can_skb_orphan_partial(const struct sk_buff *skb)
 {
-#ifdef CONFIG_TLS_DEVICE
 	/* Drivers depend on in-order delivery for crypto offload,
 	 * partial orphan breaks out-of-order-OK logic.
 	 */
-	if (skb->decrypted)
+	if (skb_is_decrypted(skb))
 		return false;
-#endif
+
 	return (skb->destructor == sock_wfree ||
 		(IS_ENABLED(CONFIG_INET) && skb->destructor == tcp_wfree));
 }

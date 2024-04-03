@@ -265,9 +265,7 @@ found:
 		flush |= (len - 1) >= mss;
 
 	flush |= (ntohl(th2->seq) + skb_gro_len(p)) ^ ntohl(th->seq);
-#ifdef CONFIG_TLS_DEVICE
-	flush |= p->decrypted ^ skb->decrypted;
-#endif
+	flush |= skb_cmp_decrypted(p, skb);
 
 	if (flush || skb_gro_receive(p, skb)) {
 		mss = 1;

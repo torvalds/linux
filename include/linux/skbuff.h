@@ -992,7 +992,7 @@ struct sk_buff {
 #ifdef CONFIG_NETFILTER_SKIP_EGRESS
 	__u8			nf_skip_egress:1;
 #endif
-#ifdef CONFIG_TLS_DEVICE
+#ifdef CONFIG_SKB_DECRYPTED
 	__u8			decrypted:1;
 #endif
 	__u8			slow_gro:1;
@@ -1615,17 +1615,26 @@ static inline void skb_copy_hash(struct sk_buff *to, const struct sk_buff *from)
 static inline int skb_cmp_decrypted(const struct sk_buff *skb1,
 				    const struct sk_buff *skb2)
 {
-#ifdef CONFIG_TLS_DEVICE
+#ifdef CONFIG_SKB_DECRYPTED
 	return skb2->decrypted - skb1->decrypted;
 #else
 	return 0;
 #endif
 }
 
+static inline bool skb_is_decrypted(const struct sk_buff *skb)
+{
+#ifdef CONFIG_SKB_DECRYPTED
+	return skb->decrypted;
+#else
+	return false;
+#endif
+}
+
 static inline void skb_copy_decrypted(struct sk_buff *to,
 				      const struct sk_buff *from)
 {
-#ifdef CONFIG_TLS_DEVICE
+#ifdef CONFIG_SKB_DECRYPTED
 	to->decrypted = from->decrypted;
 #endif
 }

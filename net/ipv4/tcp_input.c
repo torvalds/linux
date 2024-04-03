@@ -4805,10 +4805,8 @@ static bool tcp_try_coalesce(struct sock *sk,
 	if (!mptcp_skb_can_collapse(to, from))
 		return false;
 
-#ifdef CONFIG_TLS_DEVICE
-	if (from->decrypted != to->decrypted)
+	if (skb_cmp_decrypted(from, to))
 		return false;
-#endif
 
 	if (!skb_try_coalesce(to, from, fragstolen, &delta))
 		return false;
@@ -5377,9 +5375,7 @@ restart:
 			break;
 
 		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
-#ifdef CONFIG_TLS_DEVICE
-		nskb->decrypted = skb->decrypted;
-#endif
+		skb_copy_decrypted(nskb, skb);
 		TCP_SKB_CB(nskb)->seq = TCP_SKB_CB(nskb)->end_seq = start;
 		if (list)
 			__skb_queue_before(list, skb, nskb);
@@ -5409,10 +5405,8 @@ restart:
 				    !mptcp_skb_can_collapse(nskb, skb) ||
 				    (TCP_SKB_CB(skb)->tcp_flags & (TCPHDR_SYN | TCPHDR_FIN)))
 					goto end;
-#ifdef CONFIG_TLS_DEVICE
-				if (skb->decrypted != nskb->decrypted)
+				if (skb_cmp_decrypted(skb, nskb))
 					goto end;
-#endif
 			}
 		}
 	}

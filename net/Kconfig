@@ -60,6 +60,9 @@ config NET_XGRESS
 config NET_REDIRECT
 	bool
 
+config SKB_DECRYPTED
+	bool
+
 config SKB_EXTENSIONS
 	bool
 
