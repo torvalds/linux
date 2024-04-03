@@ -455,7 +455,7 @@ static int metricgroup__add_to_mep_groups(const struct pmu_metric *pm,
 	const char *g;
 	char *omg, *mg;
 
-	mg = strdup(pm->metric_group ?: "No_group");
+	mg = strdup(pm->metric_group ?: pm->metric_name);
 	if (!mg)
 		return -ENOMEM;
 	omg = mg;
@@ -466,7 +466,7 @@ static int metricgroup__add_to_mep_groups(const struct pmu_metric *pm,
 		if (strlen(g))
 			me = mep_lookup(groups, g, pm->metric_name);
 		else
-			me = mep_lookup(groups, "No_group", pm->metric_name);
+			me = mep_lookup(groups, pm->metric_name, pm->metric_name);
 
 		if (me) {
 			me->metric_desc = pm->desc;
