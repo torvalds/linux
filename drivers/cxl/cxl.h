@@ -663,8 +663,7 @@ struct cxl_rcrb_info {
  * @rch: Indicate whether this dport was enumerated in RCH or VH mode
  * @port: reference to cxl_port that contains this downstream port
  * @regs: Dport parsed register blocks
- * @sw_coord: access coordinates (performance) for switch from CDAT
- * @hb_coord: access coordinates (performance) from ACPI generic port (host bridge)
+ * @coord: access coordinates (bandwidth and latency performance attributes)
  * @link_latency: calculated PCIe downstream latency
  */
 struct cxl_dport {
@@ -675,8 +674,7 @@ struct cxl_dport {
 	bool rch;
 	struct cxl_port *port;
 	struct cxl_regs regs;
-	struct access_coordinate sw_coord;
-	struct access_coordinate hb_coord[ACCESS_COORDINATE_MAX];
+	struct access_coordinate coord[ACCESS_COORDINATE_MAX];
 	long link_latency;
 };
 

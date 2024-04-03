@@ -2133,6 +2133,29 @@ bool schedule_cxl_memdev_detach(struct cxl_memdev *cxlmd)
 }
 EXPORT_SYMBOL_NS_GPL(schedule_cxl_memdev_detach, CXL);
 
+static void add_latency(struct access_coordinate *c, long latency)
+{
+	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++) {
+		c[i].write_latency += latency;
+		c[i].read_latency += latency;
+	}
+}
+
+static void set_min_bandwidth(struct access_coordinate *c, unsigned int bw)
+{
+	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++) {
+		c[i].write_bandwidth = min(c[i].write_bandwidth, bw);
+		c[i].read_bandwidth = min(c[i].read_bandwidth, bw);
+	}
+}
+
+static void set_access_coordinates(struct access_coordinate *out,
+				   struct access_coordinate *in)
+{
+	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++)
+		out[i] = in[i];
+}
+
 static bool parent_port_is_cxl_root(struct cxl_port *port)
 {
 	return is_cxl_root(to_cxl_port(port->dev.parent));
@@ -2149,9 +2172,15 @@ static bool parent_port_is_cxl_root(struct cxl_port *port)
 int cxl_endpoint_get_perf_coordinates(struct cxl_port *port,
 				      struct access_coordinate *coord)
 {
-	struct access_coordinate c = {
-		.read_bandwidth = UINT_MAX,
-		.write_bandwidth = UINT_MAX,
+	struct access_coordinate c[] = {
+		{
+			.read_bandwidth = UINT_MAX,
+			.write_bandwidth = UINT_MAX,
+		},
+		{
+			.read_bandwidth = UINT_MAX,
+			.write_bandwidth = UINT_MAX,
+		},
 	};
 	struct cxl_port *iter = port;
 	struct cxl_dport *dport;
@@ -2178,14 +2207,13 @@ int cxl_endpoint_get_perf_coordinates(struct cxl_port *port,
 		 * have CDAT and therefore needs to be skipped.
 		 */
 		if (!is_cxl_root)
-			cxl_coordinates_combine(&c, &c, &dport->sw_coord);
-		c.write_latency += dport->link_latency;
-		c.read_latency += dport->link_latency;
+			cxl_coordinates_combine(c, c, dport->coord);
+		add_latency(c, dport->link_latency);
 	} while (!is_cxl_root);
 
 	dport = iter->parent_dport;
 	/* Retrieve HB coords */
-	cxl_coordinates_combine(&c, &c, dport->hb_coord);
+	cxl_coordinates_combine(c, c, dport->coord);
 
 	/* Get the calculated PCI paths bandwidth */
 	pdev = to_pci_dev(port->uport_dev->parent);
@@ -2194,10 +2222,8 @@ int cxl_endpoint_get_perf_coordinates(struct cxl_port *port,
 		return -ENXIO;
 	bw /= BITS_PER_BYTE;
 
-	c.write_bandwidth = min(c.write_bandwidth, bw);
-	c.read_bandwidth = min(c.read_bandwidth, bw);
-
-	*coord = c;
+	set_min_bandwidth(c, bw);
+	set_access_coordinates(coord, c);
 
 	return 0;
 }

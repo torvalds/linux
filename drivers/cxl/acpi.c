@@ -529,7 +529,7 @@ static int get_genport_coordinates(struct device *dev, struct cxl_dport *dport)
 	if (kstrtou32(acpi_device_uid(hb), 0, &uid))
 		return -EINVAL;
 
-	return acpi_get_genport_coordinates(uid, dport->hb_coord);
+	return acpi_get_genport_coordinates(uid, dport->coord);
 }
 
 static int add_host_bridge_dport(struct device *match, void *arg)
