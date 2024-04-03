@@ -35,6 +35,9 @@
 #include "amdgpu_dm_trace.h"
 #include "amdgpu_dm_debugfs.h"
 
+#define HPD_DETECTION_PERIOD_uS 5000000
+#define HPD_DETECTION_TIME_uS 1000
+
 void amdgpu_dm_crtc_handle_vblank(struct amdgpu_crtc *acrtc)
 {
 	struct drm_crtc *crtc = &acrtc->base;
@@ -146,9 +149,63 @@ static void amdgpu_dm_crtc_set_panel_sr_feature(
 		struct amdgpu_dm_connector *aconn =
 			(struct amdgpu_dm_connector *) vblank_work->stream->dm_stream_context;
 
-		if (!aconn->disallow_edp_enter_psr)
+		if (!aconn->disallow_edp_enter_psr) {
+			struct amdgpu_display_manager *dm = vblank_work->dm;
+
 			amdgpu_dm_psr_enable(vblank_work->stream);
+			if (dm->idle_workqueue &&
+			    dm->dc->idle_optimizations_allowed &&
+			    dm->idle_workqueue->enable &&
+			    !dm->idle_workqueue->running)
+				schedule_work(&dm->idle_workqueue->work);
+		}
 	}
+}
+
+static void amdgpu_dm_idle_worker(struct work_struct *work)
+{
+	struct idle_workqueue *idle_work;
+
+	idle_work = container_of(work, struct idle_workqueue, work);
+	idle_work->dm->idle_workqueue->running = true;
+	fsleep(HPD_DETECTION_PERIOD_uS);
+	mutex_lock(&idle_work->dm->dc_lock);
+	while (idle_work->enable) {
+		if (!idle_work->dm->dc->idle_optimizations_allowed)
+			break;
+
+		dc_allow_idle_optimizations(idle_work->dm->dc, false);
+
+		mutex_unlock(&idle_work->dm->dc_lock);
+		fsleep(HPD_DETECTION_TIME_uS);
+		mutex_lock(&idle_work->dm->dc_lock);
+
+		if (!amdgpu_dm_psr_is_active_allowed(idle_work->dm))
+			break;
+
+		dc_allow_idle_optimizations(idle_work->dm->dc, true);
+		mutex_unlock(&idle_work->dm->dc_lock);
+		fsleep(HPD_DETECTION_PERIOD_uS);
+		mutex_lock(&idle_work->dm->dc_lock);
+	}
+	mutex_unlock(&idle_work->dm->dc_lock);
+	idle_work->dm->idle_workqueue->running = false;
+}
+
+struct idle_workqueue *idle_create_workqueue(struct amdgpu_device *adev)
+{
+	struct idle_workqueue *idle_work;
+
+	idle_work = kzalloc(sizeof(*idle_work), GFP_KERNEL);
+	if (ZERO_OR_NULL_PTR(idle_work))
+		return NULL;
+
+	idle_work->dm = &adev->dm;
+	idle_work->enable = false;
+	idle_work->running = false;
+	INIT_WORK(&idle_work->work, amdgpu_dm_idle_worker);
+
+	return idle_work;
 }
 
 static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)

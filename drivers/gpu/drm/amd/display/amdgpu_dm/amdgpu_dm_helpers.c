@@ -1261,7 +1261,10 @@ void dm_set_phyd32clk(struct dc_context *ctx, int freq_khz)
 
 void dm_helpers_enable_periodic_detection(struct dc_context *ctx, bool enable)
 {
-	/* TODO: add periodic detection implementation */
+	struct amdgpu_device *adev = ctx->driver_context;
+
+	if (adev->dm.idle_workqueue)
+		adev->dm.idle_workqueue->enable = enable;
 }
 
 void dm_helpers_dp_mst_update_branch_bandwidth(
