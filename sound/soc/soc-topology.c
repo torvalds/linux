@@ -1764,11 +1764,10 @@ static int soc_tplg_pcm_create(struct soc_tplg *tplg,
 static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 	struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_pcm *pcm, *_pcm;
+	struct snd_soc_tplg_pcm *pcm;
 	int count;
 	int size;
 	int i;
-	bool abi_match;
 	int ret;
 
 	count = le32_to_cpu(hdr->count);
@@ -1798,24 +1797,15 @@ static int soc_tplg_pcm_elems_load(struct soc_tplg *tplg,
 		if (size != sizeof(*pcm))
 			return -EINVAL;
 
-		abi_match = true;
-		_pcm = pcm;
-
 		/* create the FE DAIs and DAI links */
-		ret = soc_tplg_pcm_create(tplg, _pcm);
-		if (ret < 0) {
-			if (!abi_match)
-				kfree(_pcm);
+		ret = soc_tplg_pcm_create(tplg, pcm);
+		if (ret < 0)
 			return ret;
-		}
 
 		/* offset by version-specific struct size and
 		 * real priv data size
 		 */
-		tplg->pos += size + le32_to_cpu(_pcm->priv.size);
-
-		if (!abi_match)
-			kfree(_pcm); /* free the duplicated one */
+		tplg->pos += size + le32_to_cpu(pcm->priv.size);
 	}
 
 	dev_dbg(tplg->dev, "ASoC: adding %d PCM DAIs\n", count);
@@ -1996,11 +1986,10 @@ static int soc_tplg_link_config(struct soc_tplg *tplg,
 static int soc_tplg_link_elems_load(struct soc_tplg *tplg,
 	struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_link_config *link, *_link;
+	struct snd_soc_tplg_link_config *link;
 	int count;
 	int size;
 	int i, ret;
-	bool abi_match;
 
 	count = le32_to_cpu(hdr->count);
 
@@ -2025,23 +2014,14 @@ static int soc_tplg_link_elems_load(struct soc_tplg *tplg,
 		if (size != sizeof(*link))
 			return -EINVAL;
 
-		abi_match = true;
-		_link = link;
-
-		ret = soc_tplg_link_config(tplg, _link);
-		if (ret < 0) {
-			if (!abi_match)
-				kfree(_link);
+		ret = soc_tplg_link_config(tplg, link);
+		if (ret < 0)
 			return ret;
-		}
 
 		/* offset by version-specific struct size and
 		 * real priv data size
 		 */
-		tplg->pos += size + le32_to_cpu(_link->priv.size);
-
-		if (!abi_match)
-			kfree(_link); /* free the duplicated one */
+		tplg->pos += size + le32_to_cpu(link->priv.size);
 	}
 
 	return 0;
@@ -2154,8 +2134,7 @@ static int soc_tplg_dai_elems_load(struct soc_tplg *tplg,
 static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 				  struct snd_soc_tplg_hdr *hdr)
 {
-	struct snd_soc_tplg_manifest *manifest, *_manifest;
-	bool abi_match;
+	struct snd_soc_tplg_manifest *manifest;
 	int ret = 0;
 
 	manifest = (struct snd_soc_tplg_manifest *)tplg->pos;
@@ -2164,15 +2143,9 @@ static int soc_tplg_manifest_load(struct soc_tplg *tplg,
 	if (le32_to_cpu(manifest->size) != sizeof(*manifest))
 		return -EINVAL;
 
-	abi_match = true;
-	_manifest = manifest;
-
 	/* pass control to component driver for optional further init */
 	if (tplg->ops && tplg->ops->manifest)
-		ret = tplg->ops->manifest(tplg->comp, tplg->index, _manifest);
-
-	if (!abi_match)	/* free the duplicated one */
-		kfree(_manifest);
+		ret = tplg->ops->manifest(tplg->comp, tplg->index, manifest);
 
 	return ret;
 }
