@@ -162,6 +162,7 @@
 };
 
 &i2c1 {
+	/* Hardware monitoring SMBus */
 	status = "okay";
 
 	w83773g@4c {
@@ -219,6 +220,7 @@
 };
 
 &i2c5 {
+	/* SMBus on BMC connector (BMC_SMB_1) */
 	status = "okay";
 };
 
@@ -241,6 +243,11 @@
 			reg = <0x3f88 6>;
 		};
 	};
+};
+
+&i2c8 {
+	/* SMBus on intelligent platform management bus header (IPMB_1) */
+	status = "okay";
 };
 
 &gfx {
