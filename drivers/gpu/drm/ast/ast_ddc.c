@@ -145,15 +145,7 @@ struct ast_ddc *ast_ddc_create(struct ast_device *ast)
 		return ERR_PTR(-ENOMEM);
 	ddc->ast = ast;
 
-	adapter = &ddc->adapter;
-	adapter->owner = THIS_MODULE;
-	adapter->dev.parent = dev->dev;
-	i2c_set_adapdata(adapter, ddc);
-	snprintf(adapter->name, sizeof(adapter->name), "AST DDC bus");
-
 	bit = &ddc->bit;
-	bit->udelay = 20;
-	bit->timeout = usecs_to_jiffies(2200);
 	bit->data = ddc;
 	bit->setsda = ast_ddc_algo_bit_data_setsda;
 	bit->setscl = ast_ddc_algo_bit_data_setscl;
@@ -161,8 +153,16 @@ struct ast_ddc *ast_ddc_create(struct ast_device *ast)
 	bit->getscl = ast_ddc_algo_bit_data_getscl;
 	bit->pre_xfer = ast_ddc_algo_bit_data_pre_xfer;
 	bit->post_xfer = ast_ddc_algo_bit_data_post_xfer;
+	bit->udelay = 20;
+	bit->timeout = usecs_to_jiffies(2200);
 
+	adapter = &ddc->adapter;
+	adapter->owner = THIS_MODULE;
 	adapter->algo_data = bit;
+	adapter->dev.parent = dev->dev;
+	snprintf(adapter->name, sizeof(adapter->name), "AST DDC bus");
+	i2c_set_adapdata(adapter, ddc);
+
 	ret = i2c_bit_add_bus(adapter);
 	if (ret) {
 		drm_err(dev, "Failed to register bit i2c\n");
