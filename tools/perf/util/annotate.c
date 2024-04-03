@@ -838,8 +838,10 @@ static int evsel__get_arch(struct evsel *evsel, struct arch **parch)
 	struct arch *arch;
 	int err;
 
-	if (!arch_name)
+	if (!arch_name) {
+		*parch = NULL;
 		return errno;
+	}
 
 	*parch = arch = arch__find(arch_name);
 	if (arch == NULL) {
