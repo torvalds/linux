@@ -884,8 +884,6 @@ void cxl_switch_parse_cdat(struct cxl_port *port);
 
 int cxl_endpoint_get_perf_coordinates(struct cxl_port *port,
 				      struct access_coordinate *coord);
-int cxl_hb_get_perf_coordinates(struct cxl_port *port,
-				struct access_coordinate *coord);
 void cxl_region_perf_data_calculate(struct cxl_region *cxlr,
 				    struct cxl_endpoint_decoder *cxled);
 
