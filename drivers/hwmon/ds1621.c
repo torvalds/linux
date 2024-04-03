@@ -342,8 +342,6 @@ static const struct attribute_group ds1621_group = {
 };
 __ATTRIBUTE_GROUPS(ds1621);
 
-static const struct i2c_device_id ds1621_id[];
-
 static int ds1621_probe(struct i2c_client *client)
 {
 	struct ds1621_data *data;
@@ -356,7 +354,7 @@ static int ds1621_probe(struct i2c_client *client)
 
 	mutex_init(&data->update_lock);
 
-	data->kind = i2c_match_id(ds1621_id, client)->driver_data;
+	data->kind = (uintptr_t)i2c_get_match_data(client);
 	data->client = client;
 
 	/* Initialize the DS1621 chip */
