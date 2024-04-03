@@ -440,8 +440,6 @@ static void adm1021_init_client(struct i2c_client *client)
 	i2c_smbus_write_byte_data(client, ADM1021_REG_CONV_RATE_W, 0x04);
 }
 
-static const struct i2c_device_id adm1021_id[];
-
 static int adm1021_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -453,7 +451,7 @@ static int adm1021_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	data->client = client;
-	data->type = i2c_match_id(adm1021_id, client)->driver_data;
+	data->type = (uintptr_t)i2c_get_match_data(client);
 	mutex_init(&data->update_lock);
 
 	/* Initialize the ADM1021 chip */
