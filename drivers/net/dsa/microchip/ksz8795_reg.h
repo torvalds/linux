@@ -794,5 +794,6 @@
 #define TAIL_TAG_LOOKUP			BIT(7)
 
 #define FID_ENTRIES			128
+#define KSZ8_DYN_MAC_ENTRIES		1024
 
 #endif

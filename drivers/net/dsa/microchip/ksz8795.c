@@ -1191,27 +1191,30 @@ void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 int ksz8_fdb_dump(struct ksz_device *dev, int port,
 		  dsa_fdb_dump_cb_t *cb, void *data)
 {
-	int ret = 0;
-	u16 i = 0;
-	u16 entries = 0;
-	u8 fid;
-	u8 src_port;
 	u8 mac[ETH_ALEN];
+	u8 src_port, fid;
+	u16 entries = 0;
+	int ret, i;
 
-	do {
+	for (i = 0; i < KSZ8_DYN_MAC_ENTRIES; i++) {
 		ret = ksz8_r_dyn_mac_table(dev, i, mac, &fid, &src_port,
 					   &entries);
-		if (!ret && port == src_port) {
+		if (ret == -ENXIO)
+			return 0;
+		if (ret)
+			return ret;
+
+		if (i >= entries)
+			return 0;
+
+		if (port == src_port) {
 			ret = cb(mac, fid, false, data);
 			if (ret)
-				break;
+				return ret;
 		}
-		i++;
-	} while (i < entries);
-	if (i >= entries)
-		ret = 0;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int ksz8_add_sta_mac(struct ksz_device *dev, int port,
