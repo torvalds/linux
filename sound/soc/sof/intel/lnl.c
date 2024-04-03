@@ -6,6 +6,7 @@
  * Hardware interface for audio DSP on LunarLake.
  */
 
+#include <linux/debugfs.h>
 #include <linux/firmware.h>
 #include <sound/hda_register.h>
 #include <sound/sof/ipc4/header.h>
@@ -83,8 +84,12 @@ static int lnl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 		struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 
 		/* Check if IMR boot is usable */
-		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT))
+		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT)) {
 			hda->imrboot_supported = true;
+			debugfs_create_bool("skip_imr_boot",
+					    0644, sdev->debugfs_root,
+					    &hda->skip_imr_boot);
+		}
 	}
 
 	return 0;

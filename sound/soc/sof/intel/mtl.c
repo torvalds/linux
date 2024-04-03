@@ -9,6 +9,7 @@
  * Hardware interface for audio DSP on Meteorlake.
  */
 
+#include <linux/debugfs.h>
 #include <linux/firmware.h>
 #include <sound/sof/ipc4/header.h>
 #include <trace/events/sof_intel.h>
@@ -294,8 +295,12 @@ int mtl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 		}
 
 		/* Check if IMR boot is usable */
-		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT))
+		if (!sof_debug_check_flag(SOF_DBG_IGNORE_D3_PERSISTENT)) {
 			hdev->imrboot_supported = true;
+			debugfs_create_bool("skip_imr_boot",
+					    0644, sdev->debugfs_root,
+					    &hdev->skip_imr_boot);
+		}
 	}
 
 	hda_sdw_int_enable(sdev, true);
