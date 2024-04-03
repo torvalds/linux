@@ -8,13 +8,10 @@
 void mana_ib_uncfg_vport(struct mana_ib_dev *dev, struct mana_ib_pd *pd,
 			 u32 port)
 {
-	struct gdma_dev *gd = &dev->gdma_dev->gdma_context->mana;
 	struct mana_port_context *mpc;
 	struct net_device *ndev;
-	struct mana_context *mc;
 
-	mc = gd->driver_data;
-	ndev = mc->ports[port];
+	ndev = mana_ib_get_netdev(&dev->ib_dev, port);
 	mpc = netdev_priv(ndev);
 
 	mutex_lock(&pd->vport_mutex);
@@ -31,14 +28,11 @@ void mana_ib_uncfg_vport(struct mana_ib_dev *dev, struct mana_ib_pd *pd,
 int mana_ib_cfg_vport(struct mana_ib_dev *dev, u32 port, struct mana_ib_pd *pd,
 		      u32 doorbell_id)
 {
-	struct gdma_dev *mdev = &dev->gdma_dev->gdma_context->mana;
 	struct mana_port_context *mpc;
-	struct mana_context *mc;
 	struct net_device *ndev;
 	int err;
 
-	mc = mdev->driver_data;
-	ndev = mc->ports[port];
+	ndev = mana_ib_get_netdev(&dev->ib_dev, port);
 	mpc = netdev_priv(ndev);
 
 	mutex_lock(&pd->vport_mutex);
@@ -79,17 +73,17 @@ int mana_ib_alloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	struct gdma_create_pd_req req = {};
 	enum gdma_pd_flags flags = 0;
 	struct mana_ib_dev *dev;
-	struct gdma_dev *mdev;
+	struct gdma_context *gc;
 	int err;
 
 	dev = container_of(ibdev, struct mana_ib_dev, ib_dev);
-	mdev = dev->gdma_dev;
+	gc = mdev_to_gc(dev);
 
 	mana_gd_init_req_hdr(&req.hdr, GDMA_CREATE_PD, sizeof(req),
 			     sizeof(resp));
 
 	req.flags = flags;
-	err = mana_gd_send_request(mdev->gdma_context, sizeof(req), &req,
+	err = mana_gd_send_request(gc, sizeof(req), &req,
 				   sizeof(resp), &resp);
 
 	if (err || resp.hdr.status) {
@@ -119,17 +113,17 @@ int mana_ib_dealloc_pd(struct ib_pd *ibpd, struct ib_udata *udata)
 	struct gdma_destory_pd_resp resp = {};
 	struct gdma_destroy_pd_req req = {};
 	struct mana_ib_dev *dev;
-	struct gdma_dev *mdev;
+	struct gdma_context *gc;
 	int err;
 
 	dev = container_of(ibdev, struct mana_ib_dev, ib_dev);
-	mdev = dev->gdma_dev;
+	gc = mdev_to_gc(dev);
 
 	mana_gd_init_req_hdr(&req.hdr, GDMA_DESTROY_PD, sizeof(req),
 			     sizeof(resp));
 
 	req.pd_handle = pd->pd_handle;
-	err = mana_gd_send_request(mdev->gdma_context, sizeof(req), &req,
+	err = mana_gd_send_request(gc, sizeof(req), &req,
 				   sizeof(resp), &resp);
 
 	if (err || resp.hdr.status) {
@@ -206,13 +200,11 @@ int mana_ib_alloc_ucontext(struct ib_ucontext *ibcontext,
 	struct ib_device *ibdev = ibcontext->device;
 	struct mana_ib_dev *mdev;
 	struct gdma_context *gc;
-	struct gdma_dev *dev;
 	int doorbell_page;
 	int ret;
 
 	mdev = container_of(ibdev, struct mana_ib_dev, ib_dev);
-	dev = mdev->gdma_dev;
-	gc = dev->gdma_context;
+	gc = mdev_to_gc(mdev);
 
 	/* Allocate a doorbell page index */
 	ret = mana_gd_allocate_doorbell_page(gc, &doorbell_page);
@@ -238,7 +230,7 @@ void mana_ib_dealloc_ucontext(struct ib_ucontext *ibcontext)
 	int ret;
 
 	mdev = container_of(ibdev, struct mana_ib_dev, ib_dev);
-	gc = mdev->gdma_dev->gdma_context;
+	gc = mdev_to_gc(mdev);
 
 	ret = mana_gd_destroy_doorbell_page(gc, mana_ucontext->doorbell);
 	if (ret)
@@ -309,8 +301,8 @@ mana_ib_gd_add_dma_region(struct mana_ib_dev *dev, struct gdma_context *gc,
 	return 0;
 }
 
-int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
-				 mana_handle_t *gdma_region)
+static int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
+					mana_handle_t *gdma_region, unsigned long page_sz)
 {
 	struct gdma_dma_region_add_pages_req *add_req = NULL;
 	size_t num_pages_processed = 0, num_pages_to_handle;
@@ -322,23 +314,14 @@ int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
 	size_t max_pgs_create_cmd;
 	struct gdma_context *gc;
 	size_t num_pages_total;
-	struct gdma_dev *mdev;
-	unsigned long page_sz;
 	unsigned int tail = 0;
 	u64 *page_addr_list;
 	void *request_buf;
 	int err;
 
-	mdev = dev->gdma_dev;
-	gc = mdev->gdma_context;
+	gc = mdev_to_gc(dev);
 	hwc = gc->hwc.driver_data;
 
-	/* Hardware requires dma region to align to chosen page size */
-	page_sz = ib_umem_find_best_pgsz(umem, PAGE_SZ_BM, 0);
-	if (!page_sz) {
-		ibdev_dbg(&dev->ib_dev, "failed to find page size.\n");
-		return -ENOMEM;
-	}
 	num_pages_total = ib_umem_num_dma_blocks(umem, page_sz);
 
 	max_pgs_create_cmd =
@@ -358,7 +341,7 @@ int mana_ib_gd_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
 			     sizeof(struct gdma_create_dma_region_resp));
 
 	create_req->length = umem->length;
-	create_req->offset_in_page = umem->address & (page_sz - 1);
+	create_req->offset_in_page = ib_umem_dma_offset(umem, page_sz);
 	create_req->gdma_page_type = order_base_2(page_sz) - PAGE_SHIFT;
 	create_req->page_count = num_pages_total;
 
@@ -424,12 +407,39 @@ out:
 	return err;
 }
 
+int mana_ib_create_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
+			      mana_handle_t *gdma_region, u64 virt)
+{
+	unsigned long page_sz;
+
+	page_sz = ib_umem_find_best_pgsz(umem, PAGE_SZ_BM, virt);
+	if (!page_sz) {
+		ibdev_dbg(&dev->ib_dev, "Failed to find page size.\n");
+		return -EINVAL;
+	}
+
+	return mana_ib_gd_create_dma_region(dev, umem, gdma_region, page_sz);
+}
+
+int mana_ib_create_zero_offset_dma_region(struct mana_ib_dev *dev, struct ib_umem *umem,
+					  mana_handle_t *gdma_region)
+{
+	unsigned long page_sz;
+
+	/* Hardware requires dma region to align to chosen page size */
+	page_sz = ib_umem_find_best_pgoff(umem, PAGE_SZ_BM, 0);
+	if (!page_sz) {
+		ibdev_dbg(&dev->ib_dev, "Failed to find page size.\n");
+		return -EINVAL;
+	}
+
+	return mana_ib_gd_create_dma_region(dev, umem, gdma_region, page_sz);
+}
+
 int mana_ib_gd_destroy_dma_region(struct mana_ib_dev *dev, u64 gdma_region)
 {
-	struct gdma_dev *mdev = dev->gdma_dev;
-	struct gdma_context *gc;
+	struct gdma_context *gc = mdev_to_gc(dev);
 
-	gc = mdev->gdma_context;
 	ibdev_dbg(&dev->ib_dev, "destroy dma region 0x%llx\n", gdma_region);
 
 	return mana_gd_destroy_dma_region(gc, gdma_region);
@@ -447,7 +457,7 @@ int mana_ib_mmap(struct ib_ucontext *ibcontext, struct vm_area_struct *vma)
 	int ret;
 
 	mdev = container_of(ibdev, struct mana_ib_dev, ib_dev);
-	gc = mdev->gdma_dev->gdma_context;
+	gc = mdev_to_gc(mdev);
 
 	if (vma->vm_pgoff != 0) {
 		ibdev_dbg(ibdev, "Unexpected vm_pgoff %lu\n", vma->vm_pgoff);
@@ -531,7 +541,7 @@ int mana_ib_gd_query_adapter_caps(struct mana_ib_dev *dev)
 	req.hdr.resp.msg_version = GDMA_MESSAGE_V3;
 	req.hdr.dev_id = dev->gdma_dev->dev_id;
 
-	err = mana_gd_send_request(dev->gdma_dev->gdma_context, sizeof(req),
+	err = mana_gd_send_request(mdev_to_gc(dev), sizeof(req),
 				   &req, sizeof(resp), &resp);
 
 	if (err) {

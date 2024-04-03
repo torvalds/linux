@@ -1004,6 +1004,60 @@ static void free_kernel_wrid(struct hns_roce_qp *hr_qp)
 	kfree(hr_qp->sq.wrid);
 }
 
+static void default_congest_type(struct hns_roce_dev *hr_dev,
+				 struct hns_roce_qp *hr_qp)
+{
+	if (hr_qp->ibqp.qp_type == IB_QPT_UD ||
+	    hr_qp->ibqp.qp_type == IB_QPT_GSI)
+		hr_qp->cong_type = CONG_TYPE_DCQCN;
+	else
+		hr_qp->cong_type = hr_dev->caps.default_cong_type;
+}
+
+static int set_congest_type(struct hns_roce_qp *hr_qp,
+			    struct hns_roce_ib_create_qp *ucmd)
+{
+	struct hns_roce_dev *hr_dev = to_hr_dev(hr_qp->ibqp.device);
+
+	switch (ucmd->cong_type_flags) {
+	case HNS_ROCE_CREATE_QP_FLAGS_DCQCN:
+		hr_qp->cong_type = CONG_TYPE_DCQCN;
+		break;
+	case HNS_ROCE_CREATE_QP_FLAGS_LDCP:
+		hr_qp->cong_type = CONG_TYPE_LDCP;
+		break;
+	case HNS_ROCE_CREATE_QP_FLAGS_HC3:
+		hr_qp->cong_type = CONG_TYPE_HC3;
+		break;
+	case HNS_ROCE_CREATE_QP_FLAGS_DIP:
+		hr_qp->cong_type = CONG_TYPE_DIP;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (!test_bit(hr_qp->cong_type, (unsigned long *)&hr_dev->caps.cong_cap))
+		return -EOPNOTSUPP;
+
+	if (hr_qp->ibqp.qp_type == IB_QPT_UD &&
+	    hr_qp->cong_type != CONG_TYPE_DCQCN)
+		return -EOPNOTSUPP;
+
+	return 0;
+}
+
+static int set_congest_param(struct hns_roce_dev *hr_dev,
+			     struct hns_roce_qp *hr_qp,
+			     struct hns_roce_ib_create_qp *ucmd)
+{
+	if (ucmd->comp_mask & HNS_ROCE_CREATE_QP_MASK_CONGEST_TYPE)
+		return set_congest_type(hr_qp, ucmd);
+
+	default_congest_type(hr_dev, hr_qp);
+
+	return 0;
+}
+
 static int set_qp_param(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 			struct ib_qp_init_attr *init_attr,
 			struct ib_udata *udata,
@@ -1043,6 +1097,10 @@ static int set_qp_param(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 			ibdev_err(ibdev,
 				  "failed to set user SQ size, ret = %d.\n",
 				  ret);
+
+		ret = set_congest_param(hr_dev, hr_qp, ucmd);
+		if (ret)
+			return ret;
 	} else {
 		if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09)
 			hr_qp->config = HNS_ROCE_EXSGE_FLAGS;
@@ -1051,6 +1109,8 @@ static int set_qp_param(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp,
 			ibdev_err(ibdev,
 				  "failed to set kernel SQ size, ret = %d.\n",
 				  ret);
+
+		default_congest_type(hr_dev, hr_qp);
 	}
 
 	return ret;

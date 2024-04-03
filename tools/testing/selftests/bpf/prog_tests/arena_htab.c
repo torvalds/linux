@@ -3,11 +3,13 @@
 #include <test_progs.h>
 #include <sys/mman.h>
 #include <network_helpers.h>
-
+#include <sys/user.h>
+#ifndef PAGE_SIZE /* on some archs it comes in sys/user.h */
+#include <unistd.h>
+#define PAGE_SIZE getpagesize()
+#endif
 #include "arena_htab_asm.skel.h"
 #include "arena_htab.skel.h"
-
-#define PAGE_SIZE 4096
 
 #include "bpf_arena_htab.h"
 

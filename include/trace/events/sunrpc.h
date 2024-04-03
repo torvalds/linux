@@ -1331,18 +1331,18 @@ TRACE_EVENT(xs_stream_read_data,
 		__field(ssize_t, err)
 		__field(size_t, total)
 		__string(addr, xprt ? xprt->address_strings[RPC_DISPLAY_ADDR] :
-				"(null)")
+				EVENT_NULL_STR)
 		__string(port, xprt ? xprt->address_strings[RPC_DISPLAY_PORT] :
-				"(null)")
+				EVENT_NULL_STR)
 	),
 
 	TP_fast_assign(
 		__entry->err = err;
 		__entry->total = total;
 		__assign_str(addr, xprt ?
-			xprt->address_strings[RPC_DISPLAY_ADDR] : "(null)");
+			xprt->address_strings[RPC_DISPLAY_ADDR] : EVENT_NULL_STR);
 		__assign_str(port, xprt ?
-			xprt->address_strings[RPC_DISPLAY_PORT] : "(null)");
+			xprt->address_strings[RPC_DISPLAY_PORT] : EVENT_NULL_STR);
 	),
 
 	TP_printk("peer=[%s]:%s err=%zd total=%zu", __get_str(addr),
@@ -1787,7 +1787,7 @@ TRACE_EVENT(svc_process,
 		__string(service, name)
 		__string(procedure, svc_proc_name(rqst))
 		__string(addr, rqst->rq_xprt ?
-			 rqst->rq_xprt->xpt_remotebuf : "(null)")
+			 rqst->rq_xprt->xpt_remotebuf : EVENT_NULL_STR)
 	),
 
 	TP_fast_assign(
@@ -1797,7 +1797,7 @@ TRACE_EVENT(svc_process,
 		__assign_str(service, name);
 		__assign_str(procedure, svc_proc_name(rqst));
 		__assign_str(addr, rqst->rq_xprt ?
-			     rqst->rq_xprt->xpt_remotebuf : "(null)");
+			     rqst->rq_xprt->xpt_remotebuf : EVENT_NULL_STR);
 	),
 
 	TP_printk("addr=%s xid=0x%08x service=%s vers=%u proc=%s",

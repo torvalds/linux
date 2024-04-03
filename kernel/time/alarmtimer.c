@@ -134,7 +134,7 @@ static struct class_interface alarmtimer_rtc_interface = {
 
 static int alarmtimer_rtc_interface_setup(void)
 {
-	alarmtimer_rtc_interface.class = rtc_class;
+	alarmtimer_rtc_interface.class = &rtc_class;
 	return class_interface_register(&alarmtimer_rtc_interface);
 }
 static void alarmtimer_rtc_interface_remove(void)

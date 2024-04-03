@@ -146,7 +146,7 @@ int amdgpu_amdkfd_drm_client_create(struct amdgpu_device *adev)
 {
 	int ret;
 
-	if (!adev->kfd.init_complete)
+	if (!adev->kfd.init_complete || adev->kfd.client.dev)
 		return 0;
 
 	ret = drm_client_init(&adev->ddev, &adev->kfd.client, "kfd",

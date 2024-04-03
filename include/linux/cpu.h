@@ -130,7 +130,7 @@ static inline void cpu_maps_update_done(void)
 static inline int add_cpu(unsigned int cpu) { return 0;}
 
 #endif /* CONFIG_SMP */
-extern struct bus_type cpu_subsys;
+extern const struct bus_type cpu_subsys;
 
 extern int lockdep_is_cpus_held(void);
 

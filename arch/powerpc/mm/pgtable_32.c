@@ -130,31 +130,41 @@ void __init mapin_ram(void)
 	}
 }
 
-void mark_initmem_nx(void)
+static int __mark_initmem_nx(void)
 {
 	unsigned long numpages = PFN_UP((unsigned long)_einittext) -
 				 PFN_DOWN((unsigned long)_sinittext);
+	int err;
 
-	mmu_mark_initmem_nx();
+	err = mmu_mark_initmem_nx();
 
 	if (!v_block_mapped((unsigned long)_sinittext)) {
-		set_memory_nx((unsigned long)_sinittext, numpages);
-		set_memory_rw((unsigned long)_sinittext, numpages);
+		err = set_memory_nx((unsigned long)_sinittext, numpages);
+		if (err)
+			return err;
+		err = set_memory_rw((unsigned long)_sinittext, numpages);
 	}
+	return err;
+}
+
+void mark_initmem_nx(void)
+{
+	int err = __mark_initmem_nx();
+
+	if (err)
+		panic("%s() failed, err = %d\n", __func__, err);
 }
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
-void mark_rodata_ro(void)
+static int __mark_rodata_ro(void)
 {
 	unsigned long numpages;
 
 	if (IS_ENABLED(CONFIG_STRICT_MODULE_RWX) && mmu_has_feature(MMU_FTR_HPTE_TABLE))
 		pr_warn("This platform has HASH MMU, STRICT_MODULE_RWX won't work\n");
 
-	if (v_block_mapped((unsigned long)_stext + 1)) {
-		mmu_mark_rodata_ro();
-		return;
-	}
+	if (v_block_mapped((unsigned long)_stext + 1))
+		return mmu_mark_rodata_ro();
 
 	/*
 	 * mark text and rodata as read only. __end_rodata is set by
@@ -164,6 +174,14 @@ void mark_rodata_ro(void)
 	numpages = PFN_UP((unsigned long)__end_rodata) -
 		   PFN_DOWN((unsigned long)_stext);
 
-	set_memory_ro((unsigned long)_stext, numpages);
+	return set_memory_ro((unsigned long)_stext, numpages);
+}
+
+void mark_rodata_ro(void)
+{
+	int err = __mark_rodata_ro();
+
+	if (err)
+		panic("%s() failed, err = %d\n", __func__, err);
 }
 #endif

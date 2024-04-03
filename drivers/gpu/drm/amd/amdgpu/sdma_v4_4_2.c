@@ -431,15 +431,10 @@ static void sdma_v4_4_2_inst_gfx_stop(struct amdgpu_device *adev,
 	struct amdgpu_ring *sdma[AMDGPU_MAX_SDMA_INSTANCES];
 	u32 doorbell_offset, doorbell;
 	u32 rb_cntl, ib_cntl;
-	int i, unset = 0;
+	int i;
 
 	for_each_inst(i, inst_mask) {
 		sdma[i] = &adev->sdma.instance[i].ring;
-
-		if ((adev->mman.buffer_funcs_ring == sdma[i]) && unset != 1) {
-			amdgpu_ttm_set_buffer_funcs_status(adev, false);
-			unset = 1;
-		}
 
 		rb_cntl = RREG32_SDMA(i, regSDMA_GFX_RB_CNTL);
 		rb_cntl = REG_SET_FIELD(rb_cntl, SDMA_GFX_RB_CNTL, RB_ENABLE, 0);
@@ -487,20 +482,10 @@ static void sdma_v4_4_2_inst_rlc_stop(struct amdgpu_device *adev,
 static void sdma_v4_4_2_inst_page_stop(struct amdgpu_device *adev,
 				       uint32_t inst_mask)
 {
-	struct amdgpu_ring *sdma[AMDGPU_MAX_SDMA_INSTANCES];
 	u32 rb_cntl, ib_cntl;
 	int i;
-	bool unset = false;
 
 	for_each_inst(i, inst_mask) {
-		sdma[i] = &adev->sdma.instance[i].page;
-
-		if ((adev->mman.buffer_funcs_ring == sdma[i]) &&
-			(!unset)) {
-			amdgpu_ttm_set_buffer_funcs_status(adev, false);
-			unset = true;
-		}
-
 		rb_cntl = RREG32_SDMA(i, regSDMA_PAGE_RB_CNTL);
 		rb_cntl = REG_SET_FIELD(rb_cntl, SDMA_PAGE_RB_CNTL,
 					RB_ENABLE, 0);
@@ -950,13 +935,7 @@ static int sdma_v4_4_2_inst_start(struct amdgpu_device *adev,
 			r = amdgpu_ring_test_helper(page);
 			if (r)
 				return r;
-
-			if (adev->mman.buffer_funcs_ring == page)
-				amdgpu_ttm_set_buffer_funcs_status(adev, true);
 		}
-
-		if (adev->mman.buffer_funcs_ring == ring)
-			amdgpu_ttm_set_buffer_funcs_status(adev, true);
 	}
 
 	return r;

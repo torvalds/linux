@@ -397,7 +397,7 @@ static void service_level_vm_print(struct seq_file *m,
 {
 	char *query_buffer, *str;
 
-	query_buffer = kmalloc(1024, GFP_KERNEL | GFP_DMA);
+	query_buffer = kmalloc(1024, GFP_KERNEL);
 	if (!query_buffer)
 		return;
 	cpcmd("QUERY CPLEVEL", query_buffer, 1024, NULL);

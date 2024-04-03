@@ -25,7 +25,8 @@ extern int fg_console, last_console, want_console;
 
 int vc_allocate(unsigned int console);
 int vc_cons_allocated(unsigned int console);
-int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines);
+int __vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines,
+		bool from_user);
 struct vc_data *vc_deallocate(unsigned int console);
 void reset_palette(struct vc_data *vc);
 void do_blank_screen(int entering_gfx);
@@ -41,6 +42,12 @@ void update_region(struct vc_data *vc, unsigned long start, int count);
 void redraw_screen(struct vc_data *vc, int is_switch);
 #define update_screen(x) redraw_screen(x, 0)
 #define switch_screen(x) redraw_screen(x, 1)
+
+static inline int vc_resize(struct vc_data *vc, unsigned int cols,
+			    unsigned int lines)
+{
+	return __vc_resize(vc, cols, lines, false);
+}
 
 struct tty_struct;
 int tioclinux(struct tty_struct *tty, unsigned long arg);
@@ -167,8 +174,5 @@ void vt_clr_kbd_mode_bit(unsigned int console, int bit);
 void vt_set_led_state(unsigned int console, int leds);
 void vt_kbd_con_start(unsigned int console);
 void vt_kbd_con_stop(unsigned int console);
-
-void vc_scrolldelta_helper(struct vc_data *c, int lines,
-		unsigned int rolled_over, void *_base, unsigned int size);
 
 #endif /* _VT_KERN_H */

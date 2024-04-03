@@ -1970,7 +1970,7 @@ static void vme_bus_remove(struct device *dev)
 		driver->remove(vdev);
 }
 
-struct bus_type vme_bus_type = {
+const struct bus_type vme_bus_type = {
 	.name = "vme",
 	.match = vme_bus_match,
 	.probe = vme_bus_probe,

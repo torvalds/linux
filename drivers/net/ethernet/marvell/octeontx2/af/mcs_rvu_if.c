@@ -121,13 +121,17 @@ int mcs_add_intr_wq_entry(struct mcs *mcs, struct mcs_intr_event *event)
 static int mcs_notify_pfvf(struct mcs_intr_event *event, struct rvu *rvu)
 {
 	struct mcs_intr_info *req;
-	int err, pf;
+	int pf;
 
 	pf = rvu_get_pf(event->pcifunc);
 
+	mutex_lock(&rvu->mbox_lock);
+
 	req = otx2_mbox_alloc_msg_mcs_intr_notify(rvu, pf);
-	if (!req)
+	if (!req) {
+		mutex_unlock(&rvu->mbox_lock);
 		return -ENOMEM;
+	}
 
 	req->mcs_id = event->mcs_id;
 	req->intr_mask = event->intr_mask;
@@ -135,10 +139,11 @@ static int mcs_notify_pfvf(struct mcs_intr_event *event, struct rvu *rvu)
 	req->hdr.pcifunc = event->pcifunc;
 	req->lmac_id = event->lmac_id;
 
-	otx2_mbox_msg_send(&rvu->afpf_wq_info.mbox_up, pf);
-	err = otx2_mbox_wait_for_rsp(&rvu->afpf_wq_info.mbox_up, pf);
-	if (err)
-		dev_warn(rvu->dev, "MCS notification to pf %d failed\n", pf);
+	otx2_mbox_wait_for_zero(&rvu->afpf_wq_info.mbox_up, pf);
+
+	otx2_mbox_msg_send_up(&rvu->afpf_wq_info.mbox_up, pf);
+
+	mutex_unlock(&rvu->mbox_lock);
 
 	return 0;
 }

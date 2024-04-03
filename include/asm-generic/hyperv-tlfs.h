@@ -625,6 +625,37 @@ struct hv_retarget_device_interrupt {
 	struct hv_device_interrupt_target int_target;
 } __packed __aligned(8);
 
+/*
+ * These Hyper-V registers provide information equivalent to the CPUID
+ * instruction on x86/x64.
+ */
+#define HV_REGISTER_HYPERVISOR_VERSION		0x00000100 /*CPUID 0x40000002 */
+#define HV_REGISTER_FEATURES			0x00000200 /*CPUID 0x40000003 */
+#define HV_REGISTER_ENLIGHTENMENTS		0x00000201 /*CPUID 0x40000004 */
+
+/*
+ * Synthetic register definitions equivalent to MSRs on x86/x64
+ */
+#define HV_REGISTER_GUEST_CRASH_P0	0x00000210
+#define HV_REGISTER_GUEST_CRASH_P1	0x00000211
+#define HV_REGISTER_GUEST_CRASH_P2	0x00000212
+#define HV_REGISTER_GUEST_CRASH_P3	0x00000213
+#define HV_REGISTER_GUEST_CRASH_P4	0x00000214
+#define HV_REGISTER_GUEST_CRASH_CTL	0x00000215
+
+#define HV_REGISTER_GUEST_OS_ID		0x00090002
+#define HV_REGISTER_VP_INDEX		0x00090003
+#define HV_REGISTER_TIME_REF_COUNT	0x00090004
+#define HV_REGISTER_REFERENCE_TSC	0x00090017
+
+#define HV_REGISTER_SINT0		0x000A0000
+#define HV_REGISTER_SCONTROL		0x000A0010
+#define HV_REGISTER_SIEFP		0x000A0012
+#define HV_REGISTER_SIMP		0x000A0013
+#define HV_REGISTER_EOM			0x000A0014
+
+#define HV_REGISTER_STIMER0_CONFIG	0x000B0000
+#define HV_REGISTER_STIMER0_COUNT	0x000B0001
 
 /* HvGetVpRegisters hypercall input with variable size reg name list*/
 struct hv_get_vp_registers_input {
@@ -639,7 +670,6 @@ struct hv_get_vp_registers_input {
 		u32 name1;
 	} element[];
 } __packed;
-
 
 /* HvGetVpRegisters returns an array of these output elements */
 struct hv_get_vp_registers_output {
@@ -786,6 +816,29 @@ struct hv_input_unmap_device_interrupt {
 
 #define HV_SOURCE_SHADOW_NONE               0x0
 #define HV_SOURCE_SHADOW_BRIDGE_BUS_RANGE   0x1
+
+/*
+ * Version info reported by hypervisor
+ */
+union hv_hypervisor_version_info {
+	struct {
+		u32 build_number;
+
+		u32 minor_version : 16;
+		u32 major_version : 16;
+
+		u32 service_pack;
+
+		u32 service_number : 24;
+		u32 service_branch : 8;
+	};
+	struct {
+		u32 eax;
+		u32 ebx;
+		u32 ecx;
+		u32 edx;
+	};
+};
 
 /*
  * The whole argument should fit in a page to be able to pass to the hypervisor

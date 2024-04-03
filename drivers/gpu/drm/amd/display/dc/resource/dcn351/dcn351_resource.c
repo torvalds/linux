@@ -700,6 +700,8 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_dcc = DCC_ENABLE,
 	.disable_dpp_power_gate = true,
 	.disable_hubp_power_gate = true,
+	.disable_optc_power_gate = true, /*should the same as above two*/
+	.disable_hpo_power_gate = true, /*dmubfw force domain25 on*/
 	.disable_clock_gate = false,
 	.disable_dsc_power_gate = true,
 	.vsr_support = true,
@@ -742,12 +744,13 @@ static const struct dc_debug_options debug_defaults_drv = {
 	},
 	.seamless_boot_odm_combine = DML_FAIL_SOURCE_PIXEL_FORMAT,
 	.enable_z9_disable_interface = true, /* Allow support for the PMFW interface for disable Z9*/
+	.minimum_z8_residency_time = 2100,
 	.using_dml2 = true,
 	.support_eDP1_5 = true,
 	.enable_hpo_pg_support = false,
 	.enable_legacy_fast_update = true,
 	.enable_single_display_2to1_odm_policy = true,
-	.disable_idle_power_optimizations = true,
+	.disable_idle_power_optimizations = false,
 	.dmcub_emulation = false,
 	.disable_boot_optimizations = false,
 	.disable_unbounded_requesting = false,
@@ -758,8 +761,10 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_z10 = true,
 	.ignore_pg = true,
 	.psp_disabled_wa = true,
-	.ips2_eval_delay_us = 200,
-	.ips2_entry_delay_us = 400
+	.ips2_eval_delay_us = 2000,
+	.ips2_entry_delay_us = 800,
+	.disable_dmub_reallow_idle = true,
+	.static_screen_wait_frames = 2,
 };
 
 static const struct dc_panel_config panel_config_defaults = {

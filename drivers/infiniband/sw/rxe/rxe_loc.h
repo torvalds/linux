@@ -59,7 +59,7 @@ int rxe_mmap(struct ib_ucontext *context, struct vm_area_struct *vma);
 /* rxe_mr.c */
 u8 rxe_get_next_key(u32 last_key);
 void rxe_mr_init_dma(int access, struct rxe_mr *mr);
-int rxe_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length, u64 iova,
+int rxe_mr_init_user(struct rxe_dev *rxe, u64 start, u64 length,
 		     int access, struct rxe_mr *mr);
 int rxe_mr_init_fast(int max_pages, struct rxe_mr *mr);
 int rxe_flush_pmem_iova(struct rxe_mr *mr, u64 iova, unsigned int length);

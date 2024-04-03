@@ -2233,7 +2233,7 @@ static void rtw8922a_btc_init_cfg(struct rtw89_dev *rtwdev)
 		 * Shared-Ant && BTG-path:WL mask(0x55f), others:WL THRU(0x5ff)
 		 */
 		if (btc->ant_type == BTC_ANT_SHARED && btc->btg_pos == path)
-			rtw8922a_set_trx_mask(rtwdev, path, BTC_BT_TX_GROUP, 0x5ff);
+			rtw8922a_set_trx_mask(rtwdev, path, BTC_BT_TX_GROUP, 0x55f);
 		else
 			rtw8922a_set_trx_mask(rtwdev, path, BTC_BT_TX_GROUP, 0x5ff);
 

@@ -160,11 +160,11 @@ static inline unsigned long p_block_mapped(phys_addr_t pa) { return 0; }
 #endif
 
 #if defined(CONFIG_PPC_BOOK3S_32) || defined(CONFIG_PPC_8xx) || defined(CONFIG_PPC_E500)
-void mmu_mark_initmem_nx(void);
-void mmu_mark_rodata_ro(void);
+int mmu_mark_initmem_nx(void);
+int mmu_mark_rodata_ro(void);
 #else
-static inline void mmu_mark_initmem_nx(void) { }
-static inline void mmu_mark_rodata_ro(void) { }
+static inline int mmu_mark_initmem_nx(void) { return 0; }
+static inline int mmu_mark_rodata_ro(void) { return 0; }
 #endif
 
 #ifdef CONFIG_PPC_8xx

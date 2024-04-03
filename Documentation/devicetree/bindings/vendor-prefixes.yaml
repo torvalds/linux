@@ -1573,6 +1573,8 @@ patternProperties:
     description: VoCore Studio
   "^voipac,.*":
     description: Voipac Technologies s.r.o.
+  "^voltafield,.*":
+    description: Voltafield Technology Corp.
   "^vot,.*":
     description: Vision Optical Technology Co., Ltd.
   "^vscom,.*":

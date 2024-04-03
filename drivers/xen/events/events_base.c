@@ -1190,7 +1190,7 @@ int xen_pirq_from_irq(unsigned irq)
 EXPORT_SYMBOL_GPL(xen_pirq_from_irq);
 
 static int bind_evtchn_to_irq_chip(evtchn_port_t evtchn, struct irq_chip *chip,
-				   struct xenbus_device *dev)
+				   struct xenbus_device *dev, bool shared)
 {
 	int ret = -ENOMEM;
 	struct irq_info *info;
@@ -1224,7 +1224,8 @@ static int bind_evtchn_to_irq_chip(evtchn_port_t evtchn, struct irq_chip *chip,
 		 */
 		bind_evtchn_to_cpu(info, 0, false);
 	} else if (!WARN_ON(info->type != IRQT_EVTCHN)) {
-		info->refcnt++;
+		if (shared && !WARN_ON(info->refcnt < 0))
+			info->refcnt++;
 	}
 
 	ret = info->irq;
@@ -1237,13 +1238,13 @@ out:
 
 int bind_evtchn_to_irq(evtchn_port_t evtchn)
 {
-	return bind_evtchn_to_irq_chip(evtchn, &xen_dynamic_chip, NULL);
+	return bind_evtchn_to_irq_chip(evtchn, &xen_dynamic_chip, NULL, false);
 }
 EXPORT_SYMBOL_GPL(bind_evtchn_to_irq);
 
 int bind_evtchn_to_irq_lateeoi(evtchn_port_t evtchn)
 {
-	return bind_evtchn_to_irq_chip(evtchn, &xen_lateeoi_chip, NULL);
+	return bind_evtchn_to_irq_chip(evtchn, &xen_lateeoi_chip, NULL, false);
 }
 EXPORT_SYMBOL_GPL(bind_evtchn_to_irq_lateeoi);
 
@@ -1295,7 +1296,8 @@ static int bind_ipi_to_irq(unsigned int ipi, unsigned int cpu)
 
 static int bind_interdomain_evtchn_to_irq_chip(struct xenbus_device *dev,
 					       evtchn_port_t remote_port,
-					       struct irq_chip *chip)
+					       struct irq_chip *chip,
+					       bool shared)
 {
 	struct evtchn_bind_interdomain bind_interdomain;
 	int err;
@@ -1307,14 +1309,14 @@ static int bind_interdomain_evtchn_to_irq_chip(struct xenbus_device *dev,
 					  &bind_interdomain);
 
 	return err ? : bind_evtchn_to_irq_chip(bind_interdomain.local_port,
-					       chip, dev);
+					       chip, dev, shared);
 }
 
 int bind_interdomain_evtchn_to_irq_lateeoi(struct xenbus_device *dev,
 					   evtchn_port_t remote_port)
 {
 	return bind_interdomain_evtchn_to_irq_chip(dev, remote_port,
-						   &xen_lateeoi_chip);
+						   &xen_lateeoi_chip, false);
 }
 EXPORT_SYMBOL_GPL(bind_interdomain_evtchn_to_irq_lateeoi);
 
@@ -1430,7 +1432,8 @@ static int bind_evtchn_to_irqhandler_chip(evtchn_port_t evtchn,
 {
 	int irq, retval;
 
-	irq = bind_evtchn_to_irq_chip(evtchn, chip, NULL);
+	irq = bind_evtchn_to_irq_chip(evtchn, chip, NULL,
+				      irqflags & IRQF_SHARED);
 	if (irq < 0)
 		return irq;
 	retval = request_irq(irq, handler, irqflags, devname, dev_id);
@@ -1471,7 +1474,8 @@ static int bind_interdomain_evtchn_to_irqhandler_chip(
 {
 	int irq, retval;
 
-	irq = bind_interdomain_evtchn_to_irq_chip(dev, remote_port, chip);
+	irq = bind_interdomain_evtchn_to_irq_chip(dev, remote_port, chip,
+						  irqflags & IRQF_SHARED);
 	if (irq < 0)
 		return irq;
 

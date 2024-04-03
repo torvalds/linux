@@ -139,6 +139,12 @@ static inline bool tb_tunnel_is_usb3(const struct tb_tunnel *tunnel)
 	return tunnel->type == TB_TUNNEL_USB3;
 }
 
+static inline bool tb_tunnel_direction_downstream(const struct tb_tunnel *tunnel)
+{
+	return tb_port_path_direction_downstream(tunnel->src_port,
+						 tunnel->dst_port);
+}
+
 const char *tb_tunnel_type_name(const struct tb_tunnel *tunnel);
 
 #define __TB_TUNNEL_PRINT(level, tunnel, fmt, arg...)                   \

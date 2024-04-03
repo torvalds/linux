@@ -118,8 +118,8 @@ config KVM_AMD
 	  will be called kvm-amd.
 
 config KVM_AMD_SEV
-	def_bool y
 	bool "AMD Secure Encrypted Virtualization (SEV) support"
+	default y
 	depends on KVM_AMD && X86_64
 	depends on CRYPTO_DEV_SP_PSP && !(KVM_AMD=y && CRYPTO_DEV_CCP_DD=m)
 	help

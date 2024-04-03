@@ -5416,10 +5416,11 @@ static int inet6_dump_addr(struct sk_buff *skb, struct netlink_callback *cb,
 
 		err = 0;
 		if (fillargs.ifindex) {
-			err = -ENODEV;
 			dev = dev_get_by_index_rcu(tgt_net, fillargs.ifindex);
-			if (!dev)
+			if (!dev) {
+				err = -ENODEV;
 				goto done;
+			}
 			idev = __in6_dev_get(dev);
 			if (idev)
 				err = in6_dump_addrs(idev, skb, cb,

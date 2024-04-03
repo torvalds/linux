@@ -13,11 +13,14 @@
 /**
  * struct clk_omap_reg - OMAP register declaration
  * @offset: offset from the master IP module base address
+ * @bit: register bit offset
  * @index: index of the master IP module
+ * @flags: flags
  */
 struct clk_omap_reg {
 	void __iomem *ptr;
 	u16 offset;
+	u8 bit;
 	u8 index;
 	u8 flags;
 };

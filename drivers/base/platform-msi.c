@@ -174,8 +174,8 @@ static int platform_msi_alloc_priv_data(struct device *dev, unsigned int nvec,
 	if (!datap)
 		return -ENOMEM;
 
-	datap->devid = ida_simple_get(&platform_msi_devid_ida,
-				      0, 1 << DEV_ID_SHIFT, GFP_KERNEL);
+	datap->devid = ida_alloc_max(&platform_msi_devid_ida,
+				     (1 << DEV_ID_SHIFT) - 1, GFP_KERNEL);
 	if (datap->devid < 0) {
 		err = datap->devid;
 		kfree(datap);
@@ -193,7 +193,7 @@ static void platform_msi_free_priv_data(struct device *dev)
 	struct platform_msi_priv_data *data = dev->msi.data->platform_data;
 
 	dev->msi.data->platform_data = NULL;
-	ida_simple_remove(&platform_msi_devid_ida, data->devid);
+	ida_free(&platform_msi_devid_ida, data->devid);
 	kfree(data);
 }
 

@@ -829,6 +829,15 @@
 			status = "disabled";
 		};
 
+		pwm: pwm@120d0000 {
+			compatible = "starfive,jh7110-pwm", "opencores,pwm-v1";
+			reg = <0x0 0x120d0000 0x0 0x10000>;
+			clocks = <&syscrg JH7110_SYSCLK_PWM_APB>;
+			resets = <&syscrg JH7110_SYSRST_PWM_APB>;
+			#pwm-cells = <3>;
+			status = "disabled";
+		};
+
 		sfctemp: temperature-sensor@120e0000 {
 			compatible = "starfive,jh7110-temp";
 			reg = <0x0 0x120e0000 0x0 0x10000>;
@@ -1104,6 +1113,32 @@
 			#power-domain-cells = <1>;
 		};
 
+		csi2rx: csi@19800000 {
+			compatible = "starfive,jh7110-csi2rx", "cdns,csi2rx";
+			reg = <0x0 0x19800000 0x0 0x10000>;
+			clocks = <&ispcrg JH7110_ISPCLK_VIN_SYS>,
+				 <&ispcrg JH7110_ISPCLK_VIN_APB>,
+				 <&ispcrg JH7110_ISPCLK_VIN_PIXEL_IF0>,
+				 <&ispcrg JH7110_ISPCLK_VIN_PIXEL_IF1>,
+				 <&ispcrg JH7110_ISPCLK_VIN_PIXEL_IF2>,
+				 <&ispcrg JH7110_ISPCLK_VIN_PIXEL_IF3>;
+			clock-names = "sys_clk", "p_clk",
+				      "pixel_if0_clk", "pixel_if1_clk",
+				      "pixel_if2_clk", "pixel_if3_clk";
+			resets = <&ispcrg JH7110_ISPRST_VIN_SYS>,
+				 <&ispcrg JH7110_ISPRST_VIN_APB>,
+				 <&ispcrg JH7110_ISPRST_VIN_PIXEL_IF0>,
+				 <&ispcrg JH7110_ISPRST_VIN_PIXEL_IF1>,
+				 <&ispcrg JH7110_ISPRST_VIN_PIXEL_IF2>,
+				 <&ispcrg JH7110_ISPRST_VIN_PIXEL_IF3>;
+			reset-names = "sys", "reg_bank",
+				      "pixel_if0", "pixel_if1",
+				      "pixel_if2", "pixel_if3";
+			phys = <&csi_phy>;
+			phy-names = "dphy";
+			status = "disabled";
+		};
+
 		ispcrg: clock-controller@19810000 {
 			compatible = "starfive,jh7110-ispcrg";
 			reg = <0x0 0x19810000 0x0 0x10000>;
@@ -1119,6 +1154,47 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			power-domains = <&pwrc JH7110_PD_ISP>;
+		};
+
+		csi_phy: phy@19820000 {
+			compatible = "starfive,jh7110-dphy-rx";
+			reg = <0x0 0x19820000 0x0 0x10000>;
+			clocks = <&ispcrg JH7110_ISPCLK_M31DPHY_CFG_IN>,
+				 <&ispcrg JH7110_ISPCLK_M31DPHY_REF_IN>,
+				 <&ispcrg JH7110_ISPCLK_M31DPHY_TX_ESC_LAN0>;
+			clock-names = "cfg", "ref", "tx";
+			resets = <&ispcrg JH7110_ISPRST_M31DPHY_HW>,
+				 <&ispcrg JH7110_ISPRST_M31DPHY_B09_AON>;
+			power-domains = <&aon_syscon JH7110_AON_PD_DPHY_RX>;
+			#phy-cells = <0>;
+		};
+
+		camss: isp@19840000 {
+			compatible = "starfive,jh7110-camss";
+			reg = <0x0 0x19840000 0x0 0x10000>,
+			      <0x0 0x19870000 0x0 0x30000>;
+			reg-names = "syscon", "isp";
+			clocks = <&ispcrg JH7110_ISPCLK_DOM4_APB_FUNC>,
+				 <&ispcrg JH7110_ISPCLK_ISPV2_TOP_WRAPPER_C>,
+				 <&ispcrg JH7110_ISPCLK_DVP_INV>,
+				 <&ispcrg JH7110_ISPCLK_VIN_P_AXI_WR>,
+				 <&ispcrg JH7110_ISPCLK_MIPI_RX0_PXL>,
+				 <&syscrg JH7110_SYSCLK_ISP_TOP_CORE>,
+				 <&syscrg JH7110_SYSCLK_ISP_TOP_AXI>;
+			clock-names = "apb_func", "wrapper_clk_c", "dvp_inv",
+				      "axiwr", "mipi_rx0_pxl", "ispcore_2x",
+				      "isp_axi";
+			resets = <&ispcrg JH7110_ISPRST_ISPV2_TOP_WRAPPER_P>,
+				 <&ispcrg JH7110_ISPRST_ISPV2_TOP_WRAPPER_C>,
+				 <&ispcrg JH7110_ISPRST_VIN_P_AXI_RD>,
+				 <&ispcrg JH7110_ISPRST_VIN_P_AXI_WR>,
+				 <&syscrg JH7110_SYSRST_ISP_TOP>,
+				 <&syscrg JH7110_SYSRST_ISP_TOP_AXI>;
+			reset-names = "wrapper_p", "wrapper_c", "axird",
+				      "axiwr", "isp_top_n", "isp_top_axi";
+			power-domains = <&pwrc JH7110_PD_ISP>;
+			interrupts = <92>, <87>, <90>, <88>;
+			status = "disabled";
 		};
 
 		voutcrg: clock-controller@295c0000 {

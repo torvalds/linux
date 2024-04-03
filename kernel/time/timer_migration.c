@@ -1038,8 +1038,15 @@ void tmigr_handle_remote(void)
 	 * in tmigr_handle_remote_up() anyway. Keep this check to speed up the
 	 * return when nothing has to be done.
 	 */
-	if (!tmigr_check_migrator(tmc->tmgroup, tmc->childmask))
-		return;
+	if (!tmigr_check_migrator(tmc->tmgroup, tmc->childmask)) {
+		/*
+		 * If this CPU was an idle migrator, make sure to clear its wakeup
+		 * value so it won't chase timers that have already expired elsewhere.
+		 * This avoids endless requeue from tmigr_new_timer().
+		 */
+		if (READ_ONCE(tmc->wakeup) == KTIME_MAX)
+			return;
+	}
 
 	data.now = get_jiffies_update(&data.basej);
 

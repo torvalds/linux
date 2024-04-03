@@ -1114,10 +1114,9 @@ int bch2_check_inodes(struct bch_fs *c)
 	return ret;
 }
 
-static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
+static int check_i_sectors_notnested(struct btree_trans *trans, struct inode_walker *w)
 {
 	struct bch_fs *c = trans->c;
-	u32 restart_count = trans->restart_count;
 	int ret = 0;
 	s64 count2;
 
@@ -1149,7 +1148,14 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 	}
 fsck_err:
 	bch_err_fn(c, ret);
-	return ret ?: trans_was_restarted(trans, restart_count);
+	return ret;
+}
+
+static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
+{
+	u32 restart_count = trans->restart_count;
+	return check_i_sectors_notnested(trans, w) ?:
+		trans_was_restarted(trans, restart_count);
 }
 
 struct extent_end {
@@ -1533,7 +1539,7 @@ int bch2_check_extents(struct bch_fs *c)
 			check_extent(trans, &iter, k, &w, &s, &extent_ends) ?:
 			check_extent_overbig(trans, &iter, k);
 		})) ?:
-		check_i_sectors(trans, &w));
+		check_i_sectors_notnested(trans, &w));
 
 	bch2_disk_reservation_put(c, &res);
 	extent_ends_exit(&extent_ends);
@@ -1563,10 +1569,9 @@ int bch2_check_indirect_extents(struct bch_fs *c)
 	return ret;
 }
 
-static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
+static int check_subdir_count_notnested(struct btree_trans *trans, struct inode_walker *w)
 {
 	struct bch_fs *c = trans->c;
-	u32 restart_count = trans->restart_count;
 	int ret = 0;
 	s64 count2;
 
@@ -1598,7 +1603,14 @@ static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 	}
 fsck_err:
 	bch_err_fn(c, ret);
-	return ret ?: trans_was_restarted(trans, restart_count);
+	return ret;
+}
+
+static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
+{
+	u32 restart_count = trans->restart_count;
+	return check_subdir_count_notnested(trans, w) ?:
+		trans_was_restarted(trans, restart_count);
 }
 
 static int check_dirent_inode_dirent(struct btree_trans *trans,
@@ -2003,7 +2015,8 @@ int bch2_check_dirents(struct bch_fs *c)
 				k,
 				NULL, NULL,
 				BCH_TRANS_COMMIT_no_enospc,
-			check_dirent(trans, &iter, k, &hash_info, &dir, &target, &s)));
+			check_dirent(trans, &iter, k, &hash_info, &dir, &target, &s)) ?:
+		check_subdir_count_notnested(trans, &dir));
 
 	snapshots_seen_exit(&s);
 	inode_walker_exit(&dir);
@@ -2022,8 +2035,10 @@ static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
 	int ret;
 
 	ret = check_key_has_snapshot(trans, iter, k);
-	if (ret)
+	if (ret < 0)
 		return ret;
+	if (ret)
+		return 0;
 
 	i = walk_inode(trans, inode, k);
 	ret = PTR_ERR_OR_ZERO(i);

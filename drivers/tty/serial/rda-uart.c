@@ -394,7 +394,8 @@ static void rda_uart_receive_chars(struct uart_port *port)
 		val &= 0xff;
 
 		port->icount.rx++;
-		tty_insert_flip_char(&port->state->port, val, flag);
+		if (!uart_prepare_sysrq_char(port, val))
+			tty_insert_flip_char(&port->state->port, val, flag);
 
 		status = rda_uart_read(port, RDA_UART_STATUS);
 	}
@@ -405,10 +406,9 @@ static void rda_uart_receive_chars(struct uart_port *port)
 static irqreturn_t rda_interrupt(int irq, void *dev_id)
 {
 	struct uart_port *port = dev_id;
-	unsigned long flags;
 	u32 val, irq_mask;
 
-	uart_port_lock_irqsave(port, &flags);
+	uart_port_lock(port);
 
 	/* Clear IRQ cause */
 	val = rda_uart_read(port, RDA_UART_IRQ_CAUSE);
@@ -425,7 +425,7 @@ static irqreturn_t rda_interrupt(int irq, void *dev_id)
 		rda_uart_send_chars(port);
 	}
 
-	uart_port_unlock_irqrestore(port, flags);
+	uart_unlock_and_check_sysrq(port);
 
 	return IRQ_HANDLED;
 }
@@ -590,18 +590,12 @@ static void rda_uart_port_write(struct uart_port *port, const char *s,
 {
 	u32 old_irq_mask;
 	unsigned long flags;
-	int locked;
+	int locked = 1;
 
-	local_irq_save(flags);
-
-	if (port->sysrq) {
-		locked = 0;
-	} else if (oops_in_progress) {
-		locked = uart_port_trylock(port);
-	} else {
-		uart_port_lock(port);
-		locked = 1;
-	}
+	if (oops_in_progress)
+		locked = uart_port_trylock_irqsave(port, &flags);
+	else
+		uart_port_lock_irqsave(port, &flags);
 
 	old_irq_mask = rda_uart_read(port, RDA_UART_IRQ_MASK);
 	rda_uart_write(port, 0, RDA_UART_IRQ_MASK);
@@ -615,9 +609,7 @@ static void rda_uart_port_write(struct uart_port *port, const char *s,
 	rda_uart_write(port, old_irq_mask, RDA_UART_IRQ_MASK);
 
 	if (locked)
-		uart_port_unlock(port);
-
-	local_irq_restore(flags);
+		uart_port_unlock_irqrestore(port, flags);
 }
 
 static void rda_uart_console_write(struct console *co, const char *s,

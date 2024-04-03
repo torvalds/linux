@@ -612,6 +612,17 @@ int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 	else if (cb->get_cost)
 		flags |= EM_PERF_DOMAIN_ARTIFICIAL;
 
+	/*
+	 * EM only supports uW (exception is artificial EM).
+	 * Therefore, check and force the drivers to provide
+	 * power in uW.
+	 */
+	if (!microwatts && !(flags & EM_PERF_DOMAIN_ARTIFICIAL)) {
+		dev_err(dev, "EM: only supports uW power values\n");
+		ret = -EINVAL;
+		goto unlock;
+	}
+
 	ret = em_create_pd(dev, nr_states, cb, cpus, flags);
 	if (ret)
 		goto unlock;

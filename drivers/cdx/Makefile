@@ -8,3 +8,7 @@
 ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE=CDX_BUS
 
 obj-$(CONFIG_CDX_BUS) += cdx.o controller/
+
+ifdef CONFIG_GENERIC_MSI_IRQ
+obj-$(CONFIG_CDX_BUS) += cdx_msi.o
+endif

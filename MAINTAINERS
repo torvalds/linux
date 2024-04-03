@@ -579,6 +579,12 @@ F:	drivers/iio/accel/adxl372.c
 F:	drivers/iio/accel/adxl372_i2c.c
 F:	drivers/iio/accel/adxl372_spi.c
 
+AF8133J THREE-AXIS MAGNETOMETER DRIVER
+M:	Ondřej Jirman <megi@xff.cz>
+S:	Maintained
+F:	Documentation/devicetree/bindings/iio/magnetometer/voltafield,af8133j.yaml
+F:	drivers/iio/magnetometer/af8133j.c
+
 AF9013 MEDIA DRIVER
 L:	linux-media@vger.kernel.org
 S:	Orphan
@@ -1158,7 +1164,7 @@ L:	linux-iio@vger.kernel.org
 S:	Supported
 W:	http://ez.analog.com/community/linux-device-drivers
 F:	Documentation/devicetree/bindings/iio/adc/adi,ad7091r*
-F:	drivers/iio/adc/drivers/iio/adc/ad7091r*
+F:	drivers/iio/adc/ad7091r*
 
 ANALOG DEVICES INC AD7192 DRIVER
 M:	Alexandru Tachici <alexandru.tachici@analog.com>
@@ -1280,6 +1286,14 @@ S:	Supported
 W:	https://ez.analog.com/linux-software-drivers
 F:	Documentation/devicetree/bindings/hwmon/adi,adm1177.yaml
 F:	drivers/hwmon/adm1177.c
+
+ANALOG DEVICES INC ADMFM2000 DRIVER
+M:	Kim Seer Paller <kimseer.paller@analog.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+W:	https://ez.analog.com/linux-software-drivers
+F:	Documentation/devicetree/bindings/iio/frequency/adi,admfm2000.yaml
+F:	drivers/iio/frequency/admfm2000.c
 
 ANALOG DEVICES INC ADMV1013 DRIVER
 M:	Antoniu Miclaus <antoniu.miclaus@analog.com>
@@ -2363,8 +2377,8 @@ M:	Sean Wang <sean.wang@mediatek.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	linux-mediatek@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
-F:	Documentation/devicetree/bindings/rtc/rtc-mt2712.txt
-F:	Documentation/devicetree/bindings/rtc/rtc-mt7622.txt
+F:	Documentation/devicetree/bindings/rtc/mediatek,mt2712-rtc.yaml
+F:	Documentation/devicetree/bindings/rtc/mediatek,mt7622-rtc.yaml
 F:	drivers/rtc/rtc-mt2712.c
 F:	drivers/rtc/rtc-mt6397.c
 F:	drivers/rtc/rtc-mt7622.c
@@ -2603,6 +2617,7 @@ F:	drivers/pci/controller/dwc/pcie-qcom.c
 F:	drivers/phy/qualcomm/
 F:	drivers/power/*/msm*
 F:	drivers/reset/reset-qcom-*
+F:	drivers/rtc/rtc-pm8xxx.c
 F:	drivers/spi/spi-geni-qcom.c
 F:	drivers/spi/spi-qcom-qspi.c
 F:	drivers/spi/spi-qup.c
@@ -3598,7 +3613,6 @@ F:	include/uapi/linux/bfs_fs.h
 
 BITMAP API
 M:	Yury Norov <yury.norov@gmail.com>
-R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 R:	Rasmus Villemoes <linux@rasmusvillemoes.dk>
 S:	Maintained
 F:	include/linux/bitfield.h
@@ -3928,8 +3942,7 @@ F:	kernel/bpf/ringbuf.c
 
 BPF [SECURITY & LSM] (Security Audit and Enforcement using BPF)
 M:	KP Singh <kpsingh@kernel.org>
-R:	Florent Revest <revest@chromium.org>
-R:	Brendan Jackman <jackmanb@chromium.org>
+R:	Matt Bobrowski <mattbobrowski@google.com>
 L:	bpf@vger.kernel.org
 S:	Maintained
 F:	Documentation/bpf/prog_lsm.rst
@@ -3954,7 +3967,7 @@ F:	kernel/bpf/bpf_lru*
 F:	kernel/bpf/cgroup.c
 
 BPF [TOOLING] (bpftool)
-M:	Quentin Monnet <quentin@isovalent.com>
+M:	Quentin Monnet <qmo@kernel.org>
 L:	bpf@vger.kernel.org
 S:	Maintained
 F:	kernel/bpf/disasm.*
@@ -6143,7 +6156,6 @@ DEVICE-MAPPER  (LVM)
 M:	Alasdair Kergon <agk@redhat.com>
 M:	Mike Snitzer <snitzer@kernel.org>
 M:	Mikulas Patocka <mpatocka@redhat.com>
-M:	dm-devel@lists.linux.dev
 L:	dm-devel@lists.linux.dev
 S:	Maintained
 Q:	http://patchwork.kernel.org/project/dm-devel/list/
@@ -6159,7 +6171,6 @@ F:	include/uapi/linux/dm-*.h
 
 DEVICE-MAPPER VDO TARGET
 M:	Matthew Sakai <msakai@redhat.com>
-M:	dm-devel@lists.linux.dev
 L:	dm-devel@lists.linux.dev
 S:	Maintained
 F:	Documentation/admin-guide/device-mapper/vdo*.rst
@@ -7927,6 +7938,7 @@ M:	Gao Xiang <xiang@kernel.org>
 M:	Chao Yu <chao@kernel.org>
 R:	Yue Hu <huyue2@coolpad.com>
 R:	Jeffle Xu <jefflexu@linux.alibaba.com>
+R:	Sandeep Dhavale <dhavale@google.com>
 L:	linux-erofs@lists.ozlabs.org
 S:	Maintained
 W:	https://erofs.docs.kernel.org
@@ -8987,6 +8999,11 @@ F:	Documentation/i2c/muxes/i2c-mux-gpio.rst
 F:	drivers/i2c/muxes/i2c-mux-gpio.c
 F:	include/linux/platform_data/i2c-mux-gpio.h
 
+GENERIC GPIO RESET DRIVER
+M:	Krzysztof Kozlowski <krzysztof.kozlowski@linaro.org>
+S:	Maintained
+F:	drivers/reset/reset-gpio.c
+
 GENERIC HDLC (WAN) DRIVERS
 M:	Krzysztof Halasa <khc@pm.waw.pl>
 S:	Maintained
@@ -9505,7 +9522,7 @@ T:	git git://linuxtv.org/media_tree.git
 F:	drivers/media/usb/hdpvr/
 
 HEWLETT PACKARD ENTERPRISE ILO CHIF DRIVER
-M:	Matt Hsiao <matt.hsiao@hpe.com>
+M:	Keng-Yu Lin <keng-yu.lin@hpe.com>
 S:	Supported
 F:	drivers/misc/hpilo.[ch]
 
@@ -9634,7 +9651,9 @@ L:	linux-input@vger.kernel.org
 S:	Maintained
 F:	drivers/hid/hid-logitech-hidpp.c
 
-HIGH-RESOLUTION TIMERS, CLOCKEVENTS
+HIGH-RESOLUTION TIMERS, TIMER WHEEL, CLOCKEVENTS
+M:	Anna-Maria Behnsen <anna-maria@linutronix.de>
+M:	Frederic Weisbecker <frederic@kernel.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
@@ -9642,9 +9661,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
 F:	Documentation/timers/
 F:	include/linux/clockchips.h
 F:	include/linux/hrtimer.h
+F:	include/linux/timer.h
 F:	kernel/time/clockevents.c
 F:	kernel/time/hrtimer.c
-F:	kernel/time/timer_*.c
+F:	kernel/time/timer.c
+F:	kernel/time/timer_list.c
+F:	kernel/time/timer_migration.*
+F:	tools/testing/selftests/timers/
 
 HIGH-SPEED SCC DRIVER FOR AX.25
 L:	linux-hams@vger.kernel.org
@@ -9875,10 +9898,11 @@ F:	drivers/iio/pressure/hsc030pa*
 
 HONEYWELL MPRLS0025PA PRESSURE SENSOR SERIES IIO DRIVER
 M:	Andreas Klinger <ak@it-klinger.de>
+M:	Petre Rodan <petre.rodan@subdimension.ro>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/iio/pressure/honeywell,mprls0025pa.yaml
-F:	drivers/iio/pressure/mprls0025pa.c
+F:	drivers/iio/pressure/mprls0025pa*
 
 HP BIOSCFG DRIVER
 M:	Jorge Lopez <jorge.lopez2@hp.com>
@@ -10471,6 +10495,14 @@ L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	drivers/media/rc/iguanair.c
 
+IIO BACKEND FRAMEWORK
+M:	Nuno Sa <nuno.sa@analog.com>
+R:	Olivier Moysan <olivier.moysan@foss.st.com>
+L:	linux-iio@vger.kernel.org
+S:	Maintained
+F:	drivers/iio/industrialio-backend.c
+F:	include/linux/iio/backend.h
+
 IIO DIGITAL POTENTIOMETER DAC
 M:	Peter Rosin <peda@axentia.se>
 L:	linux-iio@vger.kernel.org
@@ -10493,6 +10525,7 @@ L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/iio/industrialio-gts-helper.c
 F:	include/linux/iio/iio-gts-helper.h
+F:	drivers/iio/test/iio-test-gts.c
 
 IIO MULTIPLEXER
 M:	Peter Rosin <peda@axentia.se>
@@ -13105,6 +13138,7 @@ F:	drivers/net/ethernet/marvell/mvpp2/
 
 MARVELL MWIFIEX WIRELESS DRIVER
 M:	Brian Norris <briannorris@chromium.org>
+R:	Francesco Dolcini <francesco@dolcini.it>
 L:	linux-wireless@vger.kernel.org
 S:	Odd Fixes
 F:	drivers/net/wireless/marvell/mwifiex/
@@ -14105,7 +14139,9 @@ M:	Mathieu Desnoyers <mathieu.desnoyers@efficios.com>
 M:	"Paul E. McKenney" <paulmck@kernel.org>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
-F:	arch/powerpc/include/asm/membarrier.h
+F:	Documentation/scheduler/membarrier.rst
+F:	arch/*/include/asm/membarrier.h
+F:	arch/*/include/asm/sync_core.h
 F:	include/uapi/linux/membarrier.h
 F:	kernel/sched/membarrier.c
 
@@ -14482,6 +14518,13 @@ S:	Supported
 F:	Documentation/devicetree/bindings/nvmem/microchip,sama7g5-otpc.yaml
 F:	drivers/nvmem/microchip-otpc.c
 F:	include/dt-bindings/nvmem/microchip,sama7g5-otpc.h
+
+MICROCHIP PAC1934 POWER/ENERGY MONITOR DRIVER
+M:	Marius Cristea <marius.cristea@microchip.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+F:	Documentation/devicetree/bindings/iio/adc/microchip,pac1934.yaml
+F:	drivers/iio/adc/pac1934.c
 
 MICROCHIP PCI1XXXX GP DRIVER
 M:	Vaibhaav Ram T.L <vaibhaavram.tl@microchip.com>
@@ -15202,7 +15245,6 @@ F:	drivers/net/ethernet/neterion/
 NETFILTER
 M:	Pablo Neira Ayuso <pablo@netfilter.org>
 M:	Jozsef Kadlecsik <kadlec@netfilter.org>
-M:	Florian Westphal <fw@strlen.de>
 L:	netfilter-devel@vger.kernel.org
 L:	coreteam@netfilter.org
 S:	Maintained
@@ -15590,9 +15632,10 @@ F:	drivers/misc/nsm.c
 F:	include/uapi/linux/nsm.h
 
 NOHZ, DYNTICKS SUPPORT
+M:	Anna-Maria Behnsen <anna-maria@linutronix.de>
 M:	Frederic Weisbecker <frederic@kernel.org>
-M:	Thomas Gleixner <tglx@linutronix.de>
 M:	Ingo Molnar <mingo@kernel.org>
+M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/nohz
@@ -16588,7 +16631,7 @@ M:	Miklos Szeredi <miklos@szeredi.hu>
 M:	Amir Goldstein <amir73il@gmail.com>
 L:	linux-unionfs@vger.kernel.org
 S:	Supported
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mszeredi/vfs.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/overlayfs/vfs.git
 F:	Documentation/filesystems/overlayfs.rst
 F:	fs/overlayfs/
 
@@ -17553,15 +17596,20 @@ F:	drivers/pnp/
 F:	include/linux/pnp.h
 
 POSIX CLOCKS and TIMERS
+M:	Anna-Maria Behnsen <anna-maria@linutronix.de>
+M:	Frederic Weisbecker <frederic@kernel.org>
 M:	Thomas Gleixner <tglx@linutronix.de>
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
 F:	fs/timerfd.c
 F:	include/linux/time_namespace.h
-F:	include/linux/timer*
+F:	include/linux/timerfd.h
+F:	include/uapi/linux/time.h
+F:	include/uapi/linux/timerfd.h
 F:	include/trace/events/timer*
-F:	kernel/time/*timer*
+F:	kernel/time/itimer.c
+F:	kernel/time/posix-*
 F:	kernel/time/namespace.c
 
 POWER MANAGEMENT CORE
@@ -17689,7 +17737,7 @@ M:	Joel Granados <j.granados@samsung.com>
 L:	linux-kernel@vger.kernel.org
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mcgrof/linux.git sysctl-next
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sysctl/sysctl.git sysctl-next
 F:	fs/proc/proc_sysctl.c
 F:	include/linux/sysctl.h
 F:	kernel/sysctl-test.c
@@ -18608,18 +18656,21 @@ REALTEK WIRELESS DRIVER (rtlwifi family)
 M:	Ping-Ke Shih <pkshih@realtek.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
+T:	git https://github.com/pkshih/rtw.git
 F:	drivers/net/wireless/realtek/rtlwifi/
 
 REALTEK WIRELESS DRIVER (rtw88)
 M:	Ping-Ke Shih <pkshih@realtek.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
+T:	git https://github.com/pkshih/rtw.git
 F:	drivers/net/wireless/realtek/rtw88/
 
 REALTEK WIRELESS DRIVER (rtw89)
 M:	Ping-Ke Shih <pkshih@realtek.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
+T:	git https://github.com/pkshih/rtw.git
 F:	drivers/net/wireless/realtek/rtw89/
 
 REDPINE WIRELESS DRIVER
@@ -18690,13 +18741,24 @@ S:	Supported
 F:	Documentation/devicetree/bindings/i2c/renesas,iic-emev2.yaml
 F:	drivers/i2c/busses/i2c-emev2.c
 
-RENESAS ETHERNET DRIVERS
+RENESAS ETHERNET AVB DRIVER
 R:	Sergey Shtylyov <s.shtylyov@omp.ru>
 L:	netdev@vger.kernel.org
 L:	linux-renesas-soc@vger.kernel.org
-F:	Documentation/devicetree/bindings/net/renesas,*.yaml
-F:	drivers/net/ethernet/renesas/
-F:	include/linux/sh_eth.h
+F:	Documentation/devicetree/bindings/net/renesas,etheravb.yaml
+F:	drivers/net/ethernet/renesas/Kconfig
+F:	drivers/net/ethernet/renesas/Makefile
+F:	drivers/net/ethernet/renesas/ravb*
+
+RENESAS ETHERNET SWITCH DRIVER
+R:	Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
+L:	netdev@vger.kernel.org
+L:	linux-renesas-soc@vger.kernel.org
+F:	Documentation/devicetree/bindings/net/renesas,*ether-switch.yaml
+F:	drivers/net/ethernet/renesas/Kconfig
+F:	drivers/net/ethernet/renesas/Makefile
+F:	drivers/net/ethernet/renesas/rcar_gen4*
+F:	drivers/net/ethernet/renesas/rswitch*
 
 RENESAS IDT821034 ASoC CODEC
 M:	Herve Codina <herve.codina@bootlin.com>
@@ -18805,6 +18867,16 @@ L:	linux-renesas-soc@vger.kernel.org
 S:	Supported
 F:	Documentation/devicetree/bindings/i2c/renesas,rzv2m.yaml
 F:	drivers/i2c/busses/i2c-rzv2m.c
+
+RENESAS SUPERH ETHERNET DRIVER
+R:	Sergey Shtylyov <s.shtylyov@omp.ru>
+L:	netdev@vger.kernel.org
+L:	linux-renesas-soc@vger.kernel.org
+F:	Documentation/devicetree/bindings/net/renesas,ether.yaml
+F:	drivers/net/ethernet/renesas/Kconfig
+F:	drivers/net/ethernet/renesas/Makefile
+F:	drivers/net/ethernet/renesas/sh_eth*
+F:	include/linux/sh_eth.h
 
 RENESAS USB PHY DRIVER
 M:	Yoshihiro Shimoda <yoshihiro.shimoda.uh@renesas.com>
@@ -19142,12 +19214,14 @@ M:	Hin-Tak Leung <hintak.leung@gmail.com>
 M:	Larry Finger <Larry.Finger@lwfinger.net>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
+T:	git https://github.com/pkshih/rtw.git
 F:	drivers/net/wireless/realtek/rtl818x/rtl8187/
 
 RTL8XXXU WIRELESS DRIVER (rtl8xxxu)
 M:	Jes Sorensen <Jes.Sorensen@gmail.com>
 L:	linux-wireless@vger.kernel.org
 S:	Maintained
+T:	git https://github.com/pkshih/rtw.git
 F:	drivers/net/wireless/realtek/rtl8xxxu/
 
 RTRS TRANSPORT DRIVERS
@@ -22217,13 +22291,20 @@ S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git timers/core
 F:	include/linux/clocksource.h
 F:	include/linux/time.h
+F:	include/linux/timekeeper_internal.h
+F:	include/linux/timekeeping.h
 F:	include/linux/timex.h
 F:	include/uapi/linux/time.h
 F:	include/uapi/linux/timex.h
 F:	kernel/time/alarmtimer.c
-F:	kernel/time/clocksource.c
-F:	kernel/time/ntp.c
-F:	kernel/time/time*.c
+F:	kernel/time/clocksource*
+F:	kernel/time/ntp*
+F:	kernel/time/time.c
+F:	kernel/time/timeconst.bc
+F:	kernel/time/timeconv.c
+F:	kernel/time/timecounter.c
+F:	kernel/time/timekeeping*
+F:	kernel/time/time_test.c
 F:	tools/testing/selftests/timers/
 
 TIPC NETWORK LAYER
@@ -22539,6 +22620,7 @@ F:	include/uapi/misc/uacce/
 
 UBI FILE SYSTEM (UBIFS)
 M:	Richard Weinberger <richard@nod.at>
+R:	Zhihao Cheng <chengzhihao1@huawei.com>
 L:	linux-mtd@lists.infradead.org
 S:	Supported
 W:	http://www.linux-mtd.infradead.org/doc/ubifs.html
@@ -22684,6 +22766,7 @@ F:	drivers/ufs/host/ufs-renesas.c
 
 UNSORTED BLOCK IMAGES (UBI)
 M:	Richard Weinberger <richard@nod.at>
+R:	Zhihao Cheng <chengzhihao1@huawei.com>
 L:	linux-mtd@lists.infradead.org
 S:	Supported
 W:	http://www.linux-mtd.infradead.org/
@@ -23562,8 +23645,8 @@ F:	Documentation/driver-api/vme.rst
 F:	drivers/staging/vme_user/
 
 VMWARE BALLOON DRIVER
-M:	Nadav Amit <namit@vmware.com>
-R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
+M:	Jerrin Shaji George <jerrin.shaji-george@broadcom.com>
+R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 F:	drivers/misc/vmw_balloon.c
@@ -24339,6 +24422,14 @@ XILINX ZYNQMP SHA3 DRIVER
 M:	Harsha <harsha.harsha@amd.com>
 S:	Maintained
 F:	drivers/crypto/xilinx/zynqmp-sha.c
+
+XILINX ZYNQMP NVMEM DRIVER
+M:	Praveen Teja Kundanala <praveen.teja.kundanala@amd.com>
+M:	Kalyani Akula <kalyani.akula@amd.com>
+R:	Michal Simek <michal.simek@amd.com>
+S:	Maintained
+F:	Documentation/devicetree/bindings/nvmem/xlnx,zynqmp-nvmem.yaml
+F:	drivers/nvmem/zynqmp_nvmem.c
 
 XILLYBUS DRIVER
 M:	Eli Billauer <eli.billauer@gmail.com>

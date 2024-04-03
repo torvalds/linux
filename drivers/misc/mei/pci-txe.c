@@ -166,11 +166,7 @@ end:
  */
 static void mei_txe_shutdown(struct pci_dev *pdev)
 {
-	struct mei_device *dev;
-
-	dev = pci_get_drvdata(pdev);
-	if (!dev)
-		return;
+	struct mei_device *dev = pci_get_drvdata(pdev);
 
 	dev_dbg(&pdev->dev, "shutdown\n");
 	mei_stop(dev);
@@ -191,13 +187,7 @@ static void mei_txe_shutdown(struct pci_dev *pdev)
  */
 static void mei_txe_remove(struct pci_dev *pdev)
 {
-	struct mei_device *dev;
-
-	dev = pci_get_drvdata(pdev);
-	if (!dev) {
-		dev_err(&pdev->dev, "mei: dev == NULL\n");
-		return;
-	}
+	struct mei_device *dev = pci_get_drvdata(pdev);
 
 	pm_runtime_get_noresume(&pdev->dev);
 
@@ -218,9 +208,6 @@ static int mei_txe_pci_suspend(struct device *device)
 	struct pci_dev *pdev = to_pci_dev(device);
 	struct mei_device *dev = pci_get_drvdata(pdev);
 
-	if (!dev)
-		return -ENODEV;
-
 	dev_dbg(&pdev->dev, "suspend\n");
 
 	mei_stop(dev);
@@ -236,12 +223,8 @@ static int mei_txe_pci_suspend(struct device *device)
 static int mei_txe_pci_resume(struct device *device)
 {
 	struct pci_dev *pdev = to_pci_dev(device);
-	struct mei_device *dev;
+	struct mei_device *dev = pci_get_drvdata(pdev);
 	int err;
-
-	dev = pci_get_drvdata(pdev);
-	if (!dev)
-		return -ENODEV;
 
 	pci_enable_msi(pdev);
 
@@ -273,13 +256,10 @@ static int mei_txe_pci_resume(struct device *device)
 #ifdef CONFIG_PM
 static int mei_txe_pm_runtime_idle(struct device *device)
 {
-	struct mei_device *dev;
+	struct mei_device *dev = dev_get_drvdata(device);
 
 	dev_dbg(device, "rpm: txe: runtime_idle\n");
 
-	dev = dev_get_drvdata(device);
-	if (!dev)
-		return -ENODEV;
 	if (mei_write_is_idle(dev))
 		pm_runtime_autosuspend(device);
 
@@ -287,14 +267,10 @@ static int mei_txe_pm_runtime_idle(struct device *device)
 }
 static int mei_txe_pm_runtime_suspend(struct device *device)
 {
-	struct mei_device *dev;
+	struct mei_device *dev = dev_get_drvdata(device);
 	int ret;
 
 	dev_dbg(device, "rpm: txe: runtime suspend\n");
-
-	dev = dev_get_drvdata(device);
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->device_lock);
 
@@ -317,14 +293,10 @@ static int mei_txe_pm_runtime_suspend(struct device *device)
 
 static int mei_txe_pm_runtime_resume(struct device *device)
 {
-	struct mei_device *dev;
+	struct mei_device *dev = dev_get_drvdata(device);
 	int ret;
 
 	dev_dbg(device, "rpm: txe: runtime resume\n");
-
-	dev = dev_get_drvdata(device);
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->device_lock);
 

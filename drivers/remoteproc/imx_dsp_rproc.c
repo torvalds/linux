@@ -1040,8 +1040,8 @@ static int imx_dsp_rproc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rproc = rproc_alloc(dev, "imx-dsp-rproc", &imx_dsp_rproc_ops, fw_name,
-			    sizeof(*priv));
+	rproc = devm_rproc_alloc(dev, "imx-dsp-rproc", &imx_dsp_rproc_ops,
+				 fw_name, sizeof(*priv));
 	if (!rproc)
 		return -ENOMEM;
 
@@ -1061,14 +1061,14 @@ static int imx_dsp_rproc_probe(struct platform_device *pdev)
 	ret = imx_dsp_rproc_detect_mode(priv);
 	if (ret) {
 		dev_err(dev, "failed on imx_dsp_rproc_detect_mode\n");
-		goto err_put_rproc;
+		return ret;
 	}
 
 	/* There are multiple power domains required by DSP on some platform */
 	ret = imx_dsp_attach_pm_domains(priv);
 	if (ret) {
 		dev_err(dev, "failed on imx_dsp_attach_pm_domains\n");
-		goto err_put_rproc;
+		return ret;
 	}
 	/* Get clocks */
 	ret = imx_dsp_rproc_clk_get(priv);
@@ -1091,8 +1091,6 @@ static int imx_dsp_rproc_probe(struct platform_device *pdev)
 
 err_detach_domains:
 	dev_pm_domain_detach_list(priv->pd_list);
-err_put_rproc:
-	rproc_free(rproc);
 
 	return ret;
 }
@@ -1105,7 +1103,6 @@ static void imx_dsp_rproc_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	rproc_del(rproc);
 	dev_pm_domain_detach_list(priv->pd_list);
-	rproc_free(rproc);
 }
 
 /* pm runtime functions */

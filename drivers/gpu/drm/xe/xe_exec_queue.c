@@ -448,7 +448,7 @@ find_hw_engine(struct xe_device *xe,
 {
 	u32 idx;
 
-	if (eci.engine_class > ARRAY_SIZE(user_to_xe_engine_class))
+	if (eci.engine_class >= ARRAY_SIZE(user_to_xe_engine_class))
 		return NULL;
 
 	if (eci.gt_id >= xe->info.gt_count)

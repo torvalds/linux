@@ -426,11 +426,17 @@ err_release:
 	return err;
 }
 
-static void pds_vdpa_release_irqs(struct pds_vdpa_device *pdsv)
+void pds_vdpa_release_irqs(struct pds_vdpa_device *pdsv)
 {
-	struct pci_dev *pdev = pdsv->vdpa_aux->padev->vf_pdev;
-	struct pds_vdpa_aux *vdpa_aux = pdsv->vdpa_aux;
+	struct pds_vdpa_aux *vdpa_aux;
+	struct pci_dev *pdev;
 	int qid;
+
+	if (!pdsv)
+		return;
+
+	pdev = pdsv->vdpa_aux->padev->vf_pdev;
+	vdpa_aux = pdsv->vdpa_aux;
 
 	if (!vdpa_aux->nintrs)
 		return;
@@ -612,6 +618,7 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	struct device *dma_dev;
 	struct pci_dev *pdev;
 	struct device *dev;
+	u8 status;
 	int err;
 	int i;
 
@@ -637,6 +644,13 @@ static int pds_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	pdev = vdpa_aux->padev->vf_pdev;
 	dma_dev = &pdev->dev;
 	pdsv->vdpa_dev.dma_dev = dma_dev;
+
+	status = pds_vdpa_get_status(&pdsv->vdpa_dev);
+	if (status == 0xff) {
+		dev_err(dev, "Broken PCI - status %#x\n", status);
+		err = -ENXIO;
+		goto err_unmap;
+	}
 
 	pdsv->supported_features = mgmt->supported_features;
 
