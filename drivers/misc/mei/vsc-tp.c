@@ -419,14 +419,14 @@ static irqreturn_t vsc_tp_isr(int irq, void *data)
 
 	atomic_inc(&tp->assert_cnt);
 
+	wake_up(&tp->xfer_wait);
+
 	return IRQ_WAKE_THREAD;
 }
 
 static irqreturn_t vsc_tp_thread_isr(int irq, void *data)
 {
 	struct vsc_tp *tp = data;
-
-	wake_up(&tp->xfer_wait);
 
 	if (tp->event_notify)
 		tp->event_notify(tp->event_notify_context);
