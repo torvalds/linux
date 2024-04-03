@@ -690,8 +690,7 @@ __page_pool_put_page(struct page_pool *pool, struct page *page,
 			page_pool_dma_sync_for_device(pool, page,
 						      dma_sync_size);
 
-		if (allow_direct && in_softirq() &&
-		    page_pool_recycle_in_cache(page, pool))
+		if (allow_direct && page_pool_recycle_in_cache(page, pool))
 			return NULL;
 
 		/* Page found as candidate for recycling */
@@ -716,9 +715,35 @@ __page_pool_put_page(struct page_pool *pool, struct page *page,
 	return NULL;
 }
 
+static bool page_pool_napi_local(const struct page_pool *pool)
+{
+	const struct napi_struct *napi;
+	u32 cpuid;
+
+	if (unlikely(!in_softirq()))
+		return false;
+
+	/* Allow direct recycle if we have reasons to believe that we are
+	 * in the same context as the consumer would run, so there's
+	 * no possible race.
+	 * __page_pool_put_page() makes sure we're not in hardirq context
+	 * and interrupts are enabled prior to accessing the cache.
+	 */
+	cpuid = smp_processor_id();
+	if (READ_ONCE(pool->cpuid) == cpuid)
+		return true;
+
+	napi = READ_ONCE(pool->p.napi);
+
+	return napi && READ_ONCE(napi->list_owner) == cpuid;
+}
+
 void page_pool_put_unrefed_page(struct page_pool *pool, struct page *page,
 				unsigned int dma_sync_size, bool allow_direct)
 {
+	if (!allow_direct)
+		allow_direct = page_pool_napi_local(pool);
+
 	page = __page_pool_put_page(pool, page, dma_sync_size, allow_direct);
 	if (page && !page_pool_recycle_in_ring(pool, page)) {
 		/* Cache full, fallback to free pages */
@@ -747,7 +772,10 @@ void page_pool_put_page_bulk(struct page_pool *pool, void **data,
 			     int count)
 {
 	int i, bulk_len = 0;
+	bool allow_direct;
 	bool in_softirq;
+
+	allow_direct = page_pool_napi_local(pool);
 
 	for (i = 0; i < count; i++) {
 		struct page *page = virt_to_head_page(data[i]);
@@ -756,13 +784,13 @@ void page_pool_put_page_bulk(struct page_pool *pool, void **data,
 		if (!page_pool_is_last_ref(page))
 			continue;
 
-		page = __page_pool_put_page(pool, page, -1, false);
+		page = __page_pool_put_page(pool, page, -1, allow_direct);
 		/* Approved for bulk recycling in ptr_ring cache */
 		if (page)
 			data[bulk_len++] = page;
 	}
 
-	if (unlikely(!bulk_len))
+	if (!bulk_len)
 		return;
 
 	/* Bulk producer into ptr_ring page_pool cache */
@@ -969,7 +997,7 @@ void page_pool_use_xdp_mem(struct page_pool *pool, void (*disconnect)(void *),
 static void page_pool_disable_direct_recycling(struct page_pool *pool)
 {
 	/* Disable direct recycling based on pool->cpuid.
-	 * Paired with READ_ONCE() in napi_pp_put_page().
+	 * Paired with READ_ONCE() in page_pool_napi_local().
 	 */
 	WRITE_ONCE(pool->cpuid, -1);
 
