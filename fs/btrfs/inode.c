@@ -3183,9 +3183,8 @@ out:
 		 * set the mapping error, so we need to set it if we're the ones
 		 * marking this ordered extent as failed.
 		 */
-		if (ret && !test_and_set_bit(BTRFS_ORDERED_IOERR,
-					     &ordered_extent->flags))
-			mapping_set_error(ordered_extent->inode->i_mapping, -EIO);
+		if (ret)
+			btrfs_mark_ordered_extent_error(ordered_extent);
 
 		if (truncated)
 			unwritten_start += logical_len;

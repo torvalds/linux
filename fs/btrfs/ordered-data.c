@@ -294,6 +294,12 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 	spin_unlock_irq(&inode->ordered_tree_lock);
 }
 
+void btrfs_mark_ordered_extent_error(struct btrfs_ordered_extent *ordered)
+{
+	if (!test_and_set_bit(BTRFS_ORDERED_IOERR, &ordered->flags))
+		mapping_set_error(ordered->inode->i_mapping, -EIO);
+}
+
 static void finish_ordered_fn(struct btrfs_work *work)
 {
 	struct btrfs_ordered_extent *ordered_extent;

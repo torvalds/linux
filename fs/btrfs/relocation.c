@@ -4403,8 +4403,10 @@ int btrfs_reloc_clone_csums(struct btrfs_ordered_extent *ordered)
 	ret = btrfs_lookup_csums_list(csum_root, disk_bytenr,
 				      disk_bytenr + ordered->num_bytes - 1,
 				      &list, false);
-	if (ret < 0)
+	if (ret < 0) {
+		btrfs_mark_ordered_extent_error(ordered);
 		return ret;
+	}
 
 	while (!list_empty(&list)) {
 		struct btrfs_ordered_sum *sums =
