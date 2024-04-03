@@ -1103,13 +1103,13 @@ free_qpls:
 	return err;
 }
 
-static int gve_alloc_qpls(struct gve_priv *priv,
-			  struct gve_qpls_alloc_cfg *cfg)
+static int gve_alloc_qpls(struct gve_priv *priv, struct gve_qpls_alloc_cfg *cfg,
+			  struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
 {
 	int max_queues = cfg->tx_cfg->max_queues + cfg->rx_cfg->max_queues;
 	int rx_start_id, tx_num_qpls, rx_num_qpls;
 	struct gve_queue_page_list *qpls;
-	int page_count;
+	u32 page_count;
 	int err;
 
 	if (cfg->raw_addressing)
@@ -1141,8 +1141,12 @@ static int gve_alloc_qpls(struct gve_priv *priv,
 	/* For GQI_QPL number of pages allocated have 1:1 relationship with
 	 * number of descriptors. For DQO, number of pages required are
 	 * more than descriptors (because of out of order completions).
+	 * Set it to twice the number of descriptors.
 	 */
-	page_count = cfg->is_gqi ? priv->rx_data_slot_cnt : priv->rx_pages_per_qpl;
+	if (cfg->is_gqi)
+		page_count = rx_alloc_cfg->ring_size;
+	else
+		page_count = gve_get_rx_pages_per_qpl_dqo(rx_alloc_cfg->ring_size);
 	rx_num_qpls = gve_num_rx_qpls(cfg->rx_cfg, gve_is_qpl(priv));
 	err = gve_alloc_n_qpls(priv, qpls, page_count, rx_start_id, rx_num_qpls);
 	if (err)
@@ -1310,10 +1314,10 @@ static void gve_rx_get_curr_alloc_cfg(struct gve_priv *priv,
 	cfg->rx = priv->rx;
 }
 
-static void gve_get_curr_alloc_cfgs(struct gve_priv *priv,
-				    struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
-				    struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
-				    struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
+void gve_get_curr_alloc_cfgs(struct gve_priv *priv,
+			     struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
+			     struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
+			     struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
 {
 	gve_qpls_get_curr_alloc_cfg(priv, qpls_alloc_cfg);
 	gve_tx_get_curr_alloc_cfg(priv, tx_alloc_cfg);
@@ -1363,7 +1367,7 @@ static int gve_queues_mem_alloc(struct gve_priv *priv,
 {
 	int err;
 
-	err = gve_alloc_qpls(priv, qpls_alloc_cfg);
+	err = gve_alloc_qpls(priv, qpls_alloc_cfg, rx_alloc_cfg);
 	if (err) {
 		netif_err(priv, drv, priv->dev, "Failed to alloc QPLs\n");
 		return err;
@@ -1863,10 +1867,10 @@ static int gve_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 	}
 }
 
-static int gve_adjust_config(struct gve_priv *priv,
-			     struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
-			     struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
-			     struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
+int gve_adjust_config(struct gve_priv *priv,
+		      struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
+		      struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
+		      struct gve_rx_alloc_rings_cfg *rx_alloc_cfg)
 {
 	int err;
 

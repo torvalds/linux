@@ -295,9 +295,7 @@ static int gve_tx_alloc_ring_dqo(struct gve_priv *priv,
 
 	/* Queue sizes must be a power of 2 */
 	tx->mask = cfg->ring_size - 1;
-	tx->dqo.complq_mask = priv->queue_format == GVE_DQO_RDA_FORMAT ?
-		priv->options_dqo_rda.tx_comp_ring_entries - 1 :
-		tx->mask;
+	tx->dqo.complq_mask = tx->mask;
 
 	/* The max number of pending packets determines the maximum number of
 	 * descriptors which maybe written to the completion queue.

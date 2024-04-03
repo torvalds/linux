@@ -240,7 +240,7 @@ static int gve_rx_alloc_ring_gqi(struct gve_priv *priv,
 				 int idx)
 {
 	struct device *hdev = &priv->pdev->dev;
-	u32 slots = priv->rx_data_slot_cnt;
+	u32 slots = cfg->ring_size;
 	int filled_pages;
 	size_t bytes;
 	int err;

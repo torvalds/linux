@@ -50,6 +50,10 @@
 /* PTYPEs are always 10 bits. */
 #define GVE_NUM_PTYPES	1024
 
+/* Default minimum ring size */
+#define GVE_DEFAULT_MIN_TX_RING_SIZE 256
+#define GVE_DEFAULT_MIN_RX_RING_SIZE 512
+
 #define GVE_DEFAULT_RX_BUFFER_SIZE 2048
 
 #define GVE_MAX_RX_BUFFER_SIZE 4096
@@ -63,7 +67,6 @@
 #define GVE_DEFAULT_HEADER_BUFFER_SIZE 128
 
 #define DQO_QPL_DEFAULT_TX_PAGES 512
-#define DQO_QPL_DEFAULT_RX_PAGES 2048
 
 /* Maximum TSO size supported on DQO */
 #define GVE_DQO_TX_MAX	0x3FFFF
@@ -621,11 +624,6 @@ struct gve_qpl_config {
 	unsigned long *qpl_id_map; /* bitmap of used qpl ids */
 };
 
-struct gve_options_dqo_rda {
-	u16 tx_comp_ring_entries; /* number of tx_comp descriptors */
-	u16 rx_buff_ring_entries; /* number of rx_buff descriptors */
-};
-
 struct gve_irq_db {
 	__be32 index;
 } ____cacheline_aligned;
@@ -718,9 +716,13 @@ struct gve_priv {
 	u16 num_event_counters;
 	u16 tx_desc_cnt; /* num desc per ring */
 	u16 rx_desc_cnt; /* num desc per ring */
+	u16 max_tx_desc_cnt;
+	u16 max_rx_desc_cnt;
+	u16 min_tx_desc_cnt;
+	u16 min_rx_desc_cnt;
+	bool modify_ring_size_enabled;
+	bool default_min_ring_size;
 	u16 tx_pages_per_qpl; /* Suggested number of pages per qpl for TX queues by NIC */
-	u16 rx_pages_per_qpl; /* Suggested number of pages per qpl for RX queues by NIC */
-	u16 rx_data_slot_cnt; /* rx buffer length */
 	u64 max_registered_pages;
 	u64 num_registered_pages; /* num pages registered with NIC */
 	struct bpf_prog *xdp_prog; /* XDP BPF program */
@@ -792,7 +794,6 @@ struct gve_priv {
 	u64 link_speed;
 	bool up_before_suspend; /* True if dev was up before suspend */
 
-	struct gve_options_dqo_rda options_dqo_rda;
 	struct gve_ptype_lut *ptype_lut_dqo;
 
 	/* Must be a power of two. */
@@ -1044,6 +1045,14 @@ static inline u32 gve_rx_start_qpl_id(const struct gve_queue_config *tx_cfg)
 	return gve_get_rx_qpl_id(tx_cfg, 0);
 }
 
+static inline u32 gve_get_rx_pages_per_qpl_dqo(u32 rx_desc_cnt)
+{
+	/* For DQO, page count should be more than ring size for
+	 * out-of-order completions. Set it to two times of ring size.
+	 */
+	return 2 * rx_desc_cnt;
+}
+
 /* Returns a pointer to the next available tx qpl in the list of qpls */
 static inline
 struct gve_queue_page_list *gve_assign_tx_qpl(struct gve_tx_alloc_rings_cfg *cfg,
@@ -1150,6 +1159,14 @@ int gve_set_hsplit_config(struct gve_priv *priv, u8 tcp_data_split);
 /* Reset */
 void gve_schedule_reset(struct gve_priv *priv);
 int gve_reset(struct gve_priv *priv, bool attempt_teardown);
+void gve_get_curr_alloc_cfgs(struct gve_priv *priv,
+			     struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
+			     struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
+			     struct gve_rx_alloc_rings_cfg *rx_alloc_cfg);
+int gve_adjust_config(struct gve_priv *priv,
+		      struct gve_qpls_alloc_cfg *qpls_alloc_cfg,
+		      struct gve_tx_alloc_rings_cfg *tx_alloc_cfg,
+		      struct gve_rx_alloc_rings_cfg *rx_alloc_cfg);
 int gve_adjust_queues(struct gve_priv *priv,
 		      struct gve_queue_config new_rx_config,
 		      struct gve_queue_config new_tx_config);
