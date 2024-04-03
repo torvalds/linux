@@ -661,6 +661,9 @@ static bool can_cow_file_range_inline(struct btrfs_inode *inode,
  * conditionally insert an inline extent into the file.  This
  * does the checks required to make sure the data is small enough
  * to fit as an inline extent.
+ *
+ * If being used directly, you must have already checked we're allowed to cow
+ * the range by getting true from can_cow_file_range_inline().
  */
 static noinline int __cow_file_range_inline(struct btrfs_inode *inode, u64 offset,
 					    u64 size, size_t compressed_size,
@@ -675,9 +678,6 @@ static noinline int __cow_file_range_inline(struct btrfs_inode *inode, u64 offse
 	u64 data_len = (compressed_size ?: size);
 	int ret;
 	struct btrfs_path *path;
-
-	if (!can_cow_file_range_inline(inode, offset, size, compressed_size))
-		return 1;
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -749,6 +749,9 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 offset,
 		EXTENT_DEFRAG | EXTENT_DO_ACCOUNTING | EXTENT_LOCKED;
 	u64 size = min_t(u64, i_size_read(&inode->vfs_inode), end + 1);
 	int ret;
+
+	if (!can_cow_file_range_inline(inode, offset, size, compressed_size))
+		return 1;
 
 	lock_extent(&inode->io_tree, offset, end, &cached);
 	ret = __cow_file_range_inline(inode, offset, size, compressed_size,
@@ -10287,7 +10290,8 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 
 	/* Try an inline extent first. */
 	if (encoded->unencoded_len == encoded->len &&
-	    encoded->unencoded_offset == 0) {
+	    encoded->unencoded_offset == 0 &&
+	    can_cow_file_range_inline(inode, start, encoded->len, orig_count)) {
 		ret = __cow_file_range_inline(inode, start, encoded->len,
 					      orig_count, compression, folios[0],
 					      true);
