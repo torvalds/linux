@@ -46,6 +46,15 @@ module_param(napi_tx, bool, 0644);
 
 #define VIRTIO_XDP_FLAG	BIT(0)
 
+/* Timestamp length */
+#define HW_TIMESTAMP_LEN	8
+
+/* Guest can handle H/W timestamp in. */
+#define VIRTIO_NET_F_GUEST_TS	50
+
+/* H/W timestamp */
+#define VIRTIO_NET_HDR_F_TIMESTAMP	128
+
 /* RX packet size EWMA. The average packet size is used to determine the packet
  * buffer size when refilling RX rings. As the entire RX ring may be refilled
  * at once, the weight is chosen so that the EWMA will be insensitive to short-
@@ -286,6 +295,9 @@ struct virtnet_info {
 
 	/* failover when STANDBY feature enabled */
 	struct failover *failover;
+
+	/* RX H/W timestamp control */
+	bool rx_hwts_enabled;
 };
 
 struct padded_vnet_hdr {
@@ -1249,6 +1261,8 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 	struct net_device *dev = vi->dev;
 	struct sk_buff *skb;
 	struct virtio_net_hdr_mrg_rxbuf *hdr;
+	struct skb_shared_hwtstamps *ts;
+	s64 hwts;
 
 	if (unlikely(len < vi->hdr_len + ETH_HLEN)) {
 		pr_debug("%s: short packet %i\n", dev->name, len);
@@ -1275,6 +1289,18 @@ static void receive_buf(struct virtnet_info *vi, struct receive_queue *rq,
 		return;
 
 	hdr = skb_vnet_hdr(skb);
+
+	if (hdr->hdr.flags & VIRTIO_NET_HDR_F_TIMESTAMP) {
+		stats->bytes -= HW_TIMESTAMP_LEN;
+		skb_copy_bits(skb, skb->len - HW_TIMESTAMP_LEN, &hwts, HW_TIMESTAMP_LEN);
+		pskb_trim(skb, skb->len - HW_TIMESTAMP_LEN);
+		if (vi->rx_hwts_enabled) {
+			ts = skb_hwtstamps(skb);
+			if (ts)
+				ts->hwtstamp = ns_to_ktime(virtio64_to_cpu(vi->vdev, hwts));
+		}
+	}
+
 	if (dev->features & NETIF_F_RXHASH && vi->has_rss_hash_report)
 		virtio_skb_set_hash((const struct virtio_net_hdr_v1_hash *)hdr, skb);
 
@@ -3002,6 +3028,31 @@ static int virtnet_set_rxnfc(struct net_device *dev, struct ethtool_rxnfc *info)
 	return rc;
 }
 
+static int ethtool_op_get_ts_info_plus(struct net_device *dev, struct ethtool_ts_info *eti)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+	int ret = ethtool_op_get_ts_info(dev, eti);
+
+	if (ret) {
+		/* calling the default failed */
+		return ret;
+	}
+
+	/* set TX */
+	eti->tx_types = HWTSTAMP_TX_OFF;
+
+	/* set RX */
+	if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_TS)) {
+		eti->rx_filters = HWTSTAMP_FILTER_ALL;
+		eti->so_timestamping |= (SOF_TIMESTAMPING_RX_HARDWARE
+					| SOF_TIMESTAMPING_RAW_HARDWARE);
+	} else {
+		eti->rx_filters = HWTSTAMP_FILTER_NONE;
+	}
+
+	return 0;
+}
+
 static const struct ethtool_ops virtnet_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_MAX_FRAMES |
 		ETHTOOL_COALESCE_USECS,
@@ -3014,7 +3065,7 @@ static const struct ethtool_ops virtnet_ethtool_ops = {
 	.get_ethtool_stats = virtnet_get_ethtool_stats,
 	.set_channels = virtnet_set_channels,
 	.get_channels = virtnet_get_channels,
-	.get_ts_info = ethtool_op_get_ts_info,
+	.get_ts_info = ethtool_op_get_ts_info_plus,
 	.get_link_ksettings = virtnet_get_link_ksettings,
 	.set_link_ksettings = virtnet_set_link_ksettings,
 	.set_coalesce = virtnet_set_coalesce,
@@ -3294,6 +3345,54 @@ static void virtnet_tx_timeout(struct net_device *dev, unsigned int txqueue)
 		   jiffies_to_usecs(jiffies - READ_ONCE(txq->trans_start)));
 }
 
+static int virtnet_ioctl(struct net_device *dev, struct ifreq *if_r, int io_cmd)
+{
+	struct virtnet_info *vi = netdev_priv(dev);
+	struct hwtstamp_config ts_cfg;
+	int flag = 0;
+
+	switch (io_cmd) {
+	case SIOCGHWTSTAMP:
+		memset(&ts_cfg, 0, sizeof(ts_cfg));
+		ts_cfg.tx_type = HWTSTAMP_TX_OFF;
+		ts_cfg.rx_filter = vi->rx_hwts_enabled ? HWTSTAMP_FILTER_ALL : HWTSTAMP_FILTER_NONE;
+		if (copy_to_user(if_r->ifr_data, &ts_cfg, sizeof(ts_cfg)))
+			flag = -EFAULT;
+
+		break;
+
+	case SIOCSHWTSTAMP:
+		if (copy_from_user(&ts_cfg, if_r->ifr_data, sizeof(ts_cfg))) {
+			flag = -EFAULT;
+		} else {
+			if (ts_cfg.flags || ts_cfg.tx_type != HWTSTAMP_TX_OFF) {
+				flag = -EINVAL;
+			} else {
+				if (ts_cfg.rx_filter != HWTSTAMP_FILTER_NONE)
+					ts_cfg.rx_filter = HWTSTAMP_FILTER_ALL;
+
+				if (virtio_has_feature(vi->vdev, VIRTIO_NET_F_GUEST_TS)) {
+					vi->rx_hwts_enabled = (ts_cfg.rx_filter ==
+								HWTSTAMP_FILTER_ALL);
+				} else {
+					vi->rx_hwts_enabled = false;
+					ts_cfg.rx_filter = HWTSTAMP_FILTER_NONE;
+				}
+
+				if (copy_to_user(if_r->ifr_data, &ts_cfg, sizeof(ts_cfg)))
+					flag = -EFAULT;
+			}
+		}
+		break;
+
+	default:
+		flag = -EOPNOTSUPP;
+		break;
+	}
+
+	return flag;
+}
+
 static const struct net_device_ops virtnet_netdev = {
 	.ndo_open            = virtnet_open,
 	.ndo_stop   	     = virtnet_close,
@@ -3310,6 +3409,7 @@ static const struct net_device_ops virtnet_netdev = {
 	.ndo_get_phys_port_name	= virtnet_get_phys_port_name,
 	.ndo_set_features	= virtnet_set_features,
 	.ndo_tx_timeout		= virtnet_tx_timeout,
+	.ndo_eth_ioctl		= virtnet_ioctl,
 };
 
 static void virtnet_config_changed_work(struct work_struct *work)
@@ -4097,7 +4197,8 @@ static struct virtio_device_id id_table[] = {
 	VIRTIO_NET_F_CTRL_MAC_ADDR, \
 	VIRTIO_NET_F_MTU, VIRTIO_NET_F_CTRL_GUEST_OFFLOADS, \
 	VIRTIO_NET_F_SPEED_DUPLEX, VIRTIO_NET_F_STANDBY, \
-	VIRTIO_NET_F_RSS, VIRTIO_NET_F_HASH_REPORT, VIRTIO_NET_F_NOTF_COAL
+	VIRTIO_NET_F_RSS, VIRTIO_NET_F_HASH_REPORT, VIRTIO_NET_F_NOTF_COAL, \
+	VIRTIO_NET_F_GUEST_TS
 
 static unsigned int features[] = {
 	VIRTNET_FEATURES,
