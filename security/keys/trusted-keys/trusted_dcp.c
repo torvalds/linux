@@ -20,6 +20,25 @@
 #define DCP_BLOB_AUTHLEN 16
 
 /**
+ * DOC: dcp blob format
+ *
+ * The Data Co-Processor (DCP) provides hardware-bound AES keys using its
+ * AES encryption engine only. It does not provide direct key sealing/unsealing.
+ * To make DCP hardware encryption keys usable as trust source, we define
+ * our own custom format that uses a hardware-bound key to secure the sealing
+ * key stored in the key blob.
+ *
+ * Whenever a new trusted key using DCP is generated, we generate a random 128-bit
+ * blob encryption key (BEK) and 128-bit nonce. The BEK and nonce are used to
+ * encrypt the trusted key payload using AES-128-GCM.
+ *
+ * The BEK itself is encrypted using the hardware-bound key using the DCP's AES
+ * encryption engine with AES-128-ECB. The encrypted BEK, generated nonce,
+ * BEK-encrypted payload and authentication tag make up the blob format together
+ * with a version number, payload length and authentication tag.
+ */
+
+/**
  * struct dcp_blob_fmt - DCP BLOB format.
  *
  * @fmt_version: Format version, currently being %1.
