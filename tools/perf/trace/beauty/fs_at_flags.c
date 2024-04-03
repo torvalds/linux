@@ -10,6 +10,14 @@
 #include <linux/fcntl.h>
 #include <linux/log2.h>
 
+/*
+ * uapi/linux/fcntl.h does not keep a copy in tools headers directory,
+ * for system with kernel versions before v5.8, need to sync AT_EACCESS macro.
+ */
+#ifndef AT_EACCESS
+#define AT_EACCESS 0x200
+#endif
+
 #include "trace/beauty/generated/fs_at_flags_array.c"
 static DEFINE_STRARRAY(fs_at_flags, "AT_");
 
