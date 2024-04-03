@@ -391,8 +391,6 @@ static int max1668_detect(struct i2c_client *client,
 	return 0;
 }
 
-static const struct i2c_device_id max1668_id[];
-
 static int max1668_probe(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
@@ -408,7 +406,7 @@ static int max1668_probe(struct i2c_client *client)
 		return -ENOMEM;
 
 	data->client = client;
-	data->type = i2c_match_id(max1668_id, client)->driver_data;
+	data->type = (uintptr_t)i2c_get_match_data(client);
 	mutex_init(&data->update_lock);
 
 	/* sysfs hooks */
