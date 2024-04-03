@@ -43,7 +43,7 @@ static const struct snd_soc_dapm_route card_routes[] = {
 	{ "IN1N", NULL, "Headset Mic" },
 };
 
-static struct snd_soc_jack_pin card_headset_pins[] = {
+static const struct snd_soc_jack_pin card_headset_pins[] = {
 	{
 		.pin = "Headphone Jack",
 		.mask = SND_JACK_HEADPHONE,
