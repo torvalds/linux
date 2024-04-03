@@ -129,6 +129,7 @@ struct prueth_rx_chn {
 
 /* data for each emac port */
 struct prueth_emac {
+	bool is_sr1;
 	bool fw_running;
 	struct prueth *prueth;
 	struct net_device *ndev;
@@ -157,6 +158,10 @@ struct prueth_emac {
 	int rx_flow_id_base;
 	int tx_ch_num;
 
+	/* SR1.0 Management channel */
+	struct prueth_rx_chn rx_mgm_chn;
+	int rx_mgm_flow_id_base;
+
 	spinlock_t lock;	/* serialize access */
 
 	/* TX HW Timestamping */
@@ -167,7 +172,7 @@ struct prueth_emac {
 
 	u8 cmd_seq;
 	/* shutdown related */
-	u32 cmd_data[4];
+	__le32 cmd_data[4];
 	struct completion cmd_complete;
 	/* Mutex to serialize access to firmware command interface */
 	struct mutex cmd_lock;
@@ -249,6 +254,13 @@ struct emac_tx_ts_response {
 	u32 cookie;
 	u32 lo_ts;
 	u32 hi_ts;
+};
+
+struct emac_tx_ts_response_sr1 {
+	__le32 lo_ts;
+	__le32 hi_ts;
+	__le32 reserved;
+	__le32 cookie;
 };
 
 /* get PRUSS SLICE number from prueth_emac */
