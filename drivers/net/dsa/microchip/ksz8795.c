@@ -409,7 +409,7 @@ static int ksz8_valid_dyn_entry(struct ksz_device *dev, u8 *data)
 }
 
 int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
-			 u8 *fid, u8 *src_port, u8 *timestamp, u16 *entries)
+			 u8 *fid, u8 *src_port, u16 *entries)
 {
 	u32 data_hi, data_lo;
 	const u8 *shifts;
@@ -454,8 +454,6 @@ int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 			shifts[DYNAMIC_MAC_FID];
 		*src_port = (data_hi & masks[DYNAMIC_MAC_TABLE_SRC_PORT]) >>
 			shifts[DYNAMIC_MAC_SRC_PORT];
-		*timestamp = (data_hi & masks[DYNAMIC_MAC_TABLE_TIMESTAMP]) >>
-			shifts[DYNAMIC_MAC_TIMESTAMP];
 
 		mac_addr[5] = (u8)data_lo;
 		mac_addr[4] = (u8)(data_lo >> 8);
@@ -1196,14 +1194,13 @@ int ksz8_fdb_dump(struct ksz_device *dev, int port,
 	int ret = 0;
 	u16 i = 0;
 	u16 entries = 0;
-	u8 timestamp = 0;
 	u8 fid;
 	u8 src_port;
 	u8 mac[ETH_ALEN];
 
 	do {
 		ret = ksz8_r_dyn_mac_table(dev, i, mac, &fid, &src_port,
-					   &timestamp, &entries);
+					   &entries);
 		if (!ret && port == src_port) {
 			ret = cb(mac, fid, false, data);
 			if (ret)
