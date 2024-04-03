@@ -6861,34 +6861,43 @@ enqueue_throttle:
 static void set_next_buddy(struct sched_entity *se);
 
 /*
- * The dequeue_task method is called before nr_running is
- * decreased. We remove the task from the rbtree and
- * update the fair scheduling stats:
+ * Basically dequeue_task_fair(), except it can deal with dequeue_entity()
+ * failing half-way through and resume the dequeue later.
+ *
+ * Returns:
+ * -1 - dequeue delayed
+ *  0 - dequeue throttled
+ *  1 - dequeue complete
  */
-static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+static int dequeue_entities(struct rq *rq, struct sched_entity *se, int flags)
 {
-	struct cfs_rq *cfs_rq;
-	struct sched_entity *se = &p->se;
-	int task_sleep = flags & DEQUEUE_SLEEP;
-	int idle_h_nr_running = task_has_idle_policy(p);
 	bool was_sched_idle = sched_idle_rq(rq);
 	int rq_h_nr_running = rq->cfs.h_nr_running;
+	bool task_sleep = flags & DEQUEUE_SLEEP;
+	struct task_struct *p = NULL;
+	int idle_h_nr_running = 0;
+	int h_nr_running = 0;
+	struct cfs_rq *cfs_rq;
 
-	util_est_dequeue(&rq->cfs, p);
+	if (entity_is_task(se)) {
+		p = task_of(se);
+		h_nr_running = 1;
+		idle_h_nr_running = task_has_idle_policy(p);
+	}
 
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);
 		dequeue_entity(cfs_rq, se, flags);
 
-		cfs_rq->h_nr_running--;
+		cfs_rq->h_nr_running -= h_nr_running;
 		cfs_rq->idle_h_nr_running -= idle_h_nr_running;
 
 		if (cfs_rq_is_idle(cfs_rq))
-			idle_h_nr_running = 1;
+			idle_h_nr_running = h_nr_running;
 
 		/* end evaluation on encountering a throttled cfs_rq */
 		if (cfs_rq_throttled(cfs_rq))
-			goto dequeue_throttle;
+			return 0;
 
 		/* Don't dequeue parent if it has other entities besides us */
 		if (cfs_rq->load.weight) {
@@ -6912,20 +6921,18 @@ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		se_update_runnable(se);
 		update_cfs_group(se);
 
-		cfs_rq->h_nr_running--;
+		cfs_rq->h_nr_running -= h_nr_running;
 		cfs_rq->idle_h_nr_running -= idle_h_nr_running;
 
 		if (cfs_rq_is_idle(cfs_rq))
-			idle_h_nr_running = 1;
+			idle_h_nr_running = h_nr_running;
 
 		/* end evaluation on encountering a throttled cfs_rq */
 		if (cfs_rq_throttled(cfs_rq))
-			goto dequeue_throttle;
-
+			return 0;
 	}
 
-	/* At this point se is NULL and we are at root level*/
-	sub_nr_running(rq, 1);
+	sub_nr_running(rq, h_nr_running);
 
 	if (rq_h_nr_running && !rq->cfs.h_nr_running)
 		dl_server_stop(&rq->fair_server);
@@ -6934,10 +6941,23 @@ static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	if (unlikely(!was_sched_idle && sched_idle_rq(rq)))
 		rq->next_balance = jiffies;
 
-dequeue_throttle:
-	util_est_update(&rq->cfs, p, task_sleep);
-	hrtick_update(rq);
+	return 1;
+}
 
+/*
+ * The dequeue_task method is called before nr_running is
+ * decreased. We remove the task from the rbtree and
+ * update the fair scheduling stats:
+ */
+static bool dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
+{
+	util_est_dequeue(&rq->cfs, p);
+
+	if (dequeue_entities(rq, &p->se, flags) < 0)
+		return false;
+
+	util_est_update(&rq->cfs, p, flags & DEQUEUE_SLEEP);
+	hrtick_update(rq);
 	return true;
 }
 
