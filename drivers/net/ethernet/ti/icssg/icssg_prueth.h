@@ -354,7 +354,7 @@ int prueth_node_port(struct device_node *eth_node);
 int prueth_node_mac(struct device_node *eth_node);
 void prueth_netdev_exit(struct prueth *prueth,
 			struct device_node *eth_node);
-int prueth_get_cores(struct prueth *prueth, int slice);
+int prueth_get_cores(struct prueth *prueth, int slice, bool is_sr1);
 void prueth_put_cores(struct prueth *prueth, int slice);
 
 /* Revision specific helper */
