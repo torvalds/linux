@@ -16,19 +16,17 @@
 #include <asm/thread_info.h>	/* for TS_COMPAT */
 #include <asm/unistd.h>
 
+/* This is used purely for kernel/trace/trace_syscalls.c */
 typedef long (*sys_call_ptr_t)(const struct pt_regs *);
 extern const sys_call_ptr_t sys_call_table[];
 
-#if defined(CONFIG_X86_32)
-#define ia32_sys_call_table sys_call_table
-#else
 /*
  * These may not exist, but still put the prototypes in so we
  * can use IS_ENABLED().
  */
-extern const sys_call_ptr_t ia32_sys_call_table[];
-extern const sys_call_ptr_t x32_sys_call_table[];
-#endif
+extern long ia32_sys_call(const struct pt_regs *, unsigned int nr);
+extern long x32_sys_call(const struct pt_regs *, unsigned int nr);
+extern long x64_sys_call(const struct pt_regs *, unsigned int nr);
 
 /*
  * Only the low 32 bits of orig_ax are meaningful, so we return int.
