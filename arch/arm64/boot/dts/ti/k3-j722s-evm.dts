@@ -366,6 +366,13 @@
 
 };
 
+&sdhci0 {
+	disable-wp;
+	bootph-all;
+	ti,driver-strength-ohm = <50>;
+	status = "okay";
+};
+
 &sdhci1 {
 	/* SD/MMC */
 	vmmc-supply = <&vdd_mmc1>;
