@@ -419,7 +419,7 @@ static int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 	u64 buf = 0;
 	u8 data;
 	int cnt;
-	int rc;
+	int ret;
 
 	shifts = dev->info->shifts;
 	masks = dev->info->masks;
@@ -430,12 +430,12 @@ static int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 	mutex_lock(&dev->alu_mutex);
 	ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
 
-	rc = ksz8_valid_dyn_entry(dev, &data);
-	if (rc == -EAGAIN) {
+	ret = ksz8_valid_dyn_entry(dev, &data);
+	if (ret == -EAGAIN) {
 		if (addr == 0)
 			*entries = 0;
 		goto unlock_alu;
-	} else if (rc == -ENXIO) {
+	} else if (ret == -ENXIO) {
 		*entries = 0;
 		goto unlock_alu;
 	}
@@ -463,12 +463,12 @@ static int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 
 	mac_addr[1] = (u8)data_hi;
 	mac_addr[0] = (u8)(data_hi >> 8);
-	rc = 0;
+	ret = 0;
 
 unlock_alu:
 	mutex_unlock(&dev->alu_mutex);
 
-	return rc;
+	return ret;
 }
 
 static int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
