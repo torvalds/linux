@@ -953,7 +953,7 @@ static int rk3308_codec_platform_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct of_device_id rk3308_codec_of_match[] = {
+static const struct of_device_id __maybe_unused rk3308_codec_of_match[] = {
 	{ .compatible = "rockchip,rk3308-codec", },
 	{},
 };
