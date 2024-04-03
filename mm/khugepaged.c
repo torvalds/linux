@@ -767,7 +767,7 @@ static void __collapse_huge_page_copy_failed(pte_t *pte,
  * Returns SCAN_SUCCEED if copying succeeds, otherwise returns SCAN_COPY_MC.
  *
  * @pte: starting of the PTEs to copy from
- * @page: the new hugepage to copy contents to
+ * @folio: the new hugepage to copy contents to
  * @pmd: pointer to the new hugepage's PMD
  * @orig_pmd: the original raw pages' PMD
  * @vma: the original raw pages' virtual memory area
@@ -775,33 +775,29 @@ static void __collapse_huge_page_copy_failed(pte_t *pte,
  * @ptl: lock on raw pages' PTEs
  * @compound_pagelist: list that stores compound pages
  */
-static int __collapse_huge_page_copy(pte_t *pte,
-				     struct page *page,
-				     pmd_t *pmd,
-				     pmd_t orig_pmd,
-				     struct vm_area_struct *vma,
-				     unsigned long address,
-				     spinlock_t *ptl,
-				     struct list_head *compound_pagelist)
+static int __collapse_huge_page_copy(pte_t *pte, struct folio *folio,
+		pmd_t *pmd, pmd_t orig_pmd, struct vm_area_struct *vma,
+		unsigned long address, spinlock_t *ptl,
+		struct list_head *compound_pagelist)
 {
-	struct page *src_page;
-	pte_t *_pte;
-	pte_t pteval;
-	unsigned long _address;
+	unsigned int i;
 	int result = SCAN_SUCCEED;
 
 	/*
 	 * Copying pages' contents is subject to memory poison at any iteration.
 	 */
-	for (_pte = pte, _address = address; _pte < pte + HPAGE_PMD_NR;
-	     _pte++, page++, _address += PAGE_SIZE) {
-		pteval = ptep_get(_pte);
+	for (i = 0; i < HPAGE_PMD_NR; i++) {
+		pte_t pteval = ptep_get(pte + i);
+		struct page *page = folio_page(folio, i);
+		unsigned long src_addr = address + i * PAGE_SIZE;
+		struct page *src_page;
+
 		if (pte_none(pteval) || is_zero_pfn(pte_pfn(pteval))) {
-			clear_user_highpage(page, _address);
+			clear_user_highpage(page, src_addr);
 			continue;
 		}
 		src_page = pte_page(pteval);
-		if (copy_mc_user_highpage(page, src_page, _address, vma) > 0) {
+		if (copy_mc_user_highpage(page, src_page, src_addr, vma) > 0) {
 			result = SCAN_COPY_MC;
 			break;
 		}
@@ -1196,7 +1192,7 @@ static int collapse_huge_page(struct mm_struct *mm, unsigned long address,
 	 */
 	anon_vma_unlock_write(vma->anon_vma);
 
-	result = __collapse_huge_page_copy(pte, &folio->page, pmd, _pmd,
+	result = __collapse_huge_page_copy(pte, folio, pmd, _pmd,
 					   vma, address, pte_ptl,
 					   &compound_pagelist);
 	pte_unmap(pte);
