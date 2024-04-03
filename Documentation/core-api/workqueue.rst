@@ -671,7 +671,7 @@ configuration, worker pools and how workqueues map to the pools: ::
   events_unbound           unbound  9  9 10 10  8
   events_freezable         percpu   0  2  4  6
   events_power_efficient   percpu   0  2  4  6
-  events_freezable_power_  percpu   0  2  4  6
+  events_freezable_pwr_ef  percpu   0  2  4  6
   rcu_gp                   percpu   0  2  4  6
   rcu_par_gp               percpu   0  2  4  6
   slub_flushwq             percpu   0  2  4  6
@@ -694,7 +694,7 @@ Use tools/workqueue/wq_monitor.py to monitor workqueue operations: ::
   events_unbound              38306     0      0.1       -       7       -       -
   events_freezable                0     0      0.0       0       0       -       -
   events_power_efficient      29598     0      0.2       0       0       -       -
-  events_freezable_power_        10     0      0.0       0       0       -       -
+  events_freezable_pwr_ef        10     0      0.0       0       0       -       -
   sock_diag_events                0     0      0.0       0       0       -       -
 
                               total  infl  CPUtime  CPUhog CMW/RPR  mayday rescued
@@ -704,7 +704,7 @@ Use tools/workqueue/wq_monitor.py to monitor workqueue operations: ::
   events_unbound              38322     0      0.1       -       7       -       -
   events_freezable                0     0      0.0       0       0       -       -
   events_power_efficient      29603     0      0.2       0       0       -       -
-  events_freezable_power_        10     0      0.0       0       0       -       -
+  events_freezable_pwr_ef        10     0      0.0       0       0       -       -
   sock_diag_events                0     0      0.0       0       0       -       -
 
   ...
