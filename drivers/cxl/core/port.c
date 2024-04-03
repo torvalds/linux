@@ -2141,6 +2141,18 @@ static void add_latency(struct access_coordinate *c, long latency)
 	}
 }
 
+static bool coordinates_valid(struct access_coordinate *c)
+{
+	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++) {
+		if (c[i].read_bandwidth && c[i].write_bandwidth &&
+		    c[i].read_latency && c[i].write_latency)
+			continue;
+		return false;
+	}
+
+	return true;
+}
+
 static void set_min_bandwidth(struct access_coordinate *c, unsigned int bw)
 {
 	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++) {
@@ -2206,13 +2218,18 @@ int cxl_endpoint_get_perf_coordinates(struct cxl_port *port,
 		 * There's no valid access_coordinate for a root port since RPs do not
 		 * have CDAT and therefore needs to be skipped.
 		 */
-		if (!is_cxl_root)
+		if (!is_cxl_root) {
+			if (!coordinates_valid(dport->coord))
+				return -EINVAL;
 			cxl_coordinates_combine(c, c, dport->coord);
+		}
 		add_latency(c, dport->link_latency);
 	} while (!is_cxl_root);
 
 	dport = iter->parent_dport;
 	/* Retrieve HB coords */
+	if (!coordinates_valid(dport->coord))
+		return -EINVAL;
 	cxl_coordinates_combine(c, c, dport->coord);
 
 	/* Get the calculated PCI paths bandwidth */
