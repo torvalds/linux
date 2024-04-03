@@ -2308,6 +2308,26 @@ static void *htab_percpu_map_lookup_elem(struct bpf_map *map, void *key)
 		return NULL;
 }
 
+/* inline bpf_map_lookup_elem() call for per-CPU hashmap */
+static int htab_percpu_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
+{
+	struct bpf_insn *insn = insn_buf;
+
+	if (!bpf_jit_supports_percpu_insn())
+		return -EOPNOTSUPP;
+
+	BUILD_BUG_ON(!__same_type(&__htab_map_lookup_elem,
+		     (void *(*)(struct bpf_map *map, void *key))NULL));
+	*insn++ = BPF_EMIT_CALL(__htab_map_lookup_elem);
+	*insn++ = BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 3);
+	*insn++ = BPF_ALU64_IMM(BPF_ADD, BPF_REG_0,
+				offsetof(struct htab_elem, key) + map->key_size);
+	*insn++ = BPF_LDX_MEM(BPF_DW, BPF_REG_0, BPF_REG_0, 0);
+	*insn++ = BPF_MOV64_PERCPU_REG(BPF_REG_0, BPF_REG_0);
+
+	return insn - insn_buf;
+}
+
 static void *htab_percpu_map_lookup_percpu_elem(struct bpf_map *map, void *key, u32 cpu)
 {
 	struct htab_elem *l;
@@ -2436,6 +2456,7 @@ const struct bpf_map_ops htab_percpu_map_ops = {
 	.map_free = htab_map_free,
 	.map_get_next_key = htab_map_get_next_key,
 	.map_lookup_elem = htab_percpu_map_lookup_elem,
+	.map_gen_lookup = htab_percpu_map_gen_lookup,
 	.map_lookup_and_delete_elem = htab_percpu_map_lookup_and_delete_elem,
 	.map_update_elem = htab_percpu_map_update_elem,
 	.map_delete_elem = htab_map_delete_elem,
