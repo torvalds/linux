@@ -779,7 +779,6 @@ static inline void save_fscr_to_task(void) {}
 
 void __init early_init_devtree(void *params)
 {
-	phys_addr_t limit;
 
 	DBG(" -> early_init_devtree(%px)\n", params);
 
@@ -850,8 +849,8 @@ void __init early_init_devtree(void *params)
 		memory_limit = 0;
 
 	/* Align down to 16 MB which is large page size with hash page translation */
-	limit = ALIGN_DOWN(memory_limit ?: memblock_phys_mem_size(), SZ_16M);
-	memblock_enforce_memory_limit(limit);
+	memory_limit = ALIGN_DOWN(memory_limit ?: memblock_phys_mem_size(), SZ_16M);
+	memblock_enforce_memory_limit(memory_limit);
 
 #if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_PPC_4K_PAGES)
 	if (!early_radix_enabled())
