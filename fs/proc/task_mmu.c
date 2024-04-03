@@ -411,10 +411,9 @@ struct mem_size_stats {
 };
 
 static void smaps_page_accumulate(struct mem_size_stats *mss,
-		struct page *page, unsigned long size, unsigned long pss,
+		struct folio *folio, unsigned long size, unsigned long pss,
 		bool dirty, bool locked, bool private)
 {
-	struct folio *folio = page_folio(page);
 	mss->pss += pss;
 
 	if (folio_test_anon(folio))
@@ -484,8 +483,8 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
 	 * as mapcount == 1.
 	 */
 	if ((folio_ref_count(folio) == 1) || migration) {
-		smaps_page_accumulate(mss, page, size, size << PSS_SHIFT, dirty,
-			locked, true);
+		smaps_page_accumulate(mss, folio, size, size << PSS_SHIFT,
+				dirty, locked, true);
 		return;
 	}
 	for (i = 0; i < nr; i++, page++) {
@@ -493,8 +492,8 @@ static void smaps_account(struct mem_size_stats *mss, struct page *page,
 		unsigned long pss = PAGE_SIZE << PSS_SHIFT;
 		if (mapcount >= 2)
 			pss /= mapcount;
-		smaps_page_accumulate(mss, page, PAGE_SIZE, pss, dirty, locked,
-				      mapcount < 2);
+		smaps_page_accumulate(mss, folio, PAGE_SIZE, pss,
+				dirty, locked, mapcount < 2);
 	}
 }
 
