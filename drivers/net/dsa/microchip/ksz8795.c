@@ -399,19 +399,11 @@ static int ksz8_valid_dyn_entry(struct ksz_device *dev, u8 *data)
 	} while ((*data & masks[DYNAMIC_MAC_TABLE_NOT_READY]) && timeout);
 
 	/* Entry is not ready for accessing. */
-	if (*data & masks[DYNAMIC_MAC_TABLE_NOT_READY]) {
+	if (*data & masks[DYNAMIC_MAC_TABLE_NOT_READY])
 		return -ETIMEDOUT;
-	/* Entry is ready for accessing. */
-	} else {
-		ret = ksz_read8(dev, regs[REG_IND_DATA_8], data);
-		if (ret)
-			return ret;
 
-		/* There is no valid entry in the table. */
-		if (*data & masks[DYNAMIC_MAC_TABLE_MAC_EMPTY])
-			return -ENXIO;
-	}
-	return 0;
+	/* Entry is ready for accessing. */
+	return ksz_read8(dev, regs[REG_IND_DATA_8], data);
 }
 
 static int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
@@ -439,13 +431,13 @@ static int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 		goto unlock_alu;
 
 	ret = ksz8_valid_dyn_entry(dev, &data);
-	if (ret == -ENXIO) {
+	if (ret)
+		goto unlock_alu;
+
+	if (data & masks[DYNAMIC_MAC_TABLE_MAC_EMPTY]) {
 		*entries = 0;
 		goto unlock_alu;
 	}
-
-	if (ret)
-		goto unlock_alu;
 
 	ret = ksz_read64(dev, regs[REG_IND_DATA_HI], &buf);
 	if (ret)
@@ -1210,8 +1202,6 @@ int ksz8_fdb_dump(struct ksz_device *dev, int port,
 	for (i = 0; i < KSZ8_DYN_MAC_ENTRIES; i++) {
 		ret = ksz8_r_dyn_mac_table(dev, i, mac, &fid, &src_port,
 					   &entries);
-		if (ret == -ENXIO)
-			return 0;
 		if (ret)
 			return ret;
 
