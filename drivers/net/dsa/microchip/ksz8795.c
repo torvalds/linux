@@ -396,7 +396,7 @@ static int ksz8_valid_dyn_entry(struct ksz_device *dev, u8 *data)
 
 	/* Entry is not ready for accessing. */
 	if (*data & masks[DYNAMIC_MAC_TABLE_NOT_READY]) {
-		return -EAGAIN;
+		return -ETIMEDOUT;
 	/* Entry is ready for accessing. */
 	} else {
 		ksz_read8(dev, regs[REG_IND_DATA_8], data);
@@ -431,14 +431,13 @@ static int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 	ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
 
 	ret = ksz8_valid_dyn_entry(dev, &data);
-	if (ret == -EAGAIN) {
-		if (addr == 0)
-			*entries = 0;
-		goto unlock_alu;
-	} else if (ret == -ENXIO) {
+	if (ret == -ENXIO) {
 		*entries = 0;
 		goto unlock_alu;
 	}
+
+	if (ret)
+		goto unlock_alu;
 
 	ksz_read64(dev, regs[REG_IND_DATA_HI], &buf);
 	data_hi = (u32)(buf >> 32);
