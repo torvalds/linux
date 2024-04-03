@@ -310,22 +310,16 @@ int mtl_dsp_post_fw_run(struct snd_sof_dev *sdev)
 void mtl_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 {
 	char *level = (flags & SOF_DBG_DUMP_OPTIONAL) ? KERN_DEBUG : KERN_ERR;
-	u32 romdbgsts;
-	u32 romdbgerr;
 	u32 fwsts;
 	u32 fwlec;
 
+	hda_dsp_get_state(sdev, level);
 	fwsts = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_ROM_STS);
 	fwlec = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_ROM_ERROR);
-	romdbgsts = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFFLGPXQWY);
-	romdbgerr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFFLGPXQWY_ERROR);
 
-	dev_err(sdev->dev, "ROM status: %#x, ROM error: %#x\n", fwsts, fwlec);
-	dev_err(sdev->dev, "ROM debug status: %#x, ROM debug error: %#x\n", romdbgsts,
-		romdbgerr);
-	romdbgsts = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP_REG_HFFLGPXQWY + 0x8 * 3);
-	dev_printk(level, sdev->dev, "ROM feature bit%s enabled\n",
-		   romdbgsts & BIT(24) ? "" : " not");
+	if (fwsts != 0xffffffff)
+		dev_err(sdev->dev, "Firmware state: %#x, status/error code: %#x\n",
+			fwsts, fwlec);
 
 	sof_ipc4_intel_dump_telemetry_state(sdev, flags);
 }
