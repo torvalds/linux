@@ -566,6 +566,18 @@ attribute-sets:
         name: tx-lpi-timer
         type: u32
   -
+    name: ts-stat
+    attributes:
+      -
+        name: tx-pkts
+        type: uint
+      -
+        name: tx-lost
+        type: uint
+      -
+        name: tx-err
+        type: uint
+  -
     name: tsinfo
     attributes:
       -
@@ -587,6 +599,10 @@ attribute-sets:
       -
         name: phc-index
         type: u32
+      -
+        name: stats
+        type: nest
+        nested-attributes: ts-stat
   -
     name: cable-result
     attributes:
@@ -1394,6 +1410,7 @@ operations:
             - tx-types
             - rx-filters
             - phc-index
+            - stats
       dump: *tsinfo-get-op
     -
       name: cable-test-act

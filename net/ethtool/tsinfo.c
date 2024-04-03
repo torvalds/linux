@@ -13,14 +13,18 @@ struct tsinfo_req_info {
 struct tsinfo_reply_data {
 	struct ethnl_reply_data		base;
 	struct ethtool_ts_info		ts_info;
+	struct ethtool_ts_stats		stats;
 };
 
 #define TSINFO_REPDATA(__reply_base) \
 	container_of(__reply_base, struct tsinfo_reply_data, base)
 
+#define ETHTOOL_TS_STAT_CNT \
+	(__ETHTOOL_A_TS_STAT_CNT - (ETHTOOL_A_TS_STAT_UNSPEC + 1))
+
 const struct nla_policy ethnl_tsinfo_get_policy[] = {
 	[ETHTOOL_A_TSINFO_HEADER]		=
-		NLA_POLICY_NESTED(ethnl_header_policy),
+		NLA_POLICY_NESTED(ethnl_header_policy_stats),
 };
 
 static int tsinfo_prepare_data(const struct ethnl_req_info *req_base,
@@ -34,6 +38,12 @@ static int tsinfo_prepare_data(const struct ethnl_req_info *req_base,
 	ret = ethnl_ops_begin(dev);
 	if (ret < 0)
 		return ret;
+	if (req_base->flags & ETHTOOL_FLAG_STATS &&
+	    dev->ethtool_ops->get_ts_stats) {
+		ethtool_stats_init((u64 *)&data->stats,
+				   sizeof(data->stats) / sizeof(u64));
+		dev->ethtool_ops->get_ts_stats(dev, &data->stats);
+	}
 	ret = __ethtool_get_ts_info(dev, &data->ts_info);
 	ethnl_ops_complete(dev);
 
@@ -79,8 +89,45 @@ static int tsinfo_reply_size(const struct ethnl_req_info *req_base,
 	}
 	if (ts_info->phc_index >= 0)
 		len += nla_total_size(sizeof(u32));	/* _TSINFO_PHC_INDEX */
+	if (req_base->flags & ETHTOOL_FLAG_STATS)
+		len += nla_total_size(0) + /* _TSINFO_STATS */
+		       nla_total_size_64bit(sizeof(u64)) * ETHTOOL_TS_STAT_CNT;
 
 	return len;
+}
+
+static int tsinfo_put_stat(struct sk_buff *skb, u64 val, u16 attrtype)
+{
+	if (val == ETHTOOL_STAT_NOT_SET)
+		return 0;
+	if (nla_put_uint(skb, attrtype, val))
+		return -EMSGSIZE;
+	return 0;
+}
+
+static int tsinfo_put_stats(struct sk_buff *skb,
+			    const struct ethtool_ts_stats *stats)
+{
+	struct nlattr *nest;
+
+	nest = nla_nest_start(skb, ETHTOOL_A_TSINFO_STATS);
+	if (!nest)
+		return -EMSGSIZE;
+
+	if (tsinfo_put_stat(skb, stats->tx_stats.pkts,
+			    ETHTOOL_A_TS_STAT_TX_PKTS) ||
+	    tsinfo_put_stat(skb, stats->tx_stats.lost,
+			    ETHTOOL_A_TS_STAT_TX_LOST) ||
+	    tsinfo_put_stat(skb, stats->tx_stats.err,
+			    ETHTOOL_A_TS_STAT_TX_ERR))
+		goto err_cancel;
+
+	nla_nest_end(skb, nest);
+	return 0;
+
+err_cancel:
+	nla_nest_cancel(skb, nest);
+	return -EMSGSIZE;
 }
 
 static int tsinfo_fill_reply(struct sk_buff *skb,
@@ -118,6 +165,9 @@ static int tsinfo_fill_reply(struct sk_buff *skb,
 	}
 	if (ts_info->phc_index >= 0 &&
 	    nla_put_u32(skb, ETHTOOL_A_TSINFO_PHC_INDEX, ts_info->phc_index))
+		return -EMSGSIZE;
+	if (req_base->flags & ETHTOOL_FLAG_STATS &&
+	    tsinfo_put_stats(skb, &data->stats))
 		return -EMSGSIZE;
 
 	return 0;
