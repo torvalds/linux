@@ -476,6 +476,8 @@ struct device_node *dev_pm_opp_get_of_node(struct dev_pm_opp *opp);
 int of_get_required_opp_performance_state(struct device_node *np, int index);
 int dev_pm_opp_of_find_icc_paths(struct device *dev, struct opp_table *opp_table);
 int dev_pm_opp_of_register_em(struct device *dev, struct cpumask *cpus);
+int dev_pm_opp_calc_power(struct device *dev, unsigned long *uW,
+			  unsigned long *kHz);
 static inline void dev_pm_opp_of_unregister_em(struct device *dev)
 {
 	em_dev_unregister_perf_domain(dev);
@@ -537,6 +539,12 @@ static inline int dev_pm_opp_of_register_em(struct device *dev,
 
 static inline void dev_pm_opp_of_unregister_em(struct device *dev)
 {
+}
+
+static inline int dev_pm_opp_calc_power(struct device *dev, unsigned long *uW,
+					unsigned long *kHz)
+{
+	return -EOPNOTSUPP;
 }
 
 static inline int of_get_required_opp_performance_state(struct device_node *np, int index)
