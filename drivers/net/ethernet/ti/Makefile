@@ -33,6 +33,7 @@ obj-$(CONFIG_TI_K3_AM65_CPTS) += am65-cpts.o
 
 obj-$(CONFIG_TI_ICSSG_PRUETH) += icssg-prueth.o
 icssg-prueth-y := icssg/icssg_prueth.o \
+		  icssg/icssg_common.o \
 		  icssg/icssg_classifier.o \
 		  icssg/icssg_queues.o \
 		  icssg/icssg_config.o \
