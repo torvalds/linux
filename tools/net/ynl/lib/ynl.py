@@ -100,9 +100,10 @@ class Netlink:
 class NlError(Exception):
   def __init__(self, nl_msg):
     self.nl_msg = nl_msg
+    self.error = -nl_msg.error
 
   def __str__(self):
-    return f"Netlink error: {os.strerror(-self.nl_msg.error)}\n{self.nl_msg}"
+    return f"Netlink error: {os.strerror(self.error)}\n{self.nl_msg}"
 
 
 class ConfigError(Exception):
