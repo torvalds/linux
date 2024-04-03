@@ -1082,7 +1082,6 @@ static int collapse_huge_page(struct mm_struct *mm, unsigned long address,
 	pte_t *pte;
 	pgtable_t pgtable;
 	struct folio *folio;
-	struct page *hpage;
 	spinlock_t *pmd_ptl, *pte_ptl;
 	int result = SCAN_FAIL;
 	struct vm_area_struct *vma;
@@ -1099,7 +1098,6 @@ static int collapse_huge_page(struct mm_struct *mm, unsigned long address,
 	mmap_read_unlock(mm);
 
 	result = alloc_charge_folio(&folio, mm, cc);
-	hpage = &folio->page;
 	if (result != SCAN_SUCCEED)
 		goto out_nolock;
 
@@ -1198,7 +1196,7 @@ static int collapse_huge_page(struct mm_struct *mm, unsigned long address,
 	 */
 	anon_vma_unlock_write(vma->anon_vma);
 
-	result = __collapse_huge_page_copy(pte, hpage, pmd, _pmd,
+	result = __collapse_huge_page_copy(pte, &folio->page, pmd, _pmd,
 					   vma, address, pte_ptl,
 					   &compound_pagelist);
 	pte_unmap(pte);
@@ -1213,7 +1211,7 @@ static int collapse_huge_page(struct mm_struct *mm, unsigned long address,
 	__folio_mark_uptodate(folio);
 	pgtable = pmd_pgtable(_pmd);
 
-	_pmd = mk_huge_pmd(hpage, vma->vm_page_prot);
+	_pmd = mk_huge_pmd(&folio->page, vma->vm_page_prot);
 	_pmd = maybe_pmd_mkwrite(pmd_mkdirty(_pmd), vma);
 
 	spin_lock(pmd_ptl);
@@ -1225,14 +1223,14 @@ static int collapse_huge_page(struct mm_struct *mm, unsigned long address,
 	update_mmu_cache_pmd(vma, address, pmd);
 	spin_unlock(pmd_ptl);
 
-	hpage = NULL;
+	folio = NULL;
 
 	result = SCAN_SUCCEED;
 out_up_write:
 	mmap_write_unlock(mm);
 out_nolock:
-	if (hpage)
-		put_page(hpage);
+	if (folio)
+		folio_put(folio);
 	trace_mm_collapse_huge_page(mm, result == SCAN_SUCCEED, result);
 	return result;
 }
