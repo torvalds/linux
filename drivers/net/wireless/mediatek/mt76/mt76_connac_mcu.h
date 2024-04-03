@@ -1011,6 +1011,7 @@ enum {
 	MCU_EVENT_CH_PRIVILEGE = 0x18,
 	MCU_EVENT_SCHED_SCAN_DONE = 0x23,
 	MCU_EVENT_DBG_MSG = 0x27,
+	MCU_EVENT_RSSI_NOTIFY = 0x96,
 	MCU_EVENT_TXPWR = 0xd0,
 	MCU_EVENT_EXT = 0xed,
 	MCU_EVENT_RESTART_DL = 0xef,
@@ -1311,6 +1312,7 @@ enum {
 	MCU_CE_CMD_SCHED_SCAN_ENABLE = 0x61,
 	MCU_CE_CMD_SCHED_SCAN_REQ = 0x62,
 	MCU_CE_CMD_GET_NIC_CAPAB = 0x8a,
+	MCU_CE_CMD_RSSI_MONITOR = 0xa1,
 	MCU_CE_CMD_SET_MU_EDCA_PARMS = 0xb0,
 	MCU_CE_CMD_REG_WRITE = 0xc0,
 	MCU_CE_CMD_REG_READ = 0xc0,
@@ -1454,6 +1456,10 @@ struct mt76_connac_beacon_loss_event {
 	u8 bss_idx;
 	u8 reason;
 	u8 pad[2];
+} __packed;
+
+struct mt76_connac_rssi_notify_event {
+	__le32 rssi[4];
 } __packed;
 
 struct mt76_connac_mcu_bss_event {

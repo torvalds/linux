@@ -310,6 +310,8 @@ mt7921_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	}
 
 	vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
+	if (phy->chip_cap & MT792x_CHIP_CAP_RSSI_NOTIFY_EVT_EN)
+		vif->driver_flags |= IEEE80211_VIF_SUPPORTS_CQM_RSSI;
 out:
 	mt792x_mutex_release(dev);
 
@@ -678,6 +680,9 @@ static void mt7921_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_PS)
 		mt7921_mcu_uni_bss_ps(dev, vif);
+
+	if (changed & BSS_CHANGED_CQM)
+		mt7921_mcu_set_rssimonitor(dev, vif);
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		mt7921_mcu_sta_update(dev, NULL, vif, true,

@@ -26,6 +26,7 @@
 #define MT792x_FW_CAP_CNM	BIT(7)
 
 #define MT792x_CHIP_CAP_CLC_EVT_EN BIT(0)
+#define MT792x_CHIP_CAP_RSSI_NOTIFY_EVT_EN BIT(1)
 
 /* NOTE: used to map mt76_rates. idx may change if firmware expands table */
 #define MT792x_BASIC_RATES_TBL	11

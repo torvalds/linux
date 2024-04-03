@@ -254,6 +254,42 @@ mt7921_mcu_tx_done_event(struct mt792x_dev *dev, struct sk_buff *skb)
 }
 
 static void
+mt7921_mcu_rssi_monitor_iter(void *priv, u8 *mac,
+			     struct ieee80211_vif *vif)
+{
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
+	struct mt76_connac_rssi_notify_event *event = priv;
+	enum nl80211_cqm_rssi_threshold_event nl_event;
+	s32 rssi = le32_to_cpu(event->rssi[mvif->mt76.idx]);
+
+	if (!rssi)
+		return;
+
+	if (!(vif->driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI))
+		return;
+
+	if (rssi > vif->bss_conf.cqm_rssi_thold)
+		nl_event = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
+	else
+		nl_event = NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
+
+	ieee80211_cqm_rssi_notify(vif, nl_event, rssi, GFP_KERNEL);
+}
+
+static void
+mt7921_mcu_rssi_monitor_event(struct mt792x_dev *dev, struct sk_buff *skb)
+{
+	struct mt76_connac_rssi_notify_event *event;
+
+	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
+	event = (struct mt76_connac_rssi_notify_event *)skb->data;
+
+	ieee80211_iterate_active_interfaces_atomic(mt76_hw(dev),
+						   IEEE80211_IFACE_ITER_RESUME_ALL,
+						   mt7921_mcu_rssi_monitor_iter, event);
+}
+
+static void
 mt7921_mcu_rx_unsolicited_event(struct mt792x_dev *dev, struct sk_buff *skb)
 {
 	struct mt76_connac2_mcu_rxd *rxd;
@@ -280,6 +316,9 @@ mt7921_mcu_rx_unsolicited_event(struct mt792x_dev *dev, struct sk_buff *skb)
 		break;
 	case MCU_EVENT_TX_DONE:
 		mt7921_mcu_tx_done_event(dev, skb);
+		break;
+	case MCU_EVENT_RSSI_NOTIFY:
+		mt7921_mcu_rssi_monitor_event(dev, skb);
 		break;
 	default:
 		break;
@@ -327,6 +366,7 @@ void mt7921_mcu_rx_event(struct mt792x_dev *dev, struct sk_buff *skb)
 	if (rxd->ext_eid == MCU_EXT_EVENT_RATE_REPORT ||
 	    rxd->eid == MCU_EVENT_BSS_BEACON_LOSS ||
 	    rxd->eid == MCU_EVENT_SCHED_SCAN_DONE ||
+	    rxd->eid == MCU_EVENT_RSSI_NOTIFY ||
 	    rxd->eid == MCU_EVENT_SCAN_DONE ||
 	    rxd->eid == MCU_EVENT_TX_DONE ||
 	    rxd->eid == MCU_EVENT_DBG_MSG ||
@@ -1389,5 +1429,26 @@ int mt7921_mcu_set_rxfilter(struct mt792x_dev *dev, u32 fif,
 	};
 
 	return mt76_mcu_send_msg(&dev->mt76, MCU_CE_CMD(SET_RX_FILTER),
+				 &data, sizeof(data), false);
+}
+
+int mt7921_mcu_set_rssimonitor(struct mt792x_dev *dev, struct ieee80211_vif *vif)
+{
+	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
+	struct {
+		u8 enable;
+		s8 cqm_rssi_high;
+		s8 cqm_rssi_low;
+		u8 bss_idx;
+		u16 duration;
+		u8 rsv2[2];
+	} __packed data = {
+		.enable = vif->cfg.assoc,
+		.cqm_rssi_high = vif->bss_conf.cqm_rssi_thold + vif->bss_conf.cqm_rssi_hyst,
+		.cqm_rssi_low = vif->bss_conf.cqm_rssi_thold - vif->bss_conf.cqm_rssi_hyst,
+		.bss_idx = mvif->mt76.idx,
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_CE_CMD(RSSI_MONITOR),
 				 &data, sizeof(data), false);
 }
