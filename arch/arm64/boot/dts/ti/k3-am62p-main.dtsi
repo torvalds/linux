@@ -673,6 +673,7 @@
 		assigned-clock-parents = <&k3_clks 13 11>;
 		clock-names = "fck";
 		power-domains = <&k3_pds 13 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
 
 		dmas = <&main_pktdma 0xc600 15>,
 		       <&main_pktdma 0xc601 15>,
@@ -696,6 +697,7 @@
 				label = "port1";
 				phys = <&phy_gmii_sel 1>;
 				mac-address = [00 00 00 00 00 00];
+				status = "disabled";
 			};
 
 			cpsw_port2: port@2 {
@@ -704,6 +706,7 @@
 				label = "port2";
 				phys = <&phy_gmii_sel 2>;
 				mac-address = [00 00 00 00 00 00];
+				status = "disabled";
 			};
 		};
 
