@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only WITH Linux-syscall-note */
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef _UAPI_LINUX_Q2SPI_H
 #define _UAPI_LINUX_Q2SPI_H
@@ -93,7 +93,7 @@ struct q2spi_request {
 	__u8 end_point;
 	__u8 proto_ind;
 	__u32 data_len;
-	enum priority_type priority;//TODO to use in driver next phase
+	enum priority_type priority;
 	__u8 flow_id;
 	_Bool sync;
 	__u32 reserved[20];
