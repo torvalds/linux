@@ -125,3 +125,13 @@
 		};
 	};
 };
+
+&i2c2 {
+	hdmi@3d {
+		avdd-supply = <&buck5>;
+		dvdd-supply = <&buck5>;
+		pvdd-supply = <&buck5>;
+		a2vdd-supply = <&buck5>;
+		v1p2-supply = <&buck5>;
+	};
+};
