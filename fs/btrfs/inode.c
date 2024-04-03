@@ -1371,8 +1371,6 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		}
 	}
 
-	lock_extent(&inode->io_tree, start, end, NULL);
-
 	alloc_hint = get_extent_allocation_hint(inode, start, num_bytes);
 
 	/*
@@ -1429,6 +1427,9 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		extent_reserved = true;
 
 		ram_size = ins.offset;
+
+		lock_extent(&inode->io_tree, start, start + ram_size - 1, NULL);
+
 		em = create_io_em(inode, start, ins.offset, /* len */
 				  start, /* orig_start */
 				  ins.objectid, /* block_start */
@@ -1438,6 +1439,8 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 				  BTRFS_COMPRESS_NONE, /* compress_type */
 				  BTRFS_ORDERED_REGULAR /* type */);
 		if (IS_ERR(em)) {
+			unlock_extent(&inode->io_tree, start,
+				      start + ram_size - 1, NULL);
 			ret = PTR_ERR(em);
 			goto out_reserve;
 		}
@@ -1448,6 +1451,8 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 					0, 1 << BTRFS_ORDERED_REGULAR,
 					BTRFS_COMPRESS_NONE);
 		if (IS_ERR(ordered)) {
+			unlock_extent(&inode->io_tree, start,
+				      start + ram_size - 1, NULL);
 			ret = PTR_ERR(ordered);
 			goto out_drop_extent_cache;
 		}
@@ -1548,6 +1553,13 @@ out_unlock:
 		extent_clear_unlock_delalloc(inode, orig_start, start - 1,
 					     locked_page, 0, page_ops);
 	}
+
+	/*
+	 * At this point we're unlocked, we want to make sure we're only
+	 * clearing these flags under the extent lock, so lock the rest of the
+	 * range and clear everything up.
+	 */
+	lock_extent(&inode->io_tree, start, end, NULL);
 
 	/*
 	 * For the range (2). If we reserved an extent for our delalloc range
