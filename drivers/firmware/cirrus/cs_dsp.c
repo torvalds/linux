@@ -819,6 +819,33 @@ int cs_dsp_coeff_write_ctrl(struct cs_dsp_coeff_ctl *ctl,
 }
 EXPORT_SYMBOL_NS_GPL(cs_dsp_coeff_write_ctrl, FW_CS_DSP);
 
+/**
+ * cs_dsp_coeff_lock_and_write_ctrl() - Writes the given buffer to the given coefficient control
+ * @ctl: pointer to coefficient control
+ * @off: word offset at which data should be written
+ * @buf: the buffer to write to the given control
+ * @len: the length of the buffer in bytes
+ *
+ * Same as cs_dsp_coeff_write_ctrl() but takes pwr_lock.
+ *
+ * Return: A negative number on error, 1 when the control value changed and 0 when it has not.
+ */
+int cs_dsp_coeff_lock_and_write_ctrl(struct cs_dsp_coeff_ctl *ctl,
+				     unsigned int off, const void *buf, size_t len)
+{
+	struct cs_dsp *dsp = ctl->dsp;
+	int ret;
+
+	lockdep_assert_not_held(&dsp->pwr_lock);
+
+	mutex_lock(&dsp->pwr_lock);
+	ret = cs_dsp_coeff_write_ctrl(ctl, off, buf, len);
+	mutex_unlock(&dsp->pwr_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cs_dsp_coeff_lock_and_write_ctrl);
+
 static int cs_dsp_coeff_read_ctrl_raw(struct cs_dsp_coeff_ctl *ctl,
 				      unsigned int off, void *buf, size_t len)
 {
@@ -890,6 +917,33 @@ int cs_dsp_coeff_read_ctrl(struct cs_dsp_coeff_ctl *ctl,
 	return ret;
 }
 EXPORT_SYMBOL_NS_GPL(cs_dsp_coeff_read_ctrl, FW_CS_DSP);
+
+/**
+ * cs_dsp_coeff_lock_and_read_ctrl() - Reads the given coefficient control into the given buffer
+ * @ctl: pointer to coefficient control
+ * @off: word offset at which data should be read
+ * @buf: the buffer to store to the given control
+ * @len: the length of the buffer in bytes
+ *
+ * Same as cs_dsp_coeff_read_ctrl() but takes pwr_lock.
+ *
+ * Return: Zero for success, a negative number on error.
+ */
+int cs_dsp_coeff_lock_and_read_ctrl(struct cs_dsp_coeff_ctl *ctl,
+				    unsigned int off, void *buf, size_t len)
+{
+	struct cs_dsp *dsp = ctl->dsp;
+	int ret;
+
+	lockdep_assert_not_held(&dsp->pwr_lock);
+
+	mutex_lock(&dsp->pwr_lock);
+	ret = cs_dsp_coeff_read_ctrl(ctl, off, buf, len);
+	mutex_unlock(&dsp->pwr_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(cs_dsp_coeff_lock_and_read_ctrl);
 
 static int cs_dsp_coeff_init_control_caches(struct cs_dsp *dsp)
 {
