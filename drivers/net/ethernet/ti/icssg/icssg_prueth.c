@@ -437,7 +437,7 @@ static int emac_ndo_open(struct net_device *ndev)
 	icssg_class_set_mac_addr(prueth->miig_rt, slice, emac->mac_addr);
 	icssg_ft1_set_mac_addr(prueth->miig_rt, slice, emac->mac_addr);
 
-	icssg_class_default(prueth->miig_rt, slice, 0);
+	icssg_class_default(prueth->miig_rt, slice, 0, false);
 
 	/* Notify the stack of the actual queue counts. */
 	ret = netif_set_real_num_tx_queues(ndev, num_data_chn);

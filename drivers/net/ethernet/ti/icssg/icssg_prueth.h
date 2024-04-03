@@ -283,7 +283,11 @@ extern const struct dev_pm_ops prueth_dev_pm_ops;
 void icssg_class_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac);
 void icssg_class_set_host_mac_addr(struct regmap *miig_rt, const u8 *mac);
 void icssg_class_disable(struct regmap *miig_rt, int slice);
-void icssg_class_default(struct regmap *miig_rt, int slice, bool allmulti);
+void icssg_class_default(struct regmap *miig_rt, int slice, bool allmulti,
+			 bool is_sr1);
+void icssg_class_promiscuous_sr1(struct regmap *miig_rt, int slice);
+void icssg_class_add_mcast_sr1(struct regmap *miig_rt, int slice,
+			       struct net_device *ndev);
 void icssg_ft1_set_mac_addr(struct regmap *miig_rt, int slice, u8 *mac_addr);
 
 /* config helpers */
