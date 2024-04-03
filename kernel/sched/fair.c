@@ -8463,15 +8463,9 @@ again:
 		return NULL;
 
 	do {
-		struct sched_entity *curr = cfs_rq->curr;
-
 		/* When we pick for a remote RQ, we'll not have done put_prev_entity() */
-		if (curr) {
-			if (curr->on_rq)
-				update_curr(cfs_rq);
-			else
-				curr = NULL;
-		}
+		if (cfs_rq->curr && cfs_rq->curr->on_rq)
+			update_curr(cfs_rq);
 
 		if (unlikely(check_cfs_rq_runtime(cfs_rq)))
 			goto again;
