@@ -250,7 +250,7 @@
 //!                     // error type is `Infallible`) we will need to drop this field if there
 //!                     // is an error later. This `DropGuard` will drop the field when it gets
 //!                     // dropped and has not yet been forgotten.
-//!                     let t = unsafe {
+//!                     let __t_guard = unsafe {
 //!                         ::pinned_init::__internal::DropGuard::new(::core::addr_of_mut!((*slot).t))
 //!                     };
 //!                     // Expansion of `x: 0,`:
@@ -261,14 +261,14 @@
 //!                         unsafe { ::core::ptr::write(::core::addr_of_mut!((*slot).x), x) };
 //!                     }
 //!                     // We again create a `DropGuard`.
-//!                     let x = unsafe {
+//!                     let __x_guard = unsafe {
 //!                         ::kernel::init::__internal::DropGuard::new(::core::addr_of_mut!((*slot).x))
 //!                     };
 //!                     // Since initialization has successfully completed, we can now forget
 //!                     // the guards. This is not `mem::forget`, since we only have
 //!                     // `&DropGuard`.
-//!                     ::core::mem::forget(x);
-//!                     ::core::mem::forget(t);
+//!                     ::core::mem::forget(__x_guard);
+//!                     ::core::mem::forget(__t_guard);
 //!                     // Here we use the type checker to ensure that every field has been
 //!                     // initialized exactly once, since this is `if false` it will never get
 //!                     // executed, but still type-checked.
@@ -461,16 +461,16 @@
 //!             {
 //!                 unsafe { ::core::ptr::write(::core::addr_of_mut!((*slot).a), a) };
 //!             }
-//!             let a = unsafe {
+//!             let __a_guard = unsafe {
 //!                 ::kernel::init::__internal::DropGuard::new(::core::addr_of_mut!((*slot).a))
 //!             };
 //!             let init = Bar::new(36);
 //!             unsafe { data.b(::core::addr_of_mut!((*slot).b), b)? };
-//!             let b = unsafe {
+//!             let __b_guard = unsafe {
 //!                 ::kernel::init::__internal::DropGuard::new(::core::addr_of_mut!((*slot).b))
 //!             };
-//!             ::core::mem::forget(b);
-//!             ::core::mem::forget(a);
+//!             ::core::mem::forget(__b_guard);
+//!             ::core::mem::forget(__a_guard);
 //!             #[allow(unreachable_code, clippy::diverging_sub_expression)]
 //!             let _ = || {
 //!                 unsafe {
@@ -1209,14 +1209,14 @@ macro_rules! __init_internal {
         // We use `paste!` to create new hygiene for `$field`.
         ::kernel::macros::paste! {
             // SAFETY: We forget the guard later when initialization has succeeded.
-            let [<$field>] = unsafe {
+            let [< __ $field _guard >] = unsafe {
                 $crate::init::__internal::DropGuard::new(::core::ptr::addr_of_mut!((*$slot).$field))
             };
 
             $crate::__init_internal!(init_slot($use_data):
                 @data($data),
                 @slot($slot),
-                @guards([<$field>], $($guards,)*),
+                @guards([< __ $field _guard >], $($guards,)*),
                 @munch_fields($($rest)*),
             );
         }
@@ -1240,14 +1240,14 @@ macro_rules! __init_internal {
         // We use `paste!` to create new hygiene for `$field`.
         ::kernel::macros::paste! {
             // SAFETY: We forget the guard later when initialization has succeeded.
-            let [<$field>] = unsafe {
+            let [< __ $field _guard >] = unsafe {
                 $crate::init::__internal::DropGuard::new(::core::ptr::addr_of_mut!((*$slot).$field))
             };
 
             $crate::__init_internal!(init_slot():
                 @data($data),
                 @slot($slot),
-                @guards([<$field>], $($guards,)*),
+                @guards([< __ $field _guard >], $($guards,)*),
                 @munch_fields($($rest)*),
             );
         }
@@ -1272,14 +1272,14 @@ macro_rules! __init_internal {
         // We use `paste!` to create new hygiene for `$field`.
         ::kernel::macros::paste! {
             // SAFETY: We forget the guard later when initialization has succeeded.
-            let [<$field>] = unsafe {
+            let [< __ $field _guard >] = unsafe {
                 $crate::init::__internal::DropGuard::new(::core::ptr::addr_of_mut!((*$slot).$field))
             };
 
             $crate::__init_internal!(init_slot($($use_data)?):
                 @data($data),
                 @slot($slot),
-                @guards([<$field>], $($guards,)*),
+                @guards([< __ $field _guard >], $($guards,)*),
                 @munch_fields($($rest)*),
             );
         }
