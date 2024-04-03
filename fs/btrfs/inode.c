@@ -744,17 +744,22 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 offset,
 					  struct folio *compressed_folio,
 					  bool update_i_size)
 {
+	struct extent_state *cached = NULL;
 	unsigned long clear_flags = EXTENT_DELALLOC | EXTENT_DELALLOC_NEW |
 		EXTENT_DEFRAG | EXTENT_DO_ACCOUNTING | EXTENT_LOCKED;
 	u64 size = min_t(u64, i_size_read(&inode->vfs_inode), end + 1);
 	int ret;
 
+	lock_extent(&inode->io_tree, offset, end, &cached);
 	ret = __cow_file_range_inline(inode, offset, size, compressed_size,
 				      compress_type, compressed_folio,
 				      update_i_size);
-	if (ret > 0)
+	if (ret > 0) {
+		unlock_extent(&inode->io_tree, offset, end, &cached);
 		return ret;
+	}
 
+	free_extent_state(cached);
 	extent_clear_unlock_delalloc(inode, offset, end, NULL, clear_flags,
 				     PAGE_UNLOCK | PAGE_START_WRITEBACK |
 				     PAGE_END_WRITEBACK);
@@ -1028,7 +1033,6 @@ again:
 	 * Check cow_file_range() for why we don't even try to create inline
 	 * extent for the subpage case.
 	 */
-	lock_extent(&inode->io_tree, start, end, NULL);
 	if (total_in < actual_end)
 		ret = cow_file_range_inline(inode, start, end, 0,
 					    BTRFS_COMPRESS_NONE, NULL, false);
@@ -1040,7 +1044,6 @@ again:
 			mapping_set_error(mapping, -EIO);
 		goto free_pages;
 	}
-	unlock_extent(&inode->io_tree, start, end, NULL);
 
 	/*
 	 * We aren't doing an inline extent. Round the compressed size up to a
@@ -1336,8 +1339,6 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 	bool extent_reserved = false;
 	int ret = 0;
 
-	lock_extent(&inode->io_tree, start, end, NULL);
-
 	if (btrfs_is_free_space_inode(inode)) {
 		ret = -EINVAL;
 		goto out_unlock;
@@ -1366,6 +1367,8 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 			goto done;
 		}
 	}
+
+	lock_extent(&inode->io_tree, start, end, NULL);
 
 	alloc_hint = get_extent_allocation_hint(inode, start, num_bytes);
 
