@@ -527,6 +527,11 @@ static const struct acpi_device_id cros_ec_lpc_acpi_device_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, cros_ec_lpc_acpi_device_ids);
 
+static const struct lpc_driver_data framework_laptop_amd_lpc_driver_data __initconst = {
+	.quirks = CROS_EC_LPC_QUIRK_REMAP_MEMORY,
+	.quirk_mmio_memory_base = 0xE00,
+};
+
 static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 	{
 		/*
@@ -581,7 +586,16 @@ static const struct dmi_system_id cros_ec_lpc_dmi_table[] __initconst = {
 	},
 	/* A small number of non-Chromebook/box machines also use the ChromeOS EC */
 	{
-		/* the Framework Laptop */
+		/* the Framework Laptop 13 (AMD Ryzen) and 16 (AMD Ryzen) */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMD Ryzen"),
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Laptop"),
+		},
+		.driver_data = (void *)&framework_laptop_amd_lpc_driver_data,
+	},
+	{
+		/* the Framework Laptop (Intel 11th, 12th, 13th Generation) */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Framework"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Laptop"),
