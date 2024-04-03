@@ -4182,9 +4182,6 @@ static void warn_about_uncommitted_trans(struct btrfs_fs_info *fs_info)
 	struct btrfs_transaction *tmp;
 	bool found = false;
 
-	if (list_empty(&fs_info->trans_list))
-		return;
-
 	/*
 	 * This function is only called at the very end of close_ctree(),
 	 * thus no other running transaction, no need to take trans_lock.
