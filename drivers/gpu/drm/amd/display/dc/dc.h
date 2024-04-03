@@ -1006,7 +1006,6 @@ struct dc_debug_options {
 	unsigned int force_cositing;
 };
 
-struct gpu_info_soc_bounding_box_v1_0;
 
 /* Generic structure that can be used to query properties of DC. More fields
  * can be added as required.
