@@ -1214,7 +1214,7 @@ static void __devlink_compat_running_version(struct devlink *devlink,
 		}
 	}
 free_msg:
-	nlmsg_free(msg);
+	nlmsg_consume(msg);
 }
 
 void devlink_compat_running_version(struct devlink *devlink,
