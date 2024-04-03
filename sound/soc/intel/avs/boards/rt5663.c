@@ -265,4 +265,5 @@ static struct platform_driver avs_rt5663_driver = {
 
 module_platform_driver(avs_rt5663_driver);
 
+MODULE_DESCRIPTION("Intel rt5663 machine driver");
 MODULE_LICENSE("GPL");

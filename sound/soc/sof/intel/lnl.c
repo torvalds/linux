@@ -134,8 +134,6 @@ int sof_lnl_ops_init(struct snd_sof_dev *sdev)
 		sof_lnl_ops.runtime_resume = lnl_hda_dsp_runtime_resume;
 	}
 
-	sof_lnl_ops.get_stream_position = mtl_dsp_get_stream_hda_link_position;
-
 	/* dsp core get/put */
 	sof_lnl_ops.core_get = mtl_dsp_core_get;
 	sof_lnl_ops.core_put = mtl_dsp_core_put;
