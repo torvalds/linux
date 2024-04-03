@@ -1436,6 +1436,7 @@ config SND_SOC_PEB2466
 
 config SND_SOC_RK3308
 	tristate "Rockchip RK3308 audio CODEC"
+	depends on ARM64 || COMPILE_TEST
 	select REGMAP_MMIO
 	help
 	  This is a device driver for the audio codec embedded in the
