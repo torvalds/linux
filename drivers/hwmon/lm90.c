@@ -2723,10 +2723,7 @@ static int lm90_probe(struct i2c_client *client)
 	INIT_WORK(&data->report_work, lm90_report_alarms);
 
 	/* Set the device type */
-	if (client->dev.of_node)
-		data->kind = (uintptr_t)of_device_get_match_data(&client->dev);
-	else
-		data->kind = i2c_match_id(lm90_id, client)->driver_data;
+	data->kind = (uintptr_t)i2c_get_match_data(client);
 
 	/*
 	 * Different devices have different alarm bits triggering the
