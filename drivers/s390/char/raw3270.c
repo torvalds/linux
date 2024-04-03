@@ -29,7 +29,9 @@
 #include <linux/device.h>
 #include <linux/mutex.h>
 
-struct class *class3270;
+const struct class class3270 = {
+	.name = "3270",
+};
 EXPORT_SYMBOL(class3270);
 
 /* The main 3270 data structure. */
@@ -160,7 +162,7 @@ struct raw3270_request *raw3270_request_alloc(size_t size)
 	/*
 	 * Setup ccw.
 	 */
-	rq->ccw.cda = __pa(rq->buffer);
+	rq->ccw.cda = virt_to_dma32(rq->buffer);
 	rq->ccw.flags = CCW_FLAG_SLI;
 
 	return rq;
@@ -186,7 +188,7 @@ int raw3270_request_reset(struct raw3270_request *rq)
 		return -EBUSY;
 	rq->ccw.cmd_code = 0;
 	rq->ccw.count = 0;
-	rq->ccw.cda = __pa(rq->buffer);
+	rq->ccw.cda = virt_to_dma32(rq->buffer);
 	rq->ccw.flags = CCW_FLAG_SLI;
 	rq->rescnt = 0;
 	rq->rc = 0;
@@ -221,7 +223,7 @@ EXPORT_SYMBOL(raw3270_request_add_data);
  */
 void raw3270_request_set_data(struct raw3270_request *rq, void *data, size_t size)
 {
-	rq->ccw.cda = __pa(data);
+	rq->ccw.cda = virt_to_dma32(data);
 	rq->ccw.count = size;
 }
 EXPORT_SYMBOL(raw3270_request_set_data);
@@ -231,7 +233,7 @@ EXPORT_SYMBOL(raw3270_request_set_data);
  */
 void raw3270_request_set_idal(struct raw3270_request *rq, struct idal_buffer *ib)
 {
-	rq->ccw.cda = __pa(ib->data);
+	rq->ccw.cda = virt_to_dma32(ib->data);
 	rq->ccw.count = ib->size;
 	rq->ccw.flags |= CCW_FLAG_IDA;
 }
@@ -577,7 +579,7 @@ static void raw3270_read_modified(struct raw3270 *rp)
 	rp->init_readmod.ccw.cmd_code = TC_READMOD;
 	rp->init_readmod.ccw.flags = CCW_FLAG_SLI;
 	rp->init_readmod.ccw.count = sizeof(rp->init_data);
-	rp->init_readmod.ccw.cda = (__u32)__pa(rp->init_data);
+	rp->init_readmod.ccw.cda = virt_to_dma32(rp->init_data);
 	rp->init_readmod.callback = raw3270_read_modified_cb;
 	rp->init_readmod.callback_data = rp->init_data;
 	rp->state = RAW3270_STATE_READMOD;
@@ -597,7 +599,7 @@ static void raw3270_writesf_readpart(struct raw3270 *rp)
 	rp->init_readpart.ccw.cmd_code = TC_WRITESF;
 	rp->init_readpart.ccw.flags = CCW_FLAG_SLI;
 	rp->init_readpart.ccw.count = sizeof(wbuf);
-	rp->init_readpart.ccw.cda = (__u32)__pa(&rp->init_data);
+	rp->init_readpart.ccw.cda = virt_to_dma32(&rp->init_data);
 	rp->state = RAW3270_STATE_W4ATTN;
 	raw3270_start_irq(&rp->init_view, &rp->init_readpart);
 }
@@ -635,7 +637,7 @@ static int __raw3270_reset_device(struct raw3270 *rp)
 	rp->init_reset.ccw.cmd_code = TC_EWRITEA;
 	rp->init_reset.ccw.flags = CCW_FLAG_SLI;
 	rp->init_reset.ccw.count = 1;
-	rp->init_reset.ccw.cda = (__u32)__pa(rp->init_data);
+	rp->init_reset.ccw.cda = virt_to_dma32(rp->init_data);
 	rp->init_reset.callback = raw3270_reset_device_cb;
 	rc = __raw3270_start(rp, &rp->init_view, &rp->init_reset);
 	if (rc == 0 && rp->state == RAW3270_STATE_INIT)
@@ -1316,23 +1318,25 @@ static int raw3270_init(void)
 		return 0;
 	raw3270_registered = 1;
 	rc = ccw_driver_register(&raw3270_ccw_driver);
-	if (rc == 0) {
-		/* Create attributes for early (= console) device. */
-		mutex_lock(&raw3270_mutex);
-		class3270 = class_create("3270");
-		list_for_each_entry(rp, &raw3270_devices, list) {
-			get_device(&rp->cdev->dev);
-			raw3270_create_attributes(rp);
-		}
-		mutex_unlock(&raw3270_mutex);
+	if (rc)
+		return rc;
+	rc = class_register(&class3270);
+	if (rc)
+		return rc;
+	/* Create attributes for early (= console) device. */
+	mutex_lock(&raw3270_mutex);
+	list_for_each_entry(rp, &raw3270_devices, list) {
+		get_device(&rp->cdev->dev);
+		raw3270_create_attributes(rp);
 	}
-	return rc;
+	mutex_unlock(&raw3270_mutex);
+	return 0;
 }
 
 static void raw3270_exit(void)
 {
 	ccw_driver_unregister(&raw3270_ccw_driver);
-	class_destroy(class3270);
+	class_unregister(&class3270);
 }
 
 MODULE_LICENSE("GPL");

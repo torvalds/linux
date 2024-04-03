@@ -13,7 +13,7 @@ struct_dev_ifalias*                 ifalias
 unsigned_long                       mem_end                                                         
 unsigned_long                       mem_start                                                       
 unsigned_long                       base_addr                                                       
-unsigned_long                       state                                                           
+unsigned_long                       state                   read_mostly         read_mostly         netif_running(dev)
 struct_list_head                    dev_list                                                        
 struct_list_head                    napi_list                                                       
 struct_list_head                    unreg_list                                                      

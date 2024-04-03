@@ -296,12 +296,30 @@ kernel panic). This will output the contents of the ftrace buffers to
 the console.  This is very useful for capturing traces that lead to
 crashes and outputting them to a serial console.
 
-= ===================================================
-0 Disabled (default).
-1 Dump buffers of all CPUs.
-2 Dump the buffer of the CPU that triggered the oops.
-= ===================================================
+======================= ===========================================
+0                       Disabled (default).
+1                       Dump buffers of all CPUs.
+2(orig_cpu)             Dump the buffer of the CPU that triggered the
+                        oops.
+<instance>              Dump the specific instance buffer on all CPUs.
+<instance>=2(orig_cpu)  Dump the specific instance buffer on the CPU
+                        that triggered the oops.
+======================= ===========================================
 
+Multiple instance dump is also supported, and instances are separated
+by commas. If global buffer also needs to be dumped, please specify
+the dump mode (1/2/orig_cpu) first for global buffer.
+
+So for example to dump "foo" and "bar" instance buffer on all CPUs,
+user can::
+
+  echo "foo,bar" > /proc/sys/kernel/ftrace_dump_on_oops
+
+To dump global buffer and "foo" instance buffer on all
+CPUs along with the "bar" instance buffer on CPU that triggered the
+oops, user can::
+
+  echo "1,foo,bar=2" > /proc/sys/kernel/ftrace_dump_on_oops
 
 ftrace_enabled, stack_tracer_enabled
 ====================================

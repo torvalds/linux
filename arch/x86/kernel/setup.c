@@ -9,7 +9,6 @@
 #include <linux/console.h>
 #include <linux/crash_dump.h>
 #include <linux/dma-map-ops.h>
-#include <linux/dmi.h>
 #include <linux/efi.h>
 #include <linux/ima.h>
 #include <linux/init_ohci1394_dma.h>
@@ -902,7 +901,7 @@ void __init setup_arch(char **cmdline_p)
 		efi_init();
 
 	reserve_ibft_region();
-	dmi_setup();
+	x86_init.resources.dmi_setup();
 
 	/*
 	 * VMware detection requires dmi to be available, so this
@@ -1205,16 +1204,6 @@ void __init i386_reserve_resources(void)
 }
 
 #endif /* CONFIG_X86_32 */
-
-#ifndef CONFIG_SMP
-void __init smp_prepare_boot_cpu(void)
-{
-	struct cpuinfo_x86 *c = &cpu_data(0);
-
-	*c = boot_cpu_data;
-	c->initialized = true;
-}
-#endif
 
 static struct notifier_block kernel_offset_notifier = {
 	.notifier_call = dump_kernel_offset

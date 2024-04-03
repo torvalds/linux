@@ -45,7 +45,7 @@ struct qcauart {
 	unsigned char *tx_buffer;
 };
 
-static ssize_t
+static size_t
 qca_tty_receive(struct serdev_device *serdev, const u8 *data, size_t count)
 {
 	struct qcauart *qca = serdev_device_get_drvdata(serdev);

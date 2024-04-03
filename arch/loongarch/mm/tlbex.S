@@ -18,6 +18,7 @@
 
 	.macro tlb_do_page_fault, write
 	SYM_CODE_START(tlb_do_page_fault_\write)
+	UNWIND_HINT_UNDEFINED
 	SAVE_ALL
 	csrrd		a2, LOONGARCH_CSR_BADV
 	move		a0, sp
@@ -32,6 +33,7 @@
 	tlb_do_page_fault 1
 
 SYM_CODE_START(handle_tlb_protect)
+	UNWIND_HINT_UNDEFINED
 	BACKUP_T0T1
 	SAVE_ALL
 	move		a0, sp
@@ -44,6 +46,7 @@ SYM_CODE_START(handle_tlb_protect)
 SYM_CODE_END(handle_tlb_protect)
 
 SYM_CODE_START(handle_tlb_load)
+	UNWIND_HINT_UNDEFINED
 	csrwr		t0, EXCEPTION_KS0
 	csrwr		t1, EXCEPTION_KS1
 	csrwr		ra, EXCEPTION_KS2
@@ -190,6 +193,7 @@ nopage_tlb_load:
 SYM_CODE_END(handle_tlb_load)
 
 SYM_CODE_START(handle_tlb_load_ptw)
+	UNWIND_HINT_UNDEFINED
 	csrwr		t0, LOONGARCH_CSR_KS0
 	csrwr		t1, LOONGARCH_CSR_KS1
 	la_abs		t0, tlb_do_page_fault_0
@@ -197,6 +201,7 @@ SYM_CODE_START(handle_tlb_load_ptw)
 SYM_CODE_END(handle_tlb_load_ptw)
 
 SYM_CODE_START(handle_tlb_store)
+	UNWIND_HINT_UNDEFINED
 	csrwr		t0, EXCEPTION_KS0
 	csrwr		t1, EXCEPTION_KS1
 	csrwr		ra, EXCEPTION_KS2
@@ -346,6 +351,7 @@ nopage_tlb_store:
 SYM_CODE_END(handle_tlb_store)
 
 SYM_CODE_START(handle_tlb_store_ptw)
+	UNWIND_HINT_UNDEFINED
 	csrwr		t0, LOONGARCH_CSR_KS0
 	csrwr		t1, LOONGARCH_CSR_KS1
 	la_abs		t0, tlb_do_page_fault_1
@@ -353,6 +359,7 @@ SYM_CODE_START(handle_tlb_store_ptw)
 SYM_CODE_END(handle_tlb_store_ptw)
 
 SYM_CODE_START(handle_tlb_modify)
+	UNWIND_HINT_UNDEFINED
 	csrwr		t0, EXCEPTION_KS0
 	csrwr		t1, EXCEPTION_KS1
 	csrwr		ra, EXCEPTION_KS2
@@ -500,6 +507,7 @@ nopage_tlb_modify:
 SYM_CODE_END(handle_tlb_modify)
 
 SYM_CODE_START(handle_tlb_modify_ptw)
+	UNWIND_HINT_UNDEFINED
 	csrwr		t0, LOONGARCH_CSR_KS0
 	csrwr		t1, LOONGARCH_CSR_KS1
 	la_abs		t0, tlb_do_page_fault_1
@@ -507,6 +515,7 @@ SYM_CODE_START(handle_tlb_modify_ptw)
 SYM_CODE_END(handle_tlb_modify_ptw)
 
 SYM_CODE_START(handle_tlb_refill)
+	UNWIND_HINT_UNDEFINED
 	csrwr		t0, LOONGARCH_CSR_TLBRSAVE
 	csrrd		t0, LOONGARCH_CSR_PGD
 	lddir		t0, t0, 3

@@ -1392,11 +1392,11 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 					 *old,
 					 b->data_type);
 	gc = *b;
-	percpu_up_read(&c->mark_lock);
 
 	if (gc.data_type != old_gc.data_type ||
 	    gc.dirty_sectors != old_gc.dirty_sectors)
 		bch2_dev_usage_update_m(c, ca, &old_gc, &gc);
+	percpu_up_read(&c->mark_lock);
 
 	if (metadata_only &&
 	    gc.data_type != BCH_DATA_sb &&

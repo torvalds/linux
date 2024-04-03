@@ -28,7 +28,6 @@
 
 #include <asm/cpufeature.h>
 #include <asm/cpu_ops.h>
-#include <asm/cpufeature.h>
 #include <asm/irq.h>
 #include <asm/mmu_context.h>
 #include <asm/numa.h>

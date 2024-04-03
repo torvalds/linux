@@ -286,7 +286,7 @@ static void rtllib_tx_query_agg_cap(struct rtllib_device *ieee,
 	if (ht_info->iot_action & HT_IOT_ACT_TX_NO_AGGREGATION)
 		return;
 
-	if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
+	if (!ieee->get_nmode_support_by_sec_cfg(ieee->dev))
 		return;
 	if (ht_info->current_ampdu_enable) {
 		if (!rtllib_get_ts(ieee, (struct ts_common_info **)(&ts), hdr->addr1,
@@ -356,7 +356,7 @@ static void rtllib_query_BandwidthMode(struct rtllib_device *ieee,
 	if (!ht_info->current_ht_support || !ht_info->enable_ht)
 		return;
 
-	if (tcb_desc->bMulticast || tcb_desc->bBroadcast)
+	if (tcb_desc->multicast || tcb_desc->bBroadcast)
 		return;
 
 	if ((tcb_desc->data_rate & 0x80) == 0)
@@ -378,7 +378,7 @@ static void rtllib_query_protectionmode(struct rtllib_device *ieee,
 	tcb_desc->RTSSC				= 0;
 	tcb_desc->bRTSBW			= false;
 
-	if (tcb_desc->bBroadcast || tcb_desc->bMulticast)
+	if (tcb_desc->bBroadcast || tcb_desc->multicast)
 		return;
 
 	if (is_broadcast_ether_addr(skb->data + 16))
@@ -595,14 +595,14 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 				   ((((u8 *)udp)[1] == 67) &&
 				   (((u8 *)udp)[3] == 68))) {
 					bdhcp = true;
-					ieee->LPSDelayCnt = 200;
+					ieee->lps_delay_cnt = 200;
 				}
 			}
 		} else if (ether_type == ETH_P_ARP) {
 			netdev_info(ieee->dev,
 				    "=================>DHCP Protocol start tx ARP pkt!!\n");
 			bdhcp = true;
-			ieee->LPSDelayCnt =
+			ieee->lps_delay_cnt =
 				 ieee->current_network.tim.tim_count;
 		}
 	}
@@ -832,7 +832,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			if (ieee->ht_info->iot_action &
 			    HT_IOT_ACT_WA_IOT_Broadcom) {
 				tcb_desc->data_rate =
-					 MgntQuery_TxRateExcludeCCKRates(ieee);
+					 mgnt_query_tx_rate_exclude_cck_rates(ieee);
 				tcb_desc->tx_dis_rate_fallback = false;
 			} else {
 				tcb_desc->data_rate = ieee->basic_rate;
@@ -843,11 +843,11 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 			tcb_desc->tx_use_drv_assinged_rate = 1;
 		} else {
 			if (is_multicast_ether_addr(header.addr1))
-				tcb_desc->bMulticast = 1;
+				tcb_desc->multicast = 1;
 			if (is_broadcast_ether_addr(header.addr1))
 				tcb_desc->bBroadcast = 1;
 			rtllib_txrate_selectmode(ieee, tcb_desc);
-			if (tcb_desc->bMulticast ||  tcb_desc->bBroadcast)
+			if (tcb_desc->multicast ||  tcb_desc->bBroadcast)
 				tcb_desc->data_rate = ieee->basic_rate;
 			else
 				tcb_desc->data_rate = rtllib_current_rate(ieee);
@@ -856,7 +856,7 @@ static int rtllib_xmit_inter(struct sk_buff *skb, struct net_device *dev)
 				if (ieee->ht_info->iot_action &
 				    HT_IOT_ACT_WA_IOT_Broadcom) {
 					tcb_desc->data_rate =
-					   MgntQuery_TxRateExcludeCCKRates(ieee);
+					   mgnt_query_tx_rate_exclude_cck_rates(ieee);
 					tcb_desc->tx_dis_rate_fallback = false;
 				} else {
 					tcb_desc->data_rate = MGN_1M;

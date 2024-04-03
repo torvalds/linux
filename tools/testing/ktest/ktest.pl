@@ -792,13 +792,13 @@ sub process_variables {
     my $retval = "";
 
     # We want to check for '\', and it is just easier
-    # to check the previous characet of '$' and not need
+    # to check the previous character of '$' and not need
     # to worry if '$' is the first character. By adding
     # a space to $value, we can just check [^\\]\$ and
     # it will still work.
     $value = " $value";
 
-    while ($value =~ /(.*?[^\\])\$\{(.*?)\}(.*)/) {
+    while ($value =~ /(.*?[^\\])\$\{([^\{]*?)\}(.*)/) {
 	my $begin = $1;
 	my $var = $2;
 	my $end = $3;
@@ -818,16 +818,20 @@ sub process_variables {
 	    # we simple convert to 0
 	    $retval = "${retval}0";
 	} else {
-	    # put back the origin piece.
-	    $retval = "$retval\$\{$var\}";
+	    # put back the origin piece, but with $#### to not reprocess it
+	    $retval = "$retval\$####\{$var\}";
 	    # This could be an option that is used later, save
 	    # it so we don't warn if this option is not one of
 	    # ktests options.
 	    $used_options{$var} = 1;
 	}
-	$value = $end;
+	$value = "$retval$end";
+	$retval = "";
     }
-    $retval = "$retval$value";
+    $retval = $value;
+
+    # Convert the saved variables with $####{var} back to ${var}
+    $retval =~ s/\$####/\$/g;
 
     # remove the space added in the beginning
     $retval =~ s/ //;
@@ -843,6 +847,7 @@ sub set_value {
     if ($lvalue =~ /^(TEST|BISECT|CONFIG_BISECT)_TYPE(\[.*\])?$/ &&
 	$prvalue !~ /^(config_|)bisect$/ &&
 	$prvalue !~ /^build$/ &&
+	$prvalue !~ /^make_warnings_file$/ &&
 	$buildonly) {
 
 	# Note if a test is something other than build, then we

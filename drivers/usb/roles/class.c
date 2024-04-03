@@ -7,6 +7,7 @@
  *         Hans de Goede <hdegoede@redhat.com>
  */
 
+#include <linux/component.h>
 #include <linux/usb/role.h>
 #include <linux/property.h>
 #include <linux/device.h>
@@ -35,6 +36,32 @@ struct usb_role_switch {
 };
 
 #define to_role_switch(d)	container_of(d, struct usb_role_switch, dev)
+
+static int connector_bind(struct device *dev, struct device *connector, void *data)
+{
+	int ret;
+
+	ret = sysfs_create_link(&dev->kobj, &connector->kobj, "connector");
+	if (ret)
+		return ret;
+
+	ret = sysfs_create_link(&connector->kobj, &dev->kobj, "usb-role-switch");
+	if (ret)
+		sysfs_remove_link(&dev->kobj, "connector");
+
+	return ret;
+}
+
+static void connector_unbind(struct device *dev, struct device *connector, void *data)
+{
+	sysfs_remove_link(&connector->kobj, "usb-role-switch");
+	sysfs_remove_link(&dev->kobj, "connector");
+}
+
+static const struct component_ops connector_ops = {
+	.bind = connector_bind,
+	.unbind = connector_unbind,
+};
 
 /**
  * usb_role_switch_set_role - Set USB role for a switch
@@ -361,6 +388,12 @@ usb_role_switch_register(struct device *parent,
 		return ERR_PTR(ret);
 	}
 
+	if (dev_fwnode(&sw->dev)) {
+		ret = component_add(&sw->dev, &connector_ops);
+		if (ret)
+			dev_warn(&sw->dev, "failed to add component\n");
+	}
+
 	sw->registered = true;
 
 	/* TODO: Symlinks for the host port and the device controller. */
@@ -377,10 +410,12 @@ EXPORT_SYMBOL_GPL(usb_role_switch_register);
  */
 void usb_role_switch_unregister(struct usb_role_switch *sw)
 {
-	if (!IS_ERR_OR_NULL(sw)) {
-		sw->registered = false;
-		device_unregister(&sw->dev);
-	}
+	if (IS_ERR_OR_NULL(sw))
+		return;
+	sw->registered = false;
+	if (dev_fwnode(&sw->dev))
+		component_del(&sw->dev, &connector_ops);
+	device_unregister(&sw->dev);
 }
 EXPORT_SYMBOL_GPL(usb_role_switch_unregister);
 

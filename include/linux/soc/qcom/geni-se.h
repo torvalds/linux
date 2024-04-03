@@ -178,6 +178,7 @@ struct geni_se {
 #define M_GP_IRQ_3_EN			BIT(12)
 #define M_GP_IRQ_4_EN			BIT(13)
 #define M_GP_IRQ_5_EN			BIT(14)
+#define M_TX_FIFO_NOT_EMPTY_EN		BIT(21)
 #define M_IO_DATA_DEASSERT_EN		BIT(22)
 #define M_IO_DATA_ASSERT_EN		BIT(23)
 #define M_RX_FIFO_RD_ERR_EN		BIT(24)

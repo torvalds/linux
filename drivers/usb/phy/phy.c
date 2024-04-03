@@ -699,7 +699,7 @@ out:
 }
 EXPORT_SYMBOL_GPL(usb_add_phy);
 
-static struct device_type usb_phy_dev_type = {
+static const struct device_type usb_phy_dev_type = {
 	.name = "usb_phy",
 	.uevent = usb_phy_uevent,
 };

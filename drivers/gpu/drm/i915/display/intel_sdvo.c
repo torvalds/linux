@@ -1842,8 +1842,6 @@ static void intel_disable_sdvo(struct intel_atomic_state *state,
 	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	u32 temp;
 
-	encoder->audio_disable(encoder, old_crtc_state, conn_state);
-
 	intel_sdvo_set_active_outputs(intel_sdvo, 0);
 	if (0)
 		intel_sdvo_set_encoder_power_state(intel_sdvo,
@@ -1935,8 +1933,6 @@ static void intel_enable_sdvo(struct intel_atomic_state *state,
 		intel_sdvo_set_encoder_power_state(intel_sdvo,
 						   DRM_MODE_DPMS_ON);
 	intel_sdvo_set_active_outputs(intel_sdvo, intel_sdvo_connector->output_flag);
-
-	encoder->audio_enable(encoder, pipe_config, conn_state);
 }
 
 static enum drm_mode_status

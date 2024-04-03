@@ -384,6 +384,7 @@ struct rb_irq_work {
 	struct irq_work			work;
 	wait_queue_head_t		waiters;
 	wait_queue_head_t		full_waiters;
+	atomic_t			seq;
 	bool				waiters_pending;
 	bool				full_waiters_pending;
 	bool				wakeup_full;
@@ -753,6 +754,9 @@ static void rb_wake_up_waiters(struct irq_work *work)
 {
 	struct rb_irq_work *rbwork = container_of(work, struct rb_irq_work, work);
 
+	/* For waiters waiting for the first wake up */
+	(void)atomic_fetch_inc_release(&rbwork->seq);
+
 	wake_up_all(&rbwork->waiters);
 	if (rbwork->full_waiters_pending || rbwork->wakeup_full) {
 		/* Only cpu_buffer sets the above flags */
@@ -881,20 +885,21 @@ rb_wait_cond(struct rb_irq_work *rbwork, struct trace_buffer *buffer,
 	return false;
 }
 
+struct rb_wait_data {
+	struct rb_irq_work		*irq_work;
+	int				seq;
+};
+
 /*
  * The default wait condition for ring_buffer_wait() is to just to exit the
  * wait loop the first time it is woken up.
  */
 static bool rb_wait_once(void *data)
 {
-	long *once = data;
+	struct rb_wait_data *rdata = data;
+	struct rb_irq_work *rbwork = rdata->irq_work;
 
-	/* wait_event() actually calls this twice before scheduling*/
-	if (*once > 1)
-		return true;
-
-	(*once)++;
-	return false;
+	return atomic_read_acquire(&rbwork->seq) != rdata->seq;
 }
 
 /**
@@ -915,13 +920,8 @@ int ring_buffer_wait(struct trace_buffer *buffer, int cpu, int full,
 	struct ring_buffer_per_cpu *cpu_buffer;
 	struct wait_queue_head *waitq;
 	struct rb_irq_work *rbwork;
-	long once = 0;
+	struct rb_wait_data rdata;
 	int ret = 0;
-
-	if (!cond) {
-		cond = rb_wait_once;
-		data = &once;
-	}
 
 	/*
 	 * Depending on what the caller is waiting for, either any
@@ -943,6 +943,14 @@ int ring_buffer_wait(struct trace_buffer *buffer, int cpu, int full,
 		waitq = &rbwork->full_waiters;
 	else
 		waitq = &rbwork->waiters;
+
+	/* Set up to exit loop as soon as it is woken */
+	if (!cond) {
+		cond = rb_wait_once;
+		rdata.irq_work = rbwork;
+		rdata.seq = atomic_read_acquire(&rbwork->seq);
+		data = &rdata;
+	}
 
 	ret = wait_event_interruptible((*waitq),
 				rb_wait_cond(rbwork, buffer, cpu, full, cond, data));
@@ -1515,7 +1523,8 @@ static int __rb_allocate_pages(struct ring_buffer_per_cpu *cpu_buffer,
 
 		list_add(&bpage->list, pages);
 
-		page = alloc_pages_node(cpu_to_node(cpu_buffer->cpu), mflags,
+		page = alloc_pages_node(cpu_to_node(cpu_buffer->cpu),
+					mflags | __GFP_ZERO,
 					cpu_buffer->buffer->subbuf_order);
 		if (!page)
 			goto free_pages;
@@ -1600,7 +1609,8 @@ rb_allocate_cpu_buffer(struct trace_buffer *buffer, long nr_pages, int cpu)
 
 	cpu_buffer->reader_page = bpage;
 
-	page = alloc_pages_node(cpu_to_node(cpu), GFP_KERNEL, cpu_buffer->buffer->subbuf_order);
+	page = alloc_pages_node(cpu_to_node(cpu), GFP_KERNEL | __GFP_ZERO,
+				cpu_buffer->buffer->subbuf_order);
 	if (!page)
 		goto fail_free_reader;
 	bpage->page = page_address(page);
@@ -4380,7 +4390,7 @@ int ring_buffer_iter_empty(struct ring_buffer_iter *iter)
 	cpu_buffer = iter->cpu_buffer;
 	reader = cpu_buffer->reader_page;
 	head_page = cpu_buffer->head_page;
-	commit_page = cpu_buffer->commit_page;
+	commit_page = READ_ONCE(cpu_buffer->commit_page);
 	commit_ts = commit_page->page->time_stamp;
 
 	/*
@@ -5568,7 +5578,8 @@ ring_buffer_alloc_read_page(struct trace_buffer *buffer, int cpu)
 	if (bpage->data)
 		goto out;
 
-	page = alloc_pages_node(cpu_to_node(cpu), GFP_KERNEL | __GFP_NORETRY,
+	page = alloc_pages_node(cpu_to_node(cpu),
+				GFP_KERNEL | __GFP_NORETRY | __GFP_ZERO,
 				cpu_buffer->buffer->subbuf_order);
 	if (!page) {
 		kfree(bpage);

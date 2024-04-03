@@ -24,23 +24,9 @@ if_enabled_echo() {
 	fi
 }
 
-create_package() {
-	export DH_OPTIONS="-p${1}"
-
-	dh_installdocs
-	dh_installchangelogs
-	dh_compress
-	dh_fixperms
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb -- ${KDEB_COMPRESS:+-Z$KDEB_COMPRESS}
-}
-
 install_linux_image () {
 	pname=$1
 	pdir=debian/$1
-
-	rm -rf ${pdir}
 
 	# Only some architectures with OF support have this target
 	if is_enabled CONFIG_OF_EARLY_FLATTREE && [ -d "${srctree}/arch/${SRCARCH}/boot/dts" ]; then
@@ -109,8 +95,6 @@ install_linux_image () {
 install_linux_image_dbg () {
 	pdir=debian/$1
 
-	rm -rf ${pdir}
-
 	# Parse modules.order directly because 'make modules_install' may sign,
 	# compress modules, and then run unneeded depmod.
 	while read -r mod; do
@@ -140,8 +124,6 @@ install_kernel_headers () {
 	pdir=debian/$1
 	version=${1#linux-headers-}
 
-	rm -rf $pdir
-
 	"${srctree}/scripts/package/install-extmod-build" "${pdir}/usr/src/linux-headers-${version}"
 
 	mkdir -p $pdir/lib/modules/$version/
@@ -151,8 +133,6 @@ install_kernel_headers () {
 install_libc_headers () {
 	pdir=debian/$1
 
-	rm -rf $pdir
-
 	$MAKE -f $srctree/Makefile headers_install INSTALL_HDR_PATH=$pdir/usr
 
 	# move asm headers to /usr/include/<libc-machine>/asm to match the structure
@@ -161,21 +141,15 @@ install_libc_headers () {
 	mv "$pdir/usr/include/asm" "$pdir/usr/include/${DEB_HOST_MULTIARCH}"
 }
 
-rm -f debian/files
+package=$1
 
-packages_enabled=$(dh_listpackages)
-
-for package in ${packages_enabled}
-do
-	case ${package} in
-	*-dbg)
-		install_linux_image_dbg "${package}";;
-	linux-image-*|user-mode-linux-*)
-		install_linux_image "${package}";;
-	linux-libc-dev)
-		install_libc_headers "${package}";;
-	linux-headers-*)
-		install_kernel_headers "${package}";;
-	esac
-	create_package "${package}"
-done
+case "${package}" in
+*-dbg)
+	install_linux_image_dbg "${package}";;
+linux-image-*|user-mode-linux-*)
+	install_linux_image "${package}";;
+linux-libc-dev)
+	install_libc_headers "${package}";;
+linux-headers-*)
+	install_kernel_headers "${package}";;
+esac

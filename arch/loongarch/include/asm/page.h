@@ -75,6 +75,9 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 #define sym_to_pfn(x)		__phys_to_pfn(__pa_symbol(x))
 
+struct page *dmw_virt_to_page(unsigned long kaddr);
+struct page *tlb_virt_to_page(unsigned long kaddr);
+
 #define virt_to_pfn(kaddr)	PFN_DOWN(PHYSADDR(kaddr))
 
 #define virt_to_page(kaddr)								\

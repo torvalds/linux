@@ -22,7 +22,7 @@ int zero = 0;
 SEC("syscall")
 int arena_htab_llvm(void *ctx)
 {
-#if defined(__BPF_FEATURE_ARENA_CAST) || defined(BPF_ARENA_FORCE_ASM)
+#if defined(__BPF_FEATURE_ADDR_SPACE_CAST) || defined(BPF_ARENA_FORCE_ASM)
 	struct htab __arena *htab;
 	__u64 i;
 

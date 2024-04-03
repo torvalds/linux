@@ -151,10 +151,6 @@ MODULE_PARM_DESC(disable_legacy_dialects, "To improve security it may be "
 				  "vers=1.0 (CIFS/SMB1) and vers=2.0 are weaker"
 				  " and less secure. Default: n/N/0");
 
-extern mempool_t *cifs_sm_req_poolp;
-extern mempool_t *cifs_req_poolp;
-extern mempool_t *cifs_mid_poolp;
-
 struct workqueue_struct	*cifsiod_wq;
 struct workqueue_struct	*decrypt_wq;
 struct workqueue_struct	*fileinfo_put_wq;

@@ -163,8 +163,7 @@
  *         __string().
  *
  *   __string_len: This is a helper to a __dynamic_array, but it understands
- *	   that the array has characters in it, and with the combined
- *         use of __assign_str_len(), it will allocate 'len' + 1 bytes
+ *	   that the array has characters in it, it will allocate 'len' + 1 bytes
  *         in the ring buffer and add a '\0' to the string. This is
  *         useful if the string being saved has no terminating '\0' byte.
  *         It requires that the length of the string is known as it acts
@@ -174,9 +173,11 @@
  *
  *         __string_len(foo, bar, len)
  *
- *         To assign this string, use the helper macro __assign_str_len().
+ *         To assign this string, use the helper macro __assign_str().
+ *         The length is saved via the __string_len() and is retrieved in
+ *         __assign_str().
  *
- *         __assign_str_len(foo, bar, len);
+ *         __assign_str(foo, bar);
  *
  *         Then len + 1 is allocated to the ring buffer, and a nul terminating
  *         byte is added. This is similar to:
@@ -302,6 +303,7 @@ TRACE_EVENT(foo_bar,
 		__bitmask(	cpus,	num_possible_cpus()	)
 		__cpumask(	cpum				)
 		__vstring(	vstr,	fmt,	va		)
+		__string_len(	lstr,	foo,	bar / 2 < strlen(foo) ? bar / 2 : strlen(foo) )
 	),
 
 	TP_fast_assign(
@@ -310,12 +312,13 @@ TRACE_EVENT(foo_bar,
 		memcpy(__get_dynamic_array(list), lst,
 		       __length_of(lst) * sizeof(int));
 		__assign_str(str, string);
+		__assign_str(lstr, foo);
 		__assign_vstr(vstr, fmt, va);
 		__assign_bitmask(cpus, cpumask_bits(mask), num_possible_cpus());
 		__assign_cpumask(cpum, cpumask_bits(mask));
 	),
 
-	TP_printk("foo %s %d %s %s %s %s (%s) (%s) %s", __entry->foo, __entry->bar,
+	TP_printk("foo %s %d %s %s %s %s %s (%s) (%s) %s", __entry->foo, __entry->bar,
 
 /*
  * Notice here the use of some helper functions. This includes:
@@ -359,7 +362,8 @@ TRACE_EVENT(foo_bar,
 		  __print_array(__get_dynamic_array(list),
 				__get_dynamic_array_len(list) / sizeof(int),
 				sizeof(int)),
-		  __get_str(str), __get_bitmask(cpus), __get_cpumask(cpum),
+		  __get_str(str), __get_str(lstr),
+		  __get_bitmask(cpus), __get_cpumask(cpum),
 		  __get_str(vstr))
 );
 
@@ -570,7 +574,7 @@ TRACE_EVENT(foo_rel_loc,
 	),
 
 	TP_fast_assign(
-		__assign_rel_str(foo, foo);
+		__assign_rel_str(foo);
 		__entry->bar = bar;
 		__assign_rel_bitmask(bitmask, mask,
 			BITS_PER_BYTE * sizeof(unsigned long));

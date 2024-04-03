@@ -1515,11 +1515,29 @@ static int fs_bdev_thaw(struct block_device *bdev)
 	return error;
 }
 
+static void fs_bdev_super_get(void *data)
+{
+	struct super_block *sb = data;
+
+	spin_lock(&sb_lock);
+	sb->s_count++;
+	spin_unlock(&sb_lock);
+}
+
+static void fs_bdev_super_put(void *data)
+{
+	struct super_block *sb = data;
+
+	put_super(sb);
+}
+
 const struct blk_holder_ops fs_holder_ops = {
 	.mark_dead		= fs_bdev_mark_dead,
 	.sync			= fs_bdev_sync,
 	.freeze			= fs_bdev_freeze,
 	.thaw			= fs_bdev_thaw,
+	.get_holder		= fs_bdev_super_get,
+	.put_holder		= fs_bdev_super_put,
 };
 EXPORT_SYMBOL_GPL(fs_holder_ops);
 

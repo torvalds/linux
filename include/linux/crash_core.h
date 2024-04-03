@@ -8,6 +8,12 @@
 
 struct kimage;
 
+struct crash_mem {
+	unsigned int max_nr_ranges;
+	unsigned int nr_ranges;
+	struct range ranges[] __counted_by(max_nr_ranges);
+};
+
 #ifdef CONFIG_CRASH_DUMP
 
 int crash_shrink_memory(unsigned long new_size);
@@ -50,12 +56,6 @@ static inline unsigned int crash_get_elfcorehdr_size(void) { return 0; }
 
 /* Alignment required for elf header segment */
 #define ELF_CORE_HEADER_ALIGN   4096
-
-struct crash_mem {
-	unsigned int max_nr_ranges;
-	unsigned int nr_ranges;
-	struct range ranges[] __counted_by(max_nr_ranges);
-};
 
 extern int crash_exclude_mem_range(struct crash_mem *mem,
 				   unsigned long long mstart,

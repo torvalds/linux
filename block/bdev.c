@@ -583,6 +583,9 @@ static void bd_finish_claiming(struct block_device *bdev, void *holder,
 	mutex_unlock(&bdev->bd_holder_lock);
 	bd_clear_claiming(whole, holder);
 	mutex_unlock(&bdev_lock);
+
+	if (hops && hops->get_holder)
+		hops->get_holder(holder);
 }
 
 /**
@@ -605,6 +608,7 @@ EXPORT_SYMBOL(bd_abort_claiming);
 static void bd_end_claim(struct block_device *bdev, void *holder)
 {
 	struct block_device *whole = bdev_whole(bdev);
+	const struct blk_holder_ops *hops = bdev->bd_holder_ops;
 	bool unblock = false;
 
 	/*
@@ -626,6 +630,9 @@ static void bd_end_claim(struct block_device *bdev, void *holder)
 	if (!whole->bd_holders)
 		whole->bd_holder = NULL;
 	mutex_unlock(&bdev_lock);
+
+	if (hops && hops->put_holder)
+		hops->put_holder(holder);
 
 	/*
 	 * If this was the last claim, remove holder link and unblock evpoll if

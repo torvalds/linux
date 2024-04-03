@@ -1066,7 +1066,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 			ret = bset_encrypt(c, i, b->written << 9);
 			if (bch2_fs_fatal_err_on(ret, c,
-					"error decrypting btree node: %i", ret))
+					"decrypting btree node: %s", bch2_err_str(ret)))
 				goto fsck_err;
 
 			btree_err_on(btree_node_type_is_extents(btree_node_type(b)) &&
@@ -1107,7 +1107,7 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 
 			ret = bset_encrypt(c, i, b->written << 9);
 			if (bch2_fs_fatal_err_on(ret, c,
-					"error decrypting btree node: %i\n", ret))
+					"decrypting btree node: %s", bch2_err_str(ret)))
 				goto fsck_err;
 
 			sectors = vstruct_sectors(bne, c->block_bits);
@@ -1338,7 +1338,7 @@ start:
 	if (saw_error && !btree_node_read_error(b)) {
 		printbuf_reset(&buf);
 		bch2_bpos_to_text(&buf, b->key.k.p);
-		bch_info(c, "%s: rewriting btree node at btree=%s level=%u %s due to error",
+		bch_err_ratelimited(c, "%s: rewriting btree node at btree=%s level=%u %s due to error",
 			 __func__, bch2_btree_id_str(b->c.btree_id), b->c.level, buf.buf);
 
 		bch2_btree_node_rewrite_async(c, b);
@@ -1874,8 +1874,8 @@ out:
 	return;
 err:
 	set_btree_node_noevict(b);
-	if (!bch2_err_matches(ret, EROFS))
-		bch2_fs_fatal_error(c, "fatal error writing btree node: %s", bch2_err_str(ret));
+	bch2_fs_fatal_err_on(!bch2_err_matches(ret, EROFS), c,
+			     "writing btree node: %s", bch2_err_str(ret));
 	goto out;
 }
 
@@ -2131,7 +2131,7 @@ do_write:
 
 	ret = bset_encrypt(c, i, b->written << 9);
 	if (bch2_fs_fatal_err_on(ret, c,
-			"error encrypting btree node: %i\n", ret))
+			"encrypting btree node: %s", bch2_err_str(ret)))
 		goto err;
 
 	nonce = btree_nonce(i, b->written << 9);

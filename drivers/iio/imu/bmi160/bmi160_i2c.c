@@ -43,6 +43,15 @@ static const struct i2c_device_id bmi160_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, bmi160_i2c_id);
 
 static const struct acpi_device_id bmi160_acpi_match[] = {
+	/*
+	 * FIRMWARE BUG WORKAROUND
+	 * Some manufacturers like GPD, Lenovo or Aya used the incorrect
+	 * ID "10EC5280" for bmi160 in their DSDT. A fixed firmware is not
+	 * available as of Feb 2024 after trying to work with OEMs, and
+	 * this is not expected to change anymore since at least some of
+	 * the affected devices are from 2021/2022.
+	 */
+	{"10EC5280", 0},
 	{"BMI0160", 0},
 	{ },
 };

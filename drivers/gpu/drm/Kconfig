@@ -68,6 +68,7 @@ config DRM_USE_DYNAMIC_DEBUG
 config DRM_KUNIT_TEST_HELPERS
 	tristate
 	depends on DRM && KUNIT
+	select DRM_KMS_HELPER
 	help
 	  KUnit Helpers for KMS drivers.
 
@@ -80,7 +81,6 @@ config DRM_KUNIT_TEST
 	select DRM_EXEC
 	select DRM_EXPORT_FOR_TESTS if m
 	select DRM_GEM_SHMEM_HELPER
-	select DRM_KMS_HELPER
 	select DRM_KUNIT_TEST_HELPERS
 	select DRM_LIB_RANDOM
 	select PRIME_NUMBERS

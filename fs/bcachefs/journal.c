@@ -511,17 +511,17 @@ retry:
 	if (journal_res_get_fast(j, res, flags))
 		return 0;
 
+	if (bch2_journal_error(j))
+		return -BCH_ERR_erofs_journal_err;
+
+	if (j->blocked)
+		return -BCH_ERR_journal_res_get_blocked;
+
 	if ((flags & BCH_WATERMARK_MASK) < j->watermark) {
 		ret = JOURNAL_ERR_journal_full;
 		can_discard = j->can_discard;
 		goto out;
 	}
-
-	if (j->blocked)
-		return -BCH_ERR_journal_res_get_blocked;
-
-	if (bch2_journal_error(j))
-		return -BCH_ERR_erofs_journal_err;
 
 	if (nr_unwritten_journal_entries(j) == ARRAY_SIZE(j->buf) && !journal_entry_is_open(j)) {
 		ret = JOURNAL_ERR_max_in_flight;

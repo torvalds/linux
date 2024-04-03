@@ -55,58 +55,17 @@
 typedef void (*crash_shutdown_t)(void);
 
 #ifdef CONFIG_KEXEC_CORE
-
-/*
- * This function is responsible for capturing register states if coming
- * via panic or invoking dump using sysrq-trigger.
- */
-static inline void crash_setup_regs(struct pt_regs *newregs,
-					struct pt_regs *oldregs)
-{
-	if (oldregs)
-		memcpy(newregs, oldregs, sizeof(*newregs));
-	else
-		ppc_save_regs(newregs);
-}
+struct kimage;
+struct pt_regs;
 
 extern void kexec_smp_wait(void);	/* get and clear naca physid, wait for
 					  master to copy new code to 0 */
-extern int crashing_cpu;
-extern void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *));
-extern void crash_ipi_callback(struct pt_regs *);
-extern int crash_wake_offline;
-
-struct kimage;
-struct pt_regs;
 extern void default_machine_kexec(struct kimage *image);
-extern void default_machine_crash_shutdown(struct pt_regs *regs);
-extern int crash_shutdown_register(crash_shutdown_t handler);
-extern int crash_shutdown_unregister(crash_shutdown_t handler);
-
-extern void crash_kexec_prepare(void);
-extern void crash_kexec_secondary(struct pt_regs *regs);
-int __init overlaps_crashkernel(unsigned long start, unsigned long size);
-extern void reserve_crashkernel(void);
 extern void machine_kexec_mask_interrupts(void);
-
-static inline bool kdump_in_progress(void)
-{
-	return crashing_cpu >= 0;
-}
 
 void relocate_new_kernel(unsigned long indirection_page, unsigned long reboot_code_buffer,
 			 unsigned long start_address) __noreturn;
-
 void kexec_copy_flush(struct kimage *image);
-
-#if defined(CONFIG_CRASH_DUMP)
-bool is_kdump_kernel(void);
-#define is_kdump_kernel			is_kdump_kernel
-#if defined(CONFIG_PPC_RTAS)
-void crash_free_reserved_phys_range(unsigned long begin, unsigned long end);
-#define crash_free_reserved_phys_range crash_free_reserved_phys_range
-#endif /* CONFIG_PPC_RTAS */
-#endif /* CONFIG_CRASH_DUMP */
 
 #ifdef CONFIG_KEXEC_FILE
 extern const struct kexec_file_ops kexec_elf64_ops;
@@ -152,15 +111,56 @@ int setup_new_fdt_ppc64(const struct kimage *image, void *fdt,
 
 #endif /* CONFIG_KEXEC_FILE */
 
-#else /* !CONFIG_KEXEC_CORE */
-static inline void crash_kexec_secondary(struct pt_regs *regs) { }
+#endif /* CONFIG_KEXEC_CORE */
 
-static inline int overlaps_crashkernel(unsigned long start, unsigned long size)
+#ifdef CONFIG_CRASH_RESERVE
+int __init overlaps_crashkernel(unsigned long start, unsigned long size);
+extern void reserve_crashkernel(void);
+#else
+static inline void reserve_crashkernel(void) {}
+static inline int overlaps_crashkernel(unsigned long start, unsigned long size) { return 0; }
+#endif
+
+#if defined(CONFIG_CRASH_DUMP)
+/*
+ * This function is responsible for capturing register states if coming
+ * via panic or invoking dump using sysrq-trigger.
+ */
+static inline void crash_setup_regs(struct pt_regs *newregs,
+					struct pt_regs *oldregs)
 {
-	return 0;
+	if (oldregs)
+		memcpy(newregs, oldregs, sizeof(*newregs));
+	else
+		ppc_save_regs(newregs);
 }
 
-static inline void reserve_crashkernel(void) { ; }
+extern int crashing_cpu;
+extern void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *));
+extern void crash_ipi_callback(struct pt_regs *regs);
+extern int crash_wake_offline;
+
+extern int crash_shutdown_register(crash_shutdown_t handler);
+extern int crash_shutdown_unregister(crash_shutdown_t handler);
+extern void default_machine_crash_shutdown(struct pt_regs *regs);
+
+extern void crash_kexec_prepare(void);
+extern void crash_kexec_secondary(struct pt_regs *regs);
+
+static inline bool kdump_in_progress(void)
+{
+	return crashing_cpu >= 0;
+}
+
+bool is_kdump_kernel(void);
+#define is_kdump_kernel			is_kdump_kernel
+#if defined(CONFIG_PPC_RTAS)
+void crash_free_reserved_phys_range(unsigned long begin, unsigned long end);
+#define crash_free_reserved_phys_range crash_free_reserved_phys_range
+#endif /* CONFIG_PPC_RTAS */
+
+#else /* !CONFIG_CRASH_DUMP */
+static inline void crash_kexec_secondary(struct pt_regs *regs) { }
 
 static inline int crash_shutdown_register(crash_shutdown_t handler)
 {
@@ -183,7 +183,7 @@ static inline void crash_send_ipi(void (*crash_ipi_callback)(struct pt_regs *))
 {
 }
 
-#endif /* CONFIG_KEXEC_CORE */
+#endif /* CONFIG_CRASH_DUMP */
 
 #ifdef CONFIG_PPC_BOOK3S_64
 #include <asm/book3s/64/kexec.h>

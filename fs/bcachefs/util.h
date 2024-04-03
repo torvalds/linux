@@ -683,6 +683,9 @@ static inline void __move_gap(void *array, size_t element_size,
 /* Move the gap in a gap buffer: */
 #define move_gap(_d, _new_gap)						\
 do {									\
+	BUG_ON(_new_gap > (_d)->nr);					\
+	BUG_ON((_d)->gap > (_d)->nr);					\
+									\
 	__move_gap((_d)->data, sizeof((_d)->data[0]),			\
 		   (_d)->nr, (_d)->size, (_d)->gap, _new_gap);		\
 	(_d)->gap = _new_gap;						\

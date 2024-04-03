@@ -2274,6 +2274,17 @@ struct regulator *_regulator_get(struct device *dev, const char *id,
 		if (ret > 0) {
 			rdev->use_count = 1;
 			regulator->enable_count = 1;
+
+			/* Propagate the regulator state to its supply */
+			if (rdev->supply) {
+				ret = regulator_enable(rdev->supply);
+				if (ret < 0) {
+					destroy_regulator(regulator);
+					module_put(rdev->owner);
+					put_device(&rdev->dev);
+					return ERR_PTR(ret);
+				}
+			}
 		} else {
 			rdev->use_count = 0;
 			regulator->enable_count = 0;
