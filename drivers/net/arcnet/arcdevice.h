@@ -16,6 +16,7 @@
 
 #ifdef __KERNEL__
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 
 /*
  * RECON_THRESHOLD is the maximum number of RECON messages to receive
@@ -268,7 +269,7 @@ struct arcnet_local {
 
 	struct net_device *dev;
 	int reply_status;
-	struct tasklet_struct reply_tasklet;
+	struct work_struct reply_work;
 
 	/*
 	 * Buffer management: an ARCnet card has 4 x 512-byte buffers, each of
