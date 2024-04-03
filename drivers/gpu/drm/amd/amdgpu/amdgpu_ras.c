@@ -2399,7 +2399,7 @@ static int amdgpu_ras_badpages_read(struct amdgpu_device *adev,
 			.flags = AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 		};
 		status = amdgpu_vram_mgr_query_page_status(&adev->mman.vram_mgr,
-				data->bps[i].retired_page);
+				data->bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT);
 		if (status == -EBUSY)
 			(*bps)[i].flags = AMDGPU_RAS_RETIRE_PAGE_PENDING;
 		else if (status == -ENOENT)
