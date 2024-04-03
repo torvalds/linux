@@ -7258,10 +7258,48 @@ static struct extent_map *create_io_em(struct btrfs_inode *inode, u64 start,
 	struct extent_map *em;
 	int ret;
 
+	/*
+	 * Note the missing NOCOW type.
+	 *
+	 * For pure NOCOW writes, we should not create an io extent map, but
+	 * just reusing the existing one.
+	 * Only PREALLOC writes (NOCOW write into preallocated range) can
+	 * create an io extent map.
+	 */
 	ASSERT(type == BTRFS_ORDERED_PREALLOC ||
 	       type == BTRFS_ORDERED_COMPRESSED ||
-	       type == BTRFS_ORDERED_NOCOW ||
 	       type == BTRFS_ORDERED_REGULAR);
+
+	switch (type) {
+	case BTRFS_ORDERED_PREALLOC:
+		/* Uncompressed extents. */
+		ASSERT(block_len == len);
+
+		/* We're only referring part of a larger preallocated extent. */
+		ASSERT(block_len <= ram_bytes);
+		break;
+	case BTRFS_ORDERED_REGULAR:
+		/* Uncompressed extents. */
+		ASSERT(block_len == len);
+
+		/* COW results a new extent matching our file extent size. */
+		ASSERT(orig_block_len == len);
+		ASSERT(ram_bytes == len);
+
+		/* Since it's a new extent, we should not have any offset. */
+		ASSERT(orig_start == start);
+		break;
+	case BTRFS_ORDERED_COMPRESSED:
+		/* Must be compressed. */
+		ASSERT(compress_type != BTRFS_COMPRESS_NONE);
+
+		/*
+		 * Encoded write can make us to refer to part of the
+		 * uncompressed extent.
+		 */
+		ASSERT(len <= ram_bytes);
+		break;
+	}
 
 	em = alloc_extent_map();
 	if (!em)
