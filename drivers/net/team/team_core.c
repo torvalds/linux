@@ -27,6 +27,8 @@
 #include <net/sch_generic.h>
 #include <linux/if_team.h>
 
+#include "team_nl.h"
+
 #define DRV_NAME "team"
 
 
@@ -2254,28 +2256,7 @@ static struct rtnl_link_ops team_link_ops __read_mostly = {
 
 static struct genl_family team_nl_family;
 
-static const struct nla_policy team_nl_policy[TEAM_ATTR_MAX + 1] = {
-	[TEAM_ATTR_UNSPEC]			= { .type = NLA_UNSPEC, },
-	[TEAM_ATTR_TEAM_IFINDEX]		= { .type = NLA_U32 },
-	[TEAM_ATTR_LIST_OPTION]			= { .type = NLA_NESTED },
-	[TEAM_ATTR_LIST_PORT]			= { .type = NLA_NESTED },
-};
-
-static const struct nla_policy
-team_nl_option_policy[TEAM_ATTR_OPTION_MAX + 1] = {
-	[TEAM_ATTR_OPTION_UNSPEC]		= { .type = NLA_UNSPEC, },
-	[TEAM_ATTR_OPTION_NAME] = {
-		.type = NLA_STRING,
-		.len = TEAM_STRING_MAX_LEN,
-	},
-	[TEAM_ATTR_OPTION_CHANGED]		= { .type = NLA_FLAG },
-	[TEAM_ATTR_OPTION_TYPE]			= { .type = NLA_U8 },
-	[TEAM_ATTR_OPTION_DATA]			= { .type = NLA_BINARY },
-	[TEAM_ATTR_OPTION_PORT_IFINDEX]		= { .type = NLA_U32 },
-	[TEAM_ATTR_OPTION_ARRAY_INDEX]		= { .type = NLA_U32 },
-};
-
-static int team_nl_cmd_noop(struct sk_buff *skb, struct genl_info *info)
+int team_nl_noop_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct sk_buff *msg;
 	void *hdr;
@@ -2513,7 +2494,7 @@ errout:
 	return err;
 }
 
-static int team_nl_cmd_options_get(struct sk_buff *skb, struct genl_info *info)
+int team_nl_options_get_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct team *team;
 	struct team_option_inst *opt_inst;
@@ -2538,7 +2519,7 @@ static int team_nl_cmd_options_get(struct sk_buff *skb, struct genl_info *info)
 static int team_nl_send_event_options_get(struct team *team,
 					  struct list_head *sel_opt_inst_list);
 
-static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
+int team_nl_options_set_doit(struct sk_buff *skb, struct genl_info *info)
 {
 	struct team *team;
 	int err = 0;
@@ -2579,7 +2560,7 @@ static int team_nl_cmd_options_set(struct sk_buff *skb, struct genl_info *info)
 		err = nla_parse_nested_deprecated(opt_attrs,
 						  TEAM_ATTR_OPTION_MAX,
 						  nl_option,
-						  team_nl_option_policy,
+						  team_attr_option_nl_policy,
 						  info->extack);
 		if (err)
 			goto team_put;
@@ -2802,8 +2783,8 @@ errout:
 	return err;
 }
 
-static int team_nl_cmd_port_list_get(struct sk_buff *skb,
-				     struct genl_info *info)
+int team_nl_port_list_get_doit(struct sk_buff *skb,
+			       struct genl_info *info)
 {
 	struct team *team;
 	int err;
@@ -2820,32 +2801,6 @@ static int team_nl_cmd_port_list_get(struct sk_buff *skb,
 	return err;
 }
 
-static const struct genl_small_ops team_nl_ops[] = {
-	{
-		.cmd = TEAM_CMD_NOOP,
-		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit = team_nl_cmd_noop,
-	},
-	{
-		.cmd = TEAM_CMD_OPTIONS_SET,
-		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit = team_nl_cmd_options_set,
-		.flags = GENL_ADMIN_PERM,
-	},
-	{
-		.cmd = TEAM_CMD_OPTIONS_GET,
-		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit = team_nl_cmd_options_get,
-		.flags = GENL_ADMIN_PERM,
-	},
-	{
-		.cmd = TEAM_CMD_PORT_LIST_GET,
-		.validate = GENL_DONT_VALIDATE_STRICT | GENL_DONT_VALIDATE_DUMP,
-		.doit = team_nl_cmd_port_list_get,
-		.flags = GENL_ADMIN_PERM,
-	},
-};
-
 static const struct genl_multicast_group team_nl_mcgrps[] = {
 	{ .name = TEAM_GENL_CHANGE_EVENT_MC_GRP_NAME, },
 };
@@ -2853,7 +2808,7 @@ static const struct genl_multicast_group team_nl_mcgrps[] = {
 static struct genl_family team_nl_family __ro_after_init = {
 	.name		= TEAM_GENL_NAME,
 	.version	= TEAM_GENL_VERSION,
-	.maxattr	= TEAM_ATTR_MAX,
+	.maxattr	= ARRAY_SIZE(team_nl_policy),
 	.policy = team_nl_policy,
 	.netnsok	= true,
 	.module		= THIS_MODULE,
