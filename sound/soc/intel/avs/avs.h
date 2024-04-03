@@ -107,7 +107,7 @@ struct avs_spec {
 };
 
 struct avs_fw_entry {
-	char *name;
+	const char *name;
 	const struct firmware *fw;
 
 	struct list_head node;
