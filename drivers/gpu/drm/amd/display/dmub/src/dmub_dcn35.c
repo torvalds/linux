@@ -420,6 +420,7 @@ void dmub_dcn35_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmu
 	boot_options.bits.disable_clk_ds = params->disallow_dispclk_dppclk_ds;
 	boot_options.bits.disable_clk_gate = params->disable_clock_gate;
 	boot_options.bits.ips_disable = params->disable_ips;
+	boot_options.bits.ips_sequential_ono = params->ips_sequential_ono;
 
 	REG_WRITE(DMCUB_SCRATCH14, boot_options.all);
 }
