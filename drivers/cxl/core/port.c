@@ -2165,6 +2165,11 @@ int cxl_hb_get_perf_coordinates(struct cxl_port *port,
 	return 0;
 }
 
+static bool parent_port_is_cxl_root(struct cxl_port *port)
+{
+	return is_cxl_root(to_cxl_port(port->dev.parent));
+}
+
 /**
  * cxl_endpoint_get_perf_coordinates - Retrieve performance numbers stored in dports
  *				   of CXL path
@@ -2184,27 +2189,31 @@ int cxl_endpoint_get_perf_coordinates(struct cxl_port *port,
 	struct cxl_dport *dport;
 	struct pci_dev *pdev;
 	unsigned int bw;
+	bool is_cxl_root;
 
 	if (!is_cxl_endpoint(port))
 		return -EINVAL;
 
-	dport = iter->parent_dport;
-
 	/*
-	 * Exit the loop when the parent port of the current port is cxl root.
-	 * The iterative loop starts at the endpoint and gathers the
-	 * latency of the CXL link from the current iter to the next downstream
-	 * port each iteration. If the parent is cxl root then there is
-	 * nothing to gather.
+	 * Exit the loop when the parent port of the current iter port is cxl
+	 * root. The iterative loop starts at the endpoint and gathers the
+	 * latency of the CXL link from the current device/port to the connected
+	 * downstream port each iteration.
 	 */
-	while (!is_cxl_root(to_cxl_port(iter->dev.parent))) {
-		cxl_coordinates_combine(&c, &c, &dport->sw_coord);
+	do {
+		dport = iter->parent_dport;
+		iter = to_cxl_port(iter->dev.parent);
+		is_cxl_root = parent_port_is_cxl_root(iter);
+
+		/*
+		 * There's no valid access_coordinate for a root port since RPs do not
+		 * have CDAT and therefore needs to be skipped.
+		 */
+		if (!is_cxl_root)
+			cxl_coordinates_combine(&c, &c, &dport->sw_coord);
 		c.write_latency += dport->link_latency;
 		c.read_latency += dport->link_latency;
-
-		iter = to_cxl_port(iter->dev.parent);
-		dport = iter->parent_dport;
-	}
+	} while (!is_cxl_root);
 
 	/* Get the calculated PCI paths bandwidth */
 	pdev = to_pci_dev(port->uport_dev->parent);
