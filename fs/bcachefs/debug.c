@@ -13,6 +13,7 @@
 #include "btree_iter.h"
 #include "btree_locking.h"
 #include "btree_update.h"
+#include "btree_update_interior.h"
 #include "buckets.h"
 #include "debug.h"
 #include "error.h"
@@ -668,7 +669,7 @@ static ssize_t bch2_journal_pins_read(struct file *file, char __user *buf,
 	i->size	= size;
 	i->ret	= 0;
 
-	do {
+	while (1) {
 		err = flush_buf(i);
 		if (err)
 			return err;
@@ -676,9 +677,12 @@ static ssize_t bch2_journal_pins_read(struct file *file, char __user *buf,
 		if (!i->size)
 			break;
 
+		if (done)
+			break;
+
 		done = bch2_journal_seq_pins_to_text(&i->buf, &c->journal, &i->iter);
 		i->iter++;
-	} while (!done);
+	}
 
 	if (i->buf.allocation_failure)
 		return -ENOMEM;
@@ -693,13 +697,45 @@ static const struct file_operations journal_pins_ops = {
 	.read		= bch2_journal_pins_read,
 };
 
+static ssize_t bch2_btree_updates_read(struct file *file, char __user *buf,
+				       size_t size, loff_t *ppos)
+{
+	struct dump_iter *i = file->private_data;
+	struct bch_fs *c = i->c;
+	int err;
+
+	i->ubuf = buf;
+	i->size	= size;
+	i->ret	= 0;
+
+	if (!i->iter) {
+		bch2_btree_updates_to_text(&i->buf, c);
+		i->iter++;
+	}
+
+	err = flush_buf(i);
+	if (err)
+		return err;
+
+	if (i->buf.allocation_failure)
+		return -ENOMEM;
+
+	return i->ret;
+}
+
+static const struct file_operations btree_updates_ops = {
+	.owner		= THIS_MODULE,
+	.open		= bch2_dump_open,
+	.release	= bch2_dump_release,
+	.read		= bch2_btree_updates_read,
+};
+
 static int btree_transaction_stats_open(struct inode *inode, struct file *file)
 {
 	struct bch_fs *c = inode->i_private;
 	struct dump_iter *i;
 
 	i = kzalloc(sizeof(struct dump_iter), GFP_KERNEL);
-
 	if (!i)
 		return -ENOMEM;
 
@@ -901,6 +937,9 @@ void bch2_fs_debug_init(struct bch_fs *c)
 
 	debugfs_create_file("journal_pins", 0400, c->fs_debug_dir,
 			    c->btree_debug, &journal_pins_ops);
+
+	debugfs_create_file("btree_updates", 0400, c->fs_debug_dir,
+			    c->btree_debug, &btree_updates_ops);
 
 	debugfs_create_file("btree_transaction_stats", 0400, c->fs_debug_dir,
 			    c, &btree_transaction_stats_op);
