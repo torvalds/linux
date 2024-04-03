@@ -54,7 +54,7 @@ static int avs_create_dai_links(struct device *dev, struct hda_codec *codec, int
 		if (!dl[i].cpus->dai_name)
 			return -ENOMEM;
 
-		dl[i].codecs->name = devm_kstrdup(dev, cname, GFP_KERNEL);
+		dl[i].codecs->name = devm_kstrdup_const(dev, cname, GFP_KERNEL);
 		if (!dl[i].codecs->name)
 			return -ENOMEM;
 
@@ -191,7 +191,7 @@ static int avs_hdaudio_probe(struct platform_device *pdev)
 	if (!binder->platforms || !binder->codecs)
 		return -ENOMEM;
 
-	binder->codecs->name = devm_kstrdup(dev, dev_name(&codec->core.dev), GFP_KERNEL);
+	binder->codecs->name = devm_kstrdup_const(dev, dev_name(&codec->core.dev), GFP_KERNEL);
 	if (!binder->codecs->name)
 		return -ENOMEM;
 
