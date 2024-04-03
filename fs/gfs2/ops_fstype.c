@@ -185,22 +185,10 @@ static int gfs2_check_sb(struct gfs2_sbd *sdp, int silent)
 	return 0;
 }
 
-static void end_bio_io_page(struct bio *bio)
-{
-	struct page *page = bio->bi_private;
-
-	if (!bio->bi_status)
-		SetPageUptodate(page);
-	else
-		pr_warn("error %d reading superblock\n", bio->bi_status);
-	unlock_page(page);
-}
-
-static void gfs2_sb_in(struct gfs2_sbd *sdp, const void *buf)
+static void gfs2_sb_in(struct gfs2_sbd *sdp, const struct gfs2_sb *str)
 {
 	struct gfs2_sb_host *sb = &sdp->sd_sb;
 	struct super_block *s = sdp->sd_vfs;
-	const struct gfs2_sb *str = buf;
 
 	sb->sb_magic = be32_to_cpu(str->sb_header.mh_magic);
 	sb->sb_type = be32_to_cpu(str->sb_header.mh_type);
@@ -240,34 +228,26 @@ static void gfs2_sb_in(struct gfs2_sbd *sdp, const void *buf)
 static int gfs2_read_super(struct gfs2_sbd *sdp, sector_t sector, int silent)
 {
 	struct super_block *sb = sdp->sd_vfs;
-	struct gfs2_sb *p;
 	struct page *page;
-	struct bio *bio;
+	struct bio_vec bvec;
+	struct bio bio;
+	int err;
 
-	page = alloc_page(GFP_NOFS);
+	page = alloc_page(GFP_KERNEL);
 	if (unlikely(!page))
 		return -ENOMEM;
 
-	ClearPageUptodate(page);
-	ClearPageDirty(page);
-	lock_page(page);
+	bio_init(&bio, sb->s_bdev, &bvec, 1, REQ_OP_READ | REQ_META);
+	bio.bi_iter.bi_sector = sector * (sb->s_blocksize >> 9);
+	__bio_add_page(&bio, page, PAGE_SIZE, 0);
 
-	bio = bio_alloc(sb->s_bdev, 1, REQ_OP_READ | REQ_META, GFP_NOFS);
-	bio->bi_iter.bi_sector = sector * (sb->s_blocksize >> 9);
-	__bio_add_page(bio, page, PAGE_SIZE, 0);
-
-	bio->bi_end_io = end_bio_io_page;
-	bio->bi_private = page;
-	submit_bio(bio);
-	wait_on_page_locked(page);
-	bio_put(bio);
-	if (!PageUptodate(page)) {
+	err = submit_bio_wait(&bio);
+	if (err) {
+		pr_warn("error %d reading superblock\n", err);
 		__free_page(page);
-		return -EIO;
+		return err;
 	}
-	p = kmap(page);
-	gfs2_sb_in(sdp, p);
-	kunmap(page);
+	gfs2_sb_in(sdp, page_address(page));
 	__free_page(page);
 	return gfs2_check_sb(sdp, silent);
 }
