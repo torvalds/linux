@@ -19,6 +19,7 @@
 #include <sound/hda_register.h>
 
 #include <linux/acpi.h>
+#include <linux/debugfs.h>
 #include <linux/module.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_intel.h>
@@ -34,6 +35,7 @@
 #include "../ipc4-topology.h"
 #include "hda.h"
 #include "telemetry.h"
+#include "mtl.h"
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/sof_intel.h>
@@ -596,7 +598,7 @@ static const struct hda_dsp_msg_code hda_dsp_rom_fw_error_texts[] = {
 };
 
 #define FSR_ROM_STATE_ENTRY(state)	{FSR_STATE_ROM_##state, #state}
-static const struct hda_dsp_msg_code fsr_rom_state_names[] = {
+static const struct hda_dsp_msg_code cavs_fsr_rom_state_names[] = {
 	FSR_ROM_STATE_ENTRY(INIT),
 	FSR_ROM_STATE_ENTRY(INIT_DONE),
 	FSR_ROM_STATE_ENTRY(CSE_MANIFEST_LOADED),
@@ -617,6 +619,58 @@ static const struct hda_dsp_msg_code fsr_rom_state_names[] = {
 	FSR_ROM_STATE_ENTRY(CSE_IPC_OPERATIONAL_ENTRY),
 	FSR_ROM_STATE_ENTRY(CSE_IPC_OPERATIONAL),
 	FSR_ROM_STATE_ENTRY(CSE_IPC_DOWN),
+};
+
+static const struct hda_dsp_msg_code ace_fsr_rom_state_names[] = {
+	FSR_ROM_STATE_ENTRY(INIT),
+	FSR_ROM_STATE_ENTRY(INIT_DONE),
+	FSR_ROM_STATE_ENTRY(CSE_MANIFEST_LOADED),
+	FSR_ROM_STATE_ENTRY(FW_MANIFEST_LOADED),
+	FSR_ROM_STATE_ENTRY(FW_FW_LOADED),
+	FSR_ROM_STATE_ENTRY(FW_ENTERED),
+	FSR_ROM_STATE_ENTRY(VERIFY_FEATURE_MASK),
+	FSR_ROM_STATE_ENTRY(GET_LOAD_OFFSET),
+	FSR_ROM_STATE_ENTRY(RESET_VECTOR_DONE),
+	FSR_ROM_STATE_ENTRY(PURGE_BOOT),
+	FSR_ROM_STATE_ENTRY(RESTORE_BOOT),
+	FSR_ROM_STATE_ENTRY(FW_ENTRY_POINT),
+	FSR_ROM_STATE_ENTRY(VALIDATE_PUB_KEY),
+	FSR_ROM_STATE_ENTRY(POWER_DOWN_HPSRAM),
+	FSR_ROM_STATE_ENTRY(POWER_DOWN_ULPSRAM),
+	FSR_ROM_STATE_ENTRY(POWER_UP_ULPSRAM_STACK),
+	FSR_ROM_STATE_ENTRY(POWER_UP_HPSRAM_DMA),
+	FSR_ROM_STATE_ENTRY(BEFORE_EP_POINTER_READ),
+	FSR_ROM_STATE_ENTRY(VALIDATE_MANIFEST),
+	FSR_ROM_STATE_ENTRY(VALIDATE_FW_MODULE),
+	FSR_ROM_STATE_ENTRY(PROTECT_IMR_REGION),
+	FSR_ROM_STATE_ENTRY(PUSH_MODEL_ROUTINE),
+	FSR_ROM_STATE_ENTRY(PULL_MODEL_ROUTINE),
+	FSR_ROM_STATE_ENTRY(VALIDATE_PKG_DIR),
+	FSR_ROM_STATE_ENTRY(VALIDATE_CPD),
+	FSR_ROM_STATE_ENTRY(VALIDATE_CSS_MAN_HEADER),
+	FSR_ROM_STATE_ENTRY(VALIDATE_BLOB_SVN),
+	FSR_ROM_STATE_ENTRY(VERIFY_IFWI_PARTITION),
+	FSR_ROM_STATE_ENTRY(REMOVE_ACCESS_CONTROL),
+	FSR_ROM_STATE_ENTRY(AUTH_BYPASS),
+	FSR_ROM_STATE_ENTRY(AUTH_ENABLED),
+	FSR_ROM_STATE_ENTRY(INIT_DMA),
+	FSR_ROM_STATE_ENTRY(PURGE_FW_ENTRY),
+	FSR_ROM_STATE_ENTRY(PURGE_FW_END),
+	FSR_ROM_STATE_ENTRY(CLEAN_UP_BSS_DONE),
+	FSR_ROM_STATE_ENTRY(IMR_RESTORE_ENTRY),
+	FSR_ROM_STATE_ENTRY(IMR_RESTORE_END),
+	FSR_ROM_STATE_ENTRY(FW_MANIFEST_IN_DMA_BUFF),
+	FSR_ROM_STATE_ENTRY(LOAD_CSE_MAN_TO_IMR),
+	FSR_ROM_STATE_ENTRY(LOAD_FW_MAN_TO_IMR),
+	FSR_ROM_STATE_ENTRY(LOAD_FW_CODE_TO_IMR),
+	FSR_ROM_STATE_ENTRY(FW_LOADING_DONE),
+	FSR_ROM_STATE_ENTRY(FW_CODE_LOADED),
+	FSR_ROM_STATE_ENTRY(VERIFY_IMAGE_TYPE),
+	FSR_ROM_STATE_ENTRY(AUTH_API_INIT),
+	FSR_ROM_STATE_ENTRY(AUTH_API_PROC),
+	FSR_ROM_STATE_ENTRY(AUTH_API_FIRST_BUSY),
+	FSR_ROM_STATE_ENTRY(AUTH_API_FIRST_RESULT),
+	FSR_ROM_STATE_ENTRY(AUTH_API_CLEANUP),
 };
 
 #define FSR_BRINGUP_STATE_ENTRY(state)	{FSR_STATE_BRINGUP_##state, #state}
@@ -663,7 +717,7 @@ hda_dsp_get_state_text(u32 code, const struct hda_dsp_msg_code *msg_code,
 	return NULL;
 }
 
-static void hda_dsp_get_state(struct snd_sof_dev *sdev, const char *level)
+void hda_dsp_get_state(struct snd_sof_dev *sdev, const char *level)
 {
 	const struct sof_intel_dsp_desc *chip = get_chip_info(sdev->pdata);
 	const char *state_text, *error_text, *module_text;
@@ -679,12 +733,19 @@ static void hda_dsp_get_state(struct snd_sof_dev *sdev, const char *level)
 	else
 		module_text = fsr_module_names[module];
 
-	if (module == FSR_MOD_BRNGUP)
+	if (module == FSR_MOD_BRNGUP) {
 		state_text = hda_dsp_get_state_text(state, fsr_bringup_state_names,
 						    ARRAY_SIZE(fsr_bringup_state_names));
-	else
-		state_text = hda_dsp_get_state_text(state, fsr_rom_state_names,
-						    ARRAY_SIZE(fsr_rom_state_names));
+	} else {
+		if (chip->hw_ip_version < SOF_INTEL_ACE_1_0)
+			state_text = hda_dsp_get_state_text(state,
+							cavs_fsr_rom_state_names,
+							ARRAY_SIZE(cavs_fsr_rom_state_names));
+		else
+			state_text = hda_dsp_get_state_text(state,
+							ace_fsr_rom_state_names,
+							ARRAY_SIZE(ace_fsr_rom_state_names));
+	}
 
 	/* not for us, must be generic sof message */
 	if (!state_text) {
