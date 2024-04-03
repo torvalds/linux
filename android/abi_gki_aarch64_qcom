@@ -308,6 +308,7 @@
   clk_set_rate
   clk_sync_state
   clk_unprepare
+  clk_unregister_fixed_rate
   close_candev
   close_fd
   cma_alloc
@@ -1247,6 +1248,7 @@
   get_page_owner_handle
   get_pfnblock_flags_mask
   get_pid_task
+  get_phy_device
   get_random_bytes
   get_random_u16
   get_random_u32
@@ -1392,6 +1394,7 @@
   __hvc_resize
   __hw_addr_init
   __hw_addr_sync
+  __hw_addr_sync_dev
   __hw_addr_unsync
   hwrng_register
   hwrng_unregister
@@ -2017,6 +2020,7 @@
   netdev_change_features
   netdev_core_stats_alloc
   netdev_err
+  netdev_features_change
   netdev_increment_features
   netdev_info
   netdev_lower_state_changed
@@ -2277,6 +2281,7 @@
   pci_disable_device
   pci_disable_msi
   pcie_capability_clear_and_set_word
+  pcie_capability_read_dword
   pcie_capability_read_word
   pci_enable_device
   pci_enable_pcie_error_reporting
@@ -2332,6 +2337,8 @@
   perf_trace_run_bpf_submit
   phy_attached_info
   phy_calibrate
+  phy_device_free
+  phy_device_register
   phy_do_ioctl_running
   phy_drivers_register
   phy_drivers_unregister
@@ -2342,6 +2349,8 @@
   phy_init
   phy_init_eee
   phy_init_hw
+  phy_loopback
+  phy_lookup_setting
   phylink_connect_phy
   phylink_create
   phylink_destroy
@@ -2379,6 +2388,7 @@
   phy_power_on
   phy_read_mmd
   phy_resolve_aneg_linkmode
+  phy_restart_aneg
   phy_set_max_speed
   phy_set_mode_ext
   phy_suspend
@@ -3439,6 +3449,7 @@
   __traceiter_android_vh_show_suspend_epoch_val
   __traceiter_android_vh_skip_swap_map_write
   __traceiter_android_vh_timer_calc_index
+  __traceiter_android_vh_try_fixup_sea
   __traceiter_android_vh_ufs_check_int_errors
   __traceiter_android_vh_ufs_compl_command
   __traceiter_android_vh_ufs_send_command
@@ -3587,6 +3598,7 @@
   __tracepoint_android_vh_show_suspend_epoch_val
   __tracepoint_android_vh_skip_swap_map_write
   __tracepoint_android_vh_timer_calc_index
+  __tracepoint_android_vh_try_fixup_sea
   __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_compl_command
   __tracepoint_android_vh_ufs_send_command

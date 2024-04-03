@@ -410,7 +410,8 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
 	}
 
 	trace_android_vh_binder_alloc_new_buf_locked(size, &alloc->free_async_space, is_async);
-	trace_android_vh_binder_detect_low_async_space_locked(is_async, &alloc->free_async_space, pid, &should_fail);
+	trace_android_vh_binder_detect_low_async_space(is_async, &alloc->free_async_space, pid,
+			&should_fail);
 	if (should_fail) {
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
 				   "%d: binder_alloc_buf size %zd failed, not allowed to alloc more async space\n",

@@ -319,6 +319,11 @@ struct queue_limits {
 	unsigned char		misaligned;
 	unsigned char		discard_misaligned;
 	unsigned char		raid_partial_stripes_expensive;
+
+#ifndef __GENKSYMS__
+	bool			sub_page_limits;
+#endif
+
 	enum blk_zoned_model	zoned;
 
 	/*

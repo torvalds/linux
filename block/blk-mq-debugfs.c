@@ -874,3 +874,12 @@ void blk_mq_debugfs_unregister_sched_hctx(struct blk_mq_hw_ctx *hctx)
 	debugfs_remove_recursive(hctx->sched_debugfs_dir);
 	hctx->sched_debugfs_dir = NULL;
 }
+
+DEFINE_DEBUGFS_ATTRIBUTE(blk_sub_page_limit_queues_fops,
+			blk_sub_page_limit_queues_get, NULL, "%llu\n");
+
+void blk_mq_debugfs_init(void)
+{
+	debugfs_create_file("sub_page_limit_queues", 0400, blk_debugfs_root,
+			    NULL, &blk_sub_page_limit_queues_fops);
+}

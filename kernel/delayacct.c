@@ -14,6 +14,8 @@
 #include <linux/delayacct.h>
 #include <linux/module.h>
 
+#ifdef CONFIG_TASK_DELAY_ACCT
+
 DEFINE_STATIC_KEY_FALSE(delayacct_key);
 int delayacct_on __read_mostly;	/* Delay accounting turned on/off */
 struct kmem_cache *delayacct_cache;
@@ -274,3 +276,105 @@ void __delayacct_wpcopy_end(void)
 		      &current->delays->wpcopy_delay,
 		      &current->delays->wpcopy_count);
 }
+#else
+#include <trace/hooks/delayacct.h>
+
+int delayacct_enabled __read_mostly;	/* Delay accounting turned on/off */
+bool get_delayacct_enabled(void)
+{
+	return delayacct_enabled;
+}
+
+void set_delayacct_enabled(bool enabled)
+{
+	delayacct_enabled = enabled;
+}
+EXPORT_SYMBOL_GPL(set_delayacct_enabled);
+
+void _trace_android_rvh_delayacct_init(void)
+{
+	trace_android_rvh_delayacct_init(NULL);
+}
+
+void _trace_android_rvh_delayacct_tsk_init(struct task_struct *tsk)
+{
+	trace_android_rvh_delayacct_tsk_init(tsk);
+}
+
+void _trace_android_rvh_delayacct_tsk_free(struct task_struct *tsk)
+{
+	trace_android_rvh_delayacct_tsk_free(tsk);
+}
+
+void _trace_android_vh_delayacct_blkio_start(void)
+{
+	trace_android_vh_delayacct_blkio_start(NULL);
+}
+
+void _trace_android_vh_delayacct_blkio_end(struct task_struct *p)
+{
+	trace_android_vh_delayacct_blkio_end(p);
+}
+
+void _trace_android_vh_delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk, int *ret)
+{
+	trace_android_vh_delayacct_add_tsk(d, tsk, ret);
+}
+
+void _trace_android_vh_delayacct_blkio_ticks(struct task_struct *tsk, __u64 *ret)
+{
+	trace_android_vh_delayacct_blkio_ticks(tsk, ret);
+}
+
+void _trace_android_vh_delayacct_freepages_start(void)
+{
+	trace_android_vh_delayacct_freepages_start(NULL);
+}
+
+void _trace_android_vh_delayacct_freepages_end(void)
+{
+	trace_android_vh_delayacct_freepages_end(NULL);
+}
+
+void _trace_android_vh_delayacct_thrashing_start(bool *in_thrashing)
+{
+	trace_android_vh_delayacct_thrashing_start(in_thrashing);
+}
+
+void _trace_android_vh_delayacct_thrashing_end(bool *in_thrashing)
+{
+	trace_android_vh_delayacct_thrashing_end(in_thrashing);
+}
+
+void _trace_android_vh_delayacct_swapin_start(void)
+{
+	trace_android_vh_delayacct_swapin_start(NULL);
+}
+
+void _trace_android_vh_delayacct_swapin_end(void)
+{
+	trace_android_vh_delayacct_swapin_end(NULL);
+}
+
+void _trace_android_vh_delayacct_compact_start(void)
+{
+	trace_android_vh_delayacct_compact_start(NULL);
+}
+
+void _trace_android_vh_delayacct_compact_end(void)
+{
+	trace_android_vh_delayacct_compact_end(NULL);
+}
+
+void _trace_android_vh_delayacct_wpcopy_start(void)
+{
+	trace_android_vh_delayacct_wpcopy_start(NULL);
+}
+
+void _trace_android_vh_delayacct_wpcopy_end(void)
+{
+	trace_android_vh_delayacct_wpcopy_end(NULL);
+}
+
+#endif
+

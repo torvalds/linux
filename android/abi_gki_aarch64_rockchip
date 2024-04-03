@@ -144,6 +144,14 @@
   __crypto_xor
   csum_partial
   _ctype
+  debugfs_attr_read
+  debugfs_attr_write
+  debugfs_create_dir
+  debugfs_create_file
+  debugfs_create_regset32
+  debugfs_lookup
+  debugfs_remove
+  debugfs_rename
   default_llseek
   delayed_work_timer_fn
   del_timer
@@ -1121,6 +1129,7 @@
   snd_soc_info_volsw
   snd_soc_jack_add_gpios
   snd_soc_jack_report
+  snd_soc_lookup_component
   snd_soc_of_parse_audio_routing
   snd_soc_of_parse_card_name
   snd_soc_params_to_frame_size
@@ -1457,6 +1466,7 @@
   clear_page
   __ClearPageMovable
   complete_all
+  debugfs_create_bool
   devfreq_add_device
   devfreq_cooling_em_register
   devfreq_cooling_unregister
@@ -1751,6 +1761,8 @@
   mmc_send_tuning
 
 # required by dw_mmc.ko
+  debugfs_create_u32
+  debugfs_create_x64
   device_property_read_string_array
   mmc_add_host
   mmc_alloc_host
@@ -2183,6 +2195,47 @@
   mmc_pwrseq_register
   mmc_pwrseq_unregister
 
+# required by r8168.ko
+  csum_ipv6_magic
+  netif_set_tso_max_segs
+  netif_set_tso_max_size
+  pci_choose_state
+  pci_clear_master
+  pci_clear_mwi
+  pci_disable_msi
+  pci_disable_msix
+  pci_enable_device
+  pci_enable_msi
+  pci_enable_msix_range
+  pci_enable_wake
+  pci_get_slot
+  pci_release_regions
+  pci_request_regions
+  pci_set_mwi
+  pci_wake_from_d3
+  pci_write_config_byte
+  proc_get_parent_data
+  proc_mkdir_data
+
+# required by realtek.ko
+  genphy_handle_interrupt_no_ack
+  genphy_read_abilities
+  genphy_read_mmd_unsupported
+  genphy_update_link
+  genphy_write_mmd_unsupported
+  __mdiobus_read
+  __mdiobus_write
+  phy_basic_t1_features
+  __phy_modify
+  phy_modify
+  phy_modify_changed
+  phy_modify_paged
+  phy_modify_paged_changed
+  phy_read_paged
+  phy_restore_page
+  phy_select_page
+  phy_write_paged
+
 # required by reboot-mode.ko
   devres_release
   kernel_kobj
@@ -2437,6 +2490,8 @@
   drm_crtc_vblank_off
   drm_crtc_vblank_on
   drm_crtc_vblank_put
+  drm_debugfs_create_files
+  drm_debugfs_remove_files
   drm_do_get_edid
   drm_encoder_cleanup
   drm_encoder_init
@@ -2661,11 +2716,29 @@
 # required by snd-soc-rockchip-spdif.ko
   snd_pcm_create_iec958_consumer_hw_params
 
+# required by snd-soc-rockchip-trcm.ko
+  snd_dmaengine_pcm_prepare_slave_config
+  snd_dmaengine_pcm_refine_runtime_hwparams
+  snd_dmaengine_pcm_set_config_from_dai_data
+  snd_pcm_format_size
+  snd_pcm_hw_constraint_integer
+  snd_pcm_period_elapsed
+  snd_pcm_set_managed_buffer
+  snd_soc_add_component
+  snd_soc_component_initialize
+  snd_soc_set_runtime_hwparams
+  snd_soc_unregister_component_by_driver
+  strscpy_pad
+
+# required by snd-soc-rockchip.ko
+  snd_pcm_format_physical_width
+
 # required by snd-soc-rt5640.ko
   regmap_register_patch
   snd_soc_dapm_force_bias_level
 
 # required by snd-soc-simple-card-utils.ko
+  devm_get_clk_from_child
   devm_kvasprintf
   snd_pcm_hw_constraint_minmax
   snd_soc_component_set_sysclk
@@ -2856,6 +2929,25 @@
 # required by twofish_generic.ko
   crypto_register_alg
   crypto_unregister_alg
+
+# required by ufs-rockchip.ko
+  ufshcd_config_pwr_mode
+  ufshcd_dealloc_host
+  ufshcd_dme_set_attr
+  ufshcd_hba_enable
+  ufshcd_hba_stop
+  ufshcd_hold
+  ufshcd_make_hba_operational
+  ufshcd_pltfrm_init
+  ufshcd_pltfrm_shutdown
+  ufshcd_release
+  ufshcd_remove
+  ufshcd_resume_complete
+  ufshcd_runtime_resume
+  ufshcd_runtime_suspend
+  ufshcd_suspend_prepare
+  ufshcd_system_resume
+  ufshcd_system_suspend
 
 # required by usblp.ko
   add_wait_queue

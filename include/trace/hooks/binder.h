@@ -83,9 +83,9 @@ DECLARE_HOOK(android_vh_binder_alloc_new_buf_locked,
 	TP_PROTO(size_t size, size_t *free_async_space, int is_async),
 	TP_ARGS(size, free_async_space, is_async));
 
-DECLARE_HOOK(android_vh_binder_detect_low_async_space_locked,
-        TP_PROTO(int is_async, size_t *free_async_space, int pid, bool *should_fail),
-        TP_ARGS(is_async, free_async_space, pid, should_fail));
+DECLARE_HOOK(android_vh_binder_detect_low_async_space,
+	TP_PROTO(int is_async, size_t *free_async_space, int pid, bool *should_fail),
+	TP_ARGS(is_async, free_async_space, pid, should_fail));
 struct binder_transaction_data;
 DECLARE_HOOK(android_vh_binder_reply,
 	TP_PROTO(struct binder_proc *target_proc, struct binder_proc *proc,
@@ -126,6 +126,10 @@ DECLARE_HOOK(android_vh_binder_free_buf,
 	TP_PROTO(struct binder_proc *proc, struct binder_thread *thread,
 		struct binder_buffer *buffer),
 	TP_ARGS(proc, thread, buffer));
+DECLARE_HOOK(android_vh_binder_buffer_release,
+	TP_PROTO(struct binder_proc *proc, struct binder_thread *thread,
+		struct binder_buffer *buffer, bool has_transaction),
+	TP_ARGS(proc, thread, buffer, has_transaction));
 
 DECLARE_HOOK(android_vh_binder_ioctl_end,
 	TP_PROTO(struct task_struct *caller_task,

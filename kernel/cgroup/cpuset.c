@@ -68,6 +68,7 @@
 #include <linux/wait.h>
 
 #include <trace/hooks/cgroup.h>
+#include <trace/hooks/sched.h>
 
 DEFINE_STATIC_KEY_FALSE(cpusets_pre_enable_key);
 DEFINE_STATIC_KEY_FALSE(cpusets_enabled_key);
@@ -1241,6 +1242,18 @@ void rebuild_sched_domains(void)
 }
 EXPORT_SYMBOL_GPL(rebuild_sched_domains);
 
+static int update_cpus_allowed(struct cpuset *cs, struct task_struct *p,
+				const struct cpumask *new_mask)
+{
+	int ret = -EINVAL;
+
+	trace_android_rvh_update_cpus_allowed(p, cs->cpus_requested, new_mask, &ret);
+	if (!ret)
+		return ret;
+
+	return set_cpus_allowed_ptr(p, new_mask);
+}
+
 /**
  * update_tasks_cpumask - Update the cpumasks of tasks in the cpuset.
  * @cs: the cpuset in which each task's cpus_allowed mask needs to be changed
@@ -1267,7 +1280,7 @@ static void update_tasks_cpumask(struct cpuset *cs, struct cpumask *new_cpus)
 
 		cpumask_and(new_cpus, cs->effective_cpus,
 			    task_cpu_possible_mask(task));
-		set_cpus_allowed_ptr(task, new_cpus);
+		update_cpus_allowed(cs, task, new_cpus);
 	}
 	css_task_iter_end(&it);
 }
@@ -2640,7 +2653,7 @@ static void cpuset_attach_task(struct cpuset *cs, struct task_struct *task)
 	 * can_attach beforehand should guarantee that this doesn't
 	 * fail.  TODO: have a better way to handle failure here
 	 */
-	WARN_ON_ONCE(set_cpus_allowed_ptr(task, cpus_attach));
+	WARN_ON_ONCE(update_cpus_allowed(cs, task, cpus_attach));
 
 	cpuset_change_task_nodemask(task, &cpuset_attach_nodemask_to);
 	cpuset_update_task_spread_flags(cs, task);
