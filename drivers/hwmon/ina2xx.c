@@ -612,8 +612,6 @@ static const struct attribute_group ina226_group = {
 	.attrs = ina226_attrs,
 };
 
-static const struct i2c_device_id ina2xx_id[];
-
 static int ina2xx_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -623,10 +621,7 @@ static int ina2xx_probe(struct i2c_client *client)
 	int ret, group = 0;
 	enum ina2xx_ids chip;
 
-	if (client->dev.of_node)
-		chip = (uintptr_t)of_device_get_match_data(&client->dev);
-	else
-		chip = i2c_match_id(ina2xx_id, client)->driver_data;
+	chip = (uintptr_t)i2c_get_match_data(client);
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
