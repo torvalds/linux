@@ -762,8 +762,8 @@ static noinline int cow_file_range_inline(struct btrfs_inode *inode, u64 offset,
 		return ret;
 	}
 
-	free_extent_state(cached);
-	extent_clear_unlock_delalloc(inode, offset, end, NULL, clear_flags,
+	extent_clear_unlock_delalloc(inode, offset, end, NULL, &cached,
+				     clear_flags,
 				     PAGE_UNLOCK | PAGE_START_WRITEBACK |
 				     PAGE_END_WRITEBACK);
 	return ret;
@@ -1154,6 +1154,7 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 	struct btrfs_ordered_extent *ordered;
 	struct btrfs_key ins;
 	struct page *locked_page = NULL;
+	struct extent_state *cached = NULL;
 	struct extent_map *em;
 	int ret = 0;
 	u64 start = async_extent->start;
@@ -1194,7 +1195,7 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 		goto done;
 	}
 
-	lock_extent(io_tree, start, end, NULL);
+	lock_extent(io_tree, start, end, &cached);
 
 	/* Here we're doing allocation and writeback of the compressed pages */
 	em = create_io_em(inode, start,
@@ -1229,7 +1230,7 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 
 	/* Clear dirty, set writeback and unlock the pages. */
 	extent_clear_unlock_delalloc(inode, start, end,
-			NULL, EXTENT_LOCKED | EXTENT_DELALLOC,
+			NULL, &cached, EXTENT_LOCKED | EXTENT_DELALLOC,
 			PAGE_UNLOCK | PAGE_START_WRITEBACK);
 	btrfs_submit_compressed_write(ordered,
 			    async_extent->folios,	/* compressed_folios */
@@ -1247,7 +1248,8 @@ out_free_reserve:
 	btrfs_free_reserved_extent(fs_info, ins.objectid, ins.offset, 1);
 	mapping_set_error(inode->vfs_inode.i_mapping, -EIO);
 	extent_clear_unlock_delalloc(inode, start, end,
-				     NULL, EXTENT_LOCKED | EXTENT_DELALLOC |
+				     NULL, &cached,
+				     EXTENT_LOCKED | EXTENT_DELALLOC |
 				     EXTENT_DELALLOC_NEW |
 				     EXTENT_DEFRAG | EXTENT_DO_ACCOUNTING,
 				     PAGE_UNLOCK | PAGE_START_WRITEBACK |
@@ -1329,6 +1331,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct extent_state *cached = NULL;
 	u64 alloc_hint = 0;
 	u64 orig_start = start;
 	u64 num_bytes;
@@ -1429,7 +1432,8 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 
 		ram_size = ins.offset;
 
-		lock_extent(&inode->io_tree, start, start + ram_size - 1, NULL);
+		lock_extent(&inode->io_tree, start, start + ram_size - 1,
+			    &cached);
 
 		em = create_io_em(inode, start, ins.offset, /* len */
 				  start, /* orig_start */
@@ -1441,7 +1445,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 				  BTRFS_ORDERED_REGULAR /* type */);
 		if (IS_ERR(em)) {
 			unlock_extent(&inode->io_tree, start,
-				      start + ram_size - 1, NULL);
+				      start + ram_size - 1, &cached);
 			ret = PTR_ERR(em);
 			goto out_reserve;
 		}
@@ -1453,7 +1457,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 					BTRFS_COMPRESS_NONE);
 		if (IS_ERR(ordered)) {
 			unlock_extent(&inode->io_tree, start,
-				      start + ram_size - 1, NULL);
+				      start + ram_size - 1, &cached);
 			ret = PTR_ERR(ordered);
 			goto out_drop_extent_cache;
 		}
@@ -1493,7 +1497,7 @@ static noinline int cow_file_range(struct btrfs_inode *inode,
 		page_ops |= PAGE_SET_ORDERED;
 
 		extent_clear_unlock_delalloc(inode, start, start + ram_size - 1,
-					     locked_page,
+					     locked_page, &cached,
 					     EXTENT_LOCKED | EXTENT_DELALLOC,
 					     page_ops);
 		if (num_bytes < cur_alloc_size)
@@ -1552,7 +1556,7 @@ out_unlock:
 		if (!locked_page)
 			mapping_set_error(inode->vfs_inode.i_mapping, ret);
 		extent_clear_unlock_delalloc(inode, orig_start, start - 1,
-					     locked_page, 0, page_ops);
+					     locked_page, NULL, 0, page_ops);
 	}
 
 	/*
@@ -1575,7 +1579,7 @@ out_unlock:
 	if (extent_reserved) {
 		extent_clear_unlock_delalloc(inode, start,
 					     start + cur_alloc_size - 1,
-					     locked_page,
+					     locked_page, &cached,
 					     clear_bits,
 					     page_ops);
 		start += cur_alloc_size;
@@ -1590,7 +1594,7 @@ out_unlock:
 	if (start < end) {
 		clear_bits |= EXTENT_CLEAR_DATA_RESV;
 		extent_clear_unlock_delalloc(inode, start, end, locked_page,
-					     clear_bits, page_ops);
+					     &cached, clear_bits, page_ops);
 	}
 	return ret;
 }
@@ -2206,11 +2210,10 @@ must_cow:
 		btrfs_put_ordered_extent(ordered);
 
 		extent_clear_unlock_delalloc(inode, cur_offset, nocow_end,
-					     locked_page, EXTENT_LOCKED |
-					     EXTENT_DELALLOC |
+					     locked_page, &cached_state,
+					     EXTENT_LOCKED | EXTENT_DELALLOC |
 					     EXTENT_CLEAR_DATA_RESV,
 					     PAGE_UNLOCK | PAGE_SET_ORDERED);
-		free_extent_state(cached_state);
 
 		cur_offset = extent_end;
 
@@ -2252,10 +2255,13 @@ error:
 	 * we're not locked at this point.
 	 */
 	if (cur_offset < end) {
-		lock_extent(&inode->io_tree, cur_offset, end, NULL);
+		struct extent_state *cached = NULL;
+
+		lock_extent(&inode->io_tree, cur_offset, end, &cached);
 		extent_clear_unlock_delalloc(inode, cur_offset, end,
-					     locked_page, EXTENT_LOCKED |
-					     EXTENT_DELALLOC | EXTENT_DEFRAG |
+					     locked_page, &cached,
+					     EXTENT_LOCKED | EXTENT_DELALLOC |
+					     EXTENT_DEFRAG |
 					     EXTENT_DO_ACCOUNTING, PAGE_UNLOCK |
 					     PAGE_START_WRITEBACK |
 					     PAGE_END_WRITEBACK);

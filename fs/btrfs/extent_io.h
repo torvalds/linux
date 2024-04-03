@@ -27,6 +27,7 @@ struct address_space;
 struct writeback_control;
 struct extent_io_tree;
 struct extent_map_tree;
+struct extent_state;
 struct btrfs_block_group;
 struct btrfs_fs_info;
 struct btrfs_inode;
@@ -352,6 +353,7 @@ void clear_extent_buffer_uptodate(struct extent_buffer *eb);
 void extent_range_clear_dirty_for_io(struct inode *inode, u64 start, u64 end);
 void extent_clear_unlock_delalloc(struct btrfs_inode *inode, u64 start, u64 end,
 				  struct page *locked_page,
+				  struct extent_state **cached,
 				  u32 bits_to_clear, unsigned long page_ops);
 int extent_invalidate_folio(struct extent_io_tree *tree,
 			    struct folio *folio, size_t offset);
