@@ -2933,7 +2933,7 @@ static int scmi_probe(struct platform_device *pdev)
 	if (ret) {
 		err_str = "unable to communicate with SCMI\n";
 		if (coex) {
-			dev_err(dev, err_str);
+			dev_err(dev, "%s", err_str);
 			return 0;
 		}
 		goto notification_exit;
@@ -2990,7 +2990,7 @@ clear_txrx_setup:
 clear_ida:
 	ida_free(&scmi_id, info->id);
 
-	return dev_err_probe(dev, ret, err_str);
+	return dev_err_probe(dev, ret, "%s", err_str);
 }
 
 static void scmi_remove(struct platform_device *pdev)
