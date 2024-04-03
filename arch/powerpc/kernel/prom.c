@@ -846,8 +846,11 @@ void __init early_init_devtree(void *params)
 		reserve_crashkernel();
 	early_reserve_mem();
 
-	/* Ensure that total memory size is page-aligned. */
-	limit = ALIGN(memory_limit ?: memblock_phys_mem_size(), PAGE_SIZE);
+	if (memory_limit > memblock_phys_mem_size())
+		memory_limit = 0;
+
+	/* Align down to 16 MB which is large page size with hash page translation */
+	limit = ALIGN_DOWN(memory_limit ?: memblock_phys_mem_size(), SZ_16M);
 	memblock_enforce_memory_limit(limit);
 
 #if defined(CONFIG_PPC_BOOK3S_64) && defined(CONFIG_PPC_4K_PAGES)
