@@ -168,3 +168,9 @@
 		v1p2-supply = <&buck5_reg>;
 	};
 };
+
+&i2c3 {
+	camera@3c {
+		DOVDD-supply = <&buck5_reg>;
+	};
+};
