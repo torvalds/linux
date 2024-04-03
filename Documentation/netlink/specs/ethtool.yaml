@@ -16,6 +16,11 @@ definitions:
     name: stringset
     type: enum
     entries: []
+  -
+    name: header-flags
+    enum-name:
+    type: flags
+    entries: [ compact-bitsets, omit-reply, stats ]
 
 attribute-sets:
   -
@@ -30,6 +35,7 @@ attribute-sets:
       -
         name: flags
         type: u32
+        enum: header-flags
 
   -
     name: bitset-bit
