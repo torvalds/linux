@@ -8,7 +8,7 @@ title: Qualcomm Multimedia Clock & Reset Controller
 
 maintainers:
   - Jeffrey Hugo <quic_jhugo@quicinc.com>
-  - Taniya Das <tdas@codeaurora.org>
+  - Taniya Das <quic_tdas@quicinc.com>
 
 description: |
   Qualcomm multimedia clock control module provides the clocks, resets and
@@ -297,6 +297,7 @@ allOf:
             - description: HDMI phy PLL clock
             - description: DisplayPort phy PLL link clock
             - description: DisplayPort phy PLL vco clock
+            - description: Global PLL 0 DIV clock
 
         clock-names:
           items:
@@ -309,6 +310,7 @@ allOf:
             - const: hdmipll
             - const: dplink
             - const: dpvco
+            - const: gpll0_div
 
   - if:
       properties:

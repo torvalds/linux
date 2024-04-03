@@ -203,6 +203,7 @@ static int UVERBS_HANDLER(UVERBS_METHOD_QUERY_PORT)(
 
 	copy_port_attr_to_resp(&attr, &resp.legacy_resp, ib_dev, port_num);
 	resp.port_cap_flags2 = attr.port_cap_flags2;
+	resp.active_speed_ex = attr.active_speed;
 
 	return uverbs_copy_to_struct_or_zero(attrs, UVERBS_ATTR_QUERY_PORT_RESP,
 					     &resp, sizeof(resp));
@@ -461,7 +462,7 @@ DECLARE_UVERBS_NAMED_METHOD(
 	UVERBS_ATTR_PTR_OUT(
 		UVERBS_ATTR_QUERY_PORT_RESP,
 		UVERBS_ATTR_STRUCT(struct ib_uverbs_query_port_resp_ex,
-				   reserved),
+				   active_speed_ex),
 		UA_MANDATORY));
 
 DECLARE_UVERBS_NAMED_METHOD(

@@ -21,8 +21,6 @@
 #include <linux/clk.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
-#include <linux/of_platform.h>
-#include <linux/of_device.h>
 #include <linux/platform_data/davinci_asp.h>
 #include <linux/math64.h>
 #include <linux/bitmap.h>
@@ -1616,18 +1614,6 @@ static void davinci_mcasp_shutdown(struct snd_pcm_substream *substream,
 	}
 }
 
-static const struct snd_soc_dai_ops davinci_mcasp_dai_ops = {
-	.startup	= davinci_mcasp_startup,
-	.shutdown	= davinci_mcasp_shutdown,
-	.trigger	= davinci_mcasp_trigger,
-	.delay		= davinci_mcasp_delay,
-	.hw_params	= davinci_mcasp_hw_params,
-	.set_fmt	= davinci_mcasp_set_dai_fmt,
-	.set_clkdiv	= davinci_mcasp_set_clkdiv,
-	.set_sysclk	= davinci_mcasp_set_sysclk,
-	.set_tdm_slot	= davinci_mcasp_set_tdm_slot,
-};
-
 static int davinci_mcasp_iec958_info(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_info *uinfo)
 {
@@ -1716,6 +1702,19 @@ static int davinci_mcasp_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops davinci_mcasp_dai_ops = {
+	.probe		= davinci_mcasp_dai_probe,
+	.startup	= davinci_mcasp_startup,
+	.shutdown	= davinci_mcasp_shutdown,
+	.trigger	= davinci_mcasp_trigger,
+	.delay		= davinci_mcasp_delay,
+	.hw_params	= davinci_mcasp_hw_params,
+	.set_fmt	= davinci_mcasp_set_dai_fmt,
+	.set_clkdiv	= davinci_mcasp_set_clkdiv,
+	.set_sysclk	= davinci_mcasp_set_sysclk,
+	.set_tdm_slot	= davinci_mcasp_set_tdm_slot,
+};
+
 #define DAVINCI_MCASP_RATES	SNDRV_PCM_RATE_8000_192000
 
 #define DAVINCI_MCASP_PCM_FMTS (SNDRV_PCM_FMTBIT_S8 | \
@@ -1732,7 +1731,6 @@ static int davinci_mcasp_dai_probe(struct snd_soc_dai *dai)
 static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 	{
 		.name		= "davinci-mcasp.0",
-		.probe		= davinci_mcasp_dai_probe,
 		.playback	= {
 			.stream_name = "IIS Playback",
 			.channels_min	= 1,
@@ -1753,7 +1751,6 @@ static struct snd_soc_dai_driver davinci_mcasp_dai[] = {
 	},
 	{
 		.name		= "davinci-mcasp.1",
-		.probe		= davinci_mcasp_dai_probe,
 		.playback 	= {
 			.stream_name = "DIT Playback",
 			.channels_min	= 1,
@@ -1883,9 +1880,10 @@ static bool davinci_mcasp_have_gpiochip(struct davinci_mcasp *mcasp)
 static int davinci_mcasp_get_config(struct davinci_mcasp *mcasp,
 				    struct platform_device *pdev)
 {
-	const struct of_device_id *match = of_match_device(mcasp_dt_ids, &pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
 	struct davinci_mcasp_pdata *pdata = NULL;
+	const struct davinci_mcasp_pdata *match_pdata =
+		device_get_match_data(&pdev->dev);
 	const u32 *of_serial_dir32;
 	u32 val;
 	int i;
@@ -1894,8 +1892,8 @@ static int davinci_mcasp_get_config(struct davinci_mcasp *mcasp,
 		pdata = pdev->dev.platform_data;
 		pdata->dismod = DISMOD_LOW;
 		goto out;
-	} else if (match) {
-		pdata = devm_kmemdup(&pdev->dev, match->data, sizeof(*pdata),
+	} else if (match_pdata) {
+		pdata = devm_kmemdup(&pdev->dev, match_pdata, sizeof(*pdata),
 				     GFP_KERNEL);
 		if (!pdata)
 			return -ENOMEM;

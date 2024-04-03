@@ -177,7 +177,7 @@ int scp_ipi_send(struct mtk_scp *scp, u32 id, void *buf, unsigned int len,
 	mutex_lock(&scp->send_lock);
 
 	 /* Wait until SCP receives the last command */
-	ret = readl_poll_timeout_atomic(scp->reg_base + scp->data->host_to_scp_reg,
+	ret = readl_poll_timeout_atomic(scp->cluster->reg_base + scp->data->host_to_scp_reg,
 					val, !val, 0, SCP_TIMEOUT_US);
 	if (ret) {
 		dev_err(scp->dev, "%s: IPI timeout!\n", __func__);
@@ -192,7 +192,7 @@ int scp_ipi_send(struct mtk_scp *scp, u32 id, void *buf, unsigned int len,
 	scp->ipi_id_ack[id] = false;
 	/* send the command to SCP */
 	writel(scp->data->host_to_scp_int_bit,
-	       scp->reg_base + scp->data->host_to_scp_reg);
+	       scp->cluster->reg_base + scp->data->host_to_scp_reg);
 
 	if (wait) {
 		/* wait for SCP's ACK */

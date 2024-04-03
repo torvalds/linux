@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/nospec-insn.h>
-#include <asm/export.h>
 
 	.section .noinstr.text, "ax"
 

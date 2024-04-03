@@ -34,7 +34,7 @@ struct data_insert_op {
 };
 
 unsigned int bch_get_congested(const struct cache_set *c);
-void bch_data_insert(struct closure *cl);
+CLOSURE_CALLBACK(bch_data_insert);
 
 void bch_cached_dev_request_init(struct cached_dev *dc);
 void cached_dev_submit_bio(struct bio *bio);

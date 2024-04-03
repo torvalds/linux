@@ -34,7 +34,7 @@ static void nf_flow_rule_lwt_match(struct nf_flow_match *match,
 {
 	struct nf_flow_key *mask = &match->mask;
 	struct nf_flow_key *key = &match->key;
-	unsigned int enc_keys;
+	unsigned long long enc_keys;
 
 	if (!tun_info || !(tun_info->mode & IP_TUNNEL_INFO_TX))
 		return;
@@ -43,8 +43,8 @@ static void nf_flow_rule_lwt_match(struct nf_flow_match *match,
 	NF_FLOW_DISSECTOR(match, FLOW_DISSECTOR_KEY_ENC_KEYID, enc_key_id);
 	key->enc_key_id.keyid = tunnel_id_to_key32(tun_info->key.tun_id);
 	mask->enc_key_id.keyid = 0xffffffff;
-	enc_keys = BIT(FLOW_DISSECTOR_KEY_ENC_KEYID) |
-		   BIT(FLOW_DISSECTOR_KEY_ENC_CONTROL);
+	enc_keys = BIT_ULL(FLOW_DISSECTOR_KEY_ENC_KEYID) |
+		   BIT_ULL(FLOW_DISSECTOR_KEY_ENC_CONTROL);
 
 	if (ip_tunnel_info_af(tun_info) == AF_INET) {
 		NF_FLOW_DISSECTOR(match, FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS,
@@ -55,7 +55,7 @@ static void nf_flow_rule_lwt_match(struct nf_flow_match *match,
 			mask->enc_ipv4.src = 0xffffffff;
 		if (key->enc_ipv4.dst)
 			mask->enc_ipv4.dst = 0xffffffff;
-		enc_keys |= BIT(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS);
+		enc_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV4_ADDRS);
 		key->enc_control.addr_type = FLOW_DISSECTOR_KEY_IPV4_ADDRS;
 	} else {
 		memcpy(&key->enc_ipv6.src, &tun_info->key.u.ipv6.dst,
@@ -70,7 +70,7 @@ static void nf_flow_rule_lwt_match(struct nf_flow_match *match,
 			   sizeof(struct in6_addr)))
 			memset(&mask->enc_ipv6.dst, 0xff,
 			       sizeof(struct in6_addr));
-		enc_keys |= BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS);
+		enc_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS);
 		key->enc_control.addr_type = FLOW_DISSECTOR_KEY_IPV6_ADDRS;
 	}
 
@@ -163,14 +163,14 @@ static int nf_flow_rule_match(struct nf_flow_match *match,
 		return -EOPNOTSUPP;
 	}
 	mask->control.addr_type = 0xffff;
-	match->dissector.used_keys |= BIT(key->control.addr_type);
+	match->dissector.used_keys |= BIT_ULL(key->control.addr_type);
 	mask->basic.n_proto = 0xffff;
 
 	switch (tuple->l4proto) {
 	case IPPROTO_TCP:
 		key->tcp.flags = 0;
 		mask->tcp.flags = cpu_to_be16(be32_to_cpu(TCP_FLAG_RST | TCP_FLAG_FIN) >> 16);
-		match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_TCP);
+		match->dissector.used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_TCP);
 		break;
 	case IPPROTO_UDP:
 	case IPPROTO_GRE:
@@ -182,9 +182,9 @@ static int nf_flow_rule_match(struct nf_flow_match *match,
 	key->basic.ip_proto = tuple->l4proto;
 	mask->basic.ip_proto = 0xff;
 
-	match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_META) |
-				      BIT(FLOW_DISSECTOR_KEY_CONTROL) |
-				      BIT(FLOW_DISSECTOR_KEY_BASIC);
+	match->dissector.used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_META) |
+				      BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL) |
+				      BIT_ULL(FLOW_DISSECTOR_KEY_BASIC);
 
 	switch (tuple->l4proto) {
 	case IPPROTO_TCP:
@@ -194,7 +194,7 @@ static int nf_flow_rule_match(struct nf_flow_match *match,
 		key->tp.dst = tuple->dst_port;
 		mask->tp.dst = 0xffff;
 
-		match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_PORTS);
+		match->dissector.used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_PORTS);
 		break;
 	}
 

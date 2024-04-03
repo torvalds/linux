@@ -9,8 +9,8 @@
 
 #include <linux/clk.h>
 #include <linux/component.h>
-#include <linux/of_graph.h>
-#include <linux/of_platform.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
 #include <drm/drm_atomic.h>
@@ -573,10 +573,9 @@ static int vc4_txp_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &vc4_txp_ops);
 }
 
-static int vc4_txp_remove(struct platform_device *pdev)
+static void vc4_txp_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &vc4_txp_ops);
-	return 0;
 }
 
 static const struct of_device_id vc4_txp_dt_match[] = {
@@ -586,7 +585,7 @@ static const struct of_device_id vc4_txp_dt_match[] = {
 
 struct platform_driver vc4_txp_driver = {
 	.probe = vc4_txp_probe,
-	.remove = vc4_txp_remove,
+	.remove_new = vc4_txp_remove,
 	.driver = {
 		.name = "vc4_txp",
 		.of_match_table = vc4_txp_dt_match,

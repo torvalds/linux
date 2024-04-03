@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
 #include <linux/efi.h>
+#include <linux/screen_info.h>
+
 #include <asm/efi.h>
 
 #include "efistub.h"
@@ -11,7 +13,13 @@ struct screen_info *alloc_screen_info(void)
 {
 	if (IS_ENABLED(CONFIG_ARM))
 		return __alloc_screen_info();
-	return (void *)&screen_info + screen_info_offset;
+
+	if (IS_ENABLED(CONFIG_X86) ||
+	    IS_ENABLED(CONFIG_EFI_EARLYCON) ||
+	    IS_ENABLED(CONFIG_SYSFB))
+		return (void *)&screen_info + screen_info_offset;
+
+	return NULL;
 }
 
 /*

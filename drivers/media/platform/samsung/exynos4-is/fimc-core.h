@@ -257,7 +257,7 @@ struct fimc_frame {
 	unsigned int		bytesperline[VIDEO_MAX_PLANES];
 	struct fimc_addr	addr;
 	struct fimc_dma_offset	dma_offset;
-	struct fimc_fmt		*fmt;
+	const struct fimc_fmt	*fmt;
 	u8			alpha;
 };
 
@@ -515,7 +515,7 @@ static inline void set_frame_crop(struct fimc_frame *f,
 	f->height = height;
 }
 
-static inline u32 fimc_get_format_depth(struct fimc_fmt *ff)
+static inline u32 fimc_get_format_depth(const struct fimc_fmt *ff)
 {
 	u32 i, depth = 0;
 
@@ -557,7 +557,7 @@ static inline bool fimc_ctx_state_is_set(u32 mask, struct fimc_ctx *ctx)
 	return ret;
 }
 
-static inline int tiled_fmt(struct fimc_fmt *fmt)
+static inline int tiled_fmt(const struct fimc_fmt *fmt)
 {
 	return fmt->fourcc == V4L2_PIX_FMT_NV12MT;
 }
@@ -575,7 +575,7 @@ static inline bool fimc_user_defined_mbus_fmt(u32 code)
 }
 
 /* Return the alpha component bit mask */
-static inline int fimc_get_alpha_mask(struct fimc_fmt *fmt)
+static inline int fimc_get_alpha_mask(const struct fimc_fmt *fmt)
 {
 	switch (fmt->color) {
 	case FIMC_FMT_RGB444:	return 0x0f;
@@ -610,25 +610,24 @@ static inline struct fimc_frame *ctx_get_frame(struct fimc_ctx *ctx,
 
 /* -----------------------------------------------------*/
 /* fimc-core.c */
-int fimc_vidioc_enum_fmt_mplane(struct file *file, void *priv,
-				struct v4l2_fmtdesc *f);
 int fimc_ctrls_create(struct fimc_ctx *ctx);
 void fimc_ctrls_delete(struct fimc_ctx *ctx);
 void fimc_ctrls_activate(struct fimc_ctx *ctx, bool active);
 void fimc_alpha_ctrl_update(struct fimc_ctx *ctx);
-void __fimc_get_format(struct fimc_frame *frame, struct v4l2_format *f);
-void fimc_adjust_mplane_format(struct fimc_fmt *fmt, u32 width, u32 height,
+void __fimc_get_format(const struct fimc_frame *frame, struct v4l2_format *f);
+void fimc_adjust_mplane_format(const struct fimc_fmt *fmt, u32 width, u32 height,
 			       struct v4l2_pix_format_mplane *pix);
-struct fimc_fmt *fimc_find_format(const u32 *pixelformat, const u32 *mbus_code,
-				  unsigned int mask, int index);
-struct fimc_fmt *fimc_get_format(unsigned int index);
+const struct fimc_fmt *fimc_find_format(const u32 *pixelformat,
+					const u32 *mbus_code,
+					unsigned int mask, int index);
+const struct fimc_fmt *fimc_get_format(unsigned int index);
 
 int fimc_check_scaler_ratio(struct fimc_ctx *ctx, int sw, int sh,
 			    int dw, int dh, int rotation);
 int fimc_set_scaler_info(struct fimc_ctx *ctx);
 int fimc_prepare_config(struct fimc_ctx *ctx, u32 flags);
 int fimc_prepare_addr(struct fimc_ctx *ctx, struct vb2_buffer *vb,
-		      struct fimc_frame *frame, struct fimc_addr *addr);
+		      const struct fimc_frame *frame, struct fimc_addr *addr);
 void fimc_prepare_dma_offset(struct fimc_ctx *ctx, struct fimc_frame *f);
 void fimc_set_yuv_order(struct fimc_ctx *ctx);
 void fimc_capture_irq_handler(struct fimc_dev *fimc, int deq_buf);

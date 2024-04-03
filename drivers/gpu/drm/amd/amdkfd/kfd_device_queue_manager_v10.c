@@ -32,7 +32,7 @@ static int update_qpd_v10(struct device_queue_manager *dqm,
 static void init_sdma_vm_v10(struct device_queue_manager *dqm, struct queue *q,
 			    struct qcm_process_device *qpd);
 
-void device_queue_manager_init_v10_navi10(
+void device_queue_manager_init_v10(
 	struct device_queue_manager_asic_ops *asic_ops)
 {
 	asic_ops->update_qpd = update_qpd_v10;

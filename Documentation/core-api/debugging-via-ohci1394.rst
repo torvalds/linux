@@ -23,9 +23,9 @@ Retrieving a full system memory dump is also possible over the FireWire,
 using data transfer rates in the order of 10MB/s or more.
 
 With most FireWire controllers, memory access is limited to the low 4 GB
-of physical address space.  This can be a problem on IA64 machines where
-memory is located mostly above that limit, but it is rarely a problem on
-more common hardware such as x86, x86-64 and PowerPC.
+of physical address space.  This can be a problem on machines where memory is
+located mostly above that limit, but it is rarely a problem on more common
+hardware such as x86, x86-64 and PowerPC.
 
 At least LSI FW643e and FW643e2 controllers are known to support access to
 physical addresses above 4 GB, but this feature is currently not enabled by

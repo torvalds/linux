@@ -75,7 +75,7 @@ model features for SME is included in Appendix A.
 2.  Vector lengths
 ------------------
 
-SME defines a second vector length similar to the SVE vector length which is
+SME defines a second vector length similar to the SVE vector length which
 controls the size of the streaming mode SVE vectors and the ZA matrix array.
 The ZA matrix is square with each side having as many bytes as a streaming
 mode SVE vector.
@@ -238,12 +238,12 @@ prctl(PR_SME_SET_VL, unsigned long arg)
       bits of Z0..Z31 except for Z0 bits [127:0] .. Z31 bits [127:0] to become
       unspecified, including both streaming and non-streaming SVE state.
       Calling PR_SME_SET_VL with vl equal to the thread's current vector
-      length, or calling PR_SME_SET_VL with the PR_SVE_SET_VL_ONEXEC flag,
+      length, or calling PR_SME_SET_VL with the PR_SME_SET_VL_ONEXEC flag,
       does not constitute a change to the vector length for this purpose.
 
     * Changing the vector length causes PSTATE.ZA and PSTATE.SM to be cleared.
       Calling PR_SME_SET_VL with vl equal to the thread's current vector
-      length, or calling PR_SME_SET_VL with the PR_SVE_SET_VL_ONEXEC flag,
+      length, or calling PR_SME_SET_VL with the PR_SME_SET_VL_ONEXEC flag,
       does not constitute a change to the vector length for this purpose.
 
 
@@ -322,7 +322,7 @@ The regset data starts with struct user_za_header, containing:
   VL is supported.
 
 * The size and layout of the payload depends on the header fields.  The
-  SME_PT_ZA_*() macros are provided to facilitate access to the data.
+  ZA_PT_ZA*() macros are provided to facilitate access to the data.
 
 * In either case, for SETREGSET it is permissible to omit the payload, in which
   case the vector length and flags are changed and PSTATE.ZA is set to 0
@@ -379,9 +379,8 @@ The regset data starts with struct user_za_header, containing:
 /proc/sys/abi/sme_default_vector_length
 
     Writing the text representation of an integer to this file sets the system
-    default vector length to the specified value, unless the value is greater
-    than the maximum vector length supported by the system in which case the
-    default vector length is set to that maximum.
+    default vector length to the specified value rounded to a supported value
+    using the same rules as for setting vector length via PR_SME_SET_VL.
 
     The result can be determined by reopening the file and reading its
     contents.

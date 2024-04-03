@@ -8,6 +8,7 @@
 #define _SUN4I_FRONTEND_H_
 
 #include <linux/list.h>
+#include <linux/mod_devicetable.h>
 
 #define SUN4I_FRONTEND_EN_REG			0x000
 #define SUN4I_FRONTEND_EN_EN				BIT(0)

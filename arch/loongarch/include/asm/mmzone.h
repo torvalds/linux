@@ -13,6 +13,4 @@ extern struct pglist_data *node_data[];
 
 #define NODE_DATA(nid)	(node_data[(nid)])
 
-extern void setup_zero_pages(void);
-
 #endif /* _ASM_MMZONE_H_ */

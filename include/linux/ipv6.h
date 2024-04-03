@@ -3,6 +3,7 @@
 #define _IPV6_H
 
 #include <uapi/linux/ipv6.h>
+#include <linux/cache.h>
 
 #define ipv6_optlen(p)  (((p)->hdrlen+1) << 3)
 #define ipv6_authlen(p) (((p)->hdrlen+2) << 2)
@@ -10,9 +11,16 @@
  * This structure contains configuration options per IPv6 link.
  */
 struct ipv6_devconf {
-	__s32		forwarding;
+	/* RX & TX fastpath fields. */
+	__cacheline_group_begin(ipv6_devconf_read_txrx);
+	__s32		disable_ipv6;
 	__s32		hop_limit;
 	__s32		mtu6;
+	__s32		forwarding;
+	__s32		disable_policy;
+	__s32		proxy_ndp;
+	__cacheline_group_end(ipv6_devconf_read_txrx);
+
 	__s32		accept_ra;
 	__s32		accept_redirects;
 	__s32		autoconf;
@@ -27,12 +35,14 @@ struct ipv6_devconf {
 	__s32		use_tempaddr;
 	__s32		temp_valid_lft;
 	__s32		temp_prefered_lft;
+	__s32		regen_min_advance;
 	__s32		regen_max_retry;
 	__s32		max_desync_factor;
 	__s32		max_addresses;
 	__s32		accept_ra_defrtr;
 	__u32		ra_defrtr_metric;
 	__s32		accept_ra_min_hop_limit;
+	__s32		accept_ra_min_lft;
 	__s32		accept_ra_pinfo;
 	__s32		ignore_routes_with_linkdown;
 #ifdef CONFIG_IPV6_ROUTER_PREF
@@ -43,7 +53,6 @@ struct ipv6_devconf {
 	__s32		accept_ra_rt_info_max_plen;
 #endif
 #endif
-	__s32		proxy_ndp;
 	__s32		accept_source_route;
 	__s32		accept_ra_from_local;
 #ifdef CONFIG_IPV6_OPTIMISTIC_DAD
@@ -53,7 +62,6 @@ struct ipv6_devconf {
 #ifdef CONFIG_IPV6_MROUTE
 	atomic_t	mc_forwarding;
 #endif
-	__s32		disable_ipv6;
 	__s32		drop_unicast_in_l2_multicast;
 	__s32		accept_dad;
 	__s32		force_tllao;
@@ -74,13 +82,13 @@ struct ipv6_devconf {
 #endif
 	__u32		enhanced_dad;
 	__u32		addr_gen_mode;
-	__s32		disable_policy;
 	__s32           ndisc_tclass;
 	__s32		rpl_seg_enabled;
 	__u32		ioam6_id;
 	__u32		ioam6_id_wide;
 	__u8		ioam6_enabled;
 	__u8		ndisc_evict_nocarrier;
+	__u8		ra_honor_pio_life;
 
 	struct ctl_table_header *sysctl_header;
 };
@@ -146,6 +154,7 @@ struct inet6_skb_parm {
 #define IP6SKB_JUMBOGRAM      128
 #define IP6SKB_SEG6	      256
 #define IP6SKB_FAKEJUMBO      512
+#define IP6SKB_MULTIPATH      1024
 };
 
 #if defined(CONFIG_NET_L3_MASTER_DEV)
@@ -199,14 +208,7 @@ struct inet6_cork {
 	u8 tclass;
 };
 
-/**
- * struct ipv6_pinfo - ipv6 private area
- *
- * In the struct sock hierarchy (tcp6_sock, upd6_sock, etc)
- * this _must_ be the last member, so that inet6_sk_generic
- * is able to calculate its offset from the base struct sock
- * by using the struct proto->slab_obj_size member. -acme
- */
+/* struct ipv6_pinfo - ipv6 private area */
 struct ipv6_pinfo {
 	struct in6_addr 	saddr;
 	struct in6_pktinfo	sticky_pktinfo;
@@ -218,28 +220,9 @@ struct ipv6_pinfo {
 	__be32			flow_label;
 	__u32			frag_size;
 
-	/*
-	 * Packed in 16bits.
-	 * Omit one shift by putting the signed field at MSB.
-	 */
-#if defined(__BIG_ENDIAN_BITFIELD)
-	__s16			hop_limit:9;
-	__u16			__unused_1:7;
-#else
-	__u16			__unused_1:7;
-	__s16			hop_limit:9;
-#endif
+	s16			hop_limit;
+	u8			mcast_hops;
 
-#if defined(__BIG_ENDIAN_BITFIELD)
-	/* Packed in 16bits. */
-	__s16			mcast_hops:9;
-	__u16			__unused_2:6,
-				mc_loop:1;
-#else
-	__u16			mc_loop:1,
-				__unused_2:6;
-	__s16			mcast_hops:9;
-#endif
 	int			ucast_oif;
 	int			mcast_oif;
 
@@ -267,21 +250,11 @@ struct ipv6_pinfo {
 	} rxopt;
 
 	/* sockopt flags */
-	__u16			recverr:1,
-	                        sndflow:1,
-				repflow:1,
-				pmtudisc:3,
-				padding:1,	/* 1 bit hole */
-				srcprefs:3,	/* 001: prefer temporary address
+	__u8			srcprefs;	/* 001: prefer temporary address
 						 * 010: prefer public address
 						 * 100: prefer care-of address
 						 */
-				dontfrag:1,
-				autoflowlabel:1,
-				autoflowlabel_set:1,
-				mc_all:1,
-				recverr_rfc4884:1,
-				rtalert_isolate:1;
+	__u8			pmtudisc;
 	__u8			min_hopcount;
 	__u8			tclass;
 	__be32			rcv_flowinfo;
@@ -298,6 +271,18 @@ struct ipv6_pinfo {
 	struct inet6_cork	cork;
 };
 
+/* We currently use available bits from inet_sk(sk)->inet_flags,
+ * this could change in the future.
+ */
+#define inet6_test_bit(nr, sk)			\
+	test_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags)
+#define inet6_set_bit(nr, sk)			\
+	set_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags)
+#define inet6_clear_bit(nr, sk)			\
+	clear_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags)
+#define inet6_assign_bit(nr, sk, val)		\
+	assign_bit(INET_FLAGS_##nr, &inet_sk(sk)->inet_flags, val)
+
 /* WARNING: don't change the layout of the members in {raw,udp,tcp}6_sock! */
 struct raw6_sock {
 	/* inet_sock has to be the first member of raw6_sock */
@@ -306,19 +291,19 @@ struct raw6_sock {
 	__u32			offset;		/* checksum offset  */
 	struct icmp6_filter	filter;
 	__u32			ip6mr_table;
-	/* ipv6_pinfo has to be the last member of raw6_sock, see inet6_sk_generic */
+
 	struct ipv6_pinfo	inet6;
 };
 
 struct udp6_sock {
 	struct udp_sock	  udp;
-	/* ipv6_pinfo has to be the last member of udp6_sock, see inet6_sk_generic */
+
 	struct ipv6_pinfo inet6;
 };
 
 struct tcp6_sock {
 	struct tcp_sock	  tcp;
-	/* ipv6_pinfo has to be the last member of tcp6_sock, see inet6_sk_generic */
+
 	struct ipv6_pinfo inet6;
 };
 

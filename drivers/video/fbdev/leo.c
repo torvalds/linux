@@ -31,10 +31,10 @@
 static int leo_setcolreg(unsigned, unsigned, unsigned, unsigned,
 			 unsigned, struct fb_info *);
 static int leo_blank(int, struct fb_info *);
-
-static int leo_mmap(struct fb_info *, struct vm_area_struct *);
-static int leo_ioctl(struct fb_info *, unsigned int, unsigned long);
 static int leo_pan_display(struct fb_var_screeninfo *, struct fb_info *);
+
+static int leo_sbusfb_mmap(struct fb_info *info, struct vm_area_struct *vma);
+static int leo_sbusfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg);
 
 /*
  *  Frame buffer operations
@@ -42,17 +42,10 @@ static int leo_pan_display(struct fb_var_screeninfo *, struct fb_info *);
 
 static const struct fb_ops leo_ops = {
 	.owner			= THIS_MODULE,
+	FB_DEFAULT_SBUS_OPS(leo),
 	.fb_setcolreg		= leo_setcolreg,
 	.fb_blank		= leo_blank,
 	.fb_pan_display		= leo_pan_display,
-	.fb_fillrect		= cfb_fillrect,
-	.fb_copyarea		= cfb_copyarea,
-	.fb_imageblit		= cfb_imageblit,
-	.fb_mmap		= leo_mmap,
-	.fb_ioctl		= leo_ioctl,
-#ifdef CONFIG_COMPAT
-	.fb_compat_ioctl	= sbusfb_compat_ioctl,
-#endif
 };
 
 #define LEO_OFF_LC_SS0_KRN	0x00200000UL
@@ -414,7 +407,7 @@ static struct sbus_mmap_map leo_mmap_map[] = {
 	{ .size = 0 }
 };
 
-static int leo_mmap(struct fb_info *info, struct vm_area_struct *vma)
+static int leo_sbusfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct leo_par *par = (struct leo_par *)info->par;
 
@@ -423,7 +416,7 @@ static int leo_mmap(struct fb_info *info, struct vm_area_struct *vma)
 				  par->which_io, vma);
 }
 
-static int leo_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
+static int leo_sbusfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	return sbusfb_ioctl_helper(cmd, arg, info,
 				   FBTYPE_SUNLEO, 32, info->fix.smem_len);
@@ -601,7 +594,6 @@ static int leo_probe(struct platform_device *op)
 	    !info->screen_base)
 		goto out_unmap_regs;
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &leo_ops;
 	info->pseudo_palette = par->clut_data;
 

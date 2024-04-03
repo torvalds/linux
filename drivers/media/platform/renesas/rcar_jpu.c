@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -1601,10 +1600,8 @@ static int jpu_probe(struct platform_device *pdev)
 
 	/* interrupt service routine registration */
 	jpu->irq = ret = platform_get_irq(pdev, 0);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "cannot find IRQ\n");
+	if (ret < 0)
 		return ret;
-	}
 
 	ret = devm_request_irq(&pdev->dev, jpu->irq, jpu_irq_handler, 0,
 			       dev_name(&pdev->dev), jpu);

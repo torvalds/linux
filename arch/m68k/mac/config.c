@@ -50,21 +50,13 @@
 #include <asm/mac_psc.h>
 #include <asm/config.h>
 
+#include "mac.h"
+
 /* Mac bootinfo struct */
 struct mac_booter_data mac_bi_data;
 
 /* The phys. video addr. - might be bogus on some machines */
 static unsigned long mac_orig_videoaddr;
-
-extern int mac_hwclk(int, struct rtc_time *);
-extern void iop_init(void);
-extern void via_init(void);
-extern void via_init_clock(void);
-extern void oss_init(void);
-extern void psc_init(void);
-extern void baboon_init(void);
-
-extern void mac_mksound(unsigned int, unsigned int);
 
 static void mac_get_model(char *str);
 static void mac_identify(void);
@@ -958,7 +950,7 @@ static const struct pata_platform_info mac_pata_data __initconst = {
 	.ioport_shift = 2,
 };
 
-int __init mac_platform_init(void)
+static int __init mac_platform_init(void)
 {
 	phys_addr_t swim_base = 0;
 

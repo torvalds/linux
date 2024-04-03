@@ -1,9 +1,9 @@
-# SPDX-License-Identifier: GPL-2.0-only or BSD-2-Clause
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 # Copyright 2021, Arm Ltd
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/arm/arm,trace-buffer-extension.yaml#"
-$schema: "http://devicetree.org/meta-schemas/core.yaml#"
+$id: http://devicetree.org/schemas/arm/arm,trace-buffer-extension.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
 
 title: ARM Trace Buffer Extensions
 
@@ -19,7 +19,8 @@ description: |
 
 properties:
   $nodename:
-    const: "trbe"
+    const: trbe
+
   compatible:
     items:
       - const: arm,trace-buffer-extension

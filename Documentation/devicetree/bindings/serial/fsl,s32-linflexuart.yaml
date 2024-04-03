@@ -13,7 +13,7 @@ description: |
   https://www.nxp.com/webapp/Download?colCode=S32V234RM.
 
 maintainers:
-  - Chester Lin <clin@suse.com>
+  - Chester Lin <chester62515@gmail.com>
 
 allOf:
   - $ref: serial.yaml#

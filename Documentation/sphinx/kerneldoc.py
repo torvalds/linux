@@ -61,9 +61,9 @@ class KernelDocDirective(Directive):
         env = self.state.document.settings.env
         cmd = [env.config.kerneldoc_bin, '-rst', '-enable-lineno']
 
-	# Pass the version string to kernel-doc, as it needs to use a different
-	# dialect, depending what the C domain supports for each specific
-	# Sphinx versions
+        # Pass the version string to kernel-doc, as it needs to use a different
+        # dialect, depending what the C domain supports for each specific
+        # Sphinx versions
         cmd += ['-sphinx-version', sphinx.__version__]
 
         filename = env.config.kerneldoc_srctree + '/' + self.arguments[0]
@@ -130,7 +130,7 @@ class KernelDocDirective(Directive):
             result = ViewList()
 
             lineoffset = 0;
-            line_regex = re.compile("^\.\. LINENO ([0-9]+)$")
+            line_regex = re.compile(r"^\.\. LINENO ([0-9]+)$")
             for line in lines:
                 match = line_regex.search(line)
                 if match:
@@ -138,7 +138,7 @@ class KernelDocDirective(Directive):
                     lineoffset = int(match.group(1)) - 1
                     # we must eat our comments since the upset the markup
                 else:
-                    doc = env.srcdir + "/" + env.docname + ":" + str(self.lineno)
+                    doc = str(env.srcdir) + "/" + env.docname + ":" + str(self.lineno)
                     result.append(line, doc + ": " + filename, lineoffset)
                     lineoffset += 1
 

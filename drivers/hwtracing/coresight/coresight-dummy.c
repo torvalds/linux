@@ -122,14 +122,13 @@ static int dummy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int dummy_remove(struct platform_device *pdev)
+static void dummy_remove(struct platform_device *pdev)
 {
 	struct dummy_drvdata *drvdata = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
 
 	pm_runtime_disable(dev);
 	coresight_unregister(drvdata->csdev);
-	return 0;
 }
 
 static const struct of_device_id dummy_match[] = {
@@ -140,24 +139,14 @@ static const struct of_device_id dummy_match[] = {
 
 static struct platform_driver dummy_driver = {
 	.probe	= dummy_probe,
-	.remove	= dummy_remove,
+	.remove_new = dummy_remove,
 	.driver	= {
 		.name   = "coresight-dummy",
 		.of_match_table = dummy_match,
 	},
 };
 
-static int __init dummy_init(void)
-{
-	return platform_driver_register(&dummy_driver);
-}
-module_init(dummy_init);
-
-static void __exit dummy_exit(void)
-{
-	platform_driver_unregister(&dummy_driver);
-}
-module_exit(dummy_exit);
+module_platform_driver(dummy_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("CoreSight dummy driver");

@@ -29,7 +29,7 @@
 static struct sk_buff *ar9331_tag_xmit(struct sk_buff *skb,
 				       struct net_device *dev)
 {
-	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_port *dp = dsa_user_to_port(dev);
 	__le16 *phdr;
 	u16 hdr;
 
@@ -74,7 +74,7 @@ static struct sk_buff *ar9331_tag_rcv(struct sk_buff *skb,
 	/* Get source port information */
 	port = FIELD_GET(AR9331_HDR_PORT_NUM_MASK, hdr);
 
-	skb->dev = dsa_master_find_slave(ndev, 0, port);
+	skb->dev = dsa_conduit_find_user(ndev, 0, port);
 	if (!skb->dev)
 		return NULL;
 
@@ -89,6 +89,7 @@ static const struct dsa_device_ops ar9331_netdev_ops = {
 	.needed_headroom = AR9331_HDR_LEN,
 };
 
+MODULE_DESCRIPTION("DSA tag driver for Atheros AR9331 SoC with built-in switch");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_DSA_TAG_DRIVER(DSA_TAG_PROTO_AR9331, AR9331_NAME);
 module_dsa_tag_driver(ar9331_netdev_ops);

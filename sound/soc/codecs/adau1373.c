@@ -834,7 +834,7 @@ static int adau1373_check_aif_clk(struct snd_soc_dapm_widget *source,
 	else
 		clk = "SYSCLK2";
 
-	return strcmp(source->name, clk) == 0;
+	return snd_soc_dapm_widget_name_cmp(source, clk) == 0;
 }
 
 static int adau1373_check_src(struct snd_soc_dapm_widget *source,
@@ -1451,7 +1451,7 @@ static const struct regmap_config adau1373_regmap_config = {
 	.volatile_reg = adau1373_register_volatile,
 	.max_register = ADAU1373_SOFT_RESET,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = adau1373_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(adau1373_reg_defaults),
 };

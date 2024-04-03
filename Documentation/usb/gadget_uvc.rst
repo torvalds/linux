@@ -126,7 +126,7 @@ might do:
 	create_frame 1920 1080 uncompressed yuyv
 
 The only uncompressed format currently supported is YUYV, which is detailed at
-Documentation/userspace-api/media/v4l/pixfmt-packed.yuv.rst.
+Documentation/userspace-api/media/v4l/pixfmt-packed-yuv.rst.
 
 Color Matching Descriptors
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -168,7 +168,7 @@ Header linking
 
 The UVC specification requires that Format and Frame descriptors be preceded by
 Headers detailing things such as the number and cumulative size of the different
-Format descriptors that follow. This and similar operations are acheived in
+Format descriptors that follow. This and similar operations are achieved in
 configfs by linking between the configfs item representing the header and the
 config items representing those other descriptors, in this manner:
 

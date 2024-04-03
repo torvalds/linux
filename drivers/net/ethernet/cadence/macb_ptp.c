@@ -374,19 +374,16 @@ static int gem_ptp_set_ts_mode(struct macb *bp,
 	return 0;
 }
 
-int gem_get_hwtst(struct net_device *dev, struct ifreq *rq)
+int gem_get_hwtst(struct net_device *dev,
+		  struct kernel_hwtstamp_config *tstamp_config)
 {
-	struct hwtstamp_config *tstamp_config;
 	struct macb *bp = netdev_priv(dev);
 
-	tstamp_config = &bp->tstamp_config;
+	*tstamp_config = bp->tstamp_config;
 	if ((bp->hw_dma_cap & HW_DMA_CAP_PTP) == 0)
 		return -EOPNOTSUPP;
 
-	if (copy_to_user(rq->ifr_data, tstamp_config, sizeof(*tstamp_config)))
-		return -EFAULT;
-	else
-		return 0;
+	return 0;
 }
 
 static void gem_ptp_set_one_step_sync(struct macb *bp, u8 enable)
@@ -401,21 +398,17 @@ static void gem_ptp_set_one_step_sync(struct macb *bp, u8 enable)
 		macb_writel(bp, NCR, reg_val & ~MACB_BIT(OSSMODE));
 }
 
-int gem_set_hwtst(struct net_device *dev, struct ifreq *ifr, int cmd)
+int gem_set_hwtst(struct net_device *dev,
+		  struct kernel_hwtstamp_config *tstamp_config,
+		  struct netlink_ext_ack *extack)
 {
 	enum macb_bd_control tx_bd_control = TSTAMP_DISABLED;
 	enum macb_bd_control rx_bd_control = TSTAMP_DISABLED;
-	struct hwtstamp_config *tstamp_config;
 	struct macb *bp = netdev_priv(dev);
 	u32 regval;
 
-	tstamp_config = &bp->tstamp_config;
 	if ((bp->hw_dma_cap & HW_DMA_CAP_PTP) == 0)
 		return -EOPNOTSUPP;
-
-	if (copy_from_user(tstamp_config, ifr->ifr_data,
-			   sizeof(*tstamp_config)))
-		return -EFAULT;
 
 	switch (tstamp_config->tx_type) {
 	case HWTSTAMP_TX_OFF:
@@ -463,12 +456,11 @@ int gem_set_hwtst(struct net_device *dev, struct ifreq *ifr, int cmd)
 		return -ERANGE;
 	}
 
+	bp->tstamp_config = *tstamp_config;
+
 	if (gem_ptp_set_ts_mode(bp, tx_bd_control, rx_bd_control) != 0)
 		return -ERANGE;
 
-	if (copy_to_user(ifr->ifr_data, tstamp_config, sizeof(*tstamp_config)))
-		return -EFAULT;
-	else
-		return 0;
+	return 0;
 }
 

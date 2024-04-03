@@ -1961,6 +1961,7 @@ static const struct fb_ops cirrusfb_ops = {
 	.owner		= THIS_MODULE,
 	.fb_open	= cirrusfb_open,
 	.fb_release	= cirrusfb_release,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_setcolreg	= cirrusfb_setcolreg,
 	.fb_check_var	= cirrusfb_check_var,
 	.fb_set_par	= cirrusfb_set_par,
@@ -1970,6 +1971,7 @@ static const struct fb_ops cirrusfb_ops = {
 	.fb_copyarea	= cirrusfb_copyarea,
 	.fb_sync	= cirrusfb_sync,
 	.fb_imageblit	= cirrusfb_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static int cirrusfb_set_fbinfo(struct fb_info *info)
@@ -1978,8 +1980,7 @@ static int cirrusfb_set_fbinfo(struct fb_info *info)
 	struct fb_var_screeninfo *var = &info->var;
 
 	info->pseudo_palette = cinfo->pseudo_palette;
-	info->flags = FBINFO_DEFAULT
-		    | FBINFO_HWACCEL_XPAN
+	info->flags = FBINFO_HWACCEL_XPAN
 		    | FBINFO_HWACCEL_YPAN
 		    | FBINFO_HWACCEL_FILLRECT
 		    | FBINFO_HWACCEL_IMAGEBLIT

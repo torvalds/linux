@@ -181,5 +181,16 @@ struct vhost_vdpa_iova_range {
 #define VHOST_BACKEND_F_SUSPEND  0x4
 /* Device can be resumed */
 #define VHOST_BACKEND_F_RESUME  0x5
+/* Device supports the driver enabling virtqueues both before and after
+ * DRIVER_OK
+ */
+#define VHOST_BACKEND_F_ENABLE_AFTER_DRIVER_OK  0x6
+/* Device may expose the virtqueue's descriptor area, driver area and
+ * device area to a different group for ASID binding than where its
+ * buffers may reside. Requires VHOST_BACKEND_F_IOTLB_ASID.
+ */
+#define VHOST_BACKEND_F_DESC_ASID    0x7
+/* IOTLB don't flush memory mapping across device reset */
+#define VHOST_BACKEND_F_IOTLB_PERSIST  0x8
 
 #endif

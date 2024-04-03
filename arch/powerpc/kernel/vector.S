@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <linux/export.h>
 #include <linux/linkage.h>
 #include <asm/processor.h>
 #include <asm/ppc_asm.h>
@@ -8,7 +9,6 @@
 #include <asm/thread_info.h>
 #include <asm/page.h>
 #include <asm/ptrace.h>
-#include <asm/export.h>
 #include <asm/asm-compat.h>
 
 /*
@@ -33,6 +33,7 @@ _GLOBAL(store_vr_state)
 	mfvscr	v0
 	li	r4, VRSTATE_VSCR
 	stvx	v0, r4, r3
+	lvx	v0, 0, r3
 	blr
 EXPORT_SYMBOL(store_vr_state)
 
@@ -109,6 +110,7 @@ _GLOBAL(save_altivec)
 	mfvscr	v0
 	li	r4,VRSTATE_VSCR
 	stvx	v0,r4,r7
+	lvx	v0,0,r7
 	blr
 
 #ifdef CONFIG_VSX

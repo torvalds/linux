@@ -42,7 +42,7 @@ static ssize_t online_show(struct device *dev,
 {
 	struct zcrypt_queue *zq = dev_get_drvdata(dev);
 	struct ap_queue *aq = to_ap_queue(dev);
-	int online = aq->config && zq->online ? 1 : 0;
+	int online = aq->config && !aq->chkstop && zq->online ? 1 : 0;
 
 	return sysfs_emit(buf, "%d\n", online);
 }
@@ -59,7 +59,8 @@ static ssize_t online_store(struct device *dev,
 	if (sscanf(buf, "%d\n", &online) != 1 || online < 0 || online > 1)
 		return -EINVAL;
 
-	if (online && (!aq->config || !aq->card->config))
+	if (online && (!aq->config || !aq->card->config ||
+		       aq->chkstop || aq->card->chkstop))
 		return -ENODEV;
 	if (online && !zc->online)
 		return -EINVAL;

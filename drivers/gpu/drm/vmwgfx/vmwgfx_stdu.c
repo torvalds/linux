@@ -53,7 +53,6 @@ enum stdu_content_type {
  * struct vmw_stdu_dirty - closure structure for the update functions
  *
  * @base: The base type we derive from. Used by vmw_kms_helper_dirty().
- * @transfer: Transfer direction for DMA command.
  * @left: Left side of bounding box.
  * @right: Right side of bounding box.
  * @top: Top side of bounding box.
@@ -100,7 +99,7 @@ struct vmw_stdu_update_gb_image {
 };
 
 /**
- * struct vmw_screen_target_display_unit
+ * struct vmw_screen_target_display_unit - conglomerated STDU structure
  *
  * @base: VMW specific DU structure
  * @display_srf: surface to be displayed.  The dimension of this will always
@@ -208,6 +207,8 @@ static int vmw_stdu_define_st(struct vmw_private *dev_priv,
  * @res: Buffer to bind to the screen target.  Set to NULL to blank screen.
  *
  * Binding a surface to a Screen Target the same as flipping
+ *
+ * Returns: %0 on success or -errno code on failure
  */
 static int vmw_stdu_bind_st(struct vmw_private *dev_priv,
 			    struct vmw_screen_target_display_unit *stdu,
@@ -314,6 +315,9 @@ static int vmw_stdu_update_st(struct vmw_private *dev_priv,
  *
  * @dev_priv:  VMW DRM device
  * @stdu: display unit to destroy
+ *
+ * Returns: %0 on success, negative error code on failure. -ERESTARTSYS if
+ * interrupted.
  */
 static int vmw_stdu_destroy_st(struct vmw_private *dev_priv,
 			       struct vmw_screen_target_display_unit *stdu)
@@ -536,7 +540,8 @@ static void vmw_stdu_bo_cpu_commit(struct vmw_kms_dirty *dirty)
  * If DMA-ing till the screen target system, the function will also notify
  * the screen target system that a bounding box of the cliprects has been
  * updated.
- * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
+ *
+ * Returns: %0 on success, negative error code on failure. -ERESTARTSYS if
  * interrupted.
  */
 int vmw_kms_stdu_readback(struct vmw_private *dev_priv,
@@ -703,7 +708,7 @@ static void vmw_kms_stdu_surface_fifo_commit(struct vmw_kms_dirty *dirty)
  * case the device has already synchronized.
  * @crtc: If crtc is passed, perform surface dirty on that crtc only.
  *
- * Returns 0 on success, negative error code on failure. -ERESTARTSYS if
+ * Returns: %0 on success, negative error code on failure. -ERESTARTSYS if
  * interrupted.
  */
 int vmw_kms_stdu_surface_dirty(struct vmw_private *dev_priv,
@@ -830,7 +835,7 @@ static void vmw_stdu_connector_destroy(struct drm_connector *connector)
 static const struct drm_connector_funcs vmw_stdu_connector_funcs = {
 	.dpms = vmw_du_connector_dpms,
 	.detect = vmw_du_connector_detect,
-	.fill_modes = vmw_du_connector_fill_modes,
+	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = vmw_stdu_connector_destroy,
 	.reset = vmw_du_connector_reset,
 	.atomic_duplicate_state = vmw_du_connector_duplicate_state,
@@ -840,6 +845,8 @@ static const struct drm_connector_funcs vmw_stdu_connector_funcs = {
 
 static const struct
 drm_connector_helper_funcs vmw_stdu_connector_helper_funcs = {
+	.get_modes = vmw_connector_get_modes,
+	.mode_valid = vmw_connector_mode_valid
 };
 
 
@@ -887,7 +894,7 @@ vmw_stdu_primary_plane_cleanup_fb(struct drm_plane *plane,
  * backed by a buffer object.  The display surface is pinned here, and it'll
  * be unpinned in .cleanup_fb()
  *
- * Returns 0 on success
+ * Returns: %0 on success
  */
 static int
 vmw_stdu_primary_plane_prepare_fb(struct drm_plane *plane,
@@ -1465,6 +1472,8 @@ static const struct drm_crtc_helper_funcs vmw_stdu_crtc_helper_funcs = {
  * This function is called once per CRTC, and allocates one Screen Target
  * display unit to represent that CRTC.  Since the SVGA device does not separate
  * out encoder and connector, they are represented as part of the STDU as well.
+ *
+ * Returns: %0 on success or -errno code on failure
  */
 static int vmw_stdu_init(struct vmw_private *dev_priv, unsigned unit)
 {

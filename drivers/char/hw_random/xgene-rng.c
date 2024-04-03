@@ -14,10 +14,10 @@
 #include <linux/hw_random.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_platform.h>
-#include <linux/of_irq.h>
-#include <linux/of_address.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
 #include <linux/timer.h>
 
 #define RNG_MAX_DATUM			4
@@ -321,7 +321,6 @@ static int xgene_rng_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	ctx->dev = &pdev->dev;
-	platform_set_drvdata(pdev, ctx);
 
 	ctx->csr_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ctx->csr_base))
@@ -358,15 +357,13 @@ static int xgene_rng_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int xgene_rng_remove(struct platform_device *pdev)
+static void xgene_rng_remove(struct platform_device *pdev)
 {
 	int rc;
 
 	rc = device_init_wakeup(&pdev->dev, 0);
 	if (rc)
 		dev_err(&pdev->dev, "RNG init wakeup failed error %d\n", rc);
-
-	return 0;
 }
 
 static const struct of_device_id xgene_rng_of_match[] = {
@@ -378,7 +375,7 @@ MODULE_DEVICE_TABLE(of, xgene_rng_of_match);
 
 static struct platform_driver xgene_rng_driver = {
 	.probe = xgene_rng_probe,
-	.remove	= xgene_rng_remove,
+	.remove_new = xgene_rng_remove,
 	.driver = {
 		.name		= "xgene-rng",
 		.of_match_table = xgene_rng_of_match,

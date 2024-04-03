@@ -13,6 +13,7 @@
  */
 #include <linux/types.h>
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
 #include <linux/errno.h>
 #include <linux/kobject.h>
 #include <linux/mod_devicetable.h>
@@ -96,10 +97,12 @@ struct of_reconfig_data {
 	struct property		*old_prop;
 };
 
+extern const struct kobj_type of_node_ktype;
+extern const struct fwnode_operations of_fwnode_ops;
+
 /**
  * of_node_init - initialize a devicetree node
  * @node: Pointer to device node that has been created by kzalloc()
- * @phandle_name: Name of property holding a phandle value
  *
  * On return the device_node refcount is set to one.  Use of_node_put()
  * on @node when done to free the memory allocated for it.  If the node
@@ -107,9 +110,6 @@ struct of_reconfig_data {
  * whether to free the memory will be done by node->release(), which is
  * of_node_release().
  */
-/* initialize a node */
-extern const struct kobj_type of_node_ktype;
-extern const struct fwnode_operations of_fwnode_ops;
 static inline void of_node_init(struct device_node *node)
 {
 #if defined(CONFIG_OF_KOBJ)
@@ -135,6 +135,7 @@ static inline struct device_node *of_node_get(struct device_node *node)
 }
 static inline void of_node_put(struct device_node *node) { }
 #endif /* !CONFIG_OF_DYNAMIC */
+DEFINE_FREE(device_node, struct device_node *, if (_T) of_node_put(_T))
 
 /* Pointer for first entry in chain of all nodes. */
 extern struct device_node *of_root;
@@ -180,11 +181,6 @@ static inline bool is_of_node(const struct fwnode_handle *fwnode)
 		__of_fwnode_handle_node ?				\
 			&__of_fwnode_handle_node->fwnode : NULL;	\
 	})
-
-static inline bool of_have_populated_dt(void)
-{
-	return of_root != NULL;
-}
 
 static inline bool of_node_is_root(const struct device_node *node)
 {
@@ -295,6 +291,8 @@ extern struct device_node *of_get_next_child(const struct device_node *node,
 					     struct device_node *prev);
 extern struct device_node *of_get_next_available_child(
 	const struct device_node *node, struct device_node *prev);
+extern struct device_node *of_get_next_reserved_child(
+	const struct device_node *node, struct device_node *prev);
 
 extern struct device_node *of_get_compatible_child(const struct device_node *parent,
 					const char *compatible);
@@ -363,9 +361,6 @@ extern struct device_node *of_get_cpu_state_node(struct device_node *cpu_node,
 						 int index);
 extern u64 of_get_cpu_hwid(struct device_node *cpun, unsigned int thread);
 
-#define for_each_property_of_node(dn, pp) \
-	for (pp = dn->properties; pp != NULL; pp = pp->next)
-
 extern int of_n_addr_cells(struct device_node *np);
 extern int of_n_size_cells(struct device_node *np);
 extern const struct of_device_id *of_match_node(
@@ -403,7 +398,20 @@ extern void of_alias_scan(void * (*dt_alloc)(u64 size, u64 align));
 extern int of_alias_get_id(struct device_node *np, const char *stem);
 extern int of_alias_get_highest_id(const char *stem);
 
-extern int of_machine_is_compatible(const char *compat);
+bool of_machine_compatible_match(const char *const *compats);
+
+/**
+ * of_machine_is_compatible - Test root of device tree for a given compatible value
+ * @compat: compatible string to look for in root node's compatible property.
+ *
+ * Return: true if the root node has the given value in its compatible property.
+ */
+static inline bool of_machine_is_compatible(const char *compat)
+{
+	const char *compats[] = { compat, NULL };
+
+	return of_machine_compatible_match(compats);
+}
 
 extern int of_add_property(struct device_node *np, struct property *prop);
 extern int of_remove_property(struct device_node *np, struct property *prop);
@@ -542,6 +550,12 @@ static inline struct device_node *of_get_next_available_child(
 	return NULL;
 }
 
+static inline struct device_node *of_get_next_reserved_child(
+	const struct device_node *node, struct device_node *prev)
+{
+	return NULL;
+}
+
 static inline struct device_node *of_find_node_with_property(
 	struct device_node *from, const char *prop_name)
 {
@@ -549,11 +563,6 @@ static inline struct device_node *of_find_node_with_property(
 }
 
 #define of_fwnode_handle(node) NULL
-
-static inline bool of_have_populated_dt(void)
-{
-	return false;
-}
 
 static inline struct device_node *of_get_compatible_child(const struct device_node *parent,
 					const char *compatible)
@@ -809,6 +818,11 @@ static inline int of_remove_property(struct device_node *np, struct property *pr
 	return 0;
 }
 
+static inline bool of_machine_compatible_match(const char *const *compats)
+{
+	return false;
+}
+
 static inline bool of_console_check(const struct device_node *dn, const char *name, int index)
 {
 	return false;
@@ -892,6 +906,9 @@ static inline int of_prop_val_eq(struct property *p1, struct property *p2)
 	return p1->length == p2->length &&
 	       !memcmp(p1->value, p2->value, (size_t)p1->length);
 }
+
+#define for_each_property_of_node(dn, pp) \
+	for (pp = dn->properties; pp != NULL; pp = pp->next)
 
 #if defined(CONFIG_OF) && defined(CONFIG_NUMA)
 extern int of_node_to_nid(struct device_node *np);
@@ -1064,6 +1081,22 @@ static inline int of_parse_phandle_with_optional_args(const struct device_node *
 {
 	return __of_parse_phandle_with_args(np, list_name, cells_name,
 					    0, index, out_args);
+}
+
+/**
+ * of_phandle_args_equal() - Compare two of_phandle_args
+ * @a1:		First of_phandle_args to compare
+ * @a2:		Second of_phandle_args to compare
+ *
+ * Return: True if a1 and a2 are the same (same node pointer, same phandle
+ * args), false otherwise.
+ */
+static inline bool of_phandle_args_equal(const struct of_phandle_args *a1,
+					 const struct of_phandle_args *a2)
+{
+	return a1->np == a2->np &&
+	       a1->args_count == a2->args_count &&
+	       !memcmp(a1->args, a2->args, sizeof(a1->args[0]) * a1->args_count);
 }
 
 /**
@@ -1429,8 +1462,24 @@ static inline int of_property_read_s32(const struct device_node *np,
 #define for_each_child_of_node(parent, child) \
 	for (child = of_get_next_child(parent, NULL); child != NULL; \
 	     child = of_get_next_child(parent, child))
+
+#define for_each_child_of_node_scoped(parent, child) \
+	for (struct device_node *child __free(device_node) =		\
+	     of_get_next_child(parent, NULL);				\
+	     child != NULL;						\
+	     child = of_get_next_child(parent, child))
+
 #define for_each_available_child_of_node(parent, child) \
 	for (child = of_get_next_available_child(parent, NULL); child != NULL; \
+	     child = of_get_next_available_child(parent, child))
+#define for_each_reserved_child_of_node(parent, child)			\
+	for (child = of_get_next_reserved_child(parent, NULL); child != NULL; \
+	     child = of_get_next_reserved_child(parent, child))
+
+#define for_each_available_child_of_node_scoped(parent, child) \
+	for (struct device_node *child __free(device_node) =		\
+	     of_get_next_available_child(parent, NULL);			\
+	     child != NULL;						\
 	     child = of_get_next_available_child(parent, child))
 
 #define for_each_of_cpu_node(cpu) \
@@ -1580,6 +1629,29 @@ static inline int of_changeset_update_property(struct of_changeset *ocs,
 {
 	return of_changeset_action(ocs, OF_RECONFIG_UPDATE_PROPERTY, np, prop);
 }
+
+struct device_node *of_changeset_create_node(struct of_changeset *ocs,
+					     struct device_node *parent,
+					     const char *full_name);
+int of_changeset_add_prop_string(struct of_changeset *ocs,
+				 struct device_node *np,
+				 const char *prop_name, const char *str);
+int of_changeset_add_prop_string_array(struct of_changeset *ocs,
+				       struct device_node *np,
+				       const char *prop_name,
+				       const char **str_array, size_t sz);
+int of_changeset_add_prop_u32_array(struct of_changeset *ocs,
+				    struct device_node *np,
+				    const char *prop_name,
+				    const u32 *array, size_t sz);
+static inline int of_changeset_add_prop_u32(struct of_changeset *ocs,
+					    struct device_node *np,
+					    const char *prop_name,
+					    const u32 val)
+{
+	return of_changeset_add_prop_u32_array(ocs, np, prop_name, &val, 1);
+}
+
 #else /* CONFIG_OF_DYNAMIC */
 static inline int of_reconfig_notifier_register(struct notifier_block *nb)
 {
@@ -1610,6 +1682,21 @@ static inline int of_reconfig_get_state_change(unsigned long action,
 static inline bool of_device_is_system_power_controller(const struct device_node *np)
 {
 	return of_property_read_bool(np, "system-power-controller");
+}
+
+/**
+ * of_have_populated_dt() - Has DT been populated by bootloader
+ *
+ * Return: True if a DTB has been populated by the bootloader and it isn't the
+ * empty builtin one. False otherwise.
+ */
+static inline bool of_have_populated_dt(void)
+{
+#ifdef CONFIG_OF
+	return of_property_present(of_root, "compatible");
+#else
+	return false;
+#endif
 }
 
 /*
@@ -1645,7 +1732,7 @@ struct of_overlay_notify_data {
 #ifdef CONFIG_OF_OVERLAY
 
 int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
-			 int *ovcs_id);
+			 int *ovcs_id, struct device_node *target_base);
 int of_overlay_remove(int *ovcs_id);
 int of_overlay_remove_all(void);
 
@@ -1654,8 +1741,8 @@ int of_overlay_notifier_unregister(struct notifier_block *nb);
 
 #else
 
-static inline int of_overlay_fdt_apply(void *overlay_fdt, u32 overlay_fdt_size,
-				       int *ovcs_id)
+static inline int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
+				       int *ovcs_id, struct device_node *target_base)
 {
 	return -ENOTSUPP;
 }

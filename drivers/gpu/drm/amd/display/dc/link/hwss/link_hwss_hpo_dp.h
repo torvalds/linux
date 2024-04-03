@@ -28,9 +28,35 @@
 #include "link_hwss.h"
 #include "link.h"
 
+void set_hpo_dp_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
+		struct fixed31_32 throttled_vcp_size);
+void set_hpo_dp_hblank_min_symbol_width(struct pipe_ctx *pipe_ctx,
+		const struct dc_link_settings *link_settings,
+		struct fixed31_32 throttled_vcp_size);
+void set_hpo_dp_hblank_min_symbol_width(struct pipe_ctx *pipe_ctx,
+		const struct dc_link_settings *link_settings,
+		struct fixed31_32 throttled_vcp_size);
+void setup_hpo_dp_stream_encoder(struct pipe_ctx *pipe_ctx);
+void reset_hpo_dp_stream_encoder(struct pipe_ctx *pipe_ctx);
+void setup_hpo_dp_stream_attribute(struct pipe_ctx *pipe_ctx);
+void enable_hpo_dp_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal,
+		enum clock_source_id clock_source,
+		const struct dc_link_settings *link_settings);
+void disable_hpo_dp_link_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal);
+void update_hpo_dp_stream_allocation_table(struct dc_link *link,
+		const struct link_resource *link_res,
+		const struct link_mst_stream_allocation_table *table);
+void setup_hpo_dp_audio_output(struct pipe_ctx *pipe_ctx,
+		struct audio_output *audio_output, uint32_t audio_inst);
+void enable_hpo_dp_audio_packet(struct pipe_ctx *pipe_ctx);
+void disable_hpo_dp_audio_packet(struct pipe_ctx *pipe_ctx);
+const struct link_hwss *get_hpo_dp_link_hwss(void);
 bool can_use_hpo_dp_link_hwss(const struct dc_link *link,
 		const struct link_resource *link_res);
-const struct link_hwss *get_hpo_dp_link_hwss(void);
 
 
 #endif /* __LINK_HWSS_HPO_DP_H__ */

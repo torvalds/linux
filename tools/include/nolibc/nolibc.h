@@ -13,11 +13,10 @@
  * Syscalls are split into 3 levels:
  *   - The lower level is the arch-specific syscall() definition, consisting in
  *     assembly code in compound expressions. These are called my_syscall0() to
- *     my_syscall6() depending on the number of arguments. The MIPS
- *     implementation is limited to 5 arguments. All input arguments are cast
- *     to a long stored in a register. These expressions always return the
- *     syscall's return value as a signed long value which is often either a
- *     pointer or the negated errno value.
+ *     my_syscall6() depending on the number of arguments. All input arguments
+ *     are castto a long stored in a register. These expressions always return
+ *     the syscall's return value as a signed long value which is often either
+ *     a pointer or the negated errno value.
  *
  *   - The second level is mostly architecture-independent. It is made of
  *     static functions called sys_<name>() which rely on my_syscallN()
@@ -75,10 +74,10 @@
  *            -I../nolibc -o hello hello.c -lgcc
  *
  * The available standard (but limited) include files are:
- *   ctype.h, errno.h, signal.h, stdio.h, stdlib.h, string.h, time.h
+ *   ctype.h, errno.h, signal.h, stdarg.h, stdio.h, stdlib.h, string.h, time.h
  *
  * In addition, the following ones are expected to be provided by the compiler:
- *   float.h, stdarg.h, stddef.h
+ *   float.h, stddef.h
  *
  * The following ones which are part to the C standard are not provided:
  *   assert.h, locale.h, math.h, setjmp.h, limits.h

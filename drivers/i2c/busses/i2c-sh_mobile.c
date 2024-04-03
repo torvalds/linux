@@ -20,7 +20,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
@@ -773,7 +773,7 @@ static int sh_mobile_i2c_r8a7740_workaround(struct sh_mobile_i2c_data *pd)
 	iic_wr(pd, ICCR, ICCR_TRS);
 	udelay(10);
 
-	return sh_mobile_i2c_init(pd);
+	return sh_mobile_i2c_v2_init(pd);
 }
 
 static const struct sh_mobile_dt_config default_dt_config = {
@@ -782,11 +782,6 @@ static const struct sh_mobile_dt_config default_dt_config = {
 };
 
 static const struct sh_mobile_dt_config fast_clock_dt_config = {
-	.clks_per_count = 2,
-	.setup = sh_mobile_i2c_init,
-};
-
-static const struct sh_mobile_dt_config v2_freq_calc_dt_config = {
 	.clks_per_count = 2,
 	.setup = sh_mobile_i2c_v2_init,
 };
@@ -799,17 +794,17 @@ static const struct sh_mobile_dt_config r8a7740_dt_config = {
 static const struct of_device_id sh_mobile_i2c_dt_ids[] = {
 	{ .compatible = "renesas,iic-r8a73a4", .data = &fast_clock_dt_config },
 	{ .compatible = "renesas,iic-r8a7740", .data = &r8a7740_dt_config },
-	{ .compatible = "renesas,iic-r8a774c0", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a7790", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a7791", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a7792", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a7793", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a7794", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a7795", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a77990", .data = &v2_freq_calc_dt_config },
+	{ .compatible = "renesas,iic-r8a774c0", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7790", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7791", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7792", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7793", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7794", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7795", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a77990", .data = &fast_clock_dt_config },
 	{ .compatible = "renesas,iic-sh73a0", .data = &fast_clock_dt_config },
-	{ .compatible = "renesas,rcar-gen2-iic", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,rcar-gen3-iic", .data = &v2_freq_calc_dt_config },
+	{ .compatible = "renesas,rcar-gen2-iic", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,rcar-gen3-iic", .data = &fast_clock_dt_config },
 	{ .compatible = "renesas,rmobile-iic", .data = &default_dt_config },
 	{},
 };
@@ -871,7 +866,6 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 {
 	struct sh_mobile_i2c_data *pd;
 	struct i2c_adapter *adap;
-	struct resource *res;
 	const struct sh_mobile_dt_config *config;
 	int ret;
 	u32 bus_speed;
@@ -893,10 +887,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	pd->dev = &dev->dev;
 	platform_set_drvdata(dev, pd);
 
-	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
-
-	pd->res = res;
-	pd->reg = devm_ioremap_resource(&dev->dev, res);
+	pd->reg = devm_platform_get_and_ioremap_resource(dev, 0, &pd->res);
 	if (IS_ERR(pd->reg))
 		return PTR_ERR(pd->reg);
 
@@ -905,7 +896,7 @@ static int sh_mobile_i2c_probe(struct platform_device *dev)
 	pd->clks_per_count = 1;
 
 	/* Newer variants come with two new bits in ICIC */
-	if (resource_size(res) > 0x17)
+	if (resource_size(pd->res) > 0x17)
 		pd->flags |= IIC_FLAG_HAS_ICIC67;
 
 	pm_runtime_enable(&dev->dev);
@@ -965,7 +956,6 @@ static void sh_mobile_i2c_remove(struct platform_device *dev)
 	pm_runtime_disable(&dev->dev);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int sh_mobile_i2c_suspend(struct device *dev)
 {
 	struct sh_mobile_i2c_data *pd = dev_get_drvdata(dev);
@@ -983,20 +973,15 @@ static int sh_mobile_i2c_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops sh_mobile_i2c_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sh_mobile_i2c_suspend,
-				      sh_mobile_i2c_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(sh_mobile_i2c_suspend,
+				  sh_mobile_i2c_resume)
 };
-
-#define DEV_PM_OPS (&sh_mobile_i2c_pm_ops)
-#else
-#define DEV_PM_OPS NULL
-#endif /* CONFIG_PM_SLEEP */
 
 static struct platform_driver sh_mobile_i2c_driver = {
 	.driver		= {
 		.name		= "i2c-sh_mobile",
 		.of_match_table = sh_mobile_i2c_dt_ids,
-		.pm	= DEV_PM_OPS,
+		.pm	= pm_sleep_ptr(&sh_mobile_i2c_pm_ops),
 	},
 	.probe		= sh_mobile_i2c_probe,
 	.remove_new	= sh_mobile_i2c_remove,

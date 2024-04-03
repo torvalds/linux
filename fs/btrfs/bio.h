@@ -7,12 +7,14 @@
 #ifndef BTRFS_BIO_H
 #define BTRFS_BIO_H
 
+#include <linux/types.h>
 #include <linux/bio.h>
 #include <linux/workqueue.h>
 #include "tree-checker.h"
 
 struct btrfs_bio;
 struct btrfs_fs_info;
+struct btrfs_inode;
 
 #define BTRFS_BIO_INLINE_CSUM_SIZE	64
 
@@ -105,7 +107,7 @@ void btrfs_bio_end_io(struct btrfs_bio *bbio, blk_status_t status);
 void btrfs_submit_bio(struct btrfs_bio *bbio, int mirror_num);
 void btrfs_submit_repair_write(struct btrfs_bio *bbio, int mirror_num, bool dev_replace);
 int btrfs_repair_io_failure(struct btrfs_fs_info *fs_info, u64 ino, u64 start,
-			    u64 length, u64 logical, struct page *page,
-			    unsigned int pg_offset, int mirror_num);
+			    u64 length, u64 logical, struct folio *folio,
+			    unsigned int folio_offset, int mirror_num);
 
 #endif

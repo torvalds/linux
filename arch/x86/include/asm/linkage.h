@@ -8,6 +8,14 @@
 #undef notrace
 #define notrace __attribute__((no_instrument_function))
 
+#ifdef CONFIG_64BIT
+/*
+ * The generic version tends to create spurious ENDBR instructions under
+ * certain conditions.
+ */
+#define _THIS_IP_ ({ unsigned long __here; asm ("lea 0(%%rip), %0" : "=r" (__here)); __here; })
+#endif
+
 #ifdef CONFIG_X86_32
 #define asmlinkage CPP_ASMLINKAGE __attribute__((regparm(0)))
 #endif /* CONFIG_X86_32 */
@@ -32,27 +40,27 @@
 
 #ifdef __ASSEMBLY__
 
-#if defined(CONFIG_RETHUNK) && !defined(__DISABLE_EXPORTS) && !defined(BUILD_VDSO)
+#if defined(CONFIG_MITIGATION_RETHUNK) && !defined(__DISABLE_EXPORTS) && !defined(BUILD_VDSO)
 #define RET	jmp __x86_return_thunk
-#else /* CONFIG_RETPOLINE */
-#ifdef CONFIG_SLS
+#else /* CONFIG_MITIGATION_RETPOLINE */
+#ifdef CONFIG_MITIGATION_SLS
 #define RET	ret; int3
 #else
 #define RET	ret
 #endif
-#endif /* CONFIG_RETPOLINE */
+#endif /* CONFIG_MITIGATION_RETPOLINE */
 
 #else /* __ASSEMBLY__ */
 
-#if defined(CONFIG_RETHUNK) && !defined(__DISABLE_EXPORTS) && !defined(BUILD_VDSO)
+#if defined(CONFIG_MITIGATION_RETHUNK) && !defined(__DISABLE_EXPORTS) && !defined(BUILD_VDSO)
 #define ASM_RET	"jmp __x86_return_thunk\n\t"
-#else /* CONFIG_RETPOLINE */
-#ifdef CONFIG_SLS
+#else /* CONFIG_MITIGATION_RETPOLINE */
+#ifdef CONFIG_MITIGATION_SLS
 #define ASM_RET	"ret; int3\n\t"
 #else
 #define ASM_RET	"ret\n\t"
 #endif
-#endif /* CONFIG_RETPOLINE */
+#endif /* CONFIG_MITIGATION_RETPOLINE */
 
 #endif /* __ASSEMBLY__ */
 
@@ -96,6 +104,13 @@
 	.long __kcfi_typeid_##name ASM_NL			\
 	CFI_POST_PADDING					\
 	SYM_FUNC_END(__cfi_##name)
+
+/* UML needs to be able to override memcpy() and friends for KASAN. */
+#ifdef CONFIG_UML
+# define SYM_FUNC_ALIAS_MEMFUNC	SYM_FUNC_ALIAS_WEAK
+#else
+# define SYM_FUNC_ALIAS_MEMFUNC	SYM_FUNC_ALIAS
+#endif
 
 /* SYM_TYPED_FUNC_START -- use for indirectly called globals, w/ CFI type */
 #define SYM_TYPED_FUNC_START(name)				\

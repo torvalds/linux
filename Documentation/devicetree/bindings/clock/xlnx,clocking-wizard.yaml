@@ -20,6 +20,7 @@ properties:
       - xlnx,clocking-wizard
       - xlnx,clocking-wizard-v5.2
       - xlnx,clocking-wizard-v6.0
+      - xlnx,versal-clk-wizard
 
 
   reg:

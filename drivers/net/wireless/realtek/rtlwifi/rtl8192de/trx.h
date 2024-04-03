@@ -564,7 +564,6 @@ bool rtl92de_is_tx_desc_closed(struct ieee80211_hw *hw,
 			       u8 hw_queue, u16 index);
 void rtl92de_tx_polling(struct ieee80211_hw *hw, u8 hw_queue);
 void rtl92de_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
-			     bool b_firstseg, bool b_lastseg,
 			     struct sk_buff *skb);
 
 #endif

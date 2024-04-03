@@ -500,6 +500,7 @@ static struct Qdisc_ops etf_qdisc_ops __read_mostly = {
 	.dump		=	etf_dump,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("etf");
 
 static int __init etf_module_init(void)
 {
@@ -513,3 +514,4 @@ static void __exit etf_module_exit(void)
 module_init(etf_module_init)
 module_exit(etf_module_exit)
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Earliest TxTime First (ETF) qdisc");

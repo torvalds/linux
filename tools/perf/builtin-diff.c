@@ -1915,8 +1915,8 @@ static int data_init(int argc, const char **argv)
 		struct perf_data *data = &d->data;
 
 		data->path  = use_default ? defaults[i] : argv[i];
-		data->mode  = PERF_DATA_MODE_READ,
-		data->force = force,
+		data->mode  = PERF_DATA_MODE_READ;
+		data->force = force;
 
 		d->idx  = i;
 	}

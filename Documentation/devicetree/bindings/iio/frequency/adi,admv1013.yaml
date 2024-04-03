@@ -39,6 +39,46 @@ properties:
     description:
       Analog voltage regulator.
 
+  vcc-drv-supply:
+    description:
+      RF Driver voltage regulator.
+
+  vcc2-drv-supply:
+    description:
+      RF predriver voltage regulator.
+
+  vcc-vva-supply:
+    description:
+      VVA Control Circuit voltage regulator.
+
+  vcc-amp1-supply:
+    description:
+      RF Amplifier 1 voltage regulator.
+
+  vcc-amp2-supply:
+    description:
+      RF Amplifier 2 voltage regulator.
+
+  vcc-env-supply:
+    description:
+      Envelope Detector voltage regulator.
+
+  vcc-bg-supply:
+    description:
+      Mixer Chip Band Gap Circuit voltage regulator.
+
+  vcc-bg2-supply:
+    description:
+      VGA Chip Band Gap Circuit voltage regulator.
+
+  vcc-mixer-supply:
+    description:
+      Mixer voltage regulator.
+
+  vcc-quad-supply:
+    description:
+      Quadruppler voltage regulator.
+
   adi,detector-enable:
     description:
       Enable the Envelope Detector available at output pins VENV_P and
@@ -69,6 +109,16 @@ required:
   - clocks
   - clock-names
   - vcm-supply
+  - vcc-drv-supply
+  - vcc2-drv-supply
+  - vcc-vva-supply
+  - vcc-amp1-supply
+  - vcc-amp2-supply
+  - vcc-env-supply
+  - vcc-bg-supply
+  - vcc-bg2-supply
+  - vcc-mixer-supply
+  - vcc-quad-supply
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#
@@ -87,6 +137,16 @@ examples:
         clocks = <&admv1013_lo>;
         clock-names = "lo_in";
         vcm-supply = <&vcm>;
+        vcc-drv-supply = <&vcc_drv>;
+        vcc2-drv-supply = <&vcc2_drv>;
+        vcc-vva-supply = <&vcc_vva>;
+        vcc-amp1-supply = <&vcc_amp1>;
+        vcc-amp2-supply = <&vcc_amp2>;
+        vcc-env-supply = <&vcc_env>;
+        vcc-bg-supply = <&vcc_bg>;
+        vcc-bg2-supply = <&vcc_bg2>;
+        vcc-mixer-supply = <&vcc_mixer>;
+        vcc-quad-supply = <&vcc_quad>;
         adi,quad-se-mode = "diff";
         adi,detector-enable;
       };

@@ -91,16 +91,6 @@ properties:
       should switch dat1 pin to GPIO mode.
     maxItems: 1
 
-  assigned-clocks:
-    description:
-      PLL of the source clock.
-    maxItems: 1
-
-  assigned-clock-parents:
-    description:
-      parent of source clock, used for HS400 mode to get 400Mhz source clock.
-    maxItems: 1
-
   hs400-ds-delay:
     $ref: /schemas/types.yaml#/definitions/uint32
     description:
@@ -154,6 +144,15 @@ properties:
       applied to compatible "mediatek,mt2701-mmc".
     minimum: 0
     maximum: 7
+
+  mediatek,tuning-step:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Some SoCs need extend tuning step for better delay value to avoid CRC issue.
+      If not present, default tuning step is 32. For eMMC and SD, this can yield
+      satisfactory calibration results in most cases.
+    enum: [32, 64]
+    default: 32
 
   resets:
     maxItems: 1

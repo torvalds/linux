@@ -346,7 +346,7 @@ disable_clk:
 	return ret;
 }
 
-static int fsl_dcu_drm_remove(struct platform_device *pdev)
+static void fsl_dcu_drm_remove(struct platform_device *pdev)
 {
 	struct fsl_dcu_drm_device *fsl_dev = platform_get_drvdata(pdev);
 
@@ -354,13 +354,19 @@ static int fsl_dcu_drm_remove(struct platform_device *pdev)
 	drm_dev_put(fsl_dev->drm);
 	clk_disable_unprepare(fsl_dev->clk);
 	clk_unregister(fsl_dev->pix_clk);
+}
 
-	return 0;
+static void fsl_dcu_drm_shutdown(struct platform_device *pdev)
+{
+	struct fsl_dcu_drm_device *fsl_dev = platform_get_drvdata(pdev);
+
+	drm_atomic_helper_shutdown(fsl_dev->drm);
 }
 
 static struct platform_driver fsl_dcu_drm_platform_driver = {
 	.probe		= fsl_dcu_drm_probe,
-	.remove		= fsl_dcu_drm_remove,
+	.remove_new	= fsl_dcu_drm_remove,
+	.shutdown	= fsl_dcu_drm_shutdown,
 	.driver		= {
 		.name	= "fsl-dcu",
 		.pm	= &fsl_dcu_drm_pm_ops,

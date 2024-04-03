@@ -22,6 +22,7 @@ enum {
 	TCP_LISTEN,
 	TCP_CLOSING,	/* Now a valid state */
 	TCP_NEW_SYN_RECV,
+	TCP_BOUND_INACTIVE, /* Pseudo-state for inet_diag */
 
 	TCP_MAX_STATES	/* Leave at the end! */
 };
@@ -43,6 +44,7 @@ enum {
 	TCPF_LISTEN	 = (1 << TCP_LISTEN),
 	TCPF_CLOSING	 = (1 << TCP_CLOSING),
 	TCPF_NEW_SYN_RECV = (1 << TCP_NEW_SYN_RECV),
+	TCPF_BOUND_INACTIVE = (1 << TCP_BOUND_INACTIVE),
 };
 
 #endif	/* _LINUX_TCP_STATES_H */

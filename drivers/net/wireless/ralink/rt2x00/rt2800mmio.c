@@ -760,6 +760,9 @@ int rt2800mmio_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00mmio_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000003);
 
+	if (rt2x00_rt(rt2x00dev, RT6352))
+		return 0;
+
 	reg = 0;
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_CSR, 1);
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_BBP, 1);

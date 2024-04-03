@@ -22,6 +22,8 @@
 #include <asm/traps.h>
 #include <linux/uaccess.h>
 
+#include "ip27-common.h"
+
 static void dump_hub_information(unsigned long errst0, unsigned long errst1)
 {
 	static char *err_type[2][8] = {
@@ -57,7 +59,7 @@ static void dump_hub_information(unsigned long errst0, unsigned long errst1)
 	       [st0.pi_stat0_fmt.s0_err_type] ? : "invalid");
 }
 
-int ip27_be_handler(struct pt_regs *regs, int is_fixup)
+static int ip27_be_handler(struct pt_regs *regs, int is_fixup)
 {
 	unsigned long errst0, errst1;
 	int data = regs->cp0_cause & 4;

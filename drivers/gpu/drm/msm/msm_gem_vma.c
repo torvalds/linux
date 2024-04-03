@@ -38,40 +38,11 @@ msm_gem_address_space_get(struct msm_gem_address_space *aspace)
 	return aspace;
 }
 
-bool msm_gem_vma_inuse(struct msm_gem_vma *vma)
-{
-	bool ret = true;
-
-	spin_lock(&vma->lock);
-
-	if (vma->inuse > 0)
-		goto out;
-
-	while (vma->fence_mask) {
-		unsigned idx = ffs(vma->fence_mask) - 1;
-
-		if (!msm_fence_completed(vma->fctx[idx], vma->fence[idx]))
-			goto out;
-
-		vma->fence_mask &= ~BIT(idx);
-	}
-
-	ret = false;
-
-out:
-	spin_unlock(&vma->lock);
-
-	return ret;
-}
-
 /* Actually unmap memory for the vma */
 void msm_gem_vma_purge(struct msm_gem_vma *vma)
 {
 	struct msm_gem_address_space *aspace = vma->aspace;
 	unsigned size = vma->node.size;
-
-	/* Print a message if we try to purge a vma in use */
-	GEM_WARN_ON(msm_gem_vma_inuse(vma));
 
 	/* Don't do anything if the memory isn't mapped */
 	if (!vma->mapped)
@@ -80,33 +51,6 @@ void msm_gem_vma_purge(struct msm_gem_vma *vma)
 	aspace->mmu->funcs->unmap(aspace->mmu, vma->iova, size);
 
 	vma->mapped = false;
-}
-
-static void vma_unpin_locked(struct msm_gem_vma *vma)
-{
-	if (GEM_WARN_ON(!vma->inuse))
-		return;
-	if (!GEM_WARN_ON(!vma->iova))
-		vma->inuse--;
-}
-
-/* Remove reference counts for the mapping */
-void msm_gem_vma_unpin(struct msm_gem_vma *vma)
-{
-	spin_lock(&vma->lock);
-	vma_unpin_locked(vma);
-	spin_unlock(&vma->lock);
-}
-
-/* Replace pin reference with fence: */
-void msm_gem_vma_unpin_fenced(struct msm_gem_vma *vma, struct msm_fence_context *fctx)
-{
-	spin_lock(&vma->lock);
-	vma->fctx[fctx->index] = fctx;
-	vma->fence[fctx->index] = fctx->last_fence;
-	vma->fence_mask |= BIT(fctx->index);
-	vma_unpin_locked(vma);
-	spin_unlock(&vma->lock);
 }
 
 /* Map and pin vma: */
@@ -119,11 +63,6 @@ msm_gem_vma_map(struct msm_gem_vma *vma, int prot,
 
 	if (GEM_WARN_ON(!vma->iova))
 		return -EINVAL;
-
-	/* Increase the usage counter */
-	spin_lock(&vma->lock);
-	vma->inuse++;
-	spin_unlock(&vma->lock);
 
 	if (vma->mapped)
 		return 0;
@@ -146,9 +85,6 @@ msm_gem_vma_map(struct msm_gem_vma *vma, int prot,
 
 	if (ret) {
 		vma->mapped = false;
-		spin_lock(&vma->lock);
-		vma->inuse--;
-		spin_unlock(&vma->lock);
 	}
 
 	return ret;
@@ -159,7 +95,7 @@ void msm_gem_vma_close(struct msm_gem_vma *vma)
 {
 	struct msm_gem_address_space *aspace = vma->aspace;
 
-	GEM_WARN_ON(msm_gem_vma_inuse(vma) || vma->mapped);
+	GEM_WARN_ON(vma->mapped);
 
 	spin_lock(&aspace->lock);
 	if (vma->iova)
@@ -179,7 +115,6 @@ struct msm_gem_vma *msm_gem_vma_new(struct msm_gem_address_space *aspace)
 	if (!vma)
 		return NULL;
 
-	spin_lock_init(&vma->lock);
 	vma->aspace = aspace;
 
 	return vma;

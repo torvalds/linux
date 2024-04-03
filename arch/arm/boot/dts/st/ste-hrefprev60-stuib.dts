@@ -5,6 +5,7 @@
 
 /dts-v1/;
 #include "ste-db8500.dtsi"
+#include "ste-href-ab8500.dtsi"
 #include "ste-hrefprev60.dtsi"
 #include "ste-href-stuib.dtsi"
 
@@ -27,7 +28,7 @@
 			  2900000 0x0>;
 
 		gpios = <&tc3589x_gpio 18 GPIO_ACTIVE_HIGH>;
-		enable-gpio = <&tc3589x_gpio 17 GPIO_ACTIVE_HIGH>;
+		enable-gpios = <&tc3589x_gpio 17 GPIO_ACTIVE_HIGH>;
 		enable-active-high;
 	};
 

@@ -5,6 +5,7 @@
  * Copyright (C) 2021-2022, Alibaba Cloud
  */
 #include <linux/security.h>
+#include <linux/xxhash.h>
 #include "xattr.h"
 
 struct erofs_xattr_iter {
@@ -87,6 +88,7 @@ static int erofs_init_inode_xattrs(struct inode *inode)
 	}
 
 	ih = it.kaddr + erofs_blkoff(sb, it.pos);
+	vi->xattr_name_filter = le32_to_cpu(ih->h_name_filter);
 	vi->xattr_shared_count = ih->h_shared_count;
 	vi->xattr_shared_xattrs = kmalloc_array(vi->xattr_shared_count,
 						sizeof(uint), GFP_KERNEL);
@@ -166,7 +168,7 @@ const struct xattr_handler __maybe_unused erofs_xattr_security_handler = {
 };
 #endif
 
-const struct xattr_handler *erofs_xattr_handlers[] = {
+const struct xattr_handler * const erofs_xattr_handlers[] = {
 	&erofs_xattr_user_handler,
 	&erofs_xattr_trusted_handler,
 #ifdef CONFIG_EROFS_FS_SECURITY
@@ -392,7 +394,10 @@ int erofs_getxattr(struct inode *inode, int index, const char *name,
 		   void *buffer, size_t buffer_size)
 {
 	int ret;
+	unsigned int hashbit;
 	struct erofs_xattr_iter it;
+	struct erofs_inode *vi = EROFS_I(inode);
+	struct erofs_sb_info *sbi = EROFS_SB(inode->i_sb);
 
 	if (!name)
 		return -EINVAL;
@@ -400,6 +405,15 @@ int erofs_getxattr(struct inode *inode, int index, const char *name,
 	ret = erofs_init_inode_xattrs(inode);
 	if (ret)
 		return ret;
+
+	/* reserved flag is non-zero if there's any change of on-disk format */
+	if (erofs_sb_has_xattr_filter(sbi) && !sbi->xattr_filter_reserved) {
+		hashbit = xxh32(name, strlen(name),
+				EROFS_XATTR_FILTER_SEED + index);
+		hashbit &= EROFS_XATTR_FILTER_BITS - 1;
+		if (vi->xattr_name_filter & (1U << hashbit))
+			return -ENOATTR;
+	}
 
 	it.index = index;
 	it.name = (struct qstr)QSTR_INIT(name, strlen(name));

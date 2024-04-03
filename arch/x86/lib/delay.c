@@ -128,7 +128,7 @@ static void delay_halt_mwaitx(u64 unused, u64 cycles)
 
 	delay = min_t(u64, MWAITX_MAX_WAIT_CYCLES, cycles);
 	/*
-	 * Use cpu_tss_rw as a cacheline-aligned, seldomly accessed per-cpu
+	 * Use cpu_tss_rw as a cacheline-aligned, seldom accessed per-cpu
 	 * variable as the monitor target.
 	 */
 	 __monitorx(raw_cpu_ptr(&cpu_tss_rw), 0, 0);

@@ -33,11 +33,11 @@ properties:
       specific for each activated function, while the rest of the sub-spaces
       are common for all of them (if there are more than one).
     minItems: 2
-    maxItems: 6
+    maxItems: 7
 
   reg-names:
     minItems: 2
-    maxItems: 6
+    maxItems: 7
 
   interrupts:
     description:

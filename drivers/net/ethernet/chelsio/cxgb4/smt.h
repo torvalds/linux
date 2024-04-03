@@ -66,7 +66,7 @@ struct smt_entry {
 struct smt_data {
 	unsigned int smt_size;
 	rwlock_t lock;
-	struct smt_entry smtab[];
+	struct smt_entry smtab[] __counted_by(smt_size);
 };
 
 struct smt_data *t4_init_smt(void);

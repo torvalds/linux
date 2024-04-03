@@ -24,10 +24,8 @@
 #include <linux/kernel.h>
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_pci.h>
-#include <linux/of_platform.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/phy/phy.h>
@@ -507,7 +505,7 @@ static irqreturn_t rockchip_pcie_client_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static void rockchip_pcie_legacy_int_handler(struct irq_desc *desc)
+static void rockchip_pcie_intx_handler(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct rockchip_pcie *rockchip = irq_desc_get_handler_data(desc);
@@ -555,7 +553,7 @@ static int rockchip_pcie_setup_irq(struct rockchip_pcie *rockchip)
 		return irq;
 
 	irq_set_chained_handler_and_data(irq,
-					 rockchip_pcie_legacy_int_handler,
+					 rockchip_pcie_intx_handler,
 					 rockchip);
 
 	irq = platform_get_irq_byname(pdev, "client");

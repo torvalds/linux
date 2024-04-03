@@ -20,7 +20,7 @@
 #include <linux/kdev_t.h>
 #include <linux/delay.h>
 #include <linux/seq_file.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
@@ -112,17 +112,9 @@ static const char * const board[] __initconst = {
 	NULL
 };
 
-/*
- * Called very early, device-tree isn't unflattened
- */
-static int __init tqm85xx_probe(void)
-{
-	return of_device_compatible_match(of_root, board);
-}
-
 define_machine(tqm85xx) {
 	.name			= "TQM85xx",
-	.probe			= tqm85xx_probe,
+	.compatibles		= board,
 	.setup_arch		= tqm85xx_setup_arch,
 	.init_IRQ		= tqm85xx_pic_init,
 	.show_cpuinfo		= tqm85xx_show_cpuinfo,

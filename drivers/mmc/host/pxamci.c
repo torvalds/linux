@@ -30,7 +30,6 @@
 #include <linux/gpio/consumer.h>
 #include <linux/gfp.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/soc/pxa/cpu.h>
 
 #include <linux/sizes.h>
@@ -612,7 +611,6 @@ static int pxamci_probe(struct platform_device *pdev)
 	struct resource *r;
 	int ret, irq;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
 		return irq;
@@ -685,14 +683,14 @@ static int pxamci_probe(struct platform_device *pdev)
 	}
 
 	spin_lock_init(&host->lock);
-	host->res = r;
 	host->imask = MMC_I_MASK_ALL;
 
-	host->base = devm_ioremap_resource(dev, r);
+	host->base = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(host->base)) {
 		ret = PTR_ERR(host->base);
 		goto out;
 	}
+	host->res = r;
 
 	/*
 	 * Ensure that the host controller is shut down, and setup
@@ -784,7 +782,7 @@ out:
 	return ret;
 }
 
-static int pxamci_remove(struct platform_device *pdev)
+static void pxamci_remove(struct platform_device *pdev)
 {
 	struct mmc_host *mmc = platform_get_drvdata(pdev);
 
@@ -808,13 +806,11 @@ static int pxamci_remove(struct platform_device *pdev)
 
 		mmc_free_host(mmc);
 	}
-
-	return 0;
 }
 
 static struct platform_driver pxamci_driver = {
 	.probe		= pxamci_probe,
-	.remove		= pxamci_remove,
+	.remove_new	= pxamci_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.probe_type = PROBE_PREFER_ASYNCHRONOUS,

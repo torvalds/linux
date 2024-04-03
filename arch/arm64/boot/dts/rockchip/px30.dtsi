@@ -20,7 +20,6 @@
 	#size-cells = <2>;
 
 	aliases {
-		ethernet0 = &gmac;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
 		i2c2 = &i2c2;
@@ -291,14 +290,14 @@
 			};
 			power-domain@PX30_PD_MMC_NAND {
 				reg = <PX30_PD_MMC_NAND>;
-				clocks =  <&cru HCLK_NANDC>,
-					  <&cru HCLK_EMMC>,
-					  <&cru HCLK_SDIO>,
-					  <&cru HCLK_SFC>,
-					  <&cru SCLK_EMMC>,
-					  <&cru SCLK_NANDC>,
-					  <&cru SCLK_SDIO>,
-					  <&cru SCLK_SFC>;
+				clocks = <&cru HCLK_NANDC>,
+					 <&cru HCLK_EMMC>,
+					 <&cru HCLK_SDIO>,
+					 <&cru HCLK_SFC>,
+					 <&cru SCLK_EMMC>,
+					 <&cru SCLK_NANDC>,
+					 <&cru SCLK_SDIO>,
+					 <&cru SCLK_SFC>;
 				pm_qos = <&qos_emmc>, <&qos_nand>,
 					 <&qos_sdio>, <&qos_sfc>;
 				#power-domain-cells = <0>;
@@ -632,6 +631,7 @@
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac 12>, <&dmac 13>;
 		dma-names = "tx", "rx";
+		num-cs = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi0_clk &spi0_csn &spi0_miso &spi0_mosi>;
 		#address-cells = <1>;
@@ -647,6 +647,7 @@
 		clock-names = "spiclk", "apb_pclk";
 		dmas = <&dmac 14>, <&dmac 15>;
 		dma-names = "tx", "rx";
+		num-cs = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&spi1_clk &spi1_csn0 &spi1_csn1 &spi1_miso &spi1_mosi>;
 		#address-cells = <1>;

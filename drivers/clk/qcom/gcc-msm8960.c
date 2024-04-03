@@ -7,9 +7,10 @@
 #include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
@@ -3716,13 +3717,9 @@ MODULE_DEVICE_TABLE(of, gcc_msm8960_match_table);
 static int gcc_msm8960_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *match;
 	struct platform_device *tsens;
+	const struct qcom_cc_desc *desc = device_get_match_data(dev);
 	int ret;
-
-	match = of_match_device(gcc_msm8960_match_table, &pdev->dev);
-	if (!match)
-		return -EINVAL;
 
 	ret = qcom_cc_register_board_clk(dev, "cxo_board", "cxo", 19200000);
 	if (ret)
@@ -3732,11 +3729,11 @@ static int gcc_msm8960_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = qcom_cc_probe(pdev, match->data);
+	ret = qcom_cc_probe(pdev, desc);
 	if (ret)
 		return ret;
 
-	if (match->data == &gcc_apq8064_desc) {
+	if (desc == &gcc_apq8064_desc) {
 		hfpll1.d = &hfpll1_8064_data;
 		hfpll_l2.d = &hfpll_l2_8064_data;
 	}

@@ -376,14 +376,14 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie2a_default>;
 
-	status = "okay";
+	status = "disabled";
 };
 
 &pcie2a_phy {
 	vdda-phy-supply = <&vreg_l11a>;
 	vdda-pll-supply = <&vreg_l3a>;
 
-	status = "okay";
+	status = "disabled";
 };
 
 &pcie3a {
@@ -405,6 +405,21 @@
 	vdda-pll-supply = <&vreg_l3a>;
 
 	status = "okay";
+};
+
+&pmm8540a_rtc {
+	nvmem-cells = <&rtc_offset>;
+	nvmem-cell-names = "offset";
+
+	status = "okay";
+};
+
+&pmm8540c_sdam_2 {
+	status = "okay";
+
+	rtc_offset: rtc-offset@a0 {
+		reg = <0xa0 0x4>;
+	};
 };
 
 &qup0 {

@@ -88,8 +88,7 @@ int configfs_setattr(struct mnt_idmap *idmap, struct dentry *dentry,
 static inline void set_default_inode_attr(struct inode * inode, umode_t mode)
 {
 	inode->i_mode = mode;
-	inode->i_atime = inode->i_mtime =
-		inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 }
 
 static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
@@ -97,9 +96,9 @@ static inline void set_inode_attr(struct inode * inode, struct iattr * iattr)
 	inode->i_mode = iattr->ia_mode;
 	inode->i_uid = iattr->ia_uid;
 	inode->i_gid = iattr->ia_gid;
-	inode->i_atime = iattr->ia_atime;
-	inode->i_mtime = iattr->ia_mtime;
-	inode->i_ctime = iattr->ia_ctime;
+	inode_set_atime_to_ts(inode, iattr->ia_atime);
+	inode_set_mtime_to_ts(inode, iattr->ia_mtime);
+	inode_set_ctime_to_ts(inode, iattr->ia_ctime);
 }
 
 struct inode *configfs_new_inode(umode_t mode, struct configfs_dirent *sd,
@@ -172,7 +171,7 @@ struct inode *configfs_create(struct dentry *dentry, umode_t mode)
 		return ERR_PTR(-ENOMEM);
 
 	p_inode = d_inode(dentry->d_parent);
-	p_inode->i_mtime = p_inode->i_ctime = current_time(p_inode);
+	inode_set_mtime_to_ts(p_inode, inode_set_ctime_current(p_inode));
 	configfs_set_inode_lock_class(sd, inode);
 	return inode;
 }

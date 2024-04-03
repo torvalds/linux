@@ -426,7 +426,7 @@ static void qeth_setup_ccw(struct ccw1 *ccw, u8 cmd_code, u8 flags, u32 len,
 	ccw->cmd_code = cmd_code;
 	ccw->flags = flags | CCW_FLAG_SLI;
 	ccw->count = len;
-	ccw->cda = (__u32)virt_to_phys(data);
+	ccw->cda = virt_to_dma32(data);
 }
 
 static int __qeth_issue_next_read(struct qeth_card *card)
@@ -1179,6 +1179,20 @@ static int qeth_check_irb_error(struct qeth_card *card, struct ccw_device *cdev,
 	}
 }
 
+/**
+ * qeth_irq() - qeth interrupt handler
+ * @cdev: ccw device
+ * @intparm: expect pointer to iob
+ * @irb: Interruption Response Block
+ *
+ * In the good path:
+ * corresponding qeth channel is locked with last used iob as active_cmd.
+ * But this function is also called for error interrupts.
+ *
+ * Caller ensures that:
+ * Interrupts are disabled; ccw device lock is held;
+ *
+ */
 static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 		struct irb *irb)
 {
@@ -1220,11 +1234,10 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 		iob = (struct qeth_cmd_buffer *) (addr_t)intparm;
 	}
 
-	qeth_unlock_channel(card, channel);
-
 	rc = qeth_check_irb_error(card, cdev, irb);
 	if (rc) {
 		/* IO was terminated, free its resources. */
+		qeth_unlock_channel(card, channel);
 		if (iob)
 			qeth_cancel_cmd(iob, rc);
 		return;
@@ -1268,6 +1281,7 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 		rc = qeth_get_problem(card, cdev, irb);
 		if (rc) {
 			card->read_or_write_problem = 1;
+			qeth_unlock_channel(card, channel);
 			if (iob)
 				qeth_cancel_cmd(iob, rc);
 			qeth_clear_ipacmd_list(card);
@@ -1275,6 +1289,26 @@ static void qeth_irq(struct ccw_device *cdev, unsigned long intparm,
 			return;
 		}
 	}
+
+	if (scsw_cmd_is_valid_cc(&irb->scsw) && irb->scsw.cmd.cc == 1 && iob) {
+		/* channel command hasn't started: retry.
+		 * active_cmd is still set to last iob
+		 */
+		QETH_CARD_TEXT(card, 2, "irqcc1");
+		rc = ccw_device_start_timeout(cdev, __ccw_from_cmd(iob),
+					      (addr_t)iob, 0, 0, iob->timeout);
+		if (rc) {
+			QETH_DBF_MESSAGE(2,
+					 "ccw retry on %x failed, rc = %i\n",
+					 CARD_DEVID(card), rc);
+			QETH_CARD_TEXT_(card, 2, " err%d", rc);
+			qeth_unlock_channel(card, channel);
+			qeth_cancel_cmd(iob, rc);
+		}
+		return;
+	}
+
+	qeth_unlock_channel(card, channel);
 
 	if (iob) {
 		/* sanity check: */
@@ -1359,7 +1393,7 @@ static void qeth_clear_output_buffer(struct qeth_qdio_out_q *queue,
 	qeth_tx_complete_buf(queue, buf, error, budget);
 
 	for (i = 0; i < queue->max_elements; ++i) {
-		void *data = phys_to_virt(buf->buffer->element[i].addr);
+		void *data = dma64_to_virt(buf->buffer->element[i].addr);
 
 		if (__test_and_clear_bit(i, buf->from_kmem_cache) && data)
 			kmem_cache_free(qeth_core_header_cache, data);
@@ -1404,7 +1438,7 @@ static void qeth_tx_complete_pending_bufs(struct qeth_card *card,
 			for (i = 0;
 			     i < aob->sb_count && i < queue->max_elements;
 			     i++) {
-				void *data = phys_to_virt(aob->sba[i]);
+				void *data = dma64_to_virt(aob->sba[i]);
 
 				if (test_bit(i, buf->from_kmem_cache) && data)
 					kmem_cache_free(qeth_core_header_cache,
@@ -2918,8 +2952,8 @@ static int qeth_init_input_buffer(struct qeth_card *card,
 	 */
 	for (i = 0; i < QETH_MAX_BUFFER_ELEMENTS(card); ++i) {
 		buf->buffer->element[i].length = PAGE_SIZE;
-		buf->buffer->element[i].addr =
-			page_to_phys(pool_entry->elements[i]);
+		buf->buffer->element[i].addr = u64_to_dma64(
+			page_to_phys(pool_entry->elements[i]));
 		if (i == QETH_MAX_BUFFER_ELEMENTS(card) - 1)
 			buf->buffer->element[i].eflags = SBAL_EFLAGS_LAST_ENTRY;
 		else
@@ -3675,7 +3709,7 @@ static void qeth_flush_queue(struct qeth_qdio_out_q *queue)
 static void qeth_check_outbound_queue(struct qeth_qdio_out_q *queue)
 {
 	/*
-	 * check if weed have to switch to non-packing mode or if
+	 * check if we have to switch to non-packing mode or if
 	 * we have to get a pci flag out on the queue
 	 */
 	if ((atomic_read(&queue->used_buffers) <= QETH_LOW_WATERMARK_PACK) ||
@@ -3765,9 +3799,9 @@ static void qeth_qdio_cq_handler(struct qeth_card *card, unsigned int qdio_err,
 
 		while ((e < QDIO_MAX_ELEMENTS_PER_BUFFER) &&
 		       buffer->element[e].addr) {
-			unsigned long phys_aob_addr = buffer->element[e].addr;
+			dma64_t phys_aob_addr = buffer->element[e].addr;
 
-			qeth_qdio_handle_aob(card, phys_to_virt(phys_aob_addr));
+			qeth_qdio_handle_aob(card, dma64_to_virt(phys_aob_addr));
 			++e;
 		}
 		qeth_scrub_qdio_buffer(buffer, QDIO_MAX_ELEMENTS_PER_BUFFER);
@@ -4042,7 +4076,7 @@ static unsigned int qeth_fill_buffer(struct qeth_qdio_out_buffer *buf,
 	if (hd_len) {
 		is_first_elem = false;
 
-		buffer->element[element].addr = virt_to_phys(hdr);
+		buffer->element[element].addr = virt_to_dma64(hdr);
 		buffer->element[element].length = hd_len;
 		buffer->element[element].eflags = SBAL_EFLAGS_FIRST_FRAG;
 
@@ -4063,7 +4097,7 @@ static unsigned int qeth_fill_buffer(struct qeth_qdio_out_buffer *buf,
 		elem_length = min_t(unsigned int, length,
 				    PAGE_SIZE - offset_in_page(data));
 
-		buffer->element[element].addr = virt_to_phys(data);
+		buffer->element[element].addr = virt_to_dma64(data);
 		buffer->element[element].length = elem_length;
 		length -= elem_length;
 		if (is_first_elem) {
@@ -4093,7 +4127,7 @@ static unsigned int qeth_fill_buffer(struct qeth_qdio_out_buffer *buf,
 			elem_length = min_t(unsigned int, length,
 					    PAGE_SIZE - offset_in_page(data));
 
-			buffer->element[element].addr = virt_to_phys(data);
+			buffer->element[element].addr = virt_to_dma64(data);
 			buffer->element[element].length = elem_length;
 			buffer->element[element].eflags =
 				SBAL_EFLAGS_MIDDLE_FRAG;
@@ -5569,7 +5603,7 @@ next_packet:
 		offset = 0;
 	}
 
-	hdr = phys_to_virt(element->addr) + offset;
+	hdr = dma64_to_virt(element->addr) + offset;
 	offset += sizeof(*hdr);
 	skb = NULL;
 
@@ -5661,7 +5695,7 @@ use_skb:
 walk_packet:
 	while (skb_len) {
 		int data_len = min(skb_len, (int)(element->length - offset));
-		char *data = phys_to_virt(element->addr) + offset;
+		char *data = dma64_to_virt(element->addr) + offset;
 
 		skb_len -= data_len;
 		offset += data_len;
@@ -6226,7 +6260,7 @@ static int qeth_add_dbf_entry(struct qeth_card *card, char *name)
 	new_entry = kzalloc(sizeof(struct qeth_dbf_entry), GFP_KERNEL);
 	if (!new_entry)
 		goto err_dbg;
-	strncpy(new_entry->dbf_name, name, DBF_NAME_LEN);
+	strscpy(new_entry->dbf_name, name, sizeof(new_entry->dbf_name));
 	new_entry->dbf_info = card->debug;
 	mutex_lock(&qeth_dbf_list_mutex);
 	list_add(&new_entry->dbf_list, &qeth_dbf_list);

@@ -618,7 +618,7 @@ int radeon_acpi_pcie_performance_request(struct radeon_device *rdev,
 
 	atcs_input.size = sizeof(struct atcs_pref_req_input);
 	/* client id (bit 2-0: func num, 7-3: dev num, 15-8: bus num) */
-	atcs_input.client_id = rdev->pdev->devfn | (rdev->pdev->bus->number << 8);
+	atcs_input.client_id = pci_dev_id(rdev->pdev);
 	atcs_input.valid_flags_mask = ATCS_VALID_FLAGS_MASK;
 	atcs_input.flags = ATCS_WAIT_FOR_COMPLETION;
 	if (advertise)

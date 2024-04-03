@@ -241,7 +241,7 @@ int ptp_get_vclocks_index(int pclock_index, int **vclock_index)
 		return num;
 
 	snprintf(name, PTP_CLOCK_NAME_LEN, "ptp%d", pclock_index);
-	dev = class_find_device_by_name(ptp_class, name);
+	dev = class_find_device_by_name(&ptp_class, name);
 	if (!dev)
 		return num;
 

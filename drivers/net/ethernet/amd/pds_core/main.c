@@ -37,9 +37,15 @@ static void pdsc_unmap_bars(struct pdsc *pdsc)
 	struct pdsc_dev_bar *bars = pdsc->bars;
 	unsigned int i;
 
+	pdsc->info_regs = NULL;
+	pdsc->cmd_regs = NULL;
+	pdsc->intr_status = NULL;
+	pdsc->intr_ctrl = NULL;
+
 	for (i = 0; i < PDS_CORE_BARS_MAX; i++) {
 		if (bars[i].vaddr)
 			pci_iounmap(pdsc->pdev, bars[i].vaddr);
+		bars[i].vaddr = NULL;
 	}
 }
 
@@ -293,7 +299,7 @@ err_out_stop:
 err_out_teardown:
 	pdsc_teardown(pdsc, PDSC_TEARDOWN_REMOVING);
 err_out_unmap_bars:
-	del_timer_sync(&pdsc->wdtimer);
+	timer_shutdown_sync(&pdsc->wdtimer);
 	if (pdsc->wq)
 		destroy_workqueue(pdsc->wq);
 	mutex_destroy(&pdsc->config_lock);
@@ -367,14 +373,13 @@ static int pdsc_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = pdsc_init_vf(pdsc);
 	if (err) {
 		dev_err(dev, "Cannot init device: %pe\n", ERR_PTR(err));
-		goto err_out_clear_master;
+		goto err_out_disable_device;
 	}
 
 	clear_bit(PDSC_S_INITING_DRIVER, &pdsc->state);
 	return 0;
 
-err_out_clear_master:
-	pci_clear_master(pdev);
+err_out_disable_device:
 	pci_disable_device(pdev);
 err_out_free_ida:
 	ida_free(&pdsc_ida, pdsc->uid);
@@ -421,7 +426,7 @@ static void pdsc_remove(struct pci_dev *pdev)
 		 */
 		pdsc_sriov_configure(pdev, 0);
 
-		del_timer_sync(&pdsc->wdtimer);
+		timer_shutdown_sync(&pdsc->wdtimer);
 		if (pdsc->wq)
 			destroy_workqueue(pdsc->wq);
 
@@ -434,12 +439,10 @@ static void pdsc_remove(struct pci_dev *pdev)
 		mutex_destroy(&pdsc->config_lock);
 		mutex_destroy(&pdsc->devcmd_lock);
 
-		pci_free_irq_vectors(pdev);
 		pdsc_unmap_bars(pdsc);
 		pci_release_regions(pdev);
 	}
 
-	pci_clear_master(pdev);
 	pci_disable_device(pdev);
 
 	ida_free(&pdsc_ida, pdsc->uid);
@@ -447,12 +450,122 @@ static void pdsc_remove(struct pci_dev *pdev)
 	devlink_free(dl);
 }
 
+static void pdsc_stop_health_thread(struct pdsc *pdsc)
+{
+	if (pdsc->pdev->is_virtfn)
+		return;
+
+	timer_shutdown_sync(&pdsc->wdtimer);
+	if (pdsc->health_work.func)
+		cancel_work_sync(&pdsc->health_work);
+}
+
+static void pdsc_restart_health_thread(struct pdsc *pdsc)
+{
+	if (pdsc->pdev->is_virtfn)
+		return;
+
+	timer_setup(&pdsc->wdtimer, pdsc_wdtimer_cb, 0);
+	mod_timer(&pdsc->wdtimer, jiffies + 1);
+}
+
+static void pdsc_reset_prepare(struct pci_dev *pdev)
+{
+	struct pdsc *pdsc = pci_get_drvdata(pdev);
+
+	pdsc_stop_health_thread(pdsc);
+	pdsc_fw_down(pdsc);
+
+	if (pdev->is_virtfn) {
+		struct pdsc *pf;
+
+		pf = pdsc_get_pf_struct(pdsc->pdev);
+		if (!IS_ERR(pf))
+			pdsc_auxbus_dev_del(pdsc, pf);
+	}
+
+	pdsc_unmap_bars(pdsc);
+	pci_release_regions(pdev);
+	if (pci_is_enabled(pdev))
+		pci_disable_device(pdev);
+}
+
+static void pdsc_reset_done(struct pci_dev *pdev)
+{
+	struct pdsc *pdsc = pci_get_drvdata(pdev);
+	struct device *dev = pdsc->dev;
+	int err;
+
+	err = pci_enable_device(pdev);
+	if (err) {
+		dev_err(dev, "Cannot enable PCI device: %pe\n", ERR_PTR(err));
+		return;
+	}
+	pci_set_master(pdev);
+
+	if (!pdev->is_virtfn) {
+		pcie_print_link_status(pdsc->pdev);
+
+		err = pci_request_regions(pdsc->pdev, PDS_CORE_DRV_NAME);
+		if (err) {
+			dev_err(pdsc->dev, "Cannot request PCI regions: %pe\n",
+				ERR_PTR(err));
+			return;
+		}
+
+		err = pdsc_map_bars(pdsc);
+		if (err)
+			return;
+	}
+
+	pdsc_fw_up(pdsc);
+	pdsc_restart_health_thread(pdsc);
+
+	if (pdev->is_virtfn) {
+		struct pdsc *pf;
+
+		pf = pdsc_get_pf_struct(pdsc->pdev);
+		if (!IS_ERR(pf))
+			pdsc_auxbus_dev_add(pdsc, pf);
+	}
+}
+
+static pci_ers_result_t pdsc_pci_error_detected(struct pci_dev *pdev,
+						pci_channel_state_t error)
+{
+	if (error == pci_channel_io_frozen) {
+		pdsc_reset_prepare(pdev);
+		return PCI_ERS_RESULT_NEED_RESET;
+	}
+
+	return PCI_ERS_RESULT_NONE;
+}
+
+static void pdsc_pci_error_resume(struct pci_dev *pdev)
+{
+	struct pdsc *pdsc = pci_get_drvdata(pdev);
+
+	if (test_bit(PDSC_S_FW_DEAD, &pdsc->state))
+		pci_reset_function_locked(pdev);
+}
+
+static const struct pci_error_handlers pdsc_err_handler = {
+	/* FLR handling */
+	.reset_prepare      = pdsc_reset_prepare,
+	.reset_done         = pdsc_reset_done,
+
+	/* AER handling */
+	.error_detected     = pdsc_pci_error_detected,
+	.resume             = pdsc_pci_error_resume,
+};
+
 static struct pci_driver pdsc_driver = {
 	.name = PDS_CORE_DRV_NAME,
 	.id_table = pdsc_id_table,
 	.probe = pdsc_probe,
 	.remove = pdsc_remove,
 	.sriov_configure = pdsc_sriov_configure,
+	.err_handler = &pdsc_err_handler,
 };
 
 void *pdsc_get_pf_struct(struct pci_dev *vf_pdev)

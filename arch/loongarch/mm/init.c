@@ -35,44 +35,19 @@
 #include <asm/pgalloc.h>
 #include <asm/tlb.h>
 
-/*
- * We have up to 8 empty zeroed pages so we can map one of the right colour
- * when needed.	 Since page is never written to after the initialization we
- * don't have to care about aliases on other CPUs.
- */
-unsigned long empty_zero_page, zero_page_mask;
+unsigned long empty_zero_page[PAGE_SIZE / sizeof(unsigned long)] __page_aligned_bss;
 EXPORT_SYMBOL(empty_zero_page);
-EXPORT_SYMBOL(zero_page_mask);
-
-void setup_zero_pages(void)
-{
-	unsigned int order, i;
-	struct page *page;
-
-	order = 0;
-
-	empty_zero_page = __get_free_pages(GFP_KERNEL | __GFP_ZERO, order);
-	if (!empty_zero_page)
-		panic("Oh boy, that early out of memory?");
-
-	page = virt_to_page((void *)empty_zero_page);
-	split_page(page, order);
-	for (i = 0; i < (1 << order); i++, page++)
-		mark_page_reserved(page);
-
-	zero_page_mask = ((PAGE_SIZE << order) - 1) & PAGE_MASK;
-}
 
 void copy_user_highpage(struct page *to, struct page *from,
 	unsigned long vaddr, struct vm_area_struct *vma)
 {
 	void *vfrom, *vto;
 
-	vto = kmap_atomic(to);
-	vfrom = kmap_atomic(from);
+	vfrom = kmap_local_page(from);
+	vto = kmap_local_page(to);
 	copy_page(vto, vfrom);
-	kunmap_atomic(vfrom);
-	kunmap_atomic(vto);
+	kunmap_local(vfrom);
+	kunmap_local(vto);
 	/* Make sure this page is cleared on other CPU's too before using it */
 	smp_wmb();
 }
@@ -106,7 +81,6 @@ void __init mem_init(void)
 	high_memory = (void *) __va(max_low_pfn << PAGE_SHIFT);
 
 	memblock_free_all();
-	setup_zero_pages();	/* Setup zeroed pages.  */
 }
 #endif /* !CONFIG_NUMA */
 
@@ -191,43 +165,42 @@ void vmemmap_free(unsigned long start, unsigned long end, struct vmem_altmap *al
 #endif
 #endif
 
-static pte_t *fixmap_pte(unsigned long addr)
+pte_t * __init populate_kernel_pte(unsigned long addr)
 {
-	pgd_t *pgd;
-	p4d_t *p4d;
+	pgd_t *pgd = pgd_offset_k(addr);
+	p4d_t *p4d = p4d_offset(pgd, addr);
 	pud_t *pud;
 	pmd_t *pmd;
 
-	pgd = pgd_offset_k(addr);
-	p4d = p4d_offset(pgd, addr);
-
-	if (pgd_none(*pgd)) {
-		pud_t *new __maybe_unused;
-
-		new = memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
-		pgd_populate(&init_mm, pgd, new);
+	if (p4d_none(*p4d)) {
+		pud = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+		if (!pud)
+			panic("%s: Failed to allocate memory\n", __func__);
+		p4d_populate(&init_mm, p4d, pud);
 #ifndef __PAGETABLE_PUD_FOLDED
-		pud_init(new);
+		pud_init(pud);
 #endif
 	}
 
 	pud = pud_offset(p4d, addr);
 	if (pud_none(*pud)) {
-		pmd_t *new __maybe_unused;
-
-		new = memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
-		pud_populate(&init_mm, pud, new);
+		pmd = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+		if (!pmd)
+			panic("%s: Failed to allocate memory\n", __func__);
+		pud_populate(&init_mm, pud, pmd);
 #ifndef __PAGETABLE_PMD_FOLDED
-		pmd_init(new);
+		pmd_init(pmd);
 #endif
 	}
 
 	pmd = pmd_offset(pud, addr);
-	if (pmd_none(*pmd)) {
-		pte_t *new __maybe_unused;
+	if (!pmd_present(*pmd)) {
+		pte_t *pte;
 
-		new = memblock_alloc_low(PAGE_SIZE, PAGE_SIZE);
-		pmd_populate_kernel(&init_mm, pmd, new);
+		pte = memblock_alloc(PAGE_SIZE, PAGE_SIZE);
+		if (!pte)
+			panic("%s: Failed to allocate memory\n", __func__);
+		pmd_populate_kernel(&init_mm, pmd, pte);
 	}
 
 	return pte_offset_kernel(pmd, addr);
@@ -241,7 +214,7 @@ void __init __set_fixmap(enum fixed_addresses idx,
 
 	BUG_ON(idx <= FIX_HOLE || idx >= __end_of_fixed_addresses);
 
-	ptep = fixmap_pte(addr);
+	ptep = populate_kernel_pte(addr);
 	if (!pte_none(*ptep)) {
 		pte_ERROR(*ptep);
 		return;
@@ -267,6 +240,7 @@ pgd_t swapper_pg_dir[_PTRS_PER_PGD] __section(".bss..swapper_pg_dir");
 pgd_t invalid_pg_dir[_PTRS_PER_PGD] __page_aligned_bss;
 #ifndef __PAGETABLE_PUD_FOLDED
 pud_t invalid_pud_table[PTRS_PER_PUD] __page_aligned_bss;
+EXPORT_SYMBOL(invalid_pud_table);
 #endif
 #ifndef __PAGETABLE_PMD_FOLDED
 pmd_t invalid_pmd_table[PTRS_PER_PMD] __page_aligned_bss;

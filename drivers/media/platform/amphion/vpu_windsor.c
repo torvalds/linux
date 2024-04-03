@@ -9,8 +9,6 @@
 #include <linux/list.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/time64.h>
 #include <media/videobuf2-v4l2.h>

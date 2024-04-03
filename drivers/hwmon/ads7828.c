@@ -18,7 +18,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_data/ads7828.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
@@ -139,8 +139,7 @@ static int ads7828_probe(struct i2c_client *client)
 	}
 
 	if (client->dev.of_node)
-		chip = (enum ads7828_chips)
-			of_device_get_match_data(&client->dev);
+		chip = (uintptr_t)of_device_get_match_data(&client->dev);
 	else
 		chip = i2c_match_id(ads7828_device_ids, client)->driver_data;
 

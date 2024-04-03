@@ -20,18 +20,30 @@
 #include <linux/list.h>
 
 /**
- * struct node_hmem_attrs - heterogeneous memory performance attributes
+ * struct access_coordinate - generic performance coordinates container
  *
  * @read_bandwidth:	Read bandwidth in MB/s
  * @write_bandwidth:	Write bandwidth in MB/s
  * @read_latency:	Read latency in nanoseconds
  * @write_latency:	Write latency in nanoseconds
  */
-struct node_hmem_attrs {
+struct access_coordinate {
 	unsigned int read_bandwidth;
 	unsigned int write_bandwidth;
 	unsigned int read_latency;
 	unsigned int write_latency;
+};
+
+/*
+ * ACCESS_COORDINATE_LOCAL correlates to ACCESS CLASS 0
+ *	- access_coordinate between target node and nearest initiator node
+ * ACCESS_COORDINATE_CPU correlates to ACCESS CLASS 1
+ *	- access_coordinate between target node and nearest CPU node
+ */
+enum access_coordinate_class {
+	ACCESS_COORDINATE_LOCAL,
+	ACCESS_COORDINATE_CPU,
+	ACCESS_COORDINATE_MAX
 };
 
 enum cache_indexing {
@@ -65,8 +77,8 @@ struct node_cache_attrs {
 
 #ifdef CONFIG_HMEM_REPORTING
 void node_add_cache(unsigned int nid, struct node_cache_attrs *cache_attrs);
-void node_set_perf_attrs(unsigned int nid, struct node_hmem_attrs *hmem_attrs,
-			 unsigned access);
+void node_set_perf_attrs(unsigned int nid, struct access_coordinate *coord,
+			 enum access_coordinate_class access);
 #else
 static inline void node_add_cache(unsigned int nid,
 				  struct node_cache_attrs *cache_attrs)
@@ -74,8 +86,8 @@ static inline void node_add_cache(unsigned int nid,
 }
 
 static inline void node_set_perf_attrs(unsigned int nid,
-				       struct node_hmem_attrs *hmem_attrs,
-				       unsigned access)
+				       struct access_coordinate *coord,
+				       enum access_coordinate_class access)
 {
 }
 #endif
@@ -137,7 +149,7 @@ extern void unregister_memory_block_under_nodes(struct memory_block *mem_blk);
 
 extern int register_memory_node_under_compute_node(unsigned int mem_nid,
 						   unsigned int cpu_nid,
-						   unsigned access);
+						   enum access_coordinate_class access);
 #else
 static inline void node_dev_init(void)
 {

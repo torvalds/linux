@@ -367,14 +367,14 @@ static int snd_cs423x_probe(struct snd_card *card, int dev)
 	strscpy(card->driver, chip->pcm->name, sizeof(card->driver));
 	strscpy(card->shortname, chip->pcm->name, sizeof(card->shortname));
 	if (dma2[dev] < 0)
-		snprintf(card->longname, sizeof(card->longname),
-			 "%s at 0x%lx, irq %i, dma %i",
-			 chip->pcm->name, chip->port, irq[dev], dma1[dev]);
+		scnprintf(card->longname, sizeof(card->longname),
+			  "%s at 0x%lx, irq %i, dma %i",
+			  chip->pcm->name, chip->port, irq[dev], dma1[dev]);
 	else
-		snprintf(card->longname, sizeof(card->longname),
-			 "%s at 0x%lx, irq %i, dma %i&%d",
-			 chip->pcm->name, chip->port, irq[dev], dma1[dev],
-			 dma2[dev]);
+		scnprintf(card->longname, sizeof(card->longname),
+			  "%s at 0x%lx, irq %i, dma %i&%d",
+			  chip->pcm->name, chip->port, irq[dev], dma1[dev],
+			  dma2[dev]);
 
 	err = snd_wss_timer(chip, 0);
 	if (err < 0)

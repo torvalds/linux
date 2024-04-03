@@ -9,7 +9,7 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
-#include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/regmap.h>
 
 #include <sound/core.h>
@@ -27,8 +27,8 @@
 
 struct max9768 {
 	struct regmap *regmap;
-	int mute_gpio;
-	int shdn_gpio;
+	struct gpio_desc *mute;
+	struct gpio_desc *shdn;
 	u32 flags;
 };
 
@@ -42,7 +42,7 @@ static int max9768_get_gpio(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_component *c = snd_soc_kcontrol_component(kcontrol);
 	struct max9768 *max9768 = snd_soc_component_get_drvdata(c);
-	int val = gpio_get_value_cansleep(max9768->mute_gpio);
+	int val = gpiod_get_value_cansleep(max9768->mute);
 
 	ucontrol->value.integer.value[0] = !val;
 
@@ -55,7 +55,7 @@ static int max9768_set_gpio(struct snd_kcontrol *kcontrol,
 	struct snd_soc_component *c = snd_soc_kcontrol_component(kcontrol);
 	struct max9768 *max9768 = snd_soc_component_get_drvdata(c);
 
-	gpio_set_value_cansleep(max9768->mute_gpio, !ucontrol->value.integer.value[0]);
+	gpiod_set_value_cansleep(max9768->mute, !ucontrol->value.integer.value[0]);
 
 	return 0;
 }
@@ -138,7 +138,7 @@ static int max9768_probe(struct snd_soc_component *component)
 			return ret;
 	}
 
-	if (gpio_is_valid(max9768->mute_gpio)) {
+	if (max9768->mute) {
 		ret = snd_soc_add_component_controls(component, max9768_mute,
 				ARRAY_SIZE(max9768_mute));
 		if (ret)
@@ -171,28 +171,29 @@ static int max9768_i2c_probe(struct i2c_client *client)
 {
 	struct max9768 *max9768;
 	struct max9768_pdata *pdata = client->dev.platform_data;
-	int err;
 
 	max9768 = devm_kzalloc(&client->dev, sizeof(*max9768), GFP_KERNEL);
 	if (!max9768)
 		return -ENOMEM;
 
-	if (pdata) {
-		/* Mute on powerup to avoid clicks */
-		err = devm_gpio_request_one(&client->dev, pdata->mute_gpio,
-				GPIOF_INIT_HIGH, "MAX9768 Mute");
-		max9768->mute_gpio = err ?: pdata->mute_gpio;
+	/* Mute on powerup to avoid clicks */
+	max9768->mute = devm_gpiod_get_optional(&client->dev,
+						"mute",
+						GPIOD_OUT_HIGH);
+	if (IS_ERR(max9768->mute))
+		return PTR_ERR(max9768->mute);
+	gpiod_set_consumer_name(max9768->mute, "MAX9768 Mute");
 
-		/* Activate chip by releasing shutdown, enables I2C */
-		err = devm_gpio_request_one(&client->dev, pdata->shdn_gpio,
-				GPIOF_INIT_HIGH, "MAX9768 Shutdown");
-		max9768->shdn_gpio = err ?: pdata->shdn_gpio;
+	/* Activate chip by releasing shutdown, enables I2C */
+	max9768->shdn = devm_gpiod_get_optional(&client->dev,
+						"shutdown",
+						GPIOD_OUT_HIGH);
+	if (IS_ERR(max9768->shdn))
+		return PTR_ERR(max9768->shdn);
+	gpiod_set_consumer_name(max9768->shdn, "MAX9768 Shutdown");
 
+	if (pdata)
 		max9768->flags = pdata->flags;
-	} else {
-		max9768->shdn_gpio = -EINVAL;
-		max9768->mute_gpio = -EINVAL;
-	}
 
 	i2c_set_clientdata(client, max9768);
 

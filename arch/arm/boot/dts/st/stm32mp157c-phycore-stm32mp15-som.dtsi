@@ -547,14 +547,10 @@
 };
 
 &usbh_ehci {
-	phys = <&usbphyc_port0>;
-	phy-names = "usb";
 	status = "okay";
 };
 
 &usbh_ohci {
-	phys = <&usbphyc_port0>;
-	phy-names = "usb";
 	status = "okay";
 };
 

@@ -16,8 +16,6 @@
 #include <sound/soc.h>
 #include <sound/jack.h>
 
-#include <asm/mach-types.h>
-
 #include <linux/platform_data/asoc-ti-mcbsp.h>
 
 #include "omap-mcbsp.h"
@@ -303,7 +301,7 @@ static int cx81801_open(struct tty_struct *tty)
 static void cx81801_close(struct tty_struct *tty)
 {
 	struct snd_soc_component *component = tty->disc_data;
-	struct snd_soc_dapm_context *dapm = &component->card->dapm;
+	struct snd_soc_dapm_context *dapm;
 
 	del_timer_sync(&cx81801_timer);
 
@@ -314,6 +312,8 @@ static void cx81801_close(struct tty_struct *tty)
 		return;
 
 	v253_ops.close(tty);
+
+	dapm = &component->card->dapm;
 
 	/* Revert back to default audio input/output constellation */
 	snd_soc_dapm_mutex_lock(dapm);
@@ -336,8 +336,8 @@ static void cx81801_hangup(struct tty_struct *tty)
 }
 
 /* Line discipline .receive_buf() */
-static void cx81801_receive(struct tty_struct *tty, const unsigned char *cp,
-		const char *fp, int count)
+static void cx81801_receive(struct tty_struct *tty, const u8 *cp, const u8 *fp,
+			    size_t count)
 {
 	struct snd_soc_component *component = tty->disc_data;
 	const unsigned char *c;
@@ -460,14 +460,14 @@ static void ams_delta_shutdown(struct snd_pcm_substream *substream)
 
 static int ams_delta_cx20442_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_dapm_context *dapm = &card->dapm;
 	int ret;
 	/* Codec is ready, now add/activate board specific controls */
 
 	/* Store a pointer to the codec structure for tty ldisc use */
-	cx20442_codec = asoc_rtd_to_codec(rtd, 0)->component;
+	cx20442_codec = snd_soc_rtd_to_codec(rtd, 0)->component;
 
 	/* Add hook switch - can be used to control the codec from userspace
 	 * even if line discipline fails */

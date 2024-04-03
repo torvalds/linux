@@ -590,6 +590,8 @@ static void ips_disable_gpu_turbo(struct ips_driver *ips)
  * @ips: IPS driver struct
  *
  * Check whether the MCP is over its thermal or power budget.
+ *
+ * Returns: %true if the temp or power has exceeded its maximum, else %false
  */
 static bool mcp_exceeded(struct ips_driver *ips)
 {
@@ -619,6 +621,8 @@ static bool mcp_exceeded(struct ips_driver *ips)
  * @cpu: CPU number to check
  *
  * Check a given CPU's average temp or power is over its limit.
+ *
+ * Returns: %true if the temp or power has exceeded its maximum, else %false
  */
 static bool cpu_exceeded(struct ips_driver *ips, int cpu)
 {
@@ -645,6 +649,8 @@ static bool cpu_exceeded(struct ips_driver *ips, int cpu)
  * @ips: IPS driver struct
  *
  * Check the MCH temp & power against their maximums.
+ *
+ * Returns: %true if the temp or power has exceeded its maximum, else %false
  */
 static bool mch_exceeded(struct ips_driver *ips)
 {
@@ -742,12 +748,13 @@ static void update_turbo_limits(struct ips_driver *ips)
  *   - down (at TDP limit)
  *     - adjust both CPU and GPU down if possible
  *
-		cpu+ gpu+	cpu+gpu-	cpu-gpu+	cpu-gpu-
-cpu < gpu <	cpu+gpu+	cpu+		gpu+		nothing
-cpu < gpu >=	cpu+gpu-(mcp<)	cpu+gpu-(mcp<)	gpu-		gpu-
-cpu >= gpu <	cpu-gpu+(mcp<)	cpu-		cpu-gpu+(mcp<)	cpu-
-cpu >= gpu >=	cpu-gpu-	cpu-gpu-	cpu-gpu-	cpu-gpu-
+ *              |cpu+ gpu+      cpu+gpu-        cpu-gpu+        cpu-gpu-
+ * cpu < gpu <  |cpu+gpu+       cpu+            gpu+            nothing
+ * cpu < gpu >= |cpu+gpu-(mcp<) cpu+gpu-(mcp<)  gpu-            gpu-
+ * cpu >= gpu < |cpu-gpu+(mcp<) cpu-            cpu-gpu+(mcp<)  cpu-
+ * cpu >= gpu >=|cpu-gpu-       cpu-gpu-        cpu-gpu-        cpu-gpu-
  *
+ * Returns: %0
  */
 static int ips_adjust(void *data)
 {
@@ -935,11 +942,13 @@ static void monitor_timeout(struct timer_list *t)
  * @data: ips driver structure
  *
  * This is the main function for the IPS driver.  It monitors power and
- * tempurature in the MCP and adjusts CPU and GPU power clams accordingly.
+ * temperature in the MCP and adjusts CPU and GPU power clamps accordingly.
  *
- * We keep a 5s moving average of power consumption and tempurature.  Using
+ * We keep a 5s moving average of power consumption and temperature.  Using
  * that data, along with CPU vs GPU preference, we adjust the power clamps
  * up or down.
+ *
+ * Returns: %0 on success or -errno on error
  */
 static int ips_monitor(void *data)
 {
@@ -1105,39 +1114,6 @@ static int ips_monitor(void *data)
 	return 0;
 }
 
-#if 0
-#define THM_DUMPW(reg) \
-	{ \
-	u16 val = thm_readw(reg); \
-	dev_dbg(ips->dev, #reg ": 0x%04x\n", val); \
-	}
-#define THM_DUMPL(reg) \
-	{ \
-	u32 val = thm_readl(reg); \
-	dev_dbg(ips->dev, #reg ": 0x%08x\n", val); \
-	}
-#define THM_DUMPQ(reg) \
-	{ \
-	u64 val = thm_readq(reg); \
-	dev_dbg(ips->dev, #reg ": 0x%016x\n", val); \
-	}
-
-static void dump_thermal_info(struct ips_driver *ips)
-{
-	u16 ptl;
-
-	ptl = thm_readw(THM_PTL);
-	dev_dbg(ips->dev, "Processor temp limit: %d\n", ptl);
-
-	THM_DUMPW(THM_CTA);
-	THM_DUMPW(THM_TRC);
-	THM_DUMPW(THM_CTV1);
-	THM_DUMPL(THM_STS);
-	THM_DUMPW(THM_PTV);
-	THM_DUMPQ(THM_MGTV);
-}
-#endif
-
 /**
  * ips_irq_handler - handle temperature triggers and other IPS events
  * @irq: irq number
@@ -1146,6 +1122,8 @@ static void dump_thermal_info(struct ips_driver *ips)
  * Handle temperature limit trigger events, generally by lowering the clamps.
  * If we're at a critical limit, we clamp back to the lowest possible value
  * to prevent emergency shutdown.
+ *
+ * Returns: IRQ_NONE or IRQ_HANDLED
  */
 static irqreturn_t ips_irq_handler(int irq, void *arg)
 {
@@ -1293,9 +1271,12 @@ static void ips_debugfs_init(struct ips_driver *ips)
 
 /**
  * ips_detect_cpu - detect whether CPU supports IPS
+ * @ips: IPS driver struct
  *
  * Walk our list and see if we're on a supported CPU.  If we find one,
  * return the limits for it.
+ *
+ * Returns: the &ips_mcp_limits struct that matches the boot CPU or %NULL
  */
 static struct ips_mcp_limits *ips_detect_cpu(struct ips_driver *ips)
 {
@@ -1352,6 +1333,8 @@ static struct ips_mcp_limits *ips_detect_cpu(struct ips_driver *ips)
  * monitor and control graphics turbo mode.  If we can find them, we can
  * enable graphics turbo, otherwise we must disable it to avoid exceeding
  * thermal and power limits in the MCP.
+ *
+ * Returns: %true if the required symbols are found, else %false
  */
 static bool ips_get_i915_syms(struct ips_driver *ips)
 {

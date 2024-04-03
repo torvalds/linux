@@ -183,6 +183,8 @@ static int amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap, u32 eeprom_addr,
 {
 	const struct i2c_adapter_quirks *quirks = i2c_adap->quirks;
 	u16 limit;
+	u16 ps; /* Partial size */
+	int res = 0, r;
 
 	if (!quirks)
 		limit = 0;
@@ -200,28 +202,25 @@ static int amdgpu_eeprom_xfer(struct i2c_adapter *i2c_adap, u32 eeprom_addr,
 				    eeprom_addr, buf_size,
 				    read ? "read" : "write", EEPROM_OFFSET_SIZE);
 		return -EINVAL;
-	} else {
-		u16 ps; /* Partial size */
-		int res = 0, r;
-
-		/* The "limit" includes all data bytes sent/received,
-		 * which would include the EEPROM_OFFSET_SIZE bytes.
-		 * Account for them here.
-		 */
-		limit -= EEPROM_OFFSET_SIZE;
-		for ( ; buf_size > 0;
-		      buf_size -= ps, eeprom_addr += ps, eeprom_buf += ps) {
-			ps = min(limit, buf_size);
-
-			r = __amdgpu_eeprom_xfer(i2c_adap, eeprom_addr,
-						 eeprom_buf, ps, read);
-			if (r < 0)
-				return r;
-			res += r;
-		}
-
-		return res;
 	}
+
+	/* The "limit" includes all data bytes sent/received,
+	 * which would include the EEPROM_OFFSET_SIZE bytes.
+	 * Account for them here.
+	 */
+	limit -= EEPROM_OFFSET_SIZE;
+	for ( ; buf_size > 0;
+	      buf_size -= ps, eeprom_addr += ps, eeprom_buf += ps) {
+		ps = min(limit, buf_size);
+
+		r = __amdgpu_eeprom_xfer(i2c_adap, eeprom_addr,
+					 eeprom_buf, ps, read);
+		if (r < 0)
+			return r;
+		res += r;
+	}
+
+	return res;
 }
 
 int amdgpu_eeprom_read(struct i2c_adapter *i2c_adap,

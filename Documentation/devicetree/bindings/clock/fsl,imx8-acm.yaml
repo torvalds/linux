@@ -1,0 +1,282 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/fsl,imx8-acm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NXP i.MX8 Audio Clock Mux
+
+maintainers:
+  - Shengjiu Wang <shengjiu.wang@nxp.com>
+
+description: |
+  NXP i.MX8 Audio Clock Mux is dedicated clock muxing IP
+  used to control Audio related clock on the SoC.
+
+properties:
+  compatible:
+    enum:
+      - fsl,imx8dxl-acm
+      - fsl,imx8qm-acm
+      - fsl,imx8qxp-acm
+
+  reg:
+    maxItems: 1
+
+  power-domains:
+    minItems: 13
+    maxItems: 21
+
+  '#clock-cells':
+    const: 1
+    description:
+      The clock consumer should specify the desired clock by having the clock
+      ID in its "clocks" phandle cell. See include/dt-bindings/clock/imx8-clock.h
+      for the full list of i.MX8 ACM clock IDs.
+
+  clocks:
+    minItems: 13
+    maxItems: 27
+
+  clock-names:
+    minItems: 13
+    maxItems: 27
+
+required:
+  - compatible
+  - reg
+  - power-domains
+  - '#clock-cells'
+  - clocks
+  - clock-names
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8qxp-acm
+    then:
+      properties:
+        power-domains:
+          items:
+            - description: power domain of IMX_SC_R_AUDIO_CLK_0
+            - description: power domain of IMX_SC_R_AUDIO_CLK_1
+            - description: power domain of IMX_SC_R_MCLK_OUT_0
+            - description: power domain of IMX_SC_R_MCLK_OUT_1
+            - description: power domain of IMX_SC_R_AUDIO_PLL_0
+            - description: power domain of IMX_SC_R_AUDIO_PLL_1
+            - description: power domain of IMX_SC_R_ASRC_0
+            - description: power domain of IMX_SC_R_ASRC_1
+            - description: power domain of IMX_SC_R_ESAI_0
+            - description: power domain of IMX_SC_R_SAI_0
+            - description: power domain of IMX_SC_R_SAI_1
+            - description: power domain of IMX_SC_R_SAI_2
+            - description: power domain of IMX_SC_R_SAI_3
+            - description: power domain of IMX_SC_R_SAI_4
+            - description: power domain of IMX_SC_R_SAI_5
+            - description: power domain of IMX_SC_R_SPDIF_0
+            - description: power domain of IMX_SC_R_MQS_0
+
+        clocks:
+          minItems: 18
+          maxItems: 18
+
+        clock-names:
+          items:
+            - const: aud_rec_clk0_lpcg_clk
+            - const: aud_rec_clk1_lpcg_clk
+            - const: aud_pll_div_clk0_lpcg_clk
+            - const: aud_pll_div_clk1_lpcg_clk
+            - const: ext_aud_mclk0
+            - const: ext_aud_mclk1
+            - const: esai0_rx_clk
+            - const: esai0_rx_hf_clk
+            - const: esai0_tx_clk
+            - const: esai0_tx_hf_clk
+            - const: spdif0_rx
+            - const: sai0_rx_bclk
+            - const: sai0_tx_bclk
+            - const: sai1_rx_bclk
+            - const: sai1_tx_bclk
+            - const: sai2_rx_bclk
+            - const: sai3_rx_bclk
+            - const: sai4_rx_bclk
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8qm-acm
+    then:
+      properties:
+        power-domains:
+          items:
+            - description: power domain of IMX_SC_R_AUDIO_CLK_0
+            - description: power domain of IMX_SC_R_AUDIO_CLK_1
+            - description: power domain of IMX_SC_R_MCLK_OUT_0
+            - description: power domain of IMX_SC_R_MCLK_OUT_1
+            - description: power domain of IMX_SC_R_AUDIO_PLL_0
+            - description: power domain of IMX_SC_R_AUDIO_PLL_1
+            - description: power domain of IMX_SC_R_ASRC_0
+            - description: power domain of IMX_SC_R_ASRC_1
+            - description: power domain of IMX_SC_R_ESAI_0
+            - description: power domain of IMX_SC_R_ESAI_1
+            - description: power domain of IMX_SC_R_SAI_0
+            - description: power domain of IMX_SC_R_SAI_1
+            - description: power domain of IMX_SC_R_SAI_2
+            - description: power domain of IMX_SC_R_SAI_3
+            - description: power domain of IMX_SC_R_SAI_4
+            - description: power domain of IMX_SC_R_SAI_5
+            - description: power domain of IMX_SC_R_SAI_6
+            - description: power domain of IMX_SC_R_SAI_7
+            - description: power domain of IMX_SC_R_SPDIF_0
+            - description: power domain of IMX_SC_R_SPDIF_1
+            - description: power domain of IMX_SC_R_MQS_0
+
+        clocks:
+          minItems: 27
+          maxItems: 27
+
+        clock-names:
+          items:
+            - const: aud_rec_clk0_lpcg_clk
+            - const: aud_rec_clk1_lpcg_clk
+            - const: aud_pll_div_clk0_lpcg_clk
+            - const: aud_pll_div_clk1_lpcg_clk
+            - const: mlb_clk
+            - const: hdmi_rx_mclk
+            - const: ext_aud_mclk0
+            - const: ext_aud_mclk1
+            - const: esai0_rx_clk
+            - const: esai0_rx_hf_clk
+            - const: esai0_tx_clk
+            - const: esai0_tx_hf_clk
+            - const: esai1_rx_clk
+            - const: esai1_rx_hf_clk
+            - const: esai1_tx_clk
+            - const: esai1_tx_hf_clk
+            - const: spdif0_rx
+            - const: spdif1_rx
+            - const: sai0_rx_bclk
+            - const: sai0_tx_bclk
+            - const: sai1_rx_bclk
+            - const: sai1_tx_bclk
+            - const: sai2_rx_bclk
+            - const: sai3_rx_bclk
+            - const: sai4_rx_bclk
+            - const: sai5_tx_bclk
+            - const: sai6_rx_bclk
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - fsl,imx8dxl-acm
+    then:
+      properties:
+        power-domains:
+          items:
+            - description: power domain of IMX_SC_R_AUDIO_CLK_0
+            - description: power domain of IMX_SC_R_AUDIO_CLK_1
+            - description: power domain of IMX_SC_R_MCLK_OUT_0
+            - description: power domain of IMX_SC_R_MCLK_OUT_1
+            - description: power domain of IMX_SC_R_AUDIO_PLL_0
+            - description: power domain of IMX_SC_R_AUDIO_PLL_1
+            - description: power domain of IMX_SC_R_ASRC_0
+            - description: power domain of IMX_SC_R_SAI_0
+            - description: power domain of IMX_SC_R_SAI_1
+            - description: power domain of IMX_SC_R_SAI_2
+            - description: power domain of IMX_SC_R_SAI_3
+            - description: power domain of IMX_SC_R_SPDIF_0
+            - description: power domain of IMX_SC_R_MQS_0
+
+        clocks:
+          minItems: 13
+          maxItems: 13
+
+        clock-names:
+          items:
+            - const: aud_rec_clk0_lpcg_clk
+            - const: aud_rec_clk1_lpcg_clk
+            - const: aud_pll_div_clk0_lpcg_clk
+            - const: aud_pll_div_clk1_lpcg_clk
+            - const: ext_aud_mclk0
+            - const: ext_aud_mclk1
+            - const: spdif0_rx
+            - const: sai0_rx_bclk
+            - const: sai0_tx_bclk
+            - const: sai1_rx_bclk
+            - const: sai1_tx_bclk
+            - const: sai2_rx_bclk
+            - const: sai3_rx_bclk
+
+additionalProperties: false
+
+examples:
+  # Clock Control Module node:
+  - |
+    #include <dt-bindings/clock/imx8-lpcg.h>
+    #include <dt-bindings/firmware/imx/rsrc.h>
+
+    clock-controller@59e00000 {
+        compatible = "fsl,imx8qxp-acm";
+        reg = <0x59e00000 0x1d0000>;
+        #clock-cells = <1>;
+        power-domains = <&pd IMX_SC_R_AUDIO_CLK_0>,
+                        <&pd IMX_SC_R_AUDIO_CLK_1>,
+                        <&pd IMX_SC_R_MCLK_OUT_0>,
+                        <&pd IMX_SC_R_MCLK_OUT_1>,
+                        <&pd IMX_SC_R_AUDIO_PLL_0>,
+                        <&pd IMX_SC_R_AUDIO_PLL_1>,
+                        <&pd IMX_SC_R_ASRC_0>,
+                        <&pd IMX_SC_R_ASRC_1>,
+                        <&pd IMX_SC_R_ESAI_0>,
+                        <&pd IMX_SC_R_SAI_0>,
+                        <&pd IMX_SC_R_SAI_1>,
+                        <&pd IMX_SC_R_SAI_2>,
+                        <&pd IMX_SC_R_SAI_3>,
+                        <&pd IMX_SC_R_SAI_4>,
+                        <&pd IMX_SC_R_SAI_5>,
+                        <&pd IMX_SC_R_SPDIF_0>,
+                        <&pd IMX_SC_R_MQS_0>;
+        clocks = <&aud_rec0_lpcg IMX_LPCG_CLK_0>,
+                 <&aud_rec1_lpcg IMX_LPCG_CLK_0>,
+                 <&aud_pll_div0_lpcg IMX_LPCG_CLK_0>,
+                 <&aud_pll_div1_lpcg IMX_LPCG_CLK_0>,
+                 <&clk_ext_aud_mclk0>,
+                 <&clk_ext_aud_mclk1>,
+                 <&clk_esai0_rx_clk>,
+                 <&clk_esai0_rx_hf_clk>,
+                 <&clk_esai0_tx_clk>,
+                 <&clk_esai0_tx_hf_clk>,
+                 <&clk_spdif0_rx>,
+                 <&clk_sai0_rx_bclk>,
+                 <&clk_sai0_tx_bclk>,
+                 <&clk_sai1_rx_bclk>,
+                 <&clk_sai1_tx_bclk>,
+                 <&clk_sai2_rx_bclk>,
+                 <&clk_sai3_rx_bclk>,
+                 <&clk_sai4_rx_bclk>;
+        clock-names = "aud_rec_clk0_lpcg_clk",
+                      "aud_rec_clk1_lpcg_clk",
+                      "aud_pll_div_clk0_lpcg_clk",
+                      "aud_pll_div_clk1_lpcg_clk",
+                      "ext_aud_mclk0",
+                      "ext_aud_mclk1",
+                      "esai0_rx_clk",
+                      "esai0_rx_hf_clk",
+                      "esai0_tx_clk",
+                      "esai0_tx_hf_clk",
+                      "spdif0_rx",
+                      "sai0_rx_bclk",
+                      "sai0_tx_bclk",
+                      "sai1_rx_bclk",
+                      "sai1_tx_bclk",
+                      "sai2_rx_bclk",
+                      "sai3_rx_bclk",
+                      "sai4_rx_bclk";
+    };

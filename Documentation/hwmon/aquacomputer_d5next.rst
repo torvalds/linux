@@ -16,6 +16,8 @@ Supported devices:
 * Aquacomputer Aquastream XT watercooling pump
 * Aquacomputer Aquastream Ultimate watercooling pump
 * Aquacomputer Poweradjust 3 fan controller
+* Aquacomputer High Flow USB flow meter
+* Aquacomputer MPS Flow devices
 
 Author: Aleksa Savic
 
@@ -72,6 +74,11 @@ with speed, power, voltage and current of both the pump and optionally connected
 It also exposes pressure and flow speed readings.
 
 The Poweradjust 3 controller exposes a single external temperature sensor.
+
+The High Flow USB exposes an internal and external temperature sensor, and a flow meter.
+
+The MPS Flow devices expose the same entries as the High Flow USB because they have
+the same USB product ID and report sensors equivalently.
 
 Depending on the device, not all sysfs and debugfs entries will be available.
 Writing to virtual temperature sensors is not currently supported.

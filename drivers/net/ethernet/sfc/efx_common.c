@@ -35,11 +35,6 @@ MODULE_PARM_DESC(debug, "Bitmapped debugging message enable value");
 
 /* This is the time (in jiffies) between invocations of the hardware
  * monitor.
- * On Falcon-based NICs, this will:
- * - Check the on-board hardware monitor;
- * - Poll the link state and reconfigure the hardware as necessary.
- * On Siena-based NICs for power systems with EEH support, this will give EEH a
- * chance to start.
  */
 static unsigned int efx_monitor_interval = 1 * HZ;
 
@@ -600,7 +595,7 @@ void efx_stop_all(struct efx_nic *efx)
 	efx_stop_datapath(efx);
 }
 
-/* Context: process, dev_base_lock or RTNL held, non-blocking. */
+/* Context: process, rcu_read_lock or RTNL held, non-blocking. */
 void efx_net_stats(struct net_device *net_dev, struct rtnl_link_stats64 *stats)
 {
 	struct efx_nic *efx = efx_netdev_priv(net_dev);
@@ -785,8 +780,6 @@ int efx_reset_up(struct efx_nic *efx, enum reset_type method, bool ok)
 	mutex_unlock(&efx->rss_lock);
 	efx->type->filter_table_restore(efx);
 	up_write(&efx->filter_sem);
-	if (efx->type->sriov_reset)
-		efx->type->sriov_reset(efx);
 
 	mutex_unlock(&efx->mac_lock);
 

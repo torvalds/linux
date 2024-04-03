@@ -1529,7 +1529,7 @@ static int nv_hardreset(struct ata_link *link, unsigned int *class,
 		sata_link_hardreset(link, sata_deb_timing_hotplug, deadline,
 				    NULL, NULL);
 	else {
-		const unsigned long *timing = sata_ehc_deb_timing(ehc);
+		const unsigned int *timing = sata_ehc_deb_timing(ehc);
 		int rc;
 
 		if (!(ehc->i.flags & ATA_EHI_QUIET))

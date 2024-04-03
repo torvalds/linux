@@ -40,15 +40,14 @@
 #include <drm/drm_vma_manager.h>
 
 #include "display/intel_display.h"
-#include "display/intel_frontbuffer.h"
 
 #include "gem/i915_gem_clflush.h"
 #include "gem/i915_gem_context.h"
 #include "gem/i915_gem_ioctls.h"
 #include "gem/i915_gem_mman.h"
+#include "gem/i915_gem_object_frontbuffer.h"
 #include "gem/i915_gem_pm.h"
 #include "gem/i915_gem_region.h"
-#include "gem/i915_gem_userptr.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
 #include "gt/intel_gt_pm.h"
@@ -1165,10 +1164,6 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 	if (intel_vgpu_active(dev_priv) && !intel_vgpu_has_huge_gtt(dev_priv))
 		RUNTIME_INFO(dev_priv)->page_sizes = I915_GTT_PAGE_SIZE_4K;
 
-	ret = i915_gem_init_userptr(dev_priv);
-	if (ret)
-		return ret;
-
 	for_each_gt(gt, dev_priv, i) {
 		intel_uc_fetch_firmwares(&gt->uc);
 		intel_wopcm_init(&gt->wopcm);
@@ -1198,6 +1193,13 @@ int i915_gem_init(struct drm_i915_private *dev_priv)
 		if (ret)
 			goto err_unlock;
 	}
+
+	/*
+	 * Register engines early to ensure the engine list is in its final
+	 * rb-tree form, lowering the amount of code that has to deal with
+	 * the intermediate llist state.
+	 */
+	intel_engines_driver_register(dev_priv);
 
 	return 0;
 
@@ -1246,8 +1248,6 @@ err_unlock:
 void i915_gem_driver_register(struct drm_i915_private *i915)
 {
 	i915_gem_driver_register__shrinker(i915);
-
-	intel_engines_driver_register(i915);
 }
 
 void i915_gem_driver_unregister(struct drm_i915_private *i915)
@@ -1301,8 +1301,6 @@ void i915_gem_init_early(struct drm_i915_private *dev_priv)
 {
 	i915_gem_init__mm(dev_priv);
 	i915_gem_init__contexts(dev_priv);
-
-	spin_lock_init(&dev_priv->display.fb_tracking.lock);
 }
 
 void i915_gem_cleanup_early(struct drm_i915_private *dev_priv)

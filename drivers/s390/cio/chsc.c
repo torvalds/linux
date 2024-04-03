@@ -191,7 +191,7 @@ EXPORT_SYMBOL_GPL(chsc_ssqd);
  * Returns 0 on success.
  */
 int chsc_sadc(struct subchannel_id schid, struct chsc_scssc_area *scssc,
-	      u64 summary_indicator_addr, u64 subchannel_indicator_addr, u8 isc)
+	      dma64_t summary_indicator_addr, dma64_t subchannel_indicator_addr, u8 isc)
 {
 	memset(scssc, 0, sizeof(*scssc));
 	scssc->request.length = 0x0fe0;
@@ -219,16 +219,16 @@ EXPORT_SYMBOL_GPL(chsc_sadc);
 
 static int s390_subchannel_remove_chpid(struct subchannel *sch, void *data)
 {
-	spin_lock_irq(sch->lock);
+	spin_lock_irq(&sch->lock);
 	if (sch->driver && sch->driver->chp_event)
 		if (sch->driver->chp_event(sch, data, CHP_OFFLINE) != 0)
 			goto out_unreg;
-	spin_unlock_irq(sch->lock);
+	spin_unlock_irq(&sch->lock);
 	return 0;
 
 out_unreg:
 	sch->lpm = 0;
-	spin_unlock_irq(sch->lock);
+	spin_unlock_irq(&sch->lock);
 	css_schedule_eval(sch->schid);
 	return 0;
 }
@@ -258,10 +258,10 @@ void chsc_chp_offline(struct chp_id chpid)
 
 static int __s390_process_res_acc(struct subchannel *sch, void *data)
 {
-	spin_lock_irq(sch->lock);
+	spin_lock_irq(&sch->lock);
 	if (sch->driver && sch->driver->chp_event)
 		sch->driver->chp_event(sch, data, CHP_ONLINE);
-	spin_unlock_irq(sch->lock);
+	spin_unlock_irq(&sch->lock);
 
 	return 0;
 }
@@ -292,10 +292,10 @@ static void s390_process_res_acc(struct chp_link *link)
 
 static int process_fces_event(struct subchannel *sch, void *data)
 {
-	spin_lock_irq(sch->lock);
+	spin_lock_irq(&sch->lock);
 	if (sch->driver && sch->driver->chp_event)
 		sch->driver->chp_event(sch, data, CHP_FCES_EVENT);
-	spin_unlock_irq(sch->lock);
+	spin_unlock_irq(&sch->lock);
 	return 0;
 }
 
@@ -393,8 +393,8 @@ static void format_node_data(char *params, char *id, struct node_descriptor *nd)
 	memset(id, 0, NODEID_LEN);
 
 	if (nd->validity != ND_VALIDITY_VALID) {
-		strncpy(params, "n/a", PARAMS_LEN - 1);
-		strncpy(id, "n/a", NODEID_LEN - 1);
+		strscpy(params, "n/a", PARAMS_LEN);
+		strscpy(id, "n/a", NODEID_LEN);
 		return;
 	}
 
@@ -769,11 +769,11 @@ static void __s390_subchannel_vary_chpid(struct subchannel *sch,
 
 	memset(&link, 0, sizeof(struct chp_link));
 	link.chpid = chpid;
-	spin_lock_irqsave(sch->lock, flags);
+	spin_lock_irqsave(&sch->lock, flags);
 	if (sch->driver && sch->driver->chp_event)
 		sch->driver->chp_event(sch, &link,
 				       on ? CHP_VARY_ON : CHP_VARY_OFF);
-	spin_unlock_irqrestore(sch->lock, flags);
+	spin_unlock_irqrestore(&sch->lock, flags);
 }
 
 static int s390_subchannel_vary_chpid_off(struct subchannel *sch, void *data)
@@ -844,7 +844,7 @@ chsc_add_cmg_attr(struct channel_subsystem *css)
 	}
 	return ret;
 cleanup:
-	for (--i; i >= 0; i--) {
+	while (i--) {
 		if (!css->chps[i])
 			continue;
 		chp_remove_cmg_attr(css->chps[i]);
@@ -861,9 +861,9 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 		u32 key : 4;
 		u32 : 28;
 		u32 zeroes1;
-		u32 cub_addr1;
+		dma32_t cub_addr1;
 		u32 zeroes2;
-		u32 cub_addr2;
+		dma32_t cub_addr2;
 		u32 reserved[13];
 		struct chsc_header response;
 		u32 status : 8;
@@ -881,8 +881,8 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 	secm_area->request.code = 0x0016;
 
 	secm_area->key = PAGE_DEFAULT_KEY >> 4;
-	secm_area->cub_addr1 = (u64)(unsigned long)css->cub_addr1;
-	secm_area->cub_addr2 = (u64)(unsigned long)css->cub_addr2;
+	secm_area->cub_addr1 = virt_to_dma32(css->cub_addr1);
+	secm_area->cub_addr2 = virt_to_dma32(css->cub_addr2);
 
 	secm_area->operation_code = enable ? 0 : 1;
 
@@ -1091,8 +1091,8 @@ int __init chsc_init(void)
 {
 	int ret;
 
-	sei_page = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
-	chsc_page = (void *)get_zeroed_page(GFP_KERNEL | GFP_DMA);
+	sei_page = (void *)get_zeroed_page(GFP_KERNEL);
+	chsc_page = (void *)get_zeroed_page(GFP_KERNEL);
 	if (!sei_page || !chsc_page) {
 		ret = -ENOMEM;
 		goto out_err;

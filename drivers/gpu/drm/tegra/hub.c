@@ -9,8 +9,8 @@
 #include <linux/host1x.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/of_platform.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
@@ -1101,7 +1101,7 @@ static int tegra_display_hub_probe(struct platform_device *pdev)
 
 	for (i = 0; i < hub->soc->num_wgrps; i++) {
 		struct tegra_windowgroup *wgrp = &hub->wgrps[i];
-		char id[8];
+		char id[16];
 
 		snprintf(id, sizeof(id), "wgrp%u", i);
 		mutex_init(&wgrp->lock);

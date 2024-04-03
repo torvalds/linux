@@ -81,8 +81,7 @@ nv31_mpeg_chan = {
 };
 
 int
-nv31_mpeg_chan_new(struct nvkm_fifo_chan *fifoch,
-		   const struct nvkm_oclass *oclass,
+nv31_mpeg_chan_new(struct nvkm_chan *fifoch, const struct nvkm_oclass *oclass,
 		   struct nvkm_object **pobject)
 {
 	struct nv31_mpeg *mpeg = nv31_mpeg(oclass->engine);

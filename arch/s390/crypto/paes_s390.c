@@ -35,7 +35,7 @@
  * and padding is also possible, the limits need to be generous.
  */
 #define PAES_MIN_KEYSIZE 16
-#define PAES_MAX_KEYSIZE 320
+#define PAES_MAX_KEYSIZE MAXEP11AESKEYBLOBSIZE
 
 static u8 *ctrblk;
 static DEFINE_MUTEX(ctrblk_lock);
@@ -125,20 +125,8 @@ struct s390_pxts_ctx {
 static inline int __paes_keyblob2pkey(struct key_blob *kb,
 				     struct pkey_protkey *pk)
 {
-	int i, ret;
-
-	/* try three times in case of failure */
-	for (i = 0; i < 3; i++) {
-		if (i > 0 && ret == -EAGAIN && in_task())
-			if (msleep_interruptible(1000))
-				return -EINTR;
-		ret = pkey_keyblob2pkey(kb->key, kb->keylen,
-					pk->protkey, &pk->len, &pk->type);
-		if (ret == 0)
-			break;
-	}
-
-	return ret;
+	return pkey_keyblob2pkey(kb->key, kb->keylen,
+				 pk->protkey, &pk->len, &pk->type);
 }
 
 static inline int __paes_convert_key(struct s390_paes_ctx *ctx)
@@ -693,9 +681,11 @@ static int ctr_paes_crypt(struct skcipher_request *req)
 	 * final block may be < AES_BLOCK_SIZE, copy only nbytes
 	 */
 	if (nbytes) {
+		memset(buf, 0, AES_BLOCK_SIZE);
+		memcpy(buf, walk.src.virt.addr, nbytes);
 		while (1) {
 			if (cpacf_kmctr(ctx->fc, &param, buf,
-					walk.src.virt.addr, AES_BLOCK_SIZE,
+					buf, AES_BLOCK_SIZE,
 					walk.iv) == AES_BLOCK_SIZE)
 				break;
 			if (__paes_convert_key(ctx))

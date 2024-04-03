@@ -2,13 +2,8 @@
 /dts-v1/;
 /plugin/;
 
-/ {
-	/* overlay_13 - disable using absolute target path (i2c) */
+/* overlay_13 - disable using absolute target path (i2c) */
 
-	fragment@0 {
-		target-path = "/testcase-data/overlay-node/test-bus/i2c-test-bus/test-unittest13";
-		__overlay__ {
-			status = "disabled";
-		};
-	};
+&{/testcase-data/overlay-node/test-bus/i2c-test-bus/test-unittest13} {
+	status = "disabled";
 };

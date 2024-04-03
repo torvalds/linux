@@ -12,10 +12,9 @@
 #include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/kfifo.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/types.h>
 #include <linux/usb/composite.h>
@@ -3379,7 +3378,6 @@ MODULE_DEVICE_TABLE(of, usbf_match);
 static struct platform_driver udc_driver = {
 	.driver = {
 		.name = "usbf_renesas",
-		.owner = THIS_MODULE,
 		.of_match_table = usbf_match,
 	},
 	.probe          = usbf_probe,

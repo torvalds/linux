@@ -30,6 +30,7 @@
 	sensor@48 {
 		compatible = "national,lm75";
 		reg = <0x48>;
+		vs-supply = <&reg_3p3v>;
 	};
 
 	eeprom@50 {

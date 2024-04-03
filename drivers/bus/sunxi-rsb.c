@@ -39,7 +39,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
@@ -128,7 +128,7 @@ struct sunxi_rsb {
 };
 
 /* bus / slave device related functions */
-static struct bus_type sunxi_rsb_bus;
+static const struct bus_type sunxi_rsb_bus;
 
 static int sunxi_rsb_device_match(struct device *dev, struct device_driver *drv)
 {
@@ -177,7 +177,7 @@ static int sunxi_rsb_device_modalias(const struct device *dev, struct kobj_ueven
 	return of_device_uevent_modalias(dev, env);
 }
 
-static struct bus_type sunxi_rsb_bus = {
+static const struct bus_type sunxi_rsb_bus = {
 	.name		= RSB_CTRL_NAME,
 	.match		= sunxi_rsb_device_match,
 	.probe		= sunxi_rsb_device_probe,
@@ -746,7 +746,6 @@ static int sunxi_rsb_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
-	struct resource *r;
 	struct sunxi_rsb *rsb;
 	u32 clk_freq = 3000000;
 	int irq, ret;
@@ -766,8 +765,7 @@ static int sunxi_rsb_probe(struct platform_device *pdev)
 	rsb->dev = dev;
 	rsb->clk_freq = clk_freq;
 	platform_set_drvdata(pdev, rsb);
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	rsb->regs = devm_ioremap_resource(dev, r);
+	rsb->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(rsb->regs))
 		return PTR_ERR(rsb->regs);
 
@@ -819,15 +817,13 @@ static int sunxi_rsb_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int sunxi_rsb_remove(struct platform_device *pdev)
+static void sunxi_rsb_remove(struct platform_device *pdev)
 {
 	struct sunxi_rsb *rsb = platform_get_drvdata(pdev);
 
 	device_for_each_child(rsb->dev, NULL, sunxi_rsb_remove_devices);
 	pm_runtime_disable(&pdev->dev);
 	sunxi_rsb_hw_exit(rsb);
-
-	return 0;
 }
 
 static const struct dev_pm_ops sunxi_rsb_dev_pm_ops = {
@@ -844,7 +840,7 @@ MODULE_DEVICE_TABLE(of, sunxi_rsb_of_match_table);
 
 static struct platform_driver sunxi_rsb_driver = {
 	.probe = sunxi_rsb_probe,
-	.remove	= sunxi_rsb_remove,
+	.remove_new = sunxi_rsb_remove,
 	.driver	= {
 		.name = RSB_CTRL_NAME,
 		.of_match_table = sunxi_rsb_of_match_table,

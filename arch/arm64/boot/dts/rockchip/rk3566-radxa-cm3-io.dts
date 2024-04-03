@@ -14,6 +14,7 @@
 	compatible = "radxa,cm3-io", "radxa,cm3", "rockchip,rk3566";
 
 	aliases {
+		ethernet0 = &gmac1;
 		mmc1 = &sdmmc0;
 	};
 
@@ -137,8 +138,8 @@
 
 &mdio1 {
 	rgmii_phy1: ethernet-phy@0 {
-		compatible="ethernet-phy-ieee802.3-c22";
-		reg= <0x0>;
+		compatible = "ethernet-phy-ieee802.3-c22";
+		reg = <0x0>;
 	};
 };
 

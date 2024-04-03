@@ -36,6 +36,8 @@
 
 #include "resource.h"
 
+#define DC_LOGGER \
+	dc->ctx->logger
 #define DC_LOGGER_INIT(logger)
 
 

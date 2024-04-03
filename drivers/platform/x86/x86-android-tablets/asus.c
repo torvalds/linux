@@ -303,6 +303,7 @@ static const struct x86_i2c_client_info asus_tf103c_i2c_clients[] __initconst = 
 			.index = 28,
 			.trigger = ACPI_EDGE_SENSITIVE,
 			.polarity = ACPI_ACTIVE_LOW,
+			.con_id = "atmel_mxt_ts_irq",
 		},
 	},
 };

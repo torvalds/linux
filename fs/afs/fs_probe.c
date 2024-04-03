@@ -15,6 +15,42 @@
 static unsigned int afs_fs_probe_fast_poll_interval = 30 * HZ;
 static unsigned int afs_fs_probe_slow_poll_interval = 5 * 60 * HZ;
 
+struct afs_endpoint_state *afs_get_endpoint_state(struct afs_endpoint_state *estate,
+						  enum afs_estate_trace where)
+{
+	if (estate) {
+		int r;
+
+		__refcount_inc(&estate->ref, &r);
+		trace_afs_estate(estate->server_id, estate->probe_seq, r, where);
+	}
+	return estate;
+}
+
+static void afs_endpoint_state_rcu(struct rcu_head *rcu)
+{
+	struct afs_endpoint_state *estate = container_of(rcu, struct afs_endpoint_state, rcu);
+
+	trace_afs_estate(estate->server_id, estate->probe_seq, refcount_read(&estate->ref),
+			 afs_estate_trace_free);
+	afs_put_addrlist(estate->addresses, afs_alist_trace_put_estate);
+	kfree(estate);
+}
+
+void afs_put_endpoint_state(struct afs_endpoint_state *estate, enum afs_estate_trace where)
+{
+	if (estate) {
+		unsigned int server_id = estate->server_id, probe_seq = estate->probe_seq;
+		bool dead;
+		int r;
+
+		dead = __refcount_dec_and_test(&estate->ref, &r);
+		trace_afs_estate(server_id, probe_seq, r, where);
+		if (dead)
+			call_rcu(&estate->rcu, afs_endpoint_state_rcu);
+	}
+}
+
 /*
  * Start the probe polling timer.  We have to supply it with an inc on the
  * outstanding server count.
@@ -38,9 +74,10 @@ static void afs_schedule_fs_probe(struct afs_net *net,
 /*
  * Handle the completion of a set of probes.
  */
-static void afs_finished_fs_probe(struct afs_net *net, struct afs_server *server)
+static void afs_finished_fs_probe(struct afs_net *net, struct afs_server *server,
+				  struct afs_endpoint_state *estate)
 {
-	bool responded = server->probe.responded;
+	bool responded = test_bit(AFS_ESTATE_RESPONDED, &estate->flags);
 
 	write_seqlock(&net->fs_lock);
 	if (responded) {
@@ -50,6 +87,7 @@ static void afs_finished_fs_probe(struct afs_net *net, struct afs_server *server
 		clear_bit(AFS_SERVER_FL_RESPONDING, &server->flags);
 		list_add_tail(&server->probe_link, &net->fs_probe_fast);
 	}
+
 	write_sequnlock(&net->fs_lock);
 
 	afs_schedule_fs_probe(net, server, !responded);
@@ -58,12 +96,13 @@ static void afs_finished_fs_probe(struct afs_net *net, struct afs_server *server
 /*
  * Handle the completion of a probe.
  */
-static void afs_done_one_fs_probe(struct afs_net *net, struct afs_server *server)
+static void afs_done_one_fs_probe(struct afs_net *net, struct afs_server *server,
+				  struct afs_endpoint_state *estate)
 {
 	_enter("");
 
-	if (atomic_dec_and_test(&server->probe_outstanding))
-		afs_finished_fs_probe(net, server);
+	if (atomic_dec_and_test(&estate->nr_probing))
+		afs_finished_fs_probe(net, server, estate);
 
 	wake_up_all(&server->probe_wq);
 }
@@ -74,24 +113,22 @@ static void afs_done_one_fs_probe(struct afs_net *net, struct afs_server *server
  */
 static void afs_fs_probe_not_done(struct afs_net *net,
 				  struct afs_server *server,
-				  struct afs_addr_cursor *ac)
+				  struct afs_endpoint_state *estate,
+				  int index)
 {
-	struct afs_addr_list *alist = ac->alist;
-	unsigned int index = ac->index;
-
 	_enter("");
 
 	trace_afs_io_error(0, -ENOMEM, afs_io_error_fs_probe_fail);
 	spin_lock(&server->probe_lock);
 
-	server->probe.local_failure = true;
-	if (server->probe.error == 0)
-		server->probe.error = -ENOMEM;
+	set_bit(AFS_ESTATE_LOCAL_FAILURE, &estate->flags);
+	if (estate->error == 0)
+		estate->error = -ENOMEM;
 
-	set_bit(index, &alist->failed);
+	set_bit(index, &estate->failed_set);
 
 	spin_unlock(&server->probe_lock);
-	return afs_done_one_fs_probe(net, server);
+	return afs_done_one_fs_probe(net, server, estate);
 }
 
 /*
@@ -100,30 +137,34 @@ static void afs_fs_probe_not_done(struct afs_net *net,
  */
 void afs_fileserver_probe_result(struct afs_call *call)
 {
-	struct afs_addr_list *alist = call->alist;
+	struct afs_endpoint_state *estate = call->probe;
+	struct afs_addr_list *alist = estate->addresses;
+	struct afs_address *addr = &alist->addrs[call->probe_index];
 	struct afs_server *server = call->server;
-	unsigned int index = call->addr_ix;
-	unsigned int rtt_us = 0, cap0;
+	unsigned int index = call->probe_index;
+	unsigned int rtt_us = -1, cap0;
 	int ret = call->error;
 
 	_enter("%pU,%u", &server->uuid, index);
+
+	WRITE_ONCE(addr->last_error, ret);
 
 	spin_lock(&server->probe_lock);
 
 	switch (ret) {
 	case 0:
-		server->probe.error = 0;
+		estate->error = 0;
 		goto responded;
 	case -ECONNABORTED:
-		if (!server->probe.responded) {
-			server->probe.abort_code = call->abort_code;
-			server->probe.error = ret;
+		if (!test_bit(AFS_ESTATE_RESPONDED, &estate->flags)) {
+			estate->abort_code = call->abort_code;
+			estate->error = ret;
 		}
 		goto responded;
 	case -ENOMEM:
 	case -ENONET:
-		clear_bit(index, &alist->responded);
-		server->probe.local_failure = true;
+		clear_bit(index, &estate->responsive_set);
+		set_bit(AFS_ESTATE_LOCAL_FAILURE, &estate->flags);
 		trace_afs_io_error(call->debug_id, ret, afs_io_error_fs_probe_fail);
 		goto out;
 	case -ECONNRESET: /* Responded, but call expired. */
@@ -136,29 +177,29 @@ void afs_fileserver_probe_result(struct afs_call *call)
 	case -ETIMEDOUT:
 	case -ETIME:
 	default:
-		clear_bit(index, &alist->responded);
-		set_bit(index, &alist->failed);
-		if (!server->probe.responded &&
-		    (server->probe.error == 0 ||
-		     server->probe.error == -ETIMEDOUT ||
-		     server->probe.error == -ETIME))
-			server->probe.error = ret;
+		clear_bit(index, &estate->responsive_set);
+		set_bit(index, &estate->failed_set);
+		if (!test_bit(AFS_ESTATE_RESPONDED, &estate->flags) &&
+		    (estate->error == 0 ||
+		     estate->error == -ETIMEDOUT ||
+		     estate->error == -ETIME))
+			estate->error = ret;
 		trace_afs_io_error(call->debug_id, ret, afs_io_error_fs_probe_fail);
 		goto out;
 	}
 
 responded:
-	clear_bit(index, &alist->failed);
+	clear_bit(index, &estate->failed_set);
 
 	if (call->service_id == YFS_FS_SERVICE) {
-		server->probe.is_yfs = true;
+		set_bit(AFS_ESTATE_IS_YFS, &estate->flags);
 		set_bit(AFS_SERVER_FL_IS_YFS, &server->flags);
-		alist->addrs[index].srx_service = call->service_id;
+		server->service_id = call->service_id;
 	} else {
-		server->probe.not_yfs = true;
-		if (!server->probe.is_yfs) {
+		set_bit(AFS_ESTATE_NOT_YFS, &estate->flags);
+		if (!test_bit(AFS_ESTATE_IS_YFS, &estate->flags)) {
 			clear_bit(AFS_SERVER_FL_IS_YFS, &server->flags);
-			alist->addrs[index].srx_service = call->service_id;
+			server->service_id = call->service_id;
 		}
 		cap0 = ntohl(call->tmp);
 		if (cap0 & AFS3_VICED_CAPABILITY_64BITFILES)
@@ -167,116 +208,136 @@ responded:
 			clear_bit(AFS_SERVER_FL_HAS_FS64, &server->flags);
 	}
 
-	rxrpc_kernel_get_srtt(call->net->socket, call->rxcall, &rtt_us);
-	if (rtt_us < server->probe.rtt) {
-		server->probe.rtt = rtt_us;
+	rtt_us = rxrpc_kernel_get_srtt(addr->peer);
+	if (rtt_us < estate->rtt) {
+		estate->rtt = rtt_us;
 		server->rtt = rtt_us;
 		alist->preferred = index;
 	}
 
 	smp_wmb(); /* Set rtt before responded. */
-	server->probe.responded = true;
-	set_bit(index, &alist->responded);
+	set_bit(AFS_ESTATE_RESPONDED, &estate->flags);
+	set_bit(index, &estate->responsive_set);
 	set_bit(AFS_SERVER_FL_RESPONDING, &server->flags);
 out:
 	spin_unlock(&server->probe_lock);
 
-	_debug("probe %pU [%u] %pISpc rtt=%u ret=%d",
-	       &server->uuid, index, &alist->addrs[index].transport,
+	trace_afs_fs_probe(server, false, estate, index, call->error, call->abort_code, rtt_us);
+	_debug("probe[%x] %pU [%u] %pISpc rtt=%d ret=%d",
+	       estate->probe_seq, &server->uuid, index,
+	       rxrpc_kernel_remote_addr(alist->addrs[index].peer),
 	       rtt_us, ret);
 
-	return afs_done_one_fs_probe(call->net, server);
+	return afs_done_one_fs_probe(call->net, server, estate);
 }
 
 /*
- * Probe one or all of a fileserver's addresses to find out the best route and
- * to query its capabilities.
+ * Probe all of a fileserver's addresses to find out the best route and to
+ * query its capabilities.
  */
 void afs_fs_probe_fileserver(struct afs_net *net, struct afs_server *server,
-			     struct key *key, bool all)
+			     struct afs_addr_list *new_alist, struct key *key)
 {
-	struct afs_addr_cursor ac = {
-		.index = 0,
-	};
+	struct afs_endpoint_state *estate, *old;
+	struct afs_addr_list *alist;
+	unsigned long unprobed;
 
 	_enter("%pU", &server->uuid);
 
-	read_lock(&server->fs_lock);
-	ac.alist = rcu_dereference_protected(server->addresses,
-					     lockdep_is_held(&server->fs_lock));
-	afs_get_addrlist(ac.alist);
-	read_unlock(&server->fs_lock);
+	estate = kzalloc(sizeof(*estate), GFP_KERNEL);
+	if (!estate)
+		return;
+
+	refcount_set(&estate->ref, 1);
+	estate->server_id = server->debug_id;
+	estate->rtt = UINT_MAX;
+
+	write_lock(&server->fs_lock);
+
+	old = rcu_dereference_protected(server->endpoint_state,
+					lockdep_is_held(&server->fs_lock));
+	estate->responsive_set = old->responsive_set;
+	estate->addresses = afs_get_addrlist(new_alist ?: old->addresses,
+					     afs_alist_trace_get_estate);
+	alist = estate->addresses;
+	estate->probe_seq = ++server->probe_counter;
+	atomic_set(&estate->nr_probing, alist->nr_addrs);
+
+	rcu_assign_pointer(server->endpoint_state, estate);
+	set_bit(AFS_ESTATE_SUPERSEDED, &old->flags);
+	write_unlock(&server->fs_lock);
+
+	trace_afs_estate(estate->server_id, estate->probe_seq, refcount_read(&estate->ref),
+			 afs_estate_trace_alloc_probe);
+
+	afs_get_address_preferences(net, alist);
 
 	server->probed_at = jiffies;
-	atomic_set(&server->probe_outstanding, all ? ac.alist->nr_addrs : 1);
-	memset(&server->probe, 0, sizeof(server->probe));
-	server->probe.rtt = UINT_MAX;
+	unprobed = (1UL << alist->nr_addrs) - 1;
+	while (unprobed) {
+		unsigned int index = 0, i;
+		int best_prio = -1;
 
-	ac.index = ac.alist->preferred;
-	if (ac.index < 0 || ac.index >= ac.alist->nr_addrs)
-		all = true;
+		for (i = 0; i < alist->nr_addrs; i++) {
+			if (test_bit(i, &unprobed) &&
+			    alist->addrs[i].prio > best_prio) {
+				index = i;
+				best_prio = alist->addrs[i].prio;
+			}
+		}
+		__clear_bit(index, &unprobed);
 
-	if (all) {
-		for (ac.index = 0; ac.index < ac.alist->nr_addrs; ac.index++)
-			if (!afs_fs_get_capabilities(net, server, &ac, key))
-				afs_fs_probe_not_done(net, server, &ac);
-	} else {
-		if (!afs_fs_get_capabilities(net, server, &ac, key))
-			afs_fs_probe_not_done(net, server, &ac);
+		trace_afs_fs_probe(server, true, estate, index, 0, 0, 0);
+		if (!afs_fs_get_capabilities(net, server, estate, index, key))
+			afs_fs_probe_not_done(net, server, estate, index);
 	}
 
-	afs_put_addrlist(ac.alist);
+	afs_put_endpoint_state(old, afs_estate_trace_put_probe);
 }
 
 /*
- * Wait for the first as-yet untried fileserver to respond.
+ * Wait for the first as-yet untried fileserver to respond, for the probe state
+ * to be superseded or for all probes to finish.
  */
-int afs_wait_for_fs_probes(struct afs_server_list *slist, unsigned long untried)
+int afs_wait_for_fs_probes(struct afs_operation *op, struct afs_server_state *states, bool intr)
 {
-	struct wait_queue_entry *waits;
-	struct afs_server *server;
-	unsigned int rtt = UINT_MAX, rtt_s;
-	bool have_responders = false;
-	int pref = -1, i;
+	struct afs_endpoint_state *estate;
+	struct afs_server_list *slist = op->server_list;
+	bool still_probing = true;
+	int ret = 0, i;
 
-	_enter("%u,%lx", slist->nr_servers, untried);
+	_enter("%u", slist->nr_servers);
 
-	/* Only wait for servers that have a probe outstanding. */
 	for (i = 0; i < slist->nr_servers; i++) {
-		if (test_bit(i, &untried)) {
-			server = slist->servers[i].server;
-			if (!atomic_read(&server->probe_outstanding))
-				__clear_bit(i, &untried);
-			if (server->probe.responded)
-				have_responders = true;
-		}
+		estate = states[i].endpoint_state;
+		if (test_bit(AFS_ESTATE_SUPERSEDED, &estate->flags))
+			return 2;
+		if (atomic_read(&estate->nr_probing))
+			still_probing = true;
+		if (estate->responsive_set & states[i].untried_addrs)
+			return 1;
 	}
-	if (have_responders || !untried)
+	if (!still_probing)
 		return 0;
 
-	waits = kmalloc(array_size(slist->nr_servers, sizeof(*waits)), GFP_KERNEL);
-	if (!waits)
-		return -ENOMEM;
-
-	for (i = 0; i < slist->nr_servers; i++) {
-		if (test_bit(i, &untried)) {
-			server = slist->servers[i].server;
-			init_waitqueue_entry(&waits[i], current);
-			add_wait_queue(&server->probe_wq, &waits[i]);
-		}
-	}
+	for (i = 0; i < slist->nr_servers; i++)
+		add_wait_queue(&slist->servers[i].server->probe_wq, &states[i].probe_waiter);
 
 	for (;;) {
-		bool still_probing = false;
+		still_probing = false;
 
-		set_current_state(TASK_INTERRUPTIBLE);
+		set_current_state(intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
 		for (i = 0; i < slist->nr_servers; i++) {
-			if (test_bit(i, &untried)) {
-				server = slist->servers[i].server;
-				if (server->probe.responded)
-					goto stop;
-				if (atomic_read(&server->probe_outstanding))
-					still_probing = true;
+			estate = states[i].endpoint_state;
+			if (test_bit(AFS_ESTATE_SUPERSEDED, &estate->flags)) {
+				ret = 2;
+				goto stop;
+			}
+			if (atomic_read(&estate->nr_probing))
+				still_probing = true;
+			if (estate->responsive_set & states[i].untried_addrs) {
+				ret = 1;
+				goto stop;
 			}
 		}
 
@@ -288,28 +349,12 @@ int afs_wait_for_fs_probes(struct afs_server_list *slist, unsigned long untried)
 stop:
 	set_current_state(TASK_RUNNING);
 
-	for (i = 0; i < slist->nr_servers; i++) {
-		if (test_bit(i, &untried)) {
-			server = slist->servers[i].server;
-			rtt_s = READ_ONCE(server->rtt);
-			if (test_bit(AFS_SERVER_FL_RESPONDING, &server->flags) &&
-			    rtt_s < rtt) {
-				pref = i;
-				rtt = rtt_s;
-			}
+	for (i = 0; i < slist->nr_servers; i++)
+		remove_wait_queue(&slist->servers[i].server->probe_wq, &states[i].probe_waiter);
 
-			remove_wait_queue(&server->probe_wq, &waits[i]);
-		}
-	}
-
-	kfree(waits);
-
-	if (pref == -1 && signal_pending(current))
-		return -ERESTARTSYS;
-
-	if (pref >= 0)
-		slist->preferred = pref;
-	return 0;
+	if (!ret && signal_pending(current))
+		ret = -ERESTARTSYS;
+	return ret;
 }
 
 /*
@@ -327,7 +372,7 @@ void afs_fs_probe_timer(struct timer_list *timer)
 /*
  * Dispatch a probe to a server.
  */
-static void afs_dispatch_fs_probe(struct afs_net *net, struct afs_server *server, bool all)
+static void afs_dispatch_fs_probe(struct afs_net *net, struct afs_server *server)
 	__releases(&net->fs_lock)
 {
 	struct key *key = NULL;
@@ -340,7 +385,7 @@ static void afs_dispatch_fs_probe(struct afs_net *net, struct afs_server *server
 	afs_get_server(server, afs_server_trace_get_probe);
 	write_sequnlock(&net->fs_lock);
 
-	afs_fs_probe_fileserver(net, server, key, all);
+	afs_fs_probe_fileserver(net, server, NULL, key);
 	afs_put_server(net, server, afs_server_trace_put_probe);
 }
 
@@ -352,7 +397,7 @@ void afs_probe_fileserver(struct afs_net *net, struct afs_server *server)
 {
 	write_seqlock(&net->fs_lock);
 	if (!list_empty(&server->probe_link))
-		return afs_dispatch_fs_probe(net, server, true);
+		return afs_dispatch_fs_probe(net, server);
 	write_sequnlock(&net->fs_lock);
 }
 
@@ -412,7 +457,7 @@ again:
 		_debug("probe %pU", &server->uuid);
 
 	if (server && (first_pass || !need_resched())) {
-		afs_dispatch_fs_probe(net, server, server == fast);
+		afs_dispatch_fs_probe(net, server);
 		first_pass = false;
 		goto again;
 	}
@@ -436,12 +481,13 @@ again:
 /*
  * Wait for a probe on a particular fileserver to complete for 2s.
  */
-int afs_wait_for_one_fs_probe(struct afs_server *server, bool is_intr)
+int afs_wait_for_one_fs_probe(struct afs_server *server, struct afs_endpoint_state *estate,
+			      unsigned long exclude, bool is_intr)
 {
 	struct wait_queue_entry wait;
 	unsigned long timo = 2 * HZ;
 
-	if (atomic_read(&server->probe_outstanding) == 0)
+	if (atomic_read(&estate->nr_probing) == 0)
 		goto dont_wait;
 
 	init_wait_entry(&wait, 0);
@@ -449,8 +495,9 @@ int afs_wait_for_one_fs_probe(struct afs_server *server, bool is_intr)
 		prepare_to_wait_event(&server->probe_wq, &wait,
 				      is_intr ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE);
 		if (timo == 0 ||
-		    server->probe.responded ||
-		    atomic_read(&server->probe_outstanding) == 0 ||
+		    test_bit(AFS_ESTATE_SUPERSEDED, &estate->flags) ||
+		    (estate->responsive_set & ~exclude) ||
+		    atomic_read(&estate->nr_probing) == 0 ||
 		    (is_intr && signal_pending(current)))
 			break;
 		timo = schedule_timeout(timo);
@@ -459,7 +506,9 @@ int afs_wait_for_one_fs_probe(struct afs_server *server, bool is_intr)
 	finish_wait(&server->probe_wq, &wait);
 
 dont_wait:
-	if (server->probe.responded)
+	if (estate->responsive_set & ~exclude)
+		return 1;
+	if (test_bit(AFS_ESTATE_SUPERSEDED, &estate->flags))
 		return 0;
 	if (is_intr && signal_pending(current))
 		return -ERESTARTSYS;

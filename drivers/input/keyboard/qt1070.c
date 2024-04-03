@@ -149,20 +149,20 @@ static int qt1070_probe(struct i2c_client *client)
 	if (!qt1070_identify(client))
 		return -ENODEV;
 
-	data = kzalloc(sizeof(struct qt1070_data), GFP_KERNEL);
-	input = input_allocate_device();
-	if (!data || !input) {
-		dev_err(&client->dev, "insufficient memory\n");
-		err = -ENOMEM;
-		goto err_free_mem;
-	}
+	data = devm_kzalloc(&client->dev, sizeof(struct qt1070_data),
+			    GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	input = devm_input_allocate_device(&client->dev);
+	if (!input)
+		return -ENOMEM;
 
 	data->client = client;
 	data->input = input;
 	data->irq = client->irq;
 
 	input->name = "AT42QT1070 QTouch Sensor";
-	input->dev.parent = &client->dev;
 	input->id.bustype = BUS_I2C;
 
 	/* Add the keycode */
@@ -185,19 +185,20 @@ static int qt1070_probe(struct i2c_client *client)
 	qt1070_write(client, RESET, 1);
 	msleep(QT1070_RESET_TIME);
 
-	err = request_threaded_irq(client->irq, NULL, qt1070_interrupt,
-				   IRQF_TRIGGER_NONE | IRQF_ONESHOT,
-				   client->dev.driver->name, data);
+	err = devm_request_threaded_irq(&client->dev, client->irq,
+					NULL, qt1070_interrupt,
+					IRQF_TRIGGER_NONE | IRQF_ONESHOT,
+					client->dev.driver->name, data);
 	if (err) {
 		dev_err(&client->dev, "fail to request irq\n");
-		goto err_free_mem;
+		return err;
 	}
 
 	/* Register the input device */
 	err = input_register_device(data->input);
 	if (err) {
 		dev_err(&client->dev, "Failed to register input device\n");
-		goto err_free_irq;
+		return err;
 	}
 
 	i2c_set_clientdata(client, data);
@@ -206,24 +207,6 @@ static int qt1070_probe(struct i2c_client *client)
 	qt1070_read(client, DET_STATUS);
 
 	return 0;
-
-err_free_irq:
-	free_irq(client->irq, data);
-err_free_mem:
-	input_free_device(input);
-	kfree(data);
-	return err;
-}
-
-static void qt1070_remove(struct i2c_client *client)
-{
-	struct qt1070_data *data = i2c_get_clientdata(client);
-
-	/* Release IRQ */
-	free_irq(client->irq, data);
-
-	input_unregister_device(data->input);
-	kfree(data);
 }
 
 static int qt1070_suspend(struct device *dev)
@@ -272,7 +255,6 @@ static struct i2c_driver qt1070_driver = {
 	},
 	.id_table	= qt1070_id,
 	.probe		= qt1070_probe,
-	.remove		= qt1070_remove,
 };
 
 module_i2c_driver(qt1070_driver);

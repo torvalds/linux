@@ -7,6 +7,7 @@
 #include <linux/pci.h>
 
 #include "ena_netdev.h"
+#include "ena_xdp.h"
 
 struct ena_stats {
 	char name[ETH_GSTRING_LEN];
@@ -262,17 +263,14 @@ static void ena_queue_strings(struct ena_adapter *adapter, u8 **data)
 					ena_stats->name);
 		}
 
-		if (!is_xdp) {
-			/* RX stats, in XDP there isn't a RX queue
-			 * counterpart
-			 */
-			for (j = 0; j < ENA_STATS_ARRAY_RX; j++) {
-				ena_stats = &ena_stats_rx_strings[j];
+		/* In XDP there isn't an RX queue counterpart */
+		if (is_xdp)
+			continue;
 
-				ethtool_sprintf(data,
-						"queue_%u_rx_%s", i,
-						ena_stats->name);
-			}
+		for (j = 0; j < ENA_STATS_ARRAY_RX; j++) {
+			ena_stats = &ena_stats_rx_strings[j];
+
+			ethtool_sprintf(data, "queue_%u_rx_%s", i, ena_stats->name);
 		}
 	}
 }
@@ -299,13 +297,13 @@ static void ena_get_strings(struct ena_adapter *adapter,
 
 	for (i = 0; i < ENA_STATS_ARRAY_GLOBAL; i++) {
 		ena_stats = &ena_stats_global_strings[i];
-		ethtool_sprintf(&data, ena_stats->name);
+		ethtool_puts(&data, ena_stats->name);
 	}
 
 	if (eni_stats_needed) {
 		for (i = 0; i < ENA_STATS_ARRAY_ENI(adapter); i++) {
 			ena_stats = &ena_stats_eni_strings[i];
-			ethtool_sprintf(&data, ena_stats->name);
+			ethtool_puts(&data, ena_stats->name);
 		}
 	}
 
@@ -802,15 +800,15 @@ static int ena_indirection_table_get(struct ena_adapter *adapter, u32 *indir)
 	return rc;
 }
 
-static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
-			u8 *hfunc)
+static int ena_get_rxfh(struct net_device *netdev,
+			struct ethtool_rxfh_param *rxfh)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	enum ena_admin_hash_functions ena_func;
 	u8 func;
 	int rc;
 
-	rc = ena_indirection_table_get(adapter, indir);
+	rc = ena_indirection_table_get(adapter, rxfh->indir);
 	if (rc)
 		return rc;
 
@@ -825,7 +823,7 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 		return rc;
 	}
 
-	rc = ena_com_get_hash_key(adapter->ena_dev, key);
+	rc = ena_com_get_hash_key(adapter->ena_dev, rxfh->key);
 	if (rc)
 		return rc;
 
@@ -842,27 +840,27 @@ static int ena_get_rxfh(struct net_device *netdev, u32 *indir, u8 *key,
 		return -EOPNOTSUPP;
 	}
 
-	if (hfunc)
-		*hfunc = func;
+	rxfh->hfunc = func;
 
 	return 0;
 }
 
-static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
-			const u8 *key, const u8 hfunc)
+static int ena_set_rxfh(struct net_device *netdev,
+			struct ethtool_rxfh_param *rxfh,
+			struct netlink_ext_ack *extack)
 {
 	struct ena_adapter *adapter = netdev_priv(netdev);
 	struct ena_com_dev *ena_dev = adapter->ena_dev;
 	enum ena_admin_hash_functions func = 0;
 	int rc;
 
-	if (indir) {
-		rc = ena_indirection_table_set(adapter, indir);
+	if (rxfh->indir) {
+		rc = ena_indirection_table_set(adapter, rxfh->indir);
 		if (rc)
 			return rc;
 	}
 
-	switch (hfunc) {
+	switch (rxfh->hfunc) {
 	case ETH_RSS_HASH_NO_CHANGE:
 		func = ena_com_get_current_hash_function(ena_dev);
 		break;
@@ -874,12 +872,12 @@ static int ena_set_rxfh(struct net_device *netdev, const u32 *indir,
 		break;
 	default:
 		netif_err(adapter, drv, netdev, "Unsupported hfunc %d\n",
-			  hfunc);
+			  rxfh->hfunc);
 		return -EOPNOTSUPP;
 	}
 
-	if (key || func) {
-		rc = ena_com_fill_hash_function(ena_dev, func, key,
+	if (rxfh->key || func) {
+		rc = ena_com_fill_hash_function(ena_dev, func, rxfh->key,
 						ENA_HASH_KEY_SIZE,
 						0xFFFFFFFF);
 		if (unlikely(rc)) {

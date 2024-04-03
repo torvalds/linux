@@ -39,14 +39,7 @@ static int opencores_kbd_probe(struct platform_device *pdev)
 {
 	struct input_dev *input;
 	struct opencores_kbd *opencores_kbd;
-	struct resource *res;
 	int irq, i, error;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "missing board memory resource\n");
-		return -EINVAL;
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -65,7 +58,7 @@ static int opencores_kbd_probe(struct platform_device *pdev)
 
 	opencores_kbd->input = input;
 
-	opencores_kbd->addr = devm_ioremap_resource(&pdev->dev, res);
+	opencores_kbd->addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(opencores_kbd->addr))
 		return PTR_ERR(opencores_kbd->addr);
 

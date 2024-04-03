@@ -196,6 +196,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_i2c1_sgtl5000>;
 		reg = <0x0a>;
+		#sound-dai-cells = <0>;
 		clocks = <&clks IMX6QDL_CLK_CKO>;
 		VDDA-supply = <&reg_1p8v>;
 		VDDIO-supply = <&reg_1p8v>;
@@ -636,11 +637,11 @@
 };
 
 &usbphy1 {
-	fsl,tx-d-cal = <0x5>;
+	fsl,tx-d-cal = <79>;
 };
 
 &usbphy2 {
-	fsl,tx-d-cal = <0x5>;
+	fsl,tx-d-cal = <79>;
 };
 
 &usdhc1 {

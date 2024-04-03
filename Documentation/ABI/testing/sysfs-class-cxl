@@ -42,7 +42,7 @@ What:           /sys/class/cxl/<afu>/mmio_size
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
-                Decimal value of the size of the MMIO space that may be mmaped
+                Decimal value of the size of the MMIO space that may be mmapped
                 by userspace.
 Users:		https://github.com/ibm-capi/libcxl
 
@@ -155,7 +155,7 @@ What:           /sys/class/cxl/<afu>m/mmio_size
 Date:           September 2014
 Contact:        linuxppc-dev@lists.ozlabs.org
 Description:    read only
-                Decimal value of the size of the MMIO space that may be mmaped
+                Decimal value of the size of the MMIO space that may be mmapped
                 by userspace. This includes all slave contexts space also.
 Users:		https://github.com/ibm-capi/libcxl
 

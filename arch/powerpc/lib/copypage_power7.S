@@ -27,17 +27,7 @@ _GLOBAL(copypage_power7)
 #endif
 	ori	r10,r7,1	/* stream=1 */
 
-	lis	r8,0x8000	/* GO=1 */
-	clrldi	r8,r8,32
-
-	/* setup read stream 0  */
-	dcbt	0,r4,0b01000  	/* addr from */
-	dcbt	0,r7,0b01010   /* length and depth from */
-	/* setup write stream 1 */
-	dcbtst	0,r9,0b01000   /* addr to */
-	dcbtst	0,r10,0b01010  /* length and depth to */
-	eieio
-	dcbt	0,r8,0b01010	/* all streams GO */
+	DCBT_SETUP_STREAMS(r4, r7, r9, r10, r8)
 
 #ifdef CONFIG_ALTIVEC
 	mflr	r0

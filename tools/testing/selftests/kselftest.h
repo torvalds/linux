@@ -25,6 +25,7 @@
  *     ksft_test_result_skip(fmt, ...);
  *     ksft_test_result_xfail(fmt, ...);
  *     ksft_test_result_error(fmt, ...);
+ *     ksft_test_result_code(exit_code, test_name, fmt, ...);
  *
  * When all tests are finished, clean up and exit the program with one of:
  *
@@ -48,6 +49,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <string.h>
 #include <stdio.h>
 #endif
 
@@ -76,6 +78,8 @@
 #define KSFT_XFAIL 2
 #define KSFT_XPASS 3
 #define KSFT_SKIP  4
+
+#define __printf(a, b)   __attribute__((format(printf, a, b)))
 
 /* counters */
 struct ksft_count {
@@ -113,6 +117,15 @@ static inline int ksft_get_error_cnt(void) { return ksft_cnt.ksft_error; }
 
 static inline void ksft_print_header(void)
 {
+	/*
+	 * Force line buffering; If stdout is not connected to a terminal, it
+	 * will otherwise default to fully buffered, which can cause output
+	 * duplication if there is content in the buffer when fork()ing. If
+	 * there is a crash, line buffering also means the most recent output
+	 * line will be visible.
+	 */
+	setvbuf(stdout, NULL, _IOLBF, 0);
+
 	if (!(getenv("KSFT_TAP_LEVEL")))
 		printf("TAP version 13\n");
 }
@@ -120,7 +133,7 @@ static inline void ksft_print_header(void)
 static inline void ksft_set_plan(unsigned int plan)
 {
 	ksft_plan = plan;
-	printf("1..%d\n", ksft_plan);
+	printf("1..%u\n", ksft_plan);
 }
 
 static inline void ksft_print_cnts(void)
@@ -128,13 +141,13 @@ static inline void ksft_print_cnts(void)
 	if (ksft_plan != ksft_test_num())
 		printf("# Planned tests != run tests (%u != %u)\n",
 			ksft_plan, ksft_test_num());
-	printf("# Totals: pass:%d fail:%d xfail:%d xpass:%d skip:%d error:%d\n",
+	printf("# Totals: pass:%u fail:%u xfail:%u xpass:%u skip:%u error:%u\n",
 		ksft_cnt.ksft_pass, ksft_cnt.ksft_fail,
 		ksft_cnt.ksft_xfail, ksft_cnt.ksft_xpass,
 		ksft_cnt.ksft_xskip, ksft_cnt.ksft_error);
 }
 
-static inline void ksft_print_msg(const char *msg, ...)
+static inline __printf(1, 2) void ksft_print_msg(const char *msg, ...)
 {
 	int saved_errno = errno;
 	va_list args;
@@ -146,7 +159,20 @@ static inline void ksft_print_msg(const char *msg, ...)
 	va_end(args);
 }
 
-static inline void ksft_test_result_pass(const char *msg, ...)
+static inline void ksft_perror(const char *msg)
+{
+#ifndef NOLIBC
+	ksft_print_msg("%s: %s (%d)\n", msg, strerror(errno), errno);
+#else
+	/*
+	 * nolibc doesn't provide strerror() and it seems
+	 * inappropriate to add one, just print the errno.
+	 */
+	ksft_print_msg("%s: %d)\n", msg, errno);
+#endif
+}
+
+static inline __printf(1, 2) void ksft_test_result_pass(const char *msg, ...)
 {
 	int saved_errno = errno;
 	va_list args;
@@ -154,13 +180,13 @@ static inline void ksft_test_result_pass(const char *msg, ...)
 	ksft_cnt.ksft_pass++;
 
 	va_start(args, msg);
-	printf("ok %d ", ksft_test_num());
+	printf("ok %u ", ksft_test_num());
 	errno = saved_errno;
 	vprintf(msg, args);
 	va_end(args);
 }
 
-static inline void ksft_test_result_fail(const char *msg, ...)
+static inline __printf(1, 2) void ksft_test_result_fail(const char *msg, ...)
 {
 	int saved_errno = errno;
 	va_list args;
@@ -168,7 +194,7 @@ static inline void ksft_test_result_fail(const char *msg, ...)
 	ksft_cnt.ksft_fail++;
 
 	va_start(args, msg);
-	printf("not ok %d ", ksft_test_num());
+	printf("not ok %u ", ksft_test_num());
 	errno = saved_errno;
 	vprintf(msg, args);
 	va_end(args);
@@ -186,7 +212,7 @@ static inline void ksft_test_result_fail(const char *msg, ...)
 		ksft_test_result_fail(fmt, ##__VA_ARGS__);\
 	} while (0)
 
-static inline void ksft_test_result_xfail(const char *msg, ...)
+static inline __printf(1, 2) void ksft_test_result_xfail(const char *msg, ...)
 {
 	int saved_errno = errno;
 	va_list args;
@@ -194,13 +220,13 @@ static inline void ksft_test_result_xfail(const char *msg, ...)
 	ksft_cnt.ksft_xfail++;
 
 	va_start(args, msg);
-	printf("ok %d # XFAIL ", ksft_test_num());
+	printf("ok %u # XFAIL ", ksft_test_num());
 	errno = saved_errno;
 	vprintf(msg, args);
 	va_end(args);
 }
 
-static inline void ksft_test_result_skip(const char *msg, ...)
+static inline __printf(1, 2) void ksft_test_result_skip(const char *msg, ...)
 {
 	int saved_errno = errno;
 	va_list args;
@@ -208,14 +234,14 @@ static inline void ksft_test_result_skip(const char *msg, ...)
 	ksft_cnt.ksft_xskip++;
 
 	va_start(args, msg);
-	printf("ok %d # SKIP ", ksft_test_num());
+	printf("ok %u # SKIP ", ksft_test_num());
 	errno = saved_errno;
 	vprintf(msg, args);
 	va_end(args);
 }
 
 /* TODO: how does "error" differ from "fail" or "skip"? */
-static inline void ksft_test_result_error(const char *msg, ...)
+static inline __printf(1, 2) void ksft_test_result_error(const char *msg, ...)
 {
 	int saved_errno = errno;
 	va_list args;
@@ -223,9 +249,53 @@ static inline void ksft_test_result_error(const char *msg, ...)
 	ksft_cnt.ksft_error++;
 
 	va_start(args, msg);
-	printf("not ok %d # error ", ksft_test_num());
+	printf("not ok %u # error ", ksft_test_num());
 	errno = saved_errno;
 	vprintf(msg, args);
+	va_end(args);
+}
+
+static inline __printf(3, 4)
+void ksft_test_result_code(int exit_code, const char *test_name,
+			   const char *msg, ...)
+{
+	const char *tap_code = "ok";
+	const char *directive = "";
+	int saved_errno = errno;
+	va_list args;
+
+	switch (exit_code) {
+	case KSFT_PASS:
+		ksft_cnt.ksft_pass++;
+		break;
+	case KSFT_XFAIL:
+		directive = " # XFAIL ";
+		ksft_cnt.ksft_xfail++;
+		break;
+	case KSFT_XPASS:
+		directive = " # XPASS ";
+		ksft_cnt.ksft_xpass++;
+		break;
+	case KSFT_SKIP:
+		directive = " # SKIP ";
+		ksft_cnt.ksft_xskip++;
+		break;
+	case KSFT_FAIL:
+	default:
+		tap_code = "not ok";
+		ksft_cnt.ksft_fail++;
+		break;
+	}
+
+	/* Docs seem to call for double space if directive is absent */
+	if (!directive[0] && msg[0])
+		directive = " #  ";
+
+	va_start(args, msg);
+	printf("%s %u %s%s", tap_code, ksft_test_num(), test_name, directive);
+	errno = saved_errno;
+	vprintf(msg, args);
+	printf("\n");
 	va_end(args);
 }
 
@@ -262,7 +332,7 @@ static inline int ksft_exit_fail(void)
 		  ksft_cnt.ksft_xfail +	\
 		  ksft_cnt.ksft_xskip)
 
-static inline int ksft_exit_fail_msg(const char *msg, ...)
+static inline __printf(1, 2) int ksft_exit_fail_msg(const char *msg, ...)
 {
 	int saved_errno = errno;
 	va_list args;
@@ -289,7 +359,7 @@ static inline int ksft_exit_xpass(void)
 	exit(KSFT_XPASS);
 }
 
-static inline int ksft_exit_skip(const char *msg, ...)
+static inline __printf(1, 2) int ksft_exit_skip(const char *msg, ...)
 {
 	int saved_errno = errno;
 	va_list args;

@@ -1,0 +1,18 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2023 Jisheng Zhang <jszhang@kernel.org>
+ */
+
+#include "cv18xx.dtsi"
+
+/ {
+	compatible = "sophgo,cv1800b";
+};
+
+&plic {
+	compatible = "sophgo,cv1800b-plic", "thead,c900-plic";
+};
+
+&clint {
+	compatible = "sophgo,cv1800b-clint", "thead,c900-clint";
+};

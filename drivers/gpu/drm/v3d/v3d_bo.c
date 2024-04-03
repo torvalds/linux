@@ -33,11 +33,14 @@ void v3d_free_object(struct drm_gem_object *obj)
 	struct v3d_dev *v3d = to_v3d_dev(obj->dev);
 	struct v3d_bo *bo = to_v3d_bo(obj);
 
+	if (bo->vaddr)
+		v3d_put_bo_vaddr(bo);
+
 	v3d_mmu_remove_ptes(bo);
 
 	mutex_lock(&v3d->bo_lock);
 	v3d->bo_stats.num_allocated--;
-	v3d->bo_stats.pages_allocated -= obj->size >> PAGE_SHIFT;
+	v3d->bo_stats.pages_allocated -= obj->size >> V3D_MMU_PAGE_SHIFT;
 	mutex_unlock(&v3d->bo_lock);
 
 	spin_lock(&v3d->mm_lock);
@@ -106,8 +109,8 @@ v3d_bo_create_finish(struct drm_gem_object *obj)
 	 * lifetime of the BO.
 	 */
 	ret = drm_mm_insert_node_generic(&v3d->mm, &bo->node,
-					 obj->size >> PAGE_SHIFT,
-					 GMP_GRANULARITY >> PAGE_SHIFT, 0, 0);
+					 obj->size >> V3D_MMU_PAGE_SHIFT,
+					 GMP_GRANULARITY >> V3D_MMU_PAGE_SHIFT, 0, 0);
 	spin_unlock(&v3d->mm_lock);
 	if (ret)
 		return ret;
@@ -115,7 +118,7 @@ v3d_bo_create_finish(struct drm_gem_object *obj)
 	/* Track stats for /debug/dri/n/bo_stats. */
 	mutex_lock(&v3d->bo_lock);
 	v3d->bo_stats.num_allocated++;
-	v3d->bo_stats.pages_allocated += obj->size >> PAGE_SHIFT;
+	v3d->bo_stats.pages_allocated += obj->size >> V3D_MMU_PAGE_SHIFT;
 	mutex_unlock(&v3d->bo_lock);
 
 	v3d_mmu_insert_ptes(bo);
@@ -134,6 +137,7 @@ struct v3d_bo *v3d_bo_create(struct drm_device *dev, struct drm_file *file_priv,
 	if (IS_ERR(shmem_obj))
 		return ERR_CAST(shmem_obj);
 	bo = to_v3d_bo(&shmem_obj->base);
+	bo->vaddr = NULL;
 
 	ret = v3d_bo_create_finish(&shmem_obj->base);
 	if (ret)
@@ -167,6 +171,20 @@ v3d_prime_import_sg_table(struct drm_device *dev,
 	return obj;
 }
 
+void v3d_get_bo_vaddr(struct v3d_bo *bo)
+{
+	struct drm_gem_shmem_object *obj = &bo->base;
+
+	bo->vaddr = vmap(obj->pages, obj->base.size >> PAGE_SHIFT, VM_MAP,
+			 pgprot_writecombine(PAGE_KERNEL));
+}
+
+void v3d_put_bo_vaddr(struct v3d_bo *bo)
+{
+	vunmap(bo->vaddr);
+	bo->vaddr = NULL;
+}
+
 int v3d_create_bo_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv)
 {
@@ -183,7 +201,7 @@ int v3d_create_bo_ioctl(struct drm_device *dev, void *data,
 	if (IS_ERR(bo))
 		return PTR_ERR(bo);
 
-	args->offset = bo->node.start << PAGE_SHIFT;
+	args->offset = bo->node.start << V3D_MMU_PAGE_SHIFT;
 
 	ret = drm_gem_handle_create(file_priv, &bo->base.base, &args->handle);
 	drm_gem_object_put(&bo->base.base);
@@ -228,8 +246,41 @@ int v3d_get_bo_offset_ioctl(struct drm_device *dev, void *data,
 	}
 	bo = to_v3d_bo(gem_obj);
 
-	args->offset = bo->node.start << PAGE_SHIFT;
+	args->offset = bo->node.start << V3D_MMU_PAGE_SHIFT;
 
 	drm_gem_object_put(gem_obj);
 	return 0;
+}
+
+int
+v3d_wait_bo_ioctl(struct drm_device *dev, void *data,
+		  struct drm_file *file_priv)
+{
+	int ret;
+	struct drm_v3d_wait_bo *args = data;
+	ktime_t start = ktime_get();
+	u64 delta_ns;
+	unsigned long timeout_jiffies =
+		nsecs_to_jiffies_timeout(args->timeout_ns);
+
+	if (args->pad != 0)
+		return -EINVAL;
+
+	ret = drm_gem_dma_resv_wait(file_priv, args->handle,
+				    true, timeout_jiffies);
+
+	/* Decrement the user's timeout, in case we got interrupted
+	 * such that the ioctl will be restarted.
+	 */
+	delta_ns = ktime_to_ns(ktime_sub(ktime_get(), start));
+	if (delta_ns < args->timeout_ns)
+		args->timeout_ns -= delta_ns;
+	else
+		args->timeout_ns = 0;
+
+	/* Asked to wait beyond the jiffie/scheduler precision? */
+	if (ret == -ETIME && args->timeout_ns)
+		ret = -EAGAIN;
+
+	return ret;
 }

@@ -17,6 +17,12 @@
 #include <linux/slab.h>
 #include <linux/bug.h>
 
+/* Are there any inode/mount/sb objects that are being watched at all? */
+static inline bool fsnotify_sb_has_watchers(struct super_block *sb)
+{
+	return atomic_long_read(&sb->s_fsnotify_connectors);
+}
+
 /*
  * Notify this @dir inode about a change in a child directory entry.
  * The directory entry may have turned positive or negative or its inode may
@@ -30,7 +36,7 @@ static inline int fsnotify_name(__u32 mask, const void *data, int data_type,
 				struct inode *dir, const struct qstr *name,
 				u32 cookie)
 {
-	if (atomic_long_read(&dir->i_sb->s_fsnotify_connectors) == 0)
+	if (!fsnotify_sb_has_watchers(dir->i_sb))
 		return 0;
 
 	return fsnotify(mask, data, data_type, dir, name, NULL, cookie);
@@ -44,7 +50,7 @@ static inline void fsnotify_dirent(struct inode *dir, struct dentry *dentry,
 
 static inline void fsnotify_inode(struct inode *inode, __u32 mask)
 {
-	if (atomic_long_read(&inode->i_sb->s_fsnotify_connectors) == 0)
+	if (!fsnotify_sb_has_watchers(inode->i_sb))
 		return;
 
 	if (S_ISDIR(inode->i_mode))
@@ -59,7 +65,7 @@ static inline int fsnotify_parent(struct dentry *dentry, __u32 mask,
 {
 	struct inode *inode = d_inode(dentry);
 
-	if (atomic_long_read(&inode->i_sb->s_fsnotify_connectors) == 0)
+	if (!fsnotify_sb_has_watchers(inode->i_sb))
 		return 0;
 
 	if (S_ISDIR(inode->i_mode)) {
@@ -96,35 +102,73 @@ static inline int fsnotify_file(struct file *file, __u32 mask)
 	if (file->f_mode & FMODE_NONOTIFY)
 		return 0;
 
-	/* Overlayfs internal files have fake f_path */
-	path = file_real_path(file);
+	path = &file->f_path;
 	return fsnotify_parent(path->dentry, mask, path, FSNOTIFY_EVENT_PATH);
 }
 
-/* Simple call site for access decisions */
-static inline int fsnotify_perm(struct file *file, int mask)
+#ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
+/*
+ * fsnotify_file_area_perm - permission hook before access to file range
+ */
+static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
+					  const loff_t *ppos, size_t count)
 {
-	int ret;
-	__u32 fsnotify_mask = 0;
+	__u32 fsnotify_mask = FS_ACCESS_PERM;
 
-	if (!(mask & (MAY_READ | MAY_OPEN)))
+	/*
+	 * filesystem may be modified in the context of permission events
+	 * (e.g. by HSM filling a file on access), so sb freeze protection
+	 * must not be held.
+	 */
+	lockdep_assert_once(file_write_not_started(file));
+
+	if (!(perm_mask & MAY_READ))
 		return 0;
-
-	if (mask & MAY_OPEN) {
-		fsnotify_mask = FS_OPEN_PERM;
-
-		if (file->f_flags & __FMODE_EXEC) {
-			ret = fsnotify_file(file, FS_OPEN_EXEC_PERM);
-
-			if (ret)
-				return ret;
-		}
-	} else if (mask & MAY_READ) {
-		fsnotify_mask = FS_ACCESS_PERM;
-	}
 
 	return fsnotify_file(file, fsnotify_mask);
 }
+
+/*
+ * fsnotify_file_perm - permission hook before file access
+ */
+static inline int fsnotify_file_perm(struct file *file, int perm_mask)
+{
+	return fsnotify_file_area_perm(file, perm_mask, NULL, 0);
+}
+
+/*
+ * fsnotify_open_perm - permission hook before file open
+ */
+static inline int fsnotify_open_perm(struct file *file)
+{
+	int ret;
+
+	if (file->f_flags & __FMODE_EXEC) {
+		ret = fsnotify_file(file, FS_OPEN_EXEC_PERM);
+		if (ret)
+			return ret;
+	}
+
+	return fsnotify_file(file, FS_OPEN_PERM);
+}
+
+#else
+static inline int fsnotify_file_area_perm(struct file *file, int perm_mask,
+					  const loff_t *ppos, size_t count)
+{
+	return 0;
+}
+
+static inline int fsnotify_file_perm(struct file *file, int perm_mask)
+{
+	return 0;
+}
+
+static inline int fsnotify_open_perm(struct file *file)
+{
+	return 0;
+}
+#endif
 
 /*
  * fsnotify_link_count - inode's link count changed

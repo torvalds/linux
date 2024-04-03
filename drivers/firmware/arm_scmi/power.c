@@ -13,6 +13,9 @@
 #include "protocols.h"
 #include "notify.h"
 
+/* Updated only after ALL the mandatory features for that version are merged */
+#define SCMI_PROTOCOL_SUPPORTED_VERSION		0x30000
+
 enum scmi_power_protocol_cmd {
 	POWER_DOMAIN_ATTRIBUTES = 0x3,
 	POWER_STATE_SET = 0x4,
@@ -65,6 +68,7 @@ struct power_dom_info {
 
 struct scmi_power_info {
 	u32 version;
+	bool notify_state_change_cmd;
 	int num_domains;
 	u64 stats_addr;
 	u32 stats_size;
@@ -94,13 +98,18 @@ static int scmi_power_attributes_get(const struct scmi_protocol_handle *ph,
 	}
 
 	ph->xops->xfer_put(ph, t);
+
+	if (!ret)
+		if (!ph->hops->protocol_msg_check(ph, POWER_STATE_NOTIFY, NULL))
+			pi->notify_state_change_cmd = true;
+
 	return ret;
 }
 
 static int
 scmi_power_domain_attributes_get(const struct scmi_protocol_handle *ph,
 				 u32 domain, struct power_dom_info *dom_info,
-				 u32 version)
+				 u32 version, bool notify_state_change_cmd)
 {
 	int ret;
 	u32 flags;
@@ -119,7 +128,9 @@ scmi_power_domain_attributes_get(const struct scmi_protocol_handle *ph,
 	if (!ret) {
 		flags = le32_to_cpu(attr->flags);
 
-		dom_info->state_set_notify = SUPPORTS_STATE_SET_NOTIFY(flags);
+		if (notify_state_change_cmd)
+			dom_info->state_set_notify =
+				SUPPORTS_STATE_SET_NOTIFY(flags);
 		dom_info->state_set_async = SUPPORTS_STATE_SET_ASYNC(flags);
 		dom_info->state_set_sync = SUPPORTS_STATE_SET_SYNC(flags);
 		strscpy(dom_info->name, attr->name, SCMI_SHORT_NAME_MAX_SIZE);
@@ -133,7 +144,7 @@ scmi_power_domain_attributes_get(const struct scmi_protocol_handle *ph,
 	if (!ret && PROTOCOL_REV_MAJOR(version) >= 0x3 &&
 	    SUPPORTS_EXTENDED_NAMES(flags)) {
 		ph->hops->extended_name_get(ph, POWER_DOMAIN_NAME_GET,
-					    domain, dom_info->name,
+					    domain, NULL, dom_info->name,
 					    SCMI_MAX_STR_SIZE);
 	}
 
@@ -228,6 +239,20 @@ static int scmi_power_request_notify(const struct scmi_protocol_handle *ph,
 	return ret;
 }
 
+static bool scmi_power_notify_supported(const struct scmi_protocol_handle *ph,
+					u8 evt_id, u32 src_id)
+{
+	struct power_dom_info *dom;
+	struct scmi_power_info *pinfo = ph->get_priv(ph);
+
+	if (evt_id != SCMI_EVENT_POWER_STATE_CHANGED ||
+	    src_id >= pinfo->num_domains)
+		return false;
+
+	dom = pinfo->dom_info + src_id;
+	return dom->state_set_notify;
+}
+
 static int scmi_power_set_notify_enabled(const struct scmi_protocol_handle *ph,
 					 u8 evt_id, u32 src_id, bool enable)
 {
@@ -282,6 +307,7 @@ static const struct scmi_event power_events[] = {
 };
 
 static const struct scmi_event_ops power_event_ops = {
+	.is_notify_supported = scmi_power_notify_supported,
 	.get_num_sources = scmi_power_get_num_sources,
 	.set_notify_enabled = scmi_power_set_notify_enabled,
 	.fill_custom_report = scmi_power_fill_custom_report,
@@ -323,12 +349,13 @@ static int scmi_power_protocol_init(const struct scmi_protocol_handle *ph)
 	for (domain = 0; domain < pinfo->num_domains; domain++) {
 		struct power_dom_info *dom = pinfo->dom_info + domain;
 
-		scmi_power_domain_attributes_get(ph, domain, dom, version);
+		scmi_power_domain_attributes_get(ph, domain, dom, version,
+						 pinfo->notify_state_change_cmd);
 	}
 
 	pinfo->version = version;
 
-	return ph->set_priv(ph, pinfo);
+	return ph->set_priv(ph, pinfo, version);
 }
 
 static const struct scmi_protocol scmi_power = {
@@ -337,6 +364,7 @@ static const struct scmi_protocol scmi_power = {
 	.instance_init = &scmi_power_protocol_init,
 	.ops = &power_proto_ops,
 	.events = &power_protocol_events,
+	.supported_version = SCMI_PROTOCOL_SUPPORTED_VERSION,
 };
 
 DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(power, scmi_power)

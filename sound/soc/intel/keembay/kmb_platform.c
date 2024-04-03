@@ -11,7 +11,6 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -252,10 +251,10 @@ static int kmb_pcm_open(struct snd_soc_component *component,
 			struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct kmb_i2s_info *kmb_i2s;
 
-	kmb_i2s = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+	kmb_i2s = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 	snd_soc_set_runtime_hwparams(substream, &kmb_pcm_hardware);
 	snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
 	runtime->private_data = kmb_i2s;
@@ -733,6 +732,7 @@ static int kmb_dai_hw_free(struct snd_pcm_substream *substream,
 }
 
 static const struct snd_soc_dai_ops kmb_dai_ops = {
+	.probe		= kmb_probe,
 	.startup	= kmb_dai_startup,
 	.trigger	= kmb_dai_trigger,
 	.hw_params	= kmb_dai_hw_params,
@@ -755,7 +755,6 @@ static struct snd_soc_dai_driver intel_kmb_hdmi_dai[] = {
 				    SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE),
 		},
 		.ops = &kmb_dai_ops,
-		.probe = kmb_probe,
 	},
 };
 
@@ -787,7 +786,6 @@ static struct snd_soc_dai_driver intel_kmb_i2s_dai[] = {
 				    SNDRV_PCM_FMTBIT_S16_LE),
 		},
 		.ops = &kmb_dai_ops,
-		.probe = kmb_probe,
 	},
 };
 
@@ -807,7 +805,6 @@ static struct snd_soc_dai_driver intel_kmb_tdm_dai[] = {
 				    SNDRV_PCM_FMTBIT_S16_LE),
 		},
 		.ops = &kmb_dai_ops,
-		.probe = kmb_probe,
 	},
 };
 
@@ -822,7 +819,6 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
 	struct snd_soc_dai_driver *kmb_i2s_dai;
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct kmb_i2s_info *kmb_i2s;
 	struct resource *res;
@@ -833,16 +829,7 @@ static int kmb_plat_dai_probe(struct platform_device *pdev)
 	if (!kmb_i2s)
 		return -ENOMEM;
 
-	kmb_i2s_dai = devm_kzalloc(dev, sizeof(*kmb_i2s_dai), GFP_KERNEL);
-	if (!kmb_i2s_dai)
-		return -ENOMEM;
-
-	match = of_match_device(kmb_plat_of_match, &pdev->dev);
-	if (!match) {
-		dev_err(&pdev->dev, "Error: No device match found\n");
-		return -ENODEV;
-	}
-	kmb_i2s_dai = (struct snd_soc_dai_driver *) match->data;
+	kmb_i2s_dai = (struct snd_soc_dai_driver *)device_get_match_data(&pdev->dev);
 
 	/* Prepare the related clocks */
 	kmb_i2s->clk_apb = devm_clk_get(dev, "apb_clk");

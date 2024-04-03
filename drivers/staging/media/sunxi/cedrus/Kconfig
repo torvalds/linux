@@ -6,7 +6,6 @@ config VIDEO_SUNXI_CEDRUS
 	depends on HAS_DMA
 	depends on OF
 	select MEDIA_CONTROLLER
-	select MEDIA_CONTROLLER_REQUEST_API
 	select SUNXI_SRAM
 	select VIDEOBUF2_DMA_CONTIG
 	select V4L2_MEM2MEM_DEV

@@ -38,6 +38,15 @@
  */
 #define ZCRYPT_RNG_BUFFER_SIZE	4096
 
+/**
+ * The zcrypt_wait_api_operational() function waits this
+ * amount in milliseconds for ap_wait_aqpn_bindings_complete().
+ * Also on a cprb send failure with ENODEV the send functions
+ * trigger an ap bus rescan and wait this time in milliseconds
+ * for ap_wait_aqpn_bindings_complete() before resending.
+ */
+#define ZCRYPT_WAIT_BINDINGS_COMPLETE_MS 30000
+
 /*
  * Identifier for Crypto Request Performance Index
  */

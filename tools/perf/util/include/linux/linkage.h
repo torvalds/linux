@@ -115,6 +115,10 @@
 	SYM_ALIAS(alias, name, SYM_T_FUNC, SYM_L_WEAK)
 #endif
 
+#ifndef SYM_FUNC_ALIAS_MEMFUNC
+#define SYM_FUNC_ALIAS_MEMFUNC SYM_FUNC_ALIAS
+#endif
+
 // In the kernel sources (include/linux/cfi_types.h), this has a different
 // definition when CONFIG_CFI_CLANG is used, for tools/ just use the !clang
 // definition:

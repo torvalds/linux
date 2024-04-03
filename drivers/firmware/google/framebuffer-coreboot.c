@@ -36,6 +36,9 @@ static int framebuffer_probe(struct coreboot_device *dev)
 		.format = NULL,
 	};
 
+	if (!fb->physical_address)
+		return -ENODEV;
+
 	for (i = 0; i < ARRAY_SIZE(formats); ++i) {
 		if (fb->bits_per_pixel     == formats[i].bits_per_pixel &&
 		    fb->red_mask_pos       == formats[i].red.offset &&
@@ -77,13 +80,19 @@ static void framebuffer_remove(struct coreboot_device *dev)
 	platform_device_unregister(pdev);
 }
 
+static const struct coreboot_device_id framebuffer_ids[] = {
+	{ .tag = CB_TAG_FRAMEBUFFER },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(coreboot, framebuffer_ids);
+
 static struct coreboot_driver framebuffer_driver = {
 	.probe = framebuffer_probe,
 	.remove = framebuffer_remove,
 	.drv = {
 		.name = "framebuffer",
 	},
-	.tag = CB_TAG_FRAMEBUFFER,
+	.id_table = framebuffer_ids,
 };
 module_coreboot_driver(framebuffer_driver);
 

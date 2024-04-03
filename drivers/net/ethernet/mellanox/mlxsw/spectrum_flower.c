@@ -160,6 +160,16 @@ static int mlxsw_sp_flower_parse_actions(struct mlxsw_sp *mlxsw_sp,
 			 */
 			rulei->egress_bind_blocker = 1;
 
+			/* Ignore learning and security lookup as redirection
+			 * using ingress filters happens before the bridge.
+			 */
+			err = mlxsw_sp_acl_rulei_act_ignore(mlxsw_sp, rulei,
+							    true, true);
+			if (err) {
+				NL_SET_ERR_MSG_MOD(extack, "Cannot append ignore action");
+				return err;
+			}
+
 			fid = mlxsw_sp_acl_dummy_fid(mlxsw_sp);
 			fid_index = mlxsw_sp_fid_index(fid);
 			err = mlxsw_sp_acl_rulei_act_fid_set(mlxsw_sp, rulei,
@@ -418,6 +428,68 @@ static int mlxsw_sp_flower_parse_ports(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 }
 
+static int
+mlxsw_sp_flower_parse_ports_range(struct mlxsw_sp *mlxsw_sp,
+				  struct mlxsw_sp_acl_rule_info *rulei,
+				  struct flow_cls_offload *f, u8 ip_proto)
+{
+	const struct flow_rule *rule = flow_cls_offload_flow_rule(f);
+	struct flow_match_ports_range match;
+	u32 key_mask_value = 0;
+
+	if (!flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS_RANGE))
+		return 0;
+
+	if (ip_proto != IPPROTO_TCP && ip_proto != IPPROTO_UDP) {
+		NL_SET_ERR_MSG_MOD(f->common.extack, "Only UDP and TCP keys are supported");
+		return -EINVAL;
+	}
+
+	flow_rule_match_ports_range(rule, &match);
+
+	if (match.mask->tp_min.src) {
+		struct mlxsw_sp_port_range range = {
+			.min = ntohs(match.key->tp_min.src),
+			.max = ntohs(match.key->tp_max.src),
+			.source = true,
+		};
+		u8 prr_index;
+		int err;
+
+		err = mlxsw_sp_port_range_reg_get(mlxsw_sp, &range,
+						  f->common.extack, &prr_index);
+		if (err)
+			return err;
+
+		rulei->src_port_range_reg_index = prr_index;
+		rulei->src_port_range_reg_valid = true;
+		key_mask_value |= BIT(prr_index);
+	}
+
+	if (match.mask->tp_min.dst) {
+		struct mlxsw_sp_port_range range = {
+			.min = ntohs(match.key->tp_min.dst),
+			.max = ntohs(match.key->tp_max.dst),
+		};
+		u8 prr_index;
+		int err;
+
+		err = mlxsw_sp_port_range_reg_get(mlxsw_sp, &range,
+						  f->common.extack, &prr_index);
+		if (err)
+			return err;
+
+		rulei->dst_port_range_reg_index = prr_index;
+		rulei->dst_port_range_reg_valid = true;
+		key_mask_value |= BIT(prr_index);
+	}
+
+	mlxsw_sp_acl_rulei_keymask_u32(rulei, MLXSW_AFK_ELEMENT_L4_PORT_RANGE,
+				       key_mask_value, key_mask_value);
+
+	return 0;
+}
+
 static int mlxsw_sp_flower_parse_tcp(struct mlxsw_sp *mlxsw_sp,
 				     struct mlxsw_sp_acl_rule_info *rulei,
 				     struct flow_cls_offload *f,
@@ -496,16 +568,17 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	int err;
 
 	if (dissector->used_keys &
-	    ~(BIT(FLOW_DISSECTOR_KEY_META) |
-	      BIT(FLOW_DISSECTOR_KEY_CONTROL) |
-	      BIT(FLOW_DISSECTOR_KEY_BASIC) |
-	      BIT(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
-	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
-	      BIT(FLOW_DISSECTOR_KEY_TCP) |
-	      BIT(FLOW_DISSECTOR_KEY_IP) |
-	      BIT(FLOW_DISSECTOR_KEY_VLAN))) {
+	    ~(BIT_ULL(FLOW_DISSECTOR_KEY_META) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV4_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_PORTS_RANGE) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_TCP) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_IP) |
+	      BIT_ULL(FLOW_DISSECTOR_KEY_VLAN))) {
 		dev_err(mlxsw_sp->bus_info->dev, "Unsupported key\n");
 		NL_SET_ERR_MSG_MOD(f->common.extack, "Unsupported key");
 		return -EOPNOTSUPP;
@@ -604,6 +677,11 @@ static int mlxsw_sp_flower_parse(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_sp_flower_parse_ports(mlxsw_sp, rulei, f, ip_proto);
 	if (err)
 		return err;
+
+	err = mlxsw_sp_flower_parse_ports_range(mlxsw_sp, rulei, f, ip_proto);
+	if (err)
+		return err;
+
 	err = mlxsw_sp_flower_parse_tcp(mlxsw_sp, rulei, f, ip_proto);
 	if (err)
 		return err;

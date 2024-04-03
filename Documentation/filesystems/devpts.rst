@@ -5,8 +5,8 @@ The Devpts Filesystem
 =====================
 
 Each mount of the devpts filesystem is now distinct such that ptys
-and their indicies allocated in one mount are independent from ptys
-and their indicies in all other mounts.
+and their indices allocated in one mount are independent from ptys
+and their indices in all other mounts.
 
 All mounts of the devpts filesystem now create a ``/dev/pts/ptmx`` node
 with permissions ``0000``.

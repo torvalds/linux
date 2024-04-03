@@ -140,8 +140,32 @@ int snd_ctl_remove_id(struct snd_card * card, struct snd_ctl_elem_id *id);
 int snd_ctl_rename_id(struct snd_card * card, struct snd_ctl_elem_id *src_id, struct snd_ctl_elem_id *dst_id);
 void snd_ctl_rename(struct snd_card *card, struct snd_kcontrol *kctl, const char *name);
 int snd_ctl_activate_id(struct snd_card *card, struct snd_ctl_elem_id *id, int active);
-struct snd_kcontrol *snd_ctl_find_numid(struct snd_card * card, unsigned int numid);
-struct snd_kcontrol *snd_ctl_find_id(struct snd_card * card, struct snd_ctl_elem_id *id);
+struct snd_kcontrol *snd_ctl_find_numid_locked(struct snd_card *card, unsigned int numid);
+struct snd_kcontrol *snd_ctl_find_numid(struct snd_card *card, unsigned int numid);
+struct snd_kcontrol *snd_ctl_find_id_locked(struct snd_card *card, const struct snd_ctl_elem_id *id);
+struct snd_kcontrol *snd_ctl_find_id(struct snd_card *card, const struct snd_ctl_elem_id *id);
+
+/**
+ * snd_ctl_find_id_mixer - find the control instance with the given name string
+ * @card: the card instance
+ * @name: the name string
+ *
+ * Finds the control instance with the given name and
+ * @SNDRV_CTL_ELEM_IFACE_MIXER. Other fields are set to zero.
+ *
+ * This is merely a wrapper to snd_ctl_find_id().
+ *
+ * Return: The pointer of the instance if found, or %NULL if not.
+ */
+static inline struct snd_kcontrol *
+snd_ctl_find_id_mixer(struct snd_card *card, const char *name)
+{
+	struct snd_ctl_elem_id id = {};
+
+	id.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	strscpy(id.name, name, sizeof(id.name));
+	return snd_ctl_find_id(card, &id);
+}
 
 int snd_ctl_create(struct snd_card *card);
 
@@ -237,6 +261,9 @@ snd_ctl_add_follower(struct snd_kcontrol *master, struct snd_kcontrol *follower)
 {
 	return _snd_ctl_add_follower(master, follower, 0);
 }
+
+int snd_ctl_add_followers(struct snd_card *card, struct snd_kcontrol *master,
+			  const char * const *list);
 
 /**
  * snd_ctl_add_follower_uncached - Add a virtual follower control

@@ -27,6 +27,7 @@
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include <sound/soc-acpi.h>
+#include "../../codecs/es83xx-dsm-common.h"
 #include "../atom/sst-atom-controls.h"
 #include "../common/soc-intel-quirks.h"
 
@@ -157,7 +158,7 @@ static struct snd_soc_jack_pin byt_cht_es8316_jack_pins[] = {
 
 static int byt_cht_es8316_init(struct snd_soc_pcm_runtime *runtime)
 {
-	struct snd_soc_component *codec = asoc_rtd_to_codec(runtime, 0)->component;
+	struct snd_soc_component *codec = snd_soc_rtd_to_codec(runtime, 0)->component;
 	struct snd_soc_card *card = runtime->card;
 	struct byt_cht_es8316_private *priv = snd_soc_card_get_drvdata(card);
 	const struct snd_soc_dapm_route *custom_map;
@@ -212,7 +213,7 @@ static int byt_cht_es8316_init(struct snd_soc_pcm_runtime *runtime)
 	if (ret)
 		dev_err(card->dev, "unable to enable MCLK\n");
 
-	ret = snd_soc_dai_set_sysclk(asoc_rtd_to_codec(runtime, 0), 0, 19200000,
+	ret = snd_soc_dai_set_sysclk(snd_soc_rtd_to_codec(runtime, 0), 0, 19200000,
 				     SND_SOC_CLOCK_IN);
 	if (ret < 0) {
 		dev_err(card->dev, "can't set codec clock %d\n", ret);
@@ -262,7 +263,7 @@ static int byt_cht_es8316_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	 * with explicit setting to I2S 2ch 24-bit. The word length is set with
 	 * dai_set_tdm_slot() since there is no other API exposed
 	 */
-	ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0),
+	ret = snd_soc_dai_set_fmt(snd_soc_rtd_to_cpu(rtd, 0),
 				SND_SOC_DAIFMT_I2S     |
 				SND_SOC_DAIFMT_NB_NF   |
 				SND_SOC_DAIFMT_BP_FP
@@ -272,7 +273,7 @@ static int byt_cht_es8316_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 		return ret;
 	}
 
-	ret = snd_soc_dai_set_tdm_slot(asoc_rtd_to_cpu(rtd, 0), 0x3, 0x3, 2, bits);
+	ret = snd_soc_dai_set_tdm_slot(snd_soc_rtd_to_cpu(rtd, 0), 0x3, 0x3, 2, bits);
 	if (ret < 0) {
 		dev_err(rtd->dev, "can't set I2S config, err %d\n", ret);
 		return ret;
@@ -461,6 +462,66 @@ static const struct dmi_system_id byt_cht_es8316_quirk_table[] = {
 	{}
 };
 
+static int byt_cht_es8316_get_quirks_from_dsm(struct byt_cht_es8316_private *priv,
+					      bool is_bytcr)
+{
+	int ret, val1, val2, dsm_quirk = 0;
+
+	if (is_bytcr)
+		dsm_quirk |= BYT_CHT_ES8316_SSP0;
+
+	ret = es83xx_dsm(priv->codec_dev, PLATFORM_MAINMIC_TYPE_ARG, &val1);
+	if (ret < 0)
+		return ret;
+
+	ret = es83xx_dsm(priv->codec_dev, PLATFORM_HPMIC_TYPE_ARG, &val2);
+	if (ret < 0)
+		return ret;
+
+	if (val1 == PLATFORM_MIC_AMIC_LIN1RIN1 && val2 == PLATFORM_MIC_AMIC_LIN2RIN2) {
+		dsm_quirk |= BYT_CHT_ES8316_INTMIC_IN1_MAP;
+	} else if (val1 == PLATFORM_MIC_AMIC_LIN2RIN2 && val2 == PLATFORM_MIC_AMIC_LIN1RIN1) {
+		dsm_quirk |= BYT_CHT_ES8316_INTMIC_IN2_MAP;
+	} else {
+		dev_warn(priv->codec_dev, "Unknown mic settings mainmic 0x%02x hpmic 0x%02x\n",
+			 val1, val2);
+		return -EINVAL;
+	}
+
+	ret = es83xx_dsm(priv->codec_dev, PLATFORM_SPK_TYPE_ARG, &val1);
+	if (ret < 0)
+		return ret;
+
+	switch (val1) {
+	case PLATFORM_SPK_MONO:
+		dsm_quirk |= BYT_CHT_ES8316_MONO_SPEAKER;
+		break;
+	case PLATFORM_SPK_STEREO:
+		break;
+	default:
+		dev_warn(priv->codec_dev, "Unknown speaker setting 0x%02x\n", val1);
+		return -EINVAL;
+	}
+
+	ret = es83xx_dsm(priv->codec_dev, PLATFORM_HPDET_INV_ARG, &val1);
+	if (ret < 0)
+		return ret;
+
+	switch (val1) {
+	case PLATFORM_HPDET_NORMAL:
+		break;
+	case PLATFORM_HPDET_INVERTED:
+		dsm_quirk |= BYT_CHT_ES8316_JD_INVERTED;
+		break;
+	default:
+		dev_warn(priv->codec_dev, "Unknown hpdet-inv setting 0x%02x\n", val1);
+		return -EINVAL;
+	}
+
+	quirk = dsm_quirk;
+	return 0;
+}
+
 static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -470,10 +531,10 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 	struct byt_cht_es8316_private *priv;
 	const struct dmi_system_id *dmi_id;
 	struct fwnode_handle *fwnode;
+	bool sof_parent, is_bytcr;
 	const char *platform_name;
 	struct acpi_device *adev;
 	struct device *codec_dev;
-	bool sof_parent;
 	unsigned int cnt = 0;
 	int dai_index = 0;
 	int i;
@@ -485,7 +546,8 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 
 	/* fix index of codec dai */
 	for (i = 0; i < ARRAY_SIZE(byt_cht_es8316_dais); i++) {
-		if (!strcmp(byt_cht_es8316_dais[i].codecs->name,
+		if (byt_cht_es8316_dais[i].codecs->name &&
+		    !strcmp(byt_cht_es8316_dais[i].codecs->name,
 			    "i2c-ESSX8316:00")) {
 			dai_index = i;
 			break;
@@ -520,12 +582,16 @@ static int snd_byt_cht_es8316_mc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	es83xx_dsm_dump(priv->codec_dev);
+
 	/* Check for BYTCR or other platform and setup quirks */
+	is_bytcr = soc_intel_is_byt() && mach->mach_params.acpi_ipc_irq_index == 0;
 	dmi_id = dmi_first_match(byt_cht_es8316_quirk_table);
 	if (dmi_id) {
 		quirk = (unsigned long)dmi_id->driver_data;
-	} else if (soc_intel_is_byt() &&
-		   mach->mach_params.acpi_ipc_irq_index == 0) {
+	} else if (!byt_cht_es8316_get_quirks_from_dsm(priv, is_bytcr)) {
+		dev_info(dev, "Using ACPI DSM info for quirks\n");
+	} else if (is_bytcr) {
 		/* On BYTCR default to SSP0, internal-mic-in2-map, mono-spk */
 		quirk = BYT_CHT_ES8316_SSP0 | BYT_CHT_ES8316_INTMIC_IN2_MAP |
 			BYT_CHT_ES8316_MONO_SPEAKER;

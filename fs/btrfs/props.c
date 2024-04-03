@@ -4,6 +4,7 @@
  */
 
 #include <linux/hashtable.h>
+#include <linux/xattr.h>
 #include "messages.h"
 #include "props.h"
 #include "btrfs_inode.h"
@@ -15,6 +16,7 @@
 #include "fs.h"
 #include "accessors.h"
 #include "super.h"
+#include "dir-item.h"
 
 #define BTRFS_PROP_HANDLERS_HT_BITS 8
 static DEFINE_HASHTABLE(prop_handlers_ht, BTRFS_PROP_HANDLERS_HT_BITS);
@@ -301,7 +303,7 @@ static int prop_compression_validate(const struct btrfs_inode *inode,
 static int prop_compression_apply(struct inode *inode, const char *value,
 				  size_t len)
 {
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
+	struct btrfs_fs_info *fs_info = inode_to_fs_info(inode);
 	int type;
 
 	/* Reset to defaults */

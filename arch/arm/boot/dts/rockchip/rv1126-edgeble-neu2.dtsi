@@ -11,15 +11,6 @@
 		mmc0 = &emmc;
 	};
 
-	vcc5v0_sys: vcc5v0-sys-regulator {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc5v0_sys";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <5000000>;
-		regulator-max-microvolt = <5000000>;
-	};
-
 	vccio_flash: vccio-flash-regulator {
 		compatible = "regulator-fixed";
 		enable-active-high;
@@ -52,7 +43,7 @@
 	bus-width = <8>;
 	non-removable;
 	pinctrl-names = "default";
-	pinctrl-0 = <&emmc_bus8 &emmc_cmd &emmc_clk &emmc_rstnout>;
+	pinctrl-0 = <&emmc_bus8 &emmc_cmd &emmc_clk>;
 	rockchip,default-sample-phase = <90>;
 	vmmc-supply = <&vcc_3v3>;
 	vqmmc-supply = <&vccio_flash>;
@@ -299,6 +290,22 @@
 &saradc {
 	vref-supply = <&vcc_1v8>;
 	status = "okay";
+};
+
+&sfc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&fspi_pins>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	flash@0 {
+		compatible = "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <50000000>;
+		spi-rx-bus-width = <4>;
+		spi-tx-bus-width = <1>;
+	};
 };
 
 &sdio {

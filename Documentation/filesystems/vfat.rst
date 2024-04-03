@@ -50,7 +50,7 @@ VFAT MOUNT OPTIONS
 	Normally utime(2) checks current process is owner of
 	the file, or it has CAP_FOWNER capability. But FAT
 	filesystem doesn't have uid/gid on disk, so normal
-	check is too unflexible. With this option you can
+	check is too inflexible. With this option you can
 	relax it.
 
 **codepage=###**

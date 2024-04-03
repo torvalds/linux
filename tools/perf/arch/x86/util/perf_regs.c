@@ -5,6 +5,7 @@
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
 
+#include "perf_regs.h"
 #include "../../../perf-sys.h"
 #include "../../../util/perf_regs.h"
 #include "../../../util/debug.h"
@@ -12,7 +13,7 @@
 #include "../../../util/pmu.h"
 #include "../../../util/pmus.h"
 
-const struct sample_reg sample_reg_masks[] = {
+static const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(AX, PERF_REG_X86_AX),
 	SMPL_REG(BX, PERF_REG_X86_BX),
 	SMPL_REG(CX, PERF_REG_X86_CX),
@@ -275,6 +276,11 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 	return SDT_ARG_VALID;
 }
 
+const struct sample_reg *arch__sample_reg_masks(void)
+{
+	return sample_reg_masks;
+}
+
 uint64_t arch__intr_reg_mask(void)
 {
 	struct perf_event_attr attr = {
@@ -315,5 +321,10 @@ uint64_t arch__intr_reg_mask(void)
 		return (PERF_REG_EXTENDED_MASK | PERF_REGS_MASK);
 	}
 
+	return PERF_REGS_MASK;
+}
+
+uint64_t arch__user_reg_mask(void)
+{
 	return PERF_REGS_MASK;
 }

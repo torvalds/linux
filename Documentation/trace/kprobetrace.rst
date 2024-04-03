@@ -61,10 +61,23 @@ Synopsis of kprobe_events
 		  (x8/x16/x32/x64), "char", "string", "ustring", "symbol", "symstr"
                   and bitfield are supported.
 
-  (\*1) only for the probe on function entry (offs == 0).
-  (\*2) only for return probe.
+  (\*1) only for the probe on function entry (offs == 0). Note, this argument access
+        is best effort, because depending on the argument type, it may be passed on
+        the stack. But this only support the arguments via registers.
+  (\*2) only for return probe. Note that this is also best effort. Depending on the
+        return value type, it might be passed via a pair of registers. But this only
+        accesses one register.
   (\*3) this is useful for fetching a field of data structures.
   (\*4) "u" means user-space dereference. See :ref:`user_mem_access`.
+
+Function arguments at kretprobe
+-------------------------------
+Function arguments can be accessed at kretprobe using $arg<N> fetcharg. This
+is useful to record the function parameter and return value at once, and
+trace the difference of structure fields (for debuging a function whether it
+correctly updates the given data structure or not).
+See the :ref:`sample<fprobetrace_exit_args_sample>` in fprobe event for how
+it works.
 
 .. _kprobetrace_types:
 

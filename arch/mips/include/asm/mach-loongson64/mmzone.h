@@ -18,7 +18,6 @@ extern struct pglist_data *__node_data[];
 
 #define NODE_DATA(n)		(__node_data[n])
 
-extern void setup_zero_pages(void);
 extern void __init prom_init_numa_memory(void);
 
 #endif /* _ASM_MACH_MMZONE_H */

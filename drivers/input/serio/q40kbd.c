@@ -148,7 +148,7 @@ err_free_mem:
 	return error;
 }
 
-static int q40kbd_remove(struct platform_device *pdev)
+static void q40kbd_remove(struct platform_device *pdev)
 {
 	struct q40kbd *q40kbd = platform_get_drvdata(pdev);
 
@@ -160,15 +160,13 @@ static int q40kbd_remove(struct platform_device *pdev)
 	serio_unregister_port(q40kbd->port);
 	free_irq(Q40_IRQ_KEYBOARD, q40kbd);
 	kfree(q40kbd);
-
-	return 0;
 }
 
 static struct platform_driver q40kbd_driver = {
 	.driver		= {
 		.name	= "q40kbd",
 	},
-	.remove		= q40kbd_remove,
+	.remove_new	= q40kbd_remove,
 };
 
 module_platform_driver_probe(q40kbd_driver, q40kbd_probe);

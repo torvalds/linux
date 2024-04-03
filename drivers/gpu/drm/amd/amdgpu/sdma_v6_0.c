@@ -48,6 +48,8 @@ MODULE_FIRMWARE("amdgpu/sdma_6_0_0.bin");
 MODULE_FIRMWARE("amdgpu/sdma_6_0_1.bin");
 MODULE_FIRMWARE("amdgpu/sdma_6_0_2.bin");
 MODULE_FIRMWARE("amdgpu/sdma_6_0_3.bin");
+MODULE_FIRMWARE("amdgpu/sdma_6_1_0.bin");
+MODULE_FIRMWARE("amdgpu/sdma_6_1_1.bin");
 
 #define SDMA1_REG_OFFSET 0x600
 #define SDMA0_HYP_DEC_REG_START 0x5880
@@ -78,33 +80,21 @@ static u32 sdma_v6_0_get_reg_offset(struct amdgpu_device *adev, u32 instance, u3
 	return base + internal_offset;
 }
 
-static unsigned sdma_v6_0_ring_init_cond_exec(struct amdgpu_ring *ring)
+static unsigned sdma_v6_0_ring_init_cond_exec(struct amdgpu_ring *ring,
+					      uint64_t addr)
 {
 	unsigned ret;
 
 	amdgpu_ring_write(ring, SDMA_PKT_COPY_LINEAR_HEADER_OP(SDMA_OP_COND_EXE));
-	amdgpu_ring_write(ring, lower_32_bits(ring->cond_exe_gpu_addr));
-	amdgpu_ring_write(ring, upper_32_bits(ring->cond_exe_gpu_addr));
+	amdgpu_ring_write(ring, lower_32_bits(addr));
+	amdgpu_ring_write(ring, upper_32_bits(addr));
 	amdgpu_ring_write(ring, 1);
-	ret = ring->wptr & ring->buf_mask;/* this is the offset we need patch later */
-	amdgpu_ring_write(ring, 0x55aa55aa);/* insert dummy here and patch it later */
+	/* this is the offset we need patch later */
+	ret = ring->wptr & ring->buf_mask;
+	/* insert dummy here and patch it later */
+	amdgpu_ring_write(ring, 0);
 
 	return ret;
-}
-
-static void sdma_v6_0_ring_patch_cond_exec(struct amdgpu_ring *ring,
-					   unsigned offset)
-{
-	unsigned cur;
-
-	BUG_ON(offset > ring->buf_mask);
-	BUG_ON(ring->ring[offset] != 0x55aa55aa);
-
-	cur = (ring->wptr - 1) & ring->buf_mask;
-	if (cur > offset)
-		ring->ring[offset] = cur - offset;
-	else
-		ring->ring[offset] = (ring->buf_mask + 1) - offset + cur;
 }
 
 /**
@@ -155,68 +145,35 @@ static uint64_t sdma_v6_0_ring_get_wptr(struct amdgpu_ring *ring)
 static void sdma_v6_0_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	uint32_t *wptr_saved;
-	uint32_t *is_queue_unmap;
-	uint64_t aggregated_db_index;
-	uint32_t mqd_size = adev->mqds[AMDGPU_HW_IP_DMA].mqd_size;
 
-	DRM_DEBUG("Setting write pointer\n");
-
-	if (ring->is_mes_queue) {
-		wptr_saved = (uint32_t *)(ring->mqd_ptr + mqd_size);
-		is_queue_unmap = (uint32_t *)(ring->mqd_ptr + mqd_size +
-					      sizeof(uint32_t));
-		aggregated_db_index =
-			amdgpu_mes_get_aggregated_doorbell_index(adev,
-							 ring->hw_prio);
-
+	if (ring->use_doorbell) {
+		DRM_DEBUG("Using doorbell -- "
+			  "wptr_offs == 0x%08x "
+			  "lower_32_bits(ring->wptr) << 2 == 0x%08x "
+			  "upper_32_bits(ring->wptr) << 2 == 0x%08x\n",
+			  ring->wptr_offs,
+			  lower_32_bits(ring->wptr << 2),
+			  upper_32_bits(ring->wptr << 2));
+		/* XXX check if swapping is necessary on BE */
 		atomic64_set((atomic64_t *)ring->wptr_cpu_addr,
 			     ring->wptr << 2);
-		*wptr_saved = ring->wptr << 2;
-		if (*is_queue_unmap) {
-			WDOORBELL64(aggregated_db_index, ring->wptr << 2);
-			DRM_DEBUG("calling WDOORBELL64(0x%08x, 0x%016llx)\n",
-					ring->doorbell_index, ring->wptr << 2);
-			WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
-		} else {
-			DRM_DEBUG("calling WDOORBELL64(0x%08x, 0x%016llx)\n",
-					ring->doorbell_index, ring->wptr << 2);
-			WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
-
-			if (*is_queue_unmap)
-				WDOORBELL64(aggregated_db_index,
-					    ring->wptr << 2);
-		}
+		DRM_DEBUG("calling WDOORBELL64(0x%08x, 0x%016llx)\n",
+			  ring->doorbell_index, ring->wptr << 2);
+		WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
 	} else {
-		if (ring->use_doorbell) {
-			DRM_DEBUG("Using doorbell -- "
-				  "wptr_offs == 0x%08x "
-				  "lower_32_bits(ring->wptr) << 2 == 0x%08x "
-				  "upper_32_bits(ring->wptr) << 2 == 0x%08x\n",
-				  ring->wptr_offs,
-				  lower_32_bits(ring->wptr << 2),
-				  upper_32_bits(ring->wptr << 2));
-			/* XXX check if swapping is necessary on BE */
-			atomic64_set((atomic64_t *)ring->wptr_cpu_addr,
-				     ring->wptr << 2);
-			DRM_DEBUG("calling WDOORBELL64(0x%08x, 0x%016llx)\n",
-				  ring->doorbell_index, ring->wptr << 2);
-			WDOORBELL64(ring->doorbell_index, ring->wptr << 2);
-		} else {
-			DRM_DEBUG("Not using doorbell -- "
-				  "regSDMA%i_GFX_RB_WPTR == 0x%08x "
-				  "regSDMA%i_GFX_RB_WPTR_HI == 0x%08x\n",
-				  ring->me,
-				  lower_32_bits(ring->wptr << 2),
-				  ring->me,
-				  upper_32_bits(ring->wptr << 2));
-			WREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev,
-				        ring->me, regSDMA0_QUEUE0_RB_WPTR),
-					lower_32_bits(ring->wptr << 2));
-			WREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev,
-				        ring->me, regSDMA0_QUEUE0_RB_WPTR_HI),
-					upper_32_bits(ring->wptr << 2));
-		}
+		DRM_DEBUG("Not using doorbell -- "
+			  "regSDMA%i_GFX_RB_WPTR == 0x%08x "
+			  "regSDMA%i_GFX_RB_WPTR_HI == 0x%08x\n",
+			  ring->me,
+			  lower_32_bits(ring->wptr << 2),
+			  ring->me,
+			  upper_32_bits(ring->wptr << 2));
+		WREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev,
+							     ring->me, regSDMA0_QUEUE0_RB_WPTR),
+				lower_32_bits(ring->wptr << 2));
+		WREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev,
+							     ring->me, regSDMA0_QUEUE0_RB_WPTR_HI),
+				upper_32_bits(ring->wptr << 2));
 	}
 }
 
@@ -233,7 +190,7 @@ static void sdma_v6_0_ring_insert_nop(struct amdgpu_ring *ring, uint32_t count)
 			amdgpu_ring_write(ring, ring->funcs->nop);
 }
 
-/**
+/*
  * sdma_v6_0_ring_emit_ib - Schedule an IB on the DMA engine
  *
  * @ring: amdgpu ring pointer
@@ -379,8 +336,6 @@ static void sdma_v6_0_gfx_stop(struct amdgpu_device *adev)
 {
 	u32 rb_cntl, ib_cntl;
 	int i;
-
-	amdgpu_sdma_unset_buffer_funcs_helper(adev);
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		rb_cntl = RREG32_SOC15_IP(GC, sdma_v6_0_get_reg_offset(adev, i, regSDMA0_QUEUE0_RB_CNTL));
@@ -593,9 +548,6 @@ static int sdma_v6_0_gfx_resume(struct amdgpu_device *adev)
 		r = amdgpu_ring_test_helper(ring);
 		if (r)
 			return r;
-
-		if (adev->mman.buffer_funcs_ring == ring)
-			amdgpu_ttm_set_buffer_funcs_status(adev, true);
 	}
 
 	return 0;
@@ -936,7 +888,7 @@ static int sdma_v6_0_ring_test_ring(struct amdgpu_ring *ring)
 	return r;
 }
 
-/**
+/*
  * sdma_v6_0_ring_test_ib - test an IB on the DMA engine
  *
  * @ring: amdgpu_ring structure holding ring information
@@ -1118,7 +1070,7 @@ static void sdma_v6_0_vm_set_pte_pde(struct amdgpu_ib *ib,
 	ib->ptr[ib->length_dw++] = count - 1; /* number of entries */
 }
 
-/**
+/*
  * sdma_v6_0_ring_pad_ib - pad the IB
  * @ib: indirect buffer to fill with padding
  * @ring: amdgpu ring pointer
@@ -1167,7 +1119,7 @@ static void sdma_v6_0_ring_emit_pipeline_sync(struct amdgpu_ring *ring)
 			  SDMA_PKT_POLL_REGMEM_DW5_INTERVAL(4)); /* retry count, poll interval */
 }
 
-/**
+/*
  * sdma_v6_0_ring_emit_vm_flush - vm flush using sDMA
  *
  * @ring: amdgpu_ring pointer
@@ -1245,19 +1197,23 @@ static struct amdgpu_sdma_ras sdma_v6_0_3_ras = {
 
 static void sdma_v6_0_set_ras_funcs(struct amdgpu_device *adev)
 {
-	switch (adev->ip_versions[SDMA0_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, SDMA0_HWIP, 0)) {
 	case IP_VERSION(6, 0, 3):
 		adev->sdma.ras = &sdma_v6_0_3_ras;
 		break;
 	default:
 		break;
 	}
-
 }
 
 static int sdma_v6_0_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int r;
+
+	r = amdgpu_sdma_init_microcode(adev, 0, true);
+	if (r)
+		return r;
 
 	sdma_v6_0_set_ring_funcs(adev);
 	sdma_v6_0_set_buffer_funcs(adev);
@@ -1281,12 +1237,6 @@ static int sdma_v6_0_sw_init(void *handle)
 			      &adev->sdma.trap_irq);
 	if (r)
 		return r;
-
-	r = amdgpu_sdma_init_microcode(adev, 0, true);
-	if (r) {
-		DRM_ERROR("Failed to load sdma firmware!\n");
-		return r;
-	}
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		ring = &adev->sdma.instance[i].ring;
@@ -1342,11 +1292,8 @@ static int sdma_v6_0_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	if (amdgpu_sriov_vf(adev)) {
-		/* disable the scheduler for SDMA */
-		amdgpu_sdma_unset_buffer_funcs_helper(adev);
+	if (amdgpu_sriov_vf(adev))
 		return 0;
-	}
 
 	sdma_v6_0_ctxempty_int_enable(adev, false);
 	sdma_v6_0_enable(adev, false);
@@ -1583,7 +1530,6 @@ static const struct amdgpu_ring_funcs sdma_v6_0_ring_funcs = {
 	.emit_reg_wait = sdma_v6_0_ring_emit_reg_wait,
 	.emit_reg_write_reg_wait = sdma_v6_0_ring_emit_reg_write_reg_wait,
 	.init_cond_exec = sdma_v6_0_ring_init_cond_exec,
-	.patch_cond_exec = sdma_v6_0_ring_patch_cond_exec,
 	.preempt_ib = sdma_v6_0_ring_preempt_ib,
 };
 

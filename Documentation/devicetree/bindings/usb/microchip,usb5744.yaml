@@ -16,8 +16,9 @@ description:
   USB 2.0 traffic.
 
 maintainers:
-  - Piyush Mehta <piyush.mehta@amd.com>
   - Michal Simek <michal.simek@amd.com>
+  - Mubin Sayyed <mubin.sayyed@amd.com>
+  - Radhey Shyam Pandey <radhey.shyam.pandey@amd.com>
 
 properties:
   compatible:
@@ -36,7 +37,11 @@ properties:
 
   vdd-supply:
     description:
-      VDD power supply to the hub
+      3V3 power supply to the hub
+
+  vdd2-supply:
+    description:
+      1V2 power supply to the hub
 
   peer-hub:
     $ref: /schemas/types.yaml#/definitions/phandle
@@ -62,12 +67,11 @@ allOf:
       properties:
         reset-gpios: false
         vdd-supply: false
+        vdd2-supply: false
         peer-hub: false
         i2c-bus: false
     else:
       $ref: /schemas/usb/usb-device.yaml
-      required:
-        - peer-hub
 
 additionalProperties: false
 

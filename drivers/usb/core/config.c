@@ -1047,13 +1047,10 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 
 		if (cap->bDescriptorType != USB_DT_DEVICE_CAPABILITY) {
 			dev_notice(ddev, "descriptor type invalid, skip\n");
-			continue;
+			goto skip_to_next_descriptor;
 		}
 
 		switch (cap_type) {
-		case USB_CAP_TYPE_WIRELESS_USB:
-			/* Wireless USB cap descriptor is handled by wusb */
-			break;
 		case USB_CAP_TYPE_EXT:
 			dev->bos->ext_cap =
 				(struct usb_ext_cap_descriptor *)buffer;
@@ -1081,6 +1078,7 @@ int usb_get_bos_descriptor(struct usb_device *dev)
 			break;
 		}
 
+skip_to_next_descriptor:
 		total_len -= length;
 		buffer += length;
 	}

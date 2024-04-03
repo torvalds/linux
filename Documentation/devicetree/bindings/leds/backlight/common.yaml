@@ -33,4 +33,21 @@ properties:
       due to restrictions in a specific system, such as mounting conditions.
     $ref: /schemas/types.yaml#/definitions/uint32
 
+  brightness-levels:
+    description:
+      Array of distinct brightness levels. The levels must be in the range
+      accepted by the underlying LED device. Typically these are in the range
+      from 0 to 255, but any range starting at 0 will do, as long as they are
+      accepted by the LED.
+      The 0 value means a 0% of brightness (darkest/off), while the last value
+      in the array represents a full 100% brightness (brightest).
+      If this array is not provided, the driver default mapping is used.
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+
+  default-brightness-level:
+    description:
+      The default brightness level (index into the array defined by the
+      "brightness-levels" property).
+    $ref: /schemas/types.yaml#/definitions/uint32
+
 additionalProperties: true

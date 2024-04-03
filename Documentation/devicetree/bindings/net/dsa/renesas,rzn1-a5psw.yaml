@@ -61,17 +61,11 @@ properties:
 
   ethernet-ports:
     type: object
-    properties:
-      '#address-cells':
-        const: 1
-      '#size-cells':
-        const: 0
-
+    additionalProperties: true
     patternProperties:
       "^(ethernet-)?port@[0-4]$":
         type: object
-        description: Ethernet switch ports
-
+        additionalProperties: true
         properties:
           pcs-handle:
             maxItems: 1

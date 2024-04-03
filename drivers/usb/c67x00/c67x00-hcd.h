@@ -109,7 +109,6 @@ int c67x00_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status);
 void c67x00_endpoint_disable(struct usb_hcd *hcd,
 			     struct usb_host_endpoint *ep);
 
-void c67x00_hcd_msg_received(struct c67x00_sie *sie, u16 msg);
 void c67x00_sched_kick(struct c67x00_hcd *c67x00);
 int c67x00_sched_start_scheduler(struct c67x00_hcd *c67x00);
 void c67x00_sched_stop_scheduler(struct c67x00_hcd *c67x00);

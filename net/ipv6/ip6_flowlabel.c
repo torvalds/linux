@@ -513,7 +513,7 @@ int ipv6_flowlabel_opt_get(struct sock *sk, struct in6_flowlabel_req *freq,
 		return 0;
 	}
 
-	if (np->repflow) {
+	if (inet6_test_bit(REPFLOW, sk)) {
 		freq->flr_label = np->flow_label;
 		return 0;
 	}
@@ -551,10 +551,10 @@ static int ipv6_flowlabel_put(struct sock *sk, struct in6_flowlabel_req *freq)
 	if (freq->flr_flags & IPV6_FL_F_REFLECT) {
 		if (sk->sk_protocol != IPPROTO_TCP)
 			return -ENOPROTOOPT;
-		if (!np->repflow)
+		if (!inet6_test_bit(REPFLOW, sk))
 			return -ESRCH;
 		np->flow_label = 0;
-		np->repflow = 0;
+		inet6_clear_bit(REPFLOW, sk);
 		return 0;
 	}
 
@@ -626,7 +626,7 @@ static int ipv6_flowlabel_get(struct sock *sk, struct in6_flowlabel_req *freq,
 
 		if (sk->sk_protocol != IPPROTO_TCP)
 			return -ENOPROTOOPT;
-		np->repflow = 1;
+		inet6_set_bit(REPFLOW, sk);
 		return 0;
 	}
 

@@ -47,6 +47,7 @@ config PCI_J721E
 
 config PCI_J721E_HOST
 	bool "TI J721E PCIe controller (host mode)"
+	depends on ARCH_K3 || COMPILE_TEST
 	depends on OF
 	select PCIE_CADENCE_HOST
 	select PCI_J721E
@@ -57,6 +58,7 @@ config PCI_J721E_HOST
 
 config PCI_J721E_EP
 	bool "TI J721E PCIe controller (endpoint mode)"
+	depends on ARCH_K3 || COMPILE_TEST
 	depends on OF
 	depends on PCI_ENDPOINT
 	select PCIE_CADENCE_EP

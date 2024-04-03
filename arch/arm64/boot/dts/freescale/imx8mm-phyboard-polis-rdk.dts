@@ -140,6 +140,26 @@
 	};
 };
 
+/* TPM */
+&ecspi2 {
+	cs-gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi2>;
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	tpm: tpm@0 {
+		compatible = "infineon,slb9670", "tcg,tpm_tis-spi";
+		interrupt-parent = <&gpio2>;
+		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_tpm>;
+		reg = <0>;
+		spi-max-frequency = <43000000>;
+	};
+};
+
 &gpio1 {
 	gpio-line-names = "", "LED_RED", "WDOG_INT", "X_RTC_INT",
 		"", "", "", "RESET_ETHPHY",
@@ -170,8 +190,11 @@
 
 &i2c4 {
 	clock-frequency = <400000>;
-	pinctrl-names = "default";
+	pinctrl-names = "default", "gpio";
 	pinctrl-0 = <&pinctrl_i2c4>;
+	pinctrl-1 = <&pinctrl_i2c4_gpio>;
+	sda-gpios = <&gpio5 21 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
+	scl-gpios = <&gpio5 20 (GPIO_ACTIVE_HIGH | GPIO_OPEN_DRAIN)>;
 };
 
 /* PCIe */
@@ -333,6 +356,15 @@
 		>;
 	};
 
+	pinctrl_ecspi2: ecspi2grp {
+		fsl,pins = <
+			MX8MM_IOMUXC_ECSPI2_MISO_ECSPI2_MISO    0x80
+			MX8MM_IOMUXC_ECSPI2_MOSI_ECSPI2_MOSI    0x80
+			MX8MM_IOMUXC_ECSPI2_SCLK_ECSPI2_SCLK    0x80
+			MX8MM_IOMUXC_ECSPI2_SS0_GPIO5_IO13      0x00
+		>;
+	};
+
 	pinctrl_fan: fan0grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_SAI1_RXD6_GPIO4_IO8	0x16
@@ -343,6 +375,13 @@
 		fsl,pins = <
 			MX8MM_IOMUXC_I2C4_SCL_I2C4_SCL		0x400001c2
 			MX8MM_IOMUXC_I2C4_SDA_I2C4_SDA		0x400001c2
+		>;
+	};
+
+	pinctrl_i2c4_gpio: i2c4gpiogrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_I2C4_SCL_GPIO5_IO20        0x1e2
+			MX8MM_IOMUXC_I2C4_SDA_GPIO5_IO21        0x1e2
 		>;
 	};
 
@@ -368,6 +407,12 @@
 		>;
 	};
 
+	pinctrl_tpm: tpmgrp {
+		fsl,pins = <
+			MX8MM_IOMUXC_SD1_STROBE_GPIO2_IO11      0x140
+		>;
+	};
+
 	pinctrl_uart1: uart1grp {
 		fsl,pins = <
 			MX8MM_IOMUXC_SAI2_RXC_UART1_DCE_RX	0x00
@@ -388,8 +433,8 @@
 
 	pinctrl_uart3: uart3grp {
 		fsl,pins = <
-			MX8MM_IOMUXC_UART3_RXD_UART3_DCE_RX	0x40
-			MX8MM_IOMUXC_UART3_TXD_UART3_DCE_TX	0x40
+			MX8MM_IOMUXC_UART3_RXD_UART3_DCE_RX	0x140
+			MX8MM_IOMUXC_UART3_TXD_UART3_DCE_TX	0x140
 		>;
 	};
 

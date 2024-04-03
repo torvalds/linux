@@ -8,6 +8,7 @@
 #include <linux/delay.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/phy/phy.h>
 #include <linux/phy.h>
 #include <linux/platform_device.h>
@@ -46,8 +47,13 @@ struct a38x_comphy {
 	struct a38x_comphy_lane lane[MAX_A38X_COMPHY];
 };
 
+/*
+ * Map serdes lanes and gbe ports to serdes mux configuration values:
+ * row index = serdes lane,
+ * column index = gbe port number.
+ */
 static const u8 gbe_mux[MAX_A38X_COMPHY][MAX_A38X_PORTS] = {
-	{ 0, 0, 0 },
+	{ 3, 0, 0 },
 	{ 4, 5, 0 },
 	{ 0, 4, 0 },
 	{ 0, 0, 4 },
@@ -154,7 +160,7 @@ static const struct phy_ops a38x_comphy_ops = {
 };
 
 static struct phy *a38x_comphy_xlate(struct device *dev,
-				     struct of_phandle_args *args)
+				     const struct of_phandle_args *args)
 {
 	struct a38x_comphy_lane *lane;
 	struct phy *phy;

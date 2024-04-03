@@ -696,7 +696,7 @@ int smu_get_voltage_dependency_table_ppt_v1(
 				return -EINVAL);
 
 	dep_table->count = allowed_dep_table->count;
-	for (i=0; i<dep_table->count; i++) {
+	for (i = 0; i < dep_table->count; i++) {
 		dep_table->entries[i].clk = allowed_dep_table->entries[i].clk;
 		dep_table->entries[i].vddInd = allowed_dep_table->entries[i].vddInd;
 		dep_table->entries[i].vdd_offset = allowed_dep_table->entries[i].vdd_offset;

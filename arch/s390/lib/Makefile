@@ -4,6 +4,7 @@
 #
 
 lib-y += delay.o string.o uaccess.o find.o spinlock.o tishift.o
+lib-y += csum-partial.o
 obj-y += mem.o xor.o
 lib-$(CONFIG_KPROBES) += probes.o
 lib-$(CONFIG_UPROBES) += probes.o

@@ -15,6 +15,8 @@ static const unsigned int four = 4;
 static const unsigned int max_backlog = RXRPC_BACKLOG_MAX - 1;
 static const unsigned int n_65535 = 65535;
 static const unsigned int n_max_acks = 255;
+static const unsigned long one_ms = 1;
+static const unsigned long max_ms = 1000;
 static const unsigned long one_jiffy = 1;
 static const unsigned long max_jiffies = MAX_JIFFY_OFFSET;
 #ifdef CONFIG_AF_RXRPC_INJECT_RX_DELAY
@@ -28,24 +30,24 @@ static const unsigned long max_500 = 500;
  * information on the individual parameters.
  */
 static struct ctl_table rxrpc_sysctl_table[] = {
-	/* Values measured in milliseconds but used in jiffies */
+	/* Values measured in milliseconds */
 	{
 		.procname	= "soft_ack_delay",
 		.data		= &rxrpc_soft_ack_delay,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_ms_jiffies_minmax,
-		.extra1		= (void *)&one_jiffy,
-		.extra2		= (void *)&max_jiffies,
+		.proc_handler	= proc_doulongvec_minmax,
+		.extra1		= (void *)&one_ms,
+		.extra2		= (void *)&max_ms,
 	},
 	{
 		.procname	= "idle_ack_delay",
 		.data		= &rxrpc_idle_ack_delay,
 		.maxlen		= sizeof(unsigned long),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_ms_jiffies_minmax,
-		.extra1		= (void *)&one_jiffy,
-		.extra2		= (void *)&max_jiffies,
+		.proc_handler	= proc_doulongvec_minmax,
+		.extra1		= (void *)&one_ms,
+		.extra2		= (void *)&max_ms,
 	},
 	{
 		.procname	= "idle_conn_expiry",

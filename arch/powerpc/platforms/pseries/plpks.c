@@ -150,7 +150,7 @@ static int plpks_gen_password(void)
 		ospasswordlength = maxpwsize;
 		ospassword = kzalloc(maxpwsize, GFP_KERNEL);
 		if (!ospassword) {
-			kfree(password);
+			kfree_sensitive(password);
 			return -ENOMEM;
 		}
 		memcpy(ospassword, password, ospasswordlength);
@@ -163,7 +163,7 @@ static int plpks_gen_password(void)
 		}
 	}
 out:
-	kfree(password);
+	kfree_sensitive(password);
 
 	return pseries_status_to_err(rc);
 }
@@ -194,7 +194,7 @@ static struct plpks_auth *construct_auth(u8 consumer)
 	return auth;
 }
 
-/**
+/*
  * Label is combination of label attributes + name.
  * Label attributes are used internally by kernel and not exposed to the user.
  */

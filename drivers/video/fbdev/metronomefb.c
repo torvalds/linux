@@ -181,7 +181,7 @@ static int load_waveform(u8 *mem, size_t size, int m, int t,
 	int mem_idx = 0;
 	struct waveform_hdr *wfm_hdr;
 	u8 *metromem = par->metromem_wfm;
-	struct device *dev = par->info->dev;
+	struct device *dev = par->info->device;
 
 	if (user_wfm_size)
 		epd_frame_table[par->dt].wfm_size = user_wfm_size;
@@ -483,86 +483,28 @@ static void metronomefb_dpy_deferred_io(struct fb_info *info, struct list_head *
 	metronome_display_cmd(par);
 }
 
-static void metronomefb_fillrect(struct fb_info *info,
-				   const struct fb_fillrect *rect)
+static void metronomefb_defio_damage_range(struct fb_info *info, off_t off, size_t len)
 {
 	struct metronomefb_par *par = info->par;
 
-	sys_fillrect(info, rect);
 	metronomefb_dpy_update(par);
 }
 
-static void metronomefb_copyarea(struct fb_info *info,
-				   const struct fb_copyarea *area)
+static void metronomefb_defio_damage_area(struct fb_info *info, u32 x, u32 y,
+					  u32 width, u32 height)
 {
 	struct metronomefb_par *par = info->par;
 
-	sys_copyarea(info, area);
 	metronomefb_dpy_update(par);
 }
 
-static void metronomefb_imageblit(struct fb_info *info,
-				const struct fb_image *image)
-{
-	struct metronomefb_par *par = info->par;
-
-	sys_imageblit(info, image);
-	metronomefb_dpy_update(par);
-}
-
-/*
- * this is the slow path from userspace. they can seek and write to
- * the fb. it is based on fb_sys_write
- */
-static ssize_t metronomefb_write(struct fb_info *info, const char __user *buf,
-				size_t count, loff_t *ppos)
-{
-	struct metronomefb_par *par = info->par;
-	unsigned long p = *ppos;
-	void *dst;
-	int err = 0;
-	unsigned long total_size;
-
-	if (!info->screen_buffer)
-		return -ENODEV;
-
-	total_size = info->fix.smem_len;
-
-	if (p > total_size)
-		return -EFBIG;
-
-	if (count > total_size) {
-		err = -EFBIG;
-		count = total_size;
-	}
-
-	if (count + p > total_size) {
-		if (!err)
-			err = -ENOSPC;
-
-		count = total_size - p;
-	}
-
-	dst = info->screen_buffer + p;
-
-	if (copy_from_user(dst, buf, count))
-		err = -EFAULT;
-
-	if  (!err)
-		*ppos += count;
-
-	metronomefb_dpy_update(par);
-
-	return (err) ? err : count;
-}
+FB_GEN_DEFAULT_DEFERRED_SYSMEM_OPS(metronomefb,
+				   metronomefb_defio_damage_range,
+				   metronomefb_defio_damage_area)
 
 static const struct fb_ops metronomefb_ops = {
-	.owner		= THIS_MODULE,
-	.fb_write	= metronomefb_write,
-	.fb_fillrect	= metronomefb_fillrect,
-	.fb_copyarea	= metronomefb_copyarea,
-	.fb_imageblit	= metronomefb_imageblit,
-	.fb_mmap	= fb_deferred_io_mmap,
+	.owner	= THIS_MODULE,
+	FB_DEFAULT_DEFERRED_OPS(metronomefb),
 };
 
 static struct fb_deferred_io metronomefb_defio = {
@@ -700,7 +642,7 @@ static int metronomefb_probe(struct platform_device *dev)
 	if (retval < 0)
 		goto err_free_irq;
 
-	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_VIRTFB;
+	info->flags = FBINFO_VIRTFB;
 
 	info->fbdefio = &metronomefb_defio;
 	fb_deferred_io_init(info);

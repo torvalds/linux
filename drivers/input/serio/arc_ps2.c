@@ -232,7 +232,7 @@ static int arc_ps2_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int arc_ps2_remove(struct platform_device *pdev)
+static void arc_ps2_remove(struct platform_device *pdev)
 {
 	struct arc_ps2_data *arc_ps2 = platform_get_drvdata(pdev);
 	int i;
@@ -244,8 +244,6 @@ static int arc_ps2_remove(struct platform_device *pdev)
 	dev_dbg(&pdev->dev, "frame error count = %i\n", arc_ps2->frame_error);
 	dev_dbg(&pdev->dev, "buffer overflow count = %i\n",
 		arc_ps2->buf_overflow);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -262,7 +260,7 @@ static struct platform_driver arc_ps2_driver = {
 		.of_match_table	= of_match_ptr(arc_ps2_match),
 	},
 	.probe	= arc_ps2_probe,
-	.remove	= arc_ps2_remove,
+	.remove_new = arc_ps2_remove,
 };
 
 module_platform_driver(arc_ps2_driver);

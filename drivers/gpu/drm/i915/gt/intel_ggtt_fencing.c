@@ -818,7 +818,7 @@ i915_gem_object_save_bit_17_swizzle(struct drm_i915_gem_object *obj,
 	if (obj->bit_17 == NULL) {
 		obj->bit_17 = bitmap_zalloc(page_count, GFP_KERNEL);
 		if (obj->bit_17 == NULL) {
-			drm_err(&to_i915(obj->base.dev)->drm,
+			drm_err(obj->base.dev,
 				"Failed to allocate memory for bit 17 record\n");
 			return;
 		}

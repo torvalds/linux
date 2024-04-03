@@ -23,7 +23,7 @@
 		#size-cells = <1>;
 		ranges;
 
-		cbus: cbus@c1100000 {
+		cbus: bus@c1100000 {
 			compatible = "simple-bus";
 			reg = <0xc1100000 0x200000>;
 			#address-cells = <1>;
@@ -206,7 +206,7 @@
 			};
 		};
 
-		aobus: aobus@c8100000 {
+		aobus: bus@c8100000 {
 			compatible = "simple-bus";
 			reg = <0xc8100000 0x100000>;
 			#address-cells = <1>;
@@ -302,7 +302,7 @@
 			reg = <0xd9040000 0x10000>;
 		};
 
-		secbus: secbus@da000000 {
+		secbus: bus@da000000 {
 			compatible = "simple-bus";
 			reg = <0xda000000 0x6000>;
 			#address-cells = <1>;

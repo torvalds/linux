@@ -32,40 +32,31 @@ struct sdw_slave;
 
 struct cs35l56_private {
 	struct wm_adsp dsp; /* must be first member */
+	struct cs35l56_base base;
 	struct work_struct dsp_work;
 	struct workqueue_struct *dsp_wq;
-	struct mutex irq_lock;
 	struct snd_soc_component *component;
-	struct device *dev;
-	struct regmap *regmap;
 	struct regulator_bulk_data supplies[CS35L56_NUM_BULK_SUPPLIES];
-	int irq;
 	struct sdw_slave *sdw_peripheral;
-	u8 rev;
 	struct work_struct sdw_irq_work;
-	bool secured;
 	bool sdw_irq_no_unmask;
 	bool soft_resetting;
-	bool init_done;
 	bool sdw_attached;
-	bool fw_patched;
-	bool can_hibernate;
 	struct completion init_completion;
-	struct gpio_desc *reset_gpio;
 
+	int speaker_id;
 	u32 rx_mask;
 	u32 tx_mask;
 	u8 asp_slot_width;
 	u8 asp_slot_count;
 	bool tdm_mode;
 	bool sysclk_set;
+	bool asp1_mixer_widgets_initialized;
 	u8 old_sdw_clock_scale;
 };
 
 extern const struct dev_pm_ops cs35l56_pm_ops_i2c_spi;
 
-int cs35l56_runtime_suspend(struct device *dev);
-int cs35l56_runtime_resume_common(struct cs35l56_private *cs35l56);
 int cs35l56_system_suspend(struct device *dev);
 int cs35l56_system_suspend_late(struct device *dev);
 int cs35l56_system_suspend_no_irq(struct device *dev);
@@ -73,7 +64,7 @@ int cs35l56_system_resume_no_irq(struct device *dev);
 int cs35l56_system_resume_early(struct device *dev);
 int cs35l56_system_resume(struct device *dev);
 irqreturn_t cs35l56_irq(int irq, void *data);
-int cs35l56_irq_request(struct cs35l56_private *cs35l56, int irq);
+int cs35l56_irq_request(struct cs35l56_base *cs35l56_base, int irq);
 int cs35l56_common_probe(struct cs35l56_private *cs35l56);
 int cs35l56_init(struct cs35l56_private *cs35l56);
 void cs35l56_remove(struct cs35l56_private *cs35l56);

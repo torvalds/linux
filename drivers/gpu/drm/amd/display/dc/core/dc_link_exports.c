@@ -314,6 +314,24 @@ const struct dc_link_settings *dc_link_get_link_cap(const struct dc_link *link)
 	return link->dc->link_srv->dp_get_verified_link_cap(link);
 }
 
+enum dc_link_encoding_format dc_link_get_highest_encoding_format(const struct dc_link *link)
+{
+	if (dc_is_dp_signal(link->connector_signal)) {
+		if (link->dpcd_caps.dongle_type >= DISPLAY_DONGLE_DP_DVI_DONGLE &&
+				link->dpcd_caps.dongle_type <= DISPLAY_DONGLE_DP_HDMI_MISMATCHED_DONGLE)
+			return DC_LINK_ENCODING_HDMI_TMDS;
+		else if (link->dc->link_srv->dp_get_encoding_format(&link->verified_link_cap) ==
+				DP_8b_10b_ENCODING)
+			return DC_LINK_ENCODING_DP_8b_10b;
+		else if (link->dc->link_srv->dp_get_encoding_format(&link->verified_link_cap) ==
+				DP_128b_132b_ENCODING)
+			return DC_LINK_ENCODING_DP_128b_132b;
+	} else if (dc_is_hdmi_signal(link->connector_signal)) {
+	}
+
+	return DC_LINK_ENCODING_UNSPECIFIED;
+}
+
 bool dc_link_is_dp_sink_present(struct dc_link *link)
 {
 	return link->dc->link_srv->dp_is_sink_present(link);
@@ -449,6 +467,18 @@ bool dc_link_setup_psr(struct dc_link *link,
 	return link->dc->link_srv->edp_setup_psr(link, stream, psr_config, psr_context);
 }
 
+bool dc_link_set_replay_allow_active(struct dc_link *link, const bool *allow_active,
+		bool wait, bool force_static, const unsigned int *power_opts)
+{
+	return link->dc->link_srv->edp_set_replay_allow_active(link, allow_active, wait,
+			force_static, power_opts);
+}
+
+bool dc_link_get_replay_state(const struct dc_link *link, uint64_t *state)
+{
+	return link->dc->link_srv->edp_get_replay_state(link, state);
+}
+
 bool dc_link_wait_for_t12(struct dc_link *link)
 {
 	return link->dc->link_srv->edp_wait_for_t12(link);
@@ -474,7 +504,7 @@ void dc_link_enable_hpd_filter(struct dc_link *link, bool enable)
 	link->dc->link_srv->enable_hpd_filter(link, enable);
 }
 
-bool dc_link_validate(struct dc *dc, const struct dc_stream_state *streams, const unsigned int count)
+bool dc_link_dp_dpia_validate(struct dc *dc, const struct dc_stream_state *streams, const unsigned int count)
 {
 	return dc->link_srv->validate_dpia_bandwidth(streams, count);
 }

@@ -80,6 +80,7 @@ properties:
       "output" means GMAC provides the reference clock.
     $ref: /schemas/types.yaml#/definitions/string
     enum: [input, output]
+    default: input
 
   rockchip,grf:
     description: The phandle of the syscon node for the general register file.

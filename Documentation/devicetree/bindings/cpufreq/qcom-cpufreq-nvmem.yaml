@@ -27,8 +27,12 @@ select:
         enum:
           - qcom,apq8064
           - qcom,apq8096
+          - qcom,ipq5332
+          - qcom,ipq6018
           - qcom,ipq8064
           - qcom,ipq8074
+          - qcom,ipq9574
+          - qcom,msm8909
           - qcom,msm8939
           - qcom,msm8960
           - qcom,msm8974
@@ -43,7 +47,9 @@ patternProperties:
       - if:
           properties:
             compatible:
-              const: operating-points-v2-kryo-cpu
+              enum:
+                - operating-points-v2-krait-cpu
+                - operating-points-v2-kryo-cpu
         then:
           $ref: /schemas/opp/opp-v2-kryo-cpu.yaml#
 

@@ -5,10 +5,6 @@
  *  Copyright (C) 2019 Lubomir Rintel <lkundrak@v3.sk>
  */
 
-#include <linux/io.h>
-#include <linux/irqchip.h>
-#include <linux/of_platform.h>
-#include <linux/clk-provider.h>
 #include <asm/mach/arch.h>
 #include <asm/hardware/cache-l2x0.h>
 

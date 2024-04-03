@@ -79,7 +79,7 @@ Options
 
   cache=mode	specifies a caching policy.  By default, no caches are used.
 		The mode can be specified as a bitmask or by using one of the
-		prexisting common 'shortcuts'.
+		preexisting common 'shortcuts'.
 		The bitmask is described below: (unspecified bits are reserved)
 
 			==========  ====================================================

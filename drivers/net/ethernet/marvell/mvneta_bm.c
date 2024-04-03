@@ -457,7 +457,7 @@ err_clk:
 	return err;
 }
 
-static int mvneta_bm_remove(struct platform_device *pdev)
+static void mvneta_bm_remove(struct platform_device *pdev)
 {
 	struct mvneta_bm *priv = platform_get_drvdata(pdev);
 	u8 all_ports_map = 0xff;
@@ -475,8 +475,6 @@ static int mvneta_bm_remove(struct platform_device *pdev)
 	mvneta_bm_write(priv, MVNETA_BM_COMMAND_REG, MVNETA_BM_STOP_MASK);
 
 	clk_disable_unprepare(priv->clk);
-
-	return 0;
 }
 
 static const struct of_device_id mvneta_bm_match[] = {
@@ -487,7 +485,7 @@ MODULE_DEVICE_TABLE(of, mvneta_bm_match);
 
 static struct platform_driver mvneta_bm_driver = {
 	.probe = mvneta_bm_probe,
-	.remove = mvneta_bm_remove,
+	.remove_new = mvneta_bm_remove,
 	.driver = {
 		.name = MVNETA_BM_DRIVER_NAME,
 		.of_match_table = mvneta_bm_match,

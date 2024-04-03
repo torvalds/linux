@@ -13,11 +13,20 @@
 #include "visl-trace-vp9.h"
 #include "visl-trace-h264.h"
 #include "visl-trace-hevc.h"
+#include "visl-trace-av1.h"
 
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <media/v4l2-mem2mem.h>
 #include <media/tpg/v4l2-tpg.h>
+
+#define LAST_BUF_IDX (V4L2_AV1_REF_LAST_FRAME - V4L2_AV1_REF_LAST_FRAME)
+#define LAST2_BUF_IDX (V4L2_AV1_REF_LAST2_FRAME - V4L2_AV1_REF_LAST_FRAME)
+#define LAST3_BUF_IDX (V4L2_AV1_REF_LAST3_FRAME - V4L2_AV1_REF_LAST_FRAME)
+#define GOLDEN_BUF_IDX (V4L2_AV1_REF_GOLDEN_FRAME - V4L2_AV1_REF_LAST_FRAME)
+#define BWD_BUF_IDX (V4L2_AV1_REF_BWDREF_FRAME - V4L2_AV1_REF_LAST_FRAME)
+#define ALT2_BUF_IDX (V4L2_AV1_REF_ALTREF2_FRAME - V4L2_AV1_REF_LAST_FRAME)
+#define ALT_BUF_IDX (V4L2_AV1_REF_ALTREF_FRAME - V4L2_AV1_REF_LAST_FRAME)
 
 static void *plane_vaddr(struct tpg_data *tpg, struct vb2_buffer *buf,
 			 u32 p, u32 bpl[TPG_MAX_PLANES], u32 h)
@@ -31,6 +40,22 @@ static void *plane_vaddr(struct tpg_data *tpg, struct vb2_buffer *buf,
 	for (i = 0; i < p; i++)
 		vbuf += bpl[i] * h / tpg->vdownsampling[i];
 	return vbuf;
+}
+
+static void visl_print_ts_idx(u8 **buf, __kernel_size_t *buflen, const char *name,
+			      u64 ts, struct vb2_buffer *vb2_buf)
+{
+	u32 len;
+
+	if (tpg_verbose && vb2_buf) {
+		len = scnprintf(*buf, *buflen, "%s: %lld, vb2_idx: %d\n", name,
+				ts, vb2_buf->index);
+	} else {
+		len = scnprintf(*buf, *buflen, "%s: %lld\n", name, ts);
+	}
+
+	*buf += len;
+	*buflen -= len;
 }
 
 static void visl_get_ref_frames(struct visl_ctx *ctx, u8 *buf,
@@ -54,9 +79,9 @@ static void visl_get_ref_frames(struct visl_ctx *ctx, u8 *buf,
 
 		vb2_buf = vb2_find_buffer(cap_q, run->fwht.params->backward_ref_ts);
 
-		scnprintf(buf, buflen, "backwards_ref_ts: %lld, vb2_idx: %d",
-			  run->fwht.params->backward_ref_ts,
-			  vb2_buf ? vb2_buf->index : -1);
+		visl_print_ts_idx(&buf, &buflen, "backwards_ref_ts",
+				  run->fwht.params->backward_ref_ts, vb2_buf);
+
 		break;
 	}
 
@@ -67,13 +92,11 @@ static void visl_get_ref_frames(struct visl_ctx *ctx, u8 *buf,
 		b_ref = vb2_find_buffer(cap_q, run->mpeg2.pic->backward_ref_ts);
 		f_ref = vb2_find_buffer(cap_q, run->mpeg2.pic->forward_ref_ts);
 
-		scnprintf(buf, buflen,
-			  "backward_ref_ts: %llu, vb2_idx: %d\n"
-			  "forward_ref_ts: %llu, vb2_idx: %d\n",
-			  run->mpeg2.pic->backward_ref_ts,
-			  b_ref ? b_ref->index : -1,
-			  run->mpeg2.pic->forward_ref_ts,
-			  f_ref ? f_ref->index : -1);
+		visl_print_ts_idx(&buf, &buflen, "backward_ref_ts",
+				  run->mpeg2.pic->backward_ref_ts, b_ref);
+		visl_print_ts_idx(&buf, &buflen, "forward_ref_ts",
+				  run->mpeg2.pic->forward_ref_ts, f_ref);
+
 		break;
 	}
 
@@ -86,16 +109,13 @@ static void visl_get_ref_frames(struct visl_ctx *ctx, u8 *buf,
 		golden = vb2_find_buffer(cap_q, run->vp8.frame->golden_frame_ts);
 		alt = vb2_find_buffer(cap_q, run->vp8.frame->alt_frame_ts);
 
-		scnprintf(buf, buflen,
-			  "last_ref_ts: %llu, vb2_idx: %d\n"
-			  "golden_ref_ts: %llu, vb2_idx: %d\n"
-			  "alt_ref_ts: %llu, vb2_idx: %d\n",
-			  run->vp8.frame->last_frame_ts,
-			  last ? last->index : -1,
-			  run->vp8.frame->golden_frame_ts,
-			  golden ? golden->index : -1,
-			  run->vp8.frame->alt_frame_ts,
-			  alt ? alt->index : -1);
+		visl_print_ts_idx(&buf, &buflen, "last_ref_ts",
+				  run->vp8.frame->last_frame_ts, last);
+		visl_print_ts_idx(&buf, &buflen, "golden_ref_ts",
+				  run->vp8.frame->golden_frame_ts, golden);
+		visl_print_ts_idx(&buf, &buflen, "alt_ref_ts",
+				  run->vp8.frame->alt_frame_ts, alt);
+
 		break;
 	}
 
@@ -108,28 +128,32 @@ static void visl_get_ref_frames(struct visl_ctx *ctx, u8 *buf,
 		golden = vb2_find_buffer(cap_q, run->vp9.frame->golden_frame_ts);
 		alt = vb2_find_buffer(cap_q, run->vp9.frame->alt_frame_ts);
 
-		scnprintf(buf, buflen,
-			  "last_ref_ts: %llu, vb2_idx: %d\n"
-			  "golden_ref_ts: %llu, vb2_idx: %d\n"
-			  "alt_ref_ts: %llu, vb2_idx: %d\n",
-			  run->vp9.frame->last_frame_ts,
-			  last ? last->index : -1,
-			  run->vp9.frame->golden_frame_ts,
-			  golden ? golden->index : -1,
-			  run->vp9.frame->alt_frame_ts,
-			  alt ? alt->index : -1);
+		visl_print_ts_idx(&buf, &buflen, "last_ref_ts",
+				  run->vp9.frame->last_frame_ts, last);
+		visl_print_ts_idx(&buf, &buflen, "golden_ref_ts",
+				  run->vp9.frame->golden_frame_ts, golden);
+		visl_print_ts_idx(&buf, &buflen, "alt_ref_ts",
+				  run->vp9.frame->alt_frame_ts, alt);
+
 		break;
 	}
 
 	case VISL_CODEC_H264: {
 		char entry[] = "dpb[%d]:%u, vb2_index: %d\n";
+		char entry_stable[] = "dpb[%d]:%u\n";
 		struct vb2_buffer *vb2_buf;
 
 		for (i = 0; i < ARRAY_SIZE(run->h264.dpram->dpb); i++) {
-			vb2_buf = vb2_find_buffer(cap_q, run->h264.dpram->dpb[i].reference_ts);
-			len = scnprintf(buf, buflen, entry, i,
-					run->h264.dpram->dpb[i].reference_ts,
-					vb2_buf ? vb2_buf->index : -1);
+			vb2_buf = vb2_find_buffer(cap_q,
+						  run->h264.dpram->dpb[i].reference_ts);
+			if (tpg_verbose && vb2_buf) {
+				len = scnprintf(buf, buflen, entry, i,
+						run->h264.dpram->dpb[i].reference_ts,
+						vb2_buf->index);
+			} else {
+				len = scnprintf(buf, buflen, entry_stable, i,
+						run->h264.dpram->dpb[i].reference_ts);
+			}
 			buf += len;
 			buflen -= len;
 		}
@@ -139,16 +163,67 @@ static void visl_get_ref_frames(struct visl_ctx *ctx, u8 *buf,
 
 	case VISL_CODEC_HEVC: {
 		char entry[] = "dpb[%d]:%u, vb2_index: %d\n";
+		char entry_stable[] = "dpb[%d]:%u\n";
 		struct vb2_buffer *vb2_buf;
 
 		for (i = 0; i < ARRAY_SIZE(run->hevc.dpram->dpb); i++) {
 			vb2_buf = vb2_find_buffer(cap_q, run->hevc.dpram->dpb[i].timestamp);
-			len = scnprintf(buf, buflen, entry, i,
-					run->hevc.dpram->dpb[i].timestamp,
-					vb2_buf ? vb2_buf->index : -1);
+			if (tpg_verbose && vb2_buf) {
+				len = scnprintf(buf, buflen, entry, i,
+						run->hevc.dpram->dpb[i].timestamp,
+						vb2_buf->index);
+			} else {
+				len = scnprintf(buf, buflen, entry_stable, i,
+						run->hevc.dpram->dpb[i].timestamp);
+			}
+
 			buf += len;
 			buflen -= len;
 		}
+
+		break;
+	}
+
+	case VISL_CODEC_AV1: {
+		int idx_last = run->av1.frame->ref_frame_idx[LAST_BUF_IDX];
+		int idx_last2 = run->av1.frame->ref_frame_idx[LAST2_BUF_IDX];
+		int idx_last3 = run->av1.frame->ref_frame_idx[LAST3_BUF_IDX];
+		int idx_golden = run->av1.frame->ref_frame_idx[GOLDEN_BUF_IDX];
+		int idx_bwd = run->av1.frame->ref_frame_idx[BWD_BUF_IDX];
+		int idx_alt2 = run->av1.frame->ref_frame_idx[ALT2_BUF_IDX];
+		int idx_alt = run->av1.frame->ref_frame_idx[ALT_BUF_IDX];
+
+		const u64 *reference_frame_ts = run->av1.frame->reference_frame_ts;
+
+		struct vb2_buffer *ref_last =
+			vb2_find_buffer(cap_q, reference_frame_ts[idx_last]);
+		struct vb2_buffer *ref_last2 =
+			vb2_find_buffer(cap_q, reference_frame_ts[idx_last2]);
+		struct vb2_buffer *ref_last3 =
+			vb2_find_buffer(cap_q, reference_frame_ts[idx_last3]);
+		struct vb2_buffer *ref_golden =
+			vb2_find_buffer(cap_q, reference_frame_ts[idx_golden]);
+		struct vb2_buffer *ref_bwd =
+			vb2_find_buffer(cap_q, reference_frame_ts[idx_bwd]);
+		struct vb2_buffer *ref_alt2 =
+			vb2_find_buffer(cap_q, reference_frame_ts[idx_alt2]);
+		struct vb2_buffer *ref_alt =
+			vb2_find_buffer(cap_q, reference_frame_ts[idx_alt]);
+
+		visl_print_ts_idx(&buf, &buflen, "ref_last_ts",
+				  reference_frame_ts[idx_last], ref_last);
+		visl_print_ts_idx(&buf, &buflen, "ref_last2_ts",
+				  reference_frame_ts[idx_last2], ref_last2);
+		visl_print_ts_idx(&buf, &buflen, "ref_last3_ts",
+				  reference_frame_ts[idx_last3], ref_last3);
+		visl_print_ts_idx(&buf, &buflen, "ref_golden_ts",
+				  reference_frame_ts[idx_golden], ref_golden);
+		visl_print_ts_idx(&buf, &buflen, "ref_bwd_ts",
+				  reference_frame_ts[idx_bwd], ref_bwd);
+		visl_print_ts_idx(&buf, &buflen, "ref_alt2_ts",
+				  reference_frame_ts[idx_alt2], ref_alt2);
+		visl_print_ts_idx(&buf, &buflen, "ref_alt_ts",
+				  reference_frame_ts[idx_alt], ref_alt);
 
 		break;
 	}
@@ -196,20 +271,57 @@ static void visl_tpg_fill_sequence(struct visl_ctx *ctx,
 				   struct visl_run *run, char buf[], size_t bufsz)
 {
 	u32 stream_ms;
+	int len;
 
-	stream_ms = jiffies_to_msecs(get_jiffies_64() - ctx->capture_streamon_jiffies);
+	if (tpg_verbose) {
+		stream_ms = jiffies_to_msecs(get_jiffies_64() - ctx->capture_streamon_jiffies);
+
+		len = scnprintf(buf, bufsz,
+				"stream time: %02d:%02d:%02d:%03d ",
+				(stream_ms / (60 * 60 * 1000)) % 24,
+				(stream_ms / (60 * 1000)) % 60,
+				(stream_ms / 1000) % 60,
+				stream_ms % 1000);
+		buf += len;
+		bufsz -= len;
+	}
 
 	scnprintf(buf, bufsz,
-		  "stream time: %02d:%02d:%02d:%03d sequence:%u timestamp:%lld field:%s",
-		  (stream_ms / (60 * 60 * 1000)) % 24,
-		  (stream_ms / (60 * 1000)) % 60,
-		  (stream_ms / 1000) % 60,
-		  stream_ms % 1000,
+		  "sequence:%u timestamp:%lld field:%s",
 		  run->dst->sequence,
 		  run->dst->vb2_buf.timestamp,
 		  (run->dst->field == V4L2_FIELD_ALTERNATE) ?
 		  (run->dst->field == V4L2_FIELD_TOP ?
 		  " top" : " bottom") : "none");
+}
+
+static bool visl_tpg_fill_codec_specific(struct visl_ctx *ctx,
+					 struct visl_run *run,
+					 char buf[], size_t bufsz)
+{
+	/*
+	 * To add variability, we need a value that is stable for a given
+	 * input but is different than already shown fields.
+	 * The pic order count value defines the display order of the frames
+	 * (which can be different than the decoding order that is shown with
+	 * the sequence number).
+	 * Therefore it is stable for a given input and will add a different
+	 * value that is more specific to the way the input is encoded.
+	 */
+	switch (ctx->current_codec) {
+	case VISL_CODEC_H264:
+		scnprintf(buf, bufsz,
+			  "H264: %u", run->h264.dpram->pic_order_cnt_lsb);
+		break;
+	case VISL_CODEC_HEVC:
+		scnprintf(buf, bufsz,
+			  "HEVC: %d", run->hevc.dpram->pic_order_cnt_val);
+		break;
+	default:
+		return false;
+	}
+
+	return true;
 }
 
 static void visl_tpg_fill(struct visl_ctx *ctx, struct visl_run *run)
@@ -243,6 +355,13 @@ static void visl_tpg_fill(struct visl_ctx *ctx, struct visl_run *run)
 	frame_dprintk(ctx->dev, run->dst->sequence, "%s\n", buf);
 	frame_dprintk(ctx->dev, run->dst->sequence, "");
 	line++;
+
+	if (visl_tpg_fill_codec_specific(ctx, run, buf, TPG_STR_BUF_SZ)) {
+		tpg_gen_text(&ctx->tpg, basep, line++ * line_height, 16, buf);
+		frame_dprintk(ctx->dev, run->dst->sequence, "%s\n", buf);
+		frame_dprintk(ctx->dev, run->dst->sequence, "");
+		line++;
+	}
 
 	visl_get_ref_frames(ctx, buf, TPG_STR_BUF_SZ, run);
 
@@ -280,28 +399,37 @@ static void visl_tpg_fill(struct visl_ctx *ctx, struct visl_run *run)
 		frame_dprintk(ctx->dev, run->dst->sequence, "%s\n", buf);
 	}
 
-	line++;
-	frame_dprintk(ctx->dev, run->dst->sequence, "");
-	scnprintf(buf, TPG_STR_BUF_SZ, "Output queue status:");
-	tpg_gen_text(&ctx->tpg, basep, line++ * line_height, 16, buf);
-	frame_dprintk(ctx->dev, run->dst->sequence, "%s\n", buf);
+	if (tpg_verbose) {
+		line++;
+		frame_dprintk(ctx->dev, run->dst->sequence, "");
+		scnprintf(buf, TPG_STR_BUF_SZ, "Output queue status:");
+		tpg_gen_text(&ctx->tpg, basep, line++ * line_height, 16, buf);
+		frame_dprintk(ctx->dev, run->dst->sequence, "%s\n", buf);
 
-	len = 0;
-	for (i = 0; i < out_q->num_buffers; i++) {
-		char entry[] = "index: %u, state: %s, request_fd: %d, ";
-		u32 old_len = len;
-		char *q_status = visl_get_vb2_state(out_q->bufs[i]->state);
+		len = 0;
+		for (i = 0; i < vb2_get_num_buffers(out_q); i++) {
+			char entry[] = "index: %u, state: %s, request_fd: %d, ";
+			u32 old_len = len;
+			struct vb2_buffer *vb2;
+			char *q_status;
 
-		len += scnprintf(&buf[len], TPG_STR_BUF_SZ - len,
-				 entry, i, q_status,
-				 to_vb2_v4l2_buffer(out_q->bufs[i])->request_fd);
+			vb2 = vb2_get_buffer(out_q, i);
+			if (!vb2)
+				continue;
 
-		len += visl_fill_bytesused(to_vb2_v4l2_buffer(out_q->bufs[i]),
-					   &buf[len],
-					   TPG_STR_BUF_SZ - len);
+			q_status = visl_get_vb2_state(vb2->state);
 
-		tpg_gen_text(&ctx->tpg, basep, line++ * line_height, 16, &buf[old_len]);
-		frame_dprintk(ctx->dev, run->dst->sequence, "%s", &buf[old_len]);
+			len += scnprintf(&buf[len], TPG_STR_BUF_SZ - len,
+					 entry, i, q_status,
+					 to_vb2_v4l2_buffer(vb2)->request_fd);
+
+			len += visl_fill_bytesused(to_vb2_v4l2_buffer(vb2),
+						   &buf[len],
+						   TPG_STR_BUF_SZ - len);
+
+			tpg_gen_text(&ctx->tpg, basep, line++ * line_height, 16, &buf[old_len]);
+			frame_dprintk(ctx->dev, run->dst->sequence, "%s", &buf[old_len]);
+		}
 	}
 
 	line++;
@@ -333,25 +461,34 @@ static void visl_tpg_fill(struct visl_ctx *ctx, struct visl_run *run)
 		frame_dprintk(ctx->dev, run->dst->sequence, "%s\n", buf);
 	}
 
-	line++;
-	frame_dprintk(ctx->dev, run->dst->sequence, "");
-	scnprintf(buf, TPG_STR_BUF_SZ, "Capture queue status:");
-	tpg_gen_text(&ctx->tpg, basep, line++ * line_height, 16, buf);
-	frame_dprintk(ctx->dev, run->dst->sequence, "%s\n", buf);
+	if (tpg_verbose) {
+		line++;
+		frame_dprintk(ctx->dev, run->dst->sequence, "");
+		scnprintf(buf, TPG_STR_BUF_SZ, "Capture queue status:");
+		tpg_gen_text(&ctx->tpg, basep, line++ * line_height, 16, buf);
+		frame_dprintk(ctx->dev, run->dst->sequence, "%s\n", buf);
 
-	len = 0;
-	for (i = 0; i < cap_q->num_buffers; i++) {
-		u32 old_len = len;
-		char *q_status = visl_get_vb2_state(cap_q->bufs[i]->state);
+		len = 0;
+		for (i = 0; i < vb2_get_num_buffers(cap_q); i++) {
+			u32 old_len = len;
+			struct vb2_buffer *vb2;
+			char *q_status;
 
-		len += scnprintf(&buf[len], TPG_STR_BUF_SZ - len,
-				 "index: %u, status: %s, timestamp: %llu, is_held: %d",
-				 cap_q->bufs[i]->index, q_status,
-				 cap_q->bufs[i]->timestamp,
-				 to_vb2_v4l2_buffer(cap_q->bufs[i])->is_held);
+			vb2 = vb2_get_buffer(cap_q, i);
+			if (!vb2)
+				continue;
 
-		tpg_gen_text(&ctx->tpg, basep, line++ * line_height, 16, &buf[old_len]);
-		frame_dprintk(ctx->dev, run->dst->sequence, "%s", &buf[old_len]);
+			q_status = visl_get_vb2_state(vb2->state);
+
+			len += scnprintf(&buf[len], TPG_STR_BUF_SZ - len,
+					 "index: %u, status: %s, timestamp: %llu, is_held: %d",
+					 vb2->index, q_status,
+					 vb2->timestamp,
+					 to_vb2_v4l2_buffer(vb2)->is_held);
+
+			tpg_gen_text(&ctx->tpg, basep, line++ * line_height, 16, &buf[old_len]);
+			frame_dprintk(ctx->dev, run->dst->sequence, "%s", &buf[old_len]);
+		}
 	}
 }
 
@@ -410,7 +547,13 @@ static void visl_trace_ctrls(struct visl_ctx *ctx, struct visl_run *run)
 			trace_v4l2_hevc_dpb_entry(&run->hevc.dpram->dpb[i]);
 
 		trace_v4l2_hevc_pred_weight_table(&run->hevc.spram->pred_weight_table);
-	break;
+		break;
+	case VISL_CODEC_AV1:
+		trace_v4l2_ctrl_av1_sequence(run->av1.seq);
+		trace_v4l2_ctrl_av1_frame(run->av1.frame);
+		trace_v4l2_ctrl_av1_film_grain(run->av1.grain);
+		trace_v4l2_ctrl_av1_tile_group_entry(run->av1.tge);
+		break;
 	}
 }
 
@@ -468,6 +611,12 @@ void visl_device_run(void *priv)
 		run.hevc.spram = visl_find_control_data(ctx, V4L2_CID_STATELESS_HEVC_SLICE_PARAMS);
 		run.hevc.sm = visl_find_control_data(ctx, V4L2_CID_STATELESS_HEVC_SCALING_MATRIX);
 		run.hevc.dpram = visl_find_control_data(ctx, V4L2_CID_STATELESS_HEVC_DECODE_PARAMS);
+		break;
+	case VISL_CODEC_AV1:
+		run.av1.seq = visl_find_control_data(ctx, V4L2_CID_STATELESS_AV1_SEQUENCE);
+		run.av1.frame = visl_find_control_data(ctx, V4L2_CID_STATELESS_AV1_FRAME);
+		run.av1.tge = visl_find_control_data(ctx, V4L2_CID_STATELESS_AV1_TILE_GROUP_ENTRY);
+		run.av1.grain = visl_find_control_data(ctx, V4L2_CID_STATELESS_AV1_FILM_GRAIN);
 		break;
 	}
 

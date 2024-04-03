@@ -672,10 +672,10 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			dev->irq = irq;
 	}
 
-	dev->pacer = comedi_8254_init(dev->iobase + DAS800_8254,
-				      I8254_OSC_BASE_1MHZ, I8254_IO8, 0);
-	if (!dev->pacer)
-		return -ENOMEM;
+	dev->pacer = comedi_8254_io_alloc(dev->iobase + DAS800_8254,
+					  I8254_OSC_BASE_1MHZ, I8254_IO8, 0);
+	if (IS_ERR(dev->pacer))
+		return PTR_ERR(dev->pacer);
 
 	ret = comedi_alloc_subdevices(dev, 3);
 	if (ret)

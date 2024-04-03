@@ -432,7 +432,7 @@ int ipc_mux_open_session(struct iosm_mux *ipc_mux, int session_nr);
 int ipc_mux_close_session(struct iosm_mux *ipc_mux, int session_nr);
 
 /**
- * ipc_mux_get_max_sessions - Retuns the maximum sessions supported on the
+ * ipc_mux_get_max_sessions - Returns the maximum sessions supported on the
  *			      provided MUX instance..
  * @ipc_mux:	Pointer to MUX data-struct
  *

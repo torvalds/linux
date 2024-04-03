@@ -252,18 +252,16 @@ static int mainstone_wm97xx_probe(struct platform_device *pdev)
 	return wm97xx_register_mach_ops(wm, &mainstone_mach_ops);
 }
 
-static int mainstone_wm97xx_remove(struct platform_device *pdev)
+static void mainstone_wm97xx_remove(struct platform_device *pdev)
 {
 	struct wm97xx *wm = platform_get_drvdata(pdev);
 
 	wm97xx_unregister_mach_ops(wm);
-
-	return 0;
 }
 
 static struct platform_driver mainstone_wm97xx_driver = {
 	.probe	= mainstone_wm97xx_probe,
-	.remove	= mainstone_wm97xx_remove,
+	.remove_new = mainstone_wm97xx_remove,
 	.driver	= {
 		.name	= "wm97xx-touch",
 	},

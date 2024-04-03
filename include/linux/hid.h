@@ -341,6 +341,29 @@ struct hid_item {
  */
 #define MAX_USBHID_BOOT_QUIRKS 4
 
+/**
+ * DOC: HID quirks
+ * | @HID_QUIRK_NOTOUCH:
+ * | @HID_QUIRK_IGNORE: ignore this device
+ * | @HID_QUIRK_NOGET:
+ * | @HID_QUIRK_HIDDEV_FORCE:
+ * | @HID_QUIRK_BADPAD:
+ * | @HID_QUIRK_MULTI_INPUT:
+ * | @HID_QUIRK_HIDINPUT_FORCE:
+ * | @HID_QUIRK_ALWAYS_POLL:
+ * | @HID_QUIRK_INPUT_PER_APP:
+ * | @HID_QUIRK_X_INVERT:
+ * | @HID_QUIRK_Y_INVERT:
+ * | @HID_QUIRK_SKIP_OUTPUT_REPORTS:
+ * | @HID_QUIRK_SKIP_OUTPUT_REPORT_ID:
+ * | @HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP:
+ * | @HID_QUIRK_HAVE_SPECIAL_DRIVER:
+ * | @HID_QUIRK_INCREMENT_USAGE_ON_DUPLICATE:
+ * | @HID_QUIRK_FULLSPEED_INTERVAL:
+ * | @HID_QUIRK_NO_INIT_REPORTS:
+ * | @HID_QUIRK_NO_IGNORE:
+ * | @HID_QUIRK_NO_INPUT_SYNC:
+ */
 /* BIT(0) reserved for backward compatibility, was HID_QUIRK_INVERT */
 #define HID_QUIRK_NOTOUCH			BIT(1)
 #define HID_QUIRK_IGNORE			BIT(2)
@@ -360,6 +383,7 @@ struct hid_item {
 #define HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP	BIT(18)
 #define HID_QUIRK_HAVE_SPECIAL_DRIVER		BIT(19)
 #define HID_QUIRK_INCREMENT_USAGE_ON_DUPLICATE	BIT(20)
+#define HID_QUIRK_NOINVERT			BIT(21)
 #define HID_QUIRK_FULLSPEED_INTERVAL		BIT(28)
 #define HID_QUIRK_NO_INIT_REPORTS		BIT(29)
 #define HID_QUIRK_NO_IGNORE			BIT(30)
@@ -555,9 +579,9 @@ struct hid_input {
 	struct hid_report *report;
 	struct input_dev *input;
 	const char *name;
-	bool registered;
 	struct list_head reports;	/* the list of reports */
 	unsigned int application;	/* application usage for this input */
+	bool registered;
 };
 
 enum hid_type {
@@ -655,13 +679,16 @@ struct hid_device {							/* device report descriptor */
 	struct list_head debug_list;
 	spinlock_t  debug_list_lock;
 	wait_queue_head_t debug_wait;
+	struct kref			ref;
 
 	unsigned int id;						/* system unique id */
 
-#ifdef CONFIG_BPF
+#ifdef CONFIG_HID_BPF
 	struct hid_bpf bpf;						/* hid-bpf data */
-#endif /* CONFIG_BPF */
+#endif /* CONFIG_HID_BPF */
 };
+
+void hiddev_free(struct kref *ref);
 
 #define to_hid_device(pdev) \
 	container_of(pdev, struct hid_device, dev)
@@ -809,11 +836,11 @@ struct hid_driver {
 	void (*feature_mapping)(struct hid_device *hdev,
 			struct hid_field *field,
 			struct hid_usage *usage);
-#ifdef CONFIG_PM
+
 	int (*suspend)(struct hid_device *hdev, pm_message_t message);
 	int (*resume)(struct hid_device *hdev);
 	int (*reset_resume)(struct hid_device *hdev);
-#endif
+
 /* private: */
 	struct device_driver driver;
 };
@@ -885,7 +912,7 @@ extern bool hid_ignore(struct hid_device *);
 extern int hid_add_device(struct hid_device *);
 extern void hid_destroy_device(struct hid_device *);
 
-extern struct bus_type hid_bus_type;
+extern const struct bus_type hid_bus_type;
 
 extern int __must_check __hid_register_driver(struct hid_driver *,
 		struct module *, const char *mod_name);

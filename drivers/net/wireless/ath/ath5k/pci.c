@@ -54,7 +54,7 @@ MODULE_DEVICE_TABLE(pci, ath5k_pci_id_table);
 /* return bus cachesize in 4B word units */
 static void ath5k_pci_read_cachesize(struct ath_common *common, int *csz)
 {
-	struct ath5k_hw *ah = (struct ath5k_hw *) common->priv;
+	struct ath5k_hw *ah = common->priv;
 	u8 u8tmp;
 
 	pci_read_config_byte(ah->pdev, PCI_CACHE_LINE_SIZE, &u8tmp);
@@ -76,7 +76,7 @@ static void ath5k_pci_read_cachesize(struct ath_common *common, int *csz)
 static bool
 ath5k_pci_eeprom_read(struct ath_common *common, u32 offset, u16 *data)
 {
-	struct ath5k_hw *ah = (struct ath5k_hw *) common->ah;
+	struct ath5k_hw *ah = common->ah;
 	u32 status, timeout;
 
 	/*

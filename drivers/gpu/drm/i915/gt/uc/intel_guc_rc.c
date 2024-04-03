@@ -14,7 +14,7 @@ static bool __guc_rc_supported(struct intel_guc *guc)
 {
 	/* GuC RC is unavailable for pre-Gen12 */
 	return guc->submission_supported &&
-		GRAPHICS_VER(guc_to_gt(guc)->i915) >= 12;
+		GRAPHICS_VER(guc_to_i915(guc)) >= 12;
 }
 
 static bool __guc_rc_selected(struct intel_guc *guc)

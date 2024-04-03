@@ -941,9 +941,7 @@ bool dce110_link_encoder_validate_output_with_stream(
 	break;
 	case SIGNAL_TYPE_EDP:
 	case SIGNAL_TYPE_LVDS:
-		is_valid =
-			(stream->timing.
-				pixel_encoding == PIXEL_ENCODING_RGB) ? true : false;
+		is_valid = stream->timing.pixel_encoding == PIXEL_ENCODING_RGB;
 	break;
 	case SIGNAL_TYPE_VIRTUAL:
 		is_valid = true;
@@ -1645,7 +1643,7 @@ void dce110_link_encoder_enable_hpd(struct link_encoder *enc)
 	uint32_t hpd_enable = 0;
 	uint32_t value = dm_read_reg(ctx, addr);
 
-	get_reg_field_value(hpd_enable, DC_HPD_CONTROL, DC_HPD_EN);
+	hpd_enable = get_reg_field_value(hpd_enable, DC_HPD_CONTROL, DC_HPD_EN);
 
 	if (hpd_enable == 0)
 		set_reg_field_value(value, 1, DC_HPD_CONTROL, DC_HPD_EN);

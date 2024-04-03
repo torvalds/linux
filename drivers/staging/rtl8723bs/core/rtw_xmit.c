@@ -473,7 +473,7 @@ static s32 update_attrib_sec_info(struct adapter *padapter, struct pkt_attrib *p
 	signed int res = _SUCCESS;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct security_priv *psecuritypriv = &padapter->securitypriv;
-	signed int bmcast = IS_MCAST(pattrib->ra);
+	signed int bmcast = is_multicast_ether_addr(pattrib->ra);
 
 	memset(pattrib->dot118021x_UncstKey.skey,  0, 16);
 	memset(pattrib->dot11tkiptxmickey.skey,  0, 16);
@@ -691,7 +691,7 @@ static s32 update_attrib(struct adapter *padapter, struct sk_buff *pkt, struct p
 	else if (pattrib->dhcp_pkt == 1)
 		rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_SPECIAL_PACKET, 1);
 
-	bmcast = IS_MCAST(pattrib->ra);
+	bmcast = is_multicast_ether_addr(pattrib->ra);
 
 	/*  get sta_info */
 	if (bmcast) {
@@ -765,7 +765,7 @@ static s32 xmitframe_addmic(struct adapter *padapter, struct xmit_frame *pxmitfr
 	struct xmit_priv *pxmitpriv = &padapter->xmitpriv;
 	u8 priority[4] = {0x0, 0x0, 0x0, 0x0};
 	u8 hw_hdr_offset = 0;
-	signed int bmcst = IS_MCAST(pattrib->ra);
+	signed int bmcst = is_multicast_ether_addr(pattrib->ra);
 
 	hw_hdr_offset = TXDESC_OFFSET;
 
@@ -1035,7 +1035,7 @@ s32 rtw_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, struct
 
 	u8 *pbuf_start;
 
-	s32 bmcst = IS_MCAST(pattrib->ra);
+	s32 bmcst = is_multicast_ether_addr(pattrib->ra);
 	s32 res = _SUCCESS;
 
 	if (!pxmitframe->buf_addr)
@@ -1143,7 +1143,7 @@ s32 rtw_mgmt_xmitframe_coalesce(struct adapter *padapter, struct sk_buff *pkt, s
 	u8 subtype;
 	struct sta_info *psta = NULL;
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
-	s32 bmcst = IS_MCAST(pattrib->ra);
+	s32 bmcst = is_multicast_ether_addr(pattrib->ra);
 	u8 *BIP_AAD = NULL;
 	u8 *MGMT_body = NULL;
 
@@ -2016,7 +2016,7 @@ signed int xmitframe_enqueue_for_sleeping_sta(struct adapter *padapter, struct x
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct pkt_attrib *pattrib = &pxmitframe->attrib;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	signed int bmcst = IS_MCAST(pattrib->ra);
+	signed int bmcst = is_multicast_ether_addr(pattrib->ra);
 	bool update_tim = false;
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE) == false)

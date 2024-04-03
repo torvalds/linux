@@ -64,7 +64,6 @@ ALL_TESTS="
 	ping_ipv6
 	multipath_ipv4
 	multipath_ipv6
-	multipath_ipv6_l4
 "
 
 NUM_NETIFS=6
@@ -248,7 +247,7 @@ multipath4_test()
 
 	ip vrf exec v$h1 \
 	   $MZ $h1 -q -p 64 -A 192.0.2.1 -B 192.0.2.18 \
-	       -d 1msec -t udp "sp=1024,dp=0-32768"
+	       -d $MZ_DELAY -t udp "sp=1024,dp=0-32768"
 
 	local t1_111=$(tc_rule_stats_get $ul2 111 ingress)
 	local t1_222=$(tc_rule_stats_get $ul2 222 ingress)
@@ -267,35 +266,6 @@ multipath6_test()
 	local weight1=$1; shift
 	local weight2=$1; shift
 
-	sysctl_set net.ipv6.fib_multipath_hash_policy 0
-	ip nexthop replace id 103 group 101,$weight1/102,$weight2 \
-		type resilient
-
-	local t0_111=$(tc_rule_stats_get $ul2 111 ingress)
-	local t0_222=$(tc_rule_stats_get $ul2 222 ingress)
-
-	# Generate 16384 echo requests, each with a random flow label.
-	for ((i=0; i < 16384; ++i)); do
-		ip vrf exec v$h1 $PING6 2001:db8:2::2 -F 0 -c 1 -q &> /dev/null
-	done
-
-	local t1_111=$(tc_rule_stats_get $ul2 111 ingress)
-	local t1_222=$(tc_rule_stats_get $ul2 222 ingress)
-
-	local d111=$((t1_111 - t0_111))
-	local d222=$((t1_222 - t0_222))
-	multipath_eval "$what" $weight1 $weight2 $d111 $d222
-
-	ip nexthop replace id 103 group 101/102 type resilient
-	sysctl_restore net.ipv6.fib_multipath_hash_policy
-}
-
-multipath6_l4_test()
-{
-	local what=$1; shift
-	local weight1=$1; shift
-	local weight2=$1; shift
-
 	sysctl_set net.ipv6.fib_multipath_hash_policy 1
 	ip nexthop replace id 103 group 101,$weight1/102,$weight2 \
 		type resilient
@@ -305,7 +275,7 @@ multipath6_l4_test()
 
 	ip vrf exec v$h1 \
 		$MZ $h1 -6 -q -p 64 -A 2001:db8:1::1 -B 2001:db8:2::2 \
-		-d 1msec -t udp "sp=1024,dp=0-32768"
+		-d $MZ_DELAY -t udp "sp=1024,dp=0-32768"
 
 	local t1_111=$(tc_rule_stats_get $ul2 111 ingress)
 	local t1_222=$(tc_rule_stats_get $ul2 222 ingress)
@@ -342,14 +312,6 @@ multipath_ipv6()
 	multipath6_test "ECMP" 1 1
 	multipath6_test "Weighted MP 2:1" 2 1
 	multipath6_test "Weighted MP 11:45" 11 45
-}
-
-multipath_ipv6_l4()
-{
-	log_info "Running IPv6 L4 hash multipath tests"
-	multipath6_l4_test "ECMP" 1 1
-	multipath6_l4_test "Weighted MP 2:1" 2 1
-	multipath6_l4_test "Weighted MP 11:45" 11 45
 }
 
 trap cleanup EXIT

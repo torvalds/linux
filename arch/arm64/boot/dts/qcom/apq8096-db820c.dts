@@ -62,25 +62,23 @@
 		stdout-path = "serial0:115200n8";
 	};
 
-	clocks {
-		divclk4: divclk4 {
-			compatible = "fixed-clock";
-			#clock-cells = <0>;
-			clock-frequency = <32768>;
-			clock-output-names = "divclk4";
+	div1_mclk: divclk1 {
+		compatible = "gpio-gate-clock";
+		pinctrl-0 = <&audio_mclk>;
+		pinctrl-names = "default";
+		clocks = <&rpmcc RPM_SMD_DIV_CLK1>;
+		#clock-cells = <0>;
+		enable-gpios = <&pm8994_gpios 15 0>;
+	};
 
-			pinctrl-names = "default";
-			pinctrl-0 = <&divclk4_pin_a>;
-		};
+	divclk4: divclk4 {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <32768>;
+		clock-output-names = "divclk4";
 
-		div1_mclk: divclk1 {
-			compatible = "gpio-gate-clock";
-			pinctrl-0 = <&audio_mclk>;
-			pinctrl-names = "default";
-			clocks = <&rpmcc RPM_SMD_DIV_CLK1>;
-			#clock-cells = <0>;
-			enable-gpios = <&pm8994_gpios 15 0>;
-		};
+		pinctrl-names = "default";
+		pinctrl-0 = <&divclk4_pin_a>;
 	};
 
 	gpio-keys {
@@ -99,14 +97,14 @@
 
 	usb2_id: usb2-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&pmi8994_gpios 6 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&pmi8994_gpios 6 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb2_vbus_det_gpio>;
 	};
 
 	usb3_id: usb3-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&pm8994_gpios 22 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&pm8994_gpios 22 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&usb3_vbus_det_gpio>;
 	};
@@ -138,8 +136,7 @@
 };
 
 &blsp1_i2c3 {
-	/* On Low speed expansion */
-	label = "LS-I2C0";
+	/* On Low speed expansion: LS-I2C0 */
 	status = "okay";
 };
 
@@ -168,14 +165,12 @@
 };
 
 &blsp2_i2c1 {
-	/* On High speed expansion */
-	label = "HS-I2C2";
+	/* On High speed expansion: HS-I2C2 */
 	status = "okay";
 };
 
 &blsp2_i2c1 {
-	/* On Low speed expansion */
-	label = "LS-I2C1";
+	/* On Low speed expansion: LS-I2C1 */
 	status = "okay";
 };
 
@@ -236,8 +231,8 @@
 	status = "okay";
 
 	pinctrl-names = "default", "sleep";
-	pinctrl-0 = <&mdss_hdmi_hpd_active &mdss_hdmi_ddc_active>;
-	pinctrl-1 = <&mdss_hdmi_hpd_suspend &mdss_hdmi_ddc_suspend>;
+	pinctrl-0 = <&hdmi_hpd_active &hdmi_ddc_active>;
+	pinctrl-1 = <&hdmi_hpd_suspend &hdmi_ddc_suspend>;
 
 	core-vdda-supply = <&vreg_l12a_1p8>;
 	core-vcc-supply = <&vreg_s4a_1p8>;
@@ -433,28 +428,28 @@
 		drive-strength = <2>;
 	};
 
-	mdss_hdmi_hpd_active: mdss_hdmi-hpd-active-state {
+	hdmi_hpd_active: hdmi-hpd-active-state {
 		pins = "gpio34";
 		function = "hdmi_hot";
 		bias-pull-down;
 		drive-strength = <16>;
 	};
 
-	mdss_hdmi_hpd_suspend: mdss_hdmi-hpd-suspend-state {
+	hdmi_hpd_suspend: hdmi-hpd-suspend-state {
 		pins = "gpio34";
 		function = "hdmi_hot";
 		bias-pull-down;
 		drive-strength = <2>;
 	};
 
-	mdss_hdmi_ddc_active: mdss_hdmi-ddc-active-state {
+	hdmi_ddc_active: hdmi-ddc-active-state {
 		pins = "gpio32", "gpio33";
 		function = "hdmi_ddc";
 		drive-strength = <2>;
 		bias-pull-up;
 	};
 
-	mdss_hdmi_ddc_suspend: mdss_hdmi-ddc-suspend-state {
+	hdmi_ddc_suspend: hdmi-ddc-suspend-state {
 		pins = "gpio32", "gpio33";
 		function = "hdmi_ddc";
 		drive-strength = <2>;
@@ -1043,7 +1038,7 @@
 		};
 	};
 
-	mdss_hdmi-dai-link {
+	hdmi-dai-link {
 		link-name = "HDMI";
 		cpu {
 			sound-dai = <&q6afedai HDMI_RX>;
@@ -1094,7 +1089,6 @@
 
 	vdda-phy-supply = <&vreg_l28a_0p925>;
 	vdda-pll-supply = <&vreg_l12a_1p8>;
-	vddp-ref-clk-supply = <&vreg_l25a_1p2>;
 };
 
 &ufshc {
@@ -1103,6 +1097,7 @@
 	vcc-supply = <&vreg_l20a_2p95>;
 	vccq-supply = <&vreg_l25a_1p2>;
 	vccq2-supply = <&vreg_s4a_1p8>;
+	vdd-hba-supply = <&vreg_l25a_1p2>;
 
 	vcc-max-microamp = <600000>;
 	vccq-max-microamp = <450000>;

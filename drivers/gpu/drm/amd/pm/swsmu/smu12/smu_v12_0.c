@@ -205,7 +205,8 @@ int smu_v12_0_set_default_dpm_tables(struct smu_context *smu)
 	return smu_cmn_update_table(smu, SMU_TABLE_DPMCLOCKS, 0, smu_table->clocks_table, false);
 }
 
-int smu_v12_0_mode2_reset(struct smu_context *smu){
+int smu_v12_0_mode2_reset(struct smu_context *smu)
+{
 	return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_GfxDeviceDriverReset, SMU_RESET_MODE_2, NULL);
 }
 
@@ -300,7 +301,7 @@ static int smu_v12_0_atom_get_smu_clockinfo(struct amdgpu_device *adev,
 					    getsmuclockinfo);
 
 	ret = amdgpu_atom_execute_table(adev->mode_info.atom_context, index,
-					(uint32_t *)&input);
+					(uint32_t *)&input, sizeof(input));
 	if (ret)
 		return -EINVAL;
 

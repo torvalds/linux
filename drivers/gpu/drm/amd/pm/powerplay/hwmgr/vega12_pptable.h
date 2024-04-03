@@ -72,8 +72,7 @@ enum ATOM_VEGA12_PPCLOCK_ID {
 typedef enum ATOM_VEGA12_PPCLOCK_ID ATOM_VEGA12_PPCLOCK_ID;
 
 
-typedef struct _ATOM_VEGA12_POWERPLAYTABLE
-{
+typedef struct _ATOM_VEGA12_POWERPLAYTABLE {
       struct atom_common_table_header sHeader;
       UCHAR  ucTableRevision;
       USHORT usTableSize;
@@ -92,11 +91,11 @@ typedef struct _ATOM_VEGA12_POWERPLAYTABLE
       USHORT usODPowerSavePowerLimit;
       USHORT usSoftwareShutdownTemp;
 
-      ULONG PowerSavingClockMax  [ATOM_VEGA12_PPCLOCK_COUNT];
-      ULONG PowerSavingClockMin  [ATOM_VEGA12_PPCLOCK_COUNT];
+      ULONG PowerSavingClockMax[ATOM_VEGA12_PPCLOCK_COUNT];
+      ULONG PowerSavingClockMin[ATOM_VEGA12_PPCLOCK_COUNT];
 
-      ULONG ODSettingsMax [ATOM_VEGA12_ODSETTING_COUNT];
-      ULONG ODSettingsMin [ATOM_VEGA12_ODSETTING_COUNT];
+      ULONG ODSettingsMax[ATOM_VEGA12_ODSETTING_COUNT];
+      ULONG ODSettingsMin[ATOM_VEGA12_ODSETTING_COUNT];
 
       USHORT usReserve[5];
 

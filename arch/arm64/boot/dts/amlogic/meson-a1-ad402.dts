@@ -1,0 +1,147 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 SberDevices
+ * Author: Dmitry Rokosov <ddrokosov@sberdevices.ru>
+ */
+
+/dts-v1/;
+
+#include "meson-a1.dtsi"
+
+/ {
+	compatible = "amlogic,ad402", "amlogic,a1";
+	model = "Amlogic Meson A1 AD402 Development Board";
+
+	aliases {
+		serial0 = &uart_AO_B;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x0 0x0 0x0 0x8000000>;
+	};
+
+	reserved-memory {
+		/* 3 MiB reserved for Amlogic Trust OS (BL32) */
+		secos_reserved: secos@3d00000 {
+			reg = <0x0 0x03d00000 0x0 0x300000>;
+			no-map;
+		};
+	};
+
+	firmware {
+		optee {
+			compatible = "linaro,optee-tz";
+			method = "smc";
+		};
+	};
+
+	battery_4v2: regulator-battery-4v2 {
+		compatible = "regulator-fixed";
+		regulator-name = "4V2";
+		regulator-min-microvolt = <4200000>;
+		regulator-max-microvolt = <4200000>;
+		regulator-always-on;
+	};
+
+	vddq_1v35: regulator-vddq-1v35 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDQ_1V35";
+		regulator-min-microvolt = <1350000>;
+		regulator-max-microvolt = <1350000>;
+		vin-supply = <&battery_4v2>;
+		regulator-always-on;
+	};
+
+	vddao_3v3: regulator-vddao-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDAO_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&battery_4v2>;
+		regulator-always-on;
+	};
+
+	vcc_3v3: regulator-vcc-3v3 {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC_3V3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		vin-supply = <&vddao_3v3>;
+		regulator-always-on;
+	};
+
+	vddio_1v8: regulator-vddio-1v8 {
+		compatible = "regulator-fixed";
+		regulator-name = "VDDIO_1V8";
+		regulator-min-microvolt = <1800000>;
+		regulator-max-microvolt = <1800000>;
+		vin-supply = <&vddao_3v3>;
+		regulator-always-on;
+	};
+};
+
+/* Bluetooth HCI H4 */
+&uart_AO {
+	status = "okay";
+	pinctrl-0 = <&uart_a_pins>, <&uart_a_cts_rts_pins>;
+	pinctrl-names = "default";
+};
+
+&uart_AO_B {
+	status = "okay";
+};
+
+&saradc {
+	status = "okay";
+	vref-supply = <&vddio_1v8>;
+};
+
+&spifc {
+	status = "okay";
+	pinctrl-0 = <&spifc_pins>;
+	pinctrl-names = "default";
+
+	flash@0 {
+		compatible = "spi-nand";
+		status = "okay";
+		reg = <0>;
+		spi-max-frequency = <96000000>;
+		spi-tx-bus-width = <4>;
+		spi-rx-bus-width = <4>;
+	};
+};
+
+&usb2_phy1 {
+	phy-supply = <&vcc_3v3>;
+};
+
+&usb {
+	status = "okay";
+	dr_mode = "peripheral";
+};
+
+&sd_emmc {
+	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	pinctrl-0 = <&sdio_pins>;
+	pinctrl-1 = <&sdio_clk_gate_pins>;
+	pinctrl-names = "default", "clk-gate";
+
+	bus-width = <4>;
+	cap-sd-highspeed;
+	sd-uhs-sdr104;
+	max-frequency = <200000000>;
+	non-removable;
+	disable-wp;
+
+	vmmc-supply = <&vddao_3v3>;
+	vqmmc-supply = <&vddio_1v8>;
+};

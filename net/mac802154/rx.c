@@ -93,6 +93,31 @@ void mac802154_rx_mac_cmd_worker(struct work_struct *work)
 
 		queue_delayed_work(local->mac_wq, &local->beacon_work, 0);
 		break;
+
+	case IEEE802154_CMD_ASSOCIATION_RESP:
+		dev_dbg(&mac_pkt->sdata->dev->dev, "processing ASSOC RESP\n");
+		if (!mac802154_is_associating(local))
+			break;
+
+		mac802154_process_association_resp(mac_pkt->sdata, mac_pkt->skb);
+		break;
+
+	case IEEE802154_CMD_ASSOCIATION_REQ:
+		dev_dbg(&mac_pkt->sdata->dev->dev, "processing ASSOC REQ\n");
+		if (mac_pkt->sdata->wpan_dev.iftype != NL802154_IFTYPE_COORD)
+			break;
+
+		mac802154_process_association_req(mac_pkt->sdata, mac_pkt->skb);
+		break;
+
+	case IEEE802154_CMD_DISASSOCIATION_NOTIFY:
+		dev_dbg(&mac_pkt->sdata->dev->dev, "processing DISASSOC NOTIF\n");
+		if (mac_pkt->sdata->wpan_dev.iftype != NL802154_IFTYPE_COORD)
+			break;
+
+		mac802154_process_disassociation_notif(mac_pkt->sdata, mac_pkt->skb);
+		break;
+
 	default:
 		break;
 	}
@@ -131,12 +156,15 @@ ieee802154_subif_frame(struct ieee802154_sub_if_data *sdata,
 
 	switch (mac_cb(skb)->dest.mode) {
 	case IEEE802154_ADDR_NONE:
-		if (hdr->source.mode != IEEE802154_ADDR_NONE)
-			/* FIXME: check if we are PAN coordinator */
-			skb->pkt_type = PACKET_OTHERHOST;
-		else
+		if (hdr->source.mode == IEEE802154_ADDR_NONE)
 			/* ACK comes with both addresses empty */
 			skb->pkt_type = PACKET_HOST;
+		else if (!wpan_dev->parent)
+			/* No dest means PAN coordinator is the recipient */
+			skb->pkt_type = PACKET_HOST;
+		else
+			/* We are not the PAN coordinator, just relaying */
+			skb->pkt_type = PACKET_OTHERHOST;
 		break;
 	case IEEE802154_ADDR_LONG:
 		if (mac_cb(skb)->dest.pan_id != span &&

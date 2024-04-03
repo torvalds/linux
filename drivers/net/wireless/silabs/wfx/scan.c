@@ -95,7 +95,7 @@ void wfx_hw_scan_work(struct work_struct *work)
 	int chan_cur, ret, err;
 
 	mutex_lock(&wvif->wdev->conf_mutex);
-	mutex_lock(&wvif->scan_lock);
+	mutex_lock(&wvif->wdev->scan_lock);
 	if (wvif->join_in_progress) {
 		dev_info(wvif->wdev->dev, "abort in-progress REQ_JOIN");
 		wfx_reset(wvif);
@@ -116,7 +116,7 @@ void wfx_hw_scan_work(struct work_struct *work)
 			ret = -ETIMEDOUT;
 		}
 	} while (ret >= 0 && chan_cur < hw_req->req.n_channels);
-	mutex_unlock(&wvif->scan_lock);
+	mutex_unlock(&wvif->wdev->scan_lock);
 	mutex_unlock(&wvif->wdev->conf_mutex);
 	wfx_ieee80211_scan_completed_compat(wvif->wdev->hw, ret < 0);
 }
@@ -144,4 +144,66 @@ void wfx_scan_complete(struct wfx_vif *wvif, int nb_chan_done)
 {
 	wvif->scan_nb_chan_done = nb_chan_done;
 	complete(&wvif->scan_complete);
+}
+
+void wfx_remain_on_channel_work(struct work_struct *work)
+{
+	struct wfx_vif *wvif = container_of(work, struct wfx_vif, remain_on_channel_work);
+	struct ieee80211_channel *chan = wvif->remain_on_channel_chan;
+	int duration = wvif->remain_on_channel_duration;
+	int ret;
+
+	/* Hijack scan request to implement Remain-On-Channel */
+	mutex_lock(&wvif->wdev->conf_mutex);
+	mutex_lock(&wvif->wdev->scan_lock);
+	if (wvif->join_in_progress) {
+		dev_info(wvif->wdev->dev, "abort in-progress REQ_JOIN");
+		wfx_reset(wvif);
+	}
+	wfx_tx_flush(wvif->wdev);
+
+	reinit_completion(&wvif->scan_complete);
+	ret = wfx_hif_scan_uniq(wvif, chan, duration);
+	if (ret)
+		goto end;
+	ieee80211_ready_on_channel(wvif->wdev->hw);
+	ret = wait_for_completion_timeout(&wvif->scan_complete,
+					  msecs_to_jiffies(duration * 120 / 100));
+	if (!ret) {
+		wfx_hif_stop_scan(wvif);
+		ret = wait_for_completion_timeout(&wvif->scan_complete, 1 * HZ);
+		dev_dbg(wvif->wdev->dev, "roc timeout\n");
+	}
+	if (!ret)
+		dev_err(wvif->wdev->dev, "roc didn't stop\n");
+	ieee80211_remain_on_channel_expired(wvif->wdev->hw);
+end:
+	mutex_unlock(&wvif->wdev->scan_lock);
+	mutex_unlock(&wvif->wdev->conf_mutex);
+	wfx_bh_request_tx(wvif->wdev);
+}
+
+int wfx_remain_on_channel(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			  struct ieee80211_channel *chan, int duration,
+			  enum ieee80211_roc_type type)
+{
+	struct wfx_dev *wdev = hw->priv;
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+
+	if (wfx_api_older_than(wdev, 3, 10))
+		return -EOPNOTSUPP;
+
+	wvif->remain_on_channel_duration = duration;
+	wvif->remain_on_channel_chan = chan;
+	schedule_work(&wvif->remain_on_channel_work);
+	return 0;
+}
+
+int wfx_cancel_remain_on_channel(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+{
+	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
+
+	wfx_hif_stop_scan(wvif);
+	flush_work(&wvif->remain_on_channel_work);
+	return 0;
 }

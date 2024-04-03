@@ -40,8 +40,6 @@ struct fwnode_handle;
  *		for the devices belonging to the class. Usually tied to
  *		device's namespace.
  * @pm:		The default device power management operations of this class.
- * @p:		The private data of the driver core, no one other than the
- *		driver core can touch this.
  *
  * A class is a higher-level view of a device that abstracts out low-level
  * implementation details. Drivers may see a SCSI disk or an ATA disk, but,

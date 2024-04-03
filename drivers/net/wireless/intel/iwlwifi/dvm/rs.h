@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2014 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2014, 2023 Intel Corporation. All rights reserved.
  *****************************************************************************/
 
 #ifndef __iwl_agn_rs_h__
@@ -269,7 +269,7 @@ struct iwl_rate_mcs_info {
 	char	mcs[IWL_MAX_MCS_DISPLAY_SIZE];
 };
 
-/**
+/*
  * struct iwl_rate_scale_data -- tx success history for one rate
  */
 struct iwl_rate_scale_data {
@@ -281,7 +281,7 @@ struct iwl_rate_scale_data {
 	unsigned long stamp;
 };
 
-/**
+/*
  * struct iwl_scale_tbl_info -- tx params and success history for all rates
  *
  * There are two of these in struct iwl_lq_sta,
@@ -311,7 +311,7 @@ struct iwl_traffic_load {
 	u8 head;			/* start of the circular buffer */
 };
 
-/**
+/*
  * struct iwl_lq_sta -- driver's rate scaling private structure
  *
  * Pointer to this gets passed back and forth between driver and mac80211.
@@ -379,7 +379,7 @@ static inline u8 first_antenna(u8 mask)
 void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta,
 		      u8 sta_id);
 
-/**
+/*
  * iwl_rate_control_register - Register the rate control algorithm callbacks
  *
  * Since the rate control algorithm is hardware specific, there is no need
@@ -391,7 +391,7 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta,
  */
 int iwlagn_rate_control_register(void);
 
-/**
+/*
  * iwl_rate_control_unregister - Unregister the rate control callbacks
  *
  * This should be called after calling ieee80211_unregister_hw, but before

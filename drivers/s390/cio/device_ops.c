@@ -202,7 +202,8 @@ int ccw_device_start_timeout_key(struct ccw_device *cdev, struct ccw1 *cpa,
 		return -EINVAL;
 	if (cdev->private->state == DEV_STATE_NOT_OPER)
 		return -ENODEV;
-	if (cdev->private->state == DEV_STATE_VERIFY) {
+	if (cdev->private->state == DEV_STATE_VERIFY ||
+	    cdev->private->flags.doverify) {
 		/* Remember to fake irb when finished. */
 		if (!cdev->private->flags.fake_irb) {
 			cdev->private->flags.fake_irb = FAKE_CMD_IRB;
@@ -214,8 +215,7 @@ int ccw_device_start_timeout_key(struct ccw_device *cdev, struct ccw1 *cpa,
 	}
 	if (cdev->private->state != DEV_STATE_ONLINE ||
 	    ((sch->schib.scsw.cmd.stctl & SCSW_STCTL_PRIM_STATUS) &&
-	     !(sch->schib.scsw.cmd.stctl & SCSW_STCTL_SEC_STATUS)) ||
-	    cdev->private->flags.doverify)
+	     !(sch->schib.scsw.cmd.stctl & SCSW_STCTL_SEC_STATUS)))
 		return -EBUSY;
 	ret = cio_set_options (sch, flags);
 	if (ret)
@@ -823,13 +823,14 @@ EXPORT_SYMBOL_GPL(ccw_device_get_chid);
  * the subchannels dma pool. Maximal size of allocation supported
  * is PAGE_SIZE.
  */
-void *ccw_device_dma_zalloc(struct ccw_device *cdev, size_t size)
+void *ccw_device_dma_zalloc(struct ccw_device *cdev, size_t size,
+			    dma32_t *dma_handle)
 {
 	void *addr;
 
 	if (!get_device(&cdev->dev))
 		return NULL;
-	addr = cio_gp_dma_zalloc(cdev->private->dma_pool, &cdev->dev, size);
+	addr = __cio_gp_dma_zalloc(cdev->private->dma_pool, &cdev->dev, size, dma_handle);
 	if (IS_ERR_OR_NULL(addr))
 		put_device(&cdev->dev);
 	return addr;

@@ -471,7 +471,7 @@ static ssize_t rmi_driver_update_fw_store(struct device *dev,
 	if (buf[count - 1] == '\0' || buf[count - 1] == '\n')
 		copy_count -= 1;
 
-	strncpy(fw_name, buf, copy_count);
+	memcpy(fw_name, buf, copy_count);
 	fw_name[copy_count] = '\0';
 
 	ret = request_firmware(&fw, fw_name, dev);

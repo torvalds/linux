@@ -812,6 +812,7 @@ static struct Qdisc_ops ets_qdisc_ops __read_mostly = {
 	.dump		= ets_qdisc_dump,
 	.owner		= THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("ets");
 
 static int __init ets_init(void)
 {
@@ -826,3 +827,4 @@ static void __exit ets_exit(void)
 module_init(ets_init);
 module_exit(ets_exit);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Enhanced Transmission Selection(ETS) scheduler");

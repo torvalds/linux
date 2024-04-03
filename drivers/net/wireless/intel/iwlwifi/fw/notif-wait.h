@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014 Intel Corporation
+ * Copyright (C) 2005-2014, 2023 Intel Corporation
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_notif_wait_h__
@@ -25,6 +25,7 @@ struct iwl_notif_wait_data {
  *	returns true, the wait is over, if it returns false then
  *	the waiter stays blocked. If no function is given, any
  *	of the listed commands will unblock the waiter.
+ * @fn_data: pointer to pass to the @fn's data argument
  * @cmds: command IDs
  * @n_cmds: number of command IDs
  * @triggered: waiter should be woken up

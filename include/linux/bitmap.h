@@ -6,10 +6,13 @@
 
 #include <linux/align.h>
 #include <linux/bitops.h>
+#include <linux/cleanup.h>
+#include <linux/errno.h>
 #include <linux/find.h>
 #include <linux/limits.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/bitmap-str.h>
 
 struct device;
 
@@ -52,6 +55,7 @@ struct device;
  *  bitmap_full(src, nbits)                     Are all bits set in *src?
  *  bitmap_weight(src, nbits)                   Hamming Weight: number set bits
  *  bitmap_weight_and(src1, src2, nbits)        Hamming Weight of and'ed bitmap
+ *  bitmap_weight_andnot(src1, src2, nbits)     Hamming Weight of andnot'ed bitmap
  *  bitmap_set(dst, pos, nbits)                 Set specified bit area
  *  bitmap_clear(dst, pos, nbits)               Clear specified bit area
  *  bitmap_find_next_zero_area(buf, len, pos, n, mask)  Find bit free area
@@ -60,6 +64,8 @@ struct device;
  *  bitmap_shift_left(dst, src, n, nbits)       *dst = *src << n
  *  bitmap_cut(dst, src, first, n, nbits)       Cut n bits from first, copy rest
  *  bitmap_replace(dst, old, new, mask, nbits)  *dst = (*old & ~(*mask)) | (*new & *mask)
+ *  bitmap_scatter(dst, src, mask, nbits)	*dst = map(dense, sparse)(src)
+ *  bitmap_gather(dst, src, mask, nbits)	*dst = map(sparse, dense)(src)
  *  bitmap_remap(dst, src, old, new, nbits)     *dst = map(old, new)(src)
  *  bitmap_bitremap(oldbit, old, new, nbits)    newbit = map(old, new)(oldbit)
  *  bitmap_onto(dst, orig, relmap, nbits)       *dst = orig relative to relmap
@@ -125,6 +131,8 @@ unsigned long *bitmap_alloc_node(unsigned int nbits, gfp_t flags, int node);
 unsigned long *bitmap_zalloc_node(unsigned int nbits, gfp_t flags, int node);
 void bitmap_free(const unsigned long *bitmap);
 
+DEFINE_FREE(bitmap, unsigned long *, if (_T) bitmap_free(_T))
+
 /* Managed variants of the above. */
 unsigned long *devm_bitmap_alloc(struct device *dev,
 				 unsigned int nbits, gfp_t flags);
@@ -167,6 +175,8 @@ bool __bitmap_subset(const unsigned long *bitmap1,
 unsigned int __bitmap_weight(const unsigned long *bitmap, unsigned int nbits);
 unsigned int __bitmap_weight_and(const unsigned long *bitmap1,
 				 const unsigned long *bitmap2, unsigned int nbits);
+unsigned int __bitmap_weight_andnot(const unsigned long *bitmap1,
+				    const unsigned long *bitmap2, unsigned int nbits);
 void __bitmap_set(unsigned long *map, unsigned int start, int len);
 void __bitmap_clear(unsigned long *map, unsigned int start, int len);
 
@@ -200,14 +210,6 @@ bitmap_find_next_zero_area(unsigned long *map,
 					      align_mask, 0);
 }
 
-int bitmap_parse(const char *buf, unsigned int buflen,
-			unsigned long *dst, int nbits);
-int bitmap_parse_user(const char __user *ubuf, unsigned int ulen,
-			unsigned long *dst, int nbits);
-int bitmap_parselist(const char *buf, unsigned long *maskp,
-			int nmaskbits);
-int bitmap_parselist_user(const char __user *ubuf, unsigned int ulen,
-			unsigned long *dst, int nbits);
 void bitmap_remap(unsigned long *dst, const unsigned long *src,
 		const unsigned long *old, const unsigned long *new, unsigned int nbits);
 int bitmap_bitremap(int oldbit,
@@ -216,23 +218,6 @@ void bitmap_onto(unsigned long *dst, const unsigned long *orig,
 		const unsigned long *relmap, unsigned int bits);
 void bitmap_fold(unsigned long *dst, const unsigned long *orig,
 		unsigned int sz, unsigned int nbits);
-int bitmap_find_free_region(unsigned long *bitmap, unsigned int bits, int order);
-void bitmap_release_region(unsigned long *bitmap, unsigned int pos, int order);
-int bitmap_allocate_region(unsigned long *bitmap, unsigned int pos, int order);
-
-#ifdef __BIG_ENDIAN
-void bitmap_copy_le(unsigned long *dst, const unsigned long *src, unsigned int nbits);
-#else
-#define bitmap_copy_le bitmap_copy
-#endif
-int bitmap_print_to_pagebuf(bool list, char *buf,
-				   const unsigned long *maskp, int nmaskbits);
-
-extern int bitmap_print_bitmask_to_buf(char *buf, const unsigned long *maskp,
-				      int nmaskbits, loff_t off, size_t count);
-
-extern int bitmap_print_list_to_buf(char *buf, const unsigned long *maskp,
-				      int nmaskbits, loff_t off, size_t count);
 
 #define BITMAP_FIRST_WORD_MASK(start) (~0UL << ((start) & (BITS_PER_LONG - 1)))
 #define BITMAP_LAST_WORD_MASK(nbits) (~0UL >> (-(nbits) & (BITS_PER_LONG - 1)))
@@ -448,6 +433,15 @@ unsigned long bitmap_weight_and(const unsigned long *src1,
 	return __bitmap_weight_and(src1, src2, nbits);
 }
 
+static __always_inline
+unsigned long bitmap_weight_andnot(const unsigned long *src1,
+				   const unsigned long *src2, unsigned int nbits)
+{
+	if (small_const_nbits(nbits))
+		return hweight_long(*src1 & ~(*src2) & BITMAP_LAST_WORD_MASK(nbits));
+	return __bitmap_weight_andnot(src1, src2, nbits);
+}
+
 static __always_inline void bitmap_set(unsigned long *map, unsigned int start,
 		unsigned int nbits)
 {
@@ -510,12 +504,173 @@ static inline void bitmap_replace(unsigned long *dst,
 		__bitmap_replace(dst, old, new, mask, nbits);
 }
 
+/**
+ * bitmap_scatter - Scatter a bitmap according to the given mask
+ * @dst: scattered bitmap
+ * @src: gathered bitmap
+ * @mask: mask representing bits to assign to in the scattered bitmap
+ * @nbits: number of bits in each of these bitmaps
+ *
+ * Scatters bitmap with sequential bits according to the given @mask.
+ *
+ * Example:
+ * If @src bitmap = 0x005a, with @mask = 0x1313, @dst will be 0x0302.
+ *
+ * Or in binary form
+ * @src			@mask			@dst
+ * 0000000001011010	0001001100010011	0000001100000010
+ *
+ * (Bits 0, 1, 2, 3, 4, 5 are copied to the bits 0, 1, 4, 8, 9, 12)
+ *
+ * A more 'visual' description of the operation::
+ *
+ *	src:  0000000001011010
+ *	                ||||||
+ *	         +------+|||||
+ *	         |  +----+||||
+ *	         |  |+----+|||
+ *	         |  ||   +-+||
+ *	         |  ||   |  ||
+ *	mask: ...v..vv...v..vv
+ *	      ...0..11...0..10
+ *	dst:  0000001100000010
+ *
+ * A relationship exists between bitmap_scatter() and bitmap_gather().
+ * bitmap_gather() can be seen as the 'reverse' bitmap_scatter() operation.
+ * See bitmap_scatter() for details related to this relationship.
+ */
+static inline void bitmap_scatter(unsigned long *dst, const unsigned long *src,
+				  const unsigned long *mask, unsigned int nbits)
+{
+	unsigned int n = 0;
+	unsigned int bit;
+
+	bitmap_zero(dst, nbits);
+
+	for_each_set_bit(bit, mask, nbits)
+		__assign_bit(bit, dst, test_bit(n++, src));
+}
+
+/**
+ * bitmap_gather - Gather a bitmap according to given mask
+ * @dst: gathered bitmap
+ * @src: scattered bitmap
+ * @mask: mask representing bits to extract from in the scattered bitmap
+ * @nbits: number of bits in each of these bitmaps
+ *
+ * Gathers bitmap with sparse bits according to the given @mask.
+ *
+ * Example:
+ * If @src bitmap = 0x0302, with @mask = 0x1313, @dst will be 0x001a.
+ *
+ * Or in binary form
+ * @src			@mask			@dst
+ * 0000001100000010	0001001100010011	0000000000011010
+ *
+ * (Bits 0, 1, 4, 8, 9, 12 are copied to the bits 0, 1, 2, 3, 4, 5)
+ *
+ * A more 'visual' description of the operation::
+ *
+ *	mask: ...v..vv...v..vv
+ *	src:  0000001100000010
+ *	         ^  ^^   ^   0
+ *	         |  ||   |  10
+ *	         |  ||   > 010
+ *	         |  |+--> 1010
+ *	         |  +--> 11010
+ *	         +----> 011010
+ *	dst:  0000000000011010
+ *
+ * A relationship exists between bitmap_gather() and bitmap_scatter(). See
+ * bitmap_scatter() for the bitmap scatter detailed operations.
+ * Suppose scattered computed using bitmap_scatter(scattered, src, mask, n).
+ * The operation bitmap_gather(result, scattered, mask, n) leads to a result
+ * equal or equivalent to src.
+ *
+ * The result can be 'equivalent' because bitmap_scatter() and bitmap_gather()
+ * are not bijective.
+ * The result and src values are equivalent in that sense that a call to
+ * bitmap_scatter(res, src, mask, n) and a call to
+ * bitmap_scatter(res, result, mask, n) will lead to the same res value.
+ */
+static inline void bitmap_gather(unsigned long *dst, const unsigned long *src,
+				 const unsigned long *mask, unsigned int nbits)
+{
+	unsigned int n = 0;
+	unsigned int bit;
+
+	bitmap_zero(dst, nbits);
+
+	for_each_set_bit(bit, mask, nbits)
+		__assign_bit(n++, dst, test_bit(bit, src));
+}
+
 static inline void bitmap_next_set_region(unsigned long *bitmap,
 					  unsigned int *rs, unsigned int *re,
 					  unsigned int end)
 {
 	*rs = find_next_bit(bitmap, end, *rs);
 	*re = find_next_zero_bit(bitmap, end, *rs + 1);
+}
+
+/**
+ * bitmap_release_region - release allocated bitmap region
+ *	@bitmap: array of unsigned longs corresponding to the bitmap
+ *	@pos: beginning of bit region to release
+ *	@order: region size (log base 2 of number of bits) to release
+ *
+ * This is the complement to __bitmap_find_free_region() and releases
+ * the found region (by clearing it in the bitmap).
+ */
+static inline void bitmap_release_region(unsigned long *bitmap, unsigned int pos, int order)
+{
+	bitmap_clear(bitmap, pos, BIT(order));
+}
+
+/**
+ * bitmap_allocate_region - allocate bitmap region
+ *	@bitmap: array of unsigned longs corresponding to the bitmap
+ *	@pos: beginning of bit region to allocate
+ *	@order: region size (log base 2 of number of bits) to allocate
+ *
+ * Allocate (set bits in) a specified region of a bitmap.
+ *
+ * Returns: 0 on success, or %-EBUSY if specified region wasn't
+ * free (not all bits were zero).
+ */
+static inline int bitmap_allocate_region(unsigned long *bitmap, unsigned int pos, int order)
+{
+	unsigned int len = BIT(order);
+
+	if (find_next_bit(bitmap, pos + len, pos) < pos + len)
+		return -EBUSY;
+	bitmap_set(bitmap, pos, len);
+	return 0;
+}
+
+/**
+ * bitmap_find_free_region - find a contiguous aligned mem region
+ *	@bitmap: array of unsigned longs corresponding to the bitmap
+ *	@bits: number of bits in the bitmap
+ *	@order: region size (log base 2 of number of bits) to find
+ *
+ * Find a region of free (zero) bits in a @bitmap of @bits bits and
+ * allocate them (set them to one).  Only consider regions of length
+ * a power (@order) of two, aligned to that power of two, which
+ * makes the search algorithm much faster.
+ *
+ * Returns: the bit offset in bitmap of the allocated region,
+ * or -errno on failure.
+ */
+static inline int bitmap_find_free_region(unsigned long *bitmap, unsigned int bits, int order)
+{
+	unsigned int pos, end;		/* scans bitmap by regions of size order */
+
+	for (pos = 0; (end = pos + BIT(order)) <= bits; pos = end) {
+		if (!bitmap_allocate_region(bitmap, pos, order))
+			return pos;
+	}
+	return -ENOMEM;
 }
 
 /**

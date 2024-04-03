@@ -264,7 +264,7 @@ int64_t cvmx_bootmem_phy_alloc(uint64_t req_size, uint64_t address_min,
 	 * Convert !0 address_min and 0 address_max to special case of
 	 * range that specifies an exact memory block to allocate.  Do
 	 * this before other checks and adjustments so that this
-	 * tranformation will be validated.
+	 * transformation will be validated.
 	 */
 	if (address_min && !address_max)
 		address_max = address_min + req_size;

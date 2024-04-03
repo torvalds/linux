@@ -17,7 +17,6 @@
  * @n_values: Number of multiplexer channels
  * @little_endian: Indicating if the register is in little endian
  * @write_only: Reading the register is not allowed by hardware
- * @classes: Optional I2C auto-detection classes
  * @idle: Value to write to mux when idle
  * @idle_in_use: indicate if idle value is in use
  * @reg: Virtual address of the register to switch channel
@@ -30,7 +29,6 @@ struct i2c_mux_reg_platform_data {
 	int n_values;
 	bool little_endian;
 	bool write_only;
-	const unsigned int *classes;
 	u32 idle;
 	bool idle_in_use;
 	void __iomem *reg;

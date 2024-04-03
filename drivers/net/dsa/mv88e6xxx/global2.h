@@ -365,6 +365,7 @@ int mv88e6xxx_g2_trunk_clear(struct mv88e6xxx_chip *chip);
 
 int mv88e6xxx_g2_device_mapping_write(struct mv88e6xxx_chip *chip, int target,
 				      int port);
+int mv88e6xxx_g2_eeprom_wait(struct mv88e6xxx_chip *chip);
 
 extern const struct mv88e6xxx_irq_ops mv88e6097_watchdog_ops;
 extern const struct mv88e6xxx_irq_ops mv88e6250_watchdog_ops;
@@ -377,8 +378,10 @@ extern const struct mv88e6xxx_avb_ops mv88e6390_avb_ops;
 
 extern const struct mv88e6xxx_gpio_ops mv88e6352_gpio_ops;
 
-int mv88e6xxx_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
+int mv88e6390_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
 				      bool external);
+int mv88e6393x_g2_scratch_gpio_set_smi(struct mv88e6xxx_chip *chip,
+				       bool external);
 int mv88e6352_g2_scratch_port_has_serdes(struct mv88e6xxx_chip *chip, int port);
 int mv88e6xxx_g2_atu_stats_set(struct mv88e6xxx_chip *chip, u16 kind, u16 bin);
 int mv88e6xxx_g2_atu_stats_get(struct mv88e6xxx_chip *chip, u16 *stats);

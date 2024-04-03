@@ -211,14 +211,22 @@ static ssize_t ntfs_list_ea(struct ntfs_inode *ni, char *buffer,
 	size = le32_to_cpu(info->size);
 
 	/* Enumerate all xattrs. */
-	for (ret = 0, off = 0; off < size; off += ea_size) {
+	ret = 0;
+	for (off = 0; off + sizeof(struct EA_FULL) < size; off += ea_size) {
 		ea = Add2Ptr(ea_all, off);
 		ea_size = unpacked_ea_size(ea);
 
 		if (!ea->name_len)
 			break;
 
+		if (ea->name_len > ea_size)
+			break;
+
 		if (buffer) {
+			/* Check if we can use field ea->name */
+			if (off + ea_size > size)
+				break;
+
 			if (ret + ea->name_len + 1 > bytes_per_buffer) {
 				err = -ERANGE;
 				goto out;
@@ -637,7 +645,7 @@ static noinline int ntfs_set_acl_ex(struct mnt_idmap *idmap,
 	if (!err) {
 		set_cached_acl(inode, type, acl);
 		inode->i_mode = mode;
-		inode->i_ctime = current_time(inode);
+		inode_set_ctime_current(inode);
 		mark_inode_dirty(inode);
 	}
 
@@ -738,6 +746,9 @@ static int ntfs_getxattr(const struct xattr_handler *handler, struct dentry *de,
 {
 	int err;
 	struct ntfs_inode *ni = ntfs_i(inode);
+
+	if (unlikely(ntfs3_forced_shutdown(inode->i_sb)))
+		return -EIO;
 
 	/* Dispatch request. */
 	if (!strcmp(name, SYSTEM_DOS_ATTRIB)) {
@@ -924,7 +935,7 @@ set_new_fa:
 			  NULL);
 
 out:
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 	mark_inode_dirty(inode);
 
 	return err;
@@ -1016,7 +1027,7 @@ static const struct xattr_handler ntfs_other_xattr_handler = {
 	.list	= ntfs_xattr_user_list,
 };
 
-const struct xattr_handler *ntfs_xattr_handlers[] = {
+const struct xattr_handler * const ntfs_xattr_handlers[] = {
 	&ntfs_other_xattr_handler,
 	NULL,
 };

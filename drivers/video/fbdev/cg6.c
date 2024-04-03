@@ -37,9 +37,10 @@ static void cg6_imageblit(struct fb_info *, const struct fb_image *);
 static void cg6_fillrect(struct fb_info *, const struct fb_fillrect *);
 static void cg6_copyarea(struct fb_info *info, const struct fb_copyarea *area);
 static int cg6_sync(struct fb_info *);
-static int cg6_mmap(struct fb_info *, struct vm_area_struct *);
-static int cg6_ioctl(struct fb_info *, unsigned int, unsigned long);
 static int cg6_pan_display(struct fb_var_screeninfo *, struct fb_info *);
+
+static int cg6_sbusfb_mmap(struct fb_info *info, struct vm_area_struct *vma);
+static int cg6_sbusfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg);
 
 /*
  *  Frame buffer operations
@@ -47,6 +48,7 @@ static int cg6_pan_display(struct fb_var_screeninfo *, struct fb_info *);
 
 static const struct fb_ops cg6_ops = {
 	.owner			= THIS_MODULE,
+	__FB_DEFAULT_SBUS_OPS_RDWR(cg6),
 	.fb_setcolreg		= cg6_setcolreg,
 	.fb_blank		= cg6_blank,
 	.fb_pan_display		= cg6_pan_display,
@@ -54,11 +56,8 @@ static const struct fb_ops cg6_ops = {
 	.fb_copyarea		= cg6_copyarea,
 	.fb_imageblit		= cg6_imageblit,
 	.fb_sync		= cg6_sync,
-	.fb_mmap		= cg6_mmap,
-	.fb_ioctl		= cg6_ioctl,
-#ifdef CONFIG_COMPAT
-	.fb_compat_ioctl	= sbusfb_compat_ioctl,
-#endif
+	__FB_DEFAULT_SBUS_OPS_IOCTL(cg6),
+	__FB_DEFAULT_SBUS_OPS_MMAP(cg6),
 };
 
 /* Offset of interesting structures in the OBIO space */
@@ -590,7 +589,7 @@ static struct sbus_mmap_map cg6_mmap_map[] = {
 	{ .size	= 0 }
 };
 
-static int cg6_mmap(struct fb_info *info, struct vm_area_struct *vma)
+static int cg6_sbusfb_mmap(struct fb_info *info, struct vm_area_struct *vma)
 {
 	struct cg6_par *par = (struct cg6_par *)info->par;
 
@@ -599,7 +598,7 @@ static int cg6_mmap(struct fb_info *info, struct vm_area_struct *vma)
 				  par->which_io, vma);
 }
 
-static int cg6_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
+static int cg6_sbusfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long arg)
 {
 	return sbusfb_ioctl_helper(cmd, arg, info,
 				   FBTYPE_SUNFAST_COLOR, 8, info->fix.smem_len);
@@ -783,7 +782,7 @@ static int cg6_probe(struct platform_device *op)
 	par->fhc = of_ioremap(&op->resource[0], CG6_FHC_OFFSET,
 				sizeof(u32), "cgsix fhc");
 
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_IMAGEBLIT |
+	info->flags = FBINFO_HWACCEL_IMAGEBLIT |
 			FBINFO_HWACCEL_COPYAREA | FBINFO_HWACCEL_FILLRECT |
 			FBINFO_READS_FAST;
 	info->fbops = &cg6_ops;

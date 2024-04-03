@@ -25,9 +25,6 @@ enum rt5668_jd_src {
 };
 
 struct rt5668_platform_data {
-
-	int ldo1_en; /* GPIO for LDO1_EN */
-
 	enum rt5668_dmic1_data_pin dmic1_data_pin;
 	enum rt5668_dmic1_clk_pin dmic1_clk_pin;
 	enum rt5668_jd_src jd_src;

@@ -376,3 +376,4 @@ static void __exit ip_vs_sh_cleanup(void)
 module_init(ip_vs_sh_init);
 module_exit(ip_vs_sh_cleanup);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ipvs source hashing scheduler");

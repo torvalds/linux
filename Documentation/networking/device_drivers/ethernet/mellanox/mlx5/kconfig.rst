@@ -36,7 +36,7 @@ Enabling the driver and kconfig options
 
 **CONFIG_MLX5_CORE_EN_DCB=(y/n)**:
 
-|    Enables `Data Center Bridging (DCB) Support <https://community.mellanox.com/s/article/howto-auto-config-pfc-and-ets-on-connectx-4-via-lldp-dcbx>`_.
+|    Enables `Data Center Bridging (DCB) Support <https://enterprise-support.nvidia.com/s/article/howto-auto-config-pfc-and-ets-on-connectx-4-via-lldp-dcbx>`_.
 
 
 **CONFIG_MLX5_CORE_IPOIB=(y/n)**
@@ -59,15 +59,15 @@ Enabling the driver and kconfig options
 **CONFIG_MLX5_EN_ARFS=(y/n)**
 
 |    Enables Hardware-accelerated receive flow steering (arfs) support, and ntuple filtering.
-|    https://community.mellanox.com/s/article/howto-configure-arfs-on-connectx-4
+|    https://enterprise-support.nvidia.com/s/article/howto-configure-arfs-on-connectx-4
 
 
 **CONFIG_MLX5_EN_IPSEC=(y/n)**
 
-|    Enables `IPSec XFRM cryptography-offload acceleration <https://support.mellanox.com/s/article/ConnectX-6DX-Bluefield-2-IPsec-HW-Full-Offload-Configuration-Guide>`_.
+|    Enables :ref:`IPSec XFRM cryptography-offload acceleration <xfrm_device>`.
 
 
-**CONFIG_MLX5_EN_MACSEC=(y/n)**
+**CONFIG_MLX5_MACSEC=(y/n)**
 
 |    Build support for MACsec cryptography-offload acceleration in the NIC.
 
@@ -87,8 +87,8 @@ Enabling the driver and kconfig options
 
 |    Ethernet SRIOV E-Switch support in ConnectX NIC. E-Switch provides internal SRIOV packet steering
 |    and switching for the enabled VFs and PF in two available modes:
-|           1) `Legacy SRIOV mode (L2 mac vlan steering based) <https://community.mellanox.com/s/article/howto-configure-sr-iov-for-connectx-4-connectx-5-with-kvm--ethernet-x>`_.
-|           2) `Switchdev mode (eswitch offloads) <https://www.mellanox.com/related-docs/prod_software/ASAP2_Hardware_Offloading_for_vSwitches_User_Manual_v4.4.pdf>`_.
+|           1) `Legacy SRIOV mode (L2 mac vlan steering based) <https://enterprise-support.nvidia.com/s/article/HowTo-Configure-SR-IOV-for-ConnectX-4-ConnectX-5-ConnectX-6-with-KVM-Ethernet>`_.
+|           2) :ref:`Switchdev mode (eswitch offloads) <switchdev>`.
 
 
 **CONFIG_MLX5_FPGA=(y/n)**
@@ -101,13 +101,13 @@ Enabling the driver and kconfig options
 
 **CONFIG_MLX5_INFINIBAND=(y/n/m)** (module mlx5_ib.ko)
 
-|    Provides low-level InfiniBand/RDMA and `RoCE <https://community.mellanox.com/s/article/recommended-network-configuration-examples-for-roce-deployment>`_ support.
+|    Provides low-level InfiniBand/RDMA and `RoCE <https://enterprise-support.nvidia.com/s/article/recommended-network-configuration-examples-for-roce-deployment>`_ support.
 
 
 **CONFIG_MLX5_MPFS=(y/n)**
 
 |    Ethernet Multi-Physical Function Switch (MPFS) support in ConnectX NIC.
-|    MPFs is required for when `Multi-Host <http://www.mellanox.com/page/multihost>`_ configuration is enabled to allow passing
+|    MPFs is required for when `Multi-Host <https://www.nvidia.com/en-us/networking/multi-host/>`_ configuration is enabled to allow passing
 |    user configured unicast MAC addresses to the requesting PF.
 
 

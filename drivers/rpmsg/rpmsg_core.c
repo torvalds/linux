@@ -331,6 +331,25 @@ int rpmsg_trysend_offchannel(struct rpmsg_endpoint *ept, u32 src, u32 dst,
 EXPORT_SYMBOL(rpmsg_trysend_offchannel);
 
 /**
+ * rpmsg_set_flow_control() - request remote to pause/resume transmission
+ * @ept:	the rpmsg endpoint
+ * @pause:	pause transmission
+ * @dst:	destination address of the endpoint
+ *
+ * Return: 0 on success and an appropriate error value on failure.
+ */
+int rpmsg_set_flow_control(struct rpmsg_endpoint *ept, bool pause, u32 dst)
+{
+	if (WARN_ON(!ept))
+		return -EINVAL;
+	if (!ept->ops->set_flow_control)
+		return -EOPNOTSUPP;
+
+	return ept->ops->set_flow_control(ept, pause, dst);
+}
+EXPORT_SYMBOL_GPL(rpmsg_set_flow_control);
+
+/**
  * rpmsg_get_mtu() - get maximum transmission buffer size for sending message.
  * @ept: the rpmsg endpoint
  *
@@ -526,7 +545,7 @@ static int rpmsg_dev_probe(struct device *dev)
 		goto out;
 
 	if (rpdrv->callback) {
-		strncpy(chinfo.name, rpdev->id.name, RPMSG_NAME_SIZE);
+		strscpy(chinfo.name, rpdev->id.name, sizeof(chinfo.name));
 		chinfo.src = rpdev->src;
 		chinfo.dst = RPMSG_ADDR_ANY;
 
@@ -539,6 +558,8 @@ static int rpmsg_dev_probe(struct device *dev)
 
 		rpdev->ept = ept;
 		rpdev->src = ept->addr;
+
+		ept->flow_cb = rpdrv->flowcontrol;
 	}
 
 	err = rpdrv->probe(rpdev);
@@ -584,7 +605,7 @@ static void rpmsg_dev_remove(struct device *dev)
 		rpmsg_destroy_ept(rpdev->ept);
 }
 
-static struct bus_type rpmsg_bus = {
+static const struct bus_type rpmsg_bus = {
 	.name		= "rpmsg",
 	.match		= rpmsg_dev_match,
 	.dev_groups	= rpmsg_dev_groups,

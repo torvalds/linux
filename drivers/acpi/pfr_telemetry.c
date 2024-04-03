@@ -347,13 +347,11 @@ static const struct file_operations acpi_pfrt_log_fops = {
 	.llseek		= noop_llseek,
 };
 
-static int acpi_pfrt_log_remove(struct platform_device *pdev)
+static void acpi_pfrt_log_remove(struct platform_device *pdev)
 {
 	struct pfrt_log_device *pfrt_log_dev = platform_get_drvdata(pdev);
 
 	misc_deregister(&pfrt_log_dev->miscdev);
-
-	return 0;
 }
 
 static void pfrt_log_put_idx(void *data)
@@ -427,7 +425,7 @@ static struct platform_driver acpi_pfrt_log_driver = {
 		.acpi_match_table = acpi_pfrt_log_ids,
 	},
 	.probe = acpi_pfrt_log_probe,
-	.remove = acpi_pfrt_log_remove,
+	.remove_new = acpi_pfrt_log_remove,
 };
 module_platform_driver(acpi_pfrt_log_driver);
 

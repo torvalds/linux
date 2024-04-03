@@ -58,6 +58,11 @@
 //! [`Rc`]: rc
 //! [`RefCell`]: core::cell
 
+// To run alloc tests without x.py without ending up with two copies of alloc, Miri needs to be
+// able to "empty" this crate. See <https://github.com/rust-lang/miri-test-libstd/issues/4>.
+// rustc itself never sets the feature, so this line has no effect there.
+#![cfg(any(not(feature = "miri-test-libstd"), test, doctest))]
+//
 #![allow(unused_attributes)]
 #![stable(feature = "alloc", since = "1.36.0")]
 #![doc(
@@ -75,13 +80,10 @@
     not(no_sync),
     target_has_atomic = "ptr"
 ))]
+#![doc(rust_logo)]
+#![feature(rustdoc_internals)]
 #![no_std]
 #![needs_allocator]
-// To run alloc tests without x.py without ending up with two copies of alloc, Miri needs to be
-// able to "empty" this crate. See <https://github.com/rust-lang/miri-test-libstd/issues/4>.
-// rustc itself never sets the feature, so this line has no affect there.
-#![cfg(any(not(feature = "miri-test-libstd"), test, doctest))]
-//
 // Lints:
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(fuzzy_provenance_casts)]
@@ -89,35 +91,39 @@
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
 #![allow(explicit_outlives_requirements)]
+#![warn(multiple_supertrait_upcastable)]
+#![allow(internal_features)]
+#![allow(rustdoc::redundant_explicit_links)]
 //
 // Library features:
+// tidy-alphabetical-start
+#![cfg_attr(not(no_global_oom_handling), feature(const_alloc_error))]
+#![cfg_attr(not(no_global_oom_handling), feature(const_btree_len))]
+#![cfg_attr(test, feature(is_sorted))]
+#![cfg_attr(test, feature(new_uninit))]
 #![feature(alloc_layout_extra)]
 #![feature(allocator_api)]
 #![feature(array_chunks)]
 #![feature(array_into_iter_constructors)]
 #![feature(array_methods)]
 #![feature(array_windows)]
+#![feature(ascii_char)]
 #![feature(assert_matches)]
 #![feature(async_iterator)]
 #![feature(coerce_unsized)]
-#![cfg_attr(not(no_global_oom_handling), feature(const_alloc_error))]
-#![feature(const_box)]
-#![cfg_attr(not(no_global_oom_handling), feature(const_btree_len))]
-#![cfg_attr(not(no_borrow), feature(const_cow_is_borrowed))]
-#![feature(const_convert)]
-#![feature(const_size_of_val)]
 #![feature(const_align_of_val)]
-#![feature(const_ptr_read)]
-#![feature(const_maybe_uninit_zeroed)]
-#![feature(const_maybe_uninit_write)]
+#![feature(const_box)]
+#![cfg_attr(not(no_borrow), feature(const_cow_is_borrowed))]
+#![feature(const_eval_select)]
 #![feature(const_maybe_uninit_as_mut_ptr)]
+#![feature(const_maybe_uninit_write)]
+#![feature(const_pin)]
 #![feature(const_refs_to_cell)]
+#![feature(const_size_of_val)]
+#![feature(const_waker)]
 #![feature(core_intrinsics)]
 #![feature(core_panic)]
-#![feature(const_eval_select)]
-#![feature(const_pin)]
-#![feature(const_waker)]
-#![feature(cstr_from_bytes_until_nul)]
+#![feature(deprecated_suggestion)]
 #![feature(dispatch_from_dyn)]
 #![feature(error_generic_member_access)]
 #![feature(error_in_core)]
@@ -128,7 +134,6 @@
 #![feature(hasher_prefixfree_extras)]
 #![feature(inline_const)]
 #![feature(inplace_iteration)]
-#![cfg_attr(test, feature(is_sorted))]
 #![feature(iter_advance_by)]
 #![feature(iter_next_chunk)]
 #![feature(iter_repeat_n)]
@@ -136,16 +141,11 @@
 #![feature(maybe_uninit_slice)]
 #![feature(maybe_uninit_uninit_array)]
 #![feature(maybe_uninit_uninit_array_transpose)]
-#![cfg_attr(test, feature(new_uninit))]
-#![feature(nonnull_slice_from_raw_parts)]
 #![feature(pattern)]
-#![feature(pointer_byte_offsets)]
-#![feature(provide_any)]
 #![feature(ptr_internals)]
 #![feature(ptr_metadata)]
 #![feature(ptr_sub_ptr)]
 #![feature(receiver_trait)]
-#![feature(saturating_int_impl)]
 #![feature(set_ptr_value)]
 #![feature(sized_type_properties)]
 #![feature(slice_from_ptr_range)]
@@ -153,8 +153,10 @@
 #![feature(slice_ptr_get)]
 #![feature(slice_ptr_len)]
 #![feature(slice_range)]
+#![feature(std_internals)]
 #![feature(str_internals)]
 #![feature(strict_provenance)]
+#![feature(trusted_fused)]
 #![feature(trusted_len)]
 #![feature(trusted_random_access)]
 #![feature(try_trait_v2)]
@@ -163,40 +165,42 @@
 #![feature(unicode_internals)]
 #![feature(unsize)]
 #![feature(utf8_chunks)]
-#![feature(std_internals)]
+// tidy-alphabetical-end
 //
 // Language features:
+// tidy-alphabetical-start
+#![cfg_attr(not(test), feature(coroutine_trait))]
+#![cfg_attr(test, feature(panic_update_hook))]
+#![cfg_attr(test, feature(test))]
 #![feature(allocator_internals)]
 #![feature(allow_internal_unstable)]
 #![feature(associated_type_bounds)]
+#![feature(c_unwind)]
 #![feature(cfg_sanitize)]
-#![feature(const_deref)]
 #![feature(const_mut_refs)]
-#![feature(const_ptr_write)]
 #![feature(const_precise_live_drops)]
+#![feature(const_ptr_write)]
 #![feature(const_trait_impl)]
 #![feature(const_try)]
 #![feature(dropck_eyepatch)]
 #![feature(exclusive_range_pattern)]
 #![feature(fundamental)]
-#![cfg_attr(not(test), feature(generator_trait))]
 #![feature(hashmap_internals)]
 #![feature(lang_items)]
 #![feature(min_specialization)]
+#![feature(multiple_supertrait_upcastable)]
 #![feature(negative_impls)]
 #![feature(never_type)]
+#![feature(pointer_is_aligned)]
 #![feature(rustc_allow_const_fn_unstable)]
 #![feature(rustc_attrs)]
-#![feature(pointer_is_aligned)]
 #![feature(slice_internals)]
 #![feature(staged_api)]
 #![feature(stmt_expr_attributes)]
-#![cfg_attr(test, feature(test))]
 #![feature(unboxed_closures)]
 #![feature(unsized_fn_params)]
-#![feature(c_unwind)]
 #![feature(with_negative_coherence)]
-#![cfg_attr(test, feature(panic_update_hook))]
+// tidy-alphabetical-end
 //
 // Rustdoc features:
 #![feature(doc_cfg)]
@@ -273,7 +277,7 @@ pub(crate) mod test_helpers {
     /// seed not being the same for every RNG invocation too.
     pub(crate) fn test_rng() -> rand_xorshift::XorShiftRng {
         use std::hash::{BuildHasher, Hash, Hasher};
-        let mut hasher = std::collections::hash_map::RandomState::new().build_hasher();
+        let mut hasher = std::hash::RandomState::new().build_hasher();
         std::panic::Location::caller().hash(&mut hasher);
         let hc64 = hasher.finish();
         let seed_vec =

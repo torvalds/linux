@@ -6,7 +6,7 @@
  *
  * VOUT_MODE is not supported by the device. The driver fakes VOUT linear16
  * mode with exponent value -8 as direct mode with m=256/b=0/R=0.
- *          
+ *
  * The device supports VOUT_PEAK, IOUT_PEAK, and TEMPERATURE_PEAK, however
  * this driver does not currently support them.
  */
@@ -16,13 +16,13 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/regulator/driver.h>
 #include "pmbus.h"
 
 #if IS_ENABLED(CONFIG_SENSORS_IR38064_REGULATOR)
 static const struct regulator_desc ir38064_reg_desc[] = {
-	PMBUS_REGULATOR("vout", 0),
+	PMBUS_REGULATOR_ONE("vout"),
 };
 #endif /* CONFIG_SENSORS_IR38064_REGULATOR */
 

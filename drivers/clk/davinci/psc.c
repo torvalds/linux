@@ -18,10 +18,9 @@
 #include <linux/clk/davinci.h>
 #include <linux/clkdev.h>
 #include <linux/err.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/pm_clock.h>
 #include <linux/pm_domain.h>
 #include <linux/regmap.h>
@@ -517,15 +516,12 @@ static const struct platform_device_id davinci_psc_id_table[] = {
 static int davinci_psc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *of_id;
 	const struct davinci_psc_init_data *init_data = NULL;
 	void __iomem *base;
 	int ret;
 
-	of_id = of_match_device(davinci_psc_of_match, dev);
-	if (of_id)
-		init_data = of_id->data;
-	else if (pdev->id_entry)
+	init_data = device_get_match_data(dev);
+	if (!init_data && pdev->id_entry)
 		init_data = (void *)pdev->id_entry->driver_data;
 
 	if (!init_data) {

@@ -44,10 +44,35 @@
 					 FUTEX_PRIVATE_FLAG)
 
 /*
- * Flags to specify the bit length of the futex word for futex2 syscalls.
- * Currently, only 32 is supported.
+ * Flags for futex2 syscalls.
+ *
+ * NOTE: these are not pure flags, they can also be seen as:
+ *
+ *   union {
+ *     u32  flags;
+ *     struct {
+ *       u32 size    : 2,
+ *           numa    : 1,
+ *                   : 4,
+ *           private : 1;
+ *     };
+ *   };
  */
-#define FUTEX_32		2
+#define FUTEX2_SIZE_U8		0x00
+#define FUTEX2_SIZE_U16		0x01
+#define FUTEX2_SIZE_U32		0x02
+#define FUTEX2_SIZE_U64		0x03
+#define FUTEX2_NUMA		0x04
+			/*	0x08 */
+			/*	0x10 */
+			/*	0x20 */
+			/*	0x40 */
+#define FUTEX2_PRIVATE		FUTEX_PRIVATE_FLAG
+
+#define FUTEX2_SIZE_MASK	0x03
+
+/* do not use */
+#define FUTEX_32		FUTEX2_SIZE_U32 /* historical accident :-( */
 
 /*
  * Max numbers of elements in a futex_waitv array

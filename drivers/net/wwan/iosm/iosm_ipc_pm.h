@@ -172,7 +172,7 @@ bool ipc_pm_prepare_host_sleep(struct iosm_pm *ipc_pm);
 bool ipc_pm_prepare_host_active(struct iosm_pm *ipc_pm);
 
 /**
- * ipc_pm_wait_for_device_active - Wait upto IPC_PM_ACTIVE_TIMEOUT_MS ms
+ * ipc_pm_wait_for_device_active - Wait up to IPC_PM_ACTIVE_TIMEOUT_MS ms
  *				   for the device to reach active state
  * @ipc_pm:	Pointer to power management component
  *

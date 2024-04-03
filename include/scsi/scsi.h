@@ -157,6 +157,9 @@ enum scsi_disposition {
 #define SCSI_3          4        /* SPC */
 #define SCSI_SPC_2      5
 #define SCSI_SPC_3      6
+#define SCSI_SPC_4	7
+#define SCSI_SPC_5	8
+#define SCSI_SPC_6	14
 
 /*
  * INQ PERIPHERAL QUALIFIERS

@@ -35,14 +35,15 @@
 #include <drm/display/drm_scdc_helper.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <linux/clk.h>
 #include <linux/component.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 #include <linux/pm_runtime.h>
 #include <linux/rational.h>
 #include <linux/reset.h>
@@ -508,7 +509,7 @@ static int vc4_hdmi_connector_get_modes(struct drm_connector *connector)
 	edid = drm_get_edid(connector, vc4_hdmi->ddc);
 	cec_s_phys_addr_from_edid(vc4_hdmi->cec_adap, edid);
 	if (!edid)
-		return -ENODEV;
+		return 0;
 
 	drm_connector_update_edid_property(connector, edid);
 	ret = drm_add_edid_modes(connector, edid);
@@ -672,11 +673,21 @@ vc4_hdmi_connector_duplicate_state(struct drm_connector *connector)
 	return &new_state->base;
 }
 
+static void vc4_hdmi_connector_destroy_state(struct drm_connector *connector,
+					     struct drm_connector_state *state)
+{
+	struct vc4_hdmi_connector_state *vc4_state =
+		conn_state_to_vc4_hdmi_conn_state(state);
+
+	__drm_atomic_helper_connector_destroy_state(state);
+	kfree(vc4_state);
+}
+
 static const struct drm_connector_funcs vc4_hdmi_connector_funcs = {
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.reset = vc4_hdmi_connector_reset,
 	.atomic_duplicate_state = vc4_hdmi_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+	.atomic_destroy_state = vc4_hdmi_connector_destroy_state,
 	.atomic_get_property = vc4_hdmi_connector_get_property,
 	.atomic_set_property = vc4_hdmi_connector_set_property,
 };
@@ -2615,9 +2626,13 @@ static int vc4_hdmi_audio_cpu_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops vc4_snd_dai_ops = {
+	.probe  = vc4_hdmi_audio_cpu_dai_probe,
+};
+
 static struct snd_soc_dai_driver vc4_hdmi_audio_cpu_dai_drv = {
 	.name = "vc4-hdmi-cpu-dai",
-	.probe  = vc4_hdmi_audio_cpu_dai_probe,
+	.ops = &vc4_snd_dai_ops,
 	.playback = {
 		.stream_name = "Playback",
 		.channels_min = 1,
@@ -3770,10 +3785,9 @@ static int vc4_hdmi_dev_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &vc4_hdmi_ops);
 }
 
-static int vc4_hdmi_dev_remove(struct platform_device *pdev)
+static void vc4_hdmi_dev_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &vc4_hdmi_ops);
-	return 0;
 }
 
 static const struct vc4_hdmi_variant bcm2835_variant = {
@@ -3869,7 +3883,7 @@ static const struct dev_pm_ops vc4_hdmi_pm_ops = {
 
 struct platform_driver vc4_hdmi_driver = {
 	.probe = vc4_hdmi_dev_probe,
-	.remove = vc4_hdmi_dev_remove,
+	.remove_new = vc4_hdmi_dev_remove,
 	.driver = {
 		.name = "vc4_hdmi",
 		.of_match_table = vc4_hdmi_dt_match,

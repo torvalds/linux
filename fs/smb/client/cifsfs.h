@@ -81,7 +81,7 @@ extern int cifs_fiemap(struct inode *, struct fiemap_extent_info *, u64 start,
 
 extern const struct inode_operations cifs_file_inode_ops;
 extern const struct inode_operations cifs_symlink_inode_ops;
-extern const struct inode_operations cifs_dfs_referral_inode_operations;
+extern const struct inode_operations cifs_namespace_inode_operations;
 
 
 /* Functions related to files and directories */
@@ -118,14 +118,7 @@ extern void cifs_pages_write_redirty(struct inode *inode, loff_t start, unsigned
 extern const struct dentry_operations cifs_dentry_ops;
 extern const struct dentry_operations cifs_ci_dentry_ops;
 
-#ifdef CONFIG_CIFS_DFS_UPCALL
-extern struct vfsmount *cifs_dfs_d_automount(struct path *path);
-#else
-static inline struct vfsmount *cifs_dfs_d_automount(struct path *path)
-{
-	return ERR_PTR(-EREMOTE);
-}
-#endif
+extern struct vfsmount *cifs_d_automount(struct path *path);
 
 /* Functions related to symlinks */
 extern const char *cifs_get_link(struct dentry *, struct inode *,
@@ -134,7 +127,7 @@ extern int cifs_symlink(struct mnt_idmap *idmap, struct inode *inode,
 			struct dentry *direntry, const char *symname);
 
 #ifdef CONFIG_CIFS_XATTR
-extern const struct xattr_handler *cifs_xattr_handlers[];
+extern const struct xattr_handler * const cifs_xattr_handlers[];
 extern ssize_t	cifs_listxattr(struct dentry *, char *, size_t);
 #else
 # define cifs_xattr_handlers NULL
@@ -159,6 +152,6 @@ extern const struct export_operations cifs_export_ops;
 #endif /* CONFIG_CIFS_NFSD_EXPORT */
 
 /* when changing internal version - update following two lines at same time */
-#define SMB3_PRODUCT_BUILD 44
-#define CIFS_VERSION   "2.44"
+#define SMB3_PRODUCT_BUILD 48
+#define CIFS_VERSION   "2.48"
 #endif				/* _CIFSFS_H */

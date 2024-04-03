@@ -36,21 +36,21 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpiobuttons>;
 
-		button1 {
+		button-1 {
 			label = "s6";
 			linux,code = <KEY_F6>;
 			gpios = <&gpio7 13 GPIO_ACTIVE_LOW>;
 			wakeup-source;
 		};
 
-		button2 {
+		button-2 {
 			label = "s7";
 			linux,code = <KEY_F7>;
 			gpios = <&gpio7 12 GPIO_ACTIVE_LOW>;
 			wakeup-source;
 		};
 
-		button3 {
+		button-3 {
 			label = "s8";
 			linux,code = <KEY_F8>;
 			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
@@ -500,21 +500,21 @@
 
 	pinctrl_pwm1: pwm1grp {
 		fsl,pins = <
-			/* 100 k PD, DSE 120 OHM, SPPEED LO */
+			/* 100 k PD, DSE 120 OHM, SPEED LO */
 			MX6QDL_PAD_GPIO_9__PWM1_OUT 0x00003050
 		>;
 	};
 
 	pinctrl_pwm3: pwm3grp {
 		fsl,pins = <
-			/* 100 k PD, DSE 120 OHM, SPPEED LO */
+			/* 100 k PD, DSE 120 OHM, SPEED LO */
 			MX6QDL_PAD_SD4_DAT1__PWM3_OUT 0x00003050
 		>;
 	};
 
 	pinctrl_pwm4: pwm4grp {
 		fsl,pins = <
-			/* 100 k PD, DSE 120 OHM, SPPEED LO */
+			/* 100 k PD, DSE 120 OHM, SPEED LO */
 			MX6QDL_PAD_SD4_DAT2__PWM4_OUT 0x00003050
 		>;
 	};

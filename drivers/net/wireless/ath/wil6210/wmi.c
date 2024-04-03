@@ -870,7 +870,6 @@ static void wmi_evt_rx_mgmt(struct wil6210_vif *vif, int id, void *d, int len)
 		struct cfg80211_bss *bss;
 		struct cfg80211_inform_bss bss_data = {
 			.chan = channel,
-			.scan_width = NL80211_BSS_CHAN_WIDTH_20,
 			.signal = signal,
 			.boottime_ns = ktime_to_ns(ktime_get_boottime()),
 		};
@@ -1389,7 +1388,6 @@ wmi_evt_sched_scan_result(struct wil6210_vif *vif, int id, void *d, int len)
 	u32 d_len;
 	struct cfg80211_bss *bss;
 	struct cfg80211_inform_bss bss_data = {
-		.scan_width = NL80211_BSS_CHAN_WIDTH_20,
 		.boottime_ns = ktime_to_ns(ktime_get_boottime()),
 	};
 

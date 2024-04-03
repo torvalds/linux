@@ -245,6 +245,14 @@ static const struct pmu_event pmu_events__test_soc_sys[] = {
 		.pmu = "uncore_sys_ccn_pmu",
 	},
 	{
+		.name = "sys_cmn_pmu.hnf_cache_miss",
+		.event = "eventid=0x1,type=0x5",
+		.desc = "Counts total cache misses in first lookup result (high priority). Unit: uncore_sys_cmn_pmu ",
+		.compat = "(434|436|43c|43a).*",
+		.topic = "uncore",
+		.pmu = "uncore_sys_cmn_pmu",
+	},
+	{
 		.name = 0,
 		.event = 0,
 		.desc = 0,
@@ -266,19 +274,53 @@ static const struct pmu_sys_events pmu_sys_event_tables[] = {
 	},
 };
 
-int pmu_events_table_for_each_event(const struct pmu_events_table *table, pmu_event_iter_fn fn,
-				    void *data)
+int pmu_events_table__for_each_event(const struct pmu_events_table *table, struct perf_pmu *pmu,
+				     pmu_event_iter_fn fn, void *data)
 {
 	for (const struct pmu_event *pe = &table->entries[0]; pe->name; pe++) {
-		int ret = fn(pe, table, data);
+		int ret;
 
+                if (pmu && !pmu__name_match(pmu, pe->pmu))
+                        continue;
+
+		ret = fn(pe, table, data);
 		if (ret)
 			return ret;
 	}
 	return 0;
 }
 
-int pmu_metrics_table_for_each_metric(const struct pmu_metrics_table *table, pmu_metric_iter_fn fn,
+int pmu_events_table__find_event(const struct pmu_events_table *table,
+                                 struct perf_pmu *pmu,
+                                 const char *name,
+                                 pmu_event_iter_fn fn,
+                                 void *data)
+{
+	for (const struct pmu_event *pe = &table->entries[0]; pe->name; pe++) {
+                if (pmu && !pmu__name_match(pmu, pe->pmu))
+                        continue;
+
+		if (!strcasecmp(pe->name, name))
+			return fn(pe, table, data);
+	}
+        return -1000;
+}
+
+size_t pmu_events_table__num_events(const struct pmu_events_table *table,
+                                    struct perf_pmu *pmu)
+{
+        size_t count = 0;
+
+	for (const struct pmu_event *pe = &table->entries[0]; pe->name; pe++) {
+                if (pmu && !pmu__name_match(pmu, pe->pmu))
+                        continue;
+
+		count++;
+	}
+        return count;
+}
+
+int pmu_metrics_table__for_each_metric(const struct pmu_metrics_table *table, pmu_metric_iter_fn fn,
 				      void *data)
 {
 	for (const struct pmu_metric *pm = &table->entries[0]; pm->metric_expr; pm++) {
@@ -371,7 +413,8 @@ const struct pmu_metrics_table *find_core_metrics_table(const char *arch, const 
 int pmu_for_each_core_event(pmu_event_iter_fn fn, void *data)
 {
 	for (const struct pmu_events_map *tables = &pmu_events_map[0]; tables->arch; tables++) {
-		int ret = pmu_events_table_for_each_event(&tables->event_table, fn, data);
+		int ret = pmu_events_table__for_each_event(&tables->event_table,
+							   /*pmu=*/ NULL, fn, data);
 
 		if (ret)
 			return ret;
@@ -384,7 +427,7 @@ int pmu_for_each_core_metric(pmu_metric_iter_fn fn, void *data)
 	for (const struct pmu_events_map *tables = &pmu_events_map[0];
 	     tables->arch;
 	     tables++) {
-		int ret = pmu_metrics_table_for_each_metric(&tables->metric_table, fn, data);
+		int ret = pmu_metrics_table__for_each_metric(&tables->metric_table, fn, data);
 
 		if (ret)
 			return ret;
@@ -408,7 +451,7 @@ int pmu_for_each_sys_event(pmu_event_iter_fn fn, void *data)
 	for (const struct pmu_sys_events *tables = &pmu_sys_event_tables[0];
 	     tables->name;
 	     tables++) {
-		int ret = pmu_events_table_for_each_event(&tables->table, fn, data);
+		int ret = pmu_events_table__for_each_event(&tables->table, /*pmu=*/ NULL, fn, data);
 
 		if (ret)
 			return ret;

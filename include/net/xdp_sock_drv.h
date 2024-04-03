@@ -12,6 +12,12 @@
 #define XDP_UMEM_MIN_CHUNK_SHIFT 11
 #define XDP_UMEM_MIN_CHUNK_SIZE (1 << XDP_UMEM_MIN_CHUNK_SHIFT)
 
+struct xsk_cb_desc {
+	void *src;
+	u8 off;
+	u8 bytes;
+};
+
 #ifdef CONFIG_XDP_SOCKETS
 
 void xsk_tx_completed(struct xsk_buff_pool *pool, u32 nb_entries);
@@ -45,6 +51,12 @@ static inline void xsk_pool_set_rxq_info(struct xsk_buff_pool *pool,
 					 struct xdp_rxq_info *rxq)
 {
 	xp_set_rxq_info(pool, rxq);
+}
+
+static inline void xsk_pool_fill_cb(struct xsk_buff_pool *pool,
+				    struct xsk_cb_desc *desc)
+{
+	xp_fill_cb(pool, desc);
 }
 
 static inline unsigned int xsk_pool_get_napi_id(struct xsk_buff_pool *pool)
@@ -89,6 +101,11 @@ static inline struct xdp_buff *xsk_buff_alloc(struct xsk_buff_pool *pool)
 	return xp_alloc(pool);
 }
 
+static inline bool xsk_is_eop_desc(struct xdp_desc *desc)
+{
+	return !xp_mb_desc(desc);
+}
+
 /* Returns as many entries as possible up to max. 0 <= N <= max. */
 static inline u32 xsk_buff_alloc_batch(struct xsk_buff_pool *pool, struct xdp_buff **xdp, u32 max)
 {
@@ -103,8 +120,60 @@ static inline bool xsk_buff_can_alloc(struct xsk_buff_pool *pool, u32 count)
 static inline void xsk_buff_free(struct xdp_buff *xdp)
 {
 	struct xdp_buff_xsk *xskb = container_of(xdp, struct xdp_buff_xsk, xdp);
+	struct list_head *xskb_list = &xskb->pool->xskb_list;
+	struct xdp_buff_xsk *pos, *tmp;
 
+	if (likely(!xdp_buff_has_frags(xdp)))
+		goto out;
+
+	list_for_each_entry_safe(pos, tmp, xskb_list, xskb_list_node) {
+		list_del(&pos->xskb_list_node);
+		xp_free(pos);
+	}
+
+	xdp_get_shared_info_from_buff(xdp)->nr_frags = 0;
+out:
 	xp_free(xskb);
+}
+
+static inline void xsk_buff_add_frag(struct xdp_buff *xdp)
+{
+	struct xdp_buff_xsk *frag = container_of(xdp, struct xdp_buff_xsk, xdp);
+
+	list_add_tail(&frag->xskb_list_node, &frag->pool->xskb_list);
+}
+
+static inline struct xdp_buff *xsk_buff_get_frag(struct xdp_buff *first)
+{
+	struct xdp_buff_xsk *xskb = container_of(first, struct xdp_buff_xsk, xdp);
+	struct xdp_buff *ret = NULL;
+	struct xdp_buff_xsk *frag;
+
+	frag = list_first_entry_or_null(&xskb->pool->xskb_list,
+					struct xdp_buff_xsk, xskb_list_node);
+	if (frag) {
+		list_del(&frag->xskb_list_node);
+		ret = &frag->xdp;
+	}
+
+	return ret;
+}
+
+static inline void xsk_buff_del_tail(struct xdp_buff *tail)
+{
+	struct xdp_buff_xsk *xskb = container_of(tail, struct xdp_buff_xsk, xdp);
+
+	list_del(&xskb->xskb_list_node);
+}
+
+static inline struct xdp_buff *xsk_buff_get_tail(struct xdp_buff *first)
+{
+	struct xdp_buff_xsk *xskb = container_of(first, struct xdp_buff_xsk, xdp);
+	struct xdp_buff_xsk *frag;
+
+	frag = list_last_entry(&xskb->pool->xskb_list, struct xdp_buff_xsk,
+			       xskb_list_node);
+	return &frag->xdp;
 }
 
 static inline void xsk_buff_set_size(struct xdp_buff *xdp, u32 size)
@@ -112,6 +181,7 @@ static inline void xsk_buff_set_size(struct xdp_buff *xdp, u32 size)
 	xdp->data = xdp->data_hard_start + XDP_PACKET_HEADROOM;
 	xdp->data_meta = xdp->data;
 	xdp->data_end = xdp->data + size;
+	xdp->flags = 0;
 }
 
 static inline dma_addr_t xsk_buff_raw_get_dma(struct xsk_buff_pool *pool,
@@ -123,6 +193,30 @@ static inline dma_addr_t xsk_buff_raw_get_dma(struct xsk_buff_pool *pool,
 static inline void *xsk_buff_raw_get_data(struct xsk_buff_pool *pool, u64 addr)
 {
 	return xp_raw_get_data(pool, addr);
+}
+
+#define XDP_TXMD_FLAGS_VALID ( \
+		XDP_TXMD_FLAGS_TIMESTAMP | \
+		XDP_TXMD_FLAGS_CHECKSUM | \
+	0)
+
+static inline bool xsk_buff_valid_tx_metadata(struct xsk_tx_metadata *meta)
+{
+	return !(meta->flags & ~XDP_TXMD_FLAGS_VALID);
+}
+
+static inline struct xsk_tx_metadata *xsk_buff_get_metadata(struct xsk_buff_pool *pool, u64 addr)
+{
+	struct xsk_tx_metadata *meta;
+
+	if (!pool->tx_metadata_len)
+		return NULL;
+
+	meta = xp_raw_get_data(pool, addr) - pool->tx_metadata_len;
+	if (unlikely(!xsk_buff_valid_tx_metadata(meta)))
+		return NULL; /* no way to signal the error to the user */
+
+	return meta;
 }
 
 static inline void xsk_buff_dma_sync_for_cpu(struct xdp_buff *xdp, struct xsk_buff_pool *pool)
@@ -210,6 +304,11 @@ static inline void xsk_pool_set_rxq_info(struct xsk_buff_pool *pool,
 {
 }
 
+static inline void xsk_pool_fill_cb(struct xsk_buff_pool *pool,
+				    struct xsk_cb_desc *desc)
+{
+}
+
 static inline unsigned int xsk_pool_get_napi_id(struct xsk_buff_pool *pool)
 {
 	return 0;
@@ -241,6 +340,11 @@ static inline struct xdp_buff *xsk_buff_alloc(struct xsk_buff_pool *pool)
 	return NULL;
 }
 
+static inline bool xsk_is_eop_desc(struct xdp_desc *desc)
+{
+	return false;
+}
+
 static inline u32 xsk_buff_alloc_batch(struct xsk_buff_pool *pool, struct xdp_buff **xdp, u32 max)
 {
 	return 0;
@@ -255,6 +359,24 @@ static inline void xsk_buff_free(struct xdp_buff *xdp)
 {
 }
 
+static inline void xsk_buff_add_frag(struct xdp_buff *xdp)
+{
+}
+
+static inline struct xdp_buff *xsk_buff_get_frag(struct xdp_buff *first)
+{
+	return NULL;
+}
+
+static inline void xsk_buff_del_tail(struct xdp_buff *tail)
+{
+}
+
+static inline struct xdp_buff *xsk_buff_get_tail(struct xdp_buff *first)
+{
+	return NULL;
+}
+
 static inline void xsk_buff_set_size(struct xdp_buff *xdp, u32 size)
 {
 }
@@ -266,6 +388,16 @@ static inline dma_addr_t xsk_buff_raw_get_dma(struct xsk_buff_pool *pool,
 }
 
 static inline void *xsk_buff_raw_get_data(struct xsk_buff_pool *pool, u64 addr)
+{
+	return NULL;
+}
+
+static inline bool xsk_buff_valid_tx_metadata(struct xsk_tx_metadata *meta)
+{
+	return false;
+}
+
+static inline struct xsk_tx_metadata *xsk_buff_get_metadata(struct xsk_buff_pool *pool, u64 addr)
 {
 	return NULL;
 }

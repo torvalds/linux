@@ -53,7 +53,7 @@ enum {
 	BITS_PER_DP_BYTE = 10,
 	DATA_EFFICIENCY_8b_10b_x10000 = 8000, /* 80% data efficiency */
 	DATA_EFFICIENCY_8b_10b_FEC_EFFICIENCY_x100 = 97, /* 97% data efficiency when FEC is enabled */
-	DATA_EFFICIENCY_128b_132b_x10000 = 9646, /* 96.71% data efficiency x 99.75% downspread factor */
+	DATA_EFFICIENCY_128b_132b_x10000 = 9641, /* 96.71% data efficiency x 99.7% downspread factor */
 };
 
 enum lttpr_mode {
@@ -168,6 +168,15 @@ enum dp_test_pattern {
 
 	DP_TEST_PATTERN_UNSUPPORTED
 };
+
+#define IS_DP_PHY_SQUARE_PATTERN(test_pattern)\
+		(DP_TEST_PATTERN_SQUARE_BEGIN <= test_pattern &&\
+		test_pattern <= DP_TEST_PATTERN_SQUARE_END)
+
+#define IS_DP_PHY_PATTERN(test_pattern)\
+		((DP_TEST_PATTERN_PHY_PATTERN_BEGIN <= test_pattern &&\
+		test_pattern <= DP_TEST_PATTERN_PHY_PATTERN_END) ||\
+		test_pattern == DP_TEST_PATTERN_VIDEO_MODE)
 
 enum dp_test_pattern_color_space {
 	DP_TEST_PATTERN_COLOR_SPACE_RGB,

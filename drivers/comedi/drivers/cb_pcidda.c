@@ -365,7 +365,7 @@ static int cb_pcidda_auto_attach(struct comedi_device *dev,
 	/* two 8255 digital io subdevices */
 	for (i = 0; i < 2; i++) {
 		s = &dev->subdevices[1 + i];
-		ret = subdev_8255_init(dev, s, NULL, i * I8255_SIZE);
+		ret = subdev_8255_io_init(dev, s, i * I8255_SIZE);
 		if (ret)
 			return ret;
 	}

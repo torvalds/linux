@@ -41,15 +41,20 @@ enum {
 };
 
 /* Values for tty->flow_change */
-#define TTY_THROTTLE_SAFE	1
-#define TTY_UNTHROTTLE_SAFE	2
+enum tty_flow_change {
+	TTY_FLOW_NO_CHANGE,
+	TTY_THROTTLE_SAFE,
+	TTY_UNTHROTTLE_SAFE,
+};
 
-static inline void __tty_set_flow_change(struct tty_struct *tty, int val)
+static inline void __tty_set_flow_change(struct tty_struct *tty,
+					 enum tty_flow_change val)
 {
 	tty->flow_change = val;
 }
 
-static inline void tty_set_flow_change(struct tty_struct *tty, int val)
+static inline void tty_set_flow_change(struct tty_struct *tty,
+				       enum tty_flow_change val)
 {
 	tty->flow_change = val;
 	smp_mb();
@@ -63,7 +68,7 @@ int tty_check_change(struct tty_struct *tty);
 void __stop_tty(struct tty_struct *tty);
 void __start_tty(struct tty_struct *tty);
 void tty_write_unlock(struct tty_struct *tty);
-int tty_write_lock(struct tty_struct *tty, int ndelay);
+int tty_write_lock(struct tty_struct *tty, bool ndelay);
 void tty_vhangup_session(struct tty_struct *tty);
 void tty_open_proc_set_tty(struct file *filp, struct tty_struct *tty);
 int tty_signal_session_leader(struct tty_struct *tty, int exit_session);
@@ -101,13 +106,13 @@ extern int tty_ldisc_autoload;
 #ifdef CONFIG_AUDIT
 void tty_audit_add_data(const struct tty_struct *tty, const void *data,
 			size_t size);
-void tty_audit_tiocsti(const struct tty_struct *tty, char ch);
+void tty_audit_tiocsti(const struct tty_struct *tty, u8 ch);
 #else
 static inline void tty_audit_add_data(const struct tty_struct *tty,
 				      const void *data, size_t size)
 {
 }
-static inline void tty_audit_tiocsti(const struct tty_struct *tty, char ch)
+static inline void tty_audit_tiocsti(const struct tty_struct *tty, u8 ch)
 {
 }
 #endif
@@ -115,6 +120,6 @@ static inline void tty_audit_tiocsti(const struct tty_struct *tty, char ch)
 ssize_t redirected_tty_write(struct kiocb *, struct iov_iter *);
 
 int tty_insert_flip_string_and_push_buffer(struct tty_port *port,
-		const unsigned char *chars, size_t cnt);
+					   const u8 *chars, size_t cnt);
 
 #endif

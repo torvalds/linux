@@ -199,7 +199,7 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
             /// Used by the printing macros, e.g. [`info!`].
             const __LOG_PREFIX: &[u8] = b\"{name}\\0\";
 
-            /// The \"Rust loadable module\" mark, for `scripts/is_rust_module.sh`.
+            /// The \"Rust loadable module\" mark.
             //
             // This may be best done another way later on, e.g. as a new modinfo
             // key or a new section. For the moment, keep it simple.
@@ -222,10 +222,15 @@ pub(crate) fn module(ts: TokenStream) -> TokenStream {
             }};
 
             // Loadable modules need to export the `{{init,cleanup}}_module` identifiers.
+            /// # Safety
+            ///
+            /// This function must not be called after module initialization, because it may be
+            /// freed after that completes.
             #[cfg(MODULE)]
             #[doc(hidden)]
             #[no_mangle]
-            pub extern \"C\" fn init_module() -> core::ffi::c_int {{
+            #[link_section = \".init.text\"]
+            pub unsafe extern \"C\" fn init_module() -> core::ffi::c_int {{
                 __init()
             }}
 

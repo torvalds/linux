@@ -23,6 +23,7 @@
 #include <linux/sched/task.h>
 #include <linux/sched/signal.h>
 #include <linux/idr.h>
+#include <uapi/linux/wait.h>
 #include "pid_sysctl.h"
 
 static DEFINE_MUTEX(pid_caches_mutex);
@@ -110,9 +111,9 @@ static struct pid_namespace *create_pid_namespace(struct user_namespace *user_ns
 	ns->user_ns = get_user_ns(user_ns);
 	ns->ucounts = ucounts;
 	ns->pid_allocated = PIDNS_ADDING;
-
-	initialize_memfd_noexec_scope(ns);
-
+#if defined(CONFIG_SYSCTL) && defined(CONFIG_MEMFD_CREATE)
+	ns->memfd_noexec_scope = pidns_memfd_noexec_scope(parent_pid_ns);
+#endif
 	return ns;
 
 out_free_idr:
@@ -285,12 +286,6 @@ static int pid_ns_ctl_handler(struct ctl_table *table, int write,
 
 	if (write && !checkpoint_restore_ns_capable(pid_ns->user_ns))
 		return -EPERM;
-
-	/*
-	 * Writing directly to ns' last_pid field is OK, since this field
-	 * is volatile in a living namespace anyway and a code writing to
-	 * it should synchronize its usage with external means.
-	 */
 
 	next = idr_get_cursor(&pid_ns->idr) - 1;
 

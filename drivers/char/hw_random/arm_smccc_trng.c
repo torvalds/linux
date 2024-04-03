@@ -105,8 +105,6 @@ static int smccc_trng_probe(struct platform_device *pdev)
 	trng->name = "smccc_trng";
 	trng->read = smccc_trng_read;
 
-	platform_set_drvdata(pdev, trng);
-
 	return devm_hwrng_register(&pdev->dev, trng);
 }
 

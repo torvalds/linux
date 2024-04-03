@@ -216,7 +216,7 @@ MODULE_DEVICE_TABLE(platform, tps65218_gpio_id_table);
 static struct platform_driver tps65218_gpio_driver = {
 	.driver = {
 		.name = "tps65218-gpio",
-		.of_match_table = of_match_ptr(tps65218_dt_match)
+		.of_match_table = tps65218_dt_match,
 	},
 	.probe = tps65218_gpio_probe,
 	.id_table = tps65218_gpio_id_table,

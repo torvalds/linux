@@ -23,6 +23,8 @@
 #include <asm/atariints.h>
 #include <asm/machdep.h>
 
+#include "atari.h"
+
 DEFINE_SPINLOCK(rtc_lock);
 EXPORT_SYMBOL_GPL(rtc_lock);
 

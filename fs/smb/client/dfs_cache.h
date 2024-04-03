@@ -16,7 +16,11 @@
 extern struct workqueue_struct *dfscache_wq;
 extern atomic_t dfs_cache_ttl;
 
-#define DFS_CACHE_TGT_LIST_INIT(var) { .tl_numtgts = 0, .tl_list = LIST_HEAD_INIT((var).tl_list), }
+#define DFS_CACHE_TGT_LIST_INIT(var) \
+	{ .tl_numtgts = 0, .tl_list = LIST_HEAD_INIT((var).tl_list), }
+
+#define DFS_CACHE_TGT_LIST(var) \
+	struct dfs_cache_tgt_list var = DFS_CACHE_TGT_LIST_INIT(var)
 
 struct dfs_cache_tgt_list {
 	int tl_numtgts;
@@ -51,8 +55,8 @@ static inline struct dfs_cache_tgt_iterator *
 dfs_cache_get_next_tgt(struct dfs_cache_tgt_list *tl,
 		       struct dfs_cache_tgt_iterator *it)
 {
-	if (!tl || list_empty(&tl->tl_list) || !it ||
-	    list_is_last(&it->it_list, &tl->tl_list))
+	if (!tl || !tl->tl_numtgts || list_empty(&tl->tl_list) ||
+	    !it || list_is_last(&it->it_list, &tl->tl_list))
 		return NULL;
 	return list_next_entry(it, it_list);
 }
@@ -71,7 +75,7 @@ static inline void dfs_cache_free_tgts(struct dfs_cache_tgt_list *tl)
 {
 	struct dfs_cache_tgt_iterator *it, *nit;
 
-	if (!tl || list_empty(&tl->tl_list))
+	if (!tl || !tl->tl_numtgts || list_empty(&tl->tl_list))
 		return;
 	list_for_each_entry_safe(it, nit, &tl->tl_list, it_list) {
 		list_del(&it->it_list);

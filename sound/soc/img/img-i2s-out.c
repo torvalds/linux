@@ -376,12 +376,6 @@ static int img_i2s_out_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
-static const struct snd_soc_dai_ops img_i2s_out_dai_ops = {
-	.trigger = img_i2s_out_trigger,
-	.hw_params = img_i2s_out_hw_params,
-	.set_fmt = img_i2s_out_set_fmt
-};
-
 static int img_i2s_out_dai_probe(struct snd_soc_dai *dai)
 {
 	struct img_i2s_out *i2s = snd_soc_dai_get_drvdata(dai);
@@ -390,6 +384,13 @@ static int img_i2s_out_dai_probe(struct snd_soc_dai *dai)
 
 	return 0;
 }
+
+static const struct snd_soc_dai_ops img_i2s_out_dai_ops = {
+	.probe		= img_i2s_out_dai_probe,
+	.trigger	= img_i2s_out_trigger,
+	.hw_params	= img_i2s_out_hw_params,
+	.set_fmt	= img_i2s_out_set_fmt
+};
 
 static const struct snd_soc_component_driver img_i2s_out_component = {
 	.name = "img-i2s-out",
@@ -404,7 +405,7 @@ static int img_i2s_out_dma_prepare_slave_config(struct snd_pcm_substream *st,
 	struct snd_dmaengine_dai_dma_data *dma_data;
 	int ret;
 
-	dma_data = snd_soc_dai_get_dma_data(asoc_rtd_to_cpu(rtd, 0), st);
+	dma_data = snd_soc_dai_get_dma_data(snd_soc_rtd_to_cpu(rtd, 0), st);
 
 	ret = snd_hwparams_to_dma_slave_config(st, params, sc);
 	if (ret)
@@ -504,7 +505,6 @@ static int img_i2s_out_probe(struct platform_device *pdev)
 	i2s->dma_data.addr_width = 4;
 	i2s->dma_data.maxburst = 4;
 
-	i2s->dai_driver.probe = img_i2s_out_dai_probe;
 	i2s->dai_driver.playback.channels_min = 2;
 	i2s->dai_driver.playback.channels_max = i2s->max_i2s_chan * 2;
 	i2s->dai_driver.playback.rates = SNDRV_PCM_RATE_8000_192000;

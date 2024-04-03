@@ -92,7 +92,7 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 			goto out;
 		}
 
-		mdst = br_mdb_get(brmctx, skb, vid);
+		mdst = br_mdb_entry_skb_get(brmctx, skb, vid);
 		if ((mdst || BR_INPUT_SKB_CB_MROUTERS_ONLY(skb)) &&
 		    br_multicast_querier_exists(brmctx, eth_hdr(skb), mdst))
 			br_multicast_flood(mdst, skb, brmctx, false, true);
@@ -108,38 +108,23 @@ out:
 	return NETDEV_TX_OK;
 }
 
-static struct lock_class_key bridge_netdev_addr_lock_key;
-
-static void br_set_lockdep_class(struct net_device *dev)
-{
-	lockdep_set_class(&dev->addr_list_lock, &bridge_netdev_addr_lock_key);
-}
-
 static int br_dev_init(struct net_device *dev)
 {
 	struct net_bridge *br = netdev_priv(dev);
 	int err;
 
-	dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!dev->tstats)
-		return -ENOMEM;
-
 	err = br_fdb_hash_init(br);
-	if (err) {
-		free_percpu(dev->tstats);
+	if (err)
 		return err;
-	}
 
 	err = br_mdb_hash_init(br);
 	if (err) {
-		free_percpu(dev->tstats);
 		br_fdb_hash_fini(br);
 		return err;
 	}
 
 	err = br_vlan_init(br);
 	if (err) {
-		free_percpu(dev->tstats);
 		br_mdb_hash_fini(br);
 		br_fdb_hash_fini(br);
 		return err;
@@ -147,14 +132,14 @@ static int br_dev_init(struct net_device *dev)
 
 	err = br_multicast_init_stats(br);
 	if (err) {
-		free_percpu(dev->tstats);
 		br_vlan_flush(br);
 		br_mdb_hash_fini(br);
 		br_fdb_hash_fini(br);
+		return err;
 	}
 
-	br_set_lockdep_class(dev);
-	return err;
+	netdev_lockdep_set_classes(dev);
+	return 0;
 }
 
 static void br_dev_uninit(struct net_device *dev)
@@ -166,7 +151,6 @@ static void br_dev_uninit(struct net_device *dev)
 	br_vlan_flush(br);
 	br_mdb_hash_fini(br);
 	br_fdb_hash_fini(br);
-	free_percpu(dev->tstats);
 }
 
 static int br_dev_open(struct net_device *dev)
@@ -471,7 +455,9 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_fdb_get		 = br_fdb_get,
 	.ndo_mdb_add		 = br_mdb_add,
 	.ndo_mdb_del		 = br_mdb_del,
+	.ndo_mdb_del_bulk	 = br_mdb_del_bulk,
 	.ndo_mdb_dump		 = br_mdb_dump,
+	.ndo_mdb_get		 = br_mdb_get,
 	.ndo_bridge_getlink	 = br_getlink,
 	.ndo_bridge_setlink	 = br_setlink,
 	.ndo_bridge_dellink	 = br_dellink,
@@ -479,7 +465,7 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_fill_forward_path	 = br_fill_forward_path,
 };
 
-static struct device_type br_type = {
+static const struct device_type br_type = {
 	.name	= "bridge",
 };
 
@@ -501,6 +487,7 @@ void br_dev_setup(struct net_device *dev)
 	dev->hw_features = COMMON_FEATURES | NETIF_F_HW_VLAN_CTAG_TX |
 			   NETIF_F_HW_VLAN_STAG_TX;
 	dev->vlan_features = COMMON_FEATURES;
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
 	br->dev = dev;
 	spin_lock_init(&br->lock);

@@ -78,6 +78,9 @@ properties:
           - mediatek,mt8173-m4u  # generation two
           - mediatek,mt8183-m4u  # generation two
           - mediatek,mt8186-iommu-mm         # generation two
+          - mediatek,mt8188-iommu-vdo        # generation two
+          - mediatek,mt8188-iommu-vpp        # generation two
+          - mediatek,mt8188-iommu-infra      # generation two
           - mediatek,mt8192-m4u  # generation two
           - mediatek,mt8195-iommu-vdo        # generation two
           - mediatek,mt8195-iommu-vpp        # generation two
@@ -123,6 +126,7 @@ properties:
     description: |
       This is the mtk_m4u_id according to the HW. Specifies the mtk_m4u_id as
       defined in
+      dt-binding/memory/mediatek,mt8188-memory-port.h for mt8188,
       dt-binding/memory/mt2701-larb-port.h for mt2701 and mt7623,
       dt-binding/memory/mt2712-larb-port.h for mt2712,
       dt-binding/memory/mt6779-larb-port.h for mt6779,
@@ -155,6 +159,8 @@ allOf:
               - mediatek,mt6795-m4u
               - mediatek,mt8173-m4u
               - mediatek,mt8186-iommu-mm
+              - mediatek,mt8188-iommu-vdo
+              - mediatek,mt8188-iommu-vpp
               - mediatek,mt8192-m4u
               - mediatek,mt8195-iommu-vdo
               - mediatek,mt8195-iommu-vpp
@@ -168,6 +174,8 @@ allOf:
         compatible:
           enum:
             - mediatek,mt8186-iommu-mm
+            - mediatek,mt8188-iommu-vdo
+            - mediatek,mt8188-iommu-vpp
             - mediatek,mt8192-m4u
             - mediatek,mt8195-iommu-vdo
             - mediatek,mt8195-iommu-vpp
@@ -194,7 +202,9 @@ allOf:
         properties:
           compatible:
             contains:
-              const: mediatek,mt8195-iommu-infra
+              enum:
+                - mediatek,mt8188-iommu-infra
+                - mediatek,mt8195-iommu-infra
 
     then:
       required:

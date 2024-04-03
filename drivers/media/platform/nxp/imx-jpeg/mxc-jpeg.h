@@ -22,6 +22,7 @@
 #define MXC_JPEG_MIN_HEIGHT		64
 #define MXC_JPEG_MAX_WIDTH		0x2000
 #define MXC_JPEG_MAX_HEIGHT		0x2000
+#define MXC_JPEG_MAX_LINE		0x8000
 #define MXC_JPEG_MAX_CFG_STREAM		0x1000
 #define MXC_JPEG_H_ALIGN		3
 #define MXC_JPEG_W_ALIGN		3
@@ -99,6 +100,7 @@ struct mxc_jpeg_ctx {
 	enum mxc_jpeg_enc_state		enc_state;
 	int				slot;
 	unsigned int			source_change;
+	bool				need_initial_source_change_evt;
 	bool				header_parsed;
 	struct v4l2_ctrl_handler	ctrl_handler;
 	u8				jpeg_quality;

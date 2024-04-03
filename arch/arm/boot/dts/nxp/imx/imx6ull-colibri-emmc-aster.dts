@@ -12,6 +12,5 @@
 	model = "Toradex Colibri iMX6ULL 1GB (eMMC) on Colibri Aster";
 	compatible = "toradex,colibri-imx6ull-emmc-aster",
 		     "toradex,colibri-imx6ull-emmc",
-		     "toradex,colibri-imx6ull",
 		     "fsl,imx6ull";
 };

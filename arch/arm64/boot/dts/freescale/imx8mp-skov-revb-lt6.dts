@@ -1,0 +1,101 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+
+/dts-v1/;
+
+#include "imx8mp-skov-reva.dtsi"
+
+/ {
+	model = "SKOV IMX8MP CPU revB - LT6";
+	compatible = "skov,imx8mp-skov-revb-lt6", "fsl,imx8mp";
+
+	touchscreen {
+		compatible = "resistive-adc-touch";
+		io-channels = <&adc_ts 1>, <&adc_ts 3>, <&adc_ts 4>, <&adc_ts 5>;
+		io-channel-names = "y", "z1", "z2", "x";
+		touchscreen-min-pressure = <65000>;
+		touchscreen-inverted-y;
+		touchscreen-swapped-x-y;
+		touchscreen-x-plate-ohms = <300>;
+	};
+};
+
+&reg_tft_vcom {
+	regulator-min-microvolt = <3600000>;
+	regulator-max-microvolt = <3600000>;
+	voltage-table = <3600000 26>;
+	status = "okay";
+};
+
+&pwm4 {
+	status = "okay";
+};
+
+&backlight {
+	status = "okay";
+};
+
+&ecspi1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ecspi1>;
+	cs-gpios = <&gpio5 9 GPIO_ACTIVE_LOW>;
+	status = "okay";
+
+	adc_ts: adc@0 {
+		compatible = "ti,tsc2046e-adc";
+		reg = <0>;
+		pinctrl-0 = <&pinctrl_touch>;
+		pinctrl-names ="default";
+		spi-max-frequency = <1000000>;
+		interrupts-extended = <&gpio4 25 IRQ_TYPE_LEVEL_LOW>;
+		#io-channel-cells = <1>;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		channel@1 {
+			reg = <1>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@3 {
+			reg = <3>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@4 {
+			reg = <4>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+
+		channel@5 {
+			reg = <5>;
+			settling-time-us = <700>;
+			oversampling-ratio = <5>;
+		};
+	};
+};
+
+&pwm1 {
+	status = "okay";
+};
+
+&iomuxc {
+	pinctrl_ecspi1: ecspi1grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_ECSPI1_SCLK__ECSPI1_SCLK			0x44
+			MX8MP_IOMUXC_ECSPI1_MOSI__ECSPI1_MOSI			0x44
+			MX8MP_IOMUXC_ECSPI1_MISO__ECSPI1_MISO			0x44
+			MX8MP_IOMUXC_ECSPI1_SS0__GPIO5_IO09			0x40
+		>;
+	};
+
+	pinctrl_touch: touchgrp {
+		fsl,pins = <
+			/* external pull up */
+			MX8MP_IOMUXC_SAI2_TXC__GPIO4_IO25			0x40
+		>;
+	};
+};

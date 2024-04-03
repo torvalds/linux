@@ -66,7 +66,5 @@ void rtl8723_write_fw(struct ieee80211_hw *hw,
 		      u8 *buffer, u32 size, u8 max_page);
 int rtl8723_fw_free_to_go(struct ieee80211_hw *hw, bool is_8723be, int count);
 int rtl8723_download_fw(struct ieee80211_hw *hw, bool is_8723be, int count);
-bool rtl8723_cmd_send_packet(struct ieee80211_hw *hw,
-			     struct sk_buff *skb);
 
 #endif

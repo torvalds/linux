@@ -37,6 +37,8 @@
 #include <asm/pci-bridge.h>
 #include <asm/pmac_low_i2c.h>
 
+#include "pmac.h"
+
 #undef DEBUG_FEATURE
 
 #ifdef DEBUG_FEATURE
@@ -132,8 +134,10 @@ static struct pmac_mb_def pmac_mb;
  * Here are the chip specific feature functions
  */
 
-static inline int simple_feature_tweak(struct device_node *node, int type,
-				       int reg, u32 mask, int value)
+#ifndef CONFIG_PPC64
+
+static int simple_feature_tweak(struct device_node *node, int type, int reg,
+				u32 mask, int value)
 {
 	struct macio_chip*	macio;
 	unsigned long		flags;
@@ -151,8 +155,6 @@ static inline int simple_feature_tweak(struct device_node *node, int type,
 
 	return 0;
 }
-
-#ifndef CONFIG_PPC64
 
 static long ohare_htw_scc_enable(struct device_node *node, long param,
 				 long value)
@@ -2331,7 +2333,6 @@ static struct pmac_mb_def pmac_mb_defs[] = {
 		PMAC_TYPE_POWERMAC_G5,		g5_features,
 		0,
 	},
-#ifdef CONFIG_PPC64
 	{	"PowerMac7,3",			"PowerMac G5",
 		PMAC_TYPE_POWERMAC_G5,		g5_features,
 		0,
@@ -2356,7 +2357,6 @@ static struct pmac_mb_def pmac_mb_defs[] = {
 		PMAC_TYPE_XSERVE_G5,		g5_features,
 		0,
 	},
-#endif /* CONFIG_PPC64 */
 #endif /* CONFIG_PPC64 */
 };
 
@@ -2612,7 +2612,8 @@ static void __init probe_one_macio(const char *name, const char *compat, int typ
 	struct device_node*	node;
 	int			i;
 	volatile u32 __iomem	*base;
-	const u32		*addrp, *revp;
+	const __be32		*addrp;
+	const u32		*revp;
 	phys_addr_t		addr;
 	u64			size;
 

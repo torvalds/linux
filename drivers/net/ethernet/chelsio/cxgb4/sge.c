@@ -804,20 +804,6 @@ static inline unsigned int calc_tx_flits(const struct sk_buff *skb,
 }
 
 /**
- *	calc_tx_descs - calculate the number of Tx descriptors for a packet
- *	@skb: the packet
- *	@chip_ver: chip version
- *
- *	Returns the number of Tx descriptors needed for the given Ethernet
- *	packet, including the needed WR and CPL headers.
- */
-static inline unsigned int calc_tx_descs(const struct sk_buff *skb,
-					 unsigned int chip_ver)
-{
-	return flits_to_desc(calc_tx_flits(skb, chip_ver));
-}
-
-/**
  *	cxgb4_write_sgl - populate a scatter/gather list for a packet
  *	@skb: the packet
  *	@q: the Tx queue we are writing into
@@ -4261,7 +4247,7 @@ static void sge_rx_timer_cb(struct timer_list *t)
 
 			if (fl_starving(adap, fl)) {
 				rxq = container_of(fl, struct sge_eth_rxq, fl);
-				if (napi_reschedule(&rxq->rspq.napi))
+				if (napi_schedule(&rxq->rspq.napi))
 					fl->starving++;
 				else
 					set_bit(id, s->starving_fl);

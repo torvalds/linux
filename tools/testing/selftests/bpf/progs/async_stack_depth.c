@@ -30,7 +30,7 @@ static int bad_timer_cb(void *map, int *key, struct bpf_timer *timer)
 }
 
 SEC("tc")
-__failure __msg("combined stack size of 2 calls is 576. Too large")
+__failure __msg("combined stack size of 2 calls is")
 int pseudo_call_check(struct __sk_buff *ctx)
 {
 	struct hmap_elem *elem;
@@ -45,7 +45,7 @@ int pseudo_call_check(struct __sk_buff *ctx)
 }
 
 SEC("tc")
-__failure __msg("combined stack size of 2 calls is 608. Too large")
+__failure __msg("combined stack size of 2 calls is")
 int async_call_root_check(struct __sk_buff *ctx)
 {
 	struct hmap_elem *elem;

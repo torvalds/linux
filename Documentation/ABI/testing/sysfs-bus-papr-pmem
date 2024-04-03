@@ -8,7 +8,7 @@ Description:
 		more bits set in the dimm-health-bitmap retrieved in
 		response to H_SCM_HEALTH hcall. The details of the bit
 		flags returned in response to this hcall is available
-		at 'Documentation/powerpc/papr_hcalls.rst' . Below are
+		at 'Documentation/arch/powerpc/papr_hcalls.rst' . Below are
 		the flags reported in this sysfs file:
 
 		* "not_armed"
@@ -30,7 +30,7 @@ Description:
 				  Indicating that contents of the
 				  NVDIMM have been scrubbed.
 		* "locked"
-				  Indicating that NVDIMM contents cant
+				  Indicating that NVDIMM contents can't
 				  be modified until next power cycle.
 
 What:		/sys/bus/nd/devices/nmemX/papr/perf_stats

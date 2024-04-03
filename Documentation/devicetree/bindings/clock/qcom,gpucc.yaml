@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Graphics Clock & Reset Controller
 
 maintainers:
-  - Taniya Das <tdas@codeaurora.org>
+  - Taniya Das <quic_tdas@quicinc.com>
 
 description: |
   Qualcomm graphics clock control module provides the clocks, resets and power
@@ -53,6 +53,9 @@ properties:
   power-domains:
     maxItems: 1
 
+  vdd-gfx-supply:
+    description: Regulator supply for the VDD_GFX pads
+
   '#clock-cells':
     const: 1
 
@@ -73,6 +76,12 @@ required:
   - '#clock-cells'
   - '#reset-cells'
   - '#power-domain-cells'
+
+# Require that power-domains and vdd-gfx-supply are not both present
+not:
+  required:
+    - power-domains
+    - vdd-gfx-supply
 
 additionalProperties: false
 

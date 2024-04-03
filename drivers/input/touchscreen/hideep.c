@@ -928,8 +928,7 @@ static ssize_t hideep_fw_version_show(struct device *dev,
 	ssize_t len;
 
 	mutex_lock(&ts->dev_mutex);
-	len = scnprintf(buf, PAGE_SIZE, "%04x\n",
-			be16_to_cpu(ts->dwz_info.release_ver));
+	len = sysfs_emit(buf, "%04x\n", be16_to_cpu(ts->dwz_info.release_ver));
 	mutex_unlock(&ts->dev_mutex);
 
 	return len;
@@ -943,8 +942,7 @@ static ssize_t hideep_product_id_show(struct device *dev,
 	ssize_t len;
 
 	mutex_lock(&ts->dev_mutex);
-	len = scnprintf(buf, PAGE_SIZE, "%04x\n",
-			be16_to_cpu(ts->dwz_info.product_id));
+	len = sysfs_emit(buf, "%04x\n", be16_to_cpu(ts->dwz_info.product_id));
 	mutex_unlock(&ts->dev_mutex);
 
 	return len;
@@ -954,16 +952,13 @@ static DEVICE_ATTR(version, 0664, hideep_fw_version_show, NULL);
 static DEVICE_ATTR(product_id, 0664, hideep_product_id_show, NULL);
 static DEVICE_ATTR(update_fw, 0664, NULL, hideep_update_fw);
 
-static struct attribute *hideep_ts_sysfs_entries[] = {
+static struct attribute *hideep_ts_attrs[] = {
 	&dev_attr_version.attr,
 	&dev_attr_product_id.attr,
 	&dev_attr_update_fw.attr,
 	NULL,
 };
-
-static const struct attribute_group hideep_ts_attr_group = {
-	.attrs = hideep_ts_sysfs_entries,
-};
+ATTRIBUTE_GROUPS(hideep_ts);
 
 static void hideep_set_work_mode(struct hideep_ts *ts)
 {
@@ -1096,13 +1091,6 @@ static int hideep_probe(struct i2c_client *client)
 		return error;
 	}
 
-	error = devm_device_add_group(&client->dev, &hideep_ts_attr_group);
-	if (error) {
-		dev_err(&client->dev,
-			"failed to add sysfs attributes: %d\n", error);
-		return error;
-	}
-
 	return 0;
 }
 
@@ -1131,6 +1119,7 @@ MODULE_DEVICE_TABLE(of, hideep_match_table);
 static struct i2c_driver hideep_driver = {
 	.driver = {
 		.name			= HIDEEP_I2C_NAME,
+		.dev_groups		= hideep_ts_groups,
 		.of_match_table		= of_match_ptr(hideep_match_table),
 		.acpi_match_table	= ACPI_PTR(hideep_acpi_id),
 		.pm			= pm_sleep_ptr(&hideep_pm_ops),

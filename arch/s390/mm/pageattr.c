@@ -75,7 +75,7 @@ static void pgt_set(unsigned long *old, unsigned long new, unsigned long addr,
 			break;
 		}
 		table = (unsigned long *)((unsigned long)old & mask);
-		crdte(*old, new, table, dtt, addr, S390_lowcore.kernel_asce);
+		crdte(*old, new, table, dtt, addr, S390_lowcore.kernel_asce.val);
 	} else if (MACHINE_HAS_IDTE) {
 		cspg(old, *old, new);
 	} else {
@@ -98,7 +98,7 @@ static int walk_pte_level(pmd_t *pmdp, unsigned long addr, unsigned long end,
 		if (flags & SET_MEMORY_RO)
 			new = pte_wrprotect(new);
 		else if (flags & SET_MEMORY_RW)
-			new = pte_mkwrite(pte_mkdirty(new));
+			new = pte_mkwrite_novma(pte_mkdirty(new));
 		if (flags & SET_MEMORY_NX)
 			new = set_pte_bit(new, __pgprot(_PAGE_NOEXEC));
 		else if (flags & SET_MEMORY_X)
@@ -156,7 +156,7 @@ static void modify_pmd_page(pmd_t *pmdp, unsigned long addr,
 	if (flags & SET_MEMORY_RO)
 		new = pmd_wrprotect(new);
 	else if (flags & SET_MEMORY_RW)
-		new = pmd_mkwrite(pmd_mkdirty(new));
+		new = pmd_mkwrite_novma(pmd_mkdirty(new));
 	if (flags & SET_MEMORY_NX)
 		new = set_pmd_bit(new, __pgprot(_SEGMENT_ENTRY_NOEXEC));
 	else if (flags & SET_MEMORY_X)
@@ -185,7 +185,7 @@ static int walk_pmd_level(pud_t *pudp, unsigned long addr, unsigned long end,
 		if (pmd_none(*pmdp))
 			return -EINVAL;
 		next = pmd_addr_end(addr, end);
-		if (pmd_large(*pmdp)) {
+		if (pmd_leaf(*pmdp)) {
 			need_split  = !!(flags & SET_MEMORY_4K);
 			need_split |= !!(addr & ~PMD_MASK);
 			need_split |= !!(addr + PMD_SIZE > next);
@@ -274,7 +274,7 @@ static int walk_pud_level(p4d_t *p4d, unsigned long addr, unsigned long end,
 		if (pud_none(*pudp))
 			return -EINVAL;
 		next = pud_addr_end(addr, end);
-		if (pud_large(*pudp)) {
+		if (pud_leaf(*pudp)) {
 			need_split  = !!(flags & SET_MEMORY_4K);
 			need_split |= !!(addr & ~PUD_MASK);
 			need_split |= !!(addr + PUD_SIZE > next);
@@ -373,7 +373,7 @@ static int change_page_attr_alias(unsigned long addr, unsigned long end,
 	return rc;
 }
 
-int __set_memory(unsigned long addr, int numpages, unsigned long flags)
+int __set_memory(unsigned long addr, unsigned long numpages, unsigned long flags)
 {
 	unsigned long end;
 	int rc;

@@ -1,0 +1,126 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/interconnect/qcom,msm8996.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm MSM8996 Network-On-Chip interconnect
+
+maintainers:
+  - Konrad Dybcio <konradybcio@kernel.org>
+
+description: |
+  The Qualcomm MSM8996 interconnect providers support adjusting the
+  bandwidth requirements between the various NoC fabrics.
+
+properties:
+  compatible:
+    enum:
+      - qcom,msm8996-a0noc
+      - qcom,msm8996-a1noc
+      - qcom,msm8996-a2noc
+      - qcom,msm8996-bimc
+      - qcom,msm8996-cnoc
+      - qcom,msm8996-mnoc
+      - qcom,msm8996-pnoc
+      - qcom,msm8996-snoc
+
+  reg:
+    maxItems: 1
+
+  clock-names:
+    minItems: 1
+    maxItems: 3
+
+  clocks:
+    minItems: 1
+    maxItems: 3
+
+  power-domains:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+
+unevaluatedProperties: false
+
+allOf:
+  - $ref: qcom,rpm-common.yaml#
+  - if:
+      properties:
+        compatible:
+          const: qcom,msm8996-a0noc
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Aggregate0 System NoC AXI Clock.
+            - description: Aggregate0 Config NoC AHB Clock.
+            - description: Aggregate0 NoC MPU Clock.
+
+        clock-names:
+          items:
+            - const: aggre0_snoc_axi
+            - const: aggre0_cnoc_ahb
+            - const: aggre0_noc_mpu_cfg
+
+      required:
+        - power-domains
+
+  - if:
+      properties:
+        compatible:
+          const: qcom,msm8996-mnoc
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: CPU-NoC High-performance Bus Clock.
+
+        clock-names:
+          const: iface
+
+  - if:
+      properties:
+        compatible:
+          const: qcom,msm8996-a2noc
+
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Aggregate2 NoC UFS AXI Clock
+            - description: UFS AXI Clock
+
+        clock-names:
+          items:
+            - const: aggre2_ufs_axi
+            - const: ufs_axi
+
+examples:
+  - |
+    #include <dt-bindings/clock/qcom,gcc-msm8996.h>
+    #include <dt-bindings/clock/qcom,mmcc-msm8996.h>
+    #include <dt-bindings/clock/qcom,rpmcc.h>
+
+    bimc: interconnect@408000 {
+        compatible = "qcom,msm8996-bimc";
+        reg = <0x00408000 0x5a000>;
+        #interconnect-cells = <1>;
+    };
+
+    a0noc: interconnect@543000 {
+        compatible = "qcom,msm8996-a0noc";
+        reg = <0x00543000 0x6000>;
+        #interconnect-cells = <1>;
+        clocks = <&gcc GCC_AGGRE0_SNOC_AXI_CLK>,
+                 <&gcc GCC_AGGRE0_CNOC_AHB_CLK>,
+                 <&gcc GCC_AGGRE0_NOC_MPU_CFG_AHB_CLK>;
+        clock-names = "aggre0_snoc_axi",
+                      "aggre0_cnoc_ahb",
+                      "aggre0_noc_mpu_cfg";
+        power-domains = <&gcc AGGRE0_NOC_GDSC>;
+    };

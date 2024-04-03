@@ -118,7 +118,7 @@ static int tcf_simp_init(struct net *net, struct nlattr *nla,
 		return err;
 	exists = err;
 	if (exists && bind)
-		return 0;
+		return ACT_P_BOUND;
 
 	if (tb[TCA_DEF_DATA] == NULL) {
 		if (exists)
@@ -209,6 +209,7 @@ static struct tc_action_ops act_simp_ops = {
 	.init		=	tcf_simp_init,
 	.size		=	sizeof(struct tcf_defact),
 };
+MODULE_ALIAS_NET_ACT("simple");
 
 static __net_init int simp_init_net(struct net *net)
 {

@@ -32,6 +32,25 @@ struct xattr_list {
 	bool enabled;
 };
 
+#define EVM_NEW_FILE			0x00000001
+#define EVM_IMMUTABLE_DIGSIG		0x00000002
+
+/* EVM integrity metadata associated with an inode */
+struct evm_iint_cache {
+	unsigned long flags;
+	enum integrity_status evm_status:4;
+};
+
+extern struct lsm_blob_sizes evm_blob_sizes;
+
+static inline struct evm_iint_cache *evm_iint_inode(const struct inode *inode)
+{
+	if (unlikely(!inode->i_security))
+		return NULL;
+
+	return inode->i_security + evm_blob_sizes.lbs_inode;
+}
+
 extern int evm_initialized;
 
 #define EVM_ATTR_FSUUID		0x0001
@@ -46,6 +65,8 @@ struct evm_digest {
 	char digest[IMA_MAX_DIGEST_SIZE];
 } __packed;
 
+int evm_protected_xattr(const char *req_xattr_name);
+
 int evm_init_key(void);
 int evm_update_evmxattr(struct dentry *dentry,
 			const char *req_xattr_name,
@@ -58,7 +79,7 @@ int evm_calc_hash(struct dentry *dentry, const char *req_xattr_name,
 		  const char *req_xattr_value,
 		  size_t req_xattr_value_len, char type,
 		  struct evm_digest *data);
-int evm_init_hmac(struct inode *inode, const struct xattr *xattr,
+int evm_init_hmac(struct inode *inode, const struct xattr *xattrs,
 		  char *hmac_val);
 int evm_init_secfs(void);
 

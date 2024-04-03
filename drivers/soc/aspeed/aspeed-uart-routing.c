@@ -5,8 +5,7 @@
  */
 #include <linux/device.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
-#include <linux/of_platform.h>
+#include <linux/of.h>
 #include <linux/mfd/syscon.h>
 #include <linux/regmap.h>
 #include <linux/platform_device.h>
@@ -524,7 +523,7 @@ static ssize_t aspeed_uart_routing_store(struct device *dev,
 	struct aspeed_uart_routing_selector *sel = to_routing_selector(attr);
 	int val;
 
-	val = match_string(sel->options, -1, buf);
+	val = __sysfs_match_string(sel->options, -1, buf);
 	if (val < 0) {
 		dev_err(dev, "invalid value \"%s\"\n", buf);
 		return -EINVAL;
@@ -566,14 +565,12 @@ static int aspeed_uart_routing_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int aspeed_uart_routing_remove(struct platform_device *pdev)
+static void aspeed_uart_routing_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct aspeed_uart_routing *uart_routing = platform_get_drvdata(pdev);
 
 	sysfs_remove_group(&dev->kobj, uart_routing->attr_grp);
-
-	return 0;
 }
 
 static const struct of_device_id aspeed_uart_routing_table[] = {
@@ -592,7 +589,7 @@ static struct platform_driver aspeed_uart_routing_driver = {
 		.of_match_table = aspeed_uart_routing_table,
 	},
 	.probe = aspeed_uart_routing_probe,
-	.remove = aspeed_uart_routing_remove,
+	.remove_new = aspeed_uart_routing_remove,
 };
 
 module_platform_driver(aspeed_uart_routing_driver);

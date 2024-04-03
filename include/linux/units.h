@@ -2,6 +2,7 @@
 #ifndef _LINUX_UNITS_H
 #define _LINUX_UNITS_H
 
+#include <linux/bits.h>
 #include <linux/math.h>
 
 /* Metric prefixes in accordance with Système international (d'unités) */
@@ -23,13 +24,20 @@
 #define NANOHZ_PER_HZ		1000000000UL
 #define MICROHZ_PER_HZ		1000000UL
 #define MILLIHZ_PER_HZ		1000UL
+
 #define HZ_PER_KHZ		1000UL
-#define KHZ_PER_MHZ		1000UL
 #define HZ_PER_MHZ		1000000UL
+
+#define KHZ_PER_MHZ		1000UL
+#define KHZ_PER_GHZ		1000000UL
 
 #define MILLIWATT_PER_WATT	1000UL
 #define MICROWATT_PER_MILLIWATT	1000UL
 #define MICROWATT_PER_WATT	1000000UL
+
+#define BYTES_PER_KBIT		(KILO / BITS_PER_BYTE)
+#define BYTES_PER_MBIT		(MEGA / BITS_PER_BYTE)
+#define BYTES_PER_GBIT		(GIGA / BITS_PER_BYTE)
 
 #define ABSOLUTE_ZERO_MILLICELSIUS -273150
 

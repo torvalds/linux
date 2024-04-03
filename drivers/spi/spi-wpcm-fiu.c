@@ -3,9 +3,8 @@
 
 #include <linux/clk.h>
 #include <linux/mfd/syscon.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/spi/spi-mem.h>
@@ -362,7 +361,7 @@ static int wpcm_fiu_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 
 	wpcm_fiu_stall_host(fiu, false);
 
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }
 
 static int wpcm_fiu_adjust_op_size(struct spi_mem *mem, struct spi_mem_op *op)
@@ -442,7 +441,7 @@ static int wpcm_fiu_probe(struct platform_device *pdev)
 	struct wpcm_fiu_spi *fiu;
 	struct resource *res;
 
-	ctrl = devm_spi_alloc_master(dev, sizeof(*fiu));
+	ctrl = devm_spi_alloc_host(dev, sizeof(*fiu));
 	if (!ctrl)
 		return -ENOMEM;
 

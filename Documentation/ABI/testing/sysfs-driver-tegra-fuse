@@ -3,7 +3,7 @@ Date:		February 2014
 Contact:	Peter De Schrijver <pdeschrijver@nvidia.com>
 Description:	read-only access to the efuses on Tegra20, Tegra30, Tegra114
 		and Tegra124 SoC's from NVIDIA. The efuses contain write once
-		data programmed at the factory. The data is layed out in 32bit
+		data programmed at the factory. The data is laid out in 32bit
 		words in LSB first format. Each bit represents a single value
 		as decoded from the fuse registers. Bits order/assignment
 		exactly matches the HW registers, including any unused bits.

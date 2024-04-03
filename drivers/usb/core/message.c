@@ -9,6 +9,7 @@
 #include <linux/pci.h>	/* for scatterlist macros */
 #include <linux/usb.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/timer.h>
@@ -1040,40 +1041,35 @@ char *usb_cache_string(struct usb_device *udev, int index)
 EXPORT_SYMBOL_GPL(usb_cache_string);
 
 /*
- * usb_get_device_descriptor - (re)reads the device descriptor (usbcore)
- * @dev: the device whose device descriptor is being updated
- * @size: how much of the descriptor to read
+ * usb_get_device_descriptor - read the device descriptor
+ * @udev: the device whose device descriptor should be read
  *
  * Context: task context, might sleep.
- *
- * Updates the copy of the device descriptor stored in the device structure,
- * which dedicates space for this purpose.
  *
  * Not exported, only for use by the core.  If drivers really want to read
  * the device descriptor directly, they can call usb_get_descriptor() with
  * type = USB_DT_DEVICE and index = 0.
  *
- * This call is synchronous, and may not be used in an interrupt context.
- *
- * Return: The number of bytes received on success, or else the status code
- * returned by the underlying usb_control_msg() call.
+ * Returns: a pointer to a dynamically allocated usb_device_descriptor
+ * structure (which the caller must deallocate), or an ERR_PTR value.
  */
-int usb_get_device_descriptor(struct usb_device *dev, unsigned int size)
+struct usb_device_descriptor *usb_get_device_descriptor(struct usb_device *udev)
 {
 	struct usb_device_descriptor *desc;
 	int ret;
 
-	if (size > sizeof(*desc))
-		return -EINVAL;
 	desc = kmalloc(sizeof(*desc), GFP_NOIO);
 	if (!desc)
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 
-	ret = usb_get_descriptor(dev, USB_DT_DEVICE, 0, desc, size);
+	ret = usb_get_descriptor(udev, USB_DT_DEVICE, 0, desc, sizeof(*desc));
+	if (ret == sizeof(*desc))
+		return desc;
+
 	if (ret >= 0)
-		memcpy(&dev->descriptor, desc, size);
+		ret = -EMSGSIZE;
 	kfree(desc);
-	return ret;
+	return ERR_PTR(ret);
 }
 
 /*
@@ -1202,6 +1198,8 @@ EXPORT_SYMBOL_GPL(usb_get_status);
  * same status code used to report a true stall.
  *
  * This call is synchronous, and may not be used in an interrupt context.
+ * If a thread in your driver uses this call, make sure your disconnect()
+ * method can wait for it to complete.
  *
  * Return: Zero on success, or else the status code returned by the
  * underlying usb_control_msg() call.
@@ -1520,7 +1518,8 @@ void usb_enable_interface(struct usb_device *dev,
  * This call is synchronous, and may not be used in an interrupt context.
  * Also, drivers must not change altsettings while urbs are scheduled for
  * endpoints in that interface; all such urbs must first be completed
- * (perhaps forced by unlinking).
+ * (perhaps forced by unlinking). If a thread in your driver uses this call,
+ * make sure your disconnect() method can wait for it to complete.
  *
  * Return: Zero on success, or else the status code returned by the
  * underlying usb_control_msg() call.
@@ -1853,7 +1852,7 @@ static int usb_if_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return 0;
 }
 
-struct device_type usb_if_device_type = {
+const struct device_type usb_if_device_type = {
 	.name =		"usb_interface",
 	.release =	usb_release_interface,
 	.uevent =	usb_if_uevent,

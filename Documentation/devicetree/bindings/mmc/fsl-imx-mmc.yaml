@@ -24,6 +24,14 @@ properties:
   reg:
     maxItems: 1
 
+  clocks:
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: ipg
+      - const: per
+
   interrupts:
     maxItems: 1
 
@@ -34,6 +42,8 @@ properties:
     const: rx-tx
 
 required:
+  - clocks
+  - clock-names
   - compatible
   - reg
   - interrupts
@@ -46,6 +56,8 @@ examples:
         compatible = "fsl,imx27-mmc", "fsl,imx21-mmc";
         reg = <0x10014000 0x1000>;
         interrupts = <11>;
+        clocks = <&clks 29>, <&clks 60>;
+        clock-names = "ipg", "per";
         dmas = <&dma 7>;
         dma-names = "rx-tx";
         bus-width = <4>;

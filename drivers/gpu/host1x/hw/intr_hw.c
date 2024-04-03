@@ -13,13 +13,20 @@
 #include "../intr.h"
 #include "../dev.h"
 
+struct host1x_intr_irq_data {
+	struct host1x *host;
+	u32 offset;
+};
+
 static irqreturn_t syncpt_thresh_isr(int irq, void *dev_id)
 {
-	struct host1x *host = dev_id;
+	struct host1x_intr_irq_data *irq_data = dev_id;
+	struct host1x *host = irq_data->host;
 	unsigned long reg;
 	unsigned int i, id;
 
-	for (i = 0; i < DIV_ROUND_UP(host->info->nb_pts, 32); i++) {
+	for (i = irq_data->offset; i < DIV_ROUND_UP(host->info->nb_pts, 32);
+	     i += host->num_syncpt_irqs) {
 		reg = host1x_sync_readl(host,
 			HOST1X_SYNC_SYNCPT_THRESH_CPU0_INT_STATUS(i));
 
@@ -67,26 +74,41 @@ static void intr_hw_init(struct host1x *host, u32 cpm)
 
 	/*
 	 * Program threshold interrupt destination among 8 lines per VM,
-	 * per syncpoint. For now, just direct all to the first interrupt
-	 * line.
+	 * per syncpoint. For each group of 32 syncpoints (corresponding to one
+	 * interrupt status register), direct to one interrupt line, going
+	 * around in a round robin fashion.
 	 */
-	for (id = 0; id < host->info->nb_pts; id++)
-		host1x_sync_writel(host, 0, HOST1X_SYNC_SYNCPT_INTR_DEST(id));
+	for (id = 0; id < host->info->nb_pts; id++) {
+		u32 reg_offset = id / 32;
+		u32 irq_index = reg_offset % host->num_syncpt_irqs;
+
+		host1x_sync_writel(host, irq_index, HOST1X_SYNC_SYNCPT_INTR_DEST(id));
+	}
 #endif
 }
 
 static int
 host1x_intr_init_host_sync(struct host1x *host, u32 cpm)
 {
-	int err;
+	int err, i;
+	struct host1x_intr_irq_data *irq_data;
+
+	irq_data = devm_kcalloc(host->dev, host->num_syncpt_irqs, sizeof(irq_data[0]), GFP_KERNEL);
+	if (!irq_data)
+		return -ENOMEM;
 
 	host1x_hw_intr_disable_all_syncpt_intrs(host);
 
-	err = devm_request_irq(host->dev, host->syncpt_irq,
-			       syncpt_thresh_isr, IRQF_SHARED,
-			       "host1x_syncpt", host);
-	if (err < 0)
-		return err;
+	for (i = 0; i < host->num_syncpt_irqs; i++) {
+		irq_data[i].host = host;
+		irq_data[i].offset = i;
+
+		err = devm_request_irq(host->dev, host->syncpt_irqs[i],
+				       syncpt_thresh_isr, IRQF_SHARED,
+				       "host1x_syncpt", &irq_data[i]);
+		if (err < 0)
+			return err;
+	}
 
 	intr_hw_init(host, cpm);
 

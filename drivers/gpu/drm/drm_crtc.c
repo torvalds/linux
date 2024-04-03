@@ -61,13 +61,13 @@
  * to one or more &drm_encoder, which are then each connected to one
  * &drm_connector.
  *
- * To create a CRTC, a KMS drivers allocates and zeroes an instances of
+ * To create a CRTC, a KMS driver allocates and zeroes an instance of
  * &struct drm_crtc (possibly as part of a larger structure) and registers it
  * with a call to drm_crtc_init_with_planes().
  *
- * The CRTC is also the entry point for legacy modeset operations, see
- * &drm_crtc_funcs.set_config, legacy plane operations, see
- * &drm_crtc_funcs.page_flip and &drm_crtc_funcs.cursor_set2, and other legacy
+ * The CRTC is also the entry point for legacy modeset operations (see
+ * &drm_crtc_funcs.set_config), legacy plane operations (see
+ * &drm_crtc_funcs.page_flip and &drm_crtc_funcs.cursor_set2), and other legacy
  * operations like &drm_crtc_funcs.gamma_set. For atomic drivers all these
  * features are controlled through &drm_property and
  * &drm_mode_config_funcs.atomic_check.
@@ -105,18 +105,6 @@ int drm_crtc_force_disable(struct drm_crtc *crtc)
 	WARN_ON(drm_drv_uses_atomic_modeset(crtc->dev));
 
 	return drm_mode_set_config_internal(&set);
-}
-
-static unsigned int drm_num_crtcs(struct drm_device *dev)
-{
-	unsigned int num = 0;
-	struct drm_crtc *tmp;
-
-	drm_for_each_crtc(tmp, dev) {
-		num++;
-	}
-
-	return num;
 }
 
 int drm_crtc_register_all(struct drm_device *dev)
@@ -278,8 +266,7 @@ static int __drm_crtc_init_with_planes(struct drm_device *dev, struct drm_crtc *
 	if (name) {
 		crtc->name = kvasprintf(GFP_KERNEL, name, ap);
 	} else {
-		crtc->name = kasprintf(GFP_KERNEL, "crtc-%d",
-				       drm_num_crtcs(dev));
+		crtc->name = kasprintf(GFP_KERNEL, "crtc-%d", config->num_crtc);
 	}
 	if (!crtc->name) {
 		drm_mode_object_unregister(dev, &crtc->base);
@@ -715,8 +702,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	struct drm_mode_set set;
 	uint32_t __user *set_connectors_ptr;
 	struct drm_modeset_acquire_ctx ctx;
-	int ret;
-	int i;
+	int ret, i, num_connectors = 0;
 
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EOPNOTSUPP;
@@ -871,6 +857,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 					connector->name);
 
 			connector_set[i] = connector;
+			num_connectors++;
 		}
 	}
 
@@ -879,7 +866,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	set.y = crtc_req->y;
 	set.mode = mode;
 	set.connectors = connector_set;
-	set.num_connectors = crtc_req->count_connectors;
+	set.num_connectors = num_connectors;
 	set.fb = fb;
 
 	if (drm_drv_uses_atomic_modeset(dev))
@@ -892,7 +879,7 @@ out:
 		drm_framebuffer_put(fb);
 
 	if (connector_set) {
-		for (i = 0; i < crtc_req->count_connectors; i++) {
+		for (i = 0; i < num_connectors; i++) {
 			if (connector_set[i])
 				drm_connector_put(connector_set[i]);
 		}
@@ -904,6 +891,7 @@ out:
 	connector_set = NULL;
 	fb = NULL;
 	mode = NULL;
+	num_connectors = 0;
 
 	DRM_MODESET_LOCK_ALL_END(dev, ctx, ret);
 

@@ -81,7 +81,7 @@ static int create_aso_cq(struct mlx5_aso_cq *cq, void *cqc_data)
 	int inlen, eqn;
 	int err;
 
-	err = mlx5_vector2eqn(mdev, 0, &eqn);
+	err = mlx5_comp_eqn_get(mdev, 0, &eqn);
 	if (err)
 		return err;
 
@@ -98,7 +98,7 @@ static int create_aso_cq(struct mlx5_aso_cq *cq, void *cqc_data)
 	mlx5_fill_page_frag_array(&cq->wq_ctrl.buf,
 				  (__be64 *)MLX5_ADDR_OF(create_cq_in, in, pas));
 
-	MLX5_SET(cqc,   cqc, cq_period_mode, DIM_CQ_PERIOD_MODE_START_FROM_EQE);
+	MLX5_SET(cqc,   cqc, cq_period_mode, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
 	MLX5_SET(cqc,   cqc, c_eqn_or_apu_element, eqn);
 	MLX5_SET(cqc,   cqc, uar_page,      mdev->priv.uar->index);
 	MLX5_SET(cqc,   cqc, log_page_size, cq->wq_ctrl.buf.page_shift -

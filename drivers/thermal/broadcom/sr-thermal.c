@@ -91,7 +91,6 @@ static int sr_thermal_probe(struct platform_device *pdev)
 
 		dev_dbg(dev, "thermal sensor %d registered\n", i);
 	}
-	platform_set_drvdata(pdev, sr_thermal);
 
 	return 0;
 }

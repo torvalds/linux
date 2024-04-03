@@ -10,16 +10,17 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/perf_event.h>
+#include <linux/platform_device.h>
 #include <linux/slab.h>
 
 #define COUNTER_CNTL		0x0
 #define COUNTER_READ		0x20
 
 #define COUNTER_DPCR1		0x30
+#define COUNTER_MUX_CNTL	0x50
+#define COUNTER_MASK_COMP	0x54
 
 #define CNTL_OVER		0x1
 #define CNTL_CLEAR		0x2
@@ -28,13 +29,24 @@
 #define CNTL_CLEAR_MASK		0xFFFFFFFD
 #define CNTL_OVER_MASK		0xFFFFFFFE
 
+#define CNTL_CP_SHIFT		16
+#define CNTL_CP_MASK		(0xFF << CNTL_CP_SHIFT)
 #define CNTL_CSV_SHIFT		24
 #define CNTL_CSV_MASK		(0xFFU << CNTL_CSV_SHIFT)
+
+#define READ_PORT_SHIFT		0
+#define READ_PORT_MASK		(0x7 << READ_PORT_SHIFT)
+#define READ_CHANNEL_REVERT	0x00000008	/* bit 3 for read channel select */
+#define WRITE_PORT_SHIFT	8
+#define WRITE_PORT_MASK		(0x7 << WRITE_PORT_SHIFT)
+#define WRITE_CHANNEL_REVERT	0x00000800	/* bit 11 for write channel select */
 
 #define EVENT_CYCLES_ID		0
 #define EVENT_CYCLES_COUNTER	0
 #define NUM_COUNTERS		4
 
+/* For removing bias if cycle counter CNTL.CP is set to 0xf0 */
+#define CYCLES_COUNTER_MASK	0x0FFFFFFF
 #define AXI_MASKING_REVERT	0xffff0000	/* AXI_MASKING(MSB 16bits) + AXI_ID(LSB 16bits) */
 
 #define to_ddr_pmu(p)		container_of(p, struct ddr_pmu, pmu)
@@ -47,6 +59,7 @@ static DEFINE_IDA(ddr_ida);
 /* DDR Perf hardware feature */
 #define DDR_CAP_AXI_ID_FILTER			0x1     /* support AXI ID filter */
 #define DDR_CAP_AXI_ID_FILTER_ENHANCED		0x3     /* support enhanced AXI ID filter */
+#define DDR_CAP_AXI_ID_PORT_CHANNEL_FILTER	0x4	/* support AXI ID PORT CHANNEL filter */
 
 struct fsl_ddr_devtype_data {
 	unsigned int quirks;    /* quirks needed for different DDR Perf core */
@@ -79,6 +92,11 @@ static const struct fsl_ddr_devtype_data imx8mp_devtype_data = {
 	.identifier = "i.MX8MP",
 };
 
+static const struct fsl_ddr_devtype_data imx8dxl_devtype_data = {
+	.quirks = DDR_CAP_AXI_ID_PORT_CHANNEL_FILTER,
+	.identifier = "i.MX8DXL",
+};
+
 static const struct of_device_id imx_ddr_pmu_dt_ids[] = {
 	{ .compatible = "fsl,imx8-ddr-pmu", .data = &imx8_devtype_data},
 	{ .compatible = "fsl,imx8m-ddr-pmu", .data = &imx8m_devtype_data},
@@ -86,6 +104,7 @@ static const struct of_device_id imx_ddr_pmu_dt_ids[] = {
 	{ .compatible = "fsl,imx8mm-ddr-pmu", .data = &imx8mm_devtype_data},
 	{ .compatible = "fsl,imx8mn-ddr-pmu", .data = &imx8mn_devtype_data},
 	{ .compatible = "fsl,imx8mp-ddr-pmu", .data = &imx8mp_devtype_data},
+	{ .compatible = "fsl,imx8dxl-ddr-pmu", .data = &imx8dxl_devtype_data},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, imx_ddr_pmu_dt_ids);
@@ -101,6 +120,7 @@ struct ddr_pmu {
 	const struct fsl_ddr_devtype_data *devtype_data;
 	int irq;
 	int id;
+	int active_counter;
 };
 
 static ssize_t ddr_perf_identifier_show(struct device *dev,
@@ -140,6 +160,7 @@ static const struct attribute_group ddr_perf_identifier_attr_group = {
 enum ddr_perf_filter_capabilities {
 	PERF_CAP_AXI_ID_FILTER = 0,
 	PERF_CAP_AXI_ID_FILTER_ENHANCED,
+	PERF_CAP_AXI_ID_PORT_CHANNEL_FILTER,
 	PERF_CAP_AXI_ID_FEAT_MAX,
 };
 
@@ -153,6 +174,8 @@ static u32 ddr_perf_filter_cap_get(struct ddr_pmu *pmu, int cap)
 	case PERF_CAP_AXI_ID_FILTER_ENHANCED:
 		quirks &= DDR_CAP_AXI_ID_FILTER_ENHANCED;
 		return quirks == DDR_CAP_AXI_ID_FILTER_ENHANCED;
+	case PERF_CAP_AXI_ID_PORT_CHANNEL_FILTER:
+		return !!(quirks & DDR_CAP_AXI_ID_PORT_CHANNEL_FILTER);
 	default:
 		WARN(1, "unknown filter cap %d\n", cap);
 	}
@@ -183,6 +206,7 @@ static ssize_t ddr_perf_filter_cap_show(struct device *dev,
 static struct attribute *ddr_perf_filter_cap_attr[] = {
 	PERF_FILTER_EXT_ATTR_ENTRY(filter, PERF_CAP_AXI_ID_FILTER),
 	PERF_FILTER_EXT_ATTR_ENTRY(enhanced_filter, PERF_CAP_AXI_ID_FILTER_ENHANCED),
+	PERF_FILTER_EXT_ATTR_ENTRY(super_filter, PERF_CAP_AXI_ID_PORT_CHANNEL_FILTER),
 	NULL,
 };
 
@@ -268,11 +292,15 @@ static const struct attribute_group ddr_perf_events_attr_group = {
 PMU_FORMAT_ATTR(event, "config:0-7");
 PMU_FORMAT_ATTR(axi_id, "config1:0-15");
 PMU_FORMAT_ATTR(axi_mask, "config1:16-31");
+PMU_FORMAT_ATTR(axi_port, "config2:0-2");
+PMU_FORMAT_ATTR(axi_channel, "config2:3-3");
 
 static struct attribute *ddr_perf_format_attrs[] = {
 	&format_attr_event.attr,
 	&format_attr_axi_id.attr,
 	&format_attr_axi_mask.attr,
+	&format_attr_axi_port.attr,
+	&format_attr_axi_channel.attr,
 	NULL,
 };
 
@@ -427,6 +455,17 @@ static void ddr_perf_counter_enable(struct ddr_pmu *pmu, int config,
 		writel(0, pmu->base + reg);
 		val = CNTL_EN | CNTL_CLEAR;
 		val |= FIELD_PREP(CNTL_CSV_MASK, config);
+
+		/*
+		 * On i.MX8MP we need to bias the cycle counter to overflow more often.
+		 * We do this by initializing bits [23:16] of the counter value via the
+		 * COUNTER_CTRL Counter Parameter (CP) field.
+		 */
+		if (pmu->devtype_data->quirks & DDR_CAP_AXI_ID_FILTER_ENHANCED) {
+			if (counter == EVENT_CYCLES_COUNTER)
+				val |= FIELD_PREP(CNTL_CP_MASK, 0xf0);
+		}
+
 		writel(val, pmu->base + reg);
 	} else {
 		/* Disable counter */
@@ -466,6 +505,12 @@ static void ddr_perf_event_update(struct perf_event *event)
 	int ret;
 
 	new_raw_count = ddr_perf_read_counter(pmu, counter);
+	/* Remove the bias applied in ddr_perf_counter_enable(). */
+	if (pmu->devtype_data->quirks & DDR_CAP_AXI_ID_FILTER_ENHANCED) {
+		if (counter == EVENT_CYCLES_COUNTER)
+			new_raw_count &= CYCLES_COUNTER_MASK;
+	}
+
 	local64_add(new_raw_count, &event->count);
 
 	/*
@@ -495,6 +540,10 @@ static void ddr_perf_event_start(struct perf_event *event, int flags)
 
 	ddr_perf_counter_enable(pmu, event->attr.config, counter, true);
 
+	if (!pmu->active_counter++)
+		ddr_perf_counter_enable(pmu, EVENT_CYCLES_ID,
+			EVENT_CYCLES_COUNTER, true);
+
 	hwc->state = 0;
 }
 
@@ -505,6 +554,7 @@ static int ddr_perf_event_add(struct perf_event *event, int flags)
 	int counter;
 	int cfg = event->attr.config;
 	int cfg1 = event->attr.config1;
+	int cfg2 = event->attr.config2;
 
 	if (pmu->devtype_data->quirks & DDR_CAP_AXI_ID_FILTER) {
 		int i;
@@ -528,6 +578,26 @@ static int ddr_perf_event_add(struct perf_event *event, int flags)
 		return -EOPNOTSUPP;
 	}
 
+	if (pmu->devtype_data->quirks & DDR_CAP_AXI_ID_PORT_CHANNEL_FILTER) {
+		if (ddr_perf_is_filtered(event)) {
+			/* revert axi id masking(axi_mask) value */
+			cfg1 ^= AXI_MASKING_REVERT;
+			writel(cfg1, pmu->base + COUNTER_MASK_COMP + ((counter - 1) << 4));
+
+			if (cfg == 0x41) {
+				/* revert axi read channel(axi_channel) value */
+				cfg2 ^= READ_CHANNEL_REVERT;
+				cfg2 |= FIELD_PREP(READ_PORT_MASK, cfg2);
+			} else {
+				/* revert axi write channel(axi_channel) value */
+				cfg2 ^= WRITE_CHANNEL_REVERT;
+				cfg2 |= FIELD_PREP(WRITE_PORT_MASK, cfg2);
+			}
+
+			writel(cfg2, pmu->base + COUNTER_MUX_CNTL + ((counter - 1) << 4));
+		}
+	}
+
 	pmu->events[counter] = event;
 	hwc->idx = counter;
 
@@ -548,6 +618,10 @@ static void ddr_perf_event_stop(struct perf_event *event, int flags)
 	ddr_perf_counter_enable(pmu, event->attr.config, counter, false);
 	ddr_perf_event_update(event);
 
+	if (!--pmu->active_counter)
+		ddr_perf_counter_enable(pmu, EVENT_CYCLES_ID,
+			EVENT_CYCLES_COUNTER, false);
+
 	hwc->state |= PERF_HES_STOPPED;
 }
 
@@ -565,25 +639,10 @@ static void ddr_perf_event_del(struct perf_event *event, int flags)
 
 static void ddr_perf_pmu_enable(struct pmu *pmu)
 {
-	struct ddr_pmu *ddr_pmu = to_ddr_pmu(pmu);
-
-	/* enable cycle counter if cycle is not active event list */
-	if (ddr_pmu->events[EVENT_CYCLES_COUNTER] == NULL)
-		ddr_perf_counter_enable(ddr_pmu,
-				      EVENT_CYCLES_ID,
-				      EVENT_CYCLES_COUNTER,
-				      true);
 }
 
 static void ddr_perf_pmu_disable(struct pmu *pmu)
 {
-	struct ddr_pmu *ddr_pmu = to_ddr_pmu(pmu);
-
-	if (ddr_pmu->events[EVENT_CYCLES_COUNTER] == NULL)
-		ddr_perf_counter_enable(ddr_pmu,
-				      EVENT_CYCLES_ID,
-				      EVENT_CYCLES_COUNTER,
-				      false);
 }
 
 static int ddr_perf_init(struct ddr_pmu *pmu, void __iomem *base,
@@ -767,7 +826,7 @@ cpuhp_state_err:
 	return ret;
 }
 
-static int ddr_perf_remove(struct platform_device *pdev)
+static void ddr_perf_remove(struct platform_device *pdev)
 {
 	struct ddr_pmu *pmu = platform_get_drvdata(pdev);
 
@@ -777,7 +836,6 @@ static int ddr_perf_remove(struct platform_device *pdev)
 	perf_pmu_unregister(&pmu->pmu);
 
 	ida_free(&ddr_ida, pmu->id);
-	return 0;
 }
 
 static struct platform_driver imx_ddr_pmu_driver = {
@@ -787,7 +845,7 @@ static struct platform_driver imx_ddr_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe          = ddr_perf_probe,
-	.remove         = ddr_perf_remove,
+	.remove_new     = ddr_perf_remove,
 };
 
 module_platform_driver(imx_ddr_pmu_driver);

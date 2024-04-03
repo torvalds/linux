@@ -228,6 +228,7 @@
 			sgtl5000: codec@a {
 				compatible = "fsl,sgtl5000";
 				reg = <0x0a>;
+				#sound-dai-cells = <0>;
 				clocks = <&mclk>;
 				VDDA-supply = <&reg_1p8v>;
 				VDDIO-supply = <&reg_3p3v>;
@@ -244,6 +245,7 @@
 				reg = <0x74>;
 				gpio-controller;
 				#gpio-cells = <2>;
+				#interrupt-cells = <2>;
 				interrupt-controller;
 				interrupt-parent = <&gpio2>;
 				interrupts = <3 IRQ_TYPE_LEVEL_LOW>;
@@ -389,7 +391,6 @@
 
 		#address-cells = <3>;
 		#size-cells = <2>;
-		#interrupt-cells = <1>;
 	};
 };
 

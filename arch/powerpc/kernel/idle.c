@@ -105,7 +105,6 @@ static struct ctl_table powersave_nap_ctl_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
 	},
-	{}
 };
 
 static int __init

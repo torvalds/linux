@@ -98,6 +98,7 @@
 #define DW_IC_INTR_START_DET			BIT(10)
 #define DW_IC_INTR_GEN_CALL			BIT(11)
 #define DW_IC_INTR_RESTART_DET			BIT(12)
+#define DW_IC_INTR_MST_ON_HOLD			BIT(13)
 
 #define DW_IC_INTR_DEFAULT_MASK			(DW_IC_INTR_RX_FULL | \
 						 DW_IC_INTR_TX_ABRT | \
@@ -107,6 +108,8 @@
 #define DW_IC_INTR_SLAVE_MASK			(DW_IC_INTR_DEFAULT_MASK | \
 						 DW_IC_INTR_RX_UNDER | \
 						 DW_IC_INTR_RD_REQ)
+
+#define DW_IC_ENABLE_ABORT			BIT(1)
 
 #define DW_IC_STATUS_ACTIVITY			BIT(0)
 #define DW_IC_STATUS_TFE			BIT(2)
@@ -209,6 +212,7 @@ struct reset_control;
  * @msg_err: error status of the current transfer
  * @status: i2c master status, one of STATUS_*
  * @abort_source: copy of the TX_ABRT_SOURCE register
+ * @sw_mask: SW mask of DW_IC_INTR_MASK used in polling mode
  * @irq: interrupt number for the i2c master
  * @flags: platform specific flags like type of IO accessors or model
  * @adapter: i2c subsystem adapter node
@@ -267,6 +271,7 @@ struct dw_i2c_dev {
 	int			msg_err;
 	unsigned int		status;
 	unsigned int		abort_source;
+	unsigned int		sw_mask;
 	int			irq;
 	u32			flags;
 	struct i2c_adapter	adapter;
@@ -300,6 +305,7 @@ struct dw_i2c_dev {
 #define ACCESS_INTR_MASK			BIT(0)
 #define ACCESS_NO_IRQ_SUSPEND			BIT(1)
 #define ARBITRATION_SEMAPHORE			BIT(2)
+#define ACCESS_POLLING				BIT(3)
 
 #define MODEL_MSCC_OCELOT			BIT(8)
 #define MODEL_BAIKAL_BT1			BIT(9)
@@ -315,7 +321,7 @@ struct dw_i2c_dev {
 #define AMD_UCSI_INTR_EN			0xd
 
 #define TXGBE_TX_FIFO_DEPTH			4
-#define TXGBE_RX_FIFO_DEPTH			0
+#define TXGBE_RX_FIFO_DEPTH			1
 
 struct i2c_dw_semaphore_callbacks {
 	int	(*probe)(struct dw_i2c_dev *dev);
@@ -346,6 +352,24 @@ static inline void __i2c_dw_disable_nowait(struct dw_i2c_dev *dev)
 {
 	regmap_write(dev->map, DW_IC_ENABLE, 0);
 	dev->status &= ~STATUS_ACTIVE;
+}
+
+static inline void __i2c_dw_write_intr_mask(struct dw_i2c_dev *dev,
+					    unsigned int intr_mask)
+{
+	unsigned int val = dev->flags & ACCESS_POLLING ? 0 : intr_mask;
+
+	regmap_write(dev->map, DW_IC_INTR_MASK, val);
+	dev->sw_mask = intr_mask;
+}
+
+static inline void __i2c_dw_read_intr_mask(struct dw_i2c_dev *dev,
+					   unsigned int *intr_mask)
+{
+	if (!(dev->flags & ACCESS_POLLING))
+		regmap_read(dev->map, DW_IC_INTR_MASK, intr_mask);
+	else
+		*intr_mask = dev->sw_mask;
 }
 
 void __i2c_dw_disable(struct dw_i2c_dev *dev);

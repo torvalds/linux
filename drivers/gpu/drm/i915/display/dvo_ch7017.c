@@ -205,7 +205,7 @@ static bool ch7017_init(struct intel_dvo_device *dvo,
 	const char *str;
 	u8 val;
 
-	priv = kzalloc(sizeof(struct ch7017_priv), GFP_KERNEL);
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL)
 		return false;
 

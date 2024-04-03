@@ -138,13 +138,12 @@
 	samsung,audio-widgets =
 		"Headphone", "Headphone Jack",
 		"Speakers", "Speakers";
-	samsung,audio-routing =
-		"Headphone Jack", "HPL",
-		"Headphone Jack", "HPR",
-		"Headphone Jack", "MICBIAS",
-		"IN1", "Headphone Jack",
-		"Speakers", "SPKL",
-		"Speakers", "SPKR";
+	audio-routing = "Headphone Jack", "HPL",
+			"Headphone Jack", "HPR",
+			"Headphone Jack", "MICBIAS",
+			"IN1", "Headphone Jack",
+			"Speakers", "SPKL",
+			"Speakers", "SPKR";
 };
 
 &spi_1 {

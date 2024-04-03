@@ -22,7 +22,9 @@
 
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/platform_device.h>
 
 #include "core.h"
 #include <asm/dcr-regs.h>
@@ -440,7 +442,7 @@ static int mal_poll(struct napi_struct *napi, int budget)
 		if (unlikely(mc->ops->peek_rx(mc->dev) ||
 			     test_bit(MAL_COMMAC_RX_STOPPED, &mc->flags))) {
 			MAL_DBG2(mal, "rotting packet" NL);
-			if (!napi_reschedule(napi))
+			if (!napi_schedule(napi))
 				goto more_work;
 
 			spin_lock_irqsave(&mal->lock, flags);
@@ -709,7 +711,7 @@ static int mal_probe(struct platform_device *ofdev)
 	return err;
 }
 
-static int mal_remove(struct platform_device *ofdev)
+static void mal_remove(struct platform_device *ofdev)
 {
 	struct mal_instance *mal = platform_get_drvdata(ofdev);
 
@@ -738,8 +740,6 @@ static int mal_remove(struct platform_device *ofdev)
 			   NUM_RX_BUFF * mal->num_rx_chans), mal->bd_virt,
 			  mal->bd_dma);
 	kfree(mal);
-
-	return 0;
 }
 
 static const struct of_device_id mal_platform_match[] =
@@ -768,7 +768,7 @@ static struct platform_driver mal_of_driver = {
 		.of_match_table = mal_platform_match,
 	},
 	.probe = mal_probe,
-	.remove = mal_remove,
+	.remove_new = mal_remove,
 };
 
 int __init mal_init(void)

@@ -48,6 +48,11 @@
 #define KSEGX(a)		((_ACAST32_(a)) & _ACAST32_(0xe0000000))
 
 /*
+ * Gives the size of each kernel segment
+ */
+#define CSEGX_SIZE		0x20000000
+
+/*
  * Returns the physical address of a CKSEGx / XKPHYS address
  */
 #define CPHYSADDR(a)		((_ACAST32_(a)) & 0x1fffffff)

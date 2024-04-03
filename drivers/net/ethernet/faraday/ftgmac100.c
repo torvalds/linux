@@ -177,16 +177,20 @@ static void ftgmac100_write_mac_addr(struct ftgmac100 *priv, const u8 *mac)
 	iowrite32(laddr, priv->base + FTGMAC100_OFFSET_MAC_LADR);
 }
 
-static void ftgmac100_initial_mac(struct ftgmac100 *priv)
+static int ftgmac100_initial_mac(struct ftgmac100 *priv)
 {
 	u8 mac[ETH_ALEN];
 	unsigned int m;
 	unsigned int l;
+	int err;
 
-	if (!device_get_ethdev_address(priv->dev, priv->netdev)) {
+	err = of_get_ethdev_address(priv->dev->of_node, priv->netdev);
+	if (err == -EPROBE_DEFER)
+		return err;
+	if (!err) {
 		dev_info(priv->dev, "Read MAC address %pM from device tree\n",
 			 priv->netdev->dev_addr);
-		return;
+		return 0;
 	}
 
 	m = ioread32(priv->base + FTGMAC100_OFFSET_MAC_MADR);
@@ -207,6 +211,8 @@ static void ftgmac100_initial_mac(struct ftgmac100 *priv)
 		dev_info(priv->dev, "Generated random MAC address %pM\n",
 			 priv->netdev->dev_addr);
 	}
+
+	return 0;
 }
 
 static int ftgmac100_set_mac_addr(struct net_device *dev, void *p)
@@ -1843,7 +1849,9 @@ static int ftgmac100_probe(struct platform_device *pdev)
 	priv->aneg_pause = true;
 
 	/* MAC address from chip or random one */
-	ftgmac100_initial_mac(priv);
+	err = ftgmac100_initial_mac(priv);
+	if (err)
+		goto err_phy_connect;
 
 	np = pdev->dev.of_node;
 	if (np && (of_device_is_compatible(np, "aspeed,ast2400-mac") ||
@@ -2004,7 +2012,7 @@ err_alloc_etherdev:
 	return err;
 }
 
-static int ftgmac100_remove(struct platform_device *pdev)
+static void ftgmac100_remove(struct platform_device *pdev)
 {
 	struct net_device *netdev;
 	struct ftgmac100 *priv;
@@ -2032,7 +2040,6 @@ static int ftgmac100_remove(struct platform_device *pdev)
 
 	netif_napi_del(&priv->napi);
 	free_netdev(netdev);
-	return 0;
 }
 
 static const struct of_device_id ftgmac100_of_match[] = {
@@ -2043,7 +2050,7 @@ MODULE_DEVICE_TABLE(of, ftgmac100_of_match);
 
 static struct platform_driver ftgmac100_driver = {
 	.probe	= ftgmac100_probe,
-	.remove	= ftgmac100_remove,
+	.remove_new = ftgmac100_remove,
 	.driver	= {
 		.name		= DRV_NAME,
 		.of_match_table	= ftgmac100_of_match,

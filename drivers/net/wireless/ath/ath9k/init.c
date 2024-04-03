@@ -151,12 +151,12 @@ static void ath9k_deinit_softc(struct ath_softc *sc);
 
 static void ath9k_op_ps_wakeup(struct ath_common *common)
 {
-	ath9k_ps_wakeup((struct ath_softc *) common->priv);
+	ath9k_ps_wakeup(common->priv);
 }
 
 static void ath9k_op_ps_restore(struct ath_common *common)
 {
-	ath9k_ps_restore((struct ath_softc *) common->priv);
+	ath9k_ps_restore(common->priv);
 }
 
 static const struct ath_ps_ops ath9k_ps_ops = {
@@ -174,7 +174,7 @@ static void ath9k_iowrite32(void *hw_priv, u32 val, u32 reg_offset)
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
+	struct ath_softc *sc = common->priv;
 
 	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_ON) {
 		unsigned long flags;
@@ -189,7 +189,7 @@ static unsigned int ath9k_ioread32(void *hw_priv, u32 reg_offset)
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
+	struct ath_softc *sc = common->priv;
 	u32 val;
 
 	if (NR_CPUS > 1 && ah->config.serialize_regmode == SER_REG_MODE_ON) {
@@ -229,7 +229,7 @@ static unsigned int ath9k_reg_rmw(void *hw_priv, u32 reg_offset, u32 set, u32 cl
 {
 	struct ath_hw *ah = hw_priv;
 	struct ath_common *common = ath9k_hw_common(ah);
-	struct ath_softc *sc = (struct ath_softc *) common->priv;
+	struct ath_softc *sc = common->priv;
 	unsigned long flags;
 	u32 val;
 
@@ -608,7 +608,7 @@ static int ath9k_nvmem_request_eeprom(struct ath_softc *sc)
 	}
 
 	/* devres manages the calibration values release on shutdown */
-	ah->nvmem_blob = (u16 *)devm_kmemdup(sc->dev, buf, len, GFP_KERNEL);
+	ah->nvmem_blob = devm_kmemdup(sc->dev, buf, len, GFP_KERNEL);
 	kfree(buf);
 	if (!ah->nvmem_blob)
 		return -ENOMEM;

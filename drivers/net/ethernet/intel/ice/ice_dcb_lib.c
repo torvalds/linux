@@ -934,7 +934,7 @@ ice_tx_prepare_vlan_flags_dcb(struct ice_tx_ring *tx_ring,
 	    skb->priority != TC_PRIO_CONTROL) {
 		first->vid &= ~VLAN_PRIO_MASK;
 		/* Mask the lower 3 bits to set the 802.1p priority */
-		first->vid |= (skb->priority << VLAN_PRIO_SHIFT) & VLAN_PRIO_MASK;
+		first->vid |= FIELD_PREP(VLAN_PRIO_MASK, skb->priority);
 		/* if this is not already set it means a VLAN 0 + priority needs
 		 * to be offloaded
 		 */

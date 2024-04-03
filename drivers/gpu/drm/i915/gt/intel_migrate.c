@@ -366,7 +366,7 @@ static int emit_pte(struct i915_request *rq,
 		    u64 offset,
 		    int length)
 {
-	bool has_64K_pages = HAS_64K_PAGES(rq->engine->i915);
+	bool has_64K_pages = HAS_64K_PAGES(rq->i915);
 	const u64 encode = rq->context->vm->pte_encode(0, pat_index,
 						       is_lmem ? PTE_LM : 0);
 	struct intel_ring *ring = rq->ring;
@@ -375,7 +375,7 @@ static int emit_pte(struct i915_request *rq,
 	u32 page_size;
 	u32 *hdr, *cs;
 
-	GEM_BUG_ON(GRAPHICS_VER(rq->engine->i915) < 8);
+	GEM_BUG_ON(GRAPHICS_VER(rq->i915) < 8);
 
 	page_size = I915_GTT_PAGE_SIZE;
 	dword_length = 0x400;
@@ -531,7 +531,7 @@ static int emit_copy_ccs(struct i915_request *rq,
 			 u32 dst_offset, u8 dst_access,
 			 u32 src_offset, u8 src_access, int size)
 {
-	struct drm_i915_private *i915 = rq->engine->i915;
+	struct drm_i915_private *i915 = rq->i915;
 	int mocs = rq->engine->gt->mocs.uc_index << 1;
 	u32 num_ccs_blks;
 	u32 *cs;
@@ -581,7 +581,7 @@ static int emit_copy_ccs(struct i915_request *rq,
 static int emit_copy(struct i915_request *rq,
 		     u32 dst_offset, u32 src_offset, int size)
 {
-	const int ver = GRAPHICS_VER(rq->engine->i915);
+	const int ver = GRAPHICS_VER(rq->i915);
 	u32 instance = rq->engine->instance;
 	u32 *cs;
 
@@ -917,7 +917,7 @@ out_ce:
 static int emit_clear(struct i915_request *rq, u32 offset, int size,
 		      u32 value, bool is_lmem)
 {
-	struct drm_i915_private *i915 = rq->engine->i915;
+	struct drm_i915_private *i915 = rq->i915;
 	int mocs = rq->engine->gt->mocs.uc_index << 1;
 	const int ver = GRAPHICS_VER(i915);
 	int ring_sz;

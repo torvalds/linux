@@ -6,6 +6,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -30,6 +33,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -55,6 +61,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -81,6 +90,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -105,6 +117,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -129,6 +144,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -153,6 +171,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -178,6 +199,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -202,6 +226,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -226,6 +253,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -250,6 +280,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -274,6 +307,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -298,6 +334,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -322,6 +361,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -346,6 +388,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -370,6 +415,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -392,6 +440,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -417,6 +468,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -442,6 +496,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -467,6 +524,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -491,6 +551,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -514,6 +577,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -538,6 +604,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -561,6 +630,9 @@
             "actions",
             "mirred"
         ],
+        "plugins": {
+           "requires": "nsPlugin"
+        },
         "setup": [
             [
                 "$TC actions flush action mirred",
@@ -575,6 +647,409 @@
         "matchPattern": "action order [0-9]*: mirred \\(Egress Mirror to device lo\\).*no_percpu",
         "matchCount": "1",
         "teardown": [
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "456d",
+        "name": "Add mirred mirror to egress block action",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC qdisc add dev $DEV1 egress_block 21 clsact",
+                0
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred egress mirror index 1 blockid 21",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j actions get action mirred index 1",
+        "matchJSON": [
+            {
+                "total acts": 0
+            },
+            {
+                "actions": [
+                    {
+                        "order": 1,
+                        "kind": "mirred",
+                        "mirred_action": "mirror",
+                        "direction": "egress",
+                        "to_blockid": 21,
+                        "control_action": {
+                            "type": "pipe"
+                        },
+                        "index": 1,
+                        "ref": 1,
+                        "bind": 0,
+                        "not_in_hw": true
+                    }
+                ]
+            }
+        ],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 egress_block 21 clsact",
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "2358",
+        "name": "Add mirred mirror to ingress block action",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC qdisc add dev $DEV1 ingress_block 21 clsact",
+                0
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress mirror index 1 blockid 21",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j actions get action mirred index 1",
+        "matchJSON": [
+            {
+                "total acts": 0
+            },
+            {
+                "actions": [
+                    {
+                        "order": 1,
+                        "kind": "mirred",
+                        "mirred_action": "mirror",
+                        "direction": "ingress",
+                        "to_blockid": 21,
+                        "control_action": {
+                            "type": "pipe"
+                        },
+                        "index": 1,
+                        "ref": 1,
+                        "bind": 0,
+                        "not_in_hw": true
+                    }
+                ]
+            }
+        ],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress_block 21 clsact",
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "fdb1",
+        "name": "Add mirred redirect to egress block action",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC qdisc add dev $DEV1 ingress_block 21 clsact",
+                0
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred egress redirect index 1 blockid 21",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j actions get action mirred index 1",
+        "matchJSON": [
+            {
+                "total acts": 0
+            },
+            {
+                "actions": [
+                    {
+                        "order": 1,
+                        "kind": "mirred",
+                        "mirred_action": "redirect",
+                        "direction": "egress",
+                        "to_blockid": 21,
+                        "control_action": {
+                            "type": "stolen"
+                        },
+                        "index": 1,
+                        "ref": 1,
+                        "bind": 0,
+                        "not_in_hw": true
+                    }
+                ]
+            }
+        ],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress_block 21 clsact",
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "20cc",
+        "name": "Add mirred redirect to ingress block action",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC qdisc add dev $DEV1 ingress_block 21 clsact",
+                0
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress redirect index 1 blockid 21",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j actions get action mirred index 1",
+        "matchJSON": [
+            {
+                "total acts": 0
+            },
+            {
+                "actions": [
+                    {
+                        "order": 1,
+                        "kind": "mirred",
+                        "mirred_action": "redirect",
+                        "direction": "ingress",
+                        "to_blockid": 21,
+                        "control_action": {
+                            "type": "stolen"
+                        },
+                        "index": 1,
+                        "ref": 1,
+                        "bind": 0,
+                        "not_in_hw": true
+                    }
+                ]
+            }
+        ],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress_block 21 clsact",
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "e739",
+        "name": "Try to add mirred action with both dev and block",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC qdisc add dev $DEV1 ingress_block 21 clsact",
+                0
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress redirect index 1 blockid 21 dev $DEV1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC -j actions list action mirred",
+        "matchJSON": [],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress_block 21 clsact",
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "2f47",
+        "name": "Try to add mirred action without specifying neither dev nor block",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC qdisc add dev $DEV1 ingress_block 21 clsact",
+                0
+            ]
+        ],
+        "cmdUnderTest": "$TC actions add action mirred ingress redirect index 1",
+        "expExitCode": "255",
+        "verifyCmd": "$TC -j actions list action mirred",
+        "matchJSON": [],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress_block 21 clsact",
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "3188",
+        "name": "Replace mirred redirect to dev action with redirect to block",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC qdisc add dev $DEV1 ingress_block 21 clsact",
+                0
+            ],
+            [
+                "$TC actions add action mirred ingress redirect index 1 dev $DEV1",
+                0
+            ]
+        ],
+        "cmdUnderTest": "$TC actions replace action mirred egress redirect index 1 blockid 21",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j actions get action mirred index 1",
+        "matchJSON": [
+            {
+                "total acts": 0
+            },
+            {
+                "actions": [
+                    {
+                        "order": 1,
+                        "kind": "mirred",
+                        "mirred_action": "redirect",
+                        "direction": "egress",
+                        "to_blockid": 21,
+                        "control_action": {
+                            "type": "stolen"
+                        },
+                        "index": 1,
+                        "ref": 1,
+                        "bind": 0,
+                        "not_in_hw": true
+                    }
+                ]
+            }
+        ],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress_block 21 clsact",
+            "$TC actions flush action mirred"
+        ]
+    },
+    {
+        "id": "83cc",
+        "name": "Replace mirred redirect to block action with mirror to dev",
+        "category": [
+            "actions",
+            "mirred"
+        ],
+        "dependsOn": "$TC actions add action mirred help 2>&1 | grep -q blockid",
+        "plugins": {
+            "requires": "nsPlugin"
+        },
+        "setup": [
+            [
+                "$TC actions flush action mirred",
+                0,
+                1,
+                255
+            ],
+            [
+                "$TC qdisc add dev $DEV1 ingress_block 21 clsact",
+                0
+            ],
+            [
+                "$TC actions add action mirred egress redirect index 1 blockid 21",
+                0
+            ]
+        ],
+        "cmdUnderTest": "$TC actions replace action mirred ingress mirror index 1 dev lo",
+        "expExitCode": "0",
+        "verifyCmd": "$TC -j actions get action mirred index 1",
+        "matchJSON": [
+            {
+                "total acts": 0
+            },
+            {
+                "actions": [
+                    {
+                        "order": 1,
+                        "kind": "mirred",
+                        "mirred_action": "mirror",
+                        "direction": "ingress",
+                        "to_dev": "lo",
+                        "control_action": {
+                            "type": "pipe"
+                        },
+                        "index": 1,
+                        "ref": 1,
+                        "bind": 0,
+                        "not_in_hw": true
+                    }
+                ]
+            }
+        ],
+        "matchCount": "1",
+        "teardown": [
+            "$TC qdisc del dev $DEV1 ingress_block 21 clsact",
             "$TC actions flush action mirred"
         ]
     }

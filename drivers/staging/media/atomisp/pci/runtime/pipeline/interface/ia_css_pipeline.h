@@ -241,7 +241,6 @@ bool ia_css_pipeline_uses_params(struct ia_css_pipeline *pipeline);
  */
 bool ia_css_pipeline_get_sp_thread_id(unsigned int key, unsigned int *val);
 
-#if defined(ISP2401)
 /**
  * @brief Get the pipeline io status
  *
@@ -250,7 +249,6 @@ bool ia_css_pipeline_get_sp_thread_id(unsigned int key, unsigned int *val);
  *	Pointer to pipe_io_status
  */
 struct sh_css_sp_pipeline_io_status *ia_css_pipeline_get_pipe_io_status(void);
-#endif
 
 /**
  * @brief Map an SP thread to this pipeline

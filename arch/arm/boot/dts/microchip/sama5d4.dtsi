@@ -72,7 +72,7 @@
 			clock-frequency = <0>;
 		};
 
-		adc_op_clk: adc_op_clk{
+		adc_op_clk: adc_op_clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <1000000>;
@@ -694,7 +694,7 @@
 				clock-names = "aes_clk";
 			};
 
-			tdes: crpyto@fc04c000 {
+			tdes: crypto@fc04c000 {
 				compatible = "atmel,at91sam9g46-tdes";
 				reg = <0xfc04c000 0x100>;
 				interrupts = <14 IRQ_TYPE_LEVEL_HIGH 0>;

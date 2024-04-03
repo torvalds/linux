@@ -7,15 +7,16 @@
  *          Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
-#include <linux/acpi.h>
+#include <linux/device.h>
+#include <linux/err.h>
 #include <linux/export.h>
-#include <linux/kernel.h>
+#include <linux/kconfig.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_graph.h>
-#include <linux/of_irq.h>
 #include <linux/property.h>
 #include <linux/phy.h>
+#include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/types.h>
 
 struct fwnode_handle *__dev_fwnode(struct device *dev)
 {
@@ -473,7 +474,7 @@ int fwnode_property_match_string(const struct fwnode_handle *fwnode,
 	const char **values;
 	int nval, ret;
 
-	nval = fwnode_property_read_string_array(fwnode, propname, NULL, 0);
+	nval = fwnode_property_string_array_count(fwnode, propname);
 	if (nval < 0)
 		return nval;
 
@@ -499,6 +500,41 @@ out_free:
 EXPORT_SYMBOL_GPL(fwnode_property_match_string);
 
 /**
+ * fwnode_property_match_property_string - find a property string value in an array and return index
+ * @fwnode: Firmware node to get the property of
+ * @propname: Name of the property holding the string value
+ * @array: String array to search in
+ * @n: Size of the @array
+ *
+ * Find a property string value in a given @array and if it is found return
+ * the index back.
+ *
+ * Return: index, starting from %0, if the string value was found in the @array (success),
+ *	   %-ENOENT when the string value was not found in the @array,
+ *	   %-EINVAL if given arguments are not valid,
+ *	   %-ENODATA if the property does not have a value,
+ *	   %-EPROTO or %-EILSEQ if the property is not a string,
+ *	   %-ENXIO if no suitable firmware interface is present.
+ */
+int fwnode_property_match_property_string(const struct fwnode_handle *fwnode,
+	const char *propname, const char * const *array, size_t n)
+{
+	const char *string;
+	int ret;
+
+	ret = fwnode_property_read_string(fwnode, propname, &string);
+	if (ret)
+		return ret;
+
+	ret = match_string(array, n, string);
+	if (ret < 0)
+		ret = -ENOENT;
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(fwnode_property_match_property_string);
+
+/**
  * fwnode_property_get_reference_args() - Find a reference with arguments
  * @fwnode:	Firmware node where to look for the reference
  * @prop:	The name of the property
@@ -508,6 +544,7 @@ EXPORT_SYMBOL_GPL(fwnode_property_match_string);
  * @nargs:	Number of arguments. Ignored if @nargs_prop is non-NULL.
  * @index:	Index of the reference, from zero onwards.
  * @args:	Result structure with reference and integer arguments.
+ *		May be NULL.
  *
  * Obtain a reference based on a named property in an fwnode, with
  * integer arguments.
@@ -595,6 +632,34 @@ const char *fwnode_get_name_prefix(const struct fwnode_handle *fwnode)
 }
 
 /**
+ * fwnode_name_eq - Return true if node name is equal
+ * @fwnode: The firmware node
+ * @name: The name to which to compare the node name
+ *
+ * Compare the name provided as an argument to the name of the node, stopping
+ * the comparison at either NUL or '@' character, whichever comes first. This
+ * function is generally used for comparing node names while ignoring the
+ * possible unit address of the node.
+ *
+ * Return: true if the node name matches with the name provided in the @name
+ * argument, false otherwise.
+ */
+bool fwnode_name_eq(const struct fwnode_handle *fwnode, const char *name)
+{
+	const char *node_name;
+	ptrdiff_t len;
+
+	node_name = fwnode_get_name(fwnode);
+	if (!node_name)
+		return false;
+
+	len = strchrnul(node_name, '@') - node_name;
+
+	return str_has_prefix(node_name, name) == len;
+}
+EXPORT_SYMBOL_GPL(fwnode_name_eq);
+
+/**
  * fwnode_get_parent - Return parent firwmare node
  * @fwnode: Firmware whose parent is retrieved
  *
@@ -634,34 +699,6 @@ struct fwnode_handle *fwnode_get_next_parent(struct fwnode_handle *fwnode)
 	return parent;
 }
 EXPORT_SYMBOL_GPL(fwnode_get_next_parent);
-
-/**
- * fwnode_get_next_parent_dev - Find device of closest ancestor fwnode
- * @fwnode: firmware node
- *
- * Given a firmware node (@fwnode), this function finds its closest ancestor
- * firmware node that has a corresponding struct device and returns that struct
- * device.
- *
- * The caller is responsible for calling put_device() on the returned device
- * pointer.
- *
- * Return: a pointer to the device of the @fwnode's closest ancestor.
- */
-struct device *fwnode_get_next_parent_dev(const struct fwnode_handle *fwnode)
-{
-	struct fwnode_handle *parent;
-	struct device *dev;
-
-	fwnode_for_each_parent_node(fwnode, parent) {
-		dev = get_dev_from_fwnode(parent);
-		if (dev) {
-			fwnode_handle_put(parent);
-			return dev;
-		}
-	}
-	return NULL;
-}
 
 /**
  * fwnode_count_parents - Return the number of parents a node has
@@ -708,34 +745,6 @@ struct fwnode_handle *fwnode_get_nth_parent(struct fwnode_handle *fwnode,
 	return NULL;
 }
 EXPORT_SYMBOL_GPL(fwnode_get_nth_parent);
-
-/**
- * fwnode_is_ancestor_of - Test if @ancestor is ancestor of @child
- * @ancestor: Firmware which is tested for being an ancestor
- * @child: Firmware which is tested for being the child
- *
- * A node is considered an ancestor of itself too.
- *
- * Return: true if @ancestor is an ancestor of @child. Otherwise, returns false.
- */
-bool fwnode_is_ancestor_of(const struct fwnode_handle *ancestor, const struct fwnode_handle *child)
-{
-	struct fwnode_handle *parent;
-
-	if (IS_ERR_OR_NULL(ancestor))
-		return false;
-
-	if (child == ancestor)
-		return true;
-
-	fwnode_for_each_parent_node(child, parent) {
-		if (parent == ancestor) {
-			fwnode_handle_put(parent);
-			return true;
-		}
-	}
-	return false;
-}
 
 /**
  * fwnode_get_next_child_node - Return the next child node handle for a node

@@ -12,7 +12,10 @@
 #include <linux/mfd/syscon/atmel-matrix.h>
 #include <linux/mfd/syscon/atmel-smc.h>
 #include <linux/init.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
+#include <linux/of_platform.h>
+#include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <soc/at91/atmel-sfr.h>
 
@@ -30,7 +33,7 @@ struct atmel_ebi_dev {
 	struct atmel_ebi *ebi;
 	u32 mode;
 	int numcs;
-	struct atmel_ebi_dev_config configs[];
+	struct atmel_ebi_dev_config configs[] __counted_by(numcs);
 };
 
 struct atmel_ebi_caps {
@@ -515,15 +518,10 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *child, *np = dev->of_node, *smc_np;
-	const struct of_device_id *match;
 	struct atmel_ebi *ebi;
 	int ret, reg_cells;
 	struct clk *clk;
 	u32 val;
-
-	match = of_match_device(atmel_ebi_id_table, dev);
-	if (!match || !match->data)
-		return -EINVAL;
 
 	ebi = devm_kzalloc(dev, sizeof(*ebi), GFP_KERNEL);
 	if (!ebi)
@@ -532,7 +530,9 @@ static int atmel_ebi_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ebi);
 
 	INIT_LIST_HEAD(&ebi->devs);
-	ebi->caps = match->data;
+	ebi->caps = device_get_match_data(dev);
+	if (!ebi->caps)
+		return -EINVAL;
 	ebi->dev = dev;
 
 	clk = devm_clk_get(dev, NULL);

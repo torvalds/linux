@@ -76,16 +76,13 @@ struct if_spi_card {
 
 static void free_if_spi_card(struct if_spi_card *card)
 {
-	struct list_head *cursor, *next;
-	struct if_spi_packet *packet;
+	struct if_spi_packet *packet, *tmp;
 
-	list_for_each_safe(cursor, next, &card->cmd_packet_list) {
-		packet = container_of(cursor, struct if_spi_packet, list);
+	list_for_each_entry_safe(packet, tmp, &card->cmd_packet_list, list) {
 		list_del(&packet->list);
 		kfree(packet);
 	}
-	list_for_each_safe(cursor, next, &card->data_packet_list) {
-		packet = container_of(cursor, struct if_spi_packet, list);
+	list_for_each_entry_safe(packet, tmp, &card->data_packet_list, list) {
 		list_del(&packet->list);
 		kfree(packet);
 	}
@@ -829,11 +826,16 @@ static void if_spi_e2h(struct if_spi_card *card)
 		goto out;
 
 	/* re-enable the card event interrupt */
-	spu_write_u16(card, IF_SPI_HOST_INT_STATUS_REG,
-			~IF_SPI_HICU_CARD_EVENT);
+	err = spu_write_u16(card, IF_SPI_HOST_INT_STATUS_REG,
+			    ~IF_SPI_HICU_CARD_EVENT);
+	if (err)
+		goto out;
 
 	/* generate a card interrupt */
-	spu_write_u16(card, IF_SPI_CARD_INT_CAUSE_REG, IF_SPI_CIC_HOST_EVENT);
+	err = spu_write_u16(card, IF_SPI_CARD_INT_CAUSE_REG,
+			    IF_SPI_CIC_HOST_EVENT);
+	if (err)
+		goto out;
 
 	lbs_queue_event(priv, cause & 0xff);
 out:
@@ -1050,7 +1052,7 @@ static int if_spi_init_card(struct if_spi_card *card)
 				"attached to SPI bus_num %d, chip_select %d. "
 				"spi->max_speed_hz=%d\n",
 				card->card_id, card->card_rev,
-				card->spi->master->bus_num,
+				card->spi->controller->bus_num,
 				spi_get_chipselect(card->spi, 0),
 				card->spi->max_speed_hz);
 		err = if_spi_prog_helper_firmware(card, helper);

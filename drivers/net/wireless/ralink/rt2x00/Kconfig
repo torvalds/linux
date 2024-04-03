@@ -170,7 +170,7 @@ config RT2800USB_RT35XX
 config RT2800USB_RT3573
 	bool "rt2800usb - Include support for rt3573 devices (EXPERIMENTAL)"
 	help
-	  This enables support for RT3573 chipset based wireless USB devices
+	  This enables support for RT3573 chipset based USB wireless devices
 	  in the rt2800usb driver.
 
 config RT2800USB_RT53XX

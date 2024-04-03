@@ -220,7 +220,7 @@ void arch_cpu_idle(void)
 	um_idle_sleep();
 }
 
-int __cant_sleep(void) {
+int __uml_cant_sleep(void) {
 	return in_atomic() || irqs_disabled() || in_interrupt();
 	/* Is in_interrupt() really needed? */
 }
@@ -332,17 +332,9 @@ int __init make_proc_sysemu(void)
 
 late_initcall(make_proc_sysemu);
 
-int singlestepping(void * t)
+int singlestepping(void)
 {
-	struct task_struct *task = t ? t : current;
-
-	if (!test_thread_flag(TIF_SINGLESTEP))
-		return 0;
-
-	if (task->thread.singlestep_syscall)
-		return 1;
-
-	return 2;
+	return test_thread_flag(TIF_SINGLESTEP);
 }
 
 /*

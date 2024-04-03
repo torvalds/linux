@@ -46,10 +46,11 @@ rcutorture_param_stat_interval () {
 #
 # Adds per-version torture-module parameters to kernels supporting them.
 per_version_boot_params () {
-	echo $1 `rcutorture_param_onoff "$1" "$2"` \
+	echo	`rcutorture_param_onoff "$1" "$2"` \
 		`rcutorture_param_n_barrier_cbs "$1"` \
 		`rcutorture_param_stat_interval "$1"` \
 		rcutorture.shutdown_secs=$3 \
 		rcutorture.test_no_idle_hz=1 \
-		rcutorture.verbose=1
+		rcutorture.verbose=1 \
+		$1
 }

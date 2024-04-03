@@ -101,7 +101,7 @@ static int lp3952_get_label(struct device *dev, const char *label, char *dest)
 	if (ret)
 		return ret;
 
-	strncpy(dest, str, LP3952_LABEL_MAX_LEN);
+	strscpy(dest, str, LP3952_LABEL_MAX_LEN);
 	return 0;
 }
 
@@ -204,7 +204,7 @@ static const struct regmap_config lp3952_regmap = {
 	.reg_bits = 8,
 	.val_bits = 8,
 	.max_register = REG_MAX,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static int lp3952_probe(struct i2c_client *client)

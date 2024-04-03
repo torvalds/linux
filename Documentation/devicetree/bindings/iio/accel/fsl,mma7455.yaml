@@ -36,8 +36,8 @@ properties:
     maxItems: 2
     items:
       enum:
-        - "INT1"
-        - "INT2"
+        - INT1
+        - INT2
 
 required:
   - compatible

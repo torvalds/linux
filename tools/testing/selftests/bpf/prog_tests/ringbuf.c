@@ -91,6 +91,9 @@ static void ringbuf_subtest(void)
 	int err, cnt, rb_fd;
 	int page_size = getpagesize();
 	void *mmap_ptr, *tmp_ptr;
+	struct ring *ring;
+	int map_fd;
+	unsigned long avail_data, ring_size, cons_pos, prod_pos;
 
 	skel = test_ringbuf_lskel__open();
 	if (CHECK(!skel, "skel_open", "skeleton open failed\n"))
@@ -162,6 +165,13 @@ static void ringbuf_subtest(void)
 
 	trigger_samples();
 
+	ring = ring_buffer__ring(ringbuf, 0);
+	if (!ASSERT_OK_PTR(ring, "ring_buffer__ring_idx_0"))
+		goto cleanup;
+
+	map_fd = ring__map_fd(ring);
+	ASSERT_EQ(map_fd, skel->maps.ringbuf.map_fd, "ring_map_fd");
+
 	/* 2 submitted + 1 discarded records */
 	CHECK(skel->bss->avail_data != 3 * rec_sz,
 	      "err_avail_size", "exp %ld, got %ld\n",
@@ -175,6 +185,18 @@ static void ringbuf_subtest(void)
 	CHECK(skel->bss->prod_pos != 3 * rec_sz,
 	      "err_prod_pos", "exp %ld, got %ld\n",
 	      3L * rec_sz, skel->bss->prod_pos);
+
+	/* verify getting this data directly via the ring object yields the same
+	 * results
+	 */
+	avail_data = ring__avail_data_size(ring);
+	ASSERT_EQ(avail_data, 3 * rec_sz, "ring_avail_size");
+	ring_size = ring__size(ring);
+	ASSERT_EQ(ring_size, page_size, "ring_ring_size");
+	cons_pos = ring__consumer_pos(ring);
+	ASSERT_EQ(cons_pos, 0, "ring_cons_pos");
+	prod_pos = ring__producer_pos(ring);
+	ASSERT_EQ(prod_pos, 3 * rec_sz, "ring_prod_pos");
 
 	/* poll for samples */
 	err = ring_buffer__poll(ringbuf, -1);
@@ -281,6 +303,10 @@ static void ringbuf_subtest(void)
 	 */
 	err = ring_buffer__consume(ringbuf);
 	CHECK(err < 0, "rb_consume", "failed: %d\b", err);
+
+	/* also consume using ring__consume to make sure it works the same */
+	err = ring__consume(ring);
+	ASSERT_GE(err, 0, "ring_consume");
 
 	/* 3 rounds, 2 samples each */
 	cnt = atomic_xchg(&sample_cnt, 0);

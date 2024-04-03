@@ -1487,10 +1487,12 @@ static int mb86a16_set_fe(struct mb86a16_state *state)
 		}
 	}
 
-	mb86a16_read(state, 0x15, &agcval);
-	mb86a16_read(state, 0x26, &cnmval);
-	dprintk(verbose, MB86A16_INFO, 1, "AGC = %02x CNM = %02x", agcval, cnmval);
-
+	if (mb86a16_read(state, 0x15, &agcval) != 2 ||	mb86a16_read(state, 0x26, &cnmval) != 2) {
+		dprintk(verbose, MB86A16_ERROR, 1, "I2C transfer error");
+		ret = -EREMOTEIO;
+	} else {
+		dprintk(verbose, MB86A16_INFO, 1, "AGC = %02x CNM = %02x", agcval, cnmval);
+	}
 	return ret;
 }
 
@@ -1851,6 +1853,6 @@ error:
 	kfree(state);
 	return NULL;
 }
-EXPORT_SYMBOL(mb86a16_attach);
+EXPORT_SYMBOL_GPL(mb86a16_attach);
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Manu Abraham");

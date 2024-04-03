@@ -77,9 +77,9 @@ struct felix_tag_proto_ops {
 	int (*setup)(struct dsa_switch *ds);
 	void (*teardown)(struct dsa_switch *ds);
 	unsigned long (*get_host_fwd_mask)(struct dsa_switch *ds);
-	int (*change_master)(struct dsa_switch *ds, int port,
-			     struct net_device *master,
-			     struct netlink_ext_ack *extack);
+	int (*change_conduit)(struct dsa_switch *ds, int port,
+			      struct net_device *conduit,
+			      struct netlink_ext_ack *extack);
 };
 
 extern const struct dsa_switch_ops felix_switch_ops;

@@ -13,7 +13,6 @@
 #include <linux/errno.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
-#include <linux/gpio.h>
 #include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -25,7 +24,6 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/of_device.h>
-#include <linux/of_gpio.h>
 #include <linux/of_mdio.h>
 #include <linux/phy.h>
 #include <linux/reset.h>
@@ -107,16 +105,21 @@ int mdiobus_unregister_device(struct mdio_device *mdiodev)
 }
 EXPORT_SYMBOL(mdiobus_unregister_device);
 
-struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr)
+static struct mdio_device *mdiobus_find_device(struct mii_bus *bus, int addr)
 {
 	bool addr_valid = addr >= 0 && addr < ARRAY_SIZE(bus->mdio_map);
-	struct mdio_device *mdiodev;
 
 	if (WARN_ONCE(!addr_valid, "addr %d out of range\n", addr))
 		return NULL;
 
-	mdiodev = bus->mdio_map[addr];
+	return bus->mdio_map[addr];
+}
 
+struct phy_device *mdiobus_get_phy(struct mii_bus *bus, int addr)
+{
+	struct mdio_device *mdiodev;
+
+	mdiodev = mdiobus_find_device(bus, addr);
 	if (!mdiodev)
 		return NULL;
 
@@ -129,7 +132,7 @@ EXPORT_SYMBOL(mdiobus_get_phy);
 
 bool mdiobus_is_registered_device(struct mii_bus *bus, int addr)
 {
-	return bus->mdio_map[addr];
+	return mdiobus_find_device(bus, addr) != NULL;
 }
 EXPORT_SYMBOL(mdiobus_is_registered_device);
 
@@ -188,6 +191,10 @@ static void mdiobus_release(struct device *d)
 	     bus->state != MDIOBUS_ALLOCATED,
 	     "%s: not in RELEASED or ALLOCATED state\n",
 	     bus->id);
+
+	if (bus->state == MDIOBUS_RELEASED)
+		fwnode_handle_put(dev_fwnode(d));
+
 	kfree(bus);
 }
 
@@ -450,18 +457,33 @@ EXPORT_SYMBOL(of_mdio_find_bus);
  * found, set the of_node pointer for the mdio device. This allows
  * auto-probed phy devices to be supplied with information passed in
  * via DT.
+ * If a PHY package is found, PHY is searched also there.
  */
-static void of_mdiobus_link_mdiodev(struct mii_bus *bus,
-				    struct mdio_device *mdiodev)
+static int of_mdiobus_find_phy(struct device *dev, struct mdio_device *mdiodev,
+			       struct device_node *np)
 {
-	struct device *dev = &mdiodev->dev;
 	struct device_node *child;
 
-	if (dev->of_node || !bus->dev.of_node)
-		return;
-
-	for_each_available_child_of_node(bus->dev.of_node, child) {
+	for_each_available_child_of_node(np, child) {
 		int addr;
+
+		if (of_node_name_eq(child, "ethernet-phy-package")) {
+			/* Validate PHY package reg presence */
+			if (!of_property_present(child, "reg")) {
+				of_node_put(child);
+				return -EINVAL;
+			}
+
+			if (!of_mdiobus_find_phy(dev, mdiodev, child)) {
+				/* The refcount for the PHY package will be
+				 * incremented later when PHY join the Package.
+				 */
+				of_node_put(child);
+				return 0;
+			}
+
+			continue;
+		}
 
 		addr = of_mdio_parse_addr(dev, child);
 		if (addr < 0)
@@ -472,9 +494,22 @@ static void of_mdiobus_link_mdiodev(struct mii_bus *bus,
 			/* The refcount on "child" is passed to the mdio
 			 * device. Do _not_ use of_node_put(child) here.
 			 */
-			return;
+			return 0;
 		}
 	}
+
+	return -ENODEV;
+}
+
+static void of_mdiobus_link_mdiodev(struct mii_bus *bus,
+				    struct mdio_device *mdiodev)
+{
+	struct device *dev = &mdiodev->dev;
+
+	if (dev->of_node || !bus->dev.of_node)
+		return;
+
+	of_mdiobus_find_phy(dev, mdiodev, bus->dev.of_node);
 }
 #else /* !IS_ENABLED(CONFIG_OF_MDIO) */
 static inline void of_mdiobus_link_mdiodev(struct mii_bus *mdio,
@@ -501,7 +536,7 @@ static int mdiobus_create_device(struct mii_bus *bus,
 	if (IS_ERR(mdiodev))
 		return -ENODEV;
 
-	strncpy(mdiodev->modalias, bi->modalias,
+	strscpy(mdiodev->modalias, bi->modalias,
 		sizeof(mdiodev->modalias));
 	mdiodev->bus_match = mdio_device_bus_match;
 	mdiodev->dev.platform_data = (void *)bi->platform_data;
@@ -678,6 +713,15 @@ int __mdiobus_register(struct mii_bus *bus, struct module *owner)
 	bus->dev.class = &mdio_bus_class;
 	bus->dev.groups = NULL;
 	dev_set_name(&bus->dev, "%s", bus->id);
+
+	/* If the bus state is allocated, we're registering a fresh bus
+	 * that may have a fwnode associated with it. Grab a reference
+	 * to the fwnode. This will be dropped when the bus is released.
+	 * If the bus was set to unregistered, it means that the bus was
+	 * previously registered, and we've already grabbed a reference.
+	 */
+	if (bus->state == MDIOBUS_ALLOCATED)
+		fwnode_handle_get(dev_fwnode(&bus->dev));
 
 	/* We need to set state to MDIOBUS_UNREGISTERED to correctly release
 	 * the device in mdiobus_free()
@@ -1210,6 +1254,26 @@ int mdiobus_c45_write_nested(struct mii_bus *bus, int addr, int devad,
 }
 EXPORT_SYMBOL(mdiobus_c45_write_nested);
 
+/*
+ * __mdiobus_modify - Convenience function for modifying a given mdio device
+ *	register
+ * @bus: the mii_bus struct
+ * @addr: the phy address
+ * @regnum: register number to write
+ * @mask: bit mask of bits to clear
+ * @set: bit mask of bits to set
+ */
+int __mdiobus_modify(struct mii_bus *bus, int addr, u32 regnum, u16 mask,
+		     u16 set)
+{
+	int err;
+
+	err = __mdiobus_modify_changed(bus, addr, regnum, mask, set);
+
+	return err < 0 ? err : 0;
+}
+EXPORT_SYMBOL_GPL(__mdiobus_modify);
+
 /**
  * mdiobus_modify - Convenience function for modifying a given mdio device
  *	register
@@ -1224,10 +1288,10 @@ int mdiobus_modify(struct mii_bus *bus, int addr, u32 regnum, u16 mask, u16 set)
 	int err;
 
 	mutex_lock(&bus->mdio_lock);
-	err = __mdiobus_modify_changed(bus, addr, regnum, mask, set);
+	err = __mdiobus_modify(bus, addr, regnum, mask, set);
 	mutex_unlock(&bus->mdio_lock);
 
-	return err < 0 ? err : 0;
+	return err;
 }
 EXPORT_SYMBOL_GPL(mdiobus_modify);
 
@@ -1360,7 +1424,7 @@ static const struct attribute_group *mdio_bus_dev_groups[] = {
 	NULL,
 };
 
-struct bus_type mdio_bus_type = {
+const struct bus_type mdio_bus_type = {
 	.name		= "mdio_bus",
 	.dev_groups	= mdio_bus_dev_groups,
 	.match		= mdio_bus_match,

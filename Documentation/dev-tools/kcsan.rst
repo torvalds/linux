@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. Copyright (C) 2019, Google LLC.
 
-The Kernel Concurrency Sanitizer (KCSAN)
-========================================
+Kernel Concurrency Sanitizer (KCSAN)
+====================================
 
 The Kernel Concurrency Sanitizer (KCSAN) is a dynamic race detector, which
 relies on compile-time instrumentation, and uses a watchpoint-based sampling

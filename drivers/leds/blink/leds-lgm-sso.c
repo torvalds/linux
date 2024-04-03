@@ -837,7 +837,7 @@ static int intel_sso_led_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int intel_sso_led_remove(struct platform_device *pdev)
+static void intel_sso_led_remove(struct platform_device *pdev)
 {
 	struct sso_led_priv *priv;
 	struct sso_led *led, *n;
@@ -850,8 +850,6 @@ static int intel_sso_led_remove(struct platform_device *pdev)
 	}
 
 	regmap_exit(priv->mmap);
-
-	return 0;
 }
 
 static const struct of_device_id of_sso_led_match[] = {
@@ -863,7 +861,7 @@ MODULE_DEVICE_TABLE(of, of_sso_led_match);
 
 static struct platform_driver intel_sso_led_driver = {
 	.probe		= intel_sso_led_probe,
-	.remove		= intel_sso_led_remove,
+	.remove_new	= intel_sso_led_remove,
 	.driver		= {
 			.name = "lgm-ssoled",
 			.of_match_table = of_sso_led_match,

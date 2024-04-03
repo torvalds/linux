@@ -53,7 +53,7 @@ struct sprd_pins_info {
 int sprd_pinctrl_core_probe(struct platform_device *pdev,
 			    struct sprd_pins_info *sprd_soc_pin_info,
 			    int pins_cnt);
-int sprd_pinctrl_remove(struct platform_device *pdev);
+void sprd_pinctrl_remove(struct platform_device *pdev);
 void sprd_pinctrl_shutdown(struct platform_device *pdev);
 
 #endif /* __PINCTRL_SPRD_H__ */

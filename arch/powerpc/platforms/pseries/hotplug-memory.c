@@ -21,54 +21,6 @@
 #include <asm/drmem.h>
 #include "pseries.h"
 
-unsigned long pseries_memory_block_size(void)
-{
-	struct device_node *np;
-	u64 memblock_size = MIN_MEMORY_BLOCK_SIZE;
-	struct resource r;
-
-	np = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
-	if (np) {
-		int len;
-		int size_cells;
-		const __be32 *prop;
-
-		size_cells = of_n_size_cells(np);
-
-		prop = of_get_property(np, "ibm,lmb-size", &len);
-		if (prop && len >= size_cells * sizeof(__be32))
-			memblock_size = of_read_number(prop, size_cells);
-		of_node_put(np);
-
-	} else  if (machine_is(pseries)) {
-		/* This fallback really only applies to pseries */
-		unsigned int memzero_size = 0;
-
-		np = of_find_node_by_path("/memory@0");
-		if (np) {
-			if (!of_address_to_resource(np, 0, &r))
-				memzero_size = resource_size(&r);
-			of_node_put(np);
-		}
-
-		if (memzero_size) {
-			/* We now know the size of memory@0, use this to find
-			 * the first memoryblock and get its size.
-			 */
-			char buf[64];
-
-			sprintf(buf, "/memory@%x", memzero_size);
-			np = of_find_node_by_path(buf);
-			if (np) {
-				if (!of_address_to_resource(np, 0, &r))
-					memblock_size = resource_size(&r);
-				of_node_put(np);
-			}
-		}
-	}
-	return memblock_size;
-}
-
 static void dlpar_free_property(struct property *prop)
 {
 	kfree(prop->name);
@@ -103,7 +55,8 @@ static bool find_aa_index(struct device_node *dr_node,
 			 struct property *ala_prop,
 			 const u32 *lmb_assoc, u32 *aa_index)
 {
-	u32 *assoc_arrays, new_prop_size;
+	__be32 *assoc_arrays;
+	u32 new_prop_size;
 	struct property *new_prop;
 	int aa_arrays, aa_array_entries, aa_array_sz;
 	int i, index;
@@ -255,8 +208,10 @@ static int dlpar_change_lmb_state(struct drmem_lmb *lmb, bool online)
 	int rc;
 
 	mem_block = lmb_to_memblock(lmb);
-	if (!mem_block)
+	if (!mem_block) {
+		pr_err("Failed memory block lookup for LMB 0x%x\n", lmb->drc_index);
 		return -EINVAL;
+	}
 
 	if (online && mem_block->dev.offline)
 		rc = device_online(&mem_block->dev);
@@ -283,7 +238,7 @@ static int dlpar_offline_lmb(struct drmem_lmb *lmb)
 
 static int pseries_remove_memblock(unsigned long base, unsigned long memblock_size)
 {
-	unsigned long block_sz, start_pfn;
+	unsigned long start_pfn;
 	int sections_per_block;
 	int i;
 
@@ -294,8 +249,7 @@ static int pseries_remove_memblock(unsigned long base, unsigned long memblock_si
 	if (!pfn_valid(start_pfn))
 		goto out;
 
-	block_sz = pseries_memory_block_size();
-	sections_per_block = block_sz / MIN_MEMORY_BLOCK_SIZE;
+	sections_per_block = memory_block_size / MIN_MEMORY_BLOCK_SIZE;
 
 	for (i = 0; i < sections_per_block; i++) {
 		__remove_memory(base, MIN_MEMORY_BLOCK_SIZE);
@@ -354,7 +308,6 @@ static int dlpar_add_lmb(struct drmem_lmb *);
 static int dlpar_remove_lmb(struct drmem_lmb *lmb)
 {
 	struct memory_block *mem_block;
-	unsigned long block_sz;
 	int rc;
 
 	if (!lmb_is_removable(lmb))
@@ -370,13 +323,11 @@ static int dlpar_remove_lmb(struct drmem_lmb *lmb)
 		return rc;
 	}
 
-	block_sz = pseries_memory_block_size();
-
-	__remove_memory(lmb->base_addr, block_sz);
+	__remove_memory(lmb->base_addr, memory_block_size);
 	put_device(&mem_block->dev);
 
 	/* Update memory regions for memory remove */
-	memblock_remove(lmb->base_addr, block_sz);
+	memblock_remove(lmb->base_addr, memory_block_size);
 
 	invalidate_lmb_associativity_index(lmb);
 	lmb->flags &= ~DRCONF_MEM_ASSIGNED;
@@ -487,14 +438,15 @@ static int dlpar_memory_remove_by_index(u32 drc_index)
 		}
 	}
 
-	if (!lmb_found)
+	if (!lmb_found) {
+		pr_debug("Failed to look up LMB for drc index %x\n", drc_index);
 		rc = -EINVAL;
-
-	if (rc)
+	} else if (rc) {
 		pr_debug("Failed to hot-remove memory at %llx\n",
 			 lmb->base_addr);
-	else
+	} else {
 		pr_debug("Memory at %llx was hot-removed\n", lmb->base_addr);
+	}
 
 	return rc;
 }
@@ -626,6 +578,7 @@ static int dlpar_add_lmb(struct drmem_lmb *lmb)
 	rc = update_lmb_associativity_index(lmb);
 	if (rc) {
 		dlpar_release_drc(lmb->drc_index);
+		pr_err("Failed to configure LMB 0x%x\n", lmb->drc_index);
 		return rc;
 	}
 
@@ -637,14 +590,16 @@ static int dlpar_add_lmb(struct drmem_lmb *lmb)
 		nid = first_online_node;
 
 	/* Add the memory */
-	rc = __add_memory(nid, lmb->base_addr, block_sz, MHP_NONE);
+	rc = __add_memory(nid, lmb->base_addr, block_sz, MHP_MEMMAP_ON_MEMORY);
 	if (rc) {
+		pr_err("Failed to add LMB 0x%x to node %u", lmb->drc_index, nid);
 		invalidate_lmb_associativity_index(lmb);
 		return rc;
 	}
 
 	rc = dlpar_online_lmb(lmb);
 	if (rc) {
+		pr_err("Failed to online LMB 0x%x on node %u\n", lmb->drc_index, nid);
 		__remove_memory(lmb->base_addr, block_sz);
 		invalidate_lmb_associativity_index(lmb);
 	} else {

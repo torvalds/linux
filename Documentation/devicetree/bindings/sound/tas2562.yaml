@@ -18,7 +18,6 @@ description: |
 
   Specifications about the audio amplifier can be found at:
     https://www.ti.com/lit/gpn/tas2562
-    https://www.ti.com/lit/gpn/tas2563
     https://www.ti.com/lit/gpn/tas2564
     https://www.ti.com/lit/gpn/tas2110
 
@@ -29,7 +28,6 @@ properties:
   compatible:
     enum:
       - ti,tas2562
-      - ti,tas2563
       - ti,tas2564
       - ti,tas2110
 

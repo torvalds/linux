@@ -606,8 +606,6 @@ static int rtw_txq_push_skb(struct rtw_dev *rtwdev,
 		rtw_err(rtwdev, "failed to write TX skb to HCI\n");
 		return ret;
 	}
-	rtwtxq->last_push = jiffies;
-
 	return 0;
 }
 
@@ -658,9 +656,8 @@ void __rtw_tx_work(struct rtw_dev *rtwdev)
 	list_for_each_entry_safe(rtwtxq, tmp, &rtwdev->txqs, list) {
 		struct ieee80211_txq *txq = rtwtxq_to_txq(rtwtxq);
 		unsigned long frame_cnt;
-		unsigned long byte_cnt;
 
-		ieee80211_txq_get_depth(txq, &frame_cnt, &byte_cnt);
+		ieee80211_txq_get_depth(txq, &frame_cnt, NULL);
 		rtw_txq_push(rtwdev, rtwtxq, frame_cnt);
 
 		list_del_init(&rtwtxq->list);

@@ -103,7 +103,7 @@ static int serport_ldisc_open(struct tty_struct *tty)
 
 static void serport_ldisc_close(struct tty_struct *tty)
 {
-	struct serport *serport = (struct serport *) tty->disc_data;
+	struct serport *serport = tty->disc_data;
 
 	kfree(serport);
 }
@@ -114,10 +114,10 @@ static void serport_ldisc_close(struct tty_struct *tty)
  * 'interrupt' routine.
  */
 
-static void serport_ldisc_receive(struct tty_struct *tty,
-		const unsigned char *cp, const char *fp, int count)
+static void serport_ldisc_receive(struct tty_struct *tty, const u8 *cp,
+				  const u8 *fp, size_t count)
 {
-	struct serport *serport = (struct serport*) tty->disc_data;
+	struct serport *serport = tty->disc_data;
 	unsigned long flags;
 	unsigned int ch_flags = 0;
 	int i;
@@ -158,10 +158,10 @@ out:
  */
 
 static ssize_t serport_ldisc_read(struct tty_struct * tty, struct file * file,
-				  unsigned char *kbuf, size_t nr,
-				  void **cookie, unsigned long offset)
+				  u8 *kbuf, size_t nr, void **cookie,
+				  unsigned long offset)
 {
-	struct serport *serport = (struct serport*) tty->disc_data;
+	struct serport *serport = tty->disc_data;
 	struct serio *serio;
 
 	if (test_and_set_bit(SERPORT_BUSY, &serport->flags))
@@ -245,7 +245,7 @@ static int serport_ldisc_compat_ioctl(struct tty_struct *tty,
 
 static void serport_ldisc_hangup(struct tty_struct *tty)
 {
-	struct serport *serport = (struct serport *) tty->disc_data;
+	struct serport *serport = tty->disc_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&serport->lock, flags);
@@ -257,7 +257,7 @@ static void serport_ldisc_hangup(struct tty_struct *tty)
 
 static void serport_ldisc_write_wakeup(struct tty_struct * tty)
 {
-	struct serport *serport = (struct serport *) tty->disc_data;
+	struct serport *serport = tty->disc_data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&serport->lock, flags);

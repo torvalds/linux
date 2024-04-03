@@ -1601,6 +1601,7 @@ static const u32 gaudi2_pb_dcr0_tpc0_unsecured_regs[] = {
 	mmDCORE0_TPC0_CFG_KERNEL_SRF_30,
 	mmDCORE0_TPC0_CFG_KERNEL_SRF_31,
 	mmDCORE0_TPC0_CFG_TPC_SB_L0CD,
+	mmDCORE0_TPC0_CFG_TPC_COUNT,
 	mmDCORE0_TPC0_CFG_TPC_ID,
 	mmDCORE0_TPC0_CFG_QM_KERNEL_ID_INC,
 	mmDCORE0_TPC0_CFG_QM_TID_BASE_SIZE_HIGH_DIM_0,
@@ -2907,7 +2908,7 @@ static void gaudi2_init_lbw_range_registers_secure(struct hl_device *hdev)
 	 * - range 11: NIC11_CFG + *_DBG (not including TPC_DBG)
 	 *
 	 * If F/W security is not enabled:
-	 * - ranges 12,13: PSOC_CFG (excluding PSOC_TIMESTAMP)
+	 * - ranges 12,13: PSOC_CFG (excluding PSOC_TIMESTAMP, PSOC_EFUSE and PSOC_GLOBAL_CONF)
 	 */
 	u64 lbw_range_min_short[] = {
 		mmNIC0_TX_AXUSER_BASE,
@@ -2923,7 +2924,7 @@ static void gaudi2_init_lbw_range_registers_secure(struct hl_device *hdev)
 		mmNIC10_TX_AXUSER_BASE,
 		mmNIC11_TX_AXUSER_BASE,
 		mmPSOC_I2C_M0_BASE,
-		mmPSOC_EFUSE_BASE
+		mmPSOC_GPIO0_BASE
 	};
 	u64 lbw_range_max_short[] = {
 		mmNIC0_MAC_CH3_MAC_PCS_BASE + HL_BLOCK_SIZE,
@@ -3219,6 +3220,7 @@ static void gaudi2_init_range_registers(struct hl_device *hdev)
  */
 static int gaudi2_init_protection_bits(struct hl_device *hdev)
 {
+	u32 *user_regs_array = NULL, user_regs_array_size = 0, engine_core_intr_reg;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u32 instance_offset;
 	int rc = 0;
@@ -3389,11 +3391,24 @@ static int gaudi2_init_protection_bits(struct hl_device *hdev)
 	/* PSOC.
 	 * Except for PSOC_GLOBAL_CONF, skip when security is enabled in F/W, because the blocks are
 	 * protected by privileged RR.
+	 * For PSOC_GLOBAL_CONF, need to un-secure the scratchpad register which is used for engine
+	 * cores to raise events towards F/W.
 	 */
+	engine_core_intr_reg = (u32) (hdev->asic_prop.engine_core_interrupt_reg_addr - CFG_BASE);
+	if (engine_core_intr_reg >= mmPSOC_GLOBAL_CONF_SCRATCHPAD_0 &&
+			engine_core_intr_reg <= mmPSOC_GLOBAL_CONF_SCRATCHPAD_31) {
+		user_regs_array = &engine_core_intr_reg;
+		user_regs_array_size = 1;
+	} else {
+		dev_err(hdev->dev,
+			"Engine cores register for interrupts (%#x) is not a PSOC scratchpad register\n",
+			engine_core_intr_reg);
+	}
+
 	rc |= hl_init_pb(hdev, HL_PB_SHARED, HL_PB_NA,
 			HL_PB_SINGLE_INSTANCE, HL_PB_NA,
 			gaudi2_pb_psoc_global_conf, ARRAY_SIZE(gaudi2_pb_psoc_global_conf),
-			NULL, HL_PB_NA);
+			user_regs_array, user_regs_array_size);
 
 	if (!hdev->asic_prop.fw_security_enabled)
 		rc |= hl_init_pb(hdev, HL_PB_SHARED, HL_PB_NA,

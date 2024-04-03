@@ -7,7 +7,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/hw_random.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 
@@ -121,8 +120,6 @@ static int xiphera_trng_probe(struct platform_device *pdev)
 		dev_err(dev, "failed to register rng device: %d\n", ret);
 		return ret;
 	}
-
-	platform_set_drvdata(pdev, trng);
 
 	return 0;
 }

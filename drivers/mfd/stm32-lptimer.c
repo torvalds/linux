@@ -9,6 +9,7 @@
 #include <linux/mfd/stm32-lptimer.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #define STM32_LPTIM_MAX_REGISTER	0x3fc
 

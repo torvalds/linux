@@ -63,7 +63,7 @@ static __always_inline bool __cpu_has_rng(void)
 {
 	if (unlikely(!system_capabilities_finalized() && !preemptible()))
 		return this_cpu_has_cap(ARM64_HAS_RNG);
-	return cpus_have_const_cap(ARM64_HAS_RNG);
+	return alternative_has_cap_unlikely(ARM64_HAS_RNG);
 }
 
 static inline size_t __must_check arch_get_random_longs(unsigned long *v, size_t max_longs)
@@ -128,7 +128,5 @@ static inline bool __init __early_cpu_has_rndr(void)
 	unsigned long ftr = read_sysreg_s(SYS_ID_AA64ISAR0_EL1);
 	return (ftr >> ID_AA64ISAR0_EL1_RNDR_SHIFT) & 0xf;
 }
-
-u64 kaslr_early_init(void *fdt);
 
 #endif /* _ASM_ARCHRANDOM_H */

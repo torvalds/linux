@@ -238,6 +238,7 @@ extern const struct rtw_chip_info rtw8821c_hw_spec;
 #define REG_RXSB	0xa00
 #define REG_ADCINI	0xa04
 #define REG_PWRTH	0xa08
+#define REG_CCA_FLTR	0xa20
 #define REG_TXSF2	0xa24
 #define REG_TXSF6	0xa28
 #define REG_FA_CCK	0xa5c

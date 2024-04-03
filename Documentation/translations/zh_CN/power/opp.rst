@@ -274,7 +274,7 @@ dev_pm_opp_get_opp_count
 	 {
 		/* 做一些事情 */
 		num_available = dev_pm_opp_get_opp_count(dev);
-		speeds = kzalloc(sizeof(u32) * num_available, GFP_KERNEL);
+		speeds = kcalloc(num_available, sizeof(u32), GFP_KERNEL);
 		/* 按升序填充表 */
 		freq = 0;
 		while (!IS_ERR(opp = dev_pm_opp_find_freq_ceil(dev, &freq))) {

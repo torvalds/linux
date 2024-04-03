@@ -8,90 +8,89 @@
 #include "ixgbe.h"
 
 u16 ixgbe_get_pcie_msix_count_generic(struct ixgbe_hw *hw);
-s32 ixgbe_init_ops_generic(struct ixgbe_hw *hw);
-s32 ixgbe_init_hw_generic(struct ixgbe_hw *hw);
-s32 ixgbe_start_hw_generic(struct ixgbe_hw *hw);
-s32 ixgbe_start_hw_gen2(struct ixgbe_hw *hw);
-s32 ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw);
-s32 ixgbe_read_pba_string_generic(struct ixgbe_hw *hw, u8 *pba_num,
+int ixgbe_init_hw_generic(struct ixgbe_hw *hw);
+int ixgbe_start_hw_generic(struct ixgbe_hw *hw);
+int ixgbe_start_hw_gen2(struct ixgbe_hw *hw);
+int ixgbe_clear_hw_cntrs_generic(struct ixgbe_hw *hw);
+int ixgbe_read_pba_string_generic(struct ixgbe_hw *hw, u8 *pba_num,
 				  u32 pba_num_size);
-s32 ixgbe_get_mac_addr_generic(struct ixgbe_hw *hw, u8 *mac_addr);
+int ixgbe_get_mac_addr_generic(struct ixgbe_hw *hw, u8 *mac_addr);
 enum ixgbe_bus_width ixgbe_convert_bus_width(u16 link_status);
 enum ixgbe_bus_speed ixgbe_convert_bus_speed(u16 link_status);
-s32 ixgbe_get_bus_info_generic(struct ixgbe_hw *hw);
+int ixgbe_get_bus_info_generic(struct ixgbe_hw *hw);
 void ixgbe_set_lan_id_multi_port_pcie(struct ixgbe_hw *hw);
-s32 ixgbe_stop_adapter_generic(struct ixgbe_hw *hw);
+int ixgbe_stop_adapter_generic(struct ixgbe_hw *hw);
 
-s32 ixgbe_led_on_generic(struct ixgbe_hw *hw, u32 index);
-s32 ixgbe_led_off_generic(struct ixgbe_hw *hw, u32 index);
-s32 ixgbe_init_led_link_act_generic(struct ixgbe_hw *hw);
+int ixgbe_led_on_generic(struct ixgbe_hw *hw, u32 index);
+int ixgbe_led_off_generic(struct ixgbe_hw *hw, u32 index);
+int ixgbe_init_led_link_act_generic(struct ixgbe_hw *hw);
 
-s32 ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw);
-s32 ixgbe_write_eeprom_generic(struct ixgbe_hw *hw, u16 offset, u16 data);
-s32 ixgbe_write_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
+int ixgbe_init_eeprom_params_generic(struct ixgbe_hw *hw);
+int ixgbe_write_eeprom_generic(struct ixgbe_hw *hw, u16 offset, u16 data);
+int ixgbe_write_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
 					       u16 words, u16 *data);
-s32 ixgbe_read_eerd_generic(struct ixgbe_hw *hw, u16 offset, u16 *data);
-s32 ixgbe_read_eerd_buffer_generic(struct ixgbe_hw *hw, u16 offset,
+int ixgbe_read_eerd_generic(struct ixgbe_hw *hw, u16 offset, u16 *data);
+int ixgbe_read_eerd_buffer_generic(struct ixgbe_hw *hw, u16 offset,
 				   u16 words, u16 *data);
-s32 ixgbe_write_eewr_generic(struct ixgbe_hw *hw, u16 offset, u16 data);
-s32 ixgbe_write_eewr_buffer_generic(struct ixgbe_hw *hw, u16 offset,
+int ixgbe_write_eewr_generic(struct ixgbe_hw *hw, u16 offset, u16 data);
+int ixgbe_write_eewr_buffer_generic(struct ixgbe_hw *hw, u16 offset,
 				    u16 words, u16 *data);
-s32 ixgbe_read_eeprom_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
+int ixgbe_read_eeprom_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
 				       u16 *data);
-s32 ixgbe_read_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
+int ixgbe_read_eeprom_buffer_bit_bang_generic(struct ixgbe_hw *hw, u16 offset,
 					      u16 words, u16 *data);
-s32 ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw);
-s32 ixgbe_validate_eeprom_checksum_generic(struct ixgbe_hw *hw,
+int ixgbe_calc_eeprom_checksum_generic(struct ixgbe_hw *hw);
+int ixgbe_validate_eeprom_checksum_generic(struct ixgbe_hw *hw,
 					   u16 *checksum_val);
-s32 ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw);
+int ixgbe_update_eeprom_checksum_generic(struct ixgbe_hw *hw);
 
-s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
+int ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 			  u32 enable_addr);
-s32 ixgbe_clear_rar_generic(struct ixgbe_hw *hw, u32 index);
-s32 ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw);
-s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw,
+int ixgbe_clear_rar_generic(struct ixgbe_hw *hw, u32 index);
+int ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw);
+int ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw,
 				      struct net_device *netdev);
-s32 ixgbe_enable_mc_generic(struct ixgbe_hw *hw);
-s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw);
-s32 ixgbe_disable_rx_buff_generic(struct ixgbe_hw *hw);
-s32 ixgbe_enable_rx_buff_generic(struct ixgbe_hw *hw);
-s32 ixgbe_enable_rx_dma_generic(struct ixgbe_hw *hw, u32 regval);
-s32 ixgbe_fc_enable_generic(struct ixgbe_hw *hw);
-s32 ixgbe_setup_fc_generic(struct ixgbe_hw *);
+int ixgbe_enable_mc_generic(struct ixgbe_hw *hw);
+int ixgbe_disable_mc_generic(struct ixgbe_hw *hw);
+int ixgbe_disable_rx_buff_generic(struct ixgbe_hw *hw);
+int ixgbe_enable_rx_buff_generic(struct ixgbe_hw *hw);
+int ixgbe_enable_rx_dma_generic(struct ixgbe_hw *hw, u32 regval);
+int ixgbe_fc_enable_generic(struct ixgbe_hw *hw);
+int ixgbe_setup_fc_generic(struct ixgbe_hw *);
 bool ixgbe_device_supports_autoneg_fc(struct ixgbe_hw *hw);
 void ixgbe_fc_autoneg(struct ixgbe_hw *hw);
 
-s32 ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u32 mask);
+int ixgbe_acquire_swfw_sync(struct ixgbe_hw *hw, u32 mask);
 void ixgbe_release_swfw_sync(struct ixgbe_hw *hw, u32 mask);
-s32 ixgbe_get_san_mac_addr_generic(struct ixgbe_hw *hw, u8 *san_mac_addr);
-s32 ixgbe_set_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
-s32 ixgbe_set_vmdq_san_mac_generic(struct ixgbe_hw *hw, u32 vmdq);
-s32 ixgbe_clear_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
-s32 ixgbe_init_uta_tables_generic(struct ixgbe_hw *hw);
-s32 ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan,
+int ixgbe_get_san_mac_addr_generic(struct ixgbe_hw *hw, u8 *san_mac_addr);
+int ixgbe_set_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
+int ixgbe_set_vmdq_san_mac_generic(struct ixgbe_hw *hw, u32 vmdq);
+int ixgbe_clear_vmdq_generic(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
+int ixgbe_init_uta_tables_generic(struct ixgbe_hw *hw);
+int ixgbe_set_vfta_generic(struct ixgbe_hw *hw, u32 vlan,
 			   u32 vind, bool vlan_on, bool vlvf_bypass);
-s32 ixgbe_clear_vfta_generic(struct ixgbe_hw *hw);
-s32 ixgbe_check_mac_link_generic(struct ixgbe_hw *hw,
+int ixgbe_clear_vfta_generic(struct ixgbe_hw *hw);
+int ixgbe_check_mac_link_generic(struct ixgbe_hw *hw,
 				 ixgbe_link_speed *speed,
 				 bool *link_up, bool link_up_wait_to_complete);
-s32 ixgbe_get_wwn_prefix_generic(struct ixgbe_hw *hw, u16 *wwnn_prefix,
+int ixgbe_get_wwn_prefix_generic(struct ixgbe_hw *hw, u16 *wwnn_prefix,
 				 u16 *wwpn_prefix);
 
-s32 prot_autoc_read_generic(struct ixgbe_hw *hw, bool *, u32 *reg_val);
-s32 prot_autoc_write_generic(struct ixgbe_hw *hw, u32 reg_val, bool locked);
+int prot_autoc_read_generic(struct ixgbe_hw *hw, bool *, u32 *reg_val);
+int prot_autoc_write_generic(struct ixgbe_hw *hw, u32 reg_val, bool locked);
 
-s32 ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index);
-s32 ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index);
+int ixgbe_blink_led_start_generic(struct ixgbe_hw *hw, u32 index);
+int ixgbe_blink_led_stop_generic(struct ixgbe_hw *hw, u32 index);
 void ixgbe_set_mac_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf);
 void ixgbe_set_vlan_anti_spoofing(struct ixgbe_hw *hw, bool enable, int vf);
-s32 ixgbe_get_device_caps_generic(struct ixgbe_hw *hw, u16 *device_caps);
-s32 ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
+int ixgbe_get_device_caps_generic(struct ixgbe_hw *hw, u16 *device_caps);
+int ixgbe_set_fw_drv_ver_generic(struct ixgbe_hw *hw, u8 maj, u8 min,
 				 u8 build, u8 ver, u16 len, const char *str);
 u8 ixgbe_calculate_checksum(u8 *buffer, u32 length);
-s32 ixgbe_host_interface_command(struct ixgbe_hw *hw, void *, u32 length,
+int ixgbe_host_interface_command(struct ixgbe_hw *hw, void *, u32 length,
 				 u32 timeout, bool return_data);
-s32 ixgbe_hic_unlocked(struct ixgbe_hw *hw, u32 *buffer, u32 len, u32 timeout);
-s32 ixgbe_fw_phy_activity(struct ixgbe_hw *hw, u16 activity,
+int ixgbe_hic_unlocked(struct ixgbe_hw *hw, u32 *buffer, u32 len, u32 timeout);
+int ixgbe_fw_phy_activity(struct ixgbe_hw *hw, u16 activity,
 			  u32 (*data)[FW_PHY_ACT_DATA_COUNT]);
 void ixgbe_clear_tx_pending(struct ixgbe_hw *hw);
 bool ixgbe_mng_present(struct ixgbe_hw *hw);
@@ -112,8 +111,8 @@ extern const u32 ixgbe_mvals_8259X[IXGBE_MVALS_IDX_LIMIT];
 #define IXGBE_EMC_DIODE3_DATA		0x2A
 #define IXGBE_EMC_DIODE3_THERM_LIMIT	0x30
 
-s32 ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw);
-s32 ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw);
+int ixgbe_get_thermal_sensor_data_generic(struct ixgbe_hw *hw);
+int ixgbe_init_thermal_sensor_thresh_generic(struct ixgbe_hw *hw);
 void ixgbe_get_etk_id(struct ixgbe_hw *hw,
 		      struct ixgbe_nvm_version *nvm_ver);
 void ixgbe_get_oem_prod_version(struct ixgbe_hw *hw,
@@ -122,7 +121,7 @@ void ixgbe_get_orom_version(struct ixgbe_hw *hw,
 			    struct ixgbe_nvm_version *nvm_ver);
 void ixgbe_disable_rx_generic(struct ixgbe_hw *hw);
 void ixgbe_enable_rx_generic(struct ixgbe_hw *hw);
-s32 ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
+int ixgbe_setup_mac_link_multispeed_fiber(struct ixgbe_hw *hw,
 					  ixgbe_link_speed speed,
 					  bool autoneg_wait_to_complete);
 void ixgbe_set_soft_rate_select_speed(struct ixgbe_hw *hw,

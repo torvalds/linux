@@ -251,6 +251,28 @@ long ubifs_destroy_tnc_subtree(const struct ubifs_info *c,
 }
 
 /**
+ * ubifs_destroy_tnc_tree - destroy all znodes connected to the TNC tree.
+ * @c: UBIFS file-system description object
+ *
+ * This function destroys the whole TNC tree and updates clean global znode
+ * count.
+ */
+void ubifs_destroy_tnc_tree(struct ubifs_info *c)
+{
+	long n, freed;
+
+	if (!c->zroot.znode)
+		return;
+
+	n = atomic_long_read(&c->clean_zn_cnt);
+	freed = ubifs_destroy_tnc_subtree(c, c->zroot.znode);
+	ubifs_assert(c, freed == n);
+	atomic_long_sub(n, &ubifs_clean_zn_cnt);
+
+	c->zroot.znode = NULL;
+}
+
+/**
  * read_znode - read an indexing node from flash and fill znode.
  * @c: UBIFS file-system description object
  * @zzbr: the zbranch describing the node to read

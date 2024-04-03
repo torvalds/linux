@@ -18,7 +18,7 @@ optional properties:
            in7. Otherwise the pin is set as FAN2 input.
 
 - vcc-supply: a Phandle for the regulator supplying power, can be
-              cofigured to measure 5.0V power supply. Default is 3.3V.
+              configured to measure 5.0V power supply. Default is 3.3V.
 
 Example:
 

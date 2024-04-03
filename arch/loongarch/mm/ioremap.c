@@ -4,6 +4,7 @@
  */
 
 #include <asm/io.h>
+#include <asm-generic/early_ioremap.h>
 
 void __init __iomem *early_ioremap(u64 phys_addr, unsigned long size)
 {

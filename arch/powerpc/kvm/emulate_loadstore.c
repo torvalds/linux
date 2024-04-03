@@ -92,7 +92,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 	vcpu->arch.mmio_host_swabbed = 0;
 
 	emulated = EMULATE_FAIL;
-	vcpu->arch.regs.msr = vcpu->arch.shared->msr;
+	vcpu->arch.regs.msr = kvmppc_get_msr(vcpu);
 	if (analyse_instr(&op, &vcpu->arch.regs, inst) == 0) {
 		int type = op.type & INSTR_TYPE_MASK;
 		int size = GETSIZE(op.type);
@@ -111,7 +111,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 						op.reg, size, !instr_byte_swap);
 
 			if ((op.type & UPDATE) && (emulated != EMULATE_FAIL))
-				kvmppc_set_gpr(vcpu, op.update_reg, op.ea);
+				kvmppc_set_gpr(vcpu, op.update_reg, vcpu->arch.vaddr_accessed);
 
 			break;
 		}
@@ -131,7 +131,7 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 					     KVM_MMIO_REG_FPR|op.reg, size, 1);
 
 			if ((op.type & UPDATE) && (emulated != EMULATE_FAIL))
-				kvmppc_set_gpr(vcpu, op.update_reg, op.ea);
+				kvmppc_set_gpr(vcpu, op.update_reg, vcpu->arch.vaddr_accessed);
 
 			break;
 #endif
@@ -223,16 +223,17 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 			break;
 		}
 #endif
-		case STORE:
-			/* if need byte reverse, op.val has been reversed by
-			 * analyse_instr().
-			 */
-			emulated = kvmppc_handle_store(vcpu, op.val, size, 1);
+		case STORE: {
+			int instr_byte_swap = op.type & BYTEREV;
+
+			emulated = kvmppc_handle_store(vcpu, kvmppc_get_gpr(vcpu, op.reg),
+						       size, !instr_byte_swap);
 
 			if ((op.type & UPDATE) && (emulated != EMULATE_FAIL))
-				kvmppc_set_gpr(vcpu, op.update_reg, op.ea);
+				kvmppc_set_gpr(vcpu, op.update_reg, vcpu->arch.vaddr_accessed);
 
 			break;
+		}
 #ifdef CONFIG_PPC_FPU
 		case STORE_FP:
 			if (kvmppc_check_fp_disabled(vcpu))
@@ -250,10 +251,10 @@ int kvmppc_emulate_loadstore(struct kvm_vcpu *vcpu)
 				vcpu->arch.mmio_sp64_extend = 1;
 
 			emulated = kvmppc_handle_store(vcpu,
-					VCPU_FPR(vcpu, op.reg), size, 1);
+					kvmppc_get_fpr(vcpu, op.reg), size, 1);
 
 			if ((op.type & UPDATE) && (emulated != EMULATE_FAIL))
-				kvmppc_set_gpr(vcpu, op.update_reg, op.ea);
+				kvmppc_set_gpr(vcpu, op.update_reg, vcpu->arch.vaddr_accessed);
 
 			break;
 #endif

@@ -50,9 +50,9 @@ static inline int printk(const char *fmt, ...)
 #endif
 
 extern int in_aton(char *str);
-extern size_t strlcpy(char *, const char *, size_t);
 extern size_t strlcat(char *, const char *, size_t);
-extern size_t strscpy(char *, const char *, size_t);
+extern size_t sized_strscpy(char *, const char *, size_t);
+#define strscpy(dst, src)	sized_strscpy(dst, src, sizeof(dst))
 
 /* Copied from linux/compiler-gcc.h since we can't include it directly */
 #define barrier() __asm__ __volatile__("": : :"memory")

@@ -181,25 +181,11 @@ int crypto4xx_setkey_aes_cbc(struct crypto_skcipher *cipher,
 				    CRYPTO_FEEDBACK_MODE_NO_FB);
 }
 
-int crypto4xx_setkey_aes_cfb(struct crypto_skcipher *cipher,
-			     const u8 *key, unsigned int keylen)
-{
-	return crypto4xx_setkey_aes(cipher, key, keylen, CRYPTO_MODE_CFB,
-				    CRYPTO_FEEDBACK_MODE_128BIT_CFB);
-}
-
 int crypto4xx_setkey_aes_ecb(struct crypto_skcipher *cipher,
 			     const u8 *key, unsigned int keylen)
 {
 	return crypto4xx_setkey_aes(cipher, key, keylen, CRYPTO_MODE_ECB,
 				    CRYPTO_FEEDBACK_MODE_NO_FB);
-}
-
-int crypto4xx_setkey_aes_ofb(struct crypto_skcipher *cipher,
-			     const u8 *key, unsigned int keylen)
-{
-	return crypto4xx_setkey_aes(cipher, key, keylen, CRYPTO_MODE_OFB,
-				    CRYPTO_FEEDBACK_MODE_64BIT_OFB);
 }
 
 int crypto4xx_setkey_rfc3686(struct crypto_skcipher *cipher,

@@ -18,10 +18,7 @@
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
 #include <linux/of_clk.h>
-#include <linux/of_device.h>
-#include <linux/of_irq.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
@@ -847,6 +844,9 @@ static int sunxi_pmx_request(struct pinctrl_dev *pctldev, unsigned offset)
 	struct regulator *reg = s_reg->regulator;
 	char supply[16];
 	int ret;
+
+	if (WARN_ON_ONCE(bank_offset >= ARRAY_SIZE(pctl->regulators)))
+		return -EINVAL;
 
 	if (reg) {
 		refcount_inc(&s_reg->refcount);

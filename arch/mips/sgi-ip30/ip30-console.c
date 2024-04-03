@@ -3,6 +3,7 @@
 #include <linux/io.h>
 
 #include <asm/sn/ioc3.h>
+#include <asm/setup.h>
 
 static inline struct ioc3_uartregs *console_uart(void)
 {

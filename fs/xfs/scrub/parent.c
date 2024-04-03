@@ -150,10 +150,20 @@ xchk_parent_validate(
 
 	lock_mode = xchk_parent_ilock_dir(dp);
 	if (!lock_mode) {
-		xfs_iunlock(sc->ip, XFS_ILOCK_EXCL);
-		xfs_ilock(sc->ip, XFS_ILOCK_EXCL);
+		xchk_iunlock(sc, XFS_ILOCK_EXCL);
+		xchk_ilock(sc, XFS_ILOCK_EXCL);
 		error = -EAGAIN;
 		goto out_rele;
+	}
+
+	/*
+	 * We cannot yet validate this parent pointer if the directory looks as
+	 * though it has been zapped by the inode record repair code.
+	 */
+	if (xchk_dir_looks_zapped(dp)) {
+		error = -EBUSY;
+		xchk_set_incomplete(sc);
+		goto out_unlock;
 	}
 
 	/* Look for a directory entry in the parent pointing to the child. */
@@ -217,6 +227,13 @@ xchk_parent(
 		 */
 		error = xchk_parent_validate(sc, parent_ino);
 	} while (error == -EAGAIN);
+	if (error == -EBUSY) {
+		/*
+		 * We could not scan a directory, so we marked the check
+		 * incomplete.  No further error return is necessary.
+		 */
+		return 0;
+	}
 
 	return error;
 }

@@ -8,7 +8,6 @@
 #include <linux/clk.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -339,14 +338,14 @@ sun8i_a83t_mipi_csi2_mbus_format_prepare(struct v4l2_mbus_framefmt *mbus_format)
 	mbus_format->xfer_func = V4L2_XFER_FUNC_DEFAULT;
 }
 
-static int sun8i_a83t_mipi_csi2_init_cfg(struct v4l2_subdev *subdev,
-					 struct v4l2_subdev_state *state)
+static int sun8i_a83t_mipi_csi2_init_state(struct v4l2_subdev *subdev,
+					   struct v4l2_subdev_state *state)
 {
 	struct sun8i_a83t_mipi_csi2_device *csi2_dev =
 		v4l2_get_subdevdata(subdev);
 	unsigned int pad = SUN8I_A83T_MIPI_CSI2_PAD_SINK;
 	struct v4l2_mbus_framefmt *mbus_format =
-		v4l2_subdev_get_try_format(subdev, state, pad);
+		v4l2_subdev_state_get_format(state, pad);
 	struct mutex *lock = &csi2_dev->bridge.lock;
 
 	mutex_lock(lock);
@@ -388,8 +387,8 @@ static int sun8i_a83t_mipi_csi2_get_fmt(struct v4l2_subdev *subdev,
 	mutex_lock(lock);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*mbus_format = *v4l2_subdev_get_try_format(subdev, state,
-							   format->pad);
+		*mbus_format = *v4l2_subdev_state_get_format(state,
+							     format->pad);
 	else
 		*mbus_format = csi2_dev->bridge.mbus_format;
 
@@ -412,7 +411,7 @@ static int sun8i_a83t_mipi_csi2_set_fmt(struct v4l2_subdev *subdev,
 	sun8i_a83t_mipi_csi2_mbus_format_prepare(mbus_format);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		*v4l2_subdev_get_try_format(subdev, state, format->pad) =
+		*v4l2_subdev_state_get_format(state, format->pad) =
 			*mbus_format;
 	else
 		csi2_dev->bridge.mbus_format = *mbus_format;
@@ -423,7 +422,6 @@ static int sun8i_a83t_mipi_csi2_set_fmt(struct v4l2_subdev *subdev,
 }
 
 static const struct v4l2_subdev_pad_ops sun8i_a83t_mipi_csi2_pad_ops = {
-	.init_cfg	= sun8i_a83t_mipi_csi2_init_cfg,
 	.enum_mbus_code	= sun8i_a83t_mipi_csi2_enum_mbus_code,
 	.get_fmt	= sun8i_a83t_mipi_csi2_get_fmt,
 	.set_fmt	= sun8i_a83t_mipi_csi2_set_fmt,
@@ -432,6 +430,10 @@ static const struct v4l2_subdev_pad_ops sun8i_a83t_mipi_csi2_pad_ops = {
 static const struct v4l2_subdev_ops sun8i_a83t_mipi_csi2_subdev_ops = {
 	.video	= &sun8i_a83t_mipi_csi2_video_ops,
 	.pad	= &sun8i_a83t_mipi_csi2_pad_ops,
+};
+
+static const struct v4l2_subdev_internal_ops sun8i_a83t_mipi_csi2_internal_ops = {
+	.init_state	= sun8i_a83t_mipi_csi2_init_state,
 };
 
 /* Media Entity */
@@ -445,7 +447,7 @@ static const struct media_entity_operations sun8i_a83t_mipi_csi2_entity_ops = {
 static int
 sun8i_a83t_mipi_csi2_notifier_bound(struct v4l2_async_notifier *notifier,
 				    struct v4l2_subdev *remote_subdev,
-				    struct v4l2_async_subdev *async_subdev)
+				    struct v4l2_async_connection *async_subdev)
 {
 	struct v4l2_subdev *subdev = notifier->sd;
 	struct sun8i_a83t_mipi_csi2_device *csi2_dev =
@@ -499,7 +501,7 @@ sun8i_a83t_mipi_csi2_bridge_source_setup(struct sun8i_a83t_mipi_csi2_device *csi
 {
 	struct v4l2_async_notifier *notifier = &csi2_dev->bridge.notifier;
 	struct v4l2_fwnode_endpoint *endpoint = &csi2_dev->bridge.endpoint;
-	struct v4l2_async_subdev *subdev_async;
+	struct v4l2_async_connection *subdev_async;
 	struct fwnode_handle *handle;
 	struct device *dev = csi2_dev->dev;
 	int ret;
@@ -517,7 +519,7 @@ sun8i_a83t_mipi_csi2_bridge_source_setup(struct sun8i_a83t_mipi_csi2_device *csi
 
 	subdev_async =
 		v4l2_async_nf_add_fwnode_remote(notifier, handle,
-						struct v4l2_async_subdev);
+						struct v4l2_async_connection);
 	if (IS_ERR(subdev_async))
 		ret = PTR_ERR(subdev_async);
 
@@ -543,6 +545,7 @@ sun8i_a83t_mipi_csi2_bridge_setup(struct sun8i_a83t_mipi_csi2_device *csi2_dev)
 	/* V4L2 Subdev */
 
 	v4l2_subdev_init(subdev, &sun8i_a83t_mipi_csi2_subdev_ops);
+	subdev->internal_ops = &sun8i_a83t_mipi_csi2_internal_ops;
 	strscpy(subdev->name, SUN8I_A83T_MIPI_CSI2_NAME, sizeof(subdev->name));
 	subdev->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	subdev->owner = THIS_MODULE;
@@ -569,7 +572,7 @@ sun8i_a83t_mipi_csi2_bridge_setup(struct sun8i_a83t_mipi_csi2_device *csi2_dev)
 
 	/* V4L2 Async */
 
-	v4l2_async_nf_init(notifier);
+	v4l2_async_subdev_nf_init(notifier, subdev);
 	notifier->ops = &sun8i_a83t_mipi_csi2_notifier_ops;
 
 	ret = sun8i_a83t_mipi_csi2_bridge_source_setup(csi2_dev);
@@ -578,7 +581,7 @@ sun8i_a83t_mipi_csi2_bridge_setup(struct sun8i_a83t_mipi_csi2_device *csi2_dev)
 
 	/* Only register the notifier when a sensor is connected. */
 	if (ret != -ENODEV) {
-		ret = v4l2_async_subdev_nf_register(subdev, notifier);
+		ret = v4l2_async_nf_register(notifier);
 		if (ret < 0)
 			goto error_v4l2_notifier_cleanup;
 
@@ -824,7 +827,7 @@ static struct platform_driver sun8i_a83t_mipi_csi2_platform_driver = {
 	.remove_new = sun8i_a83t_mipi_csi2_remove,
 	.driver	= {
 		.name		= SUN8I_A83T_MIPI_CSI2_NAME,
-		.of_match_table	= of_match_ptr(sun8i_a83t_mipi_csi2_of_match),
+		.of_match_table	= sun8i_a83t_mipi_csi2_of_match,
 		.pm		= &sun8i_a83t_mipi_csi2_pm_ops,
 	},
 };

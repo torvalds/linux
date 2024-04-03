@@ -785,19 +785,6 @@ sa1111_init_one_child(struct sa1111 *sachip, struct resource *parent,
 	return ret;
 }
 
-/**
- *	sa1111_probe - probe for a single SA1111 chip.
- *	@phys_addr: physical address of device.
- *
- *	Probe for a SA1111 chip.  This must be called
- *	before any other SA1111-specific code.
- *
- *	Returns:
- *	%-ENODEV	device not found.
- *	%-EBUSY		physical address already marked in-use.
- *	%-EINVAL	no platform data passed
- *	%0		successful.
- */
 static int __sa1111_probe(struct device *me, struct resource *mem, int irq)
 {
 	struct sa1111_platform_data *pd = me->platform_data;
@@ -1108,6 +1095,20 @@ static int sa1111_resume_noirq(struct device *dev)
 #define sa1111_resume_noirq  NULL
 #endif
 
+/**
+ *	sa1111_probe - probe for a single SA1111 chip.
+ *	@pdev: platform device.
+ *
+ *	Probe for a SA1111 chip.  This must be called
+ *	before any other SA1111-specific code.
+ *
+ *	Returns:
+ *	* %-ENODEV	- device not found.
+ *	* %-ENOMEM	- memory allocation failure.
+ *	* %-EBUSY	- physical address already marked in-use.
+ *	* %-EINVAL	- no platform data passed
+ *	* %0		- successful.
+ */
 static int sa1111_probe(struct platform_device *pdev)
 {
 	struct resource *mem;

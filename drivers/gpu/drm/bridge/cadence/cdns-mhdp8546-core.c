@@ -29,7 +29,6 @@
 #include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-dp.h>
 #include <linux/platform_device.h>
@@ -53,6 +52,26 @@
 #include "cdns-mhdp8546-core.h"
 #include "cdns-mhdp8546-hdcp.h"
 #include "cdns-mhdp8546-j721e.h"
+
+static void cdns_mhdp_bridge_hpd_enable(struct drm_bridge *bridge)
+{
+	struct cdns_mhdp_device *mhdp = bridge_to_mhdp(bridge);
+
+	/* Enable SW event interrupts */
+	if (mhdp->bridge_attached)
+		writel(readl(mhdp->regs + CDNS_APB_INT_MASK) &
+		       ~CDNS_APB_INT_MASK_SW_EVENT_INT,
+		       mhdp->regs + CDNS_APB_INT_MASK);
+}
+
+static void cdns_mhdp_bridge_hpd_disable(struct drm_bridge *bridge)
+{
+	struct cdns_mhdp_device *mhdp = bridge_to_mhdp(bridge);
+
+	writel(readl(mhdp->regs + CDNS_APB_INT_MASK) |
+	       CDNS_APB_INT_MASK_SW_EVENT_INT,
+	       mhdp->regs + CDNS_APB_INT_MASK);
+}
 
 static int cdns_mhdp_mailbox_read(struct cdns_mhdp_device *mhdp)
 {
@@ -749,9 +768,7 @@ static int cdns_mhdp_fw_activate(const struct firmware *fw,
 	 * MHDP_HW_STOPPED happens only due to driver removal when
 	 * bridge should already be detached.
 	 */
-	if (mhdp->bridge_attached)
-		writel(~(u32)CDNS_APB_INT_MASK_SW_EVENT_INT,
-		       mhdp->regs + CDNS_APB_INT_MASK);
+	cdns_mhdp_bridge_hpd_enable(&mhdp->bridge);
 
 	spin_unlock(&mhdp->start_lock);
 
@@ -1488,33 +1505,35 @@ static void cdns_mhdp_link_down(struct cdns_mhdp_device *mhdp)
 	mhdp->link_up = false;
 }
 
-static struct edid *cdns_mhdp_get_edid(struct cdns_mhdp_device *mhdp,
-				       struct drm_connector *connector)
+static const struct drm_edid *cdns_mhdp_edid_read(struct cdns_mhdp_device *mhdp,
+						  struct drm_connector *connector)
 {
 	if (!mhdp->plugged)
 		return NULL;
 
-	return drm_do_get_edid(connector, cdns_mhdp_get_edid_block, mhdp);
+	return drm_edid_read_custom(connector, cdns_mhdp_get_edid_block, mhdp);
 }
 
 static int cdns_mhdp_get_modes(struct drm_connector *connector)
 {
 	struct cdns_mhdp_device *mhdp = connector_to_mhdp(connector);
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int num_modes;
 
 	if (!mhdp->plugged)
 		return 0;
 
-	edid = cdns_mhdp_get_edid(mhdp, connector);
-	if (!edid) {
+	drm_edid = cdns_mhdp_edid_read(mhdp, connector);
+
+	drm_edid_connector_update(connector, drm_edid);
+
+	if (!drm_edid) {
 		dev_err(mhdp->dev, "Failed to read EDID\n");
 		return 0;
 	}
 
-	drm_connector_update_edid_property(connector, edid);
-	num_modes = drm_add_edid_modes(connector, edid);
-	kfree(edid);
+	num_modes = drm_edid_connector_add_modes(connector);
+	drm_edid_free(drm_edid);
 
 	/*
 	 * HACK: Warn about unsupported display formats until we deal
@@ -1740,8 +1759,7 @@ static int cdns_mhdp_attach(struct drm_bridge *bridge,
 
 	/* Enable SW event interrupts */
 	if (hw_ready)
-		writel(~(u32)CDNS_APB_INT_MASK_SW_EVENT_INT,
-		       mhdp->regs + CDNS_APB_INT_MASK);
+		cdns_mhdp_bridge_hpd_enable(bridge);
 
 	return 0;
 aux_unregister:
@@ -2146,6 +2164,27 @@ cdns_mhdp_bridge_atomic_reset(struct drm_bridge *bridge)
 	return &cdns_mhdp_state->base;
 }
 
+static u32 *cdns_mhdp_get_input_bus_fmts(struct drm_bridge *bridge,
+					 struct drm_bridge_state *bridge_state,
+					 struct drm_crtc_state *crtc_state,
+					 struct drm_connector_state *conn_state,
+					 u32 output_fmt,
+					 unsigned int *num_input_fmts)
+{
+	u32 *input_fmts;
+
+	*num_input_fmts = 0;
+
+	input_fmts = kzalloc(sizeof(*input_fmts), GFP_KERNEL);
+	if (!input_fmts)
+		return NULL;
+
+	*num_input_fmts = 1;
+	input_fmts[0] = MEDIA_BUS_FMT_RGB121212_1X36;
+
+	return input_fmts;
+}
+
 static int cdns_mhdp_atomic_check(struct drm_bridge *bridge,
 				  struct drm_bridge_state *bridge_state,
 				  struct drm_crtc_state *crtc_state,
@@ -2165,6 +2204,13 @@ static int cdns_mhdp_atomic_check(struct drm_bridge *bridge,
 		return -EINVAL;
 	}
 
+	/*
+	 * There might be flags negotiation supported in future.
+	 * Set the bus flags in atomic_check statically for now.
+	 */
+	if (mhdp->info)
+		bridge_state->input_bus_cfg.flags = *mhdp->info->input_bus_flags;
+
 	mutex_unlock(&mhdp->link_mutex);
 	return 0;
 }
@@ -2176,29 +2222,12 @@ static enum drm_connector_status cdns_mhdp_bridge_detect(struct drm_bridge *brid
 	return cdns_mhdp_detect(mhdp);
 }
 
-static struct edid *cdns_mhdp_bridge_get_edid(struct drm_bridge *bridge,
-					      struct drm_connector *connector)
+static const struct drm_edid *cdns_mhdp_bridge_edid_read(struct drm_bridge *bridge,
+							 struct drm_connector *connector)
 {
 	struct cdns_mhdp_device *mhdp = bridge_to_mhdp(bridge);
 
-	return cdns_mhdp_get_edid(mhdp, connector);
-}
-
-static void cdns_mhdp_bridge_hpd_enable(struct drm_bridge *bridge)
-{
-	struct cdns_mhdp_device *mhdp = bridge_to_mhdp(bridge);
-
-	/* Enable SW event interrupts */
-	if (mhdp->bridge_attached)
-		writel(~(u32)CDNS_APB_INT_MASK_SW_EVENT_INT,
-		       mhdp->regs + CDNS_APB_INT_MASK);
-}
-
-static void cdns_mhdp_bridge_hpd_disable(struct drm_bridge *bridge)
-{
-	struct cdns_mhdp_device *mhdp = bridge_to_mhdp(bridge);
-
-	writel(CDNS_APB_INT_MASK_SW_EVENT_INT, mhdp->regs + CDNS_APB_INT_MASK);
+	return cdns_mhdp_edid_read(mhdp, connector);
 }
 
 static const struct drm_bridge_funcs cdns_mhdp_bridge_funcs = {
@@ -2210,8 +2239,9 @@ static const struct drm_bridge_funcs cdns_mhdp_bridge_funcs = {
 	.atomic_duplicate_state = cdns_mhdp_bridge_atomic_duplicate_state,
 	.atomic_destroy_state = cdns_mhdp_bridge_atomic_destroy_state,
 	.atomic_reset = cdns_mhdp_bridge_atomic_reset,
+	.atomic_get_input_bus_fmts = cdns_mhdp_get_input_bus_fmts,
 	.detect = cdns_mhdp_bridge_detect,
-	.get_edid = cdns_mhdp_bridge_get_edid,
+	.edid_read = cdns_mhdp_bridge_edid_read,
 	.hpd_enable = cdns_mhdp_bridge_hpd_enable,
 	.hpd_disable = cdns_mhdp_bridge_hpd_disable,
 };
@@ -2529,8 +2559,6 @@ static int cdns_mhdp_probe(struct platform_device *pdev)
 	mhdp->bridge.ops = DRM_BRIDGE_OP_DETECT | DRM_BRIDGE_OP_EDID |
 			   DRM_BRIDGE_OP_HPD;
 	mhdp->bridge.type = DRM_MODE_CONNECTOR_DisplayPort;
-	if (mhdp->info)
-		mhdp->bridge.timings = mhdp->info->timings;
 
 	ret = phy_init(mhdp->phy);
 	if (ret) {
@@ -2570,11 +2598,10 @@ clk_disable:
 	return ret;
 }
 
-static int cdns_mhdp_remove(struct platform_device *pdev)
+static void cdns_mhdp_remove(struct platform_device *pdev)
 {
 	struct cdns_mhdp_device *mhdp = platform_get_drvdata(pdev);
 	unsigned long timeout = msecs_to_jiffies(100);
-	bool stop_fw = false;
 	int ret;
 
 	drm_bridge_remove(&mhdp->bridge);
@@ -2582,18 +2609,19 @@ static int cdns_mhdp_remove(struct platform_device *pdev)
 	ret = wait_event_timeout(mhdp->fw_load_wq,
 				 mhdp->hw_state == MHDP_HW_READY,
 				 timeout);
-	if (ret == 0)
-		dev_err(mhdp->dev, "%s: Timeout waiting for fw loading\n",
-			__func__);
-	else
-		stop_fw = true;
-
 	spin_lock(&mhdp->start_lock);
 	mhdp->hw_state = MHDP_HW_STOPPED;
 	spin_unlock(&mhdp->start_lock);
 
-	if (stop_fw)
+	if (ret == 0) {
+		dev_err(mhdp->dev, "%s: Timeout waiting for fw loading\n",
+			__func__);
+	} else {
 		ret = cdns_mhdp_set_firmware_active(mhdp, false);
+		if (ret)
+			dev_err(mhdp->dev, "Failed to stop firmware (%pe)\n",
+				ERR_PTR(ret));
+	}
 
 	phy_exit(mhdp->phy);
 
@@ -2608,8 +2636,6 @@ static int cdns_mhdp_remove(struct platform_device *pdev)
 	/* Ignoring mhdp->hdcp.check_work and mhdp->hdcp.prop_work here. */
 
 	clk_disable_unprepare(mhdp->clk);
-
-	return ret;
 }
 
 static const struct of_device_id mhdp_ids[] = {
@@ -2617,7 +2643,7 @@ static const struct of_device_id mhdp_ids[] = {
 #ifdef CONFIG_DRM_CDNS_MHDP8546_J721E
 	{ .compatible = "ti,j721e-mhdp8546",
 	  .data = &(const struct cdns_mhdp_platform_info) {
-		  .timings = &mhdp_ti_j721e_bridge_timings,
+		  .input_bus_flags = &mhdp_ti_j721e_bridge_input_bus_flags,
 		  .ops = &mhdp_ti_j721e_ops,
 	  },
 	},
@@ -2629,10 +2655,10 @@ MODULE_DEVICE_TABLE(of, mhdp_ids);
 static struct platform_driver mhdp_driver = {
 	.driver	= {
 		.name		= "cdns-mhdp8546",
-		.of_match_table	= of_match_ptr(mhdp_ids),
+		.of_match_table	= mhdp_ids,
 	},
 	.probe	= cdns_mhdp_probe,
-	.remove	= cdns_mhdp_remove,
+	.remove_new = cdns_mhdp_remove,
 };
 module_platform_driver(mhdp_driver);
 

@@ -17,7 +17,7 @@
 void smsendian_handle_tx_message(void *buffer)
 {
 #ifdef __BIG_ENDIAN
-	struct sms_msg_data *msg = (struct sms_msg_data *)buffer;
+	struct sms_msg_data *msg = buffer;
 	int i;
 	int msg_words;
 

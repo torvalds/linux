@@ -578,9 +578,9 @@ static int run_io_job(struct kcopyd_job *job)
 	io_job_start(job->kc->throttle);
 
 	if (job->op == REQ_OP_READ)
-		r = dm_io(&io_req, 1, &job->source, NULL);
+		r = dm_io(&io_req, 1, &job->source, NULL, IOPRIO_DEFAULT);
 	else
-		r = dm_io(&io_req, job->num_dests, job->dests, NULL);
+		r = dm_io(&io_req, job->num_dests, job->dests, NULL, IOPRIO_DEFAULT);
 
 	return r;
 }
@@ -807,7 +807,7 @@ void dm_kcopyd_copy(struct dm_kcopyd_client *kc, struct dm_io_region *from,
 	 */
 	if (!(job->flags & BIT(DM_KCOPYD_WRITE_SEQ))) {
 		for (i = 0; i < job->num_dests; i++) {
-			if (bdev_zoned_model(dests[i].bdev) == BLK_ZONED_HM) {
+			if (bdev_is_zoned(dests[i].bdev)) {
 				job->flags |= BIT(DM_KCOPYD_WRITE_SEQ);
 				break;
 			}

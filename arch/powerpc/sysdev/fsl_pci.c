@@ -54,7 +54,7 @@ static void quirk_fsl_pcie_early(struct pci_dev *dev)
 
 	/* if we aren't in host mode don't bother */
 	pci_read_config_byte(dev, PCI_HEADER_TYPE, &hdr_type);
-	if ((hdr_type & 0x7f) != PCI_HEADER_TYPE_BRIDGE)
+	if ((hdr_type & PCI_HEADER_TYPE_MASK) != PCI_HEADER_TYPE_BRIDGE)
 		return;
 
 	dev->class = PCI_CLASS_BRIDGE_PCI_NORMAL;
@@ -519,7 +519,7 @@ void fsl_pcibios_fixup_bus(struct pci_bus *bus)
 	}
 }
 
-int fsl_add_bridge(struct platform_device *pdev, int is_primary)
+static int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 {
 	int len;
 	struct pci_controller *hose;
@@ -581,7 +581,7 @@ int fsl_add_bridge(struct platform_device *pdev, int is_primary)
 		hose->ops = &fsl_indirect_pcie_ops;
 		/* For PCIE read HEADER_TYPE to identify controller mode */
 		early_read_config_byte(hose, 0, 0, PCI_HEADER_TYPE, &hdr_type);
-		if ((hdr_type & 0x7f) != PCI_HEADER_TYPE_BRIDGE)
+		if ((hdr_type & PCI_HEADER_TYPE_MASK) != PCI_HEADER_TYPE_BRIDGE)
 			goto no_bridge;
 
 	} else {
@@ -767,7 +767,7 @@ static int __init mpc83xx_pcie_setup(struct pci_controller *hose,
 	u32 cfg_bar;
 	int ret = -ENOMEM;
 
-	pcie = zalloc_maybe_bootmem(sizeof(*pcie), GFP_KERNEL);
+	pcie = kzalloc(sizeof(*pcie), GFP_KERNEL);
 	if (!pcie)
 		return ret;
 

@@ -5,6 +5,7 @@
  * Copyright (c) 2010-2012, The Linux Foundation. All rights reserved.
  */
 
+#include <linux/cpu.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task.h>
@@ -152,6 +153,7 @@ unsigned long __get_wchan(struct task_struct *p)
  * Returns 0 if there's no need to re-check for more work.
  */
 
+int do_work_pending(struct pt_regs *regs, u32 thread_info_flags);
 int do_work_pending(struct pt_regs *regs, u32 thread_info_flags)
 {
 	if (!(thread_info_flags & _TIF_WORK_MASK)) {

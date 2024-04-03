@@ -232,7 +232,7 @@ static int mcp_sa11x0_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int mcp_sa11x0_remove(struct platform_device *dev)
+static void mcp_sa11x0_remove(struct platform_device *dev)
 {
 	struct mcp *mcp = platform_get_drvdata(dev);
 	struct mcp_sa11x0 *m = priv(mcp);
@@ -251,8 +251,6 @@ static int mcp_sa11x0_remove(struct platform_device *dev)
 	mcp_host_free(mcp);
 	release_mem_region(mem1->start, resource_size(mem1));
 	release_mem_region(mem0->start, resource_size(mem0));
-
-	return 0;
 }
 
 static int mcp_sa11x0_suspend(struct device *dev)
@@ -288,7 +286,7 @@ static const struct dev_pm_ops mcp_sa11x0_pm_ops = {
 
 static struct platform_driver mcp_sa11x0_driver = {
 	.probe		= mcp_sa11x0_probe,
-	.remove		= mcp_sa11x0_remove,
+	.remove_new	= mcp_sa11x0_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.pm	= pm_sleep_ptr(&mcp_sa11x0_pm_ops),

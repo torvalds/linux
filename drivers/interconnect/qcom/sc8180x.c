@@ -7,7 +7,8 @@
 #include <linux/device.h>
 #include <linux/interconnect-provider.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/platform_device.h>
 
 #include <dt-bindings/interconnect/qcom,sc8180x.h>
 
@@ -1344,6 +1345,7 @@ static struct qcom_icc_node slv_qup_core_2 = {
 
 static struct qcom_icc_bcm bcm_acv = {
 	.name = "ACV",
+	.enable_mask = BIT(3),
 	.num_nodes = 1,
 	.nodes = { &slv_ebi }
 };
@@ -1370,6 +1372,7 @@ static struct qcom_icc_bcm bcm_mm0 = {
 
 static struct qcom_icc_bcm bcm_co0 = {
 	.name = "CO0",
+	.keepalive = true,
 	.num_nodes = 1,
 	.nodes = { &slv_qns_cdsp_mem_noc }
 };
@@ -1886,7 +1889,7 @@ MODULE_DEVICE_TABLE(of, qnoc_of_match);
 
 static struct platform_driver qnoc_driver = {
 	.probe = qcom_icc_rpmh_probe,
-	.remove = qcom_icc_rpmh_remove,
+	.remove_new = qcom_icc_rpmh_remove,
 	.driver = {
 		.name = "qnoc-sc8180x",
 		.of_match_table = qnoc_of_match,

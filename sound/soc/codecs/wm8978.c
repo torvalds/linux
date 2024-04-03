@@ -1014,7 +1014,7 @@ static const struct regmap_config wm8978_regmap_config = {
 	.max_register = WM8978_MAX_REGISTER,
 	.volatile_reg = wm8978_volatile,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.reg_defaults = wm8978_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8978_reg_defaults),
 };

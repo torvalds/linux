@@ -89,16 +89,15 @@ r_cpu被定义为当前CPU的最高性能水平与系统中任何其它CPU的最
  - Documentation/translations/zh_CN/scheduler/sched-capacity.rst:"1. CPU Capacity + 2. Task utilization"
 
 
-UTIL_EST / UTIL_EST_FASTUP
-==========================
+UTIL_EST
+========
 
 由于周期性任务的平均数在睡眠时会衰减，而在运行时其预期利用率会和睡眠前相同，
 因此它们在再次运行后会面临（DVFS）的上涨。
 
 为了缓解这个问题，（一个默认使能的编译选项）UTIL_EST驱动一个无限脉冲响应
 （Infinite Impulse Response，IIR）的EWMA，“运行”值在出队时是最高的。
-另一个默认使能的编译选项UTIL_EST_FASTUP修改了IIR滤波器，使其允许立即增加，
-仅在利用率下降时衰减。
+UTIL_EST滤波使其在遇到更高值时立刻增加，而遇到低值时会缓慢衰减。
 
 进一步，运行队列的（可运行任务的）利用率之和由下式计算：
 

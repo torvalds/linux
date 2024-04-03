@@ -58,9 +58,10 @@ MODULE_DEVICE_TABLE(of, ad7879_i2c_dt_ids);
 
 static struct i2c_driver ad7879_i2c_driver = {
 	.driver = {
-		.name	= "ad7879",
-		.pm	= &ad7879_pm_ops,
-		.of_match_table = of_match_ptr(ad7879_i2c_dt_ids),
+		.name		= "ad7879",
+		.dev_groups	= ad7879_groups,
+		.pm		= &ad7879_pm_ops,
+		.of_match_table	= of_match_ptr(ad7879_i2c_dt_ids),
 	},
 	.probe		= ad7879_i2c_probe,
 	.id_table	= ad7879_id,

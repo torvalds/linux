@@ -36,6 +36,13 @@
 		clock-div = <3>;
 	};
 
+	bsc: bsc {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0 0 0x18000000>;
+	};
+
 	cpus {
 		#address-cells = <1>;
 		#size-cells = <0>;

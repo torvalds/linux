@@ -80,7 +80,6 @@ struct sockaddr_pair {
  * @phdr: preformatted message header used when sending messages
  * @cong_links: list of congested links
  * @publications: list of publications for port
- * @blocking_link: address of the congested link we are currently sleeping on
  * @pub_count: total # of publications port has made during its lifetime
  * @conn_timeout: the time we can wait for an unresponded setup request
  * @probe_unacked: probe has not received ack yet
@@ -3791,7 +3790,7 @@ int tipc_nl_publ_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	struct tipc_sock *tsk;
 
 	if (!tsk_portid) {
-		struct nlattr **attrs = genl_dumpit_info(cb)->attrs;
+		struct nlattr **attrs = genl_dumpit_info(cb)->info.attrs;
 		struct nlattr *sock[TIPC_NLA_SOCK_MAX + 1];
 
 		if (!attrs[TIPC_NLA_SOCK])

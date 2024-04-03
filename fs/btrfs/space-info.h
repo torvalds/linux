@@ -3,7 +3,17 @@
 #ifndef BTRFS_SPACE_INFO_H
 #define BTRFS_SPACE_INFO_H
 
+#include <trace/events/btrfs.h>
+#include <linux/spinlock.h>
+#include <linux/list.h>
+#include <linux/kobject.h>
+#include <linux/lockdep.h>
+#include <linux/wait.h>
+#include <linux/rwsem.h>
 #include "volumes.h"
+
+struct btrfs_fs_info;
+struct btrfs_block_group;
 
 /*
  * Different levels for to flush space when doing space reservations.
@@ -212,7 +222,7 @@ void btrfs_dump_space_info(struct btrfs_fs_info *fs_info,
 			   struct btrfs_space_info *info, u64 bytes,
 			   int dump_block_groups);
 int btrfs_reserve_metadata_bytes(struct btrfs_fs_info *fs_info,
-				 struct btrfs_block_rsv *block_rsv,
+				 struct btrfs_space_info *space_info,
 				 u64 orig_bytes,
 				 enum btrfs_reserve_flush_enum flush);
 void btrfs_try_granting_tickets(struct btrfs_fs_info *fs_info,

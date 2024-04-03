@@ -11,8 +11,8 @@
 #define	LED1		0x02
 #define	LED0		0x01		/* bottom (or furthest left) LED */
 
-#define	LED_LAN_TX	LED0		/* for LAN transmit activity */
-#define	LED_LAN_RCV	LED1		/* for LAN receive activity */
+#define	LED_LAN_RCV	LED0		/* for LAN receive activity */
+#define	LED_LAN_TX	LED1		/* for LAN transmit activity */
 #define	LED_DISK_IO	LED2		/* for disk activity */
 #define	LED_HEARTBEAT	LED3		/* heartbeat */
 
@@ -25,19 +25,13 @@
 #define LED_CMD_REG_NONE 0		/* NULL == no addr for the cmd register */
 
 /* register_led_driver() */
-int __init register_led_driver(int model, unsigned long cmd_reg, unsigned long data_reg);
-
-/* registers the LED regions for procfs */
-void __init register_led_regions(void);
+int register_led_driver(int model, unsigned long cmd_reg, unsigned long data_reg);
 
 #ifdef CONFIG_CHASSIS_LCD_LED
 /* writes a string to the LCD display (if possible on this h/w) */
-int lcd_print(const char *str);
+void lcd_print(const char *str);
 #else
-#define lcd_print(str)
+#define lcd_print(str) do { } while (0)
 #endif
-
-/* main LED initialization function (uses PDC) */ 
-int __init led_init(void);
 
 #endif /* LED_H */

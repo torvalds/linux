@@ -122,4 +122,6 @@ int mlx5_cmd_fc_bulk_query(struct mlx5_core_dev *dev, u32 base_id, int bulk_len,
 const struct mlx5_flow_cmds *mlx5_fs_cmd_get_default(enum fs_flow_table_type type);
 const struct mlx5_flow_cmds *mlx5_fs_cmd_get_fw_cmds(void);
 
+int mlx5_fs_cmd_set_l2table_entry_silent(struct mlx5_core_dev *dev, u8 silent_mode);
+int mlx5_fs_cmd_set_tx_flow_table_root(struct mlx5_core_dev *dev, u32 ft_id, bool disconnect);
 #endif

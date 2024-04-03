@@ -7,6 +7,7 @@
  * Author: Liam Girdwood <lrg@slimlogic.co.uk>
  */
 
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/kernel.h>
@@ -16,7 +17,6 @@
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
 #include <linux/slab.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -607,7 +607,7 @@ static const struct regmap_config wm8510_regmap = {
 
 	.reg_defaults = wm8510_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(wm8510_reg_defaults),
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.volatile_reg = wm8510_volatile,
 };

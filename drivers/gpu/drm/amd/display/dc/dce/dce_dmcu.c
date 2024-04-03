@@ -76,9 +76,9 @@ static bool dce_dmcu_init(struct dmcu *dmcu)
 }
 
 static bool dce_dmcu_load_iram(struct dmcu *dmcu,
-		unsigned int start_offset,
-		const char *src,
-		unsigned int bytes)
+			       unsigned int start_offset,
+			       const char *src,
+			       unsigned int bytes)
 {
 	struct dce_dmcu *dmcu_dce = TO_DCE_DMCU(dmcu);
 	unsigned int count = 0;
@@ -586,7 +586,8 @@ static void dcn10_dmcu_set_psr_enable(struct dmcu *dmcu, bool enable, bool wait)
 				if (state == PSR_STATE0)
 					break;
 			}
-			fsleep(500);
+			/* must *not* be fsleep - this can be called from high irq levels */
+			udelay(500);
 		}
 
 		/* assert if max retry hit */

@@ -41,6 +41,11 @@
 #include <dt-bindings/sound/fsl-imx-audmux.h>
 
 / {
+	aliases {
+		rtc0 = &pcf8523;
+		rtc1 = &snvs_rtc;
+	};
+
 	/* Will be filled by the bootloader */
 	memory@10000000 {
 		device_type = "memory";

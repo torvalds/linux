@@ -54,9 +54,9 @@ Description:	Controls the in-place-update policy.
 		0x00  DISABLE         disable IPU(=default option in LFS mode)
 		0x01  FORCE           all the time
 		0x02  SSR             if SSR mode is activated
-		0x04  UTIL            if FS utilization is over threashold
+		0x04  UTIL            if FS utilization is over threshold
 		0x08  SSR_UTIL        if SSR mode is activated and FS utilization is over
-		                      threashold
+		                      threshold
 		0x10  FSYNC           activated in fsync path only for high performance
 		                      flash storages. IPU will be triggered only if the
 		                      # of dirty pages over min_fsync_blocks.
@@ -102,9 +102,9 @@ What:		/sys/fs/f2fs/<disk>/max_small_discards
 Date:		November 2013
 Contact:	"Jaegeuk Kim" <jaegeuk.kim@samsung.com>
 Description:	Controls the issue rate of discard commands that consist of small
-		blocks less than 2MB. The candidates to be discarded are cached until
-		checkpoint is triggered, and issued during the checkpoint.
-		By default, it is disabled with 0.
+		blocks less than 2MB. The candidates to be discarded are cached during
+		checkpoint, and issued by issue_discard thread after checkpoint.
+		It is enabled by default.
 
 What:		/sys/fs/f2fs/<disk>/max_ordered_discard
 Date:		October 2022
@@ -117,7 +117,7 @@ Date:		December 2021
 Contact:	"Konstantin Vyshetsky" <vkon@google.com>
 Description:	Controls the number of discards a thread will issue at a time.
 		Higher number will allow the discard thread to finish its work
-		faster, at the cost of higher latency for incomming I/O.
+		faster, at the cost of higher latency for incoming I/O.
 
 What:		/sys/fs/f2fs/<disk>/min_discard_issue_time
 Date:		December 2021
@@ -205,7 +205,7 @@ Description:	Controls the idle timing of system, if there is no FS operation
 What:		/sys/fs/f2fs/<disk>/discard_idle_interval
 Date:		September 2018
 Contact:	"Chao Yu" <yuchao0@huawei.com>
-Contact:	"Sahitya Tummala" <stummala@codeaurora.org>
+Contact:	"Sahitya Tummala" <quic_stummala@quicinc.com>
 Description:	Controls the idle timing of discard thread given
 		this time interval.
 		Default is 5 secs.
@@ -213,7 +213,7 @@ Description:	Controls the idle timing of discard thread given
 What:		/sys/fs/f2fs/<disk>/gc_idle_interval
 Date:		September 2018
 Contact:	"Chao Yu" <yuchao0@huawei.com>
-Contact:	"Sahitya Tummala" <stummala@codeaurora.org>
+Contact:	"Sahitya Tummala" <quic_stummala@quicinc.com>
 Description:    Controls the idle timing for gc path. Set to 5 seconds by default.
 
 What:		/sys/fs/f2fs/<disk>/iostat_enable
@@ -334,7 +334,7 @@ Description:	This indicates how many GC can be failed for the pinned
 		state. 2048 trials is set by default.
 
 What:		/sys/fs/f2fs/<disk>/extension_list
-Date:		Feburary 2018
+Date:		February 2018
 Contact:	"Chao Yu" <yuchao0@huawei.com>
 Description:	Used to control configure extension list:
 		- Query: cat /sys/fs/f2fs/<disk>/extension_list
@@ -497,6 +497,21 @@ Description:	Show status of f2fs checkpoint in real time.
 		CP_DISABLED_QUICK_FLAG		0x00002000
 		CP_RESIZEFS_FLAG		0x00004000
 		=============================== ==============================
+
+What:		/sys/fs/f2fs/<disk>/stat/issued_discard
+Date:		December 2023
+Contact:	"Zhiguo Niu" <zhiguo.niu@unisoc.com>
+Description:	Shows the number of issued discard.
+
+What:		/sys/fs/f2fs/<disk>/stat/queued_discard
+Date:		December 2023
+Contact:	"Zhiguo Niu" <zhiguo.niu@unisoc.com>
+Description:	Shows the number of queued discard.
+
+What:		/sys/fs/f2fs/<disk>/stat/undiscard_blks
+Date:		December 2023
+Contact:	"Zhiguo Niu" <zhiguo.niu@unisoc.com>
+Description:	Shows the total number of undiscard blocks.
 
 What:		/sys/fs/f2fs/<disk>/ckpt_thread_ioprio
 Date:		January 2021
@@ -686,29 +701,31 @@ Description:	Support configuring fault injection type, should be
 		enabled with fault_injection option, fault type value
 		is shown below, it supports single or combined type.
 
-		===================      ===========
-		Type_Name                Type_Value
-		===================      ===========
-		FAULT_KMALLOC            0x000000001
-		FAULT_KVMALLOC           0x000000002
-		FAULT_PAGE_ALLOC         0x000000004
-		FAULT_PAGE_GET           0x000000008
-		FAULT_ALLOC_BIO          0x000000010 (obsolete)
-		FAULT_ALLOC_NID          0x000000020
-		FAULT_ORPHAN             0x000000040
-		FAULT_BLOCK              0x000000080
-		FAULT_DIR_DEPTH          0x000000100
-		FAULT_EVICT_INODE        0x000000200
-		FAULT_TRUNCATE           0x000000400
-		FAULT_READ_IO            0x000000800
-		FAULT_CHECKPOINT         0x000001000
-		FAULT_DISCARD            0x000002000
-		FAULT_WRITE_IO           0x000004000
-		FAULT_SLAB_ALLOC         0x000008000
-		FAULT_DQUOT_INIT         0x000010000
-		FAULT_LOCK_OP            0x000020000
-		FAULT_BLKADDR            0x000040000
-		===================      ===========
+		===========================      ===========
+		Type_Name                        Type_Value
+		===========================      ===========
+		FAULT_KMALLOC                    0x000000001
+		FAULT_KVMALLOC                   0x000000002
+		FAULT_PAGE_ALLOC                 0x000000004
+		FAULT_PAGE_GET                   0x000000008
+		FAULT_ALLOC_BIO                  0x000000010 (obsolete)
+		FAULT_ALLOC_NID                  0x000000020
+		FAULT_ORPHAN                     0x000000040
+		FAULT_BLOCK                      0x000000080
+		FAULT_DIR_DEPTH                  0x000000100
+		FAULT_EVICT_INODE                0x000000200
+		FAULT_TRUNCATE                   0x000000400
+		FAULT_READ_IO                    0x000000800
+		FAULT_CHECKPOINT                 0x000001000
+		FAULT_DISCARD                    0x000002000
+		FAULT_WRITE_IO                   0x000004000
+		FAULT_SLAB_ALLOC                 0x000008000
+		FAULT_DQUOT_INIT                 0x000010000
+		FAULT_LOCK_OP                    0x000020000
+		FAULT_BLKADDR_VALIDITY           0x000040000
+		FAULT_BLKADDR_CONSISTENCE        0x000080000
+		FAULT_NO_SEGMENT                 0x000100000
+		===========================      ===========
 
 What:		/sys/fs/f2fs/<disk>/discard_io_aware_gran
 Date:		January 2023
@@ -740,3 +757,9 @@ Description:	When compress cache is on, it controls cached page
 		If cached page percent exceed threshold, then deny caching compress page.
 		The value should be in range of (0, 100], by default it was initialized
 		as 20(%).
+
+What:		/sys/fs/f2fs/<disk>/discard_io_aware
+Date:		November 2023
+Contact:	"Chao Yu" <chao@kernel.org>
+Description:	It controls to enable/disable IO aware feature for background discard.
+		By default, the value is 1 which indicates IO aware is on.

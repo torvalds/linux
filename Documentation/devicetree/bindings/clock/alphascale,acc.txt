@@ -1,7 +1,7 @@
 Alphascale Clock Controller
 
-The ACC (Alphascale Clock Controller) is responsible of choising proper
-clock source, setting deviders and clock gates.
+The ACC (Alphascale Clock Controller) is responsible for choosing proper
+clock source, setting dividers and clock gates.
 
 Required properties for the ACC node:
  - compatible: must be "alphascale,asm9260-clock-controller"

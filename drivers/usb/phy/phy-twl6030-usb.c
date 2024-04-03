@@ -179,16 +179,16 @@ static ssize_t vbus_show(struct device *dev,
 
 	switch (twl->linkstat) {
 	case MUSB_VBUS_VALID:
-	       ret = snprintf(buf, PAGE_SIZE, "vbus\n");
+	       ret = sysfs_emit(buf, "vbus\n");
 	       break;
 	case MUSB_ID_GROUND:
-	       ret = snprintf(buf, PAGE_SIZE, "id\n");
+	       ret = sysfs_emit(buf, "id\n");
 	       break;
 	case MUSB_VBUS_OFF:
-	       ret = snprintf(buf, PAGE_SIZE, "none\n");
+	       ret = sysfs_emit(buf, "none\n");
 	       break;
 	default:
-	       ret = snprintf(buf, PAGE_SIZE, "UNKNOWN\n");
+	       ret = sysfs_emit(buf, "UNKNOWN\n");
 	}
 	spin_unlock_irqrestore(&twl->lock, flags);
 

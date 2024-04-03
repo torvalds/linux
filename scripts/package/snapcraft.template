@@ -10,5 +10,5 @@ parts:
   kernel:
     plugin: kernel
     source: SRCTREE
-    source-type: tar
+    source-type: local
     kernel-with-firmware: false

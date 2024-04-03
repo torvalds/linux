@@ -70,7 +70,7 @@ static int test__task_exit(struct test_suite *test __maybe_unused, int subtest _
 	 * evlist__prepare_workload we'll fill in the only thread
 	 * we're monitoring, the one forked there.
 	 */
-	cpus = perf_cpu_map__dummy_new();
+	cpus = perf_cpu_map__new_any_cpu();
 	threads = thread_map__new_by_tid(-1);
 	if (!cpus || !threads) {
 		err = -ENOMEM;

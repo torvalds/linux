@@ -35,9 +35,6 @@
   *  - Arnaldo Carvalho de Melo <acme@conectiva.com.br>
   */
 
-#define ARCH_HAS_IOREMAP_WC
-#define ARCH_HAS_IOREMAP_WT
-
 #include <linux/string.h>
 #include <linux/compiler.h>
 #include <linux/cc_platform.h>
@@ -212,8 +209,6 @@ void memset_io(volatile void __iomem *, int, size_t);
 #define memcpy_toio memcpy_toio
 #define memset_io memset_io
 
-#include <asm-generic/iomap.h>
-
 /*
  * ISA space is 'always mapped' on a typical x86 system, no need to
  * explicitly ioremap() it. The fact that the ISA IO space is mapped
@@ -247,7 +242,7 @@ static inline void slow_down_io(void)
 
 #endif
 
-#define BUILDIO(bwl, bw, type)						\
+#define BUILDIO(bwl, type)						\
 static inline void out##bwl##_p(type value, u16 port)			\
 {									\
 	out##bwl(value, port);						\
@@ -293,9 +288,9 @@ static inline void ins##bwl(u16 port, void *addr, unsigned long count)	\
 	}								\
 }
 
-BUILDIO(b, b, u8)
-BUILDIO(w, w, u16)
-BUILDIO(l,  , u32)
+BUILDIO(b, u8)
+BUILDIO(w, u16)
+BUILDIO(l, u32)
 #undef BUILDIO
 
 #define inb_p inb_p
@@ -384,7 +379,7 @@ static inline void iosubmit_cmds512(void __iomem *dst, const void *src,
 	const u8 *end = from + count * 64;
 
 	while (from < end) {
-		movdir64b(dst, from);
+		movdir64b_io(dst, from);
 		from += 64;
 	}
 }

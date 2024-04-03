@@ -1832,6 +1832,9 @@ static const struct target_core_fabric_ops scsiback_ops = {
 	.tfc_wwn_attrs			= scsiback_wwn_attrs,
 	.tfc_tpg_base_attrs		= scsiback_tpg_attrs,
 	.tfc_tpg_param_attrs		= scsiback_param_attrs,
+
+	.default_submit_type		= TARGET_DIRECT_SUBMIT,
+	.direct_submit_supp		= 1,
 };
 
 static const struct xenbus_device_id scsiback_ids[] = {

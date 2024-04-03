@@ -11,7 +11,7 @@
 __u32 invocations = 0;
 __u32 assertion_error = 0;
 __u32 retval_value = 0;
-__u32 page_size = 0;
+__s32 page_size = 0;
 
 SEC("cgroup/setsockopt")
 int get_retval(struct bpf_sockopt *ctx)

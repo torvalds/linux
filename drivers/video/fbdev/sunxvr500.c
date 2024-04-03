@@ -189,10 +189,12 @@ static void e3d_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 
 static const struct fb_ops e3d_ops = {
 	.owner			= THIS_MODULE,
+	__FB_DEFAULT_IOMEM_OPS_RDWR,
 	.fb_setcolreg		= e3d_setcolreg,
 	.fb_fillrect		= e3d_fillrect,
 	.fb_copyarea		= e3d_copyarea,
 	.fb_imageblit		= e3d_imageblit,
+	__FB_DEFAULT_IOMEM_OPS_MMAP,
 };
 
 static int e3d_set_fbinfo(struct e3d_info *ep)
@@ -200,7 +202,6 @@ static int e3d_set_fbinfo(struct e3d_info *ep)
 	struct fb_info *info = ep->info;
 	struct fb_var_screeninfo *var = &info->var;
 
-	info->flags = FBINFO_DEFAULT;
 	info->fbops = &e3d_ops;
 	info->screen_base = ep->fb_base;
 	info->screen_size = ep->fb_size;

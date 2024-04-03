@@ -110,7 +110,6 @@ static struct ctl_table xpc_sys_xpc_hb[] = {
 	 .proc_handler = proc_dointvec_minmax,
 	 .extra1 = &xpc_hb_check_min_interval,
 	 .extra2 = &xpc_hb_check_max_interval},
-	{}
 };
 static struct ctl_table xpc_sys_xpc[] = {
 	{
@@ -121,7 +120,6 @@ static struct ctl_table xpc_sys_xpc[] = {
 	 .proc_handler = proc_dointvec_minmax,
 	 .extra1 = &xpc_disengage_min_timelimit,
 	 .extra2 = &xpc_disengage_max_timelimit},
-	{}
 };
 
 static struct ctl_table_header *xpc_sysctl;
@@ -1155,36 +1153,6 @@ xpc_die_deactivate(void)
 static int
 xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
 {
-#ifdef CONFIG_IA64		/* !!! temporary kludge */
-	switch (event) {
-	case DIE_MACHINE_RESTART:
-	case DIE_MACHINE_HALT:
-		xpc_die_deactivate();
-		break;
-
-	case DIE_KDEBUG_ENTER:
-		/* Should lack of heartbeat be ignored by other partitions? */
-		if (!xpc_kdebug_ignore)
-			break;
-
-		fallthrough;
-	case DIE_MCA_MONARCH_ENTER:
-	case DIE_INIT_MONARCH_ENTER:
-		xpc_arch_ops.offline_heartbeat();
-		break;
-
-	case DIE_KDEBUG_LEAVE:
-		/* Is lack of heartbeat being ignored by other partitions? */
-		if (!xpc_kdebug_ignore)
-			break;
-
-		fallthrough;
-	case DIE_MCA_MONARCH_LEAVE:
-	case DIE_INIT_MONARCH_LEAVE:
-		xpc_arch_ops.online_heartbeat();
-		break;
-	}
-#else
 	struct die_args *die_args = _die_args;
 
 	switch (event) {
@@ -1206,7 +1174,6 @@ xpc_system_die(struct notifier_block *nb, unsigned long event, void *_die_args)
 	default:
 		xpc_die_deactivate();
 	}
-#endif
 
 	return NOTIFY_DONE;
 }

@@ -19,14 +19,14 @@
 #include <asm/sun3ints.h>
 #include <asm/setup.h>
 #include <asm/oplib.h>
+#include <asm/config.h>
 
 #include "time.h"
+#include "../sun3/sun3.h"
 
 volatile char *clock_va;
 
-extern void sun3_get_model(char *model);
-
-void sun3_leds(unsigned int i)
+void sun3_leds(unsigned char byte)
 {
 
 }

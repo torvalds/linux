@@ -130,7 +130,7 @@ patternProperties:
 
           mediatek,pull-up-adv:
             description: |
-              Pull up setings for 2 pull resistors, R0 and R1. User can
+              Pull up settings for 2 pull resistors, R0 and R1. User can
               configure those special pins. Valid arguments are described as
               below:
               0: (R1, R0) = (0, 0) which means R1 disabled and R0 disabled.

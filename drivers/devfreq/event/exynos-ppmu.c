@@ -12,9 +12,9 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/suspend.h>
 #include <linux/devfreq-event.h>
@@ -507,7 +507,6 @@ static int of_get_devfreq_events(struct device_node *np,
 	struct device *dev = info->dev;
 	struct device_node *events_np, *node;
 	int i, j, count;
-	const struct of_device_id *of_id;
 	int ret;
 
 	events_np = of_get_child_by_name(np, "events");
@@ -525,13 +524,7 @@ static int of_get_devfreq_events(struct device_node *np,
 	}
 	info->num_events = count;
 
-	of_id = of_match_device(exynos_ppmu_id_match, dev);
-	if (of_id)
-		info->ppmu_type = (enum exynos_ppmu_type)of_id->data;
-	else {
-		of_node_put(events_np);
-		return -EINVAL;
-	}
+	info->ppmu_type = (enum exynos_ppmu_type)device_get_match_data(dev);
 
 	j = 0;
 	for_each_child_of_node(events_np, node) {

@@ -24,11 +24,23 @@ enum dma_data_direction {
 #define dma_map_page(d, p, o, s, dir) (page_to_phys(p) + (o))
 
 #define dma_map_single(d, p, s, dir) (virt_to_phys(p))
+#define dma_map_single_attrs(d, p, s, dir, a) (virt_to_phys(p))
 #define dma_mapping_error(...) (0)
 
 #define dma_unmap_single(d, a, s, r) do { (void)(d); (void)(a); (void)(s); (void)(r); } while (0)
 #define dma_unmap_page(d, a, s, r) do { (void)(d); (void)(a); (void)(s); (void)(r); } while (0)
 
+#define sg_dma_address(sg) (0)
+#define dma_need_sync(v, a) (0)
+#define dma_unmap_single_attrs(d, a, s, r, t) do { \
+	(void)(d); (void)(a); (void)(s); (void)(r); (void)(t); \
+} while (0)
+#define dma_sync_single_range_for_cpu(d, a, o, s, r) do { \
+	(void)(d); (void)(a); (void)(o); (void)(s); (void)(r); \
+} while (0)
+#define dma_sync_single_range_for_device(d, a, o, s, r) do { \
+	(void)(d); (void)(a); (void)(o); (void)(s); (void)(r); \
+} while (0)
 #define dma_max_mapping_size(...) SIZE_MAX
 
 #endif

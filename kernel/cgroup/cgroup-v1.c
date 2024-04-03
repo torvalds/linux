@@ -360,10 +360,9 @@ static int pidlist_array_load(struct cgroup *cgrp, enum cgroup_filetype type,
 	}
 	css_task_iter_end(&it);
 	length = n;
-	/* now sort & (if procs) strip out duplicates */
+	/* now sort & strip out duplicates (tgids or recycled thread PIDs) */
 	sort(array, length, sizeof(pid_t), cmppid, NULL);
-	if (type == CGROUP_FILE_PROCS)
-		length = pidlist_uniq(array, length);
+	length = pidlist_uniq(array, length);
 
 	l = cgroup_pidlist_find_create(cgrp, type);
 	if (!l) {
@@ -431,7 +430,7 @@ static void *cgroup_pidlist_start(struct seq_file *s, loff_t *pos)
 			if (l->list[mid] == pid) {
 				index = mid;
 				break;
-			} else if (l->list[mid] <= pid)
+			} else if (l->list[mid] < pid)
 				index = mid + 1;
 			else
 				end = mid;
@@ -803,7 +802,7 @@ void cgroup1_release_agent(struct work_struct *work)
 		goto out_free;
 
 	ret = cgroup_path_ns(cgrp, pathbuf, PATH_MAX, &init_cgroup_ns);
-	if (ret < 0 || ret >= PATH_MAX)
+	if (ret < 0)
 		goto out_free;
 
 	argv[0] = agentbuf;
@@ -1261,6 +1260,40 @@ int cgroup1_get_tree(struct fs_context *fc)
 		return restart_syscall();
 	}
 	return ret;
+}
+
+/**
+ * task_get_cgroup1 - Acquires the associated cgroup of a task within a
+ * specific cgroup1 hierarchy. The cgroup1 hierarchy is identified by its
+ * hierarchy ID.
+ * @tsk: The target task
+ * @hierarchy_id: The ID of a cgroup1 hierarchy
+ *
+ * On success, the cgroup is returned. On failure, ERR_PTR is returned.
+ * We limit it to cgroup1 only.
+ */
+struct cgroup *task_get_cgroup1(struct task_struct *tsk, int hierarchy_id)
+{
+	struct cgroup *cgrp = ERR_PTR(-ENOENT);
+	struct cgroup_root *root;
+	unsigned long flags;
+
+	rcu_read_lock();
+	for_each_root(root) {
+		/* cgroup1 only*/
+		if (root == &cgrp_dfl_root)
+			continue;
+		if (root->hierarchy_id != hierarchy_id)
+			continue;
+		spin_lock_irqsave(&css_set_lock, flags);
+		cgrp = task_cgroup_from_root(tsk, root);
+		if (!cgrp || !cgroup_tryget(cgrp))
+			cgrp = ERR_PTR(-ENOENT);
+		spin_unlock_irqrestore(&css_set_lock, flags);
+		break;
+	}
+	rcu_read_unlock();
+	return cgrp;
 }
 
 static int __init cgroup1_wq_init(void)

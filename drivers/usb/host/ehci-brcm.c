@@ -140,8 +140,8 @@ static int ehci_brcm_probe(struct platform_device *pdev)
 		return err;
 
 	irq = platform_get_irq(pdev, 0);
-	if (irq <= 0)
-		return irq ? irq : -EINVAL;
+	if (irq < 0)
+		return irq;
 
 	/* Hook the hub control routine to work around a bug */
 	ehci_brcm_hc_driver.hub_control = ehci_brcm_hub_control;

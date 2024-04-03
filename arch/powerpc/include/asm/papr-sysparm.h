@@ -2,8 +2,10 @@
 #ifndef _ASM_POWERPC_PAPR_SYSPARM_H
 #define _ASM_POWERPC_PAPR_SYSPARM_H
 
+#include <uapi/asm/papr-sysparm.h>
+
 typedef struct {
-	const u32 token;
+	u32 token;
 } papr_sysparm_t;
 
 #define mk_papr_sysparm(x_) ((papr_sysparm_t){ .token = x_, })
@@ -20,14 +22,17 @@ typedef struct {
 #define PAPR_SYSPARM_TLB_BLOCK_INVALIDATE_ATTRS    mk_papr_sysparm(50)
 #define PAPR_SYSPARM_LPAR_NAME                     mk_papr_sysparm(55)
 
-enum {
-	PAPR_SYSPARM_MAX_INPUT  = 1024,
-	PAPR_SYSPARM_MAX_OUTPUT = 4000,
-};
-
+/**
+ * struct papr_sysparm_buf - RTAS work area layout for system parameter functions.
+ *
+ * This is the memory layout of the buffers passed to/from
+ * ibm,get-system-parameter and ibm,set-system-parameter. It is
+ * distinct from the papr_sysparm_io_block structure that is passed
+ * between user space and the kernel.
+ */
 struct papr_sysparm_buf {
 	__be16 len;
-	char val[PAPR_SYSPARM_MAX_OUTPUT];
+	u8 val[PAPR_SYSPARM_MAX_OUTPUT];
 };
 
 struct papr_sysparm_buf *papr_sysparm_buf_alloc(void);

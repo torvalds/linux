@@ -116,7 +116,6 @@ static struct rpmsg_device_id imx_audio_rpmsg_id_table[] = {
 
 static struct rpmsg_driver imx_audio_rpmsg_driver = {
 	.drv.name	= "imx_audio_rpmsg",
-	.drv.owner	= THIS_MODULE,
 	.id_table	= imx_audio_rpmsg_id_table,
 	.probe		= imx_audio_rpmsg_probe,
 	.callback	= imx_audio_rpmsg_cb,

@@ -8,6 +8,8 @@ struct nvkm_instmem {
 	const struct nvkm_instmem_func *func;
 	struct nvkm_subdev subdev;
 
+	bool suspend;
+
 	spinlock_t lock;
 	struct list_head list;
 	struct list_head boot;
@@ -22,11 +24,16 @@ struct nvkm_instmem {
 	struct nvkm_ramht  *ramht;
 	struct nvkm_memory *ramro;
 	struct nvkm_memory *ramfc;
+
+	struct {
+		struct sg_table fbsr;
+		bool fbsr_valid;
+	} rm;
 };
 
 u32 nvkm_instmem_rd32(struct nvkm_instmem *, u32 addr);
 void nvkm_instmem_wr32(struct nvkm_instmem *, u32 addr, u32 data);
-int nvkm_instobj_new(struct nvkm_instmem *, u32 size, u32 align, bool zero,
+int nvkm_instobj_new(struct nvkm_instmem *, u32 size, u32 align, bool zero, bool preserve,
 		     struct nvkm_memory **);
 int nvkm_instobj_wrap(struct nvkm_device *, struct nvkm_memory *, struct nvkm_memory **);
 

@@ -115,7 +115,6 @@ static int ath_ahb_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
-		dev_err(&pdev->dev, "no IRQ resource found: %d\n", irq);
 		ret = irq;
 		goto err_iounmap;
 	}
@@ -186,7 +185,7 @@ static int ath_ahb_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int ath_ahb_remove(struct platform_device *pdev)
+static void ath_ahb_remove(struct platform_device *pdev)
 {
 	struct ar231x_board_config *bcfg = dev_get_platdata(&pdev->dev);
 	struct ieee80211_hw *hw = platform_get_drvdata(pdev);
@@ -194,7 +193,7 @@ static int ath_ahb_remove(struct platform_device *pdev)
 	u32 reg;
 
 	if (!hw)
-		return 0;
+		return;
 
 	ah = hw->priv;
 
@@ -216,13 +215,11 @@ static int ath_ahb_remove(struct platform_device *pdev)
 	ath5k_deinit_ah(ah);
 	iounmap(ah->iobase);
 	ieee80211_free_hw(hw);
-
-	return 0;
 }
 
 static struct platform_driver ath_ahb_driver = {
 	.probe      = ath_ahb_probe,
-	.remove     = ath_ahb_remove,
+	.remove_new = ath_ahb_remove,
 	.driver		= {
 		.name	= "ar231x-wmac",
 	},

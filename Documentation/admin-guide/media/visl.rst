@@ -49,6 +49,10 @@ Module parameters
   visl_dprintk_frame_start, visl_dprintk_nframes, but controls the dumping of
   buffer data through debugfs instead.
 
+- tpg_verbose: Write extra information on each output frame to ease debugging
+  the API. When set to true, the output frames are not stable for a given input
+  as some information like pointers or queue status will be added to them.
+
 What is the default use case for this driver?
 ---------------------------------------------
 
@@ -57,8 +61,12 @@ This assumes that a working client is run against visl and that the ftrace and
 OUTPUT buffer data is subsequently used to debug a work-in-progress
 implementation.
 
-Information on reference frames, their timestamps, the status of the OUTPUT and
-CAPTURE queues and more can be read directly from the CAPTURE buffers.
+Even though no video decoding is actually done, the output frames can be used
+against a reference for a given input, except if tpg_verbose is set to true.
+
+Depending on the tpg_verbose parameter value, information on reference frames,
+their timestamps, the status of the OUTPUT and CAPTURE queues and more can be
+read directly from the CAPTURE buffers.
 
 Supported codecs
 ----------------
@@ -71,6 +79,7 @@ The following codecs are supported:
 - VP9
 - H.264
 - HEVC
+- AV1
 
 visl trace events
 -----------------
@@ -78,7 +87,8 @@ The trace events are defined on a per-codec basis, e.g.:
 
 .. code-block:: bash
 
-        $ ls /sys/kernel/debug/tracing/events/ | grep visl
+        $ ls /sys/kernel/tracing/events/ | grep visl
+        visl_av1_controls
         visl_fwht_controls
         visl_h264_controls
         visl_hevc_controls
@@ -90,13 +100,13 @@ For example, in order to dump HEVC SPS data:
 
 .. code-block:: bash
 
-        $ echo 1 >  /sys/kernel/debug/tracing/events/visl_hevc_controls/v4l2_ctrl_hevc_sps/enable
+        $ echo 1 >  /sys/kernel/tracing/events/visl_hevc_controls/v4l2_ctrl_hevc_sps/enable
 
 The SPS data will be dumped to the trace buffer, i.e.:
 
 .. code-block:: bash
 
-        $ cat /sys/kernel/debug/tracing/trace
+        $ cat /sys/kernel/tracing/trace
         video_parameter_set_id 0
         seq_parameter_set_id 0
         pic_width_in_luma_samples 1920

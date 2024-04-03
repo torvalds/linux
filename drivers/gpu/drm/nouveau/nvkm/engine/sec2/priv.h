@@ -4,6 +4,9 @@
 #include <engine/sec2.h>
 struct nvkm_acr_lsfw;
 
+int r535_sec2_new(const struct nvkm_sec2_func *,
+		  struct nvkm_device *, enum nvkm_subdev_type, int, u32 addr, struct nvkm_sec2 **);
+
 struct nvkm_sec2_func {
 	const struct nvkm_falcon_func *flcn;
 	u8 unit_unload;

@@ -648,6 +648,5 @@ bool rtl8821ae_is_tx_desc_closed(struct ieee80211_hw *hw,
 				 u8 hw_queue, u16 index);
 void rtl8821ae_tx_polling(struct ieee80211_hw *hw, u8 hw_queue);
 void rtl8821ae_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc,
-			       bool firstseg, bool lastseg,
 			       struct sk_buff *skb);
 #endif

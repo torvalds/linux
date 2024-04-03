@@ -59,9 +59,10 @@ __naked void stack_read_priv_vs_unpriv(void)
 "	::: __clobber_all);
 }
 
-SEC("lwt_in")
+SEC("cgroup/skb")
 __description("variable-offset stack read, uninitialized")
-__failure __msg("invalid variable-offset read from stack R2")
+__success
+__failure_unpriv __msg_unpriv("R2 variable stack access prohibited for !root")
 __naked void variable_offset_stack_read_uninitialized(void)
 {
 	asm volatile ("					\
@@ -83,12 +84,55 @@ __naked void variable_offset_stack_read_uninitialized(void)
 
 SEC("socket")
 __description("variable-offset stack write, priv vs unpriv")
-__success __failure_unpriv
+__success
+/* Check that the maximum stack depth is correctly maintained according to the
+ * maximum possible variable offset.
+ */
+__log_level(4) __msg("stack depth 16")
+__failure_unpriv
 /* Variable stack access is rejected for unprivileged.
  */
 __msg_unpriv("R2 variable stack access prohibited for !root")
 __retval(0)
 __naked void stack_write_priv_vs_unpriv(void)
+{
+	asm volatile ("                               \
+	/* Get an unknown value */                    \
+	r2 = *(u32*)(r1 + 0);                         \
+	/* Make it small and 8-byte aligned */        \
+	r2 &= 8;                                      \
+	r2 -= 16;                                     \
+	/* Add it to fp. We now have either fp-8 or   \
+	 * fp-16, but we don't know which             \
+	 */                                           \
+	r2 += r10;                                    \
+	/* Dereference it for a stack write */        \
+	r0 = 0;                                       \
+	*(u64*)(r2 + 0) = r0;                         \
+	exit;                                         \
+"	::: __clobber_all);
+}
+
+/* Similar to the previous test, but this time also perform a read from the
+ * address written to with a variable offset. The read is allowed, showing that,
+ * after a variable-offset write, a priviledged program can read the slots that
+ * were in the range of that write (even if the verifier doesn't actually know if
+ * the slot being read was really written to or not.
+ *
+ * Despite this test being mostly a superset, the previous test is also kept for
+ * the sake of it checking the stack depth in the case where there is no read.
+ */
+SEC("socket")
+__description("variable-offset stack write followed by read")
+__success
+/* Check that the maximum stack depth is correctly maintained according to the
+ * maximum possible variable offset.
+ */
+__log_level(4) __msg("stack depth 16")
+__failure_unpriv
+__msg_unpriv("R2 variable stack access prohibited for !root")
+__retval(0)
+__naked void stack_write_followed_by_read(void)
 {
 	asm volatile ("					\
 	/* Get an unknown value */			\
@@ -103,12 +147,7 @@ __naked void stack_write_priv_vs_unpriv(void)
 	/* Dereference it for a stack write */		\
 	r0 = 0;						\
 	*(u64*)(r2 + 0) = r0;				\
-	/* Now read from the address we just wrote. This shows\
-	 * that, after a variable-offset write, a priviledged\
-	 * program can read the slots that were in the range of\
-	 * that write (even if the verifier doesn't actually know\
-	 * if the slot being read was really written to or not.\
-	 */						\
+	/* Now read from the address we just wrote. */ \
 	r3 = *(u64*)(r2 + 0);				\
 	r0 = 0;						\
 	exit;						\
@@ -224,6 +263,35 @@ __naked void access_max_out_of_bound(void)
 	: __clobber_all);
 }
 
+/* Similar to the test above, but this time check the special case of a
+ * zero-sized stack access. We used to have a bug causing crashes for zero-sized
+ * out-of-bounds accesses.
+ */
+SEC("socket")
+__description("indirect variable-offset stack access, zero-sized, max out of bound")
+__failure __msg("invalid variable-offset indirect access to stack R1")
+__naked void zero_sized_access_max_out_of_bound(void)
+{
+	asm volatile ("                      \
+	r0 = 0;                              \
+	/* Fill some stack */                \
+	*(u64*)(r10 - 16) = r0;              \
+	*(u64*)(r10 - 8) = r0;               \
+	/* Get an unknown value */           \
+	r1 = *(u32*)(r1 + 0);                \
+	r1 &= 63;                            \
+	r1 += -16;                           \
+	/* r1 is now anywhere in [-16,48) */ \
+	r1 += r10;                           \
+	r2 = 0;                              \
+	r3 = 0;                              \
+	call %[bpf_probe_read_kernel];       \
+	exit;                                \
+"	:
+	: __imm(bpf_probe_read_kernel)
+	: __clobber_all);
+}
+
 SEC("lwt_in")
 __description("indirect variable-offset stack access, min out of bound")
 __failure __msg("invalid variable-offset indirect access to stack R2")
@@ -253,9 +321,10 @@ __naked void access_min_out_of_bound(void)
 	: __clobber_all);
 }
 
-SEC("lwt_in")
+SEC("cgroup/skb")
 __description("indirect variable-offset stack access, min_off < min_initialized")
-__failure __msg("invalid indirect read from stack R2 var_off")
+__success
+__failure_unpriv __msg_unpriv("R2 variable stack access prohibited for !root")
 __naked void access_min_off_min_initialized(void)
 {
 	asm volatile ("					\

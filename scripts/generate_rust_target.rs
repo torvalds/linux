@@ -148,18 +148,27 @@ fn main() {
     let mut ts = TargetSpec::new();
 
     // `llvm-target`s are taken from `scripts/Makefile.clang`.
-    if cfg.has("X86_64") {
+    if cfg.has("ARM64") {
+        panic!("arm64 uses the builtin rustc aarch64-unknown-none target");
+    } else if cfg.has("X86_64") {
         ts.push("arch", "x86_64");
         ts.push(
             "data-layout",
             "e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-f80:128-n8:16:32:64-S128",
         );
         let mut features = "-3dnow,-3dnowa,-mmx,+soft-float".to_string();
-        if cfg.has("RETPOLINE") {
+        if cfg.has("MITIGATION_RETPOLINE") {
             features += ",+retpoline-external-thunk";
         }
         ts.push("features", features);
         ts.push("llvm-target", "x86_64-linux-gnu");
+        ts.push("target-pointer-width", "64");
+    } else if cfg.has("LOONGARCH") {
+        ts.push("arch", "loongarch64");
+        ts.push("data-layout", "e-m:e-p:64:64-i64:64-i128:128-n64-S128");
+        ts.push("features", "-f,-d");
+        ts.push("llvm-target", "loongarch64-linux-gnusf");
+        ts.push("llvm-abiname", "lp64s");
         ts.push("target-pointer-width", "64");
     } else {
         panic!("Unsupported architecture");

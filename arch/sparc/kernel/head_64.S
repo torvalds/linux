@@ -9,6 +9,7 @@
 
 #include <linux/version.h>
 #include <linux/errno.h>
+#include <linux/export.h>
 #include <linux/threads.h>
 #include <linux/init.h>
 #include <linux/linkage.h>
@@ -33,7 +34,6 @@
 #include <asm/estate.h>
 #include <asm/sfafsr.h>
 #include <asm/unistd.h>
-#include <asm/export.h>
 
 /* This section from from _start to sparc64_boot_end should fit into
  * 0x0000000000404000 to 0x0000000000408000.

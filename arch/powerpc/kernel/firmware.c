@@ -23,6 +23,8 @@ EXPORT_SYMBOL_GPL(powerpc_firmware_features);
 
 #if defined(CONFIG_PPC_PSERIES) || defined(CONFIG_KVM_GUEST)
 DEFINE_STATIC_KEY_FALSE(kvm_guest);
+EXPORT_SYMBOL_GPL(kvm_guest);
+
 int __init check_kvm_guest(void)
 {
 	struct device_node *hyper_node;

@@ -14,7 +14,7 @@
 #include <linux/io.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/watchdog.h>
@@ -221,20 +221,18 @@ static const struct dev_pm_ops ftwdt010_wdt_dev_pm_ops = {
 				ftwdt010_wdt_resume)
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id ftwdt010_wdt_match[] = {
 	{ .compatible = "faraday,ftwdt010" },
 	{ .compatible = "cortina,gemini-watchdog" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, ftwdt010_wdt_match);
-#endif
 
 static struct platform_driver ftwdt010_wdt_driver = {
 	.probe		= ftwdt010_wdt_probe,
 	.driver		= {
 		.name	= "ftwdt010-wdt",
-		.of_match_table = of_match_ptr(ftwdt010_wdt_match),
+		.of_match_table = ftwdt010_wdt_match,
 		.pm = &ftwdt010_wdt_dev_pm_ops,
 	},
 };

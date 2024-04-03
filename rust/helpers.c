@@ -16,17 +16,21 @@
  *
  * All symbols are exported as GPL-only to guarantee no GPL-only feature is
  * accidentally exposed.
+ *
+ * Sorted alphabetically.
  */
 
+#include <kunit/test-bug.h>
 #include <linux/bug.h>
 #include <linux/build_bug.h>
 #include <linux/err.h>
 #include <linux/errname.h>
-#include <linux/refcount.h>
 #include <linux/mutex.h>
-#include <linux/spinlock.h>
+#include <linux/refcount.h>
 #include <linux/sched/signal.h>
+#include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/workqueue.h>
 
 __noreturn void rust_helper_BUG(void)
 {
@@ -135,20 +139,37 @@ void rust_helper_put_task_struct(struct task_struct *t)
 }
 EXPORT_SYMBOL_GPL(rust_helper_put_task_struct);
 
+struct kunit *rust_helper_kunit_get_current_test(void)
+{
+	return kunit_get_current_test();
+}
+EXPORT_SYMBOL_GPL(rust_helper_kunit_get_current_test);
+
+void rust_helper_init_work_with_key(struct work_struct *work, work_func_t func,
+				    bool onstack, const char *name,
+				    struct lock_class_key *key)
+{
+	__init_work(work, onstack);
+	work->data = (atomic_long_t)WORK_DATA_INIT();
+	lockdep_init_map(&work->lockdep_map, name, key, 0);
+	INIT_LIST_HEAD(&work->entry);
+	work->func = func;
+}
+EXPORT_SYMBOL_GPL(rust_helper_init_work_with_key);
+
 /*
- * We use `bindgen`'s `--size_t-is-usize` option to bind the C `size_t` type
- * as the Rust `usize` type, so we can use it in contexts where Rust
- * expects a `usize` like slice (array) indices. `usize` is defined to be
- * the same as C's `uintptr_t` type (can hold any pointer) but not
- * necessarily the same as `size_t` (can hold the size of any single
- * object). Most modern platforms use the same concrete integer type for
+ * `bindgen` binds the C `size_t` type as the Rust `usize` type, so we can
+ * use it in contexts where Rust expects a `usize` like slice (array) indices.
+ * `usize` is defined to be the same as C's `uintptr_t` type (can hold any
+ * pointer) but not necessarily the same as `size_t` (can hold the size of any
+ * single object). Most modern platforms use the same concrete integer type for
  * both of them, but in case we find ourselves on a platform where
  * that's not true, fail early instead of risking ABI or
  * integer-overflow issues.
  *
  * If your platform fails this assertion, it means that you are in
- * danger of integer-overflow bugs (even if you attempt to remove
- * `--size_t-is-usize`). It may be easiest to change the kernel ABI on
+ * danger of integer-overflow bugs (even if you attempt to add
+ * `--no-size_t-is-usize`). It may be easiest to change the kernel ABI on
  * your platform such that `size_t` matches `uintptr_t` (i.e., to increase
  * `size_t`, because `uintptr_t` has to be at least as big as `size_t`).
  */

@@ -25,6 +25,7 @@
 		q	quicker (less detailed) decoding
 		A	approximate IPC
 		Z	prefer to ignore timestamps (so-called "timeless" decoding)
+		T	use the timestamp trace as kernel time
 
 	The default is all events i.e. the same as --itrace=iybxwpe,
 	except for perf script where it is --itrace=ce

@@ -154,6 +154,8 @@ struct dso {
 	size_t		 symbol_names_len;
 	struct rb_root_cached inlined_nodes;
 	struct rb_root_cached srclines;
+	struct rb_root	data_types;
+
 	struct {
 		u64		addr;
 		struct symbol	*symbol;
@@ -162,6 +164,7 @@ struct dso {
 	char		 *symsrc_filename;
 	unsigned int	 a2l_fails;
 	enum dso_space_type	kernel;
+	bool			is_kmod;
 	enum dso_swap_type	needs_swap;
 	enum dso_binary_type	symtab_type;
 	enum dso_binary_type	binary_type;
@@ -181,6 +184,7 @@ struct dso {
 	u8		 rel;
 	struct build_id	 bid;
 	u64		 text_offset;
+	u64		 text_end;
 	const char	 *short_name;
 	const char	 *long_name;
 	u16		 long_name_len;

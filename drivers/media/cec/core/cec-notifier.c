@@ -7,6 +7,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/platform_device.h>
 #include <linux/string.h>
 #include <linux/slab.h>
 #include <linux/i2c.h>
@@ -195,6 +196,11 @@ void cec_notifier_set_phys_addr(struct cec_notifier *n, u16 pa)
 }
 EXPORT_SYMBOL_GPL(cec_notifier_set_phys_addr);
 
+/*
+ * Note: In the drm subsystem, prefer calling (if possible):
+ *
+ * cec_notifier_set_phys_addr(n, connector->display_info.source_physical_address);
+ */
 void cec_notifier_set_phys_addr_from_edid(struct cec_notifier *n,
 					  const struct edid *edid)
 {

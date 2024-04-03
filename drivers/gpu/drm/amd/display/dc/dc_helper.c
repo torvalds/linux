@@ -36,6 +36,9 @@
 #include "dc_dmub_srv.h"
 #include "reg_helper.h"
 
+#define DC_LOGGER \
+	ctx->logger
+
 static inline void submit_dmub_read_modify_write(
 	struct dc_reg_helper_state *offload,
 	const struct dc_context *ctx)
@@ -47,7 +50,7 @@ static inline void submit_dmub_read_modify_write(
 	cmd_buf->header.payload_bytes =
 			sizeof(struct dmub_cmd_read_modify_write_sequence) * offload->reg_seq_count;
 
-	dm_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
+	dc_wake_and_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 
@@ -64,7 +67,7 @@ static inline void submit_dmub_burst_write(
 	cmd_buf->header.payload_bytes =
 			sizeof(uint32_t) * offload->reg_seq_count;
 
-	dm_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
+	dc_wake_and_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 
@@ -77,7 +80,7 @@ static inline void submit_dmub_reg_wait(
 {
 	struct dmub_rb_cmd_reg_wait *cmd_buf = &offload->cmd_data.reg_wait;
 
-	dm_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
+	dc_wake_and_execute_dmub_cmd(ctx, &offload->cmd_data, DM_DMUB_WAIT_TYPE_NO_WAIT);
 
 	memset(cmd_buf, 0, sizeof(*cmd_buf));
 	offload->reg_seq_count = 0;
@@ -740,6 +743,10 @@ char *dce_version_to_string(const int version)
 		return "DCN 3.2";
 	case DCN_VERSION_3_21:
 		return "DCN 3.2.1";
+	case DCN_VERSION_3_5:
+		return "DCN 3.5";
+	case DCN_VERSION_3_51:
+		return "DCN 3.5.1";
 	default:
 		return "Unknown";
 	}

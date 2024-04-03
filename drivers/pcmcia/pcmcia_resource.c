@@ -684,7 +684,7 @@ EXPORT_SYMBOL(pcmcia_request_io);
  * pcmcia_request_irq() is a wrapper around request_irq() which allows
  * the PCMCIA core to clean up the registration in pcmcia_disable_device().
  * Drivers are free to use request_irq() directly, but then they need to
- * call free_irq() themselfves, too. Also, only %IRQF_SHARED capable IRQ
+ * call free_irq() themselves, too. Also, only %IRQF_SHARED capable IRQ
  * handlers are allowed.
  */
 int __must_check pcmcia_request_irq(struct pcmcia_device *p_dev,

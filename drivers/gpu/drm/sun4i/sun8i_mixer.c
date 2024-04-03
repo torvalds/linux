@@ -10,8 +10,10 @@
 #include <linux/component.h>
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/platform_device.h>
 #include <linux/reset.h>
 
 #include <drm/drm_atomic_helper.h>
@@ -555,11 +557,9 @@ static int sun8i_mixer_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &sun8i_mixer_ops);
 }
 
-static int sun8i_mixer_remove(struct platform_device *pdev)
+static void sun8i_mixer_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &sun8i_mixer_ops);
-
-	return 0;
 }
 
 static const struct sun8i_mixer_cfg sun8i_a83t_mixer0_cfg = {
@@ -711,7 +711,7 @@ MODULE_DEVICE_TABLE(of, sun8i_mixer_of_table);
 
 static struct platform_driver sun8i_mixer_platform_driver = {
 	.probe		= sun8i_mixer_probe,
-	.remove		= sun8i_mixer_remove,
+	.remove_new	= sun8i_mixer_remove,
 	.driver		= {
 		.name		= "sun8i-mixer",
 		.of_match_table	= sun8i_mixer_of_table,

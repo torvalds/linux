@@ -146,6 +146,7 @@ class LinuxSourceTreeOperationsUml(LinuxSourceTreeOperations):
 		"""Runs the Linux UML binary. Must be named 'linux'."""
 		linux_bin = os.path.join(build_dir, 'linux')
 		params.extend(['mem=1G', 'console=tty', 'kunit_shutdown=halt'])
+		print('Running tests with:\n$', linux_bin, ' '.join(shlex.quote(arg) for arg in params))
 		return subprocess.Popen([linux_bin] + params,
 					   stdin=subprocess.PIPE,
 					   stdout=subprocess.PIPE,
@@ -330,11 +331,15 @@ class LinuxSourceTree:
 			return False
 		return self.validate_config(build_dir)
 
-	def run_kernel(self, args: Optional[List[str]]=None, build_dir: str='', filter_glob: str='', timeout: Optional[int]=None) -> Iterator[str]:
+	def run_kernel(self, args: Optional[List[str]]=None, build_dir: str='', filter_glob: str='', filter: str='', filter_action: Optional[str]=None, timeout: Optional[int]=None) -> Iterator[str]:
 		if not args:
 			args = []
 		if filter_glob:
-			args.append('kunit.filter_glob='+filter_glob)
+			args.append('kunit.filter_glob=' + filter_glob)
+		if filter:
+			args.append('kunit.filter="' + filter + '"')
+		if filter_action:
+			args.append('kunit.filter_action=' + filter_action)
 		args.append('kunit.enable=1')
 
 		process = self._ops.start(args, build_dir)

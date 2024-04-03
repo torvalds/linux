@@ -72,3 +72,4 @@ module_exit(exit_rc_map_cinergy)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("cinergy remote controller keytable");

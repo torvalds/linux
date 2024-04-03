@@ -626,14 +626,7 @@ static int alloc_fake_buffer(void)
 
 static int dummy_pcm_copy(struct snd_pcm_substream *substream,
 			  int channel, unsigned long pos,
-			  void __user *dst, unsigned long bytes)
-{
-	return 0; /* do nothing */
-}
-
-static int dummy_pcm_copy_kernel(struct snd_pcm_substream *substream,
-				 int channel, unsigned long pos,
-				 void *dst, unsigned long bytes)
+			  struct iov_iter *iter, unsigned long bytes)
 {
 	return 0; /* do nothing */
 }
@@ -667,8 +660,7 @@ static const struct snd_pcm_ops dummy_pcm_ops_no_buf = {
 	.prepare =	dummy_pcm_prepare,
 	.trigger =	dummy_pcm_trigger,
 	.pointer =	dummy_pcm_pointer,
-	.copy_user =	dummy_pcm_copy,
-	.copy_kernel =	dummy_pcm_copy_kernel,
+	.copy =		dummy_pcm_copy,
 	.fill_silence =	dummy_pcm_silence,
 	.page =		dummy_pcm_page,
 };
@@ -1106,7 +1098,6 @@ static int snd_dummy_probe(struct platform_device *devptr)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int snd_dummy_suspend(struct device *pdev)
 {
 	struct snd_card *card = dev_get_drvdata(pdev);
@@ -1123,11 +1114,7 @@ static int snd_dummy_resume(struct device *pdev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(snd_dummy_pm, snd_dummy_suspend, snd_dummy_resume);
-#define SND_DUMMY_PM_OPS	&snd_dummy_pm
-#else
-#define SND_DUMMY_PM_OPS	NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(snd_dummy_pm, snd_dummy_suspend, snd_dummy_resume);
 
 #define SND_DUMMY_DRIVER	"snd_dummy"
 
@@ -1135,7 +1122,7 @@ static struct platform_driver snd_dummy_driver = {
 	.probe		= snd_dummy_probe,
 	.driver		= {
 		.name	= SND_DUMMY_DRIVER,
-		.pm	= SND_DUMMY_PM_OPS,
+		.pm	= &snd_dummy_pm,
 	},
 };
 

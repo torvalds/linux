@@ -2,14 +2,13 @@
 //
 // tegra210_sfc.c - Tegra210 SFC driver
 //
-// Copyright (c) 2021 NVIDIA CORPORATION.  All rights reserved.
+// Copyright (c) 2021-2023 NVIDIA CORPORATION.  All rights reserved.
 
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
@@ -42,6 +41,7 @@ static const int tegra210_sfc_rates[TEGRA210_SFC_NUM_RATES] = {
 	32000,
 	44100,
 	48000,
+	64000,
 	88200,
 	96000,
 	176400,
@@ -2857,6 +2857,7 @@ static s32 *coef_addr_table[TEGRA210_SFC_NUM_RATES][TEGRA210_SFC_NUM_RATES] = {
 		coef_8to32,
 		coef_8to44,
 		coef_8to48,
+		UNSUPP_CONV,
 		coef_8to88,
 		coef_8to96,
 		UNSUPP_CONV,
@@ -2872,6 +2873,7 @@ static s32 *coef_addr_table[TEGRA210_SFC_NUM_RATES][TEGRA210_SFC_NUM_RATES] = {
 		coef_11to32,
 		coef_11to44,
 		coef_11to48,
+		UNSUPP_CONV,
 		coef_11to88,
 		coef_11to96,
 		UNSUPP_CONV,
@@ -2887,6 +2889,7 @@ static s32 *coef_addr_table[TEGRA210_SFC_NUM_RATES][TEGRA210_SFC_NUM_RATES] = {
 		coef_16to32,
 		coef_16to44,
 		coef_16to48,
+		UNSUPP_CONV,
 		coef_16to88,
 		coef_16to96,
 		coef_16to176,
@@ -2902,6 +2905,7 @@ static s32 *coef_addr_table[TEGRA210_SFC_NUM_RATES][TEGRA210_SFC_NUM_RATES] = {
 		coef_22to32,
 		coef_22to44,
 		coef_22to48,
+		UNSUPP_CONV,
 		coef_22to88,
 		coef_22to96,
 		coef_22to176,
@@ -2917,6 +2921,7 @@ static s32 *coef_addr_table[TEGRA210_SFC_NUM_RATES][TEGRA210_SFC_NUM_RATES] = {
 		coef_24to32,
 		coef_24to44,
 		coef_24to48,
+		UNSUPP_CONV,
 		coef_24to88,
 		coef_24to96,
 		coef_24to176,
@@ -2932,6 +2937,7 @@ static s32 *coef_addr_table[TEGRA210_SFC_NUM_RATES][TEGRA210_SFC_NUM_RATES] = {
 		BYPASS_CONV,
 		coef_32to44,
 		coef_32to48,
+		UNSUPP_CONV,
 		coef_32to88,
 		coef_32to96,
 		coef_32to176,
@@ -2947,6 +2953,7 @@ static s32 *coef_addr_table[TEGRA210_SFC_NUM_RATES][TEGRA210_SFC_NUM_RATES] = {
 		coef_44to32,
 		BYPASS_CONV,
 		coef_44to48,
+		UNSUPP_CONV,
 		coef_44to88,
 		coef_44to96,
 		coef_44to176,
@@ -2962,10 +2969,27 @@ static s32 *coef_addr_table[TEGRA210_SFC_NUM_RATES][TEGRA210_SFC_NUM_RATES] = {
 		coef_48to32,
 		coef_48to44,
 		BYPASS_CONV,
+		UNSUPP_CONV,
 		coef_48to88,
 		coef_48to96,
 		coef_48to176,
 		coef_48to192,
+	},
+	/* Convertions from 64 kHz */
+	{
+		UNSUPP_CONV,
+		UNSUPP_CONV,
+		UNSUPP_CONV,
+		UNSUPP_CONV,
+		UNSUPP_CONV,
+		UNSUPP_CONV,
+		UNSUPP_CONV,
+		UNSUPP_CONV,
+		UNSUPP_CONV,
+		UNSUPP_CONV,
+		UNSUPP_CONV,
+		UNSUPP_CONV,
+		UNSUPP_CONV,
 	},
 	/* Convertions from 88.2 kHz */
 	{
@@ -2977,6 +3001,7 @@ static s32 *coef_addr_table[TEGRA210_SFC_NUM_RATES][TEGRA210_SFC_NUM_RATES] = {
 		coef_88to32,
 		coef_88to44,
 		coef_88to48,
+		UNSUPP_CONV,
 		BYPASS_CONV,
 		coef_88to96,
 		coef_88to176,
@@ -2991,6 +3016,7 @@ static s32 *coef_addr_table[TEGRA210_SFC_NUM_RATES][TEGRA210_SFC_NUM_RATES] = {
 		coef_96to32,
 		coef_96to44,
 		coef_96to48,
+		UNSUPP_CONV,
 		coef_96to88,
 		BYPASS_CONV,
 		coef_96to176,
@@ -3006,6 +3032,7 @@ static s32 *coef_addr_table[TEGRA210_SFC_NUM_RATES][TEGRA210_SFC_NUM_RATES] = {
 		coef_176to32,
 		coef_176to44,
 		coef_176to48,
+		UNSUPP_CONV,
 		coef_176to88,
 		coef_176to96,
 		BYPASS_CONV,
@@ -3021,6 +3048,7 @@ static s32 *coef_addr_table[TEGRA210_SFC_NUM_RATES][TEGRA210_SFC_NUM_RATES] = {
 		coef_192to32,
 		coef_192to44,
 		coef_192to48,
+		UNSUPP_CONV,
 		coef_192to88,
 		coef_192to96,
 		coef_192to176,

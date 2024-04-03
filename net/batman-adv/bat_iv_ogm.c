@@ -2516,6 +2516,7 @@ static struct batadv_algo_ops batadv_batman_iv __read_mostly = {
 	},
 	.gw = {
 		.init_sel_class = batadv_iv_init_sel_class,
+		.sel_class_max = BATADV_TQ_MAX_VALUE,
 		.get_best_gw_node = batadv_iv_gw_get_best_gw_node,
 		.is_eligible = batadv_iv_gw_is_eligible,
 		.dump = batadv_iv_gw_dump,

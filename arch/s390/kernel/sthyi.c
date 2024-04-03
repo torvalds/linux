@@ -317,7 +317,9 @@ static void fill_diag(struct sthyi_sctns *sctns)
 	if (pages <= 0)
 		return;
 
-	diag204_buf = vmalloc(array_size(pages, PAGE_SIZE));
+	diag204_buf = __vmalloc_node(array_size(pages, PAGE_SIZE),
+				     PAGE_SIZE, GFP_KERNEL, NUMA_NO_NODE,
+				     __builtin_return_address(0));
 	if (!diag204_buf)
 		return;
 

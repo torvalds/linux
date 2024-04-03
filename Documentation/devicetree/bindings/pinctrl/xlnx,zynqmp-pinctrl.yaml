@@ -31,7 +31,7 @@ properties:
     const: xlnx,zynqmp-pinctrl
 
 patternProperties:
-  '^(.*-)?(default|gpio)$':
+  '^(.*-)?(default|gpio-grp)$':
     type: object
     patternProperties:
       '^mux':
@@ -272,6 +272,10 @@ patternProperties:
 
           slew-rate:
             enum: [0, 1]
+
+          output-enable:
+            description:
+              This will internally disable the tri-state for MIO pins.
 
           drive-strength:
             description:

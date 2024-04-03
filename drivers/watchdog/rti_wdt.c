@@ -14,6 +14,8 @@
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/types.h>
@@ -52,6 +54,11 @@
 
 #define DWDST			BIT(1)
 
+#define PON_REASON_SOF_NUM	0xBBBBCCCC
+#define PON_REASON_MAGIC_NUM	0xDDDDDDDD
+#define PON_REASON_EOF_NUM	0xCCCCBBBB
+#define RESERVED_MEM_MIN_SIZE	12
+
 static int heartbeat = DEFAULT_HEARTBEAT;
 
 /*
@@ -70,6 +77,11 @@ static int rti_wdt_start(struct watchdog_device *wdd)
 {
 	u32 timer_margin;
 	struct rti_wdt_device *wdt = watchdog_get_drvdata(wdd);
+	int ret;
+
+	ret = pm_runtime_resume_and_get(wdd->parent);
+	if (ret)
+		return ret;
 
 	/* set timeout period */
 	timer_margin = (u64)wdd->timeout * wdt->freq;
@@ -198,6 +210,11 @@ static int rti_wdt_probe(struct platform_device *pdev)
 	struct rti_wdt_device *wdt;
 	struct clk *clk;
 	u32 last_ping = 0;
+	struct device_node *node;
+	u32 reserved_mem_size;
+	struct resource res;
+	u32 *vaddr;
+	u64 paddr;
 
 	wdt = devm_kzalloc(dev, sizeof(*wdt), GFP_KERNEL);
 	if (!wdt)
@@ -284,6 +301,42 @@ static int rti_wdt_probe(struct platform_device *pdev)
 		}
 	}
 
+	node = of_parse_phandle(pdev->dev.of_node, "memory-region", 0);
+	if (node) {
+		ret = of_address_to_resource(node, 0, &res);
+		if (ret) {
+			dev_err(dev, "No memory address assigned to the region.\n");
+			goto err_iomap;
+		}
+
+		/*
+		 * If reserved memory is defined for watchdog reset cause.
+		 * Readout the Power-on(PON) reason and pass to bootstatus.
+		 */
+		paddr = res.start;
+		reserved_mem_size = resource_size(&res);
+		if (reserved_mem_size < RESERVED_MEM_MIN_SIZE) {
+			dev_err(dev, "The size of reserved memory is too small.\n");
+			ret = -EINVAL;
+			goto err_iomap;
+		}
+
+		vaddr = memremap(paddr, reserved_mem_size, MEMREMAP_WB);
+		if (!vaddr) {
+			dev_err(dev, "Failed to map memory-region.\n");
+			ret = -ENOMEM;
+			goto err_iomap;
+		}
+
+		if (vaddr[0] == PON_REASON_SOF_NUM &&
+		    vaddr[1] == PON_REASON_MAGIC_NUM &&
+		    vaddr[2] == PON_REASON_EOF_NUM) {
+			wdd->bootstatus |= WDIOF_CARDRESET;
+		}
+		memset(vaddr, 0, reserved_mem_size);
+		memunmap(vaddr);
+	}
+
 	watchdog_init_timeout(wdd, heartbeat, dev);
 
 	ret = watchdog_register_device(wdd);
@@ -294,6 +347,9 @@ static int rti_wdt_probe(struct platform_device *pdev)
 
 	if (last_ping)
 		watchdog_set_last_hw_keepalive(wdd, last_ping);
+
+	if (!watchdog_hw_running(wdd))
+		pm_runtime_put_sync(&pdev->dev);
 
 	return 0;
 
@@ -309,7 +365,10 @@ static void rti_wdt_remove(struct platform_device *pdev)
 	struct rti_wdt_device *wdt = platform_get_drvdata(pdev);
 
 	watchdog_unregister_device(&wdt->wdd);
-	pm_runtime_put(&pdev->dev);
+
+	if (!pm_runtime_suspended(&pdev->dev))
+		pm_runtime_put(&pdev->dev);
+
 	pm_runtime_disable(&pdev->dev);
 }
 

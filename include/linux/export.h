@@ -7,30 +7,12 @@
 #include <linux/stringify.h>
 
 /*
- * Export symbols from the kernel to modules.  Forked from module.h
- * to reduce the amount of pointless cruft we feed to gcc when only
- * exporting a simple symbol or two.
- *
- * Try not to add #includes here.  It slows compilation and makes kernel
- * hackers place grumpy comments in header files.
- */
-
-/*
  * This comment block is used by fixdep. Please do not remove.
  *
  * When CONFIG_MODVERSIONS is changed from n to y, all source files having
  * EXPORT_SYMBOL variants must be re-compiled because genksyms is run as a
  * side effect of the *.o build rule.
  */
-
-#ifndef __ASSEMBLY__
-#ifdef MODULE
-extern struct module __this_module;
-#define THIS_MODULE (&__this_module)
-#else
-#define THIS_MODULE ((struct module *)0)
-#endif
-#endif /* __ASSEMBLY__ */
 
 #ifdef CONFIG_64BIT
 #define __EXPORT_SYMBOL_REF(sym)			\
@@ -50,7 +32,7 @@ extern struct module __this_module;
 		__EXPORT_SYMBOL_REF(sym)	ASM_NL	\
 	.previous
 
-#if !defined(CONFIG_MODULES) || defined(__DISABLE_EXPORTS)
+#if defined(__DISABLE_EXPORTS)
 
 /*
  * Allow symbol exports to be disabled completely so that C code may
@@ -75,7 +57,7 @@ extern struct module __this_module;
 	__ADDRESSABLE(sym)					\
 	asm(__stringify(___EXPORT_SYMBOL(sym, license, ns)))
 
-#endif /* CONFIG_MODULES */
+#endif
 
 #ifdef DEFAULT_SYMBOL_NAMESPACE
 #define _EXPORT_SYMBOL(sym, license)	__EXPORT_SYMBOL(sym, license, __stringify(DEFAULT_SYMBOL_NAMESPACE))

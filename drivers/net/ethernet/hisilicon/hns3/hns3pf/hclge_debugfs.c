@@ -7,6 +7,7 @@
 #include "hclge_debugfs.h"
 #include "hclge_err.h"
 #include "hclge_main.h"
+#include "hclge_regs.h"
 #include "hclge_tm.h"
 #include "hnae3.h"
 
@@ -980,19 +981,24 @@ static const struct hclge_dbg_item tm_pri_items[] = {
 
 static int hclge_dbg_dump_tm_pri(struct hclge_dev *hdev, char *buf, int len)
 {
-	char data_str[ARRAY_SIZE(tm_pri_items)][HCLGE_DBG_DATA_STR_LEN];
 	struct hclge_tm_shaper_para c_shaper_para, p_shaper_para;
 	char *result[ARRAY_SIZE(tm_pri_items)], *sch_mode_str;
 	char content[HCLGE_DBG_TM_INFO_LEN];
 	u8 pri_num, sch_mode, weight, i, j;
+	char *data_str;
 	int pos, ret;
 
 	ret = hclge_tm_get_pri_num(hdev, &pri_num);
 	if (ret)
 		return ret;
 
+	data_str = kcalloc(ARRAY_SIZE(tm_pri_items), HCLGE_DBG_DATA_STR_LEN,
+			   GFP_KERNEL);
+	if (!data_str)
+		return -ENOMEM;
+
 	for (i = 0; i < ARRAY_SIZE(tm_pri_items); i++)
-		result[i] = &data_str[i][0];
+		result[i] = &data_str[i * HCLGE_DBG_DATA_STR_LEN];
 
 	hclge_dbg_fill_content(content, sizeof(content), tm_pri_items,
 			       NULL, ARRAY_SIZE(tm_pri_items));
@@ -1001,23 +1007,23 @@ static int hclge_dbg_dump_tm_pri(struct hclge_dev *hdev, char *buf, int len)
 	for (i = 0; i < pri_num; i++) {
 		ret = hclge_tm_get_pri_sch_mode(hdev, i, &sch_mode);
 		if (ret)
-			return ret;
+			goto out;
 
 		ret = hclge_tm_get_pri_weight(hdev, i, &weight);
 		if (ret)
-			return ret;
+			goto out;
 
 		ret = hclge_tm_get_pri_shaper(hdev, i,
 					      HCLGE_OPC_TM_PRI_C_SHAPPING,
 					      &c_shaper_para);
 		if (ret)
-			return ret;
+			goto out;
 
 		ret = hclge_tm_get_pri_shaper(hdev, i,
 					      HCLGE_OPC_TM_PRI_P_SHAPPING,
 					      &p_shaper_para);
 		if (ret)
-			return ret;
+			goto out;
 
 		sch_mode_str = sch_mode & HCLGE_TM_TX_SCHD_DWRR_MSK ? "dwrr" :
 			       "sp";
@@ -1034,7 +1040,9 @@ static int hclge_dbg_dump_tm_pri(struct hclge_dev *hdev, char *buf, int len)
 		pos += scnprintf(buf + pos, len - pos, "%s", content);
 	}
 
-	return 0;
+out:
+	kfree(data_str);
+	return ret;
 }
 
 static const struct hclge_dbg_item tm_qset_items[] = {
@@ -1518,7 +1526,7 @@ static int hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, bool sel_x,
 	struct hclge_desc desc[3];
 	int pos = 0;
 	int ret, i;
-	u32 *req;
+	__le32 *req;
 
 	hclge_cmd_setup_basic_desc(&desc[0], HCLGE_OPC_FD_TCAM_OP, true);
 	desc[0].flag |= cpu_to_le16(HCLGE_COMM_CMD_FLAG_NEXT);
@@ -1543,22 +1551,22 @@ static int hclge_dbg_fd_tcam_read(struct hclge_dev *hdev, bool sel_x,
 			 tcam_msg.loc);
 
 	/* tcam_data0 ~ tcam_data1 */
-	req = (u32 *)req1->tcam_data;
+	req = (__le32 *)req1->tcam_data;
 	for (i = 0; i < 2; i++)
 		pos += scnprintf(tcam_buf + pos, HCLGE_DBG_TCAM_BUF_SIZE - pos,
-				 "%08x\n", *req++);
+				 "%08x\n", le32_to_cpu(*req++));
 
 	/* tcam_data2 ~ tcam_data7 */
-	req = (u32 *)req2->tcam_data;
+	req = (__le32 *)req2->tcam_data;
 	for (i = 0; i < 6; i++)
 		pos += scnprintf(tcam_buf + pos, HCLGE_DBG_TCAM_BUF_SIZE - pos,
-				 "%08x\n", *req++);
+				 "%08x\n", le32_to_cpu(*req++));
 
 	/* tcam_data8 ~ tcam_data12 */
-	req = (u32 *)req3->tcam_data;
+	req = (__le32 *)req3->tcam_data;
 	for (i = 0; i < 5; i++)
 		pos += scnprintf(tcam_buf + pos, HCLGE_DBG_TCAM_BUF_SIZE - pos,
-				 "%08x\n", *req++);
+				 "%08x\n", le32_to_cpu(*req++));
 
 	return ret;
 }

@@ -37,8 +37,8 @@ static struct alpha_pll_config gpu_cc_pll1_config = {
 	.config_ctl_hi_val = 0x00002267,
 	.config_ctl_hi1_val = 0x00000024,
 	.test_ctl_val = 0x00000000,
-	.test_ctl_hi_val = 0x00000002,
-	.test_ctl_hi1_val = 0x00000000,
+	.test_ctl_hi_val = 0x00000000,
+	.test_ctl_hi1_val = 0x00000020,
 	.user_ctl_val = 0x00000000,
 	.user_ctl_hi_val = 0x00000805,
 	.user_ctl_hi1_val = 0x000000d0,
@@ -315,17 +315,7 @@ static struct platform_driver gpu_cc_sm8150_driver = {
 	},
 };
 
-static int __init gpu_cc_sm8150_init(void)
-{
-	return platform_driver_register(&gpu_cc_sm8150_driver);
-}
-subsys_initcall(gpu_cc_sm8150_init);
-
-static void __exit gpu_cc_sm8150_exit(void)
-{
-	platform_driver_unregister(&gpu_cc_sm8150_driver);
-}
-module_exit(gpu_cc_sm8150_exit);
+module_platform_driver(gpu_cc_sm8150_driver);
 
 MODULE_DESCRIPTION("QTI GPUCC SM8150 Driver");
 MODULE_LICENSE("GPL v2");

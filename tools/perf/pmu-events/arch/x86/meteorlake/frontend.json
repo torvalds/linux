@@ -44,6 +44,14 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "DSB_FILL.FB_STALL_OT",
+        "EventCode": "0x62",
+        "EventName": "DSB_FILL.FB_STALL_OT",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "Retired ANT branches",
         "EventCode": "0xc6",
         "EventName": "FRONTEND_RETIRED.ANY_ANT",
@@ -51,6 +59,30 @@
         "MSRValue": "0x9",
         "PEBS": "1",
         "PublicDescription": "Always Not Taken (ANT) conditional retired branches (no BTB entry and not mispredicted)",
+        "SampleAfterValue": "100007",
+        "UMask": "0x3",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Retired Instructions who experienced DSB miss.",
+        "EventCode": "0xc6",
+        "EventName": "FRONTEND_RETIRED.ANY_DSB_MISS",
+        "MSRIndex": "0x3F7",
+        "MSRValue": "0x1",
+        "PEBS": "1",
+        "PublicDescription": "Counts retired Instructions that experienced DSB (Decode stream buffer i.e. the decoded instruction-cache) miss.",
+        "SampleAfterValue": "100007",
+        "UMask": "0x3",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Retired Instructions who experienced a critical DSB miss.",
+        "EventCode": "0xc6",
+        "EventName": "FRONTEND_RETIRED.DSB_MISS",
+        "MSRIndex": "0x3F7",
+        "MSRValue": "0x11",
+        "PEBS": "1",
+        "PublicDescription": "Number of retired Instructions that experienced a critical DSB (Decode stream buffer i.e. the decoded instruction-cache) miss. Critical means stalls were exposed to the back-end as a result of the DSB miss.",
         "SampleAfterValue": "100007",
         "UMask": "0x3",
         "Unit": "cpu_core"
@@ -84,6 +116,18 @@
         "MSRValue": "0x12",
         "PEBS": "1",
         "PublicDescription": "Counts retired Instructions who experienced Instruction L1 Cache true miss.",
+        "SampleAfterValue": "100007",
+        "UMask": "0x3",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Retired Instructions who experienced Instruction L2 Cache true miss.",
+        "EventCode": "0xc6",
+        "EventName": "FRONTEND_RETIRED.L2_MISS",
+        "MSRIndex": "0x3F7",
+        "MSRValue": "0x13",
+        "PEBS": "1",
+        "PublicDescription": "Counts retired Instructions who experienced Instruction L2 Cache true miss.",
         "SampleAfterValue": "100007",
         "UMask": "0x3",
         "Unit": "cpu_core"
@@ -239,6 +283,18 @@
         "MSRIndex": "0x3F7",
         "MSRValue": "0x8",
         "PEBS": "1",
+        "SampleAfterValue": "100007",
+        "UMask": "0x3",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Retired Instructions who experienced STLB (2nd level TLB) true miss.",
+        "EventCode": "0xc6",
+        "EventName": "FRONTEND_RETIRED.STLB_MISS",
+        "MSRIndex": "0x3F7",
+        "MSRValue": "0x15",
+        "PEBS": "1",
+        "PublicDescription": "Counts retired Instructions that experienced STLB (2nd level TLB) true miss.",
         "SampleAfterValue": "100007",
         "UMask": "0x3",
         "Unit": "cpu_core"
@@ -405,6 +461,27 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Cycles when no uops are not delivered by the IDQ when backend of the machine is not stalled [This event is alias to IDQ_UOPS_NOT_DELIVERED.CYCLES_0_UOPS_DELIV.CORE]",
+        "CounterMask": "6",
+        "EventCode": "0x9c",
+        "EventName": "IDQ_BUBBLES.CYCLES_0_UOPS_DELIV.CORE",
+        "PublicDescription": "Counts the number of cycles when no uops were delivered by the Instruction Decode Queue (IDQ) to the back-end of the pipeline when there was no back-end stalls. This event counts for one SMT thread in a given cycle. [This event is alias to IDQ_UOPS_NOT_DELIVERED.CYCLES_0_UOPS_DELIV.CORE]",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Cycles when optimal number of uops was delivered to the back-end when the back-end is not stalled [This event is alias to IDQ_UOPS_NOT_DELIVERED.CYCLES_FE_WAS_OK]",
+        "CounterMask": "1",
+        "EventCode": "0x9c",
+        "EventName": "IDQ_BUBBLES.CYCLES_FE_WAS_OK",
+        "Invert": "1",
+        "PublicDescription": "Counts the number of cycles when the optimal number of uops were delivered by the Instruction Decode Queue (IDQ) to the back-end of the pipeline when there was no back-end stalls. This event counts for one SMT thread in a given cycle. [This event is alias to IDQ_UOPS_NOT_DELIVERED.CYCLES_FE_WAS_OK]",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "Uops not delivered by IDQ when backend of the machine is not stalled",
         "EventCode": "0x9c",
         "EventName": "IDQ_UOPS_NOT_DELIVERED.CORE",
@@ -414,22 +491,22 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Cycles when no uops are not delivered by the IDQ when backend of the machine is not stalled",
+        "BriefDescription": "Cycles when no uops are not delivered by the IDQ when backend of the machine is not stalled [This event is alias to IDQ_BUBBLES.CYCLES_0_UOPS_DELIV.CORE]",
         "CounterMask": "6",
         "EventCode": "0x9c",
         "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_0_UOPS_DELIV.CORE",
-        "PublicDescription": "Counts the number of cycles when no uops were delivered by the Instruction Decode Queue (IDQ) to the back-end of the pipeline when there was no back-end stalls. This event counts for one SMT thread in a given cycle.",
+        "PublicDescription": "Counts the number of cycles when no uops were delivered by the Instruction Decode Queue (IDQ) to the back-end of the pipeline when there was no back-end stalls. This event counts for one SMT thread in a given cycle. [This event is alias to IDQ_BUBBLES.CYCLES_0_UOPS_DELIV.CORE]",
         "SampleAfterValue": "1000003",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Cycles when optimal number of uops was delivered to the back-end when the back-end is not stalled",
+        "BriefDescription": "Cycles when optimal number of uops was delivered to the back-end when the back-end is not stalled [This event is alias to IDQ_BUBBLES.CYCLES_FE_WAS_OK]",
         "CounterMask": "1",
         "EventCode": "0x9c",
         "EventName": "IDQ_UOPS_NOT_DELIVERED.CYCLES_FE_WAS_OK",
         "Invert": "1",
-        "PublicDescription": "Counts the number of cycles when the optimal number of uops were delivered by the Instruction Decode Queue (IDQ) to the back-end of the pipeline when there was no back-end stalls. This event counts for one SMT thread in a given cycle.",
+        "PublicDescription": "Counts the number of cycles when the optimal number of uops were delivered by the Instruction Decode Queue (IDQ) to the back-end of the pipeline when there was no back-end stalls. This event counts for one SMT thread in a given cycle. [This event is alias to IDQ_BUBBLES.CYCLES_FE_WAS_OK]",
         "SampleAfterValue": "1000003",
         "UMask": "0x1",
         "Unit": "cpu_core"

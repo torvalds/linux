@@ -17,7 +17,7 @@ You can use common commands, such as cp, scp or makedumpfile to copy
 the memory image to a dump file on the local disk, or across the network
 to a remote system.
 
-Kdump and kexec are currently supported on the x86, x86_64, ppc64, ia64,
+Kdump and kexec are currently supported on the x86, x86_64, ppc64,
 s390x, arm and arm64 architectures.
 
 When the system kernel boots, it reserves a small section of memory for
@@ -113,7 +113,7 @@ There are two possible methods of using Kdump.
 2) Or use the system kernel binary itself as dump-capture kernel and there is
    no need to build a separate dump-capture kernel. This is possible
    only with the architectures which support a relocatable kernel. As
-   of today, i386, x86_64, ppc64, ia64, arm and arm64 architectures support
+   of today, i386, x86_64, ppc64, arm and arm64 architectures support
    relocatable kernel.
 
 Building a relocatable kernel is advantageous from the point of view that
@@ -191,9 +191,7 @@ Dump-capture kernel config options (Arch Dependent, i386 and x86_64)
    CPU is enough for kdump kernel to dump vmcore on most of systems.
 
    However, you can also specify nr_cpus=X to enable multiple processors
-   in kdump kernel. In this case, "disable_cpu_apicid=" is needed to
-   tell kdump kernel which cpu is 1st kernel's BSP. Please refer to
-   admin-guide/kernel-parameters.txt for more details.
+   in kdump kernel.
 
    With CONFIG_SMP=n, the above things are not related.
 
@@ -235,24 +233,6 @@ Dump-capture kernel config options (Arch Dependent, ppc64)
 	CONFIG_RELOCATABLE=y
 
    Make and install the kernel and its modules.
-
-Dump-capture kernel config options (Arch Dependent, ia64)
-----------------------------------------------------------
-
-- No specific options are required to create a dump-capture kernel
-  for ia64, other than those specified in the arch independent section
-  above. This means that it is possible to use the system kernel
-  as a dump-capture kernel if desired.
-
-  The crashkernel region can be automatically placed by the system
-  kernel at runtime. This is done by specifying the base address as 0,
-  or omitting it all together::
-
-	crashkernel=256M@0
-
-  or::
-
-	crashkernel=256M
 
 Dump-capture kernel config options (Arch Dependent, arm)
 ----------------------------------------------------------
@@ -348,11 +328,6 @@ Boot into System Kernel
 
    On ppc64, use "crashkernel=128M@32M".
 
-   On ia64, 256M@256M is a generous value that typically works.
-   The region may be automatically placed on ia64, see the
-   dump-capture kernel config option notes above.
-   If use sparse memory, the size should be rounded to GRANULE boundaries.
-
    On s390x, typically use "crashkernel=xxM". The value of xx is dependent
    on the memory consumption of the kdump system. In general this is not
    dependent on the memory size of the production system.
@@ -382,10 +357,6 @@ For i386 and x86_64:
 For ppc64:
 
 	- Use vmlinux
-
-For ia64:
-
-	- Use vmlinux or vmlinuz.gz
 
 For s390x:
 
@@ -428,14 +399,10 @@ to load dump-capture kernel::
    --initrd=<initrd-for-dump-capture-kernel> \
    --append="root=<root-dev> <arch-specific-options>"
 
-Please note, that --args-linux does not need to be specified for ia64.
-It is planned to make this a no-op on that architecture, but for now
-it should be omitted
-
 Following are the arch specific command line options to be used while
 loading dump-capture kernel.
 
-For i386, x86_64 and ia64:
+For i386 and x86_64:
 
 	"1 irqpoll nr_cpus=1 reset_devices"
 
@@ -485,8 +452,7 @@ Notes on loading the dump-capture kernel:
   to use multi-thread programs with it, such as parallel dump feature of
   makedumpfile. Otherwise, the multi-thread program may have a great
   performance degradation. To enable multi-cpu support, you should bring up an
-  SMP dump-capture kernel and specify maxcpus/nr_cpus, disable_cpu_apicid=[X]
-  options while loading it.
+  SMP dump-capture kernel and specify maxcpus/nr_cpus options while loading it.
 
 * For s390x there are two kdump modes: If a ELF header is specified with
   the elfcorehdr= kernel parameter, it is used by the kdump kernel as it

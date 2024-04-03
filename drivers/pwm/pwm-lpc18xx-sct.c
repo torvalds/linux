@@ -22,6 +22,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pwm.h>
@@ -91,8 +92,6 @@ struct lpc18xx_pwm_data {
 };
 
 struct lpc18xx_pwm_chip {
-	struct device *dev;
-	struct pwm_chip chip;
 	void __iomem *base;
 	struct clk *pwm_clk;
 	unsigned long clk_rate;
@@ -109,7 +108,7 @@ struct lpc18xx_pwm_chip {
 static inline struct lpc18xx_pwm_chip *
 to_lpc18xx_pwm_chip(struct pwm_chip *chip)
 {
-	return container_of(chip, struct lpc18xx_pwm_chip, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 static inline void lpc18xx_pwm_writel(struct lpc18xx_pwm_chip *lpc18xx_pwm,
@@ -193,11 +192,11 @@ static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			      int duty_ns, int period_ns)
 {
 	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
-	int requested_events, i;
+	int requested_events;
 
 	if (period_ns < lpc18xx_pwm->min_period_ns ||
 	    period_ns > lpc18xx_pwm->max_period_ns) {
-		dev_err(chip->dev, "period %d not in range\n", period_ns);
+		dev_err(pwmchip_parent(chip), "period %d not in range\n", period_ns);
 		return -ERANGE;
 	}
 
@@ -213,7 +212,7 @@ static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	 */
 	if (requested_events > 2 && lpc18xx_pwm->period_ns != period_ns &&
 	    lpc18xx_pwm->period_ns) {
-		dev_err(chip->dev, "conflicting period requested for PWM %u\n",
+		dev_err(pwmchip_parent(chip), "conflicting period requested for PWM %u\n",
 			pwm->hwpwm);
 		mutex_unlock(&lpc18xx_pwm->period_lock);
 		return -EBUSY;
@@ -222,8 +221,6 @@ static int lpc18xx_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	if ((requested_events <= 2 && lpc18xx_pwm->period_ns != period_ns) ||
 	    !lpc18xx_pwm->period_ns) {
 		lpc18xx_pwm->period_ns = period_ns;
-		for (i = 0; i < chip->npwm; i++)
-			pwm_set_period(&chip->pwms[i], period_ns);
 		lpc18xx_pwm_config_period(chip, period_ns);
 	}
 
@@ -290,7 +287,7 @@ static int lpc18xx_pwm_request(struct pwm_chip *chip, struct pwm_device *pwm)
 				    LPC18XX_PWM_EVENT_MAX);
 
 	if (event >= LPC18XX_PWM_EVENT_MAX) {
-		dev_err(lpc18xx_pwm->dev,
+		dev_err(pwmchip_parent(chip),
 			"maximum number of simultaneous channels reached\n");
 		return -EBUSY;
 	}
@@ -327,7 +324,7 @@ static int lpc18xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		return 0;
 	}
 
-	err = lpc18xx_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	err = lpc18xx_pwm_config(chip, pwm, state->duty_cycle, state->period);
 	if (err)
 		return err;
 
@@ -340,7 +337,6 @@ static const struct pwm_ops lpc18xx_pwm_ops = {
 	.apply = lpc18xx_pwm_apply,
 	.request = lpc18xx_pwm_request,
 	.free = lpc18xx_pwm_free,
-	.owner = THIS_MODULE,
 };
 
 static const struct of_device_id lpc18xx_pwm_of_match[] = {
@@ -351,45 +347,35 @@ MODULE_DEVICE_TABLE(of, lpc18xx_pwm_of_match);
 
 static int lpc18xx_pwm_probe(struct platform_device *pdev)
 {
+	struct pwm_chip *chip;
 	struct lpc18xx_pwm_chip *lpc18xx_pwm;
 	int ret;
 	u64 val;
 
-	lpc18xx_pwm = devm_kzalloc(&pdev->dev, sizeof(*lpc18xx_pwm),
-				   GFP_KERNEL);
-	if (!lpc18xx_pwm)
-		return -ENOMEM;
-
-	lpc18xx_pwm->dev = &pdev->dev;
+	chip = devm_pwmchip_alloc(&pdev->dev, LPC18XX_NUM_PWMS, sizeof(*lpc18xx_pwm));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
 
 	lpc18xx_pwm->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(lpc18xx_pwm->base))
 		return PTR_ERR(lpc18xx_pwm->base);
 
-	lpc18xx_pwm->pwm_clk = devm_clk_get(&pdev->dev, "pwm");
+	lpc18xx_pwm->pwm_clk = devm_clk_get_enabled(&pdev->dev, "pwm");
 	if (IS_ERR(lpc18xx_pwm->pwm_clk))
 		return dev_err_probe(&pdev->dev, PTR_ERR(lpc18xx_pwm->pwm_clk),
 				     "failed to get pwm clock\n");
 
-	ret = clk_prepare_enable(lpc18xx_pwm->pwm_clk);
-	if (ret < 0)
-		return dev_err_probe(&pdev->dev, ret,
-				     "could not prepare or enable pwm clock\n");
-
 	lpc18xx_pwm->clk_rate = clk_get_rate(lpc18xx_pwm->pwm_clk);
-	if (!lpc18xx_pwm->clk_rate) {
-		ret = dev_err_probe(&pdev->dev,
-				    -EINVAL, "pwm clock has no frequency\n");
-		goto disable_pwmclk;
-	}
+	if (!lpc18xx_pwm->clk_rate)
+		return dev_err_probe(&pdev->dev,
+				     -EINVAL, "pwm clock has no frequency\n");
 
 	/*
 	 * If clkrate is too fast, the calculations in .apply() might overflow.
 	 */
-	if (lpc18xx_pwm->clk_rate > NSEC_PER_SEC) {
-		ret = dev_err_probe(&pdev->dev, -EINVAL, "pwm clock to fast\n");
-		goto disable_pwmclk;
-	}
+	if (lpc18xx_pwm->clk_rate > NSEC_PER_SEC)
+		return dev_err_probe(&pdev->dev, -EINVAL, "pwm clock to fast\n");
 
 	mutex_init(&lpc18xx_pwm->res_lock);
 	mutex_init(&lpc18xx_pwm->period_lock);
@@ -400,9 +386,7 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 	lpc18xx_pwm->min_period_ns = DIV_ROUND_UP(NSEC_PER_SEC,
 						  lpc18xx_pwm->clk_rate);
 
-	lpc18xx_pwm->chip.dev = &pdev->dev;
-	lpc18xx_pwm->chip.ops = &lpc18xx_pwm_ops;
-	lpc18xx_pwm->chip.npwm = LPC18XX_NUM_PWMS;
+	chip->ops = &lpc18xx_pwm_ops;
 
 	/* SCT counter must be in unify (32 bit) mode */
 	lpc18xx_pwm_writel(lpc18xx_pwm, LPC18XX_PWM_CONFIG,
@@ -434,33 +418,26 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 	val |= LPC18XX_PWM_PRE(0);
 	lpc18xx_pwm_writel(lpc18xx_pwm, LPC18XX_PWM_CTRL, val);
 
-	ret = pwmchip_add(&lpc18xx_pwm->chip);
-	if (ret < 0) {
-		dev_err_probe(&pdev->dev, ret, "pwmchip_add failed\n");
-		goto disable_pwmclk;
-	}
+	ret = pwmchip_add(chip);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret, "pwmchip_add failed\n");
 
-	platform_set_drvdata(pdev, lpc18xx_pwm);
+	platform_set_drvdata(pdev, chip);
 
 	return 0;
-
-disable_pwmclk:
-	clk_disable_unprepare(lpc18xx_pwm->pwm_clk);
-	return ret;
 }
 
 static void lpc18xx_pwm_remove(struct platform_device *pdev)
 {
-	struct lpc18xx_pwm_chip *lpc18xx_pwm = platform_get_drvdata(pdev);
+	struct pwm_chip *chip = platform_get_drvdata(pdev);
+	struct lpc18xx_pwm_chip *lpc18xx_pwm = to_lpc18xx_pwm_chip(chip);
 	u32 val;
 
-	pwmchip_remove(&lpc18xx_pwm->chip);
+	pwmchip_remove(chip);
 
 	val = lpc18xx_pwm_readl(lpc18xx_pwm, LPC18XX_PWM_CTRL);
 	lpc18xx_pwm_writel(lpc18xx_pwm, LPC18XX_PWM_CTRL,
 			   val | LPC18XX_PWM_CTRL_HALT);
-
-	clk_disable_unprepare(lpc18xx_pwm->pwm_clk);
 }
 
 static struct platform_driver lpc18xx_pwm_driver = {

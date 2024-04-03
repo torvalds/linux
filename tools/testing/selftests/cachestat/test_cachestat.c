@@ -4,10 +4,12 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <linux/kernel.h>
+#include <linux/magic.h>
 #include <linux/mman.h>
 #include <sys/mman.h>
 #include <sys/shm.h>
 #include <sys/syscall.h>
+#include <sys/vfs.h>
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
@@ -15,16 +17,17 @@
 
 #include "../kselftest.h"
 
+#define NR_TESTS	9
+
 static const char * const dev_files[] = {
 	"/dev/zero", "/dev/null", "/dev/urandom",
 	"/proc/version", "/proc"
 };
-static const int cachestat_nr = 451;
 
 void print_cachestat(struct cachestat *cs)
 {
 	ksft_print_msg(
-	"Using cachestat: Cached: %lu, Dirty: %lu, Writeback: %lu, Evicted: %lu, Recently Evicted: %lu\n",
+	"Using cachestat: Cached: %llu, Dirty: %llu, Writeback: %llu, Evicted: %llu, Recently Evicted: %llu\n",
 	cs->nr_cache, cs->nr_dirty, cs->nr_writeback,
 	cs->nr_evicted, cs->nr_recently_evicted);
 }
@@ -91,19 +94,33 @@ out:
 }
 
 /*
+ * fsync() is implemented via noop_fsync() on tmpfs. This makes the fsync()
+ * test fail below, so we need to check for test file living on a tmpfs.
+ */
+static bool is_on_tmpfs(int fd)
+{
+	struct statfs statfs_buf;
+
+	if (fstatfs(fd, &statfs_buf))
+		return false;
+
+	return statfs_buf.f_type == TMPFS_MAGIC;
+}
+
+/*
  * Open/create the file at filename, (optionally) write random data to it
  * (exactly num_pages), then test the cachestat syscall on this file.
  *
  * If test_fsync == true, fsync the file, then check the number of dirty
  * pages.
  */
-bool test_cachestat(const char *filename, bool write_random, bool create,
-		bool test_fsync, unsigned long num_pages, int open_flags,
-		mode_t open_mode)
+static int test_cachestat(const char *filename, bool write_random, bool create,
+			  bool test_fsync, unsigned long num_pages,
+			  int open_flags, mode_t open_mode)
 {
 	size_t PS = sysconf(_SC_PAGESIZE);
 	int filesize = num_pages * PS;
-	bool ret = true;
+	int ret = KSFT_PASS;
 	long syscall_ret;
 	struct cachestat cs;
 	struct cachestat_range cs_range = { 0, filesize };
@@ -112,7 +129,7 @@ bool test_cachestat(const char *filename, bool write_random, bool create,
 
 	if (fd == -1) {
 		ksft_print_msg("Unable to create/open file.\n");
-		ret = false;
+		ret = KSFT_FAIL;
 		goto out;
 	} else {
 		ksft_print_msg("Create/open %s\n", filename);
@@ -121,18 +138,18 @@ bool test_cachestat(const char *filename, bool write_random, bool create,
 	if (write_random) {
 		if (!write_exactly(fd, filesize)) {
 			ksft_print_msg("Unable to access urandom.\n");
-			ret = false;
+			ret = KSFT_FAIL;
 			goto out1;
 		}
 	}
 
-	syscall_ret = syscall(cachestat_nr, fd, &cs_range, &cs, 0);
+	syscall_ret = syscall(__NR_cachestat, fd, &cs_range, &cs, 0);
 
 	ksft_print_msg("Cachestat call returned %ld\n", syscall_ret);
 
 	if (syscall_ret) {
 		ksft_print_msg("Cachestat returned non-zero.\n");
-		ret = false;
+		ret = KSFT_FAIL;
 		goto out1;
 
 	} else {
@@ -142,17 +159,19 @@ bool test_cachestat(const char *filename, bool write_random, bool create,
 			if (cs.nr_cache + cs.nr_evicted != num_pages) {
 				ksft_print_msg(
 					"Total number of cached and evicted pages is off.\n");
-				ret = false;
+				ret = KSFT_FAIL;
 			}
 		}
 	}
 
 	if (test_fsync) {
-		if (fsync(fd)) {
+		if (is_on_tmpfs(fd)) {
+			ret = KSFT_SKIP;
+		} else if (fsync(fd)) {
 			ksft_print_msg("fsync fails.\n");
-			ret = false;
+			ret = KSFT_FAIL;
 		} else {
-			syscall_ret = syscall(cachestat_nr, fd, &cs_range, &cs, 0);
+			syscall_ret = syscall(__NR_cachestat, fd, &cs_range, &cs, 0);
 
 			ksft_print_msg("Cachestat call (after fsync) returned %ld\n",
 				syscall_ret);
@@ -161,13 +180,13 @@ bool test_cachestat(const char *filename, bool write_random, bool create,
 				print_cachestat(&cs);
 
 				if (cs.nr_dirty) {
-					ret = false;
+					ret = KSFT_FAIL;
 					ksft_print_msg(
 						"Number of dirty should be zero after fsync.\n");
 				}
 			} else {
 				ksft_print_msg("Cachestat (after fsync) returned non-zero.\n");
-				ret = false;
+				ret = KSFT_FAIL;
 				goto out1;
 			}
 		}
@@ -213,7 +232,7 @@ bool test_cachestat_shmem(void)
 		goto close_fd;
 	}
 
-	syscall_ret = syscall(cachestat_nr, fd, &cs_range, &cs, 0);
+	syscall_ret = syscall(__NR_cachestat, fd, &cs_range, &cs, 0);
 
 	if (syscall_ret) {
 		ksft_print_msg("Cachestat returned non-zero.\n");
@@ -236,13 +255,29 @@ out:
 
 int main(void)
 {
-	int ret = 0;
+	int ret;
+
+	ksft_print_header();
+
+	ret = syscall(__NR_cachestat, -1, NULL, NULL, 0);
+	if (ret == -1 && errno == ENOSYS)
+		ksft_exit_skip("cachestat syscall not available\n");
+
+	ksft_set_plan(NR_TESTS);
+
+	if (ret == -1 && errno == EBADF) {
+		ksft_test_result_pass("bad file descriptor recognized\n");
+		ret = 0;
+	} else {
+		ksft_test_result_fail("bad file descriptor ignored\n");
+		ret = 1;
+	}
 
 	for (int i = 0; i < 5; i++) {
 		const char *dev_filename = dev_files[i];
 
 		if (test_cachestat(dev_filename, false, false, false,
-			4, O_RDONLY, 0400))
+			4, O_RDONLY, 0400) == KSFT_PASS)
 			ksft_test_result_pass("cachestat works with %s\n", dev_filename);
 		else {
 			ksft_test_result_fail("cachestat fails with %s\n", dev_filename);
@@ -251,11 +286,25 @@ int main(void)
 	}
 
 	if (test_cachestat("tmpfilecachestat", true, true,
-		true, 4, O_CREAT | O_RDWR, 0400 | 0600))
+		false, 4, O_CREAT | O_RDWR, 0600) == KSFT_PASS)
 		ksft_test_result_pass("cachestat works with a normal file\n");
 	else {
 		ksft_test_result_fail("cachestat fails with normal file\n");
 		ret = 1;
+	}
+
+	switch (test_cachestat("tmpfilecachestat", true, true,
+		true, 4, O_CREAT | O_RDWR, 0600)) {
+	case KSFT_FAIL:
+		ksft_test_result_fail("cachestat fsync fails with normal file\n");
+		ret = KSFT_FAIL;
+		break;
+	case KSFT_PASS:
+		ksft_test_result_pass("cachestat fsync works with a normal file\n");
+		break;
+	case KSFT_SKIP:
+		ksft_test_result_skip("tmpfilecachestat is on tmpfs\n");
+		break;
 	}
 
 	if (test_cachestat_shmem())

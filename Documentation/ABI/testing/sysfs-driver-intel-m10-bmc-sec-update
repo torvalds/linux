@@ -1,7 +1,7 @@
 What:		/sys/bus/platform/drivers/intel-m10bmc-sec-update/.../security/sr_root_entry_hash
 Date:		Sep 2022
 KernelVersion:	5.20
-Contact:	Russ Weight <russell.h.weight@intel.com>
+Contact:	Peter Colberg <peter.colberg@intel.com>
 Description:	Read only. Returns the root entry hash for the static
 		region if one is programmed, else it returns the
 		string: "hash not programmed".  This file is only
@@ -11,7 +11,7 @@ Description:	Read only. Returns the root entry hash for the static
 What:		/sys/bus/platform/drivers/intel-m10bmc-sec-update/.../security/pr_root_entry_hash
 Date:		Sep 2022
 KernelVersion:	5.20
-Contact:	Russ Weight <russell.h.weight@intel.com>
+Contact:	Peter Colberg <peter.colberg@intel.com>
 Description:	Read only. Returns the root entry hash for the partial
 		reconfiguration region if one is programmed, else it
 		returns the string: "hash not programmed".  This file
@@ -21,7 +21,7 @@ Description:	Read only. Returns the root entry hash for the partial
 What:		/sys/bus/platform/drivers/intel-m10bmc-sec-update/.../security/bmc_root_entry_hash
 Date:		Sep 2022
 KernelVersion:	5.20
-Contact:	Russ Weight <russell.h.weight@intel.com>
+Contact:	Peter Colberg <peter.colberg@intel.com>
 Description:	Read only. Returns the root entry hash for the BMC image
 		if one is programmed, else it returns the string:
 		"hash not programmed".  This file is only visible if the
@@ -31,7 +31,7 @@ Description:	Read only. Returns the root entry hash for the BMC image
 What:		/sys/bus/platform/drivers/intel-m10bmc-sec-update/.../security/sr_canceled_csks
 Date:		Sep 2022
 KernelVersion:	5.20
-Contact:	Russ Weight <russell.h.weight@intel.com>
+Contact:	Peter Colberg <peter.colberg@intel.com>
 Description:	Read only. Returns a list of indices for canceled code
 		signing keys for the static region. The standard bitmap
 		list format is used (e.g. "1,2-6,9").
@@ -39,7 +39,7 @@ Description:	Read only. Returns a list of indices for canceled code
 What:		/sys/bus/platform/drivers/intel-m10bmc-sec-update/.../security/pr_canceled_csks
 Date:		Sep 2022
 KernelVersion:	5.20
-Contact:	Russ Weight <russell.h.weight@intel.com>
+Contact:	Peter Colberg <peter.colberg@intel.com>
 Description:	Read only. Returns a list of indices for canceled code
 		signing keys for the partial reconfiguration region. The
 		standard bitmap list format is used (e.g. "1,2-6,9").
@@ -47,7 +47,7 @@ Description:	Read only. Returns a list of indices for canceled code
 What:		/sys/bus/platform/drivers/intel-m10bmc-sec-update/.../security/bmc_canceled_csks
 Date:		Sep 2022
 KernelVersion:	5.20
-Contact:	Russ Weight <russell.h.weight@intel.com>
+Contact:	Peter Colberg <peter.colberg@intel.com>
 Description:	Read only. Returns a list of indices for canceled code
 		signing keys for the BMC.  The standard bitmap list format
 		is used (e.g. "1,2-6,9").
@@ -55,7 +55,7 @@ Description:	Read only. Returns a list of indices for canceled code
 What:		/sys/bus/platform/drivers/intel-m10bmc-sec-update/.../security/flash_count
 Date:		Sep 2022
 KernelVersion:	5.20
-Contact:	Russ Weight <russell.h.weight@intel.com>
+Contact:	Peter Colberg <peter.colberg@intel.com>
 Description:	Read only. Returns number of times the secure update
 		staging area has been flashed.
 		Format: "%u".

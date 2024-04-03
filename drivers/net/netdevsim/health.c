@@ -63,91 +63,45 @@ nsim_dev_dummy_reporter_recover(struct devlink_health_reporter *reporter,
 static int nsim_dev_dummy_fmsg_put(struct devlink_fmsg *fmsg, u32 binary_len)
 {
 	char *binary;
-	int err;
 	int i;
 
-	err = devlink_fmsg_bool_pair_put(fmsg, "test_bool", true);
-	if (err)
-		return err;
-	err = devlink_fmsg_u8_pair_put(fmsg, "test_u8", 1);
-	if (err)
-		return err;
-	err = devlink_fmsg_u32_pair_put(fmsg, "test_u32", 3);
-	if (err)
-		return err;
-	err = devlink_fmsg_u64_pair_put(fmsg, "test_u64", 4);
-	if (err)
-		return err;
-	err = devlink_fmsg_string_pair_put(fmsg, "test_string", "somestring");
-	if (err)
-		return err;
+	devlink_fmsg_bool_pair_put(fmsg, "test_bool", true);
+	devlink_fmsg_u8_pair_put(fmsg, "test_u8", 1);
+	devlink_fmsg_u32_pair_put(fmsg, "test_u32", 3);
+	devlink_fmsg_u64_pair_put(fmsg, "test_u64", 4);
+	devlink_fmsg_string_pair_put(fmsg, "test_string", "somestring");
 
 	binary = kmalloc(binary_len, GFP_KERNEL | __GFP_NOWARN);
 	if (!binary)
 		return -ENOMEM;
 	get_random_bytes(binary, binary_len);
-	err = devlink_fmsg_binary_pair_put(fmsg, "test_binary", binary, binary_len);
+	devlink_fmsg_binary_pair_put(fmsg, "test_binary", binary, binary_len);
 	kfree(binary);
-	if (err)
-		return err;
 
-	err = devlink_fmsg_pair_nest_start(fmsg, "test_nest");
-	if (err)
-		return err;
-	err = devlink_fmsg_obj_nest_start(fmsg);
-	if (err)
-		return err;
-	err = devlink_fmsg_bool_pair_put(fmsg, "nested_test_bool", false);
-	if (err)
-		return err;
-	err = devlink_fmsg_u8_pair_put(fmsg, "nested_test_u8", false);
-	if (err)
-		return err;
-	err = devlink_fmsg_obj_nest_end(fmsg);
-	if (err)
-		return err;
-	err = devlink_fmsg_pair_nest_end(fmsg);
-	if (err)
-		return err;
+	devlink_fmsg_pair_nest_start(fmsg, "test_nest");
+	devlink_fmsg_obj_nest_start(fmsg);
+	devlink_fmsg_bool_pair_put(fmsg, "nested_test_bool", false);
+	devlink_fmsg_u8_pair_put(fmsg, "nested_test_u8", false);
+	devlink_fmsg_obj_nest_end(fmsg);
+	devlink_fmsg_pair_nest_end(fmsg);
+	devlink_fmsg_arr_pair_nest_end(fmsg);
+	devlink_fmsg_arr_pair_nest_start(fmsg, "test_u32_array");
 
-	err = devlink_fmsg_arr_pair_nest_end(fmsg);
-	if (err)
-		return err;
+	for (i = 0; i < 10; i++)
+		devlink_fmsg_u32_put(fmsg, i);
+	devlink_fmsg_arr_pair_nest_end(fmsg);
+	devlink_fmsg_arr_pair_nest_start(fmsg, "test_array_of_objects");
 
-	err = devlink_fmsg_arr_pair_nest_start(fmsg, "test_u32_array");
-	if (err)
-		return err;
 	for (i = 0; i < 10; i++) {
-		err = devlink_fmsg_u32_put(fmsg, i);
-		if (err)
-			return err;
+		devlink_fmsg_obj_nest_start(fmsg);
+		devlink_fmsg_bool_pair_put(fmsg, "in_array_nested_test_bool",
+					   false);
+		devlink_fmsg_u8_pair_put(fmsg, "in_array_nested_test_u8", i);
+		devlink_fmsg_obj_nest_end(fmsg);
 	}
-	err = devlink_fmsg_arr_pair_nest_end(fmsg);
-	if (err)
-		return err;
+	devlink_fmsg_arr_pair_nest_end(fmsg);
 
-	err = devlink_fmsg_arr_pair_nest_start(fmsg, "test_array_of_objects");
-	if (err)
-		return err;
-	for (i = 0; i < 10; i++) {
-		err = devlink_fmsg_obj_nest_start(fmsg);
-		if (err)
-			return err;
-		err = devlink_fmsg_bool_pair_put(fmsg,
-						 "in_array_nested_test_bool",
-						 false);
-		if (err)
-			return err;
-		err = devlink_fmsg_u8_pair_put(fmsg,
-					       "in_array_nested_test_u8",
-					       i);
-		if (err)
-			return err;
-		err = devlink_fmsg_obj_nest_end(fmsg);
-		if (err)
-			return err;
-	}
-	return devlink_fmsg_arr_pair_nest_end(fmsg);
+	return 0;
 }
 
 static int
@@ -157,14 +111,10 @@ nsim_dev_dummy_reporter_dump(struct devlink_health_reporter *reporter,
 {
 	struct nsim_dev_health *health = devlink_health_reporter_priv(reporter);
 	struct nsim_dev_dummy_reporter_ctx *ctx = priv_ctx;
-	int err;
 
-	if (ctx) {
-		err = devlink_fmsg_string_pair_put(fmsg, "break_message",
-						   ctx->break_msg);
-		if (err)
-			return err;
-	}
+	if (ctx)
+		devlink_fmsg_string_pair_put(fmsg, "break_message", ctx->break_msg);
+
 	return nsim_dev_dummy_fmsg_put(fmsg, health->binary_len);
 }
 
@@ -174,15 +124,11 @@ nsim_dev_dummy_reporter_diagnose(struct devlink_health_reporter *reporter,
 				 struct netlink_ext_ack *extack)
 {
 	struct nsim_dev_health *health = devlink_health_reporter_priv(reporter);
-	int err;
 
-	if (health->recovered_break_msg) {
-		err = devlink_fmsg_string_pair_put(fmsg,
-						   "recovered_break_message",
-						   health->recovered_break_msg);
-		if (err)
-			return err;
-	}
+	if (health->recovered_break_msg)
+		devlink_fmsg_string_pair_put(fmsg, "recovered_break_message",
+					     health->recovered_break_msg);
+
 	return nsim_dev_dummy_fmsg_put(fmsg, health->binary_len);
 }
 

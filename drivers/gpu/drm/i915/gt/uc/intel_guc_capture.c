@@ -355,7 +355,7 @@ guc_capture_alloc_steered_lists(struct intel_guc *guc,
 static const struct __guc_mmio_reg_descr_group *
 guc_capture_get_device_reglist(struct intel_guc *guc)
 {
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
+	struct drm_i915_private *i915 = guc_to_i915(guc);
 	const struct __guc_mmio_reg_descr_group *lists;
 
 	if (GRAPHICS_VER(i915) >= 12)
@@ -1101,8 +1101,8 @@ guc_capture_create_prealloc_nodes(struct intel_guc *guc)
 static int
 guc_capture_extract_reglists(struct intel_guc *guc, struct __guc_capture_bufstate *buf)
 {
-	struct guc_state_capture_group_header_t ghdr = {0};
-	struct guc_state_capture_header_t hdr = {0};
+	struct guc_state_capture_group_header_t ghdr = {};
+	struct guc_state_capture_header_t hdr = {};
 	struct __guc_capture_parsed_output *node = NULL;
 	struct guc_mmio_reg *regs = NULL;
 	int i, numlists, numregs, ret = 0;

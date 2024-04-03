@@ -426,10 +426,6 @@ static void probe_kernel_image_config(const char *define_prefix)
 		{ "CONFIG_BPF_STREAM_PARSER", },
 		/* xt_bpf module for passing BPF programs to netfilter  */
 		{ "CONFIG_NETFILTER_XT_MATCH_BPF", },
-		/* bpfilter back-end for iptables */
-		{ "CONFIG_BPFILTER", },
-		/* bpftilter module with "user mode helper" */
-		{ "CONFIG_BPFILTER_UMH", },
 
 		/* test_bpf module for BPF tests */
 		{ "CONFIG_TEST_BPF", },
@@ -757,7 +753,7 @@ probe_helpers_for_progtype(enum bpf_prog_type prog_type,
 		case BPF_FUNC_probe_write_user:
 			if (!full_mode)
 				continue;
-			/* fallthrough */
+			fallthrough;
 		default:
 			probe_res |= probe_helper_for_progtype(prog_type, supported_type,
 						  define_prefix, id, prog_type_str,

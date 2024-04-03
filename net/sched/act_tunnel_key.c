@@ -401,7 +401,7 @@ static int tunnel_key_init(struct net *net, struct nlattr *nla,
 		return err;
 	exists = err;
 	if (exists && bind)
-		return 0;
+		return ACT_P_BOUND;
 
 	switch (parm->t_action) {
 	case TCA_TUNNEL_KEY_ACT_RELEASE:
@@ -842,6 +842,7 @@ static struct tc_action_ops act_tunnel_key_ops = {
 	.offload_act_setup =	tcf_tunnel_key_offload_act_setup,
 	.size		=	sizeof(struct tcf_tunnel_key),
 };
+MODULE_ALIAS_NET_ACT("tunnel_key");
 
 static __net_init int tunnel_key_init_net(struct net *net)
 {

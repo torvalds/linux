@@ -97,7 +97,7 @@ static int selinux_fs_info_create(struct super_block *sb)
 static void selinux_fs_info_free(struct super_block *sb)
 {
 	struct selinux_fs_info *fsi = sb->s_fs_info;
-	int i;
+	unsigned int i;
 
 	if (fsi) {
 		for (i = 0; i < fsi->bool_num; i++)
@@ -138,7 +138,8 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 {
 	char *page = NULL;
 	ssize_t length;
-	int old_value, new_value;
+	int scan_value;
+	bool old_value, new_value;
 
 	if (count >= PAGE_SIZE)
 		return -ENOMEM;
@@ -152,10 +153,10 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 		return PTR_ERR(page);
 
 	length = -EINVAL;
-	if (sscanf(page, "%d", &new_value) != 1)
+	if (sscanf(page, "%d", &scan_value) != 1)
 		goto out;
 
-	new_value = !!new_value;
+	new_value = !!scan_value;
 
 	old_value = enforcing_enabled();
 	if (new_value != old_value) {
@@ -335,11 +336,8 @@ static struct dentry *sel_make_dir(struct dentry *dir, const char *name,
 			unsigned long *ino);
 
 /* declaration for sel_make_policy_nodes */
-static struct dentry *sel_make_disconnected_dir(struct super_block *sb,
+static struct dentry *sel_make_swapover_dir(struct super_block *sb,
 						unsigned long *ino);
-
-/* declaration for sel_make_policy_nodes */
-static void sel_remove_entries(struct dentry *de);
 
 static ssize_t sel_read_mls(struct file *filp, char __user *buf,
 				size_t count, loff_t *ppos)
@@ -507,13 +505,13 @@ static int sel_make_policy_nodes(struct selinux_fs_info *fsi,
 				struct selinux_policy *newpolicy)
 {
 	int ret = 0;
-	struct dentry *tmp_parent, *tmp_bool_dir, *tmp_class_dir, *old_dentry;
-	unsigned int tmp_bool_num, old_bool_num;
-	char **tmp_bool_names, **old_bool_names;
-	int *tmp_bool_values, *old_bool_values;
+	struct dentry *tmp_parent, *tmp_bool_dir, *tmp_class_dir;
+	unsigned int bool_num = 0;
+	char **bool_names = NULL;
+	int *bool_values = NULL;
 	unsigned long tmp_ino = fsi->last_ino; /* Don't increment last_ino in this function */
 
-	tmp_parent = sel_make_disconnected_dir(fsi->sb, &tmp_ino);
+	tmp_parent = sel_make_swapover_dir(fsi->sb, &tmp_ino);
 	if (IS_ERR(tmp_parent))
 		return PTR_ERR(tmp_parent);
 
@@ -531,8 +529,8 @@ static int sel_make_policy_nodes(struct selinux_fs_info *fsi,
 		goto out;
 	}
 
-	ret = sel_make_bools(newpolicy, tmp_bool_dir, &tmp_bool_num,
-			     &tmp_bool_names, &tmp_bool_values);
+	ret = sel_make_bools(newpolicy, tmp_bool_dir, &bool_num,
+			     &bool_names, &bool_values);
 	if (ret)
 		goto out;
 
@@ -541,38 +539,30 @@ static int sel_make_policy_nodes(struct selinux_fs_info *fsi,
 	if (ret)
 		goto out;
 
+	lock_rename(tmp_parent, fsi->sb->s_root);
+
 	/* booleans */
-	old_dentry = fsi->bool_dir;
-	lock_rename(tmp_bool_dir, old_dentry);
 	d_exchange(tmp_bool_dir, fsi->bool_dir);
 
-	old_bool_num = fsi->bool_num;
-	old_bool_names = fsi->bool_pending_names;
-	old_bool_values = fsi->bool_pending_values;
-
-	fsi->bool_num = tmp_bool_num;
-	fsi->bool_pending_names = tmp_bool_names;
-	fsi->bool_pending_values = tmp_bool_values;
-
-	sel_remove_old_bool_data(old_bool_num, old_bool_names, old_bool_values);
+	swap(fsi->bool_num, bool_num);
+	swap(fsi->bool_pending_names, bool_names);
+	swap(fsi->bool_pending_values, bool_values);
 
 	fsi->bool_dir = tmp_bool_dir;
-	unlock_rename(tmp_bool_dir, old_dentry);
 
 	/* classes */
-	old_dentry = fsi->class_dir;
-	lock_rename(tmp_class_dir, old_dentry);
 	d_exchange(tmp_class_dir, fsi->class_dir);
 	fsi->class_dir = tmp_class_dir;
-	unlock_rename(tmp_class_dir, old_dentry);
+
+	unlock_rename(tmp_parent, fsi->sb->s_root);
 
 out:
+	sel_remove_old_bool_data(bool_num, bool_names, bool_values);
 	/* Since the other temporary dirs are children of tmp_parent
 	 * this will handle all the cleanup in the case of a failure before
 	 * the swapover
 	 */
-	sel_remove_entries(tmp_parent);
-	dput(tmp_parent); /* d_genocide() only handles the children */
+	simple_recursive_removal(tmp_parent, NULL);
 
 	return ret;
 }
@@ -1074,8 +1064,8 @@ static ssize_t sel_write_user(struct file *file, char *buf, size_t size)
 	u32 sid, *sids = NULL;
 	ssize_t length;
 	char *newcon;
-	int i, rc;
-	u32 len, nsids;
+	int rc;
+	u32 i, len, nsids;
 
 	length = avc_has_perm(current_sid(), SECINITSID_SECURITY,
 			      SECCLASS_SECURITY, SECURITY__COMPUTE_USER,
@@ -1191,13 +1181,13 @@ out:
 	return length;
 }
 
-static struct inode *sel_make_inode(struct super_block *sb, int mode)
+static struct inode *sel_make_inode(struct super_block *sb, umode_t mode)
 {
 	struct inode *ret = new_inode(sb);
 
 	if (ret) {
 		ret->i_mode = mode;
-		ret->i_atime = ret->i_mtime = ret->i_ctime = current_time(ret);
+		simple_inode_init_ts(ret);
 	}
 	return ret;
 }
@@ -1350,54 +1340,48 @@ static const struct file_operations sel_commit_bools_ops = {
 	.llseek		= generic_file_llseek,
 };
 
-static void sel_remove_entries(struct dentry *de)
-{
-	d_genocide(de);
-	shrink_dcache_parent(de);
-}
-
 static int sel_make_bools(struct selinux_policy *newpolicy, struct dentry *bool_dir,
 			  unsigned int *bool_num, char ***bool_pending_names,
 			  int **bool_pending_values)
 {
 	int ret;
-	ssize_t len;
-	struct dentry *dentry = NULL;
-	struct inode *inode = NULL;
-	struct inode_security_struct *isec;
-	char **names = NULL, *page;
+	char **names, *page;
 	u32 i, num;
-	int *values = NULL;
-	u32 sid;
 
-	ret = -ENOMEM;
 	page = (char *)get_zeroed_page(GFP_KERNEL);
 	if (!page)
-		goto out;
+		return -ENOMEM;
 
-	ret = security_get_bools(newpolicy, &num, &names, &values);
+	ret = security_get_bools(newpolicy, &num, &names, bool_pending_values);
 	if (ret)
 		goto out;
 
-	for (i = 0; i < num; i++) {
-		ret = -ENOMEM;
-		dentry = d_alloc_name(bool_dir, names[i]);
-		if (!dentry)
-			goto out;
+	*bool_num = num;
+	*bool_pending_names = names;
 
-		ret = -ENOMEM;
+	for (i = 0; i < num; i++) {
+		struct dentry *dentry;
+		struct inode *inode;
+		struct inode_security_struct *isec;
+		ssize_t len;
+		u32 sid;
+
+		len = snprintf(page, PAGE_SIZE, "/%s/%s", BOOL_DIR_NAME, names[i]);
+		if (len >= PAGE_SIZE) {
+			ret = -ENAMETOOLONG;
+			break;
+		}
+		dentry = d_alloc_name(bool_dir, names[i]);
+		if (!dentry) {
+			ret = -ENOMEM;
+			break;
+		}
+
 		inode = sel_make_inode(bool_dir->d_sb, S_IFREG | S_IRUGO | S_IWUSR);
 		if (!inode) {
 			dput(dentry);
-			goto out;
-		}
-
-		ret = -ENAMETOOLONG;
-		len = snprintf(page, PAGE_SIZE, "/%s/%s", BOOL_DIR_NAME, names[i]);
-		if (len >= PAGE_SIZE) {
-			dput(dentry);
-			iput(inode);
-			goto out;
+			ret = -ENOMEM;
+			break;
 		}
 
 		isec = selinux_inode(inode);
@@ -1415,23 +1399,8 @@ static int sel_make_bools(struct selinux_policy *newpolicy, struct dentry *bool_
 		inode->i_ino = i|SEL_BOOL_INO_OFFSET;
 		d_add(dentry, inode);
 	}
-	*bool_num = num;
-	*bool_pending_names = names;
-	*bool_pending_values = values;
-
-	free_page((unsigned long)page);
-	return 0;
 out:
 	free_page((unsigned long)page);
-
-	if (names) {
-		for (i = 0; i < num; i++)
-			kfree(names[i]);
-		kfree(names);
-	}
-	kfree(values);
-	sel_remove_entries(bool_dir);
-
 	return ret;
 }
 
@@ -1612,7 +1581,7 @@ static int sel_make_avc_files(struct dentry *dir)
 {
 	struct super_block *sb = dir->d_sb;
 	struct selinux_fs_info *fsi = sb->s_fs_info;
-	int i;
+	unsigned int i;
 	static const struct tree_descr files[] = {
 		{ "cache_threshold",
 		  &sel_avc_cache_threshold_ops, S_IRUGO|S_IWUSR },
@@ -1648,7 +1617,7 @@ static int sel_make_ss_files(struct dentry *dir)
 {
 	struct super_block *sb = dir->d_sb;
 	struct selinux_fs_info *fsi = sb->s_fs_info;
-	int i;
+	unsigned int i;
 	static const struct tree_descr files[] = {
 		{ "sidtab_hash_stats", &sel_sidtab_hash_stats_ops, S_IRUGO },
 	};
@@ -1699,7 +1668,7 @@ static const struct file_operations sel_initcon_ops = {
 
 static int sel_make_initcon_files(struct dentry *dir)
 {
-	int i;
+	unsigned int i;
 
 	for (i = 1; i <= SECINITSID_NUM; i++) {
 		struct inode *inode;
@@ -1797,7 +1766,8 @@ static int sel_make_perm_files(struct selinux_policy *newpolicy,
 			char *objclass, int classvalue,
 			struct dentry *dir)
 {
-	int i, rc, nperms;
+	u32 i, nperms;
+	int rc;
 	char **perms;
 
 	rc = security_get_permissions(newpolicy, objclass, &perms, &nperms);
@@ -1867,8 +1837,8 @@ static int sel_make_classes(struct selinux_policy *newpolicy,
 			    struct dentry *class_dir,
 			    unsigned long *last_class_ino)
 {
-
-	int rc, nclasses, i;
+	u32 i, nclasses;
+	int rc;
 	char **classes;
 
 	rc = security_get_classes(newpolicy, &classes, &nclasses);
@@ -1959,20 +1929,40 @@ static struct dentry *sel_make_dir(struct dentry *dir, const char *name,
 	return dentry;
 }
 
-static struct dentry *sel_make_disconnected_dir(struct super_block *sb,
+static int reject_all(struct mnt_idmap *idmap, struct inode *inode, int mask)
+{
+	return -EPERM;	// no access for anyone, root or no root.
+}
+
+static const struct inode_operations swapover_dir_inode_operations = {
+	.lookup		= simple_lookup,
+	.permission	= reject_all,
+};
+
+static struct dentry *sel_make_swapover_dir(struct super_block *sb,
 						unsigned long *ino)
 {
-	struct inode *inode = sel_make_inode(sb, S_IFDIR | S_IRUGO | S_IXUGO);
+	struct dentry *dentry = d_alloc_name(sb->s_root, ".swapover");
+	struct inode *inode;
 
-	if (!inode)
+	if (!dentry)
 		return ERR_PTR(-ENOMEM);
 
-	inode->i_op = &simple_dir_inode_operations;
-	inode->i_fop = &simple_dir_operations;
+	inode = sel_make_inode(sb, S_IFDIR);
+	if (!inode) {
+		dput(dentry);
+		return ERR_PTR(-ENOMEM);
+	}
+
+	inode->i_op = &swapover_dir_inode_operations;
 	inode->i_ino = ++(*ino);
 	/* directory inodes start off with i_nlink == 2 (for "." entry) */
 	inc_nlink(inode);
-	return d_obtain_alias(inode);
+	inode_lock(sb->s_root->d_inode);
+	d_add(dentry, inode);
+	inc_nlink(sb->s_root->d_inode);
+	inode_unlock(sb->s_root->d_inode);
+	return dentry;
 }
 
 #define NULL_FILE_NAME "null"
@@ -2133,7 +2123,6 @@ static struct file_system_type sel_fs_type = {
 	.kill_sb	= sel_kill_sb,
 };
 
-static struct vfsmount *selinuxfs_mount __ro_after_init;
 struct path selinux_null __ro_after_init;
 
 static int __init init_sel_fs(void)
@@ -2155,18 +2144,21 @@ static int __init init_sel_fs(void)
 		return err;
 	}
 
-	selinux_null.mnt = selinuxfs_mount = kern_mount(&sel_fs_type);
-	if (IS_ERR(selinuxfs_mount)) {
+	selinux_null.mnt = kern_mount(&sel_fs_type);
+	if (IS_ERR(selinux_null.mnt)) {
 		pr_err("selinuxfs:  could not mount!\n");
-		err = PTR_ERR(selinuxfs_mount);
-		selinuxfs_mount = NULL;
+		err = PTR_ERR(selinux_null.mnt);
+		selinux_null.mnt = NULL;
+		return err;
 	}
+
 	selinux_null.dentry = d_hash_and_lookup(selinux_null.mnt->mnt_root,
 						&null_name);
 	if (IS_ERR(selinux_null.dentry)) {
 		pr_err("selinuxfs:  could not lookup null!\n");
 		err = PTR_ERR(selinux_null.dentry);
 		selinux_null.dentry = NULL;
+		return err;
 	}
 
 	return err;

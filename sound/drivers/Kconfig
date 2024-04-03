@@ -111,6 +111,7 @@ config SND_ALOOP
 
 config SND_PCMTEST
 	tristate "Virtual PCM test driver"
+	depends on DEBUG_FS
 	select SND_PCM
 	help
 	  Say 'Y' or 'M' to include support for the Virtual PCM test driver.

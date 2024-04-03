@@ -192,17 +192,17 @@ int intel_connector_update_modes(struct drm_connector *connector,
 /**
  * intel_ddc_get_modes - get modelist from monitor
  * @connector: DRM connector device to use
- * @adapter: i2c adapter
+ * @ddc: DDC bus i2c adapter
  *
  * Fetch the EDID information from @connector using the DDC bus.
  */
 int intel_ddc_get_modes(struct drm_connector *connector,
-			struct i2c_adapter *adapter)
+			struct i2c_adapter *ddc)
 {
 	const struct drm_edid *drm_edid;
 	int ret;
 
-	drm_edid = drm_edid_read_ddc(connector, adapter);
+	drm_edid = drm_edid_read_ddc(connector, ddc);
 	if (!drm_edid)
 		return 0;
 

@@ -555,7 +555,6 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct zynq_fpga_priv *priv;
 	struct fpga_manager *mgr;
-	struct resource *res;
 	int err;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
@@ -563,8 +562,7 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	spin_lock_init(&priv->dma_lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->io_base = devm_ioremap_resource(dev, res);
+	priv->io_base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->io_base))
 		return PTR_ERR(priv->io_base);
 
@@ -620,7 +618,7 @@ static int zynq_fpga_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int zynq_fpga_remove(struct platform_device *pdev)
+static void zynq_fpga_remove(struct platform_device *pdev)
 {
 	struct zynq_fpga_priv *priv;
 	struct fpga_manager *mgr;
@@ -631,8 +629,6 @@ static int zynq_fpga_remove(struct platform_device *pdev)
 	fpga_mgr_unregister(mgr);
 
 	clk_unprepare(priv->clk);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -646,7 +642,7 @@ MODULE_DEVICE_TABLE(of, zynq_fpga_of_match);
 
 static struct platform_driver zynq_fpga_driver = {
 	.probe = zynq_fpga_probe,
-	.remove = zynq_fpga_remove,
+	.remove_new = zynq_fpga_remove,
 	.driver = {
 		.name = "zynq_fpga_manager",
 		.of_match_table = of_match_ptr(zynq_fpga_of_match),

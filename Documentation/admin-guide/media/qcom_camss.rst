@@ -18,7 +18,7 @@ The driver implements V4L2, Media controller and V4L2 subdev interfaces.
 Camera sensor using V4L2 subdev interface in the kernel is supported.
 
 The driver is implemented using as a reference the Qualcomm Camera Subsystem
-driver for Android as found in Code Aurora [#f1]_ [#f2]_.
+driver for Android as found in Code Linaro [#f1]_ [#f2]_.
 
 
 Qualcomm Camera Subsystem hardware
@@ -181,5 +181,5 @@ Referenced 2018-06-22.
 References
 ----------
 
-.. [#f1] https://source.codeaurora.org/quic/la/kernel/msm-3.10/
-.. [#f2] https://source.codeaurora.org/quic/la/kernel/msm-3.18/
+.. [#f1] https://git.codelinaro.org/clo/la/kernel/msm-3.10/
+.. [#f2] https://git.codelinaro.org/clo/la/kernel/msm-3.18/

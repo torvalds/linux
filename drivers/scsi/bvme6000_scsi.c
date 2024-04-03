@@ -89,7 +89,7 @@ bvme6000_probe(struct platform_device *dev)
 	return -ENODEV;
 }
 
-static int
+static void
 bvme6000_device_remove(struct platform_device *dev)
 {
 	struct Scsi_Host *host = platform_get_drvdata(dev);
@@ -99,8 +99,6 @@ bvme6000_device_remove(struct platform_device *dev)
 	NCR_700_release(host);
 	kfree(hostdata);
 	free_irq(host->irq, host);
-
-	return 0;
 }
 
 static struct platform_driver bvme6000_scsi_driver = {
@@ -108,7 +106,7 @@ static struct platform_driver bvme6000_scsi_driver = {
 		.name		= "bvme6000-scsi",
 	},
 	.probe		= bvme6000_probe,
-	.remove		= bvme6000_device_remove,
+	.remove_new	= bvme6000_device_remove,
 };
 
 static int __init bvme6000_scsi_init(void)

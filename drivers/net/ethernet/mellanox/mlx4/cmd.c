@@ -2113,7 +2113,7 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 		if (MLX4_COMM_CMD_FLR == slave_state[slave].last_cmd)
 			goto inform_slave_state;
 
-		mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_SHUTDOWN, slave);
+		mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_SHUTDOWN, &slave);
 
 		/* write the version in the event field */
 		reply |= mlx4_comm_get_version();
@@ -2152,7 +2152,7 @@ static void mlx4_master_do_cmd(struct mlx4_dev *dev, int slave, u8 cmd,
 		if (mlx4_master_activate_admin_state(priv, slave))
 				goto reset_slave;
 		slave_state[slave].active = true;
-		mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_INIT, slave);
+		mlx4_dispatch_event(dev, MLX4_DEV_EVENT_SLAVE_INIT, &slave);
 		break;
 	case MLX4_COMM_CMD_VHCR_POST:
 		if ((slave_state[slave].last_cmd != MLX4_COMM_CMD_VHCR_EN) &&
@@ -2199,8 +2199,9 @@ reset_slave:
 	if (cmd != MLX4_COMM_CMD_RESET) {
 		mlx4_warn(dev, "Turn on internal error to force reset, slave=%d, cmd=0x%x\n",
 			  slave, cmd);
-		/* Turn on internal error letting slave reset itself immeditaly,
-		 * otherwise it might take till timeout on command is passed
+		/* Turn on internal error letting slave reset itself
+		 * immediately, otherwise it might take till timeout on
+		 * command is passed
 		 */
 		reply |= ((u32)COMM_CHAN_EVENT_INTERNAL_ERR);
 	}
@@ -2954,7 +2955,7 @@ static bool mlx4_valid_vf_state_change(struct mlx4_dev *dev, int port,
 	dummy_admin.default_vlan = vlan;
 
 	/* VF wants to move to other VST state which is valid with current
-	 * rate limit. Either differnt default vlan in VST or other
+	 * rate limit. Either different default vlan in VST or other
 	 * supported QoS priority. Otherwise we don't allow this change when
 	 * the TX rate is still configured.
 	 */

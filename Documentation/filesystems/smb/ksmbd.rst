@@ -73,15 +73,14 @@ Auto Negotiation               Supported.
 Compound Request               Supported.
 Oplock Cache Mechanism         Supported.
 SMB2 leases(v1 lease)          Supported.
-Directory leases(v2 lease)     Planned for future.
+Directory leases(v2 lease)     Supported.
 Multi-credits                  Supported.
 NTLM/NTLMv2                    Supported.
 HMAC-SHA256 Signing            Supported.
 Secure negotiate               Supported.
 Signing Update                 Supported.
 Pre-authentication integrity   Supported.
-SMB3 encryption(CCM, GCM)      Supported. (CCM and GCM128 supported, GCM256 in
-                               progress)
+SMB3 encryption(CCM, GCM)      Supported. (CCM/GCM128 and CCM/GCM256 supported)
 SMB direct(RDMA)               Supported.
 SMB3 Multi-channel             Partially Supported. Planned to implement
                                replay/retry mechanisms for future.
@@ -112,6 +111,10 @@ DCE/RPC support                Partially Supported. a few calls(NetShareEnumAll,
                                for Witness protocol e.g.)
 ksmbd/nfsd interoperability    Planned for future. The features that ksmbd
                                support are Leases, Notify, ACLs and Share modes.
+SMB3.1.1 Compression           Planned for future.
+SMB3.1.1 over QUIC             Planned for future.
+Signing/Encryption over RDMA   Planned for future.
+SMB3.1.1 GMAC signing support  Planned for future.
 ============================== =================================================
 
 

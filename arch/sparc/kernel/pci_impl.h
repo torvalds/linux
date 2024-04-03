@@ -11,7 +11,6 @@
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/msi.h>
-#include <linux/of_device.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/iommu.h>
@@ -20,9 +19,9 @@
  * each with one (Sabre) or two (PSYCHO/SCHIZO) PCI bus modules
  * underneath.  Each PCI bus module uses an IOMMU (shared by both
  * PBMs of a controller, or per-PBM), and if a streaming buffer
- * is present, each PCI bus module has it's own. (ie. the IOMMU
+ * is present, each PCI bus module has its own. (ie. the IOMMU
  * might be shared between PBMs, the STC is never shared)
- * Furthermore, each PCI bus module controls it's own autonomous
+ * Furthermore, each PCI bus module controls its own autonomous
  * PCI bus.
  */
 

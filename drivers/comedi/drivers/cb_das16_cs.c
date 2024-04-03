@@ -363,10 +363,10 @@ static int das16cs_auto_attach(struct comedi_device *dev,
 	if (!devpriv)
 		return -ENOMEM;
 
-	dev->pacer = comedi_8254_init(dev->iobase + DAS16CS_TIMER_BASE,
-				      I8254_OSC_BASE_10MHZ, I8254_IO16, 0);
-	if (!dev->pacer)
-		return -ENOMEM;
+	dev->pacer = comedi_8254_io_alloc(dev->iobase + DAS16CS_TIMER_BASE,
+					  I8254_OSC_BASE_10MHZ, I8254_IO16, 0);
+	if (IS_ERR(dev->pacer))
+		return PTR_ERR(dev->pacer);
 
 	ret = comedi_alloc_subdevices(dev, 4);
 	if (ret)

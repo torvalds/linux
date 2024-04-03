@@ -13,7 +13,8 @@ set of mailbox registers.
 
 More details on the interface can be found in chapter
 "7 Host System Management Port (HSMP)" of the family/model PPR
-Eg: https://www.amd.com/system/files/TechDocs/55898_B1_pub_0.50.zip
+Eg: https://www.amd.com/content/dam/amd/en/documents/epyc-technical-docs/programmer-references/55898_B1_pub_0_50.zip
+
 
 HSMP interface is supported on EPYC server CPU models only.
 
@@ -39,6 +40,24 @@ In-kernel integration:
  * Other subsystems in the kernel can use the exported transport
    function hsmp_send_message().
  * Locking across callers is taken care by the driver.
+
+
+HSMP sysfs interface
+====================
+
+1. Metrics table binary sysfs
+
+AMD MI300A MCM provides GET_METRICS_TABLE message to retrieve
+most of the system management information from SMU in one go.
+
+The metrics table is made available as hexadecimal sysfs binary file
+under per socket sysfs directory created at
+/sys/devices/platform/amd_hsmp/socket%d/metrics_bin
+
+Note: lseek() is not supported as entire metrics table is read.
+
+Metrics table definitions will be documented as part of Public PPR.
+The same is defined in the amd_hsmp.h header.
 
 
 An example
@@ -79,8 +98,8 @@ what happened. The transaction returns 0 on success.
 
 More details on the interface and message definitions can be found in chapter
 "7 Host System Management Port (HSMP)" of the respective family/model PPR
-eg: https://www.amd.com/system/files/TechDocs/55898_B1_pub_0.50.zip
+eg: https://www.amd.com/content/dam/amd/en/documents/epyc-technical-docs/programmer-references/55898_B1_pub_0_50.zip
 
 User space C-APIs are made available by linking against the esmi library,
-which is provided by the E-SMS project https://developer.amd.com/e-sms/.
+which is provided by the E-SMS project https://www.amd.com/en/developer/e-sms.html.
 See: https://github.com/amd/esmi_ib_library

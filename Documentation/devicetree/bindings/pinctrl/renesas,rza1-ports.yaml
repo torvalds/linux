@@ -108,7 +108,6 @@ additionalProperties:
             Integers values in "pinmux" argument list are assembled as:
             ((PORT * 16 + PIN) | MUX_FUNC << 16)
 
-        phandle: true
         input-enable: true
         output-enable: true
 
@@ -118,9 +117,6 @@ additionalProperties:
       additionalProperties: false
 
     - type: object
-      properties:
-        phandle: true
-
       additionalProperties:
         $ref: "#/additionalProperties/anyOf/0"
 

@@ -84,6 +84,10 @@
 #define NVSW_SN2201_MAIN_MUX_CH5_NR	(NVSW_SN2201_MAIN_MUX_CH0_NR + 5)
 #define NVSW_SN2201_MAIN_MUX_CH6_NR	(NVSW_SN2201_MAIN_MUX_CH0_NR + 6)
 #define NVSW_SN2201_MAIN_MUX_CH7_NR	(NVSW_SN2201_MAIN_MUX_CH0_NR + 7)
+#define NVSW_SN2201_2ND_MUX_CH0_NR	(NVSW_SN2201_MAIN_MUX_CH7_NR + 1)
+#define NVSW_SN2201_2ND_MUX_CH1_NR	(NVSW_SN2201_MAIN_MUX_CH7_NR + 2)
+#define NVSW_SN2201_2ND_MUX_CH2_NR	(NVSW_SN2201_MAIN_MUX_CH7_NR + 3)
+#define NVSW_SN2201_2ND_MUX_CH3_NR	(NVSW_SN2201_MAIN_MUX_CH7_NR + 4)
 
 #define NVSW_SN2201_CPLD_NR		NVSW_SN2201_MAIN_MUX_CH0_NR
 #define NVSW_SN2201_NR_NONE		-1
@@ -425,28 +429,28 @@ static struct mlxreg_core_data nvsw_sn2201_fan_items_data[] = {
 		.reg = NVSW_SN2201_FAN_PRSNT_STATUS_OFFSET,
 		.mask = BIT(0),
 		.hpdev.brdinfo = &nvsw_sn2201_fan_devices[0],
-		.hpdev.nr = NVSW_SN2201_NR_NONE,
+		.hpdev.nr = NVSW_SN2201_2ND_MUX_CH0_NR,
 	},
 	{
 		.label = "fan2",
 		.reg = NVSW_SN2201_FAN_PRSNT_STATUS_OFFSET,
 		.mask = BIT(1),
 		.hpdev.brdinfo = &nvsw_sn2201_fan_devices[1],
-		.hpdev.nr = NVSW_SN2201_NR_NONE,
+		.hpdev.nr = NVSW_SN2201_2ND_MUX_CH1_NR,
 	},
 	{
 		.label = "fan3",
 		.reg = NVSW_SN2201_FAN_PRSNT_STATUS_OFFSET,
 		.mask = BIT(2),
 		.hpdev.brdinfo = &nvsw_sn2201_fan_devices[2],
-		.hpdev.nr = NVSW_SN2201_NR_NONE,
+		.hpdev.nr = NVSW_SN2201_2ND_MUX_CH2_NR,
 	},
 	{
 		.label = "fan4",
 		.reg = NVSW_SN2201_FAN_PRSNT_STATUS_OFFSET,
 		.mask = BIT(3),
 		.hpdev.brdinfo = &nvsw_sn2201_fan_devices[3],
-		.hpdev.nr = NVSW_SN2201_NR_NONE,
+		.hpdev.nr = NVSW_SN2201_2ND_MUX_CH3_NR,
 	},
 };
 
@@ -1213,7 +1217,7 @@ static int nvsw_sn2201_probe(struct platform_device *pdev)
 	return nvsw_sn2201_config_pre_init(nvsw_sn2201);
 }
 
-static int nvsw_sn2201_remove(struct platform_device *pdev)
+static void nvsw_sn2201_remove(struct platform_device *pdev)
 {
 	struct nvsw_sn2201 *nvsw_sn2201 = platform_get_drvdata(pdev);
 
@@ -1235,8 +1239,6 @@ static int nvsw_sn2201_remove(struct platform_device *pdev)
 	/* Unregister I2C controller. */
 	if (nvsw_sn2201->pdev_i2c)
 		platform_device_unregister(nvsw_sn2201->pdev_i2c);
-
-	return 0;
 }
 
 static const struct acpi_device_id nvsw_sn2201_acpi_ids[] = {
@@ -1248,7 +1250,7 @@ MODULE_DEVICE_TABLE(acpi, nvsw_sn2201_acpi_ids);
 
 static struct platform_driver nvsw_sn2201_driver = {
 	.probe = nvsw_sn2201_probe,
-	.remove = nvsw_sn2201_remove,
+	.remove_new = nvsw_sn2201_remove,
 	.driver = {
 		.name = "nvsw-sn2201",
 	.acpi_match_table = nvsw_sn2201_acpi_ids,

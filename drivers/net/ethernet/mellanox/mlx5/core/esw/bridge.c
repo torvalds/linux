@@ -652,30 +652,30 @@ mlx5_esw_bridge_ingress_flow_peer_create(u16 vport_num, u16 esw_owner_vhca_id,
 					 struct mlx5_esw_bridge_vlan *vlan, u32 counter_id,
 					 struct mlx5_esw_bridge *bridge)
 {
-	struct mlx5_devcom *devcom = bridge->br_offloads->esw->dev->priv.devcom;
+	struct mlx5_devcom_comp_dev *devcom = bridge->br_offloads->esw->devcom, *pos;
 	struct mlx5_eswitch *tmp, *peer_esw = NULL;
 	static struct mlx5_flow_handle *handle;
-	int i;
 
-	if (!mlx5_devcom_for_each_peer_begin(devcom, MLX5_DEVCOM_ESW_OFFLOADS))
+	if (!mlx5_devcom_for_each_peer_begin(devcom))
 		return ERR_PTR(-ENODEV);
 
-	mlx5_devcom_for_each_peer_entry(devcom,
-					MLX5_DEVCOM_ESW_OFFLOADS,
-					tmp, i) {
+	mlx5_devcom_for_each_peer_entry(devcom, tmp, pos) {
 		if (mlx5_esw_is_owner(tmp, vport_num, esw_owner_vhca_id)) {
 			peer_esw = tmp;
 			break;
 		}
 	}
+
 	if (!peer_esw) {
-		mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
-		return ERR_PTR(-ENODEV);
+		handle = ERR_PTR(-ENODEV);
+		goto out;
 	}
 
 	handle = mlx5_esw_bridge_ingress_flow_with_esw_create(vport_num, addr, vlan, counter_id,
 							      bridge, peer_esw);
-	mlx5_devcom_for_each_peer_end(devcom, MLX5_DEVCOM_ESW_OFFLOADS);
+
+out:
+	mlx5_devcom_for_each_peer_end(devcom);
 	return handle;
 }
 
@@ -1391,8 +1391,8 @@ mlx5_esw_bridge_fdb_entry_init(struct net_device *dev, u16 vport_num, u16 esw_ow
 						    mlx5_fc_id(counter), bridge);
 	if (IS_ERR(handle)) {
 		err = PTR_ERR(handle);
-		esw_warn(esw->dev, "Failed to create ingress flow(vport=%u,err=%d)\n",
-			 vport_num, err);
+		esw_warn(esw->dev, "Failed to create ingress flow(vport=%u,err=%d,peer=%d)\n",
+			 vport_num, err, peer);
 		goto err_ingress_flow_create;
 	}
 	entry->ingress_handle = handle;
@@ -1748,6 +1748,28 @@ void mlx5_esw_bridge_fdb_update_used(struct net_device *dev, u16 vport_num, u16 
 	entry->lastuse = jiffies;
 }
 
+void mlx5_esw_bridge_fdb_mark_deleted(struct net_device *dev, u16 vport_num, u16 esw_owner_vhca_id,
+				      struct mlx5_esw_bridge_offloads *br_offloads,
+				      struct switchdev_notifier_fdb_info *fdb_info)
+{
+	struct mlx5_esw_bridge_fdb_entry *entry;
+	struct mlx5_esw_bridge *bridge;
+
+	bridge = mlx5_esw_bridge_from_port_lookup(vport_num, esw_owner_vhca_id, br_offloads);
+	if (!bridge)
+		return;
+
+	entry = mlx5_esw_bridge_fdb_lookup(bridge, fdb_info->addr, fdb_info->vid);
+	if (!entry) {
+		esw_debug(br_offloads->esw->dev,
+			  "FDB mark deleted entry with specified key not found (MAC=%pM,vid=%u,vport=%u)\n",
+			  fdb_info->addr, fdb_info->vid, vport_num);
+		return;
+	}
+
+	entry->flags |= MLX5_ESW_BRIDGE_FLAG_DELETED;
+}
+
 void mlx5_esw_bridge_fdb_create(struct net_device *dev, u16 vport_num, u16 esw_owner_vhca_id,
 				struct mlx5_esw_bridge_offloads *br_offloads,
 				struct switchdev_notifier_fdb_info *fdb_info)
@@ -1810,7 +1832,8 @@ void mlx5_esw_bridge_update(struct mlx5_esw_bridge_offloads *br_offloads)
 			unsigned long lastuse =
 				(unsigned long)mlx5_fc_query_lastuse(entry->ingress_counter);
 
-			if (entry->flags & MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER)
+			if (entry->flags & (MLX5_ESW_BRIDGE_FLAG_ADDED_BY_USER |
+					    MLX5_ESW_BRIDGE_FLAG_DELETED))
 				continue;
 
 			if (time_after(lastuse, entry->lastuse))

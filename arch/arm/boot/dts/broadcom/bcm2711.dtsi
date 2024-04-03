@@ -76,7 +76,7 @@
 			};
 		};
 
-		dma: dma@7e007000 {
+		dma: dma-controller@7e007000 {
 			compatible = "brcm,bcm2835-dma";
 			reg = <0x7e007000 0xb00>;
 			interrupts = <GIC_SPI 80 IRQ_TYPE_LEVEL_HIGH>,
@@ -278,7 +278,7 @@
 			clocks = <&clocks BCM2835_CLOCK_PWM>;
 			assigned-clocks = <&clocks BCM2835_CLOCK_PWM>;
 			assigned-clock-rates = <10000000>;
-			#pwm-cells = <2>;
+			#pwm-cells = <3>;
 			status = "disabled";
 		};
 
@@ -602,6 +602,20 @@
 				#address-cells = <0x1>;
 				#size-cells = <0x0>;
 			};
+		};
+
+		xhci: usb@7e9c0000 {
+			compatible = "brcm,bcm2711-xhci", "brcm,xhci-brcm-v2";
+			reg = <0x0 0x7e9c0000 0x100000>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			interrupts = <GIC_SPI 176 IRQ_TYPE_LEVEL_HIGH>;
+			/* DWC2 and this IP block share the same USB PHY,
+			 * enabling both at the same time results in lockups.
+			 * So keep this node disabled and let the bootloader
+			 * decide which interface should be enabled.
+			 */
+			status = "disabled";
 		};
 
 		v3d: gpu@7ec00000 {

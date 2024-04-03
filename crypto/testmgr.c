@@ -408,17 +408,15 @@ static const struct testvec_config default_hash_testvec_configs[] = {
 		.finalization_type = FINALIZATION_TYPE_FINAL,
 		.key_offset = 1,
 	}, {
-		.name = "digest buffer aligned only to alignmask",
+		.name = "digest misaligned buffer",
 		.src_divs = {
 			{
 				.proportion_of_total = 10000,
 				.offset = 1,
-				.offset_relative_to_alignmask = true,
 			},
 		},
 		.finalization_type = FINALIZATION_TYPE_DIGEST,
 		.key_offset = 1,
-		.key_offset_relative_to_alignmask = true,
 	}, {
 		.name = "init+update+update+final two even splits",
 		.src_divs = {
@@ -1275,7 +1273,6 @@ static int test_shash_vec_cfg(const struct hash_testvec *vec,
 			      u8 *hashstate)
 {
 	struct crypto_shash *tfm = desc->tfm;
-	const unsigned int alignmask = crypto_shash_alignmask(tfm);
 	const unsigned int digestsize = crypto_shash_digestsize(tfm);
 	const unsigned int statesize = crypto_shash_statesize(tfm);
 	const char *driver = crypto_shash_driver_name(tfm);
@@ -1287,7 +1284,7 @@ static int test_shash_vec_cfg(const struct hash_testvec *vec,
 	/* Set the key, if specified */
 	if (vec->ksize) {
 		err = do_setkey(crypto_shash_setkey, tfm, vec->key, vec->ksize,
-				cfg, alignmask);
+				cfg, 0);
 		if (err) {
 			if (err == vec->setkey_error)
 				return 0;
@@ -1304,7 +1301,7 @@ static int test_shash_vec_cfg(const struct hash_testvec *vec,
 	}
 
 	/* Build the scatterlist for the source data */
-	err = build_hash_sglist(tsgl, vec, cfg, alignmask, divs);
+	err = build_hash_sglist(tsgl, vec, cfg, 0, divs);
 	if (err) {
 		pr_err("alg: shash: %s: error preparing scatterlist for test vector %s, cfg=\"%s\"\n",
 		       driver, vec_name, cfg->name);
@@ -1459,7 +1456,6 @@ static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 			      u8 *hashstate)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	const unsigned int alignmask = crypto_ahash_alignmask(tfm);
 	const unsigned int digestsize = crypto_ahash_digestsize(tfm);
 	const unsigned int statesize = crypto_ahash_statesize(tfm);
 	const char *driver = crypto_ahash_driver_name(tfm);
@@ -1475,7 +1471,7 @@ static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 	/* Set the key, if specified */
 	if (vec->ksize) {
 		err = do_setkey(crypto_ahash_setkey, tfm, vec->key, vec->ksize,
-				cfg, alignmask);
+				cfg, 0);
 		if (err) {
 			if (err == vec->setkey_error)
 				return 0;
@@ -1492,7 +1488,7 @@ static int test_ahash_vec_cfg(const struct hash_testvec *vec,
 	}
 
 	/* Build the scatterlist for the source data */
-	err = build_hash_sglist(tsgl, vec, cfg, alignmask, divs);
+	err = build_hash_sglist(tsgl, vec, cfg, 0, divs);
 	if (err) {
 		pr_err("alg: ahash: %s: error preparing scatterlist for test vector %s, cfg=\"%s\"\n",
 		       driver, vec_name, cfg->name);
@@ -4613,25 +4609,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
-		.alg = "cfb(aes)",
-		.test = alg_test_skcipher,
-		.fips_allowed = 1,
-		.suite = {
-			.cipher = __VECS(aes_cfb_tv_template)
-		},
-	}, {
-		.alg = "cfb(aria)",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = __VECS(aria_cfb_tv_template)
-		},
-	}, {
-		.alg = "cfb(sm4)",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = __VECS(sm4_cfb_tv_template)
-		}
-	}, {
 		.alg = "chacha20",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -4820,6 +4797,16 @@ static const struct alg_test_desc alg_test_descs[] = {
 			}
 		}
 	}, {
+		.alg = "deflate-iaa",
+		.test = alg_test_comp,
+		.fips_allowed = 1,
+		.suite = {
+			.comp = {
+				.comp = __VECS(deflate_comp_tv_template),
+				.decomp = __VECS(deflate_decomp_tv_template)
+			}
+		}
+	}, {
 		.alg = "dh",
 		.test = alg_test_kpp,
 		.suite = {
@@ -4850,14 +4837,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.drbg = __VECS(drbg_nopr_ctr_aes256_tv_template)
 		}
 	}, {
-		/*
-		 * There is no need to specifically test the DRBG with every
-		 * backend cipher -- covered by drbg_nopr_hmac_sha256 test
-		 */
-		.alg = "drbg_nopr_hmac_sha1",
-		.fips_allowed = 1,
-		.test = alg_test_null,
-	}, {
 		.alg = "drbg_nopr_hmac_sha256",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
@@ -4865,7 +4844,10 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.drbg = __VECS(drbg_nopr_hmac_sha256_tv_template)
 		}
 	}, {
-		/* covered by drbg_nopr_hmac_sha256 test */
+		/*
+		 * There is no need to specifically test the DRBG with every
+		 * backend cipher -- covered by drbg_nopr_hmac_sha512 test
+		 */
 		.alg = "drbg_nopr_hmac_sha384",
 		.test = alg_test_null,
 	}, {
@@ -4875,10 +4857,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.suite = {
 			.drbg = __VECS(drbg_nopr_hmac_sha512_tv_template)
 		}
-	}, {
-		.alg = "drbg_nopr_sha1",
-		.fips_allowed = 1,
-		.test = alg_test_null,
 	}, {
 		.alg = "drbg_nopr_sha256",
 		.test = alg_test_drbg,
@@ -4911,10 +4889,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.fips_allowed = 1,
 		.test = alg_test_null,
 	}, {
-		.alg = "drbg_pr_hmac_sha1",
-		.fips_allowed = 1,
-		.test = alg_test_null,
-	}, {
 		.alg = "drbg_pr_hmac_sha256",
 		.test = alg_test_drbg,
 		.fips_allowed = 1,
@@ -4929,10 +4903,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.alg = "drbg_pr_hmac_sha512",
 		.test = alg_test_null,
 		.fips_allowed = 1,
-	}, {
-		.alg = "drbg_pr_sha1",
-		.fips_allowed = 1,
-		.test = alg_test_null,
 	}, {
 		.alg = "drbg_pr_sha256",
 		.test = alg_test_drbg,
@@ -4963,7 +4933,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(arc4)",
-		.generic_driver = "ecb(arc4)-generic",
+		.generic_driver = "arc4-generic",
 		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = __VECS(arc4_tv_template)
@@ -5424,26 +5394,6 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.hash = __VECS(nhpoly1305_tv_template)
 		}
 	}, {
-		.alg = "ofb(aes)",
-		.test = alg_test_skcipher,
-		.fips_allowed = 1,
-		.suite = {
-			.cipher = __VECS(aes_ofb_tv_template)
-		}
-	}, {
-		/* Same as ofb(aes) except the key is stored in
-		 * hardware secure memory which we reference by index
-		 */
-		.alg = "ofb(paes)",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
-		.alg = "ofb(sm4)",
-		.test = alg_test_skcipher,
-		.suite = {
-			.cipher = __VECS(sm4_ofb_tv_template)
-		}
-	}, {
 		.alg = "pcbc(fcrypt)",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -5460,6 +5410,18 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.suite = {
 			.akcipher = __VECS(pkcs1pad_rsa_tv_template)
 		}
+	}, {
+		.alg = "pkcs1pad(rsa,sha3-256)",
+		.test = alg_test_null,
+		.fips_allowed = 1,
+	}, {
+		.alg = "pkcs1pad(rsa,sha3-384)",
+		.test = alg_test_null,
+		.fips_allowed = 1,
+	}, {
+		.alg = "pkcs1pad(rsa,sha3-512)",
+		.test = alg_test_null,
+		.fips_allowed = 1,
 	}, {
 		.alg = "pkcs1pad(rsa,sha384)",
 		.test = alg_test_null,
@@ -5758,29 +5720,11 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 #endif
-		.alg = "xts4096(paes)",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
-		.alg = "xts512(paes)",
-		.test = alg_test_null,
-		.fips_allowed = 1,
-	}, {
 		.alg = "xxhash64",
 		.test = alg_test_hash,
 		.fips_allowed = 1,
 		.suite = {
 			.hash = __VECS(xxhash64_tv_template)
-		}
-	}, {
-		.alg = "zlib-deflate",
-		.test = alg_test_comp,
-		.fips_allowed = 1,
-		.suite = {
-			.comp = {
-				.comp = __VECS(zlib_deflate_comp_tv_template),
-				.decomp = __VECS(zlib_deflate_decomp_tv_template)
-			}
 		}
 	}, {
 		.alg = "zstd",
@@ -5945,6 +5889,25 @@ test_done:
 	return rc;
 
 notest:
+	if ((type & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_LSKCIPHER) {
+		char nalg[CRYPTO_MAX_ALG_NAME];
+
+		if (snprintf(nalg, sizeof(nalg), "ecb(%s)", alg) >=
+		    sizeof(nalg))
+			goto notest2;
+
+		i = alg_find_test(nalg);
+		if (i < 0)
+			goto notest2;
+
+		if (fips_enabled && !alg_test_descs[i].fips_allowed)
+			goto non_fips_alg;
+
+		rc = alg_test_skcipher(alg_test_descs + i, driver, type, mask);
+		goto test_done;
+	}
+
+notest2:
 	printk(KERN_INFO "alg: No test for %s (%s)\n", alg, driver);
 
 	if (type & CRYPTO_ALG_FIPS_INTERNAL)

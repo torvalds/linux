@@ -103,6 +103,8 @@ static int aiu_acodec_ctrl_input_hw_params(struct snd_pcm_substream *substream,
 }
 
 static const struct snd_soc_dai_ops aiu_acodec_ctrl_input_ops = {
+	.probe		= meson_codec_glue_input_dai_probe,
+	.remove		= meson_codec_glue_input_dai_remove,
 	.hw_params	= aiu_acodec_ctrl_input_hw_params,
 	.set_fmt	= meson_codec_glue_input_set_fmt,
 };
@@ -130,8 +132,6 @@ static const struct snd_soc_dai_ops aiu_acodec_ctrl_output_ops = {
 	.name = "ACODEC CTRL " xname,				\
 	.playback = AIU_ACODEC_STREAM(xname, "Playback", 8),	\
 	.ops = &aiu_acodec_ctrl_input_ops,			\
-	.probe = meson_codec_glue_input_dai_probe,		\
-	.remove = meson_codec_glue_input_dai_remove,		\
 }
 
 #define AIU_ACODEC_OUTPUT(xname) {				\

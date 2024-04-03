@@ -7,7 +7,7 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/regulator/consumer.h>
@@ -64,8 +64,6 @@ struct truly_nt35597 {
 	struct mipi_dsi_device *dsi[2];
 
 	const struct nt35597_config *config;
-	bool prepared;
-	bool enabled;
 };
 
 static inline struct truly_nt35597 *panel_to_ctx(struct drm_panel *panel)
@@ -313,16 +311,12 @@ static int truly_nt35597_disable(struct drm_panel *panel)
 	struct truly_nt35597 *ctx = panel_to_ctx(panel);
 	int ret;
 
-	if (!ctx->enabled)
-		return 0;
-
 	if (ctx->backlight) {
 		ret = backlight_disable(ctx->backlight);
 		if (ret < 0)
 			dev_err(ctx->dev, "backlight disable failed %d\n", ret);
 	}
 
-	ctx->enabled = false;
 	return 0;
 }
 
@@ -330,9 +324,6 @@ static int truly_nt35597_unprepare(struct drm_panel *panel)
 {
 	struct truly_nt35597 *ctx = panel_to_ctx(panel);
 	int ret = 0;
-
-	if (!ctx->prepared)
-		return 0;
 
 	ctx->dsi[0]->mode_flags = 0;
 	ctx->dsi[1]->mode_flags = 0;
@@ -354,7 +345,6 @@ static int truly_nt35597_unprepare(struct drm_panel *panel)
 	if (ret < 0)
 		dev_err(ctx->dev, "power_off failed ret = %d\n", ret);
 
-	ctx->prepared = false;
 	return ret;
 }
 
@@ -366,9 +356,6 @@ static int truly_nt35597_prepare(struct drm_panel *panel)
 	const struct cmd_set *panel_on_cmds;
 	const struct nt35597_config *config;
 	u32 num_cmds;
-
-	if (ctx->prepared)
-		return 0;
 
 	ret = truly_35597_power_on(ctx);
 	if (ret < 0)
@@ -409,8 +396,6 @@ static int truly_nt35597_prepare(struct drm_panel *panel)
 	/* Per DSI spec wait 120ms after sending set_display_on DCS command */
 	msleep(120);
 
-	ctx->prepared = true;
-
 	return 0;
 
 power_off:
@@ -424,16 +409,11 @@ static int truly_nt35597_enable(struct drm_panel *panel)
 	struct truly_nt35597 *ctx = panel_to_ctx(panel);
 	int ret;
 
-	if (ctx->enabled)
-		return 0;
-
 	if (ctx->backlight) {
 		ret = backlight_enable(ctx->backlight);
 		if (ret < 0)
 			dev_err(ctx->dev, "backlight enable failed %d\n", ret);
 	}
-
-	ctx->enabled = true;
 
 	return 0;
 }

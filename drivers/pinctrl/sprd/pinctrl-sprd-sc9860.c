@@ -943,7 +943,7 @@ static struct platform_driver sprd_pinctrl_driver = {
 		.of_match_table = sprd_pinctrl_of_match,
 	},
 	.probe = sprd_pinctrl_probe,
-	.remove = sprd_pinctrl_remove,
+	.remove_new = sprd_pinctrl_remove,
 	.shutdown = sprd_pinctrl_shutdown,
 };
 module_platform_driver(sprd_pinctrl_driver);

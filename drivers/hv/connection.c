@@ -98,6 +98,7 @@ int vmbus_negotiate_version(struct vmbus_channel_msginfo *msginfo, u32 version)
 	 */
 	if (version >= VERSION_WIN10_V5) {
 		msg->msg_sint = VMBUS_MESSAGE_SINT;
+		msg->msg_vtl = ms_hyperv.vtl;
 		vmbus_connection.msg_conn_id = VMBUS_MESSAGE_CONNECTION_ID_4;
 	} else {
 		msg->interrupt_page = virt_to_phys(vmbus_connection.int_page);
@@ -482,10 +483,17 @@ void vmbus_set_event(struct vmbus_channel *channel)
 
 	++channel->sig_events;
 
-	if (hv_isolation_type_snp())
-		hv_ghcb_hypercall(HVCALL_SIGNAL_EVENT, &channel->sig_event,
-				NULL, sizeof(channel->sig_event));
-	else
+	if (ms_hyperv.paravisor_present) {
+		if (hv_isolation_type_snp())
+			hv_ghcb_hypercall(HVCALL_SIGNAL_EVENT, &channel->sig_event,
+					  NULL, sizeof(channel->sig_event));
+		else if (hv_isolation_type_tdx())
+			hv_tdx_hypercall(HVCALL_SIGNAL_EVENT | HV_HYPERCALL_FAST_BIT,
+					 channel->sig_event, 0);
+		else
+			WARN_ON_ONCE(1);
+	} else {
 		hv_do_fast_hypercall8(HVCALL_SIGNAL_EVENT, channel->sig_event);
+	}
 }
 EXPORT_SYMBOL_GPL(vmbus_set_event);

@@ -167,13 +167,9 @@ static struct pwm_lookup byt_pwm_lookup[] = {
 
 static void byt_pwm_setup(struct lpss_private_data *pdata)
 {
-	u64 uid;
-
 	/* Only call pwm_add_table for the first PWM controller */
-	if (acpi_dev_uid_to_integer(pdata->adev, &uid) || uid != 1)
-		return;
-
-	pwm_add_table(byt_pwm_lookup, ARRAY_SIZE(byt_pwm_lookup));
+	if (acpi_dev_uid_match(pdata->adev, 1))
+		pwm_add_table(byt_pwm_lookup, ARRAY_SIZE(byt_pwm_lookup));
 }
 
 #define LPSS_I2C_ENABLE			0x6c
@@ -218,13 +214,9 @@ static struct pwm_lookup bsw_pwm_lookup[] = {
 
 static void bsw_pwm_setup(struct lpss_private_data *pdata)
 {
-	u64 uid;
-
 	/* Only call pwm_add_table for the first PWM controller */
-	if (acpi_dev_uid_to_integer(pdata->adev, &uid) || uid != 1)
-		return;
-
-	pwm_add_table(bsw_pwm_lookup, ARRAY_SIZE(bsw_pwm_lookup));
+	if (acpi_dev_uid_match(pdata->adev, 1))
+		pwm_add_table(bsw_pwm_lookup, ARRAY_SIZE(bsw_pwm_lookup));
 }
 
 static const struct property_entry lpt_spi_properties[] = {
@@ -368,7 +360,6 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "INT33C4", LPSS_ADDR(lpt_uart_dev_desc) },
 	{ "INT33C5", LPSS_ADDR(lpt_uart_dev_desc) },
 	{ "INT33C6", LPSS_ADDR(lpt_sdio_dev_desc) },
-	{ "INT33C7", },
 
 	/* BayTrail LPSS devices */
 	{ "80860F09", LPSS_ADDR(byt_pwm_dev_desc) },
@@ -376,8 +367,6 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "80860F0E", LPSS_ADDR(byt_spi_dev_desc) },
 	{ "80860F14", LPSS_ADDR(byt_sdio_dev_desc) },
 	{ "80860F41", LPSS_ADDR(byt_i2c_dev_desc) },
-	{ "INT33B2", },
-	{ "INT33FC", },
 
 	/* Braswell LPSS devices */
 	{ "80862286", LPSS_ADDR(lpss_dma_desc) },
@@ -396,7 +385,6 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "INT3434", LPSS_ADDR(lpt_uart_dev_desc) },
 	{ "INT3435", LPSS_ADDR(lpt_uart_dev_desc) },
 	{ "INT3436", LPSS_ADDR(lpt_sdio_dev_desc) },
-	{ "INT3437", },
 
 	/* Wildcat Point LPSS devices */
 	{ "INT3438", LPSS_ADDR(lpt_spi_dev_desc) },
@@ -465,8 +453,9 @@ static int register_device_clock(struct acpi_device *adev,
 		if (!clk_name)
 			return -ENOMEM;
 		clk = clk_register_fractional_divider(NULL, clk_name, parent,
+						      0, prv_base, 1, 15, 16, 15,
 						      CLK_FRAC_DIVIDER_POWER_OF_TWO_PS,
-						      prv_base, 1, 15, 16, 15, 0, NULL);
+						      NULL);
 		parent = clk_name;
 
 		clk_name = kasprintf(GFP_KERNEL, "%s-update", devname);
@@ -574,30 +563,6 @@ static struct device *acpi_lpss_find_device(const char *hid, const char *uid)
 	return bus_find_device(&pci_bus_type, NULL, &data, match_hid_uid);
 }
 
-static bool acpi_lpss_dep(struct acpi_device *adev, acpi_handle handle)
-{
-	struct acpi_handle_list dep_devices;
-	acpi_status status;
-	int i;
-
-	if (!acpi_has_method(adev->handle, "_DEP"))
-		return false;
-
-	status = acpi_evaluate_reference(adev->handle, "_DEP", NULL,
-					 &dep_devices);
-	if (ACPI_FAILURE(status)) {
-		dev_dbg(&adev->dev, "Failed to evaluate _DEP.\n");
-		return false;
-	}
-
-	for (i = 0; i < dep_devices.count; i++) {
-		if (dep_devices.handles[i] == handle)
-			return true;
-	}
-
-	return false;
-}
-
 static void acpi_lpss_link_consumer(struct device *dev1,
 				    const struct lpss_device_links *link)
 {
@@ -608,7 +573,7 @@ static void acpi_lpss_link_consumer(struct device *dev1,
 		return;
 
 	if ((link->dep_missing_ids && dmi_check_system(link->dep_missing_ids))
-	    || acpi_lpss_dep(ACPI_COMPANION(dev2), ACPI_HANDLE(dev1)))
+	    || acpi_device_dep(ACPI_HANDLE(dev2), ACPI_HANDLE(dev1)))
 		device_link_add(dev2, dev1, link->flags);
 
 	put_device(dev2);
@@ -624,7 +589,7 @@ static void acpi_lpss_link_supplier(struct device *dev1,
 		return;
 
 	if ((link->dep_missing_ids && dmi_check_system(link->dep_missing_ids))
-	    || acpi_lpss_dep(ACPI_COMPANION(dev1), ACPI_HANDLE(dev2)))
+	    || acpi_device_dep(ACPI_HANDLE(dev1), ACPI_HANDLE(dev2)))
 		device_link_add(dev1, dev2, link->flags);
 
 	put_device(dev2);
@@ -657,10 +622,9 @@ static int acpi_lpss_create_device(struct acpi_device *adev,
 	int ret;
 
 	dev_desc = (const struct lpss_device_desc *)id->driver_data;
-	if (!dev_desc) {
-		pdev = acpi_create_platform_device(adev, NULL);
-		return IS_ERR_OR_NULL(pdev) ? PTR_ERR(pdev) : 1;
-	}
+	if (!dev_desc)
+		return -EINVAL;
+
 	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;

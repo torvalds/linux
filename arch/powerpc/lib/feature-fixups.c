@@ -67,7 +67,8 @@ static int patch_alt_instruction(u32 *src, u32 *dest, u32 *alt_start, u32 *alt_e
 	return 0;
 }
 
-static int patch_feature_section(unsigned long value, struct fixup_entry *fcur)
+static int patch_feature_section_mask(unsigned long value, unsigned long mask,
+				      struct fixup_entry *fcur)
 {
 	u32 *start, *end, *alt_start, *alt_end, *src, *dest;
 
@@ -79,7 +80,7 @@ static int patch_feature_section(unsigned long value, struct fixup_entry *fcur)
 	if ((alt_end - alt_start) > (end - start))
 		return 1;
 
-	if ((value & fcur->mask) == fcur->value)
+	if ((value & fcur->mask & mask) == (fcur->value & mask))
 		return 0;
 
 	src = alt_start;
@@ -97,7 +98,8 @@ static int patch_feature_section(unsigned long value, struct fixup_entry *fcur)
 	return 0;
 }
 
-void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
+static void do_feature_fixups_mask(unsigned long value, unsigned long mask,
+				   void *fixup_start, void *fixup_end)
 {
 	struct fixup_entry *fcur, *fend;
 
@@ -105,7 +107,7 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 	fend = fixup_end;
 
 	for (; fcur < fend; fcur++) {
-		if (patch_feature_section(value, fcur)) {
+		if (patch_feature_section_mask(value, mask, fcur)) {
 			WARN_ON(1);
 			printk("Unable to patch feature section at %p - %p" \
 				" with %p - %p\n",
@@ -115,6 +117,11 @@ void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
 				calc_addr(fcur, fcur->alt_end_off));
 		}
 	}
+}
+
+void do_feature_fixups(unsigned long value, void *fixup_start, void *fixup_end)
+{
+	do_feature_fixups_mask(value, ~0, fixup_start, fixup_end);
 }
 
 #ifdef CONFIG_PPC_BARRIER_NOSPEC
@@ -651,6 +658,17 @@ void __init apply_feature_fixups(void)
 	do_final_fixups();
 }
 
+void __init update_mmu_feature_fixups(unsigned long mask)
+{
+	saved_mmu_features &= ~mask;
+	saved_mmu_features |= cur_cpu_spec->mmu_features & mask;
+
+	do_feature_fixups_mask(cur_cpu_spec->mmu_features, mask,
+			       PTRRELOC(&__start___mmu_ftr_fixup),
+			       PTRRELOC(&__stop___mmu_ftr_fixup));
+	mmu_feature_keys_init();
+}
+
 void __init setup_feature_keys(void)
 {
 	/*
@@ -682,6 +700,11 @@ late_initcall(check_features);
 
 #define check(x)	\
 	if (!(x)) printk("feature-fixups: test failed at line %d\n", __LINE__);
+
+static int patch_feature_section(unsigned long value, struct fixup_entry *fcur)
+{
+	return patch_feature_section_mask(value, ~0, fcur);
+}
 
 /* This must be after the text it fixes up, vmlinux.lds.S enforces that atm */
 static struct fixup_entry fixup;

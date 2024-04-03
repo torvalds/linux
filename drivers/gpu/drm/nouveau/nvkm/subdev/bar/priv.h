@@ -4,6 +4,9 @@
 #define nvkm_bar(p) container_of((p), struct nvkm_bar, subdev)
 #include <subdev/bar.h>
 
+int r535_bar_new_(const struct nvkm_bar_func *,
+		  struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_bar **);
+
 void nvkm_bar_ctor(const struct nvkm_bar_func *, struct nvkm_device *,
 		   enum nvkm_subdev_type, int, struct nvkm_bar *);
 

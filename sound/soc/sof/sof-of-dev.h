@@ -19,7 +19,7 @@ struct snd_sof_of_mach {
 extern const struct dev_pm_ops sof_of_pm;
 
 int sof_of_probe(struct platform_device *pdev);
-int sof_of_remove(struct platform_device *pdev);
+void sof_of_remove(struct platform_device *pdev);
 void sof_of_shutdown(struct platform_device *pdev);
 
 #endif

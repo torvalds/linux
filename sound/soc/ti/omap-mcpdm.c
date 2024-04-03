@@ -11,6 +11,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
@@ -19,7 +20,6 @@
 #include <linux/irq.h>
 #include <linux/slab.h>
 #include <linux/pm_runtime.h>
-#include <linux/of_device.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -404,13 +404,6 @@ static int omap_mcpdm_prepare(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static const struct snd_soc_dai_ops omap_mcpdm_dai_ops = {
-	.startup	= omap_mcpdm_dai_startup,
-	.shutdown	= omap_mcpdm_dai_shutdown,
-	.hw_params	= omap_mcpdm_dai_hw_params,
-	.prepare	= omap_mcpdm_prepare,
-};
-
 static int omap_mcpdm_probe(struct snd_soc_dai *dai)
 {
 	struct omap_mcpdm *mcpdm = snd_soc_dai_get_drvdata(dai);
@@ -457,6 +450,17 @@ static int omap_mcpdm_remove(struct snd_soc_dai *dai)
 	return 0;
 }
 
+static const struct snd_soc_dai_ops omap_mcpdm_dai_ops = {
+	.probe		= omap_mcpdm_probe,
+	.remove		= omap_mcpdm_remove,
+	.startup	= omap_mcpdm_dai_startup,
+	.shutdown	= omap_mcpdm_dai_shutdown,
+	.hw_params	= omap_mcpdm_dai_hw_params,
+	.prepare	= omap_mcpdm_prepare,
+	.probe_order	= SND_SOC_COMP_ORDER_LATE,
+	.remove_order	= SND_SOC_COMP_ORDER_EARLY,
+};
+
 #ifdef CONFIG_PM_SLEEP
 static int omap_mcpdm_suspend(struct snd_soc_component *component)
 {
@@ -502,10 +506,6 @@ static int omap_mcpdm_resume(struct snd_soc_component *component)
 #define OMAP_MCPDM_FORMATS	SNDRV_PCM_FMTBIT_S32_LE
 
 static struct snd_soc_dai_driver omap_mcpdm_dai = {
-	.probe = omap_mcpdm_probe,
-	.remove = omap_mcpdm_remove,
-	.probe_order = SND_SOC_COMP_ORDER_LATE,
-	.remove_order = SND_SOC_COMP_ORDER_EARLY,
 	.playback = {
 		.channels_min = 1,
 		.channels_max = 5,
@@ -533,7 +533,7 @@ static const struct snd_soc_component_driver omap_mcpdm_component = {
 void omap_mcpdm_configure_dn_offsets(struct snd_soc_pcm_runtime *rtd,
 				    u8 rx1, u8 rx2)
 {
-	struct omap_mcpdm *mcpdm = snd_soc_dai_get_drvdata(asoc_rtd_to_cpu(rtd, 0));
+	struct omap_mcpdm *mcpdm = snd_soc_dai_get_drvdata(snd_soc_rtd_to_cpu(rtd, 0));
 
 	mcpdm->dn_rx_offset = MCPDM_DNOFST_RX1(rx1) | MCPDM_DNOFST_RX2(rx2);
 }
@@ -563,8 +563,7 @@ static int asoc_mcpdm_probe(struct platform_device *pdev)
 	mcpdm->dma_data[0].filter_data = "dn_link";
 	mcpdm->dma_data[1].filter_data = "up_link";
 
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "mpu");
-	mcpdm->io_base = devm_ioremap_resource(&pdev->dev, res);
+	mcpdm->io_base = devm_platform_ioremap_resource_byname(pdev, "mpu");
 	if (IS_ERR(mcpdm->io_base))
 		return PTR_ERR(mcpdm->io_base);
 

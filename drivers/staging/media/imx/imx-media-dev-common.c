@@ -6,8 +6,6 @@
  * Copyright (c) 2016 Mentor Graphics Inc.
  */
 
-#include <linux/of_graph.h>
-#include <linux/of_platform.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-event.h>
 #include <media/v4l2-ioctl.h>
@@ -367,7 +365,7 @@ struct imx_media_dev *imx_media_dev_init(struct device *dev,
 
 	INIT_LIST_HEAD(&imxmd->vdev_list);
 
-	v4l2_async_nf_init(&imxmd->notifier);
+	v4l2_async_nf_init(&imxmd->notifier, &imxmd->v4l2_dev);
 
 	return imxmd;
 
@@ -384,14 +382,14 @@ int imx_media_dev_notifier_register(struct imx_media_dev *imxmd,
 	int ret;
 
 	/* no subdevs? just bail */
-	if (list_empty(&imxmd->notifier.asd_list)) {
+	if (list_empty(&imxmd->notifier.waiting_list)) {
 		v4l2_err(&imxmd->v4l2_dev, "no subdevs\n");
 		return -ENODEV;
 	}
 
 	/* prepare the async subdev notifier and register it */
 	imxmd->notifier.ops = ops ? ops : &imx_media_notifier_ops;
-	ret = v4l2_async_nf_register(&imxmd->v4l2_dev, &imxmd->notifier);
+	ret = v4l2_async_nf_register(&imxmd->notifier);
 	if (ret) {
 		v4l2_err(&imxmd->v4l2_dev,
 			 "v4l2_async_nf_register failed with %d\n", ret);

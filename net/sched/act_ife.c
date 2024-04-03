@@ -548,7 +548,7 @@ static int tcf_ife_init(struct net *net, struct nlattr *nla,
 	exists = err;
 	if (exists && bind) {
 		kfree(p);
-		return 0;
+		return ACT_P_BOUND;
 	}
 
 	if (!exists) {
@@ -889,6 +889,7 @@ static struct tc_action_ops act_ife_ops = {
 	.init = tcf_ife_init,
 	.size =	sizeof(struct tcf_ife_info),
 };
+MODULE_ALIAS_NET_ACT("ife");
 
 static __net_init int ife_init_net(struct net *net)
 {

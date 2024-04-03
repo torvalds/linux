@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Intel Tangier and compatible pin control drivers
+
+if X86_INTEL_MID || COMPILE_TEST
+
+config PINCTRL_TANGIER
+	tristate
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	help
+	  This is a library driver for Intel Tangier pin controller and to
+	  be selected and used by respective compatible platform drivers.
+
+	  If built as a module its name will be pinctrl-tangier.
+
+config PINCTRL_MERRIFIELD
+	tristate "Intel Merrifield pinctrl driver"
+	select PINCTRL_TANGIER
+	help
+	  Intel Merrifield Family-Level Interface Shim (FLIS) driver provides
+	  an interface that allows configuring of SoC pins and using them as
+	  GPIOs.
+
+config PINCTRL_MOOREFIELD
+	tristate "Intel Moorefield pinctrl driver"
+	select PINCTRL_TANGIER
+	help
+	  Intel Moorefield Family-Level Interface Shim (FLIS) driver provides
+	  an interface that allows configuring of SoC pins and using them as
+	  GPIOs.
+
+endif

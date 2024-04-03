@@ -45,8 +45,8 @@ static int nvmem_reboot_mode_probe(struct platform_device *pdev)
 
 	nvmem_rbm->cell = devm_nvmem_cell_get(&pdev->dev, "reboot-mode");
 	if (IS_ERR(nvmem_rbm->cell)) {
-		dev_err(&pdev->dev, "failed to get the nvmem cell reboot-mode\n");
-		return PTR_ERR(nvmem_rbm->cell);
+		return dev_err_probe(&pdev->dev, PTR_ERR(nvmem_rbm->cell),
+				     "failed to get the nvmem cell reboot-mode\n");
 	}
 
 	ret = devm_reboot_mode_register(&pdev->dev, &nvmem_rbm->reboot);

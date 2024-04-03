@@ -148,7 +148,7 @@ static int spear13xx_pcie_host_init(struct dw_pcie_rp *pp)
 }
 
 static const struct dw_pcie_host_ops spear13xx_pcie_host_ops = {
-	.host_init = spear13xx_pcie_host_init,
+	.init = spear13xx_pcie_host_init,
 };
 
 static int spear13xx_add_pcie_port(struct spear13xx_pcie *spear13xx_pcie,

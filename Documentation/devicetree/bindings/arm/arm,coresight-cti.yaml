@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-2.0-only or BSD-2-Clause
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
 # Copyright 2019 Linaro Ltd.
 %YAML 1.2
 ---
@@ -92,11 +92,8 @@ properties:
     maxItems: 1
 
   cpu:
-    $ref: /schemas/types.yaml#/definitions/phandle
     description:
-      Handle to cpu this device is associated with. This must appear in the
-      base cti node if compatible string arm,coresight-cti-v8-arch is used,
-      or may appear in a trig-conns child node when appropriate.
+      Handle to cpu this CTI is associated with.
 
   power-domains:
     maxItems: 1
@@ -113,12 +110,12 @@ properties:
     description:
       defines a phandle reference to an associated CoreSight trace device.
       When the associated trace device is enabled, then the respective CTI
-      will be enabled. Use in a trig-conns node, or in CTI base node when
-      compatible string arm,coresight-cti-v8-arch used. If the associated
-      device has not been registered then the node name will be stored as
-      the connection name for later resolution. If the associated device is
-      not a CoreSight device or not registered then the node name will remain
-      the connection name and automatic enabling will not occur.
+      will be enabled. Use in CTI base node when compatible string
+      arm,coresight-cti-v8-arch used. If the associated device has not been
+      registered then the node name will be stored as the connection name for
+      later resolution. If the associated device is not a CoreSight device or
+      not registered then the node name will remain the connection name and
+      automatic enabling will not occur.
 
   # size cells and address cells required if trig-conns node present.
   "#size-cells":
@@ -130,6 +127,8 @@ properties:
 patternProperties:
   '^trig-conns@([0-9]+)$':
     type: object
+    additionalProperties: false
+
     description:
       A trigger connections child node which describes the trigger signals
       between this CTI and another hardware device. This device may be a CPU,
@@ -140,6 +139,21 @@ patternProperties:
     properties:
       reg:
         maxItems: 1
+
+      cpu:
+        description:
+          Handle to cpu this trigger connection is associated with.
+
+      arm,cs-dev-assoc:
+        $ref: /schemas/types.yaml#/definitions/phandle
+        description:
+          defines a phandle reference to an associated CoreSight trace device.
+          When the associated trace device is enabled, then the respective CTI
+          will be enabled. If the associated device has not been registered
+          then the node name will be stored as the connection name for later
+          resolution. If the associated device is not a CoreSight device or
+          not registered then the node name will remain the connection name
+          and automatic enabling will not occur.
 
       arm,trig-in-sigs:
         $ref: /schemas/types.yaml#/definitions/uint32-array

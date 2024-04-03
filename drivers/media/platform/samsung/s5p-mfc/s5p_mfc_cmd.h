@@ -19,7 +19,7 @@ struct s5p_mfc_cmd_args {
 
 struct s5p_mfc_hw_cmds {
 	int (*cmd_host2risc)(struct s5p_mfc_dev *dev, int cmd,
-				struct s5p_mfc_cmd_args *args);
+			     const struct s5p_mfc_cmd_args *args);
 	int (*sys_init_cmd)(struct s5p_mfc_dev *dev);
 	int (*sleep_cmd)(struct s5p_mfc_dev *dev);
 	int (*wakeup_cmd)(struct s5p_mfc_dev *dev);

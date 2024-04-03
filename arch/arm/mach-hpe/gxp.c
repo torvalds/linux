@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /* Copyright (C) 2022 Hewlett-Packard Enterprise Development Company, L.P. */
 
-#include <linux/of_platform.h>
 #include <asm/mach/arch.h>
 
 static const char * const gxp_board_dt_compat[] = {

@@ -15,7 +15,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/types.h>
@@ -152,7 +151,7 @@ struct meson_spicc_data {
 };
 
 struct meson_spicc_device {
-	struct spi_master		*master;
+	struct spi_controller		*host;
 	struct platform_device		*pdev;
 	void __iomem			*base;
 	struct clk			*core;
@@ -400,11 +399,11 @@ static void meson_spicc_reset_fifo(struct meson_spicc_device *spicc)
 				    spicc->base + SPICC_ENH_CTL0);
 }
 
-static int meson_spicc_transfer_one(struct spi_master *master,
+static int meson_spicc_transfer_one(struct spi_controller *host,
 				    struct spi_device *spi,
 				    struct spi_transfer *xfer)
 {
-	struct meson_spicc_device *spicc = spi_master_get_devdata(master);
+	struct meson_spicc_device *spicc = spi_controller_get_devdata(host);
 	uint64_t timeout;
 
 	/* Store current transfer */
@@ -455,10 +454,10 @@ static int meson_spicc_transfer_one(struct spi_master *master,
 	return 0;
 }
 
-static int meson_spicc_prepare_message(struct spi_master *master,
+static int meson_spicc_prepare_message(struct spi_controller *host,
 				       struct spi_message *message)
 {
-	struct meson_spicc_device *spicc = spi_master_get_devdata(master);
+	struct meson_spicc_device *spicc = spi_controller_get_devdata(host);
 	struct spi_device *spi = message->spi;
 	u32 conf = readl_relaxed(spicc->base + SPICC_CONREG) & SPICC_DATARATE_MASK;
 
@@ -520,9 +519,9 @@ static int meson_spicc_prepare_message(struct spi_master *master,
 	return 0;
 }
 
-static int meson_spicc_unprepare_transfer(struct spi_master *master)
+static int meson_spicc_unprepare_transfer(struct spi_controller *host)
 {
-	struct meson_spicc_device *spicc = spi_master_get_devdata(master);
+	struct meson_spicc_device *spicc = spi_controller_get_devdata(host);
 	u32 conf = readl_relaxed(spicc->base + SPICC_CONREG) & SPICC_DATARATE_MASK;
 
 	/* Disable all IRQs */
@@ -542,7 +541,7 @@ static int meson_spicc_unprepare_transfer(struct spi_master *master)
 static int meson_spicc_setup(struct spi_device *spi)
 {
 	if (!spi->controller_state)
-		spi->controller_state = spi_master_get_devdata(spi->master);
+		spi->controller_state = spi_controller_get_devdata(spi->controller);
 
 	return 0;
 }
@@ -586,7 +585,7 @@ static unsigned long meson_spicc_pow2_recalc_rate(struct clk_hw *hw,
 	struct clk_divider *divider = to_clk_divider(hw);
 	struct meson_spicc_device *spicc = pow2_clk_to_spicc(divider);
 
-	if (!spicc->master->cur_msg)
+	if (!spicc->host->cur_msg)
 		return 0;
 
 	return clk_divider_ops.recalc_rate(hw, parent_rate);
@@ -598,7 +597,7 @@ static int meson_spicc_pow2_determine_rate(struct clk_hw *hw,
 	struct clk_divider *divider = to_clk_divider(hw);
 	struct meson_spicc_device *spicc = pow2_clk_to_spicc(divider);
 
-	if (!spicc->master->cur_msg)
+	if (!spicc->host->cur_msg)
 		return -EINVAL;
 
 	return clk_divider_ops.determine_rate(hw, req);
@@ -610,7 +609,7 @@ static int meson_spicc_pow2_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct clk_divider *divider = to_clk_divider(hw);
 	struct meson_spicc_device *spicc = pow2_clk_to_spicc(divider);
 
-	if (!spicc->master->cur_msg)
+	if (!spicc->host->cur_msg)
 		return -EINVAL;
 
 	return clk_divider_ops.set_rate(hw, rate, parent_rate);
@@ -770,23 +769,23 @@ static int meson_spicc_enh_clk_init(struct meson_spicc_device *spicc)
 
 static int meson_spicc_probe(struct platform_device *pdev)
 {
-	struct spi_master *master;
+	struct spi_controller *host;
 	struct meson_spicc_device *spicc;
 	int ret, irq;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*spicc));
-	if (!master) {
-		dev_err(&pdev->dev, "master allocation failed\n");
+	host = spi_alloc_host(&pdev->dev, sizeof(*spicc));
+	if (!host) {
+		dev_err(&pdev->dev, "host allocation failed\n");
 		return -ENOMEM;
 	}
-	spicc = spi_master_get_devdata(master);
-	spicc->master = master;
+	spicc = spi_controller_get_devdata(host);
+	spicc->host = host;
 
 	spicc->data = of_device_get_match_data(&pdev->dev);
 	if (!spicc->data) {
 		dev_err(&pdev->dev, "failed to get match data\n");
 		ret = -EINVAL;
-		goto out_master;
+		goto out_host;
 	}
 
 	spicc->pdev = pdev;
@@ -798,7 +797,7 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	if (IS_ERR(spicc->base)) {
 		dev_err(&pdev->dev, "io resource mapping failed\n");
 		ret = PTR_ERR(spicc->base);
-		goto out_master;
+		goto out_host;
 	}
 
 	/* Set master mode and enable controller */
@@ -811,101 +810,83 @@ static int meson_spicc_probe(struct platform_device *pdev)
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		ret = irq;
-		goto out_master;
+		goto out_host;
 	}
 
 	ret = devm_request_irq(&pdev->dev, irq, meson_spicc_irq,
 			       0, NULL, spicc);
 	if (ret) {
 		dev_err(&pdev->dev, "irq request failed\n");
-		goto out_master;
+		goto out_host;
 	}
 
-	spicc->core = devm_clk_get(&pdev->dev, "core");
+	spicc->core = devm_clk_get_enabled(&pdev->dev, "core");
 	if (IS_ERR(spicc->core)) {
 		dev_err(&pdev->dev, "core clock request failed\n");
 		ret = PTR_ERR(spicc->core);
-		goto out_master;
+		goto out_host;
 	}
 
 	if (spicc->data->has_pclk) {
-		spicc->pclk = devm_clk_get(&pdev->dev, "pclk");
+		spicc->pclk = devm_clk_get_enabled(&pdev->dev, "pclk");
 		if (IS_ERR(spicc->pclk)) {
 			dev_err(&pdev->dev, "pclk clock request failed\n");
 			ret = PTR_ERR(spicc->pclk);
-			goto out_master;
+			goto out_host;
 		}
-	}
-
-	ret = clk_prepare_enable(spicc->core);
-	if (ret) {
-		dev_err(&pdev->dev, "core clock enable failed\n");
-		goto out_master;
-	}
-
-	ret = clk_prepare_enable(spicc->pclk);
-	if (ret) {
-		dev_err(&pdev->dev, "pclk clock enable failed\n");
-		goto out_core_clk;
 	}
 
 	spicc->pinctrl = devm_pinctrl_get(&pdev->dev);
 	if (IS_ERR(spicc->pinctrl)) {
 		ret = PTR_ERR(spicc->pinctrl);
-		goto out_clk;
+		goto out_host;
 	}
 
 	device_reset_optional(&pdev->dev);
 
-	master->num_chipselect = 4;
-	master->dev.of_node = pdev->dev.of_node;
-	master->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH;
-	master->bits_per_word_mask = SPI_BPW_MASK(32) |
-				     SPI_BPW_MASK(24) |
-				     SPI_BPW_MASK(16) |
-				     SPI_BPW_MASK(8);
-	master->flags = (SPI_MASTER_MUST_RX | SPI_MASTER_MUST_TX);
-	master->min_speed_hz = spicc->data->min_speed_hz;
-	master->max_speed_hz = spicc->data->max_speed_hz;
-	master->setup = meson_spicc_setup;
-	master->cleanup = meson_spicc_cleanup;
-	master->prepare_message = meson_spicc_prepare_message;
-	master->unprepare_transfer_hardware = meson_spicc_unprepare_transfer;
-	master->transfer_one = meson_spicc_transfer_one;
-	master->use_gpio_descriptors = true;
+	host->num_chipselect = 4;
+	host->dev.of_node = pdev->dev.of_node;
+	host->mode_bits = SPI_CPHA | SPI_CPOL | SPI_CS_HIGH;
+	host->bits_per_word_mask = SPI_BPW_MASK(32) |
+				   SPI_BPW_MASK(24) |
+				   SPI_BPW_MASK(16) |
+				   SPI_BPW_MASK(8);
+	host->flags = (SPI_CONTROLLER_MUST_RX | SPI_CONTROLLER_MUST_TX);
+	host->min_speed_hz = spicc->data->min_speed_hz;
+	host->max_speed_hz = spicc->data->max_speed_hz;
+	host->setup = meson_spicc_setup;
+	host->cleanup = meson_spicc_cleanup;
+	host->prepare_message = meson_spicc_prepare_message;
+	host->unprepare_transfer_hardware = meson_spicc_unprepare_transfer;
+	host->transfer_one = meson_spicc_transfer_one;
+	host->use_gpio_descriptors = true;
 
 	meson_spicc_oen_enable(spicc);
 
 	ret = meson_spicc_pow2_clk_init(spicc);
 	if (ret) {
 		dev_err(&pdev->dev, "pow2 clock registration failed\n");
-		goto out_clk;
+		goto out_host;
 	}
 
 	if (spicc->data->has_enhance_clk_div) {
 		ret = meson_spicc_enh_clk_init(spicc);
 		if (ret) {
 			dev_err(&pdev->dev, "clock registration failed\n");
-			goto out_clk;
+			goto out_host;
 		}
 	}
 
-	ret = devm_spi_register_master(&pdev->dev, master);
+	ret = devm_spi_register_controller(&pdev->dev, host);
 	if (ret) {
-		dev_err(&pdev->dev, "spi master registration failed\n");
-		goto out_clk;
+		dev_err(&pdev->dev, "spi registration failed\n");
+		goto out_host;
 	}
 
 	return 0;
 
-out_clk:
-	clk_disable_unprepare(spicc->pclk);
-
-out_core_clk:
-	clk_disable_unprepare(spicc->core);
-
-out_master:
-	spi_master_put(master);
+out_host:
+	spi_controller_put(host);
 
 	return ret;
 }
@@ -917,10 +898,7 @@ static void meson_spicc_remove(struct platform_device *pdev)
 	/* Disable SPI */
 	writel(0, spicc->base + SPICC_CONREG);
 
-	clk_disable_unprepare(spicc->core);
-	clk_disable_unprepare(spicc->pclk);
-
-	spi_master_put(spicc->master);
+	spi_controller_put(spicc->host);
 }
 
 static const struct meson_spicc_data meson_spicc_gx_data = {

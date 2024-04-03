@@ -12,4 +12,6 @@ panfrost-y := \
 	panfrost_perfcnt.o \
 	panfrost_dump.o
 
+panfrost-$(CONFIG_DEBUG_FS) += panfrost_debugfs.o
+
 obj-$(CONFIG_DRM_PANFROST) += panfrost.o

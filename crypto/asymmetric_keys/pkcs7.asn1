@@ -1,3 +1,10 @@
+-- SPDX-License-Identifier: BSD-3-Clause
+--
+-- Copyright (C) 2009 IETF Trust and the persons identified as authors
+-- of the code
+--
+-- https://www.rfc-editor.org/rfc/rfc5652#section-3
+
 PKCS7ContentInfo ::= SEQUENCE {
 	contentType	ContentType ({ pkcs7_check_content_type }),
 	content		[0] EXPLICIT SignedData OPTIONAL

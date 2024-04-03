@@ -89,9 +89,6 @@
 						  __latent_entropy
 #define __meminitdata    __section(".meminit.data")
 #define __meminitconst   __section(".meminit.rodata")
-#define __memexit        __section(".memexit.text") __exitused __cold notrace
-#define __memexitdata    __section(".memexit.data")
-#define __memexitconst   __section(".memexit.rodata")
 
 /* For assembly routines */
 #define __HEAD		.section	".head.text","ax"
@@ -171,16 +168,19 @@ extern initcall_entry_t __initcall_end[];
 
 extern struct file_system_type rootfs_fs_type;
 
-#if defined(CONFIG_STRICT_KERNEL_RWX) || defined(CONFIG_STRICT_MODULE_RWX)
 extern bool rodata_enabled;
-#endif
-#ifdef CONFIG_STRICT_KERNEL_RWX
 void mark_rodata_ro(void);
-#endif
 
 extern void (*late_time_init)(void);
 
 extern bool initcall_debug;
+
+#ifdef MODULE
+extern struct module __this_module;
+#define THIS_MODULE (&__this_module)
+#else
+#define THIS_MODULE ((struct module *)0)
+#endif
 
 #endif
   

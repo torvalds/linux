@@ -893,7 +893,7 @@ __start_interrupts:
  *
  * Call convention:
  *
- * syscall register convention is in Documentation/powerpc/syscall64-abi.rst
+ * syscall register convention is in Documentation/arch/powerpc/syscall64-abi.rst
  */
 EXC_VIRT_BEGIN(system_call_vectored, 0x3000, 0x1000)
 	/* SCV 0 */
@@ -1952,8 +1952,8 @@ EXC_VIRT_NONE(0x4b00, 0x100)
  * Call convention:
  *
  * syscall and hypercalls register conventions are documented in
- * Documentation/powerpc/syscall64-abi.rst and
- * Documentation/powerpc/papr_hcalls.rst respectively.
+ * Documentation/arch/powerpc/syscall64-abi.rst and
+ * Documentation/arch/powerpc/papr_hcalls.rst respectively.
  *
  * The intersection of volatile registers that don't contain possible
  * inputs is: cr0, xer, ctr. We may use these as scratch regs upon entry

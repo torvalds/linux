@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2020 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/msi.h>
 #include <linux/pci.h>
+#include <linux/firmware.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/ioport.h>
@@ -19,35 +20,7 @@
 #define MHI_TIMEOUT_DEFAULT_MS	20000
 #define RDDM_DUMP_SIZE	0x420000
 
-static struct mhi_channel_config ath11k_mhi_channels_qca6390[] = {
-	{
-		.num = 0,
-		.name = "LOOPBACK",
-		.num_elements = 32,
-		.event_ring = 0,
-		.dir = DMA_TO_DEVICE,
-		.ee_mask = 0x4,
-		.pollcfg = 0,
-		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
-		.offload_channel = false,
-		.doorbell_mode_switch = false,
-		.auto_queue = false,
-	},
-	{
-		.num = 1,
-		.name = "LOOPBACK",
-		.num_elements = 32,
-		.event_ring = 0,
-		.dir = DMA_FROM_DEVICE,
-		.ee_mask = 0x4,
-		.pollcfg = 0,
-		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
-		.offload_channel = false,
-		.doorbell_mode_switch = false,
-		.auto_queue = false,
-	},
+static const struct mhi_channel_config ath11k_mhi_channels_qca6390[] = {
 	{
 		.num = 20,
 		.name = "IPCR",
@@ -101,46 +74,18 @@ static struct mhi_event_config ath11k_mhi_events_qca6390[] = {
 	},
 };
 
-static struct mhi_controller_config ath11k_mhi_config_qca6390 = {
+static const struct mhi_controller_config ath11k_mhi_config_qca6390 = {
 	.max_channels = 128,
 	.timeout_ms = 2000,
 	.use_bounce_buf = false,
-	.buf_len = 0,
+	.buf_len = 8192,
 	.num_channels = ARRAY_SIZE(ath11k_mhi_channels_qca6390),
 	.ch_cfg = ath11k_mhi_channels_qca6390,
 	.num_events = ARRAY_SIZE(ath11k_mhi_events_qca6390),
 	.event_cfg = ath11k_mhi_events_qca6390,
 };
 
-static struct mhi_channel_config ath11k_mhi_channels_qcn9074[] = {
-	{
-		.num = 0,
-		.name = "LOOPBACK",
-		.num_elements = 32,
-		.event_ring = 1,
-		.dir = DMA_TO_DEVICE,
-		.ee_mask = 0x14,
-		.pollcfg = 0,
-		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
-		.offload_channel = false,
-		.doorbell_mode_switch = false,
-		.auto_queue = false,
-	},
-	{
-		.num = 1,
-		.name = "LOOPBACK",
-		.num_elements = 32,
-		.event_ring = 1,
-		.dir = DMA_FROM_DEVICE,
-		.ee_mask = 0x14,
-		.pollcfg = 0,
-		.doorbell = MHI_DB_BRST_DISABLE,
-		.lpm_notify = false,
-		.offload_channel = false,
-		.doorbell_mode_switch = false,
-		.auto_queue = false,
-	},
+static const struct mhi_channel_config ath11k_mhi_channels_qcn9074[] = {
 	{
 		.num = 20,
 		.name = "IPCR",
@@ -194,7 +139,7 @@ static struct mhi_event_config ath11k_mhi_events_qcn9074[] = {
 	},
 };
 
-static struct mhi_controller_config ath11k_mhi_config_qcn9074 = {
+static const struct mhi_controller_config ath11k_mhi_config_qcn9074 = {
 	.max_channels = 30,
 	.timeout_ms = 10000,
 	.use_bounce_buf = false,
@@ -333,6 +278,7 @@ static void ath11k_mhi_op_status_cb(struct mhi_controller *mhi_cntrl,
 		ath11k_warn(ab, "firmware crashed: MHI_CB_SYS_ERROR\n");
 		break;
 	case MHI_CB_EE_RDDM:
+		ath11k_warn(ab, "firmware crashed: MHI_CB_EE_RDDM\n");
 		if (!(test_bit(ATH11K_FLAG_UNREGISTERING, &ab->dev_flags)))
 			queue_work(ab->workqueue_aux, &ab->reset_work);
 		break;
@@ -382,22 +328,29 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 {
 	struct ath11k_base *ab = ab_pci->ab;
 	struct mhi_controller *mhi_ctrl;
-	struct mhi_controller_config *ath11k_mhi_config;
+	const struct mhi_controller_config *ath11k_mhi_config;
 	int ret;
 
 	mhi_ctrl = mhi_alloc_controller();
 	if (!mhi_ctrl)
 		return -ENOMEM;
 
-	ath11k_core_create_firmware_path(ab, ATH11K_AMSS_FILE,
-					 ab_pci->amss_path,
-					 sizeof(ab_pci->amss_path));
-
 	ab_pci->mhi_ctrl = mhi_ctrl;
 	mhi_ctrl->cntrl_dev = ab->dev;
-	mhi_ctrl->fw_image = ab_pci->amss_path;
 	mhi_ctrl->regs = ab->mem;
 	mhi_ctrl->reg_len = ab->mem_len;
+
+	if (ab->fw.amss_data && ab->fw.amss_len > 0) {
+		/* use MHI firmware file from firmware-N.bin */
+		mhi_ctrl->fw_data = ab->fw.amss_data;
+		mhi_ctrl->fw_sz = ab->fw.amss_len;
+	} else {
+		/* use the old separate mhi.bin MHI firmware file */
+		ath11k_core_create_firmware_path(ab, ATH11K_AMSS_FILE,
+						 ab_pci->amss_path,
+						 sizeof(ab_pci->amss_path));
+		mhi_ctrl->fw_image = ab_pci->amss_path;
+	}
 
 	ret = ath11k_mhi_get_msi(ab_pci);
 	if (ret) {
@@ -414,7 +367,7 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 			goto free_controller;
 	} else {
 		mhi_ctrl->iova_start = 0;
-		mhi_ctrl->iova_stop = 0xFFFFFFFF;
+		mhi_ctrl->iova_stop = ab_pci->dma_mask;
 	}
 
 	mhi_ctrl->rddm_size = RDDM_DUMP_SIZE;
@@ -434,6 +387,7 @@ int ath11k_mhi_register(struct ath11k_pci *ab_pci)
 	case ATH11K_HW_QCA6390_HW20:
 	case ATH11K_HW_WCN6855_HW20:
 	case ATH11K_HW_WCN6855_HW21:
+	case ATH11K_HW_QCA2066_HW21:
 		ath11k_mhi_config = &ath11k_mhi_config_qca6390;
 		break;
 	default:

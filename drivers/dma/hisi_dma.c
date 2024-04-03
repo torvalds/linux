@@ -163,7 +163,7 @@ struct hisi_dma_dev {
 	u32 chan_depth;
 	enum hisi_dma_reg_layout reg_layout;
 	void __iomem *queue_base; /* queue region start of register */
-	struct hisi_dma_chan chan[];
+	struct hisi_dma_chan chan[] __counted_by(chan_num);
 };
 
 #ifdef CONFIG_DEBUG_FS

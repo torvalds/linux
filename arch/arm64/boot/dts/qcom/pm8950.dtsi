@@ -50,77 +50,90 @@
 			#size-cells = <0>;
 			#io-channel-cells = <1>;
 
-			vcoin@5 {
+			channel@5 {
 				reg = <VADC_VCOIN>;
 				qcom,pre-scaling = <1 1>;
+				label = "vcoin";
 			};
 
-			vph-pwr@7 {
+			channel@7 {
 				reg = <VADC_VSYS>;
 				qcom,pre-scaling = <1 1>;
+				label = "vph_pwr";
 			};
 
-			die-temp@8 {
+			channel@8 {
 				reg = <VADC_DIE_TEMP>;
 				qcom,pre-scaling = <1 1>;
+				label = "die_temp";
 			};
 
-			ref-625mv@9 {
+			channel@9 {
 				reg = <VADC_REF_625MV>;
 				qcom,pre-scaling = <1 1>;
+				label = "ref_625mv";
 			};
 
-			ref-1250mv@a {
+			channel@a {
 				reg = <VADC_REF_1250MV>;
 				qcom,pre-scaling = <1 1>;
+				label = "ref_1250mv";
 			};
 
-			ref-buf-625mv@c {
+			channel@c {
 				reg = <VADC_SPARE1>;
 				qcom,pre-scaling = <1 1>;
+				label = "ref_buf_625mv";
 			};
 
-			ref-gnd@e {
+			channel@e {
 				reg = <VADC_GND_REF>;
+				label = "ref_gnd";
 			};
 
-			ref-vdd@f {
+			channel@f {
 				reg = <VADC_VDD_VADC>;
+				label = "ref_vdd";
 			};
 
-			pa-therm1@11 {
+			channel@11 {
 				reg = <VADC_P_MUX2_1_1>;
 				qcom,pre-scaling = <1 1>;
 				qcom,ratiometric;
 				qcom,hw-settle-time = <200>;
+				label = "pa_therm1";
 			};
 
-			case-therm@13 {
+			channel@13 {
 				reg = <VADC_P_MUX4_1_1>;
 				qcom,pre-scaling = <1 1>;
 				qcom,ratiometric;
 				qcom,hw-settle-time = <200>;
+				label = "case_therm";
 			};
 
-			xo-therm@32 {
+			channel@32 {
 				reg = <VADC_LR_MUX3_XO_THERM>;
 				qcom,pre-scaling = <1 1>;
 				qcom,ratiometric;
 				qcom,hw-settle-time = <200>;
+				label = "xo_therm";
 			};
 
-			pa-therm0@36 {
+			channel@36 {
 				reg = <VADC_LR_MUX7_HW_ID>;
 				qcom,pre-scaling = <1 1>;
 				qcom,ratiometric;
 				qcom,hw-settle-time = <200>;
+				label = "pa_therm0";
 			};
 
-			xo-therm-buf@3c {
+			channel@3c {
 				reg = <VADC_LR_MUX3_BUF_XO_THERM>;
 				qcom,pre-scaling = <1 1>;
 				qcom,ratiometric;
 				qcom,hw-settle-time = <200>;
+				label = "xo_therm_buf";
 			};
 		};
 

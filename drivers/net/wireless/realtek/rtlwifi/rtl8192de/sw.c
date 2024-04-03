@@ -21,9 +21,6 @@ static void rtl92d_init_aspm_vars(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
 
-	/*close ASPM for AMD defaultly */
-	rtlpci->const_amdpci_aspm = 0;
-
 	/*
 	 * ASPM PS mode.
 	 * 0 - Disable ASPM,

@@ -33,7 +33,7 @@
  * key 0 controlling userspace addresses on radix
  * Key 3 on hash
  */
-#define MMU_FTR_BOOK3S_KUAP		ASM_CONST(0x00000200)
+#define MMU_FTR_KUAP		ASM_CONST(0x00000200)
 
 /*
  * Supports KUEP feature
@@ -133,6 +133,7 @@
 #define MMU_FTRS_POWER8		MMU_FTRS_POWER6
 #define MMU_FTRS_POWER9		MMU_FTRS_POWER6
 #define MMU_FTRS_POWER10	MMU_FTRS_POWER6
+#define MMU_FTRS_POWER11	MMU_FTRS_POWER6
 #define MMU_FTRS_CELL		MMU_FTRS_DEFAULT_HPTE_ARCH_V2 | \
 				MMU_FTR_CI_LARGE_PAGE
 #define MMU_FTRS_PA6T		MMU_FTRS_DEFAULT_HPTE_ARCH_V2 | \
@@ -143,11 +144,6 @@
 #include <asm/page.h>
 
 typedef pte_t *pgtable_t;
-
-#ifdef CONFIG_PPC_E500
-#include <asm/percpu.h>
-DECLARE_PER_CPU(int, next_tlbcam_idx);
-#endif
 
 enum {
 	MMU_FTRS_POSSIBLE =
@@ -188,7 +184,7 @@ enum {
 #endif /* CONFIG_PPC_RADIX_MMU */
 #endif
 #ifdef CONFIG_PPC_KUAP
-	MMU_FTR_BOOK3S_KUAP |
+	MMU_FTR_KUAP |
 #endif /* CONFIG_PPC_KUAP */
 #ifdef CONFIG_PPC_MEM_KEYS
 	MMU_FTR_PKEY |
@@ -335,17 +331,10 @@ static __always_inline bool early_radix_enabled(void)
 	return early_mmu_has_feature(MMU_FTR_TYPE_RADIX);
 }
 
-#ifdef CONFIG_STRICT_KERNEL_RWX
 static inline bool strict_kernel_rwx_enabled(void)
 {
-	return rodata_enabled;
+	return IS_ENABLED(CONFIG_STRICT_KERNEL_RWX) && rodata_enabled;
 }
-#else
-static inline bool strict_kernel_rwx_enabled(void)
-{
-	return false;
-}
-#endif
 
 static inline bool strict_module_rwx_enabled(void)
 {
@@ -415,6 +404,10 @@ extern void *abatron_pteptrs[2];
 #include <asm/book3s/32/mmu-hash.h>
 #elif defined(CONFIG_PPC_MMU_NOHASH)
 #include <asm/nohash/mmu.h>
+#endif
+
+#if defined(CONFIG_FA_DUMP) || defined(CONFIG_PRESERVE_FA_DUMP)
+#define __HAVE_ARCH_RESERVED_KERNEL_PAGES
 #endif
 
 #endif /* __KERNEL__ */

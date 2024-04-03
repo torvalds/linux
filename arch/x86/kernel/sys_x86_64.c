@@ -52,13 +52,6 @@ static unsigned long get_align_bits(void)
 	return va_align.bits & get_align_mask();
 }
 
-unsigned long align_vdso_addr(unsigned long addr)
-{
-	unsigned long align_mask = get_align_mask();
-	addr = (addr + align_mask) & ~align_mask;
-	return addr | get_align_bits();
-}
-
 static int __init control_va_addr_alignment(char *str)
 {
 	/* guard against enabling this on other CPU families */
@@ -193,7 +186,11 @@ get_unmapped_area:
 
 	info.flags = VM_UNMAPPED_AREA_TOPDOWN;
 	info.length = len;
-	info.low_limit = PAGE_SIZE;
+	if (!in_32bit_syscall() && (flags & MAP_ABOVE4G))
+		info.low_limit = SZ_4G;
+	else
+		info.low_limit = PAGE_SIZE;
+
 	info.high_limit = get_mmap_base(0);
 
 	/*

@@ -133,20 +133,11 @@ static ssize_t axp20x_store_attr(struct device *dev,
 				 size_t count)
 {
 	struct axp20x_pek *axp20x_pek = dev_get_drvdata(dev);
-	char val_str[20];
-	size_t len;
 	int ret, i;
 	unsigned int val, idx = 0;
 	unsigned int best_err = UINT_MAX;
 
-	val_str[sizeof(val_str) - 1] = '\0';
-	strncpy(val_str, buf, sizeof(val_str) - 1);
-	len = strlen(val_str);
-
-	if (len && val_str[len - 1] == '\n')
-		val_str[len - 1] = '\0';
-
-	ret = kstrtouint(val_str, 10, &val);
+	ret = kstrtouint(buf, 10, &val);
 	if (ret)
 		return ret;
 

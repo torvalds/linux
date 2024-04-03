@@ -210,22 +210,31 @@ static int sparx5_get_port_parent_id(struct net_device *dev,
 	return 0;
 }
 
-static int sparx5_port_ioctl(struct net_device *dev, struct ifreq *ifr,
-			     int cmd)
+static int sparx5_port_hwtstamp_get(struct net_device *dev,
+				    struct kernel_hwtstamp_config *cfg)
 {
 	struct sparx5_port *sparx5_port = netdev_priv(dev);
 	struct sparx5 *sparx5 = sparx5_port->sparx5;
 
-	if (!phy_has_hwtstamp(dev->phydev) && sparx5->ptp) {
-		switch (cmd) {
-		case SIOCSHWTSTAMP:
-			return sparx5_ptp_hwtstamp_set(sparx5_port, ifr);
-		case SIOCGHWTSTAMP:
-			return sparx5_ptp_hwtstamp_get(sparx5_port, ifr);
-		}
-	}
+	if (!sparx5->ptp)
+		return -EOPNOTSUPP;
 
-	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+	sparx5_ptp_hwtstamp_get(sparx5_port, cfg);
+
+	return 0;
+}
+
+static int sparx5_port_hwtstamp_set(struct net_device *dev,
+				    struct kernel_hwtstamp_config *cfg,
+				    struct netlink_ext_ack *extack)
+{
+	struct sparx5_port *sparx5_port = netdev_priv(dev);
+	struct sparx5 *sparx5 = sparx5_port->sparx5;
+
+	if (!sparx5->ptp)
+		return -EOPNOTSUPP;
+
+	return sparx5_ptp_hwtstamp_set(sparx5_port, cfg, extack);
 }
 
 static const struct net_device_ops sparx5_port_netdev_ops = {
@@ -238,8 +247,10 @@ static const struct net_device_ops sparx5_port_netdev_ops = {
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_get_stats64        = sparx5_get_stats64,
 	.ndo_get_port_parent_id = sparx5_get_port_parent_id,
-	.ndo_eth_ioctl          = sparx5_port_ioctl,
+	.ndo_eth_ioctl          = phy_do_ioctl,
 	.ndo_setup_tc           = sparx5_port_setup_tc,
+	.ndo_hwtstamp_get       = sparx5_port_hwtstamp_get,
+	.ndo_hwtstamp_set       = sparx5_port_hwtstamp_set,
 };
 
 bool sparx5_netdevice_check(const struct net_device *dev)

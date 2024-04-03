@@ -38,7 +38,6 @@ static struct snd_soc_dai_driver sc7280_lpass_cpu_dai_driver[] = {
 			.channels_min	= 2,
 			.channels_max	= 2,
 		},
-		.probe	= &asoc_qcom_lpass_cpu_dai_probe,
 		.ops    = &asoc_qcom_lpass_cpu_dai_ops,
 	}, {
 		.id = MI2S_SECONDARY,
@@ -52,7 +51,6 @@ static struct snd_soc_dai_driver sc7280_lpass_cpu_dai_driver[] = {
 			.channels_min	= 2,
 			.channels_max	= 2,
 		},
-		.probe	= &asoc_qcom_lpass_cpu_dai_probe,
 		.ops	= &asoc_qcom_lpass_cpu_dai_ops,
 	}, {
 		.id = LPASS_DP_RX,
@@ -112,7 +110,7 @@ static struct snd_soc_dai_driver sc7280_lpass_cpu_dai_driver[] = {
 static int sc7280_lpass_alloc_dma_channel(struct lpass_data *drvdata,
 					  int direction, unsigned int dai_id)
 {
-	struct lpass_variant *v = drvdata->variant;
+	const struct lpass_variant *v = drvdata->variant;
 	int chan = 0;
 
 	switch (dai_id) {
@@ -198,7 +196,7 @@ static int sc7280_lpass_free_dma_channel(struct lpass_data *drvdata, int chan, u
 static int sc7280_lpass_init(struct platform_device *pdev)
 {
 	struct lpass_data *drvdata = platform_get_drvdata(pdev);
-	struct lpass_variant *variant = drvdata->variant;
+	const struct lpass_variant *variant = drvdata->variant;
 	struct device *dev = &pdev->dev;
 	int ret, i;
 
@@ -254,7 +252,7 @@ static const struct dev_pm_ops sc7280_lpass_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(sc7280_lpass_dev_suspend, sc7280_lpass_dev_resume)
 };
 
-static struct lpass_variant sc7280_data = {
+static const struct lpass_variant sc7280_data = {
 	.i2sctrl_reg_base		= 0x1000,
 	.i2sctrl_reg_stride		= 0x1000,
 	.i2s_ports			= 3,
@@ -447,7 +445,7 @@ static struct platform_driver sc7280_lpass_cpu_platform_driver = {
 		.pm = &sc7280_lpass_pm_ops,
 	},
 	.probe = asoc_qcom_lpass_cpu_platform_probe,
-	.remove = asoc_qcom_lpass_cpu_platform_remove,
+	.remove_new = asoc_qcom_lpass_cpu_platform_remove,
 	.shutdown = asoc_qcom_lpass_cpu_platform_shutdown,
 };
 

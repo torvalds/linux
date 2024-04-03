@@ -2,6 +2,7 @@
 config MINIX_FS
 	tristate "Minix file system support"
 	depends on BLOCK
+	select BUFFER_HEAD
 	help
 	  Minix is a simple operating system used in many classes about OS's.
 	  The minix file system (method to organize files on a hard disk

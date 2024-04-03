@@ -9,6 +9,6 @@
  * to DMA. It _is_ used for the s390 memory zone split at 2GB caused
  * by the 31 bit heritage.
  */
-#define MAX_DMA_ADDRESS         0x80000000
+#define MAX_DMA_ADDRESS		__va(0x80000000)
 
 #endif /* _ASM_S390_DMA_H */

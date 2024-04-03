@@ -51,8 +51,8 @@ static int led_pwm_mc_set(struct led_classdev *cdev,
 
 		priv->leds[i].state.duty_cycle = duty;
 		priv->leds[i].state.enabled = duty > 0;
-		ret = pwm_apply_state(priv->leds[i].pwm,
-				      &priv->leds[i].state);
+		ret = pwm_apply_might_sleep(priv->leds[i].pwm,
+					    &priv->leds[i].state);
 		if (ret)
 			break;
 	}

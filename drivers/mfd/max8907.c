@@ -15,7 +15,6 @@
 #include <linux/mfd/max8907.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -64,7 +63,7 @@ static const struct regmap_config max8907_regmap_gen_config = {
 	.precious_reg = max8907_gen_is_precious_reg,
 	.writeable_reg = max8907_gen_is_writeable_reg,
 	.max_register = MAX8907_REG_LDO20VOUT,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static bool max8907_rtc_is_volatile_reg(struct device *dev, unsigned int reg)
@@ -109,7 +108,7 @@ static const struct regmap_config max8907_regmap_rtc_config = {
 	.precious_reg = max8907_rtc_is_precious_reg,
 	.writeable_reg = max8907_rtc_is_writeable_reg,
 	.max_register = MAX8907_REG_MPL_CNTL,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct regmap_irq max8907_chg_irqs[] = {

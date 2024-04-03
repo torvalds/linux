@@ -11,21 +11,6 @@
 #include "msm_drv.h"
 #include "msm_gem.h"
 
-int msm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
-{
-	int ret;
-
-	/* Ensure the mmap offset is initialized.  We lazily initialize it,
-	 * so if it has not been first mmap'd directly as a GEM object, the
-	 * mmap offset will not be already initialized.
-	 */
-	ret = drm_gem_create_mmap_offset(obj);
-	if (ret)
-		return ret;
-
-	return drm_gem_prime_mmap(obj, vma);
-}
-
 struct sg_table *msm_gem_prime_get_sg_table(struct drm_gem_object *obj)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
@@ -41,7 +26,7 @@ int msm_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
 	void *vaddr;
 
-	vaddr = msm_gem_get_vaddr(obj);
+	vaddr = msm_gem_get_vaddr_locked(obj);
 	if (IS_ERR(vaddr))
 		return PTR_ERR(vaddr);
 	iosys_map_set_vaddr(map, vaddr);
@@ -51,7 +36,7 @@ int msm_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 
 void msm_gem_prime_vunmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
-	msm_gem_put_vaddr(obj);
+	msm_gem_put_vaddr_locked(obj);
 }
 
 struct drm_gem_object *msm_gem_prime_import_sg_table(struct drm_device *dev,

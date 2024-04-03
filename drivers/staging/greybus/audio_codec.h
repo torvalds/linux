@@ -71,6 +71,7 @@ struct gbaudio_codec_info {
 	/* to maintain runtime stream params for each DAI */
 	struct list_head dai_list;
 	struct mutex lock;
+	struct mutex register_mutex;
 };
 
 struct gbaudio_widget {

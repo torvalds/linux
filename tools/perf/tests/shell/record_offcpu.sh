@@ -10,25 +10,25 @@ perfdata=$(mktemp /tmp/__perf_test.perf.data.XXXXX)
 cleanup() {
   rm -f ${perfdata}
   rm -f ${perfdata}.old
-  trap - exit term int
+  trap - EXIT TERM INT
 }
 
 trap_cleanup() {
   cleanup
   exit 1
 }
-trap trap_cleanup exit term int
+trap trap_cleanup EXIT TERM INT
 
 test_offcpu_priv() {
   echo "Checking off-cpu privilege"
 
-  if [ `id -u` != 0 ]
+  if [ "$(id -u)" != 0 ]
   then
     echo "off-cpu test [Skipped permission]"
     err=2
     return
   fi
-  if perf record --off-cpu -o /dev/null --quiet true 2>&1 | grep BUILD_BPF_SKEL
+  if perf version --build-options 2>&1 | grep HAVE_BPF_SKEL | grep -q OFF
   then
     echo "off-cpu test [Skipped missing BPF support]"
     err=2
@@ -77,9 +77,9 @@ test_offcpu_child() {
     err=1
     return
   fi
-  # each process waits for read and write, so it should be more than 800 events
+  # each process waits at least for poll, so it should be more than 400 events
   if ! perf report -i ${perfdata} -s comm -q -n -t ';' --percent-limit=90 | \
-    awk -F ";" '{ if (NF > 3 && int($3) < 800) exit 1; }'
+    awk -F ";" '{ if (NF > 3 && int($3) < 400) exit 1; }'
   then
     echo "Child task off-cpu test [Failed invalid output]"
     err=1

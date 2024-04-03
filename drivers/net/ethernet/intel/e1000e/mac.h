@@ -29,8 +29,6 @@ s32 e1000e_set_fc_watermarks(struct e1000_hw *hw);
 s32 e1000e_setup_fiber_serdes_link(struct e1000_hw *hw);
 s32 e1000e_setup_led_generic(struct e1000_hw *hw);
 s32 e1000e_setup_link_generic(struct e1000_hw *hw);
-s32 e1000e_validate_mdi_setting_generic(struct e1000_hw *hw);
-s32 e1000e_validate_mdi_setting_crossover_generic(struct e1000_hw *hw);
 
 void e1000e_clear_hw_cntrs_base(struct e1000_hw *hw);
 void e1000_clear_vfta_generic(struct e1000_hw *hw);

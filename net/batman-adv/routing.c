@@ -1270,3 +1270,73 @@ out:
 	batadv_orig_node_put(orig_node);
 	return ret;
 }
+
+#ifdef CONFIG_BATMAN_ADV_MCAST
+/**
+ * batadv_recv_mcast_packet() - process received batman-adv multicast packet
+ * @skb: the received batman-adv multicast packet
+ * @recv_if: interface that the skb is received on
+ *
+ * Parses the given, received batman-adv multicast packet. Depending on the
+ * contents of its TVLV forwards it and/or decapsulates it to hand it to the
+ * soft interface.
+ *
+ * Return: NET_RX_DROP if the skb is not consumed, NET_RX_SUCCESS otherwise.
+ */
+int batadv_recv_mcast_packet(struct sk_buff *skb,
+			     struct batadv_hard_iface *recv_if)
+{
+	struct batadv_priv *bat_priv = netdev_priv(recv_if->soft_iface);
+	struct batadv_mcast_packet *mcast_packet;
+	int hdr_size = sizeof(*mcast_packet);
+	unsigned char *tvlv_buff;
+	int ret = NET_RX_DROP;
+	u16 tvlv_buff_len;
+
+	if (batadv_check_unicast_packet(bat_priv, skb, hdr_size) < 0)
+		goto free_skb;
+
+	/* create a copy of the skb, if needed, to modify it. */
+	if (skb_cow(skb, ETH_HLEN) < 0)
+		goto free_skb;
+
+	/* packet needs to be linearized to access the tvlv content */
+	if (skb_linearize(skb) < 0)
+		goto free_skb;
+
+	mcast_packet = (struct batadv_mcast_packet *)skb->data;
+	if (mcast_packet->ttl-- < 2)
+		goto free_skb;
+
+	tvlv_buff = (unsigned char *)(skb->data + hdr_size);
+	tvlv_buff_len = ntohs(mcast_packet->tvlv_len);
+
+	if (tvlv_buff_len > skb->len - hdr_size)
+		goto free_skb;
+
+	ret = batadv_tvlv_containers_process(bat_priv, BATADV_MCAST, NULL, skb,
+					     tvlv_buff, tvlv_buff_len);
+	if (ret >= 0) {
+		batadv_inc_counter(bat_priv, BATADV_CNT_MCAST_RX);
+		batadv_add_counter(bat_priv, BATADV_CNT_MCAST_RX_BYTES,
+				   skb->len + ETH_HLEN);
+	}
+
+	hdr_size += tvlv_buff_len;
+
+	if (ret == NET_RX_SUCCESS && (skb->len - hdr_size >= ETH_HLEN)) {
+		batadv_inc_counter(bat_priv, BATADV_CNT_MCAST_RX_LOCAL);
+		batadv_add_counter(bat_priv, BATADV_CNT_MCAST_RX_LOCAL_BYTES,
+				   skb->len - hdr_size);
+
+		batadv_interface_rx(bat_priv->soft_iface, skb, hdr_size, NULL);
+		/* skb was consumed */
+		skb = NULL;
+	}
+
+free_skb:
+	kfree_skb(skb);
+
+	return ret;
+}
+#endif /* CONFIG_BATMAN_ADV_MCAST */

@@ -30,7 +30,8 @@
 #include "isst_if_common.h"
 
 /* Supported SST hardware version by this driver */
-#define ISST_HEADER_VERSION		1
+#define ISST_MAJOR_VERSION	0
+#define ISST_MINOR_VERSION	1
 
 /*
  * Used to indicate if value read from MMIO needs to get multiplied
@@ -233,6 +234,7 @@ struct perf_level {
  * @saved_clos_configs:	Save SST-CP CLOS configuration to store restore for suspend/resume
  * @saved_clos_assocs:	Save SST-CP CLOS association to store restore for suspend/resume
  * @saved_pp_control:	Save SST-PP control information to store restore for suspend/resume
+ * @write_blocked:	Write operation is blocked, so can't change SST state
  *
  * This structure is used store complete SST information for a power_domain. This information
  * is used to read/write request for any SST IOCTL. Each physical CPU package can have multiple
@@ -258,6 +260,7 @@ struct tpmi_per_power_domain_info {
 	u64 saved_clos_configs[4];
 	u64 saved_clos_assocs[4];
 	u64 saved_pp_control;
+	bool write_blocked;
 };
 
 /**
@@ -352,20 +355,24 @@ static int sst_main(struct auxiliary_device *auxdev, struct tpmi_per_power_domai
 	pd_info->sst_header.cp_offset *= 8;
 	pd_info->sst_header.pp_offset *= 8;
 
-	if (pd_info->sst_header.interface_version != ISST_HEADER_VERSION) {
-		dev_err(&auxdev->dev, "SST: Unsupported version:%x\n",
-			pd_info->sst_header.interface_version);
+	if (pd_info->sst_header.interface_version == TPMI_VERSION_INVALID)
+		return -ENODEV;
+
+	if (TPMI_MAJOR_VERSION(pd_info->sst_header.interface_version) != ISST_MAJOR_VERSION) {
+		dev_err(&auxdev->dev, "SST: Unsupported major version:%lx\n",
+			TPMI_MAJOR_VERSION(pd_info->sst_header.interface_version));
 		return -ENODEV;
 	}
+
+	if (TPMI_MINOR_VERSION(pd_info->sst_header.interface_version) != ISST_MINOR_VERSION)
+		dev_info(&auxdev->dev, "SST: Ignore: Unsupported minor version:%lx\n",
+			 TPMI_MINOR_VERSION(pd_info->sst_header.interface_version));
 
 	/* Read SST CP Header */
 	*((u64 *)&pd_info->cp_header) = readq(pd_info->sst_base + pd_info->sst_header.cp_offset);
 
 	/* Read PP header */
 	*((u64 *)&pd_info->pp_header) = readq(pd_info->sst_base + pd_info->sst_header.pp_offset);
-
-	/* Force level_en_mask level 0 */
-	pd_info->pp_header.level_en_mask |= 0x01;
 
 	mask = 0x01;
 	levels = 0;
@@ -455,10 +462,10 @@ static long isst_if_core_power_state(void __user *argp)
 	struct tpmi_per_power_domain_info *power_domain_info;
 	struct isst_core_power core_power;
 
-	if (disable_dynamic_sst_features())
+	if (copy_from_user(&core_power, argp, sizeof(core_power)))
 		return -EFAULT;
 
-	if (copy_from_user(&core_power, argp, sizeof(core_power)))
+	if (core_power.get_set && disable_dynamic_sst_features())
 		return -EFAULT;
 
 	power_domain_info = get_instance(core_power.socket_id, core_power.power_domain_id);
@@ -510,6 +517,9 @@ static long isst_if_clos_param(void __user *argp)
 		return -EINVAL;
 
 	if (clos_param.get_set) {
+		if (power_domain_info->write_blocked)
+			return -EPERM;
+
 		_write_cp_info("clos.min_freq", clos_param.min_freq_mhz,
 			       (SST_CLOS_CONFIG_0_OFFSET + clos_param.clos * SST_REG_SIZE),
 			       SST_CLOS_CONFIG_MIN_START, SST_CLOS_CONFIG_MIN_WIDTH,
@@ -596,6 +606,9 @@ static long isst_if_clos_assoc(void __user *argp)
 			return -EINVAL;
 
 		power_domain_info = &sst_inst->power_domain_info[punit_id];
+
+		if (assoc_cmds.get_set && power_domain_info->write_blocked)
+			return -EPERM;
 
 		offset = SST_CLOS_ASSOC_0_OFFSET +
 				(punit_cpu_no / SST_CLOS_ASSOC_CPUS_PER_REG) * SST_REG_SIZE;
@@ -704,7 +717,7 @@ static int isst_if_get_perf_level(void __user *argp)
 		return -EINVAL;
 
 	perf_level.max_level = power_domain_info->max_level;
-	perf_level.level_mask = power_domain_info->pp_header.allowed_level_mask;
+	perf_level.level_mask = power_domain_info->pp_header.level_en_mask;
 	perf_level.feature_rev = power_domain_info->pp_header.feature_rev;
 	_read_pp_info("current_level", perf_level.current_level, SST_PP_STATUS_OFFSET,
 		      SST_PP_LEVEL_START, SST_PP_LEVEL_WIDTH, SST_MUL_FACTOR_NONE)
@@ -746,6 +759,9 @@ static int isst_if_set_perf_level(void __user *argp)
 	power_domain_info = get_instance(perf_level.socket_id, perf_level.power_domain_id);
 	if (!power_domain_info)
 		return -EINVAL;
+
+	if (power_domain_info->write_blocked)
+		return -EPERM;
 
 	if (!(power_domain_info->pp_header.allowed_level_mask & BIT(perf_level.level)))
 		return -EINVAL;
@@ -803,6 +819,9 @@ static int isst_if_set_perf_feature(void __user *argp)
 	power_domain_info = get_instance(perf_feature.socket_id, perf_feature.power_domain_id);
 	if (!power_domain_info)
 		return -EINVAL;
+
+	if (power_domain_info->write_blocked)
+		return -EPERM;
 
 	_write_pp_info("perf_feature", perf_feature.feature, SST_PP_CONTROL_OFFSET,
 		       SST_PP_FEATURE_STATE_START, SST_PP_FEATURE_STATE_WIDTH,
@@ -1252,10 +1271,20 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 
 int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 {
+	bool read_blocked = 0, write_blocked = 0;
 	struct intel_tpmi_plat_info *plat_info;
 	struct tpmi_sst_struct *tpmi_sst;
 	int i, ret, pkg = 0, inst = 0;
 	int num_resources;
+
+	ret = tpmi_get_feature_status(auxdev, TPMI_ID_SST, &read_blocked, &write_blocked);
+	if (ret)
+		dev_info(&auxdev->dev, "Can't read feature status: ignoring read/write blocked status\n");
+
+	if (read_blocked) {
+		dev_info(&auxdev->dev, "Firmware has blocked reads, exiting\n");
+		return -ENODEV;
+	}
 
 	plat_info = tpmi_get_platform_data(auxdev);
 	if (!plat_info) {
@@ -1301,6 +1330,7 @@ int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 		tpmi_sst->power_domain_info[i].package_id = pkg;
 		tpmi_sst->power_domain_info[i].power_domain_id = i;
 		tpmi_sst->power_domain_info[i].auxdev = auxdev;
+		tpmi_sst->power_domain_info[i].write_blocked = write_blocked;
 		tpmi_sst->power_domain_info[i].sst_base = devm_ioremap_resource(&auxdev->dev, res);
 		if (IS_ERR(tpmi_sst->power_domain_info[i].sst_base))
 			return PTR_ERR(tpmi_sst->power_domain_info[i].sst_base);

@@ -149,7 +149,7 @@ static void print_dist_state(struct seq_file *s, struct vgic_dist *dist)
 	seq_printf(s, "vgic_model:\t%s\n", v3 ? "GICv3" : "GICv2");
 	seq_printf(s, "nr_spis:\t%d\n", dist->nr_spis);
 	if (v3)
-		seq_printf(s, "nr_lpis:\t%d\n", dist->lpi_list_count);
+		seq_printf(s, "nr_lpis:\t%d\n", atomic_read(&dist->lpi_count));
 	seq_printf(s, "enabled:\t%d\n", dist->enabled);
 	seq_printf(s, "\n");
 
@@ -166,7 +166,7 @@ static void print_header(struct seq_file *s, struct vgic_irq *irq,
 
 	if (vcpu) {
 		hdr = "VCPU";
-		id = vcpu->vcpu_id;
+		id = vcpu->vcpu_idx;
 	}
 
 	seq_printf(s, "\n");
@@ -212,7 +212,7 @@ static void print_irq_state(struct seq_file *s, struct vgic_irq *irq,
 		      "     %2d "
 		      "\n",
 			type, irq->intid,
-			(irq->target_vcpu) ? irq->target_vcpu->vcpu_id : -1,
+			(irq->target_vcpu) ? irq->target_vcpu->vcpu_idx : -1,
 			pending,
 			irq->line_level,
 			irq->active,
@@ -224,7 +224,7 @@ static void print_irq_state(struct seq_file *s, struct vgic_irq *irq,
 			irq->mpidr,
 			irq->source,
 			irq->priority,
-			(irq->vcpu) ? irq->vcpu->vcpu_id : -1);
+			(irq->vcpu) ? irq->vcpu->vcpu_idx : -1);
 }
 
 static int vgic_debug_show(struct seq_file *s, void *v)

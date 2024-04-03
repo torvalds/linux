@@ -8,6 +8,8 @@ struct bd_holder_disk {
 	int			refcnt;
 };
 
+static DEFINE_MUTEX(blk_holder_mutex);
+
 static struct bd_holder_disk *bd_find_holder_disk(struct block_device *bdev,
 						  struct gendisk *disk)
 {
@@ -80,7 +82,7 @@ int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 	kobject_get(bdev->bd_holder_dir);
 	mutex_unlock(&bdev->bd_disk->open_mutex);
 
-	mutex_lock(&disk->open_mutex);
+	mutex_lock(&blk_holder_mutex);
 	WARN_ON_ONCE(!bdev->bd_holder);
 
 	holder = bd_find_holder_disk(bdev, disk);
@@ -108,7 +110,7 @@ int bd_link_disk_holder(struct block_device *bdev, struct gendisk *disk)
 		goto out_del_symlink;
 	list_add(&holder->list, &disk->slave_bdevs);
 
-	mutex_unlock(&disk->open_mutex);
+	mutex_unlock(&blk_holder_mutex);
 	return 0;
 
 out_del_symlink:
@@ -116,7 +118,7 @@ out_del_symlink:
 out_free_holder:
 	kfree(holder);
 out_unlock:
-	mutex_unlock(&disk->open_mutex);
+	mutex_unlock(&blk_holder_mutex);
 	if (ret)
 		kobject_put(bdev->bd_holder_dir);
 	return ret;
@@ -140,7 +142,7 @@ void bd_unlink_disk_holder(struct block_device *bdev, struct gendisk *disk)
 	if (WARN_ON_ONCE(!disk->slave_dir))
 		return;
 
-	mutex_lock(&disk->open_mutex);
+	mutex_lock(&blk_holder_mutex);
 	holder = bd_find_holder_disk(bdev, disk);
 	if (!WARN_ON_ONCE(holder == NULL) && !--holder->refcnt) {
 		del_symlink(disk->slave_dir, bdev_kobj(bdev));
@@ -149,6 +151,6 @@ void bd_unlink_disk_holder(struct block_device *bdev, struct gendisk *disk)
 		list_del_init(&holder->list);
 		kfree(holder);
 	}
-	mutex_unlock(&disk->open_mutex);
+	mutex_unlock(&blk_holder_mutex);
 }
 EXPORT_SYMBOL_GPL(bd_unlink_disk_holder);

@@ -175,8 +175,12 @@ static int pruss_probe(struct platform_device *pdev)
 		goto err_free_ddr_vaddr;
 	}
 
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		goto err_unmap;
+
+	gdev->hostirq_start = ret;
 	gdev->pintc_base = pdata->pintc_base;
-	gdev->hostirq_start = platform_get_irq(pdev, 0);
 
 	for (cnt = 0, p = gdev->info; cnt < MAX_PRUSS_EVT; cnt++, p++) {
 		p->mem[0].addr = regs_prussio->start;
@@ -187,9 +191,11 @@ static int pruss_probe(struct platform_device *pdev)
 		p->mem[1].size = sram_pool_sz;
 		p->mem[1].memtype = UIO_MEM_PHYS;
 
-		p->mem[2].addr = gdev->ddr_paddr;
+		p->mem[2].addr = (uintptr_t) gdev->ddr_vaddr;
+		p->mem[2].dma_addr = gdev->ddr_paddr;
 		p->mem[2].size = extram_pool_sz;
-		p->mem[2].memtype = UIO_MEM_PHYS;
+		p->mem[2].memtype = UIO_MEM_DMA_COHERENT;
+		p->mem[2].dma_device = dev;
 
 		p->name = devm_kasprintf(dev, GFP_KERNEL, "pruss_evt%d", cnt);
 		p->version = DRV_VERSION;
@@ -211,6 +217,7 @@ err_unloop:
 	for (i = 0, p = gdev->info; i < cnt; i++, p++) {
 		uio_unregister_device(p);
 	}
+err_unmap:
 	iounmap(gdev->prussio_vaddr);
 err_free_ddr_vaddr:
 	dma_free_coherent(dev, extram_pool_sz, gdev->ddr_vaddr,

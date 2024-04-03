@@ -2,14 +2,14 @@
 /*
  * Device Tree Source for K2G EVM
  *
- * Copyright (C) 2016-2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2016-2017 Texas Instruments Incorporated - https://www.ti.com/
  */
 /dts-v1/;
 
 #include "keystone-k2g.dtsi"
 
 / {
-	compatible =  "ti,k2g-evm", "ti,k2g", "ti,keystone";
+	compatible = "ti,k2g-evm", "ti,k2g", "ti,keystone";
 	model = "Texas Instruments K2G General Purpose EVM";
 
 	memory@800000000 {

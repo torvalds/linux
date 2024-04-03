@@ -48,17 +48,8 @@ ${NM} -n ${1} | sed >${2} -e "
 / __kvm_nvhe_\\$/d
 / __kvm_nvhe_\.L/d
 
-# arm64 lld
-/ __AArch64ADRPThunk_/d
-
-# arm lld
-/ __ARMV5PILongThunk_/d
-/ __ARMV7PILongThunk_/d
-/ __ThumbV7PILongThunk_/d
-
-# mips lld
-/ __LA25Thunk_/d
-/ __microLA25Thunk_/d
+# lld arm/aarch64/mips thunks
+/ __[[:alnum:]]*Thunk_/d
 
 # CFI type identifiers
 / __kcfi_typeid_/d

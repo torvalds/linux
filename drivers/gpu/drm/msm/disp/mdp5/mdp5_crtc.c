@@ -13,6 +13,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -172,14 +173,11 @@ static void unref_cursor_worker(struct drm_flip_work *work, void *val)
 	drm_gem_object_put(val);
 }
 
-static void mdp5_crtc_destroy(struct drm_crtc *crtc)
+static void mdp5_crtc_flip_cleanup(struct drm_device *dev, void *ptr)
 {
-	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
+	struct mdp5_crtc *mdp5_crtc = ptr;
 
-	drm_crtc_cleanup(crtc);
 	drm_flip_work_cleanup(&mdp5_crtc->unref_cursor_work);
-
-	kfree(mdp5_crtc);
 }
 
 static inline u32 mdp5_lm_use_fg_alpha_mask(enum mdp_mixer_stage_id stage)
@@ -1147,7 +1145,6 @@ static void mdp5_crtc_reset(struct drm_crtc *crtc)
 
 static const struct drm_crtc_funcs mdp5_crtc_no_lm_cursor_funcs = {
 	.set_config = drm_atomic_helper_set_config,
-	.destroy = mdp5_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
 	.reset = mdp5_crtc_reset,
 	.atomic_duplicate_state = mdp5_crtc_duplicate_state,
@@ -1161,7 +1158,6 @@ static const struct drm_crtc_funcs mdp5_crtc_no_lm_cursor_funcs = {
 
 static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
-	.destroy = mdp5_crtc_destroy,
 	.page_flip = drm_atomic_helper_page_flip,
 	.reset = mdp5_crtc_reset,
 	.atomic_duplicate_state = mdp5_crtc_duplicate_state,
@@ -1327,10 +1323,16 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 {
 	struct drm_crtc *crtc = NULL;
 	struct mdp5_crtc *mdp5_crtc;
+	int ret;
 
-	mdp5_crtc = kzalloc(sizeof(*mdp5_crtc), GFP_KERNEL);
-	if (!mdp5_crtc)
-		return ERR_PTR(-ENOMEM);
+	mdp5_crtc = drmm_crtc_alloc_with_planes(dev, struct mdp5_crtc, base,
+						plane, cursor_plane,
+						cursor_plane ?
+						&mdp5_crtc_no_lm_cursor_funcs :
+						&mdp5_crtc_funcs,
+						NULL);
+	if (IS_ERR(mdp5_crtc))
+		return ERR_CAST(mdp5_crtc);
 
 	crtc = &mdp5_crtc->base;
 
@@ -1346,13 +1348,11 @@ struct drm_crtc *mdp5_crtc_init(struct drm_device *dev,
 
 	mdp5_crtc->lm_cursor_enabled = cursor_plane ? false : true;
 
-	drm_crtc_init_with_planes(dev, crtc, plane, cursor_plane,
-				  cursor_plane ?
-				  &mdp5_crtc_no_lm_cursor_funcs :
-				  &mdp5_crtc_funcs, NULL);
-
 	drm_flip_work_init(&mdp5_crtc->unref_cursor_work,
 			"unref cursor", unref_cursor_worker);
+	ret = drmm_add_action_or_reset(dev, mdp5_crtc_flip_cleanup, mdp5_crtc);
+	if (ret)
+		return ERR_PTR(ret);
 
 	drm_crtc_helper_add(crtc, &mdp5_crtc_helper_funcs);
 

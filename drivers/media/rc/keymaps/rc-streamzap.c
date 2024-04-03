@@ -75,3 +75,4 @@ module_exit(exit_rc_map_streamzap)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jarod Wilson <jarod@redhat.com>");
+MODULE_DESCRIPTION("Streamzap remote controller keytable");

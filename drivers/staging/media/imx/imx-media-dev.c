@@ -20,7 +20,7 @@ static inline struct imx_media_dev *notifier2dev(struct v4l2_async_notifier *n)
 /* async subdev bound notifier */
 static int imx_media_subdev_bound(struct v4l2_async_notifier *notifier,
 				  struct v4l2_subdev *sd,
-				  struct v4l2_async_subdev *asd)
+				  struct v4l2_async_connection *asd)
 {
 	struct imx_media_dev *imxmd = notifier2dev(notifier);
 	int ret;

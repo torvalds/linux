@@ -764,6 +764,8 @@ typedef struct _PRLI {		/* Structure is in Big Endian format */
 #define PRLI_PREDEF_CONFIG    0x5
 #define PRLI_PARTIAL_SUCCESS  0x6
 #define PRLI_INVALID_PAGE_CNT 0x7
+#define PRLI_INV_SRV_PARM     0x8
+
 	uint8_t word0Reserved3;	/* FC Parm Word 0, bit 0:7 */
 
 	uint32_t origProcAssoc;	/* FC Parm Word 1, bit 0:31 */

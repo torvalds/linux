@@ -55,3 +55,4 @@ module_exit(exit_rc_map_beelink_mxiii)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Christian Hewitt <christianshewitt@gmail.com");
+MODULE_DESCRIPTION("Beelink Mini MXIII remote controller keytable");

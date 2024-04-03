@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2022  Realtek Corporation
  */
 
+#include "chan.h"
 #include "coex.h"
 #include "debug.h"
 #include "phy.h"
@@ -2893,18 +2894,37 @@ static void _tssi_set_sys(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
 			  enum rtw89_rf_path path)
 {
 	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
+	enum rtw89_bandwidth bw = chan->band_width;
 	enum rtw89_band band = chan->band_type;
+	u32 clk = 0x0;
 
 	rtw89_rfk_parser(rtwdev, &rtw8852c_tssi_sys_defs_tbl);
 
-	if (path == RF_PATH_A)
+	switch (bw) {
+	case RTW89_CHANNEL_WIDTH_80:
+		clk = 0x1;
+		break;
+	case RTW89_CHANNEL_WIDTH_80_80:
+	case RTW89_CHANNEL_WIDTH_160:
+		clk = 0x2;
+		break;
+	default:
+		break;
+	}
+
+	if (path == RF_PATH_A) {
+		rtw89_phy_write32_mask(rtwdev, R_P0_TSSI_ADC_CLK,
+				       B_P0_TSSI_ADC_CLK, clk);
 		rtw89_rfk_parser_by_cond(rtwdev, band == RTW89_BAND_2G,
 					 &rtw8852c_tssi_sys_defs_2g_a_tbl,
 					 &rtw8852c_tssi_sys_defs_5g_a_tbl);
-	else
+	} else {
+		rtw89_phy_write32_mask(rtwdev, R_P1_TSSI_ADC_CLK,
+				       B_P1_TSSI_ADC_CLK, clk);
 		rtw89_rfk_parser_by_cond(rtwdev, band == RTW89_BAND_2G,
 					 &rtw8852c_tssi_sys_defs_2g_b_tbl,
 					 &rtw8852c_tssi_sys_defs_5g_b_tbl);
+	}
 }
 
 static void _tssi_ini_txpwr_ctrl_bb(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy,
@@ -4049,21 +4069,53 @@ void rtw8852c_set_channel_rf(struct rtw89_dev *rtwdev,
 
 void rtw8852c_mcc_get_ch_info(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 {
-	const struct rtw89_chan *chan = rtw89_chan_get(rtwdev, RTW89_SUB_ENTITY_0);
 	struct rtw89_rfk_mcc_info *rfk_mcc = &rtwdev->rfk_mcc;
-	u8 idx = rfk_mcc->table_idx;
-	int i;
+	DECLARE_BITMAP(map, RTW89_IQK_CHS_NR) = {};
+	const struct rtw89_chan *chan;
+	enum rtw89_entity_mode mode;
+	u8 chan_idx;
+	u8 idx;
+	u8 i;
 
-	for (i = 0; i < RTW89_IQK_CHS_NR; i++) {
-		if (rfk_mcc->ch[idx] == 0)
-			break;
-		if (++idx >= RTW89_IQK_CHS_NR)
-			idx = 0;
+	mode = rtw89_get_entity_mode(rtwdev);
+	switch (mode) {
+	case RTW89_ENTITY_MODE_MCC_PREPARE:
+		chan_idx = RTW89_SUB_ENTITY_1;
+		break;
+	default:
+		chan_idx = RTW89_SUB_ENTITY_0;
+		break;
 	}
 
-	rfk_mcc->table_idx = idx;
+	for (i = 0; i <= chan_idx; i++) {
+		chan = rtw89_chan_get(rtwdev, i);
+
+		for (idx = 0; idx < RTW89_IQK_CHS_NR; idx++) {
+			if (rfk_mcc->ch[idx] == chan->channel &&
+			    rfk_mcc->band[idx] == chan->band_type) {
+				if (i != chan_idx) {
+					set_bit(idx, map);
+					break;
+				}
+
+				goto bottom;
+			}
+		}
+	}
+
+	idx = find_first_zero_bit(map, RTW89_IQK_CHS_NR);
+	if (idx == RTW89_IQK_CHS_NR) {
+		rtw89_debug(rtwdev, RTW89_DBG_RFK,
+			    "%s: no empty rfk table; force replace the first\n",
+			    __func__);
+		idx = 0;
+	}
+
 	rfk_mcc->ch[idx] = chan->channel;
 	rfk_mcc->band[idx] = chan->band_type;
+
+bottom:
+	rfk_mcc->table_idx = idx;
 }
 
 void rtw8852c_rck(struct rtw89_dev *rtwdev)
@@ -4213,6 +4265,14 @@ trigger_rx_dck:
 	rtw89_btc_ntfy_wl_rfk(rtwdev, phy_map, BTC_WRFKT_RXDCK, BTC_WRFK_STOP);
 }
 
+void rtw8852c_dpk_init(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_dpk_info *dpk = &rtwdev->dpk;
+
+	dpk->is_dpk_enable = true;
+	dpk->is_dpk_reload_en = false;
+}
+
 void rtw8852c_dpk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 {
 	u32 tx_en;
@@ -4222,8 +4282,6 @@ void rtw8852c_dpk(struct rtw89_dev *rtwdev, enum rtw89_phy_idx phy_idx)
 	rtw89_chip_stop_sch_tx(rtwdev, phy_idx, &tx_en, RTW89_SCH_TX_SEL_ALL);
 	_wait_rx_mode(rtwdev, _kpath(rtwdev, phy_idx));
 
-	rtwdev->dpk.is_dpk_enable = true;
-	rtwdev->dpk.is_dpk_reload_en = false;
 	_dpk(rtwdev, phy_idx, false);
 
 	rtw89_chip_resume_sch_tx(rtwdev, phy_idx, tx_en);
@@ -4360,4 +4418,27 @@ void rtw8852c_wifi_scan_notify(struct rtw89_dev *rtwdev,
 		rtw8852c_tssi_default_txagc(rtwdev, phy_idx, true);
 	else
 		rtw8852c_tssi_default_txagc(rtwdev, phy_idx, false);
+}
+
+void rtw8852c_rfk_chanctx_cb(struct rtw89_dev *rtwdev,
+			     enum rtw89_chanctx_state state)
+{
+	struct rtw89_dpk_info *dpk = &rtwdev->dpk;
+	u8 path;
+
+	switch (state) {
+	case RTW89_CHANCTX_STATE_MCC_START:
+		dpk->is_dpk_enable = false;
+		for (path = 0; path < RTW8852C_DPK_RF_PATH; path++)
+			_dpk_onoff(rtwdev, path, false);
+		break;
+	case RTW89_CHANCTX_STATE_MCC_STOP:
+		dpk->is_dpk_enable = true;
+		for (path = 0; path < RTW8852C_DPK_RF_PATH; path++)
+			_dpk_onoff(rtwdev, path, false);
+		rtw8852c_dpk(rtwdev, RTW89_PHY_0);
+		break;
+	default:
+		break;
+	}
 }

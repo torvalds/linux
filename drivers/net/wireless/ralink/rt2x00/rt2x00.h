@@ -334,7 +334,7 @@ struct link {
 	 */
 	struct delayed_work watchdog_work;
 	unsigned int watchdog_interval;
-	bool watchdog_disabled;
+	unsigned int watchdog;
 
 	/*
 	 * Work structure for scheduling periodic AGC adjustments.
@@ -926,6 +926,9 @@ struct rt2x00_dev {
 	 */
 	u16 beacon_int;
 
+	/* Rx/Tx DMA busy watchdog counter */
+	u16 rxdma_busy, txdma_busy;
+
 	/**
 	 * Timestamp of last received beacon
 	 */
@@ -1260,6 +1263,12 @@ static inline bool
 rt2x00_has_cap_external_lna_bg(struct rt2x00_dev *rt2x00dev)
 {
 	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_EXTERNAL_LNA_BG);
+}
+
+static inline bool
+rt2x00_has_cap_external_pa(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_has_cap_flag(rt2x00dev, CAPABILITY_EXTERNAL_PA_TX0);
 }
 
 static inline bool

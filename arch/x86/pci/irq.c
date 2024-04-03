@@ -136,14 +136,14 @@ static inline struct irq_routing_table *pirq_convert_irt_table(u8 *addr,
 	if (ir->signature != IRT_SIGNATURE || !ir->used || ir->size < ir->used)
 		return NULL;
 
-	size = sizeof(*ir) + ir->used * sizeof(ir->slots[0]);
+	size = struct_size(ir, slots, ir->used);
 	if (size > limit - addr)
 		return NULL;
 
 	DBG(KERN_DEBUG "PCI: $IRT Interrupt Routing Table found at 0x%lx\n",
 	    __pa(ir));
 
-	size = sizeof(*rt) + ir->used * sizeof(rt->slots[0]);
+	size = struct_size(rt, slots, ir->used);
 	rt = kzalloc(size, GFP_KERNEL);
 	if (!rt)
 		return NULL;

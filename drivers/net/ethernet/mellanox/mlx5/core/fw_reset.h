@@ -12,6 +12,8 @@ int mlx5_fw_reset_set_reset_sync(struct mlx5_core_dev *dev, u8 reset_type_sel,
 int mlx5_fw_reset_set_live_patch(struct mlx5_core_dev *dev);
 
 int mlx5_fw_reset_wait_reset_done(struct mlx5_core_dev *dev);
+int mlx5_fw_reset_verify_fw_complete(struct mlx5_core_dev *dev,
+				     struct netlink_ext_ack *extack);
 void mlx5_fw_reset_events_start(struct mlx5_core_dev *dev);
 void mlx5_fw_reset_events_stop(struct mlx5_core_dev *dev);
 void mlx5_drain_fw_reset(struct mlx5_core_dev *dev);

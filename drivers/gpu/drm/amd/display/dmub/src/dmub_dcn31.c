@@ -187,7 +187,8 @@ void dmub_dcn31_setup_windows(struct dmub_srv *dmub,
 			      const struct dmub_window *cw3,
 			      const struct dmub_window *cw4,
 			      const struct dmub_window *cw5,
-			      const struct dmub_window *cw6)
+			      const struct dmub_window *cw6,
+			      const struct dmub_window *region6)
 {
 	union dmub_addr offset;
 
@@ -350,6 +351,14 @@ union dmub_fw_boot_status dmub_dcn31_get_fw_boot_status(struct dmub_srv *dmub)
 
 	status.all = REG_READ(DMCUB_SCRATCH0);
 	return status;
+}
+
+union dmub_fw_boot_options dmub_dcn31_get_fw_boot_option(struct dmub_srv *dmub)
+{
+	union dmub_fw_boot_options option;
+
+	option.all = REG_READ(DMCUB_SCRATCH14);
+	return option;
 }
 
 void dmub_dcn31_enable_dmub_boot_options(struct dmub_srv *dmub, const struct dmub_srv_hw_params *params)

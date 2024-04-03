@@ -138,6 +138,9 @@ _base_get_ioc_facts(struct MPT3SAS_ADAPTER *ioc);
 static void
 _base_clear_outstanding_commands(struct MPT3SAS_ADAPTER *ioc);
 
+static u32
+_base_readl_ext_retry(const void __iomem *addr);
+
 /**
  * mpt3sas_base_check_cmd_timeout - Function
  *		to check timeout and command termination due
@@ -201,7 +204,7 @@ module_param_call(mpt3sas_fwfault_debug, _scsih_set_fwfault_debug,
  * while reading the system interface register.
  */
 static inline u32
-_base_readl_aero(const volatile void __iomem *addr)
+_base_readl_aero(const void __iomem *addr)
 {
 	u32 i = 0, ret_val;
 
@@ -213,8 +216,22 @@ _base_readl_aero(const volatile void __iomem *addr)
 	return ret_val;
 }
 
+static u32
+_base_readl_ext_retry(const void __iomem *addr)
+{
+	u32 i, ret_val;
+
+	for (i = 0 ; i < 30 ; i++) {
+		ret_val = readl(addr);
+		if (ret_val != 0)
+			break;
+	}
+
+	return ret_val;
+}
+
 static inline u32
-_base_readl(const volatile void __iomem *addr)
+_base_readl(const void __iomem *addr)
 {
 	return readl(addr);
 }
@@ -940,7 +957,7 @@ mpt3sas_halt_firmware(struct MPT3SAS_ADAPTER *ioc)
 
 	dump_stack();
 
-	doorbell = ioc->base_readl(&ioc->chip->Doorbell);
+	doorbell = ioc->base_readl_ext_retry(&ioc->chip->Doorbell);
 	if ((doorbell & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT) {
 		mpt3sas_print_fault_code(ioc, doorbell &
 		    MPI2_DOORBELL_DATA_MASK);
@@ -4876,8 +4893,7 @@ mpt3sas_base_update_missing_delay(struct MPT3SAS_ADAPTER *ioc,
 	if (!num_phys)
 		return;
 
-	sz = offsetof(Mpi2SasIOUnitPage1_t, PhyData) + (num_phys *
-	    sizeof(Mpi2SasIOUnit1PhyData_t));
+	sz = struct_size(sas_iounit_pg1, PhyData, num_phys);
 	sas_iounit_pg1 = kzalloc(sz, GFP_KERNEL);
 	if (!sas_iounit_pg1) {
 		ioc_err(ioc, "failure at %s:%d/%s()!\n",
@@ -5027,7 +5043,7 @@ _base_get_event_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
 {
 	Mpi26DriverTriggerPage2_t trigger_pg2;
 	struct SL_WH_EVENT_TRIGGER_T *event_tg;
-	MPI26_DRIVER_MPI_EVENT_TIGGER_ENTRY *mpi_event_tg;
+	MPI26_DRIVER_MPI_EVENT_TRIGGER_ENTRY *mpi_event_tg;
 	Mpi2ConfigReply_t mpi_reply;
 	int r = 0, i = 0;
 	u16 count = 0;
@@ -5079,7 +5095,7 @@ _base_get_scsi_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
 {
 	Mpi26DriverTriggerPage3_t trigger_pg3;
 	struct SL_WH_SCSI_TRIGGER_T *scsi_tg;
-	MPI26_DRIVER_SCSI_SENSE_TIGGER_ENTRY *mpi_scsi_tg;
+	MPI26_DRIVER_SCSI_SENSE_TRIGGER_ENTRY *mpi_scsi_tg;
 	Mpi2ConfigReply_t mpi_reply;
 	int r = 0, i = 0;
 	u16 count = 0;
@@ -5131,7 +5147,7 @@ _base_get_mpi_diag_triggers(struct MPT3SAS_ADAPTER *ioc)
 {
 	Mpi26DriverTriggerPage4_t trigger_pg4;
 	struct SL_WH_MPI_TRIGGER_T *status_tg;
-	MPI26_DRIVER_IOCSTATUS_LOGINFO_TIGGER_ENTRY *mpi_status_tg;
+	MPI26_DRIVER_IOCSTATUS_LOGINFO_TRIGGER_ENTRY *mpi_status_tg;
 	Mpi2ConfigReply_t mpi_reply;
 	int r = 0, i = 0;
 	u16 count = 0;
@@ -5362,10 +5378,9 @@ _base_update_diag_trigger_pages(struct MPT3SAS_ADAPTER *ioc)
 static int _base_assign_fw_reported_qd(struct MPT3SAS_ADAPTER *ioc)
 {
 	Mpi2ConfigReply_t mpi_reply;
-	Mpi2SasIOUnitPage1_t *sas_iounit_pg1 = NULL;
+	Mpi2SasIOUnitPage1_t sas_iounit_pg1;
 	Mpi26PCIeIOUnitPage1_t pcie_iounit_pg1;
 	u16 depth;
-	int sz;
 	int rc = 0;
 
 	ioc->max_wideport_qd = MPT3SAS_SAS_QUEUE_DEPTH;
@@ -5375,28 +5390,21 @@ static int _base_assign_fw_reported_qd(struct MPT3SAS_ADAPTER *ioc)
 	if (!ioc->is_gen35_ioc)
 		goto out;
 	/* sas iounit page 1 */
-	sz = offsetof(Mpi2SasIOUnitPage1_t, PhyData);
-	sas_iounit_pg1 = kzalloc(sizeof(Mpi2SasIOUnitPage1_t), GFP_KERNEL);
-	if (!sas_iounit_pg1) {
-		pr_err("%s: failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
-		return rc;
-	}
 	rc = mpt3sas_config_get_sas_iounit_pg1(ioc, &mpi_reply,
-	    sas_iounit_pg1, sz);
+	    &sas_iounit_pg1, sizeof(Mpi2SasIOUnitPage1_t));
 	if (rc) {
 		pr_err("%s: failure at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
 		goto out;
 	}
 
-	depth = le16_to_cpu(sas_iounit_pg1->SASWideMaxQueueDepth);
+	depth = le16_to_cpu(sas_iounit_pg1.SASWideMaxQueueDepth);
 	ioc->max_wideport_qd = (depth ? depth : MPT3SAS_SAS_QUEUE_DEPTH);
 
-	depth = le16_to_cpu(sas_iounit_pg1->SASNarrowMaxQueueDepth);
+	depth = le16_to_cpu(sas_iounit_pg1.SASNarrowMaxQueueDepth);
 	ioc->max_narrowport_qd = (depth ? depth : MPT3SAS_SAS_QUEUE_DEPTH);
 
-	depth = sas_iounit_pg1->SATAMaxQDepth;
+	depth = sas_iounit_pg1.SATAMaxQDepth;
 	ioc->max_sata_qd = (depth ? depth : MPT3SAS_SATA_QUEUE_DEPTH);
 
 	/* pcie iounit page 1 */
@@ -5415,7 +5423,6 @@ out:
 	    "MaxWidePortQD: 0x%x MaxNarrowPortQD: 0x%x MaxSataQD: 0x%x MaxNvmeQD: 0x%x\n",
 	    ioc->max_wideport_qd, ioc->max_narrowport_qd,
 	    ioc->max_sata_qd, ioc->max_nvme_qd));
-	kfree(sas_iounit_pg1);
 	return rc;
 }
 
@@ -5474,7 +5481,7 @@ mpt3sas_atto_validate_nvram(struct MPT3SAS_ADAPTER *ioc,
  * mpt3sas_atto_get_sas_addr - get the ATTO SAS address from mfg page 1
  *
  * @ioc : per adapter object
- * @*sas_addr : return sas address
+ * @sas_addr : return sas address
  * Return: 0 for success, non-zero for failure.
  */
 static int
@@ -5571,6 +5578,7 @@ out:
 static int
 _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 {
+	Mpi2IOUnitPage8_t iounit_pg8;
 	Mpi2ConfigReply_t mpi_reply;
 	u32 iounit_pg1_flags;
 	int tg_flags = 0;
@@ -5667,7 +5675,7 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 	rc = mpt3sas_config_get_iounit_pg1(ioc, &mpi_reply, &ioc->iounit_pg1);
 	if (rc)
 		return rc;
-	rc = mpt3sas_config_get_iounit_pg8(ioc, &mpi_reply, &ioc->iounit_pg8);
+	rc = mpt3sas_config_get_iounit_pg8(ioc, &mpi_reply, &iounit_pg8);
 	if (rc)
 		return rc;
 	_base_display_ioc_capabilities(ioc);
@@ -5689,8 +5697,8 @@ _base_static_config_pages(struct MPT3SAS_ADAPTER *ioc)
 	if (rc)
 		return rc;
 
-	if (ioc->iounit_pg8.NumSensors)
-		ioc->temp_sensors_count = ioc->iounit_pg8.NumSensors;
+	if (iounit_pg8.NumSensors)
+		ioc->temp_sensors_count = iounit_pg8.NumSensors;
 	if (ioc->is_aero_ioc) {
 		rc = _base_update_ioc_page1_inlinewith_perf_mode(ioc);
 		if (rc)
@@ -6686,7 +6694,7 @@ mpt3sas_base_get_iocstate(struct MPT3SAS_ADAPTER *ioc, int cooked)
 {
 	u32 s, sc;
 
-	s = ioc->base_readl(&ioc->chip->Doorbell);
+	s = ioc->base_readl_ext_retry(&ioc->chip->Doorbell);
 	sc = s & MPI2_IOC_STATE_MASK;
 	return cooked ? sc : s;
 }
@@ -6831,7 +6839,7 @@ _base_wait_for_doorbell_ack(struct MPT3SAS_ADAPTER *ioc, int timeout)
 					   __func__, count, timeout));
 			return 0;
 		} else if (int_status & MPI2_HIS_IOC2SYS_DB_STATUS) {
-			doorbell = ioc->base_readl(&ioc->chip->Doorbell);
+			doorbell = ioc->base_readl_ext_retry(&ioc->chip->Doorbell);
 			if ((doorbell & MPI2_IOC_STATE_MASK) ==
 			    MPI2_IOC_STATE_FAULT) {
 				mpt3sas_print_fault_code(ioc, doorbell);
@@ -6871,7 +6879,7 @@ _base_wait_for_doorbell_not_used(struct MPT3SAS_ADAPTER *ioc, int timeout)
 	count = 0;
 	cntdn = 1000 * timeout;
 	do {
-		doorbell_reg = ioc->base_readl(&ioc->chip->Doorbell);
+		doorbell_reg = ioc->base_readl_ext_retry(&ioc->chip->Doorbell);
 		if (!(doorbell_reg & MPI2_DOORBELL_USED)) {
 			dhsprintk(ioc,
 				  ioc_info(ioc, "%s: successful count(%d), timeout(%d)\n",
@@ -7019,7 +7027,7 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 	__le32 *mfp;
 
 	/* make sure doorbell is not in use */
-	if ((ioc->base_readl(&ioc->chip->Doorbell) & MPI2_DOORBELL_USED)) {
+	if ((ioc->base_readl_ext_retry(&ioc->chip->Doorbell) & MPI2_DOORBELL_USED)) {
 		ioc_err(ioc, "doorbell is in use (line=%d)\n", __LINE__);
 		return -EFAULT;
 	}
@@ -7068,7 +7076,7 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 	}
 
 	/* read the first two 16-bits, it gives the total length of the reply */
-	reply[0] = le16_to_cpu(ioc->base_readl(&ioc->chip->Doorbell)
+	reply[0] = le16_to_cpu(ioc->base_readl_ext_retry(&ioc->chip->Doorbell)
 	    & MPI2_DOORBELL_DATA_MASK);
 	writel(0, &ioc->chip->HostInterruptStatus);
 	if ((_base_wait_for_doorbell_int(ioc, 5))) {
@@ -7076,7 +7084,7 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 			__LINE__);
 		return -EFAULT;
 	}
-	reply[1] = le16_to_cpu(ioc->base_readl(&ioc->chip->Doorbell)
+	reply[1] = le16_to_cpu(ioc->base_readl_ext_retry(&ioc->chip->Doorbell)
 	    & MPI2_DOORBELL_DATA_MASK);
 	writel(0, &ioc->chip->HostInterruptStatus);
 
@@ -7087,10 +7095,10 @@ _base_handshake_req_reply_wait(struct MPT3SAS_ADAPTER *ioc, int request_bytes,
 			return -EFAULT;
 		}
 		if (i >=  reply_bytes/2) /* overflow case */
-			ioc->base_readl(&ioc->chip->Doorbell);
+			ioc->base_readl_ext_retry(&ioc->chip->Doorbell);
 		else
 			reply[i] = le16_to_cpu(
-			    ioc->base_readl(&ioc->chip->Doorbell)
+			    ioc->base_readl_ext_retry(&ioc->chip->Doorbell)
 			    & MPI2_DOORBELL_DATA_MASK);
 		writel(0, &ioc->chip->HostInterruptStatus);
 	}
@@ -7370,7 +7378,9 @@ _base_wait_for_iocstate(struct MPT3SAS_ADAPTER *ioc, int timeout)
 		return -EFAULT;
 	}
 
- issue_diag_reset:
+	return 0;
+
+issue_diag_reset:
 	rc = _base_diag_reset(ioc);
 	return rc;
 }
@@ -7906,6 +7916,67 @@ mpt3sas_base_validate_event_type(struct MPT3SAS_ADAPTER *ioc, u32 *event_type)
 }
 
 /**
+* mpt3sas_base_unlock_and_get_host_diagnostic- enable Host Diagnostic Register writes
+* @ioc: per adapter object
+* @host_diagnostic: host diagnostic register content
+*
+* Return: 0 for success, non-zero for failure.
+*/
+
+int
+mpt3sas_base_unlock_and_get_host_diagnostic(struct MPT3SAS_ADAPTER *ioc,
+	u32 *host_diagnostic)
+{
+
+	u32 count;
+	*host_diagnostic = 0;
+	count = 0;
+
+	do {
+		/* Write magic sequence to WriteSequence register
+		 * Loop until in diagnostic mode
+		 */
+		drsprintk(ioc, ioc_info(ioc, "write magic sequence\n"));
+		writel(MPI2_WRSEQ_FLUSH_KEY_VALUE, &ioc->chip->WriteSequence);
+		writel(MPI2_WRSEQ_1ST_KEY_VALUE, &ioc->chip->WriteSequence);
+		writel(MPI2_WRSEQ_2ND_KEY_VALUE, &ioc->chip->WriteSequence);
+		writel(MPI2_WRSEQ_3RD_KEY_VALUE, &ioc->chip->WriteSequence);
+		writel(MPI2_WRSEQ_4TH_KEY_VALUE, &ioc->chip->WriteSequence);
+		writel(MPI2_WRSEQ_5TH_KEY_VALUE, &ioc->chip->WriteSequence);
+		writel(MPI2_WRSEQ_6TH_KEY_VALUE, &ioc->chip->WriteSequence);
+
+		/* wait 100 msec */
+		msleep(100);
+
+		if (count++ > 20) {
+			ioc_info(ioc,
+				    "Stop writing magic sequence after 20 retries\n");
+			_base_dump_reg_set(ioc);
+			return -EFAULT;
+		}
+
+		*host_diagnostic = ioc->base_readl_ext_retry(&ioc->chip->HostDiagnostic);
+		drsprintk(ioc,
+			     ioc_info(ioc, "wrote magic sequence: count(%d), host_diagnostic(0x%08x)\n",
+				     count, *host_diagnostic));
+
+	} while ((*host_diagnostic & MPI2_DIAG_DIAG_WRITE_ENABLE) == 0);
+	return 0;
+}
+
+/**
+ * mpt3sas_base_lock_host_diagnostic: Disable Host Diagnostic Register writes
+ * @ioc: per adapter object
+ */
+
+void
+mpt3sas_base_lock_host_diagnostic(struct MPT3SAS_ADAPTER *ioc)
+{
+	drsprintk(ioc, ioc_info(ioc, "disable writes to the diagnostic register\n"));
+	writel(MPI2_WRSEQ_FLUSH_KEY_VALUE, &ioc->chip->WriteSequence);
+}
+
+/**
  * _base_diag_reset - the "big hammer" start of day reset
  * @ioc: per adapter object
  *
@@ -7925,51 +7996,23 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 
 	drsprintk(ioc, ioc_info(ioc, "clear interrupts\n"));
 
-	count = 0;
-	do {
-		/* Write magic sequence to WriteSequence register
-		 * Loop until in diagnostic mode
-		 */
-		drsprintk(ioc, ioc_info(ioc, "write magic sequence\n"));
-		writel(MPI2_WRSEQ_FLUSH_KEY_VALUE, &ioc->chip->WriteSequence);
-		writel(MPI2_WRSEQ_1ST_KEY_VALUE, &ioc->chip->WriteSequence);
-		writel(MPI2_WRSEQ_2ND_KEY_VALUE, &ioc->chip->WriteSequence);
-		writel(MPI2_WRSEQ_3RD_KEY_VALUE, &ioc->chip->WriteSequence);
-		writel(MPI2_WRSEQ_4TH_KEY_VALUE, &ioc->chip->WriteSequence);
-		writel(MPI2_WRSEQ_5TH_KEY_VALUE, &ioc->chip->WriteSequence);
-		writel(MPI2_WRSEQ_6TH_KEY_VALUE, &ioc->chip->WriteSequence);
-
-		/* wait 100 msec */
-		msleep(100);
-
-		if (count++ > 20) {
-			ioc_info(ioc,
-			    "Stop writing magic sequence after 20 retries\n");
-			_base_dump_reg_set(ioc);
-			goto out;
-		}
-
-		host_diagnostic = ioc->base_readl(&ioc->chip->HostDiagnostic);
-		drsprintk(ioc,
-			  ioc_info(ioc, "wrote magic sequence: count(%d), host_diagnostic(0x%08x)\n",
-				   count, host_diagnostic));
-
-	} while ((host_diagnostic & MPI2_DIAG_DIAG_WRITE_ENABLE) == 0);
+	mutex_lock(&ioc->hostdiag_unlock_mutex);
+	if (mpt3sas_base_unlock_and_get_host_diagnostic(ioc, &host_diagnostic))
+		goto out;
 
 	hcb_size = ioc->base_readl(&ioc->chip->HCBSize);
-
 	drsprintk(ioc, ioc_info(ioc, "diag reset: issued\n"));
 	writel(host_diagnostic | MPI2_DIAG_RESET_ADAPTER,
 	     &ioc->chip->HostDiagnostic);
 
-	/*This delay allows the chip PCIe hardware time to finish reset tasks*/
+	/* This delay allows the chip PCIe hardware time to finish reset tasks */
 	msleep(MPI2_HARD_RESET_PCIE_FIRST_READ_DELAY_MICRO_SEC/1000);
 
 	/* Approximately 300 second max wait */
 	for (count = 0; count < (300000000 /
-		MPI2_HARD_RESET_PCIE_SECOND_READ_DELAY_MICRO_SEC); count++) {
+	    MPI2_HARD_RESET_PCIE_SECOND_READ_DELAY_MICRO_SEC); count++) {
 
-		host_diagnostic = ioc->base_readl(&ioc->chip->HostDiagnostic);
+		host_diagnostic = ioc->base_readl_ext_retry(&ioc->chip->HostDiagnostic);
 
 		if (host_diagnostic == 0xFFFFFFFF) {
 			ioc_info(ioc,
@@ -7980,13 +8023,15 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 		if (!(host_diagnostic & MPI2_DIAG_RESET_ADAPTER))
 			break;
 
-		msleep(MPI2_HARD_RESET_PCIE_SECOND_READ_DELAY_MICRO_SEC / 1000);
+		/* Wait to pass the second read delay window */
+		msleep(MPI2_HARD_RESET_PCIE_SECOND_READ_DELAY_MICRO_SEC/1000);
 	}
 
 	if (host_diagnostic & MPI2_DIAG_HCB_MODE) {
 
 		drsprintk(ioc,
-			  ioc_info(ioc, "restart the adapter assuming the HCB Address points to good F/W\n"));
+			ioc_info(ioc, "restart the adapter assuming the\n"
+					"HCB Address points to good F/W\n"));
 		host_diagnostic &= ~MPI2_DIAG_BOOT_DEVICE_SELECT_MASK;
 		host_diagnostic |= MPI2_DIAG_BOOT_DEVICE_SELECT_HCDW;
 		writel(host_diagnostic, &ioc->chip->HostDiagnostic);
@@ -8000,9 +8045,8 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
 	writel(host_diagnostic & ~MPI2_DIAG_HOLD_IOC_RESET,
 	    &ioc->chip->HostDiagnostic);
 
-	drsprintk(ioc,
-		  ioc_info(ioc, "disable writes to the diagnostic register\n"));
-	writel(MPI2_WRSEQ_FLUSH_KEY_VALUE, &ioc->chip->WriteSequence);
+	mpt3sas_base_lock_host_diagnostic(ioc);
+	mutex_unlock(&ioc->hostdiag_unlock_mutex);
 
 	drsprintk(ioc, ioc_info(ioc, "Wait for FW to go to the READY state\n"));
 	ioc_state = _base_wait_on_iocstate(ioc, MPI2_IOC_STATE_READY, 20);
@@ -8020,6 +8064,7 @@ _base_diag_reset(struct MPT3SAS_ADAPTER *ioc)
  out:
 	pci_cfg_access_unlock(ioc->pdev);
 	ioc_err(ioc, "diag reset: FAILED\n");
+	mutex_unlock(&ioc->hostdiag_unlock_mutex);
 	return -EFAULT;
 }
 
@@ -8359,10 +8404,13 @@ mpt3sas_base_attach(struct MPT3SAS_ADAPTER *ioc)
 	ioc->rdpq_array_enable_assigned = 0;
 	ioc->use_32bit_dma = false;
 	ioc->dma_mask = 64;
-	if (ioc->is_aero_ioc)
+	if (ioc->is_aero_ioc) {
 		ioc->base_readl = &_base_readl_aero;
-	else
+		ioc->base_readl_ext_retry = &_base_readl_ext_retry;
+	} else {
 		ioc->base_readl = &_base_readl;
+		ioc->base_readl_ext_retry = &_base_readl;
+	}
 	r = mpt3sas_base_map_resources(ioc);
 	if (r)
 		goto out_free_resources;

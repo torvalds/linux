@@ -939,10 +939,9 @@ static void atmel_conf_pin_config_dbg_show(struct pinctrl_dev *pctldev,
 	if (!atmel_pioctrl->pins[pin_id]->device)
 		return;
 
-	if (atmel_pioctrl->pins[pin_id])
-		seq_printf(s, " (%s, ioset %u) ",
-			   atmel_pioctrl->pins[pin_id]->device,
-			   atmel_pioctrl->pins[pin_id]->ioset);
+	seq_printf(s, " (%s, ioset %u) ",
+		   atmel_pioctrl->pins[pin_id]->device,
+		   atmel_pioctrl->pins[pin_id]->ioset);
 
 	conf = atmel_pin_config_read(pctldev, pin_id);
 	if (conf & ATMEL_PIO_PUEN_MASK)
@@ -1068,6 +1067,13 @@ static const struct of_device_id atmel_pctrl_of_match[] = {
 		/* sentinel */
 	}
 };
+
+/*
+ * This lock class allows to tell lockdep that parent IRQ and children IRQ do
+ * not share the same class so it does not raise false positive
+ */
+static struct lock_class_key atmel_lock_key;
+static struct lock_class_key atmel_request_key;
 
 static int atmel_pinctrl_probe(struct platform_device *pdev)
 {
@@ -1215,6 +1221,7 @@ static int atmel_pinctrl_probe(struct platform_device *pdev)
 		irq_set_chip_and_handler(irq, &atmel_gpio_irq_chip,
 					 handle_simple_irq);
 		irq_set_chip_data(irq, atmel_pioctrl);
+		irq_set_lockdep_class(irq, &atmel_lock_key, &atmel_request_key);
 		dev_dbg(dev,
 			"atmel gpio irq domain: hwirq: %d, linux irq: %d\n",
 			i, irq);

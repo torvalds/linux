@@ -32,6 +32,12 @@ static inline void free_partition(struct mtd_info *mtd)
 	kfree(mtd);
 }
 
+void release_mtd_partition(struct mtd_info *mtd)
+{
+	WARN_ON(!list_empty(&mtd->part.node));
+	free_partition(mtd);
+}
+
 static struct mtd_info *allocate_partition(struct mtd_info *parent,
 					   const struct mtd_partition *part,
 					   int partno, uint64_t cur_offset)
@@ -309,12 +315,10 @@ static int __mtd_del_partition(struct mtd_info *mtd)
 
 	sysfs_remove_files(&mtd->dev.kobj, mtd_partition_attrs);
 
+	list_del_init(&mtd->part.node);
 	err = del_mtd_device(mtd);
 	if (err)
 		return err;
-
-	list_del(&mtd->part.node);
-	free_partition(mtd);
 
 	return 0;
 }
@@ -333,6 +337,7 @@ static int __del_mtd_partitions(struct mtd_info *mtd)
 			__del_mtd_partitions(child);
 
 		pr_info("Deleting %s MTD partition\n", child->name);
+		list_del_init(&child->part.node);
 		ret = del_mtd_device(child);
 		if (ret < 0) {
 			pr_err("Error when deleting partition \"%s\" (%d)\n",
@@ -340,9 +345,6 @@ static int __del_mtd_partitions(struct mtd_info *mtd)
 			err = ret;
 			continue;
 		}
-
-		list_del(&child->part.node);
-		free_partition(child);
 	}
 
 	return err;
@@ -424,7 +426,11 @@ int add_mtd_partitions(struct mtd_info *parent,
 		mtd_add_partition_attrs(child);
 
 		/* Look for subpartitions */
-		parse_mtd_partitions(child, parts[i].types, NULL);
+		ret = parse_mtd_partitions(child, parts[i].types, NULL);
+		if (ret < 0) {
+			pr_err("Failed to parse subpartitions: %d\n", ret);
+			goto err_del_partitions;
+		}
 
 		cur_offset = child->part.offset + child->part.size;
 	}

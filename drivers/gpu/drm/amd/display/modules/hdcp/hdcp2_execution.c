@@ -208,9 +208,8 @@ static inline uint8_t get_device_count(struct mod_hdcp *hdcp)
 static enum mod_hdcp_status check_device_count(struct mod_hdcp *hdcp)
 {
 	/* Avoid device count == 0 to do authentication */
-	if (0 == get_device_count(hdcp)) {
+	if (get_device_count(hdcp) == 0)
 		return MOD_HDCP_STATUS_HDCP1_DEVICE_COUNT_MISMATCH_FAILURE;
-	}
 
 	/* Some MST display may choose to report the internal panel as an HDCP RX.   */
 	/* To update this condition with 1(because the immediate repeater's internal */
@@ -689,9 +688,8 @@ static enum mod_hdcp_status validate_stream_ready(struct mod_hdcp *hdcp,
 	if (is_hdmi_dvi_sl_hdcp(hdcp)) {
 		if (!process_rxstatus(hdcp, event_ctx, input, &status))
 			goto out;
-		if (event_ctx->rx_id_list_ready) {
+		if (event_ctx->rx_id_list_ready)
 			goto out;
-		}
 	}
 	if (is_hdmi_dvi_sl_hdcp(hdcp))
 		if (!mod_hdcp_execute_and_set(check_stream_ready_available,

@@ -141,7 +141,7 @@ asmlinkage void ret_from_fork(void);
  * |    unused      |
  * |                |
  * ------------------
- * |     r25        |   <==== top of Stack (thread.ksp)
+ * |     r25        |   <==== top of Stack (thread_info.ksp)
  * ~                ~
  * |    --to--      |   (CALLEE Regs of kernel mode)
  * |     r13        |
@@ -162,7 +162,6 @@ asmlinkage void ret_from_fork(void);
  * |      SP        |
  * |    orig_r0     |
  * |    event/ECR   |
- * |    user_r25    |
  * ------------------  <===== END of PAGE
  */
 int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
@@ -182,14 +181,14 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	c_callee = ((struct callee_regs *)childksp) - 1;
 
 	/*
-	 * __switch_to() uses thread.ksp to start unwinding stack
+	 * __switch_to() uses thread_info.ksp to start unwinding stack
 	 * For kernel threads we don't need to create callee regs, the
 	 * stack layout nevertheless needs to remain the same.
 	 * Also, since __switch_to anyways unwinds callee regs, we use
 	 * this to populate kernel thread entry-pt/args into callee regs,
 	 * so that ret_from_kernel_thread() becomes simpler.
 	 */
-	p->thread.ksp = (unsigned long)c_callee;	/* THREAD_KSP */
+	task_thread_info(p)->ksp = (unsigned long)c_callee;	/* THREAD_INFO_KSP */
 
 	/* __switch_to expects FP(0), BLINK(return addr) at top */
 	childksp[0] = 0;			/* fp */
@@ -242,16 +241,6 @@ int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 	 * ensures those regs are not clobbered all the way to RTIE to usermode
 	 */
 	c_callee->r25 = task_thread_info(p)->thr_ptr;
-
-#ifdef CONFIG_ARC_CURR_IN_REG
-	/*
-	 * setup usermode thread pointer #2:
-	 * however for this special use of r25 in kernel, __switch_to() sets
-	 * r25 for kernel needs and only in the final return path is usermode
-	 * r25 setup, from pt_regs->user_r25. So set that up as well
-	 */
-	c_regs->user_r25 = c_callee->r25;
-#endif
 
 	return 0;
 }

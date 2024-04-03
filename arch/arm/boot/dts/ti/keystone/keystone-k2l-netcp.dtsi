@@ -2,7 +2,7 @@
 /*
  * Device Tree Source for Keystone 2 Lamarr Netcp driver
  *
- * Copyright (C) 2015-2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015-2017 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 qmss: qmss@2a40000 {
@@ -36,9 +36,9 @@ qmss: qmss@2a40000 {
 		qpend {
 			qpend-0 {
 				qrange = <658 8>;
-				interrupts =<0 40 0xf04 0 41 0xf04 0 42 0xf04
-					     0 43 0xf04 0 44 0xf04 0 45 0xf04
-					     0 46 0xf04 0 47 0xf04>;
+				interrupts = <0 40 0xf04 0 41 0xf04 0 42 0xf04
+					      0 43 0xf04 0 44 0xf04 0 45 0xf04
+					      0 46 0xf04 0 47 0xf04>;
 			};
 			qpend-1 {
 				qrange = <528 16>;

@@ -1448,9 +1448,9 @@ int bgmac_phy_connect_direct(struct bgmac *bgmac)
 	int err;
 
 	phy_dev = fixed_phy_register(PHY_POLL, &fphy_status, NULL);
-	if (!phy_dev || IS_ERR(phy_dev)) {
+	if (IS_ERR(phy_dev)) {
 		dev_err(bgmac->dev, "Failed to register fixed PHY device\n");
-		return -ENODEV;
+		return PTR_ERR(phy_dev);
 	}
 
 	err = phy_connect_direct(bgmac->net_dev, phy_dev, bgmac_adjust_link,
@@ -1626,4 +1626,5 @@ int bgmac_enet_resume(struct bgmac *bgmac)
 EXPORT_SYMBOL_GPL(bgmac_enet_resume);
 
 MODULE_AUTHOR("Rafał Miłecki");
+MODULE_DESCRIPTION("Broadcom iProc GBit driver");
 MODULE_LICENSE("GPL");

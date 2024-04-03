@@ -205,6 +205,7 @@ struct mv88e6xxx_irq_ops;
 struct mv88e6xxx_gpio_ops;
 struct mv88e6xxx_avb_ops;
 struct mv88e6xxx_ptp_ops;
+struct mv88e6xxx_pcs_ops;
 
 struct mv88e6xxx_irq {
 	u16 masked;
@@ -285,9 +286,8 @@ struct mv88e6xxx_port {
 	u8 cmode;
 	bool mirror_ingress;
 	bool mirror_egress;
-	unsigned int serdes_irq;
-	char serdes_irq_name[64];
 	struct devlink_region *region;
+	void *pcs_private;
 
 	/* MacAuth Bypass control flag */
 	bool mab;
@@ -316,6 +316,17 @@ struct mv88e6xxx_mst {
 	u16 msti;
 
 	struct mv88e6xxx_stu_entry stu;
+};
+
+#define STATS_TYPE_PORT		BIT(0)
+#define STATS_TYPE_BANK0	BIT(1)
+#define STATS_TYPE_BANK1	BIT(2)
+
+struct mv88e6xxx_hw_stat {
+	char string[ETH_GSTRING_LEN];
+	size_t size;
+	int reg;
+	int type;
 };
 
 struct mv88e6xxx_chip {
@@ -574,8 +585,9 @@ struct mv88e6xxx_ops {
 	/* Return the number of strings describing statistics */
 	int (*stats_get_sset_count)(struct mv88e6xxx_chip *chip);
 	int (*stats_get_strings)(struct mv88e6xxx_chip *chip,  uint8_t *data);
-	int (*stats_get_stats)(struct mv88e6xxx_chip *chip,  int port,
-			       uint64_t *data);
+	size_t (*stats_get_stat)(struct mv88e6xxx_chip *chip, int port,
+				 const struct mv88e6xxx_hw_stat *stat,
+				 uint64_t *data);
 	int (*set_cpu_port)(struct mv88e6xxx_chip *chip, int port);
 	int (*set_egress_port)(struct mv88e6xxx_chip *chip,
 			       enum mv88e6xxx_egress_direction direction,
@@ -590,38 +602,19 @@ struct mv88e6xxx_ops {
 
 	int (*mgmt_rsvd2cpu)(struct mv88e6xxx_chip *chip);
 
-	/* Power on/off a SERDES interface */
-	int (*serdes_power)(struct mv88e6xxx_chip *chip, int port, int lane,
-			    bool up);
-
 	/* SERDES lane mapping */
 	int (*serdes_get_lane)(struct mv88e6xxx_chip *chip, int port);
-
-	int (*serdes_pcs_get_state)(struct mv88e6xxx_chip *chip, int port,
-				    int lane, struct phylink_link_state *state);
-	int (*serdes_pcs_config)(struct mv88e6xxx_chip *chip, int port,
-				 int lane, unsigned int mode,
-				 phy_interface_t interface,
-				 const unsigned long *advertise);
-	int (*serdes_pcs_an_restart)(struct mv88e6xxx_chip *chip, int port,
-				     int lane);
-	int (*serdes_pcs_link_up)(struct mv88e6xxx_chip *chip, int port,
-				  int lane, int speed, int duplex);
 
 	/* SERDES interrupt handling */
 	unsigned int (*serdes_irq_mapping)(struct mv88e6xxx_chip *chip,
 					   int port);
-	int (*serdes_irq_enable)(struct mv88e6xxx_chip *chip, int port, int lane,
-				 bool enable);
-	irqreturn_t (*serdes_irq_status)(struct mv88e6xxx_chip *chip, int port,
-					 int lane);
 
 	/* Statistics from the SERDES interface */
 	int (*serdes_get_sset_count)(struct mv88e6xxx_chip *chip, int port);
 	int (*serdes_get_strings)(struct mv88e6xxx_chip *chip,  int port,
 				  uint8_t *data);
-	int (*serdes_get_stats)(struct mv88e6xxx_chip *chip,  int port,
-				uint64_t *data);
+	size_t (*serdes_get_stats)(struct mv88e6xxx_chip *chip, int port,
+				   uint64_t *data);
 
 	/* SERDES registers for ethtool */
 	int (*serdes_get_regs_len)(struct mv88e6xxx_chip *chip,  int port);
@@ -663,6 +656,8 @@ struct mv88e6xxx_ops {
 	/* Phylink */
 	void (*phylink_get_caps)(struct mv88e6xxx_chip *chip, int port,
 				 struct phylink_config *config);
+
+	const struct mv88e6xxx_pcs_ops *pcs_ops;
 
 	/* Max Frame Size */
 	int (*set_max_frame_size)(struct mv88e6xxx_chip *chip, int mtu);
@@ -736,15 +731,12 @@ struct mv88e6xxx_ptp_ops {
 	u32 cc_mult_dem;
 };
 
-#define STATS_TYPE_PORT		BIT(0)
-#define STATS_TYPE_BANK0	BIT(1)
-#define STATS_TYPE_BANK1	BIT(2)
+struct mv88e6xxx_pcs_ops {
+	int (*pcs_init)(struct mv88e6xxx_chip *chip, int port);
+	void (*pcs_teardown)(struct mv88e6xxx_chip *chip, int port);
+	struct phylink_pcs *(*pcs_select)(struct mv88e6xxx_chip *chip, int port,
+					  phy_interface_t mode);
 
-struct mv88e6xxx_hw_stat {
-	char string[ETH_GSTRING_LEN];
-	size_t size;
-	int reg;
-	int type;
 };
 
 static inline bool mv88e6xxx_has_stu(struct mv88e6xxx_chip *chip)

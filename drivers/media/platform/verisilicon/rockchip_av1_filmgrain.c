@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0-only or Apache-2.0
+// SPDX-License-Identifier: GPL-2.0-only OR Apache-2.0
 
 #include "rockchip_av1_filmgrain.h"
 

@@ -37,8 +37,9 @@
 #
 # server / client nomenclature relative to ns-A
 
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
+source lib.sh
+
+PATH=$PWD:$PWD/tools/testing/selftests/net:$PATH
 
 VERBOSE=0
 
@@ -82,14 +83,6 @@ MCAST=ff02::1
 NSA_LINKIP6=
 NSB_LINKIP6=
 
-NSA=ns-A
-NSB=ns-B
-NSC=ns-C
-
-NSA_CMD="ip netns exec ${NSA}"
-NSB_CMD="ip netns exec ${NSB}"
-NSC_CMD="ip netns exec ${NSC}"
-
 which ping6 > /dev/null 2>&1 && ping6=$(which ping6) || ping6=$(which ping)
 
 # Check if FIPS mode is enabled
@@ -107,6 +100,7 @@ log_test()
 	local rc=$1
 	local expected=$2
 	local msg="$3"
+	local ans
 
 	[ "${VERBOSE}" = "1" ] && echo
 
@@ -116,19 +110,20 @@ log_test()
 	else
 		nfail=$((nfail+1))
 		printf "TEST: %-70s  [FAIL]\n" "${msg}"
+		echo "    expected rc $expected; actual rc $rc"
 		if [ "${PAUSE_ON_FAIL}" = "yes" ]; then
 			echo
 			echo "hit enter to continue, 'q' to quit"
-			read a
-			[ "$a" = "q" ] && exit 1
+			read ans
+			[ "$ans" = "q" ] && exit 1
 		fi
 	fi
 
 	if [ "${PAUSE}" = "yes" ]; then
 		echo
 		echo "hit enter to continue, 'q' to quit"
-		read a
-		[ "$a" = "q" ] && exit 1
+		read ans
+		[ "$ans" = "q" ] && exit 1
 	fi
 
 	kill_procs
@@ -195,6 +190,15 @@ kill_procs()
 {
 	killall nettest ping ping6 >/dev/null 2>&1
 	sleep 1
+}
+
+set_ping_group()
+{
+	if [ "$VERBOSE" = "1" ]; then
+		echo "COMMAND: ${NSA_CMD} sysctl -q -w net.ipv4.ping_group_range='0 2147483647'"
+	fi
+
+	${NSA_CMD} sysctl -q -w net.ipv4.ping_group_range='0 2147483647'
 }
 
 do_run_cmd()
@@ -406,9 +410,6 @@ create_ns()
 	local addr=$2
 	local addr6=$3
 
-	ip netns add ${ns}
-
-	ip -netns ${ns} link set lo up
 	if [ "${addr}" != "-" ]; then
 		ip -netns ${ns} addr add dev lo ${addr}
 	fi
@@ -467,13 +468,12 @@ cleanup()
 		ip -netns ${NSA} link del dev ${NSA_DEV}
 
 		ip netns pids ${NSA} | xargs kill 2>/dev/null
-		ip netns del ${NSA}
+		cleanup_ns ${NSA}
 	fi
 
 	ip netns pids ${NSB} | xargs kill 2>/dev/null
-	ip netns del ${NSB}
 	ip netns pids ${NSC} | xargs kill 2>/dev/null
-	ip netns del ${NSC} >/dev/null 2>&1
+	cleanup_ns ${NSB} ${NSC}
 }
 
 cleanup_vrf_dup()
@@ -487,6 +487,8 @@ setup_vrf_dup()
 {
 	# some VRF tests use ns-C which has the same config as
 	# ns-B but for a device NOT in the VRF
+	setup_ns NSC
+	NSC_CMD="ip netns exec ${NSC}"
 	create_ns ${NSC} "-" "-"
 	connect_ns ${NSA} ${NSA_DEV2} ${NSA_IP}/24 ${NSA_IP6}/64 \
 		   ${NSC} ${NSC_DEV} ${NSB_IP}/24 ${NSB_IP6}/64
@@ -502,6 +504,10 @@ setup()
 
 	log_debug "Configuring network namespaces"
 	set -e
+
+	setup_ns NSA NSB
+	NSA_CMD="ip netns exec ${NSA}"
+	NSB_CMD="ip netns exec ${NSB}"
 
 	create_ns ${NSA} ${NSA_LO_IP}/32 ${NSA_LO_IP6}/128
 	create_ns ${NSB} ${NSB_LO_IP}/32 ${NSB_LO_IP6}/128
@@ -545,6 +551,10 @@ setup_lla_only()
 	log_debug "Configuring network namespaces"
 	set -e
 
+	setup_ns NSA NSB NSC
+	NSA_CMD="ip netns exec ${NSA}"
+	NSB_CMD="ip netns exec ${NSB}"
+	NSC_CMD="ip netns exec ${NSC}"
 	create_ns ${NSA} "-" "-"
 	create_ns ${NSB} "-" "-"
 	create_ns ${NSC} "-" "-"
@@ -839,14 +849,14 @@ ipv4_ping()
 	set_sysctl net.ipv4.raw_l3mdev_accept=1 2>/dev/null
 	ipv4_ping_novrf
 	setup
-	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
+	set_ping_group
 	ipv4_ping_novrf
 
 	log_subsection "With VRF"
 	setup "yes"
 	ipv4_ping_vrf
 	setup "yes"
-	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
+	set_ping_group
 	ipv4_ping_vrf
 }
 
@@ -2057,12 +2067,12 @@ ipv4_addr_bind()
 
 	log_subsection "No VRF"
 	setup
-	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
+	set_ping_group
 	ipv4_addr_bind_novrf
 
 	log_subsection "With VRF"
 	setup "yes"
-	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
+	set_ping_group
 	ipv4_addr_bind_vrf
 }
 
@@ -2525,14 +2535,14 @@ ipv6_ping()
 	setup
 	ipv6_ping_novrf
 	setup
-	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
+	set_ping_group
 	ipv6_ping_novrf
 
 	log_subsection "With VRF"
 	setup "yes"
 	ipv6_ping_vrf
 	setup "yes"
-	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
+	set_ping_group
 	ipv6_ping_vrf
 }
 

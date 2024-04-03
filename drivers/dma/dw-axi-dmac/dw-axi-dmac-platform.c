@@ -21,7 +21,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_dma.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -61,6 +60,17 @@ axi_dma_iowrite32(struct axi_dma_chip *chip, u32 reg, u32 val)
 static inline u32 axi_dma_ioread32(struct axi_dma_chip *chip, u32 reg)
 {
 	return ioread32(chip->regs + reg);
+}
+
+static inline void
+axi_dma_iowrite64(struct axi_dma_chip *chip, u32 reg, u64 val)
+{
+	iowrite64(val, chip->regs + reg);
+}
+
+static inline u64 axi_dma_ioread64(struct axi_dma_chip *chip, u32 reg)
+{
+	return ioread64(chip->regs + reg);
 }
 
 static inline void
@@ -183,38 +193,73 @@ static inline u32 axi_chan_irq_read(struct axi_dma_chan *chan)
 
 static inline void axi_chan_disable(struct axi_dma_chan *chan)
 {
-	u32 val;
+	u64 val;
 
-	val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
-	val &= ~(BIT(chan->id) << DMAC_CHAN_EN_SHIFT);
-	if (chan->chip->dw->hdata->reg_map_8_channels)
-		val |=   BIT(chan->id) << DMAC_CHAN_EN_WE_SHIFT;
-	else
-		val |=   BIT(chan->id) << DMAC_CHAN_EN2_WE_SHIFT;
-	axi_dma_iowrite32(chan->chip, DMAC_CHEN, val);
+	if (chan->chip->dw->hdata->nr_channels >= DMAC_CHAN_16) {
+		val = axi_dma_ioread64(chan->chip, DMAC_CHEN);
+		if (chan->id >= DMAC_CHAN_16) {
+			val &= ~((u64)(BIT(chan->id) >> DMAC_CHAN_16)
+				<< (DMAC_CHAN_EN_SHIFT + DMAC_CHAN_BLOCK_SHIFT));
+			val |=   (u64)(BIT(chan->id) >> DMAC_CHAN_16)
+				<< (DMAC_CHAN_EN2_WE_SHIFT + DMAC_CHAN_BLOCK_SHIFT);
+		} else {
+			val &= ~(BIT(chan->id) << DMAC_CHAN_EN_SHIFT);
+			val |=   BIT(chan->id) << DMAC_CHAN_EN2_WE_SHIFT;
+		}
+		axi_dma_iowrite64(chan->chip, DMAC_CHEN, val);
+	} else {
+		val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
+		val &= ~(BIT(chan->id) << DMAC_CHAN_EN_SHIFT);
+		if (chan->chip->dw->hdata->reg_map_8_channels)
+			val |=   BIT(chan->id) << DMAC_CHAN_EN_WE_SHIFT;
+		else
+			val |=   BIT(chan->id) << DMAC_CHAN_EN2_WE_SHIFT;
+		axi_dma_iowrite32(chan->chip, DMAC_CHEN, (u32)val);
+	}
 }
 
 static inline void axi_chan_enable(struct axi_dma_chan *chan)
 {
-	u32 val;
+	u64 val;
 
-	val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
-	if (chan->chip->dw->hdata->reg_map_8_channels)
-		val |= BIT(chan->id) << DMAC_CHAN_EN_SHIFT |
-			BIT(chan->id) << DMAC_CHAN_EN_WE_SHIFT;
-	else
-		val |= BIT(chan->id) << DMAC_CHAN_EN_SHIFT |
+	if (chan->chip->dw->hdata->nr_channels >= DMAC_CHAN_16) {
+		val = axi_dma_ioread64(chan->chip, DMAC_CHEN);
+		if (chan->id >= DMAC_CHAN_16) {
+			val |= (u64)(BIT(chan->id) >> DMAC_CHAN_16)
+				<< (DMAC_CHAN_EN_SHIFT + DMAC_CHAN_BLOCK_SHIFT) |
+				(u64)(BIT(chan->id) >> DMAC_CHAN_16)
+				<< (DMAC_CHAN_EN2_WE_SHIFT + DMAC_CHAN_BLOCK_SHIFT);
+		} else {
+			val |= BIT(chan->id) << DMAC_CHAN_EN_SHIFT |
 			BIT(chan->id) << DMAC_CHAN_EN2_WE_SHIFT;
-	axi_dma_iowrite32(chan->chip, DMAC_CHEN, val);
+		}
+		axi_dma_iowrite64(chan->chip, DMAC_CHEN, val);
+	} else {
+		val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
+		if (chan->chip->dw->hdata->reg_map_8_channels) {
+			val |= BIT(chan->id) << DMAC_CHAN_EN_SHIFT |
+			BIT(chan->id) << DMAC_CHAN_EN_WE_SHIFT;
+		} else {
+			val |= BIT(chan->id) << DMAC_CHAN_EN_SHIFT |
+				BIT(chan->id) << DMAC_CHAN_EN2_WE_SHIFT;
+		}
+		axi_dma_iowrite32(chan->chip, DMAC_CHEN, (u32)val);
+	}
 }
 
 static inline bool axi_chan_is_hw_enable(struct axi_dma_chan *chan)
 {
-	u32 val;
+	u64 val;
 
-	val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
+	if (chan->chip->dw->hdata->nr_channels >= DMAC_CHAN_16)
+		val = axi_dma_ioread64(chan->chip, DMAC_CHEN);
+	else
+		val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
 
-	return !!(val & (BIT(chan->id) << DMAC_CHAN_EN_SHIFT));
+	if (chan->id >= DMAC_CHAN_16)
+		return !!(val & ((u64)(BIT(chan->id) >> DMAC_CHAN_16) << DMAC_CHAN_BLOCK_SHIFT));
+	else
+		return !!(val & (BIT(chan->id) << DMAC_CHAN_EN_SHIFT));
 }
 
 static void axi_dma_hw_init(struct axi_dma_chip *chip)
@@ -1176,20 +1221,34 @@ static int dma_chan_pause(struct dma_chan *dchan)
 	struct axi_dma_chan *chan = dchan_to_axi_dma_chan(dchan);
 	unsigned long flags;
 	unsigned int timeout = 20; /* timeout iterations */
-	u32 val;
+	u64 val;
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
 
-	if (chan->chip->dw->hdata->reg_map_8_channels) {
-		val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
-		val |= BIT(chan->id) << DMAC_CHAN_SUSP_SHIFT |
-			BIT(chan->id) << DMAC_CHAN_SUSP_WE_SHIFT;
-		axi_dma_iowrite32(chan->chip, DMAC_CHEN, val);
+	if (chan->chip->dw->hdata->nr_channels >= DMAC_CHAN_16) {
+		val = axi_dma_ioread64(chan->chip, DMAC_CHSUSPREG);
+		if (chan->id >= DMAC_CHAN_16) {
+			val |= (u64)(BIT(chan->id) >> DMAC_CHAN_16)
+				<< (DMAC_CHAN_SUSP2_SHIFT + DMAC_CHAN_BLOCK_SHIFT) |
+				(u64)(BIT(chan->id) >> DMAC_CHAN_16)
+				<< (DMAC_CHAN_SUSP2_WE_SHIFT + DMAC_CHAN_BLOCK_SHIFT);
+		} else {
+			val |= BIT(chan->id) << DMAC_CHAN_SUSP2_SHIFT |
+			       BIT(chan->id) << DMAC_CHAN_SUSP2_WE_SHIFT;
+			}
+			axi_dma_iowrite64(chan->chip, DMAC_CHSUSPREG, val);
 	} else {
-		val = axi_dma_ioread32(chan->chip, DMAC_CHSUSPREG);
-		val |= BIT(chan->id) << DMAC_CHAN_SUSP2_SHIFT |
+		if (chan->chip->dw->hdata->reg_map_8_channels) {
+			val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
+			val |= BIT(chan->id) << DMAC_CHAN_SUSP_SHIFT |
+			BIT(chan->id) << DMAC_CHAN_SUSP_WE_SHIFT;
+			axi_dma_iowrite32(chan->chip, DMAC_CHEN, (u32)val);
+		} else {
+			val = axi_dma_ioread32(chan->chip, DMAC_CHSUSPREG);
+			val |= BIT(chan->id) << DMAC_CHAN_SUSP2_SHIFT |
 			BIT(chan->id) << DMAC_CHAN_SUSP2_WE_SHIFT;
-		axi_dma_iowrite32(chan->chip, DMAC_CHSUSPREG, val);
+			axi_dma_iowrite32(chan->chip, DMAC_CHSUSPREG, (u32)val);
+		}
 	}
 
 	do  {
@@ -1211,18 +1270,32 @@ static int dma_chan_pause(struct dma_chan *dchan)
 /* Called in chan locked context */
 static inline void axi_chan_resume(struct axi_dma_chan *chan)
 {
-	u32 val;
+	u64 val;
 
-	if (chan->chip->dw->hdata->reg_map_8_channels) {
-		val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
-		val &= ~(BIT(chan->id) << DMAC_CHAN_SUSP_SHIFT);
-		val |=  (BIT(chan->id) << DMAC_CHAN_SUSP_WE_SHIFT);
-		axi_dma_iowrite32(chan->chip, DMAC_CHEN, val);
+	if (chan->chip->dw->hdata->nr_channels >= DMAC_CHAN_16) {
+		val = axi_dma_ioread64(chan->chip, DMAC_CHSUSPREG);
+		if (chan->id >= DMAC_CHAN_16) {
+			val &= ~((u64)(BIT(chan->id) >> DMAC_CHAN_16)
+				<< (DMAC_CHAN_SUSP2_SHIFT + DMAC_CHAN_BLOCK_SHIFT));
+			val |=  ((u64)(BIT(chan->id) >> DMAC_CHAN_16)
+				<< (DMAC_CHAN_SUSP2_WE_SHIFT + DMAC_CHAN_BLOCK_SHIFT));
+		} else {
+			val &= ~(BIT(chan->id) << DMAC_CHAN_SUSP2_SHIFT);
+			val |=  (BIT(chan->id) << DMAC_CHAN_SUSP2_WE_SHIFT);
+		}
+			axi_dma_iowrite64(chan->chip, DMAC_CHSUSPREG, val);
 	} else {
-		val = axi_dma_ioread32(chan->chip, DMAC_CHSUSPREG);
-		val &= ~(BIT(chan->id) << DMAC_CHAN_SUSP2_SHIFT);
-		val |=  (BIT(chan->id) << DMAC_CHAN_SUSP2_WE_SHIFT);
-		axi_dma_iowrite32(chan->chip, DMAC_CHSUSPREG, val);
+		if (chan->chip->dw->hdata->reg_map_8_channels) {
+			val = axi_dma_ioread32(chan->chip, DMAC_CHEN);
+			val &= ~(BIT(chan->id) << DMAC_CHAN_SUSP_SHIFT);
+			val |=  (BIT(chan->id) << DMAC_CHAN_SUSP_WE_SHIFT);
+			axi_dma_iowrite32(chan->chip, DMAC_CHEN, (u32)val);
+		} else {
+			val = axi_dma_ioread32(chan->chip, DMAC_CHSUSPREG);
+			val &= ~(BIT(chan->id) << DMAC_CHAN_SUSP2_SHIFT);
+			val |=  (BIT(chan->id) << DMAC_CHAN_SUSP2_WE_SHIFT);
+			axi_dma_iowrite32(chan->chip, DMAC_CHSUSPREG, (u32)val);
+		}
 	}
 
 	chan->is_paused = false;
@@ -1536,7 +1609,7 @@ err_pm_disable:
 	return ret;
 }
 
-static int dw_remove(struct platform_device *pdev)
+static void dw_remove(struct platform_device *pdev)
 {
 	struct axi_dma_chip *chip = platform_get_drvdata(pdev);
 	struct dw_axi_dma *dw = chip->dw;
@@ -1565,8 +1638,6 @@ static int dw_remove(struct platform_device *pdev)
 		list_del(&chan->vc.chan.device_node);
 		tasklet_kill(&chan->vc.task);
 	}
-
-	return 0;
 }
 
 static const struct dev_pm_ops dw_axi_dma_pm_ops = {
@@ -1589,7 +1660,7 @@ MODULE_DEVICE_TABLE(of, dw_dma_of_id_table);
 
 static struct platform_driver dw_driver = {
 	.probe		= dw_probe,
-	.remove		= dw_remove,
+	.remove_new	= dw_remove,
 	.driver = {
 		.name	= KBUILD_MODNAME,
 		.of_match_table = dw_dma_of_id_table,

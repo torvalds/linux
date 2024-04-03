@@ -274,7 +274,6 @@ static int set_sample_rate(struct echoaudio *chip, u32 rate)
 		       chip->digital_mode == DIGITAL_MODE_ADAT))
 		return -EINVAL;
 
-	clock = 0;
 	control_reg = le32_to_cpu(chip->comm_page->control_register);
 	control_reg &= E3G_CLOCK_CLEAR_MASK;
 

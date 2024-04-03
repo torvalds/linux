@@ -88,8 +88,7 @@ void rsi_sdio_rx_thread(struct rsi_common *common)
 static int rsi_process_pkt(struct rsi_common *common)
 {
 	struct rsi_hw *adapter = common->priv;
-	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 	u8 num_blks = 0;
 	u32 rcv_pkt_len = 0;
 	int status = 0;
@@ -147,8 +146,7 @@ static int rsi_process_pkt(struct rsi_common *common)
  */
 int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
 {
-	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 	u8 function = 0;
 	u8 byte;
 	int status = 0;
@@ -233,8 +231,7 @@ int rsi_init_sdio_slave_regs(struct rsi_hw *adapter)
 static void rsi_rx_handler(struct rsi_hw *adapter)
 {
 	struct rsi_common *common = adapter->priv;
-	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 	int status;
 	u8 isr_status = 0;
 	u8 fw_status = 0;
@@ -339,8 +336,7 @@ static void rsi_rx_handler(struct rsi_hw *adapter)
 int rsi_sdio_check_buffer_status(struct rsi_hw *adapter, u8 q_num)
 {
 	struct rsi_common *common = adapter->priv;
-	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 	u8 buf_status = 0;
 	int status = 0;
 	static int counter = 4;
@@ -409,8 +405,7 @@ out:
  */
 int rsi_sdio_determine_event_timeout(struct rsi_hw *adapter)
 {
-	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 
 	/* Once buffer full is seen, event timeout to occur every 2 msecs */
 	if (dev->rx_info.buffer_full)

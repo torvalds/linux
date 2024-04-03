@@ -93,3 +93,4 @@ module_exit(exit_rc_map_tivo)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jarod Wilson <jarod@redhat.com>");
+MODULE_DESCRIPTION("TiVo remote controller keytable");

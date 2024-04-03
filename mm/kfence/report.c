@@ -13,6 +13,7 @@
 #include <linux/printk.h>
 #include <linux/sched/debug.h>
 #include <linux/seq_file.h>
+#include <linux/sprintf.h>
 #include <linux/stacktrace.h>
 #include <linux/string.h>
 #include <trace/events/error_report.h>
@@ -25,8 +26,6 @@
 #ifndef ARCH_FUNC_PREFIX
 #define ARCH_FUNC_PREFIX ""
 #endif
-
-extern bool no_hash_pointers;
 
 /* Helper function to either print to a seq_file or to console. */
 __printf(2, 3)

@@ -111,4 +111,4 @@ extern const struct address_space_operations squashfs_symlink_aops;
 extern const struct inode_operations squashfs_symlink_inode_ops;
 
 /* xattr.c */
-extern const struct xattr_handler *squashfs_xattr_handlers[];
+extern const struct xattr_handler * const squashfs_xattr_handlers[];

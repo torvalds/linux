@@ -54,7 +54,7 @@
 #define OM_CHECK_SUBMODEL	  0x02000000
 /* Match all models previous than the one specified */
 #define OM_MATCH_PREVIOUS_MODELS  0x04000000
-/* Ignores the minor revison on newer parts */
+/* Ignores the minor revision on newer parts */
 #define OM_IGNORE_MINOR_REVISION  0x08000000
 #define OM_FLAG_MASK		  0xff000000
 
@@ -226,7 +226,7 @@
 #define OCTEON_CN52XX_PASS2	OCTEON_CN52XX_PASS2_X
 
 /*
- * CN3XXX models with old revision enconding
+ * CN3XXX models with old revision encoding
  */
 #define OCTEON_CN38XX_PASS1	0x000d0000
 #define OCTEON_CN38XX_PASS2	0x000d0001

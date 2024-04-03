@@ -486,9 +486,6 @@ static inline int ixgbevf_ipsec_tx(struct ixgbevf_ring *tx_ring,
 { return 0; }
 #endif /* CONFIG_IXGBEVF_IPSEC */
 
-void ixgbe_napi_add_all(struct ixgbevf_adapter *adapter);
-void ixgbe_napi_del_all(struct ixgbevf_adapter *adapter);
-
 #define ixgbevf_hw_to_netdev(hw) \
 	(((struct ixgbevf_adapter *)(hw)->back)->netdev)
 

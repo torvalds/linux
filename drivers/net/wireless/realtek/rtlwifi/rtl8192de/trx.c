@@ -42,6 +42,7 @@ static void _rtl92de_query_rxphystatus(struct ieee80211_hw *hw,
 				       bool packet_beacon)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtlpriv);
 	struct phy_sts_cck_8192d *cck_buf;
 	s8 rx_pwr_all, rx_pwr[4];
@@ -62,9 +63,7 @@ static void _rtl92de_query_rxphystatus(struct ieee80211_hw *hw,
 		u8 report, cck_highpwr;
 		cck_buf = (struct phy_sts_cck_8192d *)p_drvinfo;
 		if (ppsc->rfpwr_state == ERFON)
-			cck_highpwr = (u8) rtl_get_bbreg(hw,
-						 RFPGA0_XA_HSSIPARAMETER2,
-						 BIT(9));
+			cck_highpwr = rtlphy->cck_high_power;
 		else
 			cck_highpwr = false;
 		if (!cck_highpwr) {
@@ -655,9 +654,8 @@ void rtl92de_tx_fill_desc(struct ieee80211_hw *hw,
 	rtl_dbg(rtlpriv, COMP_SEND, DBG_TRACE, "\n");
 }
 
-void rtl92de_tx_fill_cmddesc(struct ieee80211_hw *hw,
-			     u8 *pdesc8, bool firstseg,
-			     bool lastseg, struct sk_buff *skb)
+void rtl92de_tx_fill_cmddesc(struct ieee80211_hw *hw, u8 *pdesc8,
+			     struct sk_buff *skb)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_pci *rtlpci = rtl_pcidev(rtl_pcipriv(hw));
@@ -678,8 +676,7 @@ void rtl92de_tx_fill_cmddesc(struct ieee80211_hw *hw,
 		return;
 	}
 	clear_pci_tx_desc_content(pdesc, TX_DESC_SIZE);
-	if (firstseg)
-		set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN);
+	set_tx_desc_offset(pdesc, USB_HWDESC_HEADER_LEN);
 	/* 5G have no CCK rate
 	 * Caution: The macros below are multi-line expansions.
 	 * The braces are needed no matter what checkpatch says

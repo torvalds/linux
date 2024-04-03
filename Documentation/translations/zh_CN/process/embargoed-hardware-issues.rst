@@ -177,7 +177,7 @@ CVE分配
   AMD		Tom Lendacky <thomas.lendacky@amd.com>
   IBM
   Intel		Tony Luck <tony.luck@intel.com>
-  Qualcomm	Trilok Soni <tsoni@codeaurora.org>
+  Qualcomm	Trilok Soni <quic_tsoni@quicinc.com>
 
   Microsoft	Sasha Levin <sashal@kernel.org>
   VMware

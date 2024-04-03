@@ -27,7 +27,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
-#include <linux/of_gpio.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/pxa2xx_udc.h>
 #include <linux/platform_device.h>
@@ -435,8 +434,7 @@ static int ohci_hcd_pxa27x_probe(struct platform_device *pdev)
 	if (!hcd)
 		return -ENOMEM;
 
-	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hcd->regs = devm_ioremap_resource(&pdev->dev, r);
+	hcd->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &r);
 	if (IS_ERR(hcd->regs)) {
 		retval = PTR_ERR(hcd->regs);
 		goto err;

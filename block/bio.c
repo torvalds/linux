@@ -16,7 +16,6 @@
 #include <linux/workqueue.h>
 #include <linux/cgroup.h>
 #include <linux/highmem.h>
-#include <linux/sched/sysctl.h>
 #include <linux/blk-crypto.h>
 #include <linux/xarray.h>
 
@@ -251,6 +250,7 @@ void bio_init(struct bio *bio, struct block_device *bdev, struct bio_vec *table,
 	bio->bi_opf = opf;
 	bio->bi_flags = 0;
 	bio->bi_ioprio = 0;
+	bio->bi_write_hint = 0;
 	bio->bi_status = 0;
 	bio->bi_iter.bi_sector = 0;
 	bio->bi_iter.bi_size = 0;
@@ -606,15 +606,15 @@ struct bio *bio_kmalloc(unsigned short nr_vecs, gfp_t gfp_mask)
 }
 EXPORT_SYMBOL(bio_kmalloc);
 
-void zero_fill_bio(struct bio *bio)
+void zero_fill_bio_iter(struct bio *bio, struct bvec_iter start)
 {
 	struct bio_vec bv;
 	struct bvec_iter iter;
 
-	bio_for_each_segment(bv, bio, iter)
+	__bio_for_each_segment(bv, bio, iter, start)
 		memzero_bvec(&bv);
 }
-EXPORT_SYMBOL(zero_fill_bio);
+EXPORT_SYMBOL(zero_fill_bio_iter);
 
 /**
  * bio_truncate - truncate the bio to small size of @new_size
@@ -762,29 +762,31 @@ static inline void bio_put_percpu_cache(struct bio *bio)
 	struct bio_alloc_cache *cache;
 
 	cache = per_cpu_ptr(bio->bi_pool->cache, get_cpu());
-	if (READ_ONCE(cache->nr_irq) + cache->nr > ALLOC_CACHE_MAX) {
-		put_cpu();
-		bio_free(bio);
-		return;
-	}
+	if (READ_ONCE(cache->nr_irq) + cache->nr > ALLOC_CACHE_MAX)
+		goto out_free;
 
-	bio_uninit(bio);
-
-	if ((bio->bi_opf & REQ_POLLED) && !WARN_ON_ONCE(in_interrupt())) {
+	if (in_task()) {
+		bio_uninit(bio);
 		bio->bi_next = cache->free_list;
+		/* Not necessary but helps not to iopoll already freed bios */
 		bio->bi_bdev = NULL;
 		cache->free_list = bio;
 		cache->nr++;
-	} else {
-		unsigned long flags;
+	} else if (in_hardirq()) {
+		lockdep_assert_irqs_disabled();
 
-		local_irq_save(flags);
+		bio_uninit(bio);
 		bio->bi_next = cache->free_list_irq;
 		cache->free_list_irq = bio;
 		cache->nr_irq++;
-		local_irq_restore(flags);
+	} else {
+		goto out_free;
 	}
 	put_cpu();
+	return;
+out_free:
+	put_cpu();
+	bio_free(bio);
 }
 
 /**
@@ -813,6 +815,7 @@ static int __bio_clone(struct bio *bio, struct bio *bio_src, gfp_t gfp)
 {
 	bio_set_flag(bio, BIO_CLONED);
 	bio->bi_ioprio = bio_src->bi_ioprio;
+	bio->bi_write_hint = bio_src->bi_write_hint;
 	bio->bi_iter = bio_src->bi_iter;
 
 	if (bio->bi_bdev) {
@@ -903,9 +906,8 @@ static inline bool bio_full(struct bio *bio, unsigned len)
 	return false;
 }
 
-static inline bool page_is_mergeable(const struct bio_vec *bv,
-		struct page *page, unsigned int len, unsigned int off,
-		bool *same_page)
+static bool bvec_try_merge_page(struct bio_vec *bv, struct page *page,
+		unsigned int len, unsigned int off, bool *same_page)
 {
 	size_t bv_end = bv->bv_offset + bv->bv_len;
 	phys_addr_t vec_end_addr = page_to_phys(bv->bv_page) + bv_end - 1;
@@ -919,49 +921,15 @@ static inline bool page_is_mergeable(const struct bio_vec *bv,
 		return false;
 
 	*same_page = ((vec_end_addr & PAGE_MASK) == page_addr);
-	if (*same_page)
-		return true;
-	else if (IS_ENABLED(CONFIG_KMSAN))
-		return false;
-	return (bv->bv_page + bv_end / PAGE_SIZE) == (page + off / PAGE_SIZE);
-}
-
-/**
- * __bio_try_merge_page - try appending data to an existing bvec.
- * @bio: destination bio
- * @page: start page to add
- * @len: length of the data to add
- * @off: offset of the data relative to @page
- * @same_page: return if the segment has been merged inside the same page
- *
- * Try to add the data at @page + @off to the last bvec of @bio.  This is a
- * useful optimisation for file systems with a block size smaller than the
- * page size.
- *
- * Warn if (@len, @off) crosses pages in case that @same_page is true.
- *
- * Return %true on success or %false on failure.
- */
-static bool __bio_try_merge_page(struct bio *bio, struct page *page,
-		unsigned int len, unsigned int off, bool *same_page)
-{
-	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
-		return false;
-
-	if (bio->bi_vcnt > 0) {
-		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
-
-		if (page_is_mergeable(bv, page, len, off, same_page)) {
-			if (bio->bi_iter.bi_size > UINT_MAX - len) {
-				*same_page = false;
-				return false;
-			}
-			bv->bv_len += len;
-			bio->bi_iter.bi_size += len;
-			return true;
-		}
+	if (!*same_page) {
+		if (IS_ENABLED(CONFIG_KMSAN))
+			return false;
+		if (bv->bv_page + bv_end / PAGE_SIZE != page + off / PAGE_SIZE)
+			return false;
 	}
-	return false;
+
+	bv->bv_len += len;
+	return true;
 }
 
 /*
@@ -969,20 +937,19 @@ static bool __bio_try_merge_page(struct bio *bio, struct page *page,
  * size limit.  This is not for normal read/write bios, but for passthrough
  * or Zone Append operations that we can't split.
  */
-static bool bio_try_merge_hw_seg(struct request_queue *q, struct bio *bio,
-				 struct page *page, unsigned len,
-				 unsigned offset, bool *same_page)
+bool bvec_try_merge_hw_page(struct request_queue *q, struct bio_vec *bv,
+		struct page *page, unsigned len, unsigned offset,
+		bool *same_page)
 {
-	struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
 	unsigned long mask = queue_segment_boundary(q);
 	phys_addr_t addr1 = page_to_phys(bv->bv_page) + bv->bv_offset;
 	phys_addr_t addr2 = page_to_phys(page) + offset + len - 1;
 
 	if ((addr1 | mask) != (addr2 | mask))
 		return false;
-	if (bv->bv_len + len > queue_max_segment_size(q))
+	if (len > queue_max_segment_size(q) - bv->bv_len)
 		return false;
-	return __bio_try_merge_page(bio, page, len, offset, same_page);
+	return bvec_try_merge_page(bv, page, len, offset, same_page);
 }
 
 /**
@@ -1002,32 +969,35 @@ int bio_add_hw_page(struct request_queue *q, struct bio *bio,
 		struct page *page, unsigned int len, unsigned int offset,
 		unsigned int max_sectors, bool *same_page)
 {
-	struct bio_vec *bvec;
+	unsigned int max_size = max_sectors << SECTOR_SHIFT;
 
 	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
 		return 0;
 
-	if (((bio->bi_iter.bi_size + len) >> 9) > max_sectors)
+	len = min3(len, max_size, queue_max_segment_size(q));
+	if (len > max_size - bio->bi_iter.bi_size)
 		return 0;
 
 	if (bio->bi_vcnt > 0) {
-		if (bio_try_merge_hw_seg(q, bio, page, len, offset, same_page))
+		struct bio_vec *bv = &bio->bi_io_vec[bio->bi_vcnt - 1];
+
+		if (bvec_try_merge_hw_page(q, bv, page, len, offset,
+				same_page)) {
+			bio->bi_iter.bi_size += len;
 			return len;
+		}
+
+		if (bio->bi_vcnt >=
+		    min(bio->bi_max_vecs, queue_max_segments(q)))
+			return 0;
 
 		/*
 		 * If the queue doesn't support SG gaps and adding this segment
 		 * would create a gap, disallow it.
 		 */
-		bvec = &bio->bi_io_vec[bio->bi_vcnt - 1];
-		if (bvec_gap_to_prev(&q->limits, bvec, offset))
+		if (bvec_gap_to_prev(&q->limits, bv, offset))
 			return 0;
 	}
-
-	if (bio_full(bio, len))
-		return 0;
-
-	if (bio->bi_vcnt >= queue_max_segments(q))
-		return 0;
 
 	bvec_set_page(&bio->bi_io_vec[bio->bi_vcnt], page, len, offset);
 	bio->bi_vcnt++;
@@ -1129,11 +1099,21 @@ int bio_add_page(struct bio *bio, struct page *page,
 {
 	bool same_page = false;
 
-	if (!__bio_try_merge_page(bio, page, len, offset, &same_page)) {
-		if (bio_full(bio, len))
-			return 0;
-		__bio_add_page(bio, page, len, offset);
+	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
+		return 0;
+	if (bio->bi_iter.bi_size > UINT_MAX - len)
+		return 0;
+
+	if (bio->bi_vcnt > 0 &&
+	    bvec_try_merge_page(&bio->bi_io_vec[bio->bi_vcnt - 1],
+				page, len, offset, &same_page)) {
+		bio->bi_iter.bi_size += len;
+		return len;
 	}
+
+	if (bio->bi_vcnt >= bio->bi_max_vecs)
+		return 0;
+	__bio_add_page(bio, page, len, offset);
 	return len;
 }
 EXPORT_SYMBOL(bio_add_page);
@@ -1171,13 +1151,23 @@ EXPORT_SYMBOL(bio_add_folio);
 
 void __bio_release_pages(struct bio *bio, bool mark_dirty)
 {
-	struct bvec_iter_all iter_all;
-	struct bio_vec *bvec;
+	struct folio_iter fi;
 
-	bio_for_each_segment_all(bvec, bio, iter_all) {
-		if (mark_dirty && !PageCompound(bvec->bv_page))
-			set_page_dirty_lock(bvec->bv_page);
-		bio_release_page(bio, bvec->bv_page);
+	bio_for_each_folio_all(fi, bio) {
+		struct page *page;
+		size_t nr_pages;
+
+		if (mark_dirty) {
+			folio_lock(fi.folio);
+			folio_mark_dirty(fi.folio);
+			folio_unlock(fi.folio);
+		}
+		page = folio_page(fi.folio, fi.offset / PAGE_SIZE);
+		nr_pages = (fi.offset + fi.length - 1) / PAGE_SIZE -
+			   fi.offset / PAGE_SIZE + 1;
+		do {
+			bio_release_page(bio, page++);
+		} while (--nr_pages != 0);
 	}
 }
 EXPORT_SYMBOL_GPL(__bio_release_pages);
@@ -1207,13 +1197,18 @@ static int bio_iov_add_page(struct bio *bio, struct page *page,
 {
 	bool same_page = false;
 
-	if (!__bio_try_merge_page(bio, page, len, offset, &same_page)) {
-		__bio_add_page(bio, page, len, offset);
+	if (WARN_ON_ONCE(bio->bi_iter.bi_size > UINT_MAX - len))
+		return -EIO;
+
+	if (bio->bi_vcnt > 0 &&
+	    bvec_try_merge_page(&bio->bi_io_vec[bio->bi_vcnt - 1],
+				page, len, offset, &same_page)) {
+		bio->bi_iter.bi_size += len;
+		if (same_page)
+			bio_release_page(bio, page);
 		return 0;
 	}
-
-	if (same_page)
-		bio_release_page(bio, page);
+	__bio_add_page(bio, page, len, offset);
 	return 0;
 }
 
@@ -1252,7 +1247,7 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	struct page **pages = (struct page **)bv;
 	ssize_t size, left;
 	unsigned len, i = 0;
-	size_t offset, trim;
+	size_t offset;
 	int ret = 0;
 
 	/*
@@ -1281,10 +1276,12 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 
 	nr_pages = DIV_ROUND_UP(offset + size, PAGE_SIZE);
 
-	trim = size & (bdev_logical_block_size(bio->bi_bdev) - 1);
-	iov_iter_revert(iter, trim);
+	if (bio->bi_bdev) {
+		size_t trim = size & (bdev_logical_block_size(bio->bi_bdev) - 1);
+		iov_iter_revert(iter, trim);
+		size -= trim;
+	}
 
-	size -= trim;
 	if (unlikely(!size)) {
 		ret = -EFAULT;
 		goto out;
@@ -1337,6 +1334,9 @@ int bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 {
 	int ret = 0;
 
+	if (WARN_ON_ONCE(bio_flagged(bio, BIO_CLONED)))
+		return -EIO;
+
 	if (iov_iter_is_bvec(iter)) {
 		bio_iov_bvec_set(bio, iter);
 		iov_iter_advance(iter, bio->bi_iter.bi_size);
@@ -1373,21 +1373,12 @@ int submit_bio_wait(struct bio *bio)
 {
 	DECLARE_COMPLETION_ONSTACK_MAP(done,
 			bio->bi_bdev->bd_disk->lockdep_map);
-	unsigned long hang_check;
 
 	bio->bi_private = &done;
 	bio->bi_end_io = submit_bio_wait_endio;
 	bio->bi_opf |= REQ_SYNC;
 	submit_bio(bio);
-
-	/* Prevent hang_check timer from firing at us during very long I/O */
-	hang_check = sysctl_hung_task_timeout_secs;
-	if (hang_check)
-		while (!wait_for_completion_io_timeout(&done,
-					hang_check * (HZ/2)))
-			;
-	else
-		wait_for_completion_io(&done);
+	blk_wait_io(&done);
 
 	return blk_status_to_errno(bio->bi_status);
 }
@@ -1455,17 +1446,11 @@ EXPORT_SYMBOL(bio_free_pages);
  * bio_set_pages_dirty() and bio_check_pages_dirty() are support functions
  * for performing direct-IO in BIOs.
  *
- * The problem is that we cannot run set_page_dirty() from interrupt context
+ * The problem is that we cannot run folio_mark_dirty() from interrupt context
  * because the required locks are not interrupt-safe.  So what we can do is to
  * mark the pages dirty _before_ performing IO.  And in interrupt context,
  * check that the pages are still dirty.   If so, fine.  If not, redirty them
  * in process context.
- *
- * We special-case compound pages here: normally this means reads into hugetlb
- * pages.  The logic in here doesn't really work right for compound pages
- * because the VM does not uniformly chase down the head page in all cases.
- * But dirtiness of compound pages is pretty meaningless anyway: the VM doesn't
- * handle them at all.  So we skip compound pages here at an early stage.
  *
  * Note that this code is very hard to test under normal circumstances because
  * direct-io pins the pages with get_user_pages().  This makes
@@ -1482,14 +1467,15 @@ EXPORT_SYMBOL(bio_free_pages);
  */
 void bio_set_pages_dirty(struct bio *bio)
 {
-	struct bio_vec *bvec;
-	struct bvec_iter_all iter_all;
+	struct folio_iter fi;
 
-	bio_for_each_segment_all(bvec, bio, iter_all) {
-		if (!PageCompound(bvec->bv_page))
-			set_page_dirty_lock(bvec->bv_page);
+	bio_for_each_folio_all(fi, bio) {
+		folio_lock(fi.folio);
+		folio_mark_dirty(fi.folio);
+		folio_unlock(fi.folio);
 	}
 }
+EXPORT_SYMBOL_GPL(bio_set_pages_dirty);
 
 /*
  * bio_check_pages_dirty() will check that all the BIO's pages are still dirty.
@@ -1530,12 +1516,11 @@ static void bio_dirty_fn(struct work_struct *work)
 
 void bio_check_pages_dirty(struct bio *bio)
 {
-	struct bio_vec *bvec;
+	struct folio_iter fi;
 	unsigned long flags;
-	struct bvec_iter_all iter_all;
 
-	bio_for_each_segment_all(bvec, bio, iter_all) {
-		if (!PageDirty(bvec->bv_page) && !PageCompound(bvec->bv_page))
+	bio_for_each_folio_all(fi, bio) {
+		if (!folio_test_dirty(fi.folio))
 			goto defer;
 	}
 
@@ -1549,6 +1534,7 @@ defer:
 	spin_unlock_irqrestore(&bio_dirty_lock, flags);
 	schedule_work(&bio_dirty_work);
 }
+EXPORT_SYMBOL_GPL(bio_check_pages_dirty);
 
 static inline bool bio_remaining_done(struct bio *bio)
 {

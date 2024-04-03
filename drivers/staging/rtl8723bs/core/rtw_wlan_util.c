@@ -1779,10 +1779,9 @@ void adaptive_early_32k(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 void rtw_alloc_macid(struct adapter *padapter, struct sta_info *psta)
 {
 	int i;
-	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
 
-	if (!memcmp(psta->hwaddr, bc_addr, ETH_ALEN))
+	if (is_broadcast_ether_addr(psta->hwaddr))
 		return;
 
 	if (!memcmp(psta->hwaddr, myid(&padapter->eeprompriv), ETH_ALEN)) {
@@ -1807,10 +1806,9 @@ void rtw_alloc_macid(struct adapter *padapter, struct sta_info *psta)
 
 void rtw_release_macid(struct adapter *padapter, struct sta_info *psta)
 {
-	u8 bc_addr[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 	struct dvobj_priv *pdvobj = adapter_to_dvobj(padapter);
 
-	if (!memcmp(psta->hwaddr, bc_addr, ETH_ALEN))
+	if (is_broadcast_ether_addr(psta->hwaddr))
 		return;
 
 	if (!memcmp(psta->hwaddr, myid(&padapter->eeprompriv), ETH_ALEN))

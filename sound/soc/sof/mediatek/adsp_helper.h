@@ -15,17 +15,13 @@
 struct mtk_adsp_chip_info {
 	phys_addr_t pa_sram;
 	phys_addr_t pa_dram; /* adsp dram physical base */
-	phys_addr_t pa_shared_dram; /* adsp dram physical base */
 	phys_addr_t pa_cfgreg;
 	u32 sramsize;
 	u32 dramsize;
 	u32 cfgregsize;
-	u32 shared_size;
 	void __iomem *va_sram; /* corresponding to pa_sram */
 	void __iomem *va_dram; /* corresponding to pa_dram */
 	void __iomem *va_cfgreg;
-	void __iomem *shared_sram; /* part of  va_sram */
-	void __iomem *shared_dram; /* part of  va_dram */
 	phys_addr_t adsp_bootup_addr;
 	int dram_offset; /*dram offset between system and dsp view*/
 

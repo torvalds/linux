@@ -77,3 +77,4 @@ module_exit(exit_rc_map_pixelview_new)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
+MODULE_DESCRIPTION("pixelview-new remote controller keytable");

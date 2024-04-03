@@ -36,7 +36,7 @@
 
 #ifdef CONFIG_SBUS
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <asm/idprom.h>
 #include <asm/openprom.h>
 #include <asm/oplib.h>
@@ -2520,17 +2520,11 @@ static int fore200e_init(struct fore200e *fore200e, struct device *parent)
 }
 
 #ifdef CONFIG_SBUS
-static const struct of_device_id fore200e_sba_match[];
 static int fore200e_sba_probe(struct platform_device *op)
 {
-	const struct of_device_id *match;
 	struct fore200e *fore200e;
 	static int index = 0;
 	int err;
-
-	match = of_match_device(fore200e_sba_match, &op->dev);
-	if (!match)
-		return -EINVAL;
 
 	fore200e = kzalloc(sizeof(struct fore200e), GFP_KERNEL);
 	if (!fore200e)
@@ -2556,14 +2550,12 @@ static int fore200e_sba_probe(struct platform_device *op)
 	return 0;
 }
 
-static int fore200e_sba_remove(struct platform_device *op)
+static void fore200e_sba_remove(struct platform_device *op)
 {
 	struct fore200e *fore200e = dev_get_drvdata(&op->dev);
 
 	fore200e_shutdown(fore200e);
 	kfree(fore200e);
-
-	return 0;
 }
 
 static const struct of_device_id fore200e_sba_match[] = {
@@ -2580,7 +2572,7 @@ static struct platform_driver fore200e_sba_driver = {
 		.of_match_table = fore200e_sba_match,
 	},
 	.probe		= fore200e_sba_probe,
-	.remove		= fore200e_sba_remove,
+	.remove_new	= fore200e_sba_remove,
 };
 #endif
 

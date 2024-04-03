@@ -11,15 +11,7 @@
 /*
  * PAGE_SHIFT determines the page size
  */
-#ifdef CONFIG_PAGE_SIZE_4KB
-#define PAGE_SHIFT	12
-#endif
-#ifdef CONFIG_PAGE_SIZE_16KB
-#define PAGE_SHIFT	14
-#endif
-#ifdef CONFIG_PAGE_SIZE_64KB
-#define PAGE_SHIFT	16
-#endif
+#define PAGE_SHIFT	CONFIG_PAGE_SHIFT
 #define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE - 1))
 
@@ -83,8 +75,16 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 #define sym_to_pfn(x)		__phys_to_pfn(__pa_symbol(x))
 
+struct page *dmw_virt_to_page(unsigned long kaddr);
+struct page *tlb_virt_to_page(unsigned long kaddr);
+
 #define virt_to_pfn(kaddr)	PFN_DOWN(PHYSADDR(kaddr))
-#define virt_to_page(kaddr)	pfn_to_page(virt_to_pfn(kaddr))
+
+#define virt_to_page(kaddr)								\
+({											\
+	(likely((unsigned long)kaddr < vm_map_base)) ?					\
+	dmw_virt_to_page((unsigned long)kaddr) : tlb_virt_to_page((unsigned long)kaddr);\
+})
 
 extern int __virt_addr_valid(volatile void *kaddr);
 #define virt_addr_valid(kaddr)	__virt_addr_valid((volatile void *)(kaddr))

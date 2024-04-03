@@ -122,8 +122,8 @@ static int spear_thermal_probe(struct platform_device *pdev)
 	stdev->flags = val;
 	writel_relaxed(stdev->flags, stdev->thermal_base);
 
-	spear_thermal = thermal_zone_device_register("spear_thermal", 0, 0,
-				stdev, &ops, NULL, 0, 0);
+	spear_thermal = thermal_tripless_zone_device_register("spear_thermal",
+							      stdev, &ops, NULL);
 	if (IS_ERR(spear_thermal)) {
 		dev_err(&pdev->dev, "thermal zone device is NULL\n");
 		ret = PTR_ERR(spear_thermal);
@@ -150,7 +150,7 @@ disable_clk:
 	return ret;
 }
 
-static int spear_thermal_exit(struct platform_device *pdev)
+static void spear_thermal_exit(struct platform_device *pdev)
 {
 	unsigned int actual_mask = 0;
 	struct thermal_zone_device *spear_thermal = platform_get_drvdata(pdev);
@@ -163,8 +163,6 @@ static int spear_thermal_exit(struct platform_device *pdev)
 	writel_relaxed(actual_mask & ~stdev->flags, stdev->thermal_base);
 
 	clk_disable(stdev->clk);
-
-	return 0;
 }
 
 static const struct of_device_id spear_thermal_id_table[] = {
@@ -175,7 +173,7 @@ MODULE_DEVICE_TABLE(of, spear_thermal_id_table);
 
 static struct platform_driver spear_thermal_driver = {
 	.probe = spear_thermal_probe,
-	.remove = spear_thermal_exit,
+	.remove_new = spear_thermal_exit,
 	.driver = {
 		.name = "spear_thermal",
 		.pm = &spear_thermal_pm_ops,

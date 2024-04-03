@@ -13,12 +13,12 @@
 #include "selftests/igt_spinner.h"
 
 static int igt_fill_check_buffer(struct drm_i915_gem_object *obj,
+				 struct intel_gt *gt,
 				 bool fill)
 {
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
 	unsigned int i, count = obj->base.size / sizeof(u32);
 	enum i915_map_type map_type =
-		i915_coherent_map_type(i915, obj, false);
+		intel_gt_coherent_map_type(gt, obj, false);
 	u32 *cur;
 	int err = 0;
 
@@ -66,7 +66,7 @@ static int igt_create_migrate(struct intel_gt *gt, enum intel_region_id src,
 		if (err)
 			continue;
 
-		err = igt_fill_check_buffer(obj, true);
+		err = igt_fill_check_buffer(obj, gt, true);
 		if (err)
 			continue;
 
@@ -86,7 +86,7 @@ static int igt_create_migrate(struct intel_gt *gt, enum intel_region_id src,
 		if (err)
 			continue;
 
-		err = igt_fill_check_buffer(obj, false);
+		err = igt_fill_check_buffer(obj, gt, false);
 	}
 	i915_gem_object_put(obj);
 
@@ -233,7 +233,7 @@ static int __igt_lmem_pages_migrate(struct intel_gt *gt,
 			continue;
 
 		if (!vma) {
-			err = igt_fill_check_buffer(obj, true);
+			err = igt_fill_check_buffer(obj, gt, true);
 			if (err)
 				continue;
 		}
@@ -276,7 +276,7 @@ static int __igt_lmem_pages_migrate(struct intel_gt *gt,
 		if (err)
 			goto out_unlock;
 	} else {
-		err = igt_fill_check_buffer(obj, false);
+		err = igt_fill_check_buffer(obj, gt, false);
 	}
 
 out_unlock:

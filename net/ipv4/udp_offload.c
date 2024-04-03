@@ -557,10 +557,10 @@ struct sk_buff *udp_gro_receive(struct list_head *head, struct sk_buff *skb,
 	NAPI_GRO_CB(skb)->is_flist = 0;
 	if (!sk || !udp_sk(sk)->gro_receive) {
 		if (skb->dev->features & NETIF_F_GRO_FRAGLIST)
-			NAPI_GRO_CB(skb)->is_flist = sk ? !udp_sk(sk)->gro_enabled : 1;
+			NAPI_GRO_CB(skb)->is_flist = sk ? !udp_test_bit(GRO_ENABLED, sk) : 1;
 
 		if ((!sk && (skb->dev->features & NETIF_F_GRO_UDP_FWD)) ||
-		    (sk && udp_sk(sk)->gro_enabled) || NAPI_GRO_CB(skb)->is_flist)
+		    (sk && udp_test_bit(GRO_ENABLED, sk)) || NAPI_GRO_CB(skb)->is_flist)
 			return call_gro_receive(udp_gro_receive_segment, head, skb);
 
 		/* no GRO, be sure flush the current packet */
@@ -737,15 +737,14 @@ INDIRECT_CALLABLE_SCOPE int udp4_gro_complete(struct sk_buff *skb, int nhoff)
 	return udp_gro_complete(skb, nhoff, udp4_lib_lookup_skb);
 }
 
-static const struct net_offload udpv4_offload = {
-	.callbacks = {
-		.gso_segment = udp4_ufo_fragment,
-		.gro_receive  =	udp4_gro_receive,
-		.gro_complete =	udp4_gro_complete,
-	},
-};
-
 int __init udpv4_offload_init(void)
 {
-	return inet_add_offload(&udpv4_offload, IPPROTO_UDP);
+	net_hotdata.udpv4_offload = (struct net_offload) {
+		.callbacks = {
+			.gso_segment = udp4_ufo_fragment,
+			.gro_receive  =	udp4_gro_receive,
+			.gro_complete =	udp4_gro_complete,
+		},
+	};
+	return inet_add_offload(&net_hotdata.udpv4_offload, IPPROTO_UDP);
 }

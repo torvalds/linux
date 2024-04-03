@@ -40,6 +40,7 @@
 	sgtl5000: audio-codec@a {
 		reg = <0x0a>;
 		compatible = "fsl,sgtl5000";
+		#sound-dai-cells = <0>;
 		clocks = <&sys_mclk>;
 		VDDA-supply = <&reg_2p5v>;
 		VDDIO-supply = <&reg_3p3v>;

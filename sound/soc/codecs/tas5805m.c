@@ -520,12 +520,11 @@ static int tas5805m_i2c_probe(struct i2c_client *i2c)
 	}
 
 	tas5805m->dsp_cfg_len = fw->size;
-	tas5805m->dsp_cfg_data = devm_kmalloc(dev, fw->size, GFP_KERNEL);
+	tas5805m->dsp_cfg_data = devm_kmemdup(dev, fw->data, fw->size, GFP_KERNEL);
 	if (!tas5805m->dsp_cfg_data) {
 		release_firmware(fw);
 		return -ENOMEM;
 	}
-	memcpy(tas5805m->dsp_cfg_data, fw->data, fw->size);
 
 	release_firmware(fw);
 

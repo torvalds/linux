@@ -59,9 +59,9 @@ bool link_dp_dpia_set_dptx_usb4_bw_alloc_support(struct dc_link *link);
  * @link: pointer to the dc_link struct instance
  * @req_bw: Bw requested by the stream
  *
- * return: allocated bw else return 0
+ * return: true if allocated successfully
  */
-int link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int req_bw);
+bool link_dp_dpia_allocate_usb4_bandwidth_for_stream(struct dc_link *link, int req_bw);
 
 /*
  * Handle the USB4 BW Allocation related functionality here:
@@ -98,5 +98,14 @@ void dpia_handle_bw_alloc_response(struct dc_link *link, uint8_t bw, uint8_t res
  * return: TRUE if bw used by DPIAs doesn't exceed available BW else return FALSE
  */
 bool dpia_validate_usb4_bw(struct dc_link **link, int *bw_needed, const unsigned int num_dpias);
+
+/*
+ * Obtain all the DP overheads in dp tunneling for the dpia link
+ *
+ * @link: pointer to the dc_link struct instance
+ *
+ * return: DP overheads in DP tunneling
+ */
+int link_dp_dpia_get_dp_overhead_in_dp_tunneling(struct dc_link *link);
 
 #endif /* DC_INC_LINK_DP_DPIA_BW_H_ */

@@ -2,7 +2,7 @@
 /*
  * Device Tree Source for K2G Netcp driver
  *
- * Copyright (C) 2018 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2018 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 qmss: qmss@4020000 {
@@ -37,9 +37,9 @@ qmss: qmss@4020000 {
 		qpend {
 			qpend-0 {
 				qrange = <77 8>;
-				interrupts =<0 308 0xf04 0 309 0xf04 0 310 0xf04
-					     0 311 0xf04 0 312 0xf04 0 313 0xf04
-					     0 314 0xf04 0 315 0xf04>;
+				interrupts = <0 308 0xf04 0 309 0xf04 0 310 0xf04
+					      0 311 0xf04 0 312 0xf04 0 313 0xf04
+					      0 314 0xf04 0 315 0xf04>;
 				qalloc-by-id;
 			};
 		};

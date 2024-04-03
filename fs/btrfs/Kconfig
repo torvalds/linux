@@ -31,7 +31,7 @@ config BTRFS_FS
 	  continue to be mountable and usable by newer kernels.
 
 	  For more information, please see the web pages at
-	  http://btrfs.wiki.kernel.org.
+	  https://btrfs.readthedocs.io
 
 	  To compile this file system support as a module, choose M here. The
 	  module will be called btrfs.
@@ -47,25 +47,6 @@ config BTRFS_FS_POSIX_ACL
 	  groups beyond the owner/group/world scheme.
 
 	  If you don't know what Access Control Lists are, say N
-
-config BTRFS_FS_CHECK_INTEGRITY
-	bool "Btrfs with integrity check tool compiled in (DANGEROUS)"
-	depends on BTRFS_FS
-	help
-	  Adds code that examines all block write requests (including
-	  writes of the super block). The goal is to verify that the
-	  state of the filesystem on disk is always consistent, i.e.,
-	  after a power-loss or kernel panic event the filesystem is
-	  in a consistent state.
-
-	  If the integrity check tool is included and activated in
-	  the mount options, plenty of kernel memory is used, and
-	  plenty of additional CPU cycles are spent. Enabling this
-	  functionality is not intended for normal use.
-
-	  In most cases, unless you are a btrfs developer who needs
-	  to verify the integrity of (super)-block write requests
-	  during the run of a regression test, say N
 
 config BTRFS_FS_RUN_SANITY_TESTS
 	bool "Btrfs will run sanity tests upon loading"

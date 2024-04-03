@@ -7,9 +7,10 @@
 
 #include <linux/clk.h>
 #include <linux/kernel.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/of_graph.h>
+#include <linux/platform_device.h>
 #include <linux/reset.h>
 #include <linux/phy/phy.h>
 #include <linux/bitfield.h>
@@ -322,13 +323,11 @@ static int meson_dw_mipi_dsi_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int meson_dw_mipi_dsi_remove(struct platform_device *pdev)
+static void meson_dw_mipi_dsi_remove(struct platform_device *pdev)
 {
 	struct meson_dw_mipi_dsi *mipi_dsi = platform_get_drvdata(pdev);
 
 	dw_mipi_dsi_remove(mipi_dsi->dmd);
-
-	return 0;
 }
 
 static const struct of_device_id meson_dw_mipi_dsi_of_table[] = {
@@ -339,7 +338,7 @@ MODULE_DEVICE_TABLE(of, meson_dw_mipi_dsi_of_table);
 
 static struct platform_driver meson_dw_mipi_dsi_platform_driver = {
 	.probe		= meson_dw_mipi_dsi_probe,
-	.remove		= meson_dw_mipi_dsi_remove,
+	.remove_new	= meson_dw_mipi_dsi_remove,
 	.driver		= {
 		.name		= DRIVER_NAME,
 		.of_match_table	= meson_dw_mipi_dsi_of_table,

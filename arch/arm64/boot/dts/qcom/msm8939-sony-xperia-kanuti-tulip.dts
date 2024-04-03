@@ -16,6 +16,7 @@
 / {
 	model = "Sony Xperia M4 Aqua";
 	compatible = "sony,kanuti-tulip", "qcom,msm8939";
+	chassis-type = "handset";
 
 	qcom,board-id = <QCOM_BOARD_ID_MTP 0>;
 	qcom,msm-id = <QCOM_ID_MSM8939 0>, <QCOM_ID_MSM8939 0x30000>;
@@ -32,10 +33,14 @@
 
 	usb_id: usb-id {
 		compatible = "linux,extcon-usb-gpio";
-		id-gpio = <&tlmm 110 GPIO_ACTIVE_HIGH>;
+		id-gpios = <&tlmm 110 GPIO_ACTIVE_HIGH>;
 		pinctrl-0 = <&usb_id_default>;
 		pinctrl-names = "default";
 	};
+};
+
+&gpu {
+	status = "okay";
 };
 
 &mdss {
@@ -85,4 +90,8 @@
 
 &wcnss_iris {
 	compatible = "qcom,wcn3660";
+};
+
+&wcnss_mem {
+	status = "okay";
 };

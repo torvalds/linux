@@ -326,6 +326,9 @@ void cfb_imageblit(struct fb_info *p, const struct fb_image *image)
 	if (p->state != FBINFO_STATE_RUNNING)
 		return;
 
+	if (p->flags & FBINFO_VIRTFB)
+		fb_warn_once(p, "Framebuffer is not in I/O address space.");
+
 	bitstart = (dy * p->fix.line_length * 8) + (dx * bpp);
 	start_index = bitstart & (32 - 1);
 	pitch_index = (p->fix.line_length & (bpl - 1)) * 8;

@@ -38,7 +38,7 @@
 #include "en/port.h"
 
 #ifdef CONFIG_PAGE_POOL_STATS
-#include <net/page_pool.h>
+#include <net/page_pool/helpers.h>
 #endif
 
 static unsigned int stats_grps_num(struct mlx5e_priv *priv)
@@ -180,7 +180,13 @@ static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cqe_compress_blks) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_cqe_compress_pkts) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_congst_umr) },
+#ifdef CONFIG_MLX5_EN_ARFS
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_arfs_add) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_arfs_request_in) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_arfs_request_out) },
+	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_arfs_expired) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_arfs_err) },
+#endif
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_recover) },
 #ifdef CONFIG_PAGE_POOL_STATS
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_pp_alloc_fast) },
@@ -231,7 +237,6 @@ static const struct counter_desc sw_stats_desc[] = {
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_xsk_cqe_compress_blks) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_xsk_cqe_compress_pkts) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_xsk_congst_umr) },
-	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, rx_xsk_arfs_err) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_xsk_xmit) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_xsk_mpwqe) },
 	{ MLX5E_DECLARE_STAT(struct mlx5e_sw_stats, tx_xsk_inlnw) },
@@ -321,7 +326,6 @@ static void mlx5e_stats_grp_sw_update_stats_xskrq(struct mlx5e_sw_stats *s,
 	s->rx_xsk_cqe_compress_blks      += xskrq_stats->cqe_compress_blks;
 	s->rx_xsk_cqe_compress_pkts      += xskrq_stats->cqe_compress_pkts;
 	s->rx_xsk_congst_umr             += xskrq_stats->congst_umr;
-	s->rx_xsk_arfs_err               += xskrq_stats->arfs_err;
 }
 
 static void mlx5e_stats_grp_sw_update_stats_rq_stats(struct mlx5e_sw_stats *s,
@@ -354,7 +358,13 @@ static void mlx5e_stats_grp_sw_update_stats_rq_stats(struct mlx5e_sw_stats *s,
 	s->rx_cqe_compress_blks       += rq_stats->cqe_compress_blks;
 	s->rx_cqe_compress_pkts       += rq_stats->cqe_compress_pkts;
 	s->rx_congst_umr              += rq_stats->congst_umr;
+#ifdef CONFIG_MLX5_EN_ARFS
+	s->rx_arfs_add                += rq_stats->arfs_add;
+	s->rx_arfs_request_in         += rq_stats->arfs_request_in;
+	s->rx_arfs_request_out        += rq_stats->arfs_request_out;
+	s->rx_arfs_expired            += rq_stats->arfs_expired;
 	s->rx_arfs_err                += rq_stats->arfs_err;
+#endif
 	s->rx_recover                 += rq_stats->recover;
 #ifdef CONFIG_PAGE_POOL_STATS
 	s->rx_pp_alloc_fast          += rq_stats->pp_alloc_fast;
@@ -551,11 +561,23 @@ static const struct counter_desc drop_rq_stats_desc[] = {
 #define NUM_Q_COUNTERS			ARRAY_SIZE(q_stats_desc)
 #define NUM_DROP_RQ_COUNTERS		ARRAY_SIZE(drop_rq_stats_desc)
 
+static bool q_counter_any(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *pos;
+	int i;
+
+	mlx5_sd_for_each_dev(i, priv->mdev, pos)
+		if (priv->q_counter[i++])
+			return true;
+
+	return false;
+}
+
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(qcnt)
 {
 	int num_stats = 0;
 
-	if (priv->q_counter)
+	if (q_counter_any(priv))
 		num_stats += NUM_Q_COUNTERS;
 
 	if (priv->drop_rq_q_counter)
@@ -568,7 +590,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(qcnt)
 {
 	int i;
 
-	for (i = 0; i < NUM_Q_COUNTERS && priv->q_counter; i++)
+	for (i = 0; i < NUM_Q_COUNTERS && q_counter_any(priv); i++)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN,
 		       q_stats_desc[i].format);
 
@@ -583,7 +605,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(qcnt)
 {
 	int i;
 
-	for (i = 0; i < NUM_Q_COUNTERS && priv->q_counter; i++)
+	for (i = 0; i < NUM_Q_COUNTERS && q_counter_any(priv); i++)
 		data[idx++] = MLX5E_READ_CTR32_CPU(&priv->stats.qcnt,
 						   q_stats_desc, i);
 	for (i = 0; i < NUM_DROP_RQ_COUNTERS && priv->drop_rq_q_counter; i++)
@@ -597,18 +619,23 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(qcnt)
 	struct mlx5e_qcounter_stats *qcnt = &priv->stats.qcnt;
 	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(query_q_counter_in)] = {};
-	int ret;
+	struct mlx5_core_dev *pos;
+	u32 rx_out_of_buffer = 0;
+	int ret, i;
 
 	MLX5_SET(query_q_counter_in, in, opcode, MLX5_CMD_OP_QUERY_Q_COUNTER);
 
-	if (priv->q_counter) {
-		MLX5_SET(query_q_counter_in, in, counter_set_id,
-			 priv->q_counter);
-		ret = mlx5_cmd_exec_inout(priv->mdev, query_q_counter, in, out);
-		if (!ret)
-			qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out,
-							  out, out_of_buffer);
+	mlx5_sd_for_each_dev(i, priv->mdev, pos) {
+		if (priv->q_counter[i]) {
+			MLX5_SET(query_q_counter_in, in, counter_set_id,
+				 priv->q_counter[i]);
+			ret = mlx5_cmd_exec_inout(pos, query_q_counter, in, out);
+			if (!ret)
+				rx_out_of_buffer += MLX5_GET(query_q_counter_out,
+							     out, out_of_buffer);
+		}
 	}
+	qcnt->rx_out_of_buffer = rx_out_of_buffer;
 
 	if (priv->drop_rq_q_counter) {
 		MLX5_SET(query_q_counter_in, in, counter_set_id,
@@ -1990,7 +2017,13 @@ static const struct counter_desc rq_stats_desc[] = {
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cqe_compress_blks) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, cqe_compress_pkts) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, congst_umr) },
+#ifdef CONFIG_MLX5_EN_ARFS
+	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, arfs_add) },
+	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, arfs_request_in) },
+	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, arfs_request_out) },
+	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, arfs_expired) },
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, arfs_err) },
+#endif
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, recover) },
 #ifdef CONFIG_PAGE_POOL_STATS
 	{ MLX5E_DECLARE_RX_STAT(struct mlx5e_rq_stats, pp_alloc_fast) },
@@ -2092,7 +2125,6 @@ static const struct counter_desc xskrq_stats_desc[] = {
 	{ MLX5E_DECLARE_XSKRQ_STAT(struct mlx5e_rq_stats, cqe_compress_blks) },
 	{ MLX5E_DECLARE_XSKRQ_STAT(struct mlx5e_rq_stats, cqe_compress_pkts) },
 	{ MLX5E_DECLARE_XSKRQ_STAT(struct mlx5e_rq_stats, congst_umr) },
-	{ MLX5E_DECLARE_XSKRQ_STAT(struct mlx5e_rq_stats, arfs_err) },
 };
 
 static const struct counter_desc xsksq_stats_desc[] = {
@@ -2142,9 +2174,7 @@ static const struct counter_desc ptp_cq_stats_desc[] = {
 	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, err_cqe) },
 	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, abort) },
 	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, abort_abs_diff_ns) },
-	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, resync_cqe) },
-	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, resync_event) },
-	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, ooo_cqe_drop) },
+	{ MLX5E_DECLARE_PTP_CQ_STAT(struct mlx5e_ptp_cq_stats, late_cqe) },
 };
 
 static const struct counter_desc ptp_rq_stats_desc[] = {
@@ -2170,7 +2200,6 @@ static const struct counter_desc ptp_rq_stats_desc[] = {
 	{ MLX5E_DECLARE_PTP_RQ_STAT(struct mlx5e_rq_stats, cqe_compress_blks) },
 	{ MLX5E_DECLARE_PTP_RQ_STAT(struct mlx5e_rq_stats, cqe_compress_pkts) },
 	{ MLX5E_DECLARE_PTP_RQ_STAT(struct mlx5e_rq_stats, congst_umr) },
-	{ MLX5E_DECLARE_PTP_RQ_STAT(struct mlx5e_rq_stats, arfs_err) },
 	{ MLX5E_DECLARE_PTP_RQ_STAT(struct mlx5e_rq_stats, recover) },
 };
 
@@ -2490,7 +2519,7 @@ mlx5e_stats_grp_t mlx5e_nic_stats_grps[] = {
 	&MLX5E_STATS_GRP(per_port_buff_congest),
 	&MLX5E_STATS_GRP(ptp),
 	&MLX5E_STATS_GRP(qos),
-#ifdef CONFIG_MLX5_EN_MACSEC
+#ifdef CONFIG_MLX5_MACSEC
 	&MLX5E_STATS_GRP(macsec_hw),
 #endif
 };

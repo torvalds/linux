@@ -1,3 +1,4 @@
+#if defined __amd64__ || defined __i386__
 /*
  * Copyright (c) 2022 Alexey Dobriyan <adobriyan@gmail.com>
  *
@@ -22,6 +23,9 @@
  *	/proc/${pid}/smaps
  *	/proc/${pid}/smaps_rollup
  */
+#undef _GNU_SOURCE
+#define _GNU_SOURCE
+
 #undef NDEBUG
 #include <assert.h>
 #include <errno.h>
@@ -33,9 +37,51 @@
 #include <sys/mman.h>
 #include <sys/ptrace.h>
 #include <sys/resource.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+
+#ifdef __amd64__
+#define TEST_VSYSCALL
+#endif
+
+#if defined __amd64__
+	#ifndef SYS_pkey_alloc
+		#define SYS_pkey_alloc 330
+	#endif
+	#ifndef SYS_pkey_free
+		#define SYS_pkey_free 331
+	#endif
+#elif defined __i386__
+	#ifndef SYS_pkey_alloc
+		#define SYS_pkey_alloc 381
+	#endif
+	#ifndef SYS_pkey_free
+		#define SYS_pkey_free 382
+	#endif
+#else
+	#error "SYS_pkey_alloc"
+#endif
+
+static int g_protection_key_support;
+
+static int protection_key_support(void)
+{
+	long rv = syscall(SYS_pkey_alloc, 0, 0);
+	if (rv > 0) {
+		syscall(SYS_pkey_free, (int)rv);
+		return 1;
+	} else if (rv == -1 && errno == ENOSYS) {
+		return 0;
+	} else if (rv == -1 && errno == EINVAL) {
+		// ospke=n
+		return 0;
+	} else {
+		fprintf(stderr, "%s: error: rv %ld, errno %d\n", __func__, rv, errno);
+		exit(EXIT_FAILURE);
+	}
+}
 
 /*
  * 0: vsyscall VMA doesn't exist	vsyscall=none
@@ -55,36 +101,6 @@ static const char proc_pid_maps_vsyscall_2[] =
 static const char proc_pid_smaps_vsyscall_0[] = "";
 
 static const char proc_pid_smaps_vsyscall_1[] =
-"ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]\n"
-"Size:                  4 kB\n"
-"KernelPageSize:        4 kB\n"
-"MMUPageSize:           4 kB\n"
-"Rss:                   0 kB\n"
-"Pss:                   0 kB\n"
-"Pss_Dirty:             0 kB\n"
-"Shared_Clean:          0 kB\n"
-"Shared_Dirty:          0 kB\n"
-"Private_Clean:         0 kB\n"
-"Private_Dirty:         0 kB\n"
-"Referenced:            0 kB\n"
-"Anonymous:             0 kB\n"
-"LazyFree:              0 kB\n"
-"AnonHugePages:         0 kB\n"
-"ShmemPmdMapped:        0 kB\n"
-"FilePmdMapped:         0 kB\n"
-"Shared_Hugetlb:        0 kB\n"
-"Private_Hugetlb:       0 kB\n"
-"Swap:                  0 kB\n"
-"SwapPss:               0 kB\n"
-"Locked:                0 kB\n"
-"THPeligible:    0\n"
-/*
- * "ProtectionKey:" field is conditional. It is possible to check it as well,
- * but I don't have such machine.
- */
-;
-
-static const char proc_pid_smaps_vsyscall_2[] =
 "ffffffffff600000-ffffffffff601000 --xp 00000000 00:00 0                  [vsyscall]\n"
 "Size:                  4 kB\n"
 "KernelPageSize:        4 kB\n"
@@ -98,6 +114,7 @@ static const char proc_pid_smaps_vsyscall_2[] =
 "Private_Dirty:         0 kB\n"
 "Referenced:            0 kB\n"
 "Anonymous:             0 kB\n"
+"KSM:                   0 kB\n"
 "LazyFree:              0 kB\n"
 "AnonHugePages:         0 kB\n"
 "ShmemPmdMapped:        0 kB\n"
@@ -107,11 +124,34 @@ static const char proc_pid_smaps_vsyscall_2[] =
 "Swap:                  0 kB\n"
 "SwapPss:               0 kB\n"
 "Locked:                0 kB\n"
-"THPeligible:    0\n"
-/*
- * "ProtectionKey:" field is conditional. It is possible to check it as well,
- * but I'm too tired.
- */
+"THPeligible:           0\n"
+;
+
+static const char proc_pid_smaps_vsyscall_2[] =
+"ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]\n"
+"Size:                  4 kB\n"
+"KernelPageSize:        4 kB\n"
+"MMUPageSize:           4 kB\n"
+"Rss:                   0 kB\n"
+"Pss:                   0 kB\n"
+"Pss_Dirty:             0 kB\n"
+"Shared_Clean:          0 kB\n"
+"Shared_Dirty:          0 kB\n"
+"Private_Clean:         0 kB\n"
+"Private_Dirty:         0 kB\n"
+"Referenced:            0 kB\n"
+"Anonymous:             0 kB\n"
+"KSM:                   0 kB\n"
+"LazyFree:              0 kB\n"
+"AnonHugePages:         0 kB\n"
+"ShmemPmdMapped:        0 kB\n"
+"FilePmdMapped:         0 kB\n"
+"Shared_Hugetlb:        0 kB\n"
+"Private_Hugetlb:       0 kB\n"
+"Swap:                  0 kB\n"
+"SwapPss:               0 kB\n"
+"Locked:                0 kB\n"
+"THPeligible:           0\n"
 ;
 
 static void sigaction_SIGSEGV(int _, siginfo_t *__, void *___)
@@ -119,6 +159,7 @@ static void sigaction_SIGSEGV(int _, siginfo_t *__, void *___)
 	_exit(EXIT_FAILURE);
 }
 
+#ifdef TEST_VSYSCALL
 static void sigaction_SIGSEGV_vsyscall(int _, siginfo_t *__, void *___)
 {
 	_exit(g_vsyscall);
@@ -170,6 +211,7 @@ static void vsyscall(void)
 		exit(1);
 	}
 }
+#endif
 
 static int test_proc_pid_maps(pid_t pid)
 {
@@ -231,19 +273,27 @@ static int test_proc_pid_smaps(pid_t pid)
 		}
 		perror("open /proc/${pid}/smaps");
 		return EXIT_FAILURE;
-	} else {
-		ssize_t rv = read(fd, buf, sizeof(buf));
-		close(fd);
-		if (g_vsyscall == 0) {
-			assert(rv == 0);
-		} else {
-			size_t len = strlen(g_proc_pid_maps_vsyscall);
-			/* TODO "ProtectionKey:" */
-			assert(rv > len);
-			assert(memcmp(buf, g_proc_pid_maps_vsyscall, len) == 0);
-		}
-		return EXIT_SUCCESS;
 	}
+	ssize_t rv = read(fd, buf, sizeof(buf));
+	close(fd);
+
+	assert(0 <= rv);
+	assert(rv <= sizeof(buf));
+
+	if (g_vsyscall == 0) {
+		assert(rv == 0);
+	} else {
+		size_t len = strlen(g_proc_pid_smaps_vsyscall);
+		assert(rv > len);
+		assert(memcmp(buf, g_proc_pid_smaps_vsyscall, len) == 0);
+
+		if (g_protection_key_support) {
+#define PROTECTION_KEY "ProtectionKey:         0\n"
+			assert(memmem(buf, rv, PROTECTION_KEY, strlen(PROTECTION_KEY)));
+		}
+	}
+
+	return EXIT_SUCCESS;
 }
 
 static const char g_smaps_rollup[] =
@@ -260,6 +310,7 @@ static const char g_smaps_rollup[] =
 "Private_Dirty:         0 kB\n"
 "Referenced:            0 kB\n"
 "Anonymous:             0 kB\n"
+"KSM:                   0 kB\n"
 "LazyFree:              0 kB\n"
 "AnonHugePages:         0 kB\n"
 "ShmemPmdMapped:        0 kB\n"
@@ -295,11 +346,102 @@ static int test_proc_pid_smaps_rollup(pid_t pid)
 	}
 }
 
+static const char *parse_u64(const char *p, const char *const end, uint64_t *rv)
+{
+	*rv = 0;
+	for (; p != end; p += 1) {
+		if ('0' <= *p && *p <= '9') {
+			assert(!__builtin_mul_overflow(*rv, 10, rv));
+			assert(!__builtin_add_overflow(*rv, *p - '0', rv));
+		} else {
+			break;
+		}
+	}
+	assert(p != end);
+	return p;
+}
+
+/*
+ * There seems to be 2 types of valid output:
+ * "0 A A B 0 0 0\n" for dynamic exeuctables,
+ * "0 0 0 B 0 0 0\n" for static executables.
+ */
+static int test_proc_pid_statm(pid_t pid)
+{
+	char buf[4096];
+	snprintf(buf, sizeof(buf), "/proc/%u/statm", pid);
+	int fd = open(buf, O_RDONLY);
+	if (fd == -1) {
+		perror("open /proc/${pid}/statm");
+		return EXIT_FAILURE;
+	}
+
+	ssize_t rv = read(fd, buf, sizeof(buf));
+	close(fd);
+
+	assert(rv >= 0);
+	assert(rv <= sizeof(buf));
+	if (0) {
+		write(1, buf, rv);
+	}
+
+	const char *p = buf;
+	const char *const end = p + rv;
+
+	/* size */
+	assert(p != end && *p++ == '0');
+	assert(p != end && *p++ == ' ');
+
+	uint64_t resident;
+	p = parse_u64(p, end, &resident);
+	assert(p != end && *p++ == ' ');
+
+	uint64_t shared;
+	p = parse_u64(p, end, &shared);
+	assert(p != end && *p++ == ' ');
+
+	uint64_t text;
+	p = parse_u64(p, end, &text);
+	assert(p != end && *p++ == ' ');
+
+	assert(p != end && *p++ == '0');
+	assert(p != end && *p++ == ' ');
+
+	/* data */
+	assert(p != end && *p++ == '0');
+	assert(p != end && *p++ == ' ');
+
+	assert(p != end && *p++ == '0');
+	assert(p != end && *p++ == '\n');
+
+	assert(p == end);
+
+	/*
+	 * "text" is "mm->end_code - mm->start_code" at execve(2) time.
+	 * munmap() doesn't change it. It can be anything (just link
+	 * statically). It can't be 0 because executing to this point
+	 * implies at least 1 page of code.
+	 */
+	assert(text > 0);
+
+	/*
+	 * These two are always equal. Always 0 for statically linked
+	 * executables and sometimes 0 for dynamically linked executables.
+	 * There is no way to tell one from another without parsing ELF
+	 * which is too much for this test.
+	 */
+	assert(resident == shared);
+
+	return EXIT_SUCCESS;
+}
+
 int main(void)
 {
 	int rv = EXIT_SUCCESS;
 
+#ifdef TEST_VSYSCALL
 	vsyscall();
+#endif
 
 	switch (g_vsyscall) {
 	case 0:
@@ -317,6 +459,8 @@ int main(void)
 	default:
 		abort();
 	}
+
+	g_protection_key_support = protection_key_support();
 
 	pid_t pid = fork();
 	if (pid == -1) {
@@ -346,6 +490,14 @@ int main(void)
 
 #ifdef __amd64__
 		munmap(NULL, ((size_t)1 << 47) - 4096);
+#elif defined __i386__
+		{
+			size_t len;
+
+			for (len = -4096;; len -= 4096) {
+				munmap(NULL, len);
+			}
+		}
 #else
 #error "implement 'unmap everything'"
 #endif
@@ -371,11 +523,9 @@ int main(void)
 		if (rv == EXIT_SUCCESS) {
 			rv = test_proc_pid_smaps_rollup(pid);
 		}
-		/*
-		 * TODO test /proc/${pid}/statm, task_statm()
-		 * ->start_code, ->end_code aren't updated by munmap().
-		 * Output can be "0 0 0 2 0 0 0\n" where "2" can be anything.
-		 */
+		if (rv == EXIT_SUCCESS) {
+			rv = test_proc_pid_statm(pid);
+		}
 
 		/* Cut the rope. */
 		int wstatus;
@@ -386,3 +536,9 @@ int main(void)
 
 	return rv;
 }
+#else
+int main(void)
+{
+	return 4;
+}
+#endif

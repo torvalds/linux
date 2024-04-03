@@ -270,9 +270,6 @@ struct s6e63m0 {
 	struct regulator_bulk_data supplies[2];
 	struct gpio_desc *reset_gpio;
 
-	bool prepared;
-	bool enabled;
-
 	/*
 	 * This field is tested by functions directly accessing bus before
 	 * transfer, transfer is skipped if it is set. In case of transfer
@@ -502,17 +499,12 @@ static int s6e63m0_disable(struct drm_panel *panel)
 {
 	struct s6e63m0 *ctx = panel_to_s6e63m0(panel);
 
-	if (!ctx->enabled)
-		return 0;
-
 	backlight_disable(ctx->bl_dev);
 
 	s6e63m0_dcs_write_seq_static(ctx, MIPI_DCS_SET_DISPLAY_OFF);
 	msleep(10);
 	s6e63m0_dcs_write_seq_static(ctx, MIPI_DCS_ENTER_SLEEP_MODE);
 	msleep(120);
-
-	ctx->enabled = false;
 
 	return 0;
 }
@@ -522,16 +514,11 @@ static int s6e63m0_unprepare(struct drm_panel *panel)
 	struct s6e63m0 *ctx = panel_to_s6e63m0(panel);
 	int ret;
 
-	if (!ctx->prepared)
-		return 0;
-
 	s6e63m0_clear_error(ctx);
 
 	ret = s6e63m0_power_off(ctx);
 	if (ret < 0)
 		return ret;
-
-	ctx->prepared = false;
 
 	return 0;
 }
@@ -540,9 +527,6 @@ static int s6e63m0_prepare(struct drm_panel *panel)
 {
 	struct s6e63m0 *ctx = panel_to_s6e63m0(panel);
 	int ret;
-
-	if (ctx->prepared)
-		return 0;
 
 	ret = s6e63m0_power_on(ctx);
 	if (ret < 0)
@@ -564,17 +548,12 @@ static int s6e63m0_prepare(struct drm_panel *panel)
 	if (ret < 0)
 		s6e63m0_unprepare(panel);
 
-	ctx->prepared = true;
-
 	return ret;
 }
 
 static int s6e63m0_enable(struct drm_panel *panel)
 {
 	struct s6e63m0 *ctx = panel_to_s6e63m0(panel);
-
-	if (ctx->enabled)
-		return 0;
 
 	s6e63m0_dcs_write_seq_static(ctx, MIPI_DCS_EXIT_SLEEP_MODE);
 	msleep(120);
@@ -587,8 +566,6 @@ static int s6e63m0_enable(struct drm_panel *panel)
 				     0x0F, 0x00);
 
 	backlight_enable(ctx->bl_dev);
-
-	ctx->enabled = true;
 
 	return 0;
 }
@@ -709,8 +686,6 @@ int s6e63m0_probe(struct device *dev, void *trsp,
 	dev_set_drvdata(dev, ctx);
 
 	ctx->dev = dev;
-	ctx->enabled = false;
-	ctx->prepared = false;
 
 	ret = device_property_read_u32(dev, "max-brightness", &max_brightness);
 	if (ret)

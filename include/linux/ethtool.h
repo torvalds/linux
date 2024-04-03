@@ -95,6 +95,7 @@ struct kernel_ethtool_ringparam {
  * @ETHTOOL_RING_USE_TX_PUSH: capture for setting tx_push
  * @ETHTOOL_RING_USE_RX_PUSH: capture for setting rx_push
  * @ETHTOOL_RING_USE_TX_PUSH_BUF_LEN: capture for setting tx_push_buf_len
+ * @ETHTOOL_RING_USE_TCP_DATA_SPLIT: capture for setting tcp_data_split
  */
 enum ethtool_supported_ring_param {
 	ETHTOOL_RING_USE_RX_BUF_LEN		= BIT(0),
@@ -102,6 +103,7 @@ enum ethtool_supported_ring_param {
 	ETHTOOL_RING_USE_TX_PUSH		= BIT(2),
 	ETHTOOL_RING_USE_RX_PUSH		= BIT(3),
 	ETHTOOL_RING_USE_TX_PUSH_BUF_LEN	= BIT(4),
+	ETHTOOL_RING_USE_TCP_DATA_SPLIT		= BIT(5),
 };
 
 #define __ETH_RSS_HASH_BIT(bit)	((u32)1 << (bit))
@@ -219,6 +221,16 @@ struct ethtool_link_ksettings {
 extern int
 __ethtool_get_link_ksettings(struct net_device *dev,
 			     struct ethtool_link_ksettings *link_ksettings);
+
+struct ethtool_keee {
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(supported);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(advertised);
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(lp_advertised);
+	u32	tx_lpi_timer;
+	bool	tx_lpi_enabled;
+	bool	eee_active;
+	bool	eee_enabled;
+};
 
 struct kernel_ethtool_coalesce {
 	u8 use_cqe_mode_tx;
@@ -409,8 +421,10 @@ struct ethtool_pause_stats {
  *	not entire FEC data blocks. This is a non-standard statistic.
  *	Reported to user space as %ETHTOOL_A_FEC_STAT_CORR_BITS.
  *
- * @lane: per-lane/PCS-instance counts as defined by the standard
- * @total: error counts for the entire port, for drivers incapable of reporting
+ * For each of the above fields, the two substructure members are:
+ *
+ * - @lanes: per-lane/PCS-instance counts as defined by the standard
+ * - @total: error counts for the entire port, for drivers incapable of reporting
  *	per-lane stats
  *
  * Drivers should fill in either only total or per-lane statistics, core
@@ -595,9 +609,46 @@ struct ethtool_mm_stats {
 };
 
 /**
+ * struct ethtool_rxfh_param - RXFH (RSS) parameters
+ * @hfunc: Defines the current RSS hash function used by HW (or to be set to).
+ *	Valid values are one of the %ETH_RSS_HASH_*.
+ * @indir_size: On SET, the array size of the user buffer for the
+ *	indirection table, which may be zero, or
+ *	%ETH_RXFH_INDIR_NO_CHANGE.  On GET (read from the driver),
+ *	the array size of the hardware indirection table.
+ * @indir: The indirection table of size @indir_size entries.
+ * @key_size: On SET, the array size of the user buffer for the hash key,
+ *	which may be zero.  On GET (read from the driver), the size of the
+ *	hardware hash key.
+ * @key: The hash key of size @key_size bytes.
+ * @rss_context: RSS context identifier.  Context 0 is the default for normal
+ *	traffic; other contexts can be referenced as the destination for RX flow
+ *	classification rules.  On SET, %ETH_RXFH_CONTEXT_ALLOC is used
+ *	to allocate a new RSS context; on return this field will
+ *	contain the ID of the newly allocated context.
+ * @rss_delete: Set to non-ZERO to remove the @rss_context context.
+ * @input_xfrm: Defines how the input data is transformed. Valid values are one
+ *	of %RXH_XFRM_*.
+ */
+struct ethtool_rxfh_param {
+	u8	hfunc;
+	u32	indir_size;
+	u32	*indir;
+	u32	key_size;
+	u8	*key;
+	u32	rss_context;
+	u8	rss_delete;
+	u8	input_xfrm;
+};
+
+/**
  * struct ethtool_ops - optional netdev operations
  * @cap_link_lanes_supported: indicates if the driver supports lanes
  *	parameter.
+ * @cap_rss_ctx_supported: indicates if the driver supports RSS
+ *	contexts.
+ * @cap_rss_sym_xor_supported: indicates if the driver supports symmetric-xor
+ *	RSS.
  * @supported_coalesce_params: supported types of interrupt coalescing.
  * @supported_ring_params: supported ring params.
  * @get_drvinfo: Report driver/device information. Modern drivers no
@@ -694,15 +745,6 @@ struct ethtool_mm_stats {
  *	will remain unchanged.
  *	Returns a negative error code or zero. An error code must be returned
  *	if at least one unsupported change was requested.
- * @get_rxfh_context: Get the contents of the RX flow hash indirection table,
- *	hash key, and/or hash function assiciated to the given rss context.
- *	Returns a negative error code or zero.
- * @set_rxfh_context: Create, remove and configure RSS contexts. Allows setting
- *	the contents of the RX flow hash indirection table, hash key, and/or
- *	hash function associated to the given context. Arguments which are set
- *	to %NULL or zero will remain unchanged.
- *	Returns a negative error code or zero. An error code must be returned
- *	if at least one unsupported change was requested.
  * @get_channels: Get number of channels.
  * @set_channels: Set number of channels.  Returns a negative error code or
  *	zero.
@@ -785,6 +827,8 @@ struct ethtool_mm_stats {
  */
 struct ethtool_ops {
 	u32     cap_link_lanes_supported:1;
+	u32     cap_rss_ctx_supported:1;
+	u32	cap_rss_sym_xor_supported:1;
 	u32	supported_coalesce_params;
 	u32	supported_ring_params;
 	void	(*get_drvinfo)(struct net_device *, struct ethtool_drvinfo *);
@@ -844,15 +888,9 @@ struct ethtool_ops {
 	int	(*reset)(struct net_device *, u32 *);
 	u32	(*get_rxfh_key_size)(struct net_device *);
 	u32	(*get_rxfh_indir_size)(struct net_device *);
-	int	(*get_rxfh)(struct net_device *, u32 *indir, u8 *key,
-			    u8 *hfunc);
-	int	(*set_rxfh)(struct net_device *, const u32 *indir,
-			    const u8 *key, const u8 hfunc);
-	int	(*get_rxfh_context)(struct net_device *, u32 *indir, u8 *key,
-				    u8 *hfunc, u32 rss_context);
-	int	(*set_rxfh_context)(struct net_device *, const u32 *indir,
-				    const u8 *key, const u8 hfunc,
-				    u32 *rss_context, bool delete);
+	int	(*get_rxfh)(struct net_device *, struct ethtool_rxfh_param *);
+	int	(*set_rxfh)(struct net_device *, struct ethtool_rxfh_param *,
+			    struct netlink_ext_ack *extack);
 	void	(*get_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*set_channels)(struct net_device *, struct ethtool_channels *);
 	int	(*get_dump_flag)(struct net_device *, struct ethtool_dump *);
@@ -864,8 +902,8 @@ struct ethtool_ops {
 				   struct ethtool_modinfo *);
 	int     (*get_module_eeprom)(struct net_device *,
 				     struct ethtool_eeprom *, u8 *);
-	int	(*get_eee)(struct net_device *, struct ethtool_eee *);
-	int	(*set_eee)(struct net_device *, struct ethtool_eee *);
+	int	(*get_eee)(struct net_device *dev, struct ethtool_keee *eee);
+	int	(*set_eee)(struct net_device *dev, struct ethtool_keee *eee);
 	int	(*get_tunable)(struct net_device *,
 			       const struct ethtool_tunable *, void *);
 	int	(*set_tunable)(struct net_device *,
@@ -1044,12 +1082,52 @@ static inline int ethtool_mm_frag_size_min_to_add(u32 val_min, u32 *val_add,
 }
 
 /**
+ * ethtool_get_ts_info_by_layer - Obtains time stamping capabilities from the MAC or PHY layer.
+ * @dev: pointer to net_device structure
+ * @info: buffer to hold the result
+ * Returns zero on success, non-zero otherwise.
+ */
+int ethtool_get_ts_info_by_layer(struct net_device *dev, struct ethtool_ts_info *info);
+
+/**
  * ethtool_sprintf - Write formatted string to ethtool string data
- * @data: Pointer to start of string to update
+ * @data: Pointer to a pointer to the start of string to update
  * @fmt: Format of string to write
  *
- * Write formatted string to data. Update data to point at start of
+ * Write formatted string to *data. Update *data to point at start of
  * next string.
  */
 extern __printf(2, 3) void ethtool_sprintf(u8 **data, const char *fmt, ...);
+
+/**
+ * ethtool_puts - Write string to ethtool string data
+ * @data: Pointer to a pointer to the start of string to update
+ * @str: String to write
+ *
+ * Write string to *data without a trailing newline. Update *data
+ * to point at start of next string.
+ *
+ * Prefer this function to ethtool_sprintf() when given only
+ * two arguments or if @fmt is just "%s".
+ */
+extern void ethtool_puts(u8 **data, const char *str);
+
+/* Link mode to forced speed capabilities maps */
+struct ethtool_forced_speed_map {
+	u32		speed;
+	__ETHTOOL_DECLARE_LINK_MODE_MASK(caps);
+
+	const u32	*cap_arr;
+	u32		arr_size;
+};
+
+#define ETHTOOL_FORCED_SPEED_MAP(prefix, value)				\
+{									\
+	.speed		= SPEED_##value,				\
+	.cap_arr	= prefix##_##value,				\
+	.arr_size	= ARRAY_SIZE(prefix##_##value),			\
+}
+
+void
+ethtool_forced_speed_maps_init(struct ethtool_forced_speed_map *maps, u32 size);
 #endif /* _LINUX_ETHTOOL_H */

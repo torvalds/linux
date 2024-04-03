@@ -56,7 +56,7 @@
  * Try not to change the actual algorithm if possible for consistency.
  */
 
-#include <asm/export.h>
+#include <linux/export.h>
 #define halt .long 0
 
 /*

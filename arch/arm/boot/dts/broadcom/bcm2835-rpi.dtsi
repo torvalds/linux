@@ -26,8 +26,6 @@
 };
 
 &gpio {
-	pinctrl-names = "default";
-
 	gpioout: gpioout {
 		brcm,pins = <6>;
 		brcm,function = <BCM2835_FSEL_GPIO_OUT>;

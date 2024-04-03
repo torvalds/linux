@@ -251,7 +251,7 @@ config QE_GPIO
 
 config CPM2
 	bool "Enable support for the CPM2 (Communications Processor Module)"
-	depends on (FSL_SOC_BOOKE && PPC32) || 8260
+	depends on (FSL_SOC_BOOKE && PPC32) || PPC_82xx
 	select CPM
 	select HAVE_PCI
 	select GPIOLIB

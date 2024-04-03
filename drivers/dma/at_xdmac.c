@@ -2431,7 +2431,7 @@ err_free_irq:
 	return ret;
 }
 
-static int at_xdmac_remove(struct platform_device *pdev)
+static void at_xdmac_remove(struct platform_device *pdev)
 {
 	struct at_xdmac	*atxdmac = (struct at_xdmac *)platform_get_drvdata(pdev);
 	int		i;
@@ -2452,8 +2452,6 @@ static int at_xdmac_remove(struct platform_device *pdev)
 		tasklet_kill(&atchan->tasklet);
 		at_xdmac_free_chan_resources(&atchan->chan);
 	}
-
-	return 0;
 }
 
 static const struct dev_pm_ops __maybe_unused atmel_xdmac_dev_pm_ops = {
@@ -2478,7 +2476,7 @@ MODULE_DEVICE_TABLE(of, atmel_xdmac_dt_ids);
 
 static struct platform_driver at_xdmac_driver = {
 	.probe		= at_xdmac_probe,
-	.remove		= at_xdmac_remove,
+	.remove_new	= at_xdmac_remove,
 	.driver = {
 		.name		= "at_xdmac",
 		.of_match_table	= of_match_ptr(atmel_xdmac_dt_ids),

@@ -46,7 +46,7 @@
  *	$28 - compare status
  */
 
-#include <asm/export.h>
+#include <linux/export.h>
 #define halt .long 0
 
 /*

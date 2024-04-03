@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
- * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_HAL_H
@@ -674,6 +674,7 @@ struct hal_srng_config {
  * @HAL_RX_BUF_RBM_SW1_BM: For Tx completion -- returned to host
  * @HAL_RX_BUF_RBM_SW2_BM: For Tx completion -- returned to host
  * @HAL_RX_BUF_RBM_SW3_BM: For Rx release -- returned to host
+ * @HAL_RX_BUF_RBM_SW4_BM: For Tx completion -- returned to host
  */
 
 enum hal_rx_buf_return_buf_manager {

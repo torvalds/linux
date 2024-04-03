@@ -293,16 +293,8 @@ void winfast2000_audio(struct bttv *btv, struct v4l2_tuner *t, int set)
 {
 	unsigned long val;
 
-	if (!set) {
-		/* Not much to do here */
-		t->audmode = V4L2_TUNER_MODE_LANG1;
-		t->rxsubchans = V4L2_TUNER_SUB_MONO |
-				V4L2_TUNER_SUB_STEREO |
-				V4L2_TUNER_SUB_LANG1 |
-				V4L2_TUNER_SUB_LANG2;
-
+	if (!set)
 		return;
-	}
 
 	/*btor (0xc32000, BT848_GPIO_OUT_EN);*/
 	switch (t->audmode) {

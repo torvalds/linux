@@ -66,27 +66,15 @@ arch___clear_bit_unlock(unsigned int nr, volatile unsigned long *p)
 	raw_atomic_long_set_release((atomic_long_t *)p, old);
 }
 
-/**
- * arch_clear_bit_unlock_is_negative_byte - Clear a bit in memory and test if bottom
- *                                          byte is negative, for unlock.
- * @nr: the bit to clear
- * @addr: the address to start counting from
- *
- * This is a bit of a one-trick-pony for the filemap code, which clears
- * PG_locked and tests PG_waiters,
- */
-#ifndef arch_clear_bit_unlock_is_negative_byte
-static inline bool arch_clear_bit_unlock_is_negative_byte(unsigned int nr,
-							  volatile unsigned long *p)
+#ifndef arch_xor_unlock_is_negative_byte
+static inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
+		volatile unsigned long *p)
 {
 	long old;
-	unsigned long mask = BIT_MASK(nr);
 
-	p += BIT_WORD(nr);
-	old = raw_atomic_long_fetch_andnot_release(mask, (atomic_long_t *)p);
+	old = raw_atomic_long_fetch_xor_release(mask, (atomic_long_t *)p);
 	return !!(old & BIT(7));
 }
-#define arch_clear_bit_unlock_is_negative_byte arch_clear_bit_unlock_is_negative_byte
 #endif
 
 #include <asm-generic/bitops/instrumented-lock.h>

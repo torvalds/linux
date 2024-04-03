@@ -211,21 +211,6 @@ enum {
 
 #define GetAddr4Ptr(pbuf)	((unsigned char *)((size_t)(pbuf) + 24))
 
-#define MacAddr_isBcst(addr) \
-	(\
-	((addr[0] == 0xff) && (addr[1] == 0xff) && \
-	(addr[2] == 0xff) && (addr[3] == 0xff) && \
-	(addr[4] == 0xff) && (addr[5] == 0xff))  ? true : false \
-)
-
-static inline int IS_MCAST(unsigned char *da)
-{
-	if ((*da) & 0x01)
-		return true;
-	else
-		return false;
-}
-
 static inline unsigned char *rtl8723bs_get_ra(unsigned char *pframe)
 {
 	unsigned char *ra;

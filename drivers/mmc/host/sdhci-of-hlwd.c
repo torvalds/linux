@@ -68,7 +68,7 @@ static const struct sdhci_pltfm_data sdhci_hlwd_pdata = {
 
 static int sdhci_hlwd_probe(struct platform_device *pdev)
 {
-	return sdhci_pltfm_register(pdev, &sdhci_hlwd_pdata, 0);
+	return sdhci_pltfm_init_and_add_host(pdev, &sdhci_hlwd_pdata, 0);
 }
 
 static const struct of_device_id sdhci_hlwd_of_match[] = {
@@ -85,7 +85,7 @@ static struct platform_driver sdhci_hlwd_driver = {
 		.pm = &sdhci_pltfm_pmops,
 	},
 	.probe = sdhci_hlwd_probe,
-	.remove = sdhci_pltfm_unregister,
+	.remove_new = sdhci_pltfm_remove,
 };
 
 module_platform_driver(sdhci_hlwd_driver);

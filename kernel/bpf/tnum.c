@@ -172,12 +172,6 @@ bool tnum_in(struct tnum a, struct tnum b)
 	return a.value == b.value;
 }
 
-int tnum_strn(char *str, size_t size, struct tnum a)
-{
-	return snprintf(str, size, "(%#llx; %#llx)", a.value, a.mask);
-}
-EXPORT_SYMBOL_GPL(tnum_strn);
-
 int tnum_sbin(char *str, size_t size, struct tnum a)
 {
 	size_t n;
@@ -208,7 +202,12 @@ struct tnum tnum_clear_subreg(struct tnum a)
 	return tnum_lshift(tnum_rshift(a, 32), 32);
 }
 
+struct tnum tnum_with_subreg(struct tnum reg, struct tnum subreg)
+{
+	return tnum_or(tnum_clear_subreg(reg), tnum_subreg(subreg));
+}
+
 struct tnum tnum_const_subreg(struct tnum a, u32 value)
 {
-	return tnum_or(tnum_clear_subreg(a), tnum_const(value));
+	return tnum_with_subreg(a, tnum_const(value));
 }

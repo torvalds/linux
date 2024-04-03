@@ -301,7 +301,7 @@ static int ping_pre_connect(struct sock *sk, struct sockaddr *uaddr,
 	if (addr_len < sizeof(struct sockaddr_in))
 		return -EINVAL;
 
-	return BPF_CGROUP_RUN_PROG_INET4_CONNECT_LOCK(sk, uaddr);
+	return BPF_CGROUP_RUN_PROG_INET4_CONNECT_LOCK(sk, uaddr, &addr_len);
 }
 
 /* Checks the bind address and possibly modifies sk->sk_bound_dev_if. */
@@ -551,7 +551,7 @@ void ping_err(struct sk_buff *skb, int offset, u32 info)
 		case ICMP_DEST_UNREACH:
 			if (code == ICMP_FRAG_NEEDED) { /* Path MTU discovery */
 				ipv4_sk_update_pmtu(skb, sk, info);
-				if (inet_sock->pmtudisc != IP_PMTUDISC_DONT) {
+				if (READ_ONCE(inet_sock->pmtudisc) != IP_PMTUDISC_DONT) {
 					err = EMSGSIZE;
 					harderr = 1;
 					break;
@@ -580,8 +580,8 @@ void ping_err(struct sk_buff *skb, int offset, u32 info)
 	 *      RFC1122: OK.  Passes ICMP errors back to application, as per
 	 *	4.1.3.3.
 	 */
-	if ((family == AF_INET && !inet_sock->recverr) ||
-	    (family == AF_INET6 && !inet6_sk(sk)->recverr)) {
+	if ((family == AF_INET && !inet_test_bit(RECVERR, sk)) ||
+	    (family == AF_INET6 && !inet6_test_bit(RECVERR6, sk))) {
 		if (!harderr || sk->sk_state != TCP_ESTABLISHED)
 			goto out;
 	} else {
@@ -773,11 +773,11 @@ static int ping_v4_sendmsg(struct sock *sk, struct msghdr *msg, size_t len)
 
 	if (ipv4_is_multicast(daddr)) {
 		if (!ipc.oif || netif_index_is_l3_master(sock_net(sk), ipc.oif))
-			ipc.oif = inet->mc_index;
+			ipc.oif = READ_ONCE(inet->mc_index);
 		if (!saddr)
-			saddr = inet->mc_addr;
+			saddr = READ_ONCE(inet->mc_addr);
 	} else if (!ipc.oif)
-		ipc.oif = inet->uc_index;
+		ipc.oif = READ_ONCE(inet->uc_index);
 
 	flowi4_init_output(&fl4, ipc.oif, ipc.sockc.mark, tos, scope,
 			   sk->sk_protocol, inet_sk_flowi_flags(sk), faddr,
@@ -894,12 +894,11 @@ int ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags,
 			*addr_len = sizeof(*sin);
 		}
 
-		if (isk->cmsg_flags)
+		if (inet_cmsg_flags(isk))
 			ip_cmsg_recv(msg, skb);
 
 #if IS_ENABLED(CONFIG_IPV6)
 	} else if (family == AF_INET6) {
-		struct ipv6_pinfo *np = inet6_sk(sk);
 		struct ipv6hdr *ip6 = ipv6_hdr(skb);
 		DECLARE_SOCKADDR(struct sockaddr_in6 *, sin6, msg->msg_name);
 
@@ -908,7 +907,7 @@ int ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags,
 			sin6->sin6_port = 0;
 			sin6->sin6_addr = ip6->saddr;
 			sin6->sin6_flowinfo = 0;
-			if (np->sndflow)
+			if (inet6_test_bit(SNDFLOW, sk))
 				sin6->sin6_flowinfo = ip6_flowinfo(ip6);
 			sin6->sin6_scope_id =
 				ipv6_iface_scope_id(&sin6->sin6_addr,
@@ -921,7 +920,8 @@ int ping_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags,
 		if (skb->protocol == htons(ETH_P_IPV6) &&
 		    inet6_sk(sk)->rxopt.all)
 			pingv6_ops.ip6_datagram_recv_specific_ctl(sk, msg, skb);
-		else if (skb->protocol == htons(ETH_P_IP) && isk->cmsg_flags)
+		else if (skb->protocol == htons(ETH_P_IP) &&
+			 inet_cmsg_flags(isk))
 			ip_cmsg_recv(msg, skb);
 #endif
 	} else {

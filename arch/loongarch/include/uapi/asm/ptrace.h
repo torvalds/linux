@@ -56,6 +56,12 @@ struct user_lasx_state {
 	uint64_t vregs[32*4];
 };
 
+struct user_lbt_state {
+	uint64_t scr[4];
+	uint32_t eflags;
+	uint32_t ftop;
+};
+
 struct user_watch_state {
 	uint64_t dbg_info;
 	struct {

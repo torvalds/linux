@@ -242,8 +242,7 @@ void r8712_set_chplan_cmd(struct _adapter *padapter, int chplan)
 		kfree(ph2c);
 		return;
 	}
-	init_h2fwcmd_w_parm_no_rsp(ph2c, psetchplanpara,
-				GEN_CMD_CODE(_SetChannelPlan));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, psetchplanpara, GEN_CMD_CODE(_SetChannelPlan));
 	psetchplanpara->ChannelPlan = chplan;
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
 }
@@ -302,8 +301,7 @@ void r8712_getbbrfreg_cmdrsp_callback(struct _adapter *padapter,
 	padapter->mppriv.workparam.bcompleted = true;
 }
 
-void r8712_readtssi_cmdrsp_callback(struct _adapter *padapter,
-				struct cmd_obj *pcmd)
+void r8712_readtssi_cmdrsp_callback(struct _adapter *padapter, struct cmd_obj *pcmd)
 {
 	kfree(pcmd->parmbuf);
 	kfree(pcmd);
@@ -374,11 +372,10 @@ int r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 	psecuritypriv->authenticator_ie[0] = (unsigned char)
 					     psecnetwork->IELength;
 	if ((psecnetwork->IELength - 12) < (256 - 1))
-		memcpy(&psecuritypriv->authenticator_ie[1],
-			&psecnetwork->IEs[12], psecnetwork->IELength - 12);
+		memcpy(&psecuritypriv->authenticator_ie[1], &psecnetwork->IEs[12],
+		       psecnetwork->IELength - 12);
 	else
-		memcpy(&psecuritypriv->authenticator_ie[1],
-			&psecnetwork->IEs[12], (256 - 1));
+		memcpy(&psecuritypriv->authenticator_ie[1], &psecnetwork->IEs[12], (256 - 1));
 	psecnetwork->IELength = 0;
 	/*
 	 * If the driver wants to use the bssid to create the connection.
@@ -388,19 +385,15 @@ int r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 	if (!pmlmepriv->assoc_by_bssid)
 		ether_addr_copy(&pmlmepriv->assoc_bssid[0],
 				&pnetwork->network.MacAddress[0]);
-	psecnetwork->IELength = r8712_restruct_sec_ie(padapter,
-						&pnetwork->network.IEs[0],
-						&psecnetwork->IEs[0],
-						pnetwork->network.IELength);
+	psecnetwork->IELength = r8712_restruct_sec_ie(padapter, &pnetwork->network.IEs[0],
+						      &psecnetwork->IEs[0], pnetwork->network.IELength);
 	pqospriv->qos_option = 0;
 	if (pregistrypriv->wmm_enable) {
 		u32 tmp_len;
 
-		tmp_len = r8712_restruct_wmm_ie(padapter,
-					  &pnetwork->network.IEs[0],
-					  &psecnetwork->IEs[0],
-					  pnetwork->network.IELength,
-					  psecnetwork->IELength);
+		tmp_len = r8712_restruct_wmm_ie(padapter, &pnetwork->network.IEs[0],
+						&psecnetwork->IEs[0], pnetwork->network.IELength,
+						psecnetwork->IELength);
 		if (psecnetwork->IELength != tmp_len) {
 			psecnetwork->IELength = tmp_len;
 			pqospriv->qos_option = 1; /* WMM IE in beacon */
@@ -427,39 +420,28 @@ int r8712_joinbss_cmd(struct _adapter  *padapter, struct wlan_network *pnetwork)
 	psecuritypriv->supplicant_ie[0] = (u8)psecnetwork->IELength;
 	if (psecnetwork->IELength < 255)
 		memcpy(&psecuritypriv->supplicant_ie[1], &psecnetwork->IEs[0],
-			psecnetwork->IELength);
+		       psecnetwork->IELength);
 	else
 		memcpy(&psecuritypriv->supplicant_ie[1], &psecnetwork->IEs[0],
-			255);
+		       255);
 	/* get cmdsz before endian conversion */
 	pcmd->cmdsz = r8712_get_wlan_bssid_ex_sz(psecnetwork);
 #ifdef __BIG_ENDIAN
 	/* wlan_network endian conversion */
 	psecnetwork->Length = cpu_to_le32(psecnetwork->Length);
-	psecnetwork->Ssid.SsidLength = cpu_to_le32(
-				       psecnetwork->Ssid.SsidLength);
+	psecnetwork->Ssid.SsidLength = cpu_to_le32(psecnetwork->Ssid.SsidLength);
 	psecnetwork->Privacy = cpu_to_le32(psecnetwork->Privacy);
 	psecnetwork->Rssi = cpu_to_le32(psecnetwork->Rssi);
-	psecnetwork->NetworkTypeInUse = cpu_to_le32(
-					psecnetwork->NetworkTypeInUse);
-	psecnetwork->Configuration.ATIMWindow = cpu_to_le32(
-				psecnetwork->Configuration.ATIMWindow);
-	psecnetwork->Configuration.BeaconPeriod = cpu_to_le32(
-				 psecnetwork->Configuration.BeaconPeriod);
-	psecnetwork->Configuration.DSConfig = cpu_to_le32(
-				psecnetwork->Configuration.DSConfig);
-	psecnetwork->Configuration.FHConfig.DwellTime = cpu_to_le32(
-				psecnetwork->Configuration.FHConfig.DwellTime);
-	psecnetwork->Configuration.FHConfig.HopPattern = cpu_to_le32(
-				psecnetwork->Configuration.FHConfig.HopPattern);
-	psecnetwork->Configuration.FHConfig.HopSet = cpu_to_le32(
-				psecnetwork->Configuration.FHConfig.HopSet);
-	psecnetwork->Configuration.FHConfig.Length = cpu_to_le32(
-				psecnetwork->Configuration.FHConfig.Length);
-	psecnetwork->Configuration.Length = cpu_to_le32(
-				psecnetwork->Configuration.Length);
-	psecnetwork->InfrastructureMode = cpu_to_le32(
-				psecnetwork->InfrastructureMode);
+	psecnetwork->NetworkTypeInUse = cpu_to_le32(psecnetwork->NetworkTypeInUse);
+	psecnetwork->Configuration.ATIMWindow = cpu_to_le32(psecnetwork->Configuration.ATIMWindow);
+	psecnetwork->Configuration.BeaconPeriod = cpu_to_le32(psecnetwork->Configuration.BeaconPeriod);
+	psecnetwork->Configuration.DSConfig = cpu_to_le32(psecnetwork->Configuration.DSConfig);
+	psecnetwork->Configuration.FHConfig.DwellTime = cpu_to_le32(psecnetwork->Configuration.FHConfig.DwellTime);
+	psecnetwork->Configuration.FHConfig.HopPattern = cpu_to_le32(psecnetwork->Configuration.FHConfig.HopPattern);
+	psecnetwork->Configuration.FHConfig.HopSet = cpu_to_le32(psecnetwork->Configuration.FHConfig.HopSet);
+	psecnetwork->Configuration.FHConfig.Length = cpu_to_le32(psecnetwork->Configuration.FHConfig.Length);
+	psecnetwork->Configuration.Length = cpu_to_le32(psecnetwork->Configuration.Length);
+	psecnetwork->InfrastructureMode = cpu_to_le32(psecnetwork->InfrastructureMode);
 	psecnetwork->IELength = cpu_to_le32(psecnetwork->IELength);
 #endif
 	INIT_LIST_HEAD(&pcmd->list);
@@ -485,13 +467,12 @@ void r8712_disassoc_cmd(struct _adapter *padapter) /* for sta_mode */
 		kfree(pdisconnect_cmd);
 		return;
 	}
-	init_h2fwcmd_w_parm_no_rsp(pdisconnect_cmd, pdisconnect,
-				   _DisConnect_CMD_);
+	init_h2fwcmd_w_parm_no_rsp(pdisconnect_cmd, pdisconnect, _DisConnect_CMD_);
 	r8712_enqueue_cmd(pcmdpriv, pdisconnect_cmd);
 }
 
 void r8712_setopmode_cmd(struct _adapter *padapter,
-		 enum NDIS_802_11_NETWORK_INFRASTRUCTURE networktype)
+			 enum NDIS_802_11_NETWORK_INFRASTRUCTURE networktype)
 {
 	struct cmd_obj *ph2c;
 	struct setopmode_parm *psetop;
@@ -543,14 +524,12 @@ void r8712_setstakey_cmd(struct _adapter *padapter, u8 *psta, u8 unicast_key)
 		psetstakey_para->algorithm = (unsigned char)
 					    psecuritypriv->PrivacyAlgrthm;
 	else
-		GET_ENCRY_ALGO(psecuritypriv, sta,
-			       psetstakey_para->algorithm, false);
+		GET_ENCRY_ALGO(psecuritypriv, sta, psetstakey_para->algorithm, false);
 	if (unicast_key)
 		memcpy(&psetstakey_para->key, &sta->x_UncstKey, 16);
 	else
-		memcpy(&psetstakey_para->key,
-			&psecuritypriv->XGrpKey[
-			psecuritypriv->XGrpKeyid - 1]. skey, 16);
+		memcpy(&psetstakey_para->key, &psecuritypriv->XGrpKey[psecuritypriv->XGrpKeyid - 1].
+		       skey, 16);
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
 }
 
@@ -568,8 +547,7 @@ void r8712_setMacAddr_cmd(struct _adapter *padapter, const u8 *mac_addr)
 		kfree(ph2c);
 		return;
 	}
-	init_h2fwcmd_w_parm_no_rsp(ph2c, psetMacAddr_para,
-				   _SetMacAddress_CMD_);
+	init_h2fwcmd_w_parm_no_rsp(ph2c, psetMacAddr_para, _SetMacAddress_CMD_);
 	ether_addr_copy(psetMacAddr_para->MacAddr, mac_addr);
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
 }
@@ -589,8 +567,7 @@ void r8712_addbareq_cmd(struct _adapter *padapter, u8 tid)
 		return;
 	}
 	paddbareq_parm->tid = tid;
-	init_h2fwcmd_w_parm_no_rsp(ph2c, paddbareq_parm,
-				   GEN_CMD_CODE(_AddBAReq));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, paddbareq_parm, GEN_CMD_CODE(_AddBAReq));
 	r8712_enqueue_cmd_ex(pcmdpriv, ph2c);
 }
 
@@ -644,13 +621,11 @@ void r8712_joinbss_cmd_callback(struct _adapter *padapter, struct cmd_obj *pcmd)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 
 	if (pcmd->res != H2C_SUCCESS)
-		mod_timer(&pmlmepriv->assoc_timer,
-			  jiffies + msecs_to_jiffies(1));
+		mod_timer(&pmlmepriv->assoc_timer, jiffies + msecs_to_jiffies(1));
 	r8712_free_cmd_obj(pcmd);
 }
 
-void r8712_createbss_cmd_callback(struct _adapter *padapter,
-				  struct cmd_obj *pcmd)
+void r8712_createbss_cmd_callback(struct _adapter *padapter, struct cmd_obj *pcmd)
 {
 	unsigned long irqL;
 	struct sta_info *psta = NULL;
@@ -660,8 +635,7 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 	struct wlan_network *tgt_network = &(pmlmepriv->cur_network);
 
 	if (pcmd->res != H2C_SUCCESS)
-		mod_timer(&pmlmepriv->assoc_timer,
-			  jiffies + msecs_to_jiffies(1));
+		mod_timer(&pmlmepriv->assoc_timer, jiffies + msecs_to_jiffies(1));
 	del_timer(&pmlmepriv->assoc_timer);
 #ifdef __BIG_ENDIAN
 	/* endian_convert */
@@ -670,31 +644,21 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 	pnetwork->Privacy = le32_to_cpu(pnetwork->Privacy);
 	pnetwork->Rssi = le32_to_cpu(pnetwork->Rssi);
 	pnetwork->NetworkTypeInUse = le32_to_cpu(pnetwork->NetworkTypeInUse);
-	pnetwork->Configuration.ATIMWindow =
-		le32_to_cpu(pnetwork->Configuration.ATIMWindow);
-	pnetwork->Configuration.DSConfig =
-		le32_to_cpu(pnetwork->Configuration.DSConfig);
-	pnetwork->Configuration.FHConfig.DwellTime =
-		le32_to_cpu(pnetwork->Configuration.FHConfig.DwellTime);
-	pnetwork->Configuration.FHConfig.HopPattern =
-		le32_to_cpu(pnetwork->Configuration.FHConfig.HopPattern);
-	pnetwork->Configuration.FHConfig.HopSet =
-		le32_to_cpu(pnetwork->Configuration.FHConfig.HopSet);
-	pnetwork->Configuration.FHConfig.Length =
-		le32_to_cpu(pnetwork->Configuration.FHConfig.Length);
-	pnetwork->Configuration.Length =
-		le32_to_cpu(pnetwork->Configuration.Length);
-	pnetwork->InfrastructureMode =
-		le32_to_cpu(pnetwork->InfrastructureMode);
+	pnetwork->Configuration.ATIMWindow = le32_to_cpu(pnetwork->Configuration.ATIMWindow);
+	pnetwork->Configuration.DSConfig = le32_to_cpu(pnetwork->Configuration.DSConfig);
+	pnetwork->Configuration.FHConfig.DwellTime = le32_to_cpu(pnetwork->Configuration.FHConfig.DwellTime);
+	pnetwork->Configuration.FHConfig.HopPattern = le32_to_cpu(pnetwork->Configuration.FHConfig.HopPattern);
+	pnetwork->Configuration.FHConfig.HopSet = le32_to_cpu(pnetwork->Configuration.FHConfig.HopSet);
+	pnetwork->Configuration.FHConfig.Length = le32_to_cpu(pnetwork->Configuration.FHConfig.Length);
+	pnetwork->Configuration.Length = le32_to_cpu(pnetwork->Configuration.Length);
+	pnetwork->InfrastructureMode = le32_to_cpu(pnetwork->InfrastructureMode);
 	pnetwork->IELength = le32_to_cpu(pnetwork->IELength);
 #endif
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
 	if ((pmlmepriv->fw_state) & WIFI_AP_STATE) {
-		psta = r8712_get_stainfo(&padapter->stapriv,
-					 pnetwork->MacAddress);
+		psta = r8712_get_stainfo(&padapter->stapriv, pnetwork->MacAddress);
 		if (!psta) {
-			psta = r8712_alloc_stainfo(&padapter->stapriv,
-						   pnetwork->MacAddress);
+			psta = r8712_alloc_stainfo(&padapter->stapriv, pnetwork->MacAddress);
 			if (!psta)
 				goto createbss_cmd_fail;
 		}
@@ -702,20 +666,17 @@ void r8712_createbss_cmd_callback(struct _adapter *padapter,
 	} else {
 		pwlan = _r8712_alloc_network(pmlmepriv);
 		if (!pwlan) {
-			pwlan = r8712_get_oldest_wlan_network(
-				&pmlmepriv->scanned_queue);
+			pwlan = r8712_get_oldest_wlan_network(&pmlmepriv->scanned_queue);
 			if (!pwlan)
 				goto createbss_cmd_fail;
 			pwlan->last_scanned = jiffies;
 		} else {
-			list_add_tail(&(pwlan->list),
-					 &pmlmepriv->scanned_queue.queue);
+			list_add_tail(&(pwlan->list), &pmlmepriv->scanned_queue.queue);
 		}
 		pnetwork->Length = r8712_get_wlan_bssid_ex_sz(pnetwork);
 		memcpy(&(pwlan->network), pnetwork, pnetwork->Length);
 		pwlan->fixed = true;
-		memcpy(&tgt_network->network, pnetwork,
-			(r8712_get_wlan_bssid_ex_sz(pnetwork)));
+		memcpy(&tgt_network->network, pnetwork, (r8712_get_wlan_bssid_ex_sz(pnetwork)));
 		if (pmlmepriv->fw_state & _FW_UNDER_LINKING)
 			pmlmepriv->fw_state ^= _FW_UNDER_LINKING;
 		/*
@@ -728,14 +689,11 @@ createbss_cmd_fail:
 	r8712_free_cmd_obj(pcmd);
 }
 
-void r8712_setstaKey_cmdrsp_callback(struct _adapter *padapter,
-				     struct cmd_obj *pcmd)
+void r8712_setstaKey_cmdrsp_callback(struct _adapter *padapter, struct cmd_obj *pcmd)
 {
 	struct sta_priv *pstapriv = &padapter->stapriv;
-	struct set_stakey_rsp *psetstakey_rsp = (struct set_stakey_rsp *)
-						(pcmd->rsp);
-	struct sta_info *psta = r8712_get_stainfo(pstapriv,
-						  psetstakey_rsp->addr);
+	struct set_stakey_rsp *psetstakey_rsp = (struct set_stakey_rsp *) (pcmd->rsp);
+	struct sta_info *psta = r8712_get_stainfo(pstapriv, psetstakey_rsp->addr);
 
 	if (!psta)
 		goto exit;
@@ -750,27 +708,23 @@ void r8712_setassocsta_cmdrsp_callback(struct _adapter *padapter,
 	unsigned long	irqL;
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct set_assocsta_parm *passocsta_parm =
-				(struct set_assocsta_parm *)(pcmd->parmbuf);
-	struct set_assocsta_rsp *passocsta_rsp =
-				(struct set_assocsta_rsp *) (pcmd->rsp);
-	struct sta_info *psta = r8712_get_stainfo(pstapriv,
-						  passocsta_parm->addr);
+	struct set_assocsta_parm *passocsta_parm = (struct set_assocsta_parm *)(pcmd->parmbuf);
+	struct set_assocsta_rsp *passocsta_rsp = (struct set_assocsta_rsp *) (pcmd->rsp);
+	struct sta_info *psta = r8712_get_stainfo(pstapriv, passocsta_parm->addr);
 
 	if (!psta)
 		return;
 	psta->aid = psta->mac_id = passocsta_rsp->cam_id;
 	spin_lock_irqsave(&pmlmepriv->lock, irqL);
-	if ((check_fwstate(pmlmepriv, WIFI_MP_STATE)) &&
-	    (check_fwstate(pmlmepriv, _FW_UNDER_LINKING)))
+	if ((check_fwstate(pmlmepriv, WIFI_MP_STATE)) && (check_fwstate(pmlmepriv, _FW_UNDER_LINKING)))
 		pmlmepriv->fw_state ^= _FW_UNDER_LINKING;
 	set_fwstate(pmlmepriv, _FW_LINKED);
 	spin_unlock_irqrestore(&pmlmepriv->lock, irqL);
 	r8712_free_cmd_obj(pcmd);
 }
 
-void r8712_disconnectCtrlEx_cmd(struct _adapter *adapter, u32 enableDrvCtrl,
-			u32 tryPktCnt, u32 tryPktInterval, u32 firstStageTO)
+void r8712_disconnectCtrlEx_cmd(struct _adapter *adapter, u32 enableDrvCtrl, u32 tryPktCnt,
+				u32 tryPktInterval, u32 firstStageTO)
 {
 	struct cmd_obj *ph2c;
 	struct DisconnectCtrlEx_param *param;
@@ -790,7 +744,6 @@ void r8712_disconnectCtrlEx_cmd(struct _adapter *adapter, u32 enableDrvCtrl,
 	param->TryPktInterval = (unsigned char)tryPktInterval;
 	param->FirstStageTO = (unsigned int)firstStageTO;
 
-	init_h2fwcmd_w_parm_no_rsp(ph2c, param,
-				GEN_CMD_CODE(_DisconnectCtrlEx));
+	init_h2fwcmd_w_parm_no_rsp(ph2c, param, GEN_CMD_CODE(_DisconnectCtrlEx));
 	r8712_enqueue_cmd(pcmdpriv, ph2c);
 }

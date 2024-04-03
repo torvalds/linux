@@ -14,6 +14,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/module.h>
 #include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 
@@ -69,7 +70,6 @@ struct sprd_iommu_device {
 	void __iomem		*base;
 	struct device		*dev;
 	struct iommu_device	iommu;
-	struct iommu_group	*group;
 	struct clk		*eb;
 };
 
@@ -133,12 +133,9 @@ sprd_iommu_pgt_size(struct iommu_domain *domain)
 		SPRD_IOMMU_PAGE_SHIFT) * sizeof(u32);
 }
 
-static struct iommu_domain *sprd_iommu_domain_alloc(unsigned int domain_type)
+static struct iommu_domain *sprd_iommu_domain_alloc_paging(struct device *dev)
 {
 	struct sprd_iommu_domain *dom;
-
-	if (domain_type != IOMMU_DOMAIN_DMA && domain_type != IOMMU_DOMAIN_UNMANAGED)
-		return NULL;
 
 	dom = kzalloc(sizeof(*dom), GFP_KERNEL);
 	if (!dom)
@@ -148,6 +145,7 @@ static struct iommu_domain *sprd_iommu_domain_alloc(unsigned int domain_type)
 
 	dom->domain.geometry.aperture_start = 0;
 	dom->domain.geometry.aperture_end = SZ_256M - 1;
+	dom->domain.geometry.force_aperture = true;
 
 	return &dom->domain;
 }
@@ -343,8 +341,8 @@ static size_t sprd_iommu_unmap(struct iommu_domain *domain, unsigned long iova,
 	return size;
 }
 
-static void sprd_iommu_sync_map(struct iommu_domain *domain,
-				unsigned long iova, size_t size)
+static int sprd_iommu_sync_map(struct iommu_domain *domain,
+			       unsigned long iova, size_t size)
 {
 	struct sprd_iommu_domain *dom = to_sprd_domain(domain);
 	unsigned int reg;
@@ -356,6 +354,7 @@ static void sprd_iommu_sync_map(struct iommu_domain *domain,
 
 	/* clear IOMMU TLB buffer after page table updated */
 	sprd_iommu_write(dom->sdev, reg, 0xffffffff);
+	return 0;
 }
 
 static void sprd_iommu_sync(struct iommu_domain *domain,
@@ -386,25 +385,13 @@ static phys_addr_t sprd_iommu_iova_to_phys(struct iommu_domain *domain,
 
 static struct iommu_device *sprd_iommu_probe_device(struct device *dev)
 {
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
-	struct sprd_iommu_device *sdev;
-
-	if (!fwspec || fwspec->ops != &sprd_iommu_ops)
-		return ERR_PTR(-ENODEV);
-
-	sdev = dev_iommu_priv_get(dev);
+	struct sprd_iommu_device *sdev = dev_iommu_priv_get(dev);
 
 	return &sdev->iommu;
 }
 
-static struct iommu_group *sprd_iommu_device_group(struct device *dev)
-{
-	struct sprd_iommu_device *sdev = dev_iommu_priv_get(dev);
-
-	return iommu_group_ref_get(sdev->group);
-}
-
-static int sprd_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
+static int sprd_iommu_of_xlate(struct device *dev,
+			       const struct of_phandle_args *args)
 {
 	struct platform_device *pdev;
 
@@ -419,9 +406,9 @@ static int sprd_iommu_of_xlate(struct device *dev, struct of_phandle_args *args)
 
 
 static const struct iommu_ops sprd_iommu_ops = {
-	.domain_alloc	= sprd_iommu_domain_alloc,
+	.domain_alloc_paging = sprd_iommu_domain_alloc_paging,
 	.probe_device	= sprd_iommu_probe_device,
-	.device_group	= sprd_iommu_device_group,
+	.device_group	= generic_single_device_group,
 	.of_xlate	= sprd_iommu_of_xlate,
 	.pgsize_bitmap	= SPRD_IOMMU_PAGE_SIZE,
 	.owner		= THIS_MODULE,
@@ -494,16 +481,9 @@ static int sprd_iommu_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, sdev);
 	sdev->dev = dev;
 
-	/* All the client devices are in the same iommu-group */
-	sdev->group = iommu_group_alloc();
-	if (IS_ERR(sdev->group)) {
-		ret = PTR_ERR(sdev->group);
-		goto free_page;
-	}
-
 	ret = iommu_device_sysfs_add(&sdev->iommu, dev, NULL, dev_name(dev));
 	if (ret)
-		goto put_group;
+		goto free_page;
 
 	ret = iommu_device_register(&sdev->iommu, &sprd_iommu_ops, dev);
 	if (ret)
@@ -528,8 +508,6 @@ unregister_iommu:
 	iommu_device_unregister(&sdev->iommu);
 remove_sysfs:
 	iommu_device_sysfs_remove(&sdev->iommu);
-put_group:
-	iommu_group_put(sdev->group);
 free_page:
 	dma_free_coherent(sdev->dev, SPRD_IOMMU_PAGE_SIZE, sdev->prot_page_va, sdev->prot_page_pa);
 	return ret;
@@ -540,9 +518,6 @@ static void sprd_iommu_remove(struct platform_device *pdev)
 	struct sprd_iommu_device *sdev = platform_get_drvdata(pdev);
 
 	dma_free_coherent(sdev->dev, SPRD_IOMMU_PAGE_SIZE, sdev->prot_page_va, sdev->prot_page_pa);
-
-	iommu_group_put(sdev->group);
-	sdev->group = NULL;
 
 	platform_set_drvdata(pdev, NULL);
 	iommu_device_sysfs_remove(&sdev->iommu);

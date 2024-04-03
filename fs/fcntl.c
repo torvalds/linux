@@ -27,6 +27,7 @@
 #include <linux/memfd.h>
 #include <linux/compat.h>
 #include <linux/mount.h>
+#include <linux/rw_hint.h>
 
 #include <linux/poll.h>
 #include <asm/siginfo.h>
@@ -34,7 +35,7 @@
 
 #define SETFL_MASK (O_APPEND | O_NONBLOCK | O_NDELAY | O_DIRECT | O_NOATIME)
 
-static int setfl(int fd, struct file * filp, unsigned long arg)
+static int setfl(int fd, struct file * filp, unsigned int arg)
 {
 	struct inode * inode = file_inode(filp);
 	int error = 0;
@@ -112,11 +113,11 @@ void __f_setown(struct file *filp, struct pid *pid, enum pid_type type,
 }
 EXPORT_SYMBOL(__f_setown);
 
-int f_setown(struct file *filp, unsigned long arg, int force)
+int f_setown(struct file *filp, int who, int force)
 {
 	enum pid_type type;
 	struct pid *pid = NULL;
-	int who = arg, ret = 0;
+	int ret = 0;
 
 	type = PIDTYPE_TGID;
 	if (who < 0) {
@@ -268,8 +269,15 @@ static int f_getowner_uids(struct file *filp, unsigned long arg)
 }
 #endif
 
-static bool rw_hint_valid(enum rw_hint hint)
+static bool rw_hint_valid(u64 hint)
 {
+	BUILD_BUG_ON(WRITE_LIFE_NOT_SET != RWH_WRITE_LIFE_NOT_SET);
+	BUILD_BUG_ON(WRITE_LIFE_NONE != RWH_WRITE_LIFE_NONE);
+	BUILD_BUG_ON(WRITE_LIFE_SHORT != RWH_WRITE_LIFE_SHORT);
+	BUILD_BUG_ON(WRITE_LIFE_MEDIUM != RWH_WRITE_LIFE_MEDIUM);
+	BUILD_BUG_ON(WRITE_LIFE_LONG != RWH_WRITE_LIFE_LONG);
+	BUILD_BUG_ON(WRITE_LIFE_EXTREME != RWH_WRITE_LIFE_EXTREME);
+
 	switch (hint) {
 	case RWH_WRITE_LIFE_NOT_SET:
 	case RWH_WRITE_LIFE_NONE:
@@ -283,62 +291,69 @@ static bool rw_hint_valid(enum rw_hint hint)
 	}
 }
 
-static long fcntl_rw_hint(struct file *file, unsigned int cmd,
-			  unsigned long arg)
+static long fcntl_get_rw_hint(struct file *file, unsigned int cmd,
+			      unsigned long arg)
 {
 	struct inode *inode = file_inode(file);
 	u64 __user *argp = (u64 __user *)arg;
-	enum rw_hint hint;
-	u64 h;
+	u64 hint = READ_ONCE(inode->i_write_hint);
 
-	switch (cmd) {
-	case F_GET_RW_HINT:
-		h = inode->i_write_hint;
-		if (copy_to_user(argp, &h, sizeof(*argp)))
-			return -EFAULT;
-		return 0;
-	case F_SET_RW_HINT:
-		if (copy_from_user(&h, argp, sizeof(h)))
-			return -EFAULT;
-		hint = (enum rw_hint) h;
-		if (!rw_hint_valid(hint))
-			return -EINVAL;
+	if (copy_to_user(argp, &hint, sizeof(*argp)))
+		return -EFAULT;
+	return 0;
+}
 
-		inode_lock(inode);
-		inode->i_write_hint = hint;
-		inode_unlock(inode);
-		return 0;
-	default:
+static long fcntl_set_rw_hint(struct file *file, unsigned int cmd,
+			      unsigned long arg)
+{
+	struct inode *inode = file_inode(file);
+	u64 __user *argp = (u64 __user *)arg;
+	u64 hint;
+
+	if (copy_from_user(&hint, argp, sizeof(hint)))
+		return -EFAULT;
+	if (!rw_hint_valid(hint))
 		return -EINVAL;
-	}
+
+	WRITE_ONCE(inode->i_write_hint, hint);
+
+	/*
+	 * file->f_mapping->host may differ from inode. As an example,
+	 * blkdev_open() modifies file->f_mapping.
+	 */
+	if (file->f_mapping->host != inode)
+		WRITE_ONCE(file->f_mapping->host->i_write_hint, hint);
+
+	return 0;
 }
 
 static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		struct file *filp)
 {
 	void __user *argp = (void __user *)arg;
+	int argi = (int)arg;
 	struct flock flock;
 	long err = -EINVAL;
 
 	switch (cmd) {
 	case F_DUPFD:
-		err = f_dupfd(arg, filp, 0);
+		err = f_dupfd(argi, filp, 0);
 		break;
 	case F_DUPFD_CLOEXEC:
-		err = f_dupfd(arg, filp, O_CLOEXEC);
+		err = f_dupfd(argi, filp, O_CLOEXEC);
 		break;
 	case F_GETFD:
 		err = get_close_on_exec(fd) ? FD_CLOEXEC : 0;
 		break;
 	case F_SETFD:
 		err = 0;
-		set_close_on_exec(fd, arg & FD_CLOEXEC);
+		set_close_on_exec(fd, argi & FD_CLOEXEC);
 		break;
 	case F_GETFL:
 		err = filp->f_flags;
 		break;
 	case F_SETFL:
-		err = setfl(fd, filp, arg);
+		err = setfl(fd, filp, argi);
 		break;
 #if BITS_PER_LONG != 32
 	/* 32-bit arches must use fcntl64() */
@@ -375,7 +390,7 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		force_successful_syscall_return();
 		break;
 	case F_SETOWN:
-		err = f_setown(filp, arg, 1);
+		err = f_setown(filp, argi, 1);
 		break;
 	case F_GETOWN_EX:
 		err = f_getown_ex(filp, arg);
@@ -391,32 +406,34 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		break;
 	case F_SETSIG:
 		/* arg == 0 restores default behaviour. */
-		if (!valid_signal(arg)) {
+		if (!valid_signal(argi)) {
 			break;
 		}
 		err = 0;
-		filp->f_owner.signum = arg;
+		filp->f_owner.signum = argi;
 		break;
 	case F_GETLEASE:
 		err = fcntl_getlease(filp);
 		break;
 	case F_SETLEASE:
-		err = fcntl_setlease(fd, filp, arg);
+		err = fcntl_setlease(fd, filp, argi);
 		break;
 	case F_NOTIFY:
-		err = fcntl_dirnotify(fd, filp, arg);
+		err = fcntl_dirnotify(fd, filp, argi);
 		break;
 	case F_SETPIPE_SZ:
 	case F_GETPIPE_SZ:
-		err = pipe_fcntl(filp, cmd, arg);
+		err = pipe_fcntl(filp, cmd, argi);
 		break;
 	case F_ADD_SEALS:
 	case F_GET_SEALS:
-		err = memfd_fcntl(filp, cmd, arg);
+		err = memfd_fcntl(filp, cmd, argi);
 		break;
 	case F_GET_RW_HINT:
+		err = fcntl_get_rw_hint(filp, cmd, arg);
+		break;
 	case F_SET_RW_HINT:
-		err = fcntl_rw_hint(filp, cmd, arg);
+		err = fcntl_set_rw_hint(filp, cmd, arg);
 		break;
 	default:
 		break;
@@ -843,13 +860,7 @@ int send_sigurg(struct fown_struct *fown)
 }
 
 static DEFINE_SPINLOCK(fasync_lock);
-static struct kmem_cache *fasync_cache __read_mostly;
-
-static void fasync_free_rcu(struct rcu_head *head)
-{
-	kmem_cache_free(fasync_cache,
-			container_of(head, struct fasync_struct, fa_rcu));
-}
+static struct kmem_cache *fasync_cache __ro_after_init;
 
 /*
  * Remove a fasync entry. If successfully removed, return
@@ -876,7 +887,7 @@ int fasync_remove_entry(struct file *filp, struct fasync_struct **fapp)
 		write_unlock_irq(&fa->fa_lock);
 
 		*fp = fa->fa_next;
-		call_rcu(&fa->fa_rcu, fasync_free_rcu);
+		kfree_rcu(fa, fa_rcu);
 		filp->f_flags &= ~FASYNC;
 		result = 1;
 		break;

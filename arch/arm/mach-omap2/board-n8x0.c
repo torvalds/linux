@@ -498,6 +498,15 @@ struct menelaus_platform_data n8x0_menelaus_platform_data = {
 	.late_init = n8x0_menelaus_late_init,
 };
 
+static struct gpiod_lookup_table nokia810_asoc_gpio_table = {
+	.dev_id = "soc-audio",
+	.table = {
+		GPIO_LOOKUP("gpio-0-15", 10, "headset", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-80-111", 21, "speaker", GPIO_ACTIVE_HIGH),
+		{ }
+	},
+};
+
 static int __init n8x0_late_initcall(void)
 {
 	if (!board_caps)
@@ -505,6 +514,7 @@ static int __init n8x0_late_initcall(void)
 
 	n8x0_mmc_init();
 	n8x0_usb_init();
+	gpiod_add_lookup_table(&nokia810_asoc_gpio_table);
 
 	return 0;
 }

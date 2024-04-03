@@ -73,6 +73,8 @@ static const char *get_name(struct btf *btf, long btf_id, const char *fallback)
 	return str + name_off;
 }
 
+__s64 bpf_map_sum_elem_count(struct bpf_map *map) __ksym;
+
 SEC("iter/bpf_map")
 int dump_bpf_map(struct bpf_iter__bpf_map *ctx)
 {
@@ -84,9 +86,12 @@ int dump_bpf_map(struct bpf_iter__bpf_map *ctx)
 		return 0;
 
 	if (seq_num == 0)
-		BPF_SEQ_PRINTF(seq, "  id name             max_entries\n");
+		BPF_SEQ_PRINTF(seq, "  id name             max_entries  cur_entries\n");
 
-	BPF_SEQ_PRINTF(seq, "%4u %-16s%6d\n", map->id, map->name, map->max_entries);
+	BPF_SEQ_PRINTF(seq, "%4u %-16s  %10d   %10lld\n",
+		       map->id, map->name, map->max_entries,
+		       bpf_map_sum_elem_count(map));
+
 	return 0;
 }
 

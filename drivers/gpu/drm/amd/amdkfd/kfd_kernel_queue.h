@@ -47,7 +47,7 @@
 int kq_acquire_packet_buffer(struct kernel_queue *kq,
 				size_t packet_size_in_dwords,
 				unsigned int **buffer_ptr);
-void kq_submit_packet(struct kernel_queue *kq);
+int kq_submit_packet(struct kernel_queue *kq);
 void kq_rollback_packet(struct kernel_queue *kq);
 
 

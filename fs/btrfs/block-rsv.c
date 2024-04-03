@@ -6,7 +6,6 @@
 #include "space-info.h"
 #include "transaction.h"
 #include "block-group.h"
-#include "disk-io.h"
 #include "fs.h"
 #include "accessors.h"
 
@@ -221,7 +220,8 @@ int btrfs_block_rsv_add(struct btrfs_fs_info *fs_info,
 	if (num_bytes == 0)
 		return 0;
 
-	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, num_bytes, flush);
+	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv->space_info,
+					   num_bytes, flush);
 	if (!ret)
 		btrfs_block_rsv_add_bytes(block_rsv, num_bytes, true);
 
@@ -261,7 +261,8 @@ int btrfs_block_rsv_refill(struct btrfs_fs_info *fs_info,
 	if (!ret)
 		return 0;
 
-	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, num_bytes, flush);
+	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv->space_info,
+					   num_bytes, flush);
 	if (!ret) {
 		btrfs_block_rsv_add_bytes(block_rsv, num_bytes, false);
 		return 0;
@@ -279,10 +280,10 @@ u64 btrfs_block_rsv_release(struct btrfs_fs_info *fs_info,
 	struct btrfs_block_rsv *target = NULL;
 
 	/*
-	 * If we are the delayed_rsv then push to the global rsv, otherwise dump
-	 * into the delayed rsv if it is not full.
+	 * If we are a delayed block reserve then push to the global rsv,
+	 * otherwise dump into the global delayed reserve if it is not full.
 	 */
-	if (block_rsv == delayed_rsv)
+	if (block_rsv->type == BTRFS_BLOCK_RSV_DELOPS)
 		target = global_rsv;
 	else if (block_rsv != global_rsv && !btrfs_block_rsv_full(delayed_rsv))
 		target = delayed_rsv;
@@ -354,6 +355,11 @@ void btrfs_update_global_block_rsv(struct btrfs_fs_info *fs_info)
 		min_items++;
 	}
 
+	if (btrfs_fs_incompat(fs_info, RAID_STRIPE_TREE)) {
+		num_bytes += btrfs_root_used(&fs_info->stripe_root->root_item);
+		min_items++;
+	}
+
 	/*
 	 * But we also want to reserve enough space so we can do the fallback
 	 * global reserve for an unlink, which is an additional
@@ -405,6 +411,7 @@ void btrfs_init_root_block_rsv(struct btrfs_root *root)
 	case BTRFS_EXTENT_TREE_OBJECTID:
 	case BTRFS_FREE_SPACE_TREE_OBJECTID:
 	case BTRFS_BLOCK_GROUP_TREE_OBJECTID:
+	case BTRFS_RAID_STRIPE_TREE_OBJECTID:
 		root->block_rsv = &fs_info->delayed_refs_rsv;
 		break;
 	case BTRFS_ROOT_TREE_OBJECTID:
@@ -486,7 +493,7 @@ struct btrfs_block_rsv *btrfs_use_block_rsv(struct btrfs_trans_handle *trans,
 
 	block_rsv = get_block_rsv(trans, root);
 
-	if (unlikely(block_rsv->size == 0))
+	if (unlikely(btrfs_block_rsv_size(block_rsv) == 0))
 		goto try_reserve;
 again:
 	ret = btrfs_block_rsv_use_bytes(block_rsv, blocksize);
@@ -517,8 +524,8 @@ again:
 				block_rsv->type, ret);
 	}
 try_reserve:
-	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, blocksize,
-					   BTRFS_RESERVE_NO_FLUSH);
+	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv->space_info,
+					   blocksize, BTRFS_RESERVE_NO_FLUSH);
 	if (!ret)
 		return block_rsv;
 	/*
@@ -539,7 +546,7 @@ try_reserve:
 	 * one last time to force a reservation if there's enough actual space
 	 * on disk to make the reservation.
 	 */
-	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, blocksize,
+	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv->space_info, blocksize,
 					   BTRFS_RESERVE_FLUSH_EMERGENCY);
 	if (!ret)
 		return block_rsv;

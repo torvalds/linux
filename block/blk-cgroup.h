@@ -19,6 +19,7 @@
 #include <linux/kthread.h>
 #include <linux/blk-mq.h>
 #include <linux/llist.h>
+#include "blk.h"
 
 struct blkcg_gq;
 struct blkg_policy_data;
@@ -249,12 +250,11 @@ static inline struct blkcg_gq *blkg_lookup(struct blkcg *blkcg,
 {
 	struct blkcg_gq *blkg;
 
-	WARN_ON_ONCE(!rcu_read_lock_held());
-
 	if (blkcg == &blkcg_root)
 		return q->root_blkg;
 
-	blkg = rcu_dereference(blkcg->blkg_hint);
+	blkg = rcu_dereference_check(blkcg->blkg_hint,
+			lockdep_is_held(&q->queue_lock));
 	if (blkg && blkg->q == q)
 		return blkg;
 

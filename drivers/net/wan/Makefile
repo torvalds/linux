@@ -14,6 +14,8 @@ obj-$(CONFIG_HDLC_FR)		+= hdlc_fr.o
 obj-$(CONFIG_HDLC_PPP)		+= hdlc_ppp.o
 obj-$(CONFIG_HDLC_X25)		+= hdlc_x25.o
 
+obj-y				+= framer/
+
 obj-$(CONFIG_FARSYNC)		+= farsync.o
 
 obj-$(CONFIG_LAPBETHER)		+= lapbether.o
@@ -23,6 +25,7 @@ obj-$(CONFIG_WANXL)		+= wanxl.o
 obj-$(CONFIG_PCI200SYN)		+= pci200syn.o
 obj-$(CONFIG_PC300TOO)		+= pc300too.o
 obj-$(CONFIG_IXP4XX_HSS)	+= ixp4xx_hss.o
+obj-$(CONFIG_FSL_QMC_HDLC)	+= fsl_qmc_hdlc.o
 obj-$(CONFIG_FSL_UCC_HDLC)	+= fsl_ucc_hdlc.o
 obj-$(CONFIG_SLIC_DS26522)	+= slic_ds26522.o
 

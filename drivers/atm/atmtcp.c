@@ -494,6 +494,7 @@ static void __exit atmtcp_exit(void)
 	deregister_atm_ioctl(&atmtcp_ioctl_ops);
 }
 
+MODULE_DESCRIPTION("ATM over TCP");
 MODULE_LICENSE("GPL");
 module_init(atmtcp_init);
 module_exit(atmtcp_exit);

@@ -16,3 +16,9 @@ Description:
 		Example output in powerpc:
 		grep . /sys/bus/event_source/devices/cpu/caps/*
 		/sys/bus/event_source/devices/cpu/caps/pmu_name:POWER9
+
+		The "branch_counter_nr" in the supported platform exposes the
+		maximum number of counters which can be shown in the u64 counters
+		of PERF_SAMPLE_BRANCH_COUNTERS, while the "branch_counter_width"
+		exposes the width of each counter. Both of them can be used by
+		the perf tool to parse the logged counters in each branch.

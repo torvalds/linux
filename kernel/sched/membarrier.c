@@ -162,6 +162,9 @@
 	| MEMBARRIER_PRIVATE_EXPEDITED_RSEQ_BITMASK			\
 	| MEMBARRIER_CMD_GET_REGISTRATIONS)
 
+static DEFINE_MUTEX(membarrier_ipi_mutex);
+#define SERIALIZE_IPI() guard(mutex)(&membarrier_ipi_mutex)
+
 static void ipi_mb(void *info)
 {
 	smp_mb();	/* IPIs should be serializing but paranoid. */
@@ -251,7 +254,7 @@ static int membarrier_global_expedited(void)
 		return 0;
 
 	/*
-	 * Matches memory barriers around rq->curr modification in
+	 * Matches memory barriers after rq->curr modification in
 	 * scheduler.
 	 */
 	smp_mb();	/* system call entry is not a mb. */
@@ -259,6 +262,7 @@ static int membarrier_global_expedited(void)
 	if (!zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
 		return -ENOMEM;
 
+	SERIALIZE_IPI();
 	cpus_read_lock();
 	rcu_read_lock();
 	for_each_online_cpu(cpu) {
@@ -300,7 +304,7 @@ static int membarrier_global_expedited(void)
 
 	/*
 	 * Memory barrier on the caller thread _after_ we finished
-	 * waiting for the last IPI. Matches memory barriers around
+	 * waiting for the last IPI. Matches memory barriers before
 	 * rq->curr modification in scheduler.
 	 */
 	smp_mb();	/* exit from system call is not a mb */
@@ -320,6 +324,7 @@ static int membarrier_private_expedited(int flags, int cpu_id)
 		      MEMBARRIER_STATE_PRIVATE_EXPEDITED_SYNC_CORE_READY))
 			return -EPERM;
 		ipi_func = ipi_sync_core;
+		prepare_sync_core_cmd(mm);
 	} else if (flags == MEMBARRIER_FLAG_RSEQ) {
 		if (!IS_ENABLED(CONFIG_RSEQ))
 			return -EINVAL;
@@ -339,14 +344,19 @@ static int membarrier_private_expedited(int flags, int cpu_id)
 		return 0;
 
 	/*
-	 * Matches memory barriers around rq->curr modification in
+	 * Matches memory barriers after rq->curr modification in
 	 * scheduler.
+	 *
+	 * On RISC-V, this barrier pairing is also needed for the
+	 * SYNC_CORE command when switching between processes, cf.
+	 * the inline comments in membarrier_arch_switch_mm().
 	 */
 	smp_mb();	/* system call entry is not a mb. */
 
 	if (cpu_id < 0 && !zalloc_cpumask_var(&tmpmask, GFP_KERNEL))
 		return -ENOMEM;
 
+	SERIALIZE_IPI();
 	cpus_read_lock();
 
 	if (cpu_id >= 0) {
@@ -415,7 +425,7 @@ out:
 
 	/*
 	 * Memory barrier on the caller thread _after_ we finished
-	 * waiting for the last IPI. Matches memory barriers around
+	 * waiting for the last IPI. Matches memory barriers before
 	 * rq->curr modification in scheduler.
 	 */
 	smp_mb();	/* exit from system call is not a mb */
@@ -460,6 +470,7 @@ static int sync_runqueues_membarrier_state(struct mm_struct *mm)
 	 * between threads which are users of @mm has its membarrier state
 	 * updated.
 	 */
+	SERIALIZE_IPI();
 	cpus_read_lock();
 	rcu_read_lock();
 	for_each_online_cpu(cpu) {

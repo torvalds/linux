@@ -11,8 +11,7 @@
 		pinctrl-0 = <&da7219_pins>;
 		compatible = "dlg,da7219";
 		reg = <0x1a>;
-		interrupt-parent = <&pio>;
-		interrupts = <165 IRQ_TYPE_LEVEL_LOW 165 0>;
+		interrupts-extended = <&pio 165 IRQ_TYPE_LEVEL_LOW>;
 
 		dlg,micbias-lvl = <2600>;
 		dlg,mic-amp-in-sel = "diff";

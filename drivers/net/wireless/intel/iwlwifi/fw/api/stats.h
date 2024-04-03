@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018, 2020 - 2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018, 2020 - 2021, 2023 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
 #ifndef __iwl_fw_api_stats_h__
 #define __iwl_fw_api_stats_h__
 #include "mac.h"
+#include "mac-cfg.h"
 
 struct mvm_statistics_dbg {
 	__le32 burst_check;
@@ -412,6 +413,49 @@ struct iwl_statistics_cmd {
 #define MAX_BCAST_FILTER_NUM		8
 
 /**
+ * enum iwl_statistics_notify_type_id - type_id used in system statistics
+ *	command
+ * @IWL_STATS_NTFY_TYPE_ID_OPER: request legacy statistics
+ * @IWL_STATS_NTFY_TYPE_ID_OPER_PART1: request operational part1 statistics
+ * @IWL_STATS_NTFY_TYPE_ID_OPER_PART2: request operational part2 statistics
+ * @IWL_STATS_NTFY_TYPE_ID_OPER_PART3: request operational part3 statistics
+ * @IWL_STATS_NTFY_TYPE_ID_OPER_PART4: request operational part4 statistics
+ */
+enum iwl_statistics_notify_type_id {
+	IWL_STATS_NTFY_TYPE_ID_OPER		= BIT(0),
+	IWL_STATS_NTFY_TYPE_ID_OPER_PART1	= BIT(1),
+	IWL_STATS_NTFY_TYPE_ID_OPER_PART2	= BIT(2),
+	IWL_STATS_NTFY_TYPE_ID_OPER_PART3	= BIT(3),
+	IWL_STATS_NTFY_TYPE_ID_OPER_PART4	= BIT(4),
+};
+
+/**
+ * enum iwl_statistics_cfg_flags - cfg_mask used in system statistics command
+ * @IWL_STATS_CFG_FLG_DISABLE_NTFY_MSK: 0 for enable, 1 for disable
+ * @IWL_STATS_CFG_FLG_ON_DEMAND_NTFY_MSK: 0 for periodic, 1 for on-demand
+ * @IWL_STATS_CFG_FLG_RESET_MSK: 0 for reset statistics after
+ *	sending the notification, 1 for do not reset statistics after sending
+ *	the notification
+ */
+enum iwl_statistics_cfg_flags {
+	IWL_STATS_CFG_FLG_DISABLE_NTFY_MSK	= BIT(0),
+	IWL_STATS_CFG_FLG_ON_DEMAND_NTFY_MSK	= BIT(1),
+	IWL_STATS_CFG_FLG_RESET_MSK		= BIT(2),
+};
+
+/**
+ * struct iwl_system_statistics_cmd - system statistics command
+ * @cfg_mask: configuration mask, &enum iwl_statistics_cfg_flags
+ * @config_time_sec: time in sec for periodic notification
+ * @type_id_mask: type_id masks, &enum iwl_statistics_notify_type_id
+ */
+struct iwl_system_statistics_cmd {
+	__le32 cfg_mask;
+	__le32 config_time_sec;
+	__le32 type_id_mask;
+} __packed; /* STATISTICS_FW_CMD_API_S_VER_1 */
+
+/**
  * enum iwl_fw_statistics_type
  *
  * @FW_STATISTICS_OPERATIONAL: operational statistics
@@ -447,7 +491,49 @@ struct iwl_statistics_ntfy_hdr {
 }; /* STATISTICS_NTFY_HDR_API_S_VER_1 */
 
 /**
- * struct iwl_statistics_ntfy_per_mac
+ * struct iwl_stats_ntfy_per_link
+ *
+ * @beacon_filter_average_energy: Average energy [-dBm] of the 2
+ *	 antennas.
+ * @air_time: air time
+ * @beacon_counter: all beacons (both filtered and not filtered)
+ * @beacon_average_energy: Average energy [-dBm] of all beacons
+ *	(both filtered and not filtered)
+ * @beacon_rssi_a: beacon RSSI on antenna A
+ * @beacon_rssi_b: beacon RSSI on antenna B
+ * @rx_bytes: RX byte count
+ */
+struct iwl_stats_ntfy_per_link {
+	__le32 beacon_filter_average_energy;
+	__le32 air_time;
+	__le32 beacon_counter;
+	__le32 beacon_average_energy;
+	__le32 beacon_rssi_a;
+	__le32 beacon_rssi_b;
+	__le32 rx_bytes;
+} __packed; /* STATISTICS_NTFY_PER_LINK_API_S_VER_1 */
+
+/**
+ * struct iwl_stats_ntfy_part1_per_link
+ *
+ * @rx_time: rx time
+ * @tx_time: tx time
+ * @rx_action: action frames handled by FW
+ * @tx_action: action frames generated and transmitted by FW
+ * @cca_defers: cca defer count
+ * @beacon_filtered: filtered out beacons
+ */
+struct iwl_stats_ntfy_part1_per_link {
+	__le64 rx_time;
+	__le64 tx_time;
+	__le32 rx_action;
+	__le32 tx_action;
+	__le32 cca_defers;
+	__le32 beacon_filtered;
+} __packed; /* STATISTICS_FW_NTFY_OPERATIONAL_PART1_PER_LINK_API_S_VER_1 */
+
+/**
+ * struct iwl_stats_ntfy_per_mac
  *
  * @beacon_filter_average_energy: Average energy [-dBm] of the 2
  *	 antennas.
@@ -459,7 +545,7 @@ struct iwl_statistics_ntfy_hdr {
  * @beacon_rssi_b: beacon RSSI on antenna B
  * @rx_bytes: RX byte count
  */
-struct iwl_statistics_ntfy_per_mac {
+struct iwl_stats_ntfy_per_mac {
 	__le32 beacon_filter_average_energy;
 	__le32 air_time;
 	__le32 beacon_counter;
@@ -470,7 +556,7 @@ struct iwl_statistics_ntfy_per_mac {
 } __packed; /* STATISTICS_NTFY_PER_MAC_API_S_VER_1 */
 
 #define IWL_STATS_MAX_BW_INDEX 5
-/** struct iwl_statistics_ntfy_per_phy
+/** struct iwl_stats_ntfy_per_phy
  * @channel_load: channel load
  * @channel_load_by_us: device contribution to MCLM
  * @channel_load_not_by_us: other devices' contribution to MCLM
@@ -485,7 +571,7 @@ struct iwl_statistics_ntfy_per_mac {
  *	per channel BW. note BACK counted as 1
  * @last_tx_ch_width_indx: last txed frame channel width index
  */
-struct iwl_statistics_ntfy_per_phy {
+struct iwl_stats_ntfy_per_phy {
 	__le32 channel_load;
 	__le32 channel_load_by_us;
 	__le32 channel_load_not_by_us;
@@ -499,23 +585,62 @@ struct iwl_statistics_ntfy_per_phy {
 } __packed; /* STATISTICS_NTFY_PER_PHY_API_S_VER_1 */
 
 /**
- * struct iwl_statistics_ntfy_per_sta
+ * struct iwl_stats_ntfy_per_sta
  *
  * @average_energy: in fact it is minus the energy..
  */
-struct iwl_statistics_ntfy_per_sta {
+struct iwl_stats_ntfy_per_sta {
 	__le32 average_energy;
 } __packed; /* STATISTICS_NTFY_PER_STA_API_S_VER_1 */
 
-#define IWL_STATS_MAX_PHY_OPERTINAL 3
+#define IWL_STATS_MAX_PHY_OPERATIONAL 3
+#define IWL_STATS_MAX_FW_LINKS	(IWL_MVM_FW_MAX_LINK_ID + 1)
+
+/**
+ * struct iwl_system_statistics_notif_oper
+ *
+ * @time_stamp: time when the notification is sent from firmware
+ * @per_link: per link statistics, &struct iwl_stats_ntfy_per_link
+ * @per_phy: per phy statistics, &struct iwl_stats_ntfy_per_phy
+ * @per_sta: per sta statistics, &struct iwl_stats_ntfy_per_sta
+ */
+struct iwl_system_statistics_notif_oper {
+	__le32 time_stamp;
+	struct iwl_stats_ntfy_per_link per_link[IWL_STATS_MAX_FW_LINKS];
+	struct iwl_stats_ntfy_per_phy per_phy[IWL_STATS_MAX_PHY_OPERATIONAL];
+	struct iwl_stats_ntfy_per_sta per_sta[IWL_MVM_STATION_COUNT_MAX];
+} __packed; /* STATISTICS_FW_NTFY_OPERATIONAL_API_S_VER_3 */
+
+/**
+ * struct iwl_system_statistics_part1_notif_oper
+ *
+ * @time_stamp: time when the notification is sent from firmware
+ * @per_link: per link statistics &struct iwl_stats_ntfy_part1_per_link
+ * @per_phy_crc_error_stats: per phy crc error statistics
+ */
+struct iwl_system_statistics_part1_notif_oper {
+	__le32 time_stamp;
+	struct iwl_stats_ntfy_part1_per_link per_link[IWL_STATS_MAX_FW_LINKS];
+	__le32 per_phy_crc_error_stats[IWL_STATS_MAX_PHY_OPERATIONAL];
+} __packed; /* STATISTICS_FW_NTFY_OPERATIONAL_PART1_API_S_VER_4 */
+
+/**
+ * struct iwl_system_statistics_end_notif
+ *
+ * @time_stamp: time when the notification is sent from firmware
+ */
+struct iwl_system_statistics_end_notif {
+	__le32 time_stamp;
+} __packed; /* STATISTICS_FW_NTFY_END_API_S_VER_1 */
+
 /**
  * struct iwl_statistics_operational_ntfy
  *
  * @hdr: general statistics header
  * @flags: bitmap of possible notification structures
- * @per_mac_stats: per mac statistics, &struct iwl_statistics_ntfy_per_mac
- * @per_phy_stats: per phy statistics, &struct iwl_statistics_ntfy_per_phy
- * @per_sta_stats: per sta statistics, &struct iwl_statistics_ntfy_per_sta
+ * @per_mac: per mac statistics, &struct iwl_stats_ntfy_per_mac
+ * @per_phy: per phy statistics, &struct iwl_stats_ntfy_per_phy
+ * @per_sta: per sta statistics, &struct iwl_stats_ntfy_per_sta
  * @rx_time: rx time
  * @tx_time: usec the radio is transmitting.
  * @on_time_rf: The total time in usec the RF is awake.
@@ -524,9 +649,9 @@ struct iwl_statistics_ntfy_per_sta {
 struct iwl_statistics_operational_ntfy {
 	struct iwl_statistics_ntfy_hdr hdr;
 	__le32 flags;
-	struct iwl_statistics_ntfy_per_mac per_mac_stats[MAC_INDEX_AUX];
-	struct iwl_statistics_ntfy_per_phy per_phy_stats[IWL_STATS_MAX_PHY_OPERTINAL];
-	struct iwl_statistics_ntfy_per_sta per_sta_stats[IWL_MVM_STATION_COUNT_MAX];
+	struct iwl_stats_ntfy_per_mac per_mac[MAC_INDEX_AUX];
+	struct iwl_stats_ntfy_per_phy per_phy[IWL_STATS_MAX_PHY_OPERATIONAL];
+	struct iwl_stats_ntfy_per_sta per_sta[IWL_MVM_STATION_COUNT_MAX];
 	__le64 rx_time;
 	__le64 tx_time;
 	__le64 on_time_rf;

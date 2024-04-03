@@ -331,7 +331,7 @@ io_error:
 	return ret;
 }
 
-static struct sdw_slave_ops rt712_sdca_slave_ops = {
+static const struct sdw_slave_ops rt712_sdca_slave_ops = {
 	.read_prop = rt712_sdca_read_prop,
 	.interrupt_callback = rt712_sdca_interrupt_callback,
 	.update_status = rt712_sdca_update_status,
@@ -363,8 +363,7 @@ static int rt712_sdca_sdw_remove(struct sdw_slave *slave)
 		cancel_delayed_work_sync(&rt712->jack_btn_check_work);
 	}
 
-	if (rt712->first_hw_init)
-		pm_runtime_disable(&slave->dev);
+	pm_runtime_disable(&slave->dev);
 
 	mutex_destroy(&rt712->calibrate_mutex);
 	mutex_destroy(&rt712->disable_irq_lock);

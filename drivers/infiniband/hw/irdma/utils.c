@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0 or Linux-OpenIB
+// SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2015 - 2021 Intel Corporation */
 #include "main.h"
 
@@ -760,6 +760,31 @@ void irdma_qp_rem_ref(struct ib_qp *ibqp)
 	complete(&iwqp->free_qp);
 }
 
+void irdma_cq_add_ref(struct ib_cq *ibcq)
+{
+	struct irdma_cq *iwcq = to_iwcq(ibcq);
+
+	refcount_inc(&iwcq->refcnt);
+}
+
+void irdma_cq_rem_ref(struct ib_cq *ibcq)
+{
+	struct ib_device *ibdev = ibcq->device;
+	struct irdma_device *iwdev = to_iwdev(ibdev);
+	struct irdma_cq *iwcq = to_iwcq(ibcq);
+	unsigned long flags;
+
+	spin_lock_irqsave(&iwdev->rf->cqtable_lock, flags);
+	if (!refcount_dec_and_test(&iwcq->refcnt)) {
+		spin_unlock_irqrestore(&iwdev->rf->cqtable_lock, flags);
+		return;
+	}
+
+	iwdev->rf->cq_table[iwcq->cq_num] = NULL;
+	spin_unlock_irqrestore(&iwdev->rf->cqtable_lock, flags);
+	complete(&iwcq->free_cq);
+}
+
 struct ib_device *to_ibdev(struct irdma_sc_dev *dev)
 {
 	return &(container_of(dev, struct irdma_pci_f, sc_dev))->iwdev->ibdev;
@@ -1368,17 +1393,12 @@ int irdma_ieq_check_mpacrc(struct shash_desc *desc, void *addr, u32 len,
 			   u32 val)
 {
 	u32 crc = 0;
-	int ret;
-	int ret_code = 0;
 
-	crypto_shash_init(desc);
-	ret = crypto_shash_update(desc, addr, len);
-	if (!ret)
-		crypto_shash_final(desc, (u8 *)&crc);
+	crypto_shash_digest(desc, addr, len, (u8 *)&crc);
 	if (crc != val)
-		ret_code = -EINVAL;
+		return -EINVAL;
 
-	return ret_code;
+	return 0;
 }
 
 /**

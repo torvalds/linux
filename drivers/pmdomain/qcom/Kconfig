@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-2.0-only
+menu "Qualcomm PM Domains"
+
+config QCOM_CPR
+	tristate "QCOM Core Power Reduction (CPR) support"
+	depends on ARCH_QCOM && HAS_IOMEM
+	select PM_OPP
+	select REGMAP
+	help
+	  Say Y here to enable support for the CPR hardware found on Qualcomm
+	  SoCs like QCS404.
+
+	  This driver populates CPU OPPs tables and makes adjustments to the
+	  tables based on feedback from the CPR hardware. If you want to do
+	  CPUfrequency scaling say Y here.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called qcom-cpr
+
+config QCOM_RPMHPD
+	tristate "Qualcomm RPMh Power domain driver"
+	depends on QCOM_RPMH && QCOM_COMMAND_DB
+	help
+	  QCOM RPMh Power domain driver to support power-domains with
+	  performance states. The driver communicates a performance state
+	  value to RPMh which then translates it into corresponding voltage
+	  for the voltage rail.
+
+config QCOM_RPMPD
+	tristate "Qualcomm RPM Power domain driver"
+	depends on PM && OF
+	depends on QCOM_SMD_RPM
+	select PM_GENERIC_DOMAINS
+	select PM_GENERIC_DOMAINS_OF
+	help
+	  QCOM RPM Power domain driver to support power-domains with
+	  performance states. The driver communicates a performance state
+	  value to RPM which then translates it into corresponding voltage
+	  for the voltage rail.
+
+endmenu

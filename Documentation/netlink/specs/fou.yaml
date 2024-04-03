@@ -107,16 +107,16 @@ operations:
       flags: [ admin-perm ]
 
       do:
-        request:  &select_attrs
+        request: &select_attrs
           attributes:
-          - af
-          - ifindex
-          - port
-          - peer_port
-          - local_v4
-          - peer_v4
-          - local_v6
-          - peer_v6
+            - af
+            - ifindex
+            - port
+            - peer_port
+            - local_v4
+            - peer_v4
+            - local_v6
+            - peer_v6
 
     -
       name: get

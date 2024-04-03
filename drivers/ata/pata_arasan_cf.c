@@ -917,15 +917,13 @@ static int arasan_cf_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int arasan_cf_remove(struct platform_device *pdev)
+static void arasan_cf_remove(struct platform_device *pdev)
 {
 	struct ata_host *host = platform_get_drvdata(pdev);
 	struct arasan_cf_dev *acdev = host->ports[0]->private_data;
 
 	ata_host_detach(host);
 	cf_exit(acdev);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -966,7 +964,7 @@ MODULE_DEVICE_TABLE(of, arasan_cf_id_table);
 
 static struct platform_driver arasan_cf_driver = {
 	.probe		= arasan_cf_probe,
-	.remove		= arasan_cf_remove,
+	.remove_new	= arasan_cf_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
 		.pm	= &arasan_cf_pm_ops,

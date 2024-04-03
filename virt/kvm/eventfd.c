@@ -28,7 +28,7 @@
 
 #include <kvm/iodev.h>
 
-#ifdef CONFIG_HAVE_KVM_IRQFD
+#ifdef CONFIG_HAVE_KVM_IRQCHIP
 
 static struct workqueue_struct *irqfd_cleanup_wq;
 
@@ -61,7 +61,7 @@ static void irqfd_resampler_notify(struct kvm_kernel_irqfd_resampler *resampler)
 
 	list_for_each_entry_srcu(irqfd, &resampler->list, resampler_link,
 				 srcu_read_lock_held(&resampler->kvm->irq_srcu))
-		eventfd_signal(irqfd->resamplefd, 1);
+		eventfd_signal(irqfd->resamplefd);
 }
 
 /*
@@ -526,21 +526,7 @@ void kvm_unregister_irq_ack_notifier(struct kvm *kvm,
 	synchronize_srcu(&kvm->irq_srcu);
 	kvm_arch_post_irq_ack_notifier_list_update(kvm);
 }
-#endif
 
-void
-kvm_eventfd_init(struct kvm *kvm)
-{
-#ifdef CONFIG_HAVE_KVM_IRQFD
-	spin_lock_init(&kvm->irqfds.lock);
-	INIT_LIST_HEAD(&kvm->irqfds.items);
-	INIT_LIST_HEAD(&kvm->irqfds.resampler_list);
-	mutex_init(&kvm->irqfds.resampler_lock);
-#endif
-	INIT_LIST_HEAD(&kvm->ioeventfds);
-}
-
-#ifdef CONFIG_HAVE_KVM_IRQFD
 /*
  * shutdown any irqfd's that match fd+gsi
  */
@@ -786,7 +772,7 @@ ioeventfd_write(struct kvm_vcpu *vcpu, struct kvm_io_device *this, gpa_t addr,
 	if (!ioeventfd_in_range(p, addr, len, val))
 		return -EOPNOTSUPP;
 
-	eventfd_signal(p->eventfd, 1);
+	eventfd_signal(p->eventfd);
 	return 0;
 }
 
@@ -1011,4 +997,16 @@ kvm_ioeventfd(struct kvm *kvm, struct kvm_ioeventfd *args)
 		return kvm_deassign_ioeventfd(kvm, args);
 
 	return kvm_assign_ioeventfd(kvm, args);
+}
+
+void
+kvm_eventfd_init(struct kvm *kvm)
+{
+#ifdef CONFIG_HAVE_KVM_IRQCHIP
+	spin_lock_init(&kvm->irqfds.lock);
+	INIT_LIST_HEAD(&kvm->irqfds.items);
+	INIT_LIST_HEAD(&kvm->irqfds.resampler_list);
+	mutex_init(&kvm->irqfds.resampler_lock);
+#endif
+	INIT_LIST_HEAD(&kvm->ioeventfds);
 }

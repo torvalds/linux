@@ -12,9 +12,9 @@
 #include <linux/io.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/pinctrl/pinctrl.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 #include "pinctrl-mvebu.h"
 
@@ -638,8 +638,6 @@ static void mvebu_pinctrl_assign_variant(struct mvebu_mpp_mode *m,
 static int armada_cp110_pinctrl_probe(struct platform_device *pdev)
 {
 	struct mvebu_pinctrl_soc_info *soc;
-	const struct of_device_id *match =
-		of_match_device(armada_cp110_pinctrl_of_match, &pdev->dev);
 	int i;
 
 	if (!pdev->dev.parent)
@@ -650,7 +648,7 @@ static int armada_cp110_pinctrl_probe(struct platform_device *pdev)
 	if (!soc)
 		return -ENOMEM;
 
-	soc->variant = (unsigned long) match->data & 0xff;
+	soc->variant = (unsigned long)device_get_match_data(&pdev->dev) & 0xff;
 	soc->controls = armada_cp110_mpp_controls;
 	soc->ncontrols = ARRAY_SIZE(armada_cp110_mpp_controls);
 	soc->modes = armada_cp110_mpp_modes;

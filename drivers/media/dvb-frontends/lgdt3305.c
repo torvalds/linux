@@ -10,7 +10,7 @@
 #include <asm/div64.h>
 #include <linux/dvb/frontend.h>
 #include <linux/slab.h>
-#include <media/dvb_math.h>
+#include <linux/int_log.h>
 #include "lgdt3305.h"
 
 static int debug;
@@ -1148,7 +1148,7 @@ fail:
 	kfree(state);
 	return NULL;
 }
-EXPORT_SYMBOL(lgdt3305_attach);
+EXPORT_SYMBOL_GPL(lgdt3305_attach);
 
 static const struct dvb_frontend_ops lgdt3304_ops = {
 	.delsys = { SYS_ATSC, SYS_DVBC_ANNEX_B },

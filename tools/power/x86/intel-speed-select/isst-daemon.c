@@ -90,7 +90,8 @@ void process_level_change(struct isst_id *id)
 		if (ret)
 			goto use_offline;
 
-		isolate_cpus(id, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask, pkg_dev.current_level);
+		isolate_cpus(id, ctdp_level.core_cpumask_size, ctdp_level.core_cpumask,
+			     pkg_dev.current_level, 0);
 
 		goto free_mask;
 	}

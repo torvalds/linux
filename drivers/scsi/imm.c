@@ -51,9 +51,14 @@ typedef struct {
 } imm_struct;
 
 static void imm_reset_pulse(unsigned int base);
-static int device_check(imm_struct *dev);
+static int device_check(imm_struct *dev, bool autodetect);
 
 #include "imm.h"
+
+static unsigned int mode = IMM_AUTODETECT;
+module_param(mode, uint, 0644);
+MODULE_PARM_DESC(mode, "Transfer mode (0 = Autodetect, 1 = SPP 4-bit, "
+	"2 = SPP 8-bit, 3 = EPP 8-bit, 4 = EPP 16-bit, 5 = EPP 32-bit");
 
 static inline imm_struct *imm_dev(struct Scsi_Host *host)
 {
@@ -366,13 +371,10 @@ static int imm_out(imm_struct *dev, char *buffer, int len)
 	case IMM_EPP_8:
 		epp_reset(ppb);
 		w_ctr(ppb, 0x4);
-#ifdef CONFIG_SCSI_IZIP_EPP16
-		if (!(((long) buffer | len) & 0x01))
-			outsw(ppb + 4, buffer, len >> 1);
-#else
-		if (!(((long) buffer | len) & 0x03))
+		if (dev->mode == IMM_EPP_32 && !(((long) buffer | len) & 0x03))
 			outsl(ppb + 4, buffer, len >> 2);
-#endif
+		else if (dev->mode == IMM_EPP_16 && !(((long) buffer | len) & 0x01))
+			outsw(ppb + 4, buffer, len >> 1);
 		else
 			outsb(ppb + 4, buffer, len);
 		w_ctr(ppb, 0xc);
@@ -426,13 +428,10 @@ static int imm_in(imm_struct *dev, char *buffer, int len)
 	case IMM_EPP_8:
 		epp_reset(ppb);
 		w_ctr(ppb, 0x24);
-#ifdef CONFIG_SCSI_IZIP_EPP16
-		if (!(((long) buffer | len) & 0x01))
-			insw(ppb + 4, buffer, len >> 1);
-#else
-		if (!(((long) buffer | len) & 0x03))
-			insl(ppb + 4, buffer, len >> 2);
-#endif
+		if (dev->mode == IMM_EPP_32 && !(((long) buffer | len) & 0x03))
+			insw(ppb + 4, buffer, len >> 2);
+		else if (dev->mode == IMM_EPP_16 && !(((long) buffer | len) & 0x01))
+			insl(ppb + 4, buffer, len >> 1);
 		else
 			insb(ppb + 4, buffer, len);
 		w_ctr(ppb, 0x2c);
@@ -589,13 +588,28 @@ static int imm_select(imm_struct *dev, int target)
 
 static int imm_init(imm_struct *dev)
 {
+	bool autodetect = dev->mode == IMM_AUTODETECT;
+
+	if (autodetect) {
+		int modes = dev->dev->port->modes;
+
+		/* Mode detection works up the chain of speed
+		 * This avoids a nasty if-then-else-if-... tree
+		 */
+		dev->mode = IMM_NIBBLE;
+
+		if (modes & PARPORT_MODE_TRISTATE)
+			dev->mode = IMM_PS2;
+	}
+
 	if (imm_connect(dev, 0) != 1)
 		return -EIO;
 	imm_reset_pulse(dev->base);
 	mdelay(1);	/* Delay to allow devices to settle */
 	imm_disconnect(dev);
 	mdelay(1);	/* Another delay to allow devices to settle */
-	return device_check(dev);
+
+	return device_check(dev, autodetect);
 }
 
 static inline int imm_send_command(struct scsi_cmnd *cmd)
@@ -1000,7 +1014,7 @@ static int imm_reset(struct scsi_cmnd *cmd)
 	return SUCCESS;
 }
 
-static int device_check(imm_struct *dev)
+static int device_check(imm_struct *dev, bool autodetect)
 {
 	/* This routine looks for a device and then attempts to use EPP
 	   to send a command. If all goes as planned then EPP is available. */
@@ -1012,8 +1026,8 @@ static int device_check(imm_struct *dev)
 	old_mode = dev->mode;
 	for (loop = 0; loop < 8; loop++) {
 		/* Attempt to use EPP for Test Unit Ready */
-		if ((ppb & 0x0007) == 0x0000)
-			dev->mode = IMM_EPP_32;
+		if (autodetect && (ppb & 0x0007) == 0x0000)
+			dev->mode = IMM_EPP_8;
 
 	      second_pass:
 		imm_connect(dev, CONNECT_EPP_MAYBE);
@@ -1038,7 +1052,7 @@ static int device_check(imm_struct *dev)
 			udelay(1000);
 			imm_disconnect(dev);
 			udelay(1000);
-			if (dev->mode == IMM_EPP_32) {
+			if (dev->mode != old_mode) {
 				dev->mode = old_mode;
 				goto second_pass;
 			}
@@ -1063,7 +1077,7 @@ static int device_check(imm_struct *dev)
 			udelay(1000);
 			imm_disconnect(dev);
 			udelay(1000);
-			if (dev->mode == IMM_EPP_32) {
+			if (dev->mode != old_mode) {
 				dev->mode = old_mode;
 				goto second_pass;
 			}
@@ -1150,7 +1164,6 @@ static int __imm_attach(struct parport *pb)
 	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(waiting);
 	DEFINE_WAIT(wait);
 	int ports;
-	int modes, ppb;
 	int err = -ENOMEM;
 	struct pardev_cb imm_cb;
 
@@ -1162,7 +1175,7 @@ static int __imm_attach(struct parport *pb)
 
 
 	dev->base = -1;
-	dev->mode = IMM_AUTODETECT;
+	dev->mode = mode < IMM_UNKNOWN ? mode : IMM_AUTODETECT;
 	INIT_LIST_HEAD(&dev->list);
 
 	temp = find_parent();
@@ -1197,18 +1210,9 @@ static int __imm_attach(struct parport *pb)
 	}
 	dev->waiting = NULL;
 	finish_wait(&waiting, &wait);
-	ppb = dev->base = dev->dev->port->base;
+	dev->base = dev->dev->port->base;
 	dev->base_hi = dev->dev->port->base_hi;
-	w_ctr(ppb, 0x0c);
-	modes = dev->dev->port->modes;
-
-	/* Mode detection works up the chain of speed
-	 * This avoids a nasty if-then-else-if-... tree
-	 */
-	dev->mode = IMM_NIBBLE;
-
-	if (modes & PARPORT_MODE_TRISTATE)
-		dev->mode = IMM_PS2;
+	w_ctr(dev->base, 0x0c);
 
 	/* Done configuration */
 

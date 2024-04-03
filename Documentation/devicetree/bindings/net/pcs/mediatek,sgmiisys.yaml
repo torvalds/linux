@@ -15,15 +15,22 @@ description:
 
 properties:
   compatible:
-    items:
-      - enum:
-          - mediatek,mt7622-sgmiisys
-          - mediatek,mt7629-sgmiisys
-          - mediatek,mt7981-sgmiisys_0
-          - mediatek,mt7981-sgmiisys_1
-          - mediatek,mt7986-sgmiisys_0
-          - mediatek,mt7986-sgmiisys_1
-      - const: syscon
+    oneOf:
+      - items:
+          - enum:
+              - mediatek,mt7622-sgmiisys
+              - mediatek,mt7629-sgmiisys
+              - mediatek,mt7981-sgmiisys_0
+              - mediatek,mt7981-sgmiisys_1
+              - mediatek,mt7986-sgmiisys_0
+              - mediatek,mt7986-sgmiisys_1
+          - const: syscon
+      - items:
+          - enum:
+              - mediatek,mt7988-sgmiisys0
+              - mediatek,mt7988-sgmiisys1
+          - const: simple-mfd
+          - const: syscon
 
   reg:
     maxItems: 1
@@ -35,10 +42,50 @@ properties:
     description: Invert polarity of the SGMII data lanes
     type: boolean
 
+  pcs:
+    type: object
+    description: MediaTek LynxI HSGMII PCS
+    properties:
+      compatible:
+        const: mediatek,mt7988-sgmii
+
+      clocks:
+        maxItems: 3
+
+      clock-names:
+        items:
+          - const: sgmii_sel
+          - const: sgmii_tx
+          - const: sgmii_rx
+
+    required:
+      - compatible
+      - clocks
+      - clock-names
+
+    additionalProperties: false
+
 required:
   - compatible
   - reg
   - '#clock-cells'
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - mediatek,mt7988-sgmiisys0
+              - mediatek,mt7988-sgmiisys1
+
+    then:
+      required:
+        - pcs
+
+    else:
+      properties:
+        pcs: false
 
 additionalProperties: false
 

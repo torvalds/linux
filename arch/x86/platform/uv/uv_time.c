@@ -53,7 +53,7 @@ struct uv_rtc_timer_head {
 	struct {
 		int	lcpu;		/* systemwide logical cpu number */
 		u64	expires;	/* next timer expiration for this cpu */
-	} cpu[];
+	} cpu[] __counted_by(ncpus);
 };
 
 /*
@@ -270,7 +270,7 @@ static int uv_rtc_unset_timer(int cpu, int force)
  * Read the RTC.
  *
  * Starting with HUB rev 2.0, the UV RTC register is replicated across all
- * cachelines of it's own page.  This allows faster simultaneous reads
+ * cachelines of its own page.  This allows faster simultaneous reads
  * from a given socket.
  */
 static u64 uv_read_rtc(struct clocksource *cs)

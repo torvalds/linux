@@ -27,14 +27,12 @@
 #include <drm/drm_print.h>
 #include <drm/drm_util.h>
 
-/**
- * drm_flip_work_allocate_task - allocate a flip-work task
- * @data: data associated to the task
- * @flags: allocator flags
- *
- * Allocate a drm_flip_task object and attach private data to it.
- */
-struct drm_flip_task *drm_flip_work_allocate_task(void *data, gfp_t flags)
+struct drm_flip_task {
+	struct list_head node;
+	void *data;
+};
+
+static struct drm_flip_task *drm_flip_work_allocate_task(void *data, gfp_t flags)
 {
 	struct drm_flip_task *task;
 
@@ -44,18 +42,8 @@ struct drm_flip_task *drm_flip_work_allocate_task(void *data, gfp_t flags)
 
 	return task;
 }
-EXPORT_SYMBOL(drm_flip_work_allocate_task);
 
-/**
- * drm_flip_work_queue_task - queue a specific task
- * @work: the flip-work
- * @task: the task to handle
- *
- * Queues task, that will later be run (passed back to drm_flip_func_t
- * func) on a work queue after drm_flip_work_commit() is called.
- */
-void drm_flip_work_queue_task(struct drm_flip_work *work,
-			      struct drm_flip_task *task)
+static void drm_flip_work_queue_task(struct drm_flip_work *work, struct drm_flip_task *task)
 {
 	unsigned long flags;
 
@@ -63,7 +51,6 @@ void drm_flip_work_queue_task(struct drm_flip_work *work,
 	list_add_tail(&task->node, &work->queued);
 	spin_unlock_irqrestore(&work->lock, flags);
 }
-EXPORT_SYMBOL(drm_flip_work_queue_task);
 
 /**
  * drm_flip_work_queue - queue work

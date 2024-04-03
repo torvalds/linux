@@ -7,7 +7,6 @@
 #include "../tests.h"
 
 static volatile sig_atomic_t done;
-static volatile unsigned count;
 
 /* We want to check this symbol in perf report */
 noinline void test_loop(void);
@@ -19,8 +18,7 @@ static void sighandler(int sig __maybe_unused)
 
 noinline void test_loop(void)
 {
-	while (!done)
-		__atomic_fetch_add(&count, 1, __ATOMIC_RELAXED);
+	while (!done);
 }
 
 static void *thfunc(void *arg)

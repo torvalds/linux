@@ -25,7 +25,6 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 
 struct pbias_reg_info {
 	u32 enable;

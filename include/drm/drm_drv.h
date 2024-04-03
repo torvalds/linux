@@ -104,6 +104,21 @@ enum drm_driver_feature {
 	 * acceleration should be handled by two drivers that are connected using auxiliary bus.
 	 */
 	DRIVER_COMPUTE_ACCEL            = BIT(7),
+	/**
+	 * @DRIVER_GEM_GPUVA:
+	 *
+	 * Driver supports user defined GPU VA bindings for GEM objects.
+	 */
+	DRIVER_GEM_GPUVA		= BIT(8),
+	/**
+	 * @DRIVER_CURSOR_HOTSPOT:
+	 *
+	 * Driver supports and requires cursor hotspot information in the
+	 * cursor plane (e.g. cursor plane has to actually track the mouse
+	 * cursor and the clients are required to set hotspot in order for
+	 * the cursor planes to work correctly).
+	 */
+	DRIVER_CURSOR_HOTSPOT           = BIT(9),
 
 	/* IMPORTANT: Below are all the legacy flags, add new ones above. */
 
@@ -304,22 +319,14 @@ struct drm_driver {
 	/**
 	 * @prime_handle_to_fd:
 	 *
-	 * Main PRIME export function. Should be implemented with
-	 * drm_gem_prime_handle_to_fd() for GEM based drivers.
-	 *
-	 * For an in-depth discussion see :ref:`PRIME buffer sharing
-	 * documentation <prime_buffer_sharing>`.
+	 * PRIME export function. Only used by vmwgfx.
 	 */
 	int (*prime_handle_to_fd)(struct drm_device *dev, struct drm_file *file_priv,
 				uint32_t handle, uint32_t flags, int *prime_fd);
 	/**
 	 * @prime_fd_to_handle:
 	 *
-	 * Main PRIME import function. Should be implemented with
-	 * drm_gem_prime_fd_to_handle() for GEM based drivers.
-	 *
-	 * For an in-depth discussion see :ref:`PRIME buffer sharing
-	 * documentation <prime_buffer_sharing>`.
+	 * PRIME import function. Only used by vmwgfx.
 	 */
 	int (*prime_fd_to_handle)(struct drm_device *dev, struct drm_file *file_priv,
 				int prime_fd, uint32_t *handle);
@@ -343,20 +350,6 @@ struct drm_driver {
 				struct drm_device *dev,
 				struct dma_buf_attachment *attach,
 				struct sg_table *sgt);
-	/**
-	 * @gem_prime_mmap:
-	 *
-	 * mmap hook for GEM drivers, used to implement dma-buf mmap in the
-	 * PRIME helpers.
-	 *
-	 * This hook only exists for historical reasons. Drivers must use
-	 * drm_gem_prime_mmap() to implement it.
-	 *
-	 * FIXME: Convert all drivers to implement mmap in struct
-	 * &drm_gem_object_funcs and inline drm_gem_prime_mmap() into
-	 * its callers. This hook should be removed afterwards.
-	 */
-	int (*gem_prime_mmap)(struct drm_gem_object *obj, struct vm_area_struct *vma);
 
 	/**
 	 * @dumb_create:
@@ -449,25 +442,6 @@ struct drm_driver {
 	 * some examples.
 	 */
 	const struct file_operations *fops;
-
-#ifdef CONFIG_DRM_LEGACY
-	/* Everything below here is for legacy driver, never use! */
-	/* private: */
-
-	int (*firstopen) (struct drm_device *);
-	void (*preclose) (struct drm_device *, struct drm_file *file_priv);
-	int (*dma_ioctl) (struct drm_device *dev, void *data, struct drm_file *file_priv);
-	int (*dma_quiescent) (struct drm_device *);
-	int (*context_dtor) (struct drm_device *dev, int context);
-	irqreturn_t (*irq_handler)(int irq, void *arg);
-	void (*irq_preinstall)(struct drm_device *dev);
-	int (*irq_postinstall)(struct drm_device *dev);
-	void (*irq_uninstall)(struct drm_device *dev);
-	u32 (*get_vblank_counter)(struct drm_device *dev, unsigned int pipe);
-	int (*enable_vblank)(struct drm_device *dev, unsigned int pipe);
-	void (*disable_vblank)(struct drm_device *dev, unsigned int pipe);
-	int dev_priv_size;
-#endif
 };
 
 void *__devm_drm_dev_alloc(struct device *parent,
@@ -596,5 +570,13 @@ static inline bool drm_firmware_drivers_only(void)
 {
 	return video_firmware_drivers_only();
 }
+
+#if defined(CONFIG_DEBUG_FS)
+void drm_debugfs_dev_init(struct drm_device *dev, struct dentry *root);
+#else
+static inline void drm_debugfs_dev_init(struct drm_device *dev, struct dentry *root)
+{
+}
+#endif
 
 #endif

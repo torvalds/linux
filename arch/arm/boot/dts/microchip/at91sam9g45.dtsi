@@ -70,7 +70,7 @@
 			clock-frequency = <0>;
 		};
 
-		adc_op_clk: adc_op_clk{
+		adc_op_clk: adc_op_clk {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <300000>;

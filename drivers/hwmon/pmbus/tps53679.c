@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include "pmbus.h"
 
 enum chips {
@@ -235,7 +235,7 @@ static int tps53679_probe(struct i2c_client *client)
 	enum chips chip_id;
 
 	if (dev->of_node)
-		chip_id = (enum chips)of_device_get_match_data(dev);
+		chip_id = (uintptr_t)of_device_get_match_data(dev);
 	else
 		chip_id = i2c_match_id(tps53679_id, client)->driver_data;
 

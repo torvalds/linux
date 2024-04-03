@@ -114,10 +114,7 @@ static void ksz_spi_shutdown(struct spi_device *spi)
 	if (!dev)
 		return;
 
-	if (dev->dev_ops->reset)
-		dev->dev_ops->reset(dev);
-
-	dsa_switch_shutdown(dev->ds);
+	ksz_switch_shutdown(dev);
 
 	spi_set_drvdata(spi, NULL);
 }
@@ -168,6 +165,10 @@ static const struct of_device_id ksz_dt_ids[] = {
 		.data = &ksz_switch_chips[KSZ8563]
 	},
 	{
+		.compatible = "microchip,ksz8567",
+		.data = &ksz_switch_chips[KSZ8567]
+	},
+	{
 		.compatible = "microchip,ksz9567",
 		.data = &ksz_switch_chips[KSZ9567]
 	},
@@ -207,6 +208,7 @@ static const struct spi_device_id ksz_spi_ids[] = {
 	{ "ksz9893" },
 	{ "ksz9563" },
 	{ "ksz8563" },
+	{ "ksz8567" },
 	{ "ksz9567" },
 	{ "lan9370" },
 	{ "lan9371" },

@@ -283,8 +283,7 @@ static const struct i2c_algorithm kempld_i2c_algorithm = {
 static const struct i2c_adapter kempld_i2c_adapter = {
 	.owner		= THIS_MODULE,
 	.name		= "i2c-kempld",
-	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD |
-			  I2C_CLASS_DEPRECATED,
+	.class		= I2C_CLASS_HWMON | I2C_CLASS_DEPRECATED,
 	.algo		= &kempld_i2c_algorithm,
 };
 
@@ -350,10 +349,9 @@ static void kempld_i2c_remove(struct platform_device *pdev)
 	i2c_del_adapter(&i2c->adap);
 }
 
-#ifdef CONFIG_PM
-static int kempld_i2c_suspend(struct platform_device *pdev, pm_message_t state)
+static int kempld_i2c_suspend(struct device *dev)
 {
-	struct kempld_i2c_data *i2c = platform_get_drvdata(pdev);
+	struct kempld_i2c_data *i2c = dev_get_drvdata(dev);
 	struct kempld_device_data *pld = i2c->pld;
 	u8 ctrl;
 
@@ -366,9 +364,9 @@ static int kempld_i2c_suspend(struct platform_device *pdev, pm_message_t state)
 	return 0;
 }
 
-static int kempld_i2c_resume(struct platform_device *pdev)
+static int kempld_i2c_resume(struct device *dev)
 {
-	struct kempld_i2c_data *i2c = platform_get_drvdata(pdev);
+	struct kempld_i2c_data *i2c = dev_get_drvdata(dev);
 	struct kempld_device_data *pld = i2c->pld;
 
 	kempld_get_mutex(pld);
@@ -377,19 +375,17 @@ static int kempld_i2c_resume(struct platform_device *pdev)
 
 	return 0;
 }
-#else
-#define kempld_i2c_suspend	NULL
-#define kempld_i2c_resume	NULL
-#endif
+
+static DEFINE_SIMPLE_DEV_PM_OPS(kempld_i2c_pm_ops,
+				kempld_i2c_suspend, kempld_i2c_resume);
 
 static struct platform_driver kempld_i2c_driver = {
 	.driver = {
 		.name = "kempld-i2c",
+		.pm = pm_sleep_ptr(&kempld_i2c_pm_ops),
 	},
 	.probe		= kempld_i2c_probe,
 	.remove_new	= kempld_i2c_remove,
-	.suspend	= kempld_i2c_suspend,
-	.resume		= kempld_i2c_resume,
 };
 
 module_platform_driver(kempld_i2c_driver);

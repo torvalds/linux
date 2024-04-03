@@ -6,8 +6,8 @@
  * Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
  */
 
+#include <linux/export.h>
 #include <linux/linkage.h>
-#include <asm/export.h>
 
 	.text
 ENTRY(__ashrdi3)

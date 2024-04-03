@@ -59,29 +59,21 @@
 		};
 	};
 
-	regulators {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
+	reg_usb_h1_vbus: regulator-usb-h1-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb_h1_vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		startup-delay-us = <2>; /* USB2415 requires a POR of 1 us minimum */
+		gpio = <&gpio7 12 0>;
+	};
 
-		reg_usb_h1_vbus: regulator@0 {
-			compatible = "regulator-fixed";
-			reg = <0>;
-			regulator-name = "usb_h1_vbus";
-			regulator-min-microvolt = <5000000>;
-			regulator-max-microvolt = <5000000>;
-			enable-active-high;
-			startup-delay-us = <2>; /* USB2415 requires a POR of 1 us minimum */
-			gpio = <&gpio7 12 0>;
-		};
-
-		reg_panel: regulator@1 {
-			compatible = "regulator-fixed";
-			reg = <1>;
-			regulator-name = "lcd_panel";
-			enable-active-high;
-			gpio = <&gpio1 2 0>;
-		};
+	reg_panel: regulator-panel {
+		compatible = "regulator-fixed";
+		regulator-name = "lcd_panel";
+		enable-active-high;
+		gpio = <&gpio1 2 0>;
 	};
 
 	sound {

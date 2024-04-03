@@ -56,7 +56,7 @@ void mcf_clrimr(int index)
 	__raw_writew(imr & ~(0x1 << index), MCFSIM_IMR);
 }
 
-void mcf_maskimr(unsigned int mask)
+static void mcf_maskimr(unsigned int mask)
 {
 	u16 imr;
 	imr = __raw_readw(MCFSIM_IMR);
@@ -80,7 +80,7 @@ void mcf_clrimr(int index)
 	__raw_writel(imr & ~(0x1 << index), MCFSIM_IMR);
 }
 
-void mcf_maskimr(unsigned int mask)
+static void mcf_maskimr(unsigned int mask)
 {
 	u32 imr;
 	imr = __raw_readl(MCFSIM_IMR);

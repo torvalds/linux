@@ -117,15 +117,15 @@ static void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 	TLBCAM[index].MAS2 |= (flags & _PAGE_ENDIAN) ? MAS2_E : 0;
 
 	TLBCAM[index].MAS3 = (phys & MAS3_RPN) | MAS3_SR;
-	TLBCAM[index].MAS3 |= (flags & _PAGE_RW) ? MAS3_SW : 0;
+	TLBCAM[index].MAS3 |= (flags & _PAGE_WRITE) ? MAS3_SW : 0;
 	if (mmu_has_feature(MMU_FTR_BIG_PHYS))
 		TLBCAM[index].MAS7 = (u64)phys >> 32;
 
 	/* Below is unlikely -- only for large user pages or similar */
-	if (pte_user(__pte(flags))) {
+	if (!is_kernel_addr(virt)) {
 		TLBCAM[index].MAS3 |= MAS3_UR;
 		TLBCAM[index].MAS3 |= (flags & _PAGE_EXEC) ? MAS3_UX : 0;
-		TLBCAM[index].MAS3 |= (flags & _PAGE_RW) ? MAS3_UW : 0;
+		TLBCAM[index].MAS3 |= (flags & _PAGE_WRITE) ? MAS3_UW : 0;
 	} else {
 		TLBCAM[index].MAS3 |= (flags & _PAGE_EXEC) ? MAS3_SX : 0;
 	}
@@ -285,19 +285,23 @@ void __init adjust_total_lowmem(void)
 }
 
 #ifdef CONFIG_STRICT_KERNEL_RWX
-void mmu_mark_rodata_ro(void)
+int mmu_mark_rodata_ro(void)
 {
 	unsigned long remapped;
 
 	remapped = map_mem_in_cams(__max_low_memory, CONFIG_LOWMEM_CAM_NUM, false, false);
 
-	WARN_ON(__max_low_memory != remapped);
+	if (WARN_ON(__max_low_memory != remapped))
+		return -EINVAL;
+
+	return 0;
 }
 #endif
 
-void mmu_mark_initmem_nx(void)
+int mmu_mark_initmem_nx(void)
 {
 	/* Everything is done in mmu_mark_rodata_ro() */
+	return 0;
 }
 
 void setup_initial_memory_limit(phys_addr_t first_memblock_base,

@@ -54,3 +54,4 @@ module_exit(exit_rc_map_alink_dtu_m)
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Antti Palosaari <crope@iki.fi>");
+MODULE_DESCRIPTION("A-Link DTU(m) slim remote, 6 rows, 3 columns.");

@@ -17,7 +17,7 @@
 #include <linux/mmc/slot-gpio.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 
@@ -443,7 +443,7 @@ sdhci_pltfm_free:
 	return ret;
 }
 
-static int sdhci_at91_remove(struct platform_device *pdev)
+static void sdhci_at91_remove(struct platform_device *pdev)
 {
 	struct sdhci_host	*host = platform_get_drvdata(pdev);
 	struct sdhci_pltfm_host	*pltfm_host = sdhci_priv(host);
@@ -456,13 +456,11 @@ static int sdhci_at91_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
 
-	sdhci_pltfm_unregister(pdev);
+	sdhci_pltfm_remove(pdev);
 
 	clk_disable_unprepare(gck);
 	clk_disable_unprepare(hclock);
 	clk_disable_unprepare(mainck);
-
-	return 0;
 }
 
 static struct platform_driver sdhci_at91_driver = {
@@ -473,7 +471,7 @@ static struct platform_driver sdhci_at91_driver = {
 		.pm	= &sdhci_at91_dev_pm_ops,
 	},
 	.probe		= sdhci_at91_probe,
-	.remove		= sdhci_at91_remove,
+	.remove_new	= sdhci_at91_remove,
 };
 
 module_platform_driver(sdhci_at91_driver);

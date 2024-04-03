@@ -39,5 +39,6 @@ char *strpbrk_esc(char *str, const char *stopset);
 char *strdup_esc(const char *str);
 
 unsigned int hex(char c);
+char *strreplace_chars(char needle, const char *haystack, const char *replace);
 
 #endif /* PERF_STRING_H */

@@ -265,8 +265,8 @@
 
 
 #define NI_DIG_BE_CNTL                    0x7140
-#       define NI_DIG_BE_CNTL_FE_SOURCE_SELECT(x)     (((x) >> 8 ) & 0x3F)
-#       define NI_DIG_FE_CNTL_MODE(x)                 (((x) >> 16) & 0x7 )
+#       define NI_DIG_BE_CNTL_FE_SOURCE_SELECT(x)     (((x) >> 8) & 0x3F)
+#       define NI_DIG_FE_CNTL_MODE(x)                 (((x) >> 16) & 0x7)
 
 #define NI_DIG_BE_EN_CNTL                              0x7144
 #       define NI_DIG_BE_EN_CNTL_ENABLE               (1 << 0)
@@ -284,7 +284,7 @@
 
 #define EVERGREEN_DP_VID_STREAM_CNTL                    0x730C
 #       define EVERGREEN_DP_VID_STREAM_CNTL_ENABLE     (1 << 0)
-#       define EVERGREEN_DP_VID_STREAM_STATUS          (1 <<16)
+#       define EVERGREEN_DP_VID_STREAM_STATUS          (1 << 16)
 #define EVERGREEN_DP_STEER_FIFO                         0x7310
 #       define EVERGREEN_DP_STEER_FIFO_RESET           (1 << 0)
 #define EVERGREEN_DP_SEC_CNTL                           0x7280
@@ -302,8 +302,8 @@
 #       define EVERGREEN_DP_SEC_SS_EN                   (1 << 28)
 
 /*DCIO_UNIPHY block*/
-#define NI_DCIO_UNIPHY0_UNIPHY_TX_CONTROL1            (0x6600  -0x6600)
-#define NI_DCIO_UNIPHY1_UNIPHY_TX_CONTROL1            (0x6640  -0x6600)
+#define NI_DCIO_UNIPHY0_UNIPHY_TX_CONTROL1            (0x6600 - 0x6600)
+#define NI_DCIO_UNIPHY1_UNIPHY_TX_CONTROL1            (0x6640 - 0x6600)
 #define NI_DCIO_UNIPHY2_UNIPHY_TX_CONTROL1            (0x6680 - 0x6600)
 #define NI_DCIO_UNIPHY3_UNIPHY_TX_CONTROL1            (0x66C0 - 0x6600)
 #define NI_DCIO_UNIPHY4_UNIPHY_TX_CONTROL1            (0x6700 - 0x6600)

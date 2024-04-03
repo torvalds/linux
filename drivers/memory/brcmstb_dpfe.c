@@ -32,8 +32,7 @@
 #include <linux/firmware.h>
 #include <linux/io.h>
 #include <linux/module.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 
 #define DRVNAME			"brcmstb-dpfe"
@@ -910,13 +909,11 @@ static int brcmstb_dpfe_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int brcmstb_dpfe_remove(struct platform_device *pdev)
+static void brcmstb_dpfe_remove(struct platform_device *pdev)
 {
 	struct brcmstb_dpfe_priv *priv = dev_get_drvdata(&pdev->dev);
 
 	sysfs_remove_groups(&pdev->dev.kobj, priv->dpfe_api->sysfs_attrs);
-
-	return 0;
 }
 
 static const struct of_device_id brcmstb_dpfe_of_match[] = {
@@ -937,7 +934,7 @@ static struct platform_driver brcmstb_dpfe_driver = {
 		.of_match_table = brcmstb_dpfe_of_match,
 	},
 	.probe = brcmstb_dpfe_probe,
-	.remove	= brcmstb_dpfe_remove,
+	.remove_new = brcmstb_dpfe_remove,
 	.resume = brcmstb_dpfe_resume,
 };
 

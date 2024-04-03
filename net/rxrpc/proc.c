@@ -52,9 +52,9 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	struct rxrpc_call *call;
 	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
 	enum rxrpc_call_state state;
-	unsigned long timeout = 0;
 	rxrpc_seq_t acks_hard_ack;
 	char lbuff[50], rbuff[50];
+	long timeout = 0;
 
 	if (v == &rxnet->calls) {
 		seq_puts(seq,
@@ -76,10 +76,8 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	sprintf(rbuff, "%pISpc", &call->dest_srx.transport);
 
 	state = rxrpc_call_state(call);
-	if (state != RXRPC_CALL_SERVER_PREALLOC) {
-		timeout = READ_ONCE(call->expect_rx_by);
-		timeout -= jiffies;
-	}
+	if (state != RXRPC_CALL_SERVER_PREALLOC)
+		timeout = ktime_ms_delta(READ_ONCE(call->expect_rx_by), ktime_get_real());
 
 	acks_hard_ack = READ_ONCE(call->acks_hard_ack);
 	seq_printf(seq,
@@ -181,7 +179,7 @@ print:
 		   atomic_read(&conn->active),
 		   state,
 		   key_serial(conn->key),
-		   atomic_read(&conn->serial),
+		   conn->tx_serial,
 		   conn->hi_serial,
 		   conn->channels[0].call_id,
 		   conn->channels[1].call_id,
@@ -196,6 +194,82 @@ const struct seq_operations rxrpc_connection_seq_ops = {
 	.next   = rxrpc_connection_seq_next,
 	.stop   = rxrpc_connection_seq_stop,
 	.show   = rxrpc_connection_seq_show,
+};
+
+/*
+ * generate a list of extant virtual bundles in /proc/net/rxrpc/bundles
+ */
+static void *rxrpc_bundle_seq_start(struct seq_file *seq, loff_t *_pos)
+	__acquires(rxnet->conn_lock)
+{
+	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
+
+	read_lock(&rxnet->conn_lock);
+	return seq_list_start_head(&rxnet->bundle_proc_list, *_pos);
+}
+
+static void *rxrpc_bundle_seq_next(struct seq_file *seq, void *v,
+				       loff_t *pos)
+{
+	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
+
+	return seq_list_next(v, &rxnet->bundle_proc_list, pos);
+}
+
+static void rxrpc_bundle_seq_stop(struct seq_file *seq, void *v)
+	__releases(rxnet->conn_lock)
+{
+	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
+
+	read_unlock(&rxnet->conn_lock);
+}
+
+static int rxrpc_bundle_seq_show(struct seq_file *seq, void *v)
+{
+	struct rxrpc_bundle *bundle;
+	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
+	char lbuff[50], rbuff[50];
+
+	if (v == &rxnet->bundle_proc_list) {
+		seq_puts(seq,
+			 "Proto Local                                          "
+			 " Remote                                         "
+			 " SvID Ref Act Flg Key      |"
+			 " Bundle   Conn_0   Conn_1   Conn_2   Conn_3\n"
+			 );
+		return 0;
+	}
+
+	bundle = list_entry(v, struct rxrpc_bundle, proc_link);
+
+	sprintf(lbuff, "%pISpc", &bundle->local->srx.transport);
+	sprintf(rbuff, "%pISpc", &bundle->peer->srx.transport);
+	seq_printf(seq,
+		   "UDP   %-47.47s %-47.47s %4x %3u %3d"
+		   " %c%c%c %08x | %08x %08x %08x %08x %08x\n",
+		   lbuff,
+		   rbuff,
+		   bundle->service_id,
+		   refcount_read(&bundle->ref),
+		   atomic_read(&bundle->active),
+		   bundle->try_upgrade ? 'U' : '-',
+		   bundle->exclusive ? 'e' : '-',
+		   bundle->upgrade ? 'u' : '-',
+		   key_serial(bundle->key),
+		   bundle->debug_id,
+		   bundle->conn_ids[0],
+		   bundle->conn_ids[1],
+		   bundle->conn_ids[2],
+		   bundle->conn_ids[3]);
+
+	return 0;
+}
+
+const struct seq_operations rxrpc_bundle_seq_ops = {
+	.start  = rxrpc_bundle_seq_start,
+	.next   = rxrpc_bundle_seq_next,
+	.stop   = rxrpc_bundle_seq_stop,
+	.show   = rxrpc_bundle_seq_show,
 };
 
 /*
@@ -233,7 +307,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 		   peer->mtu,
 		   now - peer->last_tx_at,
 		   peer->srtt_us >> 3,
-		   jiffies_to_usecs(peer->rto_j));
+		   peer->rto_us);
 
 	return 0;
 }

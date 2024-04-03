@@ -150,7 +150,7 @@ enum SQ_INTERRUPT_ERROR_TYPE {
 
 static void print_sq_intr_info_auto(uint32_t context_id0, uint32_t context_id1)
 {
-	pr_debug(
+	pr_debug_ratelimited(
 		"sq_intr: auto, ttrace %d, wlt %d, ttrace_buf_full %d, reg_tms %d, cmd_tms %d, host_cmd_ovf %d, host_reg_ovf %d, immed_ovf %d, ttrace_utc_err %d\n",
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, THREAD_TRACE),
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_AUTO_CTXID0, WLT),
@@ -165,7 +165,7 @@ static void print_sq_intr_info_auto(uint32_t context_id0, uint32_t context_id1)
 
 static void print_sq_intr_info_inst(uint32_t context_id0, uint32_t context_id1)
 {
-	pr_debug(
+	pr_debug_ratelimited(
 		"sq_intr: inst, data 0x%08x, sh %d, priv %d, wave_id %d, simd_id %d, wgp_id %d\n",
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID0, DATA),
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_WAVE_CTXID0, SH_ID),
@@ -177,7 +177,7 @@ static void print_sq_intr_info_inst(uint32_t context_id0, uint32_t context_id1)
 
 static void print_sq_intr_info_error(uint32_t context_id0, uint32_t context_id1)
 {
-	pr_warn(
+	pr_warn_ratelimited(
 		"sq_intr: error, detail 0x%08x, type %d, sh %d, priv %d, wave_id %d, simd_id %d, wgp_id %d\n",
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0, DETAIL),
 		REG_GET_FIELD(context_id0, SQ_INTERRUPT_WORD_ERROR_CTXID0, TYPE),
@@ -191,6 +191,7 @@ static void print_sq_intr_info_error(uint32_t context_id0, uint32_t context_id1)
 static void event_interrupt_poison_consumption_v11(struct kfd_node *dev,
 				uint16_t pasid, uint16_t source_id)
 {
+	enum amdgpu_ras_block block = 0;
 	int ret = -EINVAL;
 	struct kfd_process *p = kfd_lookup_process_by_pasid(pasid);
 
@@ -210,9 +211,11 @@ static void event_interrupt_poison_consumption_v11(struct kfd_node *dev,
 	case SOC15_INTSRC_SQ_INTERRUPT_MSG:
 		if (dev->dqm->ops.reset_queues)
 			ret = dev->dqm->ops.reset_queues(dev->dqm, pasid);
+		block = AMDGPU_RAS_BLOCK__GFX;
 		break;
 	case SOC21_INTSRC_SDMA_ECC:
 	default:
+		block = AMDGPU_RAS_BLOCK__GFX;
 		break;
 	}
 
@@ -221,9 +224,9 @@ static void event_interrupt_poison_consumption_v11(struct kfd_node *dev,
 	/* resetting queue passes, do page retirement without gpu reset
 	   resetting queue fails, fallback to gpu reset solution */
 	if (!ret)
-		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, false);
+		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, false);
 	else
-		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, true);
+		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, block, true);
 }
 
 static bool event_interrupt_isr_v11(struct kfd_node *dev,
@@ -325,7 +328,8 @@ static void event_interrupt_wq_v11(struct kfd_node *dev,
 		/* CP */
 		if (source_id == SOC15_INTSRC_CP_END_OF_PIPE)
 			kfd_signal_event_interrupt(pasid, context_id0, 32);
-		else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE)
+		else if (source_id == SOC15_INTSRC_CP_BAD_OPCODE &&
+			 KFD_DBG_EC_TYPE_IS_PACKET(KFD_CTXID0_CP_BAD_OP_ECODE(context_id0)))
 			kfd_set_dbg_ev_from_interrupt(dev, pasid,
 				KFD_CTXID0_DOORBELL_ID(context_id0),
 				KFD_EC_MASK(KFD_CTXID0_CP_BAD_OP_ECODE(context_id0)),

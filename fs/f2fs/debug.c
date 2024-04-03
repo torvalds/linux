@@ -41,7 +41,7 @@ void f2fs_update_sit_info(struct f2fs_sb_info *sbi)
 	total_vblocks = 0;
 	blks_per_sec = CAP_BLKS_PER_SEC(sbi);
 	hblks_per_sec = blks_per_sec / 2;
-	for (segno = 0; segno < MAIN_SEGS(sbi); segno += sbi->segs_per_sec) {
+	for (segno = 0; segno < MAIN_SEGS(sbi); segno += SEGS_PER_SEC(sbi)) {
 		vblocks = get_valid_blocks(sbi, segno, true);
 		dist = abs(vblocks - hblks_per_sec);
 		bimodal += dist * dist;
@@ -135,7 +135,7 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->cur_ckpt_time = sbi->cprc_info.cur_time;
 	si->peak_ckpt_time = sbi->cprc_info.peak_time;
 	spin_unlock(&sbi->cprc_info.stat_lock);
-	si->total_count = (int)sbi->user_block_count / sbi->blocks_per_seg;
+	si->total_count = BLKS_TO_SEGS(sbi, (int)sbi->user_block_count);
 	si->rsvd_segs = reserved_segments(sbi);
 	si->overp_segs = overprovision_segments(sbi);
 	si->valid_count = valid_user_blocks(sbi);
@@ -176,11 +176,10 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 	si->alloc_nids = NM_I(sbi)->nid_cnt[PREALLOC_NID];
 	si->io_skip_bggc = sbi->io_skip_bggc;
 	si->other_skip_bggc = sbi->other_skip_bggc;
-	si->util_free = (int)(free_user_blocks(sbi) >> sbi->log_blocks_per_seg)
+	si->util_free = (int)(BLKS_TO_SEGS(sbi, free_user_blocks(sbi)))
 		* 100 / (int)(sbi->user_block_count >> sbi->log_blocks_per_seg)
 		/ 2;
-	si->util_valid = (int)(written_block_count(sbi) >>
-						sbi->log_blocks_per_seg)
+	si->util_valid = (int)(BLKS_TO_SEGS(sbi, written_block_count(sbi)))
 		* 100 / (int)(sbi->user_block_count >> sbi->log_blocks_per_seg)
 		/ 2;
 	si->util_invalid = 50 - si->util_free - si->util_valid;
@@ -208,12 +207,15 @@ static void update_general_status(struct f2fs_sb_info *sbi)
 		if (!blks)
 			continue;
 
-		if (blks == sbi->blocks_per_seg)
+		if (blks == BLKS_PER_SEG(sbi))
 			si->full_seg[type]++;
 		else
 			si->dirty_seg[type]++;
 		si->valid_blks[type] += blks;
 	}
+
+	for (i = 0; i < MAX_CALL_TYPE; i++)
+		si->cp_call_count[i] = atomic_read(&sbi->cp_call_count[i]);
 
 	for (i = 0; i < 2; i++) {
 		si->segment_count[i] = sbi->segment_count[i];
@@ -497,7 +499,9 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - Prefree: %d\n  - Free: %d (%d)\n\n",
 			   si->prefree_count, si->free_segs, si->free_secs);
 		seq_printf(s, "CP calls: %d (BG: %d)\n",
-				si->cp_count, si->bg_cp_count);
+			   si->cp_call_count[TOTAL_CALL],
+			   si->cp_call_count[BACKGROUND]);
+		seq_printf(s, "CP count: %d\n", si->cp_count);
 		seq_printf(s, "  - cp blocks : %u\n", si->meta_count[META_CP]);
 		seq_printf(s, "  - sit blocks : %u\n",
 				si->meta_count[META_SIT]);
@@ -511,12 +515,24 @@ static int stat_show(struct seq_file *s, void *v)
 		seq_printf(s, "  - Total : %4d\n", si->nr_total_ckpt);
 		seq_printf(s, "  - Cur time : %4d(ms)\n", si->cur_ckpt_time);
 		seq_printf(s, "  - Peak time : %4d(ms)\n", si->peak_ckpt_time);
-		seq_printf(s, "GC calls: %d (BG: %d)\n",
-			   si->call_count, si->bg_gc);
-		seq_printf(s, "  - data segments : %d (%d)\n",
-				si->data_segs, si->bg_data_segs);
-		seq_printf(s, "  - node segments : %d (%d)\n",
-				si->node_segs, si->bg_node_segs);
+		seq_printf(s, "GC calls: %d (gc_thread: %d)\n",
+			   si->gc_call_count[BACKGROUND] +
+			   si->gc_call_count[FOREGROUND],
+			   si->gc_call_count[BACKGROUND]);
+		if (__is_large_section(sbi)) {
+			seq_printf(s, "  - data sections : %d (BG: %d)\n",
+					si->gc_secs[DATA][BG_GC] + si->gc_secs[DATA][FG_GC],
+					si->gc_secs[DATA][BG_GC]);
+			seq_printf(s, "  - node sections : %d (BG: %d)\n",
+					si->gc_secs[NODE][BG_GC] + si->gc_secs[NODE][FG_GC],
+					si->gc_secs[NODE][BG_GC]);
+		}
+		seq_printf(s, "  - data segments : %d (BG: %d)\n",
+				si->gc_segs[DATA][BG_GC] + si->gc_segs[DATA][FG_GC],
+				si->gc_segs[DATA][BG_GC]);
+		seq_printf(s, "  - node segments : %d (BG: %d)\n",
+				si->gc_segs[NODE][BG_GC] + si->gc_segs[NODE][FG_GC],
+				si->gc_segs[NODE][BG_GC]);
 		seq_puts(s, "  - Reclaimed segs :\n");
 		seq_printf(s, "    - Normal : %d\n", sbi->gc_reclaimed_segs[GC_NORMAL]);
 		seq_printf(s, "    - Idle CB : %d\n", sbi->gc_reclaimed_segs[GC_IDLE_CB]);
@@ -687,6 +703,8 @@ int f2fs_build_stats(struct f2fs_sb_info *sbi)
 	atomic_set(&sbi->inplace_count, 0);
 	for (i = META_CP; i < META_MAX; i++)
 		atomic_set(&sbi->meta_count[i], 0);
+	for (i = 0; i < MAX_CALL_TYPE; i++)
+		atomic_set(&sbi->cp_call_count[i], 0);
 
 	atomic_set(&sbi->max_aw_cnt, 0);
 

@@ -1,0 +1,139 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/rockchip/rockchip,inno-hdmi.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Rockchip Innosilicon HDMI controller
+
+maintainers:
+  - Sandy Huang <hjc@rock-chips.com>
+  - Heiko Stuebner <heiko@sntech.de>
+
+properties:
+  compatible:
+    enum:
+      - rockchip,rk3036-inno-hdmi
+      - rockchip,rk3128-inno-hdmi
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    items:
+      - description: The HDMI controller main clock
+      - description: The HDMI PHY reference clock
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: pclk
+      - const: ref
+
+  power-domains:
+    maxItems: 1
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Port node with one endpoint connected to a vop node.
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description:
+          Port node with one endpoint connected to a hdmi-connector node.
+
+    required:
+      - port@0
+      - port@1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - pinctrl-0
+  - pinctrl-names
+  - ports
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3036-inno-hdmi
+
+    then:
+      properties:
+        power-domains: false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: rockchip,rk3128-inno-hdmi
+
+    then:
+      properties:
+        clocks:
+          minItems: 2
+        clock-names:
+          minItems: 2
+      required:
+        - power-domains
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/rk3036-cru.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/pinctrl/rockchip.h>
+    hdmi: hdmi@20034000 {
+      compatible = "rockchip,rk3036-inno-hdmi";
+      reg = <0x20034000 0x4000>;
+      interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+      clocks = <&cru  PCLK_HDMI>;
+      clock-names = "pclk";
+      pinctrl-names = "default";
+      pinctrl-0 = <&hdmi_ctl>;
+
+      ports {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        hdmi_in: port@0 {
+          reg = <0>;
+          hdmi_in_vop: endpoint {
+            remote-endpoint = <&vop_out_hdmi>;
+          };
+        };
+
+        hdmi_out: port@1 {
+          reg = <1>;
+          hdmi_out_con: endpoint {
+            remote-endpoint = <&hdmi_con_in>;
+          };
+        };
+      };
+    };
+
+    pinctrl {
+      hdmi {
+        hdmi_ctl: hdmi-ctl {
+          rockchip,pins = <1 RK_PB0 1 &pcfg_pull_none>,
+                          <1 RK_PB1 1 &pcfg_pull_none>,
+                          <1 RK_PB2 1 &pcfg_pull_none>,
+                          <1 RK_PB3 1 &pcfg_pull_none>;
+        };
+      };
+    };

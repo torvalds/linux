@@ -207,7 +207,7 @@ SYM_FUNC_START(__svm_vcpu_run)
 7:	vmload %_ASM_AX
 8:
 
-#ifdef CONFIG_RETPOLINE
+#ifdef CONFIG_MITIGATION_RETPOLINE
 	/* IMPORTANT: Stuff the RSB immediately after VM-Exit, before RET! */
 	FILL_RETURN_BUFFER %_ASM_AX, RSB_CLEAR_LOOPS, X86_FEATURE_RETPOLINE
 #endif
@@ -222,10 +222,7 @@ SYM_FUNC_START(__svm_vcpu_run)
 	 * because interrupt handlers won't sanitize 'ret' if the return is
 	 * from the kernel.
 	 */
-	UNTRAIN_RET
-
-	/* SRSO */
-	ALTERNATIVE "", "call entry_ibpb", X86_FEATURE_IBPB_ON_VMEXIT
+	UNTRAIN_RET_VM
 
 	/*
 	 * Clear all general purpose registers except RSP and RAX to prevent
@@ -273,16 +270,16 @@ SYM_FUNC_START(__svm_vcpu_run)
 	RESTORE_GUEST_SPEC_CTRL_BODY
 	RESTORE_HOST_SPEC_CTRL_BODY
 
-10:	cmpb $0, kvm_rebooting
+10:	cmpb $0, _ASM_RIP(kvm_rebooting)
 	jne 2b
 	ud2
-30:	cmpb $0, kvm_rebooting
+30:	cmpb $0, _ASM_RIP(kvm_rebooting)
 	jne 4b
 	ud2
-50:	cmpb $0, kvm_rebooting
+50:	cmpb $0, _ASM_RIP(kvm_rebooting)
 	jne 6b
 	ud2
-70:	cmpb $0, kvm_rebooting
+70:	cmpb $0, _ASM_RIP(kvm_rebooting)
 	jne 8b
 	ud2
 
@@ -347,7 +344,7 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	/* Pop @svm to RDI, guest registers have been saved already. */
 	pop %_ASM_DI
 
-#ifdef CONFIG_RETPOLINE
+#ifdef CONFIG_MITIGATION_RETPOLINE
 	/* IMPORTANT: Stuff the RSB immediately after VM-Exit, before RET! */
 	FILL_RETURN_BUFFER %_ASM_AX, RSB_CLEAR_LOOPS, X86_FEATURE_RETPOLINE
 #endif
@@ -362,7 +359,7 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	 * because interrupt handlers won't sanitize RET if the return is
 	 * from the kernel.
 	 */
-	UNTRAIN_RET
+	UNTRAIN_RET_VM
 
 	/* "Pop" @spec_ctrl_intercepted.  */
 	pop %_ASM_BX
@@ -384,7 +381,7 @@ SYM_FUNC_START(__svm_sev_es_vcpu_run)
 	RESTORE_GUEST_SPEC_CTRL_BODY
 	RESTORE_HOST_SPEC_CTRL_BODY
 
-3:	cmpb $0, kvm_rebooting
+3:	cmpb $0, _ASM_RIP(kvm_rebooting)
 	jne 2b
 	ud2
 

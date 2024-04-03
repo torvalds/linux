@@ -647,7 +647,7 @@ static int ea_put(tid_t tid, struct inode *inode, struct ea_buffer *ea_buf,
 	if (old_blocks)
 		dquot_free_block(inode, old_blocks);
 
-	inode->i_ctime = current_time(inode);
+	inode_set_ctime_current(inode);
 
 	return 0;
 }
@@ -985,7 +985,7 @@ static const struct xattr_handler jfs_trusted_xattr_handler = {
 	.set = jfs_xattr_set,
 };
 
-const struct xattr_handler *jfs_xattr_handlers[] = {
+const struct xattr_handler * const jfs_xattr_handlers[] = {
 	&jfs_os2_xattr_handler,
 	&jfs_user_xattr_handler,
 	&jfs_security_xattr_handler,

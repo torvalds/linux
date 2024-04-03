@@ -43,7 +43,7 @@
 #include <linux/ioport.h>
 #include <linux/iopoll.h>
 #include <linux/in.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_net.h>
 #include <linux/slab.h>
 #include <linux/string.h>
@@ -1380,13 +1380,11 @@ static int korina_probe(struct platform_device *pdev)
 	return rc;
 }
 
-static int korina_remove(struct platform_device *pdev)
+static void korina_remove(struct platform_device *pdev)
 {
 	struct net_device *dev = platform_get_drvdata(pdev);
 
 	unregister_netdev(dev);
-
-	return 0;
 }
 
 #ifdef CONFIG_OF
@@ -1405,7 +1403,7 @@ static struct platform_driver korina_driver = {
 		.of_match_table = of_match_ptr(korina_match),
 	},
 	.probe = korina_probe,
-	.remove = korina_remove,
+	.remove_new = korina_remove,
 };
 
 module_platform_driver(korina_driver);

@@ -12,6 +12,7 @@
 
 #define RWBS_LEN	8
 
+#ifdef CONFIG_BUFFER_HEAD
 DECLARE_EVENT_CLASS(block_buffer,
 
 	TP_PROTO(struct buffer_head *bh),
@@ -61,6 +62,7 @@ DEFINE_EVENT(block_buffer, block_dirty_buffer,
 
 	TP_ARGS(bh)
 );
+#endif /* CONFIG_BUFFER_HEAD */
 
 /**
  * block_rq_requeue - place block IO request back on a queue

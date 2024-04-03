@@ -30,7 +30,7 @@
 #include "smp.h"
 #include "mpc85xx.h"
 
-void __init corenet_gen_pic_init(void)
+static void __init corenet_gen_pic_init(void)
 {
 	struct mpic *mpic;
 	unsigned int flags = MPIC_BIG_ENDIAN | MPIC_SINGLE_DEST_CPU |
@@ -48,7 +48,7 @@ void __init corenet_gen_pic_init(void)
 /*
  * Setup the architecture
  */
-void __init corenet_gen_setup_arch(void)
+static void __init corenet_gen_setup_arch(void)
 {
 	mpc85xx_smp_init();
 
@@ -101,7 +101,7 @@ static const struct of_device_id of_device_ids[] = {
 	{}
 };
 
-int __init corenet_gen_publish_devices(void)
+static int __init corenet_gen_publish_devices(void)
 {
 	return of_platform_bus_probe(NULL, of_device_ids, NULL);
 }
@@ -149,7 +149,7 @@ static int __init corenet_generic_probe(void)
 	extern struct smp_ops_t smp_85xx_ops;
 #endif
 
-	if (of_device_compatible_match(of_root, boards))
+	if (of_machine_compatible_match(boards))
 		return 1;
 
 	/* Check if we're running under the Freescale hypervisor */

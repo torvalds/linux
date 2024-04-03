@@ -45,14 +45,28 @@ properties:
       The second cell is the ASEL value for the channel
 
   reg:
-    maxItems: 4
+    minItems: 4
+    items:
+      - description: Packet DMA Control /Status Registers region
+      - description: RX Channel Realtime Registers region
+      - description: TX Channel Realtime Registers region
+      - description: Ring Realtime Registers region
+      - description: Ring Configuration Registers region
+      - description: TX Configuration Registers region
+      - description: RX Configuration Registers region
+      - description: RX Flow Configuration Registers region
 
   reg-names:
+    minItems: 4
     items:
       - const: gcfg
       - const: rchanrt
       - const: tchanrt
       - const: ringrt
+      - const: ring
+      - const: tchan
+      - const: rchan
+      - const: rflow
 
   msi-parent: true
 
@@ -136,8 +150,14 @@ examples:
                 reg = <0x0 0x485c0000 0x0 0x100>,
                       <0x0 0x4a800000 0x0 0x20000>,
                       <0x0 0x4aa00000 0x0 0x40000>,
-                      <0x0 0x4b800000 0x0 0x400000>;
-                reg-names = "gcfg", "rchanrt", "tchanrt", "ringrt";
+                      <0x0 0x4b800000 0x0 0x400000>,
+                      <0x0 0x485e0000 0x0 0x20000>,
+                      <0x0 0x484a0000 0x0 0x4000>,
+                      <0x0 0x484c0000 0x0 0x2000>,
+                      <0x0 0x48430000 0x0 0x4000>;
+                reg-names = "gcfg", "rchanrt", "tchanrt", "ringrt",
+                            "ring", "tchan", "rchan", "rflow";
+
                 msi-parent = <&inta_main_dmss>;
                 #dma-cells = <2>;
 

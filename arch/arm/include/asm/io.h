@@ -407,12 +407,6 @@ struct pci_dev;
 #define pci_iounmap pci_iounmap
 extern void pci_iounmap(struct pci_dev *dev, void __iomem *addr);
 
-/*
- * Convert a physical pointer to a virtual kernel pointer for /dev/mem
- * access
- */
-#define xlate_dev_mem_ptr(p)	__va(p)
-
 #include <asm-generic/io.h>
 
 #ifdef CONFIG_MMU

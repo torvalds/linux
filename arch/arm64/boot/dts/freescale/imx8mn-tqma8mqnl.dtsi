@@ -208,13 +208,20 @@
 		read-only;
 		reg = <0x53>;
 		pagesize = <16>;
+		vcc-supply = <&reg_vcc3v3>;
 	};
 
 	eeprom0: eeprom@57 {
 		compatible = "atmel,24c64";
 		reg = <0x57>;
 		pagesize = <32>;
+		vcc-supply = <&reg_vcc3v3>;
 	};
+};
+
+&mipi_dsi {
+	vddcore-supply = <&ldo4_reg>;
+	vddio-supply = <&ldo3_reg>;
 };
 
 &usdhc3 {

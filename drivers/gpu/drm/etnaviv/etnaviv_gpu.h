@@ -54,6 +54,18 @@ struct etnaviv_chip_identity {
 	/* Number of Neural Network cores. */
 	u32 nn_core_count;
 
+	/* Number of MAD units per Neural Network core. */
+	u32 nn_mad_per_core;
+
+	/* Number of Tensor Processing cores. */
+	u32 tp_core_count;
+
+	/* Size in bytes of the SRAM inside the NPU. */
+	u32 on_chip_sram_size;
+
+	/* Size in bytes of the SRAM across the AXI bus. */
+	u32 axi_sram_size;
+
 	/* Size of the vertex cache. */
 	u32 vertex_cache_size;
 
@@ -95,6 +107,15 @@ struct clk;
 
 #define ETNA_NR_EVENTS 30
 
+enum etnaviv_gpu_state {
+	ETNA_GPU_STATE_UNKNOWN = 0,
+	ETNA_GPU_STATE_IDENTIFIED,
+	ETNA_GPU_STATE_RESET,
+	ETNA_GPU_STATE_INITIALIZED,
+	ETNA_GPU_STATE_RUNNING,
+	ETNA_GPU_STATE_FAULT,
+};
+
 struct etnaviv_gpu {
 	struct drm_device *drm;
 	struct thermal_cooling_device *cooling;
@@ -105,8 +126,7 @@ struct etnaviv_gpu {
 	struct workqueue_struct *wq;
 	struct mutex sched_lock;
 	struct drm_gpu_scheduler sched;
-	bool initialized;
-	bool fe_running;
+	enum etnaviv_gpu_state state;
 
 	/* 'ring'-buffer: */
 	struct etnaviv_cmdbuf buffer;
@@ -150,6 +170,7 @@ struct etnaviv_gpu {
 	struct clk *clk_shader;
 
 	unsigned int freq_scale;
+	unsigned int fe_waitcycles;
 	unsigned long base_rate_core;
 	unsigned long base_rate_shader;
 };

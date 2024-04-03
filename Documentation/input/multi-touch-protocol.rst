@@ -383,7 +383,7 @@ Finger Tracking
 ---------------
 
 The process of finger tracking, i.e., to assign a unique trackingID to each
-initiated contact on the surface, is a Euclidian Bipartite Matching
+initiated contact on the surface, is a Euclidean Bipartite Matching
 problem.  At each event synchronization, the set of actual contacts is
 matched to the set of contacts from the previous synchronization. A full
 implementation can be found in [#f3]_.

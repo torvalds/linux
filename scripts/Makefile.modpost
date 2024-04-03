@@ -41,6 +41,7 @@ include $(srctree)/scripts/Kbuild.include
 MODPOST = scripts/mod/modpost
 
 modpost-args =										\
+	$(if $(CONFIG_MODULES),-M)							\
 	$(if $(CONFIG_MODVERSIONS),-m)							\
 	$(if $(CONFIG_MODULE_SRCVERSION_ALL),-a)					\
 	$(if $(CONFIG_SECTION_MISMATCH_WARN_ONLY),,-E)					\

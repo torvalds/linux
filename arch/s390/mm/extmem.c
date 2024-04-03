@@ -136,7 +136,7 @@ dcss_diag(int *func, void *parameter,
 	unsigned long rx, ry;
 	int rc;
 
-	rx = (unsigned long) parameter;
+	rx = virt_to_phys(parameter);
 	ry = (unsigned long) *func;
 
 	diag_stat_inc(DIAG_STAT_X064);
@@ -178,7 +178,7 @@ query_segment_type (struct dcss_segment *seg)
 
 	/* initialize diag input parameters */
 	qin->qopcode = DCSS_FINDSEGA;
-	qin->qoutptr = (unsigned long) qout;
+	qin->qoutptr = virt_to_phys(qout);
 	qin->qoutlen = sizeof(struct qout64);
 	memcpy (qin->qname, seg->dcss_name, 8);
 
@@ -640,10 +640,13 @@ void segment_warning(int rc, char *seg_name)
 		pr_err("There is not enough memory to load or query "
 		       "DCSS %s\n", seg_name);
 		break;
-	case -ERANGE:
-		pr_err("DCSS %s exceeds the kernel mapping range (%lu) "
-		       "and cannot be loaded\n", seg_name, VMEM_MAX_PHYS);
+	case -ERANGE: {
+		struct range mhp_range = arch_get_mappable_range();
+
+		pr_err("DCSS %s exceeds the kernel mapping range (%llu) "
+		       "and cannot be loaded\n", seg_name, mhp_range.end + 1);
 		break;
+	}
 	default:
 		break;
 	}

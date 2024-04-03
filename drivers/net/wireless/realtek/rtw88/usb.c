@@ -33,6 +33,36 @@ static void rtw_usb_fill_tx_checksum(struct rtw_usb *rtwusb,
 	rtw_tx_fill_txdesc_checksum(rtwdev, &pkt_info, skb->data);
 }
 
+static void rtw_usb_reg_sec(struct rtw_dev *rtwdev, u32 addr, __le32 *data)
+{
+	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
+	struct usb_device *udev = rtwusb->udev;
+	bool reg_on_section = false;
+	u16 t_reg = 0x4e0;
+	u8 t_len = 1;
+	int status;
+
+	/* There are three sections:
+	 * 1. on (0x00~0xFF; 0x1000~0x10FF): this section is always powered on
+	 * 2. off (< 0xFE00, excluding "on" section): this section could be
+	 *    powered off
+	 * 3. local (>= 0xFE00): usb specific registers section
+	 */
+	if (addr <= 0xff || (addr >= 0x1000 && addr <= 0x10ff))
+		reg_on_section = true;
+
+	if (!reg_on_section)
+		return;
+
+	status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
+				 RTW_USB_CMD_REQ, RTW_USB_CMD_WRITE,
+				 t_reg, 0, data, t_len, 500);
+
+	if (status != t_len && status != -ENODEV)
+		rtw_err(rtwdev, "%s: reg 0x%x, usb write %u fail, status: %d\n",
+			__func__, t_reg, t_len, status);
+}
+
 static u32 rtw_usb_read(struct rtw_dev *rtwdev, u32 addr, u16 len)
 {
 	struct rtw_usb *rtwusb = rtw_get_usb_priv(rtwdev);
@@ -57,6 +87,11 @@ static u32 rtw_usb_read(struct rtw_dev *rtwdev, u32 addr, u16 len)
 	if (ret < 0 && ret != -ENODEV && count++ < 4)
 		rtw_err(rtwdev, "read register 0x%x failed with %d\n",
 			addr, ret);
+
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8822C ||
+	    rtwdev->chip->id == RTW_CHIP_TYPE_8822B ||
+	    rtwdev->chip->id == RTW_CHIP_TYPE_8821C)
+		rtw_usb_reg_sec(rtwdev, addr, data);
 
 	return le32_to_cpu(*data);
 }
@@ -102,6 +137,11 @@ static void rtw_usb_write(struct rtw_dev *rtwdev, u32 addr, u32 val, int len)
 	if (ret < 0 && ret != -ENODEV && count++ < 4)
 		rtw_err(rtwdev, "write register 0x%x failed with %d\n",
 			addr, ret);
+
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8822C ||
+	    rtwdev->chip->id == RTW_CHIP_TYPE_8822B ||
+	    rtwdev->chip->id == RTW_CHIP_TYPE_8821C)
+		rtw_usb_reg_sec(rtwdev, addr, data);
 }
 
 static void rtw_usb_write8(struct rtw_dev *rtwdev, u32 addr, u8 val)
@@ -142,7 +182,6 @@ static int rtw_usb_parse(struct rtw_dev *rtwdev,
 	struct usb_host_interface *host_interface = &interface->altsetting[0];
 	struct usb_interface_descriptor *interface_desc = &host_interface->desc;
 	struct usb_endpoint_descriptor *endpoint;
-	struct usb_device *usbd = interface_to_usbdev(interface);
 	int num_out_pipes = 0;
 	int i;
 	u8 num;
@@ -182,22 +221,6 @@ static int rtw_usb_parse(struct rtw_dev *rtwdev,
 
 			rtwusb->out_ep[num_out_pipes++] = num;
 		}
-	}
-
-	switch (usbd->speed) {
-	case USB_SPEED_LOW:
-	case USB_SPEED_FULL:
-		rtwusb->bulkout_size = RTW_USB_FULL_SPEED_BULK_SIZE;
-		break;
-	case USB_SPEED_HIGH:
-		rtwusb->bulkout_size = RTW_USB_HIGH_SPEED_BULK_SIZE;
-		break;
-	case USB_SPEED_SUPER:
-		rtwusb->bulkout_size = RTW_USB_SUPER_SPEED_BULK_SIZE;
-		break;
-	default:
-		rtw_err(rtwdev, "failed to detect usb speed\n");
-		return -EINVAL;
 	}
 
 	rtwdev->hci.bulkout_num = num_out_pipes;
@@ -628,8 +651,7 @@ static void rtw_usb_cancel_rx_bufs(struct rtw_usb *rtwusb)
 
 	for (i = 0; i < RTW_USB_RXCB_NUM; i++) {
 		rxcb = &rtwusb->rx_cb[i];
-		if (rxcb->rx_urb)
-			usb_kill_urb(rxcb->rx_urb);
+		usb_kill_urb(rxcb->rx_urb);
 	}
 }
 
@@ -640,10 +662,8 @@ static void rtw_usb_free_rx_bufs(struct rtw_usb *rtwusb)
 
 	for (i = 0; i < RTW_USB_RXCB_NUM; i++) {
 		rxcb = &rtwusb->rx_cb[i];
-		if (rxcb->rx_urb) {
-			usb_kill_urb(rxcb->rx_urb);
-			usb_free_urb(rxcb->rx_urb);
-		}
+		usb_kill_urb(rxcb->rx_urb);
+		usb_free_urb(rxcb->rx_urb);
 	}
 }
 
@@ -654,7 +674,6 @@ static int rtw_usb_alloc_rx_bufs(struct rtw_usb *rtwusb)
 	for (i = 0; i < RTW_USB_RXCB_NUM; i++) {
 		struct rx_usb_ctrl_block *rxcb = &rtwusb->rx_cb[i];
 
-		rxcb->n = i;
 		rxcb->rtwdev = rtwusb->rtwdev;
 		rxcb->rx_urb = usb_alloc_urb(0, GFP_KERNEL);
 		if (!rxcb->rx_urb)
@@ -844,7 +863,7 @@ int rtw_usb_probe(struct usb_interface *intf, const struct usb_device_id *id)
 
 	ret = rtw_core_init(rtwdev);
 	if (ret)
-		goto err_release_hw;
+		goto err_free_rx_bufs;
 
 	ret = rtw_usb_intf_init(rtwdev, intf);
 	if (ret) {
@@ -890,6 +909,9 @@ err_destroy_usb:
 err_deinit_core:
 	rtw_core_deinit(rtwdev);
 
+err_free_rx_bufs:
+	rtw_usb_free_rx_bufs(rtwusb);
+
 err_release_hw:
 	ieee80211_free_hw(hw);
 
@@ -927,5 +949,5 @@ void rtw_usb_disconnect(struct usb_interface *intf)
 EXPORT_SYMBOL(rtw_usb_disconnect);
 
 MODULE_AUTHOR("Realtek Corporation");
-MODULE_DESCRIPTION("Realtek 802.11ac wireless USB driver");
+MODULE_DESCRIPTION("Realtek USB 802.11ac wireless driver");
 MODULE_LICENSE("Dual BSD/GPL");

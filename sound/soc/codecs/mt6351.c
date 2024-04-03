@@ -8,8 +8,8 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
 #include <linux/delay.h>
 
 #include <sound/core.h>

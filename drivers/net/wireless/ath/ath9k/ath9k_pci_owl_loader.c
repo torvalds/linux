@@ -125,7 +125,7 @@ static void owl_rescan(struct pci_dev *pdev)
 
 static void owl_fw_cb(const struct firmware *fw, void *context)
 {
-	struct owl_ctx *ctx = (struct owl_ctx *)context;
+	struct owl_ctx *ctx = context;
 
 	complete(&ctx->eeprom_load);
 

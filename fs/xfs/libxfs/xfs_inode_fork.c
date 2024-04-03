@@ -25,6 +25,8 @@
 #include "xfs_attr_leaf.h"
 #include "xfs_types.h"
 #include "xfs_errortag.h"
+#include "xfs_health.h"
+#include "xfs_symlink_remote.h"
 
 struct kmem_cache *xfs_ifork_cache;
 
@@ -50,12 +52,16 @@ xfs_init_local_fork(
 		mem_size++;
 
 	if (size) {
-		ifp->if_u1.if_data = kmem_alloc(mem_size, KM_NOFS);
-		memcpy(ifp->if_u1.if_data, data, size);
+		char *new_data = kmalloc(mem_size,
+				GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
+
+		memcpy(new_data, data, size);
 		if (zero_terminate)
-			ifp->if_u1.if_data[size] = '\0';
+			new_data[size] = '\0';
+
+		ifp->if_data = new_data;
 	} else {
-		ifp->if_u1.if_data = NULL;
+		ifp->if_data = NULL;
 	}
 
 	ifp->if_bytes = size;
@@ -74,7 +80,7 @@ xfs_iformat_local(
 	/*
 	 * If the size is unreasonable, then something
 	 * is wrong and we just bail out rather than crash in
-	 * kmem_alloc() or memcpy() below.
+	 * kmalloc() or memcpy() below.
 	 */
 	if (unlikely(size > XFS_DFORK_SIZE(dip, ip->i_mount, whichfork))) {
 		xfs_warn(ip->i_mount,
@@ -84,6 +90,7 @@ xfs_iformat_local(
 		xfs_inode_verifier_error(ip, -EFSCORRUPTED,
 				"xfs_iformat_local", dip, sizeof(*dip),
 				__this_address);
+		xfs_inode_mark_sick(ip, XFS_SICK_INO_CORE);
 		return -EFSCORRUPTED;
 	}
 
@@ -113,7 +120,7 @@ xfs_iformat_extents(
 
 	/*
 	 * If the number of extents is unreasonable, then something is wrong and
-	 * we just bail out rather than crash in kmem_alloc() or memcpy() below.
+	 * we just bail out rather than crash in kmalloc() or memcpy() below.
 	 */
 	if (unlikely(size < 0 || size > XFS_DFORK_SIZE(dip, mp, whichfork))) {
 		xfs_warn(ip->i_mount, "corrupt inode %llu ((a)extents = %llu).",
@@ -121,11 +128,12 @@ xfs_iformat_extents(
 		xfs_inode_verifier_error(ip, -EFSCORRUPTED,
 				"xfs_iformat_extents(1)", dip, sizeof(*dip),
 				__this_address);
+		xfs_inode_mark_sick(ip, XFS_SICK_INO_CORE);
 		return -EFSCORRUPTED;
 	}
 
 	ifp->if_bytes = 0;
-	ifp->if_u1.if_root = NULL;
+	ifp->if_data = NULL;
 	ifp->if_height = 0;
 	if (size) {
 		dp = (xfs_bmbt_rec_t *) XFS_DFORK_PTR(dip, whichfork);
@@ -140,6 +148,7 @@ xfs_iformat_extents(
 				xfs_inode_verifier_error(ip, -EFSCORRUPTED,
 						"xfs_iformat_extents(2)",
 						dp, sizeof(*dp), fa);
+				xfs_inode_mark_sick(ip, XFS_SICK_INO_CORE);
 				return xfs_bmap_complain_bad_rec(ip, whichfork,
 						fa, &new);
 			}
@@ -198,11 +207,13 @@ xfs_iformat_btree(
 		xfs_inode_verifier_error(ip, -EFSCORRUPTED,
 				"xfs_iformat_btree", dfp, size,
 				__this_address);
+		xfs_inode_mark_sick(ip, XFS_SICK_INO_CORE);
 		return -EFSCORRUPTED;
 	}
 
 	ifp->if_broot_bytes = size;
-	ifp->if_broot = kmem_alloc(size, KM_NOFS);
+	ifp->if_broot = kmalloc(size,
+				GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
 	ASSERT(ifp->if_broot != NULL);
 	/*
 	 * Copy and convert from the on-disk structure
@@ -212,7 +223,7 @@ xfs_iformat_btree(
 			 ifp->if_broot, size);
 
 	ifp->if_bytes = 0;
-	ifp->if_u1.if_root = NULL;
+	ifp->if_data = NULL;
 	ifp->if_height = 0;
 	return 0;
 }
@@ -262,12 +273,14 @@ xfs_iformat_data_fork(
 		default:
 			xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__,
 					dip, sizeof(*dip), __this_address);
+			xfs_inode_mark_sick(ip, XFS_SICK_INO_CORE);
 			return -EFSCORRUPTED;
 		}
 		break;
 	default:
 		xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__, dip,
 				sizeof(*dip), __this_address);
+		xfs_inode_mark_sick(ip, XFS_SICK_INO_CORE);
 		return -EFSCORRUPTED;
 	}
 }
@@ -276,10 +289,9 @@ static uint16_t
 xfs_dfork_attr_shortform_size(
 	struct xfs_dinode		*dip)
 {
-	struct xfs_attr_shortform	*atp =
-		(struct xfs_attr_shortform *)XFS_DFORK_APTR(dip);
+	struct xfs_attr_sf_hdr		*sf = XFS_DFORK_APTR(dip);
 
-	return be16_to_cpu(atp->hdr.totsize);
+	return be16_to_cpu(sf->totsize);
 }
 
 void
@@ -340,6 +352,7 @@ xfs_iformat_attr_fork(
 	default:
 		xfs_inode_verifier_error(ip, error, __func__, dip,
 				sizeof(*dip), __this_address);
+		xfs_inode_mark_sick(ip, XFS_SICK_INO_CORE);
 		error = -EFSCORRUPTED;
 		break;
 	}
@@ -397,7 +410,8 @@ xfs_iroot_realloc(
 		 */
 		if (ifp->if_broot_bytes == 0) {
 			new_size = XFS_BMAP_BROOT_SPACE_CALC(mp, rec_diff);
-			ifp->if_broot = kmem_alloc(new_size, KM_NOFS);
+			ifp->if_broot = kmalloc(new_size,
+						GFP_KERNEL | __GFP_NOFAIL);
 			ifp->if_broot_bytes = (int)new_size;
 			return;
 		}
@@ -412,7 +426,7 @@ xfs_iroot_realloc(
 		new_max = cur_max + rec_diff;
 		new_size = XFS_BMAP_BROOT_SPACE_CALC(mp, new_max);
 		ifp->if_broot = krealloc(ifp->if_broot, new_size,
-					 GFP_NOFS | __GFP_NOFAIL);
+					 GFP_KERNEL | __GFP_NOFAIL);
 		op = (char *)XFS_BMAP_BROOT_PTR_ADDR(mp, ifp->if_broot, 1,
 						     ifp->if_broot_bytes);
 		np = (char *)XFS_BMAP_BROOT_PTR_ADDR(mp, ifp->if_broot, 1,
@@ -438,7 +452,7 @@ xfs_iroot_realloc(
 	else
 		new_size = 0;
 	if (new_size > 0) {
-		new_broot = kmem_alloc(new_size, KM_NOFS);
+		new_broot = kmalloc(new_size, GFP_KERNEL | __GFP_NOFAIL);
 		/*
 		 * First copy over the btree block header.
 		 */
@@ -468,7 +482,7 @@ xfs_iroot_realloc(
 						     (int)new_size);
 		memcpy(np, op, new_max * (uint)sizeof(xfs_fsblock_t));
 	}
-	kmem_free(ifp->if_broot);
+	kfree(ifp->if_broot);
 	ifp->if_broot = new_broot;
 	ifp->if_broot_bytes = (int)new_size;
 	if (ifp->if_broot)
@@ -486,14 +500,14 @@ xfs_iroot_realloc(
  *
  * If the amount of space needed has decreased below the size of the
  * inline buffer, then switch to using the inline buffer.  Otherwise,
- * use kmem_realloc() or kmem_alloc() to adjust the size of the buffer
+ * use krealloc() or kmalloc() to adjust the size of the buffer
  * to what is needed.
  *
  * ip -- the inode whose if_data area is changing
  * byte_diff -- the change in the number of bytes, positive or negative,
  *	 requested for the if_data array.
  */
-void
+void *
 xfs_idata_realloc(
 	struct xfs_inode	*ip,
 	int64_t			byte_diff,
@@ -505,34 +519,31 @@ xfs_idata_realloc(
 	ASSERT(new_size >= 0);
 	ASSERT(new_size <= xfs_inode_fork_size(ip, whichfork));
 
-	if (byte_diff == 0)
-		return;
-
-	if (new_size == 0) {
-		kmem_free(ifp->if_u1.if_data);
-		ifp->if_u1.if_data = NULL;
-		ifp->if_bytes = 0;
-		return;
+	if (byte_diff) {
+		ifp->if_data = krealloc(ifp->if_data, new_size,
+					GFP_KERNEL | __GFP_NOFAIL);
+		if (new_size == 0)
+			ifp->if_data = NULL;
+		ifp->if_bytes = new_size;
 	}
 
-	ifp->if_u1.if_data = krealloc(ifp->if_u1.if_data, new_size,
-				      GFP_NOFS | __GFP_NOFAIL);
-	ifp->if_bytes = new_size;
+	return ifp->if_data;
 }
 
+/* Free all memory and reset a fork back to its initial state. */
 void
 xfs_idestroy_fork(
 	struct xfs_ifork	*ifp)
 {
 	if (ifp->if_broot != NULL) {
-		kmem_free(ifp->if_broot);
+		kfree(ifp->if_broot);
 		ifp->if_broot = NULL;
 	}
 
 	switch (ifp->if_format) {
 	case XFS_DINODE_FMT_LOCAL:
-		kmem_free(ifp->if_u1.if_data);
-		ifp->if_u1.if_data = NULL;
+		kfree(ifp->if_data);
+		ifp->if_data = NULL;
 		break;
 	case XFS_DINODE_FMT_EXTENTS:
 	case XFS_DINODE_FMT_BTREE:
@@ -563,7 +574,7 @@ xfs_iextents_copy(
 	struct xfs_bmbt_irec	rec;
 	int64_t			copied = 0;
 
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED));
+	xfs_assert_ilocked(ip, XFS_ILOCK_EXCL | XFS_ILOCK_SHARED);
 	ASSERT(ifp->if_bytes > 0);
 
 	for_each_xfs_iext(ifp, &icur, &rec) {
@@ -625,9 +636,9 @@ xfs_iflush_fork(
 	case XFS_DINODE_FMT_LOCAL:
 		if ((iip->ili_fields & dataflag[whichfork]) &&
 		    (ifp->if_bytes > 0)) {
-			ASSERT(ifp->if_u1.if_data != NULL);
+			ASSERT(ifp->if_data != NULL);
 			ASSERT(ifp->if_bytes <= xfs_inode_fork_size(ip, whichfork));
-			memcpy(cp, ifp->if_u1.if_data, ifp->if_bytes);
+			memcpy(cp, ifp->if_data, ifp->if_bytes);
 		}
 		break;
 
@@ -690,7 +701,7 @@ xfs_ifork_init_cow(
 		return;
 
 	ip->i_cowfp = kmem_cache_zalloc(xfs_ifork_cache,
-				       GFP_NOFS | __GFP_NOFAIL);
+				GFP_KERNEL | __GFP_NOLOCKDEP | __GFP_NOFAIL);
 	ip->i_cowfp->if_format = XFS_DINODE_FMT_EXTENTS;
 }
 
@@ -702,19 +713,27 @@ xfs_ifork_verify_local_data(
 	xfs_failaddr_t		fa = NULL;
 
 	switch (VFS_I(ip)->i_mode & S_IFMT) {
-	case S_IFDIR:
-		fa = xfs_dir2_sf_verify(ip);
+	case S_IFDIR: {
+		struct xfs_mount	*mp = ip->i_mount;
+		struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, XFS_DATA_FORK);
+		struct xfs_dir2_sf_hdr	*sfp = ifp->if_data;
+
+		fa = xfs_dir2_sf_verify(mp, sfp, ifp->if_bytes);
 		break;
-	case S_IFLNK:
-		fa = xfs_symlink_shortform_verify(ip);
+	}
+	case S_IFLNK: {
+		struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, XFS_DATA_FORK);
+
+		fa = xfs_symlink_shortform_verify(ifp->if_data, ifp->if_bytes);
 		break;
+	}
 	default:
 		break;
 	}
 
 	if (fa) {
 		xfs_inode_verifier_error(ip, -EFSCORRUPTED, "data fork",
-				ip->i_df.if_u1.if_data, ip->i_df.if_bytes, fa);
+				ip->i_df.if_data, ip->i_df.if_bytes, fa);
 		return -EFSCORRUPTED;
 	}
 
@@ -729,14 +748,17 @@ xfs_ifork_verify_local_attr(
 	struct xfs_ifork	*ifp = &ip->i_af;
 	xfs_failaddr_t		fa;
 
-	if (!xfs_inode_has_attr_fork(ip))
+	if (!xfs_inode_has_attr_fork(ip)) {
 		fa = __this_address;
-	else
-		fa = xfs_attr_shortform_verify(ip);
+	} else {
+		struct xfs_ifork		*ifp = &ip->i_af;
 
+		ASSERT(ifp->if_format == XFS_DINODE_FMT_LOCAL);
+		fa = xfs_attr_shortform_verify(ifp->if_data, ifp->if_bytes);
+	}
 	if (fa) {
 		xfs_inode_verifier_error(ip, -EFSCORRUPTED, "attr fork",
-				ifp->if_u1.if_data, ifp->if_bytes, fa);
+				ifp->if_data, ifp->if_bytes, fa);
 		return -EFSCORRUPTED;
 	}
 
@@ -791,4 +813,13 @@ xfs_iext_count_upgrade(
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
 
 	return 0;
+}
+
+/* Decide if a file mapping is on the realtime device or not. */
+bool
+xfs_ifork_is_realtime(
+	struct xfs_inode	*ip,
+	int			whichfork)
+{
+	return XFS_IS_REALTIME_INODE(ip) && whichfork != XFS_ATTR_FORK;
 }

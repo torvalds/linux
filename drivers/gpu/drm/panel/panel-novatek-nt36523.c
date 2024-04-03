@@ -9,7 +9,7 @@
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
 #include <linux/regulator/consumer.h>
 
@@ -38,8 +38,6 @@ struct panel_info {
 	struct gpio_desc *reset_gpio;
 	struct backlight_device *backlight;
 	struct regulator *vddio;
-
-	bool prepared;
 };
 
 struct panel_desc {
@@ -935,8 +933,7 @@ static int j606f_boe_init_sequence(struct panel_info *pinfo)
 
 static const struct drm_display_mode elish_boe_modes[] = {
 	{
-		/* There is only one 120 Hz timing, but it doesn't work perfectly, 104 Hz preferred */
-		.clock = (1600 + 60 + 8 + 60) * (2560 + 26 + 4 + 168) * 104 / 1000,
+		.clock = (1600 + 60 + 8 + 60) * (2560 + 26 + 4 + 168) * 120 / 1000,
 		.hdisplay = 1600,
 		.hsync_start = 1600 + 60,
 		.hsync_end = 1600 + 60 + 8,
@@ -950,8 +947,7 @@ static const struct drm_display_mode elish_boe_modes[] = {
 
 static const struct drm_display_mode elish_csot_modes[] = {
 	{
-		/* There is only one 120 Hz timing, but it doesn't work perfectly, 104 Hz preferred */
-		.clock = (1600 + 200 + 40 + 52) * (2560 + 26 + 4 + 168) * 104 / 1000,
+		.clock = (1600 + 200 + 40 + 52) * (2560 + 26 + 4 + 168) * 120 / 1000,
 		.hdisplay = 1600,
 		.hsync_start = 1600 + 200,
 		.hsync_end = 1600 + 200 + 40,
@@ -1046,9 +1042,6 @@ static int nt36523_prepare(struct drm_panel *panel)
 	struct panel_info *pinfo = to_panel_info(panel);
 	int ret;
 
-	if (pinfo->prepared)
-		return 0;
-
 	ret = regulator_enable(pinfo->vddio);
 	if (ret) {
 		dev_err(panel->dev, "failed to enable vddio regulator: %d\n", ret);
@@ -1063,8 +1056,6 @@ static int nt36523_prepare(struct drm_panel *panel)
 		dev_err(panel->dev, "failed to initialize panel: %d\n", ret);
 		return ret;
 	}
-
-	pinfo->prepared = true;
 
 	return 0;
 }
@@ -1095,13 +1086,8 @@ static int nt36523_unprepare(struct drm_panel *panel)
 {
 	struct panel_info *pinfo = to_panel_info(panel);
 
-	if (!pinfo->prepared)
-		return 0;
-
 	gpiod_set_value_cansleep(pinfo->reset_gpio, 1);
 	regulator_disable(pinfo->vddio);
-
-	pinfo->prepared = false;
 
 	return 0;
 }
@@ -1266,9 +1252,9 @@ static int nt36523_probe(struct mipi_dsi_device *dsi)
 			return dev_err_probe(dev, -EPROBE_DEFER, "cannot get secondary DSI host\n");
 
 		pinfo->dsi[1] = mipi_dsi_device_register_full(dsi1_host, info);
-		if (!pinfo->dsi[1]) {
+		if (IS_ERR(pinfo->dsi[1])) {
 			dev_err(dev, "cannot get secondary DSI device\n");
-			return -ENODEV;
+			return PTR_ERR(pinfo->dsi[1]);
 		}
 	}
 
@@ -1281,6 +1267,8 @@ static int nt36523_probe(struct mipi_dsi_device *dsi)
 		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_node, ret);
 		return ret;
 	}
+
+	pinfo->panel.prepare_prev_first = true;
 
 	if (pinfo->desc->has_dcs_backlight) {
 		pinfo->panel.backlight = nt36523_create_backlight(dsi);

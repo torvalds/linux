@@ -109,7 +109,7 @@ static const struct isprsz_coef filter_coefs = {
  * __resizer_get_format - helper function for getting resizer format
  * @res   : pointer to resizer private structure
  * @pad   : pad number
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @which : wanted subdev format
  * return zero
  */
@@ -119,7 +119,7 @@ __resizer_get_format(struct isp_res_device *res,
 		     unsigned int pad, enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_format(&res->subdev, sd_state, pad);
+		return v4l2_subdev_state_get_format(sd_state, pad);
 	else
 		return &res->formats[pad];
 }
@@ -127,7 +127,7 @@ __resizer_get_format(struct isp_res_device *res,
 /*
  * __resizer_get_crop - helper function for getting resizer crop rectangle
  * @res   : pointer to resizer private structure
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @which : wanted subdev crop rectangle
  */
 static struct v4l2_rect *
@@ -136,8 +136,7 @@ __resizer_get_crop(struct isp_res_device *res,
 		   enum v4l2_subdev_format_whence which)
 {
 	if (which == V4L2_SUBDEV_FORMAT_TRY)
-		return v4l2_subdev_get_try_crop(&res->subdev, sd_state,
-						RESZ_PAD_SINK);
+		return v4l2_subdev_state_get_crop(sd_state, RESZ_PAD_SINK);
 	else
 		return &res->crop.request;
 }
@@ -1215,7 +1214,7 @@ static void resizer_try_crop(const struct v4l2_mbus_framefmt *sink,
 /*
  * resizer_get_selection - Retrieve a selection rectangle on a pad
  * @sd: ISP resizer V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @sel: Selection rectangle
  *
  * The only supported rectangles are the crop rectangles on the sink pad.
@@ -1265,7 +1264,7 @@ static int resizer_get_selection(struct v4l2_subdev *sd,
 /*
  * resizer_set_selection - Set a selection rectangle on a pad
  * @sd: ISP resizer V4L2 subdevice
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @sel: Selection rectangle
  *
  * The only supported rectangle is the actual crop rectangle on the sink pad.
@@ -1369,7 +1368,7 @@ static unsigned int resizer_max_in_width(struct isp_res_device *res)
 /*
  * resizer_try_format - Handle try format by pad subdev method
  * @res   : ISP resizer device
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @pad   : pad num
  * @fmt   : pointer to v4l2 format structure
  * @which : wanted subdev format
@@ -1413,7 +1412,7 @@ static void resizer_try_format(struct isp_res_device *res,
 /*
  * resizer_enum_mbus_code - Handle pixel format enumeration
  * @sd     : pointer to v4l2 subdev structure
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @code   : pointer to v4l2_subdev_mbus_code_enum structure
  * return -EINVAL or zero on success
  */
@@ -1474,7 +1473,7 @@ static int resizer_enum_frame_size(struct v4l2_subdev *sd,
 /*
  * resizer_get_format - Handle get format by pads subdev method
  * @sd    : pointer to v4l2 subdev structure
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @fmt   : pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */
@@ -1496,7 +1495,7 @@ static int resizer_get_format(struct v4l2_subdev *sd,
 /*
  * resizer_set_format - Handle set format by pads subdev method
  * @sd    : pointer to v4l2 subdev structure
- * @cfg: V4L2 subdev pad configuration
+ * @sd_state: V4L2 subdev state
  * @fmt   : pointer to v4l2 subdev format structure
  * return -EINVAL or zero on success
  */

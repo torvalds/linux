@@ -50,7 +50,7 @@ patternProperties:
         const: hw
 
       nand-ecc-step-size:
-        const: 1024
+        enum: [512, 1024]
 
       nand-ecc-strength:
         enum: [8, 16, 24, 30, 40, 50, 60]
@@ -65,6 +65,10 @@ patternProperties:
           maximum: 0
 
     unevaluatedProperties: false
+
+    dependencies:
+      nand-ecc-strength: [nand-ecc-step-size]
+      nand-ecc-step-size: [nand-ecc-strength]
 
 
 required:

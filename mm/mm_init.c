@@ -26,6 +26,7 @@
 #include <linux/pgtable.h>
 #include <linux/swap.h>
 #include <linux/cma.h>
+#include <linux/crash_dump.h>
 #include "internal.h"
 #include "slab.h"
 #include "shuffle.h"
@@ -79,7 +80,7 @@ void __init mminit_verify_pageflags_layout(void)
 	int shift, width;
 	unsigned long or_mask, add_mask;
 
-	shift = 8 * sizeof(unsigned long);
+	shift = BITS_PER_LONG;
 	width = shift - SECTIONS_WIDTH - NODES_WIDTH - ZONES_WIDTH
 		- LAST_CPUPID_SHIFT - KASAN_TAG_WIDTH - LRU_GEN_WIDTH - LRU_REFS_WIDTH;
 	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_widths",
@@ -154,7 +155,6 @@ early_param("mminit_loglevel", set_mminit_loglevel);
 #endif /* CONFIG_DEBUG_MEMORY_INIT */
 
 struct kobject *mm_kobj;
-EXPORT_SYMBOL_GPL(mm_kobj);
 
 #ifdef CONFIG_SMP
 s32 vm_committed_as_batch = 32;
@@ -377,6 +377,16 @@ static void __init find_zone_movable_pfns_for_nodes(void)
 	if (mirrored_kernelcore) {
 		bool mem_below_4gb_not_mirrored = false;
 
+		if (!memblock_has_mirror()) {
+			pr_warn("The system has no mirror memory, ignore kernelcore=mirror.\n");
+			goto out;
+		}
+
+		if (is_kdump_kernel()) {
+			pr_warn("The system is under kdump, ignore kernelcore=mirror.\n");
+			goto out;
+		}
+
 		for_each_mem_region(r) {
 			if (memblock_is_mirror(r))
 				continue;
@@ -551,7 +561,7 @@ out:
 	node_states[N_MEMORY] = saved_node_state;
 }
 
-static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+void __meminit __init_single_page(struct page *page, unsigned long pfn,
 				unsigned long zone, int nid)
 {
 	mm_zero_struct_page(page);
@@ -792,6 +802,7 @@ overlap_memmap_init(unsigned long zone, unsigned long *pfn)
  * - physical memory bank size is not necessarily the exact multiple of the
  *   arbitrary section size
  * - early reserved memory may not be listed in memblock.memory
+ * - non-memory regions covered by the contigious flatmem mapping
  * - memory layouts defined with memmap= kernel parameter may not align
  *   nicely with memmap sections
  *
@@ -822,7 +833,7 @@ static void __init init_unavailable_range(unsigned long spfn,
 	}
 
 	if (pgcnt)
-		pr_info("On node %d, zone %s: %lld pages in unavailable ranges",
+		pr_info("On node %d, zone %s: %lld pages in unavailable ranges\n",
 			node, zone_names[zone], pgcnt);
 }
 
@@ -1020,7 +1031,7 @@ static inline unsigned long compound_nr_pages(struct vmem_altmap *altmap,
 	if (!vmemmap_can_optimize(altmap, pgmap))
 		return pgmap_vmemmap_nr(pgmap);
 
-	return 2 * (PAGE_SIZE / sizeof(struct page));
+	return VMEMMAP_RESERVE_NR * (PAGE_SIZE / sizeof(struct page));
 }
 
 static void __ref memmap_init_compound(struct page *head,
@@ -1105,7 +1116,6 @@ void __ref memmap_init_zone_device(struct zone *zone,
  */
 static void __init adjust_zone_range_for_zone_movable(int nid,
 					unsigned long zone_type,
-					unsigned long node_start_pfn,
 					unsigned long node_end_pfn,
 					unsigned long *zone_start_pfn,
 					unsigned long *zone_end_pfn)
@@ -1222,9 +1232,8 @@ static unsigned long __init zone_spanned_pages_in_node(int nid,
 	/* Get the start and end of the zone */
 	*zone_start_pfn = clamp(node_start_pfn, zone_low, zone_high);
 	*zone_end_pfn = clamp(node_end_pfn, zone_low, zone_high);
-	adjust_zone_range_for_zone_movable(nid, zone_type,
-				node_start_pfn, node_end_pfn,
-				zone_start_pfn, zone_end_pfn);
+	adjust_zone_range_for_zone_movable(nid, zone_type, node_end_pfn,
+					   zone_start_pfn, zone_end_pfn);
 
 	/* Check that this node has pages within the zone's required range */
 	if (*zone_end_pfn < node_start_pfn || *zone_start_pfn > node_end_pfn)
@@ -1424,9 +1433,9 @@ static unsigned long __init usemap_size(unsigned long zone_start_pfn, unsigned l
 	usemapsize = roundup(zonesize, pageblock_nr_pages);
 	usemapsize = usemapsize >> pageblock_order;
 	usemapsize *= NR_PAGEBLOCK_BITS;
-	usemapsize = roundup(usemapsize, 8 * sizeof(unsigned long));
+	usemapsize = roundup(usemapsize, BITS_PER_LONG);
 
-	return usemapsize / 8;
+	return usemapsize / BITS_PER_BYTE;
 }
 
 static void __ref setup_usemap(struct zone *zone)
@@ -1452,7 +1461,7 @@ static inline void setup_usemap(struct zone *zone) {}
 /* Initialise the number of pages represented by NR_PAGEBLOCK_BITS */
 void __init set_pageblock_order(void)
 {
-	unsigned int order = MAX_ORDER;
+	unsigned int order = MAX_PAGE_ORDER;
 
 	/* Check that pageblock_nr_pages has not already been setup */
 	if (pageblock_order)
@@ -1464,8 +1473,7 @@ void __init set_pageblock_order(void)
 
 	/*
 	 * Assume the largest contiguous order of interest is a huge page.
-	 * This value may be variable depending on boot parameters on IA64 and
-	 * powerpc.
+	 * This value may be variable depending on boot parameters on powerpc.
 	 */
 	pageblock_order = order;
 }
@@ -1626,8 +1634,8 @@ void __init *memmap_alloc(phys_addr_t size, phys_addr_t align,
 #ifdef CONFIG_FLATMEM
 static void __init alloc_node_mem_map(struct pglist_data *pgdat)
 {
-	unsigned long __maybe_unused start = 0;
-	unsigned long __maybe_unused offset = 0;
+	unsigned long start, offset, size, end;
+	struct page *map;
 
 	/* Skip empty nodes */
 	if (!pgdat->node_spanned_pages)
@@ -1635,33 +1643,24 @@ static void __init alloc_node_mem_map(struct pglist_data *pgdat)
 
 	start = pgdat->node_start_pfn & ~(MAX_ORDER_NR_PAGES - 1);
 	offset = pgdat->node_start_pfn - start;
-	/* ia64 gets its own node_mem_map, before this, without bootmem */
-	if (!pgdat->node_mem_map) {
-		unsigned long size, end;
-		struct page *map;
-
-		/*
-		 * The zone's endpoints aren't required to be MAX_ORDER
-		 * aligned but the node_mem_map endpoints must be in order
-		 * for the buddy allocator to function correctly.
-		 */
-		end = pgdat_end_pfn(pgdat);
-		end = ALIGN(end, MAX_ORDER_NR_PAGES);
-		size =  (end - start) * sizeof(struct page);
-		map = memmap_alloc(size, SMP_CACHE_BYTES, MEMBLOCK_LOW_LIMIT,
-				   pgdat->node_id, false);
-		if (!map)
-			panic("Failed to allocate %ld bytes for node %d memory map\n",
-			      size, pgdat->node_id);
-		pgdat->node_mem_map = map + offset;
-	}
-	pr_debug("%s: node %d, pgdat %08lx, node_mem_map %08lx\n",
-				__func__, pgdat->node_id, (unsigned long)pgdat,
-				(unsigned long)pgdat->node_mem_map);
-#ifndef CONFIG_NUMA
 	/*
-	 * With no DISCONTIG, the global mem_map is just set as node 0's
+		 * The zone's endpoints aren't required to be MAX_PAGE_ORDER
+	 * aligned but the node_mem_map endpoints must be in order
+	 * for the buddy allocator to function correctly.
 	 */
+	end = ALIGN(pgdat_end_pfn(pgdat), MAX_ORDER_NR_PAGES);
+	size =  (end - start) * sizeof(struct page);
+	map = memmap_alloc(size, SMP_CACHE_BYTES, MEMBLOCK_LOW_LIMIT,
+			   pgdat->node_id, false);
+	if (!map)
+		panic("Failed to allocate %ld bytes for node %d memory map\n",
+		      size, pgdat->node_id);
+	pgdat->node_mem_map = map + offset;
+	pr_debug("%s: node %d, pgdat %08lx, node_mem_map %08lx\n",
+		 __func__, pgdat->node_id, (unsigned long)pgdat,
+		 (unsigned long)pgdat->node_mem_map);
+#ifndef CONFIG_NUMA
+	/* the global mem_map is just set as node 0's */
 	if (pgdat == NODE_DATA(0)) {
 		mem_map = NODE_DATA(0)->node_mem_map;
 		if (page_to_pfn(mem_map) != pgdat->node_start_pfn)
@@ -1681,8 +1680,7 @@ static inline void alloc_node_mem_map(struct pglist_data *pgdat) { }
  *
  * It returns the start and end page frame of a node based on information
  * provided by memblock_set_node(). If called for a node
- * with no available memory, a warning is printed and the start and end
- * PFNs will be 0.
+ * with no available memory, the start and end PFNs will be 0.
  */
 void __init get_pfn_range_for_nid(unsigned int nid,
 			unsigned long *start_pfn, unsigned long *end_pfn)
@@ -1737,7 +1735,7 @@ static void __init free_area_init_node(int nid)
 }
 
 /* Any regular or high memory on that node ? */
-static void check_for_memory(pg_data_t *pgdat)
+static void __init check_for_memory(pg_data_t *pgdat)
 {
 	enum zone_type zone_type;
 
@@ -1870,8 +1868,6 @@ void __init free_area_init(unsigned long *max_zone_pfn)
 		pg_data_t *pgdat;
 
 		if (!node_online(nid)) {
-			pr_info("Initializing node %d as memoryless\n", nid);
-
 			/* Allocator not initialized yet */
 			pgdat = arch_alloc_nodedata(nid);
 			if (!pgdat)
@@ -1974,11 +1970,11 @@ static void __init deferred_free_range(unsigned long pfn,
 	if (nr_pages == MAX_ORDER_NR_PAGES && IS_MAX_ORDER_ALIGNED(pfn)) {
 		for (i = 0; i < nr_pages; i += pageblock_nr_pages)
 			set_pageblock_migratetype(page + i, MIGRATE_MOVABLE);
-		__free_pages_core(page, MAX_ORDER);
+		__free_pages_core(page, MAX_PAGE_ORDER);
 		return;
 	}
 
-	/* Accept chunks smaller than MAX_ORDER upfront */
+	/* Accept chunks smaller than MAX_PAGE_ORDER upfront */
 	accept_memory(PFN_PHYS(pfn), PFN_PHYS(pfn + nr_pages));
 
 	for (i = 0; i < nr_pages; i++, page++, pfn++) {
@@ -2001,8 +1997,8 @@ static inline void __init pgdat_init_report_one_done(void)
 /*
  * Returns true if page needs to be initialized or freed to buddy allocator.
  *
- * We check if a current MAX_ORDER block is valid by only checking the validity
- * of the head pfn.
+ * We check if a current MAX_PAGE_ORDER block is valid by only checking the
+ * validity of the head pfn.
  */
 static inline bool __init deferred_pfn_valid(unsigned long pfn)
 {
@@ -2159,8 +2155,8 @@ deferred_init_memmap_chunk(unsigned long start_pfn, unsigned long end_pfn,
 	deferred_init_mem_pfn_range_in_zone(&i, zone, &spfn, &epfn, start_pfn);
 
 	/*
-	 * Initialize and free pages in MAX_ORDER sized increments so that we
-	 * can avoid introducing any issues with the buddy allocator.
+	 * Initialize and free pages in MAX_PAGE_ORDER sized increments so that
+	 * we can avoid introducing any issues with the buddy allocator.
 	 */
 	while (spfn < end_pfn) {
 		deferred_init_maxorder(&i, zone, &spfn, &epfn);
@@ -2235,6 +2231,7 @@ static int __init deferred_init_memmap(void *data)
 			.align       = PAGES_PER_SECTION,
 			.min_chunk   = PAGES_PER_SECTION,
 			.max_threads = max_threads,
+			.numa_aware  = false,
 		};
 
 		padata_do_multithreaded(&job);
@@ -2301,7 +2298,7 @@ bool __init deferred_grow_zone(struct zone *zone, unsigned int order)
 	}
 
 	/*
-	 * Initialize and free pages in MAX_ORDER sized increments so
+	 * Initialize and free pages in MAX_PAGE_ORDER sized increments so
 	 * that we can avoid introducing any issues with the buddy
 	 * allocator.
 	 */
@@ -2490,15 +2487,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 		else
 			numentries <<= (PAGE_SHIFT - scale);
 
-		/* Make sure we've got at least a 0-order allocation.. */
-		if (unlikely(flags & HASH_SMALL)) {
-			/* Makes no sense without HASH_EARLY */
-			WARN_ON(!(flags & HASH_EARLY));
-			if (!(numentries >> *_hash_shift)) {
-				numentries = 1UL << *_hash_shift;
-				BUG_ON(!numentries);
-			}
-		} else if (unlikely((numentries * bucketsize) < PAGE_SIZE))
+		if (unlikely((numentries * bucketsize) < PAGE_SIZE))
 			numentries = PAGE_SIZE / bucketsize;
 	}
 	numentries = roundup_pow_of_two(numentries);
@@ -2527,7 +2516,7 @@ void *__init alloc_large_system_hash(const char *tablename,
 			else
 				table = memblock_alloc_raw(size,
 							   SMP_CACHE_BYTES);
-		} else if (get_order(size) > MAX_ORDER || hashdist) {
+		} else if (get_order(size) > MAX_PAGE_ORDER || hashdist) {
 			table = vmalloc_huge(size, gfp_flags);
 			virt = true;
 			if (table)
@@ -2774,11 +2763,11 @@ void __init mm_core_init(void)
 
 	/*
 	 * page_ext requires contiguous pages,
-	 * bigger than MAX_ORDER unless SPARSEMEM.
+	 * bigger than MAX_PAGE_ORDER unless SPARSEMEM.
 	 */
 	page_ext_init_flatmem();
 	mem_debugging_and_hardening_init();
-	kfence_alloc_pool();
+	kfence_alloc_pool_and_metadata();
 	report_meminit();
 	kmsan_init_shadow();
 	stack_depot_early_init();

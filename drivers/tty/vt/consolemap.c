@@ -205,7 +205,7 @@ static enum translation_map inv_translate[MAX_NR_CONSOLES];
 				 FIELD_PREP(UNI_GLYPH_BITS, (glyph)))
 
 /**
- * struct uni_pagedict -- unicode directory
+ * struct uni_pagedict - unicode directory
  *
  * @uni_pgdir: 32*32*64 table with glyphs
  * @refcount: reference count of this structure
@@ -644,7 +644,7 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 	if (!ct)
 		return 0;
 
-	unilist = vmemdup_user(list, array_size(sizeof(*unilist), ct));
+	unilist = vmemdup_array_user(list, ct, sizeof(*unilist));
 	if (IS_ERR(unilist))
 		return PTR_ERR(unilist);
 

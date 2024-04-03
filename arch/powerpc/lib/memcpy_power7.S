@@ -244,15 +244,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	or	r7,r7,r0
 	ori	r10,r7,1	/* stream=1 */
 
-	lis	r8,0x8000	/* GO=1 */
-	clrldi	r8,r8,32
-
-	dcbt	0,r6,0b01000
-	dcbt	0,r7,0b01010
-	dcbtst	0,r9,0b01000
-	dcbtst	0,r10,0b01010
-	eieio
-	dcbt	0,r8,0b01010	/* GO */
+	DCBT_SETUP_STREAMS(r6, r7, r9, r10, r8)
 
 	beq	cr1,.Lunwind_stack_nonvmx_copy
 

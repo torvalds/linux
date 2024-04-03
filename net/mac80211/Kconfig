@@ -57,6 +57,16 @@ endif
 comment "Some wireless drivers require a rate control algorithm"
 	depends on MAC80211 && MAC80211_HAS_RC=n
 
+config MAC80211_KUNIT_TEST
+	tristate "KUnit tests for mac80211" if !KUNIT_ALL_TESTS
+	depends on KUNIT
+	depends on MAC80211
+	default KUNIT_ALL_TESTS
+	help
+	  Enable this option to test mac80211 internals with kunit.
+
+	  If unsure, say N.
+
 config MAC80211_MESH
 	bool "Enable mac80211 mesh networking support"
 	depends on MAC80211
@@ -77,7 +87,7 @@ config MAC80211_LEDS
 
 config MAC80211_DEBUGFS
 	bool "Export mac80211 internals in DebugFS"
-	depends on MAC80211 && DEBUG_FS
+	depends on MAC80211 && CFG80211_DEBUGFS
 	help
 	  Select this to see extensive information about
 	  the internal state of mac80211 in debugfs.

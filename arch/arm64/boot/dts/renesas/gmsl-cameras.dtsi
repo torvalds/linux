@@ -100,7 +100,7 @@
 
 #ifdef GMSL_CAMERA_1
 		port@1 {
-			max9286_in1: endpoint{
+			max9286_in1: endpoint {
 				remote-endpoint = <&fakra_con1>;
 			};
 
@@ -233,7 +233,7 @@
 
 #ifdef GMSL_CAMERA_5
 		port@1 {
-			max9286_in5: endpoint{
+			max9286_in5: endpoint {
 				remote-endpoint = <&fakra_con5>;
 			};
 

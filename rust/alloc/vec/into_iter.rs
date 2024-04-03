@@ -9,10 +9,12 @@ use crate::raw_vec::RawVec;
 use core::array;
 use core::fmt;
 use core::iter::{
-    FusedIterator, InPlaceIterable, SourceIter, TrustedLen, TrustedRandomAccessNoCoerce,
+    FusedIterator, InPlaceIterable, SourceIter, TrustedFused, TrustedLen,
+    TrustedRandomAccessNoCoerce,
 };
 use core::marker::PhantomData;
 use core::mem::{self, ManuallyDrop, MaybeUninit, SizedTypeProperties};
+use core::num::NonZeroUsize;
 #[cfg(not(no_global_oom_handling))]
 use core::ops::Deref;
 use core::ptr::{self, NonNull};
@@ -109,7 +111,7 @@ impl<T, A: Allocator> IntoIter<T, A> {
     /// ```
     /// # let mut into_iter = Vec::<u8>::with_capacity(10).into_iter();
     /// let mut into_iter = std::mem::replace(&mut into_iter, Vec::new().into_iter());
-    /// (&mut into_iter).for_each(core::mem::drop);
+    /// (&mut into_iter).for_each(drop);
     /// std::mem::forget(into_iter);
     /// ```
     ///
@@ -215,7 +217,7 @@ impl<T, A: Allocator> Iterator for IntoIter<T, A> {
     }
 
     #[inline]
-    fn advance_by(&mut self, n: usize) -> Result<(), usize> {
+    fn advance_by(&mut self, n: usize) -> Result<(), NonZeroUsize> {
         let step_size = self.len().min(n);
         let to_drop = ptr::slice_from_raw_parts_mut(self.ptr as *mut T, step_size);
         if T::IS_ZST {
@@ -229,10 +231,7 @@ impl<T, A: Allocator> Iterator for IntoIter<T, A> {
         unsafe {
             ptr::drop_in_place(to_drop);
         }
-        if step_size < n {
-            return Err(step_size);
-        }
-        Ok(())
+        NonZeroUsize::new(n - step_size).map_or(Ok(()), Err)
     }
 
     #[inline]
@@ -289,9 +288,7 @@ impl<T, A: Allocator> Iterator for IntoIter<T, A> {
         // Also note the implementation of `Self: TrustedRandomAccess` requires
         // that `T: Copy` so reading elements from the buffer doesn't invalidate
         // them for `Drop`.
-        unsafe {
-            if T::IS_ZST { mem::zeroed() } else { ptr::read(self.ptr.add(i)) }
-        }
+        unsafe { if T::IS_ZST { mem::zeroed() } else { ptr::read(self.ptr.add(i)) } }
     }
 }
 
@@ -315,7 +312,7 @@ impl<T, A: Allocator> DoubleEndedIterator for IntoIter<T, A> {
     }
 
     #[inline]
-    fn advance_back_by(&mut self, n: usize) -> Result<(), usize> {
+    fn advance_back_by(&mut self, n: usize) -> Result<(), NonZeroUsize> {
         let step_size = self.len().min(n);
         if T::IS_ZST {
             // SAFETY: same as for advance_by()
@@ -329,10 +326,7 @@ impl<T, A: Allocator> DoubleEndedIterator for IntoIter<T, A> {
         unsafe {
             ptr::drop_in_place(to_drop);
         }
-        if step_size < n {
-            return Err(step_size);
-        }
-        Ok(())
+        NonZeroUsize::new(n - step_size).map_or(Ok(()), Err)
     }
 }
 
@@ -346,8 +340,30 @@ impl<T, A: Allocator> ExactSizeIterator for IntoIter<T, A> {
 #[stable(feature = "fused", since = "1.26.0")]
 impl<T, A: Allocator> FusedIterator for IntoIter<T, A> {}
 
+#[doc(hidden)]
+#[unstable(issue = "none", feature = "trusted_fused")]
+unsafe impl<T, A: Allocator> TrustedFused for IntoIter<T, A> {}
+
 #[unstable(feature = "trusted_len", issue = "37572")]
 unsafe impl<T, A: Allocator> TrustedLen for IntoIter<T, A> {}
+
+#[stable(feature = "default_iters", since = "1.70.0")]
+impl<T, A> Default for IntoIter<T, A>
+where
+    A: Allocator + Default,
+{
+    /// Creates an empty `vec::IntoIter`.
+    ///
+    /// ```
+    /// # use std::vec;
+    /// let iter: vec::IntoIter<u8> = Default::default();
+    /// assert_eq!(iter.len(), 0);
+    /// assert_eq!(iter.as_slice(), &[]);
+    /// ```
+    fn default() -> Self {
+        super::Vec::new_in(Default::default()).into_iter()
+    }
+}
 
 #[doc(hidden)]
 #[unstable(issue = "none", feature = "std_internals")]
@@ -412,7 +428,10 @@ unsafe impl<#[may_dangle] T, A: Allocator> Drop for IntoIter<T, A> {
 // also refer to the vec::in_place_collect module documentation to get an overview
 #[unstable(issue = "none", feature = "inplace_iteration")]
 #[doc(hidden)]
-unsafe impl<T, A: Allocator> InPlaceIterable for IntoIter<T, A> {}
+unsafe impl<T, A: Allocator> InPlaceIterable for IntoIter<T, A> {
+    const EXPAND_BY: Option<NonZeroUsize> = NonZeroUsize::new(1);
+    const MERGE_BY: Option<NonZeroUsize> = NonZeroUsize::new(1);
+}
 
 #[unstable(issue = "none", feature = "inplace_iteration")]
 #[doc(hidden)]

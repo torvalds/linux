@@ -45,6 +45,14 @@
 
 #define GEN9_MOCS_SIZE		64
 
+struct engine_mmio {
+	enum intel_engine_id id;
+	i915_reg_t reg;
+	u32 mask;
+	bool in_context;
+	u32 value;
+};
+
 /* Raw offset is appened to each line for convenience. */
 static struct engine_mmio gen8_engine_mmio_list[] __cacheline_aligned = {
 	{RCS0, RING_MODE_GEN7(RENDER_RING_BASE), 0xffff, false}, /* 0x229c */

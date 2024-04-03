@@ -70,9 +70,9 @@ enum mei_dev_state {
 /**
  * enum mei_dev_pxp_mode - MEI PXP mode state
  *
- * @MEI_DEV_PXP_DEFAULT: PCH based device, no initailization required
+ * @MEI_DEV_PXP_DEFAULT: PCH based device, no initialization required
  * @MEI_DEV_PXP_INIT:    device requires initialization, send setup message to firmware
- * @MEI_DEV_PXP_SETUP:   device is in setup stage, waiting for firmware repsonse
+ * @MEI_DEV_PXP_SETUP:   device is in setup stage, waiting for firmware response
  * @MEI_DEV_PXP_READY:   device initialized
  */
 enum mei_dev_pxp_mode {
@@ -80,6 +80,19 @@ enum mei_dev_pxp_mode {
 	MEI_DEV_PXP_INIT    = 1,
 	MEI_DEV_PXP_SETUP   = 2,
 	MEI_DEV_PXP_READY   = 3,
+};
+
+/**
+ * enum mei_dev_reset_to_pxp - reset to PXP mode performed
+ *
+ * @MEI_DEV_RESET_TO_PXP_DEFAULT: before reset
+ * @MEI_DEV_RESET_TO_PXP_PERFORMED: reset performed
+ * @MEI_DEV_RESET_TO_PXP_DONE: reset processed
+ */
+enum mei_dev_reset_to_pxp {
+	MEI_DEV_RESET_TO_PXP_DEFAULT = 0,
+	MEI_DEV_RESET_TO_PXP_PERFORMED = 1,
+	MEI_DEV_RESET_TO_PXP_DONE = 2,
 };
 
 const char *mei_dev_state_str(int state);
@@ -512,6 +525,7 @@ struct mei_dev_timeouts {
  * @fw_ver : FW versions
  *
  * @fw_f_fw_ver_supported : fw feature: fw version supported
+ * @fw_ver_received : fw version received
  *
  * @me_clients_rwsem: rw lock over me_clients list
  * @me_clients  : list of FW clients
@@ -532,6 +546,11 @@ struct mei_dev_timeouts {
  * @kind        : kind of mei device
  *
  * @dbgfs_dir   : debugfs mei root directory
+ *
+ * @saved_fw_status      : saved firmware status
+ * @saved_dev_state      : saved device state
+ * @saved_fw_status_flag : flag indicating that firmware status was saved
+ * @gsc_reset_to_pxp     : state of reset to the PXP mode
  *
  * @ops:        : hw specific operations
  * @hw          : hw specific data
@@ -604,6 +623,7 @@ struct mei_device {
 	struct mei_fw_version fw_ver[MEI_MAX_FW_VER_BLOCKS];
 
 	unsigned int fw_f_fw_ver_supported:1;
+	unsigned int fw_ver_received:1;
 
 	struct rw_semaphore me_clients_rwsem;
 	struct list_head me_clients;
@@ -627,6 +647,11 @@ struct mei_device {
 #if IS_ENABLED(CONFIG_DEBUG_FS)
 	struct dentry *dbgfs_dir;
 #endif /* CONFIG_DEBUG_FS */
+
+	struct mei_fw_status saved_fw_status;
+	enum mei_dev_state saved_dev_state;
+	bool saved_fw_status_flag;
+	enum mei_dev_reset_to_pxp gsc_reset_to_pxp;
 
 	const struct mei_hw_ops *ops;
 	char hw[] __aligned(sizeof(void *));
@@ -872,5 +897,29 @@ static inline ssize_t mei_fw_status_str(struct mei_device *dev,
 	return ret;
 }
 
+/**
+ * kind_is_gsc - checks whether the device is gsc
+ *
+ * @dev: the device structure
+ *
+ * Return: whether the device is gsc
+ */
+static inline bool kind_is_gsc(struct mei_device *dev)
+{
+	/* check kind for NULL because it may be not set, like at the fist call to hw_start */
+	return dev->kind && (strcmp(dev->kind, "gsc") == 0);
+}
 
+/**
+ * kind_is_gscfi - checks whether the device is gscfi
+ *
+ * @dev: the device structure
+ *
+ * Return: whether the device is gscfi
+ */
+static inline bool kind_is_gscfi(struct mei_device *dev)
+{
+	/* check kind for NULL because it may be not set, like at the fist call to hw_start */
+	return dev->kind && (strcmp(dev->kind, "gscfi") == 0);
+}
 #endif

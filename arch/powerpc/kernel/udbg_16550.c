@@ -7,7 +7,6 @@
 #include <linux/types.h>
 #include <asm/udbg.h>
 #include <asm/io.h>
-#include <asm/reg_a2.h>
 #include <asm/early_ioremap.h>
 
 extern u8 real_readb(volatile u8 __iomem  *addr);

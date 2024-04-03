@@ -22,6 +22,9 @@ properties:
   vdd-supply: true
   vddio-supply: true
 
+  spi-max-frequency:
+    maximum: 10000000
+
   interrupts:
     minItems: 1
     maxItems: 2
@@ -33,7 +36,10 @@ required:
   - compatible
   - reg
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |

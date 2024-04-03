@@ -384,7 +384,7 @@ static struct attribute *ssb_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ssb_device);
 
-static struct bus_type ssb_bustype = {
+static const struct bus_type ssb_bustype = {
 	.name		= "ssb",
 	.match		= ssb_bus_match,
 	.probe		= ssb_device_probe,
@@ -837,7 +837,7 @@ static u32 clkfactor_f6_resolve(u32 v)
 	case SSB_CHIPCO_CLK_F6_7:
 		return 7;
 	}
-	return 0;
+	return 1;
 }
 
 /* Calculate the speed the backplane would run at a given set of clockcontrol values */

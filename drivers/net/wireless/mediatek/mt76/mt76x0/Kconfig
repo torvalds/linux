@@ -10,7 +10,7 @@ config MT76x0U
 	depends on MAC80211
 	depends on USB
 	help
-	  This adds support for MT7610U-based wireless USB 2.0 dongles,
+	  This adds support for MT7610U-based USB 2.0 wireless dongles,
 	  which comply with IEEE 802.11ac standards and support 1x1
 	  433Mbps PHY rate.
 
@@ -22,7 +22,7 @@ config MT76x0E
 	depends on MAC80211
 	depends on PCI
 	help
-	  This adds support for MT7610/MT7630-based wireless PCIe devices,
+	  This adds support for MT7610/MT7630-based PCIe wireless devices,
 	  which comply with IEEE 802.11ac standards and support 1x1
 	  433Mbps PHY rate.
 

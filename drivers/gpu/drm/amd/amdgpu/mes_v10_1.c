@@ -558,7 +558,7 @@ static int mes_v10_1_load_microcode(struct amdgpu_device *adev,
 	WREG32_SOC15(GC, 0, mmCP_MES_MDBOUND_LO, 0x3FFFF);
 
 	/* invalidate ICACHE */
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(10, 3, 0):
 		data = RREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL_Sienna_Cichlid);
 		break;
@@ -568,7 +568,7 @@ static int mes_v10_1_load_microcode(struct amdgpu_device *adev,
 	}
 	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, PRIME_ICACHE, 0);
 	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, INVALIDATE_CACHE, 1);
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(10, 3, 0):
 		WREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL_Sienna_Cichlid, data);
 		break;
@@ -578,7 +578,7 @@ static int mes_v10_1_load_microcode(struct amdgpu_device *adev,
 	}
 
 	/* prime the ICACHE. */
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(10, 3, 0):
 		data = RREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL_Sienna_Cichlid);
 		break;
@@ -587,7 +587,7 @@ static int mes_v10_1_load_microcode(struct amdgpu_device *adev,
 		break;
 	}
 	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, PRIME_ICACHE, 1);
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(10, 3, 0):
 		WREG32_SOC15(GC, 0, mmCP_MES_IC_OP_CNTL_Sienna_Cichlid, data);
 		break;
@@ -909,10 +909,12 @@ static int mes_v10_1_mqd_sw_init(struct amdgpu_device *adev,
 
 	/* prepare MQD backup */
 	adev->mes.mqd_backup[pipe] = kmalloc(mqd_size, GFP_KERNEL);
-	if (!adev->mes.mqd_backup[pipe])
+	if (!adev->mes.mqd_backup[pipe]) {
 		dev_warn(adev->dev,
 			 "no memory to create MQD backup for ring %s\n",
 			 ring->name);
+		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -993,7 +995,7 @@ static void mes_v10_1_kiq_setting(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	/* tell RLC which is KIQ queue */
-	switch (adev->ip_versions[GC_HWIP][0]) {
+	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(10, 3, 0):
 	case IP_VERSION(10, 3, 2):
 	case IP_VERSION(10, 3, 1):

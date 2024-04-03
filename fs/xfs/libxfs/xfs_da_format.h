@@ -159,6 +159,17 @@ struct xfs_da3_intnode {
 
 #define XFS_DIR3_FT_MAX			9
 
+#define XFS_DIR3_FTYPE_STR \
+	{ XFS_DIR3_FT_UNKNOWN,	"unknown" }, \
+	{ XFS_DIR3_FT_REG_FILE,	"file" }, \
+	{ XFS_DIR3_FT_DIR,	"directory" }, \
+	{ XFS_DIR3_FT_CHRDEV,	"char" }, \
+	{ XFS_DIR3_FT_BLKDEV,	"block" }, \
+	{ XFS_DIR3_FT_FIFO,	"fifo" }, \
+	{ XFS_DIR3_FT_SOCK,	"sock" }, \
+	{ XFS_DIR3_FT_SYMLINK,	"symlink" }, \
+	{ XFS_DIR3_FT_WHT,	"whiteout" }
+
 /*
  * Byte offset in data block and shortform entry.
  */
@@ -578,20 +589,25 @@ xfs_dir2_block_leaf_p(struct xfs_dir2_block_tail *btp)
 #define XFS_ATTR_LEAF_MAPSIZE	3	/* how many freespace slots */
 
 /*
- * Entries are packed toward the top as tight as possible.
+ * Attribute storage when stored inside the inode.
+ *
+ * Small attribute lists are packed as tightly as possible so as to fit into the
+ * literal area of the inode.
+ *
+ * These "shortform" attribute forks consist of a single xfs_attr_sf_hdr header
+ * followed by zero or more xfs_attr_sf_entry structures.
  */
-struct xfs_attr_shortform {
-	struct xfs_attr_sf_hdr {	/* constant-structure header block */
-		__be16	totsize;	/* total bytes in shortform list */
-		__u8	count;	/* count of active entries */
-		__u8	padding;
-	} hdr;
-	struct xfs_attr_sf_entry {
-		uint8_t namelen;	/* actual length of name (no NULL) */
-		uint8_t valuelen;	/* actual length of value (no NULL) */
-		uint8_t flags;	/* flags bits (see xfs_attr_leaf.h) */
-		uint8_t nameval[];	/* name & value bytes concatenated */
-	} list[];			/* variable sized array */
+struct xfs_attr_sf_hdr {	/* constant-structure header block */
+	__be16	totsize;	/* total bytes in shortform list */
+	__u8	count;		/* count of active entries */
+	__u8	padding;
+};
+
+struct xfs_attr_sf_entry {
+	__u8	namelen;	/* actual length of name (no NULL) */
+	__u8	valuelen;	/* actual length of value (no NULL) */
+	__u8	flags;		/* flags bits (XFS_ATTR_*) */
+	__u8	nameval[];	/* name & value bytes concatenated */
 };
 
 typedef struct xfs_attr_leaf_map {	/* RLE map of free bytes */

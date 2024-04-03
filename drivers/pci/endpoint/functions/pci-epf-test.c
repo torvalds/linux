@@ -19,11 +19,11 @@
 #include <linux/pci-epf.h>
 #include <linux/pci_regs.h>
 
-#define IRQ_TYPE_LEGACY			0
+#define IRQ_TYPE_INTX			0
 #define IRQ_TYPE_MSI			1
 #define IRQ_TYPE_MSIX			2
 
-#define COMMAND_RAISE_LEGACY_IRQ	BIT(0)
+#define COMMAND_RAISE_INTX_IRQ		BIT(0)
 #define COMMAND_RAISE_MSI_IRQ		BIT(1)
 #define COMMAND_RAISE_MSIX_IRQ		BIT(2)
 #define COMMAND_READ			BIT(3)
@@ -600,9 +600,9 @@ static void pci_epf_test_raise_irq(struct pci_epf_test *epf_test,
 	WRITE_ONCE(reg->status, status);
 
 	switch (reg->irq_type) {
-	case IRQ_TYPE_LEGACY:
+	case IRQ_TYPE_INTX:
 		pci_epc_raise_irq(epc, epf->func_no, epf->vfunc_no,
-				  PCI_EPC_IRQ_LEGACY, 0);
+				  PCI_IRQ_INTX, 0);
 		break;
 	case IRQ_TYPE_MSI:
 		count = pci_epc_get_msi(epc, epf->func_no, epf->vfunc_no);
@@ -612,7 +612,7 @@ static void pci_epf_test_raise_irq(struct pci_epf_test *epf_test,
 			return;
 		}
 		pci_epc_raise_irq(epc, epf->func_no, epf->vfunc_no,
-				  PCI_EPC_IRQ_MSI, reg->irq_number);
+				  PCI_IRQ_MSI, reg->irq_number);
 		break;
 	case IRQ_TYPE_MSIX:
 		count = pci_epc_get_msix(epc, epf->func_no, epf->vfunc_no);
@@ -622,7 +622,7 @@ static void pci_epf_test_raise_irq(struct pci_epf_test *epf_test,
 			return;
 		}
 		pci_epc_raise_irq(epc, epf->func_no, epf->vfunc_no,
-				  PCI_EPC_IRQ_MSIX, reg->irq_number);
+				  PCI_IRQ_MSIX, reg->irq_number);
 		break;
 	default:
 		dev_err(dev, "Failed to raise IRQ, unknown type\n");
@@ -659,7 +659,7 @@ static void pci_epf_test_cmd_handler(struct work_struct *work)
 	}
 
 	switch (command) {
-	case COMMAND_RAISE_LEGACY_IRQ:
+	case COMMAND_RAISE_INTX_IRQ:
 	case COMMAND_RAISE_MSI_IRQ:
 	case COMMAND_RAISE_MSIX_IRQ:
 		pci_epf_test_raise_irq(epf_test, reg);
@@ -729,7 +729,7 @@ static int pci_epf_test_set_bar(struct pci_epf *epf)
 		 */
 		add = (epf_bar->flags & PCI_BASE_ADDRESS_MEM_TYPE_64) ? 2 : 1;
 
-		if (!!(epc_features->reserved_bar & (1 << bar)))
+		if (epc_features->bar[bar].type == BAR_RESERVED)
 			continue;
 
 		ret = pci_epc_set_bar(epc, epf->func_no, epf->vfunc_no,
@@ -841,14 +841,8 @@ static int pci_epf_test_alloc_space(struct pci_epf *epf)
 	}
 	test_reg_size = test_reg_bar_size + msix_table_size + pba_size;
 
-	if (epc_features->bar_fixed_size[test_reg_bar]) {
-		if (test_reg_size > bar_size[test_reg_bar])
-			return -ENOMEM;
-		test_reg_size = bar_size[test_reg_bar];
-	}
-
 	base = pci_epf_alloc_space(epf, test_reg_size, test_reg_bar,
-				   epc_features->align, PRIMARY_INTERFACE);
+				   epc_features, PRIMARY_INTERFACE);
 	if (!base) {
 		dev_err(dev, "Failed to allocated register space\n");
 		return -ENOMEM;
@@ -862,12 +856,11 @@ static int pci_epf_test_alloc_space(struct pci_epf *epf)
 		if (bar == test_reg_bar)
 			continue;
 
-		if (!!(epc_features->reserved_bar & (1 << bar)))
+		if (epc_features->bar[bar].type == BAR_RESERVED)
 			continue;
 
 		base = pci_epf_alloc_space(epf, bar_size[bar], bar,
-					   epc_features->align,
-					   PRIMARY_INTERFACE);
+					   epc_features, PRIMARY_INTERFACE);
 		if (!base)
 			dev_err(dev, "Failed to allocate space for BAR%d\n",
 				bar);
@@ -881,16 +874,12 @@ static void pci_epf_configure_bar(struct pci_epf *epf,
 				  const struct pci_epc_features *epc_features)
 {
 	struct pci_epf_bar *epf_bar;
-	bool bar_fixed_64bit;
 	int i;
 
 	for (i = 0; i < PCI_STD_NUM_BARS; i++) {
 		epf_bar = &epf->bar[i];
-		bar_fixed_64bit = !!(epc_features->bar_fixed_64bit & (1 << i));
-		if (bar_fixed_64bit)
+		if (epc_features->bar[i].only_64bit)
 			epf_bar->flags |= PCI_BASE_ADDRESS_MEM_TYPE_64;
-		if (epc_features->bar_fixed_size[i])
-			bar_size[i] = epc_features->bar_fixed_size[i];
 	}
 }
 
@@ -973,7 +962,7 @@ static int pci_epf_test_probe(struct pci_epf *epf,
 	return 0;
 }
 
-static struct pci_epf_ops ops = {
+static const struct pci_epf_ops ops = {
 	.unbind	= pci_epf_test_unbind,
 	.bind	= pci_epf_test_bind,
 };

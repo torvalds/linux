@@ -48,7 +48,6 @@
 
 #include "drm_crtc_internal.h"
 #include "drm_internal.h"
-#include "drm_legacy.h"
 
 MODULE_AUTHOR("Gareth Hughes, Leif Delgass, José Fonseca, Jon Smirl");
 MODULE_DESCRIPTION("DRM shared core routines");
@@ -84,7 +83,7 @@ DEFINE_STATIC_SRCU(drm_unplug_srcu);
  */
 
 static struct drm_minor **drm_minor_get_slot(struct drm_device *dev,
-					     unsigned int type)
+					     enum drm_minor_type type)
 {
 	switch (type) {
 	case DRM_MINOR_PRIMARY:
@@ -116,7 +115,7 @@ static void drm_minor_alloc_release(struct drm_device *dev, void *data)
 	}
 }
 
-static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
+static int drm_minor_alloc(struct drm_device *dev, enum drm_minor_type type)
 {
 	struct drm_minor *minor;
 	unsigned long flags;
@@ -160,7 +159,7 @@ static int drm_minor_alloc(struct drm_device *dev, unsigned int type)
 	return 0;
 }
 
-static int drm_minor_register(struct drm_device *dev, unsigned int type)
+static int drm_minor_register(struct drm_device *dev, enum drm_minor_type type)
 {
 	struct drm_minor *minor;
 	unsigned long flags;
@@ -172,10 +171,9 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	if (!minor)
 		return 0;
 
-	if (minor->type == DRM_MINOR_ACCEL) {
-		accel_debugfs_init(minor, minor->index);
-	} else {
-		ret = drm_debugfs_init(minor, minor->index, drm_debugfs_root);
+	if (minor->type != DRM_MINOR_ACCEL) {
+		ret = drm_debugfs_register(minor, minor->index,
+					   drm_debugfs_root);
 		if (ret) {
 			DRM_ERROR("DRM: Failed to initialize /sys/kernel/debug/dri.\n");
 			goto err_debugfs;
@@ -199,11 +197,11 @@ static int drm_minor_register(struct drm_device *dev, unsigned int type)
 	return 0;
 
 err_debugfs:
-	drm_debugfs_cleanup(minor);
+	drm_debugfs_unregister(minor);
 	return ret;
 }
 
-static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
+static void drm_minor_unregister(struct drm_device *dev, enum drm_minor_type type)
 {
 	struct drm_minor *minor;
 	unsigned long flags;
@@ -223,7 +221,7 @@ static void drm_minor_unregister(struct drm_device *dev, unsigned int type)
 
 	device_del(minor->kdev);
 	dev_set_drvdata(minor->kdev, NULL); /* safety belt */
-	drm_debugfs_cleanup(minor);
+	drm_debugfs_unregister(minor);
 }
 
 /*
@@ -586,8 +584,6 @@ static void drm_fs_inode_free(struct inode *inode)
 
 static void drm_dev_init_release(struct drm_device *dev, void *res)
 {
-	drm_legacy_ctxbitmap_cleanup(dev);
-	drm_legacy_remove_map_hash(dev);
 	drm_fs_inode_free(dev->anon_inode);
 
 	put_device(dev->dev);
@@ -598,8 +594,6 @@ static void drm_dev_init_release(struct drm_device *dev, void *res)
 	mutex_destroy(&dev->clientlist_mutex);
 	mutex_destroy(&dev->filelist_mutex);
 	mutex_destroy(&dev->struct_mutex);
-	mutex_destroy(&dev->debugfs_mutex);
-	drm_legacy_destroy_members(dev);
 }
 
 static int drm_dev_init(struct drm_device *dev,
@@ -634,19 +628,16 @@ static int drm_dev_init(struct drm_device *dev,
 		return -EINVAL;
 	}
 
-	drm_legacy_init_members(dev);
 	INIT_LIST_HEAD(&dev->filelist);
 	INIT_LIST_HEAD(&dev->filelist_internal);
 	INIT_LIST_HEAD(&dev->clientlist);
 	INIT_LIST_HEAD(&dev->vblank_event_list);
-	INIT_LIST_HEAD(&dev->debugfs_list);
 
 	spin_lock_init(&dev->event_lock);
 	mutex_init(&dev->struct_mutex);
 	mutex_init(&dev->filelist_mutex);
 	mutex_init(&dev->clientlist_mutex);
 	mutex_init(&dev->master_mutex);
-	mutex_init(&dev->debugfs_mutex);
 
 	ret = drmm_add_action_or_reset(dev, drm_dev_init_release, NULL);
 	if (ret)
@@ -677,12 +668,6 @@ static int drm_dev_init(struct drm_device *dev,
 			goto err;
 	}
 
-	ret = drm_legacy_create_map_hash(dev);
-	if (ret)
-		goto err;
-
-	drm_legacy_ctxbitmap_init(dev);
-
 	if (drm_core_check_feature(dev, DRIVER_GEM)) {
 		ret = drm_gem_init(dev);
 		if (ret) {
@@ -696,6 +681,11 @@ static int drm_dev_init(struct drm_device *dev,
 		ret = -ENOMEM;
 		goto err;
 	}
+
+	if (drm_core_check_feature(dev, DRIVER_COMPUTE_ACCEL))
+		accel_debugfs_init(dev);
+	else
+		drm_debugfs_dev_init(dev, drm_debugfs_root);
 
 	return 0;
 
@@ -785,6 +775,9 @@ EXPORT_SYMBOL(drm_dev_alloc);
 static void drm_dev_release(struct kref *ref)
 {
 	struct drm_device *dev = container_of(ref, struct drm_device, ref);
+
+	/* Just in case register/unregister was never called */
+	drm_debugfs_dev_fini(dev);
 
 	if (dev->driver->release)
 		dev->driver->release(dev);
@@ -916,6 +909,11 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 	if (drm_dev_needs_global_mutex(dev))
 		mutex_lock(&drm_global_mutex);
 
+	if (drm_core_check_feature(dev, DRIVER_COMPUTE_ACCEL))
+		accel_debugfs_register(dev);
+	else
+		drm_debugfs_dev_register(dev);
+
 	ret = drm_minor_register(dev, DRM_MINOR_RENDER);
 	if (ret)
 		goto err_minors;
@@ -940,8 +938,11 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 			goto err_minors;
 	}
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_modeset_register_all(dev);
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		ret = drm_modeset_register_all(dev);
+		if (ret)
+			goto err_unload;
+	}
 
 	DRM_INFO("Initialized %s %d.%d.%d %s for %s on minor %d\n",
 		 driver->name, driver->major, driver->minor,
@@ -951,6 +952,9 @@ int drm_dev_register(struct drm_device *dev, unsigned long flags)
 
 	goto out_unlock;
 
+err_unload:
+	if (dev->driver->unload)
+		dev->driver->unload(dev);
 err_minors:
 	remove_compat_control_link(dev);
 	drm_minor_unregister(dev, DRM_MINOR_ACCEL);
@@ -981,9 +985,6 @@ EXPORT_SYMBOL(drm_dev_register);
  */
 void drm_dev_unregister(struct drm_device *dev)
 {
-	if (drm_core_check_feature(dev, DRIVER_LEGACY))
-		drm_lastclose(dev);
-
 	dev->registered = false;
 
 	drm_client_dev_unregister(dev);
@@ -994,13 +995,11 @@ void drm_dev_unregister(struct drm_device *dev)
 	if (dev->driver->unload)
 		dev->driver->unload(dev);
 
-	drm_legacy_pci_agp_destroy(dev);
-	drm_legacy_rmmaps(dev);
-
 	remove_compat_control_link(dev);
 	drm_minor_unregister(dev, DRM_MINOR_ACCEL);
 	drm_minor_unregister(dev, DRM_MINOR_PRIMARY);
 	drm_minor_unregister(dev, DRM_MINOR_RENDER);
+	drm_debugfs_dev_fini(dev);
 }
 EXPORT_SYMBOL(drm_dev_unregister);
 

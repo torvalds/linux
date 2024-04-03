@@ -322,10 +322,10 @@ int evm_calc_hash(struct dentry *dentry, const char *req_xattr_name,
 static int evm_is_immutable(struct dentry *dentry, struct inode *inode)
 {
 	const struct evm_ima_xattr_data *xattr_data = NULL;
-	struct integrity_iint_cache *iint;
+	struct evm_iint_cache *iint;
 	int rc = 0;
 
-	iint = integrity_iint_find(inode);
+	iint = evm_iint_inode(inode);
 	if (iint && (iint->flags & EVM_IMMUTABLE_DIGSIG))
 		return 1;
 
@@ -385,10 +385,11 @@ int evm_update_evmxattr(struct dentry *dentry, const char *xattr_name,
 	return rc;
 }
 
-int evm_init_hmac(struct inode *inode, const struct xattr *lsm_xattr,
+int evm_init_hmac(struct inode *inode, const struct xattr *xattrs,
 		  char *hmac_val)
 {
 	struct shash_desc *desc;
+	const struct xattr *xattr;
 
 	desc = init_desc(EVM_XATTR_HMAC, HASH_ALGO_SHA1);
 	if (IS_ERR(desc)) {
@@ -396,7 +397,13 @@ int evm_init_hmac(struct inode *inode, const struct xattr *lsm_xattr,
 		return PTR_ERR(desc);
 	}
 
-	crypto_shash_update(desc, lsm_xattr->value, lsm_xattr->value_len);
+	for (xattr = xattrs; xattr->name; xattr++) {
+		if (!evm_protected_xattr(xattr->name))
+			continue;
+
+		crypto_shash_update(desc, xattr->value, xattr->value_len);
+	}
+
 	hmac_add_misc(desc, inode, EVM_XATTR_HMAC, hmac_val);
 	kfree(desc);
 	return 0;

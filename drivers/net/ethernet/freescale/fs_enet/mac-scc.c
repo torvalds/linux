@@ -32,7 +32,6 @@
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
-#include <linux/of_platform.h>
 
 #include <asm/irq.h>
 #include <linux/uaccess.h>
@@ -134,13 +133,13 @@ static int allocate_bd(struct net_device *dev)
 	struct fs_enet_private *fep = netdev_priv(dev);
 	const struct fs_platform_info *fpi = fep->fpi;
 
-	fep->ring_mem_addr = cpm_dpalloc((fpi->tx_ring + fpi->rx_ring) *
-					 sizeof(cbd_t), 8);
+	fep->ring_mem_addr = cpm_muram_alloc((fpi->tx_ring + fpi->rx_ring) *
+					     sizeof(cbd_t), 8);
 	if (IS_ERR_VALUE(fep->ring_mem_addr))
 		return -ENOMEM;
 
 	fep->ring_base = (void __iomem __force*)
-		cpm_dpram_addr(fep->ring_mem_addr);
+		cpm_muram_addr(fep->ring_mem_addr);
 
 	return 0;
 }
@@ -150,7 +149,7 @@ static void free_bd(struct net_device *dev)
 	struct fs_enet_private *fep = netdev_priv(dev);
 
 	if (fep->ring_base)
-		cpm_dpfree(fep->ring_mem_addr);
+		cpm_muram_free(fep->ring_mem_addr);
 }
 
 static void cleanup_data(struct net_device *dev)

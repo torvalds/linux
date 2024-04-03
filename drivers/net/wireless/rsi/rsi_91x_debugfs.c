@@ -28,8 +28,7 @@ static int rsi_sdio_stats_read(struct seq_file *seq, void *data)
 {
 	struct rsi_common *common = seq->private;
 	struct rsi_hw *adapter = common->priv;
-	struct rsi_91x_sdiodev *dev =
-		(struct rsi_91x_sdiodev *)adapter->rsi_dev;
+	struct rsi_91x_sdiodev *dev = adapter->rsi_dev;
 
 	seq_printf(seq, "total_sdio_interrupts: %d\n",
 		   dev->rx_info.sdio_int_counter);

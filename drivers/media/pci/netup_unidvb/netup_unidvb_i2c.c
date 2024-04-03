@@ -289,7 +289,7 @@ static const struct i2c_algorithm netup_i2c_algorithm = {
 static const struct i2c_adapter netup_i2c_adapter = {
 	.owner		= THIS_MODULE,
 	.name		= NETUP_UNIDVB_NAME,
-	.class		= I2C_CLASS_HWMON | I2C_CLASS_SPD,
+	.class		= I2C_CLASS_HWMON,
 	.algo		= &netup_i2c_algorithm,
 };
 

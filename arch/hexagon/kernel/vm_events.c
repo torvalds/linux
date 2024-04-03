@@ -73,13 +73,6 @@ void show_regs(struct pt_regs *regs)
 		pt_psp(regs), pt_badva(regs), ints_enabled(regs));
 }
 
-void dummy_handler(struct pt_regs *regs)
-{
-	unsigned int elr = pt_elr(regs);
-	printk(KERN_ERR "Unimplemented handler; ELR=0x%08x\n", elr);
-}
-
-
 void arch_do_IRQ(struct pt_regs *regs)
 {
 	int irq = pt_cause(regs);

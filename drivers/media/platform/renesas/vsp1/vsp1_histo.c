@@ -203,7 +203,7 @@ static int histo_get_selection(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_selection *sel)
 {
 	struct vsp1_histogram *histo = subdev_to_histo(subdev);
-	struct v4l2_subdev_state *config;
+	struct v4l2_subdev_state *state;
 	struct v4l2_mbus_framefmt *format;
 	struct v4l2_rect *crop;
 	int ret = 0;
@@ -213,9 +213,8 @@ static int histo_get_selection(struct v4l2_subdev *subdev,
 
 	mutex_lock(&histo->entity.lock);
 
-	config = vsp1_entity_get_pad_config(&histo->entity, sd_state,
-					    sel->which);
-	if (!config) {
+	state = vsp1_entity_get_state(&histo->entity, sd_state, sel->which);
+	if (!state) {
 		ret = -EINVAL;
 		goto done;
 	}
@@ -223,7 +222,7 @@ static int histo_get_selection(struct v4l2_subdev *subdev,
 	switch (sel->target) {
 	case V4L2_SEL_TGT_COMPOSE_BOUNDS:
 	case V4L2_SEL_TGT_COMPOSE_DEFAULT:
-		crop = vsp1_entity_get_pad_selection(&histo->entity, config,
+		crop = vsp1_entity_get_pad_selection(&histo->entity, state,
 						     HISTO_PAD_SINK,
 						     V4L2_SEL_TGT_CROP);
 		sel->r.left = 0;
@@ -234,7 +233,7 @@ static int histo_get_selection(struct v4l2_subdev *subdev,
 
 	case V4L2_SEL_TGT_CROP_BOUNDS:
 	case V4L2_SEL_TGT_CROP_DEFAULT:
-		format = vsp1_entity_get_pad_format(&histo->entity, config,
+		format = vsp1_entity_get_pad_format(&histo->entity, state,
 						    HISTO_PAD_SINK);
 		sel->r.left = 0;
 		sel->r.top = 0;
@@ -244,7 +243,7 @@ static int histo_get_selection(struct v4l2_subdev *subdev,
 
 	case V4L2_SEL_TGT_COMPOSE:
 	case V4L2_SEL_TGT_CROP:
-		sel->r = *vsp1_entity_get_pad_selection(&histo->entity, config,
+		sel->r = *vsp1_entity_get_pad_selection(&histo->entity, state,
 							sel->pad, sel->target);
 		break;
 
@@ -346,7 +345,7 @@ static int histo_set_selection(struct v4l2_subdev *subdev,
 			       struct v4l2_subdev_selection *sel)
 {
 	struct vsp1_histogram *histo = subdev_to_histo(subdev);
-	struct v4l2_subdev_state *config;
+	struct v4l2_subdev_state *state;
 	int ret;
 
 	if (sel->pad != HISTO_PAD_SINK)
@@ -354,17 +353,16 @@ static int histo_set_selection(struct v4l2_subdev *subdev,
 
 	mutex_lock(&histo->entity.lock);
 
-	config = vsp1_entity_get_pad_config(&histo->entity, sd_state,
-					    sel->which);
-	if (!config) {
+	state = vsp1_entity_get_state(&histo->entity, sd_state, sel->which);
+	if (!state) {
 		ret = -EINVAL;
 		goto done;
 	}
 
 	if (sel->target == V4L2_SEL_TGT_CROP)
-		ret = histo_set_crop(subdev, config, sel);
+		ret = histo_set_crop(subdev, state, sel);
 	else if (sel->target == V4L2_SEL_TGT_COMPOSE)
-		ret = histo_set_compose(subdev, config, sel);
+		ret = histo_set_compose(subdev, state, sel);
 	else
 		ret = -EINVAL;
 

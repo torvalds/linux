@@ -120,6 +120,7 @@
 struct pt_regs;
 void hash__do_page_fault(struct pt_regs *);
 void bad_page_fault(struct pt_regs *, int);
+void emulate_single_step(struct pt_regs *regs);
 extern void _exception(int, struct pt_regs *, int, unsigned long);
 extern void _exception_pkey(struct pt_regs *, unsigned long, int);
 extern void die(const char *, struct pt_regs *, long);

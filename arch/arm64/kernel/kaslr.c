@@ -16,9 +16,7 @@ bool __ro_after_init __kaslr_is_enabled = false;
 
 void __init kaslr_init(void)
 {
-	if (cpuid_feature_extract_unsigned_field(arm64_sw_feature_override.val &
-						 arm64_sw_feature_override.mask,
-						 ARM64_SW_FEATURE_OVERRIDE_NOKASLR)) {
+	if (kaslr_disabled_cmdline()) {
 		pr_info("KASLR disabled on command line\n");
 		return;
 	}
@@ -36,3 +34,10 @@ void __init kaslr_init(void)
 	pr_info("KASLR enabled\n");
 	__kaslr_is_enabled = true;
 }
+
+static int __init parse_nokaslr(char *unused)
+{
+	/* nokaslr param handling is done by early cpufeature code */
+	return 0;
+}
+early_param("nokaslr", parse_nokaslr);

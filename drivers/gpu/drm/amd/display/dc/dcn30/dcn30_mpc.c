@@ -44,6 +44,36 @@
 #define NUM_ELEMENTS(a) (sizeof(a) / sizeof((a)[0]))
 
 
+void mpc3_mpc_init(struct mpc *mpc)
+{
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+	int opp_id;
+
+	mpc1_mpc_init(mpc);
+
+	for (opp_id = 0; opp_id < MAX_OPP; opp_id++) {
+		if (REG(MUX[opp_id]))
+			/* disable mpc out rate and flow control */
+			REG_UPDATE_2(MUX[opp_id], MPC_OUT_RATE_CONTROL_DISABLE,
+					1, MPC_OUT_FLOW_CONTROL_COUNT, 0);
+	}
+}
+
+void mpc3_mpc_init_single_inst(struct mpc *mpc, unsigned int mpcc_id)
+{
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+
+	mpc1_mpc_init_single_inst(mpc, mpcc_id);
+
+	/* assuming mpc out mux is connected to opp with the same index at this
+	 * point in time (e.g. transitioning from vbios to driver)
+	 */
+	if (mpcc_id < MAX_OPP && REG(MUX[mpcc_id]))
+		/* disable mpc out rate and flow control */
+		REG_UPDATE_2(MUX[mpcc_id], MPC_OUT_RATE_CONTROL_DISABLE,
+				1, MPC_OUT_FLOW_CONTROL_COUNT, 0);
+}
+
 bool mpc3_is_dwb_idle(
 	struct mpc *mpc,
 	int dwb_id)
@@ -78,25 +108,6 @@ void mpc3_disable_dwb_mux(
 
 	REG_SET(DWB_MUX[dwb_id], 0,
 		MPC_DWB0_MUX, 0xf);
-}
-
-void mpc3_set_out_rate_control(
-	struct mpc *mpc,
-	int opp_id,
-	bool enable,
-	bool rate_2x_mode,
-	struct mpc_dwb_flow_control *flow_control)
-{
-	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
-
-	REG_UPDATE_2(MUX[opp_id],
-			MPC_OUT_RATE_CONTROL_DISABLE, !enable,
-			MPC_OUT_RATE_CONTROL, rate_2x_mode);
-
-	if (flow_control)
-		REG_UPDATE_2(MUX[opp_id],
-			MPC_OUT_FLOW_CONTROL_MODE, flow_control->flow_ctrl_mode,
-			MPC_OUT_FLOW_CONTROL_COUNT, flow_control->flow_ctrl_cnt1);
 }
 
 enum dc_lut_mode mpc3_get_ogam_current(struct mpc *mpc, int mpcc_id)
@@ -278,22 +289,10 @@ static void mpc3_program_ogam_pwl(
 {
 	uint32_t i;
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
-	uint32_t last_base_value_red = rgb[num-1].red_reg + rgb[num-1].delta_red_reg;
-	uint32_t last_base_value_green = rgb[num-1].green_reg + rgb[num-1].delta_green_reg;
-	uint32_t last_base_value_blue = rgb[num-1].blue_reg + rgb[num-1].delta_blue_reg;
-
-	/*the entries of DCN3AG gamma LUTs take 18bit base values as opposed to
-	 *38 base+delta values per entry in earlier DCN architectures
-	 *last base value for our lut is compute by adding the last base value
-	 *in our data + last delta
-	 */
 
 	if (is_rgb_equal(rgb,  num)) {
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, rgb[i].red_reg);
-
-		REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, last_base_value_red);
-
 	} else {
 
 		REG_UPDATE(MPCC_OGAM_LUT_CONTROL[mpcc_id],
@@ -301,8 +300,6 @@ static void mpc3_program_ogam_pwl(
 
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, rgb[i].red_reg);
-
-		REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, last_base_value_red);
 
 		REG_SET(MPCC_OGAM_LUT_INDEX[mpcc_id], 0, MPCC_OGAM_LUT_INDEX, 0);
 
@@ -312,8 +309,6 @@ static void mpc3_program_ogam_pwl(
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, rgb[i].green_reg);
 
-		REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, last_base_value_green);
-
 		REG_SET(MPCC_OGAM_LUT_INDEX[mpcc_id], 0, MPCC_OGAM_LUT_INDEX, 0);
 
 		REG_UPDATE(MPCC_OGAM_LUT_CONTROL[mpcc_id],
@@ -322,7 +317,6 @@ static void mpc3_program_ogam_pwl(
 		for (i = 0 ; i < num; i++)
 			REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, rgb[i].blue_reg);
 
-		REG_SET(MPCC_OGAM_LUT_DATA[mpcc_id], 0, MPCC_OGAM_LUT_DATA, last_base_value_blue);
 	}
 
 }
@@ -1146,6 +1140,64 @@ void mpc3_set_gamut_remap(
 	}
 }
 
+static void read_gamut_remap(struct dcn30_mpc *mpc30,
+			     int mpcc_id,
+			     uint16_t *regval,
+			     uint32_t *select)
+{
+	struct color_matrices_reg gam_regs;
+
+	//current coefficient set in use
+	REG_GET(MPCC_GAMUT_REMAP_MODE[mpcc_id], MPCC_GAMUT_REMAP_MODE_CURRENT, select);
+
+	gam_regs.shifts.csc_c11 = mpc30->mpc_shift->MPCC_GAMUT_REMAP_C11_A;
+	gam_regs.masks.csc_c11  = mpc30->mpc_mask->MPCC_GAMUT_REMAP_C11_A;
+	gam_regs.shifts.csc_c12 = mpc30->mpc_shift->MPCC_GAMUT_REMAP_C12_A;
+	gam_regs.masks.csc_c12 = mpc30->mpc_mask->MPCC_GAMUT_REMAP_C12_A;
+
+	if (*select == GAMUT_REMAP_COEFF) {
+		gam_regs.csc_c11_c12 = REG(MPC_GAMUT_REMAP_C11_C12_A[mpcc_id]);
+		gam_regs.csc_c33_c34 = REG(MPC_GAMUT_REMAP_C33_C34_A[mpcc_id]);
+
+		cm_helper_read_color_matrices(
+				mpc30->base.ctx,
+				regval,
+				&gam_regs);
+
+	} else  if (*select == GAMUT_REMAP_COMA_COEFF) {
+
+		gam_regs.csc_c11_c12 = REG(MPC_GAMUT_REMAP_C11_C12_B[mpcc_id]);
+		gam_regs.csc_c33_c34 = REG(MPC_GAMUT_REMAP_C33_C34_B[mpcc_id]);
+
+		cm_helper_read_color_matrices(
+				mpc30->base.ctx,
+				regval,
+				&gam_regs);
+
+	}
+
+}
+
+void mpc3_get_gamut_remap(struct mpc *mpc,
+			  int mpcc_id,
+			  struct mpc_grph_gamut_adjustment *adjust)
+{
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+	uint16_t arr_reg_val[12];
+	int select;
+
+	read_gamut_remap(mpc30, mpcc_id, arr_reg_val, &select);
+
+	if (select == GAMUT_REMAP_BYPASS) {
+		adjust->gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS;
+		return;
+	}
+
+	adjust->gamut_adjust_type = GRAPHICS_GAMUT_ADJUST_TYPE_SW;
+	convert_hw_matrix(adjust->temperature_matrix,
+			  arr_reg_val, ARRAY_SIZE(arr_reg_val));
+}
+
 bool mpc3_program_3dlut(
 		struct mpc *mpc,
 		const struct tetrahedral_params *params,
@@ -1399,12 +1451,58 @@ static void mpc3_set_mpc_mem_lp_mode(struct mpc *mpc)
 	}
 }
 
+static void mpc3_read_mpcc_state(
+		struct mpc *mpc,
+		int mpcc_inst,
+		struct mpcc_state *s)
+{
+	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
+	uint32_t rmu_status = 0xf;
+
+	REG_GET(MPCC_OPP_ID[mpcc_inst], MPCC_OPP_ID, &s->opp_id);
+	REG_GET(MPCC_TOP_SEL[mpcc_inst], MPCC_TOP_SEL, &s->dpp_id);
+	REG_GET(MPCC_BOT_SEL[mpcc_inst], MPCC_BOT_SEL, &s->bot_mpcc_id);
+	REG_GET_4(MPCC_CONTROL[mpcc_inst], MPCC_MODE, &s->mode,
+			MPCC_ALPHA_BLND_MODE, &s->alpha_mode,
+			MPCC_ALPHA_MULTIPLIED_MODE, &s->pre_multiplied_alpha,
+			MPCC_BLND_ACTIVE_OVERLAP_ONLY, &s->overlap_only);
+	REG_GET_2(MPCC_STATUS[mpcc_inst], MPCC_IDLE, &s->idle,
+			MPCC_BUSY, &s->busy);
+
+	/* Color blocks state */
+	REG_GET(MPC_RMU_CONTROL, MPC_RMU0_MUX_STATUS, &rmu_status);
+
+	if (rmu_status == mpcc_inst) {
+		REG_GET(SHAPER_CONTROL[0],
+			MPC_RMU_SHAPER_LUT_MODE_CURRENT, &s->shaper_lut_mode);
+		REG_GET(RMU_3DLUT_MODE[0],
+			MPC_RMU_3DLUT_MODE_CURRENT,  &s->lut3d_mode);
+		REG_GET(RMU_3DLUT_READ_WRITE_CONTROL[0],
+			MPC_RMU_3DLUT_30BIT_EN, &s->lut3d_bit_depth);
+		REG_GET(RMU_3DLUT_MODE[0],
+			MPC_RMU_3DLUT_SIZE, &s->lut3d_size);
+	} else {
+		REG_GET(SHAPER_CONTROL[1],
+			MPC_RMU_SHAPER_LUT_MODE_CURRENT, &s->shaper_lut_mode);
+		REG_GET(RMU_3DLUT_MODE[1],
+			MPC_RMU_3DLUT_MODE_CURRENT,  &s->lut3d_mode);
+		REG_GET(RMU_3DLUT_READ_WRITE_CONTROL[1],
+			MPC_RMU_3DLUT_30BIT_EN, &s->lut3d_bit_depth);
+		REG_GET(RMU_3DLUT_MODE[1],
+			MPC_RMU_3DLUT_SIZE, &s->lut3d_size);
+	}
+
+        REG_GET_2(MPCC_OGAM_CONTROL[mpcc_inst],
+		  MPCC_OGAM_MODE_CURRENT, &s->rgam_mode,
+		  MPCC_OGAM_SELECT_CURRENT, &s->rgam_lut);
+}
+
 static const struct mpc_funcs dcn30_mpc_funcs = {
-	.read_mpcc_state = mpc1_read_mpcc_state,
+	.read_mpcc_state = mpc3_read_mpcc_state,
 	.insert_plane = mpc1_insert_plane,
 	.remove_mpcc = mpc1_remove_mpcc,
-	.mpc_init = mpc1_mpc_init,
-	.mpc_init_single_inst = mpc1_mpc_init_single_inst,
+	.mpc_init = mpc3_mpc_init,
+	.mpc_init_single_inst = mpc3_mpc_init_single_inst,
 	.update_blending = mpc2_update_blending,
 	.cursor_lock = mpc1_cursor_lock,
 	.get_mpcc_for_dpp = mpc1_get_mpcc_for_dpp,
@@ -1421,7 +1519,6 @@ static const struct mpc_funcs dcn30_mpc_funcs = {
 	.set_dwb_mux = mpc3_set_dwb_mux,
 	.disable_dwb_mux = mpc3_disable_dwb_mux,
 	.is_dwb_idle = mpc3_is_dwb_idle,
-	.set_out_rate_control = mpc3_set_out_rate_control,
 	.set_gamut_remap = mpc3_set_gamut_remap,
 	.program_shaper = mpc3_program_shaper,
 	.acquire_rmu = mpcc3_acquire_rmu,

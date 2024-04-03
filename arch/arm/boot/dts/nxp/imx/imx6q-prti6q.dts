@@ -359,8 +359,11 @@
 	keep-power-in-suspend;
 	status = "okay";
 
-	wifi {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	wifi@2 {
 		compatible = "ti,wl1271";
+		reg = <2>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_wifi>;
 		interrupts-extended = <&gpio1 30 IRQ_TYPE_LEVEL_HIGH>;

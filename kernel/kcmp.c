@@ -64,8 +64,10 @@ get_file_raw_ptr(struct task_struct *task, unsigned int idx)
 	struct file *file;
 
 	rcu_read_lock();
-	file = task_lookup_fd_rcu(task, idx);
+	file = task_lookup_fdget_rcu(task, idx);
 	rcu_read_unlock();
+	if (file)
+		fput(file);
 
 	return file;
 }

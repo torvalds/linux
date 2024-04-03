@@ -34,7 +34,6 @@ pe_header:
 
 SYM_DATA(kernel_asize, .long _kernel_asize);
 SYM_DATA(kernel_fsize, .long _kernel_fsize);
-SYM_DATA(kernel_offset, .long _kernel_offset);
 
 #endif
 
@@ -75,6 +74,11 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	la.pcrel	t0, fw_arg2
 	st.d		a2, t0, 0
 
+#ifdef CONFIG_PAGE_SIZE_4KB
+	li.d		t0, 0
+	li.d		t1, CSR_STFILL
+	csrxchg		t0, t1, LOONGARCH_CSR_IMPCTL1
+#endif
 	/* KSave3 used for percpu base, initialized as 0 */
 	csrwr		zero, PERCPU_BASE_KS
 	/* GPR21 used for percpu base (runtime), initialized as 0 */
@@ -95,12 +99,17 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	PTR_LI		sp, (_THREAD_SIZE - PT_SIZE)
 	PTR_ADD		sp, sp, tp
 	set_saved_sp	sp, t0, t1
-#endif
 
-	/* relocate_kernel() returns the new kernel entry point */
-	jr		a0
-	ASM_BUG()
+	/* Jump to the new kernel: new_pc = current_pc + random_offset */
+	pcaddi		t0, 0
+	add.d		t0, t0, a0
+	jirl		zero, t0, 0xc
+#endif /* CONFIG_RANDOMIZE_BASE */
 
+#endif /* CONFIG_RELOCATABLE */
+
+#ifdef CONFIG_KASAN
+	bl		kasan_early_init
 #endif
 
 	bl		start_kernel
@@ -122,6 +131,11 @@ SYM_CODE_START(smpboot_entry)
 
 	JUMP_VIRT_ADDR	t0, t1
 
+#ifdef CONFIG_PAGE_SIZE_4KB
+	li.d		t0, 0
+	li.d		t1, CSR_STFILL
+	csrxchg		t0, t1, LOONGARCH_CSR_IMPCTL1
+#endif
 	/* Enable PG */
 	li.w		t0, 0xb0		# PLV=0, IE=0, PG=1
 	csrwr		t0, LOONGARCH_CSR_CRMD

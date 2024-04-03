@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  * Authors:    Luis Carlos Cobo <luisca@cozybit.com>
  *             Javier Cardona <javier@cozybit.com>
  */
@@ -94,6 +94,7 @@ enum mesh_deferred_task_flags {
  * @is_root: the destination station of this path is a root node
  * @is_gate: the destination station of this path is a mesh gate
  * @path_change_count: the number of path changes to destination
+ * @fast_tx_check: timestamp of last fast-xmit enable attempt
  *
  *
  * The dst address is unique in the mesh path table. Since the mesh_path is
@@ -212,7 +213,6 @@ int mesh_rmc_check(struct ieee80211_sub_if_data *sdata,
 		   const u8 *addr, struct ieee80211s_hdr *mesh_hdr);
 bool mesh_matches_local(struct ieee80211_sub_if_data *sdata,
 			struct ieee802_11_elems *ie);
-void mesh_ids_set_default(struct ieee80211_if_mesh *mesh);
 int mesh_add_meshconf_ie(struct ieee80211_sub_if_data *sdata,
 			 struct sk_buff *skb);
 int mesh_add_meshid_ie(struct ieee80211_sub_if_data *sdata,

@@ -110,7 +110,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/flag
     description:
       If set, indicates that PHY will disable swap of the
-      TX/RX lanes. This property allows the PHY to work correcly after
+      TX/RX lanes. This property allows the PHY to work correctly after
       e.g. wrong bootstrap configuration caused by issues in PCB
       layout design.
 

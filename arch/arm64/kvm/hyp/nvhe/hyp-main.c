@@ -135,6 +135,16 @@ static void handle___kvm_tlb_flush_vmid_ipa_nsh(struct kvm_cpu_context *host_ctx
 	__kvm_tlb_flush_vmid_ipa_nsh(kern_hyp_va(mmu), ipa, level);
 }
 
+static void
+handle___kvm_tlb_flush_vmid_range(struct kvm_cpu_context *host_ctxt)
+{
+	DECLARE_REG(struct kvm_s2_mmu *, mmu, host_ctxt, 1);
+	DECLARE_REG(phys_addr_t, start, host_ctxt, 2);
+	DECLARE_REG(unsigned long, pages, host_ctxt, 3);
+
+	__kvm_tlb_flush_vmid_range(kern_hyp_va(mmu), start, pages);
+}
+
 static void handle___kvm_tlb_flush_vmid(struct kvm_cpu_context *host_ctxt)
 {
 	DECLARE_REG(struct kvm_s2_mmu *, mmu, host_ctxt, 1);
@@ -327,6 +337,7 @@ static const hcall_t host_hcall[] = {
 	HANDLE_FUNC(__kvm_tlb_flush_vmid_ipa),
 	HANDLE_FUNC(__kvm_tlb_flush_vmid_ipa_nsh),
 	HANDLE_FUNC(__kvm_tlb_flush_vmid),
+	HANDLE_FUNC(__kvm_tlb_flush_vmid_range),
 	HANDLE_FUNC(__kvm_flush_cpu_context),
 	HANDLE_FUNC(__kvm_timer_set_cntvoff),
 	HANDLE_FUNC(__vgic_v3_read_vmcr),
@@ -357,6 +368,7 @@ static void handle_host_hcall(struct kvm_cpu_context *host_ctxt)
 	if (static_branch_unlikely(&kvm_protected_mode_initialized))
 		hcall_min = __KVM_HOST_SMCCC_FUNC___pkvm_prot_finalize;
 
+	id &= ~ARM_SMCCC_CALL_HINTS;
 	id -= KVM_HOST_SMCCC_ID(0);
 
 	if (unlikely(id < hcall_min || id >= ARRAY_SIZE(host_hcall)))
@@ -381,11 +393,14 @@ static void default_host_smc_handler(struct kvm_cpu_context *host_ctxt)
 
 static void handle_host_smc(struct kvm_cpu_context *host_ctxt)
 {
+	DECLARE_REG(u64, func_id, host_ctxt, 0);
 	bool handled;
 
-	handled = kvm_host_psci_handler(host_ctxt);
+	func_id &= ~ARM_SMCCC_CALL_HINTS;
+
+	handled = kvm_host_psci_handler(host_ctxt, func_id);
 	if (!handled)
-		handled = kvm_host_ffa_handler(host_ctxt);
+		handled = kvm_host_ffa_handler(host_ctxt, func_id);
 	if (!handled)
 		default_host_smc_handler(host_ctxt);
 

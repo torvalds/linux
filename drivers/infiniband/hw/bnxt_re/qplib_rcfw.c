@@ -55,7 +55,7 @@ static void bnxt_qplib_service_creq(struct tasklet_struct *t);
 
 /**
  * bnxt_qplib_map_rc  -  map return type based on opcode
- * @opcode    -  roce slow path opcode
+ * @opcode:  roce slow path opcode
  *
  * case #1
  * Firmware initiated error recovery is a safe state machine and
@@ -98,8 +98,8 @@ static int bnxt_qplib_map_rc(u8 opcode)
 
 /**
  * bnxt_re_is_fw_stalled   -	Check firmware health
- * @rcfw      -   rcfw channel instance of rdev
- * @cookie    -   cookie to track the command
+ * @rcfw:     rcfw channel instance of rdev
+ * @cookie:   cookie to track the command
  *
  * If firmware has not responded any rcfw command within
  * rcfw->max_timeout, consider firmware as stalled.
@@ -133,8 +133,8 @@ static int bnxt_re_is_fw_stalled(struct bnxt_qplib_rcfw *rcfw,
 
 /**
  * __wait_for_resp   -	Don't hold the cpu context and wait for response
- * @rcfw      -   rcfw channel instance of rdev
- * @cookie    -   cookie to track the command
+ * @rcfw:    rcfw channel instance of rdev
+ * @cookie:  cookie to track the command
  *
  * Wait for command completion in sleepable context.
  *
@@ -179,8 +179,8 @@ static int __wait_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
 
 /**
  * __block_for_resp   -	hold the cpu context and wait for response
- * @rcfw      -   rcfw channel instance of rdev
- * @cookie    -   cookie to track the command
+ * @rcfw:    rcfw channel instance of rdev
+ * @cookie:  cookie to track the command
  *
  * This function will hold the cpu (non-sleepable context) and
  * wait for command completion. Maximum holding interval is 8 second.
@@ -216,8 +216,8 @@ static int __block_for_resp(struct bnxt_qplib_rcfw *rcfw, u16 cookie)
 };
 
 /*  __send_message_no_waiter -	get cookie and post the message.
- * @rcfw      -   rcfw channel instance of rdev
- * @msg      -    qplib message internal
+ * @rcfw:   rcfw channel instance of rdev
+ * @msg:    qplib message internal
  *
  * This function will just post and don't bother about completion.
  * Current design of this function is -
@@ -335,7 +335,8 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 					  cpu_to_le64(sbuf->dma_addr));
 		__set_cmdq_base_resp_size(msg->req, msg->req_sz,
 					  ALIGN(sbuf->size,
-						BNXT_QPLIB_CMDQE_UNITS));
+						BNXT_QPLIB_CMDQE_UNITS) /
+						BNXT_QPLIB_CMDQE_UNITS);
 	}
 
 	preq = (u8 *)msg->req;
@@ -373,8 +374,8 @@ static int __send_message(struct bnxt_qplib_rcfw *rcfw,
 
 /**
  * __poll_for_resp   -	self poll completion for rcfw command
- * @rcfw      -   rcfw channel instance of rdev
- * @cookie    -   cookie to track the command
+ * @rcfw:     rcfw channel instance of rdev
+ * @cookie:   cookie to track the command
  *
  * It works same as __wait_for_resp except this function will
  * do self polling in sort interval since interrupt is disabled.
@@ -470,8 +471,8 @@ static void __destroy_timedout_ah(struct bnxt_qplib_rcfw *rcfw,
 /**
  * __bnxt_qplib_rcfw_send_message   -	qplib interface to send
  * and complete rcfw command.
- * @rcfw      -   rcfw channel instance of rdev
- * @msg      -    qplib message internal
+ * @rcfw:   rcfw channel instance of rdev
+ * @msg:    qplib message internal
  *
  * This function does not account shadow queue depth. It will send
  * all the command unconditionally as long as send queue is not full.
@@ -487,7 +488,7 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 	struct bnxt_qplib_crsqe *crsqe;
 	unsigned long flags;
 	u16 cookie;
-	int rc = 0;
+	int rc;
 	u8 opcode;
 
 	opcode = __get_cmdq_base_opcode(msg->req, msg->req_sz);
@@ -533,8 +534,8 @@ static int __bnxt_qplib_rcfw_send_message(struct bnxt_qplib_rcfw *rcfw,
 /**
  * bnxt_qplib_rcfw_send_message   -	qplib interface to send
  * and complete rcfw command.
- * @rcfw      -   rcfw channel instance of rdev
- * @msg      -    qplib message internal
+ * @rcfw:   rcfw channel instance of rdev
+ * @msg:    qplib message internal
  *
  * Driver interact with Firmware through rcfw channel/slow path in two ways.
  * a. Blocking rcfw command send. In this path, driver cannot hold
@@ -664,7 +665,6 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 		blocked = cookie & RCFW_CMD_IS_BLOCKING;
 		cookie &= RCFW_MAX_COOKIE_VALUE;
 		crsqe = &rcfw->crsqe_tbl[cookie];
-		crsqe->is_in_used = false;
 
 		if (WARN_ONCE(test_bit(FIRMWARE_STALL_DETECTED,
 				       &rcfw->cmdq.flags),
@@ -680,8 +680,14 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 			atomic_dec(&rcfw->timeout_send);
 
 		if (crsqe->is_waiter_alive) {
-			if (crsqe->resp)
+			if (crsqe->resp) {
 				memcpy(crsqe->resp, qp_event, sizeof(*qp_event));
+				/* Insert write memory barrier to ensure that
+				 * response data is copied before clearing the
+				 * flags
+				 */
+				smp_wmb();
+			}
 			if (!blocked)
 				wait_cmds++;
 		}
@@ -692,6 +698,8 @@ static int bnxt_qplib_process_qp_event(struct bnxt_qplib_rcfw *rcfw,
 		crsqe->req_size = 0;
 		if (!is_waiter_alive)
 			crsqe->resp = NULL;
+
+		crsqe->is_in_used = false;
 
 		hwq->cons += req_size;
 
@@ -726,17 +734,15 @@ static void bnxt_qplib_service_creq(struct tasklet_struct *t)
 	u32 type, budget = CREQ_ENTRY_POLL_BUDGET;
 	struct bnxt_qplib_hwq *hwq = &creq->hwq;
 	struct creq_base *creqe;
-	u32 sw_cons, raw_cons;
 	unsigned long flags;
 	u32 num_wakeup = 0;
+	u32 hw_polled = 0;
 
 	/* Service the CREQ until budget is over */
 	spin_lock_irqsave(&hwq->lock, flags);
-	raw_cons = hwq->cons;
 	while (budget > 0) {
-		sw_cons = HWQ_CMP(raw_cons, hwq);
-		creqe = bnxt_qplib_get_qe(hwq, sw_cons, NULL);
-		if (!CREQ_CMP_VALID(creqe, raw_cons, hwq->max_elements))
+		creqe = bnxt_qplib_get_qe(hwq, hwq->cons, NULL);
+		if (!CREQ_CMP_VALID(creqe, creq->creq_db.dbinfo.flags))
 			break;
 		/* The valid test of the entry must be done first before
 		 * reading any further.
@@ -767,15 +773,15 @@ static void bnxt_qplib_service_creq(struct tasklet_struct *t)
 					 type);
 			break;
 		}
-		raw_cons++;
 		budget--;
+		hw_polled++;
+		bnxt_qplib_hwq_incr_cons(hwq->max_elements, &hwq->cons,
+					 1, &creq->creq_db.dbinfo.flags);
 	}
 
-	if (hwq->cons != raw_cons) {
-		hwq->cons = raw_cons;
+	if (hw_polled)
 		bnxt_qplib_ring_nq_db(&creq->creq_db.dbinfo,
 				      rcfw->res->cctx, true);
-	}
 	spin_unlock_irqrestore(&hwq->lock, flags);
 	if (num_wakeup)
 		wake_up_nr(&rcfw->cmdq.waitq, num_wakeup);
@@ -846,7 +852,7 @@ int bnxt_qplib_init_rcfw(struct bnxt_qplib_rcfw *rcfw,
 	 */
 	if (is_virtfn)
 		goto skip_ctx_setup;
-	if (bnxt_qplib_is_chip_gen_p5(rcfw->res->cctx))
+	if (bnxt_qplib_is_chip_gen_p5_p7(rcfw->res->cctx))
 		goto config_vf_res;
 
 	lvl = ctx->qpc_tbl.level;
@@ -899,6 +905,8 @@ config_vf_res:
 	req.max_gid_per_vf = cpu_to_le32(ctx->vf_res.max_gid_per_vf);
 
 skip_ctx_setup:
+	if (BNXT_RE_HW_RETX(rcfw->res->dattr->dev_cap_flags))
+		req.flags |= cpu_to_le16(CMDQ_INITIALIZE_FW_FLAGS_HW_REQUESTER_RETX_SUPPORTED);
 	req.stat_ctx_id = cpu_to_le32(ctx->stats.fw_id);
 	bnxt_qplib_fill_cmdqmsg(&msg, &req, &resp, NULL, sizeof(req), sizeof(resp), 0);
 	rc = bnxt_qplib_rcfw_send_message(rcfw, &msg);
@@ -1105,6 +1113,7 @@ static int bnxt_qplib_map_creq_db(struct bnxt_qplib_rcfw *rcfw, u32 reg_offt)
 	pdev = rcfw->pdev;
 	creq_db = &rcfw->creq.creq_db;
 
+	creq_db->dbinfo.flags = 0;
 	creq_db->reg.bar_id = RCFW_COMM_CONS_PCI_BAR_REGION;
 	creq_db->reg.bar_base = pci_resource_start(pdev, creq_db->reg.bar_id);
 	if (!creq_db->reg.bar_id)
@@ -1194,35 +1203,4 @@ int bnxt_qplib_enable_rcfw_channel(struct bnxt_qplib_rcfw *rcfw,
 	bnxt_qplib_start_rcfw(rcfw);
 
 	return 0;
-}
-
-struct bnxt_qplib_rcfw_sbuf *bnxt_qplib_rcfw_alloc_sbuf(
-		struct bnxt_qplib_rcfw *rcfw,
-		u32 size)
-{
-	struct bnxt_qplib_rcfw_sbuf *sbuf;
-
-	sbuf = kzalloc(sizeof(*sbuf), GFP_KERNEL);
-	if (!sbuf)
-		return NULL;
-
-	sbuf->size = size;
-	sbuf->sb = dma_alloc_coherent(&rcfw->pdev->dev, sbuf->size,
-				      &sbuf->dma_addr, GFP_KERNEL);
-	if (!sbuf->sb)
-		goto bail;
-
-	return sbuf;
-bail:
-	kfree(sbuf);
-	return NULL;
-}
-
-void bnxt_qplib_rcfw_free_sbuf(struct bnxt_qplib_rcfw *rcfw,
-			       struct bnxt_qplib_rcfw_sbuf *sbuf)
-{
-	if (sbuf->sb)
-		dma_free_coherent(&rcfw->pdev->dev, sbuf->size,
-				  sbuf->sb, sbuf->dma_addr);
-	kfree(sbuf);
 }

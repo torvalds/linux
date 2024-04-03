@@ -286,14 +286,15 @@
 		gpios = <&gpio1 0 GPIO_ACTIVE_HIGH
 			 &gpio1 1 GPIO_ACTIVE_HIGH
 			 &gpio1 2 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <    0 0
-				       2200 1
-				       2500 2
-				       3000 4
-				       3300 3
-				       3700 5
-				       3800 6
-				       4200 7 >;
+		gpio-fan,speed-map =
+				<   0 0>,
+				<2200 1>,
+				<2500 2>,
+				<3000 4>,
+				<3300 3>,
+				<3700 5>,
+				<3800 6>,
+				<4200 7>;
 	};
 
 	gpio-fan-150-15-18 {
@@ -306,14 +307,15 @@
 			 &gpio0 16 GPIO_ACTIVE_HIGH
 			 &gpio0 17 GPIO_ACTIVE_HIGH>;
 		alarm-gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <    0 0
-				       2200 1
-				       2500 2
-				       3000 4
-				       3300 3
-				       3700 5
-				       3800 6
-				       4200 7 >;
+		gpio-fan,speed-map =
+				<   0 0>,
+				<2200 1>,
+				<2500 2>,
+				<3000 4>,
+				<3300 3>,
+				<3700 5>,
+				<3800 6>,
+				<4200 7>;
 	};
 
 	gpio-fan-100-32-35 {
@@ -326,14 +328,15 @@
 			 &gpio1 1 GPIO_ACTIVE_HIGH
 			 &gpio1 2 GPIO_ACTIVE_HIGH>;
 		alarm-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <    0 0
-				       2500 1
-				       3100 2
-				       3800 3
-				       4600 4
-				       4800 5
-				       4900 6
-				       5000 7 >;
+		gpio-fan,speed-map =
+				<   0 0>,
+				<2500 1>,
+				<3100 2>,
+				<3800 3>,
+				<4600 4>,
+				<4800 5>,
+				<4900 6>,
+				<5000 7>;
 	};
 
 	gpio-fan-100-15-18 {
@@ -346,14 +349,15 @@
 			 &gpio0 16 GPIO_ACTIVE_HIGH
 			 &gpio0 17 GPIO_ACTIVE_HIGH>;
 		alarm-gpios = <&gpio0 18 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <    0 0
-				       2500 1
-				       3100 2
-				       3800 3
-				       4600 4
-				       4800 5
-				       4900 6
-				       5000 7 >;
+		gpio-fan,speed-map =
+				<   0 0>,
+				<2500 1>,
+				<3100 2>,
+				<3800 3>,
+				<4600 4>,
+				<4800 5>,
+				<4900 6>,
+				<5000 7>;
 	};
 
 	gpio-fan-100-15-35-1 {
@@ -366,14 +370,15 @@
 			 &gpio0 16 GPIO_ACTIVE_HIGH
 			 &gpio0 17 GPIO_ACTIVE_HIGH>;
 		alarm-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <    0 0
-				       2500 1
-				       3100 2
-				       3800 3
-				       4600 4
-				       4800 5
-				       4900 6
-				       5000 7 >;
+		gpio-fan,speed-map =
+				<   0 0>,
+				<2500 1>,
+				<3100 2>,
+				<3800 3>,
+				<4600 4>,
+				<4800 5>,
+				<4900 6>,
+				<5000 7>;
 	};
 
 	gpio-fan-100-15-35-3 {
@@ -388,14 +393,15 @@
 		alarm-gpios = <&gpio1 3 GPIO_ACTIVE_HIGH
 			       &gpio1 12 GPIO_ACTIVE_HIGH
 			       &gpio1 13 GPIO_ACTIVE_HIGH>;
-		gpio-fan,speed-map = <    0 0
-				       2500 1
-				       3100 2
-				       3800 3
-				       4600 4
-				       4800 5
-				       4900 6
-				       5000 7 >;
+		gpio-fan,speed-map =
+				<   0 0>,
+				<2500 1>,
+				<3100 2>,
+				<3800 3>,
+				<4600 4>,
+				<4800 5>,
+				<4900 6>,
+				<5000 7>;
 	};
 
 	gpio-leds-alarm-12 {

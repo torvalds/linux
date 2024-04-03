@@ -33,7 +33,7 @@ static DECLARE_DELAYED_WORK(linkwatch_work, linkwatch_event);
 static LIST_HEAD(lweventlist);
 static DEFINE_SPINLOCK(lweventlist_lock);
 
-static unsigned char default_operstate(const struct net_device *dev)
+static unsigned int default_operstate(const struct net_device *dev)
 {
 	if (netif_testing(dev))
 		return IF_OPER_TESTING;
@@ -62,15 +62,12 @@ static unsigned char default_operstate(const struct net_device *dev)
 	return IF_OPER_UP;
 }
 
-
 static void rfc2863_policy(struct net_device *dev)
 {
-	unsigned char operstate = default_operstate(dev);
+	unsigned int operstate = default_operstate(dev);
 
-	if (operstate == dev->operstate)
+	if (operstate == READ_ONCE(dev->operstate))
 		return;
-
-	write_lock(&dev_base_lock);
 
 	switch(dev->link_mode) {
 	case IF_LINK_MODE_TESTING:
@@ -87,9 +84,7 @@ static void rfc2863_policy(struct net_device *dev)
 		break;
 	}
 
-	dev->operstate = operstate;
-
-	write_unlock(&dev_base_lock);
+	WRITE_ONCE(dev->operstate, operstate);
 }
 
 
@@ -192,7 +187,10 @@ static void __linkwatch_run_queue(int urgent_only)
 #define MAX_DO_DEV_PER_LOOP	100
 
 	int do_dev = MAX_DO_DEV_PER_LOOP;
-	struct net_device *dev;
+	/* Use a local list here since we add non-urgent
+	 * events back to the global one when called with
+	 * urgent_only=1.
+	 */
 	LIST_HEAD(wrk);
 
 	/* Give urgent case more budget */
@@ -218,6 +216,7 @@ static void __linkwatch_run_queue(int urgent_only)
 	list_splice_init(&lweventlist, &wrk);
 
 	while (!list_empty(&wrk) && do_dev > 0) {
+		struct net_device *dev;
 
 		dev = list_first_entry(&wrk, struct net_device, link_watch_list);
 		list_del_init(&dev->link_watch_list);
@@ -245,7 +244,7 @@ static void __linkwatch_run_queue(int urgent_only)
 	spin_unlock_irq(&lweventlist_lock);
 }
 
-void linkwatch_forget_dev(struct net_device *dev)
+void linkwatch_sync_dev(struct net_device *dev)
 {
 	unsigned long flags;
 	int clean = 0;

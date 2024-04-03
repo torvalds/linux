@@ -176,11 +176,11 @@
 	.retval = 1,
 },
 {
-	"invalid 64-bit BPF_END",
+	"invalid 64-bit BPF_END with BPF_TO_BE",
 	.insns = {
 	BPF_MOV32_IMM(BPF_REG_0, 0),
 	{
-		.code  = BPF_ALU64 | BPF_END | BPF_TO_LE,
+		.code  = BPF_ALU64 | BPF_END | BPF_TO_BE,
 		.dst_reg = BPF_REG_0,
 		.src_reg = 0,
 		.off   = 0,
@@ -188,7 +188,7 @@
 	},
 	BPF_EXIT_INSN(),
 	},
-	.errstr = "unknown opcode d7",
+	.errstr = "unknown opcode df",
 	.result = REJECT,
 },
 {

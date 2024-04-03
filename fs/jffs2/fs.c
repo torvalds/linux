@@ -113,9 +113,9 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 
 
 	ri->isize = cpu_to_je32((ivalid & ATTR_SIZE)?iattr->ia_size:inode->i_size);
-	ri->atime = cpu_to_je32(I_SEC((ivalid & ATTR_ATIME)?iattr->ia_atime:inode->i_atime));
-	ri->mtime = cpu_to_je32(I_SEC((ivalid & ATTR_MTIME)?iattr->ia_mtime:inode->i_mtime));
-	ri->ctime = cpu_to_je32(I_SEC((ivalid & ATTR_CTIME)?iattr->ia_ctime:inode->i_ctime));
+	ri->atime = cpu_to_je32(I_SEC((ivalid & ATTR_ATIME)?iattr->ia_atime:inode_get_atime(inode)));
+	ri->mtime = cpu_to_je32(I_SEC((ivalid & ATTR_MTIME)?iattr->ia_mtime:inode_get_mtime(inode)));
+	ri->ctime = cpu_to_je32(I_SEC((ivalid & ATTR_CTIME)?iattr->ia_ctime:inode_get_ctime(inode)));
 
 	ri->offset = cpu_to_je32(0);
 	ri->csize = ri->dsize = cpu_to_je32(mdatalen);
@@ -147,9 +147,9 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 		return PTR_ERR(new_metadata);
 	}
 	/* It worked. Update the inode */
-	inode->i_atime = ITIME(je32_to_cpu(ri->atime));
-	inode->i_ctime = ITIME(je32_to_cpu(ri->ctime));
-	inode->i_mtime = ITIME(je32_to_cpu(ri->mtime));
+	inode_set_atime_to_ts(inode, ITIME(je32_to_cpu(ri->atime)));
+	inode_set_ctime_to_ts(inode, ITIME(je32_to_cpu(ri->ctime)));
+	inode_set_mtime_to_ts(inode, ITIME(je32_to_cpu(ri->mtime)));
 	inode->i_mode = jemode_to_cpu(ri->mode);
 	i_uid_write(inode, je16_to_cpu(ri->uid));
 	i_gid_write(inode, je16_to_cpu(ri->gid));
@@ -282,9 +282,9 @@ struct inode *jffs2_iget(struct super_block *sb, unsigned long ino)
 	i_uid_write(inode, je16_to_cpu(latest_node.uid));
 	i_gid_write(inode, je16_to_cpu(latest_node.gid));
 	inode->i_size = je32_to_cpu(latest_node.isize);
-	inode->i_atime = ITIME(je32_to_cpu(latest_node.atime));
-	inode->i_mtime = ITIME(je32_to_cpu(latest_node.mtime));
-	inode->i_ctime = ITIME(je32_to_cpu(latest_node.ctime));
+	inode_set_atime_to_ts(inode, ITIME(je32_to_cpu(latest_node.atime)));
+	inode_set_mtime_to_ts(inode, ITIME(je32_to_cpu(latest_node.mtime)));
+	inode_set_ctime_to_ts(inode, ITIME(je32_to_cpu(latest_node.ctime)));
 
 	set_nlink(inode, f->inocache->pino_nlink);
 
@@ -386,9 +386,9 @@ void jffs2_dirty_inode(struct inode *inode, int flags)
 	iattr.ia_mode = inode->i_mode;
 	iattr.ia_uid = inode->i_uid;
 	iattr.ia_gid = inode->i_gid;
-	iattr.ia_atime = inode->i_atime;
-	iattr.ia_mtime = inode->i_mtime;
-	iattr.ia_ctime = inode->i_ctime;
+	iattr.ia_atime = inode_get_atime(inode);
+	iattr.ia_mtime = inode_get_mtime(inode);
+	iattr.ia_ctime = inode_get_ctime(inode);
 
 	jffs2_do_setattr(inode, &iattr);
 }
@@ -475,8 +475,8 @@ struct inode *jffs2_new_inode (struct inode *dir_i, umode_t mode, struct jffs2_r
 	inode->i_mode = jemode_to_cpu(ri->mode);
 	i_gid_write(inode, je16_to_cpu(ri->gid));
 	i_uid_write(inode, je16_to_cpu(ri->uid));
-	inode->i_atime = inode->i_ctime = inode->i_mtime = current_time(inode);
-	ri->atime = ri->mtime = ri->ctime = cpu_to_je32(I_SEC(inode->i_mtime));
+	simple_inode_init_ts(inode);
+	ri->atime = ri->mtime = ri->ctime = cpu_to_je32(I_SEC(inode_get_mtime(inode)));
 
 	inode->i_blocks = 0;
 	inode->i_size = 0;

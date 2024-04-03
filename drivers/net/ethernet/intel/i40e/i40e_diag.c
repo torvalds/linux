@@ -28,7 +28,7 @@ static int i40e_diag_reg_pattern_test(struct i40e_hw *hw,
 			i40e_debug(hw, I40E_DEBUG_DIAG,
 				   "%s: reg pattern test failed - reg 0x%08x pat 0x%08x val 0x%08x\n",
 				   __func__, reg, pat, val);
-			return I40E_ERR_DIAG_TEST_FAILED;
+			return -EIO;
 		}
 	}
 
@@ -38,7 +38,7 @@ static int i40e_diag_reg_pattern_test(struct i40e_hw *hw,
 		i40e_debug(hw, I40E_DEBUG_DIAG,
 			   "%s: reg restore test failed - reg 0x%08x orig_val 0x%08x val 0x%08x\n",
 			   __func__, reg, orig_val, val);
-		return I40E_ERR_DIAG_TEST_FAILED;
+		return -EIO;
 	}
 
 	return 0;
@@ -127,5 +127,5 @@ int i40e_diag_eeprom_test(struct i40e_hw *hw)
 	     BIT(I40E_SR_CONTROL_WORD_1_SHIFT)))
 		return i40e_validate_nvm_checksum(hw, NULL);
 	else
-		return I40E_ERR_DIAG_TEST_FAILED;
+		return -EIO;
 }

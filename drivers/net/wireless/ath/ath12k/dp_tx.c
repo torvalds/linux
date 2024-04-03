@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BSD-3-Clause-Clear
 /*
  * Copyright (c) 2018-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include "core.h"
@@ -106,11 +106,10 @@ static struct ath12k_tx_desc_info *ath12k_dp_tx_assign_buffer(struct ath12k_dp *
 	return desc;
 }
 
-static void ath12k_hal_tx_cmd_ext_desc_setup(struct ath12k_base *ab, void *cmd,
+static void ath12k_hal_tx_cmd_ext_desc_setup(struct ath12k_base *ab,
+					     struct hal_tx_msdu_ext_desc *tcl_ext_cmd,
 					     struct hal_tx_info *ti)
 {
-	struct hal_tx_msdu_ext_desc *tcl_ext_cmd = (struct hal_tx_msdu_ext_desc *)cmd;
-
 	tcl_ext_cmd->info0 = le32_encode_bits(ti->paddr,
 					      HAL_TX_MSDU_EXT_INFO0_BUF_PTR_LO);
 	tcl_ext_cmd->info1 = le32_encode_bits(0x0,
@@ -152,7 +151,7 @@ int ath12k_dp_tx(struct ath12k *ar, struct ath12k_vif *arvif,
 
 	if (!(info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) &&
 	    !ieee80211_is_data(hdr->frame_control))
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 
 	pool_id = skb_get_queue_mapping(skb) & (ATH12K_HW_MAX_QUEUES - 1);
 
@@ -301,7 +300,7 @@ tcl_ring_sel:
 		spin_unlock_bh(&tcl_ring->lock);
 		ret = -ENOMEM;
 
-		/* Checking for available tcl descritors in another ring in
+		/* Checking for available tcl descriptors in another ring in
 		 * case of failure due to full tcl ring now, is better than
 		 * checking this ring earlier for each pkt tx.
 		 * Restart ring selection if some rings are not checked yet.
@@ -330,8 +329,11 @@ tcl_ring_sel:
 
 fail_unmap_dma:
 	dma_unmap_single(ab->dev, ti.paddr, ti.data_len, DMA_TO_DEVICE);
-	dma_unmap_single(ab->dev, skb_cb->paddr_ext_desc,
-			 sizeof(struct hal_tx_msdu_ext_desc), DMA_TO_DEVICE);
+
+	if (skb_cb->paddr_ext_desc)
+		dma_unmap_single(ab->dev, skb_cb->paddr_ext_desc,
+				 sizeof(struct hal_tx_msdu_ext_desc),
+				 DMA_TO_DEVICE);
 
 fail_remove_tx_buf:
 	ath12k_dp_tx_release_txbuf(dp, tx_desc, pool_id);
@@ -347,6 +349,7 @@ static void ath12k_dp_tx_free_txbuf(struct ath12k_base *ab,
 {
 	struct ath12k *ar;
 	struct ath12k_skb_cb *skb_cb;
+	u8 pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, mac_id);
 
 	skb_cb = ATH12K_SKB_CB(msdu);
 
@@ -357,7 +360,7 @@ static void ath12k_dp_tx_free_txbuf(struct ath12k_base *ab,
 
 	dev_kfree_skb_any(msdu);
 
-	ar = ab->pdevs[mac_id].ar;
+	ar = ab->pdevs[pdev_id].ar;
 	if (atomic_dec_and_test(&ar->dp.num_tx_pending))
 		wake_up(&ar->dp.tx_empty_waitq);
 }
@@ -398,7 +401,7 @@ ath12k_dp_tx_htt_tx_complete_buf(struct ath12k_base *ab,
 		}
 	}
 
-	ieee80211_tx_status(ar->hw, msdu);
+	ieee80211_tx_status_skb(ath12k_ar_to_hw(ar), msdu);
 }
 
 static void
@@ -495,7 +498,7 @@ static void ath12k_dp_tx_complete_msdu(struct ath12k *ar,
 	 * Might end up reporting it out-of-band from HTT stats.
 	 */
 
-	ieee80211_tx_status(ar->hw, msdu);
+	ieee80211_tx_status_skb(ath12k_ar_to_hw(ar), msdu);
 
 exit:
 	rcu_read_unlock();
@@ -536,7 +539,7 @@ void ath12k_dp_tx_completion_handler(struct ath12k_base *ab, int ring_id)
 	struct hal_tx_status ts = { 0 };
 	struct dp_tx_ring *tx_ring = &dp->tx_ring[ring_id];
 	struct hal_wbm_release_ring *desc;
-	u8 mac_id;
+	u8 mac_id, pdev_id;
 	u64 desc_va;
 
 	spin_lock_bh(&status_ring->lock);
@@ -605,7 +608,8 @@ void ath12k_dp_tx_completion_handler(struct ath12k_base *ab, int ring_id)
 			continue;
 		}
 
-		ar = ab->pdevs[mac_id].ar;
+		pdev_id = ath12k_hw_mac_id_to_pdev_id(ab->hw_params, mac_id);
+		ar = ab->pdevs[pdev_id].ar;
 
 		if (atomic_dec_and_test(&ar->dp.num_tx_pending))
 			wake_up(&ar->dp.tx_empty_waitq);
@@ -833,7 +837,7 @@ int ath12k_dp_tx_htt_h2t_ver_req_msg(struct ath12k_base *ab)
 	if (dp->htt_tgt_ver_major != HTT_TARGET_VERSION_MAJOR) {
 		ath12k_err(ab, "unsupported htt major version %d supported version is %d\n",
 			   dp->htt_tgt_ver_major, HTT_TARGET_VERSION_MAJOR);
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	return 0;
@@ -958,6 +962,26 @@ int ath12k_dp_tx_htt_rx_filter_setup(struct ath12k_base *ab, u32 ring_id,
 		cmd->rx_attn_offset =
 			le32_encode_bits(tlv_filter->rx_attn_offset,
 					 HTT_RX_RING_SELECTION_CFG_RX_ATTENTION_OFFSET);
+	}
+
+	if (tlv_filter->rx_mpdu_start_wmask > 0 &&
+	    tlv_filter->rx_msdu_end_wmask > 0) {
+		cmd->info2 |=
+			le32_encode_bits(true,
+					 HTT_RX_RING_SELECTION_CFG_WORD_MASK_COMPACT_SET);
+		cmd->rx_mpdu_start_end_mask =
+			le32_encode_bits(tlv_filter->rx_mpdu_start_wmask,
+					 HTT_RX_RING_SELECTION_CFG_RX_MPDU_START_MASK);
+		/* mpdu_end is not used for any hardwares so far
+		 * please assign it in future if any chip is
+		 * using through hal ops
+		 */
+		cmd->rx_mpdu_start_end_mask |=
+			le32_encode_bits(tlv_filter->rx_mpdu_end_wmask,
+					 HTT_RX_RING_SELECTION_CFG_RX_MPDU_END_MASK);
+		cmd->rx_msdu_end_word_mask =
+			le32_encode_bits(tlv_filter->rx_msdu_end_wmask,
+					 HTT_RX_RING_SELECTION_CFG_RX_MSDU_END_MASK);
 	}
 
 	ret = ath12k_htc_send(&ab->htc, ab->dp.eid, skb);

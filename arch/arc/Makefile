@@ -28,14 +28,14 @@ cflags-y				+= $(tune-mcpu-def-y)
 endif
 endif
 
-
 ifdef CONFIG_ARC_CURR_IN_REG
 # For a global register definition, make sure it gets passed to every file
 # We had a customer reported bug where some code built in kernel was NOT using
-# any kernel headers, and missing the r25 global register
+# any kernel headers, and missing the global register
 # Can't do unconditionally because of recursive include issues
 # due to <linux/thread_info.h>
 LINUXINCLUDE	+=  -include $(srctree)/arch/arc/include/asm/current.h
+cflags-y	+= -ffixed-gp
 endif
 
 cflags-y				+= -fsection-anchors
@@ -67,7 +67,7 @@ cflags-$(CONFIG_ARC_DW2_UNWIND)		+= -fasynchronous-unwind-tables $(cfi)
 # small data is default for elf32 tool-chain. If not usable, disable it
 # This also allows repurposing GP as scratch reg to gcc reg allocator
 disable_small_data := y
-cflags-$(disable_small_data)		+= -mno-sdata -fcall-used-gp
+cflags-$(disable_small_data)		+= -mno-sdata
 
 cflags-$(CONFIG_CPU_BIG_ENDIAN)		+= -mbig-endian
 ldflags-$(CONFIG_CPU_BIG_ENDIAN)	+= -EB

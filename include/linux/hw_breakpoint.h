@@ -90,9 +90,6 @@ extern int dbg_reserve_bp_slot(struct perf_event *bp);
 extern int dbg_release_bp_slot(struct perf_event *bp);
 extern int reserve_bp_slot(struct perf_event *bp);
 extern void release_bp_slot(struct perf_event *bp);
-int arch_reserve_bp_slot(struct perf_event *bp);
-void arch_release_bp_slot(struct perf_event *bp);
-void arch_unregister_hw_breakpoint(struct perf_event *bp);
 
 extern void flush_ptrace_hw_breakpoint(struct task_struct *tsk);
 

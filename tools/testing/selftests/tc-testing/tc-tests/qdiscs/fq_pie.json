@@ -6,8 +6,10 @@
             "qdisc",
             "fq_pie"
         ],
+        "plugins": {
+            "requires": "nsPlugin"
+        },
         "setup": [
-            "$IP link add dev $DUMMY type dummy || /bin/true"
         ],
         "cmdUnderTest": "$TC qdisc add dev $DUMMY handle 1: root fq_pie flows 65536",
         "expExitCode": "0",
@@ -15,7 +17,6 @@
         "matchPattern": "qdisc fq_pie 1: root refcnt 2 limit 10240p flows 65536",
         "matchCount": "1",
         "teardown": [
-            "$IP link del dev $DUMMY"
         ]
     }
 ]

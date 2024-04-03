@@ -35,12 +35,12 @@ void nft_flow_rule_set_addr_type(struct nft_flow_rule *flow,
 	struct nft_flow_key *mask = &match->mask;
 	struct nft_flow_key *key = &match->key;
 
-	if (match->dissector.used_keys & BIT(FLOW_DISSECTOR_KEY_CONTROL))
+	if (match->dissector.used_keys & BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL))
 		return;
 
 	key->control.addr_type = addr_type;
 	mask->control.addr_type = 0xffff;
-	match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_CONTROL);
+	match->dissector.used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL);
 	match->dissector.offset[FLOW_DISSECTOR_KEY_CONTROL] =
 		offsetof(struct nft_flow_key, control);
 }
@@ -59,7 +59,7 @@ static void nft_flow_rule_transfer_vlan(struct nft_offload_ctx *ctx,
 		.mask	= match->mask.basic.n_proto,
 	};
 
-	if (match->dissector.used_keys & BIT(FLOW_DISSECTOR_KEY_VLAN) &&
+	if (match->dissector.used_keys & BIT_ULL(FLOW_DISSECTOR_KEY_VLAN) &&
 	    (match->key.vlan.vlan_tpid == htons(ETH_P_8021Q) ||
 	     match->key.vlan.vlan_tpid == htons(ETH_P_8021AD))) {
 		match->key.basic.n_proto = match->key.cvlan.vlan_tpid;
@@ -70,8 +70,9 @@ static void nft_flow_rule_transfer_vlan(struct nft_offload_ctx *ctx,
 		match->mask.vlan.vlan_tpid = ethertype.mask;
 		match->dissector.offset[FLOW_DISSECTOR_KEY_CVLAN] =
 			offsetof(struct nft_flow_key, cvlan);
-		match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_CVLAN);
-	} else if (match->dissector.used_keys & BIT(FLOW_DISSECTOR_KEY_BASIC) &&
+		match->dissector.used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_CVLAN);
+	} else if (match->dissector.used_keys &
+		   BIT_ULL(FLOW_DISSECTOR_KEY_BASIC) &&
 		   (match->key.basic.n_proto == htons(ETH_P_8021Q) ||
 		    match->key.basic.n_proto == htons(ETH_P_8021AD))) {
 		match->key.basic.n_proto = match->key.vlan.vlan_tpid;
@@ -80,7 +81,7 @@ static void nft_flow_rule_transfer_vlan(struct nft_offload_ctx *ctx,
 		match->mask.vlan.vlan_tpid = ethertype.mask;
 		match->dissector.offset[FLOW_DISSECTOR_KEY_VLAN] =
 			offsetof(struct nft_flow_key, vlan);
-		match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_VLAN);
+		match->dissector.used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_VLAN);
 	}
 }
 

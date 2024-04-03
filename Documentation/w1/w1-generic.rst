@@ -101,7 +101,7 @@ w1_master_search          (rw) the number of searches left to do,
 w1_master_slave_count     (ro) the number of slaves found
 w1_master_slaves          (ro) the names of the slaves, one per line
 w1_master_timeout         (ro) the delay in seconds between searches
-w1_master_timeout_us      (ro) the delay in microseconds beetwen searches
+w1_master_timeout_us      (ro) the delay in microseconds between searches
 ========================= =====================================================
 
 If you have a w1 bus that never changes (you don't add or remove devices),

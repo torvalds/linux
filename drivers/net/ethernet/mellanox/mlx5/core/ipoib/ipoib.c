@@ -339,7 +339,7 @@ static int mlx5i_init_tx(struct mlx5e_priv *priv)
 		return err;
 	}
 
-	err = mlx5i_create_tis(priv->mdev, ipriv->qpn, &priv->tisn[0][0]);
+	err = mlx5i_create_tis(priv->mdev, ipriv->qpn, &ipriv->tisn);
 	if (err) {
 		mlx5_core_warn(priv->mdev, "create tis failed, %d\n", err);
 		goto err_destroy_underlay_qp;
@@ -356,7 +356,7 @@ static void mlx5i_cleanup_tx(struct mlx5e_priv *priv)
 {
 	struct mlx5i_priv *ipriv = priv->ppriv;
 
-	mlx5e_destroy_tis(priv->mdev, priv->tisn[0][0]);
+	mlx5e_destroy_tis(priv->mdev, ipriv->tisn);
 	mlx5i_destroy_underlay_qp(priv->mdev, ipriv->qpn);
 }
 
@@ -418,12 +418,6 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 		return -ENOMEM;
 	}
 
-	priv->rx_res = mlx5e_rx_res_alloc();
-	if (!priv->rx_res) {
-		err = -ENOMEM;
-		goto err_free_fs;
-	}
-
 	mlx5e_create_q_counters(priv);
 
 	err = mlx5e_open_drop_rq(priv, &priv->drop_rq);
@@ -432,12 +426,13 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 		goto err_destroy_q_counters;
 	}
 
-	err = mlx5e_rx_res_init(priv->rx_res, priv->mdev, 0,
-				priv->max_nch, priv->drop_rq.rqn,
-				&priv->channels.params.packet_merge,
-				priv->channels.params.num_channels);
-	if (err)
+	priv->rx_res = mlx5e_rx_res_create(priv->mdev, 0, priv->max_nch, priv->drop_rq.rqn,
+					   &priv->channels.params.packet_merge,
+					   priv->channels.params.num_channels);
+	if (IS_ERR(priv->rx_res)) {
+		err = PTR_ERR(priv->rx_res);
 		goto err_close_drop_rq;
+	}
 
 	err = mlx5i_create_flow_steering(priv);
 	if (err)
@@ -447,13 +442,11 @@ static int mlx5i_init_rx(struct mlx5e_priv *priv)
 
 err_destroy_rx_res:
 	mlx5e_rx_res_destroy(priv->rx_res);
+	priv->rx_res = ERR_PTR(-EINVAL);
 err_close_drop_rq:
 	mlx5e_close_drop_rq(&priv->drop_rq);
 err_destroy_q_counters:
 	mlx5e_destroy_q_counters(priv);
-	mlx5e_rx_res_free(priv->rx_res);
-	priv->rx_res = NULL;
-err_free_fs:
 	mlx5e_fs_cleanup(priv->fs);
 	return err;
 }
@@ -462,10 +455,9 @@ static void mlx5i_cleanup_rx(struct mlx5e_priv *priv)
 {
 	mlx5i_destroy_flow_steering(priv);
 	mlx5e_rx_res_destroy(priv->rx_res);
+	priv->rx_res = ERR_PTR(-EINVAL);
 	mlx5e_close_drop_rq(&priv->drop_rq);
 	mlx5e_destroy_q_counters(priv);
-	mlx5e_rx_res_free(priv->rx_res);
-	priv->rx_res = NULL;
 	mlx5e_fs_cleanup(priv->fs);
 }
 
@@ -491,6 +483,18 @@ static unsigned int mlx5i_stats_grps_num(struct mlx5e_priv *priv)
 	return ARRAY_SIZE(mlx5i_stats_grps);
 }
 
+u32 mlx5i_get_tisn(struct mlx5_core_dev *mdev, struct mlx5e_priv *priv, u8 lag_port, u8 tc)
+{
+	struct mlx5i_priv *ipriv = priv->ppriv;
+
+	if (WARN(lag_port || tc,
+		 "IPoIB unexpected non-zero value: lag_port (%u), tc (%u)\n",
+		 lag_port, tc))
+		return 0;
+
+	return ipriv->tisn;
+}
+
 static const struct mlx5e_profile mlx5i_nic_profile = {
 	.init		   = mlx5i_init,
 	.cleanup	   = mlx5i_cleanup,
@@ -507,6 +511,7 @@ static const struct mlx5e_profile mlx5i_nic_profile = {
 	.max_tc		   = MLX5I_MAX_NUM_TC,
 	.stats_grps        = mlx5i_stats_grps,
 	.stats_grps_num    = mlx5i_stats_grps_num,
+	.get_tisn          = mlx5i_get_tisn,
 };
 
 /* mlx5i netdev NDos */
@@ -778,7 +783,7 @@ static int mlx5_rdma_setup_rn(struct ib_device *ibdev, u32 port_num,
 		}
 
 		/* This should only be called once per mdev */
-		err = mlx5e_create_mdev_resources(mdev);
+		err = mlx5e_create_mdev_resources(mdev, false);
 		if (err)
 			goto destroy_ht;
 	}
@@ -837,7 +842,7 @@ int mlx5_rdma_rn_get_params(struct mlx5_core_dev *mdev,
 	*params = (struct rdma_netdev_alloc_params){
 		.sizeof_priv = sizeof(struct mlx5i_priv) +
 			       sizeof(struct mlx5e_priv),
-		.txqs = nch * MLX5E_MAX_NUM_TC,
+		.txqs = nch * MLX5_MAX_NUM_TC,
 		.rxqs = nch,
 		.param = mdev,
 		.initialize_rdma_netdev = mlx5_rdma_setup_rn,

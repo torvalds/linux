@@ -305,7 +305,7 @@ static int meson_irtx_mod_clock_probe(struct meson_irtx *ir,
 	return 0;
 }
 
-static int __init meson_irtx_probe(struct platform_device *pdev)
+static int meson_irtx_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct meson_irtx *ir;
@@ -333,20 +333,17 @@ static int __init meson_irtx_probe(struct platform_device *pdev)
 	spin_lock_init(&ir->lock);
 
 	ret = meson_irtx_mod_clock_probe(ir, &clk_nr);
-	if (ret) {
-		dev_err(dev, "modulator clock setup failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "modulator clock setup failed\n");
+
 	meson_irtx_setup(ir, clk_nr);
 
 	ret = devm_request_irq(dev, irq,
 			       meson_irtx_irqhandler,
 			       IRQF_TRIGGER_RISING,
 			       DRIVER_NAME, ir);
-	if (ret) {
-		dev_err(dev, "irq request failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "irq request failed\n");
 
 	rc = rc_allocate_device(RC_DRIVER_IR_RAW_TX);
 	if (!rc)
@@ -360,23 +357,13 @@ static int __init meson_irtx_probe(struct platform_device *pdev)
 	rc->s_tx_carrier = meson_irtx_set_carrier;
 	rc->s_tx_duty_cycle = meson_irtx_set_duty_cycle;
 
-	ret = rc_register_device(rc);
+	ret = devm_rc_register_device(dev, rc);
 	if (ret < 0) {
-		dev_err(dev, "rc_dev registration failed\n");
 		rc_free_device(rc);
-		return ret;
+		return dev_err_probe(dev, ret, "rc_dev registration failed\n");
 	}
 
-	platform_set_drvdata(pdev, rc);
-
 	return 0;
-}
-
-static void meson_irtx_remove(struct platform_device *pdev)
-{
-	struct rc_dev *rc = platform_get_drvdata(pdev);
-
-	rc_unregister_device(rc);
 }
 
 static const struct of_device_id meson_irtx_dt_match[] = {
@@ -388,14 +375,13 @@ static const struct of_device_id meson_irtx_dt_match[] = {
 MODULE_DEVICE_TABLE(of, meson_irtx_dt_match);
 
 static struct platform_driver meson_irtx_pd = {
-	.remove_new = meson_irtx_remove,
+	.probe = meson_irtx_probe,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = meson_irtx_dt_match,
 	},
 };
-
-module_platform_driver_probe(meson_irtx_pd, meson_irtx_probe);
+module_platform_driver(meson_irtx_pd);
 
 MODULE_DESCRIPTION("Meson IR TX driver");
 MODULE_AUTHOR("Viktor Prutyanov <viktor.prutyanov@phystech.edu>");

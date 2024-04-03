@@ -245,7 +245,7 @@ static void dccg314_set_dtbclk_dto(
 	}
 }
 
-static void dccg314_set_dpstreamclk(
+void dccg314_set_dpstreamclk(
 		struct dccg *dccg,
 		enum streamclk_source src,
 		int otg_inst,
@@ -362,6 +362,7 @@ static const struct dccg_funcs dccg314_funcs = {
 	.disable_symclk32_se = dccg31_disable_symclk32_se,
 	.enable_symclk32_le = dccg31_enable_symclk32_le,
 	.disable_symclk32_le = dccg31_disable_symclk32_le,
+	.set_symclk32_le_root_clock_gating = dccg31_set_symclk32_le_root_clock_gating,
 	.set_physymclk = dccg31_set_physymclk,
 	.set_dtbclk_dto = dccg314_set_dtbclk_dto,
 	.set_audio_dtbclk_dto = dccg31_set_audio_dtbclk_dto,
@@ -374,6 +375,7 @@ static const struct dccg_funcs dccg314_funcs = {
 	.set_pixel_rate_div = dccg314_set_pixel_rate_div,
 	.trigger_dio_fifo_resync = dccg314_trigger_dio_fifo_resync,
 	.set_valid_pixel_rate = dccg314_set_valid_pixel_rate,
+	.set_dtbclk_p_src = dccg314_set_dtbclk_p_src
 };
 
 struct dccg *dccg314_create(

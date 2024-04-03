@@ -25,6 +25,7 @@
 
 #define ACP3x_REG_START		0x1240000
 #define ACP3x_REG_END		0x125C000
+#define ACP3X_FUTURE_REG_ACLK_0	0x1860
 
 static const struct sof_amd_acp_desc renoir_chip_info = {
 	.rev		= 3,
@@ -35,6 +36,7 @@ static const struct sof_amd_acp_desc renoir_chip_info = {
 	.sram_pte_offset = ACP3X_SRAM_PTE_OFFSET,
 	.hw_semaphore_offset = ACP3X_AXI2DAGB_SEM_0,
 	.acp_clkmux_sel	= ACP3X_CLKMUX_SEL,
+	.probe_reg_offset = ACP3X_FUTURE_REG_ACLK_0,
 };
 
 static const struct sof_dev_desc renoir_desc = {
@@ -45,16 +47,16 @@ static const struct sof_dev_desc renoir_desc = {
 	.resindex_imr_base	= -1,
 	.irqindex_host_ipc	= -1,
 	.chip_info		= &renoir_chip_info,
-	.ipc_supported_mask	= BIT(SOF_IPC),
-	.ipc_default		= SOF_IPC,
+	.ipc_supported_mask	= BIT(SOF_IPC_TYPE_3),
+	.ipc_default		= SOF_IPC_TYPE_3,
 	.default_fw_path = {
-		[SOF_IPC] = "amd/sof",
+		[SOF_IPC_TYPE_3] = "amd/sof",
 	},
 	.default_tplg_path = {
-		[SOF_IPC] = "amd/sof-tplg",
+		[SOF_IPC_TYPE_3] = "amd/sof-tplg",
 	},
 	.default_fw_filename	= {
-		[SOF_IPC] = "sof-rn.ri",
+		[SOF_IPC_TYPE_3] = "sof-rn.ri",
 	},
 	.nocodec_tplg_filename	= "sof-acp.tplg",
 	.ops			= &sof_renoir_ops,

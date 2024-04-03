@@ -38,6 +38,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/semaphore.h>
 #include <linux/phy.h>
@@ -47,10 +48,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/davinci_emac.h>
 #include <linux/of.h>
-#include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/of_mdio.h>
-#include <linux/of_irq.h>
 #include <linux/of_net.h>
 #include <linux/mfd/syscon.h>
 
@@ -1726,13 +1724,10 @@ static const struct net_device_ops emac_netdev_ops = {
 #endif
 };
 
-static const struct of_device_id davinci_emac_of_match[];
-
 static struct emac_platform_data *
 davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 {
 	struct device_node *np;
-	const struct of_device_id *match;
 	const struct emac_platform_data *auxdata;
 	struct emac_platform_data *pdata = NULL;
 
@@ -1779,9 +1774,8 @@ davinci_emac_of_get_pdata(struct platform_device *pdev, struct emac_priv *priv)
 		pdata->interrupt_disable = auxdata->interrupt_disable;
 	}
 
-	match = of_match_device(davinci_emac_of_match, &pdev->dev);
-	if (match && match->data) {
-		auxdata = match->data;
+	auxdata = device_get_match_data(&pdev->dev);
+	if (auxdata) {
 		pdata->version = auxdata->version;
 		pdata->hw_ram_addr = auxdata->hw_ram_addr;
 	}
@@ -1934,18 +1928,20 @@ static int davinci_emac_probe(struct platform_device *pdev)
 		goto err_free_rxchan;
 	ndev->irq = rc;
 
-	rc = davinci_emac_try_get_mac(pdev, res_ctrl ? 0 : 1, priv->mac_addr);
-	if (!rc)
-		eth_hw_addr_set(ndev, priv->mac_addr);
-
+	/* If the MAC address is not present, read the registers from the SoC */
 	if (!is_valid_ether_addr(priv->mac_addr)) {
-		/* Use random MAC if still none obtained. */
-		eth_hw_addr_random(ndev);
-		memcpy(priv->mac_addr, ndev->dev_addr, ndev->addr_len);
-		dev_warn(&pdev->dev, "using random MAC addr: %pM\n",
-			 priv->mac_addr);
-	}
+		rc = davinci_emac_try_get_mac(pdev, res_ctrl ? 0 : 1, priv->mac_addr);
+		if (!rc)
+			eth_hw_addr_set(ndev, priv->mac_addr);
 
+		if (!is_valid_ether_addr(priv->mac_addr)) {
+			/* Use random MAC if still none obtained. */
+			eth_hw_addr_random(ndev);
+			memcpy(priv->mac_addr, ndev->dev_addr, ndev->addr_len);
+			dev_warn(&pdev->dev, "using random MAC addr: %pM\n",
+				 priv->mac_addr);
+		}
+	}
 	ndev->netdev_ops = &emac_netdev_ops;
 	ndev->ethtool_ops = &ethtool_ops;
 	netif_napi_add(ndev, &priv->napi, emac_poll);
@@ -2002,7 +1998,7 @@ err_free_netdev:
  * Called when removing the device driver. We disable clock usage and release
  * the resources taken up by the driver and unregister network device
  */
-static int davinci_emac_remove(struct platform_device *pdev)
+static void davinci_emac_remove(struct platform_device *pdev)
 {
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct emac_priv *priv = netdev_priv(ndev);
@@ -2022,8 +2018,6 @@ static int davinci_emac_remove(struct platform_device *pdev)
 	if (of_phy_is_fixed_link(np))
 		of_phy_deregister_fixed_link(np);
 	free_netdev(ndev);
-
-	return 0;
 }
 
 static int davinci_emac_suspend(struct device *dev)
@@ -2076,7 +2070,7 @@ static struct platform_driver davinci_emac_driver = {
 		.of_match_table = davinci_emac_of_match,
 	},
 	.probe = davinci_emac_probe,
-	.remove = davinci_emac_remove,
+	.remove_new = davinci_emac_remove,
 };
 
 /**

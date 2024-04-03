@@ -19,20 +19,21 @@
 #include "xfs_log.h"
 #include "xfs_ag.h"
 
-void
-xfs_extent_busy_insert(
-	struct xfs_trans	*tp,
+static void
+xfs_extent_busy_insert_list(
 	struct xfs_perag	*pag,
 	xfs_agblock_t		bno,
 	xfs_extlen_t		len,
-	unsigned int		flags)
+	unsigned int		flags,
+	struct list_head	*busy_list)
 {
 	struct xfs_extent_busy	*new;
 	struct xfs_extent_busy	*busyp;
 	struct rb_node		**rbp;
 	struct rb_node		*parent = NULL;
 
-	new = kmem_zalloc(sizeof(struct xfs_extent_busy), 0);
+	new = kzalloc(sizeof(struct xfs_extent_busy),
+			GFP_KERNEL | __GFP_NOFAIL);
 	new->agno = pag->pag_agno;
 	new->bno = bno;
 	new->length = len;
@@ -40,7 +41,7 @@ xfs_extent_busy_insert(
 	new->flags = flags;
 
 	/* trace before insert to be able to see failed inserts */
-	trace_xfs_extent_busy(tp->t_mountp, pag->pag_agno, bno, len);
+	trace_xfs_extent_busy(pag->pag_mount, pag->pag_agno, bno, len);
 
 	spin_lock(&pag->pagb_lock);
 	rbp = &pag->pagb_tree.rb_node;
@@ -62,8 +63,31 @@ xfs_extent_busy_insert(
 	rb_link_node(&new->rb_node, parent, rbp);
 	rb_insert_color(&new->rb_node, &pag->pagb_tree);
 
-	list_add(&new->list, &tp->t_busy);
+	/* always process discard lists in fifo order */
+	list_add_tail(&new->list, busy_list);
 	spin_unlock(&pag->pagb_lock);
+}
+
+void
+xfs_extent_busy_insert(
+	struct xfs_trans	*tp,
+	struct xfs_perag	*pag,
+	xfs_agblock_t		bno,
+	xfs_extlen_t		len,
+	unsigned int		flags)
+{
+	xfs_extent_busy_insert_list(pag, bno, len, flags, &tp->t_busy);
+}
+
+void
+xfs_extent_busy_insert_discard(
+	struct xfs_perag	*pag,
+	xfs_agblock_t		bno,
+	xfs_extlen_t		len,
+	struct list_head	*busy_list)
+{
+	xfs_extent_busy_insert_list(pag, bno, len, XFS_EXTENT_BUSY_DISCARDED,
+			busy_list);
 }
 
 /*
@@ -507,7 +531,7 @@ xfs_extent_busy_clear_one(
 	}
 
 	list_del_init(&busyp->list);
-	kmem_free(busyp);
+	kfree(busyp);
 }
 
 static void
@@ -654,4 +678,17 @@ xfs_extent_busy_ag_cmp(
 	if (!diff)
 		diff = b1->bno - b2->bno;
 	return diff;
+}
+
+/* Are there any busy extents in this AG? */
+bool
+xfs_extent_busy_list_empty(
+	struct xfs_perag	*pag)
+{
+	bool			res;
+
+	spin_lock(&pag->pagb_lock);
+	res = RB_EMPTY_ROOT(&pag->pagb_tree);
+	spin_unlock(&pag->pagb_lock);
+	return res;
 }

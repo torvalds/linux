@@ -126,6 +126,7 @@ MODULE_PARM_DESC(audiodev, "specify audio device:\n"
 		"\t\t 3 = tvaudio");
 MODULE_PARM_DESC(saa6588, "if 1, then load the saa6588 RDS module, default (0) is to use the card definition.");
 
+MODULE_FIRMWARE("hcwamc.rbf");
 
 /* I2C addresses list */
 #define I2C_ADDR_TDA7432	0x8a

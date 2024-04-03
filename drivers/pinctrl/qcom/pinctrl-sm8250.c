@@ -1351,7 +1351,7 @@ static struct platform_driver sm8250_pinctrl_driver = {
 		.of_match_table = sm8250_pinctrl_of_match,
 	},
 	.probe = sm8250_pinctrl_probe,
-	.remove = msm_pinctrl_remove,
+	.remove_new = msm_pinctrl_remove,
 };
 
 static int __init sm8250_pinctrl_init(void)

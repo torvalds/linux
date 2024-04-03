@@ -170,3 +170,4 @@ module_init(ip6table_nat_init);
 module_exit(ip6table_nat_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Ip6tables legacy nat table");

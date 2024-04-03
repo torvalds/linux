@@ -59,6 +59,7 @@ properties:
           - const: fsl,imx6sx-fec
       - items:
           - enum:
+              - fsl,imx8dxl-fec
               - fsl,imx8qxp-fec
           - const: fsl,imx8qm-fec
           - const: fsl,imx6sx-fec
@@ -222,6 +223,9 @@ properties:
       milliseconds will be observed after the phy-reset-gpios has been toggled.
       Can be omitted thus no delay is observed. Delay is in range of 1ms to 1000ms.
       Other delays are invalid.
+
+  iommus:
+    maxItems: 1
 
 required:
   - compatible

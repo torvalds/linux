@@ -18,8 +18,6 @@ struct s6e88a0_ams452ef01 {
 	struct mipi_dsi_device *dsi;
 	struct regulator_bulk_data supplies[2];
 	struct gpio_desc *reset_gpio;
-
-	bool prepared;
 };
 
 static inline struct
@@ -115,9 +113,6 @@ static int s6e88a0_ams452ef01_prepare(struct drm_panel *panel)
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	if (ctx->prepared)
-		return 0;
-
 	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators: %d\n", ret);
@@ -135,7 +130,6 @@ static int s6e88a0_ams452ef01_prepare(struct drm_panel *panel)
 		return ret;
 	}
 
-	ctx->prepared = true;
 	return 0;
 }
 
@@ -145,9 +139,6 @@ static int s6e88a0_ams452ef01_unprepare(struct drm_panel *panel)
 	struct device *dev = &ctx->dsi->dev;
 	int ret;
 
-	if (!ctx->prepared)
-		return 0;
-
 	ret = s6e88a0_ams452ef01_off(ctx);
 	if (ret < 0)
 		dev_err(dev, "Failed to un-initialize panel: %d\n", ret);
@@ -155,7 +146,6 @@ static int s6e88a0_ams452ef01_unprepare(struct drm_panel *panel)
 	gpiod_set_value_cansleep(ctx->reset_gpio, 0);
 	regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 
-	ctx->prepared = false;
 	return 0;
 }
 

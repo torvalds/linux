@@ -34,6 +34,7 @@
 #include <linux/mlx5/fs.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
+#include <net/rps.h>
 #include "en.h"
 
 #define ARFS_HASH_SHIFT BITS_PER_BYTE
@@ -254,11 +255,13 @@ static int arfs_create_groups(struct mlx5e_flow_table *ft,
 
 	ft->g = kcalloc(MLX5E_ARFS_NUM_GROUPS,
 			sizeof(*ft->g), GFP_KERNEL);
-	in = kvzalloc(inlen, GFP_KERNEL);
-	if  (!in || !ft->g) {
-		kfree(ft->g);
-		kvfree(in);
+	if (!ft->g)
 		return -ENOMEM;
+
+	in = kvzalloc(inlen, GFP_KERNEL);
+	if (!in) {
+		err = -ENOMEM;
+		goto err_free_g;
 	}
 
 	mc = MLX5_ADDR_OF(create_flow_group_in, in, match_criteria);
@@ -278,7 +281,7 @@ static int arfs_create_groups(struct mlx5e_flow_table *ft,
 		break;
 	default:
 		err = -EINVAL;
-		goto out;
+		goto err_free_in;
 	}
 
 	switch (type) {
@@ -300,7 +303,7 @@ static int arfs_create_groups(struct mlx5e_flow_table *ft,
 		break;
 	default:
 		err = -EINVAL;
-		goto out;
+		goto err_free_in;
 	}
 
 	MLX5_SET_CFG(in, match_criteria_enable, MLX5_MATCH_OUTER_HEADERS);
@@ -309,7 +312,7 @@ static int arfs_create_groups(struct mlx5e_flow_table *ft,
 	MLX5_SET_CFG(in, end_flow_index, ix - 1);
 	ft->g[ft->num_groups] = mlx5_create_flow_group(ft->t, in);
 	if (IS_ERR(ft->g[ft->num_groups]))
-		goto err;
+		goto err_clean_group;
 	ft->num_groups++;
 
 	memset(in, 0, inlen);
@@ -318,18 +321,20 @@ static int arfs_create_groups(struct mlx5e_flow_table *ft,
 	MLX5_SET_CFG(in, end_flow_index, ix - 1);
 	ft->g[ft->num_groups] = mlx5_create_flow_group(ft->t, in);
 	if (IS_ERR(ft->g[ft->num_groups]))
-		goto err;
+		goto err_clean_group;
 	ft->num_groups++;
 
 	kvfree(in);
 	return 0;
 
-err:
+err_clean_group:
 	err = PTR_ERR(ft->g[ft->num_groups]);
 	ft->g[ft->num_groups] = NULL;
-out:
+err_free_in:
 	kvfree(in);
-
+err_free_g:
+	kfree(ft->g);
+	ft->g = NULL;
 	return err;
 }
 
@@ -432,8 +437,10 @@ static void arfs_may_expire_flow(struct mlx5e_priv *priv)
 	}
 	spin_unlock_bh(&arfs->arfs_lock);
 	hlist_for_each_entry_safe(arfs_rule, htmp, &del_list, hlist) {
-		if (arfs_rule->rule)
+		if (arfs_rule->rule) {
 			mlx5_del_flow_rules(arfs_rule->rule);
+			priv->channel_stats[arfs_rule->rxq]->rq.arfs_expired++;
+		}
 		hlist_del(&arfs_rule->hlist);
 		kfree(arfs_rule);
 	}
@@ -509,6 +516,7 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 
 	spec = kvzalloc(sizeof(*spec), GFP_KERNEL);
 	if (!spec) {
+		priv->channel_stats[arfs_rule->rxq]->rq.arfs_err++;
 		err = -ENOMEM;
 		goto out;
 	}
@@ -519,6 +527,8 @@ static struct mlx5_flow_handle *arfs_add_rule(struct mlx5e_priv *priv,
 		 ntohs(tuple->etype));
 	arfs_table = arfs_get_table(arfs, tuple->ip_proto, tuple->etype);
 	if (!arfs_table) {
+		WARN_ONCE(1, "arfs table does not exist for etype %u and ip_proto %u\n",
+			  tuple->etype, tuple->ip_proto);
 		err = -EINVAL;
 		goto out;
 	}
@@ -600,9 +610,11 @@ static void arfs_modify_rule_rq(struct mlx5e_priv *priv,
 	dst.type = MLX5_FLOW_DESTINATION_TYPE_TIR;
 	dst.tir_num = mlx5e_rx_res_get_tirn_direct(priv->rx_res, rxq);
 	err =  mlx5_modify_rule_destination(rule, &dst, NULL);
-	if (err)
+	if (err) {
+		priv->channel_stats[rxq]->rq.arfs_err++;
 		netdev_warn(priv->netdev,
 			    "Failed to modify aRFS rule destination to rq=%d\n", rxq);
+	}
 }
 
 static void arfs_handle_work(struct work_struct *work)
@@ -632,6 +644,7 @@ static void arfs_handle_work(struct work_struct *work)
 		if (IS_ERR(rule))
 			goto out;
 		arfs_rule->rule = rule;
+		priv->channel_stats[arfs_rule->rxq]->rq.arfs_add++;
 	} else {
 		arfs_modify_rule_rq(priv, arfs_rule->rule,
 				    arfs_rule->rxq);
@@ -650,8 +663,10 @@ static struct arfs_rule *arfs_alloc_rule(struct mlx5e_priv *priv,
 	struct arfs_tuple *tuple;
 
 	rule = kzalloc(sizeof(*rule), GFP_ATOMIC);
-	if (!rule)
+	if (!rule) {
+		priv->channel_stats[rxq]->rq.arfs_err++;
 		return NULL;
+	}
 
 	rule->priv = priv;
 	rule->rxq = rxq;
@@ -740,10 +755,13 @@ int mlx5e_rx_flow_steer(struct net_device *dev, const struct sk_buff *skb,
 	spin_lock_bh(&arfs->arfs_lock);
 	arfs_rule = arfs_find_rule(arfs_t, &fk);
 	if (arfs_rule) {
-		if (arfs_rule->rxq == rxq_index) {
+		if (arfs_rule->rxq == rxq_index || work_busy(&arfs_rule->arfs_work)) {
 			spin_unlock_bh(&arfs->arfs_lock);
 			return arfs_rule->filter_id;
 		}
+
+		priv->channel_stats[rxq_index]->rq.arfs_request_in++;
+		priv->channel_stats[arfs_rule->rxq]->rq.arfs_request_out++;
 		arfs_rule->rxq = rxq_index;
 	} else {
 		arfs_rule = arfs_alloc_rule(priv, arfs_t, &fk, rxq_index, flow_id);

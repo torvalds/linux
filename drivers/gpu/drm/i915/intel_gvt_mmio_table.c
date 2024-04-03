@@ -5,6 +5,7 @@
 
 #include "display/intel_audio_regs.h"
 #include "display/intel_backlight_regs.h"
+#include "display/intel_color_regs.h"
 #include "display/intel_display_types.h"
 #include "display/intel_dmc_regs.h"
 #include "display/intel_dp_aux_regs.h"
@@ -14,8 +15,9 @@
 #include "display/intel_psr_regs.h"
 #include "display/skl_watermark_regs.h"
 #include "display/vlv_dsi_pll_regs.h"
+#include "gt/intel_engine_regs.h"
 #include "gt/intel_gt_regs.h"
-#include "gvt/gvt.h"
+#include "gvt/reg.h"
 
 #include "i915_drv.h"
 #include "i915_pvinfo.h"

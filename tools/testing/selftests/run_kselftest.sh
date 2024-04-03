@@ -20,11 +20,13 @@ usage()
 {
 	cat <<EOF
 Usage: $0 [OPTIONS]
-  -s | --summary		Print summary with detailed log in output.log
+  -s | --summary		Print summary with detailed log in output.log (conflict with -p)
+  -p | --per_test_log		Print test log in /tmp with each test name (conflict with -s)
   -t | --test COLLECTION:TEST	Run TEST from COLLECTION
   -c | --collection COLLECTION	Run all tests from COLLECTION
   -l | --list			List the available collection:test entries
   -d | --dry-run		Don't actually run any tests
+  -n | --netns			Run each test in namespace
   -h | --help			Show this usage info
   -o | --override-timeout	Number of seconds after which we timeout
 EOF
@@ -41,6 +43,9 @@ while true; do
 			logfile="$BASE_DIR"/output.log
 			cat /dev/null > $logfile
 			shift ;;
+		-p | --per-test-log)
+			per_test_logging=1
+			shift ;;
 		-t | --test)
 			TESTS="$TESTS $2"
 			shift 2 ;;
@@ -52,6 +57,9 @@ while true; do
 			exit 0 ;;
 		-d | --dry-run)
 			dryrun="echo"
+			shift ;;
+		-n | --netns)
+			RUN_IN_NETNS=1
 			shift ;;
 		-o | --override-timeout)
 			kselftest_override_timeout="$2"

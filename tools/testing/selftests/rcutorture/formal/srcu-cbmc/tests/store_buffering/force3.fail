@@ -1,1 +1,0 @@
-test_cbmc_options="-DFORCE_FAILURE_3"

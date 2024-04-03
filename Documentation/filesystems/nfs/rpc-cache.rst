@@ -78,7 +78,7 @@ Creating a Cache
       include taking references to shared objects.
 
     void update(struct cache_head \*orig, struct cache_head \*new)
-      Set the 'content' fileds in 'new' from 'orig'.
+      Set the 'content' fields in 'new' from 'orig'.
 
     int cache_show(struct seq_file \*m, struct cache_detail \*cd, struct cache_head \*h)
       Optional.  Used to provide a /proc file that lists the

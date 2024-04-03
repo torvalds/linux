@@ -586,8 +586,9 @@ static int max14577_charger_probe(struct platform_device *pdev)
 	}
 
 	psy_cfg.drv_data = chg;
-	chg->charger = power_supply_register(&pdev->dev, &max14577_charger_desc,
-						&psy_cfg);
+	chg->charger = devm_power_supply_register(&pdev->dev,
+						  &max14577_charger_desc,
+						  &psy_cfg);
 	if (IS_ERR(chg->charger)) {
 		dev_err(&pdev->dev, "failed: power supply register\n");
 		ret = PTR_ERR(chg->charger);
@@ -606,14 +607,9 @@ err:
 	return ret;
 }
 
-static int max14577_charger_remove(struct platform_device *pdev)
+static void max14577_charger_remove(struct platform_device *pdev)
 {
-	struct max14577_charger *chg = platform_get_drvdata(pdev);
-
 	device_remove_file(&pdev->dev, &dev_attr_fast_charge_timer);
-	power_supply_unregister(chg->charger);
-
-	return 0;
 }
 
 static const struct platform_device_id max14577_charger_id[] = {
@@ -638,7 +634,7 @@ static struct platform_driver max14577_charger_driver = {
 		.of_match_table = of_max14577_charger_dt_match,
 	},
 	.probe		= max14577_charger_probe,
-	.remove		= max14577_charger_remove,
+	.remove_new	= max14577_charger_remove,
 	.id_table	= max14577_charger_id,
 };
 module_platform_driver(max14577_charger_driver);

@@ -20,16 +20,18 @@
 #include <linux/platform_device.h>
 #include <linux/pm_domain.h>
 #include <linux/pm_opp.h>
+#include <linux/reboot.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/fixed.h>
 #include <linux/gpio/consumer.h>
 #include <linux/slab.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/regulator/of_regulator.h>
 #include <linux/regulator/machine.h>
 #include <linux/clk.h>
 
+/* Default time in millisecond to wait for emergency shutdown */
+#define FV_DEF_EMERG_SHUTDWN_TMO	10
 
 struct fixed_voltage_data {
 	struct regulator_desc desc;
@@ -106,6 +108,49 @@ static int reg_is_enabled(struct regulator_dev *rdev)
 	return priv->enable_counter > 0;
 }
 
+static irqreturn_t reg_fixed_under_voltage_irq_handler(int irq, void *data)
+{
+	struct fixed_voltage_data *priv = data;
+	struct regulator_dev *rdev = priv->dev;
+
+	regulator_notifier_call_chain(rdev, REGULATOR_EVENT_UNDER_VOLTAGE,
+				      NULL);
+
+	return IRQ_HANDLED;
+}
+
+/**
+ * reg_fixed_get_irqs - Get and register the optional IRQ for fixed voltage
+ *                      regulator.
+ * @dev: Pointer to the device structure.
+ * @priv: Pointer to fixed_voltage_data structure containing private data.
+ *
+ * This function tries to get the IRQ from the device firmware node.
+ * If it's an optional IRQ and not found, it returns 0.
+ * Otherwise, it attempts to request the threaded IRQ.
+ *
+ * Return: 0 on success, or error code on failure.
+ */
+static int reg_fixed_get_irqs(struct device *dev,
+			      struct fixed_voltage_data *priv)
+{
+	int ret;
+
+	ret = fwnode_irq_get(dev_fwnode(dev), 0);
+	/* This is optional IRQ. If not found we will get -EINVAL */
+	if (ret == -EINVAL)
+		return 0;
+	if (ret < 0)
+		return dev_err_probe(dev, ret, "Failed to get IRQ\n");
+
+	ret = devm_request_threaded_irq(dev, ret, NULL,
+					reg_fixed_under_voltage_irq_handler,
+					IRQF_ONESHOT, "under-voltage", priv);
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to request IRQ\n");
+
+	return 0;
+}
 
 /**
  * of_get_fixed_voltage_config - extract fixed_voltage_config structure info
@@ -294,6 +339,10 @@ static int reg_fixed_voltage_probe(struct platform_device *pdev)
 
 	dev_dbg(&pdev->dev, "%s supplying %duV\n", drvdata->desc.name,
 		drvdata->desc.fixed_uV);
+
+	ret = reg_fixed_get_irqs(dev, drvdata);
+	if (ret)
+		return ret;
 
 	return 0;
 }

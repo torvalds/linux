@@ -17,6 +17,8 @@
 #include "i915_selftest.h"
 #include "i915_vma_resource.h"
 
+#include "gt/intel_gt_defines.h"
+
 struct drm_i915_gem_object;
 struct intel_fronbuffer;
 struct intel_memory_region;
@@ -299,6 +301,18 @@ struct drm_i915_gem_object {
 	 * @shared_resv_from: The object shares the resv from this vm.
 	 */
 	struct i915_address_space *shares_resv_from;
+
+#ifdef CONFIG_PROC_FS
+	/**
+	 * @client: @i915_drm_client which created the object
+	 */
+	struct i915_drm_client *client;
+
+	/**
+	 * @client_link: Link into @i915_drm_client.objects_list
+	 */
+	struct list_head client_link;
+#endif
 
 	union {
 		struct rcu_head rcu;
@@ -675,7 +689,7 @@ struct drm_i915_gem_object {
 		 */
 		bool dirty:1;
 
-		u32 tlb;
+		u32 tlb[I915_MAX_GT];
 	} mm;
 
 	struct {
@@ -717,6 +731,9 @@ struct drm_i915_gem_object {
 		void *gvt_info;
 	};
 };
+
+#define intel_bo_to_drm_bo(bo) (&(bo)->base)
+#define intel_bo_to_i915(bo) to_i915(intel_bo_to_drm_bo(bo)->dev)
 
 static inline struct drm_i915_gem_object *
 to_intel_bo(struct drm_gem_object *gem)

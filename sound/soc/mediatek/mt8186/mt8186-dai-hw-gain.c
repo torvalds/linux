@@ -47,7 +47,7 @@ static int mtk_hw_gain_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (strcmp(w->name, HW_GAIN_1_EN_W_NAME) == 0) {
+		if (snd_soc_dapm_widget_name_cmp(w, HW_GAIN_1_EN_W_NAME) == 0) {
 			gain_cur = AFE_GAIN1_CUR;
 			gain_con1 = AFE_GAIN1_CON1;
 		} else {

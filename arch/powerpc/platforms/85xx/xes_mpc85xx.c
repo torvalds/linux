@@ -16,8 +16,8 @@
 #include <linux/delay.h>
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 #include <linux/of_address.h>
-#include <linux/of_platform.h>
 
 #include <asm/time.h>
 #include <asm/machdep.h>
@@ -37,7 +37,7 @@
 #define MPC85xx_L2CTL_L2I		0x40000000 /* L2 flash invalidate */
 #define MPC85xx_L2CTL_L2SIZ_MASK	0x30000000 /* L2 SRAM size (R/O) */
 
-void __init xes_mpc85xx_pic_init(void)
+static void __init xes_mpc85xx_pic_init(void)
 {
 	struct mpic *mpic = mpic_alloc(NULL, 0, MPIC_BIG_ENDIAN,
 			0, 256, " OpenPIC  ");

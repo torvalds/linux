@@ -10,6 +10,7 @@
 #ifndef _LINUX_PUBLIC_KEY_H
 #define _LINUX_PUBLIC_KEY_H
 
+#include <linux/errno.h>
 #include <linux/keyctl.h>
 #include <linux/oid_registry.h>
 
@@ -78,11 +79,23 @@ extern int restrict_link_by_ca(struct key *dest_keyring,
 			       const struct key_type *type,
 			       const union key_payload *payload,
 			       struct key *trust_keyring);
+int restrict_link_by_digsig(struct key *dest_keyring,
+			    const struct key_type *type,
+			    const union key_payload *payload,
+			    struct key *trust_keyring);
 #else
 static inline int restrict_link_by_ca(struct key *dest_keyring,
 				      const struct key_type *type,
 				      const union key_payload *payload,
 				      struct key *trust_keyring)
+{
+	return 0;
+}
+
+static inline int restrict_link_by_digsig(struct key *dest_keyring,
+					  const struct key_type *type,
+					  const union key_payload *payload,
+					  struct key *trust_keyring)
 {
 	return 0;
 }

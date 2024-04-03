@@ -29,6 +29,26 @@ properties:
 
   ranges: true
 
+patternProperties:
+  "^clock@[0-9a-f]+$":
+    type: object
+    additionalProperties: false
+
+    properties:
+      compatible:
+        const: hisilicon,hix5hd2-clock
+
+      reg:
+        maxItems: 1
+
+      "#clock-cells":
+        const: 1
+
+    required:
+      - compatible
+      - reg
+      - "#clock-cells"
+
 required:
   - compatible
   - reg

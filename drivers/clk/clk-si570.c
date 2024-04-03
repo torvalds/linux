@@ -50,11 +50,21 @@
 #define SI570_FREEZE_DCO	(1 << 4)
 
 /**
+ * struct clk_si570_info:
+ * @max_freq:	Maximum frequency for this device
+ * @has_temperature_stability: Device support temperature stability
+ */
+struct clk_si570_info {
+	u64 max_freq;
+	bool has_temperature_stability;
+};
+
+/**
  * struct clk_si570:
  * @hw:	Clock hw struct
  * @regmap:	Device's regmap
  * @div_offset:	Rgister offset for dividers
- * @max_freq:	Maximum frequency for this device
+ * @info:	Device info
  * @fxtal:	Factory xtal frequency
  * @n1:		Clock divider N1
  * @hs_div:	Clock divider HSDIV
@@ -66,7 +76,7 @@ struct clk_si570 {
 	struct clk_hw hw;
 	struct regmap *regmap;
 	unsigned int div_offset;
-	u64 max_freq;
+	const struct clk_si570_info *info;
 	u64 fxtal;
 	unsigned int n1;
 	unsigned int hs_div;
@@ -75,11 +85,6 @@ struct clk_si570 {
 	struct i2c_client *i2c_client;
 };
 #define to_clk_si570(_hw)	container_of(_hw, struct clk_si570, hw)
-
-enum clk_si570_variant {
-	si57x,
-	si59x
-};
 
 /**
  * si570_get_divs() - Read clock dividers from HW
@@ -341,7 +346,7 @@ static int si570_set_rate(struct clk_hw *hw, unsigned long rate,
 	struct i2c_client *client = data->i2c_client;
 	int err;
 
-	if (rate < SI570_MIN_FREQ || rate > data->max_freq) {
+	if (rate < SI570_MIN_FREQ || rate > data->info->max_freq) {
 		dev_err(&client->dev,
 			"requested frequency %lu Hz is out of range\n", rate);
 		return -EINVAL;
@@ -392,30 +397,19 @@ static bool si570_regmap_is_writeable(struct device *dev, unsigned int reg)
 static const struct regmap_config si570_regmap_config = {
 	.reg_bits = 8,
 	.val_bits = 8,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.max_register = 137,
 	.writeable_reg = si570_regmap_is_writeable,
 	.volatile_reg = si570_regmap_is_volatile,
 };
 
-static const struct i2c_device_id si570_id[] = {
-	{ "si570", si57x },
-	{ "si571", si57x },
-	{ "si598", si59x },
-	{ "si599", si59x },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, si570_id);
-
 static int si570_probe(struct i2c_client *client)
 {
 	struct clk_si570 *data;
 	struct clk_init_data init;
-	const struct i2c_device_id *id = i2c_match_id(si570_id, client);
 	u32 initial_fout, factory_fout, stability;
 	bool skip_recall;
 	int err;
-	enum clk_si570_variant variant = id->driver_data;
 
 	data = devm_kzalloc(&client->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
@@ -427,7 +421,8 @@ static int si570_probe(struct i2c_client *client)
 	data->hw.init = &init;
 	data->i2c_client = client;
 
-	if (variant == si57x) {
+	data->info = i2c_get_match_data(client);
+	if (data->info->has_temperature_stability) {
 		err = of_property_read_u32(client->dev.of_node,
 				"temperature-stability", &stability);
 		if (err) {
@@ -438,10 +433,6 @@ static int si570_probe(struct i2c_client *client)
 		/* adjust register offsets for 7ppm devices */
 		if (stability == 7)
 			data->div_offset = SI570_DIV_OFFSET_7PPM;
-
-		data->max_freq = SI570_MAX_FREQ;
-	} else {
-		data->max_freq = SI598_MAX_FREQ;
 	}
 
 	if (of_property_read_string(client->dev.of_node, "clock-output-names",
@@ -496,12 +487,30 @@ static int si570_probe(struct i2c_client *client)
 	return 0;
 }
 
+static const struct clk_si570_info clk_si570_info = {
+	.max_freq = SI570_MAX_FREQ,
+	.has_temperature_stability = true,
+};
+
+static const struct clk_si570_info clk_si590_info = {
+	.max_freq = SI598_MAX_FREQ,
+};
+
+static const struct i2c_device_id si570_id[] = {
+	{ "si570", (kernel_ulong_t)&clk_si570_info },
+	{ "si571", (kernel_ulong_t)&clk_si570_info },
+	{ "si598", (kernel_ulong_t)&clk_si590_info },
+	{ "si599", (kernel_ulong_t)&clk_si590_info },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, si570_id);
+
 static const struct of_device_id clk_si570_of_match[] = {
-	{ .compatible = "silabs,si570" },
-	{ .compatible = "silabs,si571" },
-	{ .compatible = "silabs,si598" },
-	{ .compatible = "silabs,si599" },
-	{ },
+	{ .compatible = "silabs,si570", .data = &clk_si570_info },
+	{ .compatible = "silabs,si571", .data = &clk_si570_info },
+	{ .compatible = "silabs,si598", .data = &clk_si590_info },
+	{ .compatible = "silabs,si599", .data = &clk_si590_info },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, clk_si570_of_match);
 

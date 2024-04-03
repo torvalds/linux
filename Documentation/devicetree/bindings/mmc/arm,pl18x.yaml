@@ -203,7 +203,7 @@ examples:
       bus-width = <4>;
       cap-sd-highspeed;
       cap-mmc-highspeed;
-      cd-gpios  = <&gpio2 31 0x4>;
+      cd-gpios = <&gpio2 31 0x4>;
       st,sig-dir-dat0;
       st,sig-dir-dat2;
       st,sig-dir-cmd;

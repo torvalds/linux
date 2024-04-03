@@ -93,11 +93,10 @@ struct eth_dev {
 
 #define DEFAULT_QLEN	2	/* double buffering by default */
 
-/* for dual-speed hardware, use deeper queues at high/super speed */
+/* use deeper queues at high/super speed */
 static inline int qlen(struct usb_gadget *gadget, unsigned qmult)
 {
-	if (gadget_is_dualspeed(gadget) && (gadget->speed == USB_SPEED_HIGH ||
-					    gadget->speed >= USB_SPEED_SUPER))
+	if (gadget->speed == USB_SPEED_HIGH || gadget->speed >= USB_SPEED_SUPER)
 		return qmult * DEFAULT_QLEN;
 	else
 		return DEFAULT_QLEN;
@@ -719,7 +718,7 @@ static const struct net_device_ops eth_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-static struct device_type gadget_type = {
+static const struct device_type gadget_type = {
 	.name	= "gadget",
 };
 
@@ -1164,6 +1163,8 @@ struct net_device *gether_connect(struct gether *link)
 		if (netif_running(dev->net))
 			eth_start(dev, GFP_ATOMIC);
 
+		netif_device_attach(dev->net);
+
 	/* on error, disable any endpoints  */
 	} else {
 		(void) usb_ep_disable(link->out_ep);
@@ -1201,7 +1202,7 @@ void gether_disconnect(struct gether *link)
 
 	DBG(dev, "%s\n", __func__);
 
-	netif_stop_queue(dev->net);
+	netif_device_detach(dev->net);
 	netif_carrier_off(dev->net);
 
 	/* disable endpoints, forcing (synchronous) completion

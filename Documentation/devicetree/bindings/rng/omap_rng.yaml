@@ -30,8 +30,8 @@ properties:
   clocks:
     minItems: 1
     items:
-      - description: EIP150 gatable clock
-      - description: Main gatable clock
+      - description: EIP150 gateable clock
+      - description: Main gateable clock
 
   clock-names:
     minItems: 1

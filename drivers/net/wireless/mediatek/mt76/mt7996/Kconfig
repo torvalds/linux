@@ -7,7 +7,7 @@ config MT7996E
 	depends on MAC80211
 	depends on PCI
 	help
-	  This adds support for MT7996-based wireless PCIe devices,
+	  This adds support for MT7996-based PCIe wireless devices,
 	  which support concurrent tri-band operation at 6GHz, 5GHz,
 	  and 2.4GHz IEEE 802.11be 4x4:4SS 4096-QAM, 320MHz channels.
 

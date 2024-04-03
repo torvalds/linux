@@ -52,6 +52,8 @@ struct fnic_io_req {
 	unsigned long start_time; /* in jiffies */
 	struct completion *abts_done; /* completion for abts */
 	struct completion *dr_done; /* completion for device reset */
+	unsigned int tag;
+	struct scsi_cmnd *sc; /* midlayer's cmd pointer */
 };
 
 enum fnic_port_speeds {

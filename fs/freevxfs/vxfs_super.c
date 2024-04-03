@@ -76,6 +76,7 @@ vxfs_statfs(struct dentry *dentry, struct kstatfs *bufp)
 {
 	struct vxfs_sb_info		*infp = VXFS_SBI(dentry->d_sb);
 	struct vxfs_sb *raw_sb = infp->vsi_raw;
+	u64 id = huge_encode_dev(dentry->d_sb->s_bdev->bd_dev);
 
 	bufp->f_type = VXFS_SUPER_MAGIC;
 	bufp->f_bsize = dentry->d_sb->s_blocksize;
@@ -84,6 +85,7 @@ vxfs_statfs(struct dentry *dentry, struct kstatfs *bufp)
 	bufp->f_bavail = 0;
 	bufp->f_files = 0;
 	bufp->f_ffree = fs32_to_cpu(infp, raw_sb->vs_ifree);
+	bufp->f_fsid = u64_to_fsid(id);
 	bufp->f_namelen = VXFS_NAMELEN;
 
 	return 0;
@@ -305,7 +307,7 @@ vxfs_init(void)
 
 	vxfs_inode_cachep = kmem_cache_create_usercopy("vxfs_inode",
 			sizeof(struct vxfs_inode_info), 0,
-			SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
+			SLAB_RECLAIM_ACCOUNT,
 			offsetof(struct vxfs_inode_info, vii_immed.vi_immed),
 			sizeof_field(struct vxfs_inode_info,
 				vii_immed.vi_immed),

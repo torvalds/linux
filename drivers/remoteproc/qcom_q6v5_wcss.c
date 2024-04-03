@@ -837,8 +837,7 @@ static int q6v5_wcss_init_mmio(struct q6v5_wcss *wcss,
 		return -ENOMEM;
 
 	if (wcss->version == WCSS_IPQ8074) {
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "rmb");
-		wcss->rmb_base = devm_ioremap_resource(&pdev->dev, res);
+		wcss->rmb_base = devm_platform_ioremap_resource_byname(pdev, "rmb");
 		if (IS_ERR(wcss->rmb_base))
 			return PTR_ERR(wcss->rmb_base);
 	}
@@ -1012,8 +1011,8 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 	if (!desc)
 		return -EINVAL;
 
-	rproc = rproc_alloc(&pdev->dev, pdev->name, desc->ops,
-			    desc->firmware_name, sizeof(*wcss));
+	rproc = devm_rproc_alloc(&pdev->dev, pdev->name, desc->ops,
+				 desc->firmware_name, sizeof(*wcss));
 	if (!rproc) {
 		dev_err(&pdev->dev, "failed to allocate rproc\n");
 		return -ENOMEM;
@@ -1028,29 +1027,29 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 
 	ret = q6v5_wcss_init_mmio(wcss, pdev);
 	if (ret)
-		goto free_rproc;
+		return ret;
 
 	ret = q6v5_alloc_memory_region(wcss);
 	if (ret)
-		goto free_rproc;
+		return ret;
 
 	if (wcss->version == WCSS_QCS404) {
 		ret = q6v5_wcss_init_clock(wcss);
 		if (ret)
-			goto free_rproc;
+			return ret;
 
 		ret = q6v5_wcss_init_regulator(wcss);
 		if (ret)
-			goto free_rproc;
+			return ret;
 	}
 
 	ret = q6v5_wcss_init_reset(wcss, desc);
 	if (ret)
-		goto free_rproc;
+		return ret;
 
 	ret = qcom_q6v5_init(&wcss->q6v5, pdev, rproc, desc->crash_reason_smem, NULL, NULL);
 	if (ret)
-		goto free_rproc;
+		return ret;
 
 	qcom_add_glink_subdev(rproc, &wcss->glink_subdev, "q6wcss");
 	qcom_add_ssr_subdev(rproc, &wcss->ssr_subdev, "q6wcss");
@@ -1062,16 +1061,11 @@ static int q6v5_wcss_probe(struct platform_device *pdev)
 
 	ret = rproc_add(rproc);
 	if (ret)
-		goto free_rproc;
+		return ret;
 
 	platform_set_drvdata(pdev, rproc);
 
 	return 0;
-
-free_rproc:
-	rproc_free(rproc);
-
-	return ret;
 }
 
 static void q6v5_wcss_remove(struct platform_device *pdev)
@@ -1081,7 +1075,6 @@ static void q6v5_wcss_remove(struct platform_device *pdev)
 
 	qcom_q6v5_deinit(&wcss->q6v5);
 	rproc_del(rproc);
-	rproc_free(rproc);
 }
 
 static const struct wcss_data wcss_ipq8074_res_init = {

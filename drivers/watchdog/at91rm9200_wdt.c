@@ -18,6 +18,7 @@
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/atmel-st.h>
 #include <linux/miscdevice.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
@@ -26,8 +27,6 @@
 #include <linux/types.h>
 #include <linux/watchdog.h>
 #include <linux/uaccess.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 
 #define WDT_DEFAULT_TIME	5	/* seconds */
 #define WDT_MAX_TIME		256	/* seconds */

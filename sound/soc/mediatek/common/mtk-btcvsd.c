@@ -696,11 +696,10 @@ static int wait_for_bt_irq(struct mtk_btcvsd_snd *bt,
 }
 
 static ssize_t mtk_btcvsd_snd_read(struct mtk_btcvsd_snd *bt,
-				   char __user *buf,
+				   struct iov_iter *buf,
 				   size_t count)
 {
 	ssize_t read_size = 0, read_count = 0, cur_read_idx, cont;
-	unsigned int cur_buf_ofs = 0;
 	unsigned long avail;
 	unsigned long flags;
 	unsigned int packet_size = bt->rx->packet_size;
@@ -743,10 +742,9 @@ static ssize_t mtk_btcvsd_snd_read(struct mtk_btcvsd_snd *bt,
 		if (read_size > cont)
 			read_size = cont;
 
-		if (copy_to_user(buf + cur_buf_ofs,
-				 bt->rx_packet_buf + cur_read_idx,
-				 read_size)) {
-			dev_warn(bt->dev, "%s(), copy_to_user fail\n",
+		if (copy_to_iter(bt->rx_packet_buf + cur_read_idx,
+				 read_size, buf) != read_size) {
+			dev_warn(bt->dev, "%s(), copy_to_iter fail\n",
 				 __func__);
 			return -EFAULT;
 		}
@@ -756,7 +754,6 @@ static ssize_t mtk_btcvsd_snd_read(struct mtk_btcvsd_snd *bt,
 		spin_unlock_irqrestore(&bt->rx_lock, flags);
 
 		read_count += read_size;
-		cur_buf_ofs += read_size;
 		count -= read_size;
 	}
 
@@ -777,11 +774,10 @@ static ssize_t mtk_btcvsd_snd_read(struct mtk_btcvsd_snd *bt,
 }
 
 static ssize_t mtk_btcvsd_snd_write(struct mtk_btcvsd_snd *bt,
-				    char __user *buf,
+				    struct iov_iter *buf,
 				    size_t count)
 {
 	int written_size = count, avail, cur_write_idx, write_size, cont;
-	unsigned int cur_buf_ofs = 0;
 	unsigned long flags;
 	unsigned int packet_size = bt->tx->packet_size;
 
@@ -835,11 +831,9 @@ static ssize_t mtk_btcvsd_snd_write(struct mtk_btcvsd_snd *bt,
 		if (write_size > cont)
 			write_size = cont;
 
-		if (copy_from_user(bt->tx_packet_buf +
-				   cur_write_idx,
-				   buf + cur_buf_ofs,
-				   write_size)) {
-			dev_warn(bt->dev, "%s(), copy_from_user fail\n",
+		if (copy_from_iter(bt->tx_packet_buf + cur_write_idx,
+				   write_size, buf) != write_size) {
+			dev_warn(bt->dev, "%s(), copy_from_iter fail\n",
 				 __func__);
 			return -EFAULT;
 		}
@@ -847,7 +841,6 @@ static ssize_t mtk_btcvsd_snd_write(struct mtk_btcvsd_snd *bt,
 		spin_lock_irqsave(&bt->tx_lock, flags);
 		bt->tx->packet_w += write_size / packet_size;
 		spin_unlock_irqrestore(&bt->tx_lock, flags);
-		cur_buf_ofs += write_size;
 		count -= write_size;
 	}
 
@@ -1033,7 +1026,7 @@ static snd_pcm_uframes_t mtk_pcm_btcvsd_pointer(
 static int mtk_pcm_btcvsd_copy(struct snd_soc_component *component,
 			       struct snd_pcm_substream *substream,
 			       int channel, unsigned long pos,
-			       void __user *buf, unsigned long count)
+			       struct iov_iter *buf, unsigned long count)
 {
 	struct mtk_btcvsd_snd *bt = snd_soc_component_get_drvdata(component);
 
@@ -1274,7 +1267,7 @@ static const struct snd_soc_component_driver mtk_btcvsd_snd_platform = {
 	.prepare	= mtk_pcm_btcvsd_prepare,
 	.trigger	= mtk_pcm_btcvsd_trigger,
 	.pointer	= mtk_pcm_btcvsd_pointer,
-	.copy_user	= mtk_pcm_btcvsd_copy,
+	.copy		= mtk_pcm_btcvsd_copy,
 };
 
 static int mtk_btcvsd_snd_probe(struct platform_device *pdev)

@@ -147,7 +147,7 @@ static int start_ts_capture(struct budget *budget)
 static int budget_read_fe_status(struct dvb_frontend *fe,
 				 enum fe_status *status)
 {
-	struct budget *budget = (struct budget *) fe->dvb->priv;
+	struct budget *budget = fe->dvb->priv;
 	int synced;
 	int ret;
 
@@ -570,7 +570,7 @@ int ttpci_budget_deinit(struct budget *budget)
 
 void ttpci_budget_irq10_handler(struct saa7146_dev *dev, u32 * isr)
 {
-	struct budget *budget = (struct budget *) dev->ext_priv;
+	struct budget *budget = dev->ext_priv;
 
 	dprintk(8, "dev: %p, budget: %p\n", dev, budget);
 
@@ -580,7 +580,7 @@ void ttpci_budget_irq10_handler(struct saa7146_dev *dev, u32 * isr)
 
 void ttpci_budget_set_video_port(struct saa7146_dev *dev, int video_port)
 {
-	struct budget *budget = (struct budget *) dev->ext_priv;
+	struct budget *budget = dev->ext_priv;
 
 	spin_lock(&budget->feedlock);
 	budget->video_port = video_port;

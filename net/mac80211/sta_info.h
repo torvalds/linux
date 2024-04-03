@@ -3,7 +3,7 @@
  * Copyright 2002-2005, Devicescape Software, Inc.
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2015-2017 Intel Deutschland GmbH
- * Copyright(c) 2020-2022 Intel Corporation
+ * Copyright(c) 2020-2024 Intel Corporation
  */
 
 #ifndef STA_INFO_H
@@ -138,7 +138,7 @@ enum ieee80211_agg_stop_reason {
 struct airtime_info {
 	u64 rx_airtime;
 	u64 tx_airtime;
-	u32 last_active;
+	unsigned long last_active;
 	s32 deficit;
 	atomic_t aql_tx_pending; /* Estimated airtime for frames pending */
 	u32 aql_limit_low;
@@ -259,9 +259,6 @@ struct tid_ampdu_rx {
 /**
  * struct sta_ampdu_mlme - STA aggregation information.
  *
- * @mtx: mutex to protect all TX data (except non-NULL assignments
- *	to tid_tx[idx], which are protected by the sta spinlock)
- *	tid_start_tx is also protected by sta->lock.
  * @tid_rx: aggregation info for Rx per TID -- RCU protected
  * @tid_rx_token: dialog tokens for valid aggregation sessions
  * @tid_rx_timer_expired: bitmap indicating on which TIDs the
@@ -275,13 +272,13 @@ struct tid_ampdu_rx {
  *	unexpected aggregation related frames outside a session
  * @work: work struct for starting/stopping aggregation
  * @tid_tx: aggregation info for Tx per TID
- * @tid_start_tx: sessions where start was requested
+ * @tid_start_tx: sessions where start was requested, not just protected
+ *	by wiphy mutex but also sta->lock
  * @last_addba_req_time: timestamp of the last addBA request.
  * @addba_req_num: number of times addBA request has been sent.
  * @dialog_token_allocator: dialog token enumerator for each new session;
  */
 struct sta_ampdu_mlme {
-	struct mutex mtx;
 	/* rx */
 	struct tid_ampdu_rx __rcu *tid_rx[IEEE80211_NUM_TIDS];
 	u8 tid_rx_token[IEEE80211_NUM_TIDS];
@@ -291,7 +288,7 @@ struct sta_ampdu_mlme {
 	unsigned long agg_session_valid[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
 	unsigned long unexpected_agg[BITS_TO_LONGS(IEEE80211_NUM_TIDS)];
 	/* tx */
-	struct work_struct work;
+	struct wiphy_work work;
 	struct tid_ampdu_tx __rcu *tid_tx[IEEE80211_NUM_TIDS];
 	struct tid_ampdu_tx *tid_start_tx[IEEE80211_NUM_TIDS];
 	unsigned long last_addba_req_time[IEEE80211_NUM_TIDS];
@@ -485,6 +482,8 @@ struct ieee80211_fragment_cache {
  *	same for non-MLD STA. This is used as key for searching link STA
  * @link_id: Link ID uniquely identifying the link STA. This is 0 for non-MLD
  *	and set to the corresponding vif LinkId for MLD STA
+ * @op_mode_nss: NSS limit as set by operating mode notification, or 0
+ * @capa_nss: NSS limit as determined by local and peer capabilities
  * @link_hash_node: hash node for rhashtable
  * @sta: Points to the STA info
  * @gtk: group keys negotiated with this station, if any
@@ -520,6 +519,8 @@ struct ieee80211_fragment_cache {
 struct link_sta_info {
 	u8 addr[ETH_ALEN];
 	u8 link_id;
+
+	u8 op_mode_nss, capa_nss;
 
 	struct rhlist_head link_hash_node;
 
@@ -618,8 +619,6 @@ struct link_sta_info {
  * @sta: station information we share with the driver
  * @sta_state: duplicates information about station state (for debug)
  * @rcu_head: RCU head used for freeing this station struct
- * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
- *	taken from HT/VHT capabilities or VHT operating mode notification
  * @cparams: CoDel parameters for this station.
  * @reserved_tid: reserved TID (if any, otherwise IEEE80211_TID_UNRESERVED)
  * @amsdu_mesh_control: track the mesh A-MSDU format used by the peer:
@@ -796,13 +795,10 @@ static inline void sta_info_pre_move_state(struct sta_info *sta,
 void ieee80211_assign_tid_tx(struct sta_info *sta, int tid,
 			     struct tid_ampdu_tx *tid_tx);
 
-static inline struct tid_ampdu_tx *
-rcu_dereference_protected_tid_tx(struct sta_info *sta, int tid)
-{
-	return rcu_dereference_protected(sta->ampdu_mlme.tid_tx[tid],
-					 lockdep_is_held(&sta->lock) ||
-					 lockdep_is_held(&sta->ampdu_mlme.mtx));
-}
+#define rcu_dereference_protected_tid_tx(sta, tid)			\
+	rcu_dereference_protected((sta)->ampdu_mlme.tid_tx[tid],	\
+				  lockdep_is_held(&(sta)->lock) ||	\
+				  lockdep_is_held(&(sta)->local->hw.wiphy->mtx));
 
 /* Maximum number of frames to buffer per power saving station per AC */
 #define STA_MAX_TX_BUFFER	64
@@ -827,7 +823,7 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 				  const u8 *addr);
 
-/* user must hold sta_mtx or be in RCU critical section */
+/* user must hold wiphy mutex or be in RCU critical section */
 struct sta_info *sta_info_get_by_addrs(struct ieee80211_local *local,
 				       const u8 *sta_addr, const u8 *vif_addr);
 
@@ -894,8 +890,12 @@ void sta_info_stop(struct ieee80211_local *local);
  *
  * @sdata: sdata to remove all stations from
  * @vlans: if the given interface is an AP interface, also flush VLANs
+ * @link_id: if given (>=0), all those STA entries using @link_id only
+ *	     will be removed. If -1 is passed, all STA entries will be
+ *	     removed.
  */
-int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans);
+int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans,
+		     int link_id);
 
 /**
  * sta_info_flush - flush matching STA entries from the STA table
@@ -903,10 +903,14 @@ int __sta_info_flush(struct ieee80211_sub_if_data *sdata, bool vlans);
  * Returns the number of removed STA entries.
  *
  * @sdata: sdata to remove all stations from
+ * @link_id: if given (>=0), all those STA entries using @link_id only
+ *	     will be removed. If -1 is passed, all STA entries will be
+ *	     removed.
  */
-static inline int sta_info_flush(struct ieee80211_sub_if_data *sdata)
+static inline int sta_info_flush(struct ieee80211_sub_if_data *sdata,
+				 int link_id)
 {
-	return __sta_info_flush(sdata, false);
+	return __sta_info_flush(sdata, false, link_id);
 }
 
 void sta_set_rate_info_tx(struct sta_info *sta,

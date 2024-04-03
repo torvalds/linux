@@ -805,7 +805,7 @@ static const struct attribute_group sd_std_group = {
 };
 __ATTRIBUTE_GROUPS(sd_std);
 
-struct device_type sd_type = {
+const struct device_type sd_type = {
 	.groups = sd_std_groups,
 };
 
@@ -1518,6 +1518,13 @@ retry:
 		 */
 		mmc_set_clock(host, mmc_sd_get_max_clock(card));
 
+		if (host->ios.timing == MMC_TIMING_SD_HS &&
+			host->ops->prepare_sd_hs_tuning) {
+			err = host->ops->prepare_sd_hs_tuning(host, card);
+			if (err)
+				goto free_card;
+		}
+
 		/*
 		 * Switch to wider bus (if supported).
 		 */
@@ -1528,6 +1535,13 @@ retry:
 				goto free_card;
 
 			mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
+		}
+
+		if (host->ios.timing == MMC_TIMING_SD_HS &&
+			host->ops->execute_sd_hs_tuning) {
+			err = host->ops->execute_sd_hs_tuning(host, card);
+			if (err)
+				goto free_card;
 		}
 	}
 cont:

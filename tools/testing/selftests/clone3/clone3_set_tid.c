@@ -23,9 +23,7 @@
 #include "../kselftest.h"
 #include "clone3_selftests.h"
 
-#ifndef MAX_PID_NS_LEVEL
 #define MAX_PID_NS_LEVEL 32
-#endif
 
 static int pipe_1[2];
 static int pipe_2[2];

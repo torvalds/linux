@@ -90,7 +90,7 @@ submission, they need only one dma-resv fence list updated. Thus, the fast
 path (where required mappings are already bound) submission latency is O(1)
 w.r.t the number of VM private BOs.
 
-VM_BIND locking hirarchy
+VM_BIND locking hierarchy
 -------------------------
 The locking design here supports the older (execlist based) execbuf mode, the
 newer VM_BIND mode, the VM_BIND mode with GPU page faults and possible future

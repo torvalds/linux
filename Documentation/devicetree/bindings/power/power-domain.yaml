@@ -13,8 +13,9 @@ maintainers:
 
 description: |+
   System on chip designs are often divided into multiple PM domains that can be
-  used for power gating of selected IP blocks for power saving by reduced leakage
-  current.
+  used for power gating of selected IP blocks for power saving by reduced
+  leakage current. Moreover, in some cases the similar PM domains may also be
+  capable of scaling performance for a group of IP blocks.
 
   This device tree binding can be used to bind PM domain consumer devices with
   their PM domains provided by PM domain providers. A PM domain provider can be
@@ -25,7 +26,7 @@ description: |+
 
 properties:
   $nodename:
-    pattern: "^(power-controller|power-domain)([@-].*)?$"
+    pattern: "^(power-controller|power-domain|performance-domain)([@-].*)?$"
 
   domain-idle-states:
     $ref: /schemas/types.yaml#/definitions/phandle-array
@@ -44,11 +45,11 @@ properties:
 
   operating-points-v2:
     description:
-      Phandles to the OPP tables of power domains provided by a power domain
-      provider. If the provider provides a single power domain only or all
-      the power domains provided by the provider have identical OPP tables,
-      then this shall contain a single phandle. Refer to ../opp/opp-v2-base.yaml
-      for more information.
+      Phandles to the OPP tables of power domains that are capable of scaling
+      performance, provided by a power domain provider. If the provider provides
+      a single power domain only or all the power domains provided by the
+      provider have identical OPP tables, then this shall contain a single
+      phandle. Refer to ../opp/opp-v2-base.yaml for more information.
 
   "#power-domain-cells":
     description:

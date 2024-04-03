@@ -195,7 +195,7 @@ static int tcf_mpls_init(struct net *net, struct nlattr *nla,
 		return err;
 	exists = err;
 	if (exists && bind)
-		return 0;
+		return ACT_P_BOUND;
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, index, est, a, &act_mpls_ops, bind,
@@ -452,6 +452,7 @@ static struct tc_action_ops act_mpls_ops = {
 	.offload_act_setup =	tcf_mpls_offload_act_setup,
 	.size		=	sizeof(struct tcf_mpls),
 };
+MODULE_ALIAS_NET_ACT("mpls");
 
 static __net_init int mpls_init_net(struct net *net)
 {

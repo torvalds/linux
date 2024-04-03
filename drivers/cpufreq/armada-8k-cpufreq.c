@@ -57,7 +57,7 @@ static void __init armada_8k_get_sharing_cpus(struct clk *cur_clk,
 			continue;
 		}
 
-		clk = clk_get(cpu_dev, 0);
+		clk = clk_get(cpu_dev, NULL);
 		if (IS_ERR(clk)) {
 			pr_warn("Cannot get clock for CPU %d\n", cpu);
 		} else {
@@ -165,7 +165,7 @@ static int __init armada_8k_cpufreq_init(void)
 			continue;
 		}
 
-		clk = clk_get(cpu_dev, 0);
+		clk = clk_get(cpu_dev, NULL);
 
 		if (IS_ERR(clk)) {
 			pr_err("Cannot get clock for CPU %d\n", cpu);

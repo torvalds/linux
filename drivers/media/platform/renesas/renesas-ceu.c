@@ -22,7 +22,6 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/of_graph.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
@@ -152,7 +151,7 @@ static inline struct ceu_buffer *vb2_to_ceu(struct vb2_v4l2_buffer *vbuf)
  * ceu_subdev - Wraps v4l2 sub-device and provides async subdevice.
  */
 struct ceu_subdev {
-	struct v4l2_async_subdev asd;
+	struct v4l2_async_connection asd;
 	struct v4l2_subdev *v4l2_sd;
 
 	/* per-subdevice mbus configuration options */
@@ -160,7 +159,7 @@ struct ceu_subdev {
 	struct ceu_mbus_fmt mbus_fmt;
 };
 
-static struct ceu_subdev *to_ceu_subdev(struct v4l2_async_subdev *asd)
+static struct ceu_subdev *to_ceu_subdev(struct v4l2_async_connection *asd)
 {
 	return container_of(asd, struct ceu_subdev, asd);
 }
@@ -1184,17 +1183,13 @@ static int ceu_enum_input(struct file *file, void *priv,
 			  struct v4l2_input *inp)
 {
 	struct ceu_device *ceudev = video_drvdata(file);
-	struct ceu_subdev *ceusd;
 
 	if (inp->index >= ceudev->num_sd)
 		return -EINVAL;
 
-	ceusd = ceudev->subdevs[inp->index];
-
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 	inp->std = 0;
-	snprintf(inp->name, sizeof(inp->name), "Camera%u: %s",
-		 inp->index, ceusd->v4l2_sd->name);
+	snprintf(inp->name, sizeof(inp->name), "Camera %u", inp->index);
 
 	return 0;
 }
@@ -1375,7 +1370,7 @@ static void ceu_vdev_release(struct video_device *vdev)
 
 static int ceu_notify_bound(struct v4l2_async_notifier *notifier,
 			    struct v4l2_subdev *v4l2_sd,
-			    struct v4l2_async_subdev *asd)
+			    struct v4l2_async_connection *asd)
 {
 	struct v4l2_device *v4l2_dev = notifier->v4l2_dev;
 	struct ceu_device *ceudev = v4l2_to_ceu(v4l2_dev);
@@ -1404,7 +1399,7 @@ static int ceu_notify_complete(struct v4l2_async_notifier *notifier)
 	q->mem_ops		= &vb2_dma_contig_memops;
 	q->buf_struct_size	= sizeof(struct ceu_buffer);
 	q->timestamp_flags	= V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
-	q->min_buffers_needed	= 2;
+	q->min_queued_buffers	= 2;
 	q->lock			= &ceudev->mlock;
 	q->dev			= ceudev->v4l2_dev.dev;
 
@@ -1658,7 +1653,7 @@ static int ceu_probe(struct platform_device *pdev)
 	if (ret)
 		goto error_pm_disable;
 
-	v4l2_async_nf_init(&ceudev->notifier);
+	v4l2_async_nf_init(&ceudev->notifier, &ceudev->v4l2_dev);
 
 	if (IS_ENABLED(CONFIG_OF) && dev->of_node) {
 		ceu_data = of_device_get_match_data(dev);
@@ -1680,7 +1675,7 @@ static int ceu_probe(struct platform_device *pdev)
 
 	ceudev->notifier.v4l2_dev	= &ceudev->v4l2_dev;
 	ceudev->notifier.ops		= &ceu_notify_ops;
-	ret = v4l2_async_nf_register(&ceudev->v4l2_dev, &ceudev->notifier);
+	ret = v4l2_async_nf_register(&ceudev->notifier);
 	if (ret)
 		goto error_cleanup;
 

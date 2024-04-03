@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -144,6 +144,8 @@ struct iwl_powertable_cmd {
  *	receiver and transmitter. '0' - does not allow.
  * @DEVICE_POWER_FLAGS_ALLOW_MEM_RETENTION_MSK:
  *	Device Retention indication, '1' indicate retention is enabled.
+ * @DEVICE_POWER_FLAGS_NO_SLEEP_TILL_D3_MSK:
+ *	Prevent power save until entering d3 is completed.
  * @DEVICE_POWER_FLAGS_32K_CLK_VALID_MSK:
  *	32Khz external slow clock valid indication, '1' indicate cloack is
  *	valid.
@@ -151,6 +153,7 @@ struct iwl_powertable_cmd {
 enum iwl_device_power_flags {
 	DEVICE_POWER_FLAGS_POWER_SAVE_ENA_MSK		= BIT(0),
 	DEVICE_POWER_FLAGS_ALLOW_MEM_RETENTION_MSK	= BIT(1),
+	DEVICE_POWER_FLAGS_NO_SLEEP_TILL_D3_MSK		= BIT(7),
 	DEVICE_POWER_FLAGS_32K_CLK_VALID_MSK		= BIT(12),
 };
 
@@ -162,7 +165,7 @@ enum iwl_device_power_flags {
  * @reserved: reserved (padding)
  */
 struct iwl_device_power_cmd {
-	/* PM_POWER_TABLE_CMD_API_S_VER_6 */
+	/* PM_POWER_TABLE_CMD_API_S_VER_7 */
 	__le16 flags;
 	__le16 reserved;
 } __packed;
@@ -503,13 +506,40 @@ struct iwl_geo_tx_power_profiles_resp {
 } __packed; /* PER_CHAIN_LIMIT_OFFSET_RSP */
 
 /**
+ * enum iwl_ppag_flags - PPAG enable masks
+ * @IWL_PPAG_ETSI_MASK: enable PPAG in ETSI
+ * @IWL_PPAG_CHINA_MASK: enable PPAG in China
+ * @IWL_PPAG_ETSI_LPI_UHB_MASK: enable LPI in ETSI for UHB
+ * @IWL_PPAG_ETSI_VLP_UHB_MASK: enable VLP in ETSI for UHB
+ * @IWL_PPAG_ETSI_SP_UHB_MASK: enable SP in ETSI for UHB
+ * @IWL_PPAG_USA_LPI_UHB_MASK: enable LPI in USA for UHB
+ * @IWL_PPAG_USA_VLP_UHB_MASK: enable VLP in USA for UHB
+ * @IWL_PPAG_USA_SP_UHB_MASK: enable SP in USA for UHB
+ * @IWL_PPAG_CANADA_LPI_UHB_MASK: enable LPI in CANADA for UHB
+ * @IWL_PPAG_CANADA_VLP_UHB_MASK: enable VLP in CANADA for UHB
+ * @IWL_PPAG_CANADA_SP_UHB_MASK: enable SP in CANADA for UHB
+ */
+enum iwl_ppag_flags {
+	IWL_PPAG_ETSI_MASK = BIT(0),
+	IWL_PPAG_CHINA_MASK = BIT(1),
+	IWL_PPAG_ETSI_LPI_UHB_MASK = BIT(2),
+	IWL_PPAG_ETSI_VLP_UHB_MASK = BIT(3),
+	IWL_PPAG_ETSI_SP_UHB_MASK = BIT(4),
+	IWL_PPAG_USA_LPI_UHB_MASK = BIT(5),
+	IWL_PPAG_USA_VLP_UHB_MASK = BIT(6),
+	IWL_PPAG_USA_SP_UHB_MASK = BIT(7),
+	IWL_PPAG_CANADA_LPI_UHB_MASK = BIT(8),
+	IWL_PPAG_CANADA_VLP_UHB_MASK = BIT(9),
+	IWL_PPAG_CANADA_SP_UHB_MASK = BIT(10),
+};
+
+/**
  * union iwl_ppag_table_cmd - union for all versions of PPAG command
  * @v1: version 1
  * @v2: version 2
- *
- * @flags: bit 0 - indicates enablement of PPAG for ETSI
- *         bit 1 - indicates enablement of PPAG for CHINA BIOS
- *         bit 1 can be used only in v3 (identical to v2)
+ * version 3, 4 and 5 are the same structure as v2,
+ *	but has a different format of the flags bitmap
+ * @flags: values from &enum iwl_ppag_flags
  * @gain: table of antenna gain values per chain and sub-band
  * @reserved: reserved
  */
@@ -525,6 +555,11 @@ union iwl_ppag_table_cmd {
 		s8 reserved[2];
 	} v2;
 } __packed;
+
+#define IWL_PPAG_CMD_V4_MASK (IWL_PPAG_ETSI_MASK | IWL_PPAG_CHINA_MASK)
+#define IWL_PPAG_CMD_V5_MASK (IWL_PPAG_CMD_V4_MASK | \
+			      IWL_PPAG_ETSI_LPI_UHB_MASK | \
+			      IWL_PPAG_USA_LPI_UHB_MASK)
 
 #define MCC_TO_SAR_OFFSET_TABLE_ROW_SIZE	26
 #define MCC_TO_SAR_OFFSET_TABLE_COL_SIZE	13

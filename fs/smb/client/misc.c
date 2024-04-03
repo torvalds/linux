@@ -27,9 +27,6 @@
 #include "fs_context.h"
 #include "cached_dir.h"
 
-extern mempool_t *cifs_sm_req_poolp;
-extern mempool_t *cifs_req_poolp;
-
 /* The xid serves as a useful identifier for each incoming vfs request,
    in a similar way to the mid which is useful to track each sent smb,
    and CurrentXid can also provide a running counter (although it
@@ -113,18 +110,22 @@ sesInfoFree(struct cifs_ses *buf_to_free)
 }
 
 struct cifs_tcon *
-tconInfoAlloc(void)
+tcon_info_alloc(bool dir_leases_enabled)
 {
 	struct cifs_tcon *ret_buf;
 
 	ret_buf = kzalloc(sizeof(*ret_buf), GFP_KERNEL);
 	if (!ret_buf)
 		return NULL;
-	ret_buf->cfids = init_cached_dirs();
-	if (!ret_buf->cfids) {
-		kfree(ret_buf);
-		return NULL;
+
+	if (dir_leases_enabled == true) {
+		ret_buf->cfids = init_cached_dirs();
+		if (!ret_buf->cfids) {
+			kfree(ret_buf);
+			return NULL;
+		}
 	}
+	/* else ret_buf->cfids is already set to NULL above */
 
 	atomic_inc(&tconInfoAllocCount);
 	ret_buf->status = TID_NEW;
@@ -136,6 +137,7 @@ tconInfoAlloc(void)
 	spin_lock_init(&ret_buf->stat_lock);
 	atomic_set(&ret_buf->num_local_opens, 0);
 	atomic_set(&ret_buf->num_remote_opens, 0);
+	ret_buf->stats_from_time = ktime_get_real_seconds();
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	INIT_LIST_HEAD(&ret_buf->dfs_ses_list);
 #endif
@@ -359,6 +361,10 @@ checkSMB(char *buf, unsigned int total_read, struct TCP_Server_Info *server)
 			cifs_dbg(VFS, "Length less than smb header size\n");
 		}
 		return -EIO;
+	} else if (total_read < sizeof(*smb) + 2 * smb->WordCount) {
+		cifs_dbg(VFS, "%s: can't read BCC due to invalid WordCount(%u)\n",
+			 __func__, smb->WordCount);
+		return -EIO;
 	}
 
 	/* otherwise, there is enough to get to the BCC */
@@ -476,7 +482,7 @@ is_valid_oplock_break(char *buffer, struct TCP_Server_Info *srv)
 		return false;
 
 	/* If server is a channel, select the primary channel */
-	pserver = CIFS_SERVER_IS_CHAN(srv) ? srv->primary_server : srv;
+	pserver = SERVER_IS_CHAN(srv) ? srv->primary_server : srv;
 
 	/* look up tcon based on tid & uid */
 	spin_lock(&cifs_tcp_ses_lock);
@@ -841,6 +847,40 @@ cifs_close_deferred_file_under_dentry(struct cifs_tcon *tcon, const char *path)
 		list_del(&tmp_list->list);
 		kfree(tmp_list);
 	}
+	free_dentry_path(page);
+}
+
+/*
+ * If a dentry has been deleted, all corresponding open handles should know that
+ * so that we do not defer close them.
+ */
+void cifs_mark_open_handles_for_deleted_file(struct inode *inode,
+					     const char *path)
+{
+	struct cifsFileInfo *cfile;
+	void *page;
+	const char *full_path;
+	struct cifsInodeInfo *cinode = CIFS_I(inode);
+
+	page = alloc_dentry_path();
+	spin_lock(&cinode->open_file_lock);
+
+	/*
+	 * note: we need to construct path from dentry and compare only if the
+	 * inode has any hardlinks. When number of hardlinks is 1, we can just
+	 * mark all open handles since they are going to be from the same file.
+	 */
+	if (inode->i_nlink > 1) {
+		list_for_each_entry(cfile, &cinode->openFileList, flist) {
+			full_path = build_path_from_dentry(cfile->dentry, page);
+			if (!IS_ERR(full_path) && strcmp(full_path, path) == 0)
+				cfile->status_file_deleted = true;
+		}
+	} else {
+		list_for_each_entry(cfile, &cinode->openFileList, flist)
+			cfile->status_file_deleted = true;
+	}
+	spin_unlock(&cinode->open_file_lock);
 	free_dentry_path(page);
 }
 

@@ -162,8 +162,8 @@ static struct intel_gt *find_gt_for_required_teelink(struct drm_i915_private *i9
 	 * for HuC authentication. For now, its limited to DG2.
 	 */
 	if (IS_ENABLED(CONFIG_INTEL_MEI_PXP) && IS_ENABLED(CONFIG_INTEL_MEI_GSC) &&
-	    intel_huc_is_loaded_by_gsc(&i915->gt0.uc.huc) && intel_uc_uses_huc(&i915->gt0.uc))
-		return &i915->gt0;
+	    intel_huc_is_loaded_by_gsc(&to_gt(i915)->uc.huc) && intel_uc_uses_huc(&to_gt(i915)->uc))
+		return to_gt(i915);
 
 	return NULL;
 }
@@ -188,8 +188,8 @@ static struct intel_gt *find_gt_for_required_protected_content(struct drm_i915_p
 	 * Else we rely on mei-pxp module but only on legacy platforms
 	 * prior to having separate media GTs and has a valid VDBOX.
 	 */
-	if (IS_ENABLED(CONFIG_INTEL_MEI_PXP) && !i915->media_gt && VDBOX_MASK(&i915->gt0))
-		return &i915->gt0;
+	if (IS_ENABLED(CONFIG_INTEL_MEI_PXP) && !i915->media_gt && VDBOX_MASK(to_gt(i915)))
+		return to_gt(i915);
 
 	return NULL;
 }
@@ -198,6 +198,9 @@ int intel_pxp_init(struct drm_i915_private *i915)
 {
 	struct intel_gt *gt;
 	bool is_full_feature = false;
+
+	if (intel_gt_is_wedged(to_gt(i915)))
+		return -ENOTCONN;
 
 	/*
 	 * NOTE: Get the ctrl_gt before checking intel_pxp_is_supported since
@@ -303,6 +306,8 @@ static int __pxp_global_teardown_final(struct intel_pxp *pxp)
 
 	if (!pxp->arb_is_valid)
 		return 0;
+
+	drm_dbg(&pxp->ctrl_gt->i915->drm, "PXP: teardown for suspend/fini");
 	/*
 	 * To ensure synchronous and coherent session teardown completion
 	 * in response to suspend or shutdown triggers, don't use a worker.
@@ -324,6 +329,8 @@ static int __pxp_global_teardown_restart(struct intel_pxp *pxp)
 
 	if (pxp->arb_is_valid)
 		return 0;
+
+	drm_dbg(&pxp->ctrl_gt->i915->drm, "PXP: teardown for restart");
 	/*
 	 * The arb-session is currently inactive and we are doing a reset and restart
 	 * due to a runtime event. Use the worker that was designed for this.
@@ -332,8 +339,11 @@ static int __pxp_global_teardown_restart(struct intel_pxp *pxp)
 
 	timeout = intel_pxp_get_backend_timeout_ms(pxp);
 
-	if (!wait_for_completion_timeout(&pxp->termination, msecs_to_jiffies(timeout)))
+	if (!wait_for_completion_timeout(&pxp->termination, msecs_to_jiffies(timeout))) {
+		drm_dbg(&pxp->ctrl_gt->i915->drm, "PXP: restart backend timed out (%d ms)",
+			timeout);
 		return -ETIMEDOUT;
+	}
 
 	return 0;
 }
@@ -359,22 +369,46 @@ void intel_pxp_end(struct intel_pxp *pxp)
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 }
 
+static bool pxp_required_fw_failed(struct intel_pxp *pxp)
+{
+	if (__intel_uc_fw_status(&pxp->ctrl_gt->uc.huc.fw) == INTEL_UC_FIRMWARE_LOAD_FAIL)
+		return true;
+	if (HAS_ENGINE(pxp->ctrl_gt, GSC0) &&
+	    __intel_uc_fw_status(&pxp->ctrl_gt->uc.gsc.fw) == INTEL_UC_FIRMWARE_LOAD_FAIL)
+		return true;
+
+	return false;
+}
+
+static bool pxp_fw_dependencies_completed(struct intel_pxp *pxp)
+{
+	if (HAS_ENGINE(pxp->ctrl_gt, GSC0))
+		return intel_pxp_gsccs_is_ready_for_sessions(pxp);
+
+	return pxp_component_bound(pxp);
+}
+
 /*
  * this helper is used by both intel_pxp_start and by
  * the GET_PARAM IOCTL that user space calls. Thus, the
  * return values here should match the UAPI spec.
  */
-int intel_pxp_get_readiness_status(struct intel_pxp *pxp)
+int intel_pxp_get_readiness_status(struct intel_pxp *pxp, int timeout_ms)
 {
 	if (!intel_pxp_is_enabled(pxp))
 		return -ENODEV;
 
-	if (HAS_ENGINE(pxp->ctrl_gt, GSC0)) {
-		if (wait_for(intel_pxp_gsccs_is_ready_for_sessions(pxp), 250))
+	if (pxp_required_fw_failed(pxp))
+		return -ENODEV;
+
+	if (pxp->platform_cfg_is_bad)
+		return -ENODEV;
+
+	if (timeout_ms) {
+		if (wait_for(pxp_fw_dependencies_completed(pxp), timeout_ms))
 			return 2;
-	} else {
-		if (wait_for(pxp_component_bound(pxp), 250))
-			return 2;
+	} else if (!pxp_fw_dependencies_completed(pxp)) {
+		return 2;
 	}
 	return 1;
 }
@@ -383,15 +417,19 @@ int intel_pxp_get_readiness_status(struct intel_pxp *pxp)
  * the arb session is restarted from the irq work when we receive the
  * termination completion interrupt
  */
+#define PXP_READINESS_TIMEOUT 250
+
 int intel_pxp_start(struct intel_pxp *pxp)
 {
 	int ret = 0;
 
-	ret = intel_pxp_get_readiness_status(pxp);
-	if (ret < 0)
+	ret = intel_pxp_get_readiness_status(pxp, PXP_READINESS_TIMEOUT);
+	if (ret < 0) {
+		drm_dbg(&pxp->ctrl_gt->i915->drm, "PXP: tried but not-avail (%d)", ret);
 		return ret;
-	else if (ret > 1)
+	} else if (ret > 1) {
 		return -EIO; /* per UAPI spec, user may retry later */
+	}
 
 	mutex_lock(&pxp->arb_mutex);
 

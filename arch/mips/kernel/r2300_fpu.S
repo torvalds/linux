@@ -11,10 +11,10 @@
  * Further modifications to make this work:
  * Copyright (c) 1998 Harald Koerfgen
  */
+#include <linux/export.h>
 #include <asm/asm.h>
 #include <asm/asmmacro.h>
 #include <asm/errno.h>
-#include <asm/export.h>
 #include <asm/fpregdef.h>
 #include <asm/mipsregs.h>
 #include <asm/asm-offsets.h>

@@ -74,6 +74,33 @@ static inline void init_llist_head(struct llist_head *list)
 }
 
 /**
+ * init_llist_node - initialize lock-less list node
+ * @node:	the node to be initialised
+ *
+ * In cases where there is a need to test if a node is on
+ * a list or not, this initialises the node to clearly
+ * not be on any list.
+ */
+static inline void init_llist_node(struct llist_node *node)
+{
+	node->next = node;
+}
+
+/**
+ * llist_on_list - test if a lock-list list node is on a list
+ * @node:	the node to test
+ *
+ * When a node is on a list the ->next pointer will be NULL or
+ * some other node.  It can never point to itself.  We use that
+ * in init_llist_node() to record that a node is not on any list,
+ * and here to test whether it is on any list.
+ */
+static inline bool llist_on_list(const struct llist_node *node)
+{
+	return node->next != node;
+}
+
+/**
  * llist_entry - get the struct of this entry
  * @ptr:	the &struct llist_node pointer.
  * @type:	the type of the struct this is embedded in.
@@ -248,6 +275,25 @@ static inline struct llist_node *__llist_del_all(struct llist_head *head)
 }
 
 extern struct llist_node *llist_del_first(struct llist_head *head);
+
+/**
+ * llist_del_first_init - delete first entry from lock-list and mark is as being off-list
+ * @head:	the head of lock-less list to delete from.
+ *
+ * This behave the same as llist_del_first() except that llist_init_node() is called
+ * on the returned node so that llist_on_list() will report false for the node.
+ */
+static inline struct llist_node *llist_del_first_init(struct llist_head *head)
+{
+	struct llist_node *n = llist_del_first(head);
+
+	if (n)
+		init_llist_node(n);
+	return n;
+}
+
+extern bool llist_del_first_this(struct llist_head *head,
+				 struct llist_node *this);
 
 struct llist_node *llist_reverse_order(struct llist_node *head);
 

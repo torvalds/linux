@@ -1000,15 +1000,13 @@ static int smbb_charger_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int smbb_charger_remove(struct platform_device *pdev)
+static void smbb_charger_remove(struct platform_device *pdev)
 {
 	struct smbb_charger *chg;
 
 	chg = platform_get_drvdata(pdev);
 
 	regmap_update_bits(chg->regmap, chg->addr + SMBB_CHG_CTRL, CTRL_EN, 0);
-
-	return 0;
 }
 
 static const struct of_device_id smbb_charger_id_table[] = {
@@ -1020,7 +1018,7 @@ MODULE_DEVICE_TABLE(of, smbb_charger_id_table);
 
 static struct platform_driver smbb_charger_driver = {
 	.probe	  = smbb_charger_probe,
-	.remove	 = smbb_charger_remove,
+	.remove_new	 = smbb_charger_remove,
 	.driver	 = {
 		.name   = "qcom-smbb",
 		.of_match_table = smbb_charger_id_table,

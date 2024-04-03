@@ -60,6 +60,25 @@
 		};
 	};
 
+	firmware {
+		svc {
+			compatible = "intel,agilex-svc";
+			method = "smc";
+			memory-region = <&service_reserved>;
+
+			fpga_mgr: fpga-mgr {
+				compatible = "intel,agilex-soc-fpga-mgr";
+			};
+		};
+	};
+
+	fpga-region {
+		compatible = "fpga-region";
+		#address-cells = <0x2>;
+		#size-cells = <0x2>;
+		fpga-mgr = <&fpga_mgr>;
+	};
+
 	pmu {
 		compatible = "arm,armv8-pmuv3";
 		interrupts = <GIC_SPI 170 IRQ_TYPE_LEVEL_HIGH>,
@@ -130,20 +149,13 @@
 		compatible = "usb-nop-xceiv";
 	};
 
-	soc {
+	soc@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
 		device_type = "soc";
 		interrupt-parent = <&intc>;
 		ranges = <0 0 0 0xffffffff>;
-
-		base_fpga_region {
-			#address-cells = <0x2>;
-			#size-cells = <0x2>;
-			compatible = "fpga-region";
-			fpga-mgr = <&fpga_mgr>;
-		};
 
 		clkmgr: clock-controller@ffd10000 {
 			compatible = "intel,agilex-clkmgr";
@@ -158,7 +170,7 @@
 			interrupt-names = "macirq";
 			mac-address = [00 00 00 00 00 00];
 			resets = <&rst EMAC0_RESET>, <&rst EMAC0_OCP_RESET>;
-			reset-names = "stmmaceth", "stmmaceth-ocp";
+			reset-names = "stmmaceth", "ahb";
 			tx-fifo-depth = <16384>;
 			rx-fifo-depth = <16384>;
 			snps,multicast-filter-bins = <256>;
@@ -176,7 +188,7 @@
 			interrupt-names = "macirq";
 			mac-address = [00 00 00 00 00 00];
 			resets = <&rst EMAC1_RESET>, <&rst EMAC1_OCP_RESET>;
-			reset-names = "stmmaceth", "stmmaceth-ocp";
+			reset-names = "stmmaceth", "ahb";
 			tx-fifo-depth = <16384>;
 			rx-fifo-depth = <16384>;
 			snps,multicast-filter-bins = <256>;
@@ -194,7 +206,7 @@
 			interrupt-names = "macirq";
 			mac-address = [00 00 00 00 00 00];
 			resets = <&rst EMAC2_RESET>, <&rst EMAC2_OCP_RESET>;
-			reset-names = "stmmaceth", "stmmaceth-ocp";
+			reset-names = "stmmaceth", "ahb";
 			tx-fifo-depth = <16384>;
 			rx-fifo-depth = <16384>;
 			snps,multicast-filter-bins = <256>;
@@ -336,6 +348,9 @@
 		ocram: sram@ffe00000 {
 			compatible = "mmio-sram";
 			reg = <0xffe00000 0x40000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			ranges = <0 0xffe00000 0x40000>;
 		};
 
 		pdma: dma-controller@ffda0000 {
@@ -365,7 +380,7 @@
 			pinctrl-single,function-mask = <0x0000000f>;
 		};
 
-		pinctrl1: pinconf@ffd13100 {
+		pinctrl1: pinctrl@ffd13100 {
 			compatible = "pinctrl-single";
 			#pinctrl-cells = <1>;
 			reg = <0xffd13100 0x20>;
@@ -373,9 +388,9 @@
 		};
 
 		rst: rstmgr@ffd11000 {
-			#reset-cells = <1>;
-			compatible = "altr,stratix10-rst-mgr";
+			compatible = "altr,stratix10-rst-mgr", "altr,rst-mgr";
 			reg = <0xffd11000 0x100>;
+			#reset-cells = <1>;
 		};
 
 		smmu: iommu@fa000000 {
@@ -655,18 +670,6 @@
 			clocks = <&qspi_clk>;
 
 			status = "disabled";
-		};
-
-		firmware {
-			svc {
-				compatible = "intel,agilex-svc";
-				method = "smc";
-				memory-region = <&service_reserved>;
-
-				fpga_mgr: fpga-mgr {
-					compatible = "intel,agilex-soc-fpga-mgr";
-				};
-			};
 		};
 	};
 };

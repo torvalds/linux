@@ -205,6 +205,7 @@ static int rockchip_rk3399_efuse_read(void *context, unsigned int offset,
 
 static struct nvmem_config econfig = {
 	.name = "rockchip-efuse",
+	.add_legacy_fixed_of_cells = true,
 	.stride = 1,
 	.word_size = 1,
 	.read_only = true,
@@ -267,8 +268,7 @@ static int rockchip_efuse_probe(struct platform_device *pdev)
 	if (!efuse)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	efuse->base = devm_ioremap_resource(dev, res);
+	efuse->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(efuse->base))
 		return PTR_ERR(efuse->base);
 

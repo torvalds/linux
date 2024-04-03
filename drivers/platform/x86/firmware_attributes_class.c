@@ -10,11 +10,11 @@
 static DEFINE_MUTEX(fw_attr_lock);
 static int fw_attr_inuse;
 
-static struct class firmware_attributes_class = {
+static const struct class firmware_attributes_class = {
 	.name = "firmware-attributes",
 };
 
-int fw_attributes_class_get(struct class **fw_attr_class)
+int fw_attributes_class_get(const struct class **fw_attr_class)
 {
 	int err;
 

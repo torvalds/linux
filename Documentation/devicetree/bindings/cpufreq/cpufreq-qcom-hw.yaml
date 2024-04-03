@@ -23,6 +23,7 @@ properties:
           - enum:
               - qcom,qcm2290-cpufreq-hw
               - qcom,sc7180-cpufreq-hw
+              - qcom,sdm670-cpufreq-hw
               - qcom,sdm845-cpufreq-hw
               - qcom,sm6115-cpufreq-hw
               - qcom,sm6350-cpufreq-hw
@@ -36,11 +37,13 @@ properties:
               - qcom,sa8775p-cpufreq-epss
               - qcom,sc7280-cpufreq-epss
               - qcom,sc8280xp-cpufreq-epss
+              - qcom,sdx75-cpufreq-epss
               - qcom,sm6375-cpufreq-epss
               - qcom,sm8250-cpufreq-epss
               - qcom,sm8350-cpufreq-epss
               - qcom,sm8450-cpufreq-epss
               - qcom,sm8550-cpufreq-epss
+              - qcom,sm8650-cpufreq-epss
           - const: qcom,cpufreq-epss
 
   reg:
@@ -49,6 +52,7 @@ properties:
       - description: Frequency domain 0 register region
       - description: Frequency domain 1 register region
       - description: Frequency domain 2 register region
+      - description: Frequency domain 3 register region
 
   reg-names:
     minItems: 1
@@ -56,6 +60,7 @@ properties:
       - const: freq-domain0
       - const: freq-domain1
       - const: freq-domain2
+      - const: freq-domain3
 
   clocks:
     items:
@@ -69,7 +74,7 @@ properties:
 
   interrupts:
     minItems: 1
-    maxItems: 3
+    maxItems: 4
 
   interrupt-names:
     minItems: 1
@@ -77,6 +82,7 @@ properties:
       - const: dcvsh-irq-0
       - const: dcvsh-irq-1
       - const: dcvsh-irq-2
+      - const: dcvsh-irq-3
 
   '#freq-domain-cells':
     const: 1
@@ -125,6 +131,7 @@ allOf:
               - qcom,qdu1000-cpufreq-epss
               - qcom,sc7180-cpufreq-hw
               - qcom,sc8280xp-cpufreq-epss
+              - qcom,sdm670-cpufreq-hw
               - qcom,sdm845-cpufreq-hw
               - qcom,sm6115-cpufreq-hw
               - qcom,sm6350-cpufreq-hw

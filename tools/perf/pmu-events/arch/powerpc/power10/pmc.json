@@ -1,22 +1,202 @@
 [
   {
+    "EventCode": "0x100FE",
+    "EventName": "PM_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed."
+  },
+  {
+    "EventCode": "0x1000A",
+    "EventName": "PM_PMC3_REWIND",
+    "BriefDescription": "The speculative event selected for PMC3 rewinds and the counter for PMC3 is not charged."
+  },
+  {
+    "EventCode": "0x10010",
+    "EventName": "PM_PMC4_OVERFLOW",
+    "BriefDescription": "The event selected for PMC4 caused the event counter to overflow."
+  },
+  {
+    "EventCode": "0x1001C",
+    "EventName": "PM_ULTRAVISOR_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed while the thread was in ultravisor state."
+  },
+  {
+    "EventCode": "0x100F0",
+    "EventName": "PM_CYC",
+    "BriefDescription": "Processor cycles."
+  },
+  {
+    "EventCode": "0x10020",
+    "EventName": "PM_PMC4_REWIND",
+    "BriefDescription": "The speculative event selected for PMC4 rewinds and the counter for PMC4 is not charged."
+  },
+  {
+    "EventCode": "0x10022",
+    "EventName": "PM_PMC2_SAVED",
+    "BriefDescription": "The conditions for the speculative event selected for PMC2 are met and PMC2 is charged."
+  },
+  {
+    "EventCode": "0x10024",
+    "EventName": "PM_PMC5_OVERFLOW",
+    "BriefDescription": "The event selected for PMC5 caused the event counter to overflow."
+  },
+  {
+    "EventCode": "0x1002A",
+    "EventName": "PM_PMC3_HELD_CYC",
+    "BriefDescription": "Cycles when the speculative counter for PMC3 is frozen."
+  },
+  {
+    "EventCode": "0x1F15E",
+    "EventName": "PM_MRK_START_PROBE_NOP_CMPL",
+    "BriefDescription": "Marked Start probe nop (AND R0,R0,R0) completed."
+  },
+  {
+    "EventCode": "0x1006C",
+    "EventName": "PM_RUN_CYC_ST_MODE",
+    "BriefDescription": "Cycles when the run latch is set and the core is in ST mode."
+  },
+  {
+    "EventCode": "0x101E8",
+    "EventName": "PM_THRESH_EXC_256",
+    "BriefDescription": "Threshold counter exceeded a count of 256."
+  },
+  {
+    "EventCode": "0x101EC",
+    "EventName": "PM_THRESH_MET",
+    "BriefDescription": "Threshold exceeded."
+  },
+  {
+    "EventCode": "0x100FA",
+    "EventName": "PM_RUN_LATCH_ANY_THREAD_CYC",
+    "BriefDescription": "Cycles when at least one thread has the run latch set."
+  },
+  {
+    "EventCode": "0x2000A",
+    "EventName": "PM_HYPERVISOR_CYC",
+    "BriefDescription": "Cycles when the thread is in Hypervisor state. MSR[S HV PR]=010."
+  },
+  {
+    "EventCode": "0x2000C",
+    "EventName": "PM_RUN_LATCH_ALL_THREADS_CYC",
+    "BriefDescription": "Cycles when the run latch is set for all threads."
+  },
+  {
+    "EventCode": "0x20010",
+    "EventName": "PM_PMC1_OVERFLOW",
+    "BriefDescription": "The event selected for PMC1 caused the event counter to overflow."
+  },
+  {
+    "EventCode": "0x2006C",
+    "EventName": "PM_RUN_CYC_SMT4_MODE",
+    "BriefDescription": "Cycles when this thread's run latch is set and the core is in SMT4 mode."
+  },
+  {
+    "EventCode": "0x201E6",
+    "EventName": "PM_THRESH_EXC_32",
+    "BriefDescription": "Threshold counter exceeded a value of 32."
+  },
+  {
+    "EventCode": "0x201E8",
+    "EventName": "PM_THRESH_EXC_512",
+    "BriefDescription": "Threshold counter exceeded a value of 512."
+  },
+  {
+    "EventCode": "0x200F4",
+    "EventName": "PM_RUN_CYC",
+    "BriefDescription": "Processor cycles gated by the run latch."
+  },
+  {
+    "EventCode": "0x30010",
+    "EventName": "PM_PMC2_OVERFLOW",
+    "BriefDescription": "The event selected for PMC2 caused the event counter to overflow."
+  },
+  {
+    "EventCode": "0x30020",
+    "EventName": "PM_PMC2_REWIND",
+    "BriefDescription": "The speculative event selected for PMC2 rewinds and the counter for PMC2 is not charged."
+  },
+  {
+    "EventCode": "0x30022",
+    "EventName": "PM_PMC4_SAVED",
+    "BriefDescription": "The conditions for the speculative event selected for PMC4 are met and PMC4 is charged."
+  },
+  {
+    "EventCode": "0x30024",
+    "EventName": "PM_PMC6_OVERFLOW",
+    "BriefDescription": "The event selected for PMC6 caused the event counter to overflow."
+  },
+  {
+    "EventCode": "0x3006C",
+    "EventName": "PM_RUN_CYC_SMT2_MODE",
+    "BriefDescription": "Cycles when this thread's run latch is set and the core is in SMT2 mode."
+  },
+  {
     "EventCode": "0x301E8",
     "EventName": "PM_THRESH_EXC_64",
     "BriefDescription": "Threshold counter exceeded a value of 64."
   },
   {
-    "EventCode": "0x45050",
-    "EventName": "PM_1FLOP_CMPL",
-    "BriefDescription": "One floating point instruction completed (fadd, fmul, fsub, fcmp, fsel, fabs, fnabs, fres, fsqrte, fneg)."
+    "EventCode": "0x301EA",
+    "EventName": "PM_THRESH_EXC_1024",
+    "BriefDescription": "Threshold counter exceeded a value of 1024."
   },
   {
-    "EventCode": "0x45052",
-    "EventName": "PM_4FLOP_CMPL",
-    "BriefDescription": "Four floating point instructions completed (fadd, fmul, fsub, fcmp, fsel, fabs, fnabs, fres, fsqrte, fneg)."
+    "EventCode": "0x40010",
+    "EventName": "PM_PMC3_OVERFLOW",
+    "BriefDescription": "The event selected for PMC3 caused the event counter to overflow."
   },
   {
-    "EventCode": "0x4D054",
-    "EventName": "PM_8FLOP_CMPL",
-    "BriefDescription": "Four Double Precision vector instructions completed."
+    "EventCode": "0x40114",
+    "EventName": "PM_MRK_START_PROBE_NOP_DISP",
+    "BriefDescription": "Marked Start probe nop dispatched. Instruction AND R0,R0,R0."
+  },
+  {
+    "EventCode": "0x4D010",
+    "EventName": "PM_PMC1_SAVED",
+    "BriefDescription": "The conditions for the speculative event selected for PMC1 are met and PMC1 is charged."
+  },
+  {
+    "EventCode": "0x4D012",
+    "EventName": "PM_PMC3_SAVED",
+    "BriefDescription": "The conditions for the speculative event selected for PMC3 are met and PMC3 is charged."
+  },
+  {
+    "EventCode": "0x4D022",
+    "EventName": "PM_HYPERVISOR_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed while the thread was in hypervisor state."
+  },
+  {
+    "EventCode": "0x4D026",
+    "EventName": "PM_ULTRAVISOR_CYC",
+    "BriefDescription": "Cycles when the thread is in Ultravisor state. MSR[S HV PR]=110."
+  },
+  {
+    "EventCode": "0x4D028",
+    "EventName": "PM_PRIVILEGED_CYC",
+    "BriefDescription": "Cycles when the thread is in Privileged state. MSR[S HV PR]=x00."
+  },
+  {
+    "EventCode": "0x4D02C",
+    "EventName": "PM_PMC1_REWIND",
+    "BriefDescription": "The speculative event selected for PMC1 rewinds and the counter for PMC1 is not charged."
+  },
+  {
+    "EventCode": "0x40030",
+    "EventName": "PM_INST_FIN",
+    "BriefDescription": "Instruction finished."
+  },
+  {
+    "EventCode": "0x40134",
+    "EventName": "PM_MRK_INST_TIMEO",
+    "BriefDescription": "Marked instruction finish timeout (instruction was lost)."
+  },
+  {
+    "EventCode": "0x401EA",
+    "EventName": "PM_THRESH_EXC_128",
+    "BriefDescription": "Threshold counter exceeded a value of 128."
+  },
+  {
+    "EventCode": "0x500FA",
+    "EventName": "PM_RUN_INST_CMPL",
+    "BriefDescription": "PowerPC instruction completed while the run latch is set."
   }
 ]

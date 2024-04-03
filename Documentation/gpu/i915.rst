@@ -267,19 +267,22 @@ i915 driver.
 Intel GPU Basics
 ----------------
 
-An Intel GPU has multiple engines. There are several engine types.
+An Intel GPU has multiple engines. There are several engine types:
 
-- RCS engine is for rendering 3D and performing compute, this is named
-  `I915_EXEC_RENDER` in user space.
-- BCS is a blitting (copy) engine, this is named `I915_EXEC_BLT` in user
-  space.
-- VCS is a video encode and decode engine, this is named `I915_EXEC_BSD`
-  in user space
-- VECS is video enhancement engine, this is named `I915_EXEC_VEBOX` in user
-  space.
-- The enumeration `I915_EXEC_DEFAULT` does not refer to specific engine;
-  instead it is to be used by user space to specify a default rendering
-  engine (for 3D) that may or may not be the same as RCS.
+- Render Command Streamer (RCS). An engine for rendering 3D and
+  performing compute.
+- Blitting Command Streamer (BCS). An engine for performing blitting and/or
+  copying operations.
+- Video Command Streamer. An engine used for video encoding and decoding. Also
+  sometimes called 'BSD' in hardware documentation.
+- Video Enhancement Command Streamer (VECS). An engine for video enhancement.
+  Also sometimes called 'VEBOX' in hardware documentation.
+- Compute Command Streamer (CCS). An engine that has access to the media and
+  GPGPU pipelines, but not the 3D pipeline.
+- Graphics Security Controller (GSCCS). A dedicated engine for internal
+  communication with GSC controller on security related tasks like
+  High-bandwidth Digital Content Protection (HDCP), Protected Xe Path (PXP),
+  and HuC firmware authentication.
 
 The Intel GPU family is a family of integrated GPU's using Unified
 Memory Access. For having the GPU "do work", user space will feed the
@@ -304,10 +307,10 @@ reads of following commands. Actions issued between different contexts
 and the only way to synchronize across contexts (even from the same
 file descriptor) is through the use of fences. At least as far back as
 Gen4, also have that a context carries with it a GPU HW context;
-the HW context is essentially (most of atleast) the state of a GPU.
+the HW context is essentially (most of at least) the state of a GPU.
 In addition to the ordering guarantees, the kernel will restore GPU
 state via HW context when commands are issued to a context, this saves
-user space the need to restore (most of atleast) the GPU state at the
+user space the need to restore (most of at least) the GPU state at the
 start of each batchbuffer. The non-deprecated ioctls to submit batchbuffer
 work can pass that ID (in the lower bits of drm_i915_gem_execbuffer2::rsvd1)
 to identify what context to use with the command.

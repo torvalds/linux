@@ -267,15 +267,15 @@ DEFINE_EVENT(ufshcd_template, ufshcd_wl_runtime_resume,
 	     TP_ARGS(dev_name, err, usecs, dev_state, link_state));
 
 TRACE_EVENT(ufshcd_command,
-	TP_PROTO(const char *dev_name, enum ufs_trace_str_t str_t,
+	TP_PROTO(struct scsi_device *sdev, enum ufs_trace_str_t str_t,
 		 unsigned int tag, u32 doorbell, u32 hwq_id, int transfer_len,
 		 u32 intr, u64 lba, u8 opcode, u8 group_id),
 
-	TP_ARGS(dev_name, str_t, tag, doorbell, hwq_id, transfer_len,
-			intr, lba, opcode, group_id),
+	TP_ARGS(sdev, str_t, tag, doorbell, hwq_id, transfer_len, intr, lba,
+		opcode, group_id),
 
 	TP_STRUCT__entry(
-		__string(dev_name, dev_name)
+		__field(struct scsi_device *, sdev)
 		__field(enum ufs_trace_str_t, str_t)
 		__field(unsigned int, tag)
 		__field(u32, doorbell)
@@ -288,7 +288,7 @@ TRACE_EVENT(ufshcd_command,
 	),
 
 	TP_fast_assign(
-		__assign_str(dev_name, dev_name);
+		__entry->sdev = sdev;
 		__entry->str_t = str_t;
 		__entry->tag = tag;
 		__entry->doorbell = doorbell;
@@ -302,8 +302,9 @@ TRACE_EVENT(ufshcd_command,
 
 	TP_printk(
 		"%s: %s: tag: %u, DB: 0x%x, size: %d, IS: %u, LBA: %llu, opcode: 0x%x (%s), group_id: 0x%x, hwq_id: %d",
-		show_ufs_cmd_trace_str(__entry->str_t), __get_str(dev_name),
-		__entry->tag, __entry->doorbell, __entry->transfer_len, __entry->intr,
+		show_ufs_cmd_trace_str(__entry->str_t),
+		dev_name(&__entry->sdev->sdev_dev), __entry->tag,
+		__entry->doorbell, __entry->transfer_len, __entry->intr,
 		__entry->lba, (u32)__entry->opcode, str_opcode(__entry->opcode),
 		(u32)__entry->group_id, __entry->hwq_id
 	)

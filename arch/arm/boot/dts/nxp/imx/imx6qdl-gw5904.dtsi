@@ -52,6 +52,11 @@
 / {
 	/* these are used by bootloader for disabling nodes */
 	aliases {
+		ethernet0 = &fec;
+		ethernet1 = &lan1;
+		ethernet2 = &lan2;
+		ethernet3 = &lan3;
+		ethernet4 = &lan4;
 		led0 = &led0;
 		led1 = &led1;
 		led2 = &led2;
@@ -212,28 +217,61 @@
 			compatible = "marvell,mv88e6085";
 			reg = <0>;
 
+			mdio {
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+				sw_phy0: ethernet-phy@0 {
+					reg = <0x0>;
+				};
+
+				sw_phy1: ethernet-phy@1 {
+					reg = <0x1>;
+				};
+
+				sw_phy2: ethernet-phy@2 {
+					reg = <0x2>;
+				};
+
+				sw_phy3: ethernet-phy@3 {
+					reg = <0x3>;
+				};
+			};
+
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
 
-				port@0 {
+				lan4: port@0 {
 					reg = <0>;
 					label = "lan4";
+					phy-handle = <&sw_phy0>;
+					phy-mode = "internal";
+					local-mac-address = [00 00 00 00 00 00];
 				};
 
-				port@1 {
+				lan3: port@1 {
 					reg = <1>;
 					label = "lan3";
+					phy-handle = <&sw_phy1>;
+					phy-mode = "internal";
+					local-mac-address = [00 00 00 00 00 00];
 				};
 
-				port@2 {
+				lan2: port@2 {
 					reg = <2>;
 					label = "lan2";
+					phy-handle = <&sw_phy2>;
+					phy-mode = "internal";
+					local-mac-address = [00 00 00 00 00 00];
 				};
 
-				port@3 {
+				lan1: port@3 {
 					reg = <3>;
 					label = "lan1";
+					phy-handle = <&sw_phy3>;
+					phy-mode = "internal";
+					local-mac-address = [00 00 00 00 00 00];
 				};
 
 				port@5 {

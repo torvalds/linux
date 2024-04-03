@@ -230,6 +230,12 @@ properties:
               - samsung,exynosautov9-sadk   # Samsung Exynos Auto v9 SADK
           - const: samsung,exynosautov9
 
+      - description: Exynos Auto v920 based boards
+        items:
+          - enum:
+              - samsung,exynosautov920-sadk   # Samsung Exynos Auto v920 SADK
+          - const: samsung,exynosautov920
+
 required:
   - compatible
 

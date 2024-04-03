@@ -59,7 +59,7 @@ properties:
     description:
       GPIO to signal Type-C cable orientation for lane swap.
       If GPIO is active, lane 0 and lane 1 of SERDES will be swapped to
-      achieve the funtionality of an external type-C plug flip mux.
+      achieve the functionality of an external type-C plug flip mux.
 
   typec-dir-debounce-ms:
     minimum: 100

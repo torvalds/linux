@@ -25,6 +25,15 @@
 		      <0x88000000 0x08000000>;
 	};
 
+	nvram@1e3f0000 {
+		compatible = "brcm,nvram";
+		reg = <0x1e3f0000 0x10000>;
+
+		et2macaddr: et2macaddr {
+			#nvmem-cell-cells = <1>;
+		};
+	};
+
 	nand_controller: nand-controller@18028000 {
 		nand@0 {
 			partitions {
@@ -33,6 +42,7 @@
 				#size-cells = <1>;
 
 				partition@0 {
+					compatible = "seama";
 					label = "firmware";
 					reg = <0x00000000 0x08000000>;
 				};
@@ -111,6 +121,11 @@
 	vcc-gpio = <&chipcommon 18 GPIO_ACTIVE_HIGH>;
 };
 
+&gmac0 {
+	nvmem-cells = <&et2macaddr 0>;
+	nvmem-cell-names = "mac-address";
+};
+
 &spi_nor {
 	status = "okay";
 };
@@ -141,6 +156,16 @@
 
 		port@4 {
 			label = "wan";
+			nvmem-cells = <&et2macaddr 3>;
+			nvmem-cell-names = "mac-address";
+		};
+
+		port@5 {
+			status = "disabled";
+		};
+
+		port@7 {
+			status = "disabled";
 		};
 
 		port@8 {

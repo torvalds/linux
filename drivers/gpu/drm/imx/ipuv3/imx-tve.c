@@ -645,10 +645,9 @@ static int imx_tve_probe(struct platform_device *pdev)
 	return component_add(dev, &imx_tve_ops);
 }
 
-static int imx_tve_remove(struct platform_device *pdev)
+static void imx_tve_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &imx_tve_ops);
-	return 0;
 }
 
 static const struct of_device_id imx_tve_dt_ids[] = {
@@ -659,7 +658,7 @@ MODULE_DEVICE_TABLE(of, imx_tve_dt_ids);
 
 static struct platform_driver imx_tve_driver = {
 	.probe		= imx_tve_probe,
-	.remove		= imx_tve_remove,
+	.remove_new	= imx_tve_remove,
 	.driver		= {
 		.of_match_table = imx_tve_dt_ids,
 		.name	= "imx-tve",

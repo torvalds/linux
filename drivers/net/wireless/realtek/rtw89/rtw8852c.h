@@ -73,9 +73,25 @@ struct rtw8852c_efuse {
 	u8 bw40_1s_tssi_6g_a[TSSI_MCS_6G_CH_GROUP_NUM];
 	u8 rsvd14[10];
 	u8 bw40_1s_tssi_6g_b[TSSI_MCS_6G_CH_GROUP_NUM];
-	u8 rsvd15[110];
+	u8 rsvd15[94];
+	u8 rx_gain_6g_l0;
+	u8 rsvd16;
+	u8 rx_gain_6g_l1;
+	u8 rsvd17;
+	u8 rx_gain_6g_m0;
+	u8 rsvd18;
+	u8 rx_gain_6g_m1;
+	u8 rsvd19;
+	u8 rx_gain_6g_h0;
+	u8 rsvd20;
+	u8 rx_gain_6g_h1;
+	u8 rsvd21;
+	u8 rx_gain_6g_uh0;
+	u8 rsvd22;
+	u8 rx_gain_6g_uh1;
+	u8 rsvd23;
 	u8 channel_plan_6g;
-	u8 rsvd16[71];
+	u8 rsvd24[71];
 	union {
 		struct rtw8852c_u_efuse u;
 		struct rtw8852c_e_efuse e;

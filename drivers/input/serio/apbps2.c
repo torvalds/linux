@@ -14,11 +14,11 @@
  * Contributors: Daniel Hellstrom <daniel@gaisler.com>
  */
 #include <linux/platform_device.h>
-#include <linux/of_device.h>
 #include <linux/module.h>
 #include <linux/serio.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
 #include <linux/of_irq.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -187,13 +187,11 @@ static int apbps2_of_probe(struct platform_device *ofdev)
 	return 0;
 }
 
-static int apbps2_of_remove(struct platform_device *of_dev)
+static void apbps2_of_remove(struct platform_device *of_dev)
 {
 	struct apbps2_priv *priv = platform_get_drvdata(of_dev);
 
 	serio_unregister_port(priv->io);
-
-	return 0;
 }
 
 static const struct of_device_id apbps2_of_match[] = {
@@ -210,7 +208,7 @@ static struct platform_driver apbps2_of_driver = {
 		.of_match_table = apbps2_of_match,
 	},
 	.probe = apbps2_of_probe,
-	.remove = apbps2_of_remove,
+	.remove_new = apbps2_of_remove,
 };
 
 module_platform_driver(apbps2_of_driver);

@@ -31,10 +31,12 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
+#include "nouveau_exec.h"
 #include "nouveau_gem.h"
 #include "nouveau_chan.h"
 #include "nouveau_abi16.h"
 #include "nouveau_vmm.h"
+#include "nouveau_sched.h"
 
 static struct nouveau_abi16 *
 nouveau_abi16(struct drm_file *file_priv)
@@ -125,9 +127,15 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 {
 	struct nouveau_abi16_ntfy *ntfy, *temp;
 
-	/* wait for all activity to stop before cleaning up */
+	/* Cancel all jobs from the entity's queue. */
+	if (chan->sched)
+		drm_sched_entity_fini(&chan->sched->entity);
+
 	if (chan->chan)
 		nouveau_channel_idle(chan->chan);
+
+	if (chan->sched)
+		nouveau_sched_destroy(&chan->sched);
 
 	/* cleanup notifier state */
 	list_for_each_entry_safe(ntfy, temp, &chan->notifiers, head) {
@@ -171,12 +179,27 @@ nouveau_abi16_fini(struct nouveau_abi16 *abi16)
 	cli->abi16 = NULL;
 }
 
+static inline int
+getparam_dma_ib_max(struct nvif_device *device)
+{
+	const struct nvif_mclass dmas[] = {
+		{ NV03_CHANNEL_DMA, 0 },
+		{ NV10_CHANNEL_DMA, 0 },
+		{ NV17_CHANNEL_DMA, 0 },
+		{ NV40_CHANNEL_DMA, 0 },
+		{}
+	};
+
+	return nvif_mclass(&device->object, dmas) < 0 ? NV50_DMA_IB_MAX : 0;
+}
+
 int
 nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 {
 	struct nouveau_cli *cli = nouveau_cli(file_priv);
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nvif_device *device = &drm->client.device;
+	struct nvkm_device *nvkm_device = nvxx_device(&drm->client.device);
 	struct nvkm_gr *gr = nvxx_gr(device);
 	struct drm_nouveau_getparam *getparam = data;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
@@ -235,6 +258,20 @@ nouveau_abi16_ioctl_getparam(ABI16_IOCTL_ARGS)
 	case NOUVEAU_GETPARAM_GRAPH_UNITS:
 		getparam->value = nvkm_gr_units(gr);
 		break;
+	case NOUVEAU_GETPARAM_EXEC_PUSH_MAX: {
+		int ib_max = getparam_dma_ib_max(device);
+
+		getparam->value = nouveau_exec_push_max_from_ib_max(ib_max);
+		break;
+	}
+	case NOUVEAU_GETPARAM_VRAM_BAR_SIZE:
+		getparam->value = nvkm_device->func->resource_size(nvkm_device, 1);
+		break;
+	case NOUVEAU_GETPARAM_VRAM_USED: {
+		struct ttm_resource_manager *vram_mgr = ttm_manager_type(&drm->ttm.bdev, TTM_PL_VRAM);
+		getparam->value = (u64)ttm_resource_manager_usage(vram_mgr);
+		break;
+	}
 	default:
 		NV_PRINTK(dbg, cli, "unknown parameter %lld\n", getparam->param);
 		return -EINVAL;
@@ -260,6 +297,13 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 
 	if (!drm->channel)
 		return nouveau_abi16_put(abi16, -ENODEV);
+
+	/* If uvmm wasn't initialized until now disable it completely to prevent
+	 * userspace from mixing up UAPIs.
+	 *
+	 * The client lock is already acquired by nouveau_abi16_get().
+	 */
+	__nouveau_cli_disable_uvmm_noinit(cli);
 
 	device = &abi16->device;
 	engine = NV_DEVICE_HOST_RUNLIST_ENGINES_GR;
@@ -303,6 +347,17 @@ nouveau_abi16_ioctl_channel_alloc(ABI16_IOCTL_ARGS)
 				  init->tt_ctxdma_handle, &chan->chan);
 	if (ret)
 		goto done;
+
+	/* If we're not using the VM_BIND uAPI, we don't need a scheduler.
+	 *
+	 * The client lock is already acquired by nouveau_abi16_get().
+	 */
+	if (nouveau_cli_uvmm(cli)) {
+		ret = nouveau_sched_create(&chan->sched, drm, drm->sched_wq,
+					   chan->chan->dma.ib_max);
+		if (ret)
+			goto done;
+	}
 
 	init->channel = chan->chan->chid;
 

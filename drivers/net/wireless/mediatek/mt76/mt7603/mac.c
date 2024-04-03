@@ -178,8 +178,9 @@ mt7603_wtbl_set_skip_tx(struct mt7603_dev *dev, int idx, bool enabled)
 	mt76_wr(dev, addr + 3 * 4, val);
 }
 
-void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort)
+void mt7603_filter_tx(struct mt7603_dev *dev, int mac_idx, int idx, bool abort)
 {
+	u32 flush_mask;
 	int i, port, queue;
 
 	if (abort) {
@@ -195,6 +196,18 @@ void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort)
 	mt76_wr(dev, MT_TX_ABORT, MT_TX_ABORT_EN |
 			FIELD_PREP(MT_TX_ABORT_WCID, idx));
 
+	flush_mask = MT_WF_ARB_TX_FLUSH_AC0 |
+		     MT_WF_ARB_TX_FLUSH_AC1 |
+		     MT_WF_ARB_TX_FLUSH_AC2 |
+		     MT_WF_ARB_TX_FLUSH_AC3;
+	flush_mask <<= mac_idx;
+
+	mt76_wr(dev, MT_WF_ARB_TX_FLUSH_0, flush_mask);
+	mt76_poll(dev, MT_WF_ARB_TX_FLUSH_0, flush_mask, 0, 20000);
+	mt76_wr(dev, MT_WF_ARB_TX_START_0, flush_mask);
+
+	mt76_wr(dev, MT_TX_ABORT, 0);
+
 	for (i = 0; i < 4; i++) {
 		mt76_wr(dev, MT_DMA_FQCR0, MT_DMA_FQCR0_BUSY |
 			FIELD_PREP(MT_DMA_FQCR0_TARGET_WCID, idx) |
@@ -202,12 +215,10 @@ void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort)
 			FIELD_PREP(MT_DMA_FQCR0_DEST_PORT_ID, port) |
 			FIELD_PREP(MT_DMA_FQCR0_DEST_QUEUE_ID, queue));
 
-		mt76_poll(dev, MT_DMA_FQCR0, MT_DMA_FQCR0_BUSY, 0, 15000);
+		mt76_poll(dev, MT_DMA_FQCR0, MT_DMA_FQCR0_BUSY, 0, 5000);
 	}
 
 	WARN_ON_ONCE(mt76_rr(dev, MT_DMA_FQCR0) & MT_DMA_FQCR0_BUSY);
-
-	mt76_wr(dev, MT_TX_ABORT, 0);
 
 	mt7603_wtbl_set_skip_tx(dev, idx, false);
 }
@@ -245,7 +256,7 @@ void mt7603_wtbl_set_ps(struct mt7603_dev *dev, struct mt7603_sta *sta,
 	mt76_poll(dev, MT_PSE_RTA, MT_PSE_RTA_BUSY, 0, 5000);
 
 	if (enabled)
-		mt7603_filter_tx(dev, idx, false);
+		mt7603_filter_tx(dev, sta->vif->idx, idx, false);
 
 	addr = mt7603_wtbl1_addr(idx);
 	mt76_set(dev, MT_WTBL1_OR, MT_WTBL1_OR_PSM_WRITE);
@@ -412,16 +423,16 @@ void mt7603_mac_sta_poll(struct mt7603_dev *dev)
 	while (1) {
 		bool clear = false;
 
-		spin_lock_bh(&dev->sta_poll_lock);
-		if (list_empty(&dev->sta_poll_list)) {
-			spin_unlock_bh(&dev->sta_poll_lock);
+		spin_lock_bh(&dev->mt76.sta_poll_lock);
+		if (list_empty(&dev->mt76.sta_poll_list)) {
+			spin_unlock_bh(&dev->mt76.sta_poll_lock);
 			break;
 		}
 
-		msta = list_first_entry(&dev->sta_poll_list, struct mt7603_sta,
-					poll_list);
-		list_del_init(&msta->poll_list);
-		spin_unlock_bh(&dev->sta_poll_lock);
+		msta = list_first_entry(&dev->mt76.sta_poll_list,
+					struct mt7603_sta, wcid.poll_list);
+		list_del_init(&msta->wcid.poll_list);
+		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 
 		addr = mt7603_wtbl4_addr(msta->wcid.idx);
 		for (i = 0; i < 4; i++) {
@@ -1267,10 +1278,10 @@ void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data)
 	msta = container_of(wcid, struct mt7603_sta, wcid);
 	sta = wcid_to_sta(wcid);
 
-	if (list_empty(&msta->poll_list)) {
-		spin_lock_bh(&dev->sta_poll_lock);
-		list_add_tail(&msta->poll_list, &dev->sta_poll_list);
-		spin_unlock_bh(&dev->sta_poll_lock);
+	if (list_empty(&msta->wcid.poll_list)) {
+		spin_lock_bh(&dev->mt76.sta_poll_lock);
+		list_add_tail(&msta->wcid.poll_list, &dev->mt76.sta_poll_list);
+		spin_unlock_bh(&dev->mt76.sta_poll_lock);
 	}
 
 	if (mt7603_mac_add_txs_skb(dev, msta, pid, txs_data))
@@ -1430,15 +1441,6 @@ static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 
 	mt7603_beacon_set_timer(dev, -1, 0);
 
-	if (dev->reset_cause[RESET_CAUSE_RESET_FAILED] ||
-	    dev->cur_reset_cause == RESET_CAUSE_RX_PSE_BUSY ||
-	    dev->cur_reset_cause == RESET_CAUSE_BEACON_STUCK ||
-	    dev->cur_reset_cause == RESET_CAUSE_TX_HANG)
-		mt7603_pse_reset(dev);
-
-	if (dev->reset_cause[RESET_CAUSE_RESET_FAILED])
-		goto skip_dma_reset;
-
 	mt7603_mac_stop(dev);
 
 	mt76_clear(dev, MT_WPDMA_GLO_CFG,
@@ -1448,28 +1450,32 @@ static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 
 	mt7603_irq_disable(dev, mask);
 
-	mt76_set(dev, MT_WPDMA_GLO_CFG, MT_WPDMA_GLO_CFG_FORCE_TX_EOF);
-
 	mt7603_pse_client_reset(dev);
 
 	mt76_queue_tx_cleanup(dev, dev->mt76.q_mcu[MT_MCUQ_WM], true);
 	for (i = 0; i < __MT_TXQ_MAX; i++)
 		mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[i], true);
 
+	mt7603_dma_sched_reset(dev);
+
+	mt76_tx_status_check(&dev->mt76, true);
+
 	mt76_for_each_q_rx(&dev->mt76, i) {
 		mt76_queue_rx_reset(dev, i);
 	}
 
-	mt76_tx_status_check(&dev->mt76, true);
+	if (dev->reset_cause[RESET_CAUSE_RESET_FAILED] ||
+	    dev->cur_reset_cause == RESET_CAUSE_RX_PSE_BUSY)
+		mt7603_pse_reset(dev);
 
-	mt7603_dma_sched_reset(dev);
+	if (!dev->reset_cause[RESET_CAUSE_RESET_FAILED]) {
+		mt7603_mac_dma_start(dev);
 
-	mt7603_mac_dma_start(dev);
+		mt7603_irq_enable(dev, mask);
 
-	mt7603_irq_enable(dev, mask);
+		clear_bit(MT76_RESET, &dev->mphy.state);
+	}
 
-skip_dma_reset:
-	clear_bit(MT76_RESET, &dev->mphy.state);
 	mutex_unlock(&dev->mt76.mutex);
 
 	mt76_worker_enable(&dev->mt76.tx_worker);
@@ -1559,20 +1565,29 @@ static bool mt7603_rx_pse_busy(struct mt7603_dev *dev)
 {
 	u32 addr, val;
 
-	if (mt76_rr(dev, MT_MCU_DEBUG_RESET) & MT_MCU_DEBUG_RESET_QUEUES)
-		return true;
-
 	if (mt7603_rx_fifo_busy(dev))
-		return false;
+		goto out;
 
 	addr = mt7603_reg_map(dev, MT_CLIENT_BASE_PHYS_ADDR + MT_CLIENT_STATUS);
 	mt76_wr(dev, addr, 3);
 	val = mt76_rr(dev, addr) >> 16;
 
-	if (is_mt7628(dev) && (val & 0x4001) == 0x4001)
-		return true;
+	if (!(val & BIT(0)))
+		return false;
 
-	return (val & 0x8001) == 0x8001 || (val & 0xe001) == 0xe001;
+	if (is_mt7628(dev))
+		val &= 0xa000;
+	else
+		val &= 0x8000;
+	if (!val)
+		return false;
+
+out:
+	if (mt76_rr(dev, MT_INT_SOURCE_CSR) &
+	    (MT_INT_RX_DONE(0) | MT_INT_RX_DONE(1)))
+		return false;
+
+	return true;
 }
 
 static bool

@@ -15,6 +15,7 @@
 #include <linux/pci.h>
 
 struct pci_epf;
+struct pci_epc_features;
 enum pci_epc_interface_type;
 
 enum pci_barno {
@@ -68,7 +69,7 @@ struct pci_epf_ops {
 };
 
 /**
- * struct pci_epf_event_ops - Callbacks for capturing the EPC events
+ * struct pci_epc_event_ops - Callbacks for capturing the EPC events
  * @core_init: Callback for the EPC initialization complete event
  * @link_up: Callback for the EPC link up event
  * @link_down: Callback for the EPC link down event
@@ -98,7 +99,7 @@ struct pci_epf_driver {
 	void	(*remove)(struct pci_epf *epf);
 
 	struct device_driver	driver;
-	struct pci_epf_ops	*ops;
+	const struct pci_epf_ops *ops;
 	struct module		*owner;
 	struct list_head	epf_group;
 	const struct pci_epf_device_id	*id_table;
@@ -216,7 +217,8 @@ int __pci_epf_register_driver(struct pci_epf_driver *driver,
 			      struct module *owner);
 void pci_epf_unregister_driver(struct pci_epf_driver *driver);
 void *pci_epf_alloc_space(struct pci_epf *epf, size_t size, enum pci_barno bar,
-			  size_t align, enum pci_epc_interface_type type);
+			  const struct pci_epc_features *epc_features,
+			  enum pci_epc_interface_type type);
 void pci_epf_free_space(struct pci_epf *epf, void *addr, enum pci_barno bar,
 			enum pci_epc_interface_type type);
 int pci_epf_bind(struct pci_epf *epf);

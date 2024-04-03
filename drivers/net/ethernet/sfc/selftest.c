@@ -38,8 +38,7 @@
 /*
  * Loopback test packet structure
  *
- * The self-test should stress every RSS vector, and unfortunately
- * Falcon only performs RSS on TCP/UDP packets.
+ * The self-test should stress every RSS vector.
  */
 struct efx_loopback_payload {
 	char pad[2]; /* Ensures ip is 4-byte aligned */
@@ -426,7 +425,7 @@ static int efx_begin_loopback(struct efx_tx_queue *tx_queue)
 	for (i = 0; i < state->packet_count; i++) {
 		/* Allocate an skb, holding an extra reference for
 		 * transmit completion counting */
-		skb = alloc_skb(EFX_LOOPBACK_PAYLOAD_LEN, GFP_KERNEL);
+		skb = alloc_skb(sizeof(state->payload), GFP_KERNEL);
 		if (!skb)
 			return -ENOMEM;
 		state->skbs[i] = skb;
@@ -584,10 +583,6 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 	return 0;
 }
 
-/* Wait for link up. On Falcon, we would prefer to rely on efx_monitor, but
- * any contention on the mac lock (via e.g. efx_mac_mcast_work) causes it
- * to delay and retry. Therefore, it's safer to just poll directly. Wait
- * for link up and any faults to dissipate. */
 static int efx_wait_for_link(struct efx_nic *efx)
 {
 	struct efx_link_state *link_state = &efx->link_state;

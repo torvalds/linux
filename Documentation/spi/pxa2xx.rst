@@ -3,13 +3,13 @@ PXA2xx SPI on SSP driver HOWTO
 ==============================
 
 This a mini HOWTO on the pxa2xx_spi driver. The driver turns a PXA2xx
-synchronous serial port into an SPI master controller
+synchronous serial port into an SPI host controller
 (see Documentation/spi/spi-summary.rst). The driver has the following features
 
 - Support for any PXA2xx and compatible SSP.
 - SSP PIO and SSP DMA data transfers.
 - External and Internal (SSPFRM) chip selects.
-- Per slave device (chip) configuration.
+- Per peripheral device (chip) configuration.
 - Full suspend, freeze, resume support.
 
 The driver is built around a &struct spi_message FIFO serviced by kernel
@@ -17,10 +17,10 @@ thread. The kernel thread, spi_pump_messages(), drives message FIFO and
 is responsible for queuing SPI transactions and setting up and launching
 the DMA or interrupt driven transfers.
 
-Declaring PXA2xx Master Controllers
------------------------------------
-Typically, for a legacy platform, an SPI master is defined in the
-arch/.../mach-*/board-*.c as a "platform device". The master configuration
+Declaring PXA2xx host controllers
+---------------------------------
+Typically, for a legacy platform, an SPI host controller is defined in the
+arch/.../mach-*/board-*.c as a "platform device". The host controller configuration
 is passed to the driver via a table found in include/linux/spi/pxa2xx_spi.h::
 
   struct pxa2xx_spi_controller {
@@ -30,7 +30,7 @@ is passed to the driver via a table found in include/linux/spi/pxa2xx_spi.h::
   };
 
 The "pxa2xx_spi_controller.num_chipselect" field is used to determine the number of
-slave device (chips) attached to this SPI master.
+peripheral devices (chips) attached to this SPI host controller.
 
 The "pxa2xx_spi_controller.enable_dma" field informs the driver that SSP DMA should
 be used. This caused the driver to acquire two DMA channels: Rx channel and
@@ -40,8 +40,8 @@ See the "PXA2xx Developer Manual" section "DMA Controller".
 For the new platforms the description of the controller and peripheral devices
 comes from Device Tree or ACPI.
 
-NSSP MASTER SAMPLE
-------------------
+NSSP HOST SAMPLE
+----------------
 Below is a sample configuration using the PXA255 NSSP for a legacy platform::
 
   static struct resource pxa_spi_nssp_resources[] = {
@@ -57,7 +57,7 @@ Below is a sample configuration using the PXA255 NSSP for a legacy platform::
 	},
   };
 
-  static struct pxa2xx_spi_controller pxa_nssp_master_info = {
+  static struct pxa2xx_spi_controller pxa_nssp_controller_info = {
 	.num_chipselect = 1, /* Matches the number of chips attached to NSSP */
 	.enable_dma = 1, /* Enables NSSP DMA */
   };
@@ -68,7 +68,7 @@ Below is a sample configuration using the PXA255 NSSP for a legacy platform::
 	.resource = pxa_spi_nssp_resources,
 	.num_resources = ARRAY_SIZE(pxa_spi_nssp_resources),
 	.dev = {
-		.platform_data = &pxa_nssp_master_info, /* Passed to driver */
+		.platform_data = &pxa_nssp_controller_info, /* Passed to driver */
 	},
   };
 
@@ -81,17 +81,17 @@ Below is a sample configuration using the PXA255 NSSP for a legacy platform::
 	(void)platform_add_device(devices, ARRAY_SIZE(devices));
   }
 
-Declaring Slave Devices
------------------------
-Typically, for a legacy platform, each SPI slave (chip) is defined in the
+Declaring peripheral devices
+----------------------------
+Typically, for a legacy platform, each SPI peripheral device (chip) is defined in the
 arch/.../mach-*/board-*.c using the "spi_board_info" structure found in
 "linux/spi/spi.h". See "Documentation/spi/spi-summary.rst" for additional
 information.
 
-Each slave device attached to the PXA must provide slave specific configuration
+Each peripheral device (chip) attached to the PXA2xx must provide specific chip configuration
 information via the structure "pxa2xx_spi_chip" found in
-"include/linux/spi/pxa2xx_spi.h".  The pxa2xx_spi master controller driver
-will uses the configuration whenever the driver communicates with the slave
+"include/linux/spi/pxa2xx_spi.h". The PXA2xx host controller driver will use
+the configuration whenever the driver communicates with the peripheral
 device. All fields are optional.
 
 ::
@@ -123,7 +123,7 @@ dma_burst_size == 0.
 The "pxa2xx_spi_chip.timeout" fields is used to efficiently handle
 trailing bytes in the SSP receiver FIFO. The correct value for this field is
 dependent on the SPI bus speed ("spi_board_info.max_speed_hz") and the specific
-slave device.  Please note that the PXA2xx SSP 1 does not support trailing byte
+peripheral device. Please note that the PXA2xx SSP 1 does not support trailing byte
 timeouts and must busy-wait any trailing bytes.
 
 NOTE: the SPI driver cannot control the chip select if SSPFRM is used, so the
@@ -132,8 +132,8 @@ asserted around the complete message. Use SSPFRM as a GPIO (through a descriptor
 to accommodate these chips.
 
 
-NSSP SLAVE SAMPLE
------------------
+NSSP PERIPHERAL SAMPLE
+----------------------
 For a legacy platform or in some other cases, the pxa2xx_spi_chip structure
 is passed to the pxa2xx_spi driver in the "spi_board_info.controller_data"
 field. Below is a sample configuration using the PXA255 NSSP.
@@ -161,16 +161,16 @@ field. Below is a sample configuration using the PXA255 NSSP.
 		.bus_num = 2, /* Framework bus number */
 		.chip_select = 0, /* Framework chip select */
 		.platform_data = NULL; /* No spi_driver specific config */
-		.controller_data = &cs8415a_chip_info, /* Master chip config */
-		.irq = STREETRACER_APCI_IRQ, /* Slave device interrupt */
+		.controller_data = &cs8415a_chip_info, /* Host controller config */
+		.irq = STREETRACER_APCI_IRQ, /* Peripheral device interrupt */
 	},
 	{
 		.modalias = "cs8405a", /* Name of spi_driver for this device */
 		.max_speed_hz = 3686400, /* Run SSP as fast a possible */
 		.bus_num = 2, /* Framework bus number */
 		.chip_select = 1, /* Framework chip select */
-		.controller_data = &cs8405a_chip_info, /* Master chip config */
-		.irq = STREETRACER_APCI_IRQ, /* Slave device interrupt */
+		.controller_data = &cs8405a_chip_info, /* Host controller config */
+		.irq = STREETRACER_APCI_IRQ, /* Peripheral device interrupt */
 	},
   };
 
@@ -193,17 +193,14 @@ mode supports both coherent and stream based DMA mappings.
 The following logic is used to determine the type of I/O to be used on
 a per "spi_transfer" basis::
 
-  if !enable_dma then
-	always use PIO transfers
+  if spi_message.len > 65536 then
+	if spi_message.is_dma_mapped or rx_dma_buf != 0 or tx_dma_buf != 0 then
+		reject premapped transfers
 
-  if spi_message.len > 8191 then
 	print "rate limited" warning
 	use PIO transfers
 
-  if spi_message.is_dma_mapped and rx_dma_buf != 0 and tx_dma_buf != 0 then
-	use coherent DMA mode
-
-  if rx_buf and tx_buf are aligned on 8 byte boundary then
+  if enable_dma and the size is in the range [DMA burst size..65536] then
 	use streaming DMA mode
 
   otherwise

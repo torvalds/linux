@@ -2,6 +2,7 @@
 /* Copyright(c) 2019-2020  Realtek Corporation
  */
 
+#include "chan.h"
 #include "coex.h"
 #include "core.h"
 #include "debug.h"
@@ -13,6 +14,7 @@
 
 static int rtw89_fw_leave_lps_check(struct rtw89_dev *rtwdev, u8 macid)
 {
+	const struct rtw89_mac_gen_def *mac = rtwdev->chip->mac_def;
 	u32 pwr_en_bit = 0xE;
 	u32 chk_msk = pwr_en_bit << (4 * macid);
 	u32 polling;
@@ -20,7 +22,7 @@ static int rtw89_fw_leave_lps_check(struct rtw89_dev *rtwdev, u8 macid)
 
 	ret = read_poll_timeout_atomic(rtw89_read32_mask, polling, !polling,
 				       1000, 50000, false, rtwdev,
-				       R_AX_PPWRBIT_SETTING, chk_msk);
+				       mac->ps_status, chk_msk);
 	if (ret) {
 		rtw89_info(rtwdev, "rtw89: failed to leave lps state\n");
 		return -EBUSY;
@@ -82,16 +84,17 @@ void __rtw89_leave_ps_mode(struct rtw89_dev *rtwdev)
 		rtw89_ps_power_mode_change(rtwdev, false);
 }
 
-static void __rtw89_enter_lps(struct rtw89_dev *rtwdev, u8 mac_id)
+static void __rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 {
 	struct rtw89_lps_parm lps_param = {
-		.macid = mac_id,
+		.macid = rtwvif->mac_id,
 		.psmode = RTW89_MAC_AX_PS_MODE_LEGACY,
 		.lastrpwm = RTW89_LAST_RPWM_PS,
 	};
 
 	rtw89_btc_ntfy_radio_state(rtwdev, BTC_RFCTRL_FW_CTRL);
 	rtw89_fw_h2c_lps_parm(rtwdev, &lps_param);
+	rtw89_fw_h2c_lps_ch_info(rtwdev, rtwvif);
 }
 
 static void __rtw89_leave_lps(struct rtw89_dev *rtwdev, u8 mac_id)
@@ -122,7 +125,7 @@ void rtw89_enter_lps(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif,
 	if (test_and_set_bit(RTW89_FLAG_LEISURE_PS, rtwdev->flags))
 		return;
 
-	__rtw89_enter_lps(rtwdev, rtwvif->mac_id);
+	__rtw89_enter_lps(rtwdev, rtwvif);
 	if (ps_mode)
 		__rtw89_enter_ps_mode(rtwdev, rtwvif);
 }
@@ -257,7 +260,12 @@ void rtw89_recalc_lps(struct rtw89_dev *rtwdev)
 {
 	struct ieee80211_vif *vif, *found_vif = NULL;
 	struct rtw89_vif *rtwvif;
+	enum rtw89_entity_mode mode;
 	int count = 0;
+
+	mode = rtw89_get_entity_mode(rtwdev);
+	if (mode == RTW89_ENTITY_MODE_MCC)
+		goto disable_lps;
 
 	rtw89_for_each_rtwvif(rtwdev, rtwvif) {
 		vif = rtwvif_to_vif(rtwvif);
@@ -273,8 +281,71 @@ void rtw89_recalc_lps(struct rtw89_dev *rtwdev)
 
 	if (count == 1 && found_vif->cfg.ps) {
 		rtwdev->lps_enabled = true;
-	} else {
-		rtw89_leave_lps(rtwdev);
-		rtwdev->lps_enabled = false;
+		return;
 	}
+
+disable_lps:
+	rtw89_leave_lps(rtwdev);
+	rtwdev->lps_enabled = false;
+}
+
+void rtw89_p2p_noa_renew(struct rtw89_vif *rtwvif)
+{
+	struct rtw89_p2p_noa_setter *setter = &rtwvif->p2p_noa;
+	struct rtw89_p2p_noa_ie *ie = &setter->ie;
+	struct rtw89_p2p_ie_head *p2p_head = &ie->p2p_head;
+	struct rtw89_noa_attr_head *noa_head = &ie->noa_head;
+
+	if (setter->noa_count) {
+		setter->noa_index++;
+		setter->noa_count = 0;
+	}
+
+	memset(ie, 0, sizeof(*ie));
+
+	p2p_head->eid = WLAN_EID_VENDOR_SPECIFIC;
+	p2p_head->ie_len = 4 + sizeof(*noa_head);
+	p2p_head->oui[0] = (WLAN_OUI_WFA >> 16) & 0xff;
+	p2p_head->oui[1] = (WLAN_OUI_WFA >> 8) & 0xff;
+	p2p_head->oui[2] = (WLAN_OUI_WFA >> 0) & 0xff;
+	p2p_head->oui_type = WLAN_OUI_TYPE_WFA_P2P;
+
+	noa_head->attr_type = IEEE80211_P2P_ATTR_ABSENCE_NOTICE;
+	noa_head->attr_len = cpu_to_le16(2);
+	noa_head->index = setter->noa_index;
+	noa_head->oppps_ctwindow = 0;
+}
+
+void rtw89_p2p_noa_append(struct rtw89_vif *rtwvif,
+			  const struct ieee80211_p2p_noa_desc *desc)
+{
+	struct rtw89_p2p_noa_setter *setter = &rtwvif->p2p_noa;
+	struct rtw89_p2p_noa_ie *ie = &setter->ie;
+	struct rtw89_p2p_ie_head *p2p_head = &ie->p2p_head;
+	struct rtw89_noa_attr_head *noa_head = &ie->noa_head;
+
+	if (!desc->count || !desc->duration)
+		return;
+
+	if (setter->noa_count >= RTW89_P2P_MAX_NOA_NUM)
+		return;
+
+	p2p_head->ie_len += sizeof(*desc);
+	le16_add_cpu(&noa_head->attr_len, sizeof(*desc));
+
+	ie->noa_desc[setter->noa_count++] = *desc;
+}
+
+u8 rtw89_p2p_noa_fetch(struct rtw89_vif *rtwvif, void **data)
+{
+	struct rtw89_p2p_noa_setter *setter = &rtwvif->p2p_noa;
+	struct rtw89_p2p_noa_ie *ie = &setter->ie;
+	void *tail;
+
+	if (!setter->noa_count)
+		return 0;
+
+	*data = ie;
+	tail = ie->noa_desc + setter->noa_count;
+	return tail - *data;
 }

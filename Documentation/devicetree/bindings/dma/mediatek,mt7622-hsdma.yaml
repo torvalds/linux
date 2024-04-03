@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/dma/mediatek,mt7622-hsdma.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MediaTek High-Speed DMA Controller
+
+maintainers:
+  - Sean Wang <sean.wang@mediatek.com>
+
+allOf:
+  - $ref: dma-controller.yaml#
+
+properties:
+  compatible:
+    enum:
+      - mediatek,mt7622-hsdma
+      - mediatek,mt7623-hsdma
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    const: hsdma
+
+  power-domains:
+    maxItems: 1
+
+  "#dma-cells":
+    description: Channel number
+    const: 1
+
+required:
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - power-domains
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/mt2701-clk.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/power/mt2701-power.h>
+
+    dma-controller@1b007000 {
+        compatible = "mediatek,mt7623-hsdma";
+        reg = <0x1b007000 0x1000>;
+        interrupts = <GIC_SPI 98 IRQ_TYPE_LEVEL_LOW>;
+        clocks = <&ethsys CLK_ETHSYS_HSDMA>;
+        clock-names = "hsdma";
+        power-domains = <&scpsys MT2701_POWER_DOMAIN_ETH>;
+        #dma-cells = <1>;
+    };

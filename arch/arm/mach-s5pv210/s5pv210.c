@@ -7,7 +7,7 @@
 // Tomasz Figa <t.figa@samsung.com>
 
 #include <linux/of_fdt.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

@@ -15,16 +15,25 @@ allOf:
 
 properties:
   compatible:
-    const: sitronix,st7789v
+    enum:
+      - edt,et028013dma
+      - inanbo,t28cp45tn89-v17
+      - jasonic,jt240mhqs-hwt-ek-e3
+      - sitronix,st7789v
 
   reg: true
   reset-gpios: true
   power-supply: true
   backlight: true
   port: true
+  rotation: true
 
   spi-cpha: true
   spi-cpol: true
+
+  spi-rx-bus-width:
+    minimum: 0
+    maximum: 1
 
   dc-gpios:
     maxItems: 1
@@ -33,7 +42,6 @@ properties:
 required:
   - compatible
   - reg
-  - reset-gpios
   - power-supply
 
 unevaluatedProperties: false
@@ -52,6 +60,7 @@ examples:
             reset-gpios = <&pio 6 11 GPIO_ACTIVE_LOW>;
             backlight = <&pwm_bl>;
             power-supply = <&power>;
+            rotation = <180>;
             spi-max-frequency = <100000>;
             spi-cpol;
             spi-cpha;

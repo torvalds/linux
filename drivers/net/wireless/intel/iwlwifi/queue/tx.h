@@ -71,7 +71,8 @@ static inline void iwl_txq_stop(struct iwl_trans *trans, struct iwl_txq *txq)
 
 /**
  * iwl_txq_inc_wrap - increment queue index, wrap back to beginning
- * @index -- current index
+ * @trans: the transport (for configuration data)
+ * @index: current index
  */
 static inline int iwl_txq_inc_wrap(struct iwl_trans *trans, int index)
 {
@@ -81,7 +82,8 @@ static inline int iwl_txq_inc_wrap(struct iwl_trans *trans, int index)
 
 /**
  * iwl_txq_dec_wrap - decrement queue index, wrap back to end
- * @index -- current index
+ * @trans: the transport (for configuration data)
+ * @index: current index
  */
 static inline int iwl_txq_dec_wrap(struct iwl_trans *trans, int index)
 {
@@ -131,17 +133,8 @@ struct iwl_tso_hdr_page *get_page_hdr(struct iwl_trans *trans, size_t len,
 				      struct sk_buff *skb);
 #endif
 static inline u8 iwl_txq_gen1_tfd_get_num_tbs(struct iwl_trans *trans,
-					      void *_tfd)
+					      struct iwl_tfd *tfd)
 {
-	struct iwl_tfd *tfd;
-
-	if (trans->trans_cfg->gen2) {
-		struct iwl_tfh_tfd *tfh_tfd = _tfd;
-
-		return le16_to_cpu(tfh_tfd->num_tbs) & 0x1f;
-	}
-
-	tfd = (struct iwl_tfd *)_tfd;
 	return tfd->num_tbs & 0x1f;
 }
 
@@ -164,6 +157,21 @@ static inline u16 iwl_txq_gen1_tfd_tb_get_len(struct iwl_trans *trans,
 	return le16_to_cpu(tb->hi_n_len) >> 4;
 }
 
+static inline void iwl_pcie_gen1_tfd_set_tb(struct iwl_trans *trans,
+					    struct iwl_tfd *tfd,
+					    u8 idx, dma_addr_t addr, u16 len)
+{
+	struct iwl_tfd_tb *tb = &tfd->tbs[idx];
+	u16 hi_n_len = len << 4;
+
+	put_unaligned_le32(addr, &tb->lo);
+	hi_n_len |= iwl_get_dma_hi_addr(addr);
+
+	tb->hi_n_len = cpu_to_le16(hi_n_len);
+
+	tfd->num_tbs = idx + 1;
+}
+
 void iwl_txq_gen1_tfd_unmap(struct iwl_trans *trans,
 			    struct iwl_cmd_meta *meta,
 			    struct iwl_txq *txq, int index);
@@ -173,7 +181,7 @@ void iwl_txq_gen1_update_byte_cnt_tbl(struct iwl_trans *trans,
 				      struct iwl_txq *txq, u16 byte_cnt,
 				      int num_tbs);
 void iwl_txq_reclaim(struct iwl_trans *trans, int txq_id, int ssn,
-		     struct sk_buff_head *skbs);
+		     struct sk_buff_head *skbs, bool is_flush);
 void iwl_txq_set_q_ptrs(struct iwl_trans *trans, int txq_id, int ptr);
 void iwl_trans_txq_freeze_timer(struct iwl_trans *trans, unsigned long txqs,
 				bool freeze);

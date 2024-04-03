@@ -7,9 +7,9 @@
 #include <linux/bitops.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <linux/module.h>
 #include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/clk-provider.h>
 #include <linux/regmap.h>
 #include <linux/reset-controller.h>
@@ -2875,14 +2875,10 @@ static int gcc_msm8974_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct device *dev = &pdev->dev;
-	const struct of_device_id *id;
-
-	id = of_match_device(gcc_msm8974_match_table, dev);
-	if (!id)
-		return -ENODEV;
+	const void *data = device_get_match_data(dev);
 
 	if (!of_device_is_compatible(dev->of_node, "qcom,gcc-msm8974")) {
-		if (id->data == &gcc_msm8226_desc)
+		if (data == &gcc_msm8226_desc)
 			msm8226_clock_override();
 		else
 			msm8974_pro_clock_override();

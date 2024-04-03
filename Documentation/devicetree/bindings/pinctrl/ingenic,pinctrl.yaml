@@ -135,7 +135,6 @@ additionalProperties:
         - $ref: pinmux-node.yaml#
 
       properties:
-        phandle: true
         function: true
         groups: true
         pins: true
@@ -147,8 +146,6 @@ additionalProperties:
       additionalProperties: false
 
     - type: object
-      properties:
-        phandle: true
       additionalProperties:
         type: object
         allOf:
@@ -156,7 +153,6 @@ additionalProperties:
           - $ref: pinmux-node.yaml#
 
         properties:
-          phandle: true
           function: true
           groups: true
           pins: true

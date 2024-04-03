@@ -33,22 +33,20 @@ void afs_invalidate_mmap_work(struct work_struct *work)
 	unmap_mapping_pages(vnode->netfs.inode.i_mapping, 0, 0, false);
 }
 
-void afs_server_init_callback_work(struct work_struct *work)
+static void afs_volume_init_callback(struct afs_volume *volume)
 {
-	struct afs_server *server = container_of(work, struct afs_server, initcb_work);
 	struct afs_vnode *vnode;
-	struct afs_cell *cell = server->cell;
 
-	down_read(&cell->fs_open_mmaps_lock);
+	down_read(&volume->open_mmaps_lock);
 
-	list_for_each_entry(vnode, &cell->fs_open_mmaps, cb_mmap_link) {
-		if (vnode->cb_server == server) {
-			clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags);
+	list_for_each_entry(vnode, &volume->open_mmaps, cb_mmap_link) {
+		if (vnode->cb_v_check != atomic_read(&volume->cb_v_break)) {
+			atomic64_set(&vnode->cb_expires_at, AFS_NO_CB_PROMISE);
 			queue_work(system_unbound_wq, &vnode->cb_work);
 		}
 	}
 
-	up_read(&cell->fs_open_mmaps_lock);
+	up_read(&volume->open_mmaps_lock);
 }
 
 /*
@@ -57,15 +55,20 @@ void afs_server_init_callback_work(struct work_struct *work)
  */
 void afs_init_callback_state(struct afs_server *server)
 {
-	rcu_read_lock();
-	do {
-		server->cb_s_break++;
-		atomic_inc(&server->cell->fs_s_break);
-		if (!list_empty(&server->cell->fs_open_mmaps))
-			queue_work(system_unbound_wq, &server->initcb_work);
+	struct afs_server_entry *se;
 
-	} while ((server = rcu_dereference(server->uuid_next)));
-	rcu_read_unlock();
+	down_read(&server->cell->vs_lock);
+
+	list_for_each_entry(se, &server->volumes, slink) {
+		se->cb_expires_at = AFS_NO_CB_PROMISE;
+		se->volume->cb_expires_at = AFS_NO_CB_PROMISE;
+		trace_afs_cb_v_break(se->volume->vid, atomic_read(&se->volume->cb_v_break),
+				     afs_cb_break_for_s_reinit);
+		if (!list_empty(&se->volume->open_mmaps))
+			afs_volume_init_callback(se->volume);
+	}
+
+	up_read(&server->cell->vs_lock);
 }
 
 /*
@@ -76,9 +79,9 @@ void __afs_break_callback(struct afs_vnode *vnode, enum afs_cb_break_reason reas
 	_enter("");
 
 	clear_bit(AFS_VNODE_NEW_CONTENT, &vnode->flags);
-	if (test_and_clear_bit(AFS_VNODE_CB_PROMISED, &vnode->flags)) {
+	if (atomic64_xchg(&vnode->cb_expires_at, AFS_NO_CB_PROMISE) != AFS_NO_CB_PROMISE) {
 		vnode->cb_break++;
-		vnode->cb_v_break = vnode->volume->cb_v_break;
+		vnode->cb_v_check = atomic_read(&vnode->volume->cb_v_break);
 		afs_clear_permits(vnode);
 
 		if (vnode->lock_state == AFS_VNODE_LOCK_WAITING_FOR_CB)
@@ -110,13 +113,14 @@ static struct afs_volume *afs_lookup_volume_rcu(struct afs_cell *cell,
 {
 	struct afs_volume *volume = NULL;
 	struct rb_node *p;
-	int seq = 0;
+	int seq = 1;
 
-	do {
+	for (;;) {
 		/* Unfortunately, rbtree walking doesn't give reliable results
 		 * under just the RCU read lock, so we have to check for
 		 * changes.
 		 */
+		seq++; /* 2 on the 1st/lockless path, otherwise odd */
 		read_seqbegin_or_lock(&cell->volume_lock, &seq);
 
 		p = rcu_dereference_raw(cell->volumes.rb_node);
@@ -132,10 +136,47 @@ static struct afs_volume *afs_lookup_volume_rcu(struct afs_cell *cell,
 			volume = NULL;
 		}
 
-	} while (need_seqretry(&cell->volume_lock, seq));
+		if (volume && afs_try_get_volume(volume, afs_volume_trace_get_callback))
+			break;
+		if (!need_seqretry(&cell->volume_lock, seq))
+			break;
+		seq |= 1; /* Want a lock next time */
+	}
 
 	done_seqretry(&cell->volume_lock, seq);
 	return volume;
+}
+
+/*
+ * Allow the fileserver to break callbacks at the volume-level.  This is
+ * typically done when, for example, a R/W volume is snapshotted to a R/O
+ * volume (the only way to change an R/O volume).  It may also, however, happen
+ * when a volserver takes control of a volume (offlining it, moving it, etc.).
+ *
+ * Every file in that volume will need to be reevaluated.
+ */
+static void afs_break_volume_callback(struct afs_server *server,
+				      struct afs_volume *volume)
+	__releases(RCU)
+{
+	struct afs_server_list *slist = rcu_dereference(volume->servers);
+	unsigned int i, cb_v_break;
+
+	write_lock(&volume->cb_v_break_lock);
+
+	for (i = 0; i < slist->nr_servers; i++)
+		if (slist->servers[i].server == server)
+			slist->servers[i].cb_expires_at = AFS_NO_CB_PROMISE;
+	volume->cb_expires_at = AFS_NO_CB_PROMISE;
+
+	cb_v_break = atomic_inc_return_release(&volume->cb_v_break);
+	trace_afs_cb_v_break(volume->vid, cb_v_break, afs_cb_break_for_volume_callback);
+
+	write_unlock(&volume->cb_v_break_lock);
+	rcu_read_unlock();
+
+	if (!list_empty(&volume->open_mmaps))
+		afs_volume_init_callback(volume);
 }
 
 /*
@@ -144,22 +185,13 @@ static struct afs_volume *afs_lookup_volume_rcu(struct afs_cell *cell,
  *   - the backing file is changed
  *   - a lock is released
  */
-static void afs_break_one_callback(struct afs_volume *volume,
+static void afs_break_one_callback(struct afs_server *server,
+				   struct afs_volume *volume,
 				   struct afs_fid *fid)
 {
 	struct super_block *sb;
 	struct afs_vnode *vnode;
 	struct inode *inode;
-
-	if (fid->vnode == 0 && fid->unique == 0) {
-		/* The callback break applies to an entire volume. */
-		write_lock(&volume->cb_v_break_lock);
-		volume->cb_v_break++;
-		trace_afs_cb_break(fid, volume->cb_v_break,
-				   afs_cb_break_for_volume_callback, false);
-		write_unlock(&volume->cb_v_break_lock);
-		return;
-	}
 
 	/* See if we can find a matching inode - even an I_NEW inode needs to
 	 * be marked as it can have its callback broken before we finish
@@ -187,25 +219,35 @@ static void afs_break_some_callbacks(struct afs_server *server,
 	afs_volid_t vid = cbb->fid.vid;
 	size_t i;
 
+	rcu_read_lock();
 	volume = afs_lookup_volume_rcu(server->cell, vid);
+	if (cbb->fid.vnode == 0 && cbb->fid.unique == 0) {
+		afs_break_volume_callback(server, volume);
+		*_count -= 1;
+		if (*_count)
+			memmove(cbb, cbb + 1, sizeof(*cbb) * *_count);
+	} else {
+		/* TODO: Find all matching volumes if we couldn't match the server and
+		 * break them anyway.
+		 */
 
-	/* TODO: Find all matching volumes if we couldn't match the server and
-	 * break them anyway.
-	 */
-
-	for (i = *_count; i > 0; cbb++, i--) {
-		if (cbb->fid.vid == vid) {
-			_debug("- Fid { vl=%08llx n=%llu u=%u }",
-			       cbb->fid.vid,
-			       cbb->fid.vnode,
-			       cbb->fid.unique);
-			--*_count;
-			if (volume)
-				afs_break_one_callback(volume, &cbb->fid);
-		} else {
-			*residue++ = *cbb;
+		for (i = *_count; i > 0; cbb++, i--) {
+			if (cbb->fid.vid == vid) {
+				_debug("- Fid { vl=%08llx n=%llu u=%u }",
+				       cbb->fid.vid,
+				       cbb->fid.vnode,
+				       cbb->fid.unique);
+				--*_count;
+				if (volume)
+					afs_break_one_callback(server, volume, &cbb->fid);
+			} else {
+				*residue++ = *cbb;
+			}
 		}
+		rcu_read_unlock();
 	}
+
+	afs_put_volume(volume, afs_volume_trace_put_callback);
 }
 
 /*
@@ -218,11 +260,6 @@ void afs_break_callbacks(struct afs_server *server, size_t count,
 
 	ASSERT(server != NULL);
 
-	rcu_read_lock();
-
 	while (count > 0)
 		afs_break_some_callbacks(server, callbacks, &count);
-
-	rcu_read_unlock();
-	return;
 }

@@ -1094,10 +1094,10 @@ static int fotg210_udc_stop(struct usb_gadget *g)
 
 /**
  * fotg210_vbus_session - Called by external transceiver to enable/disable udc
- * @_gadget: usb gadget
+ * @g: usb gadget
  * @is_active: 0 if should disable UDC VBUS, 1 if should enable
  *
- * Returns 0
+ * Returns: %0
  */
 static int fotg210_vbus_session(struct usb_gadget *g, int is_active)
 {
@@ -1122,7 +1122,7 @@ static const struct usb_gadget_ops fotg210_gadget_ops = {
  *
  * Called by the USB Phy when a cable connect or disconnect is sensed.
  *
- * Returns NOTIFY_OK or NOTIFY_DONE
+ * Returns: NOTIFY_OK or NOTIFY_DONE
  */
 static int fotg210_phy_event(struct notifier_block *nb, unsigned long action,
 			     void *data)

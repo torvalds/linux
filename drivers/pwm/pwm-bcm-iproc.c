@@ -34,14 +34,13 @@
 #define IPROC_PWM_PRESCALE_MAX			0x3f
 
 struct iproc_pwmc {
-	struct pwm_chip chip;
 	void __iomem *base;
 	struct clk *clk;
 };
 
 static inline struct iproc_pwmc *to_iproc_pwmc(struct pwm_chip *chip)
 {
-	return container_of(chip, struct iproc_pwmc, chip);
+	return pwmchip_get_drvdata(chip);
 }
 
 static void iproc_pwmc_enable(struct iproc_pwmc *ip, unsigned int channel)
@@ -183,69 +182,50 @@ static int iproc_pwmc_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 static const struct pwm_ops iproc_pwm_ops = {
 	.apply = iproc_pwmc_apply,
 	.get_state = iproc_pwmc_get_state,
-	.owner = THIS_MODULE,
 };
 
 static int iproc_pwmc_probe(struct platform_device *pdev)
 {
+	struct pwm_chip *chip;
 	struct iproc_pwmc *ip;
 	unsigned int i;
 	u32 value;
 	int ret;
 
-	ip = devm_kzalloc(&pdev->dev, sizeof(*ip), GFP_KERNEL);
-	if (!ip)
-		return -ENOMEM;
+	chip = devm_pwmchip_alloc(&pdev->dev, 4, sizeof(*ip));
+	if (IS_ERR(chip))
+		return PTR_ERR(chip);
+	ip = to_iproc_pwmc(chip);
 
 	platform_set_drvdata(pdev, ip);
 
-	ip->chip.dev = &pdev->dev;
-	ip->chip.ops = &iproc_pwm_ops;
-	ip->chip.npwm = 4;
+	chip->ops = &iproc_pwm_ops;
 
 	ip->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ip->base))
 		return PTR_ERR(ip->base);
 
-	ip->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(ip->clk)) {
-		dev_err(&pdev->dev, "failed to get clock: %ld\n",
-			PTR_ERR(ip->clk));
-		return PTR_ERR(ip->clk);
-	}
-
-	ret = clk_prepare_enable(ip->clk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to enable clock: %d\n", ret);
-		return ret;
-	}
+	ip->clk = devm_clk_get_enabled(&pdev->dev, NULL);
+	if (IS_ERR(ip->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(ip->clk),
+				     "failed to get clock\n");
 
 	/* Set full drive and normal polarity for all channels */
 	value = readl(ip->base + IPROC_PWM_CTRL_OFFSET);
 
-	for (i = 0; i < ip->chip.npwm; i++) {
+	for (i = 0; i < chip->npwm; i++) {
 		value &= ~(1 << IPROC_PWM_CTRL_TYPE_SHIFT(i));
 		value |= 1 << IPROC_PWM_CTRL_POLARITY_SHIFT(i);
 	}
 
 	writel(value, ip->base + IPROC_PWM_CTRL_OFFSET);
 
-	ret = pwmchip_add(&ip->chip);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to add PWM chip: %d\n", ret);
-		clk_disable_unprepare(ip->clk);
-	}
+	ret = devm_pwmchip_add(&pdev->dev, chip);
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret,
+				     "failed to add PWM chip\n");
 
-	return ret;
-}
-
-static void iproc_pwmc_remove(struct platform_device *pdev)
-{
-	struct iproc_pwmc *ip = platform_get_drvdata(pdev);
-
-	pwmchip_remove(&ip->chip);
-
-	clk_disable_unprepare(ip->clk);
+	return 0;
 }
 
 static const struct of_device_id bcm_iproc_pwmc_dt[] = {
@@ -260,7 +240,6 @@ static struct platform_driver iproc_pwmc_driver = {
 		.of_match_table = bcm_iproc_pwmc_dt,
 	},
 	.probe = iproc_pwmc_probe,
-	.remove_new = iproc_pwmc_remove,
 };
 module_platform_driver(iproc_pwmc_driver);
 

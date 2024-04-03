@@ -11,7 +11,13 @@ compat_vdso-syms += flush_icache
 COMPAT_CC := $(CC)
 COMPAT_LD := $(LD)
 
-COMPAT_CC_FLAGS := -march=rv32g -mabi=ilp32
+# binutils 2.35 does not support the zifencei extension, but in the ISA
+# spec 20191213, G stands for IMAFD_ZICSR_ZIFENCEI.
+ifdef CONFIG_TOOLCHAIN_NEEDS_EXPLICIT_ZICSR_ZIFENCEI
+	COMPAT_CC_FLAGS := -march=rv32g -mabi=ilp32
+else
+	COMPAT_CC_FLAGS := -march=rv32imafd -mabi=ilp32
+endif
 COMPAT_LD_FLAGS := -melf32lriscv
 
 # Disable attributes, as they're useless and break the build.
@@ -70,13 +76,3 @@ quiet_cmd_compat_vdsold = VDSOLD  $@
 # actual build commands
 quiet_cmd_compat_vdsoas = VDSOAS $@
       cmd_compat_vdsoas = $(COMPAT_CC) $(a_flags) $(COMPAT_CC_FLAGS) -c -o $@ $<
-
-# install commands for the unstripped file
-quiet_cmd_compat_vdso_install = INSTALL $@
-      cmd_compat_vdso_install = cp $(obj)/$@.dbg $(MODLIB)/compat_vdso/$@
-
-compat_vdso.so: $(obj)/compat_vdso.so.dbg
-	@mkdir -p $(MODLIB)/compat_vdso
-	$(call cmd,compat_vdso_install)
-
-compat_vdso_install: compat_vdso.so

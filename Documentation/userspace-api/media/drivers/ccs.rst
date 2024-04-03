@@ -2,6 +2,8 @@
 
 .. include:: <isonum.txt>
 
+.. _media-ccs-uapi:
+
 MIPI CCS camera sensor driver
 =============================
 
@@ -12,6 +14,8 @@ the binner and the scaler.
 
 As the capabilities of individual devices vary, the driver exposes
 interfaces based on the capabilities that exist in hardware.
+
+Also see :ref:`the CCS driver kernel documentation <media-ccs-driver>`.
 
 Pixel Array sub-device
 ----------------------
@@ -30,7 +34,7 @@ that purpose, selection target ``V4L2_SEL_TGT_COMPOSE`` is supported on the
 sink pad (0).
 
 Additionally, if a device has no scaler or digital crop functionality, the
-source pad (1) expses another digital crop selection rectangle that can only
+source pad (1) exposes another digital crop selection rectangle that can only
 crop at the end of the lines and frames.
 
 Scaler

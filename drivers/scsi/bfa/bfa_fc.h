@@ -800,7 +800,7 @@ struct fc_rscn_pl_s {
 	u8	command;
 	u8	pagelen;
 	__be16	payldlen;
-	struct fc_rscn_event_s event[1];
+	struct fc_rscn_event_s event[];
 };
 
 /*

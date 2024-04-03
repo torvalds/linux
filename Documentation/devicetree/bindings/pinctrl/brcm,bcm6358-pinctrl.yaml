@@ -24,15 +24,16 @@ patternProperties:
   '-pins$':
     type: object
     $ref: pinmux-node.yaml#
+    unevaluatedProperties: false
 
     properties:
       function:
         enum: [ ebi_cs, uart1, serial_led, legacy_led, led, spi_cs, utopia,
                 pwm_syn_clk, sys_irq ]
 
-      pins:
+      groups:
         enum: [ ebi_cs_grp, uart1_grp, serial_led_grp, legacy_led_grp,
-                led_grp, spi_cs_grp, utopia_grp, pwm_syn_clk, sys_irq_grp ]
+                led_grp, spi_cs_grp, utopia_grp, pwm_syn_clk_grp, sys_irq_grp ]
 
 allOf:
   - $ref: pinctrl.yaml#

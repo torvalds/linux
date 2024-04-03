@@ -18,7 +18,7 @@
 #include <asm/sclp.h>
 #include <asm/nmi.h>
 #include <asm/dis.h>
-#include <asm/fpu/api.h>
+#include <asm/facility.h>
 #include "kvm-s390.h"
 #include "gaccess.h"
 
@@ -587,10 +587,6 @@ void kvm_s390_vsie_gmap_notifier(struct gmap *gmap, unsigned long start,
 
 	if (!gmap_is_shadow(gmap))
 		return;
-	if (start >= 1UL << 31)
-		/* We are only interested in prefix pages */
-		return;
-
 	/*
 	 * Only new shadow blocks are added to the list during runtime,
 	 * therefore we can safely reference them all the time.
@@ -988,12 +984,26 @@ static void retry_vsie_icpt(struct vsie_page *vsie_page)
 static int handle_stfle(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 {
 	struct kvm_s390_sie_block *scb_s = &vsie_page->scb_s;
-	__u32 fac = READ_ONCE(vsie_page->scb_o->fac) & 0x7ffffff8U;
+	__u32 fac = READ_ONCE(vsie_page->scb_o->fac);
 
+	/*
+	 * Alternate-STFLE-Interpretive-Execution facilities are not supported
+	 * -> format-0 flcb
+	 */
 	if (fac && test_kvm_facility(vcpu->kvm, 7)) {
 		retry_vsie_icpt(vsie_page);
+		/*
+		 * The facility list origin (FLO) is in bits 1 - 28 of the FLD
+		 * so we need to mask here before reading.
+		 */
+		fac = fac & 0x7ffffff8U;
+		/*
+		 * format-0 -> size of nested guest's facility list == guest's size
+		 * guest's size == host's size, since STFLE is interpretatively executed
+		 * using a format-0 for the guest, too.
+		 */
 		if (read_guest_real(vcpu, fac, &vsie_page->fac,
-				    sizeof(vsie_page->fac)))
+				    stfle_size() * sizeof(u64)))
 			return set_validity_icpt(scb_s, 0x1090U);
 		scb_s->fac = (__u32)(__u64) &vsie_page->fac;
 	}
@@ -1138,8 +1148,6 @@ static int do_vsie_run(struct kvm_vcpu *vcpu, struct vsie_page *vsie_page)
 	 */
 	vcpu->arch.sie_block->prog0c |= PROG_IN_SIE;
 	barrier();
-	if (test_cpu_flag(CIF_FPU))
-		load_fpu_regs();
 	if (!kvm_s390_vcpu_sie_inhibited(vcpu))
 		rc = sie64a(scb_s, vcpu->run->s.regs.gprs);
 	barrier();
@@ -1214,15 +1222,17 @@ static int acquire_gmap_shadow(struct kvm_vcpu *vcpu,
 	 * we're holding has been unshadowed. If the gmap is still valid,
 	 * we can safely reuse it.
 	 */
-	if (vsie_page->gmap && gmap_shadow_valid(vsie_page->gmap, asce, edat))
+	if (vsie_page->gmap && gmap_shadow_valid(vsie_page->gmap, asce, edat)) {
+		vcpu->kvm->stat.gmap_shadow_reuse++;
 		return 0;
+	}
 
 	/* release the old shadow - if any, and mark the prefix as unmapped */
 	release_gmap_shadow(vsie_page);
 	gmap = gmap_shadow(vcpu->arch.gmap, asce, edat);
 	if (IS_ERR(gmap))
 		return PTR_ERR(gmap);
-	gmap->private = vcpu->kvm;
+	vcpu->kvm->stat.gmap_shadow_create++;
 	WRITE_ONCE(vsie_page->gmap, gmap);
 	return 0;
 }

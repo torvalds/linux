@@ -52,6 +52,7 @@ config CAN_F81604
 
 config CAN_GS_USB
 	tristate "Geschwister Schneider UG and candleLight compatible interfaces"
+	select CAN_RX_OFFLOAD
 	help
 	  This driver supports the Geschwister Schneider and
 	  bytewerk.org candleLight compatible
@@ -99,6 +100,7 @@ config CAN_KVASER_USB
 	    - Scania VCI2 (if you have the Kvaser logo on top)
 	    - Kvaser BlackBird v2
 	    - Kvaser Leaf Pro HS v2
+	    - Kvaser Leaf v3
 	    - Kvaser Hybrid CAN/LIN
 	    - Kvaser Hybrid 2xCAN/LIN
 	    - Kvaser Hybrid Pro CAN/LIN

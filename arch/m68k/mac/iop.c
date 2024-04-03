@@ -119,6 +119,8 @@
 #include <asm/macints.h>
 #include <asm/mac_iop.h>
 
+#include "mac.h"
+
 #ifdef DEBUG
 #define iop_pr_debug(fmt, ...) \
 	printk(KERN_DEBUG "%s: " fmt, __func__, ##__VA_ARGS__)

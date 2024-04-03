@@ -11,13 +11,8 @@ This part describes the Video for Linux API version 2 (V4L2 API) specification.
 
 **Revision 4.5**
 
-.. only:: html
-
-   .. class:: toc-title
-
-        Table of Contents
-
 .. toctree::
+    :caption: Table of Contents
     :numbered:
     :maxdepth: 5
 

@@ -123,6 +123,7 @@ int macio_init(void)
 	irq = irq_of_parse_and_map(adbs, 0);
 	of_node_put(adbs);
 	if (request_irq(irq, macio_adb_interrupt, 0, "ADB", (void *)0)) {
+		iounmap(adb);
 		printk(KERN_ERR "ADB: can't get irq %d\n", irq);
 		return -EAGAIN;
 	}

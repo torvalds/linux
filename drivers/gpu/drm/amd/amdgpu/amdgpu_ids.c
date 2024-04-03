@@ -62,9 +62,8 @@ int amdgpu_pasid_alloc(unsigned int bits)
 	int pasid = -EINVAL;
 
 	for (bits = min(bits, 31U); bits > 0; bits--) {
-		pasid = ida_simple_get(&amdgpu_pasid_ida,
-				       1U << (bits - 1), 1U << bits,
-				       GFP_KERNEL);
+		pasid = ida_alloc_range(&amdgpu_pasid_ida, 1U << (bits - 1),
+					(1U << bits) - 1, GFP_KERNEL);
 		if (pasid != -ENOSPC)
 			break;
 	}
@@ -82,7 +81,7 @@ int amdgpu_pasid_alloc(unsigned int bits)
 void amdgpu_pasid_free(u32 pasid)
 {
 	trace_amdgpu_pasid_freed(pasid);
-	ida_simple_remove(&amdgpu_pasid_ida, pasid);
+	ida_free(&amdgpu_pasid_ida, pasid);
 }
 
 static void amdgpu_pasid_free_cb(struct dma_fence *fence,
@@ -188,7 +187,6 @@ static bool amdgpu_vmid_compatible(struct amdgpu_vmid *id,
 /**
  * amdgpu_vmid_grab_idle - grab idle VMID
  *
- * @vm: vm to allocate id for
  * @ring: ring we want to submit job to
  * @idle: resulting idle VMID
  * @fence: fence to wait for if no id could be grabbed
@@ -196,8 +194,7 @@ static bool amdgpu_vmid_compatible(struct amdgpu_vmid *id,
  * Try to find an idle VMID, if none is idle add a fence to wait to the sync
  * object. Returns -ENOMEM when we are out of memory.
  */
-static int amdgpu_vmid_grab_idle(struct amdgpu_vm *vm,
-				 struct amdgpu_ring *ring,
+static int amdgpu_vmid_grab_idle(struct amdgpu_ring *ring,
 				 struct amdgpu_vmid **idle,
 				 struct dma_fence **fence)
 {
@@ -405,7 +402,7 @@ int amdgpu_vmid_grab(struct amdgpu_vm *vm, struct amdgpu_ring *ring,
 	int r = 0;
 
 	mutex_lock(&id_mgr->lock);
-	r = amdgpu_vmid_grab_idle(vm, ring, &idle, fence);
+	r = amdgpu_vmid_grab_idle(ring, &idle, fence);
 	if (r || !idle)
 		goto error;
 

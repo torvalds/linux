@@ -62,14 +62,6 @@ source "net/bluetooth/cmtp/Kconfig"
 
 source "net/bluetooth/hidp/Kconfig"
 
-config BT_HS
-	bool "Bluetooth High Speed (HS) features"
-	depends on BT_BREDR
-	help
-	  Bluetooth High Speed includes support for off-loading
-	  Bluetooth connections via 802.11 (wifi) physical layer
-	  available with Bluetooth version 3.0 or later.
-
 config BT_LE
 	bool "Bluetooth Low Energy (LE) features"
 	depends on BT

@@ -113,11 +113,20 @@ struct target_core_fabric_ops {
 	struct configfs_attribute **tfc_tpg_nacl_param_attrs;
 
 	/*
-	 * Set this member variable to true if the SCSI transport protocol
+	 * Set this member variable if the SCSI transport protocol
 	 * (e.g. iSCSI) requires that the Data-Out buffer is transferred in
 	 * its entirety before a command is aborted.
 	 */
-	bool write_pending_must_be_called;
+	unsigned int write_pending_must_be_called:1;
+	/*
+	 * Set this if the driver supports submitting commands to the backend
+	 * from target_submit/target_submit_cmd.
+	 */
+	unsigned int direct_submit_supp:1;
+	/*
+	 * Set this to a target_submit_type value.
+	 */
+	u8 default_submit_type;
 };
 
 int target_register_template(const struct target_core_fabric_ops *fo);
@@ -166,20 +175,18 @@ int	target_submit_prep(struct se_cmd *se_cmd, unsigned char *cdb,
 		struct scatterlist *sgl, u32 sgl_count,
 		struct scatterlist *sgl_bidi, u32 sgl_bidi_count,
 		struct scatterlist *sgl_prot, u32 sgl_prot_count, gfp_t gfp);
-void	target_submit(struct se_cmd *se_cmd);
+int	target_submit(struct se_cmd *se_cmd);
 sense_reason_t transport_lookup_cmd_lun(struct se_cmd *);
 sense_reason_t target_cmd_init_cdb(struct se_cmd *se_cmd, unsigned char *cdb,
 				   gfp_t gfp);
 sense_reason_t target_cmd_parse_cdb(struct se_cmd *);
 void	target_submit_cmd(struct se_cmd *, struct se_session *, unsigned char *,
 		unsigned char *, u64, u32, int, int, int);
-void	target_queue_submission(struct se_cmd *se_cmd);
 
 int	target_submit_tmr(struct se_cmd *se_cmd, struct se_session *se_sess,
 		unsigned char *sense, u64 unpacked_lun,
 		void *fabric_tmr_ptr, unsigned char tm_type,
 		gfp_t, u64, int);
-int	transport_handle_cdb_direct(struct se_cmd *);
 sense_reason_t	transport_generic_new_cmd(struct se_cmd *);
 
 void	target_put_cmd_and_wait(struct se_cmd *cmd);
@@ -196,8 +203,6 @@ int	target_put_sess_cmd(struct se_cmd *);
 void	target_stop_session(struct se_session *se_sess);
 void	target_wait_for_sess_cmds(struct se_session *);
 void	target_show_cmd(const char *pfx, struct se_cmd *cmd);
-
-int	core_alua_check_nonop_delay(struct se_cmd *);
 
 int	core_tmr_alloc_req(struct se_cmd *, void *, u8, gfp_t);
 void	core_tmr_release_req(struct se_tmr_req *);

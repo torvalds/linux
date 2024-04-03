@@ -557,7 +557,7 @@ static int gic_irq_domain_alloc(struct irq_domain *d, unsigned int virq,
 	return gic_irq_domain_map(d, virq, hwirq);
 }
 
-void gic_irq_domain_free(struct irq_domain *d, unsigned int virq,
+static void gic_irq_domain_free(struct irq_domain *d, unsigned int virq,
 			 unsigned int nr_irqs)
 {
 }

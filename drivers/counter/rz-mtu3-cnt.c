@@ -500,8 +500,8 @@ static int rz_mtu3_count_enable_write(struct counter_device *counter,
 	int ret = 0;
 
 	if (enable) {
-		pm_runtime_get_sync(ch->dev);
 		mutex_lock(&priv->lock);
+		pm_runtime_get_sync(ch->dev);
 		ret = rz_mtu3_initialize_counter(counter, count->id);
 		if (ret == 0)
 			priv->count_is_enabled[count->id] = true;
@@ -510,8 +510,8 @@ static int rz_mtu3_count_enable_write(struct counter_device *counter,
 		mutex_lock(&priv->lock);
 		rz_mtu3_terminate_counter(counter, count->id);
 		priv->count_is_enabled[count->id] = false;
-		mutex_unlock(&priv->lock);
 		pm_runtime_put(ch->dev);
+		mutex_unlock(&priv->lock);
 	}
 
 	return ret;

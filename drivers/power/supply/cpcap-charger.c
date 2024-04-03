@@ -17,8 +17,7 @@
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
-#include <linux/of.h>
-#include <linux/of_platform.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 #include <linux/regmap.h>
@@ -865,7 +864,6 @@ static const struct power_supply_desc cpcap_charger_usb_desc = {
 	.property_is_writeable = cpcap_charger_property_is_writeable,
 };
 
-#ifdef CONFIG_OF
 static const struct of_device_id cpcap_charger_id_table[] = {
 	{
 		.compatible = "motorola,mapphone-cpcap-charger",
@@ -873,19 +871,12 @@ static const struct of_device_id cpcap_charger_id_table[] = {
 	{},
 };
 MODULE_DEVICE_TABLE(of, cpcap_charger_id_table);
-#endif
 
 static int cpcap_charger_probe(struct platform_device *pdev)
 {
 	struct cpcap_charger_ddata *ddata;
-	const struct of_device_id *of_id;
 	struct power_supply_config psy_cfg = {};
 	int error;
-
-	of_id = of_match_device(of_match_ptr(cpcap_charger_id_table),
-				&pdev->dev);
-	if (!of_id)
-		return -EINVAL;
 
 	ddata = devm_kzalloc(&pdev->dev, sizeof(*ddata), GFP_KERNEL);
 	if (!ddata)
@@ -966,21 +957,19 @@ static void cpcap_charger_shutdown(struct platform_device *pdev)
 	cancel_delayed_work_sync(&ddata->detect_work);
 }
 
-static int cpcap_charger_remove(struct platform_device *pdev)
+static void cpcap_charger_remove(struct platform_device *pdev)
 {
 	cpcap_charger_shutdown(pdev);
-
-	return 0;
 }
 
 static struct platform_driver cpcap_charger_driver = {
 	.probe = cpcap_charger_probe,
 	.driver	= {
 		.name	= "cpcap-charger",
-		.of_match_table = of_match_ptr(cpcap_charger_id_table),
+		.of_match_table = cpcap_charger_id_table,
 	},
 	.shutdown = cpcap_charger_shutdown,
-	.remove	= cpcap_charger_remove,
+	.remove_new = cpcap_charger_remove,
 };
 module_platform_driver(cpcap_charger_driver);
 

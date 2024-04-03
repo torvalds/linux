@@ -57,6 +57,8 @@
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
+#include <linux/units.h>
+
 #include <net/netevent.h>
 #include <net/netlink.h>
 #include <net/sch_generic.h>
@@ -64,8 +66,6 @@
 
 static LIST_HEAD(cbs_list);
 static DEFINE_SPINLOCK(cbs_list_lock);
-
-#define BYTES_PER_KBIT (1000LL / 8)
 
 struct cbs_sched_data {
 	bool offload;
@@ -546,6 +546,7 @@ static struct Qdisc_ops cbs_qdisc_ops __read_mostly = {
 	.dump		=	cbs_dump,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("cbs");
 
 static struct notifier_block cbs_device_notifier = {
 	.notifier_call = cbs_dev_notifier,
@@ -574,3 +575,4 @@ static void __exit cbs_module_exit(void)
 module_init(cbs_module_init)
 module_exit(cbs_module_exit)
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Credit Based shaper");

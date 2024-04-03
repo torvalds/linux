@@ -665,7 +665,7 @@ static int  mv_u3d_ep_disable(struct usb_ep *_ep)
 static struct usb_request *
 mv_u3d_alloc_request(struct usb_ep *_ep, gfp_t gfp_flags)
 {
-	struct mv_u3d_req *req = NULL;
+	struct mv_u3d_req *req;
 
 	req = kzalloc(sizeof *req, gfp_flags);
 	if (!req)
@@ -1779,7 +1779,7 @@ static void mv_u3d_remove(struct platform_device *dev)
 
 static int mv_u3d_probe(struct platform_device *dev)
 {
-	struct mv_u3d *u3d = NULL;
+	struct mv_u3d *u3d;
 	struct mv_usb_platform_data *pdata = dev_get_platdata(&dev->dev);
 	int retval = 0;
 	struct resource *r;

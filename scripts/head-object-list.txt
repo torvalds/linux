@@ -17,7 +17,6 @@ arch/arm/kernel/head-nommu.o
 arch/arm/kernel/head.o
 arch/csky/kernel/head.o
 arch/hexagon/kernel/head.o
-arch/ia64/kernel/head.o
 arch/loongarch/kernel/head.o
 arch/m68k/68000/head.o
 arch/m68k/coldfire/head.o

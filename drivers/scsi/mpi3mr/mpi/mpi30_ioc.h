@@ -28,6 +28,7 @@ struct mpi3_ioc_init_request {
 	__le64                   driver_information_address;
 };
 
+#define MPI3_IOCINIT_MSGFLAGS_SCSIIOSTATUSREPLY_SUPPORTED	(0x04)
 #define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_MASK          (0x03)
 #define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_NOT_USED      (0x00)
 #define MPI3_IOCINIT_MSGFLAGS_HOSTMETADATA_SEPARATED     (0x01)
@@ -600,6 +601,7 @@ struct mpi3_event_data_pcie_error_threshold {
 	__le16                                 threshold_count;
 	__le16                                 attached_dev_handle;
 	__le16                                 reserved12;
+	__le32                                 reserved14;
 };
 
 #define MPI3_EVENT_PCI_ERROR_RC_THRESHOLD_EXCEEDED          (0x00)

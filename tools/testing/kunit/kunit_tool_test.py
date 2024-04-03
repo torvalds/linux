@@ -331,6 +331,22 @@ class KUnitParserTest(unittest.TestCase):
 			kunit_parser.parse_run_tests(file.readlines())
 		self.print_mock.assert_any_call(StrContains('suite (1 subtest)'))
 
+	def test_parse_attributes(self):
+		ktap_log = test_data_path('test_parse_attributes.log')
+		with open(ktap_log) as file:
+			result = kunit_parser.parse_run_tests(file.readlines())
+
+		# Test should pass with no errors
+		self.assertEqual(result.counts, kunit_parser.TestCounts(passed=1, errors=0))
+		self.assertEqual(kunit_parser.TestStatus.SUCCESS, result.status)
+
+		# Ensure suite header is parsed correctly
+		self.print_mock.assert_any_call(StrContains('suite (1 subtest)'))
+
+		# Ensure attributes in correct test log
+		self.assertContains('# module: example', result.subtests[0].log)
+		self.assertContains('# test.speed: slow', result.subtests[0].subtests[0].log)
+
 	def test_show_test_output_on_failure(self):
 		output = """
 		KTAP version 1
@@ -597,7 +613,7 @@ class KUnitMainTest(unittest.TestCase):
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 0)
 		self.assertEqual(self.linux_source_mock.run_kernel.call_count, 1)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
-			args=None, build_dir='.kunit', filter_glob='', timeout=300)
+			args=None, build_dir='.kunit', filter_glob='', filter='', filter_action=None, timeout=300)
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
 
 	def test_run_passes_args_pass(self):
@@ -605,7 +621,7 @@ class KUnitMainTest(unittest.TestCase):
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 		self.assertEqual(self.linux_source_mock.run_kernel.call_count, 1)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
-			args=None, build_dir='.kunit', filter_glob='', timeout=300)
+			args=None, build_dir='.kunit', filter_glob='', filter='', filter_action=None, timeout=300)
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
 
 	def test_exec_passes_args_fail(self):
@@ -629,7 +645,7 @@ class KUnitMainTest(unittest.TestCase):
 			kunit.main(['run'])
 		self.assertEqual(e.exception.code, 1)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
-			args=None, build_dir='.kunit', filter_glob='', timeout=300)
+			args=None, build_dir='.kunit', filter_glob='', filter='', filter_action=None, timeout=300)
 		self.print_mock.assert_any_call(StrContains(' 0 tests run!'))
 
 	def test_exec_raw_output(self):
@@ -670,13 +686,13 @@ class KUnitMainTest(unittest.TestCase):
 		self.linux_source_mock.run_kernel = mock.Mock(return_value=[])
 		kunit.main(['run', '--raw_output', 'filter_glob'])
 		self.linux_source_mock.run_kernel.assert_called_once_with(
-			args=None, build_dir='.kunit', filter_glob='filter_glob', timeout=300)
+			args=None, build_dir='.kunit', filter_glob='filter_glob', filter='', filter_action=None, timeout=300)
 
 	def test_exec_timeout(self):
 		timeout = 3453
 		kunit.main(['exec', '--timeout', str(timeout)])
 		self.linux_source_mock.run_kernel.assert_called_once_with(
-			args=None, build_dir='.kunit', filter_glob='', timeout=timeout)
+			args=None, build_dir='.kunit', filter_glob='', filter='', filter_action=None, timeout=timeout)
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
 
 	def test_run_timeout(self):
@@ -684,7 +700,7 @@ class KUnitMainTest(unittest.TestCase):
 		kunit.main(['run', '--timeout', str(timeout)])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
-			args=None, build_dir='.kunit', filter_glob='', timeout=timeout)
+			args=None, build_dir='.kunit', filter_glob='', filter='', filter_action=None, timeout=timeout)
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
 
 	def test_run_builddir(self):
@@ -692,7 +708,7 @@ class KUnitMainTest(unittest.TestCase):
 		kunit.main(['run', '--build_dir=.kunit'])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
-			args=None, build_dir=build_dir, filter_glob='', timeout=300)
+			args=None, build_dir=build_dir, filter_glob='', filter='', filter_action=None, timeout=300)
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
 
 	def test_config_builddir(self):
@@ -710,7 +726,7 @@ class KUnitMainTest(unittest.TestCase):
 		build_dir = '.kunit'
 		kunit.main(['exec', '--build_dir', build_dir])
 		self.linux_source_mock.run_kernel.assert_called_once_with(
-			args=None, build_dir=build_dir, filter_glob='', timeout=300)
+			args=None, build_dir=build_dir, filter_glob='', filter='', filter_action=None, timeout=300)
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
 
 	def test_run_kunitconfig(self):
@@ -786,7 +802,7 @@ class KUnitMainTest(unittest.TestCase):
 		kunit.main(['run', '--kernel_args=a=1', '--kernel_args=b=2'])
 		self.assertEqual(self.linux_source_mock.build_reconfig.call_count, 1)
 		self.linux_source_mock.run_kernel.assert_called_once_with(
-		      args=['a=1','b=2'], build_dir='.kunit', filter_glob='', timeout=300)
+		      args=['a=1','b=2'], build_dir='.kunit', filter_glob='', filter='', filter_action=None, timeout=300)
 		self.print_mock.assert_any_call(StrContains('Testing complete.'))
 
 	def test_list_tests(self):
@@ -794,13 +810,11 @@ class KUnitMainTest(unittest.TestCase):
 		self.linux_source_mock.run_kernel.return_value = ['TAP version 14', 'init: random output'] + want
 
 		got = kunit._list_tests(self.linux_source_mock,
-				     kunit.KunitExecRequest(None, None, '.kunit', 300, 'suite*', None, 'suite'))
-
+				     kunit.KunitExecRequest(None, None, '.kunit', 300, 'suite*', '', None, None, 'suite', False, False))
 		self.assertEqual(got, want)
 		# Should respect the user's filter glob when listing tests.
 		self.linux_source_mock.run_kernel.assert_called_once_with(
-			args=['kunit.action=list'], build_dir='.kunit', filter_glob='suite*', timeout=300)
-
+			args=['kunit.action=list'], build_dir='.kunit', filter_glob='suite*', filter='', filter_action=None, timeout=300)
 
 	@mock.patch.object(kunit, '_list_tests')
 	def test_run_isolated_by_suite(self, mock_tests):
@@ -809,10 +823,10 @@ class KUnitMainTest(unittest.TestCase):
 
 		# Should respect the user's filter glob when listing tests.
 		mock_tests.assert_called_once_with(mock.ANY,
-				     kunit.KunitExecRequest(None, None, '.kunit', 300, 'suite*.test*', None, 'suite'))
+				     kunit.KunitExecRequest(None, None, '.kunit', 300, 'suite*.test*', '', None, None, 'suite', False, False))
 		self.linux_source_mock.run_kernel.assert_has_calls([
-			mock.call(args=None, build_dir='.kunit', filter_glob='suite.test*', timeout=300),
-			mock.call(args=None, build_dir='.kunit', filter_glob='suite2.test*', timeout=300),
+			mock.call(args=None, build_dir='.kunit', filter_glob='suite.test*', filter='', filter_action=None, timeout=300),
+			mock.call(args=None, build_dir='.kunit', filter_glob='suite2.test*', filter='', filter_action=None, timeout=300),
 		])
 
 	@mock.patch.object(kunit, '_list_tests')
@@ -822,13 +836,12 @@ class KUnitMainTest(unittest.TestCase):
 
 		# Should respect the user's filter glob when listing tests.
 		mock_tests.assert_called_once_with(mock.ANY,
-				     kunit.KunitExecRequest(None, None, '.kunit', 300, 'suite*', None, 'test'))
+				     kunit.KunitExecRequest(None, None, '.kunit', 300, 'suite*', '', None, None, 'test', False, False))
 		self.linux_source_mock.run_kernel.assert_has_calls([
-			mock.call(args=None, build_dir='.kunit', filter_glob='suite.test1', timeout=300),
-			mock.call(args=None, build_dir='.kunit', filter_glob='suite.test2', timeout=300),
-			mock.call(args=None, build_dir='.kunit', filter_glob='suite2.test1', timeout=300),
+			mock.call(args=None, build_dir='.kunit', filter_glob='suite.test1', filter='', filter_action=None, timeout=300),
+			mock.call(args=None, build_dir='.kunit', filter_glob='suite.test2', filter='', filter_action=None, timeout=300),
+			mock.call(args=None, build_dir='.kunit', filter_glob='suite2.test1', filter='', filter_action=None, timeout=300),
 		])
-
 
 if __name__ == '__main__':
 	unittest.main()

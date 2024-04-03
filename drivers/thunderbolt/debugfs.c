@@ -959,7 +959,7 @@ static void margining_port_remove(struct tb_port *port)
 	snprintf(dir_name, sizeof(dir_name), "port%d", port->port);
 	parent = debugfs_lookup(dir_name, port->sw->debugfs_dir);
 	if (parent)
-		debugfs_remove_recursive(debugfs_lookup("margining", parent));
+		debugfs_lookup_and_remove("margining", parent);
 
 	kfree(port->usb4->margining);
 	port->usb4->margining = NULL;

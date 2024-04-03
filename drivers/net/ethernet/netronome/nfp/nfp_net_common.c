@@ -924,7 +924,7 @@ static void nfp_net_write_mac_addr(struct nfp_net *nn, const u8 *addr)
  */
 static void nfp_net_clear_config_and_disable(struct nfp_net *nn)
 {
-	u32 new_ctrl, update;
+	u32 new_ctrl, new_ctrl_w1, update;
 	unsigned int r;
 	int err;
 
@@ -937,13 +937,28 @@ static void nfp_net_clear_config_and_disable(struct nfp_net *nn)
 	if (nn->cap & NFP_NET_CFG_CTRL_RINGCFG)
 		new_ctrl &= ~NFP_NET_CFG_CTRL_RINGCFG;
 
-	nn_writeq(nn, NFP_NET_CFG_TXRS_ENABLE, 0);
-	nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE, 0);
+	if (!(nn->cap_w1 & NFP_NET_CFG_CTRL_FREELIST_EN)) {
+		nn_writeq(nn, NFP_NET_CFG_TXRS_ENABLE, 0);
+		nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE, 0);
+	}
 
 	nn_writel(nn, NFP_NET_CFG_CTRL, new_ctrl);
 	err = nfp_net_reconfig(nn, update);
 	if (err)
 		nn_err(nn, "Could not disable device: %d\n", err);
+
+	if (nn->cap_w1 & NFP_NET_CFG_CTRL_FREELIST_EN) {
+		new_ctrl_w1 = nn->dp.ctrl_w1;
+		new_ctrl_w1 &= ~NFP_NET_CFG_CTRL_FREELIST_EN;
+		nn_writeq(nn, NFP_NET_CFG_TXRS_ENABLE, 0);
+		nn_writeq(nn, NFP_NET_CFG_RXRS_ENABLE, 0);
+
+		nn_writel(nn, NFP_NET_CFG_CTRL_WORD1, new_ctrl_w1);
+		err = nfp_net_reconfig(nn, update);
+		if (err)
+			nn_err(nn, "Could not disable FREELIST_EN: %d\n", err);
+		nn->dp.ctrl_w1 = new_ctrl_w1;
+	}
 
 	for (r = 0; r < nn->dp.num_rx_rings; r++) {
 		nfp_net_rx_ring_reset(&nn->dp.rx_rings[r]);
@@ -964,11 +979,12 @@ static void nfp_net_clear_config_and_disable(struct nfp_net *nn)
  */
 static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 {
-	u32 bufsz, new_ctrl, update = 0;
+	u32 bufsz, new_ctrl, new_ctrl_w1, update = 0;
 	unsigned int r;
 	int err;
 
 	new_ctrl = nn->dp.ctrl;
+	new_ctrl_w1 = nn->dp.ctrl_w1;
 
 	if (nn->dp.ctrl & NFP_NET_CFG_CTRL_RSS_ANY) {
 		nfp_net_rss_write_key(nn);
@@ -1001,16 +1017,25 @@ static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 	bufsz = nn->dp.fl_bufsz - nn->dp.rx_dma_off - NFP_NET_RX_BUF_NON_DATA;
 	nn_writel(nn, NFP_NET_CFG_FLBUFSZ, bufsz);
 
-	/* Enable device */
-	new_ctrl |= NFP_NET_CFG_CTRL_ENABLE;
+	/* Enable device
+	 * Step 1: Replace the CTRL_ENABLE by NFP_NET_CFG_CTRL_FREELIST_EN if
+	 * FREELIST_EN exits.
+	 */
+	if (nn->cap_w1 & NFP_NET_CFG_CTRL_FREELIST_EN)
+		new_ctrl_w1 |= NFP_NET_CFG_CTRL_FREELIST_EN;
+	else
+		new_ctrl |= NFP_NET_CFG_CTRL_ENABLE;
 	update |= NFP_NET_CFG_UPDATE_GEN;
 	update |= NFP_NET_CFG_UPDATE_MSIX;
 	update |= NFP_NET_CFG_UPDATE_RING;
 	if (nn->cap & NFP_NET_CFG_CTRL_RINGCFG)
 		new_ctrl |= NFP_NET_CFG_CTRL_RINGCFG;
 
+	/* Step 2: Send the configuration and write the freelist.
+	 * - The freelist only need to be written once.
+	 */
 	nn_writel(nn, NFP_NET_CFG_CTRL, new_ctrl);
-	nn_writel(nn, NFP_NET_CFG_CTRL_WORD1, nn->dp.ctrl_w1);
+	nn_writel(nn, NFP_NET_CFG_CTRL_WORD1, new_ctrl_w1);
 	err = nfp_net_reconfig(nn, update);
 	if (err) {
 		nfp_net_clear_config_and_disable(nn);
@@ -1018,9 +1043,24 @@ static int nfp_net_set_config_and_enable(struct nfp_net *nn)
 	}
 
 	nn->dp.ctrl = new_ctrl;
+	nn->dp.ctrl_w1 = new_ctrl_w1;
 
 	for (r = 0; r < nn->dp.num_rx_rings; r++)
 		nfp_net_rx_ring_fill_freelist(&nn->dp, &nn->dp.rx_rings[r]);
+
+	/* Step 3: Do the NFP_NET_CFG_CTRL_ENABLE. Send the configuration.
+	 */
+	if (nn->cap_w1 & NFP_NET_CFG_CTRL_FREELIST_EN) {
+		new_ctrl |= NFP_NET_CFG_CTRL_ENABLE;
+		nn_writel(nn, NFP_NET_CFG_CTRL, new_ctrl);
+
+		err = nfp_net_reconfig(nn, update);
+		if (err) {
+			nfp_net_clear_config_and_disable(nn);
+			return err;
+		}
+		nn->dp.ctrl = new_ctrl;
+	}
 
 	return 0;
 }
@@ -1136,7 +1176,8 @@ static void nfp_net_rx_dim_work(struct work_struct *work)
 	 * count.
 	 */
 	factor = nn->tlv_caps.me_freq_mhz / 16;
-	if (nfp_net_coalesce_para_check(factor * moder.usec, moder.pkts))
+	if (nfp_net_coalesce_para_check(factor * moder.usec) ||
+	    nfp_net_coalesce_para_check(moder.pkts))
 		return;
 
 	/* copy RX interrupt coalesce parameters */
@@ -1165,7 +1206,8 @@ static void nfp_net_tx_dim_work(struct work_struct *work)
 	 * count.
 	 */
 	factor = nn->tlv_caps.me_freq_mhz / 16;
-	if (nfp_net_coalesce_para_check(factor * moder.usec, moder.pkts))
+	if (nfp_net_coalesce_para_check(factor * moder.usec) ||
+	    nfp_net_coalesce_para_check(moder.pkts))
 		return;
 
 	/* copy TX interrupt coalesce parameters */
@@ -1723,6 +1765,186 @@ nfp_net_vlan_rx_kill_vid(struct net_device *netdev, __be16 proto, u16 vid)
 	return nfp_net_mbox_reconfig_and_unlock(nn, cmd);
 }
 
+static void
+nfp_net_fs_fill_v4(struct nfp_net *nn, struct nfp_fs_entry *entry, u32 op, u32 *addr)
+{
+	unsigned int i;
+
+	union {
+		struct {
+			__be16 loc;
+			u8 k_proto, m_proto;
+			__be32 k_sip, m_sip, k_dip, m_dip;
+			__be16 k_sport, m_sport, k_dport, m_dport;
+		};
+		__be32 val[7];
+	} v4_rule;
+
+	nn_writel(nn, *addr, op);
+	*addr += sizeof(u32);
+
+	v4_rule.loc     = cpu_to_be16(entry->loc);
+	v4_rule.k_proto = entry->key.l4_proto;
+	v4_rule.m_proto = entry->msk.l4_proto;
+	v4_rule.k_sip   = entry->key.sip4;
+	v4_rule.m_sip   = entry->msk.sip4;
+	v4_rule.k_dip   = entry->key.dip4;
+	v4_rule.m_dip   = entry->msk.dip4;
+	v4_rule.k_sport = entry->key.sport;
+	v4_rule.m_sport = entry->msk.sport;
+	v4_rule.k_dport = entry->key.dport;
+	v4_rule.m_dport = entry->msk.dport;
+
+	for (i = 0; i < ARRAY_SIZE(v4_rule.val); i++, *addr += sizeof(__be32))
+		nn_writel(nn, *addr, be32_to_cpu(v4_rule.val[i]));
+}
+
+static void
+nfp_net_fs_fill_v6(struct nfp_net *nn, struct nfp_fs_entry *entry, u32 op, u32 *addr)
+{
+	unsigned int i;
+
+	union {
+		struct {
+			__be16 loc;
+			u8 k_proto, m_proto;
+			__be32 k_sip[4], m_sip[4], k_dip[4], m_dip[4];
+			__be16 k_sport, m_sport, k_dport, m_dport;
+		};
+		__be32 val[19];
+	} v6_rule;
+
+	nn_writel(nn, *addr, op);
+	*addr += sizeof(u32);
+
+	v6_rule.loc     = cpu_to_be16(entry->loc);
+	v6_rule.k_proto = entry->key.l4_proto;
+	v6_rule.m_proto = entry->msk.l4_proto;
+	for (i = 0; i < 4; i++) {
+		v6_rule.k_sip[i] = entry->key.sip6[i];
+		v6_rule.m_sip[i] = entry->msk.sip6[i];
+		v6_rule.k_dip[i] = entry->key.dip6[i];
+		v6_rule.m_dip[i] = entry->msk.dip6[i];
+	}
+	v6_rule.k_sport = entry->key.sport;
+	v6_rule.m_sport = entry->msk.sport;
+	v6_rule.k_dport = entry->key.dport;
+	v6_rule.m_dport = entry->msk.dport;
+
+	for (i = 0; i < ARRAY_SIZE(v6_rule.val); i++, *addr += sizeof(__be32))
+		nn_writel(nn, *addr, be32_to_cpu(v6_rule.val[i]));
+}
+
+#define NFP_FS_QUEUE_ID	GENMASK(22, 16)
+#define NFP_FS_ACT	GENMASK(15, 0)
+#define NFP_FS_ACT_DROP	BIT(0)
+#define NFP_FS_ACT_Q	BIT(1)
+static void
+nfp_net_fs_fill_act(struct nfp_net *nn, struct nfp_fs_entry *entry, u32 addr)
+{
+	u32 action = 0; /* 0 means default passthrough */
+
+	if (entry->action == RX_CLS_FLOW_DISC)
+		action = NFP_FS_ACT_DROP;
+	else if (!(entry->flow_type & FLOW_RSS))
+		action = FIELD_PREP(NFP_FS_QUEUE_ID, entry->action) | NFP_FS_ACT_Q;
+
+	nn_writel(nn, addr, action);
+}
+
+int nfp_net_fs_add_hw(struct nfp_net *nn, struct nfp_fs_entry *entry)
+{
+	u32 addr = nn->tlv_caps.mbox_off + NFP_NET_CFG_MBOX_SIMPLE_VAL;
+	int err;
+
+	err = nfp_net_mbox_lock(nn, NFP_NET_CFG_FS_SZ);
+	if (err)
+		return err;
+
+	switch (entry->flow_type & ~FLOW_RSS) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case SCTP_V4_FLOW:
+	case IPV4_USER_FLOW:
+		nfp_net_fs_fill_v4(nn, entry, NFP_NET_CFG_MBOX_CMD_FS_ADD_V4, &addr);
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+	case IPV6_USER_FLOW:
+		nfp_net_fs_fill_v6(nn, entry, NFP_NET_CFG_MBOX_CMD_FS_ADD_V6, &addr);
+		break;
+	case ETHER_FLOW:
+		nn_writel(nn, addr, NFP_NET_CFG_MBOX_CMD_FS_ADD_ETHTYPE);
+		addr += sizeof(u32);
+		nn_writew(nn, addr, be16_to_cpu(entry->key.l3_proto));
+		addr += sizeof(u32);
+		break;
+	}
+
+	nfp_net_fs_fill_act(nn, entry, addr);
+
+	err = nfp_net_mbox_reconfig_and_unlock(nn, NFP_NET_CFG_MBOX_CMD_FLOW_STEER);
+	if (err) {
+		nn_err(nn, "Add new fs rule failed with %d\n", err);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+int nfp_net_fs_del_hw(struct nfp_net *nn, struct nfp_fs_entry *entry)
+{
+	u32 addr = nn->tlv_caps.mbox_off + NFP_NET_CFG_MBOX_SIMPLE_VAL;
+	int err;
+
+	err = nfp_net_mbox_lock(nn, NFP_NET_CFG_FS_SZ);
+	if (err)
+		return err;
+
+	switch (entry->flow_type & ~FLOW_RSS) {
+	case TCP_V4_FLOW:
+	case UDP_V4_FLOW:
+	case SCTP_V4_FLOW:
+	case IPV4_USER_FLOW:
+		nfp_net_fs_fill_v4(nn, entry, NFP_NET_CFG_MBOX_CMD_FS_DEL_V4, &addr);
+		break;
+	case TCP_V6_FLOW:
+	case UDP_V6_FLOW:
+	case SCTP_V6_FLOW:
+	case IPV6_USER_FLOW:
+		nfp_net_fs_fill_v6(nn, entry, NFP_NET_CFG_MBOX_CMD_FS_DEL_V6, &addr);
+		break;
+	case ETHER_FLOW:
+		nn_writel(nn, addr, NFP_NET_CFG_MBOX_CMD_FS_DEL_ETHTYPE);
+		addr += sizeof(u32);
+		nn_writew(nn, addr, be16_to_cpu(entry->key.l3_proto));
+		addr += sizeof(u32);
+		break;
+	}
+
+	nfp_net_fs_fill_act(nn, entry, addr);
+
+	err = nfp_net_mbox_reconfig_and_unlock(nn, NFP_NET_CFG_MBOX_CMD_FLOW_STEER);
+	if (err) {
+		nn_err(nn, "Delete fs rule failed with %d\n", err);
+		return -EIO;
+	}
+
+	return 0;
+}
+
+static void nfp_net_fs_clean(struct nfp_net *nn)
+{
+	struct nfp_fs_entry *entry, *tmp;
+
+	list_for_each_entry_safe(entry, tmp, &nn->fs.list, node) {
+		nfp_net_fs_del_hw(nn, entry);
+		list_del(&entry->node);
+		kfree(entry);
+	}
+}
+
 static void nfp_net_stat64(struct net_device *netdev,
 			   struct rtnl_link_stats64 *stats)
 {
@@ -1894,7 +2116,10 @@ nfp_net_features_check(struct sk_buff *skb, struct net_device *dev,
 	if (skb_is_gso(skb)) {
 		u32 hdrlen;
 
-		hdrlen = skb_inner_tcp_all_headers(skb);
+		if (skb_shinfo(skb)->gso_type & SKB_GSO_UDP_L4)
+			hdrlen = skb_inner_transport_offset(skb) + sizeof(struct udphdr);
+		else
+			hdrlen = skb_inner_tcp_all_headers(skb);
 
 		/* Assume worst case scenario of having longest possible
 		 * metadata prepend - 8B
@@ -2068,9 +2293,6 @@ static int nfp_net_bridge_setlink(struct net_device *dev, struct nlmsghdr *nlh,
 		if (nla_type(attr) != IFLA_BRIDGE_MODE)
 			continue;
 
-		if (nla_len(attr) < sizeof(mode))
-			return -EINVAL;
-
 		new_ctrl = nn->dp.ctrl;
 		mode = nla_get_u16(attr);
 		if (mode == BRIDGE_MODE_VEPA)
@@ -2200,7 +2422,7 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->fw_ver.extend, nn->fw_ver.class,
 		nn->fw_ver.major, nn->fw_ver.minor,
 		nn->max_mtu);
-	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		nn->cap,
 		nn->cap & NFP_NET_CFG_CTRL_PROMISC  ? "PROMISC "  : "",
 		nn->cap & NFP_NET_CFG_CTRL_L2BC     ? "L2BCFILT " : "",
@@ -2229,6 +2451,7 @@ void nfp_net_info(struct nfp_net *nn)
 						      "RXCSUM_COMPLETE " : "",
 		nn->cap & NFP_NET_CFG_CTRL_LIVE_ADDR ? "LIVE_ADDR " : "",
 		nn->cap_w1 & NFP_NET_CFG_CTRL_MCAST_FILTER ? "MULTICAST_FILTER " : "",
+		nn->cap_w1 & NFP_NET_CFG_CTRL_USO ? "USO " : "",
 		nfp_app_extra_cap(nn->app, nn));
 }
 
@@ -2477,6 +2700,8 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	if ((nn->cap & NFP_NET_CFG_CTRL_LSO && nn->fw_ver.major > 2) ||
 	    nn->cap & NFP_NET_CFG_CTRL_LSO2) {
 		netdev->hw_features |= NETIF_F_TSO | NETIF_F_TSO6;
+		if (nn->cap_w1 & NFP_NET_CFG_CTRL_USO)
+			netdev->hw_features |= NETIF_F_GSO_UDP_L4;
 		nn->dp.ctrl |= nn->cap & NFP_NET_CFG_CTRL_LSO2 ?:
 					 NFP_NET_CFG_CTRL_LSO;
 	}
@@ -2551,6 +2776,7 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	case NFP_NFD_VER_NFD3:
 		netdev->netdev_ops = &nfp_nfd3_netdev_ops;
 		netdev->xdp_features |= NETDEV_XDP_ACT_XSK_ZEROCOPY;
+		netdev->xdp_features |= NETDEV_XDP_ACT_REDIRECT;
 		break;
 	case NFP_NFD_VER_NFDK:
 		netdev->netdev_ops = &nfp_nfdk_netdev_ops;
@@ -2703,6 +2929,8 @@ int nfp_net_init(struct nfp_net *nn)
 	INIT_LIST_HEAD(&nn->mbox_amsg.list);
 	INIT_WORK(&nn->mbox_amsg.work, nfp_net_mbox_amsg_work);
 
+	INIT_LIST_HEAD(&nn->fs.list);
+
 	return register_netdev(nn->dp.netdev);
 
 err_clean_mbox:
@@ -2722,6 +2950,7 @@ void nfp_net_clean(struct nfp_net *nn)
 	unregister_netdev(nn->dp.netdev);
 	nfp_net_ipsec_clean(nn);
 	nfp_ccm_mbox_clean(nn);
+	nfp_net_fs_clean(nn);
 	flush_work(&nn->mbox_amsg.work);
 	nfp_net_reconfig_wait_posted(nn);
 }

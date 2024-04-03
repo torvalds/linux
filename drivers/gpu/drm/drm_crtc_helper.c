@@ -439,11 +439,8 @@ EXPORT_SYMBOL(drm_crtc_helper_set_mode);
  * @state: atomic state object
  *
  * Provides a default CRTC-state check handler for CRTCs that only have
- * one primary plane attached to it.
- *
- * This is often the case for the CRTC of simple framebuffers. See also
- * drm_plane_helper_atomic_check() for the respective plane-state check
- * helper function.
+ * one primary plane attached to it. This is often the case for the CRTC
+ * of simple framebuffers.
  *
  * RETURNS:
  * Zero on success, or an errno code otherwise.

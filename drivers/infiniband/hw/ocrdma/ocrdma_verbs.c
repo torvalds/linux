@@ -1277,7 +1277,7 @@ static void ocrdma_set_qp_init_params(struct ocrdma_qp *qp,
 	qp->sq.max_sges = attrs->cap.max_send_sge;
 	qp->rq.max_sges = attrs->cap.max_recv_sge;
 	qp->state = OCRDMA_QPS_RST;
-	qp->signaled = (attrs->sq_sig_type == IB_SIGNAL_ALL_WR) ? true : false;
+	qp->signaled = attrs->sq_sig_type == IB_SIGNAL_ALL_WR;
 }
 
 static void ocrdma_store_gsi_qp_cq(struct ocrdma_dev *dev,

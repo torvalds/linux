@@ -4,8 +4,9 @@
  */
 
 #include <linux/clk.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/of_graph.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/slab.h>
 #include <drm/drm_bridge_connector.h>
@@ -108,8 +109,6 @@ dtg_err:
 	dcss_ctxld_exit(dcss->ctxld);
 
 ctxld_err:
-	dcss_blkctl_exit(dcss->blkctl);
-
 	dcss_clocks_disable(dcss);
 
 	return ret;
@@ -123,7 +122,6 @@ static void dcss_submodules_stop(struct dcss_dev *dcss)
 	dcss_ss_exit(dcss->ss);
 	dcss_dtg_exit(dcss->dtg);
 	dcss_ctxld_exit(dcss->ctxld);
-	dcss_blkctl_exit(dcss->blkctl);
 	dcss_clocks_disable(dcss);
 }
 
@@ -182,7 +180,12 @@ struct dcss_dev *dcss_dev_create(struct device *dev, bool hdmi_output)
 		return ERR_PTR(-EINVAL);
 	}
 
-	dcss = kzalloc(sizeof(*dcss), GFP_KERNEL);
+	if (!devm_request_mem_region(dev, res->start, resource_size(res), "dcss")) {
+		dev_err(dev, "cannot request memory region\n");
+		return ERR_PTR(-EBUSY);
+	}
+
+	dcss = devm_kzalloc(dev, sizeof(*dcss), GFP_KERNEL);
 	if (!dcss)
 		return ERR_PTR(-ENOMEM);
 
@@ -193,12 +196,12 @@ struct dcss_dev *dcss_dev_create(struct device *dev, bool hdmi_output)
 	ret = dcss_clks_init(dcss);
 	if (ret) {
 		dev_err(dev, "clocks initialization failed\n");
-		goto err;
+		return ERR_PTR(ret);
 	}
 
 	dcss->of_port = of_graph_get_port_by_id(dev->of_node, 0);
 	if (!dcss->of_port) {
-		dev_err(dev, "no port@0 node in %s\n", dev->of_node->full_name);
+		dev_err(dev, "no port@0 node in %pOF\n", dev->of_node);
 		ret = -ENODEV;
 		goto clks_err;
 	}
@@ -225,9 +228,6 @@ struct dcss_dev *dcss_dev_create(struct device *dev, bool hdmi_output)
 clks_err:
 	dcss_clks_release(dcss);
 
-err:
-	kfree(dcss);
-
 	return ERR_PTR(ret);
 }
 
@@ -245,8 +245,6 @@ void dcss_dev_destroy(struct dcss_dev *dcss)
 	dcss_submodules_stop(dcss);
 
 	dcss_clks_release(dcss);
-
-	kfree(dcss);
 }
 
 static int dcss_dev_suspend(struct device *dev)

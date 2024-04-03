@@ -22,7 +22,7 @@ static inline unsigned long huge_pte_dirty(pte_t pte)
 
 static inline pte_t huge_pte_mkwrite(pte_t pte)
 {
-	return pte_mkwrite(pte);
+	return pte_mkwrite_novma(pte);
 }
 
 #ifndef __HAVE_ARCH_HUGE_PTE_WRPROTECT
@@ -76,7 +76,7 @@ static inline void hugetlb_free_pgd_range(struct mmu_gather *tlb,
 
 #ifndef __HAVE_ARCH_HUGE_SET_HUGE_PTE_AT
 static inline void set_huge_pte_at(struct mm_struct *mm, unsigned long addr,
-		pte_t *ptep, pte_t pte)
+		pte_t *ptep, pte_t pte, unsigned long sz)
 {
 	set_pte_at(mm, addr, ptep, pte);
 }

@@ -20,18 +20,6 @@
 
 #undef DVMA_DEBUG
 
-#ifdef CONFIG_SUN3X
-extern void dvma_unmap_iommu(unsigned long baddr, int len);
-#else
-static inline void dvma_unmap_iommu(unsigned long a, int b)
-{
-}
-#endif
-
-#ifdef CONFIG_SUN3
-extern void sun3_dvma_init(void);
-#endif
-
 static unsigned long *iommu_use;
 
 #define dvma_index(baddr) ((baddr - DVMA_START) >> DVMA_PAGE_SHIFT)
@@ -205,9 +193,7 @@ static inline int free_baddr(unsigned long baddr)
 	unsigned long len;
 	struct hole *hole;
 	struct list_head *cur;
-	unsigned long orig_baddr;
 
-	orig_baddr = baddr;
 	len = dvma_entry_use(baddr);
 	dvma_entry_use(baddr) = 0;
 	baddr &= DVMA_PAGE_MASK;
@@ -274,10 +260,7 @@ void __init dvma_init(void)
 
 	dvma_unmap_iommu(DVMA_START, DVMA_SIZE);
 
-#ifdef CONFIG_SUN3
 	sun3_dvma_init();
-#endif
-
 }
 
 unsigned long dvma_map_align(unsigned long kaddr, int len, int align)

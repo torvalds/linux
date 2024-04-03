@@ -44,12 +44,45 @@
 void dpp30_read_state(struct dpp *dpp_base, struct dcn_dpp_state *s)
 {
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
+	uint32_t gamcor_lut_mode, rgam_lut_mode;
 
 	REG_GET(DPP_CONTROL,
-			DPP_CLOCK_ENABLE, &s->is_enabled);
+		DPP_CLOCK_ENABLE, &s->is_enabled);
 
-	// TODO: Implement for DCN3
+	// Pre-degamma (ROM)
+	REG_GET_2(PRE_DEGAM,
+		  PRE_DEGAM_MODE, &s->pre_dgam_mode,
+		  PRE_DEGAM_SELECT, &s->pre_dgam_select);
+
+	// Gamma Correction (RAM)
+	REG_GET(CM_GAMCOR_CONTROL,
+		CM_GAMCOR_MODE_CURRENT, &s->gamcor_mode);
+	if (s->gamcor_mode) {
+		REG_GET(CM_GAMCOR_CONTROL, CM_GAMCOR_SELECT_CURRENT, &gamcor_lut_mode);
+		if (!gamcor_lut_mode)
+			s->gamcor_mode = LUT_RAM_A; // Otherwise, LUT_RAM_B
+	}
+
+	// Shaper LUT (RAM), 3D LUT (mode, bit-depth, size)
+	REG_GET(CM_SHAPER_CONTROL,
+		CM_SHAPER_LUT_MODE, &s->shaper_lut_mode);
+	REG_GET(CM_3DLUT_MODE,
+		CM_3DLUT_MODE_CURRENT, &s->lut3d_mode);
+	REG_GET(CM_3DLUT_READ_WRITE_CONTROL,
+		CM_3DLUT_30BIT_EN, &s->lut3d_bit_depth);
+	REG_GET(CM_3DLUT_MODE,
+		CM_3DLUT_SIZE, &s->lut3d_size);
+
+	// Blend/Out Gamma (RAM)
+	REG_GET(CM_BLNDGAM_CONTROL,
+		CM_BLNDGAM_MODE_CURRENT, &s->rgam_lut_mode);
+	if (s->rgam_lut_mode){
+		REG_GET(CM_BLNDGAM_CONTROL, CM_BLNDGAM_SELECT_CURRENT, &rgam_lut_mode);
+		if (!rgam_lut_mode)
+			s->rgam_lut_mode = LUT_RAM_A; // Otherwise, LUT_RAM_B
+	}
 }
+
 /*program post scaler scs block in dpp CM*/
 void dpp3_program_post_csc(
 		struct dpp *dpp_base,
@@ -613,16 +646,19 @@ static void dpp3_program_blnd_pwl(
 			REG_SET(CM_BLNDGAM_LUT_DATA, 0, CM_BLNDGAM_LUT_DATA, rgb[i].red_reg);
 		REG_SET(CM_BLNDGAM_LUT_DATA, 0, CM_BLNDGAM_LUT_DATA, last_base_value_red);
 	} else {
+		REG_SET(CM_BLNDGAM_LUT_INDEX, 0, CM_BLNDGAM_LUT_INDEX, 0);
 		REG_UPDATE(CM_BLNDGAM_LUT_CONTROL, CM_BLNDGAM_LUT_WRITE_COLOR_MASK, 4);
 		for (i = 0 ; i < num; i++)
 			REG_SET(CM_BLNDGAM_LUT_DATA, 0, CM_BLNDGAM_LUT_DATA, rgb[i].red_reg);
 		REG_SET(CM_BLNDGAM_LUT_DATA, 0, CM_BLNDGAM_LUT_DATA, last_base_value_red);
 
+		REG_SET(CM_BLNDGAM_LUT_INDEX, 0, CM_BLNDGAM_LUT_INDEX, 0);
 		REG_UPDATE(CM_BLNDGAM_LUT_CONTROL, CM_BLNDGAM_LUT_WRITE_COLOR_MASK, 2);
 		for (i = 0 ; i < num; i++)
 			REG_SET(CM_BLNDGAM_LUT_DATA, 0, CM_BLNDGAM_LUT_DATA, rgb[i].green_reg);
 		REG_SET(CM_BLNDGAM_LUT_DATA, 0, CM_BLNDGAM_LUT_DATA, last_base_value_green);
 
+		REG_SET(CM_BLNDGAM_LUT_INDEX, 0, CM_BLNDGAM_LUT_INDEX, 0);
 		REG_UPDATE(CM_BLNDGAM_LUT_CONTROL, CM_BLNDGAM_LUT_WRITE_COLOR_MASK, 1);
 		for (i = 0 ; i < num; i++)
 			REG_SET(CM_BLNDGAM_LUT_DATA, 0, CM_BLNDGAM_LUT_DATA, rgb[i].blue_reg);
@@ -1459,6 +1495,7 @@ static struct dpp_funcs dcn30_dpp_funcs = {
 	.set_optional_cursor_attributes	= dpp1_cnv_set_optional_cursor_attributes,
 	.dpp_dppclk_control		= dpp1_dppclk_control,
 	.dpp_set_hdr_multiplier		= dpp3_set_hdr_multiplier,
+	.dpp_get_gamut_remap		= dpp3_cm_get_gamut_remap,
 };
 
 

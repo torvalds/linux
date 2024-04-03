@@ -25,14 +25,12 @@
 
 #include "power_state.h"
 
-static const struct PP_TemperatureRange __maybe_unused SMU7ThermalWithDelayPolicy[] =
-{
+static const struct PP_TemperatureRange __maybe_unused SMU7ThermalWithDelayPolicy[] = {
 	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
 	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
 };
 
-static const struct PP_TemperatureRange __maybe_unused SMU7ThermalPolicy[] =
-{
+static const struct PP_TemperatureRange __maybe_unused SMU7ThermalPolicy[] = {
 	{-273150,  99000, 99000, -273150, 99000, 99000, -273150, 99000, 99000},
 	{ 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000, 120000},
 };

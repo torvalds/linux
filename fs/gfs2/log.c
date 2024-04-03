@@ -126,7 +126,7 @@ __acquires(&sdp->sd_ail_lock)
 			}
 		}
 
-		if (gfs2_withdrawn(sdp)) {
+		if (gfs2_withdrawing_or_withdrawn(sdp)) {
 			gfs2_remove_from_ail(bd);
 			continue;
 		}
@@ -352,14 +352,15 @@ static int gfs2_ail1_empty_one(struct gfs2_sbd *sdp, struct gfs2_trans *tr,
  * @sdp: The superblock
  * @max_revokes: If non-zero, add revokes where appropriate
  *
- * Tries to empty the ail1 lists, starting with the oldest first
+ * Tries to empty the ail1 lists, starting with the oldest first.
+ * Returns %true if the ail1 list is now empty.
  */
 
-static int gfs2_ail1_empty(struct gfs2_sbd *sdp, int max_revokes)
+static bool gfs2_ail1_empty(struct gfs2_sbd *sdp, int max_revokes)
 {
 	struct gfs2_trans *tr, *s;
 	int oldest_tr = 1;
-	int ret;
+	bool empty;
 
 	spin_lock(&sdp->sd_ail_lock);
 	list_for_each_entry_safe_reverse(tr, s, &sdp->sd_ail1_list, tr_list) {
@@ -369,15 +370,10 @@ static int gfs2_ail1_empty(struct gfs2_sbd *sdp, int max_revokes)
 			oldest_tr = 0;
 	}
 	gfs2_log_update_flush_tail(sdp);
-	ret = list_empty(&sdp->sd_ail1_list);
+	empty = list_empty(&sdp->sd_ail1_list);
 	spin_unlock(&sdp->sd_ail_lock);
 
-	if (test_bit(SDF_WITHDRAWING, &sdp->sd_flags)) {
-		gfs2_lm(sdp, "fatal: I/O error(s)\n");
-		gfs2_withdraw(sdp);
-	}
-
-	return ret;
+	return empty;
 }
 
 static void gfs2_ail1_wait(struct gfs2_sbd *sdp)
@@ -814,6 +810,9 @@ void gfs2_flush_revokes(struct gfs2_sbd *sdp)
 	gfs2_log_lock(sdp);
 	gfs2_ail1_empty(sdp, max_revokes);
 	gfs2_log_unlock(sdp);
+
+	if (gfs2_withdrawing(sdp))
+		gfs2_withdraw(sdp);
 }
 
 /**
@@ -841,7 +840,7 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 	struct super_block *sb = sdp->sd_vfs;
 	u64 dblock;
 
-	if (gfs2_withdrawn(sdp))
+	if (gfs2_withdrawing_or_withdrawn(sdp))
 		return;
 
 	page = mempool_alloc(gfs2_page_pool, GFP_NOIO);
@@ -914,8 +913,9 @@ void gfs2_write_log_header(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 static void log_write_header(struct gfs2_sbd *sdp, u32 flags)
 {
 	blk_opf_t op_flags = REQ_PREFLUSH | REQ_FUA | REQ_META | REQ_SYNC;
+	struct super_block *sb = sdp->sd_vfs;
 
-	gfs2_assert_withdraw(sdp, !test_bit(SDF_FROZEN, &sdp->sd_flags));
+	gfs2_assert_withdraw(sdp, sb->s_writers.frozen != SB_FREEZE_COMPLETE);
 
 	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags)) {
 		gfs2_ordered_wait(sdp);
@@ -974,8 +974,9 @@ void gfs2_ail_drain(struct gfs2_sbd *sdp)
 static void empty_ail1_list(struct gfs2_sbd *sdp)
 {
 	unsigned long start = jiffies;
+	bool empty = false;
 
-	for (;;) {
+	while (!empty) {
 		if (time_after(jiffies, start + (HZ * 600))) {
 			fs_err(sdp, "Error: In %s for 10 minutes! t=%d\n",
 			       __func__, current->journal_info ? 1 : 0);
@@ -984,9 +985,14 @@ static void empty_ail1_list(struct gfs2_sbd *sdp)
 		}
 		gfs2_ail1_start(sdp);
 		gfs2_ail1_wait(sdp);
-		if (gfs2_ail1_empty(sdp, 0))
-			return;
+		empty = gfs2_ail1_empty(sdp, 0);
+
+		if (gfs2_withdrawing_or_withdrawn(sdp))
+			break;
 	}
+
+	if (gfs2_withdrawing(sdp))
+		gfs2_withdraw(sdp);
 }
 
 /**
@@ -1047,7 +1053,8 @@ repeat:
 	 * Do this check while holding the log_flush_lock to prevent new
 	 * buffers from being added to the ail via gfs2_pin()
 	 */
-	if (gfs2_withdrawn(sdp) || !test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
+	if (gfs2_withdrawing_or_withdrawn(sdp) ||
+	    !test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
 		goto out;
 
 	/* Log might have been flushed while we waited for the flush lock */
@@ -1096,13 +1103,13 @@ repeat:
 			goto out_withdraw;
 
 	gfs2_ordered_write(sdp);
-	if (gfs2_withdrawn(sdp))
+	if (gfs2_withdrawing_or_withdrawn(sdp))
 		goto out_withdraw;
 	lops_before_commit(sdp, tr);
-	if (gfs2_withdrawn(sdp))
+	if (gfs2_withdrawing_or_withdrawn(sdp))
 		goto out_withdraw;
 	gfs2_log_submit_bio(&sdp->sd_jdesc->jd_log_bio, REQ_OP_WRITE);
-	if (gfs2_withdrawn(sdp))
+	if (gfs2_withdrawing_or_withdrawn(sdp))
 		goto out_withdraw;
 
 	if (sdp->sd_log_head != sdp->sd_log_flush_head) {
@@ -1110,7 +1117,7 @@ repeat:
 	} else if (sdp->sd_log_tail != sdp->sd_log_flush_tail && !sdp->sd_log_idle) {
 		log_write_header(sdp, flags);
 	}
-	if (gfs2_withdrawn(sdp))
+	if (gfs2_withdrawing_or_withdrawn(sdp))
 		goto out_withdraw;
 	lops_after_commit(sdp, tr);
 
@@ -1128,7 +1135,7 @@ repeat:
 	if (!(flags & GFS2_LOG_HEAD_FLUSH_NORMAL)) {
 		if (!sdp->sd_log_idle) {
 			empty_ail1_list(sdp);
-			if (gfs2_withdrawn(sdp))
+			if (gfs2_withdrawing_or_withdrawn(sdp))
 				goto out_withdraw;
 			log_write_header(sdp, flags);
 		}
@@ -1227,6 +1234,21 @@ static void log_refund(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 	gfs2_log_unlock(sdp);
 }
 
+static inline int gfs2_jrnl_flush_reqd(struct gfs2_sbd *sdp)
+{
+	return atomic_read(&sdp->sd_log_pinned) +
+	       atomic_read(&sdp->sd_log_blks_needed) >=
+	       atomic_read(&sdp->sd_log_thresh1);
+}
+
+static inline int gfs2_ail_flush_reqd(struct gfs2_sbd *sdp)
+{
+	return sdp->sd_jdesc->jd_blocks -
+	       atomic_read(&sdp->sd_log_blks_free) +
+	       atomic_read(&sdp->sd_log_blks_needed) >=
+	       atomic_read(&sdp->sd_log_thresh2);
+}
+
 /**
  * gfs2_log_commit - Commit a transaction to the log
  * @sdp: the filesystem
@@ -1246,9 +1268,7 @@ void gfs2_log_commit(struct gfs2_sbd *sdp, struct gfs2_trans *tr)
 {
 	log_refund(sdp, tr);
 
-	if (atomic_read(&sdp->sd_log_pinned) > atomic_read(&sdp->sd_log_thresh1) ||
-	    ((sdp->sd_jdesc->jd_blocks - atomic_read(&sdp->sd_log_blks_free)) >
-	    atomic_read(&sdp->sd_log_thresh2)))
+	if (gfs2_ail_flush_reqd(sdp) || gfs2_jrnl_flush_reqd(sdp))
 		wake_up(&sdp->sd_logd_waitq);
 }
 
@@ -1271,24 +1291,6 @@ static void gfs2_log_shutdown(struct gfs2_sbd *sdp)
 	gfs2_assert_warn(sdp, list_empty(&sdp->sd_ail2_list));
 }
 
-static inline int gfs2_jrnl_flush_reqd(struct gfs2_sbd *sdp)
-{
-	return (atomic_read(&sdp->sd_log_pinned) +
-		atomic_read(&sdp->sd_log_blks_needed) >=
-		atomic_read(&sdp->sd_log_thresh1));
-}
-
-static inline int gfs2_ail_flush_reqd(struct gfs2_sbd *sdp)
-{
-	unsigned int used_blocks = sdp->sd_jdesc->jd_blocks - atomic_read(&sdp->sd_log_blks_free);
-
-	if (test_and_clear_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags))
-		return 1;
-
-	return used_blocks + atomic_read(&sdp->sd_log_blks_needed) >=
-		atomic_read(&sdp->sd_log_thresh2);
-}
-
 /**
  * gfs2_logd - Update log tail as Active Items get flushed to in-place blocks
  * @data: Pointer to GFS2 superblock
@@ -1301,14 +1303,12 @@ int gfs2_logd(void *data)
 {
 	struct gfs2_sbd *sdp = data;
 	unsigned long t = 1;
-	DEFINE_WAIT(wait);
 
+	set_freezable();
 	while (!kthread_should_stop()) {
+		if (gfs2_withdrawing_or_withdrawn(sdp))
+			break;
 
-		if (gfs2_withdrawn(sdp)) {
-			msleep_interruptible(HZ);
-			continue;
-		}
 		/* Check for errors writing to the journal */
 		if (sdp->sd_log_error) {
 			gfs2_lm(sdp,
@@ -1317,7 +1317,7 @@ int gfs2_logd(void *data)
 				"prevent further damage.\n",
 				sdp->sd_fsname, sdp->sd_log_error);
 			gfs2_withdraw(sdp);
-			continue;
+			break;
 		}
 
 		if (gfs2_jrnl_flush_reqd(sdp) || t == 0) {
@@ -1326,7 +1326,9 @@ int gfs2_logd(void *data)
 						  GFS2_LFC_LOGD_JFLUSH_REQD);
 		}
 
-		if (gfs2_ail_flush_reqd(sdp)) {
+		if (test_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags) ||
+		    gfs2_ail_flush_reqd(sdp)) {
+			clear_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags);
 			gfs2_ail1_start(sdp);
 			gfs2_ail1_wait(sdp);
 			gfs2_ail1_empty(sdp, 0);
@@ -1336,20 +1338,18 @@ int gfs2_logd(void *data)
 
 		t = gfs2_tune_get(sdp, gt_logd_secs) * HZ;
 
-		try_to_freeze();
-
-		do {
-			prepare_to_wait(&sdp->sd_logd_waitq, &wait,
-					TASK_INTERRUPTIBLE);
-			if (!gfs2_ail_flush_reqd(sdp) &&
-			    !gfs2_jrnl_flush_reqd(sdp) &&
-			    !kthread_should_stop())
-				t = schedule_timeout(t);
-		} while(t && !gfs2_ail_flush_reqd(sdp) &&
-			!gfs2_jrnl_flush_reqd(sdp) &&
-			!kthread_should_stop());
-		finish_wait(&sdp->sd_logd_waitq, &wait);
+		t = wait_event_freezable_timeout(sdp->sd_logd_waitq,
+				test_bit(SDF_FORCE_AIL_FLUSH, &sdp->sd_flags) ||
+				gfs2_ail_flush_reqd(sdp) ||
+				gfs2_jrnl_flush_reqd(sdp) ||
+				sdp->sd_log_error ||
+				gfs2_withdrawing_or_withdrawn(sdp) ||
+				kthread_should_stop(),
+				t);
 	}
+
+	if (gfs2_withdrawing(sdp))
+		gfs2_withdraw(sdp);
 
 	return 0;
 }

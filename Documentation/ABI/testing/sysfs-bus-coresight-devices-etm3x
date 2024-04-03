@@ -31,7 +31,7 @@ Date:		November 2014
 KernelVersion:	3.19
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
 Description:	(RW) Used in conjunction with @addr_idx.  Specifies the range of
-		addresses to trigger on.  Inclusion or exclusion is specificed
+		addresses to trigger on.  Inclusion or exclusion is specified
 		in the corresponding access type register.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/addr_single
@@ -304,19 +304,19 @@ What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmtsscr
 Date:		September 2015
 KernelVersion:	4.4
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(RO) Print the content of the ETM Trace Start/Stop Conrol
+Description: 	(RO) Print the content of the ETM Trace Start/Stop Control
 		register (0x018). The value is read directly from the HW.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmtecr1
 Date:		September 2015
 KernelVersion:	4.4
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(RO) Print the content of the ETM Enable Conrol #1
+Description: 	(RO) Print the content of the ETM Enable Control #1
 		register (0x024). The value is read directly from the HW.
 
 What:		/sys/bus/coresight/devices/<memory_map>.[etm|ptm]/mgmt/etmtecr2
 Date:		September 2015
 KernelVersion:	4.4
 Contact:	Mathieu Poirier <mathieu.poirier@linaro.org>
-Description: 	(RO) Print the content of the ETM Enable Conrol #2
+Description: 	(RO) Print the content of the ETM Enable Control #2
 		register (0x01c). The value is read directly from the HW.

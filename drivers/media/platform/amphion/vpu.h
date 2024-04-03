@@ -154,7 +154,6 @@ struct vpu_core {
 	struct vpu_mbox tx_type;
 	struct vpu_mbox tx_data;
 	struct vpu_mbox rx;
-	unsigned long cmd_seq;
 
 	wait_queue_head_t ack_wq;
 	struct completion cmp;
@@ -253,6 +252,8 @@ struct vpu_inst {
 
 	struct list_head cmd_q;
 	void *pending;
+	unsigned long cmd_seq;
+	atomic_long_t last_response_cmd;
 
 	struct vpu_inst_ops *ops;
 	const struct vpu_format *formats;
@@ -354,6 +355,9 @@ void vpu_inst_record_flow(struct vpu_inst *inst, u32 flow);
 
 int vpu_core_driver_init(void);
 void vpu_core_driver_exit(void);
+
+const char *vpu_id_name(u32 id);
+const char *vpu_codec_state_name(enum vpu_codec_state state);
 
 extern bool debug;
 #define vpu_trace(dev, fmt, arg...)					\

@@ -629,27 +629,6 @@ static void hci_req_start_scan(struct hci_request *req, u8 type, u16 interval,
 	}
 }
 
-/* Returns true if an le connection is in the scanning state */
-static inline bool hci_is_le_conn_scanning(struct hci_dev *hdev)
-{
-	struct hci_conn_hash *h = &hdev->conn_hash;
-	struct hci_conn  *c;
-
-	rcu_read_lock();
-
-	list_for_each_entry_rcu(c, &h->list, list) {
-		if (c->type == LE_LINK && c->state == BT_CONNECT &&
-		    test_bit(HCI_CONN_SCANNING, &c->flags)) {
-			rcu_read_unlock();
-			return true;
-		}
-	}
-
-	rcu_read_unlock();
-
-	return false;
-}
-
 static void set_random_addr(struct hci_request *req, bdaddr_t *rpa);
 static int hci_update_random_address(struct hci_request *req,
 				     bool require_privacy, bool use_rpa,
@@ -916,7 +895,7 @@ void hci_request_setup(struct hci_dev *hdev)
 
 void hci_request_cancel_all(struct hci_dev *hdev)
 {
-	__hci_cmd_sync_cancel(hdev, ENODEV);
+	hci_cmd_sync_cancel_sync(hdev, ENODEV);
 
 	cancel_interleave_scan(hdev);
 }

@@ -180,7 +180,7 @@ static int wcn36xx_dxe_init_descs(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *wc
 	if (!wcn_ch->cpu_addr)
 		return -ENOMEM;
 
-	cur_dxe = (struct wcn36xx_dxe_desc *)wcn_ch->cpu_addr;
+	cur_dxe = wcn_ch->cpu_addr;
 	cur_ctl = wcn_ch->head_blk_ctl;
 
 	for (i = 0; i < wcn_ch->desc_num; i++) {
@@ -453,7 +453,7 @@ static void reap_tx_dxes(struct wcn36xx *wcn, struct wcn36xx_dxe_ch *ch)
 
 static irqreturn_t wcn36xx_irq_tx_complete(int irq, void *dev)
 {
-	struct wcn36xx *wcn = (struct wcn36xx *)dev;
+	struct wcn36xx *wcn = dev;
 	int int_src, int_reason;
 
 	wcn36xx_dxe_read_register(wcn, WCN36XX_DXE_INT_SRC_RAW_REG, &int_src);
@@ -541,7 +541,7 @@ static irqreturn_t wcn36xx_irq_tx_complete(int irq, void *dev)
 
 static irqreturn_t wcn36xx_irq_rx_ready(int irq, void *dev)
 {
-	struct wcn36xx *wcn = (struct wcn36xx *)dev;
+	struct wcn36xx *wcn = dev;
 
 	wcn36xx_dxe_rx_frame(wcn);
 

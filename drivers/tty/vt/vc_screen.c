@@ -174,7 +174,7 @@ vcs_poll_data_get(struct file *file)
 }
 
 /**
- * vcs_vc -- return VC for @inode
+ * vcs_vc - return VC for @inode
  * @inode: inode for which to return a VC
  * @viewed: returns whether this console is currently foreground (viewed)
  *
@@ -199,7 +199,7 @@ static struct vc_data *vcs_vc(struct inode *inode, bool *viewed)
 }
 
 /**
- * vcs_size -- return size for a VC in @vc
+ * vcs_size - return size for a VC in @vc
  * @vc: which VC
  * @attr: does it use attributes?
  * @unicode: is it unicode?
@@ -786,23 +786,22 @@ static const struct file_operations vcs_fops = {
 	.release	= vcs_release,
 };
 
-static struct class *vc_class;
+static const struct class vc_class = {
+	.name = "vc",
+};
 
 void vcs_make_sysfs(int index)
 {
-	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, index + 1), NULL,
-		      "vcs%u", index + 1);
-	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, index + 65), NULL,
-		      "vcsu%u", index + 1);
-	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, index + 129), NULL,
-		      "vcsa%u", index + 1);
+	device_create(&vc_class, NULL, MKDEV(VCS_MAJOR, index + 1), NULL, "vcs%u", index + 1);
+	device_create(&vc_class, NULL, MKDEV(VCS_MAJOR, index + 65), NULL, "vcsu%u", index + 1);
+	device_create(&vc_class, NULL, MKDEV(VCS_MAJOR, index + 129), NULL, "vcsa%u", index + 1);
 }
 
 void vcs_remove_sysfs(int index)
 {
-	device_destroy(vc_class, MKDEV(VCS_MAJOR, index + 1));
-	device_destroy(vc_class, MKDEV(VCS_MAJOR, index + 65));
-	device_destroy(vc_class, MKDEV(VCS_MAJOR, index + 129));
+	device_destroy(&vc_class, MKDEV(VCS_MAJOR, index + 1));
+	device_destroy(&vc_class, MKDEV(VCS_MAJOR, index + 65));
+	device_destroy(&vc_class, MKDEV(VCS_MAJOR, index + 129));
 }
 
 int __init vcs_init(void)
@@ -811,11 +810,12 @@ int __init vcs_init(void)
 
 	if (register_chrdev(VCS_MAJOR, "vcs", &vcs_fops))
 		panic("unable to get major %d for vcs device", VCS_MAJOR);
-	vc_class = class_create("vc");
+	if (class_register(&vc_class))
+		panic("unable to create vc_class");
 
-	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 0), NULL, "vcs");
-	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 64), NULL, "vcsu");
-	device_create(vc_class, NULL, MKDEV(VCS_MAJOR, 128), NULL, "vcsa");
+	device_create(&vc_class, NULL, MKDEV(VCS_MAJOR, 0), NULL, "vcs");
+	device_create(&vc_class, NULL, MKDEV(VCS_MAJOR, 64), NULL, "vcsu");
+	device_create(&vc_class, NULL, MKDEV(VCS_MAJOR, 128), NULL, "vcsa");
 	for (i = 0; i < MIN_NR_CONSOLES; i++)
 		vcs_make_sysfs(i);
 	return 0;

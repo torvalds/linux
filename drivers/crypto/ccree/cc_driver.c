@@ -14,7 +14,6 @@
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/of_address.h>
-#include <linux/of_device.h>
 #include <linux/pm_runtime.h>
 
 #include "cc_driver.h"
@@ -624,7 +623,7 @@ static int ccree_probe(struct platform_device *plat_dev)
 	return 0;
 }
 
-static int ccree_remove(struct platform_device *plat_dev)
+static void ccree_remove(struct platform_device *plat_dev)
 {
 	struct device *dev = &plat_dev->dev;
 
@@ -633,8 +632,6 @@ static int ccree_remove(struct platform_device *plat_dev)
 	cleanup_cc_resources(plat_dev);
 
 	dev_info(dev, "ARM ccree device terminated\n");
-
-	return 0;
 }
 
 static struct platform_driver ccree_driver = {
@@ -646,7 +643,7 @@ static struct platform_driver ccree_driver = {
 #endif
 	},
 	.probe = ccree_probe,
-	.remove = ccree_remove,
+	.remove_new = ccree_remove,
 };
 
 static int __init ccree_init(void)

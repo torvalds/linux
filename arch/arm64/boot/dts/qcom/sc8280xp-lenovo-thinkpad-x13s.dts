@@ -6,12 +6,11 @@
 
 /dts-v1/;
 
-#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/iio/qcom,spmi-adc7-pm8350.h>
-#include <dt-bindings/iio/qcom,spmi-adc7-pmk8350.h>
-#include <dt-bindings/iio/qcom,spmi-adc7-pmr735a.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 
 #include "sc8280xp.dtsi"
@@ -75,6 +74,24 @@
 			linux,code = <SW_LID>;
 			wakeup-source;
 			wakeup-event-action = <EV_ACT_DEASSERTED>;
+		};
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&cam_indicator_en>;
+
+		led-camera-indicator {
+			label = "white:camera-indicator";
+			function = LED_FUNCTION_INDICATOR;
+			color = <LED_COLOR_ID_WHITE>;
+			gpios = <&tlmm 28 GPIO_ACTIVE_HIGH>;
+			linux,default-trigger = "none";
+			default-state = "off";
+			/* Reuse as a panic indicator until we get a "camera on" trigger */
+			panic-indicator;
 		};
 	};
 
@@ -334,7 +351,6 @@
 
 		mode-switch;
 		orientation-switch;
-		svid = /bits/ 16 <0xff01>;
 
 		port {
 			usb0_sbu_mux: endpoint {
@@ -354,7 +370,6 @@
 
 		mode-switch;
 		orientation-switch;
-		svid = /bits/ 16 <0xff01>;
 
 		port {
 			usb1_sbu_mux: endpoint {
@@ -556,6 +571,7 @@
 
 &mdss0_dp3 {
 	compatible = "qcom,sc8280xp-edp";
+	/delete-property/ #sound-dai-cells;
 
 	data-lanes = <0 1 2 3>;
 
@@ -587,6 +603,7 @@
 };
 
 &mdss0_dp3_phy {
+	compatible = "qcom,sc8280xp-edp-phy";
 	vdda-phy-supply = <&vreg_l6b>;
 	vdda-pll-supply = <&vreg_l3b>;
 
@@ -703,6 +720,8 @@
 };
 
 &pcie4 {
+	max-link-speed = <2>;
+
 	perst-gpios = <&tlmm 141 GPIO_ACTIVE_LOW>;
 	wake-gpios = <&tlmm 139 GPIO_ACTIVE_LOW>;
 
@@ -834,93 +853,60 @@
 };
 
 &pmk8280_vadc {
-	status = "okay";
-
-	pmic-die-temp@3 {
-		reg = <PMK8350_ADC7_DIE_TEMP>;
-		qcom,pre-scaling = <1 1>;
-		label = "pmk8350_die_temp";
-	};
-
-	xo-therm@44 {
-		reg = <PMK8350_ADC7_AMUX_THM1_100K_PU>;
-		qcom,hw-settle-time = <200>;
-		qcom,ratiometric;
-		label = "pmk8350_xo_therm";
-	};
-
-	pmic-die-temp@103 {
-		reg = <PM8350_ADC7_DIE_TEMP(1)>;
-		qcom,pre-scaling = <1 1>;
-		label = "pmc8280_1_die_temp";
-	};
-
-	sys-therm@144 {
+	channel@144 {
 		reg = <PM8350_ADC7_AMUX_THM1_100K_PU(1)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
 		label = "sys_therm1";
 	};
 
-	sys-therm@145 {
+	channel@145 {
 		reg = <PM8350_ADC7_AMUX_THM2_100K_PU(1)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
 		label = "sys_therm2";
 	};
 
-	sys-therm@146 {
+	channel@146 {
 		reg = <PM8350_ADC7_AMUX_THM3_100K_PU(1)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
 		label = "sys_therm3";
 	};
 
-	sys-therm@147 {
+	channel@147 {
 		reg = <PM8350_ADC7_AMUX_THM4_100K_PU(1)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
 		label = "sys_therm4";
 	};
 
-	pmic-die-temp@303 {
-		reg = <PM8350_ADC7_DIE_TEMP(3)>;
-		qcom,pre-scaling = <1 1>;
-		label = "pmc8280_2_die_temp";
-	};
-
-	sys-therm@344 {
+	channel@344 {
 		reg = <PM8350_ADC7_AMUX_THM1_100K_PU(3)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
 		label = "sys_therm5";
 	};
 
-	sys-therm@345 {
+	channel@345 {
 		reg = <PM8350_ADC7_AMUX_THM2_100K_PU(3)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
 		label = "sys_therm6";
 	};
 
-	sys-therm@346 {
+	channel@346 {
 		reg = <PM8350_ADC7_AMUX_THM3_100K_PU(3)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
 		label = "sys_therm7";
 	};
 
-	sys-therm@347 {
+	channel@347 {
 		reg = <PM8350_ADC7_AMUX_THM4_100K_PU(3)>;
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
 		label = "sys_therm8";
-	};
-
-	pmic-die-temp@403 {
-		reg = <PMR735A_ADC7_DIE_TEMP>;
-		qcom,pre-scaling = <1 1>;
-		label = "pmr735a_die_temp";
 	};
 };
 
@@ -1183,7 +1169,7 @@
 };
 
 &vamacro {
-	pinctrl-0 = <&dmic01_default>, <&dmic02_default>;
+	pinctrl-0 = <&dmic01_default>, <&dmic23_default>;
 	pinctrl-names = "default";
 
 	vdd-micb-supply = <&vreg_s10b>;
@@ -1246,7 +1232,7 @@
 };
 
 &tlmm {
-	gpio-reserved-ranges = <70 2>, <74 6>, <83 4>, <125 2>, <128 2>, <154 7>;
+	gpio-reserved-ranges = <70 2>, <74 6>, <125 2>, <128 2>, <154 4>;
 
 	bt_default: bt-default-state {
 		hstp-bt-en-pins {
@@ -1261,6 +1247,13 @@
 			function = "gpio";
 			bias-pull-down;
 		};
+	};
+
+	cam_indicator_en: cam-indicator-en-state {
+		pins = "gpio28";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
 	};
 
 	edp_reg_en: edp-reg-en-state {

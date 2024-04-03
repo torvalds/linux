@@ -19,9 +19,9 @@
 
 static struct hvc_struct *hvc_udbg_dev;
 
-static int hvc_udbg_put(uint32_t vtermno, const char *buf, int count)
+static ssize_t hvc_udbg_put(uint32_t vtermno, const u8 *buf, size_t count)
 {
-	int i;
+	size_t i;
 
 	for (i = 0; i < count && udbg_putc; i++)
 		udbg_putc(buf[i]);
@@ -29,9 +29,10 @@ static int hvc_udbg_put(uint32_t vtermno, const char *buf, int count)
 	return i;
 }
 
-static int hvc_udbg_get(uint32_t vtermno, char *buf, int count)
+static ssize_t hvc_udbg_get(uint32_t vtermno, u8 *buf, size_t count)
 {
-	int i, c;
+	size_t i;
+	int c;
 
 	if (!udbg_getc_poll)
 		return 0;

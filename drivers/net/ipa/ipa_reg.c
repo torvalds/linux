@@ -4,6 +4,7 @@
  * Copyright (C) 2019-2023 Linaro Ltd.
  */
 
+#include <linux/platform_device.h>
 #include <linux/io.h>
 
 #include "ipa.h"
@@ -44,12 +45,12 @@ static bool ipa_reg_id_valid(struct ipa *ipa, enum ipa_reg_id reg_id)
 	case DST_RSRC_GRP_45_RSRC_TYPE:
 		return version <= IPA_VERSION_3_1 ||
 		       version == IPA_VERSION_4_5 ||
-		       version == IPA_VERSION_5_0;
+		       version >= IPA_VERSION_5_0;
 
 	case SRC_RSRC_GRP_67_RSRC_TYPE:
 	case DST_RSRC_GRP_67_RSRC_TYPE:
 		return version <= IPA_VERSION_3_1 ||
-		       version == IPA_VERSION_5_0;
+		       version >= IPA_VERSION_5_0;
 
 	case ENDP_FILTER_ROUTER_HSH_CFG:
 		return version < IPA_VERSION_5_0 &&
@@ -125,14 +126,16 @@ static const struct regs *ipa_regs(enum ipa_version version)
 		return &ipa_regs_v4_11;
 	case IPA_VERSION_5_0:
 		return &ipa_regs_v5_0;
+	case IPA_VERSION_5_5:
+		return &ipa_regs_v5_5;
 	default:
 		return NULL;
 	}
 }
 
-int ipa_reg_init(struct ipa *ipa)
+int ipa_reg_init(struct ipa *ipa, struct platform_device *pdev)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = &pdev->dev;
 	const struct regs *regs;
 	struct resource *res;
 
@@ -144,8 +147,7 @@ int ipa_reg_init(struct ipa *ipa)
 		return -EINVAL;
 
 	/* Setup IPA register memory  */
-	res = platform_get_resource_byname(ipa->pdev, IORESOURCE_MEM,
-					   "ipa-reg");
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "ipa-reg");
 	if (!res) {
 		dev_err(dev, "DT error getting \"ipa-reg\" memory property\n");
 		return -ENODEV;

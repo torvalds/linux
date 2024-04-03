@@ -83,15 +83,15 @@
 #define PCIE_BUS_CLK                10000
 #define TCLK                        (PCIE_BUS_CLK / 10)
 
-static struct profile_mode_setting smu7_profiling[7] =
-					{{0, 0, 0, 0, 0, 0, 0, 0},
+static struct profile_mode_setting smu7_profiling[7] = {
+					 {0, 0, 0, 0, 0, 0, 0, 0},
 					 {1, 0, 100, 30, 1, 0, 100, 10},
 					 {1, 10, 0, 30, 0, 0, 0, 0},
 					 {0, 0, 0, 0, 1, 10, 16, 31},
 					 {1, 0, 11, 50, 1, 0, 100, 10},
 					 {1, 0, 5, 30, 0, 0, 0, 0},
 					 {0, 0, 0, 0, 0, 0, 0, 0},
-					};
+};
 
 #define PPSMC_MSG_SetVBITimeout_VEGAM    ((uint16_t) 0x310)
 
@@ -904,7 +904,7 @@ static int smu7_setup_dpm_tables_v1(struct pp_hwmgr *hwmgr)
 					dep_sclk_table->entries[i].clk;
 
 			data->dpm_table.sclk_table.dpm_levels[data->dpm_table.sclk_table.count].enabled =
-					(i == 0) ? true : false;
+					i == 0;
 			data->dpm_table.sclk_table.count++;
 		}
 	}
@@ -919,7 +919,7 @@ static int smu7_setup_dpm_tables_v1(struct pp_hwmgr *hwmgr)
 			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].value =
 							dep_mclk_table->entries[i].clk;
 			data->dpm_table.mclk_table.dpm_levels[data->dpm_table.mclk_table.count].enabled =
-							(i == 0) ? true : false;
+							i == 0;
 			data->dpm_table.mclk_table.count++;
 		}
 	}
@@ -950,7 +950,7 @@ static int smu7_odn_initial_default_setting(struct pp_hwmgr *hwmgr)
 	odn_table->odn_core_clock_dpm_levels.num_of_pl =
 						data->golden_dpm_table.sclk_table.count;
 	entries = odn_table->odn_core_clock_dpm_levels.entries;
-	for (i=0; i<data->golden_dpm_table.sclk_table.count; i++) {
+	for (i = 0; i < data->golden_dpm_table.sclk_table.count; i++) {
 		entries[i].clock = data->golden_dpm_table.sclk_table.dpm_levels[i].value;
 		entries[i].enabled = true;
 		entries[i].vddc = dep_sclk_table->entries[i].vddc;
@@ -962,7 +962,7 @@ static int smu7_odn_initial_default_setting(struct pp_hwmgr *hwmgr)
 	odn_table->odn_memory_clock_dpm_levels.num_of_pl =
 						data->golden_dpm_table.mclk_table.count;
 	entries = odn_table->odn_memory_clock_dpm_levels.entries;
-	for (i=0; i<data->golden_dpm_table.mclk_table.count; i++) {
+	for (i = 0; i < data->golden_dpm_table.mclk_table.count; i++) {
 		entries[i].clock = data->golden_dpm_table.mclk_table.dpm_levels[i].value;
 		entries[i].enabled = true;
 		entries[i].vddc = dep_mclk_table->entries[i].vddc;
@@ -1813,19 +1813,17 @@ static void smu7_init_dpm_defaults(struct pp_hwmgr *hwmgr)
 	data->static_screen_threshold = SMU7_STATICSCREENTHRESHOLD_DFLT;
 	data->static_screen_threshold_unit = SMU7_STATICSCREENTHRESHOLDUNIT_DFLT;
 	data->voting_rights_clients[0] = SMU7_VOTINGRIGHTSCLIENTS_DFLT0;
-	data->voting_rights_clients[1]= SMU7_VOTINGRIGHTSCLIENTS_DFLT1;
+	data->voting_rights_clients[1] = SMU7_VOTINGRIGHTSCLIENTS_DFLT1;
 	data->voting_rights_clients[2] = SMU7_VOTINGRIGHTSCLIENTS_DFLT2;
-	data->voting_rights_clients[3]= SMU7_VOTINGRIGHTSCLIENTS_DFLT3;
-	data->voting_rights_clients[4]= SMU7_VOTINGRIGHTSCLIENTS_DFLT4;
-	data->voting_rights_clients[5]= SMU7_VOTINGRIGHTSCLIENTS_DFLT5;
-	data->voting_rights_clients[6]= SMU7_VOTINGRIGHTSCLIENTS_DFLT6;
-	data->voting_rights_clients[7]= SMU7_VOTINGRIGHTSCLIENTS_DFLT7;
+	data->voting_rights_clients[3] = SMU7_VOTINGRIGHTSCLIENTS_DFLT3;
+	data->voting_rights_clients[4] = SMU7_VOTINGRIGHTSCLIENTS_DFLT4;
+	data->voting_rights_clients[5] = SMU7_VOTINGRIGHTSCLIENTS_DFLT5;
+	data->voting_rights_clients[6] = SMU7_VOTINGRIGHTSCLIENTS_DFLT6;
+	data->voting_rights_clients[7] = SMU7_VOTINGRIGHTSCLIENTS_DFLT7;
 
 	data->mclk_dpm_key_disabled = hwmgr->feature_mask & PP_MCLK_DPM_MASK ? false : true;
 	data->sclk_dpm_key_disabled = hwmgr->feature_mask & PP_SCLK_DPM_MASK ? false : true;
-	data->pcie_dpm_key_disabled =
-		!amdgpu_device_pcie_dynamic_switching_supported() ||
-		!(hwmgr->feature_mask & PP_PCIE_DPM_MASK);
+	data->pcie_dpm_key_disabled = !(hwmgr->feature_mask & PP_PCIE_DPM_MASK);
 	/* need to set voltage control types before EVV patching */
 	data->voltage_control = SMU7_VOLTAGE_CONTROL_NONE;
 	data->vddci_control = SMU7_VOLTAGE_CONTROL_NONE;
@@ -2002,7 +2000,7 @@ static int smu7_calculate_ro_range(struct pp_hwmgr *hwmgr)
 	} else if (ASICID_IS_P21(adev->pdev->device, adev->pdev->revision) ||
 		   ASICID_IS_P31(adev->pdev->device, adev->pdev->revision)) {
 		min = 900;
-		max= 2100;
+		max = 2100;
 	} else if (hwmgr->chip_id == CHIP_POLARIS10) {
 		if (adev->pdev->subsystem_vendor == 0x106B) {
 			min = 1000;
@@ -2976,6 +2974,8 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 		result = smu7_get_evv_voltages(hwmgr);
 		if (result) {
 			pr_info("Get EVV Voltage Failed.  Abort Driver loading!\n");
+			kfree(hwmgr->backend);
+			hwmgr->backend = NULL;
 			return -EINVAL;
 		}
 	} else {
@@ -3021,8 +3021,10 @@ static int smu7_hwmgr_backend_init(struct pp_hwmgr *hwmgr)
 	}
 
 	result = smu7_update_edc_leakage_table(hwmgr);
-	if (result)
+	if (result) {
+		smu7_hwmgr_backend_fini(hwmgr);
 		return result;
+	}
 
 	return 0;
 }
@@ -3997,6 +3999,7 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 	uint32_t sclk, mclk, activity_percent;
 	uint32_t offset, val_vid;
 	struct smu7_hwmgr *data = (struct smu7_hwmgr *)(hwmgr->backend);
+	struct amdgpu_device *adev = hwmgr->adev;
 
 	/* size must be at least 4 bytes for all sensors */
 	if (*size < 4)
@@ -4018,7 +4021,7 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		offset = data->soft_regs_start + smum_get_offsetof(hwmgr,
 								SMU_SoftRegisters,
 								(idx == AMDGPU_PP_SENSOR_GPU_LOAD) ?
-								AverageGraphicsActivity:
+								AverageGraphicsActivity :
 								AverageMemoryActivity);
 
 		activity_percent = cgs_read_ind_register(hwmgr->device, CGS_IND_REG__SMC, offset);
@@ -4039,8 +4042,22 @@ static int smu7_read_sensor(struct pp_hwmgr *hwmgr, int idx,
 		*((uint32_t *)value) = data->vce_power_gated ? 0 : 1;
 		*size = 4;
 		return 0;
-	case AMDGPU_PP_SENSOR_GPU_POWER:
-		return smu7_get_gpu_power(hwmgr, (uint32_t *)value);
+	case AMDGPU_PP_SENSOR_GPU_INPUT_POWER:
+		if ((adev->asic_type != CHIP_HAWAII) &&
+		    (adev->asic_type != CHIP_BONAIRE) &&
+		    (adev->asic_type != CHIP_FIJI) &&
+		    (adev->asic_type != CHIP_TONGA))
+			return smu7_get_gpu_power(hwmgr, (uint32_t *)value);
+		else
+			return -EOPNOTSUPP;
+	case AMDGPU_PP_SENSOR_GPU_AVG_POWER:
+		if ((adev->asic_type != CHIP_HAWAII) &&
+		    (adev->asic_type != CHIP_BONAIRE) &&
+		    (adev->asic_type != CHIP_FIJI) &&
+		    (adev->asic_type != CHIP_TONGA))
+			return -EOPNOTSUPP;
+		else
+			return smu7_get_gpu_power(hwmgr, (uint32_t *)value);
 	case AMDGPU_PP_SENSOR_VDDGFX:
 		if ((data->vr_config & VRCONF_VDDGFX_MASK) ==
 		    (VR_SVI2_PLANE_2 << VRCONF_VDDGFX_SHIFT))

@@ -1400,10 +1400,9 @@ static int sti_hqvdp_probe(struct platform_device *pdev)
 	return component_add(&pdev->dev, &sti_hqvdp_ops);
 }
 
-static int sti_hqvdp_remove(struct platform_device *pdev)
+static void sti_hqvdp_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &sti_hqvdp_ops);
-	return 0;
 }
 
 static const struct of_device_id hqvdp_of_match[] = {
@@ -1419,7 +1418,7 @@ struct platform_driver sti_hqvdp_driver = {
 		.of_match_table = hqvdp_of_match,
 	},
 	.probe = sti_hqvdp_probe,
-	.remove = sti_hqvdp_remove,
+	.remove_new = sti_hqvdp_remove,
 };
 
 MODULE_AUTHOR("Benjamin Gaignard <benjamin.gaignard@st.com>");

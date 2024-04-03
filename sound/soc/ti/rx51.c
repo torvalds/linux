@@ -10,7 +10,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/gpio/consumer.h>
 #include <linux/module.h>
@@ -33,7 +32,6 @@ enum {
 
 struct rx51_audio_pdata {
 	struct gpio_desc *tvout_selection_gpio;
-	struct gpio_desc *jack_detection_gpio;
 	struct gpio_desc *eci_sw_gpio;
 	struct gpio_desc *speaker_amp_gpio;
 };
@@ -90,7 +88,7 @@ static void rx51_ext_control(struct snd_soc_dapm_context *dapm)
 static int rx51_startup(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct snd_soc_card *card = rtd->card;
 
 	snd_pcm_hw_constraint_single(runtime, SNDRV_PCM_HW_PARAM_CHANNELS, 2);
@@ -102,8 +100,8 @@ static int rx51_startup(struct snd_pcm_substream *substream)
 static int rx51_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
-	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
-	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 
 	/* Set the codec system clock for DAC and ADC */
 	return snd_soc_dai_set_sysclk(codec_dai, 0, 19200000,
@@ -198,7 +196,7 @@ static struct snd_soc_jack rx51_av_jack;
 
 static struct snd_soc_jack_gpio rx51_av_jack_gpios[] = {
 	{
-		.name = "avdet-gpio",
+		.name = "jack-detection",
 		.report = SND_JACK_HEADSET,
 		.invert = 1,
 		.debounce_time = 200,
@@ -263,7 +261,6 @@ static const struct snd_kcontrol_new aic34_rx51_controls[] = {
 static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
-	struct rx51_audio_pdata *pdata = snd_soc_card_get_drvdata(card);
 	int err;
 
 	snd_soc_limit_volume(card, "TPA6130A2 Headphone Playback Volume", 42);
@@ -283,9 +280,9 @@ static int rx51_aic34_init(struct snd_soc_pcm_runtime *rtd)
 		return err;
 	}
 
-	/* prepare gpio for snd_soc_jack_add_gpios */
-	rx51_av_jack_gpios[0].gpio = desc_to_gpio(pdata->jack_detection_gpio);
-	devm_gpiod_put(card->dev, pdata->jack_detection_gpio);
+	rx51_av_jack_gpios[0].gpiod_dev = card->dev;
+	/* Name is assigned in the struct */
+	rx51_av_jack_gpios[0].idx = 0;
 
 	err = snd_soc_jack_add_gpios(&rx51_av_jack,
 				     ARRAY_SIZE(rx51_av_jack_gpios),
@@ -423,14 +420,6 @@ static int rx51_soc_probe(struct platform_device *pdev)
 	if (IS_ERR(pdata->tvout_selection_gpio)) {
 		dev_err(card->dev, "could not get tvout selection gpio\n");
 		return PTR_ERR(pdata->tvout_selection_gpio);
-	}
-
-	pdata->jack_detection_gpio = devm_gpiod_get(card->dev,
-						    "jack-detection",
-						    GPIOD_ASIS);
-	if (IS_ERR(pdata->jack_detection_gpio)) {
-		dev_err(card->dev, "could not get jack detection gpio\n");
-		return PTR_ERR(pdata->jack_detection_gpio);
 	}
 
 	pdata->eci_sw_gpio = devm_gpiod_get(card->dev, "eci-switch",

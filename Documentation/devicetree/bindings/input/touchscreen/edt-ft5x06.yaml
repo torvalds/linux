@@ -93,6 +93,12 @@ properties:
     minimum: 1
     maximum: 255
 
+  threshold:
+    description: Allows setting the  "click"-threshold in the range from 0 to 255.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 255
+
   touchscreen-size-x: true
   touchscreen-size-y: true
   touchscreen-fuzz-x: true

@@ -217,7 +217,6 @@
 	SF_DWB2(DWB_OGAM_LUT_DATA, DWBCP, 0, DWB_OGAM_LUT_DATA, mask_sh),\
 	SF_DWB2(DWB_OGAM_LUT_CONTROL, DWBCP, 0, DWB_OGAM_LUT_WRITE_COLOR_MASK, mask_sh),\
 	SF_DWB2(DWB_OGAM_LUT_CONTROL, DWBCP, 0, DWB_OGAM_LUT_READ_COLOR_SEL, mask_sh),\
-	SF_DWB2(DWB_OGAM_LUT_CONTROL, DWBCP, 0, DWB_OGAM_LUT_READ_DBG, mask_sh),\
 	SF_DWB2(DWB_OGAM_LUT_CONTROL, DWBCP, 0, DWB_OGAM_LUT_HOST_SEL, mask_sh),\
 	SF_DWB2(DWB_OGAM_LUT_CONTROL, DWBCP, 0, DWB_OGAM_LUT_CONFIG_MODE, mask_sh),\
 	SF_DWB2(DWB_OGAM_RAMA_START_CNTL_B, DWBCP, 0, DWB_OGAM_RAMA_EXP_REGION_START_B, mask_sh),\
@@ -525,7 +524,6 @@
 	type DWB_OGAM_LUT_DATA;\
 	type DWB_OGAM_LUT_WRITE_COLOR_MASK;\
 	type DWB_OGAM_LUT_READ_COLOR_SEL;\
-	type DWB_OGAM_LUT_READ_DBG;\
 	type DWB_OGAM_LUT_HOST_SEL;\
 	type DWB_OGAM_LUT_CONFIG_MODE;\
 	type DWB_OGAM_LUT_STATUS;\
@@ -878,6 +876,8 @@ bool dwb3_disable(struct dwbc *dwbc);
 bool dwb3_update(struct dwbc *dwbc, struct dc_dwb_params *params);
 
 bool dwb3_is_enabled(struct dwbc *dwbc);
+
+void dwb3_set_fc_enable(struct dwbc *dwbc, enum dwb_frame_capture_enable enable);
 
 void dwb3_set_stereo(struct dwbc *dwbc,
 	struct dwb_stereo_params *stereo_params);

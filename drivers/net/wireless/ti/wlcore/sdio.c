@@ -16,7 +16,6 @@
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/card.h>
 #include <linux/mmc/host.h>
-#include <linux/gpio.h>
 #include <linux/pm_runtime.h>
 #include <linux/printk.h>
 #include <linux/of.h>
@@ -75,8 +74,8 @@ static int __must_check wl12xx_sdio_raw_read(struct device *child, int addr,
 
 	sdio_release_host(func);
 
-	if (WARN_ON(ret))
-		dev_err(child->parent, "sdio read failed (%d)\n", ret);
+	if (ret)
+		dev_err_ratelimited(child->parent, "sdio read failed (%d)\n", ret);
 
 	if (unlikely(dump)) {
 		printk(KERN_DEBUG "wlcore_sdio: READ from 0x%04x\n", addr);
@@ -120,8 +119,8 @@ static int __must_check wl12xx_sdio_raw_write(struct device *child, int addr,
 
 	sdio_release_host(func);
 
-	if (WARN_ON(ret))
-		dev_err(child->parent, "sdio write failed (%d)\n", ret);
+	if (ret)
+		dev_err_ratelimited(child->parent, "sdio write failed (%d)\n", ret);
 
 	return ret;
 }
@@ -442,22 +441,12 @@ static struct sdio_driver wl1271_sdio_driver = {
 #endif
 };
 
-static int __init wl1271_init(void)
-{
-	return sdio_register_driver(&wl1271_sdio_driver);
-}
-
-static void __exit wl1271_exit(void)
-{
-	sdio_unregister_driver(&wl1271_sdio_driver);
-}
-
-module_init(wl1271_init);
-module_exit(wl1271_exit);
+module_sdio_driver(wl1271_sdio_driver);
 
 module_param(dump, bool, 0600);
 MODULE_PARM_DESC(dump, "Enable sdio read/write dumps.");
 
+MODULE_DESCRIPTION("TI WLAN SDIO helpers");
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <coelho@ti.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");

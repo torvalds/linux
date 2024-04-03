@@ -35,41 +35,24 @@ struct msm_dsi {
 	struct drm_device *dev;
 	struct platform_device *pdev;
 
-	/* internal dsi bridge attached to MDP interface */
-	struct drm_bridge *bridge;
-
 	struct mipi_dsi_host *host;
 	struct msm_dsi_phy *phy;
 
-	/*
-	 * external_bridge connected to dsi bridge output
-	 */
-	struct drm_bridge *external_bridge;
-
 	struct device *phy_dev;
 	bool phy_enabled;
-
-	/* the encoder we are hooked to (outside of dsi block) */
-	struct drm_encoder *encoder;
 
 	int id;
 };
 
 /* dsi manager */
-struct drm_bridge *msm_dsi_manager_bridge_init(u8 id);
-void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge);
-int msm_dsi_manager_ext_bridge_init(u8 id);
+struct drm_bridge *msm_dsi_manager_bridge_init(struct msm_dsi *msm_dsi,
+					       struct drm_encoder *encoder);
+int msm_dsi_manager_ext_bridge_init(u8 id, struct drm_bridge *int_bridge);
 int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg);
 bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len);
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi);
 void msm_dsi_manager_unregister(struct msm_dsi *msm_dsi);
 void msm_dsi_manager_tpg_enable(void);
-
-/* msm dsi */
-static inline bool msm_dsi_device_connected(struct msm_dsi *msm_dsi)
-{
-	return msm_dsi->external_bridge;
-}
 
 /* dsi host */
 struct msm_dsi_host;
@@ -125,6 +108,7 @@ int dsi_tx_buf_alloc_v2(struct msm_dsi_host *msm_host, int size);
 void *dsi_tx_buf_get_6g(struct msm_dsi_host *msm_host);
 void *dsi_tx_buf_get_v2(struct msm_dsi_host *msm_host);
 void dsi_tx_buf_put_6g(struct msm_dsi_host *msm_host);
+void msm_dsi_tx_buf_free(struct mipi_dsi_host *mipi_host);
 int dsi_dma_base_get_6g(struct msm_dsi_host *msm_host, uint64_t *iova);
 int dsi_dma_base_get_v2(struct msm_dsi_host *msm_host, uint64_t *iova);
 int dsi_clk_init_v2(struct msm_dsi_host *msm_host);
@@ -134,6 +118,7 @@ int dsi_calc_clk_rate_6g(struct msm_dsi_host *msm_host, bool is_bonded_dsi);
 void msm_dsi_host_snapshot(struct msm_disp_state *disp_state, struct mipi_dsi_host *host);
 void msm_dsi_host_test_pattern_en(struct mipi_dsi_host *host);
 struct drm_dsc_config *msm_dsi_host_get_dsc_config(struct mipi_dsi_host *host);
+bool msm_dsi_host_is_wide_bus_enabled(struct mipi_dsi_host *host);
 
 /* dsi phy */
 struct msm_dsi_phy;

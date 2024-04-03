@@ -6,18 +6,18 @@
 ksft_skip=4
 
 if ! /sbin/modprobe -q -n test_static_key_base; then
-	echo "static_key: module test_static_key_base is not found [SKIP]"
+	echo "static_keys: module test_static_key_base is not found [SKIP]"
 	exit $ksft_skip
 fi
 
 if ! /sbin/modprobe -q -n test_static_keys; then
-	echo "static_key: module test_static_keys is not found [SKIP]"
+	echo "static_keys: module test_static_keys is not found [SKIP]"
 	exit $ksft_skip
 fi
 
 if /sbin/modprobe -q test_static_key_base; then
 	if /sbin/modprobe -q test_static_keys; then
-		echo "static_key: ok"
+		echo "static_keys: ok"
 		/sbin/modprobe -q -r test_static_keys
 		/sbin/modprobe -q -r test_static_key_base
 	else
@@ -25,6 +25,6 @@ if /sbin/modprobe -q test_static_key_base; then
 		/sbin/modprobe -q -r test_static_key_base
 	fi
 else
-	echo "static_key: [FAIL]"
+	echo "static_keys: [FAIL]"
 	exit 1
 fi

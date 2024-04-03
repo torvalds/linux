@@ -72,12 +72,17 @@ EXPORT_SYMBOL_GPL(mwifiex_handle_rx_packet);
 int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 		       struct mwifiex_tx_param *tx_param)
 {
-	int hroom, ret = -1;
+	int hroom, ret;
 	struct mwifiex_adapter *adapter = priv->adapter;
-	u8 *head_ptr;
 	struct txpd *local_tx_pd = NULL;
 	struct mwifiex_sta_node *dest_node;
 	struct ethhdr *hdr = (void *)skb->data;
+
+	if (unlikely(!skb->len ||
+		     skb_headroom(skb) < MWIFIEX_MIN_DATA_HEADER_LEN)) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	hroom = adapter->intf_hdr_len;
 
@@ -88,33 +93,31 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 			dest_node->stats.tx_packets++;
 		}
 
-		head_ptr = mwifiex_process_uap_txpd(priv, skb);
+		mwifiex_process_uap_txpd(priv, skb);
 	} else {
-		head_ptr = mwifiex_process_sta_txpd(priv, skb);
+		mwifiex_process_sta_txpd(priv, skb);
 	}
 
-	if ((adapter->data_sent || adapter->tx_lock_flag) && head_ptr) {
+	if (adapter->data_sent || adapter->tx_lock_flag) {
 		skb_queue_tail(&adapter->tx_data_q, skb);
 		atomic_inc(&adapter->tx_queued);
 		return 0;
 	}
 
-	if (head_ptr) {
-		if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA)
-			local_tx_pd = (struct txpd *)(head_ptr + hroom);
-		if (adapter->iface_type == MWIFIEX_USB) {
-			ret = adapter->if_ops.host_to_card(adapter,
-							   priv->usb_port,
-							   skb, tx_param);
-		} else {
-			ret = adapter->if_ops.host_to_card(adapter,
-							   MWIFIEX_TYPE_DATA,
-							   skb, tx_param);
-		}
+	if (GET_BSS_ROLE(priv) == MWIFIEX_BSS_ROLE_STA)
+		local_tx_pd = (struct txpd *)(skb->data + hroom);
+	if (adapter->iface_type == MWIFIEX_USB) {
+		ret = adapter->if_ops.host_to_card(adapter,
+						   priv->usb_port,
+						   skb, tx_param);
+	} else {
+		ret = adapter->if_ops.host_to_card(adapter,
+						   MWIFIEX_TYPE_DATA,
+						   skb, tx_param);
 	}
 	mwifiex_dbg_dump(adapter, DAT_D, "tx pkt:", skb->data,
 			 min_t(size_t, skb->len, DEBUG_DUMP_DATA_MAX_LEN));
-
+out:
 	switch (ret) {
 	case -ENOSR:
 		mwifiex_dbg(adapter, DATA, "data: -ENOSR is returned\n");
@@ -137,6 +140,11 @@ int mwifiex_process_tx(struct mwifiex_private *priv, struct sk_buff *skb,
 		break;
 	case -EINPROGRESS:
 		break;
+	case -EINVAL:
+		mwifiex_dbg(adapter, ERROR,
+			    "malformed skb (length: %u, headroom: %u)\n",
+			    skb->len, skb_headroom(skb));
+		fallthrough;
 	case 0:
 		mwifiex_write_data_complete(adapter, skb, 0, ret);
 		break;

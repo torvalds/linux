@@ -16,6 +16,7 @@
 #include "mcdi_pcol.h"
 #include "mcdi_pcol_mae.h"
 #include "tc_encap_actions.h"
+#include "tc_conntrack.h"
 
 int efx_mae_allocate_mport(struct efx_nic *efx, u32 *id, u32 *label)
 {
@@ -225,6 +226,256 @@ void efx_mae_counters_grant_credits(struct work_struct *work)
 	if (!efx_mcdi_rpc(efx, MC_CMD_MAE_COUNTERS_STREAM_GIVE_CREDITS,
 			  inbuf, sizeof(inbuf), NULL, 0, NULL))
 		rx_queue->granted_count += credits;
+}
+
+static int efx_mae_table_get_desc(struct efx_nic *efx,
+				  struct efx_tc_table_desc *desc,
+				  u32 table_id)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_TABLE_DESCRIPTOR_OUT_LEN(16));
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_TABLE_DESCRIPTOR_IN_LEN);
+	unsigned int offset = 0, i;
+	size_t outlen;
+	int rc;
+
+	memset(desc, 0, sizeof(*desc));
+
+	MCDI_SET_DWORD(inbuf, TABLE_DESCRIPTOR_IN_TABLE_ID, table_id);
+more:
+	MCDI_SET_DWORD(inbuf, TABLE_DESCRIPTOR_IN_FIRST_FIELDS_INDEX, offset);
+	rc = efx_mcdi_rpc(efx, MC_CMD_TABLE_DESCRIPTOR, inbuf, sizeof(inbuf),
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		goto fail;
+	if (outlen < MC_CMD_TABLE_DESCRIPTOR_OUT_LEN(1)) {
+		rc = -EIO;
+		goto fail;
+	}
+	if (!offset) { /* first iteration: get metadata */
+		desc->type = MCDI_WORD(outbuf, TABLE_DESCRIPTOR_OUT_TYPE);
+		desc->key_width = MCDI_WORD(outbuf, TABLE_DESCRIPTOR_OUT_KEY_WIDTH);
+		desc->resp_width = MCDI_WORD(outbuf, TABLE_DESCRIPTOR_OUT_RESP_WIDTH);
+		desc->n_keys = MCDI_WORD(outbuf, TABLE_DESCRIPTOR_OUT_N_KEY_FIELDS);
+		desc->n_resps = MCDI_WORD(outbuf, TABLE_DESCRIPTOR_OUT_N_RESP_FIELDS);
+		desc->n_prios = MCDI_WORD(outbuf, TABLE_DESCRIPTOR_OUT_N_PRIORITIES);
+		desc->flags = MCDI_BYTE(outbuf, TABLE_DESCRIPTOR_OUT_FLAGS);
+		rc = -EOPNOTSUPP;
+		if (desc->flags)
+			goto fail;
+		desc->scheme = MCDI_BYTE(outbuf, TABLE_DESCRIPTOR_OUT_SCHEME);
+		if (desc->scheme)
+			goto fail;
+		rc = -ENOMEM;
+		desc->keys = kcalloc(desc->n_keys,
+				     sizeof(struct efx_tc_table_field_fmt),
+				     GFP_KERNEL);
+		if (!desc->keys)
+			goto fail;
+		desc->resps = kcalloc(desc->n_resps,
+				      sizeof(struct efx_tc_table_field_fmt),
+				      GFP_KERNEL);
+		if (!desc->resps)
+			goto fail;
+	}
+	/* FW could have returned more than the 16 field_descrs we
+	 * made room for in our outbuf
+	 */
+	outlen = min(outlen, sizeof(outbuf));
+	for (i = 0; i + offset < desc->n_keys + desc->n_resps; i++) {
+		struct efx_tc_table_field_fmt *field;
+		MCDI_DECLARE_STRUCT_PTR(fdesc);
+
+		if (outlen < MC_CMD_TABLE_DESCRIPTOR_OUT_LEN(i + 1)) {
+			offset += i;
+			goto more;
+		}
+		if (i + offset < desc->n_keys)
+			field = desc->keys + i + offset;
+		else
+			field = desc->resps + (i + offset - desc->n_keys);
+		fdesc = MCDI_ARRAY_STRUCT_PTR(outbuf,
+					      TABLE_DESCRIPTOR_OUT_FIELDS, i);
+		field->field_id = MCDI_STRUCT_WORD(fdesc,
+						   TABLE_FIELD_DESCR_FIELD_ID);
+		field->lbn = MCDI_STRUCT_WORD(fdesc, TABLE_FIELD_DESCR_LBN);
+		field->width = MCDI_STRUCT_WORD(fdesc, TABLE_FIELD_DESCR_WIDTH);
+		field->masking = MCDI_STRUCT_BYTE(fdesc, TABLE_FIELD_DESCR_MASK_TYPE);
+		field->scheme = MCDI_STRUCT_BYTE(fdesc, TABLE_FIELD_DESCR_SCHEME);
+	}
+	return 0;
+
+fail:
+	kfree(desc->keys);
+	kfree(desc->resps);
+	return rc;
+}
+
+static int efx_mae_table_hook_find(u16 n_fields,
+				   struct efx_tc_table_field_fmt *fields,
+				   u16 field_id)
+{
+	unsigned int i;
+
+	for (i = 0; i < n_fields; i++) {
+		if (fields[i].field_id == field_id)
+			return i;
+	}
+	return -EPROTO;
+}
+
+#define TABLE_FIND_KEY(_desc, _id)	\
+	efx_mae_table_hook_find((_desc)->n_keys, (_desc)->keys, _id)
+#define TABLE_FIND_RESP(_desc, _id)	\
+	efx_mae_table_hook_find((_desc)->n_resps, (_desc)->resps, _id)
+
+#define TABLE_HOOK_KEY(_meta, _name, _mcdi_name)	({			\
+	int _rc = TABLE_FIND_KEY(&_meta->desc, TABLE_FIELD_ID_##_mcdi_name);	\
+										\
+	if (_rc > U8_MAX)							\
+		_rc = -EOPNOTSUPP;						\
+	if (_rc >= 0) {								\
+		_meta->keys._name##_idx = _rc;					\
+		_rc = 0;							\
+	}									\
+	_rc;									\
+})
+#define TABLE_HOOK_RESP(_meta, _name, _mcdi_name)	({			\
+	int _rc = TABLE_FIND_RESP(&_meta->desc, TABLE_FIELD_ID_##_mcdi_name);	\
+										\
+	if (_rc > U8_MAX)							\
+		_rc = -EOPNOTSUPP;						\
+	if (_rc >= 0) {								\
+		_meta->resps._name##_idx = _rc;					\
+		_rc = 0;							\
+	}									\
+	_rc;									\
+})
+
+static int efx_mae_table_hook_ct(struct efx_nic *efx,
+				 struct efx_tc_table_ct *meta_ct)
+{
+	int rc;
+
+	rc = TABLE_HOOK_KEY(meta_ct, eth_proto, ETHER_TYPE);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_KEY(meta_ct, ip_proto, IP_PROTO);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_KEY(meta_ct, src_ip, SRC_IP);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_KEY(meta_ct, dst_ip, DST_IP);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_KEY(meta_ct, l4_sport, SRC_PORT);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_KEY(meta_ct, l4_dport, DST_PORT);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_KEY(meta_ct, zone, DOMAIN);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_RESP(meta_ct, dnat, NAT_DIR);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_RESP(meta_ct, nat_ip, NAT_IP);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_RESP(meta_ct, l4_natport, NAT_PORT);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_RESP(meta_ct, mark, CT_MARK);
+	if (rc)
+		return rc;
+	rc = TABLE_HOOK_RESP(meta_ct, counter_id, COUNTER_ID);
+	if (rc)
+		return rc;
+	meta_ct->hooked = true;
+	return 0;
+}
+
+static void efx_mae_table_free_desc(struct efx_tc_table_desc *desc)
+{
+	kfree(desc->keys);
+	kfree(desc->resps);
+	memset(desc, 0, sizeof(*desc));
+}
+
+static bool efx_mae_check_table_exists(struct efx_nic *efx, u32 tbl_req)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_TABLE_LIST_OUT_LEN(16));
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_TABLE_LIST_IN_LEN);
+	u32 tbl_id, tbl_total, tbl_cnt, pos = 0;
+	size_t outlen, msg_max;
+	bool ct_tbl = false;
+	int rc, idx;
+
+	msg_max = sizeof(outbuf);
+	efx->tc->meta_ct.hooked = false;
+more:
+	memset(outbuf, 0, sizeof(*outbuf));
+	MCDI_SET_DWORD(inbuf, TABLE_LIST_IN_FIRST_TABLE_ID_INDEX, pos);
+	rc = efx_mcdi_rpc(efx, MC_CMD_TABLE_LIST, inbuf, sizeof(inbuf), outbuf,
+			  msg_max, &outlen);
+	if (rc)
+		return false;
+
+	if (outlen < MC_CMD_TABLE_LIST_OUT_LEN(1))
+		return false;
+
+	tbl_total = MCDI_DWORD(outbuf, TABLE_LIST_OUT_N_TABLES);
+	tbl_cnt = MC_CMD_TABLE_LIST_OUT_TABLE_ID_NUM(min(outlen, msg_max));
+
+	for (idx = 0; idx < tbl_cnt; idx++) {
+		tbl_id = MCDI_ARRAY_DWORD(outbuf, TABLE_LIST_OUT_TABLE_ID, idx);
+		if (tbl_id == tbl_req) {
+			ct_tbl = true;
+			break;
+		}
+	}
+
+	pos += tbl_cnt;
+	if (!ct_tbl && pos < tbl_total)
+		goto more;
+
+	return ct_tbl;
+}
+
+int efx_mae_get_tables(struct efx_nic *efx)
+{
+	int rc;
+
+	efx->tc->meta_ct.hooked = false;
+	if (efx_mae_check_table_exists(efx, TABLE_ID_CONNTRACK_TABLE)) {
+		rc = efx_mae_table_get_desc(efx, &efx->tc->meta_ct.desc,
+					    TABLE_ID_CONNTRACK_TABLE);
+		if (rc) {
+			pci_info(efx->pci_dev,
+				 "FW does not support conntrack desc rc %d\n",
+				 rc);
+			return 0;
+		}
+
+		rc = efx_mae_table_hook_ct(efx, &efx->tc->meta_ct);
+		if (rc) {
+			pci_info(efx->pci_dev,
+				 "FW does not support conntrack hook rc %d\n",
+				 rc);
+			return 0;
+		}
+	} else {
+		pci_info(efx->pci_dev,
+			 "FW does not support conntrack table\n");
+	}
+	return 0;
+}
+
+void efx_mae_free_tables(struct efx_nic *efx)
+{
+	efx_mae_table_free_desc(&efx->tc->meta_ct.desc);
+	efx->tc->meta_ct.hooked = false;
 }
 
 static int efx_mae_get_basic_caps(struct efx_nic *efx, struct mae_caps *caps)
@@ -444,8 +695,13 @@ int efx_mae_match_check_caps(struct efx_nic *efx,
 	    CHECK(L4_SPORT, l4_sport) ||
 	    CHECK(L4_DPORT, l4_dport) ||
 	    CHECK(TCP_FLAGS, tcp_flags) ||
+	    CHECK_BIT(TCP_SYN_FIN_RST, tcp_syn_fin_rst) ||
 	    CHECK_BIT(IS_IP_FRAG, ip_frag) ||
 	    CHECK_BIT(IP_FIRST_FRAG, ip_firstfrag) ||
+	    CHECK_BIT(DO_CT, ct_state_trk) ||
+	    CHECK_BIT(CT_HIT, ct_state_est) ||
+	    CHECK(CT_MARK, ct_mark) ||
+	    CHECK(CT_DOMAIN, ct_zone) ||
 	    CHECK(RECIRC_ID, recirc_id))
 		return rc;
 	/* Matches on outer fields are done in a separate hardware table,
@@ -471,6 +727,90 @@ int efx_mae_match_check_caps(struct efx_nic *efx,
 	}
 	return 0;
 }
+
+/* Checks for match fields not supported in LHS Outer Rules */
+#define UNSUPPORTED(_field)	({					       \
+	enum mask_type typ = classify_mask((const u8 *)&mask->_field,	       \
+					   sizeof(mask->_field));	       \
+									       \
+	if (typ != MASK_ZEROES) {					       \
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported match field " #_field);\
+		rc = -EOPNOTSUPP;					       \
+	}								       \
+	rc;								       \
+})
+#define UNSUPPORTED_BIT(_field)	({					       \
+	if (mask->_field) {						       \
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported match field " #_field);\
+		rc = -EOPNOTSUPP;					       \
+	}								       \
+	rc;								       \
+})
+
+/* LHS rules are (normally) inserted in the Outer Rule table, which means
+ * they use ENC_ fields in hardware to match regular (not enc_) fields from
+ * &struct efx_tc_match_fields.
+ */
+int efx_mae_match_check_caps_lhs(struct efx_nic *efx,
+				 const struct efx_tc_match_fields *mask,
+				 struct netlink_ext_ack *extack)
+{
+	const u8 *supported_fields = efx->tc->caps->outer_rule_fields;
+	__be32 ingress_port = cpu_to_be32(mask->ingress_port);
+	enum mask_type ingress_port_mask_type;
+	int rc;
+
+	/* Check for _PREFIX assumes big-endian, so we need to convert */
+	ingress_port_mask_type = classify_mask((const u8 *)&ingress_port,
+					       sizeof(ingress_port));
+	rc = efx_mae_match_check_cap_typ(supported_fields[MAE_FIELD_INGRESS_PORT],
+					 ingress_port_mask_type);
+	if (rc) {
+		NL_SET_ERR_MSG_FMT_MOD(extack, "No support for %s mask in field %s\n",
+				       mask_type_name(ingress_port_mask_type),
+				       "ingress_port");
+		return rc;
+	}
+	if (CHECK(ENC_ETHER_TYPE, eth_proto) ||
+	    CHECK(ENC_VLAN0_TCI, vlan_tci[0]) ||
+	    CHECK(ENC_VLAN0_PROTO, vlan_proto[0]) ||
+	    CHECK(ENC_VLAN1_TCI, vlan_tci[1]) ||
+	    CHECK(ENC_VLAN1_PROTO, vlan_proto[1]) ||
+	    CHECK(ENC_ETH_SADDR, eth_saddr) ||
+	    CHECK(ENC_ETH_DADDR, eth_daddr) ||
+	    CHECK(ENC_IP_PROTO, ip_proto) ||
+	    CHECK(ENC_IP_TOS, ip_tos) ||
+	    CHECK(ENC_IP_TTL, ip_ttl) ||
+	    CHECK_BIT(ENC_IP_FRAG, ip_frag) ||
+	    UNSUPPORTED_BIT(ip_firstfrag) ||
+	    CHECK(ENC_SRC_IP4, src_ip) ||
+	    CHECK(ENC_DST_IP4, dst_ip) ||
+#ifdef CONFIG_IPV6
+	    CHECK(ENC_SRC_IP6, src_ip6) ||
+	    CHECK(ENC_DST_IP6, dst_ip6) ||
+#endif
+	    CHECK(ENC_L4_SPORT, l4_sport) ||
+	    CHECK(ENC_L4_DPORT, l4_dport) ||
+	    UNSUPPORTED(tcp_flags) ||
+	    CHECK_BIT(TCP_SYN_FIN_RST, tcp_syn_fin_rst))
+		return rc;
+	if (efx_tc_match_is_encap(mask)) {
+		/* can't happen; disallowed for local rules, translated
+		 * for foreign rules.
+		 */
+		NL_SET_ERR_MSG_MOD(extack, "Unexpected encap match in LHS rule");
+		return -EOPNOTSUPP;
+	}
+	if (UNSUPPORTED(enc_keyid) ||
+	    /* Can't filter on conntrack in LHS rules */
+	    UNSUPPORTED_BIT(ct_state_trk) ||
+	    UNSUPPORTED_BIT(ct_state_est) ||
+	    UNSUPPORTED(ct_mark) ||
+	    UNSUPPORTED(recirc_id))
+		return rc;
+	return 0;
+}
+#undef UNSUPPORTED
 #undef CHECK_BIT
 #undef CHECK
 
@@ -879,6 +1219,71 @@ fail:
 	return rc;
 }
 
+/**
+ * efx_mae_allocate_pedit_mac() - allocate pedit MAC address in HW.
+ * @efx:	NIC we're installing a pedit MAC address on
+ * @ped:	pedit MAC action to be installed
+ *
+ * Attempts to install @ped in HW and populates its id with an index of this
+ * entry in the firmware MAC address table on success.
+ *
+ * Return: negative value on error, 0 in success.
+ */
+int efx_mae_allocate_pedit_mac(struct efx_nic *efx,
+			       struct efx_tc_mac_pedit_action *ped)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_MAC_ADDR_ALLOC_OUT_LEN);
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_MAC_ADDR_ALLOC_IN_LEN);
+	size_t outlen;
+	int rc;
+
+	BUILD_BUG_ON(MC_CMD_MAE_MAC_ADDR_ALLOC_IN_MAC_ADDR_LEN !=
+		     sizeof(ped->h_addr));
+	memcpy(MCDI_PTR(inbuf, MAE_MAC_ADDR_ALLOC_IN_MAC_ADDR), ped->h_addr,
+	       sizeof(ped->h_addr));
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_MAC_ADDR_ALLOC, inbuf, sizeof(inbuf),
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+	ped->fw_id = MCDI_DWORD(outbuf, MAE_MAC_ADDR_ALLOC_OUT_MAC_ID);
+	return 0;
+}
+
+/**
+ * efx_mae_free_pedit_mac() - free pedit MAC address in HW.
+ * @efx:	NIC we're installing a pedit MAC address on
+ * @ped:	pedit MAC action that needs to be freed
+ *
+ * Frees @ped in HW, check that firmware did not free a different one and clears
+ * the id (which denotes the index of the entry in the MAC address table).
+ */
+void efx_mae_free_pedit_mac(struct efx_nic *efx,
+			    struct efx_tc_mac_pedit_action *ped)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_MAC_ADDR_FREE_OUT_LEN(1));
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_MAC_ADDR_FREE_IN_LEN(1));
+	size_t outlen;
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, MAE_MAC_ADDR_FREE_IN_MAC_ID, ped->fw_id);
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_MAC_ADDR_FREE, inbuf,
+			  sizeof(inbuf), outbuf, sizeof(outbuf), &outlen);
+	if (rc || outlen < sizeof(outbuf))
+		return;
+	/* FW freed a different ID than we asked for, should also never happen.
+	 * Warn because it means we've now got a different idea to the FW of
+	 * what MAC addresses exist, which could cause mayhem later.
+	 */
+	if (WARN_ON(MCDI_DWORD(outbuf, MAE_MAC_ADDR_FREE_OUT_FREED_MAC_ID) != ped->fw_id))
+		return;
+	/* We're probably about to free @ped, but let's just make sure its
+	 * fw_id is blatted so that it won't look valid if it leaks out.
+	 */
+	ped->fw_id = MC_CMD_MAE_MAC_ADDR_ALLOC_OUT_MAC_ID_NULL;
+}
+
 int efx_mae_alloc_action_set(struct efx_nic *efx, struct efx_tc_action_set *act)
 {
 	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_ACTION_SET_ALLOC_OUT_LEN);
@@ -886,15 +1291,28 @@ int efx_mae_alloc_action_set(struct efx_nic *efx, struct efx_tc_action_set *act)
 	size_t outlen;
 	int rc;
 
-	MCDI_POPULATE_DWORD_3(inbuf, MAE_ACTION_SET_ALLOC_IN_FLAGS,
+	MCDI_POPULATE_DWORD_5(inbuf, MAE_ACTION_SET_ALLOC_IN_FLAGS,
 			      MAE_ACTION_SET_ALLOC_IN_VLAN_PUSH, act->vlan_push,
 			      MAE_ACTION_SET_ALLOC_IN_VLAN_POP, act->vlan_pop,
-			      MAE_ACTION_SET_ALLOC_IN_DECAP, act->decap);
+			      MAE_ACTION_SET_ALLOC_IN_DECAP, act->decap,
+			      MAE_ACTION_SET_ALLOC_IN_DO_NAT, act->do_nat,
+			      MAE_ACTION_SET_ALLOC_IN_DO_DECR_IP_TTL,
+			      act->do_ttl_dec);
 
-	MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_SRC_MAC_ID,
-		       MC_CMD_MAE_MAC_ADDR_ALLOC_OUT_MAC_ID_NULL);
-	MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_DST_MAC_ID,
-		       MC_CMD_MAE_MAC_ADDR_ALLOC_OUT_MAC_ID_NULL);
+	if (act->src_mac)
+		MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_SRC_MAC_ID,
+			       act->src_mac->fw_id);
+	else
+		MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_SRC_MAC_ID,
+			       MC_CMD_MAE_MAC_ADDR_ALLOC_OUT_MAC_ID_NULL);
+
+	if (act->dst_mac)
+		MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_DST_MAC_ID,
+			       act->dst_mac->fw_id);
+	else
+		MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_DST_MAC_ID,
+			       MC_CMD_MAE_MAC_ADDR_ALLOC_OUT_MAC_ID_NULL);
+
 	if (act->count && !WARN_ON(!act->count->cnt))
 		MCDI_SET_DWORD(inbuf, MAE_ACTION_SET_ALLOC_IN_COUNTER_ID,
 			       act->count->cnt->fw_id);
@@ -1153,6 +1571,520 @@ int efx_mae_unregister_encap_match(struct efx_nic *efx,
 	return 0;
 }
 
+static int efx_mae_populate_lhs_match_criteria(MCDI_DECLARE_STRUCT_PTR(match_crit),
+					       const struct efx_tc_match *match)
+{
+	if (match->mask.ingress_port) {
+		if (~match->mask.ingress_port)
+			return -EOPNOTSUPP;
+		MCDI_STRUCT_SET_DWORD(match_crit,
+				      MAE_ENC_FIELD_PAIRS_INGRESS_MPORT_SELECTOR,
+				      match->value.ingress_port);
+	}
+	MCDI_STRUCT_SET_DWORD(match_crit, MAE_ENC_FIELD_PAIRS_INGRESS_MPORT_SELECTOR_MASK,
+			      match->mask.ingress_port);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_ETHER_TYPE_BE,
+				match->value.eth_proto);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_ETHER_TYPE_BE_MASK,
+				match->mask.eth_proto);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_VLAN0_TCI_BE,
+				match->value.vlan_tci[0]);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_VLAN0_TCI_BE_MASK,
+				match->mask.vlan_tci[0]);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_VLAN0_PROTO_BE,
+				match->value.vlan_proto[0]);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_VLAN0_PROTO_BE_MASK,
+				match->mask.vlan_proto[0]);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_VLAN1_TCI_BE,
+				match->value.vlan_tci[1]);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_VLAN1_TCI_BE_MASK,
+				match->mask.vlan_tci[1]);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_VLAN1_PROTO_BE,
+				match->value.vlan_proto[1]);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_VLAN1_PROTO_BE_MASK,
+				match->mask.vlan_proto[1]);
+	memcpy(MCDI_STRUCT_PTR(match_crit, MAE_ENC_FIELD_PAIRS_ENC_ETH_SADDR_BE),
+	       match->value.eth_saddr, ETH_ALEN);
+	memcpy(MCDI_STRUCT_PTR(match_crit, MAE_ENC_FIELD_PAIRS_ENC_ETH_SADDR_BE_MASK),
+	       match->mask.eth_saddr, ETH_ALEN);
+	memcpy(MCDI_STRUCT_PTR(match_crit, MAE_ENC_FIELD_PAIRS_ENC_ETH_DADDR_BE),
+	       match->value.eth_daddr, ETH_ALEN);
+	memcpy(MCDI_STRUCT_PTR(match_crit, MAE_ENC_FIELD_PAIRS_ENC_ETH_DADDR_BE_MASK),
+	       match->mask.eth_daddr, ETH_ALEN);
+	MCDI_STRUCT_SET_BYTE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_IP_PROTO,
+			     match->value.ip_proto);
+	MCDI_STRUCT_SET_BYTE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_IP_PROTO_MASK,
+			     match->mask.ip_proto);
+	MCDI_STRUCT_SET_BYTE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_IP_TOS,
+			     match->value.ip_tos);
+	MCDI_STRUCT_SET_BYTE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_IP_TOS_MASK,
+			     match->mask.ip_tos);
+	MCDI_STRUCT_SET_BYTE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_IP_TTL,
+			     match->value.ip_ttl);
+	MCDI_STRUCT_SET_BYTE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_IP_TTL_MASK,
+			     match->mask.ip_ttl);
+	MCDI_STRUCT_POPULATE_BYTE_1(match_crit,
+				    MAE_ENC_FIELD_PAIRS_ENC_VLAN_FLAGS,
+				    MAE_ENC_FIELD_PAIRS_ENC_IP_FRAG,
+				    match->value.ip_frag);
+	MCDI_STRUCT_POPULATE_BYTE_1(match_crit,
+				    MAE_ENC_FIELD_PAIRS_ENC_VLAN_FLAGS_MASK,
+				    MAE_ENC_FIELD_PAIRS_ENC_IP_FRAG_MASK,
+				    match->mask.ip_frag);
+	MCDI_STRUCT_SET_DWORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_SRC_IP4_BE,
+				 match->value.src_ip);
+	MCDI_STRUCT_SET_DWORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_SRC_IP4_BE_MASK,
+				 match->mask.src_ip);
+	MCDI_STRUCT_SET_DWORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_DST_IP4_BE,
+				 match->value.dst_ip);
+	MCDI_STRUCT_SET_DWORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_DST_IP4_BE_MASK,
+				 match->mask.dst_ip);
+#ifdef CONFIG_IPV6
+	memcpy(MCDI_STRUCT_PTR(match_crit, MAE_ENC_FIELD_PAIRS_ENC_SRC_IP6_BE),
+	       &match->value.src_ip6, sizeof(struct in6_addr));
+	memcpy(MCDI_STRUCT_PTR(match_crit, MAE_ENC_FIELD_PAIRS_ENC_SRC_IP6_BE_MASK),
+	       &match->mask.src_ip6, sizeof(struct in6_addr));
+	memcpy(MCDI_STRUCT_PTR(match_crit, MAE_ENC_FIELD_PAIRS_ENC_DST_IP6_BE),
+	       &match->value.dst_ip6, sizeof(struct in6_addr));
+	memcpy(MCDI_STRUCT_PTR(match_crit, MAE_ENC_FIELD_PAIRS_ENC_DST_IP6_BE_MASK),
+	       &match->mask.dst_ip6, sizeof(struct in6_addr));
+#endif
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_L4_SPORT_BE,
+				match->value.l4_sport);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_L4_SPORT_BE_MASK,
+				match->mask.l4_sport);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_L4_DPORT_BE,
+				match->value.l4_dport);
+	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_ENC_FIELD_PAIRS_ENC_L4_DPORT_BE_MASK,
+				match->mask.l4_dport);
+	/* No enc-keys in LHS rules.  Caps check should have caught this; any
+	 * enc-keys from an fLHS should have been translated to regular keys
+	 * and any EM should be a pseudo (we're an OR so can't have a direct
+	 * EM with another OR).
+	 */
+	if (WARN_ON_ONCE(match->encap && !match->encap->type))
+		return -EOPNOTSUPP;
+	if (WARN_ON_ONCE(match->mask.enc_src_ip))
+		return -EOPNOTSUPP;
+	if (WARN_ON_ONCE(match->mask.enc_dst_ip))
+		return -EOPNOTSUPP;
+#ifdef CONFIG_IPV6
+	if (WARN_ON_ONCE(!ipv6_addr_any(&match->mask.enc_src_ip6)))
+		return -EOPNOTSUPP;
+	if (WARN_ON_ONCE(!ipv6_addr_any(&match->mask.enc_dst_ip6)))
+		return -EOPNOTSUPP;
+#endif
+	if (WARN_ON_ONCE(match->mask.enc_ip_tos))
+		return -EOPNOTSUPP;
+	if (WARN_ON_ONCE(match->mask.enc_ip_ttl))
+		return -EOPNOTSUPP;
+	if (WARN_ON_ONCE(match->mask.enc_sport))
+		return -EOPNOTSUPP;
+	if (WARN_ON_ONCE(match->mask.enc_dport))
+		return -EOPNOTSUPP;
+	if (WARN_ON_ONCE(match->mask.enc_keyid))
+		return -EOPNOTSUPP;
+	return 0;
+}
+
+static int efx_mae_insert_lhs_outer_rule(struct efx_nic *efx,
+					 struct efx_tc_lhs_rule *rule, u32 prio)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_OUTER_RULE_INSERT_IN_LEN(MAE_ENC_FIELD_PAIRS_LEN));
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_OUTER_RULE_INSERT_OUT_LEN);
+	MCDI_DECLARE_STRUCT_PTR(match_crit);
+	const struct efx_tc_lhs_action *act;
+	size_t outlen;
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, MAE_OUTER_RULE_INSERT_IN_PRIO, prio);
+	/* match */
+	match_crit = _MCDI_DWORD(inbuf, MAE_OUTER_RULE_INSERT_IN_FIELD_MATCH_CRITERIA);
+	rc = efx_mae_populate_lhs_match_criteria(match_crit, &rule->match);
+	if (rc)
+		return rc;
+
+	/* action */
+	act = &rule->lhs_act;
+	rc = efx_mae_encap_type_to_mae_type(act->tun_type);
+	if (rc < 0)
+		return rc;
+	MCDI_SET_DWORD(inbuf, MAE_OUTER_RULE_INSERT_IN_ENCAP_TYPE, rc);
+	/* We always inhibit CT lookup on TCP_INTERESTING_FLAGS, since the
+	 * SW path needs to process the packet to update the conntrack tables
+	 * on connection establishment (SYN) or termination (FIN, RST).
+	 */
+	MCDI_POPULATE_DWORD_6(inbuf, MAE_OUTER_RULE_INSERT_IN_LOOKUP_CONTROL,
+			      MAE_OUTER_RULE_INSERT_IN_DO_CT, !!act->zone,
+			      MAE_OUTER_RULE_INSERT_IN_CT_TCP_FLAGS_INHIBIT, 1,
+			      MAE_OUTER_RULE_INSERT_IN_CT_DOMAIN,
+			      act->zone ? act->zone->zone : 0,
+			      MAE_OUTER_RULE_INSERT_IN_CT_VNI_MODE,
+			      MAE_CT_VNI_MODE_ZERO,
+			      MAE_OUTER_RULE_INSERT_IN_DO_COUNT, !!act->count,
+			      MAE_OUTER_RULE_INSERT_IN_RECIRC_ID,
+			      act->rid ? act->rid->fw_id : 0);
+	if (act->count)
+		MCDI_SET_DWORD(inbuf, MAE_OUTER_RULE_INSERT_IN_COUNTER_ID,
+			       act->count->cnt->fw_id);
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_OUTER_RULE_INSERT, inbuf,
+			  sizeof(inbuf), outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+	rule->fw_id = MCDI_DWORD(outbuf, MAE_OUTER_RULE_INSERT_OUT_OR_ID);
+	return 0;
+}
+
+static int efx_mae_populate_match_criteria(MCDI_DECLARE_STRUCT_PTR(match_crit),
+					   const struct efx_tc_match *match);
+
+static int efx_mae_insert_lhs_action_rule(struct efx_nic *efx,
+					  struct efx_tc_lhs_rule *rule,
+					  u32 prio)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_ACTION_RULE_INSERT_IN_LEN(MAE_FIELD_MASK_VALUE_PAIRS_V2_LEN));
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_ACTION_RULE_INSERT_OUT_LEN);
+	struct efx_tc_lhs_action *act = &rule->lhs_act;
+	MCDI_DECLARE_STRUCT_PTR(match_crit);
+	MCDI_DECLARE_STRUCT_PTR(response);
+	size_t outlen;
+	int rc;
+
+	match_crit = _MCDI_DWORD(inbuf, MAE_ACTION_RULE_INSERT_IN_MATCH_CRITERIA);
+	response = _MCDI_DWORD(inbuf, MAE_ACTION_RULE_INSERT_IN_RESPONSE);
+	MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_ASL_ID,
+			      MC_CMD_MAE_ACTION_SET_LIST_ALLOC_OUT_ACTION_SET_LIST_ID_NULL);
+	MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_AS_ID,
+			      MC_CMD_MAE_ACTION_SET_ALLOC_OUT_ACTION_SET_ID_NULL);
+	EFX_POPULATE_DWORD_5(*_MCDI_STRUCT_DWORD(response, MAE_ACTION_RULE_RESPONSE_LOOKUP_CONTROL),
+			     MAE_ACTION_RULE_RESPONSE_DO_CT, !!act->zone,
+			     MAE_ACTION_RULE_RESPONSE_DO_RECIRC,
+			     act->rid && !act->zone,
+			     MAE_ACTION_RULE_RESPONSE_CT_VNI_MODE,
+			     MAE_CT_VNI_MODE_ZERO,
+			     MAE_ACTION_RULE_RESPONSE_RECIRC_ID,
+			     act->rid ? act->rid->fw_id : 0,
+			     MAE_ACTION_RULE_RESPONSE_CT_DOMAIN,
+			     act->zone ? act->zone->zone : 0);
+	MCDI_STRUCT_SET_DWORD(response, MAE_ACTION_RULE_RESPONSE_COUNTER_ID,
+			      act->count ? act->count->cnt->fw_id :
+			      MC_CMD_MAE_COUNTER_ALLOC_OUT_COUNTER_ID_NULL);
+	MCDI_SET_DWORD(inbuf, MAE_ACTION_RULE_INSERT_IN_PRIO, prio);
+	rc = efx_mae_populate_match_criteria(match_crit, &rule->match);
+	if (rc)
+		return rc;
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_ACTION_RULE_INSERT, inbuf, sizeof(inbuf),
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+	rule->fw_id = MCDI_DWORD(outbuf, MAE_ACTION_RULE_INSERT_OUT_AR_ID);
+	return 0;
+}
+
+int efx_mae_insert_lhs_rule(struct efx_nic *efx, struct efx_tc_lhs_rule *rule,
+			    u32 prio)
+{
+	if (rule->is_ar)
+		return efx_mae_insert_lhs_action_rule(efx, rule, prio);
+	return efx_mae_insert_lhs_outer_rule(efx, rule, prio);
+}
+
+static int efx_mae_remove_lhs_outer_rule(struct efx_nic *efx,
+					 struct efx_tc_lhs_rule *rule)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_OUTER_RULE_REMOVE_OUT_LEN(1));
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_OUTER_RULE_REMOVE_IN_LEN(1));
+	size_t outlen;
+	int rc;
+
+	MCDI_SET_DWORD(inbuf, MAE_OUTER_RULE_REMOVE_IN_OR_ID, rule->fw_id);
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_OUTER_RULE_REMOVE, inbuf,
+			  sizeof(inbuf), outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+	/* FW freed a different ID than we asked for, should also never happen.
+	 * Warn because it means we've now got a different idea to the FW of
+	 * what encap_mds exist, which could cause mayhem later.
+	 */
+	if (WARN_ON(MCDI_DWORD(outbuf, MAE_OUTER_RULE_REMOVE_OUT_REMOVED_OR_ID) != rule->fw_id))
+		return -EIO;
+	/* We're probably about to free @rule, but let's just make sure its
+	 * fw_id is blatted so that it won't look valid if it leaks out.
+	 */
+	rule->fw_id = MC_CMD_MAE_OUTER_RULE_INSERT_OUT_OUTER_RULE_ID_NULL;
+	return 0;
+}
+
+int efx_mae_remove_lhs_rule(struct efx_nic *efx, struct efx_tc_lhs_rule *rule)
+{
+	if (rule->is_ar)
+		return efx_mae_delete_rule(efx, rule->fw_id);
+	return efx_mae_remove_lhs_outer_rule(efx, rule);
+}
+
+/* Populating is done by taking each byte of @value in turn and storing
+ * it in the appropriate bits of @row.  @value must be big-endian; we
+ * convert it to little-endianness as we go.
+ */
+static int efx_mae_table_populate(struct efx_tc_table_field_fmt field,
+				  __le32 *row, size_t row_bits,
+				  void *value, size_t value_size)
+{
+	unsigned int i;
+
+	/* For now only scheme 0 is supported for any field, so we check here
+	 * (rather than, say, in calling code, which knows the semantics and
+	 * could in principle encode for other schemes).
+	 */
+	if (field.scheme)
+		return -EOPNOTSUPP;
+	if (DIV_ROUND_UP(field.width, 8) != value_size)
+		return -EINVAL;
+	if (field.lbn + field.width > row_bits)
+		return -EINVAL;
+	for (i = 0; i < value_size; i++) {
+		unsigned int bn = field.lbn + i * 8;
+		unsigned int wn = bn / 32;
+		u64 v;
+
+		v = ((u8 *)value)[value_size - i - 1];
+		v <<= (bn % 32);
+		row[wn] |= cpu_to_le32(v & 0xffffffff);
+		if (wn * 32 < row_bits)
+			row[wn + 1] |= cpu_to_le32(v >> 32);
+	}
+	return 0;
+}
+
+static int efx_mae_table_populate_bool(struct efx_tc_table_field_fmt field,
+				       __le32 *row, size_t row_bits, bool value)
+{
+	u8 v = value ? 1 : 0;
+
+	if (field.width != 1)
+		return -EINVAL;
+	return efx_mae_table_populate(field, row, row_bits, &v, 1);
+}
+
+static int efx_mae_table_populate_ipv4(struct efx_tc_table_field_fmt field,
+				       __le32 *row, size_t row_bits, __be32 value)
+{
+	/* IPv4 is placed in the first 4 bytes of an IPv6-sized field */
+	struct in6_addr v = {};
+
+	if (field.width != 128)
+		return -EINVAL;
+	v.s6_addr32[0] = value;
+	return efx_mae_table_populate(field, row, row_bits, &v, sizeof(v));
+}
+
+static int efx_mae_table_populate_u24(struct efx_tc_table_field_fmt field,
+				      __le32 *row, size_t row_bits, u32 value)
+{
+	__be32 v = cpu_to_be32(value);
+
+	/* We adjust value_size here since just 3 bytes will be copied, and
+	 * the pointer to the value is set discarding the first byte which is
+	 * the most significant byte for a big-endian 4-bytes value.
+	 */
+	return efx_mae_table_populate(field, row, row_bits, ((void *)&v) + 1,
+				      sizeof(v) - 1);
+}
+
+#define _TABLE_POPULATE(dst, dw, _field, _value) ({	\
+	typeof(_value) _v = _value;			\
+							\
+	(_field.width == sizeof(_value) * 8) ?		\
+	 efx_mae_table_populate(_field, dst, dw, &_v,	\
+				sizeof(_v)) : -EINVAL;	\
+})
+#define TABLE_POPULATE_KEY_IPV4(dst, _table, _field, _value)		       \
+	efx_mae_table_populate_ipv4(efx->tc->meta_##_table.desc.keys	       \
+				    [efx->tc->meta_##_table.keys._field##_idx],\
+				    dst, efx->tc->meta_##_table.desc.key_width,\
+				    _value)
+#define TABLE_POPULATE_KEY(dst, _table, _field, _value)			\
+	_TABLE_POPULATE(dst, efx->tc->meta_##_table.desc.key_width,	\
+			efx->tc->meta_##_table.desc.keys		\
+			[efx->tc->meta_##_table.keys._field##_idx],	\
+			_value)
+
+#define TABLE_POPULATE_RESP_BOOL(dst, _table, _field, _value)			\
+	efx_mae_table_populate_bool(efx->tc->meta_##_table.desc.resps		\
+				    [efx->tc->meta_##_table.resps._field##_idx],\
+				    dst, efx->tc->meta_##_table.desc.resp_width,\
+				    _value)
+#define TABLE_POPULATE_RESP(dst, _table, _field, _value)		\
+	_TABLE_POPULATE(dst, efx->tc->meta_##_table.desc.resp_width,	\
+			efx->tc->meta_##_table.desc.resps		\
+			[efx->tc->meta_##_table.resps._field##_idx],	\
+			_value)
+
+#define TABLE_POPULATE_RESP_U24(dst, _table, _field, _value)		       \
+	efx_mae_table_populate_u24(efx->tc->meta_##_table.desc.resps	       \
+				   [efx->tc->meta_##_table.resps._field##_idx],\
+				   dst, efx->tc->meta_##_table.desc.resp_width,\
+				   _value)
+
+static int efx_mae_populate_ct_key(struct efx_nic *efx, __le32 *key, size_t kw,
+				   struct efx_tc_ct_entry *conn)
+{
+	bool ipv6 = conn->eth_proto == htons(ETH_P_IPV6);
+	int rc;
+
+	rc = TABLE_POPULATE_KEY(key, ct, eth_proto, conn->eth_proto);
+	if (rc)
+		return rc;
+	rc = TABLE_POPULATE_KEY(key, ct, ip_proto, conn->ip_proto);
+	if (rc)
+		return rc;
+	if (ipv6)
+		rc = TABLE_POPULATE_KEY(key, ct, src_ip, conn->src_ip6);
+	else
+		rc = TABLE_POPULATE_KEY_IPV4(key, ct, src_ip, conn->src_ip);
+	if (rc)
+		return rc;
+	if (ipv6)
+		rc = TABLE_POPULATE_KEY(key, ct, dst_ip, conn->dst_ip6);
+	else
+		rc = TABLE_POPULATE_KEY_IPV4(key, ct, dst_ip, conn->dst_ip);
+	if (rc)
+		return rc;
+	rc = TABLE_POPULATE_KEY(key, ct, l4_sport, conn->l4_sport);
+	if (rc)
+		return rc;
+	rc = TABLE_POPULATE_KEY(key, ct, l4_dport, conn->l4_dport);
+	if (rc)
+		return rc;
+	return TABLE_POPULATE_KEY(key, ct, zone, cpu_to_be16(conn->zone->zone));
+}
+
+int efx_mae_insert_ct(struct efx_nic *efx, struct efx_tc_ct_entry *conn)
+{
+	bool ipv6 = conn->eth_proto == htons(ETH_P_IPV6);
+	__le32 *key = NULL, *resp = NULL;
+	size_t inlen, kw, rw;
+	efx_dword_t *inbuf;
+	int rc = -ENOMEM;
+
+	/* Check table access is supported */
+	if (!efx->tc->meta_ct.hooked)
+		return -EOPNOTSUPP;
+
+	/* key/resp widths are in bits; convert to dwords for IN_LEN */
+	kw = DIV_ROUND_UP(efx->tc->meta_ct.desc.key_width, 32);
+	rw = DIV_ROUND_UP(efx->tc->meta_ct.desc.resp_width, 32);
+	BUILD_BUG_ON(sizeof(__le32) != MC_CMD_TABLE_INSERT_IN_DATA_LEN);
+	inlen = MC_CMD_TABLE_INSERT_IN_LEN(kw + rw);
+	if (inlen > MC_CMD_TABLE_INSERT_IN_LENMAX_MCDI2)
+		return -E2BIG;
+	inbuf = kzalloc(inlen, GFP_KERNEL);
+	if (!inbuf)
+		return -ENOMEM;
+
+	key = kcalloc(kw, sizeof(__le32), GFP_KERNEL);
+	if (!key)
+		goto out_free;
+	resp = kcalloc(rw, sizeof(__le32), GFP_KERNEL);
+	if (!resp)
+		goto out_free;
+
+	rc = efx_mae_populate_ct_key(efx, key, kw, conn);
+	if (rc)
+		goto out_free;
+
+	rc = TABLE_POPULATE_RESP_BOOL(resp, ct, dnat, conn->dnat);
+	if (rc)
+		goto out_free;
+	/* No support in hw for IPv6 NAT; field is only 32 bits */
+	if (!ipv6)
+		rc = TABLE_POPULATE_RESP(resp, ct, nat_ip, conn->nat_ip);
+	if (rc)
+		goto out_free;
+	rc = TABLE_POPULATE_RESP(resp, ct, l4_natport, conn->l4_natport);
+	if (rc)
+		goto out_free;
+	rc = TABLE_POPULATE_RESP(resp, ct, mark, cpu_to_be32(conn->mark));
+	if (rc)
+		goto out_free;
+	rc = TABLE_POPULATE_RESP_U24(resp, ct, counter_id, conn->cnt->fw_id);
+	if (rc)
+		goto out_free;
+
+	MCDI_SET_DWORD(inbuf, TABLE_INSERT_IN_TABLE_ID, TABLE_ID_CONNTRACK_TABLE);
+	MCDI_SET_WORD(inbuf, TABLE_INSERT_IN_KEY_WIDTH,
+		      efx->tc->meta_ct.desc.key_width);
+	/* MASK_WIDTH is zero as CT is a BCAM */
+	MCDI_SET_WORD(inbuf, TABLE_INSERT_IN_RESP_WIDTH,
+		      efx->tc->meta_ct.desc.resp_width);
+	memcpy(MCDI_PTR(inbuf, TABLE_INSERT_IN_DATA), key, kw * sizeof(__le32));
+	memcpy(MCDI_PTR(inbuf, TABLE_INSERT_IN_DATA) + kw * sizeof(__le32),
+	       resp, rw * sizeof(__le32));
+
+	BUILD_BUG_ON(MC_CMD_TABLE_INSERT_OUT_LEN);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_TABLE_INSERT, inbuf, inlen, NULL, 0, NULL);
+
+out_free:
+	kfree(resp);
+	kfree(key);
+	kfree(inbuf);
+	return rc;
+}
+
+int efx_mae_remove_ct(struct efx_nic *efx, struct efx_tc_ct_entry *conn)
+{
+	__le32 *key = NULL;
+	efx_dword_t *inbuf;
+	size_t inlen, kw;
+	int rc = -ENOMEM;
+
+	/* Check table access is supported */
+	if (!efx->tc->meta_ct.hooked)
+		return -EOPNOTSUPP;
+
+	/* key width is in bits; convert to dwords for IN_LEN */
+	kw = DIV_ROUND_UP(efx->tc->meta_ct.desc.key_width, 32);
+	BUILD_BUG_ON(sizeof(__le32) != MC_CMD_TABLE_DELETE_IN_DATA_LEN);
+	inlen = MC_CMD_TABLE_DELETE_IN_LEN(kw);
+	if (inlen > MC_CMD_TABLE_DELETE_IN_LENMAX_MCDI2)
+		return -E2BIG;
+	inbuf = kzalloc(inlen, GFP_KERNEL);
+	if (!inbuf)
+		return -ENOMEM;
+
+	key = kcalloc(kw, sizeof(__le32), GFP_KERNEL);
+	if (!key)
+		goto out_free;
+
+	rc = efx_mae_populate_ct_key(efx, key, kw, conn);
+	if (rc)
+		goto out_free;
+
+	MCDI_SET_DWORD(inbuf, TABLE_DELETE_IN_TABLE_ID, TABLE_ID_CONNTRACK_TABLE);
+	MCDI_SET_WORD(inbuf, TABLE_DELETE_IN_KEY_WIDTH,
+		      efx->tc->meta_ct.desc.key_width);
+	/* MASK_WIDTH is zero as CT is a BCAM */
+	/* RESP_WIDTH is zero for DELETE */
+	memcpy(MCDI_PTR(inbuf, TABLE_DELETE_IN_DATA), key, kw * sizeof(__le32));
+
+	BUILD_BUG_ON(MC_CMD_TABLE_DELETE_OUT_LEN);
+
+	rc = efx_mcdi_rpc(efx, MC_CMD_TABLE_DELETE, inbuf, inlen, NULL, 0, NULL);
+
+out_free:
+	kfree(key);
+	kfree(inbuf);
+	return rc;
+}
+
 static int efx_mae_populate_match_criteria(MCDI_DECLARE_STRUCT_PTR(match_crit),
 					   const struct efx_tc_match *match)
 {
@@ -1165,20 +2097,40 @@ static int efx_mae_populate_match_criteria(MCDI_DECLARE_STRUCT_PTR(match_crit),
 	}
 	MCDI_STRUCT_SET_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_INGRESS_MPORT_SELECTOR_MASK,
 			      match->mask.ingress_port);
-	EFX_POPULATE_DWORD_2(*_MCDI_STRUCT_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_FLAGS),
+	EFX_POPULATE_DWORD_5(*_MCDI_STRUCT_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_FLAGS),
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_DO_CT,
+			     match->value.ct_state_trk,
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_CT_HIT,
+			     match->value.ct_state_est,
 			     MAE_FIELD_MASK_VALUE_PAIRS_V2_IS_IP_FRAG,
 			     match->value.ip_frag,
 			     MAE_FIELD_MASK_VALUE_PAIRS_V2_IP_FIRST_FRAG,
-			     match->value.ip_firstfrag);
-	EFX_POPULATE_DWORD_2(*_MCDI_STRUCT_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_FLAGS_MASK),
+			     match->value.ip_firstfrag,
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_TCP_SYN_FIN_RST,
+			     match->value.tcp_syn_fin_rst);
+	EFX_POPULATE_DWORD_5(*_MCDI_STRUCT_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_FLAGS_MASK),
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_DO_CT,
+			     match->mask.ct_state_trk,
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_CT_HIT,
+			     match->mask.ct_state_est,
 			     MAE_FIELD_MASK_VALUE_PAIRS_V2_IS_IP_FRAG,
 			     match->mask.ip_frag,
 			     MAE_FIELD_MASK_VALUE_PAIRS_V2_IP_FIRST_FRAG,
-			     match->mask.ip_firstfrag);
+			     match->mask.ip_firstfrag,
+			     MAE_FIELD_MASK_VALUE_PAIRS_V2_TCP_SYN_FIN_RST,
+			     match->mask.tcp_syn_fin_rst);
 	MCDI_STRUCT_SET_BYTE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_RECIRC_ID,
 			     match->value.recirc_id);
 	MCDI_STRUCT_SET_BYTE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_RECIRC_ID_MASK,
 			     match->mask.recirc_id);
+	MCDI_STRUCT_SET_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_CT_MARK,
+			      match->value.ct_mark);
+	MCDI_STRUCT_SET_DWORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_CT_MARK_MASK,
+			      match->mask.ct_mark);
+	MCDI_STRUCT_SET_WORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_CT_DOMAIN,
+			     match->value.ct_zone);
+	MCDI_STRUCT_SET_WORD(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_CT_DOMAIN_MASK,
+			     match->mask.ct_zone);
 	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_ETHER_TYPE_BE,
 				match->value.eth_proto);
 	MCDI_STRUCT_SET_WORD_BE(match_crit, MAE_FIELD_MASK_VALUE_PAIRS_V2_ETHER_TYPE_BE_MASK,

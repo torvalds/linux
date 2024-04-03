@@ -157,6 +157,7 @@ static const struct hclge_comm_caps_bit_map hclge_pf_cmd_caps[] = {
 	{HCLGE_COMM_CAP_LANE_NUM_B, HNAE3_DEV_SUPPORT_LANE_NUM_B},
 	{HCLGE_COMM_CAP_WOL_B, HNAE3_DEV_SUPPORT_WOL_B},
 	{HCLGE_COMM_CAP_TM_FLUSH_B, HNAE3_DEV_SUPPORT_TM_FLUSH_B},
+	{HCLGE_COMM_CAP_VF_FAULT_B, HNAE3_DEV_SUPPORT_VF_FAULT_B},
 };
 
 static const struct hclge_comm_caps_bit_map hclge_vf_cmd_caps[] = {
@@ -350,7 +351,7 @@ static int hclge_comm_cmd_csq_done(struct hclge_comm_hw *hw)
 static u32 hclge_get_cmdq_tx_timeout(u16 opcode, u32 tx_timeout)
 {
 	static const struct hclge_cmdq_tx_timeout_map cmdq_tx_timeout_map[] = {
-		{HCLGE_OPC_CFG_RST_TRIGGER, HCLGE_COMM_CMDQ_TX_TIMEOUT_500MS},
+		{HCLGE_OPC_CFG_RST_TRIGGER, HCLGE_COMM_CMDQ_CFG_RST_TIMEOUT},
 	};
 	u32 i;
 

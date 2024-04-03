@@ -94,6 +94,7 @@ static int tb_retimer_nvm_add(struct tb_retimer *rt)
 		goto err_nvm;
 
 	rt->nvm = nvm;
+	dev_dbg(&rt->dev, "NVM version %x.%x\n", nvm->major, nvm->minor);
 	return 0;
 
 err_nvm:
@@ -355,7 +356,7 @@ static void tb_retimer_release(struct device *dev)
 	kfree(rt);
 }
 
-struct device_type tb_retimer_type = {
+const struct device_type tb_retimer_type = {
 	.name = "thunderbolt_retimer",
 	.groups = retimer_groups,
 	.release = tb_retimer_release,

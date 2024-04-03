@@ -1,23 +1,22 @@
 [
     {
-        "ArchStdEvent": "MEM_ACCESS"
+        "ArchStdEvent": "MEM_ACCESS",
+        "PublicDescription": "Counts memory accesses issued by the CPU load store unit, where those accesses are issued due to load or store operations. This event counts memory accesses no matter whether the data is received from any level of cache hierarchy or external memory. If memory accesses are broken up into smaller transactions than what were specified in the load or store instructions, then the event counts those smaller memory transactions."
     },
     {
-        "ArchStdEvent": "REMOTE_ACCESS"
+        "ArchStdEvent": "MEMORY_ERROR",
+        "PublicDescription": "Counts any detected correctable or uncorrectable physical memory errors (ECC or parity) in protected CPUs RAMs. On the core, this event counts errors in the caches (including data and tag rams). Any detected memory error (from either a speculative and abandoned access, or an architecturally executed access) is counted. Note that errors are only detected when the actual protected memory is accessed by an operation."
     },
     {
-        "ArchStdEvent": "MEM_ACCESS_RD"
+        "ArchStdEvent": "REMOTE_ACCESS",
+        "PublicDescription": "Counts accesses to another chip, which is implemented as a different CMN mesh in the system. If the CHI bus response back to the core indicates that the data source is from another chip (mesh), then the counter is updated. If no data is returned, even if the system snoops another chip/mesh, then the counter is not updated."
     },
     {
-        "ArchStdEvent": "MEM_ACCESS_WR"
+        "ArchStdEvent": "MEM_ACCESS_RD",
+        "PublicDescription": "Counts memory accesses issued by the CPU due to load operations. The event counts any memory load access, no matter whether the data is received from any level of cache hierarchy or external memory. The event also counts atomic load operations. If memory accesses are broken up by the load/store unit into smaller transactions that are issued by the bus interface, then the event counts those smaller transactions."
     },
     {
-        "ArchStdEvent": "UNALIGNED_LD_SPEC"
-    },
-    {
-        "ArchStdEvent": "UNALIGNED_ST_SPEC"
-    },
-    {
-        "ArchStdEvent": "UNALIGNED_LDST_SPEC"
+        "ArchStdEvent": "MEM_ACCESS_WR",
+        "PublicDescription": "Counts memory accesses issued by the CPU due to store operations. The event counts any memory store access, no matter whether the data is located in any level of cache or external memory. The event also counts atomic load and store operations. If memory accesses are broken up by the load/store unit into smaller transactions that are issued by the bus interface, then the event counts those smaller transactions."
     }
 ]

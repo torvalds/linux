@@ -31,6 +31,7 @@
 /*This list is protected by the rtnl lock. */
 static LIST_HEAD(chnl_net_list);
 
+MODULE_DESCRIPTION("ST-Ericsson CAIF modem protocol GPRS network device");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_RTNL_LINK("caif");
 

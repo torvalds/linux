@@ -222,14 +222,14 @@
 		};
 	};
 
-	pmu_a53 {
+	pmu-a53 {
 		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 9 IRQ_TYPE_LEVEL_LOW>;
 		interrupt-affinity = <&cpu0>, <&cpu1>;
 	};
 
-	pmu_a72 {
+	pmu-a72 {
 		compatible = "arm,cortex-a72-pmu";
 		interrupts = <GIC_SPI 12 IRQ_TYPE_LEVEL_LOW>,
 			     <GIC_SPI 13 IRQ_TYPE_LEVEL_LOW>;
@@ -286,7 +286,7 @@
 					type = "passive";
 				};
 
-				cpu_crit: cpu_crit0 {
+				cpu_crit: cpu-crit0 {
 					temperature = <115000>;
 					hysteresis = <2000>;
 					type = "critical";
@@ -318,7 +318,7 @@
 		#address-cells = <2>;
 		#size-cells = <2>;
 		ranges;
-		vpu_dma_reserved: vpu_dma_mem_region@b7000000 {
+		vpu_dma_reserved: vpu-dma-mem@b7000000 {
 			compatible = "shared-dma-pool";
 			reg = <0 0xb7000000 0 0x500000>;
 			alignment = <0x1000>;
@@ -366,7 +366,7 @@
 			#reset-cells = <1>;
 		};
 
-		syscfg_pctl_a: syscfg_pctl_a@10005000 {
+		syscfg_pctl_a: syscon@10005000 {
 			compatible = "mediatek,mt8173-pctl-a-syscfg", "syscon";
 			reg = <0 0x10005000 0 0x1000>;
 		};
@@ -590,6 +590,15 @@
 			reg = <0 0x10206000 0 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			socinfo-data1@40 {
+				reg = <0x040 0x4>;
+			};
+
+			socinfo-data2@44 {
+				reg = <0x044 0x4>;
+			};
+
 			thermal_calibration: calib@528 {
 				reg = <0x528 0xc>;
 			};
@@ -1368,10 +1377,9 @@
 			#clock-cells = <1>;
 		};
 
-		vcodec_dec: vcodec@16000000 {
+		vcodec_dec: vcodec@16020000 {
 			compatible = "mediatek,mt8173-vcodec-dec";
-			reg = <0 0x16000000 0 0x100>,	/* VDEC_SYS */
-			      <0 0x16020000 0 0x1000>,	/* VDEC_MISC */
+			reg = <0 0x16020000 0 0x1000>,	/* VDEC_MISC */
 			      <0 0x16021000 0 0x800>,	/* VDEC_LD */
 			      <0 0x16021800 0 0x800>,	/* VDEC_TOP */
 			      <0 0x16022000 0 0x1000>,	/* VDEC_CM */
@@ -1382,6 +1390,8 @@
 			      <0 0x16027000 0 0x800>,	/* VDEC_HWQ */
 			      <0 0x16027800 0 0x800>,	/* VDEC_HWB */
 			      <0 0x16028400 0 0x400>;	/* VDEC_HWG */
+			reg-names = "misc", "ld", "top", "cm", "ad", "av", "pp",
+				    "hwd", "hwq", "hwb", "hwg";
 			interrupts = <GIC_SPI 204 IRQ_TYPE_LEVEL_LOW>;
 			iommus = <&iommu M4U_PORT_HW_VDEC_MC_EXT>,
 				 <&iommu M4U_PORT_HW_VDEC_PP_EXT>,
@@ -1392,6 +1402,7 @@
 				 <&iommu M4U_PORT_HW_VDEC_VLD_EXT>,
 				 <&iommu M4U_PORT_HW_VDEC_VLD2_EXT>;
 			mediatek,vpu = <&vpu>;
+			mediatek,vdecsys = <&vdecsys>;
 			power-domains = <&spm MT8173_POWER_DOMAIN_VDEC>;
 			clocks = <&apmixedsys CLK_APMIXED_VCODECPLL>,
 				 <&topckgen CLK_TOP_UNIVPLL_D2>,

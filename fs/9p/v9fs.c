@@ -637,7 +637,7 @@ static int v9fs_init_inode_cache(void)
 	v9fs_inode_cache = kmem_cache_create("v9fs_inode_cache",
 					  sizeof(struct v9fs_inode),
 					  0, (SLAB_RECLAIM_ACCOUNT|
-					      SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+					      SLAB_ACCOUNT),
 					  v9fs_inode_init_once);
 	if (!v9fs_inode_cache)
 		return -ENOMEM;
@@ -732,4 +732,5 @@ module_exit(exit_v9fs)
 MODULE_AUTHOR("Latchesar Ionkov <lucho@ionkov.net>");
 MODULE_AUTHOR("Eric Van Hensbergen <ericvh@gmail.com>");
 MODULE_AUTHOR("Ron Minnich <rminnich@lanl.gov>");
+MODULE_DESCRIPTION("9P Client File System");
 MODULE_LICENSE("GPL");

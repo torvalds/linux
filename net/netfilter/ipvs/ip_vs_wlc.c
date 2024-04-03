@@ -109,3 +109,4 @@ static void __exit ip_vs_wlc_cleanup(void)
 module_init(ip_vs_wlc_init);
 module_exit(ip_vs_wlc_cleanup);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("ipvs weighted least connection scheduler");

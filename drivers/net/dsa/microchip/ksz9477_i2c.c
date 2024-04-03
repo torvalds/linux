@@ -66,10 +66,7 @@ static void ksz9477_i2c_shutdown(struct i2c_client *i2c)
 	if (!dev)
 		return;
 
-	if (dev->dev_ops->reset)
-		dev->dev_ops->reset(dev);
-
-	dsa_switch_shutdown(dev->ds);
+	ksz_switch_shutdown(dev);
 
 	i2c_set_clientdata(i2c, NULL);
 }
@@ -105,6 +102,10 @@ static const struct of_device_id ksz9477_dt_ids[] = {
 	{
 		.compatible = "microchip,ksz8563",
 		.data = &ksz_switch_chips[KSZ8563]
+	},
+	{
+		.compatible = "microchip,ksz8567",
+		.data = &ksz_switch_chips[KSZ8567]
 	},
 	{
 		.compatible = "microchip,ksz9567",

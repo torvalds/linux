@@ -81,7 +81,6 @@ extern void gma_encoder_destroy(struct drm_encoder *encoder);
 
 /* Common clock related functions */
 extern const struct gma_limit_t *gma_limit(struct drm_crtc *crtc, int refclk);
-extern void gma_clock(int refclk, struct gma_clock_t *clock);
 extern bool gma_pll_is_valid(struct drm_crtc *crtc,
 			     const struct gma_limit_t *limit,
 			     struct gma_clock_t *clock);

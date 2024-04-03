@@ -252,6 +252,34 @@ __u32 link_info_prog_id(const struct bpf_link *link, struct bpf_link_info *info)
 
 int extra_prog_load_log_flags = 0;
 
+int testing_prog_flags(void)
+{
+	static int cached_flags = -1;
+	static int prog_flags[] = { BPF_F_TEST_RND_HI32, BPF_F_TEST_REG_INVARIANTS };
+	static struct bpf_insn insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	int insn_cnt = ARRAY_SIZE(insns), i, fd, flags = 0;
+	LIBBPF_OPTS(bpf_prog_load_opts, opts);
+
+	if (cached_flags >= 0)
+		return cached_flags;
+
+	for (i = 0; i < ARRAY_SIZE(prog_flags); i++) {
+		opts.prog_flags = prog_flags[i];
+		fd = bpf_prog_load(BPF_PROG_TYPE_SOCKET_FILTER, "flag-test", "GPL",
+				   insns, insn_cnt, &opts);
+		if (fd >= 0) {
+			flags |= prog_flags[i];
+			close(fd);
+		}
+	}
+
+	cached_flags = flags;
+	return cached_flags;
+}
+
 int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
 		       struct bpf_object **pobj, int *prog_fd)
 {
@@ -276,7 +304,7 @@ int bpf_prog_test_load(const char *file, enum bpf_prog_type type,
 	if (type != BPF_PROG_TYPE_UNSPEC && bpf_program__type(prog) != type)
 		bpf_program__set_type(prog, type);
 
-	flags = bpf_program__flags(prog) | BPF_F_TEST_RND_HI32;
+	flags = bpf_program__flags(prog) | testing_prog_flags();
 	bpf_program__set_flags(prog, flags);
 
 	err = bpf_object__load(obj);
@@ -299,7 +327,7 @@ int bpf_test_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
 {
 	LIBBPF_OPTS(bpf_prog_load_opts, opts,
 		.kern_version = kern_version,
-		.prog_flags = BPF_F_TEST_RND_HI32,
+		.prog_flags = testing_prog_flags(),
 		.log_level = extra_prog_load_log_flags,
 		.log_buf = log_buf,
 		.log_size = log_buf_sz,
@@ -328,12 +356,12 @@ __u64 read_perf_max_sample_freq(void)
 	return sample_freq;
 }
 
-static int finit_module(int fd, const char *param_values, int flags)
+int finit_module(int fd, const char *param_values, int flags)
 {
 	return syscall(__NR_finit_module, fd, param_values, flags);
 }
 
-static int delete_module(const char *name, int flags)
+int delete_module(const char *name, int flags)
 {
 	return syscall(__NR_delete_module, name, flags);
 }
@@ -386,4 +414,64 @@ int load_bpf_testmod(bool verbose)
 int kern_sync_rcu(void)
 {
 	return syscall(__NR_membarrier, MEMBARRIER_CMD_SHARED, 0, 0);
+}
+
+int get_xlated_program(int fd_prog, struct bpf_insn **buf, __u32 *cnt)
+{
+	__u32 buf_element_size = sizeof(struct bpf_insn);
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
+	__u32 xlated_prog_len;
+
+	if (bpf_prog_get_info_by_fd(fd_prog, &info, &info_len)) {
+		perror("bpf_prog_get_info_by_fd failed");
+		return -1;
+	}
+
+	xlated_prog_len = info.xlated_prog_len;
+	if (xlated_prog_len % buf_element_size) {
+		printf("Program length %u is not multiple of %u\n",
+		       xlated_prog_len, buf_element_size);
+		return -1;
+	}
+
+	*cnt = xlated_prog_len / buf_element_size;
+	*buf = calloc(*cnt, buf_element_size);
+	if (!buf) {
+		perror("can't allocate xlated program buffer");
+		return -ENOMEM;
+	}
+
+	bzero(&info, sizeof(info));
+	info.xlated_prog_len = xlated_prog_len;
+	info.xlated_prog_insns = (__u64)(unsigned long)*buf;
+	if (bpf_prog_get_info_by_fd(fd_prog, &info, &info_len)) {
+		perror("second bpf_prog_get_info_by_fd failed");
+		goto out_free_buf;
+	}
+
+	return 0;
+
+out_free_buf:
+	free(*buf);
+	*buf = NULL;
+	return -1;
+}
+
+bool is_jit_enabled(void)
+{
+	const char *jit_sysctl = "/proc/sys/net/core/bpf_jit_enable";
+	bool enabled = false;
+	int sysctl_fd;
+
+	sysctl_fd = open(jit_sysctl, O_RDONLY);
+	if (sysctl_fd != -1) {
+		char tmpc;
+
+		if (read(sysctl_fd, &tmpc, sizeof(tmpc)) == 1)
+			enabled = (tmpc != '0');
+		close(sysctl_fd);
+	}
+
+	return enabled;
 }

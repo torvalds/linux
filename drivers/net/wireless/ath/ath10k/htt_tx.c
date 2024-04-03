@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/etherdevice.h>
@@ -40,7 +41,6 @@ static void __ath10k_htt_tx_txq_recalc(struct ieee80211_hw *hw,
 	struct ath10k *ar = hw->priv;
 	struct ath10k_sta *arsta;
 	struct ath10k_vif *arvif = (void *)txq->vif->drv_priv;
-	unsigned long frame_cnt;
 	unsigned long byte_cnt;
 	int idx;
 	u32 bit;
@@ -67,7 +67,7 @@ static void __ath10k_htt_tx_txq_recalc(struct ieee80211_hw *hw,
 	bit = BIT(peer_id % 32);
 	idx = peer_id / 32;
 
-	ieee80211_txq_get_depth(txq, &frame_cnt, &byte_cnt);
+	ieee80211_txq_get_depth(txq, NULL, &byte_cnt);
 	count = ath10k_htt_tx_txq_calc_size(byte_cnt);
 
 	if (unlikely(peer_id >= ar->htt.tx_q_state.num_peers) ||
@@ -796,20 +796,16 @@ static int ath10k_htt_send_frag_desc_bank_cfg_64(struct ath10k_htt *htt)
 	return 0;
 }
 
-static void ath10k_htt_fill_rx_desc_offset_32(struct ath10k_hw_params *hw, void *rx_ring)
+static void ath10k_htt_fill_rx_desc_offset_32(struct ath10k_hw_params *hw,
+					      struct htt_rx_ring_setup_ring32 *rx_ring)
 {
-	struct htt_rx_ring_setup_ring32 *ring =
-			(struct htt_rx_ring_setup_ring32 *)rx_ring;
-
-	ath10k_htt_rx_desc_get_offsets(hw, &ring->offsets);
+	ath10k_htt_rx_desc_get_offsets(hw, &rx_ring->offsets);
 }
 
-static void ath10k_htt_fill_rx_desc_offset_64(struct ath10k_hw_params *hw, void *rx_ring)
+static void ath10k_htt_fill_rx_desc_offset_64(struct ath10k_hw_params *hw,
+					      struct htt_rx_ring_setup_ring64 *rx_ring)
 {
-	struct htt_rx_ring_setup_ring64 *ring =
-			(struct htt_rx_ring_setup_ring64 *)rx_ring;
-
-	ath10k_htt_rx_desc_get_offsets(hw, &ring->offsets);
+	ath10k_htt_rx_desc_get_offsets(hw, &rx_ring->offsets);
 }
 
 static int ath10k_htt_send_rx_ring_cfg_32(struct ath10k_htt *htt)

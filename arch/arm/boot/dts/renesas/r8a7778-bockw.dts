@@ -62,6 +62,35 @@
 };
 
 &bsc {
+	flash@0 {
+		compatible = "cfi-flash";
+		reg = <0x0 0x04000000>;
+		pinctrl-0 = <&flash_pins>;
+		pinctrl-names = "default";
+		bank-width = <2>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			partition@0 {
+				label = "uboot";
+				reg = <0x00000000 0x00040000>;
+				read-only;
+			};
+			partition@40000 {
+				label = "uboot-env";
+				reg = <0x00040000 0x00040000>;
+				read-only;
+			};
+			partition@80000 {
+				label = "flash";
+				reg = <0x00080000 0x03f80000>;
+			};
+		};
+	};
+
 	ethernet@18300000 {
 		compatible = "smsc,lan89218", "smsc,lan9115";
 		reg = <0x18300000 0x1000>;
@@ -125,6 +154,11 @@
 &pfc {
 	pinctrl-0 = <&scif_clk_pins>;
 	pinctrl-names = "default";
+
+	flash_pins: flash {
+		groups = "lbsc_cs0";
+		function = "lbsc";
+	};
 
 	scif0_pins: scif0 {
 		groups = "scif0_data_a", "scif0_ctrl";

@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * KVM_GET/SET_* tests
- *
  * Copyright (C) 2022, Red Hat, Inc.
  *
  * Tests for Hyper-V extensions to SVM.
@@ -160,6 +158,7 @@ int main(int argc, char *argv[])
 	int stage;
 
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SVM));
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_DIRECT_TLBFLUSH));
 
 	/* Create VM */
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);

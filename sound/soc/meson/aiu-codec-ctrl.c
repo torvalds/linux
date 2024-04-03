@@ -75,6 +75,8 @@ static const struct snd_soc_dapm_widget aiu_hdmi_ctrl_widgets[] = {
 };
 
 static const struct snd_soc_dai_ops aiu_codec_ctrl_input_ops = {
+	.probe		= meson_codec_glue_input_dai_probe,
+	.remove		= meson_codec_glue_input_dai_remove,
 	.hw_params	= meson_codec_glue_input_hw_params,
 	.set_fmt	= meson_codec_glue_input_set_fmt,
 };
@@ -102,8 +104,6 @@ static const struct snd_soc_dai_ops aiu_codec_ctrl_output_ops = {
 	.name = "CODEC CTRL " xname,				\
 	.playback = AIU_CODEC_CTRL_STREAM(xname, "Playback"),	\
 	.ops = &aiu_codec_ctrl_input_ops,			\
-	.probe = meson_codec_glue_input_dai_probe,		\
-	.remove = meson_codec_glue_input_dai_remove,		\
 }
 
 #define AIU_CODEC_CTRL_OUTPUT(xname) {				\

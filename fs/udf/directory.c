@@ -95,7 +95,7 @@ static int udf_copy_fi(struct udf_fileident_iter *iter)
 	}
 
 	off = iter->pos & (blksize - 1);
-	len = min_t(int, sizeof(struct fileIdentDesc), blksize - off);
+	len = min_t(u32, sizeof(struct fileIdentDesc), blksize - off);
 	memcpy(&iter->fi, iter->bh[0]->b_data + off, len);
 	if (len < sizeof(struct fileIdentDesc))
 		memcpy((char *)(&iter->fi) + len, iter->bh[1]->b_data,

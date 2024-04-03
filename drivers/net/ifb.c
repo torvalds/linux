@@ -454,5 +454,6 @@ static void __exit ifb_cleanup_module(void)
 module_init(ifb_init_module);
 module_exit(ifb_cleanup_module);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Intermediate Functional Block (ifb) netdevice driver for sharing of resources and ingress packet queuing");
 MODULE_AUTHOR("Jamal Hadi Salim");
 MODULE_ALIAS_RTNL_LINK("ifb");

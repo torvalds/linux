@@ -204,7 +204,7 @@ struct sk_buff *tcp_gro_receive(struct list_head *head, struct sk_buff *skb)
 		goto out;
 
 	hlen = off + thlen;
-	if (skb_gro_header_hard(skb, hlen)) {
+	if (!skb_gro_may_pull(skb, hlen)) {
 		th = skb_gro_header_slow(skb, hlen, off);
 		if (unlikely(!th))
 			goto out;
@@ -299,18 +299,20 @@ out:
 void tcp_gro_complete(struct sk_buff *skb)
 {
 	struct tcphdr *th = tcp_hdr(skb);
+	struct skb_shared_info *shinfo;
+
+	if (skb->encapsulation)
+		skb->inner_transport_header = skb->transport_header;
 
 	skb->csum_start = (unsigned char *)th - skb->head;
 	skb->csum_offset = offsetof(struct tcphdr, check);
 	skb->ip_summed = CHECKSUM_PARTIAL;
 
-	skb_shinfo(skb)->gso_segs = NAPI_GRO_CB(skb)->count;
+	shinfo = skb_shinfo(skb);
+	shinfo->gso_segs = NAPI_GRO_CB(skb)->count;
 
 	if (th->cwr)
-		skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_ECN;
-
-	if (skb->encapsulation)
-		skb->inner_transport_header = skb->transport_header;
+		shinfo->gso_type |= SKB_GSO_TCP_ECN;
 }
 EXPORT_SYMBOL(tcp_gro_complete);
 
@@ -335,24 +337,22 @@ INDIRECT_CALLABLE_SCOPE int tcp4_gro_complete(struct sk_buff *skb, int thoff)
 
 	th->check = ~tcp_v4_check(skb->len - thoff, iph->saddr,
 				  iph->daddr, 0);
-	skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV4;
 
-	if (NAPI_GRO_CB(skb)->is_atomic)
-		skb_shinfo(skb)->gso_type |= SKB_GSO_TCP_FIXEDID;
+	skb_shinfo(skb)->gso_type |= SKB_GSO_TCPV4 |
+			(NAPI_GRO_CB(skb)->is_atomic * SKB_GSO_TCP_FIXEDID);
 
 	tcp_gro_complete(skb);
 	return 0;
 }
 
-static const struct net_offload tcpv4_offload = {
-	.callbacks = {
-		.gso_segment	=	tcp4_gso_segment,
-		.gro_receive	=	tcp4_gro_receive,
-		.gro_complete	=	tcp4_gro_complete,
-	},
-};
-
 int __init tcpv4_offload_init(void)
 {
-	return inet_add_offload(&tcpv4_offload, IPPROTO_TCP);
+	net_hotdata.tcpv4_offload = (struct net_offload) {
+		.callbacks = {
+			.gso_segment	=	tcp4_gso_segment,
+			.gro_receive	=	tcp4_gro_receive,
+			.gro_complete	=	tcp4_gro_complete,
+		},
+	};
+	return inet_add_offload(&net_hotdata.tcpv4_offload, IPPROTO_TCP);
 }

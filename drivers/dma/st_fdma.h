@@ -97,7 +97,7 @@ struct st_fdma_desc {
 	struct st_fdma_chan *fchan;
 	bool iscyclic;
 	unsigned int n_nodes;
-	struct st_fdma_sw_node node[];
+	struct st_fdma_sw_node node[] __counted_by(n_nodes);
 };
 
 enum st_fdma_type {

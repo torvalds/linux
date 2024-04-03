@@ -290,7 +290,8 @@ static int
 update_connector_routing(struct drm_atomic_state *state,
 			 struct drm_connector *connector,
 			 struct drm_connector_state *old_connector_state,
-			 struct drm_connector_state *new_connector_state)
+			 struct drm_connector_state *new_connector_state,
+			 bool added_by_user)
 {
 	const struct drm_connector_helper_funcs *funcs;
 	struct drm_encoder *new_encoder;
@@ -339,9 +340,13 @@ update_connector_routing(struct drm_atomic_state *state,
 	 * there's a chance the connector may have been destroyed during the
 	 * process, but it's better to ignore that then cause
 	 * drm_atomic_helper_resume() to fail.
+	 *
+	 * Last, we want to ignore connector registration when the connector
+	 * was not pulled in the atomic state by user-space (ie, was pulled
+	 * in by the driver, e.g. when updating a DP-MST stream).
 	 */
 	if (!state->duplicated && drm_connector_is_unregistered(connector) &&
-	    crtc_state->active) {
+	    added_by_user && crtc_state->active) {
 		drm_dbg_atomic(connector->dev,
 			       "[CONNECTOR:%d:%s] is not registered\n",
 			       connector->base.id, connector->name);
@@ -620,7 +625,10 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 	struct drm_connector *connector;
 	struct drm_connector_state *old_connector_state, *new_connector_state;
 	int i, ret;
-	unsigned int connectors_mask = 0;
+	unsigned int connectors_mask = 0, user_connectors_mask = 0;
+
+	for_each_oldnew_connector_in_state(state, connector, old_connector_state, new_connector_state, i)
+		user_connectors_mask |= BIT(i);
 
 	for_each_oldnew_crtc_in_state(state, crtc, old_crtc_state, new_crtc_state, i) {
 		bool has_connectors =
@@ -685,7 +693,8 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 		 */
 		ret = update_connector_routing(state, connector,
 					       old_connector_state,
-					       new_connector_state);
+					       new_connector_state,
+					       BIT(i) & user_connectors_mask);
 		if (ret)
 			return ret;
 		if (old_connector_state->crtc) {
@@ -786,9 +795,9 @@ drm_atomic_helper_check_modeset(struct drm_device *dev,
 EXPORT_SYMBOL(drm_atomic_helper_check_modeset);
 
 /**
- * drm_atomic_helper_check_wb_encoder_state() - Check writeback encoder state
- * @encoder: encoder state to check
- * @conn_state: connector state to check
+ * drm_atomic_helper_check_wb_connector_state() - Check writeback connector state
+ * @connector: corresponding connector
+ * @state: the driver state object
  *
  * Checks if the writeback connector state is valid, and returns an error if it
  * isn't.
@@ -797,9 +806,11 @@ EXPORT_SYMBOL(drm_atomic_helper_check_modeset);
  * Zero for success or -errno
  */
 int
-drm_atomic_helper_check_wb_encoder_state(struct drm_encoder *encoder,
-					 struct drm_connector_state *conn_state)
+drm_atomic_helper_check_wb_connector_state(struct drm_connector *connector,
+					   struct drm_atomic_state *state)
 {
+	struct drm_connector_state *conn_state =
+		drm_atomic_get_new_connector_state(state, connector);
 	struct drm_writeback_job *wb_job = conn_state->writeback_job;
 	struct drm_property_blob *pixel_format_blob;
 	struct drm_framebuffer *fb;
@@ -818,11 +829,11 @@ drm_atomic_helper_check_wb_encoder_state(struct drm_encoder *encoder,
 		if (fb->format->format == formats[i])
 			return 0;
 
-	drm_dbg_kms(encoder->dev, "Invalid pixel format %p4cc\n", &fb->format->format);
+	drm_dbg_kms(connector->dev, "Invalid pixel format %p4cc\n", &fb->format->format);
 
 	return -EINVAL;
 }
-EXPORT_SYMBOL(drm_atomic_helper_check_wb_encoder_state);
+EXPORT_SYMBOL(drm_atomic_helper_check_wb_connector_state);
 
 /**
  * drm_atomic_helper_check_plane_state() - Check plane state for validity
@@ -2003,7 +2014,7 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 			return ret;
 
 		drm_atomic_helper_async_commit(dev, state);
-		drm_atomic_helper_cleanup_planes(dev, state);
+		drm_atomic_helper_unprepare_planes(dev, state);
 
 		return 0;
 	}
@@ -2063,7 +2074,7 @@ int drm_atomic_helper_commit(struct drm_device *dev,
 	return 0;
 
 err:
-	drm_atomic_helper_cleanup_planes(dev, state);
+	drm_atomic_helper_unprepare_planes(dev, state);
 	return ret;
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit);
@@ -2373,10 +2384,10 @@ int drm_atomic_helper_setup_commit(struct drm_atomic_state *state,
 EXPORT_SYMBOL(drm_atomic_helper_setup_commit);
 
 /**
- * drm_atomic_helper_wait_for_dependencies - wait for required preceeding commits
+ * drm_atomic_helper_wait_for_dependencies - wait for required preceding commits
  * @old_state: atomic state object with old state structures
  *
- * This function waits for all preceeding commits that touch the same CRTC as
+ * This function waits for all preceding commits that touch the same CRTC as
  * @old_state to both be committed to the hardware (as signalled by
  * drm_atomic_helper_commit_hw_done()) and executed by the hardware (as signalled
  * by calling drm_crtc_send_vblank_event() on the &drm_crtc_state.event).
@@ -2641,6 +2652,39 @@ fail_prepare_fb:
 }
 EXPORT_SYMBOL(drm_atomic_helper_prepare_planes);
 
+/**
+ * drm_atomic_helper_unprepare_planes - release plane resources on aborts
+ * @dev: DRM device
+ * @state: atomic state object with old state structures
+ *
+ * This function cleans up plane state, specifically framebuffers, from the
+ * atomic state. It undoes the effects of drm_atomic_helper_prepare_planes()
+ * when aborting an atomic commit. For cleaning up after a successful commit
+ * use drm_atomic_helper_cleanup_planes().
+ */
+void drm_atomic_helper_unprepare_planes(struct drm_device *dev,
+					struct drm_atomic_state *state)
+{
+	struct drm_plane *plane;
+	struct drm_plane_state *new_plane_state;
+	int i;
+
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		const struct drm_plane_helper_funcs *funcs = plane->helper_private;
+
+		if (funcs->end_fb_access)
+			funcs->end_fb_access(plane, new_plane_state);
+	}
+
+	for_each_new_plane_in_state(state, plane, new_plane_state, i) {
+		const struct drm_plane_helper_funcs *funcs = plane->helper_private;
+
+		if (funcs->cleanup_fb)
+			funcs->cleanup_fb(plane, new_plane_state);
+	}
+}
+EXPORT_SYMBOL(drm_atomic_helper_unprepare_planes);
+
 static bool plane_crtc_active(const struct drm_plane_state *state)
 {
 	return state->crtc && state->crtc->state->active;
@@ -2775,6 +2819,17 @@ void drm_atomic_helper_commit_planes(struct drm_device *dev,
 
 		funcs->atomic_flush(crtc, old_state);
 	}
+
+	/*
+	 * Signal end of framebuffer access here before hw_done. After hw_done,
+	 * a later commit might have already released the plane state.
+	 */
+	for_each_old_plane_in_state(old_state, plane, old_plane_state, i) {
+		const struct drm_plane_helper_funcs *funcs = plane->helper_private;
+
+		if (funcs->end_fb_access)
+			funcs->end_fb_access(plane, old_plane_state);
+	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_commit_planes);
 
@@ -2902,40 +2957,22 @@ EXPORT_SYMBOL(drm_atomic_helper_disable_planes_on_crtc);
  * configuration. Hence the old configuration must be perserved in @old_state to
  * be able to call this function.
  *
- * This function must also be called on the new state when the atomic update
- * fails at any point after calling drm_atomic_helper_prepare_planes().
+ * This function may not be called on the new state when the atomic update
+ * fails at any point after calling drm_atomic_helper_prepare_planes(). Use
+ * drm_atomic_helper_unprepare_planes() in this case.
  */
 void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
 				      struct drm_atomic_state *old_state)
 {
 	struct drm_plane *plane;
-	struct drm_plane_state *old_plane_state, *new_plane_state;
+	struct drm_plane_state *old_plane_state;
 	int i;
 
-	for_each_oldnew_plane_in_state(old_state, plane, old_plane_state, new_plane_state, i) {
+	for_each_old_plane_in_state(old_state, plane, old_plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs = plane->helper_private;
 
-		if (funcs->end_fb_access)
-			funcs->end_fb_access(plane, new_plane_state);
-	}
-
-	for_each_oldnew_plane_in_state(old_state, plane, old_plane_state, new_plane_state, i) {
-		const struct drm_plane_helper_funcs *funcs;
-		struct drm_plane_state *plane_state;
-
-		/*
-		 * This might be called before swapping when commit is aborted,
-		 * in which case we have to cleanup the new state.
-		 */
-		if (old_plane_state == plane->state)
-			plane_state = new_plane_state;
-		else
-			plane_state = old_plane_state;
-
-		funcs = plane->helper_private;
-
 		if (funcs->cleanup_fb)
-			funcs->cleanup_fb(plane, plane_state);
+			funcs->cleanup_fb(plane, old_plane_state);
 	}
 }
 EXPORT_SYMBOL(drm_atomic_helper_cleanup_planes);
@@ -3332,12 +3369,15 @@ EXPORT_SYMBOL(drm_atomic_helper_disable_all);
  * that also takes a snapshot of the modeset state to be restored on resume.
  *
  * This is just a convenience wrapper around drm_atomic_helper_disable_all(),
- * and it is the atomic version of drm_crtc_force_disable_all().
+ * and it is the atomic version of drm_helper_force_disable_all().
  */
 void drm_atomic_helper_shutdown(struct drm_device *dev)
 {
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
+
+	if (dev == NULL)
+		return;
 
 	DRM_MODESET_LOCK_ALL_BEGIN(dev, ctx, 0, ret);
 

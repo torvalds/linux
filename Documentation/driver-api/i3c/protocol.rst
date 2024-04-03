@@ -71,8 +71,8 @@ During DAA, each I3C device reports 3 important things:
   related capabilities
 * DCR: Device Characteristic Register. This 8-bit register describes the
   functionalities provided by the device
-* Provisional ID: A 48-bit unique identifier. On a given bus there should be no
-  Provisional ID collision, otherwise the discovery mechanism may fail.
+* Provisioned ID: A 48-bit unique identifier. On a given bus there should be no
+  Provisioned ID collision, otherwise the discovery mechanism may fail.
 
 I3C slave events
 ================

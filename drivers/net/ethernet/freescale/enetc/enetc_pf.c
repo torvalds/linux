@@ -920,6 +920,7 @@ static void enetc_imdio_remove(struct enetc_pf *pf)
 static bool enetc_port_has_pcs(struct enetc_pf *pf)
 {
 	return (pf->if_mode == PHY_INTERFACE_MODE_SGMII ||
+		pf->if_mode == PHY_INTERFACE_MODE_1000BASEX ||
 		pf->if_mode == PHY_INTERFACE_MODE_2500BASEX ||
 		pf->if_mode == PHY_INTERFACE_MODE_USXGMII);
 }
@@ -1115,6 +1116,8 @@ static int enetc_phylink_create(struct enetc_ndev_priv *priv,
 	__set_bit(PHY_INTERFACE_MODE_INTERNAL,
 		  pf->phylink_config.supported_interfaces);
 	__set_bit(PHY_INTERFACE_MODE_SGMII,
+		  pf->phylink_config.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_1000BASEX,
 		  pf->phylink_config.supported_interfaces);
 	__set_bit(PHY_INTERFACE_MODE_2500BASEX,
 		  pf->phylink_config.supported_interfaces);
@@ -1402,7 +1405,7 @@ static void enetc_fixup_clear_rss_rfs(struct pci_dev *pdev)
 		return;
 
 	si = enetc_psi_create(pdev);
-	if (si)
+	if (!IS_ERR(si))
 		enetc_psi_destroy(pdev);
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_FREESCALE, ENETC_DEV_ID_PF,

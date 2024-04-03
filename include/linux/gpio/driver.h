@@ -3,6 +3,8 @@
 #define __LINUX_GPIO_DRIVER_H
 
 #include <linux/bits.h>
+#include <linux/cleanup.h>
+#include <linux/err.h>
 #include <linux/irqchip/chained_irq.h>
 #include <linux/irqdomain.h>
 #include <linux/irqhandler.h>
@@ -333,10 +335,12 @@ struct gpio_irq_chip {
  *	(same as GPIO_LINE_DIRECTION_OUT / GPIO_LINE_DIRECTION_IN),
  *	or negative error. It is recommended to always implement this
  *	function, even on input-only or output-only gpio chips.
- * @direction_input: configures signal "offset" as input, or returns error
- *	This can be omitted on input-only or output-only gpio chips.
- * @direction_output: configures signal "offset" as output, or returns error
- *	This can be omitted on input-only or output-only gpio chips.
+ * @direction_input: configures signal "offset" as input, returns 0 on success
+ *	or a negative error number. This can be omitted on input-only or
+ *	output-only gpio chips.
+ * @direction_output: configures signal "offset" as output, returns 0 on
+ *	success or a negative error number. This can be omitted on input-only
+ *	or output-only gpio chips.
  * @get: returns value for signal "offset", 0=low, 1=high, or negative error
  * @get_multiple: reads values for multiple signals defined by "mask" and
  *	stores them in "bits", returns 0 on success or negative error
@@ -529,29 +533,64 @@ struct gpio_chip {
 #endif /* CONFIG_OF_GPIO */
 };
 
-extern const char *gpiochip_is_requested(struct gpio_chip *gc,
-			unsigned int offset);
+char *gpiochip_dup_line_label(struct gpio_chip *gc, unsigned int offset);
+
+
+struct _gpiochip_for_each_data {
+	const char **label;
+	unsigned int *i;
+};
+
+DEFINE_CLASS(_gpiochip_for_each_data,
+	     struct _gpiochip_for_each_data,
+	     if (*_T.label) kfree(*_T.label),
+	     ({
+		struct _gpiochip_for_each_data _data = { label, i };
+		*_data.i = 0;
+		_data;
+	     }),
+	     const char **label, int *i)
+
+/**
+ * for_each_hwgpio - Iterates over all GPIOs for given chip.
+ * @_chip: Chip to iterate over.
+ * @_i: Loop counter.
+ * @_label: Place to store the address of the label if the GPIO is requested.
+ *          Set to NULL for unused GPIOs.
+ */
+#define for_each_hwgpio(_chip, _i, _label) \
+	for (CLASS(_gpiochip_for_each_data, _data)(&_label, &_i); \
+	     *_data.i < _chip->ngpio; \
+	     (*_data.i)++, kfree(*(_data.label)), *_data.label = NULL) \
+		if (IS_ERR(*_data.label = \
+			gpiochip_dup_line_label(_chip, *_data.i))) {} \
+		else
 
 /**
  * for_each_requested_gpio_in_range - iterates over requested GPIOs in a given range
- * @chip:	the chip to query
- * @i:		loop variable
- * @base:	first GPIO in the range
- * @size:	amount of GPIOs to check starting from @base
- * @label:	label of current GPIO
+ * @_chip:	the chip to query
+ * @_i:		loop variable
+ * @_base:	first GPIO in the range
+ * @_size:	amount of GPIOs to check starting from @base
+ * @_label:	label of current GPIO
  */
-#define for_each_requested_gpio_in_range(chip, i, base, size, label)			\
-	for (i = 0; i < size; i++)							\
-		if ((label = gpiochip_is_requested(chip, base + i)) == NULL) {} else
+#define for_each_requested_gpio_in_range(_chip, _i, _base, _size, _label)		\
+	for (CLASS(_gpiochip_for_each_data, _data)(&_label, &_i);			\
+	     *_data.i < _size;								\
+	     (*_data.i)++, kfree(*(_data.label)), *_data.label = NULL)			\
+		if ((*_data.label =							\
+			gpiochip_dup_line_label(_chip, _base + *_data.i)) == NULL) {}	\
+		else if (IS_ERR(*_data.label)) {}					\
+		else
 
 /* Iterates over all requested GPIO of the given @chip */
 #define for_each_requested_gpio(chip, i, label)						\
 	for_each_requested_gpio_in_range(chip, i, 0, chip->ngpio, label)
 
 /* add/remove chips */
-extern int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
-				      struct lock_class_key *lock_key,
-				      struct lock_class_key *request_key);
+int gpiochip_add_data_with_key(struct gpio_chip *gc, void *data,
+			       struct lock_class_key *lock_key,
+			       struct lock_class_key *request_key);
 
 /**
  * gpiochip_add_data() - register a gpio_chip
@@ -599,13 +638,22 @@ static inline int gpiochip_add(struct gpio_chip *gc)
 {
 	return gpiochip_add_data(gc, NULL);
 }
-extern void gpiochip_remove(struct gpio_chip *gc);
-extern int devm_gpiochip_add_data_with_key(struct device *dev, struct gpio_chip *gc, void *data,
-					   struct lock_class_key *lock_key,
-					   struct lock_class_key *request_key);
+void gpiochip_remove(struct gpio_chip *gc);
+int devm_gpiochip_add_data_with_key(struct device *dev, struct gpio_chip *gc,
+				    void *data, struct lock_class_key *lock_key,
+				    struct lock_class_key *request_key);
 
-extern struct gpio_chip *gpiochip_find(void *data,
-			      int (*match)(struct gpio_chip *gc, void *data));
+struct gpio_device *gpio_device_find(const void *data,
+				int (*match)(struct gpio_chip *gc,
+					     const void *data));
+
+struct gpio_device *gpio_device_get(struct gpio_device *gdev);
+void gpio_device_put(struct gpio_device *gdev);
+
+DEFINE_FREE(gpio_device_put, struct gpio_device *,
+	    if (!IS_ERR_OR_NULL(_T)) gpio_device_put(_T))
+
+struct device *gpio_device_to_device(struct gpio_device *gdev);
 
 bool gpiochip_line_is_irq(struct gpio_chip *gc, unsigned int offset);
 int gpiochip_reqres_irq(struct gpio_chip *gc, unsigned int offset);
@@ -672,25 +720,12 @@ int bgpio_init(struct gpio_chip *gc, struct device *dev,
 #define BGPIOF_NO_OUTPUT		BIT(5) /* only input */
 #define BGPIOF_NO_SET_ON_INPUT		BIT(6)
 
-int gpiochip_irq_map(struct irq_domain *d, unsigned int irq,
-		     irq_hw_number_t hwirq);
-void gpiochip_irq_unmap(struct irq_domain *d, unsigned int irq);
-
-int gpiochip_irq_domain_activate(struct irq_domain *domain,
-				 struct irq_data *data, bool reserve);
-void gpiochip_irq_domain_deactivate(struct irq_domain *domain,
-				    struct irq_data *data);
-
-bool gpiochip_irqchip_irq_valid(const struct gpio_chip *gc,
-				unsigned int offset);
-
 #ifdef CONFIG_GPIOLIB_IRQCHIP
 int gpiochip_irqchip_add_domain(struct gpio_chip *gc,
 				struct irq_domain *domain);
 #else
 
 #include <asm/bug.h>
-#include <asm/errno.h>
 
 static inline int gpiochip_irqchip_add_domain(struct gpio_chip *gc,
 					      struct irq_domain *domain)
@@ -758,18 +793,29 @@ struct gpio_desc *gpiochip_request_own_desc(struct gpio_chip *gc,
 					    enum gpiod_flags dflags);
 void gpiochip_free_own_desc(struct gpio_desc *desc);
 
+struct gpio_desc *gpiochip_get_desc(struct gpio_chip *gc, unsigned int hwnum);
+struct gpio_desc *
+gpio_device_get_desc(struct gpio_device *gdev, unsigned int hwnum);
+
+struct gpio_chip *gpio_device_get_chip(struct gpio_device *gdev);
+
 #ifdef CONFIG_GPIOLIB
 
 /* lock/unlock as IRQ */
 int gpiochip_lock_as_irq(struct gpio_chip *gc, unsigned int offset);
 void gpiochip_unlock_as_irq(struct gpio_chip *gc, unsigned int offset);
 
-
 struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc);
+struct gpio_device *gpiod_to_gpio_device(struct gpio_desc *desc);
+
+/* struct gpio_device getters */
+int gpio_device_get_base(struct gpio_device *gdev);
+const char *gpio_device_get_label(struct gpio_device *gdev);
+
+struct gpio_device *gpio_device_find_by_label(const char *label);
+struct gpio_device *gpio_device_find_by_fwnode(const struct fwnode_handle *fwnode);
 
 #else /* CONFIG_GPIOLIB */
-
-#include <linux/err.h>
 
 #include <asm/bug.h>
 
@@ -778,6 +824,36 @@ static inline struct gpio_chip *gpiod_to_chip(const struct gpio_desc *desc)
 	/* GPIO can never have been requested */
 	WARN_ON(1);
 	return ERR_PTR(-ENODEV);
+}
+
+static inline struct gpio_device *gpiod_to_gpio_device(struct gpio_desc *desc)
+{
+	WARN_ON(1);
+	return ERR_PTR(-ENODEV);
+}
+
+static inline int gpio_device_get_base(struct gpio_device *gdev)
+{
+	WARN_ON(1);
+	return -ENODEV;
+}
+
+static inline const char *gpio_device_get_label(struct gpio_device *gdev)
+{
+	WARN_ON(1);
+	return NULL;
+}
+
+static inline struct gpio_device *gpio_device_find_by_label(const char *label)
+{
+	WARN_ON(1);
+	return NULL;
+}
+
+static inline struct gpio_device *gpio_device_find_by_fwnode(const struct fwnode_handle *fwnode)
+{
+	WARN_ON(1);
+	return NULL;
 }
 
 static inline int gpiochip_lock_as_irq(struct gpio_chip *gc,

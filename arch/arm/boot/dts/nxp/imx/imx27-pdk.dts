@@ -14,18 +14,12 @@
 		reg = <0xa0000000 0x08000000>;
 	};
 
-	usbphy {
-		compatible = "simple-bus";
-		#address-cells = <1>;
-		#size-cells = <0>;
 
-		usbphy0: usbphy@0 {
-			compatible = "usb-nop-xceiv";
-			reg = <0>;
-			clocks = <&clks IMX27_CLK_DUMMY>;
-			clock-names = "main_clk";
-			#phy-cells = <0>;
-		};
+	usbphy0: usbphy {
+		compatible = "usb-nop-xceiv";
+		clocks = <&clks IMX27_CLK_DUMMY>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
 	};
 };
 

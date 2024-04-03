@@ -44,15 +44,29 @@ enum bnxt_re_hw_stats {
 	BNXT_RE_ACTIVE_PD,
 	BNXT_RE_ACTIVE_AH,
 	BNXT_RE_ACTIVE_QP,
+	BNXT_RE_ACTIVE_RC_QP,
+	BNXT_RE_ACTIVE_UD_QP,
 	BNXT_RE_ACTIVE_SRQ,
 	BNXT_RE_ACTIVE_CQ,
 	BNXT_RE_ACTIVE_MR,
 	BNXT_RE_ACTIVE_MW,
+	BNXT_RE_WATERMARK_PD,
+	BNXT_RE_WATERMARK_AH,
+	BNXT_RE_WATERMARK_QP,
+	BNXT_RE_WATERMARK_RC_QP,
+	BNXT_RE_WATERMARK_UD_QP,
+	BNXT_RE_WATERMARK_SRQ,
+	BNXT_RE_WATERMARK_CQ,
+	BNXT_RE_WATERMARK_MR,
+	BNXT_RE_WATERMARK_MW,
+	BNXT_RE_RESIZE_CQ_CNT,
 	BNXT_RE_RX_PKTS,
 	BNXT_RE_RX_BYTES,
 	BNXT_RE_TX_PKTS,
 	BNXT_RE_TX_BYTES,
 	BNXT_RE_RECOVERABLE_ERRORS,
+	BNXT_RE_TX_ERRORS,
+	BNXT_RE_TX_DISCARDS,
 	BNXT_RE_RX_ERRORS,
 	BNXT_RE_RX_DISCARDS,
 	BNXT_RE_TO_RETRANSMITS,
@@ -100,18 +114,57 @@ enum bnxt_re_hw_stats {
 	BNXT_RE_TX_READ_RES,
 	BNXT_RE_TX_WRITE_REQ,
 	BNXT_RE_TX_SEND_REQ,
+	BNXT_RE_TX_ROCE_PKTS,
+	BNXT_RE_TX_ROCE_BYTES,
 	BNXT_RE_RX_ATOMIC_REQ,
 	BNXT_RE_RX_READ_REQ,
 	BNXT_RE_RX_READ_RESP,
 	BNXT_RE_RX_WRITE_REQ,
 	BNXT_RE_RX_SEND_REQ,
+	BNXT_RE_RX_ROCE_PKTS,
+	BNXT_RE_RX_ROCE_BYTES,
 	BNXT_RE_RX_ROCE_GOOD_PKTS,
 	BNXT_RE_RX_ROCE_GOOD_BYTES,
 	BNXT_RE_OOB,
+	BNXT_RE_TX_CNP,
+	BNXT_RE_RX_CNP,
+	BNXT_RE_RX_ECN,
+	BNXT_RE_PACING_RESCHED,
+	BNXT_RE_PACING_CMPL,
+	BNXT_RE_PACING_ALERT,
+	BNXT_RE_DB_FIFO_REG,
 	BNXT_RE_NUM_EXT_COUNTERS
 };
 
 #define BNXT_RE_NUM_STD_COUNTERS (BNXT_RE_OUT_OF_SEQ_ERR + 1)
+
+struct bnxt_re_db_pacing_stats {
+	u64 resched;
+	u64 complete;
+	u64 alerts;
+};
+
+struct bnxt_re_res_cntrs {
+	atomic_t qp_count;
+	atomic_t rc_qp_count;
+	atomic_t ud_qp_count;
+	atomic_t cq_count;
+	atomic_t srq_count;
+	atomic_t mr_count;
+	atomic_t mw_count;
+	atomic_t ah_count;
+	atomic_t pd_count;
+	atomic_t resize_count;
+	u64 qp_watermark;
+	u64 rc_qp_watermark;
+	u64 ud_qp_watermark;
+	u64 cq_watermark;
+	u64 srq_watermark;
+	u64 mr_watermark;
+	u64 mw_watermark;
+	u64 ah_watermark;
+	u64 pd_watermark;
+};
 
 struct bnxt_re_rstat {
 	struct bnxt_qplib_roce_stats    errs;
@@ -120,6 +173,8 @@ struct bnxt_re_rstat {
 
 struct bnxt_re_stats {
 	struct bnxt_re_rstat            rstat;
+	struct bnxt_re_res_cntrs        res;
+	struct bnxt_re_db_pacing_stats  pacing;
 };
 
 struct rdma_hw_stats *bnxt_re_ib_alloc_hw_port_stats(struct ib_device *ibdev,

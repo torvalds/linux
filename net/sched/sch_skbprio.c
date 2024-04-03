@@ -292,6 +292,7 @@ static struct Qdisc_ops skbprio_qdisc_ops __read_mostly = {
 	.destroy	=	skbprio_destroy,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("skbprio");
 
 static int __init skbprio_module_init(void)
 {
@@ -307,3 +308,4 @@ module_init(skbprio_module_init)
 module_exit(skbprio_module_exit)
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("SKB priority based scheduling qdisc");

@@ -5,10 +5,11 @@
 
 #include <linux/component.h>
 #include <linux/dma-mapping.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/of_graph.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
@@ -137,10 +138,9 @@ static int sprd_drm_probe(struct platform_device *pdev)
 	return drm_of_component_probe(&pdev->dev, component_compare_of, &drm_component_ops);
 }
 
-static int sprd_drm_remove(struct platform_device *pdev)
+static void sprd_drm_remove(struct platform_device *pdev)
 {
 	component_master_del(&pdev->dev, &drm_component_ops);
-	return 0;
 }
 
 static void sprd_drm_shutdown(struct platform_device *pdev)
@@ -163,7 +163,7 @@ MODULE_DEVICE_TABLE(of, drm_match_table);
 
 static struct platform_driver sprd_drm_driver = {
 	.probe = sprd_drm_probe,
-	.remove = sprd_drm_remove,
+	.remove_new = sprd_drm_remove,
 	.shutdown = sprd_drm_shutdown,
 	.driver = {
 		.name = "sprd-drm-drv",

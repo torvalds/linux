@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /*
- * Copyright 2018-2023 Amazon.com, Inc. or its affiliates. All rights reserved.
+ * Copyright 2018-2024 Amazon.com, Inc. or its affiliates. All rights reserved.
  */
 
 #include <linux/dma-buf.h>
@@ -13,6 +13,9 @@
 #include <rdma/ib_user_verbs.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/uverbs_ioctl.h>
+#define UVERBS_MODULE_NAME efa_ib
+#include <rdma/uverbs_named_ioctl.h>
+#include <rdma/ib_user_ioctl_cmds.h>
 
 #include "efa.h"
 #include "efa_io_defs.h"
@@ -61,6 +64,10 @@ struct efa_user_mmap_entry {
 	op(EFA_RDMA_READ_BYTES, "rdma_read_bytes") \
 	op(EFA_RDMA_READ_WR_ERR, "rdma_read_wr_err") \
 	op(EFA_RDMA_READ_RESP_BYTES, "rdma_read_resp_bytes") \
+	op(EFA_RDMA_WRITE_WRS, "rdma_write_wrs") \
+	op(EFA_RDMA_WRITE_BYTES, "rdma_write_bytes") \
+	op(EFA_RDMA_WRITE_WR_ERR, "rdma_write_wr_err") \
+	op(EFA_RDMA_WRITE_RECV_BYTES, "rdma_write_recv_bytes") \
 
 #define EFA_STATS_ENUM(ename, name) ename,
 #define EFA_STATS_STR(ename, nam) \
@@ -449,11 +456,11 @@ int efa_destroy_qp(struct ib_qp *ibqp, struct ib_udata *udata)
 
 	ibdev_dbg(&dev->ibdev, "Destroy qp[%u]\n", ibqp->qp_num);
 
-	efa_qp_user_mmap_entries_remove(qp);
-
 	err = efa_destroy_qp_handle(dev, qp->qp_handle);
 	if (err)
 		return err;
+
+	efa_qp_user_mmap_entries_remove(qp);
 
 	if (qp->rq_cpu_addr) {
 		ibdev_dbg(&dev->ibdev,
@@ -1013,8 +1020,8 @@ int efa_destroy_cq(struct ib_cq *ibcq, struct ib_udata *udata)
 		  "Destroy cq[%d] virt[0x%p] freed: size[%lu], dma[%pad]\n",
 		  cq->cq_idx, cq->cpu_addr, cq->size, &cq->dma_addr);
 
-	efa_cq_user_mmap_entries_remove(cq);
 	efa_destroy_cq_idx(dev, cq->cq_idx);
+	efa_cq_user_mmap_entries_remove(cq);
 	if (cq->eq) {
 		xa_erase(&dev->cqs_xa, cq->cq_idx);
 		synchronize_irq(cq->eq->irq.irqn);
@@ -1649,6 +1656,12 @@ static int efa_register_mr(struct ib_pd *ibpd, struct efa_mr *mr, u64 start,
 	mr->ibmr.lkey = result.l_key;
 	mr->ibmr.rkey = result.r_key;
 	mr->ibmr.length = length;
+	mr->ic_info.recv_ic_id = result.ic_info.recv_ic_id;
+	mr->ic_info.rdma_read_ic_id = result.ic_info.rdma_read_ic_id;
+	mr->ic_info.rdma_recv_ic_id = result.ic_info.rdma_recv_ic_id;
+	mr->ic_info.recv_ic_id_valid = result.ic_info.recv_ic_id_valid;
+	mr->ic_info.rdma_read_ic_id_valid = result.ic_info.rdma_read_ic_id_valid;
+	mr->ic_info.rdma_recv_ic_id_valid = result.ic_info.rdma_recv_ic_id_valid;
 	ibdev_dbg(&dev->ibdev, "Registered mr[%d]\n", mr->ibmr.lkey);
 
 	return 0;
@@ -1729,6 +1742,39 @@ err_free:
 err_out:
 	atomic64_inc(&dev->stats.reg_mr_err);
 	return ERR_PTR(err);
+}
+
+static int UVERBS_HANDLER(EFA_IB_METHOD_MR_QUERY)(struct uverbs_attr_bundle *attrs)
+{
+	struct ib_mr *ibmr = uverbs_attr_get_obj(attrs, EFA_IB_ATTR_QUERY_MR_HANDLE);
+	struct efa_mr *mr = to_emr(ibmr);
+	u16 ic_id_validity = 0;
+	int ret;
+
+	ret = uverbs_copy_to(attrs, EFA_IB_ATTR_QUERY_MR_RESP_RECV_IC_ID,
+			     &mr->ic_info.recv_ic_id, sizeof(mr->ic_info.recv_ic_id));
+	if (ret)
+		return ret;
+
+	ret = uverbs_copy_to(attrs, EFA_IB_ATTR_QUERY_MR_RESP_RDMA_READ_IC_ID,
+			     &mr->ic_info.rdma_read_ic_id, sizeof(mr->ic_info.rdma_read_ic_id));
+	if (ret)
+		return ret;
+
+	ret = uverbs_copy_to(attrs, EFA_IB_ATTR_QUERY_MR_RESP_RDMA_RECV_IC_ID,
+			     &mr->ic_info.rdma_recv_ic_id, sizeof(mr->ic_info.rdma_recv_ic_id));
+	if (ret)
+		return ret;
+
+	if (mr->ic_info.recv_ic_id_valid)
+		ic_id_validity |= EFA_QUERY_MR_VALIDITY_RECV_IC_ID;
+	if (mr->ic_info.rdma_read_ic_id_valid)
+		ic_id_validity |= EFA_QUERY_MR_VALIDITY_RDMA_READ_IC_ID;
+	if (mr->ic_info.rdma_recv_ic_id_valid)
+		ic_id_validity |= EFA_QUERY_MR_VALIDITY_RDMA_RECV_IC_ID;
+
+	return uverbs_copy_to(attrs, EFA_IB_ATTR_QUERY_MR_RESP_IC_ID_VALIDITY,
+			      &ic_id_validity, sizeof(ic_id_validity));
 }
 
 int efa_dereg_mr(struct ib_mr *ibmr, struct ib_udata *udata)
@@ -2080,6 +2126,7 @@ static int efa_fill_port_stats(struct efa_dev *dev, struct rdma_hw_stats *stats,
 {
 	struct efa_com_get_stats_params params = {};
 	union efa_com_get_stats_result result;
+	struct efa_com_rdma_write_stats *rws;
 	struct efa_com_rdma_read_stats *rrs;
 	struct efa_com_messages_stats *ms;
 	struct efa_com_basic_stats *bs;
@@ -2121,6 +2168,19 @@ static int efa_fill_port_stats(struct efa_dev *dev, struct rdma_hw_stats *stats,
 	stats->value[EFA_RDMA_READ_WR_ERR] = rrs->read_wr_err;
 	stats->value[EFA_RDMA_READ_RESP_BYTES] = rrs->read_resp_bytes;
 
+	if (EFA_DEV_CAP(dev, RDMA_WRITE)) {
+		params.type = EFA_ADMIN_GET_STATS_TYPE_RDMA_WRITE;
+		err = efa_com_get_stats(&dev->edev, &params, &result);
+		if (err)
+			return err;
+
+		rws = &result.rdma_write_stats;
+		stats->value[EFA_RDMA_WRITE_WRS] = rws->write_wrs;
+		stats->value[EFA_RDMA_WRITE_BYTES] = rws->write_bytes;
+		stats->value[EFA_RDMA_WRITE_WR_ERR] = rws->write_wr_err;
+		stats->value[EFA_RDMA_WRITE_RECV_BYTES] = rws->write_recv_bytes;
+	}
+
 	return ARRAY_SIZE(efa_port_stats_descs);
 }
 
@@ -2139,3 +2199,30 @@ enum rdma_link_layer efa_port_link_layer(struct ib_device *ibdev,
 	return IB_LINK_LAYER_UNSPECIFIED;
 }
 
+DECLARE_UVERBS_NAMED_METHOD(EFA_IB_METHOD_MR_QUERY,
+			    UVERBS_ATTR_IDR(EFA_IB_ATTR_QUERY_MR_HANDLE,
+					    UVERBS_OBJECT_MR,
+					    UVERBS_ACCESS_READ,
+					    UA_MANDATORY),
+			    UVERBS_ATTR_PTR_OUT(EFA_IB_ATTR_QUERY_MR_RESP_IC_ID_VALIDITY,
+						UVERBS_ATTR_TYPE(u16),
+						UA_MANDATORY),
+			    UVERBS_ATTR_PTR_OUT(EFA_IB_ATTR_QUERY_MR_RESP_RECV_IC_ID,
+						UVERBS_ATTR_TYPE(u16),
+						UA_MANDATORY),
+			    UVERBS_ATTR_PTR_OUT(EFA_IB_ATTR_QUERY_MR_RESP_RDMA_READ_IC_ID,
+						UVERBS_ATTR_TYPE(u16),
+						UA_MANDATORY),
+			    UVERBS_ATTR_PTR_OUT(EFA_IB_ATTR_QUERY_MR_RESP_RDMA_RECV_IC_ID,
+						UVERBS_ATTR_TYPE(u16),
+						UA_MANDATORY));
+
+ADD_UVERBS_METHODS(efa_mr,
+		   UVERBS_OBJECT_MR,
+		   &UVERBS_METHOD(EFA_IB_METHOD_MR_QUERY));
+
+const struct uapi_definition efa_uapi_defs[] = {
+	UAPI_DEF_CHAIN_OBJ_TREE(UVERBS_OBJECT_MR,
+				&efa_mr),
+	{},
+};

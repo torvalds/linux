@@ -64,6 +64,49 @@ If the driver needs to perform more complex initialization like getting and
 configuring GPIOs it can get its ACPI handle and extract this information
 from ACPI tables.
 
+ACPI device objects
+===================
+
+Generally speaking, there are two categories of devices in a system in which
+ACPI is used as an interface between the platform firmware and the OS: Devices
+that can be discovered and enumerated natively, through a protocol defined for
+the specific bus that they are on (for example, configuration space in PCI),
+without the platform firmware assistance, and devices that need to be described
+by the platform firmware so that they can be discovered.  Still, for any device
+known to the platform firmware, regardless of which category it falls into,
+there can be a corresponding ACPI device object in the ACPI Namespace in which
+case the Linux kernel will create a struct acpi_device object based on it for
+that device.
+
+Those struct acpi_device objects are never used for binding drivers to natively
+discoverable devices, because they are represented by other types of device
+objects (for example, struct pci_dev for PCI devices) that are bound to by
+device drivers (the corresponding struct acpi_device object is then used as
+an additional source of information on the configuration of the given device).
+Moreover, the core ACPI device enumeration code creates struct platform_device
+objects for the majority of devices that are discovered and enumerated with the
+help of the platform firmware and those platform device objects can be bound to
+by platform drivers in direct analogy with the natively enumerable devices
+case.  Therefore it is logically inconsistent and so generally invalid to bind
+drivers to struct acpi_device objects, including drivers for devices that are
+discovered with the help of the platform firmware.
+
+Historically, ACPI drivers that bound directly to struct acpi_device objects
+were implemented for some devices enumerated with the help of the platform
+firmware, but this is not recommended for any new drivers.  As explained above,
+platform device objects are created for those devices as a rule (with a few
+exceptions that are not relevant here) and so platform drivers should be used
+for handling them, even though the corresponding ACPI device objects are the
+only source of device configuration information in that case.
+
+For every device having a corresponding struct acpi_device object, the pointer
+to it is returned by the ACPI_COMPANION() macro, so it is always possible to
+get to the device configuration information stored in the ACPI device object
+this way.  Accordingly, struct acpi_device can be regarded as a part of the
+interface between the kernel and the ACPI Namespace, whereas device objects of
+other types (for example, struct pci_dev or struct platform_device) are used
+for interacting with the rest of the system.
+
 DMA support
 ===========
 
@@ -552,7 +595,7 @@ bridges/switches of the board.
 
 For example, let's assume we have a system with a PCIe serial port, an
 Exar XR17V3521, soldered on the main board. This UART chip also includes
-16 GPIOs and we want to add the property ``gpio-line-names`` [1] to these pins.
+16 GPIOs and we want to add the property ``gpio-line-names`` [1]_ to these pins.
 In this case, the ``lspci`` output for this component is::
 
 	07:00.0 Serial controller: Exar Corp. XR17V3521 Dual PCIe UART (rev 03)
@@ -594,7 +637,7 @@ of the chipset bridge (also called "root port") with address::
 	Bus: 0 - Device: 14 - Function: 1
 
 To find this information, it is necessary to disassemble the BIOS ACPI tables,
-in particular the DSDT (see also [2])::
+in particular the DSDT (see also [2]_)::
 
 	mkdir ~/tables/
 	cd ~/tables/
@@ -624,7 +667,7 @@ device::
 			}
 	... other definitions follow ...
 
-and the _ADR method [3] returns exactly the device/function couple that
+and the _ADR method [3]_ returns exactly the device/function couple that
 we are looking for. With this information and analyzing the above ``lspci``
 output (both the devices list and the devices tree), we can write the following
 ACPI description for the Exar PCIe UART, also adding the list of its GPIO line
@@ -681,10 +724,10 @@ created analyzing the position of the Exar UART in the PCI bus topology.
 References
 ==========
 
-[1] Documentation/firmware-guide/acpi/gpio-properties.rst
+.. [1] Documentation/firmware-guide/acpi/gpio-properties.rst
 
-[2] Documentation/admin-guide/acpi/initrd_table_override.rst
+.. [2] Documentation/admin-guide/acpi/initrd_table_override.rst
 
-[3] ACPI Specifications, Version 6.3 - Paragraph 6.1.1 _ADR Address)
+.. [3] ACPI Specifications, Version 6.3 - Paragraph 6.1.1 _ADR Address)
     https://uefi.org/sites/default/files/resources/ACPI_6_3_May16.pdf,
     referenced 2020-11-18

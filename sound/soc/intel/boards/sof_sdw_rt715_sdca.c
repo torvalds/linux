@@ -11,7 +11,7 @@
 #include <sound/soc-acpi.h>
 #include "sof_sdw_common.h"
 
-static int rt715_sdca_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int rt715_sdca_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 
@@ -24,13 +24,3 @@ static int rt715_sdca_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-int sof_sdw_rt715_sdca_init(struct snd_soc_card *card,
-			    const struct snd_soc_acpi_link_adr *link,
-			    struct snd_soc_dai_link *dai_links,
-			    struct sof_sdw_codec_info *info,
-			    bool playback)
-{
-	dai_links->init = rt715_sdca_rtd_init;
-
-	return 0;
-}

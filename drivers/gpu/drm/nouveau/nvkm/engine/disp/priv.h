@@ -8,6 +8,9 @@ struct nvkm_head;
 struct nvkm_outp;
 struct dcb_output;
 
+int r535_disp_new(const struct nvkm_disp_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		  struct nvkm_disp **);
+
 int nvkm_disp_ctor(const struct nvkm_disp_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		   struct nvkm_disp *);
 int nvkm_disp_new_(const struct nvkm_disp_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
@@ -15,9 +18,10 @@ int nvkm_disp_new_(const struct nvkm_disp_func *, struct nvkm_device *, enum nvk
 void nvkm_disp_vblank(struct nvkm_disp *, int head);
 
 struct nvkm_disp_func {
+	void (*dtor)(struct nvkm_disp *);
 	int (*oneinit)(struct nvkm_disp *);
 	int (*init)(struct nvkm_disp *);
-	void (*fini)(struct nvkm_disp *);
+	void (*fini)(struct nvkm_disp *, bool suspend);
 	void (*intr)(struct nvkm_disp *);
 	void (*intr_error)(struct nvkm_disp *, int chid);
 
@@ -32,7 +36,7 @@ struct nvkm_disp_func {
 
 	u16 ramht_size;
 
-	const struct nvkm_sclass root;
+	struct nvkm_sclass root;
 
 	struct nvkm_disp_user {
 		struct nvkm_sclass base;
@@ -44,7 +48,7 @@ struct nvkm_disp_func {
 
 int nv50_disp_oneinit(struct nvkm_disp *);
 int nv50_disp_init(struct nvkm_disp *);
-void nv50_disp_fini(struct nvkm_disp *);
+void nv50_disp_fini(struct nvkm_disp *, bool suspend);
 void nv50_disp_intr(struct nvkm_disp *);
 extern const struct nvkm_enum nv50_disp_intr_error_type[];
 void nv50_disp_super(struct work_struct *);
@@ -56,12 +60,12 @@ void nv50_disp_super_2_2(struct nvkm_disp *, struct nvkm_head *);
 void nv50_disp_super_3_0(struct nvkm_disp *, struct nvkm_head *);
 
 int gf119_disp_init(struct nvkm_disp *);
-void gf119_disp_fini(struct nvkm_disp *);
+void gf119_disp_fini(struct nvkm_disp *, bool suspend);
 void gf119_disp_intr(struct nvkm_disp *);
 void gf119_disp_super(struct work_struct *);
 void gf119_disp_intr_error(struct nvkm_disp *, int);
 
-void gv100_disp_fini(struct nvkm_disp *);
+void gv100_disp_fini(struct nvkm_disp *, bool suspend);
 void gv100_disp_intr(struct nvkm_disp *);
 void gv100_disp_super(struct work_struct *);
 int gv100_disp_wndw_cnt(struct nvkm_disp *, unsigned long *);

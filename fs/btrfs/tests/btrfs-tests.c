@@ -28,6 +28,7 @@ const char *test_error[] = {
 	[TEST_ALLOC_INODE]	     = "cannot allocate inode",
 	[TEST_ALLOC_BLOCK_GROUP]     = "cannot allocate block group",
 	[TEST_ALLOC_EXTENT_MAP]      = "cannot allocate extent map",
+	[TEST_ALLOC_CHUNK_MAP]       = "cannot allocate chunk map",
 };
 
 static const struct super_operations btrfs_test_super_ops = {
@@ -102,7 +103,7 @@ struct btrfs_device *btrfs_alloc_dummy_device(struct btrfs_fs_info *fs_info)
 	if (!dev)
 		return ERR_PTR(-ENOMEM);
 
-	extent_io_tree_init(NULL, &dev->alloc_state, 0);
+	extent_io_tree_init(fs_info, &dev->alloc_state, 0);
 	INIT_LIST_HEAD(&dev->dev_list);
 	list_add(&dev->dev_list, &fs_info->fs_devices->devices);
 
@@ -185,7 +186,7 @@ void btrfs_free_dummy_fs_info(struct btrfs_fs_info *fs_info)
 	}
 	spin_unlock(&fs_info->buffer_lock);
 
-	btrfs_mapping_tree_free(&fs_info->mapping_tree);
+	btrfs_mapping_tree_free(fs_info);
 	list_for_each_entry_safe(dev, tmp, &fs_info->fs_devices->devices,
 				 dev_list) {
 		btrfs_free_dummy_device(dev);

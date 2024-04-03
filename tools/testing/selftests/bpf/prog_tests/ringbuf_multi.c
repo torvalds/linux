@@ -42,6 +42,8 @@ void test_ringbuf_multi(void)
 {
 	struct test_ringbuf_multi *skel;
 	struct ring_buffer *ringbuf = NULL;
+	struct ring *ring_old;
+	struct ring *ring;
 	int err;
 	int page_size = getpagesize();
 	int proto_fd = -1;
@@ -84,9 +86,22 @@ void test_ringbuf_multi(void)
 	if (CHECK(!ringbuf, "ringbuf_create", "failed to create ringbuf\n"))
 		goto cleanup;
 
+	/* verify ring_buffer__ring returns expected results */
+	ring = ring_buffer__ring(ringbuf, 0);
+	if (!ASSERT_OK_PTR(ring, "ring_buffer__ring_idx_0"))
+		goto cleanup;
+	ring_old = ring;
+	ring = ring_buffer__ring(ringbuf, 1);
+	ASSERT_ERR_PTR(ring, "ring_buffer__ring_idx_1");
+
 	err = ring_buffer__add(ringbuf, bpf_map__fd(skel->maps.ringbuf2),
 			      process_sample, (void *)(long)2);
 	if (CHECK(err, "ringbuf_add", "failed to add another ring\n"))
+		goto cleanup;
+
+	/* verify adding a new ring didn't invalidate our older pointer */
+	ring = ring_buffer__ring(ringbuf, 0);
+	if (!ASSERT_EQ(ring, ring_old, "ring_buffer__ring_again"))
 		goto cleanup;
 
 	err = test_ringbuf_multi__attach(skel);

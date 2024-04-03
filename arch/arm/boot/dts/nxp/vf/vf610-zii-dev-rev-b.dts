@@ -294,11 +294,11 @@
 		pinctrl-names = "default";
 		#address-cells = <1>;
 		#size-cells = <0>;
-		sck-gpios  = <&gpio1 12 GPIO_ACTIVE_HIGH>;
+		sck-gpios = <&gpio1 12 GPIO_ACTIVE_HIGH>;
 		mosi-gpios = <&gpio1 11 GPIO_ACTIVE_HIGH>;
 		miso-gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
-		cs-gpios  = <&gpio1  9 GPIO_ACTIVE_LOW
-			     &gpio1  8 GPIO_ACTIVE_HIGH>;
+		cs-gpios = <&gpio1 9 GPIO_ACTIVE_LOW
+			    &gpio1 8 GPIO_ACTIVE_HIGH>;
 		num-chipselects = <2>;
 
 		flash@0 {
@@ -338,6 +338,7 @@
 		reg = <0x22>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		#interrupt-cells = <2>;
 		interrupt-controller;
 		interrupt-parent = <&gpio3>;
 		interrupts = <2 IRQ_TYPE_LEVEL_LOW>;

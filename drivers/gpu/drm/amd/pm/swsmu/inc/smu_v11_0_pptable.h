@@ -101,8 +101,7 @@ enum SMU_11_0_ODSETTING_ID {
 };
 #define SMU_11_0_MAX_ODSETTING    32          //Maximum Number of ODSettings
 
-struct smu_11_0_overdrive_table
-{
+struct smu_11_0_overdrive_table {
     uint8_t  revision;                                        //Revision = SMU_11_0_PP_OVERDRIVE_VERSION
     uint8_t  reserve[3];                                      //Zero filled field reserved for future use
     uint32_t feature_count;                                   //Total number of supported features
@@ -127,8 +126,7 @@ enum SMU_11_0_PPCLOCK_ID {
 };
 #define SMU_11_0_MAX_PPCLOCK      16          //Maximum Number of PP Clocks
 
-struct smu_11_0_power_saving_clock_table
-{
+struct smu_11_0_power_saving_clock_table {
     uint8_t  revision;                                        //Revision = SMU_11_0_PP_POWERSAVINGCLOCK_VERSION
     uint8_t  reserve[3];                                      //Zero filled field reserved for future use
     uint32_t count;                                           //power_saving_clock_count = SMU_11_0_PPCLOCK_COUNT
@@ -136,8 +134,7 @@ struct smu_11_0_power_saving_clock_table
     uint32_t min[SMU_11_0_MAX_PPCLOCK];                       //PowerSavingClock Mode Clock Minimum array In MHz
 };
 
-struct smu_11_0_powerplay_table
-{
+struct smu_11_0_powerplay_table {
       struct atom_common_table_header header;
       uint8_t  table_revision;
       uint16_t table_size;                          //Driver portion table size. The offset to smc_pptable including header size
@@ -145,14 +142,14 @@ struct smu_11_0_powerplay_table
       uint32_t golden_revision;
       uint16_t format_id;
       uint32_t platform_caps;                       //POWERPLAYABLE::ulPlatformCaps
-                                                    
+
       uint8_t  thermal_controller_type;             //one of SMU_11_0_PP_THERMALCONTROLLER
 
       uint16_t small_power_limit1;
       uint16_t small_power_limit2;
       uint16_t boost_power_limit;
-      uint16_t od_turbo_power_limit;                //Power limit setting for Turbo mode in Performance UI Tuning. 
-      uint16_t od_power_save_power_limit;           //Power limit setting for PowerSave/Optimal mode in Performance UI Tuning. 
+      uint16_t od_turbo_power_limit;                //Power limit setting for Turbo mode in Performance UI Tuning.
+      uint16_t od_power_save_power_limit;           //Power limit setting for PowerSave/Optimal mode in Performance UI Tuning.
       uint16_t software_shutdown_temp;
 
       uint16_t reserve[6];                          //Zero filled field reserved for future use

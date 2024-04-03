@@ -8,6 +8,8 @@ config VIDEO_CADENCE_CSI2RX
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
 	help
 	  Support for the Cadence MIPI CSI2 Receiver controller.
 

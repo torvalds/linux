@@ -29,6 +29,7 @@
 #include <linux/virtio_pci_modern.h>
 #include <linux/highmem.h>
 #include <linux/spinlock.h>
+#include <linux/mutex.h>
 
 struct virtio_pci_vq_info {
 	/* the actual virtqueue */
@@ -39,6 +40,17 @@ struct virtio_pci_vq_info {
 
 	/* MSI-X vector (or none) */
 	unsigned int msix_vector;
+};
+
+struct virtio_pci_admin_vq {
+	/* Virtqueue info associated with this admin queue. */
+	struct virtio_pci_vq_info info;
+	/* serializing admin commands execution and virtqueue deletion */
+	struct mutex cmd_lock;
+	u64 supported_cmds;
+	/* Name of the admin queue: avq.$vq_index. */
+	char name[10];
+	u16 vq_index;
 };
 
 /* Our device structure */
@@ -58,8 +70,12 @@ struct virtio_pci_device {
 	spinlock_t lock;
 	struct list_head virtqueues;
 
-	/* array of all queues for house-keeping */
+	/* Array of all virtqueues reported in the
+	 * PCI common config num_queues field
+	 */
 	struct virtio_pci_vq_info **vqs;
+
+	struct virtio_pci_admin_vq admin_vq;
 
 	/* MSI-X support */
 	int msix_enabled;
@@ -86,6 +102,7 @@ struct virtio_pci_device {
 	void (*del_vq)(struct virtio_pci_vq_info *info);
 
 	u16 (*config_vector)(struct virtio_pci_device *vp_dev, u16 vector);
+	bool (*is_avq)(struct virtio_device *vdev, unsigned int index);
 };
 
 /* Constants for MSI-X */
@@ -138,5 +155,28 @@ static inline void virtio_pci_legacy_remove(struct virtio_pci_device *vp_dev)
 #endif
 int virtio_pci_modern_probe(struct virtio_pci_device *);
 void virtio_pci_modern_remove(struct virtio_pci_device *);
+
+struct virtio_device *virtio_pci_vf_get_pf_dev(struct pci_dev *pdev);
+
+#define VIRTIO_LEGACY_ADMIN_CMD_BITMAP \
+	(BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_COMMON_CFG_WRITE) | \
+	 BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_COMMON_CFG_READ) | \
+	 BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_DEV_CFG_WRITE) | \
+	 BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_DEV_CFG_READ) | \
+	 BIT_ULL(VIRTIO_ADMIN_CMD_LEGACY_NOTIFY_INFO))
+
+/* Unlike modern drivers which support hardware virtio devices, legacy drivers
+ * assume software-based devices: e.g. they don't use proper memory barriers
+ * on ARM, use big endian on PPC, etc. X86 drivers are mostly ok though, more
+ * or less by chance. For now, only support legacy IO on X86.
+ */
+#ifdef CONFIG_VIRTIO_PCI_ADMIN_LEGACY
+#define VIRTIO_ADMIN_CMD_BITMAP VIRTIO_LEGACY_ADMIN_CMD_BITMAP
+#else
+#define VIRTIO_ADMIN_CMD_BITMAP 0
+#endif
+
+int vp_modern_admin_cmd_exec(struct virtio_device *vdev,
+			     struct virtio_admin_cmd *cmd);
 
 #endif

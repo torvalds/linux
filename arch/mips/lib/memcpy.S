@@ -32,9 +32,9 @@
 #undef CONFIG_CPU_HAS_PREFETCH
 #endif
 
+#include <linux/export.h>
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
-#include <asm/export.h>
 #include <asm/regdef.h>
 
 #define dst a0

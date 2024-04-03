@@ -347,7 +347,7 @@ static int iwl_mvm_mld_rm_int_sta(struct iwl_mvm *mvm,
 		return -EINVAL;
 
 	if (flush)
-		iwl_mvm_flush_sta(mvm, int_sta, true);
+		iwl_mvm_flush_sta(mvm, int_sta->sta_id, int_sta->tfd_queue_msk);
 
 	iwl_mvm_mld_disable_txq(mvm, BIT(int_sta->sta_id), queuptr, tid);
 
@@ -697,6 +697,8 @@ int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	/* at this stage sta link pointers are already allocated */
 	ret = iwl_mvm_mld_update_sta(mvm, vif, sta);
+	if (ret)
+		goto err;
 
 	for_each_sta_active_link(vif, sta, link_sta, link_id) {
 		struct ieee80211_bss_conf *link_conf =
@@ -705,8 +707,10 @@ int iwl_mvm_mld_add_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			rcu_dereference_protected(mvm_sta->link[link_id],
 						  lockdep_is_held(&mvm->mutex));
 
-		if (WARN_ON(!link_conf || !mvm_link_sta))
+		if (WARN_ON(!link_conf || !mvm_link_sta)) {
+			ret = -EINVAL;
 			goto err;
+		}
 
 		ret = iwl_mvm_mld_cfg_sta(mvm, sta, vif, link_sta, link_conf,
 					  mvm_link_sta);
@@ -851,9 +855,14 @@ int iwl_mvm_mld_rm_sta(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 int iwl_mvm_mld_rm_sta_id(struct iwl_mvm *mvm, u8 sta_id)
 {
-	int ret = iwl_mvm_mld_rm_sta_from_fw(mvm, sta_id);
+	int ret;
 
 	lockdep_assert_held(&mvm->mutex);
+
+	if (WARN_ON(sta_id == IWL_MVM_INVALID_STA))
+		return 0;
+
+	ret = iwl_mvm_mld_rm_sta_from_fw(mvm, sta_id);
 
 	RCU_INIT_POINTER(mvm->fw_id_to_mac_id[sta_id], NULL);
 	RCU_INIT_POINTER(mvm->fw_id_to_link_sta[sta_id], NULL);
@@ -869,6 +878,9 @@ void iwl_mvm_mld_sta_modify_disable_tx(struct iwl_mvm *mvm,
 
 	cmd.sta_id = cpu_to_le32(mvmsta->deflink.sta_id);
 	cmd.disable = cpu_to_le32(disable);
+
+	if (WARN_ON(iwl_mvm_has_no_host_disable_tx(mvm)))
+		return;
 
 	ret = iwl_mvm_send_cmd_pdu(mvm,
 				   WIDE_ID(MAC_CONF_GROUP, STA_DISABLE_TX_CMD),
@@ -1104,15 +1116,26 @@ int iwl_mvm_mld_update_sta_links(struct iwl_mvm *mvm,
 			link_sta_dereference_protected(sta, link_id);
 		mvm_vif_link = mvm_vif->link[link_id];
 
-		if (WARN_ON(!mvm_vif_link || !link_conf || !link_sta ||
-			    mvm_sta->link[link_id])) {
+		if (WARN_ON(!mvm_vif_link || !link_conf || !link_sta)) {
 			ret = -EINVAL;
 			goto err;
 		}
 
-		ret = iwl_mvm_mld_alloc_sta_link(mvm, vif, sta, link_id);
-		if (WARN_ON(ret))
-			goto err;
+		if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status)) {
+			if (WARN_ON(!mvm_sta->link[link_id])) {
+				ret = -EINVAL;
+				goto err;
+			}
+		} else {
+			if (WARN_ON(mvm_sta->link[link_id])) {
+				ret = -EINVAL;
+				goto err;
+			}
+			ret = iwl_mvm_mld_alloc_sta_link(mvm, vif, sta,
+							 link_id);
+			if (WARN_ON(ret))
+				goto err;
+		}
 
 		link_sta->agg.max_rc_amsdu_len = 1;
 		ieee80211_sta_recalc_aggregates(sta);

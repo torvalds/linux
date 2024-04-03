@@ -11,7 +11,51 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 
+#include "../host/xhci-port.h"
+#include "../host/xhci-ext-caps.h"
+#include "../host/xhci-caps.h"
 #include "core.h"
+
+#define XHCI_HCSPARAMS1		0x4
+#define XHCI_PORTSC_BASE	0x400
+
+/**
+ * dwc3_power_off_all_roothub_ports - Power off all Root hub ports
+ * @dwc: Pointer to our controller context structure
+ */
+static void dwc3_power_off_all_roothub_ports(struct dwc3 *dwc)
+{
+	void __iomem *xhci_regs;
+	u32 op_regs_base;
+	int port_num;
+	u32 offset;
+	u32 reg;
+	int i;
+
+	/* xhci regs is not mapped yet, do it temperary here */
+	if (dwc->xhci_resources[0].start) {
+		xhci_regs = ioremap(dwc->xhci_resources[0].start, DWC3_XHCI_REGS_END);
+		if (!xhci_regs) {
+			dev_err(dwc->dev, "Failed to ioremap xhci_regs\n");
+			return;
+		}
+
+		op_regs_base = HC_LENGTH(readl(xhci_regs));
+		reg = readl(xhci_regs + XHCI_HCSPARAMS1);
+		port_num = HCS_MAX_PORTS(reg);
+
+		for (i = 1; i <= port_num; i++) {
+			offset = op_regs_base + XHCI_PORTSC_BASE + 0x10 * (i - 1);
+			reg = readl(xhci_regs + offset);
+			reg &= ~PORT_POWER;
+			writel(reg, xhci_regs + offset);
+		}
+
+		iounmap(xhci_regs);
+	} else {
+		dev_err(dwc->dev, "xhci base reg invalid\n");
+	}
+}
 
 static void dwc3_host_fill_xhci_irq_res(struct dwc3 *dwc,
 					int irq, char *name)
@@ -61,10 +105,16 @@ out:
 
 int dwc3_host_init(struct dwc3 *dwc)
 {
-	struct property_entry	props[4];
+	struct property_entry	props[5];
 	struct platform_device	*xhci;
 	int			ret, irq;
 	int			prop_idx = 0;
+
+	/*
+	 * Some platforms need to power off all Root hub ports immediately after DWC3 set to host
+	 * mode to avoid VBUS glitch happen when xhci get reset later.
+	 */
+	dwc3_power_off_all_roothub_ports(dwc);
 
 	irq = dwc3_host_get_irq(dwc);
 	if (irq < 0)
@@ -88,6 +138,8 @@ int dwc3_host_init(struct dwc3 *dwc)
 	}
 
 	memset(props, 0, sizeof(struct property_entry) * ARRAY_SIZE(props));
+
+	props[prop_idx++] = PROPERTY_ENTRY_BOOL("xhci-sg-trb-cache-size-quirk");
 
 	if (dwc->usb3_lpm_capable)
 		props[prop_idx++] = PROPERTY_ENTRY_BOOL("usb3-lpm-capable");
@@ -121,6 +173,14 @@ int dwc3_host_init(struct dwc3 *dwc)
 		goto err;
 	}
 
+	if (dwc->sys_wakeup) {
+		/* Restore wakeup setting if switched from device */
+		device_wakeup_enable(dwc->sysdev);
+
+		/* Pass on wakeup setting to the new xhci platform device */
+		device_init_wakeup(&xhci->dev, true);
+	}
+
 	return 0;
 err:
 	platform_device_put(xhci);
@@ -129,6 +189,9 @@ err:
 
 void dwc3_host_exit(struct dwc3 *dwc)
 {
+	if (dwc->sys_wakeup)
+		device_init_wakeup(&dwc->xhci->dev, false);
+
 	platform_device_unregister(dwc->xhci);
 	dwc->xhci = NULL;
 }

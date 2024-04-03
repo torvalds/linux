@@ -46,7 +46,7 @@ struct ioam6_lwt {
 	struct ioam6_lwt_encap	tuninfo;
 };
 
-static struct netlink_range_validation freq_range = {
+static const struct netlink_range_validation freq_range = {
 	.min = IOAM6_IPTUNNEL_FREQ_MIN,
 	.max = IOAM6_IPTUNNEL_FREQ_MAX,
 };

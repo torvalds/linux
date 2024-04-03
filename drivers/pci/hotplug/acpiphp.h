@@ -178,7 +178,6 @@ void acpiphp_unregister_hotplug_slot(struct acpiphp_slot *slot);
 int acpiphp_enable_slot(struct acpiphp_slot *slot);
 int acpiphp_disable_slot(struct acpiphp_slot *slot);
 u8 acpiphp_get_power_status(struct acpiphp_slot *slot);
-u8 acpiphp_get_attention_status(struct acpiphp_slot *slot);
 u8 acpiphp_get_latch_status(struct acpiphp_slot *slot);
 u8 acpiphp_get_adapter_status(struct acpiphp_slot *slot);
 

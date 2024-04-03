@@ -58,8 +58,21 @@ die() {
 	exit 1
 }
 
-READELF="${CROSS_COMPILE:-}readelf"
-ADDR2LINE="${CROSS_COMPILE:-}addr2line"
+UTIL_SUFFIX=""
+if [[ "${LLVM:-}" == "" ]]; then
+	UTIL_PREFIX=${CROSS_COMPILE:-}
+else
+	UTIL_PREFIX=llvm-
+
+	if [[ "${LLVM}" == *"/" ]]; then
+		UTIL_PREFIX=${LLVM}${UTIL_PREFIX}
+	elif [[ "${LLVM}" == "-"* ]]; then
+		UTIL_SUFFIX=${LLVM}
+	fi
+fi
+
+READELF="${UTIL_PREFIX}readelf${UTIL_SUFFIX}"
+ADDR2LINE="${UTIL_PREFIX}addr2line${UTIL_SUFFIX}"
 AWK="awk"
 GREP="grep"
 
@@ -166,6 +179,11 @@ __faddr2line() {
 			local cur_sym_elf_size=${fields[2]}
 			local cur_sym_name=${fields[7]:-}
 
+			# is_mapping_symbol(cur_sym_name)
+			if [[ ${cur_sym_name} =~ ^(\.L|L0|\$) ]]; then
+				continue
+			fi
+
 			if [[ $cur_sym_addr = $sym_addr ]] &&
 			   [[ $cur_sym_elf_size = $sym_elf_size ]] &&
 			   [[ $cur_sym_name = $sym_name ]]; then
@@ -260,7 +278,7 @@ __faddr2line() {
 
 		DONE=1
 
-	done < <(${READELF} --symbols --wide $objfile | sed 's/\[.*\]//' | ${AWK} -v fn=$sym_name '$4 == "FUNC" && $8 == fn')
+	done < <(${READELF} --symbols --wide $objfile | sed 's/\[.*\]//' | ${AWK} -v fn=$sym_name '$8 == fn')
 }
 
 [[ $# -lt 2 ]] && usage

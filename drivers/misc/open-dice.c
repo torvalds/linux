@@ -140,7 +140,6 @@ static int __init open_dice_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	*drvdata = (struct open_dice_drvdata){
-		.lock = __MUTEX_INITIALIZER(drvdata->lock),
 		.rmem = rmem,
 		.misc = (struct miscdevice){
 			.parent	= dev,
@@ -150,6 +149,7 @@ static int __init open_dice_probe(struct platform_device *pdev)
 			.mode	= 0600,
 		},
 	};
+	mutex_init(&drvdata->lock);
 
 	/* Index overflow check not needed, misc_register() will fail. */
 	snprintf(drvdata->name, sizeof(drvdata->name), DRIVER_NAME"%u", dev_idx++);
@@ -165,12 +165,11 @@ static int __init open_dice_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int open_dice_remove(struct platform_device *pdev)
+static void open_dice_remove(struct platform_device *pdev)
 {
 	struct open_dice_drvdata *drvdata = platform_get_drvdata(pdev);
 
 	misc_deregister(&drvdata->misc);
-	return 0;
 }
 
 static const struct of_device_id open_dice_of_match[] = {
@@ -179,7 +178,7 @@ static const struct of_device_id open_dice_of_match[] = {
 };
 
 static struct platform_driver open_dice_driver = {
-	.remove = open_dice_remove,
+	.remove_new = open_dice_remove,
 	.driver = {
 		.name = DRIVER_NAME,
 		.of_match_table = open_dice_of_match,

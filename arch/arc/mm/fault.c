@@ -13,6 +13,7 @@
 #include <linux/kdebug.h>
 #include <linux/perf_event.h>
 #include <linux/mm_types.h>
+#include <asm/entry.h>
 #include <asm/mmu.h>
 
 /*
@@ -99,10 +100,10 @@ void do_page_fault(unsigned long address, struct pt_regs *regs)
 	if (faulthandler_disabled() || !mm)
 		goto no_context;
 
-	if (regs->ecr_cause & ECR_C_PROTV_STORE)	/* ST/EX */
+	if (regs->ecr.cause & ECR_C_PROTV_STORE)	/* ST/EX */
 		write = 1;
-	else if ((regs->ecr_vec == ECR_V_PROTV) &&
-	         (regs->ecr_cause == ECR_C_PROTV_INST_FETCH))
+	else if ((regs->ecr.vec == ECR_V_PROTV) &&
+	         (regs->ecr.cause == ECR_C_PROTV_INST_FETCH))
 		exec = 1;
 
 	flags = FAULT_FLAG_DEFAULT;

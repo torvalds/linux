@@ -31,29 +31,27 @@
 
 #include "amdgpu_ras.h"
 
-static const struct soc15_baco_cmd_entry clean_baco_tbl[] =
-{
+static const struct soc15_baco_cmd_entry clean_baco_tbl[] = {
 	{CMD_WRITE, SOC15_REG_ENTRY(NBIF, 0, mmBIOS_SCRATCH_6), 0, 0, 0, 0},
 	{CMD_WRITE, SOC15_REG_ENTRY(NBIF, 0, mmBIOS_SCRATCH_7), 0, 0, 0, 0},
 };
 
-int vega20_baco_get_capability(struct pp_hwmgr *hwmgr, bool *cap)
+bool vega20_baco_get_capability(struct pp_hwmgr *hwmgr)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)(hwmgr->adev);
 	uint32_t reg;
 
-	*cap = false;
 	if (!phm_cap_enabled(hwmgr->platform_descriptor.platformCaps, PHM_PlatformCaps_BACO))
-		return 0;
+		return false;
 
 	if (((RREG32(0x17569) & 0x20000000) >> 29) == 0x1) {
 		reg = RREG32_SOC15(NBIF, 0, mmRCC_BIF_STRAP0);
 
 		if (reg & RCC_BIF_STRAP0__STRAP_PX_CAPABLE_MASK)
-			*cap = true;
+			return true;
 	}
 
-	return 0;
+	return false;
 }
 
 int vega20_baco_get_state(struct pp_hwmgr *hwmgr, enum BACO_STATE *state)
@@ -90,11 +88,11 @@ int vega20_baco_set_state(struct pp_hwmgr *hwmgr, enum BACO_STATE state)
 			data |= 0x80000000;
 			WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL, data);
 
-			if(smum_send_msg_to_smc_with_parameter(hwmgr,
+			if (smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_EnterBaco, 0, NULL))
 				return -EINVAL;
 		} else {
-			if(smum_send_msg_to_smc_with_parameter(hwmgr,
+			if (smum_send_msg_to_smc_with_parameter(hwmgr,
 					PPSMC_MSG_EnterBaco, 1, NULL))
 				return -EINVAL;
 		}

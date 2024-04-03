@@ -6,7 +6,7 @@ args    = --no-bpf-event --user-regs=vg kill >/dev/null 2>&1
 ret     = 1
 test_ret = true
 arch    = aarch64
-auxv    = auxv["AT_HWCAP"] & 0x200000 == 0x200000
+auxv    = auxv["AT_HWCAP"] & 0x400000 == 0x400000
 kernel_since = 6.1
 
 [event:base-record]

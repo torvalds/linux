@@ -15,14 +15,14 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/sizes.h>
-#include <asm/fpu/api.h>
+#include <asm/fpu.h>
 #include "chacha-s390.h"
 
 static void chacha20_crypt_s390(u32 *state, u8 *dst, const u8 *src,
 				unsigned int nbytes, const u32 *key,
 				u32 *counter)
 {
-	struct kernel_fpu vxstate;
+	DECLARE_KERNEL_FPU_ONSTACK32(vxstate);
 
 	kernel_fpu_begin(&vxstate, KERNEL_VXR);
 	chacha20_vx(dst, src, nbytes, key, counter);
@@ -82,7 +82,7 @@ void chacha_crypt_arch(u32 *state, u8 *dst, const u8 *src,
 	 * it cannot handle a block of data or less, but otherwise
 	 * it can handle data of arbitrary size
 	 */
-	if (bytes <= CHACHA_BLOCK_SIZE || nrounds != 20 || !MACHINE_HAS_VX)
+	if (bytes <= CHACHA_BLOCK_SIZE || nrounds != 20 || !cpu_has_vx())
 		chacha_crypt_generic(state, dst, src, bytes, nrounds);
 	else
 		chacha20_crypt_s390(state, dst, src, bytes,

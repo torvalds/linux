@@ -2721,7 +2721,7 @@ static const struct file_operations snd_seq_f_ops =
 	.compat_ioctl =	snd_seq_ioctl_compat,
 };
 
-static struct device seq_dev;
+static struct device *seq_dev;
 
 /* 
  * register sequencer device 
@@ -2730,15 +2730,17 @@ int __init snd_sequencer_device_init(void)
 {
 	int err;
 
-	snd_device_initialize(&seq_dev, NULL);
-	dev_set_name(&seq_dev, "seq");
+	err = snd_device_alloc(&seq_dev, NULL);
+	if (err < 0)
+		return err;
+	dev_set_name(seq_dev, "seq");
 
 	mutex_lock(&register_mutex);
 	err = snd_register_device(SNDRV_DEVICE_TYPE_SEQUENCER, NULL, 0,
-				  &snd_seq_f_ops, NULL, &seq_dev);
+				  &snd_seq_f_ops, NULL, seq_dev);
 	mutex_unlock(&register_mutex);
 	if (err < 0) {
-		put_device(&seq_dev);
+		put_device(seq_dev);
 		return err;
 	}
 	
@@ -2752,6 +2754,6 @@ int __init snd_sequencer_device_init(void)
  */
 void snd_sequencer_device_done(void)
 {
-	snd_unregister_device(&seq_dev);
-	put_device(&seq_dev);
+	snd_unregister_device(seq_dev);
+	put_device(seq_dev);
 }

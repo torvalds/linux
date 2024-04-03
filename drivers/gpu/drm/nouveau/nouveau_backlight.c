@@ -109,42 +109,6 @@ nv40_backlight_init(struct nouveau_encoder *encoder,
 	return 0;
 }
 
-static int
-nv50_get_intensity(struct backlight_device *bd)
-{
-	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
-	struct nvif_object *device = &drm->client.device.object;
-	int or = ffs(nv_encoder->dcb->or) - 1;
-	u32 div = 1025;
-	u32 val;
-
-	val  = nvif_rd32(device, NV50_PDISP_SOR_PWM_CTL(or));
-	val &= NV50_PDISP_SOR_PWM_CTL_VAL;
-	return ((val * 100) + (div / 2)) / div;
-}
-
-static int
-nv50_set_intensity(struct backlight_device *bd)
-{
-	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
-	struct nvif_object *device = &drm->client.device.object;
-	int or = ffs(nv_encoder->dcb->or) - 1;
-	u32 div = 1025;
-	u32 val = (bd->props.brightness * div) / 100;
-
-	nvif_wr32(device, NV50_PDISP_SOR_PWM_CTL(or),
-		  NV50_PDISP_SOR_PWM_CTL_NEW | val);
-	return 0;
-}
-
-static const struct backlight_ops nv50_bl_ops = {
-	.options = BL_CORE_SUSPENDRESUME,
-	.get_brightness = nv50_get_intensity,
-	.update_status = nv50_set_intensity,
-};
-
 /*
  * eDP brightness callbacks need to happen under lock, since we need to
  * enable/disable the backlight ourselves for modesets
@@ -238,53 +202,25 @@ static const struct backlight_ops nv50_edp_bl_ops = {
 };
 
 static int
-nva3_get_intensity(struct backlight_device *bd)
+nv50_get_intensity(struct backlight_device *bd)
 {
 	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
-	struct nvif_object *device = &drm->client.device.object;
-	int or = ffs(nv_encoder->dcb->or) - 1;
-	u32 div, val;
 
-	div  = nvif_rd32(device, NV50_PDISP_SOR_PWM_DIV(or));
-	val  = nvif_rd32(device, NV50_PDISP_SOR_PWM_CTL(or));
-	val &= NVA3_PDISP_SOR_PWM_CTL_VAL;
-	if (div && div >= val)
-		return ((val * 100) + (div / 2)) / div;
-
-	return 100;
+	return nvif_outp_bl_get(&nv_encoder->outp);
 }
 
 static int
-nva3_set_intensity(struct backlight_device *bd)
+nv50_set_intensity(struct backlight_device *bd)
 {
 	struct nouveau_encoder *nv_encoder = bl_get_data(bd);
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
-	struct nvif_object *device = &drm->client.device.object;
-	int or = ffs(nv_encoder->dcb->or) - 1;
-	u32 div, val;
 
-	div = nvif_rd32(device, NV50_PDISP_SOR_PWM_DIV(or));
-
-	val = backlight_get_brightness(bd);
-	if (val)
-		val = (val * div) / 100;
-
-	if (div) {
-		nvif_wr32(device, NV50_PDISP_SOR_PWM_CTL(or),
-			  val |
-			  NV50_PDISP_SOR_PWM_CTL_NEW |
-			  NVA3_PDISP_SOR_PWM_CTL_UNK);
-		return 0;
-	}
-
-	return -EINVAL;
+	return nvif_outp_bl_set(&nv_encoder->outp, backlight_get_brightness(bd));
 }
 
-static const struct backlight_ops nva3_bl_ops = {
+static const struct backlight_ops nv50_bl_ops = {
 	.options = BL_CORE_SUSPENDRESUME,
-	.get_brightness = nva3_get_intensity,
-	.update_status = nva3_set_intensity,
+	.get_brightness = nv50_get_intensity,
+	.update_status = nv50_set_intensity,
 };
 
 /* FIXME: perform backlight probing for eDP _before_ this, this only gets called after connector
@@ -298,13 +234,12 @@ nv50_backlight_init(struct nouveau_backlight *bl,
 		    const struct backlight_ops **ops)
 {
 	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
-	struct nvif_object *device = &drm->client.device.object;
 
 	/*
 	 * Note when this runs the connectors have not been probed yet,
 	 * so nv_conn->base.status is not set yet.
 	 */
-	if (!nvif_rd32(device, NV50_PDISP_SOR_PWM_CTL(ffs(nv_encoder->dcb->or) - 1)) ||
+	if (nvif_outp_bl_get(&nv_encoder->outp) < 0 ||
 	    drm_helper_probe_detect(&nv_conn->base, NULL, false) != connector_status_connected)
 		return -ENODEV;
 
@@ -346,15 +281,8 @@ nv50_backlight_init(struct nouveau_backlight *bl,
 		}
 	}
 
-	if (drm->client.device.info.chipset <= 0xa0 ||
-	    drm->client.device.info.chipset == 0xaa ||
-	    drm->client.device.info.chipset == 0xac)
-		*ops = &nv50_bl_ops;
-	else
-		*ops = &nva3_bl_ops;
-
+	*ops = &nv50_bl_ops;
 	props->max_brightness = 100;
-
 	return 0;
 }
 

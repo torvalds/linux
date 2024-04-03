@@ -14,6 +14,8 @@
 
 #include <linux/compiler.h>
 #include <linux/stringify.h>
+
+#include <asm/bootparam.h>
 #include <asm/ptrace.h>
 #include <asm/types.h>
 #include <asm/regs.h>
@@ -216,6 +218,9 @@ struct task_struct;
 struct mm_struct;
 
 extern unsigned long __get_wchan(struct task_struct *p);
+
+void init_arch(bp_tag_t *bp_start);
+void do_notify_resume(struct pt_regs *regs);
 
 #define KSTK_EIP(tsk)		(task_pt_regs(tsk)->pc)
 #define KSTK_ESP(tsk)		(task_pt_regs(tsk)->areg[1])

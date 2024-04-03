@@ -127,21 +127,14 @@ static inline int kim_check_data_len(struct kim_data_s *kim_gdata, int len)
  *	have been observed to come in bursts of different
  *	tty_receive and hence the logic
  */
-static void kim_int_recv(struct kim_data_s *kim_gdata,
-	const unsigned char *data, long count)
+static void kim_int_recv(struct kim_data_s *kim_gdata, const u8 *ptr,
+			 size_t count)
 {
-	const unsigned char *ptr;
 	int len = 0;
 	unsigned char *plen;
 
 	pr_debug("%s", __func__);
 	/* Decode received bytes here */
-	ptr = data;
-	if (unlikely(ptr == NULL)) {
-		pr_err(" received null from TTY ");
-		return;
-	}
-
 	while (count) {
 		if (kim_gdata->rx_count) {
 			len = min_t(unsigned int, kim_gdata->rx_count, count);
@@ -424,7 +417,7 @@ static long download_firmware(struct kim_data_s *kim_gdata)
  * 1. response to read local version
  * 2. during send/recv's of firmware download
  */
-void st_kim_recv(void *disc_data, const unsigned char *data, long count)
+void st_kim_recv(void *disc_data, const u8 *data, size_t count)
 {
 	struct st_data_s	*st_gdata = (struct st_data_s *)disc_data;
 	struct kim_data_s	*kim_gdata = st_gdata->kim_data;
@@ -597,7 +590,7 @@ static ssize_t store_dev_name(struct device *dev,
 {
 	struct kim_data_s *kim_data = dev_get_drvdata(dev);
 	pr_debug("storing dev name >%s<", buf);
-	strncpy(kim_data->dev_name, buf, count);
+	strscpy(kim_data->dev_name, buf, sizeof(kim_data->dev_name));
 	pr_debug("stored dev name >%s<", kim_data->dev_name);
 	return count;
 }
@@ -758,7 +751,8 @@ static int kim_probe(struct platform_device *pdev)
 	}
 
 	/* copying platform data */
-	strncpy(kim_gdata->dev_name, pdata->dev_name, UART_DEV_NAME_LEN);
+	strscpy(kim_gdata->dev_name, pdata->dev_name,
+		sizeof(kim_gdata->dev_name));
 	kim_gdata->flow_cntrl = pdata->flow_cntrl;
 	kim_gdata->baud_rate = pdata->baud_rate;
 	pr_info("sysfs entries created\n");
@@ -780,7 +774,7 @@ err_core_init:
 	return err;
 }
 
-static int kim_remove(struct platform_device *pdev)
+static void kim_remove(struct platform_device *pdev)
 {
 	/* free the GPIOs requested */
 	struct ti_st_plat_data	*pdata = pdev->dev.platform_data;
@@ -804,7 +798,6 @@ static int kim_remove(struct platform_device *pdev)
 
 	kfree(kim_gdata);
 	kim_gdata = NULL;
-	return 0;
 }
 
 static int kim_suspend(struct platform_device *pdev, pm_message_t state)
@@ -831,7 +824,7 @@ static int kim_resume(struct platform_device *pdev)
 /* entry point for ST KIM module, called in from ST Core */
 static struct platform_driver kim_platform_driver = {
 	.probe = kim_probe,
-	.remove = kim_remove,
+	.remove_new = kim_remove,
 	.suspend = kim_suspend,
 	.resume = kim_resume,
 	.driver = {

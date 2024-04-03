@@ -5,7 +5,7 @@
 #include <linux/irqchip.h>
 #include <linux/mfd/syscon.h>
 #include <linux/mfd/syscon/imx7-iomuxc-gpr.h>
-#include <linux/of_platform.h>
+#include <linux/platform_device.h>
 #include <linux/phy.h>
 #include <linux/regmap.h>
 

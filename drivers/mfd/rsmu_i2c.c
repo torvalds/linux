@@ -188,7 +188,7 @@ static const struct regmap_config rsmu_sabre_regmap_config = {
 	.ranges = rsmu_sabre_range_cfg,
 	.num_ranges = ARRAY_SIZE(rsmu_sabre_range_cfg),
 	.volatile_reg = rsmu_sabre_volatile_reg,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.can_multi_write = true,
 };
 
@@ -277,7 +277,7 @@ MODULE_DEVICE_TABLE(of, rsmu_i2c_of_match);
 static struct i2c_driver rsmu_i2c_driver = {
 	.driver = {
 		.name = "rsmu-i2c",
-		.of_match_table = of_match_ptr(rsmu_i2c_of_match),
+		.of_match_table = rsmu_i2c_of_match,
 	},
 	.probe = rsmu_i2c_probe,
 	.remove	= rsmu_i2c_remove,

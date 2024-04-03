@@ -23,8 +23,6 @@
 #include <linux/time-internal.h>
 
 
-extern void free_irqs(void);
-
 /* When epoll triggers we do not know why it did so
  * we can also have different IRQs for read and write.
  * This is why we keep a small irq_reg array for each fd -

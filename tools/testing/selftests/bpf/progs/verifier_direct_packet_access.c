@@ -411,7 +411,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("tc")
 __description("direct packet access: test17 (pruning, alignment)")
-__failure __msg("misaligned packet access off 2+(0x0; 0x0)+15+-4 size 4")
+__failure __msg("misaligned packet access off 2+0+15+-4 size 4")
 __flag(BPF_F_STRICT_ALIGNMENT)
 __naked void packet_access_test17_pruning_alignment(void)
 {
@@ -568,7 +568,7 @@ l0_%=:	r0 = 0;						\
 
 SEC("tc")
 __description("direct packet access: test23 (x += pkt_ptr, 4)")
-__failure __msg("invalid access to packet, off=0 size=8, R5(id=2,off=0,r=0)")
+__failure __msg("invalid access to packet, off=0 size=8, R5(id=3,off=0,r=0)")
 __flag(BPF_F_ANY_ALIGNMENT)
 __naked void test23_x_pkt_ptr_4(void)
 {

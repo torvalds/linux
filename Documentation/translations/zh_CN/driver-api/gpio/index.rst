@@ -14,9 +14,8 @@
 通用型输入/输出（GPIO）
 =======================
 
-目录:
-
 .. toctree::
+   :caption: 目录
    :maxdepth: 2
 
    legacy

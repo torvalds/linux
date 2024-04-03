@@ -111,6 +111,20 @@ static const struct drm_gem_object_funcs vmw_gem_object_funcs = {
 	.vm_ops = &vmw_vm_ops,
 };
 
+int vmw_gem_object_create(struct vmw_private *vmw,
+			  struct vmw_bo_params *params,
+			  struct vmw_bo **p_vbo)
+{
+	int ret = vmw_bo_create(vmw, params, p_vbo);
+
+	if (ret != 0)
+		goto out_no_bo;
+
+	(*p_vbo)->tbo.base.funcs = &vmw_gem_object_funcs;
+out_no_bo:
+	return ret;
+}
+
 int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 				      struct drm_file *filp,
 				      uint32_t size,
@@ -126,11 +140,9 @@ int vmw_gem_object_create_with_handle(struct vmw_private *dev_priv,
 		.pin = false
 	};
 
-	ret = vmw_bo_create(dev_priv, &params, p_vbo);
+	ret = vmw_gem_object_create(dev_priv, &params, p_vbo);
 	if (ret != 0)
 		goto out_no_bo;
-
-	(*p_vbo)->tbo.base.funcs = &vmw_gem_object_funcs;
 
 	ret = drm_gem_handle_create(filp, &(*p_vbo)->tbo.base, handle);
 out_no_bo:
@@ -232,6 +244,7 @@ static int vmw_debugfs_gem_info_show(struct seq_file *m, void *unused)
 	list_for_each_entry(file, &dev->filelist, lhead) {
 		struct task_struct *task;
 		struct drm_gem_object *gobj;
+		struct pid *pid;
 		int id;
 
 		/*
@@ -241,8 +254,9 @@ static int vmw_debugfs_gem_info_show(struct seq_file *m, void *unused)
 		 * Therefore, we need to protect this ->comm access using RCU.
 		 */
 		rcu_read_lock();
-		task = pid_task(file->pid, PIDTYPE_TGID);
-		seq_printf(m, "pid %8d command %s:\n", pid_nr(file->pid),
+		pid = rcu_dereference(file->pid);
+		task = pid_task(pid, PIDTYPE_TGID);
+		seq_printf(m, "pid %8d command %s:\n", pid_nr(pid),
 			   task ? task->comm : "<unknown>");
 		rcu_read_unlock();
 

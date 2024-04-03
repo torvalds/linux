@@ -557,7 +557,7 @@ static void ksz_ptp_txtstamp_skb(struct ksz_device *dev,
 	struct skb_shared_hwtstamps hwtstamps = {};
 	int ret;
 
-	/* timeout must include DSA master to transmit data, tstamp latency,
+	/* timeout must include DSA conduit to transmit data, tstamp latency,
 	 * IRQ latency and time for reading the time stamp.
 	 */
 	ret = wait_for_completion_timeout(&prt->tstamp_msg_comp,

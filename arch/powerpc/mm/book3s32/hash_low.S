@@ -14,6 +14,7 @@
  *  hash table, so this file is not used on them.)
  */
 
+#include <linux/export.h>
 #include <linux/pgtable.h>
 #include <linux/init.h>
 #include <asm/reg.h>
@@ -22,7 +23,6 @@
 #include <asm/ppc_asm.h>
 #include <asm/thread_info.h>
 #include <asm/asm-offsets.h>
-#include <asm/export.h>
 #include <asm/feature-fixups.h>
 #include <asm/code-patching-asm.h>
 
@@ -36,8 +36,9 @@
 
 /*
  * Load a PTE into the hash table, if possible.
- * The address is in r4, and r3 contains an access flag:
- * _PAGE_RW (0x400) if a write.
+ * The address is in r4, and r3 contains required access flags:
+ *   - For ISI: _PAGE_PRESENT | _PAGE_EXEC
+ *   - For DSI: _PAGE_PRESENT | _PAGE_READ | _PAGE_WRITE if a write.
  * r9 contains the SRR1 value, from which we use the MSR_PR bit.
  * SPRG_THREAD contains the physical address of the current task's thread.
  *
@@ -67,12 +68,16 @@ _GLOBAL(hash_page)
 	lis	r0, TASK_SIZE@h		/* check if kernel address */
 	cmplw	0,r4,r0
 	mfspr	r8,SPRN_SPRG_THREAD	/* current task's THREAD (phys) */
-	ori	r3,r3,_PAGE_USER|_PAGE_PRESENT /* test low addresses as user */
 	lwz	r5,PGDIR(r8)		/* virt page-table root */
 	blt+	112f			/* assume user more likely */
 	lis	r5,swapper_pg_dir@ha	/* if kernel address, use */
+	andi.	r0,r9,MSR_PR		/* Check usermode */
 	addi	r5,r5,swapper_pg_dir@l	/* kernel page table */
-	rlwimi	r3,r9,32-12,29,29	/* MSR_PR -> _PAGE_USER */
+#ifdef CONFIG_SMP
+	bne-	.Lhash_page_out		/* return if usermode */
+#else
+	bnelr-
+#endif
 112:	tophys(r5, r5)
 #ifndef CONFIG_PTE_64BIT
 	rlwimi	r5,r4,12,20,29		/* insert top 10 bits of address */
@@ -113,15 +118,15 @@ _GLOBAL(hash_page)
 	lwarx	r6,0,r8			/* get linux-style pte, flag word */
 #ifdef CONFIG_PPC_KUAP
 	mfsrin	r5,r4
-	rlwinm	r0,r9,28,_PAGE_RW	/* MSR[PR] => _PAGE_RW */
-	rlwinm	r5,r5,12,_PAGE_RW	/* Ks => _PAGE_RW */
+	rlwinm	r0,r9,28,_PAGE_WRITE	/* MSR[PR] => _PAGE_WRITE */
+	rlwinm	r5,r5,12,_PAGE_WRITE	/* Ks => _PAGE_WRITE */
 	andc	r5,r5,r0		/* Ks & ~MSR[PR] */
-	andc	r5,r6,r5		/* Clear _PAGE_RW when Ks = 1 && MSR[PR] = 0 */
+	andc	r5,r6,r5		/* Clear _PAGE_WRITE when Ks = 1 && MSR[PR] = 0 */
 	andc.	r5,r3,r5		/* check access & ~permission */
 #else
 	andc.	r5,r3,r6		/* check access & ~permission */
 #endif
-	rlwinm	r0,r3,32-3,24,24	/* _PAGE_RW access -> _PAGE_DIRTY */
+	rlwinm	r0,r3,32-3,24,24	/* _PAGE_WRITE access -> _PAGE_DIRTY */
 	ori	r0,r0,_PAGE_ACCESSED|_PAGE_HASHPTE
 #ifdef CONFIG_SMP
 	bne-	.Lhash_page_out		/* return if access not permitted */
@@ -307,12 +312,15 @@ Hash_msk = (((1 << Hash_bits) - 1) * 64)
 __REF
 _GLOBAL(create_hpte)
 	/* Convert linux-style PTE (r5) to low word of PPC-style PTE (r8) */
-	rlwinm	r8,r5,32-9,30,30	/* _PAGE_RW -> PP msb */
+	lis	r0, TASK_SIZE@h
+	rlwinm	r5,r5,0,~3		/* Clear PP bits */
+	cmplw	r4,r0
+	rlwinm	r8,r5,32-9,30,30	/* _PAGE_WRITE -> PP msb */
 	rlwinm	r0,r5,32-6,30,30	/* _PAGE_DIRTY -> PP msb */
 	and	r8,r8,r0		/* writable if _RW & _DIRTY */
-	rlwimi	r5,r5,32-1,30,30	/* _PAGE_USER -> PP msb */
-	rlwimi	r5,r5,32-2,31,31	/* _PAGE_USER -> PP lsb */
-	ori	r8,r8,0xe04		/* clear out reserved bits */
+	bge-	1f			/* Kernelspace ? Skip */
+	ori	r5,r5,3			/* Userspace ? PP = 3 */
+1:	ori	r8,r8,0xe04		/* clear out reserved bits */
 	andc	r8,r5,r8		/* PP = user? (rw&dirty? 1: 3): 0 */
 BEGIN_FTR_SECTION
 	rlwinm	r8,r8,0,~_PAGE_COHERENT	/* clear M (coherence not required) */

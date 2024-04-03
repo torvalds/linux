@@ -411,43 +411,44 @@ static int adp1653_of_init(struct i2c_client *client,
 			   struct device_node *node)
 {
 	struct adp1653_platform_data *pd;
-	struct device_node *child;
+	struct device_node *node_indicator = NULL;
+	struct device_node *node_flash;
 
 	pd = devm_kzalloc(&client->dev, sizeof(*pd), GFP_KERNEL);
 	if (!pd)
 		return -ENOMEM;
 	flash->platform_data = pd;
 
-	child = of_get_child_by_name(node, "flash");
-	if (!child)
+	node_flash = of_get_child_by_name(node, "flash");
+	if (!node_flash)
 		return -EINVAL;
 
-	if (of_property_read_u32(child, "flash-timeout-us",
+	if (of_property_read_u32(node_flash, "flash-timeout-us",
 				 &pd->max_flash_timeout))
 		goto err;
 
-	if (of_property_read_u32(child, "flash-max-microamp",
+	if (of_property_read_u32(node_flash, "flash-max-microamp",
 				 &pd->max_flash_intensity))
 		goto err;
 
 	pd->max_flash_intensity /= 1000;
 
-	if (of_property_read_u32(child, "led-max-microamp",
+	if (of_property_read_u32(node_flash, "led-max-microamp",
 				 &pd->max_torch_intensity))
 		goto err;
 
 	pd->max_torch_intensity /= 1000;
-	of_node_put(child);
 
-	child = of_get_child_by_name(node, "indicator");
-	if (!child)
-		return -EINVAL;
+	node_indicator = of_get_child_by_name(node, "indicator");
+	if (!node_indicator)
+		goto err;
 
-	if (of_property_read_u32(child, "led-max-microamp",
+	if (of_property_read_u32(node_indicator, "led-max-microamp",
 				 &pd->max_indicator_intensity))
 		goto err;
 
-	of_node_put(child);
+	of_node_put(node_flash);
+	of_node_put(node_indicator);
 
 	pd->enable_gpio = devm_gpiod_get(&client->dev, "enable", GPIOD_OUT_LOW);
 	if (IS_ERR(pd->enable_gpio)) {
@@ -458,7 +459,8 @@ static int adp1653_of_init(struct i2c_client *client,
 	return 0;
 err:
 	dev_err(&client->dev, "Required property not found\n");
-	of_node_put(child);
+	of_node_put(node_flash);
+	of_node_put(node_indicator);
 	return -EINVAL;
 }
 

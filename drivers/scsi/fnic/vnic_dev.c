@@ -143,6 +143,10 @@ static int vnic_dev_discover_res(struct vnic_dev *vdev,
 		vdev->res[type].vaddr = (char __iomem *)bar->vaddr + bar_offset;
 	}
 
+	pr_info("res_type_wq: %d res_type_rq: %d res_type_cq: %d res_type_intr_ctrl: %d\n",
+		vdev->res[RES_TYPE_WQ].count, vdev->res[RES_TYPE_RQ].count,
+		vdev->res[RES_TYPE_CQ].count, vdev->res[RES_TYPE_INTR_CTRL].count);
+
 	return 0;
 }
 

@@ -1377,6 +1377,10 @@ static int rtl8187_conf_tx(struct ieee80211_hw *dev,
 
 
 static const struct ieee80211_ops rtl8187_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx			= rtl8187_tx,
 	.wake_tx_queue		= ieee80211_handle_wake_tx_queue,
 	.start			= rtl8187_start,

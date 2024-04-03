@@ -876,8 +876,9 @@ static int armada_thermal_probe(struct platform_device *pdev)
 		/* Wait the sensors to be valid */
 		armada_wait_sensor_validity(priv);
 
-		tz = thermal_zone_device_register(priv->zone_name, 0, 0, priv,
-						  &legacy_ops, NULL, 0, 0);
+		tz = thermal_tripless_zone_device_register(priv->zone_name,
+							   priv, &legacy_ops,
+							   NULL);
 		if (IS_ERR(tz)) {
 			dev_err(&pdev->dev,
 				"Failed to register thermal zone device\n");
@@ -964,19 +965,17 @@ static int armada_thermal_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int armada_thermal_exit(struct platform_device *pdev)
+static void armada_thermal_exit(struct platform_device *pdev)
 {
 	struct armada_drvdata *drvdata = platform_get_drvdata(pdev);
 
 	if (drvdata->type == LEGACY)
 		thermal_zone_device_unregister(drvdata->data.tz);
-
-	return 0;
 }
 
 static struct platform_driver armada_thermal_driver = {
 	.probe = armada_thermal_probe,
-	.remove = armada_thermal_exit,
+	.remove_new = armada_thermal_exit,
 	.driver = {
 		.name = "armada_thermal",
 		.of_match_table = armada_thermal_id_table,

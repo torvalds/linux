@@ -494,7 +494,7 @@ static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 	 *
 	 * %g7 is used as the "thread register".   %g6 is not used in
 	 * any fixed manner.  %g6 is used as a scratch register and
-	 * a compiler temporary, but it's value is never used across
+	 * a compiler temporary, but its value is never used across
 	 * a system call.  Therefore %g6 is usable for orig_i0 storage.
 	 */
 	if (pt_regs_is_syscall(regs) &&
@@ -562,7 +562,7 @@ void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0, unsigned long
  */
 static_assert(NSIGILL	== 11);
 static_assert(NSIGFPE	== 15);
-static_assert(NSIGSEGV	== 9);
+static_assert(NSIGSEGV	== 10);
 static_assert(NSIGBUS	== 5);
 static_assert(NSIGTRAP	== 6);
 static_assert(NSIGCHLD	== 6);

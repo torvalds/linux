@@ -1,1 +1,1 @@
-../../../net/forwarding/bridge_vlan_mcast.sh
+run_net_forwarding_test.sh

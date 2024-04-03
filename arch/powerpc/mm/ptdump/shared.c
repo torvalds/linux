@@ -11,15 +11,15 @@
 
 static const struct flag_info flag_array[] = {
 	{
-		.mask	= _PAGE_USER,
-		.val	= _PAGE_USER,
-		.set	= "user",
-		.clear	= "    ",
-	}, {
-		.mask	= _PAGE_RW,
+		.mask	= _PAGE_READ,
 		.val	= 0,
-		.set	= "r ",
-		.clear	= "rw",
+		.set	= " ",
+		.clear	= "r",
+	}, {
+		.mask	= _PAGE_WRITE,
+		.val	= 0,
+		.set	= " ",
+		.clear	= "w",
 	}, {
 		.mask	= _PAGE_EXEC,
 		.val	= _PAGE_EXEC,

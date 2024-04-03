@@ -22,7 +22,6 @@ struct mm_struct;
 struct thread_struct {
 	struct pt_regs regs;
 	struct pt_regs *segv_regs;
-	int singlestep_syscall;
 	void *fault_addr;
 	jmp_buf *fault_catcher;
 	struct task_struct *prev_sched;

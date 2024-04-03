@@ -94,18 +94,17 @@ arch___clear_bit(unsigned long nr, volatile unsigned long *addr)
 	asm volatile(__ASM_SIZE(btr) " %1,%0" : : ADDR, "Ir" (nr) : "memory");
 }
 
-static __always_inline bool
-arch_clear_bit_unlock_is_negative_byte(long nr, volatile unsigned long *addr)
+static __always_inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
+		volatile unsigned long *addr)
 {
 	bool negative;
-	asm volatile(LOCK_PREFIX "andb %2,%1"
+	asm volatile(LOCK_PREFIX "xorb %2,%1"
 		CC_SET(s)
 		: CC_OUT(s) (negative), WBYTE_ADDR(addr)
-		: "ir" ((char) ~(1 << nr)) : "memory");
+		: "iq" ((char)mask) : "memory");
 	return negative;
 }
-#define arch_clear_bit_unlock_is_negative_byte                                 \
-	arch_clear_bit_unlock_is_negative_byte
+#define arch_xor_unlock_is_negative_byte arch_xor_unlock_is_negative_byte
 
 static __always_inline void
 arch___clear_bit_unlock(long nr, volatile unsigned long *addr)
@@ -293,6 +292,9 @@ static __always_inline unsigned long variable_ffz(unsigned long word)
  */
 static __always_inline unsigned long __fls(unsigned long word)
 {
+	if (__builtin_constant_p(word))
+		return BITS_PER_LONG - 1 - __builtin_clzl(word);
+
 	asm("bsr %1,%0"
 	    : "=r" (word)
 	    : "rm" (word));
@@ -360,6 +362,9 @@ static __always_inline int fls(unsigned int x)
 {
 	int r;
 
+	if (__builtin_constant_p(x))
+		return x ? 32 - __builtin_clz(x) : 0;
+
 #ifdef CONFIG_X86_64
 	/*
 	 * AMD64 says BSRL won't clobber the dest reg if x==0; Intel64 says the
@@ -401,6 +406,9 @@ static __always_inline int fls(unsigned int x)
 static __always_inline int fls64(__u64 x)
 {
 	int bitpos = -1;
+
+	if (__builtin_constant_p(x))
+		return x ? 64 - __builtin_clzll(x) : 0;
 	/*
 	 * AMD64 says BSRQ won't clobber the dest reg if x==0; Intel64 says the
 	 * dest reg is undefined if x==0, but their CPU architect says its

@@ -153,6 +153,8 @@ NOTE: Some pages, such as DAX pages, cannot be pinned with longterm pins. That's
 because DAX pages do not have a separate page cache, and so "pinning" implies
 locking down file system blocks, which is not (yet) supported in that way.
 
+.. _mmu-notifier-registration-case:
+
 CASE 3: MMU notifier registration, with or without page faulting hardware
 -------------------------------------------------------------------------
 Device drivers can pin pages via get_user_pages*(), and register for mmu

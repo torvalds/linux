@@ -294,7 +294,7 @@ static int adin1110_read_fifo(struct adin1110_port_priv *port_priv)
 {
 	struct adin1110_priv *priv = port_priv->priv;
 	u32 header_len = ADIN1110_RD_HEADER_LEN;
-	struct spi_transfer t;
+	struct spi_transfer t = {0};
 	u32 frame_size_no_fcs;
 	struct sk_buff *rxb;
 	u32 frame_size;
@@ -464,8 +464,9 @@ static int adin1110_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 	 * bitfield of ADIN1110_MDIOACC register will contain
 	 * the requested register value.
 	 */
-	ret = readx_poll_timeout(adin1110_read_mdio_acc, priv, val,
-				 (val & ADIN1110_MDIO_TRDONE), 10000, 30000);
+	ret = readx_poll_timeout_atomic(adin1110_read_mdio_acc, priv, val,
+					(val & ADIN1110_MDIO_TRDONE),
+					100, 30000);
 	if (ret < 0)
 		return ret;
 
@@ -495,8 +496,9 @@ static int adin1110_mdio_write(struct mii_bus *bus, int phy_id,
 	if (ret < 0)
 		return ret;
 
-	return readx_poll_timeout(adin1110_read_mdio_acc, priv, val,
-				  (val & ADIN1110_MDIO_TRDONE), 10000, 30000);
+	return readx_poll_timeout_atomic(adin1110_read_mdio_acc, priv, val,
+					 (val & ADIN1110_MDIO_TRDONE),
+					 100, 30000);
 }
 
 /* ADIN1110 MAC-PHY contains an ADIN1100 PHY.
@@ -739,7 +741,7 @@ static int adin1110_broadcasts_filter(struct adin1110_port_priv *port_priv,
 	u32 port_rules = 0;
 	u8 mask[ETH_ALEN];
 
-	memset(mask, 0xFF, ETH_ALEN);
+	eth_broadcast_addr(mask);
 
 	if (accept_broadcast && port_priv->state == BR_STATE_FORWARDING)
 		port_rules = adin1110_port_rules(port_priv, true, true);
@@ -760,7 +762,7 @@ static int adin1110_set_mac_address(struct net_device *netdev,
 		return -EADDRNOTAVAIL;
 
 	eth_hw_addr_set(netdev, dev_addr);
-	memset(mask, 0xFF, ETH_ALEN);
+	eth_broadcast_addr(mask);
 
 	mac_slot = (!port_priv->nr) ?  ADIN_MAC_P1_ADDR_SLOT : ADIN_MAC_P2_ADDR_SLOT;
 	port_rules = adin1110_port_rules(port_priv, true, false);
@@ -1271,7 +1273,7 @@ static int adin1110_port_set_blocking_state(struct adin1110_port_priv *port_priv
 		goto out;
 
 	/* Allow only BPDUs to be passed to the CPU */
-	memset(mask, 0xFF, ETH_ALEN);
+	eth_broadcast_addr(mask);
 	port_rules = adin1110_port_rules(port_priv, true, false);
 	ret = adin1110_write_mac_address(port_priv, mac_slot, mac,
 					 mask, port_rules);
@@ -1385,8 +1387,8 @@ static int adin1110_fdb_add(struct adin1110_port_priv *port_priv,
 		return -ENOMEM;
 
 	other_port = priv->ports[!port_priv->nr];
-	port_rules = adin1110_port_rules(port_priv, false, true);
-	memset(mask, 0xFF, ETH_ALEN);
+	port_rules = adin1110_port_rules(other_port, false, true);
+	eth_broadcast_addr(mask);
 
 	return adin1110_write_mac_address(other_port, mac_nr, (u8 *)fdb->addr,
 					  mask, port_rules);

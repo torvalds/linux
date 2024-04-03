@@ -449,6 +449,11 @@ static size_t fib6_rule_nlmsg_payload(struct fib_rule *rule)
 	       + nla_total_size(16); /* src */
 }
 
+static void fib6_rule_flush_cache(struct fib_rules_ops *ops)
+{
+	rt_genid_bump_ipv6(ops->fro_net);
+}
+
 static const struct fib_rules_ops __net_initconst fib6_rules_ops_template = {
 	.family			= AF_INET6,
 	.rule_size		= sizeof(struct fib6_rule),
@@ -461,6 +466,7 @@ static const struct fib_rules_ops __net_initconst fib6_rules_ops_template = {
 	.compare		= fib6_rule_compare,
 	.fill			= fib6_rule_fill,
 	.nlmsg_payload		= fib6_rule_nlmsg_payload,
+	.flush_cache		= fib6_rule_flush_cache,
 	.nlgroup		= RTNLGRP_IPV6_RULE,
 	.owner			= THIS_MODULE,
 	.fro_net		= &init_net,
@@ -475,11 +481,11 @@ static int __net_init fib6_rules_net_init(struct net *net)
 	if (IS_ERR(ops))
 		return PTR_ERR(ops);
 
-	err = fib_default_rule_add(ops, 0, RT6_TABLE_LOCAL, 0);
+	err = fib_default_rule_add(ops, 0, RT6_TABLE_LOCAL);
 	if (err)
 		goto out_fib6_rules_ops;
 
-	err = fib_default_rule_add(ops, 0x7FFE, RT6_TABLE_MAIN, 0);
+	err = fib_default_rule_add(ops, 0x7FFE, RT6_TABLE_MAIN);
 	if (err)
 		goto out_fib6_rules_ops;
 

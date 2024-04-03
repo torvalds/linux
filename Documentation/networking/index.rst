@@ -55,11 +55,11 @@ Contents:
    filter
    generic-hdlc
    generic_netlink
+   netlink_spec/index
    gen_stats
    gtp
    ila
    ioam6-sysctl
-   ipddp
    ip_dynaddr
    ipsec
    ip-sysctl
@@ -74,7 +74,9 @@ Contents:
    mpls-sysctl
    mptcp-sysctl
    multiqueue
+   multi-pf-netdev
    napi
+   net_cachelines/index
    netconsole
    netdev-features
    netdevices
@@ -107,6 +109,7 @@ Contents:
    sysfs-tagging
    tc-actions-env-rules
    tc-queue-filters
+   tcp_ao
    tcp-thin
    team
    timestamping
@@ -123,6 +126,7 @@ Contents:
    xfrm_sync
    xfrm_sysctl
    xdp-rx-metadata
+   xsk-tx-metadata
 
 .. only::  subproject and html
 

@@ -48,17 +48,15 @@ struct snd_seq_client_port *snd_seq_port_use_ptr(struct snd_seq_client *client,
 
 	if (client == NULL)
 		return NULL;
-	read_lock(&client->ports_lock);
+	guard(read_lock)(&client->ports_lock);
 	list_for_each_entry(port, &client->ports_list_head, list) {
 		if (port->addr.port == num) {
 			if (port->closing)
 				break; /* deleting now */
 			snd_use_lock_use(&port->use_lock);
-			read_unlock(&client->ports_lock);
 			return port;
 		}
 	}
-	read_unlock(&client->ports_lock);
 	return NULL;		/* not found */
 }
 
@@ -73,7 +71,7 @@ struct snd_seq_client_port *snd_seq_port_query_nearest(struct snd_seq_client *cl
 
 	num = pinfo->addr.port;
 	found = NULL;
-	read_lock(&client->ports_lock);
+	guard(read_lock)(&client->ports_lock);
 	list_for_each_entry(port, &client->ports_list_head, list) {
 		if ((port->capability & SNDRV_SEQ_PORT_CAP_INACTIVE) &&
 		    !check_inactive)
@@ -93,7 +91,6 @@ struct snd_seq_client_port *snd_seq_port_query_nearest(struct snd_seq_client *cl
 		else
 			snd_use_lock_use(&found->use_lock);
 	}
-	read_unlock(&client->ports_lock);
 	return found;
 }
 
@@ -145,13 +142,12 @@ int snd_seq_create_port(struct snd_seq_client *client, int port,
 	snd_use_lock_use(&new_port->use_lock);
 
 	num = max(port, 0);
-	mutex_lock(&client->ports_mutex);
-	write_lock_irq(&client->ports_lock);
+	guard(mutex)(&client->ports_mutex);
+	guard(write_lock_irq)(&client->ports_lock);
 	list_for_each_entry(p, &client->ports_list_head, list) {
 		if (p->addr.port == port) {
 			kfree(new_port);
-			num = -EBUSY;
-			goto unlock;
+			return -EBUSY;
 		}
 		if (p->addr.port > num)
 			break;
@@ -164,9 +160,6 @@ int snd_seq_create_port(struct snd_seq_client *client, int port,
 	new_port->addr.port = num;	/* store the port number in the port */
 	sprintf(new_port->name, "port-%d", num);
 	*port_ret = new_port;
- unlock:
-	write_unlock_irq(&client->ports_lock);
-	mutex_unlock(&client->ports_mutex);
 
 	return num;
 }
@@ -281,19 +274,18 @@ int snd_seq_delete_port(struct snd_seq_client *client, int port)
 {
 	struct snd_seq_client_port *found = NULL, *p;
 
-	mutex_lock(&client->ports_mutex);
-	write_lock_irq(&client->ports_lock);
-	list_for_each_entry(p, &client->ports_list_head, list) {
-		if (p->addr.port == port) {
-			/* ok found.  delete from the list at first */
-			list_del(&p->list);
-			client->num_ports--;
-			found = p;
-			break;
+	scoped_guard(mutex, &client->ports_mutex) {
+		guard(write_lock_irq)(&client->ports_lock);
+		list_for_each_entry(p, &client->ports_list_head, list) {
+			if (p->addr.port == port) {
+				/* ok found.  delete from the list at first */
+				list_del(&p->list);
+				client->num_ports--;
+				found = p;
+				break;
+			}
 		}
 	}
-	write_unlock_irq(&client->ports_lock);
-	mutex_unlock(&client->ports_mutex);
 	if (found)
 		return port_delete(client, found);
 	else
@@ -309,16 +301,16 @@ int snd_seq_delete_all_ports(struct snd_seq_client *client)
 	/* move the port list to deleted_list, and
 	 * clear the port list in the client data.
 	 */
-	mutex_lock(&client->ports_mutex);
-	write_lock_irq(&client->ports_lock);
-	if (! list_empty(&client->ports_list_head)) {
-		list_add(&deleted_list, &client->ports_list_head);
-		list_del_init(&client->ports_list_head);
-	} else {
-		INIT_LIST_HEAD(&deleted_list);
+	guard(mutex)(&client->ports_mutex);
+	scoped_guard(write_lock_irq, &client->ports_lock) {
+		if (!list_empty(&client->ports_list_head)) {
+			list_add(&deleted_list, &client->ports_list_head);
+			list_del_init(&client->ports_list_head);
+		} else {
+			INIT_LIST_HEAD(&deleted_list);
+		}
+		client->num_ports = 0;
 	}
-	client->num_ports = 0;
-	write_unlock_irq(&client->ports_lock);
 
 	/* remove each port in deleted_list */
 	list_for_each_entry_safe(port, tmp, &deleted_list, list) {
@@ -326,7 +318,6 @@ int snd_seq_delete_all_ports(struct snd_seq_client *client)
 		snd_seq_system_client_ev_port_exit(port->addr.client, port->addr.port);
 		port_delete(client, port);
 	}
-	mutex_unlock(&client->ports_mutex);
 	return 0;
 }
 
@@ -506,42 +497,37 @@ static int check_and_subscribe_port(struct snd_seq_client *client,
 	int err;
 
 	grp = is_src ? &port->c_src : &port->c_dest;
-	err = -EBUSY;
-	down_write(&grp->list_mutex);
+	guard(rwsem_write)(&grp->list_mutex);
 	if (exclusive) {
 		if (!list_empty(&grp->list_head))
-			goto __error;
+			return -EBUSY;
 	} else {
 		if (grp->exclusive)
-			goto __error;
+			return -EBUSY;
 		/* check whether already exists */
 		list_for_each(p, &grp->list_head) {
 			s = get_subscriber(p, is_src);
 			if (match_subs_info(&subs->info, &s->info))
-				goto __error;
+				return -EBUSY;
 		}
 	}
 
 	err = subscribe_port(client, port, grp, &subs->info, ack);
 	if (err < 0) {
 		grp->exclusive = 0;
-		goto __error;
+		return err;
 	}
 
 	/* add to list */
-	write_lock_irq(&grp->list_lock);
+	guard(write_lock_irq)(&grp->list_lock);
 	if (is_src)
 		list_add_tail(&subs->src_list, &grp->list_head);
 	else
 		list_add_tail(&subs->dest_list, &grp->list_head);
 	grp->exclusive = exclusive;
 	atomic_inc(&subs->ref_count);
-	write_unlock_irq(&grp->list_lock);
-	err = 0;
 
- __error:
-	up_write(&grp->list_mutex);
-	return err;
+	return 0;
 }
 
 /* called with grp->list_mutex held */
@@ -556,12 +542,12 @@ static void __delete_and_unsubscribe_port(struct snd_seq_client *client,
 
 	grp = is_src ? &port->c_src : &port->c_dest;
 	list = is_src ? &subs->src_list : &subs->dest_list;
-	write_lock_irq(&grp->list_lock);
-	empty = list_empty(list);
-	if (!empty)
-		list_del_init(list);
-	grp->exclusive = 0;
-	write_unlock_irq(&grp->list_lock);
+	scoped_guard(write_lock_irq, &grp->list_lock) {
+		empty = list_empty(list);
+		if (!empty)
+			list_del_init(list);
+		grp->exclusive = 0;
+	}
 
 	if (!empty)
 		unsubscribe_port(client, port, grp, &subs->info, ack);
@@ -575,9 +561,8 @@ static void delete_and_unsubscribe_port(struct snd_seq_client *client,
 	struct snd_seq_port_subs_info *grp;
 
 	grp = is_src ? &port->c_src : &port->c_dest;
-	down_write(&grp->list_mutex);
+	guard(rwsem_write)(&grp->list_mutex);
 	__delete_and_unsubscribe_port(client, port, subs, is_src, ack);
-	up_write(&grp->list_mutex);
 }
 
 /* connect two ports */
@@ -639,18 +624,18 @@ int snd_seq_port_disconnect(struct snd_seq_client *connector,
 	/* always start from deleting the dest port for avoiding concurrent
 	 * deletions
 	 */
-	down_write(&dest->list_mutex);
-	/* look for the connection */
-	list_for_each_entry(subs, &dest->list_head, dest_list) {
-		if (match_subs_info(info, &subs->info)) {
-			__delete_and_unsubscribe_port(dest_client, dest_port,
-						      subs, false,
-						      connector->number != dest_client->number);
-			err = 0;
-			break;
+	scoped_guard(rwsem_write, &dest->list_mutex) {
+		/* look for the connection */
+		list_for_each_entry(subs, &dest->list_head, dest_list) {
+			if (match_subs_info(info, &subs->info)) {
+				__delete_and_unsubscribe_port(dest_client, dest_port,
+							      subs, false,
+							      connector->number != dest_client->number);
+				err = 0;
+				break;
+			}
 		}
 	}
-	up_write(&dest->list_mutex);
 	if (err < 0)
 		return err;
 
@@ -669,7 +654,7 @@ int snd_seq_port_get_subscription(struct snd_seq_port_subs_info *src_grp,
 	struct snd_seq_subscribers *s;
 	int err = -ENOENT;
 
-	down_read(&src_grp->list_mutex);
+	guard(rwsem_read)(&src_grp->list_mutex);
 	list_for_each_entry(s, &src_grp->list_head, src_list) {
 		if (addr_match(dest_addr, &s->info.dest)) {
 			*subs = s->info;
@@ -677,7 +662,6 @@ int snd_seq_port_get_subscription(struct snd_seq_port_subs_info *src_grp,
 			break;
 		}
 	}
-	up_read(&src_grp->list_mutex);
 	return err;
 }
 

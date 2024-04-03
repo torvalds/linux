@@ -12,6 +12,8 @@
 #define _COMEDI_8254_H
 
 #include <linux/types.h>
+#include <linux/errno.h>
+#include <linux/err.h>
 
 struct comedi_device;
 struct comedi_insn;
@@ -57,10 +59,24 @@ struct comedi_subdevice;
 /* counter maps zero to 0x10000 */
 #define I8254_MAX_COUNT			0x10000
 
+struct comedi_8254;
+
+/**
+ * typedef comedi_8254_iocb_fn - call-back function type for 8254 register access
+ * @i8254:		pointer to struct comedi_8254
+ * @dir:		direction (0 = read, 1 = write)
+ * @reg:		register number
+ * @val:		value to write
+ *
+ * Return: Register value when reading, 0 when writing.
+ */
+typedef unsigned int comedi_8254_iocb_fn(struct comedi_8254 *i8254, int dir,
+					 unsigned int reg, unsigned int val);
+
 /**
  * struct comedi_8254 - private data used by this module
- * @iobase:		PIO base address of the registers (in/out)
- * @mmio:		MMIO base address of the registers (read/write)
+ * @iocb:		I/O call-back function for register access
+ * @context:		context for register access (e.g. a base address)
  * @iosize:		I/O size used to access the registers (b/w/l)
  * @regshift:		register gap shift
  * @osc_base:		cascaded oscillator speed in ns
@@ -76,8 +92,8 @@ struct comedi_subdevice;
  * @insn_config:	driver specific (*insn_config) callback
  */
 struct comedi_8254 {
-	unsigned long iobase;
-	void __iomem *mmio;
+	comedi_8254_iocb_fn *iocb;
+	unsigned long context;
 	unsigned int iosize;
 	unsigned int regshift;
 	unsigned int osc_base;
@@ -122,13 +138,24 @@ void comedi_8254_set_busy(struct comedi_8254 *i8254,
 void comedi_8254_subdevice_init(struct comedi_subdevice *s,
 				struct comedi_8254 *i8254);
 
-struct comedi_8254 *comedi_8254_init(unsigned long iobase,
-				     unsigned int osc_base,
-				     unsigned int iosize,
-				     unsigned int regshift);
-struct comedi_8254 *comedi_8254_mm_init(void __iomem *mmio,
-					unsigned int osc_base,
-					unsigned int iosize,
-					unsigned int regshift);
+#ifdef CONFIG_HAS_IOPORT
+struct comedi_8254 *comedi_8254_io_alloc(unsigned long iobase,
+					 unsigned int osc_base,
+					 unsigned int iosize,
+					 unsigned int regshift);
+#else
+static inline struct comedi_8254 *comedi_8254_io_alloc(unsigned long iobase,
+						       unsigned int osc_base,
+						       unsigned int iosize,
+						       unsigned int regshift)
+{
+	return ERR_PTR(-ENXIO);
+}
+#endif
+
+struct comedi_8254 *comedi_8254_mm_alloc(void __iomem *mmio,
+					 unsigned int osc_base,
+					 unsigned int iosize,
+					 unsigned int regshift);
 
 #endif	/* _COMEDI_8254_H */

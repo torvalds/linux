@@ -285,6 +285,15 @@ struct msm_gpu {
 	/* True if the hardware supports expanded apriv (a650 and newer) */
 	bool hw_apriv;
 
+	/**
+	 * @allow_relocs: allow relocs in SUBMIT ioctl
+	 *
+	 * Mesa won't use relocs for driver version 1.4.0 and later.  This
+	 * switch-over happened early enough in mesa a6xx bringup that we
+	 * can disallow relocs for a6xx and newer.
+	 */
+	bool allow_relocs;
+
 	struct thermal_cooling_device *cooling;
 };
 
@@ -338,7 +347,7 @@ struct msm_gpu_perfcntr {
  * DRM_SCHED_PRIORITY_KERNEL priority level is treated specially in some
  * cases, so we don't use it (no need for kernel generated jobs).
  */
-#define NR_SCHED_PRIORITIES (1 + DRM_SCHED_PRIORITY_HIGH - DRM_SCHED_PRIORITY_MIN)
+#define NR_SCHED_PRIORITIES (1 + DRM_SCHED_PRIORITY_LOW - DRM_SCHED_PRIORITY_HIGH)
 
 /**
  * struct msm_file_private - per-drm_file context

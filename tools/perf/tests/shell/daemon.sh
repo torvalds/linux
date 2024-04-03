@@ -414,16 +414,30 @@ EOF
 	# start daemon
 	daemon_start ${config} test
 
-	# send 2 signals
-	perf daemon signal --config ${config} --session test
-	perf daemon signal --config ${config}
-
-	# stop daemon
-	daemon_exit ${config}
-
-	# count is 2 perf.data for signals and 1 for perf record finished
-	count=`ls ${base}/session-test/*perf.data* | wc -l`
-	if [ ${count} -ne 3 ]; then
+        # send 2 signals then exit. Do this in a loop watching the number of
+        # files to avoid races. If the loop retries more than 600 times then
+        # give up.
+	local retries=0
+	local signals=0
+	local success=0
+	while [ ${retries} -lt 600 ] && [ ${success} -eq 0 ]; do
+		local files
+		files=`ls ${base}/session-test/*perf.data* 2> /dev/null | wc -l`
+		if [ ${signals} -eq 0 ]; then
+			perf daemon signal --config ${config} --session test
+			signals=1
+		elif [ ${signals} -eq 1 ] && [ $files -ge 1 ]; then
+			perf daemon signal --config ${config}
+			signals=2
+		elif [ ${signals} -eq 2 ] && [ $files -ge 2 ]; then
+			daemon_exit ${config}
+			signals=3
+		elif [ ${signals} -eq 3 ] && [ $files -ge 3 ]; then
+			success=1
+		fi
+		retries=$((${retries} +1))
+	done
+	if [ ${success} -eq 0 ]; then
 		error=1
 		echo "FAILED: perf data no generated"
 	fi

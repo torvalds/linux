@@ -33,7 +33,7 @@ properties:
     items:
       - const: lo_in
     description:
-      External clock that provides the Local Oscilator input.
+      External clock that provides the Local Oscillator input.
 
   vcm-supply:
     description:
@@ -103,6 +103,14 @@ required:
   - clocks
   - clock-names
   - vcm-supply
+  - vcc-if-bb-supply
+  - vcc-vga-supply
+  - vcc-vva-supply
+  - vcc-lna-3p3-supply
+  - vcc-lna-1p5-supply
+  - vcc-bg-supply
+  - vcc-quad-supply
+  - vcc-mixer-supply
 
 allOf:
   - $ref: /schemas/spi/spi-peripheral-props.yaml#

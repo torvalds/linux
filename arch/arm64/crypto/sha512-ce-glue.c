@@ -26,27 +26,27 @@ MODULE_LICENSE("GPL v2");
 MODULE_ALIAS_CRYPTO("sha384");
 MODULE_ALIAS_CRYPTO("sha512");
 
-asmlinkage int sha512_ce_transform(struct sha512_state *sst, u8 const *src,
-				   int blocks);
+asmlinkage int __sha512_ce_transform(struct sha512_state *sst, u8 const *src,
+				     int blocks);
 
 asmlinkage void sha512_block_data_order(u64 *digest, u8 const *src, int blocks);
 
-static void __sha512_ce_transform(struct sha512_state *sst, u8 const *src,
-				  int blocks)
+static void sha512_ce_transform(struct sha512_state *sst, u8 const *src,
+				int blocks)
 {
 	while (blocks) {
 		int rem;
 
 		kernel_neon_begin();
-		rem = sha512_ce_transform(sst, src, blocks);
+		rem = __sha512_ce_transform(sst, src, blocks);
 		kernel_neon_end();
 		src += (blocks - rem) * SHA512_BLOCK_SIZE;
 		blocks = rem;
 	}
 }
 
-static void __sha512_block_data_order(struct sha512_state *sst, u8 const *src,
-				      int blocks)
+static void sha512_arm64_transform(struct sha512_state *sst, u8 const *src,
+				   int blocks)
 {
 	sha512_block_data_order(sst->state, src, blocks);
 }
@@ -54,8 +54,8 @@ static void __sha512_block_data_order(struct sha512_state *sst, u8 const *src,
 static int sha512_ce_update(struct shash_desc *desc, const u8 *data,
 			    unsigned int len)
 {
-	sha512_block_fn *fn = crypto_simd_usable() ? __sha512_ce_transform
-						   : __sha512_block_data_order;
+	sha512_block_fn *fn = crypto_simd_usable() ? sha512_ce_transform
+						   : sha512_arm64_transform;
 
 	sha512_base_do_update(desc, data, len, fn);
 	return 0;
@@ -64,8 +64,8 @@ static int sha512_ce_update(struct shash_desc *desc, const u8 *data,
 static int sha512_ce_finup(struct shash_desc *desc, const u8 *data,
 			   unsigned int len, u8 *out)
 {
-	sha512_block_fn *fn = crypto_simd_usable() ? __sha512_ce_transform
-						   : __sha512_block_data_order;
+	sha512_block_fn *fn = crypto_simd_usable() ? sha512_ce_transform
+						   : sha512_arm64_transform;
 
 	sha512_base_do_update(desc, data, len, fn);
 	sha512_base_do_finalize(desc, fn);
@@ -74,8 +74,8 @@ static int sha512_ce_finup(struct shash_desc *desc, const u8 *data,
 
 static int sha512_ce_final(struct shash_desc *desc, u8 *out)
 {
-	sha512_block_fn *fn = crypto_simd_usable() ? __sha512_ce_transform
-						   : __sha512_block_data_order;
+	sha512_block_fn *fn = crypto_simd_usable() ? sha512_ce_transform
+						   : sha512_arm64_transform;
 
 	sha512_base_do_finalize(desc, fn);
 	return sha512_base_finish(desc, out);

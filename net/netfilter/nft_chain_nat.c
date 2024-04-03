@@ -137,6 +137,7 @@ module_init(nft_chain_nat_init);
 module_exit(nft_chain_nat_exit);
 
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("nftables network address translation support");
 #ifdef CONFIG_NF_TABLES_IPV4
 MODULE_ALIAS_NFT_CHAIN(AF_INET, "nat");
 #endif

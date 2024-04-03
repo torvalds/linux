@@ -35,6 +35,8 @@ static struct attribute *ssam_device_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ssam_device);
 
+static const struct bus_type ssam_bus_type;
+
 static int ssam_device_uevent(const struct device *dev, struct kobj_uevent_env *env)
 {
 	const struct ssam_device *sdev = to_ssam_device(dev);
@@ -329,13 +331,12 @@ static void ssam_bus_remove(struct device *dev)
 		sdrv->remove(to_ssam_device(dev));
 }
 
-struct bus_type ssam_bus_type = {
+static const struct bus_type ssam_bus_type = {
 	.name   = "surface_aggregator",
 	.match  = ssam_bus_match,
 	.probe  = ssam_bus_probe,
 	.remove = ssam_bus_remove,
 };
-EXPORT_SYMBOL_GPL(ssam_bus_type);
 
 /**
  * __ssam_device_driver_register() - Register a SSAM client device driver.

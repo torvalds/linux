@@ -175,11 +175,27 @@ union bfad_tmp_buf {
 	wwn_t		wwn[BFA_FCS_MAX_LPORTS];
 };
 
+/* BFAD state machine events */
+enum bfad_sm_event {
+	BFAD_E_CREATE			= 1,
+	BFAD_E_KTHREAD_CREATE_FAILED	= 2,
+	BFAD_E_INIT			= 3,
+	BFAD_E_INIT_SUCCESS		= 4,
+	BFAD_E_HAL_INIT_FAILED		= 5,
+	BFAD_E_INIT_FAILED		= 6,
+	BFAD_E_FCS_EXIT_COMP		= 7,
+	BFAD_E_EXIT_COMP		= 8,
+	BFAD_E_STOP			= 9
+};
+
+struct bfad_s;
+typedef void (*bfad_sm_t)(struct bfad_s *, enum bfad_sm_event);
+
 /*
  * BFAD (PCI function) data structure
  */
 struct bfad_s {
-	bfa_sm_t	sm;	/* state machine */
+	bfad_sm_t	sm;	/* state machine */
 	struct list_head list_entry;
 	struct bfa_s	bfa;
 	struct bfa_fcs_s bfa_fcs;
@@ -224,19 +240,6 @@ struct bfad_s {
 	struct bfa_aen_entry_s	aen_list[BFA_AEN_MAX_ENTRY];
 	spinlock_t		bfad_aen_spinlock;
 	struct list_head	vport_list;
-};
-
-/* BFAD state machine events */
-enum bfad_sm_event {
-	BFAD_E_CREATE			= 1,
-	BFAD_E_KTHREAD_CREATE_FAILED	= 2,
-	BFAD_E_INIT			= 3,
-	BFAD_E_INIT_SUCCESS		= 4,
-	BFAD_E_HAL_INIT_FAILED		= 5,
-	BFAD_E_INIT_FAILED		= 6,
-	BFAD_E_FCS_EXIT_COMP		= 7,
-	BFAD_E_EXIT_COMP		= 8,
-	BFAD_E_STOP			= 9
 };
 
 /*

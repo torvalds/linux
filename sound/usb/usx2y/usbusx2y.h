@@ -18,7 +18,7 @@ struct snd_usx2y_async_seq {
 struct snd_usx2y_urb_seq {
 	int	submitted;
 	int	len;
-	struct urb	*urb[];
+	struct urb	*urb[] __counted_by(len);
 };
 
 #include "usx2yhwdeppcm.h"

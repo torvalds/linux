@@ -6,7 +6,6 @@
 #include <linux/major.h>
 #include <linux/termios.h>
 #include <linux/workqueue.h>
-#include <linux/tty_buffer.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_ldisc.h>
 #include <linux/tty_port.h>
@@ -192,13 +191,14 @@ struct tty_operations;
  */
 struct tty_struct {
 	struct kref kref;
+	int index;
 	struct device *dev;
 	struct tty_driver *driver;
+	struct tty_port *port;
 	const struct tty_operations *ops;
-	int index;
 
-	struct ld_semaphore ldisc_sem;
 	struct tty_ldisc *ldisc;
+	struct ld_semaphore ldisc_sem;
 
 	struct mutex atomic_write_lock;
 	struct mutex legacy_mutex;
@@ -209,6 +209,7 @@ struct tty_struct {
 	char name[64];
 	unsigned long flags;
 	int count;
+	unsigned int receive_room;
 	struct winsize winsize;
 
 	struct {
@@ -219,16 +220,16 @@ struct tty_struct {
 	} __aligned(sizeof(unsigned long)) flow;
 
 	struct {
-		spinlock_t lock;
 		struct pid *pgrp;
 		struct pid *session;
+		spinlock_t lock;
 		unsigned char pktstatus;
 		bool packet;
 		unsigned long unused[0];
 	} __aligned(sizeof(unsigned long)) ctrl;
 
 	bool hw_stopped;
-	unsigned int receive_room;
+	bool closing;
 	int flow_change;
 
 	struct tty_struct *link;
@@ -239,15 +240,13 @@ struct tty_struct {
 	void *disc_data;
 	void *driver_data;
 	spinlock_t files_lock;
+	int write_cnt;
+	u8 *write_buf;
+
 	struct list_head tty_files;
 
 #define N_TTY_BUF_SIZE 4096
-
-	int closing;
-	unsigned char *write_buf;
-	int write_cnt;
 	struct work_struct SAK_work;
-	struct tty_port *port;
 } __randomize_layout;
 
 /* Each of a tty's open files has private_data pointing to tty_file_private */
@@ -390,14 +389,14 @@ int vcs_init(void);
 extern const struct class tty_class;
 
 /**
- *	tty_kref_get		-	get a tty reference
- *	@tty: tty device
+ * tty_kref_get - get a tty reference
+ * @tty: tty device
  *
- *	Return a new reference to a tty object. The caller must hold
- *	sufficient locks/counts to ensure that their existing reference cannot
- *	go away
+ * Returns: a new reference to a tty object
+ *
+ * Locking: The caller must hold sufficient locks/counts to ensure that their
+ * existing reference cannot go away.
  */
-
 static inline struct tty_struct *tty_kref_get(struct tty_struct *tty)
 {
 	if (tty)
@@ -410,17 +409,18 @@ void tty_wait_until_sent(struct tty_struct *tty, long timeout);
 void stop_tty(struct tty_struct *tty);
 void start_tty(struct tty_struct *tty);
 void tty_write_message(struct tty_struct *tty, char *msg);
-int tty_send_xchar(struct tty_struct *tty, char ch);
-int tty_put_char(struct tty_struct *tty, unsigned char c);
+int tty_send_xchar(struct tty_struct *tty, u8 ch);
+int tty_put_char(struct tty_struct *tty, u8 c);
 unsigned int tty_chars_in_buffer(struct tty_struct *tty);
 unsigned int tty_write_room(struct tty_struct *tty);
 void tty_driver_flush_buffer(struct tty_struct *tty);
 void tty_unthrottle(struct tty_struct *tty);
-int tty_throttle_safe(struct tty_struct *tty);
-int tty_unthrottle_safe(struct tty_struct *tty);
+bool tty_throttle_safe(struct tty_struct *tty);
+bool tty_unthrottle_safe(struct tty_struct *tty);
 int tty_do_resize(struct tty_struct *tty, struct winsize *ws);
 int tty_get_icount(struct tty_struct *tty,
 		struct serial_icounter_struct *icount);
+int tty_get_tiocm(struct tty_struct *tty);
 int is_current_pgrp_orphaned(void);
 void tty_hangup(struct tty_struct *tty);
 void tty_vhangup(struct tty_struct *tty);
@@ -435,16 +435,14 @@ void tty_encode_baud_rate(struct tty_struct *tty, speed_t ibaud,
 		speed_t obaud);
 
 /**
- *	tty_get_baud_rate	-	get tty bit rates
- *	@tty: tty to query
+ * tty_get_baud_rate - get tty bit rates
+ * @tty: tty to query
  *
- *	Returns the baud rate as an integer for this terminal. The
- *	termios lock must be held by the caller and the terminal bit
- *	flags may be updated.
+ * Returns: the baud rate as an integer for this terminal
  *
- *	Locking: none
+ * Locking: The termios lock must be held by the caller.
  */
-static inline speed_t tty_get_baud_rate(struct tty_struct *tty)
+static inline speed_t tty_get_baud_rate(const struct tty_struct *tty)
 {
 	return tty_termios_baud_rate(&tty->termios);
 }

@@ -262,6 +262,26 @@ static bool drm_kms_helper_enable_hpd(struct drm_device *dev)
 }
 
 #define DRM_OUTPUT_POLL_PERIOD (10*HZ)
+static void reschedule_output_poll_work(struct drm_device *dev)
+{
+	unsigned long delay = DRM_OUTPUT_POLL_PERIOD;
+
+	if (dev->mode_config.delayed_event)
+		/*
+		 * FIXME:
+		 *
+		 * Use short (1s) delay to handle the initial delayed event.
+		 * This delay should not be needed, but Optimus/nouveau will
+		 * fail in a mysterious way if the delayed event is handled as
+		 * soon as possible like it is done in
+		 * drm_helper_probe_single_connector_modes() in case the poll
+		 * was enabled before.
+		 */
+		delay = HZ;
+
+	schedule_delayed_work(&dev->mode_config.output_poll_work, delay);
+}
+
 /**
  * drm_kms_helper_poll_enable - re-enable output polling.
  * @dev: drm_device
@@ -273,42 +293,49 @@ static bool drm_kms_helper_enable_hpd(struct drm_device *dev)
  * Drivers can call this helper from their device resume implementation. It is
  * not an error to call this even when output polling isn't enabled.
  *
+ * If device polling was never initialized before, this call will trigger a
+ * warning and return.
+ *
  * Note that calls to enable and disable polling must be strictly ordered, which
  * is automatically the case when they're only call from suspend/resume
  * callbacks.
  */
 void drm_kms_helper_poll_enable(struct drm_device *dev)
 {
-	bool poll = false;
-	unsigned long delay = DRM_OUTPUT_POLL_PERIOD;
-
-	if (!dev->mode_config.poll_enabled || !drm_kms_helper_poll ||
-	    dev->mode_config.poll_running)
+	if (drm_WARN_ON_ONCE(dev, !dev->mode_config.poll_enabled) ||
+	    !drm_kms_helper_poll || dev->mode_config.poll_running)
 		return;
 
-	poll = drm_kms_helper_enable_hpd(dev);
-
-	if (dev->mode_config.delayed_event) {
-		/*
-		 * FIXME:
-		 *
-		 * Use short (1s) delay to handle the initial delayed event.
-		 * This delay should not be needed, but Optimus/nouveau will
-		 * fail in a mysterious way if the delayed event is handled as
-		 * soon as possible like it is done in
-		 * drm_helper_probe_single_connector_modes() in case the poll
-		 * was enabled before.
-		 */
-		poll = true;
-		delay = HZ;
-	}
-
-	if (poll)
-		schedule_delayed_work(&dev->mode_config.output_poll_work, delay);
+	if (drm_kms_helper_enable_hpd(dev) ||
+	    dev->mode_config.delayed_event)
+		reschedule_output_poll_work(dev);
 
 	dev->mode_config.poll_running = true;
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_enable);
+
+/**
+ * drm_kms_helper_poll_reschedule - reschedule the output polling work
+ * @dev: drm_device
+ *
+ * This function reschedules the output polling work, after polling for a
+ * connector has been enabled.
+ *
+ * Drivers must call this helper after enabling polling for a connector by
+ * setting %DRM_CONNECTOR_POLL_CONNECT / %DRM_CONNECTOR_POLL_DISCONNECT flags
+ * in drm_connector::polled. Note that after disabling polling by clearing these
+ * flags for a connector will stop the output polling work automatically if
+ * the polling is disabled for all other connectors as well.
+ *
+ * The function can be called only after polling has been enabled by calling
+ * drm_kms_helper_poll_init() / drm_kms_helper_poll_enable().
+ */
+void drm_kms_helper_poll_reschedule(struct drm_device *dev)
+{
+	if (dev->mode_config.poll_running)
+		reschedule_output_poll_work(dev);
+}
+EXPORT_SYMBOL(drm_kms_helper_poll_reschedule);
 
 static enum drm_connector_status
 drm_helper_probe_detect_ctx(struct drm_connector *connector, bool force)
@@ -394,6 +421,13 @@ static int drm_helper_probe_get_modes(struct drm_connector *connector)
 	int count;
 
 	count = connector_funcs->get_modes(connector);
+
+	/* The .get_modes() callback should not return negative values. */
+	if (count < 0) {
+		drm_err(connector->dev, ".get_modes() returned %pe\n",
+			ERR_PTR(count));
+		count = 0;
+	}
 
 	/*
 	 * Fallback for when DDC probe failed in drm_get_edid() and thus skipped
@@ -595,8 +629,12 @@ retry:
 					 0);
 	}
 
-	/* Re-enable polling in case the global poll config changed. */
-	drm_kms_helper_poll_enable(dev);
+	/*
+	 * Re-enable polling in case the global poll config changed but polling
+	 * is still initialized.
+	 */
+	if (dev->mode_config.poll_enabled)
+		drm_kms_helper_poll_enable(dev);
 
 	if (connector->status == connector_status_disconnected) {
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s] disconnected\n",
@@ -736,9 +774,11 @@ static void output_poll_execute(struct work_struct *work)
 	changed = dev->mode_config.delayed_event;
 	dev->mode_config.delayed_event = false;
 
-	if (!drm_kms_helper_poll && dev->mode_config.poll_running) {
-		drm_kms_helper_disable_hpd(dev);
-		dev->mode_config.poll_running = false;
+	if (!drm_kms_helper_poll) {
+		if (dev->mode_config.poll_running) {
+			drm_kms_helper_disable_hpd(dev);
+			dev->mode_config.poll_running = false;
+		}
 		goto out;
 	}
 
@@ -847,12 +887,18 @@ EXPORT_SYMBOL(drm_kms_helper_is_poll_worker);
  * not an error to call this even when output polling isn't enabled or already
  * disabled. Polling is re-enabled by calling drm_kms_helper_poll_enable().
  *
+ * If however, the polling was never initialized, this call will trigger a
+ * warning and return
+ *
  * Note that calls to enable and disable polling must be strictly ordered, which
  * is automatically the case when they're only call from suspend/resume
  * callbacks.
  */
 void drm_kms_helper_poll_disable(struct drm_device *dev)
 {
+	if (drm_WARN_ON(dev, !dev->mode_config.poll_enabled))
+		return;
+
 	if (dev->mode_config.poll_running)
 		drm_kms_helper_disable_hpd(dev);
 
@@ -1075,42 +1121,6 @@ enum drm_mode_status drm_crtc_helper_mode_valid_fixed(struct drm_crtc *crtc,
 	return MODE_OK;
 }
 EXPORT_SYMBOL(drm_crtc_helper_mode_valid_fixed);
-
-/**
- * drm_connector_helper_get_modes_from_ddc - Updates the connector's EDID
- *                                           property from the connector's
- *                                           DDC channel
- * @connector: The connector
- *
- * Returns:
- * The number of detected display modes.
- *
- * Uses a connector's DDC channel to retrieve EDID data and update the
- * connector's EDID property and display modes. Drivers can use this
- * function to implement struct &drm_connector_helper_funcs.get_modes
- * for connectors with a DDC channel.
- */
-int drm_connector_helper_get_modes_from_ddc(struct drm_connector *connector)
-{
-	struct edid *edid;
-	int count = 0;
-
-	if (!connector->ddc)
-		return 0;
-
-	edid = drm_get_edid(connector, connector->ddc);
-
-	// clears property if EDID is NULL
-	drm_connector_update_edid_property(connector, edid);
-
-	if (edid) {
-		count = drm_add_edid_modes(connector, edid);
-		kfree(edid);
-	}
-
-	return count;
-}
-EXPORT_SYMBOL(drm_connector_helper_get_modes_from_ddc);
 
 /**
  * drm_connector_helper_get_modes_fixed - Duplicates a display mode for a connector

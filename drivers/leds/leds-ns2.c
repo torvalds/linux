@@ -247,7 +247,7 @@ static int ns2_led_probe(struct platform_device *pdev)
 	if (!count)
 		return -ENODEV;
 
-	leds = devm_kzalloc(dev, array_size(sizeof(*leds), count), GFP_KERNEL);
+	leds = devm_kcalloc(dev, count, sizeof(*leds), GFP_KERNEL);
 	if (!leds)
 		return -ENOMEM;
 

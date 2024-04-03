@@ -393,7 +393,12 @@ static inline bool is_migration_entry_dirty(swp_entry_t entry)
 typedef unsigned long pte_marker;
 
 #define  PTE_MARKER_UFFD_WP			BIT(0)
-#define  PTE_MARKER_SWAPIN_ERROR		BIT(1)
+/*
+ * "Poisoned" here is meant in the very general sense of "future accesses are
+ * invalid", instead of referring very specifically to hardware memory errors.
+ * This marker is meant to represent any of various different causes of this.
+ */
+#define  PTE_MARKER_POISONED			BIT(1)
 #define  PTE_MARKER_MASK			(BIT(2) - 1)
 
 static inline swp_entry_t make_pte_marker_entry(pte_marker marker)
@@ -421,15 +426,15 @@ static inline pte_t make_pte_marker(pte_marker marker)
 	return swp_entry_to_pte(make_pte_marker_entry(marker));
 }
 
-static inline swp_entry_t make_swapin_error_entry(void)
+static inline swp_entry_t make_poisoned_swp_entry(void)
 {
-	return make_pte_marker_entry(PTE_MARKER_SWAPIN_ERROR);
+	return make_pte_marker_entry(PTE_MARKER_POISONED);
 }
 
-static inline int is_swapin_error_entry(swp_entry_t entry)
+static inline int is_poisoned_swp_entry(swp_entry_t entry)
 {
 	return is_pte_marker_entry(entry) &&
-	    (pte_marker_get(entry) & PTE_MARKER_SWAPIN_ERROR);
+	    (pte_marker_get(entry) & PTE_MARKER_POISONED);
 }
 
 /*
@@ -461,6 +466,19 @@ static inline struct page *pfn_swap_entry_to_page(swp_entry_t entry)
 	BUG_ON(is_migration_entry(entry) && !PageLocked(p));
 
 	return p;
+}
+
+static inline struct folio *pfn_swap_entry_folio(swp_entry_t entry)
+{
+	struct folio *folio = pfn_folio(swp_offset_pfn(entry));
+
+	/*
+	 * Any use of migration entries may only occur while the
+	 * corresponding folio is locked
+	 */
+	BUG_ON(is_migration_entry(entry) && !folio_test_locked(folio));
+
+	return folio;
 }
 
 /*

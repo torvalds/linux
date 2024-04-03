@@ -21,7 +21,7 @@
 #include <asm/unaligned.h>
 
 /**
- * struct ieee82011_radiotap_header - base radiotap header
+ * struct ieee80211_radiotap_header - base radiotap header
  */
 struct ieee80211_radiotap_header {
 	/**
@@ -539,6 +539,12 @@ enum ieee80211_radiotap_eht_usig_common {
 	IEEE80211_RADIOTAP_EHT_USIG_COMMON_VALIDATE_BITS_OK	= 0x00000080,
 	IEEE80211_RADIOTAP_EHT_USIG_COMMON_PHY_VER		= 0x00007000,
 	IEEE80211_RADIOTAP_EHT_USIG_COMMON_BW			= 0x00038000,
+		IEEE80211_RADIOTAP_EHT_USIG_COMMON_BW_20MHZ		= 0,
+		IEEE80211_RADIOTAP_EHT_USIG_COMMON_BW_40MHZ		= 1,
+		IEEE80211_RADIOTAP_EHT_USIG_COMMON_BW_80MHZ		= 2,
+		IEEE80211_RADIOTAP_EHT_USIG_COMMON_BW_160MHZ		= 3,
+		IEEE80211_RADIOTAP_EHT_USIG_COMMON_BW_320MHZ_1		= 4,
+		IEEE80211_RADIOTAP_EHT_USIG_COMMON_BW_320MHZ_2		= 5,
 	IEEE80211_RADIOTAP_EHT_USIG_COMMON_UL_DL		= 0x00040000,
 	IEEE80211_RADIOTAP_EHT_USIG_COMMON_BSS_COLOR		= 0x01f80000,
 	IEEE80211_RADIOTAP_EHT_USIG_COMMON_TXOP			= 0xfe000000,
@@ -575,6 +581,7 @@ enum ieee80211_radiotap_eht_usig_tb {
 
 /**
  * ieee80211_get_radiotap_len - get radiotap header length
+ * @data: pointer to the header
  */
 static inline u16 ieee80211_get_radiotap_len(const char *data)
 {

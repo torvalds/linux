@@ -2,11 +2,31 @@
 /* Copyright (c) 2021 Facebook */
 #include <test_progs.h>
 #include "timer.skel.h"
+#include "timer_failure.skel.h"
+
+#define NUM_THR 8
+
+static void *spin_lock_thread(void *arg)
+{
+	int i, err, prog_fd = *(int *)arg;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+
+	for (i = 0; i < 10000; i++) {
+		err = bpf_prog_test_run_opts(prog_fd, &topts);
+		if (!ASSERT_OK(err, "test_run_opts err") ||
+		    !ASSERT_OK(topts.retval, "test_run_opts retval"))
+			break;
+	}
+
+	pthread_exit(arg);
+}
 
 static int timer(struct timer *timer_skel)
 {
-	int err, prog_fd;
+	int i, err, prog_fd;
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	pthread_t thread_id[NUM_THR];
+	void *ret;
 
 	err = timer__attach(timer_skel);
 	if (!ASSERT_OK(err, "timer_attach"))
@@ -14,6 +34,7 @@ static int timer(struct timer *timer_skel)
 
 	ASSERT_EQ(timer_skel->data->callback_check, 52, "callback_check1");
 	ASSERT_EQ(timer_skel->data->callback2_check, 52, "callback2_check1");
+	ASSERT_EQ(timer_skel->bss->pinned_callback_check, 0, "pinned_callback_check1");
 
 	prog_fd = bpf_program__fd(timer_skel->progs.test1);
 	err = bpf_prog_test_run_opts(prog_fd, &topts);
@@ -32,11 +53,28 @@ static int timer(struct timer *timer_skel)
 	/* check that timer_cb3() was executed twice */
 	ASSERT_EQ(timer_skel->bss->abs_data, 12, "abs_data");
 
+	/* check that timer_cb_pinned() was executed twice */
+	ASSERT_EQ(timer_skel->bss->pinned_callback_check, 2, "pinned_callback_check");
+
 	/* check that there were no errors in timer execution */
 	ASSERT_EQ(timer_skel->bss->err, 0, "err");
 
 	/* check that code paths completed */
 	ASSERT_EQ(timer_skel->bss->ok, 1 | 2 | 4, "ok");
+
+	prog_fd = bpf_program__fd(timer_skel->progs.race);
+	for (i = 0; i < NUM_THR; i++) {
+		err = pthread_create(&thread_id[i], NULL,
+				     &spin_lock_thread, &prog_fd);
+		if (!ASSERT_OK(err, "pthread_create"))
+			break;
+	}
+
+	while (i) {
+		err = pthread_join(thread_id[--i], &ret);
+		if (ASSERT_OK(err, "pthread_join"))
+			ASSERT_EQ(ret, (void *)&prog_fd, "pthread_join");
+	}
 
 	return 0;
 }
@@ -49,10 +87,11 @@ void serial_test_timer(void)
 
 	timer_skel = timer__open_and_load();
 	if (!ASSERT_OK_PTR(timer_skel, "timer_skel_load"))
-		goto cleanup;
+		return;
 
 	err = timer(timer_skel);
 	ASSERT_OK(err, "timer");
-cleanup:
 	timer__destroy(timer_skel);
+
+	RUN_TESTS(timer_failure);
 }

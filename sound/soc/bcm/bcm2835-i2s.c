@@ -737,7 +737,19 @@ static void bcm2835_i2s_shutdown(struct snd_pcm_substream *substream,
 	bcm2835_i2s_stop_clock(dev);
 }
 
+static int bcm2835_i2s_dai_probe(struct snd_soc_dai *dai)
+{
+	struct bcm2835_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
+
+	snd_soc_dai_init_dma_data(dai,
+				  &dev->dma_data[SNDRV_PCM_STREAM_PLAYBACK],
+				  &dev->dma_data[SNDRV_PCM_STREAM_CAPTURE]);
+
+	return 0;
+}
+
 static const struct snd_soc_dai_ops bcm2835_i2s_dai_ops = {
+	.probe		= bcm2835_i2s_dai_probe,
 	.startup	= bcm2835_i2s_startup,
 	.shutdown	= bcm2835_i2s_shutdown,
 	.prepare	= bcm2835_i2s_prepare,
@@ -748,20 +760,8 @@ static const struct snd_soc_dai_ops bcm2835_i2s_dai_ops = {
 	.set_tdm_slot	= bcm2835_i2s_set_dai_tdm_slot,
 };
 
-static int bcm2835_i2s_dai_probe(struct snd_soc_dai *dai)
-{
-	struct bcm2835_i2s_dev *dev = snd_soc_dai_get_drvdata(dai);
-
-	snd_soc_dai_init_dma_data(dai,
-			&dev->dma_data[SNDRV_PCM_STREAM_PLAYBACK],
-			&dev->dma_data[SNDRV_PCM_STREAM_CAPTURE]);
-
-	return 0;
-}
-
 static struct snd_soc_dai_driver bcm2835_i2s_dai = {
 	.name	= "bcm2835-i2s",
-	.probe	= bcm2835_i2s_dai_probe,
 	.playback = {
 		.channels_min = 2,
 		.channels_max = 2,

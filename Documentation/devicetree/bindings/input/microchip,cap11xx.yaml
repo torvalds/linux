@@ -45,13 +45,13 @@ properties:
       Enables the Linux input system's autorepeat feature on the input device.
 
   linux,keycodes:
-    minItems: 6
-    maxItems: 6
+    minItems: 3
+    maxItems: 8
     description: |
       Specifies an array of numeric keycode values to
       be used for the channels. If this property is
       omitted, KEY_A, KEY_B, etc are used as defaults.
-      The array must have exactly six entries.
+      The number of entries must correspond to the number of channels.
 
   microchip,sensor-gain:
     $ref: /schemas/types.yaml#/definitions/uint32
@@ -69,6 +69,59 @@ properties:
       By default the interrupt pin is active low
       open drain. This property allows using the active
       high push-pull output.
+
+  microchip,sensitivity-delta-sense:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    default: 32
+    enum: [1, 2, 4, 8, 16, 32, 64, 128]
+    description:
+      Controls the sensitivity multiplier of a touch detection.
+      Higher value means more sensitive settings.
+      At the more sensitive settings, touches are detected for a smaller delta
+      capacitance corresponding to a "lighter" touch.
+
+  microchip,signal-guard:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 3
+    maxItems: 8
+    items:
+      enum: [0, 1]
+    description: |
+      0 - off
+      1 - on
+      The signal guard isolates the signal from virtual grounds.
+      If enabled then the behavior of the channel is changed to signal guard.
+      The number of entries must correspond to the number of channels.
+
+  microchip,input-threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 3
+    maxItems: 8
+    items:
+      minimum: 0
+      maximum: 127
+    description:
+      Specifies the delta threshold that is used to determine if a touch has
+      been detected. A higher value means a larger difference in capacitance
+      is required for a touch to be registered, making the touch sensor less
+      sensitive.
+      The number of entries must correspond to the number of channels.
+
+  microchip,calib-sensitivity:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    minItems: 3
+    maxItems: 8
+    items:
+      enum: [1, 2, 4]
+    description: |
+      Specifies an array of numeric values that controls the gain
+      used by the calibration routine to enable sensor inputs
+      to be more sensitive for proximity detection.
+      Gain is based on touch pad capacitance range
+      1 - 5-50pF
+      2 - 0-25pF
+      4 - 0-12.5pF
+      The number of entries must correspond to the number of channels.
 
 patternProperties:
   "^led@[0-7]$":
@@ -99,9 +152,28 @@ allOf:
           contains:
             enum:
               - microchip,cap1106
+              - microchip,cap1203
+              - microchip,cap1206
+              - microchip,cap1293
+              - microchip,cap1298
     then:
       patternProperties:
         "^led@[0-7]$": false
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - microchip,cap1106
+              - microchip,cap1126
+              - microchip,cap1188
+              - microchip,cap1203
+              - microchip,cap1206
+    then:
+      properties:
+        microchip,signal-guard: false
+        microchip,calib-sensitivity: false
 
 required:
   - compatible
@@ -122,6 +194,8 @@ examples:
         reg = <0x28>;
         autorepeat;
         microchip,sensor-gain = <2>;
+        microchip,sensitivity-delta-sense = <16>;
+        microchip,input-threshold = <21>, <18>, <46>, <46>, <46>, <21>;
 
         linux,keycodes = <103>,	/* KEY_UP */
                          <106>,	/* KEY_RIGHT */

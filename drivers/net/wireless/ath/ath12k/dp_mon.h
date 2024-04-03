@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2019-2021 The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH12K_DP_MON_H
@@ -80,7 +80,7 @@ ath12k_dp_mon_rx_parse_mon_status(struct ath12k *ar,
 				  int mac_id, struct sk_buff *skb,
 				  struct napi_struct *napi);
 int ath12k_dp_mon_buf_replenish(struct ath12k_base *ab,
-				struct dp_rxdma_ring *buf_ring,
+				struct dp_rxdma_mon_ring *buf_ring,
 				int req_entries);
 int ath12k_dp_mon_srng_process(struct ath12k *ar, int mac_id,
 			       int *budget, enum dp_monitor_mode monitor_mode,

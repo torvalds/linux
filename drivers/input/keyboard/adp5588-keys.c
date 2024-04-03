@@ -713,17 +713,11 @@ static int adp5588_fw_parse(struct adp5588_kpad *kpad)
 	return 0;
 }
 
-static void adp5588_disable_regulator(void *reg)
-{
-	regulator_disable(reg);
-}
-
 static int adp5588_probe(struct i2c_client *client)
 {
 	struct adp5588_kpad *kpad;
 	struct input_dev *input;
 	struct gpio_desc *gpio;
-	struct regulator *vcc;
 	unsigned int revid;
 	int ret;
 	int error;
@@ -749,16 +743,7 @@ static int adp5588_probe(struct i2c_client *client)
 	if (error)
 		return error;
 
-	vcc = devm_regulator_get(&client->dev, "vcc");
-	if (IS_ERR(vcc))
-		return PTR_ERR(vcc);
-
-	error = regulator_enable(vcc);
-	if (error)
-		return error;
-
-	error = devm_add_action_or_reset(&client->dev,
-					 adp5588_disable_regulator, vcc);
+	error = devm_regulator_get_enable(&client->dev, "vcc");
 	if (error)
 		return error;
 

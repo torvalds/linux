@@ -109,8 +109,7 @@ void map__init(struct map *map, u64 start, u64 end, u64 pgoff, struct dso *dso)
 	map__set_pgoff(map, pgoff);
 	map__set_reloc(map, 0);
 	map__set_dso(map, dso__get(dso));
-	map__set_map_ip(map, map__dso_map_ip);
-	map__set_unmap_ip(map, map__dso_unmap_ip);
+	map__set_mapping_type(map, MAPPING_TYPE__DSO);
 	map__set_erange_warned(map, false);
 	refcount_set(map__refcnt(map), 1);
 }
@@ -169,10 +168,11 @@ struct map *map__new(struct machine *machine, u64 start, u64 len,
 		if (dso == NULL)
 			goto out_delete;
 
+		assert(!dso->kernel);
 		map__init(result, start, start + len, pgoff, dso);
 
 		if (anon || no_dso) {
-			map->map_ip = map->unmap_ip = identity__map_ip;
+			map->mapping_type = MAPPING_TYPE__IDENTITY;
 
 			/*
 			 * Set memory without DSO as loaded. All map__find_*
@@ -553,10 +553,6 @@ u64 map__rip_2objdump(struct map *map, u64 rip)
 	if (dso->rel)
 		return rip - map__pgoff(map);
 
-	/*
-	 * kernel modules also have DSO_TYPE_USER in dso->kernel,
-	 * but all kernel modules are ET_REL, so won't get here.
-	 */
 	if (dso->kernel == DSO_SPACE__USER)
 		return rip + dso->text_offset;
 
@@ -585,10 +581,6 @@ u64 map__objdump_2mem(struct map *map, u64 ip)
 	if (dso->rel)
 		return map__unmap_ip(map, ip + map__pgoff(map));
 
-	/*
-	 * kernel modules also have DSO_TYPE_USER in dso->kernel,
-	 * but all kernel modules are ET_REL, so won't get here.
-	 */
 	if (dso->kernel == DSO_SPACE__USER)
 		return map__unmap_ip(map, ip - dso->text_offset);
 
@@ -629,19 +621,4 @@ struct maps *map__kmaps(struct map *map)
 		return NULL;
 	}
 	return kmap->kmaps;
-}
-
-u64 map__dso_map_ip(const struct map *map, u64 ip)
-{
-	return ip - map__start(map) + map__pgoff(map);
-}
-
-u64 map__dso_unmap_ip(const struct map *map, u64 ip)
-{
-	return ip + map__start(map) - map__pgoff(map);
-}
-
-u64 identity__map_ip(const struct map *map __maybe_unused, u64 ip)
-{
-	return ip;
 }

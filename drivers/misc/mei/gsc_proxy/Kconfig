@@ -3,7 +3,7 @@
 #
 config INTEL_MEI_GSC_PROXY
 	tristate "Intel GSC Proxy services of ME Interface"
-	select INTEL_MEI_ME
+	depends on INTEL_MEI_ME
 	depends on DRM_I915
 	help
          MEI Support for GSC Proxy Services on Intel platforms.

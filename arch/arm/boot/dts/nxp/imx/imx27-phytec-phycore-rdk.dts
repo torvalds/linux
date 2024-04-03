@@ -19,7 +19,7 @@
 
 		display-timings {
 			native-mode = <&timing0>;
-			timing0: 240x320 {
+			timing0: timing0 {
 				clock-frequency = <5500000>;
 				hactive = <240>;
 				vactive = <320>;
@@ -37,29 +37,23 @@
 		};
 	};
 
-	regulators {
-		regulator@2 {
-			compatible = "regulator-fixed";
-			pinctrl-names = "default";
-			pinctrl-0 = <&pinctrl_csien>;
-			reg = <2>;
-			regulator-name = "CSI_EN";
-			regulator-min-microvolt = <3300000>;
-			regulator-max-microvolt = <3300000>;
-			gpio = <&gpio2 24 GPIO_ACTIVE_LOW>;
-			regulator-always-on;
-		};
+	regulator-2 {
+		compatible = "regulator-fixed";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_csien>;
+		regulator-name = "CSI_EN";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio2 24 GPIO_ACTIVE_LOW>;
+		regulator-always-on;
 	};
 
-	usbphy {
-		usbphy2: usbphy@2 {
-			compatible = "usb-nop-xceiv";
-			reg = <2>;
-			vcc-supply = <&reg_5v0>;
-			clocks = <&clks IMX27_CLK_DUMMY>;
-			clock-names = "main_clk";
-			#phy-cells = <0>;
-		};
+	usbphy2: usbphy {
+		compatible = "usb-nop-xceiv";
+		vcc-supply = <&reg_5v0>;
+		clocks = <&clks IMX27_CLK_DUMMY>;
+		clock-names = "main_clk";
+		#phy-cells = <0>;
 	};
 };
 

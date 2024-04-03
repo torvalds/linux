@@ -215,7 +215,7 @@ extern void hfs_evict_inode(struct inode *);
 extern void hfs_delete_inode(struct inode *);
 
 /* attr.c */
-extern const struct xattr_handler *hfs_xattr_handlers[];
+extern const struct xattr_handler * const hfs_xattr_handlers[];
 
 /* mdb.c */
 extern int hfs_mdb_get(struct super_block *);

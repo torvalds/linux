@@ -145,7 +145,7 @@
 		>;
 	};
 
-	pinctrl_flexcan1: flexcan1grp{
+	pinctrl_flexcan1: flexcan1grp {
 		fsl,pins = <
 			MX6UL_PAD_LCD_DATA08__FLEXCAN1_TX	0x1b020
 			MX6UL_PAD_LCD_DATA09__FLEXCAN1_RX	0x1b020

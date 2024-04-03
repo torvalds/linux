@@ -15,7 +15,7 @@
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/of_device.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 #include <linux/pwm.h>
@@ -56,7 +56,7 @@ static int pwm_vibrator_start(struct pwm_vibrator *vibrator)
 	pwm_set_relative_duty_cycle(&state, vibrator->level, 0xffff);
 	state.enabled = true;
 
-	err = pwm_apply_state(vibrator->pwm, &state);
+	err = pwm_apply_might_sleep(vibrator->pwm, &state);
 	if (err) {
 		dev_err(pdev, "failed to apply pwm state: %d\n", err);
 		return err;
@@ -67,7 +67,7 @@ static int pwm_vibrator_start(struct pwm_vibrator *vibrator)
 		state.duty_cycle = vibrator->direction_duty_cycle;
 		state.enabled = true;
 
-		err = pwm_apply_state(vibrator->pwm_dir, &state);
+		err = pwm_apply_might_sleep(vibrator->pwm_dir, &state);
 		if (err) {
 			dev_err(pdev, "failed to apply dir-pwm state: %d\n", err);
 			pwm_disable(vibrator->pwm);
@@ -140,39 +140,27 @@ static int pwm_vibrator_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	vibrator->vcc = devm_regulator_get(&pdev->dev, "vcc");
-	err = PTR_ERR_OR_ZERO(vibrator->vcc);
-	if (err) {
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to request regulator: %d\n",
-				err);
-		return err;
-	}
+	if (IS_ERR(vibrator->vcc))
+		return dev_err_probe(&pdev->dev, PTR_ERR(vibrator->vcc),
+				     "Failed to request regulator\n");
 
 	vibrator->enable_gpio = devm_gpiod_get_optional(&pdev->dev, "enable",
 							GPIOD_OUT_LOW);
-	err = PTR_ERR_OR_ZERO(vibrator->enable_gpio);
-	if (err) {
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to request enable gpio: %d\n",
-				err);
-		return err;
-	}
+	if (IS_ERR(vibrator->enable_gpio))
+		return dev_err_probe(&pdev->dev, PTR_ERR(vibrator->enable_gpio),
+				     "Failed to request enable gpio\n");
 
 	vibrator->pwm = devm_pwm_get(&pdev->dev, "enable");
-	err = PTR_ERR_OR_ZERO(vibrator->pwm);
-	if (err) {
-		if (err != -EPROBE_DEFER)
-			dev_err(&pdev->dev, "Failed to request main pwm: %d\n",
-				err);
-		return err;
-	}
+	if (IS_ERR(vibrator->pwm))
+		return dev_err_probe(&pdev->dev, PTR_ERR(vibrator->pwm),
+				     "Failed to request main pwm\n");
 
 	INIT_WORK(&vibrator->play_work, pwm_vibrator_play_work);
 
 	/* Sync up PWM state and ensure it is off. */
 	pwm_init_state(vibrator->pwm, &state);
 	state.enabled = false;
-	err = pwm_apply_state(vibrator->pwm, &state);
+	err = pwm_apply_might_sleep(vibrator->pwm, &state);
 	if (err) {
 		dev_err(&pdev->dev, "failed to apply initial PWM state: %d\n",
 			err);
@@ -186,7 +174,7 @@ static int pwm_vibrator_probe(struct platform_device *pdev)
 		/* Sync up PWM state and ensure it is off. */
 		pwm_init_state(vibrator->pwm_dir, &state);
 		state.enabled = false;
-		err = pwm_apply_state(vibrator->pwm_dir, &state);
+		err = pwm_apply_might_sleep(vibrator->pwm_dir, &state);
 		if (err) {
 			dev_err(&pdev->dev, "failed to apply initial PWM state: %d\n",
 				err);

@@ -8,8 +8,8 @@
  * Copyright (C) 2012  MIPS Technologies, Inc.
  * Copyright (C) 2012  Ralf Baechle <ralf@linux-mips.org>
  */
+#include <linux/export.h>
 #include <asm/asm.h>
-#include <asm/export.h>
 #include <asm/regdef.h>
 
 #ifdef CONFIG_SIBYTE_DMA_PAGEOPS

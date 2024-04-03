@@ -1056,7 +1056,7 @@ void dcn10_link_encoder_disable_output(
 	struct bp_transmitter_control cntl = { 0 };
 	enum bp_result result;
 
-	if (!dcn10_is_dig_enabled(enc)) {
+	if (enc->funcs->is_dig_enabled && !enc->funcs->is_dig_enabled(enc)) {
 		/* OF_SKIP_POWER_DOWN_INACTIVE_ENCODER */
 	/*in DP_Alt_No_Connect case, we turn off the dig already,
 	after excuation the PHY w/a sequence, not allow touch PHY any more*/

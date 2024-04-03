@@ -67,16 +67,10 @@ static netdev_tx_t dummy_xmit(struct sk_buff *skb, struct net_device *dev)
 
 static int dummy_dev_init(struct net_device *dev)
 {
-	dev->lstats = netdev_alloc_pcpu_stats(struct pcpu_lstats);
-	if (!dev->lstats)
-		return -ENOMEM;
+	dev->pcpu_stat_type = NETDEV_PCPU_STAT_LSTATS;
 
+	netdev_lockdep_set_classes(dev);
 	return 0;
-}
-
-static void dummy_dev_uninit(struct net_device *dev)
-{
-	free_percpu(dev->lstats);
 }
 
 static int dummy_change_carrier(struct net_device *dev, bool new_carrier)
@@ -90,7 +84,6 @@ static int dummy_change_carrier(struct net_device *dev, bool new_carrier)
 
 static const struct net_device_ops dummy_netdev_ops = {
 	.ndo_init		= dummy_dev_init,
-	.ndo_uninit		= dummy_dev_uninit,
 	.ndo_start_xmit		= dummy_xmit,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_rx_mode	= set_multicast_list,
@@ -202,4 +195,5 @@ static void __exit dummy_cleanup_module(void)
 module_init(dummy_init_module);
 module_exit(dummy_cleanup_module);
 MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Dummy netdevice driver which discards all packets sent to it");
 MODULE_ALIAS_RTNL_LINK(DRV_NAME);

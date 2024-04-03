@@ -185,7 +185,7 @@ argument.
 Not all changes require that all scenarios be run.  For example, a change
 to Tree SRCU might run only the SRCU-N and SRCU-P scenarios using the
 --configs argument to kvm.sh as follows:  "--configs 'SRCU-N SRCU-P'".
-Large systems can run multiple copies of of the full set of scenarios,
+Large systems can run multiple copies of the full set of scenarios,
 for example, a system with 448 hardware threads can run five instances
 of the full set concurrently.  To make this happen::
 
@@ -318,7 +318,7 @@ Suppose that a previous kvm.sh run left its output in this directory::
 
 	tools/testing/selftests/rcutorture/res/2022.11.03-11.26.28
 
-Then this run can be re-run without rebuilding as follow:
+Then this run can be re-run without rebuilding as follow::
 
 	kvm-again.sh tools/testing/selftests/rcutorture/res/2022.11.03-11.26.28
 

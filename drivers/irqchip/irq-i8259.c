@@ -340,7 +340,7 @@ static void i8259_irq_dispatch(struct irq_desc *desc)
 	generic_handle_domain_irq(domain, hwirq);
 }
 
-int __init i8259_of_init(struct device_node *node, struct device_node *parent)
+static int __init i8259_of_init(struct device_node *node, struct device_node *parent)
 {
 	struct irq_domain *domain;
 	unsigned int parent_irq;

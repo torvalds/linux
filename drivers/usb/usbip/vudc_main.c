@@ -19,7 +19,7 @@ MODULE_PARM_DESC(num, "number of emulated controllers");
 
 static struct platform_driver vudc_driver = {
 	.probe		= vudc_probe,
-	.remove		= vudc_remove,
+	.remove_new	= vudc_remove,
 	.driver		= {
 		.name	= GADGET_NAME,
 		.dev_groups = vudc_groups,

@@ -306,8 +306,6 @@ static inline void iwl_fw_error_collect(struct iwl_fw_runtime *fwrt, bool sync)
 	_iwl_dbg_tlv_time_point(fwrt, tp_id, NULL, sync);
 }
 
-void iwl_fw_error_print_fseq_regs(struct iwl_fw_runtime *fwrt);
-
 static inline void iwl_fwrt_update_fw_versions(struct iwl_fw_runtime *fwrt,
 					       struct iwl_lmac_alive *lmac,
 					       struct iwl_umac_alive *umac)
@@ -329,6 +327,8 @@ void iwl_fwrt_dump_error_logs(struct iwl_fw_runtime *fwrt);
 void iwl_send_dbg_dump_complete_cmd(struct iwl_fw_runtime *fwrt,
 				    u32 timepoint,
 				    u32 timepoint_data);
+void iwl_fw_disable_dbg_asserts(struct iwl_fw_runtime *fwrt);
+void iwl_fw_dbg_clear_monitor_buf(struct iwl_fw_runtime *fwrt);
 
 #define IWL_FW_CHECK_FAILED(_obj, _fmt, ...)				\
 	IWL_ERR_LIMIT(_obj, _fmt, __VA_ARGS__)

@@ -72,7 +72,7 @@ static void mei_irq_discard_msg(struct mei_device *dev, struct mei_msg_hdr *hdr,
 		discard_len = 0;
 	}
 	/*
-	 * no need to check for size as it is guarantied
+	 * no need to check for size as it is guaranteed
 	 * that length fits into rd_msg_buf
 	 */
 	mei_read_slots(dev, dev->rd_msg_buf, discard_len);
@@ -626,9 +626,9 @@ static void mei_connect_timeout(struct mei_cl *cl)
 /**
  * mei_schedule_stall_timer - re-arm stall_timer work
  *
- * Schedule stall timer
- *
  * @dev: the device structure
+ *
+ * Schedule stall timer
  */
 void mei_schedule_stall_timer(struct mei_device *dev)
 {

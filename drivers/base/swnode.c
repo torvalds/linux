@@ -6,10 +6,21 @@
  * Author: Heikki Krogerus <heikki.krogerus@linux.intel.com>
  */
 
+#include <linux/container_of.h>
 #include <linux/device.h>
-#include <linux/kernel.h>
+#include <linux/err.h>
+#include <linux/export.h>
+#include <linux/idr.h>
+#include <linux/init.h>
+#include <linux/kobject.h>
+#include <linux/kstrtox.h>
+#include <linux/list.h>
 #include <linux/property.h>
 #include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
+#include <linux/sysfs.h>
+#include <linux/types.h>
 
 #include "base.h"
 
@@ -541,6 +552,9 @@ software_node_get_reference_args(const struct fwnode_handle *fwnode,
 	if (nargs > NR_FWNODE_REFERENCE_ARGS)
 		return -EINVAL;
 
+	if (!args)
+		return 0;
+
 	args->fwnode = software_node_get(refnode);
 	args->nargs = nargs;
 
@@ -747,10 +761,10 @@ static void software_node_release(struct kobject *kobj)
 	struct swnode *swnode = kobj_to_swnode(kobj);
 
 	if (swnode->parent) {
-		ida_simple_remove(&swnode->parent->child_ids, swnode->id);
+		ida_free(&swnode->parent->child_ids, swnode->id);
 		list_del(&swnode->entry);
 	} else {
-		ida_simple_remove(&swnode_root_ids, swnode->id);
+		ida_free(&swnode_root_ids, swnode->id);
 	}
 
 	if (swnode->allocated)
@@ -776,8 +790,8 @@ swnode_register(const struct software_node *node, struct swnode *parent,
 	if (!swnode)
 		return ERR_PTR(-ENOMEM);
 
-	ret = ida_simple_get(parent ? &parent->child_ids : &swnode_root_ids,
-			     0, 0, GFP_KERNEL);
+	ret = ida_alloc(parent ? &parent->child_ids : &swnode_root_ids,
+			GFP_KERNEL);
 	if (ret < 0) {
 		kfree(swnode);
 		return ERR_PTR(ret);

@@ -311,22 +311,6 @@ int radeon_gem_info_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
-int radeon_gem_pread_ioctl(struct drm_device *dev, void *data,
-			   struct drm_file *filp)
-{
-	/* TODO: implement */
-	DRM_ERROR("unimplemented %s\n", __func__);
-	return -ENOSYS;
-}
-
-int radeon_gem_pwrite_ioctl(struct drm_device *dev, void *data,
-			    struct drm_file *filp)
-{
-	/* TODO: implement */
-	DRM_ERROR("unimplemented %s\n", __func__);
-	return -ENOSYS;
-}
-
 int radeon_gem_create_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *filp)
 {

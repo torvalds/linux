@@ -106,12 +106,19 @@ enum sof_ipc4_global_msg {
 	SOF_IPC4_GLB_SAVE_PIPELINE,
 	SOF_IPC4_GLB_RESTORE_PIPELINE,
 
-	/* Loads library (using Code Load or HD/A Host Output DMA) */
+	/*
+	 * library loading
+	 *
+	 * Loads library (using Code Load or HD/A Host Output DMA)
+	 */
 	SOF_IPC4_GLB_LOAD_LIBRARY,
+	/*
+	 * Prepare the host DMA channel for library loading, must be followed by
+	 * a SOF_IPC4_GLB_LOAD_LIBRARY message as the library loading step
+	 */
+	SOF_IPC4_GLB_LOAD_LIBRARY_PREPARE,
 
-	/* 25: RESERVED - do not use */
-
-	SOF_IPC4_GLB_INTERNAL_MESSAGE = 26,
+	SOF_IPC4_GLB_INTERNAL_MESSAGE,
 
 	/* Notification (FW to SW driver) */
 	SOF_IPC4_GLB_NOTIFICATION,
@@ -416,6 +423,12 @@ enum sof_ipc4_fw_config_params {
 	SOF_IPC4_FW_CFG_RESERVED,
 	SOF_IPC4_FW_CFG_POWER_GATING_POLICY,
 	SOF_IPC4_FW_CFG_ASSERT_MODE,
+	SOF_IPC4_FW_RESERVED1,
+	SOF_IPC4_FW_RESERVED2,
+	SOF_IPC4_FW_RESERVED3,
+	SOF_IPC4_FW_RESERVED4,
+	SOF_IPC4_FW_RESERVED5,
+	SOF_IPC4_FW_CONTEXT_SAVE
 };
 
 struct sof_ipc4_fw_version {
@@ -507,6 +520,52 @@ struct sof_ipc4_notify_resource_data {
 	uint32_t reserved;
 	uint32_t data[6];
 } __packed __aligned(4);
+
+#define SOF_IPC4_DEBUG_DESCRIPTOR_SIZE		12 /* 3 x u32 */
+
+/*
+ * The debug memory window is divided into 16 slots, and the
+ * first slot is used as a recorder for the other 15 slots.
+ */
+#define SOF_IPC4_MAX_DEBUG_SLOTS		15
+#define SOF_IPC4_DEBUG_SLOT_SIZE		0x1000
+
+/* debug log slot types */
+#define SOF_IPC4_DEBUG_SLOT_UNUSED		0x00000000
+#define SOF_IPC4_DEBUG_SLOT_CRITICAL_LOG	0x54524300 /* byte 0: core ID */
+#define SOF_IPC4_DEBUG_SLOT_DEBUG_LOG		0x474f4c00 /* byte 0: core ID */
+#define SOF_IPC4_DEBUG_SLOT_GDB_STUB		0x42444700
+#define SOF_IPC4_DEBUG_SLOT_TELEMETRY		0x4c455400
+#define SOF_IPC4_DEBUG_SLOT_BROKEN		0x44414544
+
+/**
+ * struct sof_ipc4_notify_module_data - payload for module notification
+ * @instance_id: instance ID of the originator module of the notification
+ * @module_id: module ID of the originator of the notification
+ * @event_id: module specific event id
+ * @event_data_size: Size of the @event_data (if any) in bytes
+ * @event_data: Optional notification data, module and notification dependent
+ */
+struct sof_ipc4_notify_module_data {
+	uint16_t instance_id;
+	uint16_t module_id;
+	uint32_t event_id;
+	uint32_t event_data_size;
+	uint8_t event_data[];
+} __packed __aligned(4);
+
+/*
+ * ALSA kcontrol change notification
+ *
+ * The event_id of struct sof_ipc4_notify_module_data is divided into two u16:
+ *  upper u16: magic number for ALSA kcontrol types: 0xA15A
+ *  lower u16: param_id of the control, which is the type of the control
+ * The event_data contains the struct sof_ipc4_control_msg_payload of the control
+ * which sent the notification.
+ */
+#define SOF_IPC4_NOTIFY_MODULE_EVENTID_ALSA_MAGIC_MASK		GENMASK(31, 16)
+#define SOF_IPC4_NOTIFY_MODULE_EVENTID_ALSA_MAGIC_VAL		0xA15A0000
+#define SOF_IPC4_NOTIFY_MODULE_EVENTID_ALSA_PARAMID_MASK	GENMASK(15, 0)
 
 /** @}*/
 

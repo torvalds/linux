@@ -38,11 +38,11 @@
 
 #define GB(x) ((uint64_t)(x) * 1024 * 1024 * 1024)
 
-/* Amount of extra memory space we add to the e820 ranges */
-struct xen_memory_region xen_extra_mem[XEN_EXTRA_MEM_MAX_REGIONS] __initdata;
-
 /* Number of pages released from the initial allocation. */
 unsigned long xen_released_pages;
+
+/* Memory map would allow PCI passthrough. */
+bool xen_pv_pci_possible;
 
 /* E820 map used during setting up memory. */
 static struct e820_table xen_e820_table __initdata;
@@ -60,18 +60,6 @@ static struct {
 	unsigned long	mfns[REMAP_SIZE];
 } xen_remap_buf __initdata __aligned(PAGE_SIZE);
 static unsigned long xen_remap_mfn __initdata = INVALID_P2M_ENTRY;
-
-/*
- * The maximum amount of extra memory compared to the base size.  The
- * main scaling factor is the size of struct page.  At extreme ratios
- * of base:extra, all the base memory can be filled with page
- * structures for the extra memory, leaving no space for anything
- * else.
- *
- * 10x seems like a reasonable balance between scaling flexibility and
- * leaving a practically usable system.
- */
-#define EXTRA_MEM_RATIO		(10)
 
 static bool xen_512gb_limit __initdata = IS_ENABLED(CONFIG_XEN_512GB);
 
@@ -91,35 +79,6 @@ static void __init xen_parse_512gb(void)
 		return;
 
 	xen_512gb_limit = val;
-}
-
-static void __init xen_add_extra_mem(unsigned long start_pfn,
-				     unsigned long n_pfns)
-{
-	int i;
-
-	/*
-	 * No need to check for zero size, should happen rarely and will only
-	 * write a new entry regarded to be unused due to zero size.
-	 */
-	for (i = 0; i < XEN_EXTRA_MEM_MAX_REGIONS; i++) {
-		/* Add new region. */
-		if (xen_extra_mem[i].n_pfns == 0) {
-			xen_extra_mem[i].start_pfn = start_pfn;
-			xen_extra_mem[i].n_pfns = n_pfns;
-			break;
-		}
-		/* Append to existing region. */
-		if (xen_extra_mem[i].start_pfn + xen_extra_mem[i].n_pfns ==
-		    start_pfn) {
-			xen_extra_mem[i].n_pfns += n_pfns;
-			break;
-		}
-	}
-	if (i == XEN_EXTRA_MEM_MAX_REGIONS)
-		printk(KERN_WARNING "Warning: not enough extra memory regions\n");
-
-	memblock_reserve(PFN_PHYS(start_pfn), PFN_PHYS(n_pfns));
 }
 
 static void __init xen_del_extra_mem(unsigned long start_pfn,
@@ -340,7 +299,7 @@ static void __init xen_do_set_identity_and_remap_chunk(
 
 	WARN_ON(size == 0);
 
-	mfn_save = virt_to_mfn(buf);
+	mfn_save = virt_to_mfn((void *)buf);
 
 	for (ident_pfn_iter = start_pfn, remap_pfn_iter = remap_pfn;
 	     ident_pfn_iter < ident_end_pfn;
@@ -503,7 +462,7 @@ void __init xen_remap_memory(void)
 	unsigned long pfn_s = ~0UL;
 	unsigned long len = 0;
 
-	mfn_save = virt_to_mfn(buf);
+	mfn_save = virt_to_mfn((void *)buf);
 
 	while (xen_remap_mfn != INVALID_P2M_ENTRY) {
 		/* Map the remap information */
@@ -813,6 +772,9 @@ char * __init xen_memory_setup(void)
 
 		chunk_size = size;
 		type = xen_e820_table.entries[i].type;
+
+		if (type == E820_TYPE_RESERVED)
+			xen_pv_pci_possible = true;
 
 		if (type == E820_TYPE_RAM) {
 			if (addr < mem_end) {

@@ -295,9 +295,8 @@ static int vegam_process_firmware_header(struct pp_hwmgr *hwmgr)
 
 static bool vegam_is_dpm_running(struct pp_hwmgr *hwmgr)
 {
-	return (1 == PHM_READ_INDIRECT_FIELD(hwmgr->device,
-			CGS_IND_REG__SMC, FEATURE_STATUS, VOLTAGE_CONTROLLER_ON))
-			? true : false;
+	return 1 == PHM_READ_INDIRECT_FIELD(hwmgr->device,
+			CGS_IND_REG__SMC, FEATURE_STATUS, VOLTAGE_CONTROLLER_ON);
 }
 
 static uint32_t vegam_get_mac_definition(uint32_t value)
@@ -1660,7 +1659,7 @@ static int vegam_populate_avfs_parameters(struct pp_hwmgr *hwmgr)
 				(avfs_params.ucEnableGB_FUSE_TABLE_CKSON << AVFSGB0_Vdroop_Enable_SHIFT) |
 				(avfs_params.ucEnableGB_FUSE_TABLE_CKSOFF << AVFSGB1_Vdroop_Enable_SHIFT);
 		data->apply_avfs_cks_off_voltage =
-				(avfs_params.ucEnableApplyAVFS_CKS_OFF_Voltage == 1) ? true : false;
+				avfs_params.ucEnableApplyAVFS_CKS_OFF_Voltage == 1;
 	}
 	return result;
 }

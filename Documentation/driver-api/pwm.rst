@@ -41,10 +41,19 @@ the getter, devm_pwm_get() and devm_fwnode_pwm_get(), also exist.
 
 After being requested, a PWM has to be configured using::
 
-	int pwm_apply_state(struct pwm_device *pwm, struct pwm_state *state);
+	int pwm_apply_might_sleep(struct pwm_device *pwm, struct pwm_state *state);
 
 This API controls both the PWM period/duty_cycle config and the
 enable/disable state.
+
+PWM devices can be used from atomic context, if the PWM does not sleep. You
+can check if this the case with::
+
+        bool pwm_might_sleep(struct pwm_device *pwm);
+
+If false, the PWM can also be configured from atomic context with::
+
+	int pwm_apply_atomic(struct pwm_device *pwm, struct pwm_state *state);
 
 As a consumer, don't rely on the output's state for a disabled PWM. If it's
 easily possible, drivers are supposed to emit the inactive state, but some
@@ -57,13 +66,13 @@ If supported by the driver, the signal can be optimized, for example to improve
 EMI by phase shifting the individual channels of a chip.
 
 The pwm_config(), pwm_enable() and pwm_disable() functions are just wrappers
-around pwm_apply_state() and should not be used if the user wants to change
+around pwm_apply_might_sleep() and should not be used if the user wants to change
 several parameter at once. For example, if you see pwm_config() and
 pwm_{enable,disable}() calls in the same function, this probably means you
-should switch to pwm_apply_state().
+should switch to pwm_apply_might_sleep().
 
 The PWM user API also allows one to query the PWM state that was passed to the
-last invocation of pwm_apply_state() using pwm_get_state(). Note this is
+last invocation of pwm_apply_might_sleep() using pwm_get_state(). Note this is
 different to what the driver has actually implemented if the request cannot be
 satisfied exactly with the hardware in use. There is currently no way for
 consumers to get the actually implemented settings.
@@ -111,13 +120,13 @@ channel that was exported. The following properties will then be available:
 
   duty_cycle
     The active time of the PWM signal (read/write).
-    Value is in nanoseconds and must be less than the period.
+    Value is in nanoseconds and must be less than or equal to the period.
 
   polarity
     Changes the polarity of the PWM signal (read/write).
     Writes to this property only work if the PWM chip supports changing
-    the polarity. The polarity can only be changed if the PWM is not
-    enabled. Value is the string "normal" or "inversed".
+    the polarity.
+    Value is the string "normal" or "inversed".
 
   enable
     Enable/disable the PWM signal (read/write).
@@ -134,11 +143,12 @@ to implement the pwm_*() functions itself. This means that it's impossible
 to have multiple PWM drivers in the system. For this reason it's mandatory
 for new drivers to use the generic PWM framework.
 
-A new PWM controller/chip can be added using pwmchip_add() and removed
-again with pwmchip_remove(). pwmchip_add() takes a filled in struct
-pwm_chip as argument which provides a description of the PWM chip, the
-number of PWM devices provided by the chip and the chip-specific
-implementation of the supported PWM operations to the framework.
+A new PWM controller/chip can be allocated using pwmchip_alloc(), then
+registered using pwmchip_add() and removed again with pwmchip_remove(). To undo
+pwmchip_alloc() use pwmchip_put(). pwmchip_add() takes a filled in struct
+pwm_chip as argument which provides a description of the PWM chip, the number
+of PWM devices provided by the chip and the chip-specific implementation of the
+supported PWM operations to the framework.
 
 When implementing polarity support in a PWM driver, make sure to respect the
 signal conventions in the PWM framework. By definition, normal polarity

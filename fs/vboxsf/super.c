@@ -339,8 +339,7 @@ static int vboxsf_setup(void)
 	vboxsf_inode_cachep =
 		kmem_cache_create("vboxsf_inode_cache",
 				  sizeof(struct vboxsf_inode), 0,
-				  (SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD |
-				   SLAB_ACCOUNT),
+				  SLAB_RECLAIM_ACCOUNT | SLAB_ACCOUNT,
 				  vboxsf_inode_init_once);
 	if (!vboxsf_inode_cachep) {
 		err = -ENOMEM;

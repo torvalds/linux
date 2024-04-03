@@ -36,6 +36,7 @@ $(TM_TESTS): CFLAGS += -I../tm -mhtm
 CFLAGS += $(KHDR_INCLUDES) -fno-pie
 
 $(OUTPUT)/ptrace-gpr: ptrace-gpr.S
+$(OUTPUT)/ptrace-perf-hwbreak: ptrace-perf-asm.S
 $(OUTPUT)/ptrace-pkey $(OUTPUT)/core-pkey: LDLIBS += -pthread
 
 $(TEST_GEN_PROGS): ../harness.c ../utils.c ../lib/reg.S

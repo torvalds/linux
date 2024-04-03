@@ -604,14 +604,14 @@ static int sp7021_clk_probe(struct platform_device *pdev)
 	int i;
 
 	clk_base = devm_platform_ioremap_resource(pdev, 0);
-	if (!clk_base)
-		return -ENXIO;
+	if (IS_ERR(clk_base))
+		return PTR_ERR(clk_base);
 	pll_base = devm_platform_ioremap_resource(pdev, 1);
-	if (!pll_base)
-		return -ENXIO;
+	if (IS_ERR(pll_base))
+		return PTR_ERR(pll_base);
 	sys_base = devm_platform_ioremap_resource(pdev, 2);
-	if (!sys_base)
-		return -ENXIO;
+	if (IS_ERR(sys_base))
+		return PTR_ERR(sys_base);
 
 	/* enable default clks */
 	for (i = 0; i < ARRAY_SIZE(sp_clken); i++)
@@ -621,6 +621,7 @@ static int sp7021_clk_probe(struct platform_device *pdev)
 				GFP_KERNEL);
 	if (!clk_data)
 		return -ENOMEM;
+	clk_data->num = CLK_MAX;
 
 	hws = clk_data->hws;
 	pd_ext.index = 0;
@@ -687,8 +688,6 @@ static int sp7021_clk_probe(struct platform_device *pdev)
 		if (IS_ERR(hws[i]))
 			return PTR_ERR(hws[i]);
 	}
-
-	clk_data->num = CLK_MAX;
 
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, clk_data);
 }

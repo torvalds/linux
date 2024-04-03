@@ -16,133 +16,139 @@
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled for any reason",
         "MetricExpr": "PM_DISP_STALL_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI;CPI_STALL_RATIO",
-        "MetricName": "DISPATCHED_CPI"
+        "MetricName": "DISPATCH_STALL_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled because there was a flush",
         "MetricExpr": "PM_DISP_STALL_FLUSH / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_FLUSH_CPI"
+        "MetricName": "DISPATCH_STALL_FLUSH_CPI"
+    },
+    {
+        "BriefDescription": "Average cycles per completed instruction when dispatch was stalled because Fetch was being held,  so there was nothing in the pipeline for this thread",
+        "MetricExpr": "PM_DISP_STALL_FETCH / PM_RUN_INST_CMPL",
+        "MetricGroup": "CPI",
+        "MetricName": "DISPATCH_STALL_FETCH_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled because the MMU was handling a translation miss",
         "MetricExpr": "PM_DISP_STALL_TRANSLATION / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_TRANSLATION_CPI"
+        "MetricName": "DISPATCH_STALL_TRANSLATION_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled waiting to resolve an instruction ERAT miss",
         "MetricExpr": "PM_DISP_STALL_IERAT_ONLY_MISS / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_IERAT_ONLY_MISS_CPI"
+        "MetricName": "DISPATCH_STALL_IERAT_ONLY_MISS_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled waiting to resolve an instruction TLB miss",
         "MetricExpr": "PM_DISP_STALL_ITLB_MISS / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_ITLB_MISS_CPI"
+        "MetricName": "DISPATCH_STALL_ITLB_MISS_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled due to an icache miss",
         "MetricExpr": "PM_DISP_STALL_IC_MISS / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_IC_MISS_CPI"
+        "MetricName": "DISPATCH_STALL_IC_MISS_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled while the instruction was fetched from the local L2",
         "MetricExpr": "PM_DISP_STALL_IC_L2 / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_IC_L2_CPI"
+        "MetricName": "DISPATCH_STALL_IC_L2_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled while the instruction was fetched from the local L3",
         "MetricExpr": "PM_DISP_STALL_IC_L3 / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_IC_L3_CPI"
+        "MetricName": "DISPATCH_STALL_IC_L3_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled while the instruction was fetched from any source beyond the local L3",
         "MetricExpr": "PM_DISP_STALL_IC_L3MISS / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_IC_L3MISS_CPI"
+        "MetricName": "DISPATCH_STALL_IC_L3MISS_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled due to an icache miss after a branch mispredict",
         "MetricExpr": "PM_DISP_STALL_BR_MPRED_ICMISS / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_BR_MPRED_ICMISS_CPI"
+        "MetricName": "DISPATCH_STALL_BR_MPRED_ICMISS_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled while instruction was fetched from the local L2 after suffering a branch mispredict",
         "MetricExpr": "PM_DISP_STALL_BR_MPRED_IC_L2 / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_BR_MPRED_IC_L2_CPI"
+        "MetricName": "DISPATCH_STALL_BR_MPRED_IC_L2_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled while instruction was fetched from the local L3 after suffering a branch mispredict",
         "MetricExpr": "PM_DISP_STALL_BR_MPRED_IC_L3 / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_BR_MPRED_IC_L3_CPI"
+        "MetricName": "DISPATCH_STALL_BR_MPRED_IC_L3_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled while instruction was fetched from any source beyond the local L3 after suffering a branch mispredict",
         "MetricExpr": "PM_DISP_STALL_BR_MPRED_IC_L3MISS / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_BR_MPRED_IC_L3MISS_CPI"
+        "MetricName": "DISPATCH_STALL_BR_MPRED_IC_L3MISS_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled due to a branch mispredict",
         "MetricExpr": "PM_DISP_STALL_BR_MPRED / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_BR_MPRED_CPI"
+        "MetricName": "DISPATCH_STALL_BR_MPRED_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch for any reason",
         "MetricExpr": "PM_DISP_STALL_HELD_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_HELD_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch because of a synchronizing instruction that requires the ICT to be empty before dispatch",
         "MetricExpr": "PM_DISP_STALL_HELD_SYNC_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISP_HELD_STALL_SYNC_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_SYNC_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch while waiting on the scoreboard",
         "MetricExpr": "PM_DISP_STALL_HELD_SCOREBOARD_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISP_HELD_STALL_SCOREBOARD_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_SCOREBOARD_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch due to issue queue full",
         "MetricExpr": "PM_DISP_STALL_HELD_ISSQ_FULL_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISP_HELD_STALL_ISSQ_FULL_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_ISSQ_FULL_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch because the mapper/SRB was full",
         "MetricExpr": "PM_DISP_STALL_HELD_RENAME_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_HELD_RENAME_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_RENAME_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch because the STF mapper/SRB was full",
         "MetricExpr": "PM_DISP_STALL_HELD_STF_MAPPER_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_HELD_STF_MAPPER_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_STF_MAPPER_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch because the XVFC mapper/SRB was full",
         "MetricExpr": "PM_DISP_STALL_HELD_XVFC_MAPPER_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_HELD_XVFC_MAPPER_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_XVFC_MAPPER_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch for any other reason",
         "MetricExpr": "PM_DISP_STALL_HELD_OTHER_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_HELD_OTHER_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_OTHER_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction has been dispatched but not issued for any reason",
@@ -352,13 +358,13 @@
         "BriefDescription": "Average cycles per completed instruction when dispatch was stalled because fetch was being held, so there was nothing in the pipeline for this thread",
         "MetricExpr": "PM_DISP_STALL_FETCH / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_FETCH_CPI"
+        "MetricName": "DISPATCH_STALL_FETCH_CPI"
     },
     {
         "BriefDescription": "Average cycles per completed instruction when the NTC instruction was held at dispatch because of power management",
         "MetricExpr": "PM_DISP_STALL_HELD_HALT_CYC / PM_RUN_INST_CMPL",
         "MetricGroup": "CPI",
-        "MetricName": "DISPATCHED_HELD_HALT_CPI"
+        "MetricName": "DISPATCH_STALL_HELD_HALT_CPI"
     },
     {
         "BriefDescription": "Percentage of flushes per completed instruction",
@@ -395,6 +401,13 @@
         "ScaleUnit": "1%"
     },
     {
+        "BriefDescription": "Percentage of completed instructions that were stores that missed the L1",
+        "MetricExpr": "PM_ST_MISS_L1 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "Others",
+        "MetricName": "L1_ST_MISS_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
         "BriefDescription": "Percentage of completed instructions when the DPTEG required for the load/store instruction in execution was missing from the TLB",
         "MetricExpr": "PM_DTLB_MISS / PM_RUN_INST_CMPL * 100",
         "MetricGroup": "Others",
@@ -419,6 +432,13 @@
         "MetricExpr": "PM_L1_ICACHE_MISS / PM_RUN_INST_CMPL * 100",
         "MetricGroup": "Instruction_Misses",
         "MetricName": "L1_INST_MISS_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of completed instructions that were demand fetches that missed the L1 and L2 instruction cache",
+        "MetricExpr": "PM_INST_FROM_L2MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "General",
+        "MetricName": "L2_INST_MISS_RATE",
         "ScaleUnit": "1%"
     },
     {
@@ -454,10 +474,11 @@
         "MetricName": "LOADS_PER_INST"
     },
     {
-        "BriefDescription": "Average number of finished stores per completed instruction",
-        "MetricExpr": "PM_ST_FIN / PM_RUN_INST_CMPL",
-        "MetricGroup": "General",
-        "MetricName": "STORES_PER_INST"
+        "BriefDescription": "Percentage of demand loads that reloaded from the L2 per completed instruction",
+        "MetricExpr": "PM_DATA_FROM_L2 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L2_RATE",
+        "ScaleUnit": "1%"
     },
     {
         "BriefDescription": "Percentage of demand loads that reloaded from beyond the L2 per completed instruction",
@@ -467,11 +488,112 @@
         "ScaleUnit": "1%"
     },
     {
+        "BriefDescription": "Percentage of demand loads that reloaded using modified data from another core's L2 or L3 on a remote chip, per completed instruction",
+        "MetricExpr": "PM_DATA_FROM_RL2L3_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_RL2L3_MOD_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand loads that reloaded using shared data from another core's L2 or L3 on a remote chip, per completed instruction",
+        "MetricExpr": "PM_DATA_FROM_RL2L3_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_RL2L3_SHR_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand loads that reloaded from the L3 per completed instruction",
+        "MetricExpr": "PM_DATA_FROM_L3 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L3_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand loads that reloaded with data brought into the L3 by prefetch per completed instruction",
+        "MetricExpr": "PM_DATA_FROM_L3_MEPF * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L3_MEPF_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
         "BriefDescription": "Percentage of demand loads that reloaded from beyond the L3 per completed instruction",
         "MetricExpr": "PM_DATA_FROM_L3MISS / PM_RUN_INST_CMPL * 100",
         "MetricGroup": "dL1_Reloads",
         "MetricName": "DL1_RELOAD_FROM_L3_MISS_RATE",
         "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand loads that reloaded using modified data from another core's L2 or L3 on a distant chip, per completed instruction",
+        "MetricExpr": "PM_DATA_FROM_DL2L3_MOD * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_DL2L3_MOD_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand loads that reloaded using shared data from another core's L2 or L3 on a distant chip, per completed instruction",
+        "MetricExpr": "PM_DATA_FROM_DL2L3_SHR * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_DL2L3_SHR_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand loads that reloaded from local memory per completed instruction",
+        "MetricExpr": "PM_DATA_FROM_LMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_LMEM_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand loads that reloaded from remote memory per completed instruction",
+        "MetricExpr": "PM_DATA_FROM_RMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_RMEM_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand loads that reloaded from distant memory per completed instruction",
+        "MetricExpr": "PM_DATA_FROM_DMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_DMEM_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of data reloads from local memory per data reloads from any memory",
+        "MetricExpr": "PM_DATA_FROM_LMEM * 100 / (PM_DATA_FROM_LMEM + PM_DATA_FROM_RMEM + PM_DATA_FROM_DMEM)",
+        "MetricGroup": "Memory",
+        "MetricName": "MEM_LOCALITY",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Number of data reloads from local memory per data reloads from remote memory",
+        "MetricExpr": "PM_DATA_FROM_LMEM / PM_DATA_FROM_RMEM",
+        "MetricGroup": "Memory",
+        "MetricName": "LD_LMEM_PER_LD_RMEM"
+    },
+    {
+        "BriefDescription": "Number of data reloads from local memory per data reloads from distant memory",
+        "MetricExpr": "PM_DATA_FROM_LMEM / PM_DATA_FROM_DMEM",
+        "MetricGroup": "Memory",
+        "MetricName": "LD_LMEM_PER_LD_DMEM"
+    },
+    {
+        "BriefDescription": "Number of data reloads from local memory per data reloads from distant and remote memory",
+        "MetricExpr": "PM_DATA_FROM_LMEM / (PM_DATA_FROM_DMEM + PM_DATA_FROM_RMEM)",
+        "MetricGroup": "Memory",
+        "MetricName": "LD_LMEM_PER_LD_MEM"
+    },
+    {
+        "BriefDescription": "Percentage of ITLB misses per completed run instruction",
+        "MetricExpr": "PM_ITLB_MISS / PM_RUN_INST_CMPL * 100",
+        "MetricGroup": "General",
+        "MetricName": "ITLB_MISS_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Number of data reloads from remote memory per data reloads from distant memory",
+        "MetricExpr": "PM_DATA_FROM_RMEM / PM_DATA_FROM_DMEM",
+        "MetricGroup": "Memory",
+        "MetricName": "LD_RMEM_PER_LD_DMEM"
     },
     {
         "BriefDescription": "Percentage of DERAT misses with 4k page size per completed instruction",
@@ -485,6 +607,76 @@
         "MetricExpr": "PM_DERAT_MISS_64K / PM_RUN_INST_CMPL * 100",
         "MetricGroup": "Translation",
         "MetricName": "DERAT_64K_MISS_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of ICache misses that were reloaded from the L2",
+        "MetricExpr": "PM_INST_FROM_L2 * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "Instruction_Stats",
+        "MetricName": "INST_FROM_L2",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of ICache misses that were reloaded from the L3",
+        "MetricExpr": "PM_INST_FROM_L3 * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "Instruction_Stats",
+        "MetricName": "INST_FROM_L3",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of ICache misses that were reloaded from local memory",
+        "MetricExpr": "PM_INST_FROM_LMEM * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "Instruction_Stats",
+        "MetricName": "INST_FROM_LMEM",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of ICache misses that were reloaded from remote memory",
+        "MetricExpr": "PM_INST_FROM_RMEM * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "Instruction_Stats",
+        "MetricName": "INST_FROM_RMEM",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of ICache misses that were reloaded from distant memory",
+        "MetricExpr": "PM_INST_FROM_DMEM * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "Instruction_Stats",
+        "MetricName": "INST_FROM_DMEM",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of ICache reloads from the L2 per completed instruction",
+        "MetricExpr": "PM_INST_FROM_L2 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "Instruction_Misses",
+        "MetricName": "INST_FROM_L2_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of ICache reloads from the L3 per completed instruction",
+        "MetricExpr": "PM_INST_FROM_L3 * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "Instruction_Misses",
+        "MetricName": "INST_FROM_L3_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of ICache reloads from local memory per completed instruction",
+        "MetricExpr": "PM_INST_FROM_LMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "Instruction_Misses",
+        "MetricName": "INST_FROM_LMEM_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of ICache reloads from remote memory per completed instruction",
+        "MetricExpr": "PM_INST_FROM_RMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "Instruction_Misses",
+        "MetricName": "INST_FROM_RMEM_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of ICache reloads from distant memory per completed instruction",
+        "MetricExpr": "PM_INST_FROM_DMEM * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "Instruction_Misses",
+        "MetricName": "INST_FROM_DMEM_RATE",
         "ScaleUnit": "1%"
     },
     {
@@ -566,7 +758,7 @@
         "BriefDescription": "Average number of STCX instructions finshed per completed instruction",
         "MetricExpr": "PM_STCX_FIN / PM_RUN_INST_CMPL",
         "MetricGroup": "General",
-        "MetricName": "STXC_PER_INST"
+        "MetricName": "STCX_PER_INST"
     },
     {
         "BriefDescription": "Average number of LARX instructions finshed per completed instruction",
@@ -594,6 +786,13 @@
         "ScaleUnit": "1%"
     },
     {
+        "BriefDescription": "Percentage of demand load misses that reloaded from the local L2",
+        "MetricExpr": "PM_DATA_FROM_L2 * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L2",
+        "ScaleUnit": "1%"
+    },
+    {
         "BriefDescription": "Percentage of demand load misses that reloaded from beyond the local L2",
         "MetricExpr": "PM_DATA_FROM_L2MISS / PM_LD_DEMAND_MISS_L1 * 100",
         "MetricGroup": "dL1_Reloads",
@@ -601,10 +800,199 @@
         "ScaleUnit": "1%"
     },
     {
+        "BriefDescription": "Percentage of demand load misses that reloaded from the local L3",
+        "MetricExpr": "PM_DATA_FROM_L3 * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L3",
+        "ScaleUnit": "1%"
+    },
+    {
         "BriefDescription": "Percentage of demand load misses that reloaded from beyond the local L3",
         "MetricExpr": "PM_DATA_FROM_L3MISS / PM_LD_DEMAND_MISS_L1 * 100",
         "MetricGroup": "dL1_Reloads",
         "MetricName": "DL1_RELOAD_FROM_L3_MISS",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from the local L3 with modified data",
+        "MetricExpr": "PM_DATA_FROM_L3_MEPF * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L3_MEPF",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L2 on the same regent with modified data",
+        "MetricExpr": "PM_DATA_FROM_L21_REGENT_MOD * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L21_REGENT_MOD",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L2 on the same regent with shared data",
+        "MetricExpr": "PM_DATA_FROM_L21_REGENT_SHR * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L21_REGENT_SHR",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L2 on the same chip in a different regent with modified data",
+        "MetricExpr": "PM_DATA_FROM_L21_NON_REGENT_MOD * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L21_NON_REGENT_MOD",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L2 on the same chip in a different regent with shared data",
+        "MetricExpr": "PM_DATA_FROM_L21_NON_REGENT_SHR * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L21_NON_REGENT_SHR",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L3 on the same regent with modified data",
+        "MetricExpr": "PM_DATA_FROM_L31_REGENT_MOD * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L31_REGENT_MOD",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L3 on the same regent with shared data",
+        "MetricExpr": "PM_DATA_FROM_L31_REGENT_SHR * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L31_REGENT_SHR",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L3 on the same chip in a different regent with modified data",
+        "MetricExpr": "PM_DATA_FROM_L31_NON_REGENT_MOD * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L31_NON_REGENT_MOD",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L3 on the same chip in a different regent with shared data",
+        "MetricExpr": "PM_DATA_FROM_L31_NON_REGENT_SHR * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L31_NON_REGENT_SHR",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L2 on a remote chip with modified data",
+        "MetricExpr": "PM_DATA_FROM_RL2_MOD * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_RL2_MOD",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L2 on a remote chip with shared data",
+        "MetricExpr": "PM_DATA_FROM_RL2_SHR * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_RL2_SHR",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L3 on a remote chip with modified data",
+        "MetricExpr": "PM_DATA_FROM_RL3_MOD * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_RL3_MOD",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L3 on a remote chip with shared data",
+        "MetricExpr": "PM_DATA_FROM_RL3_SHR * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_RL3_SHR",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L2 on a distant chip with modified data",
+        "MetricExpr": "PM_DATA_FROM_DL2_MOD * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_DL2_MOD",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L2 on a distant chip with shared data",
+        "MetricExpr": "PM_DATA_FROM_DL2_SHR * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_DL2_SHR",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L3 on a distant chip with modified data",
+        "MetricExpr": "PM_DATA_FROM_DL3_MOD * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_DL3_MOD",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from another core's L3 on a distant chip with shared data",
+        "MetricExpr": "PM_DATA_FROM_DL3_SHR * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_DL3_SHR",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from the local chip's memory",
+        "MetricExpr": "PM_DATA_FROM_LMEM * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_LMEM",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from the local chip's OpenCAPI Cache",
+        "MetricExpr": "PM_DATA_FROM_L_OC_CACHE * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L_OC_CACHE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from the local chip's OpenCAPI memory",
+        "MetricExpr": "PM_DATA_FROM_L_OC_MEM * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_L_OC_MEM",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from a remote chip's memory",
+        "MetricExpr": "PM_DATA_FROM_RMEM * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_RMEM",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from a remote chip's OpenCAPI Cache",
+        "MetricExpr": "PM_DATA_FROM_R_OC_CACHE * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_R_OC_CACHE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from a remote chip's OpenCAPI memory",
+        "MetricExpr": "PM_DATA_FROM_R_OC_MEM * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_R_OC_MEM",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from a distant chip's memory",
+        "MetricExpr": "PM_DATA_FROM_DMEM * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_DMEM",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from a distant chip's OpenCAPI Cache",
+        "MetricExpr": "PM_DATA_FROM_D_OC_CACHE * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_D_OC_CACHE",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of demand load misses that reloaded from a distant chip's OpenCAPI memory",
+        "MetricExpr": "PM_DATA_FROM_D_OC_MEM * 100 / PM_LD_DEMAND_MISS_L1",
+        "MetricGroup": "dL1_Reloads",
+        "MetricName": "DL1_RELOAD_FROM_D_OC_MEM",
         "ScaleUnit": "1%"
     },
     {
@@ -629,6 +1017,13 @@
         "ScaleUnit": "1%"
     },
     {
+        "BriefDescription": "Percentage of DERAT misses with 1G page size per completed run instruction",
+        "MetricExpr": "PM_DERAT_MISS_1G * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "Translation",
+        "MetricName": "DERAT_1G_MISS_RATE",
+        "ScaleUnit": "1%"
+    },
+    {
         "BriefDescription": "DERAT miss ratio for 4K page size",
         "MetricExpr": "PM_DERAT_MISS_4K / PM_DERAT_MISS",
         "MetricGroup": "Translation",
@@ -647,6 +1042,12 @@
         "MetricName": "DERAT_16M_MISS_RATIO"
     },
     {
+        "BriefDescription": "DERAT miss ratio for 1G page size",
+        "MetricExpr": "PM_DERAT_MISS_1G / PM_DERAT_MISS",
+        "MetricGroup": "Translation",
+        "MetricName": "DERAT_1G_MISS_RATIO"
+    },
+    {
         "BriefDescription": "DERAT miss ratio for 64K page size",
         "MetricExpr": "PM_DERAT_MISS_64K / PM_DERAT_MISS",
         "MetricGroup": "Translation",
@@ -660,10 +1061,24 @@
         "ScaleUnit": "1%"
     },
     {
+        "BriefDescription": "Percentage of ICache misses that were reloaded from beyond the local L2",
+        "MetricExpr": "PM_INST_FROM_L2MISS * 100 / PM_L1_ICACHE_MISS",
+        "MetricGroup": "Instruction_Misses",
+        "MetricName": "INST_FROM_L2_MISS",
+        "ScaleUnit": "1%"
+    },
+    {
         "BriefDescription": "Percentage of icache misses that were reloaded from beyond the local L3",
         "MetricExpr": "PM_INST_FROM_L3MISS / PM_L1_ICACHE_MISS * 100",
         "MetricGroup": "Instruction_Misses",
         "MetricName": "INST_FROM_L3_MISS",
+        "ScaleUnit": "1%"
+    },
+    {
+        "BriefDescription": "Percentage of ICache reloads from beyond the L2 per completed instruction",
+        "MetricExpr": "PM_INST_FROM_L2MISS * 100 / PM_RUN_INST_CMPL",
+        "MetricGroup": "Instruction_Misses",
+        "MetricName": "INST_FROM_L2_MISS_RATE",
         "ScaleUnit": "1%"
     },
     {

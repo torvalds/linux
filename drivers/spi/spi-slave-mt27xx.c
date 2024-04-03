@@ -297,7 +297,7 @@ static int mtk_spi_slave_transfer_one(struct spi_controller *ctlr,
 
 static int mtk_spi_slave_setup(struct spi_device *spi)
 {
-	struct mtk_spi_slave *mdata = spi_controller_get_devdata(spi->master);
+	struct mtk_spi_slave *mdata = spi_controller_get_devdata(spi->controller);
 	u32 reg_val;
 
 	reg_val = DMA_DONE_EN | DATA_DONE_EN |
@@ -414,7 +414,7 @@ static int mtk_spi_slave_probe(struct platform_device *pdev)
 	mdata->dev_comp = of_id->data;
 
 	if (mdata->dev_comp->must_rx)
-		ctlr->flags = SPI_MASTER_MUST_RX;
+		ctlr->flags = SPI_CONTROLLER_MUST_RX;
 
 	platform_set_drvdata(pdev, ctlr);
 

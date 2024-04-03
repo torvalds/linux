@@ -377,13 +377,10 @@ if [ "$full_test" ]; then
 	insmod_test "0,32,32,44,-1,22,-1,31" 32 12 22 31
 fi
 echo "2.  Module load error tests"
-echo "2.1 gpio overflow"
-# Currently: The max number of gpio(1024) is defined in arm architecture.
-insmod_test "-1,1024"
+echo "2.1 no lines defined"
+insmod_test "0,0"
 if [ "$full_test" ]; then
-	echo "2.2 no lines defined"
-	insmod_test "0,0"
-	echo "2.3 ignore range overlap"
+	echo "2.2 ignore range overlap"
 	insmod_test "0,32,0,1" 32
 	insmod_test "0,32,1,5" 32
 	insmod_test "0,32,30,35" 32

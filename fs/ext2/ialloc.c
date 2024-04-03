@@ -273,7 +273,6 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 
 	if ((parent == d_inode(sb->s_root)) ||
 	    (EXT2_I(parent)->i_flags & EXT2_TOPDIR_FL)) {
-		struct ext2_group_desc *best_desc = NULL;
 		int best_ndir = inodes_per_group;
 		int best_group = -1;
 
@@ -291,10 +290,8 @@ static int find_group_orlov(struct super_block *sb, struct inode *parent)
 				continue;
 			best_group = group;
 			best_ndir = le16_to_cpu(desc->bg_used_dirs_count);
-			best_desc = desc;
 		}
 		if (best_group >= 0) {
-			desc = best_desc;
 			group = best_group;
 			goto found;
 		}
@@ -549,7 +546,7 @@ got:
 
 	inode->i_ino = ino;
 	inode->i_blocks = 0;
-	inode->i_mtime = inode->i_atime = inode->i_ctime = current_time(inode);
+	simple_inode_init_ts(inode);
 	memset(ei->i_data, 0, sizeof(ei->i_data));
 	ei->i_flags =
 		ext2_mask_flags(mode, EXT2_I(dir)->i_flags & EXT2_FL_INHERITED);

@@ -19,11 +19,9 @@
 	compatible = "kobol,helios64", "rockchip,rk3399";
 
 	aliases {
+		ethernet0 = &gmac;
 		mmc0 = &sdmmc;
 		mmc1 = &sdhci;
-		spi1 = &spi1;
-		spi2 = &spi2;
-		spi5 = &spi5;
 	};
 
 	avdd_0v9_s0: avdd-0v9-s0 {

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config FAT_FS
 	tristate
+	select BUFFER_HEAD
 	select NLS
 	select LEGACY_DIRECT_IO
 	help
