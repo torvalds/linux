@@ -1179,7 +1179,6 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 		goto done;
 	}
 
-	lock_extent(io_tree, start, end, NULL);
 	ret = btrfs_reserve_extent(root, async_extent->ram_size,
 				   async_extent->compressed_size,
 				   async_extent->compressed_size,
@@ -1194,6 +1193,8 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 		submit_uncompressed_range(inode, async_extent, locked_page);
 		goto done;
 	}
+
+	lock_extent(io_tree, start, end, NULL);
 
 	/* Here we're doing allocation and writeback of the compressed pages */
 	em = create_io_em(inode, start,
