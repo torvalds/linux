@@ -3426,7 +3426,7 @@ out_unlock:
 
 void xe_vm_snapshot_capture_delayed(struct xe_vm_snapshot *snap)
 {
-	if (IS_ERR(snap))
+	if (IS_ERR_OR_NULL(snap))
 		return;
 
 	for (int i = 0; i < snap->num_snaps; i++) {
@@ -3483,7 +3483,7 @@ void xe_vm_snapshot_print(struct xe_vm_snapshot *snap, struct drm_printer *p)
 {
 	unsigned long i, j;
 
-	if (IS_ERR(snap)) {
+	if (IS_ERR_OR_NULL(snap)) {
 		drm_printf(p, "[0].error: %li\n", PTR_ERR(snap));
 		return;
 	}
@@ -3514,7 +3514,7 @@ void xe_vm_snapshot_free(struct xe_vm_snapshot *snap)
 {
 	unsigned long i;
 
-	if (IS_ERR(snap))
+	if (IS_ERR_OR_NULL(snap))
 		return;
 
 	for (i = 0; i < snap->num_snaps; i++) {
