@@ -1502,10 +1502,11 @@ static void send_disable_pci_access(struct hl_device *hdev, u32 flags)
 		if (hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS, 0x0))
 			return;
 
-		/* verify that last EQs are handled before disabled is set */
+		/* disable_irq also generates sync irq, this verifies that last EQs are handled
+		 * before disabled is set. The IRQ will be enabled again in request_irq call.
+		 */
 		if (hdev->cpu_queues_enable)
-			synchronize_irq(pci_irq_vector(hdev->pdev,
-					hdev->asic_prop.eq_interrupt_id));
+			disable_irq(pci_irq_vector(hdev->pdev, hdev->asic_prop.eq_interrupt_id));
 	}
 }
 
