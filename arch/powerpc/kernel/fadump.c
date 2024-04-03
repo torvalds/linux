@@ -573,22 +573,6 @@ int __init fadump_reserve_mem(void)
 		}
 	}
 
-	/*
-	 * Calculate the memory boundary.
-	 * If memory_limit is less than actual memory boundary then reserve
-	 * the memory for fadump beyond the memory_limit and adjust the
-	 * memory_limit accordingly, so that the running kernel can run with
-	 * specified memory_limit.
-	 */
-	if (memory_limit && memory_limit < memblock_end_of_DRAM()) {
-		size = get_fadump_area_size();
-		if ((memory_limit + size) < memblock_end_of_DRAM())
-			memory_limit += size;
-		else
-			memory_limit = memblock_end_of_DRAM();
-		printk(KERN_INFO "Adjusted memory_limit for firmware-assisted"
-				" dump, now %#016llx\n", memory_limit);
-	}
 	if (memory_limit)
 		mem_boundary = memory_limit;
 	else
