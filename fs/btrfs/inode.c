@@ -1167,13 +1167,13 @@ static void submit_one_async_extent(struct async_chunk *async_chunk,
 		if (!(start >= locked_page_end || end <= locked_page_start))
 			locked_page = async_chunk->locked_page;
 	}
-	lock_extent(io_tree, start, end, NULL);
 
 	if (async_extent->compress_type == BTRFS_COMPRESS_NONE) {
 		submit_uncompressed_range(inode, async_extent, locked_page);
 		goto done;
 	}
 
+	lock_extent(io_tree, start, end, NULL);
 	ret = btrfs_reserve_extent(root, async_extent->ram_size,
 				   async_extent->compressed_size,
 				   async_extent->compressed_size,
@@ -1721,6 +1721,8 @@ static noinline int run_delalloc_cow(struct btrfs_inode *inode,
 {
 	u64 done_offset = end;
 	int ret;
+
+	lock_extent(&inode->io_tree, start, end, NULL);
 
 	while (start <= end) {
 		ret = cow_file_range(inode, locked_page, start, end, &done_offset,
@@ -2280,17 +2282,14 @@ int btrfs_run_delalloc_range(struct btrfs_inode *inode, struct page *locked_page
 	    run_delalloc_compressed(inode, locked_page, start, end, wbc))
 		return 1;
 
-	/*
-	 * We're unlocked by the different fill functions below.
-	 */
-	lock_extent(&inode->io_tree, start, end, NULL);
-
-	if (zoned)
+	if (zoned) {
 		ret = run_delalloc_cow(inode, locked_page, start, end, wbc,
 				       true);
-	else
+	} else {
+		lock_extent(&inode->io_tree, start, end, NULL);
 		ret = cow_file_range(inode, locked_page, start, end, NULL,
 				     false, false);
+	}
 
 out:
 	if (ret < 0)
