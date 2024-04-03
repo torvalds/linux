@@ -34,6 +34,24 @@
 /* True if ACPI device is present */
 static bool cros_ec_lpc_acpi_device_found;
 
+/*
+ * Indicates that lpc_driver_data.quirk_mmio_memory_base should
+ * be used as the base port for EC mapped memory.
+ */
+#define CROS_EC_LPC_QUIRK_REMAP_MEMORY              BIT(0)
+
+/**
+ * struct lpc_driver_data - driver data attached to a DMI device ID to indicate
+ *                          hardware quirks.
+ * @quirks: a bitfield composed of quirks from CROS_EC_LPC_QUIRK_*
+ * @quirk_mmio_memory_base: The first I/O port addressing EC mapped memory (used
+ *                          when quirk ...REMAP_MEMORY is set.)
+ */
+struct lpc_driver_data {
+	u32 quirks;
+	u16 quirk_mmio_memory_base;
+};
+
 /**
  * struct cros_ec_lpc - LPC device-specific data
  * @mmio_memory_base: The first I/O port addressing EC mapped memory.
@@ -363,14 +381,27 @@ static int cros_ec_lpc_probe(struct platform_device *pdev)
 	acpi_status status;
 	struct cros_ec_device *ec_dev;
 	struct cros_ec_lpc *ec_lpc;
+	struct lpc_driver_data *driver_data;
 	u8 buf[2] = {};
 	int irq, ret;
+	u32 quirks;
 
 	ec_lpc = devm_kzalloc(dev, sizeof(*ec_lpc), GFP_KERNEL);
 	if (!ec_lpc)
 		return -ENOMEM;
 
 	ec_lpc->mmio_memory_base = EC_LPC_ADDR_MEMMAP;
+
+	driver_data = platform_get_drvdata(pdev);
+	if (driver_data) {
+		quirks = driver_data->quirks;
+
+		if (quirks)
+			dev_info(dev, "loaded with quirks %8.08x\n", quirks);
+
+		if (quirks & CROS_EC_LPC_QUIRK_REMAP_MEMORY)
+			ec_lpc->mmio_memory_base = driver_data->quirk_mmio_memory_base;
+	}
 
 	/*
 	 * The Framework Laptop (and possibly other non-ChromeOS devices)
