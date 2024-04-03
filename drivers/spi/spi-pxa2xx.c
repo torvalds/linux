@@ -1197,6 +1197,13 @@ static int setup(struct spi_device *spi)
 		break;
 	}
 
+	if (drv_data->ssp_type == CE4100_SSP) {
+		if (spi_get_chipselect(spi, 0) > 4) {
+			dev_err(&spi->dev, "failed setup: cs number must not be > 4.\n");
+			return -EINVAL;
+		}
+	}
+
 	/* Only allocate on the first setup */
 	chip = spi_get_ctldata(spi);
 	if (!chip) {
@@ -1204,14 +1211,6 @@ static int setup(struct spi_device *spi)
 		if (!chip)
 			return -ENOMEM;
 
-		if (drv_data->ssp_type == CE4100_SSP) {
-			if (spi_get_chipselect(spi, 0) > 4) {
-				dev_err(&spi->dev,
-					"failed setup: cs number must not be > 4.\n");
-				kfree(chip);
-				return -EINVAL;
-			}
-		}
 		chip->enable_dma = drv_data->controller_info->enable_dma;
 		chip->timeout = TIMOUT_DFLT;
 	}
