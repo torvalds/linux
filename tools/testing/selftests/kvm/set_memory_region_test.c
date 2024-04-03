@@ -333,7 +333,7 @@ static void test_invalid_memory_region_flags(void)
 	struct kvm_vm *vm;
 	int r, i;
 
-#if defined __aarch64__ || defined __x86_64__
+#if defined __aarch64__ || defined __riscv || defined __x86_64__
 	supported_flags |= KVM_MEM_READONLY;
 #endif
 
