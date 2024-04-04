@@ -17,6 +17,7 @@
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_module.h"
+#include "xe_sriov.h"
 #include "xe_uc_fw.h"
 
 /*
@@ -650,7 +651,17 @@ static int uc_fw_request(struct xe_uc_fw *uc_fw, const struct firmware **firmwar
 	xe_assert(xe, !uc_fw->path);
 
 	uc_fw_auto_select(xe, uc_fw);
+
+	if (IS_SRIOV_VF(xe)) {
+		/* VF will support only firmwares that driver can autoselect */
+		xe_uc_fw_change_status(uc_fw, uc_fw->path ?
+				       XE_UC_FIRMWARE_PRELOADED :
+				       XE_UC_FIRMWARE_NOT_SUPPORTED);
+		return 0;
+	}
+
 	uc_fw_override(uc_fw);
+
 	xe_uc_fw_change_status(uc_fw, uc_fw->path ?
 			       XE_UC_FIRMWARE_SELECTED :
 			       XE_UC_FIRMWARE_NOT_SUPPORTED);
