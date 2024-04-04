@@ -247,6 +247,7 @@ struct cyc_hist {
  * 		  to see each group separately, that is why symbol__annotate2()
  * 		  sets src->nr_histograms to evsel->nr_members.
  * @samples: Hash map of sym_hist_entry.  Keyed by event index and offset in symbol.
+ * @nr_events: Number of events in the current output.
  * @nr_entries: Number of annotated_line in the source list.
  * @nr_asm_entries: Number of annotated_line with actual asm instruction in the
  * 		    source list.
@@ -265,6 +266,7 @@ struct annotated_source {
 	struct sym_hist		*histograms;
 	struct hashmap	   	*samples;
 	int    			nr_histograms;
+	int    			nr_events;
 	int			nr_entries;
 	int			nr_asm_entries;
 	int			max_jump_sources;
@@ -311,7 +313,6 @@ struct annotated_branch {
 
 struct LOCKABLE annotation {
 	u64			start;
-	int			nr_events;
 	struct annotated_source *src;
 	struct annotated_branch *branch;
 };
@@ -335,7 +336,7 @@ static inline int annotation__cycles_width(struct annotation *notes)
 
 static inline int annotation__pcnt_width(struct annotation *notes)
 {
-	return (symbol_conf.show_total_period ? 12 : 7) * notes->nr_events;
+	return (symbol_conf.show_total_period ? 12 : 7) * notes->src->nr_events;
 }
 
 static inline bool annotation_line__filter(struct annotation_line *al)
