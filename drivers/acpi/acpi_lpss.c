@@ -887,10 +887,8 @@ static int acpi_lpss_activate(struct device *dev)
 	if (pdata->dev_desc->flags & (LPSS_SAVE_CTX | LPSS_SAVE_CTX_ONCE))
 		lpss_deassert_reset(pdata);
 
-#ifdef CONFIG_PM
 	if (pdata->dev_desc->flags & LPSS_SAVE_CTX_ONCE)
 		acpi_lpss_save_ctx(dev, pdata);
-#endif
 
 	return 0;
 }
