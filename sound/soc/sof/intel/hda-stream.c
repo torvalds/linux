@@ -765,10 +765,25 @@ static bool hda_dsp_stream_check(struct hdac_bus *bus, u32 status)
 			writeb(sd_status, s->sd_addr + SOF_HDA_ADSP_REG_SD_STS);
 
 			active = true;
-			if ((!s->substream && !s->cstream) ||
-			    !s->running ||
-			    (sd_status & SOF_HDA_CL_DMA_SD_INT_COMPLETE) == 0)
+			if (!s->running)
 				continue;
+			if ((sd_status & SOF_HDA_CL_DMA_SD_INT_COMPLETE) == 0)
+				continue;
+			if (!s->substream && !s->cstream) {
+				/*
+				 * when no substream is found, the DMA may used for code loading
+				 * or data transfers which can rely on wait_for_completion()
+				 */
+				struct sof_intel_hda_stream *hda_stream;
+				struct hdac_ext_stream *hext_stream;
+
+				hext_stream = stream_to_hdac_ext_stream(s);
+				hda_stream = container_of(hext_stream, struct sof_intel_hda_stream,
+							  hext_stream);
+
+				complete(&hda_stream->ioc);
+				continue;
+			}
 
 			/* Inform ALSA only in case not do that with IPC */
 			if (s->substream && sof_hda->no_ipc_position) {
@@ -880,6 +895,7 @@ int hda_dsp_stream_init(struct snd_sof_dev *sdev)
 			return -ENOMEM;
 
 		hda_stream->sdev = sdev;
+		init_completion(&hda_stream->ioc);
 
 		hext_stream = &hda_stream->hext_stream;
 

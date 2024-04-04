@@ -226,10 +226,15 @@ int hda_cl_trigger(struct device *dev, struct hdac_ext_stream *hext_stream, int 
 	struct snd_sof_dev *sdev = dev_get_drvdata(dev);
 	struct hdac_stream *hstream = &hext_stream->hstream;
 	int sd_offset = SOF_STREAM_SD_OFFSET(hstream);
+	struct sof_intel_hda_stream *hda_stream;
 
 	/* code loader is special case that reuses stream ops */
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
+		hda_stream = container_of(hext_stream, struct sof_intel_hda_stream,
+					  hext_stream);
+		reinit_completion(&hda_stream->ioc);
+
 		snd_sof_dsp_update_bits(sdev, HDA_DSP_HDA_BAR, SOF_HDA_INTCTL,
 					1 << hstream->index,
 					1 << hstream->index);
@@ -283,18 +288,37 @@ int hda_cl_cleanup(struct device *dev, struct snd_dma_buffer *dmab,
 }
 EXPORT_SYMBOL_NS(hda_cl_cleanup, SND_SOC_SOF_INTEL_HDA_COMMON);
 
+#define HDA_CL_DMA_IOC_TIMEOUT_MS 500
+
 int hda_cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream)
 {
 	struct sof_intel_hda_dev *hda = sdev->pdata->hw_pdata;
 	const struct sof_intel_dsp_desc *chip = hda->desc;
+	struct sof_intel_hda_stream *hda_stream;
+	unsigned long time_left;
 	unsigned int reg;
 	int ret, status;
+
+	hda_stream = container_of(hext_stream, struct sof_intel_hda_stream,
+				  hext_stream);
+
+	dev_dbg(sdev->dev, "Code loader DMA starting\n");
 
 	ret = hda_cl_trigger(sdev->dev, hext_stream, SNDRV_PCM_TRIGGER_START);
 	if (ret < 0) {
 		dev_err(sdev->dev, "error: DMA trigger start failed\n");
 		return ret;
 	}
+
+	/* Wait for completion of transfer */
+	time_left = wait_for_completion_timeout(&hda_stream->ioc,
+						msecs_to_jiffies(HDA_CL_DMA_IOC_TIMEOUT_MS));
+
+	if (!time_left) {
+		dev_err(sdev->dev, "Code loader DMA did not complete\n");
+		return -ETIMEDOUT;
+	}
+	dev_dbg(sdev->dev, "Code loader DMA done, waiting for FW_ENTERED status\n");
 
 	status = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR,
 					chip->rom_status_reg, reg,
@@ -311,6 +335,8 @@ int hda_cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream
 		dev_err(sdev->dev,
 			"%s: timeout with rom_status_reg (%#x) read\n",
 			__func__, chip->rom_status_reg);
+	} else {
+		dev_dbg(sdev->dev, "Code loader FW_ENTERED status\n");
 	}
 
 	ret = hda_cl_trigger(sdev->dev, hext_stream, SNDRV_PCM_TRIGGER_STOP);
@@ -318,6 +344,8 @@ int hda_cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream
 		dev_err(sdev->dev, "error: DMA trigger stop failed\n");
 		if (!status)
 			status = ret;
+	} else {
+		dev_dbg(sdev->dev, "Code loader DMA stopped\n");
 	}
 
 	return status;

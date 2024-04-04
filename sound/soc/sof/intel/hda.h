@@ -11,6 +11,7 @@
 #ifndef __SOF_INTEL_HDA_H
 #define __SOF_INTEL_HDA_H
 
+#include <linux/completion.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_intel.h>
 #include <sound/compress_driver.h>
@@ -559,6 +560,7 @@ struct sof_intel_hda_stream {
 	struct sof_intel_stream sof_intel_stream;
 	int host_reserved; /* reserve host DMA channel */
 	u32 flags;
+	struct completion ioc;
 };
 
 #define hstream_to_sof_hda_stream(hstream) \
