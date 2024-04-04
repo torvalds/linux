@@ -281,6 +281,7 @@
 
 #define MII_VCT_TXPINS			0x1A
 #define MII_VCT_RXPINS			0x1B
+#define MII_VCT_SR			0x1C
 #define MII_VCT_TXPINS_ENVCT		BIT(15)
 #define MII_VCT_TXRXPINS_VCTTST		GENMASK(14, 13)
 #define MII_VCT_TXRXPINS_VCTTST_SHIFT	13
@@ -2623,6 +2624,92 @@ static int m88e3082_vct_cable_test_get_status(struct phy_device *phydev,
 	return 0;
 }
 
+static int m88e1111_vct_cable_test_start(struct phy_device *phydev)
+{
+	int ret;
+
+	ret = marvell_cable_test_start_common(phydev);
+	if (ret)
+		return ret;
+
+	/* It needs some magic workarounds described in VCT manual for this PHY.
+	 */
+	ret = phy_write(phydev, 29, 0x0018);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write(phydev, 30, 0x00c2);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write(phydev, 30, 0x00ca);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write(phydev, 30, 0x00c2);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write_paged(phydev, MII_MARVELL_COPPER_PAGE, MII_VCT_SR,
+			      MII_VCT_TXPINS_ENVCT);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write(phydev, 29, 0x0018);
+	if (ret < 0)
+		return ret;
+
+	ret = phy_write(phydev, 30, 0x0042);
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
+static u32 m88e1111_vct_distrfln_2_cm(u8 distrfln)
+{
+	if (distrfln < 36)
+		return 0;
+
+	/* Original function for meters: y = 0.8018x - 28.751 */
+	return (8018 * distrfln - 287510) / 100;
+}
+
+static int m88e1111_vct_cable_test_get_status(struct phy_device *phydev,
+					      bool *finished)
+{
+	u8 vcttst_res, distrfln;
+	int ret, result;
+
+	*finished = false;
+
+	/* Each pair use one page: A-0, B-1, C-2, D-3 */
+	for (u8 i = 0; i < 4; i++) {
+		ret = phy_read_paged(phydev, i, MII_VCT_SR);
+		if (ret < 0)
+			return ret;
+		else if (i == 0 && ret & MII_VCT_TXPINS_ENVCT)
+			return 0;
+
+		distrfln = ret & MII_VCT_TXRXPINS_DISTRFLN;
+		vcttst_res = (ret & MII_VCT_TXRXPINS_VCTTST) >>
+			      MII_VCT_TXRXPINS_VCTTST_SHIFT;
+
+		result = m88e3082_vct_cable_test_report_trans(vcttst_res,
+							      distrfln);
+		ethnl_cable_test_result(phydev, i, result);
+
+		if (distrfln < MII_VCT_TXRXPINS_DISTRFLN_MAX) {
+			u32 cm = m88e1111_vct_distrfln_2_cm(distrfln);
+
+			ethnl_cable_test_fault_length(phydev, i, cm);
+		}
+	}
+
+	*finished = true;
+	return 0;
+}
+
 #ifdef CONFIG_HWMON
 struct marvell_hwmon_ops {
 	int (*config)(struct phy_device *phydev);
@@ -3534,6 +3621,7 @@ static struct phy_driver marvell_drivers[] = {
 		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1111",
 		/* PHY_GBIT_FEATURES */
+		.flags = PHY_POLL_CABLE_TEST,
 		.probe = marvell_probe,
 		.config_init = m88e1111gbe_config_init,
 		.config_aneg = m88e1111_config_aneg,
@@ -3549,6 +3637,8 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1111_get_tunable,
 		.set_tunable = m88e1111_set_tunable,
+		.cable_test_start = m88e1111_vct_cable_test_start,
+		.cable_test_get_status = m88e1111_vct_cable_test_get_status,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1111_FINISAR,
@@ -3642,6 +3732,7 @@ static struct phy_driver marvell_drivers[] = {
 		.phy_id_mask = MARVELL_PHY_ID_MASK,
 		.name = "Marvell 88E1145",
 		/* PHY_GBIT_FEATURES */
+		.flags = PHY_POLL_CABLE_TEST,
 		.probe = marvell_probe,
 		.config_init = m88e1145_config_init,
 		.config_aneg = m88e1101_config_aneg,
@@ -3656,6 +3747,8 @@ static struct phy_driver marvell_drivers[] = {
 		.get_stats = marvell_get_stats,
 		.get_tunable = m88e1111_get_tunable,
 		.set_tunable = m88e1111_set_tunable,
+		.cable_test_start = m88e1111_vct_cable_test_start,
+		.cable_test_get_status = m88e1111_vct_cable_test_get_status,
 	},
 	{
 		.phy_id = MARVELL_PHY_ID_88E1149R,
