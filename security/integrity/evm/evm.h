@@ -61,7 +61,7 @@ extern int evm_hmac_attrs;
 extern struct list_head evm_config_xattrnames;
 
 struct evm_digest {
-	struct ima_digest_data hdr;
+	struct ima_digest_data_hdr hdr;
 	char digest[IMA_MAX_DIGEST_SIZE];
 } __packed;
 

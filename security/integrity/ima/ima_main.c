@@ -948,6 +948,8 @@ int process_buffer_measurement(struct mnt_idmap *idmap,
 					    .buf_len = size};
 	struct ima_template_desc *template;
 	struct ima_max_digest_data hash;
+	struct ima_digest_data *hash_hdr = container_of(&hash.hdr,
+						struct ima_digest_data, hdr);
 	char digest_hash[IMA_MAX_DIGEST_SIZE];
 	int digest_hash_len = hash_digest_size[ima_hash_algo];
 	int violation = 0;
@@ -986,7 +988,7 @@ int process_buffer_measurement(struct mnt_idmap *idmap,
 	if (!pcr)
 		pcr = CONFIG_IMA_MEASURE_PCR_IDX;
 
-	iint.ima_hash = &hash.hdr;
+	iint.ima_hash = hash_hdr;
 	iint.ima_hash->algo = ima_hash_algo;
 	iint.ima_hash->length = hash_digest_size[ima_hash_algo];
 
@@ -997,7 +999,7 @@ int process_buffer_measurement(struct mnt_idmap *idmap,
 	}
 
 	if (buf_hash) {
-		memcpy(digest_hash, hash.hdr.digest, digest_hash_len);
+		memcpy(digest_hash, hash_hdr->digest, digest_hash_len);
 
 		ret = ima_calc_buffer_hash(digest_hash, digest_hash_len,
 					   iint.ima_hash);
