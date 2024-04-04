@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: GPL-2.0-only
+if FB_MSM
+
+config FB_MSM_MDSS_COMMON
+	bool
+
+config FB_MSM_MDP_NONE
+	bool "MDP HW None"
+	help
+	This is used for platforms without Mobile Display Sub System (MDSS).
+	mdm platform don't have MDSS hardware block.
+
+	Say Y here if this is mdm platform.
+
+config FB_MSM_QPIC
+	bool
+	select FB_MSM_MDSS_COMMON
+
+config FB_MSM_QPIC_ILI_QVGA_PANEL
+	bool "Qpic MIPI ILI QVGA Panel"
+	select FB_MSM_QPIC
+	help
+	Support for MIPI ILI QVGA (240x320) panel ILI TECHNOLOGY 9341
+	with on-chip full display RAM use parallel interface.
+
+config FB_MSM_QPIC_PANEL_DETECT
+	bool "Qpic Panel Detect"
+	select FB_MSM_QPIC_ILI_QVGA_PANEL
+	help
+	Support for Qpic panel auto detect.
+
+endif
