@@ -4752,8 +4752,6 @@ intel_modeset_pipe_config_late(struct intel_atomic_state *state,
 	struct drm_connector *connector;
 	int i;
 
-	intel_bigjoiner_adjust_pipe_src(crtc_state);
-
 	for_each_new_connector_in_state(&state->base, connector,
 					conn_state, i) {
 		struct intel_encoder *encoder =
@@ -6307,27 +6305,37 @@ static int intel_atomic_check_config(struct intel_atomic_state *state,
 			continue;
 		}
 
-		if (intel_crtc_is_bigjoiner_slave(new_crtc_state)) {
-			drm_WARN_ON(&i915->drm, new_crtc_state->uapi.enable);
+		if (drm_WARN_ON(&i915->drm, intel_crtc_is_bigjoiner_slave(new_crtc_state)))
 			continue;
-		}
 
 		ret = intel_crtc_prepare_cleared_state(state, crtc);
 		if (ret)
-			break;
+			goto fail;
 
 		if (!new_crtc_state->hw.enable)
 			continue;
 
 		ret = intel_modeset_pipe_config(state, crtc, limits);
 		if (ret)
-			break;
-
-		ret = intel_atomic_check_bigjoiner(state, crtc);
-		if (ret)
-			break;
+			goto fail;
 	}
 
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		if (!intel_crtc_needs_modeset(new_crtc_state))
+			continue;
+
+		if (drm_WARN_ON(&i915->drm, intel_crtc_is_bigjoiner_slave(new_crtc_state)))
+			continue;
+
+		if (!new_crtc_state->hw.enable)
+			continue;
+
+		ret = intel_modeset_pipe_config_late(state, crtc);
+		if (ret)
+			goto fail;
+	}
+
+fail:
 	if (ret)
 		*failed_pipe = crtc->pipe;
 
@@ -6423,16 +6431,26 @@ int intel_atomic_check(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
+	for_each_new_intel_crtc_in_state(state, crtc, new_crtc_state, i) {
+		if (!intel_crtc_needs_modeset(new_crtc_state))
+			continue;
+
+		if (intel_crtc_is_bigjoiner_slave(new_crtc_state)) {
+			drm_WARN_ON(&dev_priv->drm, new_crtc_state->uapi.enable);
+			continue;
+		}
+
+		ret = intel_atomic_check_bigjoiner(state, crtc);
+		if (ret)
+			goto fail;
+	}
+
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i) {
 		if (!intel_crtc_needs_modeset(new_crtc_state))
 			continue;
 
-		if (new_crtc_state->hw.enable) {
-			ret = intel_modeset_pipe_config_late(state, crtc);
-			if (ret)
-				goto fail;
-		}
+		intel_bigjoiner_adjust_pipe_src(new_crtc_state);
 
 		intel_crtc_check_fastset(old_crtc_state, new_crtc_state);
 	}
