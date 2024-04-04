@@ -270,6 +270,9 @@ struct annotated_source {
 	u16			max_line_len;
 };
 
+struct annotation_line *annotated_source__get_line(struct annotated_source *src,
+						   s64 offset);
+
 /**
  * struct annotated_branch - basic block and IPC information for a symbol.
  *

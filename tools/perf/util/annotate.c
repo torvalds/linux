@@ -369,13 +369,25 @@ int addr_map_symbol__account_cycles(struct addr_map_symbol *ams,
 	return err;
 }
 
+struct annotation_line *annotated_source__get_line(struct annotated_source *src,
+						   s64 offset)
+{
+	struct annotation_line *al;
+
+	list_for_each_entry(al, &src->source, node) {
+		if (al->offset == offset)
+			return al;
+	}
+	return NULL;
+}
+
 static unsigned annotation__count_insn(struct annotation *notes, u64 start, u64 end)
 {
 	unsigned n_insn = 0;
 	u64 offset;
 
 	for (offset = start; offset <= end; offset++) {
-		if (notes->src->offsets[offset])
+		if (annotated_source__get_line(notes->src, offset))
 			n_insn++;
 	}
 	return n_insn;
@@ -405,8 +417,9 @@ static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 
 			return;
 
 		for (offset = start; offset <= end; offset++) {
-			struct annotation_line *al = notes->src->offsets[offset];
+			struct annotation_line *al;
 
+			al = annotated_source__get_line(notes->src, offset);
 			if (al && al->cycles && al->cycles->ipc == 0.0) {
 				al->cycles->ipc = ipc;
 				cover_insn++;
@@ -443,7 +456,7 @@ static int annotation__compute_ipc(struct annotation *notes, size_t size)
 		if (ch && ch->cycles) {
 			struct annotation_line *al;
 
-			al = notes->src->offsets[offset];
+			al = annotated_source__get_line(notes->src, offset);
 			if (al && al->cycles == NULL) {
 				al->cycles = zalloc(sizeof(*al->cycles));
 				if (al->cycles == NULL) {
@@ -466,7 +479,9 @@ static int annotation__compute_ipc(struct annotation *notes, size_t size)
 			struct cyc_hist *ch = &notes->branch->cycles_hist[offset];
 
 			if (ch && ch->cycles) {
-				struct annotation_line *al = notes->src->offsets[offset];
+				struct annotation_line *al;
+
+				al = annotated_source__get_line(notes->src, offset);
 				if (al)
 					zfree(&al->cycles);
 			}
@@ -1326,9 +1341,10 @@ annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 		return;
 
 	for (offset = 0; offset < size; ++offset) {
-		struct annotation_line *al = notes->src->offsets[offset];
+		struct annotation_line *al;
 		struct disasm_line *dl;
 
+		al = annotated_source__get_line(notes->src, offset);
 		dl = disasm_line(al);
 
 		if (!disasm_line__is_valid_local_jump(dl, sym))
