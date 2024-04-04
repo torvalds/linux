@@ -962,7 +962,7 @@ MODULE_DEVICE_TABLE(of, rk3308_codec_of_match);
 static struct platform_driver rk3308_codec_driver = {
 	.driver = {
 		.name = "rk3308-acodec",
-		.of_match_table = of_match_ptr(rk3308_codec_of_match),
+		.of_match_table = rk3308_codec_of_match,
 	},
 	.probe = rk3308_codec_platform_probe,
 };
