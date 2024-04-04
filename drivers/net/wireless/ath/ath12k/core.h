@@ -453,6 +453,10 @@ struct ath12k_fw_stats {
 	struct list_head bcn;
 };
 
+struct ath12k_debug {
+	struct dentry *debugfs_pdev;
+};
+
 struct ath12k_per_peer_tx_stats {
 	u32 succ_bytes;
 	u32 retry_bytes;
@@ -592,6 +596,9 @@ struct ath12k {
 	struct ath12k_per_peer_tx_stats cached_stats;
 	u32 last_ppdu_id;
 	u32 cached_ppdu_id;
+#ifdef CONFIG_ATH12K_DEBUGFS
+	struct ath12k_debug debug;
+#endif
 
 	bool dfs_block_radar_events;
 	bool monitor_conf_enabled;
@@ -782,6 +789,9 @@ struct ath12k_base {
 	/* Current DFS Regulatory */
 	enum ath12k_dfs_region dfs_region;
 	struct ath12k_soc_dp_stats soc_stats;
+#ifdef CONFIG_ATH12K_DEBUGFS
+	struct dentry *debugfs_soc;
+#endif
 
 	unsigned long dev_flags;
 	struct completion driver_recovery;

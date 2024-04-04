@@ -14,6 +14,7 @@
 #include "dp_tx.h"
 #include "dp_rx.h"
 #include "peer.h"
+#include "debugfs.h"
 
 #define CHAN2G(_channel, _freq, _flags) { \
 	.band                   = NL80211_BAND_2GHZ, \
@@ -8104,6 +8105,8 @@ static int ath12k_mac_hw_register(struct ath12k_hw *ah)
 		ath12k_err(ar->ab, "ath12k regd update failed: %d\n", ret);
 		goto err_unregister_hw;
 	}
+
+	ath12k_debugfs_register(ar);
 
 	return 0;
 

@@ -15,6 +15,7 @@
 #include "debug.h"
 #include "hif.h"
 #include "fw.h"
+#include "debugfs.h"
 
 unsigned int ath12k_debug_mask;
 module_param_named(debug_mask, ath12k_debug_mask, uint, 0644);
@@ -628,6 +629,8 @@ static int ath12k_core_soc_create(struct ath12k_base *ab)
 		return ret;
 	}
 
+	ath12k_debugfs_soc_create(ab);
+
 	ret = ath12k_hif_power_up(ab);
 	if (ret) {
 		ath12k_err(ab, "failed to power up :%d\n", ret);
@@ -637,6 +640,7 @@ static int ath12k_core_soc_create(struct ath12k_base *ab)
 	return 0;
 
 err_qmi_deinit:
+	ath12k_debugfs_soc_destroy(ab);
 	ath12k_qmi_deinit_service(ab);
 	return ret;
 }
@@ -645,6 +649,7 @@ static void ath12k_core_soc_destroy(struct ath12k_base *ab)
 {
 	ath12k_dp_free(ab);
 	ath12k_reg_free(ab);
+	ath12k_debugfs_soc_destroy(ab);
 	ath12k_qmi_deinit_service(ab);
 }
 
