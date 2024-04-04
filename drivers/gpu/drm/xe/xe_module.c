@@ -48,6 +48,13 @@ module_param_named_unsafe(force_probe, xe_modparam.force_probe, charp, 0400);
 MODULE_PARM_DESC(force_probe,
 		 "Force probe options for specified devices. See CONFIG_DRM_XE_FORCE_PROBE for details.");
 
+#ifdef CONFIG_PCI_IOV
+module_param_named(max_vfs, xe_modparam.max_vfs, uint, 0400);
+MODULE_PARM_DESC(max_vfs,
+		 "Limit number of Virtual Functions (VFs) that could be managed. "
+		 "(0 = no VFs [default]; N = allow up to N VFs)");
+#endif
+
 struct init_funcs {
 	int (*init)(void);
 	void (*exit)(void);

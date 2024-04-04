@@ -18,6 +18,9 @@ struct xe_modparam {
 	char *huc_firmware_path;
 	char *gsc_firmware_path;
 	char *force_probe;
+#ifdef CONFIG_PCI_IOV
+	unsigned int max_vfs;
+#endif
 };
 
 extern struct xe_modparam xe_modparam;
