@@ -232,6 +232,9 @@ nouveau_dp_detect(struct nouveau_connector *nv_connector,
 	    dpcd[DP_DPCD_REV] != 0)
 		return NOUVEAU_DP_SST;
 
+	// Ensure that the aux bus is enabled for probing
+	drm_dp_dpcd_set_powered(&nv_connector->aux, true);
+
 	mutex_lock(&nv_encoder->dp.hpd_irq_lock);
 	if (mstm) {
 		/* If we're not ready to handle MST state changes yet, just
@@ -292,6 +295,13 @@ nouveau_dp_detect(struct nouveau_connector *nv_connector,
 out:
 	if (mstm && !mstm->suspended && ret != NOUVEAU_DP_MST)
 		nv50_mstm_remove(mstm);
+
+	/* GSP doesn't like when we try to do aux transactions on a port it considers disconnected,
+	 * and since we don't really have a usecase for that anyway - just disable the aux bus here
+	 * if we've decided the connector is disconnected
+	 */
+	if (ret == NOUVEAU_DP_NONE)
+		drm_dp_dpcd_set_powered(&nv_connector->aux, false);
 
 	mutex_unlock(&nv_encoder->dp.hpd_irq_lock);
 	return ret;
