@@ -578,6 +578,7 @@ static int pinmux_functions_show(struct seq_file *s, void *what)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(pinmux_functions);
 
 static int pinmux_pins_show(struct seq_file *s, void *what)
 {
@@ -650,6 +651,7 @@ static int pinmux_pins_show(struct seq_file *s, void *what)
 
 	return 0;
 }
+DEFINE_SHOW_ATTRIBUTE(pinmux_pins);
 
 void pinmux_show_map(struct seq_file *s, const struct pinctrl_map *map)
 {
@@ -672,10 +674,12 @@ void pinmux_show_setting(struct seq_file *s,
 		   setting->data.mux.func);
 }
 
-DEFINE_SHOW_ATTRIBUTE(pinmux_functions);
-DEFINE_SHOW_ATTRIBUTE(pinmux_pins);
+static int pinmux_select_show(struct seq_file *s, void *unused)
+{
+	return -EPERM;
+}
 
-static ssize_t pinmux_select(struct file *file, const char __user *user_buf,
+static ssize_t pinmux_select_write(struct file *file, const char __user *user_buf,
 				   size_t len, loff_t *ppos)
 {
 	struct seq_file *sfile = file->private_data;
@@ -749,19 +753,7 @@ exit_free_buf:
 
 	return ret;
 }
-
-static int pinmux_select_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, NULL, inode->i_private);
-}
-
-static const struct file_operations pinmux_select_ops = {
-	.owner = THIS_MODULE,
-	.open = pinmux_select_open,
-	.write = pinmux_select,
-	.llseek = no_llseek,
-	.release = single_release,
-};
+DEFINE_SHOW_STORE_ATTRIBUTE(pinmux_select);
 
 void pinmux_init_device_debugfs(struct dentry *devroot,
 			 struct pinctrl_dev *pctldev)
@@ -771,7 +763,7 @@ void pinmux_init_device_debugfs(struct dentry *devroot,
 	debugfs_create_file("pinmux-pins", 0444,
 			    devroot, pctldev, &pinmux_pins_fops);
 	debugfs_create_file("pinmux-select", 0200,
-			    devroot, pctldev, &pinmux_select_ops);
+			    devroot, pctldev, &pinmux_select_fops);
 }
 
 #endif /* CONFIG_DEBUG_FS */
