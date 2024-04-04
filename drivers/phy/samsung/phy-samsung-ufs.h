@@ -147,5 +147,6 @@ int samsung_ufs_phy_wait_for_lock_acq(struct phy *phy, u8 lane);
 extern const struct samsung_ufs_phy_drvdata exynos7_ufs_phy;
 extern const struct samsung_ufs_phy_drvdata exynosautov9_ufs_phy;
 extern const struct samsung_ufs_phy_drvdata fsd_ufs_phy;
+extern const struct samsung_ufs_phy_drvdata tensor_gs101_ufs_phy;
 
 #endif /* _PHY_SAMSUNG_UFS_ */
