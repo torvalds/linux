@@ -11,6 +11,7 @@
 #include "xe_device.h"
 #include "xe_mmio.h"
 #include "xe_sriov.h"
+#include "xe_sriov_pf.h"
 
 /**
  * xe_sriov_mode_to_string - Convert enum value to string.
@@ -58,6 +59,8 @@ void xe_sriov_probe_early(struct xe_device *xe)
 	if (has_sriov) {
 		if (test_is_vf(xe))
 			mode = XE_SRIOV_MODE_VF;
+		else if (xe_sriov_pf_readiness(xe))
+			mode = XE_SRIOV_MODE_PF;
 	}
 
 	xe_assert(xe, !xe->sriov.__mode);

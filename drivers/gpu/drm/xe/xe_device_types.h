@@ -321,6 +321,10 @@ struct xe_device {
 	struct {
 		/** @sriov.__mode: SR-IOV mode (Don't access directly!) */
 		enum xe_sriov_mode __mode;
+
+		/** @sriov.pf: PF specific data */
+		struct xe_device_pf pf;
+
 		/** @sriov.wq: workqueue used by the virtualization workers */
 		struct workqueue_struct *wq;
 	} sriov;
