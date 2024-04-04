@@ -2886,8 +2886,8 @@ static void dcn10_update_dchubp_dpp(
 	}
 
 	if (pipe_ctx->stream->cursor_attributes.address.quad_part != 0) {
-		dc->hwss.set_cursor_position(pipe_ctx);
 		dc->hwss.set_cursor_attribute(pipe_ctx);
+		dc->hwss.set_cursor_position(pipe_ctx);
 
 		if (dc->hwss.set_cursor_sdr_white_level)
 			dc->hwss.set_cursor_sdr_white_level(pipe_ctx);
