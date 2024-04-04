@@ -5719,24 +5719,22 @@ static int msm_geni_serial_sys_resume(struct device *dev)
 
 	start_time = geni_capture_start_time(&port->se, port->ipc_log_kpi,
 					     __func__, port->uart_kpi);
-#ifdef CONFIG_DEEPSLEEP
-	UART_LOG_DBG(port->ipc_log_pwr, dev, "%s: Deep Sleep Sys resume Start %d\n",
+
+	UART_LOG_DBG(port->ipc_log_pwr, dev, "%s: System resume Start %d\n",
 		     __func__, true);
 
-	if (pm_suspend_via_firmware()) {
+	if (pm_suspend_target_state == PM_SUSPEND_MEM) {
 		UART_LOG_DBG(port->ipc_log_pwr, dev,
 			     "deepsleep: %s\n", __func__);
 
 		if (!uart_console(uport))
 			port->resuming_from_deep_sleep = true;
 
-	geni_capture_stop_time(&port->se, port->ipc_log_kpi,
-			       __func__, port->uart_kpi, start_time, 0, 0);
+		geni_capture_stop_time(&port->se, port->ipc_log_kpi,
+				       __func__, port->uart_kpi, start_time, 0, 0);
 
 		return msm_geni_serial_sys_hib_resume(dev);
 	}
-#endif
-	UART_LOG_DBG(port->ipc_log_pwr, dev, "%s: Start %d\n", __func__, true);
 
 	/* Platform driver is registered for console and when console
 	 * is disabled from cmdline simply return success.
