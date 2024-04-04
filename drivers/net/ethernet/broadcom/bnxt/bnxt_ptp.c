@@ -131,7 +131,7 @@ static int bnxt_hwrm_port_ts_query(struct bnxt *bp, u32 flags, u64 *ts,
 		if (!tmo_us)
 			tmo_us = BNXT_PTP_QTS_TIMEOUT;
 		tmo_us = min(tmo_us, BNXT_PTP_QTS_MAX_TMO_US);
-		req->ts_req_timeout = cpu_to_le16(txts_tmo);
+		req->ts_req_timeout = cpu_to_le16(tmo_us);
 	}
 	resp = hwrm_req_hold(bp, req);
 
