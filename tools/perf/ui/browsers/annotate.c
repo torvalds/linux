@@ -977,7 +977,7 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 			dso->annotate_warned = true;
 			symbol__strerror_disassemble(ms, err, msg, sizeof(msg));
 			ui__error("Couldn't annotate %s:\n%s", sym->name, msg);
-			goto out_free_offsets;
+			return -1;
 		}
 	}
 
@@ -996,8 +996,5 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 	if(not_annotated)
 		annotated_source__purge(notes->src);
 
-out_free_offsets:
-	if(not_annotated)
-		zfree(&notes->src->offsets);
 	return ret;
 }

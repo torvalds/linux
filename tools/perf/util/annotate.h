@@ -246,7 +246,6 @@ struct cyc_hist {
  * 		  we have more than a group in a evlist, where we will want
  * 		  to see each group separately, that is why symbol__annotate2()
  * 		  sets src->nr_histograms to evsel->nr_members.
- * @offsets: Array of annotation_line to be accessed by offset.
  * @samples: Hash map of sym_hist_entry.  Keyed by event index and offset in symbol.
  * @nr_entries: Number of annotated_line in the source list.
  * @nr_asm_entries: Number of annotated_line with actual asm instruction in the
@@ -262,7 +261,6 @@ struct cyc_hist {
 struct annotated_source {
 	struct list_head	source;
 	struct sym_hist		*histograms;
-	struct annotation_line	**offsets;
 	struct hashmap	   	*samples;
 	int    			nr_histograms;
 	int			nr_entries;

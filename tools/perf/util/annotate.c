@@ -1378,7 +1378,7 @@ annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 	}
 }
 
-static void annotation__set_offsets(struct annotation *notes, s64 size)
+static void annotation__set_index(struct annotation *notes)
 {
 	struct annotation_line *al;
 	struct annotated_source *src = notes->src;
@@ -1393,18 +1393,9 @@ static void annotation__set_offsets(struct annotation *notes, s64 size)
 		if (src->max_line_len < line_len)
 			src->max_line_len = line_len;
 		al->idx = src->nr_entries++;
-		if (al->offset != -1) {
+		if (al->offset != -1)
 			al->idx_asm = src->nr_asm_entries++;
-			/*
-			 * FIXME: short term bandaid to cope with assembly
-			 * routines that comes with labels in the same column
-			 * as the address in objdump, sigh.
-			 *
-			 * E.g. copy_user_generic_unrolled
- 			 */
-			if (al->offset < size)
-				notes->src->offsets[al->offset] = al;
-		} else
+		else
 			al->idx_asm = -1;
 	}
 }
@@ -1835,25 +1826,21 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 	size_t size = symbol__size(sym);
 	int nr_pcnt = 1, err;
 
-	notes->src->offsets = zalloc(size * sizeof(struct annotation_line *));
-	if (notes->src->offsets == NULL)
-		return ENOMEM;
-
 	if (evsel__is_group_event(evsel))
 		nr_pcnt = evsel->core.nr_members;
 
 	err = symbol__annotate(ms, evsel, parch);
 	if (err)
-		goto out_free_offsets;
+		return err;
 
 	symbol__calc_percent(sym, evsel);
 
-	annotation__set_offsets(notes, size);
+	annotation__set_index(notes);
 	annotation__mark_jump_targets(notes, sym);
 
 	err = annotation__compute_ipc(notes, size);
 	if (err)
-		goto out_free_offsets;
+		return err;
 
 	annotation__init_column_widths(notes, sym);
 	notes->nr_events = nr_pcnt;
@@ -1862,10 +1849,6 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 	sym->annotate2 = 1;
 
 	return 0;
-
-out_free_offsets:
-	zfree(&notes->src->offsets);
-	return err;
 }
 
 static int annotation__config(const char *var, const char *value, void *data)
