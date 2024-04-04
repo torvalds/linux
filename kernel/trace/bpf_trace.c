@@ -1188,9 +1188,6 @@ static const struct bpf_func_proto bpf_get_attach_cookie_proto_tracing = {
 
 BPF_CALL_3(bpf_get_branch_snapshot, void *, buf, u32, size, u64, flags)
 {
-#ifndef CONFIG_X86
-	return -ENOENT;
-#else
 	static const u32 br_entry_size = sizeof(struct perf_branch_entry);
 	u32 entry_cnt = size / br_entry_size;
 
@@ -1203,7 +1200,6 @@ BPF_CALL_3(bpf_get_branch_snapshot, void *, buf, u32, size, u64, flags)
 		return -ENOENT;
 
 	return entry_cnt * br_entry_size;
-#endif
 }
 
 static const struct bpf_func_proto bpf_get_branch_snapshot_proto = {
