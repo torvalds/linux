@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/regmap.h>
+#include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
 
 #include <asm/byteorder.h>
@@ -1594,6 +1595,10 @@ static int ltc2983_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, st);
 
 	ret = ltc2983_parse_fw(st);
+	if (ret)
+		return ret;
+
+	ret = devm_regulator_get_enable(&spi->dev, "vdd");
 	if (ret)
 		return ret;
 
