@@ -758,7 +758,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	//must match enable_single_display_2to1_odm_policy to support dynamic ODM transitions
 	.enable_double_buffered_dsc_pg_support = true,
 	.enable_dp_dig_pixel_rate_div_policy = 1,
-	.disable_z10 = true,
+	.disable_z10 = false,
 	.ignore_pg = true,
 	.psp_disabled_wa = true,
 	.ips2_eval_delay_us = 2000,
@@ -1722,7 +1722,7 @@ static bool dcn351_validate_bandwidth(struct dc *dc,
 		return out;
 
 	DC_FP_START();
-	dcn351_decide_zstate_support(dc, context);
+	dcn35_decide_zstate_support(dc, context);
 	DC_FP_END();
 
 	return out;
