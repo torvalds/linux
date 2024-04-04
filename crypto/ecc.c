@@ -689,7 +689,7 @@ static void vli_mmod_barrett(u64 *result, u64 *product, const u64 *mod,
 static void vli_mmod_fast_192(u64 *result, const u64 *product,
 			      const u64 *curve_prime, u64 *tmp)
 {
-	const unsigned int ndigits = 3;
+	const unsigned int ndigits = ECC_CURVE_NIST_P192_DIGITS;
 	int carry;
 
 	vli_set(result, product, ndigits);
@@ -717,7 +717,7 @@ static void vli_mmod_fast_256(u64 *result, const u64 *product,
 			      const u64 *curve_prime, u64 *tmp)
 {
 	int carry;
-	const unsigned int ndigits = 4;
+	const unsigned int ndigits = ECC_CURVE_NIST_P256_DIGITS;
 
 	/* t */
 	vli_set(result, product, ndigits);
@@ -800,7 +800,7 @@ static void vli_mmod_fast_384(u64 *result, const u64 *product,
 				const u64 *curve_prime, u64 *tmp)
 {
 	int carry;
-	const unsigned int ndigits = 6;
+	const unsigned int ndigits = ECC_CURVE_NIST_P384_DIGITS;
 
 	/* t */
 	vli_set(result, product, ndigits);
@@ -932,13 +932,13 @@ static bool vli_mmod_fast(u64 *result, u64 *product,
 	}
 
 	switch (ndigits) {
-	case 3:
+	case ECC_CURVE_NIST_P192_DIGITS:
 		vli_mmod_fast_192(result, product, curve_prime, tmp);
 		break;
-	case 4:
+	case ECC_CURVE_NIST_P256_DIGITS:
 		vli_mmod_fast_256(result, product, curve_prime, tmp);
 		break;
-	case 6:
+	case ECC_CURVE_NIST_P384_DIGITS:
 		vli_mmod_fast_384(result, product, curve_prime, tmp);
 		break;
 	default:
