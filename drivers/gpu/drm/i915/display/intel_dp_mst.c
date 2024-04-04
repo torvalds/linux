@@ -1377,11 +1377,7 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 		dsc = dsc_max_compressed_bpp && dsc_slice_count;
 	}
 
-	/*
-	 * Big joiner configuration needs DSC for TGL which is not true for
-	 * XE_LPD where uncompressed joiner is supported.
-	 */
-	if (DISPLAY_VER(dev_priv) < 13 && bigjoiner && !dsc) {
+	if (intel_dp_joiner_needs_dsc(dev_priv, bigjoiner) && !dsc) {
 		*status = MODE_CLOCK_HIGH;
 		return 0;
 	}
