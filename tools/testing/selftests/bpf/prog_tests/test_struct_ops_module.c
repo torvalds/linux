@@ -138,11 +138,35 @@ static void test_struct_ops_not_zeroed(void)
 	struct_ops_module__destroy(skel);
 }
 
+/* The signature of an implementation might not match the signature of the
+ * function pointer prototype defined in the BPF program. This mismatch
+ * should be allowed as long as the behavior of the operator program
+ * adheres to the signature in the kernel. Libbpf should not enforce the
+ * signature; rather, let the kernel verifier handle the enforcement.
+ */
+static void test_struct_ops_incompatible(void)
+{
+	struct struct_ops_module *skel;
+	struct bpf_link *link;
+
+	skel = struct_ops_module__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "open_and_load"))
+		return;
+
+	link = bpf_map__attach_struct_ops(skel->maps.testmod_incompatible);
+	if (ASSERT_OK_PTR(link, "attach_struct_ops"))
+		bpf_link__destroy(link);
+
+	struct_ops_module__destroy(skel);
+}
+
 void serial_test_struct_ops_module(void)
 {
 	if (test__start_subtest("test_struct_ops_load"))
 		test_struct_ops_load();
 	if (test__start_subtest("test_struct_ops_not_zeroed"))
 		test_struct_ops_not_zeroed();
+	if (test__start_subtest("test_struct_ops_incompatible"))
+		test_struct_ops_incompatible();
 }
 
