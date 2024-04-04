@@ -7,6 +7,29 @@
 #include "core.h"
 #include "debugfs.h"
 
+static ssize_t ath12k_write_simulate_radar(struct file *file,
+					   const char __user *user_buf,
+					   size_t count, loff_t *ppos)
+{
+	struct ath12k *ar = file->private_data;
+	int ret;
+
+	mutex_lock(&ar->conf_mutex);
+	ret = ath12k_wmi_simulate_radar(ar);
+	if (ret)
+		goto exit;
+
+	ret = count;
+exit:
+	mutex_unlock(&ar->conf_mutex);
+	return ret;
+}
+
+static const struct file_operations fops_simulate_radar = {
+	.write = ath12k_write_simulate_radar,
+	.open = simple_open
+};
+
 void ath12k_debugfs_soc_create(struct ath12k_base *ab)
 {
 	bool dput_needed;
@@ -58,4 +81,10 @@ void ath12k_debugfs_register(struct ath12k *ar)
 	/* Create a symlink under ieee80211/phy* */
 	scnprintf(buf, sizeof(buf), "../../ath12k/%pd2", ar->debug.debugfs_pdev);
 	debugfs_create_symlink("ath12k", hw->wiphy->debugfsdir, buf);
+
+	if (ar->mac.sbands[NL80211_BAND_5GHZ].channels) {
+		debugfs_create_file("dfs_simulate_radar", 0200,
+				    ar->debug.debugfs_pdev, ar,
+				    &fops_simulate_radar);
+	}
 }
