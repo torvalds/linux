@@ -532,7 +532,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	const struct drm_display_mode *adjusted_mode =
 		&pipe_config->hw.adjusted_mode;
 	struct link_config_limits limits;
-	bool dsc_needed;
+	bool dsc_needed, joiner_needs_dsc;
 	int ret = 0;
 
 	if (pipe_config->fec_enable &&
@@ -546,7 +546,9 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	pipe_config->output_format = INTEL_OUTPUT_FORMAT_RGB;
 	pipe_config->has_pch_encoder = false;
 
-	dsc_needed = intel_dp->force_dsc_en ||
+	joiner_needs_dsc = intel_dp_joiner_needs_dsc(dev_priv, pipe_config->bigjoiner_pipes);
+
+	dsc_needed = joiner_needs_dsc || intel_dp->force_dsc_en ||
 		     !intel_dp_mst_compute_config_limits(intel_dp,
 							 connector,
 							 pipe_config,
@@ -566,8 +568,8 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	/* enable compression if the mode doesn't fit available BW */
 	if (dsc_needed) {
-		drm_dbg_kms(&dev_priv->drm, "Try DSC (fallback=%s, force=%s)\n",
-			    str_yes_no(ret),
+		drm_dbg_kms(&dev_priv->drm, "Try DSC (fallback=%s, joiner=%s, force=%s)\n",
+			    str_yes_no(ret), str_yes_no(joiner_needs_dsc),
 			    str_yes_no(intel_dp->force_dsc_en));
 
 		if (!intel_dp_mst_dsc_source_support(pipe_config))
