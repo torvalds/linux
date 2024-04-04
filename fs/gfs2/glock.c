@@ -78,6 +78,7 @@ static const struct rhashtable_params ht_parms = {
 	.key_len = offsetofend(struct lm_lockname, ln_type),
 	.key_offset = offsetof(struct gfs2_glock, gl_name),
 	.head_offset = offsetof(struct gfs2_glock, gl_node),
+	.automatic_shrinking = true,
 };
 
 static struct rhashtable gl_hash_table;
