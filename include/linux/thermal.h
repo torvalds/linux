@@ -126,31 +126,6 @@ struct thermal_cooling_device {
 #endif
 };
 
-/**
- * struct thermal_governor - structure that holds thermal governor information
- * @name:	name of the governor
- * @bind_to_tz: callback called when binding to a thermal zone.  If it
- *		returns 0, the governor is bound to the thermal zone,
- *		otherwise it fails.
- * @unbind_from_tz:	callback called when a governor is unbound from a
- *			thermal zone.
- * @throttle:	callback called for every trip point even if temperature is
- *		below the trip point temperature
- * @update_tz:	callback called when thermal zone internals have changed, e.g.
- *		thermal cooling instance was added/removed
- * @governor_list:	node in thermal_governor_list (in thermal_core.c)
- */
-struct thermal_governor {
-	const char *name;
-	int (*bind_to_tz)(struct thermal_zone_device *tz);
-	void (*unbind_from_tz)(struct thermal_zone_device *tz);
-	int (*throttle)(struct thermal_zone_device *tz,
-			const struct thermal_trip *trip);
-	void (*update_tz)(struct thermal_zone_device *tz,
-			  enum thermal_notify_event reason);
-	struct list_head	governor_list;
-};
-
 /* Structure to define Thermal Zone parameters */
 struct thermal_zone_params {
 	const char *governor_name;
