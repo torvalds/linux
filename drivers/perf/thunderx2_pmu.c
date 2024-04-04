@@ -504,24 +504,19 @@ static void tx2_uncore_event_update(struct perf_event *event)
 
 static enum tx2_uncore_type get_tx2_pmu_type(struct acpi_device *adev)
 {
-	int i = 0;
-	struct acpi_tx2_pmu_device {
-		__u8 id[ACPI_ID_LEN];
-		enum tx2_uncore_type type;
-	} devices[] = {
+	struct acpi_device_id devices[] = {
 		{"CAV901D", PMU_TYPE_L3C},
 		{"CAV901F", PMU_TYPE_DMC},
 		{"CAV901E", PMU_TYPE_CCPI2},
-		{"", PMU_TYPE_INVALID}
+		{}
 	};
+	const struct acpi_device_id *id;
 
-	while (devices[i].type != PMU_TYPE_INVALID) {
-		if (!strcmp(acpi_device_hid(adev), devices[i].id))
-			break;
-		i++;
-	}
+	id = acpi_match_acpi_device(devices, adev);
+	if (!id)
+		return PMU_TYPE_INVALID;
 
-	return devices[i].type;
+	return (enum tx2_uncore_type)id->driver_data;
 }
 
 static bool tx2_uncore_validate_event(struct pmu *pmu,
