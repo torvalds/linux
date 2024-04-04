@@ -896,11 +896,13 @@ int iwl_mvm_sar_select_profile(struct iwl_mvm *mvm, int prof_a, int prof_b)
 	u32 n_subbands;
 	u8 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
 					   IWL_FW_CMD_VER_UNKNOWN);
-	if (cmd_ver == 7) {
+	if (cmd_ver >= 7) {
 		len = sizeof(cmd.v7);
 		n_subbands = IWL_NUM_SUB_BANDS_V2;
 		per_chain = cmd.v7.per_chain[0][0];
 		cmd.v7.flags = cpu_to_le32(mvm->fwrt.reduced_power_flags);
+		if (cmd_ver == 8)
+			len = sizeof(cmd.v8);
 	} else if (cmd_ver == 6) {
 		len = sizeof(cmd.v6);
 		n_subbands = IWL_NUM_SUB_BANDS_V2;
@@ -1237,8 +1239,14 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 		cmd.oem_11ax_allow_bitmap = cpu_to_le32(value);
 
 	ret = iwl_bios_get_dsm(&mvm->fwrt, DSM_FUNC_ENABLE_UNII4_CHAN, &value);
-	if (!ret)
+	if (!ret) {
+		if (cmd_ver < 9)
+			value &= DSM_UNII4_ALLOW_BITMAP_CMD_V8;
+		else
+			value &= DSM_UNII4_ALLOW_BITMAP;
+
 		cmd.oem_unii4_allow_bitmap = cpu_to_le32(value);
+	}
 
 	ret = iwl_bios_get_dsm(&mvm->fwrt, DSM_FUNC_ACTIVATE_CHANNEL, &value);
 	if (!ret) {
@@ -1271,6 +1279,7 @@ static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 		size_t cmd_size;
 
 		switch (cmd_ver) {
+		case 9:
 		case 8:
 		case 7:
 			cmd_size = sizeof(struct iwl_lari_config_change_cmd_v7);

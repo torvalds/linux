@@ -192,12 +192,6 @@ const char *iwl_drv_get_fwname_pre(struct iwl_trans *trans, char *buf)
 	case IWL_CFG_RF_TYPE_GF:
 		rf = "gf";
 		break;
-	case IWL_CFG_RF_TYPE_MR:
-		rf = "mr";
-		break;
-	case IWL_CFG_RF_TYPE_MS:
-		rf = "ms";
-		break;
 	case IWL_CFG_RF_TYPE_FM:
 		rf = "fm";
 		break;

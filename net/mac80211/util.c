@@ -1932,6 +1932,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 					     old);
 		}
 
+		sdata->restart_active_links = active_links;
+
 		for (link_id = 0;
 		     link_id < ARRAY_SIZE(sdata->vif.link_conf);
 		     link_id++) {
@@ -2059,9 +2061,6 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			WARN_ON(1);
 			break;
 		}
-
-		if (active_links)
-			ieee80211_set_active_links(&sdata->vif, active_links);
 	}
 
 	ieee80211_recalc_ps(local);
@@ -2101,6 +2100,13 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 	/* add back keys */
 	list_for_each_entry(sdata, &local->interfaces, list)
 		ieee80211_reenable_keys(sdata);
+
+	/* re-enable multi-link for client interfaces */
+	list_for_each_entry(sdata, &local->interfaces, list) {
+		if (sdata->restart_active_links)
+			ieee80211_set_active_links(&sdata->vif,
+						   sdata->restart_active_links);
+	}
 
 	/* Reconfigure sched scan if it was interrupted by FW restart */
 	sched_scan_sdata = rcu_dereference_protected(local->sched_scan_sdata,
@@ -3136,6 +3142,8 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_local *local,
 	} else {
 		ieee80211_chandef_eht_oper((const void *)eht_oper->optional,
 					   &he_chandef);
+		he_chandef.punctured =
+			ieee80211_eht_oper_dis_subchan_bitmap(eht_oper);
 	}
 
 	if (!cfg80211_chandef_valid(&he_chandef))

@@ -3084,6 +3084,7 @@ static void iwl_fw_dbg_collect_sync(struct iwl_fw_runtime *fwrt, u8 wk_idx)
 	if (!test_bit(wk_idx, &fwrt->dump.active_wks))
 		return;
 
+	/* also checks 'desc' for pre-ini mode, since that shadows in union */
 	if (!dump_data->trig) {
 		IWL_ERR(fwrt, "dump trigger data is not set\n");
 		goto out;

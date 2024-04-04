@@ -556,12 +556,15 @@ struct iwl_mvm_stat_data_all_macs {
 	struct iwl_stats_ntfy_per_mac *per_mac;
 };
 
-static void iwl_mvm_update_vif_sig(struct ieee80211_vif *vif, int sig)
+static void iwl_mvm_update_vif_sig(struct ieee80211_vif *vif, int sig,
+				   struct iwl_mvm_vif_link_info *link_info)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	struct iwl_mvm *mvm = mvmvif->mvm;
-	int thold = vif->bss_conf.cqm_rssi_thold;
-	int hyst = vif->bss_conf.cqm_rssi_hyst;
+	struct iwl_mvm *mvm = iwl_mvm_vif_from_mac80211(vif)->mvm;
+	struct ieee80211_bss_conf *bss_conf =
+		iwl_mvm_rcu_fw_link_id_to_link_conf(mvm, link_info->fw_link_id,
+						    false);
+	int thold = bss_conf->cqm_rssi_thold;
+	int hyst = bss_conf->cqm_rssi_hyst;
 	int last_event;
 
 	if (sig == 0) {
@@ -569,23 +572,23 @@ static void iwl_mvm_update_vif_sig(struct ieee80211_vif *vif, int sig)
 		return;
 	}
 
-	mvmvif->bf_data.ave_beacon_signal = sig;
+	link_info->bf_data.ave_beacon_signal = sig;
 
 	/* BT Coex */
-	if (mvmvif->bf_data.bt_coex_min_thold !=
-	    mvmvif->bf_data.bt_coex_max_thold) {
-		last_event = mvmvif->bf_data.last_bt_coex_event;
-		if (sig > mvmvif->bf_data.bt_coex_max_thold &&
-		    (last_event <= mvmvif->bf_data.bt_coex_min_thold ||
+	if (link_info->bf_data.bt_coex_min_thold !=
+	    link_info->bf_data.bt_coex_max_thold) {
+		last_event = link_info->bf_data.last_bt_coex_event;
+		if (sig > link_info->bf_data.bt_coex_max_thold &&
+		    (last_event <= link_info->bf_data.bt_coex_min_thold ||
 		     last_event == 0)) {
-			mvmvif->bf_data.last_bt_coex_event = sig;
+			link_info->bf_data.last_bt_coex_event = sig;
 			IWL_DEBUG_RX(mvm, "cqm_iterator bt coex high %d\n",
 				     sig);
 			iwl_mvm_bt_rssi_event(mvm, vif, RSSI_EVENT_HIGH);
-		} else if (sig < mvmvif->bf_data.bt_coex_min_thold &&
-			   (last_event >= mvmvif->bf_data.bt_coex_max_thold ||
+		} else if (sig < link_info->bf_data.bt_coex_min_thold &&
+			   (last_event >= link_info->bf_data.bt_coex_max_thold ||
 			    last_event == 0)) {
-			mvmvif->bf_data.last_bt_coex_event = sig;
+			link_info->bf_data.last_bt_coex_event = sig;
 			IWL_DEBUG_RX(mvm, "cqm_iterator bt coex low %d\n",
 				     sig);
 			iwl_mvm_bt_rssi_event(mvm, vif, RSSI_EVENT_LOW);
@@ -596,10 +599,10 @@ static void iwl_mvm_update_vif_sig(struct ieee80211_vif *vif, int sig)
 		return;
 
 	/* CQM Notification */
-	last_event = mvmvif->bf_data.last_cqm_event;
+	last_event = link_info->bf_data.last_cqm_event;
 	if (thold && sig < thold && (last_event == 0 ||
 				     sig < last_event - hyst)) {
-		mvmvif->bf_data.last_cqm_event = sig;
+		link_info->bf_data.last_cqm_event = sig;
 		IWL_DEBUG_RX(mvm, "cqm_iterator cqm low %d\n",
 			     sig);
 		ieee80211_cqm_rssi_notify(
@@ -609,7 +612,7 @@ static void iwl_mvm_update_vif_sig(struct ieee80211_vif *vif, int sig)
 			GFP_KERNEL);
 	} else if (sig > thold &&
 		   (last_event == 0 || sig > last_event + hyst)) {
-		mvmvif->bf_data.last_cqm_event = sig;
+		link_info->bf_data.last_cqm_event = sig;
 		IWL_DEBUG_RX(mvm, "cqm_iterator cqm high %d\n",
 			     sig);
 		ieee80211_cqm_rssi_notify(
@@ -651,7 +654,8 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 		mvmvif->deflink.beacon_stats.accu_num_beacons +=
 			mvmvif->deflink.beacon_stats.num_beacons;
 
-	iwl_mvm_update_vif_sig(vif, sig);
+	/* This is used in pre-MLO API so use deflink */
+	iwl_mvm_update_vif_sig(vif, sig, &mvmvif->deflink);
 }
 
 static void iwl_mvm_stat_iterator_all_macs(void *_data, u8 *mac,
@@ -684,7 +688,9 @@ static void iwl_mvm_stat_iterator_all_macs(void *_data, u8 *mac,
 			mvmvif->deflink.beacon_stats.num_beacons;
 
 	sig = -le32_to_cpu(mac_stats->beacon_filter_average_energy);
-	iwl_mvm_update_vif_sig(vif, sig);
+
+	/* This is used in pre-MLO API so use deflink */
+	iwl_mvm_update_vif_sig(vif, sig, &mvmvif->deflink);
 }
 
 static inline void
@@ -900,7 +906,7 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 				mvmvif->link[link_id]->beacon_stats.num_beacons;
 
 		sig = -le32_to_cpu(link_stats->beacon_filter_average_energy);
-		iwl_mvm_update_vif_sig(bss_conf->vif, sig);
+		iwl_mvm_update_vif_sig(bss_conf->vif, sig, link_info);
 
 		if (WARN_ONCE(mvmvif->id >= MAC_INDEX_AUX,
 			      "invalid mvmvif id: %d", mvmvif->id))

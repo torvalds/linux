@@ -358,7 +358,7 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 
 		ieee80211_teardown_tdls_peers(link);
 
-		ieee80211_link_release_channel(link);
+		__ieee80211_link_release_channel(link, true);
 	}
 
 	list_for_each_entry(sta, &local->sta_list, list) {
@@ -450,10 +450,13 @@ int ieee80211_set_active_links(struct ieee80211_vif *vif, u16 active_links)
 	if (WARN_ON(!active_links))
 		return -EINVAL;
 
+	old_active = sdata->vif.active_links;
+	if (old_active == active_links)
+		return 0;
+
 	if (!drv_can_activate_links(local, sdata, active_links))
 		return -EINVAL;
 
-	old_active = sdata->vif.active_links;
 	if (old_active & active_links) {
 		/*
 		 * if there's at least one link that stays active across

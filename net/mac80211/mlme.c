@@ -599,6 +599,10 @@ static bool ieee80211_chandef_usable(struct ieee80211_sub_if_data *sdata,
 	    ieee80211_hw_check(&sdata->local->hw, DISALLOW_PUNCTURING))
 		return false;
 
+	if (chandef->punctured && chandef->chan->band == NL80211_BAND_5GHZ &&
+	    ieee80211_hw_check(&sdata->local->hw, DISALLOW_PUNCTURING_5GHZ))
+		return false;
+
 	return true;
 }
 
@@ -4429,9 +4433,11 @@ static bool ieee80211_assoc_config_link(struct ieee80211_link_data *link,
 			switch (u8_get_bits(he_6ghz_oper->control,
 					    IEEE80211_HE_6GHZ_OPER_CTRL_REG_INFO)) {
 			case IEEE80211_6GHZ_CTRL_REG_LPI_AP:
+			case IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP:
 				bss_conf->power_type = IEEE80211_REG_LPI_AP;
 				break;
 			case IEEE80211_6GHZ_CTRL_REG_SP_AP:
+			case IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP:
 				bss_conf->power_type = IEEE80211_REG_SP_AP;
 				break;
 			case IEEE80211_6GHZ_CTRL_REG_VLP_AP:
@@ -6792,6 +6798,60 @@ void ieee80211_process_neg_ttlm_res(struct ieee80211_sub_if_data *sdata,
 		__ieee80211_disconnect(sdata);
 }
 
+static void ieee80211_teardown_ttlm_work(struct wiphy *wiphy,
+					 struct wiphy_work *work)
+{
+	u16 new_dormant_links;
+	struct ieee80211_sub_if_data *sdata =
+		container_of(work, struct ieee80211_sub_if_data,
+			     u.mgd.neg_ttlm_timeout_work.work);
+
+	if (!sdata->vif.neg_ttlm.valid)
+		return;
+
+	memset(&sdata->vif.neg_ttlm, 0, sizeof(sdata->vif.neg_ttlm));
+	new_dormant_links =
+		sdata->vif.dormant_links & ~sdata->vif.suspended_links;
+	sdata->vif.suspended_links = 0;
+	ieee80211_vif_set_links(sdata, sdata->vif.valid_links,
+				new_dormant_links);
+	ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_MLD_TTLM |
+					       BSS_CHANGED_MLD_VALID_LINKS);
+}
+
+void ieee80211_send_teardown_neg_ttlm(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_mgmt *mgmt;
+	struct sk_buff *skb;
+	int frame_len = offsetofend(struct ieee80211_mgmt,
+				  u.action.u.ttlm_tear_down);
+	struct ieee80211_tx_info *info;
+
+	skb = dev_alloc_skb(local->hw.extra_tx_headroom + frame_len);
+	if (!skb)
+		return;
+
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+	mgmt = skb_put_zero(skb, frame_len);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+					  IEEE80211_STYPE_ACTION);
+	memcpy(mgmt->da, sdata->vif.cfg.ap_addr, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
+	memcpy(mgmt->bssid, sdata->vif.cfg.ap_addr, ETH_ALEN);
+
+	mgmt->u.action.category = WLAN_CATEGORY_PROTECTED_EHT;
+	mgmt->u.action.u.ttlm_tear_down.action_code =
+		WLAN_PROTECTED_EHT_ACTION_TTLM_TEARDOWN;
+
+	info = IEEE80211_SKB_CB(skb);
+	info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
+	info->status_data = IEEE80211_STATUS_TYPE_NEG_TTLM;
+	ieee80211_tx_skb(sdata, skb);
+}
+EXPORT_SYMBOL(ieee80211_send_teardown_neg_ttlm);
+
 void ieee80211_sta_rx_queued_ext(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb)
 {
@@ -7423,6 +7483,8 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 				ieee80211_tid_to_link_map_work);
 	wiphy_delayed_work_init(&ifmgd->neg_ttlm_timeout_work,
 				ieee80211_neg_ttlm_timeout_work);
+	wiphy_work_init(&ifmgd->teardown_ttlm_work,
+			ieee80211_teardown_ttlm_work);
 
 	ifmgd->flags = 0;
 	ifmgd->powersave = sdata->wdev.ps;
@@ -8209,6 +8271,14 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	if (req->ap_mld_addr) {
 		uapsd_supported = true;
 
+		if (req->flags & (ASSOC_REQ_DISABLE_HT |
+				  ASSOC_REQ_DISABLE_VHT |
+				  ASSOC_REQ_DISABLE_HE |
+				  ASSOC_REQ_DISABLE_EHT)) {
+			err = -EINVAL;
+			goto err_free;
+		}
+
 		for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
 			struct ieee80211_supported_band *sband;
 			struct cfg80211_bss *link_cbss = req->links[i].bss;
@@ -8221,19 +8291,13 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 			if (!bss->wmm_used) {
 				err = -EINVAL;
-				goto err_free;
-			}
-
-			if (req->flags & (ASSOC_REQ_DISABLE_HT |
-					  ASSOC_REQ_DISABLE_VHT |
-					  ASSOC_REQ_DISABLE_HE |
-					  ASSOC_REQ_DISABLE_EHT)) {
-				err = -EINVAL;
+				req->links[i].error = err;
 				goto err_free;
 			}
 
 			if (link_cbss->channel->band == NL80211_BAND_S1GHZ) {
 				err = -EINVAL;
+				req->links[i].error = err;
 				goto err_free;
 			}
 
@@ -8610,6 +8674,8 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 			  &ifmgd->beacon_connection_loss_work);
 	wiphy_work_cancel(sdata->local->hw.wiphy,
 			  &ifmgd->csa_connection_drop_work);
+	wiphy_work_cancel(sdata->local->hw.wiphy,
+			  &ifmgd->teardown_ttlm_work);
 	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,
 				  &ifmgd->tdls_peer_del_work);
 	wiphy_delayed_work_cancel(sdata->local->hw.wiphy,

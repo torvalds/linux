@@ -2742,9 +2742,11 @@ static inline bool ieee80211_he_capa_size_ok(const u8 *data, u8 len)
 #define IEEE80211_HE_OPERATION_PARTIAL_BSS_COLOR		0x40000000
 #define IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED		0x80000000
 
-#define IEEE80211_6GHZ_CTRL_REG_LPI_AP	0
-#define IEEE80211_6GHZ_CTRL_REG_SP_AP	1
-#define IEEE80211_6GHZ_CTRL_REG_VLP_AP	2
+#define IEEE80211_6GHZ_CTRL_REG_LPI_AP		0
+#define IEEE80211_6GHZ_CTRL_REG_SP_AP		1
+#define IEEE80211_6GHZ_CTRL_REG_VLP_AP		2
+#define IEEE80211_6GHZ_CTRL_REG_INDOOR_LPI_AP	3
+#define IEEE80211_6GHZ_CTRL_REG_INDOOR_SP_AP	4
 
 /**
  * struct ieee80211_he_6ghz_oper - HE 6 GHz operation Information field
@@ -5166,7 +5168,7 @@ static inline bool ieee80211_mle_size_ok(const u8 *data, size_t len)
 	bool check_common_len = false;
 	u16 control;
 
-	if (len < fixed)
+	if (!data || len < fixed)
 		return false;
 
 	control = le16_to_cpu(mle->control);
@@ -5302,7 +5304,7 @@ static inline bool ieee80211_mle_basic_sta_prof_size_ok(const u8 *data,
 		info_len += 1;
 
 	return prof->sta_info_len >= info_len &&
-	       fixed + prof->sta_info_len <= len;
+	       fixed + prof->sta_info_len - 1 <= len;
 }
 
 /**

@@ -255,18 +255,14 @@ enum iwl_mvm_low_latency_cause {
 };
 
 /**
-* struct iwl_mvm_vif_bf_data - beacon filtering related data
-* @bf_enabled: indicates if beacon filtering is enabled
-* @ba_enabled: indicated if beacon abort is enabled
+* struct iwl_mvm_link_bf_data - beacon filtering related data
 * @ave_beacon_signal: average beacon signal
 * @last_cqm_event: rssi of the last cqm event
 * @bt_coex_min_thold: minimum threshold for BT coex
 * @bt_coex_max_thold: maximum threshold for BT coex
 * @last_bt_coex_event: rssi of the last BT coex event
 */
-struct iwl_mvm_vif_bf_data {
-	bool bf_enabled;
-	bool ba_enabled;
+struct iwl_mvm_link_bf_data {
 	int ave_beacon_signal;
 	int last_cqm_event;
 	int bt_coex_min_thold;
@@ -309,6 +305,7 @@ struct iwl_probe_resp_data {
  * @listen_lmac: indicates this link is allocated to the listen LMAC
  * @mcast_sta: multicast station
  * @phy_ctxt: phy context allocated to this link, if any
+ * @bf_data: beacon filtering data
  */
 struct iwl_mvm_vif_link_info {
 	u8 bssid[ETH_ALEN];
@@ -344,6 +341,8 @@ struct iwl_mvm_vif_link_info {
 	struct ieee80211_tx_queue_params queue_params[IEEE80211_NUM_ACS];
 
 	u16 mgmt_queue;
+
+	struct iwl_mvm_link_bf_data bf_data;
 };
 
 /**
@@ -371,10 +370,12 @@ struct iwl_mvm_vif_link_info {
  * @csa_countdown: indicates that CSA countdown may be started
  * @csa_failed: CSA failed to schedule time event, report an error later
  * @csa_bcn_pending: indicates that we are waiting for a beacon on a new channel
+ * @csa_blocks_tx: CSA is blocking TX
  * @features: hw features active for this vif
  * @ap_beacon_time: AP beacon time for synchronisation (on older FW)
+ * @bf_enabled: indicates if beacon filtering is enabled
+ * @ba_enabled: indicated if beacon abort is enabled
  * @bcn_prot: beacon protection data (keys; FIXME: needs to be per link)
- * @bf_data: beacon filtering data
  * @deflink: default link data for use in non-MLO
  * @link: link data for each link in MLO
  * @esr_active: indicates eSR mode is active
@@ -401,7 +402,8 @@ struct iwl_mvm_vif {
 	bool ps_disabled;
 
 	u32 ap_beacon_time;
-	struct iwl_mvm_vif_bf_data bf_data;
+	bool bf_enabled;
+	bool ba_enabled;
 
 #ifdef CONFIG_PM
 	/* WoWLAN GTK rekey data */
@@ -435,6 +437,7 @@ struct iwl_mvm_vif {
 	struct iwl_dbgfs_bf dbgfs_bf;
 	struct iwl_mac_power_cmd mac_pwr_cmd;
 	int dbgfs_quota_min;
+	bool ftm_unprotected;
 #endif
 
 	/* FW identified misbehaving AP */
@@ -444,6 +447,7 @@ struct iwl_mvm_vif {
 	bool csa_countdown;
 	bool csa_failed;
 	bool csa_bcn_pending;
+	bool csa_blocks_tx;
 	u16 csa_target_freq;
 	u16 csa_count;
 	u16 csa_misbehave;
@@ -490,10 +494,12 @@ enum iwl_scan_status {
 	IWL_MVM_SCAN_REGULAR		= BIT(0),
 	IWL_MVM_SCAN_SCHED		= BIT(1),
 	IWL_MVM_SCAN_NETDETECT		= BIT(2),
+	IWL_MVM_SCAN_INT_MLO		= BIT(3),
 
 	IWL_MVM_SCAN_STOPPING_REGULAR	= BIT(8),
 	IWL_MVM_SCAN_STOPPING_SCHED	= BIT(9),
 	IWL_MVM_SCAN_STOPPING_NETDETECT	= BIT(10),
+	IWL_MVM_SCAN_STOPPING_INT_MLO	= BIT(11),
 
 	IWL_MVM_SCAN_REGULAR_MASK	= IWL_MVM_SCAN_REGULAR |
 					  IWL_MVM_SCAN_STOPPING_REGULAR,
@@ -501,6 +507,8 @@ enum iwl_scan_status {
 					  IWL_MVM_SCAN_STOPPING_SCHED,
 	IWL_MVM_SCAN_NETDETECT_MASK	= IWL_MVM_SCAN_NETDETECT |
 					  IWL_MVM_SCAN_STOPPING_NETDETECT,
+	IWL_MVM_SCAN_INT_MLO_MASK       = IWL_MVM_SCAN_INT_MLO |
+					  IWL_MVM_SCAN_STOPPING_INT_MLO,
 
 	IWL_MVM_SCAN_STOPPING_MASK	= 0xff << IWL_MVM_SCAN_STOPPING_SHIFT,
 	IWL_MVM_SCAN_MASK		= 0xff,
@@ -754,9 +762,10 @@ struct iwl_mvm_txq {
 	struct list_head list;
 	u16 txq_id;
 	atomic_t tx_request;
-#define IWL_MVM_TXQ_STATE_STOP_FULL	0
-#define IWL_MVM_TXQ_STATE_STOP_REDIRECT	1
-#define IWL_MVM_TXQ_STATE_READY		2
+#define IWL_MVM_TXQ_STATE_READY		0
+#define IWL_MVM_TXQ_STATE_STOP_FULL	1
+#define IWL_MVM_TXQ_STATE_STOP_REDIRECT	2
+#define IWL_MVM_TXQ_STATE_STOP_AP_CSA	3
 	unsigned long state;
 };
 
@@ -2005,6 +2014,10 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			   struct ieee80211_scan_ies *ies);
 size_t iwl_mvm_scan_size(struct iwl_mvm *mvm);
 int iwl_mvm_scan_stop(struct iwl_mvm *mvm, int type, bool notify);
+int iwl_mvm_int_mlo_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       struct ieee80211_channel **channels,
+			       size_t n_channels);
+
 int iwl_mvm_max_scan_ie_len(struct iwl_mvm *mvm);
 void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm);
 void iwl_mvm_scan_timeout_wk(struct work_struct *work);
@@ -2113,7 +2126,8 @@ int iwl_mvm_send_proto_offload(struct iwl_mvm *mvm,
 			       struct ieee80211_vif *vif,
 			       bool disable_offloading,
 			       bool offload_ns,
-			       u32 cmd_flags);
+			       u32 cmd_flags,
+			       u8 sta_id);
 
 /* BT Coex */
 int iwl_mvm_send_bt_init_conf(struct iwl_mvm *mvm);

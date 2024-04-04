@@ -44,6 +44,7 @@ properties:
               - brcm,bcm4366-fmac
               - cypress,cyw4373-fmac
               - cypress,cyw43012-fmac
+              - infineon,cyw43439-fmac
           - const: brcm,bcm4329-fmac
       - enum:
           - brcm,bcm4329-fmac

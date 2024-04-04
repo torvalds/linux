@@ -219,15 +219,13 @@ struct iwl_bt_iterator_data {
 
 static inline
 void iwl_mvm_bt_coex_enable_rssi_event(struct iwl_mvm *mvm,
-				       struct ieee80211_vif *vif,
+				       struct iwl_mvm_vif_link_info *link_info,
 				       bool enable, int rssi)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-	mvmvif->bf_data.last_bt_coex_event = rssi;
-	mvmvif->bf_data.bt_coex_max_thold =
+	link_info->bf_data.last_bt_coex_event = rssi;
+	link_info->bf_data.bt_coex_max_thold =
 		enable ? -IWL_MVM_BT_COEX_EN_RED_TXP_THRESH : 0;
-	mvmvif->bf_data.bt_coex_min_thold =
+	link_info->bf_data.bt_coex_min_thold =
 		enable ? -IWL_MVM_BT_COEX_DIS_RED_TXP_THRESH : 0;
 }
 
@@ -412,8 +410,8 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 					    smps_mode, link_id);
 			iwl_mvm_bt_coex_reduced_txp(mvm, link_info->ap_sta_id,
 						    false);
-			/* FIXME: should this be per link? */
-			iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
+			iwl_mvm_bt_coex_enable_rssi_event(mvm, link_info, false,
+							  0);
 		}
 		return;
 	}
@@ -508,13 +506,12 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 	    le32_to_cpu(mvm->last_bt_notif.bt_activity_grading) == BT_OFF ||
 	    !vif->cfg.assoc) {
 		iwl_mvm_bt_coex_reduced_txp(mvm, link_info->ap_sta_id, false);
-		/* FIXME: should this be per link? */
-		iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, false, 0);
+		iwl_mvm_bt_coex_enable_rssi_event(mvm, link_info, false, 0);
 		return;
 	}
 
 	/* try to get the avg rssi from fw */
-	ave_rssi = mvmvif->bf_data.ave_beacon_signal;
+	ave_rssi = link_info->bf_data.ave_beacon_signal;
 
 	/* if the RSSI isn't valid, fake it is very low */
 	if (!ave_rssi)
@@ -530,7 +527,7 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 	}
 
 	/* Begin to monitor the RSSI: it may influence the reduced Tx power */
-	iwl_mvm_bt_coex_enable_rssi_event(mvm, vif, true, ave_rssi);
+	iwl_mvm_bt_coex_enable_rssi_event(mvm, link_info, true, ave_rssi);
 }
 
 /* must be called under rcu_read_lock */

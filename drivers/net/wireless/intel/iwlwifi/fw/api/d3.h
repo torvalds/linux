@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -843,6 +843,52 @@ struct iwl_wowlan_info_notif_v2 {
 	u8 reserved2[2];
 } __packed; /* WOWLAN_INFO_NTFY_API_S_VER_2 */
 
+/* MAX MLO keys of non-active links that can arrive in the notification */
+#define WOWLAN_MAX_MLO_KEYS 18
+
+/**
+ * enum iwl_wowlan_mlo_gtk_type - GTK types
+ * @WOWLAN_MLO_GTK_KEY_TYPE_GTK: GTK
+ * @WOWLAN_MLO_GTK_KEY_TYPE_IGTK: IGTK
+ * @WOWLAN_MLO_GTK_KEY_TYPE_BIGTK: BIGTK
+ * @WOWLAN_MLO_GTK_KEY_NUM_TYPES: number of key types
+ */
+enum iwl_wowlan_mlo_gtk_type {
+	WOWLAN_MLO_GTK_KEY_TYPE_GTK,
+	WOWLAN_MLO_GTK_KEY_TYPE_IGTK,
+	WOWLAN_MLO_GTK_KEY_TYPE_BIGTK,
+	WOWLAN_MLO_GTK_KEY_NUM_TYPES
+}; /* WOWLAN_MLO_GTK_KEY_TYPE_API_E_VER_1 */
+
+/**
+ * enum iwl_wowlan_mlo_gtk_flag - MLO GTK flags
+ * @WOWLAN_MLO_GTK_FLAG_KEY_LEN_MSK: 0 for len 16, 1 for len 32
+ * @WOWLAN_MLO_GTK_FLAG_KEY_ID_MSK: key id (ranges from 0 to 7)
+ * @WOWLAN_MLO_GTK_FLAG_LINK_ID_MSK: spec link id of the key
+ * @WOWLAN_MLO_GTK_FLAG_KEY_TYPE_MSK: &enum iwl_wowlan_mlo_gtk_type
+ * @WOWLAN_MLO_GTK_FLAG_LAST_KEY_MSK: is this the last given key per
+ *	key-type / link-id - the currently used key
+ */
+enum iwl_wowlan_mlo_gtk_flag {
+	WOWLAN_MLO_GTK_FLAG_KEY_LEN_MSK = 0x0001,
+	WOWLAN_MLO_GTK_FLAG_KEY_ID_MSK = 0x000E,
+	WOWLAN_MLO_GTK_FLAG_LINK_ID_MSK = 0x00F0,
+	WOWLAN_MLO_GTK_FLAG_KEY_TYPE_MSK = 0x0300,
+	WOWLAN_MLO_GTK_FLAG_LAST_KEY_MSK = 0x0400
+}; /* WOWLAN_MLO_GTK_FLAG_API_E_VER_1 */
+
+/**
+ * struct iwl_wowlan_mlo_gtk - MLO GTK info
+ * @key: key material
+ * @flags: &enum iwl_wowlan_mlo_gtk_flag
+ * @pn: packet number
+ */
+struct iwl_wowlan_mlo_gtk {
+	u8 key[WOWLAN_KEY_MAX_SIZE];
+	__le16 flags;
+	u8 pn[6];
+} __packed; /* WOWLAN_MLO_GTK_KEY_API_S_VER_1 */
+
 /**
  * struct iwl_wowlan_info_notif - WoWLAN information notification
  * @gtk: GTK data
@@ -859,7 +905,10 @@ struct iwl_wowlan_info_notif_v2 {
  * @tid_tear_down: bit mask of tids whose BA sessions were closed
  *	in suspend state
  * @station_id: station id
+ * @num_mlo_link_keys: number of &struct iwl_wowlan_mlo_gtk structs
+ *	following this notif, or reserved in version < 4
  * @reserved2: reserved
+ * @mlo_gtks: array of GTKs of size num_mlo_link_keys for version >= 4
  */
 struct iwl_wowlan_info_notif {
 	struct iwl_wowlan_gtk_status_v3 gtk[WOWLAN_GTK_KEYS_NUM];
@@ -875,8 +924,10 @@ struct iwl_wowlan_info_notif {
 	__le32 received_beacons;
 	u8 tid_tear_down;
 	u8 station_id;
-	u8 reserved2[2];
-} __packed; /* WOWLAN_INFO_NTFY_API_S_VER_3 */
+	u8 num_mlo_link_keys;
+	u8 reserved2;
+	struct iwl_wowlan_mlo_gtk mlo_gtks[];
+} __packed; /* WOWLAN_INFO_NTFY_API_S_VER_3, _VER_4 */
 
 /**
  * struct iwl_wowlan_wake_pkt_notif - WoWLAN wake packet notification

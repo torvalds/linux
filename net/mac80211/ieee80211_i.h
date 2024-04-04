@@ -89,7 +89,8 @@ enum ieee80211_status_data {
 	IEEE80211_STATUS_TYPE_MASK	= 0x00f,
 	IEEE80211_STATUS_TYPE_INVALID	= 0,
 	IEEE80211_STATUS_TYPE_SMPS	= 1,
-	IEEE80211_STATUS_SUBDATA_MASK	= 0xff0,
+	IEEE80211_STATUS_TYPE_NEG_TTLM	= 2,
+	IEEE80211_STATUS_SUBDATA_MASK	= 0x1ff0,
 };
 
 static inline bool
@@ -595,6 +596,7 @@ struct ieee80211_if_managed {
 	/* TID-to-link mapping support */
 	struct wiphy_delayed_work ttlm_work;
 	struct ieee80211_adv_ttlm_info ttlm_info;
+	struct wiphy_work teardown_ttlm_work;
 
 	/* dialog token enumerator for neg TTLM request */
 	u8 dialog_token_alloc;
@@ -1158,6 +1160,8 @@ struct ieee80211_sub_if_data {
 	/* for ieee80211_set_active_links_async() */
 	struct wiphy_work activate_links_work;
 	u16 desired_active_links;
+
+	u16 restart_active_links;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
@@ -2565,6 +2569,8 @@ int __must_check
 ieee80211_link_change_chanreq(struct ieee80211_link_data *link,
 			      const struct ieee80211_chan_req *req,
 			      u64 *changed);
+void __ieee80211_link_release_channel(struct ieee80211_link_data *link,
+				      bool skip_idle_recalc);
 void ieee80211_link_release_channel(struct ieee80211_link_data *link);
 void ieee80211_link_vlan_copy_chanctx(struct ieee80211_link_data *link);
 void ieee80211_link_copy_chanctx_to_vlans(struct ieee80211_link_data *link,

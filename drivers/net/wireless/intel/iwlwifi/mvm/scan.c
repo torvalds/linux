@@ -1377,11 +1377,14 @@ static void iwl_mvm_scan_umac_dwell(struct iwl_mvm *mvm,
 		cmd->ooc_priority = cpu_to_le32(IWL_SCAN_PRIORITY_EXT_2);
 }
 
-static u32 iwl_mvm_scan_umac_ooc_priority(struct iwl_mvm_scan_params *params)
+static u32 iwl_mvm_scan_umac_ooc_priority(int type)
 {
-	return iwl_mvm_is_regular_scan(params) ?
-		IWL_SCAN_PRIORITY_EXT_6 :
-		IWL_SCAN_PRIORITY_EXT_2;
+	if (type == IWL_MVM_SCAN_REGULAR)
+		return IWL_SCAN_PRIORITY_EXT_6;
+	if (type == IWL_MVM_SCAN_INT_MLO)
+		return IWL_SCAN_PRIORITY_EXT_4;
+
+	return IWL_SCAN_PRIORITY_EXT_2;
 }
 
 static void
@@ -1747,8 +1750,9 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 			&cp->channel_config[ch_cnt];
 
 		u32 s_ssid_bitmap = 0, bssid_bitmap = 0, flags = 0;
-		u8 j, k, s_max = 0, b_max = 0, n_used_bssid_entries;
-		bool force_passive, found = false, allow_passive = true,
+		u8 j, k, n_s_ssids = 0, n_bssids = 0;
+		u8 max_s_ssids, max_bssids;
+		bool force_passive = false, found = false, allow_passive = true,
 		     unsolicited_probe_on_chan = false, psc_no_listen = false;
 		s8 psd_20 = IEEE80211_RNR_TBTT_PARAMS_PSD_RESERVED;
 
@@ -1771,19 +1775,14 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 		cfg->v5.iter_count = 1;
 		cfg->v5.iter_interval = 0;
 
-		/*
-		 * The optimize the scan time, i.e., reduce the scan dwell time
-		 * on each channel, the below logic tries to set 3 direct BSSID
-		 * probe requests for each broadcast probe request with a short
-		 * SSID.
-		 * TODO: improve this logic
-		 */
-		n_used_bssid_entries = 3;
 		for (j = 0; j < params->n_6ghz_params; j++) {
 			s8 tmp_psd_20;
 
 			if (!(scan_6ghz_params[j].channel_idx == i))
 				continue;
+
+			unsolicited_probe_on_chan |=
+				scan_6ghz_params[j].unsolicited_probe;
 
 			/* Use the highest PSD value allowed as advertised by
 			 * APs for this channel
@@ -1796,67 +1795,8 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 			     psd_20 < tmp_psd_20))
 				psd_20 = tmp_psd_20;
 
-			found = false;
-			unsolicited_probe_on_chan |=
-				scan_6ghz_params[j].unsolicited_probe;
 			psc_no_listen |= scan_6ghz_params[j].psc_no_listen;
-
-			for (k = 0; k < pp->short_ssid_num; k++) {
-				if (!scan_6ghz_params[j].unsolicited_probe &&
-				    le32_to_cpu(pp->short_ssid[k]) ==
-				    scan_6ghz_params[j].short_ssid) {
-					/* Relevant short SSID bit set */
-					if (s_ssid_bitmap & BIT(k)) {
-						found = true;
-						break;
-					}
-
-					/*
-					 * Use short SSID only to create a new
-					 * iteration during channel dwell or in
-					 * case that the short SSID has a
-					 * matching SSID, i.e., scan for hidden
-					 * APs.
-					 */
-					if (n_used_bssid_entries >= 3) {
-						s_ssid_bitmap |= BIT(k);
-						s_max++;
-						n_used_bssid_entries -= 3;
-						found = true;
-						break;
-					} else if (pp->direct_scan[k].len) {
-						s_ssid_bitmap |= BIT(k);
-						s_max++;
-						found = true;
-						allow_passive = false;
-						break;
-					}
-				}
-			}
-
-			if (found)
-				continue;
-
-			for (k = 0; k < pp->bssid_num; k++) {
-				if (!memcmp(&pp->bssid_array[k],
-					    scan_6ghz_params[j].bssid,
-					    ETH_ALEN)) {
-					if (!(bssid_bitmap & BIT(k))) {
-						bssid_bitmap |= BIT(k);
-						b_max++;
-						n_used_bssid_entries++;
-					}
-					break;
-				}
-			}
 		}
-
-		if (cfg80211_channel_is_psc(params->channels[i]) &&
-		    psc_no_listen)
-			flags |= IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_NO_LISTEN;
-
-		if (unsolicited_probe_on_chan)
-			flags |= IWL_UHB_CHAN_CFG_FLAG_UNSOLICITED_PROBE_RES;
 
 		/*
 		 * In the following cases apply passive scan:
@@ -1878,19 +1818,105 @@ iwl_mvm_umac_scan_cfg_channels_v7_6g(struct iwl_mvm *mvm,
 		if (!iwl_mvm_is_scan_fragmented(params->type)) {
 			if (!cfg80211_channel_is_psc(params->channels[i]) ||
 			    flags & IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_NO_LISTEN) {
-				force_passive = (s_max > 3 || b_max > 9);
-				force_passive |= (unsolicited_probe_on_chan &&
-						  (s_max > 2 || b_max > 6));
+				if (unsolicited_probe_on_chan) {
+					max_s_ssids = 2;
+					max_bssids = 6;
+				} else {
+					max_s_ssids = 3;
+					max_bssids = 9;
+				}
 			} else {
-				force_passive = (s_max > 2 || b_max > 6);
+				max_s_ssids = 2;
+				max_bssids = 6;
 			}
 		} else if (cfg80211_channel_is_psc(params->channels[i])) {
-			force_passive = (s_max > 1 || b_max > 3);
+			max_s_ssids = 1;
+			max_bssids = 3;
 		} else {
-			force_passive = (s_max > 2 || b_max > 6);
-			force_passive |= (unsolicited_probe_on_chan &&
-					  (s_max > 1 || b_max > 3));
+			if (unsolicited_probe_on_chan) {
+				max_s_ssids = 1;
+				max_bssids = 3;
+			} else {
+				max_s_ssids = 2;
+				max_bssids = 6;
+			}
 		}
+
+		/*
+		 * The optimize the scan time, i.e., reduce the scan dwell time
+		 * on each channel, the below logic tries to set 3 direct BSSID
+		 * probe requests for each broadcast probe request with a short
+		 * SSID.
+		 * TODO: improve this logic
+		 */
+		for (j = 0; j < params->n_6ghz_params; j++) {
+			if (!(scan_6ghz_params[j].channel_idx == i))
+				continue;
+
+			found = false;
+
+			for (k = 0;
+			     k < pp->short_ssid_num && n_s_ssids < max_s_ssids;
+			     k++) {
+				if (!scan_6ghz_params[j].unsolicited_probe &&
+				    le32_to_cpu(pp->short_ssid[k]) ==
+				    scan_6ghz_params[j].short_ssid) {
+					/* Relevant short SSID bit set */
+					if (s_ssid_bitmap & BIT(k)) {
+						found = true;
+						break;
+					}
+
+					/*
+					 * Prefer creating BSSID entries unless
+					 * the short SSID probe can be done in
+					 * the same channel dwell iteration.
+					 *
+					 * We also need to create a short SSID
+					 * entry for any hidden AP.
+					 */
+					if (3 * n_s_ssids > n_bssids &&
+					    !pp->direct_scan[k].len)
+						break;
+
+					/* Hidden AP, cannot do passive scan */
+					if (pp->direct_scan[k].len)
+						allow_passive = false;
+
+					s_ssid_bitmap |= BIT(k);
+					n_s_ssids++;
+					found = true;
+					break;
+				}
+			}
+
+			if (found)
+				continue;
+
+			for (k = 0; k < pp->bssid_num; k++) {
+				if (!memcmp(&pp->bssid_array[k],
+					    scan_6ghz_params[j].bssid,
+					    ETH_ALEN)) {
+					if (!(bssid_bitmap & BIT(k))) {
+						if (n_bssids < max_bssids) {
+							bssid_bitmap |= BIT(k);
+							n_bssids++;
+						} else {
+							force_passive = TRUE;
+						}
+					}
+					break;
+				}
+			}
+		}
+
+		if (cfg80211_channel_is_psc(params->channels[i]) &&
+		    psc_no_listen)
+			flags |= IWL_UHB_CHAN_CFG_FLAG_PSC_CHAN_NO_LISTEN;
+
+		if (unsolicited_probe_on_chan)
+			flags |= IWL_UHB_CHAN_CFG_FLAG_UNSOLICITED_PROBE_RES;
+
 		if ((allow_passive && force_passive) ||
 		    (!(bssid_bitmap | s_ssid_bitmap) &&
 		     !cfg80211_channel_is_psc(params->channels[i])))
@@ -2452,7 +2478,7 @@ static int iwl_mvm_scan_umac_v12(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	mvm->scan_uid_status[uid] = type;
 
-	cmd->ooc_priority = cpu_to_le32(iwl_mvm_scan_umac_ooc_priority(params));
+	cmd->ooc_priority = cpu_to_le32(iwl_mvm_scan_umac_ooc_priority(type));
 	cmd->uid = cpu_to_le32(uid);
 
 	gen_flags = iwl_mvm_scan_umac_flags_v2(mvm, params, vif, type);
@@ -2489,7 +2515,7 @@ static int iwl_mvm_scan_umac_v14_and_above(struct iwl_mvm *mvm,
 
 	mvm->scan_uid_status[uid] = type;
 
-	cmd->ooc_priority = cpu_to_le32(iwl_mvm_scan_umac_ooc_priority(params));
+	cmd->ooc_priority = cpu_to_le32(iwl_mvm_scan_umac_ooc_priority(type));
 	cmd->uid = cpu_to_le32(uid);
 
 	gen_flags = iwl_mvm_scan_umac_flags_v2(mvm, params, vif, type);
@@ -2914,9 +2940,11 @@ static void iwl_mvm_fill_respect_p2p_go(struct iwl_mvm *mvm,
 	}
 }
 
-int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			   struct cfg80211_scan_request *req,
-			   struct ieee80211_scan_ies *ies)
+static int _iwl_mvm_single_scan_start(struct iwl_mvm *mvm,
+				      struct ieee80211_vif *vif,
+				      struct cfg80211_scan_request *req,
+				      struct ieee80211_scan_ies *ies,
+				      int type)
 {
 	struct iwl_host_cmd hcmd = {
 		.len = { iwl_mvm_scan_size(mvm), },
@@ -2934,7 +2962,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return -EBUSY;
 	}
 
-	ret = iwl_mvm_check_running_scans(mvm, IWL_MVM_SCAN_REGULAR);
+	ret = iwl_mvm_check_running_scans(mvm, type);
 	if (ret)
 		return ret;
 
@@ -2983,8 +3011,7 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_scan_6ghz_passive_scan(mvm, &params, vif);
 
-	uid = iwl_mvm_build_scan_cmd(mvm, vif, &hcmd, &params,
-				     IWL_MVM_SCAN_REGULAR);
+	uid = iwl_mvm_build_scan_cmd(mvm, vif, &hcmd, &params, type);
 
 	if (uid < 0)
 		return uid;
@@ -3004,16 +3031,26 @@ int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	}
 
 	IWL_DEBUG_SCAN(mvm, "Scan request was sent successfully\n");
-	mvm->scan_status |= IWL_MVM_SCAN_REGULAR;
-	mvm->scan_vif = iwl_mvm_vif_from_mac80211(vif);
+	mvm->scan_status |= type;
+
+	if (type == IWL_MVM_SCAN_REGULAR) {
+		mvm->scan_vif = iwl_mvm_vif_from_mac80211(vif);
+		schedule_delayed_work(&mvm->scan_timeout_dwork,
+				      msecs_to_jiffies(SCAN_TIMEOUT));
+	}
 
 	if (params.enable_6ghz_passive)
 		mvm->last_6ghz_passive_scan_jiffies = jiffies;
 
-	schedule_delayed_work(&mvm->scan_timeout_dwork,
-			      msecs_to_jiffies(SCAN_TIMEOUT));
-
 	return 0;
+}
+
+int iwl_mvm_reg_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			   struct cfg80211_scan_request *req,
+			   struct ieee80211_scan_ies *ies)
+{
+	return _iwl_mvm_single_scan_start(mvm, vif, req, ies,
+					  IWL_MVM_SCAN_REGULAR);
 }
 
 int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
@@ -3170,8 +3207,13 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 		struct iwl_mvm_vif_link_info *link_info =
 			scan_vif->link[mvm->scan_link_id];
 
-		if (!WARN_ON(!link_info))
+		/* It is possible that by the time the scan is complete the link
+		 * was already removed and is not valid.
+		 */
+		if (link_info)
 			memcpy(info.tsf_bssid, link_info->bssid, ETH_ALEN);
+		else
+			IWL_DEBUG_SCAN(mvm, "Scan link is no longer valid\n");
 
 		ieee80211_scan_completed(mvm->hw, &info);
 		mvm->scan_vif = NULL;
@@ -3180,6 +3222,8 @@ void iwl_mvm_rx_umac_scan_complete_notif(struct iwl_mvm *mvm,
 	} else if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_SCHED) {
 		ieee80211_sched_scan_stopped(mvm->hw);
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
+	} else if (mvm->scan_uid_status[uid] == IWL_MVM_SCAN_INT_MLO) {
+		IWL_DEBUG_SCAN(mvm, "Internal MLO scan completed\n");
 	}
 
 	mvm->scan_status &= ~mvm->scan_uid_status[uid];
@@ -3366,6 +3410,12 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 			mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 			mvm->scan_uid_status[uid] = 0;
 		}
+		uid = iwl_mvm_scan_uid_by_status(mvm, IWL_MVM_SCAN_INT_MLO);
+		if (uid >= 0) {
+			IWL_DEBUG_SCAN(mvm, "Internal MLO scan aborted\n");
+			mvm->scan_uid_status[uid] = 0;
+		}
+
 		uid = iwl_mvm_scan_uid_by_status(mvm,
 						 IWL_MVM_SCAN_STOPPING_REGULAR);
 		if (uid >= 0)
@@ -3373,6 +3423,11 @@ void iwl_mvm_report_scan_aborted(struct iwl_mvm *mvm)
 
 		uid = iwl_mvm_scan_uid_by_status(mvm,
 						 IWL_MVM_SCAN_STOPPING_SCHED);
+		if (uid >= 0)
+			mvm->scan_uid_status[uid] = 0;
+
+		uid = iwl_mvm_scan_uid_by_status(mvm,
+						 IWL_MVM_SCAN_STOPPING_INT_MLO);
 		if (uid >= 0)
 			mvm->scan_uid_status[uid] = 0;
 
@@ -3445,5 +3500,52 @@ out:
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 	}
 
+	return ret;
+}
+
+int iwl_mvm_int_mlo_scan_start(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			       struct ieee80211_channel **channels,
+			       size_t n_channels)
+{
+	struct cfg80211_scan_request *req = NULL;
+	struct ieee80211_scan_ies ies = {};
+	size_t size, i;
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	IWL_DEBUG_SCAN(mvm, "Starting Internal MLO scan: n_channels=%zu\n",
+		       n_channels);
+
+	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif))
+		return -EINVAL;
+
+	size = struct_size(req, channels, n_channels);
+	req = kzalloc(size, GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
+	/* set the requested channels */
+	for (i = 0; i < n_channels; i++)
+		req->channels[i] = channels[i];
+
+	req->n_channels = n_channels;
+
+	/* set the rates */
+	for (i = 0; i < NUM_NL80211_BANDS; i++)
+		if (mvm->hw->wiphy->bands[i])
+			req->rates[i] =
+				(1 << mvm->hw->wiphy->bands[i]->n_bitrates) - 1;
+
+	req->wdev = ieee80211_vif_to_wdev(vif);
+	req->wiphy = mvm->hw->wiphy;
+	req->scan_start = jiffies;
+	req->tsf_report_link_id = -1;
+
+	ret = _iwl_mvm_single_scan_start(mvm, vif, req, &ies,
+					 IWL_MVM_SCAN_INT_MLO);
+	kfree(req);
+
+	IWL_DEBUG_SCAN(mvm, "Internal MLO scan: ret=%d\n", ret);
 	return ret;
 }
