@@ -120,7 +120,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/mutex.h>
 
-#if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
+#ifdef CONFIG_I2C_I801_MUX
 #include <linux/gpio/machine.h>
 #include <linux/platform_data/i2c-mux-gpio.h>
 #endif
@@ -289,7 +289,7 @@ struct i801_priv {
 	int len;
 	u8 *data;
 
-#if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
+#ifdef CONFIG_I2C_I801_MUX
 	struct platform_device *mux_pdev;
 	struct gpiod_lookup_table *lookup;
 	struct notifier_block mux_notifier_block;
@@ -1300,7 +1300,7 @@ static void i801_probe_optional_slaves(struct i801_priv *priv)
 		register_dell_lis3lv02d_i2c_device(priv);
 
 	/* Instantiate SPD EEPROMs unless the SMBus is multiplexed */
-#if IS_ENABLED(CONFIG_I2C_MUX_GPIO)
+#ifdef CONFIG_I2C_I801_MUX
 	if (!priv->mux_pdev)
 #endif
 		i2c_register_spd(&priv->adapter);
@@ -1310,7 +1310,7 @@ static void __init input_apanel_init(void) {}
 static void i801_probe_optional_slaves(struct i801_priv *priv) {}
 #endif	/* CONFIG_X86 && CONFIG_DMI */
 
-#if IS_ENABLED(CONFIG_I2C_MUX_GPIO) && defined CONFIG_DMI
+#ifdef CONFIG_I2C_I801_MUX
 static struct i801_mux_config i801_mux_config_asus_z8_d12 = {
 	.gpio_chip = "gpio_ich",
 	.values = { 0x02, 0x03 },

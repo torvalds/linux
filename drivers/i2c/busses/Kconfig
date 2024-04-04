@@ -163,6 +163,14 @@ config I2C_I801
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
 
+config I2C_I801_MUX
+	def_bool I2C_I801
+	depends on DMI && I2C_MUX_GPIO
+	depends on !(I2C_I801=y && I2C_MUX=m)
+	help
+	  Optional support for multiplexed SMBUS on certain systems with
+	  more than 8 memory slots.
+
 config I2C_ISCH
 	tristate "Intel SCH SMBus 1.0"
 	depends on PCI && HAS_IOPORT
