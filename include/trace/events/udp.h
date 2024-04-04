@@ -38,7 +38,7 @@ TRACE_EVENT(udp_fail_queue_rcv_skb,
 		memset(__entry->saddr, 0, sizeof(struct sockaddr_in6));
 		memset(__entry->daddr, 0, sizeof(struct sockaddr_in6));
 
-		TP_STORE_ADDR_PORTS_SKB(__entry, skb, uh);
+		TP_STORE_ADDR_PORTS_SKB(skb, uh, __entry->saddr, __entry->daddr);
 	),
 
 	TP_printk("rc=%d family=%s src=%pISpc dest=%pISpc", __entry->rc,

@@ -78,11 +78,47 @@ DEFINE_EVENT(tcp_event_sk_skb, tcp_retransmit_skb,
  * skb of trace_tcp_send_reset is the skb that caused RST. In case of
  * active reset, skb should be NULL
  */
-DEFINE_EVENT(tcp_event_sk_skb, tcp_send_reset,
+TRACE_EVENT(tcp_send_reset,
 
 	TP_PROTO(const struct sock *sk, const struct sk_buff *skb),
 
-	TP_ARGS(sk, skb)
+	TP_ARGS(sk, skb),
+
+	TP_STRUCT__entry(
+		__field(const void *, skbaddr)
+		__field(const void *, skaddr)
+		__field(int, state)
+		__array(__u8, saddr, sizeof(struct sockaddr_in6))
+		__array(__u8, daddr, sizeof(struct sockaddr_in6))
+	),
+
+	TP_fast_assign(
+		__entry->skbaddr = skb;
+		__entry->skaddr = sk;
+		/* Zero means unknown state. */
+		__entry->state = sk ? sk->sk_state : 0;
+
+		memset(__entry->saddr, 0, sizeof(struct sockaddr_in6));
+		memset(__entry->daddr, 0, sizeof(struct sockaddr_in6));
+
+		if (sk && sk_fullsock(sk)) {
+			const struct inet_sock *inet = inet_sk(sk);
+
+			TP_STORE_ADDR_PORTS(__entry, inet, sk);
+		} else if (skb) {
+			const struct tcphdr *th = (const struct tcphdr *)skb->data;
+			/*
+			 * We should reverse the 4-tuple of skb, so later
+			 * it can print the right flow direction of rst.
+			 */
+			TP_STORE_ADDR_PORTS_SKB(skb, th, entry->daddr, entry->saddr);
+		}
+	),
+
+	TP_printk("skbaddr=%p skaddr=%p src=%pISpc dest=%pISpc state=%s",
+		  __entry->skbaddr, __entry->skaddr,
+		  __entry->saddr, __entry->daddr,
+		  __entry->state ? show_tcp_state_name(__entry->state) : "UNKNOWN")
 );
 
 /*
@@ -295,7 +331,7 @@ DECLARE_EVENT_CLASS(tcp_event_skb,
 		memset(__entry->saddr, 0, sizeof(struct sockaddr_in6));
 		memset(__entry->daddr, 0, sizeof(struct sockaddr_in6));
 
-		TP_STORE_ADDR_PORTS_SKB(__entry, skb, th);
+		TP_STORE_ADDR_PORTS_SKB(skb, th, __entry->saddr, __entry->daddr);
 	),
 
 	TP_printk("skbaddr=%p src=%pISpc dest=%pISpc",
