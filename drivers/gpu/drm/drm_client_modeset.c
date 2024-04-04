@@ -331,7 +331,7 @@ static bool drm_client_target_cloned(struct drm_device *dev,
 		if (!modes[i])
 			can_clone = false;
 	}
-	kfree(dmt_mode);
+	drm_mode_destroy(dev, dmt_mode);
 
 	if (can_clone) {
 		drm_dbg_kms(dev, "can clone using 1024x768\n");
@@ -878,7 +878,7 @@ int drm_client_modeset_probe(struct drm_client_dev *client, unsigned int width, 
 				break;
 			}
 
-			kfree(modeset->mode);
+			drm_mode_destroy(dev, modeset->mode);
 			modeset->mode = drm_mode_duplicate(dev, mode);
 			if (!modeset->mode) {
 				ret = -ENOMEM;
