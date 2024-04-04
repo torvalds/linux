@@ -45,6 +45,7 @@ def define_anorak():
         "drivers/iommu/qcom_iommu_util.ko",
         "drivers/irqchip/msm_show_resume_irq.ko",
         "drivers/irqchip/qcom-pdc.ko",
+        "drivers/mailbox/qcom-ipcc.ko",
         "drivers/nvmem/nvmem_qfprom.ko",
         "drivers/perf/qcom_llcc_pmu.ko",
         "drivers/pinctrl/qcom/pinctrl-anorak.ko",
