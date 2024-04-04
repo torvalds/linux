@@ -604,10 +604,20 @@ static void slub_set_cpu_partial(struct kmem_cache *s, unsigned int nr_objects)
 	nr_slabs = DIV_ROUND_UP(nr_objects * 2, oo_objects(s->oo));
 	s->cpu_partial_slabs = nr_slabs;
 }
+
+static inline unsigned int slub_get_cpu_partial(struct kmem_cache *s)
+{
+	return s->cpu_partial_slabs;
+}
 #else
 static inline void
 slub_set_cpu_partial(struct kmem_cache *s, unsigned int nr_objects)
 {
+}
+
+static inline unsigned int slub_get_cpu_partial(struct kmem_cache *s)
+{
+	return 0;
 }
 #endif /* CONFIG_SLUB_CPU_PARTIAL */
 
