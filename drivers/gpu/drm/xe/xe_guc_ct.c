@@ -144,7 +144,7 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 	struct xe_bo *bo;
 	int err;
 
-	xe_assert(xe, !(guc_ct_size() % PAGE_SIZE));
+	xe_gt_assert(gt, !(guc_ct_size() % PAGE_SIZE));
 
 	spin_lock_init(&ct->fast_lock);
 	xa_init(&ct->fence_lookup);
@@ -171,7 +171,7 @@ int xe_guc_ct_init(struct xe_guc_ct *ct)
 	if (err)
 		return err;
 
-	xe_assert(xe, ct->state == XE_GUC_CT_STATE_NOT_INITIALIZED);
+	xe_gt_assert(gt, ct->state == XE_GUC_CT_STATE_NOT_INITIALIZED);
 	ct->state = XE_GUC_CT_STATE_DISABLED;
 	return 0;
 }
@@ -321,7 +321,7 @@ int xe_guc_ct_enable(struct xe_guc_ct *ct)
 	struct xe_gt *gt = ct_to_gt(ct);
 	int err;
 
-	xe_assert(xe, !xe_guc_ct_enabled(ct));
+	xe_gt_assert(gt, !xe_guc_ct_enabled(ct));
 
 	guc_ct_ctb_h2g_init(xe, &ct->ctbs.h2g, &ct->bo->vmap);
 	guc_ct_ctb_g2h_init(xe, &ct->ctbs.g2h, &ct->bo->vmap);
@@ -428,7 +428,7 @@ static void h2g_reserve_space(struct xe_guc_ct *ct, u32 cmd_len)
 
 static void __g2h_reserve_space(struct xe_guc_ct *ct, u32 g2h_len, u32 num_g2h)
 {
-	xe_assert(ct_to_xe(ct), g2h_len <= ct->ctbs.g2h.info.space);
+	xe_gt_assert(ct_to_gt(ct), g2h_len <= ct->ctbs.g2h.info.space);
 
 	if (g2h_len) {
 		lockdep_assert_held(&ct->fast_lock);
@@ -441,8 +441,8 @@ static void __g2h_reserve_space(struct xe_guc_ct *ct, u32 g2h_len, u32 num_g2h)
 static void __g2h_release_space(struct xe_guc_ct *ct, u32 g2h_len)
 {
 	lockdep_assert_held(&ct->fast_lock);
-	xe_assert(ct_to_xe(ct), ct->ctbs.g2h.info.space + g2h_len <=
-		  ct->ctbs.g2h.info.size - ct->ctbs.g2h.info.resv_space);
+	xe_gt_assert(ct_to_gt(ct), ct->ctbs.g2h.info.space + g2h_len <=
+		     ct->ctbs.g2h.info.size - ct->ctbs.g2h.info.resv_space);
 
 	ct->ctbs.g2h.info.space += g2h_len;
 	--ct->g2h_outstanding;
@@ -461,6 +461,7 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 		     u32 ct_fence_value, bool want_response)
 {
 	struct xe_device *xe = ct_to_xe(ct);
+	struct xe_gt *gt = ct_to_gt(ct);
 	struct guc_ctb *h2g = &ct->ctbs.h2g;
 	u32 cmd[H2G_CT_HEADERS];
 	u32 tail = h2g->info.tail;
@@ -471,8 +472,8 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	full_len = len + GUC_CTB_HDR_LEN;
 
 	lockdep_assert_held(&ct->lock);
-	xe_assert(xe, full_len <= GUC_CTB_MSG_MAX_LEN);
-	xe_assert(xe, tail <= h2g->info.size);
+	xe_gt_assert(gt, full_len <= GUC_CTB_MSG_MAX_LEN);
+	xe_gt_assert(gt, tail <= h2g->info.size);
 
 	/* Command will wrap, zero fill (NOPs), return and check credits again */
 	if (tail + full_len > h2g->info.size) {
@@ -521,7 +522,7 @@ static int h2g_write(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	/* Update descriptor */
 	desc_write(xe, h2g, tail, h2g->info.tail);
 
-	trace_xe_guc_ctb_h2g(ct_to_gt(ct)->info.id, *(action - 1), full_len,
+	trace_xe_guc_ctb_h2g(gt->info.id, *(action - 1), full_len,
 			     desc_read(xe, h2g, head), h2g->info.tail);
 
 	return 0;
@@ -550,15 +551,15 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 				u32 len, u32 g2h_len, u32 num_g2h,
 				struct g2h_fence *g2h_fence)
 {
-	struct xe_device *xe = ct_to_xe(ct);
+	struct xe_gt *gt __maybe_unused = ct_to_gt(ct);
 	u16 seqno;
 	int ret;
 
-	xe_assert(xe, ct->state != XE_GUC_CT_STATE_NOT_INITIALIZED);
-	xe_assert(xe, !g2h_len || !g2h_fence);
-	xe_assert(xe, !num_g2h || !g2h_fence);
-	xe_assert(xe, !g2h_len || num_g2h);
-	xe_assert(xe, g2h_len || !num_g2h);
+	xe_gt_assert(gt, ct->state != XE_GUC_CT_STATE_NOT_INITIALIZED);
+	xe_gt_assert(gt, !g2h_len || !g2h_fence);
+	xe_gt_assert(gt, !num_g2h || !g2h_fence);
+	xe_gt_assert(gt, !g2h_len || num_g2h);
+	xe_gt_assert(gt, g2h_len || !num_g2h);
 	lockdep_assert_held(&ct->lock);
 
 	if (unlikely(ct->ctbs.h2g.info.broken)) {
@@ -576,7 +577,7 @@ static int __guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action,
 		goto out;
 	}
 
-	xe_assert(xe, xe_guc_ct_enabled(ct));
+	xe_gt_assert(gt, xe_guc_ct_enabled(ct));
 
 	if (g2h_fence) {
 		g2h_len = GUC_CTB_HXG_MSG_MAX_LEN;
@@ -639,7 +640,7 @@ static int guc_ct_send_locked(struct xe_guc_ct *ct, const u32 *action, u32 len,
 	unsigned int sleep_period_ms = 1;
 	int ret;
 
-	xe_assert(ct_to_xe(ct), !g2h_len || !g2h_fence);
+	xe_gt_assert(gt, !g2h_len || !g2h_fence);
 	lockdep_assert_held(&ct->lock);
 	xe_device_assert_mem_access(ct_to_xe(ct));
 
@@ -709,7 +710,7 @@ static int guc_ct_send(struct xe_guc_ct *ct, const u32 *action, u32 len,
 {
 	int ret;
 
-	xe_assert(ct_to_xe(ct), !g2h_len || !g2h_fence);
+	xe_gt_assert(ct_to_gt(ct), !g2h_len || !g2h_fence);
 
 	mutex_lock(&ct->lock);
 	ret = guc_ct_send_locked(ct, action, len, g2h_len, num_g2h, g2h_fence);
@@ -901,7 +902,6 @@ static int parse_g2h_event(struct xe_guc_ct *ct, u32 *msg, u32 len)
 static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 {
 	struct xe_gt *gt =  ct_to_gt(ct);
-	struct xe_device *xe = gt_to_xe(gt);
 	u32 *hxg = msg_to_hxg(msg);
 	u32 hxg_len = msg_len_to_hxg_len(len);
 	u32 fence = FIELD_GET(GUC_CTB_MSG_0_FENCE, msg[0]);
@@ -939,7 +939,7 @@ static int parse_g2h_response(struct xe_guc_ct *ct, u32 *msg, u32 len)
 		return 0;
 	}
 
-	xe_assert(xe, fence == g2h_fence->seqno);
+	xe_gt_assert(gt, fence == g2h_fence->seqno);
 
 	if (type == GUC_HXG_TYPE_RESPONSE_FAILURE) {
 		g2h_fence->fail = true;
@@ -1087,7 +1087,7 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 	u32 action;
 	u32 *hxg;
 
-	xe_assert(xe, ct->state != XE_GUC_CT_STATE_NOT_INITIALIZED);
+	xe_gt_assert(gt, ct->state != XE_GUC_CT_STATE_NOT_INITIALIZED);
 	lockdep_assert_held(&ct->fast_lock);
 
 	if (ct->state == XE_GUC_CT_STATE_DISABLED)
@@ -1099,7 +1099,7 @@ static int g2h_read(struct xe_guc_ct *ct, u32 *msg, bool fast_path)
 	if (g2h->info.broken)
 		return -EPIPE;
 
-	xe_assert(xe, xe_guc_ct_enabled(ct));
+	xe_gt_assert(gt, xe_guc_ct_enabled(ct));
 
 	/* Calculate DW available to read */
 	tail = desc_read(xe, g2h, tail);
