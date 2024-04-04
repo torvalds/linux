@@ -835,7 +835,7 @@ static unsigned long ad7173_sel_clk(struct ad7173_state *st,
 {
 	int ret;
 
-	st->adc_mode &= !AD7173_ADC_MODE_CLOCKSEL_MASK;
+	st->adc_mode &= ~AD7173_ADC_MODE_CLOCKSEL_MASK;
 	st->adc_mode |= FIELD_PREP(AD7173_ADC_MODE_CLOCKSEL_MASK, clk_sel);
 	ret = ad_sd_write_reg(&st->sd, AD7173_REG_ADC_MODE, 0x2, st->adc_mode);
 
