@@ -203,3 +203,12 @@ Description:
 		Set if the BIOS POST sound is played on boot.
 			* 0 - False,
 			* 1 - True
+
+What:		/sys/devices/platform/<platform>/mcu_powersave
+Date:		Apr 2024
+KernelVersion:	6.10
+Contact:	"Luke Jones" <luke@ljones.dev>
+Description:
+		Set if the MCU can go in to low-power mode on system sleep
+			* 0 - False,
+			* 1 - True
