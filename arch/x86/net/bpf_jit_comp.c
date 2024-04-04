@@ -1383,15 +1383,14 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 				EMIT3(0x0F, 0x44, add_2reg(0xC0, AUX_REG, dst_reg));
 				break;
 			} else if (insn_is_mov_percpu_addr(insn)) {
-				u32 off = (u32)(unsigned long)&this_cpu_off;
-
 				/* mov <dst>, <src> (if necessary) */
 				EMIT_mov(dst_reg, src_reg);
-
+#ifdef CONFIG_SMP
 				/* add <dst>, gs:[<off>] */
 				EMIT2(0x65, add_1mod(0x48, dst_reg));
 				EMIT3(0x03, add_1reg(0x04, dst_reg), 0x25);
-				EMIT(off, 4);
+				EMIT((u32)(unsigned long)&this_cpu_off, 4);
+#endif
 				break;
 			}
 			fallthrough;
