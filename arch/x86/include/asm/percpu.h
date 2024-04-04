@@ -586,10 +586,11 @@ static inline bool x86_this_cpu_variable_test_bit(int nr,
 {
 	bool oldbit;
 
-	asm volatile("btl "__percpu_arg(2)",%1"
+	asm volatile("btl %[nr], " __percpu_arg([var])
 			CC_SET(c)
 			: CC_OUT(c) (oldbit)
-			: "m" (*__my_cpu_ptr((unsigned long __percpu *)(addr))), "Ir" (nr));
+			: [var] "m" (*__my_cpu_ptr((unsigned long __percpu *)(addr))),
+			  [nr] "Ir" (nr));
 
 	return oldbit;
 }
