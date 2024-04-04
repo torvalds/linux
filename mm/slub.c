@@ -2610,8 +2610,7 @@ static struct slab *get_partial_node(struct kmem_cache *s,
 			partial_slabs++;
 		}
 #ifdef CONFIG_SLUB_CPU_PARTIAL
-		if (!kmem_cache_has_cpu_partial(s)
-			|| partial_slabs > s->cpu_partial_slabs / 2)
+		if (partial_slabs > s->cpu_partial_slabs / 2)
 			break;
 #else
 		break;
