@@ -4,6 +4,7 @@
  * Description: CoreSight Trace Memory Controller driver
  */
 
+#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/types.h>
@@ -362,7 +363,32 @@ static const struct attribute_group *coresight_etr_groups[] = {
 
 static inline bool tmc_etr_can_use_sg(struct device *dev)
 {
-	return fwnode_property_present(dev->fwnode, "arm,scatter-gather");
+	int ret;
+	u8 val_u8;
+
+	/*
+	 * Presence of the property 'arm,scatter-gather' is checked
+	 * on the platform for the feature support, rather than its
+	 * value.
+	 */
+	if (is_of_node(dev->fwnode)) {
+		return fwnode_property_present(dev->fwnode, "arm,scatter-gather");
+	} else if (is_acpi_device_node(dev->fwnode)) {
+		/*
+		 * TMC_DEVID_NOSCAT test in tmc_etr_setup_caps(), has already ensured
+		 * this property is only checked for Coresight SoC 400 TMC configured
+		 * as ETR.
+		 */
+		ret = fwnode_property_read_u8(dev->fwnode, "arm-armhc97c-sg-enable", &val_u8);
+		if (!ret)
+			return !!val_u8;
+
+		if (fwnode_property_present(dev->fwnode, "arm,scatter-gather")) {
+			pr_warn_once("Deprecated ACPI property - arm,scatter-gather\n");
+			return true;
+		}
+	}
+	return false;
 }
 
 static inline bool tmc_etr_has_non_secure_access(struct tmc_drvdata *drvdata)
