@@ -292,10 +292,15 @@ enum mlx5e_fec_supported_link_mode {
 	MLX5E_FEC_SUPPORTED_LINK_MODE_100G_2X,
 	MLX5E_FEC_SUPPORTED_LINK_MODE_200G_4X,
 	MLX5E_FEC_SUPPORTED_LINK_MODE_400G_8X,
+	MLX5E_FEC_SUPPORTED_LINK_MODE_100G_1X,
+	MLX5E_FEC_SUPPORTED_LINK_MODE_200G_2X,
+	MLX5E_FEC_SUPPORTED_LINK_MODE_400G_4X,
+	MLX5E_FEC_SUPPORTED_LINK_MODE_800G_8X,
 	MLX5E_MAX_FEC_SUPPORTED_LINK_MODE,
 };
 
 #define MLX5E_FEC_FIRST_50G_PER_LANE_MODE MLX5E_FEC_SUPPORTED_LINK_MODE_50G_1X
+#define MLX5E_FEC_FIRST_100G_PER_LANE_MODE MLX5E_FEC_SUPPORTED_LINK_MODE_100G_1X
 
 #define MLX5E_FEC_OVERRIDE_ADMIN_POLICY(buf, policy, write, link)			\
 	do {										\
@@ -313,7 +318,10 @@ static bool mlx5e_is_fec_supported_link_mode(struct mlx5_core_dev *dev,
 					     enum mlx5e_fec_supported_link_mode link_mode)
 {
 	return link_mode < MLX5E_FEC_FIRST_50G_PER_LANE_MODE ||
-	       MLX5_CAP_PCAM_FEATURE(dev, fec_50G_per_lane_in_pplm);
+	       (link_mode < MLX5E_FEC_FIRST_100G_PER_LANE_MODE &&
+		MLX5_CAP_PCAM_FEATURE(dev, fec_50G_per_lane_in_pplm)) ||
+	       (link_mode >= MLX5E_FEC_FIRST_100G_PER_LANE_MODE &&
+		MLX5_CAP_PCAM_FEATURE(dev, fec_100G_per_lane_in_pplm));
 }
 
 /* get/set FEC admin field for a given speed */
@@ -347,6 +355,18 @@ static int mlx5e_fec_admin_field(u32 *pplm, u16 *fec_policy, bool write,
 		break;
 	case MLX5E_FEC_SUPPORTED_LINK_MODE_400G_8X:
 		MLX5E_FEC_OVERRIDE_ADMIN_POLICY(pplm, *fec_policy, write, 400g_8x);
+		break;
+	case MLX5E_FEC_SUPPORTED_LINK_MODE_100G_1X:
+		MLX5E_FEC_OVERRIDE_ADMIN_POLICY(pplm, *fec_policy, write, 100g_1x);
+		break;
+	case MLX5E_FEC_SUPPORTED_LINK_MODE_200G_2X:
+		MLX5E_FEC_OVERRIDE_ADMIN_POLICY(pplm, *fec_policy, write, 200g_2x);
+		break;
+	case MLX5E_FEC_SUPPORTED_LINK_MODE_400G_4X:
+		MLX5E_FEC_OVERRIDE_ADMIN_POLICY(pplm, *fec_policy, write, 400g_4x);
+		break;
+	case MLX5E_FEC_SUPPORTED_LINK_MODE_800G_8X:
+		MLX5E_FEC_OVERRIDE_ADMIN_POLICY(pplm, *fec_policy, write, 800g_8x);
 		break;
 	default:
 		return -EINVAL;
@@ -388,6 +408,18 @@ static int mlx5e_get_fec_cap_field(u32 *pplm, u16 *fec_cap,
 		break;
 	case MLX5E_FEC_SUPPORTED_LINK_MODE_400G_8X:
 		*fec_cap = MLX5E_GET_FEC_OVERRIDE_CAP(pplm, 400g_8x);
+		break;
+	case MLX5E_FEC_SUPPORTED_LINK_MODE_100G_1X:
+		*fec_cap = MLX5E_GET_FEC_OVERRIDE_CAP(pplm, 100g_1x);
+		break;
+	case MLX5E_FEC_SUPPORTED_LINK_MODE_200G_2X:
+		*fec_cap = MLX5E_GET_FEC_OVERRIDE_CAP(pplm, 200g_2x);
+		break;
+	case MLX5E_FEC_SUPPORTED_LINK_MODE_400G_4X:
+		*fec_cap = MLX5E_GET_FEC_OVERRIDE_CAP(pplm, 400g_4x);
+		break;
+	case MLX5E_FEC_SUPPORTED_LINK_MODE_800G_8X:
+		*fec_cap = MLX5E_GET_FEC_OVERRIDE_CAP(pplm, 800g_8x);
 		break;
 	default:
 		return -EINVAL;
@@ -501,7 +533,7 @@ int mlx5e_set_fec_mode(struct mlx5_core_dev *dev, u16 fec_policy)
 		/* RS fec in ethtool is mapped to MLX5E_FEC_RS_528_514
 		 * to link modes up to 25G per lane and to
 		 * MLX5E_FEC_RS_544_514 in the new link modes based on
-		 * 50 G per lane
+		 * 50G or 100G per lane
 		 */
 		if (conf_fec == (1 << MLX5E_FEC_RS_528_514) &&
 		    i >= MLX5E_FEC_FIRST_50G_PER_LANE_MODE)
