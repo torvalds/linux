@@ -14019,6 +14019,7 @@ F:	drivers/net/ethernet/mellanox/mlx4/en_*
 
 MELLANOX ETHERNET DRIVER (mlx5e)
 M:	Saeed Mahameed <saeedm@nvidia.com>
+M:	Tariq Toukan <tariqt@nvidia.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 W:	http://www.mellanox.com
@@ -14086,6 +14087,7 @@ F:	include/uapi/rdma/mlx4-abi.h
 MELLANOX MLX5 core VPI driver
 M:	Saeed Mahameed <saeedm@nvidia.com>
 M:	Leon Romanovsky <leonro@nvidia.com>
+M:	Tariq Toukan <tariqt@nvidia.com>
 L:	netdev@vger.kernel.org
 L:	linux-rdma@vger.kernel.org
 S:	Supported
@@ -23679,7 +23681,6 @@ F:	drivers/scsi/vmw_pvscsi.c
 F:	drivers/scsi/vmw_pvscsi.h
 
 VMWARE VIRTUAL PTP CLOCK DRIVER
-M:	Jeff Sipek <jsipek@vmware.com>
 R:	Ajay Kaher <akaher@vmware.com>
 R:	Alexey Makhalov <amakhalov@vmware.com>
 R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
