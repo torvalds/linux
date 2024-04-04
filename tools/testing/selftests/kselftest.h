@@ -16,6 +16,7 @@
  * For each test, report any progress, debugging, etc with:
  *
  *     ksft_print_msg(fmt, ...);
+ *     ksft_perror(msg);
  *
  * and finally report the pass/fail/skip/xfail state of the test with one of:
  *
