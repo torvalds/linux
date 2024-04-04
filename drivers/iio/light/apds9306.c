@@ -635,7 +635,7 @@ static int apds9306_sampling_freq_get(struct apds9306_data *data, int *val,
 	if (ret)
 		return ret;
 
-	if (repeat_rate_idx > ARRAY_SIZE(apds9306_repeat_rate_freq))
+	if (repeat_rate_idx >= ARRAY_SIZE(apds9306_repeat_rate_freq))
 		return -EINVAL;
 
 	*val = apds9306_repeat_rate_freq[repeat_rate_idx][0];
