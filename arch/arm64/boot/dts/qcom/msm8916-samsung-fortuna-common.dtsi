@@ -26,6 +26,30 @@
 		};
 	};
 
+	clk_pwm_backlight: backlight {
+		compatible = "pwm-backlight";
+		pwms = <&clk_pwm 0 100000>;
+
+		enable-gpios = <&tlmm 98 GPIO_ACTIVE_HIGH>;
+
+		brightness-levels = <0 255>;
+		num-interpolated-steps = <255>;
+		default-brightness-level = <128>;
+
+		pinctrl-0 = <&backlight_en_default>;
+		pinctrl-names = "default";
+	};
+
+	clk_pwm: pwm {
+		compatible = "clk-pwm";
+		#pwm-cells = <2>;
+
+		clocks = <&gcc GCC_GP2_CLK>;
+
+		pinctrl-0 = <&backlight_pwm_default>;
+		pinctrl-names = "default";
+	};
+
 	gpio-keys {
 		compatible = "gpio-keys";
 
@@ -199,6 +223,18 @@
 };
 
 &tlmm {
+	backlight_en_default: backlight-en-default-state {
+		pins = "gpio98";
+		function = "gpio";
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	backlight_pwm_default: backlight-pwm-default-state {
+		pins = "gpio50";
+		function = "gcc_gp2_clk_a";
+	};
+
 	fg_alert_default: fg-alert-default-state {
 		pins = "gpio121";
 		function = "gpio";

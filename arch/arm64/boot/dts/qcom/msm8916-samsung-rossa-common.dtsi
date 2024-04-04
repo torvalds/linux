@@ -17,3 +17,12 @@
 		pinctrl-names = "default";
 	};
 };
+
+/* On rossa backlight is controlled with MIPI DCS commands */
+&clk_pwm {
+	status = "disabled";
+};
+
+&clk_pwm_backlight {
+	status = "disabled";
+};
