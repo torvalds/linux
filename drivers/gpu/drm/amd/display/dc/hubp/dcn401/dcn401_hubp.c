@@ -725,8 +725,8 @@ void hubp401_cursor_set_position(
 		CURSOR_ENABLE, cur_en);
 
 	REG_SET_2(CURSOR_POSITION, 0,
-		CURSOR_X_POSITION, pos->x,
-		CURSOR_Y_POSITION, pos->y);
+		CURSOR_X_POSITION, x_pos,
+		CURSOR_Y_POSITION, y_pos);
 
 	REG_SET_2(CURSOR_HOT_SPOT, 0,
 		CURSOR_HOT_SPOT_X, pos->x_hotspot,
