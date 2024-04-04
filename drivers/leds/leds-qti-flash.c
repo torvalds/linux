@@ -1374,7 +1374,6 @@ struct flash_led_register {
 };
 
 static const struct flash_led_register ext_setup_reg_list[] = {
-	{ FLASH_LED_IRESOLUTION, 0x01, FLASH_LED_IRESOLUTION_MASK(0) },
 	{ FLASH_LED_HDRM_WINDOW, 0x0, FLASH_LED_HI_LO_WIN_MASK },
 	{ FLASH_LED_HDRM_PRGM(0), 0x20, FLASH_LED_HDRM_CTRL_MODE_MASK | FLASH_LED_VOLTAGE_MASK },
 	{ FLASH_LED_HDRM_PRGM(1), 0x20, FLASH_LED_HDRM_CTRL_MODE_MASK | FLASH_LED_VOLTAGE_MASK },
@@ -1419,10 +1418,13 @@ static int qti_flash_led_setup(struct qti_flash_led *led)
 				(led->fnode[i].strobe_sel <<
 				FLASH_LED_STROBE_SEL_SHIFT);
 
-		if (led->ext_led)
-			val |= FLASH_LED_STROBE_TRIGGER | FLASH_LED_STROBE_POLARITY;
-
 		mask = FLASH_LED_STROBE_CFG_MASK | FLASH_LED_HW_SW_STROBE_SEL;
+
+		if (led->ext_led) {
+			val |= FLASH_LED_STROBE_TRIGGER | FLASH_LED_STROBE_POLARITY;
+			mask |= FLASH_LED_STROBE_TRIGGER | FLASH_LED_STROBE_POLARITY;
+		}
+
 		rc = qti_flash_led_masked_write(led,
 			FLASH_LED_STROBE_CTRL(addr_offset), mask, val);
 		if (rc < 0)
