@@ -858,20 +858,20 @@ int ath12k_wmi_vdev_create(struct ath12k *ar, u8 *macaddr,
 	len = sizeof(*txrx_streams);
 	txrx_streams->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_VDEV_TXRX_STREAMS,
 							  len);
-	txrx_streams->band = WMI_TPC_CHAINMASK_CONFIG_BAND_2G;
+	txrx_streams->band = cpu_to_le32(WMI_TPC_CHAINMASK_CONFIG_BAND_2G);
 	txrx_streams->supported_tx_streams =
-				 args->chains[NL80211_BAND_2GHZ].tx;
+				cpu_to_le32(args->chains[NL80211_BAND_2GHZ].tx);
 	txrx_streams->supported_rx_streams =
-				 args->chains[NL80211_BAND_2GHZ].rx;
+				cpu_to_le32(args->chains[NL80211_BAND_2GHZ].rx);
 
 	txrx_streams++;
 	txrx_streams->tlv_header = ath12k_wmi_tlv_cmd_hdr(WMI_TAG_VDEV_TXRX_STREAMS,
 							  len);
-	txrx_streams->band = WMI_TPC_CHAINMASK_CONFIG_BAND_5G;
+	txrx_streams->band = cpu_to_le32(WMI_TPC_CHAINMASK_CONFIG_BAND_5G);
 	txrx_streams->supported_tx_streams =
-				 args->chains[NL80211_BAND_5GHZ].tx;
+				cpu_to_le32(args->chains[NL80211_BAND_5GHZ].tx);
 	txrx_streams->supported_rx_streams =
-				 args->chains[NL80211_BAND_5GHZ].rx;
+				cpu_to_le32(args->chains[NL80211_BAND_5GHZ].rx);
 
 	ath12k_dbg(ar->ab, ATH12K_DBG_WMI,
 		   "WMI vdev create: id %d type %d subtype %d macaddr %pM pdevid %d\n",

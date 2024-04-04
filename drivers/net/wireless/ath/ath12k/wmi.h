@@ -2724,9 +2724,9 @@ struct wmi_vdev_create_cmd {
 
 struct ath12k_wmi_vdev_txrx_streams_params {
 	__le32 tlv_header;
-	u32 band;
-	u32 supported_tx_streams;
-	u32 supported_rx_streams;
+	__le32 band;
+	__le32 supported_tx_streams;
+	__le32 supported_rx_streams;
 } __packed;
 
 struct wmi_vdev_delete_cmd {
