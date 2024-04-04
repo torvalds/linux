@@ -1034,6 +1034,8 @@ bool ip_tunnel_parm_to_user(void __user *data, struct ip_tunnel_parm_kern *kp)
 	    !ip_tunnel_flags_is_be16_compat(kp->o_flags))
 		return false;
 
+	memset(&p, 0, sizeof(p));
+
 	strscpy(p.name, kp->name);
 	p.link = kp->link;
 	p.i_flags = ip_tunnel_flags_to_be16(kp->i_flags);
