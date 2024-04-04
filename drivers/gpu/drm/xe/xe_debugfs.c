@@ -13,6 +13,7 @@
 #include "xe_device.h"
 #include "xe_gt_debugfs.h"
 #include "xe_pm.h"
+#include "xe_sriov.h"
 #include "xe_step.h"
 
 #ifdef CONFIG_DRM_XE_DEBUG
@@ -70,8 +71,18 @@ static int info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int sriov_info(struct seq_file *m, void *data)
+{
+	struct xe_device *xe = node_to_xe(m->private);
+	struct drm_printer p = drm_seq_file_printer(m);
+
+	xe_sriov_print_info(xe, &p);
+	return 0;
+}
+
 static const struct drm_info_list debugfs_list[] = {
 	{"info", info, 0},
+	{ .name = "sriov_info", .show = sriov_info, },
 };
 
 static int forcewake_open(struct inode *inode, struct file *file)
