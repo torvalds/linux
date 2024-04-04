@@ -383,12 +383,19 @@ struct annotation_line *annotated_source__get_line(struct annotated_source *src,
 
 static unsigned annotation__count_insn(struct annotation *notes, u64 start, u64 end)
 {
+	struct annotation_line *al;
 	unsigned n_insn = 0;
-	u64 offset;
 
-	for (offset = start; offset <= end; offset++) {
-		if (annotated_source__get_line(notes->src, offset))
-			n_insn++;
+	al = annotated_source__get_line(notes->src, start);
+	if (al == NULL)
+		return 0;
+
+	list_for_each_entry_from(al, &notes->src->source, node) {
+		if (al->offset == -1)
+			continue;
+		if ((u64)al->offset > end)
+			break;
+		n_insn++;
 	}
 	return n_insn;
 }
@@ -405,10 +412,10 @@ static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 
 {
 	unsigned n_insn;
 	unsigned int cover_insn = 0;
-	u64 offset;
 
 	n_insn = annotation__count_insn(notes, start, end);
 	if (n_insn && ch->num && ch->cycles) {
+		struct annotation_line *al;
 		struct annotated_branch *branch;
 		float ipc = n_insn / ((double)ch->cycles / (double)ch->num);
 
@@ -416,11 +423,16 @@ static void annotation__count_and_fill(struct annotation *notes, u64 start, u64 
 		if (ch->reset >= 0x7fff)
 			return;
 
-		for (offset = start; offset <= end; offset++) {
-			struct annotation_line *al;
+		al = annotated_source__get_line(notes->src, start);
+		if (al == NULL)
+			return;
 
-			al = annotated_source__get_line(notes->src, offset);
-			if (al && al->cycles && al->cycles->ipc == 0.0) {
+		list_for_each_entry_from(al, &notes->src->source, node) {
+			if (al->offset == -1)
+				continue;
+			if ((u64)al->offset > end)
+				break;
+			if (al->cycles && al->cycles->ipc == 0.0) {
 				al->cycles->ipc = ipc;
 				cover_insn++;
 			}
@@ -1268,13 +1280,16 @@ void symbol__annotate_decay_histogram(struct symbol *sym, int evidx)
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct sym_hist *h = annotation__histogram(notes, evidx);
-	int len = symbol__size(sym), offset;
+	struct annotation_line *al;
 
 	h->nr_samples = 0;
-	for (offset = 0; offset < len; ++offset) {
+	list_for_each_entry(al, &notes->src->source, node) {
 		struct sym_hist_entry *entry;
 
-		entry = annotated_source__hist_entry(notes->src, evidx, offset);
+		if (al->offset == -1)
+			continue;
+
+		entry = annotated_source__hist_entry(notes->src, evidx, al->offset);
 		if (entry == NULL)
 			continue;
 
@@ -1334,33 +1349,32 @@ bool disasm_line__is_valid_local_jump(struct disasm_line *dl, struct symbol *sym
 static void
 annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 {
-	u64 offset, size = symbol__size(sym);
+	struct annotation_line *al;
 
 	/* PLT symbols contain external offsets */
 	if (strstr(sym->name, "@plt"))
 		return;
 
-	for (offset = 0; offset < size; ++offset) {
-		struct annotation_line *al;
+	list_for_each_entry(al, &notes->src->source, node) {
 		struct disasm_line *dl;
+		struct annotation_line *target;
 
-		al = annotated_source__get_line(notes->src, offset);
 		dl = disasm_line(al);
 
 		if (!disasm_line__is_valid_local_jump(dl, sym))
 			continue;
 
-		al = notes->src->offsets[dl->ops.target.offset];
-
+		target = annotated_source__get_line(notes->src,
+						    dl->ops.target.offset);
 		/*
 		 * FIXME: Oops, no jump target? Buggy disassembler? Or do we
 		 * have to adjust to the previous offset?
 		 */
-		if (al == NULL)
+		if (target == NULL)
 			continue;
 
-		if (++al->jump_sources > notes->max_jump_sources)
-			notes->max_jump_sources = al->jump_sources;
+		if (++target->jump_sources > notes->max_jump_sources)
+			notes->max_jump_sources = target->jump_sources;
 	}
 }
 
