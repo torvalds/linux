@@ -311,8 +311,7 @@ bool kvm_make_vcpus_request_mask(struct kvm *kvm, unsigned int req,
 	return called;
 }
 
-bool kvm_make_all_cpus_request_except(struct kvm *kvm, unsigned int req,
-				      struct kvm_vcpu *except)
+bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
 {
 	struct kvm_vcpu *vcpu;
 	struct cpumask *cpus;
@@ -325,21 +324,13 @@ bool kvm_make_all_cpus_request_except(struct kvm *kvm, unsigned int req,
 	cpus = this_cpu_cpumask_var_ptr(cpu_kick_mask);
 	cpumask_clear(cpus);
 
-	kvm_for_each_vcpu(i, vcpu, kvm) {
-		if (vcpu == except)
-			continue;
+	kvm_for_each_vcpu(i, vcpu, kvm)
 		kvm_make_vcpu_request(vcpu, req, cpus, me);
-	}
 
 	called = kvm_kick_many_cpus(cpus, !!(req & KVM_REQUEST_WAIT));
 	put_cpu();
 
 	return called;
-}
-
-bool kvm_make_all_cpus_request(struct kvm *kvm, unsigned int req)
-{
-	return kvm_make_all_cpus_request_except(kvm, req, NULL);
 }
 EXPORT_SYMBOL_GPL(kvm_make_all_cpus_request);
 
