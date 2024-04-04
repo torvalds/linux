@@ -94,6 +94,11 @@ int cifs_fscache_get_super_cookie(struct cifs_tcon *tcon)
 		}
 		pr_err("Cache volume key already in use (%s)\n", key);
 		vcookie = NULL;
+		trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
+				    netfs_trace_tcon_ref_see_fscache_collision);
+	} else {
+		trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
+				    netfs_trace_tcon_ref_see_fscache_okay);
 	}
 
 	tcon->fscache = vcookie;
@@ -115,6 +120,8 @@ void cifs_fscache_release_super_cookie(struct cifs_tcon *tcon)
 	cifs_fscache_fill_volume_coherency(tcon, &cd);
 	fscache_relinquish_volume(tcon->fscache, &cd, false);
 	tcon->fscache = NULL;
+	trace_smb3_tcon_ref(tcon->debug_id, tcon->tc_count,
+			    netfs_trace_tcon_ref_see_fscache_relinq);
 }
 
 void cifs_fscache_get_inode_cookie(struct inode *inode)
