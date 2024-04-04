@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-2.0-only
-# Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
+# Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
 
 gh_arm_drv.ko
 qcom-scm.ko
@@ -21,3 +21,5 @@ net_failover.ko
 failover.ko
 virtio_net.ko
 virtio_input.ko
+minidump.ko
+debug_symbol.ko
