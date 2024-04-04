@@ -67,20 +67,8 @@ kvm_static_assert(SEV_RET_SUCCESS == 0);
 	__TEST_ASSERT_VM_VCPU_IOCTL(!ret, #cmd,	ret, vm);		\
 })
 
-static inline void sev_vm_init(struct kvm_vm *vm)
-{
-	vm->arch.sev_fd = open_sev_dev_path_or_exit();
-
-	vm_sev_ioctl(vm, KVM_SEV_INIT, NULL);
-}
-
-
-static inline void sev_es_vm_init(struct kvm_vm *vm)
-{
-	vm->arch.sev_fd = open_sev_dev_path_or_exit();
-
-	vm_sev_ioctl(vm, KVM_SEV_ES_INIT, NULL);
-}
+void sev_vm_init(struct kvm_vm *vm);
+void sev_es_vm_init(struct kvm_vm *vm);
 
 static inline void sev_register_encrypted_memory(struct kvm_vm *vm,
 						 struct userspace_mem_region *region)

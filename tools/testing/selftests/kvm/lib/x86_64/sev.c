@@ -35,6 +35,32 @@ static void encrypt_region(struct kvm_vm *vm, struct userspace_mem_region *regio
 	}
 }
 
+void sev_vm_init(struct kvm_vm *vm)
+{
+	if (vm->type == KVM_X86_DEFAULT_VM) {
+		assert(vm->arch.sev_fd == -1);
+		vm->arch.sev_fd = open_sev_dev_path_or_exit();
+		vm_sev_ioctl(vm, KVM_SEV_INIT, NULL);
+	} else {
+		struct kvm_sev_init init = { 0 };
+		assert(vm->type == KVM_X86_SEV_VM);
+		vm_sev_ioctl(vm, KVM_SEV_INIT2, &init);
+	}
+}
+
+void sev_es_vm_init(struct kvm_vm *vm)
+{
+	if (vm->type == KVM_X86_DEFAULT_VM) {
+		assert(vm->arch.sev_fd == -1);
+		vm->arch.sev_fd = open_sev_dev_path_or_exit();
+		vm_sev_ioctl(vm, KVM_SEV_ES_INIT, NULL);
+	} else {
+		struct kvm_sev_init init = { 0 };
+		assert(vm->type == KVM_X86_SEV_ES_VM);
+		vm_sev_ioctl(vm, KVM_SEV_INIT2, &init);
+	}
+}
+
 void sev_vm_launch(struct kvm_vm *vm, uint32_t policy)
 {
 	struct kvm_sev_launch_start launch_start = {
@@ -91,10 +117,8 @@ struct kvm_vm *vm_sev_create_with_one_vcpu(uint32_t policy, void *guest_code,
 					   struct kvm_vcpu **cpu)
 {
 	struct vm_shape shape = {
-		.type = VM_TYPE_DEFAULT,
 		.mode = VM_MODE_DEFAULT,
-		.subtype = policy & SEV_POLICY_ES ? VM_SUBTYPE_SEV_ES :
-						    VM_SUBTYPE_SEV,
+		.type = policy & SEV_POLICY_ES ? KVM_X86_SEV_ES_VM : KVM_X86_SEV_VM,
 	};
 	struct kvm_vm *vm;
 	struct kvm_vcpu *cpus[1];
