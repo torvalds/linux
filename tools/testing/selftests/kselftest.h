@@ -41,6 +41,7 @@
  * the program is aborting before finishing all tests):
  *
  *    ksft_exit_fail_msg(fmt, ...);
+ *    ksft_exit_fail_perror(msg);
  *
  */
 #ifndef __KSELFTEST_H
@@ -374,6 +375,19 @@ static inline __noreturn __printf(1, 2) int ksft_exit_fail_msg(const char *msg, 
 
 	ksft_print_cnts();
 	exit(KSFT_FAIL);
+}
+
+static inline void ksft_exit_fail_perror(const char *msg)
+{
+#ifndef NOLIBC
+	ksft_exit_fail_msg("%s: %s (%d)\n", msg, strerror(errno), errno);
+#else
+	/*
+	 * nolibc doesn't provide strerror() and it seems
+	 * inappropriate to add one, just print the errno.
+	 */
+	ksft_exit_fail_msg("%s: %d)\n", msg, errno);
+#endif
 }
 
 static inline __noreturn int ksft_exit_xfail(void)
