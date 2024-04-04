@@ -872,12 +872,10 @@ static void *stack_start(struct seq_file *m, loff_t *ppos)
 		 * value of stack_list.
 		 */
 		stack = smp_load_acquire(&stack_list);
+		m->private = stack;
 	} else {
 		stack = m->private;
-		stack = stack->next;
 	}
-
-	m->private = stack;
 
 	return stack;
 }
