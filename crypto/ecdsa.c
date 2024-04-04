@@ -269,6 +269,28 @@ static unsigned int ecdsa_max_size(struct crypto_akcipher *tfm)
 	return DIV_ROUND_UP(ctx->curve->nbits, 8);
 }
 
+static int ecdsa_nist_p521_init_tfm(struct crypto_akcipher *tfm)
+{
+	struct ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
+
+	return ecdsa_ecc_ctx_init(ctx, ECC_CURVE_NIST_P521);
+}
+
+static struct akcipher_alg ecdsa_nist_p521 = {
+	.verify = ecdsa_verify,
+	.set_pub_key = ecdsa_set_pub_key,
+	.max_size = ecdsa_max_size,
+	.init = ecdsa_nist_p521_init_tfm,
+	.exit = ecdsa_exit_tfm,
+	.base = {
+		.cra_name = "ecdsa-nist-p521",
+		.cra_driver_name = "ecdsa-nist-p521-generic",
+		.cra_priority = 100,
+		.cra_module = THIS_MODULE,
+		.cra_ctxsize = sizeof(struct ecc_ctx),
+	},
+};
+
 static int ecdsa_nist_p384_init_tfm(struct crypto_akcipher *tfm)
 {
 	struct ecc_ctx *ctx = akcipher_tfm_ctx(tfm);
@@ -352,7 +374,14 @@ static int __init ecdsa_init(void)
 	if (ret)
 		goto nist_p384_error;
 
+	ret = crypto_register_akcipher(&ecdsa_nist_p521);
+	if (ret)
+		goto nist_p521_error;
+
 	return 0;
+
+nist_p521_error:
+	crypto_unregister_akcipher(&ecdsa_nist_p384);
 
 nist_p384_error:
 	crypto_unregister_akcipher(&ecdsa_nist_p256);
@@ -369,6 +398,7 @@ static void __exit ecdsa_exit(void)
 		crypto_unregister_akcipher(&ecdsa_nist_p192);
 	crypto_unregister_akcipher(&ecdsa_nist_p256);
 	crypto_unregister_akcipher(&ecdsa_nist_p384);
+	crypto_unregister_akcipher(&ecdsa_nist_p521);
 }
 
 subsys_initcall(ecdsa_init);
@@ -380,4 +410,5 @@ MODULE_DESCRIPTION("ECDSA generic algorithm");
 MODULE_ALIAS_CRYPTO("ecdsa-nist-p192");
 MODULE_ALIAS_CRYPTO("ecdsa-nist-p256");
 MODULE_ALIAS_CRYPTO("ecdsa-nist-p384");
+MODULE_ALIAS_CRYPTO("ecdsa-nist-p521");
 MODULE_ALIAS_CRYPTO("ecdsa-generic");
