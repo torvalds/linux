@@ -69,7 +69,8 @@ void acpi_debugfs_init(void);
 #else
 static inline void acpi_debugfs_init(void) { return; }
 #endif
-#ifdef CONFIG_PCI
+
+#if defined(CONFIG_X86) && defined(CONFIG_PCI)
 void acpi_lpss_init(void);
 #else
 static inline void acpi_lpss_init(void) {}

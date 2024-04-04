@@ -25,7 +25,7 @@
 #include <linux/suspend.h>
 #include <linux/delay.h>
 
-#include "internal.h"
+#include "../internal.h"
 
 #ifdef CONFIG_X86_INTEL_LPSS
 
