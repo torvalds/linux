@@ -143,8 +143,8 @@ static ssize_t average_read(struct file *filp, char __user *buf, size_t count,
 	return simple_read_from_buffer(buf, count, pos, tbuf, ret);
 }
 
-static ssize_t average_write(struct file *filp, const char __user *buf,
-			     size_t count, loff_t *pos)
+static ssize_t reset_write(struct file *filp, const char __user *buf,
+			   size_t count, loff_t *pos)
 {
 	struct mlx5_cmd_stats *stats;
 
@@ -152,6 +152,11 @@ static ssize_t average_write(struct file *filp, const char __user *buf,
 	spin_lock_irq(&stats->lock);
 	stats->sum = 0;
 	stats->n = 0;
+	stats->failed = 0;
+	stats->failed_mbox_status = 0;
+	stats->last_failed_errno = 0;
+	stats->last_failed_mbox_status = 0;
+	stats->last_failed_syndrome = 0;
 	spin_unlock_irq(&stats->lock);
 
 	*pos += count;
@@ -159,11 +164,16 @@ static ssize_t average_write(struct file *filp, const char __user *buf,
 	return count;
 }
 
-static const struct file_operations stats_fops = {
+static const struct file_operations reset_fops = {
+	.owner	= THIS_MODULE,
+	.open	= simple_open,
+	.write	= reset_write,
+};
+
+static const struct file_operations average_fops = {
 	.owner	= THIS_MODULE,
 	.open	= simple_open,
 	.read	= average_read,
-	.write	= average_write,
 };
 
 static ssize_t slots_read(struct file *filp, char __user *buf, size_t count,
@@ -228,8 +238,10 @@ void mlx5_cmdif_debugfs_init(struct mlx5_core_dev *dev)
 				continue;
 			stats->root = debugfs_create_dir(namep, *cmd);
 
+			debugfs_create_file("reset", 0200, stats->root, stats,
+					    &reset_fops);
 			debugfs_create_file("average", 0400, stats->root, stats,
-					    &stats_fops);
+					    &average_fops);
 			debugfs_create_u64("n", 0400, stats->root, &stats->n);
 			debugfs_create_u64("failed", 0400, stats->root, &stats->failed);
 			debugfs_create_u64("failed_mbox_status", 0400, stats->root,

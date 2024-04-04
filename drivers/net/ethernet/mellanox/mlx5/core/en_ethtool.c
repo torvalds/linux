@@ -219,6 +219,13 @@ void mlx5e_build_ptys2ethtool_map(void)
 				       ETHTOOL_LINK_MODE_400000baseLR4_ER4_FR4_Full_BIT,
 				       ETHTOOL_LINK_MODE_400000baseDR4_Full_BIT,
 				       ETHTOOL_LINK_MODE_400000baseCR4_Full_BIT);
+	MLX5_BUILD_PTYS2ETHTOOL_CONFIG(MLX5E_800GAUI_8_800GBASE_CR8_KR8, ext,
+				       ETHTOOL_LINK_MODE_800000baseCR8_Full_BIT,
+				       ETHTOOL_LINK_MODE_800000baseKR8_Full_BIT,
+				       ETHTOOL_LINK_MODE_800000baseDR8_Full_BIT,
+				       ETHTOOL_LINK_MODE_800000baseDR8_2_Full_BIT,
+				       ETHTOOL_LINK_MODE_800000baseSR8_Full_BIT,
+				       ETHTOOL_LINK_MODE_800000baseVR8_Full_BIT);
 }
 
 static void mlx5e_ethtool_get_speed_arr(struct mlx5_core_dev *mdev,
@@ -269,8 +276,7 @@ void mlx5e_ethtool_get_strings(struct mlx5e_priv *priv, u32 stringset, u8 *data)
 	switch (stringset) {
 	case ETH_SS_PRIV_FLAGS:
 		for (i = 0; i < MLX5E_NUM_PFLAGS; i++)
-			strcpy(data + i * ETH_GSTRING_LEN,
-			       mlx5e_priv_flags[i].name);
+			ethtool_puts(&data, mlx5e_priv_flags[i].name);
 		break;
 
 	case ETH_SS_TEST:
