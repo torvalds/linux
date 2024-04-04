@@ -17,7 +17,12 @@ description: |
 
 properties:
   compatible:
-    const: rohm,bd71828
+    oneOf:
+      - const: rohm,bd71828
+
+      - items:
+          - const: rohm,bd71879
+          - const: rohm,bd71828
 
   reg:
     description:
