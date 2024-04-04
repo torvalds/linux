@@ -20188,6 +20188,61 @@ patch_map_ops_generic:
 			goto next_insn;
 		}
 
+		/* Implement bpf_get_branch_snapshot inline. */
+		if (prog->jit_requested && BITS_PER_LONG == 64 &&
+		    insn->imm == BPF_FUNC_get_branch_snapshot) {
+			/* We are dealing with the following func protos:
+			 * u64 bpf_get_branch_snapshot(void *buf, u32 size, u64 flags);
+			 * int perf_snapshot_branch_stack(struct perf_branch_entry *entries, u32 cnt);
+			 */
+			const u32 br_entry_size = sizeof(struct perf_branch_entry);
+
+			/* struct perf_branch_entry is part of UAPI and is
+			 * used as an array element, so extremely unlikely to
+			 * ever grow or shrink
+			 */
+			BUILD_BUG_ON(br_entry_size != 24);
+
+			/* if (unlikely(flags)) return -EINVAL */
+			insn_buf[0] = BPF_JMP_IMM(BPF_JNE, BPF_REG_3, 0, 7);
+
+			/* Transform size (bytes) into number of entries (cnt = size / 24).
+			 * But to avoid expensive division instruction, we implement
+			 * divide-by-3 through multiplication, followed by further
+			 * division by 8 through 3-bit right shift.
+			 * Refer to book "Hacker's Delight, 2nd ed." by Henry S. Warren, Jr.,
+			 * p. 227, chapter "Unsigned Divison by 3" for details and proofs.
+			 *
+			 * N / 3 <=> M * N / 2^33, where M = (2^33 + 1) / 3 = 0xaaaaaaab.
+			 */
+			insn_buf[1] = BPF_MOV32_IMM(BPF_REG_0, 0xaaaaaaab);
+			insn_buf[2] = BPF_ALU64_REG(BPF_MUL, BPF_REG_2, BPF_REG_0);
+			insn_buf[3] = BPF_ALU64_IMM(BPF_RSH, BPF_REG_2, 36);
+
+			/* call perf_snapshot_branch_stack implementation */
+			insn_buf[4] = BPF_EMIT_CALL(static_call_query(perf_snapshot_branch_stack));
+			/* if (entry_cnt == 0) return -ENOENT */
+			insn_buf[5] = BPF_JMP_IMM(BPF_JEQ, BPF_REG_0, 0, 4);
+			/* return entry_cnt * sizeof(struct perf_branch_entry) */
+			insn_buf[6] = BPF_ALU32_IMM(BPF_MUL, BPF_REG_0, br_entry_size);
+			insn_buf[7] = BPF_JMP_A(3);
+			/* return -EINVAL; */
+			insn_buf[8] = BPF_MOV64_IMM(BPF_REG_0, -EINVAL);
+			insn_buf[9] = BPF_JMP_A(1);
+			/* return -ENOENT; */
+			insn_buf[10] = BPF_MOV64_IMM(BPF_REG_0, -ENOENT);
+			cnt = 11;
+
+			new_prog = bpf_patch_insn_data(env, i + delta, insn_buf, cnt);
+			if (!new_prog)
+				return -ENOMEM;
+
+			delta    += cnt - 1;
+			env->prog = prog = new_prog;
+			insn      = new_prog->insnsi + i + delta;
+			continue;
+		}
+
 		/* Implement bpf_kptr_xchg inline */
 		if (prog->jit_requested && BITS_PER_LONG == 64 &&
 		    insn->imm == BPF_FUNC_kptr_xchg &&
