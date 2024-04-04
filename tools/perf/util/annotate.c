@@ -1316,7 +1316,8 @@ bool disasm_line__is_valid_local_jump(struct disasm_line *dl, struct symbol *sym
 	return true;
 }
 
-void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
+static void
+annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 {
 	u64 offset, size = symbol__size(sym);
 
@@ -1347,7 +1348,7 @@ void annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 	}
 }
 
-void annotation__set_offsets(struct annotation *notes, s64 size)
+static void annotation__set_offsets(struct annotation *notes, s64 size)
 {
 	struct annotation_line *al;
 	struct annotated_source *src = notes->src;
@@ -1404,7 +1405,8 @@ static int annotation__max_ins_name(struct annotation *notes)
 	return max_name;
 }
 
-void annotation__init_column_widths(struct annotation *notes, struct symbol *sym)
+static void
+annotation__init_column_widths(struct annotation *notes, struct symbol *sym)
 {
 	notes->widths.addr = notes->widths.target =
 		notes->widths.min_addr = hex_width(symbol__size(sym));
