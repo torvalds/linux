@@ -1950,6 +1950,7 @@ static int filename_trans_read_helper_compat(struct policydb *p, void *fp)
 		if (unlikely(ebitmap_get_bit(&datum->stypes, stype - 1))) {
 			/* conflicting/duplicate rules are ignored */
 			datum = NULL;
+			rc = 0;
 			goto out;
 		}
 		if (likely(datum->otype == otype))
