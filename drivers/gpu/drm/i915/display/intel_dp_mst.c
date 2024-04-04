@@ -527,7 +527,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 	struct intel_atomic_state *state = to_intel_atomic_state(conn_state->state);
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
 	struct intel_dp *intel_dp = &intel_mst->primary->dp;
-	const struct intel_connector *connector =
+	struct intel_connector *connector =
 		to_intel_connector(conn_state->connector);
 	const struct drm_display_mode *adjusted_mode =
 		&pipe_config->hw.adjusted_mode;
@@ -1342,7 +1342,8 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 		*status = MODE_CLOCK_HIGH;
 		return 0;
 	}
-	if (intel_dp_need_bigjoiner(intel_dp, mode->hdisplay, target_clock)) {
+	if (intel_dp_need_bigjoiner(intel_dp, intel_connector,
+				    mode->hdisplay, target_clock)) {
 		bigjoiner = true;
 		max_dotclk *= 2;
 
