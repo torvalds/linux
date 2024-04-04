@@ -549,7 +549,8 @@ int hl_hpriv_put(struct hl_fpriv *hpriv)
 	return kref_put(&hpriv->refcount, hpriv_release);
 }
 
-static void print_device_in_use_info(struct hl_device *hdev, const char *message)
+static void print_device_in_use_info(struct hl_device *hdev,
+		struct hl_mem_mgr_fini_stats *mm_fini_stats, const char *message)
 {
 	u32 active_cs_num, dmabuf_export_cnt;
 	bool unknown_reason = true;
@@ -573,6 +574,12 @@ static void print_device_in_use_info(struct hl_device *hdev, const char *message
 					dmabuf_export_cnt);
 	}
 
+	if (mm_fini_stats->n_busy_cb) {
+		unknown_reason = false;
+		offset += scnprintf(buf + offset, size - offset, " [%u live CB handles]",
+				mm_fini_stats->n_busy_cb);
+	}
+
 	if (unknown_reason)
 		scnprintf(buf + offset, size - offset, " [unknown reason]");
 
@@ -590,6 +597,7 @@ void hl_device_release(struct drm_device *ddev, struct drm_file *file_priv)
 {
 	struct hl_fpriv *hpriv = file_priv->driver_priv;
 	struct hl_device *hdev = to_hl_device(ddev);
+	struct hl_mem_mgr_fini_stats mm_fini_stats;
 
 	if (!hdev) {
 		pr_crit("Closing FD after device was removed. Memory leak will occur and it is advised to reboot.\n");
@@ -601,12 +609,13 @@ void hl_device_release(struct drm_device *ddev, struct drm_file *file_priv)
 	/* Memory buffers might be still in use at this point and thus the handles IDR destruction
 	 * is postponed to hpriv_release().
 	 */
-	hl_mem_mgr_fini(&hpriv->mem_mgr);
+	hl_mem_mgr_fini(&hpriv->mem_mgr, &mm_fini_stats);
 
 	hdev->compute_ctx_in_release = 1;
 
 	if (!hl_hpriv_put(hpriv)) {
-		print_device_in_use_info(hdev, "User process closed FD but device still in use");
+		print_device_in_use_info(hdev, &mm_fini_stats,
+				"User process closed FD but device still in use");
 		hl_device_reset(hdev, HL_DRV_RESET_HARD);
 	}
 
@@ -976,7 +985,7 @@ static int device_early_init(struct hl_device *hdev)
 	return 0;
 
 free_cb_mgr:
-	hl_mem_mgr_fini(&hdev->kernel_mem_mgr);
+	hl_mem_mgr_fini(&hdev->kernel_mem_mgr, NULL);
 	hl_mem_mgr_idr_destroy(&hdev->kernel_mem_mgr);
 free_chip_info:
 	kfree(hdev->hl_chip_info);
@@ -1020,7 +1029,7 @@ static void device_early_fini(struct hl_device *hdev)
 
 	mutex_destroy(&hdev->clk_throttling.lock);
 
-	hl_mem_mgr_fini(&hdev->kernel_mem_mgr);
+	hl_mem_mgr_fini(&hdev->kernel_mem_mgr, NULL);
 	hl_mem_mgr_idr_destroy(&hdev->kernel_mem_mgr);
 
 	kfree(hdev->hl_chip_info);

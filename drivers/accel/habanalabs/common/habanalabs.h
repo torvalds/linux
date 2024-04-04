@@ -905,6 +905,18 @@ struct hl_mem_mgr {
 };
 
 /**
+ * struct hl_mem_mgr_fini_stats - describes statistics returned during memory manager teardown.
+ * @n_busy_cb: the amount of CB handles that could not be removed
+ * @n_busy_ts: the amount of TS handles that could not be removed
+ * @n_busy_other: the amount of any other type of handles that could not be removed
+ */
+struct hl_mem_mgr_fini_stats {
+	u32 n_busy_cb;
+	u32 n_busy_ts;
+	u32 n_busy_other;
+};
+
+/**
  * struct hl_mmap_mem_buf_behavior - describes unified memory manager buffer behavior
  * @topic: string identifier used for logging
  * @mem_id: memory type identifier, embedded in the handle and used to identify
@@ -4036,7 +4048,7 @@ char *hl_format_as_binary(char *buf, size_t buf_len, u32 n);
 const char *hl_sync_engine_to_string(enum hl_sync_engine_type engine_type);
 
 void hl_mem_mgr_init(struct device *dev, struct hl_mem_mgr *mmg);
-void hl_mem_mgr_fini(struct hl_mem_mgr *mmg);
+void hl_mem_mgr_fini(struct hl_mem_mgr *mmg, struct hl_mem_mgr_fini_stats *stats);
 void hl_mem_mgr_idr_destroy(struct hl_mem_mgr *mmg);
 int hl_mem_mgr_mmap(struct hl_mem_mgr *mmg, struct vm_area_struct *vma,
 		    void *args);
