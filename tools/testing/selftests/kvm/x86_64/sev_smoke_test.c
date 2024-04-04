@@ -41,7 +41,12 @@ static void test_sev(void *guest_code, uint64_t policy)
 	struct kvm_vm *vm;
 	struct ucall uc;
 
-	vm = vm_sev_create_with_one_vcpu(policy, guest_code, &vcpu);
+	uint32_t type = policy & SEV_POLICY_ES ? KVM_X86_SEV_ES_VM : KVM_X86_SEV_VM;
+
+	vm = vm_sev_create_with_one_vcpu(type, guest_code, &vcpu);
+
+	/* TODO: Validate the measurement is as expected. */
+	vm_sev_launch(vm, policy, NULL);
 
 	for (;;) {
 		vcpu_run(vcpu);
