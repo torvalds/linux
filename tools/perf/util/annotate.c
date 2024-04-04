@@ -909,9 +909,9 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 	args.arch = arch;
 	args.ms = *ms;
 	if (annotate_opts.full_addr)
-		notes->start = map__objdump_2mem(ms->map, ms->sym->start);
+		notes->src->start = map__objdump_2mem(ms->map, ms->sym->start);
 	else
-		notes->start = map__rip_2objdump(ms->map, ms->sym->start);
+		notes->src->start = map__rip_2objdump(ms->map, ms->sym->start);
 
 	return symbol__disassemble(sym, &args);
 }
@@ -1456,9 +1456,9 @@ void annotation__toggle_full_addr(struct annotation *notes, struct map_symbol *m
 	annotate_opts.full_addr = !annotate_opts.full_addr;
 
 	if (annotate_opts.full_addr)
-		notes->start = map__objdump_2mem(ms->map, ms->sym->start);
+		notes->src->start = map__objdump_2mem(ms->map, ms->sym->start);
 	else
-		notes->start = map__rip_2objdump(ms->map, ms->sym->start);
+		notes->src->start = map__rip_2objdump(ms->map, ms->sym->start);
 
 	annotation__update_column_widths(notes);
 }
@@ -1766,7 +1766,7 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 		int color = -1;
 
 		if (!annotate_opts.use_offset)
-			addr += notes->start;
+			addr += notes->src->start;
 
 		if (!annotate_opts.use_offset) {
 			printed = scnprintf(bf, sizeof(bf), "%" PRIx64 ": ", addr);

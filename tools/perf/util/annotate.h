@@ -270,6 +270,7 @@ struct annotated_source {
 	int			nr_entries;
 	int			nr_asm_entries;
 	int			max_jump_sources;
+	u64			start;
 	struct {
 		u8		addr;
 		u8		jumps;
@@ -312,7 +313,6 @@ struct annotated_branch {
 };
 
 struct LOCKABLE annotation {
-	u64			start;
 	struct annotated_source *src;
 	struct annotated_branch *branch;
 };
