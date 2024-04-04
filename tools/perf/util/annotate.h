@@ -250,6 +250,8 @@ struct cyc_hist {
  * @nr_entries: Number of annotated_line in the source list.
  * @nr_asm_entries: Number of annotated_line with actual asm instruction in the
  * 		    source list.
+ * @max_jump_sources: Maximum number of jump instructions targeting to the same
+ * 		      instruction.
  * @widths: Precalculated width of each column in the TUI output.
  *
  * disasm_lines are allocated, percentages calculated and all sorted by percentage
@@ -265,6 +267,7 @@ struct annotated_source {
 	int    			nr_histograms;
 	int			nr_entries;
 	int			nr_asm_entries;
+	int			max_jump_sources;
 	struct {
 		u8		addr;
 		u8		jumps;
@@ -309,7 +312,6 @@ struct annotated_branch {
 struct LOCKABLE annotation {
 	u64			start;
 	int			nr_events;
-	int			max_jump_sources;
 	struct annotated_source *src;
 	struct annotated_branch *branch;
 };

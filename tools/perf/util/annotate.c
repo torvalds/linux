@@ -1373,8 +1373,8 @@ annotation__mark_jump_targets(struct annotation *notes, struct symbol *sym)
 		if (target == NULL)
 			continue;
 
-		if (++target->jump_sources > notes->max_jump_sources)
-			notes->max_jump_sources = target->jump_sources;
+		if (++target->jump_sources > notes->src->max_jump_sources)
+			notes->src->max_jump_sources = target->jump_sources;
 	}
 }
 
@@ -1432,7 +1432,7 @@ annotation__init_column_widths(struct annotation *notes, struct symbol *sym)
 	notes->src->widths.addr = notes->src->widths.target =
 		notes->src->widths.min_addr = hex_width(symbol__size(sym));
 	notes->src->widths.max_addr = hex_width(sym->end);
-	notes->src->widths.jumps = width_jumps(notes->max_jump_sources);
+	notes->src->widths.jumps = width_jumps(notes->src->max_jump_sources);
 	notes->src->widths.max_ins_name = annotation__max_ins_name(notes);
 }
 

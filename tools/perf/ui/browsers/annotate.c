@@ -49,7 +49,7 @@ static int ui_browser__jumps_percent_color(struct ui_browser *browser, int nr, b
 
 	if (current && (!browser->use_navkeypressed || browser->navkeypressed))
 		return HE_COLORSET_SELECTED;
-	if (nr == notes->max_jump_sources)
+	if (nr == notes->src->max_jump_sources)
 		return HE_COLORSET_TOP;
 	if (nr > 1)
 		return HE_COLORSET_MEDIUM;
