@@ -646,7 +646,7 @@ config ACPI_QUICKSTART
 	tristate "ACPI Quickstart button driver"
 	depends on ACPI
 	depends on INPUT
-	select INPUT_SPARSE_KEYMAP
+	select INPUT_SPARSEKMAP
 	help
 	  This driver adds support for ACPI quickstart button (PNP0C32) devices.
 	  The button emits a manufacturer-specific key value when pressed, so
