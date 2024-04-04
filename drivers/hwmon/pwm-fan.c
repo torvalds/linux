@@ -25,7 +25,6 @@ struct pwm_fan_tach {
 	int irq;
 	atomic_t pulses;
 	unsigned int rpm;
-	u8 pulses_per_revolution;
 };
 
 enum pwm_fan_enable_mode {
@@ -48,6 +47,7 @@ struct pwm_fan_ctx {
 
 	int tach_count;
 	struct pwm_fan_tach *tachs;
+	u32 *pulses_per_revolution;
 	ktime_t sample_start;
 	struct timer_list rpm_timer;
 
@@ -85,7 +85,7 @@ static void sample_timer(struct timer_list *t)
 			pulses = atomic_read(&tach->pulses);
 			atomic_sub(pulses, &tach->pulses);
 			tach->rpm = (unsigned int)(pulses * 1000 * 60) /
-				(tach->pulses_per_revolution * delta);
+				(ctx->pulses_per_revolution[i] * delta);
 		}
 
 		ctx->sample_start = ktime_get();
@@ -562,6 +562,20 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		if (!fan_channel_config)
 			return -ENOMEM;
 		ctx->fan_channel.config = fan_channel_config;
+
+		ctx->pulses_per_revolution = devm_kmalloc_array(dev,
+								ctx->tach_count,
+								sizeof(*ctx->pulses_per_revolution),
+								GFP_KERNEL);
+		if (!ctx->pulses_per_revolution)
+			return -ENOMEM;
+
+		/* Setup default pulses per revolution */
+		for (i = 0; i < ctx->tach_count; i++)
+			ctx->pulses_per_revolution[i] = 2;
+
+		of_property_read_u32_array(dev->of_node, "pulses-per-revolution",
+					   ctx->pulses_per_revolution, ctx->tach_count);
 	}
 
 	channels = devm_kcalloc(dev, channel_count + 1,
@@ -573,7 +587,6 @@ static int pwm_fan_probe(struct platform_device *pdev)
 
 	for (i = 0; i < ctx->tach_count; i++) {
 		struct pwm_fan_tach *tach = &ctx->tachs[i];
-		u32 ppr = 2;
 
 		tach->irq = platform_get_irq(pdev, i);
 		if (tach->irq == -EPROBE_DEFER)
@@ -589,12 +602,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 			}
 		}
 
-		of_property_read_u32_index(dev->of_node,
-					   "pulses-per-revolution",
-					   i,
-					   &ppr);
-		tach->pulses_per_revolution = ppr;
-		if (!tach->pulses_per_revolution) {
+		if (!ctx->pulses_per_revolution[i]) {
 			dev_err(dev, "pulses-per-revolution can't be zero.\n");
 			return -EINVAL;
 		}
@@ -602,7 +610,7 @@ static int pwm_fan_probe(struct platform_device *pdev)
 		fan_channel_config[i] = HWMON_F_INPUT;
 
 		dev_dbg(dev, "tach%d: irq=%d, pulses_per_revolution=%d\n",
-			i, tach->irq, tach->pulses_per_revolution);
+			i, tach->irq, ctx->pulses_per_revolution[i]);
 	}
 
 	if (ctx->tach_count > 0) {
