@@ -25,12 +25,6 @@ static const unsigned long regulator_enable_loads[] = {
 	100000,
 };
 
-static const unsigned long regulator_disable_loads[] = {
-	80,
-	100,
-	100,
-};
-
 struct panel_desc {
 	const struct drm_display_mode *display_mode;
 	u32 width_mm;
@@ -385,19 +379,8 @@ static int nt36672e_power_off(struct nt36672e_panel *ctx)
 {
 	struct mipi_dsi_device *dsi = ctx->dsi;
 	int ret = 0;
-	int i;
 
 	gpiod_set_value(ctx->reset_gpio, 0);
-
-	for (i = 0; i < ARRAY_SIZE(ctx->supplies); i++) {
-		ret = regulator_set_load(ctx->supplies[i].consumer,
-				regulator_disable_loads[i]);
-		if (ret) {
-			dev_err(&dsi->dev, "regulator set load failed for supply %s: %d\n",
-				ctx->supplies[i].supply, ret);
-			return ret;
-		}
-	}
 
 	ret = regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 	if (ret)
