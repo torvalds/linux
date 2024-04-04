@@ -48,6 +48,8 @@ qrtr.ko
 smem.ko
 socinfo.ko
 phy-generic.ko
+msm_qmp.ko
+qcom_aoss.ko
 kryo_arm64_edac.ko
 llcc-qcom.ko
 icc-rpmh.ko
