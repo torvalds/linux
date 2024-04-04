@@ -785,7 +785,7 @@ static bool hda_dsp_stream_check(struct hdac_bus *bus, u32 status)
 				continue;
 			}
 
-			/* Inform ALSA only in case not do that with IPC */
+			/* Inform ALSA only if the IPC position is not used */
 			if (s->substream && sof_hda->no_ipc_position) {
 				snd_sof_pcm_period_elapsed(s->substream);
 			} else if (s->cstream) {
