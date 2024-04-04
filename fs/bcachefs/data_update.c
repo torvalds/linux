@@ -580,8 +580,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 				move_ctxt_wait_event(ctxt,
 						(locked = bch2_bucket_nocow_trylock(&c->nocow_locks,
 									  PTR_BUCKET_POS(c, &p.ptr), 0)) ||
-						(!atomic_read(&ctxt->read_sectors) &&
-						 !atomic_read(&ctxt->write_sectors)));
+						list_empty(&ctxt->ios));
 
 				if (!locked)
 					bch2_bucket_nocow_lock(&c->nocow_locks,

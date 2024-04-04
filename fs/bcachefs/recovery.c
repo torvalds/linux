@@ -4,6 +4,7 @@
 #include "alloc_background.h"
 #include "bkey_buf.h"
 #include "btree_journal_iter.h"
+#include "btree_node_scan.h"
 #include "btree_update.h"
 #include "btree_update_interior.h"
 #include "btree_io.h"
@@ -32,6 +33,20 @@
 
 #define QSTR(n) { { { .len = strlen(n) } }, .name = n }
 
+void bch2_btree_lost_data(struct bch_fs *c, enum btree_id btree)
+{
+	u64 b = BIT_ULL(btree);
+
+	if (!(c->sb.btrees_lost_data & b)) {
+		bch_err(c, "flagging btree %s lost data", bch2_btree_id_str(btree));
+
+		mutex_lock(&c->sb_lock);
+		bch2_sb_field_get(c->disk_sb.sb, ext)->btrees_lost_data |= cpu_to_le64(b);
+		bch2_write_super(c);
+		mutex_unlock(&c->sb_lock);
+	}
+}
+
 static bool btree_id_is_alloc(enum btree_id id)
 {
 	switch (id) {
@@ -47,7 +62,7 @@ static bool btree_id_is_alloc(enum btree_id id)
 }
 
 /* for -o reconstruct_alloc: */
-static void do_reconstruct_alloc(struct bch_fs *c)
+static void bch2_reconstruct_alloc(struct bch_fs *c)
 {
 	bch2_journal_log_msg(c, "dropping alloc info");
 	bch_info(c, "dropping and reconstructing all alloc info");
@@ -82,15 +97,17 @@ static void do_reconstruct_alloc(struct bch_fs *c)
 
 	c->recovery_passes_explicit |= bch2_recovery_passes_from_stable(le64_to_cpu(ext->recovery_passes_required[0]));
 
-	struct journal_keys *keys = &c->journal_keys;
-	size_t src, dst;
 
-	move_gap(keys, keys->nr);
-
-	for (src = 0, dst = 0; src < keys->nr; src++)
-		if (!btree_id_is_alloc(keys->data[src].btree_id))
-			keys->data[dst++] = keys->data[src];
-	keys->nr = keys->gap = dst;
+	bch2_shoot_down_journal_keys(c, BTREE_ID_alloc,
+				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
+	bch2_shoot_down_journal_keys(c, BTREE_ID_backpointers,
+				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
+	bch2_shoot_down_journal_keys(c, BTREE_ID_need_discard,
+				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
+	bch2_shoot_down_journal_keys(c, BTREE_ID_freespace,
+				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
+	bch2_shoot_down_journal_keys(c, BTREE_ID_bucket_gens,
+				     0, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
 }
 
 /*
@@ -269,7 +286,7 @@ int bch2_journal_replay(struct bch_fs *c)
 	bch2_trans_put(trans);
 	trans = NULL;
 
-	if (!c->opts.keep_journal &&
+	if (!c->opts.retain_recovery_info &&
 	    c->recovery_pass_done >= BCH_RECOVERY_PASS_journal_replay)
 		bch2_journal_keys_put_initial(c);
 
@@ -433,10 +450,9 @@ static int journal_replay_early(struct bch_fs *c,
 
 static int read_btree_roots(struct bch_fs *c)
 {
-	unsigned i;
 	int ret = 0;
 
-	for (i = 0; i < btree_id_nr_alive(c); i++) {
+	for (unsigned i = 0; i < btree_id_nr_alive(c); i++) {
 		struct btree_root *r = bch2_btree_id_root(c, i);
 
 		if (!r->alive)
@@ -445,36 +461,40 @@ static int read_btree_roots(struct bch_fs *c)
 		if (btree_id_is_alloc(i) && c->opts.reconstruct_alloc)
 			continue;
 
-		if (r->error) {
-			__fsck_err(c,
-				   btree_id_is_alloc(i)
-				   ? FSCK_CAN_IGNORE : 0,
-				   btree_root_bkey_invalid,
-				   "invalid btree root %s",
-				   bch2_btree_id_str(i));
-			if (i == BTREE_ID_alloc)
+		if (mustfix_fsck_err_on((ret = r->error),
+					c, btree_root_bkey_invalid,
+					"invalid btree root %s",
+					bch2_btree_id_str(i)) ||
+		    mustfix_fsck_err_on((ret = r->error = bch2_btree_root_read(c, i, &r->key, r->level)),
+					c, btree_root_read_error,
+					"error reading btree root %s l=%u: %s",
+					bch2_btree_id_str(i), r->level, bch2_err_str(ret))) {
+			if (btree_id_is_alloc(i)) {
+				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_allocations);
+				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_alloc_info);
+				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_lrus);
+				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_extents_to_backpointers);
+				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_alloc_to_lru_refs);
 				c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
-		}
+				r->error = 0;
+			} else if (!(c->recovery_passes_explicit & BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes))) {
+				bch_info(c, "will run btree node scan");
+				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_scan_for_btree_nodes);
+				c->recovery_passes_explicit |= BIT_ULL(BCH_RECOVERY_PASS_check_topology);
+			}
 
-		ret = bch2_btree_root_read(c, i, &r->key, r->level);
-		if (ret) {
-			fsck_err(c,
-				 btree_root_read_error,
-				 "error reading btree root %s",
-				 bch2_btree_id_str(i));
-			if (btree_id_is_alloc(i))
-				c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 			ret = 0;
+			bch2_btree_lost_data(c, i);
 		}
 	}
 
-	for (i = 0; i < BTREE_ID_NR; i++) {
+	for (unsigned i = 0; i < BTREE_ID_NR; i++) {
 		struct btree_root *r = bch2_btree_id_root(c, i);
 
-		if (!r->b) {
+		if (!r->b && !r->error) {
 			r->alive = false;
 			r->level = 0;
-			bch2_btree_root_alloc(c, i);
+			bch2_btree_root_alloc_fake(c, i, 0);
 		}
 	}
 fsck_err:
@@ -651,7 +671,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
-	if (!c->sb.clean || c->opts.fsck || c->opts.keep_journal) {
+	if (!c->sb.clean || c->opts.fsck || c->opts.retain_recovery_info) {
 		struct genradix_iter iter;
 		struct journal_replay **i;
 
@@ -731,7 +751,7 @@ use_clean:
 	c->journal_replay_seq_end	= blacklist_seq - 1;
 
 	if (c->opts.reconstruct_alloc)
-		do_reconstruct_alloc(c);
+		bch2_reconstruct_alloc(c);
 
 	zero_out_btree_mem_ptr(&c->journal_keys);
 
@@ -838,10 +858,16 @@ use_clean:
 	}
 
 	if (!test_bit(BCH_FS_error, &c->flags) &&
-	    (!bch2_is_zero(ext->recovery_passes_required, sizeof(ext->recovery_passes_required)) ||
-	     !bch2_is_zero(ext->errors_silent, sizeof(ext->errors_silent)))) {
-		memset(ext->recovery_passes_required, 0, sizeof(ext->recovery_passes_required));
+	    !bch2_is_zero(ext->errors_silent, sizeof(ext->errors_silent))) {
 		memset(ext->errors_silent, 0, sizeof(ext->errors_silent));
+		write_sb = true;
+	}
+
+	if (c->opts.fsck &&
+	    !test_bit(BCH_FS_error, &c->flags) &&
+	    c->recovery_pass_done == BCH_RECOVERY_PASS_NR - 1 &&
+	    ext->btrees_lost_data) {
+		ext->btrees_lost_data = 0;
 		write_sb = true;
 	}
 
@@ -883,9 +909,10 @@ use_clean:
 out:
 	bch2_flush_fsck_errs(c);
 
-	if (!c->opts.keep_journal &&
-	    test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags))
+	if (!c->opts.retain_recovery_info) {
 		bch2_journal_keys_put_initial(c);
+		bch2_find_btree_nodes_exit(&c->found_btree_nodes);
+	}
 	kfree(clean);
 
 	if (!ret &&
@@ -911,6 +938,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	int ret;
 
 	bch_notice(c, "initializing new filesystem");
+	set_bit(BCH_FS_new_fs, &c->flags);
 
 	mutex_lock(&c->sb_lock);
 	c->disk_sb.sb->compat[0] |= cpu_to_le64(1ULL << BCH_COMPAT_extents_above_btree_updates_done);
@@ -929,7 +957,7 @@ int bch2_fs_initialize(struct bch_fs *c)
 	set_bit(BCH_FS_may_go_rw, &c->flags);
 
 	for (unsigned i = 0; i < BTREE_ID_NR; i++)
-		bch2_btree_root_alloc(c, i);
+		bch2_btree_root_alloc_fake(c, i, 0);
 
 	for_each_member_device(c, ca)
 		bch2_dev_usage_init(ca);

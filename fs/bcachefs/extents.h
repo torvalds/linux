@@ -676,6 +676,7 @@ bch2_extent_has_ptr(struct bkey_s_c, struct extent_ptr_decoded, struct bkey_s);
 void bch2_extent_ptr_set_cached(struct bkey_s, struct bch_extent_ptr *);
 
 bool bch2_extent_normalize(struct bch_fs *, struct bkey_s);
+void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *, const struct bch_extent_ptr *);
 void bch2_bkey_ptrs_to_text(struct printbuf *, struct bch_fs *,
 			    struct bkey_s_c);
 int bch2_bkey_ptrs_invalid(struct bch_fs *, struct bkey_s_c,

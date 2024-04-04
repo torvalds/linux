@@ -66,4 +66,8 @@ void bch2_journal_entries_free(struct bch_fs *);
 
 int bch2_journal_keys_sort(struct bch_fs *);
 
+void bch2_shoot_down_journal_keys(struct bch_fs *, enum btree_id,
+				  unsigned, unsigned,
+				  struct bpos, struct bpos);
+
 #endif /* _BCACHEFS_BTREE_JOURNAL_ITER_H */

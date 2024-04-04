@@ -26,6 +26,13 @@
 
 #include <linux/random.h>
 
+const char * const bch2_btree_update_modes[] = {
+#define x(t) #t,
+	BCH_WATERMARKS()
+#undef x
+	NULL
+};
+
 static int bch2_btree_insert_node(struct btree_update *, struct btree_trans *,
 				  btree_path_idx_t, struct btree *, struct keylist *);
 static void bch2_btree_update_add_new_node(struct btree_update *, struct btree *);
@@ -303,7 +310,7 @@ static struct btree *__bch2_btree_node_alloc(struct btree_trans *trans,
 	struct open_buckets obs = { .nr = 0 };
 	struct bch_devs_list devs_have = (struct bch_devs_list) { 0 };
 	enum bch_watermark watermark = flags & BCH_WATERMARK_MASK;
-	unsigned nr_reserve = watermark > BCH_WATERMARK_reclaim
+	unsigned nr_reserve = watermark < BCH_WATERMARK_reclaim
 		? BTREE_NODE_RESERVE
 		: 0;
 	int ret;
@@ -687,7 +694,7 @@ static void btree_update_nodes_written(struct btree_update *as)
 	 * which may require allocations as well.
 	 */
 	ret = commit_do(trans, &as->disk_res, &journal_seq,
-			BCH_WATERMARK_reclaim|
+			BCH_WATERMARK_interior_updates|
 			BCH_TRANS_COMMIT_no_enospc|
 			BCH_TRANS_COMMIT_no_check_rw|
 			BCH_TRANS_COMMIT_journal_reclaim,
@@ -846,11 +853,11 @@ static void btree_update_updated_node(struct btree_update *as, struct btree *b)
 	mutex_lock(&c->btree_interior_update_lock);
 	list_add_tail(&as->unwritten_list, &c->btree_interior_updates_unwritten);
 
-	BUG_ON(as->mode != BTREE_INTERIOR_NO_UPDATE);
+	BUG_ON(as->mode != BTREE_UPDATE_none);
 	BUG_ON(!btree_node_dirty(b));
 	BUG_ON(!b->c.level);
 
-	as->mode	= BTREE_INTERIOR_UPDATING_NODE;
+	as->mode	= BTREE_UPDATE_node;
 	as->b		= b;
 
 	set_btree_node_write_blocked(b);
@@ -873,7 +880,7 @@ static void btree_update_reparent(struct btree_update *as,
 	lockdep_assert_held(&c->btree_interior_update_lock);
 
 	child->b = NULL;
-	child->mode = BTREE_INTERIOR_UPDATING_AS;
+	child->mode = BTREE_UPDATE_update;
 
 	bch2_journal_pin_copy(&c->journal, &as->journal, &child->journal,
 			      bch2_update_reparent_journal_pin_flush);
@@ -884,7 +891,7 @@ static void btree_update_updated_root(struct btree_update *as, struct btree *b)
 	struct bkey_i *insert = &b->key;
 	struct bch_fs *c = as->c;
 
-	BUG_ON(as->mode != BTREE_INTERIOR_NO_UPDATE);
+	BUG_ON(as->mode != BTREE_UPDATE_none);
 
 	BUG_ON(as->journal_u64s + jset_u64s(insert->k.u64s) >
 	       ARRAY_SIZE(as->journal_entries));
@@ -898,7 +905,7 @@ static void btree_update_updated_root(struct btree_update *as, struct btree *b)
 	mutex_lock(&c->btree_interior_update_lock);
 	list_add_tail(&as->unwritten_list, &c->btree_interior_updates_unwritten);
 
-	as->mode	= BTREE_INTERIOR_UPDATING_ROOT;
+	as->mode	= BTREE_UPDATE_root;
 	mutex_unlock(&c->btree_interior_update_lock);
 }
 
@@ -1076,7 +1083,7 @@ static void bch2_btree_update_done(struct btree_update *as, struct btree_trans *
 	struct bch_fs *c = as->c;
 	u64 start_time = as->start_time;
 
-	BUG_ON(as->mode == BTREE_INTERIOR_NO_UPDATE);
+	BUG_ON(as->mode == BTREE_UPDATE_none);
 
 	if (as->took_gc_lock)
 		up_read(&as->c->gc_lock);
@@ -1121,7 +1128,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		unsigned journal_flags = watermark|JOURNAL_RES_GET_CHECK;
 
 		if ((flags & BCH_TRANS_COMMIT_journal_reclaim) &&
-		    watermark != BCH_WATERMARK_reclaim)
+		    watermark < BCH_WATERMARK_reclaim)
 			journal_flags |= JOURNAL_RES_GET_NONBLOCK;
 
 		ret = drop_locks_do(trans,
@@ -1172,7 +1179,8 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	as->c		= c;
 	as->start_time	= start_time;
 	as->ip_started	= _RET_IP_;
-	as->mode	= BTREE_INTERIOR_NO_UPDATE;
+	as->mode	= BTREE_UPDATE_none;
+	as->watermark	= watermark;
 	as->took_gc_lock = true;
 	as->btree_id	= path->btree_id;
 	as->update_level = update_level;
@@ -1217,7 +1225,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		 */
 		if (bch2_err_matches(ret, ENOSPC) &&
 		    (flags & BCH_TRANS_COMMIT_journal_reclaim) &&
-		    watermark != BCH_WATERMARK_reclaim) {
+		    watermark < BCH_WATERMARK_reclaim) {
 			ret = -BCH_ERR_journal_reclaim_would_deadlock;
 			goto err;
 		}
@@ -2458,7 +2466,7 @@ void bch2_btree_set_root_for_read(struct bch_fs *c, struct btree *b)
 	bch2_btree_set_root_inmem(c, b);
 }
 
-static int __bch2_btree_root_alloc(struct btree_trans *trans, enum btree_id id)
+static int __bch2_btree_root_alloc_fake(struct btree_trans *trans, enum btree_id id, unsigned level)
 {
 	struct bch_fs *c = trans->c;
 	struct closure cl;
@@ -2477,7 +2485,7 @@ static int __bch2_btree_root_alloc(struct btree_trans *trans, enum btree_id id)
 
 	set_btree_node_fake(b);
 	set_btree_node_need_rewrite(b);
-	b->c.level	= 0;
+	b->c.level	= level;
 	b->c.btree_id	= id;
 
 	bkey_btree_ptr_init(&b->key);
@@ -2504,9 +2512,21 @@ static int __bch2_btree_root_alloc(struct btree_trans *trans, enum btree_id id)
 	return 0;
 }
 
-void bch2_btree_root_alloc(struct bch_fs *c, enum btree_id id)
+void bch2_btree_root_alloc_fake(struct bch_fs *c, enum btree_id id, unsigned level)
 {
-	bch2_trans_run(c, __bch2_btree_root_alloc(trans, id));
+	bch2_trans_run(c, __bch2_btree_root_alloc_fake(trans, id, level));
+}
+
+static void bch2_btree_update_to_text(struct printbuf *out, struct btree_update *as)
+{
+	prt_printf(out, "%ps: btree=%s watermark=%s mode=%s nodes_written=%u cl.remaining=%u journal_seq=%llu\n",
+		   (void *) as->ip_started,
+		   bch2_btree_id_str(as->btree_id),
+		   bch2_watermarks[as->watermark],
+		   bch2_btree_update_modes[as->mode],
+		   as->nodes_written,
+		   closure_nr_remaining(&as->cl),
+		   as->journal.seq);
 }
 
 void bch2_btree_updates_to_text(struct printbuf *out, struct bch_fs *c)
@@ -2515,12 +2535,7 @@ void bch2_btree_updates_to_text(struct printbuf *out, struct bch_fs *c)
 
 	mutex_lock(&c->btree_interior_update_lock);
 	list_for_each_entry(as, &c->btree_interior_update_list, list)
-		prt_printf(out, "%ps: mode=%u nodes_written=%u cl.remaining=%u journal_seq=%llu\n",
-			   (void *) as->ip_started,
-			   as->mode,
-			   as->nodes_written,
-			   closure_nr_remaining(&as->cl),
-			   as->journal.seq);
+		bch2_btree_update_to_text(out, as);
 	mutex_unlock(&c->btree_interior_update_lock);
 }
 

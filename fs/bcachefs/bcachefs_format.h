@@ -818,6 +818,7 @@ struct bch_sb_field_ext {
 	struct bch_sb_field	field;
 	__le64			recovery_passes_required[2];
 	__le64			errors_silent[8];
+	__le64			btrees_lost_data;
 };
 
 struct bch_sb_field_downgrade_entry {
