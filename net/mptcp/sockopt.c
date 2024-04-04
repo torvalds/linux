@@ -1523,7 +1523,7 @@ int mptcp_set_rcvlowat(struct sock *sk, int val)
 
 		slow = lock_sock_fast(ssk);
 		WRITE_ONCE(ssk->sk_rcvbuf, space);
-		tcp_sk(ssk)->window_clamp = val;
+		WRITE_ONCE(tcp_sk(ssk)->window_clamp, val);
 		unlock_sock_fast(ssk, slow);
 	}
 	return 0;
