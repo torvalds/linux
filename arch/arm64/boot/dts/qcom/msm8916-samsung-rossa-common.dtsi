@@ -5,6 +5,9 @@
 /* SM5504 MUIC instead of SM5502 */
 /delete-node/ &muic;
 
+/* Touchscreen varies depending on model variant */
+/delete-node/ &touchscreen;
+
 &blsp_i2c1 {
 	muic: extcon@14 {
 		compatible = "siliconmitus,sm5504-muic";
