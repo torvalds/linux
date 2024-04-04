@@ -228,7 +228,7 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 
 	/* clear WAKESTS */
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_WAKESTS,
-			  SOF_HDA_WAKESTS_INT_MASK);
+			  bus->codec_mask);
 
 	hda_codec_rirb_status_clear(sdev);
 
