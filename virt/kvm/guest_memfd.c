@@ -499,7 +499,8 @@ int kvm_gmem_get_pfn(struct kvm *kvm, struct kvm_memory_slot *slot,
 
 	gmem = file->private_data;
 
-	if (WARN_ON_ONCE(xa_load(&gmem->bindings, index) != slot)) {
+	if (xa_load(&gmem->bindings, index) != slot) {
+		WARN_ON_ONCE(xa_load(&gmem->bindings, index));
 		r = -EIO;
 		goto out_fput;
 	}
