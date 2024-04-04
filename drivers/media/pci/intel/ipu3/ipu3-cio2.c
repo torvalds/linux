@@ -4,9 +4,9 @@
  *
  * Based partially on Intel IPU4 driver written by
  *  Sakari Ailus <sakari.ailus@linux.intel.com>
- *  Samu Onkalo <samu.onkalo@intel.com>
+ *  Samu Onkalo
  *  Jouni Högander <jouni.hogander@intel.com>
- *  Jouni Ukkonen <jouni.ukkonen@intel.com>
+ *  Jouni Ukkonen
  *  Antti Laakso <antti.laakso@intel.com>
  * et al.
  */
@@ -1995,10 +1995,10 @@ static struct pci_driver cio2_pci_driver = {
 
 module_pci_driver(cio2_pci_driver);
 
-MODULE_AUTHOR("Tuukka Toivonen <tuukka.toivonen@intel.com>");
+MODULE_AUTHOR("Tuukka Toivonen");
 MODULE_AUTHOR("Tianshu Qiu <tian.shu.qiu@intel.com>");
 MODULE_AUTHOR("Jian Xu Zheng");
-MODULE_AUTHOR("Yuning Pu <yuning.pu@intel.com>");
+MODULE_AUTHOR("Yuning Pu");
 MODULE_AUTHOR("Yong Zhi <yong.zhi@intel.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("IPU3 CIO2 driver");
