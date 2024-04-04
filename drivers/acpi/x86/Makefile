@@ -1,4 +1,5 @@
 obj-$(CONFIG_ACPI)	+= acpi-x86.o
 acpi-x86-y		+= apple.o
+acpi-x86-y		+= cmos_rtc.o
 acpi-x86-y		+= s2idle.o
 acpi-x86-y		+= utils.o
