@@ -1419,7 +1419,7 @@ static ssize_t bql_show_stall_thrs(struct netdev_queue *queue, char *buf)
 {
 	struct dql *dql = &queue->dql;
 
-	return sprintf(buf, "%u\n", jiffies_to_msecs(dql->stall_thrs));
+	return sysfs_emit(buf, "%u\n", jiffies_to_msecs(dql->stall_thrs));
 }
 
 static ssize_t bql_set_stall_thrs(struct netdev_queue *queue,
@@ -1451,7 +1451,7 @@ static struct netdev_queue_attribute bql_stall_thrs_attribute __ro_after_init =
 
 static ssize_t bql_show_stall_max(struct netdev_queue *queue, char *buf)
 {
-	return sprintf(buf, "%u\n", READ_ONCE(queue->dql.stall_max));
+	return sysfs_emit(buf, "%u\n", READ_ONCE(queue->dql.stall_max));
 }
 
 static ssize_t bql_set_stall_max(struct netdev_queue *queue,
@@ -1468,7 +1468,7 @@ static ssize_t bql_show_stall_cnt(struct netdev_queue *queue, char *buf)
 {
 	struct dql *dql = &queue->dql;
 
-	return sprintf(buf, "%lu\n", dql->stall_cnt);
+	return sysfs_emit(buf, "%lu\n", dql->stall_cnt);
 }
 
 static struct netdev_queue_attribute bql_stall_cnt_attribute __ro_after_init =
