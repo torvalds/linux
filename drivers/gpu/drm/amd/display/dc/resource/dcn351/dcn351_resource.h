@@ -20,10 +20,4 @@ struct resource_pool *dcn351_create_resource_pool(
 		const struct dc_init_data *init_data,
 		struct dc *dc);
 
-struct pipe_ctx *dcn351_acquire_free_pipe_as_secondary_dpp_pipe(
-		const struct dc_state *cur_ctx,
-		struct dc_state *new_ctx,
-		const struct resource_pool *pool,
-		const struct pipe_ctx *opp_head_pipe);
-
 #endif /* _DCN351_RESOURCE_H_ */
