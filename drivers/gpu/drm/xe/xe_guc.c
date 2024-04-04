@@ -180,7 +180,7 @@ static u32 guc_ctl_devid(struct xe_guc *guc)
 	return (((u32)xe->info.devid) << 16) | xe->info.revid;
 }
 
-static void guc_init_params(struct xe_guc *guc)
+static void guc_print_params(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
 	u32 *params = guc->params;
@@ -188,6 +188,14 @@ static void guc_init_params(struct xe_guc *guc)
 
 	BUILD_BUG_ON(sizeof(guc->params) != GUC_CTL_MAX_DWORDS * sizeof(u32));
 	BUILD_BUG_ON(GUC_CTL_MAX_DWORDS + 2 != SOFT_SCRATCH_COUNT);
+
+	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
+		xe_gt_dbg(gt, "GuC param[%2d] = 0x%08x\n", i, params[i]);
+}
+
+static void guc_init_params(struct xe_guc *guc)
+{
+	u32 *params = guc->params;
 
 	params[GUC_CTL_LOG_PARAMS] = guc_ctl_log_params_flags(guc);
 	params[GUC_CTL_FEATURE] = 0;
@@ -196,18 +204,12 @@ static void guc_init_params(struct xe_guc *guc)
 	params[GUC_CTL_WA] = 0;
 	params[GUC_CTL_DEVID] = guc_ctl_devid(guc);
 
-	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
-		xe_gt_dbg(gt, "GuC param[%2d] = 0x%08x\n", i, params[i]);
+	guc_print_params(guc);
 }
 
 static void guc_init_params_post_hwconfig(struct xe_guc *guc)
 {
-	struct xe_gt *gt = guc_to_gt(guc);
 	u32 *params = guc->params;
-	int i;
-
-	BUILD_BUG_ON(sizeof(guc->params) != GUC_CTL_MAX_DWORDS * sizeof(u32));
-	BUILD_BUG_ON(GUC_CTL_MAX_DWORDS + 2 != SOFT_SCRATCH_COUNT);
 
 	params[GUC_CTL_LOG_PARAMS] = guc_ctl_log_params_flags(guc);
 	params[GUC_CTL_FEATURE] = guc_ctl_feature_flags(guc);
@@ -216,8 +218,7 @@ static void guc_init_params_post_hwconfig(struct xe_guc *guc)
 	params[GUC_CTL_WA] = guc_ctl_wa_flags(guc);
 	params[GUC_CTL_DEVID] = guc_ctl_devid(guc);
 
-	for (i = 0; i < GUC_CTL_MAX_DWORDS; i++)
-		xe_gt_dbg(gt, "GuC param[%2d] = 0x%08x\n", i, params[i]);
+	guc_print_params(guc);
 }
 
 /*
