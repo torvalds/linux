@@ -250,7 +250,7 @@ struct cyc_hist {
  * @nr_entries: Number of annotated_line in the source list.
  * @nr_asm_entries: Number of annotated_line with actual asm instruction in the
  * 		    source list.
- * @max_line_len: Maximum length of objdump output in an annotated_line.
+ * @widths: Precalculated width of each column in the TUI output.
  *
  * disasm_lines are allocated, percentages calculated and all sorted by percentage
  * when the annotation is about to be presented, so the percentages are for
@@ -265,7 +265,15 @@ struct annotated_source {
 	int    			nr_histograms;
 	int			nr_entries;
 	int			nr_asm_entries;
-	u16			max_line_len;
+	struct {
+		u8		addr;
+		u8		jumps;
+		u8		target;
+		u8		min_addr;
+		u8		max_addr;
+		u8		max_ins_name;
+		u16		max_line_len;
+	} widths;
 };
 
 struct annotation_line *annotated_source__get_line(struct annotated_source *src,
@@ -302,14 +310,6 @@ struct LOCKABLE annotation {
 	u64			start;
 	int			nr_events;
 	int			max_jump_sources;
-	struct {
-		u8		addr;
-		u8		jumps;
-		u8		target;
-		u8		min_addr;
-		u8		max_addr;
-		u8		max_ins_name;
-	} widths;
 	struct annotated_source *src;
 	struct annotated_branch *branch;
 };

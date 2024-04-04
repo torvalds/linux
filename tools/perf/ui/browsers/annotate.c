@@ -205,13 +205,13 @@ static void annotate_browser__draw_current_jump(struct ui_browser *browser)
 
 	ui_browser__set_color(browser, HE_COLORSET_JUMP_ARROWS);
 	__ui_browser__line_arrow(browser,
-				 pcnt_width + 2 + notes->widths.addr + width,
+				 pcnt_width + 2 + notes->src->widths.addr + width,
 				 from, to);
 
 	diff = is_fused(ab, cursor);
 	if (diff > 0) {
 		ui_browser__mark_fused(browser,
-				       pcnt_width + 3 + notes->widths.addr + width,
+				       pcnt_width + 3 + notes->src->widths.addr + width,
 				       from - diff, diff, to > from);
 	}
 }
@@ -983,7 +983,7 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 
 	ui_helpline__push("Press ESC to exit");
 
-	browser.b.width = notes->src->max_line_len;
+	browser.b.width = notes->src->widths.max_line_len;
 	browser.b.nr_entries = notes->src->nr_entries;
 	browser.b.entries = &notes->src->source,
 	browser.b.width += 18; /* Percentage */

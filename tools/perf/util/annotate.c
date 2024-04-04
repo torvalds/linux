@@ -1383,15 +1383,15 @@ static void annotation__set_index(struct annotation *notes)
 	struct annotation_line *al;
 	struct annotated_source *src = notes->src;
 
-	src->max_line_len = 0;
+	src->widths.max_line_len = 0;
 	src->nr_entries = 0;
 	src->nr_asm_entries = 0;
 
 	list_for_each_entry(al, &src->source, node) {
 		size_t line_len = strlen(al->line);
 
-		if (src->max_line_len < line_len)
-			src->max_line_len = line_len;
+		if (src->widths.max_line_len < line_len)
+			src->widths.max_line_len = line_len;
 		al->idx = src->nr_entries++;
 		if (al->offset != -1)
 			al->idx_asm = src->nr_asm_entries++;
@@ -1429,26 +1429,26 @@ static int annotation__max_ins_name(struct annotation *notes)
 static void
 annotation__init_column_widths(struct annotation *notes, struct symbol *sym)
 {
-	notes->widths.addr = notes->widths.target =
-		notes->widths.min_addr = hex_width(symbol__size(sym));
-	notes->widths.max_addr = hex_width(sym->end);
-	notes->widths.jumps = width_jumps(notes->max_jump_sources);
-	notes->widths.max_ins_name = annotation__max_ins_name(notes);
+	notes->src->widths.addr = notes->src->widths.target =
+		notes->src->widths.min_addr = hex_width(symbol__size(sym));
+	notes->src->widths.max_addr = hex_width(sym->end);
+	notes->src->widths.jumps = width_jumps(notes->max_jump_sources);
+	notes->src->widths.max_ins_name = annotation__max_ins_name(notes);
 }
 
 void annotation__update_column_widths(struct annotation *notes)
 {
 	if (annotate_opts.use_offset)
-		notes->widths.target = notes->widths.min_addr;
+		notes->src->widths.target = notes->src->widths.min_addr;
 	else if (annotate_opts.full_addr)
-		notes->widths.target = BITS_PER_LONG / 4;
+		notes->src->widths.target = BITS_PER_LONG / 4;
 	else
-		notes->widths.target = notes->widths.max_addr;
+		notes->src->widths.target = notes->src->widths.max_addr;
 
-	notes->widths.addr = notes->widths.target;
+	notes->src->widths.addr = notes->src->widths.target;
 
 	if (annotate_opts.show_nr_jumps)
-		notes->widths.addr += notes->widths.jumps + 1;
+		notes->src->widths.addr += notes->src->widths.jumps + 1;
 }
 
 void annotation__toggle_full_addr(struct annotation *notes, struct map_symbol *ms)
@@ -1625,7 +1625,8 @@ call_like:
 		obj__printf(obj, "  ");
 	}
 
-	disasm_line__scnprintf(dl, bf, size, !annotate_opts.use_offset, notes->widths.max_ins_name);
+	disasm_line__scnprintf(dl, bf, size, !annotate_opts.use_offset,
+			       notes->src->widths.max_ins_name);
 }
 
 static void ipc_coverage_string(char *bf, int size, struct annotation *notes)
@@ -1753,9 +1754,11 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 		obj__printf(obj, "%-*s", width - pcnt_width - cycles_width, " ");
 	else if (al->offset == -1) {
 		if (al->line_nr && annotate_opts.show_linenr)
-			printed = scnprintf(bf, sizeof(bf), "%-*d ", notes->widths.addr + 1, al->line_nr);
+			printed = scnprintf(bf, sizeof(bf), "%-*d ",
+					    notes->src->widths.addr + 1, al->line_nr);
 		else
-			printed = scnprintf(bf, sizeof(bf), "%-*s  ", notes->widths.addr, " ");
+			printed = scnprintf(bf, sizeof(bf), "%-*s  ",
+					    notes->src->widths.addr, " ");
 		obj__printf(obj, bf);
 		obj__printf(obj, "%-*s", width - printed - pcnt_width - cycles_width + 1, al->line);
 	} else {
@@ -1773,7 +1776,7 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 				if (annotate_opts.show_nr_jumps) {
 					int prev;
 					printed = scnprintf(bf, sizeof(bf), "%*d ",
-							    notes->widths.jumps,
+							    notes->src->widths.jumps,
 							    al->jump_sources);
 					prev = obj__set_jumps_percent_color(obj, al->jump_sources,
 									    current_entry);
@@ -1782,7 +1785,7 @@ static void __annotation_line__write(struct annotation_line *al, struct annotati
 				}
 print_addr:
 				printed = scnprintf(bf, sizeof(bf), "%*" PRIx64 ": ",
-						    notes->widths.target, addr);
+						    notes->src->widths.target, addr);
 			} else if (ins__is_call(&disasm_line(al)->ins) &&
 				   annotate_opts.offset_level >= ANNOTATION__OFFSET_CALL) {
 				goto print_addr;
@@ -1790,7 +1793,7 @@ print_addr:
 				goto print_addr;
 			} else {
 				printed = scnprintf(bf, sizeof(bf), "%-*s  ",
-						    notes->widths.addr, " ");
+						    notes->src->widths.addr, " ");
 			}
 		}
 
