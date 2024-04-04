@@ -705,7 +705,7 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev);
 int hda_cl_copy_fw(struct snd_sof_dev *sdev, struct hdac_ext_stream *hext_stream);
 struct hdac_ext_stream *hda_cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 					      unsigned int size, struct snd_dma_buffer *dmab,
-					      int direction);
+					      int direction, bool is_iccmax);
 int hda_cl_cleanup(struct snd_sof_dev *sdev, struct snd_dma_buffer *dmab,
 		   struct hdac_ext_stream *hext_stream);
 int cl_dsp_init(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot);

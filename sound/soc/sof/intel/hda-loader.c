@@ -46,7 +46,7 @@ static void hda_ssp_set_cbp_cfp(struct snd_sof_dev *sdev)
 
 struct hdac_ext_stream *hda_cl_stream_prepare(struct snd_sof_dev *sdev, unsigned int format,
 					      unsigned int size, struct snd_dma_buffer *dmab,
-					      int direction)
+					      int direction, bool is_iccmax)
 {
 	struct hdac_ext_stream *hext_stream;
 	struct hdac_stream *hstream;
@@ -73,7 +73,7 @@ struct hdac_ext_stream *hda_cl_stream_prepare(struct snd_sof_dev *sdev, unsigned
 	hstream->format_val = format;
 	hstream->bufsize = size;
 
-	if (direction == SNDRV_PCM_STREAM_CAPTURE) {
+	if (is_iccmax) {
 		ret = hda_dsp_iccmax_stream_hw_params(sdev, hext_stream, dmab, NULL);
 		if (ret < 0) {
 			dev_err(sdev->dev, "error: iccmax stream prepare failed: %d\n", ret);
@@ -335,7 +335,7 @@ int hda_dsp_cl_boot_firmware_iccmax(struct snd_sof_dev *sdev)
 	 * the data, so use a buffer of PAGE_SIZE for receiving.
 	 */
 	iccmax_stream = hda_cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT, PAGE_SIZE,
-					      &dmab_bdl, SNDRV_PCM_STREAM_CAPTURE);
+					      &dmab_bdl, SNDRV_PCM_STREAM_CAPTURE, true);
 	if (IS_ERR(iccmax_stream)) {
 		dev_err(sdev->dev, "error: dma prepare for ICCMAX stream failed\n");
 		return PTR_ERR(iccmax_stream);
@@ -421,7 +421,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	/* prepare DMA for code loader stream */
 	hext_stream = hda_cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT,
 					    stripped_firmware.size,
-					    &dmab, SNDRV_PCM_STREAM_PLAYBACK);
+					    &dmab, SNDRV_PCM_STREAM_PLAYBACK, false);
 	if (IS_ERR(hext_stream)) {
 		dev_err(sdev->dev, "error: dma prepare for fw loading failed\n");
 		return PTR_ERR(hext_stream);
@@ -538,7 +538,7 @@ int hda_dsp_ipc4_load_library(struct snd_sof_dev *sdev,
 	/* prepare DMA for code loader stream */
 	hext_stream = hda_cl_stream_prepare(sdev, HDA_CL_STREAM_FORMAT,
 					    stripped_firmware.size,
-					    &dmab, SNDRV_PCM_STREAM_PLAYBACK);
+					    &dmab, SNDRV_PCM_STREAM_PLAYBACK, false);
 	if (IS_ERR(hext_stream)) {
 		dev_err(sdev->dev, "%s: DMA prepare failed\n", __func__);
 		return PTR_ERR(hext_stream);
