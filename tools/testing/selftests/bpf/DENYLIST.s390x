@@ -6,3 +6,4 @@ stacktrace_build_id                      # compare_map_keys stackid_hmap vs. sta
 verifier_iterating_callbacks
 verifier_arena                           # JIT does not support arena
 arena_htab                               # JIT does not support arena
+arena_atomics
