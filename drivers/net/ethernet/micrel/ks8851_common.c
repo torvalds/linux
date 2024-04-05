@@ -299,7 +299,7 @@ static void ks8851_rx_pkts(struct ks8851_net *ks)
 					ks8851_dbg_dumpkkt(ks, rxpkt);
 
 				skb->protocol = eth_type_trans(skb, ks->netdev);
-				netif_rx(skb);
+				__netif_rx(skb);
 
 				ks->netdev->stats.rx_packets++;
 				ks->netdev->stats.rx_bytes += rxlen;
@@ -329,6 +329,8 @@ static irqreturn_t ks8851_irq(int irq, void *_ks)
 	unsigned handled = 0;
 	unsigned long flags;
 	unsigned int status;
+
+	local_bh_disable();
 
 	ks8851_lock(ks, &flags);
 
@@ -405,6 +407,8 @@ static irqreturn_t ks8851_irq(int irq, void *_ks)
 
 	if (status & IRQ_LCI)
 		mii_check_link(&ks->mii);
+
+	local_bh_enable();
 
 	return IRQ_HANDLED;
 }
