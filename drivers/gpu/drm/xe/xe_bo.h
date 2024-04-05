@@ -13,14 +13,6 @@
 #include "xe_vm_types.h"
 #include "xe_vm.h"
 
-/**
- * xe_vm_assert_held(vm) - Assert that the vm's reservation object is held.
- * @vm: The vm
- */
-#define xe_vm_assert_held(vm) dma_resv_assert_held(xe_vm_resv(vm))
-
-
-
 #define XE_DEFAULT_GTT_SIZE_MB          3072ULL /* 3GB by default */
 
 #define XE_BO_FLAG_USER		BIT(0)
