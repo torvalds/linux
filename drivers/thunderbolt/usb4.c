@@ -52,6 +52,10 @@ enum usb4_ba_index {
 #define USB4_BA_VALUE_MASK		GENMASK(31, 16)
 #define USB4_BA_VALUE_SHIFT		16
 
+/* Delays in us used with usb4_port_wait_for_bit() */
+#define USB4_PORT_DELAY			50
+#define USB4_PORT_SB_DELAY		5000
+
 static int usb4_native_switch_op(struct tb_switch *sw, u16 opcode,
 				 u32 *metadata, u8 *status,
 				 const void *tx_data, size_t tx_dwords,
@@ -1244,7 +1248,7 @@ void usb4_port_unconfigure_xdomain(struct tb_port *port)
 }
 
 static int usb4_port_wait_for_bit(struct tb_port *port, u32 offset, u32 bit,
-				  u32 value, int timeout_msec)
+			  u32 value, int timeout_msec, unsigned long delay_usec)
 {
 	ktime_t timeout = ktime_add_ms(ktime_get(), timeout_msec);
 
@@ -1259,7 +1263,7 @@ static int usb4_port_wait_for_bit(struct tb_port *port, u32 offset, u32 bit,
 		if ((val & bit) == value)
 			return 0;
 
-		usleep_range(50, 100);
+		fsleep(delay_usec);
 	} while (ktime_before(ktime_get(), timeout));
 
 	return -ETIMEDOUT;
@@ -1307,7 +1311,7 @@ static int usb4_port_sb_read(struct tb_port *port, enum usb4_sb_target target,
 		return ret;
 
 	ret = usb4_port_wait_for_bit(port, port->cap_usb4 + PORT_CS_1,
-				     PORT_CS_1_PND, 0, 500);
+				     PORT_CS_1_PND, 0, 500, USB4_PORT_SB_DELAY);
 	if (ret)
 		return ret;
 
@@ -1354,7 +1358,7 @@ static int usb4_port_sb_write(struct tb_port *port, enum usb4_sb_target target,
 		return ret;
 
 	ret = usb4_port_wait_for_bit(port, port->cap_usb4 + PORT_CS_1,
-				     PORT_CS_1_PND, 0, 500);
+				     PORT_CS_1_PND, 0, 500, USB4_PORT_SB_DELAY);
 	if (ret)
 		return ret;
 
@@ -1409,6 +1413,8 @@ static int usb4_port_sb_op(struct tb_port *port, enum usb4_sb_target target,
 
 		if (val != opcode)
 			return usb4_port_sb_opcode_err_to_errno(val);
+
+		fsleep(USB4_PORT_SB_DELAY);
 	} while (ktime_before(ktime_get(), timeout));
 
 	return -ETIMEDOUT;
@@ -1590,13 +1596,14 @@ int usb4_port_asym_start(struct tb_port *port)
 	 * port started the symmetry transition.
 	 */
 	ret = usb4_port_wait_for_bit(port, port->cap_usb4 + PORT_CS_19,
-				     PORT_CS_19_START_ASYM, 0, 1000);
+				     PORT_CS_19_START_ASYM, 0, 1000,
+				     USB4_PORT_DELAY);
 	if (ret)
 		return ret;
 
 	/* Then wait for the transtion to be completed */
 	return usb4_port_wait_for_bit(port, port->cap_usb4 + PORT_CS_18,
-				      PORT_CS_18_TIP, 0, 5000);
+				      PORT_CS_18_TIP, 0, 5000, USB4_PORT_DELAY);
 }
 
 /**
@@ -2122,7 +2129,8 @@ static int usb4_usb3_port_cm_request(struct tb_port *port, bool request)
 	 */
 	val &= ADP_USB3_CS_2_CMR;
 	return usb4_port_wait_for_bit(port, port->cap_adap + ADP_USB3_CS_1,
-				      ADP_USB3_CS_1_HCA, val, 1500);
+				      ADP_USB3_CS_1_HCA, val, 1500,
+				      USB4_PORT_DELAY);
 }
 
 static inline int usb4_usb3_port_set_cm_request(struct tb_port *port)
