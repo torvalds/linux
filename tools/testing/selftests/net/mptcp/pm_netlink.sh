@@ -75,6 +75,17 @@ get_endpoint() {
 	mptcp_lib_pm_nl_get_endpoint "${ns1}" "${@}"
 }
 
+change_address() {
+	local addr=${1}
+	local flags=${2}
+
+	if mptcp_lib_is_ip_mptcp; then
+		ip -n "${ns1}" mptcp endpoint change "${addr}" "${flags}"
+	else
+		ip netns exec "${ns1}" ./pm_nl_ctl set "${addr}" flags "${flags}"
+	fi
+}
+
 check()
 {
 	local cmd="$1"
@@ -197,10 +208,10 @@ check "ip netns exec $ns1 ./pm_nl_ctl dump" \
 
 ip netns exec $ns1 ./pm_nl_ctl flush
 ip netns exec $ns1 ./pm_nl_ctl add 10.0.1.1 flags subflow
-ip netns exec $ns1 ./pm_nl_ctl set 10.0.1.1 flags backup
+change_address 10.0.1.1 backup
 check "ip netns exec $ns1 ./pm_nl_ctl dump" "$(format_endpoints "1,10.0.1.1,subflow backup")" \
 	"set flags (backup)"
-ip netns exec $ns1 ./pm_nl_ctl set 10.0.1.1 flags nobackup
+change_address 10.0.1.1 nobackup
 check "ip netns exec $ns1 ./pm_nl_ctl dump" "$(format_endpoints "1,10.0.1.1,subflow")" \
 	"          (nobackup)"
 
