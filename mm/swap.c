@@ -115,7 +115,7 @@ static void page_cache_release(struct folio *folio)
 void __folio_put(struct folio *folio)
 {
 	if (unlikely(folio_is_zone_device(folio))) {
-		free_zone_device_page(&folio->page);
+		free_zone_device_folio(folio);
 		return;
 	} else if (folio_test_hugetlb(folio)) {
 		free_huge_folio(folio);
@@ -983,7 +983,7 @@ void folios_put_refs(struct folio_batch *folios, unsigned int *refs)
 			if (put_devmap_managed_page_refs(&folio->page, nr_refs))
 				continue;
 			if (folio_ref_sub_and_test(folio, nr_refs))
-				free_zone_device_page(&folio->page);
+				free_zone_device_folio(folio);
 			continue;
 		}
 
