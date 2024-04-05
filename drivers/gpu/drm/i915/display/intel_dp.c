@@ -3386,6 +3386,14 @@ bool intel_dp_initial_fastset_check(struct intel_encoder *encoder,
 		fastset = false;
 	}
 
+	if (CAN_PANEL_REPLAY(intel_dp)) {
+		drm_dbg_kms(&i915->drm,
+			    "[ENCODER:%d:%s] Forcing full modeset to compute panel replay state\n",
+			    encoder->base.base.id, encoder->base.name);
+		crtc_state->uapi.mode_changed = true;
+		fastset = false;
+	}
+
 	return fastset;
 }
 
