@@ -1449,10 +1449,9 @@ static void io_free_batch_list(struct io_ring_ctx *ctx,
 				io_clean_op(req);
 		}
 		io_put_file(req);
-
-		io_req_put_rsrc_locked(req, ctx);
-
+		io_put_rsrc_node(ctx, req->rsrc_node);
 		io_put_task(req->task);
+
 		node = req->comp_list.next;
 		io_req_add_to_cache(req, ctx);
 	} while (node);

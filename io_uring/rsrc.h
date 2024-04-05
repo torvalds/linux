@@ -83,12 +83,6 @@ static inline void io_put_rsrc_node(struct io_ring_ctx *ctx, struct io_rsrc_node
 		io_rsrc_node_ref_zero(node);
 }
 
-static inline void io_req_put_rsrc_locked(struct io_kiocb *req,
-					  struct io_ring_ctx *ctx)
-{
-	io_put_rsrc_node(ctx, req->rsrc_node);
-}
-
 static inline void io_charge_rsrc_node(struct io_ring_ctx *ctx,
 				       struct io_rsrc_node *node)
 {
