@@ -60,7 +60,7 @@ static int uio_dmem_genirq_open(struct uio_info *info, struct inode *inode)
 
 		addr = dma_alloc_coherent(&priv->pdev->dev, uiomem->size,
 					  &uiomem->dma_addr, GFP_KERNEL);
-		uiomem->addr = addr ? (phys_addr_t) addr : DMEM_MAP_ERROR;
+		uiomem->addr = addr ? (uintptr_t) addr : DMEM_MAP_ERROR;
 		++uiomem;
 	}
 	priv->refcnt++;
@@ -89,7 +89,7 @@ static int uio_dmem_genirq_release(struct uio_info *info, struct inode *inode)
 			break;
 		if (uiomem->addr) {
 			dma_free_coherent(uiomem->dma_device, uiomem->size,
-					  (void *) uiomem->addr,
+					  (void *) (uintptr_t) uiomem->addr,
 					  uiomem->dma_addr);
 		}
 		uiomem->addr = DMEM_MAP_ERROR;

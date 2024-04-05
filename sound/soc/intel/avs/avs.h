@@ -381,6 +381,7 @@ struct avs_apl_log_buffer_layout {
 	u32 write_ptr;
 	u8 buffer[];
 } __packed;
+static_assert(sizeof(struct avs_apl_log_buffer_layout) == 8);
 
 #define avs_apl_log_payload_size(adev) \
 	(avs_log_buffer_size(adev) - sizeof(struct avs_apl_log_buffer_layout))

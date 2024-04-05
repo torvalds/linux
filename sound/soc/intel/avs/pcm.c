@@ -356,6 +356,7 @@ static int avs_dai_hda_be_prepare(struct snd_pcm_substream *substream, struct sn
 					   stream_info->sig_bits);
 	format_val = snd_hdac_stream_format(runtime->channels, bits, runtime->rate);
 
+	snd_hdac_ext_stream_decouple(bus, link_stream, true);
 	snd_hdac_ext_stream_reset(link_stream);
 	snd_hdac_ext_stream_setup(link_stream, format_val);
 
@@ -456,6 +457,26 @@ static const struct snd_pcm_hw_constraint_list hw_rates = {
 
 const struct snd_soc_dai_ops avs_dai_fe_ops;
 
+static int hw_rule_param_size(struct snd_pcm_hw_params *params, struct snd_pcm_hw_rule *rule)
+{
+	struct snd_interval *interval = hw_param_interval(params, rule->var);
+	struct snd_interval to;
+
+	snd_interval_any(&to);
+	to.integer = interval->integer;
+	to.max = interval->max;
+	/*
+	 * Commonly 2ms buffer size is used in HDA scenarios whereas 4ms is used
+	 * when streaming through GPDMA. Align to the latter to account for both.
+	 */
+	to.min = params_rate(params) / 1000 * 4;
+
+	if (rule->var == SNDRV_PCM_HW_PARAM_PERIOD_SIZE)
+		to.min /= params_periods(params);
+
+	return snd_interval_refine(interval, &to);
+}
+
 static int avs_dai_fe_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -490,6 +511,14 @@ static int avs_dai_fe_startup(struct snd_pcm_substream *substream, struct snd_so
 	ret = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_rates);
 	if (ret < 0)
 		goto err;
+
+	/* Adjust buffer and period size based on the audio format. */
+	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, hw_rule_param_size, NULL,
+			    SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_HW_PARAM_CHANNELS,
+			    SNDRV_PCM_HW_PARAM_RATE, -1);
+	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE, hw_rule_param_size, NULL,
+			    SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_HW_PARAM_CHANNELS,
+			    SNDRV_PCM_HW_PARAM_RATE, -1);
 
 	snd_pcm_set_sync(substream);
 
@@ -611,6 +640,7 @@ static int avs_dai_fe_prepare(struct snd_pcm_substream *substream, struct snd_so
 	struct avs_dev *adev = to_avs_dev(dai->dev);
 	struct hdac_ext_stream *host_stream;
 	unsigned int format_val;
+	struct hdac_bus *bus;
 	unsigned int bits;
 	int ret;
 
@@ -620,6 +650,8 @@ static int avs_dai_fe_prepare(struct snd_pcm_substream *substream, struct snd_so
 	if (hdac_stream(host_stream)->prepared)
 		return 0;
 
+	bus = hdac_stream(host_stream)->bus;
+	snd_hdac_ext_stream_decouple(bus, data->host_stream, true);
 	snd_hdac_stream_reset(hdac_stream(host_stream));
 
 	stream_info = snd_soc_dai_get_pcm_stream(dai, substream->stream);
@@ -1416,7 +1448,7 @@ static void avs_component_hda_unregister_dais(struct snd_soc_component *componen
 
 	mach = dev_get_platdata(component->card->dev);
 	codec = mach->pdata;
-	sprintf(name, "%s-cpu", dev_name(&codec->core.dev));
+	snprintf(name, sizeof(name), "%s-cpu", dev_name(&codec->core.dev));
 
 	for_each_component_dais_safe(component, dai, save) {
 		int stream;

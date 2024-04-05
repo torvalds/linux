@@ -5682,6 +5682,13 @@ static bool is_flow_key_reg(struct bpf_verifier_env *env, int regno)
 	return reg->type == PTR_TO_FLOW_KEYS;
 }
 
+static bool is_arena_reg(struct bpf_verifier_env *env, int regno)
+{
+	const struct bpf_reg_state *reg = reg_state(env, regno);
+
+	return reg->type == PTR_TO_ARENA;
+}
+
 static u32 *reg2btf_ids[__BPF_REG_TYPE_MAX] = {
 #ifdef CONFIG_NET
 	[PTR_TO_SOCKET] = &btf_sock_ids[BTF_SOCK_TYPE_SOCK],
@@ -6694,6 +6701,11 @@ static int check_stack_access_within_bounds(
 	err = check_stack_slot_within_bounds(env, min_off, state, type);
 	if (!err && max_off > 0)
 		err = -EINVAL; /* out of stack access into non-negative offsets */
+	if (!err && access_size < 0)
+		/* access_size should not be negative (or overflow an int); others checks
+		 * along the way should have prevented such an access.
+		 */
+		err = -EFAULT; /* invalid negative access size; integer overflow? */
 
 	if (err) {
 		if (tnum_is_const(reg->var_off)) {
@@ -7019,7 +7031,8 @@ static int check_atomic(struct bpf_verifier_env *env, int insn_idx, struct bpf_i
 	if (is_ctx_reg(env, insn->dst_reg) ||
 	    is_pkt_reg(env, insn->dst_reg) ||
 	    is_flow_key_reg(env, insn->dst_reg) ||
-	    is_sk_reg(env, insn->dst_reg)) {
+	    is_sk_reg(env, insn->dst_reg) ||
+	    is_arena_reg(env, insn->dst_reg)) {
 		verbose(env, "BPF_ATOMIC stores into R%d %s is not allowed\n",
 			insn->dst_reg,
 			reg_type_str(env, reg_state(env, insn->dst_reg)->type));
@@ -14014,6 +14027,10 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 					verbose(env, "addr_space_cast insn can only convert between address space 1 and 0\n");
 					return -EINVAL;
 				}
+				if (!env->prog->aux->arena) {
+					verbose(env, "addr_space_cast insn can only be used in a program that has an associated arena\n");
+					return -EINVAL;
+				}
 			} else {
 				if ((insn->off != 0 && insn->off != 8 && insn->off != 16 &&
 				     insn->off != 32) || insn->imm) {
@@ -14046,8 +14063,11 @@ static int check_alu_op(struct bpf_verifier_env *env, struct bpf_insn *insn)
 				if (insn->imm) {
 					/* off == BPF_ADDR_SPACE_CAST */
 					mark_reg_unknown(env, regs, insn->dst_reg);
-					if (insn->imm == 1) /* cast from as(1) to as(0) */
+					if (insn->imm == 1) { /* cast from as(1) to as(0) */
 						dst_reg->type = PTR_TO_ARENA;
+						/* PTR_TO_ARENA is 32-bit */
+						dst_reg->subreg_def = env->insn_idx + 1;
+					}
 				} else if (insn->off == 0) {
 					/* case: R1 = R2
 					 * copy register state to dest reg
@@ -19601,8 +19621,9 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 			    (((struct bpf_map *)env->prog->aux->arena)->map_flags & BPF_F_NO_USER_CONV)) {
 				/* convert to 32-bit mov that clears upper 32-bit */
 				insn->code = BPF_ALU | BPF_MOV | BPF_X;
-				/* clear off, so it's a normal 'wX = wY' from JIT pov */
+				/* clear off and imm, so it's a normal 'wX = wY' from JIT pov */
 				insn->off = 0;
+				insn->imm = 0;
 			} /* cast from as(0) to as(1) should be handled by JIT */
 			goto next_insn;
 		}

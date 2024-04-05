@@ -148,11 +148,12 @@ static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 	struct avs_copier_cfg *cfg;
 	struct nhlt_specific_cfg *ep_blob;
 	union avs_connector_node_id node_id = {0};
-	size_t cfg_size, data_size = 0;
+	size_t cfg_size, data_size;
 	void *data = NULL;
 	u32 dma_type;
 	int ret;
 
+	data_size = sizeof(cfg->gtw_cfg.config);
 	dma_type = t->cfg_ext->copier.dma_type;
 	node_id.dma_type = dma_type;
 
@@ -233,10 +234,7 @@ static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 		break;
 	}
 
-	cfg_size = sizeof(*cfg) + data_size;
-	/* Every config-BLOB contains gateway attributes. */
-	if (data_size)
-		cfg_size -= sizeof(cfg->gtw_cfg.config.attrs);
+	cfg_size = offsetof(struct avs_copier_cfg, gtw_cfg.config) + data_size;
 	if (cfg_size > AVS_MAILBOX_SIZE)
 		return -EINVAL;
 
@@ -254,7 +252,7 @@ static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 	/* config_length in DWORDs */
 	cfg->gtw_cfg.config_length = DIV_ROUND_UP(data_size, 4);
 	if (data)
-		memcpy(&cfg->gtw_cfg.config, data, data_size);
+		memcpy(&cfg->gtw_cfg.config.blob, data, data_size);
 
 	mod->gtw_attrs = cfg->gtw_cfg.config.attrs;
 
@@ -367,6 +365,7 @@ static int avs_asrc_create(struct avs_dev *adev, struct avs_path_module *mod)
 	struct avs_tplg_module *t = mod->template;
 	struct avs_asrc_cfg cfg;
 
+	memset(&cfg, 0, sizeof(cfg));
 	cfg.base.cpc = t->cfg_base->cpc;
 	cfg.base.ibs = t->cfg_base->ibs;
 	cfg.base.obs = t->cfg_base->obs;
@@ -710,8 +709,6 @@ static int avs_path_pipeline_arm(struct avs_dev *adev,
 		/* bind current module to next module on list */
 		source = mod;
 		sink = list_next_entry(mod, node);
-		if (!source || !sink)
-			return -EINVAL;
 
 		ret = avs_ipc_bind(adev, source->module_id, source->instance_id,
 				   sink->module_id, sink->instance_id, 0, 0);
