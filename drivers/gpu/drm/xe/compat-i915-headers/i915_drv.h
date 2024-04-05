@@ -40,12 +40,8 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 	return dev_get_drvdata(kdev);
 }
 
-
-#define INTEL_JASPERLAKE 0
-#define INTEL_ELKHARTLAKE 0
 #define IS_PLATFORM(xe, x) ((xe)->info.platform == x)
 #define INTEL_INFO(dev_priv)	(&((dev_priv)->info))
-#define INTEL_DEVID(dev_priv)	((dev_priv)->info.devid)
 #define IS_I830(dev_priv)	(dev_priv && 0)
 #define IS_I845G(dev_priv)	(dev_priv && 0)
 #define IS_I85X(dev_priv)	(dev_priv && 0)
@@ -94,19 +90,12 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 
 #define IP_VER(ver, rel)                ((ver) << 8 | (rel))
 
-#define INTEL_DISPLAY_ENABLED(xe) (HAS_DISPLAY((xe)) && !intel_opregion_headless_sku((xe)))
-
-#define IS_GRAPHICS_VER(xe, first, last) \
-	((xe)->info.graphics_verx100 >= first * 100 && \
-	 (xe)->info.graphics_verx100 <= (last*100 + 99))
 #define IS_MOBILE(xe) (xe && 0)
-#define HAS_LLC(xe) (!IS_DGFX((xe)))
 
 #define HAS_GMD_ID(xe) GRAPHICS_VERx100(xe) >= 1270
 
 /* Workarounds not handled yet */
 #define IS_DISPLAY_STEP(xe, first, last) ({u8 __step = (xe)->info.step.display; first <= __step && __step <= last; })
-#define IS_GRAPHICS_STEP(xe, first, last) ({u8 __step = (xe)->info.step.graphics; first <= __step && __step <= last; })
 
 #define IS_LP(xe) (0)
 #define IS_GEN9_LP(xe) (0)
@@ -123,23 +112,6 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 #define IS_KABYLAKE_ULT(xe) (xe && 0)
 #define IS_SKYLAKE_ULT(xe) (xe && 0)
 
-#define IS_DG1_GRAPHICS_STEP(xe, first, last) (IS_DG1(xe) && IS_GRAPHICS_STEP(xe, first, last))
-#define IS_DG2_GRAPHICS_STEP(xe, variant, first, last) \
-	((xe)->info.subplatform == XE_SUBPLATFORM_DG2_ ## variant && \
-	 IS_GRAPHICS_STEP(xe, first, last))
-
-#define IS_TIGERLAKE_DISPLAY_STEP(xe, first, last) (IS_TIGERLAKE(xe) && IS_DISPLAY_STEP(xe, first, last))
-#define IS_ROCKETLAKE_DISPLAY_STEP(xe, first, last) (IS_ROCKETLAKE(xe) && IS_DISPLAY_STEP(xe, first, last))
-#define IS_DG1_DISPLAY_STEP(xe, first, last) (IS_DG1(xe) && IS_DISPLAY_STEP(xe, first, last))
-#define IS_DG2_DISPLAY_STEP(xe, first, last) (IS_DG2(xe) && IS_DISPLAY_STEP(xe, first, last))
-#define IS_ADLP_DISPLAY_STEP(xe, first, last) (IS_ALDERLAKE_P(xe) && IS_DISPLAY_STEP(xe, first, last))
-#define IS_ADLS_DISPLAY_STEP(xe, first, last) (IS_ALDERLAKE_S(xe) && IS_DISPLAY_STEP(xe, first, last))
-#define IS_JSL_EHL_DISPLAY_STEP(xe, first, last) (IS_JSL_EHL(xe) && IS_DISPLAY_STEP(xe, first, last))
-#define IS_MTL_DISPLAY_STEP(xe, first, last) (IS_METEORLAKE(xe) && IS_DISPLAY_STEP(xe, first, last))
-
-/* FIXME: Add subplatform here */
-#define IS_MTL_GRAPHICS_STEP(xe, sub, first, last) (IS_METEORLAKE(xe) && IS_DISPLAY_STEP(xe, first, last))
-
 #define IS_DG2_G10(xe) ((xe)->info.subplatform == XE_SUBPLATFORM_DG2_G10)
 #define IS_DG2_G11(xe) ((xe)->info.subplatform == XE_SUBPLATFORM_DG2_G11)
 #define IS_DG2_G12(xe) ((xe)->info.subplatform == XE_SUBPLATFORM_DG2_G12)
@@ -147,11 +119,8 @@ static inline struct drm_i915_private *kdev_to_i915(struct device *kdev)
 #define IS_ICL_WITH_PORT_F(xe) (xe && 0)
 #define HAS_FLAT_CCS(xe) (xe_device_has_flat_ccs(xe))
 #define to_intel_bo(x) gem_to_xe_bo((x))
-#define mkwrite_device_info(xe) (INTEL_INFO(xe))
 
 #define HAS_128_BYTE_Y_TILING(xe) (xe || 1)
-
-#define intel_has_gpu_reset(a) (a && 0)
 
 #include "intel_wakeref.h"
 
@@ -210,7 +179,6 @@ struct i915_sched_attr {
 #define RUNTIME_INFO(xe)		(&(xe)->info.i915_runtime)
 
 #define FORCEWAKE_ALL XE_FORCEWAKE_ALL
-#define HPD_STORM_DEFAULT_THRESHOLD 50
 
 #ifdef CONFIG_ARM64
 /*
