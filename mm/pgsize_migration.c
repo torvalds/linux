@@ -121,5 +121,61 @@ unsigned long vma_pad_pages(struct vm_area_struct *vma)
 
 	return vma->vm_flags >> VM_PAD_SHIFT;
 }
+
+static __always_inline bool str_has_suffix(const char *str, const char *suffix)
+{
+	size_t str_len = strlen(str);
+	size_t suffix_len = strlen(suffix);
+
+	if (str_len < suffix_len)
+		return false;
+
+	return !strncmp(str + str_len - suffix_len, suffix, suffix_len);
+}
+
+/*
+ * Saves the number of padding pages for an ELF segment mapping
+ * in vm_flags.
+ *
+ * The number of padding pages is deduced from the madvise DONTNEED range [start, end)
+ * if the following conditions are met:
+ *    1) The range is enclosed by a single VMA
+ *    2) The range ends at the end address of the VMA
+ *    3) The range starts at an address greater than the start address of the VMA
+ *    4) The number of the pages in the range does not exceed VM_TOTAL_PAD_PAGES.
+ *    5) The VMA is a regular file backed VMA (filemap_fault)
+ *    6) The file backing the VMA is a shared library (*.so)
+ */
+void madvise_vma_pad_pages(struct vm_area_struct *vma,
+			   unsigned long start, unsigned long end)
+{
+	unsigned long nr_pad_pages;
+
+	if (!is_pgsize_migration_enabled())
+		return;
+
+	/* Only handle this for file backed VMAs */
+	if (!vma->vm_file || !vma->vm_ops || vma->vm_ops->fault != filemap_fault)
+		return;
+
+
+	/* Limit this to only shared libraries (*.so) */
+	if (!str_has_suffix(vma->vm_file->f_path.dentry->d_name.name, ".so"))
+		return;
+
+	/*
+	 * If the madvise range is it at the end of the file save the number of
+	 * pages in vm_flags (only need 4 bits are needed for 16kB aligned ELFs).
+	 */
+	if (start <= vma->vm_start || end != vma->vm_end)
+		return;
+
+	nr_pad_pages = (end - start) >> PAGE_SHIFT;
+
+	if (!nr_pad_pages || nr_pad_pages > VM_TOTAL_PAD_PAGES)
+		return;
+
+	vma_set_pad_pages(vma, nr_pad_pages);
+}
 #endif /* PAGE_SIZE == SZ_4K */
 #endif /* CONFIG_64BIT */
