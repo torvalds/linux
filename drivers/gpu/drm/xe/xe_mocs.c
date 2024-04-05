@@ -568,6 +568,9 @@ void xe_mocs_init(struct xe_gt *gt)
 	flags = get_mocs_settings(gt_to_xe(gt), &table);
 	mocs_dbg(gt, "flag:0x%x\n", flags);
 
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return;
+
 	if (flags & HAS_GLOBAL_MOCS)
 		__init_mocs_table(gt, &table);
 	if (flags & HAS_LNCF_MOCS)
