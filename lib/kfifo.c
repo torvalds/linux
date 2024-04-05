@@ -305,9 +305,12 @@ int __kfifo_to_user(struct __kfifo *fifo, void __user *to,
 }
 EXPORT_SYMBOL(__kfifo_to_user);
 
-static unsigned int setup_sgl_buf(struct scatterlist *sgl, void *buf,
-				  int nents, unsigned int len)
+static unsigned int setup_sgl_buf(struct __kfifo *fifo, struct scatterlist *sgl,
+				  unsigned int data_offset, int nents,
+				  unsigned int len)
 {
+	const void *buf = fifo->data + data_offset;
+
 	if (!nents || !len)
 		return 0;
 
@@ -332,8 +335,8 @@ static unsigned int setup_sgl(struct __kfifo *fifo, struct scatterlist *sgl,
 	}
 	len_to_end = min(len, size - off);
 
-	n = setup_sgl_buf(sgl, fifo->data + off, nents, len_to_end);
-	n += setup_sgl_buf(sgl + n, fifo->data, nents - n, len - len_to_end);
+	n = setup_sgl_buf(fifo, sgl, off, nents, len_to_end);
+	n += setup_sgl_buf(fifo, sgl + n, 0, nents - n, len - len_to_end);
 
 	return n;
 }
