@@ -135,7 +135,7 @@ struct atmel_uart_port {
 	dma_cookie_t			cookie_tx;
 	dma_cookie_t			cookie_rx;
 	dma_addr_t			tx_phys;
-	struct scatterlist		sg_rx;
+	dma_addr_t			rx_phys;
 	struct tasklet_struct	tasklet_rx;
 	struct tasklet_struct	tasklet_tx;
 	atomic_t		tasklet_shutdown;
@@ -1088,8 +1088,8 @@ static void atmel_release_rx_dma(struct uart_port *port)
 	if (chan) {
 		dmaengine_terminate_all(chan);
 		dma_release_channel(chan);
-		dma_unmap_sg(port->dev, &atmel_port->sg_rx, 1,
-				DMA_FROM_DEVICE);
+		dma_unmap_single(port->dev, atmel_port->rx_phys,
+				 ATMEL_SERIAL_RX_SIZE, DMA_FROM_DEVICE);
 	}
 
 	atmel_port->desc_rx = NULL;
@@ -1122,10 +1122,8 @@ static void atmel_rx_from_dma(struct uart_port *port)
 	}
 
 	/* CPU claims ownership of RX DMA buffer */
-	dma_sync_sg_for_cpu(port->dev,
-			    &atmel_port->sg_rx,
-			    1,
-			    DMA_FROM_DEVICE);
+	dma_sync_single_for_cpu(port->dev, atmel_port->rx_phys,
+				ATMEL_SERIAL_RX_SIZE, DMA_FROM_DEVICE);
 
 	/*
 	 * ring->head points to the end of data already written by the DMA.
@@ -1134,8 +1132,8 @@ static void atmel_rx_from_dma(struct uart_port *port)
 	 * The current transfer size should not be larger than the dma buffer
 	 * length.
 	 */
-	ring->head = sg_dma_len(&atmel_port->sg_rx) - state.residue;
-	BUG_ON(ring->head > sg_dma_len(&atmel_port->sg_rx));
+	ring->head = ATMEL_SERIAL_RX_SIZE - state.residue;
+	BUG_ON(ring->head > ATMEL_SERIAL_RX_SIZE);
 	/*
 	 * At this point ring->head may point to the first byte right after the
 	 * last byte of the dma buffer:
@@ -1149,7 +1147,7 @@ static void atmel_rx_from_dma(struct uart_port *port)
 	 * tail to the end of the buffer then reset tail.
 	 */
 	if (ring->head < ring->tail) {
-		count = sg_dma_len(&atmel_port->sg_rx) - ring->tail;
+		count = ATMEL_SERIAL_RX_SIZE - ring->tail;
 
 		tty_insert_flip_string(tport, ring->buf + ring->tail, count);
 		ring->tail = 0;
@@ -1162,17 +1160,15 @@ static void atmel_rx_from_dma(struct uart_port *port)
 
 		tty_insert_flip_string(tport, ring->buf + ring->tail, count);
 		/* Wrap ring->head if needed */
-		if (ring->head >= sg_dma_len(&atmel_port->sg_rx))
+		if (ring->head >= ATMEL_SERIAL_RX_SIZE)
 			ring->head = 0;
 		ring->tail = ring->head;
 		port->icount.rx += count;
 	}
 
 	/* USART retreives ownership of RX DMA buffer */
-	dma_sync_sg_for_device(port->dev,
-			       &atmel_port->sg_rx,
-			       1,
-			       DMA_FROM_DEVICE);
+	dma_sync_single_for_device(port->dev, atmel_port->rx_phys,
+				   ATMEL_SERIAL_RX_SIZE, DMA_FROM_DEVICE);
 
 	tty_flip_buffer_push(tport);
 
@@ -1188,7 +1184,7 @@ static int atmel_prepare_rx_dma(struct uart_port *port)
 	struct dma_slave_config config;
 	struct circ_buf		*ring;
 	struct dma_chan *chan;
-	int ret, nent;
+	int ret;
 
 	ring = &atmel_port->rx_ring;
 
@@ -1205,26 +1201,18 @@ static int atmel_prepare_rx_dma(struct uart_port *port)
 		dma_chan_name(atmel_port->chan_rx));
 
 	spin_lock_init(&atmel_port->lock_rx);
-	sg_init_table(&atmel_port->sg_rx, 1);
 	/* UART circular rx buffer is an aligned page. */
 	BUG_ON(!PAGE_ALIGNED(ring->buf));
-	sg_set_page(&atmel_port->sg_rx,
-		    virt_to_page(ring->buf),
-		    ATMEL_SERIAL_RX_SIZE,
-		    offset_in_page(ring->buf));
-	nent = dma_map_sg(port->dev,
-			  &atmel_port->sg_rx,
-			  1,
-			  DMA_FROM_DEVICE);
+	atmel_port->rx_phys = dma_map_single(port->dev, ring->buf,
+					     ATMEL_SERIAL_RX_SIZE,
+					     DMA_FROM_DEVICE);
 
-	if (!nent) {
+	if (dma_mapping_error(port->dev, atmel_port->rx_phys)) {
 		dev_dbg(port->dev, "need to release resource of dma\n");
 		goto chan_err;
 	} else {
-		dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n", __func__,
-			sg_dma_len(&atmel_port->sg_rx),
-			ring->buf,
-			&sg_dma_address(&atmel_port->sg_rx));
+		dev_dbg(port->dev, "%s: mapped %zu@%p to %pad\n", __func__,
+			ATMEL_SERIAL_RX_SIZE, ring->buf, &atmel_port->rx_phys);
 	}
 
 	/* Configure the slave DMA */
@@ -1245,9 +1233,9 @@ static int atmel_prepare_rx_dma(struct uart_port *port)
 	 * each one is half ring buffer size
 	 */
 	desc = dmaengine_prep_dma_cyclic(atmel_port->chan_rx,
-					 sg_dma_address(&atmel_port->sg_rx),
-					 sg_dma_len(&atmel_port->sg_rx),
-					 sg_dma_len(&atmel_port->sg_rx)/2,
+					 atmel_port->rx_phys,
+					 ATMEL_SERIAL_RX_SIZE,
+					 ATMEL_SERIAL_RX_SIZE / 2,
 					 DMA_DEV_TO_MEM,
 					 DMA_PREP_INTERRUPT);
 	if (!desc) {
