@@ -498,7 +498,7 @@ operations".
 
 They deal with initializing, updating and freeing the VFS superblock:
 
- * :c:func:`fill_super`) - reads the filesystem statistics (e.g. total
+ * :c:func:`fill_super` - reads the filesystem statistics (e.g. total
    number of inode, free number of inodes, total number of blocks, free
    number of blocks)
 
