@@ -210,6 +210,9 @@ void bnxt_ulp_start(struct bnxt *bp, int err)
 	if (err)
 		return;
 
+	if (edev->ulp_tbl->msix_requested)
+		bnxt_fill_msix_vecs(bp, edev->msix_entries);
+
 	if (aux_priv) {
 		struct auxiliary_device *adev;
 
