@@ -1413,6 +1413,7 @@ static int __init pi433_init(void)
 	return 0;
 
 unreg_class_and_remove_dbfs:
+	debugfs_remove(root_dir);
 	class_unregister(&pi433_class);
 unreg_chrdev:
 	unregister_chrdev(MAJOR(pi433_devt), pi433_spi_driver.driver.name);
