@@ -96,7 +96,9 @@ struct atmel_uart_char {
  * can contain up to 1024 characters in PIO mode and up to 4096 characters in
  * DMA mode.
  */
-#define ATMEL_SERIAL_RINGSIZE 1024
+#define ATMEL_SERIAL_RINGSIZE	1024
+#define ATMEL_SERIAL_RX_SIZE	array_size(sizeof(struct atmel_uart_char), \
+					   ATMEL_SERIAL_RINGSIZE)
 
 /*
  * at91: 6 USARTs and one DBGU port (SAM9260)
@@ -1208,7 +1210,7 @@ static int atmel_prepare_rx_dma(struct uart_port *port)
 	BUG_ON(!PAGE_ALIGNED(ring->buf));
 	sg_set_page(&atmel_port->sg_rx,
 		    virt_to_page(ring->buf),
-		    sizeof(struct atmel_uart_char) * ATMEL_SERIAL_RINGSIZE,
+		    ATMEL_SERIAL_RX_SIZE,
 		    offset_in_page(ring->buf));
 	nent = dma_map_sg(port->dev,
 			  &atmel_port->sg_rx,
@@ -2947,9 +2949,7 @@ static int atmel_serial_probe(struct platform_device *pdev)
 
 	if (!atmel_use_pdc_rx(&atmel_port->uart)) {
 		ret = -ENOMEM;
-		data = kmalloc_array(ATMEL_SERIAL_RINGSIZE,
-				     sizeof(struct atmel_uart_char),
-				     GFP_KERNEL);
+		data = kmalloc(ATMEL_SERIAL_RX_SIZE, GFP_KERNEL);
 		if (!data)
 			goto err_clk_disable_unprepare;
 		atmel_port->rx_ring.buf = data;
