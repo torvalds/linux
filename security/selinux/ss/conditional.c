@@ -603,7 +603,8 @@ void cond_compute_av(struct avtab *ctab, struct avtab_key *key,
 	}
 }
 
-static int cond_dup_av_list(struct cond_av_list *new, struct cond_av_list *orig,
+static int cond_dup_av_list(struct cond_av_list *new,
+			    const struct cond_av_list *orig,
 			    struct avtab *avtab)
 {
 	u32 i;
@@ -626,7 +627,7 @@ static int cond_dup_av_list(struct cond_av_list *new, struct cond_av_list *orig,
 }
 
 static int duplicate_policydb_cond_list(struct policydb *newp,
-					struct policydb *origp)
+					const struct policydb *origp)
 {
 	int rc;
 	u32 i;
@@ -643,7 +644,7 @@ static int duplicate_policydb_cond_list(struct policydb *newp,
 
 	for (i = 0; i < origp->cond_list_len; i++) {
 		struct cond_node *newn = &newp->cond_list[i];
-		struct cond_node *orign = &origp->cond_list[i];
+		const struct cond_node *orign = &origp->cond_list[i];
 
 		newp->cond_list_len++;
 
@@ -683,8 +684,8 @@ static int cond_bools_destroy(void *key, void *datum, void *args)
 	return 0;
 }
 
-static int cond_bools_copy(struct hashtab_node *new, struct hashtab_node *orig,
-			   void *args)
+static int cond_bools_copy(struct hashtab_node *new,
+			   const struct hashtab_node *orig, void *args)
 {
 	struct cond_bool_datum *datum;
 
@@ -710,7 +711,7 @@ static int cond_bools_index(void *key, void *datum, void *args)
 }
 
 static int duplicate_policydb_bools(struct policydb *newdb,
-				    struct policydb *orig)
+				    const struct policydb *orig)
 {
 	struct cond_bool_datum **cond_bool_array;
 	int rc;
@@ -743,7 +744,7 @@ void cond_policydb_destroy_dup(struct policydb *p)
 	cond_policydb_destroy(p);
 }
 
-int cond_policydb_dup(struct policydb *new, struct policydb *orig)
+int cond_policydb_dup(struct policydb *new, const struct policydb *orig)
 {
 	cond_policydb_init(new);
 
