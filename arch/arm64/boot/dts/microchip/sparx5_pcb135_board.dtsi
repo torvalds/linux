@@ -89,15 +89,6 @@
 
 &spi0 {
 	status = "okay";
-	flash@0 {
-		compatible = "jedec,spi-nor";
-		spi-max-frequency = <8000000>;
-		reg = <0>;
-	};
-};
-
-&spi0 {
-	status = "okay";
 	spi@0 {
 		compatible = "spi-mux";
 		mux-controls = <&mux>;
