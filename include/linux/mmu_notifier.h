@@ -657,6 +657,4 @@ static inline void mmu_notifier_synchronize(void)
 
 #endif /* CONFIG_MMU_NOTIFIER */
 
-#define set_pte_at_notify set_pte_at
-
 #endif /* _LINUX_MMU_NOTIFIER_H */
