@@ -58,6 +58,11 @@
 	status = "okay";
 };
 
+&gpio5 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_ctrl_sleep_moci>;
+};
+
 /* Current measurement into module VCC */
 &hwmon {
 	status = "okay";
