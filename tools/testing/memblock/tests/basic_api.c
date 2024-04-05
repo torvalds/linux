@@ -15,12 +15,12 @@ static int memblock_initialization_check(void)
 	PREFIX_PUSH();
 
 	ASSERT_NE(memblock.memory.regions, NULL);
-	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.cnt, 0);
 	ASSERT_EQ(memblock.memory.max, EXPECTED_MEMBLOCK_REGIONS);
 	ASSERT_EQ(strcmp(memblock.memory.name, "memory"), 0);
 
 	ASSERT_NE(memblock.reserved.regions, NULL);
-	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.cnt, 0);
 	ASSERT_EQ(memblock.memory.max, EXPECTED_MEMBLOCK_REGIONS);
 	ASSERT_EQ(strcmp(memblock.reserved.name, "reserved"), 0);
 
@@ -1295,7 +1295,7 @@ static int memblock_remove_only_region_check(void)
 	ASSERT_EQ(rgn->base, 0);
 	ASSERT_EQ(rgn->size, 0);
 
-	ASSERT_EQ(memblock.memory.cnt, 1);
+	ASSERT_EQ(memblock.memory.cnt, 0);
 	ASSERT_EQ(memblock.memory.total_size, 0);
 
 	test_pass_pop();
@@ -1723,7 +1723,7 @@ static int memblock_free_only_region_check(void)
 	ASSERT_EQ(rgn->base, 0);
 	ASSERT_EQ(rgn->size, 0);
 
-	ASSERT_EQ(memblock.reserved.cnt, 1);
+	ASSERT_EQ(memblock.reserved.cnt, 0);
 	ASSERT_EQ(memblock.reserved.total_size, 0);
 
 	test_pass_pop();
