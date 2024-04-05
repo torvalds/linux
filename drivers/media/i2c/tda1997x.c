@@ -1669,8 +1669,8 @@ tda1997x_g_input_status(struct v4l2_subdev *sd, u32 *status)
 	return 0;
 };
 
-static int tda1997x_s_dv_timings(struct v4l2_subdev *sd,
-				struct v4l2_dv_timings *timings)
+static int tda1997x_s_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
+				 struct v4l2_dv_timings *timings)
 {
 	struct tda1997x_state *state = to_state(sd);
 
@@ -1694,7 +1694,7 @@ static int tda1997x_s_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tda1997x_g_dv_timings(struct v4l2_subdev *sd,
+static int tda1997x_g_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				 struct v4l2_dv_timings *timings)
 {
 	struct tda1997x_state *state = to_state(sd);
@@ -1707,7 +1707,7 @@ static int tda1997x_g_dv_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int tda1997x_query_dv_timings(struct v4l2_subdev *sd,
+static int tda1997x_query_dv_timings(struct v4l2_subdev *sd, unsigned int pad,
 				     struct v4l2_dv_timings *timings)
 {
 	struct tda1997x_state *state = to_state(sd);
@@ -1724,9 +1724,6 @@ static int tda1997x_query_dv_timings(struct v4l2_subdev *sd,
 
 static const struct v4l2_subdev_video_ops tda1997x_video_ops = {
 	.g_input_status = tda1997x_g_input_status,
-	.s_dv_timings = tda1997x_s_dv_timings,
-	.g_dv_timings = tda1997x_g_dv_timings,
-	.query_dv_timings = tda1997x_query_dv_timings,
 };
 
 
@@ -1930,6 +1927,9 @@ static const struct v4l2_subdev_pad_ops tda1997x_pad_ops = {
 	.set_fmt = tda1997x_set_format,
 	.get_edid = tda1997x_get_edid,
 	.set_edid = tda1997x_set_edid,
+	.s_dv_timings = tda1997x_s_dv_timings,
+	.g_dv_timings = tda1997x_g_dv_timings,
+	.query_dv_timings = tda1997x_query_dv_timings,
 	.dv_timings_cap = tda1997x_get_dv_timings_cap,
 	.enum_dv_timings = tda1997x_enum_dv_timings,
 };
