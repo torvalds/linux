@@ -9028,19 +9028,17 @@ EXPORT_SYMBOL_GPL(kvm_skip_emulated_instruction);
 
 static bool kvm_is_code_breakpoint_inhibited(struct kvm_vcpu *vcpu)
 {
-	u32 shadow;
-
 	if (kvm_get_rflags(vcpu) & X86_EFLAGS_RF)
 		return true;
 
 	/*
-	 * Intel CPUs inhibit code #DBs when MOV/POP SS blocking is active,
-	 * but AMD CPUs do not.  MOV/POP SS blocking is rare, check that first
-	 * to avoid the relatively expensive CPUID lookup.
+	 * Intel compatible CPUs inhibit code #DBs when MOV/POP SS blocking is
+	 * active, but AMD compatible CPUs do not.
 	 */
-	shadow = static_call(kvm_x86_get_interrupt_shadow)(vcpu);
-	return (shadow & KVM_X86_SHADOW_INT_MOV_SS) &&
-	       guest_cpuid_is_intel(vcpu);
+	if (!guest_cpuid_is_intel_compatible(vcpu))
+		return false;
+
+	return static_call(kvm_x86_get_interrupt_shadow)(vcpu) & KVM_X86_SHADOW_INT_MOV_SS;
 }
 
 static bool kvm_vcpu_check_code_breakpoint(struct kvm_vcpu *vcpu,
