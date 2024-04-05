@@ -359,6 +359,8 @@ do {									\
 #define BCH_DEBUG_PARAMS_ALWAYS()					\
 	BCH_DEBUG_PARAM(key_merging_disabled,				\
 		"Disables merging of extents")				\
+	BCH_DEBUG_PARAM(btree_node_merging_disabled,			\
+		"Disables merging of btree nodes")			\
 	BCH_DEBUG_PARAM(btree_gc_always_rewrite,			\
 		"Causes mark and sweep to compact and rewrite every "	\
 		"btree node it traverses")				\
