@@ -6,7 +6,6 @@
 #include <drm/drm_blend.h>
 
 #include "i915_drv.h"
-#include "i915_fixed.h"
 #include "i915_reg.h"
 #include "i9xx_wm.h"
 #include "intel_atomic.h"
@@ -19,6 +18,7 @@
 #include "intel_display_power.h"
 #include "intel_display_types.h"
 #include "intel_fb.h"
+#include "intel_fixed.h"
 #include "intel_pcode.h"
 #include "intel_wm.h"
 #include "skl_watermark.h"
