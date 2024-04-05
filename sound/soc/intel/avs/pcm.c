@@ -457,6 +457,26 @@ static const struct snd_pcm_hw_constraint_list hw_rates = {
 
 const struct snd_soc_dai_ops avs_dai_fe_ops;
 
+static int hw_rule_param_size(struct snd_pcm_hw_params *params, struct snd_pcm_hw_rule *rule)
+{
+	struct snd_interval *interval = hw_param_interval(params, rule->var);
+	struct snd_interval to;
+
+	snd_interval_any(&to);
+	to.integer = interval->integer;
+	to.max = interval->max;
+	/*
+	 * Commonly 2ms buffer size is used in HDA scenarios whereas 4ms is used
+	 * when streaming through GPDMA. Align to the latter to account for both.
+	 */
+	to.min = params_rate(params) / 1000 * 4;
+
+	if (rule->var == SNDRV_PCM_HW_PARAM_PERIOD_SIZE)
+		to.min /= params_periods(params);
+
+	return snd_interval_refine(interval, &to);
+}
+
 static int avs_dai_fe_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -491,6 +511,14 @@ static int avs_dai_fe_startup(struct snd_pcm_substream *substream, struct snd_so
 	ret = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_rates);
 	if (ret < 0)
 		goto err;
+
+	/* Adjust buffer and period size based on the audio format. */
+	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, hw_rule_param_size, NULL,
+			    SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_HW_PARAM_CHANNELS,
+			    SNDRV_PCM_HW_PARAM_RATE, -1);
+	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE, hw_rule_param_size, NULL,
+			    SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_HW_PARAM_CHANNELS,
+			    SNDRV_PCM_HW_PARAM_RATE, -1);
 
 	snd_pcm_set_sync(substream);
 
