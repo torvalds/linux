@@ -1425,9 +1425,9 @@ module_init(pi433_init);
 static void __exit pi433_exit(void)
 {
 	spi_unregister_driver(&pi433_spi_driver);
+	debugfs_remove(root_dir);
 	class_unregister(&pi433_class);
 	unregister_chrdev(MAJOR(pi433_devt), pi433_spi_driver.driver.name);
-	debugfs_remove(root_dir);
 }
 module_exit(pi433_exit);
 
