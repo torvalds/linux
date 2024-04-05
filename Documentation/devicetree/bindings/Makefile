@@ -32,7 +32,7 @@ find_cmd = $(find_all_cmd) | \
 		sed 's|^$(srctree)/||' | \
 		grep -F -e "$(subst :," -e ",$(DT_SCHEMA_FILES))" | \
 		sed 's|^|$(srctree)/|'
-CHK_DT_DOCS := $(shell $(find_cmd))
+CHK_DT_EXAMPLES := $(patsubst $(srctree)/%.yaml,%.example.dtb, $(shell $(find_cmd)))
 
 quiet_cmd_yamllint = LINT    $(src)
       cmd_yamllint = ($(find_cmd) | \
@@ -68,8 +68,8 @@ $(obj)/processed-schema.json: $(DT_DOCS) $(src)/.yamllint check_dtschema_version
 	$(call if_changed_rule,chkdt)
 
 always-y += processed-schema.json
-always-$(CHECK_DT_BINDING) += $(patsubst $(srctree)/$(src)/%.yaml,%.example.dts, $(CHK_DT_DOCS))
-always-$(CHECK_DT_BINDING) += $(patsubst $(srctree)/$(src)/%.yaml,%.example.dtb, $(CHK_DT_DOCS))
+always-$(CHECK_DT_BINDING) += $(patsubst $(obj)/%,%, $(CHK_DT_EXAMPLES))
+always-$(CHECK_DT_BINDING) += $(patsubst $(obj)/%.dtb,%.dts, $(CHK_DT_EXAMPLES))
 
 # Hack: avoid 'Argument list too long' error for 'make clean'. Remove most of
 # build artifacts here before they are processed by scripts/Makefile.clean
