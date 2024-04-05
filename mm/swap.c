@@ -127,9 +127,16 @@ static void __folio_put_large(struct folio *folio)
 	 * (it's never listed to any LRU lists) and no memcg routines should
 	 * be called for hugetlb (it has a separate hugetlb_cgroup.)
 	 */
-	if (!folio_test_hugetlb(folio))
-		page_cache_release(folio);
-	destroy_large_folio(folio);
+	if (folio_test_hugetlb(folio)) {
+		free_huge_folio(folio);
+		return;
+	}
+
+	page_cache_release(folio);
+	if (folio_test_large_rmappable(folio))
+		folio_undo_large_rmappable(folio);
+	mem_cgroup_uncharge(folio);
+	free_unref_page(&folio->page, folio_order(folio));
 }
 
 void __folio_put(struct folio *folio)

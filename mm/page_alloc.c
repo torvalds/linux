@@ -565,20 +565,6 @@ void prep_compound_page(struct page *page, unsigned int order)
 	prep_compound_head(page, order);
 }
 
-void destroy_large_folio(struct folio *folio)
-{
-	if (folio_test_hugetlb(folio)) {
-		free_huge_folio(folio);
-		return;
-	}
-
-	if (folio_test_large_rmappable(folio))
-		folio_undo_large_rmappable(folio);
-
-	mem_cgroup_uncharge(folio);
-	free_unref_page(&folio->page, folio_order(folio));
-}
-
 static inline void set_buddy_order(struct page *page, unsigned int order)
 {
 	set_page_private(page, order);
