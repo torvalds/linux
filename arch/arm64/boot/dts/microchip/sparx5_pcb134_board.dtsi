@@ -395,13 +395,13 @@
 };
 
 &axi {
-	i2c0_imux: i2c0-imux@0 {
+	i2c0_imux: i2c-mux-0 {
 		compatible = "i2c-mux-pinctrl";
 		#address-cells = <1>;
 		#size-cells = <0>;
 		i2c-parent = <&i2c0>;
 	};
-	i2c0_emux: i2c0-emux@0 {
+	i2c0_emux: i2c-mux-1 {
 		compatible = "i2c-mux-gpio";
 		#address-cells = <1>;
 		#size-cells = <0>;
