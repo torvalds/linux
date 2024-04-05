@@ -131,4 +131,9 @@ struct xe_reg_mcr {
 				 .__reg = XE_REG_INITIALIZER(r_,  ##__VA_ARGS__, .mcr = 1)	\
 				 })
 
+static inline bool xe_reg_is_valid(struct xe_reg r)
+{
+	return r.addr;
+}
+
 #endif
