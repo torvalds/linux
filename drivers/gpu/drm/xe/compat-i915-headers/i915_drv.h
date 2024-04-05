@@ -19,7 +19,6 @@
 #include "xe_bo.h"
 #include "xe_pm.h"
 #include "xe_step.h"
-#include "i915_gem.h"
 #include "i915_gem_stolen.h"
 #include "i915_gpu_error.h"
 #include "i915_reg_defs.h"
