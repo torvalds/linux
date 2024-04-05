@@ -208,6 +208,9 @@ properties:
               - huawei,g7
               - longcheer,l8910
               - longcheer,l8150
+              - motorola,harpia
+              - motorola,osprey
+              - motorola,surnia
               - qcom,msm8916-mtp
               - samsung,a3u-eur
               - samsung,a5u-eur
