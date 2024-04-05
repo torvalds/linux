@@ -9651,11 +9651,7 @@ static int set_map_elem_callback_state(struct bpf_verifier_env *env,
 	struct bpf_map *map;
 	int err;
 
-	if (bpf_map_ptr_poisoned(insn_aux)) {
-		verbose(env, "tail_call abusing map_ptr\n");
-		return -EINVAL;
-	}
-
+	/* valid map_ptr and poison value does not matter */
 	map = insn_aux->map_ptr_state.map_ptr;
 	if (!map->ops->map_set_for_each_callback_args ||
 	    !map->ops->map_for_each_callback) {
