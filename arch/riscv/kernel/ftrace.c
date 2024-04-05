@@ -127,10 +127,6 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	int ret = __ftrace_modify_call((unsigned long)&ftrace_call,
 				       (unsigned long)func, true, true);
-	if (!ret) {
-		ret = __ftrace_modify_call((unsigned long)&ftrace_regs_call,
-					   (unsigned long)func, true, true);
-	}
 
 	return ret;
 }
@@ -172,7 +168,7 @@ void arch_ftrace_update_code(int command)
 }
 #endif
 
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 int ftrace_modify_call(struct dyn_ftrace *rec, unsigned long old_addr,
 		       unsigned long addr)
 {
@@ -214,16 +210,13 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr,
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-#ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_ARGS
 void ftrace_graph_func(unsigned long ip, unsigned long parent_ip,
 		       struct ftrace_ops *op, struct ftrace_regs *fregs)
 {
-	struct pt_regs *regs = arch_ftrace_get_regs(fregs);
-	unsigned long *parent = (unsigned long *)&regs->ra;
-
-	prepare_ftrace_return(parent, ip, frame_pointer(regs));
+	prepare_ftrace_return(&fregs->ra, ip, fregs->s0);
 }
-#else /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
+#else /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 extern void ftrace_graph_call(void);
 int ftrace_enable_ftrace_graph_caller(void)
 {
@@ -236,6 +229,6 @@ int ftrace_disable_ftrace_graph_caller(void)
 	return __ftrace_modify_call((unsigned long)&ftrace_graph_call,
 				    (unsigned long)&prepare_ftrace_return, false, true);
 }
-#endif /* CONFIG_DYNAMIC_FTRACE_WITH_REGS */
+#endif /* CONFIG_DYNAMIC_FTRACE_WITH_ARGS */
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
