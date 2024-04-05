@@ -755,6 +755,7 @@ void intel_bw_crtc_update(struct intel_bw_state *bw_state,
 		intel_bw_crtc_data_rate(crtc_state);
 	bw_state->num_active_planes[crtc->pipe] =
 		intel_bw_crtc_num_active_planes(crtc_state);
+	bw_state->force_check_qgv = true;
 
 	drm_dbg_kms(&i915->drm, "pipe %c data rate %u num active planes %u\n",
 		    pipe_name(crtc->pipe),
@@ -1339,8 +1340,9 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	new_bw_state = intel_atomic_get_new_bw_state(state);
 
 	if (new_bw_state &&
-	    intel_can_enable_sagv(i915, old_bw_state) !=
-	    intel_can_enable_sagv(i915, new_bw_state))
+	    (intel_can_enable_sagv(i915, old_bw_state) !=
+	     intel_can_enable_sagv(i915, new_bw_state) ||
+	     new_bw_state->force_check_qgv))
 		changed = true;
 
 	/*
@@ -1353,6 +1355,8 @@ int intel_bw_atomic_check(struct intel_atomic_state *state)
 	ret = intel_bw_check_qgv_points(i915, old_bw_state, new_bw_state);
 	if (ret)
 		return ret;
+
+	new_bw_state->force_check_qgv = false;
 
 	return 0;
 }
