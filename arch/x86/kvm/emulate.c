@@ -2363,41 +2363,6 @@ static bool vendor_intel(struct x86_emulate_ctxt *ctxt)
 	return is_guest_vendor_intel(ebx, ecx, edx);
 }
 
-static bool em_syscall_is_enabled(struct x86_emulate_ctxt *ctxt)
-{
-	const struct x86_emulate_ops *ops = ctxt->ops;
-	u32 eax, ebx, ecx, edx;
-
-	/*
-	 * syscall should always be enabled in longmode - so only become
-	 * vendor specific (cpuid) if other modes are active...
-	 */
-	if (ctxt->mode == X86EMUL_MODE_PROT64)
-		return true;
-
-	eax = 0x00000000;
-	ecx = 0x00000000;
-	ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx, true);
-	/*
-	 * remark: Intel CPUs only support "syscall" in 64bit longmode. Also a
-	 * 64bit guest with a 32bit compat-app running will #UD !! While this
-	 * behaviour can be fixed (by emulating) into AMD response - CPUs of
-	 * AMD can't behave like Intel.
-	 */
-	if (is_guest_vendor_intel(ebx, ecx, edx))
-		return false;
-
-	if (is_guest_vendor_amd(ebx, ecx, edx) ||
-	    is_guest_vendor_hygon(ebx, ecx, edx))
-		return true;
-
-	/*
-	 * default: (not Intel, not AMD, not Hygon), apply Intel's
-	 * stricter rules...
-	 */
-	return false;
-}
-
 static int em_syscall(struct x86_emulate_ctxt *ctxt)
 {
 	const struct x86_emulate_ops *ops = ctxt->ops;
@@ -2411,7 +2376,15 @@ static int em_syscall(struct x86_emulate_ctxt *ctxt)
 	    ctxt->mode == X86EMUL_MODE_VM86)
 		return emulate_ud(ctxt);
 
-	if (!(em_syscall_is_enabled(ctxt)))
+	/*
+	 * Intel compatible CPUs only support SYSCALL in 64-bit mode, whereas
+	 * AMD allows SYSCALL in any flavor of protected mode.  Note, it's
+	 * infeasible to emulate Intel behavior when running on AMD hardware,
+	 * as SYSCALL won't fault in the "wrong" mode, i.e. there is no #UD
+	 * for KVM to trap-and-emulate, unlike emulating AMD on Intel.
+	 */
+	if (ctxt->mode != X86EMUL_MODE_PROT64 &&
+	    ctxt->ops->guest_cpuid_is_intel_compatible(ctxt))
 		return emulate_ud(ctxt);
 
 	ops->get_msr(ctxt, MSR_EFER, &efer);
