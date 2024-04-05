@@ -56,6 +56,7 @@ struct avs_fw_manifest {
 	u32 feature_mask;
 	struct avs_fw_version version;
 } __packed;
+static_assert(sizeof(struct avs_fw_manifest) == 36);
 
 struct avs_fw_ext_manifest {
 	u32 id;
@@ -64,6 +65,7 @@ struct avs_fw_ext_manifest {
 	u16 version_minor;
 	u32 entries;
 } __packed;
+static_assert(sizeof(struct avs_fw_ext_manifest) == 16);
 
 static int avs_fw_ext_manifest_strip(struct firmware *fw)
 {

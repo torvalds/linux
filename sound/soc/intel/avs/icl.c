@@ -52,12 +52,14 @@ union avs_icl_memwnd2_slot_type {
 		u32 type:24;
 	};
 } __packed;
+static_assert(sizeof(union avs_icl_memwnd2_slot_type) == 4);
 
 struct avs_icl_memwnd2_desc {
 	u32 resource_id;
 	union avs_icl_memwnd2_slot_type slot_id;
 	u32 vma;
 } __packed;
+static_assert(sizeof(struct avs_icl_memwnd2_desc) == 12);
 
 #define AVS_ICL_MEMWND2_SLOTS_COUNT	15
 
@@ -68,6 +70,7 @@ struct avs_icl_memwnd2 {
 	};
 	u8 slot_array[AVS_ICL_MEMWND2_SLOTS_COUNT][SZ_4K];
 } __packed;
+static_assert(sizeof(struct avs_icl_memwnd2) == 65536);
 
 #define AVS_ICL_SLOT_UNUSED \
 	((union avs_icl_memwnd2_slot_type) { 0x00000000U })
