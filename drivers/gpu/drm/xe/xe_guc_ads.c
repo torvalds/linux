@@ -80,6 +80,10 @@ ads_to_map(struct xe_guc_ads *ads)
  *      +---------------------------------------+
  *      | padding                               |
  *      +---------------------------------------+ <== 4K aligned
+ *      | w/a KLVs                              |
+ *      +---------------------------------------+
+ *      | padding                               |
+ *      +---------------------------------------+ <== 4K aligned
  *      | capture lists                         |
  *      +---------------------------------------+
  *      | padding                               |
@@ -131,6 +135,11 @@ static size_t guc_ads_golden_lrc_size(struct xe_guc_ads *ads)
 	return PAGE_ALIGN(ads->golden_lrc_size);
 }
 
+static u32 guc_ads_waklv_size(struct xe_guc_ads *ads)
+{
+	return PAGE_ALIGN(ads->ads_waklv_size);
+}
+
 static size_t guc_ads_capture_size(struct xe_guc_ads *ads)
 {
 	/* FIXME: Allocate a proper capture list */
@@ -167,12 +176,22 @@ static size_t guc_ads_golden_lrc_offset(struct xe_guc_ads *ads)
 	return PAGE_ALIGN(offset);
 }
 
+static size_t guc_ads_waklv_offset(struct xe_guc_ads *ads)
+{
+	u32 offset;
+
+	offset = guc_ads_golden_lrc_offset(ads) +
+		 guc_ads_golden_lrc_size(ads);
+
+	return PAGE_ALIGN(offset);
+}
+
 static size_t guc_ads_capture_offset(struct xe_guc_ads *ads)
 {
 	size_t offset;
 
-	offset = guc_ads_golden_lrc_offset(ads) +
-		guc_ads_golden_lrc_size(ads);
+	offset = guc_ads_waklv_offset(ads) +
+		 guc_ads_waklv_size(ads);
 
 	return PAGE_ALIGN(offset);
 }
@@ -260,6 +279,43 @@ static size_t calculate_golden_lrc_size(struct xe_guc_ads *ads)
 	return total_size;
 }
 
+static void guc_waklv_init(struct xe_guc_ads *ads)
+{
+	u64 addr_ggtt;
+	u32 offset, remain, size;
+
+	offset = guc_ads_waklv_offset(ads);
+	remain = guc_ads_waklv_size(ads);
+
+	/* Add workarounds here
+	 *
+	 * if (XE_WA(gt, wa_id))
+	 *	guc_waklv_enable_simple(ads,
+	 *				wa_klv_id,
+	 *				&offset, &remain);
+	 */
+
+	size = guc_ads_waklv_size(ads) - remain;
+	if (!size)
+		return;
+
+	offset = guc_ads_waklv_offset(ads);
+	addr_ggtt = xe_bo_ggtt_addr(ads->bo) + offset;
+
+	ads_blob_write(ads, ads.wa_klv_addr_lo, lower_32_bits(addr_ggtt));
+	ads_blob_write(ads, ads.wa_klv_addr_hi, upper_32_bits(addr_ggtt));
+	ads_blob_write(ads, ads.wa_klv_size, size);
+}
+
+static int calculate_waklv_size(struct xe_guc_ads *ads)
+{
+	/*
+	 * A single page is both the minimum size possible and
+	 * is sufficiently large enough for all current platforms.
+	 */
+	return SZ_4K;
+}
+
 #define MAX_GOLDEN_LRC_SIZE	(SZ_4K * 64)
 
 int xe_guc_ads_init(struct xe_guc_ads *ads)
@@ -271,6 +327,7 @@ int xe_guc_ads_init(struct xe_guc_ads *ads)
 
 	ads->golden_lrc_size = calculate_golden_lrc_size(ads);
 	ads->regset_size = calculate_regset_size(gt);
+	ads->ads_waklv_size = calculate_waklv_size(ads);
 
 	bo = xe_managed_bo_create_pin_map(xe, tile, guc_ads_size(ads) + MAX_GOLDEN_LRC_SIZE,
 					  XE_BO_FLAG_SYSTEM |
@@ -598,6 +655,7 @@ void xe_guc_ads_populate(struct xe_guc_ads *ads)
 	guc_mapping_table_init(gt, &info_map);
 	guc_capture_list_init(ads);
 	guc_doorbell_init(ads);
+	guc_waklv_init(ads);
 
 	if (xe->info.has_usm) {
 		guc_um_init_params(ads);

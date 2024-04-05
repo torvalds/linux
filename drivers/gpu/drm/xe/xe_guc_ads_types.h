@@ -20,6 +20,8 @@ struct xe_guc_ads {
 	size_t golden_lrc_size;
 	/** @regset_size: size of register set passed to GuC for save/restore */
 	u32 regset_size;
+	/** @ads_waklv_size: total waklv size supported by platform */
+	u32 ads_waklv_size;
 };
 
 #endif
