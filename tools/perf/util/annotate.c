@@ -2157,14 +2157,6 @@ int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 	return 0;
 }
 
-static void symbol__ensure_annotate(struct map_symbol *ms, struct evsel *evsel)
-{
-	struct annotation *notes = symbol__annotation(ms->sym);
-
-	if (list_empty(&notes->src->source))
-		symbol__annotate(ms, evsel, NULL);
-}
-
 static struct disasm_line *find_disasm_line(struct symbol *sym, u64 ip,
 					    bool allow_update)
 {
@@ -2339,13 +2331,11 @@ struct annotated_data_type *hist_entry__get_data_type(struct hist_entry *he)
 		return NULL;
 	}
 
-	if (evsel__get_arch(evsel, &arch) < 0) {
+	/* Make sure it has the disasm of the function */
+	if (symbol__annotate(ms, evsel, &arch) < 0) {
 		ann_data_stat.no_insn++;
 		return NULL;
 	}
-
-	/* Make sure it runs objdump to get disasm of the function */
-	symbol__ensure_annotate(ms, evsel);
 
 	/*
 	 * Get a disasm to extract the location from the insn.
