@@ -2203,8 +2203,8 @@ void dpu_encoder_helper_phys_setup_cdm(struct dpu_encoder_phys *phys_enc,
 		return;
 
 	if (!DPU_FORMAT_IS_YUV(dpu_fmt)) {
-		DPU_DEBUG("[enc:%d] cdm_disable fmt:%x\n", DRMID(phys_enc->parent),
-			  dpu_fmt->base.pixel_format);
+		DPU_DEBUG("[enc:%d] cdm_disable fmt:%p4cc\n", DRMID(phys_enc->parent),
+			  &dpu_fmt->base.pixel_format);
 		if (hw_cdm->ops.bind_pingpong_blk)
 			hw_cdm->ops.bind_pingpong_blk(hw_cdm, PINGPONG_NONE);
 
@@ -2244,9 +2244,9 @@ void dpu_encoder_helper_phys_setup_cdm(struct dpu_encoder_phys *phys_enc,
 		break;
 	}
 
-	DPU_DEBUG("[enc:%d] cdm_enable:%d,%d,%X,%d,%d,%d,%d]\n",
+	DPU_DEBUG("[enc:%d] cdm_enable:%d,%d,%p4cc,%d,%d,%d,%d]\n",
 		  DRMID(phys_enc->parent), cdm_cfg->output_width,
-		  cdm_cfg->output_height, cdm_cfg->output_fmt->base.pixel_format,
+		  cdm_cfg->output_height, &cdm_cfg->output_fmt->base.pixel_format,
 		  cdm_cfg->output_type, cdm_cfg->output_bit_depth,
 		  cdm_cfg->h_cdwn_type, cdm_cfg->v_cdwn_type);
 

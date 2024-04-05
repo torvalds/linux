@@ -580,7 +580,7 @@ static void dpu_encoder_phys_wb_prepare_wb_job(struct dpu_encoder_phys *phys_enc
 			format->pixel_format, job->fb->modifier);
 	if (!wb_cfg->dest.format) {
 		/* this error should be detected during atomic_check */
-		DPU_ERROR("failed to get format %x\n", format->pixel_format);
+		DPU_ERROR("failed to get format %p4cc\n", &format->pixel_format);
 		return;
 	}
 

@@ -647,8 +647,8 @@ static int _dpu_format_get_plane_sizes_ubwc(
 
 	color = _dpu_format_get_media_color_ubwc(fmt);
 	if (color < 0) {
-		DRM_ERROR("UBWC format not supported for fmt: %4.4s\n",
-			(char *)&fmt->base.pixel_format);
+		DRM_ERROR("UBWC format not supported for fmt: %p4cc\n",
+			  &fmt->base.pixel_format);
 		return -EINVAL;
 	}
 
