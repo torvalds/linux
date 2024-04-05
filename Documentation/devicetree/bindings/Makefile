@@ -63,7 +63,7 @@ override DTC_FLAGS := \
 $(obj)/processed-schema.json: $(DT_DOCS) check_dtschema_version FORCE
 	$(call if_changed,mk_schema)
 
-always-$(CHECK_DT_BINDING) += .dt-binding.checked .yamllint.checked
+targets += .dt-binding.checked .yamllint.checked
 $(obj)/.yamllint.checked: $(DT_DOCS) $(src)/.yamllint FORCE
 	$(if $(DT_SCHEMA_LINT),$(call if_changed,yamllint),)
 
@@ -71,8 +71,8 @@ $(obj)/.dt-binding.checked: $(DT_DOCS) FORCE
 	$(call if_changed,chk_bindings)
 
 always-y += processed-schema.json
-always-$(CHECK_DT_BINDING) += $(patsubst $(obj)/%,%, $(CHK_DT_EXAMPLES))
-always-$(CHECK_DT_BINDING) += $(patsubst $(obj)/%.dtb,%.dts, $(CHK_DT_EXAMPLES))
+targets += $(patsubst $(obj)/%,%, $(CHK_DT_EXAMPLES))
+targets += $(patsubst $(obj)/%.dtb,%.dts, $(CHK_DT_EXAMPLES))
 
 # Hack: avoid 'Argument list too long' error for 'make clean'. Remove most of
 # build artifacts here before they are processed by scripts/Makefile.clean
@@ -81,3 +81,6 @@ clean-files = $(shell find $(obj) \( -name '*.example.dts' -o \
 
 dt_compatible_check: $(obj)/processed-schema.json
 	$(Q)$(srctree)/scripts/dtc/dt-extract-compatibles $(srctree) | xargs dt-check-compatible -v -s $<
+
+PHONY += dt_binding_check
+dt_binding_check: $(obj)/.dt-binding.checked $(obj)/.yamllint.checked $(CHK_DT_EXAMPLES)
