@@ -1172,6 +1172,54 @@ static int emit_atomic(u8 **pprog, u8 atomic_op,
 	return 0;
 }
 
+static int emit_atomic_index(u8 **pprog, u8 atomic_op, u32 size,
+			     u32 dst_reg, u32 src_reg, u32 index_reg, int off)
+{
+	u8 *prog = *pprog;
+
+	EMIT1(0xF0); /* lock prefix */
+	switch (size) {
+	case BPF_W:
+		EMIT1(add_3mod(0x40, dst_reg, src_reg, index_reg));
+		break;
+	case BPF_DW:
+		EMIT1(add_3mod(0x48, dst_reg, src_reg, index_reg));
+		break;
+	default:
+		pr_err("bpf_jit: 1 and 2 byte atomics are not supported\n");
+		return -EFAULT;
+	}
+
+	/* emit opcode */
+	switch (atomic_op) {
+	case BPF_ADD:
+	case BPF_AND:
+	case BPF_OR:
+	case BPF_XOR:
+		/* lock *(u32/u64*)(dst_reg + idx_reg + off) <op>= src_reg */
+		EMIT1(simple_alu_opcodes[atomic_op]);
+		break;
+	case BPF_ADD | BPF_FETCH:
+		/* src_reg = atomic_fetch_add(dst_reg + idx_reg + off, src_reg); */
+		EMIT2(0x0F, 0xC1);
+		break;
+	case BPF_XCHG:
+		/* src_reg = atomic_xchg(dst_reg + idx_reg + off, src_reg); */
+		EMIT1(0x87);
+		break;
+	case BPF_CMPXCHG:
+		/* r0 = atomic_cmpxchg(dst_reg + idx_reg + off, r0, src_reg); */
+		EMIT2(0x0F, 0xB1);
+		break;
+	default:
+		pr_err("bpf_jit: unknown atomic opcode %02x\n", atomic_op);
+		return -EFAULT;
+	}
+	emit_insn_suffix_SIB(&prog, dst_reg, src_reg, index_reg, off);
+	*pprog = prog;
+	return 0;
+}
+
 #define DONT_CLEAR 1
 
 bool ex_handler_bpf(const struct exception_table_entry *x, struct pt_regs *regs)
@@ -1981,6 +2029,15 @@ populate_extable:
 			if (err)
 				return err;
 			break;
+
+		case BPF_STX | BPF_PROBE_ATOMIC | BPF_W:
+		case BPF_STX | BPF_PROBE_ATOMIC | BPF_DW:
+			start_of_ldx = prog;
+			err = emit_atomic_index(&prog, insn->imm, BPF_SIZE(insn->code),
+						dst_reg, src_reg, X86_REG_R12, insn->off);
+			if (err)
+				return err;
+			goto populate_extable;
 
 			/* call */
 		case BPF_JMP | BPF_CALL: {
@@ -3483,6 +3540,21 @@ void bpf_arch_poke_desc_update(struct bpf_jit_poke_descriptor *poke,
 
 bool bpf_jit_supports_arena(void)
 {
+	return true;
+}
+
+bool bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)
+{
+	if (!in_arena)
+		return true;
+	switch (insn->code) {
+	case BPF_STX | BPF_ATOMIC | BPF_W:
+	case BPF_STX | BPF_ATOMIC | BPF_DW:
+		if (insn->imm == (BPF_AND | BPF_FETCH) ||
+		    insn->imm == (BPF_OR | BPF_FETCH) ||
+		    insn->imm == (BPF_XOR | BPF_FETCH))
+			return false;
+	}
 	return true;
 }
 
