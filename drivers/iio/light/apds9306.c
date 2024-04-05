@@ -1075,13 +1075,15 @@ static int apds9306_write_event_config(struct iio_dev *indio_dev,
 {
 	struct apds9306_data *data = iio_priv(indio_dev);
 	struct apds9306_regfields *rf = &data->rf;
-	int ret, val;
-
-	state = !!state;
+	int ret, enabled;
 
 	switch (type) {
 	case IIO_EV_TYPE_THRESH: {
 		guard(mutex)(&data->mutex);
+
+		ret = regmap_field_read(rf->int_en, &enabled);
+		if (ret)
+			return ret;
 
 		/*
 		 * If interrupt is enabled, the channel is set before enabling
@@ -1091,38 +1093,42 @@ static int apds9306_write_event_config(struct iio_dev *indio_dev,
 		 */
 		if (state) {
 			if (chan->type == IIO_LIGHT)
-				val = 1;
+				ret = regmap_field_write(rf->int_src, 1);
 			else if (chan->type == IIO_INTENSITY)
-				val = 0;
+				ret = regmap_field_write(rf->int_src, 0);
 			else
 				return -EINVAL;
 
-			ret = regmap_field_write(rf->int_src, val);
 			if (ret)
 				return ret;
-		}
 
-		ret = regmap_field_read(rf->int_en, &val);
-		if (ret)
-			return ret;
+			if (enabled)
+				return 0;
 
-		if (val == state)
-			return 0;
+			ret = regmap_field_write(rf->int_en, 1);
+			if (ret)
+				return ret;
 
-		ret = regmap_field_write(rf->int_en, state);
-		if (ret)
-			return ret;
-
-		if (state)
 			return pm_runtime_resume_and_get(data->dev);
+		} else {
+			if (!enabled)
+				return 0;
 
-		pm_runtime_mark_last_busy(data->dev);
-		pm_runtime_put_autosuspend(data->dev);
+			ret = regmap_field_write(rf->int_en, 0);
+			if (ret)
+				return ret;
 
-		return 0;
+			pm_runtime_mark_last_busy(data->dev);
+			pm_runtime_put_autosuspend(data->dev);
+
+			return 0;
+		}
 	}
 	case IIO_EV_TYPE_THRESH_ADAPTIVE:
-		return regmap_field_write(rf->int_thresh_var_en, state);
+		if (state)
+			return regmap_field_write(rf->int_thresh_var_en, 1);
+		else
+			return regmap_field_write(rf->int_thresh_var_en, 0);
 	default:
 		return -EINVAL;
 	}
