@@ -1175,6 +1175,9 @@ struct gpio_device *gpio_device_find(const void *data,
 
 	list_for_each_entry_srcu(gdev, &gpio_devices, list,
 				 srcu_read_lock_held(&gpio_devices_srcu)) {
+		if (!device_is_registered(&gdev->dev))
+			continue;
+
 		guard(srcu)(&gdev->srcu);
 
 		gc = srcu_dereference(gdev->chip, &gdev->srcu);
