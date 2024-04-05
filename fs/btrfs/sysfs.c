@@ -421,7 +421,7 @@ BTRFS_ATTR(static_feature, supported_sectorsizes,
 
 static ssize_t acl_show(struct kobject *kobj, struct kobj_attribute *a, char *buf)
 {
-	return sysfs_emit(buf, "%d\n", !!IS_ENABLED(CONFIG_BTRFS_FS_POSIX_ACL));
+	return sysfs_emit(buf, "%d\n", IS_ENABLED(CONFIG_BTRFS_FS_POSIX_ACL));
 }
 BTRFS_ATTR(static_feature, acl, acl_show);
 
@@ -1228,11 +1228,12 @@ static ssize_t btrfs_read_policy_show(struct kobject *kobj,
 				      struct kobj_attribute *a, char *buf)
 {
 	struct btrfs_fs_devices *fs_devices = to_fs_devs(kobj);
+	const enum btrfs_read_policy policy = READ_ONCE(fs_devices->read_policy);
 	ssize_t ret = 0;
 	int i;
 
 	for (i = 0; i < BTRFS_NR_READ_POLICY; i++) {
-		if (fs_devices->read_policy == i)
+		if (policy == i)
 			ret += sysfs_emit_at(buf, ret, "%s[%s]",
 					 (ret == 0 ? "" : " "),
 					 btrfs_read_policy_name[i]);
@@ -1256,8 +1257,8 @@ static ssize_t btrfs_read_policy_store(struct kobject *kobj,
 
 	for (i = 0; i < BTRFS_NR_READ_POLICY; i++) {
 		if (sysfs_streq(buf, btrfs_read_policy_name[i])) {
-			if (i != fs_devices->read_policy) {
-				fs_devices->read_policy = i;
+			if (i != READ_ONCE(fs_devices->read_policy)) {
+				WRITE_ONCE(fs_devices->read_policy, i);
 				btrfs_info(fs_devices->fs_info,
 					   "read policy set to '%s'",
 					   btrfs_read_policy_name[i]);
@@ -1306,6 +1307,47 @@ static ssize_t btrfs_bg_reclaim_threshold_store(struct kobject *kobj,
 BTRFS_ATTR_RW(, bg_reclaim_threshold, btrfs_bg_reclaim_threshold_show,
 	      btrfs_bg_reclaim_threshold_store);
 
+#ifdef CONFIG_BTRFS_DEBUG
+static ssize_t btrfs_offload_csum_show(struct kobject *kobj,
+				       struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_devices *fs_devices = to_fs_devs(kobj);
+
+	switch (READ_ONCE(fs_devices->offload_csum_mode)) {
+	case BTRFS_OFFLOAD_CSUM_AUTO:
+		return sysfs_emit(buf, "auto\n");
+	case BTRFS_OFFLOAD_CSUM_FORCE_ON:
+		return sysfs_emit(buf, "1\n");
+	case BTRFS_OFFLOAD_CSUM_FORCE_OFF:
+		return sysfs_emit(buf, "0\n");
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+}
+
+static ssize_t btrfs_offload_csum_store(struct kobject *kobj,
+					struct kobj_attribute *a, const char *buf,
+					size_t len)
+{
+	struct btrfs_fs_devices *fs_devices = to_fs_devs(kobj);
+	int ret;
+	bool val;
+
+	ret = kstrtobool(buf, &val);
+	if (ret == 0)
+		WRITE_ONCE(fs_devices->offload_csum_mode,
+			   val ? BTRFS_OFFLOAD_CSUM_FORCE_ON : BTRFS_OFFLOAD_CSUM_FORCE_OFF);
+	else if (ret == -EINVAL && sysfs_streq(buf, "auto"))
+		WRITE_ONCE(fs_devices->offload_csum_mode, BTRFS_OFFLOAD_CSUM_AUTO);
+	else
+		return -EINVAL;
+
+	return len;
+}
+BTRFS_ATTR_RW(, offload_csum, btrfs_offload_csum_show, btrfs_offload_csum_store);
+#endif
+
 /*
  * Per-filesystem information and stats.
  *
@@ -1325,6 +1367,9 @@ static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, bg_reclaim_threshold),
 	BTRFS_ATTR_PTR(, commit_stats),
 	BTRFS_ATTR_PTR(, temp_fsid),
+#ifdef CONFIG_BTRFS_DEBUG
+	BTRFS_ATTR_PTR(, offload_csum),
+#endif
 	NULL,
 };
 

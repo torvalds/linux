@@ -230,7 +230,7 @@ static unsigned long __kprobes relbranch_fixup(u32 insn, struct kprobe *p,
 	return regs->tnpc;
 }
 
-/* If INSN is an instruction which writes it's PC location
+/* If INSN is an instruction which writes its PC location
  * into a destination register, fix that up.
  */
 static void __kprobes retpc_fixup(struct pt_regs *regs, u32 insn,

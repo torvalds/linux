@@ -24,7 +24,7 @@ struct bioscfg_priv bioscfg_drv = {
 	.mutex = __MUTEX_INITIALIZER(bioscfg_drv.mutex),
 };
 
-static struct class *fw_attr_class;
+static const struct class *fw_attr_class;
 
 ssize_t display_name_language_code_show(struct kobject *kobj,
 					struct kobj_attribute *attr,

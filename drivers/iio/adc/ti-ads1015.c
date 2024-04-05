@@ -925,7 +925,7 @@ static int ads1015_client_get_channels_config(struct i2c_client *client)
 
 		if (!fwnode_property_read_u32(node, "ti,gain", &pval)) {
 			pga = pval;
-			if (pga > 6) {
+			if (pga > 5) {
 				dev_err(dev, "invalid gain on %pfw\n", node);
 				fwnode_handle_put(node);
 				return -EINVAL;

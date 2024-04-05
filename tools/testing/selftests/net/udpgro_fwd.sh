@@ -217,6 +217,7 @@ for family in 4 6; do
 	cleanup
 
 	create_ns
+	ip netns exec $NS_DST ethtool -K veth$DST generic-receive-offload on
 	ip netns exec $NS_DST ethtool -K veth$DST rx-gro-list on
 	run_test "GRO frag list" $BM_NET$DST 1 0
 	cleanup
@@ -227,6 +228,7 @@ for family in 4 6; do
 	# use NAT to circumvent GRO FWD check
 	create_ns
 	ip -n $NS_DST addr add dev veth$DST $BM_NET$DST_NAT/$SUFFIX
+	ip netns exec $NS_DST ethtool -K veth$DST generic-receive-offload on
 	ip netns exec $NS_DST ethtool -K veth$DST rx-udp-gro-forwarding on
 	ip netns exec $NS_DST $IPT -t nat -I PREROUTING -d $BM_NET$DST_NAT \
 					-j DNAT --to-destination $BM_NET$DST
@@ -240,6 +242,7 @@ for family in 4 6; do
 	cleanup
 
 	create_vxlan_pair
+	ip netns exec $NS_DST ethtool -K veth$DST generic-receive-offload on
 	ip netns exec $NS_DST ethtool -K veth$DST rx-gro-list on
 	run_test "GRO frag list over UDP tunnel" $OL_NET$DST 1 1
 	cleanup
@@ -247,6 +250,7 @@ for family in 4 6; do
 	# use NAT to circumvent GRO FWD check
 	create_vxlan_pair
 	ip -n $NS_DST addr add dev $VXDEV$DST $OL_NET$DST_NAT/$SUFFIX
+	ip netns exec $NS_DST ethtool -K veth$DST generic-receive-offload on
 	ip netns exec $NS_DST ethtool -K veth$DST rx-udp-gro-forwarding on
 	ip netns exec $NS_DST $IPT -t nat -I PREROUTING -d $OL_NET$DST_NAT \
 					-j DNAT --to-destination $OL_NET$DST

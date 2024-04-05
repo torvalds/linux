@@ -419,14 +419,6 @@ static int ip4ip6_gro_complete(struct sk_buff *skb, int nhoff)
 	return inet_gro_complete(skb, nhoff);
 }
 
-static struct packet_offload ipv6_packet_offload __read_mostly = {
-	.type = cpu_to_be16(ETH_P_IPV6),
-	.callbacks = {
-		.gso_segment = ipv6_gso_segment,
-		.gro_receive = ipv6_gro_receive,
-		.gro_complete = ipv6_gro_complete,
-	},
-};
 
 static struct sk_buff *sit_gso_segment(struct sk_buff *skb,
 				       netdev_features_t features)
@@ -486,7 +478,15 @@ static int __init ipv6_offload_init(void)
 	if (ipv6_exthdrs_offload_init() < 0)
 		pr_crit("%s: Cannot add EXTHDRS protocol offload\n", __func__);
 
-	dev_add_offload(&ipv6_packet_offload);
+	net_hotdata.ipv6_packet_offload = (struct packet_offload) {
+		.type = cpu_to_be16(ETH_P_IPV6),
+		.callbacks = {
+			.gso_segment = ipv6_gso_segment,
+			.gro_receive = ipv6_gro_receive,
+			.gro_complete = ipv6_gro_complete,
+		},
+	};
+	dev_add_offload(&net_hotdata.ipv6_packet_offload);
 
 	inet_add_offload(&sit_offload, IPPROTO_IPV6);
 	inet6_add_offload(&ip6ip6_offload, IPPROTO_IPV6);

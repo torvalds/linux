@@ -410,6 +410,12 @@ static inline int hpage_collapse_test_exit(struct mm_struct *mm)
 	return atomic_read(&mm->mm_users) == 0;
 }
 
+static inline int hpage_collapse_test_exit_or_disable(struct mm_struct *mm)
+{
+	return hpage_collapse_test_exit(mm) ||
+	       test_bit(MMF_DISABLE_THP, &mm->flags);
+}
+
 void __khugepaged_enter(struct mm_struct *mm)
 {
 	struct khugepaged_mm_slot *mm_slot;
@@ -683,9 +689,7 @@ static void __collapse_huge_page_copy_succeeded(pte_t *pte,
 						spinlock_t *ptl,
 						struct list_head *compound_pagelist)
 {
-	struct folio *src_folio;
-	struct page *src_page;
-	struct page *tmp;
+	struct folio *src, *tmp;
 	pte_t *_pte;
 	pte_t pteval;
 
@@ -704,10 +708,11 @@ static void __collapse_huge_page_copy_succeeded(pte_t *pte,
 				ksm_might_unmap_zero_page(vma->vm_mm, pteval);
 			}
 		} else {
-			src_page = pte_page(pteval);
-			src_folio = page_folio(src_page);
-			if (!folio_test_large(src_folio))
-				release_pte_folio(src_folio);
+			struct page *src_page = pte_page(pteval);
+
+			src = page_folio(src_page);
+			if (!folio_test_large(src))
+				release_pte_folio(src);
 			/*
 			 * ptl mostly unnecessary, but preempt has to
 			 * be disabled to update the per-cpu stats
@@ -715,20 +720,19 @@ static void __collapse_huge_page_copy_succeeded(pte_t *pte,
 			 */
 			spin_lock(ptl);
 			ptep_clear(vma->vm_mm, address, _pte);
-			folio_remove_rmap_pte(src_folio, src_page, vma);
+			folio_remove_rmap_pte(src, src_page, vma);
 			spin_unlock(ptl);
 			free_page_and_swap_cache(src_page);
 		}
 	}
 
-	list_for_each_entry_safe(src_page, tmp, compound_pagelist, lru) {
-		list_del(&src_page->lru);
-		mod_node_page_state(page_pgdat(src_page),
-				    NR_ISOLATED_ANON + page_is_file_lru(src_page),
-				    -compound_nr(src_page));
-		unlock_page(src_page);
-		free_swap_cache(src_page);
-		putback_lru_page(src_page);
+	list_for_each_entry_safe(src, tmp, compound_pagelist, lru) {
+		list_del(&src->lru);
+		node_stat_sub_folio(src, NR_ISOLATED_ANON +
+				folio_is_file_lru(src));
+		folio_unlock(src);
+		free_swap_cache(src);
+		folio_putback_lru(src);
 	}
 }
 
@@ -914,7 +918,7 @@ static int hugepage_vma_revalidate(struct mm_struct *mm, unsigned long address,
 {
 	struct vm_area_struct *vma;
 
-	if (unlikely(hpage_collapse_test_exit(mm)))
+	if (unlikely(hpage_collapse_test_exit_or_disable(mm)))
 		return SCAN_ANY_PROCESS;
 
 	*vmap = vma = find_vma(mm, address);
@@ -1634,7 +1638,7 @@ int collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long addr,
 	/* step 3: set proper refcount and mm_counters. */
 	if (nr_ptes) {
 		folio_ref_sub(folio, nr_ptes);
-		add_mm_counter(mm, mm_counter_file(&folio->page), -nr_ptes);
+		add_mm_counter(mm, mm_counter_file(folio), -nr_ptes);
 	}
 
 	/* step 4: remove empty page table */
@@ -1665,7 +1669,7 @@ abort:
 	if (nr_ptes) {
 		flush_tlb_mm(mm);
 		folio_ref_sub(folio, nr_ptes);
-		add_mm_counter(mm, mm_counter_file(&folio->page), -nr_ptes);
+		add_mm_counter(mm, mm_counter_file(folio), -nr_ptes);
 	}
 	if (start_pte)
 		pte_unmap_unlock(start_pte, ptl);
@@ -2360,7 +2364,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages, int *result,
 		goto breakouterloop_mmap_lock;
 
 	progress++;
-	if (unlikely(hpage_collapse_test_exit(mm)))
+	if (unlikely(hpage_collapse_test_exit_or_disable(mm)))
 		goto breakouterloop;
 
 	vma_iter_init(&vmi, mm, khugepaged_scan.address);
@@ -2368,7 +2372,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages, int *result,
 		unsigned long hstart, hend;
 
 		cond_resched();
-		if (unlikely(hpage_collapse_test_exit(mm))) {
+		if (unlikely(hpage_collapse_test_exit_or_disable(mm))) {
 			progress++;
 			break;
 		}
@@ -2390,7 +2394,7 @@ skip:
 			bool mmap_locked = true;
 
 			cond_resched();
-			if (unlikely(hpage_collapse_test_exit(mm)))
+			if (unlikely(hpage_collapse_test_exit_or_disable(mm)))
 				goto breakouterloop;
 
 			VM_BUG_ON(khugepaged_scan.address < hstart ||
@@ -2408,7 +2412,7 @@ skip:
 				fput(file);
 				if (*result == SCAN_PTE_MAPPED_HUGEPAGE) {
 					mmap_read_lock(mm);
-					if (hpage_collapse_test_exit(mm))
+					if (hpage_collapse_test_exit_or_disable(mm))
 						goto breakouterloop;
 					*result = collapse_pte_mapped_thp(mm,
 						khugepaged_scan.address, false);

@@ -35,6 +35,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_sysfs.h>
+#include <drm/drm_edid.h>
 
 void vmw_du_cleanup(struct vmw_display_unit *du)
 {
@@ -184,13 +185,12 @@ static u32 vmw_du_cursor_mob_size(u32 w, u32 h)
  */
 static u32 *vmw_du_cursor_plane_acquire_image(struct vmw_plane_state *vps)
 {
-	bool is_iomem;
 	if (vps->surf) {
 		if (vps->surf_mapped)
 			return vmw_bo_map_and_cache(vps->surf->res.guest_memory_bo);
 		return vps->surf->snooper.image;
 	} else if (vps->bo)
-		return ttm_kmap_obj_virtual(&vps->bo->map, &is_iomem);
+		return vmw_bo_map_and_cache(vps->bo);
 	return NULL;
 }
 
@@ -272,6 +272,7 @@ static int vmw_du_get_cursor_mob(struct vmw_cursor_plane *vcp,
 	u32 size = vmw_du_cursor_mob_size(vps->base.crtc_w, vps->base.crtc_h);
 	u32 i;
 	u32 cursor_max_dim, mob_max_size;
+	struct vmw_fence_obj *fence = NULL;
 	int ret;
 
 	if (!dev_priv->has_mob ||
@@ -313,7 +314,15 @@ static int vmw_du_get_cursor_mob(struct vmw_cursor_plane *vcp,
 	if (ret != 0)
 		goto teardown;
 
-	vmw_bo_fence_single(&vps->cursor.bo->tbo, NULL);
+	ret = vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
+	if (ret != 0) {
+		ttm_bo_unreserve(&vps->cursor.bo->tbo);
+		goto teardown;
+	}
+
+	dma_fence_wait(&fence->base, false);
+	dma_fence_put(&fence->base);
+
 	ttm_bo_unreserve(&vps->cursor.bo->tbo);
 	return 0;
 
@@ -643,20 +652,10 @@ vmw_du_cursor_plane_cleanup_fb(struct drm_plane *plane,
 {
 	struct vmw_cursor_plane *vcp = vmw_plane_to_vcp(plane);
 	struct vmw_plane_state *vps = vmw_plane_state_to_vps(old_state);
-	bool is_iomem;
 
 	if (vps->surf_mapped) {
 		vmw_bo_unmap(vps->surf->res.guest_memory_bo);
 		vps->surf_mapped = false;
-	}
-
-	if (vps->bo && ttm_kmap_obj_virtual(&vps->bo->map, &is_iomem)) {
-		const int ret = ttm_bo_reserve(&vps->bo->tbo, true, false, NULL);
-
-		if (likely(ret == 0)) {
-			ttm_bo_kunmap(&vps->bo->map);
-			ttm_bo_unreserve(&vps->bo->tbo);
-		}
 	}
 
 	vmw_du_cursor_plane_unmap_cm(vps);
@@ -694,6 +693,10 @@ vmw_du_cursor_plane_prepare_fb(struct drm_plane *plane,
 	int ret = 0;
 
 	if (vps->surf) {
+		if (vps->surf_mapped) {
+			vmw_bo_unmap(vps->surf->res.guest_memory_bo);
+			vps->surf_mapped = false;
+		}
 		vmw_surface_unreference(&vps->surf);
 		vps->surf = NULL;
 	}
@@ -2278,107 +2281,6 @@ vmw_du_connector_detect(struct drm_connector *connector, bool force)
 		connector_status_connected : connector_status_disconnected);
 }
 
-static struct drm_display_mode vmw_kms_connector_builtin[] = {
-	/* 640x480@60Hz */
-	{ DRM_MODE("640x480", DRM_MODE_TYPE_DRIVER, 25175, 640, 656,
-		   752, 800, 0, 480, 489, 492, 525, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) },
-	/* 800x600@60Hz */
-	{ DRM_MODE("800x600", DRM_MODE_TYPE_DRIVER, 40000, 800, 840,
-		   968, 1056, 0, 600, 601, 605, 628, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1024x768@60Hz */
-	{ DRM_MODE("1024x768", DRM_MODE_TYPE_DRIVER, 65000, 1024, 1048,
-		   1184, 1344, 0, 768, 771, 777, 806, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC) },
-	/* 1152x864@75Hz */
-	{ DRM_MODE("1152x864", DRM_MODE_TYPE_DRIVER, 108000, 1152, 1216,
-		   1344, 1600, 0, 864, 865, 868, 900, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1280x720@60Hz */
-	{ DRM_MODE("1280x720", DRM_MODE_TYPE_DRIVER, 74500, 1280, 1344,
-		   1472, 1664, 0, 720, 723, 728, 748, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1280x768@60Hz */
-	{ DRM_MODE("1280x768", DRM_MODE_TYPE_DRIVER, 79500, 1280, 1344,
-		   1472, 1664, 0, 768, 771, 778, 798, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1280x800@60Hz */
-	{ DRM_MODE("1280x800", DRM_MODE_TYPE_DRIVER, 83500, 1280, 1352,
-		   1480, 1680, 0, 800, 803, 809, 831, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC) },
-	/* 1280x960@60Hz */
-	{ DRM_MODE("1280x960", DRM_MODE_TYPE_DRIVER, 108000, 1280, 1376,
-		   1488, 1800, 0, 960, 961, 964, 1000, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1280x1024@60Hz */
-	{ DRM_MODE("1280x1024", DRM_MODE_TYPE_DRIVER, 108000, 1280, 1328,
-		   1440, 1688, 0, 1024, 1025, 1028, 1066, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1360x768@60Hz */
-	{ DRM_MODE("1360x768", DRM_MODE_TYPE_DRIVER, 85500, 1360, 1424,
-		   1536, 1792, 0, 768, 771, 777, 795, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1440x1050@60Hz */
-	{ DRM_MODE("1400x1050", DRM_MODE_TYPE_DRIVER, 121750, 1400, 1488,
-		   1632, 1864, 0, 1050, 1053, 1057, 1089, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1440x900@60Hz */
-	{ DRM_MODE("1440x900", DRM_MODE_TYPE_DRIVER, 106500, 1440, 1520,
-		   1672, 1904, 0, 900, 903, 909, 934, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1600x1200@60Hz */
-	{ DRM_MODE("1600x1200", DRM_MODE_TYPE_DRIVER, 162000, 1600, 1664,
-		   1856, 2160, 0, 1200, 1201, 1204, 1250, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1680x1050@60Hz */
-	{ DRM_MODE("1680x1050", DRM_MODE_TYPE_DRIVER, 146250, 1680, 1784,
-		   1960, 2240, 0, 1050, 1053, 1059, 1089, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1792x1344@60Hz */
-	{ DRM_MODE("1792x1344", DRM_MODE_TYPE_DRIVER, 204750, 1792, 1920,
-		   2120, 2448, 0, 1344, 1345, 1348, 1394, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1853x1392@60Hz */
-	{ DRM_MODE("1856x1392", DRM_MODE_TYPE_DRIVER, 218250, 1856, 1952,
-		   2176, 2528, 0, 1392, 1393, 1396, 1439, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1920x1080@60Hz */
-	{ DRM_MODE("1920x1080", DRM_MODE_TYPE_DRIVER, 173000, 1920, 2048,
-		   2248, 2576, 0, 1080, 1083, 1088, 1120, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1920x1200@60Hz */
-	{ DRM_MODE("1920x1200", DRM_MODE_TYPE_DRIVER, 193250, 1920, 2056,
-		   2256, 2592, 0, 1200, 1203, 1209, 1245, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 1920x1440@60Hz */
-	{ DRM_MODE("1920x1440", DRM_MODE_TYPE_DRIVER, 234000, 1920, 2048,
-		   2256, 2600, 0, 1440, 1441, 1444, 1500, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 2560x1440@60Hz */
-	{ DRM_MODE("2560x1440", DRM_MODE_TYPE_DRIVER, 241500, 2560, 2608,
-		   2640, 2720, 0, 1440, 1443, 1448, 1481, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC) },
-	/* 2560x1600@60Hz */
-	{ DRM_MODE("2560x1600", DRM_MODE_TYPE_DRIVER, 348500, 2560, 2752,
-		   3032, 3504, 0, 1600, 1603, 1609, 1658, 0,
-		   DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC) },
-	/* 2880x1800@60Hz */
-	{ DRM_MODE("2880x1800", DRM_MODE_TYPE_DRIVER, 337500, 2880, 2928,
-		   2960, 3040, 0, 1800, 1803, 1809, 1852, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC) },
-	/* 3840x2160@60Hz */
-	{ DRM_MODE("3840x2160", DRM_MODE_TYPE_DRIVER, 533000, 3840, 3888,
-		   3920, 4000, 0, 2160, 2163, 2168, 2222, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC) },
-	/* 3840x2400@60Hz */
-	{ DRM_MODE("3840x2400", DRM_MODE_TYPE_DRIVER, 592250, 3840, 3888,
-		   3920, 4000, 0, 2400, 2403, 2409, 2469, 0,
-		   DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_NVSYNC) },
-	/* Terminate */
-	{ DRM_MODE("", 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) },
-};
-
 /**
  * vmw_guess_mode_timing - Provide fake timings for a
  * 60Hz vrefresh mode.
@@ -2399,88 +2301,6 @@ void vmw_guess_mode_timing(struct drm_display_mode *mode)
 	mode->clock = (u32)mode->htotal * (u32)mode->vtotal / 100 * 6;
 }
 
-
-int vmw_du_connector_fill_modes(struct drm_connector *connector,
-				uint32_t max_width, uint32_t max_height)
-{
-	struct vmw_display_unit *du = vmw_connector_to_du(connector);
-	struct drm_device *dev = connector->dev;
-	struct vmw_private *dev_priv = vmw_priv(dev);
-	struct drm_display_mode *mode = NULL;
-	struct drm_display_mode *bmode;
-	struct drm_display_mode prefmode = { DRM_MODE("preferred",
-		DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-		DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC)
-	};
-	int i;
-	u32 assumed_bpp = 4;
-
-	if (dev_priv->assume_16bpp)
-		assumed_bpp = 2;
-
-	max_width  = min(max_width,  dev_priv->texture_max_width);
-	max_height = min(max_height, dev_priv->texture_max_height);
-
-	/*
-	 * For STDU extra limit for a mode on SVGA_REG_SCREENTARGET_MAX_WIDTH/
-	 * HEIGHT registers.
-	 */
-	if (dev_priv->active_display_unit == vmw_du_screen_target) {
-		max_width  = min(max_width,  dev_priv->stdu_max_width);
-		max_height = min(max_height, dev_priv->stdu_max_height);
-	}
-
-	/* Add preferred mode */
-	mode = drm_mode_duplicate(dev, &prefmode);
-	if (!mode)
-		return 0;
-	mode->hdisplay = du->pref_width;
-	mode->vdisplay = du->pref_height;
-	vmw_guess_mode_timing(mode);
-	drm_mode_set_name(mode);
-
-	if (vmw_kms_validate_mode_vram(dev_priv,
-					mode->hdisplay * assumed_bpp,
-					mode->vdisplay)) {
-		drm_mode_probed_add(connector, mode);
-	} else {
-		drm_mode_destroy(dev, mode);
-		mode = NULL;
-	}
-
-	if (du->pref_mode) {
-		list_del_init(&du->pref_mode->head);
-		drm_mode_destroy(dev, du->pref_mode);
-	}
-
-	/* mode might be null here, this is intended */
-	du->pref_mode = mode;
-
-	for (i = 0; vmw_kms_connector_builtin[i].type != 0; i++) {
-		bmode = &vmw_kms_connector_builtin[i];
-		if (bmode->hdisplay > max_width ||
-		    bmode->vdisplay > max_height)
-			continue;
-
-		if (!vmw_kms_validate_mode_vram(dev_priv,
-						bmode->hdisplay * assumed_bpp,
-						bmode->vdisplay))
-			continue;
-
-		mode = drm_mode_duplicate(dev, bmode);
-		if (!mode)
-			return 0;
-
-		drm_mode_probed_add(connector, mode);
-	}
-
-	drm_connector_list_update(connector);
-	/* Move the prefered mode first, help apps pick the right mode. */
-	drm_mode_sort(&connector->modes);
-
-	return 1;
-}
 
 /**
  * vmw_kms_update_layout_ioctl - Handler for DRM_VMW_UPDATE_LAYOUT ioctl
@@ -3021,4 +2841,92 @@ out_revert:
 out_unref:
 	vmw_validation_unref_lists(&val_ctx);
 	return ret;
+}
+
+/**
+ * vmw_connector_mode_valid - implements drm_connector_helper_funcs.mode_valid callback
+ *
+ * @connector: the drm connector, part of a DU container
+ * @mode: drm mode to check
+ *
+ * Returns MODE_OK on success, or a drm_mode_status error code.
+ */
+enum drm_mode_status vmw_connector_mode_valid(struct drm_connector *connector,
+					      struct drm_display_mode *mode)
+{
+	struct drm_device *dev = connector->dev;
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	u32 max_width = dev_priv->texture_max_width;
+	u32 max_height = dev_priv->texture_max_height;
+	u32 assumed_cpp = 4;
+
+	if (dev_priv->assume_16bpp)
+		assumed_cpp = 2;
+
+	if (dev_priv->active_display_unit == vmw_du_screen_target) {
+		max_width  = min(dev_priv->stdu_max_width,  max_width);
+		max_height = min(dev_priv->stdu_max_height, max_height);
+	}
+
+	if (max_width < mode->hdisplay)
+		return MODE_BAD_HVALUE;
+
+	if (max_height < mode->vdisplay)
+		return MODE_BAD_VVALUE;
+
+	if (!vmw_kms_validate_mode_vram(dev_priv,
+					mode->hdisplay * assumed_cpp,
+					mode->vdisplay))
+		return MODE_MEM;
+
+	return MODE_OK;
+}
+
+/**
+ * vmw_connector_get_modes - implements drm_connector_helper_funcs.get_modes callback
+ *
+ * @connector: the drm connector, part of a DU container
+ *
+ * Returns the number of added modes.
+ */
+int vmw_connector_get_modes(struct drm_connector *connector)
+{
+	struct vmw_display_unit *du = vmw_connector_to_du(connector);
+	struct drm_device *dev = connector->dev;
+	struct vmw_private *dev_priv = vmw_priv(dev);
+	struct drm_display_mode *mode = NULL;
+	struct drm_display_mode prefmode = { DRM_MODE("preferred",
+		DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_PVSYNC)
+	};
+	u32 max_width;
+	u32 max_height;
+	u32 num_modes;
+
+	/* Add preferred mode */
+	mode = drm_mode_duplicate(dev, &prefmode);
+	if (!mode)
+		return 0;
+
+	mode->hdisplay = du->pref_width;
+	mode->vdisplay = du->pref_height;
+	vmw_guess_mode_timing(mode);
+	drm_mode_set_name(mode);
+
+	drm_mode_probed_add(connector, mode);
+	drm_dbg_kms(dev, "preferred mode " DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
+
+	/* Probe connector for all modes not exceeding our geom limits */
+	max_width  = dev_priv->texture_max_width;
+	max_height = dev_priv->texture_max_height;
+
+	if (dev_priv->active_display_unit == vmw_du_screen_target) {
+		max_width  = min(dev_priv->stdu_max_width,  max_width);
+		max_height = min(dev_priv->stdu_max_height, max_height);
+	}
+
+	num_modes = 1 + drm_add_modes_noedid(connector, max_width, max_height);
+
+	return num_modes;
 }

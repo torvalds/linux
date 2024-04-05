@@ -45,7 +45,7 @@ xfs_uuid_table_free(void)
 {
 	if (xfs_uuid_table_size == 0)
 		return;
-	kmem_free(xfs_uuid_table);
+	kfree(xfs_uuid_table);
 	xfs_uuid_table = NULL;
 	xfs_uuid_table_size = 0;
 }
@@ -62,7 +62,7 @@ xfs_uuid_mount(
 	int			hole, i;
 
 	/* Publish UUID in struct super_block */
-	uuid_copy(&mp->m_super->s_uuid, uuid);
+	super_set_uuid(mp->m_super, uuid->b, sizeof(*uuid));
 
 	if (xfs_has_nouuid(mp))
 		return 0;
@@ -705,6 +705,8 @@ xfs_mountfs(
 
 	/* enable fail_at_unmount as default */
 	mp->m_fail_unmount = true;
+
+	super_set_sysfs_name_id(mp->m_super);
 
 	error = xfs_sysfs_init(&mp->m_kobj, &xfs_mp_ktype,
 			       NULL, mp->m_super->s_id);

@@ -1007,7 +1007,7 @@ irqreturn_t serio_interrupt(struct serio *serio,
 }
 EXPORT_SYMBOL(serio_interrupt);
 
-struct bus_type serio_bus = {
+const struct bus_type serio_bus = {
 	.name		= "serio",
 	.drv_groups	= serio_driver_groups,
 	.match		= serio_bus_match,

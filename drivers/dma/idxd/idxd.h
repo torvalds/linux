@@ -282,7 +282,7 @@ typedef int (*load_device_defaults_fn_t) (struct idxd_device *idxd);
 struct idxd_driver_data {
 	const char *name_prefix;
 	enum idxd_type type;
-	struct device_type *dev_type;
+	const struct device_type *dev_type;
 	int compl_size;
 	int align;
 	int evl_cr_off;
@@ -515,15 +515,15 @@ static inline void idxd_set_user_intr(struct idxd_device *idxd, bool enable)
 	iowrite32(reg.bits, idxd->reg_base + IDXD_GENCFG_OFFSET);
 }
 
-extern struct bus_type dsa_bus_type;
+extern const struct bus_type dsa_bus_type;
 
 extern bool support_enqcmd;
 extern struct ida idxd_ida;
-extern struct device_type dsa_device_type;
-extern struct device_type iax_device_type;
-extern struct device_type idxd_wq_device_type;
-extern struct device_type idxd_engine_device_type;
-extern struct device_type idxd_group_device_type;
+extern const struct device_type dsa_device_type;
+extern const struct device_type iax_device_type;
+extern const struct device_type idxd_wq_device_type;
+extern const struct device_type idxd_engine_device_type;
+extern const struct device_type idxd_group_device_type;
 
 static inline bool is_dsa_dev(struct idxd_dev *idxd_dev)
 {

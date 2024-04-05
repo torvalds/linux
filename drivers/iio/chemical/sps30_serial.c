@@ -210,8 +210,8 @@ static int sps30_serial_command(struct sps30_state *state, unsigned char cmd,
 	return rsp_size;
 }
 
-static ssize_t sps30_serial_receive_buf(struct serdev_device *serdev,
-					const u8 *buf, size_t size)
+static size_t sps30_serial_receive_buf(struct serdev_device *serdev,
+				       const u8 *buf, size_t size)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(&serdev->dev);
 	struct sps30_serial_priv *priv;

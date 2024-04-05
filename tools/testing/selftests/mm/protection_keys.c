@@ -54,6 +54,7 @@ int test_nr;
 u64 shadow_pkey_reg;
 int dprint_in_signal;
 char dprint_in_signal_buffer[DPRINT_IN_SIGNAL_BUF_SIZE];
+char buf[256];
 
 void cat_into_file(char *str, char *file)
 {
@@ -1744,6 +1745,38 @@ void pkey_setup_shadow(void)
 	shadow_pkey_reg = __read_pkey_reg();
 }
 
+void restore_settings_atexit(void)
+{
+	cat_into_file(buf, "/proc/sys/vm/nr_hugepages");
+}
+
+void save_settings(void)
+{
+	int fd;
+	int err;
+
+	if (geteuid())
+		return;
+
+	fd = open("/proc/sys/vm/nr_hugepages", O_RDONLY);
+	if (fd < 0) {
+		fprintf(stderr, "error opening\n");
+		perror("error: ");
+		exit(__LINE__);
+	}
+
+	/* -1 to guarantee leaving the trailing \0 */
+	err = read(fd, buf, sizeof(buf)-1);
+	if (err < 0) {
+		fprintf(stderr, "error reading\n");
+		perror("error: ");
+		exit(__LINE__);
+	}
+
+	atexit(restore_settings_atexit);
+	close(fd);
+}
+
 int main(void)
 {
 	int nr_iterations = 22;
@@ -1751,6 +1784,7 @@ int main(void)
 
 	srand((unsigned int)time(NULL));
 
+	save_settings();
 	setup_handlers();
 
 	printf("has pkeys: %d\n", pkeys_supported);

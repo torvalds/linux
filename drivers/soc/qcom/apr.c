@@ -399,7 +399,7 @@ static int apr_uevent(const struct device *dev, struct kobj_uevent_env *env)
 	return add_uevent_var(env, "MODALIAS=apr:%s", adev->name);
 }
 
-struct bus_type aprbus = {
+const struct bus_type aprbus = {
 	.name		= "aprbus",
 	.match		= apr_device_match,
 	.probe		= apr_device_probe,

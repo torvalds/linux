@@ -324,7 +324,7 @@ Contact Info
 The code is currently maintained by Roopa Prabhu <roopa@nvidia.com> and
 Nikolay Aleksandrov <razor@blackwall.org>. Bridge bugs and enhancements
 are discussed on the linux-netdev mailing list netdev@vger.kernel.org and
-bridge@lists.linux-foundation.org.
+bridge@lists.linux.dev.
 
 The list is open to anyone interested: http://vger.kernel.org/vger-lists.html#netdev
 

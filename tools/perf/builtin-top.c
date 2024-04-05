@@ -1573,7 +1573,7 @@ int cmd_top(int argc, const char **argv)
 		    "add last branch records to call history"),
 	OPT_BOOLEAN(0, "raw-trace", &symbol_conf.raw_trace,
 		    "Show raw trace event output (do not use print fmt or plugins)"),
-	OPT_BOOLEAN(0, "hierarchy", &symbol_conf.report_hierarchy,
+	OPT_BOOLEAN('H', "hierarchy", &symbol_conf.report_hierarchy,
 		    "Show entries in a hierarchy"),
 	OPT_BOOLEAN(0, "overwrite", &top.record_opts.overwrite,
 		    "Use a backward ring buffer, default: no"),

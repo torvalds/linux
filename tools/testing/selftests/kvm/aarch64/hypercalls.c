@@ -105,12 +105,12 @@ static void guest_test_hvc(const struct test_hvc_info *hc_info)
 		case TEST_STAGE_HVC_IFACE_FEAT_DISABLED:
 		case TEST_STAGE_HVC_IFACE_FALSE_INFO:
 			__GUEST_ASSERT(res.a0 == SMCCC_RET_NOT_SUPPORTED,
-				       "a0 = 0x%lx, func_id = 0x%x, arg1 = 0x%llx, stage = %u",
+				       "a0 = 0x%lx, func_id = 0x%x, arg1 = 0x%lx, stage = %u",
 					res.a0, hc_info->func_id, hc_info->arg1, stage);
 			break;
 		case TEST_STAGE_HVC_IFACE_FEAT_ENABLED:
 			__GUEST_ASSERT(res.a0 != SMCCC_RET_NOT_SUPPORTED,
-				       "a0 = 0x%lx, func_id = 0x%x, arg1 = 0x%llx, stage = %u",
+				       "a0 = 0x%lx, func_id = 0x%x, arg1 = 0x%lx, stage = %u",
 					res.a0, hc_info->func_id, hc_info->arg1, stage);
 			break;
 		default:

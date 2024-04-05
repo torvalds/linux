@@ -2364,7 +2364,8 @@ static int cs42l43_codec_runtime_resume(struct device *dev)
 
 static int cs42l43_codec_suspend(struct device *dev)
 {
-	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
+	struct cs42l43_codec *priv = dev_get_drvdata(dev);
+	struct cs42l43 *cs42l43 = priv->core;
 
 	disable_irq(cs42l43->irq);
 
@@ -2373,7 +2374,8 @@ static int cs42l43_codec_suspend(struct device *dev)
 
 static int cs42l43_codec_suspend_noirq(struct device *dev)
 {
-	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
+	struct cs42l43_codec *priv = dev_get_drvdata(dev);
+	struct cs42l43 *cs42l43 = priv->core;
 
 	enable_irq(cs42l43->irq);
 
@@ -2382,7 +2384,8 @@ static int cs42l43_codec_suspend_noirq(struct device *dev)
 
 static int cs42l43_codec_resume(struct device *dev)
 {
-	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
+	struct cs42l43_codec *priv = dev_get_drvdata(dev);
+	struct cs42l43 *cs42l43 = priv->core;
 
 	enable_irq(cs42l43->irq);
 
@@ -2391,7 +2394,8 @@ static int cs42l43_codec_resume(struct device *dev)
 
 static int cs42l43_codec_resume_noirq(struct device *dev)
 {
-	struct cs42l43 *cs42l43 = dev_get_drvdata(dev);
+	struct cs42l43_codec *priv = dev_get_drvdata(dev);
+	struct cs42l43 *cs42l43 = priv->core;
 
 	disable_irq(cs42l43->irq);
 

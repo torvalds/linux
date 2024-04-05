@@ -877,8 +877,7 @@ static void xe_pt_commit_bind(struct xe_vma *vma,
 
 static int
 xe_pt_prepare_bind(struct xe_tile *tile, struct xe_vma *vma,
-		   struct xe_vm_pgtable_update *entries, u32 *num_entries,
-		   bool rebind)
+		   struct xe_vm_pgtable_update *entries, u32 *num_entries)
 {
 	int err;
 
@@ -1234,7 +1233,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 	       "Preparing bind, with range [%llx...%llx) engine %p.\n",
 	       xe_vma_start(vma), xe_vma_end(vma), q);
 
-	err = xe_pt_prepare_bind(tile, vma, entries, &num_entries, rebind);
+	err = xe_pt_prepare_bind(tile, vma, entries, &num_entries);
 	if (err)
 		goto err;
 	xe_tile_assert(tile, num_entries <= ARRAY_SIZE(entries));

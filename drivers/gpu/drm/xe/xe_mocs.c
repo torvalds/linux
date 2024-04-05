@@ -13,6 +13,7 @@
 #include "xe_gt_mcr.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
+#include "xe_sriov.h"
 #include "xe_step_types.h"
 
 #if IS_ENABLED(CONFIG_DRM_XE_DEBUG)
@@ -290,18 +291,6 @@ static const struct xe_mocs_entry dg2_mocs_desc[] = {
 	MOCS_ENTRY(3, 0, L3_3_WB | L3_LKUP(1)),
 };
 
-static const struct xe_mocs_entry dg2_mocs_desc_g10_ax[] = {
-	/* Wa_14011441408: Set Go to Memory for MOCS#0 */
-	MOCS_ENTRY(0, 0, L3_1_UC | L3_GLBGO(1) | L3_LKUP(1)),
-	/* UC - Coherent; GO:Memory */
-	MOCS_ENTRY(1, 0, L3_1_UC | L3_GLBGO(1) | L3_LKUP(1)),
-	/* UC - Non-Coherent; GO:Memory */
-	MOCS_ENTRY(2, 0, L3_1_UC | L3_GLBGO(1)),
-
-	/* WB - LC */
-	MOCS_ENTRY(3, 0, L3_3_WB | L3_LKUP(1)),
-};
-
 static const struct xe_mocs_entry pvc_mocs_desc[] = {
 	/* Error */
 	MOCS_ENTRY(0, 0, L3_3_WB),
@@ -409,15 +398,8 @@ static unsigned int get_mocs_settings(struct xe_device *xe,
 		info->unused_entries_index = 1;
 		break;
 	case XE_DG2:
-		if (xe->info.subplatform == XE_SUBPLATFORM_DG2_G10 &&
-		    xe->info.step.graphics >= STEP_A0 &&
-		    xe->info.step.graphics <= STEP_B0) {
-			info->size = ARRAY_SIZE(dg2_mocs_desc_g10_ax);
-			info->table = dg2_mocs_desc_g10_ax;
-		} else {
-			info->size = ARRAY_SIZE(dg2_mocs_desc);
-			info->table = dg2_mocs_desc;
-		}
+		info->size = ARRAY_SIZE(dg2_mocs_desc);
+		info->table = dg2_mocs_desc;
 		info->uc_index = 1;
 		info->n_entries = XELP_NUM_MOCS_ENTRIES;
 		info->unused_entries_index = 3;
@@ -557,6 +539,9 @@ void xe_mocs_init(struct xe_gt *gt)
 {
 	struct xe_mocs_info table;
 	unsigned int flags;
+
+	if (IS_SRIOV_VF(gt_to_xe(gt)))
+		return;
 
 	/*
 	 * MOCS settings are split between "GLOB_MOCS" and/or "LNCFCMOCS"

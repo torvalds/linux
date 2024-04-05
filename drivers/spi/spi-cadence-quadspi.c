@@ -31,7 +31,9 @@
 #include <linux/timer.h>
 
 #define CQSPI_NAME			"cadence-qspi"
-#define CQSPI_MAX_CHIPSELECT		16
+#define CQSPI_MAX_CHIPSELECT		4
+
+static_assert(CQSPI_MAX_CHIPSELECT <= SPI_CS_CNT_MAX);
 
 /* Quirks */
 #define CQSPI_NEEDS_WR_DELAY		BIT(0)
@@ -1410,7 +1412,7 @@ static int cqspi_mem_process(struct spi_mem *mem, const struct spi_mem_op *op)
 static int cqspi_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op *op)
 {
 	int ret;
-	struct cqspi_st *cqspi = spi_master_get_devdata(mem->spi->master);
+	struct cqspi_st *cqspi = spi_controller_get_devdata(mem->spi->controller);
 	struct device *dev = &cqspi->pdev->dev;
 
 	ret = pm_runtime_resume_and_get(dev);
@@ -1619,6 +1621,7 @@ static const struct spi_controller_mem_caps cqspi_mem_caps = {
 
 static int cqspi_setup_flash(struct cqspi_st *cqspi)
 {
+	unsigned int max_cs = cqspi->num_chipselect - 1;
 	struct platform_device *pdev = cqspi->pdev;
 	struct device *dev = &pdev->dev;
 	struct device_node *np = dev->of_node;
@@ -1635,10 +1638,12 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 			return ret;
 		}
 
-		if (cs >= CQSPI_MAX_CHIPSELECT) {
+		if (cs >= cqspi->num_chipselect) {
 			dev_err(dev, "Chip select %d out of range.\n", cs);
 			of_node_put(np);
 			return -EINVAL;
+		} else if (cs < max_cs) {
+			max_cs = cs;
 		}
 
 		f_pdata = &cqspi->f_pdata[cs];
@@ -1652,6 +1657,7 @@ static int cqspi_setup_flash(struct cqspi_st *cqspi)
 		}
 	}
 
+	cqspi->num_chipselect = max_cs + 1;
 	return 0;
 }
 
@@ -1712,10 +1718,9 @@ static int cqspi_probe(struct platform_device *pdev)
 	int irq;
 
 	host = devm_spi_alloc_host(&pdev->dev, sizeof(*cqspi));
-	if (!host) {
-		dev_err(&pdev->dev, "devm_spi_alloc_host failed\n");
+	if (!host)
 		return -ENOMEM;
-	}
+
 	host->mode_bits = SPI_RX_QUAD | SPI_RX_DUAL;
 	host->mem_ops = &cqspi_mem_ops;
 	host->mem_caps = &cqspi_mem_caps;
@@ -1863,13 +1868,13 @@ static int cqspi_probe(struct platform_device *pdev)
 	cqspi->current_cs = -1;
 	cqspi->sclk = 0;
 
-	host->num_chipselect = cqspi->num_chipselect;
-
 	ret = cqspi_setup_flash(cqspi);
 	if (ret) {
 		dev_err(dev, "failed to setup flash parameters %d\n", ret);
 		goto probe_setup_failed;
 	}
+
+	host->num_chipselect = cqspi->num_chipselect;
 
 	if (cqspi->use_direct_mode) {
 		ret = cqspi_request_mmap_dma(cqspi);

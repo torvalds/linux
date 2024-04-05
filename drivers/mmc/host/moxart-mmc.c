@@ -131,12 +131,10 @@ struct moxart_host {
 	struct dma_async_tx_descriptor	*tx_desc;
 	struct mmc_host			*mmc;
 	struct mmc_request		*mrq;
-	struct scatterlist		*cur_sg;
 	struct completion		dma_complete;
 	struct completion		pio_complete;
 
-	u32				num_sg;
-	u32				data_remain;
+	struct sg_mapping_iter		sg_miter;
 	u32				data_len;
 	u32				fifo_width;
 	u32				timeout;
@@ -147,35 +145,6 @@ struct moxart_host {
 	bool				have_dma;
 	bool				is_removed;
 };
-
-static inline void moxart_init_sg(struct moxart_host *host,
-				  struct mmc_data *data)
-{
-	host->cur_sg = data->sg;
-	host->num_sg = data->sg_len;
-	host->data_remain = host->cur_sg->length;
-
-	if (host->data_remain > host->data_len)
-		host->data_remain = host->data_len;
-}
-
-static inline int moxart_next_sg(struct moxart_host *host)
-{
-	int remain;
-	struct mmc_data *data = host->mrq->cmd->data;
-
-	host->cur_sg++;
-	host->num_sg--;
-
-	if (host->num_sg > 0) {
-		host->data_remain = host->cur_sg->length;
-		remain = host->data_len - data->bytes_xfered;
-		if (remain > 0 && remain < host->data_remain)
-			host->data_remain = remain;
-	}
-
-	return host->num_sg;
-}
 
 static int moxart_wait_for_status(struct moxart_host *host,
 				  u32 mask, u32 *status)
@@ -254,6 +223,11 @@ static void moxart_dma_complete(void *param)
 	complete(&host->dma_complete);
 }
 
+static bool moxart_use_dma(struct moxart_host *host)
+{
+	return (host->data_len > host->fifo_width) && host->have_dma;
+}
+
 static void moxart_transfer_dma(struct mmc_data *data, struct moxart_host *host)
 {
 	u32 len, dir_slave;
@@ -291,10 +265,10 @@ static void moxart_transfer_dma(struct mmc_data *data, struct moxart_host *host)
 		dma_async_issue_pending(dma_chan);
 	}
 
-	data->bytes_xfered += host->data_remain;
-
 	wait_for_completion_interruptible_timeout(&host->dma_complete,
 						  host->timeout);
+
+	data->bytes_xfered = host->data_len;
 
 	dma_unmap_sg(dma_chan->device->dev,
 		     data->sg, data->sg_len,
@@ -304,14 +278,28 @@ static void moxart_transfer_dma(struct mmc_data *data, struct moxart_host *host)
 
 static void moxart_transfer_pio(struct moxart_host *host)
 {
+	struct sg_mapping_iter *sgm = &host->sg_miter;
 	struct mmc_data *data = host->mrq->cmd->data;
 	u32 *sgp, len = 0, remain, status;
 
 	if (host->data_len == data->bytes_xfered)
 		return;
 
-	sgp = sg_virt(host->cur_sg);
-	remain = host->data_remain;
+	/*
+	 * By updating sgm->consumes this will get a proper pointer into the
+	 * buffer at any time.
+	 */
+	if (!sg_miter_next(sgm)) {
+		/* This shold not happen */
+		dev_err(mmc_dev(host->mmc), "ran out of scatterlist prematurely\n");
+		data->error = -EINVAL;
+		complete(&host->pio_complete);
+		return;
+	}
+	sgp = sgm->addr;
+	remain = sgm->length;
+	if (remain > host->data_len)
+		remain = host->data_len;
 
 	if (data->flags & MMC_DATA_WRITE) {
 		while (remain > 0) {
@@ -326,6 +314,7 @@ static void moxart_transfer_pio(struct moxart_host *host)
 				sgp++;
 				len += 4;
 			}
+			sgm->consumed += len;
 			remain -= len;
 		}
 
@@ -342,22 +331,22 @@ static void moxart_transfer_pio(struct moxart_host *host)
 				sgp++;
 				len += 4;
 			}
+			sgm->consumed += len;
 			remain -= len;
 		}
 	}
 
-	data->bytes_xfered += host->data_remain - remain;
-	host->data_remain = remain;
-
-	if (host->data_len != data->bytes_xfered)
-		moxart_next_sg(host);
-	else
+	data->bytes_xfered += sgm->consumed;
+	if (host->data_len == data->bytes_xfered) {
 		complete(&host->pio_complete);
+		return;
+	}
 }
 
 static void moxart_prepare_data(struct moxart_host *host)
 {
 	struct mmc_data *data = host->mrq->cmd->data;
+	unsigned int flags = SG_MITER_ATOMIC; /* Used from IRQ */
 	u32 datactrl;
 	int blksz_bits;
 
@@ -368,15 +357,19 @@ static void moxart_prepare_data(struct moxart_host *host)
 	blksz_bits = ffs(data->blksz) - 1;
 	BUG_ON(1 << blksz_bits != data->blksz);
 
-	moxart_init_sg(host, data);
-
 	datactrl = DCR_DATA_EN | (blksz_bits & DCR_BLK_SIZE);
 
-	if (data->flags & MMC_DATA_WRITE)
+	if (data->flags & MMC_DATA_WRITE) {
+		flags |= SG_MITER_FROM_SG;
 		datactrl |= DCR_DATA_WRITE;
+	} else {
+		flags |= SG_MITER_TO_SG;
+	}
 
-	if ((host->data_len > host->fifo_width) && host->have_dma)
+	if (moxart_use_dma(host))
 		datactrl |= DCR_DMA_EN;
+	else
+		sg_miter_start(&host->sg_miter, data->sg, data->sg_len, flags);
 
 	writel(DCR_DATA_FIFO_RESET, host->base + REG_DATA_CONTROL);
 	writel(MASK_DATA | FIFO_URUN | FIFO_ORUN, host->base + REG_CLEAR);
@@ -407,7 +400,7 @@ static void moxart_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	moxart_send_command(host, host->mrq->cmd);
 
 	if (mrq->cmd->data) {
-		if ((host->data_len > host->fifo_width) && host->have_dma) {
+		if (moxart_use_dma(host)) {
 
 			writel(CARD_CHANGE, host->base + REG_INTERRUPT_MASK);
 
@@ -449,6 +442,9 @@ static void moxart_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	}
 
 request_done:
+	if (!moxart_use_dma(host))
+		sg_miter_stop(&host->sg_miter);
+
 	spin_unlock_irqrestore(&host->lock, flags);
 	mmc_request_done(host->mmc, mrq);
 }

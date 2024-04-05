@@ -385,7 +385,8 @@ struct pmc {
  * @pmc_xram_read_bit:	flag to indicate whether PMC XRAM shadow registers
  *			used to read MPHY PG and PLL status are available
  * @mutex_lock:		mutex to complete one transcation
- * @pc10_counter:	PC10 residency counter
+ * @pkgc_res_cnt:	Array of PKGC residency counters
+ * @num_of_pkgc:	Number of PKGC
  * @s0ix_counter:	S0ix residency (step adjusted)
  * @num_lpm_modes:	Count of enabled modes
  * @lpm_en_modes:	Array of enabled modes from lowest to highest priority
@@ -403,12 +404,14 @@ struct pmc_dev {
 	int pmc_xram_read_bit;
 	struct mutex lock; /* generic mutex lock for PMC Core */
 
-	u64 pc10_counter;
 	u64 s0ix_counter;
 	int num_lpm_modes;
 	int lpm_en_modes[LPM_MAX_NUM_MODES];
 	void (*suspend)(struct pmc_dev *pmcdev);
 	int (*resume)(struct pmc_dev *pmcdev);
+
+	u64 *pkgc_res_cnt;
+	u8 num_of_pkgc;
 
 	bool has_die_c6;
 	u32 die_c6_offset;

@@ -1057,11 +1057,11 @@ static int adv7182_init(struct adv7180_state *state)
 					      ADV7180_REG_EXTENDED_OUTPUT_CONTROL,
 					      0x17);
 			}
-		}
-		else
+		} else {
 			adv7180_write(state,
 				      ADV7180_REG_EXTENDED_OUTPUT_CONTROL,
 				      0x07);
+		}
 		adv7180_write(state, ADV7180_REG_OUTPUT_CONTROL, 0x0c);
 		adv7180_write(state, ADV7180_REG_CTRL_2, 0x40);
 	}

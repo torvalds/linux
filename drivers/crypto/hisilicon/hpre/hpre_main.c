@@ -440,7 +440,7 @@ MODULE_PARM_DESC(vfs_num, "Number of VFs to enable(1-63), 0(default)");
 
 struct hisi_qp *hpre_create_qp(u8 type)
 {
-	int node = cpu_to_node(smp_processor_id());
+	int node = cpu_to_node(raw_smp_processor_id());
 	struct hisi_qp *qp = NULL;
 	int ret;
 

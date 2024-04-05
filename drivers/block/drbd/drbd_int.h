@@ -524,9 +524,9 @@ struct drbd_md {
 
 struct drbd_backing_dev {
 	struct block_device *backing_bdev;
-	struct bdev_handle *backing_bdev_handle;
+	struct file *backing_bdev_file;
 	struct block_device *md_bdev;
-	struct bdev_handle *md_bdev_handle;
+	struct file *f_md_bdev;
 	struct drbd_md md;
 	struct disk_conf *disk_conf; /* RCU, for updates: resource->conf_update */
 	sector_t known_size; /* last known size of that backing device */

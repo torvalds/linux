@@ -3210,6 +3210,9 @@ enum ixgbe_sfp_type {
 	ixgbe_sfp_type_1g_sx_core1 = 12,
 	ixgbe_sfp_type_1g_lx_core0 = 13,
 	ixgbe_sfp_type_1g_lx_core1 = 14,
+	ixgbe_sfp_type_1g_bx_core0 = 15,
+	ixgbe_sfp_type_1g_bx_core1 = 16,
+
 	ixgbe_sfp_type_not_present = 0xFFFE,
 	ixgbe_sfp_type_unknown = 0xFFFF
 };
@@ -3393,50 +3396,50 @@ struct ixgbe_hw;
 
 /* Function pointer table */
 struct ixgbe_eeprom_operations {
-	s32 (*init_params)(struct ixgbe_hw *);
-	s32 (*read)(struct ixgbe_hw *, u16, u16 *);
-	s32 (*read_buffer)(struct ixgbe_hw *, u16, u16, u16 *);
-	s32 (*write)(struct ixgbe_hw *, u16, u16);
-	s32 (*write_buffer)(struct ixgbe_hw *, u16, u16, u16 *);
-	s32 (*validate_checksum)(struct ixgbe_hw *, u16 *);
-	s32 (*update_checksum)(struct ixgbe_hw *);
-	s32 (*calc_checksum)(struct ixgbe_hw *);
+	int (*init_params)(struct ixgbe_hw *);
+	int (*read)(struct ixgbe_hw *, u16, u16 *);
+	int (*read_buffer)(struct ixgbe_hw *, u16, u16, u16 *);
+	int (*write)(struct ixgbe_hw *, u16, u16);
+	int (*write_buffer)(struct ixgbe_hw *, u16, u16, u16 *);
+	int (*validate_checksum)(struct ixgbe_hw *, u16 *);
+	int (*update_checksum)(struct ixgbe_hw *);
+	int (*calc_checksum)(struct ixgbe_hw *);
 };
 
 struct ixgbe_mac_operations {
-	s32 (*init_hw)(struct ixgbe_hw *);
-	s32 (*reset_hw)(struct ixgbe_hw *);
-	s32 (*start_hw)(struct ixgbe_hw *);
-	s32 (*clear_hw_cntrs)(struct ixgbe_hw *);
+	int (*init_hw)(struct ixgbe_hw *);
+	int (*reset_hw)(struct ixgbe_hw *);
+	int (*start_hw)(struct ixgbe_hw *);
+	int (*clear_hw_cntrs)(struct ixgbe_hw *);
 	enum ixgbe_media_type (*get_media_type)(struct ixgbe_hw *);
-	s32 (*get_mac_addr)(struct ixgbe_hw *, u8 *);
-	s32 (*get_san_mac_addr)(struct ixgbe_hw *, u8 *);
-	s32 (*get_device_caps)(struct ixgbe_hw *, u16 *);
-	s32 (*get_wwn_prefix)(struct ixgbe_hw *, u16 *, u16 *);
-	s32 (*stop_adapter)(struct ixgbe_hw *);
-	s32 (*get_bus_info)(struct ixgbe_hw *);
+	int (*get_mac_addr)(struct ixgbe_hw *, u8 *);
+	int (*get_san_mac_addr)(struct ixgbe_hw *, u8 *);
+	int (*get_device_caps)(struct ixgbe_hw *, u16 *);
+	int (*get_wwn_prefix)(struct ixgbe_hw *, u16 *, u16 *);
+	int (*stop_adapter)(struct ixgbe_hw *);
+	int (*get_bus_info)(struct ixgbe_hw *);
 	void (*set_lan_id)(struct ixgbe_hw *);
-	s32 (*read_analog_reg8)(struct ixgbe_hw*, u32, u8*);
-	s32 (*write_analog_reg8)(struct ixgbe_hw*, u32, u8);
-	s32 (*setup_sfp)(struct ixgbe_hw *);
-	s32 (*disable_rx_buff)(struct ixgbe_hw *);
-	s32 (*enable_rx_buff)(struct ixgbe_hw *);
-	s32 (*enable_rx_dma)(struct ixgbe_hw *, u32);
-	s32 (*acquire_swfw_sync)(struct ixgbe_hw *, u32);
+	int (*read_analog_reg8)(struct ixgbe_hw*, u32, u8*);
+	int (*write_analog_reg8)(struct ixgbe_hw*, u32, u8);
+	int (*setup_sfp)(struct ixgbe_hw *);
+	int (*disable_rx_buff)(struct ixgbe_hw *);
+	int (*enable_rx_buff)(struct ixgbe_hw *);
+	int (*enable_rx_dma)(struct ixgbe_hw *, u32);
+	int (*acquire_swfw_sync)(struct ixgbe_hw *, u32);
 	void (*release_swfw_sync)(struct ixgbe_hw *, u32);
 	void (*init_swfw_sync)(struct ixgbe_hw *);
-	s32 (*prot_autoc_read)(struct ixgbe_hw *, bool *, u32 *);
-	s32 (*prot_autoc_write)(struct ixgbe_hw *, u32, bool);
+	int (*prot_autoc_read)(struct ixgbe_hw *, bool *, u32 *);
+	int (*prot_autoc_write)(struct ixgbe_hw *, u32, bool);
 
 	/* Link */
 	void (*disable_tx_laser)(struct ixgbe_hw *);
 	void (*enable_tx_laser)(struct ixgbe_hw *);
 	void (*flap_tx_laser)(struct ixgbe_hw *);
 	void (*stop_link_on_d3)(struct ixgbe_hw *);
-	s32 (*setup_link)(struct ixgbe_hw *, ixgbe_link_speed, bool);
-	s32 (*setup_mac_link)(struct ixgbe_hw *, ixgbe_link_speed, bool);
-	s32 (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *, bool);
-	s32 (*get_link_capabilities)(struct ixgbe_hw *, ixgbe_link_speed *,
+	int (*setup_link)(struct ixgbe_hw *, ixgbe_link_speed, bool);
+	int (*setup_mac_link)(struct ixgbe_hw *, ixgbe_link_speed, bool);
+	int (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *, bool);
+	int (*get_link_capabilities)(struct ixgbe_hw *, ixgbe_link_speed *,
 				     bool *);
 	void (*set_rate_select_speed)(struct ixgbe_hw *, ixgbe_link_speed);
 
@@ -3444,38 +3447,38 @@ struct ixgbe_mac_operations {
 	void (*set_rxpba)(struct ixgbe_hw *, int, u32, int);
 
 	/* LED */
-	s32 (*led_on)(struct ixgbe_hw *, u32);
-	s32 (*led_off)(struct ixgbe_hw *, u32);
-	s32 (*blink_led_start)(struct ixgbe_hw *, u32);
-	s32 (*blink_led_stop)(struct ixgbe_hw *, u32);
-	s32 (*init_led_link_act)(struct ixgbe_hw *);
+	int (*led_on)(struct ixgbe_hw *, u32);
+	int (*led_off)(struct ixgbe_hw *, u32);
+	int (*blink_led_start)(struct ixgbe_hw *, u32);
+	int (*blink_led_stop)(struct ixgbe_hw *, u32);
+	int (*init_led_link_act)(struct ixgbe_hw *);
 
 	/* RAR, Multicast, VLAN */
-	s32 (*set_rar)(struct ixgbe_hw *, u32, u8 *, u32, u32);
-	s32 (*clear_rar)(struct ixgbe_hw *, u32);
-	s32 (*set_vmdq)(struct ixgbe_hw *, u32, u32);
-	s32 (*set_vmdq_san_mac)(struct ixgbe_hw *, u32);
-	s32 (*clear_vmdq)(struct ixgbe_hw *, u32, u32);
-	s32 (*init_rx_addrs)(struct ixgbe_hw *);
-	s32 (*update_mc_addr_list)(struct ixgbe_hw *, struct net_device *);
-	s32 (*enable_mc)(struct ixgbe_hw *);
-	s32 (*disable_mc)(struct ixgbe_hw *);
-	s32 (*clear_vfta)(struct ixgbe_hw *);
-	s32 (*set_vfta)(struct ixgbe_hw *, u32, u32, bool, bool);
-	s32 (*init_uta_tables)(struct ixgbe_hw *);
+	int (*set_rar)(struct ixgbe_hw *, u32, u8 *, u32, u32);
+	int (*clear_rar)(struct ixgbe_hw *, u32);
+	int (*set_vmdq)(struct ixgbe_hw *, u32, u32);
+	int (*set_vmdq_san_mac)(struct ixgbe_hw *, u32);
+	int (*clear_vmdq)(struct ixgbe_hw *, u32, u32);
+	int (*init_rx_addrs)(struct ixgbe_hw *);
+	int (*update_mc_addr_list)(struct ixgbe_hw *, struct net_device *);
+	int (*enable_mc)(struct ixgbe_hw *);
+	int (*disable_mc)(struct ixgbe_hw *);
+	int (*clear_vfta)(struct ixgbe_hw *);
+	int (*set_vfta)(struct ixgbe_hw *, u32, u32, bool, bool);
+	int (*init_uta_tables)(struct ixgbe_hw *);
 	void (*set_mac_anti_spoofing)(struct ixgbe_hw *, bool, int);
 	void (*set_vlan_anti_spoofing)(struct ixgbe_hw *, bool, int);
 
 	/* Flow Control */
-	s32 (*fc_enable)(struct ixgbe_hw *);
-	s32 (*setup_fc)(struct ixgbe_hw *);
+	int (*fc_enable)(struct ixgbe_hw *);
+	int (*setup_fc)(struct ixgbe_hw *);
 	void (*fc_autoneg)(struct ixgbe_hw *);
 
 	/* Manageability interface */
-	s32 (*set_fw_drv_ver)(struct ixgbe_hw *, u8, u8, u8, u8, u16,
+	int (*set_fw_drv_ver)(struct ixgbe_hw *, u8, u8, u8, u8, u16,
 			      const char *);
-	s32 (*get_thermal_sensor_data)(struct ixgbe_hw *);
-	s32 (*init_thermal_sensor_thresh)(struct ixgbe_hw *hw);
+	int (*get_thermal_sensor_data)(struct ixgbe_hw *);
+	int (*init_thermal_sensor_thresh)(struct ixgbe_hw *hw);
 	bool (*fw_recovery_mode)(struct ixgbe_hw *hw);
 	void (*disable_rx)(struct ixgbe_hw *hw);
 	void (*enable_rx)(struct ixgbe_hw *hw);
@@ -3484,47 +3487,47 @@ struct ixgbe_mac_operations {
 	void (*set_ethertype_anti_spoofing)(struct ixgbe_hw *, bool, int);
 
 	/* DMA Coalescing */
-	s32 (*dmac_config)(struct ixgbe_hw *hw);
-	s32 (*dmac_update_tcs)(struct ixgbe_hw *hw);
-	s32 (*dmac_config_tcs)(struct ixgbe_hw *hw);
-	s32 (*read_iosf_sb_reg)(struct ixgbe_hw *, u32, u32, u32 *);
-	s32 (*write_iosf_sb_reg)(struct ixgbe_hw *, u32, u32, u32);
+	int (*dmac_config)(struct ixgbe_hw *hw);
+	int (*dmac_update_tcs)(struct ixgbe_hw *hw);
+	int (*dmac_config_tcs)(struct ixgbe_hw *hw);
+	int (*read_iosf_sb_reg)(struct ixgbe_hw *, u32, u32, u32 *);
+	int (*write_iosf_sb_reg)(struct ixgbe_hw *, u32, u32, u32);
 };
 
 struct ixgbe_phy_operations {
-	s32 (*identify)(struct ixgbe_hw *);
-	s32 (*identify_sfp)(struct ixgbe_hw *);
-	s32 (*init)(struct ixgbe_hw *);
-	s32 (*reset)(struct ixgbe_hw *);
-	s32 (*read_reg)(struct ixgbe_hw *, u32, u32, u16 *);
-	s32 (*write_reg)(struct ixgbe_hw *, u32, u32, u16);
-	s32 (*read_reg_mdi)(struct ixgbe_hw *, u32, u32, u16 *);
-	s32 (*write_reg_mdi)(struct ixgbe_hw *, u32, u32, u16);
-	s32 (*setup_link)(struct ixgbe_hw *);
-	s32 (*setup_internal_link)(struct ixgbe_hw *);
-	s32 (*setup_link_speed)(struct ixgbe_hw *, ixgbe_link_speed, bool);
-	s32 (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *);
-	s32 (*read_i2c_byte)(struct ixgbe_hw *, u8, u8, u8 *);
-	s32 (*write_i2c_byte)(struct ixgbe_hw *, u8, u8, u8);
-	s32 (*read_i2c_sff8472)(struct ixgbe_hw *, u8 , u8 *);
-	s32 (*read_i2c_eeprom)(struct ixgbe_hw *, u8 , u8 *);
-	s32 (*write_i2c_eeprom)(struct ixgbe_hw *, u8, u8);
+	int (*identify)(struct ixgbe_hw *);
+	int (*identify_sfp)(struct ixgbe_hw *);
+	int (*init)(struct ixgbe_hw *);
+	int (*reset)(struct ixgbe_hw *);
+	int (*read_reg)(struct ixgbe_hw *, u32, u32, u16 *);
+	int (*write_reg)(struct ixgbe_hw *, u32, u32, u16);
+	int (*read_reg_mdi)(struct ixgbe_hw *, u32, u32, u16 *);
+	int (*write_reg_mdi)(struct ixgbe_hw *, u32, u32, u16);
+	int (*setup_link)(struct ixgbe_hw *);
+	int (*setup_internal_link)(struct ixgbe_hw *);
+	int (*setup_link_speed)(struct ixgbe_hw *, ixgbe_link_speed, bool);
+	int (*check_link)(struct ixgbe_hw *, ixgbe_link_speed *, bool *);
+	int (*read_i2c_byte)(struct ixgbe_hw *, u8, u8, u8 *);
+	int (*write_i2c_byte)(struct ixgbe_hw *, u8, u8, u8);
+	int (*read_i2c_sff8472)(struct ixgbe_hw *, u8, u8 *);
+	int (*read_i2c_eeprom)(struct ixgbe_hw *, u8, u8 *);
+	int (*write_i2c_eeprom)(struct ixgbe_hw *, u8, u8);
 	bool (*check_overtemp)(struct ixgbe_hw *);
-	s32 (*set_phy_power)(struct ixgbe_hw *, bool on);
-	s32 (*enter_lplu)(struct ixgbe_hw *);
-	s32 (*handle_lasi)(struct ixgbe_hw *hw, bool *);
-	s32 (*read_i2c_byte_unlocked)(struct ixgbe_hw *, u8 offset, u8 addr,
+	int (*set_phy_power)(struct ixgbe_hw *, bool on);
+	int (*enter_lplu)(struct ixgbe_hw *);
+	int (*handle_lasi)(struct ixgbe_hw *hw, bool *);
+	int (*read_i2c_byte_unlocked)(struct ixgbe_hw *, u8 offset, u8 addr,
 				      u8 *value);
-	s32 (*write_i2c_byte_unlocked)(struct ixgbe_hw *, u8 offset, u8 addr,
+	int (*write_i2c_byte_unlocked)(struct ixgbe_hw *, u8 offset, u8 addr,
 				       u8 value);
 };
 
 struct ixgbe_link_operations {
-	s32 (*read_link)(struct ixgbe_hw *, u8 addr, u16 reg, u16 *val);
-	s32 (*read_link_unlocked)(struct ixgbe_hw *, u8 addr, u16 reg,
+	int (*read_link)(struct ixgbe_hw *, u8 addr, u16 reg, u16 *val);
+	int (*read_link_unlocked)(struct ixgbe_hw *, u8 addr, u16 reg,
 				  u16 *val);
-	s32 (*write_link)(struct ixgbe_hw *, u8 addr, u16 reg, u16 val);
-	s32 (*write_link_unlocked)(struct ixgbe_hw *, u8 addr, u16 reg,
+	int (*write_link)(struct ixgbe_hw *, u8 addr, u16 reg, u16 val);
+	int (*write_link_unlocked)(struct ixgbe_hw *, u8 addr, u16 reg,
 				   u16 val);
 };
 
@@ -3602,14 +3605,14 @@ struct ixgbe_phy_info {
 #include "ixgbe_mbx.h"
 
 struct ixgbe_mbx_operations {
-	s32 (*init_params)(struct ixgbe_hw *hw);
-	s32 (*read)(struct ixgbe_hw *, u32 *, u16,  u16);
-	s32 (*write)(struct ixgbe_hw *, u32 *, u16, u16);
-	s32 (*read_posted)(struct ixgbe_hw *, u32 *, u16,  u16);
-	s32 (*write_posted)(struct ixgbe_hw *, u32 *, u16, u16);
-	s32 (*check_for_msg)(struct ixgbe_hw *, u16);
-	s32 (*check_for_ack)(struct ixgbe_hw *, u16);
-	s32 (*check_for_rst)(struct ixgbe_hw *, u16);
+	int (*init_params)(struct ixgbe_hw *hw);
+	int (*read)(struct ixgbe_hw *, u32 *, u16,  u16);
+	int (*write)(struct ixgbe_hw *, u32 *, u16, u16);
+	int (*read_posted)(struct ixgbe_hw *, u32 *, u16,  u16);
+	int (*write_posted)(struct ixgbe_hw *, u32 *, u16, u16);
+	int (*check_for_msg)(struct ixgbe_hw *, u16);
+	int (*check_for_ack)(struct ixgbe_hw *, u16);
+	int (*check_for_rst)(struct ixgbe_hw *, u16);
 };
 
 struct ixgbe_mbx_stats {
@@ -3656,7 +3659,7 @@ struct ixgbe_hw {
 
 struct ixgbe_info {
 	enum ixgbe_mac_type		mac;
-	s32 				(*get_invariants)(struct ixgbe_hw *);
+	int				(*get_invariants)(struct ixgbe_hw *);
 	const struct ixgbe_mac_operations	*mac_ops;
 	const struct ixgbe_eeprom_operations	*eeprom_ops;
 	const struct ixgbe_phy_operations	*phy_ops;

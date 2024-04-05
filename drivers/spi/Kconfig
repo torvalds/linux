@@ -694,7 +694,7 @@ config SPI_MTK_SNFI
 	  This enables support for SPI-NAND mode on the MediaTek NAND
 	  Flash Interface found on MediaTek ARM SoCs. This controller
 	  is implemented as a SPI-MEM controller with pipelined ECC
-	  capcability.
+	  capability.
 
 config SPI_WPCM_FIU
 	tristate "Nuvoton WPCM450 Flash Interface Unit"

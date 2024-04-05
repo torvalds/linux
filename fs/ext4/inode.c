@@ -465,9 +465,10 @@ static void ext4_map_blocks_es_recheck(handle_t *handle,
  * Otherwise, call with ext4_ind_map_blocks() to handle indirect mapping
  * based files
  *
- * On success, it returns the number of blocks being mapped or allocated.  if
- * create==0 and the blocks are pre-allocated and unwritten, the resulting @map
- * is marked as unwritten. If the create == 1, it will mark @map as mapped.
+ * On success, it returns the number of blocks being mapped or allocated.
+ * If flags doesn't contain EXT4_GET_BLOCKS_CREATE the blocks are
+ * pre-allocated and unwritten, the resulting @map is marked as unwritten.
+ * If the flags contain EXT4_GET_BLOCKS_CREATE, it will mark @map as mapped.
  *
  * It returns 0 if plain look up failed (blocks have not been allocated), in
  * that case, @map is returned as unmapped but we still do fill map->m_len to
@@ -589,8 +590,7 @@ found:
 	 * Returns if the blocks have already allocated
 	 *
 	 * Note that if blocks have been preallocated
-	 * ext4_ext_get_block() returns the create = 0
-	 * with buffer head unmapped.
+	 * ext4_ext_map_blocks() returns with buffer head unmapped
 	 */
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED)
 		/*

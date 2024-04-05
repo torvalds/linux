@@ -130,13 +130,8 @@ struct parse_events_term {
 };
 
 struct parse_events_error {
-	int   num_errors;       /* number of errors encountered */
-	int   idx;	/* index in the parsed string */
-	char *str;      /* string to display at the index */
-	char *help;	/* optional help string */
-	int   first_idx;/* as above, but for the first encountered error */
-	char *first_str;
-	char *first_help;
+	/** @list: The head of a list of errors. */
+	struct list_head list;
 };
 
 /* A wrapper around a list of terms for the sake of better type safety. */
@@ -247,9 +242,10 @@ void parse_events_error__init(struct parse_events_error *err);
 void parse_events_error__exit(struct parse_events_error *err);
 void parse_events_error__handle(struct parse_events_error *err, int idx,
 				char *str, char *help);
-void parse_events_error__print(struct parse_events_error *err,
+void parse_events_error__print(const struct parse_events_error *err,
 			       const char *event);
-
+bool parse_events_error__contains(const struct parse_events_error *err,
+				  const char *needle);
 #ifdef HAVE_LIBELF_SUPPORT
 /*
  * If the probe point starts with '%',

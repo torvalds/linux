@@ -1007,8 +1007,7 @@ static bool adf_handle_spppar_err(struct adf_accel_dev *accel_dev,
 static bool adf_handle_ssmcpppar_err(struct adf_accel_dev *accel_dev,
 				     void __iomem *csr, u32 iastatssm)
 {
-	u32 reg = ADF_CSR_RD(csr, ADF_GEN4_SSMCPPERR);
-	u32 bits_num = BITS_PER_REG(reg);
+	u32 reg, bits_num = BITS_PER_REG(reg);
 	bool reset_required = false;
 	unsigned long errs_bits;
 	u32 bit_iterator;
@@ -1106,8 +1105,7 @@ static bool adf_handle_rf_parr_err(struct adf_accel_dev *accel_dev,
 static bool adf_handle_ser_err_ssmsh(struct adf_accel_dev *accel_dev,
 				     void __iomem *csr, u32 iastatssm)
 {
-	u32 reg = ADF_CSR_RD(csr, ADF_GEN4_SER_ERR_SSMSH);
-	u32 bits_num = BITS_PER_REG(reg);
+	u32 reg, bits_num = BITS_PER_REG(reg);
 	bool reset_required = false;
 	unsigned long errs_bits;
 	u32 bit_iterator;

@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -535,6 +535,44 @@ struct lpfc_cgn_acqe_stat {
 	atomic64_t warn;
 };
 
+enum lpfc_fc_flag {
+	/* Several of these flags are HBA centric and should be moved to
+	 * phba->link_flag (e.g. FC_PTP, FC_PUBLIC_LOOP)
+	 */
+	FC_PT2PT,			/* pt2pt with no fabric */
+	FC_PT2PT_PLOGI,			/* pt2pt initiate PLOGI */
+	FC_DISC_TMO,			/* Discovery timer running */
+	FC_PUBLIC_LOOP,			/* Public loop */
+	FC_LBIT,			/* LOGIN bit in loopinit set */
+	FC_RSCN_MODE,			/* RSCN cmd rcv'ed */
+	FC_NLP_MORE,			/* More node to process in node tbl */
+	FC_OFFLINE_MODE,		/* Interface is offline for diag */
+	FC_FABRIC,			/* We are fabric attached */
+	FC_VPORT_LOGO_RCVD,		/* LOGO received on vport */
+	FC_RSCN_DISCOVERY,		/* Auth all devices after RSCN */
+	FC_LOGO_RCVD_DID_CHNG,		/* FDISC on phys port detect DID chng */
+	FC_PT2PT_NO_NVME,		/* Don't send NVME PRLI */
+	FC_SCSI_SCAN_TMO,		/* scsi scan timer running */
+	FC_ABORT_DISCOVERY,		/* we want to abort discovery */
+	FC_NDISC_ACTIVE,		/* NPort discovery active */
+	FC_BYPASSED_MODE,		/* NPort is in bypassed mode */
+	FC_VPORT_NEEDS_REG_VPI,		/* Needs to have its vpi registered */
+	FC_RSCN_DEFERRED,		/* A deferred RSCN being processed */
+	FC_VPORT_NEEDS_INIT_VPI,	/* Need to INIT_VPI before FDISC */
+	FC_VPORT_CVL_RCVD,		/* VLink failed due to CVL */
+	FC_VFI_REGISTERED,		/* VFI is registered */
+	FC_FDISC_COMPLETED,		/* FDISC completed */
+	FC_DISC_DELAYED,		/* Delay NPort discovery */
+};
+
+enum lpfc_load_flag {
+	FC_LOADING,			/* HBA in process of loading drvr */
+	FC_UNLOADING,			/* HBA in process of unloading drvr */
+	FC_ALLOW_FDMI,			/* port is ready for FDMI requests */
+	FC_ALLOW_VMID,			/* Allow VMID I/Os */
+	FC_DEREGISTER_ALL_APP_ID	/* Deregister all VMIDs */
+};
+
 struct lpfc_vport {
 	struct lpfc_hba *phba;
 	struct list_head listentry;
@@ -549,34 +587,7 @@ struct lpfc_vport {
 	uint8_t vpi_state;
 #define LPFC_VPI_REGISTERED	0x1
 
-	uint32_t fc_flag;	/* FC flags */
-/* Several of these flags are HBA centric and should be moved to
- * phba->link_flag (e.g. FC_PTP, FC_PUBLIC_LOOP)
- */
-#define FC_PT2PT                0x1	 /* pt2pt with no fabric */
-#define FC_PT2PT_PLOGI          0x2	 /* pt2pt initiate PLOGI */
-#define FC_DISC_TMO             0x4	 /* Discovery timer running */
-#define FC_PUBLIC_LOOP          0x8	 /* Public loop */
-#define FC_LBIT                 0x10	 /* LOGIN bit in loopinit set */
-#define FC_RSCN_MODE            0x20	 /* RSCN cmd rcv'ed */
-#define FC_NLP_MORE             0x40	 /* More node to process in node tbl */
-#define FC_OFFLINE_MODE         0x80	 /* Interface is offline for diag */
-#define FC_FABRIC               0x100	 /* We are fabric attached */
-#define FC_VPORT_LOGO_RCVD      0x200    /* LOGO received on vport */
-#define FC_RSCN_DISCOVERY       0x400	 /* Auth all devices after RSCN */
-#define FC_LOGO_RCVD_DID_CHNG   0x800    /* FDISC on phys port detect DID chng*/
-#define FC_PT2PT_NO_NVME        0x1000   /* Don't send NVME PRLI */
-#define FC_SCSI_SCAN_TMO        0x4000	 /* scsi scan timer running */
-#define FC_ABORT_DISCOVERY      0x8000	 /* we want to abort discovery */
-#define FC_NDISC_ACTIVE         0x10000	 /* NPort discovery active */
-#define FC_BYPASSED_MODE        0x20000	 /* NPort is in bypassed mode */
-#define FC_VPORT_NEEDS_REG_VPI	0x80000  /* Needs to have its vpi registered */
-#define FC_RSCN_DEFERRED	0x100000 /* A deferred RSCN being processed */
-#define FC_VPORT_NEEDS_INIT_VPI 0x200000 /* Need to INIT_VPI before FDISC */
-#define FC_VPORT_CVL_RCVD	0x400000 /* VLink failed due to CVL	 */
-#define FC_VFI_REGISTERED	0x800000 /* VFI is registered */
-#define FC_FDISC_COMPLETED	0x1000000/* FDISC completed */
-#define FC_DISC_DELAYED		0x2000000/* Delay NPort discovery */
+	unsigned long fc_flag;	/* FC flags */
 
 	uint32_t ct_flags;
 #define FC_CT_RFF_ID		0x1	 /* RFF_ID accepted by switch */
@@ -587,16 +598,18 @@ struct lpfc_vport {
 #define FC_CT_RPRT_DEFER	0x20	 /* Defer issuing FDMI RPRT */
 
 	struct list_head fc_nodes;
+	spinlock_t fc_nodes_list_lock; /* spinlock for fc_nodes list */
 
 	/* Keep counters for the number of entries in each list. */
-	uint16_t fc_plogi_cnt;
-	uint16_t fc_adisc_cnt;
-	uint16_t fc_reglogin_cnt;
-	uint16_t fc_prli_cnt;
-	uint16_t fc_unmap_cnt;
-	uint16_t fc_map_cnt;
-	uint16_t fc_npr_cnt;
-	uint16_t fc_unused_cnt;
+	atomic_t fc_plogi_cnt;
+	atomic_t fc_adisc_cnt;
+	atomic_t fc_reglogin_cnt;
+	atomic_t fc_prli_cnt;
+	atomic_t fc_unmap_cnt;
+	atomic_t fc_map_cnt;
+	atomic_t fc_npr_cnt;
+	atomic_t fc_unused_cnt;
+
 	struct serv_parm fc_sparam;	/* buffer for our service parameters */
 
 	uint32_t fc_myDID;	/* fibre channel S_ID */
@@ -642,12 +655,7 @@ struct lpfc_vport {
 	struct timer_list els_tmofunc;
 	struct timer_list delayed_disc_tmo;
 
-	uint8_t load_flag;
-#define FC_LOADING		0x1	/* HBA in process of loading drvr */
-#define FC_UNLOADING		0x2	/* HBA in process of unloading drvr */
-#define FC_ALLOW_FDMI		0x4	/* port is ready for FDMI requests */
-#define FC_ALLOW_VMID		0x8	/* Allow VMID I/Os */
-#define FC_DEREGISTER_ALL_APP_ID	0x10	/* Deregister all VMIDs */
+	unsigned long load_flag;
 	/* Vport Config Parameters */
 	uint32_t cfg_scan_down;
 	uint32_t cfg_lun_queue_depth;

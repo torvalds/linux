@@ -169,6 +169,15 @@ enum dp_test_pattern {
 	DP_TEST_PATTERN_UNSUPPORTED
 };
 
+#define IS_DP_PHY_SQUARE_PATTERN(test_pattern)\
+		(DP_TEST_PATTERN_SQUARE_BEGIN <= test_pattern &&\
+		test_pattern <= DP_TEST_PATTERN_SQUARE_END)
+
+#define IS_DP_PHY_PATTERN(test_pattern)\
+		((DP_TEST_PATTERN_PHY_PATTERN_BEGIN <= test_pattern &&\
+		test_pattern <= DP_TEST_PATTERN_PHY_PATTERN_END) ||\
+		test_pattern == DP_TEST_PATTERN_VIDEO_MODE)
+
 enum dp_test_pattern_color_space {
 	DP_TEST_PATTERN_COLOR_SPACE_RGB,
 	DP_TEST_PATTERN_COLOR_SPACE_YCBCR601,

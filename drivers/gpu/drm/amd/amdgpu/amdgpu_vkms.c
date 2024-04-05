@@ -660,8 +660,7 @@ static const struct amd_ip_funcs amdgpu_vkms_ip_funcs = {
 	.set_powergating_state = amdgpu_vkms_set_powergating_state,
 };
 
-const struct amdgpu_ip_block_version amdgpu_vkms_ip_block =
-{
+const struct amdgpu_ip_block_version amdgpu_vkms_ip_block = {
 	.type = AMD_IP_BLOCK_TYPE_DCE,
 	.major = 1,
 	.minor = 0,

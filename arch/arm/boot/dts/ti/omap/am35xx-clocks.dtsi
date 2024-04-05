@@ -66,22 +66,23 @@
 		compatible = "ti,clksel";
 		reg = <0xa10>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		ipss_ick: clock-ipss-ick {
+		ipss_ick: clock-ipss-ick@4 {
+			reg = <4>;
 			#clock-cells = <0>;
 			compatible = "ti,am35xx-interface-clock";
 			clock-output-names = "ipss_ick";
 			clocks = <&core_l3_ick>;
-			ti,bit-shift = <4>;
 		};
 
-		uart4_ick_am35xx: clock-uart4-ick-am35xx {
+		uart4_ick_am35xx: clock-uart4-ick-am35xx@23 {
+			reg = <23>;
 			#clock-cells = <0>;
 			compatible = "ti,omap3-interface-clock";
 			clock-output-names = "uart4_ick_am35xx";
 			clocks = <&core_l4_ick>;
-			ti,bit-shift = <23>;
 		};
 	};
 
@@ -101,14 +102,15 @@
 		compatible = "ti,clksel";
 		reg = <0xa00>;
 		#clock-cells = <2>;
-		#address-cells = <0>;
+		#address-cells = <1>;
+		#size-cells = <0>;
 
-		uart4_fck_am35xx: clock-uart4-fck-am35xx {
+		uart4_fck_am35xx: clock-uart4-fck-am35xx@23 {
+			reg = <23>;
 			#clock-cells = <0>;
 			compatible = "ti,wait-gate-clock";
 			clock-output-names = "uart4_fck_am35xx";
 			clocks = <&core_48m_fck>;
-			ti,bit-shift = <23>;
 		};
 	};
 };

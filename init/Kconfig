@@ -115,7 +115,7 @@ config CONSTRUCTORS
 	bool
 
 config IRQ_WORK
-	bool
+	def_bool y if SMP
 
 config BUILDTIME_TABLE_SORT
 	bool
@@ -1466,11 +1466,6 @@ config SYSCTL_ARCH_UNALIGN_ALLOW
 config HAVE_PCSPKR_PLATFORM
 	bool
 
-# interpreter that classic socket filters depend on
-config BPF
-	bool
-	select CRYPTO_LIB_SHA1
-
 menuconfig EXPERT
 	bool "Configure standard kernel features (expert users)"
 	# Unhide debug options, to make the on-by-default options visible
@@ -1504,7 +1499,7 @@ config MULTIUSER
 
 config SGETMASK_SYSCALL
 	bool "sgetmask/ssetmask syscalls support" if EXPERT
-	def_bool PARISC || M68K || PPC || MIPS || X86 || SPARC || MICROBLAZE || SUPERH
+	default PARISC || M68K || PPC || MIPS || X86 || SPARC || MICROBLAZE || SUPERH
 	help
 	  sys_sgetmask and sys_ssetmask are obsolete system calls
 	  no longer supported in libc but still enabled by default in some
@@ -1989,6 +1984,9 @@ config ASN1
 source "kernel/Kconfig.locks"
 
 config ARCH_HAS_NON_OVERLAPPING_ADDRESS_SPACE
+	bool
+
+config ARCH_HAS_PREPARE_SYNC_CORE_CMD
 	bool
 
 config ARCH_HAS_SYNC_CORE_BEFORE_USERMODE

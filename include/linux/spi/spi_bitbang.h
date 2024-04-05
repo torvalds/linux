@@ -10,7 +10,7 @@ struct spi_bitbang {
 	u8			use_dma;
 	u16			flags;		/* extra spi->mode support */
 
-	struct spi_master	*master;
+	struct spi_controller	*ctlr;
 
 	/* setup_transfer() changes clock and/or wordsize to match settings
 	 * for this transfer; zeroes restore defaults from spi_device.

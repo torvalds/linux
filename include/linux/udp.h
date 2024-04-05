@@ -92,6 +92,9 @@ struct udp_sock {
 
 	/* This fields follows rcvbuf value, and is touched by udp_recvmsg */
 	int		forward_threshold;
+
+	/* Cache friendly copy of sk->sk_peek_off >= 0 */
+	bool		peeking_with_offset;
 };
 
 #define udp_test_bit(nr, sk)			\
@@ -108,6 +111,13 @@ struct udp_sock {
 #define UDP_MAX_SEGMENTS	(1 << 6UL)
 
 #define udp_sk(ptr) container_of_const(ptr, struct udp_sock, inet.sk)
+
+static inline int udp_set_peek_off(struct sock *sk, int val)
+{
+	sk_set_peek_off(sk, val);
+	WRITE_ONCE(udp_sk(sk)->peeking_with_offset, val >= 0);
+	return 0;
+}
 
 static inline void udp_set_no_check6_tx(struct sock *sk, bool val)
 {

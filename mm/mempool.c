@@ -590,6 +590,19 @@ void mempool_kfree(void *element, void *pool_data)
 }
 EXPORT_SYMBOL(mempool_kfree);
 
+void *mempool_kvmalloc(gfp_t gfp_mask, void *pool_data)
+{
+	size_t size = (size_t)pool_data;
+	return kvmalloc(size, gfp_mask);
+}
+EXPORT_SYMBOL(mempool_kvmalloc);
+
+void mempool_kvfree(void *element, void *pool_data)
+{
+	kvfree(element);
+}
+EXPORT_SYMBOL(mempool_kvfree);
+
 /*
  * A simple mempool-backed page allocator that allocates pages
  * of the order specified by pool_data.

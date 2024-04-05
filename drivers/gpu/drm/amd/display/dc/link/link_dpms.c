@@ -2197,6 +2197,64 @@ static enum dc_status enable_link(
 
 static bool allocate_usb4_bandwidth_for_stream(struct dc_stream_state *stream, int bw)
 {
+	struct dc_link *link = stream->sink->link;
+	int req_bw = bw;
+
+	DC_LOGGER_INIT(link->ctx->logger);
+
+	if (!link->dpia_bw_alloc_config.bw_alloc_enabled)
+		return false;
+
+	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+		int sink_index = 0;
+		int i = 0;
+
+		for (i = 0; i < link->sink_count; i++) {
+			if (link->remote_sinks[i] == NULL)
+				continue;
+
+			if (stream->sink->sink_id != link->remote_sinks[i]->sink_id)
+				req_bw += link->dpia_bw_alloc_config.remote_sink_req_bw[i];
+			else
+				sink_index = i;
+		}
+
+		link->dpia_bw_alloc_config.remote_sink_req_bw[sink_index] = bw;
+	}
+
+	/* get dp overhead for dp tunneling */
+	link->dpia_bw_alloc_config.dp_overhead = link_dp_dpia_get_dp_overhead_in_dp_tunneling(link);
+	req_bw += link->dpia_bw_alloc_config.dp_overhead;
+
+	if (link_dp_dpia_allocate_usb4_bandwidth_for_stream(link, req_bw)) {
+		if (req_bw <= link->dpia_bw_alloc_config.allocated_bw) {
+			DC_LOG_DEBUG("%s, Success in allocate bw for link(%d), allocated_bw(%d), dp_overhead(%d)\n",
+					__func__, link->link_index, link->dpia_bw_alloc_config.allocated_bw,
+					link->dpia_bw_alloc_config.dp_overhead);
+		} else {
+			// Cannot get the required bandwidth.
+			DC_LOG_ERROR("%s, Failed to allocate bw for link(%d), allocated_bw(%d), dp_overhead(%d)\n",
+					__func__, link->link_index, link->dpia_bw_alloc_config.allocated_bw,
+					link->dpia_bw_alloc_config.dp_overhead);
+			return false;
+		}
+	} else {
+		DC_LOG_DEBUG("%s, usb4 request bw timeout\n", __func__);
+		return false;
+	}
+
+	if (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST) {
+		int i = 0;
+
+		for (i = 0; i < link->sink_count; i++) {
+			if (link->remote_sinks[i] == NULL)
+				continue;
+			DC_LOG_DEBUG("%s, remote_sink=%s, request_bw=%d\n", __func__,
+					(const char *)(&link->remote_sinks[i]->edid_caps.display_name[0]),
+					link->dpia_bw_alloc_config.remote_sink_req_bw[i]);
+		}
+	}
+
 	return true;
 }
 

@@ -3,7 +3,20 @@
 #ifndef BTRFS_FILE_ITEM_H
 #define BTRFS_FILE_ITEM_H
 
+#include <linux/list.h>
+#include <uapi/linux/btrfs_tree.h>
 #include "accessors.h"
+
+struct extent_map;
+struct btrfs_file_extent_item;
+struct btrfs_fs_info;
+struct btrfs_path;
+struct btrfs_bio;
+struct btrfs_trans_handle;
+struct btrfs_root;
+struct btrfs_ordered_sum;
+struct btrfs_path;
+struct btrfs_inode;
 
 #define BTRFS_FILE_EXTENT_INLINE_DATA_START		\
 		(offsetof(struct btrfs_file_extent_item, disk_bytenr))

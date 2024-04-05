@@ -448,7 +448,7 @@ int nilfs_resize_fs(struct super_block *sb, __u64 newsize)
 
 	sb2off = NILFS_SB2_OFFSET_BYTES(newsize);
 	newnsegs = sb2off >> nilfs->ns_blocksize_bits;
-	do_div(newnsegs, nilfs->ns_blocks_per_segment);
+	newnsegs = div64_ul(newnsegs, nilfs->ns_blocks_per_segment);
 
 	ret = nilfs_sufile_resize(nilfs->ns_sufile, newnsegs);
 	up_write(&nilfs->ns_segctor_sem);
@@ -544,8 +544,6 @@ int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
 {
 	struct the_nilfs *nilfs = sb->s_fs_info;
 	struct nilfs_root *root;
-	struct nilfs_checkpoint *raw_cp;
-	struct buffer_head *bh_cp;
 	int err = -ENOMEM;
 
 	root = nilfs_find_or_create_root(
@@ -557,38 +555,19 @@ int nilfs_attach_checkpoint(struct super_block *sb, __u64 cno, int curr_mnt,
 		goto reuse; /* already attached checkpoint */
 
 	down_read(&nilfs->ns_segctor_sem);
-	err = nilfs_cpfile_get_checkpoint(nilfs->ns_cpfile, cno, 0, &raw_cp,
-					  &bh_cp);
+	err = nilfs_ifile_read(sb, root, cno, nilfs->ns_inode_size);
 	up_read(&nilfs->ns_segctor_sem);
-	if (unlikely(err)) {
-		if (err == -ENOENT || err == -EINVAL) {
-			nilfs_err(sb,
-				  "Invalid checkpoint (checkpoint number=%llu)",
-				  (unsigned long long)cno);
-			err = -EINVAL;
-		}
+	if (unlikely(err))
 		goto failed;
-	}
-
-	err = nilfs_ifile_read(sb, root, nilfs->ns_inode_size,
-			       &raw_cp->cp_ifile_inode, &root->ifile);
-	if (err)
-		goto failed_bh;
-
-	atomic64_set(&root->inodes_count,
-			le64_to_cpu(raw_cp->cp_inodes_count));
-	atomic64_set(&root->blocks_count,
-			le64_to_cpu(raw_cp->cp_blocks_count));
-
-	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cno, bh_cp);
 
  reuse:
 	*rootp = root;
 	return 0;
 
- failed_bh:
-	nilfs_cpfile_put_checkpoint(nilfs->ns_cpfile, cno, bh_cp);
  failed:
+	if (err == -EINVAL)
+		nilfs_err(sb, "Invalid checkpoint (checkpoint number=%llu)",
+			  (unsigned long long)cno);
 	nilfs_put_root(root);
 
 	return err;

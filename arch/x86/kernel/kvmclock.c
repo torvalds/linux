@@ -154,15 +154,15 @@ static int kvm_cs_enable(struct clocksource *cs)
 	return 0;
 }
 
-struct clocksource kvm_clock = {
+static struct clocksource kvm_clock = {
 	.name	= "kvm-clock",
 	.read	= kvm_clock_get_cycles,
 	.rating	= 400,
 	.mask	= CLOCKSOURCE_MASK(64),
 	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
+	.id     = CSID_X86_KVM_CLK,
 	.enable	= kvm_cs_enable,
 };
-EXPORT_SYMBOL_GPL(kvm_clock);
 
 static void kvm_register_clock(char *txt)
 {

@@ -5,7 +5,7 @@
 #include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
 
-#define MAX_STACK (512 - 3 * 32 + 8)
+#define MAX_STACK 260
 
 static __attribute__ ((noinline))
 int f0(int var, struct __sk_buff *skb)
@@ -30,6 +30,10 @@ int f3(int, struct __sk_buff *skb, int);
 __attribute__ ((noinline))
 int f2(int val, struct __sk_buff *skb)
 {
+	volatile char buf[MAX_STACK] = {};
+
+	__sink(buf[MAX_STACK - 1]);
+
 	return f1(skb) + f3(val, skb, 1);
 }
 
@@ -44,7 +48,7 @@ int f3(int val, struct __sk_buff *skb, int var)
 }
 
 SEC("tc")
-__failure __msg("combined stack size of 4 calls is 544")
+__failure __msg("combined stack size of 3 calls is")
 int global_func1(struct __sk_buff *skb)
 {
 	return f0(1, skb) + f1(skb) + f2(2, skb) + f3(3, skb, 4);

@@ -161,6 +161,8 @@ const struct dc_plane_status *dc_plane_get_status(
 		break;
 	}
 
+	dc_exit_ips_for_hw_access(dc);
+
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe_ctx =
 				&dc->current_state->res_ctx.pipe_ctx[i];

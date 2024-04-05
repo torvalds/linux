@@ -120,31 +120,28 @@ static int __blkdev_issue_write_zeroes(struct block_device *bdev,
 		struct bio **biop, unsigned flags)
 {
 	struct bio *bio = *biop;
-	unsigned int max_write_zeroes_sectors;
+	unsigned int max_sectors;
 
 	if (bdev_read_only(bdev))
 		return -EPERM;
 
-	/* Ensure that max_write_zeroes_sectors doesn't overflow bi_size */
-	max_write_zeroes_sectors = bdev_write_zeroes_sectors(bdev);
+	/* Ensure that max_sectors doesn't overflow bi_size */
+	max_sectors = bdev_write_zeroes_sectors(bdev);
 
-	if (max_write_zeroes_sectors == 0)
+	if (max_sectors == 0)
 		return -EOPNOTSUPP;
 
 	while (nr_sects) {
+		unsigned int len = min_t(sector_t, nr_sects, max_sectors);
+
 		bio = blk_next_bio(bio, bdev, 0, REQ_OP_WRITE_ZEROES, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		if (flags & BLKDEV_ZERO_NOUNMAP)
 			bio->bi_opf |= REQ_NOUNMAP;
 
-		if (nr_sects > max_write_zeroes_sectors) {
-			bio->bi_iter.bi_size = max_write_zeroes_sectors << 9;
-			nr_sects -= max_write_zeroes_sectors;
-			sector += max_write_zeroes_sectors;
-		} else {
-			bio->bi_iter.bi_size = nr_sects << 9;
-			nr_sects = 0;
-		}
+		bio->bi_iter.bi_size = len << SECTOR_SHIFT;
+		nr_sects -= len;
+		sector += len;
 		cond_resched();
 	}
 
@@ -322,7 +319,7 @@ int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
 		return -EPERM;
 
 	blk_start_plug(&plug);
-	for (;;) {
+	while (nr_sects) {
 		unsigned int len = min_t(sector_t, nr_sects, max_sectors);
 
 		bio = blk_next_bio(bio, bdev, 0, REQ_OP_SECURE_ERASE, gfp);
@@ -331,12 +328,11 @@ int blkdev_issue_secure_erase(struct block_device *bdev, sector_t sector,
 
 		sector += len;
 		nr_sects -= len;
-		if (!nr_sects) {
-			ret = submit_bio_wait(bio);
-			bio_put(bio);
-			break;
-		}
 		cond_resched();
+	}
+	if (bio) {
+		ret = submit_bio_wait(bio);
+		bio_put(bio);
 	}
 	blk_finish_plug(&plug);
 

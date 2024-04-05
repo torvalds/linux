@@ -96,7 +96,46 @@
 
 static int xe_exec_fn(struct drm_gpuvm_exec *vm_exec)
 {
-	return drm_gpuvm_validate(vm_exec->vm, &vm_exec->exec);
+	struct xe_vm *vm = container_of(vm_exec->vm, struct xe_vm, gpuvm);
+	struct drm_gem_object *obj;
+	unsigned long index;
+	int num_fences;
+	int ret;
+
+	ret = drm_gpuvm_validate(vm_exec->vm, &vm_exec->exec);
+	if (ret)
+		return ret;
+
+	/*
+	 * 1 fence slot for the final submit, and 1 more for every per-tile for
+	 * GPU bind and 1 extra for CPU bind. Note that there are potentially
+	 * many vma per object/dma-resv, however the fence slot will just be
+	 * re-used, since they are largely the same timeline and the seqno
+	 * should be in order. In the case of CPU bind there is dummy fence used
+	 * for all CPU binds, so no need to have a per-tile slot for that.
+	 */
+	num_fences = 1 + 1 + vm->xe->info.tile_count;
+
+	/*
+	 * We don't know upfront exactly how many fence slots we will need at
+	 * the start of the exec, since the TTM bo_validate above can consume
+	 * numerous fence slots. Also due to how the dma_resv_reserve_fences()
+	 * works it only ensures that at least that many fence slots are
+	 * available i.e if there are already 10 slots available and we reserve
+	 * two more, it can just noop without reserving anything.  With this it
+	 * is quite possible that TTM steals some of the fence slots and then
+	 * when it comes time to do the vma binding and final exec stage we are
+	 * lacking enough fence slots, leading to some nasty BUG_ON() when
+	 * adding the fences. Hence just add our own fences here, after the
+	 * validate stage.
+	 */
+	drm_exec_for_each_locked_object(&vm_exec->exec, index, obj) {
+		ret = dma_resv_reserve_fences(obj->resv, num_fences);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 int xe_exec_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
@@ -196,8 +235,30 @@ retry:
 			goto err_unlock_list;
 	}
 
+	if (!args->num_batch_buffer) {
+		err = xe_vm_lock(vm, true);
+		if (err)
+			goto err_unlock_list;
+
+		if (!xe_vm_in_lr_mode(vm)) {
+			struct dma_fence *fence;
+
+			fence = xe_sync_in_fence_get(syncs, num_syncs, q, vm);
+			if (IS_ERR(fence)) {
+				err = PTR_ERR(fence);
+				goto err_unlock_list;
+			}
+			for (i = 0; i < num_syncs; i++)
+				xe_sync_entry_signal(&syncs[i], NULL, fence);
+			xe_exec_queue_last_fence_set(q, vm, fence);
+			dma_fence_put(fence);
+		}
+
+		xe_vm_unlock(vm);
+		goto err_unlock_list;
+	}
+
 	vm_exec.vm = &vm->gpuvm;
-	vm_exec.num_fences = 1 + vm->xe->info.tile_count;
 	vm_exec.flags = DRM_EXEC_INTERRUPTIBLE_WAIT;
 	if (xe_vm_in_lr_mode(vm)) {
 		drm_exec_init(exec, vm_exec.flags, 0);
@@ -213,24 +274,6 @@ retry:
 	if (xe_vm_is_closed_or_banned(q->vm)) {
 		drm_warn(&xe->drm, "Trying to schedule after vm is closed or banned\n");
 		err = -ECANCELED;
-		goto err_exec;
-	}
-
-	if (!args->num_batch_buffer) {
-		if (!xe_vm_in_lr_mode(vm)) {
-			struct dma_fence *fence;
-
-			fence = xe_sync_in_fence_get(syncs, num_syncs, q, vm);
-			if (IS_ERR(fence)) {
-				err = PTR_ERR(fence);
-				goto err_exec;
-			}
-			for (i = 0; i < num_syncs; i++)
-				xe_sync_entry_signal(&syncs[i], NULL, fence);
-			xe_exec_queue_last_fence_set(q, vm, fence);
-			dma_fence_put(fence);
-		}
-
 		goto err_exec;
 	}
 

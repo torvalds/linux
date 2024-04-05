@@ -325,7 +325,7 @@ static int intel_dsb_dewake_scanline(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
-	unsigned int latency = skl_watermark_max_latency(i915);
+	unsigned int latency = skl_watermark_max_latency(i915, 0);
 	int vblank_start;
 
 	if (crtc_state->vrr.enable) {
@@ -451,6 +451,10 @@ struct intel_dsb *intel_dsb_prepare(const struct intel_crtc_state *crtc_state,
 	unsigned int size;
 
 	if (!HAS_DSB(i915))
+		return NULL;
+
+	/* TODO: DSB is broken in Xe KMD, so disabling it until fixed */
+	if (!IS_ENABLED(I915))
 		return NULL;
 
 	dsb = kzalloc(sizeof(*dsb), GFP_KERNEL);

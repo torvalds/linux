@@ -190,6 +190,10 @@ vm_fault_t kvm_arch_vcpu_fault(struct kvm_vcpu *vcpu, struct vm_fault *vmf)
 	return VM_FAULT_SIGBUS;
 }
 
+void kvm_arch_create_vm_debugfs(struct kvm *kvm)
+{
+	kvm_sys_regs_create_debugfs(kvm);
+}
 
 /**
  * kvm_arch_destroy_vm - destroy the VM data structure
@@ -206,6 +210,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 		pkvm_destroy_hyp_vm(kvm);
 
 	kfree(kvm->arch.mpidr_data);
+	kfree(kvm->arch.sysreg_masks);
 	kvm_destroy_vcpus(kvm);
 
 	kvm_unshare_hyp(kvm, kvm + 1);
@@ -673,6 +678,12 @@ int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu)
 		if (ret)
 			return ret;
 	}
+
+	/*
+	 * This needs to happen after NV has imposed its own restrictions on
+	 * the feature set
+	 */
+	kvm_init_sysreg(vcpu);
 
 	ret = kvm_timer_enable(vcpu);
 	if (ret)
@@ -2591,7 +2602,8 @@ static __init int kvm_arm_init(void)
 	} else if (in_hyp_mode) {
 		kvm_info("VHE mode initialized successfully\n");
 	} else {
-		kvm_info("Hyp mode initialized successfully\n");
+		char mode = cpus_have_final_cap(ARM64_KVM_HVHE) ? 'h' : 'n';
+		kvm_info("Hyp mode (%cVHE) initialized successfully\n", mode);
 	}
 
 	/*

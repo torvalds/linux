@@ -15,12 +15,18 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - nxp,imx8dxl-fspi
-      - nxp,imx8mm-fspi
-      - nxp,imx8mp-fspi
-      - nxp,imx8qxp-fspi
-      - nxp,lx2160a-fspi
+    oneOf:
+      - enum:
+          - nxp,imx8dxl-fspi
+          - nxp,imx8mm-fspi
+          - nxp,imx8mp-fspi
+          - nxp,imx8qxp-fspi
+          - nxp,lx2160a-fspi
+      - items:
+          - enum:
+              - nxp,imx93-fspi
+              - nxp,imx95-fspi
+          - const: nxp,imx8mm-fspi
 
   reg:
     items:

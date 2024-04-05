@@ -383,7 +383,7 @@ int ifs_load_firmware(struct device *dev)
 	unsigned int expected_size;
 	const struct firmware *fw;
 	char scan_path[64];
-	int ret = -EINVAL;
+	int ret;
 
 	snprintf(scan_path, sizeof(scan_path), "intel/ifs_%d/%02x-%02x-%02x-%02x.scan",
 		 test->test_num, boot_cpu_data.x86, boot_cpu_data.x86_model,

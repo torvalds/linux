@@ -478,7 +478,7 @@ qtnf_event_handle_freq_change(struct qtnf_wmac *mac,
 			continue;
 
 		wiphy_lock(priv_to_wiphy(vif->mac));
-		cfg80211_ch_switch_notify(vif->netdev, &chandef, 0, 0);
+		cfg80211_ch_switch_notify(vif->netdev, &chandef, 0);
 		wiphy_unlock(priv_to_wiphy(vif->mac));
 	}
 

@@ -1190,7 +1190,8 @@ static int intel_engine_init_tlb_invalidation(struct intel_engine_cs *engine)
 			num = ARRAY_SIZE(xelpmp_regs);
 		}
 	} else {
-		if (GRAPHICS_VER_FULL(i915) == IP_VER(12, 71) ||
+		if (GRAPHICS_VER_FULL(i915) == IP_VER(12, 74) ||
+		    GRAPHICS_VER_FULL(i915) == IP_VER(12, 71) ||
 		    GRAPHICS_VER_FULL(i915) == IP_VER(12, 70) ||
 		    GRAPHICS_VER_FULL(i915) == IP_VER(12, 50) ||
 		    GRAPHICS_VER_FULL(i915) == IP_VER(12, 55)) {

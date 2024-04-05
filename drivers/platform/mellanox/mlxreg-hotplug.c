@@ -348,20 +348,6 @@ mlxreg_hotplug_work_helper(struct mlxreg_hotplug_priv_data *priv,
 	u32 regval, bit;
 	int ret;
 
-	/*
-	 * Validate if item related to received signal type is valid.
-	 * It should never happen, excepted the situation when some
-	 * piece of hardware is broken. In such situation just produce
-	 * error message and return. Caller must continue to handle the
-	 * signals from other devices if any.
-	 */
-	if (unlikely(!item)) {
-		dev_err(priv->dev, "False signal: at offset:mask 0x%02x:0x%02x.\n",
-			item->reg, item->mask);
-
-		return;
-	}
-
 	/* Mask event. */
 	ret = regmap_write(priv->regmap, item->reg + MLXREG_HOTPLUG_MASK_OFF,
 			   0);

@@ -240,7 +240,6 @@ static struct ice_vsi *ice_vf_vsi_setup(struct ice_vf *vf)
 	}
 
 	vf->lan_vsi_idx = vsi->idx;
-	vf->lan_vsi_num = vsi->vsi_num;
 
 	return vsi;
 }

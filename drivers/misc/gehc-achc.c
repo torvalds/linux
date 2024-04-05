@@ -65,7 +65,7 @@ static int ezport_start_programming(struct spi_device *spi, struct gpio_desc *re
 	struct spi_transfer release_cs = { };
 	int ret;
 
-	spi_bus_lock(spi->master);
+	spi_bus_lock(spi->controller);
 
 	/* assert chip select */
 	spi_message_init(&msg);
@@ -85,16 +85,16 @@ static int ezport_start_programming(struct spi_device *spi, struct gpio_desc *re
 	ret = spi_sync_locked(spi, &msg);
 
 fail:
-	spi_bus_unlock(spi->master);
+	spi_bus_unlock(spi->controller);
 	return ret;
 }
 
 static void ezport_stop_programming(struct spi_device *spi, struct gpio_desc *reset)
 {
 	/* reset without asserted chip select to return into normal mode */
-	spi_bus_lock(spi->master);
+	spi_bus_lock(spi->controller);
 	ezport_reset(reset);
-	spi_bus_unlock(spi->master);
+	spi_bus_unlock(spi->controller);
 }
 
 static int ezport_get_status_register(struct spi_device *spi)

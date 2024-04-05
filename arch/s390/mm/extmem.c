@@ -136,7 +136,7 @@ dcss_diag(int *func, void *parameter,
 	unsigned long rx, ry;
 	int rc;
 
-	rx = (unsigned long) parameter;
+	rx = virt_to_phys(parameter);
 	ry = (unsigned long) *func;
 
 	diag_stat_inc(DIAG_STAT_X064);
@@ -178,7 +178,7 @@ query_segment_type (struct dcss_segment *seg)
 
 	/* initialize diag input parameters */
 	qin->qopcode = DCSS_FINDSEGA;
-	qin->qoutptr = (unsigned long) qout;
+	qin->qoutptr = virt_to_phys(qout);
 	qin->qoutlen = sizeof(struct qout64);
 	memcpy (qin->qname, seg->dcss_name, 8);
 

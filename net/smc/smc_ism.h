@@ -15,7 +15,7 @@
 
 #include "smc.h"
 
-#define SMC_VIRTUAL_ISM_CHID_MASK	0xFF00
+#define SMC_EMULATED_ISM_CHID_MASK	0xFF00
 #define SMC_ISM_IDENT_MASK		0x00FFFF
 
 struct smcd_dev_list {	/* List of SMCD devices */
@@ -66,10 +66,10 @@ static inline int smc_ism_write(struct smcd_dev *smcd, u64 dmb_tok,
 	return rc < 0 ? rc : 0;
 }
 
-static inline bool __smc_ism_is_virtual(u16 chid)
+static inline bool __smc_ism_is_emulated(u16 chid)
 {
 	/* CHIDs in range of 0xFF00 to 0xFFFF are reserved
-	 * for virtual ISM device.
+	 * for Emulated-ISM device.
 	 *
 	 * loopback-ism:	0xFFFF
 	 * virtio-ism:		0xFF00 ~ 0xFFFE
@@ -77,11 +77,11 @@ static inline bool __smc_ism_is_virtual(u16 chid)
 	return ((chid & 0xFF00) == 0xFF00);
 }
 
-static inline bool smc_ism_is_virtual(struct smcd_dev *smcd)
+static inline bool smc_ism_is_emulated(struct smcd_dev *smcd)
 {
 	u16 chid = smcd->ops->get_chid(smcd);
 
-	return __smc_ism_is_virtual(chid);
+	return __smc_ism_is_emulated(chid);
 }
 
 #endif

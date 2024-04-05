@@ -109,6 +109,8 @@ struct intel_dpll_mgr {
 	void (*update_ref_clks)(struct drm_i915_private *i915);
 	void (*dump_hw_state)(struct drm_i915_private *i915,
 			      const struct intel_dpll_hw_state *hw_state);
+	bool (*compare_hw_state)(const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b);
 };
 
 static void
@@ -644,6 +646,15 @@ static void ibx_dump_hw_state(struct drm_i915_private *i915,
 		    hw_state->fp1);
 }
 
+static bool ibx_compare_hw_state(const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b)
+{
+	return a->dpll == b->dpll &&
+		a->dpll_md == b->dpll_md &&
+		a->fp0 == b->fp0 &&
+		a->fp1 == b->fp1;
+}
+
 static const struct intel_shared_dpll_funcs ibx_pch_dpll_funcs = {
 	.enable = ibx_pch_dpll_enable,
 	.disable = ibx_pch_dpll_disable,
@@ -662,6 +673,7 @@ static const struct intel_dpll_mgr pch_pll_mgr = {
 	.get_dplls = ibx_get_dpll,
 	.put_dplls = intel_put_dpll,
 	.dump_hw_state = ibx_dump_hw_state,
+	.compare_hw_state = ibx_compare_hw_state,
 };
 
 static void hsw_ddi_wrpll_enable(struct drm_i915_private *i915,
@@ -1220,6 +1232,13 @@ static void hsw_dump_hw_state(struct drm_i915_private *i915,
 		    hw_state->wrpll, hw_state->spll);
 }
 
+static bool hsw_compare_hw_state(const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b)
+{
+	return a->wrpll == b->wrpll &&
+		a->spll == b->spll;
+}
+
 static const struct intel_shared_dpll_funcs hsw_ddi_wrpll_funcs = {
 	.enable = hsw_ddi_wrpll_enable,
 	.disable = hsw_ddi_wrpll_disable,
@@ -1263,11 +1282,11 @@ static const struct dpll_info hsw_plls[] = {
 	{ .name = "WRPLL 2", .funcs = &hsw_ddi_wrpll_funcs, .id = DPLL_ID_WRPLL2, },
 	{ .name = "SPLL", .funcs = &hsw_ddi_spll_funcs, .id = DPLL_ID_SPLL, },
 	{ .name = "LCPLL 810", .funcs = &hsw_ddi_lcpll_funcs, .id = DPLL_ID_LCPLL_810,
-	  .flags = INTEL_DPLL_ALWAYS_ON, },
+	  .always_on = true, },
 	{ .name = "LCPLL 1350", .funcs = &hsw_ddi_lcpll_funcs, .id = DPLL_ID_LCPLL_1350,
-	  .flags = INTEL_DPLL_ALWAYS_ON, },
+	  .always_on = true, },
 	{ .name = "LCPLL 2700", .funcs = &hsw_ddi_lcpll_funcs, .id = DPLL_ID_LCPLL_2700,
-	  .flags = INTEL_DPLL_ALWAYS_ON, },
+	  .always_on = true, },
 	{}
 };
 
@@ -1278,6 +1297,7 @@ static const struct intel_dpll_mgr hsw_pll_mgr = {
 	.put_dplls = intel_put_dpll,
 	.update_ref_clks = hsw_update_dpll_ref_clks,
 	.dump_hw_state = hsw_dump_hw_state,
+	.compare_hw_state = hsw_compare_hw_state,
 };
 
 struct skl_dpll_regs {
@@ -1929,6 +1949,14 @@ static void skl_dump_hw_state(struct drm_i915_private *i915,
 		      hw_state->cfgcr2);
 }
 
+static bool skl_compare_hw_state(const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b)
+{
+	return a->ctrl1 == b->ctrl1 &&
+		a->cfgcr1 == b->cfgcr1 &&
+		a->cfgcr2 == b->cfgcr2;
+}
+
 static const struct intel_shared_dpll_funcs skl_ddi_pll_funcs = {
 	.enable = skl_ddi_pll_enable,
 	.disable = skl_ddi_pll_disable,
@@ -1945,7 +1973,7 @@ static const struct intel_shared_dpll_funcs skl_ddi_dpll0_funcs = {
 
 static const struct dpll_info skl_plls[] = {
 	{ .name = "DPLL 0", .funcs = &skl_ddi_dpll0_funcs, .id = DPLL_ID_SKL_DPLL0,
-	  .flags = INTEL_DPLL_ALWAYS_ON, },
+	  .always_on = true, },
 	{ .name = "DPLL 1", .funcs = &skl_ddi_pll_funcs, .id = DPLL_ID_SKL_DPLL1, },
 	{ .name = "DPLL 2", .funcs = &skl_ddi_pll_funcs, .id = DPLL_ID_SKL_DPLL2, },
 	{ .name = "DPLL 3", .funcs = &skl_ddi_pll_funcs, .id = DPLL_ID_SKL_DPLL3, },
@@ -1959,6 +1987,7 @@ static const struct intel_dpll_mgr skl_pll_mgr = {
 	.put_dplls = intel_put_dpll,
 	.update_ref_clks = skl_update_dpll_ref_clks,
 	.dump_hw_state = skl_dump_hw_state,
+	.compare_hw_state = skl_compare_hw_state,
 };
 
 static void bxt_ddi_pll_enable(struct drm_i915_private *i915,
@@ -2392,6 +2421,21 @@ static void bxt_dump_hw_state(struct drm_i915_private *i915,
 		    hw_state->pcsdw12);
 }
 
+static bool bxt_compare_hw_state(const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b)
+{
+	return a->ebb0 == b->ebb0 &&
+		a->ebb4 == b->ebb4 &&
+		a->pll0 == b->pll0 &&
+		a->pll1 == b->pll1 &&
+		a->pll2 == b->pll2 &&
+		a->pll3 == b->pll3 &&
+		a->pll6 == b->pll6 &&
+		a->pll8 == b->pll8 &&
+		a->pll10 == b->pll10 &&
+		a->pcsdw12 == b->pcsdw12;
+}
+
 static const struct intel_shared_dpll_funcs bxt_ddi_pll_funcs = {
 	.enable = bxt_ddi_pll_enable,
 	.disable = bxt_ddi_pll_disable,
@@ -2413,6 +2457,7 @@ static const struct intel_dpll_mgr bxt_pll_mgr = {
 	.put_dplls = intel_put_dpll,
 	.update_ref_clks = bxt_update_dpll_ref_clks,
 	.dump_hw_state = bxt_dump_hw_state,
+	.compare_hw_state = bxt_compare_hw_state,
 };
 
 static void icl_wrpll_get_multipliers(int bestdiv, int *pdiv,
@@ -3308,6 +3353,8 @@ static int icl_compute_tc_phy_dplls(struct intel_atomic_state *state,
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	struct intel_crtc_state *crtc_state =
 		intel_atomic_get_new_crtc_state(state, crtc);
+	const struct intel_crtc_state *old_crtc_state =
+		intel_atomic_get_old_crtc_state(state, crtc);
 	struct icl_port_dpll *port_dpll =
 		&crtc_state->icl_port_dplls[ICL_PORT_DPLL_DEFAULT];
 	struct skl_wrpll_params pll_params = {};
@@ -3326,7 +3373,11 @@ static int icl_compute_tc_phy_dplls(struct intel_atomic_state *state,
 		return ret;
 
 	/* this is mainly for the fastset check */
-	icl_set_active_port_dpll(crtc_state, ICL_PORT_DPLL_MG_PHY);
+	if (old_crtc_state->shared_dpll &&
+	    old_crtc_state->shared_dpll->info->id == DPLL_ID_ICL_TBTPLL)
+		icl_set_active_port_dpll(crtc_state, ICL_PORT_DPLL_DEFAULT);
+	else
+		icl_set_active_port_dpll(crtc_state, ICL_PORT_DPLL_MG_PHY);
 
 	crtc_state->port_clock = icl_ddi_mg_pll_get_freq(i915, NULL,
 							 &port_dpll->hw_state);
@@ -3999,6 +4050,25 @@ static void icl_dump_hw_state(struct drm_i915_private *i915,
 		    hw_state->mg_pll_tdc_coldst_bias);
 }
 
+static bool icl_compare_hw_state(const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b)
+{
+	/* FIXME split combo vs. mg more thoroughly */
+	return a->cfgcr0 == b->cfgcr0 &&
+		a->cfgcr1 == b->cfgcr1 &&
+		a->div0 == b->div0 &&
+		a->mg_refclkin_ctl == b->mg_refclkin_ctl &&
+		a->mg_clktop2_coreclkctl1 == b->mg_clktop2_coreclkctl1 &&
+		a->mg_clktop2_hsclkctl == b->mg_clktop2_hsclkctl &&
+		a->mg_pll_div0 == b->mg_pll_div0 &&
+		a->mg_pll_div1 == b->mg_pll_div1 &&
+		a->mg_pll_lf == b->mg_pll_lf &&
+		a->mg_pll_frac_lock == b->mg_pll_frac_lock &&
+		a->mg_pll_ssc == b->mg_pll_ssc &&
+		a->mg_pll_bias == b->mg_pll_bias &&
+		a->mg_pll_tdc_coldst_bias == b->mg_pll_tdc_coldst_bias;
+}
+
 static const struct intel_shared_dpll_funcs combo_pll_funcs = {
 	.enable = combo_pll_enable,
 	.disable = combo_pll_disable,
@@ -4023,7 +4093,8 @@ static const struct intel_shared_dpll_funcs mg_pll_funcs = {
 static const struct dpll_info icl_plls[] = {
 	{ .name = "DPLL 0", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL0, },
 	{ .name = "DPLL 1", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL1, },
-	{ .name = "TBT PLL", .funcs = &tbt_pll_funcs, .id = DPLL_ID_ICL_TBTPLL, },
+	{ .name = "TBT PLL", .funcs = &tbt_pll_funcs, .id = DPLL_ID_ICL_TBTPLL,
+	  .is_alt_port_dpll = true, },
 	{ .name = "MG PLL 1", .funcs = &mg_pll_funcs, .id = DPLL_ID_ICL_MGPLL1, },
 	{ .name = "MG PLL 2", .funcs = &mg_pll_funcs, .id = DPLL_ID_ICL_MGPLL2, },
 	{ .name = "MG PLL 3", .funcs = &mg_pll_funcs, .id = DPLL_ID_ICL_MGPLL3, },
@@ -4039,6 +4110,7 @@ static const struct intel_dpll_mgr icl_pll_mgr = {
 	.update_active_dpll = icl_update_active_dpll,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 static const struct dpll_info ehl_plls[] = {
@@ -4056,6 +4128,7 @@ static const struct intel_dpll_mgr ehl_pll_mgr = {
 	.put_dplls = icl_put_dplls,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 static const struct intel_shared_dpll_funcs dkl_pll_funcs = {
@@ -4068,7 +4141,8 @@ static const struct intel_shared_dpll_funcs dkl_pll_funcs = {
 static const struct dpll_info tgl_plls[] = {
 	{ .name = "DPLL 0", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL0, },
 	{ .name = "DPLL 1", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL1, },
-	{ .name = "TBT PLL", .funcs = &tbt_pll_funcs, .id = DPLL_ID_ICL_TBTPLL, },
+	{ .name = "TBT PLL", .funcs = &tbt_pll_funcs, .id = DPLL_ID_ICL_TBTPLL,
+	  .is_alt_port_dpll = true, },
 	{ .name = "TC PLL 1", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL1, },
 	{ .name = "TC PLL 2", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL2, },
 	{ .name = "TC PLL 3", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL3, },
@@ -4086,6 +4160,7 @@ static const struct intel_dpll_mgr tgl_pll_mgr = {
 	.update_active_dpll = icl_update_active_dpll,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 static const struct dpll_info rkl_plls[] = {
@@ -4102,6 +4177,7 @@ static const struct intel_dpll_mgr rkl_pll_mgr = {
 	.put_dplls = icl_put_dplls,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 static const struct dpll_info dg1_plls[] = {
@@ -4119,6 +4195,7 @@ static const struct intel_dpll_mgr dg1_pll_mgr = {
 	.put_dplls = icl_put_dplls,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 static const struct dpll_info adls_plls[] = {
@@ -4136,12 +4213,14 @@ static const struct intel_dpll_mgr adls_pll_mgr = {
 	.put_dplls = icl_put_dplls,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 static const struct dpll_info adlp_plls[] = {
 	{ .name = "DPLL 0", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL0, },
 	{ .name = "DPLL 1", .funcs = &combo_pll_funcs, .id = DPLL_ID_ICL_DPLL1, },
-	{ .name = "TBT PLL", .funcs = &tbt_pll_funcs, .id = DPLL_ID_ICL_TBTPLL, },
+	{ .name = "TBT PLL", .funcs = &tbt_pll_funcs, .id = DPLL_ID_ICL_TBTPLL,
+	  .is_alt_port_dpll = true, },
 	{ .name = "TC PLL 1", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL1, },
 	{ .name = "TC PLL 2", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL2, },
 	{ .name = "TC PLL 3", .funcs = &dkl_pll_funcs, .id = DPLL_ID_ICL_MGPLL3, },
@@ -4157,6 +4236,7 @@ static const struct intel_dpll_mgr adlp_pll_mgr = {
 	.update_active_dpll = icl_update_active_dpll,
 	.update_ref_clks = icl_update_dpll_ref_clks,
 	.dump_hw_state = icl_dump_hw_state,
+	.compare_hw_state = icl_compare_hw_state,
 };
 
 /**
@@ -4449,13 +4529,31 @@ void intel_dpll_dump_hw_state(struct drm_i915_private *i915,
 		/* fallback for platforms that don't use the shared dpll
 		 * infrastructure
 		 */
-		drm_dbg_kms(&i915->drm,
-			    "dpll_hw_state: dpll: 0x%x, dpll_md: 0x%x, "
-			    "fp0: 0x%x, fp1: 0x%x\n",
-			    hw_state->dpll,
-			    hw_state->dpll_md,
-			    hw_state->fp0,
-			    hw_state->fp1);
+		ibx_dump_hw_state(i915, hw_state);
+	}
+}
+
+/**
+ * intel_dpll_compare_hw_state - compare the two states
+ * @i915: i915 drm device
+ * @a: first DPLL hw state
+ * @b: second DPLL hw state
+ *
+ * Compare DPLL hw states @a and @b.
+ *
+ * Returns: true if the states are equal, false if the differ
+ */
+bool intel_dpll_compare_hw_state(struct drm_i915_private *i915,
+				 const struct intel_dpll_hw_state *a,
+				 const struct intel_dpll_hw_state *b)
+{
+	if (i915->display.dpll.mgr) {
+		return i915->display.dpll.mgr->compare_hw_state(a, b);
+	} else {
+		/* fallback for platforms that don't use the shared dpll
+		 * infrastructure
+		 */
+		return ibx_compare_hw_state(a, b);
 	}
 }
 
@@ -4465,31 +4563,29 @@ verify_single_dpll_state(struct drm_i915_private *i915,
 			 struct intel_crtc *crtc,
 			 const struct intel_crtc_state *new_crtc_state)
 {
-	struct intel_dpll_hw_state dpll_hw_state;
+	struct intel_dpll_hw_state dpll_hw_state = {};
 	u8 pipe_mask;
 	bool active;
 
-	memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
-
-	drm_dbg_kms(&i915->drm, "%s\n", pll->info->name);
-
 	active = intel_dpll_get_hw_state(i915, pll, &dpll_hw_state);
 
-	if (!(pll->info->flags & INTEL_DPLL_ALWAYS_ON)) {
+	if (!pll->info->always_on) {
 		I915_STATE_WARN(i915, !pll->on && pll->active_mask,
-				"pll in active use but not on in sw tracking\n");
+				"%s: pll in active use but not on in sw tracking\n",
+				pll->info->name);
 		I915_STATE_WARN(i915, pll->on && !pll->active_mask,
-				"pll is on but not used by any active pipe\n");
+				"%s: pll is on but not used by any active pipe\n",
+				pll->info->name);
 		I915_STATE_WARN(i915, pll->on != active,
-				"pll on state mismatch (expected %i, found %i)\n",
-				pll->on, active);
+				"%s: pll on state mismatch (expected %i, found %i)\n",
+				pll->info->name, pll->on, active);
 	}
 
 	if (!crtc) {
 		I915_STATE_WARN(i915,
 				pll->active_mask & ~pll->state.pipe_mask,
-				"more active pll users than references: 0x%x vs 0x%x\n",
-				pll->active_mask, pll->state.pipe_mask);
+				"%s: more active pll users than references: 0x%x vs 0x%x\n",
+				pll->info->name, pll->active_mask, pll->state.pipe_mask);
 
 		return;
 	}
@@ -4498,21 +4594,29 @@ verify_single_dpll_state(struct drm_i915_private *i915,
 
 	if (new_crtc_state->hw.active)
 		I915_STATE_WARN(i915, !(pll->active_mask & pipe_mask),
-				"pll active mismatch (expected pipe %c in active mask 0x%x)\n",
-				pipe_name(crtc->pipe), pll->active_mask);
+				"%s: pll active mismatch (expected pipe %c in active mask 0x%x)\n",
+				pll->info->name, pipe_name(crtc->pipe), pll->active_mask);
 	else
 		I915_STATE_WARN(i915, pll->active_mask & pipe_mask,
-				"pll active mismatch (didn't expect pipe %c in active mask 0x%x)\n",
-				pipe_name(crtc->pipe), pll->active_mask);
+				"%s: pll active mismatch (didn't expect pipe %c in active mask 0x%x)\n",
+				pll->info->name, pipe_name(crtc->pipe), pll->active_mask);
 
 	I915_STATE_WARN(i915, !(pll->state.pipe_mask & pipe_mask),
-			"pll enabled crtcs mismatch (expected 0x%x in 0x%x)\n",
-			pipe_mask, pll->state.pipe_mask);
+			"%s: pll enabled crtcs mismatch (expected 0x%x in 0x%x)\n",
+			pll->info->name, pipe_mask, pll->state.pipe_mask);
 
 	I915_STATE_WARN(i915,
 			pll->on && memcmp(&pll->state.hw_state, &dpll_hw_state,
 					  sizeof(dpll_hw_state)),
-			"pll hw state mismatch\n");
+			"%s: pll hw state mismatch\n",
+			pll->info->name);
+}
+
+static bool has_alt_port_dpll(const struct intel_shared_dpll *old_pll,
+			      const struct intel_shared_dpll *new_pll)
+{
+	return old_pll && new_pll && old_pll != new_pll &&
+		(old_pll->info->is_alt_port_dpll || new_pll->info->is_alt_port_dpll);
 }
 
 void intel_shared_dpll_state_verify(struct intel_atomic_state *state,
@@ -4534,11 +4638,15 @@ void intel_shared_dpll_state_verify(struct intel_atomic_state *state,
 		struct intel_shared_dpll *pll = old_crtc_state->shared_dpll;
 
 		I915_STATE_WARN(i915, pll->active_mask & pipe_mask,
-				"pll active mismatch (didn't expect pipe %c in active mask (0x%x))\n",
-				pipe_name(crtc->pipe), pll->active_mask);
-		I915_STATE_WARN(i915, pll->state.pipe_mask & pipe_mask,
-				"pll enabled crtcs mismatch (found pipe %c in enabled mask (0x%x))\n",
-				pipe_name(crtc->pipe), pll->state.pipe_mask);
+				"%s: pll active mismatch (didn't expect pipe %c in active mask (0x%x))\n",
+				pll->info->name, pipe_name(crtc->pipe), pll->active_mask);
+
+		/* TC ports have both MG/TC and TBT PLL referenced simultaneously */
+		I915_STATE_WARN(i915, !has_alt_port_dpll(old_crtc_state->shared_dpll,
+							 new_crtc_state->shared_dpll) &&
+				pll->state.pipe_mask & pipe_mask,
+				"%s: pll enabled crtcs mismatch (found pipe %c in enabled mask (0x%x))\n",
+				pll->info->name, pipe_name(crtc->pipe), pll->state.pipe_mask);
 	}
 }
 

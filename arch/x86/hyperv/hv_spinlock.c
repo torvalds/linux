@@ -16,7 +16,7 @@
 #include <asm/paravirt.h>
 #include <asm/apic.h>
 
-static bool __initdata hv_pvspin = true;
+static bool hv_pvspin __initdata = true;
 
 static void hv_qlock_kick(int cpu)
 {
@@ -64,6 +64,7 @@ __visible bool hv_vcpu_is_preempted(int vcpu)
 {
 	return false;
 }
+
 PV_CALLEE_SAVE_REGS_THUNK(hv_vcpu_is_preempted);
 
 void __init hv_init_spinlocks(void)

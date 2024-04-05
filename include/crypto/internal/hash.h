@@ -87,8 +87,6 @@ static inline bool crypto_shash_alg_needs_key(struct shash_alg *alg)
 		!(alg->base.cra_flags & CRYPTO_ALG_OPTIONAL_KEY);
 }
 
-bool crypto_hash_alg_has_setkey(struct hash_alg_common *halg);
-
 int crypto_grab_ahash(struct crypto_ahash_spawn *spawn,
 		      struct crypto_instance *inst,
 		      const char *name, u32 type, u32 mask);

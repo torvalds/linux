@@ -20,7 +20,7 @@ void mlx5e_rss_params_indir_init_uniform(struct mlx5e_rss_params_indir *indir,
 					 unsigned int num_channels);
 
 struct mlx5e_rqt {
-	struct mlx5_core_dev *mdev;
+	struct mlx5_core_dev *mdev; /* primary */
 	u32 rqtn;
 	u16 size;
 };
@@ -28,7 +28,7 @@ struct mlx5e_rqt {
 int mlx5e_rqt_init_direct(struct mlx5e_rqt *rqt, struct mlx5_core_dev *mdev,
 			  bool indir_enabled, u32 init_rqn, u32 indir_table_size);
 int mlx5e_rqt_init_indir(struct mlx5e_rqt *rqt, struct mlx5_core_dev *mdev,
-			 u32 *rqns, unsigned int num_rqns,
+			 u32 *rqns, u32 *vhca_ids, unsigned int num_rqns,
 			 u8 hfunc, struct mlx5e_rss_params_indir *indir);
 void mlx5e_rqt_destroy(struct mlx5e_rqt *rqt);
 
@@ -38,8 +38,9 @@ static inline u32 mlx5e_rqt_get_rqtn(struct mlx5e_rqt *rqt)
 }
 
 u32 mlx5e_rqt_size(struct mlx5_core_dev *mdev, unsigned int num_channels);
-int mlx5e_rqt_redirect_direct(struct mlx5e_rqt *rqt, u32 rqn);
-int mlx5e_rqt_redirect_indir(struct mlx5e_rqt *rqt, u32 *rqns, unsigned int num_rqns,
+int mlx5e_rqt_redirect_direct(struct mlx5e_rqt *rqt, u32 rqn, u32 *vhca_id);
+int mlx5e_rqt_redirect_indir(struct mlx5e_rqt *rqt, u32 *rqns, u32 *vhca_ids,
+			     unsigned int num_rqns,
 			     u8 hfunc, struct mlx5e_rss_params_indir *indir);
 
 #endif /* __MLX5_EN_RQT_H__ */

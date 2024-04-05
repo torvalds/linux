@@ -2514,8 +2514,7 @@ static void evergreen_agp_enable(struct radeon_device *rdev)
 	WREG32(VM_CONTEXT1_CNTL, 0);
 }
 
-static const unsigned ni_dig_offsets[] =
-{
+static const unsigned ni_dig_offsets[] = {
 	NI_DIG0_REGISTER_OFFSET,
 	NI_DIG1_REGISTER_OFFSET,
 	NI_DIG2_REGISTER_OFFSET,
@@ -2524,8 +2523,7 @@ static const unsigned ni_dig_offsets[] =
 	NI_DIG5_REGISTER_OFFSET
 };
 
-static const unsigned ni_tx_offsets[] =
-{
+static const unsigned ni_tx_offsets[] = {
 	NI_DCIO_UNIPHY0_UNIPHY_TX_CONTROL1,
 	NI_DCIO_UNIPHY1_UNIPHY_TX_CONTROL1,
 	NI_DCIO_UNIPHY2_UNIPHY_TX_CONTROL1,
@@ -2534,8 +2532,7 @@ static const unsigned ni_tx_offsets[] =
 	NI_DCIO_UNIPHY5_UNIPHY_TX_CONTROL1
 };
 
-static const unsigned evergreen_dp_offsets[] =
-{
+static const unsigned evergreen_dp_offsets[] = {
 	EVERGREEN_DP0_REGISTER_OFFSET,
 	EVERGREEN_DP1_REGISTER_OFFSET,
 	EVERGREEN_DP2_REGISTER_OFFSET,
@@ -2544,8 +2541,7 @@ static const unsigned evergreen_dp_offsets[] =
 	EVERGREEN_DP5_REGISTER_OFFSET
 };
 
-static const unsigned evergreen_disp_int_status[] =
-{
+static const unsigned evergreen_disp_int_status[] = {
 	DISP_INTERRUPT_STATUS,
 	DISP_INTERRUPT_STATUS_CONTINUE,
 	DISP_INTERRUPT_STATUS_CONTINUE2,
@@ -2643,7 +2639,7 @@ static void evergreen_blank_dp_output(struct radeon_device *rdev,
 		return;
 	}
 
-	stream_ctrl &=~EVERGREEN_DP_VID_STREAM_CNTL_ENABLE;
+	stream_ctrl &= ~EVERGREEN_DP_VID_STREAM_CNTL_ENABLE;
 	WREG32(EVERGREEN_DP_VID_STREAM_CNTL +
 	       evergreen_dp_offsets[dig_fe], stream_ctrl);
 
@@ -2655,7 +2651,7 @@ static void evergreen_blank_dp_output(struct radeon_device *rdev,
 		stream_ctrl = RREG32(EVERGREEN_DP_VID_STREAM_CNTL +
 				     evergreen_dp_offsets[dig_fe]);
 	}
-	if (counter >= 32 )
+	if (counter >= 32)
 		DRM_ERROR("counter exceeds %d\n", counter);
 
 	fifo_ctrl = RREG32(EVERGREEN_DP_STEER_FIFO + evergreen_dp_offsets[dig_fe]);
@@ -2716,7 +2712,7 @@ void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *sav
 			/*for now we do it this manually*/
 			/**/
 			if (ASIC_IS_DCE5(rdev) &&
-			    evergreen_is_dp_sst_stream_enabled(rdev, i ,&dig_fe))
+			    evergreen_is_dp_sst_stream_enabled(rdev, i, &dig_fe))
 				evergreen_blank_dp_output(rdev, dig_fe);
 			/*we could remove 6 lines below*/
 			/* XXX this is a hack to avoid strange behavior with EFI on certain systems */
@@ -3597,7 +3593,7 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 
 	sq_lds_resource_mgmt = RREG32(SQ_LDS_RESOURCE_MGMT);
 
-	sq_gpr_resource_mgmt_1 = NUM_PS_GPRS((rdev->config.evergreen.max_gprs - (4 * 2))* 12 / 32);
+	sq_gpr_resource_mgmt_1 = NUM_PS_GPRS((rdev->config.evergreen.max_gprs - (4 * 2)) * 12 / 32);
 	sq_gpr_resource_mgmt_1 |= NUM_VS_GPRS((rdev->config.evergreen.max_gprs - (4 * 2)) * 6 / 32);
 	sq_gpr_resource_mgmt_1 |= NUM_CLAUSE_TEMP_GPRS(4);
 	sq_gpr_resource_mgmt_2 = NUM_GS_GPRS((rdev->config.evergreen.max_gprs - (4 * 2)) * 4 / 32);

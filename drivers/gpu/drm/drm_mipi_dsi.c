@@ -89,7 +89,7 @@ static const struct dev_pm_ops mipi_dsi_device_pm_ops = {
 	.restore = pm_generic_restore,
 };
 
-static struct bus_type mipi_dsi_bus_type = {
+static const struct bus_type mipi_dsi_bus_type = {
 	.name = "mipi-dsi",
 	.match = mipi_dsi_device_match,
 	.uevent = mipi_dsi_uevent,

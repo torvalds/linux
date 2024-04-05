@@ -716,7 +716,7 @@ static void smmu_pmu_free_msis(void *data)
 {
 	struct device *dev = data;
 
-	platform_msi_domain_free_irqs(dev);
+	platform_device_msi_free_irqs_all(dev);
 }
 
 static void smmu_pmu_write_msi_msg(struct msi_desc *desc, struct msi_msg *msg)
@@ -746,7 +746,7 @@ static void smmu_pmu_setup_msi(struct smmu_pmu *pmu)
 	if (!(readl(pmu->reg_base + SMMU_PMCG_CFGR) & SMMU_PMCG_CFGR_MSI))
 		return;
 
-	ret = platform_msi_domain_alloc_irqs(dev, 1, smmu_pmu_write_msi_msg);
+	ret = platform_device_msi_init_and_alloc_irqs(dev, 1, smmu_pmu_write_msi_msg);
 	if (ret) {
 		dev_warn(dev, "failed to allocate MSIs\n");
 		return;
@@ -965,14 +965,12 @@ out_unregister:
 	return err;
 }
 
-static int smmu_pmu_remove(struct platform_device *pdev)
+static void smmu_pmu_remove(struct platform_device *pdev)
 {
 	struct smmu_pmu *smmu_pmu = platform_get_drvdata(pdev);
 
 	perf_pmu_unregister(&smmu_pmu->pmu);
 	cpuhp_state_remove_instance_nocalls(cpuhp_state_num, &smmu_pmu->node);
-
-	return 0;
 }
 
 static void smmu_pmu_shutdown(struct platform_device *pdev)
@@ -997,7 +995,7 @@ static struct platform_driver smmu_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe = smmu_pmu_probe,
-	.remove = smmu_pmu_remove,
+	.remove_new = smmu_pmu_remove,
 	.shutdown = smmu_pmu_shutdown,
 };
 

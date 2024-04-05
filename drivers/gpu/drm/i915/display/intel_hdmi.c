@@ -49,6 +49,7 @@
 #include "intel_cx0_phy.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
+#include "intel_display_driver.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_gmbus.h"
@@ -523,10 +524,12 @@ void hsw_write_infoframe(struct intel_encoder *encoder,
 			       0);
 
 	/* Wa_14013475917 */
-	if (IS_DISPLAY_VER(dev_priv, 13, 14) && crtc_state->has_psr && type == DP_SDP_VSC)
-		return;
+	if (!(IS_DISPLAY_VER(dev_priv, 13, 14) && crtc_state->has_psr && type == DP_SDP_VSC))
+		val |= hsw_infoframe_enable(type);
 
-	val |= hsw_infoframe_enable(type);
+	if (type == DP_SDP_VSC)
+		val |= VSC_DIP_HW_DATA_SW_HEA;
+
 	intel_de_write(dev_priv, ctl_reg, val);
 	intel_de_posting_read(dev_priv, ctl_reg);
 }
@@ -1729,8 +1732,8 @@ int intel_hdmi_hdcp2_check_link(struct intel_digital_port *dig_port,
 }
 
 static
-int intel_hdmi_hdcp2_capable(struct intel_connector *connector,
-			     bool *capable)
+int intel_hdmi_hdcp2_get_capability(struct intel_connector *connector,
+				    bool *capable)
 {
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
 	u8 hdcp2_version;
@@ -1759,7 +1762,7 @@ static const struct intel_hdcp_shim intel_hdmi_hdcp_shim = {
 	.write_2_2_msg = intel_hdmi_hdcp2_write_msg,
 	.read_2_2_msg = intel_hdmi_hdcp2_read_msg,
 	.check_2_2_link	= intel_hdmi_hdcp2_check_link,
-	.hdcp_2_2_capable = intel_hdmi_hdcp2_capable,
+	.hdcp_2_2_get_capability = intel_hdmi_hdcp2_get_capability,
 	.protocol = HDCP_PROTOCOL_HDMI,
 };
 
@@ -2503,6 +2506,9 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	if (!intel_display_device_enabled(dev_priv))
 		return connector_status_disconnected;
 
+	if (!intel_display_driver_check_access(dev_priv))
+		return connector->status;
+
 	wakeref = intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 
 	if (DISPLAY_VER(dev_priv) >= 11 &&
@@ -2530,6 +2536,9 @@ intel_hdmi_force(struct drm_connector *connector)
 
 	drm_dbg_kms(&i915->drm, "[CONNECTOR:%d:%s]\n",
 		    connector->base.id, connector->name);
+
+	if (!intel_display_driver_check_access(i915))
+		return;
 
 	intel_hdmi_unset_edid(connector);
 
@@ -3015,6 +3024,7 @@ void intel_hdmi_init_connector(struct intel_digital_port *dig_port,
 		connector->ycbcr_420_allowed = true;
 
 	intel_connector->polled = DRM_CONNECTOR_POLL_HPD;
+	intel_connector->base.polled = intel_connector->polled;
 
 	if (HAS_DDI(dev_priv))
 		intel_connector->get_hw_state = intel_ddi_connector_get_hw_state;

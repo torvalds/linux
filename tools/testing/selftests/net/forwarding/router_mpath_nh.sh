@@ -7,9 +7,12 @@ ALL_TESTS="
 	multipath_test
 	ping_ipv4_blackhole
 	ping_ipv6_blackhole
+	nh_stats_test_v4
+	nh_stats_test_v6
 "
 NUM_NETIFS=8
 source lib.sh
+source router_mpath_nh_lib.sh
 
 h1_create()
 {
@@ -204,7 +207,7 @@ multipath4_test()
 	t0_rp13=$(link_stats_tx_packets_get $rp13)
 
 	ip vrf exec vrf-h1 $MZ $h1 -q -p 64 -A 192.0.2.2 -B 198.51.100.2 \
-		-d 1msec -t udp "sp=1024,dp=0-32768"
+		-d $MZ_DELAY -t udp "sp=1024,dp=0-32768"
 
 	t1_rp12=$(link_stats_tx_packets_get $rp12)
 	t1_rp13=$(link_stats_tx_packets_get $rp13)
@@ -218,7 +221,7 @@ multipath4_test()
 	sysctl_restore net.ipv4.fib_multipath_hash_policy
 }
 
-multipath6_l4_test()
+multipath6_test()
 {
 	local desc="$1"
 	local weight_rp12=$2
@@ -237,7 +240,7 @@ multipath6_l4_test()
 	t0_rp13=$(link_stats_tx_packets_get $rp13)
 
 	$MZ $h1 -6 -q -p 64 -A 2001:db8:1::2 -B 2001:db8:2::2 \
-		-d 1msec -t udp "sp=1024,dp=0-32768"
+		-d $MZ_DELAY -t udp "sp=1024,dp=0-32768"
 
 	t1_rp12=$(link_stats_tx_packets_get $rp12)
 	t1_rp13=$(link_stats_tx_packets_get $rp13)
@@ -249,34 +252,6 @@ multipath6_l4_test()
 	ip nexthop replace id 106 group 104/105
 
 	sysctl_restore net.ipv6.fib_multipath_hash_policy
-}
-
-multipath6_test()
-{
-	local desc="$1"
-	local weight_rp12=$2
-	local weight_rp13=$3
-	local t0_rp12 t0_rp13 t1_rp12 t1_rp13
-	local packets_rp12 packets_rp13
-
-	ip nexthop replace id 106 group 104,$weight_rp12/105,$weight_rp13
-
-	t0_rp12=$(link_stats_tx_packets_get $rp12)
-	t0_rp13=$(link_stats_tx_packets_get $rp13)
-
-	# Generate 16384 echo requests, each with a random flow label.
-	for _ in $(seq 1 16384); do
-		ip vrf exec vrf-h1 $PING6 2001:db8:2::2 -F 0 -c 1 -q >/dev/null 2>&1
-	done
-
-	t1_rp12=$(link_stats_tx_packets_get $rp12)
-	t1_rp13=$(link_stats_tx_packets_get $rp13)
-
-	let "packets_rp12 = $t1_rp12 - $t0_rp12"
-	let "packets_rp13 = $t1_rp13 - $t0_rp13"
-	multipath_eval "$desc" $weight_rp12 $weight_rp13 $packets_rp12 $packets_rp13
-
-	ip nexthop replace id 106 group 104/105
 }
 
 multipath_test()
@@ -301,11 +276,6 @@ multipath_test()
 	multipath6_test "ECMP" 1 1
 	multipath6_test "Weighted MP 2:1" 2 1
 	multipath6_test "Weighted MP 11:45" 11 45
-
-	log_info "Running IPv6 L4 hash multipath tests"
-	multipath6_l4_test "ECMP" 1 1
-	multipath6_l4_test "Weighted MP 2:1" 2 1
-	multipath6_l4_test "Weighted MP 11:45" 11 45
 }
 
 ping_ipv4_blackhole()
@@ -356,6 +326,16 @@ ping_ipv6_blackhole()
 
 	ip nexthop del id 1002
 	ip -6 nexthop del id 1001
+}
+
+nh_stats_test_v4()
+{
+	__nh_stats_test_v4 mpath
+}
+
+nh_stats_test_v6()
+{
+	__nh_stats_test_v6 mpath
 }
 
 setup_prepare()

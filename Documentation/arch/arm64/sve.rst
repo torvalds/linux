@@ -117,11 +117,6 @@ the SVE instruction set architecture.
 * The SVE registers are not used to pass arguments to or receive results from
   any syscall.
 
-* In practice the affected registers/bits will be preserved or will be replaced
-  with zeros on return from a syscall, but userspace should not make
-  assumptions about this.  The kernel behaviour may vary on a case-by-case
-  basis.
-
 * All other SVE state of a thread, including the currently configured vector
   length, the state of the PR_SVE_VL_INHERIT flag, and the deferred vector
   length (if any), is preserved across all syscalls, subject to the specific
@@ -428,9 +423,8 @@ The regset data starts with struct user_sve_header, containing:
 /proc/sys/abi/sve_default_vector_length
 
     Writing the text representation of an integer to this file sets the system
-    default vector length to the specified value, unless the value is greater
-    than the maximum vector length supported by the system in which case the
-    default vector length is set to that maximum.
+    default vector length to the specified value rounded to a supported value
+    using the same rules as for setting vector length via PR_SVE_SET_VL.
 
     The result can be determined by reopening the file and reading its
     contents.

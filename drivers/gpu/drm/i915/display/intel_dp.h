@@ -43,6 +43,12 @@ void intel_dp_adjust_compliance_config(struct intel_dp *intel_dp,
 bool intel_dp_limited_color_range(const struct intel_crtc_state *crtc_state,
 				  const struct drm_connector_state *conn_state);
 int intel_dp_min_bpp(enum intel_output_format output_format);
+void intel_dp_init_modeset_retry_work(struct intel_connector *connector);
+void intel_dp_queue_modeset_retry_work(struct intel_connector *connector);
+void
+intel_dp_queue_modeset_retry_for_link(struct intel_atomic_state *state,
+				      struct intel_encoder *encoder,
+				      const struct intel_crtc_state *crtc_state);
 bool intel_dp_init_connector(struct intel_digital_port *dig_port,
 			     struct intel_connector *intel_connector);
 void intel_dp_connector_sync_state(struct intel_connector *connector,
@@ -96,7 +102,11 @@ void intel_dp_mst_suspend(struct drm_i915_private *dev_priv);
 void intel_dp_mst_resume(struct drm_i915_private *dev_priv);
 int intel_dp_max_link_rate(struct intel_dp *intel_dp);
 int intel_dp_max_lane_count(struct intel_dp *intel_dp);
+int intel_dp_config_required_rate(const struct intel_crtc_state *crtc_state);
 int intel_dp_rate_select(struct intel_dp *intel_dp, int rate);
+int intel_dp_max_common_rate(struct intel_dp *intel_dp);
+int intel_dp_max_common_lane_count(struct intel_dp *intel_dp);
+void intel_dp_update_sink_caps(struct intel_dp *intel_dp);
 
 void intel_dp_compute_rate(struct intel_dp *intel_dp, int port_clock,
 			   u8 *link_bw, u8 *rate_select);
@@ -107,24 +117,21 @@ bool intel_dp_get_colorimetry_status(struct intel_dp *intel_dp);
 int intel_dp_link_required(int pixel_clock, int bpp);
 int intel_dp_effective_data_rate(int pixel_clock, int bpp_x16,
 				 int bw_overhead);
-int intel_dp_max_data_rate(int max_link_rate, int max_lanes);
+int intel_dp_max_link_data_rate(struct intel_dp *intel_dp,
+				int max_dprx_rate, int max_dprx_lanes);
 bool intel_dp_can_bigjoiner(struct intel_dp *intel_dp);
 bool intel_dp_needs_vsc_sdp(const struct intel_crtc_state *crtc_state,
 			    const struct drm_connector_state *conn_state);
-void intel_dp_compute_psr_vsc_sdp(struct intel_dp *intel_dp,
-				  const struct intel_crtc_state *crtc_state,
-				  const struct drm_connector_state *conn_state,
-				  struct drm_dp_vsc_sdp *vsc);
-void intel_write_dp_vsc_sdp(struct intel_encoder *encoder,
-			    const struct intel_crtc_state *crtc_state,
-			    const struct drm_dp_vsc_sdp *vsc);
 void intel_dp_set_infoframes(struct intel_encoder *encoder, bool enable,
 			     const struct intel_crtc_state *crtc_state,
 			     const struct drm_connector_state *conn_state);
 void intel_read_dp_sdp(struct intel_encoder *encoder,
 		       struct intel_crtc_state *crtc_state,
 		       unsigned int type);
+void intel_digital_port_lock(struct intel_encoder *encoder);
+void intel_digital_port_unlock(struct intel_encoder *encoder);
 bool intel_digital_port_connected(struct intel_encoder *encoder);
+bool intel_digital_port_connected_locked(struct intel_encoder *encoder);
 int intel_dp_dsc_compute_max_bpp(const struct intel_connector *connector,
 				 u8 dsc_max_bpc);
 u16 intel_dp_dsc_get_max_compressed_bpp(struct drm_i915_private *i915,

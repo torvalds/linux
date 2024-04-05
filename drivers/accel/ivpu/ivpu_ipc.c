@@ -58,8 +58,8 @@ static void ivpu_ipc_mem_fini(struct ivpu_device *vdev)
 {
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 
-	ivpu_bo_free_internal(ipc->mem_rx);
-	ivpu_bo_free_internal(ipc->mem_tx);
+	ivpu_bo_free(ipc->mem_rx);
+	ivpu_bo_free(ipc->mem_tx);
 }
 
 static int
@@ -471,13 +471,13 @@ int ivpu_ipc_init(struct ivpu_device *vdev)
 	struct ivpu_ipc_info *ipc = vdev->ipc;
 	int ret;
 
-	ipc->mem_tx = ivpu_bo_alloc_internal(vdev, 0, SZ_16K, DRM_IVPU_BO_WC);
+	ipc->mem_tx = ivpu_bo_create_global(vdev, SZ_16K, DRM_IVPU_BO_WC | DRM_IVPU_BO_MAPPABLE);
 	if (!ipc->mem_tx) {
 		ivpu_err(vdev, "Failed to allocate mem_tx\n");
 		return -ENOMEM;
 	}
 
-	ipc->mem_rx = ivpu_bo_alloc_internal(vdev, 0, SZ_16K, DRM_IVPU_BO_WC);
+	ipc->mem_rx = ivpu_bo_create_global(vdev, SZ_16K, DRM_IVPU_BO_WC | DRM_IVPU_BO_MAPPABLE);
 	if (!ipc->mem_rx) {
 		ivpu_err(vdev, "Failed to allocate mem_rx\n");
 		ret = -ENOMEM;
@@ -506,9 +506,9 @@ int ivpu_ipc_init(struct ivpu_device *vdev)
 	return 0;
 
 err_free_rx:
-	ivpu_bo_free_internal(ipc->mem_rx);
+	ivpu_bo_free(ipc->mem_rx);
 err_free_tx:
-	ivpu_bo_free_internal(ipc->mem_tx);
+	ivpu_bo_free(ipc->mem_tx);
 	return ret;
 }
 

@@ -26,6 +26,7 @@ static const struct rtw89_pci_info rtw8922a_pci_info = {
 	.io_rcy_en		= MAC_AX_PCIE_ENABLE,
 	.io_rcy_tmr		= MAC_AX_IO_RCY_ANA_TMR_DEF,
 	.rx_ring_eq_is_full	= true,
+	.check_rx_tag		= true,
 
 	.init_cfg_reg		= R_BE_HAXI_INIT_CFG1,
 	.txhci_en_bit		= B_BE_TXDMA_EN,
@@ -79,7 +80,7 @@ static struct pci_driver rtw89_8922ae_driver = {
 	.id_table	= rtw89_8922ae_id_table,
 	.probe		= rtw89_pci_probe,
 	.remove		= rtw89_pci_remove,
-	.driver.pm	= &rtw89_pm_ops,
+	.driver.pm	= &rtw89_pm_ops_be,
 };
 module_pci_driver(rtw89_8922ae_driver);
 

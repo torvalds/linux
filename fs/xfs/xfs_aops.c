@@ -112,7 +112,7 @@ xfs_end_ioend(
 	 * longer dirty. If we don't remove delalloc blocks here, they become
 	 * stale and can corrupt free space accounting on unmount.
 	 */
-	error = blk_status_to_errno(ioend->io_bio->bi_status);
+	error = blk_status_to_errno(ioend->io_bio.bi_status);
 	if (unlikely(error)) {
 		if (ioend->io_flags & IOMAP_F_SHARED) {
 			xfs_reflink_cancel_cow_range(ip, offset, size, true);
@@ -179,7 +179,7 @@ STATIC void
 xfs_end_bio(
 	struct bio		*bio)
 {
-	struct iomap_ioend	*ioend = bio->bi_private;
+	struct iomap_ioend	*ioend = iomap_ioend_from_bio(bio);
 	struct xfs_inode	*ip = XFS_I(ioend->io_inode);
 	unsigned long		flags;
 
@@ -276,7 +276,8 @@ static int
 xfs_map_blocks(
 	struct iomap_writepage_ctx *wpc,
 	struct inode		*inode,
-	loff_t			offset)
+	loff_t			offset,
+	unsigned int		len)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
@@ -444,7 +445,7 @@ xfs_prepare_ioend(
 	/* send ioends that might require a transaction to the completion wq */
 	if (xfs_ioend_is_append(ioend) || ioend->io_type == IOMAP_UNWRITTEN ||
 	    (ioend->io_flags & IOMAP_F_SHARED))
-		ioend->io_bio->bi_end_io = xfs_end_bio;
+		ioend->io_bio.bi_end_io = xfs_end_bio;
 	return status;
 }
 

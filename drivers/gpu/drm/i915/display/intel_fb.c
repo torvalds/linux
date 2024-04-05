@@ -1849,9 +1849,10 @@ static int intel_plane_check_stride(const struct intel_plane_state *plane_state)
 				       fb->modifier, rotation);
 
 	if (stride > max_stride) {
-		DRM_DEBUG_KMS("[FB:%d] stride (%d) exceeds [PLANE:%d:%s] max stride (%d)\n",
-			      fb->base.id, stride,
-			      plane->base.base.id, plane->base.name, max_stride);
+		drm_dbg_kms(plane->base.dev,
+			    "[FB:%d] stride (%d) exceeds [PLANE:%d:%s] max stride (%d)\n",
+			    fb->base.id, stride,
+			    plane->base.base.id, plane->base.name, max_stride);
 		return -EINVAL;
 	}
 

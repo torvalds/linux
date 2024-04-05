@@ -165,14 +165,6 @@ struct i915_gem_mm {
 	struct notifier_block vmap_notifier;
 	struct shrinker *shrinker;
 
-#ifdef CONFIG_MMU_NOTIFIER
-	/**
-	 * notifier_lock for mmu notifiers, memory may not be allocated
-	 * while holding this lock.
-	 */
-	rwlock_t notifier_lock;
-#endif
-
 	/* shrinker accounting, also useful for userland debugging */
 	u64 shrink_memory;
 	u32 shrink_count;

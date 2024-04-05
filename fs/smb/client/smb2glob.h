@@ -36,7 +36,8 @@ enum smb2_compound_ops {
 	SMB2_OP_RMDIR,
 	SMB2_OP_POSIX_QUERY_INFO,
 	SMB2_OP_SET_REPARSE,
-	SMB2_OP_GET_REPARSE
+	SMB2_OP_GET_REPARSE,
+	SMB2_OP_QUERY_WSL_EA,
 };
 
 /* Used when constructing chained read requests. */

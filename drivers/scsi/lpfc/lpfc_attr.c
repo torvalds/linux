@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.  *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -344,6 +344,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	struct lpfc_fc4_ctrl_stat *cstat;
 	uint64_t data1, data2, data3;
 	uint64_t totin, totout, tot;
+	unsigned long iflags;
 	char *statep;
 	int i;
 	int len = 0;
@@ -543,7 +544,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
 		goto buffer_done;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(&vport->fc_nodes_list_lock, iflags);
 
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		nrport = NULL;
@@ -617,7 +618,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 		if (strlcat(buf, tmp, PAGE_SIZE) >= PAGE_SIZE)
 			goto unlock_buf_done;
 	}
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(&vport->fc_nodes_list_lock, iflags);
 
 	if (!lport)
 		goto buffer_done;
@@ -681,7 +682,7 @@ lpfc_nvme_info_show(struct device *dev, struct device_attribute *attr,
 	goto buffer_done;
 
  unlock_buf_done:
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(&vport->fc_nodes_list_lock, iflags);
 
  buffer_done:
 	len = strnlen(buf, PAGE_SIZE);
@@ -1091,14 +1092,14 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 			break;
 		}
 		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
-			if (vport->fc_flag & FC_PUBLIC_LOOP)
+			if (test_bit(FC_PUBLIC_LOOP, &vport->fc_flag))
 				len += scnprintf(buf + len, PAGE_SIZE-len,
 						"   Public Loop\n");
 			else
 				len += scnprintf(buf + len, PAGE_SIZE-len,
 						"   Private Loop\n");
 		} else {
-			if (vport->fc_flag & FC_FABRIC) {
+			if (test_bit(FC_FABRIC, &vport->fc_flag)) {
 				if (phba->sli_rev == LPFC_SLI_REV4 &&
 				    vport->port_type == LPFC_PHYSICAL_PORT &&
 				    phba->sli4_hba.fawwpn_flag &
@@ -1260,7 +1261,8 @@ lpfc_num_discovered_ports_show(struct device *dev,
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 
 	return scnprintf(buf, PAGE_SIZE, "%d\n",
-			vport->fc_map_cnt + vport->fc_unmap_cnt);
+			 atomic_read(&vport->fc_map_cnt) +
+			 atomic_read(&vport->fc_unmap_cnt));
 }
 
 /**
@@ -1289,7 +1291,7 @@ lpfc_issue_lip(struct Scsi_Host *shost)
 	 * If the link is offline, disabled or BLOCK_MGMT_IO
 	 * it doesn't make any sense to allow issue_lip
 	 */
-	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
+	if (test_bit(FC_OFFLINE_MODE, &vport->fc_flag) ||
 	    (phba->hba_flag & LINK_DISABLED) ||
 	    (phba->sli.sli_flag & LPFC_BLOCK_MGMT_IO))
 		return -EPERM;
@@ -1303,8 +1305,8 @@ lpfc_issue_lip(struct Scsi_Host *shost)
 	pmboxq->u.mb.mbxCommand = MBX_DOWN_LINK;
 	pmboxq->u.mb.mbxOwner = OWN_HOST;
 
-	if ((vport->fc_flag & FC_PT2PT) && (vport->fc_flag & FC_PT2PT_NO_NVME))
-		vport->fc_flag &= ~FC_PT2PT_NO_NVME;
+	if (test_bit(FC_PT2PT, &vport->fc_flag))
+		clear_bit(FC_PT2PT_NO_NVME, &vport->fc_flag);
 
 	mbxstatus = lpfc_sli_issue_mbox_wait(phba, pmboxq, LPFC_MBOX_TMO * 2);
 
@@ -1494,7 +1496,8 @@ lpfc_reset_pci_bus(struct lpfc_hba *phba)
 		if (shost) {
 			phba_other =
 				((struct lpfc_vport *)shost->hostdata)->phba;
-			if (!(phba_other->pport->fc_flag & FC_OFFLINE_MODE)) {
+			if (!test_bit(FC_OFFLINE_MODE,
+				      &phba_other->pport->fc_flag)) {
 				lpfc_printf_log(phba_other, KERN_INFO, LOG_INIT,
 						"8349 WWPN = 0x%02x%02x%02x%02x"
 						"%02x%02x%02x%02x is not "
@@ -1549,7 +1552,7 @@ lpfc_selective_reset(struct lpfc_hba *phba)
 	if (!phba->cfg_enable_hba_reset)
 		return -EACCES;
 
-	if (!(phba->pport->fc_flag & FC_OFFLINE_MODE)) {
+	if (!test_bit(FC_OFFLINE_MODE, &phba->pport->fc_flag)) {
 		status = lpfc_do_offline(phba, LPFC_EVT_OFFLINE);
 
 		if (status != 0)
@@ -1688,7 +1691,7 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 {
 	struct completion online_compl;
 	struct pci_dev *pdev = phba->pcidev;
-	uint32_t before_fc_flag;
+	unsigned long before_fc_flag;
 	uint32_t sriov_nr_virtfn;
 	uint32_t reg_val;
 	int status = 0, rc = 0;
@@ -1759,7 +1762,7 @@ lpfc_sli4_pdev_reg_request(struct lpfc_hba *phba, uint32_t opcode)
 	}
 
 	/* keep the original port state */
-	if (before_fc_flag & FC_OFFLINE_MODE) {
+	if (test_bit(FC_OFFLINE_MODE, &before_fc_flag)) {
 		if (phba->fw_dump_cmpl)
 			phba->fw_dump_cmpl = NULL;
 		goto out;
@@ -2097,7 +2100,7 @@ board_mode_out:
 			*board_mode_str = '\0';
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
 				 "3097 Failed \"%s\", status(%d), "
-				 "fc_flag(x%x)\n",
+				 "fc_flag(x%lx)\n",
 				 buf, status, phba->pport->fc_flag);
 		return status;
 	}
@@ -2156,7 +2159,7 @@ lpfc_get_hba_info(struct lpfc_hba *phba,
 	pmb->mbxOwner = OWN_HOST;
 	pmboxq->ctx_buf = NULL;
 
-	if (phba->pport->fc_flag & FC_OFFLINE_MODE)
+	if (test_bit(FC_OFFLINE_MODE, &phba->pport->fc_flag))
 		rc = MBX_NOT_FINISHED;
 	else
 		rc = lpfc_sli_issue_mbox_wait(phba, pmboxq, phba->fc_ratov * 2);
@@ -3764,15 +3767,14 @@ lpfc_nodev_tmo_init(struct lpfc_vport *vport, int val)
 static void
 lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 {
-	struct Scsi_Host  *shost;
 	struct lpfc_nodelist  *ndlp;
+	unsigned long iflags;
 #if (IS_ENABLED(CONFIG_NVME_FC))
 	struct lpfc_nvme_rport *rport;
 	struct nvme_fc_remote_port *remoteport = NULL;
 #endif
 
-	shost = lpfc_shost_from_vport(vport);
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(&vport->fc_nodes_list_lock, iflags);
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		if (ndlp->rport)
 			ndlp->rport->dev_loss_tmo = vport->cfg_devloss_tmo;
@@ -3787,7 +3789,7 @@ lpfc_update_rport_devloss_tmo(struct lpfc_vport *vport)
 						       vport->cfg_devloss_tmo);
 #endif
 	}
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(&vport->fc_nodes_list_lock, iflags);
 }
 
 /**
@@ -3973,8 +3975,8 @@ lpfc_vport_param_init(tgt_queue_depth, LPFC_MAX_TGT_QDEPTH,
 static int
 lpfc_tgt_queue_depth_set(struct lpfc_vport *vport, uint val)
 {
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_nodelist *ndlp;
+	unsigned long iflags;
 
 	if (!lpfc_rangecheck(val, LPFC_MIN_TGT_QDEPTH, LPFC_MAX_TGT_QDEPTH))
 		return -EINVAL;
@@ -3982,14 +3984,13 @@ lpfc_tgt_queue_depth_set(struct lpfc_vport *vport, uint val)
 	if (val == vport->cfg_tgt_queue_depth)
 		return 0;
 
-	spin_lock_irq(shost->host_lock);
 	vport->cfg_tgt_queue_depth = val;
 
 	/* Next loop thru nodelist and change cmd_qdepth */
+	spin_lock_irqsave(&vport->fc_nodes_list_lock, iflags);
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp)
 		ndlp->cmd_qdepth = vport->cfg_tgt_queue_depth;
-
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(&vport->fc_nodes_list_lock, iflags);
 	return 0;
 }
 
@@ -5235,8 +5236,8 @@ lpfc_vport_param_show(max_scsicmpl_time);
 static int
 lpfc_max_scsicmpl_time_set(struct lpfc_vport *vport, int val)
 {
-	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_nodelist *ndlp, *next_ndlp;
+	unsigned long iflags;
 
 	if (val == vport->cfg_max_scsicmpl_time)
 		return 0;
@@ -5244,13 +5245,13 @@ lpfc_max_scsicmpl_time_set(struct lpfc_vport *vport, int val)
 		return -EINVAL;
 	vport->cfg_max_scsicmpl_time = val;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(&vport->fc_nodes_list_lock, iflags);
 	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
 		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
 			continue;
 		ndlp->cmd_qdepth = vport->cfg_tgt_queue_depth;
 	}
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(&vport->fc_nodes_list_lock, iflags);
 	return 0;
 }
 lpfc_vport_param_store(max_scsicmpl_time);
@@ -6200,7 +6201,7 @@ sysfs_ctlreg_write(struct file *filp, struct kobject *kobj,
 	if (memcmp(buf, LPFC_REG_WRITE_KEY, LPFC_REG_WRITE_KEY_SIZE))
 		return -EINVAL;
 
-	if (!(vport->fc_flag & FC_OFFLINE_MODE))
+	if (!test_bit(FC_OFFLINE_MODE, &vport->fc_flag))
 		return -EPERM;
 
 	spin_lock_irq(&phba->hbalock);
@@ -6429,26 +6430,22 @@ lpfc_get_host_port_type(struct Scsi_Host *shost)
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 
-	spin_lock_irq(shost->host_lock);
-
 	if (vport->port_type == LPFC_NPIV_PORT) {
 		fc_host_port_type(shost) = FC_PORTTYPE_NPIV;
 	} else if (lpfc_is_link_up(phba)) {
 		if (phba->fc_topology == LPFC_TOPOLOGY_LOOP) {
-			if (vport->fc_flag & FC_PUBLIC_LOOP)
+			if (test_bit(FC_PUBLIC_LOOP, &vport->fc_flag))
 				fc_host_port_type(shost) = FC_PORTTYPE_NLPORT;
 			else
 				fc_host_port_type(shost) = FC_PORTTYPE_LPORT;
 		} else {
-			if (vport->fc_flag & FC_FABRIC)
+			if (test_bit(FC_FABRIC, &vport->fc_flag))
 				fc_host_port_type(shost) = FC_PORTTYPE_NPORT;
 			else
 				fc_host_port_type(shost) = FC_PORTTYPE_PTP;
 		}
 	} else
 		fc_host_port_type(shost) = FC_PORTTYPE_UNKNOWN;
-
-	spin_unlock_irq(shost->host_lock);
 }
 
 /**
@@ -6461,9 +6458,7 @@ lpfc_get_host_port_state(struct Scsi_Host *shost)
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
 
-	spin_lock_irq(shost->host_lock);
-
-	if (vport->fc_flag & FC_OFFLINE_MODE)
+	if (test_bit(FC_OFFLINE_MODE, &vport->fc_flag))
 		fc_host_port_state(shost) = FC_PORTSTATE_OFFLINE;
 	else {
 		switch (phba->link_state) {
@@ -6490,8 +6485,6 @@ lpfc_get_host_port_state(struct Scsi_Host *shost)
 			break;
 		}
 	}
-
-	spin_unlock_irq(shost->host_lock);
 }
 
 /**
@@ -6503,8 +6496,6 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 {
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_hba   *phba = vport->phba;
-
-	spin_lock_irq(shost->host_lock);
 
 	if ((lpfc_is_link_up(phba)) && (!(phba->hba_flag & HBA_FCOE_MODE))) {
 		switch(phba->fc_linkspeed) {
@@ -6568,8 +6559,6 @@ lpfc_get_host_speed(struct Scsi_Host *shost)
 		}
 	} else
 		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
-
-	spin_unlock_irq(shost->host_lock);
 }
 
 /**
@@ -6583,18 +6572,14 @@ lpfc_get_host_fabric_name (struct Scsi_Host *shost)
 	struct lpfc_hba   *phba = vport->phba;
 	u64 node_name;
 
-	spin_lock_irq(shost->host_lock);
-
-	if ((vport->port_state > LPFC_FLOGI) &&
-	    ((vport->fc_flag & FC_FABRIC) ||
-	     ((phba->fc_topology == LPFC_TOPOLOGY_LOOP) &&
-	      (vport->fc_flag & FC_PUBLIC_LOOP))))
+	if (vport->port_state > LPFC_FLOGI &&
+	    (test_bit(FC_FABRIC, &vport->fc_flag) ||
+	     (phba->fc_topology == LPFC_TOPOLOGY_LOOP &&
+	      test_bit(FC_PUBLIC_LOOP, &vport->fc_flag))))
 		node_name = wwn_to_u64(phba->fc_fabparam.nodeName.u.wwn);
 	else
 		/* fabric is local port if there is no F/FL_Port */
 		node_name = 0;
-
-	spin_unlock_irq(shost->host_lock);
 
 	fc_host_fabric_name(shost) = node_name;
 }
@@ -6646,7 +6631,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	pmboxq->ctx_buf = NULL;
 	pmboxq->vport = vport;
 
-	if (vport->fc_flag & FC_OFFLINE_MODE) {
+	if (test_bit(FC_OFFLINE_MODE, &vport->fc_flag)) {
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 		if (rc != MBX_SUCCESS) {
 			mempool_free(pmboxq, phba->mbox_mem_pool);
@@ -6699,7 +6684,7 @@ lpfc_get_stats(struct Scsi_Host *shost)
 	pmboxq->ctx_buf = NULL;
 	pmboxq->vport = vport;
 
-	if (vport->fc_flag & FC_OFFLINE_MODE) {
+	if (test_bit(FC_OFFLINE_MODE, &vport->fc_flag)) {
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 		if (rc != MBX_SUCCESS) {
 			mempool_free(pmboxq, phba->mbox_mem_pool);
@@ -6786,8 +6771,8 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	pmboxq->ctx_buf = NULL;
 	pmboxq->vport = vport;
 
-	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
-		(!(psli->sli_flag & LPFC_SLI_ACTIVE))) {
+	if (test_bit(FC_OFFLINE_MODE, &vport->fc_flag) ||
+	    !(psli->sli_flag & LPFC_SLI_ACTIVE)) {
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 		if (rc != MBX_SUCCESS) {
 			mempool_free(pmboxq, phba->mbox_mem_pool);
@@ -6808,8 +6793,8 @@ lpfc_reset_stats(struct Scsi_Host *shost)
 	pmboxq->ctx_buf = NULL;
 	pmboxq->vport = vport;
 
-	if ((vport->fc_flag & FC_OFFLINE_MODE) ||
-	    (!(psli->sli_flag & LPFC_SLI_ACTIVE))) {
+	if (test_bit(FC_OFFLINE_MODE, &vport->fc_flag) ||
+	    !(psli->sli_flag & LPFC_SLI_ACTIVE)) {
 		rc = lpfc_sli_issue_mbox(phba, pmboxq, MBX_POLL);
 		if (rc != MBX_SUCCESS) {
 			mempool_free(pmboxq, phba->mbox_mem_pool);
@@ -6868,17 +6853,19 @@ lpfc_get_node_by_target(struct scsi_target *starget)
 	struct Scsi_Host  *shost = dev_to_shost(starget->dev.parent);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
 	struct lpfc_nodelist *ndlp;
+	unsigned long iflags;
 
-	spin_lock_irq(shost->host_lock);
+	spin_lock_irqsave(&vport->fc_nodes_list_lock, iflags);
 	/* Search for this, mapped, target ID */
 	list_for_each_entry(ndlp, &vport->fc_nodes, nlp_listp) {
 		if (ndlp->nlp_state == NLP_STE_MAPPED_NODE &&
 		    starget->id == ndlp->nlp_sid) {
-			spin_unlock_irq(shost->host_lock);
+			spin_unlock_irqrestore(&vport->fc_nodes_list_lock,
+					       iflags);
 			return ndlp;
 		}
 	}
-	spin_unlock_irq(shost->host_lock);
+	spin_unlock_irqrestore(&vport->fc_nodes_list_lock, iflags);
 	return NULL;
 }
 

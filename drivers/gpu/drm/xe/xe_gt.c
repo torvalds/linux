@@ -78,6 +78,19 @@ void xe_gt_sanitize(struct xe_gt *gt)
 	gt->uc.guc.submission_state.enabled = false;
 }
 
+/**
+ * xe_gt_remove() - Clean up the GT structures before driver removal
+ * @gt: the GT object
+ *
+ * This function should only act on objects/structures that must be cleaned
+ * before the driver removal callback is complete and therefore can't be
+ * deferred to a drmm action.
+ */
+void xe_gt_remove(struct xe_gt *gt)
+{
+	xe_uc_remove(&gt->uc);
+}
+
 static void gt_fini(struct drm_device *drm, void *arg)
 {
 	struct xe_gt *gt = arg;
@@ -235,7 +248,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 			return -ENOMEM;
 
 		q = xe_exec_queue_create(xe, NULL, BIT(hwe->logical_instance), 1,
-					 hwe, EXEC_QUEUE_FLAG_KERNEL);
+					 hwe, EXEC_QUEUE_FLAG_KERNEL, 0);
 		if (IS_ERR(q)) {
 			err = PTR_ERR(q);
 			xe_gt_err(gt, "hwe %s: xe_exec_queue_create failed (%pe)\n",
@@ -252,7 +265,7 @@ int xe_gt_record_default_lrcs(struct xe_gt *gt)
 		}
 
 		nop_q = xe_exec_queue_create(xe, NULL, BIT(hwe->logical_instance),
-					     1, hwe, EXEC_QUEUE_FLAG_KERNEL);
+					     1, hwe, EXEC_QUEUE_FLAG_KERNEL, 0);
 		if (IS_ERR(nop_q)) {
 			err = PTR_ERR(nop_q);
 			xe_gt_err(gt, "hwe %s: nop xe_exec_queue_create failed (%pe)\n",
@@ -301,9 +314,6 @@ int xe_gt_init_early(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	xe_gt_topology_init(gt);
-	xe_gt_mcr_init(gt);
-
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 	if (err)
 		return err;
@@ -327,7 +337,7 @@ static void dump_pat_on_error(struct xe_gt *gt)
 	char prefix[32];
 
 	snprintf(prefix, sizeof(prefix), "[GT%u Error]", gt->info.id);
-	p = drm_debug_printer(prefix);
+	p = drm_dbg_printer(&gt_to_xe(gt)->drm, DRM_UT_DRIVER, prefix);
 
 	xe_pat_dump(gt, &p);
 }
@@ -341,8 +351,6 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 	if (err)
 		goto err_hw_fence_irq;
 
-	xe_pat_init(gt);
-
 	if (!xe_gt_is_media_type(gt)) {
 		err = xe_ggtt_init(gt_to_tile(gt)->mem.ggtt);
 		if (err)
@@ -351,21 +359,7 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 			xe_lmtt_init(&gt_to_tile(gt)->sriov.pf.lmtt);
 	}
 
-	err = xe_uc_init(&gt->uc);
-	if (err)
-		goto err_force_wake;
-
-	/* Raise GT freq to speed up HuC/GuC load */
-	xe_guc_pc_init_early(&gt->uc.guc.pc);
-
-	err = xe_uc_init_hwconfig(&gt->uc);
-	if (err)
-		goto err_force_wake;
-
 	xe_gt_idle_sysfs_init(&gt->gtidle);
-
-	/* XXX: Fake that we pull the engine mask from hwconfig blob */
-	gt->info.engine_mask = gt->info.__engine_mask;
 
 	/* Enable per hw engine IRQs */
 	xe_irq_enable_hwe(gt);
@@ -385,6 +379,12 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 
 	/* Initialize CCS mode sysfs after early initialization of HW engines */
 	xe_gt_ccs_mode_sysfs_init(gt);
+
+	/*
+	 * Stash hardware-reported version.  Since this register does not exist
+	 * on pre-MTL platforms, reading it there will (correctly) return 0.
+	 */
+	gt->info.gmdid = xe_mmio_read32(gt, GMD_ID);
 
 	err = xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
 	XE_WARN_ON(err);
@@ -428,10 +428,6 @@ static int all_fw_domain_init(struct xe_gt *gt)
 	if (err)
 		goto err_force_wake;
 
-	err = xe_uc_init_post_hwconfig(&gt->uc);
-	if (err)
-		goto err_force_wake;
-
 	if (!xe_gt_is_media_type(gt)) {
 		/*
 		 * USM has its only SA pool to non-block behind user operations
@@ -458,6 +454,10 @@ static int all_fw_domain_init(struct xe_gt *gt)
 		}
 	}
 
+	err = xe_uc_init_post_hwconfig(&gt->uc);
+	if (err)
+		goto err_force_wake;
+
 	err = xe_uc_init_hw(&gt->uc);
 	if (err)
 		goto err_force_wake;
@@ -482,6 +482,42 @@ err_force_wake:
 err_hw_fence_irq:
 	for (i = 0; i < XE_ENGINE_CLASS_MAX; ++i)
 		xe_hw_fence_irq_finish(&gt->fence_irq[i]);
+	xe_device_mem_access_put(gt_to_xe(gt));
+
+	return err;
+}
+
+/*
+ * Initialize enough GT to be able to load GuC in order to obtain hwconfig and
+ * enable CTB communication.
+ */
+int xe_gt_init_hwconfig(struct xe_gt *gt)
+{
+	int err;
+
+	xe_device_mem_access_get(gt_to_xe(gt));
+	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
+	if (err)
+		goto out;
+
+	xe_gt_topology_init(gt);
+	xe_gt_mcr_init(gt);
+	xe_pat_init(gt);
+
+	err = xe_uc_init(&gt->uc);
+	if (err)
+		goto out_fw;
+
+	err = xe_uc_init_hwconfig(&gt->uc);
+	if (err)
+		goto out_fw;
+
+	/* XXX: Fake that we pull the engine mask from hwconfig blob */
+	gt->info.engine_mask = gt->info.__engine_mask;
+
+out_fw:
+	xe_force_wake_put(gt_to_fw(gt), XE_FW_GT);
+out:
 	xe_device_mem_access_put(gt_to_xe(gt));
 
 	return err;
@@ -622,11 +658,11 @@ static int gt_reset(struct xe_gt *gt)
 	if (err)
 		goto err_out;
 
+	xe_gt_tlb_invalidation_reset(gt);
+
 	err = do_gt_reset(gt);
 	if (err)
 		goto err_out;
-
-	xe_gt_tlb_invalidation_reset(gt);
 
 	err = do_gt_restart(gt);
 	if (err)

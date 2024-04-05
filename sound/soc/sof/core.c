@@ -339,8 +339,7 @@ static int sof_init_environment(struct snd_sof_dev *sdev)
 	ret = snd_sof_probe(sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev, "failed to probe DSP %d\n", ret);
-		sof_ops_free(sdev);
-		return ret;
+		goto err_sof_probe;
 	}
 
 	/* check machine info */
@@ -358,15 +357,18 @@ static int sof_init_environment(struct snd_sof_dev *sdev)
 		ret = validate_sof_ops(sdev);
 		if (ret < 0) {
 			snd_sof_remove(sdev);
+			snd_sof_remove_late(sdev);
 			return ret;
 		}
 	}
 
+	return 0;
+
 err_machine_check:
-	if (ret) {
-		snd_sof_remove(sdev);
-		sof_ops_free(sdev);
-	}
+	snd_sof_remove(sdev);
+err_sof_probe:
+	snd_sof_remove_late(sdev);
+	sof_ops_free(sdev);
 
 	return ret;
 }

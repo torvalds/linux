@@ -381,8 +381,9 @@ static int isotp_rcv_fc(struct isotp_sock *so, struct canfd_frame *cf, int ae)
 		return 1;
 	}
 
-	/* get communication parameters only from the first FC frame */
-	if (so->tx.state == ISOTP_WAIT_FIRST_FC) {
+	/* get static/dynamic communication params from first/every FC frame */
+	if (so->tx.state == ISOTP_WAIT_FIRST_FC ||
+	    so->opt.flags & CAN_ISOTP_DYN_FC_PARMS) {
 		so->txfc.bs = cf->data[ae + 1];
 		so->txfc.stmin = cf->data[ae + 2];
 

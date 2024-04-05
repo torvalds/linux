@@ -754,7 +754,7 @@ static bool nft_ct_set_reduce(struct nft_regs_track *track,
 	return false;
 }
 
-#ifdef CONFIG_RETPOLINE
+#ifdef CONFIG_MITIGATION_RETPOLINE
 static const struct nft_expr_ops nft_ct_get_fast_ops = {
 	.type		= &nft_ct_type,
 	.size		= NFT_EXPR_SIZE(sizeof(struct nft_ct)),
@@ -799,7 +799,7 @@ nft_ct_select_ops(const struct nft_ctx *ctx,
 		return ERR_PTR(-EINVAL);
 
 	if (tb[NFTA_CT_DREG]) {
-#ifdef CONFIG_RETPOLINE
+#ifdef CONFIG_MITIGATION_RETPOLINE
 		u32 k = ntohl(nla_get_be32(tb[NFTA_CT_KEY]));
 
 		switch (k) {

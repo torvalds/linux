@@ -99,6 +99,8 @@ enum pf2vf_msgtype {
 	ADF_PF2VF_MSGTYPE_RESTARTING		= 0x01,
 	ADF_PF2VF_MSGTYPE_VERSION_RESP		= 0x02,
 	ADF_PF2VF_MSGTYPE_BLKMSG_RESP		= 0x03,
+	ADF_PF2VF_MSGTYPE_FATAL_ERROR		= 0x04,
+	ADF_PF2VF_MSGTYPE_RESTARTED		= 0x05,
 /* Values from 0x10 are Gen4 specific, message type is only 4 bits in Gen2 devices. */
 	ADF_PF2VF_MSGTYPE_RP_RESET_RESP		= 0x10,
 };
@@ -112,6 +114,7 @@ enum vf2pf_msgtype {
 	ADF_VF2PF_MSGTYPE_LARGE_BLOCK_REQ	= 0x07,
 	ADF_VF2PF_MSGTYPE_MEDIUM_BLOCK_REQ	= 0x08,
 	ADF_VF2PF_MSGTYPE_SMALL_BLOCK_REQ	= 0x09,
+	ADF_VF2PF_MSGTYPE_RESTARTING_COMPLETE	= 0x0a,
 /* Values from 0x10 are Gen4 specific, message type is only 4 bits in Gen2 devices. */
 	ADF_VF2PF_MSGTYPE_RP_RESET		= 0x10,
 };
@@ -124,8 +127,10 @@ enum pfvf_compatibility_version {
 	ADF_PFVF_COMPAT_FAST_ACK		= 0x03,
 	/* Ring to service mapping support for non-standard mappings */
 	ADF_PFVF_COMPAT_RING_TO_SVC_MAP		= 0x04,
+	/* Fallback compat */
+	ADF_PFVF_COMPAT_FALLBACK		= 0x05,
 	/* Reference to the latest version */
-	ADF_PFVF_COMPAT_THIS_VERSION		= 0x04,
+	ADF_PFVF_COMPAT_THIS_VERSION		= 0x05,
 };
 
 /* PF->VF Version Response */

@@ -48,7 +48,7 @@ Example of usage:
 -----------------
 
 This example places the bridge on top of the i.MX WEIM parallel bus, see:
-Documentation/devicetree/bindings/bus/imx-weim.txt
+Documentation/devicetree/bindings/memory-controllers/fsl/fsl,imx-weim.yaml
 
 &weim {
 	controller@0,0 {

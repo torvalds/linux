@@ -345,12 +345,6 @@ const struct perf_pmu *perf_pmus__pmu_for_pmu_filter(const char *str)
 	return NULL;
 }
 
-int __weak perf_pmus__num_mem_pmus(void)
-{
-	/* All core PMUs are for mem events. */
-	return perf_pmus__num_core_pmus();
-}
-
 /** Struct for ordering events as output in perf list. */
 struct sevent {
 	/** PMU for event. */

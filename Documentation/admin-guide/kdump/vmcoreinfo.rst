@@ -65,11 +65,11 @@ Defines the beginning of the text section. In general, _stext indicates
 the kernel start address. Used to convert a virtual address from the
 direct kernel map to a physical address.
 
-vmap_area_list
---------------
+VMALLOC_START
+-------------
 
-Stores the virtual area list. makedumpfile gets the vmalloc start value
-from this variable and its value is necessary for vmalloc translation.
+Stores the base address of vmalloc area. makedumpfile gets this value
+since is necessary for vmalloc translation.
 
 mem_map
 -------

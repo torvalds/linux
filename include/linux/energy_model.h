@@ -5,6 +5,7 @@
 #include <linux/device.h>
 #include <linux/jump_label.h>
 #include <linux/kobject.h>
+#include <linux/kref.h>
 #include <linux/rcupdate.h>
 #include <linux/sched/cpufreq.h>
 #include <linux/sched/topology.h>
@@ -12,6 +13,7 @@
 
 /**
  * struct em_perf_state - Performance state of a performance domain
+ * @performance:	CPU performance (capacity) at a given frequency
  * @frequency:	The frequency in KHz, for consistency with CPUFreq
  * @power:	The power consumed at this level (by 1 CPU or by a registered
  *		device). It can be a total power: static and dynamic.
@@ -20,6 +22,7 @@
  * @flags:	see "em_perf_state flags" description below.
  */
 struct em_perf_state {
+	unsigned long performance;
 	unsigned long frequency;
 	unsigned long power;
 	unsigned long cost;
@@ -37,8 +40,20 @@ struct em_perf_state {
 #define EM_PERF_STATE_INEFFICIENT BIT(0)
 
 /**
+ * struct em_perf_table - Performance states table
+ * @rcu:	RCU used for safe access and destruction
+ * @kref:	Reference counter to track the users
+ * @state:	List of performance states, in ascending order
+ */
+struct em_perf_table {
+	struct rcu_head rcu;
+	struct kref kref;
+	struct em_perf_state state[];
+};
+
+/**
  * struct em_perf_domain - Performance domain
- * @table:		List of performance states, in ascending order
+ * @em_table:		Pointer to the runtime modifiable em_perf_table
  * @nr_perf_states:	Number of performance states
  * @flags:		See "em_perf_domain flags"
  * @cpus:		Cpumask covering the CPUs of the domain. It's here
@@ -53,7 +68,7 @@ struct em_perf_state {
  * field is unused.
  */
 struct em_perf_domain {
-	struct em_perf_state *table;
+	struct em_perf_table __rcu *em_table;
 	int nr_perf_states;
 	unsigned long flags;
 	unsigned long cpus[];
@@ -96,27 +111,6 @@ struct em_perf_domain {
 #define EM_MAX_NUM_CPUS 4096
 #else
 #define EM_MAX_NUM_CPUS 16
-#endif
-
-/*
- * To avoid an overflow on 32bit machines while calculating the energy
- * use a different order in the operation. First divide by the 'cpu_scale'
- * which would reduce big value stored in the 'cost' field, then multiply by
- * the 'sum_util'. This would allow to handle existing platforms, which have
- * e.g. power ~1.3 Watt at max freq, so the 'cost' value > 1mln micro-Watts.
- * In such scenario, where there are 4 CPUs in the Perf. Domain the 'sum_util'
- * could be 4096, then multiplication: 'cost' * 'sum_util'  would overflow.
- * This reordering of operations has some limitations, we lose small
- * precision in the estimation (comparing to 64bit platform w/o reordering).
- *
- * We are safe on 64bit machine.
- */
-#ifdef CONFIG_64BIT
-#define em_estimate_energy(cost, sum_util, scale_cpu) \
-	(((cost) * (sum_util)) / (scale_cpu))
-#else
-#define em_estimate_energy(cost, sum_util, scale_cpu) \
-	(((cost) / (scale_cpu)) * (sum_util))
 #endif
 
 struct em_data_callback {
@@ -168,40 +162,48 @@ struct em_data_callback {
 
 struct em_perf_domain *em_cpu_get(int cpu);
 struct em_perf_domain *em_pd_get(struct device *dev);
+int em_dev_update_perf_domain(struct device *dev,
+			      struct em_perf_table __rcu *new_table);
 int em_dev_register_perf_domain(struct device *dev, unsigned int nr_states,
 				struct em_data_callback *cb, cpumask_t *span,
 				bool microwatts);
 void em_dev_unregister_perf_domain(struct device *dev);
+struct em_perf_table __rcu *em_table_alloc(struct em_perf_domain *pd);
+void em_table_free(struct em_perf_table __rcu *table);
+int em_dev_compute_costs(struct device *dev, struct em_perf_state *table,
+			 int nr_states);
 
 /**
  * em_pd_get_efficient_state() - Get an efficient performance state from the EM
- * @pd   : Performance domain for which we want an efficient frequency
- * @freq : Frequency to map with the EM
+ * @table:		List of performance states, in ascending order
+ * @nr_perf_states:	Number of performance states
+ * @max_util:		Max utilization to map with the EM
+ * @pd_flags:		Performance Domain flags
  *
  * It is called from the scheduler code quite frequently and as a consequence
  * doesn't implement any check.
  *
- * Return: An efficient performance state, high enough to meet @freq
+ * Return: An efficient performance state id, high enough to meet @max_util
  * requirement.
  */
-static inline
-struct em_perf_state *em_pd_get_efficient_state(struct em_perf_domain *pd,
-						unsigned long freq)
+static inline int
+em_pd_get_efficient_state(struct em_perf_state *table, int nr_perf_states,
+			  unsigned long max_util, unsigned long pd_flags)
 {
 	struct em_perf_state *ps;
 	int i;
 
-	for (i = 0; i < pd->nr_perf_states; i++) {
-		ps = &pd->table[i];
-		if (ps->frequency >= freq) {
-			if (pd->flags & EM_PERF_DOMAIN_SKIP_INEFFICIENCIES &&
+	for (i = 0; i < nr_perf_states; i++) {
+		ps = &table[i];
+		if (ps->performance >= max_util) {
+			if (pd_flags & EM_PERF_DOMAIN_SKIP_INEFFICIENCIES &&
 			    ps->flags & EM_PERF_STATE_INEFFICIENT)
 				continue;
-			break;
+			return i;
 		}
 	}
 
-	return ps;
+	return nr_perf_states - 1;
 }
 
 /**
@@ -224,9 +226,13 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 				unsigned long max_util, unsigned long sum_util,
 				unsigned long allowed_cpu_cap)
 {
-	unsigned long freq, ref_freq, scale_cpu;
+	struct em_perf_table *em_table;
 	struct em_perf_state *ps;
-	int cpu;
+	int i;
+
+#ifdef CONFIG_SCHED_DEBUG
+	WARN_ONCE(!rcu_read_lock_held(), "EM: rcu read lock needed\n");
+#endif
 
 	if (!sum_util)
 		return 0;
@@ -234,31 +240,30 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 	/*
 	 * In order to predict the performance state, map the utilization of
 	 * the most utilized CPU of the performance domain to a requested
-	 * frequency, like schedutil. Take also into account that the real
-	 * frequency might be set lower (due to thermal capping). Thus, clamp
+	 * performance, like schedutil. Take also into account that the real
+	 * performance might be set lower (due to thermal capping). Thus, clamp
 	 * max utilization to the allowed CPU capacity before calculating
-	 * effective frequency.
+	 * effective performance.
 	 */
-	cpu = cpumask_first(to_cpumask(pd->cpus));
-	scale_cpu = arch_scale_cpu_capacity(cpu);
-	ref_freq = arch_scale_freq_ref(cpu);
-
+	max_util = map_util_perf(max_util);
 	max_util = min(max_util, allowed_cpu_cap);
-	freq = map_util_freq(max_util, ref_freq, scale_cpu);
 
 	/*
 	 * Find the lowest performance state of the Energy Model above the
-	 * requested frequency.
+	 * requested performance.
 	 */
-	ps = em_pd_get_efficient_state(pd, freq);
+	em_table = rcu_dereference(pd->em_table);
+	i = em_pd_get_efficient_state(em_table->state, pd->nr_perf_states,
+				      max_util, pd->flags);
+	ps = &em_table->state[i];
 
 	/*
-	 * The capacity of a CPU in the domain at the performance state (ps)
-	 * can be computed as:
+	 * The performance (capacity) of a CPU in the domain at the performance
+	 * state (ps) can be computed as:
 	 *
-	 *             ps->freq * scale_cpu
-	 *   ps->cap = --------------------                          (1)
-	 *                 cpu_max_freq
+	 *                     ps->freq * scale_cpu
+	 *   ps->performance = --------------------                  (1)
+	 *                         cpu_max_freq
 	 *
 	 * So, ignoring the costs of idle states (which are not available in
 	 * the EM), the energy consumed by this CPU at that performance state
@@ -266,9 +271,10 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 	 *
 	 *             ps->power * cpu_util
 	 *   cpu_nrg = --------------------                          (2)
-	 *                   ps->cap
+	 *               ps->performance
 	 *
-	 * since 'cpu_util / ps->cap' represents its percentage of busy time.
+	 * since 'cpu_util / ps->performance' represents its percentage of busy
+	 * time.
 	 *
 	 *   NOTE: Although the result of this computation actually is in
 	 *         units of power, it can be manipulated as an energy value
@@ -278,9 +284,9 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 	 * By injecting (1) in (2), 'cpu_nrg' can be re-expressed as a product
 	 * of two terms:
 	 *
-	 *             ps->power * cpu_max_freq   cpu_util
-	 *   cpu_nrg = ------------------------ * ---------          (3)
-	 *                    ps->freq            scale_cpu
+	 *             ps->power * cpu_max_freq
+	 *   cpu_nrg = ------------------------ * cpu_util           (3)
+	 *               ps->freq * scale_cpu
 	 *
 	 * The first term is static, and is stored in the em_perf_state struct
 	 * as 'ps->cost'.
@@ -290,11 +296,9 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 	 * total energy of the domain (which is the simple sum of the energy of
 	 * all of its CPUs) can be factorized as:
 	 *
-	 *            ps->cost * \Sum cpu_util
-	 *   pd_nrg = ------------------------                       (4)
-	 *                  scale_cpu
+	 *   pd_nrg = ps->cost * \Sum cpu_util                       (4)
 	 */
-	return em_estimate_energy(ps->cost, sum_util, scale_cpu);
+	return ps->cost * sum_util;
 }
 
 /**
@@ -307,6 +311,23 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 static inline int em_pd_nr_perf_states(struct em_perf_domain *pd)
 {
 	return pd->nr_perf_states;
+}
+
+/**
+ * em_perf_state_from_pd() - Get the performance states table of perf.
+ *				domain
+ * @pd		: performance domain for which this must be done
+ *
+ * To use this function the rcu_read_lock() should be hold. After the usage
+ * of the performance states table is finished, the rcu_read_unlock() should
+ * be called.
+ *
+ * Return: the pointer to performance states table of the performance domain
+ */
+static inline
+struct em_perf_state *em_perf_state_from_pd(struct em_perf_domain *pd)
+{
+	return rcu_dereference(pd->em_table)->state;
 }
 
 #else
@@ -342,6 +363,29 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 static inline int em_pd_nr_perf_states(struct em_perf_domain *pd)
 {
 	return 0;
+}
+static inline
+struct em_perf_table __rcu *em_table_alloc(struct em_perf_domain *pd)
+{
+	return NULL;
+}
+static inline void em_table_free(struct em_perf_table __rcu *table) {}
+static inline
+int em_dev_update_perf_domain(struct device *dev,
+			      struct em_perf_table __rcu *new_table)
+{
+	return -EINVAL;
+}
+static inline
+struct em_perf_state *em_perf_state_from_pd(struct em_perf_domain *pd)
+{
+	return NULL;
+}
+static inline
+int em_dev_compute_costs(struct device *dev, struct em_perf_state *table,
+			 int nr_states)
+{
+	return -EINVAL;
 }
 #endif
 

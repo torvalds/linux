@@ -587,7 +587,7 @@ static int powerclamp_idle_injection_register(void)
 	poll_pkg_cstate_enable = false;
 	if (cpumask_equal(cpu_present_mask, idle_injection_cpu_mask)) {
 		ii_dev = idle_inject_register_full(idle_injection_cpu_mask, idle_inject_update);
-		if (topology_max_packages() == 1 && topology_max_die_per_package() == 1)
+		if (topology_max_packages() == 1 && topology_max_dies_per_package() == 1)
 			poll_pkg_cstate_enable = true;
 	} else {
 		ii_dev = idle_inject_register(idle_injection_cpu_mask);

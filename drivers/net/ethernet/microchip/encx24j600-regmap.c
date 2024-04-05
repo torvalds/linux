@@ -464,7 +464,7 @@ static struct regmap_config regcfg = {
 	.val_bits = 16,
 	.max_register = 0xee,
 	.reg_stride = 2,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 	.readable_reg = encx24j600_regmap_readable,
 	.writeable_reg = encx24j600_regmap_writeable,
@@ -485,7 +485,7 @@ static struct regmap_config phycfg = {
 	.reg_bits = 8,
 	.val_bits = 16,
 	.max_register = 0x1f,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 	.val_format_endian = REGMAP_ENDIAN_LITTLE,
 	.readable_reg = encx24j600_phymap_readable,
 	.writeable_reg = encx24j600_phymap_writeable,
@@ -513,4 +513,5 @@ int devm_regmap_init_encx24j600(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_regmap_init_encx24j600);
 
+MODULE_DESCRIPTION("Microchip ENCX24J600 helpers");
 MODULE_LICENSE("GPL");

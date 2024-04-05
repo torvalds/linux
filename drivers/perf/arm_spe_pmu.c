@@ -1263,14 +1263,13 @@ out_free_handle:
 	return ret;
 }
 
-static int arm_spe_pmu_device_remove(struct platform_device *pdev)
+static void arm_spe_pmu_device_remove(struct platform_device *pdev)
 {
 	struct arm_spe_pmu *spe_pmu = platform_get_drvdata(pdev);
 
 	arm_spe_pmu_perf_destroy(spe_pmu);
 	arm_spe_pmu_dev_teardown(spe_pmu);
 	free_percpu(spe_pmu->handle);
-	return 0;
 }
 
 static struct platform_driver arm_spe_pmu_driver = {
@@ -1281,7 +1280,7 @@ static struct platform_driver arm_spe_pmu_driver = {
 		.suppress_bind_attrs = true,
 	},
 	.probe	= arm_spe_pmu_device_probe,
-	.remove	= arm_spe_pmu_device_remove,
+	.remove_new = arm_spe_pmu_device_remove,
 };
 
 static int __init arm_spe_pmu_init(void)

@@ -9,7 +9,7 @@ Required properties:
           number for SPI.
 
 For required properties on I2C-bus, please consult
-Documentation/devicetree/bindings/i2c/i2c.txt
+dtschema schemas/i2c/i2c-controller.yaml
 For required properties on SPI-bus, please consult
 Documentation/devicetree/bindings/spi/spi-bus.txt
 

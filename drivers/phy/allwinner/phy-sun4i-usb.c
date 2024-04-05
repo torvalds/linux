@@ -683,7 +683,7 @@ static int sun4i_usb_phy0_vbus_notify(struct notifier_block *nb,
 }
 
 static struct phy *sun4i_usb_phy_xlate(struct device *dev,
-					struct of_phandle_args *args)
+					const struct of_phandle_args *args)
 {
 	struct sun4i_usb_phy_data *data = dev_get_drvdata(dev);
 

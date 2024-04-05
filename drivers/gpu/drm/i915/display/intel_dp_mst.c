@@ -37,10 +37,12 @@
 #include "intel_crtc.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
+#include "intel_display_driver.h"
 #include "intel_display_types.h"
 #include "intel_dp.h"
 #include "intel_dp_hdcp.h"
 #include "intel_dp_mst.h"
+#include "intel_dp_tunnel.h"
 #include "intel_dpio_phy.h"
 #include "intel_hdcp.h"
 #include "intel_hotplug.h"
@@ -522,6 +524,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 				       struct drm_connector_state *conn_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	struct intel_atomic_state *state = to_intel_atomic_state(conn_state->state);
 	struct intel_dp_mst_encoder *intel_mst = enc_to_mst(encoder);
 	struct intel_dp *intel_dp = &intel_mst->primary->dp;
 	const struct intel_connector *connector =
@@ -618,7 +621,8 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	intel_psr_compute_config(intel_dp, pipe_config, conn_state);
 
-	return 0;
+	return intel_dp_tunnel_atomic_compute_stream_bw(state, intel_dp, connector,
+							pipe_config);
 }
 
 /*
@@ -874,6 +878,14 @@ intel_dp_mst_atomic_check(struct drm_connector *connector,
 	ret = intel_dp_mst_atomic_topology_check(intel_connector, state);
 	if (ret)
 		return ret;
+
+	if (intel_connector_needs_modeset(state, connector)) {
+		ret = intel_dp_tunnel_atomic_check_state(state,
+							 intel_connector->mst_port,
+							 intel_connector);
+		if (ret)
+			return ret;
+	}
 
 	return drm_dp_atomic_release_time_slots(&state->base,
 						&intel_connector->mst_port->mst_mgr,
@@ -1196,12 +1208,16 @@ static bool intel_dp_mst_initial_fastset_check(struct intel_encoder *encoder,
 static int intel_dp_mst_get_ddc_modes(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
+	struct drm_i915_private *i915 = to_i915(intel_connector->base.dev);
 	struct intel_dp *intel_dp = intel_connector->mst_port;
 	const struct drm_edid *drm_edid;
 	int ret;
 
 	if (drm_connector_is_unregistered(connector))
 		return intel_connector_update_modes(connector, NULL);
+
+	if (!intel_display_driver_check_access(i915))
+		return drm_edid_connector_add_modes(connector);
 
 	drm_edid = drm_dp_mst_edid_read(connector, &intel_dp->mst_mgr, intel_connector->port);
 
@@ -1294,7 +1310,8 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	max_link_clock = intel_dp_max_link_rate(intel_dp);
 	max_lanes = intel_dp_max_lane_count(intel_dp);
 
-	max_rate = intel_dp_max_data_rate(max_link_clock, max_lanes);
+	max_rate = intel_dp_max_link_data_rate(intel_dp,
+					       max_link_clock, max_lanes);
 	mode_rate = intel_dp_link_required(mode->clock, min_bpp);
 
 	ret = drm_modeset_lock(&mgr->base.lock, ctx);
@@ -1409,6 +1426,9 @@ intel_dp_mst_detect(struct drm_connector *connector,
 
 	if (drm_connector_is_unregistered(connector))
 		return connector_status_disconnected;
+
+	if (!intel_display_driver_check_access(i915))
+		return connector->status;
 
 	return drm_dp_mst_detect_port(connector, ctx, &intel_dp->mst_mgr,
 				      intel_connector->port);
@@ -1538,6 +1558,8 @@ static struct drm_connector *intel_dp_add_mst_connector(struct drm_dp_mst_topolo
 	intel_connector->mst_port = intel_dp;
 	intel_connector->port = port;
 	drm_dp_mst_get_port_malloc(port);
+
+	intel_dp_init_modeset_retry_work(intel_connector);
 
 	intel_connector->dp.dsc_decompression_aux = drm_dp_mst_dsc_aux_for_port(port);
 	intel_dp_mst_read_decompression_port_dsc_caps(intel_dp, intel_connector);

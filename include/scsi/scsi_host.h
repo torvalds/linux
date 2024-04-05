@@ -497,9 +497,6 @@ struct scsi_host_template {
 	 *   scsi_netlink.h
 	 */
 	u64 vendor_id;
-
-	/* Delay for runtime autosuspend */
-	int rpm_autosuspend_delay;
 };
 
 /*
@@ -712,6 +709,9 @@ struct Scsi_Host {
 	 * Needed just in case we have virtual hosts.
 	 */
 	struct device *dma_dev;
+
+	/* Delay for runtime autosuspend */
+	int rpm_autosuspend_delay;
 
 	/*
 	 * We should ensure that this is aligned, both for better performance

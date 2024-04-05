@@ -57,7 +57,7 @@ int omap2_wd_timer_disable(struct omap_hwmod *oh)
 }
 
 /**
- * omap2_wdtimer_reset - reset and disable the WDTIMER IP block
+ * omap2_wd_timer_reset - reset and disable the WDTIMER IP block
  * @oh: struct omap_hwmod *
  *
  * After the WDTIMER IP blocks are reset on OMAP2/3, we must also take
@@ -71,6 +71,8 @@ int omap2_wd_timer_disable(struct omap_hwmod *oh)
  * during a normal merge window.  omap_hwmod_softreset() should be
  * renamed to omap_hwmod_set_ocp_softreset(), and omap_hwmod_softreset()
  * should call the hwmod _ocp_softreset() code.
+ *
+ * Returns: %0 on success or -errno value on error.
  */
 int omap2_wd_timer_reset(struct omap_hwmod *oh)
 {

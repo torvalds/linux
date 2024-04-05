@@ -18,7 +18,6 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/i2c.h>
 
-#include <drm/drm_edid.h>
 #include <drm/drm_framebuffer.h>
 
 struct hibmc_connector {

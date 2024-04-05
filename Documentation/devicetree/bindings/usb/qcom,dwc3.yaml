@@ -102,7 +102,7 @@ properties:
     description: |
       Different types of interrupts are used based on HS PHY used on target:
         - pwr_event: Used for wakeup based on other power events.
-        - hs_phY_irq: Apart from DP/DM/QUSB2 PHY interrupts, there is
+        - hs_phy_irq: Apart from DP/DM/QUSB2 PHY interrupts, there is
                        hs_phy_irq which is not triggered by default and its
                        functionality is mutually exclusive to that of
                        {dp/dm}_hs_phy_irq and qusb2_phy_irq.

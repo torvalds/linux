@@ -267,6 +267,7 @@ TRACE_EVENT_FN(opal_exit,
 );
 #endif
 
+#ifdef CONFIG_PPC_64S_HASH_MMU
 TRACE_EVENT(hash_fault,
 
 	    TP_PROTO(unsigned long addr, unsigned long access, unsigned long trap),
@@ -286,7 +287,7 @@ TRACE_EVENT(hash_fault,
 	    TP_printk("hash fault with addr 0x%lx and access = 0x%lx trap = 0x%lx",
 		      __entry->addr, __entry->access, __entry->trap)
 );
-
+#endif
 
 TRACE_EVENT(tlbie,
 

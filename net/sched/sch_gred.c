@@ -930,6 +930,7 @@ static struct Qdisc_ops gred_qdisc_ops __read_mostly = {
 	.dump		=	gred_dump,
 	.owner		=	THIS_MODULE,
 };
+MODULE_ALIAS_NET_SCH("gred");
 
 static int __init gred_module_init(void)
 {

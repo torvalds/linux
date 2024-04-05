@@ -19,6 +19,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 #include "test_iptunnel_common.h"
+#include "bpf_compiler.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
@@ -137,7 +138,7 @@ static __always_inline int handle_ipv4(struct xdp_md *xdp)
 	iph->ttl = 8;
 
 	next_iph = (__u16 *)iph;
-#pragma clang loop unroll(full)
+	__pragma_loop_unroll_full
 	for (i = 0; i < sizeof(*iph) >> 1; i++)
 		csum += *next_iph++;
 

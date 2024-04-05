@@ -533,6 +533,15 @@ static int drm_dp_dpcd_access(struct drm_dp_aux *aux, u8 request,
 	mutex_lock(&aux->hw_mutex);
 
 	/*
+	 * If the device attached to the aux bus is powered down then there's
+	 * no reason to attempt a transfer. Error out immediately.
+	 */
+	if (aux->powered_down) {
+		ret = -EBUSY;
+		goto unlock;
+	}
+
+	/*
 	 * The specification doesn't give any recommendation on how often to
 	 * retry native transactions. We used to retry 7 times like for
 	 * aux i2c transactions but real world devices this wasn't
@@ -598,6 +607,29 @@ int drm_dp_dpcd_probe(struct drm_dp_aux *aux, unsigned int offset)
 	return ret < 0 ? ret : 0;
 }
 EXPORT_SYMBOL(drm_dp_dpcd_probe);
+
+/**
+ * drm_dp_dpcd_set_powered() - Set whether the DP device is powered
+ * @aux: DisplayPort AUX channel; for convenience it's OK to pass NULL here
+ *       and the function will be a no-op.
+ * @powered: true if powered; false if not
+ *
+ * If the endpoint device on the DP AUX bus is known to be powered down
+ * then this function can be called to make future transfers fail immediately
+ * instead of needing to time out.
+ *
+ * If this function is never called then a device defaults to being powered.
+ */
+void drm_dp_dpcd_set_powered(struct drm_dp_aux *aux, bool powered)
+{
+	if (!aux)
+		return;
+
+	mutex_lock(&aux->hw_mutex);
+	aux->powered_down = !powered;
+	mutex_unlock(&aux->hw_mutex);
+}
+EXPORT_SYMBOL(drm_dp_dpcd_set_powered);
 
 /**
  * drm_dp_dpcd_read() - read a series of bytes from the DPCD
@@ -1858,6 +1890,9 @@ static int drm_dp_i2c_xfer(struct i2c_adapter *adapter, struct i2c_msg *msgs,
 	struct drm_dp_aux_msg msg;
 	int err = 0;
 
+	if (aux->powered_down)
+		return -EBUSY;
+
 	dp_aux_i2c_transfer_size = clamp(dp_aux_i2c_transfer_size, 1, DP_AUX_MAX_PAYLOAD_BYTES);
 
 	memset(&msg, 0, sizeof(msg));
@@ -2897,24 +2932,118 @@ static const char *dp_content_type_get_name(enum dp_content_type content_type)
 	}
 }
 
-void drm_dp_vsc_sdp_log(const char *level, struct device *dev,
-			const struct drm_dp_vsc_sdp *vsc)
+void drm_dp_vsc_sdp_log(struct drm_printer *p, const struct drm_dp_vsc_sdp *vsc)
 {
-#define DP_SDP_LOG(fmt, ...) dev_printk(level, dev, fmt, ##__VA_ARGS__)
-	DP_SDP_LOG("DP SDP: %s, revision %u, length %u\n", "VSC",
+	drm_printf(p, "DP SDP: VSC, revision %u, length %u\n",
 		   vsc->revision, vsc->length);
-	DP_SDP_LOG("    pixelformat: %s\n",
+	drm_printf(p, "    pixelformat: %s\n",
 		   dp_pixelformat_get_name(vsc->pixelformat));
-	DP_SDP_LOG("    colorimetry: %s\n",
+	drm_printf(p, "    colorimetry: %s\n",
 		   dp_colorimetry_get_name(vsc->pixelformat, vsc->colorimetry));
-	DP_SDP_LOG("    bpc: %u\n", vsc->bpc);
-	DP_SDP_LOG("    dynamic range: %s\n",
+	drm_printf(p, "    bpc: %u\n", vsc->bpc);
+	drm_printf(p, "    dynamic range: %s\n",
 		   dp_dynamic_range_get_name(vsc->dynamic_range));
-	DP_SDP_LOG("    content type: %s\n",
+	drm_printf(p, "    content type: %s\n",
 		   dp_content_type_get_name(vsc->content_type));
-#undef DP_SDP_LOG
 }
 EXPORT_SYMBOL(drm_dp_vsc_sdp_log);
+
+/**
+ * drm_dp_vsc_sdp_supported() - check if vsc sdp is supported
+ * @aux: DisplayPort AUX channel
+ * @dpcd: DisplayPort configuration data
+ *
+ * Returns true if vsc sdp is supported, else returns false
+ */
+bool drm_dp_vsc_sdp_supported(struct drm_dp_aux *aux, const u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	u8 rx_feature;
+
+	if (dpcd[DP_DPCD_REV] < DP_DPCD_REV_13)
+		return false;
+
+	if (drm_dp_dpcd_readb(aux, DP_DPRX_FEATURE_ENUMERATION_LIST, &rx_feature) != 1) {
+		drm_dbg_dp(aux->drm_dev, "failed to read DP_DPRX_FEATURE_ENUMERATION_LIST\n");
+		return false;
+	}
+
+	return (rx_feature & DP_VSC_SDP_EXT_FOR_COLORIMETRY_SUPPORTED);
+}
+EXPORT_SYMBOL(drm_dp_vsc_sdp_supported);
+
+/**
+ * drm_dp_vsc_sdp_pack() - pack a given vsc sdp into generic dp_sdp
+ * @vsc: vsc sdp initialized according to its purpose as defined in
+ *       table 2-118 - table 2-120 in DP 1.4a specification
+ * @sdp: valid handle to the generic dp_sdp which will be packed
+ *
+ * Returns length of sdp on success and error code on failure
+ */
+ssize_t drm_dp_vsc_sdp_pack(const struct drm_dp_vsc_sdp *vsc,
+			    struct dp_sdp *sdp)
+{
+	size_t length = sizeof(struct dp_sdp);
+
+	memset(sdp, 0, sizeof(struct dp_sdp));
+
+	/*
+	 * Prepare VSC Header for SU as per DP 1.4a spec, Table 2-119
+	 * VSC SDP Header Bytes
+	 */
+	sdp->sdp_header.HB0 = 0; /* Secondary-Data Packet ID = 0 */
+	sdp->sdp_header.HB1 = vsc->sdp_type; /* Secondary-data Packet Type */
+	sdp->sdp_header.HB2 = vsc->revision; /* Revision Number */
+	sdp->sdp_header.HB3 = vsc->length; /* Number of Valid Data Bytes */
+
+	if (vsc->revision == 0x6) {
+		sdp->db[0] = 1;
+		sdp->db[3] = 1;
+	}
+
+	/*
+	 * Revision 0x5 and revision 0x7 supports Pixel Encoding/Colorimetry
+	 * Format as per DP 1.4a spec and DP 2.0 respectively.
+	 */
+	if (!(vsc->revision == 0x5 || vsc->revision == 0x7))
+		goto out;
+
+	/* VSC SDP Payload for DB16 through DB18 */
+	/* Pixel Encoding and Colorimetry Formats  */
+	sdp->db[16] = (vsc->pixelformat & 0xf) << 4; /* DB16[7:4] */
+	sdp->db[16] |= vsc->colorimetry & 0xf; /* DB16[3:0] */
+
+	switch (vsc->bpc) {
+	case 6:
+		/* 6bpc: 0x0 */
+		break;
+	case 8:
+		sdp->db[17] = 0x1; /* DB17[3:0] */
+		break;
+	case 10:
+		sdp->db[17] = 0x2;
+		break;
+	case 12:
+		sdp->db[17] = 0x3;
+		break;
+	case 16:
+		sdp->db[17] = 0x4;
+		break;
+	default:
+		WARN(1, "Missing case %d\n", vsc->bpc);
+		return -EINVAL;
+	}
+
+	/* Dynamic Range and Component Bit Depth */
+	if (vsc->dynamic_range == DP_DYNAMIC_RANGE_CTA)
+		sdp->db[17] |= 0x80;  /* DB17[7] */
+
+	/* Content Type */
+	sdp->db[18] = vsc->content_type & 0x7;
+
+out:
+	return length;
+}
+EXPORT_SYMBOL(drm_dp_vsc_sdp_pack);
 
 /**
  * drm_dp_get_pcon_max_frl_bw() - maximum frl supported by PCON
@@ -4058,3 +4187,33 @@ int drm_dp_bw_channel_coding_efficiency(bool is_uhbr)
 		return 800000;
 }
 EXPORT_SYMBOL(drm_dp_bw_channel_coding_efficiency);
+
+/**
+ * drm_dp_max_dprx_data_rate - Get the max data bandwidth of a DPRX sink
+ * @max_link_rate: max DPRX link rate in 10kbps units
+ * @max_lanes: max DPRX lane count
+ *
+ * Given a link rate and lanes, get the data bandwidth.
+ *
+ * Data bandwidth is the actual payload rate, which depends on the data
+ * bandwidth efficiency and the link rate.
+ *
+ * Note that protocol layers above the DPRX link level considered here can
+ * further limit the maximum data rate. Such layers are the MST topology (with
+ * limits on the link between the source and first branch device as well as on
+ * the whole MST path until the DPRX link) and (Thunderbolt) DP tunnels -
+ * which in turn can encapsulate an MST link with its own limit - with each
+ * SST or MST encapsulated tunnel sharing the BW of a tunnel group.
+ *
+ * Returns the maximum data rate in kBps units.
+ */
+int drm_dp_max_dprx_data_rate(int max_link_rate, int max_lanes)
+{
+	int ch_coding_efficiency =
+		drm_dp_bw_channel_coding_efficiency(drm_dp_is_uhbr_rate(max_link_rate));
+
+	return DIV_ROUND_DOWN_ULL(mul_u32_u32(max_link_rate * 10 * max_lanes,
+					      ch_coding_efficiency),
+				  1000000 * 8);
+}
+EXPORT_SYMBOL(drm_dp_max_dprx_data_rate);

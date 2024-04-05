@@ -1206,10 +1206,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 }
 
-void smp_prepare_boot_cpu(void)
-{
-}
-
 void __init smp_setup_processor_id(void)
 {
 	if (tlb_type == spitfire)

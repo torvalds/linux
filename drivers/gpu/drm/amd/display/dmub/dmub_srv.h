@@ -78,6 +78,12 @@ struct dmub_srv_dcn31_regs;
 
 struct dmcub_trace_buf_entry;
 
+/* enum dmub_window_memory_type - memory location type specification for windows */
+enum dmub_window_memory_type {
+	DMUB_WINDOW_MEMORY_TYPE_FB = 0,
+	DMUB_WINDOW_MEMORY_TYPE_GART
+};
+
 /* enum dmub_status - return code for dmcub functions */
 enum dmub_status {
 	DMUB_STATUS_OK = 0,
@@ -106,6 +112,7 @@ enum dmub_asic {
 	DMUB_ASIC_DCN32,
 	DMUB_ASIC_DCN321,
 	DMUB_ASIC_DCN35,
+	DMUB_ASIC_DCN351,
 	DMUB_ASIC_MAX,
 };
 
@@ -119,6 +126,7 @@ enum dmub_window_id {
 	DMUB_WINDOW_5_TRACEBUFF,
 	DMUB_WINDOW_6_FW_STATE,
 	DMUB_WINDOW_7_SCRATCH_MEM,
+	DMUB_WINDOW_SHARED_STATE,
 	DMUB_WINDOW_TOTAL,
 };
 
@@ -203,7 +211,7 @@ struct dmub_srv_region_params {
 	uint32_t vbios_size;
 	const uint8_t *fw_inst_const;
 	const uint8_t *fw_bss_data;
-	bool is_mailbox_in_inbox;
+	const enum dmub_window_memory_type *window_memory_type;
 };
 
 /**
@@ -223,7 +231,7 @@ struct dmub_srv_region_params {
  */
 struct dmub_srv_region_info {
 	uint32_t fb_size;
-	uint32_t inbox_size;
+	uint32_t gart_size;
 	uint8_t num_regions;
 	struct dmub_region regions[DMUB_WINDOW_TOTAL];
 };
@@ -239,9 +247,10 @@ struct dmub_srv_region_info {
 struct dmub_srv_memory_params {
 	const struct dmub_srv_region_info *region_info;
 	void *cpu_fb_addr;
-	void *cpu_inbox_addr;
+	void *cpu_gart_addr;
 	uint64_t gpu_fb_addr;
-	uint64_t gpu_inbox_addr;
+	uint64_t gpu_gart_addr;
+	const enum dmub_window_memory_type *window_memory_type;
 };
 
 /**
@@ -361,7 +370,8 @@ struct dmub_srv_hw_funcs {
 			      const struct dmub_window *cw3,
 			      const struct dmub_window *cw4,
 			      const struct dmub_window *cw5,
-			      const struct dmub_window *cw6);
+			      const struct dmub_window *cw6,
+			      const struct dmub_window *region6);
 
 	void (*setup_mailbox)(struct dmub_srv *dmub,
 			      const struct dmub_region *inbox1);
@@ -443,7 +453,6 @@ struct dmub_srv_create_params {
 	struct dmub_srv_base_funcs funcs;
 	struct dmub_srv_hw_funcs *hw_funcs;
 	void *user_ctx;
-	struct dc_context *dc_ctx;
 	enum dmub_asic asic;
 	uint32_t fw_version;
 	bool is_virtual;
@@ -455,6 +464,7 @@ struct dmub_srv_create_params {
  * @user_ctx: user provided context for the dmub_srv
  * @fw_version: the current firmware version, if any
  * @is_virtual: false if hardware support only
+ * @shared_state: dmub shared state between firmware and driver
  * @fw_state: dmub firmware state pointer
  */
 struct dmub_srv {
@@ -463,6 +473,7 @@ struct dmub_srv {
 	uint32_t fw_version;
 	bool is_virtual;
 	struct dmub_fb scratch_mem_fb;
+	volatile struct dmub_shared_state_feature_block *shared_state;
 	volatile const struct dmub_fw_state *fw_state;
 
 	/* private: internal use only */

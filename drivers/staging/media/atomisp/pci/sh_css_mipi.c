@@ -174,7 +174,7 @@ ia_css_mipi_frame_calculate_size(const unsigned int width,
 	mem_words = ((embedded_data_size_words + 7) >> 3) +
 	mem_words_for_first_line +
 	(((height + 1) >> 1) - 1) * mem_words_per_odd_line +
-	/* ceil (height/2) - 1 (first line is calculated separatelly) */
+	/* ceil (height/2) - 1 (first line is calculated separately) */
 	(height      >> 1) * mem_words_per_even_line + /* floor(height/2) */
 	mem_words_for_EOF;
 
@@ -537,7 +537,7 @@ send_mipi_frames(struct ia_css_pipe *pipe)
 
 	/* Hand-over the SP-internal mipi buffers */
 	for (i = 0; i < my_css.num_mipi_frames[port]; i++) {
-		/* Need to include the ofset for port. */
+		/* Need to include the offset for port. */
 		sh_css_update_host2sp_mipi_frame(port * NUM_MIPI_FRAMES_PER_STREAM + i,
 						 my_css.mipi_frames[port][i]);
 		sh_css_update_host2sp_mipi_metadata(port * NUM_MIPI_FRAMES_PER_STREAM + i,

@@ -948,6 +948,11 @@ static u32 skl_plane_ctl(const struct intel_crtc_state *crtc_state,
 	if (DISPLAY_VER(dev_priv) == 13)
 		plane_ctl |= adlp_plane_ctl_arb_slots(plane_state);
 
+	if (GRAPHICS_VER(dev_priv) >= 20 &&
+	    fb->modifier == I915_FORMAT_MOD_4_TILED) {
+		plane_ctl |= PLANE_CTL_RENDER_DECOMPRESSION_ENABLE;
+	}
+
 	return plane_ctl;
 }
 
@@ -2623,4 +2628,32 @@ skl_get_initial_plane_config(struct intel_crtc *crtc,
 
 error:
 	kfree(intel_fb);
+}
+
+bool skl_fixup_initial_plane_config(struct intel_crtc *crtc,
+				    const struct intel_initial_plane_config *plane_config)
+{
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct intel_plane *plane = to_intel_plane(crtc->base.primary);
+	const struct intel_plane_state *plane_state =
+		to_intel_plane_state(plane->base.state);
+	enum plane_id plane_id = plane->id;
+	enum pipe pipe = crtc->pipe;
+	u32 base;
+
+	if (!plane_state->uapi.visible)
+		return false;
+
+	base = intel_plane_ggtt_offset(plane_state);
+
+	/*
+	 * We may have moved the surface to a different
+	 * part of ggtt, make the plane aware of that.
+	 */
+	if (plane_config->base == base)
+		return false;
+
+	intel_de_write(i915, PLANE_SURF(pipe, plane_id), base);
+
+	return true;
 }

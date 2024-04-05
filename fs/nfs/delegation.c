@@ -156,8 +156,8 @@ static int nfs_delegation_claim_locks(struct nfs4_state *state, const nfs4_state
 	list = &flctx->flc_posix;
 	spin_lock(&flctx->flc_lock);
 restart:
-	list_for_each_entry(fl, list, fl_list) {
-		if (nfs_file_open_context(fl->fl_file)->state != state)
+	for_each_file_lock(fl, list) {
+		if (nfs_file_open_context(fl->c.flc_file)->state != state)
 			continue;
 		spin_unlock(&flctx->flc_lock);
 		status = nfs4_lock_delegation_recall(fl, state, stateid);
@@ -181,7 +181,6 @@ static int nfs_delegation_claim_opens(struct inode *inode,
 	struct nfs_open_context *ctx;
 	struct nfs4_state_owner *sp;
 	struct nfs4_state *state;
-	unsigned int seq;
 	int err;
 
 again:
@@ -202,12 +201,9 @@ again:
 		sp = state->owner;
 		/* Block nfs4_proc_unlck */
 		mutex_lock(&sp->so_delegreturn_mutex);
-		seq = raw_seqcount_begin(&sp->so_reclaim_seqcount);
 		err = nfs4_open_delegation_recall(ctx, state, stateid);
 		if (!err)
 			err = nfs_delegation_claim_locks(state, stateid);
-		if (!err && read_seqcount_retry(&sp->so_reclaim_seqcount, seq))
-			err = -EAGAIN;
 		mutex_unlock(&sp->so_delegreturn_mutex);
 		put_nfs_open_context(ctx);
 		if (err != 0)

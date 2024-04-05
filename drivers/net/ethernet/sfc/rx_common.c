@@ -11,6 +11,7 @@
 #include "net_driver.h"
 #include <linux/module.h>
 #include <linux/iommu.h>
+#include <net/rps.h>
 #include "efx.h"
 #include "nic.h"
 #include "rx_common.h"

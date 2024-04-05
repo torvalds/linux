@@ -333,7 +333,7 @@ static void pgtable_pmd_populate(pud_t *pud, unsigned long addr, unsigned long e
 			}
 			pte = boot_pte_alloc();
 			pmd_populate(&init_mm, pmd, pte);
-		} else if (pmd_large(*pmd)) {
+		} else if (pmd_leaf(*pmd)) {
 			continue;
 		}
 		pgtable_pte_populate(pmd, addr, next, mode);
@@ -366,7 +366,7 @@ static void pgtable_pud_populate(p4d_t *p4d, unsigned long addr, unsigned long e
 			}
 			pmd = boot_crst_alloc(_SEGMENT_ENTRY_EMPTY);
 			pud_populate(&init_mm, pud, pmd);
-		} else if (pud_large(*pud)) {
+		} else if (pud_leaf(*pud)) {
 			continue;
 		}
 		pgtable_pmd_populate(pud, addr, next, mode);

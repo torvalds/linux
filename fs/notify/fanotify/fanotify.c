@@ -228,8 +228,10 @@ static int fanotify_get_response(struct fsnotify_group *group,
 
 	pr_debug("%s: group=%p event=%p\n", __func__, group, event);
 
-	ret = wait_event_killable(group->fanotify_data.access_waitq,
-				  event->state == FAN_EVENT_ANSWERED);
+	ret = wait_event_state(group->fanotify_data.access_waitq,
+				  event->state == FAN_EVENT_ANSWERED,
+				  (TASK_KILLABLE|TASK_FREEZABLE));
+
 	/* Signal pending? */
 	if (ret < 0) {
 		spin_lock(&group->notification_lock);

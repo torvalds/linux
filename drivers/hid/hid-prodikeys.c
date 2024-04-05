@@ -32,13 +32,6 @@
 
 struct pcmidi_snd;
 
-struct pk_device {
-	unsigned long		quirks;
-
-	struct hid_device	*hdev;
-	struct pcmidi_snd	*pm; /* pcmidi device context */
-};
-
 struct pcmidi_sustain {
 	unsigned long		in_use;
 	struct pcmidi_snd	*pm;
@@ -50,7 +43,7 @@ struct pcmidi_sustain {
 
 #define PCMIDI_SUSTAINED_MAX	32
 struct pcmidi_snd {
-	struct pk_device		*pk;
+	struct hid_device		*hdev;
 	unsigned short			ifnum;
 	struct hid_report		*pcmidi_report6;
 	struct input_dev		*input_ep82;
@@ -66,9 +59,7 @@ struct pcmidi_snd {
 	struct snd_card			*card;
 	struct snd_rawmidi		*rwmidi;
 	struct snd_rawmidi_substream	*in_substream;
-	struct snd_rawmidi_substream	*out_substream;
 	unsigned long			in_triggered;
-	unsigned long			out_active;
 };
 
 #define PK_QUIRK_NOGET	0x00010000
@@ -100,11 +91,11 @@ static ssize_t show_channel(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct pk_device *pk = hid_get_drvdata(hdev);
+	struct pcmidi_snd *pm = hid_get_drvdata(hdev);
 
-	dbg_hid("pcmidi sysfs read channel=%u\n", pk->pm->midi_channel);
+	dbg_hid("pcmidi sysfs read channel=%u\n", pm->midi_channel);
 
-	return sprintf(buf, "%u (min:%u, max:%u)\n", pk->pm->midi_channel,
+	return sprintf(buf, "%u (min:%u, max:%u)\n", pm->midi_channel,
 		PCMIDI_CHANNEL_MIN, PCMIDI_CHANNEL_MAX);
 }
 
@@ -113,13 +104,13 @@ static ssize_t store_channel(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct pk_device *pk = hid_get_drvdata(hdev);
+	struct pcmidi_snd *pm = hid_get_drvdata(hdev);
 
 	unsigned channel = 0;
 
 	if (sscanf(buf, "%u", &channel) > 0 && channel <= PCMIDI_CHANNEL_MAX) {
 		dbg_hid("pcmidi sysfs write channel=%u\n", channel);
-		pk->pm->midi_channel = channel;
+		pm->midi_channel = channel;
 		return strlen(buf);
 	}
 	return -EINVAL;
@@ -137,11 +128,11 @@ static ssize_t show_sustain(struct device *dev,
  struct device_attribute *attr, char *buf)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct pk_device *pk = hid_get_drvdata(hdev);
+	struct pcmidi_snd *pm = hid_get_drvdata(hdev);
 
-	dbg_hid("pcmidi sysfs read sustain=%u\n", pk->pm->midi_sustain);
+	dbg_hid("pcmidi sysfs read sustain=%u\n", pm->midi_sustain);
 
-	return sprintf(buf, "%u (off:%u, max:%u (ms))\n", pk->pm->midi_sustain,
+	return sprintf(buf, "%u (off:%u, max:%u (ms))\n", pm->midi_sustain,
 		PCMIDI_SUSTAIN_MIN, PCMIDI_SUSTAIN_MAX);
 }
 
@@ -150,15 +141,14 @@ static ssize_t store_sustain(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct pk_device *pk = hid_get_drvdata(hdev);
+	struct pcmidi_snd *pm = hid_get_drvdata(hdev);
 
 	unsigned sustain = 0;
 
 	if (sscanf(buf, "%u", &sustain) > 0 && sustain <= PCMIDI_SUSTAIN_MAX) {
 		dbg_hid("pcmidi sysfs write sustain=%u\n", sustain);
-		pk->pm->midi_sustain = sustain;
-		pk->pm->midi_sustain_mode =
-			(0 == sustain || !pk->pm->midi_mode) ? 0 : 1;
+		pm->midi_sustain = sustain;
+		pm->midi_sustain_mode = (0 == sustain || !pm->midi_mode) ? 0 : 1;
 		return strlen(buf);
 	}
 	return -EINVAL;
@@ -176,11 +166,11 @@ static ssize_t show_octave(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct pk_device *pk = hid_get_drvdata(hdev);
+	struct pcmidi_snd *pm = hid_get_drvdata(hdev);
 
-	dbg_hid("pcmidi sysfs read octave=%d\n", pk->pm->midi_octave);
+	dbg_hid("pcmidi sysfs read octave=%d\n", pm->midi_octave);
 
-	return sprintf(buf, "%d (min:%d, max:%d)\n", pk->pm->midi_octave,
+	return sprintf(buf, "%d (min:%d, max:%d)\n", pm->midi_octave,
 		PCMIDI_OCTAVE_MIN, PCMIDI_OCTAVE_MAX);
 }
 
@@ -189,14 +179,14 @@ static ssize_t store_octave(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hid_device *hdev = to_hid_device(dev);
-	struct pk_device *pk = hid_get_drvdata(hdev);
+	struct pcmidi_snd *pm = hid_get_drvdata(hdev);
 
 	int octave = 0;
 
 	if (sscanf(buf, "%d", &octave) > 0 &&
 		octave >= PCMIDI_OCTAVE_MIN && octave <= PCMIDI_OCTAVE_MAX) {
 		dbg_hid("pcmidi sysfs write octave=%d\n", octave);
-		pk->pm->midi_octave = octave;
+		pm->midi_octave = octave;
 		return strlen(buf);
 	}
 	return -EINVAL;
@@ -270,7 +260,7 @@ static void stop_sustain_timers(struct pcmidi_snd *pm)
 
 static int pcmidi_get_output_report(struct pcmidi_snd *pm)
 {
-	struct hid_device *hdev = pm->pk->hdev;
+	struct hid_device *hdev = pm->hdev;
 	struct hid_report *report;
 
 	list_for_each_entry(report,
@@ -295,7 +285,7 @@ static int pcmidi_get_output_report(struct pcmidi_snd *pm)
 
 static void pcmidi_submit_output_report(struct pcmidi_snd *pm, int state)
 {
-	struct hid_device *hdev = pm->pk->hdev;
+	struct hid_device *hdev = pm->hdev;
 	struct hid_report *report = pm->pcmidi_report6;
 	report->field[0]->value[0] = 0x01;
 	report->field[0]->value[1] = state;
@@ -622,7 +612,7 @@ static int pcmidi_snd_initialise(struct pcmidi_snd *pm)
 
 	/* Setup sound card */
 
-	err = snd_card_new(&pm->pk->hdev->dev, index[dev], id[dev],
+	err = snd_card_new(&pm->hdev->dev, index[dev], id[dev],
 			   THIS_MODULE, 0, &card);
 	if (err < 0) {
 		pk_error("failed to create pc-midi sound card\n");
@@ -660,7 +650,7 @@ static int pcmidi_snd_initialise(struct pcmidi_snd *pm)
 		&pcmidi_in_ops);
 
 	/* create sysfs variables */
-	err = device_create_file(&pm->pk->hdev->dev,
+	err = device_create_file(&pm->hdev->dev,
 				 sysfs_device_attr_channel);
 	if (err < 0) {
 		pk_error("failed to create sysfs attribute channel: error %d\n",
@@ -668,7 +658,7 @@ static int pcmidi_snd_initialise(struct pcmidi_snd *pm)
 		goto fail;
 	}
 
-	err = device_create_file(&pm->pk->hdev->dev,
+	err = device_create_file(&pm->hdev->dev,
 				sysfs_device_attr_sustain);
 	if (err < 0) {
 		pk_error("failed to create sysfs attribute sustain: error %d\n",
@@ -676,7 +666,7 @@ static int pcmidi_snd_initialise(struct pcmidi_snd *pm)
 		goto fail_attr_sustain;
 	}
 
-	err = device_create_file(&pm->pk->hdev->dev,
+	err = device_create_file(&pm->hdev->dev,
 			 sysfs_device_attr_octave);
 	if (err < 0) {
 		pk_error("failed to create sysfs attribute octave: error %d\n",
@@ -706,11 +696,11 @@ static int pcmidi_snd_initialise(struct pcmidi_snd *pm)
 
 fail_register:
 	stop_sustain_timers(pm);
-	device_remove_file(&pm->pk->hdev->dev, sysfs_device_attr_octave);
+	device_remove_file(&pm->hdev->dev, sysfs_device_attr_octave);
 fail_attr_octave:
-	device_remove_file(&pm->pk->hdev->dev, sysfs_device_attr_sustain);
+	device_remove_file(&pm->hdev->dev, sysfs_device_attr_sustain);
 fail_attr_sustain:
-	device_remove_file(&pm->pk->hdev->dev, sysfs_device_attr_channel);
+	device_remove_file(&pm->hdev->dev, sysfs_device_attr_channel);
 fail:
 	if (pm->card) {
 		snd_card_free(pm->card);
@@ -724,12 +714,9 @@ static int pcmidi_snd_terminate(struct pcmidi_snd *pm)
 	if (pm->card) {
 		stop_sustain_timers(pm);
 
-		device_remove_file(&pm->pk->hdev->dev,
-			sysfs_device_attr_channel);
-		device_remove_file(&pm->pk->hdev->dev,
-			sysfs_device_attr_sustain);
-		device_remove_file(&pm->pk->hdev->dev,
-			sysfs_device_attr_octave);
+		device_remove_file(&pm->hdev->dev, sysfs_device_attr_channel);
+		device_remove_file(&pm->hdev->dev, sysfs_device_attr_sustain);
+		device_remove_file(&pm->hdev->dev, sysfs_device_attr_octave);
 
 		snd_card_disconnect(pm->card);
 		snd_card_free_when_closed(pm->card);
@@ -759,10 +746,7 @@ static int pk_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 		struct hid_field *field, struct hid_usage *usage,
 		unsigned long **bit, int *max)
 {
-	struct pk_device *pk = hid_get_drvdata(hdev);
-	struct pcmidi_snd *pm;
-
-	pm = pk->pm;
+	struct pcmidi_snd *pm = hid_get_drvdata(hdev);
 
 	if (HID_UP_MSVENDOR == (usage->hid & HID_USAGE_PAGE) &&
 		1 == pm->ifnum) {
@@ -777,16 +761,16 @@ static int pk_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 static int pk_raw_event(struct hid_device *hdev, struct hid_report *report,
 	u8 *data, int size)
 {
-	struct pk_device *pk = hid_get_drvdata(hdev);
+	struct pcmidi_snd *pm = hid_get_drvdata(hdev);
 	int ret = 0;
 
-	if (1 == pk->pm->ifnum) {
+	if (1 == pm->ifnum) {
 		if (report->id == data[0])
 			switch (report->id) {
 			case 0x01: /* midi keys (qwerty)*/
 			case 0x03: /* midi keyboard (musical)*/
 			case 0x04: /* extra/midi keys (qwerty)*/
-				ret = pcmidi_handle_report(pk->pm,
+				ret = pcmidi_handle_report(pm,
 						report->id, data, size);
 				break;
 			}
@@ -801,8 +785,7 @@ static int pk_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct usb_interface *intf;
 	unsigned short ifnum;
 	unsigned long quirks = id->driver_data;
-	struct pk_device *pk;
-	struct pcmidi_snd *pm = NULL;
+	struct pcmidi_snd *pm;
 
 	if (!hid_is_usb(hdev))
 		return -EINVAL;
@@ -810,26 +793,16 @@ static int pk_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	intf = to_usb_interface(hdev->dev.parent);
 	ifnum = intf->cur_altsetting->desc.bInterfaceNumber;
 
-	pk = kzalloc(sizeof(*pk), GFP_KERNEL);
-	if (pk == NULL) {
+	pm = kzalloc(sizeof(*pm), GFP_KERNEL);
+	if (pm == NULL) {
 		hid_err(hdev, "can't alloc descriptor\n");
 		return -ENOMEM;
 	}
 
-	pk->hdev = hdev;
-
-	pm = kzalloc(sizeof(*pm), GFP_KERNEL);
-	if (pm == NULL) {
-		hid_err(hdev, "can't alloc descriptor\n");
-		ret = -ENOMEM;
-		goto err_free_pk;
-	}
-
-	pm->pk = pk;
-	pk->pm = pm;
+	pm->hdev = hdev;
 	pm->ifnum = ifnum;
 
-	hid_set_drvdata(hdev, pk);
+	hid_set_drvdata(hdev, pm);
 
 	ret = hid_parse(hdev);
 	if (ret) {
@@ -856,26 +829,18 @@ err_stop:
 	hid_hw_stop(hdev);
 err_free:
 	kfree(pm);
-err_free_pk:
-	kfree(pk);
 
 	return ret;
 }
 
 static void pk_remove(struct hid_device *hdev)
 {
-	struct pk_device *pk = hid_get_drvdata(hdev);
-	struct pcmidi_snd *pm;
+	struct pcmidi_snd *pm = hid_get_drvdata(hdev);
 
-	pm = pk->pm;
-	if (pm) {
-		pcmidi_snd_terminate(pm);
-		kfree(pm);
-	}
-
+	pcmidi_snd_terminate(pm);
 	hid_hw_stop(hdev);
 
-	kfree(pk);
+	kfree(pm);
 }
 
 static const struct hid_device_id pk_devices[] = {

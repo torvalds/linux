@@ -319,7 +319,7 @@
         "EventCode": "0x35",
         "EventName": "MEM_BOUND_STALLS_IFETCH.ALL",
         "SampleAfterValue": "1000003",
-        "UMask": "0x6f",
+        "UMask": "0x7f",
         "Unit": "cpu_atom"
     },
     {
@@ -344,7 +344,7 @@
         "EventCode": "0x35",
         "EventName": "MEM_BOUND_STALLS_IFETCH.LLC_MISS",
         "SampleAfterValue": "1000003",
-        "UMask": "0x68",
+        "UMask": "0x78",
         "Unit": "cpu_atom"
     },
     {
@@ -352,7 +352,7 @@
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS_LOAD.ALL",
         "SampleAfterValue": "1000003",
-        "UMask": "0x6f",
+        "UMask": "0x7f",
         "Unit": "cpu_atom"
     },
     {
@@ -377,7 +377,7 @@
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS_LOAD.LLC_MISS",
         "SampleAfterValue": "1000003",
-        "UMask": "0x68",
+        "UMask": "0x78",
         "Unit": "cpu_atom"
     },
     {

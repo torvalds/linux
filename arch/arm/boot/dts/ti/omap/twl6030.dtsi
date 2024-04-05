@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (C) 2011 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2011 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 /*
  * Integrated Power Management Chip
- * http://www.ti.com/lit/ds/symlink/twl6030.pdf
+ * https://www.ti.com/lit/ds/symlink/twl6030.pdf
  */
 &twl {
 	compatible = "ti,twl6030";

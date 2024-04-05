@@ -19,11 +19,12 @@ unexpected/malicious behaviors in user space applications.  Landlock empowers
 any process, including unprivileged ones, to securely restrict themselves.
 
 We can quickly make sure that Landlock is enabled in the running system by
-looking for "landlock: Up and running" in kernel logs (as root): ``dmesg | grep
-landlock || journalctl -kg landlock`` .  Developers can also easily check for
-Landlock support with a :ref:`related system call <landlock_abi_versions>`.  If
-Landlock is not currently supported, we need to :ref:`configure the kernel
-appropriately <kernel_support>`.
+looking for "landlock: Up and running" in kernel logs (as root):
+``dmesg | grep landlock || journalctl -kb -g landlock`` .
+Developers can also easily check for Landlock support with a
+:ref:`related system call <landlock_abi_versions>`.
+If Landlock is not currently supported, we need to
+:ref:`configure the kernel appropriately <kernel_support>`.
 
 Landlock rules
 ==============
@@ -499,6 +500,9 @@ access rights.
 Kernel support
 ==============
 
+Build time configuration
+------------------------
+
 Landlock was first introduced in Linux 5.13 but it must be configured at build
 time with ``CONFIG_SECURITY_LANDLOCK=y``.  Landlock must also be enabled at boot
 time as the other security modules.  The list of security modules enabled by
@@ -507,10 +511,51 @@ contains ``CONFIG_LSM=landlock,[...]`` with ``[...]``  as the list of other
 potentially useful security modules for the running system (see the
 ``CONFIG_LSM`` help).
 
+Boot time configuration
+-----------------------
+
 If the running kernel does not have ``landlock`` in ``CONFIG_LSM``, then we can
-still enable it by adding ``lsm=landlock,[...]`` to
-Documentation/admin-guide/kernel-parameters.rst thanks to the bootloader
+enable Landlock by adding ``lsm=landlock,[...]`` to
+Documentation/admin-guide/kernel-parameters.rst in the boot loader
 configuration.
+
+For example, if the current built-in configuration is:
+
+.. code-block:: console
+
+    $ zgrep -h "^CONFIG_LSM=" "/boot/config-$(uname -r)" /proc/config.gz 2>/dev/null
+    CONFIG_LSM="lockdown,yama,integrity,apparmor"
+
+...and if the cmdline doesn't contain ``landlock`` either:
+
+.. code-block:: console
+
+    $ sed -n 's/.*\(\<lsm=\S\+\).*/\1/p' /proc/cmdline
+    lsm=lockdown,yama,integrity,apparmor
+
+...we should configure the boot loader to set a cmdline extending the ``lsm``
+list with the ``landlock,`` prefix::
+
+  lsm=landlock,lockdown,yama,integrity,apparmor
+
+After a reboot, we can check that Landlock is up and running by looking at
+kernel logs:
+
+.. code-block:: console
+
+    # dmesg | grep landlock || journalctl -kb -g landlock
+    [    0.000000] Command line: [...] lsm=landlock,lockdown,yama,integrity,apparmor
+    [    0.000000] Kernel command line: [...] lsm=landlock,lockdown,yama,integrity,apparmor
+    [    0.000000] LSM: initializing lsm=lockdown,capability,landlock,yama,integrity,apparmor
+    [    0.000000] landlock: Up and running.
+
+The kernel may be configured at build time to always load the ``lockdown`` and
+``capability`` LSMs.  In that case, these LSMs will appear at the beginning of
+the ``LSM: initializing`` log line as well, even if they are not configured in
+the boot loader.
+
+Network support
+---------------
 
 To be able to explicitly allow TCP operations (e.g., adding a network rule with
 ``LANDLOCK_ACCESS_NET_BIND_TCP``), the kernel must support TCP

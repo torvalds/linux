@@ -9,6 +9,7 @@
 #include <dt-bindings/clock/qcom,gcc-ipq6018.h>
 #include <dt-bindings/reset/qcom,gcc-ipq6018.h>
 #include <dt-bindings/clock/qcom,apss-ipq.h>
+#include <dt-bindings/thermal/thermal.h>
 
 / {
 	#address-cells = <2>;
@@ -43,6 +44,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
 			cpu-supply = <&ipq6018_s2>;
+			#cooling-cells = <2>;
 		};
 
 		CPU1: cpu@1 {
@@ -55,6 +57,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
 			cpu-supply = <&ipq6018_s2>;
+			#cooling-cells = <2>;
 		};
 
 		CPU2: cpu@2 {
@@ -67,6 +70,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
 			cpu-supply = <&ipq6018_s2>;
+			#cooling-cells = <2>;
 		};
 
 		CPU3: cpu@3 {
@@ -79,6 +83,7 @@
 			clock-names = "cpu";
 			operating-points-v2 = <&cpu_opp_table>;
 			cpu-supply = <&ipq6018_s2>;
+			#cooling-cells = <2>;
 		};
 
 		L2_0: l2-cache {
@@ -330,6 +335,16 @@
 			clock-names = "core";
 		};
 
+		tsens: thermal-sensor@4a9000 {
+			compatible = "qcom,ipq6018-tsens", "qcom,ipq8074-tsens";
+			reg = <0x0 0x004a9000 0x0 0x1000>,
+			      <0x0 0x004a8000 0x0 0x1000>;
+			interrupts = <GIC_SPI 184 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "combined";
+			#qcom,sensors = <16>;
+			#thermal-sensor-cells = <1>;
+		};
+
 		cryptobam: dma-controller@704000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x0 0x00704000 0x0 0x20000>;
@@ -418,6 +433,12 @@
 					  <&gcc GCC_USB1_MOCK_UTMI_CLK>;
 			assigned-clock-rates = <133330000>,
 					       <24000000>;
+
+			interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 130 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pwr_event",
+					  "qusb2_phy";
+
 			resets = <&gcc GCC_USB1_BCR>;
 			status = "disabled";
 
@@ -578,6 +599,21 @@
 			status = "disabled";
 		};
 
+		blsp1_i2c6: i2c@78ba000 {
+			compatible = "qcom,i2c-qup-v2.2.1";
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x0 0x078ba000 0x0 0x600>;
+			interrupts = <GIC_SPI 300 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&gcc GCC_BLSP1_QUP6_I2C_APPS_CLK>,
+			       <&gcc GCC_BLSP1_AHB_CLK>;
+			clock-names = "core", "iface";
+			clock-frequency = <400000>;
+			dmas = <&blsp_dma 22>, <&blsp_dma 23>;
+			dma-names = "tx", "rx";
+			status = "disabled";
+		};
+
 		qpic_bam: dma-controller@7984000 {
 			compatible = "qcom,bam-v1.7.0";
 			reg = <0x0 0x07984000 0x0 0x1a000>;
@@ -629,6 +665,13 @@
 			assigned-clock-rates = <133330000>,
 					       <133330000>,
 					       <24000000>;
+
+			interrupts = <GIC_SPI 134 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 220 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pwr_event",
+					  "qusb2_phy",
+					  "ss_phy_irq";
 
 			resets = <&gcc GCC_USB0_BCR>;
 			status = "disabled";
@@ -864,6 +907,122 @@
 				      "axi_s_sticky";
 
 			status = "disabled";
+		};
+	};
+
+	thermal-zones {
+		nss-top-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsens 4>;
+
+			trips {
+				nss-top-critical {
+					temperature = <125000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
+
+		nss-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsens 5>;
+
+			trips {
+				nss-critical {
+					temperature = <125000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
+
+		wcss-phya0-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsens 7>;
+
+			trips {
+				wcss-phya0-critical {
+					temperature = <125000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
+
+		wcss-phya1-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsens 8>;
+
+			trips {
+				wcss-phya1-critical {
+					temperature = <125000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
+
+		cpu-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsens 13>;
+
+			trips {
+				cpu-critical {
+					temperature = <125000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+
+				cpu_alert: cpu-passive {
+					temperature = <110000>;
+					hysteresis = <1000>;
+					type = "passive";
+				};
+			};
+
+			cooling-maps {
+				map0 {
+					trip = <&cpu_alert>;
+					cooling-device = <&CPU0 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&CPU1 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&CPU2 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>,
+							 <&CPU3 THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+				};
+			};
+		};
+
+		lpass-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsens 14>;
+
+			trips {
+				lpass-critical {
+					temperature = <125000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
+		};
+
+		ddrss-top-thermal {
+			polling-delay-passive = <250>;
+			polling-delay = <1000>;
+			thermal-sensors = <&tsens 15>;
+
+			trips {
+				ddrss-top-critical {
+					temperature = <125000>;
+					hysteresis = <1000>;
+					type = "critical";
+				};
+			};
 		};
 	};
 

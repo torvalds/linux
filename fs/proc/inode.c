@@ -92,7 +92,7 @@ void __init proc_init_kmemcache(void)
 	proc_inode_cachep = kmem_cache_create("proc_inode_cache",
 					     sizeof(struct proc_inode),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD|SLAB_ACCOUNT|
+						SLAB_ACCOUNT|
 						SLAB_PANIC),
 					     init_once);
 	pde_opener_cache =

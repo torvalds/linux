@@ -9,12 +9,10 @@
  */
 #include <linux/module.h>
 #include <linux/phy.h>
-#include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/mdio.h>
 #include <linux/marvell_phy.h>
 #include <linux/of.h>
-#include <linux/of_gpio.h>
 #include <linux/sfp.h>
 #include <linux/netdevice.h>
 

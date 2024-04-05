@@ -131,13 +131,20 @@ dpll_msg_add_lock_status(struct sk_buff *msg, struct dpll_device *dpll,
 			 struct netlink_ext_ack *extack)
 {
 	const struct dpll_device_ops *ops = dpll_device_ops(dpll);
+	enum dpll_lock_status_error status_error = 0;
 	enum dpll_lock_status status;
 	int ret;
 
-	ret = ops->lock_status_get(dpll, dpll_priv(dpll), &status, extack);
+	ret = ops->lock_status_get(dpll, dpll_priv(dpll), &status,
+				   &status_error, extack);
 	if (ret)
 		return ret;
 	if (nla_put_u32(msg, DPLL_A_LOCK_STATUS, status))
+		return -EMSGSIZE;
+	if (status_error &&
+	    (status == DPLL_LOCK_STATUS_UNLOCKED ||
+	     status == DPLL_LOCK_STATUS_HOLDOVER) &&
+	    nla_put_u32(msg, DPLL_A_LOCK_STATUS_ERROR, status_error))
 		return -EMSGSIZE;
 
 	return 0;

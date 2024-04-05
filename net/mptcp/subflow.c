@@ -15,13 +15,11 @@
 #include <net/inet_common.h>
 #include <net/inet_hashtables.h>
 #include <net/protocol.h>
-#include <net/tcp.h>
 #if IS_ENABLED(CONFIG_MPTCP_IPV6)
 #include <net/ip6_route.h>
 #include <net/transp_v6.h>
 #endif
 #include <net/mptcp.h>
-#include <uapi/linux/mptcp.h>
 #include "protocol.h"
 #include "mib.h"
 
@@ -75,7 +73,8 @@ static void subflow_req_create_thmac(struct mptcp_subflow_request_sock *subflow_
 
 	get_random_bytes(&subflow_req->local_nonce, sizeof(u32));
 
-	subflow_generate_hmac(msk->local_key, msk->remote_key,
+	subflow_generate_hmac(READ_ONCE(msk->local_key),
+			      READ_ONCE(msk->remote_key),
 			      subflow_req->local_nonce,
 			      subflow_req->remote_nonce, hmac);
 
@@ -714,7 +713,8 @@ static bool subflow_hmac_valid(const struct request_sock *req,
 	if (!msk)
 		return false;
 
-	subflow_generate_hmac(msk->remote_key, msk->local_key,
+	subflow_generate_hmac(READ_ONCE(msk->remote_key),
+			      READ_ONCE(msk->local_key),
 			      subflow_req->remote_nonce,
 			      subflow_req->local_nonce, hmac);
 
@@ -1548,8 +1548,8 @@ int __mptcp_subflow_connect(struct sock *sk, const struct mptcp_addr_info *loc,
 	mptcp_pm_get_flags_and_ifindex_by_id(msk, local_id,
 					     &flags, &ifindex);
 	subflow->remote_key_valid = 1;
-	subflow->remote_key = msk->remote_key;
-	subflow->local_key = msk->local_key;
+	subflow->remote_key = READ_ONCE(msk->remote_key);
+	subflow->local_key = READ_ONCE(msk->local_key);
 	subflow->token = msk->token;
 	mptcp_info2sockaddr(loc, &addr, ssk->sk_family);
 

@@ -1277,6 +1277,12 @@ static inline bool nft_table_has_owner(const struct nft_table *table)
 	return table->flags & NFT_TABLE_F_OWNER;
 }
 
+static inline bool nft_table_is_orphan(const struct nft_table *table)
+{
+	return (table->flags & (NFT_TABLE_F_OWNER | NFT_TABLE_F_PERSIST)) ==
+			NFT_TABLE_F_PERSIST;
+}
+
 static inline bool nft_base_chain_netdev(int family, u32 hooknum)
 {
 	return family == NFPROTO_NETDEV ||

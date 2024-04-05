@@ -12,9 +12,6 @@
 #include <linux/platform_data/emc2305.h>
 #include <linux/thermal.h>
 
-static const unsigned short
-emc2305_normal_i2c[] = { 0x27, 0x2c, 0x2d, 0x2e, 0x2f, 0x4c, 0x4d, I2C_CLIENT_END };
-
 #define EMC2305_REG_DRIVE_FAIL_STATUS	0x27
 #define EMC2305_REG_VENDOR		0xfe
 #define EMC2305_FAN_MAX			0xff
@@ -611,14 +608,12 @@ static void emc2305_remove(struct i2c_client *client)
 }
 
 static struct i2c_driver emc2305_driver = {
-	.class  = I2C_CLASS_HWMON,
 	.driver = {
 		.name = "emc2305",
 	},
 	.probe = emc2305_probe,
 	.remove	  = emc2305_remove,
 	.id_table = emc2305_ids,
-	.address_list = emc2305_normal_i2c,
 };
 
 module_i2c_driver(emc2305_driver);

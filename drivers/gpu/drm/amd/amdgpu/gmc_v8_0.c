@@ -777,9 +777,10 @@ static void gmc_v8_0_set_prt(struct amdgpu_device *adev, bool enable)
 	WREG32(mmVM_PRT_CNTL, tmp);
 
 	if (enable) {
-		uint32_t low = AMDGPU_VA_RESERVED_SIZE >> AMDGPU_GPU_PAGE_SHIFT;
+		uint32_t low = AMDGPU_VA_RESERVED_BOTTOM >>
+			AMDGPU_GPU_PAGE_SHIFT;
 		uint32_t high = adev->vm_manager.max_pfn -
-			(AMDGPU_VA_RESERVED_SIZE >> AMDGPU_GPU_PAGE_SHIFT);
+			(AMDGPU_VA_RESERVED_TOP >> AMDGPU_GPU_PAGE_SHIFT);
 
 		WREG32(mmVM_PRT_APERTURE0_LOW_ADDR, low);
 		WREG32(mmVM_PRT_APERTURE1_LOW_ADDR, low);
@@ -1444,18 +1445,24 @@ static int gmc_v8_0_process_interrupt(struct amdgpu_device *adev,
 		gmc_v8_0_set_fault_enable_default(adev, false);
 
 	if (printk_ratelimit()) {
-		struct amdgpu_task_info task_info;
+		struct amdgpu_task_info *task_info;
 
-		memset(&task_info, 0, sizeof(struct amdgpu_task_info));
-		amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
+		dev_err(adev->dev, "GPU fault detected: %d 0x%08x\n",
+			entry->src_id, entry->src_data[0]);
 
-		dev_err(adev->dev, "GPU fault detected: %d 0x%08x for process %s pid %d thread %s pid %d\n",
-			entry->src_id, entry->src_data[0], task_info.process_name,
-			task_info.tgid, task_info.task_name, task_info.pid);
+		task_info = amdgpu_vm_get_task_info_pasid(adev, entry->pasid);
+		if (task_info) {
+			dev_err(adev->dev, " for process %s pid %d thread %s pid %d\n",
+				task_info->process_name, task_info->tgid,
+				task_info->task_name, task_info->pid);
+			amdgpu_vm_put_task_info(task_info);
+		}
+
 		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_ADDR   0x%08X\n",
-			addr);
+				addr);
 		dev_err(adev->dev, "  VM_CONTEXT1_PROTECTION_FAULT_STATUS 0x%08X\n",
 			status);
+
 		gmc_v8_0_vm_decode_fault(adev, status, addr, mc_client,
 					 entry->pasid);
 	}

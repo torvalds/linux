@@ -24,31 +24,13 @@ enum ring_type {
  **/
 static struct i40e_vsi *i40e_dbg_find_vsi(struct i40e_pf *pf, int seid)
 {
-	int i;
-
-	if (seid < 0)
+	if (seid < 0) {
 		dev_info(&pf->pdev->dev, "%d: bad seid\n", seid);
-	else
-		for (i = 0; i < pf->num_alloc_vsi; i++)
-			if (pf->vsi[i] && (pf->vsi[i]->seid == seid))
-				return pf->vsi[i];
 
-	return NULL;
-}
+		return NULL;
+	}
 
-/**
- * i40e_dbg_find_veb - searches for the veb with the given seid
- * @pf: the PF structure to search for the veb
- * @seid: seid of the veb it is searching for
- **/
-static struct i40e_veb *i40e_dbg_find_veb(struct i40e_pf *pf, int seid)
-{
-	int i;
-
-	for (i = 0; i < I40E_MAX_VEB; i++)
-		if (pf->veb[i] && pf->veb[i]->seid == seid)
-			return pf->veb[i];
-	return NULL;
+	return i40e_pf_get_vsi_by_seid(pf, seid);
 }
 
 /**************************************************************
@@ -653,12 +635,11 @@ out:
  **/
 static void i40e_dbg_dump_vsi_no_seid(struct i40e_pf *pf)
 {
+	struct i40e_vsi *vsi;
 	int i;
 
-	for (i = 0; i < pf->num_alloc_vsi; i++)
-		if (pf->vsi[i])
-			dev_info(&pf->pdev->dev, "dump vsi[%d]: %d\n",
-				 i, pf->vsi[i]->seid);
+	i40e_pf_for_each_vsi(pf, i, vsi)
+		dev_info(&pf->pdev->dev, "dump vsi[%d]: %d\n", i, vsi->seid);
 }
 
 /**
@@ -696,15 +677,14 @@ static void i40e_dbg_dump_veb_seid(struct i40e_pf *pf, int seid)
 {
 	struct i40e_veb *veb;
 
-	veb = i40e_dbg_find_veb(pf, seid);
+	veb = i40e_pf_get_veb_by_seid(pf, seid);
 	if (!veb) {
 		dev_info(&pf->pdev->dev, "can't find veb %d\n", seid);
 		return;
 	}
 	dev_info(&pf->pdev->dev,
-		 "veb idx=%d,%d stats_ic=%d  seid=%d uplink=%d mode=%s\n",
-		 veb->idx, veb->veb_idx, veb->stats_idx, veb->seid,
-		 veb->uplink_seid,
+		 "veb idx=%d stats_ic=%d  seid=%d uplink=%d mode=%s\n",
+		 veb->idx, veb->stats_idx, veb->seid, veb->uplink_seid,
 		 veb->bridge_mode == BRIDGE_MODE_VEPA ? "VEPA" : "VEB");
 	i40e_dbg_dump_eth_stats(pf, &veb->stats);
 }
@@ -718,11 +698,8 @@ static void i40e_dbg_dump_veb_all(struct i40e_pf *pf)
 	struct i40e_veb *veb;
 	int i;
 
-	for (i = 0; i < I40E_MAX_VEB; i++) {
-		veb = pf->veb[i];
-		if (veb)
-			i40e_dbg_dump_veb_seid(pf, veb->seid);
-	}
+	i40e_pf_for_each_veb(pf, i, veb)
+		i40e_dbg_dump_veb_seid(pf, veb->seid);
 }
 
 /**
@@ -851,10 +828,14 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 
 	} else if (strncmp(cmd_buf, "add relay", 9) == 0) {
 		struct i40e_veb *veb;
-		int uplink_seid, i;
+		u8 enabled_tc = 0x1;
+		int uplink_seid;
 
 		cnt = sscanf(&cmd_buf[9], "%i %i", &uplink_seid, &vsi_seid);
-		if (cnt != 2) {
+		if (cnt == 0) {
+			uplink_seid = 0;
+			vsi_seid = 0;
+		} else if (cnt != 2) {
 			dev_info(&pf->pdev->dev,
 				 "add relay: bad command string, cnt=%d\n",
 				 cnt);
@@ -866,33 +847,36 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			goto command_write_done;
 		}
 
-		vsi = i40e_dbg_find_vsi(pf, vsi_seid);
-		if (!vsi) {
-			dev_info(&pf->pdev->dev,
-				 "add relay: VSI %d not found\n", vsi_seid);
-			goto command_write_done;
-		}
-
-		for (i = 0; i < I40E_MAX_VEB; i++)
-			if (pf->veb[i] && pf->veb[i]->seid == uplink_seid)
-				break;
-		if (i >= I40E_MAX_VEB && uplink_seid != 0 &&
-		    uplink_seid != pf->mac_seid) {
+		if (uplink_seid != 0 && uplink_seid != pf->mac_seid) {
 			dev_info(&pf->pdev->dev,
 				 "add relay: relay uplink %d not found\n",
 				 uplink_seid);
 			goto command_write_done;
+		} else if (uplink_seid) {
+			vsi = i40e_pf_get_vsi_by_seid(pf, vsi_seid);
+			if (!vsi) {
+				dev_info(&pf->pdev->dev,
+					 "add relay: VSI %d not found\n",
+					 vsi_seid);
+				goto command_write_done;
+			}
+			enabled_tc = vsi->tc_config.enabled_tc;
+		} else if (vsi_seid) {
+			dev_info(&pf->pdev->dev,
+				 "add relay: VSI must be 0 for floating relay\n");
+			goto command_write_done;
 		}
 
-		veb = i40e_veb_setup(pf, 0, uplink_seid, vsi_seid,
-				     vsi->tc_config.enabled_tc);
+		veb = i40e_veb_setup(pf, 0, uplink_seid, vsi_seid, enabled_tc);
 		if (veb)
 			dev_info(&pf->pdev->dev, "added relay %d\n", veb->seid);
 		else
 			dev_info(&pf->pdev->dev, "add relay failed\n");
 
 	} else if (strncmp(cmd_buf, "del relay", 9) == 0) {
+		struct i40e_veb *veb;
 		int i;
+
 		cnt = sscanf(&cmd_buf[9], "%i", &veb_seid);
 		if (cnt != 1) {
 			dev_info(&pf->pdev->dev,
@@ -906,9 +890,10 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		}
 
 		/* find the veb */
-		for (i = 0; i < I40E_MAX_VEB; i++)
-			if (pf->veb[i] && pf->veb[i]->seid == veb_seid)
+		i40e_pf_for_each_veb(pf, i, veb)
+			if (veb->seid == veb_seid)
 				break;
+
 		if (i >= I40E_MAX_VEB) {
 			dev_info(&pf->pdev->dev,
 				 "del relay: relay %d not found\n", veb_seid);
@@ -916,7 +901,7 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 		}
 
 		dev_info(&pf->pdev->dev, "deleting relay %d\n", veb_seid);
-		i40e_veb_release(pf->veb[i]);
+		i40e_veb_release(veb);
 	} else if (strncmp(cmd_buf, "add pvid", 8) == 0) {
 		unsigned int v;
 		int ret;
@@ -1251,8 +1236,8 @@ static ssize_t i40e_dbg_command_write(struct file *filp,
 			if (cnt == 0) {
 				int i;
 
-				for (i = 0; i < pf->num_alloc_vsi; i++)
-					i40e_vsi_reset_stats(pf->vsi[i]);
+				i40e_pf_for_each_vsi(pf, i, vsi)
+					i40e_vsi_reset_stats(vsi);
 				dev_info(&pf->pdev->dev, "vsi clear stats called for all vsi's\n");
 			} else if (cnt == 1) {
 				vsi = i40e_dbg_find_vsi(pf, vsi_seid);

@@ -365,15 +365,13 @@ static int i2sbus_probe(struct macio_dev* dev, const struct of_device_id *match)
 	return 0;
 }
 
-static int i2sbus_remove(struct macio_dev* dev)
+static void i2sbus_remove(struct macio_dev *dev)
 {
 	struct i2sbus_control *control = dev_get_drvdata(&dev->ofdev.dev);
 	struct i2sbus_dev *i2sdev, *tmp;
 
 	list_for_each_entry_safe(i2sdev, tmp, &control->list, item)
 		soundbus_remove_one(&i2sdev->sound);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM

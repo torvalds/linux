@@ -68,7 +68,7 @@ static int of_gpio_named_count(const struct device_node *np,
 
 /**
  * of_gpio_spi_cs_get_count() - special GPIO counting for SPI
- * @dev:    Consuming device
+ * @np:    Consuming device node
  * @con_id: Function within the GPIO consumer
  *
  * Some elder GPIO controllers need special quirks. Currently we handle
@@ -78,10 +78,9 @@ static int of_gpio_named_count(const struct device_node *np,
  * the counting of "cs-gpios" to count "gpios" transparent to the
  * driver.
  */
-static int of_gpio_spi_cs_get_count(struct device *dev, const char *con_id)
+static int of_gpio_spi_cs_get_count(const struct device_node *np,
+				    const char *con_id)
 {
-	struct device_node *np = dev->of_node;
-
 	if (!IS_ENABLED(CONFIG_SPI_MASTER))
 		return 0;
 	if (!con_id || strcmp(con_id, "cs"))
@@ -93,13 +92,14 @@ static int of_gpio_spi_cs_get_count(struct device *dev, const char *con_id)
 	return of_gpio_named_count(np, "gpios");
 }
 
-int of_gpio_get_count(struct device *dev, const char *con_id)
+int of_gpio_count(const struct fwnode_handle *fwnode, const char *con_id)
 {
+	const struct device_node *np = to_of_node(fwnode);
 	int ret;
 	char propname[32];
 	unsigned int i;
 
-	ret = of_gpio_spi_cs_get_count(dev, con_id);
+	ret = of_gpio_spi_cs_get_count(np, con_id);
 	if (ret > 0)
 		return ret;
 
@@ -111,16 +111,17 @@ int of_gpio_get_count(struct device *dev, const char *con_id)
 			snprintf(propname, sizeof(propname), "%s",
 				 gpio_suffixes[i]);
 
-		ret = of_gpio_named_count(dev->of_node, propname);
+		ret = of_gpio_named_count(np, propname);
 		if (ret > 0)
 			break;
 	}
 	return ret ? ret : -ENOENT;
 }
 
-static int of_gpiochip_match_node_and_xlate(struct gpio_chip *chip, void *data)
+static int of_gpiochip_match_node_and_xlate(struct gpio_chip *chip,
+					    const void *data)
 {
-	struct of_phandle_args *gpiospec = data;
+	const struct of_phandle_args *gpiospec = data;
 
 	return device_match_of_node(&chip->gpiodev->dev, gpiospec->np) &&
 				chip->of_xlate &&
@@ -128,7 +129,7 @@ static int of_gpiochip_match_node_and_xlate(struct gpio_chip *chip, void *data)
 }
 
 static struct gpio_device *
-of_find_gpio_device_by_xlate(struct of_phandle_args *gpiospec)
+of_find_gpio_device_by_xlate(const struct of_phandle_args *gpiospec)
 {
 	return gpio_device_find(gpiospec, of_gpiochip_match_node_and_xlate);
 }
@@ -413,6 +414,8 @@ out:
  * @np:		device node to get GPIO from
  * @propname:	Name of property containing gpio specifier(s)
  * @index:	index of the GPIO
+ *
+ * **DEPRECATED** This function is deprecated and must not be used in new code.
  *
  * Returns GPIO number to use with Linux generic GPIO API, or one of the errno
  * value on the error condition.
@@ -798,7 +801,7 @@ static int of_gpiochip_add_hog(struct gpio_chip *chip, struct device_node *hog)
 			return ret;
 
 #ifdef CONFIG_OF_DYNAMIC
-		desc->hog = hog;
+		WRITE_ONCE(desc->hog, hog);
 #endif
 	}
 
@@ -846,11 +849,11 @@ static void of_gpiochip_remove_hog(struct gpio_chip *chip,
 	struct gpio_desc *desc;
 
 	for_each_gpio_desc_with_flag(chip, desc, FLAG_IS_HOGGED)
-		if (desc->hog == hog)
+		if (READ_ONCE(desc->hog) == hog)
 			gpiochip_free_own_desc(desc);
 }
 
-static int of_gpiochip_match_node(struct gpio_chip *chip, void *data)
+static int of_gpiochip_match_node(struct gpio_chip *chip, const void *data)
 {
 	return device_match_of_node(&chip->gpiodev->dev, data);
 }

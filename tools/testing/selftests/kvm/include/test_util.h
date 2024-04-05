@@ -20,6 +20,8 @@
 #include <sys/mman.h>
 #include "kselftest.h"
 
+#define msecs_to_usecs(msec)    ((msec) * 1000ULL)
+
 static inline int _no_printf(const char *format, ...) { return 0; }
 
 #ifdef DEBUG

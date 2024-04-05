@@ -34,8 +34,7 @@ struct cea_sad;
 #define WREG32_ENDPOINT(block, reg, v)	\
 	radeon_audio_endpoint_wreg(rdev, (block), (reg), (v))
 
-struct radeon_audio_basic_funcs
-{
+struct radeon_audio_basic_funcs {
 	u32  (*endpoint_rreg)(struct radeon_device *rdev, u32 offset, u32 reg);
 	void (*endpoint_wreg)(struct radeon_device *rdev,
 		u32 offset, u32 reg, u32 v);
@@ -43,8 +42,7 @@ struct radeon_audio_basic_funcs
 		struct r600_audio_pin *pin, u8 enable_mask);
 };
 
-struct radeon_audio_funcs
-{
+struct radeon_audio_funcs {
 	void (*select_pin)(struct drm_encoder *encoder);
 	struct r600_audio_pin* (*get_pin)(struct radeon_device *rdev);
 	void (*write_latency_fields)(struct drm_encoder *encoder,

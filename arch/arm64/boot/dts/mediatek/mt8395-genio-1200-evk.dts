@@ -880,6 +880,21 @@
 	status = "disabled";
 };
 
+&ssusb0 {
+	vusb33-supply = <&mt6359_vusb_ldo_reg>;
+	status = "okay";
+};
+
+&ssusb2 {
+	vusb33-supply = <&mt6359_vusb_ldo_reg>;
+	status = "okay";
+};
+
+&ssusb3 {
+	vusb33-supply = <&mt6359_vusb_ldo_reg>;
+	status = "okay";
+};
+
 &xhci0 {
 	status = "okay";
 };
@@ -890,11 +905,9 @@
 };
 
 &xhci2 {
-	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	status = "okay";
 };
 
 &xhci3 {
-	vusb33-supply = <&mt6359_vusb_ldo_reg>;
 	status = "okay";
 };

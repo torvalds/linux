@@ -23,6 +23,7 @@
 #include <linux/ctype.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
+#include <linux/string.h>
 #include <symbol/kallsyms.h>
 #include <internal/lib.h>
 
@@ -1329,6 +1330,58 @@ out_close:
 	return -1;
 }
 
+static bool is_exe_text(int flags)
+{
+	return (flags & (SHF_ALLOC | SHF_EXECINSTR)) == (SHF_ALLOC | SHF_EXECINSTR);
+}
+
+/*
+ * Some executable module sections like .noinstr.text might be laid out with
+ * .text so they can use the same mapping (memory address to file offset).
+ * Check if that is the case. Refer to kernel layout_sections(). Return the
+ * maximum offset.
+ */
+static u64 max_text_section(Elf *elf, GElf_Ehdr *ehdr)
+{
+	Elf_Scn *sec = NULL;
+	GElf_Shdr shdr;
+	u64 offs = 0;
+
+	/* Doesn't work for some arch */
+	if (ehdr->e_machine == EM_PARISC ||
+	    ehdr->e_machine == EM_ALPHA)
+		return 0;
+
+	/* ELF is corrupted/truncated, avoid calling elf_strptr. */
+	if (!elf_rawdata(elf_getscn(elf, ehdr->e_shstrndx), NULL))
+		return 0;
+
+	while ((sec = elf_nextscn(elf, sec)) != NULL) {
+		char *sec_name;
+
+		if (!gelf_getshdr(sec, &shdr))
+			break;
+
+		if (!is_exe_text(shdr.sh_flags))
+			continue;
+
+		/* .init and .exit sections are not placed with .text */
+		sec_name = elf_strptr(elf, ehdr->e_shstrndx, shdr.sh_name);
+		if (!sec_name ||
+		    strstarts(sec_name, ".init") ||
+		    strstarts(sec_name, ".exit"))
+			break;
+
+		/* Must be next to previous, assumes .text is first */
+		if (offs && PERF_ALIGN(offs, shdr.sh_addralign ?: 1) != shdr.sh_offset)
+			break;
+
+		offs = shdr.sh_offset + shdr.sh_size;
+	}
+
+	return offs;
+}
+
 /**
  * ref_reloc_sym_not_found - has kernel relocation symbol been found.
  * @kmap: kernel maps and relocation reference symbol
@@ -1368,7 +1421,8 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 				      struct maps *kmaps, struct kmap *kmap,
 				      struct dso **curr_dsop, struct map **curr_mapp,
 				      const char *section_name,
-				      bool adjust_kernel_syms, bool kmodule, bool *remap_kernel)
+				      bool adjust_kernel_syms, bool kmodule, bool *remap_kernel,
+				      u64 max_text_sh_offset)
 {
 	struct dso *curr_dso = *curr_dsop;
 	struct map *curr_map;
@@ -1424,6 +1478,17 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 	if (!kmap)
 		return 0;
 
+	/*
+	 * perf does not record module section addresses except for .text, but
+	 * some sections can use the same mapping as .text.
+	 */
+	if (kmodule && adjust_kernel_syms && is_exe_text(shdr->sh_flags) &&
+	    shdr->sh_offset <= max_text_sh_offset) {
+		*curr_mapp = map;
+		*curr_dsop = dso;
+		return 0;
+	}
+
 	snprintf(dso_name, sizeof(dso_name), "%s%s", dso->short_name, section_name);
 
 	curr_map = maps__find_by_name(kmaps, dso_name);
@@ -1470,8 +1535,10 @@ static int dso__process_kernel_symbol(struct dso *dso, struct map *map,
 		dso__set_loaded(curr_dso);
 		*curr_mapp = curr_map;
 		*curr_dsop = curr_dso;
-	} else
+	} else {
 		*curr_dsop = map__dso(curr_map);
+		map__put(curr_map);
+	}
 
 	return 0;
 }
@@ -1497,6 +1564,7 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 	Elf *elf;
 	int nr = 0;
 	bool remap_kernel = false, adjust_kernel_syms = false;
+	u64 max_text_sh_offset = 0;
 
 	if (kmap && !kmaps)
 		return -1;
@@ -1584,6 +1652,10 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 		remap_kernel = true;
 		adjust_kernel_syms = dso->adjust_symbols;
 	}
+
+	if (kmodule && adjust_kernel_syms)
+		max_text_sh_offset = max_text_section(runtime_ss->elf, &runtime_ss->ehdr);
+
 	elf_symtab__for_each_symbol(syms, nr_syms, idx, sym) {
 		struct symbol *f;
 		const char *elf_name = elf_sym__name(&sym, symstrs);
@@ -1673,7 +1745,8 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 
 		if (dso->kernel) {
 			if (dso__process_kernel_symbol(dso, map, &sym, &shdr, kmaps, kmap, &curr_dso, &curr_map,
-						       section_name, adjust_kernel_syms, kmodule, &remap_kernel))
+						       section_name, adjust_kernel_syms, kmodule,
+						       &remap_kernel, max_text_sh_offset))
 				goto out_elf_end;
 		} else if ((used_opd && runtime_ss->adjust_symbols) ||
 			   (!used_opd && syms_ss->adjust_symbols)) {

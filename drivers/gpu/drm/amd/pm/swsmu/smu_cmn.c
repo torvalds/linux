@@ -378,8 +378,15 @@ int smu_cmn_send_smc_msg_with_param(struct smu_context *smu,
 	res = __smu_cmn_reg2errno(smu, reg);
 	if (res != 0)
 		__smu_cmn_reg_print_error(smu, reg, index, param, msg);
-	if (read_arg)
+	if (read_arg) {
 		smu_cmn_read_arg(smu, read_arg);
+		dev_dbg(adev->dev, "smu send message: %s(%d) param: 0x%08x, resp: 0x%08x,\
+			readval: 0x%08x\n",
+			smu_get_message_name(smu, msg), index, param, reg, *read_arg);
+	} else {
+		dev_dbg(adev->dev, "smu send message: %s(%d) param: 0x%08x, resp: 0x%08x\n",
+			smu_get_message_name(smu, msg), index, param, reg);
+	}
 Out:
 	if (unlikely(adev->pm.smu_debug_mask & SMU_DEBUG_HALT_ON_ERROR) && res) {
 		amdgpu_device_halt(adev);

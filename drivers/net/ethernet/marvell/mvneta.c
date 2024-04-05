@@ -5097,7 +5097,7 @@ static int mvneta_ethtool_set_wol(struct net_device *dev,
 }
 
 static int mvneta_ethtool_get_eee(struct net_device *dev,
-				  struct ethtool_eee *eee)
+				  struct ethtool_keee *eee)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
 	u32 lpi_ctl0;
@@ -5113,7 +5113,7 @@ static int mvneta_ethtool_get_eee(struct net_device *dev,
 }
 
 static int mvneta_ethtool_set_eee(struct net_device *dev,
-				  struct ethtool_eee *eee)
+				  struct ethtool_keee *eee)
 {
 	struct mvneta_port *pp = netdev_priv(dev);
 	u32 lpi_ctl0;

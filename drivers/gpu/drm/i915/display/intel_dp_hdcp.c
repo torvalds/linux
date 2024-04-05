@@ -36,8 +36,10 @@ static u32 transcoder_to_stream_enc_status(enum transcoder cpu_transcoder)
 	}
 }
 
-static void intel_dp_hdcp_wait_for_cp_irq(struct intel_hdcp *hdcp, int timeout)
+static void intel_dp_hdcp_wait_for_cp_irq(struct intel_connector *connector,
+					  int timeout)
 {
+	struct intel_hdcp *hdcp = &connector->hdcp;
 	long ret;
 
 #define C (hdcp->cp_irq_count_cached != atomic_read(&hdcp->cp_irq_count))
@@ -45,7 +47,8 @@ static void intel_dp_hdcp_wait_for_cp_irq(struct intel_hdcp *hdcp, int timeout)
 					       msecs_to_jiffies(timeout));
 
 	if (!ret)
-		DRM_DEBUG_KMS("Timedout at waiting for CP_IRQ\n");
+		drm_dbg_kms(connector->base.dev,
+			    "Timedout at waiting for CP_IRQ\n");
 }
 
 static
@@ -122,13 +125,13 @@ static int intel_dp_hdcp_read_bstatus(struct intel_digital_port *dig_port,
 }
 
 static
-int intel_dp_hdcp_read_bcaps(struct intel_digital_port *dig_port,
+int intel_dp_hdcp_read_bcaps(struct drm_dp_aux *aux,
+			     struct drm_i915_private *i915,
 			     u8 *bcaps)
 {
-	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	ssize_t ret;
 
-	ret = drm_dp_dpcd_read(&dig_port->dp.aux, DP_AUX_HDCP_BCAPS,
+	ret = drm_dp_dpcd_read(aux, DP_AUX_HDCP_BCAPS,
 			       bcaps, 1);
 	if (ret != 1) {
 		drm_dbg_kms(&i915->drm,
@@ -143,10 +146,11 @@ static
 int intel_dp_hdcp_repeater_present(struct intel_digital_port *dig_port,
 				   bool *repeater_present)
 {
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	ssize_t ret;
 	u8 bcaps;
 
-	ret = intel_dp_hdcp_read_bcaps(dig_port, &bcaps);
+	ret = intel_dp_hdcp_read_bcaps(&dig_port->dp.aux, i915,  &bcaps);
 	if (ret)
 		return ret;
 
@@ -265,13 +269,14 @@ bool intel_dp_hdcp_check_link(struct intel_digital_port *dig_port,
 }
 
 static
-int intel_dp_hdcp_capable(struct intel_digital_port *dig_port,
-			  bool *hdcp_capable)
+int intel_dp_hdcp_get_capability(struct intel_digital_port *dig_port,
+				 bool *hdcp_capable)
 {
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
 	ssize_t ret;
 	u8 bcaps;
 
-	ret = intel_dp_hdcp_read_bcaps(dig_port, &bcaps);
+	ret = intel_dp_hdcp_read_bcaps(&dig_port->dp.aux, i915, &bcaps);
 	if (ret)
 		return ret;
 
@@ -377,7 +382,8 @@ int hdcp2_detect_msg_availability(struct intel_connector *connector,
 			*msg_ready = true;
 		break;
 	default:
-		DRM_ERROR("Unidentified msg_id: %d\n", msg_id);
+		drm_err(connector->base.dev,
+			"Unidentified msg_id: %d\n", msg_id);
 		return -EINVAL;
 	}
 
@@ -413,7 +419,7 @@ intel_dp_hdcp2_wait_for_msg(struct intel_connector *connector,
 		 * As we want to check the msg availability at timeout, Ignoring
 		 * the timeout at wait for CP_IRQ.
 		 */
-		intel_dp_hdcp_wait_for_cp_irq(hdcp, timeout);
+		intel_dp_hdcp_wait_for_cp_irq(connector, timeout);
 		ret = hdcp2_detect_msg_availability(connector, msg_id,
 						    &msg_ready);
 		if (!msg_ready)
@@ -634,24 +640,69 @@ int intel_dp_hdcp2_check_link(struct intel_digital_port *dig_port,
 }
 
 static
-int intel_dp_hdcp2_capable(struct intel_connector *connector,
-			   bool *capable)
+int _intel_dp_hdcp2_get_capability(struct drm_dp_aux *aux,
+				   bool *capable)
+{
+	u8 rx_caps[3];
+	int ret, i;
+
+	*capable = false;
+
+	/*
+	 * Some HDCP monitors act really shady by not giving the correct hdcp
+	 * capability on the first rx_caps read and usually take an extra read
+	 * to give the capability. We read rx_caps three times before we
+	 * declare a monitor not capable of HDCP 2.2.
+	 */
+	for (i = 0; i < 3; i++) {
+		ret = drm_dp_dpcd_read(aux,
+				       DP_HDCP_2_2_REG_RX_CAPS_OFFSET,
+				       rx_caps, HDCP_2_2_RXCAPS_LEN);
+		if (ret != HDCP_2_2_RXCAPS_LEN)
+			return ret >= 0 ? -EIO : ret;
+
+		if (rx_caps[0] == HDCP_2_2_RX_CAPS_VERSION_VAL &&
+		    HDCP_2_2_DP_HDCP_CAPABLE(rx_caps[2])) {
+			*capable = true;
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static
+int intel_dp_hdcp2_get_capability(struct intel_connector *connector,
+				  bool *capable)
 {
 	struct intel_digital_port *dig_port = intel_attached_dig_port(connector);
 	struct drm_dp_aux *aux = &dig_port->dp.aux;
-	u8 rx_caps[3];
+
+	return _intel_dp_hdcp2_get_capability(aux, capable);
+}
+
+static
+int intel_dp_hdcp_get_remote_capability(struct intel_connector *connector,
+					bool *hdcp_capable,
+					bool *hdcp2_capable)
+{
+	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct drm_dp_aux *aux = &connector->port->aux;
+	u8 bcaps;
 	int ret;
 
-	*capable = false;
-	ret = drm_dp_dpcd_read(aux,
-			       DP_HDCP_2_2_REG_RX_CAPS_OFFSET,
-			       rx_caps, HDCP_2_2_RXCAPS_LEN);
-	if (ret != HDCP_2_2_RXCAPS_LEN)
-		return ret >= 0 ? -EIO : ret;
+	if (!intel_encoder_is_mst(connector->encoder))
+		return -EINVAL;
 
-	if (rx_caps[0] == HDCP_2_2_RX_CAPS_VERSION_VAL &&
-	    HDCP_2_2_DP_HDCP_CAPABLE(rx_caps[2]))
-		*capable = true;
+	ret =  _intel_dp_hdcp2_get_capability(aux, hdcp2_capable);
+	if (ret)
+		return ret;
+
+	ret = intel_dp_hdcp_read_bcaps(aux, i915, &bcaps);
+	if (ret)
+		return ret;
+
+	*hdcp_capable = bcaps & DP_BCAPS_HDCP_CAPABLE;
 
 	return 0;
 }
@@ -667,12 +718,12 @@ static const struct intel_hdcp_shim intel_dp_hdcp_shim = {
 	.read_v_prime_part = intel_dp_hdcp_read_v_prime_part,
 	.toggle_signalling = intel_dp_hdcp_toggle_signalling,
 	.check_link = intel_dp_hdcp_check_link,
-	.hdcp_capable = intel_dp_hdcp_capable,
+	.hdcp_get_capability = intel_dp_hdcp_get_capability,
 	.write_2_2_msg = intel_dp_hdcp2_write_msg,
 	.read_2_2_msg = intel_dp_hdcp2_read_msg,
 	.config_stream_type = intel_dp_hdcp2_config_stream_type,
 	.check_2_2_link = intel_dp_hdcp2_check_link,
-	.hdcp_2_2_capable = intel_dp_hdcp2_capable,
+	.hdcp_2_2_get_capability = intel_dp_hdcp2_get_capability,
 	.protocol = HDCP_PROTOCOL_DP,
 };
 
@@ -797,13 +848,14 @@ static const struct intel_hdcp_shim intel_dp_mst_hdcp_shim = {
 	.toggle_signalling = intel_dp_hdcp_toggle_signalling,
 	.stream_encryption = intel_dp_mst_hdcp_stream_encryption,
 	.check_link = intel_dp_hdcp_check_link,
-	.hdcp_capable = intel_dp_hdcp_capable,
+	.hdcp_get_capability = intel_dp_hdcp_get_capability,
 	.write_2_2_msg = intel_dp_hdcp2_write_msg,
 	.read_2_2_msg = intel_dp_hdcp2_read_msg,
 	.config_stream_type = intel_dp_hdcp2_config_stream_type,
 	.stream_2_2_encryption = intel_dp_mst_hdcp2_stream_encryption,
 	.check_2_2_link = intel_dp_mst_hdcp2_check_link,
-	.hdcp_2_2_capable = intel_dp_hdcp2_capable,
+	.hdcp_2_2_get_capability = intel_dp_hdcp2_get_capability,
+	.get_remote_hdcp_capability = intel_dp_hdcp_get_remote_capability,
 	.protocol = HDCP_PROTOCOL_DP,
 };
 

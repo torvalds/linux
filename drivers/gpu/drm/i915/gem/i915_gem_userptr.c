@@ -42,7 +42,6 @@
 #include "i915_drv.h"
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"
-#include "i915_gem_userptr.h"
 #include "i915_scatterlist.h"
 
 #ifdef CONFIG_MMU_NOTIFIER
@@ -61,36 +60,7 @@ static bool i915_gem_userptr_invalidate(struct mmu_interval_notifier *mni,
 					const struct mmu_notifier_range *range,
 					unsigned long cur_seq)
 {
-	struct drm_i915_gem_object *obj = container_of(mni, struct drm_i915_gem_object, userptr.notifier);
-	struct drm_i915_private *i915 = to_i915(obj->base.dev);
-	long r;
-
-	if (!mmu_notifier_range_blockable(range))
-		return false;
-
-	write_lock(&i915->mm.notifier_lock);
-
 	mmu_interval_set_seq(mni, cur_seq);
-
-	write_unlock(&i915->mm.notifier_lock);
-
-	/*
-	 * We don't wait when the process is exiting. This is valid
-	 * because the object will be cleaned up anyway.
-	 *
-	 * This is also temporarily required as a hack, because we
-	 * cannot currently force non-consistent batch buffers to preempt
-	 * and reschedule by waiting on it, hanging processes on exit.
-	 */
-	if (current->flags & PF_EXITING)
-		return true;
-
-	/* we will unbind on next submission, still have userptr pins */
-	r = dma_resv_wait_timeout(obj->base.resv, DMA_RESV_USAGE_BOOKKEEP, false,
-				  MAX_SCHEDULE_TIMEOUT);
-	if (r <= 0)
-		drm_err(&i915->drm, "(%ld) failed to wait for idle\n", r);
-
 	return true;
 }
 
@@ -583,15 +553,3 @@ i915_gem_userptr_ioctl(struct drm_device *dev,
 #endif
 }
 
-int i915_gem_init_userptr(struct drm_i915_private *dev_priv)
-{
-#ifdef CONFIG_MMU_NOTIFIER
-	rwlock_init(&dev_priv->mm.notifier_lock);
-#endif
-
-	return 0;
-}
-
-void i915_gem_cleanup_userptr(struct drm_i915_private *dev_priv)
-{
-}

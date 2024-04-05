@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -1036,7 +1036,7 @@ lpfc_handle_rrq_active(struct lpfc_hba *phba)
 	}
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	if ((!list_empty(&phba->active_rrq_list)) &&
-	    (!(phba->pport->load_flag & FC_UNLOADING)))
+	    (!test_bit(FC_UNLOADING, &phba->pport->load_flag)))
 		mod_timer(&phba->rrq_tmr, next_time);
 	list_for_each_entry_safe(rrq, nextrrq, &send_rrq, list) {
 		list_del(&rrq->list);
@@ -1180,12 +1180,12 @@ lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 		return -EINVAL;
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
-	if (phba->pport->load_flag & FC_UNLOADING) {
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag)) {
 		phba->hba_flag &= ~HBA_RRQ_ACTIVE;
 		goto out;
 	}
 
-	if (ndlp->vport && (ndlp->vport->load_flag & FC_UNLOADING))
+	if (ndlp->vport && test_bit(FC_UNLOADING, &ndlp->vport->load_flag))
 		goto out;
 
 	if (!ndlp->active_rrqs_xri_bitmap)
@@ -1732,7 +1732,7 @@ lpfc_sli_ringtxcmpl_put(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	   (ulp_command != CMD_ABORT_XRI_CN) &&
 	   (ulp_command != CMD_CLOSE_XRI_CN)) {
 		BUG_ON(!piocb->vport);
-		if (!(piocb->vport->load_flag & FC_UNLOADING))
+		if (!test_bit(FC_UNLOADING, &piocb->vport->load_flag))
 			mod_timer(&piocb->vport->els_tmofunc,
 				  jiffies +
 				  msecs_to_jiffies(1000 * (phba->fc_ratov << 1)));
@@ -2882,7 +2882,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	 * If a REG_LOGIN succeeded  after node is destroyed or node
 	 * is in re-discovery driver need to cleanup the RPI.
 	 */
-	if (!(phba->pport->load_flag & FC_UNLOADING) &&
+	if (!test_bit(FC_UNLOADING, &phba->pport->load_flag) &&
 	    pmb->u.mb.mbxCommand == MBX_REG_LOGIN64 &&
 	    !pmb->u.mb.mbxStatus) {
 		mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
@@ -2904,13 +2904,13 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	if ((pmb->u.mb.mbxCommand == MBX_REG_VPI) &&
-		!(phba->pport->load_flag & FC_UNLOADING) &&
+		!test_bit(FC_UNLOADING, &phba->pport->load_flag) &&
 		!pmb->u.mb.mbxStatus) {
 		shost = lpfc_shost_from_vport(vport);
 		spin_lock_irq(shost->host_lock);
 		vport->vpi_state |= LPFC_VPI_REGISTERED;
-		vport->fc_flag &= ~FC_VPORT_NEEDS_REG_VPI;
 		spin_unlock_irq(shost->host_lock);
+		clear_bit(FC_VPORT_NEEDS_REG_VPI, &vport->fc_flag);
 	}
 
 	if (pmb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
@@ -2927,7 +2927,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				vport,
 				KERN_INFO, LOG_MBOX | LOG_DISCOVERY,
 				"1438 UNREG cmpl deferred mbox x%x "
-				"on NPort x%x Data: x%x x%x x%px x%x x%x\n",
+				"on NPort x%x Data: x%x x%x x%px x%lx x%x\n",
 				ndlp->nlp_rpi, ndlp->nlp_DID,
 				ndlp->nlp_flag, ndlp->nlp_defer_did,
 				ndlp, vport->load_flag, kref_read(&ndlp->kref));
@@ -3235,7 +3235,7 @@ lpfc_nvme_unsol_ls_handler(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 	lpfc_nvmeio_data(phba, "NVME LS    RCV: xri x%x sz %d from %06x\n",
 			 oxid, size, sid);
 
-	if (phba->pport->load_flag & FC_UNLOADING) {
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag)) {
 		failwhy = "Driver Unloading";
 	} else if (!(phba->cfg_enable_fc4_type & LPFC_ENABLE_NVME)) {
 		failwhy = "NVME FC4 Disabled";
@@ -3940,7 +3940,7 @@ void lpfc_poll_eratt(struct timer_list *t)
 	if (!(phba->hba_flag & HBA_SETUP))
 		return;
 
-	if (phba->pport->load_flag & FC_UNLOADING)
+	if (test_bit(FC_UNLOADING, &phba->pport->load_flag))
 		return;
 
 	/* Here we will also keep track of interrupts per sec of the hba */
@@ -7582,7 +7582,7 @@ lpfc_sli4_repost_sgl_list(struct lpfc_hba *phba,
 	struct lpfc_sglq *sglq_entry = NULL;
 	struct lpfc_sglq *sglq_entry_next = NULL;
 	struct lpfc_sglq *sglq_entry_first = NULL;
-	int status, total_cnt;
+	int status = 0, total_cnt;
 	int post_cnt = 0, num_posted = 0, block_cnt = 0;
 	int last_xritag = NO_XRI;
 	LIST_HEAD(prep_sgl_list);
@@ -10888,7 +10888,7 @@ __lpfc_sli_prep_els_req_rsp_s4(struct lpfc_iocbq *cmdiocbq,
 	 * all ELS pt2pt protocol traffic as well.
 	 */
 	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) ||
-	    (vport->fc_flag & FC_PT2PT)) {
+	    test_bit(FC_PT2PT, &vport->fc_flag)) {
 		if (expect_rsp) {
 			bf_set(els_req64_sid, &wqe->els_req, vport->fc_myDID);
 
@@ -12428,7 +12428,7 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	 * If we're unloading, don't abort iocb on the ELS ring, but change
 	 * the callback so that nothing happens when it finishes.
 	 */
-	if ((vport->load_flag & FC_UNLOADING) &&
+	if (test_bit(FC_UNLOADING, &vport->load_flag) &&
 	    pring->ringno == LPFC_ELS_RING) {
 		if (cmdiocb->cmd_flag & LPFC_IO_FABRIC)
 			cmdiocb->fabric_cmd_cmpl = lpfc_ignore_els_cmpl;
@@ -14658,7 +14658,7 @@ lpfc_sli4_sp_handle_rcqe(struct lpfc_hba *phba, struct lpfc_rcqe *rcqe)
 		    fc_hdr->fh_r_ctl == FC_RCTL_DD_UNSOL_DATA) {
 			spin_unlock_irqrestore(&phba->hbalock, iflags);
 			/* Handle MDS Loopback frames */
-			if  (!(phba->pport->load_flag & FC_UNLOADING))
+			if  (!test_bit(FC_UNLOADING, &phba->pport->load_flag))
 				lpfc_sli4_handle_mds_loopback(phba->pport,
 							      dma_buf);
 			else
@@ -18552,8 +18552,8 @@ lpfc_fc_frame_to_vport(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr,
 
 	if (did == Fabric_DID)
 		return phba->pport;
-	if ((phba->pport->fc_flag & FC_PT2PT) &&
-		!(phba->link_state == LPFC_HBA_READY))
+	if (test_bit(FC_PT2PT, &phba->pport->fc_flag) &&
+	    phba->link_state != LPFC_HBA_READY)
 		return phba->pport;
 
 	vports = lpfc_create_vport_work_array(phba);
@@ -18933,7 +18933,7 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 					 "oxid:x%x SID:x%x\n", oxid, sid);
 			return;
 		}
-		/* Put ndlp onto pport node list */
+		/* Put ndlp onto vport node list */
 		lpfc_enqueue_node(vport, ndlp);
 	}
 
@@ -18953,7 +18953,7 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 		return;
 	}
 
-	ctiocb->vport = phba->pport;
+	ctiocb->vport = vport;
 	ctiocb->cmd_cmpl = lpfc_sli4_seq_abort_rsp_cmpl;
 	ctiocb->sli4_lxritag = NO_XRI;
 	ctiocb->sli4_xritag = NO_XRI;
@@ -19039,6 +19039,16 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 		lpfc_nlp_put(ndlp);
 		ctiocb->ndlp = NULL;
 		lpfc_sli_release_iocbq(phba, ctiocb);
+	}
+
+	/* if only usage of this nodelist is BLS response, release initial ref
+	 * to free ndlp when transmit completes
+	 */
+	if (ndlp->nlp_state == NLP_STE_UNUSED_NODE &&
+	    !(ndlp->nlp_flag & NLP_DROPPED) &&
+	    !(ndlp->fc4_xpt_flags & (NVME_XPT_REGD | SCSI_XPT_REGD))) {
+		ndlp->nlp_flag |= NLP_DROPPED;
+		lpfc_nlp_put(ndlp);
 	}
 }
 
@@ -19447,7 +19457,7 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
 	    fc_hdr->fh_r_ctl == FC_RCTL_DD_UNSOL_DATA) {
 		vport = phba->pport;
 		/* Handle MDS Loopback frames */
-		if  (!(phba->pport->load_flag & FC_UNLOADING))
+		if  (!test_bit(FC_UNLOADING, &phba->pport->load_flag))
 			lpfc_sli4_handle_mds_loopback(vport, dmabuf);
 		else
 			lpfc_in_buf_free(phba, &dmabuf->dbuf);
@@ -19497,8 +19507,8 @@ lpfc_sli4_handle_received_buffer(struct lpfc_hba *phba,
 		 * The pt2pt protocol allows for discovery frames
 		 * to be received without a registered VPI.
 		 */
-		if (!(vport->fc_flag & FC_PT2PT) ||
-			(phba->link_state == LPFC_HBA_READY)) {
+		if (!test_bit(FC_PT2PT, &vport->fc_flag) ||
+		    phba->link_state == LPFC_HBA_READY) {
 			lpfc_in_buf_free(phba, &dmabuf->dbuf);
 			return;
 		}
@@ -22656,7 +22666,7 @@ lpfc_sli_prep_wqe(struct lpfc_hba *phba, struct lpfc_iocbq *job)
 		if_type = bf_get(lpfc_sli_intf_if_type,
 				 &phba->sli4_hba.sli_intf);
 		if (if_type >= LPFC_SLI_INTF_IF_TYPE_2) {
-			if (job->vport->fc_flag & FC_PT2PT) {
+			if (test_bit(FC_PT2PT, &job->vport->fc_flag)) {
 				bf_set(els_rsp64_sp, &wqe->xmit_els_rsp, 1);
 				bf_set(els_rsp64_sid, &wqe->xmit_els_rsp,
 				       job->vport->fc_myDID);

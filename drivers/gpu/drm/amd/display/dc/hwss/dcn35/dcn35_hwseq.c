@@ -1342,8 +1342,8 @@ void dcn35_set_drr(struct pipe_ctx **pipe_ctx,
 {
 	int i = 0;
 	struct drr_params params = {0};
-	// DRR set trigger event mapped to OTG_TRIG_A (bit 11) for manual control flow
-	unsigned int event_triggers = 0x800;
+	// DRR set trigger event mapped to OTG_TRIG_A
+	unsigned int event_triggers = 0x2;//Bit[1]: OTG_TRIG_A
 	// Note DRR trigger events are generated regardless of whether num frames met.
 	unsigned int num_frames = 2;
 
@@ -1376,4 +1376,21 @@ void dcn35_set_drr(struct pipe_ctx **pipe_ctx,
 						event_triggers, num_frames);
 		}
 	}
+}
+void dcn35_set_static_screen_control(struct pipe_ctx **pipe_ctx,
+		int num_pipes, const struct dc_static_screen_params *params)
+{
+	unsigned int i;
+	unsigned int triggers = 0;
+
+	if (params->triggers.surface_update)
+		triggers |= 0x200;/*bit 9  : 10 0000 0000*/
+	if (params->triggers.cursor_update)
+		triggers |= 0x8;/*bit3*/
+	if (params->triggers.force_trigger)
+		triggers |= 0x1;
+	for (i = 0; i < num_pipes; i++)
+		pipe_ctx[i]->stream_res.tg->funcs->
+			set_static_screen_control(pipe_ctx[i]->stream_res.tg,
+					triggers, params->num_frames);
 }

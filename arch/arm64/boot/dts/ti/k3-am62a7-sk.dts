@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
 /*
  * AM62A SK: https://www.ti.com/lit/zip/sprr459
  *
- * Copyright (C) 2022 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2022-2024 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 /dts-v1/;
@@ -20,6 +20,7 @@
 		serial0 = &wkup_uart0;
 		serial2 = &main_uart0;
 		serial3 = &main_uart1;
+		mmc0 = &sdhci0;
 		mmc1 = &sdhci1;
 	};
 
@@ -132,6 +133,18 @@
 		clock-frequency = <12288000>;
 	};
 
+	hdmi0: connector-hdmi {
+		compatible = "hdmi-connector";
+		label = "hdmi";
+		type = "a";
+
+		port {
+			hdmi_connector_in: endpoint {
+				remote-endpoint = <&sii9022_out>;
+			};
+		};
+	};
+
 	codec_audio: sound {
 		compatible = "simple-audio-card";
 		simple-audio-card,name = "AM62Ax-SKEVM";
@@ -181,6 +194,39 @@
 };
 
 &main_pmx0 {
+	main_dss0_pins_default: main-dss0-default-pins {
+		pinctrl-single,pins = <
+			AM62AX_IOPAD(0x100, PIN_OUTPUT, 0) /* (V17) VOUT0_VSYNC */
+			AM62AX_IOPAD(0x0f8, PIN_OUTPUT, 0) /* (T18) VOUT0_HSYNC */
+			AM62AX_IOPAD(0x104, PIN_OUTPUT, 0) /* (AA22) VOUT0_PCLK */
+			AM62AX_IOPAD(0x0fc, PIN_OUTPUT, 0) /* (U17) VOUT0_DE */
+			AM62AX_IOPAD(0x0b8, PIN_OUTPUT, 0) /* (U22) VOUT0_DATA0 */
+			AM62AX_IOPAD(0x0bc, PIN_OUTPUT, 0) /* (U21) VOUT0_DATA1 */
+			AM62AX_IOPAD(0x0c0, PIN_OUTPUT, 0) /* (U20) VOUT0_DATA2 */
+			AM62AX_IOPAD(0x0c4, PIN_OUTPUT, 0) /* (U19) VOUT0_DATA3 */
+			AM62AX_IOPAD(0x0c8, PIN_OUTPUT, 0) /* (T19) VOUT0_DATA4 */
+			AM62AX_IOPAD(0x0cc, PIN_OUTPUT, 0) /* (U18) VOUT0_DATA5 */
+			AM62AX_IOPAD(0x0d0, PIN_OUTPUT, 0) /* (V22) VOUT0_DATA6 */
+			AM62AX_IOPAD(0x0d4, PIN_OUTPUT, 0) /* (V21) VOUT0_DATA7 */
+			AM62AX_IOPAD(0x0d8, PIN_OUTPUT, 0) /* (V19) VOUT0_DATA8 */
+			AM62AX_IOPAD(0x0dc, PIN_OUTPUT, 0) /* (V18) VOUT0_DATA9 */
+			AM62AX_IOPAD(0x0e0, PIN_OUTPUT, 0) /* (W22) VOUT0_DATA10 */
+			AM62AX_IOPAD(0x0e4, PIN_OUTPUT, 0) /* (W21) VOUT0_DATA11 */
+			AM62AX_IOPAD(0x0e8, PIN_OUTPUT, 0) /* (W20) VOUT0_DATA12 */
+			AM62AX_IOPAD(0x0ec, PIN_OUTPUT, 0) /* (W19) VOUT0_DATA13 */
+			AM62AX_IOPAD(0x0f0, PIN_OUTPUT, 0) /* (Y21) VOUT0_DATA14 */
+			AM62AX_IOPAD(0x0f4, PIN_OUTPUT, 0) /* (Y22) VOUT0_DATA15 */
+			AM62AX_IOPAD(0x05c, PIN_OUTPUT, 1) /* (P22) GPMC0_AD8.VOUT0_DATA16 */
+			AM62AX_IOPAD(0x060, PIN_OUTPUT, 1) /* (R19) GPMC0_AD9.VOUT0_DATA17 */
+			AM62AX_IOPAD(0x064, PIN_OUTPUT, 1) /* (R20) GPMC0_AD10.VOUT0_DATA18 */
+			AM62AX_IOPAD(0x068, PIN_OUTPUT, 1) /* (R22) GPMC0_AD11.VOUT0_DATA19 */
+			AM62AX_IOPAD(0x06c, PIN_OUTPUT, 1) /* (T22) GPMC0_AD12.VOUT0_DATA20 */
+			AM62AX_IOPAD(0x070, PIN_OUTPUT, 1) /* (R21) GPMC0_AD13.VOUT0_DATA21 */
+			AM62AX_IOPAD(0x074, PIN_OUTPUT, 1) /* (T20) GPMC0_AD14.VOUT0_DATA22 */
+			AM62AX_IOPAD(0x078, PIN_OUTPUT, 1) /* (T21) GPMC0_AD15.VOUT0_DATA23 */
+		>;
+	};
+
 	main_uart0_pins_default: main-uart0-default-pins {
 		pinctrl-single,pins = <
 			AM62AX_IOPAD(0x1c8, PIN_INPUT, 0) /* (E14) UART0_RXD */
@@ -215,6 +261,22 @@
 		pinctrl-single,pins = <
 			AM62AX_IOPAD(0x0b0, PIN_INPUT_PULLUP, 1) /* (K22) GPMC0_CSn2.I2C2_SCL */
 			AM62AX_IOPAD(0x0b4, PIN_INPUT_PULLUP, 1) /* (K24) GPMC0_CSn3.I2C2_SDA */
+		>;
+	};
+
+	main_mmc0_pins_default: main-mmc0-default-pins {
+		pinctrl-single,pins = <
+			AM62AX_IOPAD(0x220, PIN_INPUT, 0) /* (Y3) MMC0_CMD */
+			AM62AX_IOPAD(0x218, PIN_INPUT, 0) /* (AB1) MMC0_CLKLB */
+			AM62AX_IOPAD(0x21c, PIN_INPUT, 0) /* (AB1) MMC0_CLK */
+			AM62AX_IOPAD(0x214, PIN_INPUT, 0) /* (AA2) MMC0_DAT0 */
+			AM62AX_IOPAD(0x210, PIN_INPUT_PULLUP, 0) /* (AA1) MMC0_DAT1 */
+			AM62AX_IOPAD(0x20c, PIN_INPUT_PULLUP, 0) /* (AA3) MMC0_DAT2 */
+			AM62AX_IOPAD(0x208, PIN_INPUT_PULLUP, 0) /* (Y4) MMC0_DAT3 */
+			AM62AX_IOPAD(0x204, PIN_INPUT_PULLUP, 0) /* (AB2) MMC0_DAT4 */
+			AM62AX_IOPAD(0x200, PIN_INPUT_PULLUP, 0) /* (AC1) MMC0_DAT5 */
+			AM62AX_IOPAD(0x1fc, PIN_INPUT_PULLUP, 0) /* (AD2) MMC0_DAT6 */
+			AM62AX_IOPAD(0x1f8, PIN_INPUT_PULLUP, 0) /* (AC2) MMC0_DAT7 */
 		>;
 	};
 
@@ -466,6 +528,36 @@
 				  "CSI_EN", "AUTO_100M_1000M_CONFIG",
 				  "CSI_VLDO_SEL", "SoC_WLAN_SDIO_RST";
 	};
+
+	sii9022: bridge-hdmi@3b {
+		compatible = "sil,sii9022";
+		reg = <0x3b>;
+		interrupt-parent = <&exp1>;
+		interrupts = <16 IRQ_TYPE_EDGE_FALLING>;
+		#sound-dai-cells = <0>;
+		sil,i2s-data-lanes = < 0 >;
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			port@0 {
+				reg = <0>;
+
+				sii9022_in: endpoint {
+					remote-endpoint = <&dpi1_out>;
+				};
+			};
+
+			port@1 {
+				reg = <1>;
+
+				sii9022_out: endpoint {
+					remote-endpoint = <&hdmi_connector_in>;
+				};
+			};
+		};
+	};
 };
 
 &main_i2c2 {
@@ -475,13 +567,21 @@
 	clock-frequency = <400000>;
 };
 
+&sdhci0 {
+	/* eMMC */
+	status = "okay";
+	non-removable;
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_mmc0_pins_default>;
+	disable-wp;
+};
+
 &sdhci1 {
 	/* SD/MMC */
 	status = "okay";
 	vmmc-supply = <&vdd_mmc1>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&main_mmc1_pins_default>;
-	ti,driver-strength-ohm = <50>;
 	disable-wp;
 };
 
@@ -582,4 +682,21 @@
 	>;
 	tx-num-evt = <32>;
 	rx-num-evt = <32>;
+};
+
+&dss {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&main_dss0_pins_default>;
+};
+
+&dss_ports {
+	/* VP2: DPI Output */
+	port@1 {
+		reg = <1>;
+
+		dpi1_out: endpoint {
+			remote-endpoint = <&sii9022_in>;
+		};
+	};
 };

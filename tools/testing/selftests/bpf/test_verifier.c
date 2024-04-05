@@ -67,6 +67,7 @@
 
 #define F_NEEDS_EFFICIENT_UNALIGNED_ACCESS	(1 << 0)
 #define F_LOAD_WITH_STRICT_ALIGNMENT		(1 << 1)
+#define F_NEEDS_JIT_ENABLED			(1 << 2)
 
 /* need CAP_BPF, CAP_NET_ADMIN, CAP_PERFMON to load progs */
 #define ADMIN_CAPS (1ULL << CAP_NET_ADMIN |	\
@@ -74,6 +75,7 @@
 		    1ULL << CAP_BPF)
 #define UNPRIV_SYSCTL "kernel/unprivileged_bpf_disabled"
 static bool unpriv_disabled = false;
+static bool jit_disabled;
 static int skips;
 static bool verbose = false;
 static int verif_log_level = 0;
@@ -1341,48 +1343,6 @@ static bool cmp_str_seq(const char *log, const char *exp)
 	return true;
 }
 
-static struct bpf_insn *get_xlated_program(int fd_prog, int *cnt)
-{
-	__u32 buf_element_size = sizeof(struct bpf_insn);
-	struct bpf_prog_info info = {};
-	__u32 info_len = sizeof(info);
-	__u32 xlated_prog_len;
-	struct bpf_insn *buf;
-
-	if (bpf_prog_get_info_by_fd(fd_prog, &info, &info_len)) {
-		perror("bpf_prog_get_info_by_fd failed");
-		return NULL;
-	}
-
-	xlated_prog_len = info.xlated_prog_len;
-	if (xlated_prog_len % buf_element_size) {
-		printf("Program length %d is not multiple of %d\n",
-		       xlated_prog_len, buf_element_size);
-		return NULL;
-	}
-
-	*cnt = xlated_prog_len / buf_element_size;
-	buf = calloc(*cnt, buf_element_size);
-	if (!buf) {
-		perror("can't allocate xlated program buffer");
-		return NULL;
-	}
-
-	bzero(&info, sizeof(info));
-	info.xlated_prog_len = xlated_prog_len;
-	info.xlated_prog_insns = (__u64)(unsigned long)buf;
-	if (bpf_prog_get_info_by_fd(fd_prog, &info, &info_len)) {
-		perror("second bpf_prog_get_info_by_fd failed");
-		goto out_free_buf;
-	}
-
-	return buf;
-
-out_free_buf:
-	free(buf);
-	return NULL;
-}
-
 static bool is_null_insn(struct bpf_insn *insn)
 {
 	struct bpf_insn null_insn = {};
@@ -1505,7 +1465,7 @@ static void print_insn(struct bpf_insn *buf, int cnt)
 static bool check_xlated_program(struct bpf_test *test, int fd_prog)
 {
 	struct bpf_insn *buf;
-	int cnt;
+	unsigned int cnt;
 	bool result = true;
 	bool check_expected = !is_null_insn(test->expected_insns);
 	bool check_unexpected = !is_null_insn(test->unexpected_insns);
@@ -1513,8 +1473,7 @@ static bool check_xlated_program(struct bpf_test *test, int fd_prog)
 	if (!check_expected && !check_unexpected)
 		goto out;
 
-	buf = get_xlated_program(fd_prog, &cnt);
-	if (!buf) {
+	if (get_xlated_program(fd_prog, &buf, &cnt)) {
 		printf("FAIL: can't get xlated program\n");
 		result = false;
 		goto out;
@@ -1567,6 +1526,13 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	__u32 pflags;
 	int i, err;
 
+	if ((test->flags & F_NEEDS_JIT_ENABLED) && jit_disabled) {
+		printf("SKIP (requires BPF JIT)\n");
+		skips++;
+		sched_yield();
+		return;
+	}
+
 	fd_prog = -1;
 	for (i = 0; i < MAX_NR_MAPS; i++)
 		map_fds[i] = -1;
@@ -1588,7 +1554,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	if (fixup_skips != skips)
 		return;
 
-	pflags = BPF_F_TEST_RND_HI32 | BPF_F_TEST_REG_INVARIANTS;
+	pflags = testing_prog_flags();
 	if (test->flags & F_LOAD_WITH_STRICT_ALIGNMENT)
 		pflags |= BPF_F_STRICT_ALIGNMENT;
 	if (test->flags & F_NEEDS_EFFICIENT_UNALIGNED_ACCESS)
@@ -1886,6 +1852,8 @@ int main(int argc, char **argv)
 		       UNPRIV_SYSCTL);
 		return EXIT_FAILURE;
 	}
+
+	jit_disabled = !is_jit_enabled();
 
 	/* Use libbpf 1.0 API mode */
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);

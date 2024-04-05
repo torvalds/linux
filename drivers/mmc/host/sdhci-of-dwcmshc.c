@@ -52,6 +52,20 @@
 #define AT_CTRL_SWIN_TH_VAL_MASK	GENMASK(31, 24) /* bits [31:24] */
 #define AT_CTRL_SWIN_TH_VAL		0x9  /* sampling window threshold */
 
+/* Sophgo CV18XX specific Registers */
+#define CV18XX_SDHCI_MSHC_CTRL			0x00
+#define  CV18XX_EMMC_FUNC_EN			BIT(0)
+#define  CV18XX_LATANCY_1T			BIT(1)
+#define CV18XX_SDHCI_PHY_TX_RX_DLY		0x40
+#define  CV18XX_PHY_TX_DLY_MSK			GENMASK(6, 0)
+#define  CV18XX_PHY_TX_SRC_MSK			GENMASK(9, 8)
+#define  CV18XX_PHY_TX_SRC_INVERT_CLK_TX	0x1
+#define  CV18XX_PHY_RX_DLY_MSK			GENMASK(22, 16)
+#define  CV18XX_PHY_RX_SRC_MSK			GENMASK(25, 24)
+#define  CV18XX_PHY_RX_SRC_INVERT_RX_CLK	0x1
+#define CV18XX_SDHCI_PHY_CONFIG			0x4c
+#define  CV18XX_PHY_TX_BPS			BIT(0)
+
 /* Rockchip specific Registers */
 #define DWCMSHC_EMMC_DLL_CTRL		0x800
 #define DWCMSHC_EMMC_DLL_RXCLK		0x804
@@ -642,6 +656,35 @@ static void th1520_sdhci_reset(struct sdhci_host *host, u8 mask)
 	}
 }
 
+static void cv18xx_sdhci_reset(struct sdhci_host *host, u8 mask)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	u32 val, emmc_caps = MMC_CAP2_NO_SD | MMC_CAP2_NO_SDIO;
+
+	sdhci_reset(host, mask);
+
+	if ((host->mmc->caps2 & emmc_caps) == emmc_caps) {
+		val = sdhci_readl(host, priv->vendor_specific_area1 + CV18XX_SDHCI_MSHC_CTRL);
+		val |= CV18XX_EMMC_FUNC_EN;
+		sdhci_writel(host, val, priv->vendor_specific_area1 + CV18XX_SDHCI_MSHC_CTRL);
+	}
+
+	val = sdhci_readl(host, priv->vendor_specific_area1 + CV18XX_SDHCI_MSHC_CTRL);
+	val |= CV18XX_LATANCY_1T;
+	sdhci_writel(host, val, priv->vendor_specific_area1 + CV18XX_SDHCI_MSHC_CTRL);
+
+	val = sdhci_readl(host, priv->vendor_specific_area1 + CV18XX_SDHCI_PHY_CONFIG);
+	val |= CV18XX_PHY_TX_BPS;
+	sdhci_writel(host, val, priv->vendor_specific_area1 + CV18XX_SDHCI_PHY_CONFIG);
+
+	val =  (FIELD_PREP(CV18XX_PHY_TX_DLY_MSK, 0) |
+		FIELD_PREP(CV18XX_PHY_TX_SRC_MSK, CV18XX_PHY_TX_SRC_INVERT_CLK_TX) |
+		FIELD_PREP(CV18XX_PHY_RX_DLY_MSK, 0) |
+		FIELD_PREP(CV18XX_PHY_RX_SRC_MSK, CV18XX_PHY_RX_SRC_INVERT_RX_CLK));
+	sdhci_writel(host, val, priv->vendor_specific_area1 + CV18XX_SDHCI_PHY_TX_RX_DLY);
+}
+
 static const struct sdhci_ops sdhci_dwcmshc_ops = {
 	.set_clock		= sdhci_set_clock,
 	.set_bus_width		= sdhci_set_bus_width,
@@ -671,6 +714,15 @@ static const struct sdhci_ops sdhci_dwcmshc_th1520_ops = {
 	.platform_execute_tuning = &th1520_execute_tuning,
 };
 
+static const struct sdhci_ops sdhci_dwcmshc_cv18xx_ops = {
+	.set_clock		= sdhci_set_clock,
+	.set_bus_width		= sdhci_set_bus_width,
+	.set_uhs_signaling	= dwcmshc_set_uhs_signaling,
+	.get_max_clock		= dwcmshc_get_max_clock,
+	.reset			= cv18xx_sdhci_reset,
+	.adma_write_desc	= dwcmshc_adma_write_desc,
+};
+
 static const struct sdhci_pltfm_data sdhci_dwcmshc_pdata = {
 	.ops = &sdhci_dwcmshc_ops,
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
@@ -696,6 +748,12 @@ static const struct sdhci_pltfm_data sdhci_dwcmshc_rk35xx_pdata = {
 
 static const struct sdhci_pltfm_data sdhci_dwcmshc_th1520_pdata = {
 	.ops = &sdhci_dwcmshc_th1520_ops,
+	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
+	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
+};
+
+static const struct sdhci_pltfm_data sdhci_dwcmshc_cv18xx_pdata = {
+	.ops = &sdhci_dwcmshc_cv18xx_ops,
 	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN,
 };
@@ -767,6 +825,14 @@ static const struct of_device_id sdhci_dwcmshc_dt_ids[] = {
 	{
 		.compatible = "snps,dwcmshc-sdhci",
 		.data = &sdhci_dwcmshc_pdata,
+	},
+	{
+		.compatible = "sophgo,cv1800b-dwcmshc",
+		.data = &sdhci_dwcmshc_cv18xx_pdata,
+	},
+	{
+		.compatible = "sophgo,sg2002-dwcmshc",
+		.data = &sdhci_dwcmshc_cv18xx_pdata,
 	},
 	{
 		.compatible = "thead,th1520-dwcmshc",

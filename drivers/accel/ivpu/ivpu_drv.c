@@ -45,11 +45,11 @@ MODULE_PARM_DESC(test_mode, "Test mode mask. See IVPU_TEST_MODE_* macros.");
 
 u8 ivpu_pll_min_ratio;
 module_param_named(pll_min_ratio, ivpu_pll_min_ratio, byte, 0644);
-MODULE_PARM_DESC(pll_min_ratio, "Minimum PLL ratio used to set VPU frequency");
+MODULE_PARM_DESC(pll_min_ratio, "Minimum PLL ratio used to set NPU frequency");
 
 u8 ivpu_pll_max_ratio = U8_MAX;
 module_param_named(pll_max_ratio, ivpu_pll_max_ratio, byte, 0644);
-MODULE_PARM_DESC(pll_max_ratio, "Maximum PLL ratio used to set VPU frequency");
+MODULE_PARM_DESC(pll_max_ratio, "Maximum PLL ratio used to set NPU frequency");
 
 bool ivpu_disable_mmu_cont_pages;
 module_param_named(disable_mmu_cont_pages, ivpu_disable_mmu_cont_pages, bool, 0644);
@@ -328,13 +328,13 @@ static int ivpu_wait_for_ready(struct ivpu_device *vdev)
 	ivpu_ipc_consumer_del(vdev, &cons);
 
 	if (!ret && ipc_hdr.data_addr != IVPU_IPC_BOOT_MSG_DATA_ADDR) {
-		ivpu_err(vdev, "Invalid VPU ready message: 0x%x\n",
+		ivpu_err(vdev, "Invalid NPU ready message: 0x%x\n",
 			 ipc_hdr.data_addr);
 		return -EIO;
 	}
 
 	if (!ret)
-		ivpu_dbg(vdev, PM, "VPU ready message received successfully\n");
+		ivpu_dbg(vdev, PM, "NPU ready message received successfully\n");
 
 	return ret;
 }
@@ -532,6 +532,7 @@ static int ivpu_dev_init(struct ivpu_device *vdev)
 	atomic64_set(&vdev->unique_id_counter, 0);
 	xa_init_flags(&vdev->context_xa, XA_FLAGS_ALLOC);
 	xa_init_flags(&vdev->submitted_jobs_xa, XA_FLAGS_ALLOC1);
+	xa_init_flags(&vdev->db_xa, XA_FLAGS_ALLOC1);
 	lockdep_set_class(&vdev->submitted_jobs_xa.xa_lock, &submitted_jobs_xa_lock_class_key);
 	INIT_LIST_HEAD(&vdev->bo_list);
 
@@ -605,6 +606,7 @@ err_power_down:
 	if (IVPU_WA(d3hot_after_power_off))
 		pci_set_power_state(to_pci_dev(vdev->drm.dev), PCI_D3hot);
 err_xa_destroy:
+	xa_destroy(&vdev->db_xa);
 	xa_destroy(&vdev->submitted_jobs_xa);
 	xa_destroy(&vdev->context_xa);
 	return ret;
@@ -640,6 +642,8 @@ static void ivpu_dev_fini(struct ivpu_device *vdev)
 	ivpu_mmu_reserved_context_fini(vdev);
 	ivpu_mmu_global_context_fini(vdev);
 
+	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->db_xa));
+	xa_destroy(&vdev->db_xa);
 	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->submitted_jobs_xa));
 	xa_destroy(&vdev->submitted_jobs_xa);
 	drm_WARN_ON(&vdev->drm, !xa_empty(&vdev->context_xa));

@@ -1291,6 +1291,46 @@ static enum audio_dto_source translate_to_dto_source(enum controller_id crtc_id)
 	}
 }
 
+static void populate_audio_dp_link_info(
+	const struct pipe_ctx *pipe_ctx,
+	struct audio_dp_link_info *dp_link_info)
+{
+	const struct dc_stream_state *stream = pipe_ctx->stream;
+	const struct dc_link *link = stream->link;
+	struct fixed31_32 link_bw_kbps;
+
+	dp_link_info->encoding = link->dc->link_srv->dp_get_encoding_format(
+				&pipe_ctx->link_config.dp_link_settings);
+	dp_link_info->is_mst = (stream->signal == SIGNAL_TYPE_DISPLAY_PORT_MST);
+	dp_link_info->lane_count = pipe_ctx->link_config.dp_link_settings.lane_count;
+	dp_link_info->link_rate = pipe_ctx->link_config.dp_link_settings.link_rate;
+
+	link_bw_kbps = dc_fixpt_from_int(dc_link_bandwidth_kbps(link,
+			&pipe_ctx->link_config.dp_link_settings));
+
+	/* For audio stream calculations, the video stream should not include FEC or SSC
+	 * in order to get the most pessimistic values.
+	 */
+	if (dp_link_info->encoding == DP_8b_10b_ENCODING &&
+			link->dc->link_srv->dp_is_fec_supported(link)) {
+		link_bw_kbps = dc_fixpt_mul(link_bw_kbps,
+				dc_fixpt_from_fraction(100, DATA_EFFICIENCY_8b_10b_FEC_EFFICIENCY_x100));
+	} else if (dp_link_info->encoding == DP_128b_132b_ENCODING) {
+		link_bw_kbps = dc_fixpt_mul(link_bw_kbps,
+				dc_fixpt_from_fraction(10000, 9975)); /* 99.75% SSC overhead*/
+	}
+
+	dp_link_info->link_bandwidth_kbps = dc_fixpt_floor(link_bw_kbps);
+
+	/* HW minimum for 128b/132b HBlank is 4 frame symbols.
+	 * TODO: Plumb the actual programmed HBlank min symbol width to here.
+	 */
+	if (dp_link_info->encoding == DP_128b_132b_ENCODING)
+		dp_link_info->hblank_min_symbol_width = 4;
+	else
+		dp_link_info->hblank_min_symbol_width = 0;
+}
+
 static void build_audio_output(
 	struct dc_state *state,
 	const struct pipe_ctx *pipe_ctx,
@@ -1338,6 +1378,15 @@ static void build_audio_output(
 	audio_output->crtc_info.calculated_pixel_clock_100Hz =
 			pipe_ctx->stream_res.pix_clk_params.requested_pix_clk_100hz;
 
+	audio_output->crtc_info.pixel_encoding =
+		stream->timing.pixel_encoding;
+
+	audio_output->crtc_info.dsc_bits_per_pixel =
+			stream->timing.dsc_cfg.bits_per_pixel;
+
+	audio_output->crtc_info.dsc_num_slices =
+			stream->timing.dsc_cfg.num_slices_h;
+
 /*for HDMI, audio ACR is with deep color ratio factor*/
 	if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal) &&
 		audio_output->crtc_info.requested_pixel_clock_100Hz ==
@@ -1371,6 +1420,10 @@ static void build_audio_output(
 
 	audio_output->pll_info.ss_percentage =
 			pipe_ctx->pll_settings.ss_percentage;
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+		populate_audio_dp_link_info(pipe_ctx, &audio_output->dp_link_info);
+	}
 }
 
 static void program_scaler(const struct dc *dc,
@@ -1507,7 +1560,8 @@ enum dc_status dce110_apply_single_controller_ctx_to_hw(
 				pipe_ctx->stream_res.audio,
 				pipe_ctx->stream->signal,
 				&audio_output.crtc_info,
-				&pipe_ctx->stream->audio_info);
+				&pipe_ctx->stream->audio_info,
+				&audio_output.dp_link_info);
 	}
 
 	/* make sure no pipes syncd to the pipe being enabled */

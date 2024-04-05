@@ -959,6 +959,10 @@ static int brcms_ops_beacon_set_tim(struct ieee80211_hw *hw,
 }
 
 static const struct ieee80211_ops brcms_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx = brcms_ops_tx,
 	.wake_tx_queue = ieee80211_handle_wake_tx_queue,
 	.start = brcms_ops_start,

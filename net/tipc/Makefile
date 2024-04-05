@@ -18,5 +18,5 @@ tipc-$(CONFIG_TIPC_MEDIA_IB)	+= ib_media.o
 tipc-$(CONFIG_SYSCTL)		+= sysctl.o
 tipc-$(CONFIG_TIPC_CRYPTO)	+= crypto.o
 
-
-obj-$(CONFIG_TIPC_DIAG)	+= diag.o
+obj-$(CONFIG_TIPC_DIAG)	+= tipc_diag.o
+tipc_diag-y	+= diag.o

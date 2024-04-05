@@ -280,12 +280,6 @@ int ice_vf_reconfig_vsi(struct ice_vf *vf)
 		return err;
 	}
 
-	/* Update the lan_vsi_num field since it might have been changed. The
-	 * PF lan_vsi_idx number remains the same so we don't need to change
-	 * that.
-	 */
-	vf->lan_vsi_num = vsi->vsi_num;
-
 	return 0;
 }
 
@@ -315,7 +309,6 @@ static int ice_vf_rebuild_vsi(struct ice_vf *vf)
 	 * vf->lan_vsi_idx
 	 */
 	vsi->vsi_num = ice_get_hw_vsi_num(&pf->hw, vsi->idx);
-	vf->lan_vsi_num = vsi->vsi_num;
 
 	return 0;
 }
@@ -1315,13 +1308,12 @@ int ice_vf_init_host_cfg(struct ice_vf *vf, struct ice_vsi *vsi)
 }
 
 /**
- * ice_vf_invalidate_vsi - invalidate vsi_idx/vsi_num to remove VSI access
+ * ice_vf_invalidate_vsi - invalidate vsi_idx to remove VSI access
  * @vf: VF to remove access to VSI for
  */
 void ice_vf_invalidate_vsi(struct ice_vf *vf)
 {
 	vf->lan_vsi_idx = ICE_NO_VSI;
-	vf->lan_vsi_num = ICE_NO_VSI;
 }
 
 /**

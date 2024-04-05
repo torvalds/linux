@@ -299,6 +299,7 @@ void intel_drrs_crtc_init(struct intel_crtc *crtc)
 static int intel_drrs_debugfs_status_show(struct seq_file *m, void *unused)
 {
 	struct intel_crtc *crtc = m->private;
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	const struct intel_crtc_state *crtc_state;
 	int ret;
 
@@ -309,6 +310,11 @@ static int intel_drrs_debugfs_status_show(struct seq_file *m, void *unused)
 	crtc_state = to_intel_crtc_state(crtc->base.state);
 
 	mutex_lock(&crtc->drrs.mutex);
+
+	seq_printf(m, "DRRS capable: %s\n",
+		   str_yes_no(crtc_state->has_drrs ||
+			      HAS_DOUBLE_BUFFERED_M_N(i915) ||
+			      intel_cpu_transcoder_has_m2_n2(i915, crtc_state->cpu_transcoder)));
 
 	seq_printf(m, "DRRS enabled: %s\n",
 		   str_yes_no(crtc_state->has_drrs));

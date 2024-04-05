@@ -13,10 +13,8 @@
 #include <linux/const.h>
 
 /* PAGE_SHIFT determines the page size */
-#if defined(CONFIG_ARC_PAGE_SIZE_16K)
-#define PAGE_SHIFT 14
-#elif defined(CONFIG_ARC_PAGE_SIZE_4K)
-#define PAGE_SHIFT 12
+#ifdef __KERNEL__
+#define PAGE_SHIFT CONFIG_PAGE_SHIFT
 #else
 /*
  * Default 8k

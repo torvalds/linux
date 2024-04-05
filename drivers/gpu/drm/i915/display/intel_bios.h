@@ -242,17 +242,15 @@ void intel_bios_init_panel_late(struct drm_i915_private *dev_priv,
 				const struct drm_edid *drm_edid);
 void intel_bios_fini_panel(struct intel_panel *panel);
 void intel_bios_driver_remove(struct drm_i915_private *dev_priv);
-bool intel_bios_is_valid_vbt(const void *buf, size_t size);
+bool intel_bios_is_valid_vbt(struct drm_i915_private *i915,
+			     const void *buf, size_t size);
 bool intel_bios_is_tv_present(struct drm_i915_private *dev_priv);
 bool intel_bios_is_lvds_present(struct drm_i915_private *dev_priv, u8 *i2c_pin);
 bool intel_bios_is_port_present(struct drm_i915_private *dev_priv, enum port port);
-bool intel_bios_is_port_edp(struct drm_i915_private *dev_priv, enum port port);
 bool intel_bios_is_dsi_present(struct drm_i915_private *dev_priv, enum port *port);
 bool intel_bios_get_dsc_params(struct intel_encoder *encoder,
 			       struct intel_crtc_state *crtc_state,
 			       int dsc_max_bpc);
-bool intel_bios_port_supports_typec_usb(struct drm_i915_private *i915, enum port port);
-bool intel_bios_port_supports_tbt(struct drm_i915_private *i915, enum port port);
 
 const struct intel_bios_encoder_data *
 intel_bios_encoder_data_lookup(struct drm_i915_private *i915, enum port port);
@@ -282,5 +280,7 @@ int intel_bios_hdmi_max_tmds_clock(const struct intel_bios_encoder_data *devdata
 void intel_bios_for_each_encoder(struct drm_i915_private *i915,
 				 void (*func)(struct drm_i915_private *i915,
 					      const struct intel_bios_encoder_data *devdata));
+
+void intel_bios_debugfs_register(struct drm_i915_private *i915);
 
 #endif /* _INTEL_BIOS_H_ */

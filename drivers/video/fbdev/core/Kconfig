@@ -4,7 +4,7 @@
 #
 
 config FB_CORE
-	select VIDEO_CMDLINE
+	select VIDEO
 	tristate
 
 config FB_NOTIFY

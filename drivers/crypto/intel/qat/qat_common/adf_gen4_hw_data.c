@@ -4,6 +4,7 @@
 #include "adf_accel_devices.h"
 #include "adf_cfg_services.h"
 #include "adf_common_drv.h"
+#include "adf_fw_config.h"
 #include "adf_gen4_hw_data.h"
 #include "adf_gen4_pm.h"
 
@@ -398,6 +399,9 @@ int adf_gen4_init_thd2arb_map(struct adf_accel_dev *accel_dev)
 			 ADF_GEN4_ADMIN_ACCELENGINES;
 
 	if (srv_id == SVC_DCC) {
+		if (ae_cnt > ICP_QAT_HW_AE_DELIMITER)
+			return -EINVAL;
+
 		memcpy(thd2arb_map, thrd_to_arb_map_dcc,
 		       array_size(sizeof(*thd2arb_map), ae_cnt));
 		return 0;
@@ -430,3 +434,58 @@ int adf_gen4_init_thd2arb_map(struct adf_accel_dev *accel_dev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(adf_gen4_init_thd2arb_map);
+
+u16 adf_gen4_get_ring_to_svc_map(struct adf_accel_dev *accel_dev)
+{
+	struct adf_hw_device_data *hw_data = GET_HW_DATA(accel_dev);
+	enum adf_cfg_service_type rps[RP_GROUP_COUNT] = { };
+	unsigned int ae_mask, start_id, worker_obj_cnt, i;
+	u16 ring_to_svc_map;
+	int rp_group;
+
+	if (!hw_data->get_rp_group || !hw_data->uof_get_ae_mask ||
+	    !hw_data->uof_get_obj_type || !hw_data->uof_get_num_objs)
+		return 0;
+
+	/* If dcc, all rings handle compression requests */
+	if (adf_get_service_enabled(accel_dev) == SVC_DCC) {
+		for (i = 0; i < RP_GROUP_COUNT; i++)
+			rps[i] = COMP;
+		goto set_mask;
+	}
+
+	worker_obj_cnt = hw_data->uof_get_num_objs(accel_dev) -
+			 ADF_GEN4_ADMIN_ACCELENGINES;
+	start_id = worker_obj_cnt - RP_GROUP_COUNT;
+
+	for (i = start_id; i < worker_obj_cnt; i++) {
+		ae_mask = hw_data->uof_get_ae_mask(accel_dev, i);
+		rp_group = hw_data->get_rp_group(accel_dev, ae_mask);
+		if (rp_group >= RP_GROUP_COUNT || rp_group < RP_GROUP_0)
+			return 0;
+
+		switch (hw_data->uof_get_obj_type(accel_dev, i)) {
+		case ADF_FW_SYM_OBJ:
+			rps[rp_group] = SYM;
+			break;
+		case ADF_FW_ASYM_OBJ:
+			rps[rp_group] = ASYM;
+			break;
+		case ADF_FW_DC_OBJ:
+			rps[rp_group] = COMP;
+			break;
+		default:
+			rps[rp_group] = 0;
+			break;
+		}
+	}
+
+set_mask:
+	ring_to_svc_map = rps[RP_GROUP_0] << ADF_CFG_SERV_RING_PAIR_0_SHIFT |
+			  rps[RP_GROUP_1] << ADF_CFG_SERV_RING_PAIR_1_SHIFT |
+			  rps[RP_GROUP_0] << ADF_CFG_SERV_RING_PAIR_2_SHIFT |
+			  rps[RP_GROUP_1] << ADF_CFG_SERV_RING_PAIR_3_SHIFT;
+
+	return ring_to_svc_map;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_get_ring_to_svc_map);

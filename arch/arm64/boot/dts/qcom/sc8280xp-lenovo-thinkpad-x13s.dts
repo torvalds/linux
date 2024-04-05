@@ -6,10 +6,8 @@
 
 /dts-v1/;
 
-#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/iio/qcom,spmi-adc7-pm8350.h>
-#include <dt-bindings/iio/qcom,spmi-adc7-pmk8350.h>
-#include <dt-bindings/iio/qcom,spmi-adc7-pmr735a.h>
+#include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/gpio-keys.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
@@ -855,27 +853,6 @@
 };
 
 &pmk8280_vadc {
-	status = "okay";
-
-	channel@3 {
-		reg = <PMK8350_ADC7_DIE_TEMP>;
-		qcom,pre-scaling = <1 1>;
-		label = "pmk8350_die_temp";
-	};
-
-	channel@44 {
-		reg = <PMK8350_ADC7_AMUX_THM1_100K_PU>;
-		qcom,hw-settle-time = <200>;
-		qcom,ratiometric;
-		label = "pmk8350_xo_therm";
-	};
-
-	channel@103 {
-		reg = <PM8350_ADC7_DIE_TEMP(1)>;
-		qcom,pre-scaling = <1 1>;
-		label = "pmc8280_1_die_temp";
-	};
-
 	channel@144 {
 		reg = <PM8350_ADC7_AMUX_THM1_100K_PU(1)>;
 		qcom,hw-settle-time = <200>;
@@ -904,12 +881,6 @@
 		label = "sys_therm4";
 	};
 
-	channel@303 {
-		reg = <PM8350_ADC7_DIE_TEMP(3)>;
-		qcom,pre-scaling = <1 1>;
-		label = "pmc8280_2_die_temp";
-	};
-
 	channel@344 {
 		reg = <PM8350_ADC7_AMUX_THM1_100K_PU(3)>;
 		qcom,hw-settle-time = <200>;
@@ -936,12 +907,6 @@
 		qcom,hw-settle-time = <200>;
 		qcom,ratiometric;
 		label = "sys_therm8";
-	};
-
-	channel@403 {
-		reg = <PMR735A_ADC7_DIE_TEMP>;
-		qcom,pre-scaling = <1 1>;
-		label = "pmr735a_die_temp";
 	};
 };
 
@@ -1204,7 +1169,7 @@
 };
 
 &vamacro {
-	pinctrl-0 = <&dmic01_default>, <&dmic02_default>;
+	pinctrl-0 = <&dmic01_default>, <&dmic23_default>;
 	pinctrl-names = "default";
 
 	vdd-micb-supply = <&vreg_s10b>;

@@ -22,7 +22,7 @@
 
 static bool ivpu_disable_recovery;
 module_param_named_unsafe(disable_recovery, ivpu_disable_recovery, bool, 0644);
-MODULE_PARM_DESC(disable_recovery, "Disables recovery when VPU hang is detected");
+MODULE_PARM_DESC(disable_recovery, "Disables recovery when NPU hang is detected");
 
 static unsigned long ivpu_tdr_timeout_ms;
 module_param_named(tdr_timeout_ms, ivpu_tdr_timeout_ms, ulong, 0644);
@@ -118,11 +118,11 @@ static void ivpu_pm_recovery_work(struct work_struct *work)
 	char *evt[2] = {"IVPU_PM_EVENT=IVPU_RECOVER", NULL};
 	int ret;
 
-	ivpu_err(vdev, "Recovering the VPU (reset #%d)\n", atomic_read(&vdev->pm->reset_counter));
+	ivpu_err(vdev, "Recovering the NPU (reset #%d)\n", atomic_read(&vdev->pm->reset_counter));
 
 	ret = pm_runtime_resume_and_get(vdev->drm.dev);
 	if (ret)
-		ivpu_err(vdev, "Failed to resume VPU: %d\n", ret);
+		ivpu_err(vdev, "Failed to resume NPU: %d\n", ret);
 
 	ivpu_fw_log_dump(vdev);
 
@@ -260,10 +260,10 @@ int ivpu_pm_runtime_suspend_cb(struct device *dev)
 
 	ret = ivpu_suspend(vdev);
 	if (ret)
-		ivpu_err(vdev, "Failed to set suspend VPU: %d\n", ret);
+		ivpu_err(vdev, "Failed to suspend NPU: %d\n", ret);
 
 	if (!hw_is_idle) {
-		ivpu_err(vdev, "VPU failed to enter idle, force suspended.\n");
+		ivpu_err(vdev, "NPU failed to enter idle, force suspended.\n");
 		ivpu_fw_log_dump(vdev);
 		ivpu_pm_prepare_cold_boot(vdev);
 	} else {
@@ -309,7 +309,7 @@ int ivpu_rpm_get_if_active(struct ivpu_device *vdev)
 {
 	int ret;
 
-	ret = pm_runtime_get_if_active(vdev->drm.dev, false);
+	ret = pm_runtime_get_if_in_use(vdev->drm.dev);
 	drm_WARN_ON(&vdev->drm, ret < 0);
 
 	return ret;

@@ -58,7 +58,7 @@ int xfrm4_transport_finish(struct sk_buff *skb, int async)
 		return -iph->protocol;
 #endif
 
-	__skb_push(skb, skb->data - skb_network_header(skb));
+	__skb_push(skb, -skb_network_offset(skb));
 	iph->tot_len = htons(skb->len);
 	ip_send_check(iph);
 

@@ -502,15 +502,12 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 		return -ENOMEM;
 
 	dma->chan_rx = dma_request_chan(dev, "rx");
-	if (IS_ERR(dma->chan_rx)) {
-		return dev_err_probe(dev, PTR_ERR(dma->chan_rx),
-			"rx dma channel not available\n");
-	}
+	if (IS_ERR(dma->chan_rx))
+		return dev_err_probe(dev, PTR_ERR(dma->chan_rx), "rx dma channel not available\n");
 
 	dma->chan_tx = dma_request_chan(dev, "tx");
 	if (IS_ERR(dma->chan_tx)) {
-		ret = PTR_ERR(dma->chan_tx);
-		dev_err_probe(dev, ret, "tx dma channel not available\n");
+		ret = dev_err_probe(dev, PTR_ERR(dma->chan_tx), "tx dma channel not available\n");
 		goto err_tx_channel;
 	}
 
@@ -541,16 +538,14 @@ static int dspi_request_dma(struct fsl_dspi *dspi, phys_addr_t phy_addr)
 	cfg.direction = DMA_DEV_TO_MEM;
 	ret = dmaengine_slave_config(dma->chan_rx, &cfg);
 	if (ret) {
-		dev_err(dev, "can't configure rx dma channel\n");
-		ret = -EINVAL;
+		dev_err_probe(dev, ret, "can't configure rx dma channel\n");
 		goto err_slave_config;
 	}
 
 	cfg.direction = DMA_MEM_TO_DEV;
 	ret = dmaengine_slave_config(dma->chan_tx, &cfg);
 	if (ret) {
-		dev_err(dev, "can't configure tx dma channel\n");
-		ret = -EINVAL;
+		dev_err_probe(dev, ret, "can't configure tx dma channel\n");
 		goto err_slave_config;
 	}
 

@@ -28,7 +28,9 @@ struct matrix_keypad {
 	struct input_dev *input_dev;
 	unsigned int row_shift;
 
-	DECLARE_BITMAP(disabled_gpios, MATRIX_MAX_ROWS);
+	unsigned int row_irqs[MATRIX_MAX_ROWS];
+	unsigned int num_row_irqs;
+	DECLARE_BITMAP(wakeup_enabled_irqs, MATRIX_MAX_ROWS);
 
 	uint32_t last_key_state[MATRIX_MAX_COLS];
 	struct delayed_work work;
@@ -85,28 +87,18 @@ static bool row_asserted(const struct matrix_keypad_platform_data *pdata,
 
 static void enable_row_irqs(struct matrix_keypad *keypad)
 {
-	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	int i;
 
-	if (pdata->clustered_irq > 0)
-		enable_irq(pdata->clustered_irq);
-	else {
-		for (i = 0; i < pdata->num_row_gpios; i++)
-			enable_irq(gpio_to_irq(pdata->row_gpios[i]));
-	}
+	for (i = 0; i < keypad->num_row_irqs; i++)
+		enable_irq(keypad->row_irqs[i]);
 }
 
 static void disable_row_irqs(struct matrix_keypad *keypad)
 {
-	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
 	int i;
 
-	if (pdata->clustered_irq > 0)
-		disable_irq_nosync(pdata->clustered_irq);
-	else {
-		for (i = 0; i < pdata->num_row_gpios; i++)
-			disable_irq_nosync(gpio_to_irq(pdata->row_gpios[i]));
-	}
+	for (i = 0; i < keypad->num_row_irqs; i++)
+		disable_irq_nosync(keypad->row_irqs[i]);
 }
 
 /*
@@ -232,44 +224,20 @@ static void matrix_keypad_stop(struct input_dev *dev)
 
 static void matrix_keypad_enable_wakeup(struct matrix_keypad *keypad)
 {
-	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
-	unsigned int gpio;
 	int i;
 
-	if (pdata->clustered_irq > 0) {
-		if (enable_irq_wake(pdata->clustered_irq) == 0)
-			keypad->gpio_all_disabled = true;
-	} else {
-
-		for (i = 0; i < pdata->num_row_gpios; i++) {
-			if (!test_bit(i, keypad->disabled_gpios)) {
-				gpio = pdata->row_gpios[i];
-
-				if (enable_irq_wake(gpio_to_irq(gpio)) == 0)
-					__set_bit(i, keypad->disabled_gpios);
-			}
-		}
-	}
+	for_each_clear_bit(i, keypad->wakeup_enabled_irqs, keypad->num_row_irqs)
+		if (enable_irq_wake(keypad->row_irqs[i]) == 0)
+			__set_bit(i, keypad->wakeup_enabled_irqs);
 }
 
 static void matrix_keypad_disable_wakeup(struct matrix_keypad *keypad)
 {
-	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
-	unsigned int gpio;
 	int i;
 
-	if (pdata->clustered_irq > 0) {
-		if (keypad->gpio_all_disabled) {
-			disable_irq_wake(pdata->clustered_irq);
-			keypad->gpio_all_disabled = false;
-		}
-	} else {
-		for (i = 0; i < pdata->num_row_gpios; i++) {
-			if (test_and_clear_bit(i, keypad->disabled_gpios)) {
-				gpio = pdata->row_gpios[i];
-				disable_irq_wake(gpio_to_irq(gpio));
-			}
-		}
+	for_each_set_bit(i, keypad->wakeup_enabled_irqs, keypad->num_row_irqs) {
+		disable_irq_wake(keypad->row_irqs[i]);
+		__clear_bit(i, keypad->wakeup_enabled_irqs);
 	}
 }
 
@@ -306,96 +274,83 @@ static int matrix_keypad_init_gpio(struct platform_device *pdev,
 				   struct matrix_keypad *keypad)
 {
 	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
-	int i, err;
+	int i, irq, err;
 
 	/* initialized strobe lines as outputs, activated */
 	for (i = 0; i < pdata->num_col_gpios; i++) {
-		err = gpio_request(pdata->col_gpios[i], "matrix_kbd_col");
+		err = devm_gpio_request(&pdev->dev,
+					pdata->col_gpios[i], "matrix_kbd_col");
 		if (err) {
 			dev_err(&pdev->dev,
 				"failed to request GPIO%d for COL%d\n",
 				pdata->col_gpios[i], i);
-			goto err_free_cols;
+			return err;
 		}
 
 		gpio_direction_output(pdata->col_gpios[i], !pdata->active_low);
 	}
 
 	for (i = 0; i < pdata->num_row_gpios; i++) {
-		err = gpio_request(pdata->row_gpios[i], "matrix_kbd_row");
+		err = devm_gpio_request(&pdev->dev,
+					pdata->row_gpios[i], "matrix_kbd_row");
 		if (err) {
 			dev_err(&pdev->dev,
 				"failed to request GPIO%d for ROW%d\n",
 				pdata->row_gpios[i], i);
-			goto err_free_rows;
+			return err;
 		}
 
 		gpio_direction_input(pdata->row_gpios[i]);
 	}
 
 	if (pdata->clustered_irq > 0) {
-		err = request_any_context_irq(pdata->clustered_irq,
+		err = devm_request_any_context_irq(&pdev->dev,
+				pdata->clustered_irq,
 				matrix_keypad_interrupt,
 				pdata->clustered_irq_flags,
 				"matrix-keypad", keypad);
 		if (err < 0) {
 			dev_err(&pdev->dev,
 				"Unable to acquire clustered interrupt\n");
-			goto err_free_rows;
+			return err;
 		}
+
+		keypad->row_irqs[0] = pdata->clustered_irq;
+		keypad->num_row_irqs = 1;
 	} else {
 		for (i = 0; i < pdata->num_row_gpios; i++) {
-			err = request_any_context_irq(
-					gpio_to_irq(pdata->row_gpios[i]),
+			irq = gpio_to_irq(pdata->row_gpios[i]);
+			if (irq < 0) {
+				err = irq;
+				dev_err(&pdev->dev,
+					"Unable to convert GPIO line %i to irq: %d\n",
+					pdata->row_gpios[i], err);
+				return err;
+			}
+
+			err = devm_request_any_context_irq(&pdev->dev,
+					irq,
 					matrix_keypad_interrupt,
 					IRQF_TRIGGER_RISING |
-					IRQF_TRIGGER_FALLING,
+						IRQF_TRIGGER_FALLING,
 					"matrix-keypad", keypad);
 			if (err < 0) {
 				dev_err(&pdev->dev,
 					"Unable to acquire interrupt for GPIO line %i\n",
 					pdata->row_gpios[i]);
-				goto err_free_irqs;
+				return err;
 			}
+
+			keypad->row_irqs[i] = irq;
 		}
+
+		keypad->num_row_irqs = pdata->num_row_gpios;
 	}
 
 	/* initialized as disabled - enabled by input->open */
 	disable_row_irqs(keypad);
+
 	return 0;
-
-err_free_irqs:
-	while (--i >= 0)
-		free_irq(gpio_to_irq(pdata->row_gpios[i]), keypad);
-	i = pdata->num_row_gpios;
-err_free_rows:
-	while (--i >= 0)
-		gpio_free(pdata->row_gpios[i]);
-	i = pdata->num_col_gpios;
-err_free_cols:
-	while (--i >= 0)
-		gpio_free(pdata->col_gpios[i]);
-
-	return err;
-}
-
-static void matrix_keypad_free_gpio(struct matrix_keypad *keypad)
-{
-	const struct matrix_keypad_platform_data *pdata = keypad->pdata;
-	int i;
-
-	if (pdata->clustered_irq > 0) {
-		free_irq(pdata->clustered_irq, keypad);
-	} else {
-		for (i = 0; i < pdata->num_row_gpios; i++)
-			free_irq(gpio_to_irq(pdata->row_gpios[i]), keypad);
-	}
-
-	for (i = 0; i < pdata->num_row_gpios; i++)
-		gpio_free(pdata->row_gpios[i]);
-
-	for (i = 0; i < pdata->num_col_gpios; i++)
-		gpio_free(pdata->col_gpios[i]);
 }
 
 #ifdef CONFIG_OF
@@ -494,12 +449,13 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	keypad = kzalloc(sizeof(struct matrix_keypad), GFP_KERNEL);
-	input_dev = input_allocate_device();
-	if (!keypad || !input_dev) {
-		err = -ENOMEM;
-		goto err_free_mem;
-	}
+	keypad = devm_kzalloc(&pdev->dev, sizeof(*keypad), GFP_KERNEL);
+	if (!keypad)
+		return -ENOMEM;
+
+	input_dev = devm_input_allocate_device(&pdev->dev);
+	if (!input_dev)
+		return -ENOMEM;
 
 	keypad->input_dev = input_dev;
 	keypad->pdata = pdata;
@@ -510,7 +466,6 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 
 	input_dev->name		= pdev->name;
 	input_dev->id.bustype	= BUS_HOST;
-	input_dev->dev.parent	= &pdev->dev;
 	input_dev->open		= matrix_keypad_start;
 	input_dev->close	= matrix_keypad_stop;
 
@@ -520,7 +475,7 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 					 NULL, input_dev);
 	if (err) {
 		dev_err(&pdev->dev, "failed to build keymap\n");
-		goto err_free_mem;
+		return -ENOMEM;
 	}
 
 	if (!pdata->no_autorepeat)
@@ -530,32 +485,16 @@ static int matrix_keypad_probe(struct platform_device *pdev)
 
 	err = matrix_keypad_init_gpio(pdev, keypad);
 	if (err)
-		goto err_free_mem;
+		return err;
 
 	err = input_register_device(keypad->input_dev);
 	if (err)
-		goto err_free_gpio;
+		return err;
 
 	device_init_wakeup(&pdev->dev, pdata->wakeup);
 	platform_set_drvdata(pdev, keypad);
 
 	return 0;
-
-err_free_gpio:
-	matrix_keypad_free_gpio(keypad);
-err_free_mem:
-	input_free_device(input_dev);
-	kfree(keypad);
-	return err;
-}
-
-static void matrix_keypad_remove(struct platform_device *pdev)
-{
-	struct matrix_keypad *keypad = platform_get_drvdata(pdev);
-
-	matrix_keypad_free_gpio(keypad);
-	input_unregister_device(keypad->input_dev);
-	kfree(keypad);
 }
 
 #ifdef CONFIG_OF
@@ -568,7 +507,6 @@ MODULE_DEVICE_TABLE(of, matrix_keypad_dt_match);
 
 static struct platform_driver matrix_keypad_driver = {
 	.probe		= matrix_keypad_probe,
-	.remove_new	= matrix_keypad_remove,
 	.driver		= {
 		.name	= "matrix-keypad",
 		.pm	= pm_sleep_ptr(&matrix_keypad_pm_ops),

@@ -31,7 +31,6 @@ struct hynix_read_retry {
 
 /**
  * struct hynix_nand - private Hynix NAND struct
- * @nand_technology: manufacturing process expressed in picometer
  * @read_retry: read-retry information
  */
 struct hynix_nand {

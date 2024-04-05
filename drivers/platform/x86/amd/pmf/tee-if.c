@@ -246,19 +246,24 @@ static void amd_pmf_invoke_cmd(struct work_struct *work)
 
 static int amd_pmf_start_policy_engine(struct amd_pmf_dev *dev)
 {
-	u32 cookie, length;
+	struct cookie_header *header;
 	int res;
 
-	cookie = readl(dev->policy_buf + POLICY_COOKIE_OFFSET);
-	length = readl(dev->policy_buf + POLICY_COOKIE_LEN);
+	if (dev->policy_sz < POLICY_COOKIE_OFFSET + sizeof(*header))
+		return -EINVAL;
 
-	if (cookie != POLICY_SIGN_COOKIE || !length) {
+	header = (struct cookie_header *)(dev->policy_buf + POLICY_COOKIE_OFFSET);
+
+	if (header->sign != POLICY_SIGN_COOKIE || !header->length) {
 		dev_dbg(dev->dev, "cookie doesn't match\n");
 		return -EINVAL;
 	}
 
+	if (dev->policy_sz < header->length + 512)
+		return -EINVAL;
+
 	/* Update the actual length */
-	dev->policy_sz = length + 512;
+	dev->policy_sz = header->length + 512;
 	res = amd_pmf_invoke_cmd_init(dev);
 	if (res == TA_PMF_TYPE_SUCCESS) {
 		/* Now its safe to announce that smart pc is enabled */
@@ -271,7 +276,7 @@ static int amd_pmf_start_policy_engine(struct amd_pmf_dev *dev)
 	} else {
 		dev_err(dev->dev, "ta invoke cmd init failed err: %x\n", res);
 		dev->smart_pc_enabled = false;
-		return res;
+		return -EIO;
 	}
 
 	return 0;
@@ -311,8 +316,8 @@ static ssize_t amd_pmf_get_pb_data(struct file *filp, const char __user *buf,
 
 	amd_pmf_hex_dump_pb(dev);
 	ret = amd_pmf_start_policy_engine(dev);
-	if (ret)
-		return -EINVAL;
+	if (ret < 0)
+		return ret;
 
 	return length;
 }
@@ -453,7 +458,7 @@ int amd_pmf_init_smart_pc(struct amd_pmf_dev *dev)
 		goto error;
 	}
 
-	memcpy(dev->policy_buf, dev->policy_base, dev->policy_sz);
+	memcpy_fromio(dev->policy_buf, dev->policy_base, dev->policy_sz);
 
 	amd_pmf_hex_dump_pb(dev);
 

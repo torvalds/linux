@@ -14,7 +14,6 @@ ACPI Support
    dsd/phy
    enumeration
    osi
-   method-customizing
    method-tracing
    DSD-properties-rules
    debug

@@ -11,7 +11,9 @@ maintainers:
 
 properties:
   compatible:
-    const: nxp,ptn5110
+    items:
+      - const: nxp,ptn5110
+      - const: tcpci
 
   reg:
     maxItems: 1
@@ -41,7 +43,7 @@ examples:
         #size-cells = <0>;
 
         tcpci@50 {
-            compatible = "nxp,ptn5110";
+            compatible = "nxp,ptn5110", "tcpci";
             reg = <0x50>;
             interrupt-parent = <&gpio3>;
             interrupts = <3 IRQ_TYPE_LEVEL_LOW>;

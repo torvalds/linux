@@ -51,87 +51,105 @@ const struct trace_print_flags vmaflag_names[] = {
 	{0, NULL}
 };
 
-static void __dump_page(struct page *page)
+static void __dump_folio(struct folio *folio, struct page *page,
+		unsigned long pfn, unsigned long idx)
 {
-	struct folio *folio = page_folio(page);
-	struct page *head = &folio->page;
-	struct address_space *mapping;
-	bool compound = PageCompound(page);
-	/*
-	 * Accessing the pageblock without the zone lock. It could change to
-	 * "isolate" again in the meantime, but since we are just dumping the
-	 * state for debugging, it should be fine to accept a bit of
-	 * inaccuracy here due to racing.
-	 */
-	bool page_cma = is_migrate_cma_page(page);
-	int mapcount;
+	struct address_space *mapping = folio_mapping(folio);
+	int mapcount = 0;
 	char *type = "";
 
-	if (page < head || (page >= head + MAX_ORDER_NR_PAGES)) {
-		/*
-		 * Corrupt page, so we cannot call page_mapping. Instead, do a
-		 * safe subset of the steps that page_mapping() does. Caution:
-		 * this will be misleading for tail pages, PageSwapCache pages,
-		 * and potentially other situations. (See the page_mapping()
-		 * implementation for what's missing here.)
-		 */
-		unsigned long tmp = (unsigned long)page->mapping;
-
-		if (tmp & PAGE_MAPPING_ANON)
-			mapping = NULL;
-		else
-			mapping = (void *)(tmp & ~PAGE_MAPPING_FLAGS);
-		head = page;
-		folio = (struct folio *)page;
-		compound = false;
-	} else {
-		mapping = page_mapping(page);
+	/*
+	 * page->_mapcount space in struct page is used by slab pages to
+	 * encode own info, and we must avoid calling page_folio() again.
+	 */
+	if (!folio_test_slab(folio)) {
+		mapcount = atomic_read(&page->_mapcount) + 1;
+		if (folio_test_large(folio))
+			mapcount += folio_entire_mapcount(folio);
 	}
 
-	/*
-	 * Avoid VM_BUG_ON() in page_mapcount().
-	 * page->_mapcount space in struct page is used by sl[aou]b pages to
-	 * encode own info.
-	 */
-	mapcount = PageSlab(head) ? 0 : page_mapcount(page);
-
-	pr_warn("page:%p refcount:%d mapcount:%d mapping:%p index:%#lx pfn:%#lx\n",
-			page, page_ref_count(head), mapcount, mapping,
-			page_to_pgoff(page), page_to_pfn(page));
-	if (compound) {
-		pr_warn("head:%p order:%u entire_mapcount:%d nr_pages_mapped:%d pincount:%d\n",
-				head, compound_order(head),
+	pr_warn("page: refcount:%d mapcount:%d mapping:%p index:%#lx pfn:%#lx\n",
+			folio_ref_count(folio), mapcount, mapping,
+			folio->index + idx, pfn);
+	if (folio_test_large(folio)) {
+		pr_warn("head: order:%u entire_mapcount:%d nr_pages_mapped:%d pincount:%d\n",
+				folio_order(folio),
 				folio_entire_mapcount(folio),
 				folio_nr_pages_mapped(folio),
 				atomic_read(&folio->_pincount));
 	}
 
 #ifdef CONFIG_MEMCG
-	if (head->memcg_data)
-		pr_warn("memcg:%lx\n", head->memcg_data);
+	if (folio->memcg_data)
+		pr_warn("memcg:%lx\n", folio->memcg_data);
 #endif
-	if (PageKsm(page))
+	if (folio_test_ksm(folio))
 		type = "ksm ";
-	else if (PageAnon(page))
+	else if (folio_test_anon(folio))
 		type = "anon ";
 	else if (mapping)
 		dump_mapping(mapping);
 	BUILD_BUG_ON(ARRAY_SIZE(pageflag_names) != __NR_PAGEFLAGS + 1);
 
-	pr_warn("%sflags: %pGp%s\n", type, &head->flags,
-		page_cma ? " CMA" : "");
-	pr_warn("page_type: %pGt\n", &head->page_type);
+	/*
+	 * Accessing the pageblock without the zone lock. It could change to
+	 * "isolate" again in the meantime, but since we are just dumping the
+	 * state for debugging, it should be fine to accept a bit of
+	 * inaccuracy here due to racing.
+	 */
+	pr_warn("%sflags: %pGp%s\n", type, &folio->flags,
+		is_migrate_cma_folio(folio, pfn) ? " CMA" : "");
+	pr_warn("page_type: %pGt\n", &folio->page.page_type);
 
 	print_hex_dump(KERN_WARNING, "raw: ", DUMP_PREFIX_NONE, 32,
 			sizeof(unsigned long), page,
 			sizeof(struct page), false);
-	if (head != page)
+	if (folio_test_large(folio))
 		print_hex_dump(KERN_WARNING, "head: ", DUMP_PREFIX_NONE, 32,
-			sizeof(unsigned long), head,
-			sizeof(struct page), false);
+			sizeof(unsigned long), folio,
+			2 * sizeof(struct page), false);
 }
 
-void dump_page(struct page *page, const char *reason)
+static void __dump_page(const struct page *page)
+{
+	struct folio *foliop, folio;
+	struct page precise;
+	unsigned long pfn = page_to_pfn(page);
+	unsigned long idx, nr_pages = 1;
+	int loops = 5;
+
+again:
+	memcpy(&precise, page, sizeof(*page));
+	foliop = page_folio(&precise);
+	if (foliop == (struct folio *)&precise) {
+		idx = 0;
+		if (!folio_test_large(foliop))
+			goto dump;
+		foliop = (struct folio *)page;
+	} else {
+		idx = folio_page_idx(foliop, page);
+	}
+
+	if (idx < MAX_FOLIO_NR_PAGES) {
+		memcpy(&folio, foliop, 2 * sizeof(struct page));
+		nr_pages = folio_nr_pages(&folio);
+		foliop = &folio;
+	}
+
+	if (idx > nr_pages) {
+		if (loops-- > 0)
+			goto again;
+		pr_warn("page does not match folio\n");
+		precise.compound_head &= ~1UL;
+		foliop = (struct folio *)&precise;
+		idx = 0;
+	}
+
+dump:
+	__dump_folio(foliop, &precise, pfn, idx);
+}
+
+void dump_page(const struct page *page, const char *reason)
 {
 	if (PagePoisoned(page))
 		pr_warn("page:%p is uninitialized and poisoned", page);

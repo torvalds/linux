@@ -130,7 +130,6 @@ bool sxgbe_eee_init(struct sxgbe_priv_data * const priv)
 		if (phy_init_eee(ndev->phydev, true))
 			return false;
 
-		priv->eee_active = 1;
 		timer_setup(&priv->eee_ctrl_timer, sxgbe_eee_ctrl_timer, 0);
 		priv->eee_ctrl_timer.expires = SXGBE_LPI_TIMER(eee_timer);
 		add_timer(&priv->eee_ctrl_timer);

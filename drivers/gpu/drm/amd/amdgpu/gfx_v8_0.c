@@ -1288,7 +1288,7 @@ static int gfx_v8_0_rlc_init(struct amdgpu_device *adev)
 
 	/* init spm vmid with 0xf */
 	if (adev->gfx.rlc.funcs->update_spm_vmid)
-		adev->gfx.rlc.funcs->update_spm_vmid(adev, 0xf);
+		adev->gfx.rlc.funcs->update_spm_vmid(adev, NULL, 0xf);
 
 	return 0;
 }
@@ -1900,8 +1900,8 @@ static void gfx_v8_0_sq_irq_work_func(struct work_struct *work);
 static int gfx_v8_0_sw_init(void *handle)
 {
 	int i, j, k, r, ring_id;
+	int xcc_id = 0;
 	struct amdgpu_ring *ring;
-	struct amdgpu_kiq *kiq;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	switch (adev->asic_type) {
@@ -2022,8 +2022,7 @@ static int gfx_v8_0_sw_init(void *handle)
 		return r;
 	}
 
-	kiq = &adev->gfx.kiq[0];
-	r = amdgpu_gfx_kiq_init_ring(adev, &kiq->ring, &kiq->irq, 0);
+	r = amdgpu_gfx_kiq_init_ring(adev, xcc_id);
 	if (r)
 		return r;
 
@@ -5579,7 +5578,7 @@ static void gfx_v8_0_unset_safe_mode(struct amdgpu_device *adev, int xcc_id)
 	}
 }
 
-static void gfx_v8_0_update_spm_vmid(struct amdgpu_device *adev, unsigned vmid)
+static void gfx_v8_0_update_spm_vmid(struct amdgpu_device *adev, struct amdgpu_ring *ring, unsigned vmid)
 {
 	u32 data;
 
@@ -6327,31 +6326,20 @@ static void gfx_v8_ring_emit_cntxcntl(struct amdgpu_ring *ring, uint32_t flags)
 	amdgpu_ring_write(ring, 0);
 }
 
-static unsigned gfx_v8_0_ring_emit_init_cond_exec(struct amdgpu_ring *ring)
+static unsigned gfx_v8_0_ring_emit_init_cond_exec(struct amdgpu_ring *ring,
+						  uint64_t addr)
 {
 	unsigned ret;
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_COND_EXEC, 3));
-	amdgpu_ring_write(ring, lower_32_bits(ring->cond_exe_gpu_addr));
-	amdgpu_ring_write(ring, upper_32_bits(ring->cond_exe_gpu_addr));
-	amdgpu_ring_write(ring, 0); /* discard following DWs if *cond_exec_gpu_addr==0 */
+	amdgpu_ring_write(ring, lower_32_bits(addr));
+	amdgpu_ring_write(ring, upper_32_bits(addr));
+	/* discard following DWs if *cond_exec_gpu_addr==0 */
+	amdgpu_ring_write(ring, 0);
 	ret = ring->wptr & ring->buf_mask;
-	amdgpu_ring_write(ring, 0x55aa55aa); /* patch dummy value later */
+	/* patch dummy value later */
+	amdgpu_ring_write(ring, 0);
 	return ret;
-}
-
-static void gfx_v8_0_ring_emit_patch_cond_exec(struct amdgpu_ring *ring, unsigned offset)
-{
-	unsigned cur;
-
-	BUG_ON(offset > ring->buf_mask);
-	BUG_ON(ring->ring[offset] != 0x55aa55aa);
-
-	cur = (ring->wptr & ring->buf_mask) - 1;
-	if (likely(cur > offset))
-		ring->ring[offset] = cur - offset;
-	else
-		ring->ring[offset] = (ring->ring_size >> 2) - offset + cur;
 }
 
 static void gfx_v8_0_ring_emit_rreg(struct amdgpu_ring *ring, uint32_t reg,
@@ -6933,7 +6921,6 @@ static const struct amdgpu_ring_funcs gfx_v8_0_ring_funcs_gfx = {
 	.emit_switch_buffer = gfx_v8_ring_emit_sb,
 	.emit_cntxcntl = gfx_v8_ring_emit_cntxcntl,
 	.init_cond_exec = gfx_v8_0_ring_emit_init_cond_exec,
-	.patch_cond_exec = gfx_v8_0_ring_emit_patch_cond_exec,
 	.emit_wreg = gfx_v8_0_ring_emit_wreg,
 	.soft_recovery = gfx_v8_0_ring_soft_recovery,
 	.emit_mem_sync = gfx_v8_0_emit_mem_sync,

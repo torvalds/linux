@@ -742,9 +742,21 @@ void vmw_bo_move_notify(struct ttm_buffer_object *bo,
 		vmw_resource_unbind_list(vbo);
 }
 
-static u32
-set_placement_list(struct ttm_place *pl, u32 domain)
+static u32 placement_flags(u32 domain, u32 desired, u32 fallback)
 {
+	if (desired & fallback & domain)
+		return 0;
+
+	if (desired & domain)
+		return TTM_PL_FLAG_DESIRED;
+
+	return TTM_PL_FLAG_FALLBACK;
+}
+
+static u32
+set_placement_list(struct ttm_place *pl, u32 desired, u32 fallback)
+{
+	u32 domain = desired | fallback;
 	u32 n = 0;
 
 	/*
@@ -752,35 +764,40 @@ set_placement_list(struct ttm_place *pl, u32 domain)
 	 */
 	if (domain & VMW_BO_DOMAIN_MOB) {
 		pl[n].mem_type = VMW_PL_MOB;
-		pl[n].flags = 0;
+		pl[n].flags = placement_flags(VMW_BO_DOMAIN_MOB, desired,
+					      fallback);
 		pl[n].fpfn = 0;
 		pl[n].lpfn = 0;
 		n++;
 	}
 	if (domain & VMW_BO_DOMAIN_GMR) {
 		pl[n].mem_type = VMW_PL_GMR;
-		pl[n].flags = 0;
+		pl[n].flags = placement_flags(VMW_BO_DOMAIN_GMR, desired,
+					      fallback);
 		pl[n].fpfn = 0;
 		pl[n].lpfn = 0;
 		n++;
 	}
 	if (domain & VMW_BO_DOMAIN_VRAM) {
 		pl[n].mem_type = TTM_PL_VRAM;
-		pl[n].flags = 0;
+		pl[n].flags = placement_flags(VMW_BO_DOMAIN_VRAM, desired,
+					      fallback);
 		pl[n].fpfn = 0;
 		pl[n].lpfn = 0;
 		n++;
 	}
 	if (domain & VMW_BO_DOMAIN_WAITABLE_SYS) {
 		pl[n].mem_type = VMW_PL_SYSTEM;
-		pl[n].flags = 0;
+		pl[n].flags = placement_flags(VMW_BO_DOMAIN_WAITABLE_SYS,
+					      desired, fallback);
 		pl[n].fpfn = 0;
 		pl[n].lpfn = 0;
 		n++;
 	}
 	if (domain & VMW_BO_DOMAIN_SYS) {
 		pl[n].mem_type = TTM_PL_SYSTEM;
-		pl[n].flags = 0;
+		pl[n].flags = placement_flags(VMW_BO_DOMAIN_SYS, desired,
+					      fallback);
 		pl[n].fpfn = 0;
 		pl[n].lpfn = 0;
 		n++;
@@ -806,7 +823,7 @@ void vmw_bo_placement_set(struct vmw_bo *bo, u32 domain, u32 busy_domain)
 	u32 i;
 
 	pl->placement = bo->places;
-	pl->num_placement = set_placement_list(bo->places, domain);
+	pl->num_placement = set_placement_list(bo->places, domain, busy_domain);
 
 	if (drm_debug_enabled(DRM_UT_DRIVER) && bo->tbo.resource) {
 		for (i = 0; i < pl->num_placement; ++i) {
@@ -821,8 +838,6 @@ void vmw_bo_placement_set(struct vmw_bo *bo, u32 domain, u32 busy_domain)
 				 __func__, bo->tbo.resource->mem_type, domain);
 	}
 
-	pl->busy_placement = bo->busy_places;
-	pl->num_busy_placement = set_placement_list(bo->busy_places, busy_domain);
 }
 
 void vmw_bo_placement_set_default_accelerated(struct vmw_bo *bo)

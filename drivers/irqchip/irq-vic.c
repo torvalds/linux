@@ -47,9 +47,8 @@
 
 /**
  * struct vic_device - VIC PM device
- * @parent_irq: The parent IRQ number of the VIC if cascaded, or 0.
- * @irq: The IRQ number for the base of the VIC.
  * @base: The register base for the VIC.
+ * @irq: The IRQ number for the base of the VIC.
  * @valid_sources: A bitmask of valid interrupts
  * @resume_sources: A bitmask of interrupts for resume.
  * @resume_irqs: The IRQs enabled for resume.

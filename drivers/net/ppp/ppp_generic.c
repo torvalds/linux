@@ -295,7 +295,9 @@ static void ppp_setup(struct net_device *dev);
 
 static const struct net_device_ops ppp_netdev_ops;
 
-static struct class *ppp_class;
+static const struct class ppp_class = {
+	.name = "ppp",
+};
 
 /* per net-namespace data */
 static inline struct ppp_net *ppp_pernet(struct net *net)
@@ -1394,11 +1396,9 @@ static int __init ppp_init(void)
 		goto out_net;
 	}
 
-	ppp_class = class_create("ppp");
-	if (IS_ERR(ppp_class)) {
-		err = PTR_ERR(ppp_class);
+	err = class_register(&ppp_class);
+	if (err)
 		goto out_chrdev;
-	}
 
 	err = rtnl_link_register(&ppp_link_ops);
 	if (err) {
@@ -1407,12 +1407,12 @@ static int __init ppp_init(void)
 	}
 
 	/* not a big deal if we fail here :-) */
-	device_create(ppp_class, NULL, MKDEV(PPP_MAJOR, 0), NULL, "ppp");
+	device_create(&ppp_class, NULL, MKDEV(PPP_MAJOR, 0), NULL, "ppp");
 
 	return 0;
 
 out_class:
-	class_destroy(ppp_class);
+	class_unregister(&ppp_class);
 out_chrdev:
 	unregister_chrdev(PPP_MAJOR, "ppp");
 out_net:
@@ -1607,7 +1607,7 @@ static const struct net_device_ops ppp_netdev_ops = {
 	.ndo_fill_forward_path = ppp_fill_forward_path,
 };
 
-static struct device_type ppp_type = {
+static const struct device_type ppp_type = {
 	.name = "ppp",
 };
 
@@ -3549,8 +3549,8 @@ static void __exit ppp_cleanup(void)
 		pr_err("PPP: removing module but units remain!\n");
 	rtnl_link_unregister(&ppp_link_ops);
 	unregister_chrdev(PPP_MAJOR, "ppp");
-	device_destroy(ppp_class, MKDEV(PPP_MAJOR, 0));
-	class_destroy(ppp_class);
+	device_destroy(&ppp_class, MKDEV(PPP_MAJOR, 0));
+	class_unregister(&ppp_class);
 	unregister_pernet_device(&ppp_net_ops);
 }
 

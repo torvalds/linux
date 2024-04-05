@@ -72,6 +72,8 @@ static void init_vmx_capabilities(struct cpuinfo_x86 *c)
 		c->vmx_capability[MISC_FEATURES] |= VMX_F(EPT_AD);
 	if (ept & VMX_EPT_1GB_PAGE_BIT)
 		c->vmx_capability[MISC_FEATURES] |= VMX_F(EPT_1GB);
+	if (ept & VMX_EPT_PAGE_WALK_5_BIT)
+		c->vmx_capability[MISC_FEATURES] |= VMX_F(EPT_5LEVEL);
 
 	/* Synthetic APIC features that are aggregates of multiple features. */
 	if ((c->vmx_capability[PRIMARY_CTLS] & VMX_F(VIRTUAL_TPR)) &&

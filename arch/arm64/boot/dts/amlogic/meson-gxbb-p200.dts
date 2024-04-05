@@ -21,14 +21,14 @@
 		sound-name-prefix = "DIT";
 	};
 
-	avdd18_usb_adc: regulator-avdd18_usb_adc {
+	avdd18_usb_adc: regulator-avdd18-usb-adc {
 		compatible = "regulator-fixed";
 		regulator-name = "AVDD18_USB_ADC";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 	};
 
-	adc_keys {
+	keys {
 		compatible = "adc-keys";
 		io-channels = <&saradc 0>;
 		io-channel-names = "buttons";

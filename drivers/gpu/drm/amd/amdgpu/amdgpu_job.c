@@ -35,7 +35,7 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 {
 	struct amdgpu_ring *ring = to_amdgpu_ring(s_job->sched);
 	struct amdgpu_job *job = to_amdgpu_job(s_job);
-	struct amdgpu_task_info ti;
+	struct amdgpu_task_info *ti;
 	struct amdgpu_device *adev = ring->adev;
 	int idx;
 	int r;
@@ -48,7 +48,7 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 		return DRM_GPU_SCHED_STAT_ENODEV;
 	}
 
-	memset(&ti, 0, sizeof(struct amdgpu_task_info));
+
 	adev->job_hang = true;
 
 	if (amdgpu_gpu_recovery &&
@@ -58,12 +58,16 @@ static enum drm_gpu_sched_stat amdgpu_job_timedout(struct drm_sched_job *s_job)
 		goto exit;
 	}
 
-	amdgpu_vm_get_task_info(ring->adev, job->pasid, &ti);
 	DRM_ERROR("ring %s timeout, signaled seq=%u, emitted seq=%u\n",
-		  job->base.sched->name, atomic_read(&ring->fence_drv.last_seq),
-		  ring->fence_drv.sync_seq);
-	DRM_ERROR("Process information: process %s pid %d thread %s pid %d\n",
-		  ti.process_name, ti.tgid, ti.task_name, ti.pid);
+		   job->base.sched->name, atomic_read(&ring->fence_drv.last_seq),
+		   ring->fence_drv.sync_seq);
+
+	ti = amdgpu_vm_get_task_info_pasid(ring->adev, job->pasid);
+	if (ti) {
+		DRM_ERROR("Process information: process %s pid %d thread %s pid %d\n",
+			  ti->process_name, ti->tgid, ti->task_name, ti->pid);
+		amdgpu_vm_put_task_info(ti);
+	}
 
 	dma_fence_set_error(&s_job->s_fence->finished, -ETIME);
 

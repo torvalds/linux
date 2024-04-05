@@ -482,7 +482,7 @@ static inline bool tee_param_is_memref(struct tee_param *param)
 	}
 }
 
-extern struct bus_type tee_bus_type;
+extern const struct bus_type tee_bus_type;
 
 /**
  * struct tee_client_device - tee based device

@@ -1341,6 +1341,71 @@ static void raw_sync(struct kunit *test)
 	regmap_exit(map);
 }
 
+static void raw_ranges(struct kunit *test)
+{
+	struct raw_test_types *t = (struct raw_test_types *)test->param_value;
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	unsigned int val;
+	int i;
+
+	config = raw_regmap_config;
+	config.volatile_reg = test_range_all_volatile;
+	config.ranges = &test_range;
+	config.num_ranges = 1;
+	config.max_register = test_range.range_max;
+
+	map = gen_raw_regmap(&config, t, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	/* Reset the page to a non-zero value to trigger a change */
+	KUNIT_EXPECT_EQ(test, 0, regmap_write(map, test_range.selector_reg,
+					      test_range.range_max));
+
+	/* Check we set the page and use the window for writes */
+	data->written[test_range.selector_reg] = false;
+	data->written[test_range.window_start] = false;
+	KUNIT_EXPECT_EQ(test, 0, regmap_write(map, test_range.range_min, 0));
+	KUNIT_EXPECT_TRUE(test, data->written[test_range.selector_reg]);
+	KUNIT_EXPECT_TRUE(test, data->written[test_range.window_start]);
+
+	data->written[test_range.selector_reg] = false;
+	data->written[test_range.window_start] = false;
+	KUNIT_EXPECT_EQ(test, 0, regmap_write(map,
+					      test_range.range_min +
+					      test_range.window_len,
+					      0));
+	KUNIT_EXPECT_TRUE(test, data->written[test_range.selector_reg]);
+	KUNIT_EXPECT_TRUE(test, data->written[test_range.window_start]);
+
+	/* Same for reads */
+	data->written[test_range.selector_reg] = false;
+	data->read[test_range.window_start] = false;
+	KUNIT_EXPECT_EQ(test, 0, regmap_read(map, test_range.range_min, &val));
+	KUNIT_EXPECT_TRUE(test, data->written[test_range.selector_reg]);
+	KUNIT_EXPECT_TRUE(test, data->read[test_range.window_start]);
+
+	data->written[test_range.selector_reg] = false;
+	data->read[test_range.window_start] = false;
+	KUNIT_EXPECT_EQ(test, 0, regmap_read(map,
+					     test_range.range_min +
+					     test_range.window_len,
+					     &val));
+	KUNIT_EXPECT_TRUE(test, data->written[test_range.selector_reg]);
+	KUNIT_EXPECT_TRUE(test, data->read[test_range.window_start]);
+
+	/* No physical access triggered in the virtual range */
+	for (i = test_range.range_min; i < test_range.range_max; i++) {
+		KUNIT_EXPECT_FALSE(test, data->read[i]);
+		KUNIT_EXPECT_FALSE(test, data->written[i]);
+	}
+
+	regmap_exit(map);
+}
+
 static struct kunit_case regmap_test_cases[] = {
 	KUNIT_CASE_PARAM(basic_read_write, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(bulk_write, regcache_types_gen_params),
@@ -1368,6 +1433,7 @@ static struct kunit_case regmap_test_cases[] = {
 	KUNIT_CASE_PARAM(raw_write, raw_test_types_gen_params),
 	KUNIT_CASE_PARAM(raw_noinc_write, raw_test_types_gen_params),
 	KUNIT_CASE_PARAM(raw_sync, raw_test_cache_types_gen_params),
+	KUNIT_CASE_PARAM(raw_ranges, raw_test_cache_types_gen_params),
 	{}
 };
 

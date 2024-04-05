@@ -22,6 +22,8 @@
 #include "xfs_sb.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_quota.h"
+#include "xfs_log_priv.h"
+#include "xfs_health.h"
 
 /*
  * Return whether there are any free extents in the size range given
@@ -903,7 +905,7 @@ xfs_growfs_rt(
 	/*
 	 * Allocate a new (fake) mount/sb.
 	 */
-	nmp = kmem_alloc(sizeof(*nmp), 0);
+	nmp = kmalloc(sizeof(*nmp), GFP_KERNEL | __GFP_NOFAIL);
 	/*
 	 * Loop over the bitmap blocks.
 	 * We will do everything one bitmap block at a time.
@@ -1050,7 +1052,7 @@ out_free:
 	/*
 	 * Free the fake mp structure.
 	 */
-	kmem_free(nmp);
+	kfree(nmp);
 
 	/*
 	 * If we had to allocate a new rsum_cache, we either need to free the
@@ -1059,10 +1061,10 @@ out_free:
 	 */
 	if (rsum_cache != mp->m_rsum_cache) {
 		if (error) {
-			kmem_free(mp->m_rsum_cache);
+			kvfree(mp->m_rsum_cache);
 			mp->m_rsum_cache = rsum_cache;
 		} else {
-			kmem_free(rsum_cache);
+			kvfree(rsum_cache);
 		}
 	}
 
@@ -1202,6 +1204,8 @@ xfs_rtmount_inodes(
 
 	sbp = &mp->m_sb;
 	error = xfs_iget(mp, NULL, sbp->sb_rbmino, 0, 0, &mp->m_rbmip);
+	if (xfs_metadata_is_sick(error))
+		xfs_rt_mark_sick(mp, XFS_SICK_RT_BITMAP);
 	if (error)
 		return error;
 	ASSERT(mp->m_rbmip != NULL);
@@ -1211,6 +1215,8 @@ xfs_rtmount_inodes(
 		goto out_rele_bitmap;
 
 	error = xfs_iget(mp, NULL, sbp->sb_rsumino, 0, 0, &mp->m_rsumip);
+	if (xfs_metadata_is_sick(error))
+		xfs_rt_mark_sick(mp, XFS_SICK_RT_SUMMARY);
 	if (error)
 		goto out_rele_bitmap;
 	ASSERT(mp->m_rsumip != NULL);
@@ -1233,7 +1239,7 @@ void
 xfs_rtunmount_inodes(
 	struct xfs_mount	*mp)
 {
-	kmem_free(mp->m_rsum_cache);
+	kvfree(mp->m_rsum_cache);
 	if (mp->m_rbmip)
 		xfs_irele(mp->m_rbmip);
 	if (mp->m_rsumip)
@@ -1260,7 +1266,7 @@ xfs_rtpick_extent(
 	uint64_t		seq;		/* sequence number of file creation */
 	struct timespec64	ts;		/* timespec in inode */
 
-	ASSERT(xfs_isilocked(mp->m_rbmip, XFS_ILOCK_EXCL));
+	xfs_assert_ilocked(mp->m_rbmip, XFS_ILOCK_EXCL);
 
 	ts = inode_get_atime(VFS_I(mp->m_rbmip));
 	if (!(mp->m_rbmip->i_diflags & XFS_DIFLAG_NEWRTBM)) {

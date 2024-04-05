@@ -41,7 +41,7 @@ static void mcp_bus_remove(struct device *dev)
 	drv->remove(mcp);
 }
 
-static struct bus_type mcp_bus_type = {
+static const struct bus_type mcp_bus_type = {
 	.name		= "mcp",
 	.match		= mcp_bus_match,
 	.probe		= mcp_bus_probe,

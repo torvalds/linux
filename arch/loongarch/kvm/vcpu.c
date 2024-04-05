@@ -304,11 +304,18 @@ static int _kvm_get_cpucfg_mask(int id, u64 *v)
 		return -EINVAL;
 
 	switch (id) {
-	case 2:
+	case LOONGARCH_CPUCFG0:
+		*v = GENMASK(31, 0);
+		return 0;
+	case LOONGARCH_CPUCFG1:
+		/* CPUCFG1_MSGINT is not supported by KVM */
+		*v = GENMASK(25, 0);
+		return 0;
+	case LOONGARCH_CPUCFG2:
 		/* CPUCFG2 features unconditionally supported by KVM */
 		*v = CPUCFG2_FP     | CPUCFG2_FPSP  | CPUCFG2_FPDP     |
 		     CPUCFG2_FPVERS | CPUCFG2_LLFTP | CPUCFG2_LLFTPREV |
-		     CPUCFG2_LAM;
+		     CPUCFG2_LSPW | CPUCFG2_LAM;
 		/*
 		 * For the ISA extensions listed below, if one is supported
 		 * by the host, then it is also supported by KVM.
@@ -319,13 +326,25 @@ static int _kvm_get_cpucfg_mask(int id, u64 *v)
 			*v |= CPUCFG2_LASX;
 
 		return 0;
+	case LOONGARCH_CPUCFG3:
+		*v = GENMASK(16, 0);
+		return 0;
+	case LOONGARCH_CPUCFG4:
+	case LOONGARCH_CPUCFG5:
+		*v = GENMASK(31, 0);
+		return 0;
+	case LOONGARCH_CPUCFG16:
+		*v = GENMASK(16, 0);
+		return 0;
+	case LOONGARCH_CPUCFG17 ... LOONGARCH_CPUCFG20:
+		*v = GENMASK(30, 0);
+		return 0;
 	default:
 		/*
-		 * No restrictions on other valid CPUCFG IDs' values, but
-		 * CPUCFG data is limited to 32 bits as the LoongArch ISA
-		 * manual says (Volume 1, Section 2.2.10.5 "CPUCFG").
+		 * CPUCFG bits should be zero if reserved by HW or not
+		 * supported by KVM.
 		 */
-		*v = U32_MAX;
+		*v = 0;
 		return 0;
 	}
 }
@@ -344,7 +363,7 @@ static int kvm_check_cpucfg(int id, u64 val)
 		return -EINVAL;
 
 	switch (id) {
-	case 2:
+	case LOONGARCH_CPUCFG2:
 		if (!(val & CPUCFG2_LLFTP))
 			/* Guests must have a constant timer */
 			return -EINVAL;

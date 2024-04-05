@@ -29,6 +29,8 @@ static u32 dpll_pin_xa_id;
 	WARN_ON_ONCE(!xa_get_mark(&dpll_device_xa, (d)->id, DPLL_REGISTERED))
 #define ASSERT_DPLL_NOT_REGISTERED(d)	\
 	WARN_ON_ONCE(xa_get_mark(&dpll_device_xa, (d)->id, DPLL_REGISTERED))
+#define ASSERT_DPLL_PIN_REGISTERED(p) \
+	WARN_ON_ONCE(!xa_get_mark(&dpll_pin_xa, (p)->id, DPLL_REGISTERED))
 
 struct dpll_device_registration {
 	struct list_head list;
@@ -129,9 +131,9 @@ static int dpll_xa_ref_pin_del(struct xarray *xa_pins, struct dpll_pin *pin,
 		reg = dpll_pin_registration_find(ref, ops, priv);
 		if (WARN_ON(!reg))
 			return -EINVAL;
+		list_del(&reg->list);
+		kfree(reg);
 		if (refcount_dec_and_test(&ref->refcount)) {
-			list_del(&reg->list);
-			kfree(reg);
 			xa_erase(xa_pins, i);
 			WARN_ON(!list_empty(&ref->registration_list));
 			kfree(ref);
@@ -209,9 +211,9 @@ dpll_xa_ref_dpll_del(struct xarray *xa_dplls, struct dpll_device *dpll,
 		reg = dpll_pin_registration_find(ref, ops, priv);
 		if (WARN_ON(!reg))
 			return;
+		list_del(&reg->list);
+		kfree(reg);
 		if (refcount_dec_and_test(&ref->refcount)) {
-			list_del(&reg->list);
-			kfree(reg);
 			xa_erase(xa_dplls, i);
 			WARN_ON(!list_empty(&ref->registration_list));
 			kfree(ref);
@@ -580,9 +582,9 @@ void dpll_pin_put(struct dpll_pin *pin)
 {
 	mutex_lock(&dpll_lock);
 	if (refcount_dec_and_test(&pin->refcount)) {
+		xa_erase(&dpll_pin_xa, pin->id);
 		xa_destroy(&pin->dpll_refs);
 		xa_destroy(&pin->parent_refs);
-		xa_erase(&dpll_pin_xa, pin->id);
 		dpll_pin_prop_free(&pin->prop);
 		kfree_rcu(pin, rcu);
 	}
@@ -651,6 +653,7 @@ static void
 __dpll_pin_unregister(struct dpll_device *dpll, struct dpll_pin *pin,
 		      const struct dpll_pin_ops *ops, void *priv)
 {
+	ASSERT_DPLL_PIN_REGISTERED(pin);
 	dpll_xa_ref_pin_del(&dpll->pin_refs, pin, ops, priv);
 	dpll_xa_ref_dpll_del(&pin->dpll_refs, dpll, ops, priv);
 	if (xa_empty(&pin->dpll_refs))

@@ -9,8 +9,10 @@
 #define _NFSD_TRACE_H
 
 #include <linux/tracepoint.h>
+#include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/xprt.h>
 #include <trace/misc/nfs.h>
+#include <trace/misc/sunrpc.h>
 
 #include "export.h"
 #include "nfsfh.h"
@@ -102,7 +104,7 @@ TRACE_EVENT(nfsd_compound,
 	TP_fast_assign(
 		__entry->xid = be32_to_cpu(rqst->rq_xid);
 		__entry->opcnt = opcnt;
-		__assign_str_len(tag, tag, taglen);
+		__assign_str(tag, tag);
 	),
 	TP_printk("xid=0x%08x opcnt=%u tag=%s",
 		__entry->xid, __entry->opcnt, __get_str(tag)
@@ -483,7 +485,7 @@ TRACE_EVENT(nfsd_dirent,
 	TP_fast_assign(
 		__entry->fh_hash = fhp ? knfsd_fh_hash(&fhp->fh_handle) : 0;
 		__entry->ino = ino;
-		__assign_str_len(name, name, namlen)
+		__assign_str(name, name);
 	),
 	TP_printk("fh_hash=0x%08x ino=%llu name=%s",
 		__entry->fh_hash, __entry->ino, __get_str(name)
@@ -641,23 +643,18 @@ DEFINE_EVENT(nfsd_stateseqid_class, nfsd_##name, \
 DEFINE_STATESEQID_EVENT(preprocess);
 DEFINE_STATESEQID_EVENT(open_confirm);
 
-TRACE_DEFINE_ENUM(NFS4_OPEN_STID);
-TRACE_DEFINE_ENUM(NFS4_LOCK_STID);
-TRACE_DEFINE_ENUM(NFS4_DELEG_STID);
-TRACE_DEFINE_ENUM(NFS4_CLOSED_STID);
-TRACE_DEFINE_ENUM(NFS4_REVOKED_DELEG_STID);
-TRACE_DEFINE_ENUM(NFS4_CLOSED_DELEG_STID);
-TRACE_DEFINE_ENUM(NFS4_LAYOUT_STID);
-
 #define show_stid_type(x)						\
 	__print_flags(x, "|",						\
-		{ NFS4_OPEN_STID,		"OPEN" },		\
-		{ NFS4_LOCK_STID,		"LOCK" },		\
-		{ NFS4_DELEG_STID,		"DELEG" },		\
-		{ NFS4_CLOSED_STID,		"CLOSED" },		\
-		{ NFS4_REVOKED_DELEG_STID,	"REVOKED" },		\
-		{ NFS4_CLOSED_DELEG_STID,	"CLOSED_DELEG" },	\
-		{ NFS4_LAYOUT_STID,		"LAYOUT" })
+		{ SC_TYPE_OPEN,		"OPEN" },		\
+		{ SC_TYPE_LOCK,		"LOCK" },		\
+		{ SC_TYPE_DELEG,		"DELEG" },		\
+		{ SC_TYPE_LAYOUT,		"LAYOUT" })
+
+#define show_stid_status(x)						\
+	__print_flags(x, "|",						\
+		{ SC_STATUS_CLOSED,		"CLOSED" },		\
+		{ SC_STATUS_REVOKED,		"REVOKED" },		\
+		{ SC_STATUS_ADMIN_REVOKED,	"ADMIN_REVOKED" })
 
 DECLARE_EVENT_CLASS(nfsd_stid_class,
 	TP_PROTO(
@@ -666,6 +663,7 @@ DECLARE_EVENT_CLASS(nfsd_stid_class,
 	TP_ARGS(stid),
 	TP_STRUCT__entry(
 		__field(unsigned long, sc_type)
+		__field(unsigned long, sc_status)
 		__field(int, sc_count)
 		__field(u32, cl_boot)
 		__field(u32, cl_id)
@@ -676,16 +674,18 @@ DECLARE_EVENT_CLASS(nfsd_stid_class,
 		const stateid_t *stp = &stid->sc_stateid;
 
 		__entry->sc_type = stid->sc_type;
+		__entry->sc_status = stid->sc_status;
 		__entry->sc_count = refcount_read(&stid->sc_count);
 		__entry->cl_boot = stp->si_opaque.so_clid.cl_boot;
 		__entry->cl_id = stp->si_opaque.so_clid.cl_id;
 		__entry->si_id = stp->si_opaque.so_id;
 		__entry->si_generation = stp->si_generation;
 	),
-	TP_printk("client %08x:%08x stateid %08x:%08x ref=%d type=%s",
+	TP_printk("client %08x:%08x stateid %08x:%08x ref=%d type=%s state=%s",
 		__entry->cl_boot, __entry->cl_id,
 		__entry->si_id, __entry->si_generation,
-		__entry->sc_count, show_stid_type(__entry->sc_type)
+		__entry->sc_count, show_stid_type(__entry->sc_type),
+		show_stid_status(__entry->sc_status)
 	)
 );
 
@@ -695,6 +695,59 @@ DEFINE_EVENT(nfsd_stid_class, nfsd_stid_##name,			\
 	TP_ARGS(stid))
 
 DEFINE_STID_EVENT(revoke);
+
+TRACE_EVENT(nfsd_stateowner_replay,
+	TP_PROTO(
+		u32 opnum,
+		const struct nfs4_replay *rp
+	),
+	TP_ARGS(opnum, rp),
+	TP_STRUCT__entry(
+		__field(unsigned long, status)
+		__field(u32, opnum)
+	),
+	TP_fast_assign(
+		__entry->status = be32_to_cpu(rp->rp_status);
+		__entry->opnum = opnum;
+	),
+	TP_printk("opnum=%u status=%lu",
+		__entry->opnum, __entry->status)
+);
+
+TRACE_EVENT_CONDITION(nfsd_seq4_status,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		const struct nfsd4_sequence *sequence
+	),
+	TP_ARGS(rqstp, sequence),
+	TP_CONDITION(sequence->status_flags),
+	TP_STRUCT__entry(
+		__field(unsigned int, netns_ino)
+		__field(u32, xid)
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__field(u32, seqno)
+		__field(u32, reserved)
+		__field(unsigned long, status_flags)
+	),
+	TP_fast_assign(
+		const struct nfsd4_sessionid *sid =
+			(struct nfsd4_sessionid *)&sequence->sessionid;
+
+		__entry->netns_ino = SVC_NET(rqstp)->ns.inum;
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->cl_boot = sid->clientid.cl_boot;
+		__entry->cl_id = sid->clientid.cl_id;
+		__entry->seqno = sid->sequence;
+		__entry->reserved = sid->reserved;
+		__entry->status_flags = sequence->status_flags;
+	),
+	TP_printk("xid=0x%08x sessionid=%08x:%08x:%08x:%08x status_flags=%s",
+		__entry->xid, __entry->cl_boot, __entry->cl_id,
+		__entry->seqno, __entry->reserved,
+		show_nfs4_seq4_status(__entry->status_flags)
+	)
+);
 
 DECLARE_EVENT_CLASS(nfsd_clientid_class,
 	TP_PROTO(const clientid_t *clid),
@@ -843,7 +896,7 @@ DECLARE_EVENT_CLASS(nfsd_clid_class,
 		__array(unsigned char, addr, sizeof(struct sockaddr_in6))
 		__field(unsigned long, flavor)
 		__array(unsigned char, verifier, NFS4_VERIFIER_SIZE)
-		__string_len(name, name, clp->cl_name.len)
+		__string_len(name, clp->cl_name.data, clp->cl_name.len)
 	),
 	TP_fast_assign(
 		__entry->cl_boot = clp->cl_clientid.cl_boot;
@@ -853,7 +906,7 @@ DECLARE_EVENT_CLASS(nfsd_clid_class,
 		__entry->flavor = clp->cl_cred.cr_flavor;
 		memcpy(__entry->verifier, (void *)&clp->cl_verifier,
 		       NFS4_VERIFIER_SIZE);
-		__assign_str_len(name, clp->cl_name.data, clp->cl_name.len);
+		__assign_str(name, clp->cl_name.data);
 	),
 	TP_printk("addr=%pISpc name='%s' verifier=0x%s flavor=%s client=%08x:%08x",
 		__entry->addr, __get_str(name),
@@ -1334,7 +1387,8 @@ DEFINE_EVENT(nfsd_cb_class, nfsd_cb_##name,		\
 	TP_PROTO(const struct nfs4_client *clp),	\
 	TP_ARGS(clp))
 
-DEFINE_NFSD_CB_EVENT(state);
+DEFINE_NFSD_CB_EVENT(start);
+DEFINE_NFSD_CB_EVENT(new_state);
 DEFINE_NFSD_CB_EVENT(probe);
 DEFINE_NFSD_CB_EVENT(lost);
 DEFINE_NFSD_CB_EVENT(shutdown);
@@ -1403,6 +1457,128 @@ TRACE_EVENT(nfsd_cb_setup_err,
 	TP_printk("addr=%pISpc client %08x:%08x error=%ld",
 		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
 		__entry->error)
+);
+
+DECLARE_EVENT_CLASS(nfsd_cb_lifetime_class,
+	TP_PROTO(
+		const struct nfs4_client *clp,
+		const struct nfsd4_callback *cb
+	),
+	TP_ARGS(clp, cb),
+	TP_STRUCT__entry(
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__field(const void *, cb)
+		__field(bool, need_restart)
+		__sockaddr(addr, clp->cl_cb_conn.cb_addrlen)
+	),
+	TP_fast_assign(
+		__entry->cl_boot = clp->cl_clientid.cl_boot;
+		__entry->cl_id = clp->cl_clientid.cl_id;
+		__entry->cb = cb;
+		__entry->need_restart = cb->cb_need_restart;
+		__assign_sockaddr(addr, &clp->cl_cb_conn.cb_addr,
+				  clp->cl_cb_conn.cb_addrlen)
+	),
+	TP_printk("addr=%pISpc client %08x:%08x cb=%p%s",
+		__get_sockaddr(addr), __entry->cl_boot, __entry->cl_id,
+		__entry->cb, __entry->need_restart ?
+			" (need restart)" : " (first try)"
+	)
+);
+
+#define DEFINE_NFSD_CB_LIFETIME_EVENT(name)		\
+DEFINE_EVENT(nfsd_cb_lifetime_class, nfsd_cb_##name,	\
+	TP_PROTO(					\
+		const struct nfs4_client *clp,		\
+		const struct nfsd4_callback *cb		\
+	),						\
+	TP_ARGS(clp, cb))
+
+DEFINE_NFSD_CB_LIFETIME_EVENT(queue);
+DEFINE_NFSD_CB_LIFETIME_EVENT(destroy);
+DEFINE_NFSD_CB_LIFETIME_EVENT(restart);
+DEFINE_NFSD_CB_LIFETIME_EVENT(bc_update);
+DEFINE_NFSD_CB_LIFETIME_EVENT(bc_shutdown);
+
+TRACE_EVENT(nfsd_cb_seq_status,
+	TP_PROTO(
+		const struct rpc_task *task,
+		const struct nfsd4_callback *cb
+	),
+	TP_ARGS(task, cb),
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__field(u32, seqno)
+		__field(u32, reserved)
+		__field(int, tk_status)
+		__field(int, seq_status)
+	),
+	TP_fast_assign(
+		const struct nfs4_client *clp = cb->cb_clp;
+		const struct nfsd4_session *session = clp->cl_cb_session;
+		const struct nfsd4_sessionid *sid =
+			(struct nfsd4_sessionid *)&session->se_sessionid;
+
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client ?
+				     task->tk_client->cl_clid : -1;
+		__entry->cl_boot = sid->clientid.cl_boot;
+		__entry->cl_id = sid->clientid.cl_id;
+		__entry->seqno = sid->sequence;
+		__entry->reserved = sid->reserved;
+		__entry->tk_status = task->tk_status;
+		__entry->seq_status = cb->cb_seq_status;
+	),
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
+		" sessionid=%08x:%08x:%08x:%08x tk_status=%d seq_status=%d\n",
+		__entry->task_id, __entry->client_id,
+		__entry->cl_boot, __entry->cl_id,
+		__entry->seqno, __entry->reserved,
+		__entry->tk_status, __entry->seq_status
+	)
+);
+
+TRACE_EVENT(nfsd_cb_free_slot,
+	TP_PROTO(
+		const struct rpc_task *task,
+		const struct nfsd4_callback *cb
+	),
+	TP_ARGS(task, cb),
+	TP_STRUCT__entry(
+		__field(unsigned int, task_id)
+		__field(unsigned int, client_id)
+		__field(u32, cl_boot)
+		__field(u32, cl_id)
+		__field(u32, seqno)
+		__field(u32, reserved)
+		__field(u32, slot_seqno)
+	),
+	TP_fast_assign(
+		const struct nfs4_client *clp = cb->cb_clp;
+		const struct nfsd4_session *session = clp->cl_cb_session;
+		const struct nfsd4_sessionid *sid =
+			(struct nfsd4_sessionid *)&session->se_sessionid;
+
+		__entry->task_id = task->tk_pid;
+		__entry->client_id = task->tk_client ?
+				     task->tk_client->cl_clid : -1;
+		__entry->cl_boot = sid->clientid.cl_boot;
+		__entry->cl_id = sid->clientid.cl_id;
+		__entry->seqno = sid->sequence;
+		__entry->reserved = sid->reserved;
+		__entry->slot_seqno = session->se_cb_seq_nr;
+	),
+	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
+		" sessionid=%08x:%08x:%08x:%08x new slot seqno=%u\n",
+		__entry->task_id, __entry->client_id,
+		__entry->cl_boot, __entry->cl_id,
+		__entry->seqno, __entry->reserved,
+		__entry->slot_seqno
+	)
 );
 
 TRACE_EVENT_CONDITION(nfsd_cb_recall,
@@ -1800,7 +1976,7 @@ TRACE_EVENT(nfsd_ctl_time,
 	TP_fast_assign(
 		__entry->netns_ino = net->ns.inum;
 		__entry->time = time;
-		__assign_str_len(name, name, namelen);
+		__assign_str(name, name);
 	),
 	TP_printk("file=%s time=%d\n",
 		__get_str(name), __entry->time

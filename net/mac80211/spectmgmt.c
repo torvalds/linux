@@ -19,21 +19,222 @@
 #include "sta_info.h"
 #include "wme.h"
 
+static bool
+wbcs_elem_to_chandef(const struct ieee80211_wide_bw_chansw_ie *wbcs_elem,
+		     struct cfg80211_chan_def *chandef)
+{
+	u8 ccfs0 = wbcs_elem->new_center_freq_seg0;
+	u8 ccfs1 = wbcs_elem->new_center_freq_seg1;
+	u32 cf0 = ieee80211_channel_to_frequency(ccfs0, chandef->chan->band);
+	u32 cf1 = ieee80211_channel_to_frequency(ccfs1, chandef->chan->band);
+
+	switch (wbcs_elem->new_channel_width) {
+	case IEEE80211_VHT_CHANWIDTH_160MHZ:
+		/* deprecated encoding */
+		chandef->width = NL80211_CHAN_WIDTH_160;
+		chandef->center_freq1 = cf0;
+		break;
+	case IEEE80211_VHT_CHANWIDTH_80P80MHZ:
+		/* deprecated encoding */
+		chandef->width = NL80211_CHAN_WIDTH_80P80;
+		chandef->center_freq1 = cf0;
+		chandef->center_freq2 = cf1;
+		break;
+	case IEEE80211_VHT_CHANWIDTH_80MHZ:
+		chandef->width = NL80211_CHAN_WIDTH_80;
+		chandef->center_freq1 = cf0;
+
+		if (ccfs1) {
+			u8 diff = abs(ccfs0 - ccfs1);
+
+			if (diff == 8) {
+				chandef->width = NL80211_CHAN_WIDTH_160;
+				chandef->center_freq1 = cf1;
+			} else if (diff > 8) {
+				chandef->width = NL80211_CHAN_WIDTH_80P80;
+				chandef->center_freq2 = cf1;
+			}
+		}
+		break;
+	case IEEE80211_VHT_CHANWIDTH_USE_HT:
+	default:
+		/* If the WBCS Element is present, new channel bandwidth is
+		 * at least 40 MHz.
+		 */
+		chandef->width = NL80211_CHAN_WIDTH_40;
+		chandef->center_freq1 = cf0;
+		break;
+	}
+
+	return cfg80211_chandef_valid(chandef);
+}
+
+static void
+validate_chandef_by_ht_vht_oper(struct ieee80211_sub_if_data *sdata,
+				struct ieee80211_conn_settings *conn,
+				u32 vht_cap_info,
+				struct cfg80211_chan_def *chandef)
+{
+	u32 control_freq, center_freq1, center_freq2;
+	enum nl80211_chan_width chan_width;
+	struct ieee80211_ht_operation ht_oper;
+	struct ieee80211_vht_operation vht_oper;
+
+	if (conn->mode < IEEE80211_CONN_MODE_HT ||
+	    conn->bw_limit < IEEE80211_CONN_BW_LIMIT_40) {
+		chandef->chan = NULL;
+		return;
+	}
+
+	control_freq = chandef->chan->center_freq;
+	center_freq1 = chandef->center_freq1;
+	center_freq2 = chandef->center_freq2;
+	chan_width = chandef->width;
+
+	ht_oper.primary_chan = ieee80211_frequency_to_channel(control_freq);
+	if (control_freq != center_freq1)
+		ht_oper.ht_param = control_freq > center_freq1 ?
+			IEEE80211_HT_PARAM_CHA_SEC_BELOW :
+			IEEE80211_HT_PARAM_CHA_SEC_ABOVE;
+	else
+		ht_oper.ht_param = IEEE80211_HT_PARAM_CHA_SEC_NONE;
+
+	ieee80211_chandef_ht_oper(&ht_oper, chandef);
+
+	if (conn->mode < IEEE80211_CONN_MODE_VHT)
+		return;
+
+	vht_oper.center_freq_seg0_idx =
+		ieee80211_frequency_to_channel(center_freq1);
+	vht_oper.center_freq_seg1_idx = center_freq2 ?
+		ieee80211_frequency_to_channel(center_freq2) : 0;
+
+	switch (chan_width) {
+	case NL80211_CHAN_WIDTH_320:
+		WARN_ON(1);
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		vht_oper.chan_width = IEEE80211_VHT_CHANWIDTH_80MHZ;
+		vht_oper.center_freq_seg1_idx = vht_oper.center_freq_seg0_idx;
+		vht_oper.center_freq_seg0_idx +=
+			control_freq < center_freq1 ? -8 : 8;
+		break;
+	case NL80211_CHAN_WIDTH_80P80:
+		vht_oper.chan_width = IEEE80211_VHT_CHANWIDTH_80MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		vht_oper.chan_width = IEEE80211_VHT_CHANWIDTH_80MHZ;
+		break;
+	default:
+		vht_oper.chan_width = IEEE80211_VHT_CHANWIDTH_USE_HT;
+		break;
+	}
+
+	ht_oper.operation_mode =
+		le16_encode_bits(vht_oper.center_freq_seg1_idx,
+				 IEEE80211_HT_OP_MODE_CCFS2_MASK);
+
+	if (!ieee80211_chandef_vht_oper(&sdata->local->hw, vht_cap_info,
+					&vht_oper, &ht_oper, chandef))
+		chandef->chan = NULL;
+}
+
+static void
+validate_chandef_by_6ghz_he_eht_oper(struct ieee80211_sub_if_data *sdata,
+				     struct ieee80211_conn_settings *conn,
+				     struct cfg80211_chan_def *chandef)
+{
+	struct ieee80211_local *local = sdata->local;
+	u32 control_freq, center_freq1, center_freq2;
+	enum nl80211_chan_width chan_width;
+	struct {
+		struct ieee80211_he_operation _oper;
+		struct ieee80211_he_6ghz_oper _6ghz_oper;
+	} __packed he;
+	struct {
+		struct ieee80211_eht_operation _oper;
+		struct ieee80211_eht_operation_info _oper_info;
+	} __packed eht;
+
+	if (conn->mode < IEEE80211_CONN_MODE_HE) {
+		chandef->chan = NULL;
+		return;
+	}
+
+	control_freq = chandef->chan->center_freq;
+	center_freq1 = chandef->center_freq1;
+	center_freq2 = chandef->center_freq2;
+	chan_width = chandef->width;
+
+	he._oper.he_oper_params =
+		le32_encode_bits(1, IEEE80211_HE_OPERATION_6GHZ_OP_INFO);
+	he._6ghz_oper.primary =
+		ieee80211_frequency_to_channel(control_freq);
+	he._6ghz_oper.ccfs0 = ieee80211_frequency_to_channel(center_freq1);
+	he._6ghz_oper.ccfs1 = center_freq2 ?
+		ieee80211_frequency_to_channel(center_freq2) : 0;
+
+	switch (chan_width) {
+	case NL80211_CHAN_WIDTH_320:
+		he._6ghz_oper.ccfs1 = he._6ghz_oper.ccfs0;
+		he._6ghz_oper.ccfs0 += control_freq < center_freq1 ? -16 : 16;
+		he._6ghz_oper.control = IEEE80211_EHT_OPER_CHAN_WIDTH_320MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_160:
+		he._6ghz_oper.ccfs1 = he._6ghz_oper.ccfs0;
+		he._6ghz_oper.ccfs0 += control_freq < center_freq1 ? -8 : 8;
+		fallthrough;
+	case NL80211_CHAN_WIDTH_80P80:
+		he._6ghz_oper.control =
+			IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_160MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_80:
+		he._6ghz_oper.control =
+			IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_80MHZ;
+		break;
+	case NL80211_CHAN_WIDTH_40:
+		he._6ghz_oper.control =
+			IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_40MHZ;
+		break;
+	default:
+		he._6ghz_oper.control =
+			IEEE80211_HE_6GHZ_OPER_CTRL_CHANWIDTH_20MHZ;
+		break;
+	}
+
+	if (conn->mode < IEEE80211_CONN_MODE_EHT) {
+		if (!ieee80211_chandef_he_6ghz_oper(local, &he._oper,
+						    NULL, chandef))
+			chandef->chan = NULL;
+	} else {
+		eht._oper.params = IEEE80211_EHT_OPER_INFO_PRESENT;
+		eht._oper_info.control = he._6ghz_oper.control;
+		eht._oper_info.ccfs0 = he._6ghz_oper.ccfs0;
+		eht._oper_info.ccfs1 = he._6ghz_oper.ccfs1;
+
+		if (!ieee80211_chandef_he_6ghz_oper(local, &he._oper,
+						    &eht._oper, chandef))
+			chandef->chan = NULL;
+	}
+}
+
 int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 struct ieee802_11_elems *elems,
 				 enum nl80211_band current_band,
 				 u32 vht_cap_info,
-				 ieee80211_conn_flags_t conn_flags, u8 *bssid,
+				 struct ieee80211_conn_settings *conn,
+				 u8 *bssid,
 				 struct ieee80211_csa_ie *csa_ie)
 {
 	enum nl80211_band new_band = current_band;
 	int new_freq;
-	u8 new_chan_no;
+	u8 new_chan_no = 0, new_op_class = 0;
 	struct ieee80211_channel *new_chan;
-	struct cfg80211_chan_def new_vht_chandef = {};
+	struct cfg80211_chan_def new_chandef = {};
 	const struct ieee80211_sec_chan_offs_ie *sec_chan_offs;
 	const struct ieee80211_wide_bw_chansw_ie *wide_bw_chansw_ie;
 	const struct ieee80211_bandwidth_indication *bwi;
+	const struct ieee80211_ext_chansw_ie *ext_chansw_elem;
 	int secondary_channel_offset = -1;
 
 	memset(csa_ie, 0, sizeof(*csa_ie));
@@ -41,35 +242,40 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	sec_chan_offs = elems->sec_chan_offs;
 	wide_bw_chansw_ie = elems->wide_bw_chansw_ie;
 	bwi = elems->bandwidth_indication;
+	ext_chansw_elem = elems->ext_chansw_ie;
 
-	if (conn_flags & (IEEE80211_CONN_DISABLE_HT |
-			  IEEE80211_CONN_DISABLE_40MHZ)) {
+	if (conn->mode < IEEE80211_CONN_MODE_HT ||
+	    conn->bw_limit < IEEE80211_CONN_BW_LIMIT_40) {
 		sec_chan_offs = NULL;
 		wide_bw_chansw_ie = NULL;
 	}
 
-	if (conn_flags & IEEE80211_CONN_DISABLE_VHT)
+	if (conn->mode < IEEE80211_CONN_MODE_VHT)
 		wide_bw_chansw_ie = NULL;
 
-	if (elems->ext_chansw_ie) {
-		if (!ieee80211_operating_class_to_band(
-				elems->ext_chansw_ie->new_operating_class,
-				&new_band)) {
-			sdata_info(sdata,
-				   "cannot understand ECSA IE operating class, %d, ignoring\n",
-				   elems->ext_chansw_ie->new_operating_class);
+	if (ext_chansw_elem) {
+		new_op_class = ext_chansw_elem->new_operating_class;
+
+		if (!ieee80211_operating_class_to_band(new_op_class, &new_band)) {
+			new_op_class = 0;
+			sdata_info(sdata, "cannot understand ECSA IE operating class, %d, ignoring\n",
+				   ext_chansw_elem->new_operating_class);
+		} else {
+			new_chan_no = ext_chansw_elem->new_ch_num;
+			csa_ie->count = ext_chansw_elem->count;
+			csa_ie->mode = ext_chansw_elem->mode;
 		}
-		new_chan_no = elems->ext_chansw_ie->new_ch_num;
-		csa_ie->count = elems->ext_chansw_ie->count;
-		csa_ie->mode = elems->ext_chansw_ie->mode;
-	} else if (elems->ch_switch_ie) {
+	}
+
+	if (!new_op_class && elems->ch_switch_ie) {
 		new_chan_no = elems->ch_switch_ie->new_ch_num;
 		csa_ie->count = elems->ch_switch_ie->count;
 		csa_ie->mode = elems->ch_switch_ie->mode;
-	} else {
-		/* nothing here we understand */
-		return 1;
 	}
+
+	/* nothing here we understand */
+	if (!new_chan_no)
+		return 1;
 
 	/* Mesh Channel Switch Parameters Element */
 	if (elems->mesh_chansw_params_ie) {
@@ -95,7 +301,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 
 	if (sec_chan_offs) {
 		secondary_channel_offset = sec_chan_offs->sec_chan_offs;
-	} else if (!(conn_flags & IEEE80211_CONN_DISABLE_HT)) {
+	} else if (conn->mode >= IEEE80211_CONN_MODE_HT) {
 		/* If the secondary channel offset IE is not present,
 		 * we can't know what's the post-CSA offset, so the
 		 * best we can do is use 20MHz.
@@ -107,26 +313,26 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 	default:
 		/* secondary_channel_offset was present but is invalid */
 	case IEEE80211_HT_PARAM_CHA_SEC_NONE:
-		cfg80211_chandef_create(&csa_ie->chandef, new_chan,
+		cfg80211_chandef_create(&csa_ie->chanreq.oper, new_chan,
 					NL80211_CHAN_HT20);
 		break;
 	case IEEE80211_HT_PARAM_CHA_SEC_ABOVE:
-		cfg80211_chandef_create(&csa_ie->chandef, new_chan,
+		cfg80211_chandef_create(&csa_ie->chanreq.oper, new_chan,
 					NL80211_CHAN_HT40PLUS);
 		break;
 	case IEEE80211_HT_PARAM_CHA_SEC_BELOW:
-		cfg80211_chandef_create(&csa_ie->chandef, new_chan,
+		cfg80211_chandef_create(&csa_ie->chanreq.oper, new_chan,
 					NL80211_CHAN_HT40MINUS);
 		break;
 	case -1:
-		cfg80211_chandef_create(&csa_ie->chandef, new_chan,
+		cfg80211_chandef_create(&csa_ie->chanreq.oper, new_chan,
 					NL80211_CHAN_NO_HT);
 		/* keep width for 5/10 MHz channels */
-		switch (sdata->vif.bss_conf.chandef.width) {
+		switch (sdata->vif.bss_conf.chanreq.oper.width) {
 		case NL80211_CHAN_WIDTH_5:
 		case NL80211_CHAN_WIDTH_10:
-			csa_ie->chandef.width =
-				sdata->vif.bss_conf.chandef.width;
+			csa_ie->chanreq.oper.width =
+				sdata->vif.bss_conf.chanreq.oper.width;
 			break;
 		default:
 			break;
@@ -134,59 +340,48 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
+	/* parse one of the Elements to build a new chandef */
+	memset(&new_chandef, 0, sizeof(new_chandef));
+	new_chandef.chan = new_chan;
 	if (bwi) {
 		/* start with the CSA one */
-		new_vht_chandef = csa_ie->chandef;
+		new_chandef = csa_ie->chanreq.oper;
 		/* and update the width accordingly */
-		/* FIXME: support 160/320 */
-		ieee80211_chandef_eht_oper(&bwi->info, true, true,
-					   &new_vht_chandef);
-	} else if (wide_bw_chansw_ie) {
-		u8 new_seg1 = wide_bw_chansw_ie->new_center_freq_seg1;
-		struct ieee80211_vht_operation vht_oper = {
-			.chan_width =
-				wide_bw_chansw_ie->new_channel_width,
-			.center_freq_seg0_idx =
-				wide_bw_chansw_ie->new_center_freq_seg0,
-			.center_freq_seg1_idx = new_seg1,
-			/* .basic_mcs_set doesn't matter */
-		};
-		struct ieee80211_ht_operation ht_oper = {
-			.operation_mode =
-				cpu_to_le16(new_seg1 <<
-					    IEEE80211_HT_OP_MODE_CCFS2_SHIFT),
-		};
-
-		/* default, for the case of IEEE80211_VHT_CHANWIDTH_USE_HT,
-		 * to the previously parsed chandef
-		 */
-		new_vht_chandef = csa_ie->chandef;
-
-		/* ignore if parsing fails */
-		if (!ieee80211_chandef_vht_oper(&sdata->local->hw,
-						vht_cap_info,
-						&vht_oper, &ht_oper,
-						&new_vht_chandef))
-			new_vht_chandef.chan = NULL;
-
-		if (conn_flags & IEEE80211_CONN_DISABLE_80P80MHZ &&
-		    new_vht_chandef.width == NL80211_CHAN_WIDTH_80P80)
-			ieee80211_chandef_downgrade(&new_vht_chandef);
-		if (conn_flags & IEEE80211_CONN_DISABLE_160MHZ &&
-		    new_vht_chandef.width == NL80211_CHAN_WIDTH_160)
-			ieee80211_chandef_downgrade(&new_vht_chandef);
+		ieee80211_chandef_eht_oper(&bwi->info, &new_chandef);
+	} else if (!wide_bw_chansw_ie || !wbcs_elem_to_chandef(wide_bw_chansw_ie,
+							       &new_chandef)) {
+		if (!ieee80211_operating_class_to_chandef(new_op_class, new_chan,
+							  &new_chandef))
+			new_chandef = csa_ie->chanreq.oper;
 	}
 
-	/* if VHT data is there validate & use it */
-	if (new_vht_chandef.chan) {
-		if (!cfg80211_chandef_compatible(&new_vht_chandef,
-						 &csa_ie->chandef)) {
+	/* check if the new chandef fits the capabilities */
+	if (new_band == NL80211_BAND_6GHZ)
+		validate_chandef_by_6ghz_he_eht_oper(sdata, conn, &new_chandef);
+	else
+		validate_chandef_by_ht_vht_oper(sdata, conn, vht_cap_info,
+						&new_chandef);
+
+	/* if data is there validate the bandwidth & use it */
+	if (new_chandef.chan) {
+		if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_320 &&
+		    new_chandef.width == NL80211_CHAN_WIDTH_320)
+			ieee80211_chandef_downgrade(&new_chandef, NULL);
+
+		if (conn->bw_limit < IEEE80211_CONN_BW_LIMIT_160 &&
+		    (new_chandef.width == NL80211_CHAN_WIDTH_80P80 ||
+		     new_chandef.width == NL80211_CHAN_WIDTH_160))
+			ieee80211_chandef_downgrade(&new_chandef, NULL);
+
+		if (!cfg80211_chandef_compatible(&new_chandef,
+						 &csa_ie->chanreq.oper)) {
 			sdata_info(sdata,
 				   "BSS %pM: CSA has inconsistent channel data, disconnecting\n",
 				   bssid);
 			return -EINVAL;
 		}
-		csa_ie->chandef = new_vht_chandef;
+
+		csa_ie->chanreq.oper = new_chandef;
 	}
 
 	if (elems->max_channel_switch_time)

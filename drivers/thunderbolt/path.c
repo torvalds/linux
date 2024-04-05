@@ -446,6 +446,19 @@ static int __tb_path_deactivate_hop(struct tb_port *port, int hop_index,
 	return -ETIMEDOUT;
 }
 
+/**
+ * tb_path_deactivate_hop() - Deactivate one path in path config space
+ * @port: Lane or protocol adapter
+ * @hop_index: HopID of the path to be cleared
+ *
+ * This deactivates or clears a single path config space entry at
+ * @hop_index. Returns %0 in success and negative errno otherwise.
+ */
+int tb_path_deactivate_hop(struct tb_port *port, int hop_index)
+{
+	return __tb_path_deactivate_hop(port, hop_index, true);
+}
+
 static void __tb_path_deactivate_hops(struct tb_path *path, int first_hop)
 {
 	int i, res;

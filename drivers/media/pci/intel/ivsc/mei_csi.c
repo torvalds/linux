@@ -71,8 +71,8 @@ enum ivsc_privacy_status {
 };
 
 enum csi_pads {
-	CSI_PAD_SOURCE,
 	CSI_PAD_SINK,
+	CSI_PAD_SOURCE,
 	CSI_NUM_PADS
 };
 
@@ -128,7 +128,6 @@ struct mei_csi {
 	int streaming;
 
 	struct media_pad pads[CSI_NUM_PADS];
-	struct v4l2_mbus_framefmt format_mbus[CSI_NUM_PADS];
 
 	/* number of data lanes used on the CSI-2 link */
 	u32 nr_of_lanes;
@@ -329,57 +328,16 @@ err:
 	return ret;
 }
 
-static struct v4l2_mbus_framefmt *
-mei_csi_get_pad_format(struct v4l2_subdev *sd,
-		       struct v4l2_subdev_state *sd_state,
-		       unsigned int pad, u32 which)
-{
-	struct mei_csi *csi = sd_to_csi(sd);
-
-	switch (which) {
-	case V4L2_SUBDEV_FORMAT_TRY:
-		return v4l2_subdev_state_get_format(sd_state, pad);
-	case V4L2_SUBDEV_FORMAT_ACTIVE:
-		return &csi->format_mbus[pad];
-	default:
-		return NULL;
-	}
-}
-
 static int mei_csi_init_state(struct v4l2_subdev *sd,
 			      struct v4l2_subdev_state *sd_state)
 {
 	struct v4l2_mbus_framefmt *mbusformat;
-	struct mei_csi *csi = sd_to_csi(sd);
 	unsigned int i;
-
-	mutex_lock(&csi->lock);
 
 	for (i = 0; i < sd->entity.num_pads; i++) {
 		mbusformat = v4l2_subdev_state_get_format(sd_state, i);
 		*mbusformat = mei_csi_format_mbus_default;
 	}
-
-	mutex_unlock(&csi->lock);
-
-	return 0;
-}
-
-static int mei_csi_get_fmt(struct v4l2_subdev *sd,
-			   struct v4l2_subdev_state *sd_state,
-			   struct v4l2_subdev_format *format)
-{
-	struct v4l2_mbus_framefmt *mbusformat;
-	struct mei_csi *csi = sd_to_csi(sd);
-
-	mutex_lock(&csi->lock);
-
-	mbusformat = mei_csi_get_pad_format(sd, sd_state, format->pad,
-					    format->which);
-	if (mbusformat)
-		format->format = *mbusformat;
-
-	mutex_unlock(&csi->lock);
 
 	return 0;
 }
@@ -388,20 +346,17 @@ static int mei_csi_set_fmt(struct v4l2_subdev *sd,
 			   struct v4l2_subdev_state *sd_state,
 			   struct v4l2_subdev_format *format)
 {
-	struct v4l2_mbus_framefmt *source_mbusformat;
-	struct v4l2_mbus_framefmt *mbusformat;
-	struct mei_csi *csi = sd_to_csi(sd);
-	struct media_pad *pad;
+	struct v4l2_mbus_framefmt *source_fmt;
+	struct v4l2_mbus_framefmt *sink_fmt;
 
-	mbusformat = mei_csi_get_pad_format(sd, sd_state, format->pad,
-					    format->which);
-	if (!mbusformat)
-		return -EINVAL;
+	sink_fmt = v4l2_subdev_state_get_format(sd_state, CSI_PAD_SINK);
+	source_fmt = v4l2_subdev_state_get_format(sd_state, CSI_PAD_SOURCE);
 
-	source_mbusformat = mei_csi_get_pad_format(sd, sd_state, CSI_PAD_SOURCE,
-						   format->which);
-	if (!source_mbusformat)
-		return -EINVAL;
+	if (format->pad) {
+		*source_fmt = *sink_fmt;
+
+		return 0;
+	}
 
 	v4l_bound_align_image(&format->format.width, 1, 65536, 0,
 			      &format->format.height, 1, 65536, 0, 0);
@@ -504,18 +459,8 @@ static int mei_csi_set_fmt(struct v4l2_subdev *sd,
 	if (format->format.field == V4L2_FIELD_ANY)
 		format->format.field = V4L2_FIELD_NONE;
 
-	mutex_lock(&csi->lock);
-
-	pad = &csi->pads[format->pad];
-	if (pad->flags & MEDIA_PAD_FL_SOURCE)
-		format->format = csi->format_mbus[CSI_PAD_SINK];
-
-	*mbusformat = format->format;
-
-	if (pad->flags & MEDIA_PAD_FL_SINK)
-		*source_mbusformat = format->format;
-
-	mutex_unlock(&csi->lock);
+	*sink_fmt = format->format;
+	*source_fmt = *sink_fmt;
 
 	return 0;
 }
@@ -554,7 +499,7 @@ static const struct v4l2_subdev_video_ops mei_csi_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops mei_csi_pad_ops = {
-	.get_fmt = mei_csi_get_fmt,
+	.get_fmt = v4l2_subdev_get_fmt,
 	.set_fmt = mei_csi_set_fmt,
 };
 
@@ -587,7 +532,7 @@ static int mei_csi_notify_bound(struct v4l2_async_notifier *notifier,
 	csi->remote_pad = pad;
 
 	return media_create_pad_link(&subdev->entity, pad,
-				     &csi->subdev.entity, 1,
+				     &csi->subdev.entity, CSI_PAD_SINK,
 				     MEDIA_LNK_FL_ENABLED |
 				     MEDIA_LNK_FL_IMMUTABLE);
 }
@@ -749,6 +694,7 @@ static int mei_csi_probe(struct mei_cl_device *cldev,
 		goto err_disable;
 
 	csi->subdev.dev = &cldev->dev;
+	csi->subdev.state_lock = &csi->lock;
 	v4l2_subdev_init(&csi->subdev, &mei_csi_subdev_ops);
 	csi->subdev.internal_ops = &mei_csi_internal_ops;
 	v4l2_set_subdevdata(&csi->subdev, csi);
@@ -763,9 +709,6 @@ static int mei_csi_probe(struct mei_cl_device *cldev,
 	ret = mei_csi_init_controls(csi);
 	if (ret)
 		goto err_ctrl_handler;
-
-	csi->format_mbus[CSI_PAD_SOURCE] = mei_csi_format_mbus_default;
-	csi->format_mbus[CSI_PAD_SINK] = mei_csi_format_mbus_default;
 
 	csi->pads[CSI_PAD_SOURCE].flags = MEDIA_PAD_FL_SOURCE;
 	csi->pads[CSI_PAD_SINK].flags = MEDIA_PAD_FL_SINK;

@@ -1390,8 +1390,15 @@ static int find_first_extent_item(struct btrfs_root *extent_root,
 	ret = btrfs_search_slot(NULL, extent_root, &key, path, 0, 0);
 	if (ret < 0)
 		return ret;
+	if (ret == 0) {
+		/*
+		 * Key with offset -1 found, there would have to exist an extent
+		 * item with such offset, but this is out of the valid range.
+		 */
+		btrfs_release_path(path);
+		return -EUCLEAN;
+	}
 
-	ASSERT(ret > 0);
 	/*
 	 * Here we intentionally pass 0 as @min_objectid, as there could be
 	 * an extent item starting before @search_start.

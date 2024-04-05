@@ -960,4 +960,14 @@ struct vchiq_device_id {
 	char name[32];
 };
 
+/**
+ * struct coreboot_device_id - Identifies a coreboot table entry
+ * @tag: tag ID
+ * @driver_data: driver specific data
+ */
+struct coreboot_device_id {
+	__u32 tag;
+	kernel_ulong_t driver_data;
+};
+
 #endif /* LINUX_MOD_DEVICETABLE_H */

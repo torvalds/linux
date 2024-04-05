@@ -604,10 +604,10 @@ static int adv7511_get_edid_block(void *data, u8 *buf, unsigned int block,
  * ADV75xx helpers
  */
 
-static struct edid *adv7511_get_edid(struct adv7511 *adv7511,
-				     struct drm_connector *connector)
+static const struct drm_edid *adv7511_edid_read(struct adv7511 *adv7511,
+						struct drm_connector *connector)
 {
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 
 	/* Reading the EDID only works if the device is powered */
 	if (!adv7511->powered) {
@@ -621,31 +621,44 @@ static struct edid *adv7511_get_edid(struct adv7511 *adv7511,
 			     edid_i2c_addr);
 	}
 
-	edid = drm_do_get_edid(connector, adv7511_get_edid_block, adv7511);
+	drm_edid = drm_edid_read_custom(connector, adv7511_get_edid_block, adv7511);
 
 	if (!adv7511->powered)
 		__adv7511_power_off(adv7511);
 
-	adv7511_set_config_csc(adv7511, connector, adv7511->rgb,
-			       drm_detect_hdmi_monitor(edid));
+	if (drm_edid) {
+		/*
+		 * FIXME: The CEC physical address should be set using
+		 * cec_s_phys_addr(adap,
+		 * connector->display_info.source_physical_address, false) from
+		 * a path that has read the EDID and called
+		 * drm_edid_connector_update().
+		 */
+		const struct edid *edid = drm_edid_raw(drm_edid);
 
-	cec_s_phys_addr_from_edid(adv7511->cec_adap, edid);
+		adv7511_set_config_csc(adv7511, connector, adv7511->rgb,
+				       drm_detect_hdmi_monitor(edid));
 
-	return edid;
+		cec_s_phys_addr_from_edid(adv7511->cec_adap, edid);
+	} else {
+		cec_s_phys_addr_from_edid(adv7511->cec_adap, NULL);
+	}
+
+	return drm_edid;
 }
 
 static int adv7511_get_modes(struct adv7511 *adv7511,
 			     struct drm_connector *connector)
 {
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	unsigned int count;
 
-	edid = adv7511_get_edid(adv7511, connector);
+	drm_edid = adv7511_edid_read(adv7511, connector);
 
-	drm_connector_update_edid_property(connector, edid);
-	count = drm_add_edid_modes(connector, edid);
+	drm_edid_connector_update(connector, drm_edid);
+	count = drm_edid_connector_add_modes(connector);
 
-	kfree(edid);
+	drm_edid_free(drm_edid);
 
 	return count;
 }
@@ -953,12 +966,12 @@ static enum drm_connector_status adv7511_bridge_detect(struct drm_bridge *bridge
 	return adv7511_detect(adv, NULL);
 }
 
-static struct edid *adv7511_bridge_get_edid(struct drm_bridge *bridge,
-					    struct drm_connector *connector)
+static const struct drm_edid *adv7511_bridge_edid_read(struct drm_bridge *bridge,
+						       struct drm_connector *connector)
 {
 	struct adv7511 *adv = bridge_to_adv7511(bridge);
 
-	return adv7511_get_edid(adv, connector);
+	return adv7511_edid_read(adv, connector);
 }
 
 static void adv7511_bridge_hpd_notify(struct drm_bridge *bridge,
@@ -977,7 +990,7 @@ static const struct drm_bridge_funcs adv7511_bridge_funcs = {
 	.mode_valid = adv7511_bridge_mode_valid,
 	.attach = adv7511_bridge_attach,
 	.detect = adv7511_bridge_detect,
-	.get_edid = adv7511_bridge_get_edid,
+	.edid_read = adv7511_bridge_edid_read,
 	.hpd_notify = adv7511_bridge_hpd_notify,
 };
 
@@ -1277,17 +1290,6 @@ static int adv7511_probe(struct i2c_client *i2c)
 
 	INIT_WORK(&adv7511->hpd_work, adv7511_hpd_work);
 
-	if (i2c->irq) {
-		init_waitqueue_head(&adv7511->wq);
-
-		ret = devm_request_threaded_irq(dev, i2c->irq, NULL,
-						adv7511_irq_handler,
-						IRQF_ONESHOT, dev_name(dev),
-						adv7511);
-		if (ret)
-			goto err_unregister_cec;
-	}
-
 	adv7511_power_off(adv7511);
 
 	i2c_set_clientdata(i2c, adv7511);
@@ -1310,6 +1312,17 @@ static int adv7511_probe(struct i2c_client *i2c)
 	drm_bridge_add(&adv7511->bridge);
 
 	adv7511_audio_init(dev, adv7511);
+
+	if (i2c->irq) {
+		init_waitqueue_head(&adv7511->wq);
+
+		ret = devm_request_threaded_irq(dev, i2c->irq, NULL,
+						adv7511_irq_handler,
+						IRQF_ONESHOT, dev_name(dev),
+						adv7511);
+		if (ret)
+			goto err_unregister_audio;
+	}
 
 	if (adv7511->info->has_dsi) {
 		ret = adv7533_attach_dsi(adv7511);

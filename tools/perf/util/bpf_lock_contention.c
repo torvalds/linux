@@ -179,6 +179,123 @@ int lock_contention_prepare(struct lock_contention *con)
 	return 0;
 }
 
+/*
+ * Run the BPF program directly using BPF_PROG_TEST_RUN to update the end
+ * timestamp in ktime so that it can calculate delta easily.
+ */
+static void mark_end_timestamp(void)
+{
+	DECLARE_LIBBPF_OPTS(bpf_test_run_opts, opts,
+		.flags = BPF_F_TEST_RUN_ON_CPU,
+	);
+	int prog_fd = bpf_program__fd(skel->progs.end_timestamp);
+
+	bpf_prog_test_run_opts(prog_fd, &opts);
+}
+
+static void update_lock_stat(int map_fd, int pid, u64 end_ts,
+			     enum lock_aggr_mode aggr_mode,
+			     struct tstamp_data *ts_data)
+{
+	u64 delta;
+	struct contention_key stat_key = {};
+	struct contention_data stat_data;
+
+	if (ts_data->timestamp >= end_ts)
+		return;
+
+	delta = end_ts - ts_data->timestamp;
+
+	switch (aggr_mode) {
+	case LOCK_AGGR_CALLER:
+		stat_key.stack_id = ts_data->stack_id;
+		break;
+	case LOCK_AGGR_TASK:
+		stat_key.pid = pid;
+		break;
+	case LOCK_AGGR_ADDR:
+		stat_key.lock_addr_or_cgroup = ts_data->lock;
+		break;
+	case LOCK_AGGR_CGROUP:
+		/* TODO */
+		return;
+	default:
+		return;
+	}
+
+	if (bpf_map_lookup_elem(map_fd, &stat_key, &stat_data) < 0)
+		return;
+
+	stat_data.total_time += delta;
+	stat_data.count++;
+
+	if (delta > stat_data.max_time)
+		stat_data.max_time = delta;
+	if (delta < stat_data.min_time)
+		stat_data.min_time = delta;
+
+	bpf_map_update_elem(map_fd, &stat_key, &stat_data, BPF_EXIST);
+}
+
+/*
+ * Account entries in the tstamp map (which didn't see the corresponding
+ * lock:contention_end tracepoint) using end_ts.
+ */
+static void account_end_timestamp(struct lock_contention *con)
+{
+	int ts_fd, stat_fd;
+	int *prev_key, key;
+	u64 end_ts = skel->bss->end_ts;
+	int total_cpus;
+	enum lock_aggr_mode aggr_mode = con->aggr_mode;
+	struct tstamp_data ts_data, *cpu_data;
+
+	/* Iterate per-task tstamp map (key = TID) */
+	ts_fd = bpf_map__fd(skel->maps.tstamp);
+	stat_fd = bpf_map__fd(skel->maps.lock_stat);
+
+	prev_key = NULL;
+	while (!bpf_map_get_next_key(ts_fd, prev_key, &key)) {
+		if (bpf_map_lookup_elem(ts_fd, &key, &ts_data) == 0) {
+			int pid = key;
+
+			if (aggr_mode == LOCK_AGGR_TASK && con->owner)
+				pid = ts_data.flags;
+
+			update_lock_stat(stat_fd, pid, end_ts, aggr_mode,
+					 &ts_data);
+		}
+
+		prev_key = &key;
+	}
+
+	/* Now it'll check per-cpu tstamp map which doesn't have TID. */
+	if (aggr_mode == LOCK_AGGR_TASK || aggr_mode == LOCK_AGGR_CGROUP)
+		return;
+
+	total_cpus = cpu__max_cpu().cpu;
+	ts_fd = bpf_map__fd(skel->maps.tstamp_cpu);
+
+	cpu_data = calloc(total_cpus, sizeof(*cpu_data));
+	if (cpu_data == NULL)
+		return;
+
+	prev_key = NULL;
+	while (!bpf_map_get_next_key(ts_fd, prev_key, &key)) {
+		if (bpf_map_lookup_elem(ts_fd, &key, cpu_data) < 0)
+			goto next;
+
+		for (int i = 0; i < total_cpus; i++) {
+			update_lock_stat(stat_fd, -1, end_ts, aggr_mode,
+					 &cpu_data[i]);
+		}
+
+next:
+		prev_key = &key;
+	}
+	free(cpu_data);
+}
+
 int lock_contention_start(void)
 {
 	skel->bss->enabled = 1;
@@ -188,6 +305,7 @@ int lock_contention_start(void)
 int lock_contention_stop(void)
 {
 	skel->bss->enabled = 0;
+	mark_end_timestamp();
 	return 0;
 }
 
@@ -210,7 +328,7 @@ static const char *lock_contention_get_name(struct lock_contention *con,
 
 		/* do not update idle comm which contains CPU number */
 		if (pid) {
-			struct thread *t = __machine__findnew_thread(machine, /*pid=*/-1, pid);
+			struct thread *t = machine__findnew_thread(machine, /*pid=*/-1, pid);
 
 			if (t == NULL)
 				return name;
@@ -301,8 +419,10 @@ int lock_contention_read(struct lock_contention *con)
 	if (stack_trace == NULL)
 		return -1;
 
+	account_end_timestamp(con);
+
 	if (con->aggr_mode == LOCK_AGGR_TASK) {
-		struct thread *idle = __machine__findnew_thread(machine,
+		struct thread *idle = machine__findnew_thread(machine,
 								/*pid=*/0,
 								/*tid=*/0);
 		thread__set_comm(idle, "swapper", /*timestamp=*/0);

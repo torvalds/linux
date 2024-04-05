@@ -31,7 +31,7 @@ notrace long system_call_exception(struct pt_regs *regs, unsigned long r0)
 	user_exit_irqoff();
 
 	BUG_ON(regs_is_unrecoverable(regs));
-	BUG_ON(!(regs->msr & MSR_PR));
+	BUG_ON(!user_mode(regs));
 	BUG_ON(arch_irq_disabled_regs(regs));
 
 #ifdef CONFIG_PPC_PKEY

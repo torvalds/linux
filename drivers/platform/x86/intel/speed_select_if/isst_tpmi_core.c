@@ -462,10 +462,10 @@ static long isst_if_core_power_state(void __user *argp)
 	struct tpmi_per_power_domain_info *power_domain_info;
 	struct isst_core_power core_power;
 
-	if (disable_dynamic_sst_features())
+	if (copy_from_user(&core_power, argp, sizeof(core_power)))
 		return -EFAULT;
 
-	if (copy_from_user(&core_power, argp, sizeof(core_power)))
+	if (core_power.get_set && disable_dynamic_sst_features())
 		return -EFAULT;
 
 	power_domain_info = get_instance(core_power.socket_id, core_power.power_domain_id);

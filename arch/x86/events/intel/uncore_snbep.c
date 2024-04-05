@@ -1172,8 +1172,8 @@ static struct intel_uncore_type *snbep_msr_uncores[] = {
 
 void snbep_uncore_cpu_init(void)
 {
-	if (snbep_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
-		snbep_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
+	if (snbep_uncore_cbox.num_boxes > topology_num_cores_per_package())
+		snbep_uncore_cbox.num_boxes = topology_num_cores_per_package();
 	uncore_msr_uncores = snbep_msr_uncores;
 }
 
@@ -1406,7 +1406,7 @@ static int topology_gidnid_map(int nodeid, u32 gidnid)
 	 */
 	for (i = 0; i < 8; i++) {
 		if (nodeid == GIDNIDMAP(gidnid, i)) {
-			if (topology_max_die_per_package() > 1)
+			if (topology_max_dies_per_package() > 1)
 				die_id = i;
 			else
 				die_id = topology_phys_to_logical_pkg(i);
@@ -1845,8 +1845,8 @@ static struct intel_uncore_type *ivbep_msr_uncores[] = {
 
 void ivbep_uncore_cpu_init(void)
 {
-	if (ivbep_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
-		ivbep_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
+	if (ivbep_uncore_cbox.num_boxes > topology_num_cores_per_package())
+		ivbep_uncore_cbox.num_boxes = topology_num_cores_per_package();
 	uncore_msr_uncores = ivbep_msr_uncores;
 }
 
@@ -2917,8 +2917,8 @@ static bool hswep_has_limit_sbox(unsigned int device)
 
 void hswep_uncore_cpu_init(void)
 {
-	if (hswep_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
-		hswep_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
+	if (hswep_uncore_cbox.num_boxes > topology_num_cores_per_package())
+		hswep_uncore_cbox.num_boxes = topology_num_cores_per_package();
 
 	/* Detect 6-8 core systems with only two SBOXes */
 	if (hswep_has_limit_sbox(HSWEP_PCU_DID))
@@ -3280,8 +3280,8 @@ static struct event_constraint bdx_uncore_pcu_constraints[] = {
 
 void bdx_uncore_cpu_init(void)
 {
-	if (bdx_uncore_cbox.num_boxes > boot_cpu_data.x86_max_cores)
-		bdx_uncore_cbox.num_boxes = boot_cpu_data.x86_max_cores;
+	if (bdx_uncore_cbox.num_boxes > topology_num_cores_per_package())
+		bdx_uncore_cbox.num_boxes = topology_num_cores_per_package();
 	uncore_msr_uncores = bdx_msr_uncores;
 
 	/* Detect systems with no SBOXes */

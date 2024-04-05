@@ -898,10 +898,9 @@ static void stm32_exti_remove_irq(void *data)
 	irq_domain_remove(domain);
 }
 
-static int stm32_exti_remove(struct platform_device *pdev)
+static void stm32_exti_remove(struct platform_device *pdev)
 {
 	stm32_exti_h_syscore_deinit();
-	return 0;
 }
 
 static int stm32_exti_probe(struct platform_device *pdev)
@@ -991,10 +990,10 @@ MODULE_DEVICE_TABLE(of, stm32_exti_ids);
 
 static struct platform_driver stm32_exti_driver = {
 	.probe		= stm32_exti_probe,
-	.remove		= stm32_exti_remove,
+	.remove_new	= stm32_exti_remove,
 	.driver		= {
-		.name	= "stm32_exti",
-		.of_match_table = stm32_exti_ids,
+		.name		= "stm32_exti",
+		.of_match_table	= stm32_exti_ids,
 	},
 };
 

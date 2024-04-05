@@ -3,12 +3,14 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
+#include "bpf_compiler.h"
+
 char _license[] SEC("license") = "GPL";
 
 SEC("tc")
 int process(struct __sk_buff *skb)
 {
-	#pragma clang loop unroll(full)
+	__pragma_loop_unroll_full
 	for (int i = 0; i < 5; i++) {
 		if (skb->cb[i] != i + 1)
 			return 1;

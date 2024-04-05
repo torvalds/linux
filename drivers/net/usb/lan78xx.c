@@ -1675,7 +1675,7 @@ static int lan78xx_set_wol(struct net_device *netdev,
 	return ret;
 }
 
-static int lan78xx_get_eee(struct net_device *net, struct ethtool_eee *edata)
+static int lan78xx_get_eee(struct net_device *net, struct ethtool_keee *edata)
 {
 	struct lan78xx_net *dev = netdev_priv(net);
 	struct phy_device *phydev = net->phydev;
@@ -1711,7 +1711,7 @@ exit:
 	return ret;
 }
 
-static int lan78xx_set_eee(struct net_device *net, struct ethtool_eee *edata)
+static int lan78xx_set_eee(struct net_device *net, struct ethtool_keee *edata)
 {
 	struct lan78xx_net *dev = netdev_priv(net);
 	int ret;

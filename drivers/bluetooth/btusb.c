@@ -553,6 +553,9 @@ static const struct usb_device_id quirks_table[] = {
 	{ USB_DEVICE(0x13d3, 0x3572), .driver_info = BTUSB_REALTEK |
 						     BTUSB_WIDEBAND_SPEECH },
 
+	/* Realtek 8852BT/8852BE-VT Bluetooth devices */
+	{ USB_DEVICE(0x0bda, 0x8520), .driver_info = BTUSB_REALTEK |
+						     BTUSB_WIDEBAND_SPEECH },
 	/* Realtek Bluetooth devices */
 	{ USB_VENDOR_AND_INTERFACE_INFO(0x0bda, 0xe0, 0x01, 0x01),
 	  .driver_info = BTUSB_REALTEK },
@@ -652,6 +655,11 @@ static const struct usb_device_id quirks_table[] = {
 						     BTUSB_WIDEBAND_SPEECH |
 						     BTUSB_VALID_LE_STATES },
 	{ USB_DEVICE(0x35f5, 0x7922), .driver_info = BTUSB_MEDIATEK |
+						     BTUSB_WIDEBAND_SPEECH |
+						     BTUSB_VALID_LE_STATES },
+
+	/* Additional MediaTek MT7925 Bluetooth devices */
+	{ USB_DEVICE(0x13d3, 0x3602), .driver_info = BTUSB_MEDIATEK |
 						     BTUSB_WIDEBAND_SPEECH |
 						     BTUSB_VALID_LE_STATES },
 
@@ -3080,7 +3088,7 @@ static int btusb_mtk_setup(struct hci_dev *hdev)
 	int err, status;
 	u32 dev_id = 0;
 	char fw_bin_name[64];
-	u32 fw_version = 0;
+	u32 fw_version = 0, fw_flavor = 0;
 	u8 param;
 	struct btmediatek_data *mediatek;
 
@@ -3101,6 +3109,11 @@ static int btusb_mtk_setup(struct hci_dev *hdev)
 		err = btusb_mtk_id_get(data, 0x80021004, &fw_version);
 		if (err < 0) {
 			bt_dev_err(hdev, "Failed to get fw version (%d)", err);
+			return err;
+		}
+		err = btusb_mtk_id_get(data, 0x70010020, &fw_flavor);
+		if (err < 0) {
+			bt_dev_err(hdev, "Failed to get fw flavor (%d)", err);
 			return err;
 		}
 	}
@@ -3127,6 +3140,10 @@ static int btusb_mtk_setup(struct hci_dev *hdev)
 			snprintf(fw_bin_name, sizeof(fw_bin_name),
 				 "mediatek/mt%04x/BT_RAM_CODE_MT%04x_1_%x_hdr.bin",
 				 dev_id & 0xffff, dev_id & 0xffff, (fw_version & 0xff) + 1);
+		else if (dev_id == 0x7961 && fw_flavor)
+			snprintf(fw_bin_name, sizeof(fw_bin_name),
+				 "mediatek/BT_RAM_CODE_MT%04x_1a_%x_hdr.bin",
+				 dev_id & 0xffff, (fw_version & 0xff) + 1);
 		else
 			snprintf(fw_bin_name, sizeof(fw_bin_name),
 				 "mediatek/BT_RAM_CODE_MT%04x_1_%x_hdr.bin",
@@ -3273,7 +3290,6 @@ static int btusb_recv_acl_mtk(struct hci_dev *hdev, struct sk_buff *skb)
 {
 	struct btusb_data *data = hci_get_drvdata(hdev);
 	u16 handle = le16_to_cpu(hci_acl_hdr(skb)->handle);
-	struct sk_buff *skb_cd;
 
 	switch (handle) {
 	case 0xfc6f:		/* Firmware dump from device */
@@ -3286,9 +3302,12 @@ static int btusb_recv_acl_mtk(struct hci_dev *hdev, struct sk_buff *skb)
 		 * for backward compatibility, so we have to clone the packet
 		 * extraly for the in-kernel coredump support.
 		 */
-		skb_cd = skb_clone(skb, GFP_ATOMIC);
-		if (skb_cd)
-			btmtk_process_coredump(hdev, skb_cd);
+		if (IS_ENABLED(CONFIG_DEV_COREDUMP)) {
+			struct sk_buff *skb_cd = skb_clone(skb, GFP_ATOMIC);
+
+			if (skb_cd)
+				btmtk_process_coredump(hdev, skb_cd);
+		}
 
 		fallthrough;
 	case 0x05ff:		/* Firmware debug logging 1 */
@@ -4481,6 +4500,7 @@ static int btusb_probe(struct usb_interface *intf,
 		set_bit(HCI_QUIRK_BROKEN_READ_TRANSMIT_POWER, &hdev->quirks);
 		set_bit(HCI_QUIRK_BROKEN_SET_RPA_TIMEOUT, &hdev->quirks);
 		set_bit(HCI_QUIRK_BROKEN_EXT_SCAN, &hdev->quirks);
+		set_bit(HCI_QUIRK_BROKEN_READ_ENC_KEY_SIZE, &hdev->quirks);
 	}
 
 	if (!reset)

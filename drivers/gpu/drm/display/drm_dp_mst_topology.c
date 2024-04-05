@@ -1306,7 +1306,8 @@ static int drm_dp_mst_wait_tx_reply(struct drm_dp_mst_branch *mstb,
 	}
 out:
 	if (unlikely(ret == -EIO) && drm_debug_enabled(DRM_UT_DP)) {
-		struct drm_printer p = drm_debug_printer(DBG_PREFIX);
+		struct drm_printer p = drm_dbg_printer(mgr->dev, DRM_UT_DP,
+						       DBG_PREFIX);
 
 		drm_dp_mst_dump_sideband_msg_tx(&p, txmsg);
 	}
@@ -1593,10 +1594,11 @@ topology_ref_type_to_str(enum drm_dp_mst_topology_ref_type type)
 }
 
 static void
-__dump_topology_ref_history(struct drm_dp_mst_topology_ref_history *history,
+__dump_topology_ref_history(struct drm_device *drm,
+			    struct drm_dp_mst_topology_ref_history *history,
 			    void *ptr, const char *type_str)
 {
-	struct drm_printer p = drm_debug_printer(DBG_PREFIX);
+	struct drm_printer p = drm_dbg_printer(drm, DRM_UT_DP, DBG_PREFIX);
 	char *buf = kzalloc(PAGE_SIZE, GFP_KERNEL);
 	int i;
 
@@ -1638,15 +1640,15 @@ out:
 static __always_inline void
 drm_dp_mst_dump_mstb_topology_history(struct drm_dp_mst_branch *mstb)
 {
-	__dump_topology_ref_history(&mstb->topology_ref_history, mstb,
-				    "MSTB");
+	__dump_topology_ref_history(mstb->mgr->dev, &mstb->topology_ref_history,
+				    mstb, "MSTB");
 }
 
 static __always_inline void
 drm_dp_mst_dump_port_topology_history(struct drm_dp_mst_port *port)
 {
-	__dump_topology_ref_history(&port->topology_ref_history, port,
-				    "Port");
+	__dump_topology_ref_history(port->mgr->dev, &port->topology_ref_history,
+				    port, "Port");
 }
 
 static __always_inline void
@@ -2824,7 +2826,9 @@ static int process_single_tx_qlock(struct drm_dp_mst_topology_mgr *mgr,
 	ret = drm_dp_send_sideband_msg(mgr, up, chunk, idx);
 	if (ret) {
 		if (drm_debug_enabled(DRM_UT_DP)) {
-			struct drm_printer p = drm_debug_printer(DBG_PREFIX);
+			struct drm_printer p = drm_dbg_printer(mgr->dev,
+							       DRM_UT_DP,
+							       DBG_PREFIX);
 
 			drm_printf(&p, "sideband msg failed to send\n");
 			drm_dp_mst_dump_sideband_msg_tx(&p, txmsg);
@@ -2869,7 +2873,8 @@ static void drm_dp_queue_down_tx(struct drm_dp_mst_topology_mgr *mgr,
 	list_add_tail(&txmsg->next, &mgr->tx_msg_downq);
 
 	if (drm_debug_enabled(DRM_UT_DP)) {
-		struct drm_printer p = drm_debug_printer(DBG_PREFIX);
+		struct drm_printer p = drm_dbg_printer(mgr->dev, DRM_UT_DP,
+						       DBG_PREFIX);
 
 		drm_dp_mst_dump_sideband_msg_tx(&p, txmsg);
 	}

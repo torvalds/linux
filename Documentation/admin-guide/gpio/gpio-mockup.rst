@@ -3,6 +3,14 @@
 GPIO Testing Driver
 ===================
 
+.. note::
+
+   This module has been obsoleted by the more flexible gpio-sim.rst.
+   New developments should use that API and existing developments are
+   encouraged to migrate as soon as possible.
+   This module will continue to be maintained but no new features will be
+   added.
+
 The GPIO Testing Driver (gpio-mockup) provides a way to create simulated GPIO
 chips for testing purposes. The lines exposed by these chips can be accessed
 using the standard GPIO character device interface as well as manipulated

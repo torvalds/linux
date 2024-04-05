@@ -140,8 +140,8 @@ void clk_fractional_divider_general_approximation(struct clk_hw *hw,
 	}
 
 	if (fd->flags & CLK_FRAC_DIVIDER_ZERO_BASED) {
-		max_m = 1 << fd->mwidth;
-		max_n = 1 << fd->nwidth;
+		max_m = BIT(fd->mwidth);
+		max_n = BIT(fd->nwidth);
 	} else {
 		max_m = GENMASK(fd->mwidth - 1, 0);
 		max_n = GENMASK(fd->nwidth - 1, 0);
@@ -182,8 +182,8 @@ static int clk_fd_set_rate(struct clk_hw *hw, unsigned long rate,
 	u32 val;
 
 	if (fd->flags & CLK_FRAC_DIVIDER_ZERO_BASED) {
-		max_m = 1 << fd->mwidth;
-		max_n = 1 << fd->nwidth;
+		max_m = BIT(fd->mwidth);
+		max_n = BIT(fd->nwidth);
 	} else {
 		max_m = GENMASK(fd->mwidth - 1, 0);
 		max_n = GENMASK(fd->nwidth - 1, 0);
@@ -195,13 +195,13 @@ static int clk_fd_set_rate(struct clk_hw *hw, unsigned long rate,
 		n--;
 	}
 
+	mmask = GENMASK(fd->mwidth - 1, 0) << fd->mshift;
+	nmask = GENMASK(fd->nwidth - 1, 0) << fd->nshift;
+
 	if (fd->lock)
 		spin_lock_irqsave(fd->lock, flags);
 	else
 		__acquire(fd->lock);
-
-	mmask = GENMASK(fd->mwidth - 1, 0) << fd->mshift;
-	nmask = GENMASK(fd->nwidth - 1, 0) << fd->nshift;
 
 	val = clk_fd_readl(fd);
 	val &= ~(mmask | nmask);

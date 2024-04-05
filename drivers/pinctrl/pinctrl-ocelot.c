@@ -1401,7 +1401,6 @@ static int ocelot_hw_set_value(struct ocelot_pinctrl *info,
 	if (info->pincfg) {
 		const struct ocelot_pincfg_data *opd = info->pincfg_data;
 
-		ret = 0;
 		switch (reg) {
 		case PINCONF_BIAS:
 			ret = ocelot_pincfg_clrsetbits(info, pin,

@@ -63,5 +63,4 @@ try_modprobe sch_hfsc
 try_modprobe sch_hhf
 try_modprobe sch_htb
 try_modprobe sch_teql
-./tdc.py -J`nproc` -c actions
-./tdc.py -J`nproc` -c qdisc
+./tdc.py -J`nproc`

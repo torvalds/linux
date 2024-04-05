@@ -36,6 +36,7 @@
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/processor.h>
+#include "amdgpu_vm.h"
 
 /*
  * The primary memory I/O features being added for revisions of gfxip
@@ -326,9 +327,15 @@ static void kfd_init_apertures_vi(struct kfd_process_device *pdd, uint8_t id)
 	 * with small reserved space for kernel.
 	 * Set them to CANONICAL addresses.
 	 */
-	pdd->gpuvm_base = SVM_USER_BASE;
+	pdd->gpuvm_base = max(SVM_USER_BASE, AMDGPU_VA_RESERVED_BOTTOM);
 	pdd->gpuvm_limit =
 		pdd->dev->kfd->shared_resources.gpuvm_size - 1;
+
+	/* dGPUs: the reserved space for kernel
+	 * before SVM
+	 */
+	pdd->qpd.cwsr_base = SVM_CWSR_BASE;
+	pdd->qpd.ib_base = SVM_IB_BASE;
 
 	pdd->scratch_base = MAKE_SCRATCH_APP_BASE_VI();
 	pdd->scratch_limit = MAKE_SCRATCH_APP_LIMIT(pdd->scratch_base);
@@ -339,18 +346,18 @@ static void kfd_init_apertures_v9(struct kfd_process_device *pdd, uint8_t id)
 	pdd->lds_base = MAKE_LDS_APP_BASE_V9();
 	pdd->lds_limit = MAKE_LDS_APP_LIMIT(pdd->lds_base);
 
-        /* Raven needs SVM to support graphic handle, etc. Leave the small
-         * reserved space before SVM on Raven as well, even though we don't
-         * have to.
-         * Set gpuvm_base and gpuvm_limit to CANONICAL addresses so that they
-         * are used in Thunk to reserve SVM.
-         */
-        pdd->gpuvm_base = SVM_USER_BASE;
+	pdd->gpuvm_base = AMDGPU_VA_RESERVED_BOTTOM;
 	pdd->gpuvm_limit =
 		pdd->dev->kfd->shared_resources.gpuvm_size - 1;
 
 	pdd->scratch_base = MAKE_SCRATCH_APP_BASE_V9();
 	pdd->scratch_limit = MAKE_SCRATCH_APP_LIMIT(pdd->scratch_base);
+
+	/*
+	 * Place TBA/TMA on opposite side of VM hole to prevent
+	 * stray faults from triggering SVM on these pages.
+	 */
+	pdd->qpd.cwsr_base = AMDGPU_VA_RESERVED_TRAP_START(pdd->dev->adev);
 }
 
 int kfd_init_apertures(struct kfd_process *process)
@@ -407,12 +414,6 @@ int kfd_init_apertures(struct kfd_process *process)
 					return -EINVAL;
 				}
 			}
-
-                        /* dGPUs: the reserved space for kernel
-                         * before SVM
-                         */
-                        pdd->qpd.cwsr_base = SVM_CWSR_BASE;
-                        pdd->qpd.ib_base = SVM_IB_BASE;
 		}
 
 		dev_dbg(kfd_device, "node id %u\n", id);

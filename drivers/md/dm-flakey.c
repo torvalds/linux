@@ -690,5 +690,5 @@ static struct target_type flakey_target = {
 module_dm(flakey);
 
 MODULE_DESCRIPTION(DM_NAME " flakey target");
-MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
+MODULE_AUTHOR("Joe Thornber <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");

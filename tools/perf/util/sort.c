@@ -3372,7 +3372,7 @@ int sort_dimension__add(struct perf_hpp_list *list, const char *tok,
 				sort_dimension_add_dynamic_header(sd);
 		}
 
-		if (sd->entry == &sort_parent) {
+		if (sd->entry == &sort_parent && parent_pattern) {
 			int ret = regcomp(&parent_regex, parent_pattern, REG_EXTENDED);
 			if (ret) {
 				char err[BUFSIZ];

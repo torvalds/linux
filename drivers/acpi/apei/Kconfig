@@ -60,6 +60,19 @@ config ACPI_APEI_EINJ
 	  mainly used for debugging and testing the other parts of
 	  APEI and some other RAS features.
 
+config ACPI_APEI_EINJ_CXL
+	bool "CXL Error INJection Support"
+	default ACPI_APEI_EINJ
+	depends on ACPI_APEI_EINJ
+	depends on CXL_BUS && CXL_BUS <= ACPI_APEI_EINJ
+	help
+	  Support for CXL protocol Error INJection through debugfs/cxl.
+	  Availability and which errors are supported is dependent on
+	  the host platform. Look to ACPI v6.5 section 18.6.4 and kernel
+	  EINJ documentation for more information.
+
+	  If unsure say 'n'
+
 config ACPI_APEI_ERST_DEBUG
 	tristate "APEI Error Record Serialization Table (ERST) Debug Support"
 	depends on ACPI_APEI

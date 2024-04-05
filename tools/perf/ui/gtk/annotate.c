@@ -28,21 +28,29 @@ static const char *const col_names[] = {
 static int perf_gtk__get_percent(char *buf, size_t size, struct symbol *sym,
 				 struct disasm_line *dl, int evidx)
 {
+	struct annotation *notes;
 	struct sym_hist *symhist;
+	struct sym_hist_entry *entry;
 	double percent = 0.0;
 	const char *markup;
 	int ret = 0;
+	u64 nr_samples = 0;
 
 	strcpy(buf, "");
 
 	if (dl->al.offset == (s64) -1)
 		return 0;
 
-	symhist = annotation__histogram(symbol__annotation(sym), evidx);
-	if (!symbol_conf.event_group && !symhist->addr[dl->al.offset].nr_samples)
+	notes = symbol__annotation(sym);
+	symhist = annotation__histogram(notes, evidx);
+	entry = annotated_source__hist_entry(notes->src, evidx, dl->al.offset);
+	if (entry)
+		nr_samples = entry->nr_samples;
+
+	if (!symbol_conf.event_group && nr_samples == 0)
 		return 0;
 
-	percent = 100.0 * symhist->addr[dl->al.offset].nr_samples / symhist->nr_samples;
+	percent = 100.0 * nr_samples / symhist->nr_samples;
 
 	markup = perf_gtk__get_percent_color(percent);
 	if (markup)
