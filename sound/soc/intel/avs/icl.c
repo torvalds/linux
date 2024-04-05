@@ -109,6 +109,10 @@ int avs_icl_log_buffer_offset(struct avs_dev *adev, u32 core)
 
 bool avs_icl_d0ix_toggle(struct avs_dev *adev, struct avs_ipc_msg *tx, bool wake)
 {
+	/* Full-power when starting DMA engines. */
+	if (tx->glb.set_ppl_state.state == AVS_PPL_STATE_RUNNING)
+		return true;
+
 	/* Payload-less IPCs do not take part in d0ix toggling. */
 	return tx->size;
 }
