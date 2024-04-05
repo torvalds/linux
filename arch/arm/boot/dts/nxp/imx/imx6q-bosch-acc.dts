@@ -36,7 +36,7 @@
 
 	backlight_lvds: backlight-lvds {
 		compatible = "pwm-backlight";
-		pwms = <&pwm1 0 200000>;
+		pwms = <&pwm1 0 200000 0>;
 		brightness-levels = <0 61 499 1706 4079 8022 13938 22237 33328 47623 65535>;
 		num-interpolated-steps = <10>;
 		default-brightness-level = <60>;
@@ -117,14 +117,14 @@
 			color = <LED_COLOR_ID_RED>;
 			max-brightness = <248>;
 			default-state = "off";
-			pwms = <&pwm2 0 500000>;
+			pwms = <&pwm2 0 500000 0>;
 		};
 
 		led_white: led-1 {
 			color = <LED_COLOR_ID_WHITE>;
 			max-brightness = <248>;
 			default-state = "off";
-			pwms = <&pwm3 0 500000>;
+			pwms = <&pwm3 0 500000 0>;
 			linux,default-trigger = "heartbeat";
 		};
 	};
@@ -484,28 +484,24 @@
 };
 
 &pwm1 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm1>;
 	status = "okay";
 };
 
 &pwm2 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm2>;
 	status = "okay";
 };
 
 &pwm3 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm3>;
 	status = "okay";
 };
 
 &pwm4 {
-	#pwm-cells = <2>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_pwm4>;
 	status = "okay";
