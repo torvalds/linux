@@ -19,15 +19,11 @@ static int lsdc_gem_prime_pin(struct drm_gem_object *obj)
 	struct lsdc_bo *lbo = gem_to_lsdc_bo(obj);
 	int ret;
 
-	ret = lsdc_bo_reserve(lbo);
-	if (unlikely(ret))
-		return ret;
+	dma_resv_assert_held(obj->resv);
 
 	ret = lsdc_bo_pin(lbo, LSDC_GEM_DOMAIN_GTT, NULL);
 	if (likely(ret == 0))
 		lbo->sharing_count++;
-
-	lsdc_bo_unreserve(lbo);
 
 	return ret;
 }
@@ -35,17 +31,12 @@ static int lsdc_gem_prime_pin(struct drm_gem_object *obj)
 static void lsdc_gem_prime_unpin(struct drm_gem_object *obj)
 {
 	struct lsdc_bo *lbo = gem_to_lsdc_bo(obj);
-	int ret;
 
-	ret = lsdc_bo_reserve(lbo);
-	if (unlikely(ret))
-		return;
+	dma_resv_assert_held(obj->resv);
 
 	lsdc_bo_unpin(lbo);
 	if (lbo->sharing_count)
 		lbo->sharing_count--;
-
-	lsdc_bo_unreserve(lbo);
 }
 
 static struct sg_table *lsdc_gem_prime_get_sg_table(struct drm_gem_object *obj)

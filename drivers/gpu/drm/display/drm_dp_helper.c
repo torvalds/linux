@@ -2113,7 +2113,7 @@ EXPORT_SYMBOL(drm_dp_aux_init);
  * drm_dp_aux_register() in &drm_connector_funcs.late_register, and likewise to
  * call drm_dp_aux_unregister() in &drm_connector_funcs.early_unregister.
  * Functions which don't follow this will likely Oops when
- * %CONFIG_DRM_DP_AUX_CHARDEV is enabled.
+ * %CONFIG_DRM_DISPLAY_DP_AUX_CHARDEV is enabled.
  *
  * For devices where the AUX channel is a device that exists independently of
  * the &drm_device that uses it, such as SoCs and bridge devices, it is

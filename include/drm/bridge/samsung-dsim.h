@@ -11,9 +11,11 @@
 #include <linux/regulator/consumer.h>
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_of.h>
+#include <drm/drm_bridge.h>
 #include <drm/drm_mipi_dsi.h>
+#include <drm/drm_of.h>
 
+struct platform_device;
 struct samsung_dsim;
 
 #define DSIM_STATE_ENABLED		BIT(0)

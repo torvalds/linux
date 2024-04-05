@@ -75,7 +75,7 @@ __drm_kunit_helper_alloc_drm_device(struct kunit *test,
  * @_dev: The parent device object
  * @_type: the type of the struct which contains struct &drm_device
  * @_member: the name of the &drm_device within @_type.
- * @_features: Mocked DRM device driver features
+ * @_feat: Mocked DRM device driver features
  *
  * This function creates a struct &drm_driver and will create a struct
  * &drm_device from @_dev and that driver.
