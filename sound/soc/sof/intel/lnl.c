@@ -189,6 +189,23 @@ static int lnl_dsp_disable_interrupts(struct snd_sof_dev *sdev)
 	return mtl_enable_interrupts(sdev, false);
 }
 
+static bool lnl_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
+{
+	struct hdac_bus *bus = sof_to_bus(sdev);
+	u16 wake_sts;
+
+	/*
+	 * we need to use the global HDaudio WAKEEN/STS to be able to
+	 * detect wakes in low-power modes. The link-specific information
+	 * is handled in the process_wakeen() helper, this helper only
+	 * detects a SoundWire wake without identifying the link.
+	 */
+	wake_sts = snd_hdac_chip_readw(bus, STATESTS);
+
+	/* filter out the range of SDIs that can be set for SoundWire */
+	return wake_sts & GENMASK(SDW_MAX_DEVICES, SDW_INTEL_DEV_NUM_IDA_MIN);
+}
+
 const struct sof_intel_dsp_desc lnl_chip_info = {
 	.cores_num = 5,
 	.init_core_mask = BIT(0),
@@ -205,6 +222,7 @@ const struct sof_intel_dsp_desc lnl_chip_info = {
 	.read_sdw_lcount =  hda_sdw_check_lcount_ext,
 	.enable_sdw_irq = lnl_enable_sdw_irq,
 	.check_sdw_irq = lnl_dsp_check_sdw_irq,
+	.check_sdw_wakeen_irq = lnl_sdw_check_wakeen_irq,
 	.check_ipc_irq = mtl_dsp_check_ipc_irq,
 	.cl_init = mtl_dsp_cl_init,
 	.power_down_dsp = mtl_power_down_dsp,

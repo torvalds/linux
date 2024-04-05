@@ -184,6 +184,7 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 	struct hdac_bus *bus = sof_to_bus(sdev);
 	struct hdac_stream *stream;
 	int sd_offset, ret = 0;
+	u32 gctl;
 
 	if (bus->chip_init)
 		return 0;
@@ -191,6 +192,12 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 	hda_codec_set_codec_wakeup(sdev, true);
 
 	hda_dsp_ctrl_misc_clock_gating(sdev, false);
+
+	/* clear WAKE_STS if not in reset */
+	gctl = snd_sof_dsp_read(sdev, HDA_DSP_HDA_BAR, SOF_HDA_GCTL);
+	if (gctl & SOF_HDA_GCTL_RESET)
+		snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR,
+				  SOF_HDA_WAKESTS, SOF_HDA_WAKESTS_INT_MASK);
 
 	/* reset HDA controller */
 	ret = hda_dsp_ctrl_link_reset(sdev, true);
@@ -221,7 +228,7 @@ int hda_dsp_ctrl_init_chip(struct snd_sof_dev *sdev)
 
 	/* clear WAKESTS */
 	snd_sof_dsp_write(sdev, HDA_DSP_HDA_BAR, SOF_HDA_WAKESTS,
-			  SOF_HDA_WAKESTS_INT_MASK);
+			  bus->codec_mask);
 
 	hda_codec_rirb_status_clear(sdev);
 
