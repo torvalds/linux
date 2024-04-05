@@ -1468,8 +1468,10 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 					&offset, type_die)) {
 			dloc->type_offset = offset;
 
-			pr_debug_dtp("found PC-rel by addr=%#"PRIx64" offset=%#x\n",
+			pr_debug_dtp("found PC-rel by addr=%#"PRIx64" offset=%#x",
 				     dloc->var_addr, offset);
+			pr_debug_type_name(type_die, TSR_KIND_TYPE);
+			ret = 0;
 			goto out;
 		}
 	}
