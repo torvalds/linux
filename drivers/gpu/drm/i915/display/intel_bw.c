@@ -162,7 +162,9 @@ int icl_pcode_restrict_qgv_points(struct drm_i915_private *dev_priv,
 				1);
 
 	if (ret < 0) {
-		drm_err(&dev_priv->drm, "Failed to disable qgv points (%d) points: 0x%x\n", ret, points_mask);
+		drm_err(&dev_priv->drm,
+			"Failed to disable qgv points (0x%x) points: 0x%x\n",
+			ret, points_mask);
 		return ret;
 	}
 
@@ -859,6 +861,41 @@ static u16 icl_prepare_qgv_points_mask(struct drm_i915_private *i915,
 		 ADLS_PCODE_REQ_PSF_PT(psf_points)) & icl_qgv_points_mask(i915);
 }
 
+static unsigned int icl_max_bw_psf_gv_point_mask(struct drm_i915_private *i915)
+{
+	unsigned int num_psf_gv_points = i915->display.bw.max[0].num_psf_gv_points;
+	unsigned int max_bw_point_mask = 0;
+	unsigned int max_bw = 0;
+	int i;
+
+	for (i = 0; i < num_psf_gv_points; i++) {
+		unsigned int max_data_rate = adl_psf_bw(i915, i);
+
+		if (max_data_rate > max_bw) {
+			max_bw_point_mask = BIT(i);
+			max_bw = max_data_rate;
+		}
+	}
+
+	return max_bw_point_mask;
+}
+
+static void icl_force_disable_sagv(struct drm_i915_private *i915,
+				   struct intel_bw_state *bw_state)
+{
+	unsigned int qgv_points = icl_max_bw_qgv_point_mask(i915, 0);
+	unsigned int psf_points = icl_max_bw_psf_gv_point_mask(i915);
+
+	bw_state->qgv_points_mask = icl_prepare_qgv_points_mask(i915,
+								qgv_points,
+								psf_points);
+
+	drm_dbg_kms(&i915->drm, "Forcing SAGV disable: mask 0x%x\n",
+		    bw_state->qgv_points_mask);
+
+	icl_pcode_restrict_qgv_points(i915, bw_state->qgv_points_mask);
+}
+
 static int mtl_find_qgv_points(struct drm_i915_private *i915,
 			       unsigned int data_rate,
 			       unsigned int num_active_planes,
@@ -1341,7 +1378,7 @@ static const struct intel_global_state_funcs intel_bw_funcs = {
 	.atomic_destroy_state = intel_bw_destroy_state,
 };
 
-int intel_bw_init(struct drm_i915_private *dev_priv)
+int intel_bw_init(struct drm_i915_private *i915)
 {
 	struct intel_bw_state *state;
 
@@ -1349,8 +1386,15 @@ int intel_bw_init(struct drm_i915_private *dev_priv)
 	if (!state)
 		return -ENOMEM;
 
-	intel_atomic_global_obj_init(dev_priv, &dev_priv->display.bw.obj,
+	intel_atomic_global_obj_init(i915, &i915->display.bw.obj,
 				     &state->base, &intel_bw_funcs);
+
+	/*
+	 * Limit this only if we have SAGV. And for Display version 14 onwards
+	 * sagv is handled though pmdemand requests
+	 */
+	if (intel_has_sagv(i915) && IS_DISPLAY_VER(i915, 11, 13))
+		icl_force_disable_sagv(i915, state);
 
 	return 0;
 }
