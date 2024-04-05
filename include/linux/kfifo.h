@@ -36,6 +36,7 @@
  * to lock the reader.
  */
 
+#include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/stddef.h>
@@ -709,11 +710,12 @@ __kfifo_int_must_check_helper( \
 )
 
 /**
- * kfifo_dma_in_prepare - setup a scatterlist for DMA input
+ * kfifo_dma_in_prepare_mapped - setup a scatterlist for DMA input
  * @fifo: address of the fifo to be used
  * @sgl: pointer to the scatterlist array
  * @nents: number of entries in the scatterlist array
  * @len: number of elements to transfer
+ * @dma: mapped dma address to fill into @sgl
  *
  * This macro fills a scatterlist for DMA input.
  * It returns the number entries in the scatterlist array.
@@ -721,7 +723,7 @@ __kfifo_int_must_check_helper( \
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macros.
  */
-#define	kfifo_dma_in_prepare(fifo, sgl, nents, len) \
+#define	kfifo_dma_in_prepare_mapped(fifo, sgl, nents, len, dma) \
 ({ \
 	typeof((fifo) + 1) __tmp = (fifo); \
 	struct scatterlist *__sgl = (sgl); \
@@ -730,9 +732,13 @@ __kfifo_int_must_check_helper( \
 	const size_t __recsize = sizeof(*__tmp->rectype); \
 	struct __kfifo *__kfifo = &__tmp->kfifo; \
 	(__recsize) ? \
-	__kfifo_dma_in_prepare_r(__kfifo, __sgl, __nents, __len, __recsize) : \
-	__kfifo_dma_in_prepare(__kfifo, __sgl, __nents, __len); \
+	__kfifo_dma_in_prepare_r(__kfifo, __sgl, __nents, __len, __recsize, \
+				 dma) : \
+	__kfifo_dma_in_prepare(__kfifo, __sgl, __nents, __len, dma); \
 })
+
+#define kfifo_dma_in_prepare(fifo, sgl, nents, len) \
+	kfifo_dma_in_prepare_mapped(fifo, sgl, nents, len, DMA_MAPPING_ERROR)
 
 /**
  * kfifo_dma_in_finish - finish a DMA IN operation
@@ -758,11 +764,12 @@ __kfifo_int_must_check_helper( \
 })
 
 /**
- * kfifo_dma_out_prepare - setup a scatterlist for DMA output
+ * kfifo_dma_out_prepare_mapped - setup a scatterlist for DMA output
  * @fifo: address of the fifo to be used
  * @sgl: pointer to the scatterlist array
  * @nents: number of entries in the scatterlist array
  * @len: number of elements to transfer
+ * @dma: mapped dma address to fill into @sgl
  *
  * This macro fills a scatterlist for DMA output which at most @len bytes
  * to transfer.
@@ -772,7 +779,7 @@ __kfifo_int_must_check_helper( \
  * Note that with only one concurrent reader and one concurrent
  * writer, you don't need extra locking to use these macros.
  */
-#define	kfifo_dma_out_prepare(fifo, sgl, nents, len) \
+#define	kfifo_dma_out_prepare_mapped(fifo, sgl, nents, len, dma) \
 ({ \
 	typeof((fifo) + 1) __tmp = (fifo);  \
 	struct scatterlist *__sgl = (sgl); \
@@ -781,9 +788,13 @@ __kfifo_int_must_check_helper( \
 	const size_t __recsize = sizeof(*__tmp->rectype); \
 	struct __kfifo *__kfifo = &__tmp->kfifo; \
 	(__recsize) ? \
-	__kfifo_dma_out_prepare_r(__kfifo, __sgl, __nents, __len, __recsize) : \
-	__kfifo_dma_out_prepare(__kfifo, __sgl, __nents, __len); \
+	__kfifo_dma_out_prepare_r(__kfifo, __sgl, __nents, __len, __recsize, \
+				  dma) : \
+	__kfifo_dma_out_prepare(__kfifo, __sgl, __nents, __len, dma); \
 })
+
+#define	kfifo_dma_out_prepare(fifo, sgl, nents, len) \
+	kfifo_dma_out_prepare_mapped(fifo, sgl, nents, len, DMA_MAPPING_ERROR)
 
 /**
  * kfifo_dma_out_finish - finish a DMA OUT operation
@@ -905,10 +916,10 @@ extern int __kfifo_to_user(struct __kfifo *fifo,
 	void __user *to, unsigned long len, unsigned int *copied);
 
 extern unsigned int __kfifo_dma_in_prepare(struct __kfifo *fifo,
-	struct scatterlist *sgl, int nents, unsigned int len);
+	struct scatterlist *sgl, int nents, unsigned int len, dma_addr_t dma);
 
 extern unsigned int __kfifo_dma_out_prepare(struct __kfifo *fifo,
-	struct scatterlist *sgl, int nents, unsigned int len);
+	struct scatterlist *sgl, int nents, unsigned int len, dma_addr_t dma);
 
 extern unsigned int __kfifo_out_peek(struct __kfifo *fifo,
 	void *buf, unsigned int len);
@@ -930,13 +941,15 @@ extern int __kfifo_to_user_r(struct __kfifo *fifo, void __user *to,
 	unsigned long len, unsigned int *copied, size_t recsize);
 
 extern unsigned int __kfifo_dma_in_prepare_r(struct __kfifo *fifo,
-	struct scatterlist *sgl, int nents, unsigned int len, size_t recsize);
+	struct scatterlist *sgl, int nents, unsigned int len, size_t recsize,
+	dma_addr_t dma);
 
 extern void __kfifo_dma_in_finish_r(struct __kfifo *fifo,
 	unsigned int len, size_t recsize);
 
 extern unsigned int __kfifo_dma_out_prepare_r(struct __kfifo *fifo,
-	struct scatterlist *sgl, int nents, unsigned int len, size_t recsize);
+	struct scatterlist *sgl, int nents, unsigned int len, size_t recsize,
+	dma_addr_t dma);
 
 extern unsigned int __kfifo_len_r(struct __kfifo *fifo, size_t recsize);
 
