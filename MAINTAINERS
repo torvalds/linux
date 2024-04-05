@@ -3764,6 +3764,8 @@ X:	arch/riscv/net/bpf_jit_comp64.c
 
 BPF JIT for RISC-V (64-bit)
 M:	Björn Töpel <bjorn@kernel.org>
+R:	Pu Lehui <pulehui@huawei.com>
+R:	Puranjay Mohan <puranjay@kernel.org>
 L:	bpf@vger.kernel.org
 S:	Maintained
 F:	arch/riscv/net/
