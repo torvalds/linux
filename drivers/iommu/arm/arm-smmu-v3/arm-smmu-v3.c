@@ -1139,7 +1139,8 @@ static void arm_smmu_write_ste(struct arm_smmu_master *master, u32 sid,
 		 * requires a breaking update, zero the V bit, write all qwords
 		 * but 0, then set qword 0
 		 */
-		unused_update.data[0] = entry->data[0] & (~STRTAB_STE_0_V);
+		unused_update.data[0] = entry->data[0] &
+					cpu_to_le64(~STRTAB_STE_0_V);
 		entry_set(smmu, sid, entry, &unused_update, 0, 1);
 		entry_set(smmu, sid, entry, target, 1, num_entry_qwords - 1);
 		entry_set(smmu, sid, entry, target, 0, 1);
@@ -1453,14 +1454,17 @@ static void arm_smmu_make_abort_ste(struct arm_smmu_ste *target)
 		FIELD_PREP(STRTAB_STE_0_CFG, STRTAB_STE_0_CFG_ABORT));
 }
 
-static void arm_smmu_make_bypass_ste(struct arm_smmu_ste *target)
+static void arm_smmu_make_bypass_ste(struct arm_smmu_device *smmu,
+				     struct arm_smmu_ste *target)
 {
 	memset(target, 0, sizeof(*target));
 	target->data[0] = cpu_to_le64(
 		STRTAB_STE_0_V |
 		FIELD_PREP(STRTAB_STE_0_CFG, STRTAB_STE_0_CFG_BYPASS));
-	target->data[1] = cpu_to_le64(
-		FIELD_PREP(STRTAB_STE_1_SHCFG, STRTAB_STE_1_SHCFG_INCOMING));
+
+	if (smmu->features & ARM_SMMU_FEAT_ATTR_TYPES_OVR)
+		target->data[1] = cpu_to_le64(FIELD_PREP(STRTAB_STE_1_SHCFG,
+							 STRTAB_STE_1_SHCFG_INCOMING));
 }
 
 static void arm_smmu_make_cdtable_ste(struct arm_smmu_ste *target,
@@ -1523,6 +1527,7 @@ static void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
 	typeof(&pgtbl_cfg->arm_lpae_s2_cfg.vtcr) vtcr =
 		&pgtbl_cfg->arm_lpae_s2_cfg.vtcr;
 	u64 vtcr_val;
+	struct arm_smmu_device *smmu = master->smmu;
 
 	memset(target, 0, sizeof(*target));
 	target->data[0] = cpu_to_le64(
@@ -1531,9 +1536,11 @@ static void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
 
 	target->data[1] = cpu_to_le64(
 		FIELD_PREP(STRTAB_STE_1_EATS,
-			   master->ats_enabled ? STRTAB_STE_1_EATS_TRANS : 0) |
-		FIELD_PREP(STRTAB_STE_1_SHCFG,
-			   STRTAB_STE_1_SHCFG_INCOMING));
+			   master->ats_enabled ? STRTAB_STE_1_EATS_TRANS : 0));
+
+	if (smmu->features & ARM_SMMU_FEAT_ATTR_TYPES_OVR)
+		target->data[1] |= cpu_to_le64(FIELD_PREP(STRTAB_STE_1_SHCFG,
+							  STRTAB_STE_1_SHCFG_INCOMING));
 
 	vtcr_val = FIELD_PREP(STRTAB_STE_2_VTCR_S2T0SZ, vtcr->tsz) |
 		   FIELD_PREP(STRTAB_STE_2_VTCR_S2SL0, vtcr->sl) |
@@ -1560,7 +1567,8 @@ static void arm_smmu_make_s2_domain_ste(struct arm_smmu_ste *target,
  * This can safely directly manipulate the STE memory without a sync sequence
  * because the STE table has not been installed in the SMMU yet.
  */
-static void arm_smmu_init_initial_stes(struct arm_smmu_ste *strtab,
+static void arm_smmu_init_initial_stes(struct arm_smmu_device *smmu,
+				       struct arm_smmu_ste *strtab,
 				       unsigned int nent)
 {
 	unsigned int i;
@@ -1569,7 +1577,7 @@ static void arm_smmu_init_initial_stes(struct arm_smmu_ste *strtab,
 		if (disable_bypass)
 			arm_smmu_make_abort_ste(strtab);
 		else
-			arm_smmu_make_bypass_ste(strtab);
+			arm_smmu_make_bypass_ste(smmu, strtab);
 		strtab++;
 	}
 }
@@ -1597,7 +1605,7 @@ static int arm_smmu_init_l2_strtab(struct arm_smmu_device *smmu, u32 sid)
 		return -ENOMEM;
 	}
 
-	arm_smmu_init_initial_stes(desc->l2ptr, 1 << STRTAB_SPLIT);
+	arm_smmu_init_initial_stes(smmu, desc->l2ptr, 1 << STRTAB_SPLIT);
 	arm_smmu_write_strtab_l1_desc(strtab, desc);
 	return 0;
 }
@@ -2637,8 +2645,9 @@ static int arm_smmu_attach_dev_identity(struct iommu_domain *domain,
 					struct device *dev)
 {
 	struct arm_smmu_ste ste;
+	struct arm_smmu_master *master = dev_iommu_priv_get(dev);
 
-	arm_smmu_make_bypass_ste(&ste);
+	arm_smmu_make_bypass_ste(master->smmu, &ste);
 	return arm_smmu_attach_dev_ste(dev, &ste);
 }
 
@@ -3264,7 +3273,7 @@ static int arm_smmu_init_strtab_linear(struct arm_smmu_device *smmu)
 	reg |= FIELD_PREP(STRTAB_BASE_CFG_LOG2SIZE, smmu->sid_bits);
 	cfg->strtab_base_cfg = reg;
 
-	arm_smmu_init_initial_stes(strtab, cfg->num_l1_ents);
+	arm_smmu_init_initial_stes(smmu, strtab, cfg->num_l1_ents);
 	return 0;
 }
 
@@ -3777,6 +3786,9 @@ static int arm_smmu_device_hw_probe(struct arm_smmu_device *smmu)
 		return -ENXIO;
 	}
 
+	if (reg & IDR1_ATTR_TYPES_OVR)
+		smmu->features |= ARM_SMMU_FEAT_ATTR_TYPES_OVR;
+
 	/* Queue sizes, capped to ensure natural alignment */
 	smmu->cmdq.q.llq.max_n_shift = min_t(u32, CMDQ_MAX_SZ_SHIFT,
 					     FIELD_GET(IDR1_CMDQS, reg));
@@ -3992,7 +4004,7 @@ static void arm_smmu_rmr_install_bypass_ste(struct arm_smmu_device *smmu)
 			 * STE table is not programmed to HW, see
 			 * arm_smmu_initial_bypass_stes()
 			 */
-			arm_smmu_make_bypass_ste(
+			arm_smmu_make_bypass_ste(smmu,
 				arm_smmu_get_step_for_sid(smmu, rmr->sids[i]));
 		}
 	}

@@ -133,6 +133,43 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 	}
 }
 
+static void test_pv_unhalt(void)
+{
+	struct kvm_vcpu *vcpu;
+	struct kvm_vm *vm;
+	struct kvm_cpuid_entry2 *ent;
+	u32 kvm_sig_old;
+
+	pr_info("testing KVM_FEATURE_PV_UNHALT\n");
+
+	TEST_REQUIRE(KVM_CAP_X86_DISABLE_EXITS);
+
+	/* KVM_PV_UNHALT test */
+	vm = vm_create_with_one_vcpu(&vcpu, guest_main);
+	vcpu_set_cpuid_feature(vcpu, X86_FEATURE_KVM_PV_UNHALT);
+
+	TEST_ASSERT(vcpu_cpuid_has(vcpu, X86_FEATURE_KVM_PV_UNHALT),
+		    "Enabling X86_FEATURE_KVM_PV_UNHALT had no effect");
+
+	/* Make sure KVM clears vcpu->arch.kvm_cpuid */
+	ent = vcpu_get_cpuid_entry(vcpu, KVM_CPUID_SIGNATURE);
+	kvm_sig_old = ent->ebx;
+	ent->ebx = 0xdeadbeef;
+	vcpu_set_cpuid(vcpu);
+
+	vm_enable_cap(vm, KVM_CAP_X86_DISABLE_EXITS, KVM_X86_DISABLE_EXITS_HLT);
+	ent = vcpu_get_cpuid_entry(vcpu, KVM_CPUID_SIGNATURE);
+	ent->ebx = kvm_sig_old;
+	vcpu_set_cpuid(vcpu);
+
+	TEST_ASSERT(!vcpu_cpuid_has(vcpu, X86_FEATURE_KVM_PV_UNHALT),
+		    "KVM_FEATURE_PV_UNHALT is set with KVM_CAP_X86_DISABLE_EXITS");
+
+	/* FIXME: actually test KVM_FEATURE_PV_UNHALT feature */
+
+	kvm_vm_free(vm);
+}
+
 int main(void)
 {
 	struct kvm_vcpu *vcpu;
@@ -151,4 +188,6 @@ int main(void)
 
 	enter_guest(vcpu);
 	kvm_vm_free(vm);
+
+	test_pv_unhalt();
 }

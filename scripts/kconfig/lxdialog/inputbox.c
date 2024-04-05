@@ -43,7 +43,7 @@ int dialog_inputbox(const char *title, const char *prompt, int height, int width
 		strcpy(instr, init);
 
 do_resize:
-	if (getmaxy(stdscr) <= (height - INPUTBOX_HEIGTH_MIN))
+	if (getmaxy(stdscr) <= (height - INPUTBOX_HEIGHT_MIN))
 		return -ERRDISPLAYTOOSMALL;
 	if (getmaxx(stdscr) <= (width - INPUTBOX_WIDTH_MIN))
 		return -ERRDISPLAYTOOSMALL;

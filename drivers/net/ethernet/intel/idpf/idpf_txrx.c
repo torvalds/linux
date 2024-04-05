@@ -2941,6 +2941,8 @@ static int idpf_rx_process_skb_fields(struct idpf_queue *rxq,
 	rx_ptype = le16_get_bits(rx_desc->ptype_err_fflags0,
 				 VIRTCHNL2_RX_FLEX_DESC_ADV_PTYPE_M);
 
+	skb->protocol = eth_type_trans(skb, rxq->vport->netdev);
+
 	decoded = rxq->vport->rx_ptype_lkup[rx_ptype];
 	/* If we don't know the ptype we can't do anything else with it. Just
 	 * pass it up the stack as-is.
@@ -2950,8 +2952,6 @@ static int idpf_rx_process_skb_fields(struct idpf_queue *rxq,
 
 	/* process RSS/hash */
 	idpf_rx_hash(rxq, skb, rx_desc, &decoded);
-
-	skb->protocol = eth_type_trans(skb, rxq->vport->netdev);
 
 	if (le16_get_bits(rx_desc->hdrlen_flags,
 			  VIRTCHNL2_RX_FLEX_DESC_ADV_RSC_M))

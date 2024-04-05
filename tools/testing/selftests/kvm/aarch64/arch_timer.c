@@ -135,8 +135,8 @@ static void guest_run_stage(struct test_vcpu_shared_data *shared_data,
 
 		irq_iter = READ_ONCE(shared_data->nr_iter);
 		__GUEST_ASSERT(config_iter + 1 == irq_iter,
-				"config_iter + 1 = 0x%lx, irq_iter = 0x%lx.\n"
-				"  Guest timer interrupt was not trigged within the specified\n"
+				"config_iter + 1 = 0x%x, irq_iter = 0x%x.\n"
+				"  Guest timer interrupt was not triggered within the specified\n"
 				"  interval, try to increase the error margin by [-e] option.\n",
 				config_iter + 1, irq_iter);
 	}

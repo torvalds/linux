@@ -1217,9 +1217,9 @@ lpfc_set_rrq_active(struct lpfc_hba *phba, struct lpfc_nodelist *ndlp,
 	empty = list_empty(&phba->active_rrq_list);
 	list_add_tail(&rrq->list, &phba->active_rrq_list);
 	phba->hba_flag |= HBA_RRQ_ACTIVE;
+	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	if (empty)
 		lpfc_worker_wake_up(phba);
-	spin_unlock_irqrestore(&phba->hbalock, iflags);
 	return 0;
 out:
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
@@ -2830,7 +2830,7 @@ lpfc_sli_wake_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq)
 	 */
 	pmboxq->mbox_flag |= LPFC_MBX_WAKE;
 	spin_lock_irqsave(&phba->hbalock, drvr_flag);
-	pmbox_done = (struct completion *)pmboxq->context3;
+	pmbox_done = pmboxq->ctx_u.mbox_wait;
 	if (pmbox_done)
 		complete(pmbox_done);
 	spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
@@ -2885,7 +2885,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (!test_bit(FC_UNLOADING, &phba->pport->load_flag) &&
 	    pmb->u.mb.mbxCommand == MBX_REG_LOGIN64 &&
 	    !pmb->u.mb.mbxStatus) {
-		mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
+		mp = pmb->ctx_buf;
 		if (mp) {
 			pmb->ctx_buf = NULL;
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
@@ -2914,12 +2914,12 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	if (pmb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
-		ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+		ndlp = pmb->ctx_ndlp;
 		lpfc_nlp_put(ndlp);
 	}
 
 	if (pmb->u.mb.mbxCommand == MBX_UNREG_LOGIN) {
-		ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+		ndlp = pmb->ctx_ndlp;
 
 		/* Check to see if there are any deferred events to process */
 		if (ndlp) {
@@ -2952,7 +2952,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	/* This nlp_put pairs with lpfc_sli4_resume_rpi */
 	if (pmb->u.mb.mbxCommand == MBX_RESUME_RPI) {
-		ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+		ndlp = pmb->ctx_ndlp;
 		lpfc_nlp_put(ndlp);
 	}
 
@@ -5819,7 +5819,7 @@ lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba)
 		goto out_free_mboxq;
 	}
 
-	mp = (struct lpfc_dmabuf *)mboxq->ctx_buf;
+	mp = mboxq->ctx_buf;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_MBOX | LOG_SLI,
@@ -6849,9 +6849,9 @@ lpfc_ras_stop_fwlog(struct lpfc_hba *phba)
 {
 	struct lpfc_ras_fwlog *ras_fwlog = &phba->ras_fwlog;
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->ras_fwlog_lock);
 	ras_fwlog->state = INACTIVE;
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->ras_fwlog_lock);
 
 	/* Disable FW logging to host memory */
 	writel(LPFC_CTL_PDEV_CTL_DDL_RAS,
@@ -6894,9 +6894,9 @@ lpfc_sli4_ras_dma_free(struct lpfc_hba *phba)
 		ras_fwlog->lwpd.virt = NULL;
 	}
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->ras_fwlog_lock);
 	ras_fwlog->state = INACTIVE;
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->ras_fwlog_lock);
 }
 
 /**
@@ -6998,9 +6998,9 @@ lpfc_sli4_ras_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		goto disable_ras;
 	}
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->ras_fwlog_lock);
 	ras_fwlog->state = ACTIVE;
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->ras_fwlog_lock);
 	mempool_free(pmb, phba->mbox_mem_pool);
 
 	return;
@@ -7032,9 +7032,9 @@ lpfc_sli4_ras_fwlog_init(struct lpfc_hba *phba,
 	uint32_t len = 0, fwlog_buffsize, fwlog_entry_count;
 	int rc = 0;
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->ras_fwlog_lock);
 	ras_fwlog->state = INACTIVE;
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->ras_fwlog_lock);
 
 	fwlog_buffsize = (LPFC_RAS_MIN_BUFF_POST_SIZE *
 			  phba->cfg_ras_fwlog_buffsize);
@@ -7095,9 +7095,9 @@ lpfc_sli4_ras_fwlog_init(struct lpfc_hba *phba,
 	mbx_fwlog->u.request.lwpd.addr_lo = putPaddrLow(ras_fwlog->lwpd.phys);
 	mbx_fwlog->u.request.lwpd.addr_hi = putPaddrHigh(ras_fwlog->lwpd.phys);
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(&phba->ras_fwlog_lock);
 	ras_fwlog->state = REG_INPROGRESS;
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(&phba->ras_fwlog_lock);
 	mbox->vport = phba->pport;
 	mbox->mbox_cmpl = lpfc_sli4_ras_mbox_cmpl;
 
@@ -8766,7 +8766,7 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 
 	mboxq->vport = vport;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-	mp = (struct lpfc_dmabuf *)mboxq->ctx_buf;
+	mp = mboxq->ctx_buf;
 	if (rc == MBX_SUCCESS) {
 		memcpy(&vport->fc_sparam, mp->virt, sizeof(struct serv_parm));
 		rc = 0;
@@ -9548,8 +9548,8 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 		}
 
 		/* Copy the mailbox extension data */
-		if (pmbox->in_ext_byte_len && pmbox->ctx_buf) {
-			lpfc_sli_pcimem_bcopy(pmbox->ctx_buf,
+		if (pmbox->in_ext_byte_len && pmbox->ext_buf) {
+			lpfc_sli_pcimem_bcopy(pmbox->ext_buf,
 					      (uint8_t *)phba->mbox_ext,
 					      pmbox->in_ext_byte_len);
 		}
@@ -9562,10 +9562,10 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 				= MAILBOX_HBA_EXT_OFFSET;
 
 		/* Copy the mailbox extension data */
-		if (pmbox->in_ext_byte_len && pmbox->ctx_buf)
+		if (pmbox->in_ext_byte_len && pmbox->ext_buf)
 			lpfc_memcpy_to_slim(phba->MBslimaddr +
 				MAILBOX_HBA_EXT_OFFSET,
-				pmbox->ctx_buf, pmbox->in_ext_byte_len);
+				pmbox->ext_buf, pmbox->in_ext_byte_len);
 
 		if (mbx->mbxCommand == MBX_CONFIG_PORT)
 			/* copy command data into host mbox for cmpl */
@@ -9688,9 +9688,9 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 			lpfc_sli_pcimem_bcopy(phba->mbox, mbx,
 						MAILBOX_CMD_SIZE);
 			/* Copy the mailbox extension data */
-			if (pmbox->out_ext_byte_len && pmbox->ctx_buf) {
+			if (pmbox->out_ext_byte_len && pmbox->ext_buf) {
 				lpfc_sli_pcimem_bcopy(phba->mbox_ext,
-						      pmbox->ctx_buf,
+						      pmbox->ext_buf,
 						      pmbox->out_ext_byte_len);
 			}
 		} else {
@@ -9698,9 +9698,9 @@ lpfc_sli_issue_mbox_s3(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox,
 			lpfc_memcpy_from_slim(mbx, phba->MBslimaddr,
 						MAILBOX_CMD_SIZE);
 			/* Copy the mailbox extension data */
-			if (pmbox->out_ext_byte_len && pmbox->ctx_buf) {
+			if (pmbox->out_ext_byte_len && pmbox->ext_buf) {
 				lpfc_memcpy_from_slim(
-					pmbox->ctx_buf,
+					pmbox->ext_buf,
 					phba->MBslimaddr +
 					MAILBOX_HBA_EXT_OFFSET,
 					pmbox->out_ext_byte_len);
@@ -11373,18 +11373,18 @@ lpfc_sli_post_recovery_event(struct lpfc_hba *phba,
 	unsigned long iflags;
 	struct lpfc_work_evt  *evtp = &ndlp->recovery_evt;
 
+	/* Hold a node reference for outstanding queued work */
+	if (!lpfc_nlp_get(ndlp))
+		return;
+
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	if (!list_empty(&evtp->evt_listp)) {
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
+		lpfc_nlp_put(ndlp);
 		return;
 	}
 
-	/* Incrementing the reference count until the queued work is done. */
-	evtp->evt_arg1  = lpfc_nlp_get(ndlp);
-	if (!evtp->evt_arg1) {
-		spin_unlock_irqrestore(&phba->hbalock, iflags);
-		return;
-	}
+	evtp->evt_arg1 = ndlp;
 	evtp->evt = LPFC_EVT_RECOVER_PORT;
 	list_add_tail(&evtp->evt_listp, &phba->work_list);
 	spin_unlock_irqrestore(&phba->hbalock, iflags);
@@ -13262,9 +13262,9 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 	/* setup wake call as IOCB callback */
 	pmboxq->mbox_cmpl = lpfc_sli_wake_mbox_wait;
 
-	/* setup context3 field to pass wait_queue pointer to wake function  */
+	/* setup ctx_u field to pass wait_queue pointer to wake function  */
 	init_completion(&mbox_done);
-	pmboxq->context3 = &mbox_done;
+	pmboxq->ctx_u.mbox_wait = &mbox_done;
 	/* now issue the command */
 	retval = lpfc_sli_issue_mbox(phba, pmboxq, MBX_NOWAIT);
 	if (retval == MBX_BUSY || retval == MBX_SUCCESS) {
@@ -13272,7 +13272,7 @@ lpfc_sli_issue_mbox_wait(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmboxq,
 					    msecs_to_jiffies(timeout * 1000));
 
 		spin_lock_irqsave(&phba->hbalock, flag);
-		pmboxq->context3 = NULL;
+		pmboxq->ctx_u.mbox_wait = NULL;
 		/*
 		 * if LPFC_MBX_WAKE flag is set the mailbox is completed
 		 * else do not free the resources.
@@ -13813,10 +13813,10 @@ lpfc_sli_sp_intr_handler(int irq, void *dev_id)
 					lpfc_sli_pcimem_bcopy(mbox, pmbox,
 							MAILBOX_CMD_SIZE);
 					if (pmb->out_ext_byte_len &&
-						pmb->ctx_buf)
+						pmb->ext_buf)
 						lpfc_sli_pcimem_bcopy(
 						phba->mbox_ext,
-						pmb->ctx_buf,
+						pmb->ext_buf,
 						pmb->out_ext_byte_len);
 				}
 				if (pmb->mbox_flag & LPFC_MBX_IMED_UNREG) {
@@ -13830,10 +13830,8 @@ lpfc_sli_sp_intr_handler(int irq, void *dev_id)
 						pmbox->un.varWords[0], 0);
 
 					if (!pmbox->mbxStatus) {
-						mp = (struct lpfc_dmabuf *)
-							(pmb->ctx_buf);
-						ndlp = (struct lpfc_nodelist *)
-							pmb->ctx_ndlp;
+						mp = pmb->ctx_buf;
+						ndlp = pmb->ctx_ndlp;
 
 						/* Reg_LOGIN of dflt RPI was
 						 * successful. new lets get
@@ -14340,8 +14338,8 @@ lpfc_sli4_sp_handle_mbox_event(struct lpfc_hba *phba, struct lpfc_mcqe *mcqe)
 				      mcqe_status,
 				      pmbox->un.varWords[0], 0);
 		if (mcqe_status == MB_CQE_STATUS_SUCCESS) {
-			mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
-			ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+			mp = pmb->ctx_buf;
+			ndlp = pmb->ctx_ndlp;
 
 			/* Reg_LOGIN of dflt RPI was successful. Mark the
 			 * node as having an UNREG_LOGIN in progress to stop
@@ -19823,14 +19821,15 @@ lpfc_sli4_remove_rpis(struct lpfc_hba *phba)
  * lpfc_sli4_resume_rpi - Remove the rpi bitmask region
  * @ndlp: pointer to lpfc nodelist data structure.
  * @cmpl: completion call-back.
- * @arg: data to load as MBox 'caller buffer information'
+ * @iocbq: data to load as mbox ctx_u information
  *
  * This routine is invoked to remove the memory region that
  * provided rpi via a bitmask.
  **/
 int
 lpfc_sli4_resume_rpi(struct lpfc_nodelist *ndlp,
-	void (*cmpl)(struct lpfc_hba *, LPFC_MBOXQ_t *), void *arg)
+		     void (*cmpl)(struct lpfc_hba *, LPFC_MBOXQ_t *),
+		     struct lpfc_iocbq *iocbq)
 {
 	LPFC_MBOXQ_t *mboxq;
 	struct lpfc_hba *phba = ndlp->phba;
@@ -19859,7 +19858,7 @@ lpfc_sli4_resume_rpi(struct lpfc_nodelist *ndlp,
 	lpfc_resume_rpi(mboxq, ndlp);
 	if (cmpl) {
 		mboxq->mbox_cmpl = cmpl;
-		mboxq->ctx_buf = arg;
+		mboxq->ctx_u.save_iocb = iocbq;
 	} else
 		mboxq->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 	mboxq->ctx_ndlp = ndlp;
@@ -20676,7 +20675,7 @@ lpfc_sli4_get_config_region23(struct lpfc_hba *phba, char *rgn23_data)
 	if (lpfc_sli4_dump_cfg_rg23(phba, mboxq))
 		goto out;
 	mqe = &mboxq->u.mqe;
-	mp = (struct lpfc_dmabuf *)mboxq->ctx_buf;
+	mp = mboxq->ctx_buf;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 	if (rc)
 		goto out;
@@ -21035,7 +21034,7 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 			(mb->u.mb.mbxCommand == MBX_REG_VPI))
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
-			act_mbx_ndlp = (struct lpfc_nodelist *)mb->ctx_ndlp;
+			act_mbx_ndlp = mb->ctx_ndlp;
 
 			/* This reference is local to this routine.  The
 			 * reference is removed at routine exit.
@@ -21064,7 +21063,7 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 			if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
-				ndlp = (struct lpfc_nodelist *)mb->ctx_ndlp;
+				ndlp = mb->ctx_ndlp;
 				/* Unregister the RPI when mailbox complete */
 				mb->mbox_flag |= LPFC_MBX_IMED_UNREG;
 				restart_loop = 1;
@@ -21084,7 +21083,7 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 	while (!list_empty(&mbox_cmd_list)) {
 		list_remove_head(&mbox_cmd_list, mb, LPFC_MBOXQ_t, list);
 		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
-			ndlp = (struct lpfc_nodelist *)mb->ctx_ndlp;
+			ndlp = mb->ctx_ndlp;
 			mb->ctx_ndlp = NULL;
 			if (ndlp) {
 				spin_lock(&ndlp->lock);
