@@ -346,10 +346,6 @@ struct io_ring_ctx {
 
 	spinlock_t		completion_lock;
 
-	/* IRQ completion list, under ->completion_lock */
-	unsigned int		locked_free_nr;
-	struct io_wq_work_list	locked_free_list;
-
 	struct list_head	io_buffers_comp;
 	struct list_head	cq_overflow_list;
 	struct io_hash_table	cancel_table;
