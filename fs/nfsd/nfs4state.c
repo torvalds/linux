@@ -3636,12 +3636,8 @@ out_nolock:
 	return status;
 }
 
-static __be32
-check_slot_seqid(u32 seqid, u32 slot_seqid, int slot_inuse)
+static __be32 check_slot_seqid(u32 seqid, u32 slot_seqid, bool slot_inuse)
 {
-	dprintk("%s enter. seqid %d slot_seqid %d\n", __func__, seqid,
-		slot_seqid);
-
 	/* The slot is in use, and no response has been sent. */
 	if (slot_inuse) {
 		if (seqid == slot_seqid)
@@ -3818,10 +3814,13 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 	}
 
 	/* RFC 8881 Section 18.36.4 Phase 2: Sequence ID processing. */
-	if (conf)
+	if (conf) {
 		cs_slot = &conf->cl_cs_slot;
-	else
+		trace_nfsd_slot_seqid_conf(conf, cr_ses);
+	} else {
 		cs_slot = &unconf->cl_cs_slot;
+		trace_nfsd_slot_seqid_unconf(unconf, cr_ses);
+	}
 	status = check_slot_seqid(cr_ses->seqid, cs_slot->sl_seqid, 0);
 	switch (status) {
 	case nfs_ok:
@@ -4216,6 +4215,7 @@ nfsd4_sequence(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	 * sr_highest_slotid and the sr_target_slot id to maxslots */
 	seq->maxslots = session->se_fchannel.maxreqs;
 
+	trace_nfsd_slot_seqid_sequence(clp, seq, slot);
 	status = check_slot_seqid(seq->seqid, slot->sl_seqid,
 					slot->sl_flags & NFSD4_SLOT_INUSE);
 	if (status == nfserr_replay_cache) {
