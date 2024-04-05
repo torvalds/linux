@@ -102,6 +102,8 @@ struct cqspi_st {
 	bool			apb_ahb_hazard;
 
 	bool			is_jh7110; /* Flag for StarFive JH7110 SoC */
+
+	const struct cqspi_driver_platdata *ddata;
 };
 
 struct cqspi_driver_platdata {
@@ -334,11 +336,8 @@ static u32 cqspi_get_versal_dma_status(struct cqspi_st *cqspi)
 static irqreturn_t cqspi_irq_handler(int this_irq, void *dev)
 {
 	struct cqspi_st *cqspi = dev;
+	const struct cqspi_driver_platdata *ddata = cqspi->ddata;
 	unsigned int irq_status;
-	struct device *device = &cqspi->pdev->dev;
-	const struct cqspi_driver_platdata *ddata;
-
-	ddata = of_device_get_match_data(device);
 
 	/* Read interrupt status */
 	irq_status = readl(cqspi->iobase + CQSPI_REG_IRQSTATUS);
@@ -1358,15 +1357,12 @@ static ssize_t cqspi_read(struct cqspi_flash_pdata *f_pdata,
 			  const struct spi_mem_op *op)
 {
 	struct cqspi_st *cqspi = f_pdata->cqspi;
-	struct device *dev = &cqspi->pdev->dev;
-	const struct cqspi_driver_platdata *ddata;
+	const struct cqspi_driver_platdata *ddata = cqspi->ddata;
 	loff_t from = op->addr.val;
 	size_t len = op->data.nbytes;
 	u_char *buf = op->data.buf.in;
 	u64 dma_align = (u64)(uintptr_t)buf;
 	int ret;
-
-	ddata = of_device_get_match_data(dev);
 
 	ret = cqspi_read_setup(f_pdata, op);
 	if (ret)
@@ -1822,7 +1818,8 @@ static int cqspi_probe(struct platform_device *pdev)
 	/* write completion is supported by default */
 	cqspi->wr_completion = true;
 
-	ddata  = of_device_get_match_data(dev);
+	ddata = of_device_get_match_data(dev);
+	cqspi->ddata = ddata;
 	if (ddata) {
 		if (ddata->quirks & CQSPI_NEEDS_WR_DELAY)
 			cqspi->wr_delay = 50 * DIV_ROUND_UP(NSEC_PER_SEC,
