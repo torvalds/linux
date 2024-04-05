@@ -254,7 +254,7 @@ static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 	/* config_length in DWORDs */
 	cfg->gtw_cfg.config_length = DIV_ROUND_UP(data_size, 4);
 	if (data)
-		memcpy(&cfg->gtw_cfg.config, data, data_size);
+		memcpy(&cfg->gtw_cfg.config.blob, data, data_size);
 
 	mod->gtw_attrs = cfg->gtw_cfg.config.attrs;
 

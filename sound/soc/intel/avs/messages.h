@@ -752,9 +752,9 @@ struct avs_copier_gtw_cfg {
 	union avs_connector_node_id node_id;
 	u32 dma_buffer_size;
 	u32 config_length;
-	struct {
+	union {
 		union avs_gtw_attributes attrs;
-		u32 blob[];
+		DECLARE_FLEX_ARRAY(u32, blob);
 	} config;
 } __packed;
 
