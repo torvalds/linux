@@ -886,10 +886,11 @@
 		};
 
 		etzpc: bus@5c007000 {
-			compatible = "simple-bus";
+			compatible = "st,stm32-etzpc", "simple-bus";
 			reg = <0x5c007000 0x400>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			#access-controller-cells = <1>;
 			ranges;
 
 			adc_2: adc@48004000 {
@@ -902,6 +903,7 @@
 				#interrupt-cells = <1>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				access-controllers = <&etzpc 33>;
 				status = "disabled";
 
 				adc2: adc@0 {
@@ -949,6 +951,7 @@
 				dr_mode = "otg";
 				otg-rev = <0x200>;
 				usb33d-supply = <&scmi_usb33>;
+				access-controllers = <&etzpc 34>;
 				status = "disabled";
 			};
 
@@ -962,6 +965,7 @@
 				dmas = <&dmamux1 41 0x400 0x5>,
 				<&dmamux1 42 0x400 0x1>;
 				dma-names = "rx", "tx";
+				access-controllers = <&etzpc 16>;
 				status = "disabled";
 			};
 
@@ -975,6 +979,7 @@
 				dmas = <&dmamux1 43 0x400 0x5>,
 				<&dmamux1 44 0x400 0x1>;
 				dma-names = "rx", "tx";
+				access-controllers = <&etzpc 17>;
 				status = "disabled";
 			};
 
@@ -986,6 +991,7 @@
 				dmas = <&dmamux1 83 0x400 0x01>,
 				<&dmamux1 84 0x400 0x01>;
 				dma-names = "rx", "tx";
+				access-controllers = <&etzpc 13>;
 				status = "disabled";
 			};
 
@@ -1000,6 +1006,7 @@
 				dmas = <&dmamux1 83 0x400 0x01>,
 				       <&dmamux1 84 0x400 0x01>;
 				dma-names = "rx", "tx";
+				access-controllers = <&etzpc 18>;
 				status = "disabled";
 			};
 
@@ -1014,6 +1021,7 @@
 				dmas = <&dmamux1 85 0x400 0x01>,
 				       <&dmamux1 86 0x400 0x01>;
 				dma-names = "rx", "tx";
+				access-controllers = <&etzpc 19>;
 				status = "disabled";
 			};
 
@@ -1032,6 +1040,7 @@
 				dma-names = "rx", "tx";
 				st,syscfg-fmp = <&syscfg 0x4 0x4>;
 				i2c-analog-filter;
+				access-controllers = <&etzpc 20>;
 				status = "disabled";
 			};
 
@@ -1050,6 +1059,7 @@
 				dma-names = "rx", "tx";
 				st,syscfg-fmp = <&syscfg 0x4 0x8>;
 				i2c-analog-filter;
+				access-controllers = <&etzpc 21>;
 				status = "disabled";
 			};
 
@@ -1068,6 +1078,7 @@
 				dma-names = "rx", "tx";
 				st,syscfg-fmp = <&syscfg 0x4 0x10>;
 				i2c-analog-filter;
+				access-controllers = <&etzpc 22>;
 				status = "disabled";
 			};
 
@@ -1080,6 +1091,7 @@
 				interrupt-names = "global";
 				clocks = <&rcc TIM12_K>;
 				clock-names = "int";
+				access-controllers = <&etzpc 23>;
 				status = "disabled";
 
 				pwm {
@@ -1104,6 +1116,7 @@
 				interrupt-names = "global";
 				clocks = <&rcc TIM13_K>;
 				clock-names = "int";
+				access-controllers = <&etzpc 24>;
 				status = "disabled";
 
 				pwm {
@@ -1128,6 +1141,7 @@
 				interrupt-names = "global";
 				clocks = <&rcc TIM14_K>;
 				clock-names = "int";
+				access-controllers = <&etzpc 25>;
 				status = "disabled";
 
 				pwm {
@@ -1157,6 +1171,7 @@
 				<&dmamux1 107 0x400 0x1>,
 				<&dmamux1 108 0x400 0x1>;
 				dma-names = "ch1", "up", "trig", "com";
+				access-controllers = <&etzpc 26>;
 				status = "disabled";
 
 				pwm {
@@ -1184,6 +1199,7 @@
 				dmas = <&dmamux1 109 0x400 0x1>,
 				<&dmamux1 110 0x400 0x1>;
 				dma-names = "ch1", "up";
+				access-controllers = <&etzpc 27>;
 				status = "disabled";
 
 				pwm {
@@ -1211,6 +1227,7 @@
 				dmas = <&dmamux1 111 0x400 0x1>,
 				       <&dmamux1 112 0x400 0x1>;
 				dma-names = "ch1", "up";
+				access-controllers = <&etzpc 28>;
 				status = "disabled";
 
 				pwm {
@@ -1235,6 +1252,7 @@
 				clocks = <&rcc LPTIM2_K>;
 				clock-names = "mux";
 				wakeup-source;
+				access-controllers = <&etzpc 1>;
 				status = "disabled";
 
 				pwm {
@@ -1269,6 +1287,7 @@
 				clocks = <&rcc LPTIM3_K>;
 				clock-names = "mux";
 				wakeup-source;
+				access-controllers = <&etzpc 2>;
 				status = "disabled";
 
 				pwm {
@@ -1297,6 +1316,7 @@
 				resets = <&rcc HASH1_R>;
 				dmas = <&mdma 30 0x2 0x1000a02 0x0 0x0>;
 				dma-names = "in";
+				access-controllers = <&etzpc 41>;
 				status = "disabled";
 			};
 
@@ -1305,6 +1325,7 @@
 				reg = <0x54004000 0x400>;
 				clocks = <&rcc RNG1_K>;
 				resets = <&rcc RNG1_R>;
+				access-controllers = <&etzpc 40>;
 				status = "disabled";
 			};
 
@@ -1320,6 +1341,7 @@
 				#size-cells = <1>;
 				clocks = <&rcc FMC_K>;
 				resets = <&rcc FMC_R>;
+				access-controllers = <&etzpc 54>;
 				status = "disabled";
 
 				nand-controller@4,0 {
@@ -1353,6 +1375,7 @@
 				dma-names = "tx", "rx";
 				clocks = <&rcc QSPI_K>;
 				resets = <&rcc QSPI_R>;
+				access-controllers = <&etzpc 55>;
 				status = "disabled";
 			};
 
@@ -1367,6 +1390,7 @@
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
 				max-frequency = <130000000>;
+				access-controllers = <&etzpc 50>;
 				status = "disabled";
 			};
 
@@ -1381,6 +1405,7 @@
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
 				max-frequency = <130000000>;
+				access-controllers = <&etzpc 51>;
 				status = "disabled";
 			};
 
@@ -1394,6 +1419,7 @@
 				resets = <&rcc USBPHY_R>;
 				vdda1v1-supply = <&scmi_reg11>;
 				vdda1v8-supply = <&scmi_reg18>;
+				access-controllers = <&etzpc 5>;
 				status = "disabled";
 
 				usbphyc_port0: usb-phy@0 {
