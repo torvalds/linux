@@ -491,8 +491,11 @@ static int cqspi_enable_dtr(struct cqspi_flash_pdata *f_pdata,
 		if (ret)
 			return ret;
 	} else {
-		reg &= ~CQSPI_REG_CONFIG_DTR_PROTO;
-		reg &= ~CQSPI_REG_CONFIG_DUAL_OPCODE;
+		unsigned int mask = CQSPI_REG_CONFIG_DTR_PROTO | CQSPI_REG_CONFIG_DUAL_OPCODE;
+		/* Shortcut if DTR is already disabled. */
+		if ((reg & mask) == 0)
+			return 0;
+		reg &= ~mask;
 	}
 
 	writel(reg, reg_base + CQSPI_REG_CONFIG);
