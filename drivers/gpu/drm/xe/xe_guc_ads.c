@@ -7,6 +7,8 @@
 
 #include <drm/drm_managed.h>
 
+#include <generated/xe_wa_oob.h>
+
 #include "regs/xe_engine_regs.h"
 #include "regs/xe_gt_regs.h"
 #include "regs/xe_guc_regs.h"
@@ -19,6 +21,7 @@
 #include "xe_map.h"
 #include "xe_mmio.h"
 #include "xe_platform_types.h"
+#include "xe_wa.h"
 
 /* Slack of a few additional entries per engine */
 #define ADS_REGSET_EXTRA_MAX	8
@@ -279,21 +282,42 @@ static size_t calculate_golden_lrc_size(struct xe_guc_ads *ads)
 	return total_size;
 }
 
+static void guc_waklv_enable_simple(struct xe_guc_ads *ads,
+				    enum xe_guc_klv_ids klv_id, u32 *offset, u32 *remain)
+{
+	u32 klv_entry[] = {
+		/* 16:16 key/length */
+		FIELD_PREP(GUC_KLV_0_KEY, klv_id) |
+		FIELD_PREP(GUC_KLV_0_LEN, 0),
+		/* 0 dwords data */
+	};
+	u32 size;
+
+	size = sizeof(klv_entry);
+
+	if (xe_gt_WARN(ads_to_gt(ads), *remain < size,
+		       "w/a klv buffer too small to add klv id %d\n", klv_id))
+		return;
+
+	xe_map_memcpy_to(ads_to_xe(ads), ads_to_map(ads), *offset,
+			 klv_entry, size);
+	*offset += size;
+	*remain -= size;
+}
+
 static void guc_waklv_init(struct xe_guc_ads *ads)
 {
+	struct xe_gt *gt = ads_to_gt(ads);
 	u64 addr_ggtt;
 	u32 offset, remain, size;
 
 	offset = guc_ads_waklv_offset(ads);
 	remain = guc_ads_waklv_size(ads);
 
-	/* Add workarounds here
-	 *
-	 * if (XE_WA(gt, wa_id))
-	 *	guc_waklv_enable_simple(ads,
-	 *				wa_klv_id,
-	 *				&offset, &remain);
-	 */
+	if (XE_WA(gt, 14019882105))
+		guc_waklv_enable_simple(ads,
+					GUC_WORKAROUND_KLV_BLOCK_INTERRUPTS_WHEN_MGSR_BLOCKED,
+					&offset, &remain);
 
 	size = guc_ads_waklv_size(ads) - remain;
 	if (!size)
