@@ -1314,12 +1314,18 @@ static int find_data_type_insn(struct data_loc_info *dloc, int reg,
 	list_for_each_entry(bb, basic_blocks, list) {
 		struct disasm_line *dl = bb->begin;
 
+		BUG_ON(bb->begin->al.offset == -1 || bb->end->al.offset == -1);
+
 		pr_debug_dtp("bb: [%"PRIx64" - %"PRIx64"]\n",
 			     bb->begin->al.offset, bb->end->al.offset);
 
 		list_for_each_entry_from(dl, &notes->src->source, al.node) {
 			u64 this_ip = sym->start + dl->al.offset;
 			u64 addr = map__rip_2objdump(dloc->ms->map, this_ip);
+
+			/* Skip comment or debug info lines */
+			if (dl->al.offset == -1)
+				continue;
 
 			/* Update variable type at this address */
 			update_var_state(&state, dloc, addr, dl->al.offset, var_types);

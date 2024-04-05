@@ -2159,23 +2159,10 @@ int annotate_get_insn_location(struct arch *arch, struct disasm_line *dl,
 
 static void symbol__ensure_annotate(struct map_symbol *ms, struct evsel *evsel)
 {
-	struct disasm_line *dl, *tmp_dl;
-	struct annotation *notes;
+	struct annotation *notes = symbol__annotation(ms->sym);
 
-	notes = symbol__annotation(ms->sym);
-	if (!list_empty(&notes->src->source))
-		return;
-
-	if (symbol__annotate(ms, evsel, NULL) < 0)
-		return;
-
-	/* remove non-insn disasm lines for simplicity */
-	list_for_each_entry_safe(dl, tmp_dl, &notes->src->source, al.node) {
-		if (dl->al.offset == -1) {
-			list_del(&dl->al.node);
-			free(dl);
-		}
-	}
+	if (list_empty(&notes->src->source))
+		symbol__annotate(ms, evsel, NULL);
 }
 
 static struct disasm_line *find_disasm_line(struct symbol *sym, u64 ip,
@@ -2187,6 +2174,9 @@ static struct disasm_line *find_disasm_line(struct symbol *sym, u64 ip,
 	notes = symbol__annotation(sym);
 
 	list_for_each_entry(dl, &notes->src->source, al.node) {
+		if (dl->al.offset == -1)
+			continue;
+
 		if (sym->start + dl->al.offset == ip) {
 			/*
 			 * llvm-objdump places "lock" in a separate line and
@@ -2251,6 +2241,46 @@ static bool is_stack_canary(struct arch *arch, struct annotated_op_loc *loc)
 	return false;
 }
 
+static struct disasm_line *
+annotation__prev_asm_line(struct annotation *notes, struct disasm_line *curr)
+{
+	struct list_head *sources = &notes->src->source;
+	struct disasm_line *prev;
+
+	if (curr == list_first_entry(sources, struct disasm_line, al.node))
+		return NULL;
+
+	prev = list_prev_entry(curr, al.node);
+	while (prev->al.offset == -1 &&
+	       prev != list_first_entry(sources, struct disasm_line, al.node))
+		prev = list_prev_entry(prev, al.node);
+
+	if (prev->al.offset == -1)
+		return NULL;
+
+	return prev;
+}
+
+static struct disasm_line *
+annotation__next_asm_line(struct annotation *notes, struct disasm_line *curr)
+{
+	struct list_head *sources = &notes->src->source;
+	struct disasm_line *next;
+
+	if (curr == list_last_entry(sources, struct disasm_line, al.node))
+		return NULL;
+
+	next = list_next_entry(curr, al.node);
+	while (next->al.offset == -1 &&
+	       next != list_last_entry(sources, struct disasm_line, al.node))
+		next = list_next_entry(next, al.node);
+
+	if (next->al.offset == -1)
+		return NULL;
+
+	return next;
+}
+
 u64 annotate_calc_pcrel(struct map_symbol *ms, u64 ip, int offset,
 			struct disasm_line *dl)
 {
@@ -2266,12 +2296,12 @@ u64 annotate_calc_pcrel(struct map_symbol *ms, u64 ip, int offset,
 	 * disasm_line.  If it's the last one, we can use symbol's end
 	 * address directly.
 	 */
-	if (&dl->al.node == notes->src->source.prev)
+	next = annotation__next_asm_line(notes, dl);
+	if (next == NULL)
 		addr = ms->sym->end + offset;
-	else {
-		next = list_next_entry(dl, al.node);
+	else
 		addr = ip + (next->al.offset - dl->al.offset) + offset;
-	}
+
 	return map__rip_2objdump(ms->map, addr);
 }
 
@@ -2403,10 +2433,13 @@ retry:
 	 * from the previous instruction.
 	 */
 	if (dl->al.offset > 0) {
+		struct annotation *notes;
 		struct disasm_line *prev_dl;
 
-		prev_dl = list_prev_entry(dl, al.node);
-		if (ins__is_fused(arch, prev_dl->ins.name, dl->ins.name)) {
+		notes = symbol__annotation(ms->sym);
+		prev_dl = annotation__prev_asm_line(notes, dl);
+
+		if (prev_dl && ins__is_fused(arch, prev_dl->ins.name, dl->ins.name)) {
 			dl = prev_dl;
 			goto retry;
 		}
@@ -2511,8 +2544,16 @@ static bool process_basic_block(struct basic_block_data *bb_data,
 
 	last_dl = list_last_entry(&notes->src->source,
 				  struct disasm_line, al.node);
+	if (last_dl->al.offset == -1)
+		last_dl = annotation__prev_asm_line(notes, last_dl);
+
+	if (last_dl == NULL)
+		return false;
 
 	list_for_each_entry_from(dl, &notes->src->source, al.node) {
+		/* Skip comment or debug info line */
+		if (dl->al.offset == -1)
+			continue;
 		/* Found the target instruction */
 		if (sym->start + dl->al.offset == target) {
 			found = true;
@@ -2533,7 +2574,8 @@ static bool process_basic_block(struct basic_block_data *bb_data,
 		/* jump instruction creates new basic block(s) */
 		next_dl = find_disasm_line(sym, sym->start + dl->ops.target.offset,
 					   /*allow_update=*/false);
-		add_basic_block(bb_data, link, next_dl);
+		if (next_dl)
+			add_basic_block(bb_data, link, next_dl);
 
 		/*
 		 * FIXME: determine conditional jumps properly.
@@ -2541,8 +2583,9 @@ static bool process_basic_block(struct basic_block_data *bb_data,
 		 * next disasm line.
 		 */
 		if (!strstr(dl->ins.name, "jmp")) {
-			next_dl = list_next_entry(dl, al.node);
-			add_basic_block(bb_data, link, next_dl);
+			next_dl = annotation__next_asm_line(notes, dl);
+			if (next_dl)
+				add_basic_block(bb_data, link, next_dl);
 		}
 		break;
 
