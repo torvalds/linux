@@ -591,6 +591,9 @@ static void guc_handle_mmio_msg(struct xe_guc *guc)
 	struct xe_gt *gt = guc_to_gt(guc);
 	u32 msg;
 
+	if (IS_SRIOV_VF(guc_to_xe(guc)))
+		return;
+
 	xe_force_wake_assert_held(gt_to_fw(gt), XE_FW_GT);
 
 	msg = xe_mmio_read32(gt, SOFT_SCRATCH(15));
