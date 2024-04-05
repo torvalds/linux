@@ -633,7 +633,7 @@ static int cobalt_s_dv_timings(struct file *file, void *priv_fh,
 		return -EBUSY;
 
 	err = v4l2_subdev_call(s->sd,
-			video, s_dv_timings, timings);
+			pad, s_dv_timings, 0, timings);
 	if (!err) {
 		s->timings = *timings;
 		s->width = timings->bt.width;
@@ -653,7 +653,7 @@ static int cobalt_g_dv_timings(struct file *file, void *priv_fh,
 		return 0;
 	}
 	return v4l2_subdev_call(s->sd,
-			video, g_dv_timings, timings);
+			pad, g_dv_timings, 0, timings);
 }
 
 static int cobalt_query_dv_timings(struct file *file, void *priv_fh,
@@ -666,7 +666,7 @@ static int cobalt_query_dv_timings(struct file *file, void *priv_fh,
 		return 0;
 	}
 	return v4l2_subdev_call(s->sd,
-			video, query_dv_timings, timings);
+			pad, query_dv_timings, 0, timings);
 }
 
 static int cobalt_dv_timings_cap(struct file *file, void *priv_fh,
@@ -1080,7 +1080,7 @@ static int cobalt_g_pixelaspect(struct file *file, void *fh,
 	if (s->input == 1)
 		timings = cea1080p60;
 	else
-		err = v4l2_subdev_call(s->sd, video, g_dv_timings, &timings);
+		err = v4l2_subdev_call(s->sd, pad, g_dv_timings, 0, &timings);
 	if (!err)
 		*f = v4l2_dv_timings_aspect_ratio(&timings);
 	return err;
@@ -1099,7 +1099,7 @@ static int cobalt_g_selection(struct file *file, void *fh,
 	if (s->input == 1)
 		timings = cea1080p60;
 	else
-		err = v4l2_subdev_call(s->sd, video, g_dv_timings, &timings);
+		err = v4l2_subdev_call(s->sd, pad, g_dv_timings, 0, &timings);
 
 	if (err)
 		return err;
@@ -1243,7 +1243,7 @@ static int cobalt_node_register(struct cobalt *cobalt, int node)
 		if (s->sd)
 			vdev->ctrl_handler = s->sd->ctrl_handler;
 		s->timings = dv1080p60;
-		v4l2_subdev_call(s->sd, video, s_dv_timings, &s->timings);
+		v4l2_subdev_call(s->sd, pad, s_dv_timings, 0, &s->timings);
 		if (!s->is_output && s->sd)
 			cobalt_enable_input(s);
 		vdev->ioctl_ops = s->is_dummy ? &cobalt_ioctl_empty_ops :
