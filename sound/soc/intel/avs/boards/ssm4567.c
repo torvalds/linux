@@ -200,4 +200,5 @@ static struct platform_driver avs_ssm4567_driver = {
 
 module_platform_driver(avs_ssm4567_driver)
 
+MODULE_DESCRIPTION("Intel ssm4567 machine driver");
 MODULE_LICENSE("GPL");

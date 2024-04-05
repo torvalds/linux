@@ -56,10 +56,19 @@ static const struct spi_device_id cs35l56_hda_spi_id[] = {
 	{}
 };
 
+static const struct acpi_device_id cs35l56_acpi_hda_match[] = {
+	{ "CSC3554", 0 },
+	{ "CSC3556", 0 },
+	{ "CSC3557", 0 },
+	{}
+};
+MODULE_DEVICE_TABLE(acpi, cs35l56_acpi_hda_match);
+
 static struct spi_driver cs35l56_hda_spi_driver = {
 	.driver = {
-		.name		= "cs35l56-hda",
-		.pm		= &cs35l56_hda_pm_ops,
+		.name		  = "cs35l56-hda",
+		.acpi_match_table = cs35l56_acpi_hda_match,
+		.pm		  = &cs35l56_hda_pm_ops,
 	},
 	.id_table	= cs35l56_hda_spi_id,
 	.probe		= cs35l56_hda_spi_probe,

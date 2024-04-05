@@ -313,4 +313,5 @@ static struct platform_driver avs_nau8825_driver = {
 
 module_platform_driver(avs_nau8825_driver)
 
+MODULE_DESCRIPTION("Intel nau8825 machine driver");
 MODULE_LICENSE("GPL");
