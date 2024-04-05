@@ -17,6 +17,7 @@
 #include "xe_lrc.h"
 #include "xe_macros.h"
 #include "xe_sched_job.h"
+#include "xe_sriov.h"
 #include "xe_vm_types.h"
 #include "xe_vm.h"
 #include "xe_wa.h"
@@ -367,10 +368,12 @@ static void emit_migration_job_gen12(struct xe_sched_job *job,
 
 	i = emit_bb_start(job->batch_addr[0], BIT(8), dw, i);
 
-	/* XXX: Do we need this? Leaving for now. */
-	dw[i++] = preparser_disable(true);
-	i = emit_flush_invalidate(0, dw, i);
-	dw[i++] = preparser_disable(false);
+	if (!IS_SRIOV_VF(gt_to_xe(job->q->gt))) {
+		/* XXX: Do we need this? Leaving for now. */
+		dw[i++] = preparser_disable(true);
+		i = emit_flush_invalidate(0, dw, i);
+		dw[i++] = preparser_disable(false);
+	}
 
 	i = emit_bb_start(job->batch_addr[1], BIT(8), dw, i);
 
