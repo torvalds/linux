@@ -1401,21 +1401,21 @@ static int __init pi433_init(void)
 		return status;
 
 	status = class_register(&pi433_class);
-	if (status) {
-		unregister_chrdev(MAJOR(pi433_devt),
-				  pi433_spi_driver.driver.name);
-		return status;
-	}
+	if (status)
+		goto unreg_chrdev;
 
 	root_dir = debugfs_create_dir(KBUILD_MODNAME, NULL);
 
 	status = spi_register_driver(&pi433_spi_driver);
-	if (status < 0) {
-		class_unregister(&pi433_class);
-		unregister_chrdev(MAJOR(pi433_devt),
-				  pi433_spi_driver.driver.name);
-	}
+	if (status < 0)
+		goto unreg_class_and_remove_dbfs;
 
+	return 0;
+
+unreg_class_and_remove_dbfs:
+	class_unregister(&pi433_class);
+unreg_chrdev:
+	unregister_chrdev(MAJOR(pi433_devt), pi433_spi_driver.driver.name);
 	return status;
 }
 
