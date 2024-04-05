@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/slab.h>
+#include <net/netdev_queues.h>
 #include <net/netlink.h>
 #include <net/pkt_cls.h>
 #include <net/rtnetlink.h>
@@ -330,6 +331,53 @@ static const struct net_device_ops nsim_vf_netdev_ops = {
 	.ndo_set_features	= nsim_set_features,
 };
 
+/* We don't have true per-queue stats, yet, so do some random fakery here.
+ * Only report stuff for queue 0.
+ */
+static void nsim_get_queue_stats_rx(struct net_device *dev, int idx,
+				    struct netdev_queue_stats_rx *stats)
+{
+	struct rtnl_link_stats64 rtstats = {};
+
+	if (!idx)
+		nsim_get_stats64(dev, &rtstats);
+
+	stats->packets = rtstats.rx_packets - !!rtstats.rx_packets;
+	stats->bytes = rtstats.rx_bytes;
+}
+
+static void nsim_get_queue_stats_tx(struct net_device *dev, int idx,
+				    struct netdev_queue_stats_tx *stats)
+{
+	struct rtnl_link_stats64 rtstats = {};
+
+	if (!idx)
+		nsim_get_stats64(dev, &rtstats);
+
+	stats->packets = rtstats.tx_packets - !!rtstats.tx_packets;
+	stats->bytes = rtstats.tx_bytes;
+}
+
+static void nsim_get_base_stats(struct net_device *dev,
+				struct netdev_queue_stats_rx *rx,
+				struct netdev_queue_stats_tx *tx)
+{
+	struct rtnl_link_stats64 rtstats = {};
+
+	nsim_get_stats64(dev, &rtstats);
+
+	rx->packets = !!rtstats.rx_packets;
+	rx->bytes = 0;
+	tx->packets = !!rtstats.tx_packets;
+	tx->bytes = 0;
+}
+
+static const struct netdev_stat_ops nsim_stat_ops = {
+	.get_queue_stats_tx	= nsim_get_queue_stats_tx,
+	.get_queue_stats_rx	= nsim_get_queue_stats_rx,
+	.get_base_stats		= nsim_get_base_stats,
+};
+
 static void nsim_setup(struct net_device *dev)
 {
 	ether_setup(dev);
@@ -360,6 +408,7 @@ static int nsim_init_netdevsim(struct netdevsim *ns)
 
 	ns->phc = phc;
 	ns->netdev->netdev_ops = &nsim_netdev_ops;
+	ns->netdev->stat_ops = &nsim_stat_ops;
 
 	err = nsim_udp_tunnels_info_create(ns->nsim_dev, ns->netdev);
 	if (err)
