@@ -137,7 +137,7 @@ void murmurhash3_128(const void *key, const int len, const u32 seed, void *out)
 			break;
 		default:
 			break;
-		};
+		}
 	}
 	/* finalization */
 
