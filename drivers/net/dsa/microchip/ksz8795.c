@@ -385,39 +385,39 @@ static int ksz8_valid_dyn_entry(struct ksz_device *dev, u8 *data)
 	int timeout = 100;
 	const u32 *masks;
 	const u16 *regs;
+	int ret;
 
 	masks = dev->info->masks;
 	regs = dev->info->regs;
 
 	do {
-		ksz_read8(dev, regs[REG_IND_DATA_CHECK], data);
+		ret = ksz_read8(dev, regs[REG_IND_DATA_CHECK], data);
+		if (ret)
+			return ret;
+
 		timeout--;
 	} while ((*data & masks[DYNAMIC_MAC_TABLE_NOT_READY]) && timeout);
 
 	/* Entry is not ready for accessing. */
-	if (*data & masks[DYNAMIC_MAC_TABLE_NOT_READY]) {
-		return -EAGAIN;
-	/* Entry is ready for accessing. */
-	} else {
-		ksz_read8(dev, regs[REG_IND_DATA_8], data);
+	if (*data & masks[DYNAMIC_MAC_TABLE_NOT_READY])
+		return -ETIMEDOUT;
 
-		/* There is no valid entry in the table. */
-		if (*data & masks[DYNAMIC_MAC_TABLE_MAC_EMPTY])
-			return -ENXIO;
-	}
-	return 0;
+	/* Entry is ready for accessing. */
+	return ksz_read8(dev, regs[REG_IND_DATA_8], data);
 }
 
-int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
-			 u8 *fid, u8 *src_port, u8 *timestamp, u16 *entries)
+static int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
+				u8 *fid, u8 *src_port, u16 *entries)
 {
 	u32 data_hi, data_lo;
 	const u8 *shifts;
 	const u32 *masks;
 	const u16 *regs;
 	u16 ctrl_addr;
+	u64 buf = 0;
 	u8 data;
-	int rc;
+	int cnt;
+	int ret;
 
 	shifts = dev->info->shifts;
 	masks = dev->info->masks;
@@ -426,49 +426,50 @@ int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 	ctrl_addr = IND_ACC_TABLE(TABLE_DYNAMIC_MAC | TABLE_READ) | addr;
 
 	mutex_lock(&dev->alu_mutex);
-	ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
+	ret = ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
+	if (ret)
+		goto unlock_alu;
 
-	rc = ksz8_valid_dyn_entry(dev, &data);
-	if (rc == -EAGAIN) {
-		if (addr == 0)
-			*entries = 0;
-	} else if (rc == -ENXIO) {
+	ret = ksz8_valid_dyn_entry(dev, &data);
+	if (ret)
+		goto unlock_alu;
+
+	if (data & masks[DYNAMIC_MAC_TABLE_MAC_EMPTY]) {
 		*entries = 0;
-	/* At least one valid entry in the table. */
-	} else {
-		u64 buf = 0;
-		int cnt;
-
-		ksz_read64(dev, regs[REG_IND_DATA_HI], &buf);
-		data_hi = (u32)(buf >> 32);
-		data_lo = (u32)buf;
-
-		/* Check out how many valid entry in the table. */
-		cnt = data & masks[DYNAMIC_MAC_TABLE_ENTRIES_H];
-		cnt <<= shifts[DYNAMIC_MAC_ENTRIES_H];
-		cnt |= (data_hi & masks[DYNAMIC_MAC_TABLE_ENTRIES]) >>
-			shifts[DYNAMIC_MAC_ENTRIES];
-		*entries = cnt + 1;
-
-		*fid = (data_hi & masks[DYNAMIC_MAC_TABLE_FID]) >>
-			shifts[DYNAMIC_MAC_FID];
-		*src_port = (data_hi & masks[DYNAMIC_MAC_TABLE_SRC_PORT]) >>
-			shifts[DYNAMIC_MAC_SRC_PORT];
-		*timestamp = (data_hi & masks[DYNAMIC_MAC_TABLE_TIMESTAMP]) >>
-			shifts[DYNAMIC_MAC_TIMESTAMP];
-
-		mac_addr[5] = (u8)data_lo;
-		mac_addr[4] = (u8)(data_lo >> 8);
-		mac_addr[3] = (u8)(data_lo >> 16);
-		mac_addr[2] = (u8)(data_lo >> 24);
-
-		mac_addr[1] = (u8)data_hi;
-		mac_addr[0] = (u8)(data_hi >> 8);
-		rc = 0;
+		goto unlock_alu;
 	}
+
+	ret = ksz_read64(dev, regs[REG_IND_DATA_HI], &buf);
+	if (ret)
+		goto unlock_alu;
+
+	data_hi = (u32)(buf >> 32);
+	data_lo = (u32)buf;
+
+	/* Check out how many valid entry in the table. */
+	cnt = data & masks[DYNAMIC_MAC_TABLE_ENTRIES_H];
+	cnt <<= shifts[DYNAMIC_MAC_ENTRIES_H];
+	cnt |= (data_hi & masks[DYNAMIC_MAC_TABLE_ENTRIES]) >>
+		shifts[DYNAMIC_MAC_ENTRIES];
+	*entries = cnt + 1;
+
+	*fid = (data_hi & masks[DYNAMIC_MAC_TABLE_FID]) >>
+		shifts[DYNAMIC_MAC_FID];
+	*src_port = (data_hi & masks[DYNAMIC_MAC_TABLE_SRC_PORT]) >>
+		shifts[DYNAMIC_MAC_SRC_PORT];
+
+	mac_addr[5] = (u8)data_lo;
+	mac_addr[4] = (u8)(data_lo >> 8);
+	mac_addr[3] = (u8)(data_lo >> 16);
+	mac_addr[2] = (u8)(data_lo >> 24);
+
+	mac_addr[1] = (u8)data_hi;
+	mac_addr[0] = (u8)(data_hi >> 8);
+
+unlock_alu:
 	mutex_unlock(&dev->alu_mutex);
 
-	return rc;
+	return ret;
 }
 
 static int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
@@ -1193,28 +1194,28 @@ void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 int ksz8_fdb_dump(struct ksz_device *dev, int port,
 		  dsa_fdb_dump_cb_t *cb, void *data)
 {
-	int ret = 0;
-	u16 i = 0;
-	u16 entries = 0;
-	u8 timestamp = 0;
-	u8 fid;
-	u8 src_port;
 	u8 mac[ETH_ALEN];
+	u8 src_port, fid;
+	u16 entries = 0;
+	int ret, i;
 
-	do {
+	for (i = 0; i < KSZ8_DYN_MAC_ENTRIES; i++) {
 		ret = ksz8_r_dyn_mac_table(dev, i, mac, &fid, &src_port,
-					   &timestamp, &entries);
-		if (!ret && port == src_port) {
+					   &entries);
+		if (ret)
+			return ret;
+
+		if (i >= entries)
+			return 0;
+
+		if (port == src_port) {
 			ret = cb(mac, fid, false, data);
 			if (ret)
-				break;
+				return ret;
 		}
-		i++;
-	} while (i < entries);
-	if (i >= entries)
-		ret = 0;
+	}
 
-	return ret;
+	return 0;
 }
 
 static int ksz8_add_sta_mac(struct ksz_device *dev, int port,
