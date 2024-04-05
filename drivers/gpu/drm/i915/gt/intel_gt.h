@@ -82,16 +82,17 @@ struct drm_printer;
 		  ##__VA_ARGS__);					\
 } while (0)
 
-#define NEEDS_FASTCOLOR_BLT_WABB(engine) ( \
-	IS_GFX_GT_IP_RANGE(engine->gt, IP_VER(12, 55), IP_VER(12, 71)) && \
-	engine->class == COPY_ENGINE_CLASS && engine->instance == 0)
-
 static inline bool gt_is_root(struct intel_gt *gt)
 {
 	return !gt->info.id;
 }
 
+bool intel_gt_needs_wa_16018031267(struct intel_gt *gt);
 bool intel_gt_needs_wa_22016122933(struct intel_gt *gt);
+
+#define NEEDS_FASTCOLOR_BLT_WABB(engine) ( \
+	intel_gt_needs_wa_16018031267(engine->gt) && \
+	engine->class == COPY_ENGINE_CLASS && engine->instance == 0)
 
 static inline struct intel_gt *uc_to_gt(struct intel_uc *uc)
 {
