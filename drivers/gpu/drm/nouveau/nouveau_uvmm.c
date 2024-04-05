@@ -812,15 +812,15 @@ op_remap(struct drm_gpuva_op_remap *r,
 	struct drm_gpuva_op_unmap *u = r->unmap;
 	struct nouveau_uvma *uvma = uvma_from_va(u->va);
 	u64 addr = uvma->va.va.addr;
-	u64 range = uvma->va.va.range;
+	u64 end = uvma->va.va.addr + uvma->va.va.range;
 
 	if (r->prev)
 		addr = r->prev->va.addr + r->prev->va.range;
 
 	if (r->next)
-		range = r->next->va.addr - addr;
+		end = r->next->va.addr;
 
-	op_unmap_range(u, addr, range);
+	op_unmap_range(u, addr, end - addr);
 }
 
 static int
