@@ -76,10 +76,6 @@ config ARCH_CANAAN
 	help
 	  This enables support for Canaan Kendryte series SoC platform hardware.
 
-config SOC_CANAAN
-	def_bool SOC_CANAAN_K210
-	depends on ARCH_CANAAN
-
 config SOC_CANAAN_K210
 	bool "Canaan Kendryte K210 SoC"
 	depends on !MMU && ARCH_CANAAN
