@@ -190,11 +190,6 @@ struct bpf_verifier_stack_elem {
 #define BPF_MAP_KEY_POISON	(1ULL << 63)
 #define BPF_MAP_KEY_SEEN	(1ULL << 62)
 
-#define BPF_MAP_PTR_UNPRIV	1UL
-#define BPF_MAP_PTR_POISON	((void *)((0xeB9FUL << 1) +	\
-					  POISON_POINTER_DELTA))
-#define BPF_MAP_PTR(X)		((struct bpf_map *)((X) & ~BPF_MAP_PTR_UNPRIV))
-
 #define BPF_GLOBAL_PERCPU_MA_MAX_SIZE  512
 
 static int acquire_reference_state(struct bpf_verifier_env *env, int insn_idx);
@@ -209,21 +204,22 @@ static bool is_trusted_reg(const struct bpf_reg_state *reg);
 
 static bool bpf_map_ptr_poisoned(const struct bpf_insn_aux_data *aux)
 {
-	return BPF_MAP_PTR(aux->map_ptr_state) == BPF_MAP_PTR_POISON;
+	return aux->map_ptr_state.poison;
 }
 
 static bool bpf_map_ptr_unpriv(const struct bpf_insn_aux_data *aux)
 {
-	return aux->map_ptr_state & BPF_MAP_PTR_UNPRIV;
+	return aux->map_ptr_state.unpriv;
 }
 
 static void bpf_map_ptr_store(struct bpf_insn_aux_data *aux,
-			      const struct bpf_map *map, bool unpriv)
+			      struct bpf_map *map,
+			      bool unpriv, bool poison)
 {
-	BUILD_BUG_ON((unsigned long)BPF_MAP_PTR_POISON & BPF_MAP_PTR_UNPRIV);
 	unpriv |= bpf_map_ptr_unpriv(aux);
-	aux->map_ptr_state = (unsigned long)map |
-			     (unpriv ? BPF_MAP_PTR_UNPRIV : 0UL);
+	aux->map_ptr_state.unpriv = unpriv;
+	aux->map_ptr_state.poison = poison;
+	aux->map_ptr_state.map_ptr = map;
 }
 
 static bool bpf_map_key_poisoned(const struct bpf_insn_aux_data *aux)
@@ -9655,12 +9651,8 @@ static int set_map_elem_callback_state(struct bpf_verifier_env *env,
 	struct bpf_map *map;
 	int err;
 
-	if (bpf_map_ptr_poisoned(insn_aux)) {
-		verbose(env, "tail_call abusing map_ptr\n");
-		return -EINVAL;
-	}
-
-	map = BPF_MAP_PTR(insn_aux->map_ptr_state);
+	/* valid map_ptr and poison value does not matter */
+	map = insn_aux->map_ptr_state.map_ptr;
 	if (!map->ops->map_set_for_each_callback_args ||
 	    !map->ops->map_for_each_callback) {
 		verbose(env, "callback function not allowed for map\n");
@@ -10019,12 +10011,12 @@ record_func_map(struct bpf_verifier_env *env, struct bpf_call_arg_meta *meta,
 		return -EACCES;
 	}
 
-	if (!BPF_MAP_PTR(aux->map_ptr_state))
+	if (!aux->map_ptr_state.map_ptr)
 		bpf_map_ptr_store(aux, meta->map_ptr,
-				  !meta->map_ptr->bypass_spec_v1);
-	else if (BPF_MAP_PTR(aux->map_ptr_state) != meta->map_ptr)
-		bpf_map_ptr_store(aux, BPF_MAP_PTR_POISON,
-				  !meta->map_ptr->bypass_spec_v1);
+				  !meta->map_ptr->bypass_spec_v1, false);
+	else if (aux->map_ptr_state.map_ptr != meta->map_ptr)
+		bpf_map_ptr_store(aux, meta->map_ptr,
+				  !meta->map_ptr->bypass_spec_v1, true);
 	return 0;
 }
 
@@ -19840,7 +19832,7 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 			    !bpf_map_ptr_unpriv(aux)) {
 				struct bpf_jit_poke_descriptor desc = {
 					.reason = BPF_POKE_REASON_TAIL_CALL,
-					.tail_call.map = BPF_MAP_PTR(aux->map_ptr_state),
+					.tail_call.map = aux->map_ptr_state.map_ptr,
 					.tail_call.key = bpf_map_key_immediate(aux),
 					.insn_idx = i + delta,
 				};
@@ -19869,7 +19861,7 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 				return -EINVAL;
 			}
 
-			map_ptr = BPF_MAP_PTR(aux->map_ptr_state);
+			map_ptr = aux->map_ptr_state.map_ptr;
 			insn_buf[0] = BPF_JMP_IMM(BPF_JGE, BPF_REG_3,
 						  map_ptr->max_entries, 2);
 			insn_buf[1] = BPF_ALU32_IMM(BPF_AND, BPF_REG_3,
@@ -19977,7 +19969,7 @@ static int do_misc_fixups(struct bpf_verifier_env *env)
 			if (bpf_map_ptr_poisoned(aux))
 				goto patch_call_imm;
 
-			map_ptr = BPF_MAP_PTR(aux->map_ptr_state);
+			map_ptr = aux->map_ptr_state.map_ptr;
 			ops = map_ptr->ops;
 			if (insn->imm == BPF_FUNC_map_lookup_elem &&
 			    ops->map_gen_lookup) {
