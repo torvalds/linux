@@ -2347,7 +2347,11 @@ unhash_client(struct nfs4_client *clp)
 
 static __be32 mark_client_expired_locked(struct nfs4_client *clp)
 {
-	if (atomic_read(&clp->cl_rpc_users))
+	int users = atomic_read(&clp->cl_rpc_users);
+
+	trace_nfsd_mark_client_expired(clp, users);
+
+	if (users)
 		return nfserr_jukebox;
 	unhash_client_locked(clp);
 	return nfs_ok;
