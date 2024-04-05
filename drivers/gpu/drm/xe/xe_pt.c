@@ -5,6 +5,7 @@
 
 #include "xe_pt.h"
 
+#include "regs/xe_gtt_defs.h"
 #include "xe_bo.h"
 #include "xe_device.h"
 #include "xe_drm_client.h"

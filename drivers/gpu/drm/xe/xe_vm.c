@@ -21,6 +21,7 @@
 
 #include <generated/xe_wa_oob.h>
 
+#include "regs/xe_gtt_defs.h"
 #include "xe_assert.h"
 #include "xe_bo.h"
 #include "xe_device.h"

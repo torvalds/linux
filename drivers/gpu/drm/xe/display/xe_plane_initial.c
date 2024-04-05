@@ -6,6 +6,7 @@
 /* for ioread64 */
 #include <linux/io-64-nonatomic-lo-hi.h>
 
+#include "regs/xe_gtt_defs.h"
 #include "xe_ggtt.h"
 
 #include "i915_drv.h"
