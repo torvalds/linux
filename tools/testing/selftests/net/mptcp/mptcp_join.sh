@@ -142,7 +142,7 @@ init() {
 
 	mptcp_lib_check_mptcp
 	mptcp_lib_check_kallsyms
-	mptcp_lib_check_tools ip ss "${iptables}" "${ip6tables}"
+	mptcp_lib_check_tools ip tc ss "${iptables}" "${ip6tables}"
 
 	sin=$(mktemp)
 	sout=$(mktemp)

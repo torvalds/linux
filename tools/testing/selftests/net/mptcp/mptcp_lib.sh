@@ -384,6 +384,12 @@ mptcp_lib_check_tools() {
 				exit ${KSFT_SKIP}
 			fi
 			;;
+		"tc")
+			if ! tc -help &> /dev/null; then
+				mptcp_lib_pr_skip "Could not run test without tc tool"
+				exit ${KSFT_SKIP}
+			fi
+			;;
 		"ss")
 			if ! ss -h | grep -q MPTCP; then
 				mptcp_lib_pr_skip "ss tool does not support MPTCP"

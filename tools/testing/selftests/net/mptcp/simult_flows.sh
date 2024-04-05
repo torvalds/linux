@@ -45,7 +45,7 @@ cleanup()
 }
 
 mptcp_lib_check_mptcp
-mptcp_lib_check_tools ip
+mptcp_lib_check_tools ip tc
 
 #  "$ns1"              ns2                    ns3
 #     ns1eth1    ns2eth1   ns2eth3      ns3eth1
