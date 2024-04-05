@@ -272,9 +272,10 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 		return -ENOMEM;
 
 	uart_port_lock(state, flags);
-	if (!state->xmit.buf) {
-		state->xmit.buf = (unsigned char *) page;
-		uart_circ_clear(&state->xmit);
+	if (!state->port.xmit_buf) {
+		state->port.xmit_buf = (unsigned char *)page;
+		kfifo_init(&state->port.xmit_fifo, state->port.xmit_buf,
+				PAGE_SIZE);
 		uart_port_unlock(uport, flags);
 	} else {
 		uart_port_unlock(uport, flags);
@@ -387,8 +388,9 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 	 * can endup in printk() recursion.
 	 */
 	uart_port_lock(state, flags);
-	xmit_buf = state->xmit.buf;
-	state->xmit.buf = NULL;
+	xmit_buf = port->xmit_buf;
+	port->xmit_buf = NULL;
+	INIT_KFIFO(port->xmit_fifo);
 	uart_port_unlock(uport, flags);
 
 	free_page((unsigned long)xmit_buf);
@@ -552,22 +554,17 @@ static int uart_put_char(struct tty_struct *tty, u8 c)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port;
-	struct circ_buf *circ;
 	unsigned long flags;
 	int ret = 0;
 
-	circ = &state->xmit;
 	port = uart_port_lock(state, flags);
-	if (!circ->buf) {
+	if (WARN_ON_ONCE(!state->port.xmit_buf)) {
 		uart_port_unlock(port, flags);
 		return 0;
 	}
 
-	if (port && uart_circ_chars_free(circ) != 0) {
-		circ->buf[circ->head] = c;
-		circ->head = (circ->head + 1) & (UART_XMIT_SIZE - 1);
-		ret = 1;
-	}
+	if (port)
+		ret = kfifo_put(&state->port.xmit_fifo, c);
 	uart_port_unlock(port, flags);
 	return ret;
 }
@@ -581,9 +578,8 @@ static ssize_t uart_write(struct tty_struct *tty, const u8 *buf, size_t count)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port;
-	struct circ_buf *circ;
 	unsigned long flags;
-	int c, ret = 0;
+	int ret = 0;
 
 	/*
 	 * This means you called this function _after_ the port was
@@ -593,24 +589,13 @@ static ssize_t uart_write(struct tty_struct *tty, const u8 *buf, size_t count)
 		return -EL3HLT;
 
 	port = uart_port_lock(state, flags);
-	circ = &state->xmit;
-	if (!circ->buf) {
+	if (WARN_ON_ONCE(!state->port.xmit_buf)) {
 		uart_port_unlock(port, flags);
 		return 0;
 	}
 
-	while (port) {
-		c = CIRC_SPACE_TO_END(circ->head, circ->tail, UART_XMIT_SIZE);
-		if (count < c)
-			c = count;
-		if (c <= 0)
-			break;
-		memcpy(circ->buf + circ->head, buf, c);
-		circ->head = (circ->head + c) & (UART_XMIT_SIZE - 1);
-		buf += c;
-		count -= c;
-		ret += c;
-	}
+	if (port)
+		ret = kfifo_in(&state->port.xmit_fifo, buf, count);
 
 	__uart_start(state);
 	uart_port_unlock(port, flags);
@@ -625,7 +610,7 @@ static unsigned int uart_write_room(struct tty_struct *tty)
 	unsigned int ret;
 
 	port = uart_port_lock(state, flags);
-	ret = uart_circ_chars_free(&state->xmit);
+	ret = kfifo_avail(&state->port.xmit_fifo);
 	uart_port_unlock(port, flags);
 	return ret;
 }
@@ -638,7 +623,7 @@ static unsigned int uart_chars_in_buffer(struct tty_struct *tty)
 	unsigned int ret;
 
 	port = uart_port_lock(state, flags);
-	ret = uart_circ_chars_pending(&state->xmit);
+	ret = kfifo_len(&state->port.xmit_fifo);
 	uart_port_unlock(port, flags);
 	return ret;
 }
@@ -661,7 +646,7 @@ static void uart_flush_buffer(struct tty_struct *tty)
 	port = uart_port_lock(state, flags);
 	if (!port)
 		return;
-	uart_circ_clear(&state->xmit);
+	kfifo_reset(&state->port.xmit_fifo);
 	if (port->ops->flush_buffer)
 		port->ops->flush_buffer(port);
 	uart_port_unlock(port, flags);
@@ -1064,7 +1049,7 @@ static int uart_get_lsr_info(struct tty_struct *tty,
 	 * interrupt happens).
 	 */
 	if (uport->x_char ||
-	    ((uart_circ_chars_pending(&state->xmit) > 0) &&
+	    (!kfifo_is_empty(&state->port.xmit_fifo) &&
 	     !uart_tx_stopped(uport)))
 		result &= ~TIOCSER_TEMT;
 
@@ -1788,8 +1773,9 @@ static void uart_tty_port_shutdown(struct tty_port *port)
 	 * Free the transmit buffer.
 	 */
 	uart_port_lock_irq(uport);
-	buf = state->xmit.buf;
-	state->xmit.buf = NULL;
+	buf = port->xmit_buf;
+	port->xmit_buf = NULL;
+	INIT_KFIFO(port->xmit_fifo);
 	uart_port_unlock_irq(uport);
 
 	free_page((unsigned long)buf);

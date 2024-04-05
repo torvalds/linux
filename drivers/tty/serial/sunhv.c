@@ -39,10 +39,13 @@ static char *con_read_page;
 
 static int hung_up = 0;
 
-static void transmit_chars_putchar(struct uart_port *port, struct circ_buf *xmit)
+static void transmit_chars_putchar(struct uart_port *port,
+		struct tty_port *tport)
 {
-	while (!uart_circ_empty(xmit)) {
-		long status = sun4v_con_putchar(xmit->buf[xmit->tail]);
+	unsigned char ch;
+
+	while (kfifo_peek(&tport->xmit_fifo, &ch)) {
+		long status = sun4v_con_putchar(ch);
 
 		if (status != HV_EOK)
 			break;
@@ -51,14 +54,16 @@ static void transmit_chars_putchar(struct uart_port *port, struct circ_buf *xmit
 	}
 }
 
-static void transmit_chars_write(struct uart_port *port, struct circ_buf *xmit)
+static void transmit_chars_write(struct uart_port *port, struct tty_port *tport)
 {
-	while (!uart_circ_empty(xmit)) {
-		unsigned long ra = __pa(xmit->buf + xmit->tail);
-		unsigned long len, status, sent;
+	while (!kfifo_is_empty(&tport->xmit_fifo)) {
+		unsigned long len, ra, status, sent;
+		unsigned char *tail;
 
-		len = CIRC_CNT_TO_END(xmit->head, xmit->tail,
-				      UART_XMIT_SIZE);
+		len = kfifo_out_linear_ptr(&tport->xmit_fifo, &tail,
+				UART_XMIT_SIZE);
+		ra = __pa(tail);
+
 		status = sun4v_con_write(ra, len, &sent);
 		if (status != HV_EOK)
 			break;
@@ -165,7 +170,7 @@ static int receive_chars_read(struct uart_port *port)
 }
 
 struct sunhv_ops {
-	void (*transmit_chars)(struct uart_port *port, struct circ_buf *xmit);
+	void (*transmit_chars)(struct uart_port *port, struct tty_port *tport);
 	int (*receive_chars)(struct uart_port *port);
 };
 
@@ -196,18 +201,18 @@ static struct tty_port *receive_chars(struct uart_port *port)
 
 static void transmit_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit;
+	struct tty_port *tport;
 
 	if (!port->state)
 		return;
 
-	xmit = &port->state->xmit;
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port))
+	tport = &port->state->port;
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port))
 		return;
 
-	sunhv_ops->transmit_chars(port, xmit);
+	sunhv_ops->transmit_chars(port, tport);
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 }
 

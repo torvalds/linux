@@ -425,32 +425,32 @@ static void cdns_uart_handle_tx(void *dev_id)
 {
 	struct uart_port *port = (struct uart_port *)dev_id;
 	struct cdns_uart *cdns_uart = port->private_data;
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	unsigned int numbytes;
+	unsigned char ch;
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port)) {
 		/* Disable the TX Empty interrupt */
 		writel(CDNS_UART_IXR_TXEMPTY, port->membase + CDNS_UART_IDR);
 		return;
 	}
 
 	numbytes = port->fifosize;
-	while (numbytes && !uart_circ_empty(xmit) &&
-	       !(readl(port->membase + CDNS_UART_SR) & CDNS_UART_SR_TXFULL)) {
-
-		writel(xmit->buf[xmit->tail], port->membase + CDNS_UART_FIFO);
-		uart_xmit_advance(port, 1);
+	while (numbytes &&
+	       !(readl(port->membase + CDNS_UART_SR) & CDNS_UART_SR_TXFULL) &&
+	       uart_fifo_get(port, &ch)) {
+		writel(ch, port->membase + CDNS_UART_FIFO);
 		numbytes--;
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
 	/* Enable the TX Empty interrupt */
 	writel(CDNS_UART_IXR_TXEMPTY, cdns_uart->port->membase + CDNS_UART_IER);
 
 	if (cdns_uart->port->rs485.flags & SER_RS485_ENABLED &&
-	    (uart_circ_empty(xmit) || uart_tx_stopped(port))) {
+	    (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port))) {
 		cdns_uart->tx_timer.function = &cdns_rs485_rx_callback;
 		hrtimer_start(&cdns_uart->tx_timer,
 			      ns_to_ktime(cdns_calc_after_tx_delay(cdns_uart)), HRTIMER_MODE_REL);
@@ -723,7 +723,7 @@ static void cdns_uart_start_tx(struct uart_port *port)
 	status |= CDNS_UART_CR_TX_EN;
 	writel(status, port->membase + CDNS_UART_CR);
 
-	if (uart_circ_empty(&port->state->xmit))
+	if (kfifo_is_empty(&port->state->port.xmit_fifo))
 		return;
 
 	/* Clear the TX Empty interrupt */

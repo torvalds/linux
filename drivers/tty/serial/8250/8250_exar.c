@@ -214,7 +214,7 @@ static void exar_shutdown(struct uart_port *port)
 {
 	bool tx_complete = false;
 	struct uart_8250_port *up = up_to_u8250p(port);
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	int i = 0;
 	u16 lsr;
 
@@ -225,7 +225,8 @@ static void exar_shutdown(struct uart_port *port)
 		else
 			tx_complete = false;
 		usleep_range(1000, 1100);
-	} while (!uart_circ_empty(xmit) && !tx_complete && i++ < 1000);
+	} while (!kfifo_is_empty(&tport->xmit_fifo) &&
+			!tx_complete && i++ < 1000);
 
 	serial8250_do_shutdown(port);
 }

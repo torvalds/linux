@@ -585,7 +585,7 @@ static void sci_start_tx(struct uart_port *port)
 			sci_serial_out(port, SCSCR, new);
 	}
 
-	if (s->chan_tx && !uart_circ_empty(&s->port.state->xmit) &&
+	if (s->chan_tx && !kfifo_is_empty(&port->state->port.xmit_fifo) &&
 	    dma_submit_error(s->cookie_tx)) {
 		if (s->cfg->regtype == SCIx_RZ_SCIFA_REGTYPE)
 			/* Switch irq from SCIF to DMA */
@@ -817,7 +817,7 @@ static int sci_rxfill(struct uart_port *port)
 
 static void sci_transmit_chars(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	unsigned int stopped = uart_tx_stopped(port);
 	unsigned short status;
 	unsigned short ctrl;
@@ -826,7 +826,7 @@ static void sci_transmit_chars(struct uart_port *port)
 	status = sci_serial_in(port, SCxSR);
 	if (!(status & SCxSR_TDxE(port))) {
 		ctrl = sci_serial_in(port, SCSCR);
-		if (uart_circ_empty(xmit))
+		if (kfifo_is_empty(&tport->xmit_fifo))
 			ctrl &= ~SCSCR_TIE;
 		else
 			ctrl |= SCSCR_TIE;
@@ -842,15 +842,14 @@ static void sci_transmit_chars(struct uart_port *port)
 		if (port->x_char) {
 			c = port->x_char;
 			port->x_char = 0;
-		} else if (!uart_circ_empty(xmit) && !stopped) {
-			c = xmit->buf[xmit->tail];
-			xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE - 1);
-		} else if (port->type == PORT_SCI && uart_circ_empty(xmit)) {
-			ctrl = sci_serial_in(port, SCSCR);
-			ctrl &= ~SCSCR_TE;
-			sci_serial_out(port, SCSCR, ctrl);
-			return;
-		} else {
+		} else if (stopped || !kfifo_get(&tport->xmit_fifo, &c)) {
+			if (port->type == PORT_SCI &&
+				   kfifo_is_empty(&tport->xmit_fifo)) {
+				ctrl = sci_serial_in(port, SCSCR);
+				ctrl &= ~SCSCR_TE;
+				sci_serial_out(port, SCSCR, ctrl);
+				return;
+			}
 			break;
 		}
 
@@ -861,9 +860,9 @@ static void sci_transmit_chars(struct uart_port *port)
 
 	sci_clear_SCxSR(port, SCxSR_TDxE_CLEAR(port));
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
-	if (uart_circ_empty(xmit)) {
+	if (kfifo_is_empty(&tport->xmit_fifo)) {
 		if (port->type == PORT_SCI) {
 			ctrl = sci_serial_in(port, SCSCR);
 			ctrl &= ~SCSCR_TIE;
@@ -1199,7 +1198,7 @@ static void sci_dma_tx_complete(void *arg)
 {
 	struct sci_port *s = arg;
 	struct uart_port *port = &s->port;
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	unsigned long flags;
 
 	dev_dbg(port->dev, "%s(%d)\n", __func__, port->line);
@@ -1208,10 +1207,10 @@ static void sci_dma_tx_complete(void *arg)
 
 	uart_xmit_advance(port, s->tx_dma_len);
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
-	if (!uart_circ_empty(xmit)) {
+	if (!kfifo_is_empty(&tport->xmit_fifo)) {
 		s->cookie_tx = 0;
 		schedule_work(&s->work_tx);
 	} else {
@@ -1424,10 +1423,10 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 	struct dma_async_tx_descriptor *desc;
 	struct dma_chan *chan = s->chan_tx;
 	struct uart_port *port = &s->port;
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	unsigned long flags;
+	unsigned int tail;
 	dma_addr_t buf;
-	int head, tail;
 
 	/*
 	 * DMA is idle now.
@@ -1437,10 +1436,9 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 	 * consistent xmit buffer state.
 	 */
 	uart_port_lock_irq(port);
-	head = xmit->head;
-	tail = xmit->tail;
+	s->tx_dma_len = kfifo_out_linear(&tport->xmit_fifo, &tail,
+			UART_XMIT_SIZE);
 	buf = s->tx_dma_addr + tail;
-	s->tx_dma_len = CIRC_CNT_TO_END(head, tail, UART_XMIT_SIZE);
 	if (!s->tx_dma_len) {
 		/* Transmit buffer has been flushed */
 		uart_port_unlock_irq(port);
@@ -1469,8 +1467,8 @@ static void sci_dma_tx_work_fn(struct work_struct *work)
 	}
 
 	uart_port_unlock_irq(port);
-	dev_dbg(port->dev, "%s: %p: %d...%d, cookie %d\n",
-		__func__, xmit->buf, tail, head, s->cookie_tx);
+	dev_dbg(port->dev, "%s: %p: %u, cookie %d\n",
+		__func__, tport->xmit_buf, tail, s->cookie_tx);
 
 	dma_async_issue_pending(chan);
 	return;
@@ -1585,6 +1583,7 @@ static struct dma_chan *sci_request_dma_chan(struct uart_port *port,
 static void sci_request_dma(struct uart_port *port)
 {
 	struct sci_port *s = to_sci_port(port);
+	struct tty_port *tport = &port->state->port;
 	struct dma_chan *chan;
 
 	dev_dbg(port->dev, "%s: port %d\n", __func__, port->line);
@@ -1613,7 +1612,7 @@ static void sci_request_dma(struct uart_port *port)
 	if (chan) {
 		/* UART circular tx buffer is an aligned page. */
 		s->tx_dma_addr = dma_map_single(chan->device->dev,
-						port->state->xmit.buf,
+						tport->xmit_buf,
 						UART_XMIT_SIZE,
 						DMA_TO_DEVICE);
 		if (dma_mapping_error(chan->device->dev, s->tx_dma_addr)) {
@@ -1622,7 +1621,7 @@ static void sci_request_dma(struct uart_port *port)
 		} else {
 			dev_dbg(port->dev, "%s: mapped %lu@%p to %pad\n",
 				__func__, UART_XMIT_SIZE,
-				port->state->xmit.buf, &s->tx_dma_addr);
+				tport->xmit_buf, &s->tx_dma_addr);
 
 			INIT_WORK(&s->work_tx, sci_dma_tx_work_fn);
 			s->chan_tx_saved = s->chan_tx = chan;

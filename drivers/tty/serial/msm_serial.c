@@ -452,7 +452,7 @@ static void msm_complete_tx_dma(void *args)
 {
 	struct msm_port *msm_port = args;
 	struct uart_port *port = &msm_port->uart;
-	struct circ_buf *xmit = &port->state->xmit;
+	struct tty_port *tport = &port->state->port;
 	struct msm_dma *dma = &msm_port->tx_dma;
 	struct dma_tx_state state;
 	unsigned long flags;
@@ -486,7 +486,7 @@ static void msm_complete_tx_dma(void *args)
 	msm_port->imr |= MSM_UART_IMR_TXLEV;
 	msm_write(port, msm_port->imr, MSM_UART_IMR);
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
 	msm_handle_tx(port);
@@ -496,14 +496,14 @@ done:
 
 static int msm_handle_tx_dma(struct msm_port *msm_port, unsigned int count)
 {
-	struct circ_buf *xmit = &msm_port->uart.state->xmit;
 	struct uart_port *port = &msm_port->uart;
+	struct tty_port *tport = &port->state->port;
 	struct msm_dma *dma = &msm_port->tx_dma;
 	int ret;
 	u32 val;
 
 	sg_init_table(&dma->tx_sg, 1);
-	sg_set_buf(&dma->tx_sg, &xmit->buf[xmit->tail], count);
+	kfifo_dma_out_prepare(&tport->xmit_fifo, &dma->tx_sg, 1, count);
 
 	ret = dma_map_sg(port->dev, &dma->tx_sg, 1, dma->dir);
 	if (ret)
@@ -843,8 +843,8 @@ static void msm_handle_rx(struct uart_port *port)
 
 static void msm_handle_tx_pio(struct uart_port *port, unsigned int tx_count)
 {
-	struct circ_buf *xmit = &port->state->xmit;
 	struct msm_port *msm_port = to_msm_port(port);
+	struct tty_port *tport = &port->state->port;
 	unsigned int num_chars;
 	unsigned int tf_pointer = 0;
 	void __iomem *tf;
@@ -858,8 +858,7 @@ static void msm_handle_tx_pio(struct uart_port *port, unsigned int tx_count)
 		msm_reset_dm_count(port, tx_count);
 
 	while (tf_pointer < tx_count) {
-		int i;
-		char buf[4] = { 0 };
+		unsigned char buf[4] = { 0 };
 
 		if (!(msm_read(port, MSM_UART_SR) & MSM_UART_SR_TX_READY))
 			break;
@@ -870,26 +869,23 @@ static void msm_handle_tx_pio(struct uart_port *port, unsigned int tx_count)
 		else
 			num_chars = 1;
 
-		for (i = 0; i < num_chars; i++)
-			buf[i] = xmit->buf[xmit->tail + i];
-
+		num_chars = uart_fifo_out(port, buf, num_chars);
 		iowrite32_rep(tf, buf, 1);
-		uart_xmit_advance(port, num_chars);
 		tf_pointer += num_chars;
 	}
 
 	/* disable tx interrupts if nothing more to send */
-	if (uart_circ_empty(xmit))
+	if (kfifo_is_empty(&tport->xmit_fifo))
 		msm_stop_tx(port);
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 }
 
 static void msm_handle_tx(struct uart_port *port)
 {
 	struct msm_port *msm_port = to_msm_port(port);
-	struct circ_buf *xmit = &msm_port->uart.state->xmit;
+	struct tty_port *tport = &port->state->port;
 	struct msm_dma *dma = &msm_port->tx_dma;
 	unsigned int pio_count, dma_count, dma_min;
 	char buf[4] = { 0 };
@@ -913,13 +909,13 @@ static void msm_handle_tx(struct uart_port *port)
 		return;
 	}
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port)) {
 		msm_stop_tx(port);
 		return;
 	}
 
-	pio_count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
-	dma_count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
+	dma_count = pio_count = kfifo_out_linear(&tport->xmit_fifo, NULL,
+			UART_XMIT_SIZE);
 
 	dma_min = 1;	/* Always DMA */
 	if (msm_port->is_uartdm > UARTDM_1P3) {

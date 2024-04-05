@@ -257,10 +257,11 @@ static int max3100_handlerx(struct max3100_port *s, u16 rx)
 static void max3100_work(struct work_struct *w)
 {
 	struct max3100_port *s = container_of(w, struct max3100_port, work);
+	struct tty_port *tport = &s->port.state->port;
+	unsigned char ch;
 	int rxchars;
 	u16 tx, rx;
 	int conf, cconf, crts;
-	struct circ_buf *xmit = &s->port.state->xmit;
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
@@ -290,10 +291,9 @@ static void max3100_work(struct work_struct *w)
 				tx = s->port.x_char;
 				s->port.icount.tx++;
 				s->port.x_char = 0;
-			} else if (!uart_circ_empty(xmit) &&
-				   !uart_tx_stopped(&s->port)) {
-				tx = xmit->buf[xmit->tail];
-				uart_xmit_advance(&s->port, 1);
+			} else if (!uart_tx_stopped(&s->port) &&
+					uart_fifo_get(&s->port, &ch)) {
+				tx = ch;
 			}
 			if (tx != 0xffff) {
 				max3100_calc_parity(s, &tx);
@@ -307,13 +307,13 @@ static void max3100_work(struct work_struct *w)
 			tty_flip_buffer_push(&s->port.state->port);
 			rxchars = 0;
 		}
-		if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+		if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 			uart_write_wakeup(&s->port);
 
 	} while (!s->force_end_work &&
 		 !freezing(current) &&
 		 ((rx & MAX3100_R) ||
-		  (!uart_circ_empty(xmit) &&
+		  (!kfifo_is_empty(&tport->xmit_fifo) &&
 		   !uart_tx_stopped(&s->port))));
 
 	if (rxchars > 0)

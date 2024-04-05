@@ -676,9 +676,9 @@ static void sc16is7xx_handle_rx(struct uart_port *port, unsigned int rxlen,
 static void sc16is7xx_handle_tx(struct uart_port *port)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(port->dev);
-	struct circ_buf *xmit = &port->state->xmit;
-	unsigned int txlen, to_send, i;
+	struct tty_port *tport = &port->state->port;
 	unsigned long flags;
+	unsigned int txlen;
 
 	if (unlikely(port->x_char)) {
 		sc16is7xx_port_write(port, SC16IS7XX_THR_REG, port->x_char);
@@ -687,40 +687,30 @@ static void sc16is7xx_handle_tx(struct uart_port *port)
 		return;
 	}
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port)) {
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port)) {
 		uart_port_lock_irqsave(port, &flags);
 		sc16is7xx_stop_tx(port);
 		uart_port_unlock_irqrestore(port, flags);
 		return;
 	}
 
-	/* Get length of data pending in circular buffer */
-	to_send = uart_circ_chars_pending(xmit);
-	if (likely(to_send)) {
-		/* Limit to space available in TX FIFO */
-		txlen = sc16is7xx_port_read(port, SC16IS7XX_TXLVL_REG);
-		if (txlen > SC16IS7XX_FIFO_SIZE) {
-			dev_err_ratelimited(port->dev,
-				"chip reports %d free bytes in TX fifo, but it only has %d",
-				txlen, SC16IS7XX_FIFO_SIZE);
-			txlen = 0;
-		}
-		to_send = (to_send > txlen) ? txlen : to_send;
-
-		/* Convert to linear buffer */
-		for (i = 0; i < to_send; ++i) {
-			s->buf[i] = xmit->buf[xmit->tail];
-			uart_xmit_advance(port, 1);
-		}
-
-		sc16is7xx_fifo_write(port, s->buf, to_send);
+	/* Limit to space available in TX FIFO */
+	txlen = sc16is7xx_port_read(port, SC16IS7XX_TXLVL_REG);
+	if (txlen > SC16IS7XX_FIFO_SIZE) {
+		dev_err_ratelimited(port->dev,
+			"chip reports %d free bytes in TX fifo, but it only has %d",
+			txlen, SC16IS7XX_FIFO_SIZE);
+		txlen = 0;
 	}
 
+	txlen = uart_fifo_out(port, s->buf, txlen);
+	sc16is7xx_fifo_write(port, s->buf, txlen);
+
 	uart_port_lock_irqsave(port, &flags);
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
-	if (uart_circ_empty(xmit))
+	if (kfifo_is_empty(&tport->xmit_fifo))
 		sc16is7xx_stop_tx(port);
 	else
 		sc16is7xx_ier_set(port, SC16IS7XX_IER_THRI_BIT);

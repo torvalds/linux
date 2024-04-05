@@ -747,8 +747,9 @@ static void max310x_handle_rx(struct uart_port *port, unsigned int rxlen)
 
 static void max310x_handle_tx(struct uart_port *port)
 {
-	struct circ_buf *xmit = &port->state->xmit;
-	unsigned int txlen, to_send, until_end;
+	struct tty_port *tport = &port->state->port;
+	unsigned int txlen, to_send;
+	unsigned char *tail;
 
 	if (unlikely(port->x_char)) {
 		max310x_port_write(port, MAX310X_THR_REG, port->x_char);
@@ -757,32 +758,26 @@ static void max310x_handle_tx(struct uart_port *port)
 		return;
 	}
 
-	if (uart_circ_empty(xmit) || uart_tx_stopped(port))
+	if (kfifo_is_empty(&tport->xmit_fifo) || uart_tx_stopped(port))
 		return;
 
-	/* Get length of data pending in circular buffer */
-	to_send = uart_circ_chars_pending(xmit);
-	until_end = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
-	if (likely(to_send)) {
+	/*
+	 * It's a circ buffer -- wrap around.
+	 * We could do that in one SPI transaction, but meh.
+	 */
+	while (!kfifo_is_empty(&tport->xmit_fifo)) {
 		/* Limit to space available in TX FIFO */
 		txlen = max310x_port_read(port, MAX310X_TXFIFOLVL_REG);
 		txlen = port->fifosize - txlen;
-		to_send = (to_send > txlen) ? txlen : to_send;
+		if (!txlen)
+			break;
 
-		if (until_end < to_send) {
-			/*
-			 * It's a circ buffer -- wrap around.
-			 * We could do that in one SPI transaction, but meh.
-			 */
-			max310x_batch_write(port, xmit->buf + xmit->tail, until_end);
-			max310x_batch_write(port, xmit->buf, to_send - until_end);
-		} else {
-			max310x_batch_write(port, xmit->buf + xmit->tail, to_send);
-		}
+		to_send = kfifo_out_linear_ptr(&tport->xmit_fifo, &tail, txlen);
+		max310x_batch_write(port, tail, to_send);
 		uart_xmit_advance(port, to_send);
 	}
 
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
+	if (kfifo_len(&tport->xmit_fifo) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 }
 

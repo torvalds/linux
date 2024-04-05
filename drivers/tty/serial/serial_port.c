@@ -23,7 +23,7 @@
 static int __serial_port_busy(struct uart_port *port)
 {
 	return !uart_tx_stopped(port) &&
-		uart_circ_chars_pending(&port->state->xmit);
+		!kfifo_is_empty(&port->state->port.xmit_fifo);
 }
 
 static int serial_port_runtime_resume(struct device *dev)
