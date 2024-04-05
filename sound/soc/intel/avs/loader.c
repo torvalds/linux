@@ -535,7 +535,7 @@ int avs_dsp_load_libraries(struct avs_dev *adev, struct avs_tplg_library *libs, 
 		if (ret)
 			return ret;
 
-		strncpy(adev->lib_names[id], man->name, AVS_LIB_NAME_SIZE);
+		strscpy(adev->lib_names[id], man->name, AVS_LIB_NAME_SIZE);
 		id++;
 next_lib:
 		i++;
@@ -698,7 +698,7 @@ int avs_dsp_first_boot_firmware(struct avs_dev *adev)
 	}
 
 	/* basefw always occupies slot 0 */
-	strcpy(&adev->lib_names[0][0], "BASEFW");
+	strscpy(adev->lib_names[0], "BASEFW", AVS_LIB_NAME_SIZE);
 
 	ida_init(&adev->ppl_ida);
 

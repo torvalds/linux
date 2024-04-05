@@ -1420,7 +1420,7 @@ static void avs_component_hda_unregister_dais(struct snd_soc_component *componen
 
 	mach = dev_get_platdata(component->card->dev);
 	codec = mach->pdata;
-	sprintf(name, "%s-cpu", dev_name(&codec->core.dev));
+	snprintf(name, sizeof(name), "%s-cpu", dev_name(&codec->core.dev));
 
 	for_each_component_dais_safe(component, dai, save) {
 		int stream;
