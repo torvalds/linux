@@ -66,7 +66,7 @@ struct avs_icl_memwnd2 {
 		struct avs_icl_memwnd2_desc slot_desc[AVS_ICL_MEMWND2_SLOTS_COUNT];
 		u8 rsvd[SZ_4K];
 	};
-	u8 slot_array[AVS_ICL_MEMWND2_SLOTS_COUNT][PAGE_SIZE];
+	u8 slot_array[AVS_ICL_MEMWND2_SLOTS_COUNT][SZ_4K];
 } __packed;
 
 #define AVS_ICL_SLOT_UNUSED \
@@ -89,8 +89,7 @@ static int avs_icl_slot_offset(struct avs_dev *adev, union avs_icl_memwnd2_slot_
 
 	for (i = 0; i < AVS_ICL_MEMWND2_SLOTS_COUNT; i++)
 		if (desc[i].slot_id.val == slot_type.val)
-			return offsetof(struct avs_icl_memwnd2, slot_array) +
-			       avs_skl_log_buffer_offset(adev, i);
+			return offsetof(struct avs_icl_memwnd2, slot_array) + i * SZ_4K;
 	return -ENXIO;
 }
 
