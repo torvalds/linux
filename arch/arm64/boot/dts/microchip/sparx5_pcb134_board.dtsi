@@ -427,62 +427,62 @@
 	pinctrl-10 = <&i2cmux_10>;
 	pinctrl-11 = <&i2cmux_11>;
 	pinctrl-12 = <&i2cmux_pins_i>;
-	i2c_sfp1: i2c_sfp1 {
+	i2c_sfp1: i2c@0 {
 		reg = <0x0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp2: i2c_sfp2 {
+	i2c_sfp2: i2c@1 {
 		reg = <0x1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp3: i2c_sfp3 {
+	i2c_sfp3: i2c@2 {
 		reg = <0x2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp4: i2c_sfp4 {
+	i2c_sfp4: i2c@3 {
 		reg = <0x3>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp5: i2c_sfp5 {
+	i2c_sfp5: i2c@4 {
 		reg = <0x4>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp6: i2c_sfp6 {
+	i2c_sfp6: i2c@5 {
 		reg = <0x5>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp7: i2c_sfp7 {
+	i2c_sfp7: i2c@6 {
 		reg = <0x6>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp8: i2c_sfp8 {
+	i2c_sfp8: i2c@7 {
 		reg = <0x7>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp9: i2c_sfp9 {
+	i2c_sfp9: i2c@8 {
 		reg = <0x8>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp10: i2c_sfp10 {
+	i2c_sfp10: i2c@9 {
 		reg = <0x9>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp11: i2c_sfp11 {
+	i2c_sfp11: i2c@a {
 		reg = <0xa>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp12: i2c_sfp12 {
+	i2c_sfp12: i2c@b {
 		reg = <0xb>;
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -495,42 +495,42 @@
 		     &gpio 61 GPIO_ACTIVE_HIGH
 		     &gpio 54 GPIO_ACTIVE_HIGH>;
 	idle-state = <0x8>;
-	i2c_sfp13: i2c_sfp13 {
+	i2c_sfp13: i2c@0 {
 		reg = <0x0>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp14: i2c_sfp14 {
+	i2c_sfp14: i2c@1 {
 		reg = <0x1>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp15: i2c_sfp15 {
+	i2c_sfp15: i2c@2 {
 		reg = <0x2>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp16: i2c_sfp16 {
+	i2c_sfp16: i2c@3 {
 		reg = <0x3>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp17: i2c_sfp17 {
+	i2c_sfp17: i2c@4 {
 		reg = <0x4>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp18: i2c_sfp18 {
+	i2c_sfp18: i2c@5 {
 		reg = <0x5>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp19: i2c_sfp19 {
+	i2c_sfp19: i2c@6 {
 		reg = <0x6>;
 		#address-cells = <1>;
 		#size-cells = <0>;
 	};
-	i2c_sfp20: i2c_sfp20 {
+	i2c_sfp20: i2c@7 {
 		reg = <0x7>;
 		#address-cells = <1>;
 		#size-cells = <0>;
