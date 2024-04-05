@@ -80,9 +80,8 @@ static int pfcp_encap_recv(struct sock *sk, struct sk_buff *skb)
 	else
 		pfcp_node_recv(pfcp, skb, md);
 
-	__set_bit(IP_TUNNEL_PFCP_OPT_BIT, flags);
-	ip_tunnel_info_opts_set(&tun_dst->u.tun_info, md, sizeof(*md),
-				flags);
+	__set_bit(IP_TUNNEL_PFCP_OPT_BIT, tun_dst->u.tun_info.key.tun_flags);
+	tun_dst->u.tun_info.options_len = sizeof(*md);
 
 	if (unlikely(iptunnel_pull_header(skb, PFCP_HLEN, skb->protocol,
 					  !net_eq(sock_net(sk),
