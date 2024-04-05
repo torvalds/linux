@@ -2354,17 +2354,6 @@ setup_syscalls_segments(struct desc_struct *cs, struct desc_struct *ss)
 	ss->avl = 0;
 }
 
-#ifdef CONFIG_X86_64
-static bool vendor_intel(struct x86_emulate_ctxt *ctxt)
-{
-	u32 eax, ebx, ecx, edx;
-
-	eax = ecx = 0;
-	ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx, true);
-	return is_guest_vendor_intel(ebx, ecx, edx);
-}
-#endif
-
 static int em_syscall(struct x86_emulate_ctxt *ctxt)
 {
 	const struct x86_emulate_ops *ops = ctxt->ops;
@@ -2622,7 +2611,14 @@ static void string_registers_quirk(struct x86_emulate_ctxt *ctxt)
 	 * manner when ECX is zero due to REP-string optimizations.
 	 */
 #ifdef CONFIG_X86_64
-	if (ctxt->ad_bytes != 4 || !vendor_intel(ctxt))
+	u32 eax, ebx, ecx, edx;
+
+	if (ctxt->ad_bytes != 4)
+		return;
+
+	eax = ecx = 0;
+	ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx, true);
+	if (!is_guest_vendor_intel(ebx, ecx, edx))
 		return;
 
 	*reg_write(ctxt, VCPU_REGS_RCX) = 0;
