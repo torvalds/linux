@@ -540,21 +540,6 @@ xfs_extent_busy_clear_one(
 	return true;
 }
 
-static void
-xfs_extent_busy_put_pag(
-	struct xfs_perag	*pag,
-	bool			wakeup)
-		__releases(pag->pagb_lock)
-{
-	if (wakeup) {
-		pag->pagb_gen++;
-		wake_up_all(&pag->pagb_wait);
-	}
-
-	spin_unlock(&pag->pagb_lock);
-	xfs_perag_put(pag);
-}
-
 /*
  * Remove all extents on the passed in list from the busy extents tree.
  * If do_discard is set skip extents that need to be discarded, and mark
@@ -566,27 +551,33 @@ xfs_extent_busy_clear(
 	struct list_head	*list,
 	bool			do_discard)
 {
-	struct xfs_extent_busy	*busyp, *n;
-	struct xfs_perag	*pag = NULL;
-	xfs_agnumber_t		agno = NULLAGNUMBER;
-	bool			wakeup = false;
+	struct xfs_extent_busy	*busyp, *next;
 
-	list_for_each_entry_safe(busyp, n, list, list) {
-		if (busyp->agno != agno) {
-			if (pag)
-				xfs_extent_busy_put_pag(pag, wakeup);
-			agno = busyp->agno;
-			pag = xfs_perag_get(mp, agno);
-			spin_lock(&pag->pagb_lock);
-			wakeup = false;
+	busyp = list_first_entry_or_null(list, typeof(*busyp), list);
+	if (!busyp)
+		return;
+
+	do {
+		bool			wakeup = false;
+		struct xfs_perag	*pag;
+
+		pag = xfs_perag_get(mp, busyp->agno);
+		spin_lock(&pag->pagb_lock);
+		do {
+			next = list_next_entry(busyp, list);
+			if (xfs_extent_busy_clear_one(pag, busyp, do_discard))
+				wakeup = true;
+			busyp = next;
+		} while (!list_entry_is_head(busyp, list, list) &&
+			 busyp->agno == pag->pag_agno);
+
+		if (wakeup) {
+			pag->pagb_gen++;
+			wake_up_all(&pag->pagb_wait);
 		}
-
-		if (xfs_extent_busy_clear_one(pag, busyp, do_discard))
-			wakeup = true;
-	}
-
-	if (pag)
-		xfs_extent_busy_put_pag(pag, wakeup);
+		spin_unlock(&pag->pagb_lock);
+		xfs_perag_put(pag);
+	} while (!list_entry_is_head(busyp, list, list));
 }
 
 /*
