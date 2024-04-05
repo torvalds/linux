@@ -444,36 +444,6 @@ bool kvm_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range)
 	return true;
 }
 
-bool kvm_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
-{
-	gpa_t gpa = range->start << PAGE_SHIFT;
-	pte_t hva_pte = range->arg.pte;
-	pte_t *gpa_pte = kvm_mips_pte_for_gpa(kvm, NULL, gpa);
-	pte_t old_pte;
-
-	if (!gpa_pte)
-		return false;
-
-	/* Mapping may need adjusting depending on memslot flags */
-	old_pte = *gpa_pte;
-	if (range->slot->flags & KVM_MEM_LOG_DIRTY_PAGES && !pte_dirty(old_pte))
-		hva_pte = pte_mkclean(hva_pte);
-	else if (range->slot->flags & KVM_MEM_READONLY)
-		hva_pte = pte_wrprotect(hva_pte);
-
-	set_pte(gpa_pte, hva_pte);
-
-	/* Replacing an absent or old page doesn't need flushes */
-	if (!pte_present(old_pte) || !pte_young(old_pte))
-		return false;
-
-	/* Pages swapped, aged, moved, or cleaned require flushes */
-	return !pte_present(hva_pte) ||
-	       !pte_young(hva_pte) ||
-	       pte_pfn(old_pte) != pte_pfn(hva_pte) ||
-	       (pte_dirty(old_pte) && !pte_dirty(hva_pte));
-}
-
 bool kvm_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 {
 	return kvm_mips_mkold_gpa_pt(kvm, range->start, range->end);

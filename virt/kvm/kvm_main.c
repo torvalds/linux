@@ -705,48 +705,6 @@ static __always_inline int kvm_handle_hva_range_no_flush(struct mmu_notifier *mn
 	return __kvm_handle_hva_range(kvm, &range).ret;
 }
 
-static bool kvm_change_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
-{
-	/*
-	 * Skipping invalid memslots is correct if and only change_pte() is
-	 * surrounded by invalidate_range_{start,end}(), which is currently
-	 * guaranteed by the primary MMU.  If that ever changes, KVM needs to
-	 * unmap the memslot instead of skipping the memslot to ensure that KVM
-	 * doesn't hold references to the old PFN.
-	 */
-	WARN_ON_ONCE(!READ_ONCE(kvm->mn_active_invalidate_count));
-
-	if (range->slot->flags & KVM_MEMSLOT_INVALID)
-		return false;
-
-	return kvm_set_spte_gfn(kvm, range);
-}
-
-static void kvm_mmu_notifier_change_pte(struct mmu_notifier *mn,
-					struct mm_struct *mm,
-					unsigned long address,
-					pte_t pte)
-{
-	struct kvm *kvm = mmu_notifier_to_kvm(mn);
-	const union kvm_mmu_notifier_arg arg = { .pte = pte };
-
-	trace_kvm_set_spte_hva(address);
-
-	/*
-	 * .change_pte() must be surrounded by .invalidate_range_{start,end}().
-	 * If mmu_invalidate_in_progress is zero, then no in-progress
-	 * invalidations, including this one, found a relevant memslot at
-	 * start(); rechecking memslots here is unnecessary.  Note, a false
-	 * positive (count elevated by a different invalidation) is sub-optimal
-	 * but functionally ok.
-	 */
-	WARN_ON_ONCE(!READ_ONCE(kvm->mn_active_invalidate_count));
-	if (!READ_ONCE(kvm->mmu_invalidate_in_progress))
-		return;
-
-	kvm_handle_hva_range(mn, address, address + 1, arg, kvm_change_spte_gfn);
-}
-
 void kvm_mmu_invalidate_begin(struct kvm *kvm)
 {
 	lockdep_assert_held_write(&kvm->mmu_lock);
@@ -964,7 +922,6 @@ static const struct mmu_notifier_ops kvm_mmu_notifier_ops = {
 	.clear_flush_young	= kvm_mmu_notifier_clear_flush_young,
 	.clear_young		= kvm_mmu_notifier_clear_young,
 	.test_young		= kvm_mmu_notifier_test_young,
-	.change_pte		= kvm_mmu_notifier_change_pte,
 	.release		= kvm_mmu_notifier_release,
 };
 

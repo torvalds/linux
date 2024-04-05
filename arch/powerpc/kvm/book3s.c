@@ -899,11 +899,6 @@ bool kvm_test_age_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
 	return kvm->arch.kvm_ops->test_age_gfn(kvm, range);
 }
 
-bool kvm_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
-{
-	return kvm->arch.kvm_ops->set_spte_gfn(kvm, range);
-}
-
 int kvmppc_core_init_vm(struct kvm *kvm)
 {
 

@@ -432,8 +432,8 @@ static u64 __update_clear_spte_slow(u64 *sptep, u64 spte)
  * The idea using the light way get the spte on x86_32 guest is from
  * gup_get_pte (mm/gup.c).
  *
- * An spte tlb flush may be pending, because kvm_set_pte_rmap
- * coalesces them and we are running out of the MMU lock.  Therefore
+ * An spte tlb flush may be pending, because they are coalesced and
+ * we are running out of the MMU lock.  Therefore
  * we need to protect against in-progress updates of the spte.
  *
  * Reading the spte while an update is in progress may get the old value
@@ -1448,47 +1448,9 @@ static bool __kvm_zap_rmap(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
 }
 
 static bool kvm_zap_rmap(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
-			 struct kvm_memory_slot *slot, gfn_t gfn, int level,
-			 pte_t unused)
+			 struct kvm_memory_slot *slot, gfn_t gfn, int level)
 {
 	return __kvm_zap_rmap(kvm, rmap_head, slot);
-}
-
-static bool kvm_set_pte_rmap(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
-			     struct kvm_memory_slot *slot, gfn_t gfn, int level,
-			     pte_t pte)
-{
-	u64 *sptep;
-	struct rmap_iterator iter;
-	bool need_flush = false;
-	u64 new_spte;
-	kvm_pfn_t new_pfn;
-
-	WARN_ON_ONCE(pte_huge(pte));
-	new_pfn = pte_pfn(pte);
-
-restart:
-	for_each_rmap_spte(rmap_head, &iter, sptep) {
-		need_flush = true;
-
-		if (pte_write(pte)) {
-			kvm_zap_one_rmap_spte(kvm, rmap_head, sptep);
-			goto restart;
-		} else {
-			new_spte = kvm_mmu_changed_pte_notifier_make_spte(
-					*sptep, new_pfn);
-
-			mmu_spte_clear_track_bits(kvm, sptep);
-			mmu_spte_set(sptep, new_spte);
-		}
-	}
-
-	if (need_flush && kvm_available_flush_remote_tlbs_range()) {
-		kvm_flush_remote_tlbs_gfn(kvm, gfn, level);
-		return false;
-	}
-
-	return need_flush;
 }
 
 struct slot_rmap_walk_iterator {
@@ -1562,7 +1524,7 @@ static void slot_rmap_walk_next(struct slot_rmap_walk_iterator *iterator)
 
 typedef bool (*rmap_handler_t)(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
 			       struct kvm_memory_slot *slot, gfn_t gfn,
-			       int level, pte_t pte);
+			       int level);
 
 static __always_inline bool kvm_handle_gfn_range(struct kvm *kvm,
 						 struct kvm_gfn_range *range,
@@ -1574,7 +1536,7 @@ static __always_inline bool kvm_handle_gfn_range(struct kvm *kvm,
 	for_each_slot_rmap_range(range->slot, PG_LEVEL_4K, KVM_MAX_HUGEPAGE_LEVEL,
 				 range->start, range->end - 1, &iterator)
 		ret |= handler(kvm, iterator.rmap, range->slot, iterator.gfn,
-			       iterator.level, range->arg.pte);
+			       iterator.level);
 
 	return ret;
 }
@@ -1596,22 +1558,8 @@ bool kvm_unmap_gfn_range(struct kvm *kvm, struct kvm_gfn_range *range)
 	return flush;
 }
 
-bool kvm_set_spte_gfn(struct kvm *kvm, struct kvm_gfn_range *range)
-{
-	bool flush = false;
-
-	if (kvm_memslots_have_rmaps(kvm))
-		flush = kvm_handle_gfn_range(kvm, range, kvm_set_pte_rmap);
-
-	if (tdp_mmu_enabled)
-		flush |= kvm_tdp_mmu_set_spte_gfn(kvm, range);
-
-	return flush;
-}
-
 static bool kvm_age_rmap(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
-			 struct kvm_memory_slot *slot, gfn_t gfn, int level,
-			 pte_t unused)
+			 struct kvm_memory_slot *slot, gfn_t gfn, int level)
 {
 	u64 *sptep;
 	struct rmap_iterator iter;
@@ -1624,8 +1572,7 @@ static bool kvm_age_rmap(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
 }
 
 static bool kvm_test_age_rmap(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
-			      struct kvm_memory_slot *slot, gfn_t gfn,
-			      int level, pte_t unused)
+			      struct kvm_memory_slot *slot, gfn_t gfn, int level)
 {
 	u64 *sptep;
 	struct rmap_iterator iter;
