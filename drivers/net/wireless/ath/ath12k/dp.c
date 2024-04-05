@@ -1347,7 +1347,7 @@ struct ath12k_rx_desc_info *ath12k_dp_get_rx_desc(struct ath12k_base *ab,
 	u16 ppt_idx, spt_idx;
 
 	ppt_idx = u32_get_bits(cookie, ATH12K_DP_CC_COOKIE_PPT);
-	spt_idx = u32_get_bits(cookie, ATH12k_DP_CC_COOKIE_SPT);
+	spt_idx = u32_get_bits(cookie, ATH12K_DP_CC_COOKIE_SPT);
 
 	if (ppt_idx > ATH12K_NUM_RX_SPT_PAGES ||
 	    spt_idx > ATH12K_MAX_SPT_ENTRIES)
@@ -1365,7 +1365,7 @@ struct ath12k_tx_desc_info *ath12k_dp_get_tx_desc(struct ath12k_base *ab,
 	u16 ppt_idx, spt_idx;
 
 	ppt_idx = u32_get_bits(cookie, ATH12K_DP_CC_COOKIE_PPT);
-	spt_idx = u32_get_bits(cookie, ATH12k_DP_CC_COOKIE_SPT);
+	spt_idx = u32_get_bits(cookie, ATH12K_DP_CC_COOKIE_SPT);
 
 	if (ppt_idx < ATH12K_NUM_RX_SPT_PAGES ||
 	    ppt_idx > ab->dp.num_spt_pages ||
