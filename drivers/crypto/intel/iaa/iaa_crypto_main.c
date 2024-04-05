@@ -922,7 +922,7 @@ static void rebalance_wq_table(void)
 	for_each_node_with_cpus(node) {
 		node_cpus = cpumask_of_node(node);
 
-		for (cpu = 0; cpu < nr_cpus_per_node; cpu++) {
+		for (cpu = 0; cpu <  cpumask_weight(node_cpus); cpu++) {
 			int node_cpu = cpumask_nth(cpu, node_cpus);
 
 			if (WARN_ON(node_cpu >= nr_cpu_ids)) {
@@ -2005,7 +2005,7 @@ static int __init iaa_crypto_init_module(void)
 	int ret = 0;
 	int node;
 
-	nr_cpus = num_online_cpus();
+	nr_cpus = num_possible_cpus();
 	for_each_node_with_cpus(node)
 		nr_nodes++;
 	if (!nr_nodes) {
