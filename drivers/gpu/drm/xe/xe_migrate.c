@@ -985,7 +985,6 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 	struct xe_res_cursor src_it;
 	struct ttm_resource *src = dst;
 	int err;
-	int pass = 0;
 
 	if (!clear_vram)
 		xe_res_first_sg(xe_bo_sg(bo), 0, bo->size, &src_it);
@@ -1005,8 +1004,6 @@ struct dma_fence *xe_migrate_clear(struct xe_migrate *m,
 		u32 avail_pts = max_mem_transfer_per_pass(xe) / LEVEL0_PAGE_TABLE_ENCODE_SIZE;
 
 		clear_L0 = xe_migrate_res_sizes(m, &src_it);
-
-		drm_dbg(&xe->drm, "Pass %u, size: %llu\n", pass++, clear_L0);
 
 		/* Calculate final sizes and batch size.. */
 		batch_size = 2 +
