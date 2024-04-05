@@ -34,6 +34,7 @@ struct vpu_cmd_t {
 	struct vpu_cmd_request *request;
 	struct vpu_rpc_event *pkt;
 	unsigned long key;
+	atomic_long_t *last_response_cmd;
 };
 
 static struct vpu_cmd_request vpu_cmd_requests[] = {
@@ -117,6 +118,8 @@ static void vpu_free_cmd(struct vpu_cmd_t *cmd)
 {
 	if (!cmd)
 		return;
+	if (cmd->last_response_cmd)
+		atomic_long_set(cmd->last_response_cmd, cmd->key);
 	vfree(cmd->pkt);
 	vfree(cmd);
 }
@@ -174,7 +177,8 @@ static int vpu_request_cmd(struct vpu_inst *inst, u32 id, void *data,
 		return -ENOMEM;
 
 	mutex_lock(&core->cmd_lock);
-	cmd->key = core->cmd_seq++;
+	cmd->key = ++inst->cmd_seq;
+	cmd->last_response_cmd = &inst->last_response_cmd;
 	if (key)
 		*key = cmd->key;
 	if (sync)
@@ -248,26 +252,12 @@ void vpu_clear_request(struct vpu_inst *inst)
 
 static bool check_is_responsed(struct vpu_inst *inst, unsigned long key)
 {
-	struct vpu_core *core = inst->core;
-	struct vpu_cmd_t *cmd;
-	bool flag = true;
+	unsigned long last_response = atomic_long_read(&inst->last_response_cmd);
 
-	mutex_lock(&core->cmd_lock);
-	cmd = inst->pending;
-	if (cmd && key == cmd->key) {
-		flag = false;
-		goto exit;
-	}
-	list_for_each_entry(cmd, &inst->cmd_q, list) {
-		if (key == cmd->key) {
-			flag = false;
-			break;
-		}
-	}
-exit:
-	mutex_unlock(&core->cmd_lock);
+	if (key <= last_response && (last_response - key) < (ULONG_MAX >> 1))
+		return true;
 
-	return flag;
+	return false;
 }
 
 static int sync_session_response(struct vpu_inst *inst, unsigned long key, long timeout, int try)
