@@ -620,39 +620,27 @@ pm_nl_add_endpoint()
 {
 	local ns=$1
 	local addr=$2
-	local flags _flags
-	local port _port
-	local dev _dev
-	local id _id
+	local flags dev id port
 	local nr=2
 
 	local p
 	for p in "${@}"
 	do
-		if [ $p = "flags" ]; then
-			eval _flags=\$"$nr"
-			[ -n "$_flags" ]; flags="flags $_flags"
-		fi
-		if [ $p = "dev" ]; then
-			eval _dev=\$"$nr"
-			[ -n "$_dev" ]; dev="dev $_dev"
-		fi
-		if [ $p = "id" ]; then
-			eval _id=\$"$nr"
-			[ -n "$_id" ]; id="id $_id"
-		fi
-		if [ $p = "port" ]; then
-			eval _port=\$"$nr"
-			[ -n "$_port" ]; port="port $_port"
-		fi
+		case "${p}" in
+		"flags" | "dev" | "id" | "port")
+			eval "${p}"=\$"${nr}"
+			;;
+		esac
 
 		nr=$((nr + 1))
 	done
 
 	if mptcp_lib_is_ip_mptcp; then
-		ip -n $ns mptcp endpoint add $addr ${_flags//","/" "} $dev $id $port
+		ip -n "${ns}" mptcp endpoint add "${addr}" ${flags//","/" "} \
+			${dev:+dev "${dev}"} ${id:+id "${id}"} ${port:+port "${port}"}
 	else
-		ip netns exec $ns ./pm_nl_ctl add $addr $flags $dev $id $port
+		ip netns exec "${ns}" ./pm_nl_ctl add "${addr}" ${flags:+flags "${flags}"} \
+			${dev:+dev "${dev}"} ${id:+id "${id}"} ${port:+port "${port}"}
 	fi
 }
 
@@ -664,7 +652,7 @@ pm_nl_del_endpoint()
 
 	if mptcp_lib_is_ip_mptcp; then
 		[ $id -ne 0 ] && addr=''
-		ip -n $ns mptcp endpoint delete id $id $addr
+		ip -n $ns mptcp endpoint delete id $id ${addr:+"${addr}"}
 	else
 		ip netns exec $ns ./pm_nl_ctl del $id $addr
 	fi
@@ -707,49 +695,35 @@ pm_nl_change_endpoint()
 
 pm_nl_check_endpoint()
 {
-	local line expected_line
 	local msg="$1"
 	local ns=$2
 	local addr=$3
-	local _flags=""
-	local _port
-	local dev
-	local _id
+	local flags dev id port
 
 	print_check "${msg}"
 
 	shift 3
 	while [ -n "$1" ]; do
-		if [ $1 = "flags" ]; then
-			_flags=$2
+		case "${1}" in
+		"flags" | "dev" | "id" | "port")
+			eval "${1}"="${2}"
 			shift
-		elif [ $1 = "dev" ]; then
-			[ -n "$2" ]; dev="$2"
-			shift
-		elif [ $1 = "id" ]; then
-			_id=$2
-			shift
-		elif [ $1 = "port" ]; then
-			_port=$2
-			shift
-		fi
+			;;
+		*)
+			;;
+		esac
 
 		shift
 	done
 
-	if [ -z "${_id}" ]; then
+	if [ -z "${id}" ]; then
 		test_fail "bad test - missing endpoint id"
 		return
 	fi
 
-	line=$(mptcp_lib_pm_nl_get_endpoint "${ns}" "${_id}")
-	expected_line=$(mptcp_lib_pm_nl_format_endpoints \
-		"${_id},${addr},${_flags//","/" "},${dev},${_port}")
-	if [ "$line" = "$expected_line" ]; then
-		print_ok
-	else
-		fail_test "expected '$expected_line' found '$line'"
-	fi
+	check_output "mptcp_lib_pm_nl_get_endpoint ${ns} ${id}" \
+		"$(mptcp_lib_pm_nl_format_endpoints \
+			"${id},${addr},${flags//","/" "},${dev},${port}")"
 }
 
 pm_nl_set_endpoint()
