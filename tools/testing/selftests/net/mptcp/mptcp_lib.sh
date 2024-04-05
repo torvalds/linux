@@ -520,3 +520,38 @@ mptcp_lib_set_ip_mptcp() {
 mptcp_lib_is_ip_mptcp() {
 	[ "${MPTCP_LIB_IP_MPTCP}" = "1" ]
 }
+
+# format: <id>,<ip>,<flags>,<dev>
+mptcp_lib_pm_nl_format_endpoints() {
+	local entry id ip flags dev port
+
+	for entry in "${@}"; do
+		IFS=, read -r id ip flags dev port <<< "${entry}"
+		if mptcp_lib_is_ip_mptcp; then
+			echo -n "${ip}"
+			[ -n "${port}" ] && echo -n " port ${port}"
+			echo -n " id ${id}"
+			[ -n "${flags}" ] && echo -n " ${flags}"
+			[ -n "${dev}" ] && echo -n " dev ${dev}"
+			echo " " # always a space at the end
+		else
+			echo -n "id ${id}"
+			echo -n " flags ${flags//" "/","}"
+			[ -n "${dev}" ] && echo -n " dev ${dev}"
+			echo -n " ${ip}"
+			[ -n "${port}" ] && echo -n " ${port}"
+			echo ""
+		fi
+	done
+}
+
+mptcp_lib_pm_nl_get_endpoint() {
+	local ns=${1}
+	local id=${2}
+
+	if mptcp_lib_is_ip_mptcp; then
+		ip -n "${ns}" mptcp endpoint show id "${id}"
+	else
+		ip netns exec "${ns}" ./pm_nl_ctl get "${id}"
+	fi
+}
