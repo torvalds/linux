@@ -50,6 +50,12 @@
  * since fd_wqh.lock is taken by aio_poll() while it's holding a lock that's
  * also taken in IRQ context.
  */
+
+/*
+ * ANDROID: CRC fix for commit f91e6b41dd11 ("userfaultfd: move userfaultfd_ctx
+ * struct to header file")
+ */
+#ifndef __GENKSYMS__
 struct userfaultfd_ctx {
 	/* waitqueue head for the pending (i.e. not read) userfaults */
 	wait_queue_head_t fault_pending_wqh;
@@ -80,7 +86,10 @@ struct userfaultfd_ctx {
 	atomic_t mmap_changing;
 	/* mm with one ore more vmas attached to this userfaultfd_ctx */
 	struct mm_struct *mm;
+
+	ANDROID_KABI_RESERVE(1);
 };
+#endif
 
 extern int sysctl_unprivileged_userfaultfd;
 
