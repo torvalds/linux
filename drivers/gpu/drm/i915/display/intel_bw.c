@@ -851,6 +851,14 @@ static unsigned int icl_max_bw_qgv_point_mask(struct drm_i915_private *i915,
 	return max_bw_point;
 }
 
+static u16 icl_prepare_qgv_points_mask(struct drm_i915_private *i915,
+				       unsigned int qgv_points,
+				       unsigned int psf_points)
+{
+	return ~(ICL_PCODE_REQ_QGV_PT(qgv_points) |
+		 ADLS_PCODE_REQ_PSF_PT(psf_points)) & icl_qgv_points_mask(i915);
+}
+
 static int mtl_find_qgv_points(struct drm_i915_private *i915,
 			       unsigned int data_rate,
 			       unsigned int num_active_planes,
@@ -994,11 +1002,9 @@ static int icl_find_qgv_points(struct drm_i915_private *i915,
 	 * We store the ones which need to be masked as that is what PCode
 	 * actually accepts as a parameter.
 	 */
-	new_bw_state->qgv_points_mask =
-		~(ICL_PCODE_REQ_QGV_PT(qgv_points) |
-		  ADLS_PCODE_REQ_PSF_PT(psf_points)) &
-		icl_qgv_points_mask(i915);
-
+	new_bw_state->qgv_points_mask = icl_prepare_qgv_points_mask(i915,
+								    qgv_points,
+								    psf_points);
 	/*
 	 * If the actual mask had changed we need to make sure that
 	 * the commits are serialized(in case this is a nomodeset, nonblocking)
