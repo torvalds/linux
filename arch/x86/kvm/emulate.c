@@ -2354,6 +2354,7 @@ setup_syscalls_segments(struct desc_struct *cs, struct desc_struct *ss)
 	ss->avl = 0;
 }
 
+#ifdef CONFIG_X86_64
 static bool vendor_intel(struct x86_emulate_ctxt *ctxt)
 {
 	u32 eax, ebx, ecx, edx;
@@ -2362,6 +2363,7 @@ static bool vendor_intel(struct x86_emulate_ctxt *ctxt)
 	ctxt->ops->get_cpuid(ctxt, &eax, &ebx, &ecx, &edx, true);
 	return is_guest_vendor_intel(ebx, ecx, edx);
 }
+#endif
 
 static int em_syscall(struct x86_emulate_ctxt *ctxt)
 {
@@ -2444,11 +2446,11 @@ static int em_sysenter(struct x86_emulate_ctxt *ctxt)
 		return emulate_gp(ctxt, 0);
 
 	/*
-	 * Not recognized on AMD in compat mode (but is recognized in legacy
-	 * mode).
+	 * Intel's architecture allows SYSENTER in compatibility mode, but AMD
+	 * does not.  Note, AMD does allow SYSENTER in legacy protected mode.
 	 */
-	if ((ctxt->mode != X86EMUL_MODE_PROT64) && (efer & EFER_LMA)
-	    && !vendor_intel(ctxt))
+	if ((ctxt->mode != X86EMUL_MODE_PROT64) && (efer & EFER_LMA) &&
+	    !ctxt->ops->guest_cpuid_is_intel_compatible(ctxt))
 		return emulate_ud(ctxt);
 
 	/* sysenter/sysexit have not been tested in 64bit mode. */
