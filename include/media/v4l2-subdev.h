@@ -452,14 +452,6 @@ enum v4l2_subdev_pre_streamon_flags {
  *
  * @g_pixelaspect: callback to return the pixelaspect ratio.
  *
- * @s_dv_timings: Set custom dv timings in the sub device. This is used
- *	when sub device is capable of setting detailed timing information
- *	in the hardware to generate/detect the video signal.
- *
- * @g_dv_timings: Get custom dv timings in the sub device.
- *
- * @query_dv_timings: callback for VIDIOC_QUERY_DV_TIMINGS() ioctl handler code.
- *
  * @s_rx_buffer: set a host allocated memory buffer for the subdev. The subdev
  *	can adjust @size to a lower value and must not write more data to the
  *	buffer starting at @data than the original value of @size.
@@ -490,12 +482,6 @@ struct v4l2_subdev_video_ops {
 	int (*g_input_status)(struct v4l2_subdev *sd, u32 *status);
 	int (*s_stream)(struct v4l2_subdev *sd, int enable);
 	int (*g_pixelaspect)(struct v4l2_subdev *sd, struct v4l2_fract *aspect);
-	int (*s_dv_timings)(struct v4l2_subdev *sd,
-			struct v4l2_dv_timings *timings);
-	int (*g_dv_timings)(struct v4l2_subdev *sd,
-			struct v4l2_dv_timings *timings);
-	int (*query_dv_timings)(struct v4l2_subdev *sd,
-			struct v4l2_dv_timings *timings);
 	int (*s_rx_buffer)(struct v4l2_subdev *sd, void *buf,
 			   unsigned int *size);
 	int (*pre_streamon)(struct v4l2_subdev *sd, u32 flags);

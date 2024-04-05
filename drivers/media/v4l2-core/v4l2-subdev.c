@@ -906,16 +906,16 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg,
 	}
 
 	case VIDIOC_SUBDEV_QUERY_DV_TIMINGS:
-		return v4l2_subdev_call(sd, video, query_dv_timings, arg);
+		return v4l2_subdev_call(sd, pad, query_dv_timings, 0, arg);
 
 	case VIDIOC_SUBDEV_G_DV_TIMINGS:
-		return v4l2_subdev_call(sd, video, g_dv_timings, arg);
+		return v4l2_subdev_call(sd, pad, g_dv_timings, 0, arg);
 
 	case VIDIOC_SUBDEV_S_DV_TIMINGS:
 		if (ro_subdev)
 			return -EPERM;
 
-		return v4l2_subdev_call(sd, video, s_dv_timings, arg);
+		return v4l2_subdev_call(sd, pad, s_dv_timings, 0, arg);
 
 	case VIDIOC_SUBDEV_G_STD:
 		return v4l2_subdev_call(sd, video, g_std, arg);
