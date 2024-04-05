@@ -73,20 +73,6 @@ bool i915_error_injected(void);
 	__i915_printk(i915, i915_error_injected() ? KERN_DEBUG : KERN_ERR, \
 		      fmt, ##__VA_ARGS__)
 
-#if defined(GCC_VERSION) && GCC_VERSION >= 70000
-#define add_overflows_t(T, A, B) \
-	__builtin_add_overflow_p((A), (B), (T)0)
-#else
-#define add_overflows_t(T, A, B) ({ \
-	typeof(A) a = (A); \
-	typeof(B) b = (B); \
-	(T)(a + b) < a; \
-})
-#endif
-
-#define add_overflows(A, B) \
-	add_overflows_t(typeof((A) + (B)), (A), (B))
-
 #define range_overflows(start, size, max) ({ \
 	typeof(start) start__ = (start); \
 	typeof(size) size__ = (size); \
