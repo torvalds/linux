@@ -970,7 +970,7 @@ int symbol__tui_annotate(struct map_symbol *ms, struct evsel *evsel,
 	if (dso->annotate_warned)
 		return -1;
 
-	if (not_annotated) {
+	if (not_annotated || !sym->annotate2) {
 		err = symbol__annotate2(ms, evsel, &browser.arch);
 		if (err) {
 			char msg[BUFSIZ];

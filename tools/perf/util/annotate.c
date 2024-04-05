@@ -2461,6 +2461,9 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 	if (parch)
 		*parch = arch;
 
+	if (!list_empty(&notes->src->source))
+		return 0;
+
 	args.arch = arch;
 	args.ms = *ms;
 	if (annotate_opts.full_addr)
