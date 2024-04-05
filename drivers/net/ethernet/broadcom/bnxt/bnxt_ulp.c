@@ -392,12 +392,13 @@ void bnxt_rdma_aux_device_init(struct bnxt *bp)
 	if (!edev)
 		goto aux_dev_uninit;
 
+	aux_priv->edev = edev;
+
 	ulp = kzalloc(sizeof(*ulp), GFP_KERNEL);
 	if (!ulp)
 		goto aux_dev_uninit;
 
 	edev->ulp_tbl = ulp;
-	aux_priv->edev = edev;
 	bp->edev = edev;
 	bnxt_set_edev_info(edev, bp);
 
