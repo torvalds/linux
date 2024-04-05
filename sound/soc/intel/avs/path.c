@@ -709,8 +709,6 @@ static int avs_path_pipeline_arm(struct avs_dev *adev,
 		/* bind current module to next module on list */
 		source = mod;
 		sink = list_next_entry(mod, node);
-		if (!source || !sink)
-			return -EINVAL;
 
 		ret = avs_ipc_bind(adev, source->module_id, source->instance_id,
 				   sink->module_id, sink->instance_id, 0, 0);
