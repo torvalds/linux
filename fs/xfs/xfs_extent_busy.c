@@ -518,20 +518,26 @@ fail:
 	goto out;
 }
 
-STATIC void
+static bool
 xfs_extent_busy_clear_one(
-	struct xfs_mount	*mp,
 	struct xfs_perag	*pag,
-	struct xfs_extent_busy	*busyp)
+	struct xfs_extent_busy	*busyp,
+	bool			do_discard)
 {
 	if (busyp->length) {
-		trace_xfs_extent_busy_clear(mp, busyp->agno, busyp->bno,
-						busyp->length);
+		if (do_discard &&
+		    !(busyp->flags & XFS_EXTENT_BUSY_SKIP_DISCARD)) {
+			busyp->flags = XFS_EXTENT_BUSY_DISCARDED;
+			return false;
+		}
+		trace_xfs_extent_busy_clear(pag->pag_mount, busyp->agno,
+				busyp->bno, busyp->length);
 		rb_erase(&busyp->rb_node, &pag->pagb_tree);
 	}
 
 	list_del_init(&busyp->list);
 	kfree(busyp);
+	return true;
 }
 
 static void
@@ -575,13 +581,8 @@ xfs_extent_busy_clear(
 			wakeup = false;
 		}
 
-		if (do_discard && busyp->length &&
-		    !(busyp->flags & XFS_EXTENT_BUSY_SKIP_DISCARD)) {
-			busyp->flags = XFS_EXTENT_BUSY_DISCARDED;
-		} else {
-			xfs_extent_busy_clear_one(mp, pag, busyp);
+		if (xfs_extent_busy_clear_one(pag, busyp, do_discard))
 			wakeup = true;
-		}
 	}
 
 	if (pag)
