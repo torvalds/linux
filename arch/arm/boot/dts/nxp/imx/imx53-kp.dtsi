@@ -13,7 +13,7 @@
 		compatible = "pwm-beeper";
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_buzzer>;
-		pwms = <&pwm1 0 500000>;
+		pwms = <&pwm1 0 500000 0>;
 	};
 
 	gpio-buttons {
