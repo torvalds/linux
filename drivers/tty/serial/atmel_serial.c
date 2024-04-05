@@ -132,7 +132,7 @@ struct atmel_uart_port {
 	struct dma_async_tx_descriptor	*desc_rx;
 	dma_cookie_t			cookie_tx;
 	dma_cookie_t			cookie_rx;
-	struct scatterlist		sg_tx;
+	dma_addr_t			tx_phys;
 	struct scatterlist		sg_rx;
 	struct tasklet_struct	tasklet_rx;
 	struct tasklet_struct	tasklet_tx;
@@ -904,8 +904,8 @@ static void atmel_release_tx_dma(struct uart_port *port)
 	if (chan) {
 		dmaengine_terminate_all(chan);
 		dma_release_channel(chan);
-		dma_unmap_sg(port->dev, &atmel_port->sg_tx, 1,
-				DMA_TO_DEVICE);
+		dma_unmap_single(port->dev, atmel_port->tx_phys,
+				 UART_XMIT_SIZE, DMA_TO_DEVICE);
 	}
 
 	atmel_port->desc_tx = NULL;
@@ -922,7 +922,7 @@ static void atmel_tx_dma(struct uart_port *port)
 	struct tty_port *tport = &port->state->port;
 	struct dma_chan *chan = atmel_port->chan_tx;
 	struct dma_async_tx_descriptor *desc;
-	struct scatterlist sgl[2], *sg, *sg_tx = &atmel_port->sg_tx;
+	struct scatterlist sgl[2], *sg;
 	unsigned int tx_len, tail, part1_len, part2_len, sg_len;
 	dma_addr_t phys_addr;
 
@@ -955,7 +955,7 @@ static void atmel_tx_dma(struct uart_port *port)
 
 		sg_init_table(sgl, 2);
 		sg_len = 0;
-		phys_addr = sg_dma_address(sg_tx) + tail;
+		phys_addr = atmel_port->tx_phys + tail;
 		if (part1_len) {
 			sg = &sgl[sg_len++];
 			sg_dma_address(sg) = phys_addr;
@@ -987,7 +987,8 @@ static void atmel_tx_dma(struct uart_port *port)
 			return;
 		}
 
-		dma_sync_sg_for_device(port->dev, sg_tx, 1, DMA_TO_DEVICE);
+		dma_sync_single_for_device(port->dev, atmel_port->tx_phys,
+					   UART_XMIT_SIZE, DMA_TO_DEVICE);
 
 		atmel_port->desc_tx = desc;
 		desc->callback = atmel_complete_tx_dma;
@@ -1014,7 +1015,7 @@ static int atmel_prepare_tx_dma(struct uart_port *port)
 	dma_cap_mask_t		mask;
 	struct dma_slave_config config;
 	struct dma_chan *chan;
-	int ret, nent;
+	int ret;
 
 	dma_cap_zero(mask);
 	dma_cap_set(DMA_SLAVE, mask);
@@ -1029,26 +1030,18 @@ static int atmel_prepare_tx_dma(struct uart_port *port)
 		dma_chan_name(atmel_port->chan_tx));
 
 	spin_lock_init(&atmel_port->lock_tx);
-	sg_init_table(&atmel_port->sg_tx, 1);
 	/* UART circular tx buffer is an aligned page. */
 	BUG_ON(!PAGE_ALIGNED(tport->xmit_buf));
-	sg_set_page(&atmel_port->sg_tx,
-			virt_to_page(tport->xmit_buf),
-			UART_XMIT_SIZE,
-			offset_in_page(tport->xmit_buf));
-	nent = dma_map_sg(port->dev,
-				&atmel_port->sg_tx,
-				1,
-				DMA_TO_DEVICE);
+	atmel_port->tx_phys = dma_map_single(port->dev, tport->xmit_buf,
+					     UART_XMIT_SIZE, DMA_TO_DEVICE);
 
-	if (!nent) {
+	if (dma_mapping_error(port->dev, atmel_port->tx_phys)) {
 		dev_dbg(port->dev, "need to release resource of dma\n");
 		goto chan_err;
 	} else {
-		dev_dbg(port->dev, "%s: mapped %d@%p to %pad\n", __func__,
-			sg_dma_len(&atmel_port->sg_tx),
-			tport->xmit_buf,
-			&sg_dma_address(&atmel_port->sg_tx));
+		dev_dbg(port->dev, "%s: mapped %lu@%p to %pad\n", __func__,
+			UART_XMIT_SIZE, tport->xmit_buf,
+			&atmel_port->tx_phys);
 	}
 
 	/* Configure the slave DMA */
