@@ -930,6 +930,13 @@ static void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 	struct io_ring_ctx *ctx = req->ctx;
 
 	/*
+	 * All execution paths but io-wq use the deferred completions by
+	 * passing IO_URING_F_COMPLETE_DEFER and thus should not end up here.
+	 */
+	if (WARN_ON_ONCE(!(issue_flags & IO_URING_F_IOWQ)))
+		return;
+
+	/*
 	 * Handle special CQ sync cases via task_work. DEFER_TASKRUN requires
 	 * the submitter task context, IOPOLL protects with uring_lock.
 	 */
@@ -946,7 +953,10 @@ static void io_req_complete_post(struct io_kiocb *req, unsigned issue_flags)
 	}
 	io_cq_unlock_post(ctx);
 
-	/* called from io-wq submit work only, the ref won't drop to zero */
+	/*
+	 * We don't free the request here because we know it's called from
+	 * io-wq only, which holds a reference, so it cannot be the last put.
+	 */
 	req_ref_put(req);
 }
 
