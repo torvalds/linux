@@ -297,7 +297,12 @@ static void init_steering_mslice(struct xe_gt *gt)
 
 static unsigned int dss_per_group(struct xe_gt *gt)
 {
-	return gt_to_xe(gt)->info.platform == XE_PVC ? 8 : 4;
+	if (gt_to_xe(gt)->info.platform == XE_PVC)
+		return 8;
+	else if (GRAPHICS_VERx100(gt_to_xe(gt)) >= 1250)
+		return 4;
+	else
+		return 6;
 }
 
 /**
