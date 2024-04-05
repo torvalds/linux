@@ -20191,7 +20191,8 @@ patch_map_ops_generic:
 		}
 
 		/* Implement bpf_get_branch_snapshot inline. */
-		if (prog->jit_requested && BITS_PER_LONG == 64 &&
+		if (IS_ENABLED(CONFIG_PERF_EVENTS) &&
+		    prog->jit_requested && BITS_PER_LONG == 64 &&
 		    insn->imm == BPF_FUNC_get_branch_snapshot) {
 			/* We are dealing with the following func protos:
 			 * u64 bpf_get_branch_snapshot(void *buf, u32 size, u64 flags);
