@@ -1534,7 +1534,7 @@ TRACE_EVENT(nfsd_cb_seq_status,
 		__entry->seq_status = cb->cb_seq_status;
 	),
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
-		" sessionid=%08x:%08x:%08x:%08x tk_status=%d seq_status=%d\n",
+		" sessionid=%08x:%08x:%08x:%08x tk_status=%d seq_status=%d",
 		__entry->task_id, __entry->client_id,
 		__entry->cl_boot, __entry->cl_id,
 		__entry->seqno, __entry->reserved,
@@ -1573,7 +1573,7 @@ TRACE_EVENT(nfsd_cb_free_slot,
 		__entry->slot_seqno = session->se_cb_seq_nr;
 	),
 	TP_printk(SUNRPC_TRACE_TASK_SPECIFIER
-		" sessionid=%08x:%08x:%08x:%08x new slot seqno=%u\n",
+		" sessionid=%08x:%08x:%08x:%08x new slot seqno=%u",
 		__entry->task_id, __entry->client_id,
 		__entry->cl_boot, __entry->cl_id,
 		__entry->seqno, __entry->reserved,
@@ -1978,7 +1978,7 @@ TRACE_EVENT(nfsd_ctl_time,
 		__entry->time = time;
 		__assign_str(name, name);
 	),
-	TP_printk("file=%s time=%d\n",
+	TP_printk("file=%s time=%d",
 		__get_str(name), __entry->time
 	)
 );
