@@ -41,8 +41,8 @@ static int rt715_sdca_index_write(struct rt715_sdca_priv *rt715,
 	ret = regmap_write(regmap, addr, value);
 	if (ret < 0)
 		dev_err(&rt715->slave->dev,
-			"Failed to set private value: %08x <= %04x %d\n",
-			addr, value, ret);
+			"%s: Failed to set private value: %08x <= %04x %d\n",
+			__func__, addr, value, ret);
 
 	return ret;
 }
@@ -59,8 +59,8 @@ static int rt715_sdca_index_read(struct rt715_sdca_priv *rt715,
 	ret = regmap_read(regmap, addr, value);
 	if (ret < 0)
 		dev_err(&rt715->slave->dev,
-				"Failed to get private value: %06x => %04x ret=%d\n",
-				addr, *value, ret);
+			"%s: Failed to get private value: %06x => %04x ret=%d\n",
+			__func__, addr, *value, ret);
 
 	return ret;
 }
@@ -152,8 +152,8 @@ static int rt715_sdca_set_amp_gain_put(struct snd_kcontrol *kcontrol,
 				mc->shift);
 		ret = regmap_write(rt715->mbq_regmap, mc->reg + i, gain_val);
 		if (ret != 0) {
-			dev_err(component->dev, "Failed to write 0x%x=0x%x\n",
-				mc->reg + i, gain_val);
+			dev_err(component->dev, "%s: Failed to write 0x%x=0x%x\n",
+				__func__, mc->reg + i, gain_val);
 			return ret;
 		}
 	}
@@ -188,8 +188,8 @@ static int rt715_sdca_set_amp_gain_4ch_put(struct snd_kcontrol *kcontrol,
 		ret = regmap_write(rt715->mbq_regmap, reg_base + i,
 				gain_val);
 		if (ret != 0) {
-			dev_err(component->dev, "Failed to write 0x%x=0x%x\n",
-				reg_base + i, gain_val);
+			dev_err(component->dev, "%s: Failed to write 0x%x=0x%x\n",
+				__func__, reg_base + i, gain_val);
 			return ret;
 		}
 	}
@@ -224,8 +224,8 @@ static int rt715_sdca_set_amp_gain_8ch_put(struct snd_kcontrol *kcontrol,
 		reg = i < 7 ? reg_base + i : (reg_base - 1) | BIT(15);
 		ret = regmap_write(rt715->mbq_regmap, reg, gain_val);
 		if (ret != 0) {
-			dev_err(component->dev, "Failed to write 0x%x=0x%x\n",
-				reg, gain_val);
+			dev_err(component->dev, "%s: Failed to write 0x%x=0x%x\n",
+				__func__, reg, gain_val);
 			return ret;
 		}
 	}
@@ -246,8 +246,8 @@ static int rt715_sdca_set_amp_gain_get(struct snd_kcontrol *kcontrol,
 	for (i = 0; i < 2; i++) {
 		ret = regmap_read(rt715->mbq_regmap, mc->reg + i, &val);
 		if (ret < 0) {
-			dev_err(component->dev, "Failed to read 0x%x, ret=%d\n",
-				mc->reg + i, ret);
+			dev_err(component->dev, "%s: Failed to read 0x%x, ret=%d\n",
+				__func__, mc->reg + i, ret);
 			return ret;
 		}
 		ucontrol->value.integer.value[i] = rt715_sdca_get_gain(val, mc->shift);
@@ -271,8 +271,8 @@ static int rt715_sdca_set_amp_gain_4ch_get(struct snd_kcontrol *kcontrol,
 	for (i = 0; i < 4; i++) {
 		ret = regmap_read(rt715->mbq_regmap, reg_base + i, &val);
 		if (ret < 0) {
-			dev_err(component->dev, "Failed to read 0x%x, ret=%d\n",
-				reg_base + i, ret);
+			dev_err(component->dev, "%s: Failed to read 0x%x, ret=%d\n",
+				__func__, reg_base + i, ret);
 			return ret;
 		}
 		ucontrol->value.integer.value[i] = rt715_sdca_get_gain(val, gain_sft);
@@ -297,8 +297,8 @@ static int rt715_sdca_set_amp_gain_8ch_get(struct snd_kcontrol *kcontrol,
 	for (i = 0; i < 8; i += 2) {
 		ret = regmap_read(rt715->mbq_regmap, reg_base + i, &val_l);
 		if (ret < 0) {
-			dev_err(component->dev, "Failed to read 0x%x, ret=%d\n",
-					reg_base + i, ret);
+			dev_err(component->dev, "%s: Failed to read 0x%x, ret=%d\n",
+				__func__, reg_base + i, ret);
 			return ret;
 		}
 		ucontrol->value.integer.value[i] = (val_l >> gain_sft) / 10;
@@ -306,8 +306,8 @@ static int rt715_sdca_set_amp_gain_8ch_get(struct snd_kcontrol *kcontrol,
 		reg = (i == 6) ? (reg_base - 1) | BIT(15) : reg_base + 1 + i;
 		ret = regmap_read(rt715->mbq_regmap, reg, &val_r);
 		if (ret < 0) {
-			dev_err(component->dev, "Failed to read 0x%x, ret=%d\n",
-					reg, ret);
+			dev_err(component->dev, "%s: Failed to read 0x%x, ret=%d\n",
+				__func__, reg, ret);
 			return ret;
 		}
 		ucontrol->value.integer.value[i + 1] = (val_r >> gain_sft) / 10;
@@ -834,15 +834,15 @@ static int rt715_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 			0xaf00);
 		break;
 	default:
-		dev_err(component->dev, "Invalid DAI id %d\n", dai->id);
+		dev_err(component->dev, "%s: Invalid DAI id %d\n", __func__, dai->id);
 		return -EINVAL;
 	}
 
 	retval = sdw_stream_add_slave(rt715->slave, &stream_config,
 					&port_config, 1, sdw_stream);
 	if (retval) {
-		dev_err(component->dev, "Unable to configure port, retval:%d\n",
-			retval);
+		dev_err(component->dev, "%s: Unable to configure port, retval:%d\n",
+			__func__, retval);
 		return retval;
 	}
 
@@ -893,8 +893,8 @@ static int rt715_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 		val = 0xf;
 		break;
 	default:
-		dev_err(component->dev, "Unsupported sample rate %d\n",
-			params_rate(params));
+		dev_err(component->dev, "%s: Unsupported sample rate %d\n",
+			__func__, params_rate(params));
 		return -EINVAL;
 	}
 
