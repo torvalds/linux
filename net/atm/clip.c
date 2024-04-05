@@ -463,7 +463,7 @@ static int clip_setentry(struct atm_vcc *vcc, __be32 ip)
 		unlink_clip_vcc(clip_vcc);
 		return 0;
 	}
-	rt = ip_route_output(&init_net, ip, 0, 1, 0);
+	rt = ip_route_output(&init_net, ip, 0, 0, 0, RT_SCOPE_LINK);
 	if (IS_ERR(rt))
 		return PTR_ERR(rt);
 	neigh = __neigh_lookup(&arp_tbl, &ip, rt->dst.dev, 1);

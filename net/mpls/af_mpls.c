@@ -594,7 +594,7 @@ static struct net_device *inet_fib_lookup_dev(struct net *net,
 	struct in_addr daddr;
 
 	memcpy(&daddr, addr, sizeof(struct in_addr));
-	rt = ip_route_output(net, daddr.s_addr, 0, 0, 0);
+	rt = ip_route_output(net, daddr.s_addr, 0, 0, 0, RT_SCOPE_UNIVERSE);
 	if (IS_ERR(rt))
 		return ERR_CAST(rt);
 

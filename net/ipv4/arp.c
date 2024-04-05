@@ -456,7 +456,8 @@ static int arp_filter(__be32 sip, __be32 tip, struct net_device *dev)
 	/*unsigned long now; */
 	struct net *net = dev_net(dev);
 
-	rt = ip_route_output(net, sip, tip, 0, l3mdev_master_ifindex_rcu(dev));
+	rt = ip_route_output(net, sip, tip, 0, l3mdev_master_ifindex_rcu(dev),
+			     RT_SCOPE_UNIVERSE);
 	if (IS_ERR(rt))
 		return 1;
 	if (rt->dst.dev != dev) {
@@ -1056,7 +1057,8 @@ static int arp_req_set(struct net *net, struct arpreq *r,
 	if (r->arp_flags & ATF_PERM)
 		r->arp_flags |= ATF_COM;
 	if (!dev) {
-		struct rtable *rt = ip_route_output(net, ip, 0, RTO_ONLINK, 0);
+		struct rtable *rt = ip_route_output(net, ip, 0, 0, 0,
+						    RT_SCOPE_LINK);
 
 		if (IS_ERR(rt))
 			return PTR_ERR(rt);
@@ -1188,7 +1190,8 @@ static int arp_req_delete(struct net *net, struct arpreq *r,
 
 	ip = ((struct sockaddr_in *)&r->arp_pa)->sin_addr.s_addr;
 	if (!dev) {
-		struct rtable *rt = ip_route_output(net, ip, 0, RTO_ONLINK, 0);
+		struct rtable *rt = ip_route_output(net, ip, 0, 0, 0,
+						    RT_SCOPE_LINK);
 		if (IS_ERR(rt))
 			return PTR_ERR(rt);
 		dev = rt->dst.dev;
