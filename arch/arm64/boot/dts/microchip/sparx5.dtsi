@@ -460,7 +460,7 @@
 			reg = <0x6 0x1101031c 0x24>;
 		};
 
-		serdes: serdes@10808000 {
+		serdes: serdes@610808000 {
 			compatible = "microchip,sparx5-serdes";
 			#phy-cells = <1>;
 			clocks = <&sys_clk>;
