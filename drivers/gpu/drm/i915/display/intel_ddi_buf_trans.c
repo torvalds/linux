@@ -1726,9 +1726,9 @@ void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 		else
 			encoder->get_buf_trans = tgl_get_dkl_buf_trans;
 	} else if (DISPLAY_VER(i915) == 11) {
-		if (IS_PLATFORM(i915, INTEL_JASPERLAKE))
+		if (IS_JASPERLAKE(i915))
 			encoder->get_buf_trans = jsl_get_combo_buf_trans;
-		else if (IS_PLATFORM(i915, INTEL_ELKHARTLAKE))
+		else if (IS_ELKHARTLAKE(i915))
 			encoder->get_buf_trans = ehl_get_combo_buf_trans;
 		else if (intel_encoder_is_combo(encoder))
 			encoder->get_buf_trans = icl_get_combo_buf_trans;
