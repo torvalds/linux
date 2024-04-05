@@ -16,6 +16,7 @@
 #include <linux/jump_label.h>
 #include <linux/kobject.h>
 #include <linux/kstrtox.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
 
 #ifdef CONFIG_64BIT
@@ -176,6 +177,97 @@ void madvise_vma_pad_pages(struct vm_area_struct *vma,
 		return;
 
 	vma_set_pad_pages(vma, nr_pad_pages);
+}
+
+static const char *pad_vma_name(struct vm_area_struct *vma)
+{
+	return "[page size compat]";
+}
+
+static const struct vm_operations_struct pad_vma_ops = {
+	.name = pad_vma_name,
+};
+
+/*
+ * Returns a new VMA representing the padding in @vma, if no padding
+ * in @vma returns NULL.
+ */
+struct vm_area_struct *get_pad_vma(struct vm_area_struct *vma)
+{
+	struct vm_area_struct *pad;
+
+	if (!is_pgsize_migration_enabled() || !(vma->vm_flags & VM_PAD_MASK))
+		return NULL;
+
+	pad = kzalloc(sizeof(struct vm_area_struct), GFP_KERNEL);
+
+	memcpy(pad, vma, sizeof(struct vm_area_struct));
+
+	/* Remove file */
+	pad->vm_file = NULL;
+
+	/* Add vm_ops->name */
+	pad->vm_ops = &pad_vma_ops;
+
+	/* Adjust the start to begin at the start of the padding section */
+	pad->vm_start = VMA_PAD_START(pad);
+
+	/* Make the pad vma PROT_NONE */
+	vm_flags_clear(pad, VM_READ|VM_WRITE|VM_EXEC);
+
+	/* Remove padding bits */
+	vm_flags_clear(pad, VM_PAD_MASK);
+
+	return pad;
+}
+
+/*
+ * Returns a new VMA exclusing the padding from @vma; if no padding in
+ * @vma returns @vma.
+ */
+struct vm_area_struct *get_data_vma(struct vm_area_struct *vma)
+{
+	struct vm_area_struct *data;
+
+	if (!is_pgsize_migration_enabled() || !(vma->vm_flags & VM_PAD_MASK))
+		return vma;
+
+	data = kzalloc(sizeof(struct vm_area_struct), GFP_KERNEL);
+
+	memcpy(data, vma, sizeof(struct vm_area_struct));
+
+	/* Adjust the end to the start of the padding section */
+	data->vm_end = VMA_PAD_START(data);
+
+	return data;
+}
+
+/*
+ * Calls the show_pad_vma_fn on the @pad VMA, and frees the copies of @vma
+ * and @pad.
+ */
+void show_map_pad_vma(struct vm_area_struct *vma, struct vm_area_struct *pad,
+		      struct seq_file *m, show_pad_vma_fn func)
+{
+	if (!pad)
+		return;
+
+	/*
+	 * This cannot happen. If @pad vma was allocated the corresponding
+	 * @vma should have the VM_PAD_MASK bit(s) set.
+	 */
+	BUG_ON(!(vma->vm_flags & VM_PAD_MASK));
+
+	/*
+	 * This cannot happen. @pad is a section of the original VMA.
+	 * Therefore @vma cannot be null if @pad is not null.
+	 */
+	BUG_ON(!vma);
+
+	func(m, pad);
+
+	kfree(pad);
+	kfree(vma);
 }
 #endif /* PAGE_SIZE == SZ_4K */
 #endif /* CONFIG_64BIT */
