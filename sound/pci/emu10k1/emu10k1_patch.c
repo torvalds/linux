@@ -26,6 +26,8 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 		       struct snd_util_memhdr *hdr,
 		       const void __user *data, long count)
 {
+	u8 fill;
+	u32 xor;
 	int offset;
 	int truesize, size, blocksize;
 	unsigned int start_addr;
@@ -39,6 +41,14 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 		/* should instead return -ENOTSUPP; but compatibility */
 		printk(KERN_WARNING "Emu10k1 wavetable patch %d with unsupported loop feature\n",
 		       sp->v.sample);
+	}
+
+	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS) {
+		fill = 0x80;
+		xor = (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_UNSIGNED) ? 0 : 0x80808080;
+	} else {
+		fill = 0;
+		xor = (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_UNSIGNED) ? 0x80008000 : 0;
 	}
 
 	/* compute true data size to be loaded */
@@ -65,14 +75,14 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	size = BLANK_HEAD_SIZE;
 	if (! (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS))
 		size *= 2;
-	snd_emu10k1_synth_bzero(emu, sp->block, offset, size);
+	snd_emu10k1_synth_memset(emu, sp->block, offset, size, fill);
 	offset += size;
 
 	/* copy provided samples */
 	size = sp->v.size;
 	if (! (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS))
 		size *= 2;
-	if (snd_emu10k1_synth_copy_from_user(emu, sp->block, offset, data, size)) {
+	if (snd_emu10k1_synth_copy_from_user(emu, sp->block, offset, data, size, xor)) {
 		snd_emu10k1_synth_free(emu, sp->block);
 		sp->block = NULL;
 		return -EFAULT;
@@ -81,7 +91,7 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 
 	/* clear rest of samples (if any) */
 	if (offset < blocksize)
-		snd_emu10k1_synth_bzero(emu, sp->block, offset, blocksize - offset);
+		snd_emu10k1_synth_memset(emu, sp->block, offset, blocksize - offset, fill);
 
 	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_NO_BLANK) {
 		/* if no blank loop is attached in the sample, add it */
@@ -90,20 +100,6 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 			sp->v.loopend = sp->v.end + BLANK_LOOP_END;
 		}
 	}
-
-#if 0 /* not supported yet */
-	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_UNSIGNED) {
-		/* unsigned -> signed */
-		if (! (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS)) {
-			unsigned short *wblock = (unsigned short*)block;
-			for (i = 0; i < truesize; i++)
-				wblock[i] ^= 0x8000;
-		} else {
-			for (i = 0; i < truesize; i++)
-				block[i] ^= 0x80;
-		}
-	}
-#endif
 
 	/* recalculate offset */
 	start_addr = BLANK_HEAD_SIZE * 2;
