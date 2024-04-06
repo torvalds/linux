@@ -18,7 +18,6 @@ definitions:
     entries: []
   -
     name: header-flags
-    enum-name:
     type: flags
     entries: [ compact-bitsets, omit-reply, stats ]
 
