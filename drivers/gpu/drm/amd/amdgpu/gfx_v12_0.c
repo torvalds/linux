@@ -3863,7 +3863,43 @@ static int gfx_v12_0_set_clockgating_state(void *handle,
 
 static void gfx_v12_0_get_clockgating_state(void *handle, u64 *flags)
 {
-	/* TODO */
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int data;
+
+	/* AMD_CG_SUPPORT_GFX_MGCG */
+	data = RREG32_SOC15(GC, 0, regRLC_CGTT_MGCG_OVERRIDE);
+	if (!(data & RLC_CGTT_MGCG_OVERRIDE__GFXIP_MGCG_OVERRIDE_MASK))
+		*flags |= AMD_CG_SUPPORT_GFX_MGCG;
+
+	/* AMD_CG_SUPPORT_REPEATER_FGCG */
+	if (!(data & RLC_CGTT_MGCG_OVERRIDE__GFXIP_REPEATER_FGCG_OVERRIDE_MASK))
+		*flags |= AMD_CG_SUPPORT_REPEATER_FGCG;
+
+	/* AMD_CG_SUPPORT_GFX_FGCG */
+	if (!(data & RLC_CGTT_MGCG_OVERRIDE__GFXIP_FGCG_OVERRIDE_MASK))
+		*flags |= AMD_CG_SUPPORT_GFX_FGCG;
+
+	/* AMD_CG_SUPPORT_GFX_PERF_CLK */
+	if (!(data & RLC_CGTT_MGCG_OVERRIDE__PERFMON_CLOCK_STATE_MASK))
+		*flags |= AMD_CG_SUPPORT_GFX_PERF_CLK;
+
+	/* AMD_CG_SUPPORT_GFX_CGCG */
+	data = RREG32_SOC15(GC, 0, regRLC_CGCG_CGLS_CTRL);
+	if (data & RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_GFX_CGCG;
+
+	/* AMD_CG_SUPPORT_GFX_CGLS */
+	if (data & RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_GFX_CGLS;
+
+	/* AMD_CG_SUPPORT_GFX_3D_CGCG */
+	data = RREG32_SOC15(GC, 0, regRLC_CGCG_CGLS_CTRL_3D);
+	if (data & RLC_CGCG_CGLS_CTRL_3D__CGCG_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_GFX_3D_CGCG;
+
+	/* AMD_CG_SUPPORT_GFX_3D_CGLS */
+	if (data & RLC_CGCG_CGLS_CTRL_3D__CGLS_EN_MASK)
+		*flags |= AMD_CG_SUPPORT_GFX_3D_CGLS;
 }
 
 static u64 gfx_v12_0_ring_get_rptr_gfx(struct amdgpu_ring *ring)
