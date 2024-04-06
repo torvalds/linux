@@ -659,7 +659,7 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 		commit_flags |= BCH_WATERMARK_reclaim;
 
 	if (ck->journal.seq != journal_last_seq(j) ||
-	    j->watermark == BCH_WATERMARK_stripe)
+	    !test_bit(JOURNAL_SPACE_LOW, &c->journal.flags))
 		commit_flags |= BCH_TRANS_COMMIT_no_journal_res;
 
 	ret   = bch2_btree_iter_traverse(&b_iter) ?:
