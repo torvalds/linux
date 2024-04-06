@@ -794,14 +794,6 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 	return k;
 }
 
-#define for_each_btree_key_old(_trans, _iter, _btree_id,		\
-			   _start, _flags, _k, _ret)			\
-	for (bch2_trans_iter_init((_trans), &(_iter), (_btree_id),	\
-				  (_start), (_flags));			\
-	     (_k) = __bch2_btree_iter_peek_and_restart((_trans), &(_iter), _flags),\
-	     !((_ret) = bkey_err(_k)) && (_k).k;			\
-	     bch2_btree_iter_advance(&(_iter)))
-
 #define for_each_btree_key_upto_norestart(_trans, _iter, _btree_id,	\
 			   _start, _end, _flags, _k, _ret)		\
 	for (bch2_trans_iter_init((_trans), &(_iter), (_btree_id),	\
