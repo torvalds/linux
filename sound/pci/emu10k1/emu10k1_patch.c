@@ -53,8 +53,14 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 
 	/* compute true data size to be loaded */
 	truesize = sp->v.size + BLANK_HEAD_SIZE;
-	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_NO_BLANK)
+	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_NO_BLANK) {
 		truesize += BLANK_LOOP_SIZE;
+		/* if no blank loop is attached in the sample, add it */
+		if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_SINGLESHOT) {
+			sp->v.loopstart = sp->v.end + BLANK_LOOP_START;
+			sp->v.loopend = sp->v.end + BLANK_LOOP_END;
+		}
+	}
 
 	/* try to allocate a memory block */
 	blocksize = truesize;
@@ -92,14 +98,6 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	/* clear rest of samples (if any) */
 	if (offset < blocksize)
 		snd_emu10k1_synth_memset(emu, sp->block, offset, blocksize - offset, fill);
-
-	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_NO_BLANK) {
-		/* if no blank loop is attached in the sample, add it */
-		if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_SINGLESHOT) {
-			sp->v.loopstart = sp->v.end + BLANK_LOOP_START;
-			sp->v.loopend = sp->v.end + BLANK_LOOP_END;
-		}
-	}
 
 	/* recalculate offset */
 	start_addr = BLANK_HEAD_SIZE * 2;
