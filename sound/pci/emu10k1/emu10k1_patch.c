@@ -28,6 +28,7 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 {
 	u8 fill;
 	u32 xor;
+	int shift;
 	int offset;
 	int truesize, size, blocksize;
 	struct snd_emu10k1 *emu;
@@ -43,9 +44,11 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	}
 
 	if (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS) {
+		shift = 0;
 		fill = 0x80;
 		xor = (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_UNSIGNED) ? 0 : 0x80808080;
 	} else {
+		shift = 1;
 		fill = 0;
 		xor = (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_UNSIGNED) ? 0x80008000 : 0;
 	}
@@ -68,9 +71,7 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	sp->v.loopend += BLANK_HEAD_SIZE;
 
 	/* try to allocate a memory block */
-	blocksize = truesize;
-	if (! (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS))
-		blocksize *= 2;
+	blocksize = truesize << shift;
 	sp->block = snd_emu10k1_synth_alloc(emu, blocksize);
 	if (sp->block == NULL) {
 		dev_dbg(emu->card->dev,
@@ -83,16 +84,12 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 
 	/* write blank samples at head */
 	offset = 0;
-	size = BLANK_HEAD_SIZE;
-	if (! (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS))
-		size *= 2;
+	size = BLANK_HEAD_SIZE << shift;
 	snd_emu10k1_synth_memset(emu, sp->block, offset, size, fill);
 	offset += size;
 
 	/* copy provided samples */
-	size = sp->v.size;
-	if (! (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS))
-		size *= 2;
+	size = sp->v.size << shift;
 	if (snd_emu10k1_synth_copy_from_user(emu, sp->block, offset, data, size, xor)) {
 		snd_emu10k1_synth_free(emu, sp->block);
 		sp->block = NULL;
