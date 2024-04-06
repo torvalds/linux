@@ -238,7 +238,6 @@ static void guc_submit_fini(struct drm_device *drm, void *arg)
 
 	xa_destroy(&guc->submission_state.exec_queue_lookup);
 	free_submit_wq(guc);
-	mutex_destroy(&guc->submission_state.lock);
 }
 
 static const struct xe_exec_queue_ops guc_exec_queue_ops;
@@ -263,13 +262,16 @@ int xe_guc_submit_init(struct xe_guc *guc)
 	struct xe_gt *gt = guc_to_gt(guc);
 	int err;
 
+	err = drmm_mutex_init(&xe->drm, &guc->submission_state.lock);
+	if (err)
+		return err;
+
 	err = alloc_submit_wq(guc);
 	if (err)
 		return err;
 
 	gt->exec_queue_ops = &guc_exec_queue_ops;
 
-	mutex_init(&guc->submission_state.lock);
 	xa_init(&guc->submission_state.exec_queue_lookup);
 
 	spin_lock_init(&guc->submission_state.suspend.lock);
