@@ -202,6 +202,10 @@
 	};
 };
 
+&pm8941_vib {
+	status = "okay";
+};
+
 &remoteproc_adsp {
 	cx-supply = <&pm8841_s2>;
 	status = "okay";
