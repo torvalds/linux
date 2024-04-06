@@ -418,4 +418,7 @@ LIBBPF_1.4.0 {
 } LIBBPF_1.3.0;
 
 LIBBPF_1.5.0 {
+	global:
+		ring__consume_n;
+		ring_buffer__consume_n;
 } LIBBPF_1.4.0;
