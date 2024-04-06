@@ -9,3 +9,11 @@
 	compatible = "samsung,fortuna3g", "qcom,msm8916";
 	chassis-type = "handset";
 };
+
+&st_accel {
+	status = "okay";
+};
+
+&st_magn {
+	status = "okay";
+};

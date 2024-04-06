@@ -158,6 +158,39 @@
 
 		status = "disabled";
 	};
+
+	st_accel: accelerometer@1d {
+		compatible = "st,lsm303c-accel";
+		reg = <0x1d>;
+		interrupts-extended = <&tlmm 115 IRQ_TYPE_LEVEL_HIGH>;
+
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l5>;
+
+		pinctrl-0 = <&accel_int_default>;
+		pinctrl-names = "default";
+
+		st,drdy-int-pin = <1>;
+		mount-matrix = "0", "-1",  "0",
+			       "1",  "0",  "0",
+			       "0",  "0", "-1";
+
+		status = "disabled";
+	};
+
+	st_magn: magnetometer@1e {
+		compatible = "st,lsm303c-magn";
+		reg = <0x1e>;
+
+		vdd-supply = <&pm8916_l17>;
+		vddio-supply = <&pm8916_l5>;
+
+		mount-matrix = "0", "-1",  "0",
+			       "1",  "0",  "0",
+			       "0",  "0", "-1";
+
+		status = "disabled";
+	};
 };
 
 &blsp_i2c4 {
