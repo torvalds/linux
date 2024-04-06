@@ -31,6 +31,7 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	int shift;
 	int offset;
 	int truesize, size, blocksize;
+	int loop_start, loop_end, loop_size, data_end, unroll;
 	struct snd_emu10k1 *emu;
 
 	emu = rec->hw;
@@ -64,11 +65,34 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 		}
 	}
 
+	loop_start = sp->v.loopstart;
+	loop_end = sp->v.loopend;
+	loop_size = loop_end - loop_start;
+	if (!loop_size)
+		return -EINVAL;
+	data_end = sp->v.end;
+
 	/* recalculate offset */
 	sp->v.start += BLANK_HEAD_SIZE;
 	sp->v.end += BLANK_HEAD_SIZE;
 	sp->v.loopstart += BLANK_HEAD_SIZE;
 	sp->v.loopend += BLANK_HEAD_SIZE;
+
+	// Automatic pre-filling of the cache does not work in the presence
+	// of loops (*), and we don't want to fill it manually, as that is
+	// fiddly and slow. So we unroll the loop until the loop end is
+	// beyond the cache size.
+	// (*) Strictly speaking, a single iteration is supported (that's
+	// how it works when the playback engine runs), but handling this
+	// special case is not worth it.
+	unroll = 0;
+	while (sp->v.loopend < 64) {
+		truesize += loop_size;
+		sp->v.loopstart += loop_size;
+		sp->v.loopend += loop_size;
+		sp->v.end += loop_size;
+		unroll++;
+	}
 
 	/* try to allocate a memory block */
 	blocksize = truesize << shift;
@@ -89,12 +113,26 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	offset += size;
 
 	/* copy provided samples */
-	size = sp->v.size << shift;
-	if (snd_emu10k1_synth_copy_from_user(emu, sp->block, offset, data, size, xor)) {
-		snd_emu10k1_synth_free(emu, sp->block);
-		sp->block = NULL;
-		return -EFAULT;
+	if (unroll && loop_end <= data_end) {
+		size = loop_end << shift;
+		if (snd_emu10k1_synth_copy_from_user(emu, sp->block, offset, data, size, xor))
+			goto faulty;
+		offset += size;
+
+		data += loop_start << shift;
+		while (--unroll > 0) {
+			size = loop_size << shift;
+			if (snd_emu10k1_synth_copy_from_user(emu, sp->block, offset, data, size, xor))
+				goto faulty;
+			offset += size;
+		}
+
+		size = (data_end - loop_start) << shift;
+	} else {
+		size = data_end << shift;
 	}
+	if (snd_emu10k1_synth_copy_from_user(emu, sp->block, offset, data, size, xor))
+		goto faulty;
 	offset += size;
 
 	/* clear rest of samples (if any) */
@@ -102,6 +140,11 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 		snd_emu10k1_synth_memset(emu, sp->block, offset, blocksize - offset, fill);
 
 	return 0;
+
+faulty:
+	snd_emu10k1_synth_free(emu, sp->block);
+	sp->block = NULL;
+	return -EFAULT;
 }
 
 /*
