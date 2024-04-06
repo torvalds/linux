@@ -23,13 +23,13 @@ Documentation/translations/zh_CN/dev-tools/testing-overview.rst
    gcov
    kasan
    ubsan
+   kmemleak
    gdb-kernel-debugging
 
 Todolist:
 
  - coccinelle
  - kcov
- - kmemleak
  - kcsan
  - kfence
  - kgdb
