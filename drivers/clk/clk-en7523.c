@@ -3,8 +3,8 @@
 #include <linux/delay.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 #include <dt-bindings/clock/en7523-clk.h>
 
 #define REG_PCI_CONTROL			0x88
@@ -45,6 +45,10 @@ struct en_clk_desc {
 struct en_clk_gate {
 	void __iomem *base;
 	struct clk_hw hw;
+};
+
+struct en_clk_soc_data {
+	const struct clk_ops pcie_ops;
 };
 
 static const u32 gsw_base[] = { 400000000, 500000000 };
@@ -145,11 +149,6 @@ static const struct en_clk_desc en7523_base_clks[] = {
 	}
 };
 
-static const struct of_device_id of_match_clk_en7523[] = {
-	{ .compatible = "airoha,en7523-scu", },
-	{ /* sentinel */ }
-};
-
 static unsigned int en7523_get_base_rate(void __iomem *base, unsigned int i)
 {
 	const struct en_clk_desc *desc = &en7523_base_clks[i];
@@ -247,14 +246,10 @@ static void en7523_pci_unprepare(struct clk_hw *hw)
 static struct clk_hw *en7523_register_pcie_clk(struct device *dev,
 					       void __iomem *np_base)
 {
-	static const struct clk_ops pcie_gate_ops = {
-		.is_enabled = en7523_pci_is_enabled,
-		.prepare = en7523_pci_prepare,
-		.unprepare = en7523_pci_unprepare,
-	};
+	const struct en_clk_soc_data *soc_data = device_get_match_data(dev);
 	struct clk_init_data init = {
 		.name = "pcie",
-		.ops = &pcie_gate_ops,
+		.ops = &soc_data->pcie_ops,
 	};
 	struct en_clk_gate *cg;
 
@@ -264,7 +259,7 @@ static struct clk_hw *en7523_register_pcie_clk(struct device *dev,
 
 	cg->base = np_base;
 	cg->hw.init = &init;
-	en7523_pci_unprepare(&cg->hw);
+	init.ops->unprepare(&cg->hw);
 
 	if (clk_hw_register(dev, &cg->hw))
 		return NULL;
@@ -332,6 +327,19 @@ static int en7523_clk_probe(struct platform_device *pdev)
 
 	return r;
 }
+
+static const struct en_clk_soc_data en7523_data = {
+	.pcie_ops = {
+		.is_enabled = en7523_pci_is_enabled,
+		.prepare = en7523_pci_prepare,
+		.unprepare = en7523_pci_unprepare,
+	},
+};
+
+static const struct of_device_id of_match_clk_en7523[] = {
+	{ .compatible = "airoha,en7523-scu", .data = &en7523_data },
+	{ /* sentinel */ }
+};
 
 static struct platform_driver clk_en7523_drv = {
 	.probe = en7523_clk_probe,
