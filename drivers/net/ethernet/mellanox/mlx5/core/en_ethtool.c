@@ -996,8 +996,8 @@ static void get_lp_advertising(struct mlx5_core_dev *mdev, u32 eth_proto_lp,
 	ptys2ethtool_adver_link(lp_advertising, eth_proto_lp, ext);
 }
 
-int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
-				     struct ethtool_link_ksettings *link_ksettings)
+static int mlx5e_ethtool_get_link_ksettings(struct mlx5e_priv *priv,
+					    struct ethtool_link_ksettings *link_ksettings)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	u32 out[MLX5_ST_SZ_DW(ptys_reg)] = {};
@@ -1167,8 +1167,8 @@ static bool ext_requested(u8 autoneg, const unsigned long *adver, bool ext_suppo
 	return  autoneg == AUTONEG_ENABLE ? ext_link_mode : ext_supported;
 }
 
-int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
-				     const struct ethtool_link_ksettings *link_ksettings)
+static int mlx5e_ethtool_set_link_ksettings(struct mlx5e_priv *priv,
+					    const struct ethtool_link_ksettings *link_ksettings)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5_port_eth_proto eproto;
@@ -1268,7 +1268,7 @@ static u32 mlx5e_get_rxfh_indir_size(struct net_device *netdev)
 	return mlx5e_ethtool_get_rxfh_indir_size(priv);
 }
 
-int mlx5e_get_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *rxfh)
+static int mlx5e_get_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *rxfh)
 {
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 	u32 rss_context = rxfh->rss_context;
@@ -1281,8 +1281,8 @@ int mlx5e_get_rxfh(struct net_device *netdev, struct ethtool_rxfh_param *rxfh)
 	return err;
 }
 
-int mlx5e_set_rxfh(struct net_device *dev, struct ethtool_rxfh_param *rxfh,
-		   struct netlink_ext_ack *extack)
+static int mlx5e_set_rxfh(struct net_device *dev, struct ethtool_rxfh_param *rxfh,
+			  struct netlink_ext_ack *extack)
 {
 	struct mlx5e_priv *priv = netdev_priv(dev);
 	u32 *rss_context = &rxfh->rss_context;
@@ -1411,8 +1411,8 @@ static void mlx5e_get_pause_stats(struct net_device *netdev,
 	mlx5e_stats_pause_get(priv, pause_stats);
 }
 
-void mlx5e_ethtool_get_pauseparam(struct mlx5e_priv *priv,
-				  struct ethtool_pauseparam *pauseparam)
+static void mlx5e_ethtool_get_pauseparam(struct mlx5e_priv *priv,
+					 struct ethtool_pauseparam *pauseparam)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;
@@ -1433,8 +1433,8 @@ static void mlx5e_get_pauseparam(struct net_device *netdev,
 	mlx5e_ethtool_get_pauseparam(priv, pauseparam);
 }
 
-int mlx5e_ethtool_set_pauseparam(struct mlx5e_priv *priv,
-				 struct ethtool_pauseparam *pauseparam)
+static int mlx5e_ethtool_set_pauseparam(struct mlx5e_priv *priv,
+					struct ethtool_pauseparam *pauseparam)
 {
 	struct mlx5_core_dev *mdev = priv->mdev;
 	int err;

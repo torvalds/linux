@@ -9817,7 +9817,21 @@ struct mlx5_ifc_pplm_reg_bits {
 	u8         fec_override_admin_100g_2x[0x10];
 	u8         fec_override_admin_50g_1x[0x10];
 
-	u8         reserved_at_140[0x140];
+	u8         fec_override_cap_800g_8x[0x10];
+	u8         fec_override_cap_400g_4x[0x10];
+
+	u8         fec_override_cap_200g_2x[0x10];
+	u8         fec_override_cap_100g_1x[0x10];
+
+	u8         reserved_at_180[0xa0];
+
+	u8         fec_override_admin_800g_8x[0x10];
+	u8         fec_override_admin_400g_4x[0x10];
+
+	u8         fec_override_admin_200g_2x[0x10];
+	u8         fec_override_admin_100g_1x[0x10];
+
+	u8         reserved_at_260[0x20];
 };
 
 struct mlx5_ifc_ppcnt_reg_bits {
@@ -10189,7 +10203,9 @@ struct mlx5_ifc_mtutc_reg_bits {
 };
 
 struct mlx5_ifc_pcam_enhanced_features_bits {
-	u8         reserved_at_0[0x68];
+	u8         reserved_at_0[0x48];
+	u8         fec_100G_per_lane_in_pplm[0x1];
+	u8         reserved_at_49[0x1f];
 	u8         fec_50G_per_lane_in_pplm[0x1];
 	u8         reserved_at_69[0x4];
 	u8         rx_icrc_encapsulated_counter[0x1];
