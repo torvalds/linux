@@ -65,8 +65,6 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	size = BLANK_HEAD_SIZE;
 	if (! (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS))
 		size *= 2;
-	if (offset + size > blocksize)
-		return -EINVAL;
 	snd_emu10k1_synth_bzero(emu, sp->block, offset, size);
 	offset += size;
 
@@ -74,8 +72,6 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	size = sp->v.size;
 	if (! (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS))
 		size *= 2;
-	if (offset + size > blocksize)
-		return -EINVAL;
 	if (snd_emu10k1_synth_copy_from_user(emu, sp->block, offset, data, size)) {
 		snd_emu10k1_synth_free(emu, sp->block);
 		sp->block = NULL;

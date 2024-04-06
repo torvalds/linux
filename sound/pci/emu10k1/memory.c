@@ -574,6 +574,9 @@ int snd_emu10k1_synth_bzero(struct snd_emu10k1 *emu, struct snd_util_memblk *blk
 	void *ptr;
 	struct snd_emu10k1_memblk *p = (struct snd_emu10k1_memblk *)blk;
 
+	if (snd_BUG_ON(offset + size > p->mem.size))
+		return -EFAULT;
+
 	offset += blk->offset & (PAGE_SIZE - 1);
 	end_offset = offset + size;
 	page = get_aligned_page(offset);
@@ -603,6 +606,9 @@ int snd_emu10k1_synth_copy_from_user(struct snd_emu10k1 *emu, struct snd_util_me
 	int page, nextofs, end_offset, temp, temp1;
 	void *ptr;
 	struct snd_emu10k1_memblk *p = (struct snd_emu10k1_memblk *)blk;
+
+	if (snd_BUG_ON(offset + size > p->mem.size))
+		return -EFAULT;
 
 	offset += blk->offset & (PAGE_SIZE - 1);
 	end_offset = offset + size;
