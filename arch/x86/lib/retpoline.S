@@ -228,8 +228,11 @@ SYM_CODE_END(srso_return_thunk)
 #else /* !CONFIG_MITIGATION_SRSO */
 /* Dummy for the alternative in CALL_UNTRAIN_RET. */
 SYM_CODE_START(srso_alias_untrain_ret)
-	RET
+	ANNOTATE_UNRET_SAFE
+	ret
+	int3
 SYM_FUNC_END(srso_alias_untrain_ret)
+__EXPORT_THUNK(srso_alias_untrain_ret)
 #define JMP_SRSO_UNTRAIN_RET "ud2"
 #endif /* CONFIG_MITIGATION_SRSO */
 

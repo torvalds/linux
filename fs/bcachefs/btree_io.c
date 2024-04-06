@@ -654,6 +654,7 @@ void bch2_btree_node_drop_keys_outside_node(struct btree *b)
 	 */
 	bch2_bset_set_no_aux_tree(b, b->set);
 	bch2_btree_build_aux_trees(b);
+	b->nr = bch2_btree_node_count_keys(b);
 
 	struct bkey_s_c k;
 	struct bkey unpacked;
@@ -1263,10 +1264,12 @@ out:
 	return retry_read;
 fsck_err:
 	if (ret == -BCH_ERR_btree_node_read_err_want_retry ||
-	    ret == -BCH_ERR_btree_node_read_err_must_retry)
+	    ret == -BCH_ERR_btree_node_read_err_must_retry) {
 		retry_read = 1;
-	else
+	} else {
 		set_btree_node_read_error(b);
+		bch2_btree_lost_data(c, b->c.btree_id);
+	}
 	goto out;
 }
 
@@ -1327,6 +1330,7 @@ start:
 
 		if (!can_retry) {
 			set_btree_node_read_error(b);
+			bch2_btree_lost_data(c, b->c.btree_id);
 			break;
 		}
 	}
@@ -1526,9 +1530,10 @@ fsck_err:
 		ret = -1;
 	}
 
-	if (ret)
+	if (ret) {
 		set_btree_node_read_error(b);
-	else if (*saw_error)
+		bch2_btree_lost_data(c, b->c.btree_id);
+	} else if (*saw_error)
 		bch2_btree_node_rewrite_async(c, b);
 
 	for (i = 0; i < ra->nr; i++) {
@@ -1657,13 +1662,14 @@ void bch2_btree_node_read(struct btree_trans *trans, struct btree *b,
 
 		prt_str(&buf, "btree node read error: no device to read from\n at ");
 		bch2_btree_pos_to_text(&buf, c, b);
-		bch_err(c, "%s", buf.buf);
+		bch_err_ratelimited(c, "%s", buf.buf);
 
 		if (c->recovery_passes_explicit & BIT_ULL(BCH_RECOVERY_PASS_check_topology) &&
 		    c->curr_recovery_pass > BCH_RECOVERY_PASS_check_topology)
 			bch2_fatal_error(c);
 
 		set_btree_node_read_error(b);
+		bch2_btree_lost_data(c, b->c.btree_id);
 		clear_btree_node_read_in_flight(b);
 		wake_up_bit(&b->flags, BTREE_NODE_read_in_flight);
 		printbuf_exit(&buf);
@@ -1860,7 +1866,7 @@ static void btree_node_write_work(struct work_struct *work)
 	} else {
 		ret = bch2_trans_do(c, NULL, NULL, 0,
 			bch2_btree_node_update_key_get_iter(trans, b, &wbio->key,
-					BCH_WATERMARK_reclaim|
+					BCH_WATERMARK_interior_updates|
 					BCH_TRANS_COMMIT_journal_reclaim|
 					BCH_TRANS_COMMIT_no_enospc|
 					BCH_TRANS_COMMIT_no_check_rw,

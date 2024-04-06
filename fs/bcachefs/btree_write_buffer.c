@@ -11,6 +11,7 @@
 #include "journal_reclaim.h"
 
 #include <linux/prefetch.h>
+#include <linux/sort.h>
 
 static int bch2_btree_write_buffer_journal_flush(struct journal *,
 				struct journal_entry_pin *, u64);
@@ -44,6 +45,14 @@ static inline bool wb_key_ref_cmp(const struct wb_key_ref *l, const struct wb_ke
 #else
 	return __wb_key_ref_cmp(l, r);
 #endif
+}
+
+static int wb_key_seq_cmp(const void *_l, const void *_r)
+{
+	const struct btree_write_buffered_key *l = _l;
+	const struct btree_write_buffered_key *r = _r;
+
+	return cmp_int(l->journal_seq, r->journal_seq);
 }
 
 /* Compare excluding idx, the low 24 bits: */
@@ -356,6 +365,11 @@ static int bch2_btree_write_buffer_flush_locked(struct btree_trans *trans)
 		 * we can skip those here.
 		 */
 		trace_and_count(c, write_buffer_flush_slowpath, trans, slowpath, wb->flushing.keys.nr);
+
+		sort(wb->flushing.keys.data,
+		     wb->flushing.keys.nr,
+		     sizeof(wb->flushing.keys.data[0]),
+		     wb_key_seq_cmp, NULL);
 
 		darray_for_each(wb->flushing.keys, i) {
 			if (!i->journal_seq)

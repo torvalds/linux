@@ -662,14 +662,15 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz,
 {
 	int result;
 
-	tz->thermal_zone = thermal_zone_device_register_with_trips("acpitz",
-								   trip_table,
-								   trip_count,
-								   tz,
-								   &acpi_thermal_zone_ops,
-								   NULL,
-								   passive_delay,
-								   tz->polling_frequency * 100);
+	if (trip_count)
+		tz->thermal_zone = thermal_zone_device_register_with_trips(
+					"acpitz", trip_table, trip_count, tz,
+					&acpi_thermal_zone_ops, NULL, passive_delay,
+					tz->polling_frequency * 100);
+	else
+		tz->thermal_zone = thermal_tripless_zone_device_register(
+					"acpitz", tz, &acpi_thermal_zone_ops, NULL);
+
 	if (IS_ERR(tz->thermal_zone))
 		return PTR_ERR(tz->thermal_zone);
 
@@ -901,11 +902,8 @@ static int acpi_thermal_add(struct acpi_device *device)
 		trip++;
 	}
 
-	if (trip == trip_table) {
+	if (trip == trip_table)
 		pr_warn(FW_BUG "No valid trip points!\n");
-		result = -ENODEV;
-		goto free_memory;
-	}
 
 	result = acpi_thermal_register_thermal_zone(tz, trip_table,
 						    trip - trip_table,

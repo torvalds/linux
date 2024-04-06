@@ -318,7 +318,7 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 		!(i->flags & BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) &&
 		test_bit(JOURNAL_REPLAY_DONE, &trans->c->journal.flags) &&
 		i->k->k.p.snapshot &&
-		bch2_snapshot_is_internal_node(trans->c, i->k->k.p.snapshot));
+		bch2_snapshot_is_internal_node(trans->c, i->k->k.p.snapshot) > 0);
 }
 
 static __always_inline int bch2_trans_journal_res_get(struct btree_trans *trans,
@@ -887,6 +887,7 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 			    int ret, unsigned long trace_ip)
 {
 	struct bch_fs *c = trans->c;
+	enum bch_watermark watermark = flags & BCH_WATERMARK_MASK;
 
 	switch (ret) {
 	case -BCH_ERR_btree_insert_btree_node_full:
@@ -905,7 +906,7 @@ int bch2_trans_commit_error(struct btree_trans *trans, unsigned flags,
 		 * flag
 		 */
 		if ((flags & BCH_TRANS_COMMIT_journal_reclaim) &&
-		    (flags & BCH_WATERMARK_MASK) != BCH_WATERMARK_reclaim) {
+		    watermark < BCH_WATERMARK_reclaim) {
 			ret = -BCH_ERR_journal_reclaim_would_deadlock;
 			break;
 		}
