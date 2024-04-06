@@ -1614,7 +1614,7 @@ struct dmub_rb_cmd_idle_opt_dcn_restore {
  */
 struct dmub_dcn_notify_idle_cntl_data {
 	uint8_t driver_idle;
-	uint8_t pad[1];
+	uint8_t reserved[59];
 };
 
 /**
@@ -2335,6 +2335,11 @@ enum phy_link_rate {
 	 * UHBR10 - 20.0 Gbps/Lane
 	 */
 	PHY_RATE_2000 = 11,
+
+	PHY_RATE_675 = 12,
+	/**
+	 * Rate 12 - 6.75 Gbps/Lane
+	 */
 };
 
 /**
@@ -3062,6 +3067,11 @@ enum dmub_cmd_replay_type {
 	 * Set pseudo vtotal
 	 */
 	DMUB_CMD__REPLAY_SET_PSEUDO_VTOTAL = 7,
+	/**
+	 * Set adaptive sync sdp enabled
+	 */
+	DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP = 8,
+
 };
 
 /**
@@ -3263,6 +3273,20 @@ struct dmub_cmd_replay_set_pseudo_vtotal {
 	 */
 	uint8_t pad;
 };
+struct dmub_cmd_replay_disabled_adaptive_sync_sdp_data {
+	/**
+	 * Panel Instance.
+	 * Panel isntance to identify which replay_state to use
+	 * Currently the support is only for 0 or 1
+	 */
+	uint8_t panel_inst;
+	/**
+	 * enabled: set adaptive sync sdp enabled
+	 */
+	uint8_t force_disabled;
+
+	uint8_t pad[2];
+};
 
 /**
  * Definition of a DMUB_CMD__SET_REPLAY_POWER_OPT command.
@@ -3367,6 +3391,20 @@ struct dmub_rb_cmd_replay_set_pseudo_vtotal {
 };
 
 /**
+ * Definition of a DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP command.
+ */
+struct dmub_rb_cmd_replay_disabled_adaptive_sync_sdp {
+	/**
+	 * Command header.
+	 */
+	struct dmub_cmd_header header;
+	/**
+	 * Definition of DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP command.
+	 */
+	struct dmub_cmd_replay_disabled_adaptive_sync_sdp_data data;
+};
+
+/**
  * Data passed from driver to FW in  DMUB_CMD__REPLAY_SET_RESIDENCY_FRAMEUPDATE_TIMER command.
  */
 struct dmub_cmd_replay_frameupdate_timer_data {
@@ -3421,6 +3459,11 @@ union dmub_replay_cmd_set {
 	 * Definition of DMUB_CMD__REPLAY_SET_PSEUDO_VTOTAL command data.
 	 */
 	struct dmub_cmd_replay_set_pseudo_vtotal pseudo_vtotal_data;
+	/**
+	 * Definition of DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP command data.
+	 */
+	struct dmub_cmd_replay_disabled_adaptive_sync_sdp_data disabled_adaptive_sync_sdp_data;
+
 };
 
 /**
@@ -4096,6 +4139,10 @@ enum dmub_cmd_panel_cntl_type {
 	 * Queries backlight info for the embedded panel.
 	 */
 	DMUB_CMD__PANEL_CNTL_QUERY_BACKLIGHT_INFO = 1,
+	/**
+	 * Sets the PWM Freq as per user's requirement.
+	 */
+	DMUB_CMD__PANEL_DEBUG_PWM_FREQ = 2,
 };
 
 /**
@@ -4667,6 +4714,10 @@ union dmub_rb_cmd {
 	 * Definition of a DMUB_CMD__REPLAY_SET_PSEUDO_VTOTAL command.
 	 */
 	struct dmub_rb_cmd_replay_set_pseudo_vtotal replay_set_pseudo_vtotal;
+	/**
+	 * Definition of a DMUB_CMD__REPLAY_DISABLED_ADAPTIVE_SYNC_SDP command.
+	 */
+	struct dmub_rb_cmd_replay_disabled_adaptive_sync_sdp replay_disabled_adaptive_sync_sdp;
 	/**
 	 * Definition of a DMUB_CMD__PSP_ASSR_ENABLE command.
 	 */
