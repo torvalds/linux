@@ -472,6 +472,9 @@ static inline u64 avail_factor(u64 r)
 	return div_u64(r << RESERVE_FACTOR, (1 << RESERVE_FACTOR) + 1);
 }
 
+void bch2_buckets_nouse_free(struct bch_fs *);
+int bch2_buckets_nouse_alloc(struct bch_fs *);
+
 int bch2_dev_buckets_resize(struct bch_fs *, struct bch_dev *, u64);
 void bch2_dev_buckets_free(struct bch_dev *);
 int bch2_dev_buckets_alloc(struct bch_fs *, struct bch_dev *);

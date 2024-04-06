@@ -531,9 +531,7 @@ int bch2_fs_read_write_early(struct bch_fs *c)
 
 static void __bch2_fs_free(struct bch_fs *c)
 {
-	unsigned i;
-
-	for (i = 0; i < BCH_TIME_STAT_NR; i++)
+	for (unsigned i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_exit(&c->times[i]);
 
 	bch2_find_btree_nodes_exit(&c->found_btree_nodes);
@@ -1189,6 +1187,7 @@ static void bch2_dev_free(struct bch_dev *ca)
 	if (ca->kobj.state_in_sysfs)
 		kobject_del(&ca->kobj);
 
+	kfree(ca->buckets_nouse);
 	bch2_free_super(&ca->disk_sb);
 	bch2_dev_journal_exit(ca);
 

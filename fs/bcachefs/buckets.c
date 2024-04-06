@@ -1519,6 +1519,31 @@ recalculate:
 
 /* Startup/shutdown: */
 
+void bch2_buckets_nouse_free(struct bch_fs *c)
+{
+	for_each_member_device(c, ca) {
+		kvfree_rcu_mightsleep(ca->buckets_nouse);
+		ca->buckets_nouse = NULL;
+	}
+}
+
+int bch2_buckets_nouse_alloc(struct bch_fs *c)
+{
+	for_each_member_device(c, ca) {
+		BUG_ON(ca->buckets_nouse);
+
+		ca->buckets_nouse = kvmalloc(BITS_TO_LONGS(ca->mi.nbuckets) *
+					    sizeof(unsigned long),
+					    GFP_KERNEL|__GFP_ZERO);
+		if (!ca->buckets_nouse) {
+			percpu_ref_put(&ca->ref);
+			return -BCH_ERR_ENOMEM_buckets_nouse;
+		}
+	}
+
+	return 0;
+}
+
 static void bucket_gens_free_rcu(struct rcu_head *rcu)
 {
 	struct bucket_gens *buckets =
@@ -1530,21 +1555,14 @@ static void bucket_gens_free_rcu(struct rcu_head *rcu)
 int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 {
 	struct bucket_gens *bucket_gens = NULL, *old_bucket_gens = NULL;
-	unsigned long *buckets_nouse = NULL;
 	bool resize = ca->bucket_gens != NULL;
 	int ret;
+
+	BUG_ON(resize && ca->buckets_nouse);
 
 	if (!(bucket_gens	= kvmalloc(sizeof(struct bucket_gens) + nbuckets,
 					   GFP_KERNEL|__GFP_ZERO))) {
 		ret = -BCH_ERR_ENOMEM_bucket_gens;
-		goto err;
-	}
-
-	if ((c->opts.buckets_nouse &&
-	     !(buckets_nouse	= kvmalloc(BITS_TO_LONGS(nbuckets) *
-					   sizeof(unsigned long),
-					   GFP_KERNEL|__GFP_ZERO)))) {
-		ret = -BCH_ERR_ENOMEM_buckets_nouse;
 		goto err;
 	}
 
@@ -1565,16 +1583,10 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 		memcpy(bucket_gens->b,
 		       old_bucket_gens->b,
 		       n);
-		if (buckets_nouse)
-			memcpy(buckets_nouse,
-			       ca->buckets_nouse,
-			       BITS_TO_LONGS(n) * sizeof(unsigned long));
 	}
 
 	rcu_assign_pointer(ca->bucket_gens, bucket_gens);
 	bucket_gens	= old_bucket_gens;
-
-	swap(ca->buckets_nouse, buckets_nouse);
 
 	nbuckets = ca->mi.nbuckets;
 
@@ -1586,7 +1598,6 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 
 	ret = 0;
 err:
-	kvfree(buckets_nouse);
 	if (bucket_gens)
 		call_rcu(&bucket_gens->rcu, bucket_gens_free_rcu);
 
