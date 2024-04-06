@@ -1237,11 +1237,20 @@ Kernel response contents:
   ``ETHTOOL_A_TSINFO_TX_TYPES``          bitset  supported Tx types
   ``ETHTOOL_A_TSINFO_RX_FILTERS``        bitset  supported Rx filters
   ``ETHTOOL_A_TSINFO_PHC_INDEX``         u32     PTP hw clock index
+  ``ETHTOOL_A_TSINFO_STATS``             nested  HW timestamping statistics
   =====================================  ======  ==========================
 
 ``ETHTOOL_A_TSINFO_PHC_INDEX`` is absent if there is no associated PHC (there
 is no special value for this case). The bitset attributes are omitted if they
 would be empty (no bit set).
+
+Additional hardware timestamping statistics response contents:
+
+  =====================================  ======  ===================================
+  ``ETHTOOL_A_TS_STAT_TX_PKTS``          u64     Packets with Tx HW timestamps
+  ``ETHTOOL_A_TS_STAT_TX_LOST``          u64     Tx HW timestamp not arrived count
+  ``ETHTOOL_A_TS_STAT_TX_ERR``           u64     HW error request Tx timestamp count
+  =====================================  ======  ===================================
 
 CABLE_TEST
 ==========
