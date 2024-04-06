@@ -30,7 +30,6 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	u32 xor;
 	int offset;
 	int truesize, size, blocksize;
-	unsigned int start_addr;
 	struct snd_emu10k1 *emu;
 
 	emu = rec->hw;
@@ -61,6 +60,12 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 			sp->v.loopend = sp->v.end + BLANK_LOOP_END;
 		}
 	}
+
+	/* recalculate offset */
+	sp->v.start += BLANK_HEAD_SIZE;
+	sp->v.end += BLANK_HEAD_SIZE;
+	sp->v.loopstart += BLANK_HEAD_SIZE;
+	sp->v.loopend += BLANK_HEAD_SIZE;
 
 	/* try to allocate a memory block */
 	blocksize = truesize;
@@ -98,15 +103,6 @@ snd_emu10k1_sample_new(struct snd_emux *rec, struct snd_sf_sample *sp,
 	/* clear rest of samples (if any) */
 	if (offset < blocksize)
 		snd_emu10k1_synth_memset(emu, sp->block, offset, blocksize - offset, fill);
-
-	/* recalculate offset */
-	start_addr = BLANK_HEAD_SIZE * 2;
-	if (! (sp->v.mode_flags & SNDRV_SFNT_SAMPLE_8BITS))
-		start_addr >>= 1;
-	sp->v.start += start_addr;
-	sp->v.end += start_addr;
-	sp->v.loopstart += start_addr;
-	sp->v.loopend += start_addr;
 
 	return 0;
 }
