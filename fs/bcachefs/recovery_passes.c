@@ -26,11 +26,6 @@ const char * const bch2_recovery_passes[] = {
 	NULL
 };
 
-static int bch2_check_allocations(struct bch_fs *c)
-{
-	return bch2_gc(c, true, false);
-}
-
 static int bch2_set_may_go_rw(struct bch_fs *c)
 {
 	struct journal_keys *keys = &c->journal_keys;

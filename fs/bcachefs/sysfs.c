@@ -501,18 +501,8 @@ STORE(bch2_fs)
 	if (attr == &sysfs_btree_wakeup)
 		bch2_btree_wakeup_all(c);
 
-	if (attr == &sysfs_trigger_gc) {
-		/*
-		 * Full gc is currently incompatible with btree key cache:
-		 */
-#if 0
-		down_read(&c->state_lock);
-		bch2_gc(c, false, false);
-		up_read(&c->state_lock);
-#else
+	if (attr == &sysfs_trigger_gc)
 		bch2_gc_gens(c);
-#endif
-	}
 
 	if (attr == &sysfs_trigger_discards)
 		bch2_do_discards(c);

@@ -1756,7 +1756,7 @@ static void bch2_gc_stripes_reset(struct bch_fs *c, bool metadata_only)
  *    move around - if references move backwards in the ordering GC
  *    uses, GC could skip past them
  */
-int bch2_gc(struct bch_fs *c, bool initial, bool metadata_only)
+static int bch2_gc(struct bch_fs *c, bool initial, bool metadata_only)
 {
 	unsigned iter = 0;
 	int ret;
@@ -1841,6 +1841,11 @@ out:
 	closure_wake_up(&c->freelist_wait);
 	bch_err_fn(c, ret);
 	return ret;
+}
+
+int bch2_check_allocations(struct bch_fs *c)
+{
+	return bch2_gc(c, true, false);
 }
 
 static int gc_btree_gens_key(struct btree_trans *trans,
@@ -2024,14 +2029,7 @@ static int bch2_gc_thread(void *arg)
 		last = atomic64_read(&clock->now);
 		last_kick = atomic_read(&c->kick_gc);
 
-		/*
-		 * Full gc is currently incompatible with btree key cache:
-		 */
-#if 0
-		ret = bch2_gc(c, false, false);
-#else
 		bch2_gc_gens(c);
-#endif
 		debug_check_no_locks_held();
 	}
 
