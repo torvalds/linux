@@ -266,6 +266,10 @@ int xe_guc_submit_init(struct xe_guc *guc)
 	if (err)
 		return err;
 
+	err = xe_guc_id_mgr_init(&guc->submission_state.idm, ~0);
+	if (err)
+		return err;
+
 	err = alloc_submit_wq(guc);
 	if (err)
 		return err;
@@ -279,15 +283,7 @@ int xe_guc_submit_init(struct xe_guc *guc)
 
 	primelockdep(guc);
 
-	err = drmm_add_action_or_reset(&xe->drm, guc_submit_fini, guc);
-	if (err)
-		return err;
-
-	err = xe_guc_id_mgr_init(&guc->submission_state.idm, ~0);
-	if (err)
-		return err;
-
-	return 0;
+	return drmm_add_action_or_reset(&xe->drm, guc_submit_fini, guc);
 }
 
 static void __release_guc_id(struct xe_guc *guc, struct xe_exec_queue *q, u32 xa_count)
