@@ -21,6 +21,14 @@
 	};
 };
 
+&bosch_accel {
+	status = "okay";
+};
+
+&bosch_magn {
+	status = "okay";
+};
+
 &mpss_mem {
 	/* Firmware for gprimeltecan needs more space */
 	reg = <0x0 0x86800000 0x0 0x5400000>;
