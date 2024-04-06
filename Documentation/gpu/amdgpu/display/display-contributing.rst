@@ -135,7 +135,7 @@ Enable underlay
 ---------------
 
 AMD display has this feature called underlay (which you can read more about at
-'Documentation/GPU/amdgpu/display/mpo-overview.rst') which is intended to
+'Documentation/gpu/amdgpu/display/mpo-overview.rst') which is intended to
 save power when playing a video. The basic idea is to put a video in the
 underlay plane at the bottom and the desktop in the plane above it with a hole
 in the video area. This feature is enabled in ChromeOS, and from our data
