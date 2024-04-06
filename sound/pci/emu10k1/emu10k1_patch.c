@@ -16,7 +16,7 @@
 #define BLANK_LOOP_START	4
 #define BLANK_LOOP_END		8
 #define BLANK_LOOP_SIZE		12
-#define BLANK_HEAD_SIZE		32
+#define BLANK_HEAD_SIZE		3
 
 /*
  * allocate a sample block and copy data from userspace
