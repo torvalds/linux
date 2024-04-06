@@ -836,6 +836,11 @@ void bch2_btree_path_verify_locks(struct btree_path *path)
 {
 	unsigned l;
 
+	/*
+	 * A path may be uptodate and yet have nothing locked if and only if
+	 * there is no node at path->level, which generally means we were
+	 * iterating over all nodes and got to the end of the btree
+	 */
 	if (!path->nodes_locked) {
 		BUG_ON(path->uptodate == BTREE_ITER_UPTODATE &&
 		       btree_path_node(path, path->level));

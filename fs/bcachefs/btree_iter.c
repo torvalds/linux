@@ -1426,23 +1426,63 @@ void bch2_dump_trans_updates(struct btree_trans *trans)
 	printbuf_exit(&buf);
 }
 
-static void bch2_btree_path_to_text(struct printbuf *out, struct btree_trans *trans, btree_path_idx_t path_idx)
+static void bch2_btree_path_to_text_short(struct printbuf *out, struct btree_trans *trans, btree_path_idx_t path_idx)
 {
 	struct btree_path *path = trans->paths + path_idx;
 
-	prt_printf(out, "path: idx %2u ref %u:%u %c %c btree=%s l=%u pos ",
+	prt_printf(out, "path: idx %2u ref %u:%u %c %c %c btree=%s l=%u pos ",
 		   path_idx, path->ref, path->intent_ref,
 		   path->preserve ? 'P' : ' ',
 		   path->should_be_locked ? 'S' : ' ',
+		   path->cached ? 'C' : 'B',
 		   bch2_btree_id_str(path->btree_id),
 		   path->level);
 	bch2_bpos_to_text(out, path->pos);
 
-	prt_printf(out, " locks %u", path->nodes_locked);
 #ifdef TRACK_PATH_ALLOCATED
 	prt_printf(out, " %pS", (void *) path->ip_allocated);
 #endif
+}
+
+static const char *btree_node_locked_str(enum btree_node_locked_type t)
+{
+	switch (t) {
+	case BTREE_NODE_UNLOCKED:
+		return "unlocked";
+	case BTREE_NODE_READ_LOCKED:
+		return "read";
+	case BTREE_NODE_INTENT_LOCKED:
+		return "intent";
+	case BTREE_NODE_WRITE_LOCKED:
+		return "write";
+	default:
+		return NULL;
+	}
+}
+
+void bch2_btree_path_to_text(struct printbuf *out, struct btree_trans *trans, btree_path_idx_t path_idx)
+{
+	bch2_btree_path_to_text_short(out, trans, path_idx);
+
+	struct btree_path *path = trans->paths + path_idx;
+
+	prt_printf(out, " uptodate %u locks_want %u", path->uptodate, path->locks_want);
 	prt_newline(out);
+
+	printbuf_indent_add(out, 2);
+	for (unsigned l = 0; l < BTREE_MAX_DEPTH; l++) {
+		prt_printf(out, "l=%u locks %s seq %u node ", l,
+			   btree_node_locked_str(btree_node_locked_type(path, l)),
+			   path->l[l].lock_seq);
+
+		int ret = PTR_ERR_OR_ZERO(path->l[l].b);
+		if (ret)
+			prt_str(out, bch2_err_str(ret));
+		else
+			prt_printf(out, "%px", path->l[l].b);
+		prt_newline(out);
+	}
+	printbuf_indent_sub(out, 2);
 }
 
 static noinline __cold
@@ -1454,8 +1494,10 @@ void __bch2_trans_paths_to_text(struct printbuf *out, struct btree_trans *trans,
 	if (!nosort)
 		btree_trans_sort_paths(trans);
 
-	trans_for_each_path_idx_inorder(trans, iter)
-		bch2_btree_path_to_text(out, trans, iter.path_idx);
+	trans_for_each_path_idx_inorder(trans, iter) {
+		bch2_btree_path_to_text_short(out, trans, iter.path_idx);
+		prt_newline(out);
+	}
 }
 
 noinline __cold
