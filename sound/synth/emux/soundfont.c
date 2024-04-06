@@ -735,7 +735,7 @@ load_data(struct snd_sf_list *sflist, const void __user *data, long count)
 	sp->v = sample_info;
 	sp->v.sf_id = sf->id;
 	sp->v.dummy = 0;
-	sp->v.truesize = sp->v.size;
+	sp->v.truesize = 0;
 
 	/*
 	 * If there is wave data then load it.
