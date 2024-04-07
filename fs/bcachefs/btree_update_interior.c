@@ -44,8 +44,8 @@ static btree_path_idx_t get_unlocked_mut_path(struct btree_trans *trans,
 					      struct bpos pos)
 {
 	btree_path_idx_t path_idx = bch2_path_get(trans, btree_id, pos, level + 1, level,
-			     BTREE_ITER_NOPRESERVE|
-			     BTREE_ITER_INTENT, _RET_IP_);
+			     BTREE_ITER_nopreserve|
+			     BTREE_ITER_intent, _RET_IP_);
 	path_idx = bch2_btree_path_make_mut(trans, path_idx, true, _RET_IP_);
 
 	struct btree_path *path = trans->paths + path_idx;
@@ -664,7 +664,7 @@ static int btree_update_nodes_written_trans(struct btree_trans *trans,
 		unsigned level = bkey_i_to_btree_ptr_v2(k)->v.mem_ptr;
 
 		ret = bch2_key_trigger_old(trans, as->btree_id, level, bkey_i_to_s_c(k),
-					   BTREE_TRIGGER_TRANSACTIONAL);
+					   BTREE_TRIGGER_transactional);
 		if (ret)
 			return ret;
 	}
@@ -673,7 +673,7 @@ static int btree_update_nodes_written_trans(struct btree_trans *trans,
 		unsigned level = bkey_i_to_btree_ptr_v2(k)->v.mem_ptr;
 
 		ret = bch2_key_trigger_new(trans, as->btree_id, level, bkey_i_to_s(k),
-					   BTREE_TRIGGER_TRANSACTIONAL);
+					   BTREE_TRIGGER_transactional);
 		if (ret)
 			return ret;
 	}
@@ -1997,7 +1997,7 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 		: bpos_successor(b->data->max_key);
 
 	sib_path = bch2_path_get(trans, btree, sib_pos,
-				 U8_MAX, level, BTREE_ITER_INTENT, _THIS_IP_);
+				 U8_MAX, level, BTREE_ITER_intent, _THIS_IP_);
 	ret = bch2_btree_path_traverse(trans, sib_path, false);
 	if (ret)
 		goto err;
@@ -2351,10 +2351,10 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 	if (!skip_triggers) {
 		ret   = bch2_key_trigger_old(trans, b->c.btree_id, b->c.level + 1,
 					     bkey_i_to_s_c(&b->key),
-					     BTREE_TRIGGER_TRANSACTIONAL) ?:
+					     BTREE_TRIGGER_transactional) ?:
 			bch2_key_trigger_new(trans, b->c.btree_id, b->c.level + 1,
 					     bkey_i_to_s(new_key),
-					     BTREE_TRIGGER_TRANSACTIONAL);
+					     BTREE_TRIGGER_transactional);
 		if (ret)
 			return ret;
 	}
@@ -2371,7 +2371,7 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 		bch2_trans_copy_iter(&iter2, iter);
 
 		iter2.path = bch2_btree_path_make_mut(trans, iter2.path,
-				iter2.flags & BTREE_ITER_INTENT,
+				iter2.flags & BTREE_ITER_intent,
 				_THIS_IP_);
 
 		struct btree_path *path2 = btree_iter_path(trans, &iter2);
@@ -2383,7 +2383,7 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 		trans->paths_sorted = false;
 
 		ret   = bch2_btree_iter_traverse(&iter2) ?:
-			bch2_trans_update(trans, &iter2, new_key, BTREE_TRIGGER_NORUN);
+			bch2_trans_update(trans, &iter2, new_key, BTREE_TRIGGER_norun);
 		if (ret)
 			goto err;
 	} else {
@@ -2491,7 +2491,7 @@ int bch2_btree_node_update_key_get_iter(struct btree_trans *trans,
 
 	bch2_trans_node_iter_init(trans, &iter, b->c.btree_id, b->key.k.p,
 				  BTREE_MAX_DEPTH, b->c.level,
-				  BTREE_ITER_INTENT);
+				  BTREE_ITER_intent);
 	ret = bch2_btree_iter_traverse(&iter);
 	if (ret)
 		goto out;

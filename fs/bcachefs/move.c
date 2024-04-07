@@ -416,7 +416,7 @@ struct bch_io_opts *bch2_move_get_io_opts(struct btree_trans *trans,
 		io_opts->d.nr = 0;
 
 		ret = for_each_btree_key(trans, iter, BTREE_ID_inodes, POS(0, extent_k.k->p.inode),
-					 BTREE_ITER_ALL_SNAPSHOTS, k, ({
+					 BTREE_ITER_all_snapshots, k, ({
 			if (k.k->p.offset != extent_k.k->p.inode)
 				break;
 
@@ -462,7 +462,7 @@ int bch2_move_get_io_opts_one(struct btree_trans *trans,
 
 	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
 			       SPOS(0, extent_k.k->p.inode, extent_k.k->p.snapshot),
-			       BTREE_ITER_CACHED);
+			       BTREE_ITER_cached);
 	ret = bkey_err(k);
 	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		return ret;
@@ -548,8 +548,8 @@ static int bch2_move_data_btree(struct moving_context *ctxt,
 	}
 
 	bch2_trans_iter_init(trans, &iter, btree_id, start,
-			     BTREE_ITER_PREFETCH|
-			     BTREE_ITER_ALL_SNAPSHOTS);
+			     BTREE_ITER_prefetch|
+			     BTREE_ITER_all_snapshots);
 
 	if (ctxt->rate)
 		bch2_ratelimit_reset(ctxt->rate);
@@ -700,7 +700,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 	bch2_trans_begin(trans);
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
-			     bucket, BTREE_ITER_CACHED);
+			     bucket, BTREE_ITER_cached);
 	ret = lockrestart_do(trans,
 			bkey_err(k = bch2_btree_iter_peek_slot(&iter)));
 	bch2_trans_iter_exit(trans, &iter);
@@ -727,7 +727,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 
 		ret = bch2_get_next_backpointer(trans, bucket, gen,
 						&bp_pos, &bp,
-						BTREE_ITER_CACHED);
+						BTREE_ITER_cached);
 		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			continue;
 		if (ret)
@@ -863,7 +863,7 @@ static int bch2_move_btree(struct bch_fs *c,
 			continue;
 
 		bch2_trans_node_iter_init(trans, &iter, btree, POS_MIN, 0, 0,
-					  BTREE_ITER_PREFETCH);
+					  BTREE_ITER_prefetch);
 retry:
 		ret = 0;
 		while (bch2_trans_begin(trans),

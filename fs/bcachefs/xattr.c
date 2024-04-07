@@ -173,7 +173,7 @@ int bch2_xattr_set(struct btree_trans *trans, subvol_inum inum,
 	int ret;
 
 	ret   = bch2_subvol_is_ro_trans(trans, inum.subvol) ?:
-		bch2_inode_peek(trans, &inode_iter, inode_u, inum, BTREE_ITER_INTENT);
+		bch2_inode_peek(trans, &inode_iter, inode_u, inum, BTREE_ITER_intent);
 	if (ret)
 		return ret;
 
@@ -208,8 +208,8 @@ int bch2_xattr_set(struct btree_trans *trans, subvol_inum inum,
 
 		ret = bch2_hash_set(trans, bch2_xattr_hash_desc, hash_info,
 			      inum, &xattr->k_i,
-			      (flags & XATTR_CREATE ? BCH_HASH_SET_MUST_CREATE : 0)|
-			      (flags & XATTR_REPLACE ? BCH_HASH_SET_MUST_REPLACE : 0));
+			      (flags & XATTR_CREATE ? STR_HASH_must_create : 0)|
+			      (flags & XATTR_REPLACE ? STR_HASH_must_replace : 0));
 	} else {
 		struct xattr_search_key search =
 			X_SEARCH(type, name, strlen(name));

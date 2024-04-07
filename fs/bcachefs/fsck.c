@@ -79,7 +79,7 @@ static int lookup_first_inode(struct btree_trans *trans, u64 inode_nr,
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_inodes,
 			     POS(0, inode_nr),
-			     BTREE_ITER_ALL_SNAPSHOTS);
+			     BTREE_ITER_all_snapshots);
 	k = bch2_btree_iter_peek(&iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -154,12 +154,12 @@ static int __remove_dirent(struct btree_trans *trans, struct bpos pos)
 
 	dir_hash_info = bch2_hash_info_init(c, &dir_inode);
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_dirents, pos, BTREE_ITER_INTENT);
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_dirents, pos, BTREE_ITER_intent);
 
 	ret =   bch2_btree_iter_traverse(&iter) ?:
 		bch2_hash_delete_at(trans, bch2_dirent_hash_desc,
 				    &dir_hash_info, &iter,
-				    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+				    BTREE_UPDATE_internal_snapshot_node);
 	bch2_trans_iter_exit(trans, &iter);
 err:
 	bch_err_fn(c, ret);
@@ -274,9 +274,9 @@ create_lostfound:
 				&lostfound_str,
 				lostfound->bi_inum,
 				&lostfound->bi_dir_offset,
-				BCH_HASH_SET_MUST_CREATE) ?:
+				STR_HASH_must_create) ?:
 		bch2_inode_write_flags(trans, &lostfound_iter, lostfound,
-				       BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+				       BTREE_UPDATE_internal_snapshot_node);
 err:
 	bch_err_msg(c, ret, "creating lost+found");
 	bch2_trans_iter_exit(trans, &lostfound_iter);
@@ -333,7 +333,7 @@ static int reattach_inode(struct btree_trans *trans,
 				&name,
 				inode->bi_subvol ?: inode->bi_inum,
 				&dir_offset,
-				BCH_HASH_SET_MUST_CREATE);
+				STR_HASH_must_create);
 	if (ret)
 		return ret;
 
@@ -708,7 +708,7 @@ static int get_inodes_all_snapshots(struct btree_trans *trans,
 	w->inodes.nr = 0;
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_inodes, POS(0, inum),
-				     BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
+				     BTREE_ITER_all_snapshots, k, ret) {
 		if (k.k->p.offset != inum)
 			break;
 
@@ -799,7 +799,7 @@ static int __get_visible_inodes(struct btree_trans *trans,
 	w->inodes.nr = 0;
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_inodes, POS(0, inum),
-			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
+			   BTREE_ITER_all_snapshots, k, ret) {
 		u32 equiv = bch2_snapshot_equiv(c, k.k->p.snapshot);
 
 		if (k.k->p.offset != inum)
@@ -832,7 +832,7 @@ static int check_key_has_snapshot(struct btree_trans *trans,
 				"key in missing snapshot: %s",
 				(bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 		ret = bch2_btree_delete_at(trans, iter,
-					    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?: 1;
+					    BTREE_UPDATE_internal_snapshot_node) ?: 1;
 fsck_err:
 	printbuf_exit(&buf);
 	return ret;
@@ -861,8 +861,8 @@ static int hash_redo_key(struct btree_trans *trans,
 		bch2_hash_set_in_snapshot(trans, desc, hash_info,
 				       (subvol_inum) { 0, k.k->p.inode },
 				       k.k->p.snapshot, tmp,
-				       BCH_HASH_SET_MUST_CREATE,
-				       BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+				       STR_HASH_must_create|
+				       BTREE_UPDATE_internal_snapshot_node) ?:
 		bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
 }
 
@@ -891,7 +891,7 @@ static int hash_check_key(struct btree_trans *trans,
 
 	for_each_btree_key_norestart(trans, iter, desc.btree_id,
 				     SPOS(hash_k.k->p.inode, hash, hash_k.k->p.snapshot),
-				     BTREE_ITER_SLOTS, k, ret) {
+				     BTREE_ITER_slots, k, ret) {
 		if (bkey_eq(k.k->p, hash_k.k->p))
 			break;
 
@@ -1233,7 +1233,7 @@ int bch2_check_inodes(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_inodes,
 				POS_MIN,
-				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			check_inode(trans, &iter, k, &prev, &s, full)));
 
@@ -1362,8 +1362,8 @@ static int overlapping_extents_found(struct btree_trans *trans,
 	BUG_ON(bkey_le(pos1, bkey_start_pos(&pos2)));
 
 	bch2_trans_iter_init(trans, &iter1, btree, pos1,
-			     BTREE_ITER_ALL_SNAPSHOTS|
-			     BTREE_ITER_NOT_EXTENTS);
+			     BTREE_ITER_all_snapshots|
+			     BTREE_ITER_not_extents);
 	k1 = bch2_btree_iter_peek_upto(&iter1, POS(pos1.inode, U64_MAX));
 	ret = bkey_err(k1);
 	if (ret)
@@ -1425,7 +1425,7 @@ static int overlapping_extents_found(struct btree_trans *trans,
 		trans->extra_disk_res += bch2_bkey_sectors_compressed(k2);
 
 		ret =   bch2_trans_update_extent_overwrite(trans, old_iter,
-				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE,
+				BTREE_UPDATE_internal_snapshot_node,
 				k1, k2) ?:
 			bch2_trans_commit(trans, &res, NULL, BCH_TRANS_COMMIT_no_enospc);
 		bch2_disk_reservation_put(c, &res);
@@ -1625,7 +1625,7 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 				bch2_btree_iter_set_snapshot(&iter2, i->snapshot);
 				ret =   bch2_btree_iter_traverse(&iter2) ?:
 					bch2_btree_delete_at(trans, &iter2,
-						BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+						BTREE_UPDATE_internal_snapshot_node);
 				bch2_trans_iter_exit(trans, &iter2);
 				if (ret)
 					goto err;
@@ -1652,7 +1652,7 @@ fsck_err:
 	bch_err_fn(c, ret);
 	return ret;
 delete:
-	ret = bch2_btree_delete_at(trans, iter, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+	ret = bch2_btree_delete_at(trans, iter, BTREE_UPDATE_internal_snapshot_node);
 	goto out;
 }
 
@@ -1673,7 +1673,7 @@ int bch2_check_extents(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_extents,
 				POS(BCACHEFS_ROOT_INO, 0),
-				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 				&res, NULL,
 				BCH_TRANS_COMMIT_no_enospc, ({
 			bch2_disk_reservation_put(c, &res);
@@ -1698,7 +1698,7 @@ int bch2_check_indirect_extents(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_reflink,
 				POS_MIN,
-				BTREE_ITER_PREFETCH, k,
+				BTREE_ITER_prefetch, k,
 				&res, NULL,
 				BCH_TRANS_COMMIT_no_enospc, ({
 			bch2_disk_reservation_put(c, &res);
@@ -2104,7 +2104,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
 		ret = bch2_btree_delete_at(trans, iter,
-				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+				BTREE_UPDATE_internal_snapshot_node);
 		goto out;
 	}
 
@@ -2191,7 +2191,7 @@ int bch2_check_dirents(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_dirents,
 				POS(BCACHEFS_ROOT_INO, 0),
-				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
+				BTREE_ITER_prefetch|BTREE_ITER_all_snapshots,
 				k,
 				NULL, NULL,
 				BCH_TRANS_COMMIT_no_enospc,
@@ -2255,7 +2255,7 @@ int bch2_check_xattrs(struct bch_fs *c)
 	ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_xattrs,
 			POS(BCACHEFS_ROOT_INO, 0),
-			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
+			BTREE_ITER_prefetch|BTREE_ITER_all_snapshots,
 			k,
 			NULL, NULL,
 			BCH_TRANS_COMMIT_no_enospc,
@@ -2422,7 +2422,7 @@ int bch2_check_subvolume_structure(struct bch_fs *c)
 {
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
-				BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_PREFETCH, k,
+				BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_prefetch, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			check_subvol_path(trans, &iter, k)));
 	bch_err_fn(c, ret);
@@ -2559,9 +2559,9 @@ int bch2_check_directory_structure(struct bch_fs *c)
 
 	ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_inodes, POS_MIN,
-					  BTREE_ITER_INTENT|
-					  BTREE_ITER_PREFETCH|
-					  BTREE_ITER_ALL_SNAPSHOTS, k,
+					  BTREE_ITER_intent|
+					  BTREE_ITER_prefetch|
+					  BTREE_ITER_all_snapshots, k,
 					  NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({
 			if (!bkey_is_inode(k.k))
 				continue;
@@ -2661,9 +2661,9 @@ static int check_nlinks_find_hardlinks(struct bch_fs *c,
 	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_inodes,
 				   POS(0, start),
-				   BTREE_ITER_INTENT|
-				   BTREE_ITER_PREFETCH|
-				   BTREE_ITER_ALL_SNAPSHOTS, k, ({
+				   BTREE_ITER_intent|
+				   BTREE_ITER_prefetch|
+				   BTREE_ITER_all_snapshots, k, ({
 			if (!bkey_is_inode(k.k))
 				continue;
 
@@ -2704,9 +2704,9 @@ static int check_nlinks_walk_dirents(struct bch_fs *c, struct nlink_table *links
 
 	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_dirents, POS_MIN,
-				   BTREE_ITER_INTENT|
-				   BTREE_ITER_PREFETCH|
-				   BTREE_ITER_ALL_SNAPSHOTS, k, ({
+				   BTREE_ITER_intent|
+				   BTREE_ITER_prefetch|
+				   BTREE_ITER_all_snapshots, k, ({
 			ret = snapshots_seen_update(c, &s, iter.btree_id, k.k->p);
 			if (ret)
 				break;
@@ -2781,7 +2781,7 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_inodes,
 				POS(0, range_start),
-				BTREE_ITER_INTENT|BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+				BTREE_ITER_intent|BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			check_nlinks_update_inode(trans, &iter, k, links, &idx, range_end)));
 	if (ret < 0) {
@@ -2849,7 +2849,7 @@ static int fix_reflink_p_key(struct btree_trans *trans, struct btree_iter *iter,
 	u->v.front_pad	= 0;
 	u->v.back_pad	= 0;
 
-	return bch2_trans_update(trans, iter, &u->k_i, BTREE_TRIGGER_NORUN);
+	return bch2_trans_update(trans, iter, &u->k_i, BTREE_TRIGGER_norun);
 }
 
 int bch2_fix_reflink_p(struct bch_fs *c)
@@ -2860,8 +2860,8 @@ int bch2_fix_reflink_p(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
 				BTREE_ID_extents, POS_MIN,
-				BTREE_ITER_INTENT|BTREE_ITER_PREFETCH|
-				BTREE_ITER_ALL_SNAPSHOTS, k,
+				BTREE_ITER_intent|BTREE_ITER_prefetch|
+				BTREE_ITER_all_snapshots, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			fix_reflink_p_key(trans, &iter, k)));
 	bch_err_fn(c, ret);

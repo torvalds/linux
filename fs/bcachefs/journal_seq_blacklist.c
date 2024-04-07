@@ -233,7 +233,7 @@ void bch2_blacklist_entries_gc(struct work_struct *work)
 		struct btree *b;
 
 		bch2_trans_node_iter_init(trans, &iter, i, POS_MIN,
-					  0, 0, BTREE_ITER_PREFETCH);
+					  0, 0, BTREE_ITER_prefetch);
 retry:
 		bch2_trans_begin(trans);
 

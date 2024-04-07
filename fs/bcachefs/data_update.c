@@ -106,7 +106,7 @@ static int __bch2_data_update_index_update(struct btree_trans *trans,
 
 	bch2_trans_iter_init(trans, &iter, m->btree_id,
 			     bkey_start_pos(&bch2_keylist_front(keys)->k),
-			     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+			     BTREE_ITER_slots|BTREE_ITER_intent);
 
 	while (1) {
 		struct bkey_s_c k;
@@ -288,7 +288,7 @@ restart_drop_extra_replicas:
 						k.k->p, insert->k.p) ?:
 			bch2_bkey_set_needs_rebalance(c, insert, &op->opts) ?:
 			bch2_trans_update(trans, &iter, insert,
-				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+				BTREE_UPDATE_internal_snapshot_node) ?:
 			bch2_trans_commit(trans, &op->res,
 				NULL,
 				BCH_TRANS_COMMIT_no_check_rw|
@@ -387,7 +387,7 @@ static void bch2_update_unwritten_extent(struct btree_trans *trans,
 		unsigned sectors = bio_sectors(bio);
 
 		bch2_trans_iter_init(trans, &iter, update->btree_id, update->op.pos,
-				     BTREE_ITER_SLOTS);
+				     BTREE_ITER_slots);
 		ret = lockrestart_do(trans, ({
 			k = bch2_btree_iter_peek_slot(&iter);
 			bkey_err(k);
@@ -480,15 +480,15 @@ int bch2_extent_drop_ptrs(struct btree_trans *trans,
 
 	/*
 	 * Since we're not inserting through an extent iterator
-	 * (BTREE_ITER_ALL_SNAPSHOTS iterators aren't extent iterators),
+	 * (BTREE_ITER_all_snapshots iterators aren't extent iterators),
 	 * we aren't using the extent overwrite path to delete, we're
 	 * just using the normal key deletion path:
 	 */
-	if (bkey_deleted(&n->k) && !(iter->flags & BTREE_ITER_IS_EXTENTS))
+	if (bkey_deleted(&n->k) && !(iter->flags & BTREE_ITER_is_extents))
 		n->k.size = 0;
 
 	return bch2_trans_relock(trans) ?:
-		bch2_trans_update(trans, iter, n, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) ?:
+		bch2_trans_update(trans, iter, n, BTREE_UPDATE_internal_snapshot_node) ?:
 		bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
 }
 

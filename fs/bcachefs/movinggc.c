@@ -84,7 +84,7 @@ static int bch2_bucket_is_movable(struct btree_trans *trans,
 		return 0;
 
 	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_alloc,
-			       b->k.bucket, BTREE_ITER_CACHED);
+			       b->k.bucket, BTREE_ITER_cached);
 	ret = bkey_err(k);
 	if (ret)
 		return ret;

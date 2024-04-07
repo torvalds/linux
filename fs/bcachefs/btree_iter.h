@@ -386,10 +386,10 @@ static inline void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos 
 
 	if (unlikely(iter->update_path))
 		bch2_path_put(trans, iter->update_path,
-			      iter->flags & BTREE_ITER_INTENT);
+			      iter->flags & BTREE_ITER_intent);
 	iter->update_path = 0;
 
-	if (!(iter->flags & BTREE_ITER_ALL_SNAPSHOTS))
+	if (!(iter->flags & BTREE_ITER_all_snapshots))
 		new_pos.snapshot = iter->snapshot;
 
 	__bch2_btree_iter_set_pos(iter, new_pos);
@@ -397,7 +397,7 @@ static inline void bch2_btree_iter_set_pos(struct btree_iter *iter, struct bpos 
 
 static inline void bch2_btree_iter_set_pos_to_extent_start(struct btree_iter *iter)
 {
-	BUG_ON(!(iter->flags & BTREE_ITER_IS_EXTENTS));
+	BUG_ON(!(iter->flags & BTREE_ITER_is_extents));
 	iter->pos = bkey_start_pos(&iter->k);
 }
 
@@ -416,20 +416,20 @@ static inline unsigned __bch2_btree_iter_flags(struct btree_trans *trans,
 					       unsigned btree_id,
 					       unsigned flags)
 {
-	if (!(flags & (BTREE_ITER_ALL_SNAPSHOTS|BTREE_ITER_NOT_EXTENTS)) &&
+	if (!(flags & (BTREE_ITER_all_snapshots|BTREE_ITER_not_extents)) &&
 	    btree_id_is_extents(btree_id))
-		flags |= BTREE_ITER_IS_EXTENTS;
+		flags |= BTREE_ITER_is_extents;
 
-	if (!(flags & BTREE_ITER_SNAPSHOT_FIELD) &&
+	if (!(flags & BTREE_ITER_snapshot_field) &&
 	    !btree_type_has_snapshot_field(btree_id))
-		flags &= ~BTREE_ITER_ALL_SNAPSHOTS;
+		flags &= ~BTREE_ITER_all_snapshots;
 
-	if (!(flags & BTREE_ITER_ALL_SNAPSHOTS) &&
+	if (!(flags & BTREE_ITER_all_snapshots) &&
 	    btree_type_has_snapshots(btree_id))
-		flags |= BTREE_ITER_FILTER_SNAPSHOTS;
+		flags |= BTREE_ITER_filter_snapshots;
 
 	if (trans->journal_replay_not_finished)
-		flags |= BTREE_ITER_WITH_JOURNAL;
+		flags |= BTREE_ITER_with_journal;
 
 	return flags;
 }
@@ -439,10 +439,10 @@ static inline unsigned bch2_btree_iter_flags(struct btree_trans *trans,
 					     unsigned flags)
 {
 	if (!btree_id_cached(trans->c, btree_id)) {
-		flags &= ~BTREE_ITER_CACHED;
-		flags &= ~BTREE_ITER_WITH_KEY_CACHE;
-	} else if (!(flags & BTREE_ITER_CACHED))
-		flags |= BTREE_ITER_WITH_KEY_CACHE;
+		flags &= ~BTREE_ITER_cached;
+		flags &= ~BTREE_ITER_with_key_cache;
+	} else if (!(flags & BTREE_ITER_cached))
+		flags |= BTREE_ITER_with_key_cache;
 
 	return __bch2_btree_iter_flags(trans, btree_id, flags);
 }
@@ -619,14 +619,14 @@ u32 bch2_trans_begin(struct btree_trans *);
 static inline struct bkey_s_c bch2_btree_iter_peek_prev_type(struct btree_iter *iter,
 							     unsigned flags)
 {
-	return  flags & BTREE_ITER_SLOTS      ? bch2_btree_iter_peek_slot(iter) :
+	return  flags & BTREE_ITER_slots      ? bch2_btree_iter_peek_slot(iter) :
 						bch2_btree_iter_peek_prev(iter);
 }
 
 static inline struct bkey_s_c bch2_btree_iter_peek_type(struct btree_iter *iter,
 							unsigned flags)
 {
-	return  flags & BTREE_ITER_SLOTS      ? bch2_btree_iter_peek_slot(iter) :
+	return  flags & BTREE_ITER_slots      ? bch2_btree_iter_peek_slot(iter) :
 						bch2_btree_iter_peek(iter);
 }
 
@@ -634,7 +634,7 @@ static inline struct bkey_s_c bch2_btree_iter_peek_upto_type(struct btree_iter *
 							     struct bpos end,
 							     unsigned flags)
 {
-	if (!(flags & BTREE_ITER_SLOTS))
+	if (!(flags & BTREE_ITER_slots))
 		return bch2_btree_iter_peek_upto(iter, end);
 
 	if (bkey_gt(iter->pos, end))

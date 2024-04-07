@@ -170,9 +170,9 @@ int bch2_bucket_backpointer_mod_nowritebuffer(struct btree_trans *trans,
 
 	k = bch2_bkey_get_iter(trans, &bp_iter, BTREE_ID_backpointers,
 			       bp_k->k.p,
-			       BTREE_ITER_INTENT|
-			       BTREE_ITER_SLOTS|
-			       BTREE_ITER_WITH_UPDATES);
+			       BTREE_ITER_intent|
+			       BTREE_ITER_slots|
+			       BTREE_ITER_with_updates);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -212,7 +212,7 @@ int bch2_get_next_backpointer(struct btree_trans *trans,
 
 	if (gen >= 0) {
 		k = bch2_bkey_get_iter(trans, &alloc_iter, BTREE_ID_alloc,
-				       bucket, BTREE_ITER_CACHED|iter_flags);
+				       bucket, BTREE_ITER_cached|iter_flags);
 		ret = bkey_err(k);
 		if (ret)
 			goto out;
@@ -759,7 +759,7 @@ static int bch2_get_btree_in_memory_pos(struct btree_trans *trans,
 
 		__for_each_btree_node(trans, iter, btree,
 				      btree == start.btree ? start.pos : POS_MIN,
-				      0, depth, BTREE_ITER_PREFETCH, b, ret) {
+				      0, depth, BTREE_ITER_prefetch, b, ret) {
 			mem_may_pin -= btree_buf_bytes(b);
 			if (mem_may_pin <= 0) {
 				c->btree_cache.pinned_nodes_end = *end =
@@ -794,7 +794,7 @@ static int bch2_check_extents_to_backpointers_pass(struct btree_trans *trans,
 		while (level >= depth) {
 			struct btree_iter iter;
 			bch2_trans_node_iter_init(trans, &iter, btree_id, POS_MIN, 0, level,
-						  BTREE_ITER_PREFETCH);
+						  BTREE_ITER_prefetch);
 
 			ret = for_each_btree_key_continue(trans, iter, 0, k, ({
 				check_extent_to_backpointers(trans, s, btree_id, level, k) ?:
@@ -917,7 +917,7 @@ static int bch2_check_backpointers_to_extents_pass(struct btree_trans *trans,
 	struct bpos last_flushed_pos = SPOS_MAX;
 
 	return for_each_btree_key_commit(trans, iter, BTREE_ID_backpointers,
-				  POS_MIN, BTREE_ITER_PREFETCH, k,
+				  POS_MIN, BTREE_ITER_prefetch, k,
 				  NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 		check_one_backpointer(trans, start, end,
 				      bkey_s_c_to_backpointer(k),

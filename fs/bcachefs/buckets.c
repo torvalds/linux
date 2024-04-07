@@ -752,16 +752,17 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 			enum btree_id btree_id, unsigned level,
 			struct bkey_s_c k, struct extent_ptr_decoded p,
 			const union bch_extent_entry *entry,
-			s64 *sectors, unsigned flags)
+			s64 *sectors,
+			enum btree_iter_update_trigger_flags flags)
 {
-	bool insert = !(flags & BTREE_TRIGGER_OVERWRITE);
+	bool insert = !(flags & BTREE_TRIGGER_overwrite);
 	struct bpos bucket;
 	struct bch_backpointer bp;
 
 	bch2_extent_ptr_to_bp(trans->c, btree_id, level, k, p, entry, &bucket, &bp);
 	*sectors = insert ? bp.bucket_len : -((s64) bp.bucket_len);
 
-	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+	if (flags & BTREE_TRIGGER_transactional) {
 		struct btree_iter iter;
 		struct bkey_i_alloc_v4 *a = bch2_trans_start_alloc_update(trans, &iter, bucket);
 		int ret = PTR_ERR_OR_ZERO(a);
@@ -784,7 +785,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 		}
 	}
 
-	if (flags & BTREE_TRIGGER_GC) {
+	if (flags & BTREE_TRIGGER_gc) {
 		struct bch_fs *c = trans->c;
 		struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
 		enum bch_data_type data_type = bch2_bkey_ptr_data_type(k, p, entry);
@@ -820,13 +821,14 @@ static int bch2_trigger_stripe_ptr(struct btree_trans *trans,
 				struct bkey_s_c k,
 				struct extent_ptr_decoded p,
 				enum bch_data_type data_type,
-				s64 sectors, unsigned flags)
+				s64 sectors,
+				enum btree_iter_update_trigger_flags flags)
 {
-	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+	if (flags & BTREE_TRIGGER_transactional) {
 		struct btree_iter iter;
 		struct bkey_i_stripe *s = bch2_bkey_get_mut_typed(trans, &iter,
 				BTREE_ID_stripes, POS(0, p.ec.idx),
-				BTREE_ITER_WITH_UPDATES, stripe);
+				BTREE_ITER_with_updates, stripe);
 		int ret = PTR_ERR_OR_ZERO(s);
 		if (unlikely(ret)) {
 			bch2_trans_inconsistent_on(bch2_err_matches(ret, ENOENT), trans,
@@ -856,10 +858,10 @@ err:
 		return ret;
 	}
 
-	if (flags & BTREE_TRIGGER_GC) {
+	if (flags & BTREE_TRIGGER_gc) {
 		struct bch_fs *c = trans->c;
 
-		BUG_ON(!(flags & BTREE_TRIGGER_GC));
+		BUG_ON(!(flags & BTREE_TRIGGER_gc));
 
 		struct gc_stripe *m = genradix_ptr_alloc(&c->gc_stripes, p.ec.idx, GFP_KERNEL);
 		if (!m) {
@@ -895,9 +897,10 @@ err:
 
 static int __trigger_extent(struct btree_trans *trans,
 			    enum btree_id btree_id, unsigned level,
-			    struct bkey_s_c k, unsigned flags)
+			    struct bkey_s_c k,
+			    enum btree_iter_update_trigger_flags flags)
 {
-	bool gc = flags & BTREE_TRIGGER_GC;
+	bool gc = flags & BTREE_TRIGGER_gc;
 	struct bch_fs *c = trans->c;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
@@ -969,7 +972,7 @@ static int __trigger_extent(struct btree_trans *trans,
 int bch2_trigger_extent(struct btree_trans *trans,
 			enum btree_id btree_id, unsigned level,
 			struct bkey_s_c old, struct bkey_s new,
-			unsigned flags)
+			enum btree_iter_update_trigger_flags flags)
 {
 	struct bkey_ptrs_c new_ptrs = bch2_bkey_ptrs_c(new.s_c);
 	struct bkey_ptrs_c old_ptrs = bch2_bkey_ptrs_c(old);
@@ -983,7 +986,7 @@ int bch2_trigger_extent(struct btree_trans *trans,
 		    new_ptrs_bytes))
 		return 0;
 
-	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+	if (flags & BTREE_TRIGGER_transactional) {
 		struct bch_fs *c = trans->c;
 		int mod = (int) bch2_bkey_needs_rebalance(c, new.s_c) -
 			  (int) bch2_bkey_needs_rebalance(c, old);
@@ -996,7 +999,7 @@ int bch2_trigger_extent(struct btree_trans *trans,
 		}
 	}
 
-	if (flags & (BTREE_TRIGGER_TRANSACTIONAL|BTREE_TRIGGER_GC))
+	if (flags & (BTREE_TRIGGER_transactional|BTREE_TRIGGER_gc))
 		return trigger_run_overwrite_then_insert(__trigger_extent, trans, btree_id, level, old, new, flags);
 
 	return 0;
@@ -1005,17 +1008,17 @@ int bch2_trigger_extent(struct btree_trans *trans,
 /* KEY_TYPE_reservation */
 
 static int __trigger_reservation(struct btree_trans *trans,
-				 enum btree_id btree_id, unsigned level,
-				 struct bkey_s_c k, unsigned flags)
+			enum btree_id btree_id, unsigned level, struct bkey_s_c k,
+			enum btree_iter_update_trigger_flags flags)
 {
 	struct bch_fs *c = trans->c;
 	unsigned replicas = bkey_s_c_to_reservation(k).v->nr_replicas;
 	s64 sectors = (s64) k.k->size * replicas;
 
-	if (flags & BTREE_TRIGGER_OVERWRITE)
+	if (flags & BTREE_TRIGGER_overwrite)
 		sectors = -sectors;
 
-	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+	if (flags & BTREE_TRIGGER_transactional) {
 		int ret = bch2_replicas_deltas_realloc(trans, 0);
 		if (ret)
 			return ret;
@@ -1026,7 +1029,7 @@ static int __trigger_reservation(struct btree_trans *trans,
 		d->persistent_reserved[replicas - 1] += sectors;
 	}
 
-	if (flags & BTREE_TRIGGER_GC) {
+	if (flags & BTREE_TRIGGER_gc) {
 		percpu_down_read(&c->mark_lock);
 		preempt_disable();
 
@@ -1046,7 +1049,7 @@ static int __trigger_reservation(struct btree_trans *trans,
 int bch2_trigger_reservation(struct btree_trans *trans,
 			  enum btree_id btree_id, unsigned level,
 			  struct bkey_s_c old, struct bkey_s new,
-			  unsigned flags)
+			  enum btree_iter_update_trigger_flags flags)
 {
 	return trigger_run_overwrite_then_insert(__trigger_reservation, trans, btree_id, level, old, new, flags);
 }
@@ -1092,8 +1095,8 @@ err:
 }
 
 static int bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
-				     u64 b, enum bch_data_type data_type,
-				     unsigned sectors, unsigned flags)
+			u64 b, enum bch_data_type data_type, unsigned sectors,
+			enum btree_iter_update_trigger_flags flags)
 {
 	struct bucket old, new, *g;
 	int ret = 0;
@@ -1134,9 +1137,9 @@ err:
 }
 
 int bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
-				    struct bch_dev *ca, u64 b,
-				    enum bch_data_type type,
-				    unsigned sectors, unsigned flags)
+			struct bch_dev *ca, u64 b,
+			enum bch_data_type type, unsigned sectors,
+			enum btree_iter_update_trigger_flags flags)
 {
 	BUG_ON(type != BCH_DATA_free &&
 	       type != BCH_DATA_sb &&
@@ -1148,9 +1151,9 @@ int bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 	if (b >= ca->mi.nbuckets)
 		return 0;
 
-	if (flags & BTREE_TRIGGER_GC)
+	if (flags & BTREE_TRIGGER_gc)
 		return bch2_mark_metadata_bucket(trans->c, ca, b, type, sectors, flags);
-	else if (flags & BTREE_TRIGGER_TRANSACTIONAL)
+	else if (flags & BTREE_TRIGGER_transactional)
 		return commit_do(trans, NULL, NULL, 0,
 				 __bch2_trans_mark_metadata_bucket(trans, ca, b, type, sectors));
 	else
@@ -1158,11 +1161,9 @@ int bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 }
 
 static int bch2_trans_mark_metadata_sectors(struct btree_trans *trans,
-					    struct bch_dev *ca,
-					    u64 start, u64 end,
-					    enum bch_data_type type,
-					    u64 *bucket, unsigned *bucket_sectors,
-					    unsigned flags)
+			struct bch_dev *ca, u64 start, u64 end,
+			enum bch_data_type type, u64 *bucket, unsigned *bucket_sectors,
+			enum btree_iter_update_trigger_flags flags)
 {
 	do {
 		u64 b = sector_to_bucket(ca, start);
@@ -1186,8 +1187,8 @@ static int bch2_trans_mark_metadata_sectors(struct btree_trans *trans,
 	return 0;
 }
 
-static int __bch2_trans_mark_dev_sb(struct btree_trans *trans,
-				    struct bch_dev *ca, unsigned flags)
+static int __bch2_trans_mark_dev_sb(struct btree_trans *trans, struct bch_dev *ca,
+			enum btree_iter_update_trigger_flags flags)
 {
 	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
 	u64 bucket = 0;
@@ -1230,7 +1231,8 @@ static int __bch2_trans_mark_dev_sb(struct btree_trans *trans,
 	return 0;
 }
 
-int bch2_trans_mark_dev_sb(struct bch_fs *c, struct bch_dev *ca, unsigned flags)
+int bch2_trans_mark_dev_sb(struct bch_fs *c, struct bch_dev *ca,
+			enum btree_iter_update_trigger_flags flags)
 {
 	int ret = bch2_trans_run(c,
 		__bch2_trans_mark_dev_sb(trans, ca, flags));
@@ -1238,7 +1240,8 @@ int bch2_trans_mark_dev_sb(struct bch_fs *c, struct bch_dev *ca, unsigned flags)
 	return ret;
 }
 
-int bch2_trans_mark_dev_sbs_flags(struct bch_fs *c, unsigned flags)
+int bch2_trans_mark_dev_sbs_flags(struct bch_fs *c,
+			enum btree_iter_update_trigger_flags flags)
 {
 	for_each_online_member(c, ca) {
 		int ret = bch2_trans_mark_dev_sb(c, ca, flags);
@@ -1253,7 +1256,7 @@ int bch2_trans_mark_dev_sbs_flags(struct bch_fs *c, unsigned flags)
 
 int bch2_trans_mark_dev_sbs(struct bch_fs *c)
 {
-	return bch2_trans_mark_dev_sbs_flags(c, BTREE_TRIGGER_TRANSACTIONAL);
+	return bch2_trans_mark_dev_sbs_flags(c, BTREE_TRIGGER_transactional);
 }
 
 /* Disk reservations: */

@@ -856,7 +856,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 
 	ret = commit_do(trans, NULL, NULL, 0,
 			bch2_key_trigger(trans, btree_id, level, old,
-					 unsafe_bkey_s_c_to_s(*k), BTREE_TRIGGER_GC));
+					 unsafe_bkey_s_c_to_s(*k), BTREE_TRIGGER_gc));
 fsck_err:
 err:
 	printbuf_exit(&buf);
@@ -900,7 +900,7 @@ static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree_id,
 	gc_pos_set(c, gc_pos_btree(btree_id, POS_MIN, 0));
 
 	__for_each_btree_node(trans, iter, btree_id, POS_MIN,
-			      0, target_depth, BTREE_ITER_PREFETCH, b, ret) {
+			      0, target_depth, BTREE_ITER_prefetch, b, ret) {
 		bch2_verify_btree_nr_keys(b);
 
 		gc_pos_set(c, gc_pos_btree_node(b));
@@ -1045,7 +1045,7 @@ static int bch2_mark_superblocks(struct bch_fs *c)
 	mutex_lock(&c->sb_lock);
 	gc_pos_set(c, gc_phase(GC_PHASE_SB));
 
-	int ret = bch2_trans_mark_dev_sbs_flags(c, BTREE_TRIGGER_GC);
+	int ret = bch2_trans_mark_dev_sbs_flags(c, BTREE_TRIGGER_gc);
 	mutex_unlock(&c->sb_lock);
 	return ret;
 }
@@ -1304,7 +1304,7 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 	if (a->v.data_type == BCH_DATA_cached && !a->v.io_time[READ])
 		a->v.io_time[READ] = max_t(u64, 1, atomic64_read(&c->io_clock[READ].now));
 
-	ret = bch2_trans_update(trans, iter, &a->k_i, BTREE_TRIGGER_NORUN);
+	ret = bch2_trans_update(trans, iter, &a->k_i, BTREE_TRIGGER_norun);
 fsck_err:
 	return ret;
 }
@@ -1318,7 +1318,7 @@ static int bch2_gc_alloc_done(struct bch_fs *c)
 			for_each_btree_key_upto_commit(trans, iter, BTREE_ID_alloc,
 					POS(ca->dev_idx, ca->mi.first_bucket),
 					POS(ca->dev_idx, ca->mi.nbuckets - 1),
-					BTREE_ITER_SLOTS|BTREE_ITER_PREFETCH, k,
+					BTREE_ITER_slots|BTREE_ITER_prefetch, k,
 					NULL, NULL, BCH_TRANS_COMMIT_lazy_rw,
 				bch2_alloc_write_key(trans, &iter, k)));
 		if (ret) {
@@ -1350,7 +1350,7 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 
 	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
-					 BTREE_ITER_PREFETCH, k, ({
+					 BTREE_ITER_prefetch, k, ({
 			struct bch_dev *ca = bch_dev_bkey_exists(c, k.k->p.inode);
 			struct bucket *g = gc_bucket(ca, k.k->p.offset);
 
@@ -1435,7 +1435,7 @@ static int bch2_gc_reflink_done(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
 				BTREE_ID_reflink, POS_MIN,
-				BTREE_ITER_PREFETCH, k,
+				BTREE_ITER_prefetch, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			bch2_gc_write_reflink_key(trans, &iter, k, &idx)));
 	c->reflink_gc_nr = 0;
@@ -1448,7 +1448,7 @@ static int bch2_gc_reflink_start(struct bch_fs *c)
 
 	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_reflink, POS_MIN,
-				   BTREE_ITER_PREFETCH, k, ({
+				   BTREE_ITER_prefetch, k, ({
 			const __le64 *refcount = bkey_refcount_c(k);
 
 			if (!refcount)
@@ -1538,7 +1538,7 @@ static int bch2_gc_stripes_done(struct bch_fs *c)
 	return bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter,
 				BTREE_ID_stripes, POS_MIN,
-				BTREE_ITER_PREFETCH, k,
+				BTREE_ITER_prefetch, k,
 				NULL, NULL, BCH_TRANS_COMMIT_no_enospc,
 			bch2_gc_write_stripes_key(trans, &iter, k)));
 }
@@ -1762,7 +1762,7 @@ int bch2_gc_gens(struct bch_fs *c)
 			ret = bch2_trans_run(c,
 				for_each_btree_key_commit(trans, iter, i,
 						POS_MIN,
-						BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
+						BTREE_ITER_prefetch|BTREE_ITER_all_snapshots,
 						k,
 						NULL, NULL,
 						BCH_TRANS_COMMIT_no_enospc,
@@ -1774,7 +1774,7 @@ int bch2_gc_gens(struct bch_fs *c)
 	ret = bch2_trans_run(c,
 		for_each_btree_key_commit(trans, iter, BTREE_ID_alloc,
 				POS_MIN,
-				BTREE_ITER_PREFETCH,
+				BTREE_ITER_prefetch,
 				k,
 				NULL, NULL,
 				BCH_TRANS_COMMIT_no_enospc,

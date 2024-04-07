@@ -315,7 +315,7 @@ static inline void btree_insert_entry_checks(struct btree_trans *trans,
 	BUG_ON(i->btree_id	!= path->btree_id);
 	EBUG_ON(!i->level &&
 		btree_type_has_snapshots(i->btree_id) &&
-		!(i->flags & BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE) &&
+		!(i->flags & BTREE_UPDATE_internal_snapshot_node) &&
 		test_bit(JOURNAL_REPLAY_DONE, &trans->c->journal.flags) &&
 		i->k->k.p.snapshot &&
 		bch2_snapshot_is_internal_node(trans->c, i->k->k.p.snapshot) > 0);
@@ -443,13 +443,13 @@ static int run_one_mem_trigger(struct btree_trans *trans,
 
 	verify_update_old_key(trans, i);
 
-	if (unlikely(flags & BTREE_TRIGGER_NORUN))
+	if (unlikely(flags & BTREE_TRIGGER_norun))
 		return 0;
 
 	if (old_ops->trigger == new_ops->trigger) {
 		ret   = bch2_key_trigger(trans, i->btree_id, i->level,
 				old, bkey_i_to_s(new),
-				BTREE_TRIGGER_INSERT|BTREE_TRIGGER_OVERWRITE|flags);
+				BTREE_TRIGGER_insert|BTREE_TRIGGER_overwrite|flags);
 	} else {
 		ret   = bch2_key_trigger_new(trans, i->btree_id, i->level,
 				bkey_i_to_s(new), flags) ?:
@@ -472,11 +472,11 @@ static int run_one_trans_trigger(struct btree_trans *trans, struct btree_insert_
 	struct bkey_s_c old = { &old_k, i->old_v };
 	const struct bkey_ops *old_ops = bch2_bkey_type_ops(old.k->type);
 	const struct bkey_ops *new_ops = bch2_bkey_type_ops(i->k->k.type);
-	unsigned flags = i->flags|BTREE_TRIGGER_TRANSACTIONAL;
+	unsigned flags = i->flags|BTREE_TRIGGER_transactional;
 
 	verify_update_old_key(trans, i);
 
-	if ((i->flags & BTREE_TRIGGER_NORUN) ||
+	if ((i->flags & BTREE_TRIGGER_norun) ||
 	    !(BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)))
 		return 0;
 
@@ -486,8 +486,8 @@ static int run_one_trans_trigger(struct btree_trans *trans, struct btree_insert_
 		i->overwrite_trigger_run = true;
 		i->insert_trigger_run = true;
 		return bch2_key_trigger(trans, i->btree_id, i->level, old, bkey_i_to_s(i->k),
-					BTREE_TRIGGER_INSERT|
-					BTREE_TRIGGER_OVERWRITE|flags) ?: 1;
+					BTREE_TRIGGER_insert|
+					BTREE_TRIGGER_overwrite|flags) ?: 1;
 	} else if (overwrite && !i->overwrite_trigger_run) {
 		i->overwrite_trigger_run = true;
 		return bch2_key_trigger_old(trans, i->btree_id, i->level, old, flags) ?: 1;
@@ -572,7 +572,7 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 
 #ifdef CONFIG_BCACHEFS_DEBUG
 	trans_for_each_update(trans, i)
-		BUG_ON(!(i->flags & BTREE_TRIGGER_NORUN) &&
+		BUG_ON(!(i->flags & BTREE_TRIGGER_norun) &&
 		       (BTREE_NODE_TYPE_HAS_TRANS_TRIGGERS & (1U << i->bkey_type)) &&
 		       (!i->insert_trigger_run || !i->overwrite_trigger_run));
 #endif
@@ -590,7 +590,7 @@ static noinline int bch2_trans_commit_run_gc_triggers(struct btree_trans *trans)
 
 		if (btree_node_type_needs_gc(__btree_node_type(i->level, i->btree_id)) &&
 		    gc_visited(trans->c, gc_pos_btree_node(insert_l(trans, i)->b))) {
-			int ret = run_one_mem_trigger(trans, i, i->flags|BTREE_TRIGGER_GC);
+			int ret = run_one_mem_trigger(trans, i, i->flags|BTREE_TRIGGER_gc);
 			if (ret)
 				return ret;
 		}
@@ -686,7 +686,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 
 	trans_for_each_update(trans, i)
 		if (BTREE_NODE_TYPE_HAS_ATOMIC_TRIGGERS & (1U << i->bkey_type)) {
-			ret = run_one_mem_trigger(trans, i, BTREE_TRIGGER_ATOMIC|i->flags);
+			ret = run_one_mem_trigger(trans, i, BTREE_TRIGGER_atomic|i->flags);
 			if (ret)
 				goto fatal_err;
 		}
@@ -705,7 +705,7 @@ bch2_trans_commit_write_locked(struct btree_trans *trans, unsigned flags,
 			if (i->key_cache_already_flushed)
 				continue;
 
-			if (i->flags & BTREE_UPDATE_NOJOURNAL)
+			if (i->flags & BTREE_UPDATE_nojournal)
 				continue;
 
 			verify_update_old_key(trans, i);
@@ -1063,7 +1063,7 @@ int __bch2_trans_commit(struct btree_trans *trans, unsigned flags)
 		if (i->key_cache_already_flushed)
 			continue;
 
-		if (i->flags & BTREE_UPDATE_NOJOURNAL)
+		if (i->flags & BTREE_UPDATE_nojournal)
 			continue;
 
 		/* we're going to journal the key being updated: */

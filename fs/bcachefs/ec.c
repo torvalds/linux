@@ -244,7 +244,7 @@ err:
 static int mark_stripe_bucket(struct btree_trans *trans,
 			      struct bkey_s_c k,
 			      unsigned ptr_idx,
-			      unsigned flags)
+			      enum btree_iter_update_trigger_flags flags)
 {
 	struct bch_fs *c = trans->c;
 	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
@@ -258,7 +258,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	BUG_ON(!(flags & BTREE_TRIGGER_GC));
+	BUG_ON(!(flags & BTREE_TRIGGER_gc));
 
 	/* * XXX doesn't handle deletion */
 
@@ -302,7 +302,7 @@ err:
 int bch2_trigger_stripe(struct btree_trans *trans,
 			enum btree_id btree_id, unsigned level,
 			struct bkey_s_c old, struct bkey_s _new,
-			unsigned flags)
+			enum btree_iter_update_trigger_flags flags)
 {
 	struct bkey_s_c new = _new.s_c;
 	struct bch_fs *c = trans->c;
@@ -312,7 +312,7 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 	const struct bch_stripe *new_s = new.k->type == KEY_TYPE_stripe
 		? bkey_s_c_to_stripe(new).v : NULL;
 
-	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
+	if (flags & BTREE_TRIGGER_transactional) {
 		/*
 		 * If the pointers aren't changing, we don't need to do anything:
 		 */
@@ -371,7 +371,7 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 		}
 	}
 
-	if (flags & BTREE_TRIGGER_ATOMIC) {
+	if (flags & BTREE_TRIGGER_atomic) {
 		struct stripe *m = genradix_ptr(&c->stripes, idx);
 
 		if (!m) {
@@ -410,7 +410,7 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 		}
 	}
 
-	if (flags & BTREE_TRIGGER_GC) {
+	if (flags & BTREE_TRIGGER_gc) {
 		struct gc_stripe *m =
 			genradix_ptr_alloc(&c->gc_stripes, idx, GFP_KERNEL);
 
@@ -769,7 +769,7 @@ static int get_stripe_key_trans(struct btree_trans *trans, u64 idx,
 	int ret;
 
 	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_stripes,
-			       POS(0, idx), BTREE_ITER_SLOTS);
+			       POS(0, idx), BTREE_ITER_slots);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -1060,7 +1060,7 @@ static int ec_stripe_delete(struct btree_trans *trans, u64 idx)
 	int ret;
 
 	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_stripes, POS(0, idx),
-			       BTREE_ITER_INTENT);
+			       BTREE_ITER_intent);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -1131,7 +1131,7 @@ static int ec_stripe_key_update(struct btree_trans *trans,
 	int ret;
 
 	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_stripes,
-			       new->k.p, BTREE_ITER_INTENT);
+			       new->k.p, BTREE_ITER_intent);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -1189,7 +1189,7 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 	int ret, dev, block;
 
 	ret = bch2_get_next_backpointer(trans, bucket, gen,
-				bp_pos, &bp, BTREE_ITER_CACHED);
+				bp_pos, &bp, BTREE_ITER_cached);
 	if (ret)
 		return ret;
 	if (bpos_eq(*bp_pos, SPOS_MAX))
@@ -1214,7 +1214,7 @@ static int ec_stripe_update_extent(struct btree_trans *trans,
 		return -EIO;
 	}
 
-	k = bch2_backpointer_get_key(trans, &iter, *bp_pos, bp, BTREE_ITER_INTENT);
+	k = bch2_backpointer_get_key(trans, &iter, *bp_pos, bp, BTREE_ITER_intent);
 	ret = bkey_err(k);
 	if (ret)
 		return ret;
@@ -1937,7 +1937,7 @@ static int __bch2_ec_stripe_head_reserve(struct btree_trans *trans, struct ec_st
 	}
 
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_stripes, start_pos,
-			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
+			   BTREE_ITER_slots|BTREE_ITER_intent, k, ret) {
 		if (bkey_gt(k.k->p, POS(0, U32_MAX))) {
 			if (start_pos.offset) {
 				start_pos = min_pos;
@@ -2127,7 +2127,7 @@ int bch2_stripes_read(struct bch_fs *c)
 {
 	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_stripes, POS_MIN,
-				   BTREE_ITER_PREFETCH, k, ({
+				   BTREE_ITER_prefetch, k, ({
 			if (k.k->type != KEY_TYPE_stripe)
 				continue;
 

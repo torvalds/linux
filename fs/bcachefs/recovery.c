@@ -136,9 +136,9 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 {
 	struct btree_iter iter;
 	unsigned iter_flags =
-		BTREE_ITER_INTENT|
-		BTREE_ITER_NOT_EXTENTS;
-	unsigned update_flags = BTREE_TRIGGER_NORUN;
+		BTREE_ITER_intent|
+		BTREE_ITER_not_extents;
+	unsigned update_flags = BTREE_TRIGGER_norun;
 	int ret;
 
 	if (k->overwritten)
@@ -147,17 +147,17 @@ static int bch2_journal_replay_key(struct btree_trans *trans,
 	trans->journal_res.seq = k->journal_seq;
 
 	/*
-	 * BTREE_UPDATE_KEY_CACHE_RECLAIM disables key cache lookup/update to
+	 * BTREE_UPDATE_key_cache_reclaim disables key cache lookup/update to
 	 * keep the key cache coherent with the underlying btree. Nothing
 	 * besides the allocator is doing updates yet so we don't need key cache
 	 * coherency for non-alloc btrees, and key cache fills for snapshots
-	 * btrees use BTREE_ITER_FILTER_SNAPSHOTS, which isn't available until
+	 * btrees use BTREE_ITER_filter_snapshots, which isn't available until
 	 * the snapshots recovery pass runs.
 	 */
 	if (!k->level && k->btree_id == BTREE_ID_alloc)
-		iter_flags |= BTREE_ITER_CACHED;
+		iter_flags |= BTREE_ITER_cached;
 	else
-		update_flags |= BTREE_UPDATE_KEY_CACHE_RECLAIM;
+		update_flags |= BTREE_UPDATE_key_cache_reclaim;
 
 	bch2_trans_node_iter_init(trans, &iter, k->btree_id, k->k->k.p,
 				  BTREE_MAX_DEPTH, k->level,

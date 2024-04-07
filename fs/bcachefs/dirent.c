@@ -205,7 +205,7 @@ int bch2_dirent_create_snapshot(struct btree_trans *trans,
 			const struct bch_hash_info *hash_info,
 			u8 type, const struct qstr *name, u64 dst_inum,
 			u64 *dir_offset,
-			bch_str_hash_flags_t str_hash_flags)
+			enum btree_iter_update_trigger_flags flags)
 {
 	subvol_inum dir_inum = { .subvol = dir_subvol, .inum = dir };
 	struct bkey_i_dirent *dirent;
@@ -220,9 +220,8 @@ int bch2_dirent_create_snapshot(struct btree_trans *trans,
 	dirent->k.p.snapshot	= snapshot;
 
 	ret = bch2_hash_set_in_snapshot(trans, bch2_dirent_hash_desc, hash_info,
-					dir_inum, snapshot,
-					&dirent->k_i, str_hash_flags,
-					BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+					dir_inum, snapshot, &dirent->k_i,
+					flags|BTREE_UPDATE_internal_snapshot_node);
 	*dir_offset = dirent->k.p.offset;
 
 	return ret;
@@ -232,7 +231,7 @@ int bch2_dirent_create(struct btree_trans *trans, subvol_inum dir,
 		       const struct bch_hash_info *hash_info,
 		       u8 type, const struct qstr *name, u64 dst_inum,
 		       u64 *dir_offset,
-		       bch_str_hash_flags_t str_hash_flags)
+		       enum btree_iter_update_trigger_flags flags)
 {
 	struct bkey_i_dirent *dirent;
 	int ret;
@@ -243,7 +242,7 @@ int bch2_dirent_create(struct btree_trans *trans, subvol_inum dir,
 		return ret;
 
 	ret = bch2_hash_set(trans, bch2_dirent_hash_desc, hash_info,
-			    dir, &dirent->k_i, str_hash_flags);
+			    dir, &dirent->k_i, flags);
 	*dir_offset = dirent->k.p.offset;
 
 	return ret;
@@ -272,7 +271,7 @@ int bch2_dirent_read_target(struct btree_trans *trans, subvol_inum dir,
 	} else {
 		target->subvol	= le32_to_cpu(d.v->d_child_subvol);
 
-		ret = bch2_subvolume_get(trans, target->subvol, true, BTREE_ITER_CACHED, &s);
+		ret = bch2_subvolume_get(trans, target->subvol, true, BTREE_ITER_cached, &s);
 
 		target->inum	= le64_to_cpu(s.inode);
 	}
@@ -303,7 +302,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	/* Lookup src: */
 	old_src = bch2_hash_lookup(trans, &src_iter, bch2_dirent_hash_desc,
 				   src_hash, src_dir, src_name,
-				   BTREE_ITER_INTENT);
+				   BTREE_ITER_intent);
 	ret = bkey_err(old_src);
 	if (ret)
 		goto out;
@@ -327,7 +326,7 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	} else {
 		old_dst = bch2_hash_lookup(trans, &dst_iter, bch2_dirent_hash_desc,
 					    dst_hash, dst_dir, dst_name,
-					    BTREE_ITER_INTENT);
+					    BTREE_ITER_intent);
 		ret = bkey_err(old_dst);
 		if (ret)
 			goto out;
@@ -442,7 +441,7 @@ out_set_src:
 	if (delete_src) {
 		bch2_btree_iter_set_snapshot(&src_iter, old_src.k->p.snapshot);
 		ret =   bch2_btree_iter_traverse(&src_iter) ?:
-			bch2_btree_delete_at(trans, &src_iter, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+			bch2_btree_delete_at(trans, &src_iter, BTREE_UPDATE_internal_snapshot_node);
 		if (ret)
 			goto out;
 	}
@@ -450,7 +449,7 @@ out_set_src:
 	if (delete_dst) {
 		bch2_btree_iter_set_snapshot(&dst_iter, old_dst.k->p.snapshot);
 		ret =   bch2_btree_iter_traverse(&dst_iter) ?:
-			bch2_btree_delete_at(trans, &dst_iter, BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+			bch2_btree_delete_at(trans, &dst_iter, BTREE_UPDATE_internal_snapshot_node);
 		if (ret)
 			goto out;
 	}

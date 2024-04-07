@@ -378,7 +378,7 @@ static void bch2_read_retry_nodecode(struct bch_fs *c, struct bch_read_bio *rbio
 	bch2_bkey_buf_init(&sk);
 
 	bch2_trans_iter_init(trans, &iter, rbio->data_btree,
-			     rbio->read_pos, BTREE_ITER_SLOTS);
+			     rbio->read_pos, BTREE_ITER_slots);
 retry:
 	rbio->bio.bi_status = 0;
 
@@ -487,7 +487,7 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 		return 0;
 
 	k = bch2_bkey_get_iter(trans, &iter, rbio->data_btree, rbio->data_pos,
-			       BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+			       BTREE_ITER_slots|BTREE_ITER_intent);
 	if ((ret = bkey_err(k)))
 		goto out;
 
@@ -523,7 +523,7 @@ static int __bch2_rbio_narrow_crcs(struct btree_trans *trans,
 		goto out;
 
 	ret = bch2_trans_update(trans, &iter, new,
-				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+				BTREE_UPDATE_internal_snapshot_node);
 out:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
@@ -769,7 +769,7 @@ static noinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
 			     PTR_BUCKET_POS(c, &ptr),
-			     BTREE_ITER_CACHED);
+			     BTREE_ITER_cached);
 
 	prt_printf(&buf, "Attempting to read from stale dirty pointer:\n");
 	printbuf_indent_add(&buf, 2);
@@ -1112,7 +1112,7 @@ retry:
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			     SPOS(inum.inum, bvec_iter.bi_sector, snapshot),
-			     BTREE_ITER_SLOTS);
+			     BTREE_ITER_slots);
 	while (1) {
 		unsigned bytes, sectors, offset_into_extent;
 		enum btree_id data_btree = BTREE_ID_extents;

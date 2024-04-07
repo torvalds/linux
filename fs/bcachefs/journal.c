@@ -946,7 +946,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 			ret = bch2_trans_run(c,
 				bch2_trans_mark_metadata_bucket(trans, ca,
 						ob[nr_got]->bucket, BCH_DATA_journal,
-						ca->mi.bucket_size, BTREE_TRIGGER_TRANSACTIONAL));
+						ca->mi.bucket_size, BTREE_TRIGGER_transactional));
 			if (ret) {
 				bch2_open_bucket_put(c, ob[nr_got]);
 				bch_err_msg(c, ret, "marking new journal buckets");
@@ -1027,7 +1027,7 @@ err_unblock:
 			bch2_trans_run(c,
 				bch2_trans_mark_metadata_bucket(trans, ca,
 						bu[i], BCH_DATA_free, 0,
-						BTREE_TRIGGER_TRANSACTIONAL));
+						BTREE_TRIGGER_transactional));
 err_free:
 	if (!new_fs)
 		for (i = 0; i < nr_got; i++)

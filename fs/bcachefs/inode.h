@@ -101,7 +101,7 @@ int bch2_inode_peek(struct btree_trans *, struct btree_iter *,
 		    struct bch_inode_unpacked *, subvol_inum, unsigned);
 
 int bch2_inode_write_flags(struct btree_trans *, struct btree_iter *,
-		     struct bch_inode_unpacked *, enum btree_update_flags);
+		     struct bch_inode_unpacked *, enum btree_iter_update_trigger_flags);
 
 static inline int bch2_inode_write(struct btree_trans *trans,
 		     struct btree_iter *iter,

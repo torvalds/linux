@@ -360,7 +360,7 @@ retry:
 
 	ret   = bch2_subvol_is_ro_trans(trans, inode->ei_subvol) ?:
 		bch2_inode_peek(trans, &inode_iter, &inode_u, inode_inum(inode),
-			      BTREE_ITER_INTENT);
+			      BTREE_ITER_intent);
 	if (ret)
 		goto btree_err;
 
@@ -411,7 +411,7 @@ int bch2_acl_chmod(struct btree_trans *trans, subvol_inum inum,
 	struct posix_acl *acl = NULL;
 
 	struct bkey_s_c k = bch2_hash_lookup(trans, &iter, bch2_xattr_hash_desc,
-			       &hash_info, inum, &search, BTREE_ITER_INTENT);
+			       &hash_info, inum, &search, BTREE_ITER_intent);
 	int ret = bkey_err(k);
 	if (ret)
 		return bch2_err_matches(ret, ENOENT) ? 0 : ret;

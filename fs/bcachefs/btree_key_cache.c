@@ -383,9 +383,9 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 	int ret;
 
 	bch2_trans_iter_init(trans, &iter, ck->key.btree_id, ck->key.pos,
-			     BTREE_ITER_KEY_CACHE_FILL|
-			     BTREE_ITER_CACHED_NOFILL);
-	iter.flags &= ~BTREE_ITER_WITH_JOURNAL;
+			     BTREE_ITER_key_cache_fill|
+			     BTREE_ITER_cached_nofill);
+	iter.flags &= ~BTREE_ITER_with_journal;
 	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
@@ -515,7 +515,7 @@ retry:
 fill:
 	path->uptodate = BTREE_ITER_UPTODATE;
 
-	if (!ck->valid && !(flags & BTREE_ITER_CACHED_NOFILL)) {
+	if (!ck->valid && !(flags & BTREE_ITER_cached_nofill)) {
 		/*
 		 * Using the underscore version because we haven't set
 		 * path->uptodate yet:
@@ -622,13 +622,13 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 	int ret;
 
 	bch2_trans_iter_init(trans, &b_iter, key.btree_id, key.pos,
-			     BTREE_ITER_SLOTS|
-			     BTREE_ITER_INTENT|
-			     BTREE_ITER_ALL_SNAPSHOTS);
+			     BTREE_ITER_slots|
+			     BTREE_ITER_intent|
+			     BTREE_ITER_all_snapshots);
 	bch2_trans_iter_init(trans, &c_iter, key.btree_id, key.pos,
-			     BTREE_ITER_CACHED|
-			     BTREE_ITER_INTENT);
-	b_iter.flags &= ~BTREE_ITER_WITH_KEY_CACHE;
+			     BTREE_ITER_cached|
+			     BTREE_ITER_intent);
+	b_iter.flags &= ~BTREE_ITER_with_key_cache;
 
 	ret = bch2_btree_iter_traverse(&c_iter);
 	if (ret)
@@ -666,9 +666,9 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 
 	ret   = bch2_btree_iter_traverse(&b_iter) ?:
 		bch2_trans_update(trans, &b_iter, ck->k,
-				  BTREE_UPDATE_KEY_CACHE_RECLAIM|
-				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
-				  BTREE_TRIGGER_NORUN) ?:
+				  BTREE_UPDATE_key_cache_reclaim|
+				  BTREE_UPDATE_internal_snapshot_node|
+				  BTREE_TRIGGER_norun) ?:
 		bch2_trans_commit(trans, NULL, NULL,
 				  BCH_TRANS_COMMIT_no_check_rw|
 				  BCH_TRANS_COMMIT_no_enospc|
@@ -790,7 +790,7 @@ bool bch2_btree_insert_key_cached(struct btree_trans *trans,
 	 * flushing. The flush callback will not proceed unless ->seq matches
 	 * the latest pin, so make sure it starts with a consistent value.
 	 */
-	if (!(insert_entry->flags & BTREE_UPDATE_NOJOURNAL) ||
+	if (!(insert_entry->flags & BTREE_UPDATE_nojournal) ||
 	    !journal_pin_active(&ck->journal)) {
 		ck->seq = trans->journal_res.seq;
 	}

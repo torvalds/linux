@@ -536,10 +536,10 @@ int bch2_fs_quota_read(struct bch_fs *c)
 
 	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_quotas, POS_MIN,
-				   BTREE_ITER_PREFETCH, k,
+				   BTREE_ITER_prefetch, k,
 			__bch2_quota_set(c, k, NULL)) ?:
 		for_each_btree_key(trans, iter, BTREE_ID_inodes, POS_MIN,
-				   BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+				   BTREE_ITER_prefetch|BTREE_ITER_all_snapshots, k,
 			bch2_fs_quota_read_inode(trans, &iter, k)));
 	bch_err_fn(c, ret);
 	return ret;
@@ -826,7 +826,7 @@ static int bch2_set_quota_trans(struct btree_trans *trans,
 	int ret;
 
 	k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_quotas, new_quota->k.p,
-			       BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+			       BTREE_ITER_slots|BTREE_ITER_intent);
 	ret = bkey_err(k);
 	if (unlikely(ret))
 		return ret;

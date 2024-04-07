@@ -338,18 +338,20 @@ int bch2_check_bucket_ref(struct btree_trans *, struct bkey_s_c,
 			  s64, enum bch_data_type, u8, u8, u32);
 
 int bch2_trigger_extent(struct btree_trans *, enum btree_id, unsigned,
-			struct bkey_s_c, struct bkey_s, unsigned);
+			struct bkey_s_c, struct bkey_s,
+			enum btree_iter_update_trigger_flags);
 int bch2_trigger_reservation(struct btree_trans *, enum btree_id, unsigned,
-			  struct bkey_s_c, struct bkey_s, unsigned);
+			  struct bkey_s_c, struct bkey_s,
+			  enum btree_iter_update_trigger_flags);
 
 #define trigger_run_overwrite_then_insert(_fn, _trans, _btree_id, _level, _old, _new, _flags)\
 ({												\
 	int ret = 0;										\
 												\
 	if (_old.k->type)									\
-		ret = _fn(_trans, _btree_id, _level, _old, _flags & ~BTREE_TRIGGER_INSERT);	\
+		ret = _fn(_trans, _btree_id, _level, _old, _flags & ~BTREE_TRIGGER_insert);	\
 	if (!ret && _new.k->type)								\
-		ret = _fn(_trans, _btree_id, _level, _new.s_c, _flags & ~BTREE_TRIGGER_OVERWRITE);\
+		ret = _fn(_trans, _btree_id, _level, _new.s_c, _flags & ~BTREE_TRIGGER_overwrite);\
 	ret;											\
 })
 
@@ -359,9 +361,12 @@ void bch2_trans_fs_usage_revert(struct btree_trans *, struct replicas_delta_list
 int bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *);
 
 int bch2_trans_mark_metadata_bucket(struct btree_trans *, struct bch_dev *, u64,
-				    enum bch_data_type, unsigned, unsigned);
-int bch2_trans_mark_dev_sb(struct bch_fs *, struct bch_dev *, unsigned);
-int bch2_trans_mark_dev_sbs_flags(struct bch_fs *, unsigned);
+				    enum bch_data_type, unsigned,
+				    enum btree_iter_update_trigger_flags);
+int bch2_trans_mark_dev_sb(struct bch_fs *, struct bch_dev *,
+				    enum btree_iter_update_trigger_flags);
+int bch2_trans_mark_dev_sbs_flags(struct bch_fs *,
+				    enum btree_iter_update_trigger_flags);
 int bch2_trans_mark_dev_sbs(struct bch_fs *);
 
 static inline bool is_superblock_bucket(struct bch_dev *ca, u64 b)

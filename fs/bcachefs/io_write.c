@@ -166,7 +166,7 @@ int bch2_sum_sector_overwrites(struct btree_trans *trans,
 	bch2_trans_copy_iter(&iter, extent_iter);
 
 	for_each_btree_key_upto_continue_norestart(iter,
-				new->k.p, BTREE_ITER_SLOTS, old, ret) {
+				new->k.p, BTREE_ITER_slots, old, ret) {
 		s64 sectors = min(new->k.p.offset, old.k->p.offset) -
 			max(bkey_start_offset(&new->k),
 			    bkey_start_offset(old.k));
@@ -210,14 +210,14 @@ static inline int bch2_extent_update_i_size_sectors(struct btree_trans *trans,
 	 * to be journalled - if we crash, the bi_journal_seq update will be
 	 * lost, but that's fine.
 	 */
-	unsigned inode_update_flags = BTREE_UPDATE_NOJOURNAL;
+	unsigned inode_update_flags = BTREE_UPDATE_nojournal;
 
 	struct btree_iter iter;
 	struct bkey_s_c k = bch2_bkey_get_iter(trans, &iter, BTREE_ID_inodes,
 			      SPOS(0,
 				   extent_iter->pos.inode,
 				   extent_iter->snapshot),
-			      BTREE_ITER_CACHED);
+			      BTREE_ITER_cached);
 	int ret = bkey_err(k);
 	if (unlikely(ret))
 		return ret;
@@ -259,7 +259,7 @@ static inline int bch2_extent_update_i_size_sectors(struct btree_trans *trans,
 	}
 
 	ret = bch2_trans_update(trans, &iter, &inode->k_i,
-				BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE|
+				BTREE_UPDATE_internal_snapshot_node|
 				inode_update_flags);
 err:
 	bch2_trans_iter_exit(trans, &iter);
@@ -368,7 +368,7 @@ static int bch2_write_index_default(struct bch_write_op *op)
 
 		bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 				     bkey_start_pos(&sk.k->k),
-				     BTREE_ITER_SLOTS|BTREE_ITER_INTENT);
+				     BTREE_ITER_slots|BTREE_ITER_intent);
 
 		ret =   bch2_bkey_set_needs_rebalance(c, sk.k, &op->opts) ?:
 			bch2_extent_update(trans, inum, &iter, sk.k,
@@ -1158,7 +1158,7 @@ static int bch2_nocow_write_convert_one_unwritten(struct btree_trans *trans,
 	return  bch2_extent_update_i_size_sectors(trans, iter,
 					min(new->k.p.offset << 9, new_i_size), 0) ?:
 		bch2_trans_update(trans, iter, new,
-				  BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+				  BTREE_UPDATE_internal_snapshot_node);
 }
 
 static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
@@ -1169,7 +1169,7 @@ static void bch2_nocow_write_convert_unwritten(struct bch_write_op *op)
 	for_each_keylist_key(&op->insert_keys, orig) {
 		int ret = for_each_btree_key_upto_commit(trans, iter, BTREE_ID_extents,
 				     bkey_start_pos(&orig->k), orig->k.p,
-				     BTREE_ITER_INTENT, k,
+				     BTREE_ITER_intent, k,
 				     NULL, NULL, BCH_TRANS_COMMIT_no_enospc, ({
 			bch2_nocow_write_convert_one_unwritten(trans, &iter, orig, k, op->new_i_size);
 		}));
@@ -1242,7 +1242,7 @@ retry:
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_extents,
 			     SPOS(op->pos.inode, op->pos.offset, snapshot),
-			     BTREE_ITER_SLOTS);
+			     BTREE_ITER_slots);
 	while (1) {
 		struct bio *bio = &op->wbio.bio;
 

@@ -300,7 +300,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 
 	k = bch2_bkey_get_iter(trans, &iter,
 			       BTREE_ID_alloc, POS(ca->dev_idx, b),
-			       BTREE_ITER_CACHED);
+			       BTREE_ITER_cached);
 	ret = bkey_err(k);
 	if (ret) {
 		ob = ERR_PTR(ret);
@@ -344,7 +344,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 
 		ret = bch2_get_next_backpointer(trans, POS(ca->dev_idx, b), -1,
 						&bp_pos, &bp,
-						BTREE_ITER_NOPRESERVE);
+						BTREE_ITER_nopreserve);
 		if (ret) {
 			ob = ERR_PTR(ret);
 			goto err;
@@ -404,7 +404,7 @@ bch2_bucket_alloc_early(struct btree_trans *trans,
 	 */
 again:
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_alloc, POS(ca->dev_idx, alloc_cursor),
-			   BTREE_ITER_SLOTS, k, ret) {
+			   BTREE_ITER_slots, k, ret) {
 		struct bch_alloc_v4 a_convert;
 		const struct bch_alloc_v4 *a;
 
@@ -420,7 +420,7 @@ again:
 			continue;
 
 		/* now check the cached key to serialize concurrent allocs of the bucket */
-		ck = bch2_bkey_get_iter(trans, &citer, BTREE_ID_alloc, k.k->p, BTREE_ITER_CACHED);
+		ck = bch2_bkey_get_iter(trans, &citer, BTREE_ID_alloc, k.k->p, BTREE_ITER_cached);
 		ret = bkey_err(ck);
 		if (ret)
 			break;
