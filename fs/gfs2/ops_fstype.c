@@ -1289,7 +1289,7 @@ static int gfs2_fill_super(struct super_block *sb, struct fs_context *fc)
 		error = gfs2_make_fs_rw(sdp);
 
 	if (error) {
-		gfs2_freeze_unlock(&sdp->sd_freeze_gh);
+		gfs2_freeze_unlock(sdp);
 		gfs2_destroy_threads(sdp);
 		fs_err(sdp, "can't make FS RW: %d\n", error);
 		goto fail_per_node;

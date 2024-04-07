@@ -358,7 +358,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 		list_add(&lfcc->list, &list);
 	}
 
-	gfs2_freeze_unlock(&sdp->sd_freeze_gh);
+	gfs2_freeze_unlock(sdp);
 
 	error = gfs2_glock_nq_init(sdp->sd_freeze_gl, LM_ST_EXCLUSIVE,
 				   LM_FLAG_NOEXP | GL_NOPID,
@@ -382,7 +382,7 @@ static int gfs2_lock_fs_check_clean(struct gfs2_sbd *sdp)
 	if (!error)
 		goto out;  /* success */
 
-	gfs2_freeze_unlock(&sdp->sd_freeze_gh);
+	gfs2_freeze_unlock(sdp);
 
 relock_shared:
 	error2 = gfs2_freeze_lock_shared(sdp);
@@ -621,7 +621,7 @@ restart:
 
 	/*  Release stuff  */
 
-	gfs2_freeze_unlock(&sdp->sd_freeze_gh);
+	gfs2_freeze_unlock(sdp);
 
 	iput(sdp->sd_jindex);
 	iput(sdp->sd_statfs_inode);
@@ -707,7 +707,7 @@ void gfs2_freeze_func(struct work_struct *work)
 	if (error)
 		goto freeze_failed;
 
-	gfs2_freeze_unlock(&sdp->sd_freeze_gh);
+	gfs2_freeze_unlock(sdp);
 	set_bit(SDF_FROZEN, &sdp->sd_flags);
 
 	error = gfs2_do_thaw(sdp);
@@ -812,7 +812,7 @@ static int gfs2_thaw_super(struct super_block *sb, enum freeze_holder who)
 	}
 
 	atomic_inc(&sb->s_active);
-	gfs2_freeze_unlock(&sdp->sd_freeze_gh);
+	gfs2_freeze_unlock(sdp);
 
 	error = gfs2_do_thaw(sdp);
 
@@ -833,7 +833,7 @@ void gfs2_thaw_freeze_initiator(struct super_block *sb)
 	if (!test_bit(SDF_FREEZE_INITIATOR, &sdp->sd_flags))
 		goto out;
 
-	gfs2_freeze_unlock(&sdp->sd_freeze_gh);
+	gfs2_freeze_unlock(sdp);
 
 out:
 	mutex_unlock(&sdp->sd_freeze_mutex);

@@ -150,7 +150,7 @@ int gfs2_io_error_i(struct gfs2_sbd *sdp, const char *function,
 int check_journal_clean(struct gfs2_sbd *sdp, struct gfs2_jdesc *jd,
 		        bool verbose);
 int gfs2_freeze_lock_shared(struct gfs2_sbd *sdp);
-void gfs2_freeze_unlock(struct gfs2_holder *freeze_gh);
+void gfs2_freeze_unlock(struct gfs2_sbd *sdp);
 
 #define gfs2_io_error(sdp) \
 gfs2_io_error_i((sdp), __func__, __FILE__, __LINE__)

@@ -109,10 +109,10 @@ int gfs2_freeze_lock_shared(struct gfs2_sbd *sdp)
 	return error;
 }
 
-void gfs2_freeze_unlock(struct gfs2_holder *freeze_gh)
+void gfs2_freeze_unlock(struct gfs2_sbd *sdp)
 {
-	if (gfs2_holder_initialized(freeze_gh))
-		gfs2_glock_dq_uninit(freeze_gh);
+	if (gfs2_holder_initialized(&sdp->sd_freeze_gh))
+		gfs2_glock_dq_uninit(&sdp->sd_freeze_gh);
 }
 
 static void signal_our_withdraw(struct gfs2_sbd *sdp)
