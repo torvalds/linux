@@ -2692,18 +2692,6 @@ static int pl011_find_free_port(void)
 	return -EBUSY;
 }
 
-static int pl011_get_rs485_mode(struct uart_amba_port *uap)
-{
-	struct uart_port *port = &uap->port;
-	int ret;
-
-	ret = uart_get_rs485_mode(port);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static int pl011_setup_port(struct device *dev, struct uart_amba_port *uap,
 			    struct resource *mmiobase, int index)
 {
@@ -2724,7 +2712,7 @@ static int pl011_setup_port(struct device *dev, struct uart_amba_port *uap,
 	uap->port.flags = UPF_BOOT_AUTOCONF;
 	uap->port.line = index;
 
-	ret = pl011_get_rs485_mode(uap);
+	ret = uart_get_rs485_mode(&uap->port);
 	if (ret)
 		return ret;
 
