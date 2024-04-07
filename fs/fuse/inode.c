@@ -175,6 +175,7 @@ static void fuse_evict_inode(struct inode *inode)
 		}
 	}
 	if (S_ISREG(inode->i_mode) && !fuse_is_bad(inode)) {
+		WARN_ON(fi->iocachectr != 0);
 		WARN_ON(!list_empty(&fi->write_files));
 		WARN_ON(!list_empty(&fi->queued_writes));
 	}
