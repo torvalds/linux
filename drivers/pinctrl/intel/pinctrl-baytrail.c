@@ -231,6 +231,7 @@ static const unsigned int byt_score_pins_map[BYT_NGPIO_SCORE] = {
 /* SCORE groups */
 static const unsigned int byt_score_uart1_pins[] = { 70, 71, 72, 73 };
 static const unsigned int byt_score_uart2_pins[] = { 74, 75, 76, 77 };
+static const unsigned int byt_score_uart3_pins[] = { 57, 61 };
 
 static const unsigned int byt_score_pwm0_pins[] = { 94 };
 static const unsigned int byt_score_pwm1_pins[] = { 95 };
@@ -280,6 +281,7 @@ static const unsigned int byt_score_smbus_pins[] = { 51, 52, 53 };
 static const struct intel_pingroup byt_score_groups[] = {
 	PIN_GROUP_GPIO("uart1_grp", byt_score_uart1_pins, 1),
 	PIN_GROUP_GPIO("uart2_grp", byt_score_uart2_pins, 1),
+	PIN_GROUP_GPIO("uart3_grp", byt_score_uart3_pins, 1),
 	PIN_GROUP_GPIO("pwm0_grp", byt_score_pwm0_pins, 1),
 	PIN_GROUP_GPIO("pwm1_grp", byt_score_pwm1_pins, 1),
 	PIN_GROUP_GPIO("ssp2_grp", byt_score_ssp2_pins, 1),
@@ -308,7 +310,7 @@ static const struct intel_pingroup byt_score_groups[] = {
 };
 
 static const char * const byt_score_uart_groups[] = {
-	"uart1_grp", "uart2_grp",
+	"uart1_grp", "uart2_grp", "uart3_grp",
 };
 static const char * const byt_score_pwm_groups[] = {
 	"pwm0_grp", "pwm1_grp",
@@ -332,7 +334,7 @@ static const char * const byt_score_plt_clk_groups[] = {
 };
 static const char * const byt_score_smbus_groups[] = { "smbus_grp" };
 static const char * const byt_score_gpio_groups[] = {
-	"uart1_grp_gpio", "uart2_grp_gpio", "pwm0_grp_gpio",
+	"uart1_grp_gpio", "uart2_grp_gpio", "uart3_grp_gpio", "pwm0_grp_gpio",
 	"pwm1_grp_gpio", "ssp0_grp_gpio", "ssp1_grp_gpio", "ssp2_grp_gpio",
 	"sio_spi_grp_gpio", "i2c0_grp_gpio", "i2c1_grp_gpio", "i2c2_grp_gpio",
 	"i2c3_grp_gpio", "i2c4_grp_gpio", "i2c5_grp_gpio", "i2c6_grp_gpio",
