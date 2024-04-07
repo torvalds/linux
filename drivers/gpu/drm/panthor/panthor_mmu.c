@@ -1264,8 +1264,10 @@ static int panthor_vm_prepare_map_op_ctx(struct panthor_vm_op_ctx *op_ctx,
 	op_ctx->rsvd_page_tables.pages = kcalloc(pt_count,
 						 sizeof(*op_ctx->rsvd_page_tables.pages),
 						 GFP_KERNEL);
-	if (!op_ctx->rsvd_page_tables.pages)
+	if (!op_ctx->rsvd_page_tables.pages) {
+		ret = -ENOMEM;
 		goto err_cleanup;
+	}
 
 	ret = kmem_cache_alloc_bulk(pt_cache, GFP_KERNEL, pt_count,
 				    op_ctx->rsvd_page_tables.pages);
@@ -1318,8 +1320,10 @@ static int panthor_vm_prepare_unmap_op_ctx(struct panthor_vm_op_ctx *op_ctx,
 		op_ctx->rsvd_page_tables.pages = kcalloc(pt_count,
 							 sizeof(*op_ctx->rsvd_page_tables.pages),
 							 GFP_KERNEL);
-		if (!op_ctx->rsvd_page_tables.pages)
+		if (!op_ctx->rsvd_page_tables.pages) {
+			ret = -ENOMEM;
 			goto err_cleanup;
+		}
 
 		ret = kmem_cache_alloc_bulk(pt_cache, GFP_KERNEL, pt_count,
 					    op_ctx->rsvd_page_tables.pages);
@@ -1893,6 +1897,8 @@ struct panthor_heap_pool *panthor_vm_get_heap_pool(struct panthor_vm *vm, bool c
 			vm->heaps.pool = panthor_heap_pool_get(pool);
 	} else {
 		pool = panthor_heap_pool_get(vm->heaps.pool);
+		if (!pool)
+			pool = ERR_PTR(-ENOENT);
 	}
 	mutex_unlock(&vm->heaps.lock);
 

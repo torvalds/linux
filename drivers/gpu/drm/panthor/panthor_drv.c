@@ -1090,8 +1090,8 @@ static int panthor_ioctl_tiler_heap_destroy(struct drm_device *ddev, void *data,
 		return -EINVAL;
 
 	pool = panthor_vm_get_heap_pool(vm, false);
-	if (!pool) {
-		ret = -EINVAL;
+	if (IS_ERR(pool)) {
+		ret = PTR_ERR(pool);
 		goto out_put_vm;
 	}
 
@@ -1327,7 +1327,22 @@ static int panthor_mmap(struct file *filp, struct vm_area_struct *vma)
 	if (!drm_dev_enter(file->minor->dev, &cookie))
 		return -ENODEV;
 
-	if (panthor_device_mmio_offset(offset) >= DRM_PANTHOR_USER_MMIO_OFFSET)
+#ifdef CONFIG_ARM64
+	/*
+	 * With 32-bit systems being limited by the 32-bit representation of
+	 * mmap2's pgoffset field, we need to make the MMIO offset arch
+	 * specific. This converts a user MMIO offset into something the kernel
+	 * driver understands.
+	 */
+	if (test_tsk_thread_flag(current, TIF_32BIT) &&
+	    offset >= DRM_PANTHOR_USER_MMIO_OFFSET_32BIT) {
+		offset += DRM_PANTHOR_USER_MMIO_OFFSET_64BIT -
+			  DRM_PANTHOR_USER_MMIO_OFFSET_32BIT;
+		vma->vm_pgoff = offset >> PAGE_SHIFT;
+	}
+#endif
+
+	if (offset >= DRM_PANTHOR_USER_MMIO_OFFSET)
 		ret = panthor_device_mmap_io(ptdev, vma);
 	else
 		ret = drm_gem_mmap(filp, vma);
@@ -1385,7 +1400,7 @@ static int panthor_probe(struct platform_device *pdev)
 
 	ptdev = devm_drm_dev_alloc(&pdev->dev, &panthor_drm_driver,
 				   struct panthor_device, base);
-	if (!ptdev)
+	if (IS_ERR(ptdev))
 		return -ENOMEM;
 
 	platform_set_drvdata(pdev, ptdev);

@@ -517,7 +517,7 @@ struct panthor_group {
 	/** @max_compute_cores: Maximum number of shader cores used for compute jobs. */
 	u8 max_compute_cores;
 
-	/** @max_compute_cores: Maximum number of shader cores used for fragment jobs. */
+	/** @max_fragment_cores: Maximum number of shader cores used for fragment jobs. */
 	u8 max_fragment_cores;
 
 	/** @max_tiler_cores: Maximum number of tiler cores used for tiler jobs. */
@@ -993,7 +993,7 @@ cs_slot_prog_locked(struct panthor_device *ptdev, u32 csg_id, u32 cs_id)
 }
 
 /**
- * @cs_slot_reset_locked() - Reset a queue slot
+ * cs_slot_reset_locked() - Reset a queue slot
  * @ptdev: Device.
  * @csg_id: Group slot.
  * @cs_id: Queue slot.
@@ -1343,7 +1343,7 @@ static int group_process_tiler_oom(struct panthor_group *group, u32 cs_id)
 	if (unlikely(csg_id < 0))
 		return 0;
 
-	if (!heaps || frag_end > vt_end || vt_end >= vt_start) {
+	if (IS_ERR(heaps) || frag_end > vt_end || vt_end >= vt_start) {
 		ret = -EINVAL;
 	} else {
 		/* We do the allocation without holding the scheduler lock to avoid
@@ -1591,7 +1591,7 @@ static void sched_process_idle_event_locked(struct panthor_device *ptdev)
 }
 
 /**
- * panthor_sched_process_global_irq() - Process the scheduling part of a global IRQ
+ * sched_process_global_irq_locked() - Process the scheduling part of a global IRQ
  * @ptdev: Device.
  */
 static void sched_process_global_irq_locked(struct panthor_device *ptdev)
@@ -1660,8 +1660,6 @@ static const struct dma_fence_ops panthor_queue_fence_ops = {
 	.get_timeline_name = queue_fence_get_timeline_name,
 };
 
-/**
- */
 struct panthor_csg_slots_upd_ctx {
 	u32 update_mask;
 	u32 timedout_mask;
@@ -2045,7 +2043,7 @@ tick_ctx_apply(struct panthor_scheduler *sched, struct panthor_sched_tick_ctx *c
 	struct panthor_device *ptdev = sched->ptdev;
 	struct panthor_csg_slot *csg_slot;
 	int prio, new_csg_prio = MAX_CSG_PRIO, i;
-	u32 csg_mod_mask = 0, free_csg_slots = 0;
+	u32 free_csg_slots = 0;
 	struct panthor_csg_slots_upd_ctx upd_ctx;
 	int ret;
 
@@ -2139,7 +2137,6 @@ tick_ctx_apply(struct panthor_scheduler *sched, struct panthor_sched_tick_ctx *c
 
 			csg_iface = panthor_fw_get_csg_iface(ptdev, csg_id);
 			csg_slot = &sched->csg_slots[csg_id];
-			csg_mod_mask |= BIT(csg_id);
 			group_bind_locked(group, csg_id);
 			csg_slot_prog_locked(ptdev, csg_id, new_csg_prio--);
 			csgs_upd_ctx_queue_reqs(ptdev, &upd_ctx, csg_id,

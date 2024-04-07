@@ -37,6 +37,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
@@ -951,6 +952,32 @@ void drm_kms_helper_poll_fini(struct drm_device *dev)
 }
 EXPORT_SYMBOL(drm_kms_helper_poll_fini);
 
+static void drm_kms_helper_poll_init_release(struct drm_device *dev, void *res)
+{
+	drm_kms_helper_poll_fini(dev);
+}
+
+/**
+ * drmm_kms_helper_poll_init - initialize and enable output polling
+ * @dev: drm_device
+ *
+ * This function initializes and then also enables output polling support for
+ * @dev similar to drm_kms_helper_poll_init(). Polling will automatically be
+ * cleaned up when the DRM device goes away.
+ *
+ * See drm_kms_helper_poll_init() for more information.
+ *
+ * Returns:
+ * 0 on success, or a negative errno code otherwise.
+ */
+int drmm_kms_helper_poll_init(struct drm_device *dev)
+{
+	drm_kms_helper_poll_init(dev);
+
+	return drmm_add_action_or_reset(dev, drm_kms_helper_poll_init_release, dev);
+}
+EXPORT_SYMBOL(drmm_kms_helper_poll_init);
+
 static bool check_connector_changed(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
@@ -1279,3 +1306,32 @@ int drm_connector_helper_tv_get_modes(struct drm_connector *connector)
 	return i;
 }
 EXPORT_SYMBOL(drm_connector_helper_tv_get_modes);
+
+/**
+ * drm_connector_helper_detect_from_ddc - Read EDID and detect connector status.
+ * @connector: The connector
+ * @ctx: Acquire context
+ * @force: Perform screen-destructive operations, if necessary
+ *
+ * Detects the connector status by reading the EDID using drm_probe_ddc(),
+ * which requires connector->ddc to be set. Returns connector_status_connected
+ * on success or connector_status_disconnected on failure.
+ *
+ * Returns:
+ * The connector status as defined by enum drm_connector_status.
+ */
+int drm_connector_helper_detect_from_ddc(struct drm_connector *connector,
+					 struct drm_modeset_acquire_ctx *ctx,
+					 bool force)
+{
+	struct i2c_adapter *ddc = connector->ddc;
+
+	if (!ddc)
+		return connector_status_unknown;
+
+	if (drm_probe_ddc(ddc))
+		return connector_status_connected;
+
+	return connector_status_disconnected;
+}
+EXPORT_SYMBOL(drm_connector_helper_detect_from_ddc);

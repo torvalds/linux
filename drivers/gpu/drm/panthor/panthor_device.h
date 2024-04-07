@@ -323,31 +323,18 @@ static irqreturn_t panthor_ ## __name ## _irq_threaded_handler(int irq, void *da
 												\
 static inline void panthor_ ## __name ## _irq_suspend(struct panthor_irq *pirq)			\
 {												\
-	int cookie;										\
-												\
-	atomic_set(&pirq->suspended, true);							\
-												\
-	if (drm_dev_enter(&pirq->ptdev->base, &cookie)) {					\
-		gpu_write(pirq->ptdev, __reg_prefix ## _INT_MASK, 0);				\
-		synchronize_irq(pirq->irq);							\
-		drm_dev_exit(cookie);								\
-	}											\
-												\
 	pirq->mask = 0;										\
+	gpu_write(pirq->ptdev, __reg_prefix ## _INT_MASK, 0);					\
+	synchronize_irq(pirq->irq);								\
+	atomic_set(&pirq->suspended, true);							\
 }												\
 												\
 static inline void panthor_ ## __name ## _irq_resume(struct panthor_irq *pirq, u32 mask)	\
 {												\
-	int cookie;										\
-												\
 	atomic_set(&pirq->suspended, false);							\
 	pirq->mask = mask;									\
-												\
-	if (drm_dev_enter(&pirq->ptdev->base, &cookie)) {					\
-		gpu_write(pirq->ptdev, __reg_prefix ## _INT_CLEAR, mask);			\
-		gpu_write(pirq->ptdev, __reg_prefix ## _INT_MASK, mask);			\
-		drm_dev_exit(cookie);								\
-	}											\
+	gpu_write(pirq->ptdev, __reg_prefix ## _INT_CLEAR, mask);				\
+	gpu_write(pirq->ptdev, __reg_prefix ## _INT_MASK, mask);				\
 }												\
 												\
 static int panthor_request_ ## __name ## _irq(struct panthor_device *ptdev,			\
@@ -363,30 +350,6 @@ static int panthor_request_ ## __name ## _irq(struct panthor_device *ptdev,			\
 					 panthor_ ## __name ## _irq_threaded_handler,		\
 					 IRQF_SHARED, KBUILD_MODNAME "-" # __name,		\
 					 pirq);							\
-}
-
-/**
- * panthor_device_mmio_offset() - Turn a user MMIO offset into a kernel one
- * @offset: Offset to convert.
- *
- * With 32-bit systems being limited by the 32-bit representation of mmap2's
- * pgoffset field, we need to make the MMIO offset arch specific. This function
- * converts a user MMIO offset into something the kernel driver understands.
- *
- * If the kernel and userspace architecture match, the offset is unchanged. If
- * the kernel is 64-bit and userspace is 32-bit, the offset is adjusted to match
- * 64-bit offsets. 32-bit kernel with 64-bit userspace is impossible.
- *
- * Return: Adjusted offset.
- */
-static inline u64 panthor_device_mmio_offset(u64 offset)
-{
-#ifdef CONFIG_ARM64
-	if (test_tsk_thread_flag(current, TIF_32BIT))
-		offset += DRM_PANTHOR_USER_MMIO_OFFSET_64BIT - DRM_PANTHOR_USER_MMIO_OFFSET_32BIT;
-#endif
-
-	return offset;
 }
 
 extern struct workqueue_struct *panthor_cleanup_wq;

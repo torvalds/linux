@@ -7,4 +7,4 @@ Description:
 		Valid values are:
 		0: Don't enable fdinfo job profiling sources.
 		1: Enable fdinfo job profiling sources, this enables both the GPU's
-		   timestamp and cycle counter registers.
+		timestamp and cycle counter registers.

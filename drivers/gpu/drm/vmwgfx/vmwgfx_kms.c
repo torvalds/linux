@@ -775,7 +775,6 @@ vmw_du_cursor_plane_atomic_update(struct drm_plane *plane,
 	hotspot_y = du->hotspot_y + new_state->hotspot_y;
 
 	du->cursor_surface = vps->surf;
-	du->cursor_bo = vps->bo;
 
 	if (!vps->surf && !vps->bo) {
 		vmw_cursor_update_position(dev_priv, false, 0, 0);
@@ -858,15 +857,6 @@ int vmw_du_primary_plane_atomic_check(struct drm_plane *plane,
 						  DRM_PLANE_NO_SCALING,
 						  DRM_PLANE_NO_SCALING,
 						  false, true);
-
-	if (!ret && new_fb) {
-		struct drm_crtc *crtc = new_state->crtc;
-		struct vmw_display_unit *du = vmw_crtc_to_du(crtc);
-
-		vmw_connector_state_to_vcs(du->connector.state);
-	}
-
-
 	return ret;
 }
 
@@ -1361,7 +1351,6 @@ static int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 
 	drm_helper_mode_fill_fb_struct(dev, &vfbs->base.base, mode_cmd);
 	vfbs->surface = vmw_surface_reference(surface);
-	vfbs->base.user_handle = mode_cmd->handles[0];
 	vfbs->is_bo_proxy = is_bo_proxy;
 
 	*out = &vfbs->base;
@@ -1529,7 +1518,6 @@ static int vmw_kms_new_framebuffer_bo(struct vmw_private *dev_priv,
 	drm_helper_mode_fill_fb_struct(dev, &vfbd->base.base, mode_cmd);
 	vfbd->base.bo = true;
 	vfbd->buffer = vmw_bo_reference(bo);
-	vfbd->base.user_handle = mode_cmd->handles[0];
 	*out = &vfbd->base;
 
 	ret = drm_framebuffer_init(dev, &vfbd->base.base,
