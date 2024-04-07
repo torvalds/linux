@@ -258,7 +258,7 @@ static void bch2_btree_iter_verify(struct btree_iter *iter)
 	BUG_ON((iter->flags & BTREE_ITER_IS_EXTENTS) &&
 	       (iter->flags & BTREE_ITER_ALL_SNAPSHOTS));
 
-	BUG_ON(!(iter->flags & __BTREE_ITER_ALL_SNAPSHOTS) &&
+	BUG_ON(!(iter->flags & BTREE_ITER_SNAPSHOT_FIELD) &&
 	       (iter->flags & BTREE_ITER_ALL_SNAPSHOTS) &&
 	       !btree_type_has_snapshot_field(iter->btree_id));
 
@@ -2809,7 +2809,7 @@ void bch2_trans_node_iter_init(struct btree_trans *trans,
 			       unsigned flags)
 {
 	flags |= BTREE_ITER_NOT_EXTENTS;
-	flags |= __BTREE_ITER_ALL_SNAPSHOTS;
+	flags |= BTREE_ITER_SNAPSHOT_FIELD;
 	flags |= BTREE_ITER_ALL_SNAPSHOTS;
 
 	bch2_trans_iter_init_common(trans, iter, btree_id, pos, locks_want, depth,
