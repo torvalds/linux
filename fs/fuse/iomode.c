@@ -90,7 +90,7 @@ int fuse_inode_uncached_io_start(struct fuse_inode *fi, struct fuse_backing *fb)
 	spin_lock(&fi->lock);
 	/* deny conflicting backing files on same fuse inode */
 	oldfb = fuse_inode_backing(fi);
-	if (oldfb && oldfb != fb) {
+	if (fb && oldfb && oldfb != fb) {
 		err = -EBUSY;
 		goto unlock;
 	}
@@ -101,7 +101,7 @@ int fuse_inode_uncached_io_start(struct fuse_inode *fi, struct fuse_backing *fb)
 	fi->iocachectr--;
 
 	/* fuse inode holds a single refcount of backing file */
-	if (!oldfb) {
+	if (fb && !oldfb) {
 		oldfb = fuse_inode_backing_set(fi, fb);
 		WARN_ON_ONCE(oldfb != NULL);
 	} else {
