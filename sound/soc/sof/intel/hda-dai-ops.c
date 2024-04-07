@@ -7,6 +7,7 @@
 
 #include <sound/pcm_params.h>
 #include <sound/hdaudio_ext.h>
+#include <sound/hda_register.h>
 #include <sound/hda-mlink.h>
 #include <sound/sof/ipc4/header.h>
 #include <uapi/sound/sof/header.h>
@@ -362,6 +363,16 @@ static int hda_trigger(struct snd_sof_dev *sdev, struct snd_soc_dai *cpu_dai,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		snd_hdac_ext_stream_clear(hext_stream);
+
+		/*
+		 * Save the LLP registers in case the stream is
+		 * restarting due PAUSE_RELEASE, or START without a pcm
+		 * close/open since in this case the LLP register is not reset
+		 * to 0 and the delay calculation will return with invalid
+		 * results.
+		 */
+		hext_stream->pplcllpl = readl(hext_stream->pplc_addr + AZX_REG_PPLCLLPL);
+		hext_stream->pplcllpu = readl(hext_stream->pplc_addr + AZX_REG_PPLCLLPU);
 		break;
 	default:
 		dev_err(sdev->dev, "unknown trigger command %d\n", cmd);
