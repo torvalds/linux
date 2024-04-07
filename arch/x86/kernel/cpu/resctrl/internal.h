@@ -78,7 +78,8 @@ cpumask_any_housekeeping(const struct cpumask *mask, int exclude_cpu)
 	else
 		cpu = cpumask_any_but(mask, exclude_cpu);
 
-	if (!IS_ENABLED(CONFIG_NO_HZ_FULL))
+	/* Only continue if tick_nohz_full_mask has been initialized. */
+	if (!tick_nohz_full_enabled())
 		return cpu;
 
 	/* If the CPU picked isn't marked nohz_full nothing more needs doing. */
