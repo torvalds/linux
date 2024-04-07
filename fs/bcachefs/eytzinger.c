@@ -171,7 +171,7 @@ void eytzinger0_sort_r(void *base, size_t n, size_t size,
 		       swap_r_func_t swap_func,
 		       const void *priv)
 {
-	int i, c, r;
+	int i, j, k;
 
 	/* called from 'sort' without swap function, let's pick the default */
 	if (swap_func == SWAP_WRAPPER && !((struct wrapper *)priv)->swap_func)
@@ -188,17 +188,22 @@ void eytzinger0_sort_r(void *base, size_t n, size_t size,
 
 	/* heapify */
 	for (i = n / 2 - 1; i >= 0; --i) {
-		for (r = i; r * 2 + 1 < n; r = c) {
-			c = r * 2 + 1;
+		/* Find the sift-down path all the way to the leaves. */
+		for (j = i; k = j * 2 + 1, k + 1 < n;)
+			j = eytzinger0_do_cmp(base, n, size, cmp_func, priv, k, k + 1) > 0 ? k : k + 1;
 
-			if (c + 1 < n &&
-			    eytzinger0_do_cmp(base, n, size, cmp_func, priv, c, c + 1) < 0)
-				c++;
+		/* Special case for the last leaf with no sibling. */
+		if (j * 2 + 2 == n)
+			j = j * 2 + 1;
 
-			if (eytzinger0_do_cmp(base, n, size, cmp_func, priv, r, c) >= 0)
-				break;
+		/* Backtrack to the correct location. */
+		while (j != i && eytzinger0_do_cmp(base, n, size, cmp_func, priv, i, j) >= 0)
+			j = (j - 1) / 2;
 
-			eytzinger0_do_swap(base, n, size, swap_func, priv, r, c);
+		/* Shift the element into its correct place. */
+		for (k = j; j != i;) {
+			j = (j - 1) / 2;
+			eytzinger0_do_swap(base, n, size, swap_func, priv, j, k);
 		}
 	}
 
@@ -206,17 +211,22 @@ void eytzinger0_sort_r(void *base, size_t n, size_t size,
 	for (i = n - 1; i > 0; --i) {
 		eytzinger0_do_swap(base, n, size, swap_func, priv, 0, i);
 
-		for (r = 0; r * 2 + 1 < i; r = c) {
-			c = r * 2 + 1;
+		/* Find the sift-down path all the way to the leaves. */
+		for (j = 0; k = j * 2 + 1, k + 1 < i;)
+			j = eytzinger0_do_cmp(base, n, size, cmp_func, priv, k, k + 1) > 0 ? k : k + 1;
 
-			if (c + 1 < i &&
-			    eytzinger0_do_cmp(base, n, size, cmp_func, priv, c, c + 1) < 0)
-				c++;
+		/* Special case for the last leaf with no sibling. */
+		if (j * 2 + 2 == i)
+			j = j * 2 + 1;
 
-			if (eytzinger0_do_cmp(base, n, size, cmp_func, priv, r, c) >= 0)
-				break;
+		/* Backtrack to the correct location. */
+		while (j && eytzinger0_do_cmp(base, n, size, cmp_func, priv, 0, j) >= 0)
+			j = (j - 1) / 2;
 
-			eytzinger0_do_swap(base, n, size, swap_func, priv, r, c);
+		/* Shift the element into its correct place. */
+		for (k = j; j;) {
+			j = (j - 1) / 2;
+			eytzinger0_do_swap(base, n, size, swap_func, priv, j, k);
 		}
 	}
 }
@@ -232,3 +242,64 @@ void eytzinger0_sort(void *base, size_t n, size_t size,
 
 	return eytzinger0_sort_r(base, n, size, _CMP_WRAPPER, SWAP_WRAPPER, &w);
 }
+
+#if 0
+#include <linux/slab.h>
+#include <linux/random.h>
+#include <linux/ktime.h>
+
+static u64 cmp_count;
+
+static int mycmp(const void *a, const void *b)
+{
+	u32 _a = *(u32 *)a;
+	u32 _b = *(u32 *)b;
+
+	cmp_count++;
+	if (_a < _b)
+		return -1;
+	else if (_a > _b)
+		return 1;
+	else
+		return 0;
+}
+
+static int test(void)
+{
+	size_t N, i;
+	ktime_t start, end;
+	s64 delta;
+	u32 *arr;
+
+	for (N = 10000; N <= 100000; N += 10000) {
+		arr = kmalloc_array(N, sizeof(u32), GFP_KERNEL);
+		cmp_count = 0;
+
+		for (i = 0; i < N; i++)
+			arr[i] = get_random_u32();
+
+		start = ktime_get();
+		eytzinger0_sort(arr, N, sizeof(u32), mycmp, NULL);
+		end = ktime_get();
+
+		delta = ktime_us_delta(end, start);
+		printk(KERN_INFO "time: %lld\n", delta);
+		printk(KERN_INFO "comparisons: %lld\n", cmp_count);
+
+		u32 prev = 0;
+
+		eytzinger0_for_each(i, N) {
+			if (prev > arr[i])
+				goto err;
+			prev = arr[i];
+		}
+
+		kfree(arr);
+	}
+	return 0;
+
+err:
+	kfree(arr);
+	return -1;
+}
+#endif
