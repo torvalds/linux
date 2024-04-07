@@ -281,7 +281,6 @@ struct posix_acl *bch2_get_acl(struct mnt_idmap *idmap,
 	struct xattr_search_key search = X_SEARCH(acl_to_xattr_type(type), "", 0);
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter = { NULL };
-	struct bkey_s_c_xattr xattr;
 	struct posix_acl *acl = NULL;
 	struct bkey_s_c k;
 	int ret;
@@ -290,28 +289,27 @@ retry:
 
 	ret = bch2_hash_lookup(trans, &iter, bch2_xattr_hash_desc,
 			&hash, inode_inum(inode), &search, 0);
-	if (ret) {
-		if (!bch2_err_matches(ret, ENOENT))
-			acl = ERR_PTR(ret);
-		goto out;
-	}
+	if (ret)
+		goto err;
 
 	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
-	if (ret) {
-		acl = ERR_PTR(ret);
-		goto out;
-	}
+	if (ret)
+		goto err;
 
-	xattr = bkey_s_c_to_xattr(k);
+	struct bkey_s_c_xattr xattr = bkey_s_c_to_xattr(k);
 	acl = bch2_acl_from_disk(trans, xattr_val(xattr.v),
-			le16_to_cpu(xattr.v->x_val_len));
-
-	if (!IS_ERR(acl))
-		set_cached_acl(&inode->v, type, acl);
-out:
-	if (bch2_err_matches(PTR_ERR_OR_ZERO(acl), BCH_ERR_transaction_restart))
+				 le16_to_cpu(xattr.v->x_val_len));
+	ret = PTR_ERR_OR_ZERO(acl);
+err:
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
+
+	if (ret)
+		acl = !bch2_err_matches(ret, ENOENT) ? ERR_PTR(ret) : NULL;
+
+	if (!IS_ERR_OR_NULL(acl))
+		set_cached_acl(&inode->v, type, acl);
 
 	bch2_trans_iter_exit(trans, &iter);
 	bch2_trans_put(trans);
