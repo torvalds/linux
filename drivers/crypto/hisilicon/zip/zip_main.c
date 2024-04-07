@@ -887,36 +887,34 @@ static int hisi_zip_ctrl_debug_init(struct hisi_qm *qm)
 static int hisi_zip_debugfs_init(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
-	struct dentry *dev_d;
 	int ret;
 
-	dev_d = debugfs_create_dir(dev_name(dev), hzip_debugfs_root);
-
-	qm->debug.sqe_mask_offset = HZIP_SQE_MASK_OFFSET;
-	qm->debug.sqe_mask_len = HZIP_SQE_MASK_LEN;
-	qm->debug.debug_root = dev_d;
 	ret = hisi_qm_regs_debugfs_init(qm, hzip_diff_regs, ARRAY_SIZE(hzip_diff_regs));
 	if (ret) {
 		dev_warn(dev, "Failed to init ZIP diff regs!\n");
-		goto debugfs_remove;
+		return ret;
 	}
+
+	qm->debug.sqe_mask_offset = HZIP_SQE_MASK_OFFSET;
+	qm->debug.sqe_mask_len = HZIP_SQE_MASK_LEN;
+	qm->debug.debug_root = debugfs_create_dir(dev_name(dev),
+							hzip_debugfs_root);
 
 	hisi_qm_debug_init(qm);
 
 	if (qm->fun_type == QM_HW_PF) {
 		ret = hisi_zip_ctrl_debug_init(qm);
 		if (ret)
-			goto failed_to_create;
+			goto debugfs_remove;
 	}
 
 	hisi_zip_dfx_debug_init(qm);
 
 	return 0;
 
-failed_to_create:
-	hisi_qm_regs_debugfs_uninit(qm, ARRAY_SIZE(hzip_diff_regs));
 debugfs_remove:
-	debugfs_remove_recursive(hzip_debugfs_root);
+	debugfs_remove_recursive(qm->debug.debug_root);
+	hisi_qm_regs_debugfs_uninit(qm, ARRAY_SIZE(hzip_diff_regs));
 	return ret;
 }
 
@@ -940,9 +938,9 @@ static void hisi_zip_debug_regs_clear(struct hisi_qm *qm)
 
 static void hisi_zip_debugfs_exit(struct hisi_qm *qm)
 {
-	hisi_qm_regs_debugfs_uninit(qm, ARRAY_SIZE(hzip_diff_regs));
-
 	debugfs_remove_recursive(qm->debug.debug_root);
+
+	hisi_qm_regs_debugfs_uninit(qm, ARRAY_SIZE(hzip_diff_regs));
 
 	if (qm->fun_type == QM_HW_PF) {
 		hisi_zip_debug_regs_clear(qm);
