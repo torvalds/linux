@@ -29,11 +29,10 @@ void erofs_put_metabuf(struct erofs_buf *buf)
  * Derive the block size from inode->i_blkbits to make compatible with
  * anonymous inode in fscache mode.
  */
-void *erofs_bread(struct erofs_buf *buf, erofs_blk_t blkaddr,
+void *erofs_bread(struct erofs_buf *buf, erofs_off_t offset,
 		  enum erofs_kmap_type type)
 {
 	struct inode *inode = buf->inode;
-	erofs_off_t offset = (erofs_off_t)blkaddr << inode->i_blkbits;
 	pgoff_t index = offset >> PAGE_SHIFT;
 	struct page *page = buf->page;
 	struct folio *folio;
@@ -77,7 +76,7 @@ void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
 			 erofs_blk_t blkaddr, enum erofs_kmap_type type)
 {
 	erofs_init_metabuf(buf, sb);
-	return erofs_bread(buf, blkaddr, type);
+	return erofs_bread(buf, erofs_pos(sb, blkaddr), type);
 }
 
 static int erofs_map_blocks_flatmode(struct inode *inode,
