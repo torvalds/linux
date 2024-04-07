@@ -369,7 +369,7 @@ static int mark_stripe_buckets(struct btree_trans *trans,
 }
 
 int bch2_trigger_stripe(struct btree_trans *trans,
-			enum btree_id btree_id, unsigned level,
+			enum btree_id btree, unsigned level,
 			struct bkey_s_c old, struct bkey_s _new,
 			enum btree_iter_update_trigger_flags flags)
 {
@@ -380,6 +380,9 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 		? bkey_s_c_to_stripe(old).v : NULL;
 	const struct bch_stripe *new_s = new.k->type == KEY_TYPE_stripe
 		? bkey_s_c_to_stripe(new).v : NULL;
+
+	if (unlikely(flags & BTREE_TRIGGER_check_repair))
+		return bch2_check_fix_ptrs(trans, btree, level, _new.s_c, flags);
 
 	if (flags & BTREE_TRIGGER_transactional) {
 		/*

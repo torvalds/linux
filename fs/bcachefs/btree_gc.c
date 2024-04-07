@@ -91,35 +91,6 @@ static void btree_ptr_to_v2(struct btree *b, struct bkey_i_btree_ptr_v2 *dst)
 	}
 }
 
-static void bch2_btree_node_update_key_early(struct btree_trans *trans,
-					     enum btree_id btree, unsigned level,
-					     struct bkey_s_c old, struct bkey_i *new)
-{
-	struct bch_fs *c = trans->c;
-	struct btree *b;
-	struct bkey_buf tmp;
-	int ret;
-
-	bch2_bkey_buf_init(&tmp);
-	bch2_bkey_buf_reassemble(&tmp, c, old);
-
-	b = bch2_btree_node_get_noiter(trans, tmp.k, btree, level, true);
-	if (!IS_ERR_OR_NULL(b)) {
-		mutex_lock(&c->btree_cache.lock);
-
-		bch2_btree_node_hash_remove(&c->btree_cache, b);
-
-		bkey_copy(&b->key, new);
-		ret = __bch2_btree_node_hash_insert(&c->btree_cache, b);
-		BUG_ON(ret);
-
-		mutex_unlock(&c->btree_cache.lock);
-		six_unlock_read(&b->c.lock);
-	}
-
-	bch2_bkey_buf_exit(&tmp, c);
-}
-
 static int set_node_min(struct bch_fs *c, struct btree *b, struct bpos new_min)
 {
 	struct bkey_i_btree_ptr_v2 *new;
@@ -580,245 +551,11 @@ fsck_err:
 	return ret;
 }
 
-static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id,
-			       unsigned level, bool is_root,
-			       struct bkey_s_c *k)
-{
-	struct bch_fs *c = trans->c;
-	struct bkey_ptrs_c ptrs_c = bch2_bkey_ptrs_c(*k);
-	const union bch_extent_entry *entry_c;
-	struct extent_ptr_decoded p = { 0 };
-	bool do_update = false;
-	struct printbuf buf = PRINTBUF;
-	int ret = 0;
-
-	/*
-	 * XXX
-	 * use check_bucket_ref here
-	 */
-	bkey_for_each_ptr_decode(k->k, ptrs_c, p, entry_c) {
-		struct bch_dev *ca = bch2_dev_bkey_exists(c, p.ptr.dev);
-		struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
-		enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, p, entry_c);
-
-		if (fsck_err_on(!g->gen_valid,
-				c, ptr_to_missing_alloc_key,
-				"bucket %u:%zu data type %s ptr gen %u missing in alloc btree\n"
-				"while marking %s",
-				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-				bch2_data_type_str(ptr_data_type(k->k, &p.ptr)),
-				p.ptr.gen,
-				(printbuf_reset(&buf),
-				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
-			if (!p.ptr.cached) {
-				g->gen_valid		= true;
-				g->gen			= p.ptr.gen;
-			} else {
-				do_update = true;
-			}
-		}
-
-		if (fsck_err_on(gen_cmp(p.ptr.gen, g->gen) > 0,
-				c, ptr_gen_newer_than_bucket_gen,
-				"bucket %u:%zu data type %s ptr gen in the future: %u > %u\n"
-				"while marking %s",
-				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-				bch2_data_type_str(ptr_data_type(k->k, &p.ptr)),
-				p.ptr.gen, g->gen,
-				(printbuf_reset(&buf),
-				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
-			if (!p.ptr.cached &&
-			    (g->data_type != BCH_DATA_btree ||
-			     data_type == BCH_DATA_btree)) {
-				g->gen_valid		= true;
-				g->gen			= p.ptr.gen;
-				g->data_type		= 0;
-				g->dirty_sectors	= 0;
-				g->cached_sectors	= 0;
-			} else {
-				do_update = true;
-			}
-		}
-
-		if (fsck_err_on(gen_cmp(g->gen, p.ptr.gen) > BUCKET_GC_GEN_MAX,
-				c, ptr_gen_newer_than_bucket_gen,
-				"bucket %u:%zu gen %u data type %s: ptr gen %u too stale\n"
-				"while marking %s",
-				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), g->gen,
-				bch2_data_type_str(ptr_data_type(k->k, &p.ptr)),
-				p.ptr.gen,
-				(printbuf_reset(&buf),
-				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))
-			do_update = true;
-
-		if (fsck_err_on(!p.ptr.cached && gen_cmp(p.ptr.gen, g->gen) < 0,
-				c, stale_dirty_ptr,
-				"bucket %u:%zu data type %s stale dirty ptr: %u < %u\n"
-				"while marking %s",
-				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
-				bch2_data_type_str(ptr_data_type(k->k, &p.ptr)),
-				p.ptr.gen, g->gen,
-				(printbuf_reset(&buf),
-				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))
-			do_update = true;
-
-		if (data_type != BCH_DATA_btree && p.ptr.gen != g->gen)
-			continue;
-
-		if (fsck_err_on(bucket_data_type_mismatch(g->data_type, data_type),
-				c, ptr_bucket_data_type_mismatch,
-				"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"
-				"while marking %s",
-				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), g->gen,
-				bch2_data_type_str(g->data_type),
-				bch2_data_type_str(data_type),
-				(printbuf_reset(&buf),
-				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
-			if (data_type == BCH_DATA_btree) {
-				g->gen_valid		= true;
-				g->gen			= p.ptr.gen;
-				g->data_type		= data_type;
-				g->dirty_sectors	= 0;
-				g->cached_sectors	= 0;
-			} else {
-				do_update = true;
-			}
-		}
-
-		if (p.has_ec) {
-			struct gc_stripe *m = genradix_ptr(&c->gc_stripes, p.ec.idx);
-
-			if (fsck_err_on(!m || !m->alive, c,
-					ptr_to_missing_stripe,
-					"pointer to nonexistent stripe %llu\n"
-					"while marking %s",
-					(u64) p.ec.idx,
-					(printbuf_reset(&buf),
-					 bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))
-				do_update = true;
-
-			if (fsck_err_on(m && m->alive && !bch2_ptr_matches_stripe_m(m, p), c,
-					ptr_to_incorrect_stripe,
-					"pointer does not match stripe %llu\n"
-					"while marking %s",
-					(u64) p.ec.idx,
-					(printbuf_reset(&buf),
-					 bch2_bkey_val_to_text(&buf, c, *k), buf.buf)))
-				do_update = true;
-		}
-	}
-
-	if (do_update) {
-		if (is_root) {
-			bch_err(c, "cannot update btree roots yet");
-			ret = -EINVAL;
-			goto err;
-		}
-
-		struct bkey_i *new = kmalloc(bkey_bytes(k->k), GFP_KERNEL);
-		if (!new) {
-			ret = -BCH_ERR_ENOMEM_gc_repair_key;
-			bch_err_msg(c, ret, "allocating new key");
-			goto err;
-		}
-
-		bkey_reassemble(new, *k);
-
-		if (level) {
-			/*
-			 * We don't want to drop btree node pointers - if the
-			 * btree node isn't there anymore, the read path will
-			 * sort it out:
-			 */
-			struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
-			bkey_for_each_ptr(ptrs, ptr) {
-				struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
-				struct bucket *g = PTR_GC_BUCKET(ca, ptr);
-
-				ptr->gen = g->gen;
-			}
-		} else {
-			struct bkey_ptrs ptrs;
-			union bch_extent_entry *entry;
-restart_drop_ptrs:
-			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
-			bkey_for_each_ptr_decode(bkey_i_to_s(new).k, ptrs, p, entry) {
-				struct bch_dev *ca = bch2_dev_bkey_exists(c, p.ptr.dev);
-				struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
-				enum bch_data_type data_type = bch2_bkey_ptr_data_type(bkey_i_to_s_c(new), p, entry);
-
-				if ((p.ptr.cached &&
-				     (!g->gen_valid || gen_cmp(p.ptr.gen, g->gen) > 0)) ||
-				    (!p.ptr.cached &&
-				     gen_cmp(p.ptr.gen, g->gen) < 0) ||
-				    gen_cmp(g->gen, p.ptr.gen) > BUCKET_GC_GEN_MAX ||
-				    (g->data_type &&
-				     bucket_data_type(g->data_type) != data_type)) {
-					bch2_bkey_drop_ptr(bkey_i_to_s(new), &entry->ptr);
-					goto restart_drop_ptrs;
-				}
-			}
-again:
-			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
-			bkey_extent_entry_for_each(ptrs, entry) {
-				if (extent_entry_type(entry) == BCH_EXTENT_ENTRY_stripe_ptr) {
-					struct gc_stripe *m = genradix_ptr(&c->gc_stripes,
-									entry->stripe_ptr.idx);
-					union bch_extent_entry *next_ptr;
-
-					bkey_extent_entry_for_each_from(ptrs, next_ptr, entry)
-						if (extent_entry_type(next_ptr) == BCH_EXTENT_ENTRY_ptr)
-							goto found;
-					next_ptr = NULL;
-found:
-					if (!next_ptr) {
-						bch_err(c, "aieee, found stripe ptr with no data ptr");
-						continue;
-					}
-
-					if (!m || !m->alive ||
-					    !__bch2_ptr_matches_stripe(&m->ptrs[entry->stripe_ptr.block],
-								       &next_ptr->ptr,
-								       m->sectors)) {
-						bch2_bkey_extent_entry_drop(new, entry);
-						goto again;
-					}
-				}
-			}
-		}
-
-		if (level)
-			bch2_btree_node_update_key_early(trans, btree_id, level - 1, *k, new);
-
-		if (0) {
-			printbuf_reset(&buf);
-			bch2_bkey_val_to_text(&buf, c, *k);
-			bch_info(c, "updated %s", buf.buf);
-
-			printbuf_reset(&buf);
-			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(new));
-			bch_info(c, "new key %s", buf.buf);
-		}
-
-		ret = bch2_journal_key_insert_take(c, btree_id, level, new);
-		if (ret) {
-			kfree(new);
-			goto err;
-		}
-
-		*k = bkey_i_to_s_c(new);
-	}
-err:
-fsck_err:
-	printbuf_exit(&buf);
-	return ret;
-}
-
 /* marking of btree keys/nodes: */
 
 static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 			    unsigned level, bool is_root,
-			    struct bkey_s_c *k,
+			    struct bkey_s_c k,
 			    bool initial)
 {
 	struct bch_fs *c = trans->c;
@@ -827,40 +564,53 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	deleted.p = k->k->p;
+	deleted.p = k.k->p;
 
 	if (initial) {
 		BUG_ON(bch2_journal_seq_verify &&
-		       k->k->version.lo > atomic64_read(&c->journal.seq));
+		       k.k->version.lo > atomic64_read(&c->journal.seq));
 
-		if (fsck_err_on(k->k->version.lo > atomic64_read(&c->key_version), c,
+		if (fsck_err_on(k.k->version.lo > atomic64_read(&c->key_version), c,
 				bkey_version_in_future,
 				"key version number higher than recorded: %llu > %llu",
-				k->k->version.lo,
+				k.k->version.lo,
 				atomic64_read(&c->key_version)))
-			atomic64_set(&c->key_version, k->k->version.lo);
+			atomic64_set(&c->key_version, k.k->version.lo);
 	}
 
-	ret = bch2_check_fix_ptrs(trans, btree_id, level, is_root, k);
-	if (ret)
-		goto err;
-
-	if (mustfix_fsck_err_on(level && !bch2_dev_btree_bitmap_marked(c, *k),
+	if (mustfix_fsck_err_on(level && !bch2_dev_btree_bitmap_marked(c, k),
 				c, btree_bitmap_not_marked,
 				"btree ptr not marked in member info btree allocated bitmap\n  %s",
-				(bch2_bkey_val_to_text(&buf, c, *k),
+				(bch2_bkey_val_to_text(&buf, c, k),
 				 buf.buf))) {
 		mutex_lock(&c->sb_lock);
-		bch2_dev_btree_bitmap_mark(c, *k);
+		bch2_dev_btree_bitmap_mark(c, k);
 		bch2_write_super(c);
 		mutex_unlock(&c->sb_lock);
 	}
 
-	ret = commit_do(trans, NULL, NULL, 0,
-			bch2_key_trigger(trans, btree_id, level, old,
-					 unsafe_bkey_s_c_to_s(*k), BTREE_TRIGGER_gc));
+	/*
+	 * We require a commit before key_trigger() because
+	 * key_trigger(BTREE_TRIGGER_GC) is not idempotant; we'll calculate the
+	 * wrong result if we run it multiple times.
+	 */
+	unsigned flags = is_root ? BTREE_TRIGGER_is_root : 0;
+
+	ret = bch2_key_trigger(trans, btree_id, level, old, unsafe_bkey_s_c_to_s(k),
+			       BTREE_TRIGGER_check_repair|flags);
+	if (ret)
+		goto out;
+
+	if (trans->nr_updates) {
+		ret = bch2_trans_commit(trans, NULL, NULL, 0) ?:
+			-BCH_ERR_transaction_restart_nested;
+		goto out;
+	}
+
+	ret = bch2_key_trigger(trans, btree_id, level, old, unsafe_bkey_s_c_to_s(k),
+			       BTREE_TRIGGER_gc|flags);
+out:
 fsck_err:
-err:
 	printbuf_exit(&buf);
 	bch_err_fn(c, ret);
 	return ret;
@@ -879,7 +629,12 @@ static int btree_gc_mark_node(struct btree_trans *trans, struct btree *b, bool i
 	bch2_btree_and_journal_iter_init_node_iter(trans, &iter, b);
 
 	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
-		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level, false, &k, initial);
+		bch2_trans_begin(trans);
+		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level, false, k, initial);
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
+			ret = 0;
+			continue;
+		}
 		if (ret)
 			break;
 
@@ -918,12 +673,10 @@ static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree_id,
 
 	mutex_lock(&c->btree_root_lock);
 	b = bch2_btree_id_root(c, btree_id)->b;
-	if (!btree_node_fake(b)) {
-		struct bkey_s_c k = bkey_i_to_s_c(&b->key);
-
-		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level + 1,
-				       true, &k, initial);
-	}
+	if (!btree_node_fake(b))
+		ret = lockrestart_do(trans,
+			bch2_gc_mark_key(trans, b->c.btree_id, b->c.level + 1,
+					 true, bkey_i_to_s_c(&b->key), initial));
 	gc_pos_set(c, gc_pos_btree_root(b->c.btree_id));
 	mutex_unlock(&c->btree_root_lock);
 
@@ -991,12 +744,10 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 	if (b->c.level >= target_depth)
 		ret = bch2_gc_btree_init_recurse(trans, b, target_depth);
 
-	if (!ret) {
-		struct bkey_s_c k = bkey_i_to_s_c(&b->key);
-
-		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level + 1, true,
-				       &k, true);
-	}
+	if (!ret)
+		ret = lockrestart_do(trans,
+			bch2_gc_mark_key(trans, b->c.btree_id, b->c.level + 1, true,
+					 bkey_i_to_s_c(&b->key), true));
 	six_unlock_read(&b->c.lock);
 
 	bch_err_fn(c, ret);

@@ -190,6 +190,35 @@ int bch2_btree_node_hash_insert(struct btree_cache *bc, struct btree *b,
 	return ret;
 }
 
+void bch2_btree_node_update_key_early(struct btree_trans *trans,
+				      enum btree_id btree, unsigned level,
+				      struct bkey_s_c old, struct bkey_i *new)
+{
+	struct bch_fs *c = trans->c;
+	struct btree *b;
+	struct bkey_buf tmp;
+	int ret;
+
+	bch2_bkey_buf_init(&tmp);
+	bch2_bkey_buf_reassemble(&tmp, c, old);
+
+	b = bch2_btree_node_get_noiter(trans, tmp.k, btree, level, true);
+	if (!IS_ERR_OR_NULL(b)) {
+		mutex_lock(&c->btree_cache.lock);
+
+		bch2_btree_node_hash_remove(&c->btree_cache, b);
+
+		bkey_copy(&b->key, new);
+		ret = __bch2_btree_node_hash_insert(&c->btree_cache, b);
+		BUG_ON(ret);
+
+		mutex_unlock(&c->btree_cache.lock);
+		six_unlock_read(&b->c.lock);
+	}
+
+	bch2_bkey_buf_exit(&tmp, c);
+}
+
 __flatten
 static inline struct btree *btree_cache_find(struct btree_cache *bc,
 				     const struct bkey_i *k)

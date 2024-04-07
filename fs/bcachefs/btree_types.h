@@ -237,9 +237,11 @@ struct btree_node_iter {
 	x(norun)				\
 	x(transactional)			\
 	x(atomic)				\
+	x(check_repair)				\
 	x(gc)					\
 	x(insert)				\
 	x(overwrite)				\
+	x(is_root)				\
 	x(bucket_invalidate)
 
 enum {

@@ -341,6 +341,10 @@ int bch2_bucket_ref_update(struct btree_trans *, struct bkey_s_c,
 			   const struct bch_extent_ptr *,
 			   s64, enum bch_data_type, u8, u8, u32 *);
 
+int bch2_check_fix_ptrs(struct btree_trans *,
+			enum btree_id, unsigned, struct bkey_s_c,
+			enum btree_iter_update_trigger_flags);
+
 int bch2_trigger_extent(struct btree_trans *, enum btree_id, unsigned,
 			struct bkey_s_c, struct bkey_s,
 			enum btree_iter_update_trigger_flags);
