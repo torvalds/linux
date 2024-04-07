@@ -120,7 +120,6 @@ static int winwing_init_led(struct hid_device *hdev,
 static int winwing_probe(struct hid_device *hdev,
 		const struct hid_device_id *id)
 {
-	unsigned int minor;
 	int ret;
 
 	ret = hid_parse(hdev);
@@ -134,8 +133,6 @@ static int winwing_probe(struct hid_device *hdev,
 		hid_err(hdev, "hw start failed\n");
 		return ret;
 	}
-
-	minor = ((struct hidraw *) hdev->hidraw)->minor;
 
 	return 0;
 }
