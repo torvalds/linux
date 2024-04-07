@@ -182,17 +182,13 @@ static int blk_validate_limits(struct queue_limits *lim)
 		return -EINVAL;
 
 	/*
-	 * Devices that require a virtual boundary do not support scatter/gather
-	 * I/O natively, but instead require a descriptor list entry for each
-	 * page (which might not be identical to the Linux PAGE_SIZE).  Because
-	 * of that they are not limited by our notion of "segment size".
+	 * Stacking device may have both virtual boundary and max segment
+	 * size limit, so allow this setting now, and long-term the two
+	 * might need to move out of stacking limits since we have immutable
+	 * bvec and lower layer bio splitting is supposed to handle the two
+	 * correctly.
 	 */
-	if (lim->virt_boundary_mask) {
-		if (WARN_ON_ONCE(lim->max_segment_size &&
-				 lim->max_segment_size != UINT_MAX))
-			return -EINVAL;
-		lim->max_segment_size = UINT_MAX;
-	} else {
+	if (!lim->virt_boundary_mask) {
 		/*
 		 * The maximum segment size has an odd historic 64k default that
 		 * drivers probably should override.  Just like the I/O size we
