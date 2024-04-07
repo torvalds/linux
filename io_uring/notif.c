@@ -9,12 +9,12 @@
 #include "notif.h"
 #include "rsrc.h"
 
-static void io_notif_complete_tw_ext(struct io_kiocb *notif, struct io_tw_state *ts)
+void io_notif_tw_complete(struct io_kiocb *notif, struct io_tw_state *ts)
 {
 	struct io_notif_data *nd = io_notif_to_data(notif);
 	struct io_ring_ctx *ctx = notif->ctx;
 
-	if (nd->zc_report && (nd->zc_copied || !nd->zc_used))
+	if (unlikely(nd->zc_report) && (nd->zc_copied || !nd->zc_used))
 		notif->cqe.res |= IORING_NOTIF_USAGE_ZC_COPIED;
 
 	if (nd->account_pages && ctx->user) {
@@ -37,17 +37,10 @@ static void io_tx_ubuf_callback(struct sk_buff *skb, struct ubuf_info *uarg,
 			WRITE_ONCE(nd->zc_copied, true);
 	}
 
-	if (refcount_dec_and_test(&uarg->refcnt))
+	if (refcount_dec_and_test(&uarg->refcnt)) {
+		notif->io_task_work.func = io_notif_tw_complete;
 		__io_req_task_work_add(notif, IOU_F_TWQ_LAZY_WAKE);
-}
-
-void io_notif_set_extended(struct io_kiocb *notif)
-{
-	struct io_notif_data *nd = io_notif_to_data(notif);
-
-	nd->zc_used = false;
-	nd->zc_copied = false;
-	notif->io_task_work.func = io_notif_complete_tw_ext;
+	}
 }
 
 struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
@@ -64,7 +57,6 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 	notif->task = current;
 	io_get_task_refs(1);
 	notif->rsrc_node = NULL;
-	notif->io_task_work.func = io_req_task_complete;
 
 	nd = io_notif_to_data(notif);
 	nd->zc_report = false;
