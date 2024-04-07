@@ -692,7 +692,6 @@ static struct uart_driver ar933x_uart_driver = {
 	.cons		= NULL, /* filled in runtime */
 };
 
-static const struct serial_rs485 ar933x_no_rs485 = {};
 static const struct serial_rs485 ar933x_rs485_supported = {
 	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND,
 };
@@ -788,7 +787,7 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 	up->rts_gpiod = mctrl_gpio_to_gpiod(up->gpios, UART_GPIO_RTS);
 
 	if (!up->rts_gpiod) {
-		port->rs485_supported = ar933x_no_rs485;
+		port->rs485_supported.flags &= ~SER_RS485_ENABLED;
 		if (port->rs485.flags & SER_RS485_ENABLED) {
 			dev_err(&pdev->dev, "lacking rts-gpio, disabling RS485\n");
 			port->rs485.flags &= ~SER_RS485_ENABLED;
