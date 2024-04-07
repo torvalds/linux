@@ -694,15 +694,6 @@ static inline bool joycon_device_is_n64con(struct joycon_ctlr *ctlr)
 	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_N64CON;
 }
 
-static inline bool joycon_device_has_usb(struct joycon_ctlr *ctlr)
-{
-	return joycon_device_is_procon(ctlr) ||
-	       joycon_device_is_chrggrip(ctlr) ||
-	       joycon_device_is_snescon(ctlr) ||
-	       joycon_device_is_gencon(ctlr) ||
-	       joycon_device_is_n64con(ctlr);
-}
-
 /*
  * Controller type helpers
  *
