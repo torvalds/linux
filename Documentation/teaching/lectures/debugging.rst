@@ -923,7 +923,7 @@ perf
 
    * performance counters, tracepoints, kprobes, uprobes
    * hardware events: CPU cycles, TLB misses, cache misses
-   * software events: page fauls , context switches
+   * software events: page faults , context switches
    * collects backtraces (user + kernel)
 
 Other tools
