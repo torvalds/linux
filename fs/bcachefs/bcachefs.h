@@ -519,8 +519,8 @@ enum gc_phase {
 
 struct gc_pos {
 	enum gc_phase		phase;
+	u16			level;
 	struct bpos		pos;
-	unsigned		level;
 };
 
 struct reflink_gc {

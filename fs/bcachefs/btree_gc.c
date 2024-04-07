@@ -63,7 +63,7 @@ static inline void __gc_pos_set(struct bch_fs *c, struct gc_pos new_pos)
 
 static inline void gc_pos_set(struct bch_fs *c, struct gc_pos new_pos)
 {
-	BUG_ON(gc_pos_cmp(new_pos, c->gc_pos) <= 0);
+	BUG_ON(gc_pos_cmp(new_pos, c->gc_pos) < 0);
 	__gc_pos_set(c, new_pos);
 }
 
@@ -554,11 +554,24 @@ fsck_err:
 /* marking of btree keys/nodes: */
 
 static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
-			    unsigned level, bool is_root,
-			    struct bkey_s_c k,
+			    unsigned level, struct btree **prev,
+			    struct btree_iter *iter, struct bkey_s_c k,
 			    bool initial)
 {
 	struct bch_fs *c = trans->c;
+
+	if (iter) {
+		struct btree_path *path = btree_iter_path(trans, iter);
+		struct btree *b = path_l(path)->b;
+
+		if (*prev != b) {
+			int ret = bch2_btree_node_check_topology(trans, b);
+			if (ret)
+				return ret;
+		}
+		*prev = b;
+	}
+
 	struct bkey deleted = KEY(0, 0, 0);
 	struct bkey_s_c old = (struct bkey_s_c) { &deleted, NULL };
 	struct printbuf buf = PRINTBUF;
@@ -594,7 +607,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 	 * key_trigger(BTREE_TRIGGER_GC) is not idempotant; we'll calculate the
 	 * wrong result if we run it multiple times.
 	 */
-	unsigned flags = is_root ? BTREE_TRIGGER_is_root : 0;
+	unsigned flags = !iter ? BTREE_TRIGGER_is_root : 0;
 
 	ret = bch2_key_trigger(trans, btree_id, level, old, unsafe_bkey_s_c_to_s(k),
 			       BTREE_TRIGGER_check_repair|flags);
@@ -616,141 +629,45 @@ fsck_err:
 	return ret;
 }
 
-static int btree_gc_mark_node(struct btree_trans *trans, struct btree *b, bool initial)
-{
-	struct btree_and_journal_iter iter;
-	struct bkey_s_c k;
-	int ret = 0;
-
-	ret = bch2_btree_node_check_topology(trans, b);
-	if (ret)
-		return ret;
-
-	bch2_btree_and_journal_iter_init_node_iter(trans, &iter, b);
-
-	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
-		bch2_trans_begin(trans);
-		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level, false, k, initial);
-		if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
-			ret = 0;
-			continue;
-		}
-		if (ret)
-			break;
-
-		bch2_btree_and_journal_iter_advance(&iter);
-	}
-
-	bch2_btree_and_journal_iter_exit(&iter);
-	return ret;
-}
-
-static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree_id,
-			 bool initial)
+static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree, bool initial)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter;
-	struct btree *b;
-	unsigned target_depth = btree_type_has_ptrs(btree_id) ? 0 : 1;
+	int level = 0, target_depth = btree_node_type_needs_gc(__btree_node_type(0, btree)) ? 0 : 1;
 	int ret = 0;
 
-	gc_pos_set(c, gc_pos_btree(btree_id, POS_MIN, 0));
+	/* We need to make sure every leaf node is readable before going RW */
+	if (initial)
+		target_depth = 0;
 
-	__for_each_btree_node(trans, iter, btree_id, POS_MIN,
-			      0, target_depth, BTREE_ITER_prefetch, b, ret) {
-		bch2_verify_btree_nr_keys(b);
-
-		gc_pos_set(c, gc_pos_btree_node(b));
-
-		ret = btree_gc_mark_node(trans, b, initial);
-		if (ret)
-			break;
-	}
-	bch2_trans_iter_exit(trans, &iter);
-
-	if (ret)
-		return ret;
-
+	/* root */
 	mutex_lock(&c->btree_root_lock);
-	b = bch2_btree_id_root(c, btree_id)->b;
-	if (!btree_node_fake(b))
+	struct btree *b = bch2_btree_id_root(c, btree)->b;
+	if (!btree_node_fake(b)) {
+		gc_pos_set(c, gc_pos_btree(btree, b->c.level + 1, SPOS_MAX));
 		ret = lockrestart_do(trans,
 			bch2_gc_mark_key(trans, b->c.btree_id, b->c.level + 1,
-					 true, bkey_i_to_s_c(&b->key), initial));
-	gc_pos_set(c, gc_pos_btree_root(b->c.btree_id));
+					 NULL, NULL, bkey_i_to_s_c(&b->key), initial));
+		level = b->c.level;
+	}
 	mutex_unlock(&c->btree_root_lock);
 
-	return ret;
-}
-
-static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b,
-				      unsigned target_depth)
-{
-	int ret = btree_gc_mark_node(trans, b, true);
 	if (ret)
 		return ret;
 
-	if (b->c.level > target_depth) {
-		struct bch_fs *c = trans->c;
-		struct btree_and_journal_iter iter;
-		struct bkey_s_c k;
-		struct bkey_buf cur;
+	for (; level >= target_depth; --level) {
+		struct btree *prev = NULL;
+		struct btree_iter iter;
+		bch2_trans_node_iter_init(trans, &iter, btree, POS_MIN, 0, level,
+					  BTREE_ITER_prefetch);
 
-		bch2_bkey_buf_init(&cur);
-		bch2_btree_and_journal_iter_init_node_iter(trans, &iter, b);
-		iter.prefetch = true;
-
-		while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
-			bch2_bkey_buf_reassemble(&cur, c, k);
-			bch2_btree_and_journal_iter_advance(&iter);
-
-			struct btree *child =
-				bch2_btree_node_get_noiter(trans, cur.k,
-						b->c.btree_id, b->c.level - 1,
-						false);
-			ret = PTR_ERR_OR_ZERO(child);
-			bch_err_msg(c, ret, "getting btree node");
-			if (ret)
-				break;
-
-			ret = bch2_gc_btree_init_recurse(trans, child, target_depth);
-			six_unlock_read(&child->c.lock);
-
-			if (ret)
-				break;
-		}
-
-		bch2_bkey_buf_exit(&cur, c);
-		bch2_btree_and_journal_iter_exit(&iter);
+		ret = for_each_btree_key_continue(trans, iter, 0, k, ({
+			gc_pos_set(c, gc_pos_btree(btree, level, k.k->p));
+			bch2_gc_mark_key(trans, btree, level, &prev, &iter, k, initial);
+		}));
+		if (ret)
+			break;
 	}
 
-	return ret;
-}
-
-static int bch2_gc_btree_init(struct btree_trans *trans,
-			      enum btree_id btree_id)
-{
-	struct bch_fs *c = trans->c;
-	/*
-	 * We need to make sure every leaf node is readable before going RW
-	unsigned target_depth = btree_node_type_needs_gc(__btree_node_type(0, btree_id)) ? 0 : 1;
-	*/
-	unsigned target_depth = 0;
-	int ret = 0;
-
-	struct btree *b = bch2_btree_id_root(c, btree_id)->b;
-
-	six_lock_read(&b->c.lock, NULL, NULL);
-	if (b->c.level >= target_depth)
-		ret = bch2_gc_btree_init_recurse(trans, b, target_depth);
-
-	if (!ret)
-		ret = lockrestart_do(trans,
-			bch2_gc_mark_key(trans, b->c.btree_id, b->c.level + 1, true,
-					 bkey_i_to_s_c(&b->key), true));
-	six_unlock_read(&b->c.lock);
-
-	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -760,7 +677,7 @@ static inline int btree_id_gc_phase_cmp(enum btree_id l, enum btree_id r)
 		(int) btree_id_to_gc_phase(r);
 }
 
-static int bch2_gc_btrees(struct bch_fs *c, bool initial)
+static int bch2_gc_btrees(struct bch_fs *c)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
 	enum btree_id ids[BTREE_ID_NR];
@@ -777,9 +694,7 @@ static int bch2_gc_btrees(struct bch_fs *c, bool initial)
 		if (IS_ERR_OR_NULL(bch2_btree_id_root(c, btree)->b))
 			continue;
 
-		ret = initial
-			? bch2_gc_btree_init(trans, btree)
-			: bch2_gc_btree(trans, btree, initial);
+		ret = bch2_gc_btree(trans, btree, true);
 
 		if (mustfix_fsck_err_on(bch2_err_matches(ret, EIO),
 					c, btree_node_read_error,
@@ -1261,10 +1176,9 @@ static int bch2_gc_stripes_done(struct bch_fs *c)
 }
 
 /**
- * bch2_gc - walk _all_ references to buckets, and recompute them:
+ * bch2_check_allocations - walk all references to buckets, and recompute them:
  *
  * @c:			filesystem object
- * @initial:		are we in recovery?
  *
  * Returns: 0 on success, or standard errcode on failure
  *
@@ -1283,7 +1197,7 @@ static int bch2_gc_stripes_done(struct bch_fs *c)
  *    move around - if references move backwards in the ordering GC
  *    uses, GC could skip past them
  */
-static int bch2_gc(struct bch_fs *c, bool initial)
+int bch2_check_allocations(struct bch_fs *c)
 {
 	int ret;
 
@@ -1304,7 +1218,7 @@ static int bch2_gc(struct bch_fs *c, bool initial)
 	ret = bch2_mark_superblocks(c);
 	BUG_ON(ret);
 
-	ret = bch2_gc_btrees(c, initial);
+	ret = bch2_gc_btrees(c);
 	if (ret)
 		goto out;
 
@@ -1335,11 +1249,6 @@ out:
 	closure_wake_up(&c->freelist_wait);
 	bch_err_fn(c, ret);
 	return ret;
-}
-
-int bch2_check_allocations(struct bch_fs *c)
-{
-	return bch2_gc(c, true);
 }
 
 static int gc_btree_gens_key(struct btree_trans *trans,
