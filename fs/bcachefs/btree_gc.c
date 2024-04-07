@@ -866,8 +866,7 @@ err:
 
 static int btree_gc_mark_node(struct btree_trans *trans, struct btree *b, bool initial)
 {
-	struct btree_node_iter iter;
-	struct bkey unpacked;
+	struct btree_and_journal_iter iter;
 	struct bkey_s_c k;
 	int ret = 0;
 
@@ -875,18 +874,18 @@ static int btree_gc_mark_node(struct btree_trans *trans, struct btree *b, bool i
 	if (ret)
 		return ret;
 
-	bch2_btree_node_iter_init_from_start(&iter, b);
+	bch2_btree_and_journal_iter_init_node_iter(trans, &iter, b);
 
-	while ((k = bch2_btree_node_iter_peek_unpack(&iter, b, &unpacked)).k) {
-		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level, false,
-				       &k, initial);
+	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
+		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level, false, &k, initial);
 		if (ret)
-			return ret;
+			break;
 
-		bch2_btree_node_iter_advance(&iter, b);
+		bch2_btree_and_journal_iter_advance(&iter);
 	}
 
-	return 0;
+	bch2_btree_and_journal_iter_exit(&iter);
+	return ret;
 }
 
 static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree_id,
@@ -932,44 +931,26 @@ static int bch2_gc_btree(struct btree_trans *trans, enum btree_id btree_id,
 static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b,
 				      unsigned target_depth)
 {
-	struct bch_fs *c = trans->c;
-	struct btree_and_journal_iter iter;
-	struct bkey_s_c k;
-	struct bkey_buf cur;
-	struct printbuf buf = PRINTBUF;
-	int ret = 0;
-
-	ret = bch2_btree_node_check_topology(trans, b);
+	int ret = btree_gc_mark_node(trans, b, true);
 	if (ret)
 		return ret;
 
-	bch2_btree_and_journal_iter_init_node_iter(trans, &iter, b);
-	bch2_bkey_buf_init(&cur);
-
-	while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
-		BUG_ON(bpos_lt(k.k->p, b->data->min_key));
-		BUG_ON(bpos_gt(k.k->p, b->data->max_key));
-
-		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level,
-				       false, &k, true);
-		if (ret)
-			goto fsck_err;
-
-		bch2_btree_and_journal_iter_advance(&iter);
-	}
-
 	if (b->c.level > target_depth) {
-		bch2_btree_and_journal_iter_exit(&iter);
+		struct bch_fs *c = trans->c;
+		struct btree_and_journal_iter iter;
+		struct bkey_s_c k;
+		struct bkey_buf cur;
+
+		bch2_bkey_buf_init(&cur);
 		bch2_btree_and_journal_iter_init_node_iter(trans, &iter, b);
 		iter.prefetch = true;
 
 		while ((k = bch2_btree_and_journal_iter_peek(&iter)).k) {
-			struct btree *child;
-
 			bch2_bkey_buf_reassemble(&cur, c, k);
 			bch2_btree_and_journal_iter_advance(&iter);
 
-			child = bch2_btree_node_get_noiter(trans, cur.k,
+			struct btree *child =
+				bch2_btree_node_get_noiter(trans, cur.k,
 						b->c.btree_id, b->c.level - 1,
 						false);
 			ret = PTR_ERR_OR_ZERO(child);
@@ -977,18 +958,17 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 			if (ret)
 				break;
 
-			ret = bch2_gc_btree_init_recurse(trans, child,
-							 target_depth);
+			ret = bch2_gc_btree_init_recurse(trans, child, target_depth);
 			six_unlock_read(&child->c.lock);
 
 			if (ret)
 				break;
 		}
+
+		bch2_bkey_buf_exit(&cur, c);
+		bch2_btree_and_journal_iter_exit(&iter);
 	}
-fsck_err:
-	bch2_bkey_buf_exit(&cur, c);
-	bch2_btree_and_journal_iter_exit(&iter);
-	printbuf_exit(&buf);
+
 	return ret;
 }
 
