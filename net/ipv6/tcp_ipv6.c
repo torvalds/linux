@@ -793,7 +793,8 @@ clear_hash_nostart:
 
 static void tcp_v6_init_req(struct request_sock *req,
 			    const struct sock *sk_listener,
-			    struct sk_buff *skb)
+			    struct sk_buff *skb,
+			    u32 tw_isn)
 {
 	bool l3_slave = ipv6_l3mdev_skb(TCP_SKB_CB(skb)->header.h6.flags);
 	struct inet_request_sock *ireq = inet_rsk(req);
@@ -807,7 +808,7 @@ static void tcp_v6_init_req(struct request_sock *req,
 	    ipv6_addr_type(&ireq->ir_v6_rmt_addr) & IPV6_ADDR_LINKLOCAL)
 		ireq->ir_iif = tcp_v6_iif(skb);
 
-	if (!TCP_SKB_CB(skb)->tcp_tw_isn &&
+	if (!tw_isn &&
 	    (ipv6_opt_accepted(sk_listener, skb, &TCP_SKB_CB(skb)->header.h6) ||
 	     np->rxopt.bits.rxinfo ||
 	     np->rxopt.bits.rxoinfo || np->rxopt.bits.rxhlim ||
@@ -820,9 +821,10 @@ static void tcp_v6_init_req(struct request_sock *req,
 static struct dst_entry *tcp_v6_route_req(const struct sock *sk,
 					  struct sk_buff *skb,
 					  struct flowi *fl,
-					  struct request_sock *req)
+					  struct request_sock *req,
+					  u32 tw_isn)
 {
-	tcp_v6_init_req(req, sk, skb);
+	tcp_v6_init_req(req, sk, skb, tw_isn);
 
 	if (security_inet_conn_request(sk, skb, req))
 		return NULL;
