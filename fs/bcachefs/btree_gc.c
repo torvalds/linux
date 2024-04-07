@@ -52,12 +52,6 @@ static struct bkey_s unsafe_bkey_s_c_to_s(struct bkey_s_c k)
 	}}};
 }
 
-static bool should_restart_for_topology_repair(struct bch_fs *c)
-{
-	return c->opts.fix_errors != FSCK_FIX_no &&
-		!(c->recovery_passes_complete & BIT_ULL(BCH_RECOVERY_PASS_check_topology));
-}
-
 static inline void __gc_pos_set(struct bch_fs *c, struct gc_pos new_pos)
 {
 	preempt_disable();
@@ -881,9 +875,6 @@ static int btree_gc_mark_node(struct btree_trans *trans, struct btree *b, bool i
 	if (ret)
 		return ret;
 
-	if (!btree_node_type_needs_gc(btree_node_type(b)))
-		return 0;
-
 	bch2_btree_node_iter_init_from_start(&iter, b);
 
 	while ((k = bch2_btree_node_iter_peek_unpack(&iter, b, &unpacked)).k) {
@@ -982,36 +973,9 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 						b->c.btree_id, b->c.level - 1,
 						false);
 			ret = PTR_ERR_OR_ZERO(child);
-
-			if (bch2_err_matches(ret, EIO)) {
-				bch2_topology_error(c);
-
-				if (__fsck_err(c,
-					  FSCK_CAN_FIX|
-					  FSCK_CAN_IGNORE|
-					  FSCK_NO_RATELIMIT,
-					  btree_node_read_error,
-					  "Unreadable btree node at btree %s level %u:\n"
-					  "  %s",
-					  bch2_btree_id_str(b->c.btree_id),
-					  b->c.level - 1,
-					  (printbuf_reset(&buf),
-					   bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur.k)), buf.buf)) &&
-				    should_restart_for_topology_repair(c)) {
-					bch_info(c, "Halting mark and sweep to start topology repair pass");
-					ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
-					goto fsck_err;
-				} else {
-					/* Continue marking when opted to not
-					 * fix the error: */
-					ret = 0;
-					set_bit(BCH_FS_initial_gc_unfixed, &c->flags);
-					continue;
-				}
-			} else if (ret) {
-				bch_err_msg(c, ret, "getting btree node");
+			bch_err_msg(c, ret, "getting btree node");
+			if (ret)
 				break;
-			}
 
 			ret = bch2_gc_btree_init_recurse(trans, child,
 							 target_depth);
@@ -1105,8 +1069,14 @@ static int bch2_gc_btrees(struct bch_fs *c, bool initial)
 		ret = initial
 			? bch2_gc_btree_init(trans, btree)
 			: bch2_gc_btree(trans, btree, initial);
-	}
 
+		if (mustfix_fsck_err_on(bch2_err_matches(ret, EIO),
+					c, btree_node_read_error,
+			       "btree node read error for %s",
+			       bch2_btree_id_str(btree)))
+			ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
+	}
+fsck_err:
 	bch2_trans_put(trans);
 	bch_err_fn(c, ret);
 	return ret;
