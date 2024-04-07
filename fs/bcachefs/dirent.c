@@ -301,13 +301,9 @@ int bch2_dirent_rename(struct btree_trans *trans,
 	memset(dst_inum, 0, sizeof(*dst_inum));
 
 	/* Lookup src: */
-	ret = bch2_hash_lookup(trans, &src_iter, bch2_dirent_hash_desc,
-			       src_hash, src_dir, src_name,
-			       BTREE_ITER_INTENT);
-	if (ret)
-		goto out;
-
-	old_src = bch2_btree_iter_peek_slot(&src_iter);
+	old_src = bch2_hash_lookup(trans, &src_iter, bch2_dirent_hash_desc,
+				   src_hash, src_dir, src_name,
+				   BTREE_ITER_INTENT);
 	ret = bkey_err(old_src);
 	if (ret)
 		goto out;
@@ -329,13 +325,9 @@ int bch2_dirent_rename(struct btree_trans *trans,
 		if (ret)
 			goto out;
 	} else {
-		ret = bch2_hash_lookup(trans, &dst_iter, bch2_dirent_hash_desc,
-				       dst_hash, dst_dir, dst_name,
-				       BTREE_ITER_INTENT);
-		if (ret)
-			goto out;
-
-		old_dst = bch2_btree_iter_peek_slot(&dst_iter);
+		old_dst = bch2_hash_lookup(trans, &dst_iter, bch2_dirent_hash_desc,
+					    dst_hash, dst_dir, dst_name,
+					    BTREE_ITER_INTENT);
 		ret = bkey_err(old_dst);
 		if (ret)
 			goto out;
@@ -479,13 +471,9 @@ int bch2_dirent_lookup_trans(struct btree_trans *trans,
 			     const struct qstr *name, subvol_inum *inum,
 			     unsigned flags)
 {
-	int ret = bch2_hash_lookup(trans, iter, bch2_dirent_hash_desc,
-				   hash_info, dir, name, flags);
-	if (ret)
-		return ret;
-
-	struct bkey_s_c k = bch2_btree_iter_peek_slot(iter);
-	ret = bkey_err(k);
+	struct bkey_s_c k = bch2_hash_lookup(trans, iter, bch2_dirent_hash_desc,
+					     hash_info, dir, name, flags);
+	int ret = bkey_err(k);
 	if (ret)
 		goto err;
 

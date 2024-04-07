@@ -377,15 +377,11 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	struct btree_iter dirent_iter = {};
 	subvol_inum inum = {};
 
-	int ret = bch2_hash_lookup(trans, &dirent_iter, bch2_dirent_hash_desc,
-				   dir_hash_info, dir, name, 0);
+	struct bkey_s_c k = bch2_hash_lookup(trans, &dirent_iter, bch2_dirent_hash_desc,
+					     dir_hash_info, dir, name, 0);
+	int ret = bkey_err(k);
 	if (ret)
 		return ERR_PTR(ret);
-
-	struct bkey_s_c k = bch2_btree_iter_peek_slot(&dirent_iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
 
 	ret = bch2_dirent_read_target(trans, dir, bkey_s_c_to_dirent(k), &inum);
 	if (ret > 0)

@@ -159,7 +159,7 @@ static inline bool is_visible_key(struct bch_hash_desc desc, subvol_inum inum, s
 		 desc.is_visible(inum, k));
 }
 
-static __always_inline int
+static __always_inline struct bkey_s_c
 bch2_hash_lookup_in_snapshot(struct btree_trans *trans,
 		 struct btree_iter *iter,
 		 const struct bch_hash_desc desc,
@@ -176,7 +176,7 @@ bch2_hash_lookup_in_snapshot(struct btree_trans *trans,
 			   BTREE_ITER_SLOTS|flags, k, ret) {
 		if (is_visible_key(desc, inum, k)) {
 			if (!desc.cmp_key(k, key))
-				return 0;
+				return k;
 		} else if (k.k->type == KEY_TYPE_hash_whiteout) {
 			;
 		} else {
@@ -186,10 +186,10 @@ bch2_hash_lookup_in_snapshot(struct btree_trans *trans,
 	}
 	bch2_trans_iter_exit(trans, iter);
 
-	return ret ?: -BCH_ERR_ENOENT_str_hash_lookup;
+	return bkey_s_c_err(ret ?: -BCH_ERR_ENOENT_str_hash_lookup);
 }
 
-static __always_inline int
+static __always_inline struct bkey_s_c
 bch2_hash_lookup(struct btree_trans *trans,
 		 struct btree_iter *iter,
 		 const struct bch_hash_desc desc,
@@ -198,8 +198,11 @@ bch2_hash_lookup(struct btree_trans *trans,
 		 unsigned flags)
 {
 	u32 snapshot;
-	return  bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot) ?:
-		bch2_hash_lookup_in_snapshot(trans, iter, desc, info, inum, key, flags, snapshot);
+	int ret = bch2_subvolume_get_snapshot(trans, inum.subvol, &snapshot);
+	if (ret)
+		return bkey_s_c_err(ret);
+
+	return bch2_hash_lookup_in_snapshot(trans, iter, desc, info, inum, key, flags, snapshot);
 }
 
 static __always_inline int
@@ -369,14 +372,10 @@ int bch2_hash_delete(struct btree_trans *trans,
 		     subvol_inum inum, const void *key)
 {
 	struct btree_iter iter;
-	int ret;
-
-	ret = bch2_hash_lookup(trans, &iter, desc, info, inum, key,
-				BTREE_ITER_INTENT);
-	if (ret)
-		return ret;
-
-	ret = bch2_hash_delete_at(trans, desc, info, &iter, 0);
+	struct bkey_s_c k = bch2_hash_lookup(trans, &iter, desc, info, inum, key,
+					     BTREE_ITER_INTENT);
+	int ret = bkey_err(k) ?:
+		  bch2_hash_delete_at(trans, desc, info, &iter, 0);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;
 }

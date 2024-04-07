@@ -127,13 +127,13 @@ static int lookup_dirent_in_snapshot(struct btree_trans *trans,
 			   u64 *target, unsigned *type, u32 snapshot)
 {
 	struct btree_iter iter;
-	struct bkey_s_c_dirent d;
-	int ret = bch2_hash_lookup_in_snapshot(trans, &iter, bch2_dirent_hash_desc,
-			       &hash_info, dir, name, 0, snapshot);
+	struct bkey_s_c k = bch2_hash_lookup_in_snapshot(trans, &iter, bch2_dirent_hash_desc,
+							 &hash_info, dir, name, 0, snapshot);
+	int ret = bkey_err(k);
 	if (ret)
 		return ret;
 
-	d = bkey_s_c_to_dirent(bch2_btree_iter_peek_slot(&iter));
+	struct bkey_s_c_dirent d = bkey_s_c_to_dirent(bch2_btree_iter_peek_slot(&iter));
 	*target = le64_to_cpu(d.v->d_inum);
 	*type = d.v->d_type;
 	bch2_trans_iter_exit(trans, &iter);
