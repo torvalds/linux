@@ -148,6 +148,8 @@ void ftrace_likely_update(struct ftrace_likely_data *f, int val,
 } while (0)
 #endif
 
+#define assume(cond) do { if (!(cond)) __builtin_unreachable(); } while (0)
+
 /*
  * KENTRY - kernel entry point
  * This can be used to annotate symbols (functions or data) that are used
