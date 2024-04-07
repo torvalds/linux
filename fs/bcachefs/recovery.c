@@ -65,9 +65,20 @@ static void bch2_reconstruct_alloc(struct bch_fs *c)
 	__set_bit_le64(BCH_FSCK_ERR_ptr_to_missing_alloc_key, ext->errors_silent);
 	__set_bit_le64(BCH_FSCK_ERR_ptr_gen_newer_than_bucket_gen, ext->errors_silent);
 	__set_bit_le64(BCH_FSCK_ERR_stale_dirty_ptr, ext->errors_silent);
+
+	__set_bit_le64(BCH_FSCK_ERR_dev_usage_buckets_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_dev_usage_sectors_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_dev_usage_fragmented_wrong, ext->errors_silent);
+
+	__set_bit_le64(BCH_FSCK_ERR_fs_usage_btree_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_fs_usage_cached_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_fs_usage_persistent_reserved_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_fs_usage_replicas_wrong, ext->errors_silent);
+
 	__set_bit_le64(BCH_FSCK_ERR_alloc_key_data_type_wrong, ext->errors_silent);
 	__set_bit_le64(BCH_FSCK_ERR_alloc_key_gen_wrong, ext->errors_silent);
 	__set_bit_le64(BCH_FSCK_ERR_alloc_key_dirty_sectors_wrong, ext->errors_silent);
+	__set_bit_le64(BCH_FSCK_ERR_alloc_key_cached_sectors_wrong, ext->errors_silent);
 	__set_bit_le64(BCH_FSCK_ERR_alloc_key_stripe_wrong, ext->errors_silent);
 	__set_bit_le64(BCH_FSCK_ERR_alloc_key_stripe_redundancy_wrong, ext->errors_silent);
 	__set_bit_le64(BCH_FSCK_ERR_need_discard_key_wrong, ext->errors_silent);

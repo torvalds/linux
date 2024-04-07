@@ -1209,9 +1209,7 @@ static int bch2_gc_done(struct bch_fs *c,
 {
 	struct bch_dev *ca = NULL;
 	struct printbuf buf = PRINTBUF;
-	bool verify = !metadata_only &&
-		!c->opts.reconstruct_alloc &&
-		(!initial || (c->sb.compat & (1ULL << BCH_COMPAT_alloc_info)));
+	bool verify = !metadata_only;
 	unsigned i;
 	int ret = 0;
 
