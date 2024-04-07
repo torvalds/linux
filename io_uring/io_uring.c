@@ -381,7 +381,7 @@ static void io_clean_op(struct io_kiocb *req)
 {
 	if (req->flags & REQ_F_BUFFER_SELECTED) {
 		spin_lock(&req->ctx->completion_lock);
-		io_put_kbuf_comp(req);
+		io_kbuf_drop(req);
 		spin_unlock(&req->ctx->completion_lock);
 	}
 

@@ -120,18 +120,14 @@ static inline void __io_put_kbuf_list(struct io_kiocb *req,
 	}
 }
 
-static inline unsigned int io_put_kbuf_comp(struct io_kiocb *req)
+static inline void io_kbuf_drop(struct io_kiocb *req)
 {
-	unsigned int ret;
-
 	lockdep_assert_held(&req->ctx->completion_lock);
 
 	if (!(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)))
-		return 0;
+		return;
 
-	ret = IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
 	__io_put_kbuf_list(req, &req->ctx->io_buffers_comp);
-	return ret;
 }
 
 static inline unsigned int io_put_kbuf(struct io_kiocb *req,
