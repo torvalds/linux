@@ -1822,7 +1822,7 @@ have_slot:
 
 	bch2_dev_usage_journal_reserve(c);
 
-	ret = bch2_trans_mark_dev_sb(c, ca);
+	ret = bch2_trans_mark_dev_sb(c, ca, BTREE_TRIGGER_TRANSACTIONAL);
 	bch_err_msg(ca, ret, "marking new superblock");
 	if (ret)
 		goto err_late;
@@ -1887,7 +1887,7 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 
 	ca = bch_dev_locked(c, dev_idx);
 
-	ret = bch2_trans_mark_dev_sb(c, ca);
+	ret = bch2_trans_mark_dev_sb(c, ca, BTREE_TRIGGER_TRANSACTIONAL);
 	bch_err_msg(c, ret, "bringing %s online: error from bch2_trans_mark_dev_sb", path);
 	if (ret)
 		goto err;
@@ -1980,7 +1980,7 @@ int bch2_dev_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	if (ret)
 		goto err;
 
-	ret = bch2_trans_mark_dev_sb(c, ca);
+	ret = bch2_trans_mark_dev_sb(c, ca, BTREE_TRIGGER_TRANSACTIONAL);
 	if (ret)
 		goto err;
 

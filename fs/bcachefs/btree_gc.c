@@ -1040,59 +1040,14 @@ fsck_err:
 	return ret;
 }
 
-static void mark_metadata_sectors(struct bch_fs *c, struct bch_dev *ca,
-				  u64 start, u64 end,
-				  enum bch_data_type type,
-				  unsigned flags)
-{
-	u64 b = sector_to_bucket(ca, start);
-
-	do {
-		unsigned sectors =
-			min_t(u64, bucket_to_sector(ca, b + 1), end) - start;
-
-		bch2_mark_metadata_bucket(c, ca, b, type, sectors,
-					  gc_phase(GC_PHASE_SB), flags);
-		b++;
-		start += sectors;
-	} while (start < end);
-}
-
-static void bch2_mark_dev_superblock(struct bch_fs *c, struct bch_dev *ca,
-				     unsigned flags)
-{
-	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
-	unsigned i;
-	u64 b;
-
-	for (i = 0; i < layout->nr_superblocks; i++) {
-		u64 offset = le64_to_cpu(layout->sb_offset[i]);
-
-		if (offset == BCH_SB_SECTOR)
-			mark_metadata_sectors(c, ca, 0, BCH_SB_SECTOR,
-					      BCH_DATA_sb, flags);
-
-		mark_metadata_sectors(c, ca, offset,
-				      offset + (1 << layout->sb_max_size_bits),
-				      BCH_DATA_sb, flags);
-	}
-
-	for (i = 0; i < ca->journal.nr; i++) {
-		b = ca->journal.buckets[i];
-		bch2_mark_metadata_bucket(c, ca, b, BCH_DATA_journal,
-					  ca->mi.bucket_size,
-					  gc_phase(GC_PHASE_SB), flags);
-	}
-}
-
-static void bch2_mark_superblocks(struct bch_fs *c)
+static int bch2_mark_superblocks(struct bch_fs *c)
 {
 	mutex_lock(&c->sb_lock);
 	gc_pos_set(c, gc_phase(GC_PHASE_SB));
 
-	for_each_online_member(c, ca)
-		bch2_mark_dev_superblock(c, ca, BTREE_TRIGGER_GC);
+	int ret = bch2_trans_mark_dev_sbs_flags(c, BTREE_TRIGGER_GC);
 	mutex_unlock(&c->sb_lock);
+	return ret;
 }
 
 static void bch2_gc_free(struct bch_fs *c)
@@ -1635,7 +1590,8 @@ static int bch2_gc(struct bch_fs *c, bool initial)
 again:
 	gc_pos_set(c, gc_phase(GC_PHASE_START));
 
-	bch2_mark_superblocks(c);
+	ret = bch2_mark_superblocks(c);
+	BUG_ON(ret);
 
 	ret = bch2_gc_btrees(c, initial);
 	if (ret)

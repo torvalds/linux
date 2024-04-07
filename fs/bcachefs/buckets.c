@@ -485,59 +485,6 @@ int bch2_update_cached_sectors_list(struct btree_trans *trans, unsigned dev, s64
 	return bch2_update_replicas_list(trans, &r.e, sectors);
 }
 
-int bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
-			      size_t b, enum bch_data_type data_type,
-			      unsigned sectors, struct gc_pos pos,
-			      unsigned flags)
-{
-	struct bucket old, new, *g;
-	int ret = 0;
-
-	BUG_ON(!(flags & BTREE_TRIGGER_GC));
-	BUG_ON(data_type != BCH_DATA_sb &&
-	       data_type != BCH_DATA_journal);
-
-	/*
-	 * Backup superblock might be past the end of our normal usable space:
-	 */
-	if (b >= ca->mi.nbuckets)
-		return 0;
-
-	percpu_down_read(&c->mark_lock);
-	g = gc_bucket(ca, b);
-
-	bucket_lock(g);
-	old = *g;
-
-	if (bch2_fs_inconsistent_on(g->data_type &&
-			g->data_type != data_type, c,
-			"different types of data in same bucket: %s, %s",
-			bch2_data_type_str(g->data_type),
-			bch2_data_type_str(data_type))) {
-		ret = -EIO;
-		goto err;
-	}
-
-	if (bch2_fs_inconsistent_on((u64) g->dirty_sectors + sectors > ca->mi.bucket_size, c,
-			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %u > bucket size",
-			ca->dev_idx, b, g->gen,
-			bch2_data_type_str(g->data_type ?: data_type),
-			g->dirty_sectors, sectors)) {
-		ret = -EIO;
-		goto err;
-	}
-
-	g->data_type = data_type;
-	g->dirty_sectors += sectors;
-	new = *g;
-err:
-	bucket_unlock(g);
-	if (!ret)
-		bch2_dev_usage_update_m(c, ca, &old, &new);
-	percpu_up_read(&c->mark_lock);
-	return ret;
-}
-
 int bch2_check_bucket_ref(struct btree_trans *trans,
 			  struct bkey_s_c k,
 			  const struct bch_extent_ptr *ptr,
@@ -1107,22 +1054,16 @@ int bch2_trigger_reservation(struct btree_trans *trans,
 /* Mark superblocks: */
 
 static int __bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
-				    struct bch_dev *ca, size_t b,
+				    struct bch_dev *ca, u64 b,
 				    enum bch_data_type type,
 				    unsigned sectors)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
-	struct bkey_i_alloc_v4 *a;
 	int ret = 0;
 
-	/*
-	 * Backup superblock might be past the end of our normal usable space:
-	 */
-	if (b >= ca->mi.nbuckets)
-		return 0;
-
-	a = bch2_trans_start_alloc_update(trans, &iter, POS(ca->dev_idx, b));
+	struct bkey_i_alloc_v4 *a =
+		bch2_trans_start_alloc_update(trans, &iter, POS(ca->dev_idx, b));
 	if (IS_ERR(a))
 		return PTR_ERR(a);
 
@@ -1150,20 +1091,78 @@ err:
 	return ret;
 }
 
-int bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
-				    struct bch_dev *ca, size_t b,
-				    enum bch_data_type type,
-				    unsigned sectors)
+static int bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
+				     u64 b, enum bch_data_type data_type,
+				     unsigned sectors, unsigned flags)
 {
-	return commit_do(trans, NULL, NULL, 0,
-			__bch2_trans_mark_metadata_bucket(trans, ca, b, type, sectors));
+	struct bucket old, new, *g;
+	int ret = 0;
+
+	percpu_down_read(&c->mark_lock);
+	g = gc_bucket(ca, b);
+
+	bucket_lock(g);
+	old = *g;
+
+	if (bch2_fs_inconsistent_on(g->data_type &&
+			g->data_type != data_type, c,
+			"different types of data in same bucket: %s, %s",
+			bch2_data_type_str(g->data_type),
+			bch2_data_type_str(data_type))) {
+		ret = -EIO;
+		goto err;
+	}
+
+	if (bch2_fs_inconsistent_on((u64) g->dirty_sectors + sectors > ca->mi.bucket_size, c,
+			"bucket %u:%llu gen %u data type %s sector count overflow: %u + %u > bucket size",
+			ca->dev_idx, b, g->gen,
+			bch2_data_type_str(g->data_type ?: data_type),
+			g->dirty_sectors, sectors)) {
+		ret = -EIO;
+		goto err;
+	}
+
+	g->data_type = data_type;
+	g->dirty_sectors += sectors;
+	new = *g;
+err:
+	bucket_unlock(g);
+	if (!ret)
+		bch2_dev_usage_update_m(c, ca, &old, &new);
+	percpu_up_read(&c->mark_lock);
+	return ret;
+}
+
+int bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
+				    struct bch_dev *ca, u64 b,
+				    enum bch_data_type type,
+				    unsigned sectors, unsigned flags)
+{
+	BUG_ON(type != BCH_DATA_free &&
+	       type != BCH_DATA_sb &&
+	       type != BCH_DATA_journal);
+
+	/*
+	 * Backup superblock might be past the end of our normal usable space:
+	 */
+	if (b >= ca->mi.nbuckets)
+		return 0;
+
+	if (flags & BTREE_TRIGGER_GC)
+		return bch2_mark_metadata_bucket(trans->c, ca, b, type, sectors, flags);
+	else if (flags & BTREE_TRIGGER_TRANSACTIONAL)
+		return commit_do(trans, NULL, NULL, 0,
+				 __bch2_trans_mark_metadata_bucket(trans, ca, b, type, sectors));
+	else
+		BUG();
 }
 
 static int bch2_trans_mark_metadata_sectors(struct btree_trans *trans,
 					    struct bch_dev *ca,
 					    u64 start, u64 end,
 					    enum bch_data_type type,
-					    u64 *bucket, unsigned *bucket_sectors)
+					    u64 *bucket, unsigned *bucket_sectors,
+					    unsigned flags)
 {
 	do {
 		u64 b = sector_to_bucket(ca, start);
@@ -1172,7 +1171,7 @@ static int bch2_trans_mark_metadata_sectors(struct btree_trans *trans,
 
 		if (b != *bucket && *bucket_sectors) {
 			int ret = bch2_trans_mark_metadata_bucket(trans, ca, *bucket,
-								  type, *bucket_sectors);
+							type, *bucket_sectors, flags);
 			if (ret)
 				return ret;
 
@@ -1188,7 +1187,7 @@ static int bch2_trans_mark_metadata_sectors(struct btree_trans *trans,
 }
 
 static int __bch2_trans_mark_dev_sb(struct btree_trans *trans,
-				    struct bch_dev *ca)
+				    struct bch_dev *ca, unsigned flags)
 {
 	struct bch_sb_layout *layout = &ca->disk_sb.sb->layout;
 	u64 bucket = 0;
@@ -1201,21 +1200,21 @@ static int __bch2_trans_mark_dev_sb(struct btree_trans *trans,
 		if (offset == BCH_SB_SECTOR) {
 			ret = bch2_trans_mark_metadata_sectors(trans, ca,
 						0, BCH_SB_SECTOR,
-						BCH_DATA_sb, &bucket, &bucket_sectors);
+						BCH_DATA_sb, &bucket, &bucket_sectors, flags);
 			if (ret)
 				return ret;
 		}
 
 		ret = bch2_trans_mark_metadata_sectors(trans, ca, offset,
 				      offset + (1 << layout->sb_max_size_bits),
-				      BCH_DATA_sb, &bucket, &bucket_sectors);
+				      BCH_DATA_sb, &bucket, &bucket_sectors, flags);
 		if (ret)
 			return ret;
 	}
 
 	if (bucket_sectors) {
 		ret = bch2_trans_mark_metadata_bucket(trans, ca,
-				bucket, BCH_DATA_sb, bucket_sectors);
+				bucket, BCH_DATA_sb, bucket_sectors, flags);
 		if (ret)
 			return ret;
 	}
@@ -1223,7 +1222,7 @@ static int __bch2_trans_mark_dev_sb(struct btree_trans *trans,
 	for (i = 0; i < ca->journal.nr; i++) {
 		ret = bch2_trans_mark_metadata_bucket(trans, ca,
 				ca->journal.buckets[i],
-				BCH_DATA_journal, ca->mi.bucket_size);
+				BCH_DATA_journal, ca->mi.bucket_size, flags);
 		if (ret)
 			return ret;
 	}
@@ -1231,18 +1230,18 @@ static int __bch2_trans_mark_dev_sb(struct btree_trans *trans,
 	return 0;
 }
 
-int bch2_trans_mark_dev_sb(struct bch_fs *c, struct bch_dev *ca)
+int bch2_trans_mark_dev_sb(struct bch_fs *c, struct bch_dev *ca, unsigned flags)
 {
-	int ret = bch2_trans_run(c, __bch2_trans_mark_dev_sb(trans, ca));
-
+	int ret = bch2_trans_run(c,
+		__bch2_trans_mark_dev_sb(trans, ca, flags));
 	bch_err_fn(c, ret);
 	return ret;
 }
 
-int bch2_trans_mark_dev_sbs(struct bch_fs *c)
+int bch2_trans_mark_dev_sbs_flags(struct bch_fs *c, unsigned flags)
 {
 	for_each_online_member(c, ca) {
-		int ret = bch2_trans_mark_dev_sb(c, ca);
+		int ret = bch2_trans_mark_dev_sb(c, ca, flags);
 		if (ret) {
 			percpu_ref_put(&ca->ref);
 			return ret;
@@ -1250,6 +1249,11 @@ int bch2_trans_mark_dev_sbs(struct bch_fs *c)
 	}
 
 	return 0;
+}
+
+int bch2_trans_mark_dev_sbs(struct bch_fs *c)
+{
+	return bch2_trans_mark_dev_sbs_flags(c, BTREE_TRIGGER_TRANSACTIONAL);
 }
 
 /* Disk reservations: */

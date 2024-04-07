@@ -337,10 +337,6 @@ int bch2_check_bucket_ref(struct btree_trans *, struct bkey_s_c,
 			  const struct bch_extent_ptr *,
 			  s64, enum bch_data_type, u8, u8, u32);
 
-int bch2_mark_metadata_bucket(struct bch_fs *, struct bch_dev *,
-			      size_t, enum bch_data_type, unsigned,
-			      struct gc_pos, unsigned);
-
 int bch2_trigger_extent(struct btree_trans *, enum btree_id, unsigned,
 			struct bkey_s_c, struct bkey_s, unsigned);
 int bch2_trigger_reservation(struct btree_trans *, enum btree_id, unsigned,
@@ -362,9 +358,10 @@ void bch2_trans_account_disk_usage_change(struct btree_trans *);
 void bch2_trans_fs_usage_revert(struct btree_trans *, struct replicas_delta_list *);
 int bch2_trans_fs_usage_apply(struct btree_trans *, struct replicas_delta_list *);
 
-int bch2_trans_mark_metadata_bucket(struct btree_trans *, struct bch_dev *,
-				    size_t, enum bch_data_type, unsigned);
-int bch2_trans_mark_dev_sb(struct bch_fs *, struct bch_dev *);
+int bch2_trans_mark_metadata_bucket(struct btree_trans *, struct bch_dev *, u64,
+				    enum bch_data_type, unsigned, unsigned);
+int bch2_trans_mark_dev_sb(struct bch_fs *, struct bch_dev *, unsigned);
+int bch2_trans_mark_dev_sbs_flags(struct bch_fs *, unsigned);
 int bch2_trans_mark_dev_sbs(struct bch_fs *);
 
 static inline bool is_superblock_bucket(struct bch_dev *ca, u64 b)
