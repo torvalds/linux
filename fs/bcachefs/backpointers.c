@@ -793,31 +793,13 @@ static int bch2_check_extents_to_backpointers_pass(struct btree_trans *trans,
 
 		while (level >= depth) {
 			struct btree_iter iter;
-			bch2_trans_node_iter_init(trans, &iter, btree_id, POS_MIN, 0,
-						  level,
+			bch2_trans_node_iter_init(trans, &iter, btree_id, POS_MIN, 0, level,
 						  BTREE_ITER_PREFETCH);
-			while (1) {
-				bch2_trans_begin(trans);
 
-				struct bkey_s_c k = bch2_btree_iter_peek(&iter);
-				if (!k.k)
-					break;
-				ret = bkey_err(k) ?:
-					check_extent_to_backpointers(trans, s, btree_id, level, k) ?:
-					bch2_trans_commit(trans, NULL, NULL,
-							  BCH_TRANS_COMMIT_no_enospc);
-				if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
-					ret = 0;
-					continue;
-				}
-				if (ret)
-					break;
-				if (bpos_eq(iter.pos, SPOS_MAX))
-					break;
-				bch2_btree_iter_advance(&iter);
-			}
-			bch2_trans_iter_exit(trans, &iter);
-
+			ret = for_each_btree_key_continue(trans, iter, 0, k, ({
+				check_extent_to_backpointers(trans, s, btree_id, level, k) ?:
+				bch2_trans_commit(trans, NULL, NULL, BCH_TRANS_COMMIT_no_enospc);
+			}));
 			if (ret)
 				return ret;
 

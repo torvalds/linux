@@ -699,15 +699,11 @@ transaction_restart:							\
 	_ret2 ?: trans_was_restarted(_trans, _restart_count);		\
 })
 
-#define for_each_btree_key_upto(_trans, _iter, _btree_id,		\
-				_start, _end, _flags, _k, _do)		\
+#define for_each_btree_key_upto_continue(_trans, _iter,			\
+					 _end, _flags, _k, _do)		\
 ({									\
-	struct btree_iter _iter;					\
 	struct bkey_s_c _k;						\
 	int _ret3 = 0;							\
-									\
-	bch2_trans_iter_init((_trans), &(_iter), (_btree_id),		\
-			     (_start), (_flags));			\
 									\
 	do {								\
 		_ret3 = lockrestart_do(_trans, ({			\
@@ -722,6 +718,19 @@ transaction_restart:							\
 									\
 	bch2_trans_iter_exit((_trans), &(_iter));			\
 	_ret3;								\
+})
+
+#define for_each_btree_key_continue(_trans, _iter, _flags, _k, _do)	\
+	for_each_btree_key_upto_continue(_trans, _iter, SPOS_MAX, _flags, _k, _do)
+
+#define for_each_btree_key_upto(_trans, _iter, _btree_id,		\
+				_start, _end, _flags, _k, _do)		\
+({									\
+	struct btree_iter _iter;					\
+	bch2_trans_iter_init((_trans), &(_iter), (_btree_id),		\
+			     (_start), (_flags));			\
+									\
+	for_each_btree_key_upto_continue(_trans, _iter, _end, _flags, _k, _do);\
 })
 
 #define for_each_btree_key(_trans, _iter, _btree_id,			\
