@@ -164,10 +164,13 @@ static s64 gc_trigger_reflink_p_segment(struct btree_trans *trans,
 
 	BUG_ON((s64) r->refcount + add < 0);
 
-	r->refcount += add;
+	if (flags & BTREE_TRIGGER_gc)
+		r->refcount += add;
 	*idx = r->offset;
 	return 0;
 not_found:
+	BUG_ON(!(flags & BTREE_TRIGGER_check_repair));
+
 	if (fsck_err(c, reflink_p_to_missing_reflink_v,
 		     "pointer to missing indirect extent\n"
 		     "  %s\n"
@@ -216,7 +219,7 @@ static int __trigger_reflink_p(struct btree_trans *trans,
 			ret = trans_trigger_reflink_p_segment(trans, p, &idx, flags);
 	}
 
-	if (flags & BTREE_TRIGGER_gc) {
+	if (flags & (BTREE_TRIGGER_check_repair|BTREE_TRIGGER_gc)) {
 		size_t l = 0, r = c->reflink_gc_nr;
 
 		while (l < r) {
