@@ -1090,12 +1090,12 @@ static void qm_create_debugfs_file(struct hisi_qm *qm, struct dentry *dir,
 {
 	struct debugfs_file *file = qm->debug.files + index;
 
-	debugfs_create_file(qm_debug_file_name[index], 0600, dir, file,
-			    &qm_debug_fops);
-
 	file->index = index;
 	mutex_init(&file->lock);
 	file->debug = &qm->debug;
+
+	debugfs_create_file(qm_debug_file_name[index], 0600, dir, file,
+			    &qm_debug_fops);
 }
 
 static int qm_debugfs_atomic64_set(void *data, u64 val)
