@@ -73,6 +73,24 @@ int bch2_btree_node_check_topology(struct btree_trans *trans, struct btree *b)
 	       !bpos_eq(bkey_i_to_btree_ptr_v2(&b->key)->v.min_key,
 			b->data->min_key));
 
+	if (b == btree_node_root(c, b)) {
+		if (!bpos_eq(b->data->min_key, POS_MIN)) {
+			printbuf_reset(&buf);
+			bch2_bpos_to_text(&buf, b->data->min_key);
+			need_fsck_err(c, btree_root_bad_min_key,
+				      "btree root with incorrect min_key: %s", buf.buf);
+			goto topology_repair;
+		}
+
+		if (!bpos_eq(b->data->max_key, SPOS_MAX)) {
+			printbuf_reset(&buf);
+			bch2_bpos_to_text(&buf, b->data->max_key);
+			need_fsck_err(c, btree_root_bad_max_key,
+				      "btree root with incorrect max_key: %s", buf.buf);
+			goto topology_repair;
+		}
+	}
+
 	if (!b->c.level)
 		return 0;
 

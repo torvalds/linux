@@ -996,36 +996,16 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 			      enum btree_id btree_id)
 {
 	struct bch_fs *c = trans->c;
-	struct btree *b;
 	/*
 	 * We need to make sure every leaf node is readable before going RW
 	unsigned target_depth = btree_node_type_needs_gc(__btree_node_type(0, btree_id)) ? 0 : 1;
 	*/
 	unsigned target_depth = 0;
-	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	b = bch2_btree_id_root(c, btree_id)->b;
+	struct btree *b = bch2_btree_id_root(c, btree_id)->b;
 
 	six_lock_read(&b->c.lock, NULL, NULL);
-	printbuf_reset(&buf);
-	bch2_bpos_to_text(&buf, b->data->min_key);
-	if (mustfix_fsck_err_on(!bpos_eq(b->data->min_key, POS_MIN), c,
-				btree_root_bad_min_key,
-			"btree root with incorrect min_key: %s", buf.buf)) {
-		ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
-		goto fsck_err;
-	}
-
-	printbuf_reset(&buf);
-	bch2_bpos_to_text(&buf, b->data->max_key);
-	if (mustfix_fsck_err_on(!bpos_eq(b->data->max_key, SPOS_MAX), c,
-				btree_root_bad_max_key,
-			"btree root with incorrect max_key: %s", buf.buf)) {
-		ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology);
-		goto fsck_err;
-	}
-
 	if (b->c.level >= target_depth)
 		ret = bch2_gc_btree_init_recurse(trans, b, target_depth);
 
@@ -1035,11 +1015,9 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level + 1, true,
 				       &k, true);
 	}
-fsck_err:
 	six_unlock_read(&b->c.lock);
 
 	bch_err_fn(c, ret);
-	printbuf_exit(&buf);
 	return ret;
 }
 
