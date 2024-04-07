@@ -645,6 +645,9 @@ int qm_set_and_get_xqc(struct hisi_qm *qm, u8 cmd, void *xqc, u32 qp_id, bool op
 		tmp_xqc = qm->xqc_buf.aeqc;
 		xqc_dma = qm->xqc_buf.aeqc_dma;
 		break;
+	default:
+		dev_err(&qm->pdev->dev, "unknown mailbox cmd %u\n", cmd);
+		return -EINVAL;
 	}
 
 	/* Setting xqc will fail if master OOO is blocked. */
