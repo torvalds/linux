@@ -256,7 +256,6 @@ struct uart_amba_port {
 	const u16		*reg_offset;
 	struct clk		*clk;
 	const struct vendor_data *vendor;
-	unsigned int		dmacr;		/* dma control reg */
 	unsigned int		im;		/* interrupt mask */
 	unsigned int		old_status;
 	unsigned int		fifosize;	/* vendor-specific */
@@ -266,6 +265,7 @@ struct uart_amba_port {
 	unsigned int		rs485_tx_drain_interval; /* usecs */
 #ifdef CONFIG_DMA_ENGINE
 	/* DMA stuff */
+	unsigned int		dmacr;		/* dma control reg */
 	bool			using_tx_dma;
 	bool			using_rx_dma;
 	struct pl011_dmarx_data dmarx;
