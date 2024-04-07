@@ -603,20 +603,13 @@ static int bch2_trans_commit_run_triggers(struct btree_trans *trans)
 
 static noinline int bch2_trans_commit_run_gc_triggers(struct btree_trans *trans)
 {
-	trans_for_each_update(trans, i) {
-		/*
-		 * XXX: synchronization of cached update triggers with gc
-		 * XXX: synchronization of interior node updates with gc
-		 */
-		BUG_ON(i->cached || i->level);
-
+	trans_for_each_update(trans, i)
 		if (btree_node_type_needs_gc(__btree_node_type(i->level, i->btree_id)) &&
 		    gc_visited(trans->c, gc_pos_btree_node(insert_l(trans, i)->b))) {
 			int ret = run_one_mem_trigger(trans, i, i->flags|BTREE_TRIGGER_gc);
 			if (ret)
 				return ret;
 		}
-	}
 
 	return 0;
 }
