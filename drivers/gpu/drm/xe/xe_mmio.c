@@ -163,6 +163,42 @@ static int xe_determine_lmem_bar_size(struct xe_device *xe)
 	return 0;
 }
 
+static inline u64 get_flat_ccs_offset(struct xe_gt *gt, u64 tile_size)
+{
+	struct xe_device *xe = gt_to_xe(gt);
+	u64 offset;
+	u32 reg;
+
+	if (GRAPHICS_VER(xe) >= 20) {
+		u64 ccs_size = tile_size / 512;
+		u64 offset_hi, offset_lo;
+		u32 nodes, num_enabled;
+
+		reg = xe_mmio_read32(gt, MIRROR_FUSE3);
+		nodes = REG_FIELD_GET(XE2_NODE_ENABLE_MASK, reg);
+		num_enabled = hweight32(nodes); /* Number of enabled l3 nodes */
+
+		reg = xe_gt_mcr_unicast_read_any(gt, XE2_FLAT_CCS_BASE_RANGE_LOWER);
+		offset_lo = REG_FIELD_GET(XE2_FLAT_CCS_BASE_LOWER_ADDR_MASK, reg);
+
+		reg = xe_gt_mcr_unicast_read_any(gt, XE2_FLAT_CCS_BASE_RANGE_UPPER);
+		offset_hi = REG_FIELD_GET(XE2_FLAT_CCS_BASE_UPPER_ADDR_MASK, reg);
+
+		offset = offset_hi << 32; /* HW view bits 39:32 */
+		offset |= offset_lo << 6; /* HW view bits 31:6 */
+		offset *= num_enabled; /* convert to SW view */
+
+		/* We don't expect any holes */
+		xe_assert_msg(xe, offset == (xe_mmio_read64_2x32(gt, GSMBASE) - ccs_size),
+			      "Hole between CCS and GSM.\n");
+	} else {
+		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_FLAT_CCS_BASE_ADDR);
+		offset = (u64)REG_FIELD_GET(XEHP_FLAT_CCS_PTR, reg) * SZ_64K;
+	}
+
+	return offset;
+}
+
 /**
  * xe_mmio_tile_vram_size() - Collect vram size and offset information
  * @tile: tile to get info for
@@ -207,8 +243,7 @@ static int xe_mmio_tile_vram_size(struct xe_tile *tile, u64 *vram_size,
 
 	/* minus device usage */
 	if (xe->info.has_flat_ccs) {
-		reg = xe_gt_mcr_unicast_read_any(gt, XEHP_FLAT_CCS_BASE_ADDR);
-		offset = (u64)REG_FIELD_GET(GENMASK(31, 8), reg) * SZ_64K;
+		offset = get_flat_ccs_offset(gt, *tile_size);
 	} else {
 		offset = xe_mmio_read64_2x32(gt, GSMBASE);
 	}
