@@ -1296,6 +1296,7 @@ static void dc_dmub_srv_notify_idle(const struct dc *dc, bool allow_idle)
 		}
 
 		ips_driver->signals = new_signals;
+		dc_dmub_srv->driver_signals = ips_driver->signals;
 	}
 
 	DC_LOG_IPS(
@@ -1339,6 +1340,7 @@ static void dc_dmub_srv_exit_low_power_state(const struct dc *dc)
 		ips2_exit_count = ips_fw->ips2_exit_count;
 
 		ips_driver->signals.all = 0;
+		dc_dmub_srv->driver_signals = ips_driver->signals;
 
 		DC_LOG_IPS(
 			"%s (allow ips1=%d ips2=%d) (commit ips1=%d ips2=%d) (count rcg=%d ips1=%d ips2=%d)",

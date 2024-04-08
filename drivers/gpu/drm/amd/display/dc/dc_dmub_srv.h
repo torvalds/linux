@@ -53,6 +53,7 @@ struct dc_dmub_srv {
 	void *dm;
 
 	int32_t idle_exit_counter;
+	union dmub_shared_state_ips_driver_signals driver_signals;
 	bool idle_allowed;
 	bool needs_idle_wake;
 };
