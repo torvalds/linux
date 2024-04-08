@@ -570,7 +570,7 @@ visible to cgroup_for_each_child/descendant_*() iterators. The
 subsystem may choose to fail creation by returning -errno. This
 callback can be used to implement reliable state sharing and
 propagation along the hierarchy. See the comment on
-cgroup_for_each_descendant_pre() for details.
+cgroup_for_each_live_descendant_pre() for details.
 
 ``void css_offline(struct cgroup *cgrp);``
 (cgroup_mutex held by caller)
