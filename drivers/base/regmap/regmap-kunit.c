@@ -1115,12 +1115,12 @@ static void raw_read_defaults(struct kunit *test)
 	for (i = 0; i < config.max_register + 1; i++) {
 		def = config.reg_defaults[i].def;
 		if (config.val_format_endian == REGMAP_ENDIAN_BIG) {
-			KUNIT_EXPECT_EQ(test, def, be16_to_cpu(rval[i]));
+			KUNIT_EXPECT_EQ(test, def, be16_to_cpu((__force __be16)rval[i]));
 		} else {
-			KUNIT_EXPECT_EQ(test, def, le16_to_cpu(rval[i]));
+			KUNIT_EXPECT_EQ(test, def, le16_to_cpu((__force __le16)rval[i]));
 		}
 	}
-	
+
 	kfree(rval);
 	regmap_exit(map);
 }
@@ -1185,10 +1185,10 @@ static void raw_write(struct kunit *test)
 		case 3:
 			if (config.val_format_endian == REGMAP_ENDIAN_BIG) {
 				KUNIT_EXPECT_EQ(test, rval,
-						be16_to_cpu(val[i % 2]));
+						be16_to_cpu((__force __be16)val[i % 2]));
 			} else {
 				KUNIT_EXPECT_EQ(test, rval,
-						le16_to_cpu(val[i % 2]));
+						le16_to_cpu((__force __le16)val[i % 2]));
 			}
 			break;
 		default:
@@ -1300,10 +1300,10 @@ static void raw_sync(struct kunit *test)
 		case 3:
 			if (config.val_format_endian == REGMAP_ENDIAN_BIG) {
 				KUNIT_EXPECT_EQ(test, rval,
-						be16_to_cpu(val[i - 2]));
+						be16_to_cpu((__force __be16)val[i - 2]));
 			} else {
 				KUNIT_EXPECT_EQ(test, rval,
-						le16_to_cpu(val[i - 2]));
+						le16_to_cpu((__force __le16)val[i - 2]));
 			}
 			break;
 		case 4:
