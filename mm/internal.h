@@ -11,6 +11,8 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/rmap.h>
+#include <linux/swap.h>
+#include <linux/swapops.h>
 #include <linux/tracepoint-defs.h>
 
 struct folio_batch;
@@ -188,6 +190,68 @@ static inline int folio_pte_batch(struct folio *folio, unsigned long addr,
 	}
 
 	return min(ptep - start_ptep, max_nr);
+}
+
+/**
+ * pte_next_swp_offset - Increment the swap entry offset field of a swap pte.
+ * @pte: The initial pte state; is_swap_pte(pte) must be true and
+ *	 non_swap_entry() must be false.
+ *
+ * Increments the swap offset, while maintaining all other fields, including
+ * swap type, and any swp pte bits. The resulting pte is returned.
+ */
+static inline pte_t pte_next_swp_offset(pte_t pte)
+{
+	swp_entry_t entry = pte_to_swp_entry(pte);
+	pte_t new = __swp_entry_to_pte(__swp_entry(swp_type(entry),
+						   (swp_offset(entry) + 1)));
+
+	if (pte_swp_soft_dirty(pte))
+		new = pte_swp_mksoft_dirty(new);
+	if (pte_swp_exclusive(pte))
+		new = pte_swp_mkexclusive(new);
+	if (pte_swp_uffd_wp(pte))
+		new = pte_swp_mkuffd_wp(new);
+
+	return new;
+}
+
+/**
+ * swap_pte_batch - detect a PTE batch for a set of contiguous swap entries
+ * @start_ptep: Page table pointer for the first entry.
+ * @max_nr: The maximum number of table entries to consider.
+ * @pte: Page table entry for the first entry.
+ *
+ * Detect a batch of contiguous swap entries: consecutive (non-present) PTEs
+ * containing swap entries all with consecutive offsets and targeting the same
+ * swap type, all with matching swp pte bits.
+ *
+ * max_nr must be at least one and must be limited by the caller so scanning
+ * cannot exceed a single page table.
+ *
+ * Return: the number of table entries in the batch.
+ */
+static inline int swap_pte_batch(pte_t *start_ptep, int max_nr, pte_t pte)
+{
+	pte_t expected_pte = pte_next_swp_offset(pte);
+	const pte_t *end_ptep = start_ptep + max_nr;
+	pte_t *ptep = start_ptep + 1;
+
+	VM_WARN_ON(max_nr < 1);
+	VM_WARN_ON(!is_swap_pte(pte));
+	VM_WARN_ON(non_swap_entry(pte_to_swp_entry(pte)));
+
+	while (ptep < end_ptep) {
+		pte = ptep_get(ptep);
+
+		if (!pte_same(pte, expected_pte))
+			break;
+
+		expected_pte = pte_next_swp_offset(expected_pte);
+		ptep++;
+	}
+
+	return ptep - start_ptep;
 }
 #endif /* CONFIG_MMU */
 

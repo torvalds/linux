@@ -130,7 +130,11 @@ static inline unsigned char swap_count(unsigned char ent)
 /* Reclaim the swap entry if swap is getting full*/
 #define TTRS_FULL		0x4
 
-/* returns 1 if swap entry is freed */
+/*
+ * returns number of pages in the folio that backs the swap entry. If positive,
+ * the folio was reclaimed. If negative, the folio was not reclaimed. If 0, no
+ * folio was associated with the swap entry.
+ */
 static int __try_to_reclaim_swap(struct swap_info_struct *si,
 				 unsigned long offset, unsigned long flags)
 {
@@ -155,6 +159,7 @@ static int __try_to_reclaim_swap(struct swap_info_struct *si,
 			ret = folio_free_swap(folio);
 		folio_unlock(folio);
 	}
+	ret = ret ? folio_nr_pages(folio) : -folio_nr_pages(folio);
 	folio_put(folio);
 	return ret;
 }
@@ -895,7 +900,7 @@ checks:
 		swap_was_freed = __try_to_reclaim_swap(si, offset, TTRS_ANYWAY);
 		spin_lock(&si->lock);
 		/* entry was freed successfully, try to use this again */
-		if (swap_was_freed)
+		if (swap_was_freed > 0)
 			goto checks;
 		goto scan; /* check next one */
 	}
@@ -1572,32 +1577,88 @@ bool folio_free_swap(struct folio *folio)
 	return true;
 }
 
-/*
- * Free the swap entry like above, but also try to
- * free the page cache entry if it is the last user.
+/**
+ * free_swap_and_cache_nr() - Release reference on range of swap entries and
+ *                            reclaim their cache if no more references remain.
+ * @entry: First entry of range.
+ * @nr: Number of entries in range.
+ *
+ * For each swap entry in the contiguous range, release a reference. If any swap
+ * entries become free, try to reclaim their underlying folios, if present. The
+ * offset range is defined by [entry.offset, entry.offset + nr).
  */
-int free_swap_and_cache(swp_entry_t entry)
+void free_swap_and_cache_nr(swp_entry_t entry, int nr)
 {
-	struct swap_info_struct *p;
+	const unsigned long start_offset = swp_offset(entry);
+	const unsigned long end_offset = start_offset + nr;
+	unsigned int type = swp_type(entry);
+	struct swap_info_struct *si;
+	bool any_only_cache = false;
+	unsigned long offset;
 	unsigned char count;
 
 	if (non_swap_entry(entry))
-		return 1;
+		return;
 
-	p = get_swap_device(entry);
-	if (p) {
-		if (WARN_ON(data_race(!p->swap_map[swp_offset(entry)]))) {
-			put_swap_device(p);
-			return 0;
+	si = get_swap_device(entry);
+	if (!si)
+		return;
+
+	if (WARN_ON(end_offset > si->max))
+		goto out;
+
+	/*
+	 * First free all entries in the range.
+	 */
+	for (offset = start_offset; offset < end_offset; offset++) {
+		if (data_race(si->swap_map[offset])) {
+			count = __swap_entry_free(si, swp_entry(type, offset));
+			if (count == SWAP_HAS_CACHE)
+				any_only_cache = true;
+		} else {
+			WARN_ON_ONCE(1);
 		}
-
-		count = __swap_entry_free(p, entry);
-		if (count == SWAP_HAS_CACHE)
-			__try_to_reclaim_swap(p, swp_offset(entry),
-					      TTRS_UNMAPPED | TTRS_FULL);
-		put_swap_device(p);
 	}
-	return p != NULL;
+
+	/*
+	 * Short-circuit the below loop if none of the entries had their
+	 * reference drop to zero.
+	 */
+	if (!any_only_cache)
+		goto out;
+
+	/*
+	 * Now go back over the range trying to reclaim the swap cache. This is
+	 * more efficient for large folios because we will only try to reclaim
+	 * the swap once per folio in the common case. If we do
+	 * __swap_entry_free() and __try_to_reclaim_swap() in the same loop, the
+	 * latter will get a reference and lock the folio for every individual
+	 * page but will only succeed once the swap slot for every subpage is
+	 * zero.
+	 */
+	for (offset = start_offset; offset < end_offset; offset += nr) {
+		nr = 1;
+		if (READ_ONCE(si->swap_map[offset]) == SWAP_HAS_CACHE) {
+			/*
+			 * Folios are always naturally aligned in swap so
+			 * advance forward to the next boundary. Zero means no
+			 * folio was found for the swap entry, so advance by 1
+			 * in this case. Negative value means folio was found
+			 * but could not be reclaimed. Here we can still advance
+			 * to the next boundary.
+			 */
+			nr = __try_to_reclaim_swap(si, offset,
+					      TTRS_UNMAPPED | TTRS_FULL);
+			if (nr == 0)
+				nr = 1;
+			else if (nr < 0)
+				nr = -nr;
+			nr = ALIGN(offset + 1, nr) - offset;
+		}
+	}
+
+out:
+	put_swap_device(si);
 }
 
 #ifdef CONFIG_HIBERNATION
