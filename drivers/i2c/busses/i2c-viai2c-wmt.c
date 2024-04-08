@@ -35,39 +35,39 @@ static u32 wmt_i2c_func(struct i2c_adapter *adap)
 }
 
 static const struct i2c_algorithm wmt_i2c_algo = {
-	.master_xfer	= wmt_i2c_xfer,
+	.master_xfer	= viai2c_xfer,
 	.functionality	= wmt_i2c_func,
 };
 
-static int wmt_i2c_reset_hardware(struct wmt_i2c_dev *i2c_dev)
+static int wmt_i2c_reset_hardware(struct viai2c *i2c)
 {
 	int err;
 
-	err = clk_prepare_enable(i2c_dev->clk);
+	err = clk_prepare_enable(i2c->clk);
 	if (err) {
-		dev_err(i2c_dev->dev, "failed to enable clock\n");
+		dev_err(i2c->dev, "failed to enable clock\n");
 		return err;
 	}
 
-	err = clk_set_rate(i2c_dev->clk, 20000000);
+	err = clk_set_rate(i2c->clk, 20000000);
 	if (err) {
-		dev_err(i2c_dev->dev, "failed to set clock = 20Mhz\n");
-		clk_disable_unprepare(i2c_dev->clk);
+		dev_err(i2c->dev, "failed to set clock = 20Mhz\n");
+		clk_disable_unprepare(i2c->clk);
 		return err;
 	}
 
-	writew(0, i2c_dev->base + REG_CR);
-	writew(MCR_APB_166M, i2c_dev->base + REG_MCR);
-	writew(ISR_WRITE_ALL, i2c_dev->base + REG_ISR);
-	writew(IMR_ENABLE_ALL, i2c_dev->base + REG_IMR);
-	writew(CR_ENABLE, i2c_dev->base + REG_CR);
-	readw(i2c_dev->base + REG_CSR);		/* read clear */
-	writew(ISR_WRITE_ALL, i2c_dev->base + REG_ISR);
+	writew(0, i2c->base + VIAI2C_REG_CR);
+	writew(MCR_APB_166M, i2c->base + VIAI2C_REG_MCR);
+	writew(VIAI2C_ISR_MASK_ALL, i2c->base + VIAI2C_REG_ISR);
+	writew(VIAI2C_IMR_ENABLE_ALL, i2c->base + VIAI2C_REG_IMR);
+	writew(VIAI2C_CR_ENABLE, i2c->base + VIAI2C_REG_CR);
+	readw(i2c->base + VIAI2C_REG_CSR);		/* read clear */
+	writew(VIAI2C_ISR_MASK_ALL, i2c->base + VIAI2C_REG_ISR);
 
-	if (i2c_dev->tcr == TCR_FAST_MODE)
-		writew(SCL_TIMEOUT(128) | TR_HS, i2c_dev->base + REG_TR);
+	if (i2c->tcr == VIAI2C_TCR_FAST)
+		writew(SCL_TIMEOUT(128) | TR_HS, i2c->base + VIAI2C_REG_TR);
 	else
-		writew(SCL_TIMEOUT(128) | TR_STD, i2c_dev->base + REG_TR);
+		writew(SCL_TIMEOUT(128) | TR_STD, i2c->base + VIAI2C_REG_TR);
 
 	return 0;
 }
@@ -75,34 +75,34 @@ static int wmt_i2c_reset_hardware(struct wmt_i2c_dev *i2c_dev)
 static int wmt_i2c_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
-	struct wmt_i2c_dev *i2c_dev;
+	struct viai2c *i2c;
 	struct i2c_adapter *adap;
 	int err;
 	u32 clk_rate;
 
-	err = wmt_i2c_init(pdev, &i2c_dev);
+	err = viai2c_init(pdev, &i2c);
 	if (err)
 		return err;
 
-	i2c_dev->clk = of_clk_get(np, 0);
-	if (IS_ERR(i2c_dev->clk)) {
+	i2c->clk = of_clk_get(np, 0);
+	if (IS_ERR(i2c->clk)) {
 		dev_err(&pdev->dev, "unable to request clock\n");
-		return PTR_ERR(i2c_dev->clk);
+		return PTR_ERR(i2c->clk);
 	}
 
 	err = of_property_read_u32(np, "clock-frequency", &clk_rate);
 	if (!err && clk_rate == I2C_MAX_FAST_MODE_FREQ)
-		i2c_dev->tcr = TCR_FAST_MODE;
+		i2c->tcr = VIAI2C_TCR_FAST;
 
-	adap = &i2c_dev->adapter;
-	i2c_set_adapdata(adap, i2c_dev);
+	adap = &i2c->adapter;
+	i2c_set_adapdata(adap, i2c);
 	strscpy(adap->name, "WMT I2C adapter", sizeof(adap->name));
 	adap->owner = THIS_MODULE;
 	adap->algo = &wmt_i2c_algo;
 	adap->dev.parent = &pdev->dev;
 	adap->dev.of_node = pdev->dev.of_node;
 
-	err = wmt_i2c_reset_hardware(i2c_dev);
+	err = wmt_i2c_reset_hardware(i2c);
 	if (err) {
 		dev_err(&pdev->dev, "error initializing hardware\n");
 		return err;
@@ -111,19 +111,19 @@ static int wmt_i2c_probe(struct platform_device *pdev)
 	err = i2c_add_adapter(adap);
 	if (err)
 		/* wmt_i2c_reset_hardware() enables i2c_dev->clk */
-		clk_disable_unprepare(i2c_dev->clk);
+		clk_disable_unprepare(i2c->clk);
 
 	return err;
 }
 
 static void wmt_i2c_remove(struct platform_device *pdev)
 {
-	struct wmt_i2c_dev *i2c_dev = platform_get_drvdata(pdev);
+	struct viai2c *i2c = platform_get_drvdata(pdev);
 
 	/* Disable interrupts, clock and delete adapter */
-	writew(0, i2c_dev->base + REG_IMR);
-	clk_disable_unprepare(i2c_dev->clk);
-	i2c_del_adapter(&i2c_dev->adapter);
+	writew(0, i2c->base + VIAI2C_REG_IMR);
+	clk_disable_unprepare(i2c->clk);
+	i2c_del_adapter(&i2c->adapter);
 }
 
 static const struct of_device_id wmt_i2c_dt_ids[] = {
