@@ -17,7 +17,7 @@ if VIRTUALIZATION
 
 config KVM
 	tristate "Kernel-based Virtual Machine (KVM) support"
-	depends on HAVE_KVM
+	depends on CPU_SUPPORTS_VZ
 	depends on MIPS_FP_SUPPORT
 	select EXPORT_UASM
 	select KVM_COMMON
@@ -26,6 +26,7 @@ config KVM
 	select KVM_MMIO
 	select KVM_GENERIC_MMU_NOTIFIER
 	select KVM_GENERIC_HARDWARE_ENABLING
+	select HAVE_KVM_READONLY_MEM
 	help
 	  Support for hosting Guest kernels.
 

@@ -471,9 +471,7 @@ static inline u32 amdgpu_gfx_create_bitmask(u32 bit_width)
 void amdgpu_gfx_parse_disable_cu(unsigned *mask, unsigned max_se,
 				 unsigned max_sh);
 
-int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
-			     struct amdgpu_ring *ring,
-			     struct amdgpu_irq_src *irq, int xcc_id);
+int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev, int xcc_id);
 
 void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring);
 

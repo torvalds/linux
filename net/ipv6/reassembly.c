@@ -272,9 +272,9 @@ static int ip6_frag_reasm(struct frag_queue *fq, struct sk_buff *skb,
 	if (!reasm_data)
 		goto out_oom;
 
-	payload_len = ((skb->data - skb_network_header(skb)) -
+	payload_len = -skb_network_offset(skb) -
 		       sizeof(struct ipv6hdr) + fq->q.len -
-		       sizeof(struct frag_hdr));
+		       sizeof(struct frag_hdr);
 	if (payload_len > IPV6_MAXPLEN)
 		goto out_oversize;
 

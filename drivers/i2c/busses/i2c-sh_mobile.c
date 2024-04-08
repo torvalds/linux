@@ -773,7 +773,7 @@ static int sh_mobile_i2c_r8a7740_workaround(struct sh_mobile_i2c_data *pd)
 	iic_wr(pd, ICCR, ICCR_TRS);
 	udelay(10);
 
-	return sh_mobile_i2c_init(pd);
+	return sh_mobile_i2c_v2_init(pd);
 }
 
 static const struct sh_mobile_dt_config default_dt_config = {
@@ -782,11 +782,6 @@ static const struct sh_mobile_dt_config default_dt_config = {
 };
 
 static const struct sh_mobile_dt_config fast_clock_dt_config = {
-	.clks_per_count = 2,
-	.setup = sh_mobile_i2c_init,
-};
-
-static const struct sh_mobile_dt_config v2_freq_calc_dt_config = {
 	.clks_per_count = 2,
 	.setup = sh_mobile_i2c_v2_init,
 };
@@ -799,17 +794,17 @@ static const struct sh_mobile_dt_config r8a7740_dt_config = {
 static const struct of_device_id sh_mobile_i2c_dt_ids[] = {
 	{ .compatible = "renesas,iic-r8a73a4", .data = &fast_clock_dt_config },
 	{ .compatible = "renesas,iic-r8a7740", .data = &r8a7740_dt_config },
-	{ .compatible = "renesas,iic-r8a774c0", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a7790", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a7791", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a7792", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a7793", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a7794", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a7795", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,iic-r8a77990", .data = &v2_freq_calc_dt_config },
+	{ .compatible = "renesas,iic-r8a774c0", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7790", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7791", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7792", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7793", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7794", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a7795", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,iic-r8a77990", .data = &fast_clock_dt_config },
 	{ .compatible = "renesas,iic-sh73a0", .data = &fast_clock_dt_config },
-	{ .compatible = "renesas,rcar-gen2-iic", .data = &v2_freq_calc_dt_config },
-	{ .compatible = "renesas,rcar-gen3-iic", .data = &v2_freq_calc_dt_config },
+	{ .compatible = "renesas,rcar-gen2-iic", .data = &fast_clock_dt_config },
+	{ .compatible = "renesas,rcar-gen3-iic", .data = &fast_clock_dt_config },
 	{ .compatible = "renesas,rmobile-iic", .data = &default_dt_config },
 	{},
 };

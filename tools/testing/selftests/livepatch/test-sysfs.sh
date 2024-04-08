@@ -27,7 +27,7 @@ disable_lp $MOD_LIVEPATCH
 
 unload_lp $MOD_LIVEPATCH
 
-check_result "% modprobe $MOD_LIVEPATCH
+check_result "% insmod test_modules/$MOD_LIVEPATCH.ko
 livepatch: enabling patch '$MOD_LIVEPATCH'
 livepatch: '$MOD_LIVEPATCH': initializing patching transition
 livepatch: '$MOD_LIVEPATCH': starting patching transition
@@ -56,7 +56,7 @@ check_sysfs_value  "$MOD_LIVEPATCH" "$MOD_TARGET/patched" "0"
 disable_lp $MOD_LIVEPATCH
 unload_lp $MOD_LIVEPATCH
 
-check_result "% modprobe test_klp_callbacks_demo
+check_result "% insmod test_modules/test_klp_callbacks_demo.ko
 livepatch: enabling patch 'test_klp_callbacks_demo'
 livepatch: 'test_klp_callbacks_demo': initializing patching transition
 test_klp_callbacks_demo: pre_patch_callback: vmlinux
@@ -64,7 +64,7 @@ livepatch: 'test_klp_callbacks_demo': starting patching transition
 livepatch: 'test_klp_callbacks_demo': completing patching transition
 test_klp_callbacks_demo: post_patch_callback: vmlinux
 livepatch: 'test_klp_callbacks_demo': patching complete
-% modprobe test_klp_callbacks_mod
+% insmod test_modules/test_klp_callbacks_mod.ko
 livepatch: applying patch 'test_klp_callbacks_demo' to loading module 'test_klp_callbacks_mod'
 test_klp_callbacks_demo: pre_patch_callback: test_klp_callbacks_mod -> [MODULE_STATE_COMING] Full formed, running module_init
 test_klp_callbacks_demo: post_patch_callback: test_klp_callbacks_mod -> [MODULE_STATE_COMING] Full formed, running module_init

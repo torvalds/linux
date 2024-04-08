@@ -607,7 +607,7 @@ int pds_vfio_dma_logging_report(struct vfio_device *vdev, unsigned long iova,
 
 	mutex_lock(&pds_vfio->state_mutex);
 	err = pds_vfio_dirty_sync(pds_vfio, dirty, iova, length);
-	pds_vfio_state_mutex_unlock(pds_vfio);
+	mutex_unlock(&pds_vfio->state_mutex);
 
 	return err;
 }
@@ -624,7 +624,7 @@ int pds_vfio_dma_logging_start(struct vfio_device *vdev,
 	mutex_lock(&pds_vfio->state_mutex);
 	pds_vfio_send_host_vf_lm_status_cmd(pds_vfio, PDS_LM_STA_IN_PROGRESS);
 	err = pds_vfio_dirty_enable(pds_vfio, ranges, nnodes, page_size);
-	pds_vfio_state_mutex_unlock(pds_vfio);
+	mutex_unlock(&pds_vfio->state_mutex);
 
 	return err;
 }
@@ -637,7 +637,7 @@ int pds_vfio_dma_logging_stop(struct vfio_device *vdev)
 
 	mutex_lock(&pds_vfio->state_mutex);
 	pds_vfio_dirty_disable(pds_vfio, true);
-	pds_vfio_state_mutex_unlock(pds_vfio);
+	mutex_unlock(&pds_vfio->state_mutex);
 
 	return 0;
 }

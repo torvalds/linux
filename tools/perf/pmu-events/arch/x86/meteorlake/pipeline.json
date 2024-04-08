@@ -1,5 +1,14 @@
 [
     {
+        "BriefDescription": "Counts the number of cycles when any of the dividers are active.",
+        "CounterMask": "1",
+        "EventCode": "0xcd",
+        "EventName": "ARITH.DIV_ACTIVE",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x3",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Cycles when divide unit is busy executing divide or square root operations.",
         "CounterMask": "1",
         "EventCode": "0xb0",
@@ -46,6 +55,15 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts the number of retired JCC (Jump on Conditional Code) branch instructions retired, includes both taken and not taken branches.",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.COND",
+        "PEBS": "1",
+        "SampleAfterValue": "200003",
+        "UMask": "0x7e",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Conditional branch instructions retired.",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.COND",
@@ -64,6 +82,15 @@
         "SampleAfterValue": "400009",
         "UMask": "0x10",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of taken JCC (Jump on Conditional Code) branch instructions retired.",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.COND_TAKEN",
+        "PEBS": "1",
+        "SampleAfterValue": "200003",
+        "UMask": "0xfe",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Taken conditional branch instructions retired.",
@@ -95,6 +122,15 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Counts the number of near indirect JMP and near indirect CALL branch instructions retired.",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.INDIRECT",
+        "PEBS": "1",
+        "SampleAfterValue": "200003",
+        "UMask": "0xeb",
+        "Unit": "cpu_atom"
+    },
+    {
         "BriefDescription": "Indirect near branch instructions retired (excluding returns)",
         "EventCode": "0xc4",
         "EventName": "BR_INST_RETIRED.INDIRECT",
@@ -103,6 +139,25 @@
         "SampleAfterValue": "100003",
         "UMask": "0x80",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of near indirect CALL branch instructions retired.",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.INDIRECT_CALL",
+        "PEBS": "1",
+        "SampleAfterValue": "200003",
+        "UMask": "0xfb",
+        "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event BR_INST_RETIRED.INDIRECT_CALL",
+        "Deprecated": "1",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.IND_CALL",
+        "PEBS": "1",
+        "SampleAfterValue": "200003",
+        "UMask": "0xfb",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Counts the number of near CALL branch instructions retired.",
@@ -122,6 +177,15 @@
         "SampleAfterValue": "100007",
         "UMask": "0x2",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of near RET branch instructions retired.",
+        "EventCode": "0xc4",
+        "EventName": "BR_INST_RETIRED.NEAR_RETURN",
+        "PEBS": "1",
+        "SampleAfterValue": "200003",
+        "UMask": "0xf7",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Return instructions retired.",
@@ -671,6 +735,7 @@
         "BriefDescription": "INST_RETIRED.MACRO_FUSED",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.MACRO_FUSED",
+        "PEBS": "1",
         "SampleAfterValue": "2000003",
         "UMask": "0x10",
         "Unit": "cpu_core"
@@ -679,6 +744,7 @@
         "BriefDescription": "Retired NOP instructions.",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.NOP",
+        "PEBS": "1",
         "PublicDescription": "Counts all retired NOP or ENDBR32/64 or PREFETCHIT0/1 instructions",
         "SampleAfterValue": "2000003",
         "UMask": "0x2",
@@ -697,6 +763,7 @@
         "BriefDescription": "Iterations of Repeat string retired instructions.",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.REP_ITERATION",
+        "PEBS": "1",
         "PublicDescription": "Number of iterations of Repeat (REP) string retired instructions such as MOVS, CMPS, and SCAS. Each has a byte, word, and doubleword version and string instructions can be repeated using a repetition prefix, REP, that allows their architectural execution to be repeated a number of times as specified by the RCX register. Note the number of iterations is implementation-dependent.",
         "SampleAfterValue": "2000003",
         "UMask": "0x8",
@@ -978,6 +1045,15 @@
         "SampleAfterValue": "400009",
         "UMask": "0x20",
         "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Counts the number of Last Branch Record (LBR) entries. Requires LBRs to be enabled and configured in IA32_LBR_CTL. [This event is alias to LBR_INSERTS.ANY]",
+        "EventCode": "0xe4",
+        "EventName": "MISC_RETIRED.LBR_INSERTS",
+        "PEBS": "1",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1",
+        "Unit": "cpu_atom"
     },
     {
         "BriefDescription": "Counts cycles where the pipeline is stalled due to serializing operations.",

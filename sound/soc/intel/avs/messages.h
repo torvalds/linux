@@ -145,8 +145,12 @@ union avs_module_msg {
 				u32 src_queue:3;
 			} bind_unbind;
 			struct {
+				/* pre-IceLake */
 				u32 wake:1;
 				u32 streaming:1;
+				/* IceLake and onwards */
+				u32 prevent_pg:1;
+				u32 prevent_local_cg:1;
 			} set_d0ix;
 		} ext;
 	};
@@ -359,21 +363,45 @@ enum avs_skl_log_priority {
 	AVS_SKL_LOG_VERBOSE,
 };
 
-struct skl_log_state {
+struct avs_skl_log_state {
 	u32 enable;
 	u32 min_priority;
 } __packed;
 
-struct skl_log_state_info {
+struct avs_skl_log_state_info {
 	u32 core_mask;
-	struct skl_log_state logs_core[];
+	struct avs_skl_log_state logs_core[];
 } __packed;
 
-struct apl_log_state_info {
+struct avs_apl_log_state_info {
 	u32 aging_timer_period;
 	u32 fifo_full_timer_period;
 	u32 core_mask;
-	struct skl_log_state logs_core[];
+	struct avs_skl_log_state logs_core[];
+} __packed;
+
+enum avs_icl_log_priority {
+	AVS_ICL_LOG_CRITICAL = 0,
+	AVS_ICL_LOG_HIGH,
+	AVS_ICL_LOG_MEDIUM,
+	AVS_ICL_LOG_LOW,
+	AVS_ICL_LOG_VERBOSE,
+};
+
+enum avs_icl_log_source {
+	AVS_ICL_LOG_INFRA = 0,
+	AVS_ICL_LOG_HAL,
+	AVS_ICL_LOG_MODULE,
+	AVS_ICL_LOG_AUDIO,
+	AVS_ICL_LOG_SENSING,
+	AVS_ICL_LOG_ULP_INFRA,
+};
+
+struct avs_icl_log_state_info {
+	u32 aging_timer_period;
+	u32 fifo_full_timer_period;
+	u32 enable;
+	u32 logs_priorities_mask[];
 } __packed;
 
 int avs_ipc_set_enable_logs(struct avs_dev *adev, u8 *log_info, size_t size);

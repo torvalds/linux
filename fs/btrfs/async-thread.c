@@ -11,7 +11,6 @@
 #include <linux/freezer.h>
 #include <trace/events/btrfs.h>
 #include "async-thread.h"
-#include "ctree.h"
 
 enum {
 	WORK_DONE_BIT,

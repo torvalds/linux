@@ -82,7 +82,7 @@
 		reg = <0x0 0x0 0x0 0x40000000>;
 	};
 
-	emmc_1v8: regulator-emmc_1v8 {
+	emmc_1v8: regulator-emmc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "EMMC_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -91,7 +91,7 @@
 		regulator-always-on;
 	};
 
-	dc_in: regulator-dc_in {
+	dc_in: regulator-dc-in {
 		compatible = "regulator-fixed";
 		regulator-name = "DC_IN";
 		regulator-min-microvolt = <5000000>;
@@ -99,7 +99,7 @@
 		regulator-always-on;
 	};
 
-	vddio_c: regulator-vddio_c {
+	vddio_c: regulator-vddio-c {
 		compatible = "regulator-gpio";
 		regulator-name = "VDDIO_C";
 		regulator-min-microvolt = <1800000>;
@@ -116,7 +116,7 @@
 			 <3300000 1>;
 	};
 
-	tflash_vdd: regulator-tflash_vdd {
+	tflash_vdd: regulator-tflash-vdd {
 		compatible = "regulator-fixed";
 		regulator-name = "TFLASH_VDD";
 		regulator-min-microvolt = <3300000>;
@@ -127,7 +127,7 @@
 		regulator-always-on;
 	};
 
-	vddao_1v8: regulator-vddao_1v8 {
+	vddao_1v8: regulator-vddao-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -136,7 +136,7 @@
 		regulator-always-on;
 	};
 
-	vddao_3v3: regulator-vddao_3v3 {
+	vddao_3v3: regulator-vddao-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -165,7 +165,7 @@
 	};
 
 	/* USB Hub Power Enable */
-	vl_pwr_en: regulator-vl_pwr_en {
+	vl_pwr_en: regulator-vl-pwr-en {
 		compatible = "regulator-fixed";
 		regulator-name = "VL_PWR_EN";
 		regulator-min-microvolt = <5000000>;

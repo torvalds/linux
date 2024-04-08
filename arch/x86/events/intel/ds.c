@@ -5,6 +5,7 @@
 #include <linux/sched/clock.h>
 
 #include <asm/cpu_entry_area.h>
+#include <asm/debugreg.h>
 #include <asm/perf_event.h>
 #include <asm/tlbflush.h>
 #include <asm/insn.h>

@@ -23,8 +23,6 @@
 #define DA280_MODE_ENABLE		0x1e
 #define DA280_MODE_DISABLE		0x9e
 
-enum da280_chipset { da217, da226, da280 };
-
 /*
  * a value of + or -4096 corresponds to + or - 1G
  * scale = 9.81 / 4096 = 0.002395019
@@ -45,6 +43,11 @@ static const struct iio_chan_spec da280_channels[] = {
 	DA280_CHANNEL(DA280_REG_ACC_X_LSB, X),
 	DA280_CHANNEL(DA280_REG_ACC_Y_LSB, Y),
 	DA280_CHANNEL(DA280_REG_ACC_Z_LSB, Z),
+};
+
+struct da280_match_data {
+	const char *name;
+	int num_channels;
 };
 
 struct da280_data {
@@ -89,17 +92,6 @@ static const struct iio_info da280_info = {
 	.read_raw	= da280_read_raw,
 };
 
-static enum da280_chipset da280_match_acpi_device(struct device *dev)
-{
-	const struct acpi_device_id *id;
-
-	id = acpi_match_device(dev->driver->acpi_match_table, dev);
-	if (!id)
-		return -EINVAL;
-
-	return (enum da280_chipset) id->driver_data;
-}
-
 static void da280_disable(void *client)
 {
 	da280_enable(client, false);
@@ -107,15 +99,20 @@ static void da280_disable(void *client)
 
 static int da280_probe(struct i2c_client *client)
 {
-	const struct i2c_device_id *id = i2c_client_get_device_id(client);
-	int ret;
+	const struct da280_match_data *match_data;
 	struct iio_dev *indio_dev;
 	struct da280_data *data;
-	enum da280_chipset chip;
+	int ret;
 
 	ret = i2c_smbus_read_byte_data(client, DA280_REG_CHIP_ID);
 	if (ret != DA280_CHIP_ID)
 		return (ret < 0) ? ret : -ENODEV;
+
+	match_data = i2c_get_match_data(client);
+	if (!match_data) {
+		dev_err(&client->dev, "Error match-data not set\n");
+		return -EINVAL;
+	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
 	if (!indio_dev)
@@ -127,23 +124,8 @@ static int da280_probe(struct i2c_client *client)
 	indio_dev->info = &da280_info;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->channels = da280_channels;
-
-	if (ACPI_HANDLE(&client->dev)) {
-		chip = da280_match_acpi_device(&client->dev);
-	} else {
-		chip = id->driver_data;
-	}
-
-	if (chip == da217) {
-		indio_dev->name = "da217";
-		indio_dev->num_channels = 3;
-	} else if (chip == da226) {
-		indio_dev->name = "da226";
-		indio_dev->num_channels = 2;
-	} else {
-		indio_dev->name = "da280";
-		indio_dev->num_channels = 3;
-	}
+	indio_dev->num_channels = match_data->num_channels;
+	indio_dev->name = match_data->name;
 
 	ret = da280_enable(client, true);
 	if (ret < 0)
@@ -168,17 +150,21 @@ static int da280_resume(struct device *dev)
 
 static DEFINE_SIMPLE_DEV_PM_OPS(da280_pm_ops, da280_suspend, da280_resume);
 
+static const struct da280_match_data da217_match_data = { "da217", 3 };
+static const struct da280_match_data da226_match_data = { "da226", 2 };
+static const struct da280_match_data da280_match_data = { "da280", 3 };
+
 static const struct acpi_device_id da280_acpi_match[] = {
-	{"NSA2513", da217},
-	{"MIRAACC", da280},
-	{},
+	{ "NSA2513", (kernel_ulong_t)&da217_match_data },
+	{ "MIRAACC", (kernel_ulong_t)&da280_match_data },
+	{}
 };
 MODULE_DEVICE_TABLE(acpi, da280_acpi_match);
 
 static const struct i2c_device_id da280_i2c_id[] = {
-	{ "da217", da217 },
-	{ "da226", da226 },
-	{ "da280", da280 },
+	{ "da217", (kernel_ulong_t)&da217_match_data },
+	{ "da226", (kernel_ulong_t)&da226_match_data },
+	{ "da280", (kernel_ulong_t)&da280_match_data },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, da280_i2c_id);
@@ -186,7 +172,7 @@ MODULE_DEVICE_TABLE(i2c, da280_i2c_id);
 static struct i2c_driver da280_driver = {
 	.driver = {
 		.name = "da280",
-		.acpi_match_table = ACPI_PTR(da280_acpi_match),
+		.acpi_match_table = da280_acpi_match,
 		.pm = pm_sleep_ptr(&da280_pm_ops),
 	},
 	.probe		= da280_probe,

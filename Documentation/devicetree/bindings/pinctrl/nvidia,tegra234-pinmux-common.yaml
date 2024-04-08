@@ -10,57 +10,43 @@ maintainers:
   - Thierry Reding <thierry.reding@gmail.com>
   - Jon Hunter <jonathanh@nvidia.com>
 
+$ref: nvidia,tegra-pinmux-common.yaml
+
 properties:
-  reg:
-    items:
-      - description: pinmux registers
+  nvidia,function:
+    enum: [ gp, uartc, i2c8, spi2, i2c2, can1, can0, rsvd0, eth0, eth2,
+            eth1, dp, eth3, i2c4, i2c7, i2c9, eqos, pe2, pe1, pe0, pe3,
+            pe4, pe5, pe6, pe7, pe8, pe9, pe10, qspi0, qspi1, qpsi,
+            sdmmc1, sce, soc, gpio, hdmi, ufs0, spi3, spi1, uartb, uarte,
+            usb, extperiph2, extperiph1, i2c3, vi0, i2c5, uarta, uartd,
+            i2c1, i2s4, i2s6, aud, spi5, touch, uartj, rsvd1, wdt, tsc,
+            dmic3, led, vi0_alt, i2s5, nv, extperiph3, extperiph4, spi4,
+            ccla, i2s1, i2s2, i2s3, i2s8, rsvd2, dmic5, dca, displayb,
+            displaya, vi1, dcb, dmic1, dmic4, i2s7, dmic2, dspk0, rsvd3,
+            tsc_alt, istctrl, vi1_alt, dspk1, igpu ]
 
-patternProperties:
-  "^pinmux(-[a-z0-9-]+)?$":
-    type: object
-
-    # pin groups
-    additionalProperties:
-      $ref: nvidia,tegra-pinmux-common.yaml
-      # We would typically use unevaluatedProperties here but that has the
-      # downside that all the properties in the common bindings become valid
-      # for all chip generations. In this case, however, we want the per-SoC
-      # bindings to be able to override which of the common properties are
-      # allowed, since not all pinmux generations support the same sets of
-      # properties. This way, the common bindings define the format of the
-      # properties but the per-SoC bindings define which of them apply to a
-      # given chip.
-      additionalProperties: false
-      properties:
-        nvidia,function:
-          enum: [ gp, uartc, i2c8, spi2, i2c2, can1, can0, rsvd0, eth0, eth2,
-                  eth1, dp, eth3, i2c4, i2c7, i2c9, eqos, pe2, pe1, pe0, pe3,
-                  pe4, pe5, pe6, pe7, pe8, pe9, pe10, qspi0, qspi1, qpsi,
-                  sdmmc1, sce, soc, gpio, hdmi, ufs0, spi3, spi1, uartb, uarte,
-                  usb, extperiph2, extperiph1, i2c3, vi0, i2c5, uarta, uartd,
-                  i2c1, i2s4, i2s6, aud, spi5, touch, uartj, rsvd1, wdt, tsc,
-                  dmic3, led, vi0_alt, i2s5, nv, extperiph3, extperiph4, spi4,
-                  ccla, i2s1, i2s2, i2s3, i2s8, rsvd2, dmic5, dca, displayb,
-                  displaya, vi1, dcb, dmic1, dmic4, i2s7, dmic2, dspk0, rsvd3,
-                  tsc_alt, istctrl, vi1_alt, dspk1, igpu ]
-
-        # out of the common properties, only these are allowed for Tegra234
-        nvidia,pins: true
-        nvidia,pull: true
-        nvidia,tristate: true
-        nvidia,schmitt: true
-        nvidia,enable-input: true
-        nvidia,open-drain: true
-        nvidia,lock: true
-        nvidia,drive-type: true
-        nvidia,io-hv: true
-
-      required:
-        - nvidia,pins
+  # out of the common properties, only these are allowed for Tegra234
+  nvidia,pins: true
+  nvidia,pull: true
+  nvidia,tristate: true
+  nvidia,schmitt: true
+  nvidia,enable-input: true
+  nvidia,open-drain: true
+  nvidia,lock: true
+  nvidia,drive-type: true
+  nvidia,io-hv: true
 
 required:
-  - compatible
-  - reg
+  - nvidia,pins
 
-additionalProperties: true
+# We would typically use unevaluatedProperties here but that has the
+# downside that all the properties in the common bindings become valid
+# for all chip generations. In this case, however, we want the per-SoC
+# bindings to be able to override which of the common properties are
+# allowed, since not all pinmux generations support the same sets of
+# properties. This way, the common bindings define the format of the
+# properties but the per-SoC bindings define which of them apply to a
+# given chip.
+additionalProperties: false
+
 ...

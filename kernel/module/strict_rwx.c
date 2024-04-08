@@ -11,13 +11,16 @@
 #include <linux/set_memory.h>
 #include "internal.h"
 
-static void module_set_memory(const struct module *mod, enum mod_mem_type type,
-			      int (*set_memory)(unsigned long start, int num_pages))
+static int module_set_memory(const struct module *mod, enum mod_mem_type type,
+			     int (*set_memory)(unsigned long start, int num_pages))
 {
 	const struct module_memory *mod_mem = &mod->mem[type];
 
+	if (!mod_mem->base)
+		return 0;
+
 	set_vm_flush_reset_perms(mod_mem->base);
-	set_memory((unsigned long)mod_mem->base, mod_mem->size >> PAGE_SHIFT);
+	return set_memory((unsigned long)mod_mem->base, mod_mem->size >> PAGE_SHIFT);
 }
 
 /*
@@ -26,37 +29,53 @@ static void module_set_memory(const struct module *mod, enum mod_mem_type type,
  * CONFIG_STRICT_MODULE_RWX because they are needed regardless of whether we
  * are strict.
  */
-void module_enable_x(const struct module *mod)
+int module_enable_text_rox(const struct module *mod)
 {
-	for_class_mod_mem_type(type, text)
-		module_set_memory(mod, type, set_memory_x);
+	for_class_mod_mem_type(type, text) {
+		int ret;
+
+		if (IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
+			ret = module_set_memory(mod, type, set_memory_rox);
+		else
+			ret = module_set_memory(mod, type, set_memory_x);
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
-void module_enable_ro(const struct module *mod, bool after_init)
+int module_enable_rodata_ro(const struct module *mod, bool after_init)
 {
-	if (!IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
-		return;
-#ifdef CONFIG_STRICT_MODULE_RWX
-	if (!rodata_enabled)
-		return;
-#endif
+	int ret;
 
-	module_set_memory(mod, MOD_TEXT, set_memory_ro);
-	module_set_memory(mod, MOD_INIT_TEXT, set_memory_ro);
-	module_set_memory(mod, MOD_RODATA, set_memory_ro);
-	module_set_memory(mod, MOD_INIT_RODATA, set_memory_ro);
+	if (!IS_ENABLED(CONFIG_STRICT_MODULE_RWX) || !rodata_enabled)
+		return 0;
+
+	ret = module_set_memory(mod, MOD_RODATA, set_memory_ro);
+	if (ret)
+		return ret;
+	ret = module_set_memory(mod, MOD_INIT_RODATA, set_memory_ro);
+	if (ret)
+		return ret;
 
 	if (after_init)
-		module_set_memory(mod, MOD_RO_AFTER_INIT, set_memory_ro);
+		return module_set_memory(mod, MOD_RO_AFTER_INIT, set_memory_ro);
+
+	return 0;
 }
 
-void module_enable_nx(const struct module *mod)
+int module_enable_data_nx(const struct module *mod)
 {
 	if (!IS_ENABLED(CONFIG_STRICT_MODULE_RWX))
-		return;
+		return 0;
 
-	for_class_mod_mem_type(type, data)
-		module_set_memory(mod, type, set_memory_nx);
+	for_class_mod_mem_type(type, data) {
+		int ret = module_set_memory(mod, type, set_memory_nx);
+
+		if (ret)
+			return ret;
+	}
+	return 0;
 }
 
 int module_enforce_rwx_sections(Elf_Ehdr *hdr, Elf_Shdr *sechdrs,

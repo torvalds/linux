@@ -307,7 +307,7 @@ vxfs_init(void)
 
 	vxfs_inode_cachep = kmem_cache_create_usercopy("vxfs_inode",
 			sizeof(struct vxfs_inode_info), 0,
-			SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD,
+			SLAB_RECLAIM_ACCOUNT,
 			offsetof(struct vxfs_inode_info, vii_immed.vi_immed),
 			sizeof_field(struct vxfs_inode_info,
 				vii_immed.vi_immed),

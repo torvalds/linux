@@ -2439,6 +2439,18 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 				ras->gpu_reset_flags &= ~AMDGPU_RAS_GPU_RESET_MODE1_RESET;
 				set_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
 
+				/* For any RAS error that needs a full reset to
+				 * recover, set the fatal error status
+				 */
+				if (hive) {
+					list_for_each_entry(remote_adev,
+							    &hive->device_list,
+							    gmc.xgmi.head)
+						amdgpu_ras_set_fed(remote_adev,
+								   true);
+				} else {
+					amdgpu_ras_set_fed(adev, true);
+				}
 				psp_fatal_error_recovery_quirk(&adev->psp);
 			}
 		}
@@ -3440,6 +3452,26 @@ int amdgpu_ras_fini(struct amdgpu_device *adev)
 	return 0;
 }
 
+bool amdgpu_ras_get_fed_status(struct amdgpu_device *adev)
+{
+	struct amdgpu_ras *ras;
+
+	ras = amdgpu_ras_get_context(adev);
+	if (!ras)
+		return false;
+
+	return atomic_read(&ras->fed);
+}
+
+void amdgpu_ras_set_fed(struct amdgpu_device *adev, bool status)
+{
+	struct amdgpu_ras *ras;
+
+	ras = amdgpu_ras_get_context(adev);
+	if (ras)
+		atomic_set(&ras->fed, !!status);
+}
+
 void amdgpu_ras_global_ras_isr(struct amdgpu_device *adev)
 {
 	if (atomic_cmpxchg(&amdgpu_ras_in_intr, 0, 1) == 0) {
@@ -3620,6 +3652,7 @@ int amdgpu_ras_is_supported(struct amdgpu_device *adev,
 	     block == AMDGPU_RAS_BLOCK__SDMA ||
 	     block == AMDGPU_RAS_BLOCK__VCN ||
 	     block == AMDGPU_RAS_BLOCK__JPEG) &&
+		(amdgpu_ras_mask & (1 << block)) &&
 	    amdgpu_ras_is_poison_mode_supported(adev) &&
 	    amdgpu_ras_get_ras_block(adev, block, 0))
 		ret = 1;

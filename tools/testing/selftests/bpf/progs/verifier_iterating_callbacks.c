@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
-
-#include <linux/bpf.h>
-#include <bpf/bpf_helpers.h>
 #include "bpf_misc.h"
+#include "bpf_experimental.h"
 
 struct {
 	__uint(type, BPF_MAP_TYPE_ARRAY);
@@ -237,6 +235,175 @@ int bpf_loop_iter_limit_nested(void *unused)
 	    b != 0 && b != 1 && b != 11 && b != 101 && b != 111)
 		asm volatile ("r0 /= 0;" ::: "r0");
 	return 1000 * a + b + c;
+}
+
+struct iter_limit_bug_ctx {
+	__u64 a;
+	__u64 b;
+	__u64 c;
+};
+
+static __naked void iter_limit_bug_cb(void)
+{
+	/* This is the same as C code below, but written
+	 * in assembly to control which branches are fall-through.
+	 *
+	 *   switch (bpf_get_prandom_u32()) {
+	 *   case 1:  ctx->a = 42; break;
+	 *   case 2:  ctx->b = 42; break;
+	 *   default: ctx->c = 42; break;
+	 *   }
+	 */
+	asm volatile (
+	"r9 = r2;"
+	"call %[bpf_get_prandom_u32];"
+	"r1 = r0;"
+	"r2 = 42;"
+	"r0 = 0;"
+	"if r1 == 0x1 goto 1f;"
+	"if r1 == 0x2 goto 2f;"
+	"*(u64 *)(r9 + 16) = r2;"
+	"exit;"
+	"1: *(u64 *)(r9 + 0) = r2;"
+	"exit;"
+	"2: *(u64 *)(r9 + 8) = r2;"
+	"exit;"
+	:
+	: __imm(bpf_get_prandom_u32)
+	: __clobber_all
+	);
+}
+
+SEC("tc")
+__failure
+__flag(BPF_F_TEST_STATE_FREQ)
+int iter_limit_bug(struct __sk_buff *skb)
+{
+	struct iter_limit_bug_ctx ctx = { 7, 7, 7 };
+
+	bpf_loop(2, iter_limit_bug_cb, &ctx, 0);
+
+	/* This is the same as C code below,
+	 * written in assembly to guarantee checks order.
+	 *
+	 *   if (ctx.a == 42 && ctx.b == 42 && ctx.c == 7)
+	 *     asm volatile("r1 /= 0;":::"r1");
+	 */
+	asm volatile (
+	"r1 = *(u64 *)%[ctx_a];"
+	"if r1 != 42 goto 1f;"
+	"r1 = *(u64 *)%[ctx_b];"
+	"if r1 != 42 goto 1f;"
+	"r1 = *(u64 *)%[ctx_c];"
+	"if r1 != 7 goto 1f;"
+	"r1 /= 0;"
+	"1:"
+	:
+	: [ctx_a]"m"(ctx.a),
+	  [ctx_b]"m"(ctx.b),
+	  [ctx_c]"m"(ctx.c)
+	: "r1"
+	);
+	return 0;
+}
+
+#define ARR_SZ 1000000
+int zero;
+char arr[ARR_SZ];
+
+SEC("socket")
+__success __retval(0xd495cdc0)
+int cond_break1(const void *ctx)
+{
+	unsigned long i;
+	unsigned int sum = 0;
+
+	for (i = zero; i < ARR_SZ; cond_break, i++)
+		sum += i;
+	for (i = zero; i < ARR_SZ; i++) {
+		barrier_var(i);
+		sum += i + arr[i];
+		cond_break;
+	}
+
+	return sum;
+}
+
+SEC("socket")
+__success __retval(999000000)
+int cond_break2(const void *ctx)
+{
+	int i, j;
+	int sum = 0;
+
+	for (i = zero; i < 1000; cond_break, i++)
+		for (j = zero; j < 1000; j++) {
+			sum += i + j;
+			cond_break;
+		}
+
+	return sum;
+}
+
+static __noinline int loop(void)
+{
+	int i, sum = 0;
+
+	for (i = zero; i <= 1000000; i++, cond_break)
+		sum += i;
+
+	return sum;
+}
+
+SEC("socket")
+__success __retval(0x6a5a2920)
+int cond_break3(const void *ctx)
+{
+	return loop();
+}
+
+SEC("socket")
+__success __retval(1)
+int cond_break4(const void *ctx)
+{
+	int cnt = zero;
+
+	for (;;) {
+		/* should eventually break out of the loop */
+		cond_break;
+		cnt++;
+	}
+	/* if we looped a bit, it's a success */
+	return cnt > 1 ? 1 : 0;
+}
+
+static __noinline int static_subprog(void)
+{
+	int cnt = zero;
+
+	for (;;) {
+		cond_break;
+		cnt++;
+	}
+
+	return cnt;
+}
+
+SEC("socket")
+__success __retval(1)
+int cond_break5(const void *ctx)
+{
+	int cnt1 = zero, cnt2;
+
+	for (;;) {
+		cond_break;
+		cnt1++;
+	}
+
+	cnt2 = static_subprog();
+
+	/* main and subprog have to loop a bit */
+	return cnt1 > 1 && cnt2 > 1 ? 1 : 0;
 }
 
 char _license[] SEC("license") = "GPL";

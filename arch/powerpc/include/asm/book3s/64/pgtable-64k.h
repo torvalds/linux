@@ -45,9 +45,9 @@ static inline int hugepd_ok(hugepd_t hpd)
 /*
  * This should never get called
  */
-static inline int get_hugepd_cache_index(int index)
+static __always_inline int get_hugepd_cache_index(int index)
 {
-	BUG();
+	BUILD_BUG();
 }
 
 #endif /* CONFIG_HUGETLB_PAGE */

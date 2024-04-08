@@ -42,6 +42,7 @@ static void _rtl92de_query_rxphystatus(struct ieee80211_hw *hw,
 				       bool packet_beacon)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_phy *rtlphy = &(rtlpriv->phy);
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtlpriv);
 	struct phy_sts_cck_8192d *cck_buf;
 	s8 rx_pwr_all, rx_pwr[4];
@@ -62,9 +63,7 @@ static void _rtl92de_query_rxphystatus(struct ieee80211_hw *hw,
 		u8 report, cck_highpwr;
 		cck_buf = (struct phy_sts_cck_8192d *)p_drvinfo;
 		if (ppsc->rfpwr_state == ERFON)
-			cck_highpwr = (u8) rtl_get_bbreg(hw,
-						 RFPGA0_XA_HSSIPARAMETER2,
-						 BIT(9));
+			cck_highpwr = rtlphy->cck_high_power;
 		else
 			cck_highpwr = false;
 		if (!cck_highpwr) {

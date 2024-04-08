@@ -60,7 +60,7 @@ static void vfio_ap_matrix_dev_release(struct device *dev)
 	kfree(matrix_dev);
 }
 
-static struct bus_type matrix_bus = {
+static const struct bus_type matrix_bus = {
 	.name = "matrix",
 };
 

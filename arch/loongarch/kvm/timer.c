@@ -23,24 +23,6 @@ static inline u64 tick_to_ns(struct kvm_vcpu *vcpu, u64 tick)
 	return div_u64(tick * MNSEC_PER_SEC, vcpu->arch.timer_mhz);
 }
 
-/*
- * Push timer forward on timeout.
- * Handle an hrtimer event by push the hrtimer forward a period.
- */
-static enum hrtimer_restart kvm_count_timeout(struct kvm_vcpu *vcpu)
-{
-	unsigned long cfg, period;
-
-	/* Add periodic tick to current expire time */
-	cfg = kvm_read_sw_gcsr(vcpu->arch.csr, LOONGARCH_CSR_TCFG);
-	if (cfg & CSR_TCFG_PERIOD) {
-		period = tick_to_ns(vcpu, cfg & CSR_TCFG_VAL);
-		hrtimer_add_expires_ns(&vcpu->arch.swtimer, period);
-		return HRTIMER_RESTART;
-	} else
-		return HRTIMER_NORESTART;
-}
-
 /* Low level hrtimer wake routine */
 enum hrtimer_restart kvm_swtimer_wakeup(struct hrtimer *timer)
 {
@@ -50,7 +32,7 @@ enum hrtimer_restart kvm_swtimer_wakeup(struct hrtimer *timer)
 	kvm_queue_irq(vcpu, INT_TI);
 	rcuwait_wake_up(&vcpu->wait);
 
-	return kvm_count_timeout(vcpu);
+	return HRTIMER_NORESTART;
 }
 
 /*
@@ -93,7 +75,8 @@ void kvm_restore_timer(struct kvm_vcpu *vcpu)
 	/*
 	 * Freeze the soft-timer and sync the guest stable timer with it.
 	 */
-	hrtimer_cancel(&vcpu->arch.swtimer);
+	if (kvm_vcpu_is_blocking(vcpu))
+		hrtimer_cancel(&vcpu->arch.swtimer);
 
 	/*
 	 * From LoongArch Reference Manual Volume 1 Chapter 7.6.2
@@ -168,25 +151,19 @@ static void _kvm_save_timer(struct kvm_vcpu *vcpu)
 	 * Here judge one-shot timer fired by checking whether TVAL is larger
 	 * than TCFG
 	 */
-	if (ticks < cfg) {
+	if (ticks < cfg)
 		delta = tick_to_ns(vcpu, ticks);
-		expire = ktime_add_ns(ktime_get(), delta);
-		vcpu->arch.expire = expire;
+	else
+		delta = 0;
+
+	expire = ktime_add_ns(ktime_get(), delta);
+	vcpu->arch.expire = expire;
+	if (kvm_vcpu_is_blocking(vcpu)) {
 
 		/*
 		 * HRTIMER_MODE_PINNED is suggested since vcpu may run in
 		 * the same physical cpu in next time
 		 */
-		hrtimer_start(&vcpu->arch.swtimer, expire, HRTIMER_MODE_ABS_PINNED);
-	} else if (vcpu->stat.generic.blocking) {
-		/*
-		 * Inject timer interrupt so that halt polling can dectect and exit.
-		 * VCPU is scheduled out already and sleeps in rcuwait queue and
-		 * will not poll pending events again. kvm_queue_irq() is not enough,
-		 * hrtimer swtimer should be used here.
-		 */
-		expire = ktime_add_ns(ktime_get(), 10);
-		vcpu->arch.expire = expire;
 		hrtimer_start(&vcpu->arch.swtimer, expire, HRTIMER_MODE_ABS_PINNED);
 	}
 }

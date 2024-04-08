@@ -5,6 +5,10 @@
 #define BCH_ERRCODES()								\
 	x(ERANGE,			ERANGE_option_too_small)		\
 	x(ERANGE,			ERANGE_option_too_big)			\
+	x(EINVAL,			mount_option)				\
+	x(BCH_ERR_mount_option,		option_name)				\
+	x(BCH_ERR_mount_option,		option_value)				\
+	x(BCH_ERR_mount_option,         option_not_bool)                        \
 	x(ENOMEM,			ENOMEM_stripe_buf)			\
 	x(ENOMEM,			ENOMEM_replicas_table)			\
 	x(ENOMEM,			ENOMEM_cpu_replicas)			\
@@ -78,6 +82,7 @@
 	x(ENOMEM,			ENOMEM_fs_name_alloc)			\
 	x(ENOMEM,			ENOMEM_fs_other_alloc)			\
 	x(ENOMEM,			ENOMEM_dev_alloc)			\
+	x(ENOMEM,			ENOMEM_disk_accounting)			\
 	x(ENOSPC,			ENOSPC_disk_reservation)		\
 	x(ENOSPC,			ENOSPC_bucket_alloc)			\
 	x(ENOSPC,			ENOSPC_disk_label_add)			\
@@ -109,6 +114,8 @@
 	x(ENOENT,			ENOENT_dirent_doesnt_match_inode)	\
 	x(ENOENT,			ENOENT_dev_not_found)			\
 	x(ENOENT,			ENOENT_dev_idx_not_found)		\
+	x(ENOTEMPTY,			ENOTEMPTY_dir_not_empty)		\
+	x(ENOTEMPTY,			ENOTEMPTY_subvol_not_empty)		\
 	x(0,				open_buckets_empty)			\
 	x(0,				freelist_empty)				\
 	x(BCH_ERR_freelist_empty,	no_buckets_found)			\
@@ -176,6 +183,9 @@
 	x(EINVAL,			invalid)				\
 	x(EINVAL,			internal_fsck_err)			\
 	x(EINVAL,			opt_parse_error)			\
+	x(EINVAL,			remove_with_metadata_missing_unimplemented)\
+	x(EINVAL,			remove_would_lose_data)			\
+	x(EINVAL,			btree_iter_with_journal_not_supported)	\
 	x(EROFS,			erofs_trans_commit)			\
 	x(EROFS,			erofs_no_writes)			\
 	x(EROFS,			erofs_journal_err)			\
@@ -225,7 +235,10 @@
 	x(BCH_ERR_operation_blocked,    nocow_lock_blocked)			\
 	x(EIO,				btree_node_read_err)			\
 	x(EIO,				sb_not_downgraded)			\
-	x(EIO,				btree_write_all_failed)			\
+	x(EIO,				btree_node_write_all_failed)		\
+	x(EIO,				btree_node_read_error)			\
+	x(EIO,				btree_node_read_validate_error)		\
+	x(EIO,				btree_need_topology_repair)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_fixable)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_want_retry)		\
 	x(BCH_ERR_btree_node_read_err,	btree_node_read_err_must_retry)		\
@@ -238,7 +251,8 @@
 	x(BCH_ERR_nopromote,		nopromote_congested)			\
 	x(BCH_ERR_nopromote,		nopromote_in_flight)			\
 	x(BCH_ERR_nopromote,		nopromote_no_writes)			\
-	x(BCH_ERR_nopromote,		nopromote_enomem)
+	x(BCH_ERR_nopromote,		nopromote_enomem)			\
+	x(0,				need_inode_lock)
 
 enum bch_errcode {
 	BCH_ERR_START		= 2048,

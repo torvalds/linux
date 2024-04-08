@@ -344,7 +344,7 @@ static int rmi_bus_match(struct device *dev, struct device_driver *drv)
 	return physical || rmi_function_match(dev, drv);
 }
 
-struct bus_type rmi_bus_type = {
+const struct bus_type rmi_bus_type = {
 	.match		= rmi_bus_match,
 	.name		= "rmi4",
 };

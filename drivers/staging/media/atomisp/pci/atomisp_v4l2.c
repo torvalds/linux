@@ -55,10 +55,6 @@
 /* G-Min addition: pull this in from intel_mid_pm.h */
 #define CSTATE_EXIT_LATENCY_C1  1
 
-static uint skip_fwload;
-module_param(skip_fwload, uint, 0644);
-MODULE_PARM_DESC(skip_fwload, "Skip atomisp firmware load");
-
 /* cross componnet debug message flag */
 int dbg_level;
 module_param(dbg_level, int, 0644);
@@ -552,7 +548,7 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 	dev_dbg(isp->dev, "IUNIT power-%s.\n", enable ? "on" : "off");
 
 	/* WA for P-Unit, if DVFS enabled, ISP timeout observed */
-	if (IS_CHT && enable) {
+	if (IS_CHT && enable && !isp->pm_only) {
 		punit_ddr_dvfs_enable(false);
 		msleep(20);
 	}
@@ -562,7 +558,7 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 			val, MRFLD_ISPSSPM0_ISPSSC_MASK);
 
 	/* WA:Enable DVFS */
-	if (IS_CHT && !enable)
+	if (IS_CHT && !enable && !isp->pm_only)
 		punit_ddr_dvfs_enable(true);
 
 	/*
@@ -591,9 +587,6 @@ static int atomisp_mrfld_power(struct atomisp_device *isp, bool enable)
 		usleep_range(100, 150);
 	} while (1);
 
-	if (enable)
-		msleep(10);
-
 	dev_err(isp->dev, "IUNIT power-%s timeout.\n", enable ? "on" : "off");
 	return -EBUSY;
 }
@@ -605,11 +598,15 @@ int atomisp_power_off(struct device *dev)
 	int ret;
 	u32 reg;
 
-	atomisp_css_uninit(isp);
+	if (isp->pm_only) {
+		pci_write_config_dword(pdev, PCI_INTERRUPT_CTRL, 0);
+	} else {
+		atomisp_css_uninit(isp);
 
-	ret = atomisp_mrfld_pre_power_down(isp);
-	if (ret)
-		return ret;
+		ret = atomisp_mrfld_pre_power_down(isp);
+		if (ret)
+			return ret;
+	}
 
 	/*
 	 * MRFLD IUNIT DPHY is located in an always-power-on island
@@ -637,6 +634,9 @@ int atomisp_power_on(struct device *dev)
 
 	pci_restore_state(to_pci_dev(dev));
 	cpu_latency_qos_update_request(&isp->pm_qos, isp->max_isr_latency);
+
+	if (isp->pm_only)
+		return 0;
 
 	/*restore register values for iUnit and iUnitPHY registers*/
 	if (isp->saved_regs.pcicmdsts)
@@ -1161,9 +1161,6 @@ atomisp_load_firmware(struct atomisp_device *isp)
 	int rc;
 	char *fw_path = NULL;
 
-	if (skip_fwload)
-		return NULL;
-
 	if (firmware_name[0] != '\0') {
 		fw_path = firmware_name;
 	} else {
@@ -1199,46 +1196,39 @@ atomisp_load_firmware(struct atomisp_device *isp)
 	return fw;
 }
 
-/*
- * Check for flags the driver was compiled with against the PCI
- * device. Always returns true on other than ISP 2400.
- */
-static bool is_valid_device(struct pci_dev *pdev, const struct pci_device_id *id)
+static void atomisp_pm_init(struct atomisp_device *isp)
 {
-	const char *name;
-	const char *product;
+	/*
+	 * The atomisp does not use standard PCI power-management through the
+	 * PCI config space. Instead this driver directly tells the P-Unit to
+	 * disable the ISP over the IOSF. The standard PCI subsystem pm_ops will
+	 * try to access the config space before (resume) / after (suspend) this
+	 * driver has turned the ISP on / off, resulting in the following errors:
+	 *
+	 * "Unable to change power state from D0 to D3hot, device inaccessible"
+	 * "Unable to change power state from D3cold to D0, device inaccessible"
+	 *
+	 * To avoid these errors override the pm_domain so that all the PCI
+	 * subsys suspend / resume handling is skipped.
+	 */
+	isp->pm_domain.ops.runtime_suspend = atomisp_power_off;
+	isp->pm_domain.ops.runtime_resume = atomisp_power_on;
+	isp->pm_domain.ops.suspend = atomisp_suspend;
+	isp->pm_domain.ops.resume = atomisp_resume;
 
-	product = dmi_get_system_info(DMI_PRODUCT_NAME);
+	cpu_latency_qos_add_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
+	dev_pm_domain_set(isp->dev, &isp->pm_domain);
 
-	switch (id->device & ATOMISP_PCI_DEVICE_SOC_MASK) {
-	case ATOMISP_PCI_DEVICE_SOC_MRFLD:
-		name = "Merrifield";
-		break;
-	case ATOMISP_PCI_DEVICE_SOC_BYT:
-		name = "Baytrail";
-		break;
-	case ATOMISP_PCI_DEVICE_SOC_ANN:
-		name = "Anniedale";
-		break;
-	case ATOMISP_PCI_DEVICE_SOC_CHT:
-		name = "Cherrytrail";
-		break;
-	default:
-		dev_err(&pdev->dev, "%s: unknown device ID %x04:%x04\n",
-			product, id->vendor, id->device);
-		return false;
-	}
+	pm_runtime_allow(isp->dev);
+	pm_runtime_put_sync_suspend(isp->dev);
+}
 
-	if (pdev->revision <= ATOMISP_PCI_REV_BYT_A0_MAX) {
-		dev_err(&pdev->dev, "%s revision %d is not unsupported\n",
-			name, pdev->revision);
-		return false;
-	}
-
-	dev_info(&pdev->dev, "Detected %s version %d (ISP240%c) on %s\n",
-		 name, pdev->revision, IS_ISP2401 ? '1' : '0', product);
-
-	return true;
+static void atomisp_pm_uninit(struct atomisp_device *isp)
+{
+	pm_runtime_get_sync(isp->dev);
+	pm_runtime_forbid(isp->dev);
+	dev_pm_domain_set(isp->dev, NULL);
+	cpu_latency_qos_remove_request(&isp->pm_qos);
 }
 
 #define ATOM_ISP_PCI_BAR	0
@@ -1249,10 +1239,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	struct atomisp_device *isp;
 	unsigned int start;
 	int err, val;
-	u32 irq;
-
-	if (!is_valid_device(pdev, id))
-		return -ENODEV;
 
 	/* Pointer to struct device. */
 	atomisp_dev = &pdev->dev;
@@ -1261,32 +1247,16 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	if (!pdata)
 		dev_warn(&pdev->dev, "no platform data available\n");
 
-	err = pcim_enable_device(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to enable CI ISP device (%d)\n", err);
-		return err;
-	}
-
 	start = pci_resource_start(pdev, ATOM_ISP_PCI_BAR);
 	dev_dbg(&pdev->dev, "start: 0x%x\n", start);
 
-	err = pcim_iomap_regions(pdev, BIT(ATOM_ISP_PCI_BAR), pci_name(pdev));
-	if (err) {
-		dev_err(&pdev->dev, "Failed to I/O memory remapping (%d)\n", err);
-		goto ioremap_fail;
-	}
-
 	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
-	if (!isp) {
-		err = -ENOMEM;
-		goto atomisp_dev_alloc_fail;
-	}
+	if (!isp)
+		return -ENOMEM;
 
 	isp->dev = &pdev->dev;
-	isp->base = pcim_iomap_table(pdev)[ATOM_ISP_PCI_BAR];
 	isp->saved_regs.ispmmadr = start;
-
-	dev_dbg(&pdev->dev, "atomisp mmio base: %p\n", isp->base);
+	isp->asd.isp = isp;
 
 	mutex_init(&isp->mutex);
 	spin_lock_init(&isp->lock);
@@ -1389,8 +1359,12 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		break;
 	default:
 		dev_err(&pdev->dev, "un-supported IUNIT device\n");
-		err = -ENODEV;
-		goto atomisp_dev_alloc_fail;
+		return -ENODEV;
+	}
+
+	if (pdev->revision <= ATOMISP_PCI_REV_BYT_A0_MAX) {
+		dev_err(&pdev->dev, "revision %d is not unsupported\n", pdev->revision);
+		return -ENODEV;
 	}
 
 	dev_info(&pdev->dev, "ISP HPLL frequency base = %d MHz\n", isp->hpll_freq);
@@ -1400,28 +1374,42 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	/* Load isp firmware from user space */
 	isp->firmware = atomisp_load_firmware(isp);
 	if (!isp->firmware) {
-		err = -ENOENT;
-		dev_dbg(&pdev->dev, "Firmware load failed\n");
-		goto load_fw_fail;
+		/* No firmware continue in pm-only mode for S0i3 support */
+		dev_info(&pdev->dev, "Continuing in power-management only mode\n");
+		isp->pm_only = true;
+		atomisp_pm_init(isp);
+		return 0;
 	}
 
 	err = sh_css_check_firmware_version(isp->dev, isp->firmware->data);
 	if (err) {
 		dev_dbg(&pdev->dev, "Firmware version check failed\n");
-		goto fw_validation_fail;
+		goto error_release_firmware;
 	}
+
+	err = pcim_enable_device(pdev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to enable ISP PCI device (%d)\n", err);
+		goto error_release_firmware;
+	}
+
+	err = pcim_iomap_regions(pdev, BIT(ATOM_ISP_PCI_BAR), pci_name(pdev));
+	if (err) {
+		dev_err(&pdev->dev, "Failed to I/O memory remapping (%d)\n", err);
+		goto error_release_firmware;
+	}
+
+	isp->base = pcim_iomap_table(pdev)[ATOM_ISP_PCI_BAR];
 
 	pci_set_master(pdev);
 
 	err = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
 	if (err < 0) {
 		dev_err(&pdev->dev, "Failed to enable msi (%d)\n", err);
-		goto enable_msi_fail;
+		goto error_release_firmware;
 	}
 
 	atomisp_msi_irq_init(isp);
-
-	cpu_latency_qos_add_request(&isp->pm_qos, PM_QOS_DEFAULT_VALUE);
 
 	/*
 	 * for MRFLD, Software/firmware needs to write a 1 to bit 0 of
@@ -1459,42 +1447,19 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	err = atomisp_initialize_modules(isp);
 	if (err < 0) {
 		dev_err(&pdev->dev, "atomisp_initialize_modules (%d)\n", err);
-		goto initialize_modules_fail;
+		goto error_irq_uninit;
 	}
 
 	err = atomisp_register_entities(isp);
 	if (err < 0) {
 		dev_err(&pdev->dev, "atomisp_register_entities failed (%d)\n", err);
-		goto register_entities_fail;
+		goto error_uninitialize_modules;
 	}
 
 	INIT_WORK(&isp->assert_recovery_work, atomisp_assert_recovery_work);
 
 	/* save the iunit context only once after all the values are init'ed. */
 	atomisp_save_iunit_reg(isp);
-
-	/*
-	 * The atomisp does not use standard PCI power-management through the
-	 * PCI config space. Instead this driver directly tells the P-Unit to
-	 * disable the ISP over the IOSF. The standard PCI subsystem pm_ops will
-	 * try to access the config space before (resume) / after (suspend) this
-	 * driver has turned the ISP on / off, resulting in the following errors:
-	 *
-	 * "Unable to change power state from D0 to D3hot, device inaccessible"
-	 * "Unable to change power state from D3cold to D0, device inaccessible"
-	 *
-	 * To avoid these errors override the pm_domain so that all the PCI
-	 * subsys suspend / resume handling is skipped.
-	 */
-	isp->pm_domain.ops.runtime_suspend = atomisp_power_off;
-	isp->pm_domain.ops.runtime_resume = atomisp_power_on;
-	isp->pm_domain.ops.suspend = atomisp_suspend;
-	isp->pm_domain.ops.resume = atomisp_resume;
-
-	dev_pm_domain_set(&pdev->dev, &isp->pm_domain);
-
-	pm_runtime_put_noidle(&pdev->dev);
-	pm_runtime_allow(&pdev->dev);
 
 	/* Init ISP memory management */
 	hmm_init();
@@ -1504,72 +1469,45 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 					IRQF_SHARED, "isp_irq", isp);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to request irq (%d)\n", err);
-		goto request_irq_fail;
+		goto error_unregister_entities;
 	}
 
 	/* Load firmware into ISP memory */
 	err = atomisp_css_load_firmware(isp);
 	if (err) {
 		dev_err(&pdev->dev, "Failed to init css.\n");
-		goto css_init_fail;
+		goto error_free_irq;
 	}
 	/* Clear FW image from memory */
 	release_firmware(isp->firmware);
 	isp->firmware = NULL;
 	isp->css_env.isp_css_fw.data = NULL;
 
+	atomisp_pm_init(isp);
+
 	err = v4l2_async_nf_register(&isp->notifier);
 	if (err) {
 		dev_err(isp->dev, "failed to register async notifier : %d\n", err);
-		goto css_init_fail;
+		goto error_unload_firmware;
 	}
-
-	atomisp_drvfs_init(isp);
 
 	return 0;
 
-css_init_fail:
+error_unload_firmware:
+	atomisp_pm_uninit(isp);
+	ia_css_unload_firmware();
+error_free_irq:
 	devm_free_irq(&pdev->dev, pdev->irq, isp);
-request_irq_fail:
+error_unregister_entities:
 	hmm_cleanup();
-	pm_runtime_get_noresume(&pdev->dev);
-	dev_pm_domain_set(&pdev->dev, NULL);
 	atomisp_unregister_entities(isp);
-register_entities_fail:
+error_uninitialize_modules:
 	atomisp_uninitialize_modules(isp);
-initialize_modules_fail:
-	cpu_latency_qos_remove_request(&isp->pm_qos);
+error_irq_uninit:
 	atomisp_msi_irq_uninit(isp);
 	pci_free_irq_vectors(pdev);
-enable_msi_fail:
-fw_validation_fail:
+error_release_firmware:
 	release_firmware(isp->firmware);
-load_fw_fail:
-	/*
-	 * Switch off ISP, as keeping it powered on would prevent
-	 * reaching S0ix states.
-	 *
-	 * The following lines have been copied from atomisp suspend path
-	 */
-
-	pci_read_config_dword(pdev, PCI_INTERRUPT_CTRL, &irq);
-	irq &= BIT(INTR_IIR);
-	pci_write_config_dword(pdev, PCI_INTERRUPT_CTRL, irq);
-
-	pci_read_config_dword(pdev, PCI_INTERRUPT_CTRL, &irq);
-	irq &= ~BIT(INTR_IER);
-	pci_write_config_dword(pdev, PCI_INTERRUPT_CTRL, irq);
-
-	atomisp_msi_irq_uninit(isp);
-
-	/* Address later when we worry about the ...field chips */
-	if (IS_ENABLED(CONFIG_PM) && atomisp_mrfld_power(isp, false))
-		dev_err(&pdev->dev, "Failed to switch off ISP\n");
-
-atomisp_dev_alloc_fail:
-	pcim_iounmap_regions(pdev, BIT(ATOM_ISP_PCI_BAR));
-
-ioremap_fail:
 	return err;
 }
 
@@ -1577,22 +1515,21 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 {
 	struct atomisp_device *isp = pci_get_drvdata(pdev);
 
-	dev_info(&pdev->dev, "Removing atomisp driver\n");
+	atomisp_pm_uninit(isp);
 
-	atomisp_drvfs_exit();
+	if (isp->pm_only)
+		return;
 
+	/* Undo ia_css_init() from atomisp_power_on() */
+	atomisp_css_uninit(isp);
 	ia_css_unload_firmware();
+	devm_free_irq(&pdev->dev, pdev->irq, isp);
 	hmm_cleanup();
 
-	pm_runtime_forbid(&pdev->dev);
-	pm_runtime_get_noresume(&pdev->dev);
-	dev_pm_domain_set(&pdev->dev, NULL);
-	cpu_latency_qos_remove_request(&isp->pm_qos);
-
-	atomisp_msi_irq_uninit(isp);
 	atomisp_unregister_entities(isp);
-
-	release_firmware(isp->firmware);
+	atomisp_uninitialize_modules(isp);
+	atomisp_msi_irq_uninit(isp);
+	pci_free_irq_vectors(pdev);
 }
 
 static const struct pci_device_id atomisp_pci_tbl[] = {
@@ -1608,11 +1545,12 @@ static const struct pci_device_id atomisp_pci_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, ATOMISP_PCI_DEVICE_SOC_CHT)},
 	{0,}
 };
-
 MODULE_DEVICE_TABLE(pci, atomisp_pci_tbl);
 
-
 static struct pci_driver atomisp_pci_driver = {
+	.driver = {
+		.dev_groups = dbg_attr_groups,
+	},
 	.name = "atomisp-isp2",
 	.id_table = atomisp_pci_tbl,
 	.probe = atomisp_pci_probe,

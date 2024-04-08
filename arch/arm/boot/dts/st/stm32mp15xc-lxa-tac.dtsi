@@ -409,7 +409,7 @@ baseboard_eeprom: &sip_eeprom {
 &spi2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&spi2_pins_c>;
-	cs-gpios = <&gpiof 12 GPIO_ACTIVE_LOW>;
+	cs-gpios = <&gpiof 12 (GPIO_ACTIVE_LOW | GPIO_OPEN_DRAIN)>;
 	status = "okay";
 };
 
@@ -470,6 +470,10 @@ baseboard_eeprom: &sip_eeprom {
 
 		interrupt-parent = <&gpioa>;
 		interrupts = <6 IRQ_TYPE_EDGE_RISING>;
+
+		/* Reduce RGMII EMI emissions by reducing drive strength */
+		microchip,hi-drive-strength-microamp = <2000>;
+		microchip,lo-drive-strength-microamp = <8000>;
 
 		ports {
 			#address-cells = <1>;

@@ -6,7 +6,8 @@ cat <<EOF
  * @new: ${int} value to assign
  *
  * If (@v == @old), atomically updates @v to @new with ${desc_order} ordering.
- * Otherwise, updates @old to the current value of @v.
+ * Otherwise, @v is not modified, @old is updated to the current value of @v,
+ * and relaxed ordering is provided.
  *
  * ${desc_noinstr}
  *

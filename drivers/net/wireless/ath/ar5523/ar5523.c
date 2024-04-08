@@ -1358,6 +1358,10 @@ static void ar5523_configure_filter(struct ieee80211_hw *hw,
 }
 
 static const struct ieee80211_ops ar5523_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.start			= ar5523_start,
 	.stop			= ar5523_stop,
 	.tx			= ar5523_tx,

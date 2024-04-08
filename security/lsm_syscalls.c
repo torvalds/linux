@@ -53,7 +53,7 @@ u64 lsm_name_to_attr(const char *name)
  * value indicating the reason for the error is returned.
  */
 SYSCALL_DEFINE4(lsm_set_self_attr, unsigned int, attr, struct lsm_ctx __user *,
-		ctx, size_t, size, u32, flags)
+		ctx, u32, size, u32, flags)
 {
 	return security_setselfattr(attr, ctx, size, flags);
 }
@@ -75,7 +75,7 @@ SYSCALL_DEFINE4(lsm_set_self_attr, unsigned int, attr, struct lsm_ctx __user *,
  * a negative value indicating the error is returned.
  */
 SYSCALL_DEFINE4(lsm_get_self_attr, unsigned int, attr, struct lsm_ctx __user *,
-		ctx, size_t __user *, size, u32, flags)
+		ctx, u32 __user *, size, u32, flags)
 {
 	return security_getselfattr(attr, ctx, size, flags);
 }
@@ -93,11 +93,11 @@ SYSCALL_DEFINE4(lsm_get_self_attr, unsigned int, attr, struct lsm_ctx __user *,
  * required size. In all other cases a negative value indicating the
  * error is returned.
  */
-SYSCALL_DEFINE3(lsm_list_modules, u64 __user *, ids, size_t __user *, size,
+SYSCALL_DEFINE3(lsm_list_modules, u64 __user *, ids, u32 __user *, size,
 		u32, flags)
 {
-	size_t total_size = lsm_active_cnt * sizeof(*ids);
-	size_t usize;
+	u32 total_size = lsm_active_cnt * sizeof(*ids);
+	u32 usize;
 	int i;
 
 	if (flags)

@@ -1688,6 +1688,7 @@ retry:
 				 GFP_NOIO, &cc->bs);
 	clone->bi_private = io;
 	clone->bi_end_io = crypt_endio;
+	clone->bi_ioprio = io->base_bio->bi_ioprio;
 
 	remaining_size = size;
 
@@ -1964,7 +1965,6 @@ continue_locked:
 
 		schedule();
 
-		set_current_state(TASK_RUNNING);
 		spin_lock_irq(&cc->write_thread_lock);
 		goto continue_locked;
 
@@ -2296,7 +2296,11 @@ static void kcryptd_queue_crypt(struct dm_crypt_io *io)
 		 * irqs_disabled(): the kernel may run some IO completion from the idle thread, but
 		 * it is being executed with irqs disabled.
 		 */
-		if (!(in_hardirq() || irqs_disabled())) {
+		if (in_hardirq() || irqs_disabled()) {
+			INIT_WORK(&io->work, kcryptd_crypt);
+			queue_work(system_bh_wq, &io->work);
+			return;
+		} else {
 			kcryptd_crypt(&io->work);
 			return;
 		}

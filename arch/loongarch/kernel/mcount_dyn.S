@@ -73,6 +73,7 @@ SYM_FUNC_START(ftrace_stub)
 SYM_FUNC_END(ftrace_stub)
 
 SYM_CODE_START(ftrace_common)
+	UNWIND_HINT_UNDEFINED
 	PTR_ADDI	a0, ra, -8	/* arg0: ip */
 	move		a1, t0		/* arg1: parent_ip */
 	la.pcrel	t1, function_trace_op
@@ -113,12 +114,14 @@ ftrace_common_return:
 SYM_CODE_END(ftrace_common)
 
 SYM_CODE_START(ftrace_caller)
+	UNWIND_HINT_UNDEFINED
 	ftrace_regs_entry allregs=0
 	b		ftrace_common
 SYM_CODE_END(ftrace_caller)
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_REGS
 SYM_CODE_START(ftrace_regs_caller)
+	UNWIND_HINT_UNDEFINED
 	ftrace_regs_entry allregs=1
 	b		ftrace_common
 SYM_CODE_END(ftrace_regs_caller)
@@ -126,6 +129,7 @@ SYM_CODE_END(ftrace_regs_caller)
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 SYM_CODE_START(ftrace_graph_caller)
+	UNWIND_HINT_UNDEFINED
 	PTR_L		a0, sp, PT_ERA
 	PTR_ADDI	a0, a0, -8	/* arg0: self_addr */
 	PTR_ADDI	a1, sp, PT_R1	/* arg1: parent */
@@ -134,6 +138,7 @@ SYM_CODE_START(ftrace_graph_caller)
 SYM_CODE_END(ftrace_graph_caller)
 
 SYM_CODE_START(return_to_handler)
+	UNWIND_HINT_UNDEFINED
 	/* Save return value regs */
 	PTR_ADDI	sp, sp, -FGRET_REGS_SIZE
 	PTR_S		a0, sp, FGRET_REGS_A0
@@ -155,6 +160,7 @@ SYM_CODE_END(return_to_handler)
 
 #ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
 SYM_CODE_START(ftrace_stub_direct_tramp)
+	UNWIND_HINT_UNDEFINED
 	jr		t0
 SYM_CODE_END(ftrace_stub_direct_tramp)
 #endif /* CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS */

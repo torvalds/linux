@@ -15,7 +15,7 @@
 #include <linux/string.h>
 #include <asm/dma.h>
 
-static struct bus_type dma_subsys = {
+static const struct bus_type dma_subsys = {
 	.name = "dma",
 	.dev_name = "dma",
 };

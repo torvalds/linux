@@ -1927,7 +1927,7 @@ TEST_F(tls_err, poll_partial_rec_async)
 		pfd.events = POLLIN;
 		EXPECT_EQ(poll(&pfd, 1, 20), 1);
 
-		exit(!_metadata->passed);
+		exit(!__test_passed(_metadata));
 	}
 }
 

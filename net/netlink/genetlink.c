@@ -1232,7 +1232,7 @@ static int ctrl_fill_info(const struct genl_family *family, u32 portid, u32 seq,
 
 	hdr = genlmsg_put(skb, portid, seq, &genl_ctrl, flags, cmd);
 	if (hdr == NULL)
-		return -1;
+		return -EMSGSIZE;
 
 	if (nla_put_string(skb, CTRL_ATTR_FAMILY_NAME, family->name) ||
 	    nla_put_u16(skb, CTRL_ATTR_FAMILY_ID, family->id) ||
@@ -1355,6 +1355,7 @@ static int ctrl_dumpfamily(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net *net = sock_net(skb->sk);
 	int fams_to_skip = cb->args[0];
 	unsigned int id;
+	int err = 0;
 
 	idr_for_each_entry(&genl_fam_idr, rt, id) {
 		if (!rt->netnsok && !net_eq(net, &init_net))
@@ -1363,16 +1364,17 @@ static int ctrl_dumpfamily(struct sk_buff *skb, struct netlink_callback *cb)
 		if (n++ < fams_to_skip)
 			continue;
 
-		if (ctrl_fill_info(rt, NETLINK_CB(cb->skb).portid,
-				   cb->nlh->nlmsg_seq, NLM_F_MULTI,
-				   skb, CTRL_CMD_NEWFAMILY) < 0) {
+		err = ctrl_fill_info(rt, NETLINK_CB(cb->skb).portid,
+				     cb->nlh->nlmsg_seq, NLM_F_MULTI,
+				     skb, CTRL_CMD_NEWFAMILY);
+		if (err) {
 			n--;
 			break;
 		}
 	}
 
 	cb->args[0] = n;
-	return skb->len;
+	return err;
 }
 
 static struct sk_buff *ctrl_build_family_msg(const struct genl_family *family,
@@ -1836,11 +1838,40 @@ static int genl_bind(struct net *net, int group)
 		    !ns_capable(net->user_ns, CAP_SYS_ADMIN))
 			ret = -EPERM;
 
+		if (family->bind)
+			family->bind(i);
+
 		break;
 	}
 
 	up_read(&cb_lock);
 	return ret;
+}
+
+static void genl_unbind(struct net *net, int group)
+{
+	const struct genl_family *family;
+	unsigned int id;
+
+	down_read(&cb_lock);
+
+	idr_for_each_entry(&genl_fam_idr, family, id) {
+		int i;
+
+		if (family->n_mcgrps == 0)
+			continue;
+
+		i = group - family->mcgrp_offset;
+		if (i < 0 || i >= family->n_mcgrps)
+			continue;
+
+		if (family->unbind)
+			family->unbind(i);
+
+		break;
+	}
+
+	up_read(&cb_lock);
 }
 
 static int __net_init genl_pernet_init(struct net *net)
@@ -1849,6 +1880,7 @@ static int __net_init genl_pernet_init(struct net *net)
 		.input		= genl_rcv,
 		.flags		= NL_CFG_F_NONROOT_RECV,
 		.bind		= genl_bind,
+		.unbind		= genl_unbind,
 		.release	= genl_release,
 	};
 

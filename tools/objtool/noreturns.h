@@ -6,13 +6,13 @@
  *
  * Yes, this is unfortunate.  A better solution is in the works.
  */
+NORETURN(__fortify_panic)
 NORETURN(__kunit_abort)
 NORETURN(__module_put_and_kthread_exit)
 NORETURN(__reiserfs_panic)
 NORETURN(__stack_chk_fail)
 NORETURN(__tdx_hypercall_failed)
 NORETURN(__ubsan_handle_builtin_unreachable)
-NORETURN(arch_call_rest_init)
 NORETURN(arch_cpu_idle_dead)
 NORETURN(bch2_trans_in_restart_error)
 NORETURN(bch2_trans_restart_error)
@@ -22,7 +22,6 @@ NORETURN(do_exit)
 NORETURN(do_group_exit)
 NORETURN(do_task_dead)
 NORETURN(ex_handler_msr_mce)
-NORETURN(fortify_panic)
 NORETURN(hlt_play_dead)
 NORETURN(hv_ghcb_terminate)
 NORETURN(kthread_complete_and_exit)

@@ -1006,6 +1006,7 @@ static int nvme_rdma_setup_ctrl(struct nvme_rdma_ctrl *ctrl, bool new)
 {
 	int ret;
 	bool changed;
+	u16 max_queue_size;
 
 	ret = nvme_rdma_configure_admin_queue(ctrl, new);
 	if (ret)
@@ -1030,11 +1031,16 @@ static int nvme_rdma_setup_ctrl(struct nvme_rdma_ctrl *ctrl, bool new)
 			ctrl->ctrl.opts->queue_size, ctrl->ctrl.sqsize + 1);
 	}
 
-	if (ctrl->ctrl.sqsize + 1 > NVME_RDMA_MAX_QUEUE_SIZE) {
+	if (ctrl->ctrl.max_integrity_segments)
+		max_queue_size = NVME_RDMA_MAX_METADATA_QUEUE_SIZE;
+	else
+		max_queue_size = NVME_RDMA_MAX_QUEUE_SIZE;
+
+	if (ctrl->ctrl.sqsize + 1 > max_queue_size) {
 		dev_warn(ctrl->ctrl.device,
-			"ctrl sqsize %u > max queue size %u, clamping down\n",
-			ctrl->ctrl.sqsize + 1, NVME_RDMA_MAX_QUEUE_SIZE);
-		ctrl->ctrl.sqsize = NVME_RDMA_MAX_QUEUE_SIZE - 1;
+			 "ctrl sqsize %u > max queue size %u, clamping down\n",
+			 ctrl->ctrl.sqsize + 1, max_queue_size);
+		ctrl->ctrl.sqsize = max_queue_size - 1;
 	}
 
 	if (ctrl->ctrl.sqsize + 1 > ctrl->ctrl.maxcmd) {

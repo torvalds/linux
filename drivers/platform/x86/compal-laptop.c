@@ -1107,7 +1107,7 @@ module_init(compal_init);
 module_exit(compal_cleanup);
 
 MODULE_AUTHOR("Cezary Jackiewicz");
-MODULE_AUTHOR("Roald Frederickx (roald.frederickx@gmail.com)");
+MODULE_AUTHOR("Roald Frederickx <roald.frederickx@gmail.com>");
 MODULE_DESCRIPTION("Compal Laptop Support");
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");

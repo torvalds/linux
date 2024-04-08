@@ -573,7 +573,7 @@ SYSCALL_DEFINE2(setns, int, fd, int, flags)
 	if (proc_ns_file(f.file))
 		err = validate_ns(&nsset, ns);
 	else
-		err = validate_nsset(&nsset, f.file->private_data);
+		err = validate_nsset(&nsset, pidfd_pid(f.file));
 	if (!err) {
 		commit_nsset(&nsset);
 		perf_event_namespaces(current);

@@ -159,9 +159,9 @@ __bpf_kfunc int bpf_get_fsverity_digest(struct file *file, struct bpf_dynptr_ker
 
 __bpf_kfunc_end_defs();
 
-BTF_SET8_START(fsverity_set_ids)
+BTF_KFUNCS_START(fsverity_set_ids)
 BTF_ID_FLAGS(func, bpf_get_fsverity_digest, KF_TRUSTED_ARGS)
-BTF_SET8_END(fsverity_set_ids)
+BTF_KFUNCS_END(fsverity_set_ids)
 
 static int bpf_get_fsverity_digest_filter(const struct bpf_prog *prog, u32 kfunc_id)
 {

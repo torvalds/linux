@@ -13,7 +13,8 @@ set of mailbox registers.
 
 More details on the interface can be found in chapter
 "7 Host System Management Port (HSMP)" of the family/model PPR
-Eg: https://www.amd.com/system/files/TechDocs/55898_B1_pub_0.50.zip
+Eg: https://www.amd.com/content/dam/amd/en/documents/epyc-technical-docs/programmer-references/55898_B1_pub_0_50.zip
+
 
 HSMP interface is supported on EPYC server CPU models only.
 
@@ -97,8 +98,8 @@ what happened. The transaction returns 0 on success.
 
 More details on the interface and message definitions can be found in chapter
 "7 Host System Management Port (HSMP)" of the respective family/model PPR
-eg: https://www.amd.com/system/files/TechDocs/55898_B1_pub_0.50.zip
+eg: https://www.amd.com/content/dam/amd/en/documents/epyc-technical-docs/programmer-references/55898_B1_pub_0_50.zip
 
 User space C-APIs are made available by linking against the esmi library,
-which is provided by the E-SMS project https://developer.amd.com/e-sms/.
+which is provided by the E-SMS project https://www.amd.com/en/developer/e-sms.html.
 See: https://github.com/amd/esmi_ib_library

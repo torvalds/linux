@@ -13,21 +13,6 @@
 
 #include "core.h"
 
-#define SOCM_LPM_REQ_GUID	0x11594920
-
-#define PMC_DEVID_SOCM	0xa87f
-
-static const u8 LNL_LPM_REG_INDEX[] = {0, 4, 5, 6, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20};
-
-static struct pmc_info lnl_pmc_info_list[] = {
-	{
-		.guid	= SOCM_LPM_REQ_GUID,
-		.devid	= PMC_DEVID_SOCM,
-		.map	= &lnl_socm_reg_map,
-	},
-	{}
-};
-
 const struct pmc_bit_map lnl_ltr_show_map[] = {
 	{"SOUTHPORT_A",		CNP_PMC_LTR_SPA},
 	{"SOUTHPORT_B",		CNP_PMC_LTR_SPB},
@@ -490,7 +475,6 @@ const struct pmc_reg_map lnl_socm_reg_map = {
 	.lpm_sts = lnl_lpm_maps,
 	.lpm_status_offset = MTL_LPM_STATUS_OFFSET,
 	.lpm_live_status_offset = MTL_LPM_LIVE_STATUS_OFFSET,
-	.lpm_reg_index = LNL_LPM_REG_INDEX,
 };
 
 #define LNL_NPU_PCI_DEV		0x643e
@@ -517,33 +501,19 @@ static int lnl_resume(struct pmc_dev *pmcdev)
 int lnl_core_init(struct pmc_dev *pmcdev)
 {
 	int ret;
-	int func = 2;
-	bool ssram_init = true;
 	struct pmc *pmc = pmcdev->pmcs[PMC_IDX_SOC];
 
 	lnl_d3_fixup();
 
 	pmcdev->suspend = cnl_suspend;
 	pmcdev->resume = lnl_resume;
-	pmcdev->regmap_list = lnl_pmc_info_list;
-	ret = pmc_core_ssram_init(pmcdev, func);
 
-	/* If regbase not assigned, set map and discover using legacy method */
-	if (ret) {
-		ssram_init = false;
-		pmc->map = &lnl_socm_reg_map;
-		ret = get_primary_reg_base(pmc);
-		if (ret)
-			return ret;
-	}
+	pmc->map = &lnl_socm_reg_map;
+	ret = get_primary_reg_base(pmc);
+	if (ret)
+		return ret;
 
 	pmc_core_get_low_power_modes(pmcdev);
-
-	if (ssram_init) {
-		ret = pmc_core_ssram_get_lpm_reqs(pmcdev);
-		if (ret)
-			return ret;
-	}
 
 	return 0;
 }

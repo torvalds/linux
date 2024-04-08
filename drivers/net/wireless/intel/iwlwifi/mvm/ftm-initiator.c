@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2023 Intel Corporation
  */
 #include <linux/etherdevice.h>
 #include <linux/math64.h>
@@ -821,9 +821,10 @@ iwl_mvm_ftm_put_target_v8(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * If secure LTF is turned off, replace the flag with PMF only
 	 */
 	flags = le32_to_cpu(target->initiator_ap_flags);
-	if ((flags & IWL_INITIATOR_AP_FLAGS_SECURED) &&
-	    !IWL_MVM_FTM_INITIATOR_SECURE_LTF) {
-		flags &= ~IWL_INITIATOR_AP_FLAGS_SECURED;
+	if (flags & IWL_INITIATOR_AP_FLAGS_SECURED) {
+		if (!IWL_MVM_FTM_INITIATOR_SECURE_LTF)
+			flags &= ~IWL_INITIATOR_AP_FLAGS_SECURED;
+
 		flags |= IWL_INITIATOR_AP_FLAGS_PMF;
 		target->initiator_ap_flags = cpu_to_le32(flags);
 	}

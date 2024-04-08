@@ -271,7 +271,7 @@ static void hdlc_rx_frame(struct gb_beagleplay *bg)
 	}
 }
 
-static ssize_t hdlc_rx(struct gb_beagleplay *bg, const u8 *data, size_t count)
+static size_t hdlc_rx(struct gb_beagleplay *bg, const u8 *data, size_t count)
 {
 	size_t i;
 	u8 c;
@@ -331,8 +331,8 @@ static void hdlc_deinit(struct gb_beagleplay *bg)
 	flush_work(&bg->tx_work);
 }
 
-static ssize_t gb_tty_receive(struct serdev_device *sd, const u8 *data,
-			      size_t count)
+static size_t gb_tty_receive(struct serdev_device *sd, const u8 *data,
+			     size_t count)
 {
 	struct gb_beagleplay *bg = serdev_device_get_drvdata(sd);
 

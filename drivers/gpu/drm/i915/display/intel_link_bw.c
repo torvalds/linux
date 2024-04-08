@@ -6,26 +6,41 @@
 #include "i915_drv.h"
 
 #include "intel_atomic.h"
+#include "intel_crtc.h"
 #include "intel_display_types.h"
 #include "intel_dp_mst.h"
+#include "intel_dp_tunnel.h"
 #include "intel_fdi.h"
 #include "intel_link_bw.h"
 
 /**
  * intel_link_bw_init_limits - initialize BW limits
- * @i915: device instance
+ * @state: Atomic state
  * @limits: link BW limits
  *
  * Initialize @limits.
  */
-void intel_link_bw_init_limits(struct drm_i915_private *i915, struct intel_link_bw_limits *limits)
+void intel_link_bw_init_limits(struct intel_atomic_state *state,
+			       struct intel_link_bw_limits *limits)
 {
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
 	enum pipe pipe;
 
 	limits->force_fec_pipes = 0;
 	limits->bpp_limit_reached_pipes = 0;
-	for_each_pipe(i915, pipe)
-		limits->max_bpp_x16[pipe] = INT_MAX;
+	for_each_pipe(i915, pipe) {
+		const struct intel_crtc_state *crtc_state =
+			intel_atomic_get_new_crtc_state(state,
+							intel_crtc_for_pipe(i915, pipe));
+
+		if (state->base.duplicated && crtc_state) {
+			limits->max_bpp_x16[pipe] = crtc_state->max_link_bpp_x16;
+			if (crtc_state->fec_enable)
+				limits->force_fec_pipes |= BIT(pipe);
+		} else {
+			limits->max_bpp_x16[pipe] = INT_MAX;
+		}
+	}
 }
 
 /**
@@ -146,6 +161,10 @@ static int check_all_link_config(struct intel_atomic_state *state,
 	int ret;
 
 	ret = intel_dp_mst_atomic_check_link(state, limits);
+	if (ret)
+		return ret;
+
+	ret = intel_dp_tunnel_atomic_check_link(state, limits);
 	if (ret)
 		return ret;
 

@@ -130,8 +130,8 @@ static void rpmsg_ctrldev_release_device(struct device *dev)
 {
 	struct rpmsg_ctrldev *ctrldev = dev_to_ctrldev(dev);
 
-	ida_simple_remove(&rpmsg_ctrl_ida, dev->id);
-	ida_simple_remove(&rpmsg_minor_ida, MINOR(dev->devt));
+	ida_free(&rpmsg_ctrl_ida, dev->id);
+	ida_free(&rpmsg_minor_ida, MINOR(dev->devt));
 	kfree(ctrldev);
 }
 
@@ -156,12 +156,12 @@ static int rpmsg_ctrldev_probe(struct rpmsg_device *rpdev)
 	cdev_init(&ctrldev->cdev, &rpmsg_ctrldev_fops);
 	ctrldev->cdev.owner = THIS_MODULE;
 
-	ret = ida_simple_get(&rpmsg_minor_ida, 0, RPMSG_DEV_MAX, GFP_KERNEL);
+	ret = ida_alloc_max(&rpmsg_minor_ida, RPMSG_DEV_MAX - 1, GFP_KERNEL);
 	if (ret < 0)
 		goto free_ctrldev;
 	dev->devt = MKDEV(MAJOR(rpmsg_major), ret);
 
-	ret = ida_simple_get(&rpmsg_ctrl_ida, 0, 0, GFP_KERNEL);
+	ret = ida_alloc(&rpmsg_ctrl_ida, GFP_KERNEL);
 	if (ret < 0)
 		goto free_minor_ida;
 	dev->id = ret;
@@ -179,9 +179,9 @@ static int rpmsg_ctrldev_probe(struct rpmsg_device *rpdev)
 	return ret;
 
 free_ctrl_ida:
-	ida_simple_remove(&rpmsg_ctrl_ida, dev->id);
+	ida_free(&rpmsg_ctrl_ida, dev->id);
 free_minor_ida:
-	ida_simple_remove(&rpmsg_minor_ida, MINOR(dev->devt));
+	ida_free(&rpmsg_minor_ida, MINOR(dev->devt));
 free_ctrldev:
 	put_device(dev);
 	kfree(ctrldev);

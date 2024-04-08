@@ -883,7 +883,7 @@ static struct attribute *mmc_std_attrs[] = {
 };
 ATTRIBUTE_GROUPS(mmc_std);
 
-static struct device_type mmc_type = {
+static const struct device_type mmc_type = {
 	.groups = mmc_std_groups,
 };
 
@@ -1015,10 +1015,12 @@ static int mmc_select_bus_width(struct mmc_card *card)
 	static unsigned ext_csd_bits[] = {
 		EXT_CSD_BUS_WIDTH_8,
 		EXT_CSD_BUS_WIDTH_4,
+		EXT_CSD_BUS_WIDTH_1,
 	};
 	static unsigned bus_widths[] = {
 		MMC_BUS_WIDTH_8,
 		MMC_BUS_WIDTH_4,
+		MMC_BUS_WIDTH_1,
 	};
 	struct mmc_host *host = card->host;
 	unsigned idx, bus_width = 0;

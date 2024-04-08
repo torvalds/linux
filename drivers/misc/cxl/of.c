@@ -431,7 +431,7 @@ int cxl_of_read_adapter_properties(struct cxl *adapter, struct device_node *np)
 	return 0;
 }
 
-static int cxl_of_remove(struct platform_device *pdev)
+static void cxl_of_remove(struct platform_device *pdev)
 {
 	struct cxl *adapter;
 	int afu;
@@ -441,7 +441,6 @@ static int cxl_of_remove(struct platform_device *pdev)
 		cxl_guest_remove_afu(adapter->afu[afu]);
 
 	cxl_guest_remove_adapter(adapter);
-	return 0;
 }
 
 static void cxl_of_shutdown(struct platform_device *pdev)
@@ -501,6 +500,6 @@ struct platform_driver cxl_of_driver = {
 		.owner = THIS_MODULE
 	},
 	.probe = cxl_of_probe,
-	.remove = cxl_of_remove,
+	.remove_new = cxl_of_remove,
 	.shutdown = cxl_of_shutdown,
 };

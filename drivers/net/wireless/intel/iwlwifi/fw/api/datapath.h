@@ -101,7 +101,7 @@ enum iwl_data_path_subcmd_ids {
 	RX_NO_DATA_NOTIF = 0xF5,
 
 	/**
-	 * @THERMAL_DUAL_CHAIN_DISABLE_REQ: firmware request for SMPS mode,
+	 * @THERMAL_DUAL_CHAIN_REQUEST: firmware request for SMPS mode,
 	 *	&struct iwl_thermal_dual_chain_request
 	 */
 	THERMAL_DUAL_CHAIN_REQUEST = 0xF6,

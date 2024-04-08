@@ -411,6 +411,7 @@ DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(set_eof_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(set_info_compound_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(set_reparse_compound_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(get_reparse_compound_done);
+DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(query_wsl_ea_compound_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(delete_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(mkdir_done);
 DEFINE_SMB3_INF_COMPOUND_DONE_EVENT(tdis_done);
@@ -456,6 +457,7 @@ DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(set_eof_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(set_info_compound_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(set_reparse_compound_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(get_reparse_compound_err);
+DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(query_wsl_ea_compound_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(mkdir_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(delete_err);
 DEFINE_SMB3_INF_COMPOUND_ERR_EVENT(tdis_err);
@@ -1029,6 +1031,38 @@ DEFINE_EVENT(smb3_ses_class, smb3_##name,  \
 	TP_ARGS(sesid))
 
 DEFINE_SMB3_SES_EVENT(ses_not_found);
+
+DECLARE_EVENT_CLASS(smb3_ioctl_class,
+	TP_PROTO(unsigned int xid,
+		__u64	fid,
+		unsigned int command),
+	TP_ARGS(xid, fid, command),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u64, fid)
+		__field(unsigned int, command)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->fid = fid;
+		__entry->command = command;
+	),
+	TP_printk("xid=%u fid=0x%llx ioctl cmd=0x%x",
+		__entry->xid, __entry->fid, __entry->command)
+)
+
+#define DEFINE_SMB3_IOCTL_EVENT(name)        \
+DEFINE_EVENT(smb3_ioctl_class, smb3_##name,  \
+	TP_PROTO(unsigned int xid,	     \
+		__u64 fid,		     \
+		unsigned int command),	     \
+	TP_ARGS(xid, fid, command))
+
+DEFINE_SMB3_IOCTL_EVENT(ioctl);
+
+
+
+
 
 DECLARE_EVENT_CLASS(smb3_credit_class,
 	TP_PROTO(__u64	currmid,

@@ -391,9 +391,7 @@ static ssize_t iwl_dbgfs_wifi_6e_enable_read(struct file *file,
 	char buf[12];
 	u32 value;
 
-	err = iwl_acpi_get_dsm_u32(mvm->fwrt.dev, 0,
-				   DSM_FUNC_ENABLE_6E,
-				   &iwl_guid, &value);
+	err = iwl_bios_get_dsm(&mvm->fwrt, DSM_FUNC_ENABLE_6E, &value);
 	if (err)
 		return err;
 
@@ -877,14 +875,14 @@ static ssize_t iwl_dbgfs_tas_get_status_read(struct file *file,
 			 le16_to_cpu(rsp->curr_mcc));
 
 	pos += scnprintf(pos, endpos - pos, "Block list entries:");
-	for (i = 0; i < APCI_WTAS_BLACK_LIST_MAX; i++)
+	for (i = 0; i < IWL_WTAS_BLACK_LIST_MAX; i++)
 		pos += scnprintf(pos, endpos - pos, " 0x%x",
 				 le16_to_cpu(rsp->block_list[i]));
 
 	pos += scnprintf(pos, endpos - pos, "\nOEM name: %s\n",
-			 dmi_get_system_info(DMI_SYS_VENDOR));
+			 dmi_get_system_info(DMI_SYS_VENDOR) ?: "<unknown>");
 	pos += scnprintf(pos, endpos - pos, "\tVendor In Approved List: %s\n",
-			 iwl_mvm_is_vendor_in_approved_list() ? "YES" : "NO");
+			 iwl_is_tas_approved() ? "YES" : "NO");
 	pos += scnprintf(pos, endpos - pos,
 			 "\tDo TAS Support Dual Radio?: %s\n",
 			 rsp->in_dual_radio ? "TRUE" : "FALSE");

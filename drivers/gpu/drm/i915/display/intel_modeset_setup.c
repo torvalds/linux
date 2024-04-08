@@ -318,12 +318,6 @@ static void intel_modeset_update_connector_atomic_state(struct drm_i915_private 
 			const struct intel_crtc_state *crtc_state =
 				to_intel_crtc_state(crtc->base.state);
 
-			if (crtc_state->dsc.compression_enable) {
-				drm_WARN_ON(&i915->drm, !connector->dp.dsc_decompression_aux);
-				connector->dp.dsc_decompression_enabled = true;
-			} else {
-				connector->dp.dsc_decompression_enabled = false;
-			}
 			conn_state->max_bpc = (crtc_state->pipe_bpp ?: 24) / 3;
 		}
 	}
@@ -775,8 +769,9 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 
 	drm_connector_list_iter_begin(&i915->drm, &conn_iter);
 	for_each_intel_connector_iter(connector, &conn_iter) {
+		struct intel_crtc_state *crtc_state = NULL;
+
 		if (connector->get_hw_state(connector)) {
-			struct intel_crtc_state *crtc_state;
 			struct intel_crtc *crtc;
 
 			connector->base.dpms = DRM_MODE_DPMS_ON;
@@ -802,6 +797,10 @@ static void intel_modeset_readout_hw_state(struct drm_i915_private *i915)
 			connector->base.dpms = DRM_MODE_DPMS_OFF;
 			connector->base.encoder = NULL;
 		}
+
+		if (connector->sync_state)
+			connector->sync_state(connector, crtc_state);
+
 		drm_dbg_kms(&i915->drm,
 			    "[CONNECTOR:%d:%s] hw state readout: %s\n",
 			    connector->base.base.id, connector->base.name,

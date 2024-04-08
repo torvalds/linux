@@ -7,25 +7,24 @@
 #define BTRFS_CTREE_H
 
 #include <linux/pagemap.h>
+#include <linux/spinlock.h>
+#include <linux/rbtree.h>
+#include <linux/mutex.h>
+#include <linux/wait.h>
+#include <linux/list.h>
+#include <linux/atomic.h>
+#include <linux/xarray.h>
+#include <linux/refcount.h>
+#include <uapi/linux/btrfs_tree.h>
 #include "locking.h"
 #include "fs.h"
 #include "accessors.h"
+#include "extent-io-tree.h"
 
+struct extent_buffer;
+struct btrfs_block_rsv;
 struct btrfs_trans_handle;
-struct btrfs_transaction;
-struct btrfs_pending_snapshot;
-struct btrfs_delayed_ref_root;
-struct btrfs_space_info;
 struct btrfs_block_group;
-struct btrfs_ordered_sum;
-struct btrfs_ref;
-struct btrfs_bio;
-struct btrfs_ioctl_encoded_io_args;
-struct btrfs_device;
-struct btrfs_fs_devices;
-struct btrfs_balance_control;
-struct btrfs_delayed_root;
-struct reloc_control;
 
 /* Read ahead values for struct btrfs_path.reada */
 enum {
@@ -478,8 +477,7 @@ static inline gfp_t btrfs_alloc_write_mask(struct address_space *mapping)
 	return mapping_gfp_constraint(mapping, ~__GFP_FS);
 }
 
-int btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info,
-				   u64 start, u64 end);
+void btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info, u64 start, u64 end);
 int btrfs_discard_extent(struct btrfs_fs_info *fs_info, u64 bytenr,
 			 u64 num_bytes, u64 *actual_bytes);
 int btrfs_trim_fs(struct btrfs_fs_info *fs_info, struct fstrim_range *range);

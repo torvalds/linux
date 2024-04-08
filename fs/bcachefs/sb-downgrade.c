@@ -45,7 +45,13 @@
 	  BIT_ULL(BCH_RECOVERY_PASS_check_inodes),		\
 	  BCH_FSCK_ERR_unlinked_inode_not_on_deleted_list)	\
 	x(rebalance_work,					\
-	  BIT_ULL(BCH_RECOVERY_PASS_set_fs_needs_rebalance))
+	  BIT_ULL(BCH_RECOVERY_PASS_set_fs_needs_rebalance))	\
+	x(subvolume_fs_parent,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_dirents),		\
+	  BCH_FSCK_ERR_subvol_fs_path_parent_wrong)		\
+	x(btree_subvolume_children,				\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_subvols),		\
+	  BCH_FSCK_ERR_subvol_children_not_set)
 
 #define DOWNGRADE_TABLE()
 
@@ -253,7 +259,7 @@ void bch2_sb_set_downgrade(struct bch_fs *c, unsigned new_minor, unsigned old_mi
 				if (e < BCH_SB_ERR_MAX)
 					__set_bit(e, c->sb.errors_silent);
 				if (e < sizeof(ext->errors_silent) * 8)
-					ext->errors_silent[e / 64] |= cpu_to_le64(BIT_ULL(e % 64));
+					__set_bit_le64(e, ext->errors_silent);
 			}
 		}
 	}

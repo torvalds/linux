@@ -960,10 +960,10 @@ asmlinkage long sys_cachestat(unsigned int fd,
 		struct cachestat __user *cstat, unsigned int flags);
 asmlinkage long sys_map_shadow_stack(unsigned long addr, unsigned long size, unsigned int flags);
 asmlinkage long sys_lsm_get_self_attr(unsigned int attr, struct lsm_ctx *ctx,
-				      size_t *size, __u32 flags);
+				      u32 *size, u32 flags);
 asmlinkage long sys_lsm_set_self_attr(unsigned int attr, struct lsm_ctx *ctx,
-				      size_t size, __u32 flags);
-asmlinkage long sys_lsm_list_modules(u64 *ids, size_t *size, u32 flags);
+				      u32 size, u32 flags);
+asmlinkage long sys_lsm_list_modules(u64 *ids, u32 *size, u32 flags);
 
 /*
  * Architecture-specific system calls

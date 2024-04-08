@@ -288,7 +288,6 @@ static int dell_privacy_leds_setup(struct device *dev)
 	priv->cdev.max_brightness = 1;
 	priv->cdev.brightness_set_blocking = dell_privacy_micmute_led_set;
 	priv->cdev.default_trigger = "audio-micmute";
-	priv->cdev.brightness = ledtrig_audio_get(LED_AUDIO_MICMUTE);
 	return devm_led_classdev_register(dev, &priv->cdev);
 }
 
@@ -297,10 +296,6 @@ static int dell_privacy_wmi_probe(struct wmi_device *wdev, const void *context)
 	struct privacy_wmi_data *priv;
 	struct key_entry *keymap;
 	int ret, i, j;
-
-	ret = wmi_has_guid(DELL_PRIVACY_GUID);
-	if (!ret)
-		pr_debug("Unable to detect available Dell privacy devices!\n");
 
 	priv = devm_kzalloc(&wdev->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)

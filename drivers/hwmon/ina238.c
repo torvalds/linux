@@ -629,7 +629,6 @@ static const struct of_device_id __maybe_unused ina238_of_match[] = {
 MODULE_DEVICE_TABLE(of, ina238_of_match);
 
 static struct i2c_driver ina238_driver = {
-	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "ina238",
 		.of_match_table = of_match_ptr(ina238_of_match),

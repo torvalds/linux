@@ -351,13 +351,18 @@ void i2c_register_spd(struct i2c_adapter *adap)
 	if (!dimm_count)
 		return;
 
-	dev_info(&adap->dev, "%d/%d memory slots populated (from DMI)\n",
-		 dimm_count, slot_count);
-
-	if (slot_count > 8) {
-		dev_warn(&adap->dev,
-			 "Systems with more than 8 memory slots not supported yet, not instantiating SPD\n");
-		return;
+	/*
+	 * If we're a child adapter on a muxed segment, then limit slots to 8,
+	 * as this is the max number of SPD EEPROMs that can be addressed per bus.
+	 */
+	if (i2c_parent_is_i2c_adapter(adap)) {
+		slot_count = 8;
+	} else {
+		if (slot_count > 8) {
+			dev_warn(&adap->dev,
+				 "More than 8 memory slots on a single bus, contact i801 maintainer to add missing mux config\n");
+			return;
+		}
 	}
 
 	/*

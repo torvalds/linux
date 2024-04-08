@@ -209,8 +209,7 @@ struct amdgpu_ring_funcs {
 	void (*insert_end)(struct amdgpu_ring *ring);
 	/* pad the indirect buffer to the necessary number of dw */
 	void (*pad_ib)(struct amdgpu_ring *ring, struct amdgpu_ib *ib);
-	unsigned (*init_cond_exec)(struct amdgpu_ring *ring);
-	void (*patch_cond_exec)(struct amdgpu_ring *ring, unsigned offset);
+	unsigned (*init_cond_exec)(struct amdgpu_ring *ring, uint64_t addr);
 	/* note usage for clock and power gating */
 	void (*begin_use)(struct amdgpu_ring *ring);
 	void (*end_use)(struct amdgpu_ring *ring);
@@ -286,6 +285,9 @@ struct amdgpu_ring {
 	unsigned		cond_exe_offs;
 	u64			cond_exe_gpu_addr;
 	volatile u32		*cond_exe_cpu_addr;
+	unsigned int		set_q_mode_offs;
+	volatile u32		*set_q_mode_ptr;
+	u64			set_q_mode_token;
 	unsigned		vm_hub;
 	unsigned		vm_inv_eng;
 	struct dma_fence	*vmid_wait;
@@ -327,8 +329,7 @@ struct amdgpu_ring {
 #define amdgpu_ring_emit_reg_write_reg_wait(r, d0, d1, v, m) (r)->funcs->emit_reg_write_reg_wait((r), (d0), (d1), (v), (m))
 #define amdgpu_ring_emit_frame_cntl(r, b, s) (r)->funcs->emit_frame_cntl((r), (b), (s))
 #define amdgpu_ring_pad_ib(r, ib) ((r)->funcs->pad_ib((r), (ib)))
-#define amdgpu_ring_init_cond_exec(r) (r)->funcs->init_cond_exec((r))
-#define amdgpu_ring_patch_cond_exec(r,o) (r)->funcs->patch_cond_exec((r),(o))
+#define amdgpu_ring_init_cond_exec(r, a) (r)->funcs->init_cond_exec((r), (a))
 #define amdgpu_ring_preempt_ib(r) (r)->funcs->preempt_ib(r)
 #define amdgpu_ring_patch_cntl(r, o) ((r)->funcs->patch_cntl((r), (o)))
 #define amdgpu_ring_patch_ce(r, o) ((r)->funcs->patch_ce((r), (o)))
@@ -409,6 +410,30 @@ static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring,
 	ring->wptr += count_dw;
 	ring->wptr &= ring->ptr_mask;
 	ring->count_dw -= count_dw;
+}
+
+/**
+ * amdgpu_ring_patch_cond_exec - patch dw count of conditional execute
+ * @ring: amdgpu_ring structure
+ * @offset: offset returned by amdgpu_ring_init_cond_exec
+ *
+ * Calculate the dw count and patch it into a cond_exec command.
+ */
+static inline void amdgpu_ring_patch_cond_exec(struct amdgpu_ring *ring,
+					       unsigned int offset)
+{
+	unsigned cur;
+
+	if (!ring->funcs->init_cond_exec)
+		return;
+
+	WARN_ON(offset > ring->buf_mask);
+	WARN_ON(ring->ring[offset] != 0);
+
+	cur = (ring->wptr - 1) & ring->buf_mask;
+	if (cur < offset)
+		cur += ring->ring_size >> 2;
+	ring->ring[offset] = cur - offset;
 }
 
 #define amdgpu_mes_ctx_get_offs_gpu_addr(ring, offset)			\

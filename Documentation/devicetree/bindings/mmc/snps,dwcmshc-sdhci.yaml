@@ -19,6 +19,8 @@ properties:
       - rockchip,rk3568-dwcmshc
       - rockchip,rk3588-dwcmshc
       - snps,dwcmshc-sdhci
+      - sophgo,cv1800b-dwcmshc
+      - sophgo,sg2002-dwcmshc
       - thead,th1520-dwcmshc
 
   reg:

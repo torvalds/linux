@@ -11,6 +11,8 @@ if [[ $(id -u) -ne 0 ]]; then
   exit $ksft_skip
 fi
 
+nr_hugepgs=$(cat /proc/sys/vm/nr_hugepages)
+
 fault_limit_file=limit_in_bytes
 reservation_limit_file=rsvd.limit_in_bytes
 fault_usage_file=usage_in_bytes
@@ -582,3 +584,5 @@ if [[ $do_umount ]]; then
   umount $cgroup_path
   rmdir $cgroup_path
 fi
+
+echo "$nr_hugepgs" > /proc/sys/vm/nr_hugepages

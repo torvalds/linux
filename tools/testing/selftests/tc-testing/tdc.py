@@ -541,7 +541,7 @@ def test_runner(pm, args, filtered_tests):
             message = pmtf.message
             output = pmtf.output
             res = TestResult(tidx['id'], tidx['name'])
-            res.set_result(ResultState.skip)
+            res.set_result(ResultState.fail)
             res.set_errormsg(pmtf.message)
             res.set_failmsg(pmtf.output)
             tsr.add_resultdata(res)

@@ -2,6 +2,7 @@ perf-y += header.o
 perf-$(CONFIG_LIBTRACEEVENT) += kvm-stat.o
 perf-y += perf_regs.o
 perf-y += mem-events.o
+perf-y += pmu.o
 perf-y += sym-handling.o
 perf-y += evsel.o
 perf-y += event.o

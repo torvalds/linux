@@ -311,72 +311,102 @@ static int genpd_xlate_performance_state(struct generic_pm_domain *genpd,
 }
 
 static int _genpd_set_performance_state(struct generic_pm_domain *genpd,
+					unsigned int state, int depth);
+
+static void _genpd_rollback_parent_state(struct gpd_link *link, int depth)
+{
+	struct generic_pm_domain *parent = link->parent;
+	int parent_state;
+
+	genpd_lock_nested(parent, depth + 1);
+
+	parent_state = link->prev_performance_state;
+	link->performance_state = parent_state;
+
+	parent_state = _genpd_reeval_performance_state(parent, parent_state);
+	if (_genpd_set_performance_state(parent, parent_state, depth + 1)) {
+		pr_err("%s: Failed to roll back to %d performance state\n",
+		       parent->name, parent_state);
+	}
+
+	genpd_unlock(parent);
+}
+
+static int _genpd_set_parent_state(struct generic_pm_domain *genpd,
+				   struct gpd_link *link,
+				   unsigned int state, int depth)
+{
+	struct generic_pm_domain *parent = link->parent;
+	int parent_state, ret;
+
+	/* Find parent's performance state */
+	ret = genpd_xlate_performance_state(genpd, parent, state);
+	if (unlikely(ret < 0))
+		return ret;
+
+	parent_state = ret;
+
+	genpd_lock_nested(parent, depth + 1);
+
+	link->prev_performance_state = link->performance_state;
+	link->performance_state = parent_state;
+
+	parent_state = _genpd_reeval_performance_state(parent, parent_state);
+	ret = _genpd_set_performance_state(parent, parent_state, depth + 1);
+	if (ret)
+		link->performance_state = link->prev_performance_state;
+
+	genpd_unlock(parent);
+
+	return ret;
+}
+
+static int _genpd_set_performance_state(struct generic_pm_domain *genpd,
 					unsigned int state, int depth)
 {
-	struct generic_pm_domain *parent;
-	struct gpd_link *link;
-	int parent_state, ret;
+	struct gpd_link *link = NULL;
+	int ret;
 
 	if (state == genpd->performance_state)
 		return 0;
 
-	/* Propagate to parents of genpd */
-	list_for_each_entry(link, &genpd->child_links, child_node) {
-		parent = link->parent;
-
-		/* Find parent's performance state */
-		ret = genpd_xlate_performance_state(genpd, parent, state);
-		if (unlikely(ret < 0))
-			goto err;
-
-		parent_state = ret;
-
-		genpd_lock_nested(parent, depth + 1);
-
-		link->prev_performance_state = link->performance_state;
-		link->performance_state = parent_state;
-		parent_state = _genpd_reeval_performance_state(parent,
-						parent_state);
-		ret = _genpd_set_performance_state(parent, parent_state, depth + 1);
-		if (ret)
-			link->performance_state = link->prev_performance_state;
-
-		genpd_unlock(parent);
-
-		if (ret)
-			goto err;
+	/* When scaling up, propagate to parents first in normal order */
+	if (state > genpd->performance_state) {
+		list_for_each_entry(link, &genpd->child_links, child_node) {
+			ret = _genpd_set_parent_state(genpd, link, state, depth);
+			if (ret)
+				goto rollback_parents_up;
+		}
 	}
 
 	if (genpd->set_performance_state) {
 		ret = genpd->set_performance_state(genpd, state);
-		if (ret)
-			goto err;
+		if (ret) {
+			if (link)
+				goto rollback_parents_up;
+			return ret;
+		}
+	}
+
+	/* When scaling down, propagate to parents last in reverse order */
+	if (state < genpd->performance_state) {
+		list_for_each_entry_reverse(link, &genpd->child_links, child_node) {
+			ret = _genpd_set_parent_state(genpd, link, state, depth);
+			if (ret)
+				goto rollback_parents_down;
+		}
 	}
 
 	genpd->performance_state = state;
 	return 0;
 
-err:
-	/* Encountered an error, lets rollback */
-	list_for_each_entry_continue_reverse(link, &genpd->child_links,
-					     child_node) {
-		parent = link->parent;
-
-		genpd_lock_nested(parent, depth + 1);
-
-		parent_state = link->prev_performance_state;
-		link->performance_state = parent_state;
-
-		parent_state = _genpd_reeval_performance_state(parent,
-						parent_state);
-		if (_genpd_set_performance_state(parent, parent_state, depth + 1)) {
-			pr_err("%s: Failed to roll back to %d performance state\n",
-			       parent->name, parent_state);
-		}
-
-		genpd_unlock(parent);
-	}
-
+rollback_parents_up:
+	list_for_each_entry_continue_reverse(link, &genpd->child_links, child_node)
+		_genpd_rollback_parent_state(link, depth);
+	return ret;
+rollback_parents_down:
+	list_for_each_entry_continue(link, &genpd->child_links, child_node)
+		_genpd_rollback_parent_state(link, depth);
 	return ret;
 }
 
@@ -1100,6 +1130,7 @@ static int __init genpd_power_off_unused(void)
 		return 0;
 	}
 
+	pr_info("genpd: Disabling unused power domains\n");
 	mutex_lock(&gpd_list_lock);
 
 	list_for_each_entry(genpd, &gpd_list, gpd_list_node)
@@ -2235,7 +2266,7 @@ static DEFINE_MUTEX(of_genpd_mutex);
  * to be a valid pointer to struct generic_pm_domain.
  */
 static struct generic_pm_domain *genpd_xlate_simple(
-					struct of_phandle_args *genpdspec,
+					const struct of_phandle_args *genpdspec,
 					void *data)
 {
 	return data;
@@ -2252,7 +2283,7 @@ static struct generic_pm_domain *genpd_xlate_simple(
  * the genpd_onecell_data struct when registering the provider.
  */
 static struct generic_pm_domain *genpd_xlate_onecell(
-					struct of_phandle_args *genpdspec,
+					const struct of_phandle_args *genpdspec,
 					void *data)
 {
 	struct genpd_onecell_data *genpd_data = data;
@@ -2495,7 +2526,7 @@ EXPORT_SYMBOL_GPL(of_genpd_del_provider);
  * on failure.
  */
 static struct generic_pm_domain *genpd_get_from_provider(
-					struct of_phandle_args *genpdspec)
+					const struct of_phandle_args *genpdspec)
 {
 	struct generic_pm_domain *genpd = ERR_PTR(-ENOENT);
 	struct of_genpd_provider *provider;
@@ -2526,7 +2557,7 @@ static struct generic_pm_domain *genpd_get_from_provider(
  * Looks-up an I/O PM domain based upon phandle args provided and adds
  * the device to the PM domain. Returns a negative error code on failure.
  */
-int of_genpd_add_device(struct of_phandle_args *genpdspec, struct device *dev)
+int of_genpd_add_device(const struct of_phandle_args *genpdspec, struct device *dev)
 {
 	struct generic_pm_domain *genpd;
 	int ret;
@@ -2560,8 +2591,8 @@ EXPORT_SYMBOL_GPL(of_genpd_add_device);
  * provided and adds the subdomain to the parent PM domain. Returns a
  * negative error code on failure.
  */
-int of_genpd_add_subdomain(struct of_phandle_args *parent_spec,
-			   struct of_phandle_args *subdomain_spec)
+int of_genpd_add_subdomain(const struct of_phandle_args *parent_spec,
+			   const struct of_phandle_args *subdomain_spec)
 {
 	struct generic_pm_domain *parent, *subdomain;
 	int ret;
@@ -2598,8 +2629,8 @@ EXPORT_SYMBOL_GPL(of_genpd_add_subdomain);
  * provided and removes the subdomain from the parent PM domain. Returns a
  * negative error code on failure.
  */
-int of_genpd_remove_subdomain(struct of_phandle_args *parent_spec,
-			      struct of_phandle_args *subdomain_spec)
+int of_genpd_remove_subdomain(const struct of_phandle_args *parent_spec,
+			      const struct of_phandle_args *subdomain_spec)
 {
 	struct generic_pm_domain *parent, *subdomain;
 	int ret;

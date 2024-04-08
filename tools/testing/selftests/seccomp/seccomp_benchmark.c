@@ -4,7 +4,9 @@
  */
 #define _GNU_SOURCE
 #include <assert.h>
+#include <err.h>
 #include <limits.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -76,8 +78,12 @@ unsigned long long calibrate(void)
 
 bool approx(int i_one, int i_two)
 {
-	double one = i_one, one_bump = one * 0.01;
-	double two = i_two, two_bump = two * 0.01;
+	/*
+	 * This continues to be a noisy test. Instead of a 1% comparison
+	 * go with 10%.
+	 */
+	double one = i_one, one_bump = one * 0.1;
+	double two = i_two, two_bump = two * 0.1;
 
 	one_bump = one + MAX(one_bump, 2.0);
 	two_bump = two + MAX(two_bump, 2.0);
@@ -131,6 +137,32 @@ out:
 	return good ? 0 : 1;
 }
 
+/* Pin to a single CPU so the benchmark won't bounce around the system. */
+void affinity(void)
+{
+	long cpu;
+	ulong ncores = sysconf(_SC_NPROCESSORS_CONF);
+	cpu_set_t *setp = CPU_ALLOC(ncores);
+	ulong setsz = CPU_ALLOC_SIZE(ncores);
+
+	/*
+	 * Totally unscientific way to avoid CPUs that might be busier:
+	 * choose the highest CPU instead of the lowest.
+	 */
+	for (cpu = ncores - 1; cpu >= 0; cpu--) {
+		CPU_ZERO_S(setsz, setp);
+		CPU_SET_S(cpu, setsz, setp);
+		if (sched_setaffinity(getpid(), setsz, setp) == -1)
+			continue;
+		printf("Pinned to CPU %lu of %lu\n", cpu + 1, ncores);
+		goto out;
+	}
+	fprintf(stderr, "Could not set CPU affinity -- calibration may not work well");
+
+out:
+	CPU_FREE(setp);
+}
+
 int main(int argc, char *argv[])
 {
 	struct sock_filter bitmap_filter[] = {
@@ -171,6 +203,8 @@ int main(int argc, char *argv[])
 	system("grep -H . /proc/sys/net/core/bpf_jit_enable");
 	ksft_print_msg("");
 	system("grep -H . /proc/sys/net/core/bpf_jit_harden");
+
+	affinity();
 
 	if (argc > 1)
 		samples = strtoull(argv[1], NULL, 0);

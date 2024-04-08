@@ -87,12 +87,20 @@ properties:
           - const: tq,am642-tqma6442l
           - const: ti,am642
 
+      - description: K3 AM642 SoC SolidRun SoM based boards
+        items:
+          - enum:
+              - solidrun,am642-hummingboard-t
+          - const: solidrun,am642-sr-som
+          - const: ti,am642
+
       - description: K3 AM654 SoC
         items:
           - enum:
               - siemens,iot2050-advanced
               - siemens,iot2050-advanced-m2
               - siemens,iot2050-advanced-pg2
+              - siemens,iot2050-advanced-sm
               - siemens,iot2050-basic
               - siemens,iot2050-basic-pg2
               - ti,am654-evm
@@ -122,6 +130,12 @@ properties:
               - ti,am68-sk
               - ti,j721s2-evm
           - const: ti,j721s2
+
+      - description: K3 J722S SoC and Boards
+        items:
+          - enum:
+              - ti,j722s-evm
+          - const: ti,j722s
 
       - description: K3 J784s4 SoC
         items:

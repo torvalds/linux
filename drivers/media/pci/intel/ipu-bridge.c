@@ -2,6 +2,7 @@
 /* Author: Dan Scally <djrscally@gmail.com> */
 
 #include <linux/acpi.h>
+#include <linux/cleanup.h>
 #include <linux/device.h>
 #include <linux/i2c.h>
 #include <linux/mei_cl_bus.h>
@@ -60,6 +61,8 @@ static const struct ipu_sensor_config ipu_supported_sensors[] = {
 	IPU_SENSOR_CONFIG("OVTIDB10", 1, 560000000),
 	/* GalaxyCore GC0310 */
 	IPU_SENSOR_CONFIG("INT0310", 0),
+	/* Omnivision ov01a10 */
+	IPU_SENSOR_CONFIG("OVTI01A0", 1, 400000000),
 };
 
 static const struct ipu_property_names prop_names = {
@@ -747,6 +750,24 @@ static int ipu_bridge_ivsc_is_ready(void)
 	return ready;
 }
 
+static int ipu_bridge_check_fwnode_graph(struct fwnode_handle *fwnode)
+{
+	struct fwnode_handle *endpoint;
+
+	if (IS_ERR_OR_NULL(fwnode))
+		return -EINVAL;
+
+	endpoint = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	if (endpoint) {
+		fwnode_handle_put(endpoint);
+		return 0;
+	}
+
+	return ipu_bridge_check_fwnode_graph(fwnode->secondary);
+}
+
+static DEFINE_MUTEX(ipu_bridge_mutex);
+
 int ipu_bridge_init(struct device *dev,
 		    ipu_parse_sensor_fwnode_t parse_sensor_fwnode)
 {
@@ -754,6 +775,11 @@ int ipu_bridge_init(struct device *dev,
 	struct ipu_bridge *bridge;
 	unsigned int i;
 	int ret;
+
+	guard(mutex)(&ipu_bridge_mutex);
+
+	if (!ipu_bridge_check_fwnode_graph(dev_fwnode(dev)))
+		return 0;
 
 	if (!ipu_bridge_ivsc_is_ready())
 		return -EPROBE_DEFER;

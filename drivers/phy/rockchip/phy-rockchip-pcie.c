@@ -82,7 +82,7 @@ static struct rockchip_pcie_phy *to_pcie_phy(struct phy_pcie_instance *inst)
 }
 
 static struct phy *rockchip_pcie_phy_of_xlate(struct device *dev,
-					      struct of_phandle_args *args)
+					      const struct of_phandle_args *args)
 {
 	struct rockchip_pcie_phy *rk_phy = dev_get_drvdata(dev);
 

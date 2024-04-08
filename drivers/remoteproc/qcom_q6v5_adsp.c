@@ -55,8 +55,6 @@
 #define QDSP6SS_CORE_CBCR	0x20
 #define QDSP6SS_SLEEP_CBCR	0x3c
 
-#define QCOM_Q6V5_RPROC_PROXY_PD_MAX	3
-
 #define LPASS_BOOT_CORE_START	BIT(0)
 #define LPASS_BOOT_CMD_START	BIT(0)
 #define LPASS_EFUSE_Q6SS_EVB_SEL 0x0
@@ -74,7 +72,8 @@ struct adsp_pil_data {
 
 	const char **clk_ids;
 	int num_clks;
-	const char **proxy_pd_names;
+	const char **pd_names;
+	unsigned int num_pds;
 	const char *load_state;
 };
 
@@ -110,8 +109,7 @@ struct qcom_adsp {
 	size_t mem_size;
 	bool has_iommu;
 
-	struct device *proxy_pds[QCOM_Q6V5_RPROC_PROXY_PD_MAX];
-	size_t proxy_pd_count;
+	struct dev_pm_domain_list *pd_list;
 
 	struct qcom_rproc_glink glink_subdev;
 	struct qcom_rproc_ssr ssr_subdev;
@@ -120,98 +118,92 @@ struct qcom_adsp {
 	int (*shutdown)(struct qcom_adsp *adsp);
 };
 
-static int qcom_rproc_pds_attach(struct device *dev, struct qcom_adsp *adsp,
-				 const char **pd_names)
+static int qcom_rproc_pds_attach(struct qcom_adsp *adsp, const char **pd_names,
+				 unsigned int num_pds)
 {
-	struct device **devs = adsp->proxy_pds;
-	size_t num_pds = 0;
+	struct device *dev = adsp->dev;
+	struct dev_pm_domain_attach_data pd_data = {
+		.pd_names = pd_names,
+		.num_pd_names = num_pds,
+	};
 	int ret;
-	int i;
+
+	/* Handle single power domain */
+	if (dev->pm_domain)
+		goto out;
 
 	if (!pd_names)
 		return 0;
 
-	/* Handle single power domain */
-	if (dev->pm_domain) {
-		devs[0] = dev;
-		pm_runtime_enable(dev);
-		return 1;
-	}
+	ret = dev_pm_domain_attach_list(dev, &pd_data, &adsp->pd_list);
+	if (ret < 0)
+		return ret;
 
-	while (pd_names[num_pds])
-		num_pds++;
-
-	if (num_pds > ARRAY_SIZE(adsp->proxy_pds))
-		return -E2BIG;
-
-	for (i = 0; i < num_pds; i++) {
-		devs[i] = dev_pm_domain_attach_by_name(dev, pd_names[i]);
-		if (IS_ERR_OR_NULL(devs[i])) {
-			ret = PTR_ERR(devs[i]) ? : -ENODATA;
-			goto unroll_attach;
-		}
-	}
-
-	return num_pds;
-
-unroll_attach:
-	for (i--; i >= 0; i--)
-		dev_pm_domain_detach(devs[i], false);
-
-	return ret;
+out:
+	pm_runtime_enable(dev);
+	return 0;
 }
 
-static void qcom_rproc_pds_detach(struct qcom_adsp *adsp, struct device **pds,
-				  size_t pd_count)
+static void qcom_rproc_pds_detach(struct qcom_adsp *adsp)
 {
 	struct device *dev = adsp->dev;
-	int i;
+	struct dev_pm_domain_list *pds = adsp->pd_list;
 
-	/* Handle single power domain */
-	if (dev->pm_domain && pd_count) {
-		pm_runtime_disable(dev);
-		return;
-	}
+	dev_pm_domain_detach_list(pds);
 
-	for (i = 0; i < pd_count; i++)
-		dev_pm_domain_detach(pds[i], false);
+	if (dev->pm_domain || pds)
+		pm_runtime_disable(adsp->dev);
 }
 
-static int qcom_rproc_pds_enable(struct qcom_adsp *adsp, struct device **pds,
-				 size_t pd_count)
+static int qcom_rproc_pds_enable(struct qcom_adsp *adsp)
 {
-	int ret;
-	int i;
+	struct device *dev = adsp->dev;
+	struct dev_pm_domain_list *pds = adsp->pd_list;
+	int ret, i = 0;
 
-	for (i = 0; i < pd_count; i++) {
-		dev_pm_genpd_set_performance_state(pds[i], INT_MAX);
-		ret = pm_runtime_resume_and_get(pds[i]);
-		if (ret < 0) {
-			dev_pm_genpd_set_performance_state(pds[i], 0);
-			goto unroll_pd_votes;
-		}
+	if (!dev->pm_domain && !pds)
+		return 0;
+
+	if (dev->pm_domain)
+		dev_pm_genpd_set_performance_state(dev, INT_MAX);
+
+	while (pds && i < pds->num_pds) {
+		dev_pm_genpd_set_performance_state(pds->pd_devs[i], INT_MAX);
+		i++;
 	}
 
-	return 0;
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0) {
+		while (pds && i > 0) {
+			i--;
+			dev_pm_genpd_set_performance_state(pds->pd_devs[i], 0);
+		}
 
-unroll_pd_votes:
-	for (i--; i >= 0; i--) {
-		dev_pm_genpd_set_performance_state(pds[i], 0);
-		pm_runtime_put(pds[i]);
+		if (dev->pm_domain)
+			dev_pm_genpd_set_performance_state(dev, 0);
 	}
 
 	return ret;
 }
 
-static void qcom_rproc_pds_disable(struct qcom_adsp *adsp, struct device **pds,
-				   size_t pd_count)
+static void qcom_rproc_pds_disable(struct qcom_adsp *adsp)
 {
-	int i;
+	struct device *dev = adsp->dev;
+	struct dev_pm_domain_list *pds = adsp->pd_list;
+	int i = 0;
 
-	for (i = 0; i < pd_count; i++) {
-		dev_pm_genpd_set_performance_state(pds[i], 0);
-		pm_runtime_put(pds[i]);
+	if (!dev->pm_domain && !pds)
+		return;
+
+	if (dev->pm_domain)
+		dev_pm_genpd_set_performance_state(dev, 0);
+
+	while (pds && i < pds->num_pds) {
+		dev_pm_genpd_set_performance_state(pds->pd_devs[i], 0);
+		i++;
 	}
+
+	pm_runtime_put(dev);
 }
 
 static int qcom_wpss_shutdown(struct qcom_adsp *adsp)
@@ -397,8 +389,7 @@ static int adsp_start(struct rproc *rproc)
 	if (ret)
 		goto adsp_smmu_unmap;
 
-	ret = qcom_rproc_pds_enable(adsp, adsp->proxy_pds,
-				    adsp->proxy_pd_count);
+	ret = qcom_rproc_pds_enable(adsp);
 	if (ret < 0)
 		goto disable_xo_clk;
 
@@ -448,7 +439,7 @@ static int adsp_start(struct rproc *rproc)
 disable_adsp_clks:
 	clk_bulk_disable_unprepare(adsp->num_clks, adsp->clks);
 disable_power_domain:
-	qcom_rproc_pds_disable(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
+	qcom_rproc_pds_disable(adsp);
 disable_xo_clk:
 	clk_disable_unprepare(adsp->xo);
 adsp_smmu_unmap:
@@ -464,7 +455,7 @@ static void qcom_adsp_pil_handover(struct qcom_q6v5 *q6v5)
 	struct qcom_adsp *adsp = container_of(q6v5, struct qcom_adsp, q6v5);
 
 	clk_disable_unprepare(adsp->xo);
-	qcom_rproc_pds_disable(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
+	qcom_rproc_pds_disable(adsp);
 }
 
 static int adsp_stop(struct rproc *rproc)
@@ -683,8 +674,8 @@ static int adsp_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rproc = rproc_alloc(&pdev->dev, pdev->name, &adsp_ops,
-			    firmware_name, sizeof(*adsp));
+	rproc = devm_rproc_alloc(&pdev->dev, pdev->name, &adsp_ops,
+				 firmware_name, sizeof(*adsp));
 	if (!rproc) {
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
 		return -ENOMEM;
@@ -709,19 +700,17 @@ static int adsp_probe(struct platform_device *pdev)
 
 	ret = adsp_alloc_memory_region(adsp);
 	if (ret)
-		goto free_rproc;
+		return ret;
 
 	ret = adsp_init_clock(adsp, desc->clk_ids);
 	if (ret)
-		goto free_rproc;
+		return ret;
 
-	ret = qcom_rproc_pds_attach(adsp->dev, adsp,
-				    desc->proxy_pd_names);
+	ret = qcom_rproc_pds_attach(adsp, desc->pd_names, desc->num_pds);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "Failed to attach proxy power domains\n");
-		goto free_rproc;
+		return ret;
 	}
-	adsp->proxy_pd_count = ret;
 
 	ret = adsp_init_reset(adsp);
 	if (ret)
@@ -753,10 +742,7 @@ static int adsp_probe(struct platform_device *pdev)
 	return 0;
 
 disable_pm:
-	qcom_rproc_pds_detach(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
-
-free_rproc:
-	rproc_free(rproc);
+	qcom_rproc_pds_detach(adsp);
 
 	return ret;
 }
@@ -771,8 +757,7 @@ static void adsp_remove(struct platform_device *pdev)
 	qcom_remove_glink_subdev(adsp->rproc, &adsp->glink_subdev);
 	qcom_remove_sysmon_subdev(adsp->sysmon);
 	qcom_remove_ssr_subdev(adsp->rproc, &adsp->ssr_subdev);
-	qcom_rproc_pds_detach(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
-	rproc_free(adsp->rproc);
+	qcom_rproc_pds_detach(adsp);
 }
 
 static const struct adsp_pil_data adsp_resource_init = {
@@ -788,9 +773,8 @@ static const struct adsp_pil_data adsp_resource_init = {
 		"qdsp6ss_xo", "qdsp6ss_sleep", "qdsp6ss_core", NULL
 	},
 	.num_clks = 7,
-	.proxy_pd_names = (const char*[]) {
-		"cx", NULL
-	},
+	.pd_names = (const char*[]) { "cx" },
+	.num_pds = 1,
 };
 
 static const struct adsp_pil_data adsp_sc7280_resource_init = {
@@ -821,9 +805,8 @@ static const struct adsp_pil_data cdsp_resource_init = {
 		"q6_axim", NULL
 	},
 	.num_clks = 7,
-	.proxy_pd_names = (const char*[]) {
-		"cx", NULL
-	},
+	.pd_names = (const char*[]) { "cx" },
+	.num_pds = 1,
 };
 
 static const struct adsp_pil_data wpss_resource_init = {
@@ -839,9 +822,8 @@ static const struct adsp_pil_data wpss_resource_init = {
 		"ahb_bdg", "ahb", "rscp", NULL
 	},
 	.num_clks = 3,
-	.proxy_pd_names = (const char*[]) {
-		"cx", "mx", NULL
-	},
+	.pd_names = (const char*[]) { "cx", "mx" },
+	.num_pds = 2,
 };
 
 static const struct of_device_id adsp_of_match[] = {

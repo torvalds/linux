@@ -11,7 +11,7 @@ $defs:
     minimum: 0
   len-or-define:
     type: [ string, integer ]
-    pattern: ^[0-9A-Za-z_]+( - 1)?$
+    pattern: ^[0-9A-Za-z_-]+( - 1)?$
     minimum: 0
   len-or-limit:
     # literal int or limit based on fixed-width type e.g. u8-min, u16-max, etc.
@@ -328,3 +328,22 @@ properties:
                 The name for the group, used to form the define and the value of the define.
               type: string
             flags: *cmd_flags
+
+  kernel-family:
+    description: Additional global attributes used for kernel C code generation.
+    type: object
+    additionalProperties: False
+    properties:
+      headers:
+        description: |
+          List of extra headers which should be included in the source
+          of the generated code.
+        type: array
+        items:
+          type: string
+      sock-priv:
+        description: |
+          Literal name of the type which is used within the kernel
+          to store the socket state. The type / structure is internal
+          to the kernel, and is not defined in the spec.
+        type: string

@@ -434,7 +434,7 @@ static int xilinx_spi_probe(struct platform_device *pdev)
 
 	xspi = spi_controller_get_devdata(host);
 	xspi->cs_inactive = 0xffffffff;
-	xspi->bitbang.master = host;
+	xspi->bitbang.ctlr = host;
 	xspi->bitbang.chipselect = xilinx_spi_chipselect;
 	xspi->bitbang.setup_transfer = xilinx_spi_setup_transfer;
 	xspi->bitbang.txrx_bufs = xilinx_spi_txrx_bufs;
@@ -516,7 +516,7 @@ static void xilinx_spi_remove(struct platform_device *pdev)
 	/* Disable the global IPIF interrupt */
 	xspi->write_fn(0, regs_base + XIPIF_V123B_DGIER_OFFSET);
 
-	spi_controller_put(xspi->bitbang.master);
+	spi_controller_put(xspi->bitbang.ctlr);
 }
 
 /* work with hotplug and coldplug */

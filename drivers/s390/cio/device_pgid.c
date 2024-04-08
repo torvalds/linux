@@ -141,7 +141,7 @@ static void spid_build_cp(struct ccw_device *cdev, u8 fn)
 
 	pgid->inf.fc	= fn;
 	cp->cmd_code	= CCW_CMD_SET_PGID;
-	cp->cda		= (u32)virt_to_phys(pgid);
+	cp->cda		= virt_to_dma32(pgid);
 	cp->count	= sizeof(*pgid);
 	cp->flags	= CCW_FLAG_SLI;
 	req->cp		= cp;
@@ -442,7 +442,7 @@ static void snid_build_cp(struct ccw_device *cdev)
 
 	/* Channel program setup. */
 	cp->cmd_code	= CCW_CMD_SENSE_PGID;
-	cp->cda		= (u32)virt_to_phys(&cdev->private->dma_area->pgid[i]);
+	cp->cda		= virt_to_dma32(&cdev->private->dma_area->pgid[i]);
 	cp->count	= sizeof(struct pgid);
 	cp->flags	= CCW_FLAG_SLI;
 	req->cp		= cp;
@@ -632,11 +632,11 @@ static void stlck_build_cp(struct ccw_device *cdev, void *buf1, void *buf2)
 	struct ccw1 *cp = cdev->private->dma_area->iccws;
 
 	cp[0].cmd_code = CCW_CMD_STLCK;
-	cp[0].cda = (u32)virt_to_phys(buf1);
+	cp[0].cda = virt_to_dma32(buf1);
 	cp[0].count = 32;
 	cp[0].flags = CCW_FLAG_CC;
 	cp[1].cmd_code = CCW_CMD_RELEASE;
-	cp[1].cda = (u32)virt_to_phys(buf2);
+	cp[1].cda = virt_to_dma32(buf2);
 	cp[1].count = 32;
 	cp[1].flags = 0;
 	req->cp = cp;

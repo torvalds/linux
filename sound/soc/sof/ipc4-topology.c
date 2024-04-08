@@ -509,6 +509,7 @@ static int sof_ipc4_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 {
 	struct sof_ipc4_available_audio_format *available_fmt;
 	struct snd_soc_component *scomp = swidget->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_sof_dai *dai = swidget->private;
 	struct sof_ipc4_copier *ipc4_copier;
 	struct snd_sof_widget *pipe_widget;
@@ -548,14 +549,16 @@ static int sof_ipc4_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 	dev_dbg(scomp->dev, "dai %s node_type %u dai_type %u dai_index %d\n", swidget->widget->name,
 		node_type, ipc4_copier->dai_type, ipc4_copier->dai_index);
 
+	dai->type = ipc4_copier->dai_type;
 	ipc4_copier->data.gtw_cfg.node_id = SOF_IPC4_NODE_TYPE(node_type);
 
 	pipe_widget = swidget->spipe->pipe_widget;
 	pipeline = pipe_widget->private;
-	if (pipeline->use_chain_dma && ipc4_copier->dai_type != SOF_DAI_INTEL_HDA) {
-		dev_err(scomp->dev,
-			"Bad DAI type '%d', Chained DMA is only supported by HDA DAIs (%d).\n",
-			ipc4_copier->dai_type, SOF_DAI_INTEL_HDA);
+
+	if (pipeline->use_chain_dma &&
+	    !snd_sof_is_chain_dma_supported(sdev, ipc4_copier->dai_type)) {
+		dev_err(scomp->dev, "Bad DAI type '%d', Chain DMA is not supported\n",
+			ipc4_copier->dai_type);
 		ret = -ENODEV;
 		goto free_available_fmt;
 	}
@@ -598,7 +601,11 @@ static int sof_ipc4_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 		}
 
 		ipc4_copier->copier_config = (uint32_t *)blob;
-		ipc4_copier->data.gtw_cfg.config_length = sizeof(*blob) >> 2;
+		/* set data.gtw_cfg.config_length based on device_count */
+		ipc4_copier->data.gtw_cfg.config_length = (sizeof(blob->gw_attr) +
+							   sizeof(blob->alh_cfg.device_count) +
+							   sizeof(*blob->alh_cfg.mapping) *
+							   blob->alh_cfg.device_count) >> 2;
 		break;
 	}
 	case SOF_DAI_INTEL_SSP:
@@ -2796,13 +2803,14 @@ static int sof_ipc4_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *
 	if (!data)
 		return 0;
 
+	if (pipeline->use_chain_dma) {
+		pipeline->msg.primary &= ~SOF_IPC4_GLB_CHAIN_DMA_LINK_ID_MASK;
+		pipeline->msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_LINK_ID(data->dai_data);
+		return 0;
+	}
+
 	switch (ipc4_copier->dai_type) {
 	case SOF_DAI_INTEL_HDA:
-		if (pipeline->use_chain_dma) {
-			pipeline->msg.primary &= ~SOF_IPC4_GLB_CHAIN_DMA_LINK_ID_MASK;
-			pipeline->msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_LINK_ID(data->dai_data);
-			break;
-		}
 		gtw_attr = ipc4_copier->gtw_attr;
 		gtw_attr->lp_buffer_alloc = pipeline->lp_mode;
 		fallthrough;

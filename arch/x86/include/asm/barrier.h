@@ -33,7 +33,7 @@
  * Returns:
  *     0 - (index < size)
  */
-static inline unsigned long array_index_mask_nospec(unsigned long index,
+static __always_inline unsigned long array_index_mask_nospec(unsigned long index,
 		unsigned long size)
 {
 	unsigned long mask;

@@ -3773,6 +3773,7 @@ static int pci_probe(struct pci_dev *dev,
 	return 0;
 
  fail_msi:
+	devm_free_irq(&dev->dev, dev->irq, ohci);
 	pci_disable_msi(dev);
 
 	return err;
@@ -3800,6 +3801,7 @@ static void pci_remove(struct pci_dev *dev)
 
 	software_reset(ohci);
 
+	devm_free_irq(&dev->dev, dev->irq, ohci);
 	pci_disable_msi(dev);
 
 	dev_notice(&dev->dev, "removing fw-ohci device\n");

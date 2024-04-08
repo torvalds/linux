@@ -59,12 +59,15 @@ extern char _head[], _end[];
 /* misc.c */
 extern memptr free_mem_ptr;
 extern memptr free_mem_end_ptr;
+extern int spurious_nmi_count;
 void *malloc(int size);
 void free(void *where);
 void __putstr(const char *s);
 void __puthex(unsigned long value);
+void __putdec(unsigned long value);
 #define error_putstr(__x)  __putstr(__x)
 #define error_puthex(__x)  __puthex(__x)
+#define error_putdec(__x)  __putdec(__x)
 
 #ifdef CONFIG_X86_VERBOSE_BOOTUP
 

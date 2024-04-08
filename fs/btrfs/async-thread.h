@@ -7,11 +7,14 @@
 #ifndef BTRFS_ASYNC_THREAD_H
 #define BTRFS_ASYNC_THREAD_H
 
+#include <linux/compiler_types.h>
 #include <linux/workqueue.h>
+#include <linux/list.h>
 
 struct btrfs_fs_info;
 struct btrfs_workqueue;
 struct btrfs_work;
+
 typedef void (*btrfs_func_t)(struct btrfs_work *arg);
 typedef void (*btrfs_ordered_func_t)(struct btrfs_work *arg, bool);
 

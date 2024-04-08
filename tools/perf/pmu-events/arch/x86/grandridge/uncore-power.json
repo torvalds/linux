@@ -1,0 +1,10 @@
+[
+    {
+        "BriefDescription": "PCU Clockticks",
+        "EventCode": "0x01",
+        "EventName": "UNC_P_CLOCKTICKS",
+        "PerPkg": "1",
+        "PublicDescription": "PCU Clockticks:  The PCU runs off a fixed 1 GHz clock.  This event counts the number of pclk cycles measured while the counter was enabled.  The pclk, like the Memory Controller's dclk, counts at a constant rate making it a good measure of actual wall time.",
+        "Unit": "PCU"
+    }
+]

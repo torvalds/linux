@@ -736,7 +736,7 @@ static int xe_bo_move(struct ttm_buffer_object *ttm_bo, bool evict,
 		migrate = xe->tiles[0].migrate;
 
 	xe_assert(xe, migrate);
-	trace_xe_bo_move(bo, new_mem->mem_type, old_mem_type);
+	trace_xe_bo_move(bo, new_mem->mem_type, old_mem_type, move_lacks_source);
 	xe_device_mem_access_get(xe);
 
 	if (xe_bo_is_pinned(bo) && !xe_bo_is_user(bo)) {

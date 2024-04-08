@@ -26,58 +26,79 @@ static int enable_slot(struct hotplug_slot *hotplug_slot)
 					     hotplug_slot);
 	int rc;
 
-	if (zdev->state != ZPCI_FN_STATE_STANDBY)
-		return -EIO;
+	mutex_lock(&zdev->state_lock);
+	if (zdev->state != ZPCI_FN_STATE_STANDBY) {
+		rc = -EIO;
+		goto out;
+	}
 
 	rc = sclp_pci_configure(zdev->fid);
 	zpci_dbg(3, "conf fid:%x, rc:%d\n", zdev->fid, rc);
 	if (rc)
-		return rc;
+		goto out;
 	zdev->state = ZPCI_FN_STATE_CONFIGURED;
 
-	return zpci_scan_configured_device(zdev, zdev->fh);
+	rc = zpci_scan_configured_device(zdev, zdev->fh);
+out:
+	mutex_unlock(&zdev->state_lock);
+	return rc;
 }
 
 static int disable_slot(struct hotplug_slot *hotplug_slot)
 {
 	struct zpci_dev *zdev = container_of(hotplug_slot, struct zpci_dev,
 					     hotplug_slot);
-	struct pci_dev *pdev;
+	struct pci_dev *pdev = NULL;
+	int rc;
 
-	if (zdev->state != ZPCI_FN_STATE_CONFIGURED)
-		return -EIO;
+	mutex_lock(&zdev->state_lock);
+	if (zdev->state != ZPCI_FN_STATE_CONFIGURED) {
+		rc = -EIO;
+		goto out;
+	}
 
 	pdev = pci_get_slot(zdev->zbus->bus, zdev->devfn);
 	if (pdev && pci_num_vf(pdev)) {
 		pci_dev_put(pdev);
-		return -EBUSY;
+		rc = -EBUSY;
+		goto out;
 	}
-	pci_dev_put(pdev);
 
-	return zpci_deconfigure_device(zdev);
+	rc = zpci_deconfigure_device(zdev);
+out:
+	mutex_unlock(&zdev->state_lock);
+	if (pdev)
+		pci_dev_put(pdev);
+	return rc;
 }
 
 static int reset_slot(struct hotplug_slot *hotplug_slot, bool probe)
 {
 	struct zpci_dev *zdev = container_of(hotplug_slot, struct zpci_dev,
 					     hotplug_slot);
+	int rc = -EIO;
 
-	if (zdev->state != ZPCI_FN_STATE_CONFIGURED)
-		return -EIO;
 	/*
-	 * We can't take the zdev->lock as reset_slot may be called during
-	 * probing and/or device removal which already happens under the
-	 * zdev->lock. Instead the user should use the higher level
-	 * pci_reset_function() or pci_bus_reset() which hold the PCI device
-	 * lock preventing concurrent removal. If not using these functions
-	 * holding the PCI device lock is required.
+	 * If we can't get the zdev->state_lock the device state is
+	 * currently undergoing a transition and we bail out - just
+	 * the same as if the device's state is not configured at all.
 	 */
+	if (!mutex_trylock(&zdev->state_lock))
+		return rc;
 
-	/* As long as the function is configured we can reset */
-	if (probe)
-		return 0;
+	/* We can reset only if the function is configured */
+	if (zdev->state != ZPCI_FN_STATE_CONFIGURED)
+		goto out;
 
-	return zpci_hot_reset_device(zdev);
+	if (probe) {
+		rc = 0;
+		goto out;
+	}
+
+	rc = zpci_hot_reset_device(zdev);
+out:
+	mutex_unlock(&zdev->state_lock);
+	return rc;
 }
 
 static int get_power_status(struct hotplug_slot *hotplug_slot, u8 *value)

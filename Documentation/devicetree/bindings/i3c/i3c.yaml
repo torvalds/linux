@@ -17,7 +17,7 @@ description: |
 
 properties:
   $nodename:
-    pattern: "^i3c-master@[0-9a-f]+$"
+    pattern: "^i3c@[0-9a-f]+$"
 
   "#address-cells":
     const: 3
@@ -71,7 +71,7 @@ patternProperties:
     description: |
       I2C child, should be named: <device-type>@<i2c-address>
 
-      All properties described in Documentation/devicetree/bindings/i2c/i2c.txt
+      All properties described in dtschema schemas/i2c/i2c-controller.yaml
       are valid here, except the reg property whose content is changed.
 
     properties:
@@ -153,7 +153,7 @@ additionalProperties: true
 
 examples:
   - |
-    i3c-master@d040000 {
+    i3c@d040000 {
         compatible = "cdns,i3c-master";
         clocks = <&coreclock>, <&i3csysclock>;
         clock-names = "pclk", "sysclk";

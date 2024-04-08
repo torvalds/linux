@@ -26,7 +26,6 @@
 #include <sound/tlv.h>
 #include "nau8540.h"
 
-
 #define NAU_FREF_MAX 13500000
 #define NAU_FVCO_MAX 100000000
 #define NAU_FVCO_MIN 90000000
@@ -230,6 +229,49 @@ static SOC_ENUM_SINGLE_DECL(
 static const struct snd_kcontrol_new digital_ch1_mux =
 	SOC_DAPM_ENUM("Digital CH1 Select", digital_ch1_enum);
 
+static int nau8540_fepga_event(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *k, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct nau8540 *nau8540 = snd_soc_component_get_drvdata(component);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		regmap_update_bits(nau8540->regmap, NAU8540_REG_FEPGA2,
+				   NAU8540_ACDC_CTL_MASK, NAU8540_ACDC_CTL_MIC1P_VREF |
+				   NAU8540_ACDC_CTL_MIC1N_VREF | NAU8540_ACDC_CTL_MIC2P_VREF |
+				   NAU8540_ACDC_CTL_MIC2N_VREF | NAU8540_ACDC_CTL_MIC3P_VREF |
+				   NAU8540_ACDC_CTL_MIC3N_VREF | NAU8540_ACDC_CTL_MIC4P_VREF |
+				   NAU8540_ACDC_CTL_MIC4N_VREF);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
+static int nau8540_precharge_event(struct snd_soc_dapm_widget *w,
+				   struct snd_kcontrol *k, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+	struct nau8540 *nau8540 = snd_soc_component_get_drvdata(component);
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		regmap_update_bits(nau8540->regmap, NAU8540_REG_REFERENCE,
+				   NAU8540_DISCHRG_EN, NAU8540_DISCHRG_EN);
+		msleep(40);
+		regmap_update_bits(nau8540->regmap, NAU8540_REG_REFERENCE,
+				   NAU8540_DISCHRG_EN, 0);
+		regmap_update_bits(nau8540->regmap, NAU8540_REG_FEPGA2,
+				   NAU8540_ACDC_CTL_MASK, 0);
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 static int adc_power_control(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *k, int  event)
 {
@@ -237,8 +279,10 @@ static int adc_power_control(struct snd_soc_dapm_widget *w,
 	struct nau8540 *nau8540 = snd_soc_component_get_drvdata(component);
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
-		msleep(300);
+		msleep(160);
 		/* DO12 and DO34 pad output enable */
+		regmap_update_bits(nau8540->regmap, NAU8540_REG_POWER_MANAGEMENT,
+				   NAU8540_ADC_ALL_EN, NAU8540_ADC_ALL_EN);
 		regmap_update_bits(nau8540->regmap, NAU8540_REG_PCM_CTRL1,
 			NAU8540_I2S_DO12_TRI, 0);
 		regmap_update_bits(nau8540->regmap, NAU8540_REG_PCM_CTRL2,
@@ -248,6 +292,8 @@ static int adc_power_control(struct snd_soc_dapm_widget *w,
 			NAU8540_I2S_DO12_TRI, NAU8540_I2S_DO12_TRI);
 		regmap_update_bits(nau8540->regmap, NAU8540_REG_PCM_CTRL2,
 			NAU8540_I2S_DO34_TRI, NAU8540_I2S_DO34_TRI);
+		regmap_update_bits(nau8540->regmap, NAU8540_REG_POWER_MANAGEMENT,
+				   NAU8540_ADC_ALL_EN, 0);
 	}
 	return 0;
 }
@@ -274,28 +320,26 @@ static const struct snd_soc_dapm_widget nau8540_dapm_widgets[] = {
 	SND_SOC_DAPM_INPUT("MIC3"),
 	SND_SOC_DAPM_INPUT("MIC4"),
 
-	SND_SOC_DAPM_PGA("Frontend PGA1", NAU8540_REG_PWR, 12, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Frontend PGA2", NAU8540_REG_PWR, 13, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Frontend PGA3", NAU8540_REG_PWR, 14, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("Frontend PGA4", NAU8540_REG_PWR, 15, 0, NULL, 0),
+	SND_SOC_DAPM_PGA_S("Frontend PGA1", 0, NAU8540_REG_PWR, 12, 0,
+			   nau8540_fepga_event, SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_PGA_S("Frontend PGA2", 0, NAU8540_REG_PWR, 13, 0,
+			   nau8540_fepga_event, SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_PGA_S("Frontend PGA3", 0, NAU8540_REG_PWR, 14, 0,
+			   nau8540_fepga_event, SND_SOC_DAPM_POST_PMU),
+	SND_SOC_DAPM_PGA_S("Frontend PGA4", 0, NAU8540_REG_PWR, 15, 0,
+			   nau8540_fepga_event, SND_SOC_DAPM_POST_PMU),
 
-	SND_SOC_DAPM_ADC_E("ADC1", NULL,
-		NAU8540_REG_POWER_MANAGEMENT, 0, 0, adc_power_control,
-		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_ADC_E("ADC2", NULL,
-		NAU8540_REG_POWER_MANAGEMENT, 1, 0, adc_power_control,
-		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_ADC_E("ADC3", NULL,
-		NAU8540_REG_POWER_MANAGEMENT, 2, 0, adc_power_control,
-		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-	SND_SOC_DAPM_ADC_E("ADC4", NULL,
-		NAU8540_REG_POWER_MANAGEMENT, 3, 0, adc_power_control,
-		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_PGA_S("Precharge", 1, SND_SOC_NOPM, 0, 0,
+			   nau8540_precharge_event, SND_SOC_DAPM_POST_PMU),
 
-	SND_SOC_DAPM_PGA("ADC CH1", NAU8540_REG_ANALOG_PWR, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("ADC CH2", NAU8540_REG_ANALOG_PWR, 1, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("ADC CH3", NAU8540_REG_ANALOG_PWR, 2, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("ADC CH4", NAU8540_REG_ANALOG_PWR, 3, 0, NULL, 0),
+	SND_SOC_DAPM_PGA_S("ADC CH1", 2, NAU8540_REG_ANALOG_PWR, 0, 0,
+			   adc_power_control, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_PGA_S("ADC CH2", 2, NAU8540_REG_ANALOG_PWR, 1, 0,
+			   adc_power_control, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_PGA_S("ADC CH3", 2, NAU8540_REG_ANALOG_PWR, 2, 0,
+			   adc_power_control, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
+	SND_SOC_DAPM_PGA_S("ADC CH4", 2, NAU8540_REG_ANALOG_PWR, 3, 0,
+			   adc_power_control, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 
 	SND_SOC_DAPM_MUX("Digital CH4 Mux",
 		SND_SOC_NOPM, 0, 0, &digital_ch4_mux),
@@ -316,20 +360,20 @@ static const struct snd_soc_dapm_route nau8540_dapm_routes[] = {
 	{"Frontend PGA3", NULL, "MIC3"},
 	{"Frontend PGA4", NULL, "MIC4"},
 
-	{"ADC1", NULL, "Frontend PGA1"},
-	{"ADC2", NULL, "Frontend PGA2"},
-	{"ADC3", NULL, "Frontend PGA3"},
-	{"ADC4", NULL, "Frontend PGA4"},
+	{"Precharge", NULL, "Frontend PGA1"},
+	{"Precharge", NULL, "Frontend PGA2"},
+	{"Precharge", NULL, "Frontend PGA3"},
+	{"Precharge", NULL, "Frontend PGA4"},
 
-	{"ADC CH1", NULL, "ADC1"},
-	{"ADC CH2", NULL, "ADC2"},
-	{"ADC CH3", NULL, "ADC3"},
-	{"ADC CH4", NULL, "ADC4"},
+	{"ADC CH1", NULL, "Precharge"},
+	{"ADC CH2", NULL, "Precharge"},
+	{"ADC CH3", NULL, "Precharge"},
+	{"ADC CH4", NULL, "Precharge"},
 
-	{"ADC1", NULL, "MICBIAS1"},
-	{"ADC2", NULL, "MICBIAS1"},
-	{"ADC3", NULL, "MICBIAS2"},
-	{"ADC4", NULL, "MICBIAS2"},
+	{"ADC CH1", NULL, "MICBIAS1"},
+	{"ADC CH2", NULL, "MICBIAS1"},
+	{"ADC CH3", NULL, "MICBIAS2"},
+	{"ADC CH4", NULL, "MICBIAS2"},
 
 	{"Digital CH1 Mux", "ADC channel 1", "ADC CH1"},
 	{"Digital CH1 Mux", "ADC channel 2", "ADC CH2"},

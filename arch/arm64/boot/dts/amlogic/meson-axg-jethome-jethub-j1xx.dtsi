@@ -35,7 +35,7 @@
 		reset-gpios = <&gpio BOOT_9 GPIO_ACTIVE_LOW>;
 	};
 
-	vcc_3v3: regulator-vcc_3v3 {
+	vcc_3v3: regulator-vcc-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -44,7 +44,7 @@
 		regulator-always-on;
 	};
 
-	vcc_5v: regulator-vcc_5v {
+	vcc_5v: regulator-vcc-5v {
 		compatible = "regulator-fixed";
 		regulator-name = "VCC5V";
 		regulator-min-microvolt = <5000000>;
@@ -52,7 +52,7 @@
 		regulator-always-on;
 	};
 
-	vddao_3v3: regulator-vddao_3v3 {
+	vddao_3v3: regulator-vddao-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDAO_3V3";
 		regulator-min-microvolt = <3300000>;
@@ -61,7 +61,7 @@
 		regulator-always-on;
 	};
 
-	vddio_ao18: regulator-vddio_ao18 {
+	vddio_ao18: regulator-vddio-ao18 {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_AO18";
 		regulator-min-microvolt = <1800000>;
@@ -70,7 +70,7 @@
 		regulator-always-on;
 	};
 
-	vddio_boot: regulator-vddio_boot {
+	vddio_boot: regulator-vddio-boot {
 		compatible = "regulator-fixed";
 		regulator-name = "VDDIO_BOOT";
 		regulator-min-microvolt = <3300000>;
@@ -79,7 +79,7 @@
 		regulator-always-on;
 	};
 
-	vccq_1v8: regulator-vccq_1v8 {
+	vccq_1v8: regulator-vccq-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "VCCQ_1V8";
 		regulator-min-microvolt = <1800000>;
@@ -88,7 +88,7 @@
 		regulator-always-on;
 	};
 
-	usb_pwr: regulator-usb_pwr {
+	usb_pwr: regulator-usb-pwr {
 		compatible = "regulator-fixed";
 		regulator-name = "USB_PWR";
 		regulator-min-microvolt = <5000000>;
@@ -331,20 +331,4 @@
 		"", "", "", "", "", // 75 - 79
 		"", "", "", "", "", // 80 - 84
 		"", ""; // 85-86
-};
-
-&cpu0 {
-	#cooling-cells = <2>;
-};
-
-&cpu1 {
-	#cooling-cells = <2>;
-};
-
-&cpu2 {
-	#cooling-cells = <2>;
-};
-
-&cpu3 {
-	#cooling-cells = <2>;
 };

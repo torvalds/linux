@@ -206,7 +206,8 @@ static int mpc83xx_suspend_enter(suspend_state_t state)
 		out_be32(&pmc_regs->config1,
 		         in_be32(&pmc_regs->config1) | PMCCR1_POWER_OFF);
 
-		enable_kernel_fp();
+		if (IS_ENABLED(CONFIG_PPC_FPU))
+			enable_kernel_fp();
 
 		mpc83xx_enter_deep_sleep(immrbase);
 

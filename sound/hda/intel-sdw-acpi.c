@@ -23,6 +23,10 @@ static int ctrl_link_mask;
 module_param_named(sdw_link_mask, ctrl_link_mask, int, 0444);
 MODULE_PARM_DESC(sdw_link_mask, "Intel link mask (one bit per link)");
 
+static ulong ctrl_addr = 0x40000000;
+module_param_named(sdw_ctrl_addr, ctrl_addr, ulong, 0444);
+MODULE_PARM_DESC(sdw_ctrl_addr, "Intel SoundWire Controller _ADR");
+
 static bool is_link_enabled(struct fwnode_handle *fw_node, u8 idx)
 {
 	struct fwnode_handle *link;
@@ -139,6 +143,9 @@ static acpi_status sdw_intel_acpi_cb(acpi_handle handle, u32 level,
 	 * SoundWire link so filter accordingly
 	 */
 	if (FIELD_GET(GENMASK(31, 28), adr) != SDW_LINK_TYPE)
+		return AE_OK; /* keep going */
+
+	if (adr != ctrl_addr)
 		return AE_OK; /* keep going */
 
 	/* found the correct SoundWire controller */

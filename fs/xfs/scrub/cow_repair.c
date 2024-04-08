@@ -609,6 +609,6 @@ xrep_bmap_cow(
 out_bitmap:
 	xfsb_bitmap_destroy(&xc->old_cowfork_fsblocks);
 	xoff_bitmap_destroy(&xc->bad_fileoffs);
-	kmem_free(xc);
+	kfree(xc);
 	return error;
 }

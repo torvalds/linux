@@ -6,23 +6,29 @@
  *
  *  Copyright (C) 2017 Sudip Mukherjee, All Rights Reserved.
  */
-#include <linux/acpi.h>
+#include <linux/bits.h>
+#include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/dmi.h>
+#include <linux/interrupt.h>
 #include <linux/io.h>
-#include <linux/kernel.h>
+#include <linux/math.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/platform_device.h>
+#include <linux/pm.h>
 #include <linux/property.h>
+#include <linux/string.h>
+#include <linux/types.h>
+
+#include <linux/serial_8250.h>
 #include <linux/serial_core.h>
 #include <linux/serial_reg.h>
-#include <linux/slab.h>
-#include <linux/string.h>
-#include <linux/tty.h>
-#include <linux/delay.h>
 
 #include <asm/byteorder.h>
 
 #include "8250.h"
+#include "8250_pcilib.h"
 
 #define PCI_DEVICE_ID_ACCESSIO_COM_2S		0x1052
 #define PCI_DEVICE_ID_ACCESSIO_COM_4S		0x105d
@@ -229,13 +235,12 @@ static int default_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 			 struct uart_8250_port *port)
 {
 	const struct exar8250_board *board = priv->board;
-	unsigned int bar = 0;
 	unsigned char status;
+	int err;
 
-	port->port.iotype = UPIO_MEM;
-	port->port.mapbase = pci_resource_start(pcidev, bar) + offset;
-	port->port.membase = priv->virt + offset;
-	port->port.regshift = board->reg_shift;
+	err = serial8250_pci_setup_port(pcidev, port, 0, offset, board->reg_shift);
+	if (err)
+		return err;
 
 	/*
 	 * XR17V35x UARTs have an extra divisor register, DLD that gets enabled
@@ -375,7 +380,7 @@ static struct platform_device *__xr17v35x_register_gpio(struct pci_dev *pcidev,
 		return NULL;
 
 	pdev->dev.parent = &pcidev->dev;
-	ACPI_COMPANION_SET(&pdev->dev, ACPI_COMPANION(&pcidev->dev));
+	device_set_node(&pdev->dev, dev_fwnode(&pcidev->dev));
 
 	if (device_add_software_node(&pdev->dev, node) < 0 ||
 	    platform_device_add(pdev) < 0) {
@@ -713,13 +718,13 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 	uart.port.irq = pci_irq_vector(pcidev, 0);
 	uart.port.dev = &pcidev->dev;
 
+	/* Clear interrupts */
+	exar_misc_clear(priv);
+
 	rc = devm_request_irq(&pcidev->dev, uart.port.irq, exar_misc_handler,
 			 IRQF_SHARED, "exar_uart", priv);
 	if (rc)
 		return rc;
-
-	/* Clear interrupts */
-	exar_misc_clear(priv);
 
 	for (i = 0; i < nr_ports && i < maxnr; i++) {
 		rc = board->setup(priv, pcidev, &uart, i);
@@ -753,28 +758,24 @@ static void exar_pci_remove(struct pci_dev *pcidev)
 	for (i = 0; i < priv->nr; i++)
 		serial8250_unregister_port(priv->line[i]);
 
+	/* Ensure that every init quirk is properly torn down */
 	if (priv->board->exit)
 		priv->board->exit(pcidev);
 }
 
-static int __maybe_unused exar_suspend(struct device *dev)
+static int exar_suspend(struct device *dev)
 {
-	struct pci_dev *pcidev = to_pci_dev(dev);
-	struct exar8250 *priv = pci_get_drvdata(pcidev);
+	struct exar8250 *priv = dev_get_drvdata(dev);
 	unsigned int i;
 
 	for (i = 0; i < priv->nr; i++)
 		if (priv->line[i] >= 0)
 			serial8250_suspend_port(priv->line[i]);
 
-	/* Ensure that every init quirk is properly torn down */
-	if (priv->board->exit)
-		priv->board->exit(pcidev);
-
 	return 0;
 }
 
-static int __maybe_unused exar_resume(struct device *dev)
+static int exar_resume(struct device *dev)
 {
 	struct exar8250 *priv = dev_get_drvdata(dev);
 	unsigned int i;
@@ -788,7 +789,7 @@ static int __maybe_unused exar_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(exar_pci_pm, exar_suspend, exar_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(exar_pci_pm, exar_suspend, exar_resume);
 
 static const struct exar8250_board pbn_fastcom335_2 = {
 	.num_ports	= 2,
@@ -938,12 +939,13 @@ static struct pci_driver exar_pci_driver = {
 	.probe		= exar_pci_probe,
 	.remove		= exar_pci_remove,
 	.driver         = {
-		.pm     = &exar_pci_pm,
+		.pm     = pm_sleep_ptr(&exar_pci_pm),
 	},
 	.id_table	= exar_pci_tbl,
 };
 module_pci_driver(exar_pci_driver);
 
+MODULE_IMPORT_NS(SERIAL_8250_PCI);
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Exar Serial Driver");
 MODULE_AUTHOR("Sudip Mukherjee <sudip.mukherjee@codethink.co.uk>");

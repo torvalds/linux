@@ -8,6 +8,7 @@
 #include <linux/scatterlist.h>
 #include <linux/prefetch.h>
 #include <linux/srcu.h>
+#include <linux/rw_hint.h>
 
 struct blk_mq_tags;
 struct blk_flush_queue;
@@ -135,6 +136,7 @@ struct request {
 	struct blk_crypto_keyslot *crypt_keyslot;
 #endif
 
+	enum rw_hint write_hint;
 	unsigned short ioprio;
 
 	enum mq_rq_state state;
@@ -682,17 +684,19 @@ enum {
 
 #define BLK_MQ_NO_HCTX_IDX	(-1U)
 
-struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set, void *queuedata,
+struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set,
+		struct queue_limits *lim, void *queuedata,
 		struct lock_class_key *lkclass);
-#define blk_mq_alloc_disk(set, queuedata)				\
+#define blk_mq_alloc_disk(set, lim, queuedata)				\
 ({									\
 	static struct lock_class_key __key;				\
 									\
-	__blk_mq_alloc_disk(set, queuedata, &__key);			\
+	__blk_mq_alloc_disk(set, lim, queuedata, &__key);		\
 })
 struct gendisk *blk_mq_alloc_disk_for_queue(struct request_queue *q,
 		struct lock_class_key *lkclass);
-struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *);
+struct request_queue *blk_mq_alloc_queue(struct blk_mq_tag_set *set,
+		struct queue_limits *lim, void *queuedata);
 int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 		struct request_queue *q);
 void blk_mq_destroy_queue(struct request_queue *);

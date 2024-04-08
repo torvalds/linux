@@ -15,6 +15,7 @@
 #include <sound/soc-acpi.h>
 #include <sound/soc-dapm.h>
 #include <sound/jack.h>
+#include "sof_board_helpers.h"
 #include "sof_sdw_common.h"
 
 static const struct snd_soc_dapm_widget cs42l42_widgets[] = {
@@ -46,15 +47,24 @@ static struct snd_soc_jack_pin cs42l42_jack_pins[] = {
 	},
 };
 
-static int cs42l42_rtd_init(struct snd_soc_pcm_runtime *rtd)
+static const char * const jack_codecs[] = {
+	"cs42l42"
+};
+
+int cs42l42_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
-	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
-	struct snd_soc_component *component = codec_dai->component;
+	struct snd_soc_dai *codec_dai;
+	struct snd_soc_component *component;
 	struct snd_soc_jack *jack;
 	int ret;
 
+	codec_dai = get_codec_dai_by_name(rtd, jack_codecs, ARRAY_SIZE(jack_codecs));
+	if (!codec_dai)
+		return -EINVAL;
+
+	component = codec_dai->component;
 	card->components = devm_kasprintf(card->dev, GFP_KERNEL,
 					  "%s hs:cs42l42",
 					  card->components);
@@ -111,21 +121,4 @@ static int cs42l42_rtd_init(struct snd_soc_pcm_runtime *rtd)
 
 	return ret;
 }
-
-int sof_sdw_cs42l42_init(struct snd_soc_card *card,
-			 const struct snd_soc_acpi_link_adr *link,
-			 struct snd_soc_dai_link *dai_links,
-			 struct sof_sdw_codec_info *info,
-			 bool playback)
-{
-	/*
-	 * headset should be initialized once.
-	 * Do it with dai link for playback.
-	 */
-	if (!playback)
-		return 0;
-
-	dai_links->init = cs42l42_rtd_init;
-
-	return 0;
-}
+MODULE_IMPORT_NS(SND_SOC_INTEL_SOF_BOARD_HELPERS);

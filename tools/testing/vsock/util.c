@@ -33,8 +33,7 @@ void init_signals(void)
 	signal(SIGPIPE, SIG_IGN);
 }
 
-/* Parse a CID in string representation */
-unsigned int parse_cid(const char *str)
+static unsigned int parse_uint(const char *str, const char *err_str)
 {
 	char *endptr = NULL;
 	unsigned long n;
@@ -42,10 +41,22 @@ unsigned int parse_cid(const char *str)
 	errno = 0;
 	n = strtoul(str, &endptr, 10);
 	if (errno || *endptr != '\0') {
-		fprintf(stderr, "malformed CID \"%s\"\n", str);
+		fprintf(stderr, "malformed %s \"%s\"\n", err_str, str);
 		exit(EXIT_FAILURE);
 	}
 	return n;
+}
+
+/* Parse a CID in string representation */
+unsigned int parse_cid(const char *str)
+{
+	return parse_uint(str, "CID");
+}
+
+/* Parse a port in string representation */
+unsigned int parse_port(const char *str)
+{
+	return parse_uint(str, "port");
 }
 
 /* Wait for the remote to close the connection */

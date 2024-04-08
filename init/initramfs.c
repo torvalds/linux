@@ -16,8 +16,9 @@
 #include <linux/mm.h>
 #include <linux/namei.h>
 #include <linux/init_syscalls.h>
-#include <linux/task_work.h>
 #include <linux/umh.h>
+
+#include "do_mounts.h"
 
 static __initdata bool csum_present;
 static __initdata u32 io_csum;
@@ -642,7 +643,7 @@ void __weak __init free_initrd_mem(unsigned long start, unsigned long end)
 			"initrd");
 }
 
-#ifdef CONFIG_KEXEC_CORE
+#ifdef CONFIG_CRASH_RESERVE
 static bool __init kexec_free_initrd(void)
 {
 	unsigned long crashk_start = (unsigned long)__va(crashk_res.start);
@@ -678,8 +679,6 @@ static void __init populate_initrd_image(char *err)
 	ssize_t written;
 	struct file *file;
 	loff_t pos = 0;
-
-	unpack_to_rootfs(__initramfs_start, __initramfs_size);
 
 	printk(KERN_INFO "rootfs image is not initramfs (%s); looks like an initrd\n",
 			err);
@@ -736,8 +735,7 @@ done:
 	initrd_start = 0;
 	initrd_end = 0;
 
-	flush_delayed_fput();
-	task_work_run();
+	init_flush_fput();
 }
 
 static ASYNC_DOMAIN_EXCLUSIVE(initramfs_domain);

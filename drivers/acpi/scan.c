@@ -244,6 +244,53 @@ static int acpi_scan_try_to_offline(struct acpi_device *device)
 	return 0;
 }
 
+static int acpi_scan_check_and_detach(struct acpi_device *adev, void *check)
+{
+	struct acpi_scan_handler *handler = adev->handler;
+
+	acpi_dev_for_each_child_reverse(adev, acpi_scan_check_and_detach, check);
+
+	if (check) {
+		acpi_bus_get_status(adev);
+		/*
+		 * Skip devices that are still there and take the enabled
+		 * flag into account.
+		 */
+		if (acpi_device_is_enabled(adev))
+			return 0;
+
+		/* Skip device that have not been enumerated. */
+		if (!acpi_device_enumerated(adev)) {
+			dev_dbg(&adev->dev, "Still not enumerated\n");
+			return 0;
+		}
+	}
+
+	adev->flags.match_driver = false;
+	if (handler) {
+		if (handler->detach)
+			handler->detach(adev);
+
+		adev->handler = NULL;
+	} else {
+		device_release_driver(&adev->dev);
+	}
+	/*
+	 * Most likely, the device is going away, so put it into D3cold before
+	 * that.
+	 */
+	acpi_device_set_power(adev, ACPI_STATE_D3_COLD);
+	adev->flags.initialized = false;
+	acpi_device_clear_enumerated(adev);
+
+	return 0;
+}
+
+static void acpi_scan_check_subtree(struct acpi_device *adev)
+{
+	acpi_scan_check_and_detach(adev, (void *)true);
+}
+
 static int acpi_scan_hot_remove(struct acpi_device *device)
 {
 	acpi_handle handle = device->handle;
@@ -289,75 +336,62 @@ static int acpi_scan_hot_remove(struct acpi_device *device)
 	return 0;
 }
 
-static int acpi_scan_device_not_enumerated(struct acpi_device *adev)
+static int acpi_scan_rescan_bus(struct acpi_device *adev)
 {
-	if (!acpi_device_enumerated(adev)) {
-		dev_warn(&adev->dev, "Still not enumerated\n");
-		return -EALREADY;
-	}
-	acpi_bus_trim(adev);
-	return 0;
+	struct acpi_scan_handler *handler = adev->handler;
+	int ret;
+
+	if (handler && handler->hotplug.scan_dependent)
+		ret = handler->hotplug.scan_dependent(adev);
+	else
+		ret = acpi_bus_scan(adev->handle);
+
+	if (ret)
+		dev_info(&adev->dev, "Namespace scan failure\n");
+
+	return ret;
 }
 
 static int acpi_scan_device_check(struct acpi_device *adev)
 {
-	int error;
+	struct acpi_device *parent;
 
-	acpi_bus_get_status(adev);
-	if (acpi_device_is_present(adev)) {
-		/*
-		 * This function is only called for device objects for which
-		 * matching scan handlers exist.  The only situation in which
-		 * the scan handler is not attached to this device object yet
-		 * is when the device has just appeared (either it wasn't
-		 * present at all before or it was removed and then added
-		 * again).
-		 */
-		if (adev->handler) {
-			dev_warn(&adev->dev, "Already enumerated\n");
-			return -EALREADY;
-		}
-		error = acpi_bus_scan(adev->handle);
-		if (error) {
-			dev_warn(&adev->dev, "Namespace scan failure\n");
-			return error;
-		}
-		if (!adev->handler) {
-			dev_warn(&adev->dev, "Enumeration failure\n");
-			error = -ENODEV;
-		}
-	} else {
-		error = acpi_scan_device_not_enumerated(adev);
-	}
-	return error;
-}
+	acpi_scan_check_subtree(adev);
 
-static int acpi_scan_bus_check(struct acpi_device *adev, void *not_used)
-{
-	struct acpi_scan_handler *handler = adev->handler;
-	int error;
+	if (!acpi_device_is_present(adev))
+		return 0;
 
-	acpi_bus_get_status(adev);
-	if (!acpi_device_is_present(adev)) {
-		acpi_scan_device_not_enumerated(adev);
+	/*
+	 * This function is only called for device objects for which matching
+	 * scan handlers exist.  The only situation in which the scan handler
+	 * is not attached to this device object yet is when the device has
+	 * just appeared (either it wasn't present at all before or it was
+	 * removed and then added again).
+	 */
+	if (adev->handler) {
+		dev_dbg(&adev->dev, "Already enumerated\n");
 		return 0;
 	}
-	if (handler && handler->hotplug.scan_dependent)
-		return handler->hotplug.scan_dependent(adev);
 
-	error = acpi_bus_scan(adev->handle);
-	if (error) {
-		dev_warn(&adev->dev, "Namespace scan failure\n");
-		return error;
-	}
-	return acpi_dev_for_each_child(adev, acpi_scan_bus_check, NULL);
+	parent = acpi_dev_parent(adev);
+	if (!parent)
+		parent = adev;
+
+	return acpi_scan_rescan_bus(parent);
+}
+
+static int acpi_scan_bus_check(struct acpi_device *adev)
+{
+	acpi_scan_check_subtree(adev);
+
+	return acpi_scan_rescan_bus(adev);
 }
 
 static int acpi_generic_hotplug_event(struct acpi_device *adev, u32 type)
 {
 	switch (type) {
 	case ACPI_NOTIFY_BUS_CHECK:
-		return acpi_scan_bus_check(adev, NULL);
+		return acpi_scan_bus_check(adev);
 	case ACPI_NOTIFY_DEVICE_CHECK:
 		return acpi_scan_device_check(adev);
 	case ACPI_NOTIFY_EJECT_REQUEST:
@@ -798,6 +832,7 @@ static const char * const acpi_honor_dep_ids[] = {
 	"INTC1059", /* IVSC (TGL) driver must be loaded to allow i2c access to camera sensors */
 	"INTC1095", /* IVSC (ADL) driver must be loaded to allow i2c access to camera sensors */
 	"INTC100A", /* IVSC (RPL) driver must be loaded to allow i2c access to camera sensors */
+	"INTC10CF", /* IVSC (MTL) driver must be loaded to allow i2c access to camera sensors */
 	NULL
 };
 
@@ -1725,7 +1760,9 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 		{"BSG1160", },
 		{"BSG2150", },
 		{"CSC3551", },
+		{"CSC3554", },
 		{"CSC3556", },
+		{"CSC3557", },
 		{"INT33FE", },
 		{"INT3515", },
 		/* Non-conforming _HID for Cirrus Logic already released */
@@ -1920,6 +1957,11 @@ static bool acpi_device_should_be_hidden(acpi_handle handle)
 bool acpi_device_is_present(const struct acpi_device *adev)
 {
 	return adev->status.present || adev->status.functional;
+}
+
+bool acpi_device_is_enabled(const struct acpi_device *adev)
+{
+	return adev->status.present && adev->status.enabled;
 }
 
 static bool acpi_scan_handler_matching(struct acpi_scan_handler *handler,
@@ -2550,32 +2592,6 @@ int acpi_bus_scan(acpi_handle handle)
 }
 EXPORT_SYMBOL(acpi_bus_scan);
 
-static int acpi_bus_trim_one(struct acpi_device *adev, void *not_used)
-{
-	struct acpi_scan_handler *handler = adev->handler;
-
-	acpi_dev_for_each_child_reverse(adev, acpi_bus_trim_one, NULL);
-
-	adev->flags.match_driver = false;
-	if (handler) {
-		if (handler->detach)
-			handler->detach(adev);
-
-		adev->handler = NULL;
-	} else {
-		device_release_driver(&adev->dev);
-	}
-	/*
-	 * Most likely, the device is going away, so put it into D3cold before
-	 * that.
-	 */
-	acpi_device_set_power(adev, ACPI_STATE_D3_COLD);
-	adev->flags.initialized = false;
-	acpi_device_clear_enumerated(adev);
-
-	return 0;
-}
-
 /**
  * acpi_bus_trim - Detach scan handlers and drivers from ACPI device objects.
  * @adev: Root of the ACPI namespace scope to walk.
@@ -2584,7 +2600,7 @@ static int acpi_bus_trim_one(struct acpi_device *adev, void *not_used)
  */
 void acpi_bus_trim(struct acpi_device *adev)
 {
-	acpi_bus_trim_one(adev, NULL);
+	acpi_scan_check_and_detach(adev, NULL);
 }
 EXPORT_SYMBOL_GPL(acpi_bus_trim);
 

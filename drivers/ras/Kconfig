@@ -32,5 +32,18 @@ menuconfig RAS
 if RAS
 
 source "arch/x86/ras/Kconfig"
+source "drivers/ras/amd/atl/Kconfig"
+
+config RAS_FMPM
+	tristate "FRU Memory Poison Manager"
+	default m
+	depends on AMD_ATL && ACPI_APEI
+	help
+	  Support saving and restoring memory error information across reboot
+	  using ACPI ERST as persistent storage. Error information is saved with
+	  the UEFI CPER "FRU Memory Poison" section format.
+
+	  Memory will be retired during boot time and run time depending on
+	  platform-specific policies.
 
 endif

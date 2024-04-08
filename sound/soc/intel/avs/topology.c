@@ -1118,6 +1118,21 @@ static const struct avs_tplg_token_parser module_parsers[] = {
 		.offset = offsetof(struct avs_tplg_module, ctl_id),
 		.parse = avs_parse_byte_token,
 	},
+	{
+		.token = AVS_TKN_MOD_INIT_CONFIG_NUM_IDS_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_module, num_config_ids),
+		.parse = avs_parse_byte_token,
+	},
+};
+
+static const struct avs_tplg_token_parser init_config_parsers[] = {
+	{
+		.token = AVS_TKN_MOD_INIT_CONFIG_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = 0,
+		.parse = avs_parse_word_token,
+	},
 };
 
 static struct avs_tplg_module *
@@ -1125,16 +1140,49 @@ avs_tplg_module_create(struct snd_soc_component *comp, struct avs_tplg_pipeline 
 		       struct snd_soc_tplg_vendor_array *tuples, u32 block_size)
 {
 	struct avs_tplg_module *module;
+	u32 esize;
 	int ret;
+
+	/* See where config id block starts. */
+	ret = avs_tplg_vendor_entry_size(tuples, block_size,
+					 AVS_TKN_MOD_INIT_CONFIG_ID_U32, &esize);
+	if (ret)
+		return ERR_PTR(ret);
 
 	module = devm_kzalloc(comp->card->dev, sizeof(*module), GFP_KERNEL);
 	if (!module)
 		return ERR_PTR(-ENOMEM);
 
 	ret = avs_parse_tokens(comp, module, module_parsers,
-			       ARRAY_SIZE(module_parsers), tuples, block_size);
+			       ARRAY_SIZE(module_parsers), tuples, esize);
 	if (ret < 0)
 		return ERR_PTR(ret);
+
+	block_size -= esize;
+	/* Parse trailing config ids if any. */
+	if (block_size) {
+		u32 num_config_ids = module->num_config_ids;
+		u32 *config_ids;
+
+		if (!num_config_ids)
+			return ERR_PTR(-EINVAL);
+
+		config_ids = devm_kcalloc(comp->card->dev, num_config_ids, sizeof(*config_ids),
+					   GFP_KERNEL);
+		if (!config_ids)
+			return ERR_PTR(-ENOMEM);
+
+		tuples = avs_tplg_vendor_array_at(tuples, esize);
+		ret = parse_dictionary_entries(comp, tuples, block_size,
+					       config_ids, num_config_ids, sizeof(*config_ids),
+					       AVS_TKN_MOD_INIT_CONFIG_ID_U32,
+					       init_config_parsers,
+					       ARRAY_SIZE(init_config_parsers));
+		if (ret)
+			return ERR_PTR(ret);
+
+		module->config_ids = config_ids;
+	}
 
 	module->owner = owner;
 	INIT_LIST_HEAD(&module->node);
@@ -1416,6 +1464,82 @@ avs_tplg_path_template_create(struct snd_soc_component *comp, struct avs_tplg *o
 	return template;
 }
 
+static const struct avs_tplg_token_parser mod_init_config_parsers[] = {
+	{
+		.token = AVS_TKN_MOD_INIT_CONFIG_ID_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_init_config, id),
+		.parse = avs_parse_word_token,
+	},
+	{
+		.token = AVS_TKN_INIT_CONFIG_PARAM_U8,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_BYTE,
+		.offset = offsetof(struct avs_tplg_init_config, param),
+		.parse = avs_parse_byte_token,
+	},
+	{
+		.token = AVS_TKN_INIT_CONFIG_LENGTH_U32,
+		.type = SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		.offset = offsetof(struct avs_tplg_init_config, length),
+		.parse = avs_parse_word_token,
+	},
+};
+
+static int avs_tplg_parse_initial_configs(struct snd_soc_component *comp,
+					   struct snd_soc_tplg_vendor_array *tuples,
+					   u32 block_size)
+{
+	struct avs_soc_component *acomp = to_avs_soc_component(comp);
+	struct avs_tplg *tplg = acomp->tplg;
+	int ret, i;
+
+	/* Parse tuple section telling how many init configs there are. */
+	ret = parse_dictionary_header(comp, tuples, (void **)&tplg->init_configs,
+				      &tplg->num_init_configs,
+				      sizeof(*tplg->init_configs),
+				      AVS_TKN_MANIFEST_NUM_INIT_CONFIGS_U32);
+	if (ret)
+		return ret;
+
+	block_size -= le32_to_cpu(tuples->size);
+	/* With header parsed, move on to parsing entries. */
+	tuples = avs_tplg_vendor_array_next(tuples);
+
+	for (i = 0; i < tplg->num_init_configs && block_size > 0; i++) {
+		struct avs_tplg_init_config *config = &tplg->init_configs[i];
+		struct snd_soc_tplg_vendor_array *tmp;
+		void *init_config_data;
+		u32 esize;
+
+		/*
+		 * Usually to get section length we search for first token of next group of data,
+		 * but in this case we can't as tuples are followed by raw data.
+		 */
+		tmp = avs_tplg_vendor_array_next(tuples);
+		esize = le32_to_cpu(tuples->size) + le32_to_cpu(tmp->size);
+
+		ret = parse_dictionary_entries(comp, tuples, esize, config, 1, sizeof(*config),
+					       AVS_TKN_MOD_INIT_CONFIG_ID_U32,
+					       mod_init_config_parsers,
+					       ARRAY_SIZE(mod_init_config_parsers));
+
+		block_size -= esize;
+
+		/* handle raw data section */
+		init_config_data = (void *)tuples + esize;
+		esize = config->length;
+
+		config->data = devm_kmemdup(comp->card->dev, init_config_data, esize, GFP_KERNEL);
+		if (!config->data)
+			return -ENOMEM;
+
+		tuples = init_config_data + esize;
+		block_size -= esize;
+	}
+
+	return 0;
+}
+
 static int avs_route_load(struct snd_soc_component *comp, int index,
 			  struct snd_soc_dapm_route *route)
 {
@@ -1571,6 +1695,7 @@ static int avs_manifest(struct snd_soc_component *comp, int index,
 	struct snd_soc_tplg_vendor_array *tuples = manifest->priv.array;
 	struct avs_soc_component *acomp = to_avs_soc_component(comp);
 	size_t remaining = le32_to_cpu(manifest->priv.size);
+	bool has_init_config = true;
 	u32 offset;
 	int ret;
 
@@ -1668,8 +1793,43 @@ static int avs_manifest(struct snd_soc_component *comp, int index,
 	remaining -= offset;
 	tuples = avs_tplg_vendor_array_at(tuples, offset);
 
+	ret = avs_tplg_vendor_array_lookup(tuples, remaining,
+					   AVS_TKN_MANIFEST_NUM_CONDPATH_TMPLS_U32, &offset);
+	if (ret) {
+		dev_err(comp->dev, "condpath lookup failed: %d\n", ret);
+		return ret;
+	}
+
 	/* Bindings dictionary. */
-	return avs_tplg_parse_bindings(comp, tuples, remaining);
+	ret = avs_tplg_parse_bindings(comp, tuples, offset);
+	if (ret < 0)
+		return ret;
+
+	remaining -= offset;
+	tuples = avs_tplg_vendor_array_at(tuples, offset);
+
+	ret = avs_tplg_vendor_array_lookup(tuples, remaining,
+					   AVS_TKN_MANIFEST_NUM_INIT_CONFIGS_U32, &offset);
+	if (ret == -ENOENT) {
+		dev_dbg(comp->dev, "init config lookup failed: %d\n", ret);
+		has_init_config = false;
+	} else if (ret) {
+		dev_err(comp->dev, "init config lookup failed: %d\n", ret);
+		return ret;
+	}
+
+	if (!has_init_config)
+		return 0;
+
+	remaining -= offset;
+	tuples = avs_tplg_vendor_array_at(tuples, offset);
+
+	/* Initial configs dictionary. */
+	ret = avs_tplg_parse_initial_configs(comp, tuples, remaining);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 #define AVS_CONTROL_OPS_VOLUME	257

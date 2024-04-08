@@ -1054,9 +1054,6 @@ static int rt5514_set_bias_level(struct snd_soc_component *component,
 
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
-		if (IS_ERR(rt5514->mclk))
-			break;
-
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_ON) {
 			clk_disable_unprepare(rt5514->mclk);
 		} else {
@@ -1097,9 +1094,9 @@ static int rt5514_probe(struct snd_soc_component *component)
 	struct platform_device *pdev = container_of(component->dev,
 						   struct platform_device, dev);
 
-	rt5514->mclk = devm_clk_get(component->dev, "mclk");
-	if (PTR_ERR(rt5514->mclk) == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
+	rt5514->mclk = devm_clk_get_optional(component->dev, "mclk");
+	if (IS_ERR(rt5514->mclk))
+		return PTR_ERR(rt5514->mclk);
 
 	if (rt5514->pdata.dsp_calib_clk_name) {
 		rt5514->dsp_calib_clk = devm_clk_get(&pdev->dev,

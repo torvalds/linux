@@ -71,6 +71,15 @@ static inline unsigned long mmap_base(unsigned long rnd,
 	return PAGE_ALIGN(STACK_TOP - gap - rnd);
 }
 
+static int get_align_mask(struct file *filp, unsigned long flags)
+{
+	if (!(current->flags & PF_RANDOMIZE))
+		return 0;
+	if (filp || (flags & MAP_SHARED))
+		return MMAP_ALIGN_MASK << PAGE_SHIFT;
+	return 0;
+}
+
 unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 				     unsigned long len, unsigned long pgoff,
 				     unsigned long flags)
@@ -97,10 +106,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr,
 	info.length = len;
 	info.low_limit = mm->mmap_base;
 	info.high_limit = TASK_SIZE;
-	if (filp || (flags & MAP_SHARED))
-		info.align_mask = MMAP_ALIGN_MASK << PAGE_SHIFT;
-	else
-		info.align_mask = 0;
+	info.align_mask = get_align_mask(filp, flags);
 	info.align_offset = pgoff << PAGE_SHIFT;
 	addr = vm_unmapped_area(&info);
 	if (offset_in_page(addr))
@@ -138,10 +144,7 @@ unsigned long arch_get_unmapped_area_topdown(struct file *filp, unsigned long ad
 	info.length = len;
 	info.low_limit = PAGE_SIZE;
 	info.high_limit = mm->mmap_base;
-	if (filp || (flags & MAP_SHARED))
-		info.align_mask = MMAP_ALIGN_MASK << PAGE_SHIFT;
-	else
-		info.align_mask = 0;
+	info.align_mask = get_align_mask(filp, flags);
 	info.align_offset = pgoff << PAGE_SHIFT;
 	addr = vm_unmapped_area(&info);
 

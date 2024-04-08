@@ -673,6 +673,7 @@ static struct pmc_info arl_pmc_info_list[] = {
 };
 
 #define ARL_NPU_PCI_DEV			0xad1d
+#define ARL_GNA_PCI_DEV			0xae4c
 /*
  * Set power state of select devices that do not have drivers to D3
  * so that they do not block Package C entry.
@@ -680,6 +681,7 @@ static struct pmc_info arl_pmc_info_list[] = {
 static void arl_d3_fixup(void)
 {
 	pmc_core_set_device_d3(ARL_NPU_PCI_DEV);
+	pmc_core_set_device_d3(ARL_GNA_PCI_DEV);
 }
 
 static int arl_resume(struct pmc_dev *pmcdev)

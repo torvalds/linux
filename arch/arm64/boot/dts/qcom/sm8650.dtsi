@@ -525,6 +525,11 @@
 			no-map;
 		};
 
+		qlink_logging_mem: qlink-logging@84800000 {
+			reg = <0 0x84800000 0 0x200000>;
+			no-map;
+		};
+
 		mpss_dsm_mem: mpss-dsm@86b00000 {
 			reg = <0 0x86b00000 0 0x4900000>;
 			no-map;
@@ -1228,7 +1233,7 @@
 				clocks = <&gcc GCC_QUPV3_WRAP2_S6_CLK>;
 				clock-names = "se";
 
-				interconnects =	<&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
+				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
 						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
 						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>;
@@ -1250,7 +1255,7 @@
 				clocks = <&gcc GCC_QUPV3_WRAP2_S7_CLK>;
 				clock-names = "se";
 
-				interconnects =	<&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
+				interconnects = <&clk_virt MASTER_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS
 						 &clk_virt SLAVE_QUP_CORE_2 QCOM_ICC_TAG_ALWAYS>,
 						<&gem_noc MASTER_APPSS_PROC QCOM_ICC_TAG_ALWAYS
 						 &config_noc SLAVE_QUP_2 QCOM_ICC_TAG_ALWAYS>;
@@ -2213,8 +2218,22 @@
 			      <0 0x60100000 0 0x100000>;
 			reg-names = "parf", "dbi", "elbi", "atu", "config";
 
-			interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "msi";
+			interrupts = <GIC_SPI 141 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 142 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 143 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 144 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 145 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 146 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 147 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi0",
+					  "msi1",
+					  "msi2",
+					  "msi3",
+					  "msi4",
+					  "msi5",
+					  "msi6",
+					  "msi7";
 
 			clocks = <&gcc GCC_PCIE_0_AUX_CLK>,
 				 <&gcc GCC_PCIE_0_CFG_AHB_CLK>,
@@ -2254,6 +2273,11 @@
 					<0 0 0 4 &intc 0 0 0 152 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-map-mask = <0 0 0 0x7>;
 			#interrupt-cells = <1>;
+
+			/* Entries are reversed due to the unusual ITS DeviceID encoding */
+			msi-map = <0x0 &gic_its 0x1401 0x1>,
+				  <0x100 &gic_its 0x1400 0x1>;
+			msi-map-mask = <0xff00>;
 
 			linux,pci-domain = <0>;
 			num-lanes = <2>;
@@ -2317,8 +2341,22 @@
 				    "atu",
 				    "config";
 
-			interrupts = <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "msi";
+			interrupts = <GIC_SPI 307 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 308 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 309 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 312 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 313 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 314 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 374 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 375 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "msi0",
+					  "msi1",
+					  "msi2",
+					  "msi3",
+					  "msi4",
+					  "msi5",
+					  "msi6",
+					  "msi7";
 
 			clocks = <&gcc GCC_PCIE_1_AUX_CLK>,
 				 <&gcc GCC_PCIE_1_CFG_AHB_CLK>,
@@ -2363,6 +2401,11 @@
 					<0 0 0 4 &intc 0 0 0 439 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-map-mask = <0 0 0 0x7>;
 			#interrupt-cells = <1>;
+
+			/* Entries are reversed due to the unusual ITS DeviceID encoding */
+			msi-map = <0x0 &gic_its 0x1481 0x1>,
+				  <0x100 &gic_its 0x1480 0x1>;
+			msi-map-mask = <0xff00>;
 
 			linux,pci-domain = <1>;
 			num-lanes = <2>;
@@ -2448,10 +2491,12 @@
 			compatible = "qcom,sm8650-qmp-ufs-phy";
 			reg = <0 0x01d80000 0 0x2000>;
 
-			clocks = <&tcsr TCSR_UFS_CLKREF_EN>,
-				 <&gcc GCC_UFS_PHY_PHY_AUX_CLK>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>,
+				 <&gcc GCC_UFS_PHY_PHY_AUX_CLK>,
+				 <&tcsr TCSR_UFS_CLKREF_EN>;
 			clock-names = "ref",
-				      "ref_aux";
+				      "ref_aux",
+				      "qref";
 
 			resets = <&ufs_mem_hc 0>;
 			reset-names = "ufsphy";
@@ -2627,7 +2672,8 @@
 					     "mss";
 
 			memory-region = <&mpss_mem>, <&q6_mpss_dtb_mem>,
-					<&mpss_dsm_mem>, <&mpss_dsm_mem_2>;
+					<&mpss_dsm_mem>, <&mpss_dsm_mem_2>,
+					<&qlink_logging_mem>;
 
 			qcom,qmp = <&aoss_qmp>;
 
@@ -2919,7 +2965,7 @@
 				};
 			};
 
-			dmic02_default: dmic02-default-state {
+			dmic23_default: dmic23-default-state {
 				clk-pins {
 					pins = "gpio8";
 					function = "dmic2_clk";
@@ -3703,7 +3749,7 @@
 		spmi_bus: spmi@c400000 {
 			compatible = "qcom,spmi-pmic-arb";
 			reg = <0 0x0c400000 0 0x3000>,
-			      <0 0x0c500000 0 0x4000000>,
+			      <0 0x0c500000 0 0x400000>,
 			      <0 0x0c440000 0 0x80000>,
 			      <0 0x0c4c0000 0 0x20000>,
 			      <0 0x0c42d000 0 0x4000>;
@@ -4808,6 +4854,7 @@
 
 						iommus = <&apps_smmu 0x1003 0x80>,
 							 <&apps_smmu 0x1043 0x20>;
+						dma-coherent;
 					};
 
 					compute-cb@4 {
@@ -4816,6 +4863,7 @@
 
 						iommus = <&apps_smmu 0x1004 0x80>,
 							 <&apps_smmu 0x1044 0x20>;
+						dma-coherent;
 					};
 
 					compute-cb@5 {
@@ -4824,6 +4872,7 @@
 
 						iommus = <&apps_smmu 0x1005 0x80>,
 							 <&apps_smmu 0x1045 0x20>;
+						dma-coherent;
 					};
 
 					compute-cb@6 {
@@ -4832,6 +4881,7 @@
 
 						iommus = <&apps_smmu 0x1006 0x80>,
 							 <&apps_smmu 0x1046 0x20>;
+						dma-coherent;
 					};
 
 					compute-cb@7 {
@@ -4841,6 +4891,7 @@
 						iommus = <&apps_smmu 0x1007 0x40>,
 							 <&apps_smmu 0x1067 0x0>,
 							 <&apps_smmu 0x1087 0x0>;
+						dma-coherent;
 					};
 				};
 
@@ -4961,6 +5012,7 @@
 						iommus = <&apps_smmu 0x1961 0x0>,
 							 <&apps_smmu 0x0c01 0x20>,
 							 <&apps_smmu 0x19c1 0x0>;
+						dma-coherent;
 					};
 
 					compute-cb@2 {
@@ -4970,6 +5022,7 @@
 						iommus = <&apps_smmu 0x1962 0x0>,
 							 <&apps_smmu 0x0c02 0x20>,
 							 <&apps_smmu 0x19c2 0x0>;
+						dma-coherent;
 					};
 
 					compute-cb@3 {
@@ -4979,6 +5032,7 @@
 						iommus = <&apps_smmu 0x1963 0x0>,
 							 <&apps_smmu 0x0c03 0x20>,
 							 <&apps_smmu 0x19c3 0x0>;
+						dma-coherent;
 					};
 
 					compute-cb@4 {
@@ -4988,6 +5042,7 @@
 						iommus = <&apps_smmu 0x1964 0x0>,
 							 <&apps_smmu 0x0c04 0x20>,
 							 <&apps_smmu 0x19c4 0x0>;
+						dma-coherent;
 					};
 
 					compute-cb@5 {
@@ -4997,6 +5052,7 @@
 						iommus = <&apps_smmu 0x1965 0x0>,
 							 <&apps_smmu 0x0c05 0x20>,
 							 <&apps_smmu 0x19c5 0x0>;
+						dma-coherent;
 					};
 
 					compute-cb@6 {
@@ -5006,6 +5062,7 @@
 						iommus = <&apps_smmu 0x1966 0x0>,
 							 <&apps_smmu 0x0c06 0x20>,
 							 <&apps_smmu 0x19c6 0x0>;
+						dma-coherent;
 					};
 
 					compute-cb@7 {
@@ -5015,6 +5072,7 @@
 						iommus = <&apps_smmu 0x1967 0x0>,
 							 <&apps_smmu 0x0c07 0x20>,
 							 <&apps_smmu 0x19c7 0x0>;
+						dma-coherent;
 					};
 
 					compute-cb@8 {
@@ -5024,6 +5082,7 @@
 						iommus = <&apps_smmu 0x1968 0x0>,
 							 <&apps_smmu 0x0c08 0x20>,
 							 <&apps_smmu 0x19c8 0x0>;
+						dma-coherent;
 					};
 				};
 			};

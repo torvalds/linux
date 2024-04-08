@@ -212,8 +212,8 @@ static int fb_check_caps(struct fb_info *info, struct fb_var_screeninfo *var,
 	fbcon_get_requirement(info, &caps);
 	info->fbops->fb_get_caps(info, &fbcaps, var);
 
-	if (((fbcaps.x ^ caps.x) & caps.x) ||
-	    ((fbcaps.y ^ caps.y) & caps.y) ||
+	if (!bitmap_subset(caps.x, fbcaps.x, FB_MAX_BLIT_WIDTH) ||
+	    !bitmap_subset(caps.y, fbcaps.y, FB_MAX_BLIT_HEIGHT) ||
 	    (fbcaps.len < caps.len))
 		err = -EINVAL;
 
@@ -420,11 +420,11 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 	}
 	fb_info->pixmap.offset = 0;
 
-	if (!fb_info->pixmap.blit_x)
-		fb_info->pixmap.blit_x = ~(u32)0;
+	if (bitmap_empty(fb_info->pixmap.blit_x, FB_MAX_BLIT_WIDTH))
+		bitmap_fill(fb_info->pixmap.blit_x, FB_MAX_BLIT_WIDTH);
 
-	if (!fb_info->pixmap.blit_y)
-		fb_info->pixmap.blit_y = ~(u32)0;
+	if (bitmap_empty(fb_info->pixmap.blit_y, FB_MAX_BLIT_HEIGHT))
+		bitmap_fill(fb_info->pixmap.blit_y, FB_MAX_BLIT_HEIGHT);
 
 	if (!fb_info->modelist.prev || !fb_info->modelist.next)
 		INIT_LIST_HEAD(&fb_info->modelist);

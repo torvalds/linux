@@ -31,7 +31,7 @@ static int drop_dev_ptrs(struct bch_fs *c, struct bkey_s k,
 	nr_good = bch2_bkey_durability(c, k.s_c);
 	if ((!nr_good && !(flags & lost)) ||
 	    (nr_good < replicas && !(flags & degraded)))
-		return -EINVAL;
+		return -BCH_ERR_remove_would_lose_data;
 
 	return 0;
 }
@@ -111,7 +111,7 @@ static int bch2_dev_metadata_drop(struct bch_fs *c, unsigned dev_idx, int flags)
 
 	/* don't handle this yet: */
 	if (flags & BCH_FORCE_IF_METADATA_LOST)
-		return -EINVAL;
+		return -BCH_ERR_remove_with_metadata_missing_unimplemented;
 
 	trans = bch2_trans_get(c);
 	bch2_bkey_buf_init(&k);
@@ -132,10 +132,8 @@ retry:
 
 			ret = drop_dev_ptrs(c, bkey_i_to_s(k.k),
 					    dev_idx, flags, true);
-			if (ret) {
-				bch_err(c, "Cannot drop device without losing data");
+			if (ret)
 				break;
-			}
 
 			ret = bch2_btree_node_update_key(trans, &iter, b, k.k, 0, false);
 			if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {

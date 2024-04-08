@@ -771,5 +771,6 @@ static struct platform_driver emac_platform_driver = {
 
 module_platform_driver(emac_platform_driver);
 
+MODULE_DESCRIPTION("Qualcomm EMAC Gigabit Ethernet driver");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:qcom-emac");

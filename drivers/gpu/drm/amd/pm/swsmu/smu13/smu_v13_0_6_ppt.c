@@ -2147,8 +2147,8 @@ static int smu_v13_0_6_get_current_pcie_link_speed(struct smu_context *smu)
 
 	/* TODO: confirm this on real target */
 	esm_ctrl = RREG32_PCIE(smnPCIE_ESM_CTRL);
-	if ((esm_ctrl >> 15) & 0x1FFFF)
-		return (((esm_ctrl >> 8) & 0x3F) + 128);
+	if ((esm_ctrl >> 15) & 0x1)
+		return (((esm_ctrl >> 8) & 0x7F) + 128);
 
 	speed_level = (RREG32_PCIE(smnPCIE_LC_SPEED_CNTL) &
 		PCIE_LC_SPEED_CNTL__LC_CURRENT_DATA_RATE_MASK)
@@ -2228,14 +2228,16 @@ static ssize_t smu_v13_0_6_get_gpu_metrics(struct smu_context *smu, void **table
 	gpu_metrics->gfxclk_lock_status = GET_METRIC_FIELD(GfxLockXCDMak) >> GET_INST(GC, 0);
 
 	if (!(adev->flags & AMD_IS_APU)) {
-		link_width_level = smu_v13_0_6_get_current_pcie_link_width_level(smu);
-		if (link_width_level > MAX_LINK_WIDTH)
-			link_width_level = 0;
+		if (!amdgpu_sriov_vf(adev)) {
+			link_width_level = smu_v13_0_6_get_current_pcie_link_width_level(smu);
+			if (link_width_level > MAX_LINK_WIDTH)
+				link_width_level = 0;
 
-		gpu_metrics->pcie_link_width =
-			DECODE_LANE_WIDTH(link_width_level);
-		gpu_metrics->pcie_link_speed =
-			smu_v13_0_6_get_current_pcie_link_speed(smu);
+			gpu_metrics->pcie_link_width =
+				DECODE_LANE_WIDTH(link_width_level);
+			gpu_metrics->pcie_link_speed =
+				smu_v13_0_6_get_current_pcie_link_speed(smu);
+		}
 		gpu_metrics->pcie_bandwidth_acc =
 				SMUQ10_ROUND(metrics_x->PcieBandwidthAcc[0]);
 		gpu_metrics->pcie_bandwidth_inst =
@@ -2306,8 +2308,8 @@ static int smu_v13_0_6_mode2_reset(struct smu_context *smu)
 	ret = smu_cmn_send_msg_without_waiting(smu, (uint16_t)index,
 					       SMU_RESET_MODE_2);
 
-	/* This is similar to FLR, wait till max FLR timeout */
-	msleep(100);
+	/* Reset takes a bit longer, wait for 200ms. */
+	msleep(200);
 
 	dev_dbg(smu->adev->dev, "restore config space...\n");
 	/* Restore the config space saved during init */

@@ -17,7 +17,8 @@ KMSAN_SANITIZE_common.o := n
 # As above, instrumenting secondary CPU boot code causes boot hangs.
 KCSAN_SANITIZE_common.o := n
 
-obj-y			:= cacheinfo.o scattered.o topology.o
+obj-y			:= cacheinfo.o scattered.o
+obj-y			+= topology_common.o topology_ext.o topology_amd.o
 obj-y			+= common.o
 obj-y			+= rdrand.o
 obj-y			+= match.o
@@ -25,14 +26,16 @@ obj-y			+= bugs.o
 obj-y			+= aperfmperf.o
 obj-y			+= cpuid-deps.o
 obj-y			+= umwait.o
+obj-y 			+= capflags.o powerflags.o
 
-obj-$(CONFIG_PROC_FS)	+= proc.o
-obj-y += capflags.o powerflags.o
+obj-$(CONFIG_X86_LOCAL_APIC)		+= topology.o
 
-obj-$(CONFIG_IA32_FEAT_CTL) += feat_ctl.o
+obj-$(CONFIG_PROC_FS)			+= proc.o
+
+obj-$(CONFIG_IA32_FEAT_CTL)		+= feat_ctl.o
 ifdef CONFIG_CPU_SUP_INTEL
-obj-y			+= intel.o intel_pconfig.o tsx.o
-obj-$(CONFIG_PM)	+= intel_epb.o
+obj-y					+= intel.o intel_pconfig.o tsx.o
+obj-$(CONFIG_PM)			+= intel_epb.o
 endif
 obj-$(CONFIG_CPU_SUP_AMD)		+= amd.o
 obj-$(CONFIG_CPU_SUP_HYGON)		+= hygon.o

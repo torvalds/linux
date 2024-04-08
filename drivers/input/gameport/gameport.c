@@ -38,7 +38,7 @@ static DEFINE_MUTEX(gameport_mutex);
 
 static LIST_HEAD(gameport_list);
 
-static struct bus_type gameport_bus;
+static const struct bus_type gameport_bus;
 
 static void gameport_add_port(struct gameport *gameport);
 static void gameport_attach_driver(struct gameport_driver *drv);
@@ -813,7 +813,7 @@ static int gameport_bus_match(struct device *dev, struct device_driver *drv)
 	return !gameport_drv->ignore;
 }
 
-static struct bus_type gameport_bus = {
+static const struct bus_type gameport_bus = {
 	.name		= "gameport",
 	.dev_groups	= gameport_device_groups,
 	.drv_groups	= gameport_driver_groups,

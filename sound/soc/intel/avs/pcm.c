@@ -643,6 +643,79 @@ static int avs_dai_fe_prepare(struct snd_pcm_substream *substream, struct snd_so
 	return 0;
 }
 
+static void avs_hda_stream_start(struct hdac_bus *bus, struct hdac_ext_stream *host_stream)
+{
+	struct hdac_stream *first_running = NULL;
+	struct hdac_stream *pos;
+	struct avs_dev *adev = hdac_to_avs(bus);
+
+	list_for_each_entry(pos, &bus->stream_list, list) {
+		if (pos->running) {
+			if (first_running)
+				break; /* more than one running */
+			first_running = pos;
+		}
+	}
+
+	/*
+	 * If host_stream is a CAPTURE stream and will be the only one running,
+	 * disable L1SEN to avoid sound clipping.
+	 */
+	if (!first_running) {
+		if (hdac_stream(host_stream)->direction == SNDRV_PCM_STREAM_CAPTURE)
+			avs_hda_l1sen_enable(adev, false);
+		snd_hdac_stream_start(hdac_stream(host_stream));
+		return;
+	}
+
+	snd_hdac_stream_start(hdac_stream(host_stream));
+	/*
+	 * If host_stream is the first stream to break the rule above,
+	 * re-enable L1SEN.
+	 */
+	if (list_entry_is_head(pos, &bus->stream_list, list) &&
+	    first_running->direction == SNDRV_PCM_STREAM_CAPTURE)
+		avs_hda_l1sen_enable(adev, true);
+}
+
+static void avs_hda_stream_stop(struct hdac_bus *bus, struct hdac_ext_stream *host_stream)
+{
+	struct hdac_stream *first_running = NULL;
+	struct hdac_stream *pos;
+	struct avs_dev *adev = hdac_to_avs(bus);
+
+	list_for_each_entry(pos, &bus->stream_list, list) {
+		if (pos == hdac_stream(host_stream))
+			continue; /* ignore stream that is about to be stopped */
+		if (pos->running) {
+			if (first_running)
+				break; /* more than one running */
+			first_running = pos;
+		}
+	}
+
+	/*
+	 * If host_stream is a CAPTURE stream and is the only one running,
+	 * re-enable L1SEN.
+	 */
+	if (!first_running) {
+		snd_hdac_stream_stop(hdac_stream(host_stream));
+		if (hdac_stream(host_stream)->direction == SNDRV_PCM_STREAM_CAPTURE)
+			avs_hda_l1sen_enable(adev, true);
+		return;
+	}
+
+	/*
+	 * If by stopping host_stream there is only a single, CAPTURE stream running
+	 * left, disable L1SEN to avoid sound clipping.
+	 */
+	if (list_entry_is_head(pos, &bus->stream_list, list) &&
+	    first_running->direction == SNDRV_PCM_STREAM_CAPTURE)
+		avs_hda_l1sen_enable(adev, false);
+
+	snd_hdac_stream_stop(hdac_stream(host_stream));
+}
+
 static int avs_dai_fe_trigger(struct snd_pcm_substream *substream, int cmd, struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
@@ -664,7 +737,7 @@ static int avs_dai_fe_trigger(struct snd_pcm_substream *substream, int cmd, stru
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		spin_lock_irqsave(&bus->reg_lock, flags);
-		snd_hdac_stream_start(hdac_stream(host_stream));
+		avs_hda_stream_start(bus, host_stream);
 		spin_unlock_irqrestore(&bus->reg_lock, flags);
 
 		/* Timeout on DRSM poll shall not stop the resume so ignore the result. */
@@ -694,7 +767,7 @@ static int avs_dai_fe_trigger(struct snd_pcm_substream *substream, int cmd, stru
 			dev_err(dai->dev, "pause FE path failed: %d\n", ret);
 
 		spin_lock_irqsave(&bus->reg_lock, flags);
-		snd_hdac_stream_stop(hdac_stream(host_stream));
+		avs_hda_stream_stop(bus, host_stream);
 		spin_unlock_irqrestore(&bus->reg_lock, flags);
 
 		ret = avs_path_reset(data->path);

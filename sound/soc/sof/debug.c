@@ -433,13 +433,15 @@ static void snd_sof_ipc_dump(struct snd_sof_dev *sdev)
 
 void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev, const char *msg)
 {
-	if (IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT) ||
-	    sof_debug_check_flag(SOF_DBG_RETAIN_CTX)) {
+	if ((IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT) ||
+	    sof_debug_check_flag(SOF_DBG_RETAIN_CTX)) && !sdev->d3_prevented) {
 		/* should we prevent DSP entering D3 ? */
 		if (!sdev->ipc_dump_printed)
 			dev_info(sdev->dev,
 				 "Attempting to prevent DSP from entering D3 state to preserve context\n");
-		pm_runtime_get_if_in_use(sdev->dev);
+
+		if (pm_runtime_get_if_in_use(sdev->dev) == 1)
+			sdev->d3_prevented = true;
 	}
 
 	/* dump vital information to the logs */

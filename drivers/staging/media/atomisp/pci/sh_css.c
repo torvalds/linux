@@ -174,8 +174,6 @@ static struct sh_css_hmm_buffer_record hmm_buffer_record[MAX_HMM_BUFFER_NUM];
 
 #define GPIO_FLASH_PIN_MASK BIT(HIVE_GPIO_STROBE_TRIGGER_PIN)
 
-static bool fw_explicitly_loaded;
-
 /*
  * Local prototypes
  */
@@ -1360,7 +1358,6 @@ ia_css_unload_firmware(void)
 		ia_css_binary_uninit();
 		sh_css_unload_firmware();
 	}
-	fw_explicitly_loaded = false;
 }
 
 static void
@@ -1405,13 +1402,9 @@ ia_css_load_firmware(struct device *dev, const struct ia_css_env *env,
 		my_css.flush = env->cpu_mem_env.flush;
 	}
 
-	ia_css_unload_firmware(); /* in case we are called twice */
 	err = sh_css_load_firmware(dev, fw->data, fw->bytes);
-	if (!err) {
+	if (!err)
 		err = ia_css_binary_init_infos();
-		if (!err)
-			fw_explicitly_loaded = true;
-	}
 
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE, "ia_css_load_firmware() leave\n");
 	return err;
@@ -1419,9 +1412,7 @@ ia_css_load_firmware(struct device *dev, const struct ia_css_env *env,
 
 int
 ia_css_init(struct device *dev, const struct ia_css_env *env,
-	    const struct ia_css_fw  *fw,
-	    u32                 mmu_l1_base,
-	    enum ia_css_irq_type     irq_type)
+	    u32 mmu_l1_base, enum ia_css_irq_type irq_type)
 {
 	int err;
 	ia_css_spctrl_cfg spctrl_cfg;
@@ -1466,8 +1457,6 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 	/* Check struct ia_css_init_dmem_cfg */
 	COMPILATION_ERROR_IF(sizeof(struct ia_css_sp_init_dmem_cfg)		!= SIZE_OF_IA_CSS_SP_INIT_DMEM_CFG_STRUCT);
 
-	if (!fw && !fw_explicitly_loaded)
-		return -EINVAL;
 	if (!env)
 		return -EINVAL;
 
@@ -1543,22 +1532,7 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 		IA_CSS_LEAVE_ERR(err);
 		return err;
 	}
-	if (fw) {
-		ia_css_unload_firmware(); /* in case we already had firmware loaded */
-		err = sh_css_load_firmware(dev, fw->data, fw->bytes);
-		if (err) {
-			IA_CSS_LEAVE_ERR(err);
-			return err;
-		}
-		err = ia_css_binary_init_infos();
-		if (err) {
-			IA_CSS_LEAVE_ERR(err);
-			return err;
-		}
-		fw_explicitly_loaded = false;
 
-		my_css_save.loaded_fw = (struct ia_css_fw *)fw;
-	}
 	if (!sh_css_setup_spctrl_config(&sh_css_sp_fw, SP_PROG_NAME, &spctrl_cfg))
 		return -EINVAL;
 
@@ -2162,9 +2136,6 @@ ia_css_uninit(void)
 		/* needed for reprogramming the inputformatter after power cycle of css */
 		ifmtr_set_if_blocking_mode_reset = true;
 	}
-
-	if (!fw_explicitly_loaded)
-		ia_css_unload_firmware();
 
 	ia_css_spctrl_unload_fw(SP0_ID);
 	sh_css_sp_set_sp_running(false);
@@ -3635,7 +3606,7 @@ ia_css_pipe_enqueue_buffer(struct ia_css_pipe *pipe,
 
 	assert(pipeline || pipe_id == IA_CSS_PIPE_ID_COPY);
 
-	assert(sizeof(NULL) <= sizeof(ddr_buffer.kernel_ptr));
+	assert(sizeof(void *) <= sizeof(ddr_buffer.kernel_ptr));
 	ddr_buffer.kernel_ptr = HOST_ADDRESS(NULL);
 	ddr_buffer.cookie_ptr = buffer->driver_cookie;
 	ddr_buffer.timing_data = buffer->timing_data;

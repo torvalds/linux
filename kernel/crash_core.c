@@ -11,9 +11,14 @@
 #include <linux/sizes.h>
 #include <linux/kexec.h>
 #include <linux/memory.h>
+#include <linux/mm.h>
 #include <linux/cpuhotplug.h>
 #include <linux/memblock.h>
 #include <linux/kmemleak.h>
+#include <linux/crash_core.h>
+#include <linux/reboot.h>
+#include <linux/btf.h>
+#include <linux/objtool.h>
 
 #include <asm/page.h>
 #include <asm/sections.h>
@@ -26,451 +31,130 @@
 /* Per cpu memory for storing cpu states in case of system crash. */
 note_buf_t __percpu *crash_notes;
 
-/* vmcoreinfo stuff */
-unsigned char *vmcoreinfo_data;
-size_t vmcoreinfo_size;
-u32 *vmcoreinfo_note;
+#ifdef CONFIG_CRASH_DUMP
 
-/* trusted vmcoreinfo, e.g. we can make a copy in the crash memory */
-static unsigned char *vmcoreinfo_data_safecopy;
-
-/* Location of the reserved area for the crash kernel */
-struct resource crashk_res = {
-	.name  = "Crash kernel",
-	.start = 0,
-	.end   = 0,
-	.flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
-	.desc  = IORES_DESC_CRASH_KERNEL
-};
-struct resource crashk_low_res = {
-	.name  = "Crash kernel",
-	.start = 0,
-	.end   = 0,
-	.flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM,
-	.desc  = IORES_DESC_CRASH_KERNEL
-};
-
-/*
- * parsing the "crashkernel" commandline
- *
- * this code is intended to be called from architecture specific code
- */
-
-
-/*
- * This function parses command lines in the format
- *
- *   crashkernel=ramsize-range:size[,...][@offset]
- *
- * The function returns 0 on success and -EINVAL on failure.
- */
-static int __init parse_crashkernel_mem(char *cmdline,
-					unsigned long long system_ram,
-					unsigned long long *crash_size,
-					unsigned long long *crash_base)
+int kimage_crash_copy_vmcoreinfo(struct kimage *image)
 {
-	char *cur = cmdline, *tmp;
-	unsigned long long total_mem = system_ram;
+	struct page *vmcoreinfo_page;
+	void *safecopy;
+
+	if (!IS_ENABLED(CONFIG_CRASH_DUMP))
+		return 0;
+	if (image->type != KEXEC_TYPE_CRASH)
+		return 0;
 
 	/*
-	 * Firmware sometimes reserves some memory regions for its own use,
-	 * so the system memory size is less than the actual physical memory
-	 * size. Work around this by rounding up the total size to 128M,
-	 * which is enough for most test cases.
+	 * For kdump, allocate one vmcoreinfo safe copy from the
+	 * crash memory. as we have arch_kexec_protect_crashkres()
+	 * after kexec syscall, we naturally protect it from write
+	 * (even read) access under kernel direct mapping. But on
+	 * the other hand, we still need to operate it when crash
+	 * happens to generate vmcoreinfo note, hereby we rely on
+	 * vmap for this purpose.
 	 */
-	total_mem = roundup(total_mem, SZ_128M);
-
-	/* for each entry of the comma-separated list */
-	do {
-		unsigned long long start, end = ULLONG_MAX, size;
-
-		/* get the start of the range */
-		start = memparse(cur, &tmp);
-		if (cur == tmp) {
-			pr_warn("crashkernel: Memory value expected\n");
-			return -EINVAL;
-		}
-		cur = tmp;
-		if (*cur != '-') {
-			pr_warn("crashkernel: '-' expected\n");
-			return -EINVAL;
-		}
-		cur++;
-
-		/* if no ':' is here, than we read the end */
-		if (*cur != ':') {
-			end = memparse(cur, &tmp);
-			if (cur == tmp) {
-				pr_warn("crashkernel: Memory value expected\n");
-				return -EINVAL;
-			}
-			cur = tmp;
-			if (end <= start) {
-				pr_warn("crashkernel: end <= start\n");
-				return -EINVAL;
-			}
-		}
-
-		if (*cur != ':') {
-			pr_warn("crashkernel: ':' expected\n");
-			return -EINVAL;
-		}
-		cur++;
-
-		size = memparse(cur, &tmp);
-		if (cur == tmp) {
-			pr_warn("Memory value expected\n");
-			return -EINVAL;
-		}
-		cur = tmp;
-		if (size >= total_mem) {
-			pr_warn("crashkernel: invalid size\n");
-			return -EINVAL;
-		}
-
-		/* match ? */
-		if (total_mem >= start && total_mem < end) {
-			*crash_size = size;
-			break;
-		}
-	} while (*cur++ == ',');
-
-	if (*crash_size > 0) {
-		while (*cur && *cur != ' ' && *cur != '@')
-			cur++;
-		if (*cur == '@') {
-			cur++;
-			*crash_base = memparse(cur, &tmp);
-			if (cur == tmp) {
-				pr_warn("Memory value expected after '@'\n");
-				return -EINVAL;
-			}
-		}
-	} else
-		pr_info("crashkernel size resulted in zero bytes\n");
-
-	return 0;
-}
-
-/*
- * That function parses "simple" (old) crashkernel command lines like
- *
- *	crashkernel=size[@offset]
- *
- * It returns 0 on success and -EINVAL on failure.
- */
-static int __init parse_crashkernel_simple(char *cmdline,
-					   unsigned long long *crash_size,
-					   unsigned long long *crash_base)
-{
-	char *cur = cmdline;
-
-	*crash_size = memparse(cmdline, &cur);
-	if (cmdline == cur) {
-		pr_warn("crashkernel: memory value expected\n");
-		return -EINVAL;
+	vmcoreinfo_page = kimage_alloc_control_pages(image, 0);
+	if (!vmcoreinfo_page) {
+		pr_warn("Could not allocate vmcoreinfo buffer\n");
+		return -ENOMEM;
 	}
-
-	if (*cur == '@')
-		*crash_base = memparse(cur+1, &cur);
-	else if (*cur != ' ' && *cur != '\0') {
-		pr_warn("crashkernel: unrecognized char: %c\n", *cur);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-#define SUFFIX_HIGH 0
-#define SUFFIX_LOW  1
-#define SUFFIX_NULL 2
-static __initdata char *suffix_tbl[] = {
-	[SUFFIX_HIGH] = ",high",
-	[SUFFIX_LOW]  = ",low",
-	[SUFFIX_NULL] = NULL,
-};
-
-/*
- * That function parses "suffix"  crashkernel command lines like
- *
- *	crashkernel=size,[high|low]
- *
- * It returns 0 on success and -EINVAL on failure.
- */
-static int __init parse_crashkernel_suffix(char *cmdline,
-					   unsigned long long *crash_size,
-					   const char *suffix)
-{
-	char *cur = cmdline;
-
-	*crash_size = memparse(cmdline, &cur);
-	if (cmdline == cur) {
-		pr_warn("crashkernel: memory value expected\n");
-		return -EINVAL;
-	}
-
-	/* check with suffix */
-	if (strncmp(cur, suffix, strlen(suffix))) {
-		pr_warn("crashkernel: unrecognized char: %c\n", *cur);
-		return -EINVAL;
-	}
-	cur += strlen(suffix);
-	if (*cur != ' ' && *cur != '\0') {
-		pr_warn("crashkernel: unrecognized char: %c\n", *cur);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static __init char *get_last_crashkernel(char *cmdline,
-			     const char *name,
-			     const char *suffix)
-{
-	char *p = cmdline, *ck_cmdline = NULL;
-
-	/* find crashkernel and use the last one if there are more */
-	p = strstr(p, name);
-	while (p) {
-		char *end_p = strchr(p, ' ');
-		char *q;
-
-		if (!end_p)
-			end_p = p + strlen(p);
-
-		if (!suffix) {
-			int i;
-
-			/* skip the one with any known suffix */
-			for (i = 0; suffix_tbl[i]; i++) {
-				q = end_p - strlen(suffix_tbl[i]);
-				if (!strncmp(q, suffix_tbl[i],
-					     strlen(suffix_tbl[i])))
-					goto next;
-			}
-			ck_cmdline = p;
-		} else {
-			q = end_p - strlen(suffix);
-			if (!strncmp(q, suffix, strlen(suffix)))
-				ck_cmdline = p;
-		}
-next:
-		p = strstr(p+1, name);
-	}
-
-	return ck_cmdline;
-}
-
-static int __init __parse_crashkernel(char *cmdline,
-			     unsigned long long system_ram,
-			     unsigned long long *crash_size,
-			     unsigned long long *crash_base,
-			     const char *suffix)
-{
-	char *first_colon, *first_space;
-	char *ck_cmdline;
-	char *name = "crashkernel=";
-
-	BUG_ON(!crash_size || !crash_base);
-	*crash_size = 0;
-	*crash_base = 0;
-
-	ck_cmdline = get_last_crashkernel(cmdline, name, suffix);
-	if (!ck_cmdline)
-		return -ENOENT;
-
-	ck_cmdline += strlen(name);
-
-	if (suffix)
-		return parse_crashkernel_suffix(ck_cmdline, crash_size,
-				suffix);
-	/*
-	 * if the commandline contains a ':', then that's the extended
-	 * syntax -- if not, it must be the classic syntax
-	 */
-	first_colon = strchr(ck_cmdline, ':');
-	first_space = strchr(ck_cmdline, ' ');
-	if (first_colon && (!first_space || first_colon < first_space))
-		return parse_crashkernel_mem(ck_cmdline, system_ram,
-				crash_size, crash_base);
-
-	return parse_crashkernel_simple(ck_cmdline, crash_size, crash_base);
-}
-
-/*
- * That function is the entry point for command line parsing and should be
- * called from the arch-specific code.
- *
- * If crashkernel=,high|low is supported on architecture, non-NULL values
- * should be passed to parameters 'low_size' and 'high'.
- */
-int __init parse_crashkernel(char *cmdline,
-			     unsigned long long system_ram,
-			     unsigned long long *crash_size,
-			     unsigned long long *crash_base,
-			     unsigned long long *low_size,
-			     bool *high)
-{
-	int ret;
-
-	/* crashkernel=X[@offset] */
-	ret = __parse_crashkernel(cmdline, system_ram, crash_size,
-				crash_base, NULL);
-#ifdef CONFIG_ARCH_HAS_GENERIC_CRASHKERNEL_RESERVATION
-	/*
-	 * If non-NULL 'high' passed in and no normal crashkernel
-	 * setting detected, try parsing crashkernel=,high|low.
-	 */
-	if (high && ret == -ENOENT) {
-		ret = __parse_crashkernel(cmdline, 0, crash_size,
-				crash_base, suffix_tbl[SUFFIX_HIGH]);
-		if (ret || !*crash_size)
-			return -EINVAL;
-
-		/*
-		 * crashkernel=Y,low can be specified or not, but invalid value
-		 * is not allowed.
-		 */
-		ret = __parse_crashkernel(cmdline, 0, low_size,
-				crash_base, suffix_tbl[SUFFIX_LOW]);
-		if (ret == -ENOENT) {
-			*low_size = DEFAULT_CRASH_KERNEL_LOW_SIZE;
-			ret = 0;
-		} else if (ret) {
-			return ret;
-		}
-
-		*high = true;
-	}
-#endif
-	if (!*crash_size)
-		ret = -EINVAL;
-
-	return ret;
-}
-
-/*
- * Add a dummy early_param handler to mark crashkernel= as a known command line
- * parameter and suppress incorrect warnings in init/main.c.
- */
-static int __init parse_crashkernel_dummy(char *arg)
-{
-	return 0;
-}
-early_param("crashkernel", parse_crashkernel_dummy);
-
-#ifdef CONFIG_ARCH_HAS_GENERIC_CRASHKERNEL_RESERVATION
-static int __init reserve_crashkernel_low(unsigned long long low_size)
-{
-#ifdef CONFIG_64BIT
-	unsigned long long low_base;
-
-	low_base = memblock_phys_alloc_range(low_size, CRASH_ALIGN, 0, CRASH_ADDR_LOW_MAX);
-	if (!low_base) {
-		pr_err("cannot allocate crashkernel low memory (size:0x%llx).\n", low_size);
+	safecopy = vmap(&vmcoreinfo_page, 1, VM_MAP, PAGE_KERNEL);
+	if (!safecopy) {
+		pr_warn("Could not vmap vmcoreinfo buffer\n");
 		return -ENOMEM;
 	}
 
-	pr_info("crashkernel low memory reserved: 0x%08llx - 0x%08llx (%lld MB)\n",
-		low_base, low_base + low_size, low_size >> 20);
+	image->vmcoreinfo_data_copy = safecopy;
+	crash_update_vmcoreinfo_safecopy(safecopy);
 
-	crashk_low_res.start = low_base;
-	crashk_low_res.end   = low_base + low_size - 1;
-#endif
 	return 0;
 }
 
-void __init reserve_crashkernel_generic(char *cmdline,
-			     unsigned long long crash_size,
-			     unsigned long long crash_base,
-			     unsigned long long crash_low_size,
-			     bool high)
+
+
+int kexec_should_crash(struct task_struct *p)
 {
-	unsigned long long search_end = CRASH_ADDR_LOW_MAX, search_base = 0;
-	bool fixed_base = false;
+	/*
+	 * If crash_kexec_post_notifiers is enabled, don't run
+	 * crash_kexec() here yet, which must be run after panic
+	 * notifiers in panic().
+	 */
+	if (crash_kexec_post_notifiers)
+		return 0;
+	/*
+	 * There are 4 panic() calls in make_task_dead() path, each of which
+	 * corresponds to each of these 4 conditions.
+	 */
+	if (in_interrupt() || !p->pid || is_global_init(p) || panic_on_oops)
+		return 1;
+	return 0;
+}
 
-	/* User specifies base address explicitly. */
-	if (crash_base) {
-		fixed_base = true;
-		search_base = crash_base;
-		search_end = crash_base + crash_size;
-	} else if (high) {
-		search_base = CRASH_ADDR_LOW_MAX;
-		search_end = CRASH_ADDR_HIGH_MAX;
-	}
+int kexec_crash_loaded(void)
+{
+	return !!kexec_crash_image;
+}
+EXPORT_SYMBOL_GPL(kexec_crash_loaded);
 
-retry:
-	crash_base = memblock_phys_alloc_range(crash_size, CRASH_ALIGN,
-					       search_base, search_end);
-	if (!crash_base) {
-		/*
-		 * For crashkernel=size[KMG]@offset[KMG], print out failure
-		 * message if can't reserve the specified region.
-		 */
-		if (fixed_base) {
-			pr_warn("crashkernel reservation failed - memory is in use.\n");
-			return;
+/*
+ * No panic_cpu check version of crash_kexec().  This function is called
+ * only when panic_cpu holds the current CPU number; this is the only CPU
+ * which processes crash_kexec routines.
+ */
+void __noclone __crash_kexec(struct pt_regs *regs)
+{
+	/* Take the kexec_lock here to prevent sys_kexec_load
+	 * running on one cpu from replacing the crash kernel
+	 * we are using after a panic on a different cpu.
+	 *
+	 * If the crash kernel was not located in a fixed area
+	 * of memory the xchg(&kexec_crash_image) would be
+	 * sufficient.  But since I reuse the memory...
+	 */
+	if (kexec_trylock()) {
+		if (kexec_crash_image) {
+			struct pt_regs fixed_regs;
+
+			crash_setup_regs(&fixed_regs, regs);
+			crash_save_vmcoreinfo();
+			machine_crash_shutdown(&fixed_regs);
+			machine_kexec(kexec_crash_image);
 		}
-
-		/*
-		 * For crashkernel=size[KMG], if the first attempt was for
-		 * low memory, fall back to high memory, the minimum required
-		 * low memory will be reserved later.
-		 */
-		if (!high && search_end == CRASH_ADDR_LOW_MAX) {
-			search_end = CRASH_ADDR_HIGH_MAX;
-			search_base = CRASH_ADDR_LOW_MAX;
-			crash_low_size = DEFAULT_CRASH_KERNEL_LOW_SIZE;
-			goto retry;
-		}
-
-		/*
-		 * For crashkernel=size[KMG],high, if the first attempt was
-		 * for high memory, fall back to low memory.
-		 */
-		if (high && search_end == CRASH_ADDR_HIGH_MAX) {
-			search_end = CRASH_ADDR_LOW_MAX;
-			search_base = 0;
-			goto retry;
-		}
-		pr_warn("cannot allocate crashkernel (size:0x%llx)\n",
-			crash_size);
-		return;
+		kexec_unlock();
 	}
+}
+STACK_FRAME_NON_STANDARD(__crash_kexec);
 
-	if ((crash_base >= CRASH_ADDR_LOW_MAX) &&
-	     crash_low_size && reserve_crashkernel_low(crash_low_size)) {
-		memblock_phys_free(crash_base, crash_size);
-		return;
-	}
-
-	pr_info("crashkernel reserved: 0x%016llx - 0x%016llx (%lld MB)\n",
-		crash_base, crash_base + crash_size, crash_size >> 20);
+__bpf_kfunc void crash_kexec(struct pt_regs *regs)
+{
+	int old_cpu, this_cpu;
 
 	/*
-	 * The crashkernel memory will be removed from the kernel linear
-	 * map. Inform kmemleak so that it won't try to access it.
+	 * Only one CPU is allowed to execute the crash_kexec() code as with
+	 * panic().  Otherwise parallel calls of panic() and crash_kexec()
+	 * may stop each other.  To exclude them, we use panic_cpu here too.
 	 */
-	kmemleak_ignore_phys(crash_base);
-	if (crashk_low_res.end)
-		kmemleak_ignore_phys(crashk_low_res.start);
+	old_cpu = PANIC_CPU_INVALID;
+	this_cpu = raw_smp_processor_id();
 
-	crashk_res.start = crash_base;
-	crashk_res.end = crash_base + crash_size - 1;
+	if (atomic_try_cmpxchg(&panic_cpu, &old_cpu, this_cpu)) {
+		/* This is the 1st CPU which comes here, so go ahead. */
+		__crash_kexec(regs);
+
+		/*
+		 * Reset panic_cpu to allow another panic()/crash_kexec()
+		 * call.
+		 */
+		atomic_set(&panic_cpu, PANIC_CPU_INVALID);
+	}
 }
 
-static __init int insert_crashkernel_resources(void)
+static inline resource_size_t crash_resource_size(const struct resource *res)
 {
-	if (crashk_res.start < crashk_res.end)
-		insert_resource(&iomem_resource, &crashk_res);
-
-	if (crashk_low_res.start < crashk_low_res.end)
-		insert_resource(&iomem_resource, &crashk_low_res);
-
-	return 0;
+	return !res->end ? 0 : resource_size(res);
 }
-early_initcall(insert_crashkernel_resources);
-#endif
+
+
+
 
 int crash_prepare_elf64_headers(struct crash_mem *mem, int need_kernel_map,
 			  void **addr, unsigned long *sz)
@@ -633,205 +317,129 @@ int crash_exclude_mem_range(struct crash_mem *mem,
 	return 0;
 }
 
-Elf_Word *append_elf_note(Elf_Word *buf, char *name, unsigned int type,
-			  void *data, size_t data_len)
+ssize_t crash_get_memory_size(void)
 {
-	struct elf_note *note = (struct elf_note *)buf;
+	ssize_t size = 0;
 
-	note->n_namesz = strlen(name) + 1;
-	note->n_descsz = data_len;
-	note->n_type   = type;
-	buf += DIV_ROUND_UP(sizeof(*note), sizeof(Elf_Word));
-	memcpy(buf, name, note->n_namesz);
-	buf += DIV_ROUND_UP(note->n_namesz, sizeof(Elf_Word));
-	memcpy(buf, data, data_len);
-	buf += DIV_ROUND_UP(data_len, sizeof(Elf_Word));
+	if (!kexec_trylock())
+		return -EBUSY;
 
-	return buf;
+	size += crash_resource_size(&crashk_res);
+	size += crash_resource_size(&crashk_low_res);
+
+	kexec_unlock();
+	return size;
 }
 
-void final_note(Elf_Word *buf)
+static int __crash_shrink_memory(struct resource *old_res,
+				 unsigned long new_size)
 {
-	memset(buf, 0, sizeof(struct elf_note));
-}
+	struct resource *ram_res;
 
-static void update_vmcoreinfo_note(void)
-{
-	u32 *buf = vmcoreinfo_note;
-
-	if (!vmcoreinfo_size)
-		return;
-	buf = append_elf_note(buf, VMCOREINFO_NOTE_NAME, 0, vmcoreinfo_data,
-			      vmcoreinfo_size);
-	final_note(buf);
-}
-
-void crash_update_vmcoreinfo_safecopy(void *ptr)
-{
-	if (ptr)
-		memcpy(ptr, vmcoreinfo_data, vmcoreinfo_size);
-
-	vmcoreinfo_data_safecopy = ptr;
-}
-
-void crash_save_vmcoreinfo(void)
-{
-	if (!vmcoreinfo_note)
-		return;
-
-	/* Use the safe copy to generate vmcoreinfo note if have */
-	if (vmcoreinfo_data_safecopy)
-		vmcoreinfo_data = vmcoreinfo_data_safecopy;
-
-	vmcoreinfo_append_str("CRASHTIME=%lld\n", ktime_get_real_seconds());
-	update_vmcoreinfo_note();
-}
-
-void vmcoreinfo_append_str(const char *fmt, ...)
-{
-	va_list args;
-	char buf[0x50];
-	size_t r;
-
-	va_start(args, fmt);
-	r = vscnprintf(buf, sizeof(buf), fmt, args);
-	va_end(args);
-
-	r = min(r, (size_t)VMCOREINFO_BYTES - vmcoreinfo_size);
-
-	memcpy(&vmcoreinfo_data[vmcoreinfo_size], buf, r);
-
-	vmcoreinfo_size += r;
-
-	WARN_ONCE(vmcoreinfo_size == VMCOREINFO_BYTES,
-		  "vmcoreinfo data exceeds allocated size, truncating");
-}
-
-/*
- * provide an empty default implementation here -- architecture
- * code may override this
- */
-void __weak arch_crash_save_vmcoreinfo(void)
-{}
-
-phys_addr_t __weak paddr_vmcoreinfo_note(void)
-{
-	return __pa(vmcoreinfo_note);
-}
-EXPORT_SYMBOL(paddr_vmcoreinfo_note);
-
-static int __init crash_save_vmcoreinfo_init(void)
-{
-	vmcoreinfo_data = (unsigned char *)get_zeroed_page(GFP_KERNEL);
-	if (!vmcoreinfo_data) {
-		pr_warn("Memory allocation for vmcoreinfo_data failed\n");
+	ram_res = kzalloc(sizeof(*ram_res), GFP_KERNEL);
+	if (!ram_res)
 		return -ENOMEM;
+
+	ram_res->start = old_res->start + new_size;
+	ram_res->end   = old_res->end;
+	ram_res->flags = IORESOURCE_BUSY | IORESOURCE_SYSTEM_RAM;
+	ram_res->name  = "System RAM";
+
+	if (!new_size) {
+		release_resource(old_res);
+		old_res->start = 0;
+		old_res->end   = 0;
+	} else {
+		crashk_res.end = ram_res->start - 1;
 	}
 
-	vmcoreinfo_note = alloc_pages_exact(VMCOREINFO_NOTE_SIZE,
-						GFP_KERNEL | __GFP_ZERO);
-	if (!vmcoreinfo_note) {
-		free_page((unsigned long)vmcoreinfo_data);
-		vmcoreinfo_data = NULL;
-		pr_warn("Memory allocation for vmcoreinfo_note failed\n");
-		return -ENOMEM;
-	}
-
-	VMCOREINFO_OSRELEASE(init_uts_ns.name.release);
-	VMCOREINFO_BUILD_ID();
-	VMCOREINFO_PAGESIZE(PAGE_SIZE);
-
-	VMCOREINFO_SYMBOL(init_uts_ns);
-	VMCOREINFO_OFFSET(uts_namespace, name);
-	VMCOREINFO_SYMBOL(node_online_map);
-#ifdef CONFIG_MMU
-	VMCOREINFO_SYMBOL_ARRAY(swapper_pg_dir);
-#endif
-	VMCOREINFO_SYMBOL(_stext);
-	VMCOREINFO_SYMBOL(vmap_area_list);
-
-#ifndef CONFIG_NUMA
-	VMCOREINFO_SYMBOL(mem_map);
-	VMCOREINFO_SYMBOL(contig_page_data);
-#endif
-#ifdef CONFIG_SPARSEMEM
-	VMCOREINFO_SYMBOL_ARRAY(mem_section);
-	VMCOREINFO_LENGTH(mem_section, NR_SECTION_ROOTS);
-	VMCOREINFO_STRUCT_SIZE(mem_section);
-	VMCOREINFO_OFFSET(mem_section, section_mem_map);
-	VMCOREINFO_NUMBER(SECTION_SIZE_BITS);
-	VMCOREINFO_NUMBER(MAX_PHYSMEM_BITS);
-#endif
-	VMCOREINFO_STRUCT_SIZE(page);
-	VMCOREINFO_STRUCT_SIZE(pglist_data);
-	VMCOREINFO_STRUCT_SIZE(zone);
-	VMCOREINFO_STRUCT_SIZE(free_area);
-	VMCOREINFO_STRUCT_SIZE(list_head);
-	VMCOREINFO_SIZE(nodemask_t);
-	VMCOREINFO_OFFSET(page, flags);
-	VMCOREINFO_OFFSET(page, _refcount);
-	VMCOREINFO_OFFSET(page, mapping);
-	VMCOREINFO_OFFSET(page, lru);
-	VMCOREINFO_OFFSET(page, _mapcount);
-	VMCOREINFO_OFFSET(page, private);
-	VMCOREINFO_OFFSET(page, compound_head);
-	VMCOREINFO_OFFSET(pglist_data, node_zones);
-	VMCOREINFO_OFFSET(pglist_data, nr_zones);
-#ifdef CONFIG_FLATMEM
-	VMCOREINFO_OFFSET(pglist_data, node_mem_map);
-#endif
-	VMCOREINFO_OFFSET(pglist_data, node_start_pfn);
-	VMCOREINFO_OFFSET(pglist_data, node_spanned_pages);
-	VMCOREINFO_OFFSET(pglist_data, node_id);
-	VMCOREINFO_OFFSET(zone, free_area);
-	VMCOREINFO_OFFSET(zone, vm_stat);
-	VMCOREINFO_OFFSET(zone, spanned_pages);
-	VMCOREINFO_OFFSET(free_area, free_list);
-	VMCOREINFO_OFFSET(list_head, next);
-	VMCOREINFO_OFFSET(list_head, prev);
-	VMCOREINFO_OFFSET(vmap_area, va_start);
-	VMCOREINFO_OFFSET(vmap_area, list);
-	VMCOREINFO_LENGTH(zone.free_area, NR_PAGE_ORDERS);
-	log_buf_vmcoreinfo_setup();
-	VMCOREINFO_LENGTH(free_area.free_list, MIGRATE_TYPES);
-	VMCOREINFO_NUMBER(NR_FREE_PAGES);
-	VMCOREINFO_NUMBER(PG_lru);
-	VMCOREINFO_NUMBER(PG_private);
-	VMCOREINFO_NUMBER(PG_swapcache);
-	VMCOREINFO_NUMBER(PG_swapbacked);
-	VMCOREINFO_NUMBER(PG_slab);
-#ifdef CONFIG_MEMORY_FAILURE
-	VMCOREINFO_NUMBER(PG_hwpoison);
-#endif
-	VMCOREINFO_NUMBER(PG_head_mask);
-#define PAGE_BUDDY_MAPCOUNT_VALUE	(~PG_buddy)
-	VMCOREINFO_NUMBER(PAGE_BUDDY_MAPCOUNT_VALUE);
-#ifdef CONFIG_HUGETLB_PAGE
-	VMCOREINFO_NUMBER(PG_hugetlb);
-#define PAGE_OFFLINE_MAPCOUNT_VALUE	(~PG_offline)
-	VMCOREINFO_NUMBER(PAGE_OFFLINE_MAPCOUNT_VALUE);
-#endif
-
-#ifdef CONFIG_KALLSYMS
-	VMCOREINFO_SYMBOL(kallsyms_names);
-	VMCOREINFO_SYMBOL(kallsyms_num_syms);
-	VMCOREINFO_SYMBOL(kallsyms_token_table);
-	VMCOREINFO_SYMBOL(kallsyms_token_index);
-#ifdef CONFIG_KALLSYMS_BASE_RELATIVE
-	VMCOREINFO_SYMBOL(kallsyms_offsets);
-	VMCOREINFO_SYMBOL(kallsyms_relative_base);
-#else
-	VMCOREINFO_SYMBOL(kallsyms_addresses);
-#endif /* CONFIG_KALLSYMS_BASE_RELATIVE */
-#endif /* CONFIG_KALLSYMS */
-
-	arch_crash_save_vmcoreinfo();
-	update_vmcoreinfo_note();
+	crash_free_reserved_phys_range(ram_res->start, ram_res->end);
+	insert_resource(&iomem_resource, ram_res);
 
 	return 0;
 }
 
-subsys_initcall(crash_save_vmcoreinfo_init);
+int crash_shrink_memory(unsigned long new_size)
+{
+	int ret = 0;
+	unsigned long old_size, low_size;
+
+	if (!kexec_trylock())
+		return -EBUSY;
+
+	if (kexec_crash_image) {
+		ret = -ENOENT;
+		goto unlock;
+	}
+
+	low_size = crash_resource_size(&crashk_low_res);
+	old_size = crash_resource_size(&crashk_res) + low_size;
+	new_size = roundup(new_size, KEXEC_CRASH_MEM_ALIGN);
+	if (new_size >= old_size) {
+		ret = (new_size == old_size) ? 0 : -EINVAL;
+		goto unlock;
+	}
+
+	/*
+	 * (low_size > new_size) implies that low_size is greater than zero.
+	 * This also means that if low_size is zero, the else branch is taken.
+	 *
+	 * If low_size is greater than 0, (low_size > new_size) indicates that
+	 * crashk_low_res also needs to be shrunken. Otherwise, only crashk_res
+	 * needs to be shrunken.
+	 */
+	if (low_size > new_size) {
+		ret = __crash_shrink_memory(&crashk_res, 0);
+		if (ret)
+			goto unlock;
+
+		ret = __crash_shrink_memory(&crashk_low_res, new_size);
+	} else {
+		ret = __crash_shrink_memory(&crashk_res, new_size - low_size);
+	}
+
+	/* Swap crashk_res and crashk_low_res if needed */
+	if (!crashk_res.end && crashk_low_res.end) {
+		crashk_res.start = crashk_low_res.start;
+		crashk_res.end   = crashk_low_res.end;
+		release_resource(&crashk_low_res);
+		crashk_low_res.start = 0;
+		crashk_low_res.end   = 0;
+		insert_resource(&iomem_resource, &crashk_res);
+	}
+
+unlock:
+	kexec_unlock();
+	return ret;
+}
+
+void crash_save_cpu(struct pt_regs *regs, int cpu)
+{
+	struct elf_prstatus prstatus;
+	u32 *buf;
+
+	if ((cpu < 0) || (cpu >= nr_cpu_ids))
+		return;
+
+	/* Using ELF notes here is opportunistic.
+	 * I need a well defined structure format
+	 * for the data I pass, and I need tags
+	 * on the data to indicate what information I have
+	 * squirrelled away.  ELF notes happen to provide
+	 * all of that, so there is no need to invent something new.
+	 */
+	buf = (u32 *)per_cpu_ptr(crash_notes, cpu);
+	if (!buf)
+		return;
+	memset(&prstatus, 0, sizeof(prstatus));
+	prstatus.common.pr_pid = current->pid;
+	elf_core_copy_regs(&prstatus.pr_reg, regs);
+	buf = append_elf_note(buf, KEXEC_CORE_NOTE_NAME, NT_PRSTATUS,
+			      &prstatus, sizeof(prstatus));
+	final_note(buf);
+}
+
+
 
 static int __init crash_notes_memory_init(void)
 {
@@ -865,6 +473,8 @@ static int __init crash_notes_memory_init(void)
 	return 0;
 }
 subsys_initcall(crash_notes_memory_init);
+
+#endif /*CONFIG_CRASH_DUMP*/
 
 #ifdef CONFIG_CRASH_HOTPLUG
 #undef pr_fmt

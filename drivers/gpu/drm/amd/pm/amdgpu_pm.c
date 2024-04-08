@@ -2034,6 +2034,63 @@ static int ss_bias_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 	return 0;
 }
 
+static int pp_od_clk_voltage_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
+					 uint32_t mask, enum amdgpu_device_attr_states *states)
+{
+	uint32_t gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
+
+	*states = ATTR_STATE_SUPPORTED;
+
+	if (!amdgpu_dpm_is_overdrive_supported(adev)) {
+		*states = ATTR_STATE_UNSUPPORTED;
+		return 0;
+	}
+
+	/* Enable pp_od_clk_voltage node for gc 9.4.3 SRIOV/BM support */
+	if (gc_ver == IP_VERSION(9, 4, 3)) {
+		if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
+			*states = ATTR_STATE_UNSUPPORTED;
+		return 0;
+	}
+
+	if (!(attr->flags & mask))
+		*states = ATTR_STATE_UNSUPPORTED;
+
+	return 0;
+}
+
+static int pp_dpm_dcefclk_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
+				      uint32_t mask, enum amdgpu_device_attr_states *states)
+{
+	struct device_attribute *dev_attr = &attr->dev_attr;
+	uint32_t gc_ver;
+
+	*states = ATTR_STATE_SUPPORTED;
+
+	if (!(attr->flags & mask)) {
+		*states = ATTR_STATE_UNSUPPORTED;
+		return 0;
+	}
+
+	gc_ver = amdgpu_ip_version(adev, GC_HWIP, 0);
+	/* dcefclk node is not available on gfx 11.0.3 sriov */
+	if ((gc_ver == IP_VERSION(11, 0, 3) && amdgpu_sriov_is_pp_one_vf(adev)) ||
+	    gc_ver < IP_VERSION(9, 0, 0) ||
+	    !amdgpu_device_has_display_hardware(adev))
+		*states = ATTR_STATE_UNSUPPORTED;
+
+	/* SMU MP1 does not support dcefclk level setting,
+	 * setting should not be allowed from VF if not in one VF mode.
+	 */
+	if (gc_ver >= IP_VERSION(10, 0, 0) ||
+	    (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))) {
+		dev_attr->attr.mode &= ~S_IWUGO;
+		dev_attr->store = NULL;
+	}
+
+	return 0;
+}
+
 /* Following items will be read out to indicate current plpd policy:
  *  - -1: none
  *  - 0: disallow
@@ -2113,12 +2170,14 @@ static struct amdgpu_device_attr amdgpu_device_attrs[] = {
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_vclk1,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dclk1,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
-	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dcefclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
+	AMDGPU_DEVICE_ATTR_RW(pp_dpm_dcefclk,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF,
+			      .attr_update = pp_dpm_dcefclk_attr_update),
 	AMDGPU_DEVICE_ATTR_RW(pp_dpm_pcie,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RW(pp_sclk_od,				ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RW(pp_mclk_od,				ATTR_FLAG_BASIC),
 	AMDGPU_DEVICE_ATTR_RW(pp_power_profile_mode,			ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
-	AMDGPU_DEVICE_ATTR_RW(pp_od_clk_voltage,			ATTR_FLAG_BASIC),
+	AMDGPU_DEVICE_ATTR_RW(pp_od_clk_voltage,			ATTR_FLAG_BASIC,
+			      .attr_update = pp_od_clk_voltage_attr_update),
 	AMDGPU_DEVICE_ATTR_RO(gpu_busy_percent,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RO(mem_busy_percent,				ATTR_FLAG_BASIC|ATTR_FLAG_ONEVF),
 	AMDGPU_DEVICE_ATTR_RO(pcie_bw,					ATTR_FLAG_BASIC),
@@ -2156,17 +2215,9 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 	if (DEVICE_ATTR_IS(pp_dpm_socclk)) {
 		if (gc_ver < IP_VERSION(9, 0, 0))
 			*states = ATTR_STATE_UNSUPPORTED;
-	} else if (DEVICE_ATTR_IS(pp_dpm_dcefclk)) {
-		if (gc_ver < IP_VERSION(9, 0, 0) ||
-		    !amdgpu_device_has_display_hardware(adev))
-			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_fclk)) {
 		if (mp1_ver < IP_VERSION(10, 0, 0))
 			*states = ATTR_STATE_UNSUPPORTED;
-	} else if (DEVICE_ATTR_IS(pp_od_clk_voltage)) {
-		*states = ATTR_STATE_UNSUPPORTED;
-		if (amdgpu_dpm_is_overdrive_supported(adev))
-			*states = ATTR_STATE_SUPPORTED;
 	} else if (DEVICE_ATTR_IS(mem_busy_percent)) {
 		if ((adev->flags & AMD_IS_APU &&
 		     gc_ver != IP_VERSION(9, 4, 3)) ||
@@ -2174,7 +2225,8 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pcie_bw)) {
 		/* PCIe Perf counters won't work on APU nodes */
-		if (adev->flags & AMD_IS_APU)
+		if (adev->flags & AMD_IS_APU ||
+		    !adev->asic_funcs->get_pcie_usage)
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(unique_id)) {
 		switch (gc_ver) {
@@ -2278,14 +2330,6 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 		break;
 	default:
 		break;
-	}
-
-	if (DEVICE_ATTR_IS(pp_dpm_dcefclk)) {
-		/* SMU MP1 does not support dcefclk level setting */
-		if (gc_ver >= IP_VERSION(10, 0, 0)) {
-			dev_attr->attr.mode &= ~S_IWUGO;
-			dev_attr->store = NULL;
-		}
 	}
 
 	/* setting should not be allowed from VF if not in one VF mode */
@@ -2558,6 +2602,7 @@ static ssize_t amdgpu_hwmon_set_pwm1_enable(struct device *dev,
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	int err, ret;
+	u32 pwm_mode;
 	int value;
 
 	if (amdgpu_in_reset(adev))
@@ -2569,13 +2614,22 @@ static ssize_t amdgpu_hwmon_set_pwm1_enable(struct device *dev,
 	if (err)
 		return err;
 
+	if (value == 0)
+		pwm_mode = AMD_FAN_CTRL_NONE;
+	else if (value == 1)
+		pwm_mode = AMD_FAN_CTRL_MANUAL;
+	else if (value == 2)
+		pwm_mode = AMD_FAN_CTRL_AUTO;
+	else
+		return -EINVAL;
+
 	ret = pm_runtime_get_sync(adev_to_drm(adev)->dev);
 	if (ret < 0) {
 		pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 		return ret;
 	}
 
-	ret = amdgpu_dpm_set_fan_control_mode(adev, value);
+	ret = amdgpu_dpm_set_fan_control_mode(adev, pwm_mode);
 
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);

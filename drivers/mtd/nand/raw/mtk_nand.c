@@ -1356,7 +1356,7 @@ static int mtk_nfc_nand_chip_init(struct device *dev, struct mtk_nfc *nfc,
 		return -EINVAL;
 	}
 
-	chip = devm_kzalloc(dev, sizeof(*chip) + nsels * sizeof(u8),
+	chip = devm_kzalloc(dev, struct_size(chip, sels, nsels),
 			    GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;

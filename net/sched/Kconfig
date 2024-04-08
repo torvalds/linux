@@ -737,16 +737,6 @@ config NET_ACT_SAMPLE
 	  To compile this code as a module, choose M here: the
 	  module will be called act_sample.
 
-config NET_ACT_IPT
-	tristate "IPtables targets"
-	depends on NET_CLS_ACT && NETFILTER && NETFILTER_XTABLES
-	help
-	  Say Y here to be able to invoke iptables targets after successful
-	  classification.
-
-	  To compile this code as a module, choose M here: the
-	  module will be called act_ipt.
-
 config NET_ACT_NAT
 	tristate "Stateless NAT"
 	depends on NET_CLS_ACT

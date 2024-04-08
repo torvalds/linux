@@ -37,11 +37,11 @@ struct intel_global_obj {
 	     (__i)++) \
 		for_each_if(obj)
 
-#define for_each_old_global_obj_in_state(__state, obj, new_obj_state, __i) \
+#define for_each_old_global_obj_in_state(__state, obj, old_obj_state, __i) \
 	for ((__i) = 0; \
 	     (__i) < (__state)->num_global_objs && \
 		     ((obj) = (__state)->global_objs[__i].ptr, \
-		      (new_obj_state) = (__state)->global_objs[__i].old_state, 1); \
+		      (old_obj_state) = (__state)->global_objs[__i].old_state, 1); \
 	     (__i)++) \
 		for_each_if(obj)
 

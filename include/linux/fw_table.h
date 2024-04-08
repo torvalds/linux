@@ -40,12 +40,14 @@ union acpi_subtable_headers {
 
 int acpi_parse_entries_array(char *id, unsigned long table_size,
 			     union fw_table_header *table_header,
+			     unsigned long max_length,
 			     struct acpi_subtable_proc *proc,
 			     int proc_num, unsigned int max_entries);
 
 int cdat_table_parse(enum acpi_cdat_type type,
 		     acpi_tbl_entry_handler_arg handler_arg, void *arg,
-		     struct acpi_table_cdat *table_header);
+		     struct acpi_table_cdat *table_header,
+		     unsigned long length);
 
 /* CXL is the only non-ACPI consumer of the FIRMWARE_TABLE library */
 #if IS_ENABLED(CONFIG_ACPI) && !IS_ENABLED(CONFIG_CXL_BUS)

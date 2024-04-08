@@ -560,7 +560,7 @@ static unsigned int __init build_one_device_irq(struct platform_device *op,
 	 *
 	 * If we hit a bus type or situation we cannot handle, we
 	 * stop and assume that the original IRQ number was in a
-	 * format which has special meaning to it's immediate parent.
+	 * format which has special meaning to its immediate parent.
 	 */
 	pp = dp->parent;
 	ip = NULL;

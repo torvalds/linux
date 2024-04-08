@@ -930,10 +930,10 @@ SHOW(bch2_dev)
 	sysfs_print(io_latency_write,		atomic64_read(&ca->cur_latency[WRITE]));
 
 	if (attr == &sysfs_io_latency_stats_read)
-		bch2_time_stats_to_text(out, &ca->io_latency[READ]);
+		bch2_time_stats_to_text(out, &ca->io_latency[READ].stats);
 
 	if (attr == &sysfs_io_latency_stats_write)
-		bch2_time_stats_to_text(out, &ca->io_latency[WRITE]);
+		bch2_time_stats_to_text(out, &ca->io_latency[WRITE].stats);
 
 	sysfs_printf(congested,			"%u%%",
 		     clamp(atomic_read(&ca->congested), 0, CONGESTED_MAX)

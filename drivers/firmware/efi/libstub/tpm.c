@@ -47,38 +47,17 @@ void efi_enable_reset_attack_mitigation(void)
 
 #endif
 
-void efi_retrieve_tpm2_eventlog(void)
+static void efi_retrieve_tcg2_eventlog(int version, efi_physical_addr_t log_location,
+				       efi_physical_addr_t log_last_entry,
+				       efi_bool_t truncated,
+				       struct efi_tcg2_final_events_table *final_events_table)
 {
-	efi_guid_t tcg2_guid = EFI_TCG2_PROTOCOL_GUID;
 	efi_guid_t linux_eventlog_guid = LINUX_EFI_TPM_EVENT_LOG_GUID;
 	efi_status_t status;
-	efi_physical_addr_t log_location = 0, log_last_entry = 0;
 	struct linux_efi_tpm_eventlog *log_tbl = NULL;
-	struct efi_tcg2_final_events_table *final_events_table = NULL;
 	unsigned long first_entry_addr, last_entry_addr;
 	size_t log_size, last_entry_size;
-	efi_bool_t truncated;
-	int version = EFI_TCG2_EVENT_LOG_FORMAT_TCG_2;
-	efi_tcg2_protocol_t *tcg2_protocol = NULL;
 	int final_events_size = 0;
-
-	status = efi_bs_call(locate_protocol, &tcg2_guid, NULL,
-			     (void **)&tcg2_protocol);
-	if (status != EFI_SUCCESS)
-		return;
-
-	status = efi_call_proto(tcg2_protocol, get_event_log, version,
-				&log_location, &log_last_entry, &truncated);
-
-	if (status != EFI_SUCCESS || !log_location) {
-		version = EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2;
-		status = efi_call_proto(tcg2_protocol, get_event_log, version,
-					&log_location, &log_last_entry,
-					&truncated);
-		if (status != EFI_SUCCESS || !log_location)
-			return;
-
-	}
 
 	first_entry_addr = (unsigned long) log_location;
 
@@ -93,8 +72,10 @@ void efi_retrieve_tpm2_eventlog(void)
 		 * get_event_log only returns the address of the last entry.
 		 * We need to calculate its size to deduce the full size of
 		 * the logs.
+		 *
+		 * CC Event log also uses TCG2 format, handle it same as TPM2.
 		 */
-		if (version == EFI_TCG2_EVENT_LOG_FORMAT_TCG_2) {
+		if (version > EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2) {
 			/*
 			 * The TCG2 log format has variable length entries,
 			 * and the information to decode the hash algorithms
@@ -127,8 +108,6 @@ void efi_retrieve_tpm2_eventlog(void)
 	 * Figure out whether any events have already been logged to the
 	 * final events structure, and if so how much space they take up
 	 */
-	if (version == EFI_TCG2_EVENT_LOG_FORMAT_TCG_2)
-		final_events_table = get_efi_config_table(LINUX_EFI_TPM_FINAL_LOG_GUID);
 	if (final_events_table && final_events_table->nr_events) {
 		struct tcg_pcr_event2_head *header;
 		int offset;
@@ -164,4 +143,51 @@ void efi_retrieve_tpm2_eventlog(void)
 
 err_free:
 	efi_bs_call(free_pool, log_tbl);
+}
+
+void efi_retrieve_eventlog(void)
+{
+	struct efi_tcg2_final_events_table *final_events_table = NULL;
+	efi_physical_addr_t log_location = 0, log_last_entry = 0;
+	efi_guid_t tpm2_guid = EFI_TCG2_PROTOCOL_GUID;
+	int version = EFI_TCG2_EVENT_LOG_FORMAT_TCG_2;
+	efi_tcg2_protocol_t *tpm2 = NULL;
+	efi_bool_t truncated;
+	efi_status_t status;
+
+	status = efi_bs_call(locate_protocol, &tpm2_guid, NULL, (void **)&tpm2);
+	if (status == EFI_SUCCESS) {
+		status = efi_call_proto(tpm2, get_event_log, version, &log_location,
+					&log_last_entry, &truncated);
+
+		if (status != EFI_SUCCESS || !log_location) {
+			version = EFI_TCG2_EVENT_LOG_FORMAT_TCG_1_2;
+			status = efi_call_proto(tpm2, get_event_log, version,
+						&log_location, &log_last_entry,
+						&truncated);
+		} else {
+			final_events_table =
+				get_efi_config_table(EFI_TCG2_FINAL_EVENTS_TABLE_GUID);
+		}
+	} else {
+		efi_guid_t cc_guid = EFI_CC_MEASUREMENT_PROTOCOL_GUID;
+		efi_cc_protocol_t *cc = NULL;
+
+		status = efi_bs_call(locate_protocol, &cc_guid, NULL, (void **)&cc);
+		if (status != EFI_SUCCESS)
+			return;
+
+		version = EFI_CC_EVENT_LOG_FORMAT_TCG_2;
+		status = efi_call_proto(cc, get_event_log, version, &log_location,
+					&log_last_entry, &truncated);
+
+		final_events_table =
+			get_efi_config_table(EFI_CC_FINAL_EVENTS_TABLE_GUID);
+	}
+
+	if (status != EFI_SUCCESS || !log_location)
+		return;
+
+	efi_retrieve_tcg2_eventlog(version, log_location, log_last_entry,
+				   truncated, final_events_table);
 }

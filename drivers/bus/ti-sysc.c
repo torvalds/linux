@@ -2400,7 +2400,7 @@ static int sysc_child_add_clocks(struct sysc *ddata,
 	return 0;
 }
 
-static struct device_type sysc_device_type = {
+static const struct device_type sysc_device_type = {
 };
 
 static struct sysc *sysc_child_to_parent(struct device *dev)

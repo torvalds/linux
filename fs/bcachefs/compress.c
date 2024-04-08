@@ -601,13 +601,13 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 		return 0;
 
 	if (!mempool_initialized(&c->compression_bounce[READ]) &&
-	    mempool_init_kvpmalloc_pool(&c->compression_bounce[READ],
-					1, c->opts.encoded_extent_max))
+	    mempool_init_kvmalloc_pool(&c->compression_bounce[READ],
+				       1, c->opts.encoded_extent_max))
 		return -BCH_ERR_ENOMEM_compression_bounce_read_init;
 
 	if (!mempool_initialized(&c->compression_bounce[WRITE]) &&
-	    mempool_init_kvpmalloc_pool(&c->compression_bounce[WRITE],
-					1, c->opts.encoded_extent_max))
+	    mempool_init_kvmalloc_pool(&c->compression_bounce[WRITE],
+				       1, c->opts.encoded_extent_max))
 		return -BCH_ERR_ENOMEM_compression_bounce_write_init;
 
 	for (i = compression_types;
@@ -622,15 +622,15 @@ static int __bch2_fs_compress_init(struct bch_fs *c, u64 features)
 		if (mempool_initialized(&c->compress_workspace[i->type]))
 			continue;
 
-		if (mempool_init_kvpmalloc_pool(
+		if (mempool_init_kvmalloc_pool(
 				&c->compress_workspace[i->type],
 				1, i->compress_workspace))
 			return -BCH_ERR_ENOMEM_compression_workspace_init;
 	}
 
 	if (!mempool_initialized(&c->decompress_workspace) &&
-	    mempool_init_kvpmalloc_pool(&c->decompress_workspace,
-					1, decompress_workspace_size))
+	    mempool_init_kvmalloc_pool(&c->decompress_workspace,
+				       1, decompress_workspace_size))
 		return -BCH_ERR_ENOMEM_decompression_workspace_init;
 
 	return 0;

@@ -50,6 +50,21 @@
 #define SKL_ADSP_HIPCIE_DONE		BIT(30)
 #define SKL_ADSP_HIPCT_BUSY		BIT(31)
 
+/* CNL Intel HD Audio Inter-Processor Communication Registers */
+#define CNL_ADSP_IPC_BASE               0xC0
+#define CNL_ADSP_REG_HIPCTDR            (CNL_ADSP_IPC_BASE + 0x00)
+#define CNL_ADSP_REG_HIPCTDA            (CNL_ADSP_IPC_BASE + 0x04)
+#define CNL_ADSP_REG_HIPCTDD            (CNL_ADSP_IPC_BASE + 0x08)
+#define CNL_ADSP_REG_HIPCIDR            (CNL_ADSP_IPC_BASE + 0x10)
+#define CNL_ADSP_REG_HIPCIDA            (CNL_ADSP_IPC_BASE + 0x14)
+#define CNL_ADSP_REG_HIPCIDD            (CNL_ADSP_IPC_BASE + 0x18)
+#define CNL_ADSP_REG_HIPCCTL            (CNL_ADSP_IPC_BASE + 0x28)
+
+#define CNL_ADSP_HIPCTDR_BUSY		BIT(31)
+#define CNL_ADSP_HIPCTDA_DONE		BIT(31)
+#define CNL_ADSP_HIPCIDR_BUSY		BIT(31)
+#define CNL_ADSP_HIPCIDA_DONE		BIT(31)
+
 /* Intel HD Audio SRAM windows base addresses */
 #define SKL_ADSP_SRAM_BASE_OFFSET	0x8000
 #define SKL_ADSP_SRAM_WINDOW_SIZE	0x2000
@@ -57,7 +72,7 @@
 #define APL_ADSP_SRAM_WINDOW_SIZE	0x20000
 
 /* Constants used when accessing SRAM, space shared with firmware */
-#define AVS_FW_REG_BASE(adev)		((adev)->spec->sram_base_offset)
+#define AVS_FW_REG_BASE(adev)		((adev)->spec->sram->base_offset)
 #define AVS_FW_REG_STATUS(adev)		(AVS_FW_REG_BASE(adev) + 0x0)
 #define AVS_FW_REG_ERROR_CODE(adev)	(AVS_FW_REG_BASE(adev) + 0x4)
 
@@ -72,8 +87,8 @@
 
 /* registry I/O helpers */
 #define avs_sram_offset(adev, window_idx) \
-	((adev)->spec->sram_base_offset + \
-	 (adev)->spec->sram_window_size * (window_idx))
+	((adev)->spec->sram->base_offset + \
+	 (adev)->spec->sram->window_size * (window_idx))
 
 #define avs_sram_addr(adev, window_idx) \
 	((adev)->dsp_ba + avs_sram_offset(adev, window_idx))

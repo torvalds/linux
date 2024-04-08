@@ -301,6 +301,16 @@ config SENSORS_ASC7621
 	  This driver can also be built as a module. If so, the module
 	  will be called asc7621.
 
+config SENSORS_ASUS_ROG_RYUJIN
+	tristate "ASUS ROG RYUJIN II 360 hardware monitoring driver"
+	depends on HID
+	help
+	  If you say yes here you get support for the fans and sensors of
+	  the ASUS ROG RYUJIN II 360 AIO CPU liquid cooler.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called asus_rog_ryujin.
+
 config SENSORS_AXI_FAN_CONTROL
 	tristate "Analog Devices FAN Control HDL Core driver"
 	help
@@ -412,6 +422,17 @@ config SENSORS_ASPEED
 	  This driver can also be built as a module. If so, the module
 	  will be called aspeed_pwm_tacho.
 
+config SENSORS_ASPEED_G6
+	tristate "ASPEED g6 PWM and Fan tach driver"
+	depends on ARCH_ASPEED || COMPILE_TEST
+	depends on PWM
+	help
+	  This driver provides support for ASPEED G6 PWM and Fan Tach
+	  controllers.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called aspeed_pwm_tacho.
+
 config SENSORS_ATXP1
 	tristate "Attansic ATXP1 VID controller"
 	depends on I2C
@@ -451,6 +472,16 @@ config SENSORS_BT1_PVT_ALARMS
 	  performed on demand from the user-space. If this config is enabled
 	  the data conversion will be periodically performed and the data will be
 	  saved in the internal driver cache.
+
+config SENSORS_CHIPCAP2
+	tristate "Amphenol ChipCap 2 relative humidity and temperature sensor"
+	depends on I2C
+	help
+	  Say yes here to build support for the Amphenol ChipCap 2
+	  relative humidity and temperature sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called chipcap2.
 
 config SENSORS_CORSAIR_CPRO
 	tristate "Corsair Commander Pro controller"
@@ -1037,6 +1068,17 @@ config SENSORS_LTC4261
 
 	  This driver can also be built as a module. If so, the module will
 	  be called ltc4261.
+
+config SENSORS_LTC4282
+	tristate "Analog Devices LTC4282"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  If you say yes here you get support for Analog Devices LTC4282
+	  High Current Hot Swap Controller I2C interface.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called ltc4282.
 
 config SENSORS_LTQ_CPUTEMP
 	bool "Lantiq cpu temperature sensor driver"
@@ -1674,6 +1716,16 @@ config SENSORS_NZXT_KRAKEN2
 	  This driver can also be built as a module. If so, the module
 	  will be called nzxt-kraken2.
 
+config SENSORS_NZXT_KRAKEN3
+	tristate "NZXT Kraken X53/X63/X73, Z53/Z63/Z73 coolers"
+	depends on USB_HID
+	help
+	  If you say yes here you get support for hardware monitoring for the
+	  NZXT Kraken X53/X63/X73, Z53/Z63/Z73 all-in-one CPU liquid coolers.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called nzxt-kraken3.
+
 config SENSORS_NZXT_SMART2
 	tristate "NZXT RGB & Fan Controller/Smart Device v2"
 	depends on USB_HID
@@ -1713,6 +1765,16 @@ config SENSORS_PCF8591
 source "drivers/hwmon/peci/Kconfig"
 
 source "drivers/hwmon/pmbus/Kconfig"
+
+config SENSORS_PT5161L
+	tristate "Astera Labs PT5161L PCIe retimer hardware monitoring"
+	depends on I2C
+	help
+	  If you say yes here you get support for temperature monitoring
+	  on the Astera Labs PT5161L PCIe retimer.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called pt5161l.
 
 config SENSORS_PWM_FAN
 	tristate "PWM fan"
@@ -1993,6 +2055,20 @@ config SENSORS_SFCTEMP
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called sfctemp.
+
+config SENSORS_SURFACE_FAN
+	tristate "Surface Fan Driver"
+	depends on SURFACE_AGGREGATOR
+	depends on SURFACE_AGGREGATOR_BUS
+	help
+	  Driver that provides monitoring of the fan on Surface Pro devices that
+	  have a fan, like the Surface Pro 9.
+
+	  This makes the fan's current speed accessible through the hwmon
+	  system. It does not provide control over the fan, the firmware is
+	  responsible for that, this driver merely provides monitoring.
+
+	  Select M or Y here, if you want to be able to read the fan's speed.
 
 config SENSORS_ADC128D818
 	tristate "Texas Instruments ADC128D818"

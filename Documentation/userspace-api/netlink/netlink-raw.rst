@@ -150,3 +150,45 @@ attributes from an ``attribute-set``. For example the following
 
 Note that a selector attribute must appear in a netlink message before any
 sub-message attributes that depend on it.
+
+If an attribute such as ``kind`` is defined at more than one nest level, then a
+sub-message selector will be resolved using the value 'closest' to the selector.
+For example, if the same attribute name is defined in a nested ``attribute-set``
+alongside a sub-message selector and also in a top level ``attribute-set``, then
+the selector will be resolved using the value 'closest' to the selector. If the
+value is not present in the message at the same level as defined in the spec
+then this is an error.
+
+Nested struct definitions
+-------------------------
+
+Many raw netlink families such as :doc:`tc<../../networking/netlink_spec/tc>`
+make use of nested struct definitions. The ``netlink-raw`` schema makes it
+possible to embed a struct within a struct definition using the ``struct``
+property. For example, the following struct definition embeds the
+``tc-ratespec`` struct definition for both the ``rate`` and the ``peakrate``
+members of ``struct tc-tbf-qopt``.
+
+.. code-block:: yaml
+
+  -
+    name: tc-tbf-qopt
+    type: struct
+    members:
+      -
+        name: rate
+        type: binary
+        struct: tc-ratespec
+      -
+        name: peakrate
+        type: binary
+        struct: tc-ratespec
+      -
+        name: limit
+        type: u32
+      -
+        name: buffer
+        type: u32
+      -
+        name: mtu
+        type: u32

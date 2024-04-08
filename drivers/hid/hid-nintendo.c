@@ -667,16 +667,6 @@ struct joycon_ctlr {
  * These helpers are most useful early during the HID probe or in conjunction
  * with the capability helpers below.
  */
-static inline bool joycon_device_is_left_joycon(struct joycon_ctlr *ctlr)
-{
-	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_JOYCONL;
-}
-
-static inline bool joycon_device_is_right_joycon(struct joycon_ctlr *ctlr)
-{
-	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_JOYCONR;
-}
-
 static inline bool joycon_device_is_procon(struct joycon_ctlr *ctlr)
 {
 	return ctlr->hdev->product == USB_DEVICE_ID_NINTENDO_PROCON;
@@ -762,18 +752,6 @@ static inline bool joycon_type_is_left_nescon(struct joycon_ctlr *ctlr)
 static inline bool joycon_type_is_right_nescon(struct joycon_ctlr *ctlr)
 {
 	return ctlr->ctlr_type == JOYCON_CTLR_TYPE_NESR;
-}
-
-static inline bool joycon_type_has_left_controls(struct joycon_ctlr *ctlr)
-{
-	return joycon_type_is_left_joycon(ctlr) ||
-	       joycon_type_is_procon(ctlr);
-}
-
-static inline bool joycon_type_has_right_controls(struct joycon_ctlr *ctlr)
-{
-	return joycon_type_is_right_joycon(ctlr) ||
-	       joycon_type_is_procon(ctlr);
 }
 
 static inline bool joycon_type_is_any_joycon(struct joycon_ctlr *ctlr)

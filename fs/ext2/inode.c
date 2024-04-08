@@ -754,7 +754,7 @@ static int ext2_get_blocks(struct inode *inode,
 		 */
 		err = sb_issue_zeroout(inode->i_sb,
 				le32_to_cpu(chain[depth-1].key), count,
-				GFP_NOFS);
+				GFP_KERNEL);
 		if (err) {
 			mutex_unlock(&ei->truncate_mutex);
 			goto cleanup;

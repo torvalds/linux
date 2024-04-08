@@ -54,27 +54,6 @@
 #include <asm/alternative.h>
 
 /*
- * Convert a kernel VA into a HYP VA.
- * reg: VA to be converted.
- *
- * The actual code generation takes place in kvm_update_va_mask, and
- * the instructions below are only there to reserve the space and
- * perform the register allocation (kvm_update_va_mask uses the
- * specific registers encoded in the instructions).
- */
-.macro kern_hyp_va	reg
-#ifndef __KVM_VHE_HYPERVISOR__
-alternative_cb ARM64_ALWAYS_SYSTEM, kvm_update_va_mask
-	and     \reg, \reg, #1		/* mask with va_mask */
-	ror	\reg, \reg, #1		/* rotate to the first tag bit */
-	add	\reg, \reg, #0		/* insert the low 12 bits of the tag */
-	add	\reg, \reg, #0, lsl 12	/* insert the top 12 bits of the tag */
-	ror	\reg, \reg, #63		/* rotate back */
-alternative_cb_end
-#endif
-.endm
-
-/*
  * Convert a hypervisor VA to a PA
  * reg: hypervisor address to be converted in place
  * tmp: temporary register
@@ -127,14 +106,29 @@ void kvm_apply_hyp_relocations(void);
 
 #define __hyp_pa(x) (((phys_addr_t)(x)) + hyp_physvirt_offset)
 
+/*
+ * Convert a kernel VA into a HYP VA.
+ *
+ * Can be called from hyp or non-hyp context.
+ *
+ * The actual code generation takes place in kvm_update_va_mask(), and
+ * the instructions below are only there to reserve the space and
+ * perform the register allocation (kvm_update_va_mask() uses the
+ * specific registers encoded in the instructions).
+ */
 static __always_inline unsigned long __kern_hyp_va(unsigned long v)
 {
+/*
+ * This #ifndef is an optimisation for when this is called from VHE hyp
+ * context.  When called from a VHE non-hyp context, kvm_update_va_mask() will
+ * replace the instructions with `nop`s.
+ */
 #ifndef __KVM_VHE_HYPERVISOR__
-	asm volatile(ALTERNATIVE_CB("and %0, %0, #1\n"
-				    "ror %0, %0, #1\n"
-				    "add %0, %0, #0\n"
-				    "add %0, %0, #0, lsl 12\n"
-				    "ror %0, %0, #63\n",
+	asm volatile(ALTERNATIVE_CB("and %0, %0, #1\n"         /* mask with va_mask */
+				    "ror %0, %0, #1\n"         /* rotate to the first tag bit */
+				    "add %0, %0, #0\n"         /* insert the low 12 bits of the tag */
+				    "add %0, %0, #0, lsl 12\n" /* insert the top 12 bits of the tag */
+				    "ror %0, %0, #63\n",       /* rotate back */
 				    ARM64_ALWAYS_SYSTEM,
 				    kvm_update_va_mask)
 		     : "+r" (v));

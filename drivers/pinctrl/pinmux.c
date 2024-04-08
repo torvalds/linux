@@ -188,8 +188,8 @@ out_free_pin:
 	}
 out:
 	if (status)
-		dev_err(pctldev->dev, "pin-%d (%s) status %d\n",
-			pin, owner, status);
+		dev_err_probe(pctldev->dev, status, "pin-%d (%s)\n",
+			      pin, owner);
 
 	return status;
 }
@@ -441,7 +441,7 @@ int pinmux_enable_setting(const struct pinctrl_setting *setting)
 			pname = desc ? desc->name : "non-existing";
 			gname = pctlops->get_group_name(pctldev,
 						setting->data.mux.group);
-			dev_err(pctldev->dev,
+			dev_err_probe(pctldev->dev, ret,
 				"could not request pin %d (%s) from group %s "
 				" on device %s\n",
 				pins[i], pname, gname,

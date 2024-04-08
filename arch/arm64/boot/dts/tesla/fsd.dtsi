@@ -601,6 +601,7 @@
 			clocks = <&clock_peric PERIC_PCLK_UART0>,
 				 <&clock_peric PERIC_SCLK_UART0>;
 			clock-names = "uart", "clk_uart_baud0";
+			samsung,uart-fifosize = <64>;
 			status = "disabled";
 		};
 
@@ -613,6 +614,7 @@
 			clocks = <&clock_peric PERIC_PCLK_UART1>,
 				 <&clock_peric PERIC_SCLK_UART1>;
 			clock-names = "uart", "clk_uart_baud0";
+			samsung,uart-fifosize = <64>;
 			status = "disabled";
 		};
 

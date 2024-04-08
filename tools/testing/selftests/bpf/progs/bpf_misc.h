@@ -80,7 +80,7 @@
 #define __imm(name) [name]"i"(name)
 #define __imm_const(name, expr) [name]"i"(expr)
 #define __imm_addr(name) [name]"i"(&name)
-#define __imm_ptr(name) [name]"p"(&name)
+#define __imm_ptr(name) [name]"r"(&name)
 #define __imm_insn(name, expr) [name]"i"(*(long *)&(expr))
 
 /* Magic constants used with __retval() */

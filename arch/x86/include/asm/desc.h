@@ -46,6 +46,7 @@ struct gdt_page {
 } __attribute__((aligned(PAGE_SIZE)));
 
 DECLARE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page);
+DECLARE_INIT_PER_CPU(gdt_page);
 
 /* Provide the original GDT */
 static inline struct desc_struct *get_cpu_gdt_rw(unsigned int cpu)
@@ -401,8 +402,6 @@ static inline void set_desc_limit(struct desc_struct *desc, unsigned long limit)
 	desc->limit0 = limit & 0xffff;
 	desc->limit1 = (limit >> 16) & 0xf;
 }
-
-void alloc_intr_gate(unsigned int n, const void *addr);
 
 static inline void init_idt_data(struct idt_data *data, unsigned int n,
 				 const void *addr)

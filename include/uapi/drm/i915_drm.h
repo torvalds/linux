@@ -3572,9 +3572,13 @@ struct drm_i915_query_memory_regions {
  * struct drm_i915_query_guc_submission_version - query GuC submission interface version
  */
 struct drm_i915_query_guc_submission_version {
+	/** @branch: Firmware branch version. */
 	__u32 branch;
+	/** @major: Firmware major version. */
 	__u32 major;
+	/** @minor: Firmware minor version. */
 	__u32 minor;
+	/** @patch: Firmware patch version. */
 	__u32 patch;
 };
 
