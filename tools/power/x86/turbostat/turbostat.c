@@ -3,7 +3,7 @@
  * turbostat -- show CPU frequency and C-state residency
  * on modern Intel and AMD processors.
  *
- * Copyright (c) 2023 Intel Corporation.
+ * Copyright (c) 2024 Intel Corporation.
  * Len Brown <len.brown@intel.com>
  */
 
@@ -1360,6 +1360,7 @@ struct sys_counters {
 void free_sys_counters(void)
 {
 	struct msr_counter *p = sys.tp, *pnext = NULL;
+
 	while (p) {
 		pnext = p->next;
 		free(p);
@@ -1979,6 +1980,7 @@ int dump_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p
 
 		const unsigned long long energy_value = c->core_energy.raw_value * c->core_energy.scale;
 		const double energy_scale = c->core_energy.scale;
+
 		if (c->core_energy.unit == RAPL_UNIT_JOULES)
 			outp += sprintf(outp, "Joules: %0llX (scale: %lf)\n", energy_value, energy_scale);
 
@@ -3153,7 +3155,7 @@ static unsigned int read_perf_counter_info_n(const char *const path, const char 
 	return v;
 }
 
-static unsigned read_msr_type(void)
+static unsigned int read_msr_type(void)
 {
 	const char *const path = "/sys/bus/event_source/devices/msr/type";
 	const char *const format = "%u";
@@ -3161,7 +3163,7 @@ static unsigned read_msr_type(void)
 	return read_perf_counter_info_n(path, format);
 }
 
-static unsigned read_aperf_config(void)
+static unsigned int read_aperf_config(void)
 {
 	const char *const path = "/sys/bus/event_source/devices/msr/events/aperf";
 	const char *const format = "event=%x";
@@ -3169,7 +3171,7 @@ static unsigned read_aperf_config(void)
 	return read_perf_counter_info_n(path, format);
 }
 
-static unsigned read_mperf_config(void)
+static unsigned int read_mperf_config(void)
 {
 	const char *const path = "/sys/bus/event_source/devices/msr/events/mperf";
 	const char *const format = "event=%x";
@@ -3177,7 +3179,7 @@ static unsigned read_mperf_config(void)
 	return read_perf_counter_info_n(path, format);
 }
 
-static unsigned read_perf_type(const char *subsys)
+static unsigned int read_perf_type(const char *subsys)
 {
 	const char *const path_format = "/sys/bus/event_source/devices/%s/type";
 	const char *const format = "%u";
@@ -3188,7 +3190,7 @@ static unsigned read_perf_type(const char *subsys)
 	return read_perf_counter_info_n(path, format);
 }
 
-static unsigned read_rapl_config(const char *subsys, const char *event_name)
+static unsigned int read_rapl_config(const char *subsys, const char *event_name)
 {
 	const char *const path_format = "/sys/bus/event_source/devices/%s/events/%s";
 	const char *const format = "event=%x";
@@ -3199,7 +3201,7 @@ static unsigned read_rapl_config(const char *subsys, const char *event_name)
 	return read_perf_counter_info_n(path, format);
 }
 
-static unsigned read_perf_rapl_unit(const char *subsys, const char *event_name)
+static unsigned int read_perf_rapl_unit(const char *subsys, const char *event_name)
 {
 	const char *const path_format = "/sys/bus/event_source/devices/%s/events/%s.unit";
 	const char *const format = "%s";
@@ -3235,7 +3237,7 @@ static struct amperf_group_fd open_amperf_fd(int cpu)
 	const unsigned int msr_type = read_msr_type();
 	const unsigned int aperf_config = read_aperf_config();
 	const unsigned int mperf_config = read_mperf_config();
-	struct amperf_group_fd fds = {.aperf = -1,.mperf = -1 };
+	struct amperf_group_fd fds = {.aperf = -1, .mperf = -1 };
 
 	fds.aperf = open_perf_counter(cpu, msr_type, aperf_config, -1, PERF_FORMAT_GROUP);
 	fds.mperf = open_perf_counter(cpu, msr_type, mperf_config, fds.aperf, PERF_FORMAT_GROUP);
@@ -3277,6 +3279,7 @@ static int read_aperf_mperf_tsc_perf(struct thread_data *t, int cpu)
 	t->tsc = rdtsc();
 
 	const int n = read(fd_amperf, &cnt.as_array[0], sizeof(cnt.as_array));
+
 	if (n != sizeof(cnt.as_array))
 		return -2;
 
@@ -3371,7 +3374,7 @@ int get_rapl_counters(int cpu, int domain, struct core_data *c, struct pkg_data 
 	struct rapl_counter_info_t *rci = &rapl_counter_info_perdomain[domain];
 
 	if (debug)
-		fprintf(stderr, "get_rapl_counters: cpu%d domain%d\n", cpu, domain);
+		fprintf(stderr, "%s: cpu%d domain%d\n", __func__, cpu, domain);
 
 	assert(rapl_counter_info_perdomain);
 
@@ -3382,8 +3385,9 @@ int get_rapl_counters(int cpu, int domain, struct core_data *c, struct pkg_data 
 		size_t num_perf_counters = rapl_counter_info_count_perf(rci);
 		const ssize_t expected_read_size = (num_perf_counters + 1) * sizeof(unsigned long long);
 		const ssize_t actual_read_size = read(rci->fd_perf, &perf_data[0], sizeof(perf_data));
+
 		if (actual_read_size != expected_read_size)
-			err(-1, "get_rapl_counters: failed to read perf_data (%zu %zu)", expected_read_size,
+			err(-1, "%s: failed to read perf_data (%zu %zu)", __func__, expected_read_size,
 			    actual_read_size);
 	}
 
@@ -3454,7 +3458,7 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	int status;
 
 	if (cpu_migrate(cpu)) {
-		fprintf(outf, "get_counters: Could not migrate to CPU %d\n", cpu);
+		fprintf(outf, "%s: Could not migrate to CPU %d\n", __func__, cpu);
 		return -1;
 	}
 
@@ -6411,15 +6415,17 @@ int add_rapl_perf_counter_(int cpu, struct rapl_counter_info_t *rci, const struc
 		return -1;
 
 	const double scale = read_perf_rapl_scale(cai->perf_subsys, cai->perf_name);
+
 	if (scale == 0.0)
 		return -1;
 
 	const enum rapl_unit unit = read_perf_rapl_unit(cai->perf_subsys, cai->perf_name);
+
 	if (unit == RAPL_UNIT_INVALID)
 		return -1;
 
-	const unsigned rapl_type = read_perf_type(cai->perf_subsys);
-	const unsigned rapl_energy_pkg_config = read_rapl_config(cai->perf_subsys, cai->perf_name);
+	const unsigned int rapl_type = read_perf_type(cai->perf_subsys);
+	const unsigned int rapl_energy_pkg_config = read_rapl_config(cai->perf_subsys, cai->perf_name);
 
 	const int fd_counter =
 	    open_perf_counter(cpu, rapl_type, rapl_energy_pkg_config, rci->fd_perf, PERF_FORMAT_GROUP);
@@ -6441,7 +6447,7 @@ int add_rapl_perf_counter(int cpu, struct rapl_counter_info_t *rci, const struct
 	int ret = add_rapl_perf_counter_(cpu, rci, cai, scale, unit);
 
 	if (debug)
-		fprintf(stderr, "add_rapl_perf_counter: %d (cpu: %d)\n", ret, cpu);
+		fprintf(stderr, "%s: %d (cpu: %d)\n", __func__, ret, cpu);
 
 	return ret;
 }
@@ -6462,6 +6468,7 @@ void linux_perf_init(void)
 	}
 
 	const bool aperf_required = is_aperf_access_required();
+
 	if (aperf_required && has_aperf && amperf_source == AMPERF_SOURCE_PERF) {
 		fd_amperf_percpu = calloc(topo.max_cpu_num + 1, sizeof(*fd_amperf_percpu));
 		if (fd_amperf_percpu == NULL)
@@ -6483,6 +6490,7 @@ void rapl_perf_init(void)
 	 */
 	for (int domain_id = 0; domain_id < num_domains; ++domain_id) {
 		struct rapl_counter_info_t *rci = &rapl_counter_info_perdomain[domain_id];
+
 		rci->fd_perf = -1;
 		for (size_t i = 0; i < NUM_RAPL_COUNTERS; ++i) {
 			rci->data[i] = 0;
@@ -7296,6 +7304,7 @@ static void set_amperf_source(void)
 	amperf_source = AMPERF_SOURCE_PERF;
 
 	const bool aperf_required = is_aperf_access_required();
+
 	if (no_perf || !aperf_required || !has_amperf_access_via_perf())
 		amperf_source = AMPERF_SOURCE_MSR;
 
@@ -7373,10 +7382,12 @@ void check_msr_access(void)
 void check_perf_access(void)
 {
 	const bool intrcount_required = BIC_IS_ENABLED(BIC_IPC);
+
 	if (no_perf || !intrcount_required || !has_instr_count_access())
 		bic_enabled &= ~BIC_IPC;
 
 	const bool aperf_required = is_aperf_access_required();
+
 	if (!aperf_required || !has_amperf_access()) {
 		bic_enabled &= ~BIC_Avg_MHz;
 		bic_enabled &= ~BIC_Busy;
@@ -7486,7 +7497,7 @@ int get_and_dump_counters(void)
 
 void print_version()
 {
-	fprintf(outf, "turbostat version 2023.11.07 - Len Brown <lenb@kernel.org>\n");
+	fprintf(outf, "turbostat version 2024.04.08 - Len Brown <lenb@kernel.org>\n");
 }
 
 #define COMMAND_LINE_SIZE 2048
