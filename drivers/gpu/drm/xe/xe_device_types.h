@@ -504,7 +504,6 @@ struct xe_device {
 	};
 	u32 pipestat_irq_mask[I915_MAX_PIPES];
 
-	bool display_irqs_enabled;
 	u32 enabled_irq_mask;
 
 	struct intel_uncore {

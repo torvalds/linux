@@ -412,7 +412,7 @@ void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 
 	spin_lock(&dev_priv->irq_lock);
 
-	if (!dev_priv->display_irqs_enabled) {
+	if (!dev_priv->display.irq.display_irqs_enabled) {
 		spin_unlock(&dev_priv->irq_lock);
 		return;
 	}
@@ -1558,10 +1558,10 @@ void valleyview_enable_display_irqs(struct drm_i915_private *dev_priv)
 {
 	lockdep_assert_held(&dev_priv->irq_lock);
 
-	if (dev_priv->display_irqs_enabled)
+	if (dev_priv->display.irq.display_irqs_enabled)
 		return;
 
-	dev_priv->display_irqs_enabled = true;
+	dev_priv->display.irq.display_irqs_enabled = true;
 
 	if (intel_irqs_enabled(dev_priv)) {
 		vlv_display_irq_reset(dev_priv);
@@ -1573,10 +1573,10 @@ void valleyview_disable_display_irqs(struct drm_i915_private *dev_priv)
 {
 	lockdep_assert_held(&dev_priv->irq_lock);
 
-	if (!dev_priv->display_irqs_enabled)
+	if (!dev_priv->display.irq.display_irqs_enabled)
 		return;
 
-	dev_priv->display_irqs_enabled = false;
+	dev_priv->display.irq.display_irqs_enabled = false;
 
 	if (intel_irqs_enabled(dev_priv))
 		vlv_display_irq_reset(dev_priv);
@@ -1770,9 +1770,9 @@ void intel_display_irq_init(struct drm_i915_private *i915)
 	 * domain. We defer setting up the display irqs in this case to the
 	 * runtime pm.
 	 */
-	i915->display_irqs_enabled = true;
+	i915->display.irq.display_irqs_enabled = true;
 	if (IS_VALLEYVIEW(i915) || IS_CHERRYVIEW(i915))
-		i915->display_irqs_enabled = false;
+		i915->display.irq.display_irqs_enabled = false;
 
 	intel_hotplug_irq_init(i915);
 }

@@ -448,6 +448,8 @@ struct intel_display {
 	} ips;
 
 	struct {
+		bool display_irqs_enabled;
+
 		/* For i915gm/i945gm vblank irq workaround */
 		u8 vblank_enabled;
 	} irq;
