@@ -115,3 +115,15 @@ config PHY_ROCKCHIP_USB
 	select GENERIC_PHY
 	help
 	  Enable this to support the Rockchip USB 2.0 PHY.
+
+config PHY_ROCKCHIP_USBDP
+	tristate "Rockchip USBDP COMBO PHY Driver"
+	depends on ARCH_ROCKCHIP && OF
+	select GENERIC_PHY
+	select TYPEC
+	help
+	  Enable this to support the Rockchip USB3.0/DP combo PHY with
+	  Samsung IP block. This is required for USB3 support on RK3588.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called phy-rockchip-usbdp
