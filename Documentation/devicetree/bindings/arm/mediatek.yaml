@@ -367,6 +367,7 @@ properties:
           - const: mediatek,mt8188
       - items:
           - enum:
+              - kontron,3-5-sbc-i1200
               - mediatek,mt8395-evk
               - radxa,nio-12l
           - const: mediatek,mt8395
