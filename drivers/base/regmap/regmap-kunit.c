@@ -706,7 +706,7 @@ static void cache_bypass(struct kunit *test)
 	regmap_exit(map);
 }
 
-static void cache_sync(struct kunit *test)
+static void cache_sync_marked_dirty(struct kunit *test)
 {
 	const struct regmap_test_param *param = test->param_value;
 	struct regmap *map;
@@ -743,7 +743,58 @@ static void cache_sync(struct kunit *test)
 	regmap_exit(map);
 }
 
-static void cache_sync_defaults(struct kunit *test)
+static void cache_sync_after_cache_only(struct kunit *test)
+{
+	const struct regmap_test_param *param = test->param_value;
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	unsigned int val[BLOCK_TEST_SIZE];
+	unsigned int val_mask;
+	int i;
+
+	config = test_regmap_config;
+
+	map = gen_regmap(test, &config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	val_mask = GENMASK(config.val_bits - 1, 0);
+	get_random_bytes(&val, sizeof(val));
+
+	/* Put some data into the cache */
+	KUNIT_EXPECT_EQ(test, 0, regmap_bulk_write(map, param->from_reg, val,
+						   BLOCK_TEST_SIZE));
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		data->written[param->from_reg + i] = false;
+
+	/* Set cache-only and change the values */
+	regcache_cache_only(map, true);
+	for (i = 0; i < ARRAY_SIZE(val); ++i)
+		val[i] = ~val[i] & val_mask;
+
+	KUNIT_EXPECT_EQ(test, 0, regmap_bulk_write(map, param->from_reg, val,
+						   BLOCK_TEST_SIZE));
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_FALSE(test, data->written[param->from_reg + i]);
+
+	KUNIT_EXPECT_MEMNEQ(test, &data->vals[param->from_reg], val, sizeof(val));
+
+	/* Exit cache-only and sync the cache without marking hardware registers dirty */
+	regcache_cache_only(map, false);
+
+	KUNIT_EXPECT_EQ(test, 0, regcache_sync(map));
+
+	/* Did we just write the correct data out? */
+	KUNIT_EXPECT_MEMEQ(test, &data->vals[param->from_reg], val, sizeof(val));
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_TRUE(test, data->written[param->from_reg + i]);
+
+	regmap_exit(map);
+}
+
+static void cache_sync_defaults_marked_dirty(struct kunit *test)
 {
 	const struct regmap_test_param *param = test->param_value;
 	struct regmap *map;
@@ -774,6 +825,71 @@ static void cache_sync_defaults(struct kunit *test)
 	/* Did we just sync the one register we touched? */
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
 		KUNIT_EXPECT_EQ(test, i == 2, data->written[param->from_reg + i]);
+
+	/* Rewrite registers back to their defaults */
+	for (i = 0; i < config.num_reg_defaults; ++i)
+		KUNIT_EXPECT_EQ(test, 0, regmap_write(map, config.reg_defaults[i].reg,
+						      config.reg_defaults[i].def));
+
+	/*
+	 * Resync after regcache_mark_dirty() should not write out registers
+	 * that are at default value
+	 */
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		data->written[param->from_reg + i] = false;
+	regcache_mark_dirty(map);
+	KUNIT_EXPECT_EQ(test, 0, regcache_sync(map));
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		KUNIT_EXPECT_FALSE(test, data->written[param->from_reg + i]);
+
+	regmap_exit(map);
+}
+
+static void cache_sync_default_after_cache_only(struct kunit *test)
+{
+	const struct regmap_test_param *param = test->param_value;
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	unsigned int orig_val;
+	int i;
+
+	config = test_regmap_config;
+	config.num_reg_defaults = BLOCK_TEST_SIZE;
+
+	map = gen_regmap(test, &config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	KUNIT_EXPECT_EQ(test, 0, regmap_read(map, param->from_reg + 2, &orig_val));
+
+	/* Enter cache-only and change the value of one register */
+	regcache_cache_only(map, true);
+	KUNIT_EXPECT_EQ(test, 0, regmap_write(map, param->from_reg + 2, orig_val + 1));
+
+	/* Exit cache-only and resync, should write out the changed register */
+	regcache_cache_only(map, false);
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		data->written[param->from_reg + i] = false;
+	KUNIT_EXPECT_EQ(test, 0, regcache_sync(map));
+
+	/* Was the register written out? */
+	KUNIT_EXPECT_TRUE(test, data->written[param->from_reg + 2]);
+	KUNIT_EXPECT_EQ(test, data->vals[param->from_reg + 2], orig_val + 1);
+
+	/* Enter cache-only and write register back to its default value */
+	regcache_cache_only(map, true);
+	KUNIT_EXPECT_EQ(test, 0, regmap_write(map, param->from_reg + 2, orig_val));
+
+	/* Resync should write out the new value */
+	regcache_cache_only(map, false);
+	for (i = 0; i < BLOCK_TEST_SIZE; i++)
+		data->written[param->from_reg + i] = false;
+
+	KUNIT_EXPECT_EQ(test, 0, regcache_sync(map));
+	KUNIT_EXPECT_TRUE(test, data->written[param->from_reg + 2]);
+	KUNIT_EXPECT_EQ(test, data->vals[param->from_reg + 2], orig_val);
 
 	regmap_exit(map);
 }
@@ -1590,8 +1706,10 @@ static struct kunit_case regmap_test_cases[] = {
 	KUNIT_CASE_PARAM(basic_ranges, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(stress_insert, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_bypass, real_cache_types_gen_params),
-	KUNIT_CASE_PARAM(cache_sync, real_cache_types_gen_params),
-	KUNIT_CASE_PARAM(cache_sync_defaults, real_cache_types_gen_params),
+	KUNIT_CASE_PARAM(cache_sync_marked_dirty, real_cache_types_gen_params),
+	KUNIT_CASE_PARAM(cache_sync_after_cache_only, real_cache_types_gen_params),
+	KUNIT_CASE_PARAM(cache_sync_defaults_marked_dirty, real_cache_types_gen_params),
+	KUNIT_CASE_PARAM(cache_sync_default_after_cache_only, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_sync_readonly, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_sync_patch, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_drop, sparse_cache_types_gen_params),
