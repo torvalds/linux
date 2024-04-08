@@ -625,10 +625,9 @@ static ssize_t bonding_show_queue_id(struct device *d,
 	struct slave *slave;
 	int res = 0;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	rcu_read_lock();
 
-	bond_for_each_slave(bond, slave, iter) {
+	bond_for_each_slave_rcu(bond, slave, iter) {
 		if (res > (PAGE_SIZE - IFNAMSIZ - 6)) {
 			/* not enough space for another interface_name:queue_id pair */
 			if ((PAGE_SIZE - res) > 10)
@@ -637,12 +636,13 @@ static ssize_t bonding_show_queue_id(struct device *d,
 			break;
 		}
 		res += sysfs_emit_at(buf, res, "%s:%d ",
-				     slave->dev->name, slave->queue_id);
+				     slave->dev->name,
+				     READ_ONCE(slave->queue_id));
 	}
 	if (res)
 		buf[res-1] = '\n'; /* eat the leftover space */
 
-	rtnl_unlock();
+	rcu_read_unlock();
 
 	return res;
 }
