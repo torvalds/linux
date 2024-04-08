@@ -248,7 +248,7 @@ unsigned long rethook_find_ret_addr(struct task_struct *tsk, unsigned long frame
 	if (WARN_ON_ONCE(!cur))
 		return 0;
 
-	if (WARN_ON_ONCE(tsk != current && task_is_running(tsk)))
+	if (tsk != current && task_is_running(tsk))
 		return 0;
 
 	do {
