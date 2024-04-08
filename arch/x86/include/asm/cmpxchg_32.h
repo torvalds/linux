@@ -122,6 +122,34 @@ static __always_inline u64 arch_cmpxchg64_local(volatile u64 *ptr, u64 old, u64 
 }
 #define arch_cmpxchg64_local arch_cmpxchg64_local
 
+#define __arch_try_cmpxchg64_emu(_ptr, _oldp, _new)			\
+({									\
+	union __u64_halves o = { .full = *(_oldp), },			\
+			   n = { .full = (_new), };			\
+	bool ret;							\
+									\
+	asm volatile(ALTERNATIVE(LOCK_PREFIX_HERE			\
+				 "call cmpxchg8b_emu",			\
+				 "lock; cmpxchg8b %[ptr]", X86_FEATURE_CX8) \
+		     CC_SET(e)						\
+		     : CC_OUT(e) (ret),					\
+		       [ptr] "+m" (*(_ptr)),				\
+		       "+a" (o.low), "+d" (o.high)			\
+		     : "b" (n.low), "c" (n.high), "S" (_ptr)		\
+		     : "memory");					\
+									\
+	if (unlikely(!ret))						\
+		*(_oldp) = o.full;					\
+									\
+	likely(ret);							\
+})
+
+static __always_inline bool arch_try_cmpxchg64(volatile u64 *ptr, u64 *oldp, u64 new)
+{
+	return __arch_try_cmpxchg64_emu(ptr, oldp, new);
+}
+#define arch_try_cmpxchg64 arch_try_cmpxchg64
+
 #endif
 
 #define system_has_cmpxchg64()		boot_cpu_has(X86_FEATURE_CX8)
