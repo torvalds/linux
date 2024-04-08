@@ -348,9 +348,6 @@ struct drm_i915_private {
 
 	struct intel_pxp *pxp;
 
-	/* For i915gm/i945gm vblank irq workaround */
-	u8 vblank_enabled;
-
 	bool irq_enabled;
 
 	struct i915_pmu pmu;

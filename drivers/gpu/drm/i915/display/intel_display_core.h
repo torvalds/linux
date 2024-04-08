@@ -448,6 +448,11 @@ struct intel_display {
 	} ips;
 
 	struct {
+		/* For i915gm/i945gm vblank irq workaround */
+		u8 vblank_enabled;
+	} irq;
+
+	struct {
 		wait_queue_head_t waitqueue;
 
 		/* mutex to protect pmdemand programming sequence */

@@ -1203,7 +1203,7 @@ int i8xx_enable_vblank(struct drm_crtc *crtc)
 
 int i915gm_enable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct drm_i915_private *i915 = to_i915(crtc->dev);
 
 	/*
 	 * Vblank interrupts fail to wake the device up from C2+.
@@ -1211,8 +1211,8 @@ int i915gm_enable_vblank(struct drm_crtc *crtc)
 	 * the problem. There is a small power cost so we do this
 	 * only when vblank interrupts are actually enabled.
 	 */
-	if (dev_priv->vblank_enabled++ == 0)
-		intel_uncore_write(&dev_priv->uncore, SCPD0, _MASKED_BIT_ENABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
+	if (i915->display.irq.vblank_enabled++ == 0)
+		intel_uncore_write(&i915->uncore, SCPD0, _MASKED_BIT_ENABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
 
 	return i8xx_enable_vblank(crtc);
 }
@@ -1315,12 +1315,12 @@ void i8xx_disable_vblank(struct drm_crtc *crtc)
 
 void i915gm_disable_vblank(struct drm_crtc *crtc)
 {
-	struct drm_i915_private *dev_priv = to_i915(crtc->dev);
+	struct drm_i915_private *i915 = to_i915(crtc->dev);
 
 	i8xx_disable_vblank(crtc);
 
-	if (--dev_priv->vblank_enabled == 0)
-		intel_uncore_write(&dev_priv->uncore, SCPD0, _MASKED_BIT_DISABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
+	if (--i915->display.irq.vblank_enabled == 0)
+		intel_uncore_write(&i915->uncore, SCPD0, _MASKED_BIT_DISABLE(CSTATE_RENDER_CLOCK_GATE_DISABLE));
 }
 
 void i965_disable_vblank(struct drm_crtc *crtc)
