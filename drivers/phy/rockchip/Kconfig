@@ -87,6 +87,7 @@ config PHY_ROCKCHIP_SAMSUNG_HDPTX
 	tristate "Rockchip Samsung HDMI/eDP Combo PHY driver"
 	depends on (ARCH_ROCKCHIP || COMPILE_TEST) && OF
 	select GENERIC_PHY
+	select RATIONAL
 	help
 	  Enable this to support the Rockchip HDMI/eDP Combo PHY
 	  with Samsung IP block.
