@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -1603,6 +1603,7 @@ static struct msm_pinctrl_soc_data sm6150_pinctrl = {
 	.ngpios = 124,
 	.dir_conn = sm6150_dir_conn,
 	.egpio_func = 9,
+	.ntiles = NUM_TILES,
 #ifdef CONFIG_HIBERNATION
 	.dir_conn_addr = tile_dir_conn_addr,
 #endif

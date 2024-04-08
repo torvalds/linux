@@ -1805,6 +1805,7 @@ static void msm_pinctrl_setup_pm_reset(struct msm_pinctrl *pctrl)
 		}
 }
 
+#ifdef CONFIG_HIBERNATION
 static int pinctrl_hibernation_notifier(struct notifier_block *nb,
 								unsigned long event, void *dummy)
 {
@@ -1851,8 +1852,14 @@ static int msm_pinctrl_hibernation_suspend(void)
 		return 0;
 
     /* Save direction conn registers for hmss */
+
 	for (i = 0; i < soc->ntiles; i++) {
-		tile_addr = pctrl->regs[i] + soc->dir_conn_addr[i];
+		if (soc->tiles)
+			tile_addr = pctrl->regs[i] + soc->dir_conn_addr[i];
+
+		else
+			tile_addr = pctrl->regs[0] + soc->dir_conn_addr[i];
+
 		pr_err("The tile addr generated is 0x%lx\n", (u64)tile_addr);
 		for (j = 0; j < 8; j++)
 			pctrl->msm_tile_regs[i].dir_con_regs[j] =
@@ -1866,9 +1873,13 @@ static int msm_pinctrl_hibernation_suspend(void)
 				msm_readl_ctl(pctrl, pgroup);
 		pctrl->gpio_regs[i].io_reg =
 				msm_readl_io(pctrl, pgroup);
-		pctrl->gpio_regs[i].intr_cfg_reg =
+
+		if (pgroup->intr_cfg_reg)
+			pctrl->gpio_regs[i].intr_cfg_reg =
 				msm_readl_intr_cfg(pctrl, pgroup);
-		pctrl->gpio_regs[i].intr_status_reg =
+
+		if (pgroup->intr_status_reg)
+			pctrl->gpio_regs[i].intr_status_reg =
 				msm_readl_intr_status(pctrl, pgroup);
 	}
 
@@ -1894,9 +1905,11 @@ static void msm_pinctrl_hibernation_resume(void)
 
 	if (likely(!pctrl->hibernation) || !pctrl->gpio_regs || !pctrl->msm_tile_regs)
 		return;
-
 	for (i = 0; i < soc->ntiles; i++) {
-		tile_addr = pctrl->regs[i] + soc->dir_conn_addr[i];
+		if (soc->tiles)
+			tile_addr = pctrl->regs[i] + soc->dir_conn_addr[i];
+		else
+			tile_addr = pctrl->regs[0] + soc->dir_conn_addr[i];
 		pr_err("The tile addr generated is 0x%lx\n", (u64)tile_addr);
 		for (j = 0; j < 8; j++)
 			writel_relaxed(pctrl->msm_tile_regs[i].dir_con_regs[j],
@@ -1908,10 +1921,12 @@ static void msm_pinctrl_hibernation_resume(void)
 		pgroup = &soc->groups[i];
 		msm_writel_ctl(pctrl->gpio_regs[i].ctl_reg, pctrl, pgroup);
 		msm_writel_io(pctrl->gpio_regs[i].io_reg, pctrl, pgroup);
-		msm_writel_intr_cfg(pctrl->gpio_regs[i].intr_cfg_reg,
-			pctrl, pgroup);
-		msm_writel_intr_status(pctrl->gpio_regs[i].intr_status_reg,
+		if (pgroup->intr_cfg_reg)
+			msm_writel_intr_cfg(pctrl->gpio_regs[i].intr_cfg_reg,
 				pctrl, pgroup);
+		if (pgroup->intr_status_reg)
+			msm_writel_intr_status(pctrl->gpio_regs[i].intr_status_reg,
+					pctrl, pgroup);
 	}
 
 	for ( ; i < soc->ngroups; i++) {
@@ -1929,6 +1944,7 @@ static struct syscore_ops msm_pinctrl_pm_ops = {
 	.suspend = msm_pinctrl_hibernation_suspend,
 	.resume = msm_pinctrl_hibernation_resume,
 };
+#endif
 
 static __maybe_unused int msm_pinctrl_suspend(struct device *dev)
 {
@@ -2232,10 +2248,12 @@ int msm_pinctrl_probe(struct platform_device *pdev,
 
 	platform_set_drvdata(pdev, pctrl);
 
+#ifdef CONFIG_HIBERNATION
 	register_syscore_ops(&msm_pinctrl_pm_ops);
 	ret = register_pm_notifier(&pinctrl_notif_block);
 	if (ret)
 		return ret;
+#endif
 
 	dev_dbg(&pdev->dev, "Probed Qualcomm pinctrl driver\n");
 
