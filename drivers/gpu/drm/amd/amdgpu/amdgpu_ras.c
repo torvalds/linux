@@ -2558,9 +2558,7 @@ int amdgpu_ras_add_bad_pages(struct amdgpu_device *adev,
 			goto out;
 		}
 
-		amdgpu_vram_mgr_reserve_range(&adev->mman.vram_mgr,
-			bps[i].retired_page << AMDGPU_GPU_PAGE_SHIFT,
-			AMDGPU_GPU_PAGE_SIZE);
+		amdgpu_ras_reserve_page(adev, bps[i].retired_page);
 
 		memcpy(&data->bps[data->count], &bps[i], sizeof(*data->bps));
 		data->count++;
