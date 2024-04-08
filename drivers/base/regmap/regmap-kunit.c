@@ -92,10 +92,30 @@ static const struct regmap_test_param regcache_types_list[] = {
 
 KUNIT_ARRAY_PARAM(regcache_types, regcache_types_list, param_to_desc);
 
-static const struct regmap_test_param real_cache_types_list[] = {
+static const struct regmap_test_param real_cache_types_only_list[] = {
 	{ .cache = REGCACHE_FLAT },
 	{ .cache = REGCACHE_RBTREE },
 	{ .cache = REGCACHE_MAPLE },
+};
+
+KUNIT_ARRAY_PARAM(real_cache_types_only, real_cache_types_only_list, param_to_desc);
+
+static const struct regmap_test_param real_cache_types_list[] = {
+	{ .cache = REGCACHE_FLAT,   .from_reg = 0 },
+	{ .cache = REGCACHE_FLAT,   .from_reg = 0x2001 },
+	{ .cache = REGCACHE_FLAT,   .from_reg = 0x2002 },
+	{ .cache = REGCACHE_FLAT,   .from_reg = 0x2003 },
+	{ .cache = REGCACHE_FLAT,   .from_reg = 0x2004 },
+	{ .cache = REGCACHE_RBTREE, .from_reg = 0 },
+	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2001 },
+	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2002 },
+	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2003 },
+	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2004 },
+	{ .cache = REGCACHE_MAPLE,  .from_reg = 0 },
+	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2001 },
+	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2002 },
+	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2003 },
+	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2004 },
 };
 
 KUNIT_ARRAY_PARAM(real_cache_types, real_cache_types_list, param_to_desc);
@@ -175,9 +195,12 @@ static struct regmap *gen_regmap(struct kunit *test,
 	return ret;
 }
 
-static bool reg_5_false(struct device *context, unsigned int reg)
+static bool reg_5_false(struct device *dev, unsigned int reg)
 {
-	return reg != 5;
+	struct kunit *test = dev_get_drvdata(dev);
+	const struct regmap_test_param *param = test->param_value;
+
+	return reg != (param->from_reg + 5);
 }
 
 static void basic_read_write(struct kunit *test)
@@ -648,6 +671,7 @@ static void stress_insert(struct kunit *test)
 
 static void cache_bypass(struct kunit *test)
 {
+	const struct regmap_test_param *param = test->param_value;
 	struct regmap *map;
 	struct regmap_config config;
 	struct regmap_ram_data *data;
@@ -663,20 +687,20 @@ static void cache_bypass(struct kunit *test)
 	get_random_bytes(&val, sizeof(val));
 
 	/* Ensure the cache has a value in it */
-	KUNIT_EXPECT_EQ(test, 0, regmap_write(map, 0, val));
+	KUNIT_EXPECT_EQ(test, 0, regmap_write(map, param->from_reg, val));
 
 	/* Bypass then write a different value */
 	regcache_cache_bypass(map, true);
-	KUNIT_EXPECT_EQ(test, 0, regmap_write(map, 0, val + 1));
+	KUNIT_EXPECT_EQ(test, 0, regmap_write(map, param->from_reg, val + 1));
 
 	/* Read the bypassed value */
-	KUNIT_EXPECT_EQ(test, 0, regmap_read(map, 0, &rval));
+	KUNIT_EXPECT_EQ(test, 0, regmap_read(map, param->from_reg, &rval));
 	KUNIT_EXPECT_EQ(test, val + 1, rval);
-	KUNIT_EXPECT_EQ(test, data->vals[0], rval);
+	KUNIT_EXPECT_EQ(test, data->vals[param->from_reg], rval);
 
 	/* Disable bypass, the cache should still return the original value */
 	regcache_cache_bypass(map, false);
-	KUNIT_EXPECT_EQ(test, 0, regmap_read(map, 0, &rval));
+	KUNIT_EXPECT_EQ(test, 0, regmap_read(map, param->from_reg, &rval));
 	KUNIT_EXPECT_EQ(test, val, rval);
 
 	regmap_exit(map);
@@ -684,6 +708,7 @@ static void cache_bypass(struct kunit *test)
 
 static void cache_sync(struct kunit *test)
 {
+	const struct regmap_test_param *param = test->param_value;
 	struct regmap *map;
 	struct regmap_config config;
 	struct regmap_ram_data *data;
@@ -700,10 +725,10 @@ static void cache_sync(struct kunit *test)
 	get_random_bytes(&val, sizeof(val));
 
 	/* Put some data into the cache */
-	KUNIT_EXPECT_EQ(test, 0, regmap_bulk_write(map, 0, val,
+	KUNIT_EXPECT_EQ(test, 0, regmap_bulk_write(map, param->from_reg, val,
 						   BLOCK_TEST_SIZE));
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		data->written[i] = false;
+		data->written[param->from_reg + i] = false;
 
 	/* Trash the data on the device itself then resync */
 	regcache_mark_dirty(map);
@@ -711,15 +736,16 @@ static void cache_sync(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 0, regcache_sync(map));
 
 	/* Did we just write the correct data out? */
-	KUNIT_EXPECT_MEMEQ(test, data->vals, val, sizeof(val));
+	KUNIT_EXPECT_MEMEQ(test, &data->vals[param->from_reg], val, sizeof(val));
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		KUNIT_EXPECT_EQ(test, true, data->written[i]);
+		KUNIT_EXPECT_EQ(test, true, data->written[param->from_reg + i]);
 
 	regmap_exit(map);
 }
 
 static void cache_sync_defaults(struct kunit *test)
 {
+	const struct regmap_test_param *param = test->param_value;
 	struct regmap *map;
 	struct regmap_config config;
 	struct regmap_ram_data *data;
@@ -737,23 +763,24 @@ static void cache_sync_defaults(struct kunit *test)
 	get_random_bytes(&val, sizeof(val));
 
 	/* Change the value of one register */
-	KUNIT_EXPECT_EQ(test, 0, regmap_write(map, 2, val));
+	KUNIT_EXPECT_EQ(test, 0, regmap_write(map, param->from_reg + 2, val));
 
 	/* Resync */
 	regcache_mark_dirty(map);
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		data->written[i] = false;
+		data->written[param->from_reg + i] = false;
 	KUNIT_EXPECT_EQ(test, 0, regcache_sync(map));
 
 	/* Did we just sync the one register we touched? */
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		KUNIT_EXPECT_EQ(test, i == 2, data->written[i]);
+		KUNIT_EXPECT_EQ(test, i == 2, data->written[param->from_reg + i]);
 
 	regmap_exit(map);
 }
 
 static void cache_sync_readonly(struct kunit *test)
 {
+	const struct regmap_test_param *param = test->param_value;
 	struct regmap *map;
 	struct regmap_config config;
 	struct regmap_ram_data *data;
@@ -770,29 +797,30 @@ static void cache_sync_readonly(struct kunit *test)
 
 	/* Read all registers to fill the cache */
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		KUNIT_EXPECT_EQ(test, 0, regmap_read(map, i, &val));
+		KUNIT_EXPECT_EQ(test, 0, regmap_read(map, param->from_reg + i, &val));
 
 	/* Change the value of all registers, readonly should fail */
 	get_random_bytes(&val, sizeof(val));
 	regcache_cache_only(map, true);
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		KUNIT_EXPECT_EQ(test, i != 5, regmap_write(map, i, val) == 0);
+		KUNIT_EXPECT_EQ(test, i != 5, regmap_write(map, param->from_reg + i, val) == 0);
 	regcache_cache_only(map, false);
 
 	/* Resync */
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		data->written[i] = false;
+		data->written[param->from_reg + i] = false;
 	KUNIT_EXPECT_EQ(test, 0, regcache_sync(map));
 
 	/* Did that match what we see on the device? */
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		KUNIT_EXPECT_EQ(test, i != 5, data->written[i]);
+		KUNIT_EXPECT_EQ(test, i != 5, data->written[param->from_reg + i]);
 
 	regmap_exit(map);
 }
 
 static void cache_sync_patch(struct kunit *test)
 {
+	const struct regmap_test_param *param = test->param_value;
 	struct regmap *map;
 	struct regmap_config config;
 	struct regmap_ram_data *data;
@@ -810,14 +838,14 @@ static void cache_sync_patch(struct kunit *test)
 		return;
 
 	/* Stash the original values */
-	KUNIT_EXPECT_EQ(test, 0, regmap_bulk_read(map, 0, rval,
+	KUNIT_EXPECT_EQ(test, 0, regmap_bulk_read(map, param->from_reg, rval,
 						  BLOCK_TEST_SIZE));
 
 	/* Patch a couple of values */
-	patch[0].reg = 2;
+	patch[0].reg = param->from_reg + 2;
 	patch[0].def = rval[2] + 1;
 	patch[0].delay_us = 0;
-	patch[1].reg = 5;
+	patch[1].reg = param->from_reg + 5;
 	patch[1].def = rval[5] + 1;
 	patch[1].delay_us = 0;
 	KUNIT_EXPECT_EQ(test, 0, regmap_register_patch(map, patch,
@@ -826,23 +854,23 @@ static void cache_sync_patch(struct kunit *test)
 	/* Sync the cache */
 	regcache_mark_dirty(map);
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		data->written[i] = false;
+		data->written[param->from_reg + i] = false;
 	KUNIT_EXPECT_EQ(test, 0, regcache_sync(map));
 
 	/* The patch should be on the device but not in the cache */
 	for (i = 0; i < BLOCK_TEST_SIZE; i++) {
-		KUNIT_EXPECT_EQ(test, 0, regmap_read(map, i, &val));
+		KUNIT_EXPECT_EQ(test, 0, regmap_read(map, param->from_reg + i, &val));
 		KUNIT_EXPECT_EQ(test, val, rval[i]);
 
 		switch (i) {
 		case 2:
 		case 5:
-			KUNIT_EXPECT_EQ(test, true, data->written[i]);
-			KUNIT_EXPECT_EQ(test, data->vals[i], rval[i] + 1);
+			KUNIT_EXPECT_EQ(test, true, data->written[param->from_reg + i]);
+			KUNIT_EXPECT_EQ(test, data->vals[param->from_reg + i], rval[i] + 1);
 			break;
 		default:
-			KUNIT_EXPECT_EQ(test, false, data->written[i]);
-			KUNIT_EXPECT_EQ(test, data->vals[i], rval[i]);
+			KUNIT_EXPECT_EQ(test, false, data->written[param->from_reg + i]);
+			KUNIT_EXPECT_EQ(test, data->vals[param->from_reg + i], rval[i]);
 			break;
 		}
 	}
@@ -1436,7 +1464,7 @@ static struct kunit_case regmap_test_cases[] = {
 	KUNIT_CASE_PARAM(cache_sync_patch, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_drop, sparse_cache_types_gen_params),
 	KUNIT_CASE_PARAM(cache_present, sparse_cache_types_gen_params),
-	KUNIT_CASE_PARAM(cache_range_window_reg, real_cache_types_gen_params),
+	KUNIT_CASE_PARAM(cache_range_window_reg, real_cache_types_only_gen_params),
 
 	KUNIT_CASE_PARAM(raw_read_defaults_single, raw_test_types_gen_params),
 	KUNIT_CASE_PARAM(raw_read_defaults, raw_test_types_gen_params),
