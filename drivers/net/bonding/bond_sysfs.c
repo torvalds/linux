@@ -170,10 +170,9 @@ static ssize_t bonding_show_slaves(struct device *d,
 	struct slave *slave;
 	int res = 0;
 
-	if (!rtnl_trylock())
-		return restart_syscall();
+	rcu_read_lock();
 
-	bond_for_each_slave(bond, slave, iter) {
+	bond_for_each_slave_rcu(bond, slave, iter) {
 		if (res > (PAGE_SIZE - IFNAMSIZ)) {
 			/* not enough space for another interface name */
 			if ((PAGE_SIZE - res) > 10)
@@ -184,7 +183,7 @@ static ssize_t bonding_show_slaves(struct device *d,
 		res += sysfs_emit_at(buf, res, "%s ", slave->dev->name);
 	}
 
-	rtnl_unlock();
+	rcu_read_unlock();
 
 	if (res)
 		buf[res-1] = '\n'; /* eat the leftover space */
