@@ -23,6 +23,7 @@ P0(int *x, int *y, int *z)
 P1(int *x, int *y, int *z)
 {
 	int r0;
+	int r1;
 
 	WRITE_ONCE(*y, 1);
 	r1 = cmpxchg(z, 1, 0);

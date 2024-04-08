@@ -12,7 +12,6 @@ C cmpxchg-fail-unordered-2
 
 P0(int *x, int *y)
 {
-	int r0;
 	int r1;
 
 	WRITE_ONCE(*x, 1);
@@ -21,7 +20,8 @@ P0(int *x, int *y)
 
 P1(int *x, int *y)
 {
-	int r0;
+	int r1;
+	int r2;
 
 	r1 = cmpxchg(y, 0, 1);
 	r2 = READ_ONCE(*x);
