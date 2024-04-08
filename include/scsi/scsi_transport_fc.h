@@ -770,10 +770,9 @@ struct fc_function_template {
 /**
  * fc_remote_port_chkready - called to validate the remote port state
  *   prior to initiating io to the port.
- *
- * Returns a scsi result code that can be returned by the LLDD.
- *
  * @rport:	remote port to be checked
+ *
+ * Returns: a scsi result code that can be returned by the LLDD.
  **/
 static inline int
 fc_remote_port_chkready(struct fc_rport *rport)
