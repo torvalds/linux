@@ -17,6 +17,8 @@ struct regmap_test_priv {
 struct regmap_test_param {
 	enum regcache_type cache;
 	enum regmap_endian val_endian;
+
+	unsigned int from_reg;
 };
 
 static void get_changed_bytes(void *orig, void *new, size_t size)
@@ -37,7 +39,6 @@ static void get_changed_bytes(void *orig, void *new, size_t size)
 }
 
 static const struct regmap_config test_regmap_config = {
-	.max_register = BLOCK_TEST_SIZE,
 	.reg_stride = 1,
 	.val_bits = sizeof(unsigned int) * 8,
 };
@@ -76,9 +77,10 @@ static const char *regmap_endian_name(enum regmap_endian endian)
 
 static void param_to_desc(const struct regmap_test_param *param, char *desc)
 {
-	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "%s-%s",
+	snprintf(desc, KUNIT_PARAM_DESC_SIZE, "%s-%s @%#x",
 		 regcache_type_name(param->cache),
-		 regmap_endian_name(param->val_endian));
+		 regmap_endian_name(param->val_endian),
+		 param->from_reg);
 }
 
 static const struct regmap_test_param regcache_types_list[] = {
@@ -99,8 +101,16 @@ static const struct regmap_test_param real_cache_types_list[] = {
 KUNIT_ARRAY_PARAM(real_cache_types, real_cache_types_list, param_to_desc);
 
 static const struct regmap_test_param sparse_cache_types_list[] = {
-	{ .cache = REGCACHE_RBTREE },
-	{ .cache = REGCACHE_MAPLE },
+	{ .cache = REGCACHE_RBTREE, .from_reg = 0 },
+	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2001 },
+	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2002 },
+	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2003 },
+	{ .cache = REGCACHE_RBTREE, .from_reg = 0x2004 },
+	{ .cache = REGCACHE_MAPLE,  .from_reg = 0 },
+	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2001 },
+	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2002 },
+	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2003 },
+	{ .cache = REGCACHE_MAPLE,  .from_reg = 0x2004 },
 };
 
 KUNIT_ARRAY_PARAM(sparse_cache_types, sparse_cache_types_list, param_to_desc);
@@ -113,7 +123,7 @@ static struct regmap *gen_regmap(struct kunit *test,
 	struct regmap_test_priv *priv = test->priv;
 	unsigned int *buf;
 	struct regmap *ret;
-	size_t size = (config->max_register + 1) * sizeof(unsigned int);
+	size_t size;
 	int i;
 	struct reg_default *defaults;
 
@@ -121,6 +131,16 @@ static struct regmap *gen_regmap(struct kunit *test,
 	config->disable_locking = config->cache_type == REGCACHE_RBTREE ||
 					config->cache_type == REGCACHE_MAPLE;
 
+	if (config->max_register == 0) {
+		config->max_register = param->from_reg;
+		if (config->num_reg_defaults)
+			config->max_register += (config->num_reg_defaults - 1) *
+						config->reg_stride;
+		else
+			config->max_register += (BLOCK_TEST_SIZE * config->reg_stride);
+	}
+
+	size = (config->max_register + 1) * sizeof(unsigned int);
 	buf = kmalloc(size, GFP_KERNEL);
 	if (!buf)
 		return ERR_PTR(-ENOMEM);
@@ -141,8 +161,8 @@ static struct regmap *gen_regmap(struct kunit *test,
 		config->reg_defaults = defaults;
 
 		for (i = 0; i < config->num_reg_defaults; i++) {
-			defaults[i].reg = i * config->reg_stride;
-			defaults[i].def = buf[i * config->reg_stride];
+			defaults[i].reg = param->from_reg + (i * config->reg_stride);
+			defaults[i].def = buf[param->from_reg + (i * config->reg_stride)];
 		}
 	}
 
@@ -832,6 +852,7 @@ static void cache_sync_patch(struct kunit *test)
 
 static void cache_drop(struct kunit *test)
 {
+	const struct regmap_test_param *param = test->param_value;
 	struct regmap *map;
 	struct regmap_config config;
 	struct regmap_ram_data *data;
@@ -848,30 +869,32 @@ static void cache_drop(struct kunit *test)
 
 	/* Ensure the data is read from the cache */
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		data->read[i] = false;
-	KUNIT_EXPECT_EQ(test, 0, regmap_bulk_read(map, 0, rval,
+		data->read[param->from_reg + i] = false;
+	KUNIT_EXPECT_EQ(test, 0, regmap_bulk_read(map, param->from_reg, rval,
 						  BLOCK_TEST_SIZE));
 	for (i = 0; i < BLOCK_TEST_SIZE; i++) {
-		KUNIT_EXPECT_FALSE(test, data->read[i]);
-		data->read[i] = false;
+		KUNIT_EXPECT_FALSE(test, data->read[param->from_reg + i]);
+		data->read[param->from_reg + i] = false;
 	}
-	KUNIT_EXPECT_MEMEQ(test, data->vals, rval, sizeof(rval));
+	KUNIT_EXPECT_MEMEQ(test, &data->vals[param->from_reg], rval, sizeof(rval));
 
 	/* Drop some registers */
-	KUNIT_EXPECT_EQ(test, 0, regcache_drop_region(map, 3, 5));
+	KUNIT_EXPECT_EQ(test, 0, regcache_drop_region(map, param->from_reg + 3,
+						      param->from_reg + 5));
 
 	/* Reread and check only the dropped registers hit the device. */
-	KUNIT_EXPECT_EQ(test, 0, regmap_bulk_read(map, 0, rval,
+	KUNIT_EXPECT_EQ(test, 0, regmap_bulk_read(map, param->from_reg, rval,
 						  BLOCK_TEST_SIZE));
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		KUNIT_EXPECT_EQ(test, data->read[i], i >= 3 && i <= 5);
-	KUNIT_EXPECT_MEMEQ(test, data->vals, rval, sizeof(rval));
+		KUNIT_EXPECT_EQ(test, data->read[param->from_reg + i], i >= 3 && i <= 5);
+	KUNIT_EXPECT_MEMEQ(test, &data->vals[param->from_reg], rval, sizeof(rval));
 
 	regmap_exit(map);
 }
 
 static void cache_present(struct kunit *test)
 {
+	const struct regmap_test_param *param = test->param_value;
 	struct regmap *map;
 	struct regmap_config config;
 	struct regmap_ram_data *data;
@@ -886,23 +909,23 @@ static void cache_present(struct kunit *test)
 		return;
 
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		data->read[i] = false;
+		data->read[param->from_reg + i] = false;
 
 	/* No defaults so no registers cached. */
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		KUNIT_ASSERT_FALSE(test, regcache_reg_cached(map, i));
+		KUNIT_ASSERT_FALSE(test, regcache_reg_cached(map, param->from_reg + i));
 
 	/* We didn't trigger any reads */
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		KUNIT_ASSERT_FALSE(test, data->read[i]);
+		KUNIT_ASSERT_FALSE(test, data->read[param->from_reg + i]);
 
 	/* Fill the cache */
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		KUNIT_EXPECT_EQ(test, 0, regmap_read(map, i, &val));
+		KUNIT_EXPECT_EQ(test, 0, regmap_read(map, param->from_reg + i, &val));
 
 	/* Now everything should be cached */
 	for (i = 0; i < BLOCK_TEST_SIZE; i++)
-		KUNIT_ASSERT_TRUE(test, regcache_reg_cached(map, i));
+		KUNIT_ASSERT_TRUE(test, regcache_reg_cached(map, param->from_reg + i));
 
 	regmap_exit(map);
 }
