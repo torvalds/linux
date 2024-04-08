@@ -147,7 +147,7 @@ cleanup()
 
 mptcp_lib_check_mptcp
 mptcp_lib_check_kallsyms
-mptcp_lib_check_tools ip
+mptcp_lib_check_tools ip tc
 
 sin=$(mktemp)
 sout=$(mktemp)
