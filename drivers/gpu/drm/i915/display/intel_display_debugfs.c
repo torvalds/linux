@@ -31,6 +31,7 @@
 #include "intel_hdmi.h"
 #include "intel_hotplug.h"
 #include "intel_panel.h"
+#include "intel_pps.h"
 #include "intel_psr.h"
 #include "intel_psr_regs.h"
 #include "intel_wm.h"
@@ -1095,27 +1096,6 @@ void intel_display_debugfs_register(struct drm_i915_private *i915)
 	intel_display_debugfs_params(i915);
 }
 
-static int i915_panel_show(struct seq_file *m, void *data)
-{
-	struct intel_connector *connector = m->private;
-	struct intel_dp *intel_dp = intel_attached_dp(connector);
-
-	if (connector->base.status != connector_status_connected)
-		return -ENODEV;
-
-	seq_printf(m, "Panel power up delay: %d\n",
-		   intel_dp->pps.panel_power_up_delay);
-	seq_printf(m, "Panel power down delay: %d\n",
-		   intel_dp->pps.panel_power_down_delay);
-	seq_printf(m, "Backlight on delay: %d\n",
-		   intel_dp->pps.backlight_on_delay);
-	seq_printf(m, "Backlight off delay: %d\n",
-		   intel_dp->pps.backlight_off_delay);
-
-	return 0;
-}
-DEFINE_SHOW_ATTRIBUTE(i915_panel);
-
 static int i915_hdcp_sink_capability_show(struct seq_file *m, void *data)
 {
 	struct intel_connector *connector = m->private;
@@ -1560,11 +1540,8 @@ void intel_connector_debugfs_add(struct intel_connector *connector)
 		return;
 
 	intel_drrs_connector_debugfs_add(connector);
+	intel_pps_connector_debugfs_add(connector);
 	intel_psr_connector_debugfs_add(connector);
-
-	if (connector_type == DRM_MODE_CONNECTOR_eDP)
-		debugfs_create_file("i915_panel_timings", 0444, root,
-				    connector, &i915_panel_fops);
 
 	if (connector_type == DRM_MODE_CONNECTOR_DisplayPort ||
 	    connector_type == DRM_MODE_CONNECTOR_HDMIA ||

@@ -1670,6 +1670,37 @@ void intel_pps_setup(struct drm_i915_private *i915)
 		i915->display.pps.mmio_base = PPS_BASE;
 }
 
+static int intel_pps_show(struct seq_file *m, void *data)
+{
+	struct intel_connector *connector = m->private;
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+
+	if (connector->base.status != connector_status_connected)
+		return -ENODEV;
+
+	seq_printf(m, "Panel power up delay: %d\n",
+		   intel_dp->pps.panel_power_up_delay);
+	seq_printf(m, "Panel power down delay: %d\n",
+		   intel_dp->pps.panel_power_down_delay);
+	seq_printf(m, "Backlight on delay: %d\n",
+		   intel_dp->pps.backlight_on_delay);
+	seq_printf(m, "Backlight off delay: %d\n",
+		   intel_dp->pps.backlight_off_delay);
+
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(intel_pps);
+
+void intel_pps_connector_debugfs_add(struct intel_connector *connector)
+{
+	struct dentry *root = connector->base.debugfs_entry;
+	int connector_type = connector->base.connector_type;
+
+	if (connector_type == DRM_MODE_CONNECTOR_eDP)
+		debugfs_create_file("i915_panel_timings", 0444, root,
+				    connector, &intel_pps_fops);
+}
+
 void assert_pps_unlocked(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
 	i915_reg_t pp_reg;
