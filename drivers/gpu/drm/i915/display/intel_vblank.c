@@ -132,8 +132,7 @@ u32 g4x_get_vblank_counter(struct drm_crtc *crtc)
 static u32 intel_crtc_scanlines_since_frame_timestamp(struct intel_crtc *crtc)
 {
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct drm_vblank_crtc *vblank =
-		&crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
+	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(&crtc->base);
 	const struct drm_display_mode *mode = &vblank->hwmode;
 	u32 htotal = mode->crtc_htotal;
 	u32 clock = mode->crtc_clock;
@@ -178,8 +177,7 @@ static u32 intel_crtc_scanlines_since_frame_timestamp(struct intel_crtc *crtc)
  */
 static u32 __intel_get_crtc_scanline_from_timestamp(struct intel_crtc *crtc)
 {
-	struct drm_vblank_crtc *vblank =
-		&crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
+	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(&crtc->base);
 	const struct drm_display_mode *mode = &vblank->hwmode;
 	u32 vblank_start = mode->crtc_vblank_start;
 	u32 vtotal = mode->crtc_vtotal;
@@ -200,16 +198,13 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	const struct drm_display_mode *mode;
-	struct drm_vblank_crtc *vblank;
+	struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(&crtc->base);
+	const struct drm_display_mode *mode = &vblank->hwmode;
 	enum pipe pipe = crtc->pipe;
 	int position, vtotal;
 
 	if (!crtc->active)
 		return 0;
-
-	vblank = &crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
-	mode = &vblank->hwmode;
 
 	if (crtc->mode_flags & I915_MODE_FLAG_GET_SCANLINE_FROM_TIMESTAMP)
 		return __intel_get_crtc_scanline_from_timestamp(crtc);
@@ -254,8 +249,7 @@ static int __intel_get_crtc_scanline(struct intel_crtc *crtc)
 
 int intel_crtc_scanline_to_hw(struct intel_crtc *crtc, int scanline)
 {
-	const struct drm_vblank_crtc *vblank =
-		&crtc->base.dev->vblank[drm_crtc_index(&crtc->base)];
+	const struct drm_vblank_crtc *vblank = drm_crtc_vblank_crtc(&crtc->base);
 	const struct drm_display_mode *mode = &vblank->hwmode;
 	int vtotal;
 
