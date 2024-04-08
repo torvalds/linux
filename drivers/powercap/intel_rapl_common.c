@@ -5,27 +5,27 @@
  */
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/cleanup.h>
-#include <linux/kernel.h>
-#include <linux/module.h>
-#include <linux/list.h>
-#include <linux/types.h>
-#include <linux/device.h>
-#include <linux/slab.h>
-#include <linux/log2.h>
 #include <linux/bitmap.h>
-#include <linux/delay.h>
-#include <linux/sysfs.h>
+#include <linux/cleanup.h>
 #include <linux/cpu.h>
-#include <linux/powercap.h>
-#include <linux/suspend.h>
+#include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/intel_rapl.h>
-#include <linux/processor.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/log2.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/powercap.h>
+#include <linux/processor.h>
+#include <linux/slab.h>
+#include <linux/suspend.h>
+#include <linux/sysfs.h>
+#include <linux/types.h>
 
-#include <asm/iosf_mbi.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/iosf_mbi.h>
 
 /* bitmasks for RAPL MSRs, used by primitive access functions */
 #define ENERGY_STATUS_MASK      0xffffffff
