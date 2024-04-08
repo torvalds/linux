@@ -74,4 +74,6 @@ void dcn401_fams2_update_config(struct dc *dc, struct dc_state *context, bool en
 void dcn401_fams2_global_control_lock_fast(union block_sequence_params *params);
 void dcn401_unblank_stream(struct pipe_ctx *pipe_ctx, struct dc_link_settings *link_settings);
 
+void dcn401_update_odm(struct dc *dc, struct dc_state *context,
+		struct pipe_ctx *otg_master);
 #endif /* __DC_HWSS_DCN401_H__ */

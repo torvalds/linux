@@ -21,6 +21,7 @@ static void dsc401_set_config(struct display_stream_compressor *dsc, const struc
 static void dsc401_enable(struct display_stream_compressor *dsc, int opp_pipe);
 static void dsc401_disable(struct display_stream_compressor *dsc);
 static void dsc401_disconnect(struct display_stream_compressor *dsc);
+static void dsc401_wait_disconnect_pending_clear(struct display_stream_compressor *dsc);
 
 const struct dsc_funcs dcn401_dsc_funcs = {
 	.dsc_get_enc_caps = dsc2_get_enc_caps,
@@ -31,6 +32,7 @@ const struct dsc_funcs dcn401_dsc_funcs = {
 	.dsc_enable = dsc401_enable,
 	.dsc_disable = dsc401_disable,
 	.dsc_disconnect = dsc401_disconnect,
+	.dsc_wait_disconnect_pending_clear = dsc401_wait_disconnect_pending_clear,
 };
 
 /* Macro definitios for REG_SET macros*/
@@ -231,16 +233,12 @@ static void dsc401_disable(struct display_stream_compressor *dsc)
 {
 	struct dcn401_dsc *dsc401 = TO_DCN401_DSC(dsc);
 	int dsc_clock_en;
-	int dsc_fw_config;
-	int enabled_opp_pipe;
 
 	DC_LOG_DSC("disable DSC %d", dsc->inst);
 
 	REG_GET(DSC_TOP_CONTROL, DSC_CLOCK_EN, &dsc_clock_en);
-	REG_GET_2(DSCRM_DSC_FORWARD_CONFIG, DSCRM_DSC_FORWARD_EN, &dsc_fw_config, DSCRM_DSC_OPP_PIPE_SOURCE, &enabled_opp_pipe);
-	if (!dsc_clock_en || !dsc_fw_config) {
-		DC_LOG_DSC("ERROR: DSC %d at opp pipe %d already disabled!", dsc->inst, enabled_opp_pipe);
-		ASSERT(0);
+	if (!dsc_clock_en) {
+		DC_LOG_DSC("DSC %d already disabled!", dsc->inst);
 	}
 
 	REG_UPDATE(DSCRM_DSC_FORWARD_CONFIG,
@@ -248,6 +246,13 @@ static void dsc401_disable(struct display_stream_compressor *dsc)
 
 	REG_UPDATE(DSC_TOP_CONTROL,
 		DSC_CLOCK_EN, 0);
+}
+
+static void dsc401_wait_disconnect_pending_clear(struct display_stream_compressor *dsc)
+{
+	struct dcn401_dsc *dsc401 = TO_DCN401_DSC(dsc);
+
+	REG_WAIT(DSCRM_DSC_FORWARD_CONFIG, DSCRM_DSC_DOUBLE_BUFFER_REG_UPDATE_PENDING, 0, 2, 50000);
 }
 
 static void dsc401_disconnect(struct display_stream_compressor *dsc)

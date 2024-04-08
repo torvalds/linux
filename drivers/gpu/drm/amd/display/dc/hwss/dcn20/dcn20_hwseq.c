@@ -2158,6 +2158,43 @@ void dcn20_program_front_end_for_ctx(
 	}
 }
 
+/* post_unlock_reset_opp - the function wait for corresponding double
+ * buffered pending status clear and reset opp head pipe's none double buffered
+ * registers to their initial state.
+ */
+static void post_unlock_reset_opp(struct dc *dc,
+		struct pipe_ctx *opp_head)
+{
+	struct display_stream_compressor *dsc = opp_head->stream_res.dsc;
+	struct dccg *dccg = dc->res_pool->dccg;
+
+	/*
+	 * wait for all DPP pipes in current mpc blending tree completes double
+	 * buffered disconnection before resetting OPP
+	 */
+	dc->hwss.wait_for_mpcc_disconnect(dc, dc->res_pool, opp_head);
+
+	if (dsc) {
+		bool is_dsc_ungated = false;
+
+		if (dc->hwseq->funcs.dsc_pg_status)
+			is_dsc_ungated = dc->hwseq->funcs.dsc_pg_status(dc->hwseq, dsc->inst);
+
+		if (is_dsc_ungated) {
+			/*
+			 * seamless update specific where we will postpone non
+			 * double buffered DSCCLK disable logic in post unlock
+			 * sequence after DSC is disconnected from OPP but not
+			 * yet power gated.
+			 */
+			dsc->funcs->dsc_wait_disconnect_pending_clear(dsc);
+			if (dccg->funcs->set_ref_dscclk)
+				dccg->funcs->set_ref_dscclk(dccg, dsc->inst);
+			dsc->funcs->dsc_disable(dsc);
+		}
+	}
+}
+
 void dcn20_post_unlock_program_front_end(
 		struct dc *dc,
 		struct dc_state *context)
@@ -2166,6 +2203,12 @@ void dcn20_post_unlock_program_front_end(
 	const unsigned int TIMEOUT_FOR_PIPE_ENABLE_US = 100000;
 	unsigned int polling_interval_us = 1;
 	struct dce_hwseq *hwseq = dc->hwseq;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++)
+		if (resource_is_pipe_type(&dc->current_state->res_ctx.pipe_ctx[i], OPP_HEAD) &&
+				!resource_is_pipe_type(&context->res_ctx.pipe_ctx[i], OPP_HEAD))
+			post_unlock_reset_opp(dc,
+					&dc->current_state->res_ctx.pipe_ctx[i]);
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++)
 		if (context->res_ctx.pipe_ctx[i].update_flags.bits.disable)

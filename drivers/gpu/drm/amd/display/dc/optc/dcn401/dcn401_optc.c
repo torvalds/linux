@@ -456,6 +456,7 @@ static struct timing_generator_funcs dcn401_tg_funcs = {
 		.set_dwb_source = NULL,
 		.set_odm_bypass = optc401_set_odm_bypass,
 		.set_odm_combine = optc401_set_odm_combine,
+		.wait_odm_doublebuffer_pending_clear = optc32_wait_odm_doublebuffer_pending_clear,
 		.set_h_timing_div_manual_mode = optc401_set_h_timing_div_manual_mode,
 		.get_optc_source = optc2_get_optc_source,
 		.set_out_mux = optc401_set_out_mux,
