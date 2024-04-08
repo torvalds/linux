@@ -4,10 +4,15 @@
 //
 // Copyright 2023 Arm Ltd
 
+#include <kunit/device.h>
 #include <kunit/test.h>
 #include "internal.h"
 
 #define BLOCK_TEST_SIZE 12
+
+struct regmap_test_priv {
+	struct device *dev;
+};
 
 static void get_changed_bytes(void *orig, void *new, size_t size)
 {
@@ -66,9 +71,11 @@ static const struct regcache_types sparse_cache_types_list[] = {
 
 KUNIT_ARRAY_PARAM(sparse_cache_types, sparse_cache_types_list, case_to_desc);
 
-static struct regmap *gen_regmap(struct regmap_config *config,
+static struct regmap *gen_regmap(struct kunit *test,
+				 struct regmap_config *config,
 				 struct regmap_ram_data **data)
 {
+	struct regmap_test_priv *priv = test->priv;
 	unsigned int *buf;
 	struct regmap *ret;
 	size_t size = (config->max_register + 1) * sizeof(unsigned int);
@@ -103,7 +110,7 @@ static struct regmap *gen_regmap(struct regmap_config *config,
 		}
 	}
 
-	ret = regmap_init_ram(config, *data);
+	ret = regmap_init_ram(priv->dev, config, *data);
 	if (IS_ERR(ret)) {
 		kfree(buf);
 		kfree(*data);
@@ -128,7 +135,7 @@ static void basic_read_write(struct kunit *test)
 	config = test_regmap_config;
 	config.cache_type = t->type;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -158,7 +165,7 @@ static void bulk_write(struct kunit *test)
 	config = test_regmap_config;
 	config.cache_type = t->type;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -195,7 +202,7 @@ static void bulk_read(struct kunit *test)
 	config = test_regmap_config;
 	config.cache_type = t->type;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -230,7 +237,7 @@ static void write_readonly(struct kunit *test)
 	config.num_reg_defaults = BLOCK_TEST_SIZE;
 	config.writeable_reg = reg_5_false;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -264,7 +271,7 @@ static void read_writeonly(struct kunit *test)
 	config.cache_type = t->type;
 	config.readable_reg = reg_5_false;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -304,7 +311,7 @@ static void reg_defaults(struct kunit *test)
 	config.cache_type = t->type;
 	config.num_reg_defaults = BLOCK_TEST_SIZE;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -332,7 +339,7 @@ static void reg_defaults_read_dev(struct kunit *test)
 	config.cache_type = t->type;
 	config.num_reg_defaults_raw = BLOCK_TEST_SIZE;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -368,7 +375,7 @@ static void register_patch(struct kunit *test)
 	config.cache_type = t->type;
 	config.num_reg_defaults = BLOCK_TEST_SIZE;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -419,7 +426,7 @@ static void stride(struct kunit *test)
 	config.reg_stride = 2;
 	config.num_reg_defaults = BLOCK_TEST_SIZE / 2;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -495,7 +502,7 @@ static void basic_ranges(struct kunit *test)
 	config.num_ranges = 1;
 	config.max_register = test_range.range_max;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -565,7 +572,7 @@ static void stress_insert(struct kunit *test)
 	config.cache_type = t->type;
 	config.max_register = 300;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -616,7 +623,7 @@ static void cache_bypass(struct kunit *test)
 	config = test_regmap_config;
 	config.cache_type = t->type;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -655,7 +662,7 @@ static void cache_sync(struct kunit *test)
 	config = test_regmap_config;
 	config.cache_type = t->type;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -694,7 +701,7 @@ static void cache_sync_defaults(struct kunit *test)
 	config.cache_type = t->type;
 	config.num_reg_defaults = BLOCK_TEST_SIZE;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -730,7 +737,7 @@ static void cache_sync_readonly(struct kunit *test)
 	config.cache_type = t->type;
 	config.writeable_reg = reg_5_false;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -773,7 +780,7 @@ static void cache_sync_patch(struct kunit *test)
 	config.cache_type = t->type;
 	config.num_reg_defaults = BLOCK_TEST_SIZE;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -832,7 +839,7 @@ static void cache_drop(struct kunit *test)
 	config.cache_type = t->type;
 	config.num_reg_defaults = BLOCK_TEST_SIZE;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -873,7 +880,7 @@ static void cache_present(struct kunit *test)
 	config = test_regmap_config;
 	config.cache_type = t->type;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -917,7 +924,7 @@ static void cache_range_window_reg(struct kunit *test)
 	config.num_ranges = 1;
 	config.max_register = test_range.range_max;
 
-	map = gen_regmap(&config, &data);
+	map = gen_regmap(test, &config, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -997,10 +1004,12 @@ static const struct regmap_config raw_regmap_config = {
 	.val_bits = 16,
 };
 
-static struct regmap *gen_raw_regmap(struct regmap_config *config,
+static struct regmap *gen_raw_regmap(struct kunit *test,
+				     struct regmap_config *config,
 				     struct raw_test_types *test_type,
 				     struct regmap_ram_data **data)
 {
+	struct regmap_test_priv *priv = test->priv;
 	u16 *buf;
 	struct regmap *ret;
 	size_t size = (config->max_register + 1) * config->reg_bits / 8;
@@ -1052,7 +1061,7 @@ static struct regmap *gen_raw_regmap(struct regmap_config *config,
 	if (config->cache_type == REGCACHE_NONE)
 		config->num_reg_defaults = 0;
 
-	ret = regmap_init_raw_ram(config, *data);
+	ret = regmap_init_raw_ram(priv->dev, config, *data);
 	if (IS_ERR(ret)) {
 		kfree(buf);
 		kfree(*data);
@@ -1072,7 +1081,7 @@ static void raw_read_defaults_single(struct kunit *test)
 
 	config = raw_regmap_config;
 
-	map = gen_raw_regmap(&config, t, &data);
+	map = gen_raw_regmap(test, &config, t, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -1099,7 +1108,7 @@ static void raw_read_defaults(struct kunit *test)
 
 	config = raw_regmap_config;
 
-	map = gen_raw_regmap(&config, t, &data);
+	map = gen_raw_regmap(test, &config, t, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -1109,7 +1118,7 @@ static void raw_read_defaults(struct kunit *test)
 	KUNIT_ASSERT_TRUE(test, rval != NULL);
 	if (!rval)
 		return;
-	
+
 	/* Check that we can read the defaults via the API */
 	KUNIT_EXPECT_EQ(test, 0, regmap_raw_read(map, 0, rval, val_len));
 	for (i = 0; i < config.max_register + 1; i++) {
@@ -1136,7 +1145,7 @@ static void raw_write_read_single(struct kunit *test)
 
 	config = raw_regmap_config;
 
-	map = gen_raw_regmap(&config, t, &data);
+	map = gen_raw_regmap(test, &config, t, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -1164,7 +1173,7 @@ static void raw_write(struct kunit *test)
 
 	config = raw_regmap_config;
 
-	map = gen_raw_regmap(&config, t, &data);
+	map = gen_raw_regmap(test, &config, t, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -1228,7 +1237,7 @@ static void raw_noinc_write(struct kunit *test)
 	config.writeable_noinc_reg = reg_zero;
 	config.readable_noinc_reg = reg_zero;
 
-	map = gen_raw_regmap(&config, t, &data);
+	map = gen_raw_regmap(test, &config, t, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -1276,7 +1285,7 @@ static void raw_sync(struct kunit *test)
 
 	config = raw_regmap_config;
 
-	map = gen_raw_regmap(&config, t, &data);
+	map = gen_raw_regmap(test, &config, t, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -1323,7 +1332,7 @@ static void raw_sync(struct kunit *test)
 		val[2] = cpu_to_be16(val[2]);
 	else
 		val[2] = cpu_to_le16(val[2]);
-	
+
 	/* The values should not appear in the "hardware" */
 	KUNIT_EXPECT_MEMNEQ(test, &hw_buf[2], &val[0], sizeof(val));
 
@@ -1356,7 +1365,7 @@ static void raw_ranges(struct kunit *test)
 	config.num_ranges = 1;
 	config.max_register = test_range.range_max;
 
-	map = gen_raw_regmap(&config, t, &data);
+	map = gen_raw_regmap(test, &config, t, &data);
 	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
 	if (IS_ERR(map))
 		return;
@@ -1437,8 +1446,40 @@ static struct kunit_case regmap_test_cases[] = {
 	{}
 };
 
+static int regmap_test_init(struct kunit *test)
+{
+	struct regmap_test_priv *priv;
+	struct device *dev;
+
+	priv = kunit_kzalloc(test, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	test->priv = priv;
+
+	dev = kunit_device_register(test, "regmap_test");
+	priv->dev = get_device(dev);
+	if (!priv->dev)
+		return -ENODEV;
+
+	dev_set_drvdata(dev, test);
+
+	return 0;
+}
+
+static void regmap_test_exit(struct kunit *test)
+{
+	struct regmap_test_priv *priv = test->priv;
+
+	/* Destroy the dummy struct device */
+	if (priv && priv->dev)
+		put_device(priv->dev);
+}
+
 static struct kunit_suite regmap_test_suite = {
 	.name = "regmap",
+	.init = regmap_test_init,
+	.exit = regmap_test_exit,
 	.test_cases = regmap_test_cases,
 };
 kunit_test_suite(regmap_test_suite);
