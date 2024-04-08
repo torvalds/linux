@@ -1462,6 +1462,13 @@ static void lan743x_phy_link_status_change(struct net_device *netdev)
 		    phydev->interface == PHY_INTERFACE_MODE_1000BASEX ||
 		    phydev->interface == PHY_INTERFACE_MODE_2500BASEX)
 			lan743x_sgmii_config(adapter);
+
+		data = lan743x_csr_read(adapter, MAC_CR);
+		if (phydev->enable_tx_lpi)
+			data |=  MAC_CR_EEE_EN_;
+		else
+			data &= ~MAC_CR_EEE_EN_;
+		lan743x_csr_write(adapter, MAC_CR, data);
 	}
 }
 
