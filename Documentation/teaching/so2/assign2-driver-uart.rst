@@ -2,7 +2,7 @@
 Assignment 2 - Driver UART
 ==========================
 
--  Deadline: :command:`Sunday, 30 April 2023, 23:00`
+-  Deadline: :command:`Monday, 22 April 2024, 23:59`
 -  The assigment is individual
 
 Assignment's Objectives
