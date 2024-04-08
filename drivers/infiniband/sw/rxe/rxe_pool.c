@@ -119,7 +119,7 @@ void rxe_pool_cleanup(struct rxe_pool *pool)
 int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_elem *elem,
 				bool sleepable)
 {
-	int err;
+	int err = -EINVAL;
 	gfp_t gfp_flags;
 
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
@@ -147,7 +147,7 @@ int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_elem *elem,
 
 err_cnt:
 	atomic_dec(&pool->num_elem);
-	return -EINVAL;
+	return err;
 }
 
 void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
