@@ -1203,13 +1203,10 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 				    .ln_sbd = sdp };
 	struct gfs2_glock *gl, *tmp;
 	struct address_space *mapping;
-	int ret = 0;
 
 	gl = find_insert_glock(&name, NULL);
-	if (gl) {
-		*glp = gl;
-		return 0;
-	}
+	if (gl)
+		goto found;
 	if (!create)
 		return -ENOENT;
 
@@ -1271,23 +1268,19 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	}
 
 	tmp = find_insert_glock(&name, gl);
-	if (!tmp) {
-		*glp = gl;
-		goto out;
-	}
-	if (IS_ERR(tmp)) {
-		ret = PTR_ERR(tmp);
-		goto out_free;
-	}
-	*glp = tmp;
+	if (tmp) {
+		gfs2_glock_dealloc(&gl->gl_rcu);
+		if (atomic_dec_and_test(&sdp->sd_glock_disposal))
+			wake_up(&sdp->sd_kill_wait);
 
-out_free:
-	gfs2_glock_dealloc(&gl->gl_rcu);
-	if (atomic_dec_and_test(&sdp->sd_glock_disposal))
-		wake_up(&sdp->sd_kill_wait);
+		if (IS_ERR(tmp))
+			return PTR_ERR(tmp);
+		gl = tmp;
+	}
 
-out:
-	return ret;
+found:
+	*glp = gl;
+	return 0;
 }
 
 /**
