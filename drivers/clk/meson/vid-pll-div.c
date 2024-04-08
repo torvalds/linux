@@ -96,4 +96,4 @@ EXPORT_SYMBOL_GPL(meson_vid_pll_div_ro_ops);
 
 MODULE_DESCRIPTION("Amlogic video pll divider driver");
 MODULE_AUTHOR("Neil Armstrong <narmstrong@baylibre.com>");
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");

@@ -2185,4 +2185,4 @@ static struct platform_driver axg_driver = {
 };
 
 module_platform_driver(axg_driver);
-MODULE_LICENSE("GPL v2");
+MODULE_LICENSE("GPL");
