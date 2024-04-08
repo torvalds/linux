@@ -14363,7 +14363,7 @@ F:	drivers/dma/at_xdmac.c
 F:	include/dt-bindings/dma/at91.h
 
 MICROCHIP AT91 SERIAL DRIVER
-M:	Richard Genoud <richard.genoud@gmail.com>
+M:	Richard Genoud <richard.genoud@bootlin.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/serial/atmel,at91-usart.yaml
 F:	drivers/tty/serial/atmel_serial.c
