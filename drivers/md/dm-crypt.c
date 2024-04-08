@@ -137,9 +137,9 @@ struct iv_elephant_private {
  * and encrypts / decrypts at the same time.
  */
 enum flags { DM_CRYPT_SUSPENDED, DM_CRYPT_KEY_VALID,
-	     DM_CRYPT_SAME_CPU, DM_CRYPT_NO_OFFLOAD,
-	     DM_CRYPT_NO_READ_WORKQUEUE, DM_CRYPT_NO_WRITE_WORKQUEUE,
-	     DM_CRYPT_WRITE_INLINE };
+	     DM_CRYPT_SAME_CPU, DM_CRYPT_HIGH_PRIORITY,
+	     DM_CRYPT_NO_OFFLOAD, DM_CRYPT_NO_READ_WORKQUEUE,
+	     DM_CRYPT_NO_WRITE_WORKQUEUE, DM_CRYPT_WRITE_INLINE };
 
 enum cipher_flags {
 	CRYPT_MODE_INTEGRITY_AEAD,	/* Use authenticated mode for cipher */
@@ -3134,7 +3134,7 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 	struct crypt_config *cc = ti->private;
 	struct dm_arg_set as;
 	static const struct dm_arg _args[] = {
-		{0, 8, "Invalid number of feature args"},
+		{0, 9, "Invalid number of feature args"},
 	};
 	unsigned int opt_params, val;
 	const char *opt_string, *sval;
@@ -3161,6 +3161,8 @@ static int crypt_ctr_optional(struct dm_target *ti, unsigned int argc, char **ar
 
 		else if (!strcasecmp(opt_string, "same_cpu_crypt"))
 			set_bit(DM_CRYPT_SAME_CPU, &cc->flags);
+		else if (!strcasecmp(opt_string, "high_priority"))
+			set_bit(DM_CRYPT_HIGH_PRIORITY, &cc->flags);
 
 		else if (!strcasecmp(opt_string, "submit_from_crypt_cpus"))
 			set_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags);
@@ -3232,6 +3234,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	const char *devname = dm_table_device_name(ti->table);
 	int key_size;
 	unsigned int align_mask;
+	unsigned int common_wq_flags;
 	unsigned long long tmpll;
 	int ret;
 	size_t iv_size_padding, additional_req_size;
@@ -3399,19 +3402,25 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	ret = -ENOMEM;
-	cc->io_queue = alloc_workqueue("kcryptd_io/%s", WQ_MEM_RECLAIM, 1, devname);
+	common_wq_flags = WQ_MEM_RECLAIM;
+	if (test_bit(DM_CRYPT_HIGH_PRIORITY, &cc->flags))
+		common_wq_flags |= WQ_HIGHPRI;
+
+	cc->io_queue = alloc_workqueue("kcryptd_io/%s", common_wq_flags, 1, devname);
 	if (!cc->io_queue) {
 		ti->error = "Couldn't create kcryptd io queue";
 		goto bad;
 	}
 
-	if (test_bit(DM_CRYPT_SAME_CPU, &cc->flags))
-		cc->crypt_queue = alloc_workqueue("kcryptd/%s", WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM,
-						  1, devname);
-	else
+	if (test_bit(DM_CRYPT_SAME_CPU, &cc->flags)) {
 		cc->crypt_queue = alloc_workqueue("kcryptd/%s",
-						  WQ_CPU_INTENSIVE | WQ_MEM_RECLAIM | WQ_UNBOUND,
+						  common_wq_flags | WQ_CPU_INTENSIVE,
+						  1, devname);
+	} else {
+		cc->crypt_queue = alloc_workqueue("kcryptd/%s",
+						  common_wq_flags | WQ_CPU_INTENSIVE | WQ_UNBOUND,
 						  num_online_cpus(), devname);
+	}
 	if (!cc->crypt_queue) {
 		ti->error = "Couldn't create kcryptd queue";
 		goto bad;
@@ -3427,6 +3436,8 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		ti->error = "Couldn't spawn write thread";
 		goto bad;
 	}
+	if (test_bit(DM_CRYPT_HIGH_PRIORITY, &cc->flags))
+		set_user_nice(cc->write_thread, MIN_NICE);
 
 	ti->num_flush_bios = 1;
 	ti->limit_swap_bios = true;
@@ -3547,6 +3558,7 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 
 		num_feature_args += !!ti->num_discard_bios;
 		num_feature_args += test_bit(DM_CRYPT_SAME_CPU, &cc->flags);
+		num_feature_args += test_bit(DM_CRYPT_HIGH_PRIORITY, &cc->flags);
 		num_feature_args += test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags);
 		num_feature_args += test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags);
 		num_feature_args += test_bit(DM_CRYPT_NO_WRITE_WORKQUEUE, &cc->flags);
@@ -3560,6 +3572,8 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 				DMEMIT(" allow_discards");
 			if (test_bit(DM_CRYPT_SAME_CPU, &cc->flags))
 				DMEMIT(" same_cpu_crypt");
+			if (test_bit(DM_CRYPT_HIGH_PRIORITY, &cc->flags))
+				DMEMIT(" high_priority");
 			if (test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags))
 				DMEMIT(" submit_from_crypt_cpus");
 			if (test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags))
@@ -3579,6 +3593,7 @@ static void crypt_status(struct dm_target *ti, status_type_t type,
 		DMEMIT_TARGET_NAME_VERSION(ti->type);
 		DMEMIT(",allow_discards=%c", ti->num_discard_bios ? 'y' : 'n');
 		DMEMIT(",same_cpu_crypt=%c", test_bit(DM_CRYPT_SAME_CPU, &cc->flags) ? 'y' : 'n');
+		DMEMIT(",high_priority=%c", test_bit(DM_CRYPT_HIGH_PRIORITY, &cc->flags) ? 'y' : 'n');
 		DMEMIT(",submit_from_crypt_cpus=%c", test_bit(DM_CRYPT_NO_OFFLOAD, &cc->flags) ?
 		       'y' : 'n');
 		DMEMIT(",no_read_workqueue=%c", test_bit(DM_CRYPT_NO_READ_WORKQUEUE, &cc->flags) ?
@@ -3706,7 +3721,7 @@ static void crypt_io_hints(struct dm_target *ti, struct queue_limits *limits)
 
 static struct target_type crypt_target = {
 	.name   = "crypt",
-	.version = {1, 25, 0},
+	.version = {1, 26, 0},
 	.module = THIS_MODULE,
 	.ctr    = crypt_ctr,
 	.dtr    = crypt_dtr,
