@@ -1576,6 +1576,8 @@ again:
 	if (!bio_integrity_endio(bio))
 		return;
 
+	blk_zone_bio_endio(bio);
+
 	rq_qos_done_bio(bio);
 
 	if (bio->bi_bdev && bio_flagged(bio, BIO_TRACE_COMPLETION)) {
