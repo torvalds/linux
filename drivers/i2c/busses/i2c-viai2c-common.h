@@ -52,6 +52,12 @@
 
 enum {
 	VIAI2C_PLAT_WMT,
+	VIAI2C_PLAT_ZHAOXIN
+};
+
+enum {
+	VIAI2C_BYTE_MODE,
+	VIAI2C_FIFO_MODE
 };
 
 struct viai2c {
@@ -66,11 +72,14 @@ struct viai2c {
 	struct i2c_msg		*msg;
 	int			ret;
 	bool			last;
+	unsigned int		mode;
 	unsigned int		platform;
+	void			*pltfm_priv;
 };
 
 int viai2c_wait_bus_not_busy(struct viai2c *i2c);
 int viai2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num);
 int viai2c_init(struct platform_device *pdev, struct viai2c **pi2c, int plat);
+int viai2c_fifo_irq_xfer(struct viai2c *i2c, bool irq);
 
 #endif
