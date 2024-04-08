@@ -578,7 +578,7 @@ Hardware and Software Acceleration Techniques
      packets (Large Receive Offload - LRO)
 
 
-.. slide:: TCP Segmentation Offload)
+.. slide:: TCP Segmentation Offload
    :inline-contents: True
    :level: 2
 
