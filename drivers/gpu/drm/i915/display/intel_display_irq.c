@@ -117,13 +117,14 @@ static void bdw_update_pipe_irq(struct drm_i915_private *dev_priv,
 	if (drm_WARN_ON(&dev_priv->drm, !intel_irqs_enabled(dev_priv)))
 		return;
 
-	new_val = dev_priv->de_irq_mask[pipe];
+	new_val = dev_priv->display.irq.de_irq_mask[pipe];
 	new_val &= ~interrupt_mask;
 	new_val |= (~enabled_irq_mask & interrupt_mask);
 
-	if (new_val != dev_priv->de_irq_mask[pipe]) {
-		dev_priv->de_irq_mask[pipe] = new_val;
-		intel_uncore_write(&dev_priv->uncore, GEN8_DE_PIPE_IMR(pipe), dev_priv->de_irq_mask[pipe]);
+	if (new_val != dev_priv->display.irq.de_irq_mask[pipe]) {
+		dev_priv->display.irq.de_irq_mask[pipe] = new_val;
+		intel_uncore_write(&dev_priv->uncore, GEN8_DE_PIPE_IMR(pipe),
+				   dev_priv->display.irq.de_irq_mask[pipe]);
 		intel_uncore_posting_read(&dev_priv->uncore, GEN8_DE_PIPE_IMR(pipe));
 	}
 }
@@ -1497,8 +1498,8 @@ void gen8_irq_power_well_post_enable(struct drm_i915_private *dev_priv,
 
 	for_each_pipe_masked(dev_priv, pipe, pipe_mask)
 		GEN8_IRQ_INIT_NDX(uncore, DE_PIPE, pipe,
-				  dev_priv->de_irq_mask[pipe],
-				  ~dev_priv->de_irq_mask[pipe] | extra_ier);
+				  dev_priv->display.irq.de_irq_mask[pipe],
+				  ~dev_priv->display.irq.de_irq_mask[pipe] | extra_ier);
 
 	spin_unlock_irq(&dev_priv->irq_lock);
 }
@@ -1694,12 +1695,12 @@ void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	}
 
 	for_each_pipe(dev_priv, pipe) {
-		dev_priv->de_irq_mask[pipe] = ~de_pipe_masked;
+		dev_priv->display.irq.de_irq_mask[pipe] = ~de_pipe_masked;
 
 		if (intel_display_power_is_enabled(dev_priv,
 						   POWER_DOMAIN_PIPE(pipe)))
 			GEN8_IRQ_INIT_NDX(uncore, DE_PIPE, pipe,
-					  dev_priv->de_irq_mask[pipe],
+					  dev_priv->display.irq.de_irq_mask[pipe],
 					  de_pipe_enables);
 	}
 

@@ -497,11 +497,8 @@ struct xe_device {
 	/* For pcode */
 	struct mutex sb_lock;
 
-	union {
-		/* only to allow build, not used functionally */
-		u32 irq_mask;
-		u32 de_irq_mask[I915_MAX_PIPES];
-	};
+	/* only to allow build, not used functionally */
+	u32 irq_mask;
 	u32 pipestat_irq_mask[I915_MAX_PIPES];
 
 	u32 enabled_irq_mask;

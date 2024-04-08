@@ -452,6 +452,8 @@ struct intel_display {
 
 		/* For i915gm/i945gm vblank irq workaround */
 		u8 vblank_enabled;
+
+		u32 de_irq_mask[I915_MAX_PIPES];
 	} irq;
 
 	struct {
