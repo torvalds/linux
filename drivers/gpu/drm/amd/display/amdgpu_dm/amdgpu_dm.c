@@ -531,7 +531,7 @@ static void dm_vupdate_high_irq(void *interrupt_params)
 	if (acrtc) {
 		vrr_active = amdgpu_dm_crtc_vrr_active_irq(acrtc);
 		drm_dev = acrtc->base.dev;
-		vblank = &drm_dev->vblank[acrtc->base.index];
+		vblank = drm_crtc_vblank_crtc(&acrtc->base);
 		previous_timestamp = atomic64_read(&irq_params->previous_timestamp);
 		frame_duration_ns = vblank->time - previous_timestamp;
 
