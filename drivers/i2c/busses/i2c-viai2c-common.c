@@ -18,37 +18,18 @@ int viai2c_wait_bus_not_busy(struct viai2c *i2c)
 	return 0;
 }
 
-int viai2c_check_status(struct viai2c *i2c)
-{
-	int ret = 0;
-	unsigned long time_left;
-
-	time_left = wait_for_completion_timeout(&i2c->complete,
-						msecs_to_jiffies(500));
-	if (!time_left)
-		return -ETIMEDOUT;
-
-	if (i2c->cmd_status & VIAI2C_ISR_NACK_ADDR)
-		ret = -EIO;
-
-	if (i2c->cmd_status & VIAI2C_ISR_SCL_TIMEOUT)
-		ret = -ETIMEDOUT;
-
-	return ret;
-}
-
 static int viai2c_write(struct viai2c *i2c, struct i2c_msg *pmsg, int last)
 {
 	u16 val, tcr_val = i2c->tcr;
-	int ret;
-	int xfer_len = 0;
+
+	i2c->last = last;
 
 	if (pmsg->len == 0) {
 		/*
 		 * We still need to run through the while (..) once, so
 		 * start at -1 and break out early from the loop
 		 */
-		xfer_len = -1;
+		i2c->xfered_len = -1;
 		writew(0, i2c->base + VIAI2C_REG_CDR);
 	} else {
 		writew(pmsg->buf[0] & 0xFF, i2c->base + VIAI2C_REG_CDR);
@@ -73,42 +54,15 @@ static int viai2c_write(struct viai2c *i2c, struct i2c_msg *pmsg, int last)
 		writew(val, i2c->base + VIAI2C_REG_CR);
 	}
 
-	while (xfer_len < pmsg->len) {
-		ret = viai2c_check_status(i2c);
-		if (ret)
-			return ret;
+	if (!wait_for_completion_timeout(&i2c->complete, VIAI2C_TIMEOUT))
+		return -ETIMEDOUT;
 
-		xfer_len++;
-
-		val = readw(i2c->base + VIAI2C_REG_CSR);
-		if (val & VIAI2C_CSR_RCV_NOT_ACK) {
-			dev_dbg(i2c->dev, "write RCV NACK error\n");
-			return -EIO;
-		}
-
-		if (pmsg->len == 0) {
-			val = VIAI2C_CR_TX_END | VIAI2C_CR_CPU_RDY | VIAI2C_CR_ENABLE;
-			writew(val, i2c->base + VIAI2C_REG_CR);
-			break;
-		}
-
-		if (xfer_len == pmsg->len) {
-			if (last != 1)
-				writew(VIAI2C_CR_ENABLE, i2c->base + VIAI2C_REG_CR);
-		} else {
-			writew(pmsg->buf[xfer_len] & 0xFF, i2c->base + VIAI2C_REG_CDR);
-			writew(VIAI2C_CR_CPU_RDY | VIAI2C_CR_ENABLE, i2c->base + VIAI2C_REG_CR);
-		}
-	}
-
-	return 0;
+	return i2c->ret;
 }
 
 static int viai2c_read(struct viai2c *i2c, struct i2c_msg *pmsg)
 {
 	u16 val, tcr_val = i2c->tcr;
-	int ret;
-	u32 xfer_len = 0;
 
 	val = readw(i2c->base + VIAI2C_REG_CR);
 	val &= ~(VIAI2C_CR_TX_END | VIAI2C_CR_RX_END);
@@ -133,21 +87,10 @@ static int viai2c_read(struct viai2c *i2c, struct i2c_msg *pmsg)
 		writew(val, i2c->base + VIAI2C_REG_CR);
 	}
 
-	while (xfer_len < pmsg->len) {
-		ret = viai2c_check_status(i2c);
-		if (ret)
-			return ret;
+	if (!wait_for_completion_timeout(&i2c->complete, VIAI2C_TIMEOUT))
+		return -ETIMEDOUT;
 
-		pmsg->buf[xfer_len] = readw(i2c->base + VIAI2C_REG_CDR) >> 8;
-		xfer_len++;
-
-		val = readw(i2c->base + VIAI2C_REG_CR) | VIAI2C_CR_CPU_RDY;
-		if (xfer_len == pmsg->len - 1)
-			val |= VIAI2C_CR_RX_END;
-		writew(val, i2c->base + VIAI2C_REG_CR);
-	}
-
-	return 0;
+	return i2c->ret;
 }
 
 int viai2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
@@ -165,6 +108,9 @@ int viai2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 				return ret;
 		}
 
+		i2c->msg = pmsg;
+		i2c->xfered_len = 0;
+
 		if (pmsg->flags & I2C_M_RD)
 			ret = viai2c_read(i2c, pmsg);
 		else
@@ -174,15 +120,76 @@ int viai2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 	return (ret < 0) ? ret : i;
 }
 
+/*
+ * Main process of the byte mode xfer
+ *
+ * Return value indicates whether the transfer is complete
+ *  1: all the data has been successfully transferred
+ *  0: there is still data that needs to be transferred
+ *  -EIO: error occurred
+ */
+static int viai2c_irq_xfer(struct viai2c *i2c)
+{
+	u16 val;
+	struct i2c_msg *msg = i2c->msg;
+	u8 read = msg->flags & I2C_M_RD;
+	void __iomem *base = i2c->base;
+
+	if (read) {
+		msg->buf[i2c->xfered_len] = readw(base + VIAI2C_REG_CDR) >> 8;
+
+		val = readw(base + VIAI2C_REG_CR) | VIAI2C_CR_CPU_RDY;
+		if (i2c->xfered_len == msg->len - 2)
+			val |= VIAI2C_CR_RX_END;
+		writew(val, base + VIAI2C_REG_CR);
+	} else {
+		val = readw(base + VIAI2C_REG_CSR);
+		if (val & VIAI2C_CSR_RCV_NOT_ACK)
+			return -EIO;
+
+		/* I2C_SMBUS_QUICK */
+		if (msg->len == 0) {
+			val = VIAI2C_CR_TX_END | VIAI2C_CR_CPU_RDY | VIAI2C_CR_ENABLE;
+			writew(val, base + VIAI2C_REG_CR);
+			return 1;
+		}
+
+		if ((i2c->xfered_len + 1) == msg->len) {
+			if (!i2c->last)
+				writew(VIAI2C_CR_ENABLE, base + VIAI2C_REG_CR);
+		} else {
+			writew(msg->buf[i2c->xfered_len + 1] & 0xFF, base + VIAI2C_REG_CDR);
+			writew(VIAI2C_CR_CPU_RDY | VIAI2C_CR_ENABLE, base + VIAI2C_REG_CR);
+		}
+	}
+
+	i2c->xfered_len++;
+
+	return i2c->xfered_len == msg->len;
+}
+
 static irqreturn_t viai2c_isr(int irq, void *data)
 {
 	struct viai2c *i2c = data;
+	u8 status;
 
 	/* save the status and write-clear it */
-	i2c->cmd_status = readw(i2c->base + VIAI2C_REG_ISR);
-	writew(i2c->cmd_status, i2c->base + VIAI2C_REG_ISR);
+	status = readw(i2c->base + VIAI2C_REG_ISR);
+	writew(status, i2c->base + VIAI2C_REG_ISR);
 
-	complete(&i2c->complete);
+	i2c->ret = 0;
+	if (status & VIAI2C_ISR_NACK_ADDR)
+		i2c->ret = -EIO;
+
+	if (status & VIAI2C_ISR_SCL_TIMEOUT)
+		i2c->ret = -ETIMEDOUT;
+
+	if (!i2c->ret)
+		i2c->ret = viai2c_irq_xfer(i2c);
+
+	/* All the data has been successfully transferred or error occurred */
+	if (i2c->ret)
+		complete(&i2c->complete);
 
 	return IRQ_HANDLED;
 }

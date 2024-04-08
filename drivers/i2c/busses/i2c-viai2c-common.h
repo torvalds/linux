@@ -58,11 +58,13 @@ struct viai2c {
 	struct clk		*clk;
 	u16			tcr;
 	int			irq;
-	u16			cmd_status;
+	u16			xfered_len;
+	struct i2c_msg		*msg;
+	int			ret;
+	bool			last;
 };
 
 int viai2c_wait_bus_not_busy(struct viai2c *i2c);
-int viai2c_check_status(struct viai2c *i2c);
 int viai2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num);
 int viai2c_init(struct platform_device *pdev, struct viai2c **pi2c);
 
