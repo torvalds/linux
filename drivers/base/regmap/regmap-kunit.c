@@ -295,6 +295,135 @@ static void bulk_read(struct kunit *test)
 		KUNIT_EXPECT_EQ(test, config.cache_type == REGCACHE_NONE, data->read[i]);
 }
 
+static void read_bypassed(struct kunit *test)
+{
+	const struct regmap_test_param *param = test->param_value;
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	unsigned int val[BLOCK_TEST_SIZE], rval;
+	int i;
+
+	config = test_regmap_config;
+
+	map = gen_regmap(test, &config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	KUNIT_EXPECT_FALSE(test, map->cache_bypass);
+
+	get_random_bytes(&val, sizeof(val));
+
+	/* Write some test values */
+	KUNIT_EXPECT_EQ(test, 0, regmap_bulk_write(map, param->from_reg, val, ARRAY_SIZE(val)));
+
+	regcache_cache_only(map, true);
+
+	/*
+	 * While in cache-only regmap_read_bypassed() should return the register
+	 * value and leave the map in cache-only.
+	 */
+	for (i = 0; i < ARRAY_SIZE(val); i++) {
+		/* Put inverted bits in rval to prove we really read the value */
+		rval = ~val[i];
+		KUNIT_EXPECT_EQ(test, 0, regmap_read(map, param->from_reg + i, &rval));
+		KUNIT_EXPECT_EQ(test, val[i], rval);
+
+		rval = ~val[i];
+		KUNIT_EXPECT_EQ(test, 0, regmap_read_bypassed(map, param->from_reg + i, &rval));
+		KUNIT_EXPECT_EQ(test, val[i], rval);
+		KUNIT_EXPECT_TRUE(test, map->cache_only);
+		KUNIT_EXPECT_FALSE(test, map->cache_bypass);
+	}
+
+	/*
+	 * Change the underlying register values to prove it is returning
+	 * real values not cached values.
+	 */
+	for (i = 0; i < ARRAY_SIZE(val); i++) {
+		val[i] = ~val[i];
+		data->vals[param->from_reg + i] = val[i];
+	}
+
+	for (i = 0; i < ARRAY_SIZE(val); i++) {
+		rval = ~val[i];
+		KUNIT_EXPECT_EQ(test, 0, regmap_read(map, param->from_reg + i, &rval));
+		KUNIT_EXPECT_NE(test, val[i], rval);
+
+		rval = ~val[i];
+		KUNIT_EXPECT_EQ(test, 0, regmap_read_bypassed(map, param->from_reg + i, &rval));
+		KUNIT_EXPECT_EQ(test, val[i], rval);
+		KUNIT_EXPECT_TRUE(test, map->cache_only);
+		KUNIT_EXPECT_FALSE(test, map->cache_bypass);
+	}
+}
+
+static void read_bypassed_volatile(struct kunit *test)
+{
+	const struct regmap_test_param *param = test->param_value;
+	struct regmap *map;
+	struct regmap_config config;
+	struct regmap_ram_data *data;
+	unsigned int val[BLOCK_TEST_SIZE], rval;
+	int i;
+
+	config = test_regmap_config;
+	/* All registers except #5 volatile */
+	config.volatile_reg = reg_5_false;
+
+	map = gen_regmap(test, &config, &data);
+	KUNIT_ASSERT_FALSE(test, IS_ERR(map));
+	if (IS_ERR(map))
+		return;
+
+	KUNIT_EXPECT_FALSE(test, map->cache_bypass);
+
+	get_random_bytes(&val, sizeof(val));
+
+	/* Write some test values */
+	KUNIT_EXPECT_EQ(test, 0, regmap_bulk_write(map, param->from_reg, val, ARRAY_SIZE(val)));
+
+	regcache_cache_only(map, true);
+
+	/*
+	 * While in cache-only regmap_read_bypassed() should return the register
+	 * value and leave the map in cache-only.
+	 */
+	for (i = 0; i < ARRAY_SIZE(val); i++) {
+		/* Register #5 is non-volatile so should read from cache */
+		KUNIT_EXPECT_EQ(test, (i == 5) ? 0 : -EBUSY,
+				regmap_read(map, param->from_reg + i, &rval));
+
+		/* Put inverted bits in rval to prove we really read the value */
+		rval = ~val[i];
+		KUNIT_EXPECT_EQ(test, 0, regmap_read_bypassed(map, param->from_reg + i, &rval));
+		KUNIT_EXPECT_EQ(test, val[i], rval);
+		KUNIT_EXPECT_TRUE(test, map->cache_only);
+		KUNIT_EXPECT_FALSE(test, map->cache_bypass);
+	}
+
+	/*
+	 * Change the underlying register values to prove it is returning
+	 * real values not cached values.
+	 */
+	for (i = 0; i < ARRAY_SIZE(val); i++) {
+		val[i] = ~val[i];
+		data->vals[param->from_reg + i] = val[i];
+	}
+
+	for (i = 0; i < ARRAY_SIZE(val); i++) {
+		if (i == 5)
+			continue;
+
+		rval = ~val[i];
+		KUNIT_EXPECT_EQ(test, 0, regmap_read_bypassed(map, param->from_reg + i, &rval));
+		KUNIT_EXPECT_EQ(test, val[i], rval);
+		KUNIT_EXPECT_TRUE(test, map->cache_only);
+		KUNIT_EXPECT_FALSE(test, map->cache_bypass);
+	}
+}
+
 static void write_readonly(struct kunit *test)
 {
 	struct regmap *map;
@@ -1747,6 +1876,8 @@ static void raw_ranges(struct kunit *test)
 
 static struct kunit_case regmap_test_cases[] = {
 	KUNIT_CASE_PARAM(basic_read_write, regcache_types_gen_params),
+	KUNIT_CASE_PARAM(read_bypassed, real_cache_types_gen_params),
+	KUNIT_CASE_PARAM(read_bypassed_volatile, real_cache_types_gen_params),
 	KUNIT_CASE_PARAM(bulk_write, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(bulk_read, regcache_types_gen_params),
 	KUNIT_CASE_PARAM(write_readonly, regcache_types_gen_params),
