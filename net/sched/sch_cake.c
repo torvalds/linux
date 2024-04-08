@@ -1512,7 +1512,7 @@ static unsigned int cake_drop(struct Qdisc *sch, struct sk_buff **to_free)
 	if (!q->overflow_timeout) {
 		int i;
 		/* Build fresh max-heap */
-		for (i = CAKE_MAX_TINS * CAKE_QUEUES / 2; i >= 0; i--)
+		for (i = CAKE_MAX_TINS * CAKE_QUEUES / 2 - 1; i >= 0; i--)
 			cake_heapify(q, i);
 	}
 	q->overflow_timeout = 65535;
