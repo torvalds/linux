@@ -541,7 +541,7 @@ same_owner_str(struct nfs4_stateowner *sop, struct xdr_netobj *owner)
 }
 
 static struct nfs4_openowner *
-find_openstateowner_str_locked(unsigned int hashval, struct nfsd4_open *open,
+find_openstateowner_str(unsigned int hashval, struct nfsd4_open *open,
 			struct nfs4_client *clp)
 {
 	struct nfs4_stateowner *so;
@@ -556,18 +556,6 @@ find_openstateowner_str_locked(unsigned int hashval, struct nfsd4_open *open,
 			return openowner(nfs4_get_stateowner(so));
 	}
 	return NULL;
-}
-
-static struct nfs4_openowner *
-find_openstateowner_str(unsigned int hashval, struct nfsd4_open *open,
-			struct nfs4_client *clp)
-{
-	struct nfs4_openowner *oo;
-
-	spin_lock(&clp->cl_lock);
-	oo = find_openstateowner_str_locked(hashval, open, clp);
-	spin_unlock(&clp->cl_lock);
-	return oo;
 }
 
 static inline u32
@@ -4866,34 +4854,46 @@ nfsd4_find_and_lock_existing_open(struct nfs4_file *fp, struct nfsd4_open *open)
 }
 
 static struct nfs4_openowner *
-alloc_init_open_stateowner(unsigned int strhashval, struct nfsd4_open *open,
-			   struct nfsd4_compound_state *cstate)
+find_or_alloc_open_stateowner(unsigned int strhashval, struct nfsd4_open *open,
+			      struct nfsd4_compound_state *cstate)
 {
 	struct nfs4_client *clp = cstate->clp;
-	struct nfs4_openowner *oo, *ret;
+	struct nfs4_openowner *oo, *new = NULL;
 
-	oo = alloc_stateowner(openowner_slab, &open->op_owner, clp);
-	if (!oo)
-		return NULL;
-	oo->oo_owner.so_ops = &openowner_ops;
-	oo->oo_owner.so_is_open_owner = 1;
-	oo->oo_owner.so_seqid = open->op_seqid;
-	oo->oo_flags = 0;
-	if (nfsd4_has_session(cstate))
-		oo->oo_flags |= NFS4_OO_CONFIRMED;
-	oo->oo_time = 0;
-	oo->oo_last_closed_stid = NULL;
-	INIT_LIST_HEAD(&oo->oo_close_lru);
+retry:
 	spin_lock(&clp->cl_lock);
-	ret = find_openstateowner_str_locked(strhashval, open, clp);
-	if (ret == NULL) {
-		hash_openowner(oo, clp, strhashval);
-		ret = oo;
-	} else
-		nfs4_free_stateowner(&oo->oo_owner);
-
+	oo = find_openstateowner_str(strhashval, open, clp);
+	if (!oo && new) {
+		hash_openowner(new, clp, strhashval);
+		spin_unlock(&clp->cl_lock);
+		return new;
+	}
 	spin_unlock(&clp->cl_lock);
-	return ret;
+
+	if (oo && !(oo->oo_flags & NFS4_OO_CONFIRMED)) {
+		/* Replace unconfirmed owners without checking for replay. */
+		release_openowner(oo);
+		oo = NULL;
+	}
+	if (oo) {
+		if (new)
+			nfs4_free_stateowner(&new->oo_owner);
+		return oo;
+	}
+
+	new = alloc_stateowner(openowner_slab, &open->op_owner, clp);
+	if (!new)
+		return NULL;
+	new->oo_owner.so_ops = &openowner_ops;
+	new->oo_owner.so_is_open_owner = 1;
+	new->oo_owner.so_seqid = open->op_seqid;
+	new->oo_flags = 0;
+	if (nfsd4_has_session(cstate))
+		new->oo_flags |= NFS4_OO_CONFIRMED;
+	new->oo_time = 0;
+	new->oo_last_closed_stid = NULL;
+	INIT_LIST_HEAD(&new->oo_close_lru);
+	goto retry;
 }
 
 static struct nfs4_ol_stateid *
@@ -5342,27 +5342,14 @@ nfsd4_process_open1(struct nfsd4_compound_state *cstate,
 	clp = cstate->clp;
 
 	strhashval = ownerstr_hashval(&open->op_owner);
-	oo = find_openstateowner_str(strhashval, open, clp);
+	oo = find_or_alloc_open_stateowner(strhashval, open, cstate);
 	open->op_openowner = oo;
-	if (!oo) {
-		goto new_owner;
-	}
-	if (!(oo->oo_flags & NFS4_OO_CONFIRMED)) {
-		/* Replace unconfirmed owners without checking for replay. */
-		release_openowner(oo);
-		open->op_openowner = NULL;
-		goto new_owner;
-	}
+	if (!oo)
+		return nfserr_jukebox;
 	status = nfsd4_check_seqid(cstate, &oo->oo_owner, open->op_seqid);
 	if (status)
 		return status;
-	goto alloc_stateid;
-new_owner:
-	oo = alloc_init_open_stateowner(strhashval, open, cstate);
-	if (oo == NULL)
-		return nfserr_jukebox;
-	open->op_openowner = oo;
-alloc_stateid:
+
 	open->op_stp = nfs4_alloc_open_stateid(clp);
 	if (!open->op_stp)
 		return nfserr_jukebox;
