@@ -1360,7 +1360,7 @@ static void raw_read_defaults(struct kunit *test)
 		return;
 
 	val_len = sizeof(*rval) * (config.max_register + 1);
-	rval = kmalloc(val_len, GFP_KERNEL);
+	rval = kunit_kmalloc(test, val_len, GFP_KERNEL);
 	KUNIT_ASSERT_TRUE(test, rval != NULL);
 	if (!rval)
 		return;
@@ -1375,8 +1375,6 @@ static void raw_read_defaults(struct kunit *test)
 			KUNIT_EXPECT_EQ(test, def, le16_to_cpu((__force __le16)rval[i]));
 		}
 	}
-
-	kfree(rval);
 }
 
 static void raw_write_read_single(struct kunit *test)
