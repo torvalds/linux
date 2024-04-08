@@ -13,6 +13,7 @@
 #define MCG_CTL_P		BIT_ULL(8)   /* MCG_CTL register available */
 #define MCG_EXT_P		BIT_ULL(9)   /* Extended registers available */
 #define MCG_CMCI_P		BIT_ULL(10)  /* CMCI supported */
+#define MCG_SEAM_NR		BIT_ULL(12)  /* MCG_STATUS_SEAM_NR supported */
 #define MCG_EXT_CNT_MASK	0xff0000     /* Number of Extended registers */
 #define MCG_EXT_CNT_SHIFT	16
 #define MCG_EXT_CNT(c)		(((c) & MCG_EXT_CNT_MASK) >> MCG_EXT_CNT_SHIFT)
@@ -25,6 +26,7 @@
 #define MCG_STATUS_EIPV		BIT_ULL(1)   /* ip points to correct instruction */
 #define MCG_STATUS_MCIP		BIT_ULL(2)   /* machine check in progress */
 #define MCG_STATUS_LMCES	BIT_ULL(3)   /* LMCE signaled */
+#define MCG_STATUS_SEAM_NR	BIT_ULL(12)  /* Machine check inside SEAM non-root mode */
 
 /* MCG_EXT_CTL register defines */
 #define MCG_EXT_CTL_LMCE_EN	BIT_ULL(0) /* Enable LMCE */

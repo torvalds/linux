@@ -1593,6 +1593,24 @@ noinstr void do_machine_check(struct pt_regs *regs)
 		else
 			queue_task_work(&m, msg, kill_me_maybe);
 
+	} else if (m.mcgstatus & MCG_STATUS_SEAM_NR) {
+		/*
+		 * Saved RIP on stack makes it look like the machine check
+		 * was taken in the kernel on the instruction following
+		 * the entry to SEAM mode. But MCG_STATUS_SEAM_NR indicates
+		 * that the machine check was taken inside SEAM non-root
+		 * mode.  CPU core has already marked that guest as dead.
+		 * It is OK for the kernel to resume execution at the
+		 * apparent point of the machine check as the fault did
+		 * not occur there. Mark the page as poisoned so it won't
+		 * be added to free list when the guest is terminated.
+		 */
+		if (mce_usable_address(&m)) {
+			struct page *p = pfn_to_online_page(m.addr >> PAGE_SHIFT);
+
+			if (p)
+				SetPageHWPoison(p);
+		}
 	} else {
 		/*
 		 * Handle an MCE which has happened in kernel space but from
