@@ -3661,6 +3661,7 @@ void workqueue_softirq_dead(unsigned int cpu)
 			queue_work(system_bh_wq, &dead_work.work);
 
 		wait_for_completion(&dead_work.done);
+		destroy_work_on_stack(&dead_work.work);
 	}
 }
 
