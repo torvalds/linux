@@ -775,9 +775,9 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 		ret = drm_mode_convert_umode(dev, mode, &crtc_req->mode);
 		if (ret) {
-			drm_dbg_kms(dev, "Invalid mode (ret=%d, status=%s)\n",
-				    ret, drm_get_mode_status_name(mode->status));
-			drm_mode_debug_printmodeline(mode);
+			drm_dbg_kms(dev, "Invalid mode (%s, %pe): " DRM_MODE_FMT "\n",
+				    drm_get_mode_status_name(mode->status),
+				    ERR_PTR(ret), DRM_MODE_ARG(mode));
 			goto out;
 		}
 

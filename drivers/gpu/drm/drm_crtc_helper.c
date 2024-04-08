@@ -657,8 +657,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 	if (!drm_mode_equal(set->mode, &set->crtc->mode)) {
 		drm_dbg_kms(dev, "[CRTC:%d:%s] modes are different, full mode set:\n",
 			    set->crtc->base.id, set->crtc->name);
-		drm_mode_debug_printmodeline(&set->crtc->mode);
-		drm_mode_debug_printmodeline(set->mode);
+		drm_dbg_kms(dev, DRM_MODE_FMT "\n", DRM_MODE_ARG(&set->crtc->mode));
+		drm_dbg_kms(dev, DRM_MODE_FMT "\n", DRM_MODE_ARG(set->mode));
 		mode_changed = true;
 	}
 
@@ -766,9 +766,8 @@ int drm_crtc_helper_set_config(struct drm_mode_set *set,
 
 	if (mode_changed) {
 		if (drm_helper_crtc_in_use(set->crtc)) {
-			drm_dbg_kms(dev, "[CRTC:%d:%s] attempting to set mode from userspace\n",
-				    set->crtc->base.id, set->crtc->name);
-			drm_mode_debug_printmodeline(set->mode);
+			drm_dbg_kms(dev, "[CRTC:%d:%s] attempting to set mode from userspace: " DRM_MODE_FMT "\n",
+				    set->crtc->base.id, set->crtc->name, DRM_MODE_ARG(set->mode));
 			set->crtc->primary->fb = set->fb;
 			if (!drm_crtc_helper_set_mode(set->crtc, set->mode,
 						      set->x, set->y,

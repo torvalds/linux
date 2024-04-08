@@ -1201,9 +1201,8 @@ int of_get_drm_display_mode(struct device_node *np,
 	if (bus_flags)
 		drm_bus_flags_from_videomode(&vm, bus_flags);
 
-	pr_debug("%pOF: got %dx%d display mode\n",
-		np, vm.hactive, vm.vactive);
-	drm_mode_debug_printmodeline(dmode);
+	pr_debug("%pOF: got %dx%d display mode: " DRM_MODE_FMT "\n",
+		 np, vm.hactive, vm.vactive, DRM_MODE_ARG(dmode));
 
 	return 0;
 }
@@ -1251,7 +1250,7 @@ int of_get_drm_panel_display_mode(struct device_node *np,
 	dmode->width_mm = width_mm;
 	dmode->height_mm = height_mm;
 
-	drm_mode_debug_printmodeline(dmode);
+	pr_debug(DRM_MODE_FMT "\n", DRM_MODE_ARG(dmode));
 
 	return 0;
 }
@@ -1813,10 +1812,8 @@ void drm_mode_prune_invalid(struct drm_device *dev,
 					 DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
 			}
 			if (verbose) {
-				drm_mode_debug_printmodeline(mode);
-				drm_dbg_kms(dev, "Not using %s mode: %s\n",
-					    mode->name,
-					    drm_get_mode_status_name(mode->status));
+				drm_dbg_kms(dev, "Rejected mode: " DRM_MODE_FMT " (%s)\n",
+					    DRM_MODE_ARG(mode), drm_get_mode_status_name(mode->status));
 			}
 			drm_mode_destroy(dev, mode);
 		}

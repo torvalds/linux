@@ -701,7 +701,8 @@ exit:
 
 	list_for_each_entry(mode, &connector->modes, head) {
 		drm_mode_set_crtcinfo(mode, CRTC_INTERLACE_HALVE_V);
-		drm_mode_debug_printmodeline(mode);
+		drm_dbg_kms(dev, "Probed mode: " DRM_MODE_FMT "\n",
+			    DRM_MODE_ARG(mode));
 	}
 
 	return count;
