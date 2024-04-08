@@ -241,7 +241,6 @@ struct drm_i915_private {
 
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 irq_mask;
-	u32 pipestat_irq_mask[I915_MAX_PIPES];
 
 	bool preserve_bios_swizzle;
 

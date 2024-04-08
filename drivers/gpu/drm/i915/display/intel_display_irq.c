@@ -180,7 +180,7 @@ void ibx_disable_display_interrupt(struct drm_i915_private *i915, u32 bits)
 u32 i915_pipestat_enable_mask(struct drm_i915_private *dev_priv,
 			      enum pipe pipe)
 {
-	u32 status_mask = dev_priv->pipestat_irq_mask[pipe];
+	u32 status_mask = dev_priv->display.irq.pipestat_irq_mask[pipe];
 	u32 enable_mask = status_mask << 16;
 
 	lockdep_assert_held(&dev_priv->irq_lock);
@@ -234,10 +234,10 @@ void i915_enable_pipestat(struct drm_i915_private *dev_priv,
 	lockdep_assert_held(&dev_priv->irq_lock);
 	drm_WARN_ON(&dev_priv->drm, !intel_irqs_enabled(dev_priv));
 
-	if ((dev_priv->pipestat_irq_mask[pipe] & status_mask) == status_mask)
+	if ((dev_priv->display.irq.pipestat_irq_mask[pipe] & status_mask) == status_mask)
 		return;
 
-	dev_priv->pipestat_irq_mask[pipe] |= status_mask;
+	dev_priv->display.irq.pipestat_irq_mask[pipe] |= status_mask;
 	enable_mask = i915_pipestat_enable_mask(dev_priv, pipe);
 
 	intel_uncore_write(&dev_priv->uncore, reg, enable_mask | status_mask);
@@ -257,10 +257,10 @@ void i915_disable_pipestat(struct drm_i915_private *dev_priv,
 	lockdep_assert_held(&dev_priv->irq_lock);
 	drm_WARN_ON(&dev_priv->drm, !intel_irqs_enabled(dev_priv));
 
-	if ((dev_priv->pipestat_irq_mask[pipe] & status_mask) == 0)
+	if ((dev_priv->display.irq.pipestat_irq_mask[pipe] & status_mask) == 0)
 		return;
 
-	dev_priv->pipestat_irq_mask[pipe] &= ~status_mask;
+	dev_priv->display.irq.pipestat_irq_mask[pipe] &= ~status_mask;
 	enable_mask = i915_pipestat_enable_mask(dev_priv, pipe);
 
 	intel_uncore_write(&dev_priv->uncore, reg, enable_mask | status_mask);
@@ -402,7 +402,7 @@ void i9xx_pipestat_irq_reset(struct drm_i915_private *dev_priv)
 				   PIPESTAT_INT_STATUS_MASK |
 				   PIPE_FIFO_UNDERRUN_STATUS);
 
-		dev_priv->pipestat_irq_mask[pipe] = 0;
+		dev_priv->display.irq.pipestat_irq_mask[pipe] = 0;
 	}
 }
 
@@ -446,7 +446,7 @@ void i9xx_pipestat_irq_ack(struct drm_i915_private *dev_priv,
 			break;
 		}
 		if (iir & iir_bit)
-			status_mask |= dev_priv->pipestat_irq_mask[pipe];
+			status_mask |= dev_priv->display.irq.pipestat_irq_mask[pipe];
 
 		if (!status_mask)
 			continue;
