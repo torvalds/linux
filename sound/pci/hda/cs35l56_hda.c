@@ -644,6 +644,8 @@ static int cs35l56_hda_fw_load(struct cs35l56_hda *cs35l56)
 		ret = cs35l56_wait_for_firmware_boot(&cs35l56->base);
 		if (ret)
 			goto err_powered_up;
+
+		regcache_cache_only(cs35l56->base.regmap, false);
 	}
 
 	/* Disable auto-hibernate so that runtime_pm has control */
@@ -1001,6 +1003,8 @@ int cs35l56_hda_common_probe(struct cs35l56_hda *cs35l56, int hid, int id)
 	ret = cs35l56_wait_for_firmware_boot(&cs35l56->base);
 	if (ret)
 		goto err;
+
+	regcache_cache_only(cs35l56->base.regmap, false);
 
 	ret = cs35l56_set_patch(&cs35l56->base);
 	if (ret)
