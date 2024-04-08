@@ -64,7 +64,7 @@ enum drm_mode_status intel_dsi_mode_valid(struct drm_connector *connector,
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	const struct drm_display_mode *fixed_mode =
 		intel_panel_fixed_mode(intel_connector, mode);
-	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+	int max_dotclk = to_i915(connector->dev)->display.cdclk.max_dotclk_freq;
 	enum drm_mode_status status;
 
 	drm_dbg_kms(&dev_priv->drm, "\n");

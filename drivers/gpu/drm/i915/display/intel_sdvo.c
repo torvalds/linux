@@ -1944,7 +1944,7 @@ intel_sdvo_mode_valid(struct drm_connector *connector,
 	struct intel_sdvo_connector *intel_sdvo_connector =
 		to_intel_sdvo_connector(connector);
 	bool has_hdmi_sink = intel_has_hdmi_sink(intel_sdvo_connector, connector->state);
-	int max_dotclk = i915->max_dotclk_freq;
+	int max_dotclk = i915->display.cdclk.max_dotclk_freq;
 	enum drm_mode_status status;
 	int clock = mode->clock;
 

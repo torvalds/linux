@@ -3438,13 +3438,13 @@ void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 		dev_priv->display.cdclk.max_cdclk_freq = dev_priv->display.cdclk.hw.cdclk;
 	}
 
-	dev_priv->max_dotclk_freq = intel_compute_max_dotclk(dev_priv);
+	dev_priv->display.cdclk.max_dotclk_freq = intel_compute_max_dotclk(dev_priv);
 
 	drm_dbg(&dev_priv->drm, "Max CD clock rate: %d kHz\n",
 		dev_priv->display.cdclk.max_cdclk_freq);
 
 	drm_dbg(&dev_priv->drm, "Max dotclock rate: %d kHz\n",
-		dev_priv->max_dotclk_freq);
+		dev_priv->display.cdclk.max_dotclk_freq);
 }
 
 /**
@@ -3618,7 +3618,7 @@ static int i915_cdclk_info_show(struct seq_file *m, void *unused)
 
 	seq_printf(m, "Current CD clock frequency: %d kHz\n", i915->display.cdclk.hw.cdclk);
 	seq_printf(m, "Max CD clock frequency: %d kHz\n", i915->display.cdclk.max_cdclk_freq);
-	seq_printf(m, "Max pixel clock frequency: %d kHz\n", i915->max_dotclk_freq);
+	seq_printf(m, "Max pixel clock frequency: %d kHz\n", i915->display.cdclk.max_dotclk_freq);
 
 	return 0;
 }

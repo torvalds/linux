@@ -497,9 +497,6 @@ struct xe_device {
 	/* For pcode */
 	struct mutex sb_lock;
 
-	/* Should be in struct intel_display */
-	u32 max_dotclk_freq;
-
 	union {
 		/* only to allow build, not used functionally */
 		u32 irq_mask;

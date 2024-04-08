@@ -1285,7 +1285,7 @@ intel_dp_mst_mode_valid_ctx(struct drm_connector *connector,
 	struct drm_dp_mst_topology_mgr *mgr = &intel_dp->mst_mgr;
 	struct drm_dp_mst_port *port = intel_connector->port;
 	const int min_bpp = 18;
-	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+	int max_dotclk = to_i915(connector->dev)->display.cdclk.max_dotclk_freq;
 	int max_rate, mode_rate, max_lanes, max_link_clock;
 	int ret;
 	bool dsc = false, bigjoiner = false;

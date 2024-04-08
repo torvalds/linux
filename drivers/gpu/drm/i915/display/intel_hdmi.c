@@ -1993,7 +1993,7 @@ intel_hdmi_mode_valid(struct drm_connector *connector,
 	struct drm_i915_private *dev_priv = intel_hdmi_to_i915(hdmi);
 	enum drm_mode_status status;
 	int clock = mode->clock;
-	int max_dotclk = to_i915(connector->dev)->max_dotclk_freq;
+	int max_dotclk = to_i915(connector->dev)->display.cdclk.max_dotclk_freq;
 	bool has_hdmi_sink = intel_has_hdmi_sink(hdmi, connector->state);
 	bool ycbcr_420_only;
 	enum intel_output_format sink_format;

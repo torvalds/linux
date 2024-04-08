@@ -392,7 +392,7 @@ intel_lvds_mode_valid(struct drm_connector *_connector,
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *fixed_mode =
 		intel_panel_fixed_mode(connector, mode);
-	int max_pixclk = to_i915(connector->base.dev)->max_dotclk_freq;
+	int max_pixclk = to_i915(connector->base.dev)->display.cdclk.max_dotclk_freq;
 	enum drm_mode_status status;
 
 	status = intel_cpu_transcoder_mode_valid(i915, mode);

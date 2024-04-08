@@ -2419,7 +2419,7 @@ static int intel_crtc_compute_pipe_mode(struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
 	struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
 	struct drm_display_mode *pipe_mode = &crtc_state->hw.pipe_mode;
-	int clock_limit = i915->max_dotclk_freq;
+	int clock_limit = i915->display.cdclk.max_dotclk_freq;
 
 	/*
 	 * Start with the adjusted_mode crtc timings, which
@@ -2443,7 +2443,7 @@ static int intel_crtc_compute_pipe_mode(struct intel_crtc_state *crtc_state)
 		 */
 		if (intel_crtc_supports_double_wide(crtc) &&
 		    pipe_mode->crtc_clock > clock_limit) {
-			clock_limit = i915->max_dotclk_freq;
+			clock_limit = i915->display.cdclk.max_dotclk_freq;
 			crtc_state->double_wide = true;
 		}
 	}
@@ -7795,7 +7795,7 @@ void intel_setup_outputs(struct drm_i915_private *dev_priv)
 
 static int max_dotclock(struct drm_i915_private *i915)
 {
-	int max_dotclock = i915->max_dotclk_freq;
+	int max_dotclock = i915->display.cdclk.max_dotclk_freq;
 
 	/* icl+ might use bigjoiner */
 	if (DISPLAY_VER(i915) >= 11)

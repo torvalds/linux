@@ -1210,7 +1210,7 @@ bool intel_dp_need_bigjoiner(struct intel_dp *intel_dp,
 	if (!intel_dp_can_bigjoiner(intel_dp))
 		return false;
 
-	return clock > i915->max_dotclk_freq || hdisplay > 5120 ||
+	return clock > i915->display.cdclk.max_dotclk_freq || hdisplay > 5120 ||
 	       connector->force_bigjoiner_enable;
 }
 
@@ -1224,7 +1224,7 @@ intel_dp_mode_valid(struct drm_connector *_connector,
 	const struct drm_display_mode *fixed_mode;
 	int target_clock = mode->clock;
 	int max_rate, mode_rate, max_lanes, max_link_clock;
-	int max_dotclk = dev_priv->max_dotclk_freq;
+	int max_dotclk = dev_priv->display.cdclk.max_dotclk_freq;
 	u16 dsc_max_compressed_bpp = 0;
 	u8 dsc_slice_count = 0;
 	enum drm_mode_status status;
