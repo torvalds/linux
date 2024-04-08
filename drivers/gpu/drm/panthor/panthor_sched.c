@@ -2546,7 +2546,7 @@ void panthor_sched_suspend(struct panthor_device *ptdev)
 {
 	struct panthor_scheduler *sched = ptdev->scheduler;
 	struct panthor_csg_slots_upd_ctx upd_ctx;
-	u64 suspended_slots, faulty_slots;
+	u32 suspended_slots, faulty_slots;
 	struct panthor_group *group;
 	u32 i;
 
