@@ -52,10 +52,8 @@ int x86_android_tablet_get_gpiod(const char *chip, int pin, const char *con_id,
 		return -ENOMEM;
 
 	lookup->dev_id = KBUILD_MODNAME;
-	lookup->table[0].key = chip;
-	lookup->table[0].chip_hwnum = pin;
-	lookup->table[0].con_id = con_id;
-	lookup->table[0].flags = active_low ? GPIO_ACTIVE_LOW : GPIO_ACTIVE_HIGH;
+	lookup->table[0] =
+		GPIO_LOOKUP(chip, pin, con_id, active_low ? GPIO_ACTIVE_LOW : GPIO_ACTIVE_HIGH);
 
 	gpiod_add_lookup_table(lookup);
 	gpiod = devm_gpiod_get(&x86_android_tablet_device->dev, con_id, dflags);
