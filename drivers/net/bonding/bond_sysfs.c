@@ -37,12 +37,12 @@ static ssize_t bonding_show_bonds(const struct class *cls,
 {
 	const struct bond_net *bn =
 		container_of_const(attr, struct bond_net, class_attr_bonding_masters);
-	int res = 0;
 	struct bonding *bond;
+	int res = 0;
 
-	rtnl_lock();
+	rcu_read_lock();
 
-	list_for_each_entry(bond, &bn->dev_list, bond_list) {
+	list_for_each_entry_rcu(bond, &bn->dev_list, bond_list) {
 		if (res > (PAGE_SIZE - IFNAMSIZ)) {
 			/* not enough space for another interface name */
 			if ((PAGE_SIZE - res) > 10)
@@ -55,7 +55,7 @@ static ssize_t bonding_show_bonds(const struct class *cls,
 	if (res)
 		buf[res-1] = '\n'; /* eat the leftover space */
 
-	rtnl_unlock();
+	rcu_read_unlock();
 	return res;
 }
 
