@@ -330,7 +330,7 @@
 		power-source = <PM8941_GPIO_S3>;
 	};
 
-	otg {
+	otg-hog {
 		gpio-hog;
 		gpios = <35 GPIO_ACTIVE_HIGH>;
 		output-high;
