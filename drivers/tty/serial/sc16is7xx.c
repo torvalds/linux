@@ -10,12 +10,12 @@
 #undef DEFAULT_SYMBOL_NAMESPACE
 #define DEFAULT_SYMBOL_NAMESPACE SERIAL_NXP_SC16IS7XX
 
-#include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/export.h>
 #include <linux/gpio/driver.h>
+#include <linux/idr.h>
 #include <linux/kthread.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
@@ -345,7 +345,7 @@ struct sc16is7xx_port {
 	struct sc16is7xx_one		p[];
 };
 
-static DECLARE_BITMAP(sc16is7xx_lines, SC16IS7XX_MAX_DEVS);
+static DEFINE_IDA(sc16is7xx_lines);
 
 static struct uart_driver sc16is7xx_uart = {
 	.owner		= THIS_MODULE,
@@ -1462,6 +1462,7 @@ int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 	u32 uartclk = 0;
 	int i, ret;
 	struct sc16is7xx_port *s;
+	bool port_registered[SC16IS7XX_MAX_PORTS];
 
 	for (i = 0; i < devtype->nr_uart; i++)
 		if (IS_ERR(regmaps[i]))
@@ -1526,13 +1527,19 @@ int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 	regmap_write(regmaps[0], SC16IS7XX_IOCONTROL_REG,
 		     SC16IS7XX_IOCONTROL_SRESET_BIT);
 
+	/* Mark each port line and status as uninitialised. */
 	for (i = 0; i < devtype->nr_uart; ++i) {
-		s->p[i].port.line = find_first_zero_bit(sc16is7xx_lines,
-							SC16IS7XX_MAX_DEVS);
-		if (s->p[i].port.line >= SC16IS7XX_MAX_DEVS) {
-			ret = -ERANGE;
+		s->p[i].port.line = SC16IS7XX_MAX_DEVS;
+		port_registered[i] = false;
+	}
+
+	for (i = 0; i < devtype->nr_uart; ++i) {
+		ret = ida_alloc_max(&sc16is7xx_lines,
+				    SC16IS7XX_MAX_DEVS - 1, GFP_KERNEL);
+		if (ret < 0)
 			goto out_ports;
-		}
+
+		s->p[i].port.line = ret;
 
 		/* Initialize port data */
 		s->p[i].port.dev	= dev;
@@ -1578,7 +1585,7 @@ int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 		if (ret)
 			goto out_ports;
 
-		set_bit(s->p[i].port.line, sc16is7xx_lines);
+		port_registered[i] = true;
 
 		/* Enable EFR */
 		sc16is7xx_port_write(&s->p[i].port, SC16IS7XX_LCR_REG,
@@ -1636,9 +1643,12 @@ int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
 #endif
 
 out_ports:
-	for (i = 0; i < devtype->nr_uart; i++)
-		if (test_and_clear_bit(s->p[i].port.line, sc16is7xx_lines))
+	for (i = 0; i < devtype->nr_uart; i++) {
+		if (s->p[i].port.line < SC16IS7XX_MAX_DEVS)
+			ida_free(&sc16is7xx_lines, s->p[i].port.line);
+		if (port_registered[i])
 			uart_remove_one_port(&sc16is7xx_uart, &s->p[i].port);
+	}
 
 	kthread_stop(s->kworker_task);
 
@@ -1661,7 +1671,7 @@ void sc16is7xx_remove(struct device *dev)
 
 	for (i = 0; i < s->devtype->nr_uart; i++) {
 		kthread_cancel_delayed_work_sync(&s->p[i].ms_work);
-		clear_bit(s->p[i].port.line, sc16is7xx_lines);
+		ida_free(&sc16is7xx_lines, s->p[i].port.line);
 		uart_remove_one_port(&sc16is7xx_uart, &s->p[i].port);
 		sc16is7xx_power(&s->p[i].port, 0);
 	}
