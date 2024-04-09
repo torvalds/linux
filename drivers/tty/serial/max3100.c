@@ -716,9 +716,8 @@ static int max3100_probe(struct spi_device *spi)
 	if (!uart_driver_registered) {
 		retval = uart_register_driver(&max3100_uart_driver);
 		if (retval) {
-			printk(KERN_ERR "Couldn't register max3100 uart driver\n");
 			mutex_unlock(&max3100s_lock);
-			return retval;
+			return dev_err_probe(dev, retval, "Couldn't register max3100 uart driver\n");
 		}
 
 		uart_driver_registered = 1;
@@ -728,15 +727,12 @@ static int max3100_probe(struct spi_device *spi)
 		if (!max3100s[i])
 			break;
 	if (i == MAX_MAX3100) {
-		dev_warn(&spi->dev, "too many MAX3100 chips\n");
 		mutex_unlock(&max3100s_lock);
-		return -ENOMEM;
+		return dev_err_probe(dev, -ENOMEM, "too many MAX3100 chips\n");
 	}
 
 	max3100s[i] = kzalloc(sizeof(struct max3100_port), GFP_KERNEL);
 	if (!max3100s[i]) {
-		dev_warn(&spi->dev,
-			 "kmalloc for max3100 structure %d failed!\n", i);
 		mutex_unlock(&max3100s_lock);
 		return -ENOMEM;
 	}
@@ -760,9 +756,7 @@ static int max3100_probe(struct spi_device *spi)
 
 	retval = uart_add_one_port(&max3100_uart_driver, &max3100s[i]->port);
 	if (retval < 0)
-		dev_warn(&spi->dev,
-			 "uart_add_one_port failed for line %d with error %d\n",
-			 i, retval);
+		dev_err_probe(dev, retval, "uart_add_one_port failed for line %d\n", i);
 
 	/* set shutdown mode to save power. Will be woken-up on open */
 	max3100_sr(max3100s[i], MAX3100_WC | MAX3100_SHDN, &rx);
