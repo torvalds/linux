@@ -2757,6 +2757,21 @@ const struct drm_edid *drm_edid_read(struct drm_connector *connector)
 EXPORT_SYMBOL(drm_edid_read);
 
 /**
+ * drm_edid_get_product_id - Get the vendor and product identification
+ * @drm_edid: EDID
+ * @id: Where to place the product id
+ */
+void drm_edid_get_product_id(const struct drm_edid *drm_edid,
+			     struct drm_edid_product_id *id)
+{
+	if (drm_edid && drm_edid->edid && drm_edid->size >= EDID_LENGTH)
+		memcpy(id, &drm_edid->edid->product_id, sizeof(*id));
+	else
+		memset(id, 0, sizeof(*id));
+}
+EXPORT_SYMBOL(drm_edid_get_product_id);
+
+/**
  * drm_edid_get_panel_id - Get a panel's ID from EDID
  * @drm_edid: EDID that contains panel ID.
  *
