@@ -1276,7 +1276,7 @@ static int _lnl_compute_aux_less_alpm_params(struct intel_dp *intel_dp,
 	aux_less_wake_lines = intel_usecs_to_scanlines(&crtc_state->hw.adjusted_mode,
 						       aux_less_wake_time);
 
-	if (!_lnl_get_silence_period_and_lfps_half_cycle(intel_dp->link_rate,
+	if (!_lnl_get_silence_period_and_lfps_half_cycle(crtc_state->port_clock,
 							 &silence_period,
 							 &lfps_half_cycle))
 		return false;
