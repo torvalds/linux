@@ -19,6 +19,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/property.h>
 #include <linux/serial_core.h>
@@ -840,13 +841,27 @@ static SIMPLE_DEV_PM_OPS(max3100_pm_ops, max3100_suspend, max3100_resume);
 #define MAX3100_PM_OPS NULL
 #endif
 
+static const struct spi_device_id max3100_spi_id[] = {
+	{ "max3100" },
+	{ }
+};
+MODULE_DEVICE_TABLE(spi, max3100_spi_id);
+
+static const struct of_device_id max3100_of_match[] = {
+	{ .compatible = "maxim,max3100" },
+	{ }
+};
+MODULE_DEVICE_TABLE(of, max3100_of_match);
+
 static struct spi_driver max3100_driver = {
 	.driver = {
 		.name		= "max3100",
+		.of_match_table	= max3100_of_match,
 		.pm		= MAX3100_PM_OPS,
 	},
 	.probe		= max3100_probe,
 	.remove		= max3100_remove,
+	.id_table	= max3100_spi_id,
 };
 
 module_spi_driver(max3100_driver);
@@ -854,4 +869,3 @@ module_spi_driver(max3100_driver);
 MODULE_DESCRIPTION("MAX3100 driver");
 MODULE_AUTHOR("Christian Pellegrin <chripell@evolware.org>");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("spi:max3100");
