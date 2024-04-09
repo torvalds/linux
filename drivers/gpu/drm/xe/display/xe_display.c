@@ -214,9 +214,7 @@ void xe_display_fini(struct xe_device *xe)
 	if (!xe->info.enable_display)
 		return;
 
-	/* poll work can call into fbdev, hence clean that up afterwards */
 	intel_hpd_poll_fini(xe);
-	intel_fbdev_fini(xe);
 
 	intel_hdcp_component_fini(xe);
 	intel_audio_deinit(xe);
