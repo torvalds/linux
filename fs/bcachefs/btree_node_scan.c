@@ -216,6 +216,9 @@ static int read_btree_nodes(struct find_btree_nodes *f)
 	closure_init_stack(&cl);
 
 	for_each_online_member(c, ca) {
+		if (!(ca->mi.data_allowed & BIT(BCH_DATA_btree)))
+			continue;
+
 		struct find_btree_nodes_worker *w = kmalloc(sizeof(*w), GFP_KERNEL);
 		struct task_struct *t;
 
