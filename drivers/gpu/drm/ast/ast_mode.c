@@ -43,6 +43,7 @@
 #include <drm/drm_gem_framebuffer_helper.h>
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_panic.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 
@@ -701,12 +702,29 @@ static void ast_primary_plane_helper_atomic_disable(struct drm_plane *plane,
 	ast_set_index_reg_mask(ast, AST_IO_VGASRI, 0x1, 0xdf, 0x20);
 }
 
+static int ast_primary_plane_helper_get_scanout_buffer(struct drm_plane *plane,
+						       struct drm_scanout_buffer *sb)
+{
+	struct ast_plane *ast_plane = to_ast_plane(plane);
+
+	if (plane->state && plane->state->fb && ast_plane->vaddr) {
+		sb->format = plane->state->fb->format;
+		sb->width = plane->state->fb->width;
+		sb->height = plane->state->fb->height;
+		sb->pitch[0] = plane->state->fb->pitches[0];
+		iosys_map_set_vaddr_iomem(&sb->map[0], ast_plane->vaddr);
+		return 0;
+	}
+	return -ENODEV;
+}
+
 static const struct drm_plane_helper_funcs ast_primary_plane_helper_funcs = {
 	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
 	.atomic_check = ast_primary_plane_helper_atomic_check,
 	.atomic_update = ast_primary_plane_helper_atomic_update,
 	.atomic_enable = ast_primary_plane_helper_atomic_enable,
 	.atomic_disable = ast_primary_plane_helper_atomic_disable,
+	.get_scanout_buffer = ast_primary_plane_helper_get_scanout_buffer,
 };
 
 static const struct drm_plane_funcs ast_primary_plane_funcs = {
