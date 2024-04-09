@@ -133,7 +133,7 @@ static void test_clone3_set_tid(const char *desc,
 		"[%d] clone3() with CLONE_SET_TID %d says: %d - expected %d\n",
 		getpid(), set_tid[0], ret, expected);
 
-	ksft_test_result(ret == expected, "%s with %d TIDs and flags 0x%x\n",
+	ksft_test_result(ret == expected, "%s with %zu TIDs and flags 0x%x\n",
 			 desc, set_tid_size, flags);
 }
 
