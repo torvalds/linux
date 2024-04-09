@@ -454,8 +454,13 @@ static int cs35l56_asp_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int f
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(codec_dai->component);
 	unsigned int val;
+	int ret;
 
 	dev_dbg(cs35l56->base.dev, "%s: %#x\n", __func__, fmt);
+
+	ret = cs35l56_init_asp1_regs_for_driver_control(&cs35l56->base);
+	if (ret)
+		return ret;
 
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
 	case SND_SOC_DAIFMT_CBC_CFC:
@@ -530,6 +535,11 @@ static int cs35l56_asp_dai_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx
 					unsigned int rx_mask, int slots, int slot_width)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(dai->component);
+	int ret;
+
+	ret = cs35l56_init_asp1_regs_for_driver_control(&cs35l56->base);
+	if (ret)
+		return ret;
 
 	if ((slots == 0) || (slot_width == 0)) {
 		dev_dbg(cs35l56->base.dev, "tdm config cleared\n");
@@ -578,6 +588,11 @@ static int cs35l56_asp_dai_hw_params(struct snd_pcm_substream *substream,
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(dai->component);
 	unsigned int rate = params_rate(params);
 	u8 asp_width, asp_wl;
+	int ret;
+
+	ret = cs35l56_init_asp1_regs_for_driver_control(&cs35l56->base);
+	if (ret)
+		return ret;
 
 	asp_wl = params_width(params);
 	if (cs35l56->asp_slot_width)
@@ -634,7 +649,11 @@ static int cs35l56_asp_dai_set_sysclk(struct snd_soc_dai *dai,
 				      int clk_id, unsigned int freq, int dir)
 {
 	struct cs35l56_private *cs35l56 = snd_soc_component_get_drvdata(dai->component);
-	int freq_id;
+	int freq_id, ret;
+
+	ret = cs35l56_init_asp1_regs_for_driver_control(&cs35l56->base);
+	if (ret)
+		return ret;
 
 	if (freq == 0) {
 		cs35l56->sysclk_set = false;
@@ -1403,6 +1422,9 @@ int cs35l56_common_probe(struct cs35l56_private *cs35l56)
 	cs35l56->base.cal_index = -1;
 	cs35l56->speaker_id = -ENOENT;
 
+	/* Assume that the firmware owns ASP1 until we know different */
+	cs35l56->base.fw_owns_asp1 = true;
+
 	dev_set_drvdata(cs35l56->base.dev, cs35l56);
 
 	cs35l56_fill_supply_names(cs35l56->supplies);
@@ -1531,6 +1553,8 @@ post_soft_reset:
 			return ret;
 
 		dev_dbg(cs35l56->base.dev, "Firmware rebooted after soft reset\n");
+
+		regcache_cache_only(cs35l56->base.regmap, false);
 	}
 
 	/* Disable auto-hibernate so that runtime_pm has control */
