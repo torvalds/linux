@@ -528,7 +528,7 @@
 		pins {
 			pinmux = <PINMUX_GPIO25__FUNC_SDA6>,
 				 <PINMUX_GPIO26__FUNC_SCL6>;
-			bias-pull-up = <MTK_PULL_SET_RSEL_111>;
+			bias-disable;
 		};
 	};
 
