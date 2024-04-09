@@ -85,17 +85,23 @@ struct bnxt_en_dev {
 							 * updated in resume.
 							 */
 	void __iomem                    *bar0;
+
+	u16				ulp_num_msix_vec;
+	u16				ulp_num_ctxs;
 };
 
 static inline bool bnxt_ulp_registered(struct bnxt_en_dev *edev)
 {
-	if (edev && edev->ulp_tbl)
+	if (edev && rcu_access_pointer(edev->ulp_tbl->ulp_ops))
 		return true;
 	return false;
 }
 
 int bnxt_get_ulp_msix_num(struct bnxt *bp);
+void bnxt_set_ulp_msix_num(struct bnxt *bp, int num);
 int bnxt_get_ulp_stat_ctxs(struct bnxt *bp);
+void bnxt_set_ulp_stat_ctxs(struct bnxt *bp, int num_ctxs);
+void bnxt_set_dflt_ulp_stat_ctxs(struct bnxt *bp);
 void bnxt_ulp_stop(struct bnxt *bp);
 void bnxt_ulp_start(struct bnxt *bp, int err);
 void bnxt_ulp_sriov_cfg(struct bnxt *bp, int num_vfs);

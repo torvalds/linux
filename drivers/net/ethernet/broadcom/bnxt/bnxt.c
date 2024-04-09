@@ -7549,6 +7549,20 @@ static int __bnxt_reserve_rings(struct bnxt *bp)
 	if (!netif_is_rxfh_configured(bp->dev))
 		bnxt_set_dflt_rss_indir_tbl(bp, NULL);
 
+	if (!bnxt_ulp_registered(bp->edev) && BNXT_NEW_RM(bp)) {
+		int resv_msix, resv_ctx, ulp_msix, ulp_ctxs;
+		struct bnxt_hw_resc *hw_resc;
+
+		hw_resc = &bp->hw_resc;
+		resv_msix = hw_resc->resv_irqs - bp->cp_nr_rings;
+		ulp_msix = bnxt_get_ulp_msix_num(bp);
+		ulp_msix = min_t(int, resv_msix, ulp_msix);
+		bnxt_set_ulp_msix_num(bp, ulp_msix);
+		resv_ctx = hw_resc->resv_stat_ctxs  - bp->cp_nr_rings;
+		ulp_ctxs = min(resv_ctx, bnxt_get_ulp_stat_ctxs(bp));
+		bnxt_set_ulp_stat_ctxs(bp, ulp_ctxs);
+	}
+
 	return rc;
 }
 
@@ -14982,6 +14996,7 @@ static void bnxt_trim_dflt_sh_rings(struct bnxt *bp)
 static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 {
 	int dflt_rings, max_rx_rings, max_tx_rings, rc;
+	int avail_msix;
 
 	if (!bnxt_can_reserve_rings(bp))
 		return 0;
@@ -15008,6 +15023,14 @@ static int bnxt_set_dflt_rings(struct bnxt *bp, bool sh)
 	else
 		bp->cp_nr_rings = bp->tx_nr_rings_per_tc + bp->rx_nr_rings;
 	bp->tx_nr_rings = bp->tx_nr_rings_per_tc;
+
+	avail_msix = bnxt_get_max_func_irqs(bp) - bp->cp_nr_rings;
+	if (avail_msix >= BNXT_MIN_ROCE_CP_RINGS) {
+		int ulp_num_msix = min(avail_msix, bp->ulp_num_msix_want);
+
+		bnxt_set_ulp_msix_num(bp, ulp_num_msix);
+		bnxt_set_dflt_ulp_stat_ctxs(bp);
+	}
 
 	rc = __bnxt_reserve_rings(bp);
 	if (rc && rc != -ENODEV)
@@ -15358,6 +15381,7 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	bnxt_set_rx_skb_mode(bp, false);
 	bnxt_set_tpa_flags(bp);
 	bnxt_set_ring_params(bp);
+	bnxt_rdma_aux_device_init(bp);
 	rc = bnxt_set_dflt_rings(bp, true);
 	if (rc) {
 		if (BNXT_VF(bp) && rc == -ENODEV) {
@@ -15411,7 +15435,6 @@ static int bnxt_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (BNXT_SUPPORTS_NTUPLE_VNIC(bp))
 		bnxt_init_multi_rss_ctx(bp);
 
-	bnxt_rdma_aux_device_init(bp);
 
 	rc = register_netdev(dev);
 	if (rc)
