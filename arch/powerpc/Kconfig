@@ -86,12 +86,12 @@ config NR_IRQS
 config NMI_IPI
 	bool
 	depends on SMP && (DEBUGGER || KEXEC_CORE || HARDLOCKUP_DETECTOR)
-	default y
+	default yes
 
 config PPC_WATCHDOG
 	bool
 	depends on HARDLOCKUP_DETECTOR_ARCH
-	default y
+	default yes
 	help
 	  This is a placeholder when the powerpc hardlockup detector
 	  watchdog is selected (arch/powerpc/kernel/watchdog.c). It is
@@ -100,24 +100,24 @@ config PPC_WATCHDOG
 
 config STACKTRACE_SUPPORT
 	bool
-	default y
+	default yes
 
 config LOCKDEP_SUPPORT
 	bool
-	default y
+	default yes
 
 config GENERIC_LOCKBREAK
 	bool
-	default y
+	default yes
 	depends on SMP && PREEMPTION && !PPC_QUEUED_SPINLOCKS
 
 config GENERIC_HWEIGHT
 	bool
-	default y
+	default yes
 
 config PPC
 	bool
-	default y
+	default yes
 	#
 	# Please keep this list sorted alphabetically.
 	#
