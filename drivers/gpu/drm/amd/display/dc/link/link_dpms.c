@@ -838,10 +838,11 @@ void link_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 		if (dc_is_dp_signal(stream->signal) && !dp_is_128b_132b_signal(pipe_ctx)) {
 			DC_LOG_DSC("Setting stream encoder DSC config for engine %d:", (int)pipe_ctx->stream_res.stream_enc->id);
 			dsc_optc_config_log(dsc, &dsc_optc_cfg);
-			pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(pipe_ctx->stream_res.stream_enc,
-									optc_dsc_mode,
-									dsc_optc_cfg.bytes_per_pixel,
-									dsc_optc_cfg.slice_width);
+			if (pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config)
+				pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(pipe_ctx->stream_res.stream_enc,
+										optc_dsc_mode,
+										dsc_optc_cfg.bytes_per_pixel,
+										dsc_optc_cfg.slice_width);
 
 			/* PPS SDP is set elsewhere because it has to be done after DIG FE is connected to DIG BE */
 		}
@@ -868,9 +869,10 @@ void link_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable)
 										NULL,
 										true);
 			else {
-				pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(
-						pipe_ctx->stream_res.stream_enc,
-						OPTC_DSC_DISABLED, 0, 0);
+				if (pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config)
+					pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_config(
+							pipe_ctx->stream_res.stream_enc,
+							OPTC_DSC_DISABLED, 0, 0);
 				pipe_ctx->stream_res.stream_enc->funcs->dp_set_dsc_pps_info_packet(
 							pipe_ctx->stream_res.stream_enc, false, NULL, true);
 			}
