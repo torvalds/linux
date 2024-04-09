@@ -63,7 +63,7 @@ struct iser_cm_hdr {
  * @rsvd:         reserved
  * @write_stag:   write rkey
  * @write_va:     write virtual address
- * @reaf_stag:    read rkey
+ * @read_stag:    read rkey
  * @read_va:      read virtual address
  */
 struct iser_ctrl {
