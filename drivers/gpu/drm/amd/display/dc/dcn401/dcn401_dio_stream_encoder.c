@@ -372,21 +372,6 @@ static void enc401_stream_encoder_dp_unblank(
 	link->dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_ENABLE_DP_VID_STREAM);
 }
 
-/* Set DSC-related configuration.
- *   dsc_mode: 0 disables DSC, other values enable DSC in specified format
- *   sc_bytes_per_pixel: DP_DSC_BYTES_PER_PIXEL removed in DCN3x
- *   dsc_slice_width: DP_DSC_SLICE_WIDTH removed in DCN3x
- */
-static void enc401_dp_set_dsc_config(struct stream_encoder *enc,
-					enum optc_dsc_mode dsc_mode,
-					uint32_t dsc_bytes_per_pixel,
-					uint32_t dsc_slice_width)
-{
-	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
-
-	REG_UPDATE(DP_DSC_CNTL,	DP_DSC_MODE, dsc_mode == OPTC_DSC_DISABLED ? 0 : 1);
-}
-
 /* this function read dsc related register fields to be logged later in dcn10_log_hw_state
  * into a dcn_dsc_state struct.
  */
@@ -395,7 +380,8 @@ static void enc401_read_state(struct stream_encoder *enc, struct enc_state *s)
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
 	//if dsc is enabled, continue to read
-	REG_GET(DP_DSC_CNTL, DP_DSC_MODE, &s->dsc_mode);
+	REG_GET(DP_PIXEL_FORMAT, PIXEL_ENCODING_TYPE, &s->dsc_mode);
+
 	if (s->dsc_mode) {
 		REG_GET(DP_GSP11_CNTL, DP_SEC_GSP11_LINE_NUM, &s->sec_gsp_pps_line_num);
 
@@ -770,7 +756,7 @@ static const struct stream_encoder_funcs dcn401_str_enc_funcs = {
 	.dp_get_pixel_format  = enc1_stream_encoder_dp_get_pixel_format,
 
 	.enc_read_state = enc401_read_state,
-	.dp_set_dsc_config = enc401_dp_set_dsc_config,
+	.dp_set_dsc_config = NULL,
 	.dp_set_dsc_pps_info_packet = enc3_dp_set_dsc_pps_info_packet,
 	.set_dynamic_metadata = enc401_set_dynamic_metadata,
 	.hdmi_reset_stream_attribute = enc1_reset_hdmi_stream_attribute,
