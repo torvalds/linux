@@ -1876,6 +1876,11 @@ static int bnxt_set_rxfh_context(struct bnxt *bp,
 		return -EOPNOTSUPP;
 	}
 
+	if (!netif_running(bp->dev)) {
+		NL_SET_ERR_MSG_MOD(extack, "Unable to set RSS contexts when interface is down");
+		return -EAGAIN;
+	}
+
 	if (*rss_context != ETH_RXFH_CONTEXT_ALLOC) {
 		rss_ctx = bnxt_get_rss_ctx_from_index(bp, *rss_context);
 		if (!rss_ctx) {
