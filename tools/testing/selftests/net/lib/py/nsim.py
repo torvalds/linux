@@ -21,8 +21,11 @@ class NetdevSim:
         if match and int(match.groups()[0]) != port_index + 1:
             raise Exception("netdevice name mismatches the expected one")
 
+        self.ifname = ifname
         self.nsimdev = nsimdev
         self.port_index = port_index
+        self.ns = ns
+        self.dfs_dir = "%s/ports/%u/" % (nsimdev.dfs_dir, port_index)
         ret = ip("-j link show dev %s" % ifname, ns=ns)
         self.dev = json.loads(ret.stdout)[0]
 
@@ -79,8 +82,10 @@ class NetdevSimDev:
 
         self.nsims = []
         for port_index in range(port_count):
-            self.nsims.append(NetdevSim(self, port_index, ifnames[port_index],
-                                        ns=ns))
+            self.nsims.append(self._make_port(port_index, ifnames[port_index]))
+
+    def _make_port(self, port_index, ifname):
+        return NetdevSim(self, port_index, ifname, self.ns)
 
     def get_ifnames(self):
         ifnames = []
