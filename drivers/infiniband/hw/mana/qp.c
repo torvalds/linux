@@ -217,8 +217,8 @@ static int mana_ib_create_qp_rss(struct ib_qp *ibqp, struct ib_pd *pd,
 		cq->queue.id = cq_spec.queue_index;
 
 		ibdev_dbg(&mdev->ib_dev,
-			  "ret %d rx_object 0x%llx wq id %llu cq id %llu\n",
-			  ret, wq->rx_object, wq->queue.id, cq->queue.id);
+			  "rx_object 0x%llx wq id %llu cq id %llu\n",
+			  wq->rx_object, wq->queue.id, cq->queue.id);
 
 		resp.entries[i].cqid = cq->queue.id;
 		resp.entries[i].wqid = wq->queue.id;
@@ -383,7 +383,7 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 		goto err_destroy_wq_obj;
 
 	ibdev_dbg(&mdev->ib_dev,
-		  "ret %d qp->qp_handle 0x%llx sq id %llu cq id %llu\n", err,
+		  "qp->qp_handle 0x%llx sq id %llu cq id %llu\n",
 		  qp->qp_handle, qp->raw_sq.id, send_cq->queue.id);
 
 	resp.sqid = qp->raw_sq.id;
