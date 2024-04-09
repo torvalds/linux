@@ -460,11 +460,19 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		/* If FW performed reset just before sending it a packet, we will get a timeout.
 		 * This is expected behavior, hence no need for error message.
 		 */
-		if (!hl_device_operational(hdev, NULL) && !hdev->reset_info.in_compute_reset)
+		if (!hl_device_operational(hdev, NULL) && !hdev->reset_info.in_compute_reset) {
 			dev_dbg(hdev->dev, "Device CPU packet timeout (0x%x) due to FW reset\n",
 					tmp);
-		else
-			dev_err(hdev->dev, "Device CPU packet timeout (status = 0x%x)\n", tmp);
+		} else {
+			struct hl_bd *bd = queue->kernel_address;
+
+			bd += hl_pi_2_offset(queue->pi);
+
+			dev_err(hdev->dev, "Device CPU packet timeout (status = 0x%x)\n"
+					"Pkt info: dma_addr: 0x%llx, kernel_addr: %p, len:0x%x, ctl: 0x%x, ptr:0x%llx, dram_bd:%u\n",
+					tmp, pkt_dma_addr, (void *)pkt, bd->len, bd->ctl, bd->ptr,
+					queue->dram_bd);
+		}
 		hdev->device_cpu_disabled = true;
 		goto out;
 	}
