@@ -20,6 +20,7 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/module.h>
+#include <linux/property.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
 #include <linux/spi/spi.h>
@@ -29,17 +30,6 @@
 #include <linux/types.h>
 
 #include <asm/unaligned.h>
-
-/**
- * struct plat_max3100 - MAX3100 SPI UART platform data
- * @crystal:             1 for 3.6864 Mhz, 0 for 1.8432
- *
- * You should use this structure in your machine description to specify
- * how the MAX3100 is connected.
- */
-struct plat_max3100 {
-	int crystal;
-};
 
 #define MAX3100_C    (1<<14)
 #define MAX3100_D    (0<<14)
@@ -106,7 +96,6 @@ struct max3100_port {
 	int irq;		/* irq assigned to the max3100 */
 
 	int minor;		/* minor number */
-	int crystal;		/* 1 if 3.6864Mhz crystal 0 for 1.8432 */
 	int loopback_commit;	/* need to change loopback */
 	int loopback;		/* 1 if we are in loopback mode */
 
@@ -426,7 +415,8 @@ max3100_set_termios(struct uart_port *port, struct ktermios *termios,
 	struct max3100_port *s = container_of(port,
 					      struct max3100_port,
 					      port);
-	int baud = 0;
+	unsigned int baud = port->uartclk / 16;
+	unsigned int baud230400 = (baud == 230400) ? 1 : 0;
 	unsigned cflag;
 	u32 param_new, param_mask, parity = 0;
 
@@ -439,40 +429,40 @@ max3100_set_termios(struct uart_port *port, struct ktermios *termios,
 	param_new = s->conf & MAX3100_BAUD;
 	switch (baud) {
 	case 300:
-		if (s->crystal)
+		if (baud230400)
 			baud = s->baud;
 		else
 			param_new = 15;
 		break;
 	case 600:
-		param_new = 14 + s->crystal;
+		param_new = 14 + baud230400;
 		break;
 	case 1200:
-		param_new = 13 + s->crystal;
+		param_new = 13 + baud230400;
 		break;
 	case 2400:
-		param_new = 12 + s->crystal;
+		param_new = 12 + baud230400;
 		break;
 	case 4800:
-		param_new = 11 + s->crystal;
+		param_new = 11 + baud230400;
 		break;
 	case 9600:
-		param_new = 10 + s->crystal;
+		param_new = 10 + baud230400;
 		break;
 	case 19200:
-		param_new = 9 + s->crystal;
+		param_new = 9 + baud230400;
 		break;
 	case 38400:
-		param_new = 8 + s->crystal;
+		param_new = 8 + baud230400;
 		break;
 	case 57600:
-		param_new = 1 + s->crystal;
+		param_new = 1 + baud230400;
 		break;
 	case 115200:
-		param_new = 0 + s->crystal;
+		param_new = 0 + baud230400;
 		break;
 	case 230400:
-		if (s->crystal)
+		if (baud230400)
 			param_new = 0;
 		else
 			baud = s->baud;
@@ -575,7 +565,7 @@ static int max3100_startup(struct uart_port *port)
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
 	s->conf = MAX3100_RM;
-	s->baud = s->crystal ? 230400 : 115200;
+	s->baud = port->uartclk / 16;
 	s->rx_enabled = 1;
 
 	if (s->suspending)
@@ -718,8 +708,8 @@ static int uart_driver_registered;
 
 static int max3100_probe(struct spi_device *spi)
 {
+	struct device *dev = &spi->dev;
 	int i, retval;
-	struct plat_max3100 *pdata;
 	u16 rx;
 
 	mutex_lock(&max3100s_lock);
@@ -755,20 +745,21 @@ static int max3100_probe(struct spi_device *spi)
 	max3100s[i]->irq = spi->irq;
 	spin_lock_init(&max3100s[i]->conf_lock);
 	spi_set_drvdata(spi, max3100s[i]);
-	pdata = dev_get_platdata(&spi->dev);
-	max3100s[i]->crystal = pdata->crystal;
 	max3100s[i]->minor = i;
 	timer_setup(&max3100s[i]->timer, max3100_timeout, 0);
 
 	dev_dbg(&spi->dev, "%s: adding port %d\n", __func__, i);
 	max3100s[i]->port.irq = max3100s[i]->irq;
-	max3100s[i]->port.uartclk = max3100s[i]->crystal ? 3686400 : 1843200;
 	max3100s[i]->port.fifosize = 16;
 	max3100s[i]->port.ops = &max3100_ops;
 	max3100s[i]->port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF;
 	max3100s[i]->port.line = i;
 	max3100s[i]->port.type = PORT_MAX3100;
 	max3100s[i]->port.dev = &spi->dev;
+
+	/* Read clock frequency from a property, uart_add_one_port() will fail if it's not set */
+	device_property_read_u32(dev, "clock-frequency", &max3100s[i]->port.uartclk);
+
 	retval = uart_add_one_port(&max3100_uart_driver, &max3100s[i]->port);
 	if (retval < 0)
 		dev_warn(&spi->dev,
