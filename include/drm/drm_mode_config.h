@@ -506,6 +506,16 @@ struct drm_mode_config {
 	struct list_head plane_list;
 
 	/**
+	 * @panic_lock:
+	 *
+	 * Raw spinlock used to protect critical sections of code that access
+	 * the display hardware or modeset software state, which the panic
+	 * printing code must be protected against. See drm_panic_trylock(),
+	 * drm_panic_lock() and drm_panic_unlock().
+	 */
+	struct raw_spinlock panic_lock;
+
+	/**
 	 * @num_crtc:
 	 *
 	 * Number of CRTCs on this device linked with &drm_crtc.head. This is invariant over the lifetime
