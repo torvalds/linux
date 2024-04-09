@@ -657,11 +657,9 @@ register_clk_failed:
 	return ret;
 }
 
-static int fsl_samsung_hdmi_phy_remove(struct platform_device *pdev)
+static void fsl_samsung_hdmi_phy_remove(struct platform_device *pdev)
 {
 	of_clk_del_provider(pdev->dev.of_node);
-
-	return 0;
 }
 
 static int __maybe_unused fsl_samsung_hdmi_phy_suspend(struct device *dev)
@@ -706,7 +704,7 @@ MODULE_DEVICE_TABLE(of, fsl_samsung_hdmi_phy_of_match);
 
 static struct platform_driver fsl_samsung_hdmi_phy_driver = {
 	.probe  = fsl_samsung_hdmi_phy_probe,
-	.remove = fsl_samsung_hdmi_phy_remove,
+	.remove_new = fsl_samsung_hdmi_phy_remove,
 	.driver = {
 		.name = "fsl-samsung-hdmi-phy",
 		.of_match_table = fsl_samsung_hdmi_phy_of_match,
