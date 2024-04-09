@@ -1021,15 +1021,14 @@ static int skl_cdclk_decimal(int cdclk)
 	return DIV_ROUND_CLOSEST(cdclk - 1000, 500);
 }
 
-static void skl_set_preferred_cdclk_vco(struct drm_i915_private *dev_priv,
-					int vco)
+static void skl_set_preferred_cdclk_vco(struct drm_i915_private *i915, int vco)
 {
-	bool changed = dev_priv->skl_preferred_vco_freq != vco;
+	bool changed = i915->display.cdclk.skl_preferred_vco_freq != vco;
 
-	dev_priv->skl_preferred_vco_freq = vco;
+	i915->display.cdclk.skl_preferred_vco_freq = vco;
 
 	if (changed)
-		intel_update_max_cdclk(dev_priv);
+		intel_update_max_cdclk(i915);
 }
 
 static u32 skl_dpll0_link_rate(struct drm_i915_private *dev_priv, int vco)
@@ -1233,7 +1232,7 @@ static void skl_cdclk_init_hw(struct drm_i915_private *dev_priv)
 		 * Use the current vco as our initial
 		 * guess as to what the preferred vco is.
 		 */
-		if (dev_priv->skl_preferred_vco_freq == 0)
+		if (dev_priv->display.cdclk.skl_preferred_vco_freq == 0)
 			skl_set_preferred_cdclk_vco(dev_priv,
 						    dev_priv->display.cdclk.hw.vco);
 		return;
@@ -1241,7 +1240,7 @@ static void skl_cdclk_init_hw(struct drm_i915_private *dev_priv)
 
 	cdclk_config = dev_priv->display.cdclk.hw;
 
-	cdclk_config.vco = dev_priv->skl_preferred_vco_freq;
+	cdclk_config.vco = dev_priv->display.cdclk.skl_preferred_vco_freq;
 	if (cdclk_config.vco == 0)
 		cdclk_config.vco = 8100000;
 	cdclk_config.cdclk = skl_calc_cdclk(0, cdclk_config.vco);
@@ -3011,7 +3010,7 @@ static int skl_dpll0_vco(struct intel_cdclk_state *cdclk_state)
 
 	vco = cdclk_state->logical.vco;
 	if (!vco)
-		vco = dev_priv->skl_preferred_vco_freq;
+		vco = dev_priv->display.cdclk.skl_preferred_vco_freq;
 
 	for_each_new_intel_crtc_in_state(state, crtc, crtc_state, i) {
 		if (!crtc_state->hw.enable)
@@ -3397,7 +3396,7 @@ void intel_update_max_cdclk(struct drm_i915_private *dev_priv)
 		u32 limit = intel_de_read(dev_priv, SKL_DFSM) & SKL_DFSM_CDCLK_LIMIT_MASK;
 		int max_cdclk, vco;
 
-		vco = dev_priv->skl_preferred_vco_freq;
+		vco = dev_priv->display.cdclk.skl_preferred_vco_freq;
 		drm_WARN_ON(&dev_priv->drm, vco != 8100000 && vco != 8640000);
 
 		/*

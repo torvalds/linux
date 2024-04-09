@@ -251,7 +251,6 @@ struct drm_i915_private {
 	bool preserve_bios_swizzle;
 
 	unsigned int fsb_freq, mem_freq, is_ddr3;
-	unsigned int skl_preferred_vco_freq;
 
 	unsigned int max_dotclk_freq;
 	unsigned int hpll_freq;
