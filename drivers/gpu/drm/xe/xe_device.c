@@ -274,7 +274,10 @@ struct xe_device *xe_device_create(struct pci_dev *pdev,
 
 	init_waitqueue_head(&xe->ufence_wq);
 
-	drmm_mutex_init(&xe->drm, &xe->usm.lock);
+	err = drmm_mutex_init(&xe->drm, &xe->usm.lock);
+	if (err)
+		goto err;
+
 	xa_init_flags(&xe->usm.asid_to_vm, XA_FLAGS_ALLOC);
 
 	if (IS_ENABLED(CONFIG_DRM_XE_DEBUG)) {
