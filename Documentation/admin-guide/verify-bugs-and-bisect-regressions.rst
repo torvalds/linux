@@ -160,7 +160,7 @@ will be considered the 'good' release and used to prepare the .config file.
      this step (e.g. build, install, boot, and test a kernel to then tell Git
      the outcome). Do so again and again until Git shows which commit broke
      things. If you run short of disk space during this process, check the
-     section 'Supplementary tasks: cleanup during and after the process'
+     section 'Complementary tasks: cleanup during and after the process'
      below.
 
   d) Once your finished the bisection, put a few things away::
@@ -182,7 +182,7 @@ will be considered the 'good' release and used to prepare the .config file.
     kernel; just this time skip the first command copying the base .config file
     over, as that already has been taken care off.
 
-* **Supplementary tasks**: cleanup during and after the process.
+* **Complementary tasks**: cleanup during and after the process.
 
   a) To avoid running out of disk space during a bisection, you might need to
      remove some kernels you built earlier. You most likely want to keep those
@@ -204,6 +204,18 @@ will be considered the 'good' release and used to prepare the .config file.
      free to remove all kernels built during the actual bisection (Segment 3 c);
      the kernels you built earlier and later you might want to keep around for
      a week or two.
+
+* **Optional task**: test a debug patch or a proposed fix later::
+
+    git fetch mainline
+    git switch --discard-changes --detach mainline/master
+    git apply /tmp/foobars-proposed-fix-v1.patch
+    cp ~/kernel-config-working .config
+    ./scripts/config --set-str CONFIG_LOCALVERSION '-local-foobars-fix-v1'
+
+  Build, install, and boot a kernel as described in *segment 1, section b* --
+  but this time omit the first command copying the build configuration over,
+  as that has been taken care of already.
 
 .. _introguide_bissbs:
 
@@ -232,7 +244,9 @@ developers are obliged to act upon.
 
  :ref:`Segment 3: perform a bisection and validate the result <introbisect_bissbs>`.
 
- :ref:`Supplementary tasks: cleanup during and after following this guide <introclosure_bissbs>`.
+ :ref:`Complementary tasks: cleanup during and after following this guide <introclosure_bissbs>`.
+
+ :ref:`Optional tasks: test reverts, patches, or later versions <introoptional_bissbs>`.
 
 The steps in each segment illustrate the important aspects of the process, while
 a comprehensive reference section holds additional details for almost all of the
@@ -669,7 +683,7 @@ be a waste of time. [:ref:`details <introlatestcheck_bisref>`]
 Do you follow this guide to verify if a problem is present in the code
 currently supported by Linux kernel developers? Then you are done at this
 point. If you later want to remove the kernel you just built, check out
-:ref:`Supplementary tasks: cleanup during and after following this guide <introclosure_bissbs>`.
+:ref:`Complementary tasks: cleanup during and after following this guide <introclosure_bissbs>`.
 
 In case you face a regression, move on and execute at least the next segment
 as well.
@@ -888,7 +902,7 @@ each kernel on commodity x86 machines.
 
 .. _introclosure_bissbs:
 
-Supplementary tasks: cleanup during and after the bisection
+Complementary tasks: cleanup during and after the bisection
 -----------------------------------------------------------
 
 During and after following this guide you might want or need to remove some of
@@ -950,6 +964,81 @@ space might run out.
 
   [:ref:`details <finishingtouch_bisref>`]
 
+.. _introoptional_bissbs:
+
+Optional: test reverts, patches, or later versions
+--------------------------------------------------
+
+While or after reporting a bug, you might want or potentially will be asked to
+test reverts, debug patches, proposed fixes, or other versions. In that case
+follow these instructions.
+
+* Update your Git clone and check out the latest code.
+
+  * In case you want to test mainline, fetch its latest changes before checking
+    its code out::
+
+      git fetch mainline
+      git switch --discard-changes --detach mainline/master
+
+  * In case you want to test a stable or longterm kernel, first add the branch
+    holding the series you are interested in (6.2 in the example), unless you
+    already did so earlier::
+
+      git remote set-branches --add stable linux-6.2.y
+
+    Then fetch the latest changes and check out the latest version from the
+    series::
+
+      git fetch stable
+      git switch --discard-changes --detach stable/linux-6.2.y
+
+* Copy your kernel build configuration over::
+
+    cp ~/kernel-config-working .config
+
+* Your next step depends on what you want to do:
+
+  * In case you just want to test the latest codebase, head to the next step,
+    you are already all set.
+
+  * In case you want to test if a revert fixes an issue, revert one or multiple
+    changes by specifying their commit ids::
+
+      git revert --no-edit cafec0cacaca0
+
+    Now give that kernel a special tag to facilitates its identification and
+    prevent accidentally overwriting another kernel::
+
+      ./scripts/config --set-str CONFIG_LOCALVERSION '-local-cafec0cacaca0-reverted'
+
+  * In case you want to test a patch, store the patch in a file like
+    '/tmp/foobars-proposed-fix-v1.patch' and apply it like this::
+
+      git apply /tmp/foobars-proposed-fix-v1.patch
+
+    In case of multiple patches, repeat this step with the others.
+
+    Now give that kernel a special tag to facilitates its identification and
+    prevent accidentally overwriting another kernel::
+
+    ./scripts/config --set-str CONFIG_LOCALVERSION '-local-foobars-fix-v1'
+
+* Build a kernel using the familiar commands, just without copying the kernel
+  build configuration over, as that has been taken care of already::
+
+    make olddefconfig &&
+    make -j $(nproc --all)
+    # * Check if the free space suffices holding another kernel:
+    df -h /boot/ /lib/modules/
+    sudo make modules_install
+    command -v installkernel && sudo make install
+    make -s kernelrelease | tee -a ~/kernels-built
+    reboot
+
+* Now verify you booted the newly built kernel and check it.
+
+[:ref:`details <introoptional_bisref>`]
 
 .. _submit_improvements:
 
@@ -1986,19 +2075,32 @@ build artifacts and the Linux sources, but will leave the Git repository
 (~/linux/.git/) behind -- a simple ``git reset --hard`` thus will bring the
 sources back.
 
-Removing the repository as well would likely be unwise at this point: there is a
-decent chance developers will ask you to build another kernel to perform
-additional tests. This is often required to debug an issue or check proposed
-fixes. Before doing so you want to run the ``git fetch mainline`` command again
-followed by ``git checkout mainline/master`` to bring your clone up to date and
-checkout the latest codebase. Then apply the patch using ``git apply
-<filename>`` or ``git am <filename>`` and build yet another kernel using the
-familiar commands.
+Removing the repository as well would likely be unwise at this point: there
+is a decent chance developers will ask you to build another kernel to
+perform additional tests -- like testing a debug patch or a proposed fix.
+Details on how to perform those can be found in the section :ref:`Optional
+tasks: test reverts, patches, or later versions <introoptional_bissbs>`.
 
 Additional tests are also the reason why you want to keep the
 ~/kernel-config-working file around for a few weeks.
 
 [:ref:`back to step-by-step guide <finishingtouch_bissbs>`]
+
+.. _introoptional_bisref:
+
+Test reverts, patches, or later versions
+----------------------------------------
+
+  *While or after reporting a bug, you might want or potentially will be asked
+  to test reverts, patches, proposed fixes, or other versions.*
+  [:ref:`... <introoptional_bissbs>`]
+
+All the commands used in this section should be pretty straight forward, so
+there is not much to add except one thing: when setting a kernel tag as
+instructed, ensure it is not much longer than the one used in the example, as
+problems will arise if the kernelrelease identifier exceeds 63 characters.
+
+[:ref:`back to step-by-step guide <introoptional_bissbs>`].
 
 
 Additional reading material
