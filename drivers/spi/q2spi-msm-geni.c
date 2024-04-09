@@ -3515,7 +3515,7 @@ int q2spi_send_system_mem_access(struct q2spi_geni *q2spi, struct q2spi_packet *
 	unsigned long xfer_timeout = 0;
 	long timeout = 0;
 	struct q2spi_request q2spi_req;
-	int ret = 0, retries = 10;
+	int ret = 0, retries = Q2SPI_RESP_BUF_RETRIES;
 	unsigned int dw_len;
 	u8 flow_id = cr_pkt->var3_pkt[idx].flow_id;
 
