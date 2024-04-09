@@ -424,6 +424,10 @@ patternProperties:
             $ref: "#/$defs/qcom-pmic-gpio-state"
         additionalProperties: false
 
+  "-hog(-[0-9]+)?$":
+    required:
+      - gpio-hog
+
 $defs:
   qcom-pmic-gpio-state:
     type: object
@@ -571,6 +575,7 @@ $defs:
 
 examples:
   - |
+    #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 
     pm8921_gpio: gpio@150 {
@@ -593,6 +598,13 @@ examples:
           qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
           power-source = <PM8921_GPIO_S4>;
         };
+      };
+
+      otg-hog {
+        gpio-hog;
+        gpios = <35 GPIO_ACTIVE_HIGH>;
+        output-high;
+        line-name = "otg-gpio";
       };
     };
 ...
