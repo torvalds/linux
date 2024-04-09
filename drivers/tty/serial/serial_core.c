@@ -243,25 +243,12 @@ static void uart_change_line_settings(struct tty_struct *tty, struct uart_state 
 	uart_port_unlock_irq(uport);
 }
 
-/*
- * Startup the port.  This will be called once per open.  All calls
- * will be serialised by the per-port mutex.
- */
-static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
-			     bool init_hw)
+static int uart_alloc_xmit_buf(struct tty_port *port)
 {
-	struct uart_port *uport = uart_port_check(state);
+	struct uart_state *state = container_of(port, struct uart_state, port);
+	struct uart_port *uport;
 	unsigned long flags;
 	unsigned long page;
-	int retval = 0;
-
-	if (uport->type == PORT_UNKNOWN)
-		return 1;
-
-	/*
-	 * Make sure the device is in D0 state.
-	 */
-	uart_change_pm(state, UART_PM_STATE_ON);
 
 	/*
 	 * Initialise and allocate the transmit and temporary
@@ -271,7 +258,7 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 	if (!page)
 		return -ENOMEM;
 
-	uart_port_lock(state, flags);
+	uport = uart_port_lock(state, flags);
 	if (!state->port.xmit_buf) {
 		state->port.xmit_buf = (unsigned char *)page;
 		kfifo_init(&state->port.xmit_fifo, state->port.xmit_buf,
@@ -281,10 +268,57 @@ static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
 		uart_port_unlock(uport, flags);
 		/*
 		 * Do not free() the page under the port lock, see
-		 * uart_shutdown().
+		 * uart_free_xmit_buf().
 		 */
 		free_page(page);
 	}
+
+	return 0;
+}
+
+static void uart_free_xmit_buf(struct tty_port *port)
+{
+	struct uart_state *state = container_of(port, struct uart_state, port);
+	struct uart_port *uport;
+	unsigned long flags;
+	char *xmit_buf;
+
+	/*
+	 * Do not free() the transmit buffer page under the port lock since
+	 * this can create various circular locking scenarios. For instance,
+	 * console driver may need to allocate/free a debug object, which
+	 * can end up in printk() recursion.
+	 */
+	uport = uart_port_lock(state, flags);
+	xmit_buf = port->xmit_buf;
+	port->xmit_buf = NULL;
+	INIT_KFIFO(port->xmit_fifo);
+	uart_port_unlock(uport, flags);
+
+	free_page((unsigned long)xmit_buf);
+}
+
+/*
+ * Startup the port.  This will be called once per open.  All calls
+ * will be serialised by the per-port mutex.
+ */
+static int uart_port_startup(struct tty_struct *tty, struct uart_state *state,
+			     bool init_hw)
+{
+	struct uart_port *uport = uart_port_check(state);
+	int retval;
+
+	if (uport->type == PORT_UNKNOWN)
+		return 1;
+
+	/*
+	 * Make sure the device is in D0 state.
+	 */
+	uart_change_pm(state, UART_PM_STATE_ON);
+
+	retval = uart_alloc_xmit_buf(&state->port);
+	if (retval)
+		return retval;
 
 	retval = uport->ops->startup(uport);
 	if (retval == 0) {
@@ -347,8 +381,6 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 {
 	struct uart_port *uport = uart_port_check(state);
 	struct tty_port *port = &state->port;
-	unsigned long flags;
-	char *xmit_buf = NULL;
 
 	/*
 	 * Set the TTY IO error marker
@@ -381,19 +413,7 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 	 */
 	tty_port_set_suspended(port, false);
 
-	/*
-	 * Do not free() the transmit buffer page under the port lock since
-	 * this can create various circular locking scenarios. For instance,
-	 * console driver may need to allocate/free a debug object, which
-	 * can endup in printk() recursion.
-	 */
-	uart_port_lock(state, flags);
-	xmit_buf = port->xmit_buf;
-	port->xmit_buf = NULL;
-	INIT_KFIFO(port->xmit_fifo);
-	uart_port_unlock(uport, flags);
-
-	free_page((unsigned long)xmit_buf);
+	uart_free_xmit_buf(port);
 }
 
 /**
@@ -1747,7 +1767,6 @@ static void uart_tty_port_shutdown(struct tty_port *port)
 {
 	struct uart_state *state = container_of(port, struct uart_state, port);
 	struct uart_port *uport = uart_port_check(state);
-	char *buf;
 
 	/*
 	 * At this point, we stop accepting input.  To do this, we
@@ -1769,16 +1788,7 @@ static void uart_tty_port_shutdown(struct tty_port *port)
 	 */
 	tty_port_set_suspended(port, false);
 
-	/*
-	 * Free the transmit buffer.
-	 */
-	uart_port_lock_irq(uport);
-	buf = port->xmit_buf;
-	port->xmit_buf = NULL;
-	INIT_KFIFO(port->xmit_fifo);
-	uart_port_unlock_irq(uport);
-
-	free_page((unsigned long)buf);
+	uart_free_xmit_buf(port);
 
 	uart_change_pm(state, UART_PM_STATE_OFF);
 }
