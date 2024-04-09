@@ -8,7 +8,7 @@
 #ifndef vdso_calc_ns
 
 #ifdef VDSO_DELTA_NOMASK
-# define VDSO_DELTA_MASK(vd)	U64_MAX
+# define VDSO_DELTA_MASK(vd)	ULLONG_MAX
 #else
 # define VDSO_DELTA_MASK(vd)	(vd->mask)
 #endif
