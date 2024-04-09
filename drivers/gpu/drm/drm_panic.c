@@ -496,6 +496,46 @@ static void drm_panic(struct kmsg_dumper *dumper, enum kmsg_dump_reason reason)
 		draw_panic_plane(plane);
 }
 
+
+/*
+ * DEBUG FS, This is currently unsafe.
+ * Create one file per plane, so it's possible to debug one plane at a time.
+ * TODO: It would be better to emulate an NMI context.
+ */
+#ifdef CONFIG_DRM_PANIC_DEBUG
+#include <linux/debugfs.h>
+
+static ssize_t debugfs_trigger_write(struct file *file, const char __user *user_buf,
+				     size_t count, loff_t *ppos)
+{
+	bool run;
+
+	if (kstrtobool_from_user(user_buf, count, &run) == 0 && run) {
+		struct drm_plane *plane = file->private_data;
+
+		draw_panic_plane(plane);
+	}
+	return count;
+}
+
+static const struct file_operations dbg_drm_panic_ops = {
+	.owner = THIS_MODULE,
+	.write = debugfs_trigger_write,
+	.open = simple_open,
+};
+
+static void debugfs_register_plane(struct drm_plane *plane, int index)
+{
+	char fname[32];
+
+	snprintf(fname, 32, "drm_panic_plane_%d", index);
+	debugfs_create_file(fname, 0200, plane->dev->debugfs_root,
+			    plane, &dbg_drm_panic_ops);
+}
+#else
+static void debugfs_register_plane(struct drm_plane *plane, int index) {}
+#endif /* CONFIG_DRM_PANIC_DEBUG */
+
 /**
  * drm_panic_register() - Initialize DRM panic for a device
  * @dev: the drm device on which the panic screen will be displayed.
@@ -515,8 +555,10 @@ void drm_panic_register(struct drm_device *dev)
 		plane->kmsg_panic.max_reason = KMSG_DUMP_PANIC;
 		if (kmsg_dump_register(&plane->kmsg_panic))
 			drm_warn(dev, "Failed to register panic handler\n");
-		else
+		else {
+			debugfs_register_plane(plane, registered_plane);
 			registered_plane++;
+		}
 	}
 	if (registered_plane)
 		drm_info(dev, "Registered %d planes with drm panic\n", registered_plane);

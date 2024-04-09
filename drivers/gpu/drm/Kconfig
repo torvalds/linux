@@ -127,6 +127,15 @@ config DRM_PANIC_BACKGROUND_COLOR
 	depends on DRM_PANIC
 	default 0x000000
 
+config DRM_PANIC_DEBUG
+	bool "Add a debug fs entry to trigger drm_panic"
+	depends on DRM_PANIC && DEBUG_FS
+	help
+	  Add dri/[device]/drm_panic_plane_x in the kernel debugfs, to force the
+	  panic handler to write the panic message to this plane scanout buffer.
+	  This is unsafe and should not be enabled on a production build.
+	  If in doubt, say "N".
+
 config DRM_DEBUG_DP_MST_TOPOLOGY_REFS
         bool "Enable refcount backtrace history in the DP MST helpers"
 	depends on STACKTRACE_SUPPORT
