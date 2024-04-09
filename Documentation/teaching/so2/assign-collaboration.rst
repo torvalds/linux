@@ -121,7 +121,7 @@ Follow the seven rules of writing a good commit message: https://cbea.ms/git-com
 Add `TODOs` with each team member tasks. Try to split the work evenly.
 
 Before starting to code, make a plan. On top of your skeleton file, add TODOs with each member tasks. Agree on global
-structures and the overlall driver design. Then start coding.
+structures and the overall driver design. Then start coding.
 
 5. Do reviews
 -------------
