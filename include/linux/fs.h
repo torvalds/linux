@@ -2052,6 +2052,8 @@ struct file_operations {
 #define FOP_MMAP_SYNC		((__force fop_flags_t)(1 << 2))
 /* Supports non-exclusive O_DIRECT writes from multiple threads */
 #define FOP_DIO_PARALLEL_WRITE	((__force fop_flags_t)(1 << 3))
+/* Contains huge pages */
+#define FOP_HUGE_PAGES		((__force fop_flags_t)(1 << 4))
 
 /* Wrap a directory iterator that needs exclusive inode access */
 int wrap_directory_iterator(struct file *, struct dir_context *,
