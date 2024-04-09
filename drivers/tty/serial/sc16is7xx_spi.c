@@ -18,6 +18,7 @@ static int sc16is7xx_spi_probe(struct spi_device *spi)
 {
 	const struct sc16is7xx_devtype *devtype;
 	struct regmap *regmaps[SC16IS7XX_MAX_PORTS];
+	struct regmap_config regcfg;
 	unsigned int i;
 	int ret;
 
@@ -37,17 +38,19 @@ static int sc16is7xx_spi_probe(struct spi_device *spi)
 	if (!devtype)
 		return dev_err_probe(&spi->dev, -ENODEV, "Failed to match device\n");
 
+	memcpy(&regcfg, &sc16is7xx_regcfg, sizeof(struct regmap_config));
+
 	for (i = 0; i < devtype->nr_uart; i++) {
-		sc16is7xx_regcfg.name = sc16is7xx_regmap_name(i);
+		regcfg.name = sc16is7xx_regmap_name(i);
 		/*
 		 * If read_flag_mask is 0, the regmap code sets it to a default
 		 * of 0x80. Since we specify our own mask, we must add the READ
 		 * bit ourselves:
 		 */
-		sc16is7xx_regcfg.read_flag_mask = sc16is7xx_regmap_port_mask(i) |
+		regcfg.read_flag_mask = sc16is7xx_regmap_port_mask(i) |
 			SC16IS7XX_SPI_READ_BIT;
-		sc16is7xx_regcfg.write_flag_mask = sc16is7xx_regmap_port_mask(i);
-		regmaps[i] = devm_regmap_init_spi(spi, &sc16is7xx_regcfg);
+		regcfg.write_flag_mask = sc16is7xx_regmap_port_mask(i);
+		regmaps[i] = devm_regmap_init_spi(spi, &regcfg);
 	}
 
 	return sc16is7xx_probe(&spi->dev, devtype, regmaps, spi->irq);

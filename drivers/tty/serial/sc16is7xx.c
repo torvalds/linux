@@ -1695,7 +1695,7 @@ const struct of_device_id __maybe_unused sc16is7xx_dt_ids[] = {
 EXPORT_SYMBOL_GPL(sc16is7xx_dt_ids);
 MODULE_DEVICE_TABLE(of, sc16is7xx_dt_ids);
 
-struct regmap_config sc16is7xx_regcfg = {
+const struct regmap_config sc16is7xx_regcfg = {
 	.reg_bits = 5,
 	.pad_bits = 3,
 	.val_bits = 8,

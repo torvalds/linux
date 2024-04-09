@@ -19,7 +19,7 @@ struct sc16is7xx_devtype {
 	int	nr_uart;
 };
 
-extern struct regmap_config sc16is7xx_regcfg;
+extern const struct regmap_config sc16is7xx_regcfg;
 
 extern const struct of_device_id sc16is7xx_dt_ids[];
 
