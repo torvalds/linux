@@ -51,14 +51,6 @@ bool xe_display_driver_probe_defer(struct pci_dev *pdev)
 	return intel_display_driver_probe_defer(pdev);
 }
 
-static void xe_display_last_close(struct drm_device *dev)
-{
-	struct xe_device *xe = to_xe_device(dev);
-
-	if (xe->info.enable_display)
-		intel_fbdev_restore_mode(to_xe_device(dev));
-}
-
 /**
  * xe_display_driver_set_hooks - Add driver flags and hooks for display
  * @driver: DRM device driver
@@ -73,7 +65,6 @@ void xe_display_driver_set_hooks(struct drm_driver *driver)
 		return;
 
 	driver->driver_features |= DRIVER_MODESET | DRIVER_ATOMIC;
-	driver->lastclose = xe_display_last_close;
 }
 
 static void unset_display_features(struct xe_device *xe)

@@ -551,13 +551,13 @@ set_suspend:
 	intel_fbdev_hpd_set_suspend(dev_priv, state);
 }
 
-void intel_fbdev_output_poll_changed(struct drm_device *dev)
+static int intel_fbdev_output_poll_changed(struct drm_device *dev)
 {
 	struct intel_fbdev *ifbdev = to_i915(dev)->display.fbdev.fbdev;
 	bool send_hpd;
 
 	if (!ifbdev)
-		return;
+		return -EINVAL;
 
 	intel_fbdev_sync(ifbdev);
 
@@ -568,21 +568,29 @@ void intel_fbdev_output_poll_changed(struct drm_device *dev)
 
 	if (send_hpd && (ifbdev->vma || ifbdev->helper.deferred_setup))
 		drm_fb_helper_hotplug_event(&ifbdev->helper);
+
+	return 0;
 }
 
-void intel_fbdev_restore_mode(struct drm_i915_private *dev_priv)
+static int intel_fbdev_restore_mode(struct drm_i915_private *dev_priv)
 {
 	struct intel_fbdev *ifbdev = dev_priv->display.fbdev.fbdev;
+	int ret;
 
 	if (!ifbdev)
-		return;
+		return -EINVAL;
 
 	intel_fbdev_sync(ifbdev);
 	if (!ifbdev->vma)
-		return;
+		return -ENOMEM;
 
-	if (drm_fb_helper_restore_fbdev_mode_unlocked(&ifbdev->helper) == 0)
-		intel_fbdev_invalidate(ifbdev);
+	ret = drm_fb_helper_restore_fbdev_mode_unlocked(&ifbdev->helper);
+	if (ret)
+		return ret;
+
+	intel_fbdev_invalidate(ifbdev);
+
+	return 0;
 }
 
 /*
@@ -594,12 +602,21 @@ static void intel_fbdev_client_unregister(struct drm_client_dev *client)
 
 static int intel_fbdev_client_restore(struct drm_client_dev *client)
 {
+	struct drm_i915_private *dev_priv = to_i915(client->dev);
+	int ret;
+
+	ret = intel_fbdev_restore_mode(dev_priv);
+	if (ret)
+		return ret;
+
+	vga_switcheroo_process_delayed_switch();
+
 	return 0;
 }
 
 static int intel_fbdev_client_hotplug(struct drm_client_dev *client)
 {
-	return 0;
+	return intel_fbdev_output_poll_changed(client->dev);
 }
 
 static const struct drm_client_funcs intel_fbdev_client_funcs = {
