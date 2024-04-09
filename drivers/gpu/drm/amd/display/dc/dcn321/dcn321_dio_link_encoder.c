@@ -127,11 +127,6 @@ void dcn321_link_encoder_construct(
 	 * while doing the DP sink detect
 	 */
 
-/*	if (dal_adapter_service_is_feature_supported(as,
-		FEATURE_DP_SINK_DETECT_POLL_DATA_PIN))
-		enc10->base.features.flags.bits.
-			DP_SINK_DETECT_POLL_DATA_PIN = true;*/
-
 	enc10->base.output_signals =
 		SIGNAL_TYPE_DVI_SINGLE_LINK |
 		SIGNAL_TYPE_DVI_DUAL_LINK |
