@@ -25,6 +25,7 @@
 
 #include <linux/list.h>
 #include <linux/ctype.h>
+#include <linux/kmsg_dump.h>
 #include <drm/drm_mode_object.h>
 #include <drm/drm_color_mgmt.h>
 #include <drm/drm_rect.h>
@@ -780,6 +781,11 @@ struct drm_plane {
 	 * @hotspot_y_property: property to set mouse hotspot y offset.
 	 */
 	struct drm_property *hotspot_y_property;
+
+	/**
+	 * @kmsg_panic: Used to register a panic notifier for this plane
+	 */
+	struct kmsg_dumper kmsg_panic;
 };
 
 #define obj_to_plane(x) container_of(x, struct drm_plane, base)

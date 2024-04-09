@@ -398,6 +398,21 @@ Plane Damage Tracking Functions Reference
 .. kernel-doc:: include/drm/drm_damage_helper.h
    :internal:
 
+Plane Panic Feature
+-------------------
+
+.. kernel-doc:: drivers/gpu/drm/drm_panic.c
+   :doc: overview
+
+Plane Panic Functions Reference
+-------------------------------
+
+.. kernel-doc:: include/drm/drm_panic.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_panic.c
+   :export:
+
 Display Modes Function Reference
 ================================
 
