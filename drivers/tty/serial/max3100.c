@@ -18,18 +18,18 @@
 
 #include <linux/container_of.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/device.h>
+#include <linux/freezer.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/pm.h>
 #include <linux/property.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
+#include <linux/slab.h>
 #include <linux/spi/spi.h>
-#include <linux/freezer.h>
-#include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <linux/tty.h>
 #include <linux/types.h>
 
 #include <asm/unaligned.h>
