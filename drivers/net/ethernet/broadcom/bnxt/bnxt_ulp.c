@@ -64,9 +64,6 @@ int bnxt_register_dev(struct bnxt_en_dev *edev,
 		return -ENOMEM;
 
 	ulp = edev->ulp_tbl;
-	if (!ulp)
-		return -ENOMEM;
-
 	ulp->handle = handle;
 	rcu_assign_pointer(ulp->ulp_ops, ulp_ops);
 
