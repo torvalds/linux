@@ -25,6 +25,7 @@
 #include <drm/drm_gem_shmem_helper.h>
 #include <drm/drm_managed.h>
 #include <drm/drm_modeset_helper_vtables.h>
+#include <drm/drm_panic.h>
 #include <drm/drm_probe_helper.h>
 
 #define DRIVER_NAME	"simpledrm"
@@ -671,11 +672,26 @@ static void simpledrm_primary_plane_helper_atomic_disable(struct drm_plane *plan
 	drm_dev_exit(idx);
 }
 
+static int simpledrm_primary_plane_helper_get_scanout_buffer(struct drm_plane *plane,
+							     struct drm_scanout_buffer *sb)
+{
+	struct simpledrm_device *sdev = simpledrm_device_of_dev(plane->dev);
+
+	sb->width = sdev->mode.hdisplay;
+	sb->height = sdev->mode.vdisplay;
+	sb->format = sdev->format;
+	sb->pitch[0] = sdev->pitch;
+	sb->map[0] = sdev->screen_base;
+
+	return 0;
+}
+
 static const struct drm_plane_helper_funcs simpledrm_primary_plane_helper_funcs = {
 	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
 	.atomic_check = simpledrm_primary_plane_helper_atomic_check,
 	.atomic_update = simpledrm_primary_plane_helper_atomic_update,
 	.atomic_disable = simpledrm_primary_plane_helper_atomic_disable,
+	.get_scanout_buffer = simpledrm_primary_plane_helper_get_scanout_buffer,
 };
 
 static const struct drm_plane_funcs simpledrm_primary_plane_funcs = {
