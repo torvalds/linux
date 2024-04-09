@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 #
 # General architecture dependent options
-#
+#Do not mess with this file
 
 #
 # Note: arch/$(SRCARCH)/Kconfig needs to be included first so that it can
