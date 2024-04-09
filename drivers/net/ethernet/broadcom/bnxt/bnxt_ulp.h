@@ -46,7 +46,6 @@ struct bnxt_ulp {
 	unsigned long	*async_events_bmap;
 	u16		max_async_event_id;
 	u16		msix_requested;
-	u16		msix_base;
 	atomic_t	ref_count;
 };
 
@@ -96,7 +95,6 @@ static inline bool bnxt_ulp_registered(struct bnxt_en_dev *edev)
 }
 
 int bnxt_get_ulp_msix_num(struct bnxt *bp);
-int bnxt_get_ulp_msix_base(struct bnxt *bp);
 int bnxt_get_ulp_stat_ctxs(struct bnxt *bp);
 void bnxt_ulp_stop(struct bnxt *bp);
 void bnxt_ulp_start(struct bnxt *bp, int err);

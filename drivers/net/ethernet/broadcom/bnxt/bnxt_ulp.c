@@ -31,21 +31,20 @@ static DEFINE_IDA(bnxt_aux_dev_ids);
 static void bnxt_fill_msix_vecs(struct bnxt *bp, struct bnxt_msix_entry *ent)
 {
 	struct bnxt_en_dev *edev = bp->edev;
-	int num_msix, idx, i;
+	int num_msix, i;
 
 	if (!edev->ulp_tbl->msix_requested) {
 		netdev_warn(bp->dev, "Requested MSI-X vectors insufficient\n");
 		return;
 	}
 	num_msix = edev->ulp_tbl->msix_requested;
-	idx = edev->ulp_tbl->msix_base;
 	for (i = 0; i < num_msix; i++) {
-		ent[i].vector = bp->irq_tbl[idx + i].vector;
-		ent[i].ring_idx = idx + i;
+		ent[i].vector = bp->irq_tbl[i].vector;
+		ent[i].ring_idx = i;
 		if (bp->flags & BNXT_FLAG_CHIP_P5_PLUS)
 			ent[i].db_offset = bp->db_offset;
 		else
-			ent[i].db_offset = (idx + i) * 0x80;
+			ent[i].db_offset = i * 0x80;
 	}
 }
 
@@ -109,17 +108,6 @@ int bnxt_get_ulp_msix_num(struct bnxt *bp)
 
 	return ((bp->flags & BNXT_FLAG_ROCE_CAP) ?
 		min_t(u32, roce_msix, num_online_cpus()) : 0);
-}
-
-int bnxt_get_ulp_msix_base(struct bnxt *bp)
-{
-	if (bnxt_ulp_registered(bp->edev)) {
-		struct bnxt_en_dev *edev = bp->edev;
-
-		if (edev->ulp_tbl->msix_requested)
-			return edev->ulp_tbl->msix_base;
-	}
-	return 0;
 }
 
 int bnxt_get_ulp_stat_ctxs(struct bnxt *bp)
