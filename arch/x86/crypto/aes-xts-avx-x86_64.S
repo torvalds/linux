@@ -82,7 +82,7 @@
 
 // Function parameters
 .set	KEY,		%rdi	// Initially points to crypto_aes_ctx, then is
-				// advanced to point directly to the round keys
+				// advanced to point directly to 7th round key
 .set	SRC,		%rsi	// Pointer to next source data
 .set	DST,		%rdx	// Pointer to next destination data
 .set	LEN,		%rcx	// Remaining length in bytes
@@ -408,24 +408,24 @@
 
 // Load the round keys: just the first one if !USE_AVX10, otherwise all of them.
 .macro	_load_round_keys
-	_vbroadcast128	0*16(KEY), KEY0
+	_vbroadcast128	-7*16(KEY), KEY0
 .if USE_AVX10
-	_vbroadcast128	1*16(KEY), KEY1
-	_vbroadcast128	2*16(KEY), KEY2
-	_vbroadcast128	3*16(KEY), KEY3
-	_vbroadcast128	4*16(KEY), KEY4
-	_vbroadcast128	5*16(KEY), KEY5
-	_vbroadcast128	6*16(KEY), KEY6
-	_vbroadcast128	7*16(KEY), KEY7
-	_vbroadcast128	8*16(KEY), KEY8
-	_vbroadcast128	9*16(KEY), KEY9
-	_vbroadcast128	10*16(KEY), KEY10
+	_vbroadcast128	-6*16(KEY), KEY1
+	_vbroadcast128	-5*16(KEY), KEY2
+	_vbroadcast128	-4*16(KEY), KEY3
+	_vbroadcast128	-3*16(KEY), KEY4
+	_vbroadcast128	-2*16(KEY), KEY5
+	_vbroadcast128	-1*16(KEY), KEY6
+	_vbroadcast128	0*16(KEY), KEY7
+	_vbroadcast128	1*16(KEY), KEY8
+	_vbroadcast128	2*16(KEY), KEY9
+	_vbroadcast128	3*16(KEY), KEY10
 	// Note: if it's AES-128 or AES-192, the last several round keys won't
 	// be used.  We do the loads anyway to save a conditional jump.
-	_vbroadcast128	11*16(KEY), KEY11
-	_vbroadcast128	12*16(KEY), KEY12
-	_vbroadcast128	13*16(KEY), KEY13
-	_vbroadcast128	14*16(KEY), KEY14
+	_vbroadcast128	4*16(KEY), KEY11
+	_vbroadcast128	5*16(KEY), KEY12
+	_vbroadcast128	6*16(KEY), KEY13
+	_vbroadcast128	7*16(KEY), KEY14
 .endif
 .endm
 
@@ -456,9 +456,9 @@
 	_vaes		\enc, \last, KEY\i\xmm_suffix, \data
 .else
 .ifnb \xmm_suffix
-	_vaes		\enc, \last, \i*16(KEY), \data
+	_vaes		\enc, \last, (\i-7)*16(KEY), \data
 .else
-	_vbroadcast128	\i*16(KEY), V4
+	_vbroadcast128	(\i-7)*16(KEY), V4
 	_vaes		\enc, \last, V4, \data
 .endif
 .endif
@@ -477,7 +477,7 @@
 	_vaes		\enc, \last, KEY\i, V2
 	_vaes		\enc, \last, KEY\i, V3
 .else
-	_vbroadcast128	\i*16(KEY), V4
+	_vbroadcast128	(\i-7)*16(KEY), V4
 	_tweak_step	(2*(\i-1))
 	_vaes		\enc, \last, V4, V0
 	_vaes		\enc, \last, V4, V1
@@ -528,9 +528,15 @@
 	// Load the AES key length: 16 (AES-128), 24 (AES-192), or 32 (AES-256).
 	movl		480(KEY), KEYLEN
 
-	// If decrypting, advance KEY to the decryption round keys.
-.if !\enc
-	add		$240, KEY
+	// Advance KEY to point to the 7th encryption round key (if encrypting)
+	// or the 7th decryption round key (if decrypting).  This makes the
+	// offset to any round key be in the range [-112, 112], fitting in a
+	// signed byte.  This shortens VEX-encoded instructions that access the
+	// 8th and later round keys which otherwise would need 4-byte offsets.
+.if \enc
+	add		$7*16, KEY
+.else
+	add		$(15+7)*16, KEY
 .endif
 
 	// Check whether the data length is a multiple of the AES block length.
@@ -753,23 +759,24 @@
 //			   u8 iv[AES_BLOCK_SIZE]);
 SYM_TYPED_FUNC_START(aes_xts_encrypt_iv)
 	vmovdqu		(%rsi), %xmm0
-	vpxor		0*16(%rdi), %xmm0, %xmm0
+	add		$7*16, %rdi
+	vpxor		-7*16(%rdi), %xmm0, %xmm0
+	vaesenc		-6*16(%rdi), %xmm0, %xmm0
+	vaesenc		-5*16(%rdi), %xmm0, %xmm0
+	vaesenc		-4*16(%rdi), %xmm0, %xmm0
+	vaesenc		-3*16(%rdi), %xmm0, %xmm0
+	vaesenc		-2*16(%rdi), %xmm0, %xmm0
+	vaesenc		-1*16(%rdi), %xmm0, %xmm0
+	vaesenc		0*16(%rdi), %xmm0, %xmm0
 	vaesenc		1*16(%rdi), %xmm0, %xmm0
 	vaesenc		2*16(%rdi), %xmm0, %xmm0
+	cmpl		$24, 480-(7*16)(%rdi)
+	jle		.Lencrypt_iv_aes_128_or_192
 	vaesenc		3*16(%rdi), %xmm0, %xmm0
 	vaesenc		4*16(%rdi), %xmm0, %xmm0
 	vaesenc		5*16(%rdi), %xmm0, %xmm0
 	vaesenc		6*16(%rdi), %xmm0, %xmm0
-	vaesenc		7*16(%rdi), %xmm0, %xmm0
-	vaesenc		8*16(%rdi), %xmm0, %xmm0
-	vaesenc		9*16(%rdi), %xmm0, %xmm0
-	cmpl		$24, 480(%rdi)
-	jle		.Lencrypt_iv_aes_128_or_192
-	vaesenc		10*16(%rdi), %xmm0, %xmm0
-	vaesenc		11*16(%rdi), %xmm0, %xmm0
-	vaesenc		12*16(%rdi), %xmm0, %xmm0
-	vaesenc		13*16(%rdi), %xmm0, %xmm0
-	vaesenclast	14*16(%rdi), %xmm0, %xmm0
+	vaesenclast	7*16(%rdi), %xmm0, %xmm0
 .Lencrypt_iv_done:
 	vmovdqu		%xmm0, (%rsi)
 	RET
@@ -777,12 +784,12 @@ SYM_TYPED_FUNC_START(aes_xts_encrypt_iv)
 	// Out-of-line handling of AES-128 and AES-192
 .Lencrypt_iv_aes_128_or_192:
 	jz		.Lencrypt_iv_aes_192
-	vaesenclast	10*16(%rdi), %xmm0, %xmm0
+	vaesenclast	3*16(%rdi), %xmm0, %xmm0
 	jmp		.Lencrypt_iv_done
 .Lencrypt_iv_aes_192:
-	vaesenc		10*16(%rdi), %xmm0, %xmm0
-	vaesenc		11*16(%rdi), %xmm0, %xmm0
-	vaesenclast	12*16(%rdi), %xmm0, %xmm0
+	vaesenc		3*16(%rdi), %xmm0, %xmm0
+	vaesenc		4*16(%rdi), %xmm0, %xmm0
+	vaesenclast	5*16(%rdi), %xmm0, %xmm0
 	jmp		.Lencrypt_iv_done
 SYM_FUNC_END(aes_xts_encrypt_iv)
 
