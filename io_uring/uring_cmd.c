@@ -3,6 +3,7 @@
 #include <linux/errno.h>
 #include <linux/file.h>
 #include <linux/io_uring/cmd.h>
+#include <linux/io_uring/net.h>
 #include <linux/security.h>
 #include <linux/nospec.h>
 #include <net/sock.h>
