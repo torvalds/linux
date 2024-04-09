@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
-#
+# Do not modify unless you need to do so
 # Makefile for the linux kernel.
-#
+# arm_64 only, no x86 code here
 
 CFLAGS_armv8_deprecated.o := -I$(src)
 
