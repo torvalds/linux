@@ -9,6 +9,7 @@
 
 #define pr_fmt(fmt)	"OF: " fmt
 
+#include <linux/cleanup.h>
 #include <linux/of.h>
 #include <linux/spinlock.h>
 #include <linux/slab.h>
@@ -1019,10 +1020,9 @@ int of_changeset_add_prop_u32_array(struct of_changeset *ocs,
 				    const u32 *array, size_t sz)
 {
 	struct property prop;
-	__be32 *val;
-	int i, ret;
+	__be32 *val __free(kfree) = kcalloc(sz, sizeof(__be32), GFP_KERNEL);
+	int i;
 
-	val = kcalloc(sz, sizeof(__be32), GFP_KERNEL);
 	if (!val)
 		return -ENOMEM;
 
@@ -1032,9 +1032,6 @@ int of_changeset_add_prop_u32_array(struct of_changeset *ocs,
 	prop.length = sizeof(u32) * sz;
 	prop.value = (void *)val;
 
-	ret = of_changeset_add_prop_helper(ocs, np, &prop);
-	kfree(val);
-
-	return ret;
+	return of_changeset_add_prop_helper(ocs, np, &prop);
 }
 EXPORT_SYMBOL_GPL(of_changeset_add_prop_u32_array);
