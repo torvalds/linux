@@ -21,6 +21,7 @@
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/pm.h>
 #include <linux/property.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
@@ -797,8 +798,6 @@ static void max3100_remove(struct spi_device *spi)
 	mutex_unlock(&max3100s_lock);
 }
 
-#ifdef CONFIG_PM_SLEEP
-
 static int max3100_suspend(struct device *dev)
 {
 	struct max3100_port *s = dev_get_drvdata(dev);
@@ -834,12 +833,7 @@ static int max3100_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(max3100_pm_ops, max3100_suspend, max3100_resume);
-#define MAX3100_PM_OPS (&max3100_pm_ops)
-
-#else
-#define MAX3100_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(max3100_pm_ops, max3100_suspend, max3100_resume);
 
 static const struct spi_device_id max3100_spi_id[] = {
 	{ "max3100" },
@@ -857,7 +851,7 @@ static struct spi_driver max3100_driver = {
 	.driver = {
 		.name		= "max3100",
 		.of_match_table	= max3100_of_match,
-		.pm		= MAX3100_PM_OPS,
+		.pm		= pm_sleep_ptr(&max3100_pm_ops),
 	},
 	.probe		= max3100_probe,
 	.remove		= max3100_remove,
