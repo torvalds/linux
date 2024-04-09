@@ -93,8 +93,6 @@ struct max3100_port {
 #define MAX3100_7BIT 4
 	int rx_enabled;	        /* if we should rx chars */
 
-	int irq;		/* irq assigned to the max3100 */
-
 	int minor;		/* minor number */
 	int loopback_commit;	/* need to change loopback */
 	int loopback;		/* 1 if we are in loopback mode */
@@ -548,8 +546,8 @@ static void max3100_shutdown(struct uart_port *port)
 		destroy_workqueue(s->workqueue);
 		s->workqueue = NULL;
 	}
-	if (s->irq)
-		free_irq(s->irq, s);
+	if (port->irq)
+		free_irq(port->irq, s);
 
 	/* set shutdown mode to save power */
 	max3100_sr(s, MAX3100_WC | MAX3100_SHDN, &rx);
@@ -561,6 +559,7 @@ static int max3100_startup(struct uart_port *port)
 					      struct max3100_port,
 					      port);
 	char b[12];
+	int ret;
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
@@ -583,10 +582,10 @@ static int max3100_startup(struct uart_port *port)
 	}
 	INIT_WORK(&s->work, max3100_work);
 
-	if (request_irq(s->irq, max3100_irq,
-			IRQF_TRIGGER_FALLING, "max3100", s) < 0) {
-		dev_warn(&s->spi->dev, "cannot allocate irq %d\n", s->irq);
-		s->irq = 0;
+	ret = request_irq(port->irq, max3100_irq, IRQF_TRIGGER_FALLING, "max3100", s);
+	if (ret < 0) {
+		dev_warn(&s->spi->dev, "cannot allocate irq %d\n", port->irq);
+		port->irq = 0;
 		destroy_workqueue(s->workqueue);
 		s->workqueue = NULL;
 		return -EBUSY;
@@ -742,14 +741,13 @@ static int max3100_probe(struct spi_device *spi)
 		return -ENOMEM;
 	}
 	max3100s[i]->spi = spi;
-	max3100s[i]->irq = spi->irq;
 	spin_lock_init(&max3100s[i]->conf_lock);
 	spi_set_drvdata(spi, max3100s[i]);
 	max3100s[i]->minor = i;
 	timer_setup(&max3100s[i]->timer, max3100_timeout, 0);
 
 	dev_dbg(&spi->dev, "%s: adding port %d\n", __func__, i);
-	max3100s[i]->port.irq = max3100s[i]->irq;
+	max3100s[i]->port.irq = spi->irq;
 	max3100s[i]->port.fifosize = 16;
 	max3100s[i]->port.ops = &max3100_ops;
 	max3100s[i]->port.flags = UPF_SKIP_TEST | UPF_BOOT_AUTOCONF;
@@ -813,7 +811,7 @@ static int max3100_suspend(struct device *dev)
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
-	disable_irq(s->irq);
+	disable_irq(s->port.irq);
 
 	s->suspending = 1;
 	uart_suspend_port(&max3100_uart_driver, &s->port);
@@ -832,7 +830,7 @@ static int max3100_resume(struct device *dev)
 	uart_resume_port(&max3100_uart_driver, &s->port);
 	s->suspending = 0;
 
-	enable_irq(s->irq);
+	enable_irq(s->port.irq);
 
 	s->conf_commit = 1;
 	if (s->workqueue)
