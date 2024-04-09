@@ -237,7 +237,7 @@ def tc(args, JSON=True, ns="", fail=True, include_stderr=False):
 def ethtool(dev, opt, args, fail=True):
     return cmd("ethtool %s %s %s" % (opt, dev["ifname"], args), fail=fail)
 
-def bpf_obj(name, sec=".text", path=bpf_test_dir,):
+def bpf_obj(name, sec="xdp", path=bpf_test_dir,):
     return "obj %s sec %s" % (os.path.join(path, name), sec)
 
 def bpf_pinned(name):
