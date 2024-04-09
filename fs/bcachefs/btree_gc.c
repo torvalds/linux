@@ -544,12 +544,12 @@ reconstruct_root:
 				bch2_btree_root_alloc_fake(c, i, 0);
 			} else {
 				bch2_btree_root_alloc_fake(c, i, 1);
+				bch2_shoot_down_journal_keys(c, i, 1, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
 				ret = bch2_get_scanned_nodes(c, i, 0, POS_MIN, SPOS_MAX);
 				if (ret)
 					break;
 			}
 
-			bch2_shoot_down_journal_keys(c, i, 1, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
 			reconstructed_root = true;
 		}
 
