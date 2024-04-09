@@ -136,8 +136,7 @@ will be considered the 'good' release and used to prepare the .config file.
 
 * **Segment 3**: perform and validate the bisection.
 
-  a) In case your 'broken' version is a stable/longterm release, add the Git
-     branch holding it::
+  a) Retrieve the sources for your 'bad' version::
 
        git remote set-branches --add stable linux-6.1.y
        git fetch stable
@@ -370,6 +369,21 @@ Preparations: set up everything to build your own kernels
       https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git
 
   [:ref:`details<sources_bisref>`]
+
+.. _stablesources_bissbs:
+
+* Retrieve the sources for any stable or longterm series you might need.
+
+  Is the version you earlier established as 'bad' a stable or longterm release?
+  Then download the code for the series it belongs to ('linux-6.1.y' in this
+  example)::
+
+    git remote set-branches --add stable linux-6.1.y
+    git fetch stable
+
+  If the version earlier established as 'good' is from a different stable or
+  longterm series (say 6.0.13), repeat the previous step, but this time for the
+  branch holding the series the 'good' version belongs to (e.g. linux-6.0.y).
 
 .. _oldconfig_bissbs:
 
@@ -620,12 +634,10 @@ be a waste of time. [:ref:`details<introlatestcheck_bisref>`]
   reproduce it with the mainline kernel you just built? One that according to
   the `front page of kernel.org <https://kernel.org/>`_ is still supported? Then
   check if the latest codebase for the particular series might already fix the
-  problem. To do so, add the stable series Git branch for your 'good' kernel
-  (again, this here is assumed to be 6.0) and check out the latest version::
+  problem. To do so, check out that series latest version (again, this here is
+  assumed to be 6.0)::
 
     cd ~/linux/
-    git remote set-branches --add stable linux-6.0.y
-    git fetch stable
     git switch --discard-changes --detach linux-6.0.y
 
   Now use the checked out code to build and install another kernel using the
@@ -716,13 +728,6 @@ about 15 in case you encountered a regression when updating to a newer series
 configuration created earlier this works a lot faster than many people assume:
 overall on average it will often just take about 10 to 15 minutes to compile
 each kernel on commodity x86 machines.
-
-* In case your 'bad' version is a stable/longterm release (say 6.1.5), add its
-  stable branch, unless you already did so earlier::
-
-    cd ~/linux/
-    git remote set-branches --add stable linux-6.1.y
-    git fetch stable
 
 .. _bisectstart_bissbs:
 
