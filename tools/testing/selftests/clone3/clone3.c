@@ -98,6 +98,11 @@ static int call_clone3(uint64_t flags, size_t size, enum test_mode test_mode)
 		ksft_print_msg("Child returned %s\n", strerror(errno));
 		return -errno;
 	}
+	if (!WIFEXITED(status)) {
+		ksft_print_msg("Child did not exit normally, status 0x%x\n",
+			       status);
+		return EXIT_FAILURE;
+	}
 	if (WEXITSTATUS(status))
 		return WEXITSTATUS(status);
 
