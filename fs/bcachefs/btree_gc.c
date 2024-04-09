@@ -368,11 +368,16 @@ again:
 				buf.buf)) {
 			bch2_btree_node_evict(trans, cur_k.k);
 			cur = NULL;
-			ret =   bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_scan_for_btree_nodes) ?:
-				bch2_journal_key_delete(c, b->c.btree_id,
-							b->c.level, cur_k.k->k.p);
+			ret = bch2_journal_key_delete(c, b->c.btree_id,
+						      b->c.level, cur_k.k->k.p);
 			if (ret)
 				break;
+
+			if (!btree_id_is_alloc(b->c.btree_id)) {
+				ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_scan_for_btree_nodes);
+				if (ret)
+					break;
+			}
 			continue;
 		}
 

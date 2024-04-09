@@ -133,6 +133,9 @@ static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
 	if (le64_to_cpu(bn->magic) != bset_magic(c))
 		return;
 
+	if (btree_id_is_alloc(BTREE_NODE_ID(bn)))
+		return;
+
 	rcu_read_lock();
 	struct found_btree_node n = {
 		.btree_id	= BTREE_NODE_ID(bn),
@@ -290,7 +293,7 @@ again:
 			found_btree_node_to_text(&buf, c, n);
 			bch_err(c, "%s", buf.buf);
 			printbuf_exit(&buf);
-			return -1;
+			return -BCH_ERR_fsck_repair_unimplemented;
 		}
 	}
 
@@ -436,6 +439,9 @@ bool bch2_btree_has_scanned_nodes(struct bch_fs *c, enum btree_id btree)
 int bch2_get_scanned_nodes(struct bch_fs *c, enum btree_id btree,
 			   unsigned level, struct bpos node_min, struct bpos node_max)
 {
+	if (btree_id_is_alloc(btree))
+		return 0;
+
 	struct find_btree_nodes *f = &c->found_btree_nodes;
 
 	int ret = bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_scan_for_btree_nodes);
