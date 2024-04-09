@@ -458,6 +458,8 @@ struct bkey_s_c bch2_btree_node_iter_peek_unpack(struct btree_node_iter *,
 
 /* Accounting: */
 
+struct btree_nr_keys bch2_btree_node_count_keys(struct btree *);
+
 static inline void btree_keys_account_key(struct btree_nr_keys *n,
 					  unsigned bset,
 					  struct bkey_packed *k,

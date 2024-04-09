@@ -136,20 +136,16 @@ static void lpc32xx_hsuart_console_write(struct console *co, const char *s,
 	int locked = 1;
 
 	touch_nmi_watchdog();
-	local_irq_save(flags);
-	if (up->port.sysrq)
-		locked = 0;
-	else if (oops_in_progress)
-		locked = uart_port_trylock(&up->port);
+	if (oops_in_progress)
+		locked = uart_port_trylock_irqsave(&up->port, &flags);
 	else
-		uart_port_lock(&up->port);
+		uart_port_lock_irqsave(&up->port, &flags);
 
 	uart_console_write(&up->port, s, count, lpc32xx_hsuart_console_putchar);
 	wait_for_xmit_empty(&up->port);
 
 	if (locked)
-		uart_port_unlock(&up->port);
-	local_irq_restore(flags);
+		uart_port_unlock_irqrestore(&up->port, flags);
 }
 
 static int __init lpc32xx_hsuart_console_setup(struct console *co,
@@ -233,8 +229,6 @@ static unsigned int __serial_get_clock_div(unsigned long uartclk,
 
 		hsu_rate++;
 	}
-	if (hsu_rate > 0xFF)
-		hsu_rate = 0xFF;
 
 	return goodrate;
 }
@@ -268,7 +262,8 @@ static void __serial_lpc32xx_rx(struct uart_port *port)
 			tty_insert_flip_char(tport, 0, TTY_FRAME);
 		}
 
-		tty_insert_flip_char(tport, (tmp & 0xFF), flag);
+		if (!uart_prepare_sysrq_char(port, tmp & 0xff))
+			tty_insert_flip_char(tport, (tmp & 0xFF), flag);
 
 		tmp = readl(LPC32XX_HSUART_FIFO(port->membase));
 	}
@@ -333,7 +328,7 @@ static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)
 		__serial_lpc32xx_tx(port);
 	}
 
-	uart_port_unlock(port);
+	uart_unlock_and_check_sysrq(port);
 
 	return IRQ_HANDLED;
 }

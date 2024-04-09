@@ -356,7 +356,7 @@ static void tb_retimer_release(struct device *dev)
 	kfree(rt);
 }
 
-struct device_type tb_retimer_type = {
+const struct device_type tb_retimer_type = {
 	.name = "thunderbolt_retimer",
 	.groups = retimer_groups,
 	.release = tb_retimer_release,

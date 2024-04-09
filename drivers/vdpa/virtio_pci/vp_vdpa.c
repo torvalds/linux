@@ -328,6 +328,13 @@ static void vp_vdpa_set_vq_num(struct vdpa_device *vdpa, u16 qid,
 	vp_modern_set_queue_size(mdev, qid, num);
 }
 
+static u16 vp_vdpa_get_vq_size(struct vdpa_device *vdpa, u16 qid)
+{
+	struct virtio_pci_modern_device *mdev = vdpa_to_mdev(vdpa);
+
+	return vp_modern_get_queue_size(mdev, qid);
+}
+
 static int vp_vdpa_set_vq_address(struct vdpa_device *vdpa, u16 qid,
 				  u64 desc_area, u64 driver_area,
 				  u64 device_area)
@@ -449,6 +456,7 @@ static const struct vdpa_config_ops vp_vdpa_ops = {
 	.set_vq_ready	= vp_vdpa_set_vq_ready,
 	.get_vq_ready	= vp_vdpa_get_vq_ready,
 	.set_vq_num	= vp_vdpa_set_vq_num,
+	.get_vq_size	= vp_vdpa_get_vq_size,
 	.set_vq_address	= vp_vdpa_set_vq_address,
 	.kick_vq	= vp_vdpa_kick_vq,
 	.get_generation	= vp_vdpa_get_generation,

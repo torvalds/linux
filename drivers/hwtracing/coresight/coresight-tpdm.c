@@ -66,6 +66,31 @@ static ssize_t tpdm_simple_dataset_show(struct device *dev,
 			return -EINVAL;
 		return sysfs_emit(buf, "0x%x\n",
 				drvdata->dsb->msr[tpdm_attr->idx]);
+	case CMB_TRIG_PATT:
+		if (tpdm_attr->idx >= TPDM_CMB_MAX_PATT)
+			return -EINVAL;
+		return sysfs_emit(buf, "0x%x\n",
+			drvdata->cmb->trig_patt[tpdm_attr->idx]);
+	case CMB_TRIG_PATT_MASK:
+		if (tpdm_attr->idx >= TPDM_CMB_MAX_PATT)
+			return -EINVAL;
+		return sysfs_emit(buf, "0x%x\n",
+			drvdata->cmb->trig_patt_mask[tpdm_attr->idx]);
+	case CMB_PATT:
+		if (tpdm_attr->idx >= TPDM_CMB_MAX_PATT)
+			return -EINVAL;
+		return sysfs_emit(buf, "0x%x\n",
+			drvdata->cmb->patt_val[tpdm_attr->idx]);
+	case CMB_PATT_MASK:
+		if (tpdm_attr->idx >= TPDM_CMB_MAX_PATT)
+			return -EINVAL;
+		return sysfs_emit(buf, "0x%x\n",
+			drvdata->cmb->patt_mask[tpdm_attr->idx]);
+	case CMB_MSR:
+		if (tpdm_attr->idx >= drvdata->cmb_msr_num)
+			return -EINVAL;
+		return sysfs_emit(buf, "0x%x\n",
+				drvdata->cmb->msr[tpdm_attr->idx]);
 	}
 	return -EINVAL;
 }
@@ -77,58 +102,82 @@ static ssize_t tpdm_simple_dataset_store(struct device *dev,
 					 size_t size)
 {
 	unsigned long val;
-	ssize_t ret = size;
+	ssize_t ret = -EINVAL;
 
 	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 	struct tpdm_dataset_attribute *tpdm_attr =
 		container_of(attr, struct tpdm_dataset_attribute, attr);
 
 	if (kstrtoul(buf, 0, &val))
-		return -EINVAL;
+		return ret;
 
-	spin_lock(&drvdata->spinlock);
+	guard(spinlock)(&drvdata->spinlock);
 	switch (tpdm_attr->mem) {
 	case DSB_TRIG_PATT:
-		if (tpdm_attr->idx < TPDM_DSB_MAX_PATT)
+		if (tpdm_attr->idx < TPDM_DSB_MAX_PATT) {
 			drvdata->dsb->trig_patt[tpdm_attr->idx] = val;
-		else
-			ret = -EINVAL;
+			ret = size;
+		}
 		break;
 	case DSB_TRIG_PATT_MASK:
-		if (tpdm_attr->idx < TPDM_DSB_MAX_PATT)
+		if (tpdm_attr->idx < TPDM_DSB_MAX_PATT) {
 			drvdata->dsb->trig_patt_mask[tpdm_attr->idx] = val;
-		else
-			ret = -EINVAL;
+			ret = size;
+		}
 		break;
 	case DSB_PATT:
-		if (tpdm_attr->idx < TPDM_DSB_MAX_PATT)
+		if (tpdm_attr->idx < TPDM_DSB_MAX_PATT) {
 			drvdata->dsb->patt_val[tpdm_attr->idx] = val;
-		else
-			ret = -EINVAL;
+			ret = size;
+		}
 		break;
 	case DSB_PATT_MASK:
-		if (tpdm_attr->idx < TPDM_DSB_MAX_PATT)
+		if (tpdm_attr->idx < TPDM_DSB_MAX_PATT) {
 			drvdata->dsb->patt_mask[tpdm_attr->idx] = val;
-		else
-			ret = -EINVAL;
+			ret = size;
+		}
 		break;
 	case DSB_MSR:
-		if (tpdm_attr->idx < drvdata->dsb_msr_num)
+		if (tpdm_attr->idx < drvdata->dsb_msr_num) {
 			drvdata->dsb->msr[tpdm_attr->idx] = val;
-		else
-			ret = -EINVAL;
+			ret = size;
+		}
+		break;
+	case CMB_TRIG_PATT:
+		if (tpdm_attr->idx < TPDM_CMB_MAX_PATT) {
+			drvdata->cmb->trig_patt[tpdm_attr->idx] = val;
+			ret = size;
+		}
+		break;
+	case CMB_TRIG_PATT_MASK:
+		if (tpdm_attr->idx < TPDM_CMB_MAX_PATT) {
+			drvdata->cmb->trig_patt_mask[tpdm_attr->idx] = val;
+			ret = size;
+		}
+		break;
+	case CMB_PATT:
+		if (tpdm_attr->idx < TPDM_CMB_MAX_PATT) {
+			drvdata->cmb->patt_val[tpdm_attr->idx] = val;
+			ret = size;
+		}
+		break;
+	case CMB_PATT_MASK:
+		if (tpdm_attr->idx < TPDM_CMB_MAX_PATT) {
+			drvdata->cmb->patt_mask[tpdm_attr->idx] = val;
+			ret = size;
+		}
+		break;
+	case CMB_MSR:
+		if (tpdm_attr->idx < drvdata->cmb_msr_num) {
+			drvdata->cmb->msr[tpdm_attr->idx] = val;
+			ret = size;
+		}
 		break;
 	default:
-		ret = -EINVAL;
+		break;
 	}
-	spin_unlock(&drvdata->spinlock);
 
 	return ret;
-}
-
-static bool tpdm_has_dsb_dataset(struct tpdm_drvdata *drvdata)
-{
-	return (drvdata->datasets & TPDM_PIDR0_DS_DSB);
 }
 
 static umode_t tpdm_dsb_is_visible(struct kobject *kobj,
@@ -138,6 +187,18 @@ static umode_t tpdm_dsb_is_visible(struct kobject *kobj,
 	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
 
 	if (drvdata && tpdm_has_dsb_dataset(drvdata))
+		return attr->mode;
+
+	return 0;
+}
+
+static umode_t tpdm_cmb_is_visible(struct kobject *kobj,
+				   struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	if (drvdata && tpdm_has_cmb_dataset(drvdata))
 		return attr->mode;
 
 	return 0;
@@ -159,6 +220,23 @@ static umode_t tpdm_dsb_msr_is_visible(struct kobject *kobj,
 	return 0;
 }
 
+static umode_t tpdm_cmb_msr_is_visible(struct kobject *kobj,
+				       struct attribute *attr, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	struct device_attribute *dev_attr =
+		container_of(attr, struct device_attribute, attr);
+	struct tpdm_dataset_attribute *tpdm_attr =
+		container_of(dev_attr, struct tpdm_dataset_attribute, attr);
+
+	if (tpdm_attr->idx < drvdata->cmb_msr_num)
+		return attr->mode;
+
+	return 0;
+}
+
 static void tpdm_reset_datasets(struct tpdm_drvdata *drvdata)
 {
 	if (tpdm_has_dsb_dataset(drvdata)) {
@@ -167,6 +245,9 @@ static void tpdm_reset_datasets(struct tpdm_drvdata *drvdata)
 		drvdata->dsb->trig_ts = true;
 		drvdata->dsb->trig_type = false;
 	}
+
+	if (drvdata->cmb)
+		memset(drvdata->cmb, 0, sizeof(struct cmb_dataset));
 }
 
 static void set_dsb_mode(struct tpdm_drvdata *drvdata, u32 *val)
@@ -233,25 +314,27 @@ static void tpdm_enable_dsb(struct tpdm_drvdata *drvdata)
 {
 	u32 val, i;
 
+	if (!tpdm_has_dsb_dataset(drvdata))
+		return;
+
 	for (i = 0; i < TPDM_DSB_MAX_EDCR; i++)
 		writel_relaxed(drvdata->dsb->edge_ctrl[i],
-			   drvdata->base + TPDM_DSB_EDCR(i));
+			       drvdata->base + TPDM_DSB_EDCR(i));
 	for (i = 0; i < TPDM_DSB_MAX_EDCMR; i++)
 		writel_relaxed(drvdata->dsb->edge_ctrl_mask[i],
-			   drvdata->base + TPDM_DSB_EDCMR(i));
+			       drvdata->base + TPDM_DSB_EDCMR(i));
 	for (i = 0; i < TPDM_DSB_MAX_PATT; i++) {
 		writel_relaxed(drvdata->dsb->patt_val[i],
-			   drvdata->base + TPDM_DSB_TPR(i));
+			       drvdata->base + TPDM_DSB_TPR(i));
 		writel_relaxed(drvdata->dsb->patt_mask[i],
-			   drvdata->base + TPDM_DSB_TPMR(i));
+			       drvdata->base + TPDM_DSB_TPMR(i));
 		writel_relaxed(drvdata->dsb->trig_patt[i],
-			   drvdata->base + TPDM_DSB_XPR(i));
+			       drvdata->base + TPDM_DSB_XPR(i));
 		writel_relaxed(drvdata->dsb->trig_patt_mask[i],
-			   drvdata->base + TPDM_DSB_XPMR(i));
+			       drvdata->base + TPDM_DSB_XPMR(i));
 	}
 
 	set_dsb_tier(drvdata);
-
 	set_dsb_msr(drvdata);
 
 	val = readl_relaxed(drvdata->base + TPDM_DSB_CR);
@@ -267,6 +350,76 @@ static void tpdm_enable_dsb(struct tpdm_drvdata *drvdata)
 	writel_relaxed(val, drvdata->base + TPDM_DSB_CR);
 }
 
+static void set_cmb_tier(struct tpdm_drvdata *drvdata)
+{
+	u32 val;
+
+	val = readl_relaxed(drvdata->base + TPDM_CMB_TIER);
+
+	/* Clear all relevant fields */
+	val &= ~(TPDM_CMB_TIER_PATT_TSENAB | TPDM_CMB_TIER_TS_ALL |
+		 TPDM_CMB_TIER_XTRIG_TSENAB);
+
+	/* Set pattern timestamp type and enablement */
+	if (drvdata->cmb->patt_ts)
+		val |= TPDM_CMB_TIER_PATT_TSENAB;
+
+	/* Set trigger timestamp */
+	if (drvdata->cmb->trig_ts)
+		val |= TPDM_CMB_TIER_XTRIG_TSENAB;
+
+	/* Set all timestamp enablement*/
+	if (drvdata->cmb->ts_all)
+		val |= TPDM_CMB_TIER_TS_ALL;
+
+	writel_relaxed(val, drvdata->base + TPDM_CMB_TIER);
+}
+
+static void set_cmb_msr(struct tpdm_drvdata *drvdata)
+{
+	int i;
+
+	for (i = 0; i < drvdata->cmb_msr_num; i++)
+		writel_relaxed(drvdata->cmb->msr[i],
+			   drvdata->base + TPDM_CMB_MSR(i));
+}
+
+static void tpdm_enable_cmb(struct tpdm_drvdata *drvdata)
+{
+	u32 val, i;
+
+	if (!tpdm_has_cmb_dataset(drvdata))
+		return;
+
+	/* Configure pattern registers */
+	for (i = 0; i < TPDM_CMB_MAX_PATT; i++) {
+		writel_relaxed(drvdata->cmb->patt_val[i],
+			drvdata->base + TPDM_CMB_TPR(i));
+		writel_relaxed(drvdata->cmb->patt_mask[i],
+			drvdata->base + TPDM_CMB_TPMR(i));
+		writel_relaxed(drvdata->cmb->trig_patt[i],
+			drvdata->base + TPDM_CMB_XPR(i));
+		writel_relaxed(drvdata->cmb->trig_patt_mask[i],
+			drvdata->base + TPDM_CMB_XPMR(i));
+	}
+
+	set_cmb_tier(drvdata);
+	set_cmb_msr(drvdata);
+
+	val = readl_relaxed(drvdata->base + TPDM_CMB_CR);
+	/*
+	 * Set to 0 for continuous CMB collection mode,
+	 * 1 for trace-on-change CMB collection mode.
+	 */
+	if (drvdata->cmb->trace_mode)
+		val |= TPDM_CMB_CR_MODE;
+	else
+		val &= ~TPDM_CMB_CR_MODE;
+	/* Set the enable bit of CMB control register to 1 */
+	val |= TPDM_CMB_CR_ENA;
+	writel_relaxed(val, drvdata->base + TPDM_CMB_CR);
+}
+
 /*
  * TPDM enable operations
  * The TPDM or Monitor serves as data collection component for various
@@ -279,8 +432,8 @@ static void __tpdm_enable(struct tpdm_drvdata *drvdata)
 {
 	CS_UNLOCK(drvdata->base);
 
-	if (tpdm_has_dsb_dataset(drvdata))
-		tpdm_enable_dsb(drvdata);
+	tpdm_enable_dsb(drvdata);
+	tpdm_enable_cmb(drvdata);
 
 	CS_LOCK(drvdata->base);
 }
@@ -308,10 +461,26 @@ static void tpdm_disable_dsb(struct tpdm_drvdata *drvdata)
 {
 	u32 val;
 
+	if (!tpdm_has_dsb_dataset(drvdata))
+		return;
+
 	/* Set the enable bit of DSB control register to 0 */
 	val = readl_relaxed(drvdata->base + TPDM_DSB_CR);
 	val &= ~TPDM_DSB_CR_ENA;
 	writel_relaxed(val, drvdata->base + TPDM_DSB_CR);
+}
+
+static void tpdm_disable_cmb(struct tpdm_drvdata *drvdata)
+{
+	u32 val;
+
+	if (!tpdm_has_cmb_dataset(drvdata))
+		return;
+
+	val = readl_relaxed(drvdata->base + TPDM_CMB_CR);
+	/* Set the enable bit of CMB control register to 0 */
+	val &= ~TPDM_CMB_CR_ENA;
+	writel_relaxed(val, drvdata->base + TPDM_CMB_CR);
 }
 
 /* TPDM disable operations */
@@ -319,8 +488,8 @@ static void __tpdm_disable(struct tpdm_drvdata *drvdata)
 {
 	CS_UNLOCK(drvdata->base);
 
-	if (tpdm_has_dsb_dataset(drvdata))
-		tpdm_disable_dsb(drvdata);
+	tpdm_disable_dsb(drvdata);
+	tpdm_disable_cmb(drvdata);
 
 	CS_LOCK(drvdata->base);
 }
@@ -364,6 +533,12 @@ static int tpdm_datasets_setup(struct tpdm_drvdata *drvdata)
 		drvdata->dsb = devm_kzalloc(drvdata->dev,
 						sizeof(*drvdata->dsb), GFP_KERNEL);
 		if (!drvdata->dsb)
+			return -ENOMEM;
+	}
+	if (tpdm_has_cmb_dataset(drvdata) && (!drvdata->cmb)) {
+		drvdata->cmb = devm_kzalloc(drvdata->dev,
+						sizeof(*drvdata->cmb), GFP_KERNEL);
+		if (!drvdata->cmb)
 			return -ENOMEM;
 	}
 	tpdm_reset_datasets(drvdata);
@@ -577,9 +752,18 @@ static ssize_t enable_ts_show(struct device *dev,
 			      char *buf)
 {
 	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct tpdm_dataset_attribute *tpdm_attr =
+		container_of(attr, struct tpdm_dataset_attribute, attr);
+	ssize_t size = -EINVAL;
 
-	return sysfs_emit(buf, "%u\n",
-			 (unsigned int)drvdata->dsb->patt_ts);
+	if (tpdm_attr->mem == DSB_PATT)
+		size = sysfs_emit(buf, "%u\n",
+				  (unsigned int)drvdata->dsb->patt_ts);
+	else if (tpdm_attr->mem == CMB_PATT)
+		size = sysfs_emit(buf, "%u\n",
+				  (unsigned int)drvdata->cmb->patt_ts);
+
+	return size;
 }
 
 /*
@@ -591,17 +775,23 @@ static ssize_t enable_ts_store(struct device *dev,
 			       size_t size)
 {
 	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	struct tpdm_dataset_attribute *tpdm_attr =
+		container_of(attr, struct tpdm_dataset_attribute, attr);
 	unsigned long val;
 
 	if ((kstrtoul(buf, 0, &val)) || (val & ~1UL))
 		return -EINVAL;
 
-	spin_lock(&drvdata->spinlock);
-	drvdata->dsb->patt_ts = !!val;
-	spin_unlock(&drvdata->spinlock);
+	guard(spinlock)(&drvdata->spinlock);
+	if (tpdm_attr->mem == DSB_PATT)
+		drvdata->dsb->patt_ts = !!val;
+	else if (tpdm_attr->mem == CMB_PATT)
+		drvdata->cmb->patt_ts = !!val;
+	else
+		return -EINVAL;
+
 	return size;
 }
-static DEVICE_ATTR_RW(enable_ts);
 
 static ssize_t set_type_show(struct device *dev,
 			     struct device_attribute *attr,
@@ -704,6 +894,96 @@ static ssize_t dsb_trig_ts_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(dsb_trig_ts);
 
+static ssize_t cmb_mode_show(struct device *dev,
+			     struct device_attribute *attr,
+			     char *buf)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	return sysfs_emit(buf, "%x\n", drvdata->cmb->trace_mode);
+
+}
+
+static ssize_t cmb_mode_store(struct device *dev,
+			      struct device_attribute *attr,
+			      const char *buf,
+			      size_t size)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long trace_mode;
+
+	if (kstrtoul(buf, 0, &trace_mode) || (trace_mode & ~1UL))
+		return -EINVAL;
+
+	spin_lock(&drvdata->spinlock);
+	drvdata->cmb->trace_mode = trace_mode;
+	spin_unlock(&drvdata->spinlock);
+	return size;
+}
+static DEVICE_ATTR_RW(cmb_mode);
+
+static ssize_t cmb_ts_all_show(struct device *dev,
+			       struct device_attribute *attr,
+			       char *buf)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	return sysfs_emit(buf, "%u\n",
+			  (unsigned int)drvdata->cmb->ts_all);
+}
+
+static ssize_t cmb_ts_all_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf,
+				size_t size)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val;
+
+	if ((kstrtoul(buf, 0, &val)) || (val & ~1UL))
+		return -EINVAL;
+
+	guard(spinlock)(&drvdata->spinlock);
+	if (val)
+		drvdata->cmb->ts_all = true;
+	else
+		drvdata->cmb->ts_all = false;
+
+	return size;
+}
+static DEVICE_ATTR_RW(cmb_ts_all);
+
+static ssize_t cmb_trig_ts_show(struct device *dev,
+				struct device_attribute *attr,
+				char *buf)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+
+	return sysfs_emit(buf, "%u\n",
+			  (unsigned int)drvdata->cmb->trig_ts);
+}
+
+static ssize_t cmb_trig_ts_store(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf,
+				 size_t size)
+{
+	struct tpdm_drvdata *drvdata = dev_get_drvdata(dev->parent);
+	unsigned long val;
+
+	if ((kstrtoul(buf, 0, &val)) || (val & ~1UL))
+		return -EINVAL;
+
+	guard(spinlock)(&drvdata->spinlock);
+	if (val)
+		drvdata->cmb->trig_ts = true;
+	else
+		drvdata->cmb->trig_ts = false;
+
+	return size;
+}
+static DEVICE_ATTR_RW(cmb_trig_ts);
+
 static struct attribute *tpdm_dsb_edge_attrs[] = {
 	&dev_attr_ctrl_idx.attr,
 	&dev_attr_ctrl_val.attr,
@@ -772,7 +1052,7 @@ static struct attribute *tpdm_dsb_patt_attrs[] = {
 	DSB_PATT_MASK_ATTR(5),
 	DSB_PATT_MASK_ATTR(6),
 	DSB_PATT_MASK_ATTR(7),
-	&dev_attr_enable_ts.attr,
+	DSB_PATT_ENABLE_TS,
 	&dev_attr_set_type.attr,
 	NULL,
 };
@@ -813,10 +1093,70 @@ static struct attribute *tpdm_dsb_msr_attrs[] = {
 	NULL,
 };
 
+static struct attribute *tpdm_cmb_trig_patt_attrs[] = {
+	CMB_TRIG_PATT_ATTR(0),
+	CMB_TRIG_PATT_ATTR(1),
+	CMB_TRIG_PATT_MASK_ATTR(0),
+	CMB_TRIG_PATT_MASK_ATTR(1),
+	NULL,
+};
+
+static struct attribute *tpdm_cmb_patt_attrs[] = {
+	CMB_PATT_ATTR(0),
+	CMB_PATT_ATTR(1),
+	CMB_PATT_MASK_ATTR(0),
+	CMB_PATT_MASK_ATTR(1),
+	CMB_PATT_ENABLE_TS,
+	NULL,
+};
+
+static struct attribute *tpdm_cmb_msr_attrs[] = {
+	CMB_MSR_ATTR(0),
+	CMB_MSR_ATTR(1),
+	CMB_MSR_ATTR(2),
+	CMB_MSR_ATTR(3),
+	CMB_MSR_ATTR(4),
+	CMB_MSR_ATTR(5),
+	CMB_MSR_ATTR(6),
+	CMB_MSR_ATTR(7),
+	CMB_MSR_ATTR(8),
+	CMB_MSR_ATTR(9),
+	CMB_MSR_ATTR(10),
+	CMB_MSR_ATTR(11),
+	CMB_MSR_ATTR(12),
+	CMB_MSR_ATTR(13),
+	CMB_MSR_ATTR(14),
+	CMB_MSR_ATTR(15),
+	CMB_MSR_ATTR(16),
+	CMB_MSR_ATTR(17),
+	CMB_MSR_ATTR(18),
+	CMB_MSR_ATTR(19),
+	CMB_MSR_ATTR(20),
+	CMB_MSR_ATTR(21),
+	CMB_MSR_ATTR(22),
+	CMB_MSR_ATTR(23),
+	CMB_MSR_ATTR(24),
+	CMB_MSR_ATTR(25),
+	CMB_MSR_ATTR(26),
+	CMB_MSR_ATTR(27),
+	CMB_MSR_ATTR(28),
+	CMB_MSR_ATTR(29),
+	CMB_MSR_ATTR(30),
+	CMB_MSR_ATTR(31),
+	NULL,
+};
+
 static struct attribute *tpdm_dsb_attrs[] = {
 	&dev_attr_dsb_mode.attr,
 	&dev_attr_dsb_trig_ts.attr,
 	&dev_attr_dsb_trig_type.attr,
+	NULL,
+};
+
+static struct attribute *tpdm_cmb_attrs[] = {
+	&dev_attr_cmb_mode.attr,
+	&dev_attr_cmb_ts_all.attr,
+	&dev_attr_cmb_trig_ts.attr,
 	NULL,
 };
 
@@ -849,6 +1189,29 @@ static struct attribute_group tpdm_dsb_msr_grp = {
 	.name = "dsb_msr",
 };
 
+static struct attribute_group tpdm_cmb_attr_grp = {
+	.attrs = tpdm_cmb_attrs,
+	.is_visible = tpdm_cmb_is_visible,
+};
+
+static struct attribute_group tpdm_cmb_trig_patt_grp = {
+	.attrs = tpdm_cmb_trig_patt_attrs,
+	.is_visible = tpdm_cmb_is_visible,
+	.name = "cmb_trig_patt",
+};
+
+static struct attribute_group tpdm_cmb_patt_grp = {
+	.attrs = tpdm_cmb_patt_attrs,
+	.is_visible = tpdm_cmb_is_visible,
+	.name = "cmb_patt",
+};
+
+static struct attribute_group tpdm_cmb_msr_grp = {
+	.attrs = tpdm_cmb_msr_attrs,
+	.is_visible = tpdm_cmb_msr_is_visible,
+	.name = "cmb_msr",
+};
+
 static const struct attribute_group *tpdm_attr_grps[] = {
 	&tpdm_attr_grp,
 	&tpdm_dsb_attr_grp,
@@ -856,6 +1219,10 @@ static const struct attribute_group *tpdm_attr_grps[] = {
 	&tpdm_dsb_trig_patt_grp,
 	&tpdm_dsb_patt_grp,
 	&tpdm_dsb_msr_grp,
+	&tpdm_cmb_attr_grp,
+	&tpdm_cmb_trig_patt_grp,
+	&tpdm_cmb_patt_grp,
+	&tpdm_cmb_msr_grp,
 	NULL,
 };
 
@@ -893,6 +1260,10 @@ static int tpdm_probe(struct amba_device *adev, const struct amba_id *id)
 	if (drvdata && tpdm_has_dsb_dataset(drvdata))
 		of_property_read_u32(drvdata->dev->of_node,
 			   "qcom,dsb-msrs-num", &drvdata->dsb_msr_num);
+
+	if (drvdata && tpdm_has_cmb_dataset(drvdata))
+		of_property_read_u32(drvdata->dev->of_node,
+			   "qcom,cmb-msrs-num", &drvdata->cmb_msr_num);
 
 	/* Set up coresight component description */
 	desc.name = coresight_alloc_device_name(&tpdm_devs, dev);
@@ -933,7 +1304,7 @@ static struct amba_id tpdm_ids[] = {
 		.id = 0x000f0e00,
 		.mask = 0x000fff00,
 	},
-	{ 0, 0},
+	{ 0, 0, NULL },
 };
 
 static struct amba_driver tpdm_driver = {

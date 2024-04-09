@@ -2304,6 +2304,8 @@ void arch_smt_update(void)
 
 void __init arch_cpu_finalize_init(void)
 {
+	struct cpuinfo_x86 *c = this_cpu_ptr(&cpu_info);
+
 	identify_boot_cpu();
 
 	select_idle_routine();
@@ -2341,6 +2343,13 @@ void __init arch_cpu_finalize_init(void)
 	 */
 	fpu__init_system();
 	fpu__init_cpu();
+
+	/*
+	 * Ensure that access to the per CPU representation has the initial
+	 * boot CPU configuration.
+	 */
+	*c = boot_cpu_data;
+	c->initialized = true;
 
 	alternative_instructions();
 

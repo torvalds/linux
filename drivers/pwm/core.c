@@ -443,7 +443,7 @@ of_pwm_single_xlate(struct pwm_chip *chip, const struct of_phandle_args *args)
 	if (IS_ERR(pwm))
 		return pwm;
 
-	if (args->args_count > 1)
+	if (args->args_count > 0)
 		pwm->args.period = args->args[0];
 
 	pwm->args.polarity = PWM_POLARITY_NORMAL;

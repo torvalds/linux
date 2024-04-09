@@ -80,6 +80,8 @@ static int __patch_insn_set(void *addr, u8 c, size_t len)
 	 */
 	lockdep_assert_held(&text_mutex);
 
+	preempt_disable();
+
 	if (across_pages)
 		patch_map(addr + PAGE_SIZE, FIX_TEXT_POKE1);
 
@@ -91,6 +93,8 @@ static int __patch_insn_set(void *addr, u8 c, size_t len)
 
 	if (across_pages)
 		patch_unmap(FIX_TEXT_POKE1);
+
+	preempt_enable();
 
 	return 0;
 }
@@ -122,6 +126,8 @@ static int __patch_insn_write(void *addr, const void *insn, size_t len)
 	if (!riscv_patch_in_stop_machine)
 		lockdep_assert_held(&text_mutex);
 
+	preempt_disable();
+
 	if (across_pages)
 		patch_map(addr + PAGE_SIZE, FIX_TEXT_POKE1);
 
@@ -133,6 +139,8 @@ static int __patch_insn_write(void *addr, const void *insn, size_t len)
 
 	if (across_pages)
 		patch_unmap(FIX_TEXT_POKE1);
+
+	preempt_enable();
 
 	return ret;
 }

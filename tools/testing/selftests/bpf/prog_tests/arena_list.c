@@ -3,8 +3,11 @@
 #include <test_progs.h>
 #include <sys/mman.h>
 #include <network_helpers.h>
-
-#define PAGE_SIZE 4096
+#include <sys/user.h>
+#ifndef PAGE_SIZE /* on some archs it comes in sys/user.h */
+#include <unistd.h>
+#define PAGE_SIZE getpagesize()
+#endif
 
 #include "bpf_arena_list.h"
 #include "arena_list.skel.h"

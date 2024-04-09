@@ -183,5 +183,6 @@ void optc32_set_h_timing_div_manual_mode(struct timing_generator *optc, bool man
 void optc32_get_odm_combine_segments(struct timing_generator *tg, int *odm_combine_segments);
 void optc32_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing);
+void optc32_wait_odm_doublebuffer_pending_clear(struct timing_generator *tg);
 
 #endif /* __DC_OPTC_DCN32_H__ */

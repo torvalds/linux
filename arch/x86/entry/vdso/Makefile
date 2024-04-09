@@ -9,7 +9,9 @@ include $(srctree)/lib/vdso/Makefile
 # Sanitizer runtimes are unavailable and cannot be linked here.
 KASAN_SANITIZE			:= n
 KMSAN_SANITIZE_vclock_gettime.o := n
+KMSAN_SANITIZE_vdso32/vclock_gettime.o	:= n
 KMSAN_SANITIZE_vgetcpu.o	:= n
+KMSAN_SANITIZE_vdso32/vgetcpu.o	:= n
 
 UBSAN_SANITIZE			:= n
 KCSAN_SANITIZE			:= n
@@ -39,6 +41,7 @@ obj-$(CONFIG_X86_X32_ABI)			+= vdso-image-x32.o
 obj-$(CONFIG_COMPAT_32)				+= vdso-image-32.o vdso32-setup.o
 
 OBJECT_FILES_NON_STANDARD_vdso-image-32.o	:= n
+OBJECT_FILES_NON_STANDARD_vdso-image-x32.o	:= n
 OBJECT_FILES_NON_STANDARD_vdso-image-64.o	:= n
 OBJECT_FILES_NON_STANDARD_vdso32-setup.o	:= n
 

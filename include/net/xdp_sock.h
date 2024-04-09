@@ -188,6 +188,8 @@ static inline void xsk_tx_metadata_complete(struct xsk_tx_metadata_compl *compl,
 {
 	if (!compl)
 		return;
+	if (!compl->tx_timestamp)
+		return;
 
 	*compl->tx_timestamp = ops->tmo_fill_timestamp(priv);
 }

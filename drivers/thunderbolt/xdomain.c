@@ -997,12 +997,12 @@ static void tb_service_release(struct device *dev)
 	struct tb_xdomain *xd = tb_service_parent(svc);
 
 	tb_service_debugfs_remove(svc);
-	ida_simple_remove(&xd->service_ids, svc->id);
+	ida_free(&xd->service_ids, svc->id);
 	kfree(svc->key);
 	kfree(svc);
 }
 
-struct device_type tb_service_type = {
+const struct device_type tb_service_type = {
 	.name = "thunderbolt_service",
 	.groups = tb_service_attr_groups,
 	.uevent = tb_service_uevent,
@@ -1099,7 +1099,7 @@ static void enumerate_services(struct tb_xdomain *xd)
 			break;
 		}
 
-		id = ida_simple_get(&xd->service_ids, 0, 0, GFP_KERNEL);
+		id = ida_alloc(&xd->service_ids, GFP_KERNEL);
 		if (id < 0) {
 			kfree(svc->key);
 			kfree(svc);
@@ -1791,13 +1791,13 @@ static ssize_t rx_lanes_show(struct device *dev, struct device_attribute *attr,
 
 	switch (xd->link_width) {
 	case TB_LINK_WIDTH_SINGLE:
-	case TB_LINK_WIDTH_ASYM_RX:
+	case TB_LINK_WIDTH_ASYM_TX:
 		width = 1;
 		break;
 	case TB_LINK_WIDTH_DUAL:
 		width = 2;
 		break;
-	case TB_LINK_WIDTH_ASYM_TX:
+	case TB_LINK_WIDTH_ASYM_RX:
 		width = 3;
 		break;
 	default:
@@ -1817,13 +1817,13 @@ static ssize_t tx_lanes_show(struct device *dev, struct device_attribute *attr,
 
 	switch (xd->link_width) {
 	case TB_LINK_WIDTH_SINGLE:
-	case TB_LINK_WIDTH_ASYM_TX:
+	case TB_LINK_WIDTH_ASYM_RX:
 		width = 1;
 		break;
 	case TB_LINK_WIDTH_DUAL:
 		width = 2;
 		break;
-	case TB_LINK_WIDTH_ASYM_RX:
+	case TB_LINK_WIDTH_ASYM_TX:
 		width = 3;
 		break;
 	default:
@@ -1893,7 +1893,7 @@ static const struct dev_pm_ops tb_xdomain_pm_ops = {
 	SET_SYSTEM_SLEEP_PM_OPS(tb_xdomain_suspend, tb_xdomain_resume)
 };
 
-struct device_type tb_xdomain_type = {
+const struct device_type tb_xdomain_type = {
 	.name = "thunderbolt_xdomain",
 	.release = tb_xdomain_release,
 	.pm = &tb_xdomain_pm_ops,

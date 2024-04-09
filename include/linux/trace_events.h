@@ -17,6 +17,9 @@ struct dentry;
 struct bpf_prog;
 union bpf_attr;
 
+/* Used for event string fields when they are NULL */
+#define EVENT_NULL_STR		"(null)"
+
 const char *trace_print_flags_seq(struct trace_seq *p, const char *delim,
 				  unsigned long flags,
 				  const struct trace_print_flags *flag_array);

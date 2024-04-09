@@ -607,11 +607,6 @@ config PPC64_SUPPORTS_MEMORY_FAILURE
 config ARCH_SUPPORTS_KEXEC
 	def_bool PPC_BOOK3S || PPC_E500 || (44x && !SMP)
 
-config ARCH_SELECTS_KEXEC
-	def_bool y
-	depends on KEXEC
-	select CRASH_DUMP
-
 config ARCH_SUPPORTS_KEXEC_FILE
 	def_bool PPC64
 
@@ -622,7 +617,6 @@ config ARCH_SELECTS_KEXEC_FILE
 	def_bool y
 	depends on KEXEC_FILE
 	select KEXEC_ELF
-	select CRASH_DUMP
 	select HAVE_IMA_KEXEC if IMA
 
 config PPC64_BIG_ENDIAN_ELF_ABI_V2
@@ -694,8 +688,7 @@ config ARCH_SELECTS_CRASH_DUMP
 
 config FA_DUMP
 	bool "Firmware-assisted dump"
-	depends on PPC64 && (PPC_RTAS || PPC_POWERNV)
-	select CRASH_DUMP
+	depends on CRASH_DUMP && PPC64 && (PPC_RTAS || PPC_POWERNV)
 	help
 	  A robust mechanism to get reliable kernel crash dump with
 	  assistance from firmware. This approach does not use kexec,

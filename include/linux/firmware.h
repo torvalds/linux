@@ -4,6 +4,7 @@
 
 #include <linux/types.h>
 #include <linux/compiler.h>
+#include <linux/cleanup.h>
 #include <linux/gfp.h>
 
 #define FW_ACTION_NOUEVENT 0
@@ -197,5 +198,7 @@ static inline void firmware_upload_unregister(struct fw_upload *fw_upload)
 #endif
 
 int firmware_request_cache(struct device *device, const char *name);
+
+DEFINE_FREE(firmware, struct firmware *, release_firmware(_T))
 
 #endif

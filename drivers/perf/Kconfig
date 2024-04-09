@@ -87,13 +87,28 @@ config RISCV_PMU_SBI
 	  filtering, counter configuration.
 
 config STARFIVE_STARLINK_PMU
-	depends on ARCH_STARFIVE || (COMPILE_TEST && 64BIT)
+	depends on ARCH_STARFIVE || COMPILE_TEST
+	depends on 64BIT
 	bool "StarFive StarLink PMU"
 	help
 	   Provide support for StarLink Performance Monitor Unit.
 	   StarLink Performance Monitor Unit integrates one or more cores with
 	   an L3 memory system. The L3 cache events are added into perf event
 	   subsystem, allowing monitoring of various L3 cache perf events.
+
+config ANDES_CUSTOM_PMU
+	bool "Andes custom PMU support"
+	depends on ARCH_RENESAS && RISCV_ALTERNATIVE && RISCV_PMU_SBI
+	default y
+	help
+	  The Andes cores implement the PMU overflow extension very
+	  similar to the standard Sscofpmf and Smcntrpmf extension.
+
+	  This will patch the overflow and pending CSRs and handle the
+	  non-standard behaviour via the regular SBI PMU driver and
+	  interface.
+
+	  If you don't know what to do here, say "Y".
 
 config ARM_PMU_ACPI
 	depends on ARM_PMU && ACPI

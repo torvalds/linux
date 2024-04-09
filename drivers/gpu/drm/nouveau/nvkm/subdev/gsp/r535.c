@@ -1430,6 +1430,10 @@ r535_gsp_msg_post_event(void *priv, u32 fn, void *repv, u32 repc)
 
 /**
  * r535_gsp_msg_run_cpu_sequencer() -- process I/O commands from the GSP
+ * @priv: gsp pointer
+ * @fn: function number (ignored)
+ * @repv: pointer to libos print RPC
+ * @repc: message size
  *
  * The GSP sequencer is a list of I/O commands that the GSP can send to
  * the driver to perform for various purposes.  The most common usage is to
@@ -1781,6 +1785,7 @@ static void create_pte_array(u64 *ptes, dma_addr_t addr, size_t size)
 
 /**
  * r535_gsp_libos_init() -- create the libos arguments structure
+ * @gsp: gsp pointer
  *
  * The logging buffers are byte queues that contain encoded printf-like
  * messages from GSP-RM.  They need to be decoded by a special application
@@ -1920,6 +1925,10 @@ nvkm_gsp_radix3_dtor(struct nvkm_gsp *gsp, struct nvkm_gsp_radix3 *rx3)
 
 /**
  * nvkm_gsp_radix3_sg - build a radix3 table from a S/G list
+ * @gsp: gsp pointer
+ * @sgt: S/G list to traverse
+ * @size: size of the image, in bytes
+ * @rx3: radix3 array to update
  *
  * The GSP uses a three-level page table, called radix3, to map the firmware.
  * Each 64-bit "pointer" in the table is either the bus address of an entry in

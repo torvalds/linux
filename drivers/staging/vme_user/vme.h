@@ -81,7 +81,7 @@ struct vme_resource {
 	struct list_head *entry;
 };
 
-extern struct bus_type vme_bus_type;
+extern const struct bus_type vme_bus_type;
 
 /* Number of VME interrupt vectors */
 #define VME_NUM_STATUSID	256

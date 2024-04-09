@@ -197,11 +197,10 @@ out:
 	return ret;
 }
 
-static int rapl_msr_remove(struct platform_device *pdev)
+static void rapl_msr_remove(struct platform_device *pdev)
 {
 	cpuhp_remove_state(rapl_msr_priv->pcap_rapl_online);
 	powercap_unregister_control_type(rapl_msr_priv->control_type);
-	return 0;
 }
 
 static const struct platform_device_id rapl_msr_ids[] = {
@@ -212,7 +211,7 @@ MODULE_DEVICE_TABLE(platform, rapl_msr_ids);
 
 static struct platform_driver intel_rapl_msr_driver = {
 	.probe = rapl_msr_probe,
-	.remove = rapl_msr_remove,
+	.remove_new = rapl_msr_remove,
 	.id_table = rapl_msr_ids,
 	.driver = {
 		.name = "intel_rapl_msr",
