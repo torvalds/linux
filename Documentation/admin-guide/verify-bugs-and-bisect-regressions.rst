@@ -309,31 +309,32 @@ machine; if you want to compile the kernel on another system, check
 .. _rangecheck_bissbs:
 
 * Determine the kernel versions considered 'good' and 'bad' throughout this
-  guide.
+  guide:
 
-  Do you follow this guide to verify if a bug is present in the code developers
-  care for? Then consider the mainline release your 'working' kernel (the newest
-  one you regularly use) is based on to be the 'good' version; if your 'working'
-  kernel for example is 6.0.13, then your 'good' kernel is 6.0.
+  * Do you follow this guide to verify if a bug is present in the code the
+    primary developers care for? Then consider the version of the newest kernel
+    you regularly use currently as 'good' (e.g. 6.0, 6.0.13, or 6.1-rc2).
 
-  In case you face a regression, it depends on the version range where the
-  regression was introduced:
+  * Do you face a regression, e.g. something broke or works worse after
+    switching to a newer kernel version? In that case it depends on the version
+    range during which the problem appeared:
 
-  * Something which used to work in Linux 6.0 broke when switching to Linux
-    6.1-rc1? Then henceforth regard 6.0 as the last known 'good' version
-    and 6.1-rc1 as the first 'bad' one.
+    * Something regressed when updating from a stable/longterm release
+      (say 6.0.13) to a newer mainline series (like 6.1-rc7 or 6.1) or a
+      stable/longterm version based on one (say 6.1.5)? Then consider the
+      mainline release your working kernel is based on to be the 'good'
+      version (e.g. 6.0) and the first version to be broken as the 'bad' one
+      (e.g. 6.1-rc7, 6.1, or 6.1.5). Note, at this point it is merely assumed
+      that 6.0 is fine; this hypothesis will be checked in segment 2.
 
-  * Some function stopped working when updating from 6.0.13 to 6.1.5? Then for
-    the time being consider 6.0 as the last 'good' version and 6.1.5 as
-    the 'bad' one. Note, at this point it is merely assumed that 6.0 is fine;
-    this assumption will be checked in segment 2.
+    * Something regressed when switching from one mainline version (say 6.0) to
+      a later one (like 6.1-rc1) or a stable/longterm release based on it
+      (say 6.1.5)? Then regard the last working version (e.g. 6.0) as 'good' and
+      the first broken (e.g. 6.1-rc1 or 6.1.5) as 'bad'.
 
-  * A feature you used in 6.0.13 does not work at all or worse in 6.1.15? In
-    that case you want to bisect within a stable/longterm series: consider
-    6.0.13 as the last known 'good' version and 6.0.15 as the first 'bad'
-    one. Note, in this case you still want to compile and test a mainline kernel
-    as explained in segment 1: the outcome will determine if you need to report
-    your issue to the regular developers or the stable team.
+    * Something regressed when updating within a stable/longterm series (say
+      from 6.0.13 to 6.0.15)? Then consider those versions as 'good' and 'bad'
+      (e.g. 6.0.13 and 6.0.15), as you need to bisect within that series.
 
   *Note, do not confuse 'good' version with 'working' kernel; the latter term
   throughout this guide will refer to the last kernel that has been working
@@ -392,18 +393,12 @@ machine; if you want to compile the kernel on another system, check
 
 .. _stablesources_bissbs:
 
-* Retrieve the sources for any stable or longterm series you might need.
-
-  Is the version you earlier established as 'bad' a stable or longterm release?
-  Then download the code for the series it belongs to ('linux-6.1.y' in this
-  example)::
+* Is one of the versions you earlier established as 'good' or 'bad' a stable or
+  longterm release (say 6.1.5)? Then download the code for the series it belongs
+  to ('linux-6.1.y' in this example)::
 
     git remote set-branches --add stable linux-6.1.y
     git fetch stable
-
-  If the version earlier established as 'good' is from a different stable or
-  longterm series (say 6.0.13), repeat the previous step, but this time for the
-  branch holding the series the 'good' version belongs to (e.g. linux-6.0.y).
 
 .. _oldconfig_bissbs:
 
@@ -545,10 +540,24 @@ be a waste of time. [:ref:`details <introlatestcheck_bisref>`]
 
 .. _checkoutmaster_bissbs:
 
-* Check out the latest Linux codebase::
+* Check out the latest Linux codebase.
 
-    cd ~/linux/
-    git switch --discard-changes --detach mainline/master
+  * Are your 'good' and 'bad' versions from the same stable or longterm series?
+    Then check the `front page of kernel.org <https://kernel.org/>`_: if it
+    lists a release from that series without an '[EOL]' tag, checkout the series
+    latest version ('linux-6.1.y' in the following example)::
+
+      cd ~/linux/
+      git switch --discard-changes --detach stable/linux-6.1.y
+
+    Your series is unsupported, if is not listed or carrying a 'end of life'
+    tag. In that case you might want to check if a successor series (say
+    linux-6.2.y) or mainline (see next point) fix the bug.
+
+  * In all other cases, run::
+
+      cd ~/linux/
+      git switch --discard-changes --detach mainline/master
 
   [:ref:`details <checkoutmaster_bisref>`]
 
@@ -650,15 +659,15 @@ be a waste of time. [:ref:`details <introlatestcheck_bisref>`]
 
 .. _recheckstablebroken_bissbs:
 
-* Are you facing a problem within a stable/longterm series, but failed to
-  reproduce it with the mainline kernel you just built? One that according to
-  the `front page of kernel.org <https://kernel.org/>`_ is still supported? Then
-  check if the latest codebase for the particular series might already fix the
-  problem. To do so, check out that series latest version (again, this here is
-  assumed to be 6.0)::
+* Did you just built a stable or longterm kernel? And were you able to reproduce
+  the regression with it? Then you should test the latest mainline codebase as
+  well, because the result determines which developers the bug must be submitted
+  to.
+
+  To prepare that test, check out current mainline::
 
     cd ~/linux/
-    git switch --discard-changes --detach linux-6.0.y
+    git switch --discard-changes --detach mainline/master
 
   Now use the checked out code to build and install another kernel using the
   commands the earlier steps already described in more detail::
@@ -680,7 +689,9 @@ be a waste of time. [:ref:`details <introlatestcheck_bisref>`]
     uname -r
     cat /proc/sys/kernel/tainted
 
-  Now verify if this kernel is showing the problem.
+  Now verify if this kernel is showing the problem. If it does, then you need
+  to report the bug to the primary developers; if it does not, report it to the
+  stable team. See Documentation/admin-guide/reporting-issues.rst for details.
 
   [:ref:`details <recheckstablebroken_bisref>`]
 
