@@ -61,6 +61,13 @@ void bnxt_set_ulp_msix_num(struct bnxt *bp, int num)
 		bp->edev->ulp_num_msix_vec = num;
 }
 
+int bnxt_get_ulp_msix_num_in_use(struct bnxt *bp)
+{
+	if (bnxt_ulp_registered(bp->edev))
+		return bp->edev->ulp_num_msix_vec;
+	return 0;
+}
+
 int bnxt_get_ulp_stat_ctxs(struct bnxt *bp)
 {
 	if (bp->edev)
@@ -72,6 +79,13 @@ void bnxt_set_ulp_stat_ctxs(struct bnxt *bp, int num_ulp_ctx)
 {
 	if (bp->edev)
 		bp->edev->ulp_num_ctxs = num_ulp_ctx;
+}
+
+int bnxt_get_ulp_stat_ctxs_in_use(struct bnxt *bp)
+{
+	if (bnxt_ulp_registered(bp->edev))
+		return bp->edev->ulp_num_ctxs;
+	return 0;
 }
 
 void bnxt_set_dflt_ulp_stat_ctxs(struct bnxt *bp)
