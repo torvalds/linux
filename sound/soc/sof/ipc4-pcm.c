@@ -40,9 +40,12 @@ struct sof_ipc4_timestamp_info {
 /**
  * struct sof_ipc4_pcm_stream_priv - IPC4 specific private data
  * @time_info: pointer to time info struct if it is supported, otherwise NULL
+ * @chain_dma_allocated: indicates the ChainDMA allocation state
  */
 struct sof_ipc4_pcm_stream_priv {
 	struct sof_ipc4_timestamp_info *time_info;
+
+	bool chain_dma_allocated;
 };
 
 static inline struct sof_ipc4_timestamp_info *
@@ -269,14 +272,17 @@ sof_ipc4_update_pipeline_state(struct snd_sof_dev *sdev, int state, int cmd,
  */
 
 static int sof_ipc4_chain_dma_trigger(struct snd_sof_dev *sdev,
-				      int direction,
+				      struct snd_sof_pcm *spcm, int direction,
 				      struct snd_sof_pcm_stream_pipeline_list *pipeline_list,
 				      int state, int cmd)
 {
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+	struct sof_ipc4_pcm_stream_priv *stream_priv;
 	bool allocate, enable, set_fifo_size;
 	struct sof_ipc4_msg msg = {{ 0 }};
-	int i;
+	int ret, i;
+
+	stream_priv = spcm->stream[direction].private;
 
 	switch (state) {
 	case SOF_IPC4_PIPE_RUNNING: /* Allocate and start chained dma */
@@ -297,6 +303,11 @@ static int sof_ipc4_chain_dma_trigger(struct snd_sof_dev *sdev,
 		set_fifo_size = false;
 		break;
 	case SOF_IPC4_PIPE_RESET: /* Disable and free chained DMA. */
+
+		/* ChainDMA can only be reset if it has been allocated */
+		if (!stream_priv->chain_dma_allocated)
+			return 0;
+
 		allocate = false;
 		enable = false;
 		set_fifo_size = false;
@@ -354,7 +365,12 @@ static int sof_ipc4_chain_dma_trigger(struct snd_sof_dev *sdev,
 	if (enable)
 		msg.primary |= SOF_IPC4_GLB_CHAIN_DMA_ENABLE_MASK;
 
-	return sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
+	ret = sof_ipc_tx_message_no_reply(sdev->ipc, &msg, 0);
+	/* Update the ChainDMA allocation state */
+	if (!ret)
+		stream_priv->chain_dma_allocated = allocate;
+
+	return ret;
 }
 
 static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
@@ -394,7 +410,7 @@ static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 	 * trigger function that handles the rest for the substream.
 	 */
 	if (pipeline->use_chain_dma)
-		return sof_ipc4_chain_dma_trigger(sdev, substream->stream,
+		return sof_ipc4_chain_dma_trigger(sdev, spcm, substream->stream,
 						  pipeline_list, state, cmd);
 
 	/* allocate memory for the pipeline data */
