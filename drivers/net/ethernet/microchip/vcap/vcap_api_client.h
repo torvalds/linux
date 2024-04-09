@@ -200,6 +200,8 @@ int vcap_rule_add_action_bit(struct vcap_rule *rule,
 			     enum vcap_action_field action, enum vcap_bit val);
 int vcap_rule_add_action_u32(struct vcap_rule *rule,
 			     enum vcap_action_field action, u32 value);
+int vcap_rule_add_action_u72(struct vcap_rule *rule, enum vcap_action_field action,
+			     struct vcap_u72_action *fieldval);
 
 /* Get number of rules in a vcap instance lookup chain id range */
 int vcap_admin_rule_count(struct vcap_admin *admin, int cid);

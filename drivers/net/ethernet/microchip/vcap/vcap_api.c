@@ -2907,6 +2907,18 @@ int vcap_rule_add_action_u32(struct vcap_rule *rule,
 }
 EXPORT_SYMBOL_GPL(vcap_rule_add_action_u32);
 
+/* Add a 72 bit action field with value to the rule */
+int vcap_rule_add_action_u72(struct vcap_rule *rule,
+			     enum vcap_action_field action,
+			     struct vcap_u72_action *fieldval)
+{
+	struct vcap_client_actionfield_data data;
+
+	memcpy(&data.u72, fieldval, sizeof(data.u72));
+	return vcap_rule_add_action(rule, action, VCAP_FIELD_U72, &data);
+}
+EXPORT_SYMBOL_GPL(vcap_rule_add_action_u72);
+
 static int vcap_read_counter(struct vcap_rule_internal *ri,
 			     struct vcap_counter *ctr)
 {
