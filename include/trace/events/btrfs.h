@@ -2537,6 +2537,105 @@ TRACE_EVENT(btrfs_get_raid_extent_offset,
 			__entry->devid)
 );
 
+TRACE_EVENT(btrfs_extent_map_shrinker_count,
+
+	TP_PROTO(const struct btrfs_fs_info *fs_info, long nr),
+
+	TP_ARGS(fs_info, nr),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	long,	nr	)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->nr		= nr;
+	),
+
+	TP_printk_btrfs("nr=%ld", __entry->nr)
+);
+
+TRACE_EVENT(btrfs_extent_map_shrinker_scan_enter,
+
+	TP_PROTO(const struct btrfs_fs_info *fs_info, long nr_to_scan, long nr),
+
+	TP_ARGS(fs_info, nr_to_scan, nr),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	long,	nr_to_scan	)
+		__field(	long,	nr		)
+		__field(	u64,	last_root_id	)
+		__field(	u64,	last_ino	)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->nr_to_scan	= nr_to_scan;
+		__entry->nr		= nr;
+		__entry->last_root_id	= fs_info->extent_map_shrinker_last_root;
+		__entry->last_ino	= fs_info->extent_map_shrinker_last_ino;
+	),
+
+	TP_printk_btrfs("nr_to_scan=%ld nr=%ld last_root=%llu(%s) last_ino=%llu",
+			__entry->nr_to_scan, __entry->nr,
+			show_root_type(__entry->last_root_id), __entry->last_ino)
+);
+
+TRACE_EVENT(btrfs_extent_map_shrinker_scan_exit,
+
+	TP_PROTO(const struct btrfs_fs_info *fs_info, long nr_dropped, long nr),
+
+	TP_ARGS(fs_info, nr_dropped, nr),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	long,	nr_dropped	)
+		__field(	long,	nr		)
+		__field(	u64,	last_root_id	)
+		__field(	u64,	last_ino	)
+	),
+
+	TP_fast_assign_btrfs(fs_info,
+		__entry->nr_dropped	= nr_dropped;
+		__entry->nr		= nr;
+		__entry->last_root_id	= fs_info->extent_map_shrinker_last_root;
+		__entry->last_ino	= fs_info->extent_map_shrinker_last_ino;
+	),
+
+	TP_printk_btrfs("nr_dropped=%ld nr=%ld last_root=%llu(%s) last_ino=%llu",
+			__entry->nr_dropped, __entry->nr,
+			show_root_type(__entry->last_root_id), __entry->last_ino)
+);
+
+TRACE_EVENT(btrfs_extent_map_shrinker_remove_em,
+
+	TP_PROTO(const struct btrfs_inode *inode, const struct extent_map *em),
+
+	TP_ARGS(inode, em),
+
+	TP_STRUCT__entry_btrfs(
+		__field(	u64,	ino		)
+		__field(	u64,	root_id		)
+		__field(	u64,	start		)
+		__field(	u64,	len		)
+		__field(	u64,	block_start	)
+		__field(	u32,	flags		)
+	),
+
+	TP_fast_assign_btrfs(inode->root->fs_info,
+		__entry->ino		= btrfs_ino(inode);
+		__entry->root_id	= inode->root->root_key.objectid;
+		__entry->start		= em->start;
+		__entry->len		= em->len;
+		__entry->block_start	= em->block_start;
+		__entry->flags		= em->flags;
+	),
+
+	TP_printk_btrfs(
+"ino=%llu root=%llu(%s) start=%llu len=%llu block_start=%llu(%s) flags=%s",
+			__entry->ino, show_root_type(__entry->root_id),
+			__entry->start, __entry->len,
+			show_map_type(__entry->block_start),
+			show_map_flags(__entry->flags))
+);
+
 #endif /* _TRACE_BTRFS_H */
 
 /* This part must be outside protection */

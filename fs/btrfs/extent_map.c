@@ -1080,6 +1080,7 @@ static long btrfs_scan_inode(struct btrfs_inode *inode, long *scanned, long nr_t
 			btrfs_set_inode_full_sync(inode);
 
 		remove_extent_mapping(inode, em);
+		trace_btrfs_extent_map_shrinker_remove_em(inode, em);
 		/* Drop the reference for the tree. */
 		free_extent_map(em);
 		nr_dropped++;
@@ -1152,6 +1153,12 @@ long btrfs_free_extent_maps(struct btrfs_fs_info *fs_info, long nr_to_scan)
 	long nr_dropped = 0;
 	long scanned = 0;
 
+	if (trace_btrfs_extent_map_shrinker_scan_enter_enabled()) {
+		s64 nr = percpu_counter_sum_positive(&fs_info->evictable_extent_maps);
+
+		trace_btrfs_extent_map_shrinker_scan_enter(fs_info, nr_to_scan, nr);
+	}
+
 	while (scanned < nr_to_scan) {
 		struct btrfs_root *root;
 		unsigned long count;
@@ -1182,6 +1189,12 @@ long btrfs_free_extent_maps(struct btrfs_fs_info *fs_info, long nr_to_scan)
 			nr_dropped += btrfs_scan_root(root, &scanned, nr_to_scan);
 
 		btrfs_put_root(root);
+	}
+
+	if (trace_btrfs_extent_map_shrinker_scan_exit_enabled()) {
+		s64 nr = percpu_counter_sum_positive(&fs_info->evictable_extent_maps);
+
+		trace_btrfs_extent_map_shrinker_scan_exit(fs_info, nr_dropped, nr);
 	}
 
 	return nr_dropped;

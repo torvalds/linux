@@ -2374,8 +2374,11 @@ static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 static long btrfs_nr_cached_objects(struct super_block *sb, struct shrink_control *sc)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+	const s64 nr = percpu_counter_sum_positive(&fs_info->evictable_extent_maps);
 
-	return percpu_counter_sum_positive(&fs_info->evictable_extent_maps);
+	trace_btrfs_extent_map_shrinker_count(fs_info, nr);
+
+	return nr;
 }
 
 static long btrfs_free_cached_objects(struct super_block *sb, struct shrink_control *sc)
