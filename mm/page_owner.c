@@ -118,7 +118,6 @@ static __init void init_page_owner(void)
 	register_dummy_stack();
 	register_failure_stack();
 	register_early_stack();
-	static_branch_enable(&page_owner_inited);
 	init_early_allocated_pages();
 	/* Initialize dummy and failure stacks and link them to stack_list */
 	dummy_stack.stack_record = __stack_depot_get_stack_record(dummy_handle);
@@ -129,6 +128,7 @@ static __init void init_page_owner(void)
 		refcount_set(&failure_stack.stack_record->count, 1);
 	dummy_stack.next = &failure_stack;
 	stack_list = &dummy_stack;
+	static_branch_enable(&page_owner_inited);
 }
 
 struct page_ext_operations page_owner_ops = {
