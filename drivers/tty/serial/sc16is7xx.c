@@ -1,19 +1,22 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * SC16IS7xx tty serial driver - Copyright (C) 2014 GridPoint
- * Author: Jon Ringle <jringle@gridpoint.com>
+ * SC16IS7xx tty serial driver - common code
  *
- *  Based on max310x.c, by Alexander Shiyan <shc_work@mail.ru>
+ * Copyright (C) 2014 GridPoint
+ * Author: Jon Ringle <jringle@gridpoint.com>
+ * Based on max310x.c, by Alexander Shiyan <shc_work@mail.ru>
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+#undef DEFAULT_SYMBOL_NAMESPACE
+#define DEFAULT_SYMBOL_NAMESPACE SERIAL_NXP_SC16IS7XX
 
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/export.h>
 #include <linux/gpio/driver.h>
-#include <linux/i2c.h>
+#include <linux/kthread.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/property.h>
@@ -21,15 +24,15 @@
 #include <linux/sched.h>
 #include <linux/serial_core.h>
 #include <linux/serial.h>
+#include <linux/string.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
-#include <linux/spi/spi.h>
 #include <linux/uaccess.h>
 #include <linux/units.h>
 
-#define SC16IS7XX_NAME			"sc16is7xx"
+#include "sc16is7xx.h"
+
 #define SC16IS7XX_MAX_DEVS		8
-#define SC16IS7XX_MAX_PORTS		2 /* Maximum number of UART ports per IC. */
 
 /* SC16IS7XX register definitions */
 #define SC16IS7XX_RHR_REG		(0x00) /* RX FIFO */
@@ -302,15 +305,8 @@
 
 
 /* Misc definitions */
-#define SC16IS7XX_SPI_READ_BIT		BIT(7)
 #define SC16IS7XX_FIFO_SIZE		(64)
 #define SC16IS7XX_GPIOS_PER_BANK	4
-
-struct sc16is7xx_devtype {
-	char	name[10];
-	int	nr_gpio;
-	int	nr_uart;
-};
 
 #define SC16IS7XX_RECONF_MD		(1 << 0)
 #define SC16IS7XX_RECONF_IER		(1 << 1)
@@ -492,35 +488,40 @@ static void sc16is7xx_stop_rx(struct uart_port *port)
 	sc16is7xx_ier_clear(port, SC16IS7XX_IER_RDI_BIT);
 }
 
-static const struct sc16is7xx_devtype sc16is74x_devtype = {
+const struct sc16is7xx_devtype sc16is74x_devtype = {
 	.name		= "SC16IS74X",
 	.nr_gpio	= 0,
 	.nr_uart	= 1,
 };
+EXPORT_SYMBOL_GPL(sc16is74x_devtype);
 
-static const struct sc16is7xx_devtype sc16is750_devtype = {
+const struct sc16is7xx_devtype sc16is750_devtype = {
 	.name		= "SC16IS750",
 	.nr_gpio	= 8,
 	.nr_uart	= 1,
 };
+EXPORT_SYMBOL_GPL(sc16is750_devtype);
 
-static const struct sc16is7xx_devtype sc16is752_devtype = {
+const struct sc16is7xx_devtype sc16is752_devtype = {
 	.name		= "SC16IS752",
 	.nr_gpio	= 8,
 	.nr_uart	= 2,
 };
+EXPORT_SYMBOL_GPL(sc16is752_devtype);
 
-static const struct sc16is7xx_devtype sc16is760_devtype = {
+const struct sc16is7xx_devtype sc16is760_devtype = {
 	.name		= "SC16IS760",
 	.nr_gpio	= 8,
 	.nr_uart	= 1,
 };
+EXPORT_SYMBOL_GPL(sc16is760_devtype);
 
-static const struct sc16is7xx_devtype sc16is762_devtype = {
+const struct sc16is7xx_devtype sc16is762_devtype = {
 	.name		= "SC16IS762",
 	.nr_gpio	= 8,
 	.nr_uart	= 2,
 };
+EXPORT_SYMBOL_GPL(sc16is762_devtype);
 
 static bool sc16is7xx_regmap_volatile(struct device *dev, unsigned int reg)
 {
@@ -1453,9 +1454,8 @@ static const struct serial_rs485 sc16is7xx_rs485_supported = {
 	.delay_rts_after_send = 1,	/* Not supported but keep returning -EINVAL */
 };
 
-static int sc16is7xx_probe(struct device *dev,
-			   const struct sc16is7xx_devtype *devtype,
-			   struct regmap *regmaps[], int irq)
+int sc16is7xx_probe(struct device *dev, const struct sc16is7xx_devtype *devtype,
+		    struct regmap *regmaps[], int irq)
 {
 	unsigned long freq = 0, *pfreq = dev_get_platdata(dev);
 	unsigned int val;
@@ -1647,8 +1647,9 @@ out_clk:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(sc16is7xx_probe);
 
-static void sc16is7xx_remove(struct device *dev)
+void sc16is7xx_remove(struct device *dev)
 {
 	struct sc16is7xx_port *s = dev_get_drvdata(dev);
 	int i;
@@ -1670,8 +1671,9 @@ static void sc16is7xx_remove(struct device *dev)
 
 	clk_disable_unprepare(s->clk);
 }
+EXPORT_SYMBOL_GPL(sc16is7xx_remove);
 
-static const struct of_device_id __maybe_unused sc16is7xx_dt_ids[] = {
+const struct of_device_id __maybe_unused sc16is7xx_dt_ids[] = {
 	{ .compatible = "nxp,sc16is740",	.data = &sc16is74x_devtype, },
 	{ .compatible = "nxp,sc16is741",	.data = &sc16is74x_devtype, },
 	{ .compatible = "nxp,sc16is750",	.data = &sc16is750_devtype, },
@@ -1680,9 +1682,10 @@ static const struct of_device_id __maybe_unused sc16is7xx_dt_ids[] = {
 	{ .compatible = "nxp,sc16is762",	.data = &sc16is762_devtype, },
 	{ }
 };
+EXPORT_SYMBOL_GPL(sc16is7xx_dt_ids);
 MODULE_DEVICE_TABLE(of, sc16is7xx_dt_ids);
 
-static struct regmap_config regcfg = {
+struct regmap_config sc16is7xx_regcfg = {
 	.reg_bits = 5,
 	.pad_bits = 3,
 	.val_bits = 8,
@@ -1695,8 +1698,9 @@ static struct regmap_config regcfg = {
 	.max_raw_write = SC16IS7XX_FIFO_SIZE,
 	.max_register = SC16IS7XX_EFCR_REG,
 };
+EXPORT_SYMBOL_GPL(sc16is7xx_regcfg);
 
-static const char *sc16is7xx_regmap_name(u8 port_id)
+const char *sc16is7xx_regmap_name(u8 port_id)
 {
 	switch (port_id) {
 	case 0:	return "port0";
@@ -1706,184 +1710,27 @@ static const char *sc16is7xx_regmap_name(u8 port_id)
 		return NULL;
 	}
 }
+EXPORT_SYMBOL_GPL(sc16is7xx_regmap_name);
 
-static unsigned int sc16is7xx_regmap_port_mask(unsigned int port_id)
+unsigned int sc16is7xx_regmap_port_mask(unsigned int port_id)
 {
 	/* CH1,CH0 are at bits 2:1. */
 	return port_id << 1;
 }
-
-#ifdef CONFIG_SERIAL_SC16IS7XX_SPI
-static int sc16is7xx_spi_probe(struct spi_device *spi)
-{
-	const struct sc16is7xx_devtype *devtype;
-	struct regmap *regmaps[SC16IS7XX_MAX_PORTS];
-	unsigned int i;
-	int ret;
-
-	/* Setup SPI bus */
-	spi->bits_per_word	= 8;
-	/* For all variants, only mode 0 is supported */
-	if ((spi->mode & SPI_MODE_X_MASK) != SPI_MODE_0)
-		return dev_err_probe(&spi->dev, -EINVAL, "Unsupported SPI mode\n");
-
-	spi->mode		= spi->mode ? : SPI_MODE_0;
-	spi->max_speed_hz	= spi->max_speed_hz ? : 4 * HZ_PER_MHZ;
-	ret = spi_setup(spi);
-	if (ret)
-		return ret;
-
-	devtype = spi_get_device_match_data(spi);
-	if (!devtype)
-		return dev_err_probe(&spi->dev, -ENODEV, "Failed to match device\n");
-
-	for (i = 0; i < devtype->nr_uart; i++) {
-		regcfg.name = sc16is7xx_regmap_name(i);
-		/*
-		 * If read_flag_mask is 0, the regmap code sets it to a default
-		 * of 0x80. Since we specify our own mask, we must add the READ
-		 * bit ourselves:
-		 */
-		regcfg.read_flag_mask = sc16is7xx_regmap_port_mask(i) |
-			SC16IS7XX_SPI_READ_BIT;
-		regcfg.write_flag_mask = sc16is7xx_regmap_port_mask(i);
-		regmaps[i] = devm_regmap_init_spi(spi, &regcfg);
-	}
-
-	return sc16is7xx_probe(&spi->dev, devtype, regmaps, spi->irq);
-}
-
-static void sc16is7xx_spi_remove(struct spi_device *spi)
-{
-	sc16is7xx_remove(&spi->dev);
-}
-
-static const struct spi_device_id sc16is7xx_spi_id_table[] = {
-	{ "sc16is74x",	(kernel_ulong_t)&sc16is74x_devtype, },
-	{ "sc16is740",	(kernel_ulong_t)&sc16is74x_devtype, },
-	{ "sc16is741",	(kernel_ulong_t)&sc16is74x_devtype, },
-	{ "sc16is750",	(kernel_ulong_t)&sc16is750_devtype, },
-	{ "sc16is752",	(kernel_ulong_t)&sc16is752_devtype, },
-	{ "sc16is760",	(kernel_ulong_t)&sc16is760_devtype, },
-	{ "sc16is762",	(kernel_ulong_t)&sc16is762_devtype, },
-	{ }
-};
-
-MODULE_DEVICE_TABLE(spi, sc16is7xx_spi_id_table);
-
-static struct spi_driver sc16is7xx_spi_uart_driver = {
-	.driver = {
-		.name		= SC16IS7XX_NAME,
-		.of_match_table	= sc16is7xx_dt_ids,
-	},
-	.probe		= sc16is7xx_spi_probe,
-	.remove		= sc16is7xx_spi_remove,
-	.id_table	= sc16is7xx_spi_id_table,
-};
-#endif
-
-#ifdef CONFIG_SERIAL_SC16IS7XX_I2C
-static int sc16is7xx_i2c_probe(struct i2c_client *i2c)
-{
-	const struct sc16is7xx_devtype *devtype;
-	struct regmap *regmaps[SC16IS7XX_MAX_PORTS];
-	unsigned int i;
-
-	devtype = i2c_get_match_data(i2c);
-	if (!devtype)
-		return dev_err_probe(&i2c->dev, -ENODEV, "Failed to match device\n");
-
-	for (i = 0; i < devtype->nr_uart; i++) {
-		regcfg.name = sc16is7xx_regmap_name(i);
-		regcfg.read_flag_mask = sc16is7xx_regmap_port_mask(i);
-		regcfg.write_flag_mask = sc16is7xx_regmap_port_mask(i);
-		regmaps[i] = devm_regmap_init_i2c(i2c, &regcfg);
-	}
-
-	return sc16is7xx_probe(&i2c->dev, devtype, regmaps, i2c->irq);
-}
-
-static void sc16is7xx_i2c_remove(struct i2c_client *client)
-{
-	sc16is7xx_remove(&client->dev);
-}
-
-static const struct i2c_device_id sc16is7xx_i2c_id_table[] = {
-	{ "sc16is74x",	(kernel_ulong_t)&sc16is74x_devtype, },
-	{ "sc16is740",	(kernel_ulong_t)&sc16is74x_devtype, },
-	{ "sc16is741",	(kernel_ulong_t)&sc16is74x_devtype, },
-	{ "sc16is750",	(kernel_ulong_t)&sc16is750_devtype, },
-	{ "sc16is752",	(kernel_ulong_t)&sc16is752_devtype, },
-	{ "sc16is760",	(kernel_ulong_t)&sc16is760_devtype, },
-	{ "sc16is762",	(kernel_ulong_t)&sc16is762_devtype, },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, sc16is7xx_i2c_id_table);
-
-static struct i2c_driver sc16is7xx_i2c_uart_driver = {
-	.driver = {
-		.name		= SC16IS7XX_NAME,
-		.of_match_table	= sc16is7xx_dt_ids,
-	},
-	.probe		= sc16is7xx_i2c_probe,
-	.remove		= sc16is7xx_i2c_remove,
-	.id_table	= sc16is7xx_i2c_id_table,
-};
-
-#endif
+EXPORT_SYMBOL_GPL(sc16is7xx_regmap_port_mask);
 
 static int __init sc16is7xx_init(void)
 {
-	int ret;
-
-	ret = uart_register_driver(&sc16is7xx_uart);
-	if (ret) {
-		pr_err("Registering UART driver failed\n");
-		return ret;
-	}
-
-#ifdef CONFIG_SERIAL_SC16IS7XX_I2C
-	ret = i2c_add_driver(&sc16is7xx_i2c_uart_driver);
-	if (ret < 0) {
-		pr_err("failed to init sc16is7xx i2c --> %d\n", ret);
-		goto err_i2c;
-	}
-#endif
-
-#ifdef CONFIG_SERIAL_SC16IS7XX_SPI
-	ret = spi_register_driver(&sc16is7xx_spi_uart_driver);
-	if (ret < 0) {
-		pr_err("failed to init sc16is7xx spi --> %d\n", ret);
-		goto err_spi;
-	}
-#endif
-	return ret;
-
-#ifdef CONFIG_SERIAL_SC16IS7XX_SPI
-err_spi:
-#endif
-#ifdef CONFIG_SERIAL_SC16IS7XX_I2C
-	i2c_del_driver(&sc16is7xx_i2c_uart_driver);
-err_i2c:
-#endif
-	uart_unregister_driver(&sc16is7xx_uart);
-	return ret;
+	return uart_register_driver(&sc16is7xx_uart);
 }
 module_init(sc16is7xx_init);
 
 static void __exit sc16is7xx_exit(void)
 {
-#ifdef CONFIG_SERIAL_SC16IS7XX_I2C
-	i2c_del_driver(&sc16is7xx_i2c_uart_driver);
-#endif
-
-#ifdef CONFIG_SERIAL_SC16IS7XX_SPI
-	spi_unregister_driver(&sc16is7xx_spi_uart_driver);
-#endif
 	uart_unregister_driver(&sc16is7xx_uart);
 }
 module_exit(sc16is7xx_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Jon Ringle <jringle@gridpoint.com>");
-MODULE_DESCRIPTION("SC16IS7XX serial driver");
+MODULE_DESCRIPTION("SC16IS7xx tty serial core driver");
