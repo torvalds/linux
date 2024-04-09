@@ -291,7 +291,6 @@ void bnxt_rdma_aux_device_uninit(struct bnxt *bp)
 
 	aux_priv = bp->aux_priv;
 	adev = &aux_priv->aux_dev;
-	auxiliary_device_delete(adev);
 	auxiliary_device_uninit(adev);
 }
 
@@ -307,6 +306,14 @@ static void bnxt_aux_dev_release(struct device *dev)
 	kfree(aux_priv->edev);
 	kfree(aux_priv);
 	bp->aux_priv = NULL;
+}
+
+void bnxt_rdma_aux_device_del(struct bnxt *bp)
+{
+	if (!bp->edev)
+		return;
+
+	auxiliary_device_delete(&bp->aux_priv->aux_dev);
 }
 
 static void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt *bp)
@@ -330,6 +337,23 @@ static void bnxt_set_edev_info(struct bnxt_en_dev *edev, struct bnxt *bp)
 	edev->en_state = bp->state;
 	edev->bar0 = bp->bar0;
 	edev->ulp_tbl->msix_requested = bnxt_get_ulp_msix_num(bp);
+}
+
+void bnxt_rdma_aux_device_add(struct bnxt *bp)
+{
+	struct auxiliary_device *aux_dev;
+	int rc;
+
+	if (!bp->edev)
+		return;
+
+	aux_dev = &bp->aux_priv->aux_dev;
+	rc = auxiliary_device_add(aux_dev);
+	if (rc) {
+		netdev_warn(bp->dev, "Failed to add auxiliary device for ROCE\n");
+		auxiliary_device_uninit(aux_dev);
+		bp->flags &= ~BNXT_FLAG_ROCE_CAP;
+	}
 }
 
 void bnxt_rdma_aux_device_init(struct bnxt *bp)
@@ -385,13 +409,6 @@ void bnxt_rdma_aux_device_init(struct bnxt *bp)
 	aux_priv->edev = edev;
 	bp->edev = edev;
 	bnxt_set_edev_info(edev, bp);
-
-	rc = auxiliary_device_add(aux_dev);
-	if (rc) {
-		netdev_warn(bp->dev,
-			    "Failed to add auxiliary device for ROCE\n");
-		goto aux_dev_uninit;
-	}
 
 	return;
 
