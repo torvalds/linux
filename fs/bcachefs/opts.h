@@ -362,12 +362,17 @@ enum fsck_err_opts {
 	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
-	  NULL,		"Don't replay the journal")			\
-	x(keep_journal,			u8,				\
+	  NULL,		"Exit recovery immediately prior to journal replay")\
+	x(recovery_pass_last,		u8,				\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_STR_NOLIMIT(bch2_recovery_passes),			\
+	  BCH2_NO_SB_OPT,		0,				\
+	  NULL,		"Exit recovery after specified pass")		\
+	x(retain_recovery_info,		u8,				\
 	  0,								\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
-	  NULL,		"Don't free journal entries/keys after startup")\
+	  NULL,		"Don't free journal entries/keys, scanned btree nodes after startup")\
 	x(read_entire_journal,		u8,				\
 	  0,								\
 	  OPT_BOOL(),							\

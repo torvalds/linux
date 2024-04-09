@@ -1997,6 +1997,7 @@ out:
 	return dget(sb->s_root);
 
 err_put_super:
+	__bch2_fs_stop(c);
 	deactivate_locked_super(sb);
 	return ERR_PTR(bch2_err_class(ret));
 }

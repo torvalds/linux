@@ -536,11 +536,12 @@ static int i801_block_transaction_by_block(struct i801_priv *priv,
 
 	if (read_write == I2C_SMBUS_READ ||
 	    command == I2C_SMBUS_BLOCK_PROC_CALL) {
-		status = i801_get_block_len(priv);
-		if (status < 0)
+		len = i801_get_block_len(priv);
+		if (len < 0) {
+			status = len;
 			goto out;
+		}
 
-		len = status;
 		data->block[0] = len;
 		inb_p(SMBHSTCNT(priv));	/* reset the data buffer index */
 		for (i = 0; i < len; i++)

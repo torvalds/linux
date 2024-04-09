@@ -10,6 +10,20 @@
 
 #define BTREE_UPDATE_JOURNAL_RES	(BTREE_UPDATE_NODES_MAX * (BKEY_BTREE_PTR_U64s_MAX + 1))
 
+int bch2_btree_node_check_topology(struct btree_trans *, struct btree *);
+
+#define BTREE_UPDATE_MODES()	\
+	x(none)			\
+	x(node)			\
+	x(root)			\
+	x(update)
+
+enum btree_update_mode {
+#define x(n)	BTREE_UPDATE_##n,
+	BTREE_UPDATE_MODES()
+#undef x
+};
+
 /*
  * Tracks an in progress split/rewrite of a btree node and the update to the
  * parent node:
@@ -37,14 +51,8 @@ struct btree_update {
 	struct list_head		list;
 	struct list_head		unwritten_list;
 
-	/* What kind of update are we doing? */
-	enum {
-		BTREE_INTERIOR_NO_UPDATE,
-		BTREE_INTERIOR_UPDATING_NODE,
-		BTREE_INTERIOR_UPDATING_ROOT,
-		BTREE_INTERIOR_UPDATING_AS,
-	} mode;
-
+	enum btree_update_mode		mode;
+	enum bch_watermark		watermark;
 	unsigned			nodes_written:1;
 	unsigned			took_gc_lock:1;
 
@@ -54,7 +62,7 @@ struct btree_update {
 	struct disk_reservation		disk_res;
 
 	/*
-	 * BTREE_INTERIOR_UPDATING_NODE:
+	 * BTREE_UPDATE_node:
 	 * The update that made the new nodes visible was a regular update to an
 	 * existing interior node - @b. We can't write out the update to @b
 	 * until the new nodes we created are finished writing, so we block @b
@@ -163,7 +171,7 @@ int bch2_btree_node_update_key_get_iter(struct btree_trans *, struct btree *,
 					struct bkey_i *, unsigned, bool);
 
 void bch2_btree_set_root_for_read(struct bch_fs *, struct btree *);
-void bch2_btree_root_alloc(struct bch_fs *, enum btree_id);
+void bch2_btree_root_alloc_fake(struct bch_fs *, enum btree_id, unsigned);
 
 static inline unsigned btree_update_reserve_required(struct bch_fs *c,
 						     struct btree *b)

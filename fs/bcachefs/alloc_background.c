@@ -1713,34 +1713,37 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 	if (ret)
 		goto out;
 
-	if (BCH_ALLOC_V4_NEED_INC_GEN(&a->v)) {
-		a->v.gen++;
-		SET_BCH_ALLOC_V4_NEED_INC_GEN(&a->v, false);
-		goto write;
-	}
-
-	if (a->v.journal_seq > c->journal.flushed_seq_ondisk) {
-		if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info) {
-			bch2_trans_inconsistent(trans,
-				"clearing need_discard but journal_seq %llu > flushed_seq %llu\n"
-				"%s",
-				a->v.journal_seq,
-				c->journal.flushed_seq_ondisk,
-				(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
+	if (a->v.dirty_sectors) {
+		if (bch2_trans_inconsistent_on(c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info,
+					       trans, "attempting to discard bucket with dirty data\n%s",
+					       (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
 			ret = -EIO;
-		}
 		goto out;
 	}
 
 	if (a->v.data_type != BCH_DATA_need_discard) {
-		if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info) {
-			bch2_trans_inconsistent(trans,
-				"bucket incorrectly set in need_discard btree\n"
-				"%s",
-				(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-			ret = -EIO;
+		if (data_type_is_empty(a->v.data_type) &&
+		    BCH_ALLOC_V4_NEED_INC_GEN(&a->v)) {
+			a->v.gen++;
+			SET_BCH_ALLOC_V4_NEED_INC_GEN(&a->v, false);
+			goto write;
 		}
 
+		if (bch2_trans_inconsistent_on(c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info,
+					       trans, "bucket incorrectly set in need_discard btree\n"
+					       "%s",
+					       (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
+			ret = -EIO;
+		goto out;
+	}
+
+	if (a->v.journal_seq > c->journal.flushed_seq_ondisk) {
+		if (bch2_trans_inconsistent_on(c->curr_recovery_pass > BCH_RECOVERY_PASS_check_alloc_info,
+					       trans, "clearing need_discard but journal_seq %llu > flushed_seq %llu\n%s",
+					       a->v.journal_seq,
+					       c->journal.flushed_seq_ondisk,
+					       (bch2_bkey_val_to_text(&buf, c, k), buf.buf)))
+			ret = -EIO;
 		goto out;
 	}
 
@@ -1835,6 +1838,7 @@ static int bch2_clear_bucket_needs_discard(struct btree_trans *trans, struct bpo
 	if (ret)
 		goto err;
 
+	BUG_ON(a->v.dirty_sectors);
 	SET_BCH_ALLOC_V4_NEED_DISCARD(&a->v, false);
 	a->v.data_type = alloc_data_type(a->v, a->v.data_type);
 
@@ -1942,6 +1946,7 @@ static int invalidate_one_bucket(struct btree_trans *trans,
 		goto out;
 
 	BUG_ON(a->v.data_type != BCH_DATA_cached);
+	BUG_ON(a->v.dirty_sectors);
 
 	if (!a->v.cached_sectors)
 		bch_err(c, "invalidating empty bucket, confused");

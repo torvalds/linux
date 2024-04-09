@@ -22,7 +22,8 @@ struct bucket_alloc_state {
 	x(copygc)			\
 	x(btree)			\
 	x(btree_copygc)			\
-	x(reclaim)
+	x(reclaim)			\
+	x(interior_updates)
 
 enum bch_watermark {
 #define x(name)	BCH_WATERMARK_##name,

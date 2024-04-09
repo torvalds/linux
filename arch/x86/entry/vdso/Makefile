@@ -41,6 +41,7 @@ obj-$(CONFIG_X86_X32_ABI)			+= vdso-image-x32.o
 obj-$(CONFIG_COMPAT_32)				+= vdso-image-32.o vdso32-setup.o
 
 OBJECT_FILES_NON_STANDARD_vdso-image-32.o	:= n
+OBJECT_FILES_NON_STANDARD_vdso-image-x32.o	:= n
 OBJECT_FILES_NON_STANDARD_vdso-image-64.o	:= n
 OBJECT_FILES_NON_STANDARD_vdso32-setup.o	:= n
 

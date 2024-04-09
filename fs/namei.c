@@ -4050,6 +4050,8 @@ retry:
 		case 0: case S_IFREG:
 			error = vfs_create(idmap, path.dentry->d_inode,
 					   dentry, mode, true);
+			if (!error)
+				security_path_post_mknod(idmap, dentry);
 			break;
 		case S_IFCHR: case S_IFBLK:
 			error = vfs_mknod(idmap, path.dentry->d_inode,
@@ -4060,11 +4062,6 @@ retry:
 					  dentry, mode, 0);
 			break;
 	}
-
-	if (error)
-		goto out2;
-
-	security_path_post_mknod(idmap, dentry);
 out2:
 	done_path_create(&path, dentry);
 	if (retry_estale(error, lookup_flags)) {

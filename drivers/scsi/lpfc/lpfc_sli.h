@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2023 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2024 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -182,11 +182,29 @@ typedef struct lpfcMboxq {
 		struct lpfc_mqe mqe;
 	} u;
 	struct lpfc_vport *vport; /* virtual port pointer */
-	void *ctx_ndlp;		  /* an lpfc_nodelist pointer */
-	void *ctx_buf;		  /* an lpfc_dmabuf pointer */
-	void *context3;           /* a generic pointer.  Code must
-				   * accommodate the actual datatype.
-				   */
+	struct lpfc_nodelist *ctx_ndlp;	/* caller ndlp pointer */
+	struct lpfc_dmabuf *ctx_buf;	/* caller buffer information */
+	void *ext_buf;			/* extended buffer for extended mbox
+					 * cmds.  Not a generic pointer.
+					 * Use for storing virtual address.
+					 */
+
+	/* Pointers that are seldom used during mbox execution, but require
+	 * a saved context.
+	 */
+	union {
+		unsigned long ox_rx_id;		/* Used in els_rsp_rls_acc */
+		struct lpfc_rdp_context *rdp;	/* Used in get_rdp_info */
+		struct lpfc_lcb_context *lcb;	/* Used in set_beacon */
+		struct completion *mbox_wait;	/* Used in issue_mbox_wait */
+		struct bsg_job_data *dd_data;	/* Used in bsg_issue_mbox_cmpl
+						 * and
+						 * bsg_issue_mbox_ext_handle_job
+						 */
+		struct lpfc_iocbq *save_iocb;	/* Used in defer_plogi_acc and
+						 * lpfc_mbx_cmpl_resume_rpi
+						 */
+	} ctx_u;
 
 	void (*mbox_cmpl) (struct lpfc_hba *, struct lpfcMboxq *);
 	uint8_t mbox_flag;
