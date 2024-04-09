@@ -17,7 +17,9 @@
 #include <linux/uaccess.h>
 #include <linux/workqueue.h>
 
+#ifndef CONFIG_PANEL_BOOT_MESSAGE
 #include <generated/utsrelease.h>
+#endif
 
 #include "charlcd.h"
 
