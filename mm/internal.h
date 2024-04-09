@@ -72,6 +72,8 @@ void page_writeback_init(void);
 /*
  * How many individual pages have an elevated _mapcount.  Excludes
  * the folio's entire_mapcount.
+ *
+ * Don't use this function outside of debugging code.
  */
 static inline int folio_nr_pages_mapped(const struct folio *folio)
 {
@@ -611,6 +613,7 @@ static inline void prep_compound_head(struct page *page, unsigned int order)
 	struct folio *folio = (struct folio *)page;
 
 	folio_set_order(folio, order);
+	atomic_set(&folio->_large_mapcount, -1);
 	atomic_set(&folio->_entire_mapcount, -1);
 	atomic_set(&folio->_nr_pages_mapped, 0);
 	atomic_set(&folio->_pincount, 0);

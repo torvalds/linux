@@ -1358,7 +1358,7 @@ static int hpage_collapse_scan_pmd(struct mm_struct *mm,
 		 * Check if the page has any GUP (or other external) pins.
 		 *
 		 * Here the check may be racy:
-		 * it may see total_mapcount > refcount in some cases?
+		 * it may see folio_mapcount() > folio_ref_count().
 		 * But such case is ephemeral we could always retry collapse
 		 * later.  However it may report false positive if the page
 		 * has excessive GUP pins (i.e. 512).  Anyway the same check
