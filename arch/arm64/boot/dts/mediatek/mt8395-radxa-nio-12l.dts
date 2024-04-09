@@ -434,6 +434,8 @@
 };
 
 &pio {
+	mediatek,rsel-resistance-in-si-unit;
+
 	eth_default_pins: eth-default-pins {
 		pins-cc {
 			pinmux = <PINMUX_GPIO85__FUNC_GBE_TXC>,
@@ -509,7 +511,7 @@
 		pins-bus {
 			pinmux = <PINMUX_GPIO12__FUNC_SDA2>,
 				 <PINMUX_GPIO13__FUNC_SCL2>;
-			bias-pull-up = <MTK_PULL_SET_RSEL_111>;
+			bias-pull-up = <1000>;
 			drive-strength = <6>;
 			drive-strength-microamp = <1000>;
 		};
@@ -519,7 +521,7 @@
 		pins-bus {
 			pinmux = <PINMUX_GPIO16__FUNC_SDA4>,
 				 <PINMUX_GPIO17__FUNC_SCL4>;
-			bias-pull-up = <MTK_PULL_SET_RSEL_111>;
+			bias-pull-up = <1000>;
 			drive-strength-microamp = <1000>;
 		};
 	};
