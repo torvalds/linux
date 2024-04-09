@@ -3012,6 +3012,20 @@ static void ath12k_mac_bss_info_changed(struct ath12k *ar,
 	}
 }
 
+static struct ath12k_vif_cache *ath12k_arvif_get_cache(struct ath12k_vif *arvif)
+{
+	if (!arvif->cache)
+		arvif->cache = kzalloc(sizeof(*arvif->cache), GFP_KERNEL);
+
+	return arvif->cache;
+}
+
+static void ath12k_arvif_put_cache(struct ath12k_vif *arvif)
+{
+	kfree(arvif->cache);
+	arvif->cache = NULL;
+}
+
 static void ath12k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif,
 					   struct ieee80211_bss_conf *info,
@@ -3019,15 +3033,21 @@ static void ath12k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 {
 	struct ath12k *ar;
 	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
+	struct ath12k_vif_cache *cache;
 
 	ar = ath12k_get_ar_by_vif(hw, vif);
 
-	/* TODO if the vdev is not created on a certain radio,
+	/* if the vdev is not created on a certain radio,
 	 * cache the info to be updated later on vdev creation
 	 */
 
-	if (!ar)
+	if (!ar) {
+		cache = ath12k_arvif_get_cache(arvif);
+		if (!cache)
+			return;
+		arvif->cache->bss_conf_changed |= changed;
 		return;
+	}
 
 	mutex_lock(&ar->conf_mutex);
 
@@ -3518,12 +3538,11 @@ static int ath12k_clear_peer_keys(struct ath12k_vif *arvif,
 	return first_errno;
 }
 
-static int ath12k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
-				 struct ieee80211_vif *vif, struct ieee80211_sta *sta,
-				 struct ieee80211_key_conf *key)
+static int ath12k_mac_set_key(struct ath12k *ar, enum set_key_cmd cmd,
+			      struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+			      struct ieee80211_key_conf *key)
 {
-	struct ath12k *ar;
-	struct ath12k_base *ab;
+	struct ath12k_base *ab = ar->ab;
 	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
 	struct ath12k_peer *peer;
 	struct ath12k_sta *arsta;
@@ -3531,27 +3550,10 @@ static int ath12k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	int ret = 0;
 	u32 flags = 0;
 
-	/* BIP needs to be done in software */
-	if (key->cipher == WLAN_CIPHER_SUITE_AES_CMAC ||
-	    key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
-	    key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256 ||
-	    key->cipher == WLAN_CIPHER_SUITE_BIP_CMAC_256)
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (test_bit(ATH12K_FLAG_HW_CRYPTO_DISABLED, &ab->dev_flags))
 		return 1;
-
-	ar = ath12k_get_ar_by_vif(hw, vif);
-	if (!ar) {
-		WARN_ON_ONCE(1);
-		return -EINVAL;
-	}
-	ab = ar->ab;
-
-	if (test_bit(ATH12K_FLAG_HW_CRYPTO_DISABLED, &ar->ab->dev_flags))
-		return 1;
-
-	if (key->keyidx > WMI_MAX_KEY_INDEX)
-		return -ENOSPC;
-
-	mutex_lock(&ar->conf_mutex);
 
 	if (sta)
 		peer_addr = sta->addr;
@@ -3644,6 +3646,47 @@ static int ath12k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	spin_unlock_bh(&ab->base_lock);
 
 exit:
+	return ret;
+}
+
+static int ath12k_mac_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+				 struct ieee80211_vif *vif, struct ieee80211_sta *sta,
+				 struct ieee80211_key_conf *key)
+{
+	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
+	struct ath12k_vif_cache *cache;
+	struct ath12k *ar;
+	int ret;
+
+	/* BIP needs to be done in software */
+	if (key->cipher == WLAN_CIPHER_SUITE_AES_CMAC ||
+	    key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_128 ||
+	    key->cipher == WLAN_CIPHER_SUITE_BIP_GMAC_256 ||
+	    key->cipher == WLAN_CIPHER_SUITE_BIP_CMAC_256)
+		return 1;
+
+	if (key->keyidx > WMI_MAX_KEY_INDEX)
+		return -ENOSPC;
+
+	ar = ath12k_get_ar_by_vif(hw, vif);
+	if (!ar) {
+		/* ar is expected to be valid when sta ptr is available */
+		if (sta) {
+			WARN_ON_ONCE(1);
+			return -EINVAL;
+		}
+
+		cache = ath12k_arvif_get_cache(arvif);
+		if (!cache)
+			return -ENOSPC;
+		cache->key_conf.cmd = cmd;
+		cache->key_conf.key = key;
+		cache->key_conf.changed = true;
+		return 0;
+	}
+
+	mutex_lock(&ar->conf_mutex);
+	ret = ath12k_mac_set_key(ar, cmd, vif, sta, key);
 	mutex_unlock(&ar->conf_mutex);
 	return ret;
 }
@@ -4474,12 +4517,19 @@ static int ath12k_mac_op_conf_tx(struct ieee80211_hw *hw,
 {
 	struct ath12k *ar;
 	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
+	struct ath12k_vif_cache *cache = arvif->cache;
 	int ret;
 
 	ar = ath12k_get_ar_by_vif(hw, vif);
 	if (!ar) {
-		/* TODO cache the info and apply after vdev is created */
-		return -EINVAL;
+		/* cache the info and apply after vdev is created */
+		cache = ath12k_arvif_get_cache(arvif);
+		if (!cache)
+			return -ENOSPC;
+		cache->tx_conf.changed = true;
+		cache->tx_conf.ac = ac;
+		cache->tx_conf.tx_queue_params = *params;
+		return 0;
 	}
 
 	mutex_lock(&ar->conf_mutex);
@@ -6122,6 +6172,43 @@ err:
 	return ret;
 }
 
+static void ath12k_mac_vif_cache_flush(struct ath12k *ar,  struct ieee80211_vif *vif)
+{
+	struct ath12k_vif *arvif = ath12k_vif_to_arvif(vif);
+	struct ath12k_vif_cache *cache = arvif->cache;
+	struct ath12k_base *ab = ar->ab;
+
+	int ret;
+
+	lockdep_assert_held(&ar->conf_mutex);
+
+	if (!cache)
+		return;
+
+	if (cache->tx_conf.changed) {
+		ret = ath12k_mac_conf_tx(arvif, 0, cache->tx_conf.ac,
+					 &cache->tx_conf.tx_queue_params);
+		if (ret)
+			ath12k_warn(ab,
+				    "unable to apply tx config parameters to vdev %d\n",
+				    ret);
+	}
+
+	if (cache->bss_conf_changed) {
+		ath12k_mac_bss_info_changed(ar, arvif, &vif->bss_conf,
+					    cache->bss_conf_changed);
+	}
+
+	if (cache->key_conf.changed) {
+		ret = ath12k_mac_set_key(ar, cache->key_conf.cmd, vif, NULL,
+					 cache->key_conf.key);
+		if (ret)
+			ath12k_warn(ab, "unable to apply set key param to vdev %d ret %d\n",
+				    arvif->vdev_id, ret);
+	}
+	ath12k_arvif_put_cache(arvif);
+}
+
 static struct ath12k *ath12k_mac_assign_vif_to_vdev(struct ieee80211_hw *hw,
 						    struct ieee80211_vif *vif,
 						    struct ieee80211_chanctx_conf *ctx)
@@ -6176,10 +6263,10 @@ static struct ath12k *ath12k_mac_assign_vif_to_vdev(struct ieee80211_hw *hw,
 
 	ab = ar->ab;
 
-	if (arvif->is_created)
-		goto out;
-
 	mutex_lock(&ar->conf_mutex);
+
+	if (arvif->is_created)
+		goto flush;
 
 	if (vif->type == NL80211_IFTYPE_AP &&
 	    ar->num_peers > (ar->max_num_peers - 1)) {
@@ -6199,13 +6286,14 @@ static struct ath12k *ath12k_mac_assign_vif_to_vdev(struct ieee80211_hw *hw,
 		goto unlock;
 	}
 
-	/* TODO If the vdev is created during channel assign and not during
+flush:
+	/* If the vdev is created during channel assign and not during
 	 * add_interface(), Apply any parameters for the vdev which were received
 	 * after add_interface, corresponding to this vif.
 	 */
+	ath12k_mac_vif_cache_flush(ar, vif);
 unlock:
 	mutex_unlock(&ar->conf_mutex);
-out:
 	return arvif->ar;
 }
 
@@ -6314,6 +6402,7 @@ err_vdev_del:
 	spin_unlock_bh(&ar->data_lock);
 
 	ath12k_peer_cleanup(ar, arvif->vdev_id);
+	ath12k_arvif_put_cache(arvif);
 
 	idr_for_each(&ar->txmgmt_idr,
 		     ath12k_mac_vif_txmgmt_idr_remove, vif);
@@ -6340,8 +6429,13 @@ static void ath12k_mac_op_remove_interface(struct ieee80211_hw *hw,
 	struct ath12k *ar;
 	int ret;
 
-	if (!arvif->is_created)
+	if (!arvif->is_created) {
+		/* if we cached some config but never received assign chanctx,
+		 * free the allocated cache.
+		 */
+		ath12k_arvif_put_cache(arvif);
 		return;
+	}
 
 	ar = arvif->ar;
 	ab = ar->ab;
