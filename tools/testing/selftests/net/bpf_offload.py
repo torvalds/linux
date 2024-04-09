@@ -201,11 +201,11 @@ def bpftool_prog_list_wait(expected=0, n_retry=20):
         time.sleep(0.05)
     raise Exception("Time out waiting for program counts to stabilize want %d, have %d" % (expected, nprogs))
 
-def bpftool_map_list_wait(expected=0, n_retry=20):
+def bpftool_map_list_wait(expected=0, n_retry=20, ns=""):
     for i in range(n_retry):
-        nmaps = len(bpftool_map_list())
-        if nmaps == expected:
-            return
+        maps = bpftool_map_list(ns=ns)
+        if len(maps) == expected:
+            return maps
         time.sleep(0.05)
     raise Exception("Time out waiting for map counts to stabilize want %d, have %d" % (expected, nmaps))
 
@@ -605,7 +605,7 @@ def pin_prog(file_name, idx=0):
     return file_name, bpf_pinned(file_name)
 
 def pin_map(file_name, idx=0, expected=1):
-    maps = bpftool_map_list(expected=expected)
+    maps = bpftool_map_list_wait(expected=expected)
     m = maps[idx]
     bpftool("map pin id %d %s" % (m["id"], file_name))
     files.append(file_name)
@@ -618,7 +618,7 @@ def check_dev_info_removed(prog_file=None, map_file=None):
     ret, err = bpftool("prog show pin %s" % (prog_file), fail=False)
     fail(ret != 0, "failed to show prog with removed device")
 
-    bpftool_map_list(expected=0)
+    bpftool_map_list_wait(expected=0)
     ret, err = bpftool("map show pin %s" % (map_file), fail=False)
     fail(ret == 0, "Showing map with removed device did not fail")
     fail(err["error"].find("No such device") == -1,
@@ -642,7 +642,7 @@ def check_dev_info(other_ns, ns, prog_file=None, map_file=None, removed=False):
     else:
         fail("ifname" in dev.keys(), "Ifname is reported for other ns")
 
-    maps = bpftool_map_list(expected=2, ns=ns)
+    maps = bpftool_map_list_wait(expected=2, ns=ns)
     for m in maps:
         fail("dev" not in m.keys(), "Device parameters not reported")
         fail(dev != m["dev"], "Map's device different than program's")
@@ -1206,7 +1206,7 @@ try:
 
     start_test("Test map update (no flags)...")
     sim.set_xdp(map_obj, "offload", JSON=False) # map fixup msg breaks JSON
-    maps = bpftool_map_list(expected=2)
+    maps = bpftool_map_list_wait(expected=2)
     array = maps[0] if maps[0]["type"] == "array" else maps[1]
     htab = maps[0] if maps[0]["type"] == "hash" else maps[1]
     for m in maps:
