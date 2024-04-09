@@ -58,20 +58,6 @@ patternProperties:
 required:
   - compatible
 
-allOf:
-  - if:
-      not:
-        properties:
-          compatible:
-            contains:
-              enum:
-                - qcom,sm8450-pmic-glink
-                - qcom,sm8550-pmic-glink
-                - qcom,x1e80100-pmic-glink
-    then:
-      properties:
-        orientation-gpios: false
-
 additionalProperties: false
 
 examples:
