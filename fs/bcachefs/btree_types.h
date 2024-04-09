@@ -469,6 +469,8 @@ struct btree_trans {
 	u8			lock_must_abort;
 	bool			lock_may_not_fail:1;
 	bool			srcu_held:1;
+	bool			locked:1;
+	bool			write_locked:1;
 	bool			used_mempool:1;
 	bool			in_traverse_all:1;
 	bool			paths_sorted:1;
@@ -476,13 +478,13 @@ struct btree_trans {
 	bool			journal_transaction_names:1;
 	bool			journal_replay_not_finished:1;
 	bool			notrace_relock_fail:1;
-	bool			write_locked:1;
 	enum bch_errcode	restarted:16;
 	u32			restart_count;
 
 	u64			last_begin_time;
 	unsigned long		last_begin_ip;
 	unsigned long		last_restarted_ip;
+	unsigned long		last_unlock_ip;
 	unsigned long		srcu_lock_time;
 
 	const char		*fn;
