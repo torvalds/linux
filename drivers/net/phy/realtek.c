@@ -71,6 +71,8 @@
 
 #define RTL822X_VND2_GANLPAR				0xa414
 
+#define RTL822X_VND2_PHYSR				0xa434
+
 #define RTL8366RB_POWER_SAVE			0x15
 #define RTL8366RB_POWER_SAVE_ON			BIT(12)
 
@@ -551,17 +553,8 @@ static int rtl8366rb_config_init(struct phy_device *phydev)
 }
 
 /* get actual speed to cover the downshift case */
-static int rtlgen_get_speed(struct phy_device *phydev)
+static void rtlgen_decode_speed(struct phy_device *phydev, int val)
 {
-	int val;
-
-	if (!phydev->link)
-		return 0;
-
-	val = phy_read_paged(phydev, 0xa43, 0x12);
-	if (val < 0)
-		return val;
-
 	switch (val & RTLGEN_SPEED_MASK) {
 	case 0x0000:
 		phydev->speed = SPEED_10;
@@ -584,19 +577,26 @@ static int rtlgen_get_speed(struct phy_device *phydev)
 	default:
 		break;
 	}
-
-	return 0;
 }
 
 static int rtlgen_read_status(struct phy_device *phydev)
 {
-	int ret;
+	int ret, val;
 
 	ret = genphy_read_status(phydev);
 	if (ret < 0)
 		return ret;
 
-	return rtlgen_get_speed(phydev);
+	if (!phydev->link)
+		return 0;
+
+	val = phy_read_paged(phydev, 0xa43, 0x12);
+	if (val < 0)
+		return val;
+
+	rtlgen_decode_speed(phydev, val);
+
+	return 0;
 }
 
 static int rtlgen_read_mmd(struct phy_device *phydev, int devnum, u16 regnum)
@@ -817,8 +817,6 @@ static void rtl822xb_update_interface(struct phy_device *phydev)
 
 static int rtl822x_read_status(struct phy_device *phydev)
 {
-	int ret;
-
 	if (phydev->autoneg == AUTONEG_ENABLE) {
 		int lpadv = phy_read_paged(phydev, 0xa5d, 0x13);
 
@@ -829,11 +827,7 @@ static int rtl822x_read_status(struct phy_device *phydev)
 						  lpadv);
 	}
 
-	ret = genphy_read_status(phydev);
-	if (ret < 0)
-		return ret;
-
-	return rtlgen_get_speed(phydev);
+	return rtlgen_read_status(phydev);
 }
 
 static int rtl822xb_read_status(struct phy_device *phydev)
@@ -893,6 +887,16 @@ static int rtl822x_c45_read_status(struct phy_device *phydev)
 
 		mii_stat1000_mod_linkmode_lpa_t(phydev->lp_advertising, val);
 	}
+
+	if (!phydev->link)
+		return 0;
+
+	/* Read actual speed from vendor register. */
+	val = phy_read_mmd(phydev, MDIO_MMD_VEND2, RTL822X_VND2_PHYSR);
+	if (val < 0)
+		return val;
+
+	rtlgen_decode_speed(phydev, val);
 
 	return 0;
 }
