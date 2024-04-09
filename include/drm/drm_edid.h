@@ -30,6 +30,7 @@ struct drm_connector;
 struct drm_device;
 struct drm_display_mode;
 struct drm_edid;
+struct drm_printer;
 struct hdmi_avi_infoframe;
 struct hdmi_vendor_infoframe;
 struct i2c_adapter;
@@ -481,6 +482,8 @@ int drm_edid_connector_add_modes(struct drm_connector *connector);
 bool drm_edid_is_digital(const struct drm_edid *drm_edid);
 void drm_edid_get_product_id(const struct drm_edid *drm_edid,
 			     struct drm_edid_product_id *id);
+void drm_edid_print_product_id(struct drm_printer *p,
+			       const struct drm_edid_product_id *id, bool raw);
 
 const u8 *drm_find_edid_extension(const struct drm_edid *drm_edid,
 				  int ext_id, int *ext_index);
