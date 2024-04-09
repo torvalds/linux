@@ -768,8 +768,10 @@ static int nh_grp_hw_stats_update(struct nexthop *nh, bool *hw_stats_used)
 	struct net *net = nh->net;
 	int err;
 
-	if (nexthop_notifiers_is_empty(net))
+	if (nexthop_notifiers_is_empty(net)) {
+		*hw_stats_used = false;
 		return 0;
+	}
 
 	err = nh_notifier_grp_hw_stats_init(&info, nh);
 	if (err)

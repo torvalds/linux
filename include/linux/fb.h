@@ -145,9 +145,13 @@ struct fb_event {
 	void *data;
 };
 
+/*	Enough for the VT console needs, see its max_font_width/height */
+#define FB_MAX_BLIT_WIDTH	64
+#define FB_MAX_BLIT_HEIGHT	128
+
 struct fb_blit_caps {
-	u32 x;
-	u32 y;
+	DECLARE_BITMAP(x, FB_MAX_BLIT_WIDTH);
+	DECLARE_BITMAP(y, FB_MAX_BLIT_HEIGHT);
 	u32 len;
 	u32 flags;
 };
@@ -194,10 +198,12 @@ struct fb_pixmap {
 	u32 scan_align;		/* alignment per scanline		*/
 	u32 access_align;	/* alignment per read/write (bits)	*/
 	u32 flags;		/* see FB_PIXMAP_*			*/
-	u32 blit_x;             /* supported bit block dimensions (1-32)*/
-	u32 blit_y;             /* Format: blit_x = 1 << (width - 1)    */
-	                        /*         blit_y = 1 << (height - 1)   */
-	                        /* if 0, will be set to 0xffffffff (all)*/
+				/* supported bit block dimensions	*/
+				/* Format: test_bit(width - 1, blit_x)	*/
+				/*	   test_bit(height - 1, blit_y)	*/
+				/* if zero, will be set to full (all)	*/
+	DECLARE_BITMAP(blit_x, FB_MAX_BLIT_WIDTH);
+	DECLARE_BITMAP(blit_y, FB_MAX_BLIT_HEIGHT);
 	/* access methods */
 	void (*writeio)(struct fb_info *info, void __iomem *dst, void *src, unsigned int size);
 	void (*readio) (struct fb_info *info, void *dst, void __iomem *src, unsigned int size);

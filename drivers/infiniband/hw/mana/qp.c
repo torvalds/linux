@@ -17,12 +17,10 @@ static int mana_ib_cfg_vport_steering(struct mana_ib_dev *dev,
 	struct mana_cfg_rx_steer_resp resp = {};
 	mana_handle_t *req_indir_tab;
 	struct gdma_context *gc;
-	struct gdma_dev *mdev;
 	u32 req_buf_size;
 	int i, err;
 
-	gc = dev->gdma_dev->gdma_context;
-	mdev = &gc->mana;
+	gc = mdev_to_gc(dev);
 
 	req_buf_size =
 		sizeof(*req) + sizeof(mana_handle_t) * MANA_INDIRECT_TABLE_SIZE;
@@ -39,7 +37,7 @@ static int mana_ib_cfg_vport_steering(struct mana_ib_dev *dev,
 	req->rx_enable = 1;
 	req->update_default_rxobj = 1;
 	req->default_rxobj = default_rxobj;
-	req->hdr.dev_id = mdev->dev_id;
+	req->hdr.dev_id = gc->mana.dev_id;
 
 	/* If there are more than 1 entries in indirection table, enable RSS */
 	if (log_ind_tbl_size)
@@ -99,30 +97,23 @@ static int mana_ib_create_qp_rss(struct ib_qp *ibqp, struct ib_pd *pd,
 	struct mana_ib_qp *qp = container_of(ibqp, struct mana_ib_qp, ibqp);
 	struct mana_ib_dev *mdev =
 		container_of(pd->device, struct mana_ib_dev, ib_dev);
+	struct gdma_context *gc = mdev_to_gc(mdev);
 	struct ib_rwq_ind_table *ind_tbl = attr->rwq_ind_tbl;
 	struct mana_ib_create_qp_rss_resp resp = {};
 	struct mana_ib_create_qp_rss ucmd = {};
 	struct gdma_queue **gdma_cq_allocated;
 	mana_handle_t *mana_ind_table;
 	struct mana_port_context *mpc;
-	struct gdma_queue *gdma_cq;
 	unsigned int ind_tbl_size;
-	struct mana_context *mc;
 	struct net_device *ndev;
-	struct gdma_context *gc;
 	struct mana_ib_cq *cq;
 	struct mana_ib_wq *wq;
-	struct gdma_dev *gd;
 	struct mana_eq *eq;
 	struct ib_cq *ibcq;
 	struct ib_wq *ibwq;
 	int i = 0;
 	u32 port;
 	int ret;
-
-	gc = mdev->gdma_dev->gdma_context;
-	gd = &gc->mana;
-	mc = gd->driver_data;
 
 	if (!udata || udata->inlen < sizeof(ucmd))
 		return -EINVAL;
@@ -166,12 +157,12 @@ static int mana_ib_create_qp_rss(struct ib_qp *ibqp, struct ib_pd *pd,
 
 	/* IB ports start with 1, MANA start with 0 */
 	port = ucmd.port;
-	if (port < 1 || port > mc->num_ports) {
+	ndev = mana_ib_get_netdev(pd->device, port);
+	if (!ndev) {
 		ibdev_dbg(&mdev->ib_dev, "Invalid port %u in creating qp\n",
 			  port);
 		return -EINVAL;
 	}
-	ndev = mc->ports[port - 1];
 	mpc = netdev_priv(ndev);
 
 	ibdev_dbg(&mdev->ib_dev, "rx_hash_function %d port %d\n",
@@ -209,7 +200,7 @@ static int mana_ib_create_qp_rss(struct ib_qp *ibqp, struct ib_pd *pd,
 		cq_spec.gdma_region = cq->gdma_region;
 		cq_spec.queue_size = cq->cqe * COMP_ENTRY_SIZE;
 		cq_spec.modr_ctx_id = 0;
-		eq = &mc->eqs[cq->comp_vector % gc->max_num_queues];
+		eq = &mpc->ac->eqs[cq->comp_vector % gc->max_num_queues];
 		cq_spec.attached_eq = eq->eq->id;
 
 		ret = mana_create_wq_obj(mpc, mpc->port_handle, GDMA_RQ,
@@ -237,19 +228,11 @@ static int mana_ib_create_qp_rss(struct ib_qp *ibqp, struct ib_pd *pd,
 		mana_ind_table[i] = wq->rx_object;
 
 		/* Create CQ table entry */
-		WARN_ON(gc->cq_table[cq->id]);
-		gdma_cq = kzalloc(sizeof(*gdma_cq), GFP_KERNEL);
-		if (!gdma_cq) {
-			ret = -ENOMEM;
+		ret = mana_ib_install_cq_cb(mdev, cq);
+		if (ret)
 			goto fail;
-		}
-		gdma_cq_allocated[i] = gdma_cq;
 
-		gdma_cq->cq.context = cq;
-		gdma_cq->type = GDMA_CQ;
-		gdma_cq->cq.callback = mana_ib_cq_handler;
-		gdma_cq->id = cq->id;
-		gc->cq_table[cq->id] = gdma_cq;
+		gdma_cq_allocated[i] = gc->cq_table[cq->id];
 	}
 	resp.num_entries = i;
 
@@ -306,22 +289,19 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 	struct mana_ib_ucontext *mana_ucontext =
 		rdma_udata_to_drv_context(udata, struct mana_ib_ucontext,
 					  ibucontext);
-	struct gdma_dev *gd = &mdev->gdma_dev->gdma_context->mana;
+	struct gdma_context *gc = mdev_to_gc(mdev);
 	struct mana_ib_create_qp_resp resp = {};
 	struct mana_ib_create_qp ucmd = {};
 	struct gdma_queue *gdma_cq = NULL;
 	struct mana_obj_spec wq_spec = {};
 	struct mana_obj_spec cq_spec = {};
 	struct mana_port_context *mpc;
-	struct mana_context *mc;
 	struct net_device *ndev;
 	struct ib_umem *umem;
 	struct mana_eq *eq;
 	int eq_vec;
 	u32 port;
 	int err;
-
-	mc = gd->driver_data;
 
 	if (!mana_ucontext || udata->inlen < sizeof(ucmd))
 		return -EINVAL;
@@ -332,11 +312,6 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 			  "Failed to copy from udata create qp-raw, %d\n", err);
 		return err;
 	}
-
-	/* IB ports start with 1, MANA Ethernet ports start with 0 */
-	port = ucmd.port;
-	if (port < 1 || port > mc->num_ports)
-		return -EINVAL;
 
 	if (attr->cap.max_send_wr > mdev->adapter_caps.max_qp_wr) {
 		ibdev_dbg(&mdev->ib_dev,
@@ -352,11 +327,17 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 		return -EINVAL;
 	}
 
-	ndev = mc->ports[port - 1];
+	port = ucmd.port;
+	ndev = mana_ib_get_netdev(ibpd->device, port);
+	if (!ndev) {
+		ibdev_dbg(&mdev->ib_dev, "Invalid port %u in creating qp\n",
+			  port);
+		return -EINVAL;
+	}
 	mpc = netdev_priv(ndev);
 	ibdev_dbg(&mdev->ib_dev, "port %u ndev %p mpc %p\n", port, ndev, mpc);
 
-	err = mana_ib_cfg_vport(mdev, port - 1, pd, mana_ucontext->doorbell);
+	err = mana_ib_cfg_vport(mdev, port, pd, mana_ucontext->doorbell);
 	if (err)
 		return -ENODEV;
 
@@ -376,8 +357,8 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 	}
 	qp->sq_umem = umem;
 
-	err = mana_ib_gd_create_dma_region(mdev, qp->sq_umem,
-					   &qp->sq_gdma_region);
+	err = mana_ib_create_zero_offset_dma_region(mdev, qp->sq_umem,
+						    &qp->sq_gdma_region);
 	if (err) {
 		ibdev_dbg(&mdev->ib_dev,
 			  "Failed to create dma region for create qp-raw, %d\n",
@@ -386,7 +367,7 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 	}
 
 	ibdev_dbg(&mdev->ib_dev,
-		  "mana_ib_gd_create_dma_region ret %d gdma_region 0x%llx\n",
+		  "create_dma_region ret %d gdma_region 0x%llx\n",
 		  err, qp->sq_gdma_region);
 
 	/* Create a WQ on the same port handle used by the Ethernet */
@@ -396,8 +377,8 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 	cq_spec.gdma_region = send_cq->gdma_region;
 	cq_spec.queue_size = send_cq->cqe * COMP_ENTRY_SIZE;
 	cq_spec.modr_ctx_id = 0;
-	eq_vec = send_cq->comp_vector % gd->gdma_context->max_num_queues;
-	eq = &mc->eqs[eq_vec];
+	eq_vec = send_cq->comp_vector % gc->max_num_queues;
+	eq = &mpc->ac->eqs[eq_vec];
 	cq_spec.attached_eq = eq->eq->id;
 
 	err = mana_create_wq_obj(mpc, mpc->port_handle, GDMA_SQ, &wq_spec,
@@ -417,18 +398,9 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 	send_cq->id = cq_spec.queue_index;
 
 	/* Create CQ table entry */
-	WARN_ON(gd->gdma_context->cq_table[send_cq->id]);
-	gdma_cq = kzalloc(sizeof(*gdma_cq), GFP_KERNEL);
-	if (!gdma_cq) {
-		err = -ENOMEM;
+	err = mana_ib_install_cq_cb(mdev, send_cq);
+	if (err)
 		goto err_destroy_wq_obj;
-	}
-
-	gdma_cq->cq.context = send_cq;
-	gdma_cq->type = GDMA_CQ;
-	gdma_cq->cq.callback = mana_ib_cq_handler;
-	gdma_cq->id = send_cq->id;
-	gd->gdma_context->cq_table[send_cq->id] = gdma_cq;
 
 	ibdev_dbg(&mdev->ib_dev,
 		  "ret %d qp->tx_object 0x%llx sq id %llu cq id %llu\n", err,
@@ -450,7 +422,7 @@ static int mana_ib_create_qp_raw(struct ib_qp *ibqp, struct ib_pd *ibpd,
 
 err_release_gdma_cq:
 	kfree(gdma_cq);
-	gd->gdma_context->cq_table[send_cq->id] = NULL;
+	gc->cq_table[send_cq->id] = NULL;
 
 err_destroy_wq_obj:
 	mana_destroy_wq_obj(mpc, GDMA_SQ, qp->tx_object);
@@ -462,7 +434,7 @@ err_release_umem:
 	ib_umem_release(umem);
 
 err_free_vport:
-	mana_ib_uncfg_vport(mdev, pd, port - 1);
+	mana_ib_uncfg_vport(mdev, pd, port);
 
 	return err;
 }
@@ -500,16 +472,13 @@ static int mana_ib_destroy_qp_rss(struct mana_ib_qp *qp,
 {
 	struct mana_ib_dev *mdev =
 		container_of(qp->ibqp.device, struct mana_ib_dev, ib_dev);
-	struct gdma_dev *gd = &mdev->gdma_dev->gdma_context->mana;
 	struct mana_port_context *mpc;
-	struct mana_context *mc;
 	struct net_device *ndev;
 	struct mana_ib_wq *wq;
 	struct ib_wq *ibwq;
 	int i;
 
-	mc = gd->driver_data;
-	ndev = mc->ports[qp->port - 1];
+	ndev = mana_ib_get_netdev(qp->ibqp.device, qp->port);
 	mpc = netdev_priv(ndev);
 
 	for (i = 0; i < (1 << ind_tbl->log_ind_tbl_size); i++) {
@@ -527,15 +496,12 @@ static int mana_ib_destroy_qp_raw(struct mana_ib_qp *qp, struct ib_udata *udata)
 {
 	struct mana_ib_dev *mdev =
 		container_of(qp->ibqp.device, struct mana_ib_dev, ib_dev);
-	struct gdma_dev *gd = &mdev->gdma_dev->gdma_context->mana;
 	struct ib_pd *ibpd = qp->ibqp.pd;
 	struct mana_port_context *mpc;
-	struct mana_context *mc;
 	struct net_device *ndev;
 	struct mana_ib_pd *pd;
 
-	mc = gd->driver_data;
-	ndev = mc->ports[qp->port - 1];
+	ndev = mana_ib_get_netdev(qp->ibqp.device, qp->port);
 	mpc = netdev_priv(ndev);
 	pd = container_of(ibpd, struct mana_ib_pd, ibpd);
 
@@ -546,7 +512,7 @@ static int mana_ib_destroy_qp_raw(struct mana_ib_qp *qp, struct ib_udata *udata)
 		ib_umem_release(qp->sq_umem);
 	}
 
-	mana_ib_uncfg_vport(mdev, pd, qp->port - 1);
+	mana_ib_uncfg_vport(mdev, pd, qp->port);
 
 	return 0;
 }

@@ -1742,17 +1742,22 @@ int dbg_check_idx_size(struct ubifs_info *c, long long idx_size)
 	err = dbg_walk_index(c, NULL, add_size, &calc);
 	if (err) {
 		ubifs_err(c, "error %d while walking the index", err);
-		return err;
+		goto out_err;
 	}
 
 	if (calc != idx_size) {
 		ubifs_err(c, "index size check failed: calculated size is %lld, should be %lld",
 			  calc, idx_size);
 		dump_stack();
-		return -EINVAL;
+		err = -EINVAL;
+		goto out_err;
 	}
 
 	return 0;
+
+out_err:
+	ubifs_destroy_tnc_tree(c);
+	return err;
 }
 
 /**

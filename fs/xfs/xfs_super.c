@@ -485,7 +485,7 @@ xfs_open_devices(
 		mp->m_logdev_targp = mp->m_ddev_targp;
 		/* Handle won't be used, drop it */
 		if (logdev_file)
-			fput(logdev_file);
+			bdev_fput(logdev_file);
 	}
 
 	return 0;
@@ -497,10 +497,10 @@ xfs_open_devices(
 	xfs_free_buftarg(mp->m_ddev_targp);
  out_close_rtdev:
 	 if (rtdev_file)
-		fput(rtdev_file);
+		bdev_fput(rtdev_file);
  out_close_logdev:
 	if (logdev_file)
-		fput(logdev_file);
+		bdev_fput(logdev_file);
 	return error;
 }
 

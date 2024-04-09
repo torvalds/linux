@@ -811,6 +811,12 @@ restart:
  * caller should throw away the dquot and start over.  Otherwise, the dquot
  * is returned locked (and held by the cache) as if there had been a cache
  * hit.
+ *
+ * The insert needs to be done under memalloc_nofs context because the radix
+ * tree can do memory allocation during insert. The qi->qi_tree_lock is taken in
+ * memory reclaim when freeing unused dquots, so we cannot have the radix tree
+ * node allocation recursing into filesystem reclaim whilst we hold the
+ * qi_tree_lock.
  */
 static int
 xfs_qm_dqget_cache_insert(
@@ -820,25 +826,27 @@ xfs_qm_dqget_cache_insert(
 	xfs_dqid_t		id,
 	struct xfs_dquot	*dqp)
 {
+	unsigned int		nofs_flags;
 	int			error;
 
+	nofs_flags = memalloc_nofs_save();
 	mutex_lock(&qi->qi_tree_lock);
 	error = radix_tree_insert(tree, id, dqp);
 	if (unlikely(error)) {
 		/* Duplicate found!  Caller must try again. */
-		mutex_unlock(&qi->qi_tree_lock);
 		trace_xfs_dqget_dup(dqp);
-		return error;
+		goto out_unlock;
 	}
 
 	/* Return a locked dquot to the caller, with a reference taken. */
 	xfs_dqlock(dqp);
 	dqp->q_nrefs = 1;
-
 	qi->qi_dquots++;
-	mutex_unlock(&qi->qi_tree_lock);
 
-	return 0;
+out_unlock:
+	mutex_unlock(&qi->qi_tree_lock);
+	memalloc_nofs_restore(nofs_flags);
+	return error;
 }
 
 /* Check our input parameters. */

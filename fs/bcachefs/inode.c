@@ -552,8 +552,8 @@ static void __bch2_inode_unpacked_to_text(struct printbuf *out,
 	prt_printf(out, "bi_sectors=%llu", inode->bi_sectors);
 	prt_newline(out);
 
-	prt_newline(out);
 	prt_printf(out, "bi_version=%llu", inode->bi_version);
+	prt_newline(out);
 
 #define x(_name, _bits)						\
 	prt_printf(out, #_name "=%llu", (u64) inode->_name);	\

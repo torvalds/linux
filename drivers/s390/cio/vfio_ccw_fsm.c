@@ -378,7 +378,7 @@ static void fsm_open(struct vfio_ccw_private *private,
 
 	spin_lock_irq(&sch->lock);
 	sch->isc = VFIO_CCW_ISC;
-	ret = cio_enable_subchannel(sch, (u32)(unsigned long)sch);
+	ret = cio_enable_subchannel(sch, (u32)virt_to_phys(sch));
 	if (ret)
 		goto err_unlock;
 

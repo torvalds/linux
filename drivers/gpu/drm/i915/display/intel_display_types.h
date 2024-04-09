@@ -727,6 +727,7 @@ struct intel_plane_state {
 #define PLANE_HAS_FENCE BIT(0)
 
 	struct intel_fb_view view;
+	u32 phys_dma_addr; /* for cursor_needs_physical */
 
 	/* Plane pxp decryption state */
 	bool decrypt;
@@ -1421,6 +1422,8 @@ struct intel_crtc_state {
 	struct intel_dsb *dsb;
 
 	u32 psr2_man_track_ctl;
+
+	u32 pipe_srcsz_early_tpt;
 
 	struct drm_rect psr2_su_area;
 

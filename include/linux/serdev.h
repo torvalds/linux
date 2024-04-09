@@ -27,7 +27,7 @@ struct serdev_device;
  *			not sleep.
  */
 struct serdev_device_ops {
-	ssize_t (*receive_buf)(struct serdev_device *, const u8 *, size_t);
+	size_t (*receive_buf)(struct serdev_device *, const u8 *, size_t);
 	void (*write_wakeup)(struct serdev_device *);
 };
 
@@ -185,9 +185,9 @@ static inline void serdev_controller_write_wakeup(struct serdev_controller *ctrl
 	serdev->ops->write_wakeup(serdev);
 }
 
-static inline ssize_t serdev_controller_receive_buf(struct serdev_controller *ctrl,
-						    const u8 *data,
-						    size_t count)
+static inline size_t serdev_controller_receive_buf(struct serdev_controller *ctrl,
+						   const u8 *data,
+						   size_t count)
 {
 	struct serdev_device *serdev = ctrl->serdev;
 

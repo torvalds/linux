@@ -245,7 +245,6 @@ static inline unsigned long em_cpu_energy(struct em_perf_domain *pd,
 	 * max utilization to the allowed CPU capacity before calculating
 	 * effective performance.
 	 */
-	max_util = map_util_perf(max_util);
 	max_util = min(max_util, allowed_cpu_cap);
 
 	/*

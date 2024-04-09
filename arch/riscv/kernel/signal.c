@@ -119,6 +119,13 @@ static long __restore_v_state(struct pt_regs *regs, void __user *sc_vec)
 	struct __sc_riscv_v_state __user *state = sc_vec;
 	void __user *datap;
 
+	/*
+	 * Mark the vstate as clean prior performing the actual copy,
+	 * to avoid getting the vstate incorrectly clobbered by the
+	 *  discarded vector state.
+	 */
+	riscv_v_vstate_set_restore(current, regs);
+
 	/* Copy everything of __sc_riscv_v_state except datap. */
 	err = __copy_from_user(&current->thread.vstate, &state->v_state,
 			       offsetof(struct __riscv_v_ext_state, datap));
@@ -133,13 +140,7 @@ static long __restore_v_state(struct pt_regs *regs, void __user *sc_vec)
 	 * Copy the whole vector content from user space datap. Use
 	 * copy_from_user to prevent information leak.
 	 */
-	err = copy_from_user(current->thread.vstate.datap, datap, riscv_v_vsize);
-	if (unlikely(err))
-		return err;
-
-	riscv_v_vstate_set_restore(current, regs);
-
-	return err;
+	return copy_from_user(current->thread.vstate.datap, datap, riscv_v_vsize);
 }
 #else
 #define save_v_state(task, regs) (0)

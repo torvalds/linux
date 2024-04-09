@@ -100,8 +100,8 @@ static void snd_serial_generic_write_wakeup(struct serdev_device *serdev)
 	snd_serial_generic_tx_wakeup(drvdata);
 }
 
-static ssize_t snd_serial_generic_receive_buf(struct serdev_device *serdev,
-					      const u8 *buf, size_t count)
+static size_t snd_serial_generic_receive_buf(struct serdev_device *serdev,
+					     const u8 *buf, size_t count)
 {
 	int ret;
 	struct snd_serial_generic *drvdata = serdev_device_get_drvdata(serdev);

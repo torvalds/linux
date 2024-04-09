@@ -605,7 +605,7 @@ static void rpmsg_dev_remove(struct device *dev)
 		rpmsg_destroy_ept(rpdev->ept);
 }
 
-static struct bus_type rpmsg_bus = {
+static const struct bus_type rpmsg_bus = {
 	.name		= "rpmsg",
 	.match		= rpmsg_dev_match,
 	.dev_groups	= rpmsg_dev_groups,

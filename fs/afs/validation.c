@@ -122,6 +122,9 @@ bool afs_check_validity(const struct afs_vnode *vnode)
 	const struct afs_volume *volume = vnode->volume;
 	time64_t deadline = ktime_get_real_seconds() + 10;
 
+	if (test_bit(AFS_VNODE_DELETED, &vnode->flags))
+		return true;
+
 	if (atomic_read(&volume->cb_v_check) != atomic_read(&volume->cb_v_break) ||
 	    atomic64_read(&vnode->cb_expires_at)  <= deadline ||
 	    volume->cb_expires_at <= deadline ||
@@ -389,11 +392,16 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 	       key_serial(key));
 
 	if (afs_check_validity(vnode))
-		return 0;
+		return test_bit(AFS_VNODE_DELETED, &vnode->flags) ? -ESTALE : 0;
 
 	ret = down_write_killable(&vnode->validate_lock);
 	if (ret < 0)
 		goto error;
+
+	if (test_bit(AFS_VNODE_DELETED, &vnode->flags)) {
+		ret = -ESTALE;
+		goto error_unlock;
+	}
 
 	/* Validate a volume after the v_break has changed or the volume
 	 * callback expired.  We only want to do this once per volume per
@@ -447,12 +455,6 @@ int afs_validate(struct afs_vnode *vnode, struct key *key)
 		zap = true;
 	vnode->cb_ro_snapshot = cb_ro_snapshot;
 	vnode->cb_scrub = cb_scrub;
-
-	if (test_bit(AFS_VNODE_DELETED, &vnode->flags)) {
-		_debug("file already deleted");
-		ret = -ESTALE;
-		goto error_unlock;
-	}
 
 	/* if the vnode's data version number changed then its contents are
 	 * different */

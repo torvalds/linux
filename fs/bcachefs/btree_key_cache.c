@@ -676,7 +676,7 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 			     !bch2_err_matches(ret, BCH_ERR_transaction_restart) &&
 			     !bch2_err_matches(ret, BCH_ERR_journal_reclaim_would_deadlock) &&
 			     !bch2_journal_error(j), c,
-			     "error flushing key cache: %s", bch2_err_str(ret));
+			     "flushing key cache: %s", bch2_err_str(ret));
 	if (ret)
 		goto out;
 

@@ -39,6 +39,17 @@ properties:
     description: |
       Channel node of a voltage io-channel.
 
+  '#io-channel-cells':
+    description:
+      In addition to consuming the measurement services of a voltage
+      output channel, the voltage divider can act as a provider of
+      measurement services to other devices. This is particularly
+      useful in scenarios wherein an ADC has an analog frontend,
+      such as a voltage divider, and then consuming its raw value
+      isn't interesting. In this case, the voltage before the divider
+      is desired.
+    const: 1
+
   output-ohms:
     description:
       Resistance Rout over which the output voltage is measured. See full-ohms.

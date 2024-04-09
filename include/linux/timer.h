@@ -22,7 +22,7 @@
 #define __TIMER_LOCKDEP_MAP_INITIALIZER(_kn)
 #endif
 
-/**
+/*
  * @TIMER_DEFERRABLE: A deferrable timer will work normally when the
  * system is busy, but will not cause a CPU to come out of idle just
  * to service it; instead, the timer will be serviced when the CPU
@@ -140,7 +140,7 @@ static inline void destroy_timer_on_stack(struct timer_list *timer) { }
  * or not. Callers must ensure serialization wrt. other operations done
  * to this timer, eg. interrupt contexts, or other CPUs on SMP.
  *
- * return value: 1 if the timer is pending, 0 if not.
+ * Returns: 1 if the timer is pending, 0 if not.
  */
 static inline int timer_pending(const struct timer_list * timer)
 {
@@ -175,6 +175,10 @@ extern int timer_shutdown(struct timer_list *timer);
  * See timer_delete_sync() for detailed explanation.
  *
  * Do not use in new code. Use timer_delete_sync() instead.
+ *
+ * Returns:
+ * * %0	- The timer was not pending
+ * * %1	- The timer was pending and deactivated
  */
 static inline int del_timer_sync(struct timer_list *timer)
 {
@@ -188,6 +192,10 @@ static inline int del_timer_sync(struct timer_list *timer)
  * See timer_delete() for detailed explanation.
  *
  * Do not use in new code. Use timer_delete() instead.
+ *
+ * Returns:
+ * * %0	- The timer was not pending
+ * * %1	- The timer was pending and deactivated
  */
 static inline int del_timer(struct timer_list *timer)
 {

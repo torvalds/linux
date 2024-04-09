@@ -382,7 +382,7 @@ int spi_mem_exec_op(struct spi_mem *mem, const struct spi_mem_op *op)
 		 * read path) and expect the core to use the regular SPI
 		 * interface in other cases.
 		 */
-		if (!ret || ret != -ENOTSUPP || ret != -EOPNOTSUPP) {
+		if (!ret || (ret != -ENOTSUPP && ret != -EOPNOTSUPP)) {
 			spi_mem_add_op_stats(ctlr->pcpu_statistics, op, ret);
 			spi_mem_add_op_stats(mem->spi->pcpu_statistics, op, ret);
 

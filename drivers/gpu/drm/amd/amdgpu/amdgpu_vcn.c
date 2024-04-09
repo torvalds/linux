@@ -60,6 +60,7 @@
 #define FIRMWARE_VCN4_0_4		"amdgpu/vcn_4_0_4.bin"
 #define FIRMWARE_VCN4_0_5		"amdgpu/vcn_4_0_5.bin"
 #define FIRMWARE_VCN4_0_6		"amdgpu/vcn_4_0_6.bin"
+#define FIRMWARE_VCN4_0_6_1		"amdgpu/vcn_4_0_6_1.bin"
 #define FIRMWARE_VCN5_0_0		"amdgpu/vcn_5_0_0.bin"
 
 MODULE_FIRMWARE(FIRMWARE_RAVEN);
@@ -85,6 +86,7 @@ MODULE_FIRMWARE(FIRMWARE_VCN4_0_3);
 MODULE_FIRMWARE(FIRMWARE_VCN4_0_4);
 MODULE_FIRMWARE(FIRMWARE_VCN4_0_5);
 MODULE_FIRMWARE(FIRMWARE_VCN4_0_6);
+MODULE_FIRMWARE(FIRMWARE_VCN4_0_6_1);
 MODULE_FIRMWARE(FIRMWARE_VCN5_0_0);
 
 static void amdgpu_vcn_idle_work_handler(struct work_struct *work);
@@ -93,14 +95,22 @@ int amdgpu_vcn_early_init(struct amdgpu_device *adev)
 {
 	char ucode_prefix[30];
 	char fw_name[40];
-	int r;
+	int r, i;
 
-	amdgpu_ucode_ip_version_decode(adev, UVD_HWIP, ucode_prefix, sizeof(ucode_prefix));
-	snprintf(fw_name, sizeof(fw_name), "amdgpu/%s.bin", ucode_prefix);
-	r = amdgpu_ucode_request(adev, &adev->vcn.fw, fw_name);
-	if (r)
-		amdgpu_ucode_release(&adev->vcn.fw);
+	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+		amdgpu_ucode_ip_version_decode(adev, UVD_HWIP, ucode_prefix, sizeof(ucode_prefix));
+		snprintf(fw_name, sizeof(fw_name), "amdgpu/%s.bin", ucode_prefix);
+		if (amdgpu_ip_version(adev, UVD_HWIP, 0) ==  IP_VERSION(4, 0, 6) &&
+			i == 1) {
+			snprintf(fw_name, sizeof(fw_name), "amdgpu/%s_%d.bin", ucode_prefix, i);
+		}
 
+		r = amdgpu_ucode_request(adev, &adev->vcn.fw[i], fw_name);
+		if (r) {
+			amdgpu_ucode_release(&adev->vcn.fw[i]);
+			return r;
+		}
+	}
 	return r;
 }
 
@@ -141,7 +151,7 @@ int amdgpu_vcn_sw_init(struct amdgpu_device *adev)
 		}
 	}
 
-	hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
+	hdr = (const struct common_firmware_header *)adev->vcn.fw[0]->data;
 	adev->vcn.fw_version = le32_to_cpu(hdr->ucode_version);
 
 	/* Bit 20-23, it is encode major and non-zero for new naming convention.
@@ -256,9 +266,10 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 
 		for (i = 0; i < adev->vcn.num_enc_rings; ++i)
 			amdgpu_ring_fini(&adev->vcn.inst[j].ring_enc[i]);
+
+		amdgpu_ucode_release(&adev->vcn.fw[j]);
 	}
 
-	amdgpu_ucode_release(&adev->vcn.fw);
 	mutex_destroy(&adev->vcn.vcn1_jpeg1_workaround);
 	mutex_destroy(&adev->vcn.vcn_pg_lock);
 
@@ -354,11 +365,12 @@ int amdgpu_vcn_resume(struct amdgpu_device *adev)
 			const struct common_firmware_header *hdr;
 			unsigned int offset;
 
-			hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
+			hdr = (const struct common_firmware_header *)adev->vcn.fw[i]->data;
 			if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
 				offset = le32_to_cpu(hdr->ucode_array_offset_bytes);
 				if (drm_dev_enter(adev_to_drm(adev), &idx)) {
-					memcpy_toio(adev->vcn.inst[i].cpu_addr, adev->vcn.fw->data + offset,
+					memcpy_toio(adev->vcn.inst[i].cpu_addr,
+						    adev->vcn.fw[i]->data + offset,
 						    le32_to_cpu(hdr->ucode_size_bytes));
 					drm_dev_exit(idx);
 				}
@@ -1043,11 +1055,11 @@ void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev)
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
 		const struct common_firmware_header *hdr;
 
-		hdr = (const struct common_firmware_header *)adev->vcn.fw->data;
-
 		for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
 			if (adev->vcn.harvest_config & (1 << i))
 				continue;
+
+			hdr = (const struct common_firmware_header *)adev->vcn.fw[i]->data;
 			/* currently only support 2 FW instances */
 			if (i >= 2) {
 				dev_info(adev->dev, "More then 2 VCN FW instances!\n");
@@ -1055,7 +1067,7 @@ void amdgpu_vcn_setup_ucode(struct amdgpu_device *adev)
 			}
 			idx = AMDGPU_UCODE_ID_VCN + i;
 			adev->firmware.ucode[idx].ucode_id = idx;
-			adev->firmware.ucode[idx].fw = adev->vcn.fw;
+			adev->firmware.ucode[idx].fw = adev->vcn.fw[i];
 			adev->firmware.fw_size +=
 				ALIGN(le32_to_cpu(hdr->ucode_size_bytes), PAGE_SIZE);
 

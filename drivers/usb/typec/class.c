@@ -21,7 +21,7 @@
 
 static DEFINE_IDA(typec_index_ida);
 
-struct class typec_class = {
+const struct class typec_class = {
 	.name = "typec",
 };
 
@@ -1310,6 +1310,7 @@ static ssize_t select_usb_power_delivery_store(struct device *dev,
 {
 	struct typec_port *port = to_typec_port(dev);
 	struct usb_power_delivery *pd;
+	int ret;
 
 	if (!port->ops || !port->ops->pd_set)
 		return -EOPNOTSUPP;
@@ -1318,7 +1319,11 @@ static ssize_t select_usb_power_delivery_store(struct device *dev,
 	if (!pd)
 		return -EINVAL;
 
-	return port->ops->pd_set(port, pd);
+	ret = port->ops->pd_set(port, pd);
+	if (ret)
+		return ret;
+
+	return size;
 }
 
 static ssize_t select_usb_power_delivery_show(struct device *dev,
@@ -2132,6 +2137,46 @@ int typec_get_negotiated_svdm_version(struct typec_port *port)
 EXPORT_SYMBOL_GPL(typec_get_negotiated_svdm_version);
 
 /**
+ * typec_get_cable_svdm_version - Get cable negotiated SVDM Version
+ * @port: USB Type-C Port.
+ *
+ * Get the negotiated SVDM Version for the cable. The Version is set to the port
+ * default value based on the PD Revision during cable registration, and updated
+ * after a successful Discover Identity if the negotiated value is less than the
+ * default.
+ *
+ * Returns usb_pd_svdm_ver if the cable has been registered otherwise -ENODEV.
+ */
+int typec_get_cable_svdm_version(struct typec_port *port)
+{
+	enum usb_pd_svdm_ver svdm_version;
+	struct device *cable_dev;
+
+	cable_dev = device_find_child(&port->dev, NULL, cable_match);
+	if (!cable_dev)
+		return -ENODEV;
+
+	svdm_version = to_typec_cable(cable_dev)->svdm_version;
+	put_device(cable_dev);
+
+	return svdm_version;
+}
+EXPORT_SYMBOL_GPL(typec_get_cable_svdm_version);
+
+/**
+ * typec_cable_set_svdm_version - Set negotiated Structured VDM (SVDM) Version
+ * @cable: USB Type-C Active Cable that supports SVDM
+ * @svdm_version: Negotiated SVDM Version
+ *
+ * This routine is used to save the negotiated SVDM Version.
+ */
+void typec_cable_set_svdm_version(struct typec_cable *cable, enum usb_pd_svdm_ver svdm_version)
+{
+	cable->svdm_version = svdm_version;
+}
+EXPORT_SYMBOL_GPL(typec_cable_set_svdm_version);
+
+/**
  * typec_get_drvdata - Return private driver data pointer
  * @port: USB Type-C port
  */
@@ -2279,6 +2324,25 @@ void typec_port_register_altmodes(struct typec_port *port,
 	}
 }
 EXPORT_SYMBOL_GPL(typec_port_register_altmodes);
+
+/**
+ * typec_port_register_cable_ops - Register typec_cable_ops to port altmodes
+ * @altmodes: USB Type-C Port's altmode vector
+ * @max_altmodes: The maximum number of alt modes supported by the port
+ * @ops: Cable alternate mode vector
+ */
+void typec_port_register_cable_ops(struct typec_altmode **altmodes, int max_altmodes,
+				   const struct typec_cable_ops *ops)
+{
+	int i;
+
+	for (i = 0; i < max_altmodes; i++) {
+		if (!altmodes[i])
+			return;
+		altmodes[i]->cable_ops = ops;
+	}
+}
+EXPORT_SYMBOL_GPL(typec_port_register_cable_ops);
 
 /**
  * typec_register_port - Register a USB Type-C Port

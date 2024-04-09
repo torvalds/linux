@@ -2072,6 +2072,7 @@ struct net_device {
 		struct pcpu_sw_netstats __percpu	*tstats;
 		struct pcpu_dstats __percpu		*dstats;
 	};
+	unsigned long		state;
 	unsigned int		flags;
 	unsigned short		hard_header_len;
 	netdev_features_t	features;
@@ -2117,7 +2118,6 @@ struct net_device {
 	 *	part of the usual set specified in Space.c.
 	 */
 
-	unsigned long		state;
 
 	struct list_head	dev_list;
 	struct list_head	napi_list;

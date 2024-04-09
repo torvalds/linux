@@ -519,7 +519,6 @@ config DM_VERITY
 	  If unsure, say N.
 
 config DM_VERITY_VERIFY_ROOTHASH_SIG
-	def_bool n
 	bool "Verity data device root hash signature verification support"
 	depends on DM_VERITY
 	select SYSTEM_DATA_VERIFICATION

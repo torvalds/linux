@@ -41,7 +41,6 @@ r535_devinit_new(const struct nvkm_devinit_func *hw,
 
 	rm->dtor = r535_devinit_dtor;
 	rm->post = hw->post;
-	rm->disable = hw->disable;
 
 	ret = nv50_devinit_new_(rm, device, type, inst, pdevinit);
 	if (ret)

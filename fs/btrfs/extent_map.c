@@ -309,7 +309,7 @@ int unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen)
 		btrfs_warn(fs_info,
 "no extent map found for inode %llu (root %lld) when unpinning extent range [%llu, %llu), generation %llu",
 			   btrfs_ino(inode), btrfs_root_id(inode->root),
-			   start, len, gen);
+			   start, start + len, gen);
 		ret = -ENOENT;
 		goto out;
 	}
@@ -318,7 +318,7 @@ int unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen)
 		btrfs_warn(fs_info,
 "found extent map for inode %llu (root %lld) with unexpected start offset %llu when unpinning extent range [%llu, %llu), generation %llu",
 			   btrfs_ino(inode), btrfs_root_id(inode->root),
-			   em->start, start, len, gen);
+			   em->start, start, start + len, gen);
 		ret = -EUCLEAN;
 		goto out;
 	}
@@ -340,9 +340,9 @@ int unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen)
 		em->mod_len = em->len;
 	}
 
-	free_extent_map(em);
 out:
 	write_unlock(&tree->lock);
+	free_extent_map(em);
 	return ret;
 
 }
@@ -629,13 +629,13 @@ int btrfs_add_extent_mapping(struct btrfs_fs_info *fs_info,
 			 */
 			ret = merge_extent_mapping(em_tree, existing,
 						   em, start);
-			if (ret) {
+			if (WARN_ON(ret)) {
 				free_extent_map(em);
 				*em_in = NULL;
-				WARN_ONCE(ret,
-"extent map merge error existing [%llu, %llu) with em [%llu, %llu) start %llu\n",
-					  existing->start, existing->len,
-					  orig_start, orig_len, start);
+				btrfs_warn(fs_info,
+"extent map merge error existing [%llu, %llu) with em [%llu, %llu) start %llu",
+					   existing->start, extent_map_end(existing),
+					   orig_start, orig_start + orig_len, start);
 			}
 			free_extent_map(existing);
 		}
