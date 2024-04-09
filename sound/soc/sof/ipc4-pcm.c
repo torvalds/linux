@@ -721,7 +721,7 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 {
 	struct snd_sof_pcm_stream_pipeline_list *pipeline_list;
 	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
-	struct sof_ipc4_timestamp_info *stream_info;
+	struct sof_ipc4_timestamp_info *time_info;
 	bool support_info = true;
 	u32 abi_version;
 	u32 abi_offset;
@@ -752,13 +752,13 @@ static int sof_ipc4_pcm_setup(struct snd_sof_dev *sdev, struct snd_sof_pcm *spcm
 		if (!support_info)
 			continue;
 
-		stream_info = kzalloc(sizeof(*stream_info), GFP_KERNEL);
-		if (!stream_info) {
+		time_info = kzalloc(sizeof(*time_info), GFP_KERNEL);
+		if (!time_info) {
 			sof_ipc4_pcm_free(sdev, spcm);
 			return -ENOMEM;
 		}
 
-		spcm->stream[stream].private = stream_info;
+		spcm->stream[stream].private = time_info;
 	}
 
 	return 0;
@@ -769,7 +769,7 @@ static void sof_ipc4_build_time_info(struct snd_sof_dev *sdev, struct snd_sof_pc
 	struct sof_ipc4_copier *host_copier = NULL;
 	struct sof_ipc4_copier *dai_copier = NULL;
 	struct sof_ipc4_llp_reading_slot llp_slot;
-	struct sof_ipc4_timestamp_info *info;
+	struct sof_ipc4_timestamp_info *time_info;
 	struct snd_soc_dapm_widget *widget;
 	struct snd_sof_dai *dai;
 	int i;
@@ -795,44 +795,44 @@ static void sof_ipc4_build_time_info(struct snd_sof_dev *sdev, struct snd_sof_pc
 		return;
 	}
 
-	info = sps->private;
-	info->host_copier = host_copier;
-	info->dai_copier = dai_copier;
-	info->llp_offset = offsetof(struct sof_ipc4_fw_registers, llp_gpdma_reading_slots) +
-				    sdev->fw_info_box.offset;
+	time_info = sps->private;
+	time_info->host_copier = host_copier;
+	time_info->dai_copier = dai_copier;
+	time_info->llp_offset = offsetof(struct sof_ipc4_fw_registers,
+					 llp_gpdma_reading_slots) + sdev->fw_info_box.offset;
 
 	/* find llp slot used by current dai */
 	for (i = 0; i < SOF_IPC4_MAX_LLP_GPDMA_READING_SLOTS; i++) {
-		sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
+		sof_mailbox_read(sdev, time_info->llp_offset, &llp_slot, sizeof(llp_slot));
 		if (llp_slot.node_id == dai_copier->data.gtw_cfg.node_id)
 			break;
 
-		info->llp_offset += sizeof(llp_slot);
+		time_info->llp_offset += sizeof(llp_slot);
 	}
 
 	if (i < SOF_IPC4_MAX_LLP_GPDMA_READING_SLOTS)
 		return;
 
 	/* if no llp gpdma slot is used, check aggregated sdw slot */
-	info->llp_offset = offsetof(struct sof_ipc4_fw_registers, llp_sndw_reading_slots) +
-					sdev->fw_info_box.offset;
+	time_info->llp_offset = offsetof(struct sof_ipc4_fw_registers,
+					 llp_sndw_reading_slots) + sdev->fw_info_box.offset;
 	for (i = 0; i < SOF_IPC4_MAX_LLP_SNDW_READING_SLOTS; i++) {
-		sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
+		sof_mailbox_read(sdev, time_info->llp_offset, &llp_slot, sizeof(llp_slot));
 		if (llp_slot.node_id == dai_copier->data.gtw_cfg.node_id)
 			break;
 
-		info->llp_offset += sizeof(llp_slot);
+		time_info->llp_offset += sizeof(llp_slot);
 	}
 
 	if (i < SOF_IPC4_MAX_LLP_SNDW_READING_SLOTS)
 		return;
 
 	/* check EVAD slot */
-	info->llp_offset = offsetof(struct sof_ipc4_fw_registers, llp_evad_reading_slot) +
-					sdev->fw_info_box.offset;
-	sof_mailbox_read(sdev, info->llp_offset, &llp_slot, sizeof(llp_slot));
+	time_info->llp_offset = offsetof(struct sof_ipc4_fw_registers,
+					 llp_evad_reading_slot) + sdev->fw_info_box.offset;
+	sof_mailbox_read(sdev, time_info->llp_offset, &llp_slot, sizeof(llp_slot));
 	if (llp_slot.node_id != dai_copier->data.gtw_cfg.node_id)
-		info->llp_offset = 0;
+		time_info->llp_offset = 0;
 }
 
 static int sof_ipc4_pcm_hw_params(struct snd_soc_component *component,
