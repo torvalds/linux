@@ -137,10 +137,9 @@ static int mtk_padding_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int mtk_padding_remove(struct platform_device *pdev)
+static void mtk_padding_remove(struct platform_device *pdev)
 {
 	component_del(&pdev->dev, &mtk_padding_component_ops);
-	return 0;
 }
 
 static const struct of_device_id mtk_padding_driver_dt_match[] = {
@@ -151,7 +150,7 @@ MODULE_DEVICE_TABLE(of, mtk_padding_driver_dt_match);
 
 struct platform_driver mtk_padding_driver = {
 	.probe		= mtk_padding_probe,
-	.remove		= mtk_padding_remove,
+	.remove_new	= mtk_padding_remove,
 	.driver		= {
 		.name	= "mediatek-disp-padding",
 		.of_match_table = mtk_padding_driver_dt_match,
