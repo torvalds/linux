@@ -32,14 +32,12 @@
 
 /**
  * struct plat_max3100 - MAX3100 SPI UART platform data
- * @loopback:            force MAX3100 in loopback
  * @crystal:             1 for 3.6864 Mhz, 0 for 1.8432
  *
  * You should use this structure in your machine description to specify
  * how the MAX3100 is connected.
  */
 struct plat_max3100 {
-	int loopback;
 	int crystal;
 };
 
@@ -109,6 +107,7 @@ struct max3100_port {
 
 	int minor;		/* minor number */
 	int crystal;		/* 1 if 3.6864Mhz crystal 0 for 1.8432 */
+	int loopback_commit;	/* need to change loopback */
 	int loopback;		/* 1 if we are in loopback mode */
 
 	/* for handling irqs: need workqueue since we do spi_sync */
@@ -241,9 +240,9 @@ static void max3100_work(struct work_struct *w)
 	struct max3100_port *s = container_of(w, struct max3100_port, work);
 	struct tty_port *tport = &s->port.state->port;
 	unsigned char ch;
+	int conf, cconf, cloopback, crts;
 	int rxchars;
 	u16 tx, rx;
-	int conf, cconf, crts;
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
@@ -253,11 +252,15 @@ static void max3100_work(struct work_struct *w)
 		conf = s->conf;
 		cconf = s->conf_commit;
 		s->conf_commit = 0;
+		cloopback = s->loopback_commit;
+		s->loopback_commit = 0;
 		crts = s->rts_commit;
 		s->rts_commit = 0;
 		spin_unlock(&s->conf_lock);
 		if (cconf)
 			max3100_sr(s, MAX3100_WC | conf, &rx);
+		if (cloopback)
+			max3100_sr(s, 0x4001, &rx);
 		if (crts) {
 			max3100_sr(s, MAX3100_WD | MAX3100_TE |
 				   (s->rts ? MAX3100_RTS : 0), &rx);
@@ -395,18 +398,24 @@ static void max3100_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	struct max3100_port *s = container_of(port,
 					      struct max3100_port,
 					      port);
-	int rts;
+	int loopback, rts;
 
 	dev_dbg(&s->spi->dev, "%s\n", __func__);
 
+	loopback = (mctrl & TIOCM_LOOP) > 0;
 	rts = (mctrl & TIOCM_RTS) > 0;
 
 	spin_lock(&s->conf_lock);
+	if (s->loopback != loopback) {
+		s->loopback = loopback;
+		s->loopback_commit = 1;
+	}
 	if (s->rts != rts) {
 		s->rts = rts;
 		s->rts_commit = 1;
-		max3100_dowork(s);
 	}
+	if (s->loopback_commit || s->rts_commit)
+		max3100_dowork(s);
 	spin_unlock(&s->conf_lock);
 }
 
@@ -593,12 +602,6 @@ static int max3100_startup(struct uart_port *port)
 		return -EBUSY;
 	}
 
-	if (s->loopback) {
-		u16 tx, rx;
-		tx = 0x4001;
-		max3100_sr(s, tx, &rx);
-	}
-
 	s->conf_commit = 1;
 	max3100_dowork(s);
 	/* wait for clock to settle */
@@ -754,7 +757,6 @@ static int max3100_probe(struct spi_device *spi)
 	spi_set_drvdata(spi, max3100s[i]);
 	pdata = dev_get_platdata(&spi->dev);
 	max3100s[i]->crystal = pdata->crystal;
-	max3100s[i]->loopback = pdata->loopback;
 	max3100s[i]->minor = i;
 	timer_setup(&max3100s[i]->timer, max3100_timeout, 0);
 
