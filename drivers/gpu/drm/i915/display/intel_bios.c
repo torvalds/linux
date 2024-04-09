@@ -598,6 +598,9 @@ get_lvds_pnp_id(const struct bdb_lvds_lfp_data *data,
 		const struct bdb_lvds_lfp_data_ptrs *ptrs,
 		int index)
 {
+	/* These two are supposed to have the same layout in memory. */
+	BUILD_BUG_ON(sizeof(struct lvds_pnp_id) != sizeof(struct drm_edid_product_id));
+
 	return (const void *)data + ptrs->ptr[index].panel_pnp_id.offset;
 }
 
@@ -609,19 +612,6 @@ get_lfp_data_tail(const struct bdb_lvds_lfp_data *data,
 		return (const void *)data + ptrs->panel_name.offset;
 	else
 		return NULL;
-}
-
-static void dump_pnp_id(struct drm_i915_private *i915,
-			const struct lvds_pnp_id *pnp_id,
-			const char *name)
-{
-	u16 mfg_name = be16_to_cpu((__force __be16)pnp_id->mfg_name);
-	char vend[4];
-
-	drm_dbg_kms(&i915->drm, "%s PNPID mfg: %s (0x%x), prod: %u, serial: %u, week: %d, year: %d\n",
-		    name, drm_edid_decode_mfg_id(mfg_name, vend),
-		    pnp_id->mfg_name, pnp_id->product_code, pnp_id->serial,
-		    pnp_id->mfg_week, pnp_id->mfg_year + 1990);
 }
 
 static int opregion_get_panel_type(struct drm_i915_private *i915,
@@ -662,21 +652,21 @@ static int pnpid_get_panel_type(struct drm_i915_private *i915,
 {
 	const struct bdb_lvds_lfp_data *data;
 	const struct bdb_lvds_lfp_data_ptrs *ptrs;
-	const struct lvds_pnp_id *edid_id;
-	struct lvds_pnp_id edid_id_nodate;
-	const struct edid *edid = drm_edid_raw(drm_edid); /* FIXME */
+	struct drm_edid_product_id product_id, product_id_nodate;
+	struct drm_printer p;
 	int i, best = -1;
 
-	if (!edid)
+	if (!drm_edid)
 		return -1;
 
-	edid_id = (const void *)&edid->mfg_id[0];
+	drm_edid_get_product_id(drm_edid, &product_id);
 
-	edid_id_nodate = *edid_id;
-	edid_id_nodate.mfg_week = 0;
-	edid_id_nodate.mfg_year = 0;
+	product_id_nodate = product_id;
+	product_id_nodate.week_of_manufacture = 0;
+	product_id_nodate.year_of_manufacture = 0;
 
-	dump_pnp_id(i915, edid_id, "EDID");
+	p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, "EDID");
+	drm_edid_print_product_id(&p, &product_id, true);
 
 	ptrs = bdb_find_section(i915, BDB_LVDS_LFP_DATA_PTRS);
 	if (!ptrs)
@@ -691,7 +681,7 @@ static int pnpid_get_panel_type(struct drm_i915_private *i915,
 			get_lvds_pnp_id(data, ptrs, i);
 
 		/* full match? */
-		if (!memcmp(vbt_id, edid_id, sizeof(*vbt_id)))
+		if (!memcmp(vbt_id, &product_id, sizeof(*vbt_id)))
 			return i;
 
 		/*
@@ -699,7 +689,7 @@ static int pnpid_get_panel_type(struct drm_i915_private *i915,
 		 * and the VBT entry does not specify a date.
 		 */
 		if (best < 0 &&
-		    !memcmp(vbt_id, &edid_id_nodate, sizeof(*vbt_id)))
+		    !memcmp(vbt_id, &product_id_nodate, sizeof(*vbt_id)))
 			best = i;
 	}
 
@@ -886,6 +876,7 @@ parse_lfp_data(struct drm_i915_private *i915,
 	const struct bdb_lvds_lfp_data_tail *tail;
 	const struct bdb_lvds_lfp_data_ptrs *ptrs;
 	const struct lvds_pnp_id *pnp_id;
+	struct drm_printer p;
 	int panel_type = panel->vbt.panel_type;
 
 	ptrs = bdb_find_section(i915, BDB_LVDS_LFP_DATA_PTRS);
@@ -900,7 +891,9 @@ parse_lfp_data(struct drm_i915_private *i915,
 		parse_lfp_panel_dtd(i915, panel, data, ptrs);
 
 	pnp_id = get_lvds_pnp_id(data, ptrs, panel_type);
-	dump_pnp_id(i915, pnp_id, "Panel");
+
+	p = drm_dbg_printer(&i915->drm, DRM_UT_KMS, "Panel");
+	drm_edid_print_product_id(&p, (const struct drm_edid_product_id *)pnp_id, false);
 
 	tail = get_lfp_data_tail(data, ptrs);
 	if (!tail)
