@@ -22,6 +22,13 @@ static const struct snd_sof_debugfs_map tgl_dsp_debugfs[] = {
 	{"dsp", HDA_DSP_BAR,  0, 0x10000, SOF_DEBUGFS_ACCESS_ALWAYS},
 };
 
+static const struct snd_sof_debugfs_map tgl_ipc4_dsp_debugfs[] = {
+	{"hda", HDA_DSP_HDA_BAR, 0, 0x4000, SOF_DEBUGFS_ACCESS_ALWAYS},
+	{"pp", HDA_DSP_PP_BAR,  0, 0x1000, SOF_DEBUGFS_ACCESS_ALWAYS},
+	{"dsp", HDA_DSP_BAR,  0, 0x10000, SOF_DEBUGFS_ACCESS_ALWAYS},
+	{"fw_regs", HDA_DSP_BAR,  SRAM_WINDOW_OFFSET(0), 0x1000, SOF_DEBUGFS_ACCESS_D0_ONLY},
+};
+
 static int tgl_dsp_core_get(struct snd_sof_dev *sdev, int core)
 {
 	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
@@ -75,6 +82,8 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 
 		/* debug */
 		sof_tgl_ops.ipc_dump	= cnl_ipc_dump;
+		sof_tgl_ops.debug_map	= tgl_dsp_debugfs;
+		sof_tgl_ops.debug_map_count = ARRAY_SIZE(tgl_dsp_debugfs);
 
 		sof_tgl_ops.set_power_state = hda_dsp_set_power_state_ipc3;
 	}
@@ -105,16 +114,14 @@ int sof_tgl_ops_init(struct snd_sof_dev *sdev)
 		/* debug */
 		sof_tgl_ops.ipc_dump	= cnl_ipc4_dump;
 		sof_tgl_ops.dbg_dump	= hda_ipc4_dsp_dump;
+		sof_tgl_ops.debug_map	= tgl_ipc4_dsp_debugfs;
+		sof_tgl_ops.debug_map_count = ARRAY_SIZE(tgl_ipc4_dsp_debugfs);
 
 		sof_tgl_ops.set_power_state = hda_dsp_set_power_state_ipc4;
 	}
 
 	/* set DAI driver ops */
 	hda_set_dai_drv_ops(sdev, &sof_tgl_ops);
-
-	/* debug */
-	sof_tgl_ops.debug_map	= tgl_dsp_debugfs;
-	sof_tgl_ops.debug_map_count	= ARRAY_SIZE(tgl_dsp_debugfs);
 
 	/* pre/post fw run */
 	sof_tgl_ops.post_fw_run = hda_dsp_post_fw_run;
