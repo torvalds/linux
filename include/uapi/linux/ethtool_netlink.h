@@ -488,9 +488,9 @@ enum {
 enum {
 	ETHTOOL_A_TS_STAT_UNSPEC,
 
-	ETHTOOL_A_TS_STAT_TX_PKTS,			/* u64 */
-	ETHTOOL_A_TS_STAT_TX_LOST,			/* u64 */
-	ETHTOOL_A_TS_STAT_TX_ERR,			/* u64 */
+	ETHTOOL_A_TS_STAT_TX_PKTS,			/* uint */
+	ETHTOOL_A_TS_STAT_TX_LOST,			/* uint */
+	ETHTOOL_A_TS_STAT_TX_ERR,			/* uint */
 
 	/* add new constants above here */
 	__ETHTOOL_A_TS_STAT_CNT,
