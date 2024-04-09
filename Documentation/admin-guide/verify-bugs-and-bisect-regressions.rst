@@ -276,6 +276,10 @@ Preparations: set up everything to build your own kernels
 
 The following steps lay the groundwork for all further tasks.
 
+Note: the instructions assume you are building and testing on the same
+machine; if you want to compile the kernel on another system, check
+:ref:`Build kernels on a different machine <buildhost_bis>` below.
+
 .. _backup_bissbs:
 
 * Create a fresh backup and put system repair and restore tools at hand, just
@@ -2103,11 +2107,77 @@ problems will arise if the kernelrelease identifier exceeds 63 characters.
 [:ref:`back to step-by-step guide <introoptional_bissbs>`].
 
 
-Additional reading material
-===========================
+Additional information
+======================
 
-Further sources
----------------
+.. _buildhost_bis:
+
+Build kernels on a different machine
+------------------------------------
+
+To compile kernels on another system, slightly alter the step-by-step guide's
+instructions:
+
+* Start following the guide on the machine where you want to install and test
+  the kernels later.
+
+* After executing ':ref:`Boot into the working kernel and briefly use the
+  apparently broken feature <bootworking_bissbs>`', save the list of loaded
+  modules to a file using ``lsmod > ~/test-machine-lsmod``. Then locate the
+  build configuration for the running kernel (see ':ref:`Start defining the
+  build configuration for your kernel <oldconfig_bisref>`' for hints on where
+  to find it) and store it as '~/test-machine-config-working'. Transfer both
+  files to the home directory of your build host.
+
+* Continue the guide on the build host (e.g. with ':ref:`Ensure to have enough
+  free space for building [...] <diskspace_bissbs>`').
+
+* When you reach ':ref:`Start preparing a kernel build configuration[...]
+  <oldconfig_bissbs>`': before running ``make olddefconfig`` for the first time,
+  execute the following command to base your configuration on the one from the
+  test machine's 'working' kernel::
+
+    cp ~/test-machine-config-working ~/linux/.config
+
+* During the next step to ':ref:`disable any apparently superfluous kernel
+  modules <localmodconfig_bissbs>`' use the following command instead::
+
+    yes '' | make localmodconfig LSMOD=~/lsmod_foo-machine localmodconfig
+
+* Continue the guide, but ignore the instructions outlining how to compile,
+  install, and reboot into a kernel every time they come up. Instead build
+  like this::
+
+    cp ~/kernel-config-working .config
+    make olddefconfig &&
+    make -j $(nproc --all) targz-pkg
+
+  This will generate a gzipped tar file whose name is printed in the last
+  line shown; for example, a kernel with the kernelrelease identifier
+  '6.0.0-rc1-local-g928a87efa423' built for x86 machines usually will
+  be stored as '~/linux/linux-6.0.0-rc1-local-g928a87efa423-x86.tar.gz'.
+
+  Copy that file to your test machine's home directory.
+
+* Switch to the test machine to check if you have enough space to hold another
+  kernel. Then extract the file you transferred::
+
+    sudo tar -xvzf ~/linux-6.0.0-rc1-local-g928a87efa423-x86.tar.gz -C /
+
+  Afterwards :ref:`generate the initramfs and add the kernel to your boot
+  loader's configuration <install_bisref>`; on some distributions the following
+  command will take care of both these tasks::
+
+    sudo /sbin/installkernel 6.0.0-rc1-local-g928a87efa423 /boot/vmlinuz-6.0.0-rc1-local-g928a87efa423
+
+  Now reboot and ensure you started the intended kernel.
+
+This approach even works when building for another architecture: just install
+cross-compilers and add the appropriate parameters to every invocation of make
+(e.g. ``make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- [...]``).
+
+Additional reading material
+---------------------------
 
 * The `man page for 'git bisect' <https://git-scm.com/docs/git-bisect>`_ and
   `fighting regressions with 'git bisect' <https://git-scm.com/docs/git-bisect-lk2009.html>`_
