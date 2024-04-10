@@ -516,6 +516,9 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 			governor->trip_crossed(tz, &td->trip, false);
 	}
 
+	if (governor->manage)
+		governor->manage(tz);
+
 	monitor_thermal_zone(tz);
 }
 

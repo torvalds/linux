@@ -31,6 +31,7 @@ struct thermal_trip_desc {
  * @unbind_from_tz:	callback called when a governor is unbound from a
  *			thermal zone.
  * @trip_crossed:	called for trip points that have just been crossed
+ * @manage:	called on thermal zone temperature updates
  * @throttle:	callback called for every trip point even if temperature is
  *		below the trip point temperature
  * @update_tz:	callback called when thermal zone internals have changed, e.g.
@@ -44,6 +45,7 @@ struct thermal_governor {
 	void (*trip_crossed)(struct thermal_zone_device *tz,
 			     const struct thermal_trip *trip,
 			     bool crossed_up);
+	void (*manage)(struct thermal_zone_device *tz);
 	int (*throttle)(struct thermal_zone_device *tz,
 			const struct thermal_trip *trip);
 	void (*update_tz)(struct thermal_zone_device *tz,
