@@ -117,5 +117,5 @@ struct regmap *__devm_regmap_init_mdio(struct mdio_device *mdio_dev,
 EXPORT_SYMBOL_GPL(__devm_regmap_init_mdio);
 
 MODULE_AUTHOR("Sander Vanheule <sander@svanheule.net>");
-MODULE_DESCRIPTION("Regmap MDIO Module");
+MODULE_DESCRIPTION("regmap MDIO Module");
 MODULE_LICENSE("GPL v2");
