@@ -42,24 +42,30 @@
 
 static int dbg_check_orphans(struct ubifs_info *c);
 
-static struct ubifs_orphan *orphan_add(struct ubifs_info *c, ino_t inum,
-				       struct ubifs_orphan *parent_orphan)
+/**
+ * ubifs_add_orphan - add an orphan.
+ * @c: UBIFS file-system description object
+ * @inum: orphan inode number
+ *
+ * Add an orphan. This function is called when an inodes link count drops to
+ * zero.
+ */
+int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
 {
 	struct ubifs_orphan *orphan, *o;
 	struct rb_node **p, *parent = NULL;
 
 	orphan = kzalloc(sizeof(struct ubifs_orphan), GFP_NOFS);
 	if (!orphan)
-		return ERR_PTR(-ENOMEM);
+		return -ENOMEM;
 	orphan->inum = inum;
 	orphan->new = 1;
-	INIT_LIST_HEAD(&orphan->child_list);
 
 	spin_lock(&c->orphan_lock);
 	if (c->tot_orphans >= c->max_orphans) {
 		spin_unlock(&c->orphan_lock);
 		kfree(orphan);
-		return ERR_PTR(-ENFILE);
+		return -ENFILE;
 	}
 	p = &c->orph_tree.rb_node;
 	while (*p) {
@@ -73,7 +79,7 @@ static struct ubifs_orphan *orphan_add(struct ubifs_info *c, ino_t inum,
 			ubifs_err(c, "orphaned twice");
 			spin_unlock(&c->orphan_lock);
 			kfree(orphan);
-			return ERR_PTR(-EINVAL);
+			return -EINVAL;
 		}
 	}
 	c->tot_orphans += 1;
@@ -83,14 +89,9 @@ static struct ubifs_orphan *orphan_add(struct ubifs_info *c, ino_t inum,
 	list_add_tail(&orphan->list, &c->orph_list);
 	list_add_tail(&orphan->new_list, &c->orph_new);
 
-	if (parent_orphan) {
-		list_add_tail(&orphan->child_list,
-			      &parent_orphan->child_list);
-	}
-
 	spin_unlock(&c->orphan_lock);
 	dbg_gen("ino %lu", (unsigned long)inum);
-	return orphan;
+	return 0;
 }
 
 static struct ubifs_orphan *lookup_orphan(struct ubifs_info *c, ino_t inum)
@@ -145,59 +146,6 @@ static void orphan_delete(struct ubifs_info *c, struct ubifs_orphan *orph)
 }
 
 /**
- * ubifs_add_orphan - add an orphan.
- * @c: UBIFS file-system description object
- * @inum: orphan inode number
- *
- * Add an orphan. This function is called when an inodes link count drops to
- * zero.
- */
-int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
-{
-	int err = 0;
-	ino_t xattr_inum;
-	union ubifs_key key;
-	struct ubifs_dent_node *xent, *pxent = NULL;
-	struct fscrypt_name nm = {0};
-	struct ubifs_orphan *xattr_orphan;
-	struct ubifs_orphan *orphan;
-
-	orphan = orphan_add(c, inum, NULL);
-	if (IS_ERR(orphan))
-		return PTR_ERR(orphan);
-
-	lowest_xent_key(c, &key, inum);
-	while (1) {
-		xent = ubifs_tnc_next_ent(c, &key, &nm);
-		if (IS_ERR(xent)) {
-			err = PTR_ERR(xent);
-			if (err == -ENOENT)
-				break;
-			kfree(pxent);
-			return err;
-		}
-
-		fname_name(&nm) = xent->name;
-		fname_len(&nm) = le16_to_cpu(xent->nlen);
-		xattr_inum = le64_to_cpu(xent->inum);
-
-		xattr_orphan = orphan_add(c, xattr_inum, orphan);
-		if (IS_ERR(xattr_orphan)) {
-			kfree(pxent);
-			kfree(xent);
-			return PTR_ERR(xattr_orphan);
-		}
-
-		kfree(pxent);
-		pxent = xent;
-		key_read(c, &xent->key, &key);
-	}
-	kfree(pxent);
-
-	return 0;
-}
-
-/**
  * ubifs_delete_orphan - delete an orphan.
  * @c: UBIFS file-system description object
  * @inum: orphan inode number
@@ -206,7 +154,7 @@ int ubifs_add_orphan(struct ubifs_info *c, ino_t inum)
  */
 void ubifs_delete_orphan(struct ubifs_info *c, ino_t inum)
 {
-	struct ubifs_orphan *orph, *child_orph, *tmp_o;
+	struct ubifs_orphan *orph;
 
 	spin_lock(&c->orphan_lock);
 
@@ -219,11 +167,6 @@ void ubifs_delete_orphan(struct ubifs_info *c, ino_t inum)
 		return;
 	}
 
-	list_for_each_entry_safe(child_orph, tmp_o, &orph->child_list, child_list) {
-		list_del(&child_orph->child_list);
-		orphan_delete(c, child_orph);
-	}
-	
 	orphan_delete(c, orph);
 
 	spin_unlock(&c->orphan_lock);
