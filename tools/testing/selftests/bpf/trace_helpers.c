@@ -233,29 +233,6 @@ out:
 	return err;
 }
 
-void read_trace_pipe(void)
-{
-	int trace_fd;
-
-	if (access(TRACEFS_PIPE, F_OK) == 0)
-		trace_fd = open(TRACEFS_PIPE, O_RDONLY, 0);
-	else
-		trace_fd = open(DEBUGFS_PIPE, O_RDONLY, 0);
-	if (trace_fd < 0)
-		return;
-
-	while (1) {
-		static char buf[4096];
-		ssize_t sz;
-
-		sz = read(trace_fd, buf, sizeof(buf) - 1);
-		if (sz > 0) {
-			buf[sz] = 0;
-			puts(buf);
-		}
-	}
-}
-
 ssize_t get_uprobe_offset(const void *addr)
 {
 	size_t start, end, base;
@@ -412,4 +389,44 @@ out:
 		elf_end(elf);
 	close(fd);
 	return err;
+}
+
+int read_trace_pipe_iter(void (*cb)(const char *str, void *data), void *data, int iter)
+{
+	size_t buflen, n;
+	char *buf = NULL;
+	FILE *fp = NULL;
+
+	if (access(TRACEFS_PIPE, F_OK) == 0)
+		fp = fopen(TRACEFS_PIPE, "r");
+	else
+		fp = fopen(DEBUGFS_PIPE, "r");
+	if (!fp)
+		return -1;
+
+	 /* We do not want to wait forever when iter is specified. */
+	if (iter)
+		fcntl(fileno(fp), F_SETFL, O_NONBLOCK);
+
+	while ((n = getline(&buf, &buflen, fp) >= 0) || errno == EAGAIN) {
+		if (n > 0)
+			cb(buf, data);
+		if (iter && !(--iter))
+			break;
+	}
+
+	free(buf);
+	if (fp)
+		fclose(fp);
+	return 0;
+}
+
+static void trace_pipe_cb(const char *str, void *data)
+{
+	printf("%s", str);
+}
+
+void read_trace_pipe(void)
+{
+	read_trace_pipe_iter(trace_pipe_cb, NULL, 0);
 }

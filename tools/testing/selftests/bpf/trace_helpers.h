@@ -33,6 +33,8 @@ struct ksym *search_kallsyms_custom_local(struct ksyms *ksyms, const void *p1,
 int kallsyms_find(const char *sym, unsigned long long *addr);
 
 void read_trace_pipe(void);
+int read_trace_pipe_iter(void (*cb)(const char *str, void *data),
+			 void *data, int iter);
 
 ssize_t get_uprobe_offset(const void *addr);
 ssize_t get_rel_offset(uintptr_t addr);
