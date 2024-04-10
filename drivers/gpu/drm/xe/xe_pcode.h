@@ -8,9 +8,11 @@
 
 #include <linux/types.h>
 struct xe_gt;
+struct xe_device;
 
-int xe_pcode_probe(struct xe_gt *gt);
-int xe_pcode_init(struct xe_gt *gt);
+void xe_pcode_init(struct xe_gt *gt);
+int xe_pcode_probe_early(struct xe_device *xe);
+int xe_pcode_ready(struct xe_device *xe, bool locked);
 int xe_pcode_init_min_freq_table(struct xe_gt *gt, u32 min_gt_freq,
 				 u32 max_gt_freq);
 int xe_pcode_read(struct xe_gt *gt, u32 mbox, u32 *val, u32 *val1);

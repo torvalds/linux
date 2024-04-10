@@ -129,11 +129,9 @@ int xe_pm_resume(struct xe_device *xe)
 	for_each_tile(tile, xe, id)
 		xe_wa_apply_tile_workarounds(tile);
 
-	for_each_gt(gt, xe, id) {
-		err = xe_pcode_init(gt);
-		if (err)
-			goto err;
-	}
+	err = xe_pcode_ready(xe, true);
+	if (err)
+		return err;
 
 	xe_display_pm_resume_early(xe);
 
@@ -386,11 +384,9 @@ int xe_pm_runtime_resume(struct xe_device *xe)
 	xe->d3cold.power_lost = xe_guc_in_reset(&gt->uc.guc);
 
 	if (xe->d3cold.allowed && xe->d3cold.power_lost) {
-		for_each_gt(gt, xe, id) {
-			err = xe_pcode_init(gt);
-			if (err)
-				goto out;
-		}
+		err = xe_pcode_ready(xe, true);
+		if (err)
+			goto out;
 
 		/*
 		 * This only restores pinned memory which is the memory
