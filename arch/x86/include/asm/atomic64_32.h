@@ -14,6 +14,32 @@ typedef struct {
 
 #define ATOMIC64_INIT(val)	{ (val) }
 
+/*
+ * Read an atomic64_t non-atomically.
+ *
+ * This is intended to be used in cases where a subsequent atomic operation
+ * will handle the torn value, and can be used to prime the first iteration
+ * of unconditional try_cmpxchg() loops, e.g.:
+ *
+ * 	s64 val = arch_atomic64_read_nonatomic(v);
+ * 	do { } while (!arch_atomic64_try_cmpxchg(v, &val, val OP i);
+ *
+ * This is NOT safe to use where the value is not always checked by a
+ * subsequent atomic operation, such as in conditional try_cmpxchg() loops
+ * that can break before the atomic operation, e.g.:
+ *
+ * 	s64 val = arch_atomic64_read_nonatomic(v);
+ * 	do {
+ * 		if (condition(val))
+ * 			break;
+ * 	} while (!arch_atomic64_try_cmpxchg(v, &val, val OP i);
+ */
+static __always_inline s64 arch_atomic64_read_nonatomic(const atomic64_t *v)
+{
+	/* See comment in arch_atomic_read(). */
+	return __READ_ONCE(v->counter);
+}
+
 #define __ATOMIC64_DECL(sym) void atomic64_##sym(atomic64_t *, ...)
 #ifndef ATOMIC64_EXPORT
 #define ATOMIC64_DECL_ONE __ATOMIC64_DECL
