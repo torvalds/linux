@@ -52,6 +52,13 @@
 #define IPI_MB_CHNL_TX	0 /* IPI mailbox TX channel */
 #define IPI_MB_CHNL_RX	1 /* IPI mailbox RX channel */
 
+/* IPI Message Buffer Information */
+#define RESP_OFFSET	0x20U
+#define DEST_OFFSET	0x40U
+#define IPI_BUF_SIZE	0x20U
+#define DST_BIT_POS	9U
+#define SRC_BITMASK	GENMASK(11, 8)
+
 /**
  * struct zynqmp_ipi_mchan - Description of a Xilinx ZynqMP IPI mailbox channel
  * @is_opened: indicate if the IPI channel is opened
@@ -169,9 +176,11 @@ static irqreturn_t zynqmp_ipi_interrupt(int irq, void *data)
 		if (ret > 0 && ret & IPI_MB_STATUS_RECV_PENDING) {
 			if (mchan->is_opened) {
 				msg = mchan->rx_buf;
-				msg->len = mchan->req_buf_size;
-				memcpy_fromio(msg->data, mchan->req_buf,
-					      msg->len);
+				if (msg) {
+					msg->len = mchan->req_buf_size;
+					memcpy_fromio(msg->data, mchan->req_buf,
+						      msg->len);
+				}
 				mbox_chan_received_data(chan, (void *)msg);
 				status = IRQ_HANDLED;
 			}
@@ -281,26 +290,26 @@ static int zynqmp_ipi_send_data(struct mbox_chan *chan, void *data)
 
 	if (mchan->chan_type == IPI_MB_CHNL_TX) {
 		/* Send request message */
-		if (msg && msg->len > mchan->req_buf_size) {
+		if (msg && msg->len > mchan->req_buf_size && mchan->req_buf) {
 			dev_err(dev, "channel %d message length %u > max %lu\n",
 				mchan->chan_type, (unsigned int)msg->len,
 				mchan->req_buf_size);
 			return -EINVAL;
 		}
-		if (msg && msg->len)
+		if (msg && msg->len && mchan->req_buf)
 			memcpy_toio(mchan->req_buf, msg->data, msg->len);
 		/* Kick IPI mailbox to send message */
 		arg0 = SMC_IPI_MAILBOX_NOTIFY;
 		zynqmp_ipi_fw_call(ipi_mbox, arg0, 0, &res);
 	} else {
 		/* Send response message */
-		if (msg && msg->len > mchan->resp_buf_size) {
+		if (msg && msg->len > mchan->resp_buf_size && mchan->resp_buf) {
 			dev_err(dev, "channel %d message length %u > max %lu\n",
 				mchan->chan_type, (unsigned int)msg->len,
 				mchan->resp_buf_size);
 			return -EINVAL;
 		}
-		if (msg && msg->len)
+		if (msg && msg->len && mchan->resp_buf)
 			memcpy_toio(mchan->resp_buf, msg->data, msg->len);
 		arg0 = SMC_IPI_MAILBOX_ACK;
 		zynqmp_ipi_fw_call(ipi_mbox, arg0, IPI_SMC_ACK_EIRQ_MASK,
@@ -637,6 +646,109 @@ static int zynqmp_ipi_setup(struct zynqmp_ipi_mbox *ipi_mbox,
 }
 
 /**
+ * versal_ipi_setup - Set up IPIs to support mixed usage of
+ *				 Buffered and Bufferless IPIs.
+ *
+ * @ipi_mbox: pointer to IPI mailbox private data structure
+ * @node: IPI mailbox device node
+ *
+ * Return: 0 for success, negative value for failure
+ */
+static int versal_ipi_setup(struct zynqmp_ipi_mbox *ipi_mbox,
+			    struct device_node *node)
+{
+	struct zynqmp_ipi_mchan *tx_mchan, *rx_mchan;
+	struct resource host_res, remote_res;
+	struct device_node *parent_node;
+	int host_idx, remote_idx;
+	struct device *mdev;
+
+	tx_mchan = &ipi_mbox->mchans[IPI_MB_CHNL_TX];
+	rx_mchan = &ipi_mbox->mchans[IPI_MB_CHNL_RX];
+	parent_node = of_get_parent(node);
+	mdev = &ipi_mbox->dev;
+
+	host_idx = zynqmp_ipi_mbox_get_buf_res(parent_node, "msg", &host_res);
+	remote_idx = zynqmp_ipi_mbox_get_buf_res(node, "msg", &remote_res);
+
+	/*
+	 * Only set up buffers if both sides claim to have msg buffers.
+	 * This is because each buffered IPI's corresponding msg buffers
+	 * are reserved for use by other buffered IPI's.
+	 */
+	if (!host_idx && !remote_idx) {
+		u32 host_src, host_dst, remote_src, remote_dst;
+		u32 buff_sz;
+
+		buff_sz = resource_size(&host_res);
+
+		host_src = host_res.start & SRC_BITMASK;
+		remote_src = remote_res.start & SRC_BITMASK;
+
+		host_dst = (host_src >> DST_BIT_POS) * DEST_OFFSET;
+		remote_dst = (remote_src >> DST_BIT_POS) * DEST_OFFSET;
+
+		/* Validate that IPI IDs is within IPI Message buffer space. */
+		if (host_dst >= buff_sz || remote_dst >= buff_sz) {
+			dev_err(mdev,
+				"Invalid IPI Message buffer values: %x %x\n",
+				host_dst, remote_dst);
+			return -EINVAL;
+		}
+
+		tx_mchan->req_buf = devm_ioremap(mdev,
+						 host_res.start | remote_dst,
+						 IPI_BUF_SIZE);
+		if (!tx_mchan->req_buf) {
+			dev_err(mdev, "Unable to map IPI buffer I/O memory\n");
+			return -ENOMEM;
+		}
+
+		tx_mchan->resp_buf = devm_ioremap(mdev,
+						  (remote_res.start | host_dst) +
+						  RESP_OFFSET, IPI_BUF_SIZE);
+		if (!tx_mchan->resp_buf) {
+			dev_err(mdev, "Unable to map IPI buffer I/O memory\n");
+			return -ENOMEM;
+		}
+
+		rx_mchan->req_buf = devm_ioremap(mdev,
+						 remote_res.start | host_dst,
+						 IPI_BUF_SIZE);
+		if (!rx_mchan->req_buf) {
+			dev_err(mdev, "Unable to map IPI buffer I/O memory\n");
+			return -ENOMEM;
+		}
+
+		rx_mchan->resp_buf = devm_ioremap(mdev,
+						  (host_res.start | remote_dst) +
+						  RESP_OFFSET, IPI_BUF_SIZE);
+		if (!rx_mchan->resp_buf) {
+			dev_err(mdev, "Unable to map IPI buffer I/O memory\n");
+			return -ENOMEM;
+		}
+
+		tx_mchan->resp_buf_size = IPI_BUF_SIZE;
+		tx_mchan->req_buf_size = IPI_BUF_SIZE;
+		tx_mchan->rx_buf = devm_kzalloc(mdev, IPI_BUF_SIZE +
+						sizeof(struct zynqmp_ipi_message),
+						GFP_KERNEL);
+		if (!tx_mchan->rx_buf)
+			return -ENOMEM;
+
+		rx_mchan->resp_buf_size = IPI_BUF_SIZE;
+		rx_mchan->req_buf_size = IPI_BUF_SIZE;
+		rx_mchan->rx_buf = devm_kzalloc(mdev, IPI_BUF_SIZE +
+						sizeof(struct zynqmp_ipi_message),
+						GFP_KERNEL);
+		if (!rx_mchan->rx_buf)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+
+/**
  * zynqmp_ipi_free_mboxes - Free IPI mailboxes devices
  *
  * @pdata: IPI private data
@@ -742,6 +854,9 @@ static void zynqmp_ipi_remove(struct platform_device *pdev)
 static const struct of_device_id zynqmp_ipi_of_match[] = {
 	{ .compatible = "xlnx,zynqmp-ipi-mailbox",
 	  .data = &zynqmp_ipi_setup,
+	},
+	{ .compatible = "xlnx,versal-ipi-mailbox",
+	  .data = &versal_ipi_setup,
 	},
 	{},
 };
