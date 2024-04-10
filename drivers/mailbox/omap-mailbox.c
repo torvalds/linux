@@ -51,6 +51,11 @@
 #define MBOX_INTR_CFG_TYPE1		0
 #define MBOX_INTR_CFG_TYPE2		1
 
+typedef enum {
+	IRQ_TX = 1,
+	IRQ_RX = 2,
+} omap_mbox_irq_t;
+
 struct omap_mbox_fifo {
 	unsigned long msg;
 	unsigned long fifo_stat;
