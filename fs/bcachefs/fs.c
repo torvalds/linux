@@ -1036,6 +1036,10 @@ retry:
 
 		bch2_btree_iter_set_pos(&iter,
 			POS(iter.pos.inode, iter.pos.offset + sectors));
+
+		ret = bch2_trans_relock(trans);
+		if (ret)
+			break;
 	}
 	start = iter.pos.offset;
 	bch2_trans_iter_exit(trans, &iter);

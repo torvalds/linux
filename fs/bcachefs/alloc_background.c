@@ -2172,6 +2172,9 @@ int bch2_bucket_io_time_reset(struct btree_trans *trans, unsigned dev,
 	u64 now;
 	int ret = 0;
 
+	if (bch2_trans_relock(trans))
+		bch2_trans_begin(trans);
+
 	a = bch2_trans_start_alloc_update(trans, &iter,  POS(dev, bucket_nr));
 	ret = PTR_ERR_OR_ZERO(a);
 	if (ret)

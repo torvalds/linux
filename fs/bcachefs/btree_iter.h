@@ -729,6 +729,8 @@ transaction_restart:							\
 #define for_each_btree_key_upto(_trans, _iter, _btree_id,		\
 				_start, _end, _flags, _k, _do)		\
 ({									\
+	bch2_trans_begin(trans);					\
+									\
 	struct btree_iter _iter;					\
 	bch2_trans_iter_init((_trans), &(_iter), (_btree_id),		\
 			     (_start), (_flags));			\

@@ -386,6 +386,8 @@ static void bch2_update_unwritten_extent(struct btree_trans *trans,
 	while (bio_sectors(bio)) {
 		unsigned sectors = bio_sectors(bio);
 
+		bch2_trans_begin(trans);
+
 		bch2_trans_iter_init(trans, &iter, update->btree_id, update->op.pos,
 				     BTREE_ITER_slots);
 		ret = lockrestart_do(trans, ({

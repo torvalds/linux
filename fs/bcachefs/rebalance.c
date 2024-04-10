@@ -323,6 +323,8 @@ static int do_rebalance(struct moving_context *ctxt)
 	struct bkey_s_c k;
 	int ret = 0;
 
+	bch2_trans_begin(trans);
+
 	bch2_move_stats_init(&r->work_stats, "rebalance_work");
 	bch2_move_stats_init(&r->scan_stats, "rebalance_scan");
 

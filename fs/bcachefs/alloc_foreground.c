@@ -1342,6 +1342,10 @@ retry:
 
 	*wp_ret = wp = writepoint_find(trans, write_point.v);
 
+	ret = bch2_trans_relock(trans);
+	if (ret)
+		goto err;
+
 	/* metadata may not allocate on cache devices: */
 	if (wp->data_type != BCH_DATA_user)
 		have_cache = true;

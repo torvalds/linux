@@ -202,7 +202,7 @@ int bch2_journal_replay(struct bch_fs *c)
 	struct journal *j = &c->journal;
 	u64 start_seq	= c->journal_replay_seq_start;
 	u64 end_seq	= c->journal_replay_seq_start;
-	struct btree_trans *trans = bch2_trans_get(c);
+	struct btree_trans *trans = NULL;
 	bool immediate_flush = false;
 	int ret = 0;
 
@@ -216,6 +216,7 @@ int bch2_journal_replay(struct bch_fs *c)
 	BUG_ON(!atomic_read(&keys->ref));
 
 	move_gap(keys, keys->nr);
+	trans = bch2_trans_get(c);
 
 	/*
 	 * First, attempt to replay keys in sorted order. This is more

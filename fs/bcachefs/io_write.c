@@ -1248,6 +1248,10 @@ retry:
 
 		buckets.nr = 0;
 
+		ret = bch2_trans_relock(trans);
+		if (ret)
+			break;
+
 		k = bch2_btree_iter_peek_slot(&iter);
 		ret = bkey_err(k);
 		if (ret)
