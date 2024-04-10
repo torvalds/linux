@@ -819,9 +819,9 @@ struct kfd_process *kfd_create_process(struct task_struct *thread)
 	mutex_lock(&kfd_processes_mutex);
 
 	if (kfd_is_locked()) {
-		mutex_unlock(&kfd_processes_mutex);
 		pr_debug("KFD is locked! Cannot create process");
-		return ERR_PTR(-EINVAL);
+		process = ERR_PTR(-EINVAL);
+		goto out;
 	}
 
 	/* A prior open of /dev/kfd could have already created the process. */
