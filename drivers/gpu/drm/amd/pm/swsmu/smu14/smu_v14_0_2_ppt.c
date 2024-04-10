@@ -65,6 +65,7 @@
 	FEATURE_MASK(FEATURE_DPM_FCLK_BIT))
 
 #define MP0_MP1_DATA_REGION_SIZE_COMBOPPTABLE	0x4000
+#define DEBUGSMC_MSG_Mode1Reset        2
 
 static struct cmn2asic_msg_mapping smu_v14_0_2_message_map[SMU_MSG_MAX_COUNT] = {
 	MSG_MAP(TestMessage,			PPSMC_MSG_TestMessage,                 1),
@@ -1749,12 +1750,12 @@ static int smu_v14_0_2_mode1_reset(struct smu_context *smu)
 {
 	int ret = 0;
 
-	ret = smu_cmn_send_smc_msg(smu, SMU_MSG_Mode1Reset, NULL);
+	ret = smu_cmn_send_debug_smc_msg(smu, DEBUGSMC_MSG_Mode1Reset);
 	if (!ret) {
 		if (amdgpu_emu_mode == 1)
 			msleep(50000);
 		else
-			msleep(500);
+			msleep(1000);
 	}
 
 	return ret;
@@ -1787,6 +1788,10 @@ static void smu_v14_0_2_set_smu_mailbox_registers(struct smu_context *smu)
 	smu->param_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_82);
 	smu->msg_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_66);
 	smu->resp_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_90);
+
+	smu->debug_param_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_53);
+	smu->debug_msg_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_75);
+	smu->debug_resp_reg = SOC15_REG_OFFSET(MP1, 0, regMP1_SMN_C2PMSG_54);
 }
 
 static int smu_v14_0_2_smu_send_bad_mem_page_num(struct smu_context *smu,
