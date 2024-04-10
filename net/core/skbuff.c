@@ -6983,7 +6983,7 @@ static void kfree_skb_napi_cache(struct sk_buff *skb)
 	}
 
 	local_bh_disable();
-	__napi_kfree_skb(skb, SKB_DROP_REASON_NOT_SPECIFIED);
+	__napi_kfree_skb(skb, SKB_CONSUMED);
 	local_bh_enable();
 }
 
