@@ -106,9 +106,6 @@
 
 #include "fib_lookup.h"
 
-#define RT_FL_TOS(oldflp4) \
-	((oldflp4)->flowi4_tos & (IPTOS_RT_MASK | RTO_ONLINK))
-
 #define RT_GC_TIMEOUT (300*HZ)
 
 #define DEFAULT_MIN_PMTU (512 + 20 + 20)
@@ -497,15 +494,6 @@ void __ip_select_ident(struct net *net, struct iphdr *iph, int segs)
 	iph->id = htons(id);
 }
 EXPORT_SYMBOL(__ip_select_ident);
-
-static void ip_rt_fix_tos(struct flowi4 *fl4)
-{
-	__u8 tos = RT_FL_TOS(fl4);
-
-	fl4->flowi4_tos = tos & IPTOS_RT_MASK;
-	if (tos & RTO_ONLINK)
-		fl4->flowi4_scope = RT_SCOPE_LINK;
-}
 
 static void __build_flow_key(const struct net *net, struct flowi4 *fl4,
 			     const struct sock *sk, const struct iphdr *iph,
@@ -2636,7 +2624,7 @@ struct rtable *ip_route_output_key_hash(struct net *net, struct flowi4 *fl4,
 	struct rtable *rth;
 
 	fl4->flowi4_iif = LOOPBACK_IFINDEX;
-	ip_rt_fix_tos(fl4);
+	fl4->flowi4_tos &= IPTOS_RT_MASK;
 
 	rcu_read_lock();
 	rth = ip_route_output_key_hash_rcu(net, fl4, &res, skb);

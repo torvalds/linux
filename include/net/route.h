@@ -35,8 +35,6 @@
 #include <linux/cache.h>
 #include <linux/security.h>
 
-#define RTO_ONLINK	0x01
-
 static inline __u8 ip_sock_rt_scope(const struct sock *sk)
 {
 	if (sock_flag(sk, SOCK_LOCALROUTE))
