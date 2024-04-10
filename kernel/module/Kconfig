@@ -392,7 +392,7 @@ config UNUSED_KSYMS_WHITELIST
 	  exported at all times, even in absence of in-tree users. The value to
 	  set here is the path to a text file containing the list of symbols,
 	  one per line. The path can be absolute, or relative to the kernel
-	  source tree.
+	  source or obj tree.
 
 config MODULES_TREE_LOOKUP
 	def_bool y
