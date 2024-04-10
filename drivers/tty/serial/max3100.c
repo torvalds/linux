@@ -111,7 +111,10 @@ struct max3100_port {
 	struct timer_list	timer;
 };
 
-#define to_max3100_port(port)	container_of(port, struct max3100_port, port)
+static inline struct max3100_port *to_max3100_port(struct uart_port *port)
+{
+	return container_of(port, struct max3100_port, port);
+}
 
 static struct max3100_port *max3100s[MAX_MAX3100]; /* the chips */
 static DEFINE_MUTEX(max3100s_lock);		   /* race on probe */
