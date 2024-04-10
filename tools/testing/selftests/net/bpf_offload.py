@@ -29,6 +29,9 @@ import subprocess
 import time
 import traceback
 
+from lib.py import NetdevSim, NetdevSimDev
+
+
 logfile = None
 log_level = 1
 skip_extack = False
@@ -145,8 +148,10 @@ def tool(name, args, flags, JSON=True, ns="", fail=True, include_stderr=False):
     if JSON:
         params += "%s " % (flags["json"])
 
-    if ns != "":
+    if ns:
         ns = "ip netns exec %s " % (ns)
+    elif ns is None:
+        ns = ""
 
     if include_stderr:
         ret, stdout, stderr = cmd(ns + name + " " + params + args,
@@ -201,11 +206,11 @@ def bpftool_prog_list_wait(expected=0, n_retry=20):
         time.sleep(0.05)
     raise Exception("Time out waiting for program counts to stabilize want %d, have %d" % (expected, nprogs))
 
-def bpftool_map_list_wait(expected=0, n_retry=20):
+def bpftool_map_list_wait(expected=0, n_retry=20, ns=""):
     for i in range(n_retry):
-        nmaps = len(bpftool_map_list())
-        if nmaps == expected:
-            return
+        maps = bpftool_map_list(ns=ns)
+        if len(maps) == expected:
+            return maps
         time.sleep(0.05)
     raise Exception("Time out waiting for map counts to stabilize want %d, have %d" % (expected, nmaps))
 
@@ -237,7 +242,7 @@ def tc(args, JSON=True, ns="", fail=True, include_stderr=False):
 def ethtool(dev, opt, args, fail=True):
     return cmd("ethtool %s %s %s" % (opt, dev["ifname"], args), fail=fail)
 
-def bpf_obj(name, sec=".text", path=bpf_test_dir,):
+def bpf_obj(name, sec="xdp", path=bpf_test_dir,):
     return "obj %s sec %s" % (os.path.join(path, name), sec)
 
 def bpf_pinned(name):
@@ -334,72 +339,16 @@ class DebugfsDir:
 
         return dfs
 
-class NetdevSimDev:
+class BpfNetdevSimDev(NetdevSimDev):
     """
     Class for netdevsim bus device and its attributes.
     """
-    @staticmethod
-    def ctrl_write(path, val):
-        fullpath = os.path.join("/sys/bus/netdevsim/", path)
-        try:
-            with open(fullpath, "w") as f:
-                f.write(val)
-        except OSError as e:
-            log("WRITE %s: %r" % (fullpath, val), -e.errno)
-            raise e
-        log("WRITE %s: %r" % (fullpath, val), 0)
-
-    def __init__(self, port_count=1):
-        addr = 0
-        while True:
-            try:
-                self.ctrl_write("new_device", "%u %u" % (addr, port_count))
-            except OSError as e:
-                if e.errno == errno.ENOSPC:
-                    addr += 1
-                    continue
-                raise e
-            break
-        self.addr = addr
-
-        # As probe of netdevsim device might happen from a workqueue,
-        # so wait here until all netdevs appear.
-        self.wait_for_netdevs(port_count)
-
-        ret, out = cmd("udevadm settle", fail=False)
-        if ret:
-            raise Exception("udevadm settle failed")
-        ifnames = self.get_ifnames()
-
+    def __init__(self, port_count=1, ns=None):
+        super().__init__(port_count, ns=ns)
         devs.append(self)
-        self.dfs_dir = "/sys/kernel/debug/netdevsim/netdevsim%u/" % addr
 
-        self.nsims = []
-        for port_index in range(port_count):
-            self.nsims.append(NetdevSim(self, port_index, ifnames[port_index]))
-
-    def get_ifnames(self):
-        ifnames = []
-        listdir = os.listdir("/sys/bus/netdevsim/devices/netdevsim%u/net/" % self.addr)
-        for ifname in listdir:
-            ifnames.append(ifname)
-        ifnames.sort()
-        return ifnames
-
-    def wait_for_netdevs(self, port_count):
-        timeout = 5
-        timeout_start = time.time()
-
-        while True:
-            try:
-                ifnames = self.get_ifnames()
-            except FileNotFoundError as e:
-                ifnames = []
-            if len(ifnames) == port_count:
-                break
-            if time.time() < timeout_start + timeout:
-                continue
-            raise Exception("netdevices did not appear within timeout")
+    def _make_port(self, port_index, ifname):
+        return BpfNetdevSim(self, port_index, ifname, self.ns)
 
     def dfs_num_bound_progs(self):
         path = os.path.join(self.dfs_dir, "bpf_bound_progs")
@@ -415,33 +364,20 @@ class NetdevSimDev:
         return progs
 
     def remove(self):
-        self.ctrl_write("del_device", "%u" % (self.addr, ))
+        super().remove()
         devs.remove(self)
 
-    def remove_nsim(self, nsim):
-        self.nsims.remove(nsim)
-        self.ctrl_write("devices/netdevsim%u/del_port" % (self.addr, ),
-                        "%u" % (nsim.port_index, ))
 
-class NetdevSim:
+class BpfNetdevSim(NetdevSim):
     """
     Class for netdevsim netdevice and its attributes.
     """
 
-    def __init__(self, nsimdev, port_index, ifname):
-        # In case udev renamed the netdev to according to new schema,
-        # check if the name matches the port_index.
-        nsimnamere = re.compile("eni\d+np(\d+)")
-        match = nsimnamere.match(ifname)
-        if match and int(match.groups()[0]) != port_index + 1:
-            raise Exception("netdevice name mismatches the expected one")
+    def __init__(self, nsimdev, port_index, ifname, ns=None):
+        super().__init__(nsimdev, port_index, ifname, ns=ns)
 
-        self.nsimdev = nsimdev
-        self.port_index = port_index
-        self.ns = ""
         self.dfs_dir = "%s/ports/%u/" % (nsimdev.dfs_dir, port_index)
         self.dfs_refresh()
-        _, [self.dev] = ip("link show dev %s" % ifname)
 
     def __getitem__(self, key):
         return self.dev[key]
@@ -468,7 +404,7 @@ class NetdevSim:
         raise Exception("Time out waiting for program counts to stabilize want %d/%d, have %d bound, %d loaded" % (bound, total, nbound, nprogs))
 
     def set_ns(self, ns):
-        name = "1" if ns == "" else ns
+        name = ns if ns else "1"
         ip("link set dev %s netns %s" % (self.dev["ifname"], name), ns=self.ns)
         self.ns = ns
 
@@ -605,7 +541,7 @@ def pin_prog(file_name, idx=0):
     return file_name, bpf_pinned(file_name)
 
 def pin_map(file_name, idx=0, expected=1):
-    maps = bpftool_map_list(expected=expected)
+    maps = bpftool_map_list_wait(expected=expected)
     m = maps[idx]
     bpftool("map pin id %d %s" % (m["id"], file_name))
     files.append(file_name)
@@ -618,7 +554,7 @@ def check_dev_info_removed(prog_file=None, map_file=None):
     ret, err = bpftool("prog show pin %s" % (prog_file), fail=False)
     fail(ret != 0, "failed to show prog with removed device")
 
-    bpftool_map_list(expected=0)
+    bpftool_map_list_wait(expected=0)
     ret, err = bpftool("map show pin %s" % (map_file), fail=False)
     fail(ret == 0, "Showing map with removed device did not fail")
     fail(err["error"].find("No such device") == -1,
@@ -642,7 +578,7 @@ def check_dev_info(other_ns, ns, prog_file=None, map_file=None, removed=False):
     else:
         fail("ifname" in dev.keys(), "Ifname is reported for other ns")
 
-    maps = bpftool_map_list(expected=2, ns=ns)
+    maps = bpftool_map_list_wait(expected=2, ns=ns)
     for m in maps:
         fail("dev" not in m.keys(), "Device parameters not reported")
         fail(dev != m["dev"], "Map's device different than program's")
@@ -744,7 +680,7 @@ def test_multi_prog(simdev, sim, obj, modename, modeid):
     start_test("Test multi-attachment XDP - device remove...")
     simdev.remove()
 
-    simdev = NetdevSimDev()
+    simdev = BpfNetdevSimDev()
     sim, = simdev.nsims
     sim.set_ethtool_tc_offloads(True)
     return [simdev, sim]
@@ -809,13 +745,13 @@ try:
     bytecode = bpf_bytecode("1,6 0 0 4294967295,")
 
     start_test("Test destruction of generic XDP...")
-    simdev = NetdevSimDev()
+    simdev = BpfNetdevSimDev()
     sim, = simdev.nsims
     sim.set_xdp(obj, "generic")
     simdev.remove()
     bpftool_prog_list_wait(expected=0)
 
-    simdev = NetdevSimDev()
+    simdev = BpfNetdevSimDev()
     sim, = simdev.nsims
     sim.tc_add_ingress()
 
@@ -967,7 +903,7 @@ try:
     simdev.remove()
     bpftool_prog_list_wait(expected=0)
 
-    simdev = NetdevSimDev()
+    simdev = BpfNetdevSimDev()
     sim, = simdev.nsims
     sim.set_ethtool_tc_offloads(True)
 
@@ -976,7 +912,7 @@ try:
     simdev.remove()
     bpftool_prog_list_wait(expected=0)
 
-    simdev = NetdevSimDev()
+    simdev = BpfNetdevSimDev()
     sim, = simdev.nsims
     sim.set_ethtool_tc_offloads(True)
 
@@ -1080,7 +1016,7 @@ try:
     bpftool_prog_list_wait(expected=0)
 
     start_test("Test attempt to use a program for a wrong device...")
-    simdev2 = NetdevSimDev()
+    simdev2 = BpfNetdevSimDev()
     sim2, = simdev2.nsims
     sim2.set_xdp(obj, "offload")
     pin_file, pinned = pin_prog("/sys/fs/bpf/tmp")
@@ -1169,7 +1105,7 @@ try:
     clean_up()
     bpftool_prog_list_wait(expected=0)
 
-    simdev = NetdevSimDev()
+    simdev = BpfNetdevSimDev()
     sim, = simdev.nsims
     map_obj = bpf_obj("sample_map_ret0.bpf.o")
     start_test("Test loading program with maps...")
@@ -1201,12 +1137,12 @@ try:
     clean_up()
     bpftool_prog_list_wait(expected=0)
 
-    simdev = NetdevSimDev()
+    simdev = BpfNetdevSimDev()
     sim, = simdev.nsims
 
     start_test("Test map update (no flags)...")
     sim.set_xdp(map_obj, "offload", JSON=False) # map fixup msg breaks JSON
-    maps = bpftool_map_list(expected=2)
+    maps = bpftool_map_list_wait(expected=2)
     array = maps[0] if maps[0]["type"] == "array" else maps[1]
     htab = maps[0] if maps[0]["type"] == "hash" else maps[1]
     for m in maps:
@@ -1285,14 +1221,14 @@ try:
     bpftool_map_list_wait(expected=0)
     simdev.remove()
 
-    simdev = NetdevSimDev()
+    simdev = BpfNetdevSimDev()
     sim, = simdev.nsims
     sim.set_xdp(map_obj, "offload", JSON=False) # map fixup msg breaks JSON
     simdev.remove()
     bpftool_map_list_wait(expected=0)
 
     start_test("Test map creation fail path...")
-    simdev = NetdevSimDev()
+    simdev = BpfNetdevSimDev()
     sim, = simdev.nsims
     sim.dfs["bpf_map_accept"] = "N"
     ret, _ = sim.set_xdp(map_obj, "offload", JSON=False, fail=False)
@@ -1302,9 +1238,9 @@ try:
     simdev.remove()
 
     start_test("Test multi-dev ASIC program reuse...")
-    simdevA = NetdevSimDev()
+    simdevA = BpfNetdevSimDev()
     simA, = simdevA.nsims
-    simdevB = NetdevSimDev(3)
+    simdevB = BpfNetdevSimDev(3)
     simB1, simB2, simB3 = simdevB.nsims
     sims = (simA, simB1, simB2, simB3)
     simB = (simB1, simB2, simB3)

@@ -17,7 +17,7 @@ struct {
 } array SEC(".maps");
 
 /* Sample program which should always load for testing control paths. */
-SEC(".text") int func()
+SEC("xdp") int func()
 {
 	__u64 key64 = 0;
 	__u32 key = 0;
