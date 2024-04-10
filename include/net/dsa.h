@@ -458,6 +458,11 @@ struct dsa_switch {
 	const struct dsa_switch_ops	*ops;
 
 	/*
+	 * Allow a DSA switch driver to override the phylink MAC ops
+	 */
+	const struct phylink_mac_ops	*phylink_mac_ops;
+
+	/*
 	 * User mii_bus and devices for the individual ports.
 	 */
 	u32			phys_mii_mask;
