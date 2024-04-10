@@ -747,21 +747,18 @@ static void power_allocator_manage(struct thermal_zone_device *tz)
 {
 	struct power_allocator_params *params = tz->governor_data;
 	const struct thermal_trip *trip = params->trip_switch_on;
-	bool update;
 
 	lockdep_assert_held(&tz->lock);
 
 	if (trip && tz->temperature < trip->temperature) {
-		update = tz->passive;
-		tz->passive = 0;
 		reset_pid_controller(params);
-		allow_maximum_power(tz, update);
+		allow_maximum_power(tz, tz->passive);
+		tz->passive = 0;
 		return;
 	}
 
-	tz->passive = 1;
-
 	allocate_power(tz, params->trip_max->temperature);
+	tz->passive = 1;
 }
 
 static struct thermal_governor thermal_gov_power_allocator = {
