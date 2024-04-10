@@ -2457,15 +2457,13 @@ static int idtcm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int idtcm_remove(struct platform_device *pdev)
+static void idtcm_remove(struct platform_device *pdev)
 {
 	struct idtcm *idtcm = platform_get_drvdata(pdev);
 
 	idtcm->extts_mask = 0;
 	ptp_clock_unregister_all(idtcm);
 	cancel_delayed_work_sync(&idtcm->extts_work);
-
-	return 0;
 }
 
 static struct platform_driver idtcm_driver = {
@@ -2473,7 +2471,7 @@ static struct platform_driver idtcm_driver = {
 		.name = "8a3400x-phc",
 	},
 	.probe = idtcm_probe,
-	.remove	= idtcm_remove,
+	.remove_new = idtcm_remove,
 };
 
 module_platform_driver(idtcm_driver);
