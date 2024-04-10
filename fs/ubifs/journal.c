@@ -643,7 +643,7 @@ static void set_dent_cookie(struct ubifs_info *c, struct ubifs_dent_node *dent)
  * @inode: inode to update
  * @deletion: indicates a directory entry deletion i.e unlink or rmdir
  * @xent: non-zero if the directory entry is an extended attribute entry
- * @delete_orphan: indicates an orphan entry deletion for @inode
+ * @in_orphan: indicates whether the @inode is in orphan list
  *
  * This function updates an inode by writing a directory entry (or extended
  * attribute entry), the inode itself, and the parent directory inode (or the
@@ -665,7 +665,7 @@ static void set_dent_cookie(struct ubifs_info *c, struct ubifs_dent_node *dent)
  */
 int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 		     const struct fscrypt_name *nm, const struct inode *inode,
-		     int deletion, int xent, int delete_orphan)
+		     int deletion, int xent, int in_orphan)
 {
 	int err, dlen, ilen, len, lnum, ino_offs, dent_offs, orphan_added = 0;
 	int aligned_dlen, aligned_ilen, sync = IS_DIRSYNC(dir);
@@ -751,7 +751,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	if (err)
 		goto out_release;
 
-	if (last_reference) {
+	if (last_reference && !in_orphan) {
 		err = ubifs_add_orphan(c, inode->i_ino);
 		if (err) {
 			release_head(c, BASEHD);
@@ -807,7 +807,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	if (err)
 		goto out_ro;
 
-	if (delete_orphan)
+	if (in_orphan && inode->i_nlink)
 		ubifs_delete_orphan(c, inode->i_ino);
 
 	finish_reservation(c);
@@ -1340,6 +1340,7 @@ out_free:
  * @new_nm: new name of the new directory entry
  * @whiteout: whiteout inode
  * @sync: non-zero if the write-buffer has to be synchronized
+ * @delete_orphan: indicates an orphan entry deletion for @whiteout
  *
  * This function implements the re-name operation which may involve writing up
  * to 4 inodes(new inode, whiteout inode, old and new parent directory inodes)
@@ -1352,7 +1353,7 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		     const struct inode *new_dir,
 		     const struct inode *new_inode,
 		     const struct fscrypt_name *new_nm,
-		     const struct inode *whiteout, int sync)
+		     const struct inode *whiteout, int sync, int delete_orphan)
 {
 	void *p;
 	union ubifs_key key;
@@ -1568,6 +1569,9 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 		if (err)
 			goto out_ro;
 	}
+
+	if (delete_orphan)
+		ubifs_delete_orphan(c, whiteout->i_ino);
 
 	finish_reservation(c);
 	if (new_inode) {
