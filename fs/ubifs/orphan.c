@@ -514,51 +514,6 @@ int ubifs_clear_orphans(struct ubifs_info *c)
 }
 
 /**
- * insert_dead_orphan - insert an orphan.
- * @c: UBIFS file-system description object
- * @inum: orphan inode number
- *
- * This function is a helper to the 'do_kill_orphans()' function. The orphan
- * must be kept until the next commit, so it is added to the rb-tree and the
- * deletion list.
- */
-static int insert_dead_orphan(struct ubifs_info *c, ino_t inum)
-{
-	struct ubifs_orphan *orphan, *o;
-	struct rb_node **p, *parent = NULL;
-
-	orphan = kzalloc(sizeof(struct ubifs_orphan), GFP_KERNEL);
-	if (!orphan)
-		return -ENOMEM;
-	orphan->inum = inum;
-
-	p = &c->orph_tree.rb_node;
-	while (*p) {
-		parent = *p;
-		o = rb_entry(parent, struct ubifs_orphan, rb);
-		if (inum < o->inum)
-			p = &(*p)->rb_left;
-		else if (inum > o->inum)
-			p = &(*p)->rb_right;
-		else {
-			/* Already added - no problem */
-			kfree(orphan);
-			return 0;
-		}
-	}
-	c->tot_orphans += 1;
-	rb_link_node(&orphan->rb, parent, p);
-	rb_insert_color(&orphan->rb, &c->orph_tree);
-	list_add_tail(&orphan->list, &c->orph_list);
-	orphan->del = 1;
-	orphan->dnext = c->orph_dnext;
-	c->orph_dnext = orphan;
-	dbg_mnt("ino %lu, new %d, tot %d", (unsigned long)inum,
-		c->new_orphans, c->tot_orphans);
-	return 0;
-}
-
-/**
  * do_kill_orphans - remove orphan inodes from the index.
  * @c: UBIFS file-system description object
  * @sleb: scanned LEB
@@ -655,10 +610,6 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 				if (err)
 					goto out_ro;
 			}
-
-			err = insert_dead_orphan(c, inum);
-			if (err)
-				goto out_free;
 		}
 
 		*last_cmt_no = cmt_no;
