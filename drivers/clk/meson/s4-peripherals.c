@@ -3800,6 +3800,7 @@ static const struct of_device_id clkc_match_table[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, clkc_match_table);
 
 static struct platform_driver s4_driver = {
 	.probe		= meson_s4_periphs_probe,
