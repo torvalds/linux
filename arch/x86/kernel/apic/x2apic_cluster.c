@@ -183,7 +183,8 @@ static int x2apic_prepare_cpu(unsigned int cpu)
 
 	if (alloc_clustermask(cpu, cluster, cpu_to_node(cpu)) < 0)
 		return -ENOMEM;
-	if (!zalloc_cpumask_var(&per_cpu(ipi_mask, cpu), GFP_KERNEL))
+	if (!zalloc_cpumask_var_node(&per_cpu(ipi_mask, cpu), GFP_KERNEL,
+				cpu_to_node(cpu)))
 		return -ENOMEM;
 	return 0;
 }

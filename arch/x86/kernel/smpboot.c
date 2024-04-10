@@ -1033,7 +1033,7 @@ static __init void disable_smp(void)
 
 void __init smp_prepare_cpus_common(void)
 {
-	unsigned int i;
+	unsigned int i, n;
 
 	/* Mark all except the boot CPU as hotpluggable */
 	for_each_possible_cpu(i) {
@@ -1042,11 +1042,12 @@ void __init smp_prepare_cpus_common(void)
 	}
 
 	for_each_possible_cpu(i) {
-		zalloc_cpumask_var(&per_cpu(cpu_sibling_map, i), GFP_KERNEL);
-		zalloc_cpumask_var(&per_cpu(cpu_core_map, i), GFP_KERNEL);
-		zalloc_cpumask_var(&per_cpu(cpu_die_map, i), GFP_KERNEL);
-		zalloc_cpumask_var(&per_cpu(cpu_llc_shared_map, i), GFP_KERNEL);
-		zalloc_cpumask_var(&per_cpu(cpu_l2c_shared_map, i), GFP_KERNEL);
+		n = cpu_to_node(i);
+		zalloc_cpumask_var_node(&per_cpu(cpu_sibling_map, i), GFP_KERNEL, n);
+		zalloc_cpumask_var_node(&per_cpu(cpu_core_map, i), GFP_KERNEL, n);
+		zalloc_cpumask_var_node(&per_cpu(cpu_die_map, i), GFP_KERNEL, n);
+		zalloc_cpumask_var_node(&per_cpu(cpu_llc_shared_map, i), GFP_KERNEL, n);
+		zalloc_cpumask_var_node(&per_cpu(cpu_l2c_shared_map, i), GFP_KERNEL, n);
 	}
 
 	set_cpu_sibling_map(0);
