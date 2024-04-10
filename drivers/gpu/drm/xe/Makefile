@@ -161,6 +161,7 @@ xe-y += \
 
 xe-$(CONFIG_PCI_IOV) += \
 	xe_gt_sriov_pf_control.o \
+	xe_gt_sriov_pf_policy.o \
 	xe_lmtt.o \
 	xe_lmtt_2l.o \
 	xe_lmtt_ml.o \
