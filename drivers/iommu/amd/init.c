@@ -3235,7 +3235,7 @@ static void iommu_snp_enable(void)
 	 * configured with V1 page table (DTE[Mode] = 0 is not supported).
 	 */
 	if (no_iommu || iommu_default_passthrough()) {
-		pr_err("SNP: IOMMU disabled or configured in passthrough mode, SNP cannot be supported.\n");
+		pr_warn("SNP: IOMMU disabled or configured in passthrough mode, SNP cannot be supported.\n");
 		goto disable_snp;
 	}
 
@@ -3246,7 +3246,7 @@ static void iommu_snp_enable(void)
 
 	amd_iommu_snp_en = check_feature(FEATURE_SNP);
 	if (!amd_iommu_snp_en) {
-		pr_err("SNP: IOMMU SNP feature not enabled, SNP cannot be supported.\n");
+		pr_warn("SNP: IOMMU SNP feature not enabled, SNP cannot be supported.\n");
 		goto disable_snp;
 	}
 
