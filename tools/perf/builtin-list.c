@@ -326,6 +326,9 @@ static void fix_escape_fprintf(FILE *fp, struct strbuf *buf, const char *fmt, ..
 					case '\n':
 						strbuf_addstr(buf, "\\n");
 						break;
+					case '\r':
+						strbuf_addstr(buf, "\\r");
+						break;
 					case '\\':
 						fallthrough;
 					case '\"':
