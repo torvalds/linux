@@ -250,7 +250,7 @@ static int tb_xdp_handle_error(const struct tb_xdp_error_response *res)
 	case ERROR_UNKNOWN_DOMAIN:
 		return -EIO;
 	case ERROR_NOT_SUPPORTED:
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	case ERROR_NOT_READY:
 		return -EAGAIN;
 	default:
