@@ -1290,7 +1290,7 @@ static void cik_sdma_set_irq_funcs(struct amdgpu_device *adev)
  * @src_offset: src GPU address
  * @dst_offset: dst GPU address
  * @byte_count: number of bytes to xfer
- * @tmz: is this a secure operation
+ * @copy_flags: unused
  *
  * Copy GPU buffers using the DMA engine (CIK).
  * Used by the amdgpu ttm implementation to move pages if
@@ -1300,7 +1300,7 @@ static void cik_sdma_emit_copy_buffer(struct amdgpu_ib *ib,
 				      uint64_t src_offset,
 				      uint64_t dst_offset,
 				      uint32_t byte_count,
-				      bool tmz)
+				      uint32_t copy_flags)
 {
 	ib->ptr[ib->length_dw++] = SDMA_PACKET(SDMA_OPCODE_COPY, SDMA_COPY_SUB_OPCODE_LINEAR, 0);
 	ib->ptr[ib->length_dw++] = byte_count;
