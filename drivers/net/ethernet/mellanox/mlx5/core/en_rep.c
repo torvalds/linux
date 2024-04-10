@@ -273,6 +273,40 @@ out:
 	kvfree(out);
 }
 
+static int mlx5e_rep_query_aggr_q_counter(struct mlx5_core_dev *dev, int vport, void *out)
+{
+	u32 in[MLX5_ST_SZ_DW(query_q_counter_in)] = {};
+
+	MLX5_SET(query_q_counter_in, in, opcode, MLX5_CMD_OP_QUERY_Q_COUNTER);
+	MLX5_SET(query_q_counter_in, in, other_vport, 1);
+	MLX5_SET(query_q_counter_in, in, vport_number, vport);
+	MLX5_SET(query_q_counter_in, in, aggregate, 1);
+
+	return mlx5_cmd_exec_inout(dev, query_q_counter, in, out);
+}
+
+static void mlx5e_rep_update_vport_q_counter(struct mlx5e_priv *priv)
+{
+	struct mlx5e_rep_stats *rep_stats = &priv->stats.rep_stats;
+	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)] = {};
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct mlx5_eswitch_rep *rep = rpriv->rep;
+	int err;
+
+	if (!MLX5_CAP_GEN(priv->mdev, q_counter_other_vport) ||
+	    !MLX5_CAP_GEN(priv->mdev, q_counter_aggregation))
+		return;
+
+	err = mlx5e_rep_query_aggr_q_counter(priv->mdev, rep->vport, out);
+	if (err) {
+		netdev_warn(priv->netdev, "failed reading stats on vport %d, error %d\n",
+			    rep->vport, err);
+		return;
+	}
+
+	rep_stats->rx_vport_out_of_buffer = MLX5_GET(query_q_counter_out, out, out_of_buffer);
+}
+
 static void mlx5e_rep_get_strings(struct net_device *dev,
 				  u32 stringset, u8 *data)
 {
@@ -1229,6 +1263,12 @@ static int mlx5e_update_rep_rx(struct mlx5e_priv *priv)
 	return 0;
 }
 
+static void mlx5e_rep_stats_update_ndo_stats(struct mlx5e_priv *priv)
+{
+	mlx5e_stats_update_ndo_stats(priv);
+	mlx5e_rep_update_vport_q_counter(priv);
+}
+
 static int mlx5e_rep_event_mpesw(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
@@ -1421,7 +1461,7 @@ static const struct mlx5e_profile mlx5e_rep_profile = {
 	.enable		        = mlx5e_rep_enable,
 	.disable	        = mlx5e_rep_disable,
 	.update_rx		= mlx5e_update_rep_rx,
-	.update_stats           = mlx5e_stats_update_ndo_stats,
+	.update_stats           = mlx5e_rep_stats_update_ndo_stats,
 	.rx_handlers            = &mlx5e_rx_handlers_rep,
 	.max_tc			= 1,
 	.stats_grps		= mlx5e_rep_stats_grps,

@@ -484,6 +484,7 @@ struct mlx5e_rep_stats {
 	u64 tx_vport_rdma_multicast_bytes;
 	u64 vport_loopback_packets;
 	u64 vport_loopback_bytes;
+	u64 rx_vport_out_of_buffer;
 };
 
 struct mlx5e_stats {
@@ -504,6 +505,7 @@ static inline void mlx5e_stats_copy_rep_stats(struct rtnl_link_stats64 *vf_vport
 	vf_vport->tx_packets = rep_stats->vport_tx_packets;
 	vf_vport->rx_bytes = rep_stats->vport_rx_bytes;
 	vf_vport->tx_bytes = rep_stats->vport_tx_bytes;
+	vf_vport->rx_missed_errors = rep_stats->rx_vport_out_of_buffer;
 }
 
 extern mlx5e_stats_grp_t mlx5e_nic_stats_grps[];
