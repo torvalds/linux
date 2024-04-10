@@ -310,6 +310,7 @@ static struct omap_mbox_queue *mbox_queue_alloc(struct omap_mbox *mbox,
 					void (*work)(struct work_struct *))
 {
 	struct omap_mbox_queue *mq;
+	unsigned int size;
 
 	if (!work)
 		return NULL;
@@ -320,7 +321,10 @@ static struct omap_mbox_queue *mbox_queue_alloc(struct omap_mbox *mbox,
 
 	spin_lock_init(&mq->lock);
 
-	if (kfifo_alloc(&mq->fifo, mbox_kfifo_size, GFP_KERNEL))
+	/* kfifo size sanity check: alignment and minimal size */
+	size = ALIGN(mbox_kfifo_size, sizeof(u32));
+	size = max_t(unsigned int, size, sizeof(u32));
+	if (kfifo_alloc(&mq->fifo, size, GFP_KERNEL))
 		goto error;
 
 	INIT_WORK(&mq->work, work);
@@ -837,10 +841,6 @@ static int __init omap_mbox_init(void)
 	err = class_register(&omap_mbox_class);
 	if (err)
 		return err;
-
-	/* kfifo size sanity check: alignment and minimal size */
-	mbox_kfifo_size = ALIGN(mbox_kfifo_size, sizeof(u32));
-	mbox_kfifo_size = max_t(unsigned int, mbox_kfifo_size, sizeof(u32));
 
 	err = platform_driver_register(&omap_mbox_driver);
 	if (err)
