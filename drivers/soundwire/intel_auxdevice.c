@@ -440,7 +440,7 @@ int intel_link_process_wakeen_event(struct auxiliary_device *auxdev)
  * PM calls
  */
 
-static int intel_resume_child_device(struct device *dev, void *data)
+int intel_resume_child_device(struct device *dev, void *data)
 {
 	int ret;
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
