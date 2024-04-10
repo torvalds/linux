@@ -573,8 +573,6 @@ enum {
 	MSI_FLAG_MSIX_CONTIGUOUS	= (1 << 19),
 	/* PCI/MSI-X vectors can be dynamically allocated/freed post MSI-X enable */
 	MSI_FLAG_PCI_MSIX_ALLOC_DYN	= (1 << 20),
-	/* Support for PCI/IMS */
-	MSI_FLAG_PCI_IMS		= (1 << 21),
 };
 
 /**
