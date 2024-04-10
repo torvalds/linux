@@ -350,10 +350,6 @@ void thermal_zone_device_critical_reboot(struct thermal_zone_device *tz)
 static void handle_critical_trips(struct thermal_zone_device *tz,
 				  const struct thermal_trip *trip)
 {
-	/* If we have not crossed the trip_temp, we do not care. */
-	if (trip->temperature <= 0 || tz->temperature < trip->temperature)
-		return;
-
 	trace_thermal_zone_trip(tz, thermal_zone_trip_id(tz, trip), trip->type);
 
 	if (trip->type == THERMAL_TRIP_CRITICAL)
@@ -405,10 +401,11 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 		list_add_tail(&td->notify_list_node, way_up_list);
 		td->notify_temp = trip->temperature;
 		td->threshold -= trip->hysteresis;
-	}
 
-	if (trip->type == THERMAL_TRIP_CRITICAL || trip->type == THERMAL_TRIP_HOT)
-		handle_critical_trips(tz, trip);
+		if (trip->type == THERMAL_TRIP_CRITICAL ||
+		    trip->type == THERMAL_TRIP_HOT)
+			handle_critical_trips(tz, trip);
+	}
 }
 
 static void update_temperature(struct thermal_zone_device *tz)
