@@ -1154,7 +1154,7 @@ static int mpls_netconf_fill_devconf(struct sk_buff *skb, struct mpls_dev *mdev,
 
 	if ((all || type == NETCONFA_INPUT) &&
 	    nla_put_s32(skb, NETCONFA_INPUT,
-			mdev->input_enabled) < 0)
+			READ_ONCE(mdev->input_enabled)) < 0)
 		goto nla_put_failure;
 
 	nlmsg_end(skb, nlh);
@@ -1303,11 +1303,12 @@ static int mpls_netconf_dump_devconf(struct sk_buff *skb,
 {
 	const struct nlmsghdr *nlh = cb->nlh;
 	struct net *net = sock_net(skb->sk);
-	struct hlist_head *head;
+	struct {
+		unsigned long ifindex;
+	} *ctx = (void *)cb->ctx;
 	struct net_device *dev;
 	struct mpls_dev *mdev;
-	int idx, s_idx;
-	int h, s_h;
+	int err = 0;
 
 	if (cb->strict_check) {
 		struct netlink_ext_ack *extack = cb->extack;
@@ -1324,40 +1325,23 @@ static int mpls_netconf_dump_devconf(struct sk_buff *skb,
 		}
 	}
 
-	s_h = cb->args[0];
-	s_idx = idx = cb->args[1];
-
-	for (h = s_h; h < NETDEV_HASHENTRIES; h++, s_idx = 0) {
-		idx = 0;
-		head = &net->dev_index_head[h];
-		rcu_read_lock();
-		cb->seq = net->dev_base_seq;
-		hlist_for_each_entry_rcu(dev, head, index_hlist) {
-			if (idx < s_idx)
-				goto cont;
-			mdev = mpls_dev_get(dev);
-			if (!mdev)
-				goto cont;
-			if (mpls_netconf_fill_devconf(skb, mdev,
-						      NETLINK_CB(cb->skb).portid,
-						      nlh->nlmsg_seq,
-						      RTM_NEWNETCONF,
-						      NLM_F_MULTI,
-						      NETCONFA_ALL) < 0) {
-				rcu_read_unlock();
-				goto done;
-			}
-			nl_dump_check_consistent(cb, nlmsg_hdr(skb));
-cont:
-			idx++;
-		}
-		rcu_read_unlock();
+	rcu_read_lock();
+	for_each_netdev_dump(net, dev, ctx->ifindex) {
+		mdev = mpls_dev_get(dev);
+		if (!mdev)
+			continue;
+		err = mpls_netconf_fill_devconf(skb, mdev,
+						NETLINK_CB(cb->skb).portid,
+						nlh->nlmsg_seq,
+						RTM_NEWNETCONF,
+						NLM_F_MULTI,
+						NETCONFA_ALL);
+		if (err < 0)
+			break;
 	}
-done:
-	cb->args[0] = h;
-	cb->args[1] = idx;
+	rcu_read_unlock();
 
-	return skb->len;
+	return err;
 }
 
 #define MPLS_PERDEV_SYSCTL_OFFSET(field)	\
@@ -2773,7 +2757,8 @@ static int __init mpls_init(void)
 			     mpls_getroute, mpls_dump_routes, 0);
 	rtnl_register_module(THIS_MODULE, PF_MPLS, RTM_GETNETCONF,
 			     mpls_netconf_get_devconf,
-			     mpls_netconf_dump_devconf, 0);
+			     mpls_netconf_dump_devconf,
+			     RTNL_FLAG_DUMP_UNLOCKED);
 	err = ipgre_tunnel_encap_add_mpls_ops();
 	if (err)
 		pr_err("Can't add mpls over gre tunnel ops\n");
