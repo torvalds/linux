@@ -1408,7 +1408,7 @@ static int sonypi_probe(struct platform_device *dev)
 	return error;
 }
 
-static int sonypi_remove(struct platform_device *dev)
+static void sonypi_remove(struct platform_device *dev)
 {
 	sonypi_disable();
 
@@ -1432,8 +1432,6 @@ static int sonypi_remove(struct platform_device *dev)
 	}
 
 	kfifo_free(&sonypi_device.fifo);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -1470,7 +1468,7 @@ static struct platform_driver sonypi_driver = {
 		.pm	= SONYPI_PM,
 	},
 	.probe		= sonypi_probe,
-	.remove		= sonypi_remove,
+	.remove_new	= sonypi_remove,
 	.shutdown	= sonypi_shutdown,
 };
 
