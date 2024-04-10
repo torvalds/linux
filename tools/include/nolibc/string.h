@@ -187,12 +187,7 @@ char *strndup(const char *str, size_t maxlen)
 static __attribute__((unused))
 size_t strlcat(char *dst, const char *src, size_t size)
 {
-	size_t len = 0;
-
-	for (; len < size; len++) {
-		if (dst[len] == '\0')
-			break;
-	}
+	size_t len = strnlen(dst, size);
 
 	/*
 	 * We want len < size-1. But as size is unsigned and can wrap
