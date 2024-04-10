@@ -116,6 +116,7 @@ enum mana_ib_command_code {
 	MANA_IB_GET_ADAPTER_CAP = 0x30001,
 	MANA_IB_CREATE_ADAPTER  = 0x30002,
 	MANA_IB_DESTROY_ADAPTER = 0x30003,
+	MANA_IB_CONFIG_IP_ADDR	= 0x30004,
 };
 
 struct mana_ib_query_adapter_caps_req {
@@ -165,6 +166,28 @@ struct mana_rnic_destroy_adapter_resp {
 	struct gdma_resp_hdr hdr;
 }; /* HW Data */
 
+enum mana_ib_addr_op {
+	ADDR_OP_ADD = 1,
+	ADDR_OP_REMOVE = 2,
+};
+
+enum sgid_entry_type {
+	SGID_TYPE_IPV4 = 1,
+	SGID_TYPE_IPV6 = 2,
+};
+
+struct mana_rnic_config_addr_req {
+	struct gdma_req_hdr hdr;
+	mana_handle_t adapter;
+	enum mana_ib_addr_op op;
+	enum sgid_entry_type sgid_type;
+	u8 ip_addr[16];
+}; /* HW Data */
+
+struct mana_rnic_config_addr_resp {
+	struct gdma_resp_hdr hdr;
+}; /* HW Data */
+
 static inline struct gdma_context *mdev_to_gc(struct mana_ib_dev *mdev)
 {
 	return mdev->gdma_dev->gdma_context;
@@ -179,6 +202,14 @@ static inline struct net_device *mana_ib_get_netdev(struct ib_device *ibdev, u32
 	if (port < 1 || port > mc->num_ports)
 		return NULL;
 	return mc->ports[port - 1];
+}
+
+static inline void copy_in_reverse(u8 *dst, const u8 *src, u32 size)
+{
+	u32 i;
+
+	for (i = 0; i < size; i++)
+		dst[size - 1 - i] = src[i];
 }
 
 int mana_ib_install_cq_cb(struct mana_ib_dev *mdev, struct mana_ib_cq *cq);
@@ -270,4 +301,8 @@ int mana_ib_gd_destroy_rnic_adapter(struct mana_ib_dev *mdev);
 int mana_ib_query_pkey(struct ib_device *ibdev, u32 port, u16 index, u16 *pkey);
 
 enum rdma_link_layer mana_ib_get_link_layer(struct ib_device *device, u32 port_num);
+
+int mana_ib_gd_add_gid(const struct ib_gid_attr *attr, void **context);
+
+int mana_ib_gd_del_gid(const struct ib_gid_attr *attr, void **context);
 #endif

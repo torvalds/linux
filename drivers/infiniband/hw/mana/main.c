@@ -722,3 +722,63 @@ int mana_ib_gd_destroy_rnic_adapter(struct mana_ib_dev *mdev)
 
 	return 0;
 }
+
+int mana_ib_gd_add_gid(const struct ib_gid_attr *attr, void **context)
+{
+	struct mana_ib_dev *mdev = container_of(attr->device, struct mana_ib_dev, ib_dev);
+	enum rdma_network_type ntype = rdma_gid_attr_network_type(attr);
+	struct mana_rnic_config_addr_resp resp = {};
+	struct gdma_context *gc = mdev_to_gc(mdev);
+	struct mana_rnic_config_addr_req req = {};
+	int err;
+
+	if (ntype != RDMA_NETWORK_IPV4 && ntype != RDMA_NETWORK_IPV6) {
+		ibdev_dbg(&mdev->ib_dev, "Unsupported rdma network type %d", ntype);
+		return -EINVAL;
+	}
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_IB_CONFIG_IP_ADDR, sizeof(req), sizeof(resp));
+	req.hdr.dev_id = gc->mana_ib.dev_id;
+	req.adapter = mdev->adapter_handle;
+	req.op = ADDR_OP_ADD;
+	req.sgid_type = (ntype == RDMA_NETWORK_IPV6) ? SGID_TYPE_IPV6 : SGID_TYPE_IPV4;
+	copy_in_reverse(req.ip_addr, attr->gid.raw, sizeof(union ib_gid));
+
+	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
+	if (err) {
+		ibdev_err(&mdev->ib_dev, "Failed to config IP addr err %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
+
+int mana_ib_gd_del_gid(const struct ib_gid_attr *attr, void **context)
+{
+	struct mana_ib_dev *mdev = container_of(attr->device, struct mana_ib_dev, ib_dev);
+	enum rdma_network_type ntype = rdma_gid_attr_network_type(attr);
+	struct mana_rnic_config_addr_resp resp = {};
+	struct gdma_context *gc = mdev_to_gc(mdev);
+	struct mana_rnic_config_addr_req req = {};
+	int err;
+
+	if (ntype != RDMA_NETWORK_IPV4 && ntype != RDMA_NETWORK_IPV6) {
+		ibdev_dbg(&mdev->ib_dev, "Unsupported rdma network type %d", ntype);
+		return -EINVAL;
+	}
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_IB_CONFIG_IP_ADDR, sizeof(req), sizeof(resp));
+	req.hdr.dev_id = gc->mana_ib.dev_id;
+	req.adapter = mdev->adapter_handle;
+	req.op = ADDR_OP_REMOVE;
+	req.sgid_type = (ntype == RDMA_NETWORK_IPV6) ? SGID_TYPE_IPV6 : SGID_TYPE_IPV4;
+	copy_in_reverse(req.ip_addr, attr->gid.raw, sizeof(union ib_gid));
+
+	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
+	if (err) {
+		ibdev_err(&mdev->ib_dev, "Failed to config IP addr err %d\n", err);
+		return err;
+	}
+
+	return 0;
+}
