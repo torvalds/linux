@@ -954,10 +954,7 @@ static int follow_phys(struct vm_area_struct *vma, unsigned long *prot,
 	pte_t *ptep, pte;
 	spinlock_t *ptl;
 
-	if (!(vma->vm_flags & (VM_IO | VM_PFNMAP)))
-		return -EINVAL;
-
-	if (follow_pte(vma->vm_mm, vma->vm_start, &ptep, &ptl))
+	if (follow_pte(vma, vma->vm_start, &ptep, &ptl))
 		return -EINVAL;
 
 	pte = ptep_get(ptep);
