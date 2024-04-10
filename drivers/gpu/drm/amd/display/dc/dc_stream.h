@@ -160,6 +160,18 @@ struct dc_stream_debug_options {
 	char force_odm_combine_segments;
 };
 
+#define LUMINANCE_DATA_TABLE_SIZE 10
+
+struct luminance_data {
+	bool is_valid;
+	int refresh_rate_hz[LUMINANCE_DATA_TABLE_SIZE];
+	int luminance_millinits[LUMINANCE_DATA_TABLE_SIZE];
+	int flicker_criteria_milli_nits_GAMING;
+	int flicker_criteria_milli_nits_STATIC;
+	int nominal_refresh_rate;
+	int dm_max_decrease_from_nominal;
+};
+
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
 	// this pointer
@@ -286,6 +298,8 @@ struct dc_stream_state {
 	bool vblank_synchronized;
 	bool fpo_in_use;
 	bool is_phantom;
+
+	struct luminance_data lumin_data;
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255

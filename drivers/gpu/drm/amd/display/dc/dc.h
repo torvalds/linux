@@ -456,6 +456,7 @@ struct dc_config {
 	bool allow_0_dtb_clk;
 	bool use_assr_psp_message;
 	bool support_edp0_on_dp1;
+	unsigned int enable_fpo_flicker_detection;
 };
 
 enum visual_confirm {
