@@ -89,19 +89,6 @@ struct omap_mbox_device {
 	struct mbox_controller controller;
 };
 
-struct omap_mbox_fifo_info {
-	int tx_id;
-	int tx_usr;
-	int tx_irq;
-
-	int rx_id;
-	int rx_usr;
-	int rx_irq;
-
-	const char *name;
-	bool send_no_irq;
-};
-
 struct omap_mbox {
 	const char		*name;
 	int			irq;
@@ -574,8 +561,7 @@ static int omap_mbox_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct mbox_chan *chnls;
-	struct omap_mbox **list, *mbox, *mboxblk;
-	struct omap_mbox_fifo_info *finfo, *finfoblk;
+	struct omap_mbox **list, *mbox;
 	struct omap_mbox_device *mdev;
 	struct omap_mbox_fifo *fifo;
 	struct device_node *node = pdev->dev.of_node;
@@ -609,40 +595,6 @@ static int omap_mbox_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	finfoblk = devm_kcalloc(&pdev->dev, info_count, sizeof(*finfoblk),
-				GFP_KERNEL);
-	if (!finfoblk)
-		return -ENOMEM;
-
-	finfo = finfoblk;
-	child = NULL;
-	for (i = 0; i < info_count; i++, finfo++) {
-		child = of_get_next_available_child(node, child);
-		ret = of_property_read_u32_array(child, "ti,mbox-tx", tmp,
-						 ARRAY_SIZE(tmp));
-		if (ret)
-			return ret;
-		finfo->tx_id = tmp[0];
-		finfo->tx_irq = tmp[1];
-		finfo->tx_usr = tmp[2];
-
-		ret = of_property_read_u32_array(child, "ti,mbox-rx", tmp,
-						 ARRAY_SIZE(tmp));
-		if (ret)
-			return ret;
-		finfo->rx_id = tmp[0];
-		finfo->rx_irq = tmp[1];
-		finfo->rx_usr = tmp[2];
-
-		finfo->name = child->name;
-
-		finfo->send_no_irq = of_property_read_bool(child, "ti,mbox-send-noirq");
-
-		if (finfo->tx_id >= num_fifos || finfo->rx_id >= num_fifos ||
-		    finfo->tx_usr >= num_users || finfo->rx_usr >= num_users)
-			return -EINVAL;
-	}
-
 	mdev = devm_kzalloc(&pdev->dev, sizeof(*mdev), GFP_KERNEL);
 	if (!mdev)
 		return -ENOMEM;
@@ -667,36 +619,58 @@ static int omap_mbox_probe(struct platform_device *pdev)
 	if (!chnls)
 		return -ENOMEM;
 
-	mboxblk = devm_kcalloc(&pdev->dev, info_count, sizeof(*mbox),
-			       GFP_KERNEL);
-	if (!mboxblk)
-		return -ENOMEM;
+	child = NULL;
+	for (i = 0; i < info_count; i++) {
+		int tx_id, tx_irq, tx_usr;
+		int rx_id,         rx_usr;
 
-	mbox = mboxblk;
-	finfo = finfoblk;
-	for (i = 0; i < info_count; i++, finfo++) {
+		mbox = devm_kzalloc(&pdev->dev, sizeof(*mbox), GFP_KERNEL);
+		if (!mbox)
+			return -ENOMEM;
+
+		child = of_get_next_available_child(node, child);
+		ret = of_property_read_u32_array(child, "ti,mbox-tx", tmp,
+						 ARRAY_SIZE(tmp));
+		if (ret)
+			return ret;
+		tx_id = tmp[0];
+		tx_irq = tmp[1];
+		tx_usr = tmp[2];
+
+		ret = of_property_read_u32_array(child, "ti,mbox-rx", tmp,
+						 ARRAY_SIZE(tmp));
+		if (ret)
+			return ret;
+		rx_id = tmp[0];
+		/* rx_irq = tmp[1]; */
+		rx_usr = tmp[2];
+
+		if (tx_id >= num_fifos || rx_id >= num_fifos ||
+		    tx_usr >= num_users || rx_usr >= num_users)
+			return -EINVAL;
+
 		fifo = &mbox->tx_fifo;
-		fifo->msg = MAILBOX_MESSAGE(finfo->tx_id);
-		fifo->fifo_stat = MAILBOX_FIFOSTATUS(finfo->tx_id);
-		fifo->intr_bit = MAILBOX_IRQ_NOTFULL(finfo->tx_id);
-		fifo->irqenable = MAILBOX_IRQENABLE(intr_type, finfo->tx_usr);
-		fifo->irqstatus = MAILBOX_IRQSTATUS(intr_type, finfo->tx_usr);
-		fifo->irqdisable = MAILBOX_IRQDISABLE(intr_type, finfo->tx_usr);
+		fifo->msg = MAILBOX_MESSAGE(tx_id);
+		fifo->fifo_stat = MAILBOX_FIFOSTATUS(tx_id);
+		fifo->intr_bit = MAILBOX_IRQ_NOTFULL(tx_id);
+		fifo->irqenable = MAILBOX_IRQENABLE(intr_type, tx_usr);
+		fifo->irqstatus = MAILBOX_IRQSTATUS(intr_type, tx_usr);
+		fifo->irqdisable = MAILBOX_IRQDISABLE(intr_type, tx_usr);
 
 		fifo = &mbox->rx_fifo;
-		fifo->msg = MAILBOX_MESSAGE(finfo->rx_id);
-		fifo->msg_stat =  MAILBOX_MSGSTATUS(finfo->rx_id);
-		fifo->intr_bit = MAILBOX_IRQ_NEWMSG(finfo->rx_id);
-		fifo->irqenable = MAILBOX_IRQENABLE(intr_type, finfo->rx_usr);
-		fifo->irqstatus = MAILBOX_IRQSTATUS(intr_type, finfo->rx_usr);
-		fifo->irqdisable = MAILBOX_IRQDISABLE(intr_type, finfo->rx_usr);
+		fifo->msg = MAILBOX_MESSAGE(rx_id);
+		fifo->msg_stat =  MAILBOX_MSGSTATUS(rx_id);
+		fifo->intr_bit = MAILBOX_IRQ_NEWMSG(rx_id);
+		fifo->irqenable = MAILBOX_IRQENABLE(intr_type, rx_usr);
+		fifo->irqstatus = MAILBOX_IRQSTATUS(intr_type, rx_usr);
+		fifo->irqdisable = MAILBOX_IRQDISABLE(intr_type, rx_usr);
 
-		mbox->send_no_irq = finfo->send_no_irq;
+		mbox->send_no_irq = of_property_read_bool(child, "ti,mbox-send-noirq");
 		mbox->intr_type = intr_type;
 
 		mbox->parent = mdev;
-		mbox->name = finfo->name;
-		mbox->irq = platform_get_irq(pdev, finfo->tx_irq);
+		mbox->name = child->name;
+		mbox->irq = platform_get_irq(pdev, tx_irq);
 		if (mbox->irq < 0)
 			return mbox->irq;
 		mbox->chan = &chnls[i];
@@ -743,7 +717,6 @@ static int omap_mbox_probe(struct platform_device *pdev)
 	if (ret < 0 && ret != -ENOSYS)
 		return ret;
 
-	devm_kfree(&pdev->dev, finfoblk);
 	return 0;
 }
 
