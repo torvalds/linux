@@ -643,6 +643,7 @@ static void set_dent_cookie(struct ubifs_info *c, struct ubifs_dent_node *dent)
  * @inode: inode to update
  * @deletion: indicates a directory entry deletion i.e unlink or rmdir
  * @xent: non-zero if the directory entry is an extended attribute entry
+ * @delete_orphan: indicates an orphan entry deletion for @inode
  *
  * This function updates an inode by writing a directory entry (or extended
  * attribute entry), the inode itself, and the parent directory inode (or the
@@ -664,7 +665,7 @@ static void set_dent_cookie(struct ubifs_info *c, struct ubifs_dent_node *dent)
  */
 int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 		     const struct fscrypt_name *nm, const struct inode *inode,
-		     int deletion, int xent)
+		     int deletion, int xent, int delete_orphan)
 {
 	int err, dlen, ilen, len, lnum, ino_offs, dent_offs, orphan_added = 0;
 	int aligned_dlen, aligned_ilen, sync = IS_DIRSYNC(dir);
@@ -805,6 +806,9 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 			    UBIFS_INO_NODE_SZ + host_ui->data_len, hash_ino_host);
 	if (err)
 		goto out_ro;
+
+	if (delete_orphan)
+		ubifs_delete_orphan(c, inode->i_ino);
 
 	finish_reservation(c);
 	spin_lock(&ui->ui_lock);

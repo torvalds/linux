@@ -325,7 +325,7 @@ static int ubifs_create(struct mnt_idmap *idmap, struct inode *dir,
 	dir_ui->ui_size = dir->i_size;
 	inode_set_mtime_to_ts(dir,
 			      inode_set_ctime_to_ts(dir, inode_get_ctime(inode)));
-	err = ubifs_jnl_update(c, dir, &nm, inode, 0, 0);
+	err = ubifs_jnl_update(c, dir, &nm, inode, 0, 0, 0);
 	if (err)
 		goto out_cancel;
 	mutex_unlock(&dir_ui->ui_mutex);
@@ -479,7 +479,7 @@ static int ubifs_tmpfile(struct mnt_idmap *idmap, struct inode *dir,
 	mutex_unlock(&ui->ui_mutex);
 
 	lock_2_inodes(dir, inode);
-	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0);
+	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0, 0);
 	if (err)
 		goto out_cancel;
 	unlock_2_inodes(dir, inode);
@@ -760,10 +760,6 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 
 	lock_2_inodes(dir, inode);
 
-	/* Handle O_TMPFILE corner case, it is allowed to link a O_TMPFILE. */
-	if (inode->i_nlink == 0)
-		ubifs_delete_orphan(c, inode->i_ino);
-
 	inc_nlink(inode);
 	ihold(inode);
 	inode_set_ctime_current(inode);
@@ -771,7 +767,7 @@ static int ubifs_link(struct dentry *old_dentry, struct inode *dir,
 	dir_ui->ui_size = dir->i_size;
 	inode_set_mtime_to_ts(dir,
 			      inode_set_ctime_to_ts(dir, inode_get_ctime(inode)));
-	err = ubifs_jnl_update(c, dir, &nm, inode, 0, 0);
+	err = ubifs_jnl_update(c, dir, &nm, inode, 0, 0, inode->i_nlink == 1);
 	if (err)
 		goto out_cancel;
 	unlock_2_inodes(dir, inode);
@@ -785,8 +781,6 @@ out_cancel:
 	dir->i_size -= sz_change;
 	dir_ui->ui_size = dir->i_size;
 	drop_nlink(inode);
-	if (inode->i_nlink == 0)
-		ubifs_add_orphan(c, inode->i_ino);
 	unlock_2_inodes(dir, inode);
 	ubifs_release_budget(c, &req);
 	iput(inode);
@@ -846,7 +840,7 @@ static int ubifs_unlink(struct inode *dir, struct dentry *dentry)
 	dir_ui->ui_size = dir->i_size;
 	inode_set_mtime_to_ts(dir,
 			      inode_set_ctime_to_ts(dir, inode_get_ctime(inode)));
-	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0);
+	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0, 0);
 	if (err)
 		goto out_cancel;
 	unlock_2_inodes(dir, inode);
@@ -950,7 +944,7 @@ static int ubifs_rmdir(struct inode *dir, struct dentry *dentry)
 	dir_ui->ui_size = dir->i_size;
 	inode_set_mtime_to_ts(dir,
 			      inode_set_ctime_to_ts(dir, inode_get_ctime(inode)));
-	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0);
+	err = ubifs_jnl_update(c, dir, &nm, inode, 1, 0, 0);
 	if (err)
 		goto out_cancel;
 	unlock_2_inodes(dir, inode);
@@ -1025,7 +1019,7 @@ static int ubifs_mkdir(struct mnt_idmap *idmap, struct inode *dir,
 	dir_ui->ui_size = dir->i_size;
 	inode_set_mtime_to_ts(dir,
 			      inode_set_ctime_to_ts(dir, inode_get_ctime(inode)));
-	err = ubifs_jnl_update(c, dir, &nm, inode, 0, 0);
+	err = ubifs_jnl_update(c, dir, &nm, inode, 0, 0, 0);
 	if (err) {
 		ubifs_err(c, "cannot create directory, error %d", err);
 		goto out_cancel;
@@ -1119,7 +1113,7 @@ static int ubifs_mknod(struct mnt_idmap *idmap, struct inode *dir,
 	dir_ui->ui_size = dir->i_size;
 	inode_set_mtime_to_ts(dir,
 			      inode_set_ctime_to_ts(dir, inode_get_ctime(inode)));
-	err = ubifs_jnl_update(c, dir, &nm, inode, 0, 0);
+	err = ubifs_jnl_update(c, dir, &nm, inode, 0, 0, 0);
 	if (err)
 		goto out_cancel;
 	mutex_unlock(&dir_ui->ui_mutex);
@@ -1220,7 +1214,7 @@ static int ubifs_symlink(struct mnt_idmap *idmap, struct inode *dir,
 	dir_ui->ui_size = dir->i_size;
 	inode_set_mtime_to_ts(dir,
 			      inode_set_ctime_to_ts(dir, inode_get_ctime(inode)));
-	err = ubifs_jnl_update(c, dir, &nm, inode, 0, 0);
+	err = ubifs_jnl_update(c, dir, &nm, inode, 0, 0, 0);
 	if (err)
 		goto out_cancel;
 	mutex_unlock(&dir_ui->ui_mutex);
