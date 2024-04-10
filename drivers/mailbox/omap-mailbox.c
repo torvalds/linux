@@ -197,7 +197,7 @@ static int is_mbox_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 	return (int)(enable & status & bit);
 }
 
-static void _omap_mbox_enable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
+static void omap_mbox_enable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
 	u32 l;
 	struct omap_mbox_fifo *fifo = (irq == IRQ_TX) ?
@@ -210,7 +210,7 @@ static void _omap_mbox_enable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 	mbox_write_reg(mbox->parent, l, irqenable);
 }
 
-static void _omap_mbox_disable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
+static void omap_mbox_disable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 {
 	struct omap_mbox_fifo *fifo = (irq == IRQ_TX) ?
 				&mbox->tx_fifo : &mbox->rx_fifo;
@@ -226,28 +226,6 @@ static void _omap_mbox_disable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 
 	mbox_write_reg(mbox->parent, bit, irqdisable);
 }
-
-void omap_mbox_enable_irq(struct mbox_chan *chan, omap_mbox_irq_t irq)
-{
-	struct omap_mbox *mbox = mbox_chan_to_omap_mbox(chan);
-
-	if (WARN_ON(!mbox))
-		return;
-
-	_omap_mbox_enable_irq(mbox, irq);
-}
-EXPORT_SYMBOL(omap_mbox_enable_irq);
-
-void omap_mbox_disable_irq(struct mbox_chan *chan, omap_mbox_irq_t irq)
-{
-	struct omap_mbox *mbox = mbox_chan_to_omap_mbox(chan);
-
-	if (WARN_ON(!mbox))
-		return;
-
-	_omap_mbox_disable_irq(mbox, irq);
-}
-EXPORT_SYMBOL(omap_mbox_disable_irq);
 
 /*
  * Message receiver(workqueue)
@@ -269,7 +247,7 @@ static void mbox_rx_work(struct work_struct *work)
 		spin_lock_irq(&mq->lock);
 		if (mq->full) {
 			mq->full = false;
-			_omap_mbox_enable_irq(mq->mbox, IRQ_RX);
+			omap_mbox_enable_irq(mq->mbox, IRQ_RX);
 		}
 		spin_unlock_irq(&mq->lock);
 	}
@@ -280,7 +258,7 @@ static void mbox_rx_work(struct work_struct *work)
  */
 static void __mbox_tx_interrupt(struct omap_mbox *mbox)
 {
-	_omap_mbox_disable_irq(mbox, IRQ_TX);
+	omap_mbox_disable_irq(mbox, IRQ_TX);
 	ack_mbox_irq(mbox, IRQ_TX);
 	mbox_chan_txdone(mbox->chan, 0);
 }
@@ -293,7 +271,7 @@ static void __mbox_rx_interrupt(struct omap_mbox *mbox)
 
 	while (!mbox_fifo_empty(mbox)) {
 		if (unlikely(kfifo_avail(&mq->fifo) < sizeof(msg))) {
-			_omap_mbox_disable_irq(mbox, IRQ_RX);
+			omap_mbox_disable_irq(mbox, IRQ_RX);
 			mq->full = true;
 			goto nomem;
 		}
@@ -375,7 +353,7 @@ static int omap_mbox_startup(struct omap_mbox *mbox)
 	if (mbox->send_no_irq)
 		mbox->chan->txdone_method = TXDONE_BY_ACK;
 
-	_omap_mbox_enable_irq(mbox, IRQ_RX);
+	omap_mbox_enable_irq(mbox, IRQ_RX);
 
 	return 0;
 
@@ -386,7 +364,7 @@ fail_request_irq:
 
 static void omap_mbox_fini(struct omap_mbox *mbox)
 {
-	_omap_mbox_disable_irq(mbox, IRQ_RX);
+	omap_mbox_disable_irq(mbox, IRQ_RX);
 	free_irq(mbox->irq, mbox);
 	flush_work(&mbox->rxq->work);
 	mbox_queue_free(mbox->rxq);
@@ -533,10 +511,10 @@ static int omap_mbox_chan_send_noirq(struct omap_mbox *mbox, u32 msg)
 	int ret = -EBUSY;
 
 	if (!mbox_fifo_full(mbox)) {
-		_omap_mbox_enable_irq(mbox, IRQ_RX);
+		omap_mbox_enable_irq(mbox, IRQ_RX);
 		mbox_fifo_write(mbox, msg);
 		ret = 0;
-		_omap_mbox_disable_irq(mbox, IRQ_RX);
+		omap_mbox_disable_irq(mbox, IRQ_RX);
 
 		/* we must read and ack the interrupt directly from here */
 		mbox_fifo_read(mbox);
@@ -556,7 +534,7 @@ static int omap_mbox_chan_send(struct omap_mbox *mbox, u32 msg)
 	}
 
 	/* always enable the interrupt */
-	_omap_mbox_enable_irq(mbox, IRQ_TX);
+	omap_mbox_enable_irq(mbox, IRQ_TX);
 	return ret;
 }
 
