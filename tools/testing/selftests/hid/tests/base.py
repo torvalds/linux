@@ -12,7 +12,7 @@ import time
 
 import logging
 
-from hidtools.device.base_device import BaseDevice, EvdevMatch, SysfsFile
+from .base_device import BaseDevice, EvdevMatch, SysfsFile
 from pathlib import Path
 from typing import Final, List, Tuple
 
