@@ -973,10 +973,11 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
 		else
 			desc = acpi_get_gpiod_from_data(fwnode,
 						        propname, idx, &info);
-		if (!IS_ERR(desc))
-			break;
 		if (PTR_ERR(desc) == -EPROBE_DEFER)
 			return ERR_CAST(desc);
+
+		if (!IS_ERR(desc))
+			break;
 	}
 
 	/* Then from plain _CRS GPIOs */
