@@ -345,7 +345,7 @@ static inline bool flow_action_has_entries(const struct flow_action *action)
  * flow_offload_has_one_action() - check if exactly one action is present
  * @action: tc filter flow offload action
  *
- * Returns true if exactly one action is present.
+ * Return: true if exactly one action is present.
  */
 static inline bool flow_offload_has_one_action(const struct flow_action *action)
 {
