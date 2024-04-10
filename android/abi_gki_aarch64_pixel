@@ -1264,6 +1264,7 @@
   kobj_sysfs_ops
   krealloc
   ksize
+  ksoftirqd
   kstat
   kstrdup
   kstrndup
@@ -1754,6 +1755,10 @@
   put_unused_fd
   put_vaddr_frames
   pwm_apply_state
+  pwmchip_add
+  pwmchip_remove
+  pwm_get_chip_data
+  pwm_set_chip_data
   queue_delayed_work_on
   queue_work_on
   radix_tree_delete_item
