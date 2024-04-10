@@ -53,6 +53,7 @@ static long get_target_state(struct thermal_zone_device *tz,
  * fair_share_throttle - throttles devices associated with the given zone
  * @tz: thermal_zone_device
  * @trip: trip point
+ * @trip_level: number of trips crossed by the zone temperature
  *
  * Throttling Logic: This uses three parameters to calculate the new
  * throttle state of the cooling devices associated with the given zone.
@@ -61,22 +62,19 @@ static long get_target_state(struct thermal_zone_device *tz,
  * P1. max_state: Maximum throttle state exposed by the cooling device.
  * P2. percentage[i]/100:
  *	How 'effective' the 'i'th device is, in cooling the given zone.
- * P3. cur_trip_level/max_no_of_trips:
+ * P3. trip_level/max_no_of_trips:
  *	This describes the extent to which the devices should be throttled.
  *	We do not want to throttle too much when we trip a lower temperature,
  *	whereas the throttling is at full swing if we trip critical levels.
- *	(Heavily assumes the trip points are in ascending order)
  * new_state of cooling device = P3 * P2 * P1
  */
-static int fair_share_throttle(struct thermal_zone_device *tz,
-			       const struct thermal_trip *trip)
+static void fair_share_throttle(struct thermal_zone_device *tz,
+				const struct thermal_trip *trip,
+				int trip_level)
 {
 	struct thermal_instance *instance;
 	int total_weight = 0;
 	int total_instance = 0;
-	int cur_trip_level = get_trip_level(tz);
-
-	lockdep_assert_held(&tz->lock);
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		if (instance->trip != trip)
@@ -99,18 +97,35 @@ static int fair_share_throttle(struct thermal_zone_device *tz,
 			percentage = (instance->weight * 100) / total_weight;
 
 		instance->target = get_target_state(tz, cdev, percentage,
-						    cur_trip_level);
+						    trip_level);
 
 		mutex_lock(&cdev->lock);
 		__thermal_cdev_update(cdev);
 		mutex_unlock(&cdev->lock);
 	}
+}
 
-	return 0;
+static void fair_share_manage(struct thermal_zone_device *tz)
+{
+	int trip_level = get_trip_level(tz);
+	const struct thermal_trip_desc *td;
+
+	lockdep_assert_held(&tz->lock);
+
+	for_each_trip_desc(tz, td) {
+		const struct thermal_trip *trip = &td->trip;
+
+		if (trip->temperature == THERMAL_TEMP_INVALID ||
+		    trip->type == THERMAL_TRIP_CRITICAL ||
+		    trip->type == THERMAL_TRIP_HOT)
+			continue;
+
+		fair_share_throttle(tz, trip, trip_level);
+	}
 }
 
 static struct thermal_governor thermal_gov_fair_share = {
-	.name		= "fair_share",
-	.throttle	= fair_share_throttle,
+	.name	= "fair_share",
+	.manage	= fair_share_manage,
 };
 THERMAL_GOVERNOR_DECLARE(thermal_gov_fair_share);
