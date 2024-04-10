@@ -688,7 +688,6 @@ static int sh_mobile_xfer(struct sh_mobile_i2c_data *pd,
 		}
 
 		if (!time_left) {
-			dev_err(pd->dev, "Transfer request timed out\n");
 			if (pd->dma_direction != DMA_NONE)
 				sh_mobile_i2c_cleanup_dma(pd, true);
 
