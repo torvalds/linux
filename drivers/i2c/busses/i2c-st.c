@@ -689,11 +689,8 @@ static int st_i2c_xfer_msg(struct st_i2c_dev *i2c_dev, struct i2c_msg *msg,
 			i2c_dev->adap.timeout);
 	ret = c->result;
 
-	if (!timeout) {
-		dev_err(i2c_dev->dev, "Write to slave 0x%x timed out\n",
-				c->addr);
+	if (!timeout)
 		ret = -ETIMEDOUT;
-	}
 
 	i2c = SSC_I2C_STOPG | SSC_I2C_REPSTRTG;
 	st_i2c_clr_bits(i2c_dev->base + SSC_I2C, i2c);
