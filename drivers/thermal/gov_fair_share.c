@@ -41,12 +41,6 @@ static int get_trip_level(struct thermal_zone_device *tz)
 	return trip_level;
 }
 
-static long get_target_state(struct thermal_zone_device *tz,
-		struct thermal_cooling_device *cdev, int percentage, int level)
-{
-	return (long)(percentage * level * cdev->max_state) / (100 * tz->num_trips);
-}
-
 /**
  * fair_share_throttle - throttles devices associated with the given zone
  * @tz: thermal_zone_device
@@ -58,7 +52,7 @@ static long get_target_state(struct thermal_zone_device *tz,
  *
  * Parameters used for Throttling:
  * P1. max_state: Maximum throttle state exposed by the cooling device.
- * P2. percentage[i]/100:
+ * P2. weight[i]/total_weight:
  *	How 'effective' the 'i'th device is, in cooling the given zone.
  * P3. trip_level/max_no_of_trips:
  *	This describes the extent to which the devices should be throttled.
@@ -72,30 +66,34 @@ static void fair_share_throttle(struct thermal_zone_device *tz,
 {
 	struct thermal_instance *instance;
 	int total_weight = 0;
-	int total_instance = 0;
+	int nr_instances = 0;
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		if (instance->trip != trip)
 			continue;
 
 		total_weight += instance->weight;
-		total_instance++;
+		nr_instances++;
 	}
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		int percentage;
 		struct thermal_cooling_device *cdev = instance->cdev;
+		u64 dividend;
+		u32 divisor;
 
 		if (instance->trip != trip)
 			continue;
 
-		if (!total_weight)
-			percentage = 100 / total_instance;
-		else
-			percentage = (instance->weight * 100) / total_weight;
-
-		instance->target = get_target_state(tz, cdev, percentage,
-						    trip_level);
+		dividend = trip_level;
+		dividend *= cdev->max_state;
+		divisor = tz->num_trips;
+		if (total_weight) {
+			dividend *= instance->weight;
+			divisor *= total_weight;
+		} else {
+			divisor *= nr_instances;
+		}
+		instance->target = div_u64(dividend, divisor);
 
 		mutex_lock(&cdev->lock);
 		__thermal_cdev_update(cdev);
