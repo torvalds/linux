@@ -6,6 +6,8 @@
 
 #include "hclge_main.h"
 
+#define	HCLGE_DEVLINK_FW_SCC_LEN	32
+
 struct hclge_devlink_priv {
 	struct hclge_dev *hdev;
 };

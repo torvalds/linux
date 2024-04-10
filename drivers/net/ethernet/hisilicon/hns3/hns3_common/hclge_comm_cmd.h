@@ -247,6 +247,9 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QCN_AJUST_INIT	= 0x1A07,
 	HCLGE_OPC_QCN_DFX_CNT_STATUS    = 0x1A08,
 
+	/* SCC commands */
+	HCLGE_OPC_QUERY_SCC_VER		= 0x1A84,
+
 	/* Mailbox command */
 	HCLGEVF_OPC_MBX_PF_TO_VF	= 0x2000,
 	HCLGEVF_OPC_MBX_VF_TO_PF	= 0x2001,
@@ -392,6 +395,11 @@ struct hclge_comm_query_version_cmd {
 	__le32 hardware;
 	__le32 api_caps;
 	__le32 caps[HCLGE_COMM_QUERY_CAP_LENGTH]; /* capabilities of device */
+};
+
+struct hclge_comm_query_scc_cmd {
+	__le32 scc_version;
+	u8 rsv[20];
 };
 
 #define HCLGE_DESC_DATA_LEN		6
