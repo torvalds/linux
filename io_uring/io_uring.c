@@ -726,12 +726,6 @@ static void io_cqring_do_overflow_flush(struct io_ring_ctx *ctx)
 		mutex_unlock(&ctx->uring_lock);
 }
 
-static void io_cqring_overflow_flush(struct io_ring_ctx *ctx)
-{
-	if (test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq))
-		io_cqring_do_overflow_flush(ctx);
-}
-
 /* can be called by any task */
 static void io_put_task_remote(struct task_struct *task)
 {
@@ -2452,8 +2446,9 @@ static int io_cqring_wait(struct io_ring_ctx *ctx, int min_events,
 	if (!llist_empty(&ctx->work_llist))
 		io_run_local_work(ctx, min_events);
 	io_run_task_work();
-	io_cqring_overflow_flush(ctx);
-	/* if user messes with these they will just get an early return */
+
+	if (unlikely(test_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq)))
+		io_cqring_do_overflow_flush(ctx);
 	if (__io_cqring_events_user(ctx) >= min_events)
 		return 0;
 
