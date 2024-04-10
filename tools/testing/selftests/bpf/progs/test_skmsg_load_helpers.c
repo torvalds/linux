@@ -49,4 +49,22 @@ int prog_msg_verdict(struct sk_msg_md *msg)
 	return prog_msg_verdict_common(msg);
 }
 
+SEC("sk_msg")
+int prog_msg_verdict_clone(struct sk_msg_md *msg)
+{
+	return prog_msg_verdict_common(msg);
+}
+
+SEC("sk_msg")
+int prog_msg_verdict_clone2(struct sk_msg_md *msg)
+{
+	return prog_msg_verdict_common(msg);
+}
+
+SEC("sk_skb/stream_verdict")
+int prog_skb_verdict(struct __sk_buff *skb)
+{
+	return SK_PASS;
+}
+
 char _license[] SEC("license") = "GPL";
