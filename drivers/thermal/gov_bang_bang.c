@@ -17,29 +17,23 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 				     const struct thermal_trip *trip,
 				     bool crossed_up)
 {
-	int trip_index = thermal_zone_trip_id(tz, trip);
 	struct thermal_instance *instance;
 
-	if (!trip->hysteresis)
-		dev_info_once(&tz->device,
-			      "Zero hysteresis value for thermal zone %s\n", tz->type);
-
 	dev_dbg(&tz->device, "Trip%d[temp=%d]:temp=%d:hyst=%d\n",
-				trip_index, trip->temperature, tz->temperature,
-				trip->hysteresis);
+		thermal_zone_trip_id(tz, trip), trip->temperature,
+		tz->temperature, trip->hysteresis);
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
 		if (instance->trip != trip)
 			continue;
 
-		/* in case fan is in initial state, switch the fan off */
 		if (instance->target == THERMAL_NO_TARGET)
 			instance->target = 0;
 
-		/* in case fan is neither on nor off set the fan to active */
 		if (instance->target != 0 && instance->target != 1) {
-			pr_warn("Thermal instance %s controlled by bang-bang has unexpected state: %ld\n",
-					instance->name, instance->target);
+			pr_debug("Unexpected state %ld of thermal instance %s in bang-bang\n",
+				 instance->target, instance->name);
+
 			instance->target = 1;
 		}
 
@@ -52,8 +46,7 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 		else if (instance->target == 1 && !crossed_up)
 			instance->target = 0;
 
-		dev_dbg(&instance->cdev->device, "target=%d\n",
-					(int)instance->target);
+		dev_dbg(&instance->cdev->device, "target=%ld\n", instance->target);
 
 		mutex_lock(&instance->cdev->lock);
 		instance->cdev->updated = false; /* cdev needs update */
