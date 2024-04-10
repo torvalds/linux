@@ -186,7 +186,6 @@ void dcn321_link_encoder_construct(
 				__func__,
 				result);
 	}
-	if (enc10->base.ctx->dc->debug.hdmi20_disable) {
+	if (enc10->base.ctx->dc->debug.hdmi20_disable)
 		enc10->base.features.flags.bits.HDMI_6GB_EN = 0;
-	}
 }
