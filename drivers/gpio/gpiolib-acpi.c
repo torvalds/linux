@@ -873,9 +873,6 @@ static struct gpio_desc *acpi_get_gpiod_by_index(struct acpi_device *adev,
 	struct acpi_gpio_lookup lookup;
 	int ret;
 
-	if (!adev)
-		return ERR_PTR(-ENODEV);
-
 	memset(&lookup, 0, sizeof(lookup));
 	lookup.index = index;
 
