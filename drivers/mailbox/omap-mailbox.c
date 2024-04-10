@@ -103,14 +103,6 @@ static unsigned int mbox_kfifo_size = CONFIG_OMAP_MBOX_KFIFO_SIZE;
 module_param(mbox_kfifo_size, uint, S_IRUGO);
 MODULE_PARM_DESC(mbox_kfifo_size, "Size of omap's mailbox kfifo (bytes)");
 
-static struct omap_mbox *mbox_chan_to_omap_mbox(struct mbox_chan *chan)
-{
-	if (!chan || !chan->con_priv)
-		return NULL;
-
-	return (struct omap_mbox *)chan->con_priv;
-}
-
 static inline
 unsigned int mbox_read_reg(struct omap_mbox_device *mdev, size_t ofs)
 {
@@ -357,7 +349,7 @@ static void omap_mbox_fini(struct omap_mbox *mbox)
 
 static int omap_mbox_chan_startup(struct mbox_chan *chan)
 {
-	struct omap_mbox *mbox = mbox_chan_to_omap_mbox(chan);
+	struct omap_mbox *mbox = chan->con_priv;
 	struct omap_mbox_device *mdev = mbox->parent;
 	int ret = 0;
 
@@ -372,7 +364,7 @@ static int omap_mbox_chan_startup(struct mbox_chan *chan)
 
 static void omap_mbox_chan_shutdown(struct mbox_chan *chan)
 {
-	struct omap_mbox *mbox = mbox_chan_to_omap_mbox(chan);
+	struct omap_mbox *mbox = chan->con_priv;
 	struct omap_mbox_device *mdev = mbox->parent;
 
 	mutex_lock(&mdev->cfg_lock);
@@ -415,7 +407,7 @@ static int omap_mbox_chan_send(struct omap_mbox *mbox, u32 msg)
 
 static int omap_mbox_chan_send_data(struct mbox_chan *chan, void *data)
 {
-	struct omap_mbox *mbox = mbox_chan_to_omap_mbox(chan);
+	struct omap_mbox *mbox = chan->con_priv;
 	int ret;
 	u32 msg = (u32)(uintptr_t)(data);
 
