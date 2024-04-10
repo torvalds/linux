@@ -1033,21 +1033,22 @@ static __init void disable_smp(void)
 
 void __init smp_prepare_cpus_common(void)
 {
-	unsigned int i, n;
+	unsigned int cpu, node;
 
 	/* Mark all except the boot CPU as hotpluggable */
-	for_each_possible_cpu(i) {
-		if (i)
-			per_cpu(cpu_info.cpu_index, i) = nr_cpu_ids;
+	for_each_possible_cpu(cpu) {
+		if (cpu)
+			per_cpu(cpu_info.cpu_index, cpu) = nr_cpu_ids;
 	}
 
-	for_each_possible_cpu(i) {
-		n = cpu_to_node(i);
-		zalloc_cpumask_var_node(&per_cpu(cpu_sibling_map, i), GFP_KERNEL, n);
-		zalloc_cpumask_var_node(&per_cpu(cpu_core_map, i), GFP_KERNEL, n);
-		zalloc_cpumask_var_node(&per_cpu(cpu_die_map, i), GFP_KERNEL, n);
-		zalloc_cpumask_var_node(&per_cpu(cpu_llc_shared_map, i), GFP_KERNEL, n);
-		zalloc_cpumask_var_node(&per_cpu(cpu_l2c_shared_map, i), GFP_KERNEL, n);
+	for_each_possible_cpu(cpu) {
+		node = cpu_to_node(cpu);
+
+		zalloc_cpumask_var_node(&per_cpu(cpu_sibling_map,    cpu), GFP_KERNEL, node);
+		zalloc_cpumask_var_node(&per_cpu(cpu_core_map,       cpu), GFP_KERNEL, node);
+		zalloc_cpumask_var_node(&per_cpu(cpu_die_map,        cpu), GFP_KERNEL, node);
+		zalloc_cpumask_var_node(&per_cpu(cpu_llc_shared_map, cpu), GFP_KERNEL, node);
+		zalloc_cpumask_var_node(&per_cpu(cpu_l2c_shared_map, cpu), GFP_KERNEL, node);
 	}
 
 	set_cpu_sibling_map(0);
