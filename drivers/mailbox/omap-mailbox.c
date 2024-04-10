@@ -375,34 +375,33 @@ static void omap_mbox_chan_shutdown(struct mbox_chan *chan)
 
 static int omap_mbox_chan_send_noirq(struct omap_mbox *mbox, u32 msg)
 {
-	int ret = -EBUSY;
+	if (mbox_fifo_full(mbox))
+		return -EBUSY;
 
-	if (!mbox_fifo_full(mbox)) {
-		omap_mbox_enable_irq(mbox, IRQ_RX);
-		mbox_fifo_write(mbox, msg);
-		ret = 0;
-		omap_mbox_disable_irq(mbox, IRQ_RX);
+	omap_mbox_enable_irq(mbox, IRQ_RX);
+	mbox_fifo_write(mbox, msg);
+	omap_mbox_disable_irq(mbox, IRQ_RX);
 
-		/* we must read and ack the interrupt directly from here */
-		mbox_fifo_read(mbox);
-		ack_mbox_irq(mbox, IRQ_RX);
-	}
+	/* we must read and ack the interrupt directly from here */
+	mbox_fifo_read(mbox);
+	ack_mbox_irq(mbox, IRQ_RX);
 
-	return ret;
+	return 0;
 }
 
 static int omap_mbox_chan_send(struct omap_mbox *mbox, u32 msg)
 {
-	int ret = -EBUSY;
-
-	if (!mbox_fifo_full(mbox)) {
-		mbox_fifo_write(mbox, msg);
-		ret = 0;
+	if (mbox_fifo_full(mbox)) {
+		/* always enable the interrupt */
+		omap_mbox_enable_irq(mbox, IRQ_TX);
+		return -EBUSY;
 	}
+
+	mbox_fifo_write(mbox, msg);
 
 	/* always enable the interrupt */
 	omap_mbox_enable_irq(mbox, IRQ_TX);
-	return ret;
+	return 0;
 }
 
 static int omap_mbox_chan_send_data(struct mbox_chan *chan, void *data)
