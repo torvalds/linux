@@ -167,15 +167,11 @@ static void member_to_text(struct printbuf *out,
 	if (!bch2_member_exists(&m))
 		return;
 
-	prt_printf(out, "Device:");
-	prt_tab(out);
-	prt_printf(out, "%u", i);
-	prt_newline(out);
+	prt_printf(out, "Device:\t%u\n", i);
 
 	printbuf_indent_add(out, 2);
 
-	prt_printf(out, "Label:");
-	prt_tab(out);
+	prt_printf(out, "Label:\t");
 	if (BCH_MEMBER_GROUP(&m)) {
 		unsigned idx = BCH_MEMBER_GROUP(&m) - 1;
 
@@ -189,96 +185,59 @@ static void member_to_text(struct printbuf *out,
 	}
 	prt_newline(out);
 
-	prt_printf(out, "UUID:");
-	prt_tab(out);
+	prt_printf(out, "UUID:\t");
 	pr_uuid(out, m.uuid.b);
 	prt_newline(out);
 
-	prt_printf(out, "Size:");
-	prt_tab(out);
+	prt_printf(out, "Size:\t");
 	prt_units_u64(out, device_size << 9);
 	prt_newline(out);
 
-	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++) {
-		prt_printf(out, "%s errors:", bch2_member_error_strs[i]);
-		prt_tab(out);
-		prt_u64(out, le64_to_cpu(m.errors[i]));
-		prt_newline(out);
-	}
+	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++)
+		prt_printf(out, "%s errors:\t%llu\n", bch2_member_error_strs[i], le64_to_cpu(m.errors[i]));
 
-	for (unsigned i = 0; i < BCH_IOPS_NR; i++) {
-		prt_printf(out, "%s iops:", bch2_iops_measurements[i]);
-		prt_tab(out);
-		prt_printf(out, "%u", le32_to_cpu(m.iops[i]));
-		prt_newline(out);
-	}
+	for (unsigned i = 0; i < BCH_IOPS_NR; i++)
+		prt_printf(out, "%s iops:\t%u\n", bch2_iops_measurements[i], le32_to_cpu(m.iops[i]));
 
-	prt_printf(out, "Bucket size:");
-	prt_tab(out);
+	prt_printf(out, "Bucket size:\t");
 	prt_units_u64(out, bucket_size << 9);
 	prt_newline(out);
 
-	prt_printf(out, "First bucket:");
-	prt_tab(out);
-	prt_printf(out, "%u", le16_to_cpu(m.first_bucket));
-	prt_newline(out);
+	prt_printf(out, "First bucket:\t%u\n", le16_to_cpu(m.first_bucket));
+	prt_printf(out, "Buckets:\t%llu\n", le64_to_cpu(m.nbuckets));
 
-	prt_printf(out, "Buckets:");
-	prt_tab(out);
-	prt_printf(out, "%llu", le64_to_cpu(m.nbuckets));
-	prt_newline(out);
-
-	prt_printf(out, "Last mount:");
-	prt_tab(out);
+	prt_printf(out, "Last mount:\t");
 	if (m.last_mount)
 		bch2_prt_datetime(out, le64_to_cpu(m.last_mount));
 	else
 		prt_printf(out, "(never)");
 	prt_newline(out);
 
-	prt_printf(out, "Last superblock write:");
-	prt_tab(out);
-	prt_u64(out, le64_to_cpu(m.seq));
-	prt_newline(out);
+	prt_printf(out, "Last superblock write:\t%llu\n", le64_to_cpu(m.seq));
 
-	prt_printf(out, "State:");
-	prt_tab(out);
-	prt_printf(out, "%s",
+	prt_printf(out, "State:\t%s\n",
 		   BCH_MEMBER_STATE(&m) < BCH_MEMBER_STATE_NR
 		   ? bch2_member_states[BCH_MEMBER_STATE(&m)]
 		   : "unknown");
-	prt_newline(out);
 
-	prt_printf(out, "Data allowed:");
-	prt_tab(out);
+	prt_printf(out, "Data allowed:\t");
 	if (BCH_MEMBER_DATA_ALLOWED(&m))
 		prt_bitflags(out, __bch2_data_types, BCH_MEMBER_DATA_ALLOWED(&m));
 	else
 		prt_printf(out, "(none)");
 	prt_newline(out);
 
-	prt_printf(out, "Has data:");
-	prt_tab(out);
+	prt_printf(out, "Has data:\t");
 	if (data_have)
 		prt_bitflags(out, __bch2_data_types, data_have);
 	else
 		prt_printf(out, "(none)");
 	prt_newline(out);
 
-	prt_str(out, "Durability:");
-	prt_tab(out);
-	prt_printf(out, "%llu", BCH_MEMBER_DURABILITY(&m) ? BCH_MEMBER_DURABILITY(&m) - 1 : 1);
-	prt_newline(out);
+	prt_printf(out, "Durability:\t%llu\n", BCH_MEMBER_DURABILITY(&m) ? BCH_MEMBER_DURABILITY(&m) - 1 : 1);
 
-	prt_printf(out, "Discard:");
-	prt_tab(out);
-	prt_printf(out, "%llu", BCH_MEMBER_DISCARD(&m));
-	prt_newline(out);
-
-	prt_printf(out, "Freespace initialized:");
-	prt_tab(out);
-	prt_printf(out, "%llu", BCH_MEMBER_FREESPACE_INITIALIZED(&m));
-	prt_newline(out);
+	prt_printf(out, "Discard:\t%llu\n", BCH_MEMBER_DISCARD(&m));
+	prt_printf(out, "Freespace initialized:\t%llu\n", BCH_MEMBER_FREESPACE_INITIALIZED(&m));
 
 	printbuf_indent_sub(out, 2);
 }
@@ -390,12 +349,8 @@ void bch2_dev_io_errors_to_text(struct printbuf *out, struct bch_dev *ca)
 	prt_newline(out);
 
 	printbuf_indent_add(out, 2);
-	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++) {
-		prt_printf(out, "%s:", bch2_member_error_strs[i]);
-		prt_tab(out);
-		prt_u64(out, atomic64_read(&ca->errors[i]));
-		prt_newline(out);
-	}
+	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++)
+		prt_printf(out, "%s:\t%llu\n", bch2_member_error_strs[i], atomic64_read(&ca->errors[i]));
 	printbuf_indent_sub(out, 2);
 
 	prt_str(out, "IO errors since ");
@@ -404,12 +359,9 @@ void bch2_dev_io_errors_to_text(struct printbuf *out, struct bch_dev *ca)
 	prt_newline(out);
 
 	printbuf_indent_add(out, 2);
-	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++) {
-		prt_printf(out, "%s:", bch2_member_error_strs[i]);
-		prt_tab(out);
-		prt_u64(out, atomic64_read(&ca->errors[i]) - le64_to_cpu(m.errors_at_reset[i]));
-		prt_newline(out);
-	}
+	for (unsigned i = 0; i < BCH_MEMBER_ERROR_NR; i++)
+		prt_printf(out, "%s:\t%llu\n", bch2_member_error_strs[i],
+			   atomic64_read(&ca->errors[i]) - le64_to_cpu(m.errors_at_reset[i]));
 	printbuf_indent_sub(out, 2);
 }
 

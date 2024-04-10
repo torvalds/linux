@@ -117,8 +117,7 @@ static noinline int backpointer_mod_err(struct btree_trans *trans,
 
 		bch_err(c, "%s", buf.buf);
 	} else if (c->curr_recovery_pass > BCH_RECOVERY_PASS_check_extents_to_backpointers) {
-		prt_printf(&buf, "backpointer not found when deleting");
-		prt_newline(&buf);
+		prt_printf(&buf, "backpointer not found when deleting\n");
 		printbuf_indent_add(&buf, 2);
 
 		prt_printf(&buf, "searching for ");

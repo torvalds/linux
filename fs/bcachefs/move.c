@@ -41,28 +41,23 @@ static void bch2_data_update_opts_to_text(struct printbuf *out, struct bch_fs *c
 					  struct data_update_opts *data_opts)
 {
 	printbuf_tabstop_push(out, 20);
-	prt_str(out, "rewrite ptrs:");
-	prt_tab(out);
+	prt_str(out, "rewrite ptrs:\t");
 	bch2_prt_u64_base2(out, data_opts->rewrite_ptrs);
 	prt_newline(out);
 
-	prt_str(out, "kill ptrs: ");
-	prt_tab(out);
+	prt_str(out, "kill ptrs:\t");
 	bch2_prt_u64_base2(out, data_opts->kill_ptrs);
 	prt_newline(out);
 
-	prt_str(out, "target: ");
-	prt_tab(out);
+	prt_str(out, "target:\t");
 	bch2_target_to_text(out, c, data_opts->target);
 	prt_newline(out);
 
-	prt_str(out, "compression: ");
-	prt_tab(out);
+	prt_str(out, "compression:\t");
 	bch2_compression_opt_to_text(out, background_compression(*io_opts));
 	prt_newline(out);
 
-	prt_str(out, "extra replicas: ");
-	prt_tab(out);
+	prt_str(out, "extra replicas:\t");
 	prt_u64(out, data_opts->extra_replicas);
 }
 
@@ -1127,23 +1122,17 @@ void bch2_move_stats_to_text(struct printbuf *out, struct bch_move_stats *stats)
 	prt_newline(out);
 	printbuf_indent_add(out, 2);
 
-	prt_str(out, "keys moved:  ");
-	prt_u64(out, atomic64_read(&stats->keys_moved));
-	prt_newline(out);
-
-	prt_str(out, "keys raced:  ");
-	prt_u64(out, atomic64_read(&stats->keys_raced));
-	prt_newline(out);
-
-	prt_str(out, "bytes seen:  ");
+	prt_printf(out, "keys moved:  %llu\n",	atomic64_read(&stats->keys_moved));
+	prt_printf(out, "keys raced:  %llu\n",	atomic64_read(&stats->keys_raced));
+	prt_printf(out, "bytes seen:  ");
 	prt_human_readable_u64(out, atomic64_read(&stats->sectors_seen) << 9);
 	prt_newline(out);
 
-	prt_str(out, "bytes moved: ");
+	prt_printf(out, "bytes moved: ");
 	prt_human_readable_u64(out, atomic64_read(&stats->sectors_moved) << 9);
 	prt_newline(out);
 
-	prt_str(out, "bytes raced: ");
+	prt_printf(out, "bytes raced: ");
 	prt_human_readable_u64(out, atomic64_read(&stats->sectors_raced) << 9);
 	prt_newline(out);
 
@@ -1157,19 +1146,17 @@ static void bch2_moving_ctxt_to_text(struct printbuf *out, struct bch_fs *c, str
 	bch2_move_stats_to_text(out, ctxt->stats);
 	printbuf_indent_add(out, 2);
 
-	prt_printf(out, "reads: ios %u/%u sectors %u/%u",
+	prt_printf(out, "reads: ios %u/%u sectors %u/%u\n",
 		   atomic_read(&ctxt->read_ios),
 		   c->opts.move_ios_in_flight,
 		   atomic_read(&ctxt->read_sectors),
 		   c->opts.move_bytes_in_flight >> 9);
-	prt_newline(out);
 
-	prt_printf(out, "writes: ios %u/%u sectors %u/%u",
+	prt_printf(out, "writes: ios %u/%u sectors %u/%u\n",
 		   atomic_read(&ctxt->write_ios),
 		   c->opts.move_ios_in_flight,
 		   atomic_read(&ctxt->write_sectors),
 		   c->opts.move_bytes_in_flight >> 9);
-	prt_newline(out);
 
 	printbuf_indent_add(out, 2);
 

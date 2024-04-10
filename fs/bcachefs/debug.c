@@ -492,51 +492,26 @@ static void bch2_cached_btree_node_to_text(struct printbuf *out, struct bch_fs *
 	if (!out->nr_tabstops)
 		printbuf_tabstop_push(out, 32);
 
-	prt_printf(out, "%px btree=%s l=%u ",
-	       b,
-	       bch2_btree_id_str(b->c.btree_id),
-	       b->c.level);
-	prt_newline(out);
+	prt_printf(out, "%px btree=%s l=%u\n", b, bch2_btree_id_str(b->c.btree_id), b->c.level);
 
 	printbuf_indent_add(out, 2);
 
 	bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(&b->key));
 	prt_newline(out);
 
-	prt_printf(out, "flags: ");
-	prt_tab(out);
+	prt_printf(out, "flags:\t");
 	prt_bitflags(out, bch2_btree_node_flags, b->flags);
 	prt_newline(out);
 
-	prt_printf(out, "pcpu read locks: ");
-	prt_tab(out);
-	prt_printf(out, "%u", b->c.lock.readers != NULL);
-	prt_newline(out);
+	prt_printf(out, "pcpu read locks:\t%u\n",	b->c.lock.readers != NULL);
+	prt_printf(out, "written:\t%u\n",		b->written);
+	prt_printf(out, "writes blocked:\t%u\n",	!list_empty_careful(&b->write_blocked));
+	prt_printf(out, "will make reachable:\t%lx\n",	b->will_make_reachable);
 
-	prt_printf(out, "written:");
-	prt_tab(out);
-	prt_printf(out, "%u", b->written);
-	prt_newline(out);
-
-	prt_printf(out, "writes blocked:");
-	prt_tab(out);
-	prt_printf(out, "%u", !list_empty_careful(&b->write_blocked));
-	prt_newline(out);
-
-	prt_printf(out, "will make reachable:");
-	prt_tab(out);
-	prt_printf(out, "%lx", b->will_make_reachable);
-	prt_newline(out);
-
-	prt_printf(out, "journal pin %px:", &b->writes[0].journal);
-	prt_tab(out);
-	prt_printf(out, "%llu", b->writes[0].journal.seq);
-	prt_newline(out);
-
-	prt_printf(out, "journal pin %px:", &b->writes[1].journal);
-	prt_tab(out);
-	prt_printf(out, "%llu", b->writes[1].journal.seq);
-	prt_newline(out);
+	prt_printf(out, "journal pin %px:\t%llu\n",
+		   &b->writes[0].journal, b->writes[0].journal.seq);
+	prt_printf(out, "journal pin %px:\t%llu\n",
+		   &b->writes[1].journal, b->writes[1].journal.seq);
 
 	printbuf_indent_sub(out, 2);
 }
@@ -625,8 +600,7 @@ restart:
 
 		bch2_btree_trans_to_text(&i->buf, trans);
 
-		prt_printf(&i->buf, "backtrace:");
-		prt_newline(&i->buf);
+		prt_printf(&i->buf, "backtrace:\n");
 		printbuf_indent_add(&i->buf, 2);
 		bch2_prt_task_backtrace(&i->buf, task, 0, GFP_KERNEL);
 		printbuf_indent_sub(&i->buf, 2);
@@ -782,25 +756,20 @@ static ssize_t btree_transaction_stats_read(struct file *file, char __user *buf,
 		    !bch2_btree_transaction_fns[i->iter])
 			break;
 
-		prt_printf(&i->buf, "%s: ", bch2_btree_transaction_fns[i->iter]);
-		prt_newline(&i->buf);
+		prt_printf(&i->buf, "%s:\n", bch2_btree_transaction_fns[i->iter]);
 		printbuf_indent_add(&i->buf, 2);
 
 		mutex_lock(&s->lock);
 
-		prt_printf(&i->buf, "Max mem used: %u", s->max_mem);
-		prt_newline(&i->buf);
-
-		prt_printf(&i->buf, "Transaction duration:");
-		prt_newline(&i->buf);
+		prt_printf(&i->buf, "Max mem used: %u\n", s->max_mem);
+		prt_printf(&i->buf, "Transaction duration:\n");
 
 		printbuf_indent_add(&i->buf, 2);
 		bch2_time_stats_to_text(&i->buf, &s->duration);
 		printbuf_indent_sub(&i->buf, 2);
 
 		if (IS_ENABLED(CONFIG_BCACHEFS_LOCK_TIME_STATS)) {
-			prt_printf(&i->buf, "Lock hold times:");
-			prt_newline(&i->buf);
+			prt_printf(&i->buf, "Lock hold times:\n");
 
 			printbuf_indent_add(&i->buf, 2);
 			bch2_time_stats_to_text(&i->buf, &s->lock_hold_times);
@@ -808,8 +777,7 @@ static ssize_t btree_transaction_stats_read(struct file *file, char __user *buf,
 		}
 
 		if (s->max_paths_text) {
-			prt_printf(&i->buf, "Maximum allocated btree paths (%u):", s->nr_max_paths);
-			prt_newline(&i->buf);
+			prt_printf(&i->buf, "Maximum allocated btree paths (%u):\n", s->nr_max_paths);
 
 			printbuf_indent_add(&i->buf, 2);
 			prt_str_indented(&i->buf, s->max_paths_text);

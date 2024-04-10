@@ -97,45 +97,14 @@ static void qc_info_to_text(struct printbuf *out, struct qc_info *i)
 	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, 20);
 
-	prt_str(out, "i_fieldmask");
-	prt_tab(out);
-	prt_printf(out, "%x", i->i_fieldmask);
-	prt_newline(out);
-
-	prt_str(out, "i_flags");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_flags);
-	prt_newline(out);
-
-	prt_str(out, "i_spc_timelimit");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_spc_timelimit);
-	prt_newline(out);
-
-	prt_str(out, "i_ino_timelimit");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_ino_timelimit);
-	prt_newline(out);
-
-	prt_str(out, "i_rt_spc_timelimit");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_rt_spc_timelimit);
-	prt_newline(out);
-
-	prt_str(out, "i_spc_warnlimit");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_spc_warnlimit);
-	prt_newline(out);
-
-	prt_str(out, "i_ino_warnlimit");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_ino_warnlimit);
-	prt_newline(out);
-
-	prt_str(out, "i_rt_spc_warnlimit");
-	prt_tab(out);
-	prt_printf(out, "%u", i->i_rt_spc_warnlimit);
-	prt_newline(out);
+	prt_printf(out, "i_fieldmask\t%x\n",		i->i_fieldmask);
+	prt_printf(out, "i_flags\t%u\n",		i->i_flags);
+	prt_printf(out, "i_spc_timelimit\t%u\n",	i->i_spc_timelimit);
+	prt_printf(out, "i_ino_timelimit\t%u\n",	i->i_ino_timelimit);
+	prt_printf(out, "i_rt_spc_timelimit\t%u\n",	i->i_rt_spc_timelimit);
+	prt_printf(out, "i_spc_warnlimit\t%u\n",	i->i_spc_warnlimit);
+	prt_printf(out, "i_ino_warnlimit\t%u\n",	i->i_ino_warnlimit);
+	prt_printf(out, "i_rt_spc_warnlimit\t%u\n",	i->i_rt_spc_warnlimit);
 }
 
 static void qc_dqblk_to_text(struct printbuf *out, struct qc_dqblk *q)
@@ -143,60 +112,17 @@ static void qc_dqblk_to_text(struct printbuf *out, struct qc_dqblk *q)
 	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, 20);
 
-	prt_str(out, "d_fieldmask");
-	prt_tab(out);
-	prt_printf(out, "%x", q->d_fieldmask);
-	prt_newline(out);
-
-	prt_str(out, "d_spc_hardlimit");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_spc_hardlimit);
-	prt_newline(out);
-
-	prt_str(out, "d_spc_softlimit");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_spc_softlimit);
-	prt_newline(out);
-
-	prt_str(out, "d_ino_hardlimit");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_ino_hardlimit);
-	prt_newline(out);
-
-	prt_str(out, "d_ino_softlimit");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_ino_softlimit);
-	prt_newline(out);
-
-	prt_str(out, "d_space");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_space);
-	prt_newline(out);
-
-	prt_str(out, "d_ino_count");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_ino_count);
-	prt_newline(out);
-
-	prt_str(out, "d_ino_timer");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_ino_timer);
-	prt_newline(out);
-
-	prt_str(out, "d_spc_timer");
-	prt_tab(out);
-	prt_printf(out, "%llu", q->d_spc_timer);
-	prt_newline(out);
-
-	prt_str(out, "d_ino_warns");
-	prt_tab(out);
-	prt_printf(out, "%i", q->d_ino_warns);
-	prt_newline(out);
-
-	prt_str(out, "d_spc_warns");
-	prt_tab(out);
-	prt_printf(out, "%i", q->d_spc_warns);
-	prt_newline(out);
+	prt_printf(out, "d_fieldmask\t%x\n",		q->d_fieldmask);
+	prt_printf(out, "d_spc_hardlimit\t%llu\n",	q->d_spc_hardlimit);
+	prt_printf(out, "d_spc_softlimit\t%llu\n",	q->d_spc_softlimit);
+	prt_printf(out, "d_ino_hardlimit\%llu\n",	q->d_ino_hardlimit);
+	prt_printf(out, "d_ino_softlimit\t%llu\n",	q->d_ino_softlimit);
+	prt_printf(out, "d_space\t%llu\n",		q->d_space);
+	prt_printf(out, "d_ino_count\t%llu\n",		q->d_ino_count);
+	prt_printf(out, "d_ino_timer\t%llu\n",		q->d_ino_timer);
+	prt_printf(out, "d_spc_timer\t%llu\n",		q->d_spc_timer);
+	prt_printf(out, "d_ino_warns\t%i\n",		q->d_ino_warns);
+	prt_printf(out, "d_spc_warns\t%i\n",		q->d_spc_warns);
 }
 
 static inline unsigned __next_qtype(unsigned i, unsigned qtypes)

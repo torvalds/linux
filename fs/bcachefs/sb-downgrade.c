@@ -164,19 +164,16 @@ static void bch2_sb_downgrade_to_text(struct printbuf *out, struct bch_sb *sb,
 		printbuf_tabstop_push(out, 16);
 
 	for_each_downgrade_entry(e, i) {
-		prt_str(out, "version:");
-		prt_tab(out);
+		prt_str(out, "version:\t");
 		bch2_version_to_text(out, le16_to_cpu(i->version));
 		prt_newline(out);
 
-		prt_str(out, "recovery passes:");
-		prt_tab(out);
+		prt_str(out, "recovery passes:\t");
 		prt_bitflags(out, bch2_recovery_passes,
 			     bch2_recovery_passes_from_stable(le64_to_cpu(i->recovery_passes[0])));
 		prt_newline(out);
 
-		prt_str(out, "errors:");
-		prt_tab(out);
+		prt_str(out, "errors:\t");
 		bool first = true;
 		for (unsigned j = 0; j < le16_to_cpu(i->nr_errors); j++) {
 			if (!first)

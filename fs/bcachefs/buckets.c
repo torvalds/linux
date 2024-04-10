@@ -274,25 +274,14 @@ void bch2_dev_usage_init(struct bch_dev *ca)
 
 void bch2_dev_usage_to_text(struct printbuf *out, struct bch_dev_usage *usage)
 {
-	prt_tab(out);
-	prt_str(out, "buckets");
-	prt_tab_rjust(out);
-	prt_str(out, "sectors");
-	prt_tab_rjust(out);
-	prt_str(out, "fragmented");
-	prt_tab_rjust(out);
-	prt_newline(out);
+	prt_printf(out, "\tbuckets\rsectors\rfragmented\r\n");
 
 	for (unsigned i = 0; i < BCH_DATA_NR; i++) {
 		bch2_prt_data_type(out, i);
-		prt_tab(out);
-		prt_u64(out, usage->d[i].buckets);
-		prt_tab_rjust(out);
-		prt_u64(out, usage->d[i].sectors);
-		prt_tab_rjust(out);
-		prt_u64(out, usage->d[i].fragmented);
-		prt_tab_rjust(out);
-		prt_newline(out);
+		prt_printf(out, "\t%llu\r%llu\r%llu\r\n",
+			usage->d[i].buckets,
+			usage->d[i].sectors,
+			usage->d[i].fragmented);
 	}
 }
 

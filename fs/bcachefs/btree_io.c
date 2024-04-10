@@ -522,7 +522,9 @@ static void btree_err_msg(struct printbuf *out, struct bch_fs *c,
 	prt_printf(out, "at btree ");
 	bch2_btree_pos_to_text(out, c, b);
 
-	prt_printf(out, "\n  node offset %u/%u",
+	printbuf_indent_add(out, 2);
+
+	prt_printf(out, "\nnode offset %u/%u",
 		   b->written, btree_ptr_sectors_written(&b->key));
 	if (i)
 		prt_printf(out, " bset u64s %u", le16_to_cpu(i->u64s));
@@ -2344,20 +2346,13 @@ void bch2_btree_write_stats_to_text(struct printbuf *out, struct bch_fs *c)
 	printbuf_tabstop_push(out, 20);
 	printbuf_tabstop_push(out, 10);
 
-	prt_tab(out);
-	prt_str(out, "nr");
-	prt_tab(out);
-	prt_str(out, "size");
-	prt_newline(out);
+	prt_printf(out, "\tnr\tsize\n");
 
 	for (unsigned i = 0; i < BTREE_WRITE_TYPE_NR; i++) {
 		u64 nr		= atomic64_read(&c->btree_write_stats[i].nr);
 		u64 bytes	= atomic64_read(&c->btree_write_stats[i].bytes);
 
-		prt_printf(out, "%s:", bch2_btree_write_types[i]);
-		prt_tab(out);
-		prt_u64(out, nr);
-		prt_tab(out);
+		prt_printf(out, "%s:\t%llu\t", bch2_btree_write_types[i], nr);
 		prt_human_readable_u64(out, nr ? div64_u64(bytes, nr) : 0);
 		prt_newline(out);
 	}

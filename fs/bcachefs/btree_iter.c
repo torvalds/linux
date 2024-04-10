@@ -1387,19 +1387,17 @@ void __noreturn bch2_trans_in_restart_error(struct btree_trans *trans)
 noinline __cold
 void bch2_trans_updates_to_text(struct printbuf *buf, struct btree_trans *trans)
 {
-	prt_printf(buf, "transaction updates for %s journal seq %llu",
+	prt_printf(buf, "transaction updates for %s journal seq %llu\n",
 	       trans->fn, trans->journal_res.seq);
-	prt_newline(buf);
 	printbuf_indent_add(buf, 2);
 
 	trans_for_each_update(trans, i) {
 		struct bkey_s_c old = { &i->old_k, i->old_v };
 
-		prt_printf(buf, "update: btree=%s cached=%u %pS",
+		prt_printf(buf, "update: btree=%s cached=%u %pS\n",
 		       bch2_btree_id_str(i->btree_id),
 		       i->cached,
 		       (void *) i->ip_allocated);
-		prt_newline(buf);
 
 		prt_printf(buf, "  old ");
 		bch2_bkey_val_to_text(buf, trans->c, old);
@@ -3166,13 +3164,11 @@ bch2_btree_bkey_cached_common_to_text(struct printbuf *out,
 	pid = owner ? owner->pid : 0;
 	rcu_read_unlock();
 
-	prt_tab(out);
-	prt_printf(out, "%px %c l=%u %s:", b, b->cached ? 'c' : 'b',
+	prt_printf(out, "\t%px %c l=%u %s:", b, b->cached ? 'c' : 'b',
 		   b->level, bch2_btree_id_str(b->btree_id));
 	bch2_bpos_to_text(out, btree_node_pos(b));
 
-	prt_tab(out);
-	prt_printf(out, " locks %u:%u:%u held by pid %u",
+	prt_printf(out, "\t locks %u:%u:%u held by pid %u",
 		   c.n[0], c.n[1], c.n[2], pid);
 }
 
@@ -3229,10 +3225,8 @@ void bch2_btree_trans_to_text(struct printbuf *out, struct btree_trans *trans)
 
 	b = READ_ONCE(trans->locking);
 	if (b) {
-		prt_printf(out, "  blocked for %lluus on",
-			   div_u64(local_clock() - trans->locking_wait.start_time,
-				   1000));
-		prt_newline(out);
+		prt_printf(out, "  blocked for %lluus on\n",
+			   div_u64(local_clock() - trans->locking_wait.start_time, 1000));
 		prt_printf(out, "    %c", lock_types[trans->locking_wait.lock_want]);
 		bch2_btree_bkey_cached_common_to_text(out, b);
 		prt_newline(out);

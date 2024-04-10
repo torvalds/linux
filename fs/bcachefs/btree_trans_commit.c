@@ -773,9 +773,8 @@ static noinline int bch2_trans_commit_bkey_invalid(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 
 	printbuf_reset(err);
-	prt_printf(err, "invalid bkey on insert from %s -> %ps",
+	prt_printf(err, "invalid bkey on insert from %s -> %ps\n",
 		   trans->fn, (void *) i->ip_allocated);
-	prt_newline(err);
 	printbuf_indent_add(err, 2);
 
 	bch2_bkey_val_to_text(err, c, bkey_i_to_s_c(i->k));
@@ -796,8 +795,7 @@ static noinline int bch2_trans_commit_journal_entry_invalid(struct btree_trans *
 	struct bch_fs *c = trans->c;
 	struct printbuf buf = PRINTBUF;
 
-	prt_printf(&buf, "invalid bkey on insert from %s", trans->fn);
-	prt_newline(&buf);
+	prt_printf(&buf, "invalid bkey on insert from %s\n", trans->fn);
 	printbuf_indent_add(&buf, 2);
 
 	bch2_journal_entry_to_text(&buf, c, i);

@@ -1176,8 +1176,7 @@ static void bch2_sb_ext_to_text(struct printbuf *out, struct bch_sb *sb,
 {
 	struct bch_sb_field_ext *e = field_to_type(f, ext);
 
-	prt_printf(out, "Recovery passes required:");
-	prt_tab(out);
+	prt_printf(out, "Recovery passes required:\t");
 	prt_bitflags(out, bch2_recovery_passes,
 		     bch2_recovery_passes_from_stable(le64_to_cpu(e->recovery_passes_required[0])));
 	prt_newline(out);
@@ -1186,16 +1185,14 @@ static void bch2_sb_ext_to_text(struct printbuf *out, struct bch_sb *sb,
 	if (errors_silent) {
 		le_bitvector_to_cpu(errors_silent, (void *) e->errors_silent, sizeof(e->errors_silent) * 8);
 
-		prt_printf(out, "Errors to silently fix:");
-		prt_tab(out);
+		prt_printf(out, "Errors to silently fix:\t");
 		prt_bitflags_vector(out, bch2_sb_error_strs, errors_silent, sizeof(e->errors_silent) * 8);
 		prt_newline(out);
 
 		kfree(errors_silent);
 	}
 
-	prt_printf(out, "Btrees with missing data:");
-	prt_tab(out);
+	prt_printf(out, "Btrees with missing data:\t");
 	prt_bitflags(out, __bch2_btree_ids, le64_to_cpu(e->btrees_lost_data));
 	prt_newline(out);
 }
@@ -1305,95 +1302,71 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 	for (int i = 0; i < sb->nr_devices; i++)
 		nr_devices += bch2_dev_exists(sb, i);
 
-	prt_printf(out, "External UUID:");
-	prt_tab(out);
+	prt_printf(out, "External UUID:\t");
 	pr_uuid(out, sb->user_uuid.b);
 	prt_newline(out);
 
-	prt_printf(out, "Internal UUID:");
-	prt_tab(out);
+	prt_printf(out, "Internal UUID:\t");
 	pr_uuid(out, sb->uuid.b);
 	prt_newline(out);
 
-	prt_printf(out, "Magic number:");
-	prt_tab(out);
+	prt_printf(out, "Magic number:\t");
 	pr_uuid(out, sb->magic.b);
 	prt_newline(out);
 
-	prt_str(out, "Device index:");
-	prt_tab(out);
-	prt_printf(out, "%u", sb->dev_idx);
-	prt_newline(out);
+	prt_printf(out, "Device index:\t%u\n", sb->dev_idx);
 
-	prt_str(out, "Label:");
-	prt_tab(out);
+	prt_str(out, "Label:\t");
 	prt_printf(out, "%.*s", (int) sizeof(sb->label), sb->label);
 	prt_newline(out);
 
-	prt_str(out, "Version:");
-	prt_tab(out);
+	prt_str(out, "Version:\t");
 	bch2_version_to_text(out, le16_to_cpu(sb->version));
 	prt_newline(out);
 
-	prt_str(out, "Version upgrade complete:");
-	prt_tab(out);
+	prt_str(out, "Version upgrade complete:\t");
 	bch2_version_to_text(out, BCH_SB_VERSION_UPGRADE_COMPLETE(sb));
 	prt_newline(out);
 
-	prt_printf(out, "Oldest version on disk:");
-	prt_tab(out);
+	prt_printf(out, "Oldest version on disk:\t");
 	bch2_version_to_text(out, le16_to_cpu(sb->version_min));
 	prt_newline(out);
 
-	prt_printf(out, "Created:");
-	prt_tab(out);
+	prt_printf(out, "Created:\t");
 	if (sb->time_base_lo)
 		bch2_prt_datetime(out, div_u64(le64_to_cpu(sb->time_base_lo), NSEC_PER_SEC));
 	else
 		prt_printf(out, "(not set)");
 	prt_newline(out);
 
-	prt_printf(out, "Sequence number:");
-	prt_tab(out);
+	prt_printf(out, "Sequence number:\t");
 	prt_printf(out, "%llu", le64_to_cpu(sb->seq));
 	prt_newline(out);
 
-	prt_printf(out, "Time of last write:");
-	prt_tab(out);
+	prt_printf(out, "Time of last write:\t");
 	bch2_prt_datetime(out, le64_to_cpu(sb->write_time));
 	prt_newline(out);
 
-	prt_printf(out, "Superblock size:");
-	prt_tab(out);
+	prt_printf(out, "Superblock size:\t");
 	prt_units_u64(out, vstruct_bytes(sb));
 	prt_str(out, "/");
 	prt_units_u64(out, 512ULL << sb->layout.sb_max_size_bits);
 	prt_newline(out);
 
-	prt_printf(out, "Clean:");
-	prt_tab(out);
-	prt_printf(out, "%llu", BCH_SB_CLEAN(sb));
-	prt_newline(out);
+	prt_printf(out, "Clean:\t%llu\n", BCH_SB_CLEAN(sb));
+	prt_printf(out, "Devices:\t%u\n", nr_devices);
 
-	prt_printf(out, "Devices:");
-	prt_tab(out);
-	prt_printf(out, "%u", nr_devices);
-	prt_newline(out);
-
-	prt_printf(out, "Sections:");
+	prt_printf(out, "Sections:\t");
 	vstruct_for_each(sb, f)
 		fields_have |= 1 << le32_to_cpu(f->type);
-	prt_tab(out);
 	prt_bitflags(out, bch2_sb_fields, fields_have);
 	prt_newline(out);
 
-	prt_printf(out, "Features:");
-	prt_tab(out);
+	prt_printf(out, "Features:\t");
 	prt_bitflags(out, bch2_sb_features, le64_to_cpu(sb->features[0]));
 	prt_newline(out);
 
-	prt_printf(out, "Compat features:");
-	prt_tab(out);
+	prt_printf(out, "Compat features:\t");
 	prt_bitflags(out, bch2_sb_compat, le64_to_cpu(sb->compat[0]));
 	prt_newline(out);
 
@@ -1410,8 +1383,7 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 			if (opt->get_sb != BCH2_NO_SB_OPT) {
 				u64 v = bch2_opt_from_sb(sb, id);
 
-				prt_printf(out, "%s:", opt->attr.name);
-				prt_tab(out);
+				prt_printf(out, "%s:\t", opt->attr.name);
 				bch2_opt_to_text(out, NULL, sb, opt, v,
 						 OPT_HUMAN_READABLE|OPT_SHOW_FULL_LIST);
 				prt_newline(out);

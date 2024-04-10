@@ -31,19 +31,12 @@ static void bch2_sb_counters_to_text(struct printbuf *out, struct bch_sb *sb,
 			      struct bch_sb_field *f)
 {
 	struct bch_sb_field_counters *ctrs = field_to_type(f, counters);
-	unsigned int i;
 	unsigned int nr = bch2_sb_counter_nr_entries(ctrs);
 
-	for (i = 0; i < nr; i++) {
-		if (i < BCH_COUNTER_NR)
-			prt_printf(out, "%s ", bch2_counter_names[i]);
-		else
-			prt_printf(out, "(unknown)");
-
-		prt_tab(out);
-		prt_printf(out, "%llu", le64_to_cpu(ctrs->d[i]));
-		prt_newline(out);
-	}
+	for (unsigned i = 0; i < nr; i++)
+		prt_printf(out, "%s \t%llu\n",
+			   i < BCH_COUNTER_NR ? bch2_counter_names[i] : "(unknown)",
+			   le64_to_cpu(ctrs->d[i]));
 };
 
 int bch2_sb_counters_to_cpu(struct bch_fs *c)

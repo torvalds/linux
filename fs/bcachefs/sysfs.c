@@ -189,12 +189,8 @@ static void bch2_write_refs_to_text(struct printbuf *out, struct bch_fs *c)
 {
 	bch2_printbuf_tabstop_push(out, 24);
 
-	for (unsigned i = 0; i < ARRAY_SIZE(c->writes); i++) {
-		prt_str(out, bch2_write_refs[i]);
-		prt_tab(out);
-		prt_printf(out, "%li", atomic_long_read(&c->writes[i]));
-		prt_newline(out);
-	}
+	for (unsigned i = 0; i < ARRAY_SIZE(c->writes); i++)
+		prt_printf(out, "%s\t%li\n", bch2_write_refs[i], atomic_long_read(&c->writes[i]));
 }
 #endif
 
@@ -313,22 +309,11 @@ static int bch2_compression_stats_to_text(struct printbuf *out, struct bch_fs *c
 	if (ret)
 		return ret;
 
-	prt_str(out, "type");
 	printbuf_tabstop_push(out, 12);
-	prt_tab(out);
-
-	prt_str(out, "compressed");
 	printbuf_tabstop_push(out, 16);
-	prt_tab_rjust(out);
-
-	prt_str(out, "uncompressed");
 	printbuf_tabstop_push(out, 16);
-	prt_tab_rjust(out);
-
-	prt_str(out, "average extent size");
 	printbuf_tabstop_push(out, 24);
-	prt_tab_rjust(out);
-	prt_newline(out);
+	prt_printf(out, "type\tcompressed\runcompressed\raverage extent size\r\n");
 
 	for (unsigned i = 0; i < ARRAY_SIZE(s); i++) {
 		bch2_prt_compression_type(out, i);
@@ -594,13 +579,11 @@ SHOW(bch2_fs_counters)
 		if (attr == &sysfs_##t) {					\
 			counter             = percpu_u64_get(&c->counters[BCH_COUNTER_##t]);\
 			counter_since_mount = counter - c->counters_on_mount[BCH_COUNTER_##t];\
-			prt_printf(out, "since mount:");				\
-			prt_tab(out);						\
+			prt_printf(out, "since mount:\t");			\
 			prt_human_readable_u64(out, counter_since_mount);	\
 			prt_newline(out);					\
 										\
-			prt_printf(out, "since filesystem creation:");		\
-			prt_tab(out);						\
+			prt_printf(out, "since filesystem creation:\t");	\
 			prt_human_readable_u64(out, counter);			\
 			prt_newline(out);					\
 		}
@@ -796,11 +779,11 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 {
 	struct bch_fs *c = ca->fs;
 	struct bch_dev_usage stats = bch2_dev_usage_read(ca);
-	unsigned i, nr[BCH_DATA_NR];
+	unsigned nr[BCH_DATA_NR];
 
 	memset(nr, 0, sizeof(nr));
 
-	for (i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(c->open_buckets); i++)
 		nr[c->open_buckets[i].data_type]++;
 
 	printbuf_tabstop_push(out, 8);
@@ -813,65 +796,24 @@ static void dev_alloc_debug_to_text(struct printbuf *out, struct bch_dev *ca)
 
 	prt_newline(out);
 
-	prt_printf(out, "reserves:");
-	prt_newline(out);
-	for (i = 0; i < BCH_WATERMARK_NR; i++) {
-		prt_str(out, bch2_watermarks[i]);
-		prt_tab(out);
-		prt_u64(out, bch2_dev_buckets_reserved(ca, i));
-		prt_tab_rjust(out);
-		prt_newline(out);
-	}
+	prt_printf(out, "reserves:\n");
+	for (unsigned i = 0; i < BCH_WATERMARK_NR; i++)
+		prt_printf(out, "%s\t%llu\r\n", bch2_watermarks[i], bch2_dev_buckets_reserved(ca, i));
 
 	prt_newline(out);
 
 	printbuf_tabstops_reset(out);
 	printbuf_tabstop_push(out, 24);
 
-	prt_str(out, "freelist_wait");
-	prt_tab(out);
-	prt_str(out, c->freelist_wait.list.first ? "waiting" : "empty");
-	prt_newline(out);
-
-	prt_str(out, "open buckets allocated");
-	prt_tab(out);
-	prt_u64(out, OPEN_BUCKETS_COUNT - c->open_buckets_nr_free);
-	prt_newline(out);
-
-	prt_str(out, "open buckets this dev");
-	prt_tab(out);
-	prt_u64(out, ca->nr_open_buckets);
-	prt_newline(out);
-
-	prt_str(out, "open buckets total");
-	prt_tab(out);
-	prt_u64(out, OPEN_BUCKETS_COUNT);
-	prt_newline(out);
-
-	prt_str(out, "open_buckets_wait");
-	prt_tab(out);
-	prt_str(out, c->open_buckets_wait.list.first ? "waiting" : "empty");
-	prt_newline(out);
-
-	prt_str(out, "open_buckets_btree");
-	prt_tab(out);
-	prt_u64(out, nr[BCH_DATA_btree]);
-	prt_newline(out);
-
-	prt_str(out, "open_buckets_user");
-	prt_tab(out);
-	prt_u64(out, nr[BCH_DATA_user]);
-	prt_newline(out);
-
-	prt_str(out, "buckets_to_invalidate");
-	prt_tab(out);
-	prt_u64(out, should_invalidate_buckets(ca, stats));
-	prt_newline(out);
-
-	prt_str(out, "btree reserve cache");
-	prt_tab(out);
-	prt_u64(out, c->btree_reserve_cache_nr);
-	prt_newline(out);
+	prt_printf(out, "freelist_wait\t%s\n",			c->freelist_wait.list.first ? "waiting" : "empty");
+	prt_printf(out, "open buckets allocated\t%i\n",		OPEN_BUCKETS_COUNT - c->open_buckets_nr_free);
+	prt_printf(out, "open buckets this dev\t%i\n",		ca->nr_open_buckets);
+	prt_printf(out, "open buckets total\t%u\n",		OPEN_BUCKETS_COUNT);
+	prt_printf(out, "open_buckets_wait\t%s\n",		c->open_buckets_wait.list.first ? "waiting" : "empty");
+	prt_printf(out, "open_buckets_btree\t%u\n",		nr[BCH_DATA_btree]);
+	prt_printf(out, "open_buckets_user\t%u\n",		nr[BCH_DATA_user]);
+	prt_printf(out, "buckets_to_invalidate\t%llu\n",	should_invalidate_buckets(ca, stats));
+	prt_printf(out, "btree reserve cache\t%u\n",		c->btree_reserve_cache_nr);
 }
 
 static const char * const bch2_rw[] = {

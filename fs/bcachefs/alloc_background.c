@@ -330,27 +330,17 @@ void bch2_alloc_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c 
 	prt_printf(out, "gen %u oldest_gen %u data_type ", a->gen, a->oldest_gen);
 	bch2_prt_data_type(out, a->data_type);
 	prt_newline(out);
-	prt_printf(out, "journal_seq       %llu",	a->journal_seq);
-	prt_newline(out);
-	prt_printf(out, "need_discard      %llu",	BCH_ALLOC_V4_NEED_DISCARD(a));
-	prt_newline(out);
-	prt_printf(out, "need_inc_gen      %llu",	BCH_ALLOC_V4_NEED_INC_GEN(a));
-	prt_newline(out);
-	prt_printf(out, "dirty_sectors     %u",	a->dirty_sectors);
-	prt_newline(out);
-	prt_printf(out, "cached_sectors    %u",	a->cached_sectors);
-	prt_newline(out);
-	prt_printf(out, "stripe            %u",	a->stripe);
-	prt_newline(out);
-	prt_printf(out, "stripe_redundancy %u",	a->stripe_redundancy);
-	prt_newline(out);
-	prt_printf(out, "io_time[READ]     %llu",	a->io_time[READ]);
-	prt_newline(out);
-	prt_printf(out, "io_time[WRITE]    %llu",	a->io_time[WRITE]);
-	prt_newline(out);
-	prt_printf(out, "fragmentation     %llu",	a->fragmentation_lru);
-	prt_newline(out);
-	prt_printf(out, "bp_start          %llu", BCH_ALLOC_V4_BACKPOINTERS_START(a));
+	prt_printf(out, "journal_seq       %llu\n",	a->journal_seq);
+	prt_printf(out, "need_discard      %llu\n",	BCH_ALLOC_V4_NEED_DISCARD(a));
+	prt_printf(out, "need_inc_gen      %llu\n",	BCH_ALLOC_V4_NEED_INC_GEN(a));
+	prt_printf(out, "dirty_sectors     %u\n",	a->dirty_sectors);
+	prt_printf(out, "cached_sectors    %u\n",	a->cached_sectors);
+	prt_printf(out, "stripe            %u\n",	a->stripe);
+	prt_printf(out, "stripe_redundancy %u\n",	a->stripe_redundancy);
+	prt_printf(out, "io_time[READ]     %llu\n",	a->io_time[READ]);
+	prt_printf(out, "io_time[WRITE]    %llu\n",	a->io_time[WRITE]);
+	prt_printf(out, "fragmentation     %llu\n",	a->fragmentation_lru);
+	prt_printf(out, "bp_start          %llu\n", BCH_ALLOC_V4_BACKPOINTERS_START(a));
 	printbuf_indent_sub(out, 2);
 }
 

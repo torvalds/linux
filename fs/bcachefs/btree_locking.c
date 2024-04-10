@@ -83,8 +83,7 @@ static noinline void print_cycle(struct printbuf *out, struct lock_graph *g)
 {
 	struct trans_waiting_for_lock *i;
 
-	prt_printf(out, "Found lock cycle (%u entries):", g->nr);
-	prt_newline(out);
+	prt_printf(out, "Found lock cycle (%u entries):\n", g->nr);
 
 	for (i = g->g; i < g->g + g->nr; i++) {
 		struct task_struct *task = READ_ONCE(i->trans->locking_wait.task);
@@ -224,8 +223,7 @@ static noinline int break_cycle(struct lock_graph *g, struct printbuf *cycle)
 
 			bch2_btree_trans_to_text(&buf, trans);
 
-			prt_printf(&buf, "backtrace:");
-			prt_newline(&buf);
+			prt_printf(&buf, "backtrace:\n");
 			printbuf_indent_add(&buf, 2);
 			bch2_prt_task_backtrace(&buf, trans->locking_wait.task, 2, GFP_NOWAIT);
 			printbuf_indent_sub(&buf, 2);
