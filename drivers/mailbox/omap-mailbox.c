@@ -726,11 +726,11 @@ static int omap_mbox_probe(struct platform_device *pdev)
 		return ret;
 
 	platform_set_drvdata(pdev, mdev);
-	pm_runtime_enable(mdev->dev);
+	devm_pm_runtime_enable(mdev->dev);
 
 	ret = pm_runtime_resume_and_get(mdev->dev);
 	if (ret < 0)
-		goto unregister;
+		return ret;
 
 	/*
 	 * just print the raw revision register, the format is not
@@ -741,26 +741,14 @@ static int omap_mbox_probe(struct platform_device *pdev)
 
 	ret = pm_runtime_put_sync(mdev->dev);
 	if (ret < 0 && ret != -ENOSYS)
-		goto unregister;
+		return ret;
 
 	devm_kfree(&pdev->dev, finfoblk);
 	return 0;
-
-unregister:
-	pm_runtime_disable(mdev->dev);
-	return ret;
-}
-
-static void omap_mbox_remove(struct platform_device *pdev)
-{
-	struct omap_mbox_device *mdev = platform_get_drvdata(pdev);
-
-	pm_runtime_disable(mdev->dev);
 }
 
 static struct platform_driver omap_mbox_driver = {
 	.probe	= omap_mbox_probe,
-	.remove_new = omap_mbox_remove,
 	.driver	= {
 		.name = "omap-mailbox",
 		.pm = &omap_mbox_pm_ops,
