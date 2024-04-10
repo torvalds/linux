@@ -581,9 +581,6 @@ static int rtsx_pci_ms_drv_remove(struct platform_device *pdev)
 	struct memstick_host *msh;
 	int rc;
 
-	if (!host)
-		return 0;
-
 	pcr = host->pcr;
 	pcr->slots[RTSX_MS_CARD].p_dev = NULL;
 	pcr->slots[RTSX_MS_CARD].card_event = NULL;
