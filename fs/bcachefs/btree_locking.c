@@ -773,13 +773,15 @@ out:
 
 static inline int __bch2_trans_relock(struct btree_trans *trans, bool trace)
 {
-	struct btree_path *path;
-	unsigned i;
+	bch2_trans_verify_locks(trans);
 
 	if (unlikely(trans->restarted))
 		return -((int) trans->restarted);
 	if (unlikely(trans->locked))
 		goto out;
+
+	struct btree_path *path;
+	unsigned i;
 
 	trans_for_each_path(trans, path, i) {
 		struct get_locks_fail f;
@@ -881,6 +883,11 @@ static bool bch2_trans_locked(struct btree_trans *trans)
 
 void bch2_trans_verify_locks(struct btree_trans *trans)
 {
+	if (!trans->locked) {
+		BUG_ON(bch2_trans_locked(trans));
+		return;
+	}
+
 	struct btree_path *path;
 	unsigned i;
 

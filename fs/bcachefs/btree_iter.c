@@ -1421,6 +1421,12 @@ void __noreturn bch2_trans_in_restart_error(struct btree_trans *trans)
 	      (void *) trans->last_restarted_ip);
 }
 
+void __noreturn bch2_trans_unlocked_error(struct btree_trans *trans)
+{
+	panic("trans should be locked, unlocked by %pS\n",
+	      (void *) trans->last_unlock_ip);
+}
+
 noinline __cold
 void bch2_trans_updates_to_text(struct printbuf *buf, struct btree_trans *trans)
 {
@@ -1690,6 +1696,7 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 	struct trans_for_each_path_inorder_iter iter;
 	btree_path_idx_t path_pos = 0, path_idx;
 
+	bch2_trans_verify_not_unlocked(trans);
 	bch2_trans_verify_not_in_restart(trans);
 	bch2_trans_verify_locks(trans);
 
@@ -1825,6 +1832,8 @@ bch2_btree_iter_traverse(struct btree_iter *iter)
 {
 	struct btree_trans *trans = iter->trans;
 	int ret;
+
+	bch2_trans_verify_not_unlocked(trans);
 
 	iter->path = bch2_btree_path_set_pos(trans, iter->path,
 					btree_iter_search_key(iter),
@@ -2102,6 +2111,9 @@ struct bkey_s_c btree_trans_peek_key_cache(struct btree_iter *iter, struct bpos 
 	struct bkey_s_c k;
 	int ret;
 
+	bch2_trans_verify_not_in_restart(trans);
+	bch2_trans_verify_not_unlocked(trans);
+
 	if ((iter->flags & BTREE_ITER_key_cache_fill) &&
 	    bpos_eq(iter->pos, pos))
 		return bkey_s_c_null;
@@ -2240,6 +2252,7 @@ struct bkey_s_c bch2_btree_iter_peek_upto(struct btree_iter *iter, struct bpos e
 	struct bpos iter_pos;
 	int ret;
 
+	bch2_trans_verify_not_unlocked(trans);
 	EBUG_ON((iter->flags & BTREE_ITER_filter_snapshots) && bkey_eq(end, POS_MAX));
 
 	if (iter->update_path) {
@@ -2412,6 +2425,7 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 	btree_path_idx_t saved_path = 0;
 	int ret;
 
+	bch2_trans_verify_not_unlocked(trans);
 	EBUG_ON(btree_iter_path(trans, iter)->cached ||
 		btree_iter_path(trans, iter)->level);
 
@@ -2548,6 +2562,7 @@ struct bkey_s_c bch2_btree_iter_peek_slot(struct btree_iter *iter)
 	struct bkey_s_c k;
 	int ret;
 
+	bch2_trans_verify_not_unlocked(trans);
 	bch2_btree_iter_verify(iter);
 	bch2_btree_iter_verify_entry_exit(iter);
 	EBUG_ON(btree_iter_path(trans, iter)->level && (iter->flags & BTREE_ITER_with_key_cache));
@@ -3067,6 +3082,7 @@ u32 bch2_trans_begin(struct btree_trans *trans)
 		trans->notrace_relock_fail = false;
 	}
 
+	bch2_trans_verify_not_unlocked(trans);
 	return trans->restart_count;
 }
 
