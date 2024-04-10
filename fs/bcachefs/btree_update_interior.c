@@ -704,9 +704,13 @@ static void btree_update_nodes_written(struct btree_update *as)
 	bch2_fs_fatal_err_on(ret && !bch2_journal_error(&c->journal), c,
 			     "%s", bch2_err_str(ret));
 err:
-	if (as->b) {
-
-		b = as->b;
+	/*
+	 * We have to be careful because another thread might be getting ready
+	 * to free as->b and calling btree_update_reparent() on us - we'll
+	 * recheck under btree_update_lock below:
+	 */
+	b = READ_ONCE(as->b);
+	if (b) {
 		btree_path_idx_t path_idx = get_unlocked_mut_path(trans,
 						as->btree_id, b->c.level, b->key.k.p);
 		struct btree_path *path = trans->paths + path_idx;
