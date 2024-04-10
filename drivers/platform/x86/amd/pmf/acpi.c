@@ -343,7 +343,10 @@ static int apmf_if_verify_interface(struct amd_pmf_dev *pdev)
 	if (err)
 		return err;
 
-	pdev->supported_func = output.supported_functions;
+	/* only set if not already set by a quirk */
+	if (!pdev->supported_func)
+		pdev->supported_func = output.supported_functions;
+
 	dev_dbg(pdev->dev, "supported functions:0x%x notifications:0x%x version:%u\n",
 		output.supported_functions, output.notification_mask, output.version);
 
