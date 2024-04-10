@@ -782,3 +782,25 @@ int mana_ib_gd_del_gid(const struct ib_gid_attr *attr, void **context)
 
 	return 0;
 }
+
+int mana_ib_gd_config_mac(struct mana_ib_dev *mdev, enum mana_ib_addr_op op, u8 *mac)
+{
+	struct mana_rnic_config_mac_addr_resp resp = {};
+	struct mana_rnic_config_mac_addr_req req = {};
+	struct gdma_context *gc = mdev_to_gc(mdev);
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_IB_CONFIG_MAC_ADDR, sizeof(req), sizeof(resp));
+	req.hdr.dev_id = gc->mana_ib.dev_id;
+	req.adapter = mdev->adapter_handle;
+	req.op = op;
+	copy_in_reverse(req.mac_addr, mac, ETH_ALEN);
+
+	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
+	if (err) {
+		ibdev_err(&mdev->ib_dev, "Failed to config Mac addr err %d", err);
+		return err;
+	}
+
+	return 0;
+}

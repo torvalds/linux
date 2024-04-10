@@ -58,6 +58,7 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 	struct net_device *upper_ndev;
 	struct mana_context *mc;
 	struct mana_ib_dev *dev;
+	u8 mac_addr[ETH_ALEN];
 	int ret;
 
 	mc = mdev->driver_data;
@@ -89,6 +90,7 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 		ibdev_err(&dev->ib_dev, "Failed to get master netdev");
 		goto free_ib_device;
 	}
+	ether_addr_copy(mac_addr, upper_ndev->dev_addr);
 	ret = ib_device_set_netdev(&dev->ib_dev, upper_ndev, 1);
 	rcu_read_unlock();
 	if (ret) {
@@ -120,6 +122,13 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 	ret = mana_ib_gd_create_rnic_adapter(dev);
 	if (ret)
 		goto destroy_eqs;
+
+	ret = mana_ib_gd_config_mac(dev, ADDR_OP_ADD, mac_addr);
+	if (ret) {
+		ibdev_err(&dev->ib_dev, "Failed to add Mac address, ret %d",
+			  ret);
+		goto destroy_rnic;
+	}
 
 	ret = ib_register_device(&dev->ib_dev, "mana_%d",
 				 mdev->gdma_context->dev);

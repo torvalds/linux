@@ -117,6 +117,7 @@ enum mana_ib_command_code {
 	MANA_IB_CREATE_ADAPTER  = 0x30002,
 	MANA_IB_DESTROY_ADAPTER = 0x30003,
 	MANA_IB_CONFIG_IP_ADDR	= 0x30004,
+	MANA_IB_CONFIG_MAC_ADDR	= 0x30005,
 };
 
 struct mana_ib_query_adapter_caps_req {
@@ -185,6 +186,18 @@ struct mana_rnic_config_addr_req {
 }; /* HW Data */
 
 struct mana_rnic_config_addr_resp {
+	struct gdma_resp_hdr hdr;
+}; /* HW Data */
+
+struct mana_rnic_config_mac_addr_req {
+	struct gdma_req_hdr hdr;
+	mana_handle_t adapter;
+	enum mana_ib_addr_op op;
+	u8 mac_addr[ETH_ALEN];
+	u8 reserved[6];
+}; /* HW Data */
+
+struct mana_rnic_config_mac_addr_resp {
 	struct gdma_resp_hdr hdr;
 }; /* HW Data */
 
@@ -305,4 +318,6 @@ enum rdma_link_layer mana_ib_get_link_layer(struct ib_device *device, u32 port_n
 int mana_ib_gd_add_gid(const struct ib_gid_attr *attr, void **context);
 
 int mana_ib_gd_del_gid(const struct ib_gid_attr *attr, void **context);
+
+int mana_ib_gd_config_mac(struct mana_ib_dev *mdev, enum mana_ib_addr_op op, u8 *mac);
 #endif
