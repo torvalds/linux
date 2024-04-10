@@ -85,7 +85,6 @@ struct omap_mbox_device {
 	u32 num_users;
 	u32 num_fifos;
 	u32 intr_type;
-	struct omap_mbox **mboxes;
 };
 
 struct omap_mbox {
@@ -356,25 +355,6 @@ static void omap_mbox_fini(struct omap_mbox *mbox)
 	mbox_queue_free(mbox->rxq);
 }
 
-static struct omap_mbox *omap_mbox_device_find(struct omap_mbox_device *mdev,
-					       const char *mbox_name)
-{
-	struct omap_mbox *_mbox, *mbox = NULL;
-	struct omap_mbox **mboxes = mdev->mboxes;
-	int i;
-
-	if (!mboxes)
-		return NULL;
-
-	for (i = 0; (_mbox = mboxes[i]); i++) {
-		if (!strcmp(_mbox->name, mbox_name)) {
-			mbox = _mbox;
-			break;
-		}
-	}
-	return mbox;
-}
-
 static int omap_mbox_chan_startup(struct mbox_chan *chan)
 {
 	struct omap_mbox *mbox = mbox_chan_to_omap_mbox(chan);
@@ -539,6 +519,7 @@ static struct mbox_chan *omap_mbox_of_xlate(struct mbox_controller *controller,
 	struct device_node *node;
 	struct omap_mbox_device *mdev;
 	struct omap_mbox *mbox;
+	int i;
 
 	mdev = dev_get_drvdata(controller->dev);
 	if (WARN_ON(!mdev))
@@ -551,16 +532,23 @@ static struct mbox_chan *omap_mbox_of_xlate(struct mbox_controller *controller,
 		return ERR_PTR(-ENODEV);
 	}
 
-	mbox = omap_mbox_device_find(mdev, node->name);
+	for (i = 0; i < controller->num_chans; i++) {
+		mbox = controller->chans[i].con_priv;
+		if (!strcmp(mbox->name, node->name)) {
+			of_node_put(node);
+			return &controller->chans[i];
+		}
+	}
+
 	of_node_put(node);
-	return mbox ? mbox->chan : ERR_PTR(-ENOENT);
+	return ERR_PTR(-ENOENT);
 }
 
 static int omap_mbox_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct mbox_chan *chnls;
-	struct omap_mbox **list, *mbox;
+	struct omap_mbox *mbox;
 	struct omap_mbox_device *mdev;
 	struct omap_mbox_fifo *fifo;
 	struct device_node *node = pdev->dev.of_node;
@@ -606,12 +594,6 @@ static int omap_mbox_probe(struct platform_device *pdev)
 	mdev->irq_ctx = devm_kcalloc(&pdev->dev, num_users, sizeof(u32),
 				     GFP_KERNEL);
 	if (!mdev->irq_ctx)
-		return -ENOMEM;
-
-	/* allocate one extra for marking end of list */
-	list = devm_kcalloc(&pdev->dev, info_count + 1, sizeof(*list),
-			    GFP_KERNEL);
-	if (!list)
 		return -ENOMEM;
 
 	chnls = devm_kcalloc(&pdev->dev, info_count + 1, sizeof(*chnls),
@@ -675,7 +657,6 @@ static int omap_mbox_probe(struct platform_device *pdev)
 			return mbox->irq;
 		mbox->chan = &chnls[i];
 		chnls[i].con_priv = mbox;
-		list[i] = mbox++;
 	}
 
 	mutex_init(&mdev->cfg_lock);
@@ -683,7 +664,6 @@ static int omap_mbox_probe(struct platform_device *pdev)
 	mdev->num_users = num_users;
 	mdev->num_fifos = num_fifos;
 	mdev->intr_type = intr_type;
-	mdev->mboxes = list;
 
 	controller = devm_kzalloc(&pdev->dev, sizeof(*controller), GFP_KERNEL);
 	if (!controller)
