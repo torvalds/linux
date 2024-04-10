@@ -71,8 +71,9 @@
 #define AUTO_UPDATE_UPGRADE_DIRECTORY	(AUTO_UPDATE_DIRECTORY_WIDTH * AUTO_UPDATE_UPGRADE_INDEX)
 #define AUTO_UPDATE_BLANK_DIRECTORY	(AUTO_UPDATE_DIRECTORY_WIDTH * AUTO_UPDATE_BLANK_INDEX)
 #define AUTO_UPDATE_DIRECTORY_SIZE	SZ_1K
-#define AUTO_UPDATE_RESERVED_SIZE	SZ_1M
-#define AUTO_UPDATE_BITSTREAM_BASE	(AUTO_UPDATE_DIRECTORY_SIZE + AUTO_UPDATE_RESERVED_SIZE)
+#define AUTO_UPDATE_INFO_BASE		AUTO_UPDATE_DIRECTORY_SIZE
+#define AUTO_UPDATE_INFO_SIZE		SZ_1M
+#define AUTO_UPDATE_BITSTREAM_BASE	(AUTO_UPDATE_DIRECTORY_SIZE + AUTO_UPDATE_INFO_SIZE)
 
 #define AUTO_UPDATE_TIMEOUT_MS		60000
 
@@ -85,6 +86,17 @@ struct mpfs_auto_update_priv {
 	size_t size_per_bitstream;
 	bool cancel_request;
 };
+
+static bool mpfs_auto_update_is_bitstream_info(const u8 *data, u32 size)
+{
+	if (size < 4)
+		return false;
+
+	if (data[0] == 0x4d && data[1] == 0x43 && data[2] == 0x48 && data[3] == 0x50)
+		return true;
+
+	return false;
+}
 
 static enum fw_upload_err mpfs_auto_update_prepare(struct fw_upload *fw_uploader, const u8 *data,
 						   u32 size)
@@ -289,22 +301,37 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 	loff_t directory_address = AUTO_UPDATE_UPGRADE_DIRECTORY;
 	size_t erase_size = AUTO_UPDATE_DIRECTORY_SIZE;
 	size_t bytes_written = 0;
+	bool is_info = mpfs_auto_update_is_bitstream_info(data, size);
 	u32 image_address;
 	int ret;
 
 	erase_size = round_up(erase_size, (u64)priv->flash->erasesize);
 
-	image_address = AUTO_UPDATE_BITSTREAM_BASE +
-		AUTO_UPDATE_UPGRADE_INDEX * priv->size_per_bitstream;
+	if (is_info)
+		image_address = AUTO_UPDATE_INFO_BASE;
+	else
+		image_address = AUTO_UPDATE_BITSTREAM_BASE +
+				AUTO_UPDATE_UPGRADE_INDEX * priv->size_per_bitstream;
 
 	buffer = devm_kzalloc(priv->dev, erase_size, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
 
-	ret = mpfs_auto_update_set_image_address(priv, buffer, image_address, directory_address);
-	if (ret) {
-		dev_err(priv->dev, "failed to set image address in the SPI directory: %d\n", ret);
-		goto out;
+	/*
+	 * For bitstream info, the descriptor is written to a fixed offset,
+	 * so there is no need to set the image address.
+	 */
+	if (!is_info) {
+		ret = mpfs_auto_update_set_image_address(priv, buffer, image_address, directory_address);
+		if (ret) {
+			dev_err(priv->dev, "failed to set image address in the SPI directory: %d\n", ret);
+			return ret;
+		}
+	} else {
+		if (size > AUTO_UPDATE_INFO_SIZE) {
+			dev_err(priv->dev, "bitstream info exceeds permitted size\n");
+			return -ENOSPC;
+		}
 	}
 
 	/*
@@ -336,6 +363,7 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 	}
 
 	*written = bytes_written;
+	dev_info(priv->dev, "Wrote 0x%zx bytes to the flash\n", bytes_written);
 
 out:
 	devm_kfree(priv->dev, buffer);
@@ -361,6 +389,9 @@ static enum fw_upload_err mpfs_auto_update_write(struct fw_upload *fw_uploader, 
 		err = FW_UPLOAD_ERR_CANCELED;
 		goto out;
 	}
+
+	if (mpfs_auto_update_is_bitstream_info(data, size))
+		goto out;
 
 	ret = mpfs_auto_update_verify_image(fw_uploader);
 	if (ret)
