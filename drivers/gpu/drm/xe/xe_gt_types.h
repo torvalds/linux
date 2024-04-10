@@ -25,13 +25,15 @@ enum xe_gt_type {
 	XE_GT_TYPE_MEDIA,
 };
 
-#define XE_MAX_DSS_FUSE_REGS	3
-#define XE_MAX_DSS_FUSE_BITS	(32 * XE_MAX_DSS_FUSE_REGS)
-#define XE_MAX_EU_FUSE_REGS	1
-#define XE_MAX_EU_FUSE_BITS	(32 * XE_MAX_EU_FUSE_REGS)
+#define XE_MAX_DSS_FUSE_REGS		3
+#define XE_MAX_DSS_FUSE_BITS		(32 * XE_MAX_DSS_FUSE_REGS)
+#define XE_MAX_EU_FUSE_REGS		1
+#define XE_MAX_EU_FUSE_BITS		(32 * XE_MAX_EU_FUSE_REGS)
+#define XE_MAX_L3_BANK_MASK_BITS	64
 
 typedef unsigned long xe_dss_mask_t[BITS_TO_LONGS(XE_MAX_DSS_FUSE_BITS)];
 typedef unsigned long xe_eu_mask_t[BITS_TO_LONGS(XE_MAX_EU_FUSE_BITS)];
+typedef unsigned long xe_l3_bank_mask_t[BITS_TO_LONGS(XE_MAX_L3_BANK_MASK_BITS)];
 
 struct xe_mmio_range {
 	u32 start;
@@ -334,6 +336,9 @@ struct xe_gt {
 
 		/** @fuse_topo.eu_mask_per_dss: EU mask per DSS*/
 		xe_eu_mask_t eu_mask_per_dss;
+
+		/** @fuse_topo.l3_bank_mask: L3 bank mask */
+		xe_l3_bank_mask_t l3_bank_mask;
 	} fuse_topo;
 
 	/** @steering: register steering for individual HW units */
