@@ -3522,20 +3522,8 @@ int skb_cow_data_for_xdp(struct page_pool *pool, struct sk_buff **pskb,
 bool napi_pp_put_page(struct page *page);
 
 static inline void
-skb_page_unref(const struct sk_buff *skb, struct page *page)
+skb_page_unref(struct page *page, bool recycle)
 {
-#ifdef CONFIG_PAGE_POOL
-	if (skb->pp_recycle && napi_pp_put_page(page))
-		return;
-#endif
-	put_page(page);
-}
-
-static inline void
-napi_frag_unref(skb_frag_t *frag, bool recycle)
-{
-	struct page *page = skb_frag_page(frag);
-
 #ifdef CONFIG_PAGE_POOL
 	if (recycle && napi_pp_put_page(page))
 		return;
@@ -3553,7 +3541,7 @@ napi_frag_unref(skb_frag_t *frag, bool recycle)
  */
 static inline void __skb_frag_unref(skb_frag_t *frag, bool recycle)
 {
-	napi_frag_unref(frag, recycle);
+	skb_page_unref(skb_frag_page(frag), recycle);
 }
 
 /**
