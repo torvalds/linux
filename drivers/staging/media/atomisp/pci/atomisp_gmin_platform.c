@@ -388,19 +388,15 @@ static struct i2c_client *gmin_i2c_dev_exists(struct device *dev, char *name,
 					      struct i2c_client **client)
 {
 	struct acpi_device *adev;
-	struct device *d;
 
 	adev = acpi_dev_get_first_match_dev(name, NULL, -1);
 	if (!adev)
 		return NULL;
 
-	d = bus_find_device_by_acpi_dev(&i2c_bus_type, adev);
+	*client = i2c_find_device_by_fwnode(acpi_fwnode_handle(adev));
 	acpi_dev_put(adev);
-	if (!d)
+	if (!*client)
 		return NULL;
-
-	*client = i2c_verify_client(d);
-	put_device(d);
 
 	dev_dbg(dev, "found '%s' at address 0x%02x, adapter %d\n",
 		(*client)->name, (*client)->addr, (*client)->adapter->nr);
