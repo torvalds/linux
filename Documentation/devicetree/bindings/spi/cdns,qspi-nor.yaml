@@ -70,6 +70,7 @@ properties:
               - amd,pensando-elba-qspi
               - intel,lgm-qspi
               - intel,socfpga-qspi
+              - mobileye,eyeq5-ospi
               - starfive,jh7110-qspi
               - ti,am654-ospi
               - ti,k2g-qspi
