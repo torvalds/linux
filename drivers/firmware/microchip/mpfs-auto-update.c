@@ -9,6 +9,7 @@
  *
  * Author: Conor Dooley <conor.dooley@microchip.com>
  */
+#include <linux/cleanup.h>
 #include <linux/debugfs.h>
 #include <linux/firmware.h>
 #include <linux/math.h>
@@ -233,15 +234,17 @@ free_response_msg:
 	return ret;
 }
 
-static int mpfs_auto_update_set_image_address(struct mpfs_auto_update_priv *priv, char *buffer,
+static int mpfs_auto_update_set_image_address(struct mpfs_auto_update_priv *priv,
 					      u32 image_address, loff_t directory_address)
 {
 	struct erase_info erase;
-	size_t erase_size = AUTO_UPDATE_DIRECTORY_SIZE;
+	size_t erase_size = round_up(AUTO_UPDATE_DIRECTORY_SIZE, (u64)priv->flash->erasesize);
 	size_t bytes_written = 0, bytes_read = 0;
+	char *buffer __free(kfree) = kzalloc(erase_size, GFP_KERNEL);
 	int ret;
 
-	erase_size = round_up(erase_size, (u64)priv->flash->erasesize);
+	if (!buffer)
+		return -ENOMEM;
 
 	erase.addr = AUTO_UPDATE_DIRECTORY_BASE;
 	erase.len = erase_size;
@@ -287,7 +290,7 @@ static int mpfs_auto_update_set_image_address(struct mpfs_auto_update_priv *priv
 		return ret;
 
 	if (bytes_written != erase_size)
-		return ret;
+		return -EIO;
 
 	return 0;
 }
@@ -297,7 +300,6 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 {
 	struct mpfs_auto_update_priv *priv = fw_uploader->dd_handle;
 	struct erase_info erase;
-	char *buffer;
 	loff_t directory_address = AUTO_UPDATE_UPGRADE_DIRECTORY;
 	size_t erase_size = AUTO_UPDATE_DIRECTORY_SIZE;
 	size_t bytes_written = 0;
@@ -313,16 +315,12 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 		image_address = AUTO_UPDATE_BITSTREAM_BASE +
 				AUTO_UPDATE_UPGRADE_INDEX * priv->size_per_bitstream;
 
-	buffer = devm_kzalloc(priv->dev, erase_size, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
 	/*
 	 * For bitstream info, the descriptor is written to a fixed offset,
 	 * so there is no need to set the image address.
 	 */
 	if (!is_info) {
-		ret = mpfs_auto_update_set_image_address(priv, buffer, image_address, directory_address);
+		ret = mpfs_auto_update_set_image_address(priv, image_address, directory_address);
 		if (ret) {
 			dev_err(priv->dev, "failed to set image address in the SPI directory: %d\n", ret);
 			return ret;
@@ -345,7 +343,7 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 	dev_info(priv->dev, "Erasing the flash at address (0x%x)\n", image_address);
 	ret = mtd_erase(priv->flash, &erase);
 	if (ret)
-		goto out;
+		return ret;
 
 	/*
 	 * No parsing etc of the bitstream is required. The system controller
@@ -355,19 +353,15 @@ static int mpfs_auto_update_write_bitstream(struct fw_upload *fw_uploader, const
 	dev_info(priv->dev, "Writing the image to the flash at address (0x%x)\n", image_address);
 	ret = mtd_write(priv->flash, (loff_t)image_address, size, &bytes_written, data);
 	if (ret)
-		goto out;
+		return ret;
 
-	if (bytes_written != size) {
-		ret = -EIO;
-		goto out;
-	}
+	if (bytes_written != size)
+		return -EIO;
 
 	*written = bytes_written;
 	dev_info(priv->dev, "Wrote 0x%zx bytes to the flash\n", bytes_written);
 
-out:
-	devm_kfree(priv->dev, buffer);
-	return ret;
+	return 0;
 }
 
 static enum fw_upload_err mpfs_auto_update_write(struct fw_upload *fw_uploader, const u8 *data,
