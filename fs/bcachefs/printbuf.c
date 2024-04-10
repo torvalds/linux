@@ -17,34 +17,39 @@ static inline unsigned printbuf_linelen(struct printbuf *buf)
 
 int bch2_printbuf_make_room(struct printbuf *out, unsigned extra)
 {
-	unsigned new_size;
-	char *buf;
-
-	if (!out->heap_allocated)
-		return 0;
-
 	/* Reserved space for terminating nul: */
 	extra += 1;
 
-	if (out->pos + extra < out->size)
+	if (out->pos + extra <= out->size)
 		return 0;
 
-	new_size = roundup_pow_of_two(out->size + extra);
+	if (!out->heap_allocated) {
+		out->overflow = true;
+		return 0;
+	}
+
+	unsigned new_size = roundup_pow_of_two(out->size + extra);
 
 	/*
 	 * Note: output buffer must be freeable with kfree(), it's not required
 	 * that the user use printbuf_exit().
 	 */
-	buf = krealloc(out->buf, new_size, !out->atomic ? GFP_KERNEL : GFP_NOWAIT);
+	char *buf = krealloc(out->buf, new_size, !out->atomic ? GFP_KERNEL : GFP_NOWAIT);
 
 	if (!buf) {
 		out->allocation_failure = true;
+		out->overflow = true;
 		return -ENOMEM;
 	}
 
 	out->buf	= buf;
 	out->size	= new_size;
 	return 0;
+}
+
+static void printbuf_advance_pos(struct printbuf *out, unsigned len)
+{
+	out->pos += min(len, printbuf_remaining(out));
 }
 
 void bch2_prt_vprintf(struct printbuf *out, const char *fmt, va_list args)
@@ -55,14 +60,12 @@ void bch2_prt_vprintf(struct printbuf *out, const char *fmt, va_list args)
 		va_list args2;
 
 		va_copy(args2, args);
-		len = vsnprintf(out->buf + out->pos, printbuf_remaining(out), fmt, args2);
+		len = vsnprintf(out->buf + out->pos, printbuf_remaining_size(out), fmt, args2);
 		va_end(args2);
-	} while (len + 1 >= printbuf_remaining(out) &&
-		 !bch2_printbuf_make_room(out, len + 1));
+	} while (len > printbuf_remaining(out) &&
+		 !bch2_printbuf_make_room(out, len));
 
-	len = min_t(size_t, len,
-		  printbuf_remaining(out) ? printbuf_remaining(out) - 1 : 0);
-	out->pos += len;
+	printbuf_advance_pos(out, len);
 }
 
 void bch2_prt_printf(struct printbuf *out, const char *fmt, ...)
@@ -72,14 +75,12 @@ void bch2_prt_printf(struct printbuf *out, const char *fmt, ...)
 
 	do {
 		va_start(args, fmt);
-		len = vsnprintf(out->buf + out->pos, printbuf_remaining(out), fmt, args);
+		len = vsnprintf(out->buf + out->pos, printbuf_remaining_size(out), fmt, args);
 		va_end(args);
-	} while (len + 1 >= printbuf_remaining(out) &&
-		 !bch2_printbuf_make_room(out, len + 1));
+	} while (len > printbuf_remaining(out) &&
+		 !bch2_printbuf_make_room(out, len));
 
-	len = min_t(size_t, len,
-		  printbuf_remaining(out) ? printbuf_remaining(out) - 1 : 0);
-	out->pos += len;
+	printbuf_advance_pos(out, len);
 }
 
 /**
@@ -194,18 +195,15 @@ void bch2_printbuf_indent_sub(struct printbuf *buf, unsigned spaces)
 
 void bch2_prt_newline(struct printbuf *buf)
 {
-	unsigned i;
-
 	bch2_printbuf_make_room(buf, 1 + buf->indent);
 
-	__prt_char(buf, '\n');
+	__prt_char_reserved(buf, '\n');
 
 	buf->last_newline	= buf->pos;
 
-	for (i = 0; i < buf->indent; i++)
-		__prt_char(buf, ' ');
+	__prt_chars_reserved(buf, ' ', buf->indent);
 
-	printbuf_nul_terminate(buf);
+	printbuf_nul_terminate_reserved(buf);
 
 	buf->last_field		= buf->pos;
 	buf->cur_tabstop	= 0;
@@ -262,7 +260,7 @@ static void __prt_tab_rjust(struct printbuf *buf)
 			memset(buf->buf + buf->last_field, ' ',
 			       min((unsigned) pad, buf->size - buf->last_field));
 
-		buf->pos += pad;
+		printbuf_advance_pos(buf, pad);
 		printbuf_nul_terminate(buf);
 	}
 
@@ -348,9 +346,10 @@ void bch2_prt_bytes_indented(struct printbuf *out, const char *str, unsigned cou
 void bch2_prt_human_readable_u64(struct printbuf *out, u64 v)
 {
 	bch2_printbuf_make_room(out, 10);
-	out->pos += string_get_size(v, 1, !out->si_units,
-				    out->buf + out->pos,
-				    printbuf_remaining_size(out));
+	unsigned len = string_get_size(v, 1, !out->si_units,
+				       out->buf + out->pos,
+				       printbuf_remaining_size(out));
+	printbuf_advance_pos(out, len);
 }
 
 /**
@@ -402,9 +401,7 @@ void bch2_prt_string_option(struct printbuf *out,
 			    const char * const list[],
 			    size_t selected)
 {
-	size_t i;
-
-	for (i = 0; list[i]; i++)
+	for (size_t i = 0; list[i]; i++)
 		bch2_prt_printf(out, i == selected ? "[%s] " : "%s ", list[i]);
 }
 
