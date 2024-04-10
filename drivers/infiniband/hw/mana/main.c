@@ -555,7 +555,42 @@ int mana_ib_query_device(struct ib_device *ibdev, struct ib_device_attr *props,
 int mana_ib_query_port(struct ib_device *ibdev, u32 port,
 		       struct ib_port_attr *props)
 {
-	/* This version doesn't return port properties */
+	struct net_device *ndev = mana_ib_get_netdev(ibdev, port);
+
+	if (!ndev)
+		return -EINVAL;
+
+	memset(props, 0, sizeof(*props));
+	props->max_mtu = IB_MTU_4096;
+	props->active_mtu = ib_mtu_int_to_enum(ndev->mtu);
+
+	if (netif_carrier_ok(ndev) && netif_running(ndev)) {
+		props->state = IB_PORT_ACTIVE;
+		props->phys_state = IB_PORT_PHYS_STATE_LINK_UP;
+	} else {
+		props->state = IB_PORT_DOWN;
+		props->phys_state = IB_PORT_PHYS_STATE_DISABLED;
+	}
+
+	props->active_width = IB_WIDTH_4X;
+	props->active_speed = IB_SPEED_EDR;
+	props->pkey_tbl_len = 1;
+	if (port == 1)
+		props->gid_tbl_len = 16;
+
+	return 0;
+}
+
+enum rdma_link_layer mana_ib_get_link_layer(struct ib_device *device, u32 port_num)
+{
+	return IB_LINK_LAYER_ETHERNET;
+}
+
+int mana_ib_query_pkey(struct ib_device *ibdev, u32 port, u16 index, u16 *pkey)
+{
+	if (index != 0)
+		return -EINVAL;
+	*pkey = IB_DEFAULT_PKEY_FULL;
 	return 0;
 }
 

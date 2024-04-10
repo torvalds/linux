@@ -266,4 +266,8 @@ void mana_ib_destroy_eqs(struct mana_ib_dev *mdev);
 int mana_ib_gd_create_rnic_adapter(struct mana_ib_dev *mdev);
 
 int mana_ib_gd_destroy_rnic_adapter(struct mana_ib_dev *mdev);
+
+int mana_ib_query_pkey(struct ib_device *ibdev, u32 port, u16 index, u16 *pkey);
+
+enum rdma_link_layer mana_ib_get_link_layer(struct ib_device *device, u32 port_num);
 #endif
