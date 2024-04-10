@@ -65,14 +65,6 @@ struct omap_mbox_fifo {
 	u32 intr_bit;
 };
 
-struct omap_mbox_queue {
-	spinlock_t		lock;
-	struct kfifo		fifo;
-	struct work_struct	work;
-	struct omap_mbox	*mbox;
-	bool full;
-};
-
 struct omap_mbox_match_data {
 	u32 intr_type;
 };
@@ -90,7 +82,6 @@ struct omap_mbox_device {
 struct omap_mbox {
 	const char		*name;
 	int			irq;
-	struct omap_mbox_queue	*rxq;
 	struct omap_mbox_device *parent;
 	struct omap_mbox_fifo	tx_fifo;
 	struct omap_mbox_fifo	rx_fifo;
@@ -98,10 +89,6 @@ struct omap_mbox {
 	struct mbox_chan	*chan;
 	bool			send_no_irq;
 };
-
-static unsigned int mbox_kfifo_size = CONFIG_OMAP_MBOX_KFIFO_SIZE;
-module_param(mbox_kfifo_size, uint, S_IRUGO);
-MODULE_PARM_DESC(mbox_kfifo_size, "Size of omap's mailbox kfifo (bytes)");
 
 static inline
 unsigned int mbox_read_reg(struct omap_mbox_device *mdev, size_t ofs)
@@ -203,30 +190,6 @@ static void omap_mbox_disable_irq(struct omap_mbox *mbox, omap_mbox_irq_t irq)
 }
 
 /*
- * Message receiver(workqueue)
- */
-static void mbox_rx_work(struct work_struct *work)
-{
-	struct omap_mbox_queue *mq =
-			container_of(work, struct omap_mbox_queue, work);
-	u32 msg;
-	int len;
-
-	while (kfifo_len(&mq->fifo) >= sizeof(msg)) {
-		len = kfifo_out(&mq->fifo, (unsigned char *)&msg, sizeof(msg));
-		WARN_ON(len != sizeof(msg));
-
-		mbox_chan_received_data(mq->mbox->chan, (void *)(uintptr_t)msg);
-		spin_lock_irq(&mq->lock);
-		if (mq->full) {
-			mq->full = false;
-			omap_mbox_enable_irq(mq->mbox, IRQ_RX);
-		}
-		spin_unlock_irq(&mq->lock);
-	}
-}
-
-/*
  * Mailbox interrupt handler
  */
 static void __mbox_tx_interrupt(struct omap_mbox *mbox)
@@ -238,27 +201,15 @@ static void __mbox_tx_interrupt(struct omap_mbox *mbox)
 
 static void __mbox_rx_interrupt(struct omap_mbox *mbox)
 {
-	struct omap_mbox_queue *mq = mbox->rxq;
 	u32 msg;
-	int len;
 
 	while (!mbox_fifo_empty(mbox)) {
-		if (unlikely(kfifo_avail(&mq->fifo) < sizeof(msg))) {
-			omap_mbox_disable_irq(mbox, IRQ_RX);
-			mq->full = true;
-			goto nomem;
-		}
-
 		msg = mbox_fifo_read(mbox);
-
-		len = kfifo_in(&mq->fifo, (unsigned char *)&msg, sizeof(msg));
-		WARN_ON(len != sizeof(msg));
+		mbox_chan_received_data(mbox->chan, (void *)(uintptr_t)msg);
 	}
 
-	/* no more messages in the fifo. clear IRQ source. */
+	/* clear IRQ source. */
 	ack_mbox_irq(mbox, IRQ_RX);
-nomem:
-	schedule_work(&mbox->rxq->work);
 }
 
 static irqreturn_t mbox_interrupt(int irq, void *p)
@@ -274,57 +225,15 @@ static irqreturn_t mbox_interrupt(int irq, void *p)
 	return IRQ_HANDLED;
 }
 
-static struct omap_mbox_queue *mbox_queue_alloc(struct omap_mbox *mbox,
-					void (*work)(struct work_struct *))
-{
-	struct omap_mbox_queue *mq;
-	unsigned int size;
-
-	if (!work)
-		return NULL;
-
-	mq = kzalloc(sizeof(*mq), GFP_KERNEL);
-	if (!mq)
-		return NULL;
-
-	spin_lock_init(&mq->lock);
-
-	/* kfifo size sanity check: alignment and minimal size */
-	size = ALIGN(mbox_kfifo_size, sizeof(u32));
-	size = max_t(unsigned int, size, sizeof(u32));
-	if (kfifo_alloc(&mq->fifo, size, GFP_KERNEL))
-		goto error;
-
-	INIT_WORK(&mq->work, work);
-	return mq;
-
-error:
-	kfree(mq);
-	return NULL;
-}
-
-static void mbox_queue_free(struct omap_mbox_queue *q)
-{
-	kfifo_free(&q->fifo);
-	kfree(q);
-}
-
 static int omap_mbox_startup(struct omap_mbox *mbox)
 {
 	int ret = 0;
-	struct omap_mbox_queue *mq;
 
-	mq = mbox_queue_alloc(mbox, mbox_rx_work);
-	if (!mq)
-		return -ENOMEM;
-	mbox->rxq = mq;
-	mq->mbox = mbox;
-
-	ret = request_irq(mbox->irq, mbox_interrupt, IRQF_SHARED,
-			  mbox->name, mbox);
+	ret = request_threaded_irq(mbox->irq, NULL, mbox_interrupt,
+				   IRQF_ONESHOT, mbox->name, mbox);
 	if (unlikely(ret)) {
 		pr_err("failed to register mailbox interrupt:%d\n", ret);
-		goto fail_request_irq;
+		return ret;
 	}
 
 	if (mbox->send_no_irq)
@@ -333,18 +242,12 @@ static int omap_mbox_startup(struct omap_mbox *mbox)
 	omap_mbox_enable_irq(mbox, IRQ_RX);
 
 	return 0;
-
-fail_request_irq:
-	mbox_queue_free(mbox->rxq);
-	return ret;
 }
 
 static void omap_mbox_fini(struct omap_mbox *mbox)
 {
 	omap_mbox_disable_irq(mbox, IRQ_RX);
 	free_irq(mbox->irq, mbox);
-	flush_work(&mbox->rxq->work);
-	mbox_queue_free(mbox->rxq);
 }
 
 static int omap_mbox_chan_startup(struct mbox_chan *chan)
