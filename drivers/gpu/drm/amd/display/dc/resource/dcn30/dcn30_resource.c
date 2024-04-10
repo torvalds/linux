@@ -2570,7 +2570,7 @@ static bool dcn30_resource_construct(
 		pool->base.sw_i2cs[i] = NULL;
 	}
 
-	/* Audio, Stream Encoders including DIG and virtual, MPC 3D LUTs */
+	/* Audio, Stream Encoders including HPO and virtual, MPC 3D LUTs */
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			&res_create_funcs))
 		goto create_fail;
