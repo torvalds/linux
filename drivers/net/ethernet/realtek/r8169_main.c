@@ -5046,7 +5046,8 @@ static void rtl_remove_one(struct pci_dev *pdev)
 
 	cancel_work_sync(&tp->wk.work);
 
-	r8169_remove_leds(tp->leds);
+	if (IS_ENABLED(CONFIG_R8169_LEDS))
+		r8169_remove_leds(tp->leds);
 
 	unregister_netdev(tp->dev);
 
