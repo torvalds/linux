@@ -1095,10 +1095,14 @@ static int apparmor_socket_create(int family, int type, int protocol, int kern)
 
 	AA_BUG(in_interrupt());
 
+	if (kern)
+		return 0;
+
 	label = begin_current_label_crit_section();
-	if (!(kern || unconfined(label)))
+	if (!unconfined(label)) {
 		error = aa_af_perm(current_cred(), label, OP_CREATE,
 				   AA_MAY_CREATE, family, type, protocol);
+	}
 	end_current_label_crit_section(label);
 
 	return error;
