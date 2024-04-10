@@ -366,56 +366,6 @@ const struct cpumask *pci_irq_get_affinity(struct pci_dev *dev, int nr)
 EXPORT_SYMBOL(pci_irq_get_affinity);
 
 /**
- * pci_ims_alloc_irq - Allocate an interrupt on a PCI/IMS interrupt domain
- * @dev:	The PCI device to operate on
- * @icookie:	Pointer to an IMS implementation specific cookie for this
- *		IMS instance (PASID, queue ID, pointer...).
- *		The cookie content is copied into the MSI descriptor for the
- *		interrupt chip callbacks or domain specific setup functions.
- * @affdesc:	Optional pointer to an interrupt affinity descriptor
- *
- * There is no index for IMS allocations as IMS is an implementation
- * specific storage and does not have any direct associations between
- * index, which might be a pure software construct, and device
- * functionality. This association is established by the driver either via
- * the index - if there is a hardware table - or in case of purely software
- * managed IMS implementation the association happens via the
- * irq_write_msi_msg() callback of the implementation specific interrupt
- * chip, which utilizes the provided @icookie to store the MSI message in
- * the appropriate place.
- *
- * Return: A struct msi_map
- *
- *	On success msi_map::index contains the allocated index (>= 0) and
- *	msi_map::virq the allocated Linux interrupt number (> 0).
- *
- *	On fail msi_map::index contains the error code and msi_map::virq
- *	is set to 0.
- */
-struct msi_map pci_ims_alloc_irq(struct pci_dev *dev, union msi_instance_cookie *icookie,
-				 const struct irq_affinity_desc *affdesc)
-{
-	return msi_domain_alloc_irq_at(&dev->dev, MSI_SECONDARY_DOMAIN, MSI_ANY_INDEX,
-				       affdesc, icookie);
-}
-EXPORT_SYMBOL_GPL(pci_ims_alloc_irq);
-
-/**
- * pci_ims_free_irq - Allocate an interrupt on a PCI/IMS interrupt domain
- *		      which was allocated via pci_ims_alloc_irq()
- * @dev:	The PCI device to operate on
- * @map:	A struct msi_map describing the interrupt to free as
- *		returned from pci_ims_alloc_irq()
- */
-void pci_ims_free_irq(struct pci_dev *dev, struct msi_map map)
-{
-	if (WARN_ON_ONCE(map.index < 0 || map.virq <= 0))
-		return;
-	msi_domain_free_irqs_range(&dev->dev, MSI_SECONDARY_DOMAIN, map.index, map.index);
-}
-EXPORT_SYMBOL_GPL(pci_ims_free_irq);
-
-/**
  * pci_free_irq_vectors() - Free previously allocated IRQs for a device
  * @dev: the PCI device to operate on
  *
