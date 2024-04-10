@@ -10,7 +10,7 @@ from . import base
 import libevdev
 import pytest
 
-from .base_gamepad import BaseGamepad, JoystickGamepad
+from .base_gamepad import BaseGamepad, JoystickGamepad, AxisMapping
 from hidtools.util import BusType
 
 import logging
@@ -609,6 +609,40 @@ class AsusGamepad(BaseGamepad):
         self.buttons = (1, 2, 4, 5, 7, 8, 14, 15, 13)
 
 
+class RaptorMach2Joystick(JoystickGamepad):
+    axes_map = {
+        "left_stick": {
+            "x": AxisMapping("x"),
+            "y": AxisMapping("y"),
+        },
+        "right_stick": {
+            "x": AxisMapping("z"),
+            "y": AxisMapping("Rz"),
+        },
+    }
+
+    def __init__(
+        self,
+        name,
+        rdesc=None,
+        application="Joystick",
+        input_info=(BusType.USB, 0x11C0, 0x5606),
+    ):
+        super().__init__(rdesc, application, name, input_info)
+        self.buttons = (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12)
+        self.hat_switch = 240  # null value is 240 as max is 239
+
+    def event(
+        self, *, left=(None, None), right=(None, None), hat_switch=None, buttons=None
+    ):
+        if hat_switch is not None:
+            hat_switch *= 30
+
+        return super().event(
+            left=left, right=right, hat_switch=hat_switch, buttons=buttons
+        )
+
+
 class TestSaitekGamepad(BaseTest.TestGamepad):
     def create_device(self):
         return SaitekGamepad()
@@ -617,3 +651,14 @@ class TestSaitekGamepad(BaseTest.TestGamepad):
 class TestAsusGamepad(BaseTest.TestGamepad):
     def create_device(self):
         return AsusGamepad()
+
+
+class TestRaptorMach2Joystick(BaseTest.TestGamepad):
+    hid_bpfs = [("FR-TEC__Raptor-Mach-2.bpf.o", True)]
+
+    def create_device(self):
+        return RaptorMach2Joystick(
+            "uhid test Sanmos Group FR-TEC Raptor MACH 2",
+            rdesc="05 01 09 04 a1 01 05 01 85 01 05 01 09 30 75 10 95 01 15 00 26 ff 07 46 ff 07 81 02 05 01 09 31 75 10 95 01 15 00 26 ff 07 46 ff 07 81 02 05 01 09 33 75 10 95 01 15 00 26 ff 03 46 ff 03 81 02 05 00 09 00 75 10 95 01 15 00 26 ff 03 46 ff 03 81 02 05 01 09 32 75 10 95 01 15 00 26 ff 03 46 ff 03 81 02 05 01 09 35 75 10 95 01 15 00 26 ff 03 46 ff 03 81 02 05 01 09 34 75 10 95 01 15 00 26 ff 07 46 ff 07 81 02 05 01 09 36 75 10 95 01 15 00 26 ff 03 46 ff 03 81 02 05 09 19 01 2a 1d 00 15 00 25 01 75 01 96 80 00 81 02 05 01 09 39 26 ef 00 46 68 01 65 14 75 10 95 01 81 42 05 01 09 00 75 08 95 1d 81 01 15 00 26 ef 00 85 58 26 ff 00 46 ff 00 75 08 95 3f 09 00 91 02 85 59 75 08 95 80 09 00 b1 02 c0",
+            input_info=(BusType.USB, 0x11C0, 0x5606),
+        )
