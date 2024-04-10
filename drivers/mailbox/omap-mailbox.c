@@ -86,7 +86,6 @@ struct omap_mbox_device {
 	u32 num_fifos;
 	u32 intr_type;
 	struct omap_mbox **mboxes;
-	struct mbox_controller controller;
 };
 
 struct omap_mbox {
@@ -541,7 +540,7 @@ static struct mbox_chan *omap_mbox_of_xlate(struct mbox_controller *controller,
 	struct omap_mbox_device *mdev;
 	struct omap_mbox *mbox;
 
-	mdev = container_of(controller, struct omap_mbox_device, controller);
+	mdev = dev_get_drvdata(controller->dev);
 	if (WARN_ON(!mdev))
 		return ERR_PTR(-EINVAL);
 
@@ -567,6 +566,7 @@ static int omap_mbox_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct device_node *child;
 	const struct omap_mbox_match_data *match_data;
+	struct mbox_controller *controller;
 	u32 intr_type, info_count;
 	u32 num_users, num_fifos;
 	u32 tmp[3];
@@ -685,17 +685,20 @@ static int omap_mbox_probe(struct platform_device *pdev)
 	mdev->intr_type = intr_type;
 	mdev->mboxes = list;
 
+	controller = devm_kzalloc(&pdev->dev, sizeof(*controller), GFP_KERNEL);
+	if (!controller)
+		return -ENOMEM;
 	/*
 	 * OMAP/K3 Mailbox IP does not have a Tx-Done IRQ, but rather a Tx-Ready
 	 * IRQ and is needed to run the Tx state machine
 	 */
-	mdev->controller.txdone_irq = true;
-	mdev->controller.dev = mdev->dev;
-	mdev->controller.ops = &omap_mbox_chan_ops;
-	mdev->controller.chans = chnls;
-	mdev->controller.num_chans = info_count;
-	mdev->controller.of_xlate = omap_mbox_of_xlate;
-	ret = devm_mbox_controller_register(mdev->dev, &mdev->controller);
+	controller->txdone_irq = true;
+	controller->dev = mdev->dev;
+	controller->ops = &omap_mbox_chan_ops;
+	controller->chans = chnls;
+	controller->num_chans = info_count;
+	controller->of_xlate = omap_mbox_of_xlate;
+	ret = devm_mbox_controller_register(mdev->dev, controller);
 	if (ret)
 		return ret;
 
