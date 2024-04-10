@@ -752,7 +752,6 @@ static int omap_i2c_xfer_msg(struct i2c_adapter *adap,
 	}
 
 	if (timeout == 0) {
-		dev_err(omap->dev, "controller timed out\n");
 		omap_i2c_reset(omap);
 		__omap_i2c_init(omap);
 		return -ETIMEDOUT;
