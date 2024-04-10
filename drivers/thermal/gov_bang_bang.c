@@ -13,47 +13,6 @@
 
 #include "thermal_core.h"
 
-static void thermal_zone_trip_update(struct thermal_zone_device *tz,
-				     const struct thermal_trip *trip,
-				     bool crossed_up)
-{
-	struct thermal_instance *instance;
-
-	dev_dbg(&tz->device, "Trip%d[temp=%d]:temp=%d:hyst=%d\n",
-		thermal_zone_trip_id(tz, trip), trip->temperature,
-		tz->temperature, trip->hysteresis);
-
-	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
-		if (instance->trip != trip)
-			continue;
-
-		if (instance->target == THERMAL_NO_TARGET)
-			instance->target = 0;
-
-		if (instance->target != 0 && instance->target != 1) {
-			pr_debug("Unexpected state %ld of thermal instance %s in bang-bang\n",
-				 instance->target, instance->name);
-
-			instance->target = 1;
-		}
-
-		/*
-		 * Enable the fan when the trip is crossed on the way up and
-		 * disable it when the trip is crossed on the way down.
-		 */
-		if (instance->target == 0 && crossed_up)
-			instance->target = 1;
-		else if (instance->target == 1 && !crossed_up)
-			instance->target = 0;
-
-		dev_dbg(&instance->cdev->device, "target=%ld\n", instance->target);
-
-		mutex_lock(&instance->cdev->lock);
-		instance->cdev->updated = false; /* cdev needs update */
-		mutex_unlock(&instance->cdev->lock);
-	}
-}
-
 /**
  * bang_bang_control - controls devices associated with the given zone
  * @tz: thermal_zone_device
@@ -90,7 +49,39 @@ static void bang_bang_control(struct thermal_zone_device *tz,
 
 	lockdep_assert_held(&tz->lock);
 
-	thermal_zone_trip_update(tz, trip, crossed_up);
+	dev_dbg(&tz->device, "Trip%d[temp=%d]:temp=%d:hyst=%d\n",
+		thermal_zone_trip_id(tz, trip), trip->temperature,
+		tz->temperature, trip->hysteresis);
+
+	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+		if (instance->trip != trip)
+			continue;
+
+		if (instance->target == THERMAL_NO_TARGET)
+			instance->target = 0;
+
+		if (instance->target != 0 && instance->target != 1) {
+			pr_debug("Unexpected state %ld of thermal instance %s in bang-bang\n",
+				 instance->target, instance->name);
+
+			instance->target = 1;
+		}
+
+		/*
+		 * Enable the fan when the trip is crossed on the way up and
+		 * disable it when the trip is crossed on the way down.
+		 */
+		if (instance->target == 0 && crossed_up)
+			instance->target = 1;
+		else if (instance->target == 1 && !crossed_up)
+			instance->target = 0;
+
+		dev_dbg(&instance->cdev->device, "target=%ld\n", instance->target);
+
+		mutex_lock(&instance->cdev->lock);
+		instance->cdev->updated = false; /* cdev needs update */
+		mutex_unlock(&instance->cdev->lock);
+	}
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node)
 		thermal_cdev_update(instance->cdev);
