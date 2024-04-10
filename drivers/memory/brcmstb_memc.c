@@ -243,6 +243,7 @@ static const struct of_device_id brcmstb_memc_of_match[] = {
 	},
 	{}
 };
+MODULE_DEVICE_TABLE(of, brcmstb_memc_of_match);
 
 static int brcmstb_memc_suspend(struct device *dev)
 {
