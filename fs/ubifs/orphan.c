@@ -691,12 +691,12 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 
 		n = (le32_to_cpu(orph->ch.len) - UBIFS_ORPH_NODE_SZ) >> 3;
 		for (i = 0; i < n; i++) {
-			union ubifs_key key1, key2;
+			union ubifs_key key;
 
 			inum = le64_to_cpu(orph->inos[i]);
 
-			ino_key_init(c, &key1, inum);
-			err = ubifs_tnc_lookup(c, &key1, ino);
+			ino_key_init(c, &key, inum);
+			err = ubifs_tnc_lookup(c, &key, ino);
 			if (err && err != -ENOENT)
 				goto out_free;
 
@@ -708,10 +708,7 @@ static int do_kill_orphans(struct ubifs_info *c, struct ubifs_scan_leb *sleb,
 				dbg_rcvry("deleting orphaned inode %lu",
 					  (unsigned long)inum);
 
-				lowest_ino_key(c, &key1, inum);
-				highest_ino_key(c, &key2, inum);
-
-				err = ubifs_tnc_remove_range(c, &key1, &key2);
+				err = ubifs_tnc_remove_ino(c, inum);
 				if (err)
 					goto out_ro;
 			}
