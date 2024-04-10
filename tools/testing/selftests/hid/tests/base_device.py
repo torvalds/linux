@@ -35,7 +35,7 @@ from hidtools.uhid import UHIDDevice
 from hidtools.util import BusType
 
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Optional, Type, Union
+from typing import Any, ClassVar, Dict, List, Optional, Tuple, Type, Union
 
 logger = logging.getLogger("hidtools.device.base_device")
 
@@ -126,7 +126,7 @@ class HIDIsReady(object):
 class UdevHIDIsReady(HIDIsReady):
     _pyudev_context: ClassVar[Optional[pyudev.Context]] = None
     _pyudev_monitor: ClassVar[Optional[pyudev.Monitor]] = None
-    _uhid_devices: ClassVar[Dict[int, bool]] = {}
+    _uhid_devices: ClassVar[Dict[int, Tuple[bool, int]]] = {}
 
     def __init__(self: "UdevHIDIsReady", uhid: UHIDDevice) -> None:
         super().__init__(uhid)
@@ -150,20 +150,25 @@ class UdevHIDIsReady(HIDIsReady):
             return
         event: pyudev.Device
         for event in iter(functools.partial(cls._pyudev_monitor.poll, 0.02), None):
-            if event.action not in ["bind", "remove"]:
+            if event.action not in ["bind", "remove", "unbind"]:
                 return
 
             logger.debug(f"udev event: {event.action} -> {event}")
 
             id = int(event.sys_path.strip().split(".")[-1], 16)
 
-            cls._uhid_devices[id] = event.action == "bind"
+            device_ready, count = cls._uhid_devices.get(id, (False, 0))
 
-    def is_ready(self: "UdevHIDIsReady") -> bool:
+            ready = event.action == "bind"
+            if not device_ready and ready:
+                count += 1
+            cls._uhid_devices[id] = (ready, count)
+
+    def is_ready(self: "UdevHIDIsReady") -> Tuple[bool, int]:
         try:
             return self._uhid_devices[self.uhid.hid_id]
         except KeyError:
-            return False
+            return (False, 0)
 
 
 class EvdevMatch(object):
@@ -317,7 +322,11 @@ class BaseDevice(UHIDDevice):
 
     @property
     def kernel_is_ready(self: "BaseDevice") -> bool:
-        return self._kernel_is_ready.is_ready() and self.started
+        return self._kernel_is_ready.is_ready()[0] and self.started
+
+    @property
+    def kernel_ready_count(self: "BaseDevice") -> int:
+        return self._kernel_is_ready.is_ready()[1]
 
     @property
     def input_nodes(self: "BaseDevice") -> List[EvdevDevice]:
