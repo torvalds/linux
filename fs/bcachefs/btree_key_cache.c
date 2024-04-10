@@ -516,22 +516,9 @@ fill:
 	path->uptodate = BTREE_ITER_UPTODATE;
 
 	if (!ck->valid && !(flags & BTREE_ITER_cached_nofill)) {
-		/*
-		 * Using the underscore version because we haven't set
-		 * path->uptodate yet:
-		 */
-		if (!path->locks_want &&
-		    !__bch2_btree_path_upgrade(trans, path, 1, NULL)) {
-			trace_and_count(trans->c, trans_restart_key_cache_upgrade, trans, _THIS_IP_);
-			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_upgrade);
-			goto err;
-		}
-
-		ret = btree_key_cache_fill(trans, path, ck);
-		if (ret)
-			goto err;
-
-		ret = bch2_btree_path_relock(trans, path, _THIS_IP_);
+		ret =   bch2_btree_path_upgrade(trans, path, 1) ?:
+			btree_key_cache_fill(trans, path, ck) ?:
+			bch2_btree_path_relock(trans, path, _THIS_IP_);
 		if (ret)
 			goto err;
 
