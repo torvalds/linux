@@ -23,6 +23,18 @@
 
 #include <linux/sched/mm.h>
 
+static void bch2_btree_node_header_to_text(struct printbuf *out, struct btree_node *bn)
+{
+	prt_printf(out, "btree=%s l=%u seq %llux\n",
+		   bch2_btree_id_str(BTREE_NODE_ID(bn)),
+		   (unsigned) BTREE_NODE_LEVEL(bn), bn->keys.seq);
+	prt_str(out, "min: ");
+	bch2_bpos_to_text(out, bn->min_key);
+	prt_newline(out);
+	prt_str(out, "max: ");
+	bch2_bpos_to_text(out, bn->max_key);
+}
+
 void bch2_btree_node_io_unlock(struct btree *b)
 {
 	EBUG_ON(!btree_node_write_in_flight(b));
@@ -1021,18 +1033,19 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 			     -BCH_ERR_btree_node_read_err_must_retry,
 			     c, ca, b, NULL,
 			     btree_node_bad_seq,
-			     "got wrong btree node (want %llx got %llx)\n"
-			     "got btree %s level %llu pos %s",
-			     bp->seq, b->data->keys.seq,
-			     bch2_btree_id_str(BTREE_NODE_ID(b->data)),
-			     BTREE_NODE_LEVEL(b->data),
-			     buf.buf);
+			     "got wrong btree node: got\n%s",
+			     (printbuf_reset(&buf),
+			      bch2_btree_node_header_to_text(&buf, b->data),
+			      buf.buf));
 	} else {
 		btree_err_on(!b->data->keys.seq,
 			     -BCH_ERR_btree_node_read_err_must_retry,
 			     c, ca, b, NULL,
 			     btree_node_bad_seq,
-			     "bad btree header: seq 0");
+			     "bad btree header: seq 0\n%s",
+			     (printbuf_reset(&buf),
+			      bch2_btree_node_header_to_text(&buf, b->data),
+			      buf.buf));
 	}
 
 	while (b->written < (ptr_written ?: btree_sectors(c))) {
