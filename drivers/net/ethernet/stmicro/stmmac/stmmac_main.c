@@ -1040,37 +1040,36 @@ static void stmmac_validate(struct phylink_config *config,
 		phylink_set(mask, 1000baseT_Half);
 	}
 
+	linkmode_and(supported, supported, mac_supported);
+	linkmode_andnot(supported, supported, mask);
+	linkmode_and(state->advertising,
+		     state->advertising, mac_supported);
+	linkmode_andnot(state->advertising,
+			state->advertising, mask);
+
 	/* Early ethernet settings to bring up link in 100M,
 	 * Auto neg Off with full duplex link.
 	 */
-	if (max_speed == SPEED_100 && priv->early_eth) {
+	if (priv->early_eth && !priv->early_eth_config_set) {
 		priv->phydev->autoneg = AUTONEG_DISABLE;
 		priv->phydev->speed = SPEED_100;
 		priv->phydev->duplex = DUPLEX_FULL;
 
-	phylink_set(mac_supported, 100baseT_Full);
-	phylink_set(mac_supported, TP);
-	phylink_set(mac_supported, MII);
-	phylink_set(mac_supported, 10baseT_Full);
-	phylink_clear(mac_supported, Autoneg);
-	linkmode_and(supported, supported, mac_supported);
-	linkmode_andnot(supported, supported, mask);
-
-	phylink_clear(mac_supported, Autoneg);
-	linkmode_and(state->advertising, state->advertising, mac_supported);
-	linkmode_andnot(state->advertising, state->advertising, mask);
-
-	pr_info(" qcom-ethqos: %s early eth setting successful\n",
-		__func__);
-
-		stmmac_set_speed100(priv->phydev);
-	} else {
-		linkmode_and(supported, supported, mac_supported);
-		linkmode_andnot(supported, supported, mask);
+		phylink_clear(mac_supported, 1000baseT_Full);
 		linkmode_and(state->advertising,
 			     state->advertising, mac_supported);
 		linkmode_andnot(state->advertising,
 				state->advertising, mask);
+
+		pr_info("qcom-ethqos: %s early eth setting successful\n",
+			__func__);
+
+		stmmac_set_speed100(priv->phydev);
+		/* Validate method will also be called
+		 * when we change speed using ethtool.
+		 * Add check to avoid multiple calls
+		 */
+		priv->early_eth_config_set = 1;
 	}
 }
 
