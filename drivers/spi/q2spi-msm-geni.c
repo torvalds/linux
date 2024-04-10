@@ -975,52 +975,34 @@ struct q2spi_cr_packet *q2spi_prepare_cr_pkt(struct q2spi_geni *q2spi)
 	spin_lock_irqsave(&q2spi->cr_queue_lock, flags);
 	q2spi_cr_pkt->num_valid_crs = q2spi_cr_hdr_event->byte0_len;
 	Q2SPI_DEBUG(q2spi, "%s q2spi_cr_pkt:%p hdr_0:0x%x no_of_crs=%d\n", __func__,
-		    q2spi_cr_pkt, q2spi_cr_hdr_event->cr_hdr_0, q2spi_cr_pkt->num_valid_crs);
+		    q2spi_cr_pkt, q2spi_cr_hdr_event->cr_hdr[0], q2spi_cr_pkt->num_valid_crs);
 
 	if (q2spi_cr_hdr_event->byte0_err)
 		Q2SPI_DEBUG(q2spi, "%s Error: q2spi_cr_hdr_event->byte0_err=%d\n",
 			    __func__, q2spi_cr_hdr_event->byte0_err);
 
-	if (q2spi_cr_hdr_event->cr_hdr_0 == 0xF) {
-		q2spi_cr_pkt->ext_cr_hdr.cmd = (q2spi_cr_hdr_event->cr_hdr_0) & 0xF;
-		q2spi_cr_pkt->ext_cr_hdr.dw_len = (q2spi_cr_hdr_event->cr_hdr_0 >> 4) & 0x3;
-		q2spi_cr_pkt->ext_cr_hdr.parity = (q2spi_cr_hdr_event->cr_hdr_0 >> 7) & 0x1;
-	}
 	for (i = 0; i < q2spi_cr_pkt->num_valid_crs; i++) {
-		if (i == 0) {
-			Q2SPI_DEBUG(q2spi, "%s hdr_0:0x%x\n",
-				    __func__, q2spi_cr_hdr_event->cr_hdr_0);
-			q2spi_cr_pkt->cr_hdr[i].cmd = (q2spi_cr_hdr_event->cr_hdr_0) & 0xF;
-			q2spi_cr_pkt->cr_hdr[i].flow = (q2spi_cr_hdr_event->cr_hdr_0 >> 4) & 0x1;
-			q2spi_cr_pkt->cr_hdr[i].type = (q2spi_cr_hdr_event->cr_hdr_0 >> 5) & 0x3;
-			q2spi_cr_pkt->cr_hdr[i].parity = (q2spi_cr_hdr_event->cr_hdr_0 >> 7) & 0x1;
-		} else if (i == 1) {
-			Q2SPI_DEBUG(q2spi, "%s hdr_1:0x%x\n",
-				    __func__, q2spi_cr_hdr_event->cr_hdr_1);
-			q2spi_cr_pkt->cr_hdr[i].cmd = (q2spi_cr_hdr_event->cr_hdr_1) & 0xF;
-			q2spi_cr_pkt->cr_hdr[i].flow = (q2spi_cr_hdr_event->cr_hdr_1 >> 4) & 0x1;
-			q2spi_cr_pkt->cr_hdr[i].type = (q2spi_cr_hdr_event->cr_hdr_1 >> 5) & 0x3;
-			q2spi_cr_pkt->cr_hdr[i].parity = (q2spi_cr_hdr_event->cr_hdr_1 >> 7) & 0x1;
-		} else if (i == 2) {
-			Q2SPI_DEBUG(q2spi, "%s hdr_2:0x%x\n",
-				    __func__, q2spi_cr_hdr_event->cr_hdr_2);
-			q2spi_cr_pkt->cr_hdr[i].cmd = (q2spi_cr_hdr_event->cr_hdr_2) & 0xF;
-			q2spi_cr_pkt->cr_hdr[i].flow = (q2spi_cr_hdr_event->cr_hdr_2 >> 4) & 0x1;
-			q2spi_cr_pkt->cr_hdr[i].type = (q2spi_cr_hdr_event->cr_hdr_2 >> 5) & 0x3;
-			q2spi_cr_pkt->cr_hdr[i].parity = (q2spi_cr_hdr_event->cr_hdr_2 >> 7) & 0x1;
-		} else if (i == 3) {
-			Q2SPI_DEBUG(q2spi, "%s hdr_3:0x%x\n",
-				    __func__, q2spi_cr_hdr_event->cr_hdr_3);
-			q2spi_cr_pkt->cr_hdr[i].cmd = (q2spi_cr_hdr_event->cr_hdr_3) & 0xF;
-			q2spi_cr_pkt->cr_hdr[i].flow = (q2spi_cr_hdr_event->cr_hdr_3 >> 4) & 0x1;
-			q2spi_cr_pkt->cr_hdr[i].type = (q2spi_cr_hdr_event->cr_hdr_3 >> 5) & 0x3;
-			q2spi_cr_pkt->cr_hdr[i].parity = (q2spi_cr_hdr_event->cr_hdr_3 >> 7) & 0x1;
-		}
-
+		Q2SPI_DEBUG(q2spi, "%s hdr_[%d]:0x%x\n",
+			    __func__, i, q2spi_cr_hdr_event->cr_hdr[i]);
+		q2spi_cr_pkt->cr_hdr[i].cmd = (q2spi_cr_hdr_event->cr_hdr[i]) & 0xF;
+		q2spi_cr_pkt->cr_hdr[i].flow = (q2spi_cr_hdr_event->cr_hdr[i] >> 4) & 0x1;
+		q2spi_cr_pkt->cr_hdr[i].type = (q2spi_cr_hdr_event->cr_hdr[i] >> 5) & 0x3;
+		q2spi_cr_pkt->cr_hdr[i].parity = (q2spi_cr_hdr_event->cr_hdr[i] >> 7) & 0x1;
 		Q2SPI_DEBUG(q2spi, "%s CR HDR[%d] cmd/opcode:%d C_flow:%d type:%d parity:%d\n",
 			    __func__, i, q2spi_cr_pkt->cr_hdr[i].cmd,
 			    q2spi_cr_pkt->cr_hdr[i].flow, q2spi_cr_pkt->cr_hdr[i].type,
 			    q2spi_cr_pkt->cr_hdr[i].parity);
+		if ((q2spi_cr_hdr_event->cr_hdr[i] & 0xF) == CR_EXTENSION) {
+			q2spi_cr_pkt->ext_cr_hdr.cmd = (q2spi_cr_hdr_event->cr_hdr[i]) & 0xF;
+			q2spi_cr_pkt->ext_cr_hdr.dw_len =
+							(q2spi_cr_hdr_event->cr_hdr[i] >> 4) & 0x3;
+			q2spi_cr_pkt->ext_cr_hdr.parity =
+							(q2spi_cr_hdr_event->cr_hdr[i] >> 7) & 0x1;
+			Q2SPI_DEBUG(q2spi, "%s CR EXT HDR[%d] cmd/opcode:%d dw_len:%d parity:%d\n",
+				    __func__, i, q2spi_cr_pkt->ext_cr_hdr.cmd,
+				    q2spi_cr_pkt->ext_cr_hdr.dw_len,
+				    q2spi_cr_pkt->ext_cr_hdr.parity);
+		}
 	}
 	ptr = (u8 *)q2spi->db_xfer->rx_buf;
 	for (i = 0; i < q2spi_cr_pkt->num_valid_crs; i++) {

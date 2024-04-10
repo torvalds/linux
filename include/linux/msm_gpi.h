@@ -275,14 +275,8 @@ struct msm_gpi_error_log {
 };
 
 struct __packed qup_q2spi_cr_header_event {
-	u32 cr_hdr_0 : 8;
-	u32 cr_hdr_1 : 8;
-	u32 cr_hdr_2 : 8;
-	u32 cr_hdr_3 : 8;
-	u32 cr_ed_byte_0 : 8;
-	u32 cr_ed_byte_1 : 8;
-	u32 cr_ed_byte_2 : 8;
-	u32 cr_ed_byte_3 : 8;
+	u8 cr_hdr[4];
+	u8 cr_ed_byte[4];
 	u32 reserved0 : 24;
 	u8 code : 8;
 	u32 byte0_len : 4;

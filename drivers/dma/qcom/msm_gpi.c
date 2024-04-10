@@ -2445,12 +2445,12 @@ gpi_process_xfer_q2spi_cr_header(struct gpii_chan *gpii_chan,
 	GPII_VERB(gpii_ptr, gpii_chan->chid,
 		  "code:0x%x type:0x%x hdr_0:0x%x hrd_1:0x%x hrd_2:0x%x hdr3:0x%x\n",
 		  q2spi_cr_header_event->code, q2spi_cr_header_event->type,
-		  q2spi_cr_header_event->cr_hdr_0, q2spi_cr_header_event->cr_hdr_1,
-		  q2spi_cr_header_event->cr_hdr_2, q2spi_cr_header_event->cr_hdr_3);
+		  q2spi_cr_header_event->cr_hdr[0], q2spi_cr_header_event->cr_hdr[1],
+		  q2spi_cr_header_event->cr_hdr[2], q2spi_cr_header_event->cr_hdr[3]);
 	GPII_VERB(gpii_ptr, gpii_chan->chid,
 		  "cr_byte_0:0x%x cr_byte_1:0x%x cr_byte_2:0x%x cr_byte_3h:0x%x\n",
-		  q2spi_cr_header_event->cr_ed_byte_0, q2spi_cr_header_event->cr_ed_byte_1,
-		  q2spi_cr_header_event->cr_ed_byte_2, q2spi_cr_header_event->cr_ed_byte_3);
+		  q2spi_cr_header_event->cr_ed_byte[0], q2spi_cr_header_event->cr_ed_byte[1],
+		  q2spi_cr_header_event->cr_ed_byte[2], q2spi_cr_header_event->cr_ed_byte[3]);
 	GPII_VERB(gpii_ptr, gpii_chan->chid, "code:0x%x\n", q2spi_cr_header_event->code);
 	GPII_VERB(gpii_ptr, gpii_chan->chid,
 		  "cr_byte_0_len:0x%x cr_byte_0_err:0x%x type:0x%x ch_id:0x%x\n",
