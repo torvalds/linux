@@ -77,6 +77,56 @@ TRACE_EVENT(hclge_vf_mbx_send,
 	)
 );
 
+DECLARE_EVENT_CLASS(hclge_vf_cmd_template,
+		    TP_PROTO(struct hclge_comm_hw *hw,
+			     struct hclge_desc *desc,
+			     int index,
+			     int num),
+
+		    TP_ARGS(hw, desc, index, num),
+
+		    TP_STRUCT__entry(__field(u16, opcode)
+			__field(u16, flag)
+			__field(u16, retval)
+			__field(u16, rsv)
+			__field(int, index)
+			__field(int, num)
+			__string(pciname, pci_name(hw->cmq.csq.pdev))
+			__array(u32, data, HCLGE_DESC_DATA_LEN)),
+
+		    TP_fast_assign(int i;
+			__entry->opcode = le16_to_cpu(desc->opcode);
+			__entry->flag = le16_to_cpu(desc->flag);
+			__entry->retval = le16_to_cpu(desc->retval);
+			__entry->rsv = le16_to_cpu(desc->rsv);
+			__entry->index = index;
+			__entry->num = num;
+			__assign_str(pciname, pci_name(hw->cmq.csq.pdev));
+			for (i = 0; i < HCLGE_DESC_DATA_LEN; i++)
+				__entry->data[i] = le32_to_cpu(desc->data[i]);),
+
+		    TP_printk("%s opcode:0x%04x %d-%d flag:0x%04x retval:0x%04x rsv:0x%04x data:%s",
+			      __get_str(pciname), __entry->opcode,
+			      __entry->index, __entry->num,
+			      __entry->flag, __entry->retval, __entry->rsv,
+			      __print_array(__entry->data,
+					    HCLGE_DESC_DATA_LEN, sizeof(u32)))
+);
+
+DEFINE_EVENT(hclge_vf_cmd_template, hclge_vf_cmd_send,
+	     TP_PROTO(struct hclge_comm_hw *hw,
+		      struct hclge_desc *desc,
+		      int index,
+		      int num),
+	     TP_ARGS(hw, desc, index, num));
+
+DEFINE_EVENT(hclge_vf_cmd_template, hclge_vf_cmd_get,
+	     TP_PROTO(struct hclge_comm_hw *hw,
+		      struct hclge_desc *desc,
+		      int index,
+		      int num),
+	     TP_ARGS(hw, desc, index, num));
+
 #endif /* _HCLGEVF_TRACE_H_ */
 
 /* This must be outside ifdef _HCLGEVF_TRACE_H */
