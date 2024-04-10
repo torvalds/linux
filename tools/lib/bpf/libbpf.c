@@ -149,6 +149,7 @@ static const char * const link_type_name[] = {
 	[BPF_LINK_TYPE_TCX]			= "tcx",
 	[BPF_LINK_TYPE_UPROBE_MULTI]		= "uprobe_multi",
 	[BPF_LINK_TYPE_NETKIT]			= "netkit",
+	[BPF_LINK_TYPE_SOCKMAP]			= "sockmap",
 };
 
 static const char * const map_type_name[] = {
@@ -12531,6 +12532,12 @@ struct bpf_link *
 bpf_program__attach_netns(const struct bpf_program *prog, int netns_fd)
 {
 	return bpf_program_attach_fd(prog, netns_fd, "netns", NULL);
+}
+
+struct bpf_link *
+bpf_program__attach_sockmap(const struct bpf_program *prog, int map_fd)
+{
+	return bpf_program_attach_fd(prog, map_fd, "sockmap", NULL);
 }
 
 struct bpf_link *bpf_program__attach_xdp(const struct bpf_program *prog, int ifindex)
