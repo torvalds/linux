@@ -175,27 +175,16 @@ static enum fw_upload_err mpfs_auto_update_poll_complete(struct fw_upload *fw_up
 static int mpfs_auto_update_verify_image(struct fw_upload *fw_uploader)
 {
 	struct mpfs_auto_update_priv *priv = fw_uploader->dd_handle;
-	struct mpfs_mss_response *response;
-	struct mpfs_mss_msg *message;
-	u32 *response_msg;
+	u32 *response_msg __free(kfree) =
+		kzalloc(AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(*response_msg), GFP_KERNEL);
+	struct mpfs_mss_response *response __free(kfree) =
+		kzalloc(sizeof(struct mpfs_mss_response), GFP_KERNEL);
+	struct mpfs_mss_msg *message __free(kfree) =
+		kzalloc(sizeof(struct mpfs_mss_msg), GFP_KERNEL);
 	int ret;
 
-	response_msg = devm_kzalloc(priv->dev, AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(*response_msg),
-				    GFP_KERNEL);
-	if (!response_msg)
+	if (!response_msg || !response || !message)
 		return -ENOMEM;
-
-	response = devm_kzalloc(priv->dev, sizeof(struct mpfs_mss_response), GFP_KERNEL);
-	if (!response) {
-		ret = -ENOMEM;
-		goto free_response_msg;
-	}
-
-	message = devm_kzalloc(priv->dev, sizeof(struct mpfs_mss_msg), GFP_KERNEL);
-	if (!message) {
-		ret = -ENOMEM;
-		goto free_response;
-	}
 
 	/*
 	 * The system controller can verify that an image in the flash is valid.
@@ -218,20 +207,12 @@ static int mpfs_auto_update_verify_image(struct fw_upload *fw_uploader)
 	ret = mpfs_blocking_transaction(priv->sys_controller, message);
 	if (ret | response->resp_status) {
 		dev_warn(priv->dev, "Verification of Upgrade Image failed!\n");
-		ret = ret ? ret : -EBADMSG;
-		goto free_message;
+		return ret ? ret : -EBADMSG;
 	}
 
 	dev_info(priv->dev, "Verification of Upgrade Image passed!\n");
 
-free_message:
-	devm_kfree(priv->dev, message);
-free_response:
-	devm_kfree(priv->dev, response);
-free_response_msg:
-	devm_kfree(priv->dev, response_msg);
-
-	return ret;
+	return 0;
 }
 
 static int mpfs_auto_update_set_image_address(struct mpfs_auto_update_priv *priv,
@@ -406,23 +387,15 @@ static const struct fw_upload_ops mpfs_auto_update_ops = {
 
 static int mpfs_auto_update_available(struct mpfs_auto_update_priv *priv)
 {
-	struct mpfs_mss_response *response;
-	struct mpfs_mss_msg *message;
-	u32 *response_msg;
+	u32 *response_msg __free(kfree) =
+		kzalloc(AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(*response_msg), GFP_KERNEL);
+	struct mpfs_mss_response *response __free(kfree) =
+		kzalloc(sizeof(struct mpfs_mss_response), GFP_KERNEL);
+	struct mpfs_mss_msg *message __free(kfree) =
+		kzalloc(sizeof(struct mpfs_mss_msg), GFP_KERNEL);
 	int ret;
 
-	response_msg = devm_kzalloc(priv->dev,
-				    AUTO_UPDATE_FEATURE_RESP_SIZE * sizeof(*response_msg),
-				    GFP_KERNEL);
-	if (!response_msg)
-		return -ENOMEM;
-
-	response = devm_kzalloc(priv->dev, sizeof(struct mpfs_mss_response), GFP_KERNEL);
-	if (!response)
-		return -ENOMEM;
-
-	message = devm_kzalloc(priv->dev, sizeof(struct mpfs_mss_msg), GFP_KERNEL);
-	if (!message)
+	if (!response_msg || !response || !message)
 		return -ENOMEM;
 
 	/*
