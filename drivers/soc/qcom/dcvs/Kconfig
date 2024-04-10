@@ -52,6 +52,18 @@ config QCOM_BWMON
 	  (memory) frequencies through the QCOM DCVS framework. This driver
 	  handles voting for DDR and LLCC.
 
+config QCOM_BWPROF
+	tristate "QCOM BWPROF Driver"
+	depends on ARCH_QCOM
+	default n
+	help
+	  This enables the QCOM BWPROF driver which monitors bandwidth counters
+	  and provides them to userspace clients at modest time intervals for
+	  the intention of bandwidth profiling and DDR frequency monitoring. The
+	  purpose of the driver is to enable the monitoring of the bandwidth usage
+	  at regular intervals, providing the userspace clients with a detailed
+	  view of the current state of the system.
+
 config QTI_PMU_SCMI_CLIENT
 	tristate "Qualcomm Technologies Inc. SCMI client driver for PMU"
 	depends on QTI_SCMI_PMU_PROTOCOL && QCOM_PMU_LIB
