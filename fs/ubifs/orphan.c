@@ -136,6 +136,7 @@ static void orphan_delete(struct ubifs_info *c, struct ubifs_orphan *orph)
 
 	if (orph->cmt) {
 		orph->del = 1;
+		rb_erase(&orph->rb, &c->orph_tree);
 		orph->dnext = c->orph_dnext;
 		c->orph_dnext = orph;
 		dbg_gen("delete later ino %lu", (unsigned long)orph->inum);
@@ -461,7 +462,6 @@ static void erase_deleted(struct ubifs_info *c)
 		dnext = orphan->dnext;
 		ubifs_assert(c, !orphan->new);
 		ubifs_assert(c, orphan->del);
-		rb_erase(&orphan->rb, &c->orph_tree);
 		list_del(&orphan->list);
 		c->tot_orphans -= 1;
 		dbg_gen("deleting orphan ino %lu", (unsigned long)orphan->inum);
