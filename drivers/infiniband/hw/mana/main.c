@@ -637,3 +637,46 @@ void mana_ib_destroy_eqs(struct mana_ib_dev *mdev)
 {
 	mana_gd_destroy_queue(mdev_to_gc(mdev), mdev->fatal_err_eq);
 }
+
+int mana_ib_gd_create_rnic_adapter(struct mana_ib_dev *mdev)
+{
+	struct mana_rnic_create_adapter_resp resp = {};
+	struct mana_rnic_create_adapter_req req = {};
+	struct gdma_context *gc = mdev_to_gc(mdev);
+	int err;
+
+	mana_gd_init_req_hdr(&req.hdr, MANA_IB_CREATE_ADAPTER, sizeof(req), sizeof(resp));
+	req.hdr.req.msg_version = GDMA_MESSAGE_V2;
+	req.hdr.dev_id = gc->mana_ib.dev_id;
+	req.notify_eq_id = mdev->fatal_err_eq->id;
+
+	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
+	if (err) {
+		ibdev_err(&mdev->ib_dev, "Failed to create RNIC adapter err %d", err);
+		return err;
+	}
+	mdev->adapter_handle = resp.adapter;
+
+	return 0;
+}
+
+int mana_ib_gd_destroy_rnic_adapter(struct mana_ib_dev *mdev)
+{
+	struct mana_rnic_destroy_adapter_resp resp = {};
+	struct mana_rnic_destroy_adapter_req req = {};
+	struct gdma_context *gc;
+	int err;
+
+	gc = mdev_to_gc(mdev);
+	mana_gd_init_req_hdr(&req.hdr, MANA_IB_DESTROY_ADAPTER, sizeof(req), sizeof(resp));
+	req.hdr.dev_id = gc->mana_ib.dev_id;
+	req.adapter = mdev->adapter_handle;
+
+	err = mana_gd_send_request(gc, sizeof(req), &req, sizeof(resp), &resp);
+	if (err) {
+		ibdev_err(&mdev->ib_dev, "Failed to destroy RNIC adapter err %d", err);
+		return err;
+	}
+
+	return 0;
+}
