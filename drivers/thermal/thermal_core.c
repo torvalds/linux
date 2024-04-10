@@ -310,15 +310,6 @@ static struct thermal_governor *thermal_get_tz_governor(struct thermal_zone_devi
 	return def_governor;
 }
 
-static void handle_non_critical_trips(struct thermal_zone_device *tz,
-				      const struct thermal_trip *trip)
-{
-	struct thermal_governor *governor = thermal_get_tz_governor(tz);
-
-	if (governor->throttle)
-		governor->throttle(tz, trip);
-}
-
 void thermal_governor_update_tz(struct thermal_zone_device *tz,
 				enum thermal_notify_event reason)
 {
@@ -418,8 +409,6 @@ static void handle_thermal_trip(struct thermal_zone_device *tz,
 
 	if (trip->type == THERMAL_TRIP_CRITICAL || trip->type == THERMAL_TRIP_HOT)
 		handle_critical_trips(tz, trip);
-	else
-		handle_non_critical_trips(tz, trip);
 }
 
 static void update_temperature(struct thermal_zone_device *tz)
