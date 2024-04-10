@@ -454,9 +454,9 @@ static int intel_resume_child_device(struct device *dev, void *data)
 		return 0;
 	}
 
-	ret = pm_request_resume(dev);
+	ret = pm_runtime_resume(dev);
 	if (ret < 0) {
-		dev_err(dev, "%s: pm_request_resume failed: %d\n", __func__, ret);
+		dev_err(dev, "%s: pm_runtime_resume failed: %d\n", __func__, ret);
 		return ret;
 	}
 
@@ -499,9 +499,9 @@ static int __maybe_unused intel_pm_prepare(struct device *dev)
 		 * first resume the device for this link. This will also by construction
 		 * resume the PCI parent device.
 		 */
-		ret = pm_request_resume(dev);
+		ret = pm_runtime_resume(dev);
 		if (ret < 0) {
-			dev_err(dev, "%s: pm_request_resume failed: %d\n", __func__, ret);
+			dev_err(dev, "%s: pm_runtime_resume failed: %d\n", __func__, ret);
 			return 0;
 		}
 
