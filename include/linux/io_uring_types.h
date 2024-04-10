@@ -330,9 +330,6 @@ struct io_ring_ctx {
 
 	struct list_head		io_buffers_pages;
 
-	#if defined(CONFIG_UNIX)
-		struct socket		*ring_sock;
-	#endif
 	/* hashed buffered write serialization */
 	struct io_wq_hash		*hash_map;
 

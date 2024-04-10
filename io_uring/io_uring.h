@@ -52,7 +52,6 @@ static inline bool io_req_ffs_set(struct io_kiocb *req)
 }
 
 void __io_req_task_work_add(struct io_kiocb *req, bool allow_local);
-bool io_is_uring_fops(struct file *file);
 bool io_alloc_async_data(struct io_kiocb *req);
 void io_req_task_queue(struct io_kiocb *req);
 void io_queue_iowq(struct io_kiocb *req, bool *dont_use);

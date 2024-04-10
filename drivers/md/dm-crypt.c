@@ -52,11 +52,11 @@
 struct convert_context {
 	struct completion restart;
 	struct bio *bio_in;
-	struct bio *bio_out;
 	struct bvec_iter iter_in;
+	struct bio *bio_out;
 	struct bvec_iter iter_out;
-	u64 cc_sector;
 	atomic_t cc_pending;
+	u64 cc_sector;
 	union {
 		struct skcipher_request *req;
 		struct aead_request *req_aead;
@@ -2535,7 +2535,7 @@ static int crypt_set_keyring_key(struct crypt_config *cc, const char *key_string
 		type = &key_type_encrypted;
 		set_key = set_key_encrypted;
 	} else if (IS_ENABLED(CONFIG_TRUSTED_KEYS) &&
-	           !strncmp(key_string, "trusted:", key_desc - key_string + 1)) {
+		   !strncmp(key_string, "trusted:", key_desc - key_string + 1)) {
 		type = &key_type_trusted;
 		set_key = set_key_trusted;
 	} else {
