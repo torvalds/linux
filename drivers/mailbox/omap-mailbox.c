@@ -19,7 +19,6 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-#include <linux/omap-mailbox.h>
 #include <linux/mailbox_controller.h>
 #include <linux/mailbox_client.h>
 
@@ -239,16 +238,14 @@ static void mbox_rx_work(struct work_struct *work)
 {
 	struct omap_mbox_queue *mq =
 			container_of(work, struct omap_mbox_queue, work);
-	mbox_msg_t data;
 	u32 msg;
 	int len;
 
 	while (kfifo_len(&mq->fifo) >= sizeof(msg)) {
 		len = kfifo_out(&mq->fifo, (unsigned char *)&msg, sizeof(msg));
 		WARN_ON(len != sizeof(msg));
-		data = msg;
 
-		mbox_chan_received_data(mq->mbox->chan, (void *)data);
+		mbox_chan_received_data(mq->mbox->chan, (void *)(uintptr_t)msg);
 		spin_lock_irq(&mq->lock);
 		if (mq->full) {
 			mq->full = false;
@@ -515,7 +512,7 @@ static int omap_mbox_chan_send_data(struct mbox_chan *chan, void *data)
 {
 	struct omap_mbox *mbox = mbox_chan_to_omap_mbox(chan);
 	int ret;
-	u32 msg = omap_mbox_message(data);
+	u32 msg = (u32)(uintptr_t)(data);
 
 	if (!mbox)
 		return -EINVAL;
