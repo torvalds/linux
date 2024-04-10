@@ -673,6 +673,8 @@ static void io_cqring_overflow_kill(struct io_ring_ctx *ctx)
 	struct io_overflow_cqe *ocqe;
 	LIST_HEAD(list);
 
+	lockdep_assert_held(&ctx->uring_lock);
+
 	spin_lock(&ctx->completion_lock);
 	list_splice_init(&ctx->cq_overflow_list, &list);
 	clear_bit(IO_CHECK_CQ_OVERFLOW_BIT, &ctx->check_cq);
@@ -688,6 +690,8 @@ static void io_cqring_overflow_kill(struct io_ring_ctx *ctx)
 static void __io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 {
 	size_t cqe_size = sizeof(struct io_uring_cqe);
+
+	lockdep_assert_held(&ctx->uring_lock);
 
 	if (__io_cqring_events(ctx) == ctx->cq_entries)
 		return;
@@ -718,12 +722,9 @@ static void __io_cqring_overflow_flush(struct io_ring_ctx *ctx)
 
 static void io_cqring_do_overflow_flush(struct io_ring_ctx *ctx)
 {
-	/* iopoll syncs against uring_lock, not completion_lock */
-	if (ctx->flags & IORING_SETUP_IOPOLL)
-		mutex_lock(&ctx->uring_lock);
+	mutex_lock(&ctx->uring_lock);
 	__io_cqring_overflow_flush(ctx);
-	if (ctx->flags & IORING_SETUP_IOPOLL)
-		mutex_unlock(&ctx->uring_lock);
+	mutex_unlock(&ctx->uring_lock);
 }
 
 /* can be called by any task */
@@ -1521,6 +1522,8 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 {
 	unsigned int nr_events = 0;
 	unsigned long check_cq;
+
+	lockdep_assert_held(&ctx->uring_lock);
 
 	if (!io_allowed_run_tw(ctx))
 		return -EEXIST;
