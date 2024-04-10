@@ -62,6 +62,7 @@ enum MES_SCH_API_OPCODE {
 	MES_SCH_API_AMD_LOG			= 16,
 	MES_SCH_API_SET_SE_MODE			= 17,
 	MES_SCH_API_SET_GANG_SUBMIT		= 18,
+	MES_SCH_API_SET_HW_RSRC_1               = 19,
 
 	MES_SCH_API_MAX = 0xFF
 };
@@ -247,6 +248,27 @@ union MESAPI_SET_HW_RESOURCES {
 	uint64_t	event_intr_history_gpu_mc_ptr;
 	uint64_t	timestamp;
 	uint32_t	os_tdr_timeout_in_sec;
+	};
+
+	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
+};
+
+union MESAPI_SET_HW_RESOURCES_1 {
+	struct {
+		union MES_API_HEADER                header;
+		struct MES_API_STATUS               api_status;
+		uint64_t                            timestamp;
+		union {
+			struct {
+				uint32_t enable_mes_debug_ctx : 1;
+				uint32_t reserved : 31;
+			};
+			uint32_t uint32_all;
+		};
+		uint64_t                            mes_debug_ctx_mc_addr;
+		uint32_t                            mes_debug_ctx_size;
+		/* unit is 100ms */
+		uint32_t                            mes_kiq_unmap_timeout;
 	};
 
 	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
