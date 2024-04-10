@@ -10,7 +10,10 @@ from . import base
 import libevdev
 import pytest
 
-from hidtools.device.base_gamepad import AsusGamepad, SaitekGamepad
+from .base_gamepad import (
+    AsusGamepad,
+    SaitekGamepad,
+)
 
 import logging
 
