@@ -644,7 +644,7 @@ static int atomisp_link_setup(struct media_entity *entity,
 					      entity);
 	struct atomisp_sub_device *asd = v4l2_get_subdevdata(sd);
 	struct atomisp_device *isp = asd->isp;
-	int i, ret;
+	int i;
 
 	/* ISP's source is immutable */
 	if (local != &asd->pads[ATOMISP_SUBDEV_PAD_SINK]) {
@@ -662,12 +662,6 @@ static int atomisp_link_setup(struct media_entity *entity,
 		v4l2_err(sd, "Error no sensor for selected CSI receiver\n");
 		return -EINVAL;
 	}
-
-	mutex_lock(&isp->mutex);
-	ret = atomisp_pipe_check(&asd->video_out, true);
-	mutex_unlock(&isp->mutex);
-	if (ret)
-		return ret;
 
 	/* Turn off the sensor on link disable */
 	if (!(flags & MEDIA_LNK_FL_ENABLED)) {
