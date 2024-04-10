@@ -389,42 +389,6 @@ static struct omap_mbox *omap_mbox_device_find(struct omap_mbox_device *mdev,
 	return mbox;
 }
 
-struct mbox_chan *omap_mbox_request_channel(struct mbox_client *cl,
-					    const char *chan_name)
-{
-	struct device *dev = cl->dev;
-	struct omap_mbox *mbox = NULL;
-	struct omap_mbox_device *mdev;
-	int ret;
-
-	if (!dev)
-		return ERR_PTR(-ENODEV);
-
-	if (dev->of_node) {
-		pr_err("%s: please use mbox_request_channel(), this API is supported only for OMAP non-DT usage\n",
-		       __func__);
-		return ERR_PTR(-ENODEV);
-	}
-
-	mutex_lock(&omap_mbox_devices_lock);
-	list_for_each_entry(mdev, &omap_mbox_devices, elem) {
-		mbox = omap_mbox_device_find(mdev, chan_name);
-		if (mbox)
-			break;
-	}
-	mutex_unlock(&omap_mbox_devices_lock);
-
-	if (!mbox || !mbox->chan)
-		return ERR_PTR(-ENOENT);
-
-	ret = mbox_bind_client(mbox->chan, cl);
-	if (ret)
-		return ERR_PTR(ret);
-
-	return mbox->chan;
-}
-EXPORT_SYMBOL(omap_mbox_request_channel);
-
 static struct class omap_mbox_class = { .name = "mbox", };
 
 static int omap_mbox_register(struct omap_mbox_device *mdev)

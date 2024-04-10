@@ -14,10 +14,4 @@ typedef int __bitwise omap_mbox_irq_t;
 #define IRQ_TX ((__force omap_mbox_irq_t) 1)
 #define IRQ_RX ((__force omap_mbox_irq_t) 2)
 
-struct mbox_chan;
-struct mbox_client;
-
-struct mbox_chan *omap_mbox_request_channel(struct mbox_client *cl,
-					    const char *chan_name);
-
 #endif /* OMAP_MAILBOX_H */
