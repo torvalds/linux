@@ -6,6 +6,7 @@
 //                    Cirrus Logic International Semiconductor Ltd.
 
 #include <linux/acpi.h>
+#include <linux/array_size.h>
 #include <linux/completion.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
