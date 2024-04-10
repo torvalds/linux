@@ -957,9 +957,23 @@ class XPPen_ArtistPro16Gen2_28bd_095b(PenDigitizer):
             pen.eraser = False
             pen.barrelswitch = False
 
-        pen.xtilt = 0
-        pen.ytilt = 0
         pen.current_state = state
+
+    def event(self, pen, test_button):
+        import math
+
+        pen_copy = copy.copy(pen)
+        width = 13.567
+        height = 8.480
+        tip_height = 0.055677699
+        hx = tip_height * (32767 / width)
+        hy = tip_height * (32767 / height)
+        if pen_copy.xtilt != 0:
+            pen_copy.x += round(hx * math.sin(math.radians(pen_copy.xtilt)))
+        if pen_copy.ytilt != 0:
+            pen_copy.y += round(hy * math.sin(math.radians(pen_copy.ytilt)))
+
+        return super().event(pen_copy, test_button)
 
 
 class XPPen_Artist24_28bd_093a(PenDigitizer):
