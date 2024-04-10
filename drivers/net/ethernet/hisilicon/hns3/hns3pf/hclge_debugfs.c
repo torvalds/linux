@@ -801,10 +801,8 @@ static int hclge_dbg_get_dfx_bd_num(struct hclge_dev *hdev, int offset,
 	return 0;
 }
 
-static int hclge_dbg_cmd_send(struct hclge_dev *hdev,
-			      struct hclge_desc *desc_src,
-			      int index, int bd_num,
-			      enum hclge_opcode_type cmd)
+int hclge_dbg_cmd_send(struct hclge_dev *hdev, struct hclge_desc *desc_src,
+		       int index, int bd_num, enum hclge_opcode_type cmd)
 {
 	struct hclge_desc *desc = desc_src;
 	int ret, i;

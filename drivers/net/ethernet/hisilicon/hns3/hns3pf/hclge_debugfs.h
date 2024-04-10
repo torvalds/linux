@@ -131,4 +131,7 @@ struct hclge_dbg_vlan_cfg {
 	u8 pri_only2;
 };
 
+int hclge_dbg_cmd_send(struct hclge_dev *hdev, struct hclge_desc *desc_src,
+		       int index, int bd_num, enum hclge_opcode_type cmd);
+
 #endif
