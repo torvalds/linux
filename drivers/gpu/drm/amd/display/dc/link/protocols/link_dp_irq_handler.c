@@ -373,6 +373,7 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 	union device_service_irq device_service_clear = {0};
 	enum dc_status result;
 	bool status = false;
+	bool allow_active = false;
 
 	if (out_link_loss)
 		*out_link_loss = false;
@@ -427,12 +428,6 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 		return false;
 	}
 
-	if (handle_hpd_irq_psr_sink(link))
-		/* PSR-related error was detected and handled */
-		return true;
-
-	handle_hpd_irq_replay_sink(link);
-
 	/* If PSR-related error handled, Main link may be off,
 	 * so do not handle as a normal sink status change interrupt.
 	 */
@@ -454,9 +449,8 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 	 * If we got sink count changed it means
 	 * Downstream port status changed,
 	 * then DM should call DC to do the detection.
-	 * NOTE: Do not handle link loss on eDP since it is internal link*/
-	if ((link->connector_signal != SIGNAL_TYPE_EDP) &&
-			dp_parse_link_loss_status(
+	 */
+	if (dp_parse_link_loss_status(
 					link,
 					&hpd_irq_dpcd_data)) {
 		/* Connectivity log: link loss */
@@ -464,6 +458,11 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 					hpd_irq_dpcd_data.raw,
 					sizeof(hpd_irq_dpcd_data),
 					"Status: ");
+
+		if (link->psr_settings.psr_feature_enabled)
+			edp_set_psr_allow_active(link, &allow_active, true, false, NULL);
+		else if (link->replay_settings.replay_allow_active)
+			edp_set_replay_allow_active(link, &allow_active, true, false, NULL);
 
 		if (defer_handling && has_left_work)
 			*has_left_work = true;
@@ -475,6 +474,14 @@ bool dp_handle_hpd_rx_irq(struct dc_link *link,
 			*out_link_loss = true;
 
 		dp_trace_link_loss_increment(link);
+	}
+
+	if (*out_link_loss == false) {
+		if (handle_hpd_irq_psr_sink(link))
+			/* PSR-related error was detected and handled */
+			return true;
+
+		handle_hpd_irq_replay_sink(link);
 	}
 
 	if (link->type == dc_connection_sst_branch &&
