@@ -62,7 +62,6 @@ static inline bool io_should_wake(struct io_wait_queue *iowq)
 }
 
 bool io_cqe_cache_refill(struct io_ring_ctx *ctx, bool overflow);
-void io_req_cqe_overflow(struct io_kiocb *req);
 int io_run_task_work_sig(struct io_ring_ctx *ctx);
 void io_req_defer_failed(struct io_kiocb *req, s32 res);
 bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags);
