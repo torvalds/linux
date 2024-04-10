@@ -528,16 +528,26 @@ int bch2_empty_dir_trans(struct btree_trans *trans, subvol_inum dir)
 		bch2_empty_dir_snapshot(trans, dir.inum, dir.subvol, snapshot);
 }
 
+static int bch2_dir_emit(struct dir_context *ctx, struct bkey_s_c_dirent d, subvol_inum target)
+{
+	struct qstr name = bch2_dirent_get_name(d);
+	bool ret = dir_emit(ctx, name.name,
+		      name.len,
+		      target.inum,
+		      vfs_d_type(d.v->d_type));
+	if (ret)
+		ctx->pos = d.k->p.offset + 1;
+	return ret;
+}
+
 int bch2_readdir(struct bch_fs *c, subvol_inum inum, struct dir_context *ctx)
 {
 	struct btree_trans *trans = bch2_trans_get(c);
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	struct bkey_s_c_dirent dirent;
 	subvol_inum target;
 	u32 snapshot;
 	struct bkey_buf sk;
-	struct qstr name;
 	int ret;
 
 	bch2_bkey_buf_init(&sk);
@@ -554,7 +564,9 @@ retry:
 		if (k.k->type != KEY_TYPE_dirent)
 			continue;
 
-		dirent = bkey_s_c_to_dirent(k);
+		/* dir_emit() can fault and block: */
+		bch2_bkey_buf_reassemble(&sk, c, k);
+		struct bkey_s_c_dirent dirent = bkey_i_to_s_c_dirent(sk.k);
 
 		ret = bch2_dirent_read_target(trans, inum, dirent, &target);
 		if (ret < 0)
@@ -562,28 +574,22 @@ retry:
 		if (ret)
 			continue;
 
-		/* dir_emit() can fault and block: */
-		bch2_bkey_buf_reassemble(&sk, c, k);
-		dirent = bkey_i_to_s_c_dirent(sk.k);
-		bch2_trans_unlock(trans);
-
-		name = bch2_dirent_get_name(dirent);
-
-		ctx->pos = dirent.k->p.offset;
-		if (!dir_emit(ctx, name.name,
-			      name.len,
-			      target.inum,
-			      vfs_d_type(dirent.v->d_type)))
-			break;
-		ctx->pos = dirent.k->p.offset + 1;
-
 		/*
 		 * read_target looks up subvolumes, we can overflow paths if the
 		 * directory has many subvolumes in it
+		 *
+		 * XXX: btree_trans_too_many_iters() is something we'd like to
+		 * get rid of, and there's no good reason to be using it here
+		 * except that we don't yet have a for_each_btree_key() helper
+		 * that does subvolume_get_snapshot().
 		 */
-		ret = btree_trans_too_many_iters(trans);
-		if (ret)
+		ret =   drop_locks_do(trans,
+				bch2_dir_emit(ctx, dirent, target)) ?:
+			btree_trans_too_many_iters(trans);
+		if (ret) {
+			ret = ret < 0 ? ret : 0;
 			break;
+		}
 	}
 	bch2_trans_iter_exit(trans, &iter);
 err:
