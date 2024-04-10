@@ -1669,6 +1669,8 @@ int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 		return symbol__disassemble_bpf(sym, args);
 	} else if (dso->binary_type == DSO_BINARY_TYPE__BPF_IMAGE) {
 		return symbol__disassemble_bpf_image(sym, args);
+	} else if (dso->binary_type == DSO_BINARY_TYPE__NOT_FOUND) {
+		return -1;
 	} else if (dso__is_kcore(dso)) {
 		kce.kcore_filename = symfs_filename;
 		kce.addr = map__rip_2objdump(map, sym->start);
