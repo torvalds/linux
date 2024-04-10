@@ -1979,6 +1979,7 @@ struct btree *bch2_btree_iter_next_node(struct btree_trans *trans, struct btree_
 
 	/* got to end? */
 	if (!btree_path_node(path, path->level + 1)) {
+		path->should_be_locked = false;
 		btree_path_set_level_up(trans, path);
 		return NULL;
 	}

@@ -882,14 +882,15 @@ int __bch2_trans_mutex_lock(struct btree_trans *trans,
 
 void __bch2_btree_path_verify_locks(struct btree_trans *trans, struct btree_path *path)
 {
-	/*
-	 * A path may be uptodate and yet have nothing locked if and only if
-	 * there is no node at path->level, which generally means we were
-	 * iterating over all nodes and got to the end of the btree
-	 */
-	BUG_ON(path->uptodate == BTREE_ITER_UPTODATE &&
-	       btree_path_node(path, path->level) &&
-	       !path->nodes_locked);
+	if (!path->nodes_locked && btree_path_node(path, path->level)) {
+		/*
+		 * A path may be uptodate and yet have nothing locked if and only if
+		 * there is no node at path->level, which generally means we were
+		 * iterating over all nodes and got to the end of the btree
+		 */
+		BUG_ON(path->uptodate == BTREE_ITER_UPTODATE);
+		BUG_ON(path->should_be_locked && trans->locked && !trans->restarted);
+	}
 
 	if (!path->nodes_locked)
 		return;

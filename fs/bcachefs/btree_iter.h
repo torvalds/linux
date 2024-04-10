@@ -50,6 +50,7 @@ static inline void btree_path_set_dirty(struct btree_trans *trans,
 					struct btree_path *path,
 					enum btree_path_uptodate u)
 {
+	BUG_ON(path->should_be_locked && trans->locked && !trans->restarted);
 	path->uptodate = max_t(unsigned, path->uptodate, u);
 }
 
