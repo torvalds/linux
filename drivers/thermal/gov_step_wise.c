@@ -65,13 +65,10 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 				     const struct thermal_trip *trip,
 				     int trip_threshold)
 {
+	enum thermal_trend trend = get_tz_trend(tz, trip);
 	int trip_id = thermal_zone_trip_id(tz, trip);
-	enum thermal_trend trend;
 	struct thermal_instance *instance;
 	bool throttle = false;
-	int old_target;
-
-	trend = get_tz_trend(tz, trip);
 
 	if (tz->temperature >= trip_threshold) {
 		throttle = true;
@@ -82,13 +79,16 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 		trip_id, trip->type, trip_threshold, trend, throttle);
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node) {
+		int old_target;
+
 		if (instance->trip != trip)
 			continue;
 
 		old_target = instance->target;
 		instance->target = get_target_state(instance, trend, throttle);
-		dev_dbg(&instance->cdev->device, "old_target=%d, target=%d\n",
-					old_target, (int)instance->target);
+
+		dev_dbg(&instance->cdev->device, "old_target=%d, target=%ld\n",
+			old_target, instance->target);
 
 		if (instance->initialized && old_target == instance->target)
 			continue;
@@ -104,6 +104,7 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 		}
 
 		instance->initialized = true;
+
 		mutex_lock(&instance->cdev->lock);
 		instance->cdev->updated = false; /* cdev needs update */
 		mutex_unlock(&instance->cdev->lock);
