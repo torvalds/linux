@@ -44,6 +44,7 @@
 #include <linux/gfp.h>
 #include <linux/module.h>
 #include <linux/static_key.h>
+#include <linux/skbuff_ref.h>
 
 #include <trace/events/tcp.h>
 

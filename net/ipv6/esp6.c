@@ -36,6 +36,7 @@
 #include <net/tcp.h>
 #include <net/espintcp.h>
 #include <net/inet6_hashtables.h>
+#include <linux/skbuff_ref.h>
 
 #include <linux/highmem.h>
 

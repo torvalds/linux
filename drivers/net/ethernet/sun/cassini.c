@@ -73,6 +73,7 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
+#include <linux/skbuff_ref.h>
 #include <linux/ethtool.h>
 #include <linux/crc32.h>
 #include <linux/random.h>

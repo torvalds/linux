@@ -3,6 +3,7 @@
 #include <net/dst_metadata.h>
 #include <net/busy_poll.h>
 #include <trace/events/net.h>
+#include <linux/skbuff_ref.h>
 
 #define MAX_GRO_SKBS 8
 
