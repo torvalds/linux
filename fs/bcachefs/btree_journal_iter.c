@@ -469,10 +469,15 @@ void __bch2_btree_and_journal_iter_init_node_iter(struct btree_trans *trans,
 	iter->trans = trans;
 	iter->b = b;
 	iter->node_iter = node_iter;
-	bch2_journal_iter_init(trans->c, &iter->journal, b->c.btree_id, b->c.level, pos);
-	INIT_LIST_HEAD(&iter->journal.list);
 	iter->pos = b->data->min_key;
 	iter->at_end = false;
+	INIT_LIST_HEAD(&iter->journal.list);
+
+	if (trans->journal_replay_not_finished) {
+		bch2_journal_iter_init(trans->c, &iter->journal, b->c.btree_id, b->c.level, pos);
+		if (!test_bit(BCH_FS_may_go_rw, &trans->c->flags))
+			list_add(&iter->journal.list, &trans->c->journal_iters);
+	}
 }
 
 /*
@@ -487,9 +492,6 @@ void bch2_btree_and_journal_iter_init_node_iter(struct btree_trans *trans,
 
 	bch2_btree_node_iter_init_from_start(&node_iter, b);
 	__bch2_btree_and_journal_iter_init_node_iter(trans, iter, b, node_iter, b->data->min_key);
-	if (trans->journal_replay_not_finished &&
-	    !test_bit(BCH_FS_may_go_rw, &trans->c->flags))
-		list_add(&iter->journal.list, &trans->c->journal_iters);
 }
 
 /* sort and dedup all keys in the journal: */
