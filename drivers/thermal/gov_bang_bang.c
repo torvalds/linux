@@ -13,8 +13,9 @@
 
 #include "thermal_core.h"
 
-static int thermal_zone_trip_update(struct thermal_zone_device *tz,
-				    const struct thermal_trip *trip)
+static void thermal_zone_trip_update(struct thermal_zone_device *tz,
+				     const struct thermal_trip *trip,
+				     bool crossed_up)
 {
 	int trip_index = thermal_zone_trip_id(tz, trip);
 	struct thermal_instance *instance;
@@ -43,13 +44,12 @@ static int thermal_zone_trip_update(struct thermal_zone_device *tz,
 		}
 
 		/*
-		 * enable fan when temperature exceeds trip_temp and disable
-		 * the fan in case it falls below trip_temp minus hysteresis
+		 * Enable the fan when the trip is crossed on the way up and
+		 * disable it when the trip is crossed on the way down.
 		 */
-		if (instance->target == 0 && tz->temperature >= trip->temperature)
+		if (instance->target == 0 && crossed_up)
 			instance->target = 1;
-		else if (instance->target == 1 &&
-			 tz->temperature < trip->temperature - trip->hysteresis)
+		else if (instance->target == 1 && !crossed_up)
 			instance->target = 0;
 
 		dev_dbg(&instance->cdev->device, "target=%d\n",
@@ -59,14 +59,13 @@ static int thermal_zone_trip_update(struct thermal_zone_device *tz,
 		instance->cdev->updated = false; /* cdev needs update */
 		mutex_unlock(&instance->cdev->lock);
 	}
-
-	return 0;
 }
 
 /**
  * bang_bang_control - controls devices associated with the given zone
  * @tz: thermal_zone_device
  * @trip: the trip point
+ * @crossed_up: whether or not the trip has been crossed on the way up
  *
  * Regulation Logic: a two point regulation, deliver cooling state depending
  * on the previous state shown in this diagram:
@@ -90,26 +89,22 @@ static int thermal_zone_trip_update(struct thermal_zone_device *tz,
  *     (trip_temp - hyst) so that the fan gets turned off again.
  *
  */
-static int bang_bang_control(struct thermal_zone_device *tz,
-			     const struct thermal_trip *trip)
+static void bang_bang_control(struct thermal_zone_device *tz,
+			      const struct thermal_trip *trip,
+			      bool crossed_up)
 {
 	struct thermal_instance *instance;
-	int ret;
 
 	lockdep_assert_held(&tz->lock);
 
-	ret = thermal_zone_trip_update(tz, trip);
-	if (ret)
-		return ret;
+	thermal_zone_trip_update(tz, trip, crossed_up);
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node)
 		thermal_cdev_update(instance->cdev);
-
-	return 0;
 }
 
 static struct thermal_governor thermal_gov_bang_bang = {
 	.name		= "bang_bang",
-	.throttle	= bang_bang_control,
+	.trip_crossed	= bang_bang_control,
 };
 THERMAL_GOVERNOR_DECLARE(thermal_gov_bang_bang);
