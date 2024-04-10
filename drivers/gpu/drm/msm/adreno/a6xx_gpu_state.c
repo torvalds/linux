@@ -192,10 +192,10 @@ static int debugbus_read(struct msm_gpu *gpu, u32 block, u32 offset,
 }
 
 #define cxdbg_write(ptr, offset, val) \
-	msm_writel((val), (ptr) + ((offset) << 2))
+	writel((val), (ptr) + ((offset) << 2))
 
 #define cxdbg_read(ptr, offset) \
-	msm_readl((ptr) + ((offset) << 2))
+	readl((ptr) + ((offset) << 2))
 
 /* read a value from the CX debug bus */
 static int cx_debugbus_read(void __iomem *cxdbg, u32 block, u32 offset,

@@ -488,15 +488,12 @@ void __iomem *msm_ioremap_mdss(struct platform_device *mdss_pdev,
 
 struct icc_path *msm_icc_get(struct device *dev, const char *name);
 
-#define msm_writel(data, addr) writel((data), (addr))
-#define msm_readl(addr) readl((addr))
-
 static inline void msm_rmw(void __iomem *addr, u32 mask, u32 or)
 {
-	u32 val = msm_readl(addr);
+	u32 val = readl(addr);
 
 	val &= ~mask;
-	msm_writel(val | or, addr);
+	writel(val | or, addr);
 }
 
 /**

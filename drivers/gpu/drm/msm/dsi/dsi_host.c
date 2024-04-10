@@ -55,7 +55,7 @@ static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 	 * scratch register which we never touch)
 	 */
 
-	ver = msm_readl(base + REG_DSI_VERSION);
+	ver = readl(base + REG_DSI_VERSION);
 	if (ver) {
 		/* older dsi host, there is no register shift */
 		ver = FIELD(ver, DSI_VERSION_MAJOR);
@@ -73,12 +73,12 @@ static int dsi_get_version(const void __iomem *base, u32 *major, u32 *minor)
 		 * registers are shifted down, read DSI_VERSION again with
 		 * the shifted offset
 		 */
-		ver = msm_readl(base + DSI_6G_REG_SHIFT + REG_DSI_VERSION);
+		ver = readl(base + DSI_6G_REG_SHIFT + REG_DSI_VERSION);
 		ver = FIELD(ver, DSI_VERSION_MAJOR);
 		if (ver == MSM_DSI_VER_MAJOR_6G) {
 			/* 6G version */
 			*major = ver;
-			*minor = msm_readl(base + REG_DSI_6G_HW_VERSION);
+			*minor = readl(base + REG_DSI_6G_HW_VERSION);
 			return 0;
 		} else {
 			return -EINVAL;
@@ -186,11 +186,11 @@ struct msm_dsi_host {
 
 static inline u32 dsi_read(struct msm_dsi_host *msm_host, u32 reg)
 {
-	return msm_readl(msm_host->ctrl_base + reg);
+	return readl(msm_host->ctrl_base + reg);
 }
 static inline void dsi_write(struct msm_dsi_host *msm_host, u32 reg, u32 data)
 {
-	msm_writel(data, msm_host->ctrl_base + reg);
+	writel(data, msm_host->ctrl_base + reg);
 }
 
 static const struct msm_dsi_cfg_handler *dsi_get_config(
