@@ -854,7 +854,7 @@ struct dtv_stats {
 	union {
 		__u64 uvalue;	/* for counters and relative scales */
 		__s64 svalue;	/* for 0.001 dB measures */
-	};
+	}  __attribute__ ((packed));
 } __attribute__ ((packed));
 
 
