@@ -422,12 +422,68 @@ mask_err:
 	return err;
 }
 
+static bool verify_lmem_ready(struct xe_gt *gt)
+{
+	u32 val = xe_mmio_read32(gt, GU_CNTL) & LMEM_INIT;
+
+	return !!val;
+}
+
+static int wait_for_lmem_ready(struct xe_device *xe)
+{
+	struct xe_gt *gt = xe_root_mmio_gt(xe);
+	unsigned long timeout, start;
+
+	if (!IS_DGFX(xe))
+		return 0;
+
+	if (IS_SRIOV_VF(xe))
+		return 0;
+
+	if (verify_lmem_ready(gt))
+		return 0;
+
+	drm_dbg(&xe->drm, "Waiting for lmem initialization\n");
+
+	start = jiffies;
+	timeout = start + msecs_to_jiffies(60 * 1000); /* 60 sec! */
+
+	do {
+		if (signal_pending(current))
+			return -EINTR;
+
+		/*
+		 * The boot firmware initializes local memory and
+		 * assesses its health. If memory training fails,
+		 * the punit will have been instructed to keep the GT powered
+		 * down.we won't be able to communicate with it
+		 *
+		 * If the status check is done before punit updates the register,
+		 * it can lead to the system being unusable.
+		 * use a timeout and defer the probe to prevent this.
+		 */
+		if (time_after(jiffies, timeout)) {
+			drm_dbg(&xe->drm, "lmem not initialized by firmware\n");
+			return -EPROBE_DEFER;
+		}
+
+		msleep(20);
+
+	} while (!verify_lmem_ready(gt));
+
+	drm_dbg(&xe->drm, "lmem ready after %ums",
+		jiffies_to_msecs(jiffies - start));
+
+	return 0;
+}
+
 /**
  * xe_device_probe_early: Device early probe
  * @xe: xe device instance
  *
  * Initialize MMIO resources that don't require any
- * knowledge about tile count. Also initialize pcode
+ * knowledge about tile count. Also initialize pcode and
+ * check vram initialization on root tile.
  *
  * Return: 0 on success, error code on failure
  */
@@ -441,11 +497,11 @@ int xe_device_probe_early(struct xe_device *xe)
 
 	xe_sriov_probe_early(xe);
 
-	err = xe_mmio_verify_vram(xe);
+	err = xe_pcode_probe_early(xe);
 	if (err)
 		return err;
 
-	err = xe_pcode_probe_early(xe);
+	err = wait_for_lmem_ready(xe);
 	if (err)
 		return err;
 
