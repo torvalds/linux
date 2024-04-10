@@ -116,6 +116,8 @@
 		msi: msi-controller@1fe01140 {
 			compatible = "loongson,pch-msi-1.0";
 			reg = <0x0 0x1fe01140 0x0 0x8>;
+			interrupt-controller;
+			#interrupt-cells = <1>;
 			msi-controller;
 			loongson,msi-base-vec = <64>;
 			loongson,msi-num-vecs = <192>;
@@ -147,6 +149,7 @@
 			#address-cells = <3>;
 			#size-cells = <2>;
 			device_type = "pci";
+			msi-parent = <&msi>;
 			bus-range = <0x0 0xff>;
 			ranges = <0x01000000 0x0 0x00008000 0x0 0x18408000 0x0 0x00008000>,
 				 <0x02000000 0x0 0x60000000 0x0 0x60000000 0x0 0x20000000>;
