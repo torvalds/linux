@@ -415,12 +415,6 @@ static struct mbox_chan *zynqmp_ipi_of_xlate(struct mbox_controller *mbox,
 	return chan;
 }
 
-static const struct of_device_id zynqmp_ipi_of_match[] = {
-	{ .compatible = "xlnx,zynqmp-ipi-mailbox" },
-	{},
-};
-MODULE_DEVICE_TABLE(of, zynqmp_ipi_of_match);
-
 /**
  * zynqmp_ipi_mbox_get_buf_res - Get buffer resource from the IPI dev node
  *
@@ -694,6 +688,12 @@ static void zynqmp_ipi_remove(struct platform_device *pdev)
 	pdata = platform_get_drvdata(pdev);
 	zynqmp_ipi_free_mboxes(pdata);
 }
+
+static const struct of_device_id zynqmp_ipi_of_match[] = {
+	{ .compatible = "xlnx,zynqmp-ipi-mailbox" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, zynqmp_ipi_of_match);
 
 static struct platform_driver zynqmp_ipi_driver = {
 	.probe = zynqmp_ipi_probe,
