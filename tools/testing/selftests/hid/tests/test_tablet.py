@@ -874,6 +874,229 @@ class USIPen(PenDigitizer):
     pass
 
 
+class XPPen_ArtistPro16Gen2_28bd_095b(PenDigitizer):
+    """
+    Pen with two buttons and a rubber end, but which reports
+    the second button as an eraser
+    """
+
+    def __init__(
+        self,
+        name,
+        rdesc_str=None,
+        rdesc=None,
+        application="Pen",
+        physical="Stylus",
+        input_info=(BusType.USB, 0x28BD, 0x095B),
+        evdev_name_suffix=None,
+    ):
+        super().__init__(
+            name, rdesc_str, rdesc, application, physical, input_info, evdev_name_suffix
+        )
+        self.fields.append("Secondary Barrel Switch")
+
+    def move_to(self, pen, state, button):
+        # fill in the previous values
+        if pen.current_state == PenState.PEN_IS_OUT_OF_RANGE:
+            pen.restore()
+
+        print(f"\n  *** pen is moving to {state} ***")
+
+        if state == PenState.PEN_IS_OUT_OF_RANGE:
+            pen.backup()
+            pen.x = 0
+            pen.y = 0
+            pen.tipswitch = False
+            pen.tippressure = 0
+            pen.azimuth = 0
+            pen.inrange = False
+            pen.width = 0
+            pen.height = 0
+            pen.invert = False
+            pen.eraser = False
+            pen.xtilt = 0
+            pen.ytilt = 0
+            pen.twist = 0
+            pen.barrelswitch = False
+        elif state == PenState.PEN_IS_IN_RANGE:
+            pen.tipswitch = False
+            pen.inrange = True
+            pen.invert = False
+            pen.eraser = False
+            pen.barrelswitch = False
+        elif state == PenState.PEN_IS_IN_CONTACT:
+            pen.tipswitch = True
+            pen.inrange = True
+            pen.invert = False
+            pen.eraser = False
+            pen.barrelswitch = False
+        elif state == PenState.PEN_IS_IN_RANGE_WITH_BUTTON:
+            pen.tipswitch = False
+            pen.inrange = True
+            pen.invert = False
+            assert button is not None
+            pen.barrelswitch = button == BtnPressed.PRIMARY_PRESSED
+            pen.eraser = button == BtnPressed.SECONDARY_PRESSED
+        elif state == PenState.PEN_IS_IN_CONTACT_WITH_BUTTON:
+            pen.tipswitch = True
+            pen.inrange = True
+            pen.invert = False
+            assert button is not None
+            pen.barrelswitch = button == BtnPressed.PRIMARY_PRESSED
+            pen.eraser = button == BtnPressed.SECONDARY_PRESSED
+        elif state == PenState.PEN_IS_IN_RANGE_WITH_ERASING_INTENT:
+            pen.tipswitch = False
+            pen.inrange = True
+            pen.invert = True
+            pen.eraser = False
+            pen.barrelswitch = False
+        elif state == PenState.PEN_IS_ERASING:
+            pen.tipswitch = True
+            pen.inrange = True
+            pen.invert = True
+            pen.eraser = False
+            pen.barrelswitch = False
+
+        pen.xtilt = 0
+        pen.ytilt = 0
+        pen.current_state = state
+
+
+class XPPen_Artist24_28bd_093a(PenDigitizer):
+    """
+    Pen that reports secondary barrel switch through eraser
+    """
+
+    def __init__(
+        self,
+        name,
+        rdesc_str=None,
+        rdesc=None,
+        application="Pen",
+        physical="Stylus",
+        input_info=(BusType.USB, 0x28BD, 0x093A),
+        evdev_name_suffix=None,
+    ):
+        super().__init__(
+            name, rdesc_str, rdesc, application, physical, input_info, evdev_name_suffix
+        )
+        self.fields.append("Secondary Barrel Switch")
+        self.previous_state = PenState.PEN_IS_OUT_OF_RANGE
+
+    def move_to(self, pen, state, button, debug=True):
+        # fill in the previous values
+        if pen.current_state == PenState.PEN_IS_OUT_OF_RANGE:
+            pen.restore()
+
+        if debug:
+            print(f"\n  *** pen is moving to {state} ***")
+
+        if state == PenState.PEN_IS_OUT_OF_RANGE:
+            pen.backup()
+            pen.tipswitch = False
+            pen.tippressure = 0
+            pen.azimuth = 0
+            pen.inrange = False
+            pen.width = 0
+            pen.height = 0
+            pen.invert = False
+            pen.eraser = False
+            pen.xtilt = 0
+            pen.ytilt = 0
+            pen.twist = 0
+            pen.barrelswitch = False
+        elif state == PenState.PEN_IS_IN_RANGE:
+            pen.tipswitch = False
+            pen.inrange = True
+            pen.invert = False
+            pen.eraser = False
+            pen.barrelswitch = False
+        elif state == PenState.PEN_IS_IN_CONTACT:
+            pen.tipswitch = True
+            pen.inrange = True
+            pen.invert = False
+            pen.eraser = False
+            pen.barrelswitch = False
+        elif state == PenState.PEN_IS_IN_RANGE_WITH_BUTTON:
+            pen.tipswitch = False
+            pen.inrange = True
+            pen.invert = False
+            assert button is not None
+            pen.barrelswitch = button == BtnPressed.PRIMARY_PRESSED
+            pen.eraser = button == BtnPressed.SECONDARY_PRESSED
+        elif state == PenState.PEN_IS_IN_CONTACT_WITH_BUTTON:
+            pen.tipswitch = True
+            pen.inrange = True
+            pen.invert = False
+            assert button is not None
+            pen.barrelswitch = button == BtnPressed.PRIMARY_PRESSED
+            pen.eraser = button == BtnPressed.SECONDARY_PRESSED
+
+        pen.current_state = state
+
+    def send_intermediate_state(self, pen, state, button):
+        intermediate_pen = copy.copy(pen)
+        self.move_to(intermediate_pen, state, button, debug=False)
+        return super().event(intermediate_pen, button)
+
+    def event(self, pen, button):
+        rs = []
+
+        # the pen reliably sends in-range events in a normal case (non emulation of eraser mode)
+        if self.previous_state == PenState.PEN_IS_IN_CONTACT:
+            if pen.current_state == PenState.PEN_IS_OUT_OF_RANGE:
+                rs.extend(
+                    self.send_intermediate_state(pen, PenState.PEN_IS_IN_RANGE, button)
+                )
+
+        if button == BtnPressed.SECONDARY_PRESSED:
+            if self.previous_state == PenState.PEN_IS_IN_RANGE:
+                if pen.current_state == PenState.PEN_IS_IN_RANGE_WITH_BUTTON:
+                    rs.extend(
+                        self.send_intermediate_state(
+                            pen, PenState.PEN_IS_OUT_OF_RANGE, button
+                        )
+                    )
+
+            if self.previous_state == PenState.PEN_IS_IN_RANGE_WITH_BUTTON:
+                if pen.current_state == PenState.PEN_IS_IN_RANGE:
+                    rs.extend(
+                        self.send_intermediate_state(
+                            pen, PenState.PEN_IS_OUT_OF_RANGE, button
+                        )
+                    )
+
+            if self.previous_state == PenState.PEN_IS_IN_CONTACT:
+                if pen.current_state == PenState.PEN_IS_IN_CONTACT_WITH_BUTTON:
+                    rs.extend(
+                        self.send_intermediate_state(
+                            pen, PenState.PEN_IS_OUT_OF_RANGE, button
+                        )
+                    )
+                    rs.extend(
+                        self.send_intermediate_state(
+                            pen, PenState.PEN_IS_IN_RANGE_WITH_BUTTON, button
+                        )
+                    )
+
+            if self.previous_state == PenState.PEN_IS_IN_CONTACT_WITH_BUTTON:
+                if pen.current_state == PenState.PEN_IS_IN_CONTACT:
+                    rs.extend(
+                        self.send_intermediate_state(
+                            pen, PenState.PEN_IS_OUT_OF_RANGE, button
+                        )
+                    )
+                    rs.extend(
+                        self.send_intermediate_state(
+                            pen, PenState.PEN_IS_IN_RANGE, button
+                        )
+                    )
+
+        rs.extend(super().event(pen, button))
+        self.previous_state = pen.current_state
+        return rs
+
+
 ################################################################################
 #
 # Windows 7 compatible devices
@@ -1051,4 +1274,27 @@ class TestGoodix_27c6_0e00(BaseTest.TestTablet):
             "uhid test Elan_04f3_2A49",
             rdesc="05 0d 09 04 a1 01 85 01 09 22 a1 02 55 0e 65 11 35 00 15 00 09 42 25 01 75 01 95 01 81 02 25 7f 09 30 75 07 81 42 95 01 75 08 09 51 81 02 75 10 05 01 26 04 20 46 e6 09 09 30 81 02 26 60 15 46 9a 06 09 31 81 02 05 0d 55 0f 75 08 25 ff 45 ff 09 48 81 42 09 49 81 42 55 0e c0 09 22 a1 02 09 42 25 01 75 01 95 01 81 02 25 7f 09 30 75 07 81 42 95 01 75 08 09 51 81 02 75 10 05 01 26 04 20 46 e6 09 09 30 81 02 26 60 15 46 9a 06 09 31 81 02 05 0d 55 0f 75 08 25 ff 45 ff 09 48 81 42 09 49 81 42 55 0e c0 09 22 a1 02 09 42 25 01 75 01 95 01 81 02 25 7f 09 30 75 07 81 42 95 01 75 08 09 51 81 02 75 10 05 01 26 04 20 46 e6 09 09 30 81 02 26 60 15 46 9a 06 09 31 81 02 05 0d 55 0f 75 08 25 ff 45 ff 09 48 81 42 09 49 81 42 55 0e c0 09 22 a1 02 09 42 15 00 25 01 75 01 95 01 81 02 25 7f 09 30 75 07 81 42 75 08 09 51 95 01 81 02 05 01 26 04 20 75 10 55 0e 65 11 09 30 35 00 46 e6 09 81 02 26 60 15 46 9a 06 09 31 81 02 05 0d 55 0f 75 08 25 ff 45 ff 09 48 81 42 09 49 81 42 55 0e c0 09 22 a1 02 09 42 15 00 25 01 75 01 95 01 81 02 25 7f 09 30 75 07 81 42 75 08 09 51 95 01 81 02 05 01 26 04 20 75 10 55 0e 65 11 09 30 35 00 46 e6 09 81 02 26 60 15 46 9a 06 09 31 81 02 05 0d 55 0f 75 08 25 ff 45 ff 09 48 81 42 09 49 81 42 55 0e c0 09 54 15 00 25 7f 75 08 95 01 81 02 85 02 09 55 95 01 25 0a b1 02 85 03 06 00 ff 09 c5 15 00 26 ff 00 75 08 96 00 01 b1 02 c0 05 0d 09 02 a1 01 09 20 a1 00 85 08 05 01 a4 09 30 35 00 46 e6 09 15 00 26 04 20 55 0d 65 13 75 10 95 01 81 02 09 31 46 9a 06 26 60 15 81 02 b4 05 0d 09 38 95 01 75 08 15 00 25 01 81 02 09 30 75 10 26 ff 0f 81 02 09 31 81 02 09 42 09 44 09 5a 09 3c 09 45 09 32 75 01 95 06 25 01 81 02 95 02 81 03 09 3d 55 0e 65 14 36 d8 dc 46 28 23 16 d8 dc 26 28 23 95 01 75 10 81 02 09 3e 81 02 09 41 15 00 27 a0 8c 00 00 35 00 47 a0 8c 00 00 81 02 05 20 0a 53 04 65 00 16 01 f8 26 ff 07 75 10 95 01 81 02 0a 54 04 81 02 0a 55 04 81 02 0a 57 04 81 02 0a 58 04 81 02 0a 59 04 81 02 0a 72 04 81 02 0a 73 04 81 02 0a 74 04 81 02 05 0d 09 3b 15 00 25 64 75 08 81 02 09 5b 25 ff 75 40 81 02 06 00 ff 09 5b 75 20 81 02 05 0d 09 5c 26 ff 00 75 08 81 02 09 5e 81 02 09 70 a1 02 15 01 25 06 09 72 09 73 09 74 09 75 09 76 09 77 81 20 c0 06 00 ff 09 01 15 00 27 ff ff 00 00 75 10 95 01 81 02 85 09 09 81 a1 02 09 81 15 01 25 04 09 82 09 83 09 84 09 85 81 20 c0 85 10 09 5c a1 02 15 00 25 01 75 08 95 01 09 38 b1 02 09 5c 26 ff 00 b1 02 09 5d 75 01 95 01 25 01 b1 02 95 07 b1 03 c0 85 11 09 5e a1 02 09 38 15 00 25 01 75 08 95 01 b1 02 09 5e 26 ff 00 b1 02 09 5f 75 01 25 01 b1 02 75 07 b1 03 c0 85 12 09 70 a1 02 75 08 95 01 15 00 25 01 09 38 b1 02 09 70 a1 02 25 06 09 72 09 73 09 74 09 75 09 76 09 77 b1 20 c0 09 71 75 01 25 01 b1 02 75 07 b1 03 c0 85 13 09 80 15 00 25 ff 75 40 95 01 b1 02 85 14 09 44 a1 02 09 38 75 08 95 01 25 01 b1 02 15 01 25 03 09 44 a1 02 09 a4 09 44 09 5a 09 45 09 a3 b1 20 c0 09 5a a1 02 09 a4 09 44 09 5a 09 45 09 a3 b1 20 c0 09 45 a1 02 09 a4 09 44 09 5a 09 45 09 a3 b1 20 c0 c0 85 15 75 08 95 01 05 0d 09 90 a1 02 09 38 25 01 b1 02 09 91 75 10 26 ff 0f b1 02 09 92 75 40 25 ff b1 02 05 06 09 2a 75 08 26 ff 00 a1 02 09 2d b1 02 09 2e b1 02 c0 c0 85 16 05 06 09 2b a1 02 05 0d 25 01 09 38 b1 02 05 06 09 2b a1 02 09 2d 26 ff 00 b1 02 09 2e b1 02 c0 c0 85 17 06 00 ff 09 01 a1 02 05 0d 09 38 75 08 95 01 25 01 b1 02 06 00 ff 09 01 75 10 27 ff ff 00 00 b1 02 c0 85 18 05 0d 09 38 75 08 95 01 15 00 25 01 b1 02 c0 c0 06 f0 ff 09 01 a1 01 85 0e 09 01 15 00 25 ff 75 08 95 40 91 02 09 01 15 00 25 ff 75 08 95 40 81 02 c0",
             input_info=(BusType.I2C, 0x27C6, 0x0E00),
+        )
+
+
+class TestXPPen_ArtistPro16Gen2_28bd_095b(BaseTest.TestTablet):
+    hid_bpfs = [("XPPen__ArtistPro16Gen2.bpf.o", True)]
+
+    def create_device(self):
+        dev = XPPen_ArtistPro16Gen2_28bd_095b(
+            "uhid test XPPen Artist Pro 16 Gen2 28bd 095b",
+            rdesc="05 0d 09 02 a1 01 85 07 09 20 a1 00 09 42 09 44 09 45 09 3c 15 00 25 01 75 01 95 04 81 02 95 01 81 03 09 32 15 00 25 01 95 01 81 02 95 02 81 03 75 10 95 01 35 00 a4 05 01 09 30 65 13 55 0d 46 ff 34 26 ff 7f 81 02 09 31 46 20 21 26 ff 7f 81 02 b4 09 30 45 00 26 ff 3f 81 42 09 3d 15 81 25 7f 75 08 95 01 81 02 09 3e 15 81 25 7f 81 02 c0 c0",
+            input_info=(BusType.USB, 0x28BD, 0x095B),
+        )
+        return dev
+
+
+class TestXPPen_Artist24_28bd_093a(BaseTest.TestTablet):
+    hid_bpfs = [("XPPen__Artist24.bpf.o", True)]
+
+    def create_device(self):
+        return XPPen_Artist24_28bd_093a(
+            "uhid test XPPen Artist 24 28bd 093a",
+            rdesc="05 0d 09 02 a1 01 85 07 09 20 a1 00 09 42 09 44 09 45 15 00 25 01 75 01 95 03 81 02 95 02 81 03 09 32 95 01 81 02 95 02 81 03 75 10 95 01 35 00 a4 05 01 09 30 65 13 55 0d 46 f0 50 26 ff 7f 81 02 09 31 46 91 2d 26 ff 7f 81 02 b4 09 30 45 00 26 ff 1f 81 42 09 3d 15 81 25 7f 75 08 95 01 81 02 09 3e 15 81 25 7f 81 02 c0 c0",
+            input_info=(BusType.USB, 0x28BD, 0x093A),
         )
