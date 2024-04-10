@@ -4,7 +4,7 @@ menu "Android"
 config ANDROID_BINDER_IPC
 	bool "Android Binder IPC Driver"
 	depends on MMU
-	default n
+	default no
 	help
 	  Binder is used in Android for both communication between processes,
 	  and remote method invocation.
@@ -16,7 +16,7 @@ config ANDROID_BINDER_IPC
 config ANDROID_BINDERFS
 	bool "Android Binderfs filesystem"
 	depends on ANDROID_BINDER_IPC
-	default n
+	default no
 	help
 	  Binderfs is a pseudo-filesystem for the Android Binder IPC driver
 	  which can be mounted per-ipc namespace allowing to run multiple
