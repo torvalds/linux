@@ -7,6 +7,7 @@
 #define _XE_SRIOV_TYPES_H_
 
 #include <linux/build_bug.h>
+#include <linux/mutex.h>
 #include <linux/types.h>
 
 /**
@@ -50,6 +51,9 @@ struct xe_device_pf {
 
 	/** @driver_max_vfs: Maximum number of VFs supported by the driver. */
 	u16 driver_max_vfs;
+
+	/** @master_lock: protects all VFs configurations across GTs */
+	struct mutex master_lock;
 };
 
 #endif

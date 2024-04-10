@@ -94,6 +94,13 @@ int xe_sriov_init(struct xe_device *xe)
 	if (!IS_SRIOV(xe))
 		return 0;
 
+	if (IS_SRIOV_PF(xe)) {
+		int err = xe_sriov_pf_init_early(xe);
+
+		if (err)
+			return err;
+	}
+
 	xe_assert(xe, !xe->sriov.wq);
 	xe->sriov.wq = alloc_workqueue("xe-sriov-wq", 0, 0);
 	if (!xe->sriov.wq)

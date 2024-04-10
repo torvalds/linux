@@ -3,6 +3,8 @@
  * Copyright © 2023-2024 Intel Corporation
  */
 
+#include <drm/drm_managed.h>
+
 #include "xe_assert.h"
 #include "xe_device.h"
 #include "xe_module.h"
@@ -68,6 +70,19 @@ bool xe_sriov_pf_readiness(struct xe_device *xe)
 	xe->sriov.pf.driver_max_vfs = newlimit;
 
 	return true;
+}
+
+/**
+ * xe_sriov_pf_init_early - Initialize SR-IOV PF specific data.
+ * @xe: the &xe_device to initialize
+ *
+ * Return: 0 on success or a negative error code on failure.
+ */
+int xe_sriov_pf_init_early(struct xe_device *xe)
+{
+	xe_assert(xe, IS_SRIOV_PF(xe));
+
+	return drmm_mutex_init(&xe->drm, &xe->sriov.pf.master_lock);
 }
 
 /**
