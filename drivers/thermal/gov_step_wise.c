@@ -109,34 +109,37 @@ static void thermal_zone_trip_update(struct thermal_zone_device *tz,
 	}
 }
 
-/**
- * step_wise_throttle - throttles devices associated with the given zone
- * @tz: thermal_zone_device
- * @trip: trip point
- *
- * Throttling Logic: This uses the trend of the thermal zone to throttle.
- * If the thermal zone is 'heating up' this throttles all the cooling
- * devices associated with the zone and its particular trip point, by one
- * step. If the zone is 'cooling down' it brings back the performance of
- * the devices by one step.
- */
-static int step_wise_throttle(struct thermal_zone_device *tz,
-			      const struct thermal_trip *trip)
+static void step_wise_manage(struct thermal_zone_device *tz)
 {
+	const struct thermal_trip_desc *td;
 	struct thermal_instance *instance;
 
 	lockdep_assert_held(&tz->lock);
 
-	thermal_zone_trip_update(tz, trip);
+	/*
+	 * Throttling Logic: Use the trend of the thermal zone to throttle.
+	 * If the thermal zone is 'heating up', throttle all of the cooling
+	 * devices associated with each trip point by one step. If the zone
+	 * is 'cooling down', it brings back the performance of the devices
+	 * by one step.
+	 */
+	for_each_trip_desc(tz, td) {
+		const struct thermal_trip *trip = &td->trip;
+
+		if (trip->temperature == THERMAL_TEMP_INVALID ||
+		    trip->type == THERMAL_TRIP_CRITICAL ||
+		    trip->type == THERMAL_TRIP_HOT)
+			continue;
+
+		thermal_zone_trip_update(tz, trip);
+	}
 
 	list_for_each_entry(instance, &tz->thermal_instances, tz_node)
 		thermal_cdev_update(instance->cdev);
-
-	return 0;
 }
 
 static struct thermal_governor thermal_gov_step_wise = {
-	.name		= "step_wise",
-	.throttle	= step_wise_throttle,
+	.name	= "step_wise",
+	.manage	= step_wise_manage,
 };
 THERMAL_GOVERNOR_DECLARE(thermal_gov_step_wise);
