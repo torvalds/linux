@@ -3573,6 +3573,7 @@ S:	Supported
 C:	irc://irc.oftc.net/bcache
 T:	git https://evilpiepirate.org/git/bcachefs.git
 F:	fs/bcachefs/
+F:	Documentation/filesystems/bcachefs/
 
 BDISP ST MEDIA DRIVER
 M:	Fabien Dessenne <fabien.dessenne@foss.st.com>
