@@ -394,7 +394,7 @@ static int sdsi_meter_cert_show(struct sdsi_dev *s)
 	printf("MMRC encoding:                %.4s\n", name);
 
 	printf("MMRC counter:                 %d\n", mc->mmrc_counter);
-	if (mc->bundle_length % 8) {
+	if (mc->bundle_length % METER_BUNDLE_SIZE) {
 		fprintf(stderr, "Invalid bundle length\n");
 		return -1;
 	}
@@ -405,15 +405,16 @@ static int sdsi_meter_cert_show(struct sdsi_dev *s)
 		return -1;
 	}
 
-	bec = (void *)(mc) + sizeof(mc);
+	bec = (struct bundle_encoding_counter *)(mc + 1);
 
 	printf("Number of Feature Counters:   %ld\n", BUNDLE_COUNT(mc->bundle_length));
-	while (count++ < mc->bundle_length / 8) {
+	while (count < BUNDLE_COUNT(mc->bundle_length)) {
 		char feature[5];
 
 		feature[4] = '\0';
 		get_feature(bec[count].encoding, feature);
 		printf("    %s:          %d\n", feature, bec[count].counter);
+		++count;
 	}
 
 	return 0;
