@@ -138,6 +138,8 @@ def define_anorak():
         "drivers/usb/redriver/redriver.ko",
         "kernel/msm_sysstats.ko",
         "kernel/sched/walt/sched-walt.ko",
+        "net/mac80211/mac80211.ko",
+        "net/wireless/cfg80211.ko",
         "sound/usb/snd-usb-audio-qmi.ko",
     ]
 
