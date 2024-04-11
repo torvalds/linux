@@ -78,13 +78,11 @@
 
 .macro do_4rounds	i, m0, m1, m2, m3
 .if \i < 16
-	movdqu		\i*4(DATA_PTR), MSG
-	pshufb		SHUF_MASK, MSG
-	movdqa		MSG, \m0
-.else
-	movdqa		\m0, MSG
+	movdqu		\i*4(DATA_PTR), \m0
+	pshufb		SHUF_MASK, \m0
 .endif
-	paddd		(\i-32)*4(SHA256CONSTANTS), MSG
+	movdqa		(\i-32)*4(SHA256CONSTANTS), MSG
+	paddd		\m0, MSG
 	sha256rnds2	STATE0, STATE1
 .if \i >= 12 && \i < 60
 	movdqa		\m0, TMP
