@@ -14,3 +14,4 @@ There are various text files in the Documentation/ subdirectory, several of them
 Please read the Documentation/process/changes.rst file, as it contains the requirements for building and running the kernel, and information about the problems which may result by upgrading your kernel.
 Do not upgrade to the latest kernel version if your Distro doesn't have it in repo updates yet!
 This is very important, for not only kernel devs but also common users compiling the linux kernal for the first time
+Warning: If you configure the kernel wrong, your system might not work!
