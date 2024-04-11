@@ -137,7 +137,9 @@ static inline void dql_queued(struct dql *dql, unsigned int count)
 
 	dql->num_queued += count;
 
-	dql_queue_stall(dql);
+	/* Only populate stall information if the threshold is set */
+	if (READ_ONCE(dql->stall_thrs))
+		dql_queue_stall(dql);
 }
 
 /* Returns how many objects can be queued, < 0 indicates over limit. */
