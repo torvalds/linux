@@ -911,17 +911,19 @@ static inline bool acpi_int_uid_match(struct acpi_device *adev, u64 uid2)
  * acpi_dev_hid_uid_match - Match device by supplied HID and UID
  * @adev: ACPI device to match.
  * @hid2: Hardware ID of the device.
- * @uid2: Unique ID of the device, pass 0 or NULL to not check _UID.
+ * @uid2: Unique ID of the device, pass NULL to not check _UID.
  *
  * Matches HID and UID in @adev with given @hid2 and @uid2. Absence of @uid2
  * will be treated as a match. If user wants to validate @uid2, it should be
  * done before calling this function.
  *
- * Returns: %true if matches or @uid2 is 0 or NULL, %false otherwise.
+ * Returns: %true if matches or @uid2 is NULL, %false otherwise.
  */
 #define acpi_dev_hid_uid_match(adev, hid2, uid2)			\
 	(acpi_dev_hid_match(adev, hid2) &&				\
-		(!(uid2) || acpi_dev_uid_match(adev, uid2)))
+		/* Distinguish integer 0 from NULL @uid2 */		\
+		(_Generic(uid2,	ACPI_STR_TYPES(!(uid2)), default: 0) ||	\
+		acpi_dev_uid_match(adev, uid2)))
 
 void acpi_dev_clear_dependencies(struct acpi_device *supplier);
 bool acpi_dev_ready_for_enumeration(const struct acpi_device *device);
