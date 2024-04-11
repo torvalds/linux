@@ -181,7 +181,7 @@ send_request:
 	if (event != -1) {
 		r = xgpu_nv_poll_msg(adev, event);
 		if (r) {
-			if (retry++ < 2)
+			if (retry++ < 5)
 				goto send_request;
 
 			if (req != IDH_REQ_GPU_INIT_DATA) {
