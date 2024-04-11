@@ -1346,6 +1346,26 @@ static inline void __bch2_path_free(struct btree_trans *trans, btree_path_idx_t 
 	__clear_bit(path, trans->paths_allocated);
 }
 
+static bool bch2_btree_path_can_relock(struct btree_trans *trans, struct btree_path *path)
+{
+	unsigned l = path->level;
+
+	do {
+		if (!btree_path_node(path, l))
+			break;
+
+		if (!is_btree_node(path, l))
+			return false;
+
+		if (path->l[l].lock_seq != path->l[l].b->c.lock.seq)
+			return false;
+
+		l++;
+	} while (l < path->locks_want);
+
+	return true;
+}
+
 void bch2_path_put(struct btree_trans *trans, btree_path_idx_t path_idx, bool intent)
 {
 	struct btree_path *path = trans->paths + path_idx, *dup;
@@ -1360,10 +1380,15 @@ void bch2_path_put(struct btree_trans *trans, btree_path_idx_t path_idx, bool in
 	if (!dup && !(!path->preserve && !is_btree_node(path, path->level)))
 		return;
 
-	if (path->should_be_locked &&
-	    !trans->restarted &&
-	    (!dup || !bch2_btree_path_relock_norestart(trans, dup)))
-		return;
+	if (path->should_be_locked && !trans->restarted) {
+		if (!dup)
+			return;
+
+		if (!(trans->locked
+		      ? bch2_btree_path_relock_norestart(trans, dup)
+		      : bch2_btree_path_can_relock(trans, dup)))
+			return;
+	}
 
 	if (dup) {
 		dup->preserve		|= path->preserve;
