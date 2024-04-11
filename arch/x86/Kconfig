@@ -2651,11 +2651,6 @@ config SPECTRE_BHI_OFF
 	bool "off"
 	help
 	  Equivalent to setting spectre_bhi=off command line parameter.
-config SPECTRE_BHI_AUTO
-	bool "auto"
-	depends on BROKEN
-	help
-	  Equivalent to setting spectre_bhi=auto command line parameter.
 
 endchoice
 
