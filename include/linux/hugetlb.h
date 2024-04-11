@@ -861,7 +861,7 @@ static inline int hstate_index(struct hstate *h)
 	return h - hstates;
 }
 
-extern int dissolve_free_huge_page(struct page *page);
+int dissolve_free_hugetlb_folio(struct folio *folio);
 extern int dissolve_free_huge_pages(unsigned long start_pfn,
 				    unsigned long end_pfn);
 
@@ -1148,7 +1148,7 @@ static inline int hstate_index(struct hstate *h)
 	return 0;
 }
 
-static inline int dissolve_free_huge_page(struct page *page)
+static inline int dissolve_free_hugetlb_folio(struct folio *folio)
 {
 	return 0;
 }

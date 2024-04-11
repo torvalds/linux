@@ -2377,8 +2377,8 @@ static struct folio *remove_pool_hugetlb_folio(struct hstate *h,
 }
 
 /*
- * Dissolve a given free hugepage into free buddy pages. This function does
- * nothing for in-use hugepages and non-hugepages.
+ * Dissolve a given free hugetlb folio into free buddy pages. This function
+ * does nothing for in-use hugetlb folios and non-hugetlb folios.
  * This function returns values like below:
  *
  *  -ENOMEM: failed to allocate vmemmap pages to free the freed hugepages
@@ -2390,10 +2390,9 @@ static struct folio *remove_pool_hugetlb_folio(struct hstate *h,
  *       0:  successfully dissolved free hugepages or the page is not a
  *           hugepage (considered as already dissolved)
  */
-int dissolve_free_huge_page(struct page *page)
+int dissolve_free_hugetlb_folio(struct folio *folio)
 {
 	int rc = -EBUSY;
-	struct folio *folio = page_folio(page);
 
 retry:
 	/* Not to disrupt normal path by vainly holding hugetlb_lock */
@@ -2470,13 +2469,13 @@ out:
  * make specified memory blocks removable from the system.
  * Note that this will dissolve a free gigantic hugepage completely, if any
  * part of it lies within the given range.
- * Also note that if dissolve_free_huge_page() returns with an error, all
- * free hugepages that were dissolved before that error are lost.
+ * Also note that if dissolve_free_hugetlb_folio() returns with an error, all
+ * free hugetlb folios that were dissolved before that error are lost.
  */
 int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
 {
 	unsigned long pfn;
-	struct page *page;
+	struct folio *folio;
 	int rc = 0;
 	unsigned int order;
 	struct hstate *h;
@@ -2489,8 +2488,8 @@ int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
 		order = min(order, huge_page_order(h));
 
 	for (pfn = start_pfn; pfn < end_pfn; pfn += 1 << order) {
-		page = pfn_to_page(pfn);
-		rc = dissolve_free_huge_page(page);
+		folio = pfn_folio(pfn);
+		rc = dissolve_free_hugetlb_folio(folio);
 		if (rc)
 			break;
 	}
