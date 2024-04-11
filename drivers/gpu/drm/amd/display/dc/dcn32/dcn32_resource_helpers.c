@@ -580,7 +580,9 @@ struct dc_stream_state *dcn32_can_support_mclk_switch_using_fw_based_vblank_stre
 	if (!fpo_candidate_stream->allow_freesync)
 		return NULL;
 
-	if (fpo_candidate_stream->vrr_active_variable && dc->debug.disable_fams_gaming)
+	if (fpo_candidate_stream->vrr_active_variable &&
+	((dc->debug.disable_fams_gaming == INGAME_FAMS_DISABLE) ||
+	(context->stream_count > 1 && !(dc->debug.disable_fams_gaming == INGAME_FAMS_MULTI_DISP_ENABLE))))
 		return NULL;
 
 	return fpo_candidate_stream;

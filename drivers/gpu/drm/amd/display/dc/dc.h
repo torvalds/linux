@@ -499,6 +499,12 @@ enum dcc_option {
 	DCC_HALF_REQ_DISALBE = 2,
 };
 
+enum in_game_fams_config {
+	INGAME_FAMS_SINGLE_DISP_ENABLE, // enable in-game fams
+	INGAME_FAMS_DISABLE, // disable in-game fams
+	INGAME_FAMS_MULTI_DISP_ENABLE, //enable in-game fams for multi-display
+};
+
 /**
  * enum pipe_split_policy - Pipe split strategy supported by DCN
  *
@@ -951,7 +957,7 @@ struct dc_debug_options {
 	/* Enable dmub aux for legacy ddc */
 	bool enable_dmub_aux_for_legacy_ddc;
 	bool disable_fams;
-	bool disable_fams_gaming;
+	enum in_game_fams_config disable_fams_gaming;
 	/* FEC/PSR1 sequence enable delay in 100us */
 	uint8_t fec_enable_delay_in100us;
 	bool enable_driver_sequence_debug;
