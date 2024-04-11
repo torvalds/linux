@@ -342,7 +342,7 @@ void clear_em_logging(struct btrfs_inode *inode, struct extent_map *em)
 		try_merge_map(tree, em);
 }
 
-static inline void setup_extent_mapping(struct extent_map_tree *tree,
+static inline void setup_extent_mapping(struct btrfs_inode *inode,
 					struct extent_map *em,
 					int modified)
 {
@@ -351,9 +351,9 @@ static inline void setup_extent_mapping(struct extent_map_tree *tree,
 	ASSERT(list_empty(&em->list));
 
 	if (modified)
-		list_add(&em->list, &tree->modified_extents);
+		list_add(&em->list, &inode->extent_tree.modified_extents);
 	else
-		try_merge_map(tree, em);
+		try_merge_map(&inode->extent_tree, em);
 }
 
 /*
@@ -381,7 +381,7 @@ static int add_extent_mapping(struct btrfs_inode *inode,
 	if (ret)
 		return ret;
 
-	setup_extent_mapping(tree, em, modified);
+	setup_extent_mapping(inode, em, modified);
 
 	return 0;
 }
@@ -486,7 +486,7 @@ static void replace_extent_mapping(struct btrfs_inode *inode,
 	rb_replace_node_cached(&cur->rb_node, &new->rb_node, &tree->map);
 	RB_CLEAR_NODE(&cur->rb_node);
 
-	setup_extent_mapping(tree, new, modified);
+	setup_extent_mapping(inode, new, modified);
 }
 
 static struct extent_map *next_extent_map(const struct extent_map *em)
