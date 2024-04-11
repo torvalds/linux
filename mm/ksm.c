@@ -890,10 +890,10 @@ static void remove_node_from_stable_tree(struct ksm_stable_node *stable_node)
 	free_stable_node(stable_node);
 }
 
-enum get_ksm_page_flags {
-	GET_KSM_PAGE_NOLOCK,
-	GET_KSM_PAGE_LOCK,
-	GET_KSM_PAGE_TRYLOCK
+enum ksm_get_folio_flags {
+	KSM_GET_FOLIO_NOLOCK,
+	KSM_GET_FOLIO_LOCK,
+	KSM_GET_FOLIO_TRYLOCK
 };
 
 /*
@@ -916,7 +916,7 @@ enum get_ksm_page_flags {
  * is on its way to being freed; but it is an anomaly to bear in mind.
  */
 static struct folio *ksm_get_folio(struct ksm_stable_node *stable_node,
-				 enum get_ksm_page_flags flags)
+				 enum ksm_get_folio_flags flags)
 {
 	struct folio *folio;
 	void *expected_mapping;
@@ -959,15 +959,15 @@ again:
 		goto stale;
 	}
 
-	if (flags == GET_KSM_PAGE_TRYLOCK) {
+	if (flags == KSM_GET_FOLIO_TRYLOCK) {
 		if (!folio_trylock(folio)) {
 			folio_put(folio);
 			return ERR_PTR(-EBUSY);
 		}
-	} else if (flags == GET_KSM_PAGE_LOCK)
+	} else if (flags == KSM_GET_FOLIO_LOCK)
 		folio_lock(folio);
 
-	if (flags != GET_KSM_PAGE_NOLOCK) {
+	if (flags != KSM_GET_FOLIO_NOLOCK) {
 		if (READ_ONCE(folio->mapping) != expected_mapping) {
 			folio_unlock(folio);
 			folio_put(folio);
@@ -1001,7 +1001,7 @@ static void remove_rmap_item_from_tree(struct ksm_rmap_item *rmap_item)
 		struct folio *folio;
 
 		stable_node = rmap_item->head;
-		folio = ksm_get_folio(stable_node, GET_KSM_PAGE_LOCK);
+		folio = ksm_get_folio(stable_node, KSM_GET_FOLIO_LOCK);
 		if (!folio)
 			goto out;
 
@@ -1116,7 +1116,7 @@ static int remove_stable_node(struct ksm_stable_node *stable_node)
 	struct folio *folio;
 	int err;
 
-	folio = ksm_get_folio(stable_node, GET_KSM_PAGE_LOCK);
+	folio = ksm_get_folio(stable_node, KSM_GET_FOLIO_LOCK);
 	if (!folio) {
 		/*
 		 * ksm_get_folio did remove_node_from_stable_tree itself.
@@ -1656,7 +1656,7 @@ static struct folio *stable_node_dup(struct ksm_stable_node **_stable_node_dup,
 		 * stable_node parameter itself will be freed from
 		 * under us if it returns NULL.
 		 */
-		folio = ksm_get_folio(dup, GET_KSM_PAGE_NOLOCK);
+		folio = ksm_get_folio(dup, KSM_GET_FOLIO_NOLOCK);
 		if (!folio)
 			continue;
 		nr += 1;
@@ -1779,7 +1779,7 @@ static struct folio *__stable_node_chain(struct ksm_stable_node **_stable_node_d
 	if (!is_stable_node_chain(stable_node)) {
 		if (is_page_sharing_candidate(stable_node)) {
 			*_stable_node_dup = stable_node;
-			return ksm_get_folio(stable_node, GET_KSM_PAGE_NOLOCK);
+			return ksm_get_folio(stable_node, KSM_GET_FOLIO_NOLOCK);
 		}
 		/*
 		 * _stable_node_dup set to NULL means the stable_node
@@ -1887,7 +1887,7 @@ again:
 			 * fine to continue the walk.
 			 */
 			tree_folio = ksm_get_folio(stable_node_any,
-						   GET_KSM_PAGE_NOLOCK);
+						   KSM_GET_FOLIO_NOLOCK);
 		}
 		VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
 		if (!tree_folio) {
@@ -1948,7 +1948,7 @@ again:
 			 * than kpage, but that involves more changes.
 			 */
 			tree_folio = ksm_get_folio(stable_node_dup,
-						   GET_KSM_PAGE_TRYLOCK);
+						   KSM_GET_FOLIO_TRYLOCK);
 
 			if (PTR_ERR(tree_folio) == -EBUSY)
 				return ERR_PTR(-EBUSY);
@@ -2120,7 +2120,7 @@ again:
 			 * fine to continue the walk.
 			 */
 			tree_folio = ksm_get_folio(stable_node_any,
-						   GET_KSM_PAGE_NOLOCK);
+						   KSM_GET_FOLIO_NOLOCK);
 		}
 		VM_BUG_ON(!stable_node_dup ^ !!stable_node_any);
 		if (!tree_folio) {
@@ -2611,7 +2611,7 @@ static struct ksm_rmap_item *scan_get_next_rmap_item(struct page **page)
 			list_for_each_entry_safe(stable_node, next,
 						 &migrate_nodes, list) {
 				folio = ksm_get_folio(stable_node,
-						      GET_KSM_PAGE_NOLOCK);
+						      KSM_GET_FOLIO_NOLOCK);
 				if (folio)
 					folio_put(folio);
 				cond_resched();
