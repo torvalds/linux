@@ -11,11 +11,7 @@
 
 source lib.sh
 
-nft --version > /dev/null 2>&1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without nft tool"
-	exit $ksft_skip
-fi
+checktool "nft --version" "run test without nft tool"
 
 cleanup() {
 	cleanup_all_ns

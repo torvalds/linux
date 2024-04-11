@@ -24,13 +24,6 @@ source lib.sh
 
 rx=$(mktemp)
 
-checktool (){
-	if ! $1 > /dev/null 2>&1; then
-		echo "SKIP: Could not $2"
-		exit $ksft_skip
-	fi
-}
-
 checktool "iptables --version" "run test without iptables"
 checktool "socat -h" "run test without socat"
 
