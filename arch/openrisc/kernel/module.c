@@ -55,6 +55,16 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			value |= *location & 0xfc000000;
 			*location = value;
 			break;
+		case R_OR1K_AHI16:
+			/* Adjust the operand to match with a signed LO16.  */
+			value += 0x8000;
+			*((uint16_t *)location + 1) = value >> 16;
+			break;
+		case R_OR1K_SLO16:
+			/* Split value lower 16-bits.  */
+			value = ((value & 0xf800) << 10) | (value & 0x7ff);
+			*location = (*location & ~0x3e007ff) | value;
+			break;
 		default:
 			pr_err("module %s: Unknown relocation: %u\n",
 			       me->name, ELF32_R_TYPE(rel[i].r_info));
