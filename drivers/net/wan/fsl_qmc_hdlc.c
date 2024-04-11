@@ -780,7 +780,7 @@ static const struct of_device_id qmc_hdlc_id_table[] = {
 	{ .compatible = "fsl,qmc-hdlc" },
 	{} /* sentinel */
 };
-MODULE_DEVICE_TABLE(of, qmc_hdlc_driver);
+MODULE_DEVICE_TABLE(of, qmc_hdlc_id_table);
 
 static struct platform_driver qmc_hdlc_driver = {
 	.driver = {

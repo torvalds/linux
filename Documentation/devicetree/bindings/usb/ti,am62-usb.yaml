@@ -14,7 +14,10 @@ properties:
     const: ti,am62-usb
 
   reg:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: USB CFG register space
+      - description: USB PHY2 register space
 
   ranges: true
 
@@ -82,7 +85,8 @@ examples:
 
       usbss1: usb@f910000 {
         compatible = "ti,am62-usb";
-        reg = <0x00 0x0f910000 0x00 0x800>;
+        reg = <0x00 0x0f910000 0x00 0x800>,
+              <0x00 0x0f918000 0x00 0x400>;
         clocks = <&k3_clks 162 3>;
         clock-names = "ref";
         ti,syscon-phy-pll-refclk = <&wkup_conf 0x4018>;

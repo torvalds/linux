@@ -191,7 +191,7 @@ EXPORT_SYMBOL_GPL(chsc_ssqd);
  * Returns 0 on success.
  */
 int chsc_sadc(struct subchannel_id schid, struct chsc_scssc_area *scssc,
-	      u64 summary_indicator_addr, u64 subchannel_indicator_addr, u8 isc)
+	      dma64_t summary_indicator_addr, dma64_t subchannel_indicator_addr, u8 isc)
 {
 	memset(scssc, 0, sizeof(*scssc));
 	scssc->request.length = 0x0fe0;
@@ -844,7 +844,7 @@ chsc_add_cmg_attr(struct channel_subsystem *css)
 	}
 	return ret;
 cleanup:
-	for (--i; i >= 0; i--) {
+	while (i--) {
 		if (!css->chps[i])
 			continue;
 		chp_remove_cmg_attr(css->chps[i]);
@@ -861,9 +861,9 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 		u32 key : 4;
 		u32 : 28;
 		u32 zeroes1;
-		u32 cub_addr1;
+		dma32_t cub_addr1;
 		u32 zeroes2;
-		u32 cub_addr2;
+		dma32_t cub_addr2;
 		u32 reserved[13];
 		struct chsc_header response;
 		u32 status : 8;
@@ -881,8 +881,8 @@ int __chsc_do_secm(struct channel_subsystem *css, int enable)
 	secm_area->request.code = 0x0016;
 
 	secm_area->key = PAGE_DEFAULT_KEY >> 4;
-	secm_area->cub_addr1 = virt_to_phys(css->cub_addr1);
-	secm_area->cub_addr2 = virt_to_phys(css->cub_addr2);
+	secm_area->cub_addr1 = virt_to_dma32(css->cub_addr1);
+	secm_area->cub_addr2 = virt_to_dma32(css->cub_addr2);
 
 	secm_area->operation_code = enable ? 0 : 1;
 

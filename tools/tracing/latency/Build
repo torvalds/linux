@@ -1,0 +1,1 @@
+latency-collector-y += latency-collector.o

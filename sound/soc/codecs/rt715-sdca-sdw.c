@@ -237,7 +237,7 @@ static int __maybe_unused rt715_dev_resume(struct device *dev)
 	time = wait_for_completion_timeout(&slave->enumeration_complete,
 					   msecs_to_jiffies(RT715_PROBE_TIMEOUT));
 	if (!time) {
-		dev_err(&slave->dev, "Enumeration not complete, timed out\n");
+		dev_err(&slave->dev, "%s: Enumeration not complete, timed out\n", __func__);
 		sdw_show_ping_status(slave->bus, true);
 
 		return -ETIMEDOUT;

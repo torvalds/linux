@@ -12,6 +12,7 @@
 #include <linux/ioctl.h>
 
 #define USER_EVENTS_SYSTEM "user_events"
+#define USER_EVENTS_MULTI_SYSTEM "user_events_multi"
 #define USER_EVENTS_PREFIX "u:"
 
 /* Create dynamic location entry within a 32-bit value */
@@ -22,8 +23,11 @@ enum user_reg_flag {
 	/* Event will not delete upon last reference closing */
 	USER_EVENT_REG_PERSIST		= 1U << 0,
 
+	/* Event will be allowed to have multiple formats */
+	USER_EVENT_REG_MULTI_FORMAT	= 1U << 1,
+
 	/* This value or above is currently non-ABI */
-	USER_EVENT_REG_MAX		= 1U << 1,
+	USER_EVENT_REG_MAX		= 1U << 2,
 };
 
 /*

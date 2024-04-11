@@ -42,7 +42,7 @@ static inline time64_t rtc_tm_sub(struct rtc_time *lhs, struct rtc_time *rhs)
 #include <linux/timerqueue.h>
 #include <linux/workqueue.h>
 
-extern struct class *rtc_class;
+extern const struct class rtc_class;
 
 /*
  * For these RTC methods the device parameter is the physical device

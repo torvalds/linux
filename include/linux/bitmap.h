@@ -522,17 +522,18 @@ static inline void bitmap_replace(unsigned long *dst,
  *
  * (Bits 0, 1, 2, 3, 4, 5 are copied to the bits 0, 1, 4, 8, 9, 12)
  *
- * A more 'visual' description of the operation:
- * src:  0000000001011010
- *                 ||||||
- *          +------+|||||
- *          |  +----+||||
- *          |  |+----+|||
- *          |  ||   +-+||
- *          |  ||   |  ||
- * mask: ...v..vv...v..vv
- *       ...0..11...0..10
- * dst:  0000001100000010
+ * A more 'visual' description of the operation::
+ *
+ *	src:  0000000001011010
+ *	                ||||||
+ *	         +------+|||||
+ *	         |  +----+||||
+ *	         |  |+----+|||
+ *	         |  ||   +-+||
+ *	         |  ||   |  ||
+ *	mask: ...v..vv...v..vv
+ *	      ...0..11...0..10
+ *	dst:  0000001100000010
  *
  * A relationship exists between bitmap_scatter() and bitmap_gather().
  * bitmap_gather() can be seen as the 'reverse' bitmap_scatter() operation.
@@ -568,16 +569,17 @@ static inline void bitmap_scatter(unsigned long *dst, const unsigned long *src,
  *
  * (Bits 0, 1, 4, 8, 9, 12 are copied to the bits 0, 1, 2, 3, 4, 5)
  *
- * A more 'visual' description of the operation:
- * mask: ...v..vv...v..vv
- * src:  0000001100000010
- *          ^  ^^   ^   0
- *          |  ||   |  10
- *          |  ||   > 010
- *          |  |+--> 1010
- *          |  +--> 11010
- *          +----> 011010
- * dst:  0000000000011010
+ * A more 'visual' description of the operation::
+ *
+ *	mask: ...v..vv...v..vv
+ *	src:  0000001100000010
+ *	         ^  ^^   ^   0
+ *	         |  ||   |  10
+ *	         |  ||   > 010
+ *	         |  |+--> 1010
+ *	         |  +--> 11010
+ *	         +----> 011010
+ *	dst:  0000000000011010
  *
  * A relationship exists between bitmap_gather() and bitmap_scatter(). See
  * bitmap_scatter() for the bitmap scatter detailed operations.

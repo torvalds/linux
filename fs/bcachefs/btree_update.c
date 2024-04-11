@@ -38,6 +38,9 @@ static noinline int extent_front_merge(struct btree_trans *trans,
 	struct bkey_i *update;
 	int ret;
 
+	if (unlikely(trans->journal_replay_not_finished))
+		return 0;
+
 	update = bch2_bkey_make_mut_noupdate(trans, k);
 	ret = PTR_ERR_OR_ZERO(update);
 	if (ret)
@@ -68,6 +71,9 @@ static noinline int extent_back_merge(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	int ret;
+
+	if (unlikely(trans->journal_replay_not_finished))
+		return 0;
 
 	ret =   bch2_key_has_snapshot_overwrites(trans, iter->btree_id, insert->k.p) ?:
 		bch2_key_has_snapshot_overwrites(trans, iter->btree_id, k.k->p);

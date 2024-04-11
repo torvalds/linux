@@ -2359,10 +2359,9 @@ static int vmbus_platform_driver_probe(struct platform_device *pdev)
 		return vmbus_acpi_add(pdev);
 }
 
-static int vmbus_platform_driver_remove(struct platform_device *pdev)
+static void vmbus_platform_driver_remove(struct platform_device *pdev)
 {
 	vmbus_mmio_remove();
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -2542,7 +2541,7 @@ static const struct dev_pm_ops vmbus_bus_pm = {
 
 static struct platform_driver vmbus_platform_driver = {
 	.probe = vmbus_platform_driver_probe,
-	.remove = vmbus_platform_driver_remove,
+	.remove_new = vmbus_platform_driver_remove,
 	.driver = {
 		.name = "vmbus",
 		.acpi_match_table = ACPI_PTR(vmbus_acpi_device_ids),

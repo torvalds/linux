@@ -87,8 +87,8 @@ config INTEL_IOMMU_SCALABLE_MODE_DEFAULT_ON
 	  the default value.
 
 config INTEL_IOMMU_PERF_EVENTS
-	def_bool y
 	bool "Intel IOMMU performance events"
+	default y
 	depends on INTEL_IOMMU && PERF_EVENTS
 	help
 	  Selecting this option will enable the performance monitoring

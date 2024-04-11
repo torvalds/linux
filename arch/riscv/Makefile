@@ -50,6 +50,11 @@ ifndef CONFIG_AS_IS_LLVM
 	KBUILD_CFLAGS += -Wa,-mno-relax
 	KBUILD_AFLAGS += -Wa,-mno-relax
 endif
+# LLVM has an issue with target-features and LTO: https://github.com/llvm/llvm-project/issues/59350
+# Ensure it is aware of linker relaxation with LTO, otherwise relocations may
+# be incorrect: https://github.com/llvm/llvm-project/issues/65090
+else ifeq ($(CONFIG_LTO_CLANG),y)
+	KBUILD_LDFLAGS += -mllvm -mattr=+c -mllvm -mattr=+relax
 endif
 
 ifeq ($(CONFIG_SHADOW_CALL_STACK),y)
@@ -146,7 +151,7 @@ endif
 endif
 
 vdso-install-y			+= arch/riscv/kernel/vdso/vdso.so.dbg
-vdso-install-$(CONFIG_COMPAT)	+= arch/riscv/kernel/compat_vdso/compat_vdso.so.dbg:../compat_vdso/compat_vdso.so
+vdso-install-$(CONFIG_COMPAT)	+= arch/riscv/kernel/compat_vdso/compat_vdso.so.dbg
 
 ifneq ($(CONFIG_XIP_KERNEL),y)
 ifeq ($(CONFIG_RISCV_M_MODE)$(CONFIG_ARCH_CANAAN),yy)

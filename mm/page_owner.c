@@ -54,6 +54,22 @@ static depot_stack_handle_t early_handle;
 
 static void init_early_allocated_pages(void);
 
+static inline void set_current_in_page_owner(void)
+{
+	/*
+	 * Avoid recursion.
+	 *
+	 * We might need to allocate more memory from page_owner code, so make
+	 * sure to signal it in order to avoid recursion.
+	 */
+	current->in_page_owner = 1;
+}
+
+static inline void unset_current_in_page_owner(void)
+{
+	current->in_page_owner = 0;
+}
+
 static int __init early_page_owner_param(char *buf)
 {
 	int ret = kstrtobool(buf, &page_owner_enabled);
@@ -133,23 +149,16 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
 	depot_stack_handle_t handle;
 	unsigned int nr_entries;
 
-	/*
-	 * Avoid recursion.
-	 *
-	 * Sometimes page metadata allocation tracking requires more
-	 * memory to be allocated:
-	 * - when new stack trace is saved to stack depot
-	 */
 	if (current->in_page_owner)
 		return dummy_handle;
-	current->in_page_owner = 1;
 
+	set_current_in_page_owner();
 	nr_entries = stack_trace_save(entries, ARRAY_SIZE(entries), 2);
 	handle = stack_depot_save(entries, nr_entries, flags);
 	if (!handle)
 		handle = failure_handle;
+	unset_current_in_page_owner();
 
-	current->in_page_owner = 0;
 	return handle;
 }
 
@@ -164,9 +173,13 @@ static void add_stack_record_to_list(struct stack_record *stack_record,
 	gfp_mask &= (GFP_ATOMIC | GFP_KERNEL);
 	gfp_mask |= __GFP_NOWARN;
 
+	set_current_in_page_owner();
 	stack = kmalloc(sizeof(*stack), gfp_mask);
-	if (!stack)
+	if (!stack) {
+		unset_current_in_page_owner();
 		return;
+	}
+	unset_current_in_page_owner();
 
 	stack->stack_record = stack_record;
 	stack->next = NULL;

@@ -27,6 +27,7 @@
 #define UARTA_72165		UARTA_7278
 #define UARTA_7364		REG_PHYS_ADDR(0x40b000)
 #define UARTA_7366		UARTA_7364
+#define UARTA_74165		UARTA_7278
 #define UARTA_74371		REG_PHYS_ADDR(0x406b00)
 #define UARTA_7439		REG_PHYS_ADDR(0x40a900)
 #define UARTA_7445		REG_PHYS_ADDR(0x40ab00)
@@ -88,9 +89,10 @@ ARM_BE8(	rev	\rv, \rv )
 30:		checkuart(\rp, \rv, 0x72780000, 7278)
 31:		checkuart(\rp, \rv, 0x73640000, 7364)
 32:		checkuart(\rp, \rv, 0x73660000, 7366)
-33:		checkuart(\rp, \rv, 0x07437100, 74371)
-34:		checkuart(\rp, \rv, 0x74390000, 7439)
-35:		checkuart(\rp, \rv, 0x74450000, 7445)
+33:		checkuart(\rp, \rv, 0x07416500, 74165)
+34:		checkuart(\rp, \rv, 0x07437100, 74371)
+35:		checkuart(\rp, \rv, 0x74390000, 7439)
+36:		checkuart(\rp, \rv, 0x74450000, 7445)
 
 		/* No valid UART found */
 90:		mov	\rp, #0

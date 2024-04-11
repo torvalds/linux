@@ -98,9 +98,9 @@ struct rt_hi_throughput {
 	u8 cur_short_gi_40mhz;
 	u8 cur_short_gi_20mhz;
 	enum ht_spec_ver peer_ht_spec_ver;
-	struct ht_capab_ele SelfHTCap;
-	u8 PeerHTCapBuf[32];
-	u8 PeerHTInfoBuf[32];
+	struct ht_capab_ele self_ht_cap;
+	u8 peer_ht_cap_buf[32];
+	u8 peer_ht_info_buf[32];
 	u8 ampdu_enable;
 	u8 current_ampdu_enable;
 	u8 ampdu_factor;

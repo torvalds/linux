@@ -555,8 +555,8 @@ static int wcnss_probe(struct platform_device *pdev)
 	if (ret < 0 && ret != -EINVAL)
 		return ret;
 
-	rproc = rproc_alloc(&pdev->dev, pdev->name, &wcnss_ops,
-			    fw_name, sizeof(*wcnss));
+	rproc = devm_rproc_alloc(&pdev->dev, pdev->name, &wcnss_ops,
+				 fw_name, sizeof(*wcnss));
 	if (!rproc) {
 		dev_err(&pdev->dev, "unable to allocate remoteproc\n");
 		return -ENOMEM;
@@ -574,14 +574,12 @@ static int wcnss_probe(struct platform_device *pdev)
 	mutex_init(&wcnss->iris_lock);
 
 	mmio = devm_platform_ioremap_resource_byname(pdev, "pmu");
-	if (IS_ERR(mmio)) {
-		ret = PTR_ERR(mmio);
-		goto free_rproc;
-	}
+	if (IS_ERR(mmio))
+		return PTR_ERR(mmio);
 
 	ret = wcnss_alloc_memory_region(wcnss);
 	if (ret)
-		goto free_rproc;
+		return ret;
 
 	wcnss->pmu_cfg = mmio + data->pmu_offset;
 	wcnss->spare_out = mmio + data->spare_offset;
@@ -592,7 +590,7 @@ static int wcnss_probe(struct platform_device *pdev)
 	 */
 	ret = wcnss_init_pds(wcnss, data->pd_names);
 	if (ret && (ret != -ENODATA || !data->num_pd_vregs))
-		goto free_rproc;
+		return ret;
 
 	ret = wcnss_init_regulators(wcnss, data->vregs, data->num_vregs,
 				    data->num_pd_vregs);
@@ -656,8 +654,6 @@ remove_iris:
 	qcom_iris_remove(wcnss->iris);
 detach_pds:
 	wcnss_release_pds(wcnss);
-free_rproc:
-	rproc_free(rproc);
 
 	return ret;
 }
@@ -673,7 +669,6 @@ static void wcnss_remove(struct platform_device *pdev)
 	qcom_remove_sysmon_subdev(wcnss->sysmon);
 	qcom_remove_smd_subdev(wcnss->rproc, &wcnss->smd_subdev);
 	wcnss_release_pds(wcnss);
-	rproc_free(wcnss->rproc);
 }
 
 static const struct of_device_id wcnss_of_match[] = {

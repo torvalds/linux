@@ -529,6 +529,20 @@ void kernfs_get(struct kernfs_node *kn)
 }
 EXPORT_SYMBOL_GPL(kernfs_get);
 
+static void kernfs_free_rcu(struct rcu_head *rcu)
+{
+	struct kernfs_node *kn = container_of(rcu, struct kernfs_node, rcu);
+
+	kfree_const(kn->name);
+
+	if (kn->iattr) {
+		simple_xattrs_free(&kn->iattr->xattrs, NULL);
+		kmem_cache_free(kernfs_iattrs_cache, kn->iattr);
+	}
+
+	kmem_cache_free(kernfs_node_cache, kn);
+}
+
 /**
  * kernfs_put - put a reference count on a kernfs_node
  * @kn: the target kernfs_node
@@ -557,16 +571,11 @@ void kernfs_put(struct kernfs_node *kn)
 	if (kernfs_type(kn) == KERNFS_LINK)
 		kernfs_put(kn->symlink.target_kn);
 
-	kfree_const(kn->name);
-
-	if (kn->iattr) {
-		simple_xattrs_free(&kn->iattr->xattrs, NULL);
-		kmem_cache_free(kernfs_iattrs_cache, kn->iattr);
-	}
 	spin_lock(&kernfs_idr_lock);
 	idr_remove(&root->ino_idr, (u32)kernfs_ino(kn));
 	spin_unlock(&kernfs_idr_lock);
-	kmem_cache_free(kernfs_node_cache, kn);
+
+	call_rcu(&kn->rcu, kernfs_free_rcu);
 
 	kn = parent;
 	if (kn) {
@@ -575,7 +584,7 @@ void kernfs_put(struct kernfs_node *kn)
 	} else {
 		/* just released the root kn, free @root too */
 		idr_destroy(&root->ino_idr);
-		kfree(root);
+		kfree_rcu(root, rcu);
 	}
 }
 EXPORT_SYMBOL_GPL(kernfs_put);
@@ -715,7 +724,7 @@ struct kernfs_node *kernfs_find_and_get_node_by_id(struct kernfs_root *root,
 	ino_t ino = kernfs_id_ino(id);
 	u32 gen = kernfs_id_gen(id);
 
-	spin_lock(&kernfs_idr_lock);
+	rcu_read_lock();
 
 	kn = idr_find(&root->ino_idr, (u32)ino);
 	if (!kn)
@@ -739,10 +748,10 @@ struct kernfs_node *kernfs_find_and_get_node_by_id(struct kernfs_root *root,
 	if (unlikely(!__kernfs_active(kn) || !atomic_inc_not_zero(&kn->count)))
 		goto err_unlock;
 
-	spin_unlock(&kernfs_idr_lock);
+	rcu_read_unlock();
 	return kn;
 err_unlock:
-	spin_unlock(&kernfs_idr_lock);
+	rcu_read_unlock();
 	return NULL;
 }
 

@@ -99,6 +99,12 @@ Minimal SR-IOV support is currently offered and can be enabled by setting
 the sysfs 'sriov_numvfs' value, if supported by your particular firmware
 configuration.
 
+XDP
+---
+
+Support for XDP includes the basics, plus Jumbo frames, Redirect and
+ndo_xmit.  There is no current support for zero-copy sockets or HW offload.
+
 Statistics
 ==========
 
@@ -138,6 +144,12 @@ Driver port specific::
      rx_csum_none: 0
      rx_csum_complete: 3
      rx_csum_error: 0
+     xdp_drop: 0
+     xdp_aborted: 0
+     xdp_pass: 0
+     xdp_tx: 0
+     xdp_redirect: 0
+     xdp_frames: 0
 
 Driver queue specific::
 
@@ -149,9 +161,12 @@ Driver queue specific::
      tx_0_frags: 0
      tx_0_tso: 0
      tx_0_tso_bytes: 0
+     tx_0_hwstamp_valid: 0
+     tx_0_hwstamp_invalid: 0
      tx_0_csum_none: 3
      tx_0_csum: 0
      tx_0_vlan_inserted: 0
+     tx_0_xdp_frames: 0
      rx_0_pkts: 2
      rx_0_bytes: 120
      rx_0_dma_map_err: 0
@@ -159,8 +174,15 @@ Driver queue specific::
      rx_0_csum_none: 0
      rx_0_csum_complete: 0
      rx_0_csum_error: 0
+     rx_0_hwstamp_valid: 0
+     rx_0_hwstamp_invalid: 0
      rx_0_dropped: 0
      rx_0_vlan_stripped: 0
+     rx_0_xdp_drop: 0
+     rx_0_xdp_aborted: 0
+     rx_0_xdp_pass: 0
+     rx_0_xdp_tx: 0
+     rx_0_xdp_redirect: 0
 
 Firmware port specific::
 

@@ -363,6 +363,9 @@ struct xe_device {
 	/** @ufence_wq: user fence wait queue */
 	wait_queue_head_t ufence_wq;
 
+	/** @preempt_fence_wq: used to serialize preempt fences */
+	struct workqueue_struct *preempt_fence_wq;
+
 	/** @ordered_wq: used to serialize compute mode resume */
 	struct workqueue_struct *ordered_wq;
 

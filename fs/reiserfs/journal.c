@@ -2589,7 +2589,7 @@ static void journal_list_init(struct super_block *sb)
 static void release_journal_dev(struct reiserfs_journal *journal)
 {
 	if (journal->j_bdev_file) {
-		fput(journal->j_bdev_file);
+		bdev_fput(journal->j_bdev_file);
 		journal->j_bdev_file = NULL;
 	}
 }

@@ -60,6 +60,16 @@ config ADF4377
 	  To compile this driver as a module, choose M here: the
 	  module will be called adf4377.
 
+config ADMFM2000
+	tristate "Analog Devices ADMFM2000 Dual Microwave Down Converter"
+	depends on GPIOLIB
+	help
+	  Say yes here to build support for Analog Devices ADMFM2000 Dual
+	  Microwave Down Converter.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called admfm2000.
+
 config ADMV1013
 	tristate "Analog Devices ADMV1013 Microwave Upconverter"
 	depends on SPI && COMMON_CLK

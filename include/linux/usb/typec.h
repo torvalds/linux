@@ -18,6 +18,7 @@ struct typec_cable;
 struct typec_plug;
 struct typec_port;
 struct typec_altmode_ops;
+struct typec_cable_ops;
 
 struct fwnode_handle;
 struct device;
@@ -156,6 +157,9 @@ struct typec_altmode
 void typec_port_register_altmodes(struct typec_port *port,
 	const struct typec_altmode_ops *ops, void *drvdata,
 	struct typec_altmode **altmodes, size_t n);
+
+void typec_port_register_cable_ops(struct typec_altmode **altmodes, int max_altmodes,
+				   const struct typec_cable_ops *ops);
 
 void typec_unregister_altmode(struct typec_altmode *altmode);
 
@@ -332,6 +336,9 @@ int typec_find_port_data_role(const char *name);
 void typec_partner_set_svdm_version(struct typec_partner *partner,
 				    enum usb_pd_svdm_ver svdm_version);
 int typec_get_negotiated_svdm_version(struct typec_port *port);
+
+int typec_get_cable_svdm_version(struct typec_port *port);
+void typec_cable_set_svdm_version(struct typec_cable *cable, enum usb_pd_svdm_ver svdm_version);
 
 struct usb_power_delivery *typec_partner_usb_power_delivery_register(struct typec_partner *partner,
 							struct usb_power_delivery_desc *desc);

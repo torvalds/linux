@@ -81,7 +81,6 @@ config XEN_PVH
 	bool "Xen PVH guest support"
 	depends on XEN && XEN_PVHVM && ACPI
 	select PVH
-	def_bool n
 	help
 	  Support for running as a Xen PVH guest.
 

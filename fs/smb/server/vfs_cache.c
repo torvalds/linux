@@ -305,7 +305,8 @@ static void __ksmbd_close_fd(struct ksmbd_file_table *ft, struct ksmbd_file *fp)
 
 	fd_limit_close();
 	__ksmbd_remove_durable_fd(fp);
-	__ksmbd_remove_fd(ft, fp);
+	if (ft)
+		__ksmbd_remove_fd(ft, fp);
 
 	close_id_del_oplock(fp);
 	filp = fp->filp;
@@ -465,9 +466,30 @@ struct ksmbd_file *ksmbd_lookup_fd_slow(struct ksmbd_work *work, u64 id,
 	return fp;
 }
 
-struct ksmbd_file *ksmbd_lookup_durable_fd(unsigned long long id)
+struct ksmbd_file *ksmbd_lookup_global_fd(unsigned long long id)
 {
 	return __ksmbd_lookup_fd(&global_ft, id);
+}
+
+struct ksmbd_file *ksmbd_lookup_durable_fd(unsigned long long id)
+{
+	struct ksmbd_file *fp;
+
+	fp = __ksmbd_lookup_fd(&global_ft, id);
+	if (fp && fp->conn) {
+		ksmbd_put_durable_fd(fp);
+		fp = NULL;
+	}
+
+	return fp;
+}
+
+void ksmbd_put_durable_fd(struct ksmbd_file *fp)
+{
+	if (!atomic_dec_and_test(&fp->refcount))
+		return;
+
+	__ksmbd_close_fd(NULL, fp);
 }
 
 struct ksmbd_file *ksmbd_lookup_fd_cguid(char *cguid)
@@ -639,6 +661,32 @@ __close_file_table_ids(struct ksmbd_file_table *ft,
 	return num;
 }
 
+static inline bool is_reconnectable(struct ksmbd_file *fp)
+{
+	struct oplock_info *opinfo = opinfo_get(fp);
+	bool reconn = false;
+
+	if (!opinfo)
+		return false;
+
+	if (opinfo->op_state != OPLOCK_STATE_NONE) {
+		opinfo_put(opinfo);
+		return false;
+	}
+
+	if (fp->is_resilient || fp->is_persistent)
+		reconn = true;
+	else if (fp->is_durable && opinfo->is_lease &&
+		 opinfo->o_lease->state & SMB2_LEASE_HANDLE_CACHING_LE)
+		reconn = true;
+
+	else if (fp->is_durable && opinfo->level == SMB2_OPLOCK_LEVEL_BATCH)
+		reconn = true;
+
+	opinfo_put(opinfo);
+	return reconn;
+}
+
 static bool tree_conn_fd_check(struct ksmbd_tree_connect *tcon,
 			       struct ksmbd_file *fp)
 {
@@ -648,7 +696,28 @@ static bool tree_conn_fd_check(struct ksmbd_tree_connect *tcon,
 static bool session_fd_check(struct ksmbd_tree_connect *tcon,
 			     struct ksmbd_file *fp)
 {
-	return false;
+	struct ksmbd_inode *ci;
+	struct oplock_info *op;
+	struct ksmbd_conn *conn;
+
+	if (!is_reconnectable(fp))
+		return false;
+
+	conn = fp->conn;
+	ci = fp->f_ci;
+	write_lock(&ci->m_lock);
+	list_for_each_entry_rcu(op, &ci->m_op_list, op_entry) {
+		if (op->conn != conn)
+			continue;
+		op->conn = NULL;
+	}
+	write_unlock(&ci->m_lock);
+
+	fp->conn = NULL;
+	fp->tcon = NULL;
+	fp->volatile_id = KSMBD_NO_FID;
+
+	return true;
 }
 
 void ksmbd_close_tree_conn_fds(struct ksmbd_work *work)
@@ -685,6 +754,68 @@ void ksmbd_free_global_file_table(void)
 	}
 
 	ksmbd_destroy_file_table(&global_ft);
+}
+
+int ksmbd_validate_name_reconnect(struct ksmbd_share_config *share,
+				  struct ksmbd_file *fp, char *name)
+{
+	char *pathname, *ab_pathname;
+	int ret = 0;
+
+	pathname = kmalloc(PATH_MAX, GFP_KERNEL);
+	if (!pathname)
+		return -EACCES;
+
+	ab_pathname = d_path(&fp->filp->f_path, pathname, PATH_MAX);
+	if (IS_ERR(ab_pathname)) {
+		kfree(pathname);
+		return -EACCES;
+	}
+
+	if (name && strcmp(&ab_pathname[share->path_sz + 1], name)) {
+		ksmbd_debug(SMB, "invalid name reconnect %s\n", name);
+		ret = -EINVAL;
+	}
+
+	kfree(pathname);
+
+	return ret;
+}
+
+int ksmbd_reopen_durable_fd(struct ksmbd_work *work, struct ksmbd_file *fp)
+{
+	struct ksmbd_inode *ci;
+	struct oplock_info *op;
+
+	if (!fp->is_durable || fp->conn || fp->tcon) {
+		pr_err("Invalid durable fd [%p:%p]\n", fp->conn, fp->tcon);
+		return -EBADF;
+	}
+
+	if (has_file_id(fp->volatile_id)) {
+		pr_err("Still in use durable fd: %llu\n", fp->volatile_id);
+		return -EBADF;
+	}
+
+	fp->conn = work->conn;
+	fp->tcon = work->tcon;
+
+	ci = fp->f_ci;
+	write_lock(&ci->m_lock);
+	list_for_each_entry_rcu(op, &ci->m_op_list, op_entry) {
+		if (op->conn)
+			continue;
+		op->conn = fp->conn;
+	}
+	write_unlock(&ci->m_lock);
+
+	__open_id(&work->sess->file_table, fp, OPEN_ID_TYPE_VOLATILE_ID);
+	if (!has_file_id(fp->volatile_id)) {
+		fp->conn = NULL;
+		fp->tcon = NULL;
+		return -EBADF;
+	}
+	return 0;
 }
 
 int ksmbd_init_file_table(struct ksmbd_file_table *ft)

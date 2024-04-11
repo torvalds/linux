@@ -370,8 +370,8 @@ static const struct kvaser_pciefd_irq_mask kvaser_pciefd_sf2_irq_mask = {
 
 static const struct kvaser_pciefd_irq_mask kvaser_pciefd_xilinx_irq_mask = {
 	.kcan_rx0 = BIT(4),
-	.kcan_tx = { BIT(16), BIT(17), BIT(18), BIT(19) },
-	.all = GENMASK(19, 16) | BIT(4),
+	.kcan_tx = { BIT(16), BIT(17), BIT(18), BIT(19), BIT(20), BIT(21), BIT(22), BIT(23) },
+	.all = GENMASK(23, 16) | BIT(4),
 };
 
 static const struct kvaser_pciefd_dev_ops kvaser_pciefd_altera_dev_ops = {

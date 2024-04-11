@@ -1082,9 +1082,7 @@ reread:
 		ret = bch2_encrypt(c, JSET_CSUM_TYPE(j), journal_nonce(j),
 			     j->encrypted_start,
 			     vstruct_end(j) - (void *) j->encrypted_start);
-		bch2_fs_fatal_err_on(ret, c,
-				"error decrypting journal entry: %s",
-				bch2_err_str(ret));
+		bch2_fs_fatal_err_on(ret, c, "decrypting journal entry: %s", bch2_err_str(ret));
 
 		mutex_lock(&jlist->lock);
 		ret = journal_entry_add(c, ca, (struct journal_ptr) {
@@ -1820,7 +1818,8 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 			jset_entry_for_each_key(i, k) {
 				ret = bch2_journal_key_to_wb(c, &wb, i->btree_id, k);
 				if (ret) {
-					bch2_fs_fatal_error(c, "-ENOMEM flushing journal keys to btree write buffer");
+					bch2_fs_fatal_error(c, "flushing journal keys to btree write buffer: %s",
+							    bch2_err_str(ret));
 					bch2_journal_keys_to_write_buffer_end(c, &wb);
 					return ret;
 				}
@@ -1848,7 +1847,8 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 
 	bch2_journal_super_entries_add_common(c, &end, seq);
 	u64s	= (u64 *) end - (u64 *) start;
-	BUG_ON(u64s > j->entry_u64s_reserved);
+
+	WARN_ON(u64s > j->entry_u64s_reserved);
 
 	le32_add_cpu(&jset->u64s, u64s);
 
@@ -1856,7 +1856,7 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 	bytes	= vstruct_bytes(jset);
 
 	if (sectors > w->sectors) {
-		bch2_fs_fatal_error(c, "aieeee! journal write overran available space, %zu > %u (extra %u reserved %u/%u)",
+		bch2_fs_fatal_error(c, ": journal write overran available space, %zu > %u (extra %u reserved %u/%u)",
 				    vstruct_bytes(jset), w->sectors << 9,
 				    u64s, w->u64s_reserved, j->entry_u64s_reserved);
 		return -EINVAL;
@@ -1884,8 +1884,7 @@ static int bch2_journal_write_prep(struct journal *j, struct journal_buf *w)
 	ret = bch2_encrypt(c, JSET_CSUM_TYPE(jset), journal_nonce(jset),
 		    jset->encrypted_start,
 		    vstruct_end(jset) - (void *) jset->encrypted_start);
-	if (bch2_fs_fatal_err_on(ret, c,
-			"error decrypting journal entry: %i", ret))
+	if (bch2_fs_fatal_err_on(ret, c, "decrypting journal entry: %s", bch2_err_str(ret)))
 		return ret;
 
 	jset->csum = csum_vstruct(c, JSET_CSUM_TYPE(jset),
