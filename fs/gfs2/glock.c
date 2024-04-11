@@ -909,7 +909,6 @@ out_sched:
 out_unlock:
 	clear_bit(GLF_LOCK, &gl->gl_flags);
 	smp_mb__after_atomic();
-	return;
 }
 
 /**
