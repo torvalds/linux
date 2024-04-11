@@ -65,7 +65,6 @@ static void request_demote(struct gfs2_glock *gl, unsigned int state,
 			   unsigned long delay, bool remote);
 
 static struct dentry *gfs2_root;
-static struct workqueue_struct *glock_workqueue;
 static LIST_HEAD(lru_list);
 static atomic_t lru_count = ATOMIC_INIT(0);
 static DEFINE_SPINLOCK(lru_lock);
@@ -274,7 +273,9 @@ static void gfs2_glock_remove_from_lru(struct gfs2_glock *gl)
  * work queue.
  */
 static void gfs2_glock_queue_work(struct gfs2_glock *gl, unsigned long delay) {
-	if (!queue_delayed_work(glock_workqueue, &gl->gl_work, delay)) {
+	struct gfs2_sbd *sdp = gl->gl_name.ln_sbd;
+
+	if (!queue_delayed_work(sdp->sd_glock_wq, &gl->gl_work, delay)) {
 		/*
 		 * We are holding the lockref spinlock, and the work was still
 		 * queued above.  The queued work (glock_work_func) takes that
@@ -2252,9 +2253,10 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp)
 	bool timed_out = false;
 
 	set_bit(SDF_SKIP_DLM_UNLOCK, &sdp->sd_flags);
-	flush_workqueue(glock_workqueue);
+	flush_workqueue(sdp->sd_glock_wq);
 	glock_hash_walk(clear_glock, sdp);
-	flush_workqueue(glock_workqueue);
+	flush_workqueue(sdp->sd_glock_wq);
+
 	while (!timed_out) {
 		wait_event_timeout(sdp->sd_kill_wait,
 				   !atomic_read(&sdp->sd_glock_disposal),
@@ -2270,6 +2272,7 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp)
 	gfs2_lm_unmount(sdp);
 	gfs2_free_dead_glocks(sdp);
 	glock_hash_walk(dump_glock_func, sdp);
+	destroy_workqueue(sdp->sd_glock_wq);
 }
 
 static const char *state2str(unsigned state)
@@ -2534,16 +2537,8 @@ int __init gfs2_glock_init(void)
 	if (ret < 0)
 		return ret;
 
-	glock_workqueue = alloc_workqueue("glock_workqueue", WQ_MEM_RECLAIM |
-					  WQ_HIGHPRI | WQ_FREEZABLE, 0);
-	if (!glock_workqueue) {
-		rhashtable_destroy(&gl_hash_table);
-		return -ENOMEM;
-	}
-
 	glock_shrinker = shrinker_alloc(0, "gfs2-glock");
 	if (!glock_shrinker) {
-		destroy_workqueue(glock_workqueue);
 		rhashtable_destroy(&gl_hash_table);
 		return -ENOMEM;
 	}
@@ -2563,7 +2558,6 @@ void gfs2_glock_exit(void)
 {
 	shrinker_free(glock_shrinker);
 	rhashtable_destroy(&gl_hash_table);
-	destroy_workqueue(glock_workqueue);
 }
 
 static void gfs2_glock_iter_next(struct gfs2_glock_iter *gi, loff_t n)

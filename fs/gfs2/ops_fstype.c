@@ -1188,11 +1188,17 @@ static int gfs2_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	snprintf(sdp->sd_fsname, sizeof(sdp->sd_fsname), "%s", sdp->sd_table_name);
 
+	error = -ENOMEM;
+	sdp->sd_glock_wq = alloc_workqueue("gfs2-glock/%s",
+			WQ_MEM_RECLAIM | WQ_HIGHPRI | WQ_FREEZABLE, 0,
+			sdp->sd_fsname);
+	if (!sdp->sd_glock_wq)
+		goto fail_free;
+
 	sdp->sd_delete_wq = alloc_workqueue("gfs2-delete/%s",
 			WQ_MEM_RECLAIM | WQ_FREEZABLE, 0, sdp->sd_fsname);
-	error = -ENOMEM;
 	if (!sdp->sd_delete_wq)
-		goto fail_free;
+		goto fail_glock_wq;
 
 	error = gfs2_sys_fs_add(sdp);
 	if (error)
@@ -1301,6 +1307,8 @@ fail_debug:
 	gfs2_sys_fs_del(sdp);
 fail_delete_wq:
 	destroy_workqueue(sdp->sd_delete_wq);
+fail_glock_wq:
+	destroy_workqueue(sdp->sd_glock_wq);
 fail_free:
 	free_sbd(sdp);
 	sb->s_fs_info = NULL;

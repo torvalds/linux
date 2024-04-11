@@ -772,6 +772,7 @@ struct gfs2_sbd {
 
 	/* Workqueue stuff */
 
+	struct workqueue_struct *sd_glock_wq;
 	struct workqueue_struct *sd_delete_wq;
 
 	/* Daemon stuff */
