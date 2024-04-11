@@ -116,15 +116,6 @@ static struct qcom_icc_node xm_sdc2 = {
 	.links = { X1E80100_SLAVE_A2NOC_SNOC },
 };
 
-static struct qcom_icc_node ddr_perf_mode_master = {
-	.name = "ddr_perf_mode_master",
-	.id = X1E80100_MASTER_DDR_PERF_MODE,
-	.channels = 1,
-	.buswidth = 4,
-	.num_links = 1,
-	.links = { X1E80100_SLAVE_DDR_PERF_MODE },
-};
-
 static struct qcom_icc_node qup0_core_master = {
 	.name = "qup0_core_master",
 	.id = X1E80100_MASTER_QUP_CORE_0,
@@ -686,14 +677,6 @@ static struct qcom_icc_node qns_a2noc_snoc = {
 	.buswidth = 16,
 	.num_links = 1,
 	.links = { X1E80100_MASTER_A2NOC_SNOC },
-};
-
-static struct qcom_icc_node ddr_perf_mode_slave = {
-	.name = "ddr_perf_mode_slave",
-	.id = X1E80100_SLAVE_DDR_PERF_MODE,
-	.channels = 1,
-	.buswidth = 4,
-	.num_links = 0,
 };
 
 static struct qcom_icc_node qup0_core_slave = {
@@ -1377,12 +1360,6 @@ static struct qcom_icc_bcm bcm_acv = {
 	.nodes = { &ebi },
 };
 
-static struct qcom_icc_bcm bcm_acv_perf = {
-	.name = "ACV_PERF",
-	.num_nodes = 1,
-	.nodes = { &ddr_perf_mode_slave },
-};
-
 static struct qcom_icc_bcm bcm_ce0 = {
 	.name = "CE0",
 	.num_nodes = 1,
@@ -1583,18 +1560,15 @@ static const struct qcom_icc_desc x1e80100_aggre2_noc = {
 };
 
 static struct qcom_icc_bcm * const clk_virt_bcms[] = {
-	&bcm_acv_perf,
 	&bcm_qup0,
 	&bcm_qup1,
 	&bcm_qup2,
 };
 
 static struct qcom_icc_node * const clk_virt_nodes[] = {
-	[MASTER_DDR_PERF_MODE] = &ddr_perf_mode_master,
 	[MASTER_QUP_CORE_0] = &qup0_core_master,
 	[MASTER_QUP_CORE_1] = &qup1_core_master,
 	[MASTER_QUP_CORE_2] = &qup2_core_master,
-	[SLAVE_DDR_PERF_MODE] = &ddr_perf_mode_slave,
 	[SLAVE_QUP_CORE_0] = &qup0_core_slave,
 	[SLAVE_QUP_CORE_1] = &qup1_core_slave,
 	[SLAVE_QUP_CORE_2] = &qup2_core_slave,
