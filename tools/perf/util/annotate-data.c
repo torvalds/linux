@@ -1820,5 +1820,6 @@ int hist_entry__annotate_data_tty(struct hist_entry *he, struct evsel *evsel)
 	print_annotated_data_type(he->mem_type, &he->mem_type->self, evsel, 0);
 	printf("\n");
 
-	return 0;
+	/* move to the next entry */
+	return '>';
 }

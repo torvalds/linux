@@ -10,6 +10,7 @@
 struct annotated_op_loc;
 struct debuginfo;
 struct evsel;
+struct hist_browser_timer;
 struct hist_entry;
 struct map_symbol;
 struct thread;
@@ -192,5 +193,17 @@ static inline int hist_entry__annotate_data_tty(struct hist_entry *he __maybe_un
 }
 
 #endif /* HAVE_DWARF_SUPPORT */
+
+#ifdef HAVE_SLANG_SUPPORT
+int hist_entry__annotate_data_tui(struct hist_entry *he, struct evsel *evsel,
+				  struct hist_browser_timer *hbt);
+#else
+static inline int hist_entry__annotate_data_tui(struct hist_entry *he __maybe_unused,
+						struct evsel *evsel __maybe_unused,
+						struct hist_browser_timer *hbt __maybe_unused)
+{
+	return -1;
+}
+#endif /* HAVE_SLANG_SUPPORT */
 
 #endif /* _PERF_ANNOTATE_DATA_H */

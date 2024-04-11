@@ -469,8 +469,32 @@ find_next:
 					goto find_next;
 			}
 
-			hist_entry__annotate_data_tty(he, evsel);
-			goto find_next;
+			if (use_browser == 1)
+				key = hist_entry__annotate_data_tui(he, evsel, NULL);
+			else
+				key = hist_entry__annotate_data_tty(he, evsel);
+
+			switch (key) {
+			case -1:
+				if (!ann->skip_missing)
+					return;
+				/* fall through */
+			case K_RIGHT:
+			case '>':
+				next = rb_next(nd);
+				break;
+			case K_LEFT:
+			case '<':
+				next = rb_prev(nd);
+				break;
+			default:
+				return;
+			}
+
+			if (next != NULL)
+				nd = next;
+
+			continue;
 		}
 
 		if (use_browser == 2) {
@@ -873,9 +897,7 @@ int cmd_annotate(int argc, const char **argv)
 		use_browser = 2;
 #endif
 
-	/* FIXME: only support stdio for now */
 	if (annotate.data_type) {
-		use_browser = 0;
 		annotate_opts.annotate_src = false;
 		symbol_conf.annotate_data_member = true;
 		symbol_conf.annotate_data_sample = true;
