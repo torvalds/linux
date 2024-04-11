@@ -908,6 +908,13 @@ int symbol__annotate(struct map_symbol *ms, struct evsel *evsel,
 
 	args.arch = arch;
 	args.ms = *ms;
+
+	if (notes->src == NULL) {
+		notes->src = annotated_source__new();
+		if (notes->src == NULL)
+			return -1;
+	}
+
 	if (annotate_opts.full_addr)
 		notes->src->start = map__objdump_2mem(ms->map, ms->sym->start);
 	else

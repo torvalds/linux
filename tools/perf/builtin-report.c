@@ -172,7 +172,7 @@ static int hist_iter__report_callback(struct hist_entry_iter *iter,
 	struct mem_info *mi;
 	struct branch_info *bi;
 
-	if (!ui__has_annotation() && !rep->symbol_ipc && !rep->data_type)
+	if (!ui__has_annotation() && !rep->symbol_ipc)
 		return 0;
 
 	if (sort__mode == SORT_MODE__BRANCH) {
