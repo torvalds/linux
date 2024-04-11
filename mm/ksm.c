@@ -1345,7 +1345,7 @@ static int write_protect_page(struct vm_area_struct *vma, struct page *page,
 		if (pte_write(entry))
 			entry = pte_wrprotect(entry);
 
-		set_pte_at_notify(mm, pvmw.address, pvmw.pte, entry);
+		set_pte_at(mm, pvmw.address, pvmw.pte, entry);
 	}
 	*orig_pte = entry;
 	err = 0;
@@ -1447,7 +1447,7 @@ static int replace_page(struct vm_area_struct *vma, struct page *page,
 	 * See Documentation/mm/mmu_notifier.rst
 	 */
 	ptep_clear_flush(vma, addr, ptep);
-	set_pte_at_notify(mm, addr, ptep, newpte);
+	set_pte_at(mm, addr, ptep, newpte);
 
 	folio = page_folio(page);
 	folio_remove_rmap_pte(folio, page, vma);

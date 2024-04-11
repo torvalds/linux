@@ -322,22 +322,6 @@ u64 make_nonleaf_spte(u64 *child_pt, bool ad_disabled)
 	return spte;
 }
 
-u64 kvm_mmu_changed_pte_notifier_make_spte(u64 old_spte, kvm_pfn_t new_pfn)
-{
-	u64 new_spte;
-
-	new_spte = old_spte & ~SPTE_BASE_ADDR_MASK;
-	new_spte |= (u64)new_pfn << PAGE_SHIFT;
-
-	new_spte &= ~PT_WRITABLE_MASK;
-	new_spte &= ~shadow_host_writable_mask;
-	new_spte &= ~shadow_mmu_writable_mask;
-
-	new_spte = mark_spte_for_access_track(new_spte);
-
-	return new_spte;
-}
-
 u64 mark_spte_for_access_track(u64 spte)
 {
 	if (spte_ad_enabled(spte))
