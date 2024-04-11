@@ -89,6 +89,27 @@ struct loongson2_clk_board_info {
 		.div_width	= _dwidth,			\
 	}
 
+static const struct loongson2_clk_board_info ls2k0500_clks[] = {
+	CLK_PLL(LOONGSON2_NODE_PLL,   "pll_node", 0,    16, 8, 8, 6),
+	CLK_PLL(LOONGSON2_DDR_PLL,    "pll_ddr",  0x8,  16, 8, 8, 6),
+	CLK_PLL(LOONGSON2_DC_PLL,     "pll_soc",  0x10, 16, 8, 8, 6),
+	CLK_PLL(LOONGSON2_PIX0_PLL,   "pll_pix0", 0x18, 16, 8, 8, 6),
+	CLK_PLL(LOONGSON2_PIX1_PLL,   "pll_pix1", 0x20, 16, 8, 8, 6),
+	CLK_DIV(LOONGSON2_NODE_CLK,   "clk_node", "pll_node", 0,    24, 6),
+	CLK_DIV(LOONGSON2_DDR_CLK,    "clk_ddr",  "pll_ddr",  0x8,  24, 6),
+	CLK_DIV(LOONGSON2_HDA_CLK,    "clk_hda",  "pll_ddr",  0xc,  8,  6),
+	CLK_DIV(LOONGSON2_GPU_CLK,    "clk_gpu",  "pll_soc",  0x10, 24, 6),
+	CLK_DIV(LOONGSON2_DC_CLK,     "clk_sb",   "pll_soc",  0x14, 0,  6),
+	CLK_DIV(LOONGSON2_GMAC_CLK,   "clk_gmac", "pll_soc",  0x14, 8,  6),
+	CLK_DIV(LOONGSON2_PIX0_CLK,   "clk_pix0", "pll_pix0", 0x18, 24, 6),
+	CLK_DIV(LOONGSON2_PIX1_CLK,   "clk_pix1", "pll_pix1", 0x20, 24, 6),
+	CLK_SCALE(LOONGSON2_BOOT_CLK, "clk_boot", "clk_sb",   0x28, 8,  3),
+	CLK_SCALE(LOONGSON2_SATA_CLK, "clk_sata", "clk_sb",   0x28, 12, 3),
+	CLK_SCALE(LOONGSON2_USB_CLK,  "clk_usb",  "clk_sb",   0x28, 16, 3),
+	CLK_SCALE(LOONGSON2_APB_CLK,  "clk_apb",  "clk_sb",   0x28, 20, 3),
+	{ /* Sentinel */ },
+};
+
 static const struct loongson2_clk_board_info ls2k1000_clks[] = {
 	CLK_PLL(LOONGSON2_NODE_PLL,   "pll_node", 0,    32, 10, 26, 6),
 	CLK_PLL(LOONGSON2_DDR_PLL,    "pll_ddr",  0x10, 32, 10, 26, 6),
@@ -260,6 +281,7 @@ static int loongson2_clk_probe(struct platform_device *pdev)
 }
 
 static const struct of_device_id loongson2_clk_match_table[] = {
+	{ .compatible = "loongson,ls2k0500-clk", .data = &ls2k0500_clks },
 	{ .compatible = "loongson,ls2k-clk", .data = &ls2k1000_clks },
 	{ }
 };
