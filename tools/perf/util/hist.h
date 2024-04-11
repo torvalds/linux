@@ -550,6 +550,9 @@ enum {
 	PERF_HPP__OVERHEAD_ACC,
 	PERF_HPP__SAMPLES,
 	PERF_HPP__PERIOD,
+	PERF_HPP__WEIGHT1,
+	PERF_HPP__WEIGHT2,
+	PERF_HPP__WEIGHT3,
 
 	PERF_HPP__MAX_INDEX
 };
@@ -596,16 +599,24 @@ void perf_hpp__reset_sort_width(struct perf_hpp_fmt *fmt, struct hists *hists);
 void perf_hpp__set_user_width(const char *width_list_str);
 void hists__reset_column_width(struct hists *hists);
 
+enum perf_hpp_fmt_type {
+	PERF_HPP_FMT_TYPE__RAW,
+	PERF_HPP_FMT_TYPE__PERCENT,
+	PERF_HPP_FMT_TYPE__AVERAGE,
+};
+
 typedef u64 (*hpp_field_fn)(struct hist_entry *he);
 typedef int (*hpp_callback_fn)(struct perf_hpp *hpp, bool front);
 typedef int (*hpp_snprint_fn)(struct perf_hpp *hpp, const char *fmt, ...);
 
 int hpp__fmt(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 	     struct hist_entry *he, hpp_field_fn get_field,
-	     const char *fmtstr, hpp_snprint_fn print_fn, bool fmt_percent);
+	     const char *fmtstr, hpp_snprint_fn print_fn,
+	     enum perf_hpp_fmt_type fmtype);
 int hpp__fmt_acc(struct perf_hpp_fmt *fmt, struct perf_hpp *hpp,
 		 struct hist_entry *he, hpp_field_fn get_field,
-		 const char *fmtstr, hpp_snprint_fn print_fn, bool fmt_percent);
+		 const char *fmtstr, hpp_snprint_fn print_fn,
+		 enum perf_hpp_fmt_type fmtype);
 
 static inline void advance_hpp(struct perf_hpp *hpp, int inc)
 {

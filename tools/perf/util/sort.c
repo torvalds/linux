@@ -2441,6 +2441,13 @@ static struct hpp_dimension hpp_sort_dimensions[] = {
 	DIM(PERF_HPP__OVERHEAD_ACC, "overhead_children"),
 	DIM(PERF_HPP__SAMPLES, "sample"),
 	DIM(PERF_HPP__PERIOD, "period"),
+	DIM(PERF_HPP__WEIGHT1, "weight1"),
+	DIM(PERF_HPP__WEIGHT2, "weight2"),
+	DIM(PERF_HPP__WEIGHT3, "weight3"),
+	/* aliases for weight_struct */
+	DIM(PERF_HPP__WEIGHT2, "ins_lat"),
+	DIM(PERF_HPP__WEIGHT3, "retire_lat"),
+	DIM(PERF_HPP__WEIGHT3, "p_stage_cyc"),
 };
 
 #undef DIM
@@ -3743,9 +3750,21 @@ void sort__setup_elide(FILE *output)
 	}
 }
 
-int output_field_add(struct perf_hpp_list *list, char *tok)
+int output_field_add(struct perf_hpp_list *list, const char *tok)
 {
 	unsigned int i;
+
+	for (i = 0; i < ARRAY_SIZE(hpp_sort_dimensions); i++) {
+		struct hpp_dimension *hd = &hpp_sort_dimensions[i];
+
+		if (strncasecmp(tok, hd->name, strlen(tok)))
+			continue;
+
+		if (!strcasecmp(tok, "weight"))
+			ui__warning("--fields weight shows the average value unlike in the --sort key.\n");
+
+		return __hpp_dimension__add_output(list, hd);
+	}
 
 	for (i = 0; i < ARRAY_SIZE(common_sort_dimensions); i++) {
 		struct sort_dimension *sd = &common_sort_dimensions[i];
@@ -3754,15 +3773,6 @@ int output_field_add(struct perf_hpp_list *list, char *tok)
 			continue;
 
 		return __sort_dimension__add_output(list, sd);
-	}
-
-	for (i = 0; i < ARRAY_SIZE(hpp_sort_dimensions); i++) {
-		struct hpp_dimension *hd = &hpp_sort_dimensions[i];
-
-		if (strncasecmp(tok, hd->name, strlen(tok)))
-			continue;
-
-		return __hpp_dimension__add_output(list, hd);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(bstack_sort_dimensions); i++) {
