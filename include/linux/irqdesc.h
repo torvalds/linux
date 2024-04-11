@@ -20,9 +20,13 @@ struct pt_regs;
 /**
  * struct irqstat - interrupt statistics
  * @cnt:	real-time interrupt count
+ * @ref:	snapshot of interrupt count
  */
 struct irqstat {
 	unsigned int	cnt;
+#ifdef CONFIG_GENERIC_IRQ_STAT_SNAPSHOT
+	unsigned int	ref;
+#endif
 };
 
 /**
