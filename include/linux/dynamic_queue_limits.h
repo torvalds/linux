@@ -50,6 +50,9 @@ struct dql {
 	unsigned int	adj_limit;		/* limit + num_completed */
 	unsigned int	last_obj_cnt;		/* Count at last queuing */
 
+	/* Stall threshold (in jiffies), defined by user */
+	unsigned short	stall_thrs;
+
 	unsigned long	history_head;		/* top 58 bits of jiffies */
 	/* stall entries, a bit per entry */
 	unsigned long	history[DQL_HIST_LEN];
@@ -71,8 +74,6 @@ struct dql {
 	unsigned int	min_limit;		/* Minimum limit */
 	unsigned int	slack_hold_time;	/* Time to measure slack */
 
-	/* Stall threshold (in jiffies), defined by user */
-	unsigned short	stall_thrs;
 	/* Longest stall detected, reported to user */
 	unsigned short	stall_max;
 	unsigned long	last_reap;		/* Last reap (in jiffies) */
