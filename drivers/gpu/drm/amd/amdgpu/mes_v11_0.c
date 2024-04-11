@@ -111,7 +111,7 @@ static int mes_v11_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
 	struct amdgpu_device *adev = mes->adev;
 	struct amdgpu_ring *ring = &mes->ring;
 	unsigned long flags;
-	signed long timeout = adev->usec_timeout;
+	signed long timeout = 3000000; /* 3000 ms */
 
 	if (amdgpu_emu_mode) {
 		timeout *= 100;
