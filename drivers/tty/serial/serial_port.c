@@ -39,8 +39,12 @@ static int serial_port_runtime_resume(struct device *dev)
 
 	/* Flush any pending TX for the port */
 	uart_port_lock_irqsave(port, &flags);
+	if (!port_dev->tx_enabled)
+		goto unlock;
 	if (__serial_port_busy(port))
 		port->ops->start_tx(port);
+
+unlock:
 	uart_port_unlock_irqrestore(port, flags);
 
 out:
@@ -60,6 +64,11 @@ static int serial_port_runtime_suspend(struct device *dev)
 		return 0;
 
 	uart_port_lock_irqsave(port, &flags);
+	if (!port_dev->tx_enabled) {
+		uart_port_unlock_irqrestore(port, flags);
+		return 0;
+	}
+
 	busy = __serial_port_busy(port);
 	if (busy)
 		port->ops->start_tx(port);
@@ -69,6 +78,31 @@ static int serial_port_runtime_suspend(struct device *dev)
 		pm_runtime_mark_last_busy(dev);
 
 	return busy ? -EBUSY : 0;
+}
+
+static void serial_base_port_set_tx(struct uart_port *port,
+				    struct serial_port_device *port_dev,
+				    bool enabled)
+{
+	unsigned long flags;
+
+	uart_port_lock_irqsave(port, &flags);
+	port_dev->tx_enabled = enabled;
+	uart_port_unlock_irqrestore(port, flags);
+}
+
+void serial_base_port_startup(struct uart_port *port)
+{
+	struct serial_port_device *port_dev = port->port_dev;
+
+	serial_base_port_set_tx(port, port_dev, true);
+}
+
+void serial_base_port_shutdown(struct uart_port *port)
+{
+	struct serial_port_device *port_dev = port->port_dev;
+
+	serial_base_port_set_tx(port, port_dev, false);
 }
 
 static DEFINE_RUNTIME_DEV_PM_OPS(serial_port_pm,
