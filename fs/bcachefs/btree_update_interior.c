@@ -1280,23 +1280,29 @@ static void bch2_btree_set_root_inmem(struct bch_fs *c, struct btree *b)
 	bch2_recalc_btree_reserve(c);
 }
 
-static void bch2_btree_set_root(struct btree_update *as,
-				struct btree_trans *trans,
-				struct btree_path *path,
-				struct btree *b)
+static int bch2_btree_set_root(struct btree_update *as,
+			       struct btree_trans *trans,
+			       struct btree_path *path,
+			       struct btree *b,
+			       bool nofail)
 {
 	struct bch_fs *c = as->c;
-	struct btree *old;
 
 	trace_and_count(c, btree_node_set_root, trans, b);
 
-	old = btree_node_root(c, b);
+	struct btree *old = btree_node_root(c, b);
 
 	/*
 	 * Ensure no one is using the old root while we switch to the
 	 * new root:
 	 */
-	bch2_btree_node_lock_write_nofail(trans, path, &old->c);
+	if (nofail) {
+		bch2_btree_node_lock_write_nofail(trans, path, &old->c);
+	} else {
+		int ret = bch2_btree_node_lock_write(trans, path, &old->c);
+		if (ret)
+			return ret;
+	}
 
 	bch2_btree_set_root_inmem(c, b);
 
@@ -1310,6 +1316,7 @@ static void bch2_btree_set_root(struct btree_update *as,
 	 * depend on the new root would have to update the new root.
 	 */
 	bch2_btree_node_unlock_write(trans, path, old);
+	return 0;
 }
 
 /* Interior node updates: */
@@ -1652,14 +1659,15 @@ static int btree_split(struct btree_update *as, struct btree_trans *trans,
 	if (parent) {
 		/* Split a non root node */
 		ret = bch2_btree_insert_node(as, trans, path, parent, &as->parent_keys);
-		if (ret)
-			goto err;
 	} else if (n3) {
-		bch2_btree_set_root(as, trans, trans->paths + path, n3);
+		ret = bch2_btree_set_root(as, trans, trans->paths + path, n3, false);
 	} else {
 		/* Root filled up but didn't need to be split */
-		bch2_btree_set_root(as, trans, trans->paths + path, n1);
+		ret = bch2_btree_set_root(as, trans, trans->paths + path, n1, false);
 	}
+
+	if (ret)
+		goto err;
 
 	if (n3) {
 		bch2_btree_update_get_open_buckets(as, n3);
@@ -1863,7 +1871,9 @@ static void __btree_increase_depth(struct btree_update *as, struct btree_trans *
 	bch2_keylist_add(&as->parent_keys, &b->key);
 	btree_split_insert_keys(as, trans, path_idx, n, &as->parent_keys);
 
-	bch2_btree_set_root(as, trans, path, n);
+	int ret = bch2_btree_set_root(as, trans, path, n, true);
+	BUG_ON(ret);
+
 	bch2_btree_update_get_open_buckets(as, n);
 	bch2_btree_node_write(c, n, SIX_LOCK_intent, 0);
 	bch2_trans_node_add(trans, path, n);
@@ -2106,11 +2116,12 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 	if (parent) {
 		bch2_keylist_add(&as->parent_keys, &n->key);
 		ret = bch2_btree_insert_node(as, trans, iter->path, parent, &as->parent_keys);
-		if (ret)
-			goto err;
 	} else {
-		bch2_btree_set_root(as, trans, btree_iter_path(trans, iter), n);
+		ret = bch2_btree_set_root(as, trans, btree_iter_path(trans, iter), n, false);
 	}
+
+	if (ret)
+		goto err;
 
 	bch2_btree_update_get_open_buckets(as, n);
 	bch2_btree_node_write(c, n, SIX_LOCK_intent, 0);
