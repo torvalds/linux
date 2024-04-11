@@ -83,27 +83,10 @@ struct dql {
 #define DQL_MAX_OBJECT (UINT_MAX / 16)
 #define DQL_MAX_LIMIT ((UINT_MAX / 2) - DQL_MAX_OBJECT)
 
-/*
- * Record number of objects queued. Assumes that caller has already checked
- * availability in the queue with dql_avail.
- */
-static inline void dql_queued(struct dql *dql, unsigned int count)
+/* Populate the bitmap to be processed later in dql_check_stall() */
+static inline void dql_queue_stall(struct dql *dql)
 {
 	unsigned long map, now, now_hi, i;
-
-	if (WARN_ON_ONCE(count > DQL_MAX_OBJECT))
-		return;
-
-	dql->last_obj_cnt = count;
-
-	/* We want to force a write first, so that cpu do not attempt
-	 * to get cache line containing last_obj_cnt, num_queued, adj_limit
-	 * in Shared state, but directly does a Request For Ownership
-	 * It is only a hint, we use barrier() only.
-	 */
-	barrier();
-
-	dql->num_queued += count;
 
 	now = jiffies;
 	now_hi = now / BITS_PER_LONG;
@@ -132,6 +115,29 @@ static inline void dql_queued(struct dql *dql, unsigned int count)
 	/* Populate the history with an entry (bit) per queued */
 	if (!(map & BIT_MASK(now)))
 		WRITE_ONCE(DQL_HIST_ENT(dql, now_hi), map | BIT_MASK(now));
+}
+
+/*
+ * Record number of objects queued. Assumes that caller has already checked
+ * availability in the queue with dql_avail.
+ */
+static inline void dql_queued(struct dql *dql, unsigned int count)
+{
+	if (WARN_ON_ONCE(count > DQL_MAX_OBJECT))
+		return;
+
+	dql->last_obj_cnt = count;
+
+	/* We want to force a write first, so that cpu do not attempt
+	 * to get cache line containing last_obj_cnt, num_queued, adj_limit
+	 * in Shared state, but directly does a Request For Ownership
+	 * It is only a hint, we use barrier() only.
+	 */
+	barrier();
+
+	dql->num_queued += count;
+
+	dql_queue_stall(dql);
 }
 
 /* Returns how many objects can be queued, < 0 indicates over limit. */
