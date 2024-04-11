@@ -947,7 +947,7 @@ static bool acpi_can_fallback_to_crs(struct acpi_device *adev,
 
 static struct gpio_desc *
 __acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id, unsigned int idx,
-		 struct acpi_gpio_info *info)
+		 bool can_fallback, struct acpi_gpio_info *info)
 {
 	struct acpi_device *adev = to_acpi_device_node(fwnode);
 	struct gpio_desc *desc;
@@ -978,7 +978,7 @@ __acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id, unsigned int 
 	}
 
 	/* Then from plain _CRS GPIOs */
-	if (!adev || !acpi_can_fallback_to_crs(adev, con_id))
+	if (!adev || !can_fallback)
 		return ERR_PTR(-ENOENT);
 
 	return acpi_get_gpiod_by_index(adev, NULL, idx, info);
@@ -991,10 +991,11 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
 				 unsigned long *lookupflags)
 {
 	struct acpi_device *adev = to_acpi_device_node(fwnode);
+	bool can_fallback = acpi_can_fallback_to_crs(adev, con_id);
 	struct acpi_gpio_info info;
 	struct gpio_desc *desc;
 
-	desc = __acpi_find_gpio(fwnode, con_id, idx, &info);
+	desc = __acpi_find_gpio(fwnode, con_id, idx, can_fallback, &info);
 	if (IS_ERR(desc))
 		return desc;
 
