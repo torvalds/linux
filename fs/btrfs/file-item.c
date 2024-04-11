@@ -487,7 +487,7 @@ int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
-		goto fail;
+		goto out;
 	if (ret > 0 && path->slots[0] > 0) {
 		leaf = path->nodes[0];
 		btrfs_item_key_to_cpu(leaf, &key, path->slots[0] - 1);
@@ -522,7 +522,7 @@ int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 		if (path->slots[0] >= btrfs_header_nritems(leaf)) {
 			ret = btrfs_next_leaf(root, path);
 			if (ret < 0)
-				goto fail;
+				goto out;
 			if (ret > 0)
 				break;
 			leaf = path->nodes[0];
@@ -557,7 +557,7 @@ int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 				       GFP_NOFS);
 			if (!sums) {
 				ret = -ENOMEM;
-				goto fail;
+				goto out;
 			}
 
 			sums->logical = start;
@@ -576,11 +576,12 @@ int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 		path->slots[0]++;
 	}
 	ret = 0;
-fail:
-	while (ret < 0 && !list_empty(list)) {
-		sums = list_entry(list->next, struct btrfs_ordered_sum, list);
-		list_del(&sums->list);
-		kfree(sums);
+out:
+	if (ret < 0) {
+		struct btrfs_ordered_sum *tmp_sums;
+
+		list_for_each_entry_safe(sums, tmp_sums, list, list)
+			kfree(sums);
 	}
 
 	btrfs_free_path(path);
