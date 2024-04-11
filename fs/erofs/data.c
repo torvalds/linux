@@ -68,7 +68,7 @@ void erofs_init_metabuf(struct erofs_buf *buf, struct super_block *sb)
 	if (erofs_is_fscache_mode(sb))
 		buf->mapping = EROFS_SB(sb)->s_fscache->inode->i_mapping;
 	else
-		buf->mapping = sb->s_bdev->bd_inode->i_mapping;
+		buf->mapping = sb->s_bdev->bd_mapping;
 }
 
 void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
