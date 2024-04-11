@@ -470,7 +470,6 @@ int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 	struct extent_buffer *leaf;
 	struct btrfs_ordered_sum *sums;
 	struct btrfs_csum_item *item;
-	LIST_HEAD(tmplist);
 	int ret;
 
 	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&
@@ -572,18 +571,17 @@ int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 					   bytes_to_csum_size(fs_info, size));
 
 			start += size;
-			list_add_tail(&sums->list, &tmplist);
+			list_add_tail(&sums->list, list);
 		}
 		path->slots[0]++;
 	}
 	ret = 0;
 fail:
-	while (ret < 0 && !list_empty(&tmplist)) {
-		sums = list_entry(tmplist.next, struct btrfs_ordered_sum, list);
+	while (ret < 0 && !list_empty(list)) {
+		sums = list_entry(list->next, struct btrfs_ordered_sum, list);
 		list_del(&sums->list);
 		kfree(sums);
 	}
-	list_splice_tail(&tmplist, list);
 
 	btrfs_free_path(path);
 	return ret;
