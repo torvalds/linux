@@ -2814,8 +2814,8 @@ static int hci_le_set_ext_scan_param_sync(struct hci_dev *hdev, u8 type,
 				if (qos->bcast.in.phy & BT_ISO_PHY_CODED) {
 					cp->scanning_phys |= LE_SCAN_PHY_CODED;
 					hci_le_scan_phy_params(phy, type,
-							       interval,
-							       window);
+							       interval * 3,
+							       window * 3);
 					num_phy++;
 					phy++;
 				}
@@ -2835,7 +2835,7 @@ static int hci_le_set_ext_scan_param_sync(struct hci_dev *hdev, u8 type,
 
 	if (scan_coded(hdev)) {
 		cp->scanning_phys |= LE_SCAN_PHY_CODED;
-		hci_le_scan_phy_params(phy, type, interval, window);
+		hci_le_scan_phy_params(phy, type, interval * 3, window * 3);
 		num_phy++;
 		phy++;
 	}

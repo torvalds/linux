@@ -7,7 +7,9 @@
 #define _CIFS_DFS_H
 
 #include "cifsglob.h"
+#include "cifsproto.h"
 #include "fs_context.h"
+#include "dfs_cache.h"
 #include "cifs_unicode.h"
 #include <linux/namei.h>
 
@@ -114,11 +116,6 @@ static inline void ref_walk_set_tgt_hint(struct dfs_ref_walk *rw)
 				       ref_walk_tit(rw));
 }
 
-struct dfs_root_ses {
-	struct list_head list;
-	struct cifs_ses *ses;
-};
-
 int dfs_parse_target_referral(const char *full_path, const struct dfs_info3_param *ref,
 			      struct smb3_fs_context *ctx);
 int dfs_mount_share(struct cifs_mount_ctx *mnt_ctx, bool *isdfs);
@@ -133,20 +130,32 @@ static inline int dfs_get_referral(struct cifs_mount_ctx *mnt_ctx, const char *p
 {
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	struct cifs_sb_info *cifs_sb = mnt_ctx->cifs_sb;
+	struct cifs_ses *rses = ctx->dfs_root_ses ?: mnt_ctx->ses;
 
-	return dfs_cache_find(mnt_ctx->xid, ctx->dfs_root_ses, cifs_sb->local_nls,
+	return dfs_cache_find(mnt_ctx->xid, rses, cifs_sb->local_nls,
 			      cifs_remap(cifs_sb), path, ref, tl);
 }
 
-static inline void dfs_put_root_smb_sessions(struct list_head *head)
+/*
+ * cifs_get_smb_ses() already guarantees an active reference of
+ * @ses->dfs_root_ses when a new session is created, so we need to put extra
+ * references of all DFS root sessions that were used across the mount process
+ * in dfs_mount_share().
+ */
+static inline void dfs_put_root_smb_sessions(struct cifs_mount_ctx *mnt_ctx)
 {
-	struct dfs_root_ses *root, *tmp;
+	const struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
+	struct cifs_ses *ses = ctx->dfs_root_ses;
+	struct cifs_ses *cur;
 
-	list_for_each_entry_safe(root, tmp, head, list) {
-		list_del_init(&root->list);
-		cifs_put_smb_ses(root->ses);
-		kfree(root);
+	if (!ses)
+		return;
+
+	for (cur = ses; cur; cur = cur->dfs_root_ses) {
+		if (cur->dfs_root_ses)
+			cifs_put_smb_ses(cur->dfs_root_ses);
 	}
+	cifs_put_smb_ses(ses);
 }
 
 #endif /* _CIFS_DFS_H */

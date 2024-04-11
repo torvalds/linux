@@ -2191,7 +2191,6 @@ N:	mxs
 
 ARM/FREESCALE LAYERSCAPE ARM ARCHITECTURE
 M:	Shawn Guo <shawnguo@kernel.org>
-M:	Li Yang <leoyang.li@nxp.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/shawnguo/linux.git
@@ -3573,6 +3572,7 @@ S:	Supported
 C:	irc://irc.oftc.net/bcache
 T:	git https://evilpiepirate.org/git/bcachefs.git
 F:	fs/bcachefs/
+F:	Documentation/filesystems/bcachefs/
 
 BDISP ST MEDIA DRIVER
 M:	Fabien Dessenne <fabien.dessenne@foss.st.com>
@@ -8525,7 +8525,6 @@ S:	Maintained
 F:	drivers/video/fbdev/fsl-diu-fb.*
 
 FREESCALE DMA DRIVER
-M:	Li Yang <leoyang.li@nxp.com>
 M:	Zhang Wei <zw@zh-kernel.org>
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Maintained
@@ -8690,10 +8689,9 @@ F:	drivers/soc/fsl/qe/tsa.h
 F:	include/dt-bindings/soc/cpm1-fsl,tsa.h
 
 FREESCALE QUICC ENGINE UCC ETHERNET DRIVER
-M:	Li Yang <leoyang.li@nxp.com>
 L:	netdev@vger.kernel.org
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Maintained
+S:	Orphan
 F:	drivers/net/ethernet/freescale/ucc_geth*
 
 FREESCALE QUICC ENGINE UCC HDLC DRIVER
@@ -8710,10 +8708,9 @@ S:	Maintained
 F:	drivers/tty/serial/ucc_uart.c
 
 FREESCALE SOC DRIVERS
-M:	Li Yang <leoyang.li@nxp.com>
 L:	linuxppc-dev@lists.ozlabs.org
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
+S:	Orphan
 F:	Documentation/devicetree/bindings/misc/fsl,dpaa2-console.yaml
 F:	Documentation/devicetree/bindings/soc/fsl/
 F:	drivers/soc/fsl/
@@ -8747,10 +8744,9 @@ F:	Documentation/devicetree/bindings/sound/fsl,qmc-audio.yaml
 F:	sound/soc/fsl/fsl_qmc_audio.c
 
 FREESCALE USB PERIPHERAL DRIVERS
-M:	Li Yang <leoyang.li@nxp.com>
 L:	linux-usb@vger.kernel.org
 L:	linuxppc-dev@lists.ozlabs.org
-S:	Maintained
+S:	Orphan
 F:	drivers/usb/gadget/udc/fsl*
 
 FREESCALE USB PHY DRIVER
@@ -16735,9 +16731,9 @@ F:	include/uapi/linux/ppdev.h
 
 PARAVIRT_OPS INTERFACE
 M:	Juergen Gross <jgross@suse.com>
-R:	Ajay Kaher <akaher@vmware.com>
-R:	Alexey Makhalov <amakhalov@vmware.com>
-R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
+R:	Ajay Kaher <ajay.kaher@broadcom.com>
+R:	Alexey Makhalov <alexey.amakhalov@broadcom.com>
+R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	virtualization@lists.linux.dev
 L:	x86@kernel.org
 S:	Supported
@@ -22433,6 +22429,7 @@ S:	Maintained
 W:	https://kernsec.org/wiki/index.php/Linux_Kernel_Integrity
 Q:	https://patchwork.kernel.org/project/linux-integrity/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jarkko/linux-tpmdd.git
+F:	Documentation/devicetree/bindings/tpm/
 F:	drivers/char/tpm/
 
 TPS546D24 DRIVER
@@ -22579,6 +22576,7 @@ Q:	https://patchwork.kernel.org/project/linux-pm/list/
 B:	https://bugzilla.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux.git turbostat
 F:	tools/power/x86/turbostat/
+F:	tools/testing/selftests/turbostat/
 
 TW5864 VIDEO4LINUX DRIVER
 M:	Bluecherry Maintainers <maintainers@bluecherrydvr.com>
@@ -23657,9 +23655,9 @@ S:	Supported
 F:	drivers/misc/vmw_balloon.c
 
 VMWARE HYPERVISOR INTERFACE
-M:	Ajay Kaher <akaher@vmware.com>
-M:	Alexey Makhalov <amakhalov@vmware.com>
-R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
+M:	Ajay Kaher <ajay.kaher@broadcom.com>
+M:	Alexey Makhalov <alexey.amakhalov@broadcom.com>
+R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	virtualization@lists.linux.dev
 L:	x86@kernel.org
 S:	Supported
@@ -23668,33 +23666,34 @@ F:	arch/x86/include/asm/vmware.h
 F:	arch/x86/kernel/cpu/vmware.c
 
 VMWARE PVRDMA DRIVER
-M:	Bryan Tan <bryantan@vmware.com>
-M:	Vishnu Dasa <vdasa@vmware.com>
-R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
+M:	Bryan Tan <bryan-bt.tan@broadcom.com>
+M:	Vishnu Dasa <vishnu.dasa@broadcom.com>
+R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-rdma@vger.kernel.org
 S:	Supported
 F:	drivers/infiniband/hw/vmw_pvrdma/
 
 VMWARE PVSCSI DRIVER
-M:	Vishal Bhakta <vbhakta@vmware.com>
-R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
+M:	Vishal Bhakta <vishal.bhakta@broadcom.com>
+R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 F:	drivers/scsi/vmw_pvscsi.c
 F:	drivers/scsi/vmw_pvscsi.h
 
 VMWARE VIRTUAL PTP CLOCK DRIVER
-R:	Ajay Kaher <akaher@vmware.com>
-R:	Alexey Makhalov <amakhalov@vmware.com>
-R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
+M:	Nick Shi <nick.shi@broadcom.com>
+R:	Ajay Kaher <ajay.kaher@broadcom.com>
+R:	Alexey Makhalov <alexey.amakhalov@broadcom.com>
+R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/ptp/ptp_vmw.c
 
 VMWARE VMCI DRIVER
-M:	Bryan Tan <bryantan@vmware.com>
-M:	Vishnu Dasa <vdasa@vmware.com>
-R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
+M:	Bryan Tan <bryan-bt.tan@broadcom.com>
+M:	Vishnu Dasa <vishnu.dasa@broadcom.com>
+R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 F:	drivers/misc/vmw_vmci/
@@ -23709,16 +23708,16 @@ F:	drivers/input/mouse/vmmouse.c
 F:	drivers/input/mouse/vmmouse.h
 
 VMWARE VMXNET3 ETHERNET DRIVER
-M:	Ronak Doshi <doshir@vmware.com>
-R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
+M:	Ronak Doshi <ronak.doshi@broadcom.com>
+R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	drivers/net/vmxnet3/
 
 VMWARE VSOCK VMCI TRANSPORT DRIVER
-M:	Bryan Tan <bryantan@vmware.com>
-M:	Vishnu Dasa <vdasa@vmware.com>
-R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
+M:	Bryan Tan <bryan-bt.tan@broadcom.com>
+M:	Vishnu Dasa <vishnu.dasa@broadcom.com>
+R:	Broadcom internal kernel review list <bcm-kernel-feedback-list@broadcom.com>
 L:	linux-kernel@vger.kernel.org
 S:	Supported
 F:	net/vmw_vsock/vmci_transport*

@@ -1202,8 +1202,8 @@ static void aio_complete(struct aio_kiocb *iocb)
 		spin_lock_irqsave(&ctx->wait.lock, flags);
 		list_for_each_entry_safe(curr, next, &ctx->wait.head, w.entry)
 			if (avail >= curr->min_nr) {
-				list_del_init_careful(&curr->w.entry);
 				wake_up_process(curr->w.private);
+				list_del_init_careful(&curr->w.entry);
 			}
 		spin_unlock_irqrestore(&ctx->wait.lock, flags);
 	}

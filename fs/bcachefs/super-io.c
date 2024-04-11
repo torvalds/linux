@@ -143,7 +143,7 @@ void bch2_free_super(struct bch_sb_handle *sb)
 {
 	kfree(sb->bio);
 	if (!IS_ERR_OR_NULL(sb->s_bdev_file))
-		fput(sb->s_bdev_file);
+		bdev_fput(sb->s_bdev_file);
 	kfree(sb->holder);
 	kfree(sb->sb_name);
 

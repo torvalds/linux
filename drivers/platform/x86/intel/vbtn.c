@@ -136,8 +136,6 @@ static int intel_vbtn_input_setup(struct platform_device *device)
 	priv->switches_dev->id.bustype = BUS_HOST;
 
 	if (priv->has_switches) {
-		detect_tablet_mode(&device->dev);
-
 		ret = input_register_device(priv->switches_dev);
 		if (ret)
 			return ret;
@@ -258,9 +256,6 @@ static const struct dmi_system_id dmi_switches_allow_list[] = {
 
 static bool intel_vbtn_has_switches(acpi_handle handle, bool dual_accel)
 {
-	unsigned long long vgbs;
-	acpi_status status;
-
 	/* See dual_accel_detect.h for more info */
 	if (dual_accel)
 		return false;
@@ -268,8 +263,7 @@ static bool intel_vbtn_has_switches(acpi_handle handle, bool dual_accel)
 	if (!dmi_check_system(dmi_switches_allow_list))
 		return false;
 
-	status = acpi_evaluate_integer(handle, "VGBS", NULL, &vgbs);
-	return ACPI_SUCCESS(status);
+	return acpi_has_method(handle, "VGBS");
 }
 
 static int intel_vbtn_probe(struct platform_device *device)
@@ -316,6 +310,9 @@ static int intel_vbtn_probe(struct platform_device *device)
 		if (ACPI_FAILURE(status))
 			dev_err(&device->dev, "Error VBDL failed with ACPI status %d\n", status);
 	}
+	// Check switches after buttons since VBDL may have side effects.
+	if (has_switches)
+		detect_tablet_mode(&device->dev);
 
 	device_init_wakeup(&device->dev, true);
 	/*

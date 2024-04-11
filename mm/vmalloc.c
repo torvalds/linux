@@ -989,6 +989,27 @@ unsigned long vmalloc_nr_pages(void)
 	return atomic_long_read(&nr_vmalloc_pages);
 }
 
+static struct vmap_area *__find_vmap_area(unsigned long addr, struct rb_root *root)
+{
+	struct rb_node *n = root->rb_node;
+
+	addr = (unsigned long)kasan_reset_tag((void *)addr);
+
+	while (n) {
+		struct vmap_area *va;
+
+		va = rb_entry(n, struct vmap_area, rb_node);
+		if (addr < va->va_start)
+			n = n->rb_left;
+		else if (addr >= va->va_end)
+			n = n->rb_right;
+		else
+			return va;
+	}
+
+	return NULL;
+}
+
 /* Look up the first VA which satisfies addr < va_end, NULL if none. */
 static struct vmap_area *
 __find_vmap_area_exceed_addr(unsigned long addr, struct rb_root *root)
@@ -1025,47 +1046,39 @@ __find_vmap_area_exceed_addr(unsigned long addr, struct rb_root *root)
 static struct vmap_node *
 find_vmap_area_exceed_addr_lock(unsigned long addr, struct vmap_area **va)
 {
-	struct vmap_node *vn, *va_node = NULL;
-	struct vmap_area *va_lowest;
+	unsigned long va_start_lowest;
+	struct vmap_node *vn;
 	int i;
 
-	for (i = 0; i < nr_vmap_nodes; i++) {
+repeat:
+	for (i = 0, va_start_lowest = 0; i < nr_vmap_nodes; i++) {
 		vn = &vmap_nodes[i];
 
 		spin_lock(&vn->busy.lock);
-		va_lowest = __find_vmap_area_exceed_addr(addr, &vn->busy.root);
-		if (va_lowest) {
-			if (!va_node || va_lowest->va_start < (*va)->va_start) {
-				if (va_node)
-					spin_unlock(&va_node->busy.lock);
+		*va = __find_vmap_area_exceed_addr(addr, &vn->busy.root);
 
-				*va = va_lowest;
-				va_node = vn;
-				continue;
-			}
-		}
+		if (*va)
+			if (!va_start_lowest || (*va)->va_start < va_start_lowest)
+				va_start_lowest = (*va)->va_start;
 		spin_unlock(&vn->busy.lock);
 	}
 
-	return va_node;
-}
+	/*
+	 * Check if found VA exists, it might have gone away.  In this case we
+	 * repeat the search because a VA has been removed concurrently and we
+	 * need to proceed to the next one, which is a rare case.
+	 */
+	if (va_start_lowest) {
+		vn = addr_to_node(va_start_lowest);
 
-static struct vmap_area *__find_vmap_area(unsigned long addr, struct rb_root *root)
-{
-	struct rb_node *n = root->rb_node;
+		spin_lock(&vn->busy.lock);
+		*va = __find_vmap_area(va_start_lowest, &vn->busy.root);
 
-	addr = (unsigned long)kasan_reset_tag((void *)addr);
+		if (*va)
+			return vn;
 
-	while (n) {
-		struct vmap_area *va;
-
-		va = rb_entry(n, struct vmap_area, rb_node);
-		if (addr < va->va_start)
-			n = n->rb_left;
-		else if (addr >= va->va_end)
-			n = n->rb_right;
-		else
-			return va;
+		spin_unlock(&vn->busy.lock);
+		goto repeat;
 	}
 
 	return NULL;
@@ -2342,6 +2355,9 @@ struct vmap_area *find_vmap_area(unsigned long addr)
 	struct vmap_node *vn;
 	struct vmap_area *va;
 	int i, j;
+
+	if (unlikely(!vmap_initialized))
+		return NULL;
 
 	/*
 	 * An addr_to_node_id(addr) converts an address to a node index

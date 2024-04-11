@@ -2633,6 +2633,32 @@ config MITIGATION_RFDS
 	  stored in floating point, vector and integer registers.
 	  See also <file:Documentation/admin-guide/hw-vuln/reg-file-data-sampling.rst>
 
+choice
+	prompt "Clear branch history"
+	depends on CPU_SUP_INTEL
+	default SPECTRE_BHI_ON
+	help
+	  Enable BHI mitigations. BHI attacks are a form of Spectre V2 attacks
+	  where the branch history buffer is poisoned to speculatively steer
+	  indirect branches.
+	  See <file:Documentation/admin-guide/hw-vuln/spectre.rst>
+
+config SPECTRE_BHI_ON
+	bool "on"
+	help
+	  Equivalent to setting spectre_bhi=on command line parameter.
+config SPECTRE_BHI_OFF
+	bool "off"
+	help
+	  Equivalent to setting spectre_bhi=off command line parameter.
+config SPECTRE_BHI_AUTO
+	bool "auto"
+	depends on BROKEN
+	help
+	  Equivalent to setting spectre_bhi=auto command line parameter.
+
+endchoice
+
 endif
 
 config ARCH_HAS_ADD_PAGES
