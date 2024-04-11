@@ -242,6 +242,15 @@ int __mt7921_start(struct mt792x_phy *phy)
 
 	ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,
 				     MT792x_WATCHDOG_TIME);
+	if (mt76_is_mmio(mphy->dev)) {
+		err = mt7921_mcu_radio_led_ctrl(phy->dev, EXT_CMD_RADIO_LED_CTRL_ENABLE);
+		if (err)
+			return err;
+
+		err = mt7921_mcu_radio_led_ctrl(phy->dev, EXT_CMD_RADIO_ON_LED);
+		if (err)
+			return err;
+	}
 
 	return 0;
 }
@@ -257,6 +266,22 @@ static int mt7921_start(struct ieee80211_hw *hw)
 	mt792x_mutex_release(phy->dev);
 
 	return err;
+}
+
+static void mt7921_stop(struct ieee80211_hw *hw)
+{
+	struct mt792x_dev *dev = mt792x_hw_dev(hw);
+	int err = 0;
+
+	if (mt76_is_mmio(&dev->mt76)) {
+		mt792x_mutex_acquire(dev);
+		err = mt7921_mcu_radio_led_ctrl(dev, EXT_CMD_RADIO_OFF_LED);
+		mt792x_mutex_release(dev);
+		if (err)
+			return;
+	}
+
+	mt792x_stop(hw);
 }
 
 static int
@@ -1377,7 +1402,7 @@ static void mt7921_mgd_complete_tx(struct ieee80211_hw *hw,
 const struct ieee80211_ops mt7921_ops = {
 	.tx = mt792x_tx,
 	.start = mt7921_start,
-	.stop = mt792x_stop,
+	.stop = mt7921_stop,
 	.add_interface = mt7921_add_interface,
 	.remove_interface = mt792x_remove_interface,
 	.config = mt7921_config,

@@ -427,6 +427,10 @@ static int mt7921_pci_suspend(struct device *device)
 	wait_event_timeout(dev->wait,
 			   !dev->regd_in_progress, 5 * HZ);
 
+	err = mt7921_mcu_radio_led_ctrl(dev, EXT_CMD_RADIO_OFF_LED);
+	if (err < 0)
+		goto restore_suspend;
+
 	err = mt76_connac_mcu_set_hif_suspend(mdev, true);
 	if (err)
 		goto restore_suspend;
@@ -525,9 +529,11 @@ static int mt7921_pci_resume(struct device *device)
 		mt76_connac_mcu_set_deep_sleep(&dev->mt76, false);
 
 	err = mt76_connac_mcu_set_hif_suspend(mdev, false);
+	if (err < 0)
+		goto failed;
 
 	mt7921_regd_update(dev);
-
+	err = mt7921_mcu_radio_led_ctrl(dev, EXT_CMD_RADIO_ON_LED);
 failed:
 	pm->suspended = false;
 

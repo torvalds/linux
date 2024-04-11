@@ -646,6 +646,20 @@ int mt7921_run_firmware(struct mt792x_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt7921_run_firmware);
 
+int mt7921_mcu_radio_led_ctrl(struct mt792x_dev *dev, u8 value)
+{
+	struct {
+		u8 ctrlid;
+		u8 rsv[3];
+	} __packed req = {
+		.ctrlid = value,
+	};
+
+	return mt76_mcu_send_msg(&dev->mt76, MCU_EXT_CMD(ID_RADIO_ON_OFF_CTRL),
+				&req, sizeof(req), false);
+}
+EXPORT_SYMBOL_GPL(mt7921_mcu_radio_led_ctrl);
+
 int mt7921_mcu_set_tx(struct mt792x_dev *dev, struct ieee80211_vif *vif)
 {
 	struct mt792x_vif *mvif = (struct mt792x_vif *)vif->drv_priv;
