@@ -68,6 +68,7 @@
 #define CTRL_COMPLETE			BIT(6)
 #define CTRL_READY			BIT(7)
 #define CTRL_INBAND_LOCK		BIT(32)
+#define CTRL_METER_ENABLE_DRAM		BIT(33)
 #define CTRL_STATUS			GENMASK(15, 8)
 #define CTRL_PACKET_SIZE		GENMASK(31, 16)
 #define CTRL_MSG_SIZE			GENMASK(63, 48)
@@ -95,6 +96,7 @@ enum sdsi_command {
 struct sdsi_mbox_info {
 	u64	*payload;
 	void	*buffer;
+	u64	control_flags;
 	int	size;
 };
 
@@ -250,7 +252,8 @@ static int sdsi_mbox_cmd_read(struct sdsi_priv *priv, struct sdsi_mbox_info *inf
 	control = FIELD_PREP(CTRL_EOM, 1) |
 		  FIELD_PREP(CTRL_SOM, 1) |
 		  FIELD_PREP(CTRL_RUN_BUSY, 1) |
-		  FIELD_PREP(CTRL_PACKET_SIZE, info->size);
+		  FIELD_PREP(CTRL_PACKET_SIZE, info->size) |
+		  info->control_flags;
 	writeq(control, priv->control_addr);
 
 	return sdsi_mbox_poll(priv, info, data_size);
@@ -424,8 +427,8 @@ static ssize_t provision_cap_write(struct file *filp, struct kobject *kobj,
 static BIN_ATTR_WO(provision_cap, SDSI_SIZE_WRITE_MSG);
 
 static ssize_t
-certificate_read(u64 command, struct sdsi_priv *priv, char *buf, loff_t off,
-		 size_t count)
+certificate_read(u64 command, u64 control_flags, struct sdsi_priv *priv,
+		 char *buf, loff_t off, size_t count)
 {
 	struct sdsi_mbox_info info = {};
 	size_t size;
@@ -441,6 +444,7 @@ certificate_read(u64 command, struct sdsi_priv *priv, char *buf, loff_t off,
 
 	info.payload = &command;
 	info.size = sizeof(command);
+	info.control_flags = control_flags;
 
 	ret = mutex_lock_interruptible(&priv->mb_lock);
 	if (ret)
@@ -472,7 +476,7 @@ state_certificate_read(struct file *filp, struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct sdsi_priv *priv = dev_get_drvdata(dev);
 
-	return certificate_read(SDSI_CMD_READ_STATE, priv, buf, off, count);
+	return certificate_read(SDSI_CMD_READ_STATE, 0, priv, buf, off, count);
 }
 static BIN_ATTR_ADMIN_RO(state_certificate, SDSI_SIZE_READ_MSG);
 
@@ -484,9 +488,22 @@ meter_certificate_read(struct file *filp, struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct sdsi_priv *priv = dev_get_drvdata(dev);
 
-	return certificate_read(SDSI_CMD_READ_METER, priv, buf, off, count);
+	return certificate_read(SDSI_CMD_READ_METER, 0, priv, buf, off, count);
 }
 static BIN_ATTR_ADMIN_RO(meter_certificate, SDSI_SIZE_READ_MSG);
+
+static ssize_t
+meter_current_read(struct file *filp, struct kobject *kobj,
+		   struct bin_attribute *attr, char *buf, loff_t off,
+		   size_t count)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct sdsi_priv *priv = dev_get_drvdata(dev);
+
+	return certificate_read(SDSI_CMD_READ_METER, CTRL_METER_ENABLE_DRAM,
+				priv, buf, off, count);
+}
+static BIN_ATTR_ADMIN_RO(meter_current, SDSI_SIZE_READ_MSG);
 
 static ssize_t registers_read(struct file *filp, struct kobject *kobj,
 			      struct bin_attribute *attr, char *buf, loff_t off,
@@ -518,6 +535,7 @@ static struct bin_attribute *sdsi_bin_attrs[] = {
 	&bin_attr_registers,
 	&bin_attr_state_certificate,
 	&bin_attr_meter_certificate,
+	&bin_attr_meter_current,
 	&bin_attr_provision_akc,
 	&bin_attr_provision_cap,
 	NULL
@@ -537,7 +555,7 @@ sdsi_battr_is_visible(struct kobject *kobj, struct bin_attribute *attr, int n)
 	if (!(priv->features & SDSI_FEATURE_SDSI))
 		return 0;
 
-	if (attr == &bin_attr_meter_certificate)
+	if (attr == &bin_attr_meter_certificate || attr == &bin_attr_meter_current)
 		return (priv->features & SDSI_FEATURE_METERING) ?
 				attr->attr.mode : 0;
 
