@@ -1167,7 +1167,7 @@ blk_status_t null_handle_discard(struct nullb_device *dev,
 	return BLK_STS_OK;
 }
 
-static int null_handle_flush(struct nullb *nullb)
+static blk_status_t null_handle_flush(struct nullb *nullb)
 {
 	int err;
 
@@ -1184,7 +1184,7 @@ static int null_handle_flush(struct nullb *nullb)
 
 	WARN_ON(!radix_tree_empty(&nullb->dev->cache));
 	spin_unlock_irq(&nullb->lock);
-	return err;
+	return errno_to_blk_status(err);
 }
 
 static int null_transfer(struct nullb *nullb, struct page *page,
@@ -1222,7 +1222,7 @@ static int null_handle_rq(struct nullb_cmd *cmd)
 {
 	struct request *rq = blk_mq_rq_from_pdu(cmd);
 	struct nullb *nullb = cmd->nq->dev->nullb;
-	int err;
+	int err = 0;
 	unsigned int len;
 	sector_t sector = blk_rq_pos(rq);
 	struct req_iterator iter;
@@ -1234,15 +1234,13 @@ static int null_handle_rq(struct nullb_cmd *cmd)
 		err = null_transfer(nullb, bvec.bv_page, len, bvec.bv_offset,
 				     op_is_write(req_op(rq)), sector,
 				     rq->cmd_flags & REQ_FUA);
-		if (err) {
-			spin_unlock_irq(&nullb->lock);
-			return err;
-		}
+		if (err)
+			break;
 		sector += len >> SECTOR_SHIFT;
 	}
 	spin_unlock_irq(&nullb->lock);
 
-	return 0;
+	return errno_to_blk_status(err);
 }
 
 static inline blk_status_t null_handle_throttled(struct nullb_cmd *cmd)
@@ -1289,8 +1287,8 @@ static inline blk_status_t null_handle_memory_backed(struct nullb_cmd *cmd,
 
 	if (op == REQ_OP_DISCARD)
 		return null_handle_discard(dev, sector, nr_sectors);
-	return errno_to_blk_status(null_handle_rq(cmd));
 
+	return null_handle_rq(cmd);
 }
 
 static void nullb_zero_read_cmd_buffer(struct nullb_cmd *cmd)
@@ -1359,7 +1357,7 @@ static void null_handle_cmd(struct nullb_cmd *cmd, sector_t sector,
 	blk_status_t sts;
 
 	if (op == REQ_OP_FLUSH) {
-		cmd->error = errno_to_blk_status(null_handle_flush(nullb));
+		cmd->error = null_handle_flush(nullb);
 		goto out;
 	}
 
