@@ -1699,12 +1699,15 @@ int mlx5_init_one_light(struct mlx5_core_dev *dev)
 	err = mlx5_devlink_params_register(priv_to_devlink(dev));
 	if (err) {
 		mlx5_core_warn(dev, "mlx5_devlink_param_reg err = %d\n", err);
-		goto query_hca_caps_err;
+		goto params_reg_err;
 	}
 
 	devl_unlock(devlink);
 	return 0;
 
+params_reg_err:
+	devl_unregister(devlink);
+	devl_unlock(devlink);
 query_hca_caps_err:
 	devl_unregister(devlink);
 	devl_unlock(devlink);
