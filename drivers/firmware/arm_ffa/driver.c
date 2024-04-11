@@ -101,6 +101,7 @@ struct ffa_drv_info {
 	bool bitmap_created;
 	bool notif_enabled;
 	unsigned int sched_recv_irq;
+	unsigned int notif_pend_irq;
 	unsigned int cpuhp_state;
 	struct ffa_pcpu_irq __percpu *irq_pcpu;
 	struct workqueue_struct *notif_pcpu_wq;
@@ -1301,6 +1302,15 @@ static irqreturn_t ffa_sched_recv_irq_handler(int irq, void *irq_data)
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t notif_pend_irq_handler(int irq, void *irq_data)
+{
+	struct ffa_pcpu_irq *pcpu = irq_data;
+
+	ffa_self_notif_handle(smp_processor_id(), true, pcpu->info);
+
+	return IRQ_HANDLED;
+}
+
 static void ffa_sched_recv_irq_work_fn(struct work_struct *work)
 {
 	ffa_notification_info_get();
@@ -1364,13 +1374,19 @@ static void ffa_irq_unmap(unsigned int irq)
 
 static int ffa_cpuhp_pcpu_irq_enable(unsigned int cpu)
 {
-	enable_percpu_irq(drv_info->sched_recv_irq, IRQ_TYPE_NONE);
+	if (drv_info->sched_recv_irq)
+		enable_percpu_irq(drv_info->sched_recv_irq, IRQ_TYPE_NONE);
+	if (drv_info->notif_pend_irq)
+		enable_percpu_irq(drv_info->notif_pend_irq, IRQ_TYPE_NONE);
 	return 0;
 }
 
 static int ffa_cpuhp_pcpu_irq_disable(unsigned int cpu)
 {
-	disable_percpu_irq(drv_info->sched_recv_irq);
+	if (drv_info->sched_recv_irq)
+		disable_percpu_irq(drv_info->sched_recv_irq);
+	if (drv_info->notif_pend_irq)
+		disable_percpu_irq(drv_info->notif_pend_irq);
 	return 0;
 }
 
@@ -1389,13 +1405,16 @@ static void ffa_uninit_pcpu_irq(void)
 	if (drv_info->sched_recv_irq)
 		free_percpu_irq(drv_info->sched_recv_irq, drv_info->irq_pcpu);
 
+	if (drv_info->notif_pend_irq)
+		free_percpu_irq(drv_info->notif_pend_irq, drv_info->irq_pcpu);
+
 	if (drv_info->irq_pcpu) {
 		free_percpu(drv_info->irq_pcpu);
 		drv_info->irq_pcpu = NULL;
 	}
 }
 
-static int ffa_init_pcpu_irq(unsigned int irq)
+static int ffa_init_pcpu_irq(void)
 {
 	struct ffa_pcpu_irq __percpu *irq_pcpu;
 	int ret, cpu;
@@ -1409,11 +1428,26 @@ static int ffa_init_pcpu_irq(unsigned int irq)
 
 	drv_info->irq_pcpu = irq_pcpu;
 
-	ret = request_percpu_irq(irq, ffa_sched_recv_irq_handler, "ARM-FFA-SRI",
-				 irq_pcpu);
-	if (ret) {
-		pr_err("Error registering notification IRQ %d: %d\n", irq, ret);
-		return ret;
+	if (drv_info->sched_recv_irq) {
+		ret = request_percpu_irq(drv_info->sched_recv_irq,
+					 ffa_sched_recv_irq_handler,
+					 "ARM-FFA-SRI", irq_pcpu);
+		if (ret) {
+			pr_err("Error registering percpu SRI nIRQ %d : %d\n",
+			       drv_info->sched_recv_irq, ret);
+			return ret;
+		}
+	}
+
+	if (drv_info->notif_pend_irq) {
+		ret = request_percpu_irq(drv_info->notif_pend_irq,
+					 notif_pend_irq_handler,
+					 "ARM-FFA-NPI", irq_pcpu);
+		if (ret) {
+			pr_err("Error registering percpu NPI nIRQ %d : %d\n",
+			       drv_info->notif_pend_irq, ret);
+			return ret;
+		}
 	}
 
 	INIT_WORK(&drv_info->sched_recv_irq_work, ffa_sched_recv_irq_work_fn);
@@ -1438,6 +1472,8 @@ static void ffa_notifications_cleanup(void)
 	ffa_uninit_pcpu_irq();
 	ffa_irq_unmap(drv_info->sched_recv_irq);
 	drv_info->sched_recv_irq = 0;
+	ffa_irq_unmap(drv_info->notif_pend_irq);
+	drv_info->notif_pend_irq = 0;
 
 	if (drv_info->bitmap_created) {
 		ffa_notification_bitmap_destroy();
@@ -1448,7 +1484,7 @@ static void ffa_notifications_cleanup(void)
 
 static void ffa_notifications_setup(void)
 {
-	int ret, irq;
+	int ret;
 
 	ret = ffa_features(FFA_NOTIFICATION_BITMAP_CREATE, 0, NULL, NULL);
 	if (!ret) {
@@ -1461,15 +1497,18 @@ static void ffa_notifications_setup(void)
 		drv_info->bitmap_created = true;
 	}
 
-	irq = ffa_irq_map(FFA_FEAT_SCHEDULE_RECEIVER_INT);
-	if (irq <= 0) {
-		ret = irq;
+	ret = ffa_irq_map(FFA_FEAT_SCHEDULE_RECEIVER_INT);
+	if (ret > 0)
+		drv_info->sched_recv_irq = ret;
+
+	ret = ffa_irq_map(FFA_FEAT_NOTIFICATION_PENDING_INT);
+	if (ret > 0)
+		drv_info->notif_pend_irq = ret;
+
+	if (!drv_info->sched_recv_irq && !drv_info->notif_pend_irq)
 		goto cleanup;
-	}
 
-	drv_info->sched_recv_irq = irq;
-
-	ret = ffa_init_pcpu_irq(irq);
+	ret = ffa_init_pcpu_irq();
 	if (ret)
 		goto cleanup;
 
