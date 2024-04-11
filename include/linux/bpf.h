@@ -2996,6 +2996,7 @@ int sock_map_prog_detach(const union bpf_attr *attr, enum bpf_prog_type ptype);
 int sock_map_update_elem_sys(struct bpf_map *map, void *key, void *value, u64 flags);
 int sock_map_bpf_prog_query(const union bpf_attr *attr,
 			    union bpf_attr __user *uattr);
+int sock_map_link_create(const union bpf_attr *attr, struct bpf_prog *prog);
 
 void sock_map_unhash(struct sock *sk);
 void sock_map_destroy(struct sock *sk);
@@ -3093,6 +3094,11 @@ static inline int sock_map_bpf_prog_query(const union bpf_attr *attr,
 					  union bpf_attr __user *uattr)
 {
 	return -EINVAL;
+}
+
+static inline int sock_map_link_create(const union bpf_attr *attr, struct bpf_prog *prog)
+{
+	return -EOPNOTSUPP;
 }
 #endif /* CONFIG_BPF_SYSCALL */
 #endif /* CONFIG_NET && CONFIG_BPF_SYSCALL */
