@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 #
 # End-to-end ipvs test suite
@@ -24,8 +24,8 @@
 # We assume that all network driver are loaded
 #
 
-# Kselftest framework requirement - SKIP code is 4.
-ksft_skip=4
+source lib.sh
+
 ret=0
 GREEN='\033[0;92m'
 RED='\033[0;31m'
@@ -46,53 +46,39 @@ readonly datalen=32
 
 sysipvsnet="/proc/sys/net/ipv4/vs/"
 if [ ! -d $sysipvsnet ]; then
-	modprobe -q ip_vs
-	if [ $? -ne 0 ]; then
+	if ! modprobe -q ip_vs; then
 		echo "skip: could not run test without ipvs module"
 		exit $ksft_skip
 	fi
 fi
 
-ip -Version > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-	echo "SKIP: Could not run test without ip tool"
-	exit $ksft_skip
-fi
-
-ipvsadm -v > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-	echo "SKIP: Could not run test without ipvsadm"
-	exit $ksft_skip
-fi
+checktool "ipvsadm -v" "run test without ipvsadm"
+checktool "socat -h" "run test without socat"
 
 setup() {
-	ip netns add ns0
-	ip netns add ns1
-	ip netns add ns2
+	setup_ns ns0 ns1 ns2
 
-	ip link add veth01 netns ns0 type veth peer name veth10 netns ns1
-	ip link add veth02 netns ns0 type veth peer name veth20 netns ns2
-	ip link add veth12 netns ns1 type veth peer name veth21 netns ns2
+	ip link add veth01 netns "${ns0}" type veth peer name veth10 netns "${ns1}"
+	ip link add veth02 netns "${ns0}" type veth peer name veth20 netns "${ns2}"
+	ip link add veth12 netns "${ns1}" type veth peer name veth21 netns "${ns2}"
 
-	ip netns exec ns0 ip link set veth01 up
-	ip netns exec ns0 ip link set veth02 up
-	ip netns exec ns0 ip link add br0 type bridge
-	ip netns exec ns0 ip link set veth01 master br0
-	ip netns exec ns0 ip link set veth02 master br0
-	ip netns exec ns0 ip link set br0 up
-	ip netns exec ns0 ip addr add ${cip_v4}/24 dev br0
+	ip netns exec "${ns0}" ip link set veth01 up
+	ip netns exec "${ns0}" ip link set veth02 up
+	ip netns exec "${ns0}" ip link add br0 type bridge
+	ip netns exec "${ns0}" ip link set veth01 master br0
+	ip netns exec "${ns0}" ip link set veth02 master br0
+	ip netns exec "${ns0}" ip link set br0 up
+	ip netns exec "${ns0}" ip addr add "${cip_v4}/24" dev br0
 
-	ip netns exec ns1 ip link set lo up
-	ip netns exec ns1 ip link set veth10 up
-	ip netns exec ns1 ip addr add ${gip_v4}/24 dev veth10
-	ip netns exec ns1 ip link set veth12 up
-	ip netns exec ns1 ip addr add ${dip_v4}/24 dev veth12
+	ip netns exec "${ns1}" ip link set veth10 up
+	ip netns exec "${ns1}" ip addr add "${gip_v4}/24" dev veth10
+	ip netns exec "${ns1}" ip link set veth12 up
+	ip netns exec "${ns1}" ip addr add "${dip_v4}/24" dev veth12
 
-	ip netns exec ns2 ip link set lo up
-	ip netns exec ns2 ip link set veth21 up
-	ip netns exec ns2 ip addr add ${rip_v4}/24 dev veth21
-	ip netns exec ns2 ip link set veth20 up
-	ip netns exec ns2 ip addr add ${sip_v4}/24 dev veth20
+	ip netns exec "${ns2}" ip link set veth21 up
+	ip netns exec "${ns2}" ip addr add "${rip_v4}/24" dev veth21
+	ip netns exec "${ns2}" ip link set veth20 up
+	ip netns exec "${ns2}" ip addr add "${sip_v4}/24" dev veth20
 
 	sleep 1
 
@@ -100,10 +86,7 @@ setup() {
 }
 
 cleanup() {
-	for i in 0 1 2
-	do
-		ip netns del ns$i > /dev/null 2>&1
-	done
+	cleanup_all_ns
 
 	if [ -f "${outfile}" ]; then
 		rm "${outfile}"
@@ -114,13 +97,13 @@ cleanup() {
 }
 
 server_listen() {
-	ip netns exec ns2 nc -l -p 8080 > "${outfile}" &
+	ip netns exec "$ns2" socat -u -4 TCP-LISTEN:8080,reuseaddr STDOUT > "${outfile}" &
 	server_pid=$!
 	sleep 0.2
 }
 
 client_connect() {
-	ip netns exec ns0 timeout 2 nc -w 1 ${vip_v4} ${port} < "${infile}"
+	ip netns exec "${ns0}" timeout 2 socat -u -4 STDIN TCP:"${vip_v4}":"${port}" < "${infile}"
 }
 
 verify_data() {
@@ -136,58 +119,58 @@ test_service() {
 
 
 test_dr() {
-	ip netns exec ns0 ip route add ${vip_v4} via ${gip_v4} dev br0
+	ip netns exec "${ns0}" ip route add "${vip_v4}" via "${gip_v4}" dev br0
 
-	ip netns exec ns1 sysctl -qw net.ipv4.ip_forward=1
-	ip netns exec ns1 ipvsadm -A -t ${vip_v4}:${port} -s rr
-	ip netns exec ns1 ipvsadm -a -t ${vip_v4}:${port} -r ${rip_v4}:${port}
-	ip netns exec ns1 ip addr add ${vip_v4}/32 dev lo:1
+	ip netns exec "${ns1}" sysctl -qw net.ipv4.ip_forward=1
+	ip netns exec "${ns1}" ipvsadm -A -t "${vip_v4}:${port}" -s rr
+	ip netns exec "${ns1}" ipvsadm -a -t "${vip_v4}:${port}" -r "${rip_v4}:${port}"
+	ip netns exec "${ns1}" ip addr add "${vip_v4}/32" dev lo:1
 
 	# avoid incorrect arp response
-	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.arp_ignore=1
-	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.arp_announce=2
+	ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.all.arp_ignore=1
+	ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.all.arp_announce=2
 	# avoid reverse route lookup
-	ip netns exec ns2 sysctl -qw  net.ipv4.conf.all.rp_filter=0
-	ip netns exec ns2 sysctl -qw  net.ipv4.conf.veth21.rp_filter=0
-	ip netns exec ns2 ip addr add ${vip_v4}/32 dev lo:1
+	ip netns exec "${ns2}" sysctl -qw  net.ipv4.conf.all.rp_filter=0
+	ip netns exec "${ns2}" sysctl -qw  net.ipv4.conf.veth21.rp_filter=0
+	ip netns exec "${ns2}" ip addr add "${vip_v4}/32" dev lo:1
 
 	test_service
 }
 
 test_nat() {
-	ip netns exec ns0 ip route add ${vip_v4} via ${gip_v4} dev br0
+	ip netns exec "${ns0}" ip route add "${vip_v4}" via "${gip_v4}" dev br0
 
-	ip netns exec ns1 sysctl -qw net.ipv4.ip_forward=1
-	ip netns exec ns1 ipvsadm -A -t ${vip_v4}:${port} -s rr
-	ip netns exec ns1 ipvsadm -a -m -t ${vip_v4}:${port} -r ${rip_v4}:${port}
-	ip netns exec ns1 ip addr add ${vip_v4}/32 dev lo:1
+	ip netns exec "${ns1}" sysctl -qw net.ipv4.ip_forward=1
+	ip netns exec "${ns1}" ipvsadm -A -t "${vip_v4}:${port}" -s rr
+	ip netns exec "${ns1}" ipvsadm -a -m -t "${vip_v4}:${port}" -r "${rip_v4}:${port}"
+	ip netns exec "${ns1}" ip addr add "${vip_v4}/32" dev lo:1
 
-	ip netns exec ns2 ip link del veth20
-	ip netns exec ns2 ip route add default via ${dip_v4} dev veth21
+	ip netns exec "${ns2}" ip link del veth20
+	ip netns exec "${ns2}" ip route add default via "${dip_v4}" dev veth21
 
 	test_service
 }
 
 test_tun() {
-	ip netns exec ns0 ip route add ${vip_v4} via ${gip_v4} dev br0
+	ip netns exec "${ns0}" ip route add "${vip_v4}" via "${gip_v4}" dev br0
 
-	ip netns exec ns1 modprobe ipip
-	ip netns exec ns1 ip link set tunl0 up
-	ip netns exec ns1 sysctl -qw net.ipv4.ip_forward=0
-	ip netns exec ns1 sysctl -qw net.ipv4.conf.all.send_redirects=0
-	ip netns exec ns1 sysctl -qw net.ipv4.conf.default.send_redirects=0
-	ip netns exec ns1 ipvsadm -A -t ${vip_v4}:${port} -s rr
-	ip netns exec ns1 ipvsadm -a -i -t ${vip_v4}:${port} -r ${rip_v4}:${port}
-	ip netns exec ns1 ip addr add ${vip_v4}/32 dev lo:1
+	ip netns exec "${ns1}" modprobe -q ipip
+	ip netns exec "${ns1}" ip link set tunl0 up
+	ip netns exec "${ns1}" sysctl -qw net.ipv4.ip_forward=0
+	ip netns exec "${ns1}" sysctl -qw net.ipv4.conf.all.send_redirects=0
+	ip netns exec "${ns1}" sysctl -qw net.ipv4.conf.default.send_redirects=0
+	ip netns exec "${ns1}" ipvsadm -A -t "${vip_v4}:${port}" -s rr
+	ip netns exec "${ns1}" ipvsadm -a -i -t "${vip_v4}:${port}" -r ${rip_v4}:${port}
+	ip netns exec "${ns1}" ip addr add ${vip_v4}/32 dev lo:1
 
-	ip netns exec ns2 modprobe ipip
-	ip netns exec ns2 ip link set tunl0 up
-	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.arp_ignore=1
-	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.arp_announce=2
-	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.rp_filter=0
-	ip netns exec ns2 sysctl -qw net.ipv4.conf.tunl0.rp_filter=0
-	ip netns exec ns2 sysctl -qw net.ipv4.conf.veth21.rp_filter=0
-	ip netns exec ns2 ip addr add ${vip_v4}/32 dev lo:1
+	ip netns exec "${ns2}" modprobe -q ipip
+	ip netns exec "${ns2}" ip link set tunl0 up
+	ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.all.arp_ignore=1
+	ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.all.arp_announce=2
+	ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.all.rp_filter=0
+	ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.tunl0.rp_filter=0
+	ip netns exec "${ns2}" sysctl -qw net.ipv4.conf.veth21.rp_filter=0
+	ip netns exec "${ns2}" ip addr add "${vip_v4}/32" dev lo:1
 
 	test_service
 }
