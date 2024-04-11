@@ -1902,6 +1902,9 @@ struct btree *bch2_btree_iter_next_node(struct btree_iter *iter)
 	if (bpos_eq(iter->pos, b->key.k.p)) {
 		__btree_path_set_level_up(trans, path, path->level++);
 	} else {
+		if (btree_lock_want(path, path->level + 1) == BTREE_NODE_UNLOCKED)
+			btree_node_unlock(trans, path, path->level + 1);
+
 		/*
 		 * Haven't gotten to the end of the parent node: go back down to
 		 * the next child node
