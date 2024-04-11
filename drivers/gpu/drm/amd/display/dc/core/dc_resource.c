@@ -950,6 +950,9 @@ static struct rect calculate_mpc_slice_in_timing_active(
 			stream->view_format != VIEW_3D_FORMAT_SIDE_BY_SIDE ||
 			mpc_rec.width % 2 == 0);
 
+	if (stream->view_format == VIEW_3D_FORMAT_SIDE_BY_SIDE)
+		mpc_rec.x -= (mpc_rec.width * mpc_slice_idx);
+
 	/* extra pixels in the division remainder need to go to pipes after
 	 * the extra pixel index minus one(epimo) defined here as:
 	 */
