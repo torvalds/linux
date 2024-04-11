@@ -61,12 +61,45 @@
 
 &gmac0 {
 	status = "okay";
+
+	phy-mode = "gmii";
+	phy-handle = <&phy0>;
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		phy0: ethernet-phy@0 {
+			reg = <2>;
+		};
+	};
 };
 
 &gmac1 {
 	status = "okay";
+
+	phy-mode = "gmii";
+	phy-handle = <&phy1>;
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		phy1: ethernet-phy@1 {
+			reg = <2>;
+		};
+	};
 };
 
 &gmac2 {
 	status = "okay";
+
+	phy-mode = "rgmii";
+	phy-handle = <&phy2>;
+	mdio {
+		compatible = "snps,dwmac-mdio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		phy2: ethernet-phy@2 {
+			reg = <0>;
+		};
+	};
 };
