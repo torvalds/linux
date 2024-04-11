@@ -62,14 +62,14 @@
 
 #define SHA256CONSTANTS	%rax
 
-#define MSG		%xmm0
+#define MSG		%xmm0  /* sha256rnds2 implicit operand */
 #define STATE0		%xmm1
 #define STATE1		%xmm2
-#define MSGTMP0		%xmm3
-#define MSGTMP1		%xmm4
-#define MSGTMP2		%xmm5
-#define MSGTMP3		%xmm6
-#define MSGTMP4		%xmm7
+#define MSG0		%xmm3
+#define MSG1		%xmm4
+#define MSG2		%xmm5
+#define MSG3		%xmm6
+#define TMP		%xmm7
 
 #define SHUF_MASK	%xmm8
 
@@ -87,9 +87,9 @@
 	paddd		\i*4(SHA256CONSTANTS), MSG
 	sha256rnds2	STATE0, STATE1
 .if \i >= 12 && \i < 60
-	movdqa		\m0, MSGTMP4
-	palignr		$4, \m3, MSGTMP4
-	paddd		MSGTMP4, \m1
+	movdqa		\m0, TMP
+	palignr		$4, \m3, TMP
+	paddd		TMP, \m1
 	sha256msg2	\m0, \m1
 .endif
 	pshufd 		$0x0E, MSG, MSG
@@ -133,9 +133,9 @@ SYM_TYPED_FUNC_START(sha256_ni_transform)
 
 	pshufd		$0xB1, STATE0,  STATE0		/* CDAB */
 	pshufd		$0x1B, STATE1,  STATE1		/* EFGH */
-	movdqa		STATE0, MSGTMP4
+	movdqa		STATE0, TMP
 	palignr		$8, STATE1,  STATE0		/* ABEF */
-	pblendw		$0xF0, MSGTMP4, STATE1		/* CDGH */
+	pblendw		$0xF0, TMP, STATE1		/* CDGH */
 
 	movdqa		PSHUFFLE_BYTE_FLIP_MASK(%rip), SHUF_MASK
 	lea		K256(%rip), SHA256CONSTANTS
@@ -146,10 +146,10 @@ SYM_TYPED_FUNC_START(sha256_ni_transform)
 	movdqa		STATE1, CDGH_SAVE
 
 .irp i, 0, 16, 32, 48
-	do_4rounds	(\i + 0),  MSGTMP0, MSGTMP1, MSGTMP2, MSGTMP3
-	do_4rounds	(\i + 4),  MSGTMP1, MSGTMP2, MSGTMP3, MSGTMP0
-	do_4rounds	(\i + 8),  MSGTMP2, MSGTMP3, MSGTMP0, MSGTMP1
-	do_4rounds	(\i + 12), MSGTMP3, MSGTMP0, MSGTMP1, MSGTMP2
+	do_4rounds	(\i + 0),  MSG0, MSG1, MSG2, MSG3
+	do_4rounds	(\i + 4),  MSG1, MSG2, MSG3, MSG0
+	do_4rounds	(\i + 8),  MSG2, MSG3, MSG0, MSG1
+	do_4rounds	(\i + 12), MSG3, MSG0, MSG1, MSG2
 .endr
 
 	/* Add current hash values with previously saved */
@@ -164,9 +164,9 @@ SYM_TYPED_FUNC_START(sha256_ni_transform)
 	/* Write hash values back in the correct order */
 	pshufd		$0x1B, STATE0,  STATE0		/* FEBA */
 	pshufd		$0xB1, STATE1,  STATE1		/* DCHG */
-	movdqa		STATE0, MSGTMP4
+	movdqa		STATE0, TMP
 	pblendw		$0xF0, STATE1,  STATE0		/* DCBA */
-	palignr		$8, MSGTMP4, STATE1		/* HGFE */
+	palignr		$8, TMP, STATE1			/* HGFE */
 
 	movdqu		STATE0, 0*16(DIGEST_PTR)
 	movdqu		STATE1, 1*16(DIGEST_PTR)
