@@ -537,7 +537,6 @@ static int __io_timeout_prep(struct io_kiocb *req,
 	if (data->ts.tv_sec < 0 || data->ts.tv_nsec < 0)
 		return -EINVAL;
 
-	INIT_LIST_HEAD(&timeout->list);
 	data->mode = io_translate_timeout_mode(flags);
 	hrtimer_init(&data->timer, io_timeout_get_clock(data), data->mode);
 
