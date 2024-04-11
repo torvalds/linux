@@ -534,7 +534,7 @@ hid_bpf_input_report(struct hid_bpf_ctx *ctx, enum hid_report_type type, u8 *buf
 
 	hdev = (struct hid_device *)ctx->hid; /* discard const */
 
-	return hid_input_report(hdev, type, buf, size, 0);
+	return hid_bpf_ops->hid_input_report(hdev, type, buf, size, 0);
 }
 __bpf_kfunc_end_defs();
 
