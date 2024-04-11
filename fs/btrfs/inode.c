@@ -10807,6 +10807,65 @@ void btrfs_assert_inode_range_clean(struct btrfs_inode *inode, u64 start, u64 en
 	ASSERT(ordered == NULL);
 }
 
+/*
+ * Find the first inode with a minimum number.
+ *
+ * @root:	The root to search for.
+ * @min_ino:	The minimum inode number.
+ *
+ * Find the first inode in the @root with a number >= @min_ino and return it.
+ * Returns NULL if no such inode found.
+ */
+struct btrfs_inode *btrfs_find_first_inode(struct btrfs_root *root, u64 min_ino)
+{
+	struct rb_node *node;
+	struct rb_node *prev;
+	struct btrfs_inode *inode;
+
+	spin_lock(&root->inode_lock);
+again:
+	node = root->inode_tree.rb_node;
+	prev = NULL;
+	while (node) {
+		prev = node;
+		inode = rb_entry(node, struct btrfs_inode, rb_node);
+		if (min_ino < btrfs_ino(inode))
+			node = node->rb_left;
+		else if (min_ino > btrfs_ino(inode))
+			node = node->rb_right;
+		else
+			break;
+	}
+
+	if (!node) {
+		while (prev) {
+			inode = rb_entry(prev, struct btrfs_inode, rb_node);
+			if (min_ino <= btrfs_ino(inode)) {
+				node = prev;
+				break;
+			}
+			prev = rb_next(prev);
+		}
+	}
+
+	while (node) {
+		inode = rb_entry(prev, struct btrfs_inode, rb_node);
+		if (igrab(&inode->vfs_inode)) {
+			spin_unlock(&root->inode_lock);
+			return inode;
+		}
+
+		min_ino = btrfs_ino(inode) + 1;
+		if (cond_resched_lock(&root->inode_lock))
+			goto again;
+
+		node = rb_next(node);
+	}
+	spin_unlock(&root->inode_lock);
+
+	return NULL;
+}
+
 static const struct inode_operations btrfs_dir_inode_operations = {
 	.getattr	= btrfs_getattr,
 	.lookup		= btrfs_lookup,
