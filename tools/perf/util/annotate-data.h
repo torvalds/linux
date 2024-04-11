@@ -10,6 +10,7 @@
 struct annotated_op_loc;
 struct debuginfo;
 struct evsel;
+struct hist_entry;
 struct map_symbol;
 struct thread;
 
@@ -156,6 +157,8 @@ void annotated_data_type__tree_delete(struct rb_root *root);
 /* Release all global variable information in the tree */
 void global_var_type__tree_delete(struct rb_root *root);
 
+int hist_entry__annotate_data_tty(struct hist_entry *he, struct evsel *evsel);
+
 #else /* HAVE_DWARF_SUPPORT */
 
 static inline struct annotated_data_type *
@@ -180,6 +183,12 @@ static inline void annotated_data_type__tree_delete(struct rb_root *root __maybe
 
 static inline void global_var_type__tree_delete(struct rb_root *root __maybe_unused)
 {
+}
+
+static inline int hist_entry__annotate_data_tty(struct hist_entry *he __maybe_unused,
+						struct evsel *evsel __maybe_unused)
+{
+	return -1;
 }
 
 #endif /* HAVE_DWARF_SUPPORT */
