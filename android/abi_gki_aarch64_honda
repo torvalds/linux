@@ -73,8 +73,14 @@
   xt_compat_unlock
   xt_data_to_user
   xt_find_match
+  xt_register_target
   xt_request_find_match
   xt_request_find_target
+  xt_unregister_target
+
+# commonly required by ebt_*.ko modules
+  xt_register_match
+  xt_unregister_match
 
 # required by ebt_arpreply.ko module
   arp_send
