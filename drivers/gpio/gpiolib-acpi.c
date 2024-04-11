@@ -974,20 +974,14 @@ __acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id, unsigned int 
 			return ERR_CAST(desc);
 
 		if (!IS_ERR(desc))
-			break;
-	}
-
-	/* Then from plain _CRS GPIOs */
-	if (IS_ERR(desc)) {
-		if (!adev || !acpi_can_fallback_to_crs(adev, con_id))
-			return ERR_PTR(-ENOENT);
-
-		desc = acpi_get_gpiod_by_index(adev, NULL, idx, info);
-		if (IS_ERR(desc))
 			return desc;
 	}
 
-	return desc;
+	/* Then from plain _CRS GPIOs */
+	if (!adev || !acpi_can_fallback_to_crs(adev, con_id))
+		return ERR_PTR(-ENOENT);
+
+	return acpi_get_gpiod_by_index(adev, NULL, idx, info);
 }
 
 struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
