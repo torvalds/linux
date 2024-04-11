@@ -60,9 +60,8 @@ EXPORT_SYMBOL_GPL(__ioread32_copy);
  * time.  Order of access is not guaranteed, nor is a memory barrier
  * performed afterwards.
  */
-void __attribute__((weak)) __iowrite64_copy(void __iomem *to,
-					    const void *from,
-					    size_t count)
+#ifndef __iowrite64_copy
+void __iowrite64_copy(void __iomem *to, const void *from, size_t count)
 {
 #ifdef CONFIG_64BIT
 	u64 __iomem *dst = to;
@@ -75,5 +74,5 @@ void __attribute__((weak)) __iowrite64_copy(void __iomem *to,
 	__iowrite32_copy(to, from, count * 2);
 #endif
 }
-
 EXPORT_SYMBOL_GPL(__iowrite64_copy);
+#endif
