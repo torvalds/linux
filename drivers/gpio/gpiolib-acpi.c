@@ -1013,7 +1013,7 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
 /**
  * acpi_dev_gpio_irq_wake_get_by() - Find GpioInt and translate it to Linux IRQ number
  * @adev: pointer to a ACPI device to get IRQ from
- * @name: optional name of GpioInt resource
+ * @con_id: optional name of GpioInt resource
  * @index: index of GpioInt resource (starting from %0)
  * @wake_capable: Set to true if the IRQ is wake capable
  *
@@ -1024,15 +1024,15 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
  * The function is idempotent, though each time it runs it will configure GPIO
  * pin direction according to the flags in GpioInt resource.
  *
- * The function takes optional @name parameter. If the resource has a property
- * name, then only those will be taken into account.
+ * The function takes optional @con_id parameter. If the resource has
+ * a @con_id in a property, then only those will be taken into account.
  *
  * The GPIO is considered wake capable if the GpioInt resource specifies
  * SharedAndWake or ExclusiveAndWake.
  *
  * Return: Linux IRQ number (> %0) on success, negative errno on failure.
  */
-int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *name, int index,
+int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *con_id, int index,
 				  bool *wake_capable)
 {
 	int idx, i;
@@ -1043,9 +1043,8 @@ int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *name, in
 		struct acpi_gpio_info info;
 		struct gpio_desc *desc;
 
-		desc = acpi_get_gpiod_by_index(adev, name, i, &info);
-
 		/* Ignore -EPROBE_DEFER, it only matters if idx matches */
+		desc = __acpi_find_gpio(acpi_fwnode_handle(adev), con_id, i, true, &info);
 		if (IS_ERR(desc) && PTR_ERR(desc) != -EPROBE_DEFER)
 			return PTR_ERR(desc);
 
