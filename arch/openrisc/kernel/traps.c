@@ -212,7 +212,6 @@ asmlinkage void do_unaligned_access(struct pt_regs *regs, unsigned long address)
 		force_sig_fault(SIGBUS, BUS_ADRALN, (void __user *)address);
 	} else {
 		pr_emerg("KERNEL: Unaligned Access 0x%.8lx\n", address);
-		show_registers(regs);
 		die("Die:", regs, address);
 	}
 
@@ -225,7 +224,6 @@ asmlinkage void do_bus_fault(struct pt_regs *regs, unsigned long address)
 		force_sig_fault(SIGBUS, BUS_ADRERR, (void __user *)address);
 	} else {		/* Kernel mode */
 		pr_emerg("KERNEL: Bus error (SIGBUS) 0x%.8lx\n", address);
-		show_registers(regs);
 		die("Die:", regs, address);
 	}
 }
@@ -421,7 +419,6 @@ asmlinkage void do_illegal_instruction(struct pt_regs *regs,
 	} else {		/* Kernel mode */
 		pr_emerg("KERNEL: Illegal instruction (SIGILL) 0x%.8lx\n",
 			 address);
-		show_registers(regs);
 		die("Die:", regs, address);
 	}
 }
