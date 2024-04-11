@@ -3739,6 +3739,25 @@ int atomisp_s_sensor_power(struct atomisp_device *isp, unsigned int input, bool 
 	return 0;
 }
 
+int atomisp_select_input(struct atomisp_device *isp, unsigned int input)
+{
+	unsigned int input_orig = isp->asd.input_curr;
+	int ret;
+
+	/* Power on new sensor */
+	ret = atomisp_s_sensor_power(isp, input, 1);
+	if (ret)
+		return ret;
+
+	isp->asd.input_curr = input;
+
+	/* Power off previous sensor */
+	if (input != input_orig)
+		atomisp_s_sensor_power(isp, input_orig, 0);
+
+	return 0;
+}
+
 static int atomisp_set_sensor_crop_and_fmt(struct atomisp_device *isp,
 					   struct v4l2_mbus_framefmt *ffmt,
 					   int which)

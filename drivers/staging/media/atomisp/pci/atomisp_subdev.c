@@ -663,9 +663,6 @@ static int atomisp_link_setup(struct media_entity *entity,
 		return -EINVAL;
 	}
 
-	/* Ignore disables, input_curr should only be updated on enables */
-	if (!(flags & MEDIA_LNK_FL_ENABLED))
-		return 0;
 
 	for (i = 0; i < isp->input_cnt; i++) {
 		if (isp->inputs[i].camera == isp->sensor_subdevs[csi_idx])
@@ -679,11 +676,17 @@ static int atomisp_link_setup(struct media_entity *entity,
 
 	mutex_lock(&isp->mutex);
 	ret = atomisp_pipe_check(&asd->video_out, true);
-	if (ret == 0)
-		asd->input_curr = i;
 	mutex_unlock(&isp->mutex);
+	if (ret)
+		return ret;
 
-	return ret;
+	/* Turn off the sensor on link disable */
+	if (!(flags & MEDIA_LNK_FL_ENABLED)) {
+		atomisp_s_sensor_power(isp, i, 0);
+		return 0;
+	}
+
+	return atomisp_select_input(isp, i);
 }
 
 static const struct media_entity_operations isp_subdev_media_ops = {

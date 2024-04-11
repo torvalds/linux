@@ -449,7 +449,6 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
-	struct atomisp_sub_device *asd = pipe->asd;
 	struct v4l2_subdev *camera = NULL;
 	int ret;
 
@@ -468,17 +467,7 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 		return -EINVAL;
 	}
 
-	/* power off the current owned sensor, as it is not used this time */
-	if (input != isp->asd.input_curr)
-		atomisp_s_sensor_power(isp, isp->asd.input_curr, 0);
-
-	/* powe on the new sensor */
-	ret = atomisp_s_sensor_power(isp, input, 1);
-	if (ret)
-		return ret;
-
-	asd->input_curr = input;
-	return 0;
+	return atomisp_select_input(isp, input);
 }
 
 /*

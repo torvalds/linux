@@ -244,6 +244,9 @@ void atomisp_get_padding(struct atomisp_device *isp, u32 width, u32 height,
 /* Set sensor power (no-op if already on/off) */
 int atomisp_s_sensor_power(struct atomisp_device *isp, unsigned int input, bool on);
 
+/* Select which sensor to use, must be called with a valid input */
+int atomisp_select_input(struct atomisp_device *isp, unsigned int input);
+
 /* This function looks up the closest available resolution. */
 int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 		    const struct atomisp_format_bridge **fmt_ret,
