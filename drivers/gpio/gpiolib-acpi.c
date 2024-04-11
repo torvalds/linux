@@ -945,14 +945,11 @@ static bool acpi_can_fallback_to_crs(struct acpi_device *adev,
 	return con_id == NULL;
 }
 
-struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
-				 const char *con_id,
-				 unsigned int idx,
-				 enum gpiod_flags *dflags,
-				 unsigned long *lookupflags)
+static struct gpio_desc *
+__acpi_find_gpio(struct fwnode_handle *fwnode, const char *con_id, unsigned int idx,
+		 struct acpi_gpio_info *info)
 {
 	struct acpi_device *adev = to_acpi_device_node(fwnode);
-	struct acpi_gpio_info info;
 	struct gpio_desc *desc;
 	char propname[32];
 	int i;
@@ -969,10 +966,10 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
 
 		if (adev)
 			desc = acpi_get_gpiod_by_index(adev,
-						       propname, idx, &info);
+						       propname, idx, info);
 		else
 			desc = acpi_get_gpiod_from_data(fwnode,
-						        propname, idx, &info);
+							propname, idx, info);
 		if (PTR_ERR(desc) == -EPROBE_DEFER)
 			return ERR_CAST(desc);
 
@@ -985,10 +982,27 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
 		if (!adev || !acpi_can_fallback_to_crs(adev, con_id))
 			return ERR_PTR(-ENOENT);
 
-		desc = acpi_get_gpiod_by_index(adev, NULL, idx, &info);
+		desc = acpi_get_gpiod_by_index(adev, NULL, idx, info);
 		if (IS_ERR(desc))
 			return desc;
 	}
+
+	return desc;
+}
+
+struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
+				 const char *con_id,
+				 unsigned int idx,
+				 enum gpiod_flags *dflags,
+				 unsigned long *lookupflags)
+{
+	struct acpi_device *adev = to_acpi_device_node(fwnode);
+	struct acpi_gpio_info info;
+	struct gpio_desc *desc;
+
+	desc = __acpi_find_gpio(fwnode, con_id, idx, &info);
+	if (IS_ERR(desc))
+		return desc;
 
 	if (info.gpioint &&
 	    (*dflags == GPIOD_OUT_LOW || *dflags == GPIOD_OUT_HIGH)) {
