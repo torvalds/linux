@@ -1442,17 +1442,15 @@ static void ffa_notifications_setup(void)
 	int ret, irq;
 
 	ret = ffa_features(FFA_NOTIFICATION_BITMAP_CREATE, 0, NULL, NULL);
-	if (ret) {
-		pr_info("Notifications not supported, continuing with it ..\n");
-		return;
-	}
+	if (!ret) {
+		ret = ffa_notification_bitmap_create();
+		if (ret) {
+			pr_err("Notification bitmap create error %d\n", ret);
+			return;
+		}
 
-	ret = ffa_notification_bitmap_create();
-	if (ret) {
-		pr_info("Notification bitmap create error %d\n", ret);
-		return;
+		drv_info->bitmap_created = true;
 	}
-	drv_info->bitmap_created = true;
 
 	irq = ffa_sched_recv_irq_map();
 	if (irq <= 0) {
