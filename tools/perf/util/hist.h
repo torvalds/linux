@@ -163,6 +163,9 @@ struct he_stat {
 	u64			period_us;
 	u64			period_guest_sys;
 	u64			period_guest_us;
+	u64			weight1;
+	u64			weight2;
+	u64			weight3;
 	u32			nr_events;
 };
 

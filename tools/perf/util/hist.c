@@ -308,6 +308,9 @@ static void he_stat__add_stat(struct he_stat *dest, struct he_stat *src)
 	dest->period_us		+= src->period_us;
 	dest->period_guest_sys	+= src->period_guest_sys;
 	dest->period_guest_us	+= src->period_guest_us;
+	dest->weight1		+= src->weight1;
+	dest->weight2		+= src->weight2;
+	dest->weight3		+= src->weight3;
 	dest->nr_events		+= src->nr_events;
 }
 
@@ -315,7 +318,9 @@ static void he_stat__decay(struct he_stat *he_stat)
 {
 	he_stat->period = (he_stat->period * 7) / 8;
 	he_stat->nr_events = (he_stat->nr_events * 7) / 8;
-	/* XXX need decay for weight too? */
+	he_stat->weight1 = (he_stat->weight1 * 7) / 8;
+	he_stat->weight2 = (he_stat->weight2 * 7) / 8;
+	he_stat->weight3 = (he_stat->weight3 * 7) / 8;
 }
 
 static void hists__delete_entry(struct hists *hists, struct hist_entry *he);
@@ -614,7 +619,7 @@ static struct hist_entry *hists__findnew_entry(struct hists *hists,
 		cmp = hist_entry__cmp(he, entry);
 		if (!cmp) {
 			if (sample_self) {
-				he_stat__add_period(&he->stat, period);
+				he_stat__add_stat(&he->stat, &entry->stat);
 				hist_entry__add_callchain_period(he, period);
 			}
 			if (symbol_conf.cumulate_callchain)
@@ -731,6 +736,9 @@ __hists__add_entry(struct hists *hists,
 		.stat = {
 			.nr_events = 1,
 			.period	= sample->period,
+			.weight1 = sample->weight,
+			.weight2 = sample->ins_lat,
+			.weight3 = sample->p_stage_cyc,
 		},
 		.parent = sym_parent,
 		.filtered = symbol__parent_filter(sym_parent) | al->filtered,
