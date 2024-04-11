@@ -9,6 +9,8 @@
 #undef pr_fmt
 #define pr_fmt(fmt)	"null_blk: " fmt
 
+#define NULL_ZONE_INVALID_WP	((sector_t)-1)
+
 static inline sector_t mb_to_sects(unsigned long mb)
 {
 	return ((sector_t)mb * SZ_1M) >> SECTOR_SHIFT;
@@ -341,9 +343,6 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 
 	trace_nullb_zone_op(cmd, zno, zone->cond);
 
-	if (WARN_ON_ONCE(append && !dev->zone_append_max_sectors))
-		return BLK_STS_IOERR;
-
 	if (zone->type == BLK_ZONE_TYPE_CONVENTIONAL) {
 		if (append)
 			return BLK_STS_IOERR;
@@ -352,29 +351,26 @@ static blk_status_t null_zone_write(struct nullb_cmd *cmd, sector_t sector,
 
 	null_lock_zone(dev, zone);
 
-	if (zone->cond == BLK_ZONE_COND_FULL ||
-	    zone->cond == BLK_ZONE_COND_READONLY ||
-	    zone->cond == BLK_ZONE_COND_OFFLINE) {
-		/* Cannot write to the zone */
-		ret = BLK_STS_IOERR;
-		goto unlock_zone;
-	}
-
 	/*
-	 * Regular writes must be at the write pointer position.
-	 * Zone append writes are automatically issued at the write
-	 * pointer and the position returned using the request or BIO
-	 * sector.
+	 * Regular writes must be at the write pointer position. Zone append
+	 * writes are automatically issued at the write pointer and the position
+	 * returned using the request sector. Note that we do not check the zone
+	 * condition because for FULL, READONLY and OFFLINE zones, the sector
+	 * check against the zone write pointer will always result in failing
+	 * the command.
 	 */
 	if (append) {
+		if (WARN_ON_ONCE(!dev->zone_append_max_sectors) ||
+		    zone->wp == NULL_ZONE_INVALID_WP) {
+			ret = BLK_STS_IOERR;
+			goto unlock_zone;
+		}
 		sector = zone->wp;
 		blk_mq_rq_from_pdu(cmd)->__sector = sector;
-	} else if (sector != zone->wp) {
-		ret = BLK_STS_IOERR;
-		goto unlock_zone;
 	}
 
-	if (zone->wp + nr_sectors > zone->start + zone->capacity) {
+	if (sector != zone->wp ||
+	    zone->wp + nr_sectors > zone->start + zone->capacity) {
 		ret = BLK_STS_IOERR;
 		goto unlock_zone;
 	}
@@ -743,7 +739,7 @@ static void null_set_zone_cond(struct nullb_device *dev,
 		    zone->cond != BLK_ZONE_COND_OFFLINE)
 			null_finish_zone(dev, zone);
 		zone->cond = cond;
-		zone->wp = (sector_t)-1;
+		zone->wp = NULL_ZONE_INVALID_WP;
 	}
 
 	null_unlock_zone(dev, zone);
