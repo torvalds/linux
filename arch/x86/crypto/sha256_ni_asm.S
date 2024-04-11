@@ -84,7 +84,7 @@
 .else
 	movdqa		\m0, MSG
 .endif
-	paddd		\i*4(SHA256CONSTANTS), MSG
+	paddd		(\i-32)*4(SHA256CONSTANTS), MSG
 	sha256rnds2	STATE0, STATE1
 .if \i >= 12 && \i < 60
 	movdqa		\m0, TMP
@@ -92,7 +92,7 @@
 	paddd		TMP, \m1
 	sha256msg2	\m0, \m1
 .endif
-	pshufd 		$0x0E, MSG, MSG
+	punpckhqdq	MSG, MSG
 	sha256rnds2	STATE1, STATE0
 .if \i >= 4 && \i < 52
 	sha256msg1	\m0, \m3
@@ -128,17 +128,17 @@ SYM_TYPED_FUNC_START(sha256_ni_transform)
 	 * Need to reorder these appropriately
 	 * DCBA, HGFE -> ABEF, CDGH
 	 */
-	movdqu		0*16(DIGEST_PTR), STATE0
-	movdqu		1*16(DIGEST_PTR), STATE1
+	movdqu		0*16(DIGEST_PTR), STATE0	/* DCBA */
+	movdqu		1*16(DIGEST_PTR), STATE1	/* HGFE */
 
-	pshufd		$0xB1, STATE0,  STATE0		/* CDAB */
-	pshufd		$0x1B, STATE1,  STATE1		/* EFGH */
 	movdqa		STATE0, TMP
-	palignr		$8, STATE1,  STATE0		/* ABEF */
-	pblendw		$0xF0, TMP, STATE1		/* CDGH */
+	punpcklqdq	STATE1, STATE0			/* FEBA */
+	punpckhqdq	TMP, STATE1			/* DCHG */
+	pshufd		$0x1B, STATE0, STATE0		/* ABEF */
+	pshufd		$0xB1, STATE1, STATE1		/* CDGH */
 
 	movdqa		PSHUFFLE_BYTE_FLIP_MASK(%rip), SHUF_MASK
-	lea		K256(%rip), SHA256CONSTANTS
+	lea		K256+32*4(%rip), SHA256CONSTANTS
 
 .Lloop0:
 	/* Save hash values for addition after rounds */
@@ -162,14 +162,14 @@ SYM_TYPED_FUNC_START(sha256_ni_transform)
 	jne		.Lloop0
 
 	/* Write hash values back in the correct order */
-	pshufd		$0x1B, STATE0,  STATE0		/* FEBA */
-	pshufd		$0xB1, STATE1,  STATE1		/* DCHG */
 	movdqa		STATE0, TMP
-	pblendw		$0xF0, STATE1,  STATE0		/* DCBA */
-	palignr		$8, TMP, STATE1			/* HGFE */
+	punpcklqdq	STATE1, STATE0			/* GHEF */
+	punpckhqdq	TMP, STATE1			/* ABCD */
+	pshufd		$0xB1, STATE0, STATE0		/* HGFE */
+	pshufd		$0x1B, STATE1, STATE1		/* DCBA */
 
-	movdqu		STATE0, 0*16(DIGEST_PTR)
-	movdqu		STATE1, 1*16(DIGEST_PTR)
+	movdqu		STATE1, 0*16(DIGEST_PTR)
+	movdqu		STATE0, 1*16(DIGEST_PTR)
 
 .Ldone_hash:
 
