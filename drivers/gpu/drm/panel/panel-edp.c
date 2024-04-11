@@ -760,6 +760,25 @@ static void panel_edp_parse_panel_timing_node(struct device *dev,
 
 static const struct edp_panel_entry *find_edp_panel(u32 panel_id, const struct drm_edid *edid);
 
+static void panel_edp_set_conservative_timings(struct panel_edp *panel, struct panel_desc *desc)
+{
+	/*
+	 * It's highly likely that the panel will work if we use very
+	 * conservative timings, so let's do that.
+	 *
+	 * Nearly all panels have a "unprepare" delay of 500 ms though
+	 * there are a few with 1000. Let's stick 2000 in just to be
+	 * super conservative.
+	 *
+	 * An "enable" delay of 80 ms seems the most common, but we'll
+	 * throw in 200 ms to be safe.
+	 */
+	desc->delay.unprepare = 2000;
+	desc->delay.enable = 200;
+
+	panel->detected_panel = ERR_PTR(-EINVAL);
+}
+
 static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 {
 	struct panel_desc *desc;
@@ -789,7 +808,10 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 	/* Power the panel on so we can read the EDID */
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
-		dev_err(dev, "Couldn't power on panel to read EDID: %d\n", ret);
+		dev_err(dev,
+			"Couldn't power on panel to ID it; using conservative timings: %d\n",
+			ret);
+		panel_edp_set_conservative_timings(panel, desc);
 		goto exit;
 	}
 
@@ -797,8 +819,8 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 	if (base_block) {
 		panel_id = drm_edid_get_panel_id(base_block);
 	} else {
-		dev_err(dev, "Couldn't identify panel via EDID\n");
-		ret = -EIO;
+		dev_err(dev, "Couldn't read EDID for ID; using conservative timings\n");
+		panel_edp_set_conservative_timings(panel, desc);
 		goto exit;
 	}
 	drm_edid_decode_panel_id(panel_id, vend, &product_id);
@@ -816,26 +838,7 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 		dev_warn(dev,
 			 "Unknown panel %s %#06x, using conservative timings\n",
 			 vend, product_id);
-
-		/*
-		 * It's highly likely that the panel will work if we use very
-		 * conservative timings, so let's do that. We already know that
-		 * the HPD-related delays must have worked since we got this
-		 * far, so we really just need the "unprepare" / "enable"
-		 * delays. We don't need "prepare_to_enable" since that
-		 * overlaps the "enable" delay anyway.
-		 *
-		 * Nearly all panels have a "unprepare" delay of 500 ms though
-		 * there are a few with 1000. Let's stick 2000 in just to be
-		 * super conservative.
-		 *
-		 * An "enable" delay of 80 ms seems the most common, but we'll
-		 * throw in 200 ms to be safe.
-		 */
-		desc->delay.unprepare = 2000;
-		desc->delay.enable = 200;
-
-		panel->detected_panel = ERR_PTR(-EINVAL);
+		panel_edp_set_conservative_timings(panel, desc);
 	} else {
 		dev_info(dev, "Detected %s %s (%#06x)\n",
 			 vend, panel->detected_panel->ident.name, product_id);
@@ -844,12 +847,11 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 		desc->delay = *panel->detected_panel->delay;
 	}
 
-	ret = 0;
 exit:
 	pm_runtime_mark_last_busy(dev);
 	pm_runtime_put_autosuspend(dev);
 
-	return ret;
+	return 0;
 }
 
 static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
@@ -942,8 +944,14 @@ static int panel_edp_probe(struct device *dev, const struct panel_desc *desc,
 		err = drm_panel_dp_aux_backlight(&panel->base, panel->aux);
 		pm_runtime_mark_last_busy(dev);
 		pm_runtime_put_autosuspend(dev);
+
+		/*
+		 * Warn if we get an error, but don't consider it fatal. Having
+		 * a panel where we can't control the backlight is better than
+		 * no panel.
+		 */
 		if (err)
-			goto err_finished_pm_runtime;
+			dev_warn(dev, "failed to register dp aux backlight: %d\n", err);
 	}
 
 	drm_panel_add(&panel->base);

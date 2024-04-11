@@ -1716,7 +1716,7 @@ int zynqmp_dp_probe(struct zynqmp_dpsub *dpsub)
 
 	ret = zynqmp_dp_reset(dp, true);
 	if (ret < 0)
-		return ret;
+		goto err_free;
 
 	ret = zynqmp_dp_reset(dp, false);
 	if (ret < 0)
