@@ -99,3 +99,5 @@
   nf_log_unset
   nf_logger_find_get
   nf_logger_put
+  xt_register_targets
+  xt_unregister_targets
