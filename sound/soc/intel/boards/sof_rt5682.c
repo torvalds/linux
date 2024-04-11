@@ -576,7 +576,7 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 		max_98390_dai_link(dev, ctx->amp_link);
 		break;
 	case CODEC_RT1011:
-		sof_rt1011_dai_link(ctx->amp_link);
+		sof_rt1011_dai_link(dev, ctx->amp_link);
 		break;
 	case CODEC_RT1015:
 		sof_rt1015_dai_link(ctx->amp_link);
@@ -683,7 +683,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 		max_98390_set_codec_conf(&pdev->dev, &sof_audio_card_rt5682);
 		break;
 	case CODEC_RT1011:
-		sof_rt1011_codec_conf(&sof_audio_card_rt5682);
+		sof_rt1011_codec_conf(&pdev->dev, &sof_audio_card_rt5682);
 		break;
 	case CODEC_RT1015:
 		sof_rt1015_codec_conf(&sof_audio_card_rt5682);

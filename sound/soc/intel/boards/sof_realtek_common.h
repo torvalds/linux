@@ -23,8 +23,8 @@
 #define RT1011_DEV2_NAME	"i2c-" RT1011_ACPI_HID ":02"
 #define RT1011_DEV3_NAME	"i2c-" RT1011_ACPI_HID ":03"
 
-void sof_rt1011_dai_link(struct snd_soc_dai_link *link);
-void sof_rt1011_codec_conf(struct snd_soc_card *card);
+void sof_rt1011_dai_link(struct device *dev, struct snd_soc_dai_link *link);
+void sof_rt1011_codec_conf(struct device *dev, struct snd_soc_card *card);
 
 /*
  * Realtek ALC1015 (AUTO)
