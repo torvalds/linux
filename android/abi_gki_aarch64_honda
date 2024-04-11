@@ -101,3 +101,6 @@
   nf_logger_put
   xt_register_targets
   xt_unregister_targets
+
+# required by audio related modules
+  snd_pcm_suspend_all
