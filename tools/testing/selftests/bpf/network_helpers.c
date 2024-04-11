@@ -545,3 +545,105 @@ int set_hw_ring_size(char *ifname, struct ethtool_ringparam *ring_param)
 	close(sockfd);
 	return 0;
 }
+
+struct send_recv_arg {
+	int		fd;
+	uint32_t	bytes;
+	int		stop;
+};
+
+static void *send_recv_server(void *arg)
+{
+	struct send_recv_arg *a = (struct send_recv_arg *)arg;
+	ssize_t nr_sent = 0, bytes = 0;
+	char batch[1500];
+	int err = 0, fd;
+
+	fd = accept(a->fd, NULL, NULL);
+	while (fd == -1) {
+		if (errno == EINTR)
+			continue;
+		err = -errno;
+		goto done;
+	}
+
+	if (settimeo(fd, 0)) {
+		err = -errno;
+		goto done;
+	}
+
+	while (bytes < a->bytes && !READ_ONCE(a->stop)) {
+		nr_sent = send(fd, &batch,
+			       MIN(a->bytes - bytes, sizeof(batch)), 0);
+		if (nr_sent == -1 && errno == EINTR)
+			continue;
+		if (nr_sent == -1) {
+			err = -errno;
+			break;
+		}
+		bytes += nr_sent;
+	}
+
+	if (bytes != a->bytes) {
+		log_err("send %zd expected %u", bytes, a->bytes);
+		if (!err)
+			err = bytes > a->bytes ? -E2BIG : -EINTR;
+	}
+
+done:
+	if (fd >= 0)
+		close(fd);
+	if (err) {
+		WRITE_ONCE(a->stop, 1);
+		return ERR_PTR(err);
+	}
+	return NULL;
+}
+
+int send_recv_data(int lfd, int fd, uint32_t total_bytes)
+{
+	ssize_t nr_recv = 0, bytes = 0;
+	struct send_recv_arg arg = {
+		.fd	= lfd,
+		.bytes	= total_bytes,
+		.stop	= 0,
+	};
+	pthread_t srv_thread;
+	void *thread_ret;
+	char batch[1500];
+	int err = 0;
+
+	err = pthread_create(&srv_thread, NULL, send_recv_server, (void *)&arg);
+	if (err) {
+		log_err("Failed to pthread_create");
+		return err;
+	}
+
+	/* recv total_bytes */
+	while (bytes < total_bytes && !READ_ONCE(arg.stop)) {
+		nr_recv = recv(fd, &batch,
+			       MIN(total_bytes - bytes, sizeof(batch)), 0);
+		if (nr_recv == -1 && errno == EINTR)
+			continue;
+		if (nr_recv == -1) {
+			err = -errno;
+			break;
+		}
+		bytes += nr_recv;
+	}
+
+	if (bytes != total_bytes) {
+		log_err("recv %zd expected %u", bytes, total_bytes);
+		if (!err)
+			err = bytes > total_bytes ? -E2BIG : -EINTR;
+	}
+
+	WRITE_ONCE(arg.stop, 1);
+	pthread_join(srv_thread, &thread_ret);
+	if (IS_ERR(thread_ret)) {
+		log_err("Failed in thread_ret %ld", PTR_ERR(thread_ret));
+		err = err ? : PTR_ERR(thread_ret);
+	}
+
+	return err;
+}
