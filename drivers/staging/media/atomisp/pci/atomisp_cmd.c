@@ -3755,7 +3755,41 @@ int atomisp_select_input(struct atomisp_device *isp, unsigned int input)
 	if (input != input_orig)
 		atomisp_s_sensor_power(isp, input_orig, 0);
 
+	atomisp_setup_input_links(isp);
 	return 0;
+}
+
+/*
+ * Ensure the CSI-receiver -> ISP link for input_curr is marked as enabled and
+ * the other CSI-receiver -> ISP links are disabled.
+ */
+void atomisp_setup_input_links(struct atomisp_device *isp)
+{
+	struct media_link *link;
+
+	lockdep_assert_held(&isp->media_dev.graph_mutex);
+
+	for (int i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++) {
+		link = media_entity_find_link(
+				&isp->csi2_port[i].subdev.entity.pads[CSI2_PAD_SOURCE],
+				&isp->asd.subdev.entity.pads[ATOMISP_SUBDEV_PAD_SINK]);
+		if (!link) {
+			dev_err(isp->dev, "Error cannot find CSI2-port[%d] -> ISP link\n", i);
+			continue; /* Should never happen */
+		}
+
+		/*
+		 * Modify the flags directly, calling media_entity_setup_link()
+		 * will end up calling atomisp_link_setup() which calls this
+		 * function again leading to endless recursion.
+		 */
+		if (isp->sensor_subdevs[i] == isp->inputs[isp->asd.input_curr].camera)
+			link->flags |= MEDIA_LNK_FL_ENABLED;
+		else
+			link->flags &= ~MEDIA_LNK_FL_ENABLED;
+
+		link->reverse->flags = link->flags;
+	}
 }
 
 static int atomisp_set_sensor_crop_and_fmt(struct atomisp_device *isp,

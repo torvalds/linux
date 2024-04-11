@@ -1085,6 +1085,10 @@ int atomisp_register_device_nodes(struct atomisp_device *isp)
 		dev_warn(isp->dev, "too many atomisp inputs, TPG ignored.\n");
 	}
 
+	mutex_lock(&isp->media_dev.graph_mutex);
+	atomisp_setup_input_links(isp);
+	mutex_unlock(&isp->media_dev.graph_mutex);
+
 	isp->asd.video_out.vdev.v4l2_dev = &isp->v4l2_dev;
 	isp->asd.video_out.vdev.device_caps = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_STREAMING;
 	err = video_register_device(&isp->asd.video_out.vdev, VFL_TYPE_VIDEO, -1);

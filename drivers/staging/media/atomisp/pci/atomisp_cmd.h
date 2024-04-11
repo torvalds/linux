@@ -247,6 +247,9 @@ int atomisp_s_sensor_power(struct atomisp_device *isp, unsigned int input, bool 
 /* Select which sensor to use, must be called with a valid input */
 int atomisp_select_input(struct atomisp_device *isp, unsigned int input);
 
+/* Setup media-controller links to reflect input_curr setting */
+void atomisp_setup_input_links(struct atomisp_device *isp);
+
 /* This function looks up the closest available resolution. */
 int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 		    const struct atomisp_format_bridge **fmt_ret,

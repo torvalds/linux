@@ -461,7 +461,11 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	if (ret)
 		return ret;
 
-	return atomisp_select_input(isp, input);
+	mutex_lock(&isp->media_dev.graph_mutex);
+	ret = atomisp_select_input(isp, input);
+	mutex_unlock(&isp->media_dev.graph_mutex);
+
+	return ret;
 }
 
 /*
