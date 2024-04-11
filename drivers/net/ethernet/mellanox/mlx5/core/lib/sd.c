@@ -213,8 +213,8 @@ static int sd_register(struct mlx5_core_dev *dev)
 	sd = mlx5_get_sd(dev);
 	devcom = mlx5_devcom_register_component(dev->priv.devc, MLX5_DEVCOM_SD_GROUP,
 						sd->group_id, NULL, dev);
-	if (!devcom)
-		return -ENOMEM;
+	if (IS_ERR(devcom))
+		return PTR_ERR(devcom);
 
 	sd->devcom = devcom;
 
