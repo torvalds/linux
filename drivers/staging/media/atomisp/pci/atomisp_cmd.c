@@ -3760,6 +3760,17 @@ static int atomisp_set_sensor_crop_and_fmt(struct atomisp_device *isp,
 	if (!input->camera)
 		return -EINVAL;
 
+	/*
+	 * Some old sensor drivers already write the registers on set_fmt
+	 * instead of on stream on, power on the sensor now (on newer
+	 * sensor drivers the s_power op is a no-op).
+	 */
+	if (which == V4L2_SUBDEV_FORMAT_ACTIVE) {
+		ret = atomisp_s_sensor_power(isp, isp->asd.input_curr, 1);
+		if (ret)
+			return ret;
+	}
+
 	sd_state = (which == V4L2_SUBDEV_FORMAT_TRY) ? input->try_sd_state :
 						       input->camera->active_state;
 	if (sd_state)
