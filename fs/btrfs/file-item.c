@@ -450,6 +450,19 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 	return ret;
 }
 
+/*
+ * Search for checksums for a given logical range.
+ *
+ * @root:		The root where to look for checksums.
+ * @start:		Logical address of target checksum range.
+ * @end:		End offset (inclusive) of the target checksum range.
+ * @list:		List for adding each checksum that was found.
+ * @search_commit:	Indicate if the commit root of the @root should be used
+ *			for the search.
+ * @nowait:		Indicate if the search must be non-blocking or not.
+ *
+ * Return < 0 on error and 0 on success.
+ */
 int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 			    struct list_head *list, int search_commit,
 			    bool nowait)
