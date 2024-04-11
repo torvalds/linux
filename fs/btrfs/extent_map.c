@@ -223,8 +223,9 @@ static bool mergeable_maps(const struct extent_map *prev, const struct extent_ma
 	return next->block_start == prev->block_start;
 }
 
-static void try_merge_map(struct extent_map_tree *tree, struct extent_map *em)
+static void try_merge_map(struct btrfs_inode *inode, struct extent_map *em)
 {
+	struct extent_map_tree *tree = &inode->extent_tree;
 	struct extent_map *merge = NULL;
 	struct rb_node *rb;
 
@@ -322,7 +323,7 @@ int unpin_extent_cache(struct btrfs_inode *inode, u64 start, u64 len, u64 gen)
 	em->generation = gen;
 	em->flags &= ~EXTENT_FLAG_PINNED;
 
-	try_merge_map(tree, em);
+	try_merge_map(inode, em);
 
 out:
 	write_unlock(&tree->lock);
@@ -333,13 +334,11 @@ out:
 
 void clear_em_logging(struct btrfs_inode *inode, struct extent_map *em)
 {
-	struct extent_map_tree *tree = &inode->extent_tree;
-
-	lockdep_assert_held_write(&tree->lock);
+	lockdep_assert_held_write(&inode->extent_tree.lock);
 
 	em->flags &= ~EXTENT_FLAG_LOGGING;
 	if (extent_map_in_tree(em))
-		try_merge_map(tree, em);
+		try_merge_map(inode, em);
 }
 
 static inline void setup_extent_mapping(struct btrfs_inode *inode,
@@ -353,7 +352,7 @@ static inline void setup_extent_mapping(struct btrfs_inode *inode,
 	if (modified)
 		list_add(&em->list, &inode->extent_tree.modified_extents);
 	else
-		try_merge_map(&inode->extent_tree, em);
+		try_merge_map(inode, em);
 }
 
 /*
