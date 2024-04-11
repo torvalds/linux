@@ -449,23 +449,17 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
-	struct v4l2_subdev *camera = NULL;
 	int ret;
+
+	if (input >= isp->input_cnt)
+		return -EINVAL;
+
+	if (!isp->inputs[input].camera)
+		return -EINVAL;
 
 	ret = atomisp_pipe_check(pipe, true);
 	if (ret)
 		return ret;
-
-	if (input >= ATOM_ISP_MAX_INPUTS || input >= isp->input_cnt) {
-		dev_dbg(isp->dev, "input_cnt: %d\n", isp->input_cnt);
-		return -EINVAL;
-	}
-
-	camera = isp->inputs[input].camera;
-	if (!camera) {
-		dev_err(isp->dev, "%s, no camera\n", __func__);
-		return -EINVAL;
-	}
 
 	return atomisp_select_input(isp, input);
 }
