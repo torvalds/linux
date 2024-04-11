@@ -77,6 +77,13 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_mtl_machines[] = {
 					SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME,
 	},
 	{
+		.id = DA7219_ACPI_HID,
+		.drv_name = "mtl_da7219_def",
+		.sof_tplg_filename = "sof-mtl", /* the tplg suffix is added at run time */
+		.tplg_quirk_mask = SND_SOC_ACPI_TPLG_INTEL_AMP_NAME |
+					SND_SOC_ACPI_TPLG_INTEL_CODEC_NAME,
+	},
+	{
 		.id = NAU8825_ACPI_HID,
 		.drv_name = "mtl_nau8825_def",
 		.sof_tplg_filename = "sof-mtl", /* the tplg suffix is added at run time */
