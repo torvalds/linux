@@ -145,9 +145,9 @@ static struct regmap *gen_regmap(struct kunit *test,
 	const struct regmap_test_param *param = test->param_value;
 	struct regmap_test_priv *priv = test->priv;
 	unsigned int *buf;
-	struct regmap *ret;
+	struct regmap *ret = ERR_PTR(-ENOMEM);
 	size_t size;
-	int i;
+	int i, error;
 	struct reg_default *defaults;
 
 	config->cache_type = param->cache;
@@ -172,15 +172,17 @@ static struct regmap *gen_regmap(struct kunit *test,
 
 	*data = kzalloc(sizeof(**data), GFP_KERNEL);
 	if (!(*data))
-		return ERR_PTR(-ENOMEM);
+		goto out_free;
 	(*data)->vals = buf;
 
 	if (config->num_reg_defaults) {
-		defaults = kcalloc(config->num_reg_defaults,
-				   sizeof(struct reg_default),
-				   GFP_KERNEL);
+		defaults = kunit_kcalloc(test,
+					 config->num_reg_defaults,
+					 sizeof(struct reg_default),
+					 GFP_KERNEL);
 		if (!defaults)
-			return ERR_PTR(-ENOMEM);
+			goto out_free;
+
 		config->reg_defaults = defaults;
 
 		for (i = 0; i < config->num_reg_defaults; i++) {
@@ -190,12 +192,19 @@ static struct regmap *gen_regmap(struct kunit *test,
 	}
 
 	ret = regmap_init_ram(priv->dev, config, *data);
-	if (IS_ERR(ret)) {
-		kfree(buf);
-		kfree(*data);
-	} else {
-		kunit_add_action(test, regmap_exit_action, ret);
-	}
+	if (IS_ERR(ret))
+		goto out_free;
+
+	/* This calls regmap_exit() on failure, which frees buf and *data */
+	error = kunit_add_action_or_reset(test, regmap_exit_action, ret);
+	if (error)
+		ret = ERR_PTR(error);
+
+	return ret;
+
+out_free:
+	kfree(buf);
+	kfree(*data);
 
 	return ret;
 }
@@ -1497,9 +1506,9 @@ static struct regmap *gen_raw_regmap(struct kunit *test,
 	struct regmap_test_priv *priv = test->priv;
 	const struct regmap_test_param *param = test->param_value;
 	u16 *buf;
-	struct regmap *ret;
+	struct regmap *ret = ERR_PTR(-ENOMEM);
 	size_t size = (config->max_register + 1) * config->reg_bits / 8;
-	int i;
+	int i, error;
 	struct reg_default *defaults;
 
 	config->cache_type = param->cache;
@@ -1515,15 +1524,16 @@ static struct regmap *gen_raw_regmap(struct kunit *test,
 
 	*data = kzalloc(sizeof(**data), GFP_KERNEL);
 	if (!(*data))
-		return ERR_PTR(-ENOMEM);
+		goto out_free;
 	(*data)->vals = (void *)buf;
 
 	config->num_reg_defaults = config->max_register + 1;
-	defaults = kcalloc(config->num_reg_defaults,
-			   sizeof(struct reg_default),
-			   GFP_KERNEL);
+	defaults = kunit_kcalloc(test,
+				 config->num_reg_defaults,
+				 sizeof(struct reg_default),
+				 GFP_KERNEL);
 	if (!defaults)
-		return ERR_PTR(-ENOMEM);
+		goto out_free;
 	config->reg_defaults = defaults;
 
 	for (i = 0; i < config->num_reg_defaults; i++) {
@@ -1536,7 +1546,8 @@ static struct regmap *gen_raw_regmap(struct kunit *test,
 			defaults[i].def = be16_to_cpu(buf[i]);
 			break;
 		default:
-			return ERR_PTR(-EINVAL);
+			ret = ERR_PTR(-EINVAL);
+			goto out_free;
 		}
 	}
 
@@ -1548,12 +1559,19 @@ static struct regmap *gen_raw_regmap(struct kunit *test,
 		config->num_reg_defaults = 0;
 
 	ret = regmap_init_raw_ram(priv->dev, config, *data);
-	if (IS_ERR(ret)) {
-		kfree(buf);
-		kfree(*data);
-	} else {
-		kunit_add_action(test, regmap_exit_action, ret);
-	}
+	if (IS_ERR(ret))
+		goto out_free;
+
+	/* This calls regmap_exit() on failure, which frees buf and *data */
+	error = kunit_add_action_or_reset(test, regmap_exit_action, ret);
+	if (error)
+		ret = ERR_PTR(error);
+
+	return ret;
+
+out_free:
+	kfree(buf);
+	kfree(*data);
 
 	return ret;
 }
