@@ -10,7 +10,7 @@
 		compatible = "st,stm32mp25-vdec";
 		reg = <0x480d0000 0x3c8>;
 		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&ck_icn_p_vdec>;
+		clocks = <&rcc CK_BUS_VDEC>;
 		access-controllers = <&rifsc 89>;
 
 	};
@@ -19,7 +19,7 @@
 		compatible = "st,stm32mp25-venc";
 		reg = <0x480e0000 0x800>;
 		interrupts = <GIC_SPI 167 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&ck_icn_ls_mcu>;
+		clocks = <&rcc CK_BUS_VENC>;
 		access-controllers = <&rifsc 90>;
 	};
 };
