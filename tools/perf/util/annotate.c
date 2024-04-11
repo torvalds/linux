@@ -2399,8 +2399,9 @@ retry:
 		mem_type = find_data_type(&dloc);
 
 		if (mem_type == NULL && is_stack_canary(arch, op_loc)) {
-			mem_type = &canary_type;
-			dloc.type_offset = 0;
+			istat->good++;
+			he->mem_type_off = 0;
+			return &canary_type;
 		}
 
 		if (mem_type)
