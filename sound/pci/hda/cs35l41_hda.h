@@ -16,6 +16,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/device.h>
 #include <sound/cs35l41.h>
+#include <sound/cs-amp-lib.h>
 
 #include <linux/firmware/cirrus/cs_dsp.h>
 #include <linux/firmware/cirrus/wmfw.h>
@@ -86,6 +87,8 @@ struct cs35l41_hda {
 	enum control_bus control_bus;
 	bool bypass_fw;
 	unsigned int tuning_gain;
+	struct cirrus_amp_cal_data cal_data;
+	bool cal_data_valid;
 
 };
 
