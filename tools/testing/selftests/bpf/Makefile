@@ -135,18 +135,7 @@ TEST_GEN_PROGS_EXTENDED = test_sock_addr test_skb_cgroup_id_user \
 
 TEST_GEN_FILES += liburandom_read.so urandom_read sign-file uprobe_multi
 
-# Emit succinct information message describing current building step
-# $1 - generic step name (e.g., CC, LINK, etc);
-# $2 - optional "flavor" specifier; if provided, will be emitted as [flavor];
-# $3 - target (assumed to be file); only file name will be emitted;
-# $4 - optional extra arg, emitted as-is, if provided.
-ifeq ($(V),1)
-Q =
-msg =
-else
-Q = @
-msg = @printf '  %-8s%s %s%s\n' "$(1)" "$(if $(2), [$(2)])" "$(notdir $(3))" "$(if $(4), $(4))";
-MAKEFLAGS += --no-print-directory
+ifneq ($(V),1)
 submake_extras := feature_display=0
 endif
 
