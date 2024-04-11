@@ -59,13 +59,14 @@
 
 .macro __init_el2_debug
 	mrs	x1, id_aa64dfr0_el1
-	sbfx	x0, x1, #ID_AA64DFR0_EL1_PMUVer_SHIFT, #4
-	cmp	x0, #1
-	b.lt	.Lskip_pmu_\@			// Skip if no PMU present
+	ubfx	x0, x1, #ID_AA64DFR0_EL1_PMUVer_SHIFT, #4
+	cmp	x0, #ID_AA64DFR0_EL1_PMUVer_NI
+	ccmp	x0, #ID_AA64DFR0_EL1_PMUVer_IMP_DEF, #4, ne
+	b.eq	.Lskip_pmu_\@			// Skip if no PMU present or IMP_DEF
 	mrs	x0, pmcr_el0			// Disable debug access traps
 	ubfx	x0, x0, #11, #5			// to EL2 and allow access to
 .Lskip_pmu_\@:
-	csel	x2, xzr, x0, lt			// all PMU counters from EL1
+	csel	x2, xzr, x0, eq			// all PMU counters from EL1
 
 	/* Statistical profiling */
 	ubfx	x0, x1, #ID_AA64DFR0_EL1_PMSVer_SHIFT, #4
