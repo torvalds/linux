@@ -53,6 +53,8 @@
   mmc_wait_for_cmd
   __mod_lruvec_state
   __mod_zone_page_state
+  neigh_xmit
+  netif_receive_skb_core
   nf_ct_attach
   nf_ct_delete
   nf_register_net_hook
@@ -79,6 +81,7 @@
   root_mem_cgroup
   rtc_read_alarm
   rtc_set_alarm
+  __rtnl_link_register
   __rtnl_link_unregister
   sdio_memcpy_fromio
   sdio_memcpy_toio
@@ -142,7 +145,7 @@
   __traceiter_android_vh_binder_thread_read
   __traceiter_android_vh_binder_thread_release
   __traceiter_android_vh_binder_wait_for_work
-  __traceiter_android_vh_binder_detect_low_async_space_locked
+  __traceiter_android_vh_binder_detect_low_async_space
   __traceiter_android_vh_cgroup_set_task
   __traceiter_android_vh_check_folio_look_around_ref
   __traceiter_android_vh_dup_task_struct
@@ -235,7 +238,7 @@
   __tracepoint_android_vh_binder_thread_read
   __tracepoint_android_vh_binder_thread_release
   __tracepoint_android_vh_binder_wait_for_work
-  __tracepoint_android_vh_binder_detect_low_async_space_locked
+  __tracepoint_android_vh_binder_detect_low_async_space
   __tracepoint_android_vh_cgroup_set_task
   __tracepoint_android_vh_check_folio_look_around_ref
   __tracepoint_android_vh_do_futex
