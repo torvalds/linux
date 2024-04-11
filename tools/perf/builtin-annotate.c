@@ -37,6 +37,7 @@
 #include "util/map_symbol.h"
 #include "util/branch.h"
 #include "util/util.h"
+#include "ui/progress.h"
 
 #include <dlfcn.h>
 #include <errno.h>
@@ -665,13 +666,23 @@ static int __cmd_annotate(struct perf_annotate *ann)
 	evlist__for_each_entry(session->evlist, pos) {
 		struct hists *hists = evsel__hists(pos);
 		u32 nr_samples = hists->stats.nr_samples;
+		struct ui_progress prog;
 
 		if (nr_samples > 0) {
 			total_nr_samples += nr_samples;
-			hists__collapse_resort(hists, NULL);
+
+			ui_progress__init(&prog, nr_samples,
+					  "Merging related events...");
+			hists__collapse_resort(hists, &prog);
+			ui_progress__finish();
+
 			/* Don't sort callchain */
 			evsel__reset_sample_bit(pos, CALLCHAIN);
-			evsel__output_resort(pos, NULL);
+
+			ui_progress__init(&prog, nr_samples,
+					  "Sorting events for output...");
+			evsel__output_resort(pos, &prog);
+			ui_progress__finish();
 
 			/*
 			 * An event group needs to display other events too.
