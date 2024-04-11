@@ -1694,6 +1694,11 @@ repeat:
 	else
 		use_browser = 0;
 
+	if (report.data_type && use_browser == 1) {
+		symbol_conf.annotate_data_member = true;
+		symbol_conf.annotate_data_sample = true;
+	}
+
 	if (sort_order && strstr(sort_order, "ipc")) {
 		parse_options_usage(report_usage, options, "s", 1);
 		goto error;

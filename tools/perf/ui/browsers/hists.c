@@ -38,6 +38,7 @@
 #include "../ui.h"
 #include "map.h"
 #include "annotate.h"
+#include "annotate-data.h"
 #include "srcline.h"
 #include "string2.h"
 #include "units.h"
@@ -2506,6 +2507,32 @@ add_annotate_opt(struct hist_browser *browser __maybe_unused,
 }
 
 static int
+do_annotate_type(struct hist_browser *browser, struct popup_action *act)
+{
+	struct hist_entry *he = browser->he_selection;
+
+	hist_entry__annotate_data_tui(he, act->evsel, browser->hbt);
+	ui_browser__handle_resize(&browser->b);
+	return 0;
+}
+
+static int
+add_annotate_type_opt(struct hist_browser *browser,
+		      struct popup_action *act, char **optstr,
+		      struct hist_entry *he)
+{
+	if (he == NULL || he->mem_type == NULL || he->mem_type->histograms == NULL)
+		return 0;
+
+	if (asprintf(optstr, "Annotate type %s", he->mem_type->self.type_name) < 0)
+		return 0;
+
+	act->evsel = hists_to_evsel(browser->hists);
+	act->fn = do_annotate_type;
+	return 1;
+}
+
+static int
 do_zoom_thread(struct hist_browser *browser, struct popup_action *act)
 {
 	struct thread *thread = act->thread;
@@ -3307,6 +3334,10 @@ do_hotkey:		 // key came straight from options ui__popup_menu()
 						       browser->he_selection->ip);
 		}
 skip_annotation:
+		nr_options += add_annotate_type_opt(browser,
+						    &actions[nr_options],
+						    &options[nr_options],
+						    browser->he_selection);
 		nr_options += add_thread_opt(browser, &actions[nr_options],
 					     &options[nr_options], thread);
 		nr_options += add_dso_opt(browser, &actions[nr_options],
