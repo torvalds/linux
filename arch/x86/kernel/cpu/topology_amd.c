@@ -147,6 +147,26 @@ static void legacy_set_llc(struct topo_scan *tscan)
 	tscan->c->topo.llc_id = apicid >> tscan->dom_shifts[TOPO_CORE_DOMAIN];
 }
 
+static void topoext_fixup(struct topo_scan *tscan)
+{
+	struct cpuinfo_x86 *c = tscan->c;
+	u64 msrval;
+
+	/* Try to re-enable TopologyExtensions if switched off by BIOS */
+	if (cpu_has(c, X86_FEATURE_TOPOEXT) || c->x86_vendor != X86_VENDOR_AMD ||
+	    c->x86 != 0x15 || c->x86_model < 0x10 || c->x86_model > 0x6f)
+		return;
+
+	if (msr_set_bit(0xc0011005, 54) <= 0)
+		return;
+
+	rdmsrl(0xc0011005, msrval);
+	if (msrval & BIT_64(54)) {
+		set_cpu_cap(c, X86_FEATURE_TOPOEXT);
+		pr_info_once(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
+	}
+}
+
 static void parse_topology_amd(struct topo_scan *tscan)
 {
 	bool has_0xb = false;
@@ -176,6 +196,7 @@ static void parse_topology_amd(struct topo_scan *tscan)
 void cpu_parse_topology_amd(struct topo_scan *tscan)
 {
 	tscan->amd_nodes_per_pkg = 1;
+	topoext_fixup(tscan);
 	parse_topology_amd(tscan);
 
 	if (tscan->amd_nodes_per_pkg > 1)
