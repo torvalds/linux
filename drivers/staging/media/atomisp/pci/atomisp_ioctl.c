@@ -469,28 +469,15 @@ static int atomisp_s_input(struct file *file, void *fh, unsigned int input)
 	}
 
 	/* power off the current owned sensor, as it is not used this time */
-	if (isp->inputs[asd->input_curr].asd == asd &&
-	    asd->input_curr != input) {
-		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-				       core, s_power, 0);
-		if (ret && ret != -ENOIOCTLCMD)
-			dev_warn(isp->dev,
-				 "Failed to power-off sensor\n");
-		/* clear the asd field to show this camera is not used */
-		isp->inputs[asd->input_curr].asd = NULL;
-	}
+	if (input != isp->asd.input_curr)
+		atomisp_s_sensor_power(isp, isp->asd.input_curr, 0);
 
 	/* powe on the new sensor */
-	ret = v4l2_subdev_call(isp->inputs[input].camera, core, s_power, 1);
-	if (ret && ret != -ENOIOCTLCMD) {
-		dev_err(isp->dev, "Failed to power-on sensor\n");
+	ret = atomisp_s_sensor_power(isp, input, 1);
+	if (ret)
 		return ret;
-	}
 
 	asd->input_curr = input;
-	/* mark this camera is used by the current stream */
-	isp->inputs[input].asd = asd;
-
 	return 0;
 }
 

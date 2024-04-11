@@ -127,17 +127,13 @@ struct atomisp_input_subdev {
 	u32 code; /* MEDIA_BUS_FMT_* */
 	bool binning_support;
 	bool crop_support;
+	bool camera_on;
 	struct v4l2_subdev *camera;
 	/* Sensor rects for sensors which support crop */
 	struct v4l2_rect native_rect;
 	struct v4l2_rect active_rect;
 	/* Sensor state for which == V4L2_SUBDEV_FORMAT_TRY calls */
 	struct v4l2_subdev_state *try_sd_state;
-	/*
-	 * To show this resource is used by
-	 * which stream, in ISP multiple stream mode
-	 */
-	struct atomisp_sub_device *asd;
 };
 
 enum atomisp_dfs_mode {

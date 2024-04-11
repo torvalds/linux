@@ -241,6 +241,9 @@ int atomisp_compare_grid(struct atomisp_sub_device *asd,
 void atomisp_get_padding(struct atomisp_device *isp, u32 width, u32 height,
 			 u32 *padding_w, u32 *padding_h);
 
+/* Set sensor power (no-op if already on/off) */
+int atomisp_s_sensor_power(struct atomisp_device *isp, unsigned int input, bool on);
+
 /* This function looks up the closest available resolution. */
 int atomisp_try_fmt(struct atomisp_device *isp, struct v4l2_pix_format *f,
 		    const struct atomisp_format_bridge **fmt_ret,

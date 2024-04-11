@@ -445,12 +445,8 @@ const struct vb2_ops atomisp_vb2_ops = {
 
 static void atomisp_dev_init_struct(struct atomisp_device *isp)
 {
-	unsigned int i;
-
 	isp->isp_fatal_error = false;
 
-	for (i = 0; i < isp->input_cnt; i++)
-		isp->inputs[i].asd = NULL;
 	/*
 	 * For Merrifield, frequency is scalable.
 	 * After boot-up, the default frequency is 200MHz.
@@ -584,15 +580,7 @@ static int atomisp_release(struct file *file)
 	atomisp_css_free_stat_buffers(asd);
 	atomisp_free_internal_buffers(asd);
 
-	if (isp->inputs[asd->input_curr].asd == asd) {
-		ret = v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
-				       core, s_power, 0);
-		if (ret && ret != -ENOIOCTLCMD)
-			dev_warn(isp->dev, "Failed to power-off sensor\n");
-
-		/* clear the asd field to show this camera is not used */
-		isp->inputs[asd->input_curr].asd = NULL;
-	}
+	atomisp_s_sensor_power(isp, asd->input_curr, 0);
 
 	atomisp_destroy_pipes_stream(asd);
 

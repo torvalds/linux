@@ -3722,6 +3722,23 @@ apply_min_padding:
 	*padding_h = max_t(u32, *padding_h, min_pad_h);
 }
 
+int atomisp_s_sensor_power(struct atomisp_device *isp, unsigned int input, bool on)
+{
+	int ret;
+
+	if (isp->inputs[input].camera_on == on)
+		return 0;
+
+	ret = v4l2_subdev_call(isp->inputs[input].camera, core, s_power, on);
+	if (ret && ret != -ENOIOCTLCMD) {
+		dev_err(isp->dev, "Error setting sensor power %d: %d\n", on, ret);
+		return ret;
+	}
+
+	isp->inputs[input].camera_on = on;
+	return 0;
+}
+
 static int atomisp_set_sensor_crop_and_fmt(struct atomisp_device *isp,
 					   struct v4l2_mbus_framefmt *ffmt,
 					   int which)
