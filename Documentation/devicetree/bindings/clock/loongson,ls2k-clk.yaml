@@ -18,6 +18,7 @@ properties:
     enum:
       - loongson,ls2k0500-clk
       - loongson,ls2k-clk  # This is for Loongson-2K1000
+      - loongson,ls2k2000-clk
 
   reg:
     maxItems: 1
