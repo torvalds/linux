@@ -105,7 +105,8 @@ static struct dma_chan *fsl_edma_xlate(struct of_phandle_args *dma_spec,
 	if (dma_spec->args_count != 2)
 		return NULL;
 
-	mutex_lock(&fsl_edma->fsl_edma_mutex);
+	guard(mutex)(&fsl_edma->fsl_edma_mutex);
+
 	list_for_each_entry_safe(chan, _chan, &fsl_edma->dma_dev.channels, device_node) {
 		if (chan->client_count)
 			continue;
@@ -124,12 +125,10 @@ static struct dma_chan *fsl_edma_xlate(struct of_phandle_args *dma_spec,
 
 				fsl_edma_chan_mux(fsl_chan, fsl_chan->srcid,
 						true);
-				mutex_unlock(&fsl_edma->fsl_edma_mutex);
 				return chan;
 			}
 		}
 	}
-	mutex_unlock(&fsl_edma->fsl_edma_mutex);
 	return NULL;
 }
 
