@@ -10,19 +10,26 @@
 #include "util/annotate.h"
 #include "util/annotate-data.h"
 #include "util/evsel.h"
+#include "util/evlist.h"
 #include "util/sort.h"
 
 struct annotated_data_browser {
 	struct ui_browser b;
 	struct list_head entries;
+	int nr_events;
 };
 
 struct browser_entry {
 	struct list_head node;
 	struct annotated_member *data;
-	struct type_hist_entry hists;
+	struct type_hist_entry *hists;
 	int indent;
 };
+
+static struct annotated_data_browser *get_browser(struct ui_browser *uib)
+{
+	return container_of(uib, struct annotated_data_browser, b);
+}
 
 static void update_hist_entry(struct type_hist_entry *dst,
 			      struct type_hist_entry *src)
@@ -33,17 +40,21 @@ static void update_hist_entry(struct type_hist_entry *dst,
 
 static int get_member_overhead(struct annotated_data_type *adt,
 			       struct browser_entry *entry,
-			       struct evsel *evsel)
+			       struct evsel *leader)
 {
 	struct annotated_member *member = entry->data;
-	int i;
+	int i, k;
 
 	for (i = 0; i < member->size; i++) {
 		struct type_hist *h;
+		struct evsel *evsel;
 		int offset = member->offset + i;
 
-		h = adt->histograms[evsel->core.idx];
-		update_hist_entry(&entry->hists, &h->addr[offset]);
+		for_each_group_evsel(evsel, leader) {
+			h = adt->histograms[evsel->core.idx];
+			k = evsel__group_idx(evsel);
+			update_hist_entry(&entry->hists[k], &h->addr[offset]);
+		}
 	}
 	return 0;
 }
@@ -60,6 +71,12 @@ static int add_child_entries(struct annotated_data_browser *browser,
 	entry = zalloc(sizeof(*entry));
 	if (entry == NULL)
 		return -1;
+
+	entry->hists = calloc(browser->nr_events, sizeof(*entry->hists));
+	if (entry->hists == NULL) {
+		free(entry);
+		return -1;
+	}
 
 	entry->data = member;
 	entry->indent = indent;
@@ -113,6 +130,7 @@ static void annotated_data_browser__delete_entries(struct annotated_data_browser
 
 	list_for_each_entry_safe(pos, tmp, &browser->entries, node) {
 		list_del_init(&pos->node);
+		free(pos->hists);
 		free(pos);
 	}
 }
@@ -126,6 +144,7 @@ static int browser__show(struct ui_browser *uib)
 {
 	struct hist_entry *he = uib->priv;
 	struct annotated_data_type *adt = he->mem_type;
+	struct annotated_data_browser *browser = get_browser(uib);
 	const char *help = "Press 'h' for help on key bindings";
 	char title[256];
 
@@ -146,7 +165,8 @@ static int browser__show(struct ui_browser *uib)
 	else
 		strcpy(title, "Percent");
 
-	ui_browser__printf(uib, " %10s %10s %10s  %s",
+	ui_browser__printf(uib, "%*s %10s %10s %10s  %s",
+			   11 * (browser->nr_events - 1), "",
 			   title, "Offset", "Size", "Field");
 	ui_browser__write_nstring(uib, "", uib->width);
 	return 0;
@@ -175,18 +195,20 @@ static void browser__write_overhead(struct ui_browser *uib,
 
 static void browser__write(struct ui_browser *uib, void *entry, int row)
 {
+	struct annotated_data_browser *browser = get_browser(uib);
 	struct browser_entry *be = entry;
 	struct annotated_member *member = be->data;
 	struct hist_entry *he = uib->priv;
 	struct annotated_data_type *adt = he->mem_type;
-	struct evsel *evsel = hists_to_evsel(he->hists);
+	struct evsel *leader = hists_to_evsel(he->hists);
+	struct evsel *evsel;
 
 	if (member == NULL) {
 		bool current = ui_browser__is_current_entry(uib, row);
 
 		/* print the closing bracket */
 		ui_browser__set_percent_color(uib, 0, current);
-		ui_browser__write_nstring(uib, "", 11);
+		ui_browser__write_nstring(uib, "", 11 * browser->nr_events);
 		ui_browser__printf(uib, " %10s %10s  %*s};",
 				   "", "", be->indent * 4, "");
 		ui_browser__write_nstring(uib, "", uib->width);
@@ -194,8 +216,12 @@ static void browser__write(struct ui_browser *uib, void *entry, int row)
 	}
 
 	/* print the number */
-	browser__write_overhead(uib, adt->histograms[evsel->core.idx],
-				&be->hists, row);
+	for_each_group_evsel(evsel, leader) {
+		struct type_hist *h = adt->histograms[evsel->core.idx];
+		int idx = evsel__group_idx(evsel);
+
+		browser__write_overhead(uib, h, &be->hists[idx], row);
+	}
 
 	/* print type info */
 	if (be->indent == 0 && !member->var_name) {
@@ -267,10 +293,14 @@ int hist_entry__annotate_data_tui(struct hist_entry *he, struct evsel *evsel,
 			.priv	 = he,
 			.extra_title_lines = 1,
 		},
+		.nr_events = 1,
 	};
 	int ret;
 
 	ui_helpline__push("Press ESC to exit");
+
+	if (evsel__is_group_event(evsel))
+		browser.nr_events = evsel->core.nr_members;
 
 	ret = annotated_data_browser__collect_entries(&browser);
 	if (ret == 0)
