@@ -37,6 +37,32 @@
 #define CS35L41_UUID			"50d90cdc-3de4-4f18-b528-c7fe3b71f40d"
 #define CS35L41_DSM_GET_MUTE		5
 #define CS35L41_NOTIFY_EVENT		0x91
+#define CS35L41_TUNING_SIG		0x109A4A35
+
+enum cs35l41_tuning_param_types {
+	TUNING_PARAM_GAIN,
+};
+
+struct cs35l41_tuning_param_hdr {
+	__le32 tuning_index;
+	__le32 type;
+	__le32 size;
+} __packed;
+
+struct cs35l41_tuning_param {
+	struct cs35l41_tuning_param_hdr hdr;
+	union {
+		__le32 gain;
+	};
+} __packed;
+
+struct cs35l41_tuning_params {
+	__le32 signature;
+	__le32 version;
+	__le32 size;
+	__le32 num_entries;
+	u8 data[];
+} __packed;
 
 static bool firmware_autostart = 1;
 module_param(firmware_autostart, bool, 0444);
@@ -92,11 +118,6 @@ static const struct reg_sequence cs35l41_hda_unmute[] = {
 	{ CS35L41_AMP_GAIN_CTRL,	0x00000084 }, // AMP_GAIN_PCM 4.5 dB
 };
 
-static const struct reg_sequence cs35l41_hda_unmute_dsp[] = {
-	{ CS35L41_AMP_DIG_VOL_CTRL,	0x00008000 }, // AMP_HPF_PCM_EN = 1, AMP_VOL_PCM  0.0 dB
-	{ CS35L41_AMP_GAIN_CTRL,	0x00000233 }, // AMP_GAIN_PCM = 17.5dB AMP_GAIN_PDM = 19.5dB
-};
-
 static const struct reg_sequence cs35l41_hda_mute[] = {
 	{ CS35L41_AMP_GAIN_CTRL,	0x00000000 }, // AMP_GAIN_PCM 0.5 dB
 	{ CS35L41_AMP_DIG_VOL_CTRL,	0x0000A678 }, // AMP_HPF_PCM_EN = 1, AMP_VOL_PCM Mute
@@ -116,6 +137,27 @@ static void cs35l41_add_controls(struct cs35l41_hda *cs35l41)
 static const struct cs_dsp_client_ops client_ops = {
 	.control_remove = hda_cs_dsp_control_remove,
 };
+
+static int cs35l41_request_tuning_param_file(struct cs35l41_hda *cs35l41, char *tuning_filename,
+					     const struct firmware **firmware, char **filename,
+					     const char *ssid)
+{
+	int ret = 0;
+
+	/* Filename is the same as the tuning file with "cfg" suffix */
+	*filename = kasprintf(GFP_KERNEL, "%scfg", tuning_filename);
+	if (*filename == NULL)
+		return -ENOMEM;
+
+	ret = firmware_request_nowarn(firmware, *filename, cs35l41->dev);
+	if (ret != 0) {
+		dev_dbg(cs35l41->dev, "Failed to request '%s'\n", *filename);
+		kfree(*filename);
+		*filename = NULL;
+	}
+
+	return ret;
+}
 
 static int cs35l41_request_firmware_file(struct cs35l41_hda *cs35l41,
 					 const struct firmware **firmware, char **filename,
@@ -451,6 +493,94 @@ static int cs35l41_save_calibration(struct cs35l41_hda *cs35l41)
 }
 #endif
 
+static void cs35l41_set_default_tuning_params(struct cs35l41_hda *cs35l41)
+{
+	cs35l41->tuning_gain = DEFAULT_AMP_GAIN_PCM;
+}
+
+static int cs35l41_read_tuning_params(struct cs35l41_hda *cs35l41, const struct firmware *firmware)
+{
+	struct cs35l41_tuning_params *params;
+	unsigned int offset = 0;
+	unsigned int end;
+	int i;
+
+	params = (void *)&firmware->data[0];
+
+	if (le32_to_cpu(params->size) != firmware->size) {
+		dev_err(cs35l41->dev, "Wrong Size for Tuning Param file. Expected %d got %zu\n",
+			le32_to_cpu(params->size), firmware->size);
+		return -EINVAL;
+	}
+
+	if (le32_to_cpu(params->version) != 1) {
+		dev_err(cs35l41->dev, "Unsupported Tuning Param Version: %d\n",
+			le32_to_cpu(params->version));
+		return -EINVAL;
+	}
+
+	if (le32_to_cpu(params->signature) != CS35L41_TUNING_SIG) {
+		dev_err(cs35l41->dev,
+			"Mismatched Signature for Tuning Param file. Expected %#x got %#x\n",
+			CS35L41_TUNING_SIG, le32_to_cpu(params->signature));
+		return -EINVAL;
+	}
+
+	end = firmware->size - sizeof(struct cs35l41_tuning_params);
+
+	for (i = 0; i < le32_to_cpu(params->num_entries); i++) {
+		struct cs35l41_tuning_param *param;
+
+		if ((offset >= end) || ((offset + sizeof(struct cs35l41_tuning_param_hdr)) >= end))
+			return -EFAULT;
+
+		param = (void *)&params->data[offset];
+		offset += le32_to_cpu(param->hdr.size);
+
+		if (offset > end)
+			return -EFAULT;
+
+		switch (le32_to_cpu(param->hdr.type)) {
+		case TUNING_PARAM_GAIN:
+			cs35l41->tuning_gain = le32_to_cpu(param->gain);
+			dev_dbg(cs35l41->dev, "Applying Gain: %d\n", cs35l41->tuning_gain);
+			break;
+		default:
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static int cs35l41_load_tuning_params(struct cs35l41_hda *cs35l41, char *tuning_filename)
+{
+	const struct firmware *tuning_param_file = NULL;
+	char *tuning_param_filename = NULL;
+	int ret;
+
+	ret = cs35l41_request_tuning_param_file(cs35l41, tuning_filename, &tuning_param_file,
+						&tuning_param_filename, cs35l41->acpi_subsystem_id);
+	if (ret) {
+		dev_dbg(cs35l41->dev, "Missing Tuning Param for file: %s: %d\n", tuning_filename,
+			ret);
+		return 0;
+	}
+
+	ret = cs35l41_read_tuning_params(cs35l41, tuning_param_file);
+	if (ret) {
+		dev_err(cs35l41->dev, "Error reading Tuning Params from file: %s: %d\n",
+			tuning_param_filename, ret);
+		/* Reset to default Tuning Parameters */
+		cs35l41_set_default_tuning_params(cs35l41);
+	}
+
+	release_firmware(tuning_param_file);
+	kfree(tuning_param_filename);
+
+	return ret;
+}
+
 static int cs35l41_init_dsp(struct cs35l41_hda *cs35l41)
 {
 	const struct firmware *coeff_firmware = NULL;
@@ -470,27 +600,35 @@ static int cs35l41_init_dsp(struct cs35l41_hda *cs35l41)
 		cs35l41->halo_initialized = true;
 	}
 
+	cs35l41_set_default_tuning_params(cs35l41);
+
 	ret = cs35l41_request_firmware_files(cs35l41, &wmfw_firmware, &wmfw_filename,
 					     &coeff_firmware, &coeff_filename);
 	if (ret < 0)
 		return ret;
 
 	dev_dbg(cs35l41->dev, "Loading WMFW Firmware: %s\n", wmfw_filename);
-	if (coeff_filename)
+	if (coeff_filename) {
 		dev_dbg(cs35l41->dev, "Loading Coefficient File: %s\n", coeff_filename);
-	else
+		ret = cs35l41_load_tuning_params(cs35l41, coeff_filename);
+		if (ret)
+			dev_warn(cs35l41->dev, "Unable to load Tuning Parameters: %d\n", ret);
+	} else {
 		dev_warn(cs35l41->dev, "No Coefficient File available.\n");
+	}
 
 	ret = cs_dsp_power_up(dsp, wmfw_firmware, wmfw_filename, coeff_firmware, coeff_filename,
 			      hda_cs_dsp_fw_ids[cs35l41->firmware_type]);
 	if (ret)
-		goto err_release;
+		goto err;
 
 	cs35l41_add_controls(cs35l41);
 
 	ret = cs35l41_save_calibration(cs35l41);
 
-err_release:
+err:
+	if (ret)
+		cs35l41_set_default_tuning_params(cs35l41);
 	release_firmware(wmfw_firmware);
 	release_firmware(coeff_firmware);
 	kfree(wmfw_filename);
@@ -503,6 +641,7 @@ static void cs35l41_shutdown_dsp(struct cs35l41_hda *cs35l41)
 {
 	struct cs_dsp *dsp = &cs35l41->cs_dsp;
 
+	cs35l41_set_default_tuning_params(cs35l41);
 	cs_dsp_stop(dsp);
 	cs_dsp_power_down(dsp);
 	dev_dbg(cs35l41->dev, "Unloaded Firmware\n");
@@ -570,6 +709,7 @@ static void cs35l41_mute(struct device *dev, bool mute)
 {
 	struct cs35l41_hda *cs35l41 = dev_get_drvdata(dev);
 	struct regmap *reg = cs35l41->regmap;
+	unsigned int amp_gain;
 
 	dev_dbg(dev, "Mute(%d:%d) Playback Started: %d\n", mute, cs35l41->mute_override,
 		cs35l41->playback_started);
@@ -581,8 +721,13 @@ static void cs35l41_mute(struct device *dev, bool mute)
 		} else {
 			dev_dbg(dev, "Unmuting\n");
 			if (cs35l41->cs_dsp.running) {
-				regmap_multi_reg_write(reg, cs35l41_hda_unmute_dsp,
-						ARRAY_SIZE(cs35l41_hda_unmute_dsp));
+				dev_dbg(dev, "Using Tuned Gain: %d\n", cs35l41->tuning_gain);
+				amp_gain = (cs35l41->tuning_gain << CS35L41_AMP_GAIN_PCM_SHIFT) |
+					(DEFAULT_AMP_GAIN_PDM << CS35L41_AMP_GAIN_PDM_SHIFT);
+
+				/* AMP_HPF_PCM_EN = 1, AMP_VOL_PCM  0.0 dB */
+				regmap_write(reg, CS35L41_AMP_DIG_VOL_CTRL, 0x00008000);
+				regmap_write(reg, CS35L41_AMP_GAIN_CTRL, amp_gain);
 			} else {
 				regmap_multi_reg_write(reg, cs35l41_hda_unmute,
 						ARRAY_SIZE(cs35l41_hda_unmute));
@@ -1055,6 +1200,9 @@ static int cs35l41_smart_amp(struct cs35l41_hda *cs35l41)
 		dev_err(cs35l41->dev, "Error waiting for DSP to pause: %u\n", ret);
 		goto clean_dsp;
 	}
+
+	dev_info(cs35l41->dev, "Firmware Loaded - Type: %s, Gain: %d\n",
+		 hda_cs_dsp_fw_ids[cs35l41->firmware_type], cs35l41->tuning_gain);
 
 	return 0;
 
