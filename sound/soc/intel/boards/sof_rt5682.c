@@ -606,6 +606,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct sof_card_private *ctx;
+	char *card_name;
 	bool is_legacy_cpu = false;
 	int ret;
 
@@ -631,12 +632,25 @@ static int sof_audio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (ctx->codec_type == CODEC_RT5650) {
-		sof_audio_card_rt5682.name = devm_kstrdup(&pdev->dev, "rt5650",
-							  GFP_KERNEL);
+		card_name = devm_kstrdup(&pdev->dev, "rt5650", GFP_KERNEL);
+		if (!card_name)
+			return -ENOMEM;
+
+		sof_audio_card_rt5682.name = card_name;
 
 		/* create speaker dai link also */
 		if (ctx->amp_type == CODEC_NONE)
 			ctx->amp_type = CODEC_RT5650;
+	}
+
+	if (ctx->amp_type == CODEC_RT1011 && soc_intel_is_cml()) {
+		/* backward-compatible with existing cml devices */
+		card_name = devm_kstrdup(&pdev->dev, "cml_rt1011_rt5682",
+					 GFP_KERNEL);
+		if (!card_name)
+			return -ENOMEM;
+
+		sof_audio_card_rt5682.name = card_name;
 	}
 
 	if (is_legacy_cpu) {
