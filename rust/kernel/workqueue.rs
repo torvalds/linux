@@ -33,7 +33,6 @@
 //! we do not need to specify ids for the fields.
 //!
 //! ```
-//! use kernel::prelude::*;
 //! use kernel::sync::Arc;
 //! use kernel::workqueue::{self, impl_has_work, new_work, Work, WorkItem};
 //!
@@ -75,7 +74,6 @@
 //! The following example shows how multiple `work_struct` fields can be used:
 //!
 //! ```
-//! use kernel::prelude::*;
 //! use kernel::sync::Arc;
 //! use kernel::workqueue::{self, impl_has_work, new_work, Work, WorkItem};
 //!
@@ -415,7 +413,6 @@ impl<T: ?Sized, const ID: u64> Work<T, ID> {
 /// like this:
 ///
 /// ```no_run
-/// use kernel::prelude::*;
 /// use kernel::workqueue::{impl_has_work, Work};
 ///
 /// struct MyWorkItem {

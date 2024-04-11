@@ -88,7 +88,7 @@
 //!
 //! ```rust
 //! # #![allow(clippy::disallowed_names)]
-//! # use kernel::{sync::Mutex, prelude::*, new_mutex, init::PinInit, try_pin_init};
+//! # use kernel::{sync::Mutex, new_mutex, init::PinInit, try_pin_init};
 //! #[pin_data]
 //! struct DriverData {
 //!     #[pin]
@@ -122,7 +122,7 @@
 //!
 //! ```rust
 //! # #![allow(unreachable_pub, clippy::disallowed_names)]
-//! use kernel::{prelude::*, init, types::Opaque};
+//! use kernel::{init, types::Opaque};
 //! use core::{ptr::addr_of_mut, marker::PhantomPinned, pin::Pin};
 //! # mod bindings {
 //! #     #![allow(non_camel_case_types)]
@@ -413,7 +413,7 @@ macro_rules! stack_try_pin_init {
 ///
 /// ```rust
 /// # #![allow(clippy::disallowed_names)]
-/// # use kernel::{init, pin_init, prelude::*, init::*};
+/// # use kernel::{init, pin_init, init::*};
 /// # use core::pin::Pin;
 /// # #[pin_data]
 /// # struct Foo {
