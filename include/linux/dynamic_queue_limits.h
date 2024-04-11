@@ -91,7 +91,8 @@ static inline void dql_queued(struct dql *dql, unsigned int count)
 {
 	unsigned long map, now, now_hi, i;
 
-	BUG_ON(count > DQL_MAX_OBJECT);
+	if (WARN_ON_ONCE(count > DQL_MAX_OBJECT))
+		return;
 
 	dql->last_obj_cnt = count;
 
