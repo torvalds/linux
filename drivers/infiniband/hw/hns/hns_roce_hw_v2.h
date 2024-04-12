@@ -1334,7 +1334,7 @@ struct fmea_ram_ecc {
 
 /* only for RNR timeout issue of HIP08 */
 #define HNS_ROCE_CLOCK_ADJUST 1000
-#define HNS_ROCE_MAX_CQ_PERIOD 65
+#define HNS_ROCE_MAX_CQ_PERIOD_HIP08 65
 #define HNS_ROCE_MAX_EQ_PERIOD 65
 #define HNS_ROCE_RNR_TIMER_10NS 1
 #define HNS_ROCE_1US_CFG 999

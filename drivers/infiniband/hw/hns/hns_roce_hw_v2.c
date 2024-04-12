@@ -5802,7 +5802,7 @@ static int hns_roce_v2_modify_cq(struct ib_cq *cq, u16 cq_count, u16 cq_period)
 			dev_info(hr_dev->dev,
 				 "cq_period(%u) reached the upper limit, adjusted to 65.\n",
 				 cq_period);
-			cq_period = HNS_ROCE_MAX_CQ_PERIOD;
+			cq_period = HNS_ROCE_MAX_CQ_PERIOD_HIP08;
 		}
 		cq_period *= HNS_ROCE_CLOCK_ADJUST;
 	}
