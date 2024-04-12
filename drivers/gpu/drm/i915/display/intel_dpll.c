@@ -1213,23 +1213,25 @@ static bool ilk_needs_fb_cb_tune(const struct dpll *dpll, int factor)
 	return dpll->m < factor * dpll->n;
 }
 
-static void ilk_update_pll_dividers(struct intel_crtc_state *crtc_state,
-				    const struct dpll *clock,
-				    const struct dpll *reduced_clock)
+static u32 ilk_dpll_compute_fp(const struct dpll *clock, int factor)
 {
-	int factor = ilk_fb_cb_factor(crtc_state);
-	u32 fp, fp2;
+	u32 fp;
 
 	fp = i9xx_dpll_compute_fp(clock);
 	if (ilk_needs_fb_cb_tune(clock, factor))
 		fp |= FP_CB_TUNE;
 
-	fp2 = i9xx_dpll_compute_fp(reduced_clock);
-	if (ilk_needs_fb_cb_tune(reduced_clock, factor))
-		fp2 |= FP_CB_TUNE;
+	return fp;
+}
 
-	crtc_state->dpll_hw_state.fp0 = fp;
-	crtc_state->dpll_hw_state.fp1 = fp2;
+static void ilk_update_pll_dividers(struct intel_crtc_state *crtc_state,
+				    const struct dpll *clock,
+				    const struct dpll *reduced_clock)
+{
+	int factor = ilk_fb_cb_factor(crtc_state);
+
+	crtc_state->dpll_hw_state.fp0 = ilk_dpll_compute_fp(clock, factor);
+	crtc_state->dpll_hw_state.fp1 = ilk_dpll_compute_fp(reduced_clock, factor);
 }
 
 static void ilk_compute_dpll(struct intel_crtc_state *crtc_state,
