@@ -724,6 +724,7 @@ static int tx2_uncore_pmu_register(
 	/* Perf event registration */
 	tx2_pmu->pmu = (struct pmu) {
 		.module         = THIS_MODULE,
+		.parent		= tx2_pmu->dev,
 		.attr_groups	= tx2_pmu->attr_groups,
 		.task_ctx_nr	= perf_invalid_context,
 		.event_init	= tx2_uncore_event_init,
