@@ -109,7 +109,8 @@ static bool intel_dmc_wl_check_range(u32 address)
 static bool __intel_dmc_wl_supported(struct drm_i915_private *i915)
 {
 	if (DISPLAY_VER(i915) < 20 ||
-	    !intel_dmc_has_payload(i915))
+	    !intel_dmc_has_payload(i915) ||
+	    !i915->display.params.enable_dmc_wl)
 		return false;
 
 	return true;
@@ -120,7 +121,8 @@ void intel_dmc_wl_init(struct drm_i915_private *i915)
 	struct intel_dmc_wl *wl = &i915->display.wl;
 
 	/* don't call __intel_dmc_wl_supported(), DMC is not loaded yet */
-	if (DISPLAY_VER(i915) < 20)
+	if (DISPLAY_VER(i915) < 20 ||
+	    !i915->display.params.enable_dmc_wl)
 		return;
 
 	INIT_DELAYED_WORK(&wl->work, intel_dmc_wl_work);
