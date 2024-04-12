@@ -295,9 +295,9 @@ void bxt_ddi_phy_set_signal_levels(struct intel_encoder *encoder,
 	intel_de_write(dev_priv, BXT_PORT_PCS_DW10_GRP(phy, ch), val);
 
 	val = intel_de_read(dev_priv, BXT_PORT_TX_DW2_LN0(phy, ch));
-	val &= ~(MARGIN_000 | UNIQ_TRANS_SCALE);
-	val |= trans->entries[level].bxt.margin << MARGIN_000_SHIFT |
-		trans->entries[level].bxt.scale << UNIQ_TRANS_SCALE_SHIFT;
+	val &= ~(MARGIN_000_MASK | UNIQ_TRANS_SCALE_MASK);
+	val |= MARGIN_000(trans->entries[level].bxt.margin) |
+		UNIQ_TRANS_SCALE(trans->entries[level].bxt.scale);
 	intel_de_write(dev_priv, BXT_PORT_TX_DW2_GRP(phy, ch), val);
 
 	val = intel_de_read(dev_priv, BXT_PORT_TX_DW3_LN0(phy, ch));
@@ -312,8 +312,8 @@ void bxt_ddi_phy_set_signal_levels(struct intel_encoder *encoder,
 	intel_de_write(dev_priv, BXT_PORT_TX_DW3_GRP(phy, ch), val);
 
 	val = intel_de_read(dev_priv, BXT_PORT_TX_DW4_LN0(phy, ch));
-	val &= ~DE_EMPHASIS;
-	val |= trans->entries[level].bxt.deemphasis << DEEMPH_SHIFT;
+	val &= ~DE_EMPHASIS_MASK;
+	val |= DE_EMPHASIS(trans->entries[level].bxt.deemphasis);
 	intel_de_write(dev_priv, BXT_PORT_TX_DW4_GRP(phy, ch), val);
 
 	val = intel_de_read(dev_priv, BXT_PORT_PCS_DW10_LN01(phy, ch));
@@ -353,7 +353,7 @@ static u32 bxt_get_grc(struct drm_i915_private *dev_priv, enum dpio_phy phy)
 {
 	u32 val = intel_de_read(dev_priv, BXT_PORT_REF_DW6(phy));
 
-	return (val & GRC_CODE_MASK) >> GRC_CODE_SHIFT;
+	return REG_FIELD_GET(GRC_CODE_MASK, val);
 }
 
 static void bxt_phy_wait_grc_done(struct drm_i915_private *dev_priv,
@@ -405,11 +405,11 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 			phy);
 
 	/* Program PLL Rcomp code offset */
-	intel_de_rmw(dev_priv, BXT_PORT_CL1CM_DW9(phy), IREF0RC_OFFSET_MASK,
-		     0xE4 << IREF0RC_OFFSET_SHIFT);
+	intel_de_rmw(dev_priv, BXT_PORT_CL1CM_DW9(phy),
+		     IREF0RC_OFFSET_MASK, IREF0RC_OFFSET(0xE4));
 
-	intel_de_rmw(dev_priv, BXT_PORT_CL1CM_DW10(phy), IREF1RC_OFFSET_MASK,
-		     0xE4 << IREF1RC_OFFSET_SHIFT);
+	intel_de_rmw(dev_priv, BXT_PORT_CL1CM_DW10(phy),
+		     IREF1RC_OFFSET_MASK, IREF1RC_OFFSET(0xE4));
 
 	/* Program power gating */
 	intel_de_rmw(dev_priv, BXT_PORT_CL1CM_DW28(phy), 0,
@@ -432,9 +432,9 @@ static void _bxt_ddi_phy_init(struct drm_i915_private *dev_priv,
 		val = bxt_get_grc(dev_priv, phy_info->rcomp_phy);
 		dev_priv->display.state.bxt_phy_grc = val;
 
-		grc_code = val << GRC_CODE_FAST_SHIFT |
-			   val << GRC_CODE_SLOW_SHIFT |
-			   val;
+		grc_code = GRC_CODE_FAST(val) |
+			GRC_CODE_SLOW(val) |
+			GRC_CODE_NOM(val);
 		intel_de_write(dev_priv, BXT_PORT_REF_DW6(phy), grc_code);
 		intel_de_rmw(dev_priv, BXT_PORT_REF_DW8(phy),
 			     0, GRC_DIS | GRC_RDY_OVRD);
@@ -530,16 +530,16 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 
 	/* PLL Rcomp code offset */
 	ok &= _CHK(BXT_PORT_CL1CM_DW9(phy),
-		    IREF0RC_OFFSET_MASK, 0xe4 << IREF0RC_OFFSET_SHIFT,
-		    "BXT_PORT_CL1CM_DW9(%d)", phy);
+		   IREF0RC_OFFSET_MASK, IREF0RC_OFFSET(0xe4),
+		   "BXT_PORT_CL1CM_DW9(%d)", phy);
 	ok &= _CHK(BXT_PORT_CL1CM_DW10(phy),
-		    IREF1RC_OFFSET_MASK, 0xe4 << IREF1RC_OFFSET_SHIFT,
-		    "BXT_PORT_CL1CM_DW10(%d)", phy);
+		   IREF1RC_OFFSET_MASK, IREF1RC_OFFSET(0xe4),
+		   "BXT_PORT_CL1CM_DW10(%d)", phy);
 
 	/* Power gating */
 	mask = OCL1_POWER_DOWN_EN | DW28_OLDO_DYN_PWR_DOWN_EN | SUS_CLK_CONFIG;
 	ok &= _CHK(BXT_PORT_CL1CM_DW28(phy), mask, mask,
-		    "BXT_PORT_CL1CM_DW28(%d)", phy);
+		   "BXT_PORT_CL1CM_DW28(%d)", phy);
 
 	if (phy_info->dual_channel)
 		ok &= _CHK(BXT_PORT_CL2CM_DW6(phy),
@@ -549,9 +549,9 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 	if (phy_info->rcomp_phy != -1) {
 		u32 grc_code = dev_priv->display.state.bxt_phy_grc;
 
-		grc_code = grc_code << GRC_CODE_FAST_SHIFT |
-			   grc_code << GRC_CODE_SLOW_SHIFT |
-			   grc_code;
+		grc_code = GRC_CODE_FAST(grc_code) |
+			GRC_CODE_SLOW(grc_code) |
+			GRC_CODE_NOM(grc_code);
 		mask = GRC_CODE_FAST_MASK | GRC_CODE_SLOW_MASK |
 		       GRC_CODE_NOM_MASK;
 		ok &= _CHK(BXT_PORT_REF_DW6(phy), mask, grc_code,
@@ -559,7 +559,7 @@ bool bxt_ddi_phy_verify_state(struct drm_i915_private *dev_priv,
 
 		mask = GRC_DIS | GRC_RDY_OVRD;
 		ok &= _CHK(BXT_PORT_REF_DW8(phy), mask, mask,
-			    "BXT_PORT_REF_DW8(%d)", phy);
+			   "BXT_PORT_REF_DW8(%d)", phy);
 	}
 
 	return ok;

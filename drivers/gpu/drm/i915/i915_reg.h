@@ -648,32 +648,32 @@
 /* BXT PHY common lane registers */
 #define _PORT_CL1CM_DW0_A		0x162000
 #define _PORT_CL1CM_DW0_BC		0x6C000
-#define   PHY_POWER_GOOD		(1 << 16)
-#define   PHY_RESERVED			(1 << 7)
+#define   PHY_POWER_GOOD		REG_BIT(16)
+#define   PHY_RESERVED			REG_BIT(7)
 #define BXT_PORT_CL1CM_DW0(phy)		_BXT_PHY((phy), _PORT_CL1CM_DW0_BC)
 
 #define _PORT_CL1CM_DW9_A		0x162024
 #define _PORT_CL1CM_DW9_BC		0x6C024
-#define   IREF0RC_OFFSET_SHIFT		8
-#define   IREF0RC_OFFSET_MASK		(0xFF << IREF0RC_OFFSET_SHIFT)
+#define   IREF0RC_OFFSET_MASK		REG_GENMASK(15, 8)
+#define   IREF0RC_OFFSET(x)		REG_FIELD_PREP(IREF0RC_OFFSET_MASK, (x))
 #define BXT_PORT_CL1CM_DW9(phy)		_BXT_PHY((phy), _PORT_CL1CM_DW9_BC)
 
 #define _PORT_CL1CM_DW10_A		0x162028
 #define _PORT_CL1CM_DW10_BC		0x6C028
-#define   IREF1RC_OFFSET_SHIFT		8
-#define   IREF1RC_OFFSET_MASK		(0xFF << IREF1RC_OFFSET_SHIFT)
+#define   IREF1RC_OFFSET_MASK		REG_GENMASK(15, 8)
+#define   IREF1RC_OFFSET(x)		REG_FIELD_PREP(IREF1RC_OFFSET_MASK, (x))
 #define BXT_PORT_CL1CM_DW10(phy)	_BXT_PHY((phy), _PORT_CL1CM_DW10_BC)
 
 #define _PORT_CL1CM_DW28_A		0x162070
 #define _PORT_CL1CM_DW28_BC		0x6C070
-#define   OCL1_POWER_DOWN_EN		(1 << 23)
-#define   DW28_OLDO_DYN_PWR_DOWN_EN	(1 << 22)
-#define   SUS_CLK_CONFIG		0x3
+#define   OCL1_POWER_DOWN_EN		REG_BIT(23)
+#define   DW28_OLDO_DYN_PWR_DOWN_EN	REG_BIT(22)
+#define   SUS_CLK_CONFIG		REG_GENMASK(1, 0)
 #define BXT_PORT_CL1CM_DW28(phy)	_BXT_PHY((phy), _PORT_CL1CM_DW28_BC)
 
 #define _PORT_CL1CM_DW30_A		0x162078
 #define _PORT_CL1CM_DW30_BC		0x6C078
-#define   OCL2_LDOFUSE_PWR_DIS		(1 << 6)
+#define   OCL2_LDOFUSE_PWR_DIS		REG_BIT(6)
 #define BXT_PORT_CL1CM_DW30(phy)	_BXT_PHY((phy), _PORT_CL1CM_DW30_BC)
 
 /* The spec defines this only for BXT PHY0, but lets assume that this
@@ -682,29 +682,30 @@
 #define _PORT_CL2CM_DW6_A		0x162358
 #define _PORT_CL2CM_DW6_BC		0x6C358
 #define BXT_PORT_CL2CM_DW6(phy)		_BXT_PHY((phy), _PORT_CL2CM_DW6_BC)
-#define   DW6_OLDO_DYN_PWR_DOWN_EN	(1 << 28)
+#define   DW6_OLDO_DYN_PWR_DOWN_EN	REG_BIT(28)
 
 /* BXT PHY Ref registers */
 #define _PORT_REF_DW3_A			0x16218C
 #define _PORT_REF_DW3_BC		0x6C18C
-#define   GRC_DONE			(1 << 22)
+#define   GRC_DONE			REG_BIT(22)
 #define BXT_PORT_REF_DW3(phy)		_BXT_PHY((phy), _PORT_REF_DW3_BC)
 
 #define _PORT_REF_DW6_A			0x162198
 #define _PORT_REF_DW6_BC		0x6C198
-#define   GRC_CODE_SHIFT		24
-#define   GRC_CODE_MASK			(0xFF << GRC_CODE_SHIFT)
-#define   GRC_CODE_FAST_SHIFT		16
-#define   GRC_CODE_FAST_MASK		(0xFF << GRC_CODE_FAST_SHIFT)
-#define   GRC_CODE_SLOW_SHIFT		8
-#define   GRC_CODE_SLOW_MASK		(0xFF << GRC_CODE_SLOW_SHIFT)
-#define   GRC_CODE_NOM_MASK		0xFF
+#define   GRC_CODE_MASK			REG_GENMASK(31, 24)
+#define   GRC_CODE(x)			REG_FIELD_PREP(GRC_CODE_MASK, (x))
+#define   GRC_CODE_FAST_MASK		REG_GENMASK(23, 16)
+#define   GRC_CODE_FAST(x)		REG_FIELD_PREP(GRC_CODE_FAST_MASK, (x))
+#define   GRC_CODE_SLOW_MASK		REG_GENMASK(15, 8)
+#define   GRC_CODE_SLOW(x)		REG_FIELD_PREP(GRC_CODE_SLOW_MASK, (x))
+#define   GRC_CODE_NOM_MASK		REG_GENMASK(7, 0)
+#define   GRC_CODE_NOM(x)		REG_FIELD_PREP(GRC_CODE_NOM_MASK, (x))
 #define BXT_PORT_REF_DW6(phy)		_BXT_PHY((phy), _PORT_REF_DW6_BC)
 
 #define _PORT_REF_DW8_A			0x1621A0
 #define _PORT_REF_DW8_BC		0x6C1A0
-#define   GRC_DIS			(1 << 15)
-#define   GRC_RDY_OVRD			(1 << 1)
+#define   GRC_DIS			REG_BIT(15)
+#define   GRC_RDY_OVRD			REG_BIT(1)
 #define BXT_PORT_REF_DW8(phy)		_BXT_PHY((phy), _PORT_REF_DW8_BC)
 
 /* BXT PHY PCS registers */
@@ -721,8 +722,8 @@
 							 _PORT_PCS_DW10_GRP_B, \
 							 _PORT_PCS_DW10_GRP_C)
 
-#define   TX2_SWING_CALC_INIT		(1 << 31)
-#define   TX1_SWING_CALC_INIT		(1 << 30)
+#define   TX2_SWING_CALC_INIT		REG_BIT(31)
+#define   TX1_SWING_CALC_INIT		REG_BIT(30)
 
 #define _PORT_PCS_DW12_LN01_A		0x162430
 #define _PORT_PCS_DW12_LN01_B		0x6C430
@@ -733,8 +734,8 @@
 #define _PORT_PCS_DW12_GRP_A		0x162c30
 #define _PORT_PCS_DW12_GRP_B		0x6CC30
 #define _PORT_PCS_DW12_GRP_C		0x6CE30
-#define   LANESTAGGER_STRAP_OVRD	(1 << 6)
-#define   LANE_STAGGER_MASK		0x1F
+#define   LANESTAGGER_STRAP_OVRD	REG_BIT(6)
+#define   LANE_STAGGER_MASK		REG_GENMASK(4, 0)
 #define BXT_PORT_PCS_DW12_LN01(phy, ch)	_MMIO_BXT_PHY_CH(phy, ch, \
 							 _PORT_PCS_DW12_LN01_B, \
 							 _PORT_PCS_DW12_LN01_C)
@@ -761,10 +762,10 @@
 #define BXT_PORT_TX_DW2_GRP(phy, ch)	_MMIO_BXT_PHY_CH(phy, ch, \
 							 _PORT_TX_DW2_GRP_B, \
 							 _PORT_TX_DW2_GRP_C)
-#define   MARGIN_000_SHIFT		16
-#define   MARGIN_000			(0xFF << MARGIN_000_SHIFT)
-#define   UNIQ_TRANS_SCALE_SHIFT	8
-#define   UNIQ_TRANS_SCALE		(0xFF << UNIQ_TRANS_SCALE_SHIFT)
+#define   MARGIN_000_MASK		REG_GENMASK(23, 16)
+#define   MARGIN_000(x)			REG_FIELD_PREP(MARGIN_000_MASK, (x))
+#define   UNIQ_TRANS_SCALE_MASK		REG_GENMASK(15, 8)
+#define   UNIQ_TRANS_SCALE(x)		REG_FIELD_PREP(UNIQ_TRANS_SCALE_MASK, (x))
 
 #define _PORT_TX_DW3_LN0_A		0x16250C
 #define _PORT_TX_DW3_LN0_B		0x6C50C
@@ -778,8 +779,8 @@
 #define BXT_PORT_TX_DW3_GRP(phy, ch)	_MMIO_BXT_PHY_CH(phy, ch, \
 							 _PORT_TX_DW3_GRP_B, \
 							 _PORT_TX_DW3_GRP_C)
-#define   SCALE_DCOMP_METHOD		(1 << 26)
-#define   UNIQUE_TRANGE_EN_METHOD	(1 << 27)
+#define   SCALE_DCOMP_METHOD		REG_BIT(26)
+#define   UNIQUE_TRANGE_EN_METHOD	REG_BIT(27)
 
 #define _PORT_TX_DW4_LN0_A		0x162510
 #define _PORT_TX_DW4_LN0_B		0x6C510
@@ -793,8 +794,8 @@
 #define BXT_PORT_TX_DW4_GRP(phy, ch)	_MMIO_BXT_PHY_CH(phy, ch, \
 							 _PORT_TX_DW4_GRP_B, \
 							 _PORT_TX_DW4_GRP_C)
-#define   DEEMPH_SHIFT			24
-#define   DE_EMPHASIS			(0xFF << DEEMPH_SHIFT)
+#define   DE_EMPHASIS_MASK		REG_GENMASK(31, 24)
+#define   DE_EMPHASIS(x)		REG_FIELD_PREP(DE_EMPHASIS_MASK, (x))
 
 #define _PORT_TX_DW5_LN0_A		0x162514
 #define _PORT_TX_DW5_LN0_B		0x6C514
@@ -808,14 +809,13 @@
 #define BXT_PORT_TX_DW5_GRP(phy, ch)	_MMIO_BXT_PHY_CH(phy, ch, \
 							 _PORT_TX_DW5_GRP_B, \
 							 _PORT_TX_DW5_GRP_C)
-#define   DCC_DELAY_RANGE_1		(1 << 9)
-#define   DCC_DELAY_RANGE_2		(1 << 8)
+#define   DCC_DELAY_RANGE_1		REG_BIT(9)
+#define   DCC_DELAY_RANGE_2		REG_BIT(8)
 
 #define _PORT_TX_DW14_LN0_A		0x162538
 #define _PORT_TX_DW14_LN0_B		0x6C538
 #define _PORT_TX_DW14_LN0_C		0x6C938
-#define   LATENCY_OPTIM_SHIFT		30
-#define   LATENCY_OPTIM			(1 << LATENCY_OPTIM_SHIFT)
+#define   LATENCY_OPTIM			REG_BIT(30)
 #define BXT_PORT_TX_DW14_LN(phy, ch, lane)				\
 	_MMIO(_BXT_PHY_CH(phy, ch, _PORT_TX_DW14_LN0_B,			\
 				   _PORT_TX_DW14_LN0_C) +		\
