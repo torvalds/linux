@@ -529,7 +529,7 @@ void ilk_pch_get_config(struct intel_crtc_state *crtc_state)
 					     &crtc_state->dpll_hw_state);
 	drm_WARN_ON(&dev_priv->drm, !pll_active);
 
-	tmp = crtc_state->dpll_hw_state.dpll;
+	tmp = crtc_state->dpll_hw_state.i9xx.dpll;
 	crtc_state->pixel_multiplier =
 		((tmp & PLL_REF_SDVO_HDMI_MULTIPLIER_MASK)
 		 >> PLL_REF_SDVO_HDMI_MULTIPLIER_SHIFT) + 1;

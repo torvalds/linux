@@ -3074,13 +3074,13 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	i9xx_dpll_get_hw_state(crtc, &pipe_config->dpll_hw_state);
 
 	if (DISPLAY_VER(dev_priv) >= 4) {
-		tmp = pipe_config->dpll_hw_state.dpll_md;
+		tmp = pipe_config->dpll_hw_state.i9xx.dpll_md;
 		pipe_config->pixel_multiplier =
 			((tmp & DPLL_MD_UDI_MULTIPLIER_MASK)
 			 >> DPLL_MD_UDI_MULTIPLIER_SHIFT) + 1;
 	} else if (IS_I945G(dev_priv) || IS_I945GM(dev_priv) ||
 		   IS_G33(dev_priv) || IS_PINEVIEW(dev_priv)) {
-		tmp = pipe_config->dpll_hw_state.dpll;
+		tmp = pipe_config->dpll_hw_state.i9xx.dpll;
 		pipe_config->pixel_multiplier =
 			((tmp & SDVO_MULTIPLIER_MASK)
 			 >> SDVO_MULTIPLIER_SHIFT_HIRES) + 1;

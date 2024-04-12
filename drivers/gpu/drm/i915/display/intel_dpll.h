@@ -24,7 +24,7 @@ int intel_dpll_crtc_get_shared_dpll(struct intel_atomic_state *state,
 int i9xx_calc_dpll_params(int refclk, struct dpll *clock);
 u32 i9xx_dpll_compute_fp(const struct dpll *dpll);
 void i9xx_dpll_get_hw_state(struct intel_crtc *crtc,
-			    struct intel_dpll_hw_state *hw_state);
+			    struct intel_dpll_hw_state *dpll_hw_state);
 void vlv_compute_dpll(struct intel_crtc_state *crtc_state);
 void chv_compute_dpll(struct intel_crtc_state *crtc_state);
 
