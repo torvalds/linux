@@ -38,6 +38,7 @@
 #include <linux/if_vlan.h>
 #include <linux/udp.h>
 #include <linux/highmem.h>
+#include <linux/skbuff_ref.h>
 
 #include <net/tcp.h>
 
