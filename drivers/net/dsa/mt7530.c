@@ -2850,28 +2850,34 @@ mt7531_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 }
 
 static struct phylink_pcs *
-mt753x_phylink_mac_select_pcs(struct dsa_switch *ds, int port,
+mt753x_phylink_mac_select_pcs(struct phylink_config *config,
 			      phy_interface_t interface)
 {
-	struct mt7530_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mt7530_priv *priv = dp->ds->priv;
 
 	switch (interface) {
 	case PHY_INTERFACE_MODE_TRGMII:
-		return &priv->pcs[port].pcs;
+		return &priv->pcs[dp->index].pcs;
 	case PHY_INTERFACE_MODE_SGMII:
 	case PHY_INTERFACE_MODE_1000BASEX:
 	case PHY_INTERFACE_MODE_2500BASEX:
-		return priv->ports[port].sgmii_pcs;
+		return priv->ports[dp->index].sgmii_pcs;
 	default:
 		return NULL;
 	}
 }
 
 static void
-mt753x_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
+mt753x_phylink_mac_config(struct phylink_config *config, unsigned int mode,
 			  const struct phylink_link_state *state)
 {
-	struct mt7530_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct dsa_switch *ds = dp->ds;
+	struct mt7530_priv *priv;
+	int port = dp->index;
+
+	priv = ds->priv;
 
 	if ((port == 5 || port == 6) && priv->info->mac_port_config)
 		priv->info->mac_port_config(ds, port, mode, state->interface);
@@ -2881,23 +2887,25 @@ mt753x_phylink_mac_config(struct dsa_switch *ds, int port, unsigned int mode,
 		mt7530_set(priv, MT7530_PMCR_P(port), PMCR_EXT_PHY);
 }
 
-static void mt753x_phylink_mac_link_down(struct dsa_switch *ds, int port,
+static void mt753x_phylink_mac_link_down(struct phylink_config *config,
 					 unsigned int mode,
 					 phy_interface_t interface)
 {
-	struct mt7530_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mt7530_priv *priv = dp->ds->priv;
 
-	mt7530_clear(priv, MT7530_PMCR_P(port), PMCR_LINK_SETTINGS_MASK);
+	mt7530_clear(priv, MT7530_PMCR_P(dp->index), PMCR_LINK_SETTINGS_MASK);
 }
 
-static void mt753x_phylink_mac_link_up(struct dsa_switch *ds, int port,
+static void mt753x_phylink_mac_link_up(struct phylink_config *config,
+				       struct phy_device *phydev,
 				       unsigned int mode,
 				       phy_interface_t interface,
-				       struct phy_device *phydev,
 				       int speed, int duplex,
 				       bool tx_pause, bool rx_pause)
 {
-	struct mt7530_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mt7530_priv *priv = dp->ds->priv;
 	u32 mcr;
 
 	mcr = PMCR_RX_EN | PMCR_TX_EN | PMCR_FORCE_LNK;
@@ -2932,7 +2940,7 @@ static void mt753x_phylink_mac_link_up(struct dsa_switch *ds, int port,
 		}
 	}
 
-	mt7530_set(priv, MT7530_PMCR_P(port), mcr);
+	mt7530_set(priv, MT7530_PMCR_P(dp->index), mcr);
 }
 
 static void mt753x_phylink_get_caps(struct dsa_switch *ds, int port,
@@ -3152,15 +3160,18 @@ const struct dsa_switch_ops mt7530_switch_ops = {
 	.port_mirror_add	= mt753x_port_mirror_add,
 	.port_mirror_del	= mt753x_port_mirror_del,
 	.phylink_get_caps	= mt753x_phylink_get_caps,
-	.phylink_mac_select_pcs	= mt753x_phylink_mac_select_pcs,
-	.phylink_mac_config	= mt753x_phylink_mac_config,
-	.phylink_mac_link_down	= mt753x_phylink_mac_link_down,
-	.phylink_mac_link_up	= mt753x_phylink_mac_link_up,
 	.get_mac_eee		= mt753x_get_mac_eee,
 	.set_mac_eee		= mt753x_set_mac_eee,
 	.conduit_state_change	= mt753x_conduit_state_change,
 };
 EXPORT_SYMBOL_GPL(mt7530_switch_ops);
+
+static const struct phylink_mac_ops mt753x_phylink_mac_ops = {
+	.mac_select_pcs	= mt753x_phylink_mac_select_pcs,
+	.mac_config	= mt753x_phylink_mac_config,
+	.mac_link_down	= mt753x_phylink_mac_link_down,
+	.mac_link_up	= mt753x_phylink_mac_link_up,
+};
 
 const struct mt753x_info mt753x_table[] = {
 	[ID_MT7621] = {
@@ -3239,6 +3250,7 @@ mt7530_probe_common(struct mt7530_priv *priv)
 	priv->dev = dev;
 	priv->ds->priv = priv;
 	priv->ds->ops = &mt7530_switch_ops;
+	priv->ds->phylink_mac_ops = &mt753x_phylink_mac_ops;
 	mutex_init(&priv->reg_mutex);
 	dev_set_drvdata(dev, priv);
 
