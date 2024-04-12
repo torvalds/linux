@@ -107,9 +107,12 @@ int atomisp_csi2_set_ffmt(struct v4l2_subdev *sd,
 		actual_ffmt->height = clamp_t(u32, ffmt->height,
 					      ATOM_ISP_MIN_HEIGHT,
 					      ATOM_ISP_MAX_HEIGHT);
+		actual_ffmt->field = ffmt->field;
 
 		tmp_ffmt = *ffmt = *actual_ffmt;
 
+		/* Always use V4L2_FIELD_ANY to match the ISP sink pad */
+		tmp_ffmt.field = V4L2_FIELD_ANY;
 		return atomisp_csi2_set_ffmt(sd, sd_state, which,
 					     CSI2_PAD_SOURCE,
 					     &tmp_ffmt);
