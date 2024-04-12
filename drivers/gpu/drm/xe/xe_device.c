@@ -649,11 +649,7 @@ int xe_device_probe(struct xe_device *xe)
 
 	xe_hwmon_register(xe);
 
-	err = drmm_add_action_or_reset(&xe->drm, xe_device_sanitize, xe);
-	if (err)
-		return err;
-
-	return 0;
+	return drmm_add_action_or_reset(&xe->drm, xe_device_sanitize, xe);
 
 err_fini_display:
 	xe_display_driver_remove(xe);

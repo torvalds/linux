@@ -558,11 +558,7 @@ int xe_gt_init(struct xe_gt *gt)
 	if (err)
 		return err;
 
-	err = drmm_add_action_or_reset(&gt_to_xe(gt)->drm, gt_fini, gt);
-	if (err)
-		return err;
-
-	return 0;
+	return drmm_add_action_or_reset(&gt_to_xe(gt)->drm, gt_fini, gt);
 }
 
 static int do_gt_reset(struct xe_gt *gt)

@@ -403,7 +403,6 @@ static int proxy_channel_alloc(struct xe_gsc *gsc)
 	struct xe_device *xe = gt_to_xe(gt);
 	struct xe_bo *bo;
 	void *csme;
-	int err;
 
 	csme = kzalloc(GSC_PROXY_CHANNEL_SIZE, GFP_KERNEL);
 	if (!csme)
@@ -424,11 +423,7 @@ static int proxy_channel_alloc(struct xe_gsc *gsc)
 	gsc->proxy.to_csme = csme;
 	gsc->proxy.from_csme = csme + GSC_PROXY_BUFFER_SIZE;
 
-	err = drmm_add_action_or_reset(&xe->drm, proxy_channel_free, gsc);
-	if (err)
-		return err;
-
-	return 0;
+	return drmm_add_action_or_reset(&xe->drm, proxy_channel_free, gsc);
 }
 
 /**

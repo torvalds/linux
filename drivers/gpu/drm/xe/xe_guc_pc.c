@@ -937,9 +937,5 @@ int xe_guc_pc_init(struct xe_guc_pc *pc)
 
 	pc->bo = bo;
 
-	err = drmm_add_action_or_reset(&xe->drm, xe_guc_pc_fini, pc);
-	if (err)
-		return err;
-
-	return 0;
+	return drmm_add_action_or_reset(&xe->drm, xe_guc_pc_fini, pc);
 }
