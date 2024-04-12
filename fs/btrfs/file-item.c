@@ -457,9 +457,12 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
  * @start:		Logical address of target checksum range.
  * @end:		End offset (inclusive) of the target checksum range.
  * @list:		List for adding each checksum that was found.
+ *			Can be NULL in case the caller only wants to check if
+ *			there any checksums for the range.
  * @nowait:		Indicate if the search must be non-blocking or not.
  *
- * Return < 0 on error and 0 on success.
+ * Return < 0 on error, 0 if no checksums were found, or 1 if checksums were
+ * found.
  */
 int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 			    struct list_head *list, bool nowait)
@@ -471,6 +474,7 @@ int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 	struct btrfs_ordered_sum *sums;
 	struct btrfs_csum_item *item;
 	int ret;
+	bool found_csums = false;
 
 	ASSERT(IS_ALIGNED(start, fs_info->sectorsize) &&
 	       IS_ALIGNED(end + 1, fs_info->sectorsize));
@@ -544,6 +548,10 @@ int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 			continue;
 		}
 
+		found_csums = true;
+		if (!list)
+			goto out;
+
 		csum_end = min(csum_end, end + 1);
 		item = btrfs_item_ptr(path->nodes[0], path->slots[0],
 				      struct btrfs_csum_item);
@@ -575,17 +583,20 @@ int btrfs_lookup_csums_list(struct btrfs_root *root, u64 start, u64 end,
 		}
 		path->slots[0]++;
 	}
-	ret = 0;
 out:
+	btrfs_free_path(path);
 	if (ret < 0) {
-		struct btrfs_ordered_sum *tmp_sums;
+		if (list) {
+			struct btrfs_ordered_sum *tmp_sums;
 
-		list_for_each_entry_safe(sums, tmp_sums, list, list)
-			kfree(sums);
+			list_for_each_entry_safe(sums, tmp_sums, list, list)
+				kfree(sums);
+		}
+
+		return ret;
 	}
 
-	btrfs_free_path(path);
-	return ret;
+	return found_csums ? 1 : 0;
 }
 
 /*

@@ -1740,23 +1740,9 @@ static noinline int csum_exist_in_range(struct btrfs_fs_info *fs_info,
 					u64 bytenr, u64 num_bytes, bool nowait)
 {
 	struct btrfs_root *csum_root = btrfs_csum_root(fs_info, bytenr);
-	struct btrfs_ordered_sum *sums;
-	int ret;
-	LIST_HEAD(list);
 
-	ret = btrfs_lookup_csums_list(csum_root, bytenr, bytenr + num_bytes - 1,
-				      &list, nowait);
-	if (ret == 0 && list_empty(&list))
-		return 0;
-
-	while (!list_empty(&list)) {
-		sums = list_entry(list.next, struct btrfs_ordered_sum, list);
-		list_del(&sums->list);
-		kfree(sums);
-	}
-	if (ret < 0)
-		return ret;
-	return 1;
+	return btrfs_lookup_csums_list(csum_root, bytenr, bytenr + num_bytes - 1,
+				       NULL, nowait);
 }
 
 static int fallback_to_cow(struct btrfs_inode *inode, struct page *locked_page,

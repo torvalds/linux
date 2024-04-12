@@ -798,8 +798,9 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 			ret = btrfs_lookup_csums_list(root->log_root,
 						csum_start, csum_end - 1,
 						&ordered_sums, false);
-			if (ret)
+			if (ret < 0)
 				goto out;
+			ret = 0;
 			/*
 			 * Now delete all existing cums in the csum root that
 			 * cover our range. We do this because we can have an
@@ -4461,8 +4462,9 @@ static noinline int copy_items(struct btrfs_trans_handle *trans,
 		ret = btrfs_lookup_csums_list(csum_root, disk_bytenr,
 					      disk_bytenr + extent_num_bytes - 1,
 					      &ordered_sums, false);
-		if (ret)
+		if (ret < 0)
 			goto out;
+		ret = 0;
 
 		list_for_each_entry_safe(sums, sums_next, &ordered_sums, list) {
 			if (!ret)
@@ -4656,8 +4658,9 @@ static int log_extent_csums(struct btrfs_trans_handle *trans,
 	ret = btrfs_lookup_csums_list(csum_root, em->block_start + csum_offset,
 				      em->block_start + csum_offset +
 				      csum_len - 1, &ordered_sums, false);
-	if (ret)
+	if (ret < 0)
 		return ret;
+	ret = 0;
 
 	while (!list_empty(&ordered_sums)) {
 		struct btrfs_ordered_sum *sums = list_entry(ordered_sums.next,
