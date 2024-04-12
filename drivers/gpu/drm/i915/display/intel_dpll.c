@@ -415,11 +415,10 @@ void i9xx_dpll_get_hw_state(struct intel_crtc *crtc,
 }
 
 /* Returns the clock of the currently programmed mode of the given pipe. */
-void i9xx_crtc_clock_get(struct intel_crtc *crtc,
-			 struct intel_crtc_state *pipe_config)
+void i9xx_crtc_clock_get(struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dpll = pipe_config->dpll_hw_state.dpll;
 	u32 fp;
 	struct dpll clock;
@@ -507,11 +506,10 @@ void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 	pipe_config->port_clock = port_clock;
 }
 
-void vlv_crtc_clock_get(struct intel_crtc *crtc,
-			struct intel_crtc_state *pipe_config)
+void vlv_crtc_clock_get(struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
 	struct dpll clock;
 	u32 mdiv;
@@ -534,11 +532,10 @@ void vlv_crtc_clock_get(struct intel_crtc *crtc,
 	pipe_config->port_clock = vlv_calc_dpll_params(refclk, &clock);
 }
 
-void chv_crtc_clock_get(struct intel_crtc *crtc,
-			struct intel_crtc_state *pipe_config)
+void chv_crtc_clock_get(struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum dpio_channel port = vlv_pipe_to_channel(crtc->pipe);
 	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
 	struct dpll clock;

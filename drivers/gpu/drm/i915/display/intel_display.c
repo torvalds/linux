@@ -3092,11 +3092,11 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 	}
 
 	if (IS_CHERRYVIEW(dev_priv))
-		chv_crtc_clock_get(crtc, pipe_config);
+		chv_crtc_clock_get(pipe_config);
 	else if (IS_VALLEYVIEW(dev_priv))
-		vlv_crtc_clock_get(crtc, pipe_config);
+		vlv_crtc_clock_get(pipe_config);
 	else
-		i9xx_crtc_clock_get(crtc, pipe_config);
+		i9xx_crtc_clock_get(pipe_config);
 
 	/*
 	 * Normally the dotclock is filled in by the encoder .get_config()

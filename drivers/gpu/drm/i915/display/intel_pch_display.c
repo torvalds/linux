@@ -474,7 +474,7 @@ static void ilk_pch_clock_get(struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
 	/* read out port_clock from the DPLL */
-	i9xx_crtc_clock_get(crtc, crtc_state);
+	i9xx_crtc_clock_get(crtc_state);
 
 	/*
 	 * In case there is an active pipe without active ports,
