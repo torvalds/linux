@@ -790,24 +790,27 @@ static void mv88e6xxx_get_caps(struct dsa_switch *ds, int port,
 	}
 }
 
-static struct phylink_pcs *mv88e6xxx_mac_select_pcs(struct dsa_switch *ds,
-						    int port,
-						    phy_interface_t interface)
+static struct phylink_pcs *
+mv88e6xxx_mac_select_pcs(struct phylink_config *config,
+			 phy_interface_t interface)
 {
-	struct mv88e6xxx_chip *chip = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mv88e6xxx_chip *chip = dp->ds->priv;
 	struct phylink_pcs *pcs = ERR_PTR(-EOPNOTSUPP);
 
 	if (chip->info->ops->pcs_ops)
-		pcs = chip->info->ops->pcs_ops->pcs_select(chip, port,
+		pcs = chip->info->ops->pcs_ops->pcs_select(chip, dp->index,
 							   interface);
 
 	return pcs;
 }
 
-static int mv88e6xxx_mac_prepare(struct dsa_switch *ds, int port,
+static int mv88e6xxx_mac_prepare(struct phylink_config *config,
 				 unsigned int mode, phy_interface_t interface)
 {
-	struct mv88e6xxx_chip *chip = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mv88e6xxx_chip *chip = dp->ds->priv;
+	int port = dp->index;
 	int err = 0;
 
 	/* In inband mode, the link may come up at any time while the link
@@ -826,11 +829,13 @@ static int mv88e6xxx_mac_prepare(struct dsa_switch *ds, int port,
 	return err;
 }
 
-static void mv88e6xxx_mac_config(struct dsa_switch *ds, int port,
+static void mv88e6xxx_mac_config(struct phylink_config *config,
 				 unsigned int mode,
 				 const struct phylink_link_state *state)
 {
-	struct mv88e6xxx_chip *chip = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mv88e6xxx_chip *chip = dp->ds->priv;
+	int port = dp->index;
 	int err = 0;
 
 	mv88e6xxx_reg_lock(chip);
@@ -846,13 +851,15 @@ err_unlock:
 	mv88e6xxx_reg_unlock(chip);
 
 	if (err && err != -EOPNOTSUPP)
-		dev_err(ds->dev, "p%d: failed to configure MAC/PCS\n", port);
+		dev_err(chip->dev, "p%d: failed to configure MAC/PCS\n", port);
 }
 
-static int mv88e6xxx_mac_finish(struct dsa_switch *ds, int port,
+static int mv88e6xxx_mac_finish(struct phylink_config *config,
 				unsigned int mode, phy_interface_t interface)
 {
-	struct mv88e6xxx_chip *chip = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mv88e6xxx_chip *chip = dp->ds->priv;
+	int port = dp->index;
 	int err = 0;
 
 	/* Undo the forced down state above after completing configuration
@@ -876,12 +883,14 @@ static int mv88e6xxx_mac_finish(struct dsa_switch *ds, int port,
 	return err;
 }
 
-static void mv88e6xxx_mac_link_down(struct dsa_switch *ds, int port,
+static void mv88e6xxx_mac_link_down(struct phylink_config *config,
 				    unsigned int mode,
 				    phy_interface_t interface)
 {
-	struct mv88e6xxx_chip *chip = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mv88e6xxx_chip *chip = dp->ds->priv;
 	const struct mv88e6xxx_ops *ops;
+	int port = dp->index;
 	int err = 0;
 
 	ops = chip->info->ops;
@@ -904,14 +913,16 @@ static void mv88e6xxx_mac_link_down(struct dsa_switch *ds, int port,
 			"p%d: failed to force MAC link down\n", port);
 }
 
-static void mv88e6xxx_mac_link_up(struct dsa_switch *ds, int port,
-				  unsigned int mode, phy_interface_t interface,
+static void mv88e6xxx_mac_link_up(struct phylink_config *config,
 				  struct phy_device *phydev,
+				  unsigned int mode, phy_interface_t interface,
 				  int speed, int duplex,
 				  bool tx_pause, bool rx_pause)
 {
-	struct mv88e6xxx_chip *chip = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct mv88e6xxx_chip *chip = dp->ds->priv;
 	const struct mv88e6xxx_ops *ops;
+	int port = dp->index;
 	int err = 0;
 
 	ops = chip->info->ops;
@@ -937,7 +948,7 @@ error:
 	mv88e6xxx_reg_unlock(chip);
 
 	if (err && err != -EOPNOTSUPP)
-		dev_err(ds->dev,
+		dev_err(chip->dev,
 			"p%d: failed to configure MAC link up\n", port);
 }
 
@@ -6922,6 +6933,15 @@ static int mv88e6xxx_crosschip_lag_leave(struct dsa_switch *ds, int sw_index,
 	return err_sync ? : err_pvt;
 }
 
+static const struct phylink_mac_ops mv88e6xxx_phylink_mac_ops = {
+	.mac_select_pcs		= mv88e6xxx_mac_select_pcs,
+	.mac_prepare		= mv88e6xxx_mac_prepare,
+	.mac_config		= mv88e6xxx_mac_config,
+	.mac_finish		= mv88e6xxx_mac_finish,
+	.mac_link_down		= mv88e6xxx_mac_link_down,
+	.mac_link_up		= mv88e6xxx_mac_link_up,
+};
+
 static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.get_tag_protocol	= mv88e6xxx_get_tag_protocol,
 	.change_tag_protocol	= mv88e6xxx_change_tag_protocol,
@@ -6930,12 +6950,6 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.port_setup		= mv88e6xxx_port_setup,
 	.port_teardown		= mv88e6xxx_port_teardown,
 	.phylink_get_caps	= mv88e6xxx_get_caps,
-	.phylink_mac_select_pcs	= mv88e6xxx_mac_select_pcs,
-	.phylink_mac_prepare	= mv88e6xxx_mac_prepare,
-	.phylink_mac_config	= mv88e6xxx_mac_config,
-	.phylink_mac_finish	= mv88e6xxx_mac_finish,
-	.phylink_mac_link_down	= mv88e6xxx_mac_link_down,
-	.phylink_mac_link_up	= mv88e6xxx_mac_link_up,
 	.get_strings		= mv88e6xxx_get_strings,
 	.get_ethtool_stats	= mv88e6xxx_get_ethtool_stats,
 	.get_eth_mac_stats	= mv88e6xxx_get_eth_mac_stats,
@@ -7004,6 +7018,7 @@ static int mv88e6xxx_register_switch(struct mv88e6xxx_chip *chip)
 	ds->priv = chip;
 	ds->dev = dev;
 	ds->ops = &mv88e6xxx_switch_ops;
+	ds->phylink_mac_ops = &mv88e6xxx_phylink_mac_ops;
 	ds->ageing_time_min = chip->info->age_time_coeff;
 	ds->ageing_time_max = chip->info->age_time_coeff * U8_MAX;
 
