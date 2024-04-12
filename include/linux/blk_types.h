@@ -50,6 +50,7 @@ struct block_device {
 #define BD_READ_ONLY		(1u<<8) // read-only policy
 #define BD_WRITE_HOLDER		(1u<<9)
 #define BD_HAS_SUBMIT_BIO	(1u<<10)
+#define BD_RO_WARNED		(1u<<11)
 	dev_t			bd_dev;
 	struct inode		*bd_inode;	/* will die */
 
@@ -69,7 +70,6 @@ struct block_device {
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	bool			bd_make_it_fail;
 #endif
-	bool			bd_ro_warned;
 	int			bd_writers;
 	/*
 	 * keep this out-of-line as it's both big and not needed in the fast
