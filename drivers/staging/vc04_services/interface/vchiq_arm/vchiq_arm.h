@@ -44,6 +44,12 @@ struct vchiq_drv_mgmt {
 	struct mutex connected_mutex;
 
 	void (*deferred_callback[VCHIQ_DRV_MAX_CALLBACKS])(void);
+
+	struct semaphore free_fragments_sema;
+	struct semaphore free_fragments_mutex;
+	char *fragments_base;
+	char *free_fragments;
+	unsigned int fragments_size;
 };
 
 struct user_service {

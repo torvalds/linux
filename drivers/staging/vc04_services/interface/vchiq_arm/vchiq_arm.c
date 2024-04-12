@@ -130,12 +130,6 @@ struct vchiq_pagelist_info {
 };
 
 static void __iomem *g_regs;
-static unsigned int g_fragments_size;
-static char *g_fragments_base;
-static char *g_free_fragments;
-static struct semaphore g_free_fragments_sema;
-
-static DEFINE_SEMAPHORE(g_free_fragments_mutex, 1);
 
 static int
 vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handle, void *data,
@@ -414,20 +408,20 @@ create_pagelist(struct vchiq_instance *instance, char *buf, char __user *ubuf,
 	    (drv_mgmt->info->cache_line_size - 1)))) {
 		char *fragments;
 
-		if (down_interruptible(&g_free_fragments_sema)) {
+		if (down_interruptible(&drv_mgmt->free_fragments_sema)) {
 			cleanup_pagelistinfo(instance, pagelistinfo);
 			return NULL;
 		}
 
-		WARN_ON(!g_free_fragments);
+		WARN_ON(!drv_mgmt->free_fragments);
 
-		down(&g_free_fragments_mutex);
-		fragments = g_free_fragments;
+		down(&drv_mgmt->free_fragments_mutex);
+		fragments = drv_mgmt->free_fragments;
 		WARN_ON(!fragments);
-		g_free_fragments = *(char **)g_free_fragments;
-		up(&g_free_fragments_mutex);
+		drv_mgmt->free_fragments = *(char **)drv_mgmt->free_fragments;
+		up(&drv_mgmt->free_fragments_mutex);
 		pagelist->type = PAGELIST_READ_WITH_FRAGMENTS +
-			(fragments - g_fragments_base) / g_fragments_size;
+			(fragments - drv_mgmt->fragments_base) / drv_mgmt->fragments_size;
 	}
 
 	return pagelistinfo;
@@ -455,10 +449,10 @@ free_pagelist(struct vchiq_instance *instance, struct vchiq_pagelist_info *pagel
 	pagelistinfo->scatterlist_mapped = 0;
 
 	/* Deal with any partial cache lines (fragments) */
-	if (pagelist->type >= PAGELIST_READ_WITH_FRAGMENTS && g_fragments_base) {
-		char *fragments = g_fragments_base +
+	if (pagelist->type >= PAGELIST_READ_WITH_FRAGMENTS && drv_mgmt->fragments_base) {
+		char *fragments = drv_mgmt->fragments_base +
 			(pagelist->type - PAGELIST_READ_WITH_FRAGMENTS) *
-			g_fragments_size;
+			drv_mgmt->fragments_size;
 		int head_bytes, tail_bytes;
 
 		head_bytes = (drv_mgmt->info->cache_line_size - pagelist->offset) &
@@ -483,11 +477,11 @@ free_pagelist(struct vchiq_instance *instance, struct vchiq_pagelist_info *pagel
 				fragments + drv_mgmt->info->cache_line_size,
 				tail_bytes);
 
-		down(&g_free_fragments_mutex);
-		*(char **)fragments = g_free_fragments;
-		g_free_fragments = fragments;
-		up(&g_free_fragments_mutex);
-		up(&g_free_fragments_sema);
+		down(&drv_mgmt->free_fragments_mutex);
+		*(char **)fragments = drv_mgmt->free_fragments;
+		drv_mgmt->free_fragments = fragments;
+		up(&drv_mgmt->free_fragments_mutex);
+		up(&drv_mgmt->free_fragments_sema);
 	}
 
 	/* Need to mark all the pages dirty. */
@@ -523,11 +517,11 @@ static int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state 
 	if (err < 0)
 		return err;
 
-	g_fragments_size = 2 * drv_mgmt->info->cache_line_size;
+	drv_mgmt->fragments_size = 2 * drv_mgmt->info->cache_line_size;
 
 	/* Allocate space for the channels in coherent memory */
 	slot_mem_size = PAGE_ALIGN(TOTAL_SLOTS * VCHIQ_SLOT_SIZE);
-	frag_mem_size = PAGE_ALIGN(g_fragments_size * MAX_FRAGMENTS);
+	frag_mem_size = PAGE_ALIGN(drv_mgmt->fragments_size * MAX_FRAGMENTS);
 
 	slot_mem = dmam_alloc_coherent(dev, slot_mem_size + frag_mem_size,
 				       &slot_phys, GFP_KERNEL);
@@ -547,15 +541,16 @@ static int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state 
 	vchiq_slot_zero->platform_data[VCHIQ_PLATFORM_FRAGMENTS_COUNT_IDX] =
 		MAX_FRAGMENTS;
 
-	g_fragments_base = (char *)slot_mem + slot_mem_size;
+	drv_mgmt->fragments_base = (char *)slot_mem + slot_mem_size;
 
-	g_free_fragments = g_fragments_base;
+	drv_mgmt->free_fragments = drv_mgmt->fragments_base;
 	for (i = 0; i < (MAX_FRAGMENTS - 1); i++) {
-		*(char **)&g_fragments_base[i * g_fragments_size] =
-			&g_fragments_base[(i + 1) * g_fragments_size];
+		*(char **)&drv_mgmt->fragments_base[i * drv_mgmt->fragments_size] =
+			&drv_mgmt->fragments_base[(i + 1) * drv_mgmt->fragments_size];
 	}
-	*(char **)&g_fragments_base[i * g_fragments_size] = NULL;
-	sema_init(&g_free_fragments_sema, MAX_FRAGMENTS);
+	*(char **)&drv_mgmt->fragments_base[i * drv_mgmt->fragments_size] = NULL;
+	sema_init(&drv_mgmt->free_fragments_sema, MAX_FRAGMENTS);
+	sema_init(&drv_mgmt->free_fragments_mutex, 1);
 
 	err = vchiq_init_state(state, vchiq_slot_zero, dev);
 	if (err)
