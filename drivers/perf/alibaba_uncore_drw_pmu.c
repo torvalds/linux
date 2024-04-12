@@ -709,6 +709,7 @@ static int ali_drw_pmu_probe(struct platform_device *pdev)
 
 	drw_pmu->pmu = (struct pmu) {
 		.module		= THIS_MODULE,
+		.parent		= &pdev->dev,
 		.task_ctx_nr	= perf_invalid_context,
 		.event_init	= ali_drw_pmu_event_init,
 		.add		= ali_drw_pmu_add,
