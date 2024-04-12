@@ -1958,18 +1958,13 @@ static int iomap_writepage_map(struct iomap_writepage_ctx *wpc,
 	return error;
 }
 
-static int iomap_do_writepage(struct folio *folio,
-		struct writeback_control *wbc, void *data)
-{
-	return iomap_writepage_map(data, wbc, folio);
-}
-
 int
 iomap_writepages(struct address_space *mapping, struct writeback_control *wbc,
 		struct iomap_writepage_ctx *wpc,
 		const struct iomap_writeback_ops *ops)
 {
-	int			ret;
+	struct folio *folio = NULL;
+	int error;
 
 	/*
 	 * Writeback from reclaim context should never happen except in the case
@@ -1980,8 +1975,9 @@ iomap_writepages(struct address_space *mapping, struct writeback_control *wbc,
 		return -EIO;
 
 	wpc->ops = ops;
-	ret = write_cache_pages(mapping, wbc, iomap_do_writepage, wpc);
-	return iomap_submit_ioend(wpc, ret);
+	while ((folio = writeback_iter(mapping, wbc, folio, &error)))
+		error = iomap_writepage_map(wpc, wbc, folio);
+	return iomap_submit_ioend(wpc, error);
 }
 EXPORT_SYMBOL_GPL(iomap_writepages);
 
