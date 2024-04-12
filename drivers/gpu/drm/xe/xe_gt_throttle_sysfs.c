@@ -236,19 +236,14 @@ static void gt_throttle_sysfs_fini(struct drm_device *drm, void *arg)
 	sysfs_remove_group(gt->freq, &throttle_group_attrs);
 }
 
-void xe_gt_throttle_sysfs_init(struct xe_gt *gt)
+int xe_gt_throttle_sysfs_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	int err;
 
 	err = sysfs_create_group(gt->freq, &throttle_group_attrs);
-	if (err) {
-		drm_warn(&xe->drm, "failed to register throttle sysfs, err: %d\n", err);
-		return;
-	}
-
-	err = drmm_add_action_or_reset(&xe->drm, gt_throttle_sysfs_fini, gt);
 	if (err)
-		drm_warn(&xe->drm, "%s: drmm_add_action_or_reset failed, err: %d\n",
-			 __func__, err);
+		return err;
+
+	return drmm_add_action_or_reset(&xe->drm, gt_throttle_sysfs_fini, gt);
 }

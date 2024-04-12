@@ -690,12 +690,8 @@ int xe_hw_engine_class_sysfs_init(struct xe_gt *gt)
 
 		keclass->eclass = hwe->eclass;
 		err = xe_add_hw_engine_class_defaults(xe, &keclass->base);
-		if (err) {
-			drm_warn(&xe->drm,
-				 "Add .defaults to engines failed!, err: %d\n",
-				 err);
+		if (err)
 			goto err_object;
-		}
 
 		err = sysfs_create_files(&keclass->base, files);
 		if (err)

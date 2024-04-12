@@ -366,7 +366,9 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 			xe_lmtt_init(&gt_to_tile(gt)->sriov.pf.lmtt);
 	}
 
-	xe_gt_idle_sysfs_init(&gt->gtidle);
+	err = xe_gt_idle_sysfs_init(&gt->gtidle);
+	if (err)
+		goto err_force_wake;
 
 	/* Enable per hw engine IRQs */
 	xe_irq_enable_hwe(gt);
@@ -380,9 +382,7 @@ static int gt_fw_domain_init(struct xe_gt *gt)
 
 	err = xe_hw_engine_class_sysfs_init(gt);
 	if (err)
-		drm_warn(&gt_to_xe(gt)->drm,
-			 "failed to register engines sysfs directory, err: %d\n",
-			 err);
+		goto err_force_wake;
 
 	/* Initialize CCS mode sysfs after early initialization of HW engines */
 	err = xe_gt_ccs_mode_sysfs_init(gt);
@@ -546,13 +546,17 @@ int xe_gt_init(struct xe_gt *gt)
 
 	xe_mocs_init_early(gt);
 
-	xe_gt_sysfs_init(gt);
+	err = xe_gt_sysfs_init(gt);
+	if (err)
+		return err;
 
 	err = gt_fw_domain_init(gt);
 	if (err)
 		return err;
 
-	xe_gt_freq_init(gt);
+	err = xe_gt_freq_init(gt);
+	if (err)
+		return err;
 
 	xe_force_wake_init_engines(gt, gt_to_fw(gt));
 

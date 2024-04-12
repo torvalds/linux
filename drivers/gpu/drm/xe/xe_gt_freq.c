@@ -222,33 +222,28 @@ static void freq_fini(struct drm_device *drm, void *arg)
  * @gt: Xe GT object
  *
  * It needs to be initialized after GT Sysfs and GuC PC components are ready.
+ *
+ * Returns: Returns error value for failure and 0 for success.
  */
-void xe_gt_freq_init(struct xe_gt *gt)
+int xe_gt_freq_init(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
 	int err;
 
 	if (xe->info.skip_guc_pc)
-		return;
+		return 0;
 
 	gt->freq = kobject_create_and_add("freq0", gt->sysfs);
-	if (!gt->freq) {
-		drm_warn(&xe->drm, "failed to add freq0 directory to %s\n",
-			 kobject_name(gt->sysfs));
-		return;
-	}
+	if (!gt->freq)
+		return -ENOMEM;
 
 	err = drmm_add_action_or_reset(&xe->drm, freq_fini, gt->freq);
-	if (err) {
-		drm_warn(&xe->drm, "%s: drmm_add_action_or_reset failed, err: %d\n",
-			 __func__, err);
-		return;
-	}
+	if (err)
+		return err;
 
 	err = sysfs_create_files(gt->freq, freq_attrs);
 	if (err)
-		drm_warn(&xe->drm,  "failed to add freq attrs to %s, err: %d\n",
-			 kobject_name(gt->freq), err);
+		return err;
 
-	xe_gt_throttle_sysfs_init(gt);
+	return xe_gt_throttle_sysfs_init(gt);
 }

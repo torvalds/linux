@@ -152,7 +152,7 @@ static void gt_idle_sysfs_fini(struct drm_device *drm, void *arg)
 	kobject_put(kobj);
 }
 
-void xe_gt_idle_sysfs_init(struct xe_gt_idle *gtidle)
+int xe_gt_idle_sysfs_init(struct xe_gt_idle *gtidle)
 {
 	struct xe_gt *gt = gtidle_to_gt(gtidle);
 	struct xe_device *xe = gt_to_xe(gt);
@@ -160,10 +160,8 @@ void xe_gt_idle_sysfs_init(struct xe_gt_idle *gtidle)
 	int err;
 
 	kobj = kobject_create_and_add("gtidle", gt->sysfs);
-	if (!kobj) {
-		drm_warn(&xe->drm, "%s failed, err: %d\n", __func__, -ENOMEM);
-		return;
-	}
+	if (!kobj)
+		return -ENOMEM;
 
 	if (xe_gt_is_media_type(gt)) {
 		snprintf(gtidle->name, sizeof(gtidle->name), "gt%d-mc", gt->info.id);
@@ -180,14 +178,10 @@ void xe_gt_idle_sysfs_init(struct xe_gt_idle *gtidle)
 	err = sysfs_create_files(kobj, gt_idle_attrs);
 	if (err) {
 		kobject_put(kobj);
-		drm_warn(&xe->drm, "failed to register gtidle sysfs, err: %d\n", err);
-		return;
+		return err;
 	}
 
-	err = drmm_add_action_or_reset(&xe->drm, gt_idle_sysfs_fini, kobj);
-	if (err)
-		drm_warn(&xe->drm, "%s: drmm_add_action_or_reset failed, err: %d\n",
-			 __func__, err);
+	return drmm_add_action_or_reset(&xe->drm, gt_idle_sysfs_fini, kobj);
 }
 
 void xe_gt_idle_enable_c6(struct xe_gt *gt)
