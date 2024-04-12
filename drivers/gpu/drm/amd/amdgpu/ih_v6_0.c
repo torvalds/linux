@@ -549,8 +549,15 @@ static int ih_v6_0_sw_init(void *handle)
 	adev->irq.ih.use_doorbell = true;
 	adev->irq.ih.doorbell_index = adev->doorbell_index.ih << 1;
 
-	adev->irq.ih1.ring_size = 0;
-	adev->irq.ih2.ring_size = 0;
+	if (!(adev->flags & AMD_IS_APU)) {
+		r = amdgpu_ih_ring_init(adev, &adev->irq.ih1, IH_RING_SIZE,
+					use_bus_addr);
+		if (r)
+			return r;
+
+		adev->irq.ih1.use_doorbell = true;
+		adev->irq.ih1.doorbell_index = (adev->doorbell_index.ih + 1) << 1;
+	}
 
 	/* initialize ih control register offset */
 	ih_v6_0_init_register_offset(adev);
