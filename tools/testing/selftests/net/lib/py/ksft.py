@@ -2,6 +2,7 @@
 
 import builtins
 import inspect
+import traceback
 from .consts import KSFT_MAIN_NAME
 
 KSFT_RESULT = None
@@ -85,7 +86,8 @@ def ksft_run(cases, args=()):
             totals['xfail'] += 1
             continue
         except Exception as e:
-            for line in str(e).split('\n'):
+            tb = traceback.format_exc()
+            for line in tb.strip().split('\n'):
                 ksft_pr("Exception|", line)
             ktap_result(False, cnt, case)
             totals['fail'] += 1
