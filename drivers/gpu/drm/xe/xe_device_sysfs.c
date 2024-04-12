@@ -76,18 +76,14 @@ static void xe_device_sysfs_fini(struct drm_device *drm, void *arg)
 	sysfs_remove_file(&xe->drm.dev->kobj, &dev_attr_vram_d3cold_threshold.attr);
 }
 
-void xe_device_sysfs_init(struct xe_device *xe)
+int xe_device_sysfs_init(struct xe_device *xe)
 {
 	struct device *dev = xe->drm.dev;
 	int ret;
 
 	ret = sysfs_create_file(&dev->kobj, &dev_attr_vram_d3cold_threshold.attr);
-	if (ret) {
-		drm_warn(&xe->drm, "Failed to create sysfs file\n");
-		return;
-	}
-
-	ret = drmm_add_action_or_reset(&xe->drm, xe_device_sysfs_fini, xe);
 	if (ret)
-		drm_warn(&xe->drm, "Failed to add sysfs fini drm action\n");
+		return ret;
+
+	return drmm_add_action_or_reset(&xe->drm, xe_device_sysfs_fini, xe);
 }

@@ -214,10 +214,21 @@ static void xe_pm_runtime_init(struct xe_device *xe)
 	pm_runtime_put(dev);
 }
 
-void xe_pm_init_early(struct xe_device *xe)
+int xe_pm_init_early(struct xe_device *xe)
 {
+	int err;
+
 	INIT_LIST_HEAD(&xe->mem_access.vram_userfault.list);
-	drmm_mutex_init(&xe->drm, &xe->mem_access.vram_userfault.lock);
+
+	err = drmm_mutex_init(&xe->drm, &xe->mem_access.vram_userfault.lock);
+	if (err)
+		return err;
+
+	err = drmm_mutex_init(&xe->drm, &xe->d3cold.lock);
+	if (err)
+		return err;
+
+	return 0;
 }
 
 /**
@@ -225,23 +236,32 @@ void xe_pm_init_early(struct xe_device *xe)
  * @xe: xe device instance
  *
  * This component is responsible for System and Device sleep states.
+ *
+ * Returns 0 for success, negative error code otherwise.
  */
-void xe_pm_init(struct xe_device *xe)
+int xe_pm_init(struct xe_device *xe)
 {
+	int err;
+
 	/* For now suspend/resume is only allowed with GuC */
 	if (!xe_device_uc_enabled(xe))
-		return;
-
-	drmm_mutex_init(&xe->drm, &xe->d3cold.lock);
+		return 0;
 
 	xe->d3cold.capable = xe_pm_pci_d3cold_capable(xe);
 
 	if (xe->d3cold.capable) {
-		xe_device_sysfs_init(xe);
-		xe_pm_set_vram_threshold(xe, DEFAULT_VRAM_THRESHOLD);
+		err = xe_device_sysfs_init(xe);
+		if (err)
+			return err;
+
+		err = xe_pm_set_vram_threshold(xe, DEFAULT_VRAM_THRESHOLD);
+		if (err)
+			return err;
 	}
 
 	xe_pm_runtime_init(xe);
+
+	return 0;
 }
 
 /**

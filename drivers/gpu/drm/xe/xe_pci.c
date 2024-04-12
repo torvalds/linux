@@ -781,18 +781,26 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		str_yes_no(xe_device_has_sriov(xe)),
 		xe_sriov_mode_to_string(xe_device_sriov_mode(xe)));
 
-	xe_pm_init_early(xe);
+	err = xe_pm_init_early(xe);
+	if (err)
+		return err;
 
 	err = xe_device_probe(xe);
 	if (err)
 		return err;
 
-	xe_pm_init(xe);
+	err = xe_pm_init(xe);
+	if (err)
+		goto err_driver_cleanup;
 
 	drm_dbg(&xe->drm, "d3cold: capable=%s\n",
 		str_yes_no(xe->d3cold.capable));
 
 	return 0;
+
+err_driver_cleanup:
+	xe_pci_remove(pdev);
+	return err;
 }
 
 static void xe_pci_shutdown(struct pci_dev *pdev)
