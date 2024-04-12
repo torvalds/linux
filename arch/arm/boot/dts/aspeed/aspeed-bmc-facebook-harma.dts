@@ -203,7 +203,7 @@
 &i2c1 {
 	status = "okay";
 
-	tmp75@4b {
+	temperature-sensor@4b {
 		compatible = "ti,tmp75";
 		reg = <0x4b>;
 	};
@@ -259,6 +259,11 @@
 	delta_brick@69 {
 		compatible = "pmbus";
 		reg = <0x69>;
+	};
+
+	temperature-sensor@49 {
+		compatible = "ti,tmp75";
+		reg = <0x49>;
 	};
 };
 
