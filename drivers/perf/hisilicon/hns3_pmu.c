@@ -1419,6 +1419,7 @@ static int hns3_pmu_alloc_pmu(struct pci_dev *pdev, struct hns3_pmu *hns3_pmu)
 	hns3_pmu->pmu = (struct pmu) {
 		.name		= name,
 		.module		= THIS_MODULE,
+		.parent		= &pdev->dev,
 		.event_init	= hns3_pmu_event_init,
 		.pmu_enable	= hns3_pmu_enable,
 		.pmu_disable	= hns3_pmu_disable,
