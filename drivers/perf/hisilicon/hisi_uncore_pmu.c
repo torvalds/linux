@@ -536,6 +536,7 @@ void hisi_pmu_init(struct hisi_pmu *hisi_pmu, struct module *module)
 	struct pmu *pmu = &hisi_pmu->pmu;
 
 	pmu->module             = module;
+	pmu->parent             = hisi_pmu->dev;
 	pmu->task_ctx_nr        = perf_invalid_context;
 	pmu->event_init         = hisi_uncore_pmu_event_init;
 	pmu->pmu_enable         = hisi_uncore_pmu_enable;
