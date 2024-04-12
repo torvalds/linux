@@ -49,6 +49,7 @@ properties:
       # for Gen4 SoC
       - items:
           - const: renesas,rcar_sound-r8a779g0  # R-Car V4H
+          - const: renesas,rcar_sound-r8a779h0  # R-Car V4M
           - const: renesas,rcar_sound-gen4
       # for Generic
       - enum:
