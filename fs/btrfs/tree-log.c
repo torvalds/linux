@@ -748,7 +748,6 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 			goto out;
 
 		if (ins.objectid > 0) {
-			struct btrfs_ref ref = { 0 };
 			u64 csum_start;
 			u64 csum_end;
 			LIST_HEAD(ordered_sums);
@@ -762,10 +761,12 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 			if (ret < 0) {
 				goto out;
 			} else if (ret == 0) {
-				btrfs_init_generic_ref(&ref,
-						BTRFS_ADD_DELAYED_REF,
-						ins.objectid, ins.offset, 0,
-						root->root_key.objectid);
+				struct btrfs_ref ref = {
+					.action = BTRFS_ADD_DELAYED_REF,
+					.bytenr = ins.objectid,
+					.len = ins.offset,
+					.owning_root = root->root_key.objectid,
+				};
 				btrfs_init_data_ref(&ref,
 						root->root_key.objectid,
 						key->objectid, offset, 0, false);

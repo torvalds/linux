@@ -1104,8 +1104,11 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 		dirty = 1;
 
 		key.offset -= btrfs_file_extent_offset(leaf, fi);
-		btrfs_init_generic_ref(&ref, BTRFS_ADD_DELAYED_REF, new_bytenr,
-				       num_bytes, parent, root->root_key.objectid);
+		ref.action = BTRFS_ADD_DELAYED_REF;
+		ref.bytenr = new_bytenr;
+		ref.len = num_bytes;
+		ref.parent = parent;
+		ref.owning_root = root->root_key.objectid;
 		btrfs_init_data_ref(&ref, btrfs_header_owner(leaf),
 				    key.objectid, key.offset,
 				    root->root_key.objectid, false);
@@ -1115,8 +1118,11 @@ int replace_file_extents(struct btrfs_trans_handle *trans,
 			break;
 		}
 
-		btrfs_init_generic_ref(&ref, BTRFS_DROP_DELAYED_REF, bytenr,
-				       num_bytes, parent, root->root_key.objectid);
+		ref.action = BTRFS_DROP_DELAYED_REF;
+		ref.bytenr = bytenr;
+		ref.len = num_bytes;
+		ref.parent = parent;
+		ref.owning_root = root->root_key.objectid;
 		btrfs_init_data_ref(&ref, btrfs_header_owner(leaf),
 				    key.objectid, key.offset,
 				    root->root_key.objectid, false);
@@ -1328,9 +1334,11 @@ again:
 					      path->slots[level], old_ptr_gen);
 		btrfs_mark_buffer_dirty(trans, path->nodes[level]);
 
-		btrfs_init_generic_ref(&ref, BTRFS_ADD_DELAYED_REF, old_bytenr,
-				       blocksize, path->nodes[level]->start,
-				       src->root_key.objectid);
+		ref.action = BTRFS_ADD_DELAYED_REF;
+		ref.bytenr = old_bytenr;
+		ref.len = blocksize;
+		ref.parent = path->nodes[level]->start;
+		ref.owning_root = src->root_key.objectid;
 		btrfs_init_tree_ref(&ref, level - 1, src->root_key.objectid,
 				    0, true);
 		ret = btrfs_inc_extent_ref(trans, &ref);
@@ -1338,8 +1346,12 @@ again:
 			btrfs_abort_transaction(trans, ret);
 			break;
 		}
-		btrfs_init_generic_ref(&ref, BTRFS_ADD_DELAYED_REF, new_bytenr,
-				       blocksize, 0, dest->root_key.objectid);
+
+		ref.action = BTRFS_ADD_DELAYED_REF;
+		ref.bytenr = new_bytenr;
+		ref.len = blocksize;
+		ref.parent = 0;
+		ref.owning_root = dest->root_key.objectid;
 		btrfs_init_tree_ref(&ref, level - 1, dest->root_key.objectid, 0,
 				    true);
 		ret = btrfs_inc_extent_ref(trans, &ref);
@@ -1349,8 +1361,11 @@ again:
 		}
 
 		/* We don't know the real owning_root, use 0. */
-		btrfs_init_generic_ref(&ref, BTRFS_DROP_DELAYED_REF, new_bytenr,
-				       blocksize, path->nodes[level]->start, 0);
+		ref.action = BTRFS_DROP_DELAYED_REF;
+		ref.bytenr = new_bytenr;
+		ref.len = blocksize;
+		ref.parent = path->nodes[level]->start;
+		ref.owning_root = 0;
 		btrfs_init_tree_ref(&ref, level - 1, src->root_key.objectid,
 				    0, true);
 		ret = btrfs_free_extent(trans, &ref);
@@ -1360,8 +1375,11 @@ again:
 		}
 
 		/* We don't know the real owning_root, use 0. */
-		btrfs_init_generic_ref(&ref, BTRFS_DROP_DELAYED_REF, old_bytenr,
-				       blocksize, 0, 0);
+		ref.action = BTRFS_DROP_DELAYED_REF;
+		ref.bytenr = old_bytenr;
+		ref.len = blocksize;
+		ref.parent = 0;
+		ref.owning_root = 0;
 		btrfs_init_tree_ref(&ref, level - 1, dest->root_key.objectid,
 				    0, true);
 		ret = btrfs_free_extent(trans, &ref);
@@ -2374,8 +2392,6 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 	path->lowest_level = node->level + 1;
 	rc->backref_cache.path[node->level] = node;
 	list_for_each_entry(edge, &node->upper, list[LOWER]) {
-		struct btrfs_ref ref = { 0 };
-
 		cond_resched();
 
 		upper = edge->node[UPPER];
@@ -2463,16 +2479,20 @@ static int do_relocation(struct btrfs_trans_handle *trans,
 			 */
 			ASSERT(node->eb == eb);
 		} else {
+			struct btrfs_ref ref = {
+				.action = BTRFS_ADD_DELAYED_REF,
+				.bytenr = node->eb->start,
+				.len = blocksize,
+				.parent = upper->eb->start,
+				.owning_root = btrfs_header_owner(upper->eb),
+			};
+
 			btrfs_set_node_blockptr(upper->eb, slot,
 						node->eb->start);
 			btrfs_set_node_ptr_generation(upper->eb, slot,
 						      trans->transid);
 			btrfs_mark_buffer_dirty(trans, upper->eb);
 
-			btrfs_init_generic_ref(&ref, BTRFS_ADD_DELAYED_REF,
-					       node->eb->start, blocksize,
-					       upper->eb->start,
-					       btrfs_header_owner(upper->eb));
 			btrfs_init_tree_ref(&ref, node->level,
 					    btrfs_header_owner(upper->eb),
 					    root->root_key.objectid, false);

@@ -320,8 +320,6 @@ static inline u64 btrfs_calc_delayed_ref_csum_bytes(const struct btrfs_fs_info *
 	return btrfs_calc_metadata_size(fs_info, num_csum_items);
 }
 
-void btrfs_init_generic_ref(struct btrfs_ref *generic_ref, int action, u64 bytenr,
-			    u64 len, u64 parent, u64 owning_root);
 void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level, u64 root,
 			 u64 mod_root, bool skip_qgroup);
 void btrfs_init_data_ref(struct btrfs_ref *generic_ref, u64 ref_root, u64 ino,

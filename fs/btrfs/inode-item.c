@@ -670,13 +670,15 @@ delete:
 		}
 
 		if (del_item && extent_start != 0 && !control->skip_ref_updates) {
-			struct btrfs_ref ref = { 0 };
+			struct btrfs_ref ref = {
+				.action = BTRFS_DROP_DELAYED_REF,
+				.bytenr = extent_start,
+				.len = extent_num_bytes,
+				.owning_root = root->root_key.objectid,
+			};
 
 			bytes_deleted += extent_num_bytes;
 
-			btrfs_init_generic_ref(&ref, BTRFS_DROP_DELAYED_REF,
-					extent_start, extent_num_bytes, 0,
-					root->root_key.objectid);
 			btrfs_init_data_ref(&ref, btrfs_header_owner(leaf),
 					control->ino, extent_offset,
 					root->root_key.objectid, false);

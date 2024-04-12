@@ -1007,16 +1007,6 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
 	INIT_LIST_HEAD(&ref->add_list);
 }
 
-void btrfs_init_generic_ref(struct btrfs_ref *generic_ref, int action, u64 bytenr,
-			    u64 len, u64 parent, u64 owning_root)
-{
-	generic_ref->action = action;
-	generic_ref->bytenr = bytenr;
-	generic_ref->len = len;
-	generic_ref->parent = parent;
-	generic_ref->owning_root = owning_root;
-}
-
 void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level, u64 root,
 			 u64 mod_root, bool skip_qgroup)
 {
