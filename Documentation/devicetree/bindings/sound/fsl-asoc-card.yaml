@@ -33,6 +33,7 @@ properties:
       - items:
           - enum:
               - fsl,imx-sgtl5000
+              - fsl,imx25-pdk-sgtl5000
               - fsl,imx53-cpuvo-sgtl5000
               - fsl,imx51-babbage-sgtl5000
               - fsl,imx53-m53evk-sgtl5000
