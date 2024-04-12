@@ -49,7 +49,7 @@ struct block_device {
 #define BD_PARTNO		255	// lower 8 bits; assign-once
 #define BD_READ_ONLY		(1u<<8) // read-only policy
 #define BD_WRITE_HOLDER		(1u<<9)
-	bool			bd_has_submit_bio;
+#define BD_HAS_SUBMIT_BIO	(1u<<10)
 	dev_t			bd_dev;
 	struct inode		*bd_inode;	/* will die */
 
