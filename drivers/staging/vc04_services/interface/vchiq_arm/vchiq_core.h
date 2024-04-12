@@ -11,6 +11,7 @@
 #include <linux/kthread.h>
 #include <linux/kref.h>
 #include <linux/rcupdate.h>
+#include <linux/spinlock_types.h>
 #include <linux/wait.h>
 
 #include "../../include/linux/raspberrypi/vchiq.h"
@@ -347,6 +348,12 @@ struct vchiq_state {
 	struct mutex sync_mutex;
 
 	struct mutex bulk_transfer_mutex;
+
+	spinlock_t msg_queue_spinlock;
+
+	spinlock_t bulk_waiter_spinlock;
+
+	spinlock_t quota_spinlock;
 
 	/*
 	 * Indicates the byte position within the stream from where the next

@@ -59,7 +59,6 @@
 #define KEEPALIVE_VER 1
 #define KEEPALIVE_VER_MIN KEEPALIVE_VER
 
-DEFINE_SPINLOCK(msg_queue_spinlock);
 struct vchiq_state g_state;
 
 /*
@@ -985,9 +984,9 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 				 * This is not a retry of the previous one.
 				 * Cancel the signal when the transfer completes.
 				 */
-				spin_lock(&bulk_waiter_spinlock);
+				spin_lock(&service->state->bulk_waiter_spinlock);
 				bulk->userdata = NULL;
-				spin_unlock(&bulk_waiter_spinlock);
+				spin_unlock(&service->state->bulk_waiter_spinlock);
 			}
 		}
 	} else {
@@ -1004,9 +1003,9 @@ vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handl
 
 		if (bulk) {
 			/* Cancel the signal when the transfer completes. */
-			spin_lock(&bulk_waiter_spinlock);
+			spin_lock(&service->state->bulk_waiter_spinlock);
 			bulk->userdata = NULL;
-			spin_unlock(&bulk_waiter_spinlock);
+			spin_unlock(&service->state->bulk_waiter_spinlock);
 		}
 		kfree(waiter);
 	} else {
@@ -1127,10 +1126,10 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 		reason, header, instance, bulk_userdata);
 
 	if (header && user_service->is_vchi) {
-		spin_lock(&msg_queue_spinlock);
+		spin_lock(&service->state->msg_queue_spinlock);
 		while (user_service->msg_insert ==
 			(user_service->msg_remove + MSG_QUEUE_SIZE)) {
-			spin_unlock(&msg_queue_spinlock);
+			spin_unlock(&service->state->msg_queue_spinlock);
 			DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 			DEBUG_COUNT(MSG_QUEUE_FULL_COUNT);
 			dev_dbg(service->state->dev, "arm: msg queue full\n");
@@ -1167,7 +1166,7 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 				return -EINVAL;
 			}
 			DEBUG_TRACE(SERVICE_CALLBACK_LINE);
-			spin_lock(&msg_queue_spinlock);
+			spin_lock(&service->state->msg_queue_spinlock);
 		}
 
 		user_service->msg_queue[user_service->msg_insert &
@@ -1186,7 +1185,7 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 			skip_completion = true;
 		}
 
-		spin_unlock(&msg_queue_spinlock);
+		spin_unlock(&service->state->msg_queue_spinlock);
 		complete(&user_service->insert_event);
 
 		header = NULL;

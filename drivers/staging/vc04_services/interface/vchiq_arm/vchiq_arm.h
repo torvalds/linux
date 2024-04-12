@@ -98,7 +98,6 @@ struct vchiq_instance {
 	struct vchiq_debugfs_node debugfs_node;
 };
 
-extern spinlock_t msg_queue_spinlock;
 extern struct vchiq_state g_state;
 
 extern struct vchiq_state *

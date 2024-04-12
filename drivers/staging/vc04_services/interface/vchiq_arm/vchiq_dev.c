@@ -220,10 +220,10 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 		goto out;
 	}
 
-	spin_lock(&msg_queue_spinlock);
+	spin_lock(&service->state->msg_queue_spinlock);
 	if (user_service->msg_remove == user_service->msg_insert) {
 		if (!args->blocking) {
-			spin_unlock(&msg_queue_spinlock);
+			spin_unlock(&service->state->msg_queue_spinlock);
 			DEBUG_TRACE(DEQUEUE_MESSAGE_LINE);
 			ret = -EWOULDBLOCK;
 			goto out;
@@ -231,14 +231,14 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 		user_service->dequeue_pending = 1;
 		ret = 0;
 		do {
-			spin_unlock(&msg_queue_spinlock);
+			spin_unlock(&service->state->msg_queue_spinlock);
 			DEBUG_TRACE(DEQUEUE_MESSAGE_LINE);
 			if (wait_for_completion_interruptible(&user_service->insert_event)) {
 				dev_dbg(service->state->dev, "arm: DEQUEUE_MESSAGE interrupted\n");
 				ret = -EINTR;
 				break;
 			}
-			spin_lock(&msg_queue_spinlock);
+			spin_lock(&service->state->msg_queue_spinlock);
 		} while (user_service->msg_remove == user_service->msg_insert);
 
 		if (ret)
@@ -247,7 +247,7 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 
 	if (WARN_ON_ONCE((int)(user_service->msg_insert -
 			 user_service->msg_remove) < 0)) {
-		spin_unlock(&msg_queue_spinlock);
+		spin_unlock(&service->state->msg_queue_spinlock);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -255,7 +255,7 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 	header = user_service->msg_queue[user_service->msg_remove &
 		(MSG_QUEUE_SIZE - 1)];
 	user_service->msg_remove++;
-	spin_unlock(&msg_queue_spinlock);
+	spin_unlock(&service->state->msg_queue_spinlock);
 
 	complete(&user_service->remove_event);
 	if (!header) {
@@ -340,9 +340,9 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 	    !waiter->bulk_waiter.bulk) {
 		if (waiter->bulk_waiter.bulk) {
 			/* Cancel the signal when the transfer completes. */
-			spin_lock(&bulk_waiter_spinlock);
+			spin_lock(&service->state->bulk_waiter_spinlock);
 			waiter->bulk_waiter.bulk->userdata = NULL;
-			spin_unlock(&bulk_waiter_spinlock);
+			spin_unlock(&service->state->bulk_waiter_spinlock);
 		}
 		kfree(waiter);
 		ret = 0;
@@ -1246,7 +1246,7 @@ static int vchiq_release(struct inode *inode, struct file *file)
 			break;
 		}
 
-		spin_lock(&msg_queue_spinlock);
+		spin_lock(&service->state->msg_queue_spinlock);
 
 		while (user_service->msg_remove != user_service->msg_insert) {
 			struct vchiq_header *header;
@@ -1254,14 +1254,14 @@ static int vchiq_release(struct inode *inode, struct file *file)
 
 			header = user_service->msg_queue[m];
 			user_service->msg_remove++;
-			spin_unlock(&msg_queue_spinlock);
+			spin_unlock(&service->state->msg_queue_spinlock);
 
 			if (header)
 				vchiq_release_message(instance, service->handle, header);
-			spin_lock(&msg_queue_spinlock);
+			spin_lock(&service->state->msg_queue_spinlock);
 		}
 
-		spin_unlock(&msg_queue_spinlock);
+		spin_unlock(&service->state->msg_queue_spinlock);
 
 		vchiq_service_put(service);
 	}
