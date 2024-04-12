@@ -1206,6 +1206,7 @@ static int arm_cspmu_register_pmu(struct arm_cspmu *cspmu)
 	cspmu->pmu = (struct pmu){
 		.task_ctx_nr	= perf_invalid_context,
 		.module		= cspmu->impl.module,
+		.parent		= cspmu->dev,
 		.pmu_enable	= arm_cspmu_enable,
 		.pmu_disable	= arm_cspmu_disable,
 		.event_init	= arm_cspmu_event_init,
