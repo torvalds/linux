@@ -784,5 +784,6 @@ const struct ethtool_ops gve_ethtool_ops = {
 	.set_tunable = gve_set_tunable,
 	.get_priv_flags = gve_get_priv_flags,
 	.set_priv_flags = gve_set_priv_flags,
-	.get_link_ksettings = gve_get_link_ksettings
+	.get_link_ksettings = gve_get_link_ksettings,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
