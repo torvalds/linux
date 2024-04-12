@@ -619,7 +619,8 @@
 
 	usbss0: dwc3-usb@f900000 {
 		compatible = "ti,am62-usb";
-		reg = <0x00 0x0f900000 0x00 0x800>;
+		reg = <0x00 0x0f900000 0x00 0x800>,
+		      <0x00 0x0f908000 0x00 0x400>;
 		clocks = <&k3_clks 161 3>;
 		clock-names = "ref";
 		ti,syscon-phy-pll-refclk = <&wkup_conf 0x4008>;
@@ -644,7 +645,8 @@
 
 	usbss1: dwc3-usb@f910000 {
 		compatible = "ti,am62-usb";
-		reg = <0x00 0x0f910000 0x00 0x800>;
+		reg = <0x00 0x0f910000 0x00 0x800>,
+		      <0x00 0x0f918000 0x00 0x400>;
 		clocks = <&k3_clks 162 3>;
 		clock-names = "ref";
 		ti,syscon-phy-pll-refclk = <&wkup_conf 0x4018>;
