@@ -998,7 +998,9 @@ void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *c, const struc
 			prt_str(out, " cached");
 		if (ptr->unwritten)
 			prt_str(out, " unwritten");
-		if (ca && ptr_stale(ca, ptr))
+		if (b >= ca->mi.first_bucket &&
+		    b <  ca->mi.nbuckets &&
+		    ptr_stale(ca, ptr))
 			prt_printf(out, " stale");
 	}
 }
