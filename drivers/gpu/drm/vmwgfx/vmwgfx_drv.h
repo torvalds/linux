@@ -616,6 +616,7 @@ struct vmw_private {
 	uint32 *devcaps;
 
 	bool vkms_enabled;
+	struct workqueue_struct *crc_workq;
 
 	/*
 	 * mksGuestStat instance-descriptor and pid arrays
@@ -811,6 +812,7 @@ void vmw_resource_mob_attach(struct vmw_resource *res);
 void vmw_resource_mob_detach(struct vmw_resource *res);
 void vmw_resource_dirty_update(struct vmw_resource *res, pgoff_t start,
 			       pgoff_t end);
+int vmw_resource_clean(struct vmw_resource *res);
 int vmw_resources_clean(struct vmw_bo *vbo, pgoff_t start,
 			pgoff_t end, pgoff_t *num_prefault);
 

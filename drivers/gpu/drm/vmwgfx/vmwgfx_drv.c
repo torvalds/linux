@@ -1198,6 +1198,7 @@ static void vmw_driver_unload(struct drm_device *dev)
 
 	vmw_svga_disable(dev_priv);
 
+	vmw_vkms_cleanup(dev_priv);
 	vmw_kms_close(dev_priv);
 	vmw_overlay_close(dev_priv);
 

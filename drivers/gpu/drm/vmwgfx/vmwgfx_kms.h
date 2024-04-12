@@ -378,9 +378,22 @@ struct vmw_display_unit {
 	int set_gui_y;
 
 	struct {
+		struct work_struct crc_generator_work;
 		struct hrtimer timer;
 		ktime_t period_ns;
-		struct drm_pending_vblank_event *event;
+
+		/* protects concurrent access to the vblank handler */
+		atomic_t atomic_lock;
+		/* protected by @atomic_lock */
+		bool crc_enabled;
+		struct vmw_surface *surface;
+
+		/* protects concurrent access to the crc worker */
+		spinlock_t crc_state_lock;
+		/* protected by @crc_state_lock */
+		bool crc_pending;
+		u64 frame_start;
+		u64 frame_end;
 	} vkms;
 };
 

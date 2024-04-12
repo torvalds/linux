@@ -32,22 +32,44 @@
 #include <linux/hrtimer_types.h>
 #include <linux/types.h>
 
-struct vmw_private;
-struct drm_crtc;
 struct drm_atomic_state;
+struct drm_crtc;
+struct vmw_private;
+struct vmw_surface;
 
 void vmw_vkms_init(struct vmw_private *vmw);
+void vmw_vkms_cleanup(struct vmw_private *vmw);
+
+void vmw_vkms_modeset_lock(struct drm_crtc *crtc);
+bool vmw_vkms_modeset_lock_relaxed(struct drm_crtc *crtc);
+bool vmw_vkms_vblank_trylock(struct drm_crtc *crtc);
+void vmw_vkms_unlock(struct drm_crtc *crtc);
+
 bool vmw_vkms_get_vblank_timestamp(struct drm_crtc *crtc,
 				   int *max_error,
 				   ktime_t *vblank_time,
 				   bool in_vblank_irq);
 int vmw_vkms_enable_vblank(struct drm_crtc *crtc);
 void vmw_vkms_disable_vblank(struct drm_crtc *crtc);
+
+void vmw_vkms_crtc_init(struct drm_crtc *crtc);
+void vmw_vkms_crtc_cleanup(struct drm_crtc *crtc);
+void  vmw_vkms_crtc_atomic_begin(struct drm_crtc *crtc,
+				 struct drm_atomic_state *state);
 void vmw_vkms_crtc_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *state);
-enum hrtimer_restart vmw_vkms_vblank_simulate(struct hrtimer *timer);
 void vmw_vkms_crtc_atomic_enable(struct drm_crtc *crtc,
 				 struct drm_atomic_state *state);
 void vmw_vkms_crtc_atomic_disable(struct drm_crtc *crtc,
 				  struct drm_atomic_state *state);
+
+const char *const *vmw_vkms_get_crc_sources(struct drm_crtc *crtc,
+					    size_t *count);
+int vmw_vkms_verify_crc_source(struct drm_crtc *crtc,
+			       const char *src_name,
+			       size_t *values_cnt);
+int vmw_vkms_set_crc_source(struct drm_crtc *crtc,
+			    const char *src_name);
+void vmw_vkms_set_crc_surface(struct drm_crtc *crtc,
+			      struct vmw_surface *surf);
 
 #endif
