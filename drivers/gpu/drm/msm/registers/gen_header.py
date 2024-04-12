@@ -323,7 +323,7 @@ class Array(object):
 			indices = []
 		if self.length != 1:
 			if self.fixed_offsets:
-				indices.append((self.index_ctype(), None, f"__offset_{self.local_name}"))
+				indices.append((self.index_ctype(), None, "__offset_%s" % self.local_name))
 			else:
 				indices.append((self.index_ctype(), self.stride, None))
 		return indices
@@ -942,7 +942,8 @@ def main():
 	parser.add_argument('--rnn', type=str, required=True)
 	parser.add_argument('--xml', type=str, required=True)
 
-	subparsers = parser.add_subparsers(required=True)
+	subparsers = parser.add_subparsers()
+	subparsers.required = True
 
 	parser_c_defines = subparsers.add_parser('c-defines')
 	parser_c_defines.set_defaults(func=dump_c_defines)
