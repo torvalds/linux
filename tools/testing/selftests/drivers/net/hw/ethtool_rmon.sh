@@ -44,6 +44,7 @@ bucket_test()
 	# Mausezahn does not include FCS bytes in its length - but the
 	# histogram counters do
 	len=$((len - ETH_FCS_LEN))
+	len=$((len > 0 ? len : 0))
 
 	before=$(ethtool --json -S $iface --groups rmon | \
 		jq -r ".[0].rmon[\"${set}-pktsNtoM\"][$bucket].val")
