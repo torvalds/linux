@@ -410,7 +410,8 @@ static void free_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 
 	bankid = get_qp_bankid(hr_qp->qpn);
 
-	ida_free(&hr_dev->qp_table.bank[bankid].ida, hr_qp->qpn >> 3);
+	ida_free(&hr_dev->qp_table.bank[bankid].ida,
+		 hr_qp->qpn / HNS_ROCE_QP_BANK_NUM);
 
 	mutex_lock(&hr_dev->qp_table.bank_mutex);
 	hr_dev->qp_table.bank[bankid].inuse--;

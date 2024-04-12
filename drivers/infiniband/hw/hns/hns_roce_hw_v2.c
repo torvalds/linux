@@ -3204,13 +3204,14 @@ static int set_mtpt_pbl(struct hns_roce_dev *hr_dev,
 
 	/* Aligned to the hardware address access unit */
 	for (i = 0; i < ARRAY_SIZE(pages); i++)
-		pages[i] >>= 6;
+		pages[i] >>= MPT_PBL_BUF_ADDR_S;
 
 	pbl_ba = hns_roce_get_mtr_ba(&mr->pbl_mtr);
 
 	mpt_entry->pbl_size = cpu_to_le32(mr->npages);
-	mpt_entry->pbl_ba_l = cpu_to_le32(pbl_ba >> 3);
-	hr_reg_write(mpt_entry, MPT_PBL_BA_H, upper_32_bits(pbl_ba >> 3));
+	mpt_entry->pbl_ba_l = cpu_to_le32(pbl_ba >> MPT_PBL_BA_ADDR_S);
+	hr_reg_write(mpt_entry, MPT_PBL_BA_H,
+		     upper_32_bits(pbl_ba >> MPT_PBL_BA_ADDR_S));
 
 	mpt_entry->pa0_l = cpu_to_le32(lower_32_bits(pages[0]));
 	hr_reg_write(mpt_entry, MPT_PA0_H, upper_32_bits(pages[0]));
@@ -3331,8 +3332,10 @@ static int hns_roce_v2_frmr_write_mtpt(struct hns_roce_dev *hr_dev,
 
 	mpt_entry->pbl_size = cpu_to_le32(mr->npages);
 
-	mpt_entry->pbl_ba_l = cpu_to_le32(lower_32_bits(pbl_ba >> 3));
-	hr_reg_write(mpt_entry, MPT_PBL_BA_H, upper_32_bits(pbl_ba >> 3));
+	mpt_entry->pbl_ba_l = cpu_to_le32(lower_32_bits(pbl_ba >>
+							MPT_PBL_BA_ADDR_S));
+	hr_reg_write(mpt_entry, MPT_PBL_BA_H,
+		     upper_32_bits(pbl_ba >> MPT_PBL_BA_ADDR_S));
 
 	return 0;
 }
@@ -3578,14 +3581,14 @@ static void hns_roce_v2_write_cqc(struct hns_roce_dev *hr_dev,
 		     to_hr_hw_page_shift(hr_cq->mtr.hem_cfg.ba_pg_shift));
 	hr_reg_write(cq_context, CQC_CQE_BUF_PG_SZ,
 		     to_hr_hw_page_shift(hr_cq->mtr.hem_cfg.buf_pg_shift));
-	hr_reg_write(cq_context, CQC_CQE_BA_L, dma_handle >> 3);
-	hr_reg_write(cq_context, CQC_CQE_BA_H, (dma_handle >> (32 + 3)));
+	hr_reg_write(cq_context, CQC_CQE_BA_L, dma_handle >> CQC_CQE_BA_L_S);
+	hr_reg_write(cq_context, CQC_CQE_BA_H, dma_handle >> CQC_CQE_BA_H_S);
 	hr_reg_write_bool(cq_context, CQC_DB_RECORD_EN,
 			  hr_cq->flags & HNS_ROCE_CQ_FLAG_RECORD_DB);
 	hr_reg_write(cq_context, CQC_CQE_DB_RECORD_ADDR_L,
 		     ((u32)hr_cq->db.dma) >> 1);
 	hr_reg_write(cq_context, CQC_CQE_DB_RECORD_ADDR_H,
-		     hr_cq->db.dma >> 32);
+		     hr_cq->db.dma >> CQC_CQE_DB_RECORD_ADDR_H_S);
 	hr_reg_write(cq_context, CQC_CQ_MAX_CNT,
 		     HNS_ROCE_V2_CQ_DEFAULT_BURST_NUM);
 	hr_reg_write(cq_context, CQC_CQ_PERIOD,
@@ -4517,16 +4520,16 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 		return -EINVAL;
 	}
 
-	hr_reg_write(context, QPC_TRRL_BA_L, trrl_ba >> 4);
+	hr_reg_write(context, QPC_TRRL_BA_L, trrl_ba >> QPC_TRRL_BA_L_S);
 	hr_reg_clear(qpc_mask, QPC_TRRL_BA_L);
-	context->trrl_ba = cpu_to_le32(trrl_ba >> (16 + 4));
+	context->trrl_ba = cpu_to_le32(trrl_ba >> QPC_TRRL_BA_M_S);
 	qpc_mask->trrl_ba = 0;
-	hr_reg_write(context, QPC_TRRL_BA_H, trrl_ba >> (32 + 16 + 4));
+	hr_reg_write(context, QPC_TRRL_BA_H, trrl_ba >> QPC_TRRL_BA_H_S);
 	hr_reg_clear(qpc_mask, QPC_TRRL_BA_H);
 
-	context->irrl_ba = cpu_to_le32(irrl_ba >> 6);
+	context->irrl_ba = cpu_to_le32(irrl_ba >> QPC_IRRL_BA_L_S);
 	qpc_mask->irrl_ba = 0;
-	hr_reg_write(context, QPC_IRRL_BA_H, irrl_ba >> (32 + 6));
+	hr_reg_write(context, QPC_IRRL_BA_H, irrl_ba >> QPC_IRRL_BA_H_S);
 	hr_reg_clear(qpc_mask, QPC_IRRL_BA_H);
 
 	hr_reg_enable(context, QPC_RMT_E2E);
@@ -4588,8 +4591,9 @@ static int modify_qp_init_to_rtr(struct ib_qp *ibqp,
 	hr_reg_clear(qpc_mask, QPC_TRRL_HEAD_MAX);
 	hr_reg_clear(qpc_mask, QPC_TRRL_TAIL_MAX);
 
+#define MAX_LP_SGEN 3
 	/* rocee send 2^lp_sgen_ini segs every time */
-	hr_reg_write(context, QPC_LP_SGEN_INI, 3);
+	hr_reg_write(context, QPC_LP_SGEN_INI, MAX_LP_SGEN);
 	hr_reg_clear(qpc_mask, QPC_LP_SGEN_INI);
 
 	if (udata && ibqp->qp_type == IB_QPT_RC &&
@@ -4681,7 +4685,7 @@ static int get_dip_ctx_idx(struct ib_qp *ibqp, const struct ib_qp_attr *attr,
 	*tail = (*tail == hr_dev->caps.num_qps - 1) ? 0 : (*tail + 1);
 
 	list_for_each_entry(hr_dip, &hr_dev->dip_list, node) {
-		if (!memcmp(grh->dgid.raw, hr_dip->dgid, 16)) {
+		if (!memcmp(grh->dgid.raw, hr_dip->dgid, GID_LEN_V2)) {
 			*dip_idx = hr_dip->dip_idx;
 			goto out;
 		}
