@@ -63,6 +63,7 @@ void kunit_try_catch_run(struct kunit_try_catch *try_catch, void *context)
 {
 	struct kunit *test = try_catch->test;
 	struct task_struct *task_struct;
+	struct completion *task_done;
 	int exit_code, time_remaining;
 
 	try_catch->context = context;
@@ -75,13 +76,16 @@ void kunit_try_catch_run(struct kunit_try_catch *try_catch, void *context)
 		return;
 	}
 	get_task_struct(task_struct);
-	wake_up_process(task_struct);
 	/*
 	 * As for a vfork(2), task_struct->vfork_done (pointing to the
 	 * underlying kthread->exited) can be used to wait for the end of a
-	 * kernel thread.
+	 * kernel thread. It is set to NULL when the thread exits, so we
+	 * keep a copy here.
 	 */
-	time_remaining = wait_for_completion_timeout(task_struct->vfork_done,
+	task_done = task_struct->vfork_done;
+	wake_up_process(task_struct);
+
+	time_remaining = wait_for_completion_timeout(task_done,
 						     kunit_test_timeout());
 	if (time_remaining == 0) {
 		try_catch->try_result = -ETIMEDOUT;
