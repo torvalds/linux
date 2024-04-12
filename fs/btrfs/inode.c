@@ -1736,15 +1736,6 @@ static noinline int run_delalloc_cow(struct btrfs_inode *inode,
 	return 1;
 }
 
-static noinline int csum_exist_in_range(struct btrfs_fs_info *fs_info,
-					u64 bytenr, u64 num_bytes, bool nowait)
-{
-	struct btrfs_root *csum_root = btrfs_csum_root(fs_info, bytenr);
-
-	return btrfs_lookup_csums_list(csum_root, bytenr, bytenr + num_bytes - 1,
-				       NULL, nowait);
-}
-
 static int fallback_to_cow(struct btrfs_inode *inode, struct page *locked_page,
 			   const u64 start, const u64 end)
 {
@@ -1859,6 +1850,7 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 	struct extent_buffer *leaf = path->nodes[0];
 	struct btrfs_root *root = inode->root;
 	struct btrfs_file_extent_item *fi;
+	struct btrfs_root *csum_root;
 	u64 extent_end;
 	u8 extent_type;
 	int can_nocow = 0;
@@ -1919,7 +1911,7 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 	if (args->free_path) {
 		/*
 		 * We don't need the path anymore, plus through the
-		 * csum_exist_in_range() call below we will end up allocating
+		 * btrfs_lookup_csums_list() call below we will end up allocating
 		 * another path. So free the path to avoid unnecessary extra
 		 * memory usage.
 		 */
@@ -1940,8 +1932,11 @@ static int can_nocow_file_extent(struct btrfs_path *path,
 	 * Force COW if csums exist in the range. This ensures that csums for a
 	 * given extent are either valid or do not exist.
 	 */
-	ret = csum_exist_in_range(root->fs_info, args->disk_bytenr, args->num_bytes,
-				  nowait);
+
+	csum_root = btrfs_csum_root(root->fs_info, args->disk_bytenr);
+	ret = btrfs_lookup_csums_list(csum_root, args->disk_bytenr,
+				      args->disk_bytenr + args->num_bytes - 1,
+				      NULL, nowait);
 	WARN_ON_ONCE(ret > 0 && is_freespace_inode);
 	if (ret != 0)
 		goto out;
