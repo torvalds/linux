@@ -1102,6 +1102,7 @@ static int xgene_init_perf(struct xgene_pmu_dev *pmu_dev, char *name)
 
 	/* Perf driver registration */
 	pmu_dev->pmu = (struct pmu) {
+		.parent		= pmu_dev->parent->dev,
 		.attr_groups	= pmu_dev->attr_groups,
 		.task_ctx_nr	= perf_invalid_context,
 		.pmu_enable	= xgene_perf_pmu_enable,
