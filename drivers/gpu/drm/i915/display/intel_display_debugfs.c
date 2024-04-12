@@ -644,17 +644,17 @@ static int i915_shared_dplls_info(struct seq_file *m, void *unused)
 
 	drm_modeset_lock_all(&dev_priv->drm);
 
-	seq_printf(m, "PLL refclks: non-SSC: %d kHz, SSC: %d kHz\n",
+	drm_printf(&p, "PLL refclks: non-SSC: %d kHz, SSC: %d kHz\n",
 		   dev_priv->display.dpll.ref_clks.nssc,
 		   dev_priv->display.dpll.ref_clks.ssc);
 
 	for_each_shared_dpll(dev_priv, pll, i) {
-		seq_printf(m, "DPLL%i: %s, id: %i\n", pll->index,
+		drm_printf(&p, "DPLL%i: %s, id: %i\n", pll->index,
 			   pll->info->name, pll->info->id);
-		seq_printf(m, " pipe_mask: 0x%x, active: 0x%x, on: %s\n",
+		drm_printf(&p, " pipe_mask: 0x%x, active: 0x%x, on: %s\n",
 			   pll->state.pipe_mask, pll->active_mask,
 			   str_yes_no(pll->on));
-		seq_printf(m, " tracked hardware state:\n");
+		drm_printf(&p, " tracked hardware state:\n");
 		intel_dpll_dump_hw_state(dev_priv, &p, &pll->state.hw_state);
 	}
 	drm_modeset_unlock_all(&dev_priv->drm);
