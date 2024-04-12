@@ -53,7 +53,7 @@ int stm32_firewall_get_firewall(struct device_node *np, struct stm32_firewall *f
 			return err;
 		}
 
-		if (j > nb_firewall) {
+		if (j >= nb_firewall) {
 			pr_err("Too many firewall controllers");
 			of_node_put(provider);
 			return -EINVAL;
