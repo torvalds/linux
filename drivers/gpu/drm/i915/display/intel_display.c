@@ -3071,19 +3071,16 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 
 	i9xx_get_pfit_config(pipe_config);
 
+	i9xx_dpll_get_hw_state(crtc, &pipe_config->dpll_hw_state);
+
 	if (DISPLAY_VER(dev_priv) >= 4) {
-		/* No way to read it out on pipes B and C */
-		if (IS_CHERRYVIEW(dev_priv) && crtc->pipe != PIPE_A)
-			tmp = dev_priv->display.state.chv_dpll_md[crtc->pipe];
-		else
-			tmp = intel_de_read(dev_priv, DPLL_MD(crtc->pipe));
+		tmp = pipe_config->dpll_hw_state.dpll_md;
 		pipe_config->pixel_multiplier =
 			((tmp & DPLL_MD_UDI_MULTIPLIER_MASK)
 			 >> DPLL_MD_UDI_MULTIPLIER_SHIFT) + 1;
-		pipe_config->dpll_hw_state.dpll_md = tmp;
 	} else if (IS_I945G(dev_priv) || IS_I945GM(dev_priv) ||
 		   IS_G33(dev_priv) || IS_PINEVIEW(dev_priv)) {
-		tmp = intel_de_read(dev_priv, DPLL(crtc->pipe));
+		tmp = pipe_config->dpll_hw_state.dpll;
 		pipe_config->pixel_multiplier =
 			((tmp & SDVO_MULTIPLIER_MASK)
 			 >> SDVO_MULTIPLIER_SHIFT_HIRES) + 1;
@@ -3092,19 +3089,6 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 		 * port and will be fixed up in the encoder->get_config
 		 * function. */
 		pipe_config->pixel_multiplier = 1;
-	}
-	pipe_config->dpll_hw_state.dpll = intel_de_read(dev_priv,
-							DPLL(crtc->pipe));
-	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv)) {
-		pipe_config->dpll_hw_state.fp0 = intel_de_read(dev_priv,
-							       FP0(crtc->pipe));
-		pipe_config->dpll_hw_state.fp1 = intel_de_read(dev_priv,
-							       FP1(crtc->pipe));
-	} else {
-		/* Mask out read-only status bits. */
-		pipe_config->dpll_hw_state.dpll &= ~(DPLL_LOCK_VLV |
-						     DPLL_PORTC_READY_MASK |
-						     DPLL_PORTB_READY_MASK);
 	}
 
 	if (IS_CHERRYVIEW(dev_priv))

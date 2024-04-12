@@ -385,6 +385,36 @@ static int i9xx_pll_refclk(struct drm_device *dev,
 		return 48000;
 }
 
+void i9xx_dpll_get_hw_state(struct intel_crtc *crtc,
+			    struct intel_dpll_hw_state *hw_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	if (DISPLAY_VER(dev_priv) >= 4) {
+		u32 tmp;
+
+		/* No way to read it out on pipes B and C */
+		if (IS_CHERRYVIEW(dev_priv) && crtc->pipe != PIPE_A)
+			tmp = dev_priv->display.state.chv_dpll_md[crtc->pipe];
+		else
+			tmp = intel_de_read(dev_priv, DPLL_MD(crtc->pipe));
+
+		hw_state->dpll_md = tmp;
+	}
+
+	hw_state->dpll = intel_de_read(dev_priv, DPLL(crtc->pipe));
+
+	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv)) {
+		hw_state->fp0 = intel_de_read(dev_priv, FP0(crtc->pipe));
+		hw_state->fp1 = intel_de_read(dev_priv, FP1(crtc->pipe));
+	} else {
+		/* Mask out read-only status bits. */
+		hw_state->dpll &= ~(DPLL_LOCK_VLV |
+				    DPLL_PORTC_READY_MASK |
+				    DPLL_PORTB_READY_MASK);
+	}
+}
+
 /* Returns the clock of the currently programmed mode of the given pipe. */
 void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 			 struct intel_crtc_state *pipe_config)
