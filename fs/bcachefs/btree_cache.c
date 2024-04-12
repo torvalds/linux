@@ -711,7 +711,30 @@ static noinline struct btree *bch2_btree_node_fill(struct btree_trans *trans,
 	struct btree *b;
 	u32 seq;
 
-	BUG_ON(level + 1 >= BTREE_MAX_DEPTH);
+	if (unlikely(level >= BTREE_MAX_DEPTH)) {
+		int ret = bch2_fs_topology_error(c, "attempting to get btree node at level %u, >= max depth %u",
+						 level, BTREE_MAX_DEPTH);
+		return ERR_PTR(ret);
+	}
+
+	if (unlikely(!bkey_is_btree_ptr(&k->k))) {
+		struct printbuf buf = PRINTBUF;
+		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(k));
+
+		int ret = bch2_fs_topology_error(c, "attempting to get btree node with non-btree key %s", buf.buf);
+		printbuf_exit(&buf);
+		return ERR_PTR(ret);
+	}
+
+	if (unlikely(k->k.u64s > BKEY_BTREE_PTR_U64s_MAX)) {
+		struct printbuf buf = PRINTBUF;
+		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(k));
+
+		int ret = bch2_fs_topology_error(c, "attempting to get btree node with too big key %s", buf.buf);
+		printbuf_exit(&buf);
+		return ERR_PTR(ret);
+	}
+
 	/*
 	 * Parent node must be locked, else we could read in a btree node that's
 	 * been freed:
