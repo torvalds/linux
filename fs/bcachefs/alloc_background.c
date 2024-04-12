@@ -576,10 +576,10 @@ int bch2_alloc_read(struct bch_fs *c)
 			 * Not a fsck error because this is checked/repaired by
 			 * bch2_check_alloc_key() which runs later:
 			 */
-			if (!bch2_dev_exists2(c, k.k->p.inode))
+			if (!bch2_dev_exists(c, k.k->p.inode))
 				continue;
 
-			struct bch_dev *ca = bch_dev_bkey_exists(c, k.k->p.inode);
+			struct bch_dev *ca = bch2_dev_bkey_exists(c, k.k->p.inode);
 
 			for (u64 b = max_t(u64, ca->mi.first_bucket, start);
 			     b < min_t(u64, ca->mi.nbuckets, end);
@@ -597,7 +597,7 @@ int bch2_alloc_read(struct bch_fs *c)
 			if (!bch2_dev_bucket_exists(c, k.k->p))
 				continue;
 
-			struct bch_dev *ca = bch_dev_bkey_exists(c, k.k->p.inode);
+			struct bch_dev *ca = bch2_dev_bkey_exists(c, k.k->p.inode);
 
 			struct bch_alloc_v4 a;
 			*bucket_gen(ca, k.k->p.offset) = bch2_alloc_to_v4(k, &a)->gen;
@@ -620,7 +620,7 @@ static int bch2_bucket_do_index(struct btree_trans *trans,
 				bool set)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_dev *ca = bch_dev_bkey_exists(c, alloc_k.k->p.inode);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, alloc_k.k->p.inode);
 	struct btree_iter iter;
 	struct bkey_s_c old;
 	struct bkey_i *k;
@@ -733,7 +733,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 				       "alloc key for invalid device or bucket"))
 		return -EIO;
 
-	struct bch_dev *ca = bch_dev_bkey_exists(c, new.k->p.inode);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, new.k->p.inode);
 
 	struct bch_alloc_v4 old_a_convert;
 	const struct bch_alloc_v4 *old_a = bch2_alloc_to_v4(old, &old_a_convert);
@@ -781,7 +781,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 		}
 
 		new_a->fragmentation_lru = alloc_lru_idx_fragmentation(*new_a,
-						bch_dev_bkey_exists(c, new.k->p.inode));
+						bch2_dev_bkey_exists(c, new.k->p.inode));
 		if (old_a->fragmentation_lru != new_a->fragmentation_lru) {
 			ret = bch2_lru_change(trans,
 					BCH_LRU_FRAGMENTATION_START,
@@ -955,8 +955,8 @@ static bool next_bucket(struct bch_fs *c, struct bpos *bucket)
 	if (bch2_dev_bucket_exists(c, *bucket))
 		return true;
 
-	if (bch2_dev_exists2(c, bucket->inode)) {
-		ca = bch_dev_bkey_exists(c, bucket->inode);
+	if (bch2_dev_exists(c, bucket->inode)) {
+		ca = bch2_dev_bkey_exists(c, bucket->inode);
 
 		if (bucket->offset < ca->mi.first_bucket) {
 			bucket->offset = ca->mi.first_bucket;
@@ -997,7 +997,7 @@ again:
 		}
 
 		if (!bch2_dev_bucket_exists(c, k.k->p)) {
-			struct bch_dev *ca = bch_dev_bkey_exists(c, bucket.inode);
+			struct bch_dev *ca = bch2_dev_bkey_exists(c, bucket.inode);
 
 			bch2_key_resize(hole, ca->mi.nbuckets - bucket.offset);
 		}
@@ -1030,7 +1030,7 @@ int bch2_check_alloc_key(struct btree_trans *trans,
 			alloc_k.k->p.inode, alloc_k.k->p.offset))
 		return bch2_btree_delete_at(trans, alloc_iter, 0);
 
-	ca = bch_dev_bkey_exists(c, alloc_k.k->p.inode);
+	ca = bch2_dev_bkey_exists(c, alloc_k.k->p.inode);
 	if (!ca->mi.freespace_initialized)
 		return 0;
 
@@ -1149,7 +1149,7 @@ int bch2_check_alloc_hole_freespace(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret;
 
-	ca = bch_dev_bkey_exists(c, start.inode);
+	ca = bch2_dev_bkey_exists(c, start.inode);
 	if (!ca->mi.freespace_initialized)
 		return 0;
 
@@ -1339,7 +1339,7 @@ int bch2_check_bucket_gens_key(struct btree_trans *trans,
 	bkey_reassemble(&g.k_i, k);
 
 	/* if no bch_dev, skip out whether we repair or not */
-	dev_exists = bch2_dev_exists2(c, k.k->p.inode);
+	dev_exists = bch2_dev_exists(c, k.k->p.inode);
 	if (!dev_exists) {
 		if (fsck_err_on(!dev_exists, c,
 				bucket_gens_to_invalid_dev,
@@ -1350,7 +1350,7 @@ int bch2_check_bucket_gens_key(struct btree_trans *trans,
 		goto out;
 	}
 
-	ca = bch_dev_bkey_exists(c, k.k->p.inode);
+	ca = bch2_dev_bkey_exists(c, k.k->p.inode);
 	if (fsck_err_on(end <= ca->mi.first_bucket ||
 			start >= ca->mi.nbuckets, c,
 			bucket_gens_to_invalid_buckets,
@@ -1669,7 +1669,7 @@ static int bch2_discard_one_bucket(struct btree_trans *trans,
 	bool discard_locked = false;
 	int ret = 0;
 
-	ca = bch_dev_bkey_exists(c, pos.inode);
+	ca = bch2_dev_bkey_exists(c, pos.inode);
 
 	if (!percpu_ref_tryget(&ca->io_ref)) {
 		bch2_btree_iter_set_pos(need_discard_iter, POS(pos.inode + 1, 0));
@@ -1852,7 +1852,7 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 			if (i->snapshot)
 				continue;
 
-			ca = bch_dev_bkey_exists(c, i->inode);
+			ca = bch2_dev_bkey_exists(c, i->inode);
 
 			if (!percpu_ref_tryget(&ca->io_ref)) {
 				darray_remove_item(&c->discard_buckets_in_flight, i);
@@ -1893,7 +1893,7 @@ static void bch2_do_discards_fast_work(struct work_struct *work)
 
 static void bch2_discard_one_bucket_fast(struct bch_fs *c, struct bpos bucket)
 {
-	struct bch_dev *ca = bch_dev_bkey_exists(c, bucket.inode);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, bucket.inode);
 
 	if (!percpu_ref_is_dying(&ca->io_ref) &&
 	    !discard_in_flight_add(c, bucket) &&

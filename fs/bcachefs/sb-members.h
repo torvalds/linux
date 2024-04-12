@@ -158,24 +158,36 @@ static inline struct bch_dev *bch2_get_next_online_dev(struct bch_fs *c,
 #define for_each_readable_member(c, ca)				\
 	__for_each_online_member(c, ca,	BIT( BCH_MEMBER_STATE_rw)|BIT(BCH_MEMBER_STATE_ro))
 
+static inline bool bch2_dev_exists(const struct bch_fs *c, unsigned dev)
+{
+	return dev < c->sb.nr_devices && c->devs[dev];
+}
+
 /*
  * If a key exists that references a device, the device won't be going away and
  * we can omit rcu_read_lock():
  */
-static inline struct bch_dev *bch_dev_bkey_exists(const struct bch_fs *c, unsigned idx)
+static inline struct bch_dev *bch2_dev_bkey_exists(const struct bch_fs *c, unsigned dev)
 {
-	EBUG_ON(idx >= c->sb.nr_devices || !c->devs[idx]);
+	EBUG_ON(!bch2_dev_exists(c, dev));
 
-	return rcu_dereference_check(c->devs[idx], 1);
+	return rcu_dereference_check(c->devs[dev], 1);
 }
 
-static inline struct bch_dev *bch_dev_locked(struct bch_fs *c, unsigned idx)
+static inline struct bch_dev *bch2_dev_locked(struct bch_fs *c, unsigned dev)
 {
-	EBUG_ON(idx >= c->sb.nr_devices || !c->devs[idx]);
+	EBUG_ON(!bch2_dev_exists(c, dev));
 
-	return rcu_dereference_protected(c->devs[idx],
+	return rcu_dereference_protected(c->devs[dev],
 					 lockdep_is_held(&c->sb_lock) ||
 					 lockdep_is_held(&c->state_lock));
+}
+
+static inline struct bch_dev *bch2_dev_safe(struct bch_fs *c, unsigned dev)
+{
+	return c && dev < c->sb.nr_devices
+		? rcu_dereference(c->devs[dev])
+		: NULL;
 }
 
 /* XXX kill, move to struct bch_fs */
@@ -192,16 +204,16 @@ static inline struct bch_devs_mask bch2_online_devs(struct bch_fs *c)
 extern const struct bch_sb_field_ops bch_sb_field_ops_members_v1;
 extern const struct bch_sb_field_ops bch_sb_field_ops_members_v2;
 
-static inline bool bch2_member_exists(struct bch_member *m)
+static inline bool bch2_member_alive(struct bch_member *m)
 {
 	return !bch2_is_zero(&m->uuid, sizeof(m->uuid));
 }
 
-static inline bool bch2_dev_exists(struct bch_sb *sb, unsigned dev)
+static inline bool bch2_member_exists(struct bch_sb *sb, unsigned dev)
 {
 	if (dev < sb->nr_devices) {
 		struct bch_member m = bch2_sb_member_get(sb, dev);
-		return bch2_member_exists(&m);
+		return bch2_member_alive(&m);
 	}
 	return false;
 }
@@ -222,7 +234,7 @@ static inline struct bch_member_cpu bch2_mi_to_cpu(struct bch_member *mi)
 			? BCH_MEMBER_DURABILITY(mi) - 1
 			: 1,
 		.freespace_initialized = BCH_MEMBER_FREESPACE_INITIALIZED(mi),
-		.valid		= bch2_member_exists(mi),
+		.valid		= bch2_member_alive(mi),
 		.btree_bitmap_shift	= mi->btree_bitmap_shift,
 		.btree_allocated_bitmap = le64_to_cpu(mi->btree_allocated_bitmap),
 	};

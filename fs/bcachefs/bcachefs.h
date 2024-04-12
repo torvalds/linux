@@ -1253,11 +1253,6 @@ static inline s64 bch2_current_time(const struct bch_fs *c)
 	return timespec_to_bch2_time(c, now);
 }
 
-static inline bool bch2_dev_exists2(const struct bch_fs *c, unsigned dev)
-{
-	return dev < c->sb.nr_devices && c->devs[dev];
-}
-
 static inline struct stdio_redirect *bch2_fs_stdio_redirect(struct bch_fs *c)
 {
 	struct stdio_redirect *stdio = c->stdio;

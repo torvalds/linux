@@ -253,7 +253,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 	enum bch_data_type data_type = parity ? BCH_DATA_parity : BCH_DATA_stripe;
 	s64 sectors = parity ? le16_to_cpu(s->sectors) : 0;
 	const struct bch_extent_ptr *ptr = s->ptrs + ptr_idx;
-	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
 	struct bucket old, new, *g;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
@@ -609,7 +609,7 @@ static void ec_validate_checksums(struct bch_fs *c, struct ec_stripe_buf *buf)
 
 			if (bch2_crc_cmp(want, got)) {
 				struct printbuf err = PRINTBUF;
-				struct bch_dev *ca = bch_dev_bkey_exists(c, v->ptrs[i].dev);
+				struct bch_dev *ca = bch2_dev_bkey_exists(c, v->ptrs[i].dev);
 
 				prt_str(&err, "stripe ");
 				bch2_csum_err_msg(&err, v->csum_type, want, got);
@@ -705,7 +705,7 @@ static void ec_block_io(struct bch_fs *c, struct ec_stripe_buf *buf,
 	struct bch_stripe *v = &bkey_i_to_stripe(&buf->key)->v;
 	unsigned offset = 0, bytes = buf->size << 9;
 	struct bch_extent_ptr *ptr = &v->ptrs[idx];
-	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
 	enum bch_data_type data_type = idx < v->nr_blocks - v->nr_redundant
 		? BCH_DATA_user
 		: BCH_DATA_parity;
@@ -1321,7 +1321,7 @@ static void zero_out_rest_of_ec_bucket(struct bch_fs *c,
 				       unsigned block,
 				       struct open_bucket *ob)
 {
-	struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, ob->dev);
 	unsigned offset = ca->mi.bucket_size - ob->sectors_free;
 	int ret;
 
@@ -1527,7 +1527,7 @@ void *bch2_writepoint_ec_buf(struct bch_fs *c, struct write_point *wp)
 
 	BUG_ON(!ob->ec->new_stripe.data[ob->ec_idx]);
 
-	ca	= bch_dev_bkey_exists(c, ob->dev);
+	ca	= bch2_dev_bkey_exists(c, ob->dev);
 	offset	= ca->mi.bucket_size - ob->sectors_free;
 
 	return ob->ec->new_stripe.data[ob->ec_idx] + (offset << 9);

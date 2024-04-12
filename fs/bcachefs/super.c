@@ -941,7 +941,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 		goto err;
 
 	for (i = 0; i < c->sb.nr_devices; i++)
-		if (bch2_dev_exists(c->disk_sb.sb, i) &&
+		if (bch2_member_exists(c->disk_sb.sb, i) &&
 		    bch2_dev_alloc(c, i)) {
 			ret = -EEXIST;
 			goto err;
@@ -1102,7 +1102,7 @@ static int bch2_dev_in_fs(struct bch_sb_handle *fs,
 	if (!uuid_equal(&fs->sb->uuid, &sb->sb->uuid))
 		return -BCH_ERR_device_not_a_member_of_filesystem;
 
-	if (!bch2_dev_exists(fs->sb, sb->sb->dev_idx))
+	if (!bch2_member_exists(fs->sb, sb->sb->dev_idx))
 		return -BCH_ERR_device_has_been_removed;
 
 	if (fs->sb->block_size != sb->sb->block_size)
@@ -1412,10 +1412,9 @@ static int bch2_dev_attach_bdev(struct bch_fs *c, struct bch_sb_handle *sb)
 	    le64_to_cpu(c->disk_sb.sb->seq))
 		bch2_sb_to_fs(c, sb->sb);
 
-	BUG_ON(sb->sb->dev_idx >= c->sb.nr_devices ||
-	       !c->devs[sb->sb->dev_idx]);
+	BUG_ON(!bch2_dev_exists(c, sb->sb->dev_idx));
 
-	ca = bch_dev_locked(c, sb->sb->dev_idx);
+	ca = bch2_dev_locked(c, sb->sb->dev_idx);
 
 	ret = __bch2_dev_attach_bdev(ca, sb);
 	if (ret)
@@ -1507,10 +1506,10 @@ static bool bch2_fs_may_start(struct bch_fs *c)
 		mutex_lock(&c->sb_lock);
 
 		for (i = 0; i < c->disk_sb.sb->nr_devices; i++) {
-			if (!bch2_dev_exists(c->disk_sb.sb, i))
+			if (!bch2_member_exists(c->disk_sb.sb, i))
 				continue;
 
-			ca = bch_dev_locked(c, i);
+			ca = bch2_dev_locked(c, i);
 
 			if (!bch2_dev_is_online(ca) &&
 			    (ca->mi.state == BCH_MEMBER_STATE_rw ||
@@ -1779,7 +1778,7 @@ int bch2_dev_add(struct bch_fs *c, const char *path)
 		goto no_slot;
 
 	for (dev_idx = 0; dev_idx < BCH_SB_MEMBERS_MAX; dev_idx++)
-		if (!bch2_dev_exists(c->disk_sb.sb, dev_idx))
+		if (!bch2_member_exists(c->disk_sb.sb, dev_idx))
 			goto have_slot;
 no_slot:
 	ret = -BCH_ERR_ENOSPC_sb_members;
@@ -1885,7 +1884,7 @@ int bch2_dev_online(struct bch_fs *c, const char *path)
 	if (ret)
 		goto err;
 
-	ca = bch_dev_locked(c, dev_idx);
+	ca = bch2_dev_locked(c, dev_idx);
 
 	ret = bch2_trans_mark_dev_sb(c, ca, BTREE_TRIGGER_transactional);
 	bch_err_msg(c, ret, "bringing %s online: error from bch2_trans_mark_dev_sb", path);

@@ -1300,7 +1300,7 @@ void bch2_sb_to_text(struct printbuf *out, struct bch_sb *sb,
 		printbuf_tabstop_push(out, 44);
 
 	for (int i = 0; i < sb->nr_devices; i++)
-		nr_devices += bch2_dev_exists(sb, i);
+		nr_devices += bch2_member_exists(sb, i);
 
 	prt_printf(out, "External UUID:\t");
 	pr_uuid(out, sb->user_uuid.b);

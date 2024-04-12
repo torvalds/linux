@@ -597,7 +597,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 	 * use check_bucket_ref here
 	 */
 	bkey_for_each_ptr_decode(k->k, ptrs_c, p, entry_c) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
+		struct bch_dev *ca = bch2_dev_bkey_exists(c, p.ptr.dev);
 		struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
 		enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, p, entry_c);
 
@@ -730,7 +730,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 			 */
 			struct bkey_ptrs ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
 			bkey_for_each_ptr(ptrs, ptr) {
-				struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+				struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
 				struct bucket *g = PTR_GC_BUCKET(ca, ptr);
 
 				ptr->gen = g->gen;
@@ -741,7 +741,7 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 restart_drop_ptrs:
 			ptrs = bch2_bkey_ptrs(bkey_i_to_s(new));
 			bkey_for_each_ptr_decode(bkey_i_to_s(new).k, ptrs, p, entry) {
-				struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
+				struct bch_dev *ca = bch2_dev_bkey_exists(c, p.ptr.dev);
 				struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
 				enum bch_data_type data_type = bch2_bkey_ptr_data_type(bkey_i_to_s_c(new), p, entry);
 
@@ -1215,7 +1215,7 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 				struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_dev *ca = bch_dev_bkey_exists(c, iter->pos.inode);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, iter->pos.inode);
 	struct bucket old_gc, gc, *b;
 	struct bkey_i_alloc_v4 *a;
 	struct bch_alloc_v4 old_convert, new;
@@ -1351,7 +1351,7 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 	int ret = bch2_trans_run(c,
 		for_each_btree_key(trans, iter, BTREE_ID_alloc, POS_MIN,
 					 BTREE_ITER_prefetch, k, ({
-			struct bch_dev *ca = bch_dev_bkey_exists(c, k.k->p.inode);
+			struct bch_dev *ca = bch2_dev_bkey_exists(c, k.k->p.inode);
 			struct bucket *g = gc_bucket(ca, k.k->p.offset);
 
 			struct bch_alloc_v4 a_convert;
@@ -1671,7 +1671,7 @@ static int gc_btree_gens_key(struct btree_trans *trans,
 
 	percpu_down_read(&c->mark_lock);
 	bkey_for_each_ptr(ptrs, ptr) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+		struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
 
 		if (ptr_stale(ca, ptr) > 16) {
 			percpu_up_read(&c->mark_lock);
@@ -1680,7 +1680,7 @@ static int gc_btree_gens_key(struct btree_trans *trans,
 	}
 
 	bkey_for_each_ptr(ptrs, ptr) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+		struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
 		u8 *gen = &ca->oldest_gen[PTR_BUCKET_NR(ca, ptr)];
 
 		if (gen_after(*gen, ptr->gen))
@@ -1701,7 +1701,7 @@ update:
 static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct btree_iter *iter,
 				       struct bkey_s_c k)
 {
-	struct bch_dev *ca = bch_dev_bkey_exists(trans->c, iter->pos.inode);
+	struct bch_dev *ca = bch2_dev_bkey_exists(trans->c, iter->pos.inode);
 	struct bch_alloc_v4 a_convert;
 	const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
 	struct bkey_i_alloc_v4 *a_mut;

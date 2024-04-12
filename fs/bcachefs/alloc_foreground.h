@@ -184,7 +184,7 @@ bch2_alloc_sectors_append_ptrs_inlined(struct bch_fs *c, struct write_point *wp,
 	wp->sectors_allocated	+= sectors;
 
 	open_bucket_for_each(c, &wp->ptrs, ob, i) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ob->dev);
+		struct bch_dev *ca = bch2_dev_bkey_exists(c, ob->dev);
 		struct bch_extent_ptr ptr = bch2_ob_ptr(c, ob);
 
 		ptr.cached = cached ||

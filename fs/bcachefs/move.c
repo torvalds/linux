@@ -711,7 +711,7 @@ int bch2_evacuate_bucket(struct moving_context *ctxt,
 
 	a = bch2_alloc_to_v4(k, &a_convert);
 	dirty_sectors = bch2_bucket_sectors_dirty(*a);
-	bucket_size = bch_dev_bkey_exists(c, bucket.inode)->mi.bucket_size;
+	bucket_size = bch2_dev_bkey_exists(c, bucket.inode)->mi.bucket_size;
 	fragmentation = a->fragmentation_lru;
 
 	ret = bch2_btree_write_buffer_tryflush(trans);

@@ -46,10 +46,10 @@ int bch2_backpointer_invalid(struct bch_fs *c, struct bkey_s_c k,
 	struct bkey_s_c_backpointer bp = bkey_s_c_to_backpointer(k);
 
 	/* these will be caught by fsck */
-	if (!bch2_dev_exists2(c, bp.k->p.inode))
+	if (!bch2_dev_exists(c, bp.k->p.inode))
 		return 0;
 
-	struct bch_dev *ca = bch_dev_bkey_exists(c, bp.k->p.inode);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, bp.k->p.inode);
 	struct bpos bucket = bp_pos_to_bucket(c, bp.k->p);
 	int ret = 0;
 
@@ -75,7 +75,7 @@ void bch2_backpointer_to_text(struct printbuf *out, const struct bch_backpointer
 
 void bch2_backpointer_k_to_text(struct printbuf *out, struct bch_fs *c, struct bkey_s_c k)
 {
-	if (bch2_dev_exists2(c, k.k->p.inode)) {
+	if (bch2_dev_exists(c, k.k->p.inode)) {
 		prt_str(out, "bucket=");
 		bch2_bpos_to_text(out, bp_pos_to_bucket(c, k.k->p));
 		prt_str(out, " ");
@@ -366,7 +366,7 @@ static int bch2_check_btree_backpointer(struct btree_trans *trans, struct btree_
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	if (fsck_err_on(!bch2_dev_exists2(c, k.k->p.inode), c,
+	if (fsck_err_on(!bch2_dev_exists(c, k.k->p.inode), c,
 			backpointer_to_missing_device,
 			"backpointer for missing device:\n%s",
 			(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
@@ -459,7 +459,7 @@ found:
 
 	bytes = p.crc.compressed_size << 9;
 
-	struct bch_dev *ca = bch_dev_bkey_exists(c, dev);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, dev);
 	if (!bch2_dev_get_ioref(ca, READ))
 		return false;
 

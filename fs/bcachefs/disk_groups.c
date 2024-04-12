@@ -177,7 +177,7 @@ int bch2_sb_disk_groups_to_cpu(struct bch_fs *c)
 		struct bch_member m = bch2_sb_member_get(c->disk_sb.sb, i);
 		struct bch_disk_group_cpu *dst;
 
-		if (!bch2_member_exists(&m))
+		if (!bch2_member_alive(&m))
 			continue;
 
 		g = BCH_MEMBER_GROUP(&m);
@@ -588,7 +588,7 @@ static void bch2_target_to_text_sb(struct printbuf *out, struct bch_sb *sb, unsi
 	case TARGET_DEV: {
 		struct bch_member m = bch2_sb_member_get(sb, t.dev);
 
-		if (bch2_dev_exists(sb, t.dev)) {
+		if (bch2_member_exists(sb, t.dev)) {
 			prt_printf(out, "Device ");
 			pr_uuid(out, m.uuid.b);
 			prt_printf(out, " (%u)", t.dev);

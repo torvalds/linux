@@ -39,7 +39,7 @@ void bch2_backpointer_swab(struct bkey_s);
 static inline struct bpos bp_pos_to_bucket(const struct bch_fs *c,
 					   struct bpos bp_pos)
 {
-	struct bch_dev *ca = bch_dev_bkey_exists(c, bp_pos.inode);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, bp_pos.inode);
 	u64 bucket_sector = bp_pos.offset >> MAX_EXTENT_COMPRESS_RATIO_SHIFT;
 
 	return POS(bp_pos.inode, sector_to_bucket(ca, bucket_sector));
@@ -61,7 +61,7 @@ static inline struct bpos bucket_pos_to_bp(const struct bch_fs *c,
 					   struct bpos bucket,
 					   u64 bucket_offset)
 {
-	struct bch_dev *ca = bch_dev_bkey_exists(c, bucket.inode);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, bucket.inode);
 	struct bpos ret = bucket_pos_to_bp_noerror(ca, bucket, bucket_offset);
 	EBUG_ON(!bkey_eq(bucket, bp_pos_to_bucket(c, ret)));
 	return ret;

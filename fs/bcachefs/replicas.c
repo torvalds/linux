@@ -84,7 +84,7 @@ int bch2_replicas_entry_validate(struct bch_replicas_entry_v1 *r,
 	}
 
 	for (unsigned i = 0; i < r->nr_devs; i++)
-		if (!bch2_dev_exists(sb, r->devs[i])) {
+		if (!bch2_member_exists(sb, r->devs[i])) {
 			prt_printf(err, "invalid device %u in entry ", r->devs[i]);
 			goto bad;
 		}
@@ -200,7 +200,7 @@ cpu_replicas_add_entry(struct bch_fs *c,
 	};
 
 	for (i = 0; i < new_entry->nr_devs; i++)
-		BUG_ON(!bch2_dev_exists2(c, new_entry->devs[i]));
+		BUG_ON(!bch2_dev_exists(c, new_entry->devs[i]));
 
 	BUG_ON(!new_entry->data_type);
 	verify_replicas_entry(new_entry);
@@ -954,7 +954,7 @@ bool bch2_have_enough_devs(struct bch_fs *c, struct bch_devs_mask devs,
 			continue;
 
 		for (i = 0; i < e->nr_devs; i++) {
-			struct bch_dev *ca = bch_dev_bkey_exists(c, e->devs[i]);
+			struct bch_dev *ca = bch2_dev_bkey_exists(c, e->devs[i]);
 
 			nr_online += test_bit(e->devs[i], devs.d);
 			nr_failed += ca->mi.state == BCH_MEMBER_STATE_failed;

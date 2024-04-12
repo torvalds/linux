@@ -493,7 +493,7 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 			  u32 bucket_sectors)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
 	size_t bucket_nr = PTR_BUCKET_NR(ca, ptr);
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
@@ -787,7 +787,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 
 	if (flags & BTREE_TRIGGER_gc) {
 		struct bch_fs *c = trans->c;
-		struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
+		struct bch_dev *ca = bch2_dev_bkey_exists(c, p.ptr.dev);
 		enum bch_data_type data_type = bch2_bkey_ptr_data_type(k, p, entry);
 
 		percpu_down_read(&c->mark_lock);

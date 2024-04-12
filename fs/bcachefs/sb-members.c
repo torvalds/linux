@@ -164,7 +164,7 @@ static void member_to_text(struct printbuf *out,
 	u64 bucket_size = le16_to_cpu(m.bucket_size);
 	u64 device_size = le64_to_cpu(m.nbuckets) * bucket_size;
 
-	if (!bch2_member_exists(&m))
+	if (!bch2_member_alive(&m))
 		return;
 
 	prt_printf(out, "Device:\t%u\n", i);
@@ -390,7 +390,7 @@ void bch2_dev_errors_reset(struct bch_dev *ca)
 bool bch2_dev_btree_bitmap_marked(struct bch_fs *c, struct bkey_s_c k)
 {
 	bkey_for_each_ptr(bch2_bkey_ptrs_c(k), ptr)
-		if (!bch2_dev_btree_bitmap_marked_sectors(bch_dev_bkey_exists(c, ptr->dev),
+		if (!bch2_dev_btree_bitmap_marked_sectors(bch2_dev_bkey_exists(c, ptr->dev),
 							  ptr->offset, btree_sectors(c)))
 			return false;
 	return true;

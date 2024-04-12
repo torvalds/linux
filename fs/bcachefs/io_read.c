@@ -541,7 +541,7 @@ static void __bch2_read_endio(struct work_struct *work)
 	struct bch_read_bio *rbio =
 		container_of(work, struct bch_read_bio, work);
 	struct bch_fs *c	= rbio->c;
-	struct bch_dev *ca	= bch_dev_bkey_exists(c, rbio->pick.ptr.dev);
+	struct bch_dev *ca	= bch2_dev_bkey_exists(c, rbio->pick.ptr.dev);
 	struct bio *src		= &rbio->bio;
 	struct bio *dst		= &bch2_rbio_parent(rbio)->bio;
 	struct bvec_iter dst_iter = rbio->bvec_iter;
@@ -675,7 +675,7 @@ static void bch2_read_endio(struct bio *bio)
 	struct bch_read_bio *rbio =
 		container_of(bio, struct bch_read_bio, bio);
 	struct bch_fs *c	= rbio->c;
-	struct bch_dev *ca	= bch_dev_bkey_exists(c, rbio->pick.ptr.dev);
+	struct bch_dev *ca	= bch2_dev_bkey_exists(c, rbio->pick.ptr.dev);
 	struct workqueue_struct *wq = NULL;
 	enum rbio_context context = RBIO_CONTEXT_NULL;
 
@@ -762,7 +762,7 @@ static noinline void read_from_stale_dirty_pointer(struct btree_trans *trans,
 						   struct bch_extent_ptr ptr)
 {
 	struct bch_fs *c = trans->c;
-	struct bch_dev *ca = bch_dev_bkey_exists(c, ptr.dev);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr.dev);
 	struct btree_iter iter;
 	struct printbuf buf = PRINTBUF;
 	int ret;
@@ -831,7 +831,7 @@ retry_pick:
 		goto err;
 	}
 
-	ca = bch_dev_bkey_exists(c, pick.ptr.dev);
+	ca = bch2_dev_bkey_exists(c, pick.ptr.dev);
 
 	/*
 	 * Stale dirty pointers are treated as IO errors, but @failed isn't

@@ -79,8 +79,8 @@ static inline bool ptr_better(struct bch_fs *c,
 			      const struct extent_ptr_decoded p2)
 {
 	if (likely(!p1.idx && !p2.idx)) {
-		struct bch_dev *dev1 = bch_dev_bkey_exists(c, p1.ptr.dev);
-		struct bch_dev *dev2 = bch_dev_bkey_exists(c, p2.ptr.dev);
+		struct bch_dev *dev1 = bch2_dev_bkey_exists(c, p1.ptr.dev);
+		struct bch_dev *dev2 = bch2_dev_bkey_exists(c, p2.ptr.dev);
 
 		u64 l1 = atomic64_read(&dev1->cur_latency[READ]);
 		u64 l2 = atomic64_read(&dev2->cur_latency[READ]);
@@ -123,7 +123,7 @@ int bch2_bkey_pick_read_device(struct bch_fs *c, struct bkey_s_c k,
 		if (p.ptr.unwritten)
 			return 0;
 
-		ca = bch_dev_bkey_exists(c, p.ptr.dev);
+		ca = bch2_dev_bkey_exists(c, p.ptr.dev);
 
 		/*
 		 * If there are any dirty pointers it's an error if we can't
@@ -278,7 +278,7 @@ bool bch2_extent_merge(struct bch_fs *c, struct bkey_s l, struct bkey_s_c r)
 			return false;
 
 		/* Extents may not straddle buckets: */
-		ca = bch_dev_bkey_exists(c, lp.ptr.dev);
+		ca = bch2_dev_bkey_exists(c, lp.ptr.dev);
 		if (PTR_BUCKET_NR(ca, &lp.ptr) != PTR_BUCKET_NR(ca, &rp.ptr))
 			return false;
 
@@ -667,14 +667,14 @@ static inline unsigned __extent_ptr_durability(struct bch_dev *ca, struct extent
 
 unsigned bch2_extent_ptr_desired_durability(struct bch_fs *c, struct extent_ptr_decoded *p)
 {
-	struct bch_dev *ca = bch_dev_bkey_exists(c, p->ptr.dev);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, p->ptr.dev);
 
 	return __extent_ptr_durability(ca, p);
 }
 
 unsigned bch2_extent_ptr_durability(struct bch_fs *c, struct extent_ptr_decoded *p)
 {
-	struct bch_dev *ca = bch_dev_bkey_exists(c, p->ptr.dev);
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, p->ptr.dev);
 
 	if (ca->mi.state == BCH_MEMBER_STATE_failed)
 		return 0;
@@ -864,7 +864,7 @@ bool bch2_bkey_has_target(struct bch_fs *c, struct bkey_s_c k, unsigned target)
 	bkey_for_each_ptr(ptrs, ptr)
 		if (bch2_dev_in_target(c, ptr->dev, target) &&
 		    (!ptr->cached ||
-		     !ptr_stale(bch_dev_bkey_exists(c, ptr->dev), ptr)))
+		     !ptr_stale(bch2_dev_bkey_exists(c, ptr->dev), ptr)))
 			return true;
 
 	return false;
@@ -973,17 +973,16 @@ bool bch2_extent_normalize(struct bch_fs *c, struct bkey_s k)
 
 	bch2_bkey_drop_ptrs(k, ptr,
 		ptr->cached &&
-		ptr_stale(bch_dev_bkey_exists(c, ptr->dev), ptr));
+		ptr_stale(bch2_dev_bkey_exists(c, ptr->dev), ptr));
 
 	return bkey_deleted(k.k);
 }
 
 void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *c, const struct bch_extent_ptr *ptr)
 {
-	struct bch_dev *ca = c && ptr->dev < c->sb.nr_devices && c->devs[ptr->dev]
-		? bch_dev_bkey_exists(c, ptr->dev)
-		: NULL;
-
+	out->atomic++;
+	rcu_read_lock();
+	struct bch_dev *ca = bch2_dev_safe(c, ptr->dev);
 	if (!ca) {
 		prt_printf(out, "ptr: %u:%llu gen %u%s", ptr->dev,
 			   (u64) ptr->offset, ptr->gen,
@@ -1001,6 +1000,8 @@ void bch2_extent_ptr_to_text(struct printbuf *out, struct bch_fs *c, const struc
 		if (bucket_valid(ca, b) && ptr_stale(ca, ptr))
 			prt_printf(out, " stale");
 	}
+	rcu_read_unlock();
+	--out->atomic;
 }
 
 void bch2_bkey_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
@@ -1079,7 +1080,7 @@ static int extent_ptr_invalid(struct bch_fs *c,
 	struct bch_dev *ca;
 	int ret = 0;
 
-	if (!bch2_dev_exists2(c, ptr->dev)) {
+	if (!bch2_dev_exists(c, ptr->dev)) {
 		/*
 		 * If we're in the write path this key might have already been
 		 * overwritten, and we could be seeing a device that doesn't
@@ -1092,7 +1093,7 @@ static int extent_ptr_invalid(struct bch_fs *c,
 			   "pointer to invalid device (%u)", ptr->dev);
 	}
 
-	ca = bch_dev_bkey_exists(c, ptr->dev);
+	ca = bch2_dev_bkey_exists(c, ptr->dev);
 	bkey_for_each_ptr(ptrs, ptr2)
 		bkey_fsck_err_on(ptr != ptr2 && ptr->dev == ptr2->dev, c, err,
 				 ptr_to_duplicate_device,

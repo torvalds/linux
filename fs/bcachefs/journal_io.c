@@ -21,7 +21,7 @@ void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			       struct journal_replay *j)
 {
 	darray_for_each(j->ptrs, i) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, i->dev);
+		struct bch_dev *ca = bch2_dev_bkey_exists(c, i->dev);
 		u64 offset;
 
 		div64_u64_rem(i->sector, ca->mi.bucket_size, &offset);
@@ -677,7 +677,7 @@ static int journal_entry_dev_usage_validate(struct bch_fs *c,
 
 	dev = le32_to_cpu(u->dev);
 
-	if (journal_entry_err_on(!bch2_dev_exists2(c, dev),
+	if (journal_entry_err_on(!bch2_dev_exists(c, dev),
 				 c, version, jset, entry,
 				 journal_entry_dev_usage_bad_dev,
 				 "bad dev")) {
@@ -1390,7 +1390,7 @@ int bch2_journal_read(struct bch_fs *c,
 			continue;
 
 		darray_for_each(i->ptrs, ptr) {
-			struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+			struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
 
 			if (!ptr->csum_good)
 				bch_err_dev_offset(ca, ptr->sector,
@@ -1400,7 +1400,7 @@ int bch2_journal_read(struct bch_fs *c,
 		}
 
 		ret = jset_validate(c,
-				    bch_dev_bkey_exists(c, i->ptrs.data[0].dev),
+				    bch2_dev_bkey_exists(c, i->ptrs.data[0].dev),
 				    &i->j,
 				    i->ptrs.data[0].sector,
 				    READ);
@@ -1731,7 +1731,7 @@ static CLOSURE_CALLBACK(journal_write_submit)
 	unsigned sectors = vstruct_sectors(w->data, c->block_bits);
 
 	extent_for_each_ptr(bkey_i_to_s_extent(&w->key), ptr) {
-		struct bch_dev *ca = bch_dev_bkey_exists(c, ptr->dev);
+		struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
 		struct journal_device *ja = &ca->journal;
 
 		if (!percpu_ref_tryget(&ca->io_ref)) {

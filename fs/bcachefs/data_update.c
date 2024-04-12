@@ -360,7 +360,7 @@ void bch2_data_update_exit(struct data_update *update)
 		if (c->opts.nocow_enabled)
 			bch2_bucket_nocow_unlock(&c->nocow_locks,
 						 PTR_BUCKET_POS(c, ptr), 0);
-		percpu_ref_put(&bch_dev_bkey_exists(c, ptr->dev)->ref);
+		percpu_ref_put(&bch2_dev_bkey_exists(c, ptr->dev)->ref);
 	}
 
 	bch2_bkey_buf_exit(&update->k, c);
@@ -540,7 +540,7 @@ int bch2_data_update_init(struct btree_trans *trans,
 	m->op.watermark		= m->data_opts.btree_insert_flags & BCH_WATERMARK_MASK;
 
 	bkey_for_each_ptr(ptrs, ptr)
-		percpu_ref_get(&bch_dev_bkey_exists(c, ptr->dev)->ref);
+		percpu_ref_get(&bch2_dev_bkey_exists(c, ptr->dev)->ref);
 
 	unsigned durability_have = 0, durability_removing = 0;
 
@@ -652,7 +652,7 @@ err:
 		if ((1U << i) & ptrs_locked)
 			bch2_bucket_nocow_unlock(&c->nocow_locks,
 						 PTR_BUCKET_POS(c, &p.ptr), 0);
-		percpu_ref_put(&bch_dev_bkey_exists(c, p.ptr.dev)->ref);
+		percpu_ref_put(&bch2_dev_bkey_exists(c, p.ptr.dev)->ref);
 		i++;
 	}
 

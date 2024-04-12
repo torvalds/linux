@@ -372,7 +372,7 @@ static int journal_replay_entry_early(struct bch_fs *c,
 	case BCH_JSET_ENTRY_dev_usage: {
 		struct jset_entry_dev_usage *u =
 			container_of(entry, struct jset_entry_dev_usage, entry);
-		struct bch_dev *ca = bch_dev_bkey_exists(c, le32_to_cpu(u->dev));
+		struct bch_dev *ca = bch2_dev_bkey_exists(c, le32_to_cpu(u->dev));
 		unsigned i, nr_types = jset_entry_dev_usage_nr_types(u);
 
 		for (i = 0; i < min_t(unsigned, nr_types, BCH_DATA_NR); i++) {
