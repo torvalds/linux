@@ -185,9 +185,7 @@ static unsigned int dw8250_serial_in(struct uart_port *p, int offset)
 #ifdef CONFIG_64BIT
 static unsigned int dw8250_serial_inq(struct uart_port *p, int offset)
 {
-	unsigned int value;
-
-	value = (u8)__raw_readq(p->membase + (offset << p->regshift));
+	u8 value = __raw_readq(p->membase + (offset << p->regshift));
 
 	return dw8250_modify_msr(p, offset, value);
 }
