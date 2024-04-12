@@ -1013,17 +1013,15 @@ static u32 i965_dpll_md(const struct intel_crtc_state *crtc_state)
 	return (crtc_state->pixel_multiplier - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
 }
 
-static void i9xx_compute_dpll(struct intel_crtc_state *crtc_state,
-			      const struct dpll *clock,
-			      const struct dpll *reduced_clock)
+static u32 i9xx_dpll(const struct intel_crtc_state *crtc_state,
+		     const struct dpll *clock,
+		     const struct dpll *reduced_clock)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dpll;
 
-	i9xx_update_pll_dividers(crtc_state, clock, reduced_clock);
-
-	dpll = DPLL_VGA_MODE_DIS;
+	dpll = DPLL_VCO_ENABLE | DPLL_VGA_MODE_DIS;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS))
 		dpll |= DPLLB_MODE_LVDS;
@@ -1082,24 +1080,33 @@ static void i9xx_compute_dpll(struct intel_crtc_state *crtc_state,
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
 
-	dpll |= DPLL_VCO_ENABLE;
-	crtc_state->dpll_hw_state.dpll = dpll;
-
-	if (DISPLAY_VER(dev_priv) >= 4)
-		crtc_state->dpll_hw_state.dpll_md = i965_dpll_md(crtc_state);
+	return dpll;
 }
 
-static void i8xx_compute_dpll(struct intel_crtc_state *crtc_state,
+static void i9xx_compute_dpll(struct intel_crtc_state *crtc_state,
 			      const struct dpll *clock,
 			      const struct dpll *reduced_clock)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 dpll;
 
 	i9xx_update_pll_dividers(crtc_state, clock, reduced_clock);
 
-	dpll = DPLL_VGA_MODE_DIS;
+	crtc_state->dpll_hw_state.dpll = i9xx_dpll(crtc_state, clock, reduced_clock);
+
+	if (DISPLAY_VER(dev_priv) >= 4)
+		crtc_state->dpll_hw_state.dpll_md = i965_dpll_md(crtc_state);
+}
+
+static u32 i8xx_dpll(const struct intel_crtc_state *crtc_state,
+		     const struct dpll *clock,
+		     const struct dpll *reduced_clock)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	u32 dpll;
+
+	dpll = DPLL_VCO_ENABLE | DPLL_VGA_MODE_DIS;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		dpll |= (1 << (clock->p1 - 1)) << DPLL_FPA01_P1_POST_DIV_SHIFT;
@@ -1136,8 +1143,16 @@ static void i8xx_compute_dpll(struct intel_crtc_state *crtc_state,
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
 
-	dpll |= DPLL_VCO_ENABLE;
-	crtc_state->dpll_hw_state.dpll = dpll;
+	return dpll;
+}
+
+static void i8xx_compute_dpll(struct intel_crtc_state *crtc_state,
+			      const struct dpll *clock,
+			      const struct dpll *reduced_clock)
+{
+	i9xx_update_pll_dividers(crtc_state, clock, reduced_clock);
+
+	crtc_state->dpll_hw_state.dpll = i8xx_dpll(crtc_state, clock, reduced_clock);
 }
 
 static int hsw_crtc_compute_clock(struct intel_atomic_state *state,
@@ -1266,17 +1281,15 @@ static void ilk_update_pll_dividers(struct intel_crtc_state *crtc_state,
 	crtc_state->dpll_hw_state.fp1 = ilk_dpll_compute_fp(reduced_clock, factor);
 }
 
-static void ilk_compute_dpll(struct intel_crtc_state *crtc_state,
-			     const struct dpll *clock,
-			     const struct dpll *reduced_clock)
+static u32 ilk_dpll(const struct intel_crtc_state *crtc_state,
+		    const struct dpll *clock,
+		    const struct dpll *reduced_clock)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	u32 dpll;
 
-	ilk_update_pll_dividers(crtc_state, clock, reduced_clock);
-
-	dpll = 0;
+	dpll = DPLL_VCO_ENABLE;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS))
 		dpll |= DPLLB_MODE_LVDS;
@@ -1338,9 +1351,16 @@ static void ilk_compute_dpll(struct intel_crtc_state *crtc_state,
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
 
-	dpll |= DPLL_VCO_ENABLE;
+	return dpll;
+}
 
-	crtc_state->dpll_hw_state.dpll = dpll;
+static void ilk_compute_dpll(struct intel_crtc_state *crtc_state,
+			     const struct dpll *clock,
+			     const struct dpll *reduced_clock)
+{
+	ilk_update_pll_dividers(crtc_state, clock, reduced_clock);
+
+	crtc_state->dpll_hw_state.dpll = ilk_dpll(crtc_state, clock, reduced_clock);
 }
 
 static int ilk_crtc_compute_clock(struct intel_atomic_state *state,
@@ -1413,36 +1433,51 @@ static int ilk_crtc_get_shared_dpll(struct intel_atomic_state *state,
 	return intel_reserve_shared_dplls(state, crtc, NULL);
 }
 
-void vlv_compute_dpll(struct intel_crtc_state *crtc_state)
+static u32 vlv_dpll(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	u32 dpll;
 
-	crtc_state->dpll_hw_state.dpll = DPLL_INTEGRATED_REF_CLK_VLV |
+	dpll = DPLL_INTEGRATED_REF_CLK_VLV |
 		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
+
 	if (crtc->pipe != PIPE_A)
-		crtc_state->dpll_hw_state.dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
+		dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
 
 	/* DPLL not used with DSI, but still need the rest set up */
 	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
-		crtc_state->dpll_hw_state.dpll |= DPLL_VCO_ENABLE |
-			DPLL_EXT_BUFFER_ENABLE_VLV;
+		dpll |= DPLL_VCO_ENABLE | DPLL_EXT_BUFFER_ENABLE_VLV;
 
+	return dpll;
+}
+
+void vlv_compute_dpll(struct intel_crtc_state *crtc_state)
+{
+	crtc_state->dpll_hw_state.dpll = vlv_dpll(crtc_state);
 	crtc_state->dpll_hw_state.dpll_md = i965_dpll_md(crtc_state);
+}
+
+static u32 chv_dpll(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	u32 dpll;
+
+	dpll = DPLL_SSC_REF_CLK_CHV |
+		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
+
+	if (crtc->pipe != PIPE_A)
+		dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
+
+	/* DPLL not used with DSI, but still need the rest set up */
+	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
+		dpll |= DPLL_VCO_ENABLE;
+
+	return dpll;
 }
 
 void chv_compute_dpll(struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-
-	crtc_state->dpll_hw_state.dpll = DPLL_SSC_REF_CLK_CHV |
-		DPLL_REF_CLK_ENABLE_VLV | DPLL_VGA_MODE_DIS;
-	if (crtc->pipe != PIPE_A)
-		crtc_state->dpll_hw_state.dpll |= DPLL_INTEGRATED_CRI_CLK_VLV;
-
-	/* DPLL not used with DSI, but still need the rest set up */
-	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
-		crtc_state->dpll_hw_state.dpll |= DPLL_VCO_ENABLE;
-
+	crtc_state->dpll_hw_state.dpll = chv_dpll(crtc_state);
 	crtc_state->dpll_hw_state.dpll_md = i965_dpll_md(crtc_state);
 }
 
