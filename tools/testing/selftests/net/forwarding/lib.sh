@@ -95,27 +95,9 @@ source "$net_forwarding_dir/../lib.sh"
 # timeout in seconds
 slowwait()
 {
-	local timeout=$1; shift
+	local timeout_sec=$1; shift
 
-	local start_time="$(date -u +%s)"
-	while true
-	do
-		local out
-		out=$("$@")
-		local ret=$?
-		if ((!ret)); then
-			echo -n "$out"
-			return 0
-		fi
-
-		local current_time="$(date -u +%s)"
-		if ((current_time - start_time > timeout)); then
-			echo -n "$out"
-			return 1
-		fi
-
-		sleep 0.1
-	done
+	loopy_wait "sleep 0.1" "$((timeout_sec * 1000))" "$@"
 }
 
 ##############################################################################
