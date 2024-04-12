@@ -47,7 +47,7 @@ struct block_device {
 	unsigned long		bd_stamp;
 	atomic_t		__bd_flags;	// partition number + flags
 #define BD_PARTNO		255	// lower 8 bits; assign-once
-	bool			bd_read_only;	/* read-only policy */
+#define BD_READ_ONLY		(1u<<8) // read-only policy
 	bool			bd_write_holder;
 	bool			bd_has_submit_bio;
 	dev_t			bd_dev;
