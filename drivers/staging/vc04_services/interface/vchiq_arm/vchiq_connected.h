@@ -6,7 +6,9 @@
 #ifndef VCHIQ_CONNECTED_H
 #define VCHIQ_CONNECTED_H
 
+struct vchiq_drv_mgmt;
+
 void vchiq_add_connected_callback(struct vchiq_device *device, void (*callback)(void));
-void vchiq_call_connected_callbacks(void);
+void vchiq_call_connected_callbacks(struct vchiq_drv_mgmt *mgmt);
 
 #endif /* VCHIQ_CONNECTED_H */

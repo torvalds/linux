@@ -545,7 +545,8 @@ static int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state 
 	dev_dbg(&pdev->dev, "arm: vchiq_init - done (slots %pK, phys %pad)\n",
 		vchiq_slot_zero, &slot_phys);
 
-	vchiq_call_connected_callbacks();
+	mutex_init(&drv_mgmt->connected_mutex);
+	vchiq_call_connected_callbacks(drv_mgmt);
 
 	return 0;
 }

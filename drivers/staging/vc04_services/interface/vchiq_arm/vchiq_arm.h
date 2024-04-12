@@ -20,6 +20,8 @@
 #define MAX_ELEMENTS 8
 #define MSG_QUEUE_SIZE 128
 
+#define VCHIQ_DRV_MAX_CALLBACKS 10
+
 struct rpi_firmware;
 
 enum USE_TYPE_E {
@@ -34,6 +36,13 @@ struct vchiq_platform_info {
 struct vchiq_drv_mgmt {
 	struct rpi_firmware *fw;
 	const struct vchiq_platform_info *info;
+
+	bool connected;
+	int num_deferred_callbacks;
+	/* Protects connected and num_deferred_callbacks */
+	struct mutex connected_mutex;
+
+	void (*deferred_callback[VCHIQ_DRV_MAX_CALLBACKS])(void);
 };
 
 struct user_service {

@@ -11,6 +11,7 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
+#include "vchiq_arm.h"
 #include "vchiq_bus.h"
 
 static int vchiq_bus_type_match(struct device *dev, struct device_driver *drv)
@@ -76,6 +77,8 @@ vchiq_device_register(struct device *parent, const char *name)
 	device->dev.bus = &vchiq_bus_type;
 	device->dev.dma_mask = &device->dev.coherent_dma_mask;
 	device->dev.release = vchiq_device_release;
+
+	device->drv_mgmt = dev_get_drvdata(parent);
 
 	of_dma_configure(&device->dev, parent->of_node, true);
 
