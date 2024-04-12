@@ -297,6 +297,22 @@
 			status = "disabled";
 		};
 
+		dmac: dma-controller@4330000 {
+			compatible = "snps,axi-dma-1.01a";
+			reg = <0x04330000 0x1000>;
+			interrupts = <29 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clk CLK_SDMA_AXI>, <&clk CLK_SDMA_AXI>;
+			clock-names = "core-clk", "cfgr-clk";
+			#dma-cells = <1>;
+			dma-channels = <8>;
+			snps,block-size = <1024 1024 1024 1024
+					   1024 1024 1024 1024>;
+			snps,priority = <0 1 2 3 4 5 6 7>;
+			snps,dma-masters = <2>;
+			snps,data-width = <4>;
+			status = "disabled";
+		};
+
 		plic: interrupt-controller@70000000 {
 			reg = <0x70000000 0x4000000>;
 			interrupts-extended = <&cpu0_intc 11>, <&cpu0_intc 9>;
