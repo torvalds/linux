@@ -613,19 +613,13 @@ void bxt_ddi_phy_set_lane_optim_mask(struct intel_encoder *encoder,
 	bxt_port_to_phy_channel(dev_priv, port, &phy, &ch);
 
 	for (lane = 0; lane < 4; lane++) {
-		u32 val = intel_de_read(dev_priv,
-					BXT_PORT_TX_DW14_LN(phy, ch, lane));
-
 		/*
 		 * Note that on CHV this flag is called UPAR, but has
 		 * the same function.
 		 */
-		val &= ~LATENCY_OPTIM;
-		if (lane_lat_optim_mask & BIT(lane))
-			val |= LATENCY_OPTIM;
-
-		intel_de_write(dev_priv, BXT_PORT_TX_DW14_LN(phy, ch, lane),
-			       val);
+		intel_de_rmw(dev_priv, BXT_PORT_TX_DW14_LN(phy, ch, lane),
+			     LATENCY_OPTIM,
+			     lane_lat_optim_mask & BIT(lane) ? LATENCY_OPTIM : 0);
 	}
 }
 
