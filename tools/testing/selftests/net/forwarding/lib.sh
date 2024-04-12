@@ -273,11 +273,6 @@ if [[ "$REQUIRE_MTOOLS" = "yes" ]]; then
 	require_command mreceive
 fi
 
-if [[ ! -v NUM_NETIFS ]]; then
-	echo "SKIP: importer does not define \"NUM_NETIFS\""
-	exit $ksft_skip
-fi
-
 ##############################################################################
 # Command line options handling
 
@@ -295,6 +290,23 @@ done
 
 ##############################################################################
 # Network interfaces configuration
+
+if [[ ! -v NUM_NETIFS ]]; then
+	echo "SKIP: importer does not define \"NUM_NETIFS\""
+	exit $ksft_skip
+fi
+
+if (( NUM_NETIFS > ${#NETIFS[@]} )); then
+	echo "SKIP: Importer requires $NUM_NETIFS NETIFS, but only ${#NETIFS[@]} are defined (${NETIFS[@]})"
+	exit $ksft_skip
+fi
+
+for i in $(seq ${#NETIFS[@]}); do
+	if [[ ! ${NETIFS[p$i]} ]]; then
+		echo "SKIP: NETIFS[p$i] not given"
+		exit $ksft_skip
+	fi
+done
 
 create_netif_veth()
 {
