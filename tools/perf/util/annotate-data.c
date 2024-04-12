@@ -46,6 +46,7 @@ static void pr_debug_type_name(Dwarf_Die *die, enum type_state_kind kind)
 {
 	struct strbuf sb;
 	char *str;
+	Dwarf_Word size = 0;
 
 	if (!debug_type_profile && verbose < 3)
 		return;
@@ -72,11 +73,65 @@ static void pr_debug_type_name(Dwarf_Die *die, enum type_state_kind kind)
 		break;
 	}
 
+	dwarf_aggregate_size(die, &size);
+
 	strbuf_init(&sb, 32);
 	die_get_typename_from_type(die, &sb);
 	str = strbuf_detach(&sb, NULL);
-	pr_info(" type=%s (die:%lx)\n", str, (long)dwarf_dieoffset(die));
+	pr_info(" type='%s' size=%#lx (die:%#lx)\n",
+		str, (long)size, (long)dwarf_dieoffset(die));
 	free(str);
+}
+
+static void pr_debug_location(Dwarf_Die *die, u64 pc, int reg)
+{
+	ptrdiff_t off = 0;
+	Dwarf_Attribute attr;
+	Dwarf_Addr base, start, end;
+	Dwarf_Op *ops;
+	size_t nops;
+
+	if (!debug_type_profile && verbose < 3)
+		return;
+
+	if (dwarf_attr(die, DW_AT_location, &attr) == NULL)
+		return;
+
+	while ((off = dwarf_getlocations(&attr, off, &base, &start, &end, &ops, &nops)) > 0) {
+		if (reg != DWARF_REG_PC && end < pc)
+			continue;
+		if (reg != DWARF_REG_PC && start > pc)
+			break;
+
+		pr_info(" variable location: ");
+		switch (ops->atom) {
+		case DW_OP_reg0 ...DW_OP_reg31:
+			pr_info("reg%d\n", ops->atom - DW_OP_reg0);
+			break;
+		case DW_OP_breg0 ...DW_OP_breg31:
+			pr_info("base=reg%d, offset=%#lx\n",
+				ops->atom - DW_OP_breg0, (long)ops->number);
+			break;
+		case DW_OP_regx:
+			pr_info("reg%ld\n", (long)ops->number);
+			break;
+		case DW_OP_bregx:
+			pr_info("base=reg%ld, offset=%#lx\n",
+				(long)ops->number, (long)ops->number2);
+			break;
+		case DW_OP_fbreg:
+			pr_info("use frame base, offset=%#lx\n", (long)ops->number);
+			break;
+		case DW_OP_addr:
+			pr_info("address=%#lx\n", (long)ops->number);
+			break;
+		default:
+			pr_info("unknown: code=%#x, number=%#lx\n",
+				ops->atom, (long)ops->number);
+			break;
+		}
+		break;
+	}
 }
 
 /*
@@ -1404,7 +1459,7 @@ again:
 		found = find_data_type_insn(dloc, reg, &basic_blocks, var_types,
 					    cu_die, type_die);
 		if (found > 0) {
-			pr_debug_dtp("found by insn track: %#x(reg%d) type-offset=%#x",
+			pr_debug_dtp("found by insn track: %#x(reg%d) type-offset=%#x\n",
 				     dloc->op->offset, reg, dloc->type_offset);
 			pr_debug_type_name(type_die, TSR_KIND_TYPE);
 			ret = 0;
@@ -1440,16 +1495,16 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 	char buf[64];
 
 	if (dloc->op->multi_regs)
-		snprintf(buf, sizeof(buf), " or reg%d", dloc->op->reg2);
+		snprintf(buf, sizeof(buf), "reg%d, reg%d", dloc->op->reg1, dloc->op->reg2);
 	else if (dloc->op->reg1 == DWARF_REG_PC)
-		snprintf(buf, sizeof(buf), " (PC)");
+		snprintf(buf, sizeof(buf), "PC");
 	else
-		buf[0] = '\0';
+		snprintf(buf, sizeof(buf), "reg%d", dloc->op->reg1);
 
 	pr_debug_dtp("-----------------------------------------------------------\n");
-	pr_debug_dtp("%s [%"PRIx64"] for reg%d%s offset=%#x in %s\n",
-		     __func__, dloc->ip - dloc->ms->sym->start,
-		     dloc->op->reg1, buf, dloc->op->offset, dloc->ms->sym->name);
+	pr_debug_dtp("find data type for %#x(%s) at %s+%#"PRIx64"\n",
+		     dloc->op->offset, buf, dloc->ms->sym->name,
+		     dloc->ip - dloc->ms->sym->start);
 
 	/*
 	 * IP is a relative instruction address from the start of the map, as
@@ -1468,14 +1523,15 @@ static int find_data_type_die(struct data_loc_info *dloc, Dwarf_Die *type_die)
 	reg = loc->reg1;
 	offset = loc->offset;
 
-	pr_debug_dtp("CU die offset: %#lx\n", (long)dwarf_dieoffset(&cu_die));
+	pr_debug_dtp("CU for %s (die:%#lx)\n",
+		     dwarf_diename(&cu_die), (long)dwarf_dieoffset(&cu_die));
 
 	if (reg == DWARF_REG_PC) {
 		if (get_global_var_type(&cu_die, dloc, dloc->ip, dloc->var_addr,
 					&offset, type_die)) {
 			dloc->type_offset = offset;
 
-			pr_debug_dtp("found PC-rel by addr=%#"PRIx64" offset=%#x",
+			pr_debug_dtp("found by addr=%#"PRIx64" type_offset=%#x\n",
 				     dloc->var_addr, offset);
 			pr_debug_type_name(type_die, TSR_KIND_TYPE);
 			ret = 0;
@@ -1537,13 +1593,22 @@ retry:
 			pr_debug_dtp("found \"%s\" in scope=%d/%d (die: %#lx) ",
 				     dwarf_diename(&var_die), i+1, nr_scopes,
 				     (long)dwarf_dieoffset(&scopes[i]));
-			if (reg == DWARF_REG_PC)
-				pr_debug_dtp("%#x(PC) offset=%#x", loc->offset, offset);
-			else if (reg == DWARF_REG_FB || is_fbreg)
-				pr_debug_dtp("%#x(reg%d) stack fb_offset=%#x offset=%#x",
-					     loc->offset, reg, fb_offset, offset);
-			else
-				pr_debug_dtp("%#x(reg%d)", loc->offset, reg);
+			if (reg == DWARF_REG_PC) {
+				pr_debug_dtp("addr=%#"PRIx64" type_offset=%#x\n",
+					     dloc->var_addr, offset);
+			} else if (reg == DWARF_REG_FB || is_fbreg) {
+				pr_debug_dtp("stack_offset=%#x type_offset=%#x\n",
+					     fb_offset, offset);
+			} else {
+				pr_debug_dtp("type_offset=%#x\n", offset);
+			}
+			pr_debug_location(&var_die, pc, reg);
+			pr_debug_type_name(type_die, TSR_KIND_TYPE);
+		} else {
+			pr_debug_dtp("check variable \"%s\" failed (die: %#lx)\n",
+				     dwarf_diename(&var_die),
+				     (long)dwarf_dieoffset(&var_die));
+			pr_debug_location(&var_die, pc, reg);
 			pr_debug_type_name(type_die, TSR_KIND_TYPE);
 		}
 		dloc->type_offset = offset;
