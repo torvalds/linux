@@ -292,12 +292,10 @@ void bxt_dpio_phy_set_signal_levels(struct intel_encoder *encoder,
 				    const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	int level = intel_ddi_level(encoder, crtc_state, 0);
 	const struct intel_ddi_buf_trans *trans;
 	enum dpio_channel ch;
 	enum dpio_phy phy;
-	int n_entries;
-	u32 val;
+	int lane, n_entries;
 
 	trans = encoder->get_buf_trans(encoder, crtc_state, &n_entries);
 	if (drm_WARN_ON_ONCE(&dev_priv->drm, !trans))
@@ -313,26 +311,37 @@ void bxt_dpio_phy_set_signal_levels(struct intel_encoder *encoder,
 			     BXT_PORT_PCS_DW10_GRP(phy, ch),
 			     TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT, 0);
 
-	bxt_dpio_phy_rmw_grp(dev_priv, BXT_PORT_TX_DW2_LN(phy, ch, 0),
-			     BXT_PORT_TX_DW2_GRP(phy, ch),
+	for (lane = 0; lane < crtc_state->lane_count; lane++) {
+		int level = intel_ddi_level(encoder, crtc_state, lane);
+
+		intel_de_rmw(dev_priv, BXT_PORT_TX_DW2_LN(phy, ch, lane),
 			     MARGIN_000_MASK | UNIQ_TRANS_SCALE_MASK,
 			     MARGIN_000(trans->entries[level].bxt.margin) |
 			     UNIQ_TRANS_SCALE(trans->entries[level].bxt.scale));
+	}
 
-	bxt_dpio_phy_rmw_grp(dev_priv, BXT_PORT_TX_DW3_LN(phy, ch, 0),
-			     BXT_PORT_TX_DW3_GRP(phy, ch),
+	for (lane = 0; lane < crtc_state->lane_count; lane++) {
+		int level = intel_ddi_level(encoder, crtc_state, lane);
+		u32 val;
+
+		intel_de_rmw(dev_priv, BXT_PORT_TX_DW3_LN(phy, ch, lane),
 			     SCALE_DCOMP_METHOD,
 			     trans->entries[level].bxt.enable ?
 			     SCALE_DCOMP_METHOD : 0);
 
-	val = intel_de_read(dev_priv, BXT_PORT_TX_DW3_LN(phy, ch, 0));
-	if ((val & UNIQUE_TRANGE_EN_METHOD) && !(val & SCALE_DCOMP_METHOD))
-		drm_err(&dev_priv->drm,
-			"Disabled scaling while ouniqetrangenmethod was set");
+		val = intel_de_read(dev_priv, BXT_PORT_TX_DW3_LN(phy, ch, lane));
+		if ((val & UNIQUE_TRANGE_EN_METHOD) && !(val & SCALE_DCOMP_METHOD))
+			drm_err(&dev_priv->drm,
+				"Disabled scaling while ouniqetrangenmethod was set");
+	}
 
-	bxt_dpio_phy_rmw_grp(dev_priv, BXT_PORT_TX_DW4_LN(phy, ch, 0),
-			     BXT_PORT_TX_DW4_GRP(phy, ch), DE_EMPHASIS_MASK,
+	for (lane = 0; lane < crtc_state->lane_count; lane++) {
+		int level = intel_ddi_level(encoder, crtc_state, lane);
+
+		intel_de_rmw(dev_priv, BXT_PORT_TX_DW4_LN(phy, ch, lane),
+			     DE_EMPHASIS_MASK,
 			     DE_EMPHASIS(trans->entries[level].bxt.deemphasis));
+	}
 
 	bxt_dpio_phy_rmw_grp(dev_priv, BXT_PORT_PCS_DW10_LN01(phy, ch),
 			     BXT_PORT_PCS_DW10_GRP(phy, ch),
