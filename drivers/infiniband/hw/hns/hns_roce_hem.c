@@ -281,7 +281,7 @@ static struct hns_roce_hem *hns_roce_alloc_hem(struct hns_roce_dev *hr_dev,
 	return hem;
 
 fail:
-	hns_roce_free_hem(hr_dev, hem);
+	kfree(hem);
 	return NULL;
 }
 
