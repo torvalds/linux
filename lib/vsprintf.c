@@ -972,7 +972,7 @@ char *bdev_name(char *buf, char *end, struct block_device *bdev,
 				*buf = 'p';
 			buf++;
 		}
-		buf = number(buf, end, bdev->bd_partno, spec);
+		buf = number(buf, end, bdev_partno(bdev), spec);
 	}
 	return buf;
 }
