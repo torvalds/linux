@@ -742,6 +742,7 @@ static int dsu_pmu_device_probe(struct platform_device *pdev)
 
 	dsu_pmu->pmu = (struct pmu) {
 		.task_ctx_nr	= perf_invalid_context,
+		.parent		= &pdev->dev,
 		.module		= THIS_MODULE,
 		.pmu_enable	= dsu_pmu_enable,
 		.pmu_disable	= dsu_pmu_disable,
