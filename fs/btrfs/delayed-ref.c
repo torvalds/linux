@@ -985,24 +985,24 @@ add_delayed_ref_head(struct btrfs_trans_handle *trans,
  */
 static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
 				    struct btrfs_delayed_ref_node *ref,
-				    u64 bytenr, u64 num_bytes, u64 ref_root,
-				    int action, u8 ref_type)
+				    struct btrfs_ref *generic_ref)
 {
+	int action = generic_ref->action;
 	u64 seq = 0;
 
 	if (action == BTRFS_ADD_DELAYED_EXTENT)
 		action = BTRFS_ADD_DELAYED_REF;
 
-	if (is_fstree(ref_root))
+	if (is_fstree(generic_ref->ref_root))
 		seq = atomic64_read(&fs_info->tree_mod_seq);
 
 	refcount_set(&ref->refs, 1);
-	ref->bytenr = bytenr;
-	ref->num_bytes = num_bytes;
+	ref->bytenr = generic_ref->bytenr;
+	ref->num_bytes = generic_ref->len;
 	ref->ref_mod = 1;
 	ref->action = action;
 	ref->seq = seq;
-	ref->type = ref_type;
+	ref->type = btrfs_ref_type(generic_ref);
 	RB_CLEAR_NODE(&ref->ref_node);
 	INIT_LIST_HEAD(&ref->add_list);
 }
@@ -1064,7 +1064,6 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	u64 bytenr = generic_ref->bytenr;
 	u64 num_bytes = generic_ref->len;
 	u64 parent = generic_ref->parent;
-	u8 ref_type;
 
 	is_system = (generic_ref->ref_root == BTRFS_CHUNK_TREE_OBJECTID);
 
@@ -1090,13 +1089,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 
 	ref = btrfs_delayed_node_to_tree_ref(node);
 
-	if (parent)
-		ref_type = BTRFS_SHARED_BLOCK_REF_KEY;
-	else
-		ref_type = BTRFS_TREE_BLOCK_REF_KEY;
-
-	init_delayed_ref_common(fs_info, node, bytenr, num_bytes,
-				generic_ref->ref_root, action, ref_type);
+	init_delayed_ref_common(fs_info, node, generic_ref);
 	ref->root = generic_ref->ref_root;
 	ref->parent = parent;
 	ref->level = level;
@@ -1159,7 +1152,6 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	u64 ref_root = generic_ref->ref_root;
 	u64 owner = generic_ref->data_ref.ino;
 	u64 offset = generic_ref->data_ref.offset;
-	u8 ref_type;
 
 	ASSERT(generic_ref->type == BTRFS_REF_DATA && action);
 	node = kmem_cache_alloc(btrfs_delayed_ref_node_cachep, GFP_NOFS);
@@ -1168,12 +1160,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 
 	ref = btrfs_delayed_node_to_data_ref(node);
 
-	if (parent)
-	        ref_type = BTRFS_SHARED_DATA_REF_KEY;
-	else
-	        ref_type = BTRFS_EXTENT_DATA_REF_KEY;
-	init_delayed_ref_common(fs_info, node, bytenr, num_bytes, ref_root,
-				action, ref_type);
+	init_delayed_ref_common(fs_info, node, generic_ref);
 	ref->root = ref_root;
 	ref->parent = parent;
 	ref->objectid = owner;
