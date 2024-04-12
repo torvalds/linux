@@ -48,6 +48,12 @@ var ACK_SQC_STORE		    =	1		    //workaround for suspected SQC store bug causing
 var SAVE_AFTER_XNACK_ERROR	    =	1		    //workaround for TCP store failure after XNACK error when ALLOW_REPLAY=0, for debugger
 var SINGLE_STEP_MISSED_WORKAROUND   =	(ASIC_FAMILY <= CHIP_ALDEBARAN)	//workaround for lost MODE.DEBUG_EN exception when SAVECTX raised
 
+#if ASIC_FAMILY < CHIP_GC_9_4_3
+#define VMEM_MODIFIERS slc:1 glc:1
+#else
+#define VMEM_MODIFIERS sc0:1 nt:1
+#endif
+
 /**************************************************************************/
 /*			variables					  */
 /**************************************************************************/
@@ -581,7 +587,7 @@ end
 L_SAVE_LDS_LOOP_VECTOR:
       ds_read_b64 v[0:1], v2	//x =LDS[a], byte address
       s_waitcnt lgkmcnt(0)
-      buffer_store_dwordx2  v[0:1], v2, s_save_buf_rsrc0, s_save_mem_offset offen:1  glc:1  slc:1
+      buffer_store_dwordx2  v[0:1], v2, s_save_buf_rsrc0, s_save_mem_offset VMEM_MODIFIERS offen:1
 //	s_waitcnt vmcnt(0)
 //	v_add_u32 v2, vcc[0:1], v2, v3
       v_add_u32 v2, v2, v3
@@ -979,17 +985,17 @@ L_TCP_STORE_CHECK_DONE:
 end
 
 function write_4vgprs_to_mem(s_rsrc, s_mem_offset)
-	buffer_store_dword v0, v0, s_rsrc, s_mem_offset slc:1 glc:1
-	buffer_store_dword v1, v0, s_rsrc, s_mem_offset slc:1 glc:1  offset:256
-	buffer_store_dword v2, v0, s_rsrc, s_mem_offset slc:1 glc:1  offset:256*2
-	buffer_store_dword v3, v0, s_rsrc, s_mem_offset slc:1 glc:1  offset:256*3
+	buffer_store_dword v0, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS
+	buffer_store_dword v1, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS offset:256
+	buffer_store_dword v2, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS offset:256*2
+	buffer_store_dword v3, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS offset:256*3
 end
 
 function read_4vgprs_from_mem(s_rsrc, s_mem_offset)
-	buffer_load_dword v0, v0, s_rsrc, s_mem_offset slc:1 glc:1
-	buffer_load_dword v1, v0, s_rsrc, s_mem_offset slc:1 glc:1 offset:256
-	buffer_load_dword v2, v0, s_rsrc, s_mem_offset slc:1 glc:1 offset:256*2
-	buffer_load_dword v3, v0, s_rsrc, s_mem_offset slc:1 glc:1 offset:256*3
+	buffer_load_dword v0, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS
+	buffer_load_dword v1, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS offset:256
+	buffer_load_dword v2, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS offset:256*2
+	buffer_load_dword v3, v0, s_rsrc, s_mem_offset VMEM_MODIFIERS offset:256*3
 	s_waitcnt vmcnt(0)
 end
 
