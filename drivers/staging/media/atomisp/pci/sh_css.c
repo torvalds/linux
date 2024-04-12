@@ -462,9 +462,6 @@ ia_css_stream_input_format_bits_per_pixel(struct ia_css_stream *stream)
 	return bpp;
 }
 
-/* TODO: move define to proper file in tools */
-#define GP_ISEL_TPG_MODE 0x90058
-
 static int
 sh_css_config_input_network_2400(struct ia_css_stream *stream)
 {
@@ -500,8 +497,7 @@ sh_css_config_input_network_2400(struct ia_css_stream *stream)
 			return err;
 	}
 
-	if (stream->config.mode == IA_CSS_INPUT_MODE_TPG ||
-	    stream->config.mode == IA_CSS_INPUT_MODE_PRBS) {
+	if (stream->config.mode == IA_CSS_INPUT_MODE_PRBS) {
 		unsigned int hblank_cycles = 100,
 		vblank_lines = 6,
 		width,
@@ -513,8 +509,6 @@ sh_css_config_input_network_2400(struct ia_css_stream *stream)
 		vblank_cycles = vblank_lines * (width + hblank_cycles);
 		sh_css_sp_configure_sync_gen(width, height, hblank_cycles,
 					     vblank_cycles);
-		if (pipe->stream->config.mode == IA_CSS_INPUT_MODE_TPG)
-			ia_css_device_store_uint32(GP_ISEL_TPG_MODE, 0);
 	}
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			    "sh_css_config_input_network() leave:\n");
@@ -654,16 +648,6 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_id(
 
 	rc = true;
 	switch (stream_cfg->mode) {
-	case IA_CSS_INPUT_MODE_TPG:
-
-		if (stream_cfg->source.tpg.id == IA_CSS_TPG_ID0)
-			isys_stream_descr->input_port_id = INPUT_SYSTEM_PIXELGEN_PORT0_ID;
-		else if (stream_cfg->source.tpg.id == IA_CSS_TPG_ID1)
-			isys_stream_descr->input_port_id = INPUT_SYSTEM_PIXELGEN_PORT1_ID;
-		else if (stream_cfg->source.tpg.id == IA_CSS_TPG_ID2)
-			isys_stream_descr->input_port_id = INPUT_SYSTEM_PIXELGEN_PORT2_ID;
-
-		break;
 	case IA_CSS_INPUT_MODE_PRBS:
 
 		if (stream_cfg->source.prbs.id == IA_CSS_PRBS_ID0)
@@ -700,11 +684,6 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_type(
 
 	rc = true;
 	switch (stream_cfg->mode) {
-	case IA_CSS_INPUT_MODE_TPG:
-
-		isys_stream_descr->mode = INPUT_SYSTEM_SOURCE_TYPE_TPG;
-
-		break;
 	case IA_CSS_INPUT_MODE_PRBS:
 
 		isys_stream_descr->mode = INPUT_SYSTEM_SOURCE_TYPE_PRBS;
@@ -733,54 +712,6 @@ static bool sh_css_translate_stream_cfg_to_input_system_input_port_attr(
 
 	rc = true;
 	switch (stream_cfg->mode) {
-	case IA_CSS_INPUT_MODE_TPG:
-		if (stream_cfg->source.tpg.mode == IA_CSS_TPG_MODE_RAMP)
-			isys_stream_descr->tpg_port_attr.mode = PIXELGEN_TPG_MODE_RAMP;
-		else if (stream_cfg->source.tpg.mode == IA_CSS_TPG_MODE_CHECKERBOARD)
-			isys_stream_descr->tpg_port_attr.mode = PIXELGEN_TPG_MODE_CHBO;
-		else if (stream_cfg->source.tpg.mode == IA_CSS_TPG_MODE_MONO)
-			isys_stream_descr->tpg_port_attr.mode = PIXELGEN_TPG_MODE_MONO;
-		else
-			rc = false;
-
-		/*
-		 * TODO
-		 * - Make "color_cfg" as part of "ia_css_tpg_config".
-		 */
-		isys_stream_descr->tpg_port_attr.color_cfg.R1 = 51;
-		isys_stream_descr->tpg_port_attr.color_cfg.G1 = 102;
-		isys_stream_descr->tpg_port_attr.color_cfg.B1 = 255;
-		isys_stream_descr->tpg_port_attr.color_cfg.R2 = 0;
-		isys_stream_descr->tpg_port_attr.color_cfg.G2 = 100;
-		isys_stream_descr->tpg_port_attr.color_cfg.B2 = 160;
-
-		isys_stream_descr->tpg_port_attr.mask_cfg.h_mask =
-		    stream_cfg->source.tpg.x_mask;
-		isys_stream_descr->tpg_port_attr.mask_cfg.v_mask =
-		    stream_cfg->source.tpg.y_mask;
-		isys_stream_descr->tpg_port_attr.mask_cfg.hv_mask =
-		    stream_cfg->source.tpg.xy_mask;
-
-		isys_stream_descr->tpg_port_attr.delta_cfg.h_delta =
-		    stream_cfg->source.tpg.x_delta;
-		isys_stream_descr->tpg_port_attr.delta_cfg.v_delta =
-		    stream_cfg->source.tpg.y_delta;
-
-		/*
-		 * TODO
-		 * - Make "sync_gen_cfg" as part of "ia_css_tpg_config".
-		 */
-		isys_stream_descr->tpg_port_attr.sync_gen_cfg.hblank_cycles = 100;
-		isys_stream_descr->tpg_port_attr.sync_gen_cfg.vblank_cycles = 100;
-		isys_stream_descr->tpg_port_attr.sync_gen_cfg.pixels_per_clock =
-		    stream_cfg->pixels_per_clock;
-		isys_stream_descr->tpg_port_attr.sync_gen_cfg.nr_of_frames = (uint32_t)~(0x0);
-		isys_stream_descr->tpg_port_attr.sync_gen_cfg.pixels_per_line =
-		    stream_cfg->isys_config[IA_CSS_STREAM_DEFAULT_ISYS_STREAM_IDX].input_res.width;
-		isys_stream_descr->tpg_port_attr.sync_gen_cfg.lines_per_frame =
-		    stream_cfg->isys_config[IA_CSS_STREAM_DEFAULT_ISYS_STREAM_IDX].input_res.height;
-
-		break;
 	case IA_CSS_INPUT_MODE_PRBS:
 
 		isys_stream_descr->prbs_port_attr.seed0 = stream_cfg->source.prbs.seed;
@@ -8152,23 +8083,6 @@ ia_css_stream_create(const struct ia_css_stream_config *stream_config,
 	case IA_CSS_INPUT_MODE_BUFFERED_SENSOR:
 		if (!IS_ISP2401)
 			ia_css_stream_configure_rx(curr_stream);
-		break;
-	case IA_CSS_INPUT_MODE_TPG:
-		if (!IS_ISP2401) {
-			IA_CSS_LOG("tpg_configuration: x_mask=%d, y_mask=%d, x_delta=%d, y_delta=%d, xy_mask=%d",
-				   curr_stream->config.source.tpg.x_mask,
-				   curr_stream->config.source.tpg.y_mask,
-				   curr_stream->config.source.tpg.x_delta,
-				   curr_stream->config.source.tpg.y_delta,
-				   curr_stream->config.source.tpg.xy_mask);
-
-			sh_css_sp_configure_tpg(
-			    curr_stream->config.source.tpg.x_mask,
-			    curr_stream->config.source.tpg.y_mask,
-			    curr_stream->config.source.tpg.x_delta,
-			    curr_stream->config.source.tpg.y_delta,
-			    curr_stream->config.source.tpg.xy_mask);
-		}
 		break;
 	case IA_CSS_INPUT_MODE_PRBS:
 		if (!IS_ISP2401) {

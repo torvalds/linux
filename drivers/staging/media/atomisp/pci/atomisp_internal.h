@@ -36,7 +36,6 @@
 
 #include "atomisp_csi2.h"
 #include "atomisp_subdev.h"
-#include "atomisp_tpg.h"
 #include "atomisp_compat.h"
 
 #include "gp_device.h"
@@ -188,7 +187,6 @@ struct atomisp_device {
 	bool pm_only;
 
 	struct atomisp_mipi_csi2_device csi2_port[ATOMISP_CAMERA_NR_PORTS];
-	struct atomisp_tpg_device tpg;
 
 	/* Purpose of mutex is to protect and serialize use of isp data
 	 * structures and css API calls. */

@@ -4133,6 +4133,7 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 				  unsigned int width, unsigned int height) =
 				      configure_pp_input_nop;
 	const struct atomisp_in_fmt_conv *fc = NULL;
+	struct v4l2_mbus_framefmt *ffmt;
 	int ret, i;
 
 	isp_sink_crop = atomisp_subdev_get_rect(
@@ -4143,28 +4144,26 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	if (!format)
 		return -EINVAL;
 
-	if (input->type != TEST_PATTERN) {
-		mipi_info = atomisp_to_sensor_mipi_info(input->camera);
+	mipi_info = atomisp_to_sensor_mipi_info(input->camera);
 
-		if (atomisp_set_sensor_mipi_to_isp(asd, ATOMISP_INPUT_STREAM_GENERAL,
-						   mipi_info))
-			return -EINVAL;
+	if (atomisp_set_sensor_mipi_to_isp(asd, ATOMISP_INPUT_STREAM_GENERAL,
+					   mipi_info))
+		return -EINVAL;
 
-		if (mipi_info)
-			fc = atomisp_find_in_fmt_conv_by_atomisp_in_fmt(mipi_info->input_format);
-
-		if (!fc)
-			fc = atomisp_find_in_fmt_conv(
-				 atomisp_subdev_get_ffmt(&asd->subdev,
-							 NULL, V4L2_SUBDEV_FORMAT_ACTIVE,
-							 ATOMISP_SUBDEV_PAD_SINK)->code);
-		if (!fc)
-			return -EINVAL;
-		if (format->sh_fmt == IA_CSS_FRAME_FORMAT_RAW &&
-		    raw_output_format_match_input(fc->atomisp_in_fmt,
-						  pix->pixelformat))
-			return -EINVAL;
+	if (mipi_info)
+		fc = atomisp_find_in_fmt_conv_by_atomisp_in_fmt(mipi_info->input_format);
+	if (!fc) {
+		ffmt = atomisp_subdev_get_ffmt(&asd->subdev, NULL,
+					       V4L2_SUBDEV_FORMAT_ACTIVE,
+					       ATOMISP_SUBDEV_PAD_SINK);
+		fc = atomisp_find_in_fmt_conv(ffmt->code);
 	}
+	if (!fc)
+		return -EINVAL;
+
+	if (format->sh_fmt == IA_CSS_FRAME_FORMAT_RAW &&
+	    raw_output_format_match_input(fc->atomisp_in_fmt, pix->pixelformat))
+		return -EINVAL;
 
 	/*
 	 * Configure viewfinder also when vfpp is disabled: the

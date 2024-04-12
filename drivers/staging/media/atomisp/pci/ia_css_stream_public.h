@@ -24,7 +24,6 @@
 #include "ia_css_types.h"
 #include "ia_css_pipe_public.h"
 #include "ia_css_metadata.h"
-#include "ia_css_tpg.h"
 #include "ia_css_prbs.h"
 #include "ia_css_input_port.h"
 
@@ -34,7 +33,6 @@
 enum ia_css_input_mode {
 	IA_CSS_INPUT_MODE_SENSOR, /** data from sensor */
 	IA_CSS_INPUT_MODE_FIFO,   /** data from input-fifo */
-	IA_CSS_INPUT_MODE_TPG,    /** data from test-pattern generator */
 	IA_CSS_INPUT_MODE_PRBS,   /** data from pseudo-random bit stream */
 	IA_CSS_INPUT_MODE_MEMORY, /** data from a frame in memory */
 	IA_CSS_INPUT_MODE_BUFFERED_SENSOR /** data is sent through mipi buffer */
@@ -91,7 +89,6 @@ struct ia_css_stream_config {
 	enum ia_css_input_mode    mode; /** Input mode */
 	union {
 		struct ia_css_input_port  port; /** Port, for sensor only. */
-		struct ia_css_tpg_config  tpg;  /** TPG configuration */
 		struct ia_css_prbs_config prbs; /** PRBS configuration */
 	} source; /** Source of input data */
 	unsigned int	      channel_id; /** Channel on which input data

@@ -670,20 +670,6 @@ sh_css_sp_configure_sync_gen(int width, int height,
 }
 
 void
-sh_css_sp_configure_tpg(int x_mask,
-			int y_mask,
-			int x_delta,
-			int y_delta,
-			int xy_mask)
-{
-	sh_css_sp_group.config.tpg.x_mask  = x_mask;
-	sh_css_sp_group.config.tpg.y_mask  = y_mask;
-	sh_css_sp_group.config.tpg.x_delta = x_delta;
-	sh_css_sp_group.config.tpg.y_delta = y_delta;
-	sh_css_sp_group.config.tpg.xy_mask = xy_mask;
-}
-
-void
 sh_css_sp_configure_prbs(int seed)
 {
 	sh_css_sp_group.config.prbs.seed = seed;

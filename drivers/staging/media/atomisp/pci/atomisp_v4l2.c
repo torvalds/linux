@@ -847,7 +847,6 @@ static void atomisp_unregister_entities(struct atomisp_device *isp)
 	struct v4l2_subdev *sd, *next;
 
 	atomisp_subdev_unregister_entities(&isp->asd);
-	atomisp_tpg_unregister_entities(&isp->tpg);
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++)
 		atomisp_mipi_csi2_unregister_entities(&isp->csi2_port[i]);
 
@@ -902,12 +901,6 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 		goto csi_and_subdev_probe_failed;
 	}
 
-	ret = atomisp_tpg_register_entities(&isp->tpg, &isp->v4l2_dev);
-	if (ret < 0) {
-		dev_err(isp->dev, "atomisp_tpg_register_entities\n");
-		goto tpg_register_failed;
-	}
-
 	ret = atomisp_subdev_register_subdev(&isp->asd, &isp->v4l2_dev);
 	if (ret < 0) {
 		dev_err(isp->dev, "atomisp_subdev_register_subdev fail\n");
@@ -917,8 +910,6 @@ static int atomisp_register_entities(struct atomisp_device *isp)
 	return 0;
 
 subdev_register_failed:
-	atomisp_tpg_unregister_entities(&isp->tpg);
-tpg_register_failed:
 	for (i = 0; i < ATOMISP_CAMERA_NR_PORTS; i++)
 		atomisp_mipi_csi2_unregister_entities(&isp->csi2_port[i]);
 csi_and_subdev_probe_failed:
@@ -1077,15 +1068,6 @@ int atomisp_register_device_nodes(struct atomisp_device *isp)
 	else
 		dev_info(isp->dev, "detected %d camera sensors\n", isp->input_cnt);
 
-	if (isp->input_cnt < ATOM_ISP_MAX_INPUTS) {
-		dev_dbg(isp->dev, "TPG detected, camera_cnt: %d\n", isp->input_cnt);
-		isp->inputs[isp->input_cnt].type = TEST_PATTERN;
-		isp->inputs[isp->input_cnt].port = -1;
-		isp->inputs[isp->input_cnt++].camera = &isp->tpg.sd;
-	} else {
-		dev_warn(isp->dev, "too many atomisp inputs, TPG ignored.\n");
-	}
-
 	mutex_lock(&isp->media_dev.graph_mutex);
 	atomisp_setup_input_links(isp);
 	mutex_unlock(&isp->media_dev.graph_mutex);
@@ -1119,12 +1101,6 @@ static int atomisp_initialize_modules(struct atomisp_device *isp)
 		goto error_mipi_csi2;
 	}
 
-	ret = atomisp_tpg_init(isp);
-	if (ret < 0) {
-		dev_err(isp->dev, "tpg initialization failed\n");
-		goto error_tpg;
-	}
-
 	ret = atomisp_subdev_init(isp);
 	if (ret < 0) {
 		dev_err(isp->dev, "ISP subdev initialization failed\n");
@@ -1134,8 +1110,6 @@ static int atomisp_initialize_modules(struct atomisp_device *isp)
 	return 0;
 
 error_isp_subdev:
-error_tpg:
-	atomisp_tpg_cleanup(isp);
 error_mipi_csi2:
 	atomisp_mipi_csi2_cleanup(isp);
 	return ret;
@@ -1143,7 +1117,6 @@ error_mipi_csi2:
 
 static void atomisp_uninitialize_modules(struct atomisp_device *isp)
 {
-	atomisp_tpg_cleanup(isp);
 	atomisp_mipi_csi2_cleanup(isp);
 }
 
