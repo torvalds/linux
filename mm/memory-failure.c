@@ -729,7 +729,7 @@ static void collect_procs(struct folio *folio, struct page *page,
 	if (!folio->mapping)
 		return;
 	if (unlikely(folio_test_ksm(folio)))
-		collect_procs_ksm(page, tokill, force_early);
+		collect_procs_ksm(folio, page, tokill, force_early);
 	else if (folio_test_anon(folio))
 		collect_procs_anon(folio, page, tokill, force_early);
 	else
