@@ -42,6 +42,7 @@
   create_empty_buffers
   current_time
   current_umask
+  dentry_path_raw
   d_find_alias
   d_instantiate
   discard_new_inode
@@ -69,6 +70,7 @@
   __folio_lock
   __folio_put
   fs_bio_set
+  fscrypt_file_open
   fs_param_is_string
   fs_param_is_u32
   __fs_parse
