@@ -21,8 +21,7 @@ static inline bool bch2_dev_bucket_exists(struct bch_fs *c, struct bpos pos)
 		return false;
 
 	ca = bch_dev_bkey_exists(c, pos.inode);
-	return pos.offset >= ca->mi.first_bucket &&
-		pos.offset < ca->mi.nbuckets;
+	return bucket_valid(ca, pos.offset);
 }
 
 static inline u64 bucket_to_u64(struct bpos bucket)

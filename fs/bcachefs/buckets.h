@@ -12,7 +12,7 @@
 #include "extents.h"
 #include "sb-members.h"
 
-static inline size_t sector_to_bucket(const struct bch_dev *ca, sector_t s)
+static inline u64 sector_to_bucket(const struct bch_dev *ca, sector_t s)
 {
 	return div_u64(s, ca->mi.bucket_size);
 }
@@ -30,10 +30,14 @@ static inline sector_t bucket_remainder(const struct bch_dev *ca, sector_t s)
 	return remainder;
 }
 
-static inline size_t sector_to_bucket_and_offset(const struct bch_dev *ca, sector_t s,
-						 u32 *offset)
+static inline u64 sector_to_bucket_and_offset(const struct bch_dev *ca, sector_t s, u32 *offset)
 {
 	return div_u64_rem(s, ca->mi.bucket_size, offset);
+}
+
+static inline bool bucket_valid(const struct bch_dev *ca, u64 b)
+{
+	return b - ca->mi.first_bucket < ca->mi.nbuckets_minus_first;
 }
 
 #define for_each_bucket(_b, _buckets)				\
@@ -94,7 +98,7 @@ static inline struct bucket *gc_bucket(struct bch_dev *ca, size_t b)
 {
 	struct bucket_array *buckets = gc_bucket_array(ca);
 
-	BUG_ON(b < buckets->first_bucket || b >= buckets->nbuckets);
+	BUG_ON(!bucket_valid(ca, b));
 	return buckets->b + b;
 }
 
@@ -111,7 +115,7 @@ static inline u8 *bucket_gen(struct bch_dev *ca, size_t b)
 {
 	struct bucket_gens *gens = bucket_gens(ca);
 
-	BUG_ON(b < gens->first_bucket || b >= gens->nbuckets);
+	BUG_ON(!bucket_valid(ca, b));
 	return gens->b + b;
 }
 

@@ -470,6 +470,7 @@ enum bch_time_stats {
 #include "quota_types.h"
 #include "rebalance_types.h"
 #include "replicas_types.h"
+#include "sb-members_types.h"
 #include "subvolume_types.h"
 #include "super_types.h"
 #include "thread_with_file_types.h"
