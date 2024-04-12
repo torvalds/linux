@@ -170,7 +170,7 @@ int xe_tile_init_noalloc(struct xe_tile *tile)
 
 	xe_wa_apply_tile_workarounds(tile);
 
-	xe_tile_sysfs_init(tile);
+	err = xe_tile_sysfs_init(tile);
 
 	return 0;
 }
