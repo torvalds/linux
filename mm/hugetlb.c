@@ -2472,7 +2472,7 @@ out:
  * Also note that if dissolve_free_hugetlb_folio() returns with an error, all
  * free hugetlb folios that were dissolved before that error are lost.
  */
-int dissolve_free_huge_pages(unsigned long start_pfn, unsigned long end_pfn)
+int dissolve_free_hugetlb_folios(unsigned long start_pfn, unsigned long end_pfn)
 {
 	unsigned long pfn;
 	struct folio *folio;
