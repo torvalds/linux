@@ -25,6 +25,9 @@
 #include "symbol_conf.h"
 #include "thread.h"
 
+/* register number of the stack pointer */
+#define X86_REG_SP 7
+
 enum type_state_kind {
 	TSR_KIND_INVALID = 0,
 	TSR_KIND_TYPE,
@@ -197,7 +200,7 @@ static void init_type_state(struct type_state *state, struct arch *arch)
 		state->regs[10].caller_saved = true;
 		state->regs[11].caller_saved = true;
 		state->ret_reg = 0;
-		state->stack_reg = 7;
+		state->stack_reg = X86_REG_SP;
 	}
 }
 
@@ -382,10 +385,18 @@ static bool find_cu_die(struct debuginfo *di, u64 pc, Dwarf_Die *cu_die)
 }
 
 /* The type info will be saved in @type_die */
-static int check_variable(Dwarf_Die *var_die, Dwarf_Die *type_die, int offset,
-			  bool is_pointer)
+static int check_variable(struct data_loc_info *dloc, Dwarf_Die *var_die,
+			  Dwarf_Die *type_die, int reg, int offset, bool is_fbreg)
 {
 	Dwarf_Word size;
+	bool is_pointer = true;
+
+	if (reg == DWARF_REG_PC)
+		is_pointer = false;
+	else if (reg == dloc->fbreg || is_fbreg)
+		is_pointer = false;
+	else if (arch__is(dloc->arch, "x86") && reg == X86_REG_SP)
+		is_pointer = false;
 
 	/* Get the type of the variable */
 	if (die_get_real_type(var_die, type_die) == NULL) {
@@ -607,7 +618,6 @@ static bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
 {
 	u64 pc;
 	int offset;
-	bool is_pointer = false;
 	const char *var_name = NULL;
 	struct global_var_entry *gvar;
 	Dwarf_Die var_die;
@@ -623,7 +633,8 @@ static bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
 
 	/* Try to get the variable by address first */
 	if (die_find_variable_by_addr(cu_die, var_addr, &var_die, &offset) &&
-	    check_variable(&var_die, type_die, offset, is_pointer) == 0) {
+	    check_variable(dloc, &var_die, type_die, DWARF_REG_PC, offset,
+			   /*is_fbreg=*/false) == 0) {
 		var_name = dwarf_diename(&var_die);
 		*var_offset = offset;
 		goto ok;
@@ -636,7 +647,8 @@ static bool get_global_var_type(Dwarf_Die *cu_die, struct data_loc_info *dloc,
 
 	/* Try to get the name of global variable */
 	if (die_find_variable_at(cu_die, var_name, pc, &var_die) &&
-	    check_variable(&var_die, type_die, *var_offset, is_pointer) == 0)
+	    check_variable(dloc, &var_die, type_die, DWARF_REG_PC, *var_offset,
+			   /*is_fbreg=*/false) == 0)
 		goto ok;
 
 	return false;
@@ -1587,8 +1599,7 @@ retry:
 		}
 
 		/* Found a variable, see if it's correct */
-		ret = check_variable(&var_die, type_die, offset,
-				     reg != DWARF_REG_PC && !is_fbreg);
+		ret = check_variable(dloc, &var_die, type_die, reg, offset, is_fbreg);
 		if (ret == 0) {
 			pr_debug_dtp("found \"%s\" in scope=%d/%d (die: %#lx) ",
 				     dwarf_diename(&var_die), i+1, nr_scopes,
