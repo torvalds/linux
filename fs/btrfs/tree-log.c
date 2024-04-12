@@ -766,10 +766,10 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 					.bytenr = ins.objectid,
 					.len = ins.offset,
 					.owning_root = root->root_key.objectid,
+					.ref_root = root->root_key.objectid,
 				};
-				btrfs_init_data_ref(&ref,
-						root->root_key.objectid,
-						key->objectid, offset, 0, false);
+				btrfs_init_data_ref(&ref, key->objectid, offset,
+						    0, false);
 				ret = btrfs_inc_extent_ref(trans, &ref);
 				if (ret)
 					goto out;

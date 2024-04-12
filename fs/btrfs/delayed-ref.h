@@ -220,9 +220,6 @@ enum btrfs_ref_type {
 struct btrfs_data_ref {
 	/* For EXTENT_DATA_REF */
 
-	/* Root which owns this data reference. */
-	u64 ref_root;
-
 	/* Inode which refers to this data extent */
 	u64 ino;
 
@@ -242,13 +239,6 @@ struct btrfs_tree_ref {
 	 * Shared for skinny (TREE_BLOCK_REF) and normal tree ref.
 	 */
 	int level;
-
-	/*
-	 * Root which owns this tree block reference.
-	 *
-	 * For TREE_BLOCK_REF (skinny metadata, either inline or keyed)
-	 */
-	u64 ref_root;
 
 	/* For non-skinny metadata, no special member needed */
 };
@@ -272,6 +262,12 @@ struct btrfs_ref {
 	u64 bytenr;
 	u64 len;
 	u64 owning_root;
+
+	/*
+	 * The root that owns the reference for this reference, this will be set
+	 * or ->parent will be set, depending on what type of reference this is.
+	 */
+	u64 ref_root;
 
 	/* Bytenr of the parent tree block */
 	u64 parent;
@@ -320,10 +316,10 @@ static inline u64 btrfs_calc_delayed_ref_csum_bytes(const struct btrfs_fs_info *
 	return btrfs_calc_metadata_size(fs_info, num_csum_items);
 }
 
-void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level, u64 root,
+void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level, u64 mod_root,
+			 bool skip_qgroup);
+void btrfs_init_data_ref(struct btrfs_ref *generic_ref, u64 ino, u64 offset,
 			 u64 mod_root, bool skip_qgroup);
-void btrfs_init_data_ref(struct btrfs_ref *generic_ref, u64 ref_root, u64 ino,
-			 u64 offset, u64 mod_root, bool skip_qgroup);
 
 static inline struct btrfs_delayed_extent_op *
 btrfs_alloc_delayed_extent_op(void)

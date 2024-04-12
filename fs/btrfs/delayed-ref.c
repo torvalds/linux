@@ -1007,17 +1007,16 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
 	INIT_LIST_HEAD(&ref->add_list);
 }
 
-void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level, u64 root,
-			 u64 mod_root, bool skip_qgroup)
+void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level, u64 mod_root,
+			 bool skip_qgroup)
 {
 #ifdef CONFIG_BTRFS_FS_REF_VERIFY
 	/* If @real_root not set, use @root as fallback */
-	generic_ref->real_root = mod_root ?: root;
+	generic_ref->real_root = mod_root ?: generic_ref->ref_root;
 #endif
 	generic_ref->tree_ref.level = level;
-	generic_ref->tree_ref.ref_root = root;
 	generic_ref->type = BTRFS_REF_METADATA;
-	if (skip_qgroup || !(is_fstree(root) &&
+	if (skip_qgroup || !(is_fstree(generic_ref->ref_root) &&
 			     (!mod_root || is_fstree(mod_root))))
 		generic_ref->skip_qgroup = true;
 	else
@@ -1025,18 +1024,17 @@ void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level, u64 root,
 
 }
 
-void btrfs_init_data_ref(struct btrfs_ref *generic_ref, u64 ref_root, u64 ino,
-			 u64 offset, u64 mod_root, bool skip_qgroup)
+void btrfs_init_data_ref(struct btrfs_ref *generic_ref, u64 ino, u64 offset,
+			 u64 mod_root, bool skip_qgroup)
 {
 #ifdef CONFIG_BTRFS_FS_REF_VERIFY
 	/* If @real_root not set, use @root as fallback */
-	generic_ref->real_root = mod_root ?: ref_root;
+	generic_ref->real_root = mod_root ?: generic_ref->ref_root;
 #endif
-	generic_ref->data_ref.ref_root = ref_root;
 	generic_ref->data_ref.ino = ino;
 	generic_ref->data_ref.offset = offset;
 	generic_ref->type = BTRFS_REF_DATA;
-	if (skip_qgroup || !(is_fstree(ref_root) &&
+	if (skip_qgroup || !(is_fstree(generic_ref->ref_root) &&
 			     (!mod_root || is_fstree(mod_root))))
 		generic_ref->skip_qgroup = true;
 	else
@@ -1068,7 +1066,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	u64 parent = generic_ref->parent;
 	u8 ref_type;
 
-	is_system = (generic_ref->tree_ref.ref_root == BTRFS_CHUNK_TREE_OBJECTID);
+	is_system = (generic_ref->ref_root == BTRFS_CHUNK_TREE_OBJECTID);
 
 	ASSERT(generic_ref->type == BTRFS_REF_METADATA && generic_ref->action);
 	node = kmem_cache_alloc(btrfs_delayed_ref_node_cachep, GFP_NOFS);
@@ -1098,14 +1096,13 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 		ref_type = BTRFS_TREE_BLOCK_REF_KEY;
 
 	init_delayed_ref_common(fs_info, node, bytenr, num_bytes,
-				generic_ref->tree_ref.ref_root, action,
-				ref_type);
-	ref->root = generic_ref->tree_ref.ref_root;
+				generic_ref->ref_root, action, ref_type);
+	ref->root = generic_ref->ref_root;
 	ref->parent = parent;
 	ref->level = level;
 
 	init_delayed_ref_head(head_ref, record, bytenr, num_bytes,
-			      generic_ref->tree_ref.ref_root, 0, action,
+			      generic_ref->ref_root, 0, action,
 			      false, is_system, generic_ref->owning_root);
 	head_ref->extent_op = extent_op;
 
@@ -1159,7 +1156,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	u64 bytenr = generic_ref->bytenr;
 	u64 num_bytes = generic_ref->len;
 	u64 parent = generic_ref->parent;
-	u64 ref_root = generic_ref->data_ref.ref_root;
+	u64 ref_root = generic_ref->ref_root;
 	u64 owner = generic_ref->data_ref.ino;
 	u64 offset = generic_ref->data_ref.offset;
 	u8 ref_type;

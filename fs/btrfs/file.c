@@ -378,12 +378,11 @@ next_slot:
 					.len = num_bytes,
 					.parent = 0,
 					.owning_root = root->root_key.objectid,
+					.ref_root = root->root_key.objectid,
 				};
-				btrfs_init_data_ref(&ref,
-						root->root_key.objectid,
-						new_key.objectid,
-						args->start - extent_offset,
-						0, false);
+				btrfs_init_data_ref(&ref, new_key.objectid,
+						    args->start - extent_offset,
+						    0, false);
 				ret = btrfs_inc_extent_ref(trans, &ref);
 				if (ret) {
 					btrfs_abort_transaction(trans, ret);
@@ -472,12 +471,11 @@ delete_extent_item:
 					.len = num_bytes,
 					.parent = 0,
 					.owning_root = root->root_key.objectid,
+					.ref_root = root->root_key.objectid,
 				};
-				btrfs_init_data_ref(&ref,
-						root->root_key.objectid,
-						key.objectid,
-						key.offset - extent_offset, 0,
-						false);
+				btrfs_init_data_ref(&ref, key.objectid,
+						    key.offset - extent_offset,
+						    0, false);
 				ret = btrfs_free_extent(trans, &ref);
 				if (ret) {
 					btrfs_abort_transaction(trans, ret);
@@ -758,8 +756,8 @@ again:
 		ref.len = num_bytes;
 		ref.parent = 0;
 		ref.owning_root = root->root_key.objectid;
-		btrfs_init_data_ref(&ref, root->root_key.objectid, ino,
-				    orig_offset, 0, false);
+		ref.ref_root = root->root_key.objectid;
+		btrfs_init_data_ref(&ref, ino, orig_offset, 0, false);
 		ret = btrfs_inc_extent_ref(trans, &ref);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
@@ -788,8 +786,8 @@ again:
 	ref.len = num_bytes;
 	ref.parent = 0;
 	ref.owning_root = root->root_key.objectid;
-	btrfs_init_data_ref(&ref, root->root_key.objectid, ino, orig_offset,
-			    0, false);
+	ref.ref_root = root->root_key.objectid;
+	btrfs_init_data_ref(&ref, ino, orig_offset, 0, false);
 	if (extent_mergeable(leaf, path->slots[0] + 1,
 			     ino, bytenr, orig_offset,
 			     &other_start, &other_end)) {
@@ -2496,12 +2494,12 @@ static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
 			.bytenr = extent_info->disk_offset,
 			.len = extent_info->disk_len,
 			.owning_root = root->root_key.objectid,
+			.ref_root = root->root_key.objectid,
 		};
 		u64 ref_offset;
 
 		ref_offset = extent_info->file_offset - extent_info->data_offset;
-		btrfs_init_data_ref(&ref, root->root_key.objectid,
-				    btrfs_ino(inode), ref_offset, 0, false);
+		btrfs_init_data_ref(&ref, btrfs_ino(inode), ref_offset, 0, false);
 		ret = btrfs_inc_extent_ref(trans, &ref);
 	}
 

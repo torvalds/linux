@@ -675,13 +675,13 @@ delete:
 				.bytenr = extent_start,
 				.len = extent_num_bytes,
 				.owning_root = root->root_key.objectid,
+				.ref_root = btrfs_header_owner(leaf),
 			};
 
 			bytes_deleted += extent_num_bytes;
 
-			btrfs_init_data_ref(&ref, btrfs_header_owner(leaf),
-					control->ino, extent_offset,
-					root->root_key.objectid, false);
+			btrfs_init_data_ref(&ref, control->ino, extent_offset,
+					    root->root_key.objectid, false);
 			ret = btrfs_free_extent(trans, &ref);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);
