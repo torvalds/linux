@@ -155,7 +155,7 @@ void dcn20_log_color_state(struct dc *dc,
 	DTN_INFO("MPCC:  OPP  DPP  MPCCBOT  MODE  ALPHA_MODE  PREMULT  OVERLAP_ONLY  IDLE"
 		 "  OGAM mode\n");
 
-	for (i = 0; i < pool->pipe_count; i++) {
+	for (i = 0; i < pool->mpcc_count; i++) {
 		struct mpcc_state s = {0};
 
 		pool->mpc->funcs->read_mpcc_state(pool->mpc, i, &s);
