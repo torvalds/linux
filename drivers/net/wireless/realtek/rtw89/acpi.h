@@ -13,6 +13,7 @@ enum rtw89_acpi_dsm_func {
 	RTW89_ACPI_DSM_FUNC_6G_BP = 4,
 	RTW89_ACPI_DSM_FUNC_TAS_EN = 5,
 	RTW89_ACPI_DSM_FUNC_UNII4_SUP = 6,
+	RTW89_ACPI_DSM_FUNC_6GHZ_SP_SUP = 7,
 };
 
 enum rtw89_acpi_conf_unii4 {
@@ -41,11 +42,24 @@ struct rtw89_acpi_policy_6ghz {
 	struct rtw89_acpi_country_code country_list[] __counted_by(country_count);
 } __packed;
 
+enum rtw89_acpi_conf_6ghz_sp {
+	RTW89_ACPI_CONF_6GHZ_SP_US = BIT(0),
+};
+
+struct rtw89_acpi_policy_6ghz_sp {
+	u8 signature[4];
+	u8 revision;
+	u8 override;
+	u8 conf;
+	u8 rsvd;
+} __packed;
+
 struct rtw89_acpi_dsm_result {
 	union {
 		u8 value;
 		/* caller needs to free it after using */
 		struct rtw89_acpi_policy_6ghz *policy_6ghz;
+		struct rtw89_acpi_policy_6ghz_sp *policy_6ghz_sp;
 	} u;
 };
 
