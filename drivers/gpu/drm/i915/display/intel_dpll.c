@@ -369,17 +369,16 @@ int chv_calc_dpll_params(int refclk, struct dpll *clock)
 	return clock->dot;
 }
 
-static int i9xx_pll_refclk(struct drm_device *dev,
-			   const struct intel_crtc_state *pipe_config)
+static int i9xx_pll_refclk(const struct intel_crtc_state *crtc_state)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	u32 dpll = pipe_config->dpll_hw_state.dpll;
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	u32 dpll = crtc_state->dpll_hw_state.dpll;
 
 	if ((dpll & PLL_REF_INPUT_MASK) == PLLB_REF_INPUT_SPREADSPECTRUMIN)
-		return dev_priv->display.vbt.lvds_ssc_freq;
-	else if (HAS_PCH_SPLIT(dev_priv))
+		return i915->display.vbt.lvds_ssc_freq;
+	else if (HAS_PCH_SPLIT(i915))
 		return 120000;
-	else if (DISPLAY_VER(dev_priv) != 2)
+	else if (DISPLAY_VER(i915) != 2)
 		return 96000;
 	else
 		return 48000;
@@ -425,7 +424,7 @@ void i9xx_crtc_clock_get(struct intel_crtc *crtc,
 	u32 fp;
 	struct dpll clock;
 	int port_clock;
-	int refclk = i9xx_pll_refclk(dev, pipe_config);
+	int refclk = i9xx_pll_refclk(pipe_config);
 
 	if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
 		fp = pipe_config->dpll_hw_state.fp0;
