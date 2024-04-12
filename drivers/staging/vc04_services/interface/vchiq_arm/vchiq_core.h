@@ -516,7 +516,7 @@ int vchiq_prepare_bulk_data(struct vchiq_instance *instance, struct vchiq_bulk *
 
 void vchiq_complete_bulk(struct vchiq_instance *instance, struct vchiq_bulk *bulk);
 
-void remote_event_signal(struct remote_event *event);
+void remote_event_signal(struct vchiq_state *state, struct remote_event *event);
 
 void vchiq_dump_platform_state(struct seq_file *f);
 

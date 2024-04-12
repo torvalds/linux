@@ -50,6 +50,8 @@ struct vchiq_drv_mgmt {
 	char *fragments_base;
 	char *free_fragments;
 	unsigned int fragments_size;
+
+	void __iomem *regs;
 };
 
 struct user_service {

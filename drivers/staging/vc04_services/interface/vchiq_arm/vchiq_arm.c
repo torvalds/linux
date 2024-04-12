@@ -129,8 +129,6 @@ struct vchiq_pagelist_info {
 	unsigned int scatterlist_mapped;
 };
 
-static void __iomem *g_regs;
-
 static int
 vchiq_blocking_bulk_transfer(struct vchiq_instance *instance, unsigned int handle, void *data,
 			     unsigned int size, enum vchiq_bulk_dir dir);
@@ -139,11 +137,14 @@ static irqreturn_t
 vchiq_doorbell_irq(int irq, void *dev_id)
 {
 	struct vchiq_state *state = dev_id;
+	struct vchiq_drv_mgmt *mgmt;
 	irqreturn_t ret = IRQ_NONE;
 	unsigned int status;
 
+	mgmt = dev_get_drvdata(state->dev);
+
 	/* Read (and clear) the doorbell */
-	status = readl(g_regs + BELL0);
+	status = readl(mgmt->regs + BELL0);
 
 	if (status & ARM_DS_ACTIVE) {  /* Was the doorbell rung? */
 		remote_event_pollall(state);
@@ -556,9 +557,9 @@ static int vchiq_platform_init(struct platform_device *pdev, struct vchiq_state 
 	if (err)
 		return err;
 
-	g_regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(g_regs))
-		return PTR_ERR(g_regs);
+	drv_mgmt->regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(drv_mgmt->regs))
+		return PTR_ERR(drv_mgmt->regs);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq <= 0)
@@ -641,8 +642,10 @@ static struct vchiq_arm_state *vchiq_platform_get_arm_state(struct vchiq_state *
 }
 
 void
-remote_event_signal(struct remote_event *event)
+remote_event_signal(struct vchiq_state *state, struct remote_event *event)
 {
+	struct vchiq_drv_mgmt *mgmt = dev_get_drvdata(state->dev);
+
 	/*
 	 * Ensure that all writes to shared data structures have completed
 	 * before signalling the peer.
@@ -654,7 +657,7 @@ remote_event_signal(struct remote_event *event)
 	dsb(sy);         /* data barrier operation */
 
 	if (event->armed)
-		writel(0, g_regs + BELL2); /* trigger vc interrupt */
+		writel(0, mgmt->regs + BELL2); /* trigger vc interrupt */
 }
 
 int

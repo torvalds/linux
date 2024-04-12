@@ -691,7 +691,7 @@ reserve_space(struct vchiq_state *state, size_t space, int is_blocking)
 			/* But first, flush through the last slot. */
 			state->local_tx_pos = tx_pos;
 			local->tx_pos = tx_pos;
-			remote_event_signal(&state->remote->trigger);
+			remote_event_signal(state, &state->remote->trigger);
 
 			if (!is_blocking ||
 			    (wait_for_completion_interruptible(&state->slot_available_event)))
@@ -1124,7 +1124,7 @@ queue_message(struct vchiq_state *state, struct vchiq_service *service,
 	if (!(flags & QMFLAGS_NO_MUTEX_UNLOCK))
 		mutex_unlock(&state->slot_mutex);
 
-	remote_event_signal(&state->remote->trigger);
+	remote_event_signal(state, &state->remote->trigger);
 
 	return 0;
 }
@@ -1202,7 +1202,7 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 		&svc_fourcc, VCHIQ_MSG_SRCPORT(msgid),
 		VCHIQ_MSG_DSTPORT(msgid), size);
 
-	remote_event_signal(&state->remote->sync_trigger);
+	remote_event_signal(state, &state->remote->sync_trigger);
 
 	if (VCHIQ_MSG_TYPE(msgid) != VCHIQ_MSG_PAUSE)
 		mutex_unlock(&state->sync_mutex);
@@ -1260,7 +1260,7 @@ release_slot(struct vchiq_state *state, struct vchiq_slot_info *slot_info,
 		 * A write barrier is necessary, but remote_event_signal
 		 * contains one.
 		 */
-		remote_event_signal(&state->remote->recycle);
+		remote_event_signal(state, &state->remote->recycle);
 	}
 
 	mutex_unlock(&state->recycle_mutex);
@@ -3240,7 +3240,7 @@ static void
 release_message_sync(struct vchiq_state *state, struct vchiq_header *header)
 {
 	header->msgid = VCHIQ_MSGID_PADDING;
-	remote_event_signal(&state->remote->sync_release);
+	remote_event_signal(state, &state->remote->sync_release);
 }
 
 int
