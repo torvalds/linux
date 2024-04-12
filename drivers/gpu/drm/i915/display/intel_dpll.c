@@ -988,26 +988,6 @@ static u32 pnv_dpll_compute_fp(const struct dpll *dpll)
 	return (1 << dpll->n) << 16 | dpll->m2;
 }
 
-static void i9xx_update_pll_dividers(struct intel_crtc_state *crtc_state,
-				     const struct dpll *clock,
-				     const struct dpll *reduced_clock)
-{
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 fp, fp2;
-
-	if (IS_PINEVIEW(dev_priv)) {
-		fp = pnv_dpll_compute_fp(clock);
-		fp2 = pnv_dpll_compute_fp(reduced_clock);
-	} else {
-		fp = i9xx_dpll_compute_fp(clock);
-		fp2 = i9xx_dpll_compute_fp(reduced_clock);
-	}
-
-	crtc_state->dpll_hw_state.fp0 = fp;
-	crtc_state->dpll_hw_state.fp1 = fp2;
-}
-
 static u32 i965_dpll_md(const struct intel_crtc_state *crtc_state)
 {
 	return (crtc_state->pixel_multiplier - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
@@ -1090,7 +1070,13 @@ static void i9xx_compute_dpll(struct intel_crtc_state *crtc_state,
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 
-	i9xx_update_pll_dividers(crtc_state, clock, reduced_clock);
+	if (IS_PINEVIEW(dev_priv)) {
+		crtc_state->dpll_hw_state.fp0 = pnv_dpll_compute_fp(clock);
+		crtc_state->dpll_hw_state.fp1 = pnv_dpll_compute_fp(reduced_clock);
+	} else {
+		crtc_state->dpll_hw_state.fp0 = i9xx_dpll_compute_fp(clock);
+		crtc_state->dpll_hw_state.fp1 = i9xx_dpll_compute_fp(reduced_clock);
+	}
 
 	crtc_state->dpll_hw_state.dpll = i9xx_dpll(crtc_state, clock, reduced_clock);
 
@@ -1150,7 +1136,8 @@ static void i8xx_compute_dpll(struct intel_crtc_state *crtc_state,
 			      const struct dpll *clock,
 			      const struct dpll *reduced_clock)
 {
-	i9xx_update_pll_dividers(crtc_state, clock, reduced_clock);
+	crtc_state->dpll_hw_state.fp0 = i9xx_dpll_compute_fp(clock);
+	crtc_state->dpll_hw_state.fp1 = i9xx_dpll_compute_fp(reduced_clock);
 
 	crtc_state->dpll_hw_state.dpll = i8xx_dpll(crtc_state, clock, reduced_clock);
 }
@@ -1271,16 +1258,6 @@ static u32 ilk_dpll_compute_fp(const struct dpll *clock, int factor)
 	return fp;
 }
 
-static void ilk_update_pll_dividers(struct intel_crtc_state *crtc_state,
-				    const struct dpll *clock,
-				    const struct dpll *reduced_clock)
-{
-	int factor = ilk_fb_cb_factor(crtc_state);
-
-	crtc_state->dpll_hw_state.fp0 = ilk_dpll_compute_fp(clock, factor);
-	crtc_state->dpll_hw_state.fp1 = ilk_dpll_compute_fp(reduced_clock, factor);
-}
-
 static u32 ilk_dpll(const struct intel_crtc_state *crtc_state,
 		    const struct dpll *clock,
 		    const struct dpll *reduced_clock)
@@ -1358,7 +1335,10 @@ static void ilk_compute_dpll(struct intel_crtc_state *crtc_state,
 			     const struct dpll *clock,
 			     const struct dpll *reduced_clock)
 {
-	ilk_update_pll_dividers(crtc_state, clock, reduced_clock);
+	int factor = ilk_fb_cb_factor(crtc_state);
+
+	crtc_state->dpll_hw_state.fp0 = ilk_dpll_compute_fp(clock, factor);
+	crtc_state->dpll_hw_state.fp1 = ilk_dpll_compute_fp(reduced_clock, factor);
 
 	crtc_state->dpll_hw_state.dpll = ilk_dpll(crtc_state, clock, reduced_clock);
 }
