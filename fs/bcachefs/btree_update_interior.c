@@ -21,6 +21,7 @@
 #include "keylist.h"
 #include "recovery_passes.h"
 #include "replicas.h"
+#include "sb-members.h"
 #include "super-io.h"
 #include "trace.h"
 
@@ -605,6 +606,26 @@ static void btree_update_add_key(struct btree_update *as,
 	bch2_keylist_push(keys);
 }
 
+static bool btree_update_new_nodes_marked_sb(struct btree_update *as)
+{
+	for_each_keylist_key(&as->new_keys, k)
+		if (!bch2_dev_btree_bitmap_marked(as->c, bkey_i_to_s_c(k)))
+			return false;
+	return true;
+}
+
+static void btree_update_new_nodes_mark_sb(struct btree_update *as)
+{
+	struct bch_fs *c = as->c;
+
+	mutex_lock(&c->sb_lock);
+	for_each_keylist_key(&as->new_keys, k)
+		bch2_dev_btree_bitmap_mark(c, bkey_i_to_s_c(k));
+
+	bch2_write_super(c);
+	mutex_unlock(&c->sb_lock);
+}
+
 /*
  * The transactional part of an interior btree node update, where we journal the
  * update we did to the interior node and update alloc info:
@@ -661,6 +682,9 @@ static void btree_update_nodes_written(struct btree_update *as)
 	ret = bch2_journal_error(&c->journal);
 	if (ret)
 		goto err;
+
+	if (!btree_update_new_nodes_marked_sb(as))
+		btree_update_new_nodes_mark_sb(as);
 
 	/*
 	 * Wait for any in flight writes to finish before we free the old nodes

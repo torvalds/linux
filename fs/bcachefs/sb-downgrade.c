@@ -51,7 +51,10 @@
 	  BCH_FSCK_ERR_subvol_fs_path_parent_wrong)		\
 	x(btree_subvolume_children,				\
 	  BIT_ULL(BCH_RECOVERY_PASS_check_subvols),		\
-	  BCH_FSCK_ERR_subvol_children_not_set)
+	  BCH_FSCK_ERR_subvol_children_not_set)			\
+	x(mi_btree_bitmap,					\
+	  BIT_ULL(BCH_RECOVERY_PASS_check_allocations),		\
+	  BCH_FSCK_ERR_btree_bitmap_not_marked)
 
 #define DOWNGRADE_TABLE()
 

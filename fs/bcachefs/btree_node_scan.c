@@ -205,8 +205,13 @@ static int read_btree_nodes_worker(void *p)
 				last_print = jiffies;
 			}
 
-			try_read_btree_node(w->f, ca, bio, buf,
-					    bucket * ca->mi.bucket_size + bucket_offset);
+			u64 sector = bucket * ca->mi.bucket_size + bucket_offset;
+
+			if (c->sb.version_upgrade_complete >= bcachefs_metadata_version_mi_btree_bitmap &&
+			    !bch2_dev_btree_bitmap_marked_sectors(ca, sector, btree_sectors(c)))
+				continue;
+
+			try_read_btree_node(w->f, ca, bio, buf, sector);
 		}
 err:
 	bio_put(bio);
