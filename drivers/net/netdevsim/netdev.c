@@ -20,6 +20,7 @@
 #include <linux/netdevice.h>
 #include <linux/slab.h>
 #include <net/netdev_queues.h>
+#include <net/page_pool/helpers.h>
 #include <net/netlink.h>
 #include <net/pkt_cls.h>
 #include <net/rtnetlink.h>
@@ -299,6 +300,29 @@ static int nsim_get_iflink(const struct net_device *dev)
 	return iflink;
 }
 
+static int nsim_open(struct net_device *dev)
+{
+	struct netdevsim *ns = netdev_priv(dev);
+	struct page_pool_params pp = { 0 };
+
+	pp.pool_size = 128;
+	pp.dev = &dev->dev;
+	pp.dma_dir = DMA_BIDIRECTIONAL;
+	pp.netdev = dev;
+
+	ns->pp = page_pool_create(&pp);
+	return PTR_ERR_OR_ZERO(ns->pp);
+}
+
+static int nsim_stop(struct net_device *dev)
+{
+	struct netdevsim *ns = netdev_priv(dev);
+
+	page_pool_destroy(ns->pp);
+
+	return 0;
+}
+
 static const struct net_device_ops nsim_netdev_ops = {
 	.ndo_start_xmit		= nsim_start_xmit,
 	.ndo_set_rx_mode	= nsim_set_rx_mode,
@@ -318,6 +342,8 @@ static const struct net_device_ops nsim_netdev_ops = {
 	.ndo_set_features	= nsim_set_features,
 	.ndo_get_iflink		= nsim_get_iflink,
 	.ndo_bpf		= nsim_bpf,
+	.ndo_open		= nsim_open,
+	.ndo_stop		= nsim_stop,
 };
 
 static const struct net_device_ops nsim_vf_netdev_ops = {
@@ -376,6 +402,60 @@ static const struct netdev_stat_ops nsim_stat_ops = {
 	.get_queue_stats_tx	= nsim_get_queue_stats_tx,
 	.get_queue_stats_rx	= nsim_get_queue_stats_rx,
 	.get_base_stats		= nsim_get_base_stats,
+};
+
+static ssize_t
+nsim_pp_hold_read(struct file *file, char __user *data,
+		  size_t count, loff_t *ppos)
+{
+	struct netdevsim *ns = file->private_data;
+	char buf[3] = "n\n";
+
+	if (ns->page)
+		buf[0] = 'y';
+
+	return simple_read_from_buffer(data, count, ppos, buf, 2);
+}
+
+static ssize_t
+nsim_pp_hold_write(struct file *file, const char __user *data,
+		   size_t count, loff_t *ppos)
+{
+	struct netdevsim *ns = file->private_data;
+	ssize_t ret;
+	bool val;
+
+	ret = kstrtobool_from_user(data, count, &val);
+	if (ret)
+		return ret;
+
+	rtnl_lock();
+	ret = count;
+	if (val == !!ns->page)
+		goto exit;
+
+	if (!netif_running(ns->netdev) && val) {
+		ret = -ENETDOWN;
+	} else if (val) {
+		ns->page = page_pool_dev_alloc_pages(ns->pp);
+		if (!ns->page)
+			ret = -ENOMEM;
+	} else {
+		page_pool_put_full_page(ns->page->pp, ns->page, false);
+		ns->page = NULL;
+	}
+	rtnl_unlock();
+
+exit:
+	return count;
+}
+
+static const struct file_operations nsim_pp_hold_fops = {
+	.open = simple_open,
+	.read = nsim_pp_hold_read,
+	.write = nsim_pp_hold_write,
+	.llseek = generic_file_llseek,
+	.owner = THIS_MODULE,
 };
 
 static void nsim_setup(struct net_device *dev)
@@ -485,6 +565,10 @@ nsim_create(struct nsim_dev *nsim_dev, struct nsim_dev_port *nsim_dev_port)
 		err = nsim_init_netdevsim_vf(ns);
 	if (err)
 		goto err_free_netdev;
+
+	ns->pp_dfs = debugfs_create_file("pp_hold", 0600, nsim_dev_port->ddir,
+					 ns, &nsim_pp_hold_fops);
+
 	return ns;
 
 err_free_netdev:
@@ -496,6 +580,8 @@ void nsim_destroy(struct netdevsim *ns)
 {
 	struct net_device *dev = ns->netdev;
 	struct netdevsim *peer;
+
+	debugfs_remove(ns->pp_dfs);
 
 	rtnl_lock();
 	peer = rtnl_dereference(ns->peer);
@@ -511,6 +597,13 @@ void nsim_destroy(struct netdevsim *ns)
 	rtnl_unlock();
 	if (nsim_dev_port_is_pf(ns->nsim_dev_port))
 		nsim_exit_netdevsim(ns);
+
+	/* Put this intentionally late to exercise the orphaning path */
+	if (ns->page) {
+		page_pool_put_full_page(ns->page->pp, ns->page, false);
+		ns->page = NULL;
+	}
+
 	free_netdev(dev);
 }
 
