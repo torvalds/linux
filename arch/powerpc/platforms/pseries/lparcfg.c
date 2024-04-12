@@ -170,19 +170,23 @@ out:
 	kfree(buf);
 }
 
-static unsigned h_pic(unsigned long *pool_idle_time,
-		      unsigned long *num_procs)
+static long h_pic(unsigned long *pool_idle_time,
+		  unsigned long *num_procs)
 {
-	unsigned long rc;
-	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+	long rc;
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE] = {0};
 
 	rc = plpar_hcall(H_PIC, retbuf);
 
-	*pool_idle_time = retbuf[0];
-	*num_procs = retbuf[1];
+	if (pool_idle_time)
+		*pool_idle_time = retbuf[0];
+	if (num_procs)
+		*num_procs = retbuf[1];
 
 	return rc;
 }
+
+unsigned long boot_pool_idle_time;
 
 /*
  * parse_ppp_data
@@ -215,9 +219,15 @@ static void parse_ppp_data(struct seq_file *m)
 		seq_printf(m, "pool_capacity=%d\n",
 			   ppp_data.active_procs_in_pool * 100);
 
-		h_pic(&pool_idle_time, &pool_procs);
-		seq_printf(m, "pool_idle_time=%ld\n", pool_idle_time);
-		seq_printf(m, "pool_num_procs=%ld\n", pool_procs);
+		/* In case h_pic call is not successful, this would result in
+		 * APP values being wrong in tools like lparstat.
+		 */
+
+		if (h_pic(&pool_idle_time, &pool_procs) == H_SUCCESS) {
+			seq_printf(m, "pool_idle_time=%ld\n", pool_idle_time);
+			seq_printf(m, "pool_num_procs=%ld\n", pool_procs);
+			seq_printf(m, "boot_pool_idle_time=%ld\n", boot_pool_idle_time);
+		}
 	}
 
 	seq_printf(m, "unallocated_capacity_weight=%d\n",
@@ -792,6 +802,7 @@ static const struct proc_ops lparcfg_proc_ops = {
 static int __init lparcfg_init(void)
 {
 	umode_t mode = 0444;
+	long retval;
 
 	/* Allow writing if we have FW_FEATURE_SPLPAR */
 	if (firmware_has_feature(FW_FEATURE_SPLPAR))
@@ -801,6 +812,16 @@ static int __init lparcfg_init(void)
 		printk(KERN_ERR "Failed to create powerpc/lparcfg\n");
 		return -EIO;
 	}
+
+	/* If this call fails, it would result in APP values
+	 * being wrong for since boot reports of lparstat
+	 */
+	retval = h_pic(&boot_pool_idle_time, NULL);
+
+	if (retval != H_SUCCESS)
+		pr_debug("H_PIC failed during lparcfg init retval: %ld\n",
+			 retval);
+
 	return 0;
 }
 machine_device_initcall(pseries, lparcfg_init);
