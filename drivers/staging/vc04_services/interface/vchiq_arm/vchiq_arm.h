@@ -20,9 +20,20 @@
 #define MAX_ELEMENTS 8
 #define MSG_QUEUE_SIZE 128
 
+struct rpi_firmware;
+
 enum USE_TYPE_E {
 	USE_TYPE_SERVICE,
 	USE_TYPE_VCHIQ
+};
+
+struct vchiq_platform_info {
+	unsigned int cache_line_size;
+};
+
+struct vchiq_drv_mgmt {
+	struct rpi_firmware *fw;
+	const struct vchiq_platform_info *info;
 };
 
 struct user_service {
