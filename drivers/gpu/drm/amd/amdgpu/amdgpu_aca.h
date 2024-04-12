@@ -173,6 +173,7 @@ struct aca_smu_funcs {
 	int (*set_debug_mode)(struct amdgpu_device *adev, bool enable);
 	int (*get_valid_aca_count)(struct amdgpu_device *adev, enum aca_smu_type type, u32 *count);
 	int (*get_valid_aca_bank)(struct amdgpu_device *adev, enum aca_smu_type type, int idx, struct aca_bank *bank);
+	int (*parse_error_code)(struct amdgpu_device *adev, struct aca_bank *bank);
 };
 
 struct amdgpu_aca {
