@@ -247,7 +247,7 @@ static void journal_entry_err_msg(struct printbuf *out,
 
 	if (entry) {
 		prt_str(out, " type=");
-		prt_str(out, bch2_jset_entry_types[entry->type]);
+		bch2_prt_jset_entry_type(out, entry->type);
 	}
 
 	if (!jset) {
@@ -403,7 +403,8 @@ static void journal_entry_btree_keys_to_text(struct printbuf *out, struct bch_fs
 	jset_entry_for_each_key(entry, k) {
 		if (!first) {
 			prt_newline(out);
-			prt_printf(out, "%s: ", bch2_jset_entry_types[entry->type]);
+			bch2_prt_jset_entry_type(out, entry->type);
+			prt_str(out, ": ");
 		}
 		prt_printf(out, "btree=%s l=%u ", bch2_btree_id_str(entry->btree_id), entry->level);
 		bch2_bkey_val_to_text(out, c, bkey_i_to_s_c(k));
@@ -563,9 +564,9 @@ static void journal_entry_usage_to_text(struct printbuf *out, struct bch_fs *c,
 	struct jset_entry_usage *u =
 		container_of(entry, struct jset_entry_usage, entry);
 
-	prt_printf(out, "type=%s v=%llu",
-	       bch2_fs_usage_types[u->entry.btree_id],
-	       le64_to_cpu(u->v));
+	prt_str(out, "type=");
+	bch2_prt_fs_usage_type(out, u->entry.btree_id);
+	prt_printf(out, " v=%llu", le64_to_cpu(u->v));
 }
 
 static int journal_entry_data_usage_validate(struct bch_fs *c,
@@ -827,11 +828,11 @@ int bch2_journal_entry_validate(struct bch_fs *c,
 void bch2_journal_entry_to_text(struct printbuf *out, struct bch_fs *c,
 				struct jset_entry *entry)
 {
+	bch2_prt_jset_entry_type(out, entry->type);
+
 	if (entry->type < BCH_JSET_ENTRY_NR) {
-		prt_printf(out, "%s: ", bch2_jset_entry_types[entry->type]);
+		prt_str(out, ": ");
 		bch2_jset_entry_ops[entry->type].to_text(out, c, entry);
-	} else {
-		prt_printf(out, "(unknown type %u)", entry->type);
 	}
 }
 

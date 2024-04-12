@@ -138,13 +138,13 @@ void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
 
 	unsigned nr_data = s.nr_blocks - s.nr_redundant;
 
-	prt_printf(out, "algo %u sectors %u blocks %u:%u csum %u gran %u",
+	prt_printf(out, "algo %u sectors %u blocks %u:%u csum ",
 		   s.algorithm,
 		   le16_to_cpu(s.sectors),
 		   nr_data,
-		   s.nr_redundant,
-		   s.csum_type,
-		   1U << s.csum_granularity_bits);
+		   s.nr_redundant);
+	bch2_prt_csum_type(out, s.csum_type);
+	prt_printf(out, " gran %u", 1U << s.csum_granularity_bits);
 
 	for (unsigned i = 0; i < s.nr_blocks; i++) {
 		const struct bch_extent_ptr *ptr = sp->ptrs + i;
@@ -611,10 +611,8 @@ static void ec_validate_checksums(struct bch_fs *c, struct ec_stripe_buf *buf)
 				struct printbuf err = PRINTBUF;
 				struct bch_dev *ca = bch_dev_bkey_exists(c, v->ptrs[i].dev);
 
-				prt_printf(&err, "stripe checksum error: expected %0llx:%0llx got %0llx:%0llx (type %s)\n",
-					   want.hi, want.lo,
-					   got.hi, got.lo,
-					   bch2_csum_types[v->csum_type]);
+				prt_str(&err, "stripe ");
+				bch2_csum_err_msg(&err, v->csum_type, want, got);
 				prt_printf(&err, "  for %ps at %u of\n  ", (void *) _RET_IP_, i);
 				bch2_bkey_val_to_text(&err, c, bkey_i_to_s_c(&buf->key));
 				bch_err_ratelimited(ca, "%s", err.buf);

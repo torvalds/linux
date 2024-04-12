@@ -429,15 +429,20 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 				extent_nonce(version, crc_old), bio);
 
 	if (bch2_crc_cmp(merged, crc_old.csum) && !c->opts.no_data_io) {
-		bch_err(c, "checksum error in %s() (memory corruption or bug?)\n"
-			"expected %0llx:%0llx got %0llx:%0llx (old type %s new type %s)",
-			__func__,
-			crc_old.csum.hi,
-			crc_old.csum.lo,
-			merged.hi,
-			merged.lo,
-			bch2_csum_types[crc_old.csum_type],
-			bch2_csum_types[new_csum_type]);
+		struct printbuf buf = PRINTBUF;
+		prt_printf(&buf, "checksum error in %s() (memory corruption or bug?)\n"
+			   "expected %0llx:%0llx got %0llx:%0llx (old type ",
+			   __func__,
+			   crc_old.csum.hi,
+			   crc_old.csum.lo,
+			   merged.hi,
+			   merged.lo);
+		bch2_prt_csum_type(&buf, crc_old.csum_type);
+		prt_str(&buf, " new type ");
+		bch2_prt_csum_type(&buf, new_csum_type);
+		prt_str(&buf, ")");
+		bch_err(c, "%s", buf.buf);
+		printbuf_exit(&buf);
 		return -EIO;
 	}
 

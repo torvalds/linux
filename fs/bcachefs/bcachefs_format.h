@@ -1314,7 +1314,7 @@ static inline __u64 __bset_magic(struct bch_sb *sb)
 	x(write_buffer_keys,	11)		\
 	x(datetime,		12)
 
-enum {
+enum bch_jset_entry_type {
 #define x(f, nr)	BCH_JSET_ENTRY_##f	= nr,
 	BCH_JSET_ENTRY_TYPES()
 #undef x
@@ -1360,7 +1360,7 @@ struct jset_entry_blacklist_v2 {
 	x(inodes,		1)		\
 	x(key_version,		2)
 
-enum {
+enum bch_fs_usage_type {
 #define x(f, nr)	BCH_FS_USAGE_##f	= nr,
 	BCH_FS_USAGE_TYPES()
 #undef x
