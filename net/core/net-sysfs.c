@@ -2046,7 +2046,7 @@ static void net_get_ownership(const struct device *d, kuid_t *uid, kgid_t *gid)
 	net_ns_get_ownership(net, uid, gid);
 }
 
-static struct class net_class __ro_after_init = {
+static const struct class net_class = {
 	.name = "net",
 	.dev_release = netdev_release,
 	.dev_groups = net_class_groups,
