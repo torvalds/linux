@@ -1513,7 +1513,7 @@ static void __init init_viking(void)
 
 		/*
 		 * We need this to make sure old viking takes no hits
-		 * on it's cache for dma snoops to workaround the
+		 * on its cache for dma snoops to workaround the
 		 * "load from non-cacheable memory" interrupt bug.
 		 * This is only necessary because of the new way in
 		 * which we use the IOMMU.

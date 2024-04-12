@@ -2,6 +2,10 @@
 config DRM_I915
 	tristate "Intel 8xx/9xx/G3x/G4x/HD Graphics"
 	depends on DRM
+	depends on DRM_DISPLAY_DP_HELPER
+	depends on DRM_DISPLAY_HDCP_HELPER
+	depends on DRM_DISPLAY_HDMI_HELPER
+	depends on DRM_DISPLAY_HELPER
 	depends on X86 && PCI
 	depends on !PREEMPT_RT
 	select INTEL_GTT if X86
@@ -10,10 +14,6 @@ config DRM_I915
 	# the shmem_readpage() which depends upon tmpfs
 	select SHMEM
 	select TMPFS
-	select DRM_DISPLAY_DP_HELPER
-	select DRM_DISPLAY_HDCP_HELPER
-	select DRM_DISPLAY_HDMI_HELPER
-	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	select DRM_PANEL
 	select DRM_MIPI_DSI
@@ -140,7 +140,7 @@ config DRM_I915_GVT_KVMGT
 
 	  Note that this driver only supports newer device from Broadwell on.
 	  For further information and setup guide, you can visit:
-	  http://01.org/igvt-g.
+	  https://github.com/intel/gvt-linux/wiki.
 
 	  If in doubt, say "N".
 
@@ -154,6 +154,20 @@ config DRM_I915_PXP
 	  version 12 and newer GPUs, that helps to establish the hardware
 	  protected session and manage the status of the alive software session,
 	  as well as its life cycle.
+
+config DRM_I915_DP_TUNNEL
+	bool "Enable DP tunnel support"
+	depends on DRM_I915
+	depends on USB4
+	select DRM_DISPLAY_DP_TUNNEL
+	default y
+	help
+	  Choose this option to detect DP tunnels and enable the Bandwidth
+	  Allocation mode for such tunnels. This allows using the maximum
+	  resolution allowed by the link BW on all displays sharing the
+	  link BW, for instance on a Thunderbolt link.
+
+	  If in doubt, say "Y".
 
 menu "drm/i915 Debugging"
 depends on DRM_I915

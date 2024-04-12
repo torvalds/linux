@@ -100,7 +100,7 @@ xlog_cil_ctx_alloc(void)
 {
 	struct xfs_cil_ctx	*ctx;
 
-	ctx = kmem_zalloc(sizeof(*ctx), KM_NOFS);
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL | __GFP_NOFAIL);
 	INIT_LIST_HEAD(&ctx->committing);
 	INIT_LIST_HEAD(&ctx->busy_extents.extent_list);
 	INIT_LIST_HEAD(&ctx->log_items);
@@ -339,7 +339,7 @@ xlog_cil_alloc_shadow_bufs(
 			 * the buffer, only the log vector header and the iovec
 			 * storage.
 			 */
-			kmem_free(lip->li_lv_shadow);
+			kvfree(lip->li_lv_shadow);
 			lv = xlog_kvmalloc(buf_size);
 
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));
@@ -703,7 +703,7 @@ xlog_cil_free_logvec(
 	while (!list_empty(lv_chain)) {
 		lv = list_first_entry(lv_chain, struct xfs_log_vec, lv_list);
 		list_del_init(&lv->lv_list);
-		kmem_free(lv);
+		kvfree(lv);
 	}
 }
 
@@ -753,7 +753,7 @@ xlog_cil_committed(
 		return;
 	}
 
-	kmem_free(ctx);
+	kfree(ctx);
 }
 
 void
@@ -1116,11 +1116,18 @@ xlog_cil_cleanup_whiteouts(
  * same sequence twice.  If we get a race between multiple pushes for the same
  * sequence they will block on the first one and then abort, hence avoiding
  * needless pushes.
+ *
+ * This runs from a workqueue so it does not inherent any specific memory
+ * allocation context. However, we do not want to block on memory reclaim
+ * recursing back into the filesystem because this push may have been triggered
+ * by memory reclaim itself. Hence we really need to run under full GFP_NOFS
+ * contraints here.
  */
 static void
 xlog_cil_push_work(
 	struct work_struct	*work)
 {
+	unsigned int		nofs_flags = memalloc_nofs_save();
 	struct xfs_cil_ctx	*ctx =
 		container_of(work, struct xfs_cil_ctx, push_work);
 	struct xfs_cil		*cil = ctx->cil;
@@ -1334,12 +1341,14 @@ xlog_cil_push_work(
 	spin_unlock(&log->l_icloglock);
 	xlog_cil_cleanup_whiteouts(&whiteouts);
 	xfs_log_ticket_ungrant(log, ticket);
+	memalloc_nofs_restore(nofs_flags);
 	return;
 
 out_skip:
 	up_write(&cil->xc_ctx_lock);
 	xfs_log_ticket_put(new_ctx->ticket);
-	kmem_free(new_ctx);
+	kfree(new_ctx);
+	memalloc_nofs_restore(nofs_flags);
 	return;
 
 out_abort_free_ticket:
@@ -1348,6 +1357,7 @@ out_abort_free_ticket:
 	if (!ctx->commit_iclog) {
 		xfs_log_ticket_ungrant(log, ctx->ticket);
 		xlog_cil_committed(ctx);
+		memalloc_nofs_restore(nofs_flags);
 		return;
 	}
 	spin_lock(&log->l_icloglock);
@@ -1356,6 +1366,7 @@ out_abort_free_ticket:
 	/* Not safe to reference ctx now! */
 	spin_unlock(&log->l_icloglock);
 	xfs_log_ticket_ungrant(log, ticket);
+	memalloc_nofs_restore(nofs_flags);
 }
 
 /*
@@ -1533,7 +1544,7 @@ xlog_cil_process_intents(
 		set_bit(XFS_LI_WHITEOUT, &ilip->li_flags);
 		trace_xfs_cil_whiteout_mark(ilip);
 		len += ilip->li_lv->lv_bytes;
-		kmem_free(ilip->li_lv);
+		kvfree(ilip->li_lv);
 		ilip->li_lv = NULL;
 
 		xfs_trans_del_item(lip);
@@ -1747,7 +1758,7 @@ xlog_cil_init(
 	struct xlog_cil_pcp	*cilpcp;
 	int			cpu;
 
-	cil = kmem_zalloc(sizeof(*cil), KM_MAYFAIL);
+	cil = kzalloc(sizeof(*cil), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!cil)
 		return -ENOMEM;
 	/*
@@ -1786,7 +1797,7 @@ xlog_cil_init(
 out_destroy_wq:
 	destroy_workqueue(cil->xc_push_wq);
 out_destroy_cil:
-	kmem_free(cil);
+	kfree(cil);
 	return -ENOMEM;
 }
 
@@ -1799,12 +1810,12 @@ xlog_cil_destroy(
 	if (cil->xc_ctx) {
 		if (cil->xc_ctx->ticket)
 			xfs_log_ticket_put(cil->xc_ctx->ticket);
-		kmem_free(cil->xc_ctx);
+		kfree(cil->xc_ctx);
 	}
 
 	ASSERT(test_bit(XLOG_CIL_EMPTY, &cil->xc_flags));
 	free_percpu(cil->xc_pcp);
 	destroy_workqueue(cil->xc_push_wq);
-	kmem_free(cil);
+	kfree(cil);
 }
 

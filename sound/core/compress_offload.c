@@ -127,9 +127,8 @@ static int snd_compr_open(struct inode *inode, struct file *f)
 	init_waitqueue_head(&runtime->sleep);
 	data->stream.runtime = runtime;
 	f->private_data = (void *)data;
-	mutex_lock(&compr->lock);
-	ret = compr->ops->open(&data->stream);
-	mutex_unlock(&compr->lock);
+	scoped_guard(mutex, &compr->lock)
+		ret = compr->ops->open(&data->stream);
 	if (ret) {
 		kfree(runtime);
 		kfree(data);
@@ -288,7 +287,7 @@ static ssize_t snd_compr_write(struct file *f, const char __user *buf,
 		return -EFAULT;
 
 	stream = &data->stream;
-	mutex_lock(&stream->device->lock);
+	guard(mutex)(&stream->device->lock);
 	/* write is allowed when stream is running or has been steup */
 	switch (stream->runtime->state) {
 	case SNDRV_PCM_STATE_SETUP:
@@ -296,7 +295,6 @@ static ssize_t snd_compr_write(struct file *f, const char __user *buf,
 	case SNDRV_PCM_STATE_RUNNING:
 		break;
 	default:
-		mutex_unlock(&stream->device->lock);
 		return -EBADFD;
 	}
 
@@ -322,7 +320,6 @@ static ssize_t snd_compr_write(struct file *f, const char __user *buf,
 		pr_debug("stream prepared, Houston we are good to go\n");
 	}
 
-	mutex_unlock(&stream->device->lock);
 	return retval;
 }
 
@@ -339,7 +336,7 @@ static ssize_t snd_compr_read(struct file *f, char __user *buf,
 		return -EFAULT;
 
 	stream = &data->stream;
-	mutex_lock(&stream->device->lock);
+	guard(mutex)(&stream->device->lock);
 
 	/* read is allowed when stream is running, paused, draining and setup
 	 * (yes setup is state which we transition to after stop, so if user
@@ -350,11 +347,9 @@ static ssize_t snd_compr_read(struct file *f, char __user *buf,
 	case SNDRV_PCM_STATE_PREPARED:
 	case SNDRV_PCM_STATE_SUSPENDED:
 	case SNDRV_PCM_STATE_DISCONNECTED:
-		retval = -EBADFD;
-		goto out;
+		return -EBADFD;
 	case SNDRV_PCM_STATE_XRUN:
-		retval = -EPIPE;
-		goto out;
+		return -EPIPE;
 	}
 
 	avail = snd_compr_get_avail(stream);
@@ -363,17 +358,13 @@ static ssize_t snd_compr_read(struct file *f, char __user *buf,
 	if (avail > count)
 		avail = count;
 
-	if (stream->ops->copy) {
+	if (stream->ops->copy)
 		retval = stream->ops->copy(stream, buf, avail);
-	} else {
-		retval = -ENXIO;
-		goto out;
-	}
+	else
+		return -ENXIO;
 	if (retval > 0)
 		stream->runtime->total_bytes_transferred += retval;
 
-out:
-	mutex_unlock(&stream->device->lock);
 	return retval;
 }
 
@@ -402,13 +393,12 @@ static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 
 	stream = &data->stream;
 
-	mutex_lock(&stream->device->lock);
+	guard(mutex)(&stream->device->lock);
 
 	switch (stream->runtime->state) {
 	case SNDRV_PCM_STATE_OPEN:
 	case SNDRV_PCM_STATE_XRUN:
-		retval = snd_compr_get_poll(stream) | EPOLLERR;
-		goto out;
+		return snd_compr_get_poll(stream) | EPOLLERR;
 	default:
 		break;
 	}
@@ -433,11 +423,9 @@ static __poll_t snd_compr_poll(struct file *f, poll_table *wait)
 			retval = snd_compr_get_poll(stream);
 		break;
 	default:
-		retval = snd_compr_get_poll(stream) | EPOLLERR;
-		break;
+		return snd_compr_get_poll(stream) | EPOLLERR;
 	}
-out:
-	mutex_unlock(&stream->device->lock);
+
 	return retval;
 }
 
@@ -465,7 +453,7 @@ static int
 snd_compr_get_codec_caps(struct snd_compr_stream *stream, unsigned long arg)
 {
 	int retval;
-	struct snd_compr_codec_caps *caps;
+	struct snd_compr_codec_caps *caps __free(kfree) = NULL;
 
 	if (!stream->ops->get_codec_caps)
 		return -ENXIO;
@@ -476,12 +464,9 @@ snd_compr_get_codec_caps(struct snd_compr_stream *stream, unsigned long arg)
 
 	retval = stream->ops->get_codec_caps(stream, caps);
 	if (retval)
-		goto out;
+		return retval;
 	if (copy_to_user((void __user *)arg, caps, sizeof(*caps)))
-		retval = -EFAULT;
-
-out:
-	kfree(caps);
+		return -EFAULT;
 	return retval;
 }
 #endif /* !COMPR_CODEC_CAPS_OVERFLOW */
@@ -586,7 +571,7 @@ static int snd_compress_check_input(struct snd_compr_params *params)
 static int
 snd_compr_set_params(struct snd_compr_stream *stream, unsigned long arg)
 {
-	struct snd_compr_params *params;
+	struct snd_compr_params *params __free(kfree) = NULL;
 	int retval;
 
 	if (stream->runtime->state == SNDRV_PCM_STATE_OPEN || stream->next_track) {
@@ -596,24 +581,22 @@ snd_compr_set_params(struct snd_compr_stream *stream, unsigned long arg)
 		 */
 		params = memdup_user((void __user *)arg, sizeof(*params));
 		if (IS_ERR(params))
-			return PTR_ERR(params);
+			return PTR_ERR(no_free_ptr(params));
 
 		retval = snd_compress_check_input(params);
 		if (retval)
-			goto out;
+			return retval;
 
 		retval = snd_compr_allocate_buffer(stream, params);
-		if (retval) {
-			retval = -ENOMEM;
-			goto out;
-		}
+		if (retval)
+			return -ENOMEM;
 
 		retval = stream->ops->set_params(stream, params);
 		if (retval)
-			goto out;
+			return retval;
 
 		if (stream->next_track)
-			goto out;
+			return retval;
 
 		stream->metadata_set = false;
 		stream->next_track = false;
@@ -622,15 +605,13 @@ snd_compr_set_params(struct snd_compr_stream *stream, unsigned long arg)
 	} else {
 		return -EPERM;
 	}
-out:
-	kfree(params);
 	return retval;
 }
 
 static int
 snd_compr_get_params(struct snd_compr_stream *stream, unsigned long arg)
 {
-	struct snd_codec *params;
+	struct snd_codec *params __free(kfree) = NULL;
 	int retval;
 
 	if (!stream->ops->get_params)
@@ -641,12 +622,9 @@ snd_compr_get_params(struct snd_compr_stream *stream, unsigned long arg)
 		return -ENOMEM;
 	retval = stream->ops->get_params(stream, params);
 	if (retval)
-		goto out;
+		return retval;
 	if (copy_to_user((char __user *)arg, params, sizeof(*params)))
-		retval = -EFAULT;
-
-out:
-	kfree(params);
+		return -EFAULT;
 	return retval;
 }
 
@@ -805,12 +783,10 @@ static void error_delayed_work(struct work_struct *work)
 
 	stream = container_of(work, struct snd_compr_stream, error_work.work);
 
-	mutex_lock(&stream->device->lock);
+	guard(mutex)(&stream->device->lock);
 
 	stream->ops->trigger(stream, SNDRV_PCM_TRIGGER_STOP);
 	wake_up(&stream->runtime->sleep);
-
-	mutex_unlock(&stream->device->lock);
 }
 
 /**
@@ -967,70 +943,52 @@ static long snd_compr_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 {
 	struct snd_compr_file *data = f->private_data;
 	struct snd_compr_stream *stream;
-	int retval = -ENOTTY;
 
 	if (snd_BUG_ON(!data))
 		return -EFAULT;
 
 	stream = &data->stream;
 
-	mutex_lock(&stream->device->lock);
+	guard(mutex)(&stream->device->lock);
 	switch (_IOC_NR(cmd)) {
 	case _IOC_NR(SNDRV_COMPRESS_IOCTL_VERSION):
-		retval = put_user(SNDRV_COMPRESS_VERSION,
+		return put_user(SNDRV_COMPRESS_VERSION,
 				(int __user *)arg) ? -EFAULT : 0;
-		break;
 	case _IOC_NR(SNDRV_COMPRESS_GET_CAPS):
-		retval = snd_compr_get_caps(stream, arg);
-		break;
+		return snd_compr_get_caps(stream, arg);
 #ifndef COMPR_CODEC_CAPS_OVERFLOW
 	case _IOC_NR(SNDRV_COMPRESS_GET_CODEC_CAPS):
-		retval = snd_compr_get_codec_caps(stream, arg);
-		break;
+		return snd_compr_get_codec_caps(stream, arg);
 #endif
 	case _IOC_NR(SNDRV_COMPRESS_SET_PARAMS):
-		retval = snd_compr_set_params(stream, arg);
-		break;
+		return snd_compr_set_params(stream, arg);
 	case _IOC_NR(SNDRV_COMPRESS_GET_PARAMS):
-		retval = snd_compr_get_params(stream, arg);
-		break;
+		return snd_compr_get_params(stream, arg);
 	case _IOC_NR(SNDRV_COMPRESS_SET_METADATA):
-		retval = snd_compr_set_metadata(stream, arg);
-		break;
+		return snd_compr_set_metadata(stream, arg);
 	case _IOC_NR(SNDRV_COMPRESS_GET_METADATA):
-		retval = snd_compr_get_metadata(stream, arg);
-		break;
+		return snd_compr_get_metadata(stream, arg);
 	case _IOC_NR(SNDRV_COMPRESS_TSTAMP):
-		retval = snd_compr_tstamp(stream, arg);
-		break;
+		return snd_compr_tstamp(stream, arg);
 	case _IOC_NR(SNDRV_COMPRESS_AVAIL):
-		retval = snd_compr_ioctl_avail(stream, arg);
-		break;
+		return snd_compr_ioctl_avail(stream, arg);
 	case _IOC_NR(SNDRV_COMPRESS_PAUSE):
-		retval = snd_compr_pause(stream);
-		break;
+		return snd_compr_pause(stream);
 	case _IOC_NR(SNDRV_COMPRESS_RESUME):
-		retval = snd_compr_resume(stream);
-		break;
+		return snd_compr_resume(stream);
 	case _IOC_NR(SNDRV_COMPRESS_START):
-		retval = snd_compr_start(stream);
-		break;
+		return snd_compr_start(stream);
 	case _IOC_NR(SNDRV_COMPRESS_STOP):
-		retval = snd_compr_stop(stream);
-		break;
+		return snd_compr_stop(stream);
 	case _IOC_NR(SNDRV_COMPRESS_DRAIN):
-		retval = snd_compr_drain(stream);
-		break;
+		return snd_compr_drain(stream);
 	case _IOC_NR(SNDRV_COMPRESS_PARTIAL_DRAIN):
-		retval = snd_compr_partial_drain(stream);
-		break;
+		return snd_compr_partial_drain(stream);
 	case _IOC_NR(SNDRV_COMPRESS_NEXT_TRACK):
-		retval = snd_compr_next_track(stream);
-		break;
-
+		return snd_compr_next_track(stream);
 	}
-	mutex_unlock(&stream->device->lock);
-	return retval;
+
+	return -ENOTTY;
 }
 
 /* support of 32bit userspace on 64bit platforms */

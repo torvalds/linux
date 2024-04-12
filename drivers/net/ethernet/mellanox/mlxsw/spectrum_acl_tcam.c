@@ -9,6 +9,7 @@
 #include <linux/rhashtable.h>
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
+#include <linux/refcount.h>
 #include <net/devlink.h>
 #include <trace/events/mlxsw.h>
 
@@ -155,7 +156,7 @@ struct mlxsw_sp_acl_tcam_vregion {
 		struct mlxsw_sp_acl_tcam_rehash_ctx ctx;
 	} rehash;
 	struct mlxsw_sp *mlxsw_sp;
-	unsigned int ref_count;
+	refcount_t ref_count;
 };
 
 struct mlxsw_sp_acl_tcam_vchunk;
@@ -176,7 +177,7 @@ struct mlxsw_sp_acl_tcam_vchunk {
 	unsigned int priority; /* Priority within the vregion and group */
 	struct mlxsw_sp_acl_tcam_vgroup *vgroup;
 	struct mlxsw_sp_acl_tcam_vregion *vregion;
-	unsigned int ref_count;
+	refcount_t ref_count;
 };
 
 struct mlxsw_sp_acl_tcam_entry {
@@ -769,7 +770,7 @@ mlxsw_sp_acl_tcam_vregion_create(struct mlxsw_sp *mlxsw_sp,
 	vregion->tcam = tcam;
 	vregion->mlxsw_sp = mlxsw_sp;
 	vregion->vgroup = vgroup;
-	vregion->ref_count = 1;
+	refcount_set(&vregion->ref_count, 1);
 
 	vregion->key_info = mlxsw_afk_key_info_get(afk, elusage);
 	if (IS_ERR(vregion->key_info)) {
@@ -856,7 +857,7 @@ mlxsw_sp_acl_tcam_vregion_get(struct mlxsw_sp *mlxsw_sp,
 			 */
 			return ERR_PTR(-EOPNOTSUPP);
 		}
-		vregion->ref_count++;
+		refcount_inc(&vregion->ref_count);
 		return vregion;
 	}
 
@@ -871,7 +872,7 @@ static void
 mlxsw_sp_acl_tcam_vregion_put(struct mlxsw_sp *mlxsw_sp,
 			      struct mlxsw_sp_acl_tcam_vregion *vregion)
 {
-	if (--vregion->ref_count)
+	if (!refcount_dec_and_test(&vregion->ref_count))
 		return;
 	mlxsw_sp_acl_tcam_vregion_destroy(mlxsw_sp, vregion);
 }
@@ -924,7 +925,7 @@ mlxsw_sp_acl_tcam_vchunk_create(struct mlxsw_sp *mlxsw_sp,
 	INIT_LIST_HEAD(&vchunk->ventry_list);
 	vchunk->priority = priority;
 	vchunk->vgroup = vgroup;
-	vchunk->ref_count = 1;
+	refcount_set(&vchunk->ref_count, 1);
 
 	vregion = mlxsw_sp_acl_tcam_vregion_get(mlxsw_sp, vgroup,
 						priority, elusage);
@@ -1008,7 +1009,7 @@ mlxsw_sp_acl_tcam_vchunk_get(struct mlxsw_sp *mlxsw_sp,
 		if (WARN_ON(!mlxsw_afk_key_info_subset(vchunk->vregion->key_info,
 						       elusage)))
 			return ERR_PTR(-EINVAL);
-		vchunk->ref_count++;
+		refcount_inc(&vchunk->ref_count);
 		return vchunk;
 	}
 	return mlxsw_sp_acl_tcam_vchunk_create(mlxsw_sp, vgroup,
@@ -1019,7 +1020,7 @@ static void
 mlxsw_sp_acl_tcam_vchunk_put(struct mlxsw_sp *mlxsw_sp,
 			     struct mlxsw_sp_acl_tcam_vchunk *vchunk)
 {
-	if (--vchunk->ref_count)
+	if (!refcount_dec_and_test(&vchunk->ref_count))
 		return;
 	mlxsw_sp_acl_tcam_vchunk_destroy(mlxsw_sp, vchunk);
 }

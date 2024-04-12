@@ -152,7 +152,7 @@ static void idxd_file_dev_release(struct device *dev)
 	mutex_unlock(&wq->wq_lock);
 }
 
-static struct device_type idxd_cdev_file_type = {
+static const struct device_type idxd_cdev_file_type = {
 	.name = "idxd_file",
 	.release = idxd_file_dev_release,
 	.groups = cdev_file_attribute_groups,
@@ -169,7 +169,7 @@ static void idxd_cdev_dev_release(struct device *dev)
 	kfree(idxd_cdev);
 }
 
-static struct device_type idxd_cdev_device_type = {
+static const struct device_type idxd_cdev_device_type = {
 	.name = "idxd_cdev",
 	.release = idxd_cdev_dev_release,
 };
@@ -345,7 +345,7 @@ static void idxd_cdev_evl_drain_pasid(struct idxd_wq *wq, u32 pasid)
 	spin_lock(&evl->lock);
 	status.bits = ioread64(idxd->reg_base + IDXD_EVLSTATUS_OFFSET);
 	t = status.tail;
-	h = evl->head;
+	h = status.head;
 	size = evl->size;
 
 	while (h != t) {

@@ -509,9 +509,9 @@ static int tcp_ao_hash_header(struct tcp_sigpool *hp,
 			      bool exclude_options, u8 *hash,
 			      int hash_offset, int hash_len)
 {
-	int err, len = th->doff << 2;
 	struct scatterlist sg;
 	u8 *hdr = hp->scratch;
+	int err, len;
 
 	/* We are not allowed to change tcphdr, make a local copy */
 	if (exclude_options) {

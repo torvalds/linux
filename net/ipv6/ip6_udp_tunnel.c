@@ -182,4 +182,5 @@ struct dst_entry *udp_tunnel6_dst_lookup(struct sk_buff *skb,
 }
 EXPORT_SYMBOL_GPL(udp_tunnel6_dst_lookup);
 
+MODULE_DESCRIPTION("IPv6 Foo over UDP tunnel driver");
 MODULE_LICENSE("GPL");

@@ -1,0 +1,48 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+
+/dts-v1/;
+
+#include "rk3566-pinetab2.dtsi"
+
+/ {
+	model = "Pine64 PineTab2 v2.0";
+	compatible = "pine64,pinetab2-v2.0", "pine64,pinetab2", "rockchip,rk3566";
+};
+
+&gpio_keys {
+	pinctrl-0 = <&kb_id_det>, <&hall_int_l>;
+
+	event-hall-sensor {
+		debounce-interval = <20>;
+		gpios = <&gpio0 RK_PA6 GPIO_ACTIVE_LOW>;
+		label = "Hall Sensor";
+		linux,code = <SW_LID>;
+		linux,input-type = <EV_SW>;
+		wakeup-event-action = <EV_ACT_DEASSERTED>;
+		wakeup-source;
+	};
+};
+
+&lcd {
+	reset-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_LOW>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&lcd_pwren_h &lcd0_rst_l>;
+};
+
+&pinctrl {
+	lcd0 {
+		lcd0_rst_l: lcd0-rst-l {
+			rockchip,pins = <0 RK_PC6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	hall {
+		hall_int_l: hall-int-l {
+			rockchip,pins = <0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+};
+
+&sdmmc1 {
+	vmmc-supply = <&vcc_sys>;
+};

@@ -64,6 +64,7 @@ static async_cookie_t next_cookie = 1;
 static LIST_HEAD(async_global_pending);	/* pending from all registered doms */
 static ASYNC_DOMAIN(async_dfl_domain);
 static DEFINE_SPINLOCK(async_lock);
+static struct workqueue_struct *async_wq;
 
 struct async_entry {
 	struct list_head	domain_list;
@@ -174,7 +175,7 @@ static async_cookie_t __async_schedule_node_domain(async_func_t func,
 	spin_unlock_irqrestore(&async_lock, flags);
 
 	/* schedule for execution */
-	queue_work_node(node, system_unbound_wq, &entry->work);
+	queue_work_node(node, async_wq, &entry->work);
 
 	return newcookie;
 }
@@ -345,3 +346,17 @@ bool current_is_async(void)
 	return worker && worker->current_func == async_run_entry_fn;
 }
 EXPORT_SYMBOL_GPL(current_is_async);
+
+void __init async_init(void)
+{
+	/*
+	 * Async can schedule a number of interdependent work items. However,
+	 * unbound workqueues can handle only upto min_active interdependent
+	 * work items. The default min_active of 8 isn't sufficient for async
+	 * and can lead to stalls. Let's use a dedicated workqueue with raised
+	 * min_active.
+	 */
+	async_wq = alloc_workqueue("async", WQ_UNBOUND, 0);
+	BUG_ON(!async_wq);
+	workqueue_set_min_active(async_wq, WQ_DFL_ACTIVE);
+}

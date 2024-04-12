@@ -679,6 +679,16 @@ int snd_sof_device_remove(struct device *dev)
 	 */
 	snd_sof_machine_unregister(sdev, pdata);
 
+	/*
+	 * Balance the runtime pm usage count in case we are faced with an
+	 * exception and we forcably prevented D3 power state to preserve
+	 * context
+	 */
+	if (sdev->d3_prevented) {
+		sdev->d3_prevented = false;
+		pm_runtime_put_noidle(sdev->dev);
+	}
+
 	if (sdev->fw_state > SOF_FW_BOOT_NOT_STARTED) {
 		sof_fw_trace_free(sdev);
 		ret = snd_sof_dsp_power_down_notify(sdev);

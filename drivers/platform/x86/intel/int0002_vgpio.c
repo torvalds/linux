@@ -196,7 +196,7 @@ static int int0002_probe(struct platform_device *pdev)
 	 * IRQs into gpiolib.
 	 */
 	ret = devm_request_irq(dev, irq, int0002_irq,
-			       IRQF_SHARED, "INT0002", chip);
+			       IRQF_ONESHOT | IRQF_SHARED, "INT0002", chip);
 	if (ret) {
 		dev_err(dev, "Error requesting IRQ %d: %d\n", irq, ret);
 		return ret;

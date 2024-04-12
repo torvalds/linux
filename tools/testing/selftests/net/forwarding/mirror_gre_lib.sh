@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
-source "$relative_path/mirror_lib.sh"
+source "$net_forwarding_dir/mirror_lib.sh"
 
 quick_test_span_gre_dir_ips()
 {

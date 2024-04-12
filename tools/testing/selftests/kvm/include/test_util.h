@@ -20,6 +20,8 @@
 #include <sys/mman.h>
 #include "kselftest.h"
 
+#define msecs_to_usecs(msec)    ((msec) * 1000ULL)
+
 static inline int _no_printf(const char *format, ...) { return 0; }
 
 #ifdef DEBUG
@@ -194,5 +196,7 @@ int guest_vsnprintf(char *buf, int n, const char *fmt, va_list args);
 __printf(3, 4) int guest_snprintf(char *buf, int n, const char *fmt, ...);
 
 char *strdup_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2), nonnull(1)));
+
+char *sys_get_cur_clocksource(void);
 
 #endif /* SELFTEST_KVM_TEST_UTIL_H */

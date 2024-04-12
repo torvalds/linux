@@ -69,7 +69,7 @@ static void *uffd_handler_thread_fn(void *arg)
 		if (pollfd[1].revents & POLLIN) {
 			r = read(pollfd[1].fd, &tmp_chr, 1);
 			TEST_ASSERT(r == 1,
-				    "Error reading pipefd in UFFD thread\n");
+				    "Error reading pipefd in UFFD thread");
 			break;
 		}
 

@@ -346,9 +346,13 @@ static int read_rtas_lpar_name(struct seq_file *m)
  */
 static int read_dt_lpar_name(struct seq_file *m)
 {
+	struct device_node *root = of_find_node_by_path("/");
 	const char *name;
+	int ret;
 
-	if (of_property_read_string(of_root, "ibm,partition-name", &name))
+	ret = of_property_read_string(root, "ibm,partition-name", &name);
+	of_node_put(root);
+	if (ret)
 		return -ENOENT;
 
 	seq_printf(m, "partition_name=%s\n", name);

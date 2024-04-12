@@ -134,6 +134,10 @@
 #undef main
 #endif
 
+#define main main_test_libcapstone
+# include "test-libcapstone.c"
+#undef main
+
 #define main main_test_lzma
 # include "test-lzma.c"
 #undef main

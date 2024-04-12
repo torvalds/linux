@@ -205,7 +205,7 @@ static void butterfly_attach(struct parport *p)
 	host->bus_num = 42;
 	host->num_chipselect = 2;
 
-	pp->bitbang.master = host;
+	pp->bitbang.ctlr = host;
 	pp->bitbang.chipselect = butterfly_chipselect;
 	pp->bitbang.txrx_word[SPI_MODE_0] = butterfly_txrx_word_mode0;
 
@@ -263,7 +263,7 @@ static void butterfly_attach(struct parport *p)
 	pp->info[0].platform_data = &flash;
 	pp->info[0].chip_select = 1;
 	pp->info[0].controller_data = pp;
-	pp->dataflash = spi_new_device(pp->bitbang.master, &pp->info[0]);
+	pp->dataflash = spi_new_device(pp->bitbang.ctlr, &pp->info[0]);
 	if (pp->dataflash)
 		pr_debug("%s: dataflash at %s\n", p->name,
 			 dev_name(&pp->dataflash->dev));
@@ -308,7 +308,7 @@ static void butterfly_detach(struct parport *p)
 	parport_release(pp->pd);
 	parport_unregister_device(pp->pd);
 
-	spi_controller_put(pp->bitbang.master);
+	spi_controller_put(pp->bitbang.ctlr);
 }
 
 static struct parport_driver butterfly_driver = {

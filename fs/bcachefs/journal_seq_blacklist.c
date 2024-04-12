@@ -43,61 +43,36 @@ static unsigned sb_blacklist_u64s(unsigned nr)
 	return (sizeof(*bl) + sizeof(bl->start[0]) * nr) / sizeof(u64);
 }
 
-static struct bch_sb_field_journal_seq_blacklist *
-blacklist_entry_try_merge(struct bch_fs *c,
-			  struct bch_sb_field_journal_seq_blacklist *bl,
-			  unsigned i)
-{
-	unsigned nr = blacklist_nr_entries(bl);
-
-	if (le64_to_cpu(bl->start[i].end) >=
-	    le64_to_cpu(bl->start[i + 1].start)) {
-		bl->start[i].end = bl->start[i + 1].end;
-		--nr;
-		memmove(&bl->start[i],
-			&bl->start[i + 1],
-			sizeof(bl->start[0]) * (nr - i));
-
-		bl = bch2_sb_field_resize(&c->disk_sb, journal_seq_blacklist,
-					  sb_blacklist_u64s(nr));
-		BUG_ON(!bl);
-	}
-
-	return bl;
-}
-
-static bool bl_entry_contig_or_overlaps(struct journal_seq_blacklist_entry *e,
-					u64 start, u64 end)
-{
-	return !(end < le64_to_cpu(e->start) || le64_to_cpu(e->end) < start);
-}
-
 int bch2_journal_seq_blacklist_add(struct bch_fs *c, u64 start, u64 end)
 {
 	struct bch_sb_field_journal_seq_blacklist *bl;
-	unsigned i, nr;
+	unsigned i = 0, nr;
 	int ret = 0;
 
 	mutex_lock(&c->sb_lock);
 	bl = bch2_sb_field_get(c->disk_sb.sb, journal_seq_blacklist);
 	nr = blacklist_nr_entries(bl);
 
-	for (i = 0; i < nr; i++) {
+	while (i < nr) {
 		struct journal_seq_blacklist_entry *e =
 			bl->start + i;
 
-		if (bl_entry_contig_or_overlaps(e, start, end)) {
-			e->start = cpu_to_le64(min(start, le64_to_cpu(e->start)));
-			e->end	= cpu_to_le64(max(end, le64_to_cpu(e->end)));
+		if (end < le64_to_cpu(e->start))
+			break;
 
-			if (i + 1 < nr)
-				bl = blacklist_entry_try_merge(c,
-							bl, i);
-			if (i)
-				bl = blacklist_entry_try_merge(c,
-							bl, i - 1);
-			goto out_write_sb;
+		if (start > le64_to_cpu(e->end)) {
+			i++;
+			continue;
 		}
+
+		/*
+		 * Entry is contiguous or overlapping with new entry: merge it
+		 * with new entry, and delete:
+		 */
+
+		start	= min(start,	le64_to_cpu(e->start));
+		end	= max(end,	le64_to_cpu(e->end));
+		array_remove_item(bl->start, nr, i);
 	}
 
 	bl = bch2_sb_field_resize(&c->disk_sb, journal_seq_blacklist,
@@ -107,9 +82,10 @@ int bch2_journal_seq_blacklist_add(struct bch_fs *c, u64 start, u64 end)
 		goto out;
 	}
 
-	bl->start[nr].start	= cpu_to_le64(start);
-	bl->start[nr].end	= cpu_to_le64(end);
-out_write_sb:
+	array_insert_item(bl->start, nr, i, ((struct journal_seq_blacklist_entry) {
+		.start	= cpu_to_le64(start),
+		.end	= cpu_to_le64(end),
+	}));
 	c->disk_sb.sb->features[0] |= cpu_to_le64(1ULL << BCH_FEATURE_journal_seq_blacklist_v3);
 
 	ret = bch2_write_super(c);
@@ -165,8 +141,7 @@ int bch2_blacklist_table_initialize(struct bch_fs *c)
 	if (!bl)
 		return 0;
 
-	t = kzalloc(sizeof(*t) + sizeof(t->entries[0]) * nr,
-		    GFP_KERNEL);
+	t = kzalloc(struct_size(t, entries, nr), GFP_KERNEL);
 	if (!t)
 		return -BCH_ERR_ENOMEM_blacklist_table_init;
 

@@ -166,7 +166,6 @@ void iov_iter_init(struct iov_iter *i, unsigned int direction,
 	WARN_ON(direction & ~(READ | WRITE));
 	*i = (struct iov_iter) {
 		.iter_type = ITER_IOVEC,
-		.copy_mc = false,
 		.nofault = false,
 		.data_source = direction,
 		.__iov = iov,
@@ -245,26 +244,8 @@ EXPORT_SYMBOL_GPL(_copy_mc_to_iter);
 #endif /* CONFIG_ARCH_HAS_COPY_MC */
 
 static __always_inline
-size_t memcpy_from_iter_mc(void *iter_from, size_t progress,
-			   size_t len, void *to, void *priv2)
-{
-	return copy_mc_to_kernel(to + progress, iter_from, len);
-}
-
-static size_t __copy_from_iter_mc(void *addr, size_t bytes, struct iov_iter *i)
-{
-	if (unlikely(i->count < bytes))
-		bytes = i->count;
-	if (unlikely(!bytes))
-		return 0;
-	return iterate_bvec(i, bytes, addr, NULL, memcpy_from_iter_mc);
-}
-
-static __always_inline
 size_t __copy_from_iter(void *addr, size_t bytes, struct iov_iter *i)
 {
-	if (unlikely(iov_iter_is_copy_mc(i)))
-		return __copy_from_iter_mc(addr, bytes, i);
 	return iterate_and_advance(i, bytes, addr,
 				   copy_from_user_iter, memcpy_from_iter);
 }
@@ -633,7 +614,6 @@ void iov_iter_kvec(struct iov_iter *i, unsigned int direction,
 	WARN_ON(direction & ~(READ | WRITE));
 	*i = (struct iov_iter){
 		.iter_type = ITER_KVEC,
-		.copy_mc = false,
 		.data_source = direction,
 		.kvec = kvec,
 		.nr_segs = nr_segs,
@@ -650,7 +630,6 @@ void iov_iter_bvec(struct iov_iter *i, unsigned int direction,
 	WARN_ON(direction & ~(READ | WRITE));
 	*i = (struct iov_iter){
 		.iter_type = ITER_BVEC,
-		.copy_mc = false,
 		.data_source = direction,
 		.bvec = bvec,
 		.nr_segs = nr_segs,
@@ -679,7 +658,6 @@ void iov_iter_xarray(struct iov_iter *i, unsigned int direction,
 	BUG_ON(direction & ~1);
 	*i = (struct iov_iter) {
 		.iter_type = ITER_XARRAY,
-		.copy_mc = false,
 		.data_source = direction,
 		.xarray = xarray,
 		.xarray_start = start,
@@ -703,7 +681,6 @@ void iov_iter_discard(struct iov_iter *i, unsigned int direction, size_t count)
 	BUG_ON(direction != READ);
 	*i = (struct iov_iter){
 		.iter_type = ITER_DISCARD,
-		.copy_mc = false,
 		.data_source = false,
 		.count = count,
 		.iov_offset = 0
@@ -714,12 +691,11 @@ EXPORT_SYMBOL(iov_iter_discard);
 static bool iov_iter_aligned_iovec(const struct iov_iter *i, unsigned addr_mask,
 				   unsigned len_mask)
 {
+	const struct iovec *iov = iter_iov(i);
 	size_t size = i->count;
 	size_t skip = i->iov_offset;
-	unsigned k;
 
-	for (k = 0; k < i->nr_segs; k++, skip = 0) {
-		const struct iovec *iov = iter_iov(i) + k;
+	do {
 		size_t len = iov->iov_len - skip;
 
 		if (len > size)
@@ -729,34 +705,36 @@ static bool iov_iter_aligned_iovec(const struct iov_iter *i, unsigned addr_mask,
 		if ((unsigned long)(iov->iov_base + skip) & addr_mask)
 			return false;
 
+		iov++;
 		size -= len;
-		if (!size)
-			break;
-	}
+		skip = 0;
+	} while (size);
+
 	return true;
 }
 
 static bool iov_iter_aligned_bvec(const struct iov_iter *i, unsigned addr_mask,
 				  unsigned len_mask)
 {
-	size_t size = i->count;
+	const struct bio_vec *bvec = i->bvec;
 	unsigned skip = i->iov_offset;
-	unsigned k;
+	size_t size = i->count;
 
-	for (k = 0; k < i->nr_segs; k++, skip = 0) {
-		size_t len = i->bvec[k].bv_len - skip;
+	do {
+		size_t len = bvec->bv_len;
 
 		if (len > size)
 			len = size;
 		if (len & len_mask)
 			return false;
-		if ((unsigned long)(i->bvec[k].bv_offset + skip) & addr_mask)
+		if ((unsigned long)(bvec->bv_offset + skip) & addr_mask)
 			return false;
 
+		bvec++;
 		size -= len;
-		if (!size)
-			break;
-	}
+		skip = 0;
+	} while (size);
+
 	return true;
 }
 
@@ -800,13 +778,12 @@ EXPORT_SYMBOL_GPL(iov_iter_is_aligned);
 
 static unsigned long iov_iter_alignment_iovec(const struct iov_iter *i)
 {
+	const struct iovec *iov = iter_iov(i);
 	unsigned long res = 0;
 	size_t size = i->count;
 	size_t skip = i->iov_offset;
-	unsigned k;
 
-	for (k = 0; k < i->nr_segs; k++, skip = 0) {
-		const struct iovec *iov = iter_iov(i) + k;
+	do {
 		size_t len = iov->iov_len - skip;
 		if (len) {
 			res |= (unsigned long)iov->iov_base + skip;
@@ -814,30 +791,31 @@ static unsigned long iov_iter_alignment_iovec(const struct iov_iter *i)
 				len = size;
 			res |= len;
 			size -= len;
-			if (!size)
-				break;
 		}
-	}
+		iov++;
+		skip = 0;
+	} while (size);
 	return res;
 }
 
 static unsigned long iov_iter_alignment_bvec(const struct iov_iter *i)
 {
+	const struct bio_vec *bvec = i->bvec;
 	unsigned res = 0;
 	size_t size = i->count;
 	unsigned skip = i->iov_offset;
-	unsigned k;
 
-	for (k = 0; k < i->nr_segs; k++, skip = 0) {
-		size_t len = i->bvec[k].bv_len - skip;
-		res |= (unsigned long)i->bvec[k].bv_offset + skip;
+	do {
+		size_t len = bvec->bv_len - skip;
+		res |= (unsigned long)bvec->bv_offset + skip;
 		if (len > size)
 			len = size;
 		res |= len;
+		bvec++;
 		size -= len;
-		if (!size)
-			break;
-	}
+		skip = 0;
+	} while (size);
+
 	return res;
 }
 
@@ -1166,11 +1144,12 @@ const void *dup_iter(struct iov_iter *new, struct iov_iter *old, gfp_t flags)
 EXPORT_SYMBOL(dup_iter);
 
 static __noclone int copy_compat_iovec_from_user(struct iovec *iov,
-		const struct iovec __user *uvec, unsigned long nr_segs)
+		const struct iovec __user *uvec, u32 nr_segs)
 {
 	const struct compat_iovec __user *uiov =
 		(const struct compat_iovec __user *)uvec;
-	int ret = -EFAULT, i;
+	int ret = -EFAULT;
+	u32 i;
 
 	if (!user_access_begin(uiov, nr_segs * sizeof(*uiov)))
 		return -EFAULT;

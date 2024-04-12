@@ -23,7 +23,7 @@ static struct idr accel_minors_idr;
 
 static struct dentry *accel_debugfs_root;
 
-static struct device_type accel_sysfs_device_minor = {
+static const struct device_type accel_sysfs_device_minor = {
 	.name = "accel_minor"
 };
 

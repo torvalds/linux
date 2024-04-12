@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/marvell/armada-38x.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Marvell Armada 38x Platforms
+
+maintainers:
+  - Gregory CLEMENT <gregory.clement@bootlin.com>
+
+properties:
+  $nodename:
+    const: '/'
+  compatible:
+    oneOf:
+
+      - description:
+          Netgear Armada 380 GS110EM Managed Switch.
+        items:
+          - const: netgear,gs110emx
+          - const: marvell,armada380
+
+      - description:
+          Marvell Armada 385 Development Boards.
+        items:
+          - enum:
+              - marvell,a385-db-amc
+              - marvell,a385-db-ap
+          - const: marvell,armada385
+          - const: marvell,armada380
+
+      - description:
+          SolidRun Armada 385 based single-board computers.
+        items:
+          - enum:
+              - solidrun,clearfog-gtr-l8
+              - solidrun,clearfog-gtr-s4
+          - const: marvell,armada385
+          - const: marvell,armada380
+
+      - description:
+          Kobol Armada 388 based Helios-4 NAS.
+        items:
+          - const: kobol,helios4
+          - const: marvell,armada388
+          - const: marvell,armada385
+          - const: marvell,armada380
+
+      - description:
+          Marvell Armada 388 Development Boards.
+        items:
+          - enum:
+              - marvell,a388-gp
+          - const: marvell,armada388
+          - const: marvell,armada385
+          - const: marvell,armada380
+
+      - description:
+          SolidRun Armada 388 clearfog family single-board computers.
+        items:
+          - enum:
+              - solidrun,clearfog-base-a1
+              - solidrun,clearfog-pro-a1
+          - const: solidrun,clearfog-a1
+          - const: marvell,armada388
+          - const: marvell,armada385
+          - const: marvell,armada380
+
+additionalProperties: true

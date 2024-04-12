@@ -1178,20 +1178,23 @@ static void drm_sched_run_job_work(struct work_struct *w)
 	struct drm_sched_entity *entity;
 	struct dma_fence *fence;
 	struct drm_sched_fence *s_fence;
-	struct drm_sched_job *sched_job = NULL;
+	struct drm_sched_job *sched_job;
 	int r;
 
 	if (READ_ONCE(sched->pause_submit))
 		return;
 
 	/* Find entity with a ready job */
-	while (!sched_job && (entity = drm_sched_select_entity(sched))) {
-		sched_job = drm_sched_entity_pop_job(entity);
-		if (!sched_job)
-			complete_all(&entity->entity_idle);
-	}
+	entity = drm_sched_select_entity(sched);
 	if (!entity)
 		return;	/* No more work */
+
+	sched_job = drm_sched_entity_pop_job(entity);
+	if (!sched_job) {
+		complete_all(&entity->entity_idle);
+		drm_sched_run_job_queue(sched);
+		return;
+	}
 
 	s_fence = sched_job->s_fence;
 

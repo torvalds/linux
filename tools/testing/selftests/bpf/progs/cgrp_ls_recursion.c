@@ -27,32 +27,6 @@ bool is_cgroup1 = 0;
 struct cgroup *bpf_task_get_cgroup1(struct task_struct *task, int hierarchy_id) __ksym;
 void bpf_cgroup_release(struct cgroup *cgrp) __ksym;
 
-static void __on_lookup(struct cgroup *cgrp)
-{
-	bpf_cgrp_storage_delete(&map_a, cgrp);
-	bpf_cgrp_storage_delete(&map_b, cgrp);
-}
-
-SEC("fentry/bpf_local_storage_lookup")
-int BPF_PROG(on_lookup)
-{
-	struct task_struct *task = bpf_get_current_task_btf();
-	struct cgroup *cgrp;
-
-	if (is_cgroup1) {
-		cgrp = bpf_task_get_cgroup1(task, target_hid);
-		if (!cgrp)
-			return 0;
-
-		__on_lookup(cgrp);
-		bpf_cgroup_release(cgrp);
-		return 0;
-	}
-
-	__on_lookup(task->cgroups->dfl_cgrp);
-	return 0;
-}
-
 static void __on_update(struct cgroup *cgrp)
 {
 	long *ptr;

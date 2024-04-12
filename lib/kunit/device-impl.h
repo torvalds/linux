@@ -13,5 +13,7 @@
 
 // For internal use only -- registers the kunit_bus.
 int kunit_bus_init(void);
+// For internal use only -- unregisters the kunit_bus.
+void kunit_bus_shutdown(void);
 
 #endif //_KUNIT_DEVICE_IMPL_H

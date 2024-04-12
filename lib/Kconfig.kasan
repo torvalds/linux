@@ -158,7 +158,7 @@ config KASAN_STACK
 	  out-of-bounds bugs in stack variables.
 
 	  With Clang, stack instrumentation has a problem that causes excessive
-	  stack usage, see https://bugs.llvm.org/show_bug.cgi?id=38809. Thus,
+	  stack usage, see https://llvm.org/pr38809. Thus,
 	  with Clang, this option is deemed unsafe.
 
 	  This option is always disabled when compile-testing with Clang to

@@ -747,7 +747,8 @@ void bch2_trans_downgrade(struct btree_trans *trans)
 		return;
 
 	trans_for_each_path(trans, path, i)
-		bch2_btree_path_downgrade(trans, path);
+		if (path->ref)
+			bch2_btree_path_downgrade(trans, path);
 }
 
 int bch2_trans_relock(struct btree_trans *trans)

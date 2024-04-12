@@ -203,7 +203,7 @@ class JsonEvent:
 
     def llx(x: int) -> str:
       """Convert an int to a string similar to a printf modifier of %#llx."""
-      return '0' if x == 0 else hex(x)
+      return str(x) if x >= 0 and x < 10 else hex(x)
 
     def fixdesc(s: str) -> str:
       """Fix formatting issue for the desc string."""
@@ -294,6 +294,23 @@ class JsonEvent:
       }
       return table[unit] if unit in table else f'uncore_{unit.lower()}'
 
+    def is_zero(val: str) -> bool:
+        try:
+            if val.startswith('0x'):
+                return int(val, 16) == 0
+            else:
+                return int(val) == 0
+        except e:
+            return False
+
+    def canonicalize_value(val: str) -> str:
+        try:
+            if val.startswith('0x'):
+                return llx(int(val, 16))
+            return str(int(val))
+        except e:
+            return val
+
     eventcode = 0
     if 'EventCode' in jd:
       eventcode = int(jd['EventCode'].split(',', 1)[0], 0)
@@ -356,10 +373,14 @@ class JsonEvent:
         ('UMask', 'umask='),
         ('NodeType', 'type='),
         ('RdWrMask', 'rdwrmask='),
+        ('EnAllCores', 'enallcores='),
+        ('EnAllSlices', 'enallslices='),
+        ('SliceId', 'sliceid='),
+        ('ThreadMask', 'threadmask='),
     ]
     for key, value in event_fields:
-      if key in jd and jd[key] != '0':
-        event += ',' + value + jd[key]
+      if key in jd and not is_zero(jd[key]):
+        event += f',{value}{canonicalize_value(jd[key])}'
     if filter:
       event += f',{filter}'
     if msr:

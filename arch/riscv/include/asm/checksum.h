@@ -53,7 +53,7 @@ static inline __sum16 ip_fast_csum(const void *iph, unsigned int ihl)
 	    IS_ENABLED(CONFIG_RISCV_ALTERNATIVE)) {
 		unsigned long fold_temp;
 
-		asm_volatile_goto(ALTERNATIVE("j %l[no_zbb]", "nop", 0,
+		asm goto(ALTERNATIVE("j %l[no_zbb]", "nop", 0,
 					      RISCV_ISA_EXT_ZBB, 1)
 		    :
 		    :

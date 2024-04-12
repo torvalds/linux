@@ -39,6 +39,7 @@ struct x86_acpi_irq_data {
 	int index;
 	int trigger;  /* ACPI_EDGE_SENSITIVE / ACPI_LEVEL_SENSITIVE */
 	int polarity; /* ACPI_ACTIVE_HIGH / ACPI_ACTIVE_LOW / ACPI_ACTIVE_BOTH */
+	bool free_gpio; /* Release GPIO after getting IRQ (for TYPE_GPIOINT) */
 	const char *con_id;
 };
 

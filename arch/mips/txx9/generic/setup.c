@@ -762,7 +762,7 @@ void __init txx9_aclc_init(unsigned long baseaddr, int irq,
 {
 }
 
-static struct bus_type txx9_sramc_subsys = {
+static const struct bus_type txx9_sramc_subsys = {
 	.name = "txx9_sram",
 	.dev_name = "txx9_sram",
 };

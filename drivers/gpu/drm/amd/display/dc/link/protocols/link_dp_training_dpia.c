@@ -619,7 +619,7 @@ static enum link_training_result dpia_training_eq_non_transparent(
 	uint32_t retries_eq = 0;
 	enum dc_status status;
 	enum dc_dp_training_pattern tr_pattern;
-	uint32_t wait_time_microsec;
+	uint32_t wait_time_microsec = 0;
 	enum dc_lane_count lane_count = lt_settings->link_settings.lane_count;
 	union lane_align_status_updated dpcd_lane_status_updated = {0};
 	union lane_status dpcd_lane_status[LANE_COUNT_DP_MAX] = {0};

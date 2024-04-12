@@ -12,14 +12,14 @@
 #include <net/checksum.h>
 #include <asm/unaligned.h>
 
-typedef __be16 (csum_fn) (void *, unsigned int);
+typedef __be16 (csum_fn) (__be16, void *, unsigned int);
 
-static __be16 t10_pi_crc_fn(void *data, unsigned int len)
+static __be16 t10_pi_crc_fn(__be16 crc, void *data, unsigned int len)
 {
-	return cpu_to_be16(crc_t10dif(data, len));
+	return cpu_to_be16(crc_t10dif_update(be16_to_cpu(crc), data, len));
 }
 
-static __be16 t10_pi_ip_fn(void *data, unsigned int len)
+static __be16 t10_pi_ip_fn(__be16 csum, void *data, unsigned int len)
 {
 	return (__force __be16)ip_compute_csum(data, len);
 }
@@ -32,12 +32,16 @@ static __be16 t10_pi_ip_fn(void *data, unsigned int len)
 static blk_status_t t10_pi_generate(struct blk_integrity_iter *iter,
 		csum_fn *fn, enum t10_dif_type type)
 {
+	u8 offset = iter->pi_offset;
 	unsigned int i;
 
 	for (i = 0 ; i < iter->data_size ; i += iter->interval) {
-		struct t10_pi_tuple *pi = iter->prot_buf;
+		struct t10_pi_tuple *pi = iter->prot_buf + offset;
 
-		pi->guard_tag = fn(iter->data_buf, iter->interval);
+		pi->guard_tag = fn(0, iter->data_buf, iter->interval);
+		if (offset)
+			pi->guard_tag = fn(pi->guard_tag, iter->prot_buf,
+					   offset);
 		pi->app_tag = 0;
 
 		if (type == T10_PI_TYPE1_PROTECTION)
@@ -56,12 +60,13 @@ static blk_status_t t10_pi_generate(struct blk_integrity_iter *iter,
 static blk_status_t t10_pi_verify(struct blk_integrity_iter *iter,
 		csum_fn *fn, enum t10_dif_type type)
 {
+	u8 offset = iter->pi_offset;
 	unsigned int i;
 
 	BUG_ON(type == T10_PI_TYPE0_PROTECTION);
 
 	for (i = 0 ; i < iter->data_size ; i += iter->interval) {
-		struct t10_pi_tuple *pi = iter->prot_buf;
+		struct t10_pi_tuple *pi = iter->prot_buf + offset;
 		__be16 csum;
 
 		if (type == T10_PI_TYPE1_PROTECTION ||
@@ -83,7 +88,9 @@ static blk_status_t t10_pi_verify(struct blk_integrity_iter *iter,
 				goto next;
 		}
 
-		csum = fn(iter->data_buf, iter->interval);
+		csum = fn(0, iter->data_buf, iter->interval);
+		if (offset)
+			csum = fn(csum, iter->prot_buf, offset);
 
 		if (pi->guard_tag != csum) {
 			pr_err("%s: guard tag error at sector %llu " \
@@ -134,8 +141,10 @@ static blk_status_t t10_pi_type1_verify_ip(struct blk_integrity_iter *iter)
  */
 static void t10_pi_type1_prepare(struct request *rq)
 {
-	const int tuple_sz = rq->q->integrity.tuple_size;
+	struct blk_integrity *bi = &rq->q->integrity;
+	const int tuple_sz = bi->tuple_size;
 	u32 ref_tag = t10_pi_ref_tag(rq);
+	u8 offset = bi->pi_offset;
 	struct bio *bio;
 
 	__rq_for_each_bio(bio, rq) {
@@ -154,7 +163,7 @@ static void t10_pi_type1_prepare(struct request *rq)
 
 			p = bvec_kmap_local(&iv);
 			for (j = 0; j < iv.bv_len; j += tuple_sz) {
-				struct t10_pi_tuple *pi = p;
+				struct t10_pi_tuple *pi = p + offset;
 
 				if (be32_to_cpu(pi->ref_tag) == virt)
 					pi->ref_tag = cpu_to_be32(ref_tag);
@@ -183,9 +192,11 @@ static void t10_pi_type1_prepare(struct request *rq)
  */
 static void t10_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 {
-	unsigned intervals = nr_bytes >> rq->q->integrity.interval_exp;
-	const int tuple_sz = rq->q->integrity.tuple_size;
+	struct blk_integrity *bi = &rq->q->integrity;
+	unsigned intervals = nr_bytes >> bi->interval_exp;
+	const int tuple_sz = bi->tuple_size;
 	u32 ref_tag = t10_pi_ref_tag(rq);
+	u8 offset = bi->pi_offset;
 	struct bio *bio;
 
 	__rq_for_each_bio(bio, rq) {
@@ -200,7 +211,7 @@ static void t10_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 
 			p = bvec_kmap_local(&iv);
 			for (j = 0; j < iv.bv_len && intervals; j += tuple_sz) {
-				struct t10_pi_tuple *pi = p;
+				struct t10_pi_tuple *pi = p + offset;
 
 				if (be32_to_cpu(pi->ref_tag) == ref_tag)
 					pi->ref_tag = cpu_to_be32(virt);
@@ -280,20 +291,24 @@ const struct blk_integrity_profile t10_pi_type3_ip = {
 };
 EXPORT_SYMBOL(t10_pi_type3_ip);
 
-static __be64 ext_pi_crc64(void *data, unsigned int len)
+static __be64 ext_pi_crc64(u64 crc, void *data, unsigned int len)
 {
-	return cpu_to_be64(crc64_rocksoft(data, len));
+	return cpu_to_be64(crc64_rocksoft_update(crc, data, len));
 }
 
 static blk_status_t ext_pi_crc64_generate(struct blk_integrity_iter *iter,
 					enum t10_dif_type type)
 {
+	u8 offset = iter->pi_offset;
 	unsigned int i;
 
 	for (i = 0 ; i < iter->data_size ; i += iter->interval) {
-		struct crc64_pi_tuple *pi = iter->prot_buf;
+		struct crc64_pi_tuple *pi = iter->prot_buf + offset;
 
-		pi->guard_tag = ext_pi_crc64(iter->data_buf, iter->interval);
+		pi->guard_tag = ext_pi_crc64(0, iter->data_buf, iter->interval);
+		if (offset)
+			pi->guard_tag = ext_pi_crc64(be64_to_cpu(pi->guard_tag),
+					iter->prot_buf, offset);
 		pi->app_tag = 0;
 
 		if (type == T10_PI_TYPE1_PROTECTION)
@@ -319,10 +334,11 @@ static bool ext_pi_ref_escape(u8 *ref_tag)
 static blk_status_t ext_pi_crc64_verify(struct blk_integrity_iter *iter,
 				      enum t10_dif_type type)
 {
+	u8 offset = iter->pi_offset;
 	unsigned int i;
 
 	for (i = 0; i < iter->data_size; i += iter->interval) {
-		struct crc64_pi_tuple *pi = iter->prot_buf;
+		struct crc64_pi_tuple *pi = iter->prot_buf + offset;
 		u64 ref, seed;
 		__be64 csum;
 
@@ -343,7 +359,11 @@ static blk_status_t ext_pi_crc64_verify(struct blk_integrity_iter *iter,
 				goto next;
 		}
 
-		csum = ext_pi_crc64(iter->data_buf, iter->interval);
+		csum = ext_pi_crc64(0, iter->data_buf, iter->interval);
+		if (offset)
+			csum = ext_pi_crc64(be64_to_cpu(csum), iter->prot_buf,
+					    offset);
+
 		if (pi->guard_tag != csum) {
 			pr_err("%s: guard tag error at sector %llu " \
 			       "(rcvd %016llx, want %016llx)\n",
@@ -373,8 +393,10 @@ static blk_status_t ext_pi_type1_generate_crc64(struct blk_integrity_iter *iter)
 
 static void ext_pi_type1_prepare(struct request *rq)
 {
-	const int tuple_sz = rq->q->integrity.tuple_size;
+	struct blk_integrity *bi = &rq->q->integrity;
+	const int tuple_sz = bi->tuple_size;
 	u64 ref_tag = ext_pi_ref_tag(rq);
+	u8 offset = bi->pi_offset;
 	struct bio *bio;
 
 	__rq_for_each_bio(bio, rq) {
@@ -393,7 +415,7 @@ static void ext_pi_type1_prepare(struct request *rq)
 
 			p = bvec_kmap_local(&iv);
 			for (j = 0; j < iv.bv_len; j += tuple_sz) {
-				struct crc64_pi_tuple *pi = p;
+				struct crc64_pi_tuple *pi = p +  offset;
 				u64 ref = get_unaligned_be48(pi->ref_tag);
 
 				if (ref == virt)
@@ -411,9 +433,11 @@ static void ext_pi_type1_prepare(struct request *rq)
 
 static void ext_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 {
-	unsigned intervals = nr_bytes >> rq->q->integrity.interval_exp;
-	const int tuple_sz = rq->q->integrity.tuple_size;
+	struct blk_integrity *bi = &rq->q->integrity;
+	unsigned intervals = nr_bytes >> bi->interval_exp;
+	const int tuple_sz = bi->tuple_size;
 	u64 ref_tag = ext_pi_ref_tag(rq);
+	u8 offset = bi->pi_offset;
 	struct bio *bio;
 
 	__rq_for_each_bio(bio, rq) {
@@ -428,7 +452,7 @@ static void ext_pi_type1_complete(struct request *rq, unsigned int nr_bytes)
 
 			p = bvec_kmap_local(&iv);
 			for (j = 0; j < iv.bv_len && intervals; j += tuple_sz) {
-				struct crc64_pi_tuple *pi = p;
+				struct crc64_pi_tuple *pi = p + offset;
 				u64 ref = get_unaligned_be48(pi->ref_tag);
 
 				if (ref == ref_tag)

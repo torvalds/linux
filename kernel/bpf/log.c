@@ -9,6 +9,7 @@
 #include <linux/bpf.h>
 #include <linux/bpf_verifier.h>
 #include <linux/math64.h>
+#include <linux/string.h>
 
 #define verbose(env, fmt, args...) bpf_verifier_log_write(env, fmt, ##args)
 
@@ -333,7 +334,8 @@ find_linfo(const struct bpf_verifier_env *env, u32 insn_off)
 {
 	const struct bpf_line_info *linfo;
 	const struct bpf_prog *prog;
-	u32 i, nr_linfo;
+	u32 nr_linfo;
+	int l, r, m;
 
 	prog = env->prog;
 	nr_linfo = prog->aux->nr_linfo;
@@ -342,11 +344,30 @@ find_linfo(const struct bpf_verifier_env *env, u32 insn_off)
 		return NULL;
 
 	linfo = prog->aux->linfo;
-	for (i = 1; i < nr_linfo; i++)
-		if (insn_off < linfo[i].insn_off)
-			break;
+	/* Loop invariant: linfo[l].insn_off <= insns_off.
+	 * linfo[0].insn_off == 0 which always satisfies above condition.
+	 * Binary search is searching for rightmost linfo entry that satisfies
+	 * the above invariant, giving us the desired record that covers given
+	 * instruction offset.
+	 */
+	l = 0;
+	r = nr_linfo - 1;
+	while (l < r) {
+		/* (r - l + 1) / 2 means we break a tie to the right, so if:
+		 * l=1, r=2, linfo[l].insn_off <= insn_off, linfo[r].insn_off > insn_off,
+		 * then m=2, we see that linfo[m].insn_off > insn_off, and so
+		 * r becomes 1 and we exit the loop with correct l==1.
+		 * If the tie was broken to the left, m=1 would end us up in
+		 * an endless loop where l and m stay at 1 and r stays at 2.
+		 */
+		m = l + (r - l + 1) / 2;
+		if (linfo[m].insn_off <= insn_off)
+			l = m;
+		else
+			r = m - 1;
+	}
 
-	return &linfo[i - 1];
+	return &linfo[l];
 }
 
 static const char *ltrim(const char *s)
@@ -361,13 +382,28 @@ __printf(3, 4) void verbose_linfo(struct bpf_verifier_env *env,
 				  u32 insn_off,
 				  const char *prefix_fmt, ...)
 {
-	const struct bpf_line_info *linfo;
+	const struct bpf_line_info *linfo, *prev_linfo;
+	const struct btf *btf;
+	const char *s, *fname;
 
 	if (!bpf_verifier_log_needed(&env->log))
 		return;
 
+	prev_linfo = env->prev_linfo;
 	linfo = find_linfo(env, insn_off);
-	if (!linfo || linfo == env->prev_linfo)
+	if (!linfo || linfo == prev_linfo)
+		return;
+
+	/* It often happens that two separate linfo records point to the same
+	 * source code line, but have differing column numbers. Given verifier
+	 * log doesn't emit column information, from user perspective we just
+	 * end up emitting the same source code line twice unnecessarily.
+	 * So instead check that previous and current linfo record point to
+	 * the same file (file_name_offs match) and the same line number, and
+	 * avoid emitting duplicated source code line in such case.
+	 */
+	if (prev_linfo && linfo->file_name_off == prev_linfo->file_name_off &&
+	    BPF_LINE_INFO_LINE_NUM(linfo->line_col) == BPF_LINE_INFO_LINE_NUM(prev_linfo->line_col))
 		return;
 
 	if (prefix_fmt) {
@@ -378,9 +414,15 @@ __printf(3, 4) void verbose_linfo(struct bpf_verifier_env *env,
 		va_end(args);
 	}
 
-	verbose(env, "%s\n",
-		ltrim(btf_name_by_offset(env->prog->aux->btf,
-					 linfo->line_off)));
+	btf = env->prog->aux->btf;
+	s = ltrim(btf_name_by_offset(btf, linfo->line_off));
+	verbose(env, "%s", s); /* source code line */
+
+	s = btf_name_by_offset(btf, linfo->file_name_off);
+	/* leave only file name */
+	fname = strrchr(s, '/');
+	fname = fname ? fname + 1 : s;
+	verbose(env, " @ %s:%u\n", fname, BPF_LINE_INFO_LINE_NUM(linfo->line_col));
 
 	env->prev_linfo = linfo;
 }
@@ -416,6 +458,7 @@ const char *reg_type_str(struct bpf_verifier_env *env, enum bpf_reg_type type)
 		[PTR_TO_XDP_SOCK]	= "xdp_sock",
 		[PTR_TO_BTF_ID]		= "ptr_",
 		[PTR_TO_MEM]		= "mem",
+		[PTR_TO_ARENA]		= "arena",
 		[PTR_TO_BUF]		= "buf",
 		[PTR_TO_FUNC]		= "func",
 		[PTR_TO_MAP_KEY]	= "map_key",
@@ -651,6 +694,8 @@ static void print_reg_state(struct bpf_verifier_env *env,
 	}
 
 	verbose(env, "%s", reg_type_str(env, t));
+	if (t == PTR_TO_ARENA)
+		return;
 	if (t == PTR_TO_STACK) {
 		if (state->frameno != reg->frameno)
 			verbose(env, "[%d]", reg->frameno);

@@ -672,7 +672,9 @@
 #define INTEL_ADLN_IDS(info) \
 	INTEL_VGA_DEVICE(0x46D0, info), \
 	INTEL_VGA_DEVICE(0x46D1, info), \
-	INTEL_VGA_DEVICE(0x46D2, info)
+	INTEL_VGA_DEVICE(0x46D2, info), \
+	INTEL_VGA_DEVICE(0x46D3, info), \
+	INTEL_VGA_DEVICE(0x46D4, info)
 
 /* RPL-S */
 #define INTEL_RPLS_IDS(info) \

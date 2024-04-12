@@ -258,9 +258,6 @@ again:
 
 			if (rq->out[no] != rq->in[j])
 				continue;
-
-			DBG_BUGON(erofs_page_is_managed(EROFS_SB(rq->sb),
-							rq->in[j]));
 			tmppage = erofs_allocpage(pgpl, rq->gfp);
 			if (!tmppage) {
 				err = -ENOMEM;

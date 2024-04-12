@@ -52,6 +52,40 @@ definitions:
           dpll's lock-state shall remain DPLL_LOCK_STATUS_UNLOCKED)
     render-max: true
   -
+    type: enum
+    name: lock-status-error
+    doc: |
+      if previous status change was done due to a failure, this provides
+      information of dpll device lock status error.
+      Valid values for DPLL_A_LOCK_STATUS_ERROR attribute
+    entries:
+      -
+        name: none
+        doc: |
+          dpll device lock status was changed without any error
+        value: 1
+      -
+        name: undefined
+        doc: |
+          dpll device lock status was changed due to undefined error.
+          Driver fills this value up in case it is not able
+          to obtain suitable exact error type.
+      -
+        name: media-down
+        doc: |
+          dpll device lock status was changed because of associated
+          media got down.
+          This may happen for example if dpll device was previously
+          locked on an input pin of type PIN_TYPE_SYNCE_ETH_PORT.
+      -
+        name: fractional-frequency-offset-too-high
+        doc: |
+          the FFO (Fractional Frequency Offset) between the RX and TX
+          symbol rate on the media got too high.
+          This may happen for example if dpll device was previously
+          locked on an input pin of type PIN_TYPE_SYNCE_ETH_PORT.
+    render-max: true
+  -
     type: const
     name: temp-divider
     value: 1000
@@ -214,6 +248,10 @@ attribute-sets:
         name: type
         type: u32
         enum: type
+      -
+        name: lock-status-error
+        type: u32
+        enum: lock-status-error
   -
     name: pin
     enum-name: dpll_a_pin
@@ -274,6 +312,7 @@ attribute-sets:
       -
         name: capabilities
         type: u32
+        enum: pin-capabilities
       -
         name: parent-device
         type: nest
@@ -379,13 +418,12 @@ operations:
             - mode
             - mode-supported
             - lock-status
+            - lock-status-error
             - temp
             - clock-id
             - type
 
       dump:
-        pre: dpll-lock-dumpit
-        post: dpll-unlock-dumpit
         reply: *dev-attrs
 
     -
@@ -473,8 +511,6 @@ operations:
             - fractional-frequency-offset
 
       dump:
-        pre: dpll-lock-dumpit
-        post: dpll-unlock-dumpit
         request:
           attributes:
             - id

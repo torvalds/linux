@@ -39,6 +39,8 @@
 };
 
 &dbgu {
+	atmel,use-dma-rx;
+	atmel,use-dma-tx;
 	status = "okay";
 };
 

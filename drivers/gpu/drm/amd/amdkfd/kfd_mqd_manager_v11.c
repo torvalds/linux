@@ -55,8 +55,8 @@ static void update_cu_mask(struct mqd_manager *mm, void *mqd,
 	m = get_mqd(mqd);
 
 	if (has_wa_flag) {
-		uint32_t wa_mask = minfo->update_flag == UPDATE_FLAG_DBG_WA_ENABLE ?
-						0xffff : 0xffffffff;
+		uint32_t wa_mask =
+			(minfo->update_flag & UPDATE_FLAG_DBG_WA_ENABLE) ? 0xffff : 0xffffffff;
 
 		m->compute_static_thread_mgmt_se0 = wa_mask;
 		m->compute_static_thread_mgmt_se1 = wa_mask;

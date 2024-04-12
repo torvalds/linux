@@ -648,7 +648,7 @@ void i2c_dw_disable(struct dw_i2c_dev *dev)
 	__i2c_dw_disable(dev);
 
 	/* Disable all interrupts */
-	regmap_write(dev->map, DW_IC_INTR_MASK, 0);
+	__i2c_dw_write_intr_mask(dev, 0);
 	regmap_read(dev->map, DW_IC_CLR_INTR, &dummy);
 
 	i2c_dw_release_lock(dev);

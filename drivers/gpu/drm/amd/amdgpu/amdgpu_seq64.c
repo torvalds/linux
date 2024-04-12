@@ -45,11 +45,7 @@
  */
 static inline u64 amdgpu_seq64_get_va_base(struct amdgpu_device *adev)
 {
-	u64 addr = adev->vm_manager.max_pfn << AMDGPU_GPU_PAGE_SHIFT;
-
-	addr -= AMDGPU_VA_RESERVED_TOP;
-
-	return addr;
+	return AMDGPU_VA_RESERVED_SEQ64_START(adev);
 }
 
 /**

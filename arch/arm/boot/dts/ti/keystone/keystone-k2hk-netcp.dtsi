@@ -2,7 +2,7 @@
 /*
  * Device Tree Source for Keystone 2 Hawking Netcp driver
  *
- * Copyright (C) 2015-2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2015-2017 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 qmss: qmss@2a40000 {

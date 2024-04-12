@@ -466,7 +466,8 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 
 	/* find index of codec dai */
 	for (i = 0; i < ARRAY_SIZE(cht_dailink); i++) {
-		if (!strcmp(cht_dailink[i].codecs->name, RT5672_I2C_DEFAULT)) {
+		if (cht_dailink[i].codecs->name &&
+		    !strcmp(cht_dailink[i].codecs->name, RT5672_I2C_DEFAULT)) {
 			dai_index = i;
 			break;
 		}

@@ -1817,7 +1817,7 @@ static struct regmap_config tvp5150_config = {
 	.val_bits = 8,
 	.max_register = 0xff,
 
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 
 	.rd_table = &tvp5150_readable_table,
 	.volatile_reg = tvp5150_volatile_reg,

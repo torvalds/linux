@@ -185,7 +185,7 @@ static inline int rmi_write_block(struct rmi_device *d, u16 addr,
 
 int rmi_for_each_dev(void *data, int (*func)(struct device *dev, void *data));
 
-extern struct bus_type rmi_bus_type;
+extern const struct bus_type rmi_bus_type;
 
 int rmi_of_property_read_u32(struct device *dev, u32 *result,
 				const char *prop, bool optional);

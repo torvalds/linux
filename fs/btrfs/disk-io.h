@@ -6,6 +6,22 @@
 #ifndef BTRFS_DISK_IO_H
 #define BTRFS_DISK_IO_H
 
+#include <linux/sizes.h>
+#include <linux/compiler_types.h>
+#include "ctree.h"
+#include "fs.h"
+
+struct block_device;
+struct super_block;
+struct extent_buffer;
+struct btrfs_device;
+struct btrfs_fs_devices;
+struct btrfs_fs_info;
+struct btrfs_super_block;
+struct btrfs_trans_handle;
+struct btrfs_tree_parent_check;
+struct btrfs_transaction;
+
 #define BTRFS_SUPER_MIRROR_MAX	 3
 #define BTRFS_SUPER_MIRROR_SHIFT 12
 
@@ -24,10 +40,6 @@ static inline u64 btrfs_sb_offset(int mirror)
 		return start << (BTRFS_SUPER_MIRROR_SHIFT * mirror);
 	return BTRFS_SUPER_INFO_OFFSET;
 }
-
-struct btrfs_device;
-struct btrfs_fs_devices;
-struct btrfs_tree_parent_check;
 
 void btrfs_check_leaked_roots(struct btrfs_fs_info *fs_info);
 void btrfs_init_fs_info(struct btrfs_fs_info *fs_info);
@@ -61,7 +73,7 @@ void btrfs_free_fs_roots(struct btrfs_fs_info *fs_info);
 struct btrfs_root *btrfs_get_fs_root(struct btrfs_fs_info *fs_info,
 				     u64 objectid, bool check_ref);
 struct btrfs_root *btrfs_get_new_fs_root(struct btrfs_fs_info *fs_info,
-					 u64 objectid, dev_t anon_dev);
+					 u64 objectid, dev_t *anon_dev);
 struct btrfs_root *btrfs_get_fs_root_commit_root(struct btrfs_fs_info *fs_info,
 						 struct btrfs_path *path,
 						 u64 objectid);

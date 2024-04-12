@@ -385,11 +385,15 @@ static int soc_compr_set_params_fe(struct snd_compr_stream *cstream,
 
 	fe->dpcm[stream].runtime_update = SND_SOC_DPCM_UPDATE_FE;
 
+	snd_soc_dpcm_mutex_lock(fe);
 	ret = dpcm_be_dai_hw_params(fe, stream);
+	snd_soc_dpcm_mutex_unlock(fe);
 	if (ret < 0)
 		goto out;
 
+	snd_soc_dpcm_mutex_lock(fe);
 	ret = dpcm_be_dai_prepare(fe, stream);
+	snd_soc_dpcm_mutex_unlock(fe);
 	if (ret < 0)
 		goto out;
 

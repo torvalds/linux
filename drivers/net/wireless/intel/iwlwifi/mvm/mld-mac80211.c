@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2022-2023 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  */
 #include "mvm.h"
 
@@ -47,7 +47,7 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 		goto out_unlock;
 
 	/* beacon filtering */
-	ret = iwl_mvm_disable_beacon_filter(mvm, vif, 0);
+	ret = iwl_mvm_disable_beacon_filter(mvm, vif);
 	if (ret)
 		goto out_remove_mac;
 
@@ -81,7 +81,8 @@ static int iwl_mvm_mld_mac_add_interface(struct ieee80211_hw *hw,
 		ieee80211_hw_set(mvm->hw, RX_INCLUDES_FCS);
 	}
 
-	iwl_mvm_vif_dbgfs_add_link(mvm, vif);
+	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		iwl_mvm_vif_dbgfs_add_link(mvm, vif);
 
 	if (!test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status) &&
 	    vif->type == NL80211_IFTYPE_STATION && !vif->p2p &&
@@ -252,9 +253,6 @@ __iwl_mvm_mld_assign_vif_chanctx(struct iwl_mvm *mvm,
 	/* if the assigned one was not counted yet, count it now */
 	if (!rcu_access_pointer(link_conf->chanctx_conf))
 		n_active++;
-
-	if (n_active > iwl_mvm_max_active_links(mvm, vif))
-		return -EOPNOTSUPP;
 
 	if (WARN_ON_ONCE(!mvmvif->link[link_id]))
 		return -EINVAL;
@@ -437,6 +435,9 @@ __iwl_mvm_mld_unassign_vif_chanctx(struct iwl_mvm *mvm,
 		mvmvif->ap_ibss_active = false;
 	}
 
+	iwl_mvm_link_changed(mvm, vif, link_conf,
+			     LINK_CONTEXT_MODIFY_ACTIVE, false);
+
 	if (iwl_mvm_is_esr_supported(mvm->fwrt.trans) && n_active > 1) {
 		int ret = iwl_mvm_esr_mode_inactive(mvm, vif);
 
@@ -447,9 +448,6 @@ __iwl_mvm_mld_unassign_vif_chanctx(struct iwl_mvm *mvm,
 
 	if (vif->type == NL80211_IFTYPE_MONITOR)
 		iwl_mvm_mld_rm_snif_sta(mvm, vif);
-
-	iwl_mvm_link_changed(mvm, vif, link_conf,
-			     LINK_CONTEXT_MODIFY_ACTIVE, false);
 
 	if (switching_chanctx)
 		return;
@@ -606,6 +604,7 @@ static int iwl_mvm_mld_mac_sta_state(struct ieee80211_hw *hw,
 struct iwl_mvm_link_sel_data {
 	u8 link_id;
 	enum nl80211_band band;
+	enum nl80211_chan_width width;
 	bool active;
 };
 
@@ -657,7 +656,8 @@ void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			continue;
 
 		data[n_data].link_id = link_id;
-		data[n_data].band = link_conf->chandef.chan->band;
+		data[n_data].band = link_conf->chanreq.oper.chan->band;
+		data[n_data].width = link_conf->chanreq.oper.width;
 		data[n_data].active = vif->active_links & BIT(link_id);
 		n_data++;
 	}
@@ -752,8 +752,8 @@ iwl_mvm_mld_link_info_changed_station(struct iwl_mvm *mvm,
 		link_changes |= LINK_CONTEXT_MODIFY_HE_PARAMS;
 	}
 
-	/* Update EHT Puncturing info */
-	if (changes & BSS_CHANGED_EHT_PUNCTURING && vif->cfg.assoc)
+	/* if associated, maybe puncturing changed - we'll check later */
+	if (vif->cfg.assoc)
 		link_changes |= LINK_CONTEXT_MODIFY_EHT_PARAMS;
 
 	if (link_changes) {
@@ -1121,16 +1121,11 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 			     struct ieee80211_bss_conf *old[IEEE80211_MLD_MAX_NUM_LINKS])
 {
 	struct iwl_mvm_vif_link_info *new_link[IEEE80211_MLD_MAX_NUM_LINKS] = {};
-	unsigned int n_active = iwl_mvm_mld_count_active_links(vif);
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
 	u16 removed = old_links & ~new_links;
 	u16 added = new_links & ~old_links;
 	int err, i;
-
-	if (hweight16(new_links) > 1 &&
-	    n_active > iwl_mvm_max_active_links(mvm, vif))
-		return -EOPNOTSUPP;
 
 	for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
 		int r;
@@ -1221,6 +1216,146 @@ iwl_mvm_mld_change_sta_links(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 
 	return ret;
+}
+
+/*
+ * This function receives a subset of the usable links bitmap and
+ * returns the primary link id, and -1 if such link doesn't exist
+ * (e.g. non-MLO connection) or wasn't found.
+ */
+int iwl_mvm_mld_get_primary_link(struct iwl_mvm *mvm,
+				 struct ieee80211_vif *vif,
+				 unsigned long usable_links)
+{
+	struct iwl_mvm_link_sel_data data[IEEE80211_MLD_MAX_NUM_LINKS];
+	u8 link_id, n_data = 0;
+
+	if (!ieee80211_vif_is_mld(vif) || !vif->cfg.assoc)
+		return -1;
+
+	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct ieee80211_bss_conf *link_conf =
+			link_conf_dereference_protected(vif, link_id);
+
+		if (WARN_ON_ONCE(!link_conf))
+			continue;
+
+		data[n_data].link_id = link_id;
+		data[n_data].band = link_conf->chanreq.oper.chan->band;
+		data[n_data].width = link_conf->chanreq.oper.width;
+		data[n_data].active = true;
+		n_data++;
+	}
+
+	if (n_data <= 1)
+		return -1;
+
+	/* The logic should be modified to handle more than 2 links */
+	WARN_ON_ONCE(n_data > 2);
+
+	/* Primary link is the link with the wider bandwidth or higher band */
+	if (data[0].width > data[1].width)
+		return data[0].link_id;
+	if (data[0].width < data[1].width)
+		return data[1].link_id;
+	if (data[0].band >= data[1].band)
+		return data[0].link_id;
+
+	return data[1].link_id;
+}
+
+/*
+ * This function receives a bitmap of usable links and check if we can enter
+ * eSR on those links.
+ */
+static bool iwl_mvm_can_enter_esr(struct iwl_mvm *mvm,
+				  struct ieee80211_vif *vif,
+				  unsigned long desired_links)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	int primary_link = iwl_mvm_mld_get_primary_link(mvm, vif,
+							desired_links);
+	const struct wiphy_iftype_ext_capab *ext_capa;
+	bool ret = true;
+	int link_id;
+
+	if (primary_link < 0)
+		return false;
+
+	if (!(vif->cfg.eml_cap & IEEE80211_EML_CAP_EMLSR_SUPP))
+		return false;
+
+	ext_capa = cfg80211_get_iftype_ext_capa(mvm->hw->wiphy,
+						ieee80211_vif_type_p2p(vif));
+	if (!ext_capa ||
+	    !(ext_capa->eml_capabilities & IEEE80211_EML_CAP_EMLSR_SUPP))
+		return false;
+
+	for_each_set_bit(link_id, &desired_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct ieee80211_bss_conf *link_conf =
+			link_conf_dereference_protected(vif, link_id);
+
+		if (WARN_ON_ONCE(!link_conf))
+			continue;
+
+		/* BT Coex effects eSR mode only if one of the link is on LB */
+		if (link_conf->chanreq.oper.chan->band != NL80211_BAND_2GHZ)
+			continue;
+
+		ret = iwl_mvm_bt_coex_calculate_esr_mode(mvm, vif, link_id,
+							 primary_link);
+		// Mark eSR as disabled for the next time
+		if (!ret)
+			mvmvif->bt_coex_esr_disabled = true;
+		break;
+	}
+
+	return ret;
+}
+
+static bool iwl_mvm_mld_can_activate_links(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif,
+					   u16 desired_links)
+{
+	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int n_links = hweight16(desired_links);
+	bool ret = true;
+
+	if (n_links <= 1)
+		return true;
+
+	mutex_lock(&mvm->mutex);
+
+	/* Check if HW supports the wanted number of links */
+	if (n_links > iwl_mvm_max_active_links(mvm, vif)) {
+		ret = false;
+		goto unlock;
+	}
+
+	/* If it is an eSR device, check that we can enter eSR */
+	if (iwl_mvm_is_esr_supported(mvm->fwrt.trans))
+		ret = iwl_mvm_can_enter_esr(mvm, vif, desired_links);
+unlock:
+	mutex_unlock(&mvm->mutex);
+	return ret;
+}
+
+static enum ieee80211_neg_ttlm_res
+iwl_mvm_mld_can_neg_ttlm(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			 struct ieee80211_neg_ttlm *neg_ttlm)
+{
+	u16 map;
+	u8 i;
+
+	/* Verify all TIDs are mapped to the same links set */
+	map = neg_ttlm->downlink[0];
+	for (i = 0; i < IEEE80211_TTLM_NUM_TIDS; i++) {
+		if (neg_ttlm->downlink[i] != neg_ttlm->uplink[i] ||
+		    neg_ttlm->uplink[i] != map)
+			return NEG_TTLM_RES_REJECT;
+	}
+
+	return NEG_TTLM_RES_ACCEPT;
 }
 
 const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
@@ -1317,4 +1452,6 @@ const struct ieee80211_ops iwl_mvm_mld_hw_ops = {
 
 	.change_vif_links = iwl_mvm_mld_change_vif_links,
 	.change_sta_links = iwl_mvm_mld_change_sta_links,
+	.can_activate_links = iwl_mvm_mld_can_activate_links,
+	.can_neg_ttlm = iwl_mvm_mld_can_neg_ttlm,
 };

@@ -15,6 +15,11 @@
 #include <linux/page_idle.h>
 #include <linux/slab.h>
 
+#define DAMON_DBGFS_DEPRECATION_NOTICE					\
+	"DAMON debugfs interface is deprecated, so users should move "	\
+	"to DAMON_SYSFS. If you cannot, please report your usecase to "	\
+	"damon@lists.linux.dev and linux-mm@kvack.org.\n"
+
 static struct damon_ctx **dbgfs_ctxs;
 static int dbgfs_nr_ctxs;
 static struct dentry **dbgfs_dirs;
@@ -22,10 +27,7 @@ static DEFINE_MUTEX(damon_dbgfs_lock);
 
 static void damon_dbgfs_warn_deprecation(void)
 {
-	pr_warn_once("DAMON debugfs interface is deprecated, "
-		     "so users should move to DAMON_SYSFS. If you cannot, "
-		     "please report your usecase to damon@lists.linux.dev and "
-		     "linux-mm@kvack.org.\n");
+	pr_warn_once(DAMON_DBGFS_DEPRECATION_NOTICE);
 }
 
 /*
@@ -805,6 +807,14 @@ static void dbgfs_destroy_ctx(struct damon_ctx *ctx)
 	damon_destroy_ctx(ctx);
 }
 
+static ssize_t damon_dbgfs_deprecated_read(struct file *file,
+		char __user *buf, size_t count, loff_t *ppos)
+{
+	static const char kbuf[512] = DAMON_DBGFS_DEPRECATION_NOTICE;
+
+	return simple_read_from_buffer(buf, count, ppos, kbuf, strlen(kbuf));
+}
+
 /*
  * Make a context of @name and create a debugfs directory for it.
  *
@@ -1056,6 +1066,10 @@ static int damon_dbgfs_static_file_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
+static const struct file_operations deprecated_fops = {
+	.read = damon_dbgfs_deprecated_read,
+};
+
 static const struct file_operations mk_contexts_fops = {
 	.open = damon_dbgfs_static_file_open,
 	.write = dbgfs_mk_context_write,
@@ -1076,9 +1090,9 @@ static int __init __damon_dbgfs_init(void)
 {
 	struct dentry *dbgfs_root;
 	const char * const file_names[] = {"mk_contexts", "rm_contexts",
-		"monitor_on"};
+		"monitor_on_DEPRECATED", "DEPRECATED"};
 	const struct file_operations *fops[] = {&mk_contexts_fops,
-		&rm_contexts_fops, &monitor_on_fops};
+		&rm_contexts_fops, &monitor_on_fops, &deprecated_fops};
 	int i;
 
 	dbgfs_root = debugfs_create_dir("damon", NULL);

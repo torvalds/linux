@@ -263,7 +263,7 @@ int unwind__get_entries(unwind_entry_cb_t cb, void *arg,
 	struct unwind_info *ui, ui_buf = {
 		.sample		= data,
 		.thread		= thread,
-		.machine	= RC_CHK_ACCESS(thread__maps(thread))->machine,
+		.machine	= maps__machine((thread__maps(thread))),
 		.cb		= cb,
 		.arg		= arg,
 		.max_stack	= max_stack,

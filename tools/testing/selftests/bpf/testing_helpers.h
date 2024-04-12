@@ -36,6 +36,8 @@ __u64 read_perf_max_sample_freq(void);
 int load_bpf_testmod(bool verbose);
 int unload_bpf_testmod(bool verbose);
 int kern_sync_rcu(void);
+int finit_module(int fd, const char *param_values, int flags);
+int delete_module(const char *name, int flags);
 
 static inline __u64 get_time_ns(void)
 {
@@ -45,5 +47,13 @@ static inline __u64 get_time_ns(void)
 
 	return (u64)t.tv_sec * 1000000000 + t.tv_nsec;
 }
+
+struct bpf_insn;
+/* Request BPF program instructions after all rewrites are applied,
+ * e.g. verifier.c:convert_ctx_access() is done.
+ */
+int get_xlated_program(int fd_prog, struct bpf_insn **buf, __u32 *cnt);
+int testing_prog_flags(void);
+bool is_jit_enabled(void);
 
 #endif /* __TESTING_HELPERS_H */

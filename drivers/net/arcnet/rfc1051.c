@@ -78,6 +78,7 @@ static void __exit arcnet_rfc1051_exit(void)
 module_init(arcnet_rfc1051_init);
 module_exit(arcnet_rfc1051_exit);
 
+MODULE_DESCRIPTION("ARCNet packet format (RFC 1051) module");
 MODULE_LICENSE("GPL");
 
 /* Determine a packet's protocol ID.

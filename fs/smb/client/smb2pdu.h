@@ -117,9 +117,10 @@ struct share_redirect_error_context_rsp {
  * [4] : posix context
  * [5] : time warp context
  * [6] : query id context
- * [7] : compound padding
+ * [7] : create ea context
+ * [8] : compound padding
  */
-#define SMB2_CREATE_IOV_SIZE 8
+#define SMB2_CREATE_IOV_SIZE 9
 
 /*
  * Maximum size of a SMB2_CREATE response is 64 (smb2 header) +
@@ -412,5 +413,36 @@ struct smb2_posix_info_parsed {
 	int name_len;
 	const u8 *name;
 };
+
+struct smb2_create_ea_ctx {
+	struct create_context ctx;
+	__u8 name[8];
+	struct smb2_file_full_ea_info ea;
+} __packed;
+
+#define SMB2_WSL_XATTR_UID		"$LXUID"
+#define SMB2_WSL_XATTR_GID		"$LXGID"
+#define SMB2_WSL_XATTR_MODE		"$LXMOD"
+#define SMB2_WSL_XATTR_DEV		"$LXDEV"
+#define SMB2_WSL_XATTR_NAME_LEN	6
+#define SMB2_WSL_NUM_XATTRS		4
+
+#define SMB2_WSL_XATTR_UID_SIZE	4
+#define SMB2_WSL_XATTR_GID_SIZE	4
+#define SMB2_WSL_XATTR_MODE_SIZE	4
+#define SMB2_WSL_XATTR_DEV_SIZE	8
+
+#define SMB2_WSL_MIN_QUERY_EA_RESP_SIZE \
+	(ALIGN((SMB2_WSL_NUM_XATTRS - 1) * \
+	       (SMB2_WSL_XATTR_NAME_LEN + 1 + \
+		sizeof(struct smb2_file_full_ea_info)), 4) + \
+	 SMB2_WSL_XATTR_NAME_LEN + 1 + sizeof(struct smb2_file_full_ea_info))
+
+#define SMB2_WSL_MAX_QUERY_EA_RESP_SIZE \
+	(ALIGN(SMB2_WSL_MIN_QUERY_EA_RESP_SIZE + \
+	       SMB2_WSL_XATTR_UID_SIZE + \
+	       SMB2_WSL_XATTR_GID_SIZE + \
+	       SMB2_WSL_XATTR_MODE_SIZE + \
+	       SMB2_WSL_XATTR_DEV_SIZE, 4))
 
 #endif				/* _SMB2PDU_H */

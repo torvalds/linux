@@ -20,6 +20,8 @@ struct aggr_cpu_id {
 	int socket;
 	/** The die id as read from /sys/devices/system/cpu/cpuX/topology/die_id. */
 	int die;
+	/** The cluster id as read from /sys/devices/system/cpu/cpuX/topology/cluster_id */
+	int cluster;
 	/** The cache level as read from /sys/devices/system/cpu/cpuX/cache/indexY/level */
 	int cache_lvl;
 	/**
@@ -87,6 +89,11 @@ int cpu__get_socket_id(struct perf_cpu cpu);
  */
 int cpu__get_die_id(struct perf_cpu cpu);
 /**
+ * cpu__get_cluster_id - Returns the cluster id as read from
+ * /sys/devices/system/cpu/cpuX/topology/cluster_id for the given CPU
+ */
+int cpu__get_cluster_id(struct perf_cpu cpu);
+/**
  * cpu__get_core_id - Returns the core id as read from
  * /sys/devices/system/cpu/cpuX/topology/core_id for the given CPU.
  */
@@ -127,9 +134,15 @@ struct aggr_cpu_id aggr_cpu_id__socket(struct perf_cpu cpu, void *data);
  */
 struct aggr_cpu_id aggr_cpu_id__die(struct perf_cpu cpu, void *data);
 /**
- * aggr_cpu_id__core - Create an aggr_cpu_id with the core, die and socket
- * populated with the core, die and socket for cpu. The function signature is
- * compatible with aggr_cpu_id_get_t.
+ * aggr_cpu_id__cluster - Create an aggr_cpu_id with cluster, die and socket
+ * populated with the cluster, die and socket for cpu. The function signature
+ * is compatible with aggr_cpu_id_get_t.
+ */
+struct aggr_cpu_id aggr_cpu_id__cluster(struct perf_cpu cpu, void *data);
+/**
+ * aggr_cpu_id__core - Create an aggr_cpu_id with the core, cluster, die and
+ * socket populated with the core, die and socket for cpu. The function
+ * signature is compatible with aggr_cpu_id_get_t.
  */
 struct aggr_cpu_id aggr_cpu_id__core(struct perf_cpu cpu, void *data);
 /**

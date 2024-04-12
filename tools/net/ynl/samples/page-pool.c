@@ -95,6 +95,8 @@ int main(int argc, char **argv)
 
 		if (pp->_present.alloc_fast)
 			s->alloc_fast += pp->alloc_fast;
+		if (pp->_present.alloc_refill)
+			s->alloc_fast += pp->alloc_refill;
 		if (pp->_present.alloc_slow)
 			s->alloc_slow += pp->alloc_slow;
 		if (pp->_present.recycle_ring)

@@ -234,7 +234,8 @@ union UMSCHAPI__SET_HW_RESOURCES {
 				uint32_t enable_level_process_quantum_check : 1;
 				uint32_t is_vcn0_enabled : 1;
 				uint32_t is_vcn1_enabled : 1;
-				uint32_t reserved : 27;
+				uint32_t use_rs64mem_for_proc_ctx_csa : 1;
+				uint32_t reserved : 26;
 			};
 			uint32_t uint32_all;
 		};
@@ -297,9 +298,12 @@ union UMSCHAPI__ADD_QUEUE {
 
 		struct {
 			uint32_t is_context_suspended : 1;
-			uint32_t reserved : 31;
+			uint32_t collaboration_mode : 1;
+			uint32_t reserved : 30;
 		};
 		struct UMSCH_API_STATUS api_status;
+		uint32_t process_csa_array_index;
+		uint32_t context_csa_array_index;
 	};
 
 	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -314,6 +318,7 @@ union UMSCHAPI__REMOVE_QUEUE {
 		uint64_t context_csa_addr;
 
 		struct UMSCH_API_STATUS api_status;
+		uint32_t context_csa_array_index;
 	};
 
 	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -337,6 +342,7 @@ union UMSCHAPI__SUSPEND {
 		uint32_t suspend_fence_value;
 
 		struct UMSCH_API_STATUS api_status;
+		uint32_t context_csa_array_index;
 	};
 
 	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -356,6 +362,7 @@ union UMSCHAPI__RESUME {
 		enum UMSCH_ENGINE_TYPE engine_type;
 
 		struct UMSCH_API_STATUS api_status;
+		uint32_t context_csa_array_index;
 	};
 
 	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -404,6 +411,7 @@ union UMSCHAPI__UPDATE_AFFINITY {
 		union UMSCH_AFFINITY affinity;
 		uint64_t context_csa_addr;
 		struct UMSCH_API_STATUS api_status;
+		uint32_t context_csa_array_index;
 	};
 
 	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -417,6 +425,7 @@ union UMSCHAPI__CHANGE_CONTEXT_PRIORITY_LEVEL {
 		uint64_t context_quantum;
 		uint64_t context_csa_addr;
 		struct UMSCH_API_STATUS api_status;
+		uint32_t context_csa_array_index;
 	};
 
 	uint32_t max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];

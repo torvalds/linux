@@ -389,7 +389,7 @@ nouveau_exec_ioctl_exec(struct drm_device *dev,
 	if (ret)
 		goto out;
 
-	args.sched = &chan16->sched;
+	args.sched = chan16->sched;
 	args.file_priv = file_priv;
 	args.chan = chan;
 

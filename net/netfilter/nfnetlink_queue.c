@@ -225,6 +225,148 @@ find_dequeue_entry(struct nfqnl_instance *queue, unsigned int id)
 	return entry;
 }
 
+static unsigned int nf_iterate(struct sk_buff *skb,
+			       struct nf_hook_state *state,
+			       const struct nf_hook_entries *hooks,
+			       unsigned int *index)
+{
+	const struct nf_hook_entry *hook;
+	unsigned int verdict, i = *index;
+
+	while (i < hooks->num_hook_entries) {
+		hook = &hooks->hooks[i];
+repeat:
+		verdict = nf_hook_entry_hookfn(hook, skb, state);
+		if (verdict != NF_ACCEPT) {
+			*index = i;
+			if (verdict != NF_REPEAT)
+				return verdict;
+			goto repeat;
+		}
+		i++;
+	}
+
+	*index = i;
+	return NF_ACCEPT;
+}
+
+static struct nf_hook_entries *nf_hook_entries_head(const struct net *net, u8 pf, u8 hooknum)
+{
+	switch (pf) {
+#ifdef CONFIG_NETFILTER_FAMILY_BRIDGE
+	case NFPROTO_BRIDGE:
+		return rcu_dereference(net->nf.hooks_bridge[hooknum]);
+#endif
+	case NFPROTO_IPV4:
+		return rcu_dereference(net->nf.hooks_ipv4[hooknum]);
+	case NFPROTO_IPV6:
+		return rcu_dereference(net->nf.hooks_ipv6[hooknum]);
+	default:
+		WARN_ON_ONCE(1);
+		return NULL;
+	}
+
+	return NULL;
+}
+
+static int nf_ip_reroute(struct sk_buff *skb, const struct nf_queue_entry *entry)
+{
+#ifdef CONFIG_INET
+	const struct ip_rt_info *rt_info = nf_queue_entry_reroute(entry);
+
+	if (entry->state.hook == NF_INET_LOCAL_OUT) {
+		const struct iphdr *iph = ip_hdr(skb);
+
+		if (!(iph->tos == rt_info->tos &&
+		      skb->mark == rt_info->mark &&
+		      iph->daddr == rt_info->daddr &&
+		      iph->saddr == rt_info->saddr))
+			return ip_route_me_harder(entry->state.net, entry->state.sk,
+						  skb, RTN_UNSPEC);
+	}
+#endif
+	return 0;
+}
+
+static int nf_reroute(struct sk_buff *skb, struct nf_queue_entry *entry)
+{
+	const struct nf_ipv6_ops *v6ops;
+	int ret = 0;
+
+	switch (entry->state.pf) {
+	case AF_INET:
+		ret = nf_ip_reroute(skb, entry);
+		break;
+	case AF_INET6:
+		v6ops = rcu_dereference(nf_ipv6_ops);
+		if (v6ops)
+			ret = v6ops->reroute(skb, entry);
+		break;
+	}
+	return ret;
+}
+
+/* caller must hold rcu read-side lock */
+static void nf_reinject(struct nf_queue_entry *entry, unsigned int verdict)
+{
+	const struct nf_hook_entry *hook_entry;
+	const struct nf_hook_entries *hooks;
+	struct sk_buff *skb = entry->skb;
+	const struct net *net;
+	unsigned int i;
+	int err;
+	u8 pf;
+
+	net = entry->state.net;
+	pf = entry->state.pf;
+
+	hooks = nf_hook_entries_head(net, pf, entry->state.hook);
+
+	i = entry->hook_index;
+	if (WARN_ON_ONCE(!hooks || i >= hooks->num_hook_entries)) {
+		kfree_skb_reason(skb, SKB_DROP_REASON_NETFILTER_DROP);
+		nf_queue_entry_free(entry);
+		return;
+	}
+
+	hook_entry = &hooks->hooks[i];
+
+	/* Continue traversal iff userspace said ok... */
+	if (verdict == NF_REPEAT)
+		verdict = nf_hook_entry_hookfn(hook_entry, skb, &entry->state);
+
+	if (verdict == NF_ACCEPT) {
+		if (nf_reroute(skb, entry) < 0)
+			verdict = NF_DROP;
+	}
+
+	if (verdict == NF_ACCEPT) {
+next_hook:
+		++i;
+		verdict = nf_iterate(skb, &entry->state, hooks, &i);
+	}
+
+	switch (verdict & NF_VERDICT_MASK) {
+	case NF_ACCEPT:
+	case NF_STOP:
+		local_bh_disable();
+		entry->state.okfn(entry->state.net, entry->state.sk, skb);
+		local_bh_enable();
+		break;
+	case NF_QUEUE:
+		err = nf_queue(skb, &entry->state, i, verdict);
+		if (err == 1)
+			goto next_hook;
+		break;
+	case NF_STOLEN:
+		break;
+	default:
+		kfree_skb(skb);
+	}
+
+	nf_queue_entry_free(entry);
+}
+
 static void nfqnl_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 {
 	const struct nf_ct_hook *ct_hook;
@@ -232,18 +374,25 @@ static void nfqnl_reinject(struct nf_queue_entry *entry, unsigned int verdict)
 	if (verdict == NF_ACCEPT ||
 	    verdict == NF_REPEAT ||
 	    verdict == NF_STOP) {
+		unsigned int ct_verdict = verdict;
+
 		rcu_read_lock();
 		ct_hook = rcu_dereference(nf_ct_hook);
 		if (ct_hook)
-			verdict = ct_hook->update(entry->state.net, entry->skb);
+			ct_verdict = ct_hook->update(entry->state.net, entry->skb);
 		rcu_read_unlock();
 
-		switch (verdict & NF_VERDICT_MASK) {
+		switch (ct_verdict & NF_VERDICT_MASK) {
+		case NF_ACCEPT:
+			/* follow userspace verdict, could be REPEAT */
+			break;
 		case NF_STOLEN:
 			nf_queue_entry_free(entry);
 			return;
+		default:
+			verdict = ct_verdict & NF_VERDICT_MASK;
+			break;
 		}
-
 	}
 	nf_reinject(entry, verdict);
 }

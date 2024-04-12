@@ -19,11 +19,12 @@
 
 #define NUM_STREAM_CAPTURE_ANA 0
 
-typedef void (*snd_aw2_saa7146_it_cb) (void *);
+struct snd_pcm_substream;
+typedef void (*snd_aw2_saa7146_it_cb) (struct snd_pcm_substream *);
 
 struct snd_aw2_saa7146_cb_param {
 	snd_aw2_saa7146_it_cb p_it_callback;
-	void *p_callback_param;
+	struct snd_pcm_substream *p_callback_param;
 };
 
 /* definition of the chip-specific record */

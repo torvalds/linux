@@ -477,6 +477,8 @@ struct amdgpu_ras {
 	wait_queue_head_t page_retirement_wq;
 	struct mutex page_retirement_lock;
 	atomic_t page_retirement_req_cnt;
+	/* Fatal error detected flag */
+	atomic_t fed;
 };
 
 struct ras_fs_data {
@@ -873,4 +875,8 @@ void amdgpu_ras_add_mca_err_addr(struct ras_err_info *err_info,
 
 void amdgpu_ras_del_mca_err_addr(struct ras_err_info *err_info,
 		struct ras_err_addr *mca_err_addr);
+
+void amdgpu_ras_set_fed(struct amdgpu_device *adev, bool status);
+bool amdgpu_ras_get_fed_status(struct amdgpu_device *adev);
+
 #endif

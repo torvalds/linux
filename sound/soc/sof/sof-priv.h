@@ -157,6 +157,13 @@ struct sof_firmware {
 	u32 payload_offset;
 };
 
+enum sof_dai_access {
+	SOF_DAI_DSP_ACCESS,	/* access from DSP only */
+	SOF_DAI_HOST_ACCESS,	/* access from host only */
+
+	SOF_DAI_ACCESS_NUM
+};
+
 /*
  * SOF DSP HW abstraction operations.
  * Used to abstract DSP HW architecture and any IO busses between host CPU
@@ -337,6 +344,8 @@ struct snd_sof_dsp_ops {
 	/* DAI ops */
 	struct snd_soc_dai_driver *drv;
 	int num_drv;
+
+	bool (*is_chain_dma_supported)(struct snd_sof_dev *sdev, u32 dai_type); /* optional */
 
 	/* ALSA HW info flags, will be stored in snd_pcm_runtime.hw.info */
 	u32 hw_info;
@@ -595,6 +604,7 @@ struct snd_sof_dev {
 	struct list_head dfsentry_list;
 	bool dbg_dump_printed;
 	bool ipc_dump_printed;
+	bool d3_prevented; /* runtime pm use count incremented to prevent context lost */
 
 	/* firmware loader */
 	struct sof_ipc_fw_ready fw_ready;

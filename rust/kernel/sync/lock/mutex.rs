@@ -17,6 +17,7 @@ macro_rules! new_mutex {
             $inner, $crate::optional_name!($($name)?), $crate::static_lock_class!())
     };
 }
+pub use new_mutex;
 
 /// A mutual exclusion primitive.
 ///
@@ -35,7 +36,7 @@ macro_rules! new_mutex {
 /// contains an inner struct (`Inner`) that is protected by a mutex.
 ///
 /// ```
-/// use kernel::{init::InPlaceInit, init::PinInit, new_mutex, pin_init, sync::Mutex};
+/// use kernel::sync::{new_mutex, Mutex};
 ///
 /// struct Inner {
 ///     a: u32,

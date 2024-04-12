@@ -3,7 +3,7 @@
  * Checksum library
  *
  * Influenced by arch/arm64/lib/csum.c
- * Copyright (C) 2023 Rivos Inc.
+ * Copyright (C) 2023-2024 Rivos Inc.
  */
 #include <linux/bitops.h>
 #include <linux/compiler.h>
@@ -53,7 +53,7 @@ __sum16 csum_ipv6_magic(const struct in6_addr *saddr,
 		 * support, so nop when Zbb is available and jump when Zbb is
 		 * not available.
 		 */
-		asm_volatile_goto(ALTERNATIVE("j %l[no_zbb]", "nop", 0,
+		asm goto(ALTERNATIVE("j %l[no_zbb]", "nop", 0,
 					      RISCV_ISA_EXT_ZBB, 1)
 				  :
 				  :
@@ -170,7 +170,7 @@ do_csum_with_alignment(const unsigned char *buff, int len)
 		 * support, so nop when Zbb is available and jump when Zbb is
 		 * not available.
 		 */
-		asm_volatile_goto(ALTERNATIVE("j %l[no_zbb]", "nop", 0,
+		asm goto(ALTERNATIVE("j %l[no_zbb]", "nop", 0,
 					      RISCV_ISA_EXT_ZBB, 1)
 				  :
 				  :
@@ -178,7 +178,7 @@ do_csum_with_alignment(const unsigned char *buff, int len)
 				  : no_zbb);
 
 #ifdef CONFIG_32BIT
-		asm_volatile_goto(".option push			\n\
+		asm_goto_output(".option push			\n\
 		.option arch,+zbb				\n\
 			rori	%[fold_temp], %[csum], 16	\n\
 			andi	%[offset], %[offset], 1		\n\
@@ -193,7 +193,7 @@ do_csum_with_alignment(const unsigned char *buff, int len)
 
 		return (unsigned short)csum;
 #else /* !CONFIG_32BIT */
-		asm_volatile_goto(".option push			\n\
+		asm_goto_output(".option push			\n\
 		.option arch,+zbb				\n\
 			rori	%[fold_temp], %[csum], 32	\n\
 			add	%[csum], %[fold_temp], %[csum]	\n\
@@ -257,7 +257,7 @@ do_csum_no_alignment(const unsigned char *buff, int len)
 		 * support, so nop when Zbb is available and jump when Zbb is
 		 * not available.
 		 */
-		asm_volatile_goto(ALTERNATIVE("j %l[no_zbb]", "nop", 0,
+		asm goto(ALTERNATIVE("j %l[no_zbb]", "nop", 0,
 					      RISCV_ISA_EXT_ZBB, 1)
 				  :
 				  :
@@ -318,10 +318,7 @@ unsigned int do_csum(const unsigned char *buff, int len)
 	 * branches. The largest chunk of overlap was delegated into the
 	 * do_csum_common function.
 	 */
-	if (static_branch_likely(&fast_misaligned_access_speed_key))
-		return do_csum_no_alignment(buff, len);
-
-	if (((unsigned long)buff & OFFSET_MASK) == 0)
+	if (has_fast_unaligned_accesses() || (((unsigned long)buff & OFFSET_MASK) == 0))
 		return do_csum_no_alignment(buff, len);
 
 	return do_csum_with_alignment(buff, len);

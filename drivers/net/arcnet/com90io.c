@@ -350,6 +350,7 @@ static char device[9];		/* use eg. device=arc1 to change name */
 module_param_hw(io, int, ioport, 0);
 module_param_hw(irq, int, irq, 0);
 module_param_string(device, device, sizeof(device), 0);
+MODULE_DESCRIPTION("ARCnet COM90xx IO mapped chipset driver");
 MODULE_LICENSE("GPL");
 
 #ifndef MODULE

@@ -66,15 +66,15 @@ static struct sk_buff *tcp6_gso_segment(struct sk_buff *skb,
 
 	return tcp_gso_segment(skb, features);
 }
-static const struct net_offload tcpv6_offload = {
-	.callbacks = {
-		.gso_segment	=	tcp6_gso_segment,
-		.gro_receive	=	tcp6_gro_receive,
-		.gro_complete	=	tcp6_gro_complete,
-	},
-};
 
 int __init tcpv6_offload_init(void)
 {
-	return inet6_add_offload(&tcpv6_offload, IPPROTO_TCP);
+	net_hotdata.tcpv6_offload = (struct net_offload) {
+		.callbacks = {
+			.gso_segment	=	tcp6_gso_segment,
+			.gro_receive	=	tcp6_gro_receive,
+			.gro_complete	=	tcp6_gro_complete,
+		},
+	};
+	return inet6_add_offload(&net_hotdata.tcpv6_offload, IPPROTO_TCP);
 }

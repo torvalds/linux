@@ -197,7 +197,7 @@ static const struct regmap_config bd71815_regmap = {
 	.val_bits = 8,
 	.volatile_table = &bd71815_volatile_regs,
 	.max_register = BD71815_MAX_REGISTER - 1,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct regmap_config bd71828_regmap = {
@@ -205,7 +205,7 @@ static const struct regmap_config bd71828_regmap = {
 	.val_bits = 8,
 	.volatile_table = &bd71828_volatile_regs,
 	.max_register = BD71828_MAX_REGISTER,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 /*

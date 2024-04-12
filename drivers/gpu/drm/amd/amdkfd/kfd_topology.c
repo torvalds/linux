@@ -1640,12 +1640,10 @@ static int fill_in_l2_l3_pcache(struct kfd_cache_properties **props_ext,
 		else
 			mode = UNKNOWN_MEMORY_PARTITION_MODE;
 
-		if (pcache->cache_level == 2)
-			pcache->cache_size = pcache_info[cache_type].cache_size * num_xcc;
-		else if (mode)
-			pcache->cache_size = pcache_info[cache_type].cache_size / mode;
-		else
-			pcache->cache_size = pcache_info[cache_type].cache_size;
+		pcache->cache_size = pcache_info[cache_type].cache_size;
+		/* Partition mode only affects L3 cache size */
+		if (mode && pcache->cache_level == 3)
+			pcache->cache_size /= mode;
 
 		if (pcache_info[cache_type].flags & CRAT_CACHE_FLAGS_DATA_CACHE)
 			pcache->cache_type |= HSA_CACHE_TYPE_DATA;
@@ -1999,8 +1997,9 @@ int kfd_topology_add_device(struct kfd_node *gpu)
 			HSA_CAP_ASIC_REVISION_MASK);
 
 	dev->node_props.location_id = pci_dev_id(gpu->adev->pdev);
-	if (KFD_GC_VERSION(dev->gpu->kfd) == IP_VERSION(9, 4, 3))
-		dev->node_props.location_id |= dev->gpu->node_id;
+	/* On multi-partition nodes, node id = location_id[31:28] */
+	if (gpu->kfd->num_nodes > 1)
+		dev->node_props.location_id |= (dev->gpu->node_id << 28);
 
 	dev->node_props.domain = pci_domain_nr(gpu->adev->pdev->bus);
 	dev->node_props.max_engine_clk_fcompute =

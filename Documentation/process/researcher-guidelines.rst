@@ -167,4 +167,4 @@ If no one can be found to internally review patches and you need
 help finding such a person, or if you have any other questions
 related to this document and the developer community's expectations,
 please reach out to the private Technical Advisory Board mailing list:
-<tech-board@lists.linux-foundation.org>.
+<tech-board@groups.linuxfoundation.org>.

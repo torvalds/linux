@@ -4,10 +4,29 @@
 #include "timer.skel.h"
 #include "timer_failure.skel.h"
 
+#define NUM_THR 8
+
+static void *spin_lock_thread(void *arg)
+{
+	int i, err, prog_fd = *(int *)arg;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
+
+	for (i = 0; i < 10000; i++) {
+		err = bpf_prog_test_run_opts(prog_fd, &topts);
+		if (!ASSERT_OK(err, "test_run_opts err") ||
+		    !ASSERT_OK(topts.retval, "test_run_opts retval"))
+			break;
+	}
+
+	pthread_exit(arg);
+}
+
 static int timer(struct timer *timer_skel)
 {
-	int err, prog_fd;
+	int i, err, prog_fd;
 	LIBBPF_OPTS(bpf_test_run_opts, topts);
+	pthread_t thread_id[NUM_THR];
+	void *ret;
 
 	err = timer__attach(timer_skel);
 	if (!ASSERT_OK(err, "timer_attach"))
@@ -42,6 +61,20 @@ static int timer(struct timer *timer_skel)
 
 	/* check that code paths completed */
 	ASSERT_EQ(timer_skel->bss->ok, 1 | 2 | 4, "ok");
+
+	prog_fd = bpf_program__fd(timer_skel->progs.race);
+	for (i = 0; i < NUM_THR; i++) {
+		err = pthread_create(&thread_id[i], NULL,
+				     &spin_lock_thread, &prog_fd);
+		if (!ASSERT_OK(err, "pthread_create"))
+			break;
+	}
+
+	while (i) {
+		err = pthread_join(thread_id[--i], &ret);
+		if (ASSERT_OK(err, "pthread_join"))
+			ASSERT_EQ(ret, (void *)&prog_fd, "pthread_join");
+	}
 
 	return 0;
 }

@@ -114,6 +114,12 @@ static int cbmem_entry_probe(struct coreboot_device *dev)
 	return 0;
 }
 
+static const struct coreboot_device_id cbmem_ids[] = {
+	{ .tag = LB_TAG_CBMEM_ENTRY },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(coreboot, cbmem_ids);
+
 static struct coreboot_driver cbmem_entry_driver = {
 	.probe = cbmem_entry_probe,
 	.drv = {
@@ -121,7 +127,7 @@ static struct coreboot_driver cbmem_entry_driver = {
 		.owner = THIS_MODULE,
 		.dev_groups = dev_groups,
 	},
-	.tag = LB_TAG_CBMEM_ENTRY,
+	.id_table = cbmem_ids,
 };
 module_coreboot_driver(cbmem_entry_driver);
 

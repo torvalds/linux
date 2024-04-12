@@ -50,7 +50,7 @@ static struct snd_soc_jack_pin sof_jack_pins[] = {
 	},
 };
 
-static int cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_component *component = snd_soc_rtd_to_codec(rtd, 0)->component;
 	struct mc_private *ctx = snd_soc_card_get_drvdata(rtd->card);
@@ -108,20 +108,7 @@ static int cs42l43_hs_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-int sof_sdw_cs42l43_hs_init(struct snd_soc_card *card, const struct snd_soc_acpi_link_adr *link,
-			    struct snd_soc_dai_link *dai_links, struct sof_sdw_codec_info *info,
-			    bool playback)
-{
-	/*
-	 * No need to test if (!playback) like other codecs as cs42l43 uses separated dai for
-	 * playback and capture, and sof_sdw_cs42l43_init is only linked to the playback dai.
-	 */
-	dai_links->init = cs42l43_hs_rtd_init;
-
-	return 0;
-}
-
-static int cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
+int cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	int ret;
@@ -146,11 +133,3 @@ static int cs42l43_dmic_rtd_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-int sof_sdw_cs42l43_dmic_init(struct snd_soc_card *card, const struct snd_soc_acpi_link_adr *link,
-			      struct snd_soc_dai_link *dai_links, struct sof_sdw_codec_info *info,
-			      bool playback)
-{
-	dai_links->init = cs42l43_dmic_rtd_init;
-
-	return 0;
-}

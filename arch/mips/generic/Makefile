@@ -4,9 +4,9 @@
 # Author: Paul Burton <paul.burton@mips.com>
 #
 
-obj-y += init.o
-obj-y += irq.o
-obj-y += proc.o
+obj-$(CONFIG_MACH_GENERIC_CORE) += init.o
+obj-$(CONFIG_MACH_GENERIC_CORE) += irq.o
+obj-$(CONFIG_MACH_GENERIC_CORE) += proc.o
 
 obj-$(CONFIG_YAMON_DT_SHIM)		+= yamon-dt.o
 obj-$(CONFIG_LEGACY_BOARD_SEAD3)	+= board-sead3.o

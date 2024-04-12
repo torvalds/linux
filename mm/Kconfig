@@ -45,22 +45,6 @@ config ZSWAP_DEFAULT_ON
 	  The selection made here can be overridden by using the kernel
 	  command line 'zswap.enabled=' option.
 
-config ZSWAP_EXCLUSIVE_LOADS_DEFAULT_ON
-	bool "Invalidate zswap entries when pages are loaded"
-	depends on ZSWAP
-	help
-	  If selected, exclusive loads for zswap will be enabled at boot,
-	  otherwise it will be disabled.
-
-	  If exclusive loads are enabled, when a page is loaded from zswap,
-	  the zswap entry is invalidated at once, as opposed to leaving it
-	  in zswap until the swap entry is freed.
-
-	  This avoids having two copies of the same page in memory
-	  (compressed and uncompressed) after faulting in a page from zswap.
-	  The cost is that if the page was never dirtied and needs to be
-	  swapped out again, it will be re-compressed.
-
 config ZSWAP_SHRINKER_DEFAULT_ON
 	bool "Shrink the zswap pool on memory pressure"
 	depends on ZSWAP
@@ -599,7 +583,7 @@ config MEMORY_BALLOON
 # support for memory balloon compaction
 config BALLOON_COMPACTION
 	bool "Allow for balloon memory compaction/migration"
-	def_bool y
+	default y
 	depends on COMPACTION && MEMORY_BALLOON
 	help
 	  Memory fragmentation introduced by ballooning might reduce
@@ -614,7 +598,7 @@ config BALLOON_COMPACTION
 # support for memory compaction
 config COMPACTION
 	bool "Allow for memory compaction"
-	def_bool y
+	default y
 	select MIGRATION
 	depends on MMU
 	help
@@ -637,7 +621,6 @@ config COMPACT_UNEVICTABLE_DEFAULT
 # support for free page reporting
 config PAGE_REPORTING
 	bool "Free page reporting"
-	def_bool n
 	help
 	  Free page reporting allows for the incremental acquisition of
 	  free pages from the buddy allocator for the purpose of reporting
@@ -649,7 +632,7 @@ config PAGE_REPORTING
 #
 config MIGRATION
 	bool "Page migration"
-	def_bool y
+	default y
 	depends on (NUMA || ARCH_ENABLE_MEMORY_HOTREMOVE || COMPACTION || CMA) && MMU
 	help
 	  Allows the migration of the physical location of pages of processes
@@ -901,15 +884,6 @@ config CMA
 
 	  If unsure, say "n".
 
-config CMA_DEBUG
-	bool "CMA debug messages (DEVELOPMENT)"
-	depends on DEBUG_KERNEL && CMA
-	help
-	  Turns on debug messages in CMA.  This produces KERN_DEBUG
-	  messages for every CMA call as well as various messages while
-	  processing calls such as dma_alloc_from_contiguous().
-	  This option does not affect warning and error messages.
-
 config CMA_DEBUGFS
 	bool "CMA debugfs interface"
 	depends on CMA && DEBUG_FS
@@ -926,14 +900,14 @@ config CMA_SYSFS
 config CMA_AREAS
 	int "Maximum count of the CMA areas"
 	depends on CMA
-	default 19 if NUMA
-	default 7
+	default 20 if NUMA
+	default 8
 	help
 	  CMA allows to create CMA areas for particular purpose, mainly,
 	  used as device private area. This parameter sets the maximum
 	  number of CMA area in the system.
 
-	  If unsure, leave the default value "7" in UMA and "19" in NUMA.
+	  If unsure, leave the default value "8" in UMA and "20" in NUMA.
 
 config MEM_SOFT_DIRTY
 	bool "Track memory changes"
@@ -997,6 +971,12 @@ config IDLE_PAGE_TRACKING
 
 	  See Documentation/admin-guide/mm/idle_page_tracking.rst for
 	  more details.
+
+# Architectures which implement cpu_dcache_is_aliasing() to query
+# whether the data caches are aliased (VIVT or VIPT with dcache
+# aliasing) need to select this.
+config ARCH_HAS_CPU_CACHE_ALIASING
+	bool
 
 config ARCH_HAS_CACHE_LINE_SIZE
 	bool

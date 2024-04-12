@@ -277,4 +277,5 @@ int hclge_tm_get_port_shaper(struct hclge_dev *hdev,
 int hclge_up_to_tc_map(struct hclge_dev *hdev);
 int hclge_dscp_to_tc_map(struct hclge_dev *hdev);
 int hclge_tm_flush_cfg(struct hclge_dev *hdev, bool enable);
+void hclge_reset_tc_config(struct hclge_dev *hdev);
 #endif

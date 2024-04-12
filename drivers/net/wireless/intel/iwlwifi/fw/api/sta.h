@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2021, 2023 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -109,6 +109,7 @@ enum iwl_sta_flags {
  * @STA_KEY_FLG_EN_MSK: mask for encryption algorithmi value
  * @STA_KEY_FLG_WEP_KEY_MAP: wep is either a group key (0 - legacy WEP) or from
  *	station info array (1 - n 1X mode)
+ * @STA_KEY_FLG_AMSDU_SPP: SPP (signaling and payload protected) A-MSDU
  * @STA_KEY_FLG_KEYID_MSK: the index of the key
  * @STA_KEY_FLG_KEYID_POS: key index bit position
  * @STA_KEY_NOT_VALID: key is invalid
@@ -129,6 +130,7 @@ enum iwl_sta_key_flag {
 	STA_KEY_FLG_EN_MSK		= (7 << 0),
 
 	STA_KEY_FLG_WEP_KEY_MAP		= BIT(3),
+	STA_KEY_FLG_AMSDU_SPP		= BIT(7),
 	STA_KEY_FLG_KEYID_POS		 = 8,
 	STA_KEY_FLG_KEYID_MSK		= (3 << STA_KEY_FLG_KEYID_POS),
 	STA_KEY_NOT_VALID		= BIT(11),

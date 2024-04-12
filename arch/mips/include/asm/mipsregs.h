@@ -42,59 +42,198 @@
 
 /*
  * Coprocessor 0 register names
+ *
+ * CP0_REGISTER variant is meant to be used in assembly code, C0_REGISTER
+ * variant is meant to be used in C (uasm) code.
  */
-#define CP0_INDEX $0
-#define CP0_RANDOM $1
-#define CP0_ENTRYLO0 $2
-#define CP0_ENTRYLO1 $3
-#define CP0_CONF $3
-#define CP0_GLOBALNUMBER $3, 1
-#define CP0_CONTEXT $4
-#define CP0_PAGEMASK $5
-#define CP0_PAGEGRAIN $5, 1
-#define CP0_SEGCTL0 $5, 2
-#define CP0_SEGCTL1 $5, 3
-#define CP0_SEGCTL2 $5, 4
-#define CP0_WIRED $6
-#define CP0_INFO $7
-#define CP0_HWRENA $7
-#define CP0_BADVADDR $8
-#define CP0_BADINSTR $8, 1
-#define CP0_COUNT $9
-#define CP0_ENTRYHI $10
-#define CP0_GUESTCTL1 $10, 4
-#define CP0_GUESTCTL2 $10, 5
-#define CP0_GUESTCTL3 $10, 6
-#define CP0_COMPARE $11
-#define CP0_GUESTCTL0EXT $11, 4
-#define CP0_STATUS $12
-#define CP0_GUESTCTL0 $12, 6
-#define CP0_GTOFFSET $12, 7
-#define CP0_CAUSE $13
-#define CP0_EPC $14
-#define CP0_PRID $15
-#define CP0_EBASE $15, 1
-#define CP0_CMGCRBASE $15, 3
-#define CP0_CONFIG $16
-#define CP0_CONFIG3 $16, 3
-#define CP0_CONFIG5 $16, 5
-#define CP0_CONFIG6 $16, 6
-#define CP0_LLADDR $17
-#define CP0_WATCHLO $18
-#define CP0_WATCHHI $19
-#define CP0_XCONTEXT $20
-#define CP0_FRAMEMASK $21
-#define CP0_DIAGNOSTIC $22
-#define CP0_DIAGNOSTIC1 $22, 1
-#define CP0_DEBUG $23
-#define CP0_DEPC $24
-#define CP0_PERFORMANCE $25
-#define CP0_ECC $26
-#define CP0_CACHEERR $27
-#define CP0_TAGLO $28
-#define CP0_TAGHI $29
-#define CP0_ERROREPC $30
-#define CP0_DESAVE $31
+#define CP0_INDEX		$0
+#define C0_INDEX		0, 0
+
+#define CP0_RANDOM		$1
+#define C0_RANDOM		1, 0
+
+#define CP0_ENTRYLO0		$2
+#define C0_ENTRYLO0		2, 0
+
+#define CP0_ENTRYLO1		$3
+#define C0_ENTRYLO1		3, 0
+
+#define CP0_CONF		$3
+#define C0_CONF			3, 0
+
+#define CP0_GLOBALNUMBER	$3, 1
+#define C0_GLOBALNUMBER		3, 1
+
+#define CP0_CONTEXT		$4
+#define C0_CONTEXT		4, 0
+
+#define CP0_PAGEMASK		$5
+#define C0_PAGEMASK		5, 0
+
+#define CP0_PAGEGRAIN		$5, 1
+#define C0_PAGEGRAIN		5, 1
+
+#define CP0_SEGCTL0		$5, 2
+#define C0_SEGCTL0		5, 2
+
+#define CP0_SEGCTL1		$5, 3
+#define C0_SEGCTL1		5, 3
+
+#define CP0_SEGCTL2		$5, 4
+#define C0_SEGCTL2		5, 4
+
+#define CP0_PWBASE		$5, 5
+#define C0_PWBASE		5, 5
+
+#define CP0_PWFIELD		$5, 6
+#define C0_PWFIELD		5, 6
+
+#define CP0_PWCTL		$5, 7
+#define C0_PWCTL		5, 7
+
+#define CP0_WIRED		$6
+#define C0_WIRED		6, 0
+
+#define CP0_INFO		$7
+#define C0_INFO			7, 0
+
+#define CP0_HWRENA		$7
+#define C0_HWRENA		7, 0
+
+#define CP0_BADVADDR		$8
+#define C0_BADVADDR		8, 0
+
+#define CP0_BADINSTR		$8, 1
+#define C0_BADINSTR		8, 1
+
+#define CP0_BADINSTRP		$8, 2
+#define C0_BADINSTRP		8, 2
+
+#define CP0_COUNT		$9
+#define C0_COUNT		9, 0
+
+#define CP0_PGD			$9, 7
+#define C0_PGD			9, 7
+
+#define CP0_ENTRYHI		$10
+#define C0_ENTRYHI		10, 0
+
+#define CP0_GUESTCTL1		$10, 4
+#define C0_GUESTCTL1		10, 5
+
+#define CP0_GUESTCTL2		$10, 5
+#define C0_GUESTCTL2		10, 5
+
+#define CP0_GUESTCTL3		$10, 6
+#define C0_GUESTCTL3		10, 6
+
+#define CP0_COMPARE		$11
+#define C0_COMPARE		11, 0
+
+#define CP0_GUESTCTL0EXT	$11, 4
+#define C0_GUESTCTL0EXT		11, 4
+
+#define CP0_STATUS		$12
+#define C0_STATUS		12, 0
+
+#define CP0_GUESTCTL0		$12, 6
+#define C0_GUESTCTL0		12, 6
+
+#define CP0_GTOFFSET		$12, 7
+#define C0_GTOFFSET		12, 7
+
+#define CP0_CAUSE		$13
+#define C0_CAUSE		13, 0
+
+#define CP0_EPC			$14
+#define C0_EPC			14, 0
+
+#define CP0_PRID		$15
+#define C0_PRID			15, 0
+
+#define CP0_EBASE		$15, 1
+#define C0_EBASE		15, 1
+
+#define CP0_CMGCRBASE		$15, 3
+#define C0_CMGCRBASE		15, 3
+
+#define CP0_CONFIG		$16
+#define C0_CONFIG		16, 0
+
+#define CP0_CONFIG1		$16, 1
+#define C0_CONFIG1		16, 1
+
+#define CP0_CONFIG2		$16, 2
+#define C0_CONFIG2		16, 2
+
+#define CP0_CONFIG3		$16, 3
+#define C0_CONFIG3		16, 3
+
+#define CP0_CONFIG4		$16, 4
+#define C0_CONFIG4		16, 4
+
+#define CP0_CONFIG5		$16, 5
+#define C0_CONFIG5		16, 5
+
+#define CP0_CONFIG6		$16, 6
+#define C0_CONFIG6		16, 6
+
+#define CP0_LLADDR		$17
+#define C0_LLADDR		17, 0
+
+#define CP0_WATCHLO		$18
+#define C0_WATCHLO		18, 0
+
+#define CP0_WATCHHI		$19
+#define C0_WATCHHI		19, 0
+
+#define CP0_XCONTEXT		$20
+#define C0_XCONTEXT		20, 0
+
+#define CP0_FRAMEMASK		$21
+#define C0_FRAMEMASK		21, 0
+
+#define CP0_DIAGNOSTIC		$22
+#define C0_DIAGNOSTIC		22, 0
+
+#define CP0_DIAGNOSTIC1		$22, 1
+#define C0_DIAGNOSTIC1		22, 1
+
+#define CP0_DEBUG		$23
+#define C0_DEBUG		23, 0
+
+#define CP0_DEPC		$24
+#define C0_DEPC			24, 0
+
+#define CP0_PERFORMANCE		$25
+#define C0_PERFORMANCE		25, 0
+
+#define CP0_ECC			$26
+#define C0_ECC			26, 0
+
+#define CP0_CACHEERR		$27
+#define C0_CACHEERR		27, 0
+
+#define CP0_TAGLO		$28
+#define C0_TAGLO		28, 0
+
+#define CP0_DTAGLO		$28, 2
+#define C0_DTAGLO		28, 2
+
+#define CP0_DDATALO		$28, 3
+#define C0_DDATALO		28, 3
+
+#define CP0_STAGLO		$28, 4
+#define C0_STAGLO		28, 4
+
+#define CP0_TAGHI		$29
+#define C0_TAGHI		29, 0
+
+#define CP0_ERROREPC		$30
+#define C0_ERROREPC		30, 0
+
+#define CP0_DESAVE		$31
+#define C0_DESAVE		31, 0
 
 /*
  * R4640/R4650 cp0 register names.  These registers are listed
@@ -290,6 +429,12 @@
 #define ST0_KX			0x00000080
 #define ST0_DE			0x00010000
 #define ST0_CE			0x00020000
+
+#ifdef CONFIG_64BIT
+#define ST0_KX_IF_64	ST0_KX
+#else
+#define ST0_KX_IF_64	0
+#endif
 
 /*
  * Setting c0_status.co enables Hit_Writeback and Hit_Writeback_Invalidate
@@ -1277,10 +1422,12 @@ static inline int mm_insn_16bit(u16 insn)
  */
 
 /* Match an individual register number and assign to \var */
-#define _IFC_REG(n)				\
-	".ifc	\\r, $" #n "\n\t"		\
+#define _IFC_REG_NAME(name, n)			\
+	".ifc	\\r, $" #name "\n\t"		\
 	"\\var	= " #n "\n\t"			\
 	".endif\n\t"
+
+#define _IFC_REG(n)	_IFC_REG_NAME(n, n)
 
 #define _ASM_SET_PARSE_R						\
 	".macro	parse_r var r\n\t"					\
@@ -1293,6 +1440,7 @@ static inline int mm_insn_16bit(u16 insn)
 	_IFC_REG(20) _IFC_REG(21) _IFC_REG(22) _IFC_REG(23)		\
 	_IFC_REG(24) _IFC_REG(25) _IFC_REG(26) _IFC_REG(27)		\
 	_IFC_REG(28) _IFC_REG(29) _IFC_REG(30) _IFC_REG(31)		\
+	_IFC_REG_NAME(sp, 29) _IFC_REG_NAME(fp, 30)			\
 	".iflt	\\var\n\t"						\
 	".error	\"Unable to parse register name \\r\"\n\t"		\
 	".endif\n\t"							\
@@ -1306,6 +1454,15 @@ static inline int mm_insn_16bit(u16 insn)
  * register operand \<Rn> is assigned to __<Rn> where it can be accessed from
  * the ENC encodings.
  */
+
+/* Instructions with 1 register operand */
+#define _ASM_MACRO_1R(OP, R1, ENC)				\
+		".macro	" #OP " " #R1 "\n\t"			\
+		_ASM_SET_PARSE_R					\
+		"parse_r __" #R1 ", \\" #R1 "\n\t"			\
+		ENC							\
+		_ASM_UNSET_PARSE_R					\
+		".endm\n\t"
 
 /* Instructions with 1 register operand & 1 immediate operand */
 #define _ASM_MACRO_1R1I(OP, R1, I2, ENC)				\
@@ -2078,7 +2235,14 @@ do {									\
 		_ASM_INSN_IF_MIPS(0x4200000c)				\
 		_ASM_INSN32_IF_MM(0x0000517c)
 #else	/* !TOOLCHAIN_SUPPORTS_VIRT */
-#define _ASM_SET_VIRT ".set\tvirt\n\t"
+#if MIPS_ISA_REV >= 5
+#define _ASM_SET_VIRT_ISA
+#elif defined(CONFIG_64BIT)
+#define _ASM_SET_VIRT_ISA ".set\tmips64r5\n\t"
+#else
+#define _ASM_SET_VIRT_ISA ".set\tmips32r5\n\t"
+#endif
+#define _ASM_SET_VIRT _ASM_SET_VIRT_ISA ".set\tvirt\n\t"
 #define _ASM_SET_MFGC0	_ASM_SET_VIRT
 #define _ASM_SET_DMFGC0	_ASM_SET_VIRT
 #define _ASM_SET_MTGC0	_ASM_SET_VIRT
@@ -2099,7 +2263,6 @@ do {									\
 ({ int __res;								\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
-		".set\tmips32r5\n\t"					\
 		_ASM_SET_MFGC0						\
 		"mfgc0\t%0, " #source ", %1\n\t"			\
 		_ASM_UNSET_MFGC0					\
@@ -2113,7 +2276,6 @@ do {									\
 ({ unsigned long long __res;						\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
-		".set\tmips64r5\n\t"					\
 		_ASM_SET_DMFGC0						\
 		"dmfgc0\t%0, " #source ", %1\n\t"			\
 		_ASM_UNSET_DMFGC0					\
@@ -2127,7 +2289,6 @@ do {									\
 do {									\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
-		".set\tmips32r5\n\t"					\
 		_ASM_SET_MTGC0						\
 		"mtgc0\t%z0, " #register ", %1\n\t"			\
 		_ASM_UNSET_MTGC0					\
@@ -2140,7 +2301,6 @@ do {									\
 do {									\
 	__asm__ __volatile__(						\
 		".set\tpush\n\t"					\
-		".set\tmips64r5\n\t"					\
 		_ASM_SET_DMTGC0						\
 		"dmtgc0\t%z0, " #register ", %1\n\t"			\
 		_ASM_UNSET_DMTGC0					\

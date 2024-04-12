@@ -1949,9 +1949,6 @@ static int rt5640_set_bias_level(struct snd_soc_component *component,
 		 * away from ON. Disable the clock in that case, otherwise
 		 * enable it.
 		 */
-		if (IS_ERR(rt5640->mclk))
-			break;
-
 		if (snd_soc_component_get_bias_level(component) == SND_SOC_BIAS_ON) {
 			clk_disable_unprepare(rt5640->mclk);
 		} else {
@@ -2661,9 +2658,9 @@ static int rt5640_probe(struct snd_soc_component *component)
 	u32 val;
 
 	/* Check if MCLK provided */
-	rt5640->mclk = devm_clk_get(component->dev, "mclk");
-	if (PTR_ERR(rt5640->mclk) == -EPROBE_DEFER)
-		return -EPROBE_DEFER;
+	rt5640->mclk = devm_clk_get_optional(component->dev, "mclk");
+	if (IS_ERR(rt5640->mclk))
+		return PTR_ERR(rt5640->mclk);
 
 	rt5640->component = component;
 

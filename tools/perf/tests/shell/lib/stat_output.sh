@@ -97,6 +97,18 @@ check_per_cache_instance()
 	echo "[Success]"
 }
 
+check_per_cluster()
+{
+	echo -n "Checking $1 output: per cluster "
+	if ParanoidAndNotRoot 0
+	then
+		echo "[Skip] paranoid and not root"
+		return
+	fi
+	perf stat --per-cluster -a $2 true
+	echo "[Success]"
+}
+
 check_per_die()
 {
 	echo -n "Checking $1 output: per die "

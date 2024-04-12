@@ -63,3 +63,5 @@ module_exit(ledtrig_audio_exit);
 
 MODULE_DESCRIPTION("LED trigger for audio mute control");
 MODULE_LICENSE("GPL v2");
+MODULE_ALIAS("ledtrig:audio-mute");
+MODULE_ALIAS("ledtrig:audio-micmute");

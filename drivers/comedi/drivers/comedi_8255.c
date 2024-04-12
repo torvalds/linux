@@ -159,6 +159,7 @@ static int __subdev_8255_init(struct comedi_device *dev,
 		return -ENOMEM;
 
 	spriv->context = context;
+	spriv->io      = io;
 
 	s->type		= COMEDI_SUBD_DIO;
 	s->subdev_flags	= SDF_READABLE | SDF_WRITABLE;

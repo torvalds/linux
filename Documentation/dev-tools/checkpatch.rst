@@ -168,7 +168,7 @@ Available options:
 
  - --fix
 
-   This is an EXPERIMENTAL feature.  If correctable errors exists, a file
+   This is an EXPERIMENTAL feature.  If correctable errors exist, a file
    <inputfile>.EXPERIMENTAL-checkpatch-fixes is created which has the
    automatically fixable errors corrected.
 
@@ -181,7 +181,7 @@ Available options:
 
  - --ignore-perl-version
 
-   Override checking of perl version.  Runtime errors maybe encountered after
+   Override checking of perl version.  Runtime errors may be encountered after
    enabling this flag if the perl version does not meet the minimum specified.
 
  - --codespell

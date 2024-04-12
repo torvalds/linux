@@ -924,6 +924,7 @@ static int smc_switch_to_fallback(struct smc_sock *smc, int reason_code)
 		smc->clcsock->file->private_data = smc->clcsock;
 		smc->clcsock->wq.fasync_list =
 			smc->sk.sk_socket->wq.fasync_list;
+		smc->sk.sk_socket->wq.fasync_list = NULL;
 
 		/* There might be some wait entries remaining
 		 * in smc sk->sk_wq and they should be woken up
@@ -1045,7 +1046,7 @@ static int smc_find_ism_v2_device_clnt(struct smc_sock *smc,
 	int rc = SMC_CLC_DECL_NOSMCDDEV;
 	struct smcd_dev *smcd;
 	int i = 1, entry = 1;
-	bool is_virtual;
+	bool is_emulated;
 	u16 chid;
 
 	if (smcd_indicated(ini->smc_type_v1))
@@ -1057,12 +1058,12 @@ static int smc_find_ism_v2_device_clnt(struct smc_sock *smc,
 		chid = smc_ism_get_chid(smcd);
 		if (!smc_find_ism_v2_is_unique_chid(chid, ini, i))
 			continue;
-		is_virtual = __smc_ism_is_virtual(chid);
+		is_emulated = __smc_ism_is_emulated(chid);
 		if (!smc_pnet_is_pnetid_set(smcd->pnetid) ||
 		    smc_pnet_is_ndev_pnetid(sock_net(&smc->sk), smcd->pnetid)) {
-			if (is_virtual && entry == SMCD_CLC_MAX_V2_GID_ENTRIES)
+			if (is_emulated && entry == SMCD_CLC_MAX_V2_GID_ENTRIES)
 				/* It's the last GID-CHID entry left in CLC
-				 * Proposal SMC-Dv2 extension, but a virtual
+				 * Proposal SMC-Dv2 extension, but an Emulated-
 				 * ISM device will take two entries. So give
 				 * up it and try the next potential ISM device.
 				 */
@@ -1072,7 +1073,7 @@ static int smc_find_ism_v2_device_clnt(struct smc_sock *smc,
 			ini->is_smcd = true;
 			rc = 0;
 			i++;
-			entry = is_virtual ? entry + 2 : entry + 1;
+			entry = is_emulated ? entry + 2 : entry + 1;
 			if (entry > SMCD_CLC_MAX_V2_GID_ENTRIES)
 				break;
 		}
@@ -1413,10 +1414,10 @@ static int smc_connect_ism(struct smc_sock *smc,
 		if (rc)
 			return rc;
 
-		if (__smc_ism_is_virtual(ini->ism_chid[ini->ism_selected]))
+		if (__smc_ism_is_emulated(ini->ism_chid[ini->ism_selected]))
 			ini->ism_peer_gid[ini->ism_selected].gid_ext =
 						ntohll(aclc->d1.gid_ext);
-		/* for non-virtual ISM devices, peer gid_ext remains 0. */
+		/* for non-Emulated-ISM devices, peer gid_ext remains 0. */
 	}
 	ini->ism_peer_gid[ini->ism_selected].gid = ntohll(aclc->d0.gid);
 
@@ -2117,10 +2118,10 @@ static void smc_check_ism_v2_match(struct smc_init_info *ini,
 		if (smc_ism_get_chid(smcd) == proposed_chid &&
 		    !smc_ism_cantalk(proposed_gid, ISM_RESERVED_VLANID, smcd)) {
 			ini->ism_peer_gid[*matches].gid = proposed_gid->gid;
-			if (__smc_ism_is_virtual(proposed_chid))
+			if (__smc_ism_is_emulated(proposed_chid))
 				ini->ism_peer_gid[*matches].gid_ext =
 							proposed_gid->gid_ext;
-				/* non-virtual ISM's peer gid_ext remains 0. */
+				/* non-Emulated-ISM's peer gid_ext remains 0. */
 			ini->ism_dev[*matches] = smcd;
 			(*matches)++;
 			break;
@@ -2170,10 +2171,10 @@ static void smc_find_ism_v2_device_serv(struct smc_sock *new_smc,
 		smcd_gid.gid = ntohll(smcd_v2_ext->gidchid[i].gid);
 		smcd_gid.gid_ext = 0;
 		chid = ntohs(smcd_v2_ext->gidchid[i].chid);
-		if (__smc_ism_is_virtual(chid)) {
+		if (__smc_ism_is_emulated(chid)) {
 			if ((i + 1) == smc_v2_ext->hdr.ism_gid_cnt ||
 			    chid != ntohs(smcd_v2_ext->gidchid[i + 1].chid))
-				/* each virtual ISM device takes two GID-CHID
+				/* each Emulated-ISM device takes two GID-CHID
 				 * entries and CHID of the second entry repeats
 				 * that of the first entry.
 				 *

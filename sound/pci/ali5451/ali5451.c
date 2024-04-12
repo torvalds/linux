@@ -243,9 +243,7 @@ struct snd_ali {
 	spinlock_t	reg_lock;
 	spinlock_t	voice_alloc;
 
-#ifdef CONFIG_PM_SLEEP
-	struct snd_ali_image *image;
-#endif
+	struct snd_ali_image image;
 };
 
 static const struct pci_device_id snd_ali_ids[] = {
@@ -1824,17 +1822,12 @@ static int snd_ali_mixer(struct snd_ali *codec)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int ali_suspend(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ali *chip = card->private_data;
-	struct snd_ali_image *im;
+	struct snd_ali_image *im = &chip->image;
 	int i, j;
-
-	im = chip->image;
-	if (!im)
-		return 0;
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	for (i = 0; i < chip->num_of_codecs; i++)
@@ -1872,12 +1865,8 @@ static int ali_resume(struct device *dev)
 {
 	struct snd_card *card = dev_get_drvdata(dev);
 	struct snd_ali *chip = card->private_data;
-	struct snd_ali_image *im;
+	struct snd_ali_image *im = &chip->image;
 	int i, j;
-
-	im = chip->image;
-	if (!im)
-		return 0;
 
 	spin_lock_irq(&chip->reg_lock);
 	
@@ -1908,11 +1897,7 @@ static int ali_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(ali_pm, ali_suspend, ali_resume);
-#define ALI_PM_OPS	&ali_pm
-#else
-#define ALI_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
+static DEFINE_SIMPLE_DEV_PM_OPS(ali_pm, ali_suspend, ali_resume);
 
 static void snd_ali_free(struct snd_card *card)
 {
@@ -2112,13 +2097,6 @@ static int snd_ali_create(struct snd_card *card,
 		return err;
 	}
 
-#ifdef CONFIG_PM_SLEEP
-	codec->image = devm_kmalloc(&pci->dev, sizeof(*codec->image),
-				    GFP_KERNEL);
-	if (!codec->image)
-		dev_warn(card->dev, "can't allocate apm buffer\n");
-#endif
-
 	snd_ali_enable_address_interrupt(codec);
 	codec->hw_initialized = 1;
 	return 0;
@@ -2181,7 +2159,7 @@ static struct pci_driver ali5451_driver = {
 	.id_table = snd_ali_ids,
 	.probe = snd_ali_probe,
 	.driver = {
-		.pm = ALI_PM_OPS,
+		.pm = &ali_pm,
 	},
 };                                
 

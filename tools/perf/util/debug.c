@@ -33,6 +33,7 @@
 #endif
 
 int verbose;
+int debug_kmaps;
 int debug_peo_args;
 bool dump_trace = false, quiet = false;
 int debug_ordered_events;
@@ -229,6 +230,7 @@ static struct sublevel_option debug_opts[] = {
 	{ .name = "stderr",		.value_ptr = &redirect_to_stderr},
 	{ .name = "data-convert",	.value_ptr = &debug_data_convert },
 	{ .name = "perf-event-open",	.value_ptr = &debug_peo_args },
+	{ .name = "kmaps",		.value_ptr = &debug_kmaps },
 	{ .name = NULL, }
 };
 
@@ -267,6 +269,7 @@ int perf_quiet_option(void)
 	/* For debug variables that are used as bool types, set to 0. */
 	redirect_to_stderr = 0;
 	debug_peo_args = 0;
+	debug_kmaps = 0;
 
 	return 0;
 }

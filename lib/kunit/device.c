@@ -10,6 +10,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/dma-mapping.h>
 
 #include <kunit/test.h>
 #include <kunit/device.h>
@@ -35,7 +36,7 @@ struct kunit_device {
 
 #define to_kunit_device(d) container_of_const(d, struct kunit_device, dev)
 
-static struct bus_type kunit_bus_type = {
+static const struct bus_type kunit_bus_type = {
 	.name		= "kunit",
 };
 
@@ -52,6 +53,20 @@ int kunit_bus_init(void)
 	if (error)
 		bus_unregister(&kunit_bus_type);
 	return error;
+}
+
+/* Unregister the 'kunit_bus' in case the KUnit module is unloaded. */
+void kunit_bus_shutdown(void)
+{
+	/* Make sure the bus exists before we unregister it. */
+	if (IS_ERR_OR_NULL(kunit_bus_device))
+		return;
+
+	bus_unregister(&kunit_bus_type);
+
+	root_device_unregister(kunit_bus_device);
+
+	kunit_bus_device = NULL;
 }
 
 /* Release a 'fake' KUnit device. */
@@ -118,6 +133,9 @@ static struct kunit_device *kunit_device_register_internal(struct kunit *test,
 		put_device(&kunit_dev->dev);
 		return ERR_PTR(err);
 	}
+
+	kunit_dev->dev.dma_mask = &kunit_dev->dev.coherent_dma_mask;
+	kunit_dev->dev.coherent_dma_mask = DMA_BIT_MASK(32);
 
 	kunit_add_action(test, device_unregister_wrapper, &kunit_dev->dev);
 

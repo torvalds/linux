@@ -23,7 +23,7 @@ struct fscrypt_mode fscrypt_modes[] = {
 		.blk_crypto_mode = BLK_ENCRYPTION_MODE_AES_256_XTS,
 	},
 	[FSCRYPT_MODE_AES_256_CTS] = {
-		.friendly_name = "AES-256-CTS-CBC",
+		.friendly_name = "AES-256-CBC-CTS",
 		.cipher_str = "cts(cbc(aes))",
 		.keysize = 32,
 		.security_strength = 32,
@@ -38,7 +38,7 @@ struct fscrypt_mode fscrypt_modes[] = {
 		.blk_crypto_mode = BLK_ENCRYPTION_MODE_AES_128_CBC_ESSIV,
 	},
 	[FSCRYPT_MODE_AES_128_CTS] = {
-		.friendly_name = "AES-128-CTS-CBC",
+		.friendly_name = "AES-128-CBC-CTS",
 		.cipher_str = "cts(cbc(aes))",
 		.keysize = 16,
 		.security_strength = 16,
@@ -53,7 +53,7 @@ struct fscrypt_mode fscrypt_modes[] = {
 		.blk_crypto_mode = BLK_ENCRYPTION_MODE_SM4_XTS,
 	},
 	[FSCRYPT_MODE_SM4_CTS] = {
-		.friendly_name = "SM4-CTS-CBC",
+		.friendly_name = "SM4-CBC-CTS",
 		.cipher_str = "cts(cbc(sm4))",
 		.keysize = 16,
 		.security_strength = 16,
@@ -687,7 +687,7 @@ int fscrypt_get_encryption_info(struct inode *inode, bool allow_unsupported)
 /**
  * fscrypt_prepare_new_inode() - prepare to create a new inode in a directory
  * @dir: a possibly-encrypted directory
- * @inode: the new inode.  ->i_mode must be set already.
+ * @inode: the new inode.  ->i_mode and ->i_blkbits must be set already.
  *	   ->i_ino doesn't need to be set yet.
  * @encrypt_ret: (output) set to %true if the new inode will be encrypted
  *
@@ -716,6 +716,9 @@ int fscrypt_prepare_new_inode(struct inode *dir, struct inode *inode,
 		return 0;
 	if (IS_ERR(policy))
 		return PTR_ERR(policy);
+
+	if (WARN_ON_ONCE(inode->i_blkbits == 0))
+		return -EINVAL;
 
 	if (WARN_ON_ONCE(inode->i_mode == 0))
 		return -EINVAL;

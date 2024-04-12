@@ -378,13 +378,13 @@ static void _rtl_pci_io_handler_init(struct device *dev,
 
 	rtlpriv->io.dev = dev;
 
-	rtlpriv->io.write8_async = pci_write8_async;
-	rtlpriv->io.write16_async = pci_write16_async;
-	rtlpriv->io.write32_async = pci_write32_async;
+	rtlpriv->io.write8 = pci_write8_async;
+	rtlpriv->io.write16 = pci_write16_async;
+	rtlpriv->io.write32 = pci_write32_async;
 
-	rtlpriv->io.read8_sync = pci_read8_sync;
-	rtlpriv->io.read16_sync = pci_read16_sync;
-	rtlpriv->io.read32_sync = pci_read32_sync;
+	rtlpriv->io.read8 = pci_read8_sync;
+	rtlpriv->io.read16 = pci_read16_sync;
+	rtlpriv->io.read32 = pci_read32_sync;
 }
 
 static bool _rtl_update_earlymode_info(struct ieee80211_hw *hw,
@@ -2374,7 +2374,6 @@ EXPORT_SYMBOL(rtl_pci_resume);
 #endif /* CONFIG_PM_SLEEP */
 
 const struct rtl_intf_ops rtl_pci_ops = {
-	.read_efuse_byte = read_efuse_byte,
 	.adapter_start = rtl_pci_start,
 	.adapter_stop = rtl_pci_stop,
 	.check_buddy_priv = rtl_pci_check_buddy_priv,

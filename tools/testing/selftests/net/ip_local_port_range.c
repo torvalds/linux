@@ -16,6 +16,10 @@
 #define IP_LOCAL_PORT_RANGE 51
 #endif
 
+#ifndef IPPROTO_MPTCP
+#define IPPROTO_MPTCP 262
+#endif
+
 static __u32 pack_port_range(__u16 lo, __u16 hi)
 {
 	return (hi << 16) | (lo << 0);
@@ -361,9 +365,6 @@ TEST_F(ip_local_port_range, late_bind)
 	__u32 range;
 	__u16 port;
 
-	if (variant->so_protocol == IPPROTO_SCTP)
-		SKIP(return, "SCTP doesn't support IP_BIND_ADDRESS_NO_PORT");
-
 	fd = socket(variant->so_domain, variant->so_type, 0);
 	ASSERT_GE(fd, 0) TH_LOG("socket failed");
 
@@ -409,6 +410,9 @@ TEST_F(ip_local_port_range, late_bind)
 	err = close(fd);
 	ASSERT_TRUE(!err) TH_LOG("close failed");
 }
+
+XFAIL_ADD(ip_local_port_range, ip4_stcp, late_bind);
+XFAIL_ADD(ip_local_port_range, ip6_stcp, late_bind);
 
 TEST_F(ip_local_port_range, get_port_range)
 {

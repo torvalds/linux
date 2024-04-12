@@ -27,6 +27,17 @@ config LEDS_KTD202X
 	  To compile this driver as a module, choose M here: the module
 	  will be called leds-ktd202x.
 
+config LEDS_NCP5623
+	tristate "LED support for NCP5623"
+	depends on I2C
+	depends on OF
+	help
+	  This option enables support for ON semiconductor NCP5623
+	  Triple Output I2C Controlled RGB LED Driver.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called leds-ncp5623.
+
 config LEDS_PWM_MULTICOLOR
 	tristate "PWM driven multi-color LED Support"
 	depends on PWM
@@ -41,6 +52,7 @@ config LEDS_QCOM_LPG
 	tristate "LED support for Qualcomm LPG"
 	depends on OF
 	depends on PWM
+	depends on QCOM_PBS || !QCOM_PBS
 	depends on SPMI
 	help
 	  This option enables support for the Light Pulse Generator found in a

@@ -161,12 +161,32 @@ static const struct regmap_bus cs35l56_regmap_bus_sdw = {
 	.val_format_endian_default = REGMAP_ENDIAN_BIG,
 };
 
+static int cs35l56_sdw_set_cal_index(struct cs35l56_private *cs35l56)
+{
+	int ret;
+
+	/* SoundWire UniqueId is used to index the calibration array */
+	ret = sdw_read_no_pm(cs35l56->sdw_peripheral, SDW_SCP_DEVID_0);
+	if (ret < 0)
+		return ret;
+
+	cs35l56->base.cal_index = ret & 0xf;
+
+	return 0;
+}
+
 static void cs35l56_sdw_init(struct sdw_slave *peripheral)
 {
 	struct cs35l56_private *cs35l56 = dev_get_drvdata(&peripheral->dev);
 	int ret;
 
 	pm_runtime_get_noresume(cs35l56->base.dev);
+
+	if (cs35l56->base.cal_index < 0) {
+		ret = cs35l56_sdw_set_cal_index(cs35l56);
+		if (ret < 0)
+			goto out;
+	}
 
 	regcache_cache_only(cs35l56->base.regmap, false);
 
@@ -366,7 +386,7 @@ static int cs35l56_sdw_bus_config(struct sdw_slave *peripheral,
 	dev_dbg(cs35l56->base.dev, "%s: sclk=%u c=%u r=%u\n",
 		__func__, sclk, params->col, params->row);
 
-	if (cs35l56->base.rev < 0xb0)
+	if ((cs35l56->base.type == 0x56) && (cs35l56->base.rev < 0xb0))
 		return cs35l56_a1_kick_divider(cs35l56, peripheral);
 
 	return 0;
@@ -543,6 +563,7 @@ static const struct dev_pm_ops cs35l56_sdw_pm = {
 
 static const struct sdw_device_id cs35l56_sdw_id[] = {
 	SDW_SLAVE_ENTRY(0x01FA, 0x3556, 0),
+	SDW_SLAVE_ENTRY(0x01FA, 0x3557, 0),
 	{},
 };
 MODULE_DEVICE_TABLE(sdw, cs35l56_sdw_id);

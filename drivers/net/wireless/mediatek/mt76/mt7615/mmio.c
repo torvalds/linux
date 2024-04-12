@@ -270,4 +270,5 @@ static void __exit mt7615_exit(void)
 
 module_init(mt7615_init);
 module_exit(mt7615_exit);
+MODULE_DESCRIPTION("MediaTek MT7615E MMIO helpers");
 MODULE_LICENSE("Dual BSD/GPL");

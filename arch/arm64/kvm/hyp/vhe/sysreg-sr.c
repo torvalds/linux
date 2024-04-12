@@ -95,7 +95,7 @@ void __vcpu_load_switch_sysregs(struct kvm_vcpu *vcpu)
 }
 
 /**
- * __vcpu_put_switch_syregs - Restore host system registers to the physical CPU
+ * __vcpu_put_switch_sysregs - Restore host system registers to the physical CPU
  *
  * @vcpu: The VCPU pointer
  *

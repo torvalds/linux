@@ -4,6 +4,7 @@
  *
  * Author : Stephen Smalley, <stephen.smalley.work@gmail.com>
  */
+
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/errno.h>
@@ -19,7 +20,8 @@ static unsigned int symhash(const void *key)
 	keyp = key;
 	size = strlen(keyp);
 	for (p = keyp; (p - keyp) < size; p++)
-		val = (val << 4 | (val >> (8*sizeof(unsigned int)-4))) ^ (*p);
+		val = (val << 4 | (val >> (8 * sizeof(unsigned int) - 4))) ^
+		      (*p);
 	return val;
 }
 

@@ -1903,6 +1903,10 @@ int amdkfd_fence_wait_timeout(struct device_queue_manager *dqm,
 	uint64_t *fence_addr =  dqm->fence_addr;
 
 	while (*fence_addr != fence_value) {
+		/* Fatal err detected, this response won't come */
+		if (amdgpu_amdkfd_is_fed(dqm->dev->adev))
+			return -EIO;
+
 		if (time_after(jiffies, end_jiffies)) {
 			dev_err(dev, "qcm fence wait loop timeout expired\n");
 			/* In HWS case, this is used to halt the driver thread

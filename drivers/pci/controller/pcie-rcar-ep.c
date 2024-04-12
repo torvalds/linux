@@ -440,11 +440,15 @@ static const struct pci_epc_features rcar_pcie_epc_features = {
 	.msi_capable = true,
 	.msix_capable = false,
 	/* use 64-bit BARs so mark BAR[1,3,5] as reserved */
-	.reserved_bar = 1 << BAR_1 | 1 << BAR_3 | 1 << BAR_5,
-	.bar_fixed_64bit = 1 << BAR_0 | 1 << BAR_2 | 1 << BAR_4,
-	.bar_fixed_size[0] = 128,
-	.bar_fixed_size[2] = 256,
-	.bar_fixed_size[4] = 256,
+	.bar[BAR_0] = { .type = BAR_FIXED, .fixed_size = 128,
+			.only_64bit = true, },
+	.bar[BAR_1] = { .type = BAR_RESERVED, },
+	.bar[BAR_2] = { .type = BAR_FIXED, .fixed_size = 256,
+			.only_64bit = true, },
+	.bar[BAR_3] = { .type = BAR_RESERVED, },
+	.bar[BAR_4] = { .type = BAR_FIXED, .fixed_size = 256,
+			.only_64bit = true, },
+	.bar[BAR_5] = { .type = BAR_RESERVED, },
 };
 
 static const struct pci_epc_features*

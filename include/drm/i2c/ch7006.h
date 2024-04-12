@@ -37,6 +37,7 @@
  * meaning.
  */
 struct ch7006_encoder_params {
+	/* private: FIXME: document the members */
 	enum {
 		CH7006_FORMAT_RGB16 = 0,
 		CH7006_FORMAT_YCrCb24m16,

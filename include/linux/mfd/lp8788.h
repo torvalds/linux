@@ -10,7 +10,6 @@
 #ifndef __MFD_LP8788_H__
 #define __MFD_LP8788_H__
 
-#include <linux/gpio.h>
 #include <linux/irqdomain.h>
 #include <linux/pwm.h>
 #include <linux/regmap.h>
@@ -159,21 +158,17 @@ struct lp8788;
 
 /*
  * lp8788_buck1_dvs
- * @gpio         : gpio pin number for dvs control
  * @vsel         : dvs selector for buck v1 register
  */
 struct lp8788_buck1_dvs {
-	int gpio;
 	enum lp8788_dvs_sel vsel;
 };
 
 /*
  * lp8788_buck2_dvs
- * @gpio         : two gpio pin numbers are used for dvs
  * @vsel         : dvs selector for buck v2 register
  */
 struct lp8788_buck2_dvs {
-	int gpio[LP8788_NUM_BUCK2_DVS];
 	enum lp8788_dvs_sel vsel;
 };
 
@@ -268,8 +263,8 @@ struct lp8788_vib_platform_data {
  * @buck_data    : regulator initial data for buck
  * @dldo_data    : regulator initial data for digital ldo
  * @aldo_data    : regulator initial data for analog ldo
- * @buck1_dvs    : gpio configurations for buck1 dvs
- * @buck2_dvs    : gpio configurations for buck2 dvs
+ * @buck1_dvs    : configurations for buck1 dvs
+ * @buck2_dvs    : configurations for buck2 dvs
  * @chg_pdata    : platform data for charger driver
  * @alarm_sel    : rtc alarm selection (1 or 2)
  * @bl_pdata     : configurable data for backlight driver

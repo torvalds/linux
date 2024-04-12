@@ -229,7 +229,8 @@ void dmub_dcn35_setup_windows(struct dmub_srv *dmub,
 			      const struct dmub_window *cw3,
 			      const struct dmub_window *cw4,
 			      const struct dmub_window *cw5,
-			      const struct dmub_window *cw6)
+			      const struct dmub_window *cw6,
+			      const struct dmub_window *region6)
 {
 	union dmub_addr offset;
 
@@ -275,6 +276,15 @@ void dmub_dcn35_setup_windows(struct dmub_srv *dmub,
 	REG_SET_2(DMCUB_REGION3_CW6_TOP_ADDRESS, 0,
 		  DMCUB_REGION3_CW6_TOP_ADDRESS, cw6->region.top,
 		  DMCUB_REGION3_CW6_ENABLE, 1);
+
+	offset = region6->offset;
+
+	REG_WRITE(DMCUB_REGION6_OFFSET, offset.u.low_part);
+	REG_WRITE(DMCUB_REGION6_OFFSET_HIGH, offset.u.high_part);
+	REG_SET_2(DMCUB_REGION6_TOP_ADDRESS, 0,
+		  DMCUB_REGION6_TOP_ADDRESS,
+		  region6->region.top - region6->region.base - 1,
+		  DMCUB_REGION6_ENABLE, 1);
 }
 
 void dmub_dcn35_setup_mailbox(struct dmub_srv *dmub,
@@ -545,8 +555,14 @@ uint32_t dmub_dcn35_read_inbox0_ack_register(struct dmub_srv *dmub)
 bool dmub_dcn35_is_hw_powered_up(struct dmub_srv *dmub)
 {
 	union dmub_fw_boot_status status;
+	uint32_t is_enable;
+
+	REG_GET(DMCUB_CNTL, DMCUB_ENABLE, &is_enable);
+	if (is_enable == 0)
+		return false;
 
 	status.all = REG_READ(DMCUB_SCRATCH0);
 
-	return status.bits.hw_power_init_done;
+	return (status.bits.dal_fw && status.bits.hw_power_init_done && status.bits.mailbox_rdy) ||
+	       (!status.bits.dal_fw && status.bits.mailbox_rdy);
 }

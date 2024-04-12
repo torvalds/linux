@@ -2118,6 +2118,10 @@ DEFINE_SIMPLE_CID_EVENT(svcrdma_wc_write);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_write_flush);
 DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_write_err);
 
+DEFINE_SIMPLE_CID_EVENT(svcrdma_wc_reply);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_reply_flush);
+DEFINE_SEND_FLUSH_EVENT(svcrdma_wc_reply_err);
+
 TRACE_EVENT(svcrdma_qp_error,
 	TP_PROTO(
 		const struct ib_event *event,

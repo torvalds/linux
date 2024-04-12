@@ -89,18 +89,18 @@ int nouveau_gem_prime_pin(struct drm_gem_object *obj)
 	int ret;
 
 	/* pin buffer into GTT */
-	ret = nouveau_bo_pin(nvbo, NOUVEAU_GEM_DOMAIN_GART, false);
+	ret = nouveau_bo_pin_locked(nvbo, NOUVEAU_GEM_DOMAIN_GART, false);
 	if (ret)
-		return -EINVAL;
+		ret = -EINVAL;
 
-	return 0;
+	return ret;
 }
 
 void nouveau_gem_prime_unpin(struct drm_gem_object *obj)
 {
 	struct nouveau_bo *nvbo = nouveau_gem_object(obj);
 
-	nouveau_bo_unpin(nvbo);
+	nouveau_bo_unpin_locked(nvbo);
 }
 
 struct dma_buf *nouveau_gem_prime_export(struct drm_gem_object *gobj,

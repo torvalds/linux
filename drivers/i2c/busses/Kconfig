@@ -1235,7 +1235,7 @@ config I2C_RCAR
 	depends on ARCH_RENESAS || COMPILE_TEST
 	select I2C_SLAVE
 	select I2C_SMBUS
-	select RESET_CONTROLLER if ARCH_RCAR_GEN3
+	select RESET_CONTROLLER if ARCH_RCAR_GEN3 || ARCH_RCAR_GEN4
 	help
 	  If you say yes to this option, support will be included for the
 	  R-Car I2C controller.

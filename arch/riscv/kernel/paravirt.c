@@ -41,7 +41,7 @@ static int __init parse_no_stealacc(char *arg)
 
 early_param("no-steal-acc", parse_no_stealacc);
 
-DEFINE_PER_CPU(struct sbi_sta_struct, steal_time) __aligned(64);
+static DEFINE_PER_CPU(struct sbi_sta_struct, steal_time) __aligned(64);
 
 static bool __init has_pv_steal_clock(void)
 {
@@ -91,8 +91,8 @@ static int pv_time_cpu_down_prepare(unsigned int cpu)
 static u64 pv_time_steal_clock(int cpu)
 {
 	struct sbi_sta_struct *st = per_cpu_ptr(&steal_time, cpu);
-	u32 sequence;
-	u64 steal;
+	__le32 sequence;
+	__le64 steal;
 
 	/*
 	 * Check the sequence field before and after reading the steal

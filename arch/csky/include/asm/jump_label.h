@@ -12,7 +12,7 @@
 static __always_inline bool arch_static_branch(struct static_key *key,
 					       bool branch)
 {
-	asm_volatile_goto(
+	asm goto(
 		"1:	nop32					\n"
 		"	.pushsection	__jump_table, \"aw\"	\n"
 		"	.align		2			\n"
@@ -29,7 +29,7 @@ label:
 static __always_inline bool arch_static_branch_jump(struct static_key *key,
 						    bool branch)
 {
-	asm_volatile_goto(
+	asm goto(
 		"1:	bsr32		%l[label]		\n"
 		"	.pushsection	__jump_table, \"aw\"	\n"
 		"	.align		2			\n"

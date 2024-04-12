@@ -189,7 +189,11 @@ struct bversion {
 	__u32		hi;
 	__u64		lo;
 #endif
-} __packed __aligned(4);
+} __packed
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+__aligned(4)
+#endif
+;
 
 struct bkey {
 	/* Size of combined key and value, in u64s */
@@ -222,7 +226,36 @@ struct bkey {
 
 	__u8		pad[1];
 #endif
-} __packed __aligned(8);
+} __packed
+#if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
+/*
+ * The big-endian version of bkey can't be compiled by rustc with the "aligned"
+ * attr since it doesn't allow types to have both "packed" and "aligned" attrs.
+ * So for Rust compatibility, don't include this. It can be included in the LE
+ * version because the "packed" attr is redundant in that case.
+ *
+ * History: (quoting Kent)
+ *
+ * Specifically, when i was designing bkey, I wanted the header to be no
+ * bigger than necessary so that bkey_packed could use the rest. That means that
+ * decently offten extent keys will fit into only 8 bytes, instead of spilling over
+ * to 16.
+ *
+ * But packed_bkey treats the part after the header - the packed section -
+ * as a single multi word, variable length integer. And bkey, the unpacked
+ * version, is just a special case version of a bkey_packed; all the packed
+ * bkey code will work on keys in any packed format, the in-memory
+ * representation of an unpacked key also is just one type of packed key...
+ *
+ * So that constrains the key part of a bkig endian bkey to start right
+ * after the header.
+ *
+ * If we ever do a bkey_v2 and need to expand the hedaer by another byte for
+ * some reason - that will clean up this wart.
+ */
+__aligned(8)
+#endif
+;
 
 struct bkey_packed {
 	__u64		_data[0];
@@ -840,7 +873,9 @@ struct bch_sb_field_downgrade {
 	x(snapshot_skiplists,		BCH_VERSION(1,  1))		\
 	x(deleted_inodes,		BCH_VERSION(1,  2))		\
 	x(rebalance_work,		BCH_VERSION(1,  3))		\
-	x(member_seq,			BCH_VERSION(1,  4))
+	x(member_seq,			BCH_VERSION(1,  4))		\
+	x(subvolume_fs_parent,		BCH_VERSION(1,  5))		\
+	x(btree_subvolume_children,	BCH_VERSION(1,  6))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
@@ -1275,7 +1310,8 @@ static inline __u64 __bset_magic(struct bch_sb *sb)
 	x(dev_usage,		8)		\
 	x(log,			9)		\
 	x(overwrite,		10)		\
-	x(write_buffer_keys,	11)
+	x(write_buffer_keys,	11)		\
+	x(datetime,		12)
 
 enum {
 #define x(f, nr)	BCH_JSET_ENTRY_##f	= nr,
@@ -1374,6 +1410,11 @@ static inline unsigned jset_entry_dev_usage_nr_types(struct jset_entry_dev_usage
 struct jset_entry_log {
 	struct jset_entry	entry;
 	u8			d[];
+} __packed __aligned(8);
+
+struct jset_entry_datetime {
+	struct jset_entry	entry;
+	__le64			seconds;
 } __packed __aligned(8);
 
 /*
@@ -1482,7 +1523,9 @@ enum btree_id_flags {
 	  BIT_ULL(KEY_TYPE_logged_op_truncate)|					\
 	  BIT_ULL(KEY_TYPE_logged_op_finsert))					\
 	x(rebalance_work,	18,	BTREE_ID_SNAPSHOT_FIELD,		\
-	  BIT_ULL(KEY_TYPE_set)|BIT_ULL(KEY_TYPE_cookie))
+	  BIT_ULL(KEY_TYPE_set)|BIT_ULL(KEY_TYPE_cookie))			\
+	x(subvolume_children,	19,	0,					\
+	  BIT_ULL(KEY_TYPE_set))
 
 enum btree_id {
 #define x(name, nr, ...) BTREE_ID_##name = nr,

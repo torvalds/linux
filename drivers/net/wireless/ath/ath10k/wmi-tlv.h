@@ -3,7 +3,7 @@
  * Copyright (c) 2005-2011 Atheros Communications Inc.
  * Copyright (c) 2011-2017 Qualcomm Atheros, Inc.
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022, 2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef _WMI_TLV_H
 #define _WMI_TLV_H
@@ -2343,7 +2343,7 @@ struct wmi_tlv_adaptive_qcs {
 } __packed;
 
 /**
- * wmi_tlv_tx_pause_id - firmware tx queue pause reason types
+ * enum wmi_tlv_tx_pause_id - firmware tx queue pause reason types
  *
  * @WMI_TLV_TX_PAUSE_ID_MCC: used for by multi-channel firmware scheduler.
  *		Only vdev_map is valid.

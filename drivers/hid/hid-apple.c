@@ -79,7 +79,6 @@ struct apple_non_apple_keyboard {
 struct apple_sc_backlight {
 	struct led_classdev cdev;
 	struct hid_device *hdev;
-	unsigned short backlight_off, backlight_on_min, backlight_on_max;
 };
 
 struct apple_sc {

@@ -140,22 +140,4 @@ struct cxl_cper_event_rec {
 	union cxl_event event;
 } __packed;
 
-typedef void (*cxl_cper_callback)(enum cxl_event_type type,
-				  struct cxl_cper_event_rec *rec);
-
-#ifdef CONFIG_ACPI_APEI_GHES
-int cxl_cper_register_callback(cxl_cper_callback callback);
-int cxl_cper_unregister_callback(cxl_cper_callback callback);
-#else
-static inline int cxl_cper_register_callback(cxl_cper_callback callback)
-{
-	return 0;
-}
-
-static inline int cxl_cper_unregister_callback(cxl_cper_callback callback)
-{
-	return 0;
-}
-#endif
-
 #endif /* _LINUX_CXL_EVENT_H */

@@ -41,12 +41,9 @@ static int patch_build_controls(struct snd_ac97 * ac97, const struct snd_kcontro
 static void reset_tlv(struct snd_ac97 *ac97, const char *name,
 		      const unsigned int *tlv)
 {
-	struct snd_ctl_elem_id sid;
 	struct snd_kcontrol *kctl;
-	memset(&sid, 0, sizeof(sid));
-	strcpy(sid.name, name);
-	sid.iface = SNDRV_CTL_ELEM_IFACE_MIXER;
-	kctl = snd_ctl_find_id(ac97->bus->card, &sid);
+
+	kctl = snd_ctl_find_id_mixer(ac97->bus->card, name);
 	if (kctl && kctl->tlv.p)
 		kctl->tlv.p = tlv;
 }

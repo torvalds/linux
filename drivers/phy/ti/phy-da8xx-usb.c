@@ -119,7 +119,7 @@ static const struct phy_ops da8xx_usb20_phy_ops = {
 };
 
 static struct phy *da8xx_usb_phy_of_xlate(struct device *dev,
-					 struct of_phandle_args *args)
+					 const struct of_phandle_args *args)
 {
 	struct da8xx_usb_phy *d_phy = dev_get_drvdata(dev);
 

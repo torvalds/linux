@@ -144,10 +144,10 @@ static inline int usb_disable_usb2_hardware_lpm(struct usb_device *udev)
 extern const struct class usbmisc_class;
 extern const struct bus_type usb_bus_type;
 extern struct mutex usb_port_peer_mutex;
-extern struct device_type usb_device_type;
-extern struct device_type usb_if_device_type;
-extern struct device_type usb_ep_device_type;
-extern struct device_type usb_port_device_type;
+extern const struct device_type usb_device_type;
+extern const struct device_type usb_if_device_type;
+extern const struct device_type usb_ep_device_type;
+extern const struct device_type usb_port_device_type;
 extern struct usb_device_driver usb_generic_driver;
 
 static inline int is_usb_device(const struct device *dev)

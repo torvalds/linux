@@ -308,6 +308,12 @@ static bool adf_handle_pf2vf_msg(struct adf_accel_dev *accel_dev,
 
 		adf_pf2vf_handle_pf_restarting(accel_dev);
 		return false;
+	case ADF_PF2VF_MSGTYPE_RESTARTED:
+		dev_dbg(&GET_DEV(accel_dev), "Restarted message received from PF\n");
+		return true;
+	case ADF_PF2VF_MSGTYPE_FATAL_ERROR:
+		dev_err(&GET_DEV(accel_dev), "Fatal error received from PF\n");
+		return true;
 	case ADF_PF2VF_MSGTYPE_VERSION_RESP:
 	case ADF_PF2VF_MSGTYPE_BLKMSG_RESP:
 	case ADF_PF2VF_MSGTYPE_RP_RESET_RESP:

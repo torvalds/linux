@@ -64,29 +64,34 @@ MODULE_PARM_DESC(visl_transtime_ms, " simulated process time in milliseconds.");
  * particular number of frames
  */
 int visl_dprintk_frame_start = -1;
-module_param(visl_dprintk_frame_start, int, 0);
+module_param(visl_dprintk_frame_start, int, 0444);
 MODULE_PARM_DESC(visl_dprintk_frame_start,
 		 " a frame number to start tracing with dprintk");
 
 unsigned int visl_dprintk_nframes;
-module_param(visl_dprintk_nframes, uint, 0);
+module_param(visl_dprintk_nframes, uint, 0444);
 MODULE_PARM_DESC(visl_dprintk_nframes,
 		 " the number of frames to trace with dprintk");
 
 bool keep_bitstream_buffers;
-module_param(keep_bitstream_buffers, bool, false);
+module_param(keep_bitstream_buffers, bool, 0444);
 MODULE_PARM_DESC(keep_bitstream_buffers,
 		 " keep bitstream buffers in debugfs after streaming is stopped");
 
 int bitstream_trace_frame_start = -1;
-module_param(bitstream_trace_frame_start, int, 0);
+module_param(bitstream_trace_frame_start, int, 0444);
 MODULE_PARM_DESC(bitstream_trace_frame_start,
 		 " a frame number to start dumping the bitstream through debugfs");
 
 unsigned int bitstream_trace_nframes;
-module_param(bitstream_trace_nframes, uint, 0);
+module_param(bitstream_trace_nframes, uint, 0444);
 MODULE_PARM_DESC(bitstream_trace_nframes,
 		 " the number of frames to dump the bitstream through debugfs");
+
+bool tpg_verbose;
+module_param(tpg_verbose, bool, 0644);
+MODULE_PARM_DESC(tpg_verbose,
+		 " add more verbose information on the generated output frames");
 
 static const struct visl_ctrl_desc visl_fwht_ctrl_descs[] = {
 	{

@@ -124,7 +124,7 @@ static const u32 src_pixfmt_map[8][3] = {
 };
 
 /* Set camera input pixel format and resolution */
-void flite_hw_set_source_format(struct fimc_lite *dev, struct flite_frame *f)
+void flite_hw_set_source_format(struct fimc_lite *dev, const struct flite_frame *f)
 {
 	u32 pixelcode = f->fmt->mbus_code;
 	int i = ARRAY_SIZE(src_pixfmt_map);
@@ -155,7 +155,7 @@ void flite_hw_set_source_format(struct fimc_lite *dev, struct flite_frame *f)
 }
 
 /* Set the camera host input window offsets (cropping) */
-void flite_hw_set_window_offset(struct fimc_lite *dev, struct flite_frame *f)
+void flite_hw_set_window_offset(struct fimc_lite *dev, const struct flite_frame *f)
 {
 	u32 hoff2, voff2;
 	u32 cfg;
@@ -186,7 +186,7 @@ static void flite_hw_set_camera_port(struct fimc_lite *dev, int id)
 
 /* Select serial or parallel bus, camera port (A,B) and set signals polarity */
 void flite_hw_set_camera_bus(struct fimc_lite *dev,
-			     struct fimc_source_info *si)
+			     const struct fimc_source_info *si)
 {
 	u32 cfg = readl(dev->regs + FLITE_REG_CIGCTRL);
 	unsigned int flags = si->flags;
@@ -226,7 +226,8 @@ static void flite_hw_set_pack12(struct fimc_lite *dev, int on)
 	writel(cfg, dev->regs + FLITE_REG_CIODMAFMT);
 }
 
-static void flite_hw_set_out_order(struct fimc_lite *dev, struct flite_frame *f)
+static void flite_hw_set_out_order(struct fimc_lite *dev,
+				   const struct flite_frame *f)
 {
 	static const u32 pixcode[4][2] = {
 		{ MEDIA_BUS_FMT_YUYV8_2X8, FLITE_REG_CIODMAFMT_YCBYCR },
@@ -244,7 +245,7 @@ static void flite_hw_set_out_order(struct fimc_lite *dev, struct flite_frame *f)
 	writel(cfg | pixcode[i][1], dev->regs + FLITE_REG_CIODMAFMT);
 }
 
-void flite_hw_set_dma_window(struct fimc_lite *dev, struct flite_frame *f)
+void flite_hw_set_dma_window(struct fimc_lite *dev, const struct flite_frame *f)
 {
 	u32 cfg;
 
@@ -294,7 +295,7 @@ void flite_hw_mask_dma_buffer(struct fimc_lite *dev, u32 index)
 }
 
 /* Enable/disable output DMA, set output pixel size and offsets (composition) */
-void flite_hw_set_output_dma(struct fimc_lite *dev, struct flite_frame *f,
+void flite_hw_set_output_dma(struct fimc_lite *dev, const struct flite_frame *f,
 			     bool enable)
 {
 	u32 cfg = readl(dev->regs + FLITE_REG_CIGCTRL);

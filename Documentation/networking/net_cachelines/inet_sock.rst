@@ -1,9 +1,9 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. Copyright (C) 2023 Google LLC
 
-=====================================================
-inet_connection_sock struct fast path usage breakdown
-=====================================================
+==========================================
+inet_sock struct fast path usage breakdown
+==========================================
 
 Type                    Name                  fastpath_tx_access  fastpath_rx_access  comment
 ..struct                ..inet_sock                                                     

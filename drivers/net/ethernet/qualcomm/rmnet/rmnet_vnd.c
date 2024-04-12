@@ -98,7 +98,7 @@ static int rmnet_vnd_get_iflink(const struct net_device *dev)
 {
 	struct rmnet_priv *priv = netdev_priv(dev);
 
-	return priv->real_dev->ifindex;
+	return READ_ONCE(priv->real_dev->ifindex);
 }
 
 static int rmnet_vnd_init(struct net_device *dev)

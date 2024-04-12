@@ -13,16 +13,26 @@
  * seq_buf_init() more than once to reset the seq_buf to start
  * from scratch.
  */
-#include <linux/uaccess.h>
-#include <linux/seq_file.h>
+
+#include <linux/bug.h>
+#include <linux/err.h>
+#include <linux/export.h>
+#include <linux/hex.h>
+#include <linux/minmax.h>
+#include <linux/printk.h>
 #include <linux/seq_buf.h>
+#include <linux/seq_file.h>
+#include <linux/sprintf.h>
+#include <linux/string.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
 
 /**
  * seq_buf_can_fit - can the new data fit in the current buffer?
  * @s: the seq_buf descriptor
  * @len: The length to see if it can fit in the current buffer
  *
- * Returns true if there's enough unused space in the seq_buf buffer
+ * Returns: true if there's enough unused space in the seq_buf buffer
  * to fit the amount of new data according to @len.
  */
 static bool seq_buf_can_fit(struct seq_buf *s, size_t len)
@@ -35,7 +45,7 @@ static bool seq_buf_can_fit(struct seq_buf *s, size_t len)
  * @m: the seq_file descriptor that is the destination
  * @s: the seq_buf descriptor that is the source.
  *
- * Returns zero on success, non zero otherwise
+ * Returns: zero on success, non-zero otherwise.
  */
 int seq_buf_print_seq(struct seq_file *m, struct seq_buf *s)
 {
@@ -50,9 +60,9 @@ int seq_buf_print_seq(struct seq_file *m, struct seq_buf *s)
  * @fmt: printf format string
  * @args: va_list of arguments from a printf() type function
  *
- * Writes a vnprintf() format into the sequencce buffer.
+ * Writes a vnprintf() format into the sequence buffer.
  *
- * Returns zero on success, -1 on overflow.
+ * Returns: zero on success, -1 on overflow.
  */
 int seq_buf_vprintf(struct seq_buf *s, const char *fmt, va_list args)
 {
@@ -78,7 +88,7 @@ int seq_buf_vprintf(struct seq_buf *s, const char *fmt, va_list args)
  *
  * Writes a printf() format into the sequence buffer.
  *
- * Returns zero on success, -1 on overflow.
+ * Returns: zero on success, -1 on overflow.
  */
 int seq_buf_printf(struct seq_buf *s, const char *fmt, ...)
 {
@@ -94,12 +104,12 @@ int seq_buf_printf(struct seq_buf *s, const char *fmt, ...)
 EXPORT_SYMBOL_GPL(seq_buf_printf);
 
 /**
- * seq_buf_do_printk - printk seq_buf line by line
+ * seq_buf_do_printk - printk() seq_buf line by line
  * @s: seq_buf descriptor
  * @lvl: printk level
  *
  * printk()-s a multi-line sequential buffer line by line. The function
- * makes sure that the buffer in @s is nul terminated and safe to read
+ * makes sure that the buffer in @s is NUL-terminated and safe to read
  * as a string.
  */
 void seq_buf_do_printk(struct seq_buf *s, const char *lvl)
@@ -139,7 +149,7 @@ EXPORT_SYMBOL_GPL(seq_buf_do_printk);
  * This function will take the format and the binary array and finish
  * the conversion into the ASCII string within the buffer.
  *
- * Returns zero on success, -1 on overflow.
+ * Returns: zero on success, -1 on overflow.
  */
 int seq_buf_bprintf(struct seq_buf *s, const char *fmt, const u32 *binary)
 {
@@ -167,7 +177,7 @@ int seq_buf_bprintf(struct seq_buf *s, const char *fmt, const u32 *binary)
  *
  * Copy a simple string into the sequence buffer.
  *
- * Returns zero on success, -1 on overflow
+ * Returns: zero on success, -1 on overflow.
  */
 int seq_buf_puts(struct seq_buf *s, const char *str)
 {
@@ -196,7 +206,7 @@ EXPORT_SYMBOL_GPL(seq_buf_puts);
  *
  * Copy a single character into the sequence buffer.
  *
- * Returns zero on success, -1 on overflow
+ * Returns: zero on success, -1 on overflow.
  */
 int seq_buf_putc(struct seq_buf *s, unsigned char c)
 {
@@ -212,7 +222,7 @@ int seq_buf_putc(struct seq_buf *s, unsigned char c)
 EXPORT_SYMBOL_GPL(seq_buf_putc);
 
 /**
- * seq_buf_putmem - write raw data into the sequenc buffer
+ * seq_buf_putmem - write raw data into the sequence buffer
  * @s: seq_buf descriptor
  * @mem: The raw memory to copy into the buffer
  * @len: The length of the raw memory to copy (in bytes)
@@ -221,7 +231,7 @@ EXPORT_SYMBOL_GPL(seq_buf_putc);
  * buffer and a strcpy() would not work. Using this function allows
  * for such cases.
  *
- * Returns zero on success, -1 on overflow
+ * Returns: zero on success, -1 on overflow.
  */
 int seq_buf_putmem(struct seq_buf *s, const void *mem, unsigned int len)
 {
@@ -249,7 +259,7 @@ int seq_buf_putmem(struct seq_buf *s, const void *mem, unsigned int len)
  * raw memory into the buffer it writes its ASCII representation of it
  * in hex characters.
  *
- * Returns zero on success, -1 on overflow
+ * Returns: zero on success, -1 on overflow.
  */
 int seq_buf_putmem_hex(struct seq_buf *s, const void *mem,
 		       unsigned int len)
@@ -297,7 +307,7 @@ int seq_buf_putmem_hex(struct seq_buf *s, const void *mem,
  *
  * Write a path name into the sequence buffer.
  *
- * Returns the number of written bytes on success, -1 on overflow
+ * Returns: the number of written bytes on success, -1 on overflow.
  */
 int seq_buf_path(struct seq_buf *s, const struct path *path, const char *esc)
 {
@@ -332,6 +342,7 @@ int seq_buf_path(struct seq_buf *s, const struct path *path, const char *esc)
  * or until it reaches the end of the content in the buffer (@s->len),
  * whichever comes first.
  *
+ * Returns:
  * On success, it returns a positive number of the number of bytes
  * it copied.
  *
@@ -382,11 +393,11 @@ int seq_buf_to_user(struct seq_buf *s, char __user *ubuf, size_t start, int cnt)
  * linebuf size is maximal length for one line.
  * 32 * 3 - maximum bytes per line, each printed into 2 chars + 1 for
  *	separating space
- * 2 - spaces separating hex dump and ascii representation
- * 32 - ascii representation
+ * 2 - spaces separating hex dump and ASCII representation
+ * 32 - ASCII representation
  * 1 - terminating '\0'
  *
- * Returns zero on success, -1 on overflow
+ * Returns: zero on success, -1 on overflow.
  */
 int seq_buf_hex_dump(struct seq_buf *s, const char *prefix_str, int prefix_type,
 		     int rowsize, int groupsize,

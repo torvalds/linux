@@ -24,7 +24,7 @@
 
 static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
 {
-	asm_volatile_goto("1:"
+	asm goto("1:"
 		"jmp %l[l_yes] # objtool NOPs this \n\t"
 		JUMP_TABLE_ENTRY
 		: :  "i" (key), "i" (2 | branch) : : l_yes);
@@ -38,7 +38,7 @@ l_yes:
 
 static __always_inline bool arch_static_branch(struct static_key * const key, const bool branch)
 {
-	asm_volatile_goto("1:"
+	asm goto("1:"
 		".byte " __stringify(BYTES_NOP5) "\n\t"
 		JUMP_TABLE_ENTRY
 		: :  "i" (key), "i" (branch) : : l_yes);
@@ -52,7 +52,7 @@ l_yes:
 
 static __always_inline bool arch_static_branch_jump(struct static_key * const key, const bool branch)
 {
-	asm_volatile_goto("1:"
+	asm goto("1:"
 		"jmp %l[l_yes]\n\t"
 		JUMP_TABLE_ENTRY
 		: :  "i" (key), "i" (branch) : : l_yes);

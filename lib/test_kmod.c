@@ -58,11 +58,14 @@ static int num_test_devs;
  * @need_mod_put for your tests case.
  */
 enum kmod_test_case {
+	/* private: */
 	__TEST_KMOD_INVALID = 0,
+	/* public: */
 
 	TEST_KMOD_DRIVER,
 	TEST_KMOD_FS_TYPE,
 
+	/* private: */
 	__TEST_KMOD_MAX,
 };
 
@@ -82,6 +85,7 @@ struct kmod_test_device;
  * @ret_sync: return value if request_module() is used, sync request for
  * 	@TEST_KMOD_DRIVER
  * @fs_sync: return value of get_fs_type() for @TEST_KMOD_FS_TYPE
+ * @task_sync: kthread's task_struct or %NULL if not running
  * @thread_idx: thread ID
  * @test_dev: test device test is being performed under
  * @need_mod_put: Some tests (get_fs_type() is one) requires putting the module
@@ -108,7 +112,7 @@ struct kmod_test_device_info {
  * @dev: pointer to misc_dev's own struct device
  * @config_mutex: protects configuration of test
  * @trigger_mutex: the test trigger can only be fired once at a time
- * @thread_lock: protects @done count, and the @info per each thread
+ * @thread_mutex: protects @done count, and the @info per each thread
  * @done: number of threads which have completed or failed
  * @test_is_oom: when we run out of memory, use this to halt moving forward
  * @kthreads_done: completion used to signal when all work is done

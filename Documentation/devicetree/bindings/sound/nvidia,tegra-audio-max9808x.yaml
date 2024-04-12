@@ -64,7 +64,7 @@ examples:
     #include <dt-bindings/clock/tegra30-car.h>
     #include <dt-bindings/soc/tegra-pmc.h>
     sound {
-        compatible = "lge,tegra-audio-max98089-p895",
+        compatible = "lg,tegra-audio-max98089-p895",
                      "nvidia,tegra-audio-max98089";
         nvidia,model = "LG Optimus Vu MAX98089";
 

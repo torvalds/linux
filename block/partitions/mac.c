@@ -20,6 +20,7 @@ extern void note_bootable_part(dev_t dev, int part, int goodness);
  * Code to understand MacOS partition tables.
  */
 
+#ifdef CONFIG_PPC_PMAC
 static inline void mac_fix_string(char *stg, int len)
 {
 	int i;
@@ -27,6 +28,7 @@ static inline void mac_fix_string(char *stg, int len)
 	for (i = len - 1; i >= 0 && stg[i] == ' '; i--)
 		stg[i] = 0;
 }
+#endif
 
 int mac_partition(struct parsed_partitions *state)
 {

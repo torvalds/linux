@@ -337,28 +337,19 @@ static int sx9310_read_raw(struct iio_dev *indio_dev,
 			   int *val2, long mask)
 {
 	struct sx_common_data *data = iio_priv(indio_dev);
-	int ret;
 
 	if (chan->type != IIO_PROXIMITY)
 		return -EINVAL;
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
-
-		ret = sx_common_read_proximity(data, chan, val);
-		iio_device_release_direct_mode(indio_dev);
-		return ret;
+		iio_device_claim_direct_scoped(return -EBUSY, indio_dev)
+			return sx_common_read_proximity(data, chan, val);
+		unreachable();
 	case IIO_CHAN_INFO_HARDWAREGAIN:
-		ret = iio_device_claim_direct_mode(indio_dev);
-		if (ret)
-			return ret;
-
-		ret = sx9310_read_gain(data, chan, val);
-		iio_device_release_direct_mode(indio_dev);
-		return ret;
+		iio_device_claim_direct_scoped(return -EBUSY, indio_dev)
+			return sx9310_read_gain(data, chan, val);
+		unreachable();
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		return sx9310_read_samp_freq(data, val, val2);
 	default:
@@ -546,12 +537,10 @@ static int sx9310_write_thresh(struct sx_common_data *data,
 		return -EINVAL;
 
 	regval = FIELD_PREP(SX9310_REG_PROX_CTRL8_9_PTHRESH_MASK, regval);
-	mutex_lock(&data->mutex);
-	ret = regmap_update_bits(data->regmap, reg,
-				 SX9310_REG_PROX_CTRL8_9_PTHRESH_MASK, regval);
-	mutex_unlock(&data->mutex);
 
-	return ret;
+	guard(mutex)(&data->mutex);
+	return regmap_update_bits(data->regmap, reg,
+				  SX9310_REG_PROX_CTRL8_9_PTHRESH_MASK, regval);
 }
 
 static int sx9310_write_hysteresis(struct sx_common_data *data,
@@ -576,17 +565,14 @@ static int sx9310_write_hysteresis(struct sx_common_data *data,
 		return -EINVAL;
 
 	hyst = FIELD_PREP(SX9310_REG_PROX_CTRL10_HYST_MASK, hyst);
-	mutex_lock(&data->mutex);
-	ret = regmap_update_bits(data->regmap, SX9310_REG_PROX_CTRL10,
-				 SX9310_REG_PROX_CTRL10_HYST_MASK, hyst);
-	mutex_unlock(&data->mutex);
 
-	return ret;
+	guard(mutex)(&data->mutex);
+	return regmap_update_bits(data->regmap, SX9310_REG_PROX_CTRL10,
+				  SX9310_REG_PROX_CTRL10_HYST_MASK, hyst);
 }
 
 static int sx9310_write_far_debounce(struct sx_common_data *data, int val)
 {
-	int ret;
 	unsigned int regval;
 
 	if (val > 0)
@@ -596,18 +582,14 @@ static int sx9310_write_far_debounce(struct sx_common_data *data, int val)
 
 	regval = FIELD_PREP(SX9310_REG_PROX_CTRL10_FAR_DEBOUNCE_MASK, val);
 
-	mutex_lock(&data->mutex);
-	ret = regmap_update_bits(data->regmap, SX9310_REG_PROX_CTRL10,
-				 SX9310_REG_PROX_CTRL10_FAR_DEBOUNCE_MASK,
-				 regval);
-	mutex_unlock(&data->mutex);
-
-	return ret;
+	guard(mutex)(&data->mutex);
+	return regmap_update_bits(data->regmap, SX9310_REG_PROX_CTRL10,
+				  SX9310_REG_PROX_CTRL10_FAR_DEBOUNCE_MASK,
+				  regval);
 }
 
 static int sx9310_write_close_debounce(struct sx_common_data *data, int val)
 {
-	int ret;
 	unsigned int regval;
 
 	if (val > 0)
@@ -617,13 +599,10 @@ static int sx9310_write_close_debounce(struct sx_common_data *data, int val)
 
 	regval = FIELD_PREP(SX9310_REG_PROX_CTRL10_CLOSE_DEBOUNCE_MASK, val);
 
-	mutex_lock(&data->mutex);
-	ret = regmap_update_bits(data->regmap, SX9310_REG_PROX_CTRL10,
-				 SX9310_REG_PROX_CTRL10_CLOSE_DEBOUNCE_MASK,
-				 regval);
-	mutex_unlock(&data->mutex);
-
-	return ret;
+	guard(mutex)(&data->mutex);
+	return regmap_update_bits(data->regmap, SX9310_REG_PROX_CTRL10,
+				  SX9310_REG_PROX_CTRL10_CLOSE_DEBOUNCE_MASK,
+				  regval);
 }
 
 static int sx9310_write_event_val(struct iio_dev *indio_dev,
@@ -658,7 +637,7 @@ static int sx9310_write_event_val(struct iio_dev *indio_dev,
 
 static int sx9310_set_samp_freq(struct sx_common_data *data, int val, int val2)
 {
-	int i, ret;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(sx9310_samp_freq_table); i++)
 		if (val == sx9310_samp_freq_table[i].val &&
@@ -668,23 +647,17 @@ static int sx9310_set_samp_freq(struct sx_common_data *data, int val, int val2)
 	if (i == ARRAY_SIZE(sx9310_samp_freq_table))
 		return -EINVAL;
 
-	mutex_lock(&data->mutex);
-
-	ret = regmap_update_bits(
+	guard(mutex)(&data->mutex);
+	return regmap_update_bits(
 		data->regmap, SX9310_REG_PROX_CTRL0,
 		SX9310_REG_PROX_CTRL0_SCANPERIOD_MASK,
 		FIELD_PREP(SX9310_REG_PROX_CTRL0_SCANPERIOD_MASK, i));
-
-	mutex_unlock(&data->mutex);
-
-	return ret;
 }
 
 static int sx9310_write_gain(struct sx_common_data *data,
 			     const struct iio_chan_spec *chan, int val)
 {
 	unsigned int gain, mask;
-	int ret;
 
 	gain = ilog2(val);
 
@@ -703,12 +676,9 @@ static int sx9310_write_gain(struct sx_common_data *data,
 		return -EINVAL;
 	}
 
-	mutex_lock(&data->mutex);
-	ret = regmap_update_bits(data->regmap, SX9310_REG_PROX_CTRL3, mask,
-				 gain);
-	mutex_unlock(&data->mutex);
-
-	return ret;
+	guard(mutex)(&data->mutex);
+	return regmap_update_bits(data->regmap, SX9310_REG_PROX_CTRL3, mask,
+				  gain);
 }
 
 static int sx9310_write_raw(struct iio_dev *indio_dev,
@@ -969,22 +939,18 @@ static int sx9310_suspend(struct device *dev)
 
 	disable_irq_nosync(data->client->irq);
 
-	mutex_lock(&data->mutex);
+	guard(mutex)(&data->mutex);
 	ret = regmap_read(data->regmap, SX9310_REG_PROX_CTRL0,
 			  &data->suspend_ctrl);
 	if (ret)
-		goto out;
+		return ret;
 
 	ctrl0 = data->suspend_ctrl & ~SX9310_REG_PROX_CTRL0_SENSOREN_MASK;
 	ret = regmap_write(data->regmap, SX9310_REG_PROX_CTRL0, ctrl0);
 	if (ret)
-		goto out;
+		return ret;
 
-	ret = regmap_write(data->regmap, SX9310_REG_PAUSE, 0);
-
-out:
-	mutex_unlock(&data->mutex);
-	return ret;
+	return regmap_write(data->regmap, SX9310_REG_PAUSE, 0);
 }
 
 static int sx9310_resume(struct device *dev)
@@ -992,18 +958,16 @@ static int sx9310_resume(struct device *dev)
 	struct sx_common_data *data = iio_priv(dev_get_drvdata(dev));
 	int ret;
 
-	mutex_lock(&data->mutex);
-	ret = regmap_write(data->regmap, SX9310_REG_PAUSE, 1);
-	if (ret)
-		goto out;
+	scoped_guard(mutex, &data->mutex) {
+		ret = regmap_write(data->regmap, SX9310_REG_PAUSE, 1);
+		if (ret)
+			return ret;
 
-	ret = regmap_write(data->regmap, SX9310_REG_PROX_CTRL0,
-			   data->suspend_ctrl);
-
-out:
-	mutex_unlock(&data->mutex);
-	if (ret)
-		return ret;
+		ret = regmap_write(data->regmap, SX9310_REG_PROX_CTRL0,
+				   data->suspend_ctrl);
+		if (ret)
+			return ret;
+	}
 
 	enable_irq(data->client->irq);
 	return 0;

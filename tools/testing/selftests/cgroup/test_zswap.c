@@ -52,12 +52,33 @@ static int get_zswap_stored_pages(size_t *value)
 
 static int get_cg_wb_count(const char *cg)
 {
-	return cg_read_key_long(cg, "memory.stat", "zswp_wb");
+	return cg_read_key_long(cg, "memory.stat", "zswpwb");
 }
 
 static long get_zswpout(const char *cgroup)
 {
 	return cg_read_key_long(cgroup, "memory.stat", "zswpout ");
+}
+
+static int allocate_and_read_bytes(const char *cgroup, void *arg)
+{
+	size_t size = (size_t)arg;
+	char *mem = (char *)malloc(size);
+	int ret = 0;
+
+	if (!mem)
+		return -1;
+	for (int i = 0; i < size; i += 4095)
+		mem[i] = 'a';
+
+	/* Go through the allocated memory to (z)swap in and out pages */
+	for (int i = 0; i < size; i += 4095) {
+		if (mem[i] != 'a')
+			ret = -1;
+	}
+
+	free(mem);
+	return ret;
 }
 
 static int allocate_bytes(const char *cgroup, void *arg)
@@ -100,7 +121,6 @@ static int test_zswap_usage(const char *root)
 	int ret = KSFT_FAIL;
 	char *test_group;
 
-	/* Set up */
 	test_group = cg_name(root, "no_shrink_test");
 	if (!test_group)
 		goto out;
@@ -134,6 +154,101 @@ out:
 }
 
 /*
+ * Check that when memory.zswap.max = 0, no pages can go to the zswap pool for
+ * the cgroup.
+ */
+static int test_swapin_nozswap(const char *root)
+{
+	int ret = KSFT_FAIL;
+	char *test_group;
+	long swap_peak, zswpout;
+
+	test_group = cg_name(root, "no_zswap_test");
+	if (!test_group)
+		goto out;
+	if (cg_create(test_group))
+		goto out;
+	if (cg_write(test_group, "memory.max", "8M"))
+		goto out;
+	if (cg_write(test_group, "memory.zswap.max", "0"))
+		goto out;
+
+	/* Allocate and read more than memory.max to trigger swapin */
+	if (cg_run(test_group, allocate_and_read_bytes, (void *)MB(32)))
+		goto out;
+
+	/* Verify that pages are swapped out, but no zswap happened */
+	swap_peak = cg_read_long(test_group, "memory.swap.peak");
+	if (swap_peak < 0) {
+		ksft_print_msg("failed to get cgroup's swap_peak\n");
+		goto out;
+	}
+
+	if (swap_peak < MB(24)) {
+		ksft_print_msg("at least 24MB of memory should be swapped out\n");
+		goto out;
+	}
+
+	zswpout = get_zswpout(test_group);
+	if (zswpout < 0) {
+		ksft_print_msg("failed to get zswpout\n");
+		goto out;
+	}
+
+	if (zswpout > 0) {
+		ksft_print_msg("zswapout > 0 when memory.zswap.max = 0\n");
+		goto out;
+	}
+
+	ret = KSFT_PASS;
+
+out:
+	cg_destroy(test_group);
+	free(test_group);
+	return ret;
+}
+
+/* Simple test to verify the (z)swapin code paths */
+static int test_zswapin(const char *root)
+{
+	int ret = KSFT_FAIL;
+	char *test_group;
+	long zswpin;
+
+	test_group = cg_name(root, "zswapin_test");
+	if (!test_group)
+		goto out;
+	if (cg_create(test_group))
+		goto out;
+	if (cg_write(test_group, "memory.max", "8M"))
+		goto out;
+	if (cg_write(test_group, "memory.zswap.max", "max"))
+		goto out;
+
+	/* Allocate and read more than memory.max to trigger (z)swap in */
+	if (cg_run(test_group, allocate_and_read_bytes, (void *)MB(32)))
+		goto out;
+
+	zswpin = cg_read_key_long(test_group, "memory.stat", "zswpin ");
+	if (zswpin < 0) {
+		ksft_print_msg("failed to get zswpin\n");
+		goto out;
+	}
+
+	if (zswpin < MB(24) / PAGE_SIZE) {
+		ksft_print_msg("at least 24MB should be brought back from zswap\n");
+		goto out;
+	}
+
+	ret = KSFT_PASS;
+
+out:
+	cg_destroy(test_group);
+	free(test_group);
+	return ret;
+}
+
+/*
  * When trying to store a memcg page in zswap, if the memcg hits its memory
  * limit in zswap, writeback should affect only the zswapped pages of that
  * memcg.
@@ -144,7 +259,6 @@ static int test_no_invasive_cgroup_shrink(const char *root)
 	size_t control_allocation_size = MB(10);
 	char *control_allocation, *wb_group = NULL, *control_group = NULL;
 
-	/* Set up */
 	wb_group = setup_test_group_1M(root, "per_memcg_wb_test1");
 	if (!wb_group)
 		return KSFT_FAIL;
@@ -309,6 +423,8 @@ struct zswap_test {
 	const char *name;
 } tests[] = {
 	T(test_zswap_usage),
+	T(test_swapin_nozswap),
+	T(test_zswapin),
 	T(test_no_kmem_bypass),
 	T(test_no_invasive_cgroup_shrink),
 };

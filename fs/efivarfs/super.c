@@ -343,12 +343,7 @@ static int efivarfs_fill_super(struct super_block *sb, struct fs_context *fc)
 	if (err)
 		return err;
 
-	err = efivar_init(efivarfs_callback, (void *)sb, true,
-			  &sfi->efivarfs_list);
-	if (err)
-		efivar_entry_iter(efivarfs_destroy, &sfi->efivarfs_list, NULL);
-
-	return err;
+	return efivar_init(efivarfs_callback, sb, &sfi->efivarfs_list);
 }
 
 static int efivarfs_get_tree(struct fs_context *fc)

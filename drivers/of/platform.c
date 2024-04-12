@@ -166,6 +166,8 @@ static struct platform_device *of_platform_device_create_pdata(
 {
 	struct platform_device *dev;
 
+	pr_debug("create platform device: %pOF\n", np);
+
 	if (!of_device_is_available(np) ||
 	    of_node_test_and_set_flag(np, OF_POPULATED))
 		return NULL;
@@ -509,9 +511,6 @@ static int __init of_platform_default_populate_init(void)
 	struct device_node *node;
 
 	device_links_supplier_sync_state_pause();
-
-	if (!of_have_populated_dt())
-		return -ENODEV;
 
 	if (IS_ENABLED(CONFIG_PPC)) {
 		struct device_node *boot_display = NULL;

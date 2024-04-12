@@ -41,10 +41,6 @@
  * I'm sure these are effects that I don't know enough about them
  */
 
-struct lg3ff_device {
-	struct hid_report *report;
-};
-
 static int hid_lg3ff_play(struct input_dev *dev, void *data,
 			 struct ff_effect *effect)
 {

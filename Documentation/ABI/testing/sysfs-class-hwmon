@@ -149,6 +149,15 @@ Description:
 
 		RW
 
+What:		/sys/class/hwmon/hwmonX/inY_fault
+Description:
+		Reports a voltage hard failure (eg: shorted component)
+
+		- 1: Failed
+		- 0: Ok
+
+		RO
+
 What:		/sys/class/hwmon/hwmonX/cpuY_vid
 Description:
 		CPU core reference voltage.
@@ -968,6 +977,15 @@ Description:
 
 		RW
 
+What:		/sys/class/hwmon/hwmonX/humidityY_max_alarm
+Description:
+		Maximum humidity detection
+
+		- 0: OK
+		- 1: Maximum humidity detected
+
+		RO
+
 What:		/sys/class/hwmon/hwmonX/humidityY_max_hyst
 Description:
 		Humidity hysteresis value for max limit.
@@ -986,6 +1004,15 @@ Description:
 		Unit: milli-percent (per cent mille, pcm)
 
 		RW
+
+What:		/sys/class/hwmon/hwmonX/humidityY_min_alarm
+Description:
+		Minimum humidity detection
+
+		- 0: OK
+		- 1: Minimum humidity detected
+
+		RO
 
 What:		/sys/class/hwmon/hwmonX/humidityY_min_hyst
 Description:

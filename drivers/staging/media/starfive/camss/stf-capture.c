@@ -20,28 +20,28 @@ static const struct stfcamss_format_info stf_wr_fmts[] = {
 		.pixelformat = V4L2_PIX_FMT_SRGGB10,
 		.planes = 1,
 		.vsub = { 1 },
-		.bpp = 10,
+		.bpp = 16,
 	},
 	{
 		.code = MEDIA_BUS_FMT_SGRBG10_1X10,
 		.pixelformat = V4L2_PIX_FMT_SGRBG10,
 		.planes = 1,
 		.vsub = { 1 },
-		.bpp = 10,
+		.bpp = 16,
 	},
 	{
 		.code = MEDIA_BUS_FMT_SGBRG10_1X10,
 		.pixelformat = V4L2_PIX_FMT_SGBRG10,
 		.planes = 1,
 		.vsub = { 1 },
-		.bpp = 10,
+		.bpp = 16,
 	},
 	{
 		.code = MEDIA_BUS_FMT_SBGGR10_1X10,
 		.pixelformat = V4L2_PIX_FMT_SBGGR10,
 		.planes = 1,
 		.vsub = { 1 },
-		.bpp = 10,
+		.bpp = 16,
 	},
 };
 

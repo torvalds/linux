@@ -39,6 +39,7 @@ properties:
               - fsl,imx8qm-sai
               - fsl,imx8ulp-sai
               - fsl,imx93-sai
+              - fsl,imx95-sai
               - fsl,vf610-sai
 
   reg:
@@ -75,12 +76,17 @@ properties:
           - const: pll11k
         minItems: 4
 
+  power-domains:
+    maxItems: 1
+
   dmas:
+    minItems: 1
     items:
       - description: DMA controller phandle and request line for RX
       - description: DMA controller phandle and request line for TX
 
   dma-names:
+    minItems: 1
     items:
       - const: rx
       - const: tx

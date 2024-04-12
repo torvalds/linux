@@ -633,14 +633,14 @@ xlog_state_release_iclog(
  */
 int
 xfs_log_mount(
-	xfs_mount_t	*mp,
-	xfs_buftarg_t	*log_target,
-	xfs_daddr_t	blk_offset,
-	int		num_bblks)
+	xfs_mount_t		*mp,
+	struct xfs_buftarg	*log_target,
+	xfs_daddr_t		blk_offset,
+	int			num_bblks)
 {
-	struct xlog	*log;
-	int		error = 0;
-	int		min_logfsbs;
+	struct xlog		*log;
+	int			error = 0;
+	int			min_logfsbs;
 
 	if (!xfs_has_norecovery(mp)) {
 		xfs_notice(mp, "Mounting V%d Filesystem %pU",
@@ -1528,7 +1528,7 @@ xlog_alloc_log(
 	int			error = -ENOMEM;
 	uint			log2_size = 0;
 
-	log = kmem_zalloc(sizeof(struct xlog), KM_MAYFAIL);
+	log = kzalloc(sizeof(struct xlog), GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 	if (!log) {
 		xfs_warn(mp, "Log allocation failed: No memory!");
 		goto out;
@@ -1605,7 +1605,8 @@ xlog_alloc_log(
 		size_t bvec_size = howmany(log->l_iclog_size, PAGE_SIZE) *
 				sizeof(struct bio_vec);
 
-		iclog = kmem_zalloc(sizeof(*iclog) + bvec_size, KM_MAYFAIL);
+		iclog = kzalloc(sizeof(*iclog) + bvec_size,
+				GFP_KERNEL | __GFP_RETRY_MAYFAIL);
 		if (!iclog)
 			goto out_free_iclog;
 
@@ -1661,13 +1662,13 @@ out_destroy_workqueue:
 out_free_iclog:
 	for (iclog = log->l_iclog; iclog; iclog = prev_iclog) {
 		prev_iclog = iclog->ic_next;
-		kmem_free(iclog->ic_data);
-		kmem_free(iclog);
+		kvfree(iclog->ic_data);
+		kfree(iclog);
 		if (prev_iclog == log->l_iclog)
 			break;
 	}
 out_free_log:
-	kmem_free(log);
+	kfree(log);
 out:
 	return ERR_PTR(error);
 }	/* xlog_alloc_log */
@@ -2118,14 +2119,14 @@ xlog_dealloc_log(
 	iclog = log->l_iclog;
 	for (i = 0; i < log->l_iclog_bufs; i++) {
 		next_iclog = iclog->ic_next;
-		kmem_free(iclog->ic_data);
-		kmem_free(iclog);
+		kvfree(iclog->ic_data);
+		kfree(iclog);
 		iclog = next_iclog;
 	}
 
 	log->l_mp->m_log = NULL;
 	destroy_workqueue(log->l_ioend_workqueue);
-	kmem_free(log);
+	kfree(log);
 }
 
 /*
@@ -3517,7 +3518,8 @@ xlog_ticket_alloc(
 	struct xlog_ticket	*tic;
 	int			unit_res;
 
-	tic = kmem_cache_zalloc(xfs_log_ticket_cache, GFP_NOFS | __GFP_NOFAIL);
+	tic = kmem_cache_zalloc(xfs_log_ticket_cache,
+			GFP_KERNEL | __GFP_NOFAIL);
 
 	unit_res = xlog_calc_unit_res(log, unit_bytes, &tic->t_iclog_hdrs);
 

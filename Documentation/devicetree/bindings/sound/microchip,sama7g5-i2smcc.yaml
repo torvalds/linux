@@ -24,9 +24,14 @@ properties:
     const: 0
 
   compatible:
-    enum:
-      - microchip,sam9x60-i2smcc
-      - microchip,sama7g5-i2smcc
+    oneOf:
+      - enum:
+          - microchip,sam9x60-i2smcc
+          - microchip,sama7g5-i2smcc
+      - items:
+          - enum:
+              - microchip,sam9x7-i2smcc
+          - const: microchip,sam9x60-i2smcc
 
   reg:
     maxItems: 1

@@ -85,6 +85,7 @@ if '-DHAVE_LIBTRACEEVENT' in cflags:
     extra_libraries += [ 'traceevent' ]
 else:
     ext_sources.remove('util/trace-event.c')
+    ext_sources.remove('util/trace-event-parse.c')
 
 # use full paths with source files
 ext_sources = list(map(lambda x: '%s/%s' % (src_perf, x) , ext_sources))

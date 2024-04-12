@@ -394,7 +394,7 @@ struct iwl_buf_alloc_cmd {
  *
  * @first_word: magic word value
  * @second_word: magic word value
- * @framfrags: DRAM fragmentaion detail
+ * @dram_frags: DRAM fragmentaion detail
 */
 struct iwl_dram_info {
 	__le32 first_word;
@@ -537,7 +537,7 @@ enum iwl_fw_dbg_config_cmd_type {
 }; /* LDBG_CFG_CMD_TYPE_API_E_VER_1 */
 
 /* this token disables debug asserts in the firmware */
-#define IWL_FW_DBG_CONFIG_TOKEN 0x00011301
+#define IWL_FW_DBG_CONFIG_TOKEN 0x00010001
 
 /**
  * struct iwl_fw_dbg_config_cmd - configure FW debug

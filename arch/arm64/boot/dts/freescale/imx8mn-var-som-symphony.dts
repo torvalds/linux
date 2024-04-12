@@ -128,14 +128,9 @@
 		pinctrl-0 = <&pinctrl_ptn5150>;
 		status = "okay";
 
-		connector {
-			compatible = "usb-c-connector";
-			label = "USB-C";
-
-			port {
-				typec1_dr_sw: endpoint {
-					remote-endpoint = <&usb1_drd_sw>;
-				};
+		port {
+			typec1_dr_sw: endpoint {
+				remote-endpoint = <&usb1_drd_sw>;
 			};
 		};
 	};

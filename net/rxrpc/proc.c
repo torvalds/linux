@@ -52,9 +52,9 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	struct rxrpc_call *call;
 	struct rxrpc_net *rxnet = rxrpc_net(seq_file_net(seq));
 	enum rxrpc_call_state state;
-	unsigned long timeout = 0;
 	rxrpc_seq_t acks_hard_ack;
 	char lbuff[50], rbuff[50];
+	long timeout = 0;
 
 	if (v == &rxnet->calls) {
 		seq_puts(seq,
@@ -76,10 +76,8 @@ static int rxrpc_call_seq_show(struct seq_file *seq, void *v)
 	sprintf(rbuff, "%pISpc", &call->dest_srx.transport);
 
 	state = rxrpc_call_state(call);
-	if (state != RXRPC_CALL_SERVER_PREALLOC) {
-		timeout = READ_ONCE(call->expect_rx_by);
-		timeout -= jiffies;
-	}
+	if (state != RXRPC_CALL_SERVER_PREALLOC)
+		timeout = ktime_ms_delta(READ_ONCE(call->expect_rx_by), ktime_get_real());
 
 	acks_hard_ack = READ_ONCE(call->acks_hard_ack);
 	seq_printf(seq,
@@ -181,7 +179,7 @@ print:
 		   atomic_read(&conn->active),
 		   state,
 		   key_serial(conn->key),
-		   atomic_read(&conn->serial),
+		   conn->tx_serial,
 		   conn->hi_serial,
 		   conn->channels[0].call_id,
 		   conn->channels[1].call_id,
@@ -309,7 +307,7 @@ static int rxrpc_peer_seq_show(struct seq_file *seq, void *v)
 		   peer->mtu,
 		   now - peer->last_tx_at,
 		   peer->srtt_us >> 3,
-		   jiffies_to_usecs(peer->rto_j));
+		   peer->rto_us);
 
 	return 0;
 }

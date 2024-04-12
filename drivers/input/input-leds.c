@@ -18,6 +18,12 @@
 #define VT_TRIGGER(_name)	.trigger = NULL
 #endif
 
+#if IS_ENABLED(CONFIG_SND_CTL_LED)
+#define AUDIO_TRIGGER(_name)	.trigger = _name
+#else
+#define AUDIO_TRIGGER(_name)	.trigger = NULL
+#endif
+
 static const struct {
 	const char *name;
 	const char *trigger;
@@ -29,7 +35,7 @@ static const struct {
 	[LED_KANA]	= { "kana", VT_TRIGGER("kbd-kanalock") },
 	[LED_SLEEP]	= { "sleep" } ,
 	[LED_SUSPEND]	= { "suspend" },
-	[LED_MUTE]	= { "mute" },
+	[LED_MUTE]	= { "mute", AUDIO_TRIGGER("audio-mute") },
 	[LED_MISC]	= { "misc" },
 	[LED_MAIL]	= { "mail" },
 	[LED_CHARGING]	= { "charging" },

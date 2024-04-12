@@ -631,7 +631,6 @@ static int mdc800_device_open (struct inode* inode, struct file *file)
 	mdc800->camera_busy=0;
 	mdc800->camera_request_ready=0;
 
-	retval=0;
 	mdc800->irq_urb->dev = mdc800->dev;
 	retval = usb_submit_urb (mdc800->irq_urb, GFP_KERNEL);
 	if (retval) {

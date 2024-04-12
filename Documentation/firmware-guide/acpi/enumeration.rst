@@ -595,7 +595,7 @@ bridges/switches of the board.
 
 For example, let's assume we have a system with a PCIe serial port, an
 Exar XR17V3521, soldered on the main board. This UART chip also includes
-16 GPIOs and we want to add the property ``gpio-line-names`` [1] to these pins.
+16 GPIOs and we want to add the property ``gpio-line-names`` [1]_ to these pins.
 In this case, the ``lspci`` output for this component is::
 
 	07:00.0 Serial controller: Exar Corp. XR17V3521 Dual PCIe UART (rev 03)
@@ -637,7 +637,7 @@ of the chipset bridge (also called "root port") with address::
 	Bus: 0 - Device: 14 - Function: 1
 
 To find this information, it is necessary to disassemble the BIOS ACPI tables,
-in particular the DSDT (see also [2])::
+in particular the DSDT (see also [2]_)::
 
 	mkdir ~/tables/
 	cd ~/tables/
@@ -667,7 +667,7 @@ device::
 			}
 	... other definitions follow ...
 
-and the _ADR method [3] returns exactly the device/function couple that
+and the _ADR method [3]_ returns exactly the device/function couple that
 we are looking for. With this information and analyzing the above ``lspci``
 output (both the devices list and the devices tree), we can write the following
 ACPI description for the Exar PCIe UART, also adding the list of its GPIO line
@@ -724,10 +724,10 @@ created analyzing the position of the Exar UART in the PCI bus topology.
 References
 ==========
 
-[1] Documentation/firmware-guide/acpi/gpio-properties.rst
+.. [1] Documentation/firmware-guide/acpi/gpio-properties.rst
 
-[2] Documentation/admin-guide/acpi/initrd_table_override.rst
+.. [2] Documentation/admin-guide/acpi/initrd_table_override.rst
 
-[3] ACPI Specifications, Version 6.3 - Paragraph 6.1.1 _ADR Address)
+.. [3] ACPI Specifications, Version 6.3 - Paragraph 6.1.1 _ADR Address)
     https://uefi.org/sites/default/files/resources/ACPI_6_3_May16.pdf,
     referenced 2020-11-18

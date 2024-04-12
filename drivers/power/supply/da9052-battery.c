@@ -622,7 +622,7 @@ static s32 da9052_bat_probe(struct platform_device *pdev)
 		}
 	}
 
-	bat->psy = power_supply_register(&pdev->dev, &psy_desc, &psy_cfg);
+	bat->psy = devm_power_supply_register(&pdev->dev, &psy_desc, &psy_cfg);
 	if (IS_ERR(bat->psy)) {
 		ret = PTR_ERR(bat->psy);
 		goto err;
@@ -644,8 +644,6 @@ static void da9052_bat_remove(struct platform_device *pdev)
 
 	for (i = 0; i < ARRAY_SIZE(da9052_bat_irqs); i++)
 		da9052_free_irq(bat->da9052, da9052_bat_irq_bits[i], bat);
-
-	power_supply_unregister(bat->psy);
 }
 
 static struct platform_driver da9052_bat_driver = {

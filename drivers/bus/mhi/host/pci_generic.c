@@ -538,7 +538,7 @@ static struct mhi_event_config mhi_telit_fn980_hw_v1_events[] = {
 	MHI_EVENT_CONFIG_HW_DATA(2, 2048, 101)
 };
 
-static struct mhi_controller_config modem_telit_fn980_hw_v1_config = {
+static const struct mhi_controller_config modem_telit_fn980_hw_v1_config = {
 	.max_channels = 128,
 	.timeout_ms = 20000,
 	.num_channels = ARRAY_SIZE(mhi_telit_fn980_hw_v1_channels),

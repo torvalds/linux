@@ -257,9 +257,9 @@ int main(int argc, char **argv)
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_VM_DISABLE_NX_HUGE_PAGES));
 
 	__TEST_REQUIRE(token == MAGIC_TOKEN,
-		       "This test must be run with the magic token %d.\n"
-		       "This is done by nx_huge_pages_test.sh, which\n"
-		       "also handles environment setup for the test.", MAGIC_TOKEN);
+		       "This test must be run with the magic token via '-t %d'.\n"
+		       "Running via nx_huge_pages_test.sh, which also handles "
+		       "environment setup, is strongly recommended.", MAGIC_TOKEN);
 
 	run_test(reclaim_period_ms, false, reboot_permissions);
 	run_test(reclaim_period_ms, true, reboot_permissions);

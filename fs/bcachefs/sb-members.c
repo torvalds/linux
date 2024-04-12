@@ -421,7 +421,7 @@ void bch2_dev_errors_reset(struct bch_dev *ca)
 	m = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
 	for (unsigned i = 0; i < ARRAY_SIZE(m->errors_at_reset); i++)
 		m->errors_at_reset[i] = cpu_to_le64(atomic64_read(&ca->errors[i]));
-	m->errors_reset_time = ktime_get_real_seconds();
+	m->errors_reset_time = cpu_to_le64(ktime_get_real_seconds());
 
 	bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);

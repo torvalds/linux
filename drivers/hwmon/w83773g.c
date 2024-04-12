@@ -290,7 +290,6 @@ static int w83773_probe(struct i2c_client *client)
 }
 
 static struct i2c_driver w83773_driver = {
-	.class = I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "w83773g",
 		.of_match_table = of_match_ptr(w83773_of_match),

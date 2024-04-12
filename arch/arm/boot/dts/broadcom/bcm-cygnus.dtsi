@@ -167,6 +167,7 @@
 			#gpio-cells = <2>;
 			gpio-controller;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupt-parent = <&mailbox>;
 			interrupts = <0>;
 		};
@@ -247,6 +248,7 @@
 			gpio-controller;
 			interrupts = <GIC_SPI 84 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-controller;
+			#interrupt-cells = <2>;
 		};
 
 		i2c1: i2c@1800b000 {
@@ -518,6 +520,7 @@
 			gpio-controller;
 
 			interrupt-controller;
+			#interrupt-cells = <2>;
 			interrupts = <GIC_SPI 174 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-ranges = <&pinctrl 0 42 1>,
 					<&pinctrl 1 44 3>,

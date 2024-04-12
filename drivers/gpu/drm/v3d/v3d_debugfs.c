@@ -219,7 +219,7 @@ static int v3d_debugfs_bo_stats(struct seq_file *m, void *unused)
 	seq_printf(m, "allocated bos:          %d\n",
 		   v3d->bo_stats.num_allocated);
 	seq_printf(m, "allocated bo size (kb): %ld\n",
-		   (long)v3d->bo_stats.pages_allocated << (PAGE_SHIFT - 10));
+		   (long)v3d->bo_stats.pages_allocated << (V3D_MMU_PAGE_SHIFT - 10));
 	mutex_unlock(&v3d->bo_lock);
 
 	return 0;

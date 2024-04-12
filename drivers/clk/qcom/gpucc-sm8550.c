@@ -575,13 +575,9 @@ static int gpu_cc_sm8550_probe(struct platform_device *pdev)
 	clk_lucid_ole_pll_configure(&gpu_cc_pll0, regmap, &gpu_cc_pll0_config);
 	clk_lucid_ole_pll_configure(&gpu_cc_pll1, regmap, &gpu_cc_pll1_config);
 
-	/*
-	 * Keep clocks always enabled:
-	 *	gpu_cc_cxo_aon_clk
-	 *	gpu_cc_demet_clk
-	 */
-	regmap_update_bits(regmap, 0x9004, BIT(0), BIT(0));
-	regmap_update_bits(regmap, 0x900c, BIT(0), BIT(0));
+	/* Keep some clocks always-on */
+	qcom_branch_set_clk_en(regmap, 0x9004); /* GPU_CC_CXO_AON_CLK */
+	qcom_branch_set_clk_en(regmap, 0x900c); /* GPU_CC_DEMET_CLK */
 
 	return qcom_cc_really_probe(pdev, &gpu_cc_sm8550_desc, regmap);
 }
@@ -594,17 +590,7 @@ static struct platform_driver gpu_cc_sm8550_driver = {
 	},
 };
 
-static int __init gpu_cc_sm8550_init(void)
-{
-	return platform_driver_register(&gpu_cc_sm8550_driver);
-}
-subsys_initcall(gpu_cc_sm8550_init);
-
-static void __exit gpu_cc_sm8550_exit(void)
-{
-	platform_driver_unregister(&gpu_cc_sm8550_driver);
-}
-module_exit(gpu_cc_sm8550_exit);
+module_platform_driver(gpu_cc_sm8550_driver);
 
 MODULE_DESCRIPTION("QTI GPUCC SM8550 Driver");
 MODULE_LICENSE("GPL");

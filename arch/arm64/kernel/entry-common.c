@@ -10,6 +10,7 @@
 #include <linux/linkage.h>
 #include <linux/lockdep.h>
 #include <linux/ptrace.h>
+#include <linux/resume_user_mode.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/thread_info.h>
@@ -126,15 +127,48 @@ static __always_inline void __exit_to_user_mode(void)
 	lockdep_hardirqs_on(CALLER_ADDR0);
 }
 
+static void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags)
+{
+	do {
+		local_irq_enable();
+
+		if (thread_flags & _TIF_NEED_RESCHED)
+			schedule();
+
+		if (thread_flags & _TIF_UPROBE)
+			uprobe_notify_resume(regs);
+
+		if (thread_flags & _TIF_MTE_ASYNC_FAULT) {
+			clear_thread_flag(TIF_MTE_ASYNC_FAULT);
+			send_sig_fault(SIGSEGV, SEGV_MTEAERR,
+				       (void __user *)NULL, current);
+		}
+
+		if (thread_flags & (_TIF_SIGPENDING | _TIF_NOTIFY_SIGNAL))
+			do_signal(regs);
+
+		if (thread_flags & _TIF_NOTIFY_RESUME)
+			resume_user_mode_work(regs);
+
+		if (thread_flags & _TIF_FOREIGN_FPSTATE)
+			fpsimd_restore_current_state();
+
+		local_irq_disable();
+		thread_flags = read_thread_flags();
+	} while (thread_flags & _TIF_WORK_MASK);
+}
+
 static __always_inline void exit_to_user_mode_prepare(struct pt_regs *regs)
 {
 	unsigned long flags;
 
-	local_daif_mask();
+	local_irq_disable();
 
 	flags = read_thread_flags();
 	if (unlikely(flags & _TIF_WORK_MASK))
 		do_notify_resume(regs, flags);
+
+	local_daif_mask();
 
 	lockdep_sys_exit();
 }

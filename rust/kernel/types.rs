@@ -46,6 +46,25 @@ pub trait ForeignOwnable: Sized {
     /// Additionally, all instances (if any) of values returned by [`ForeignOwnable::borrow`] for
     /// this object must have been dropped.
     unsafe fn from_foreign(ptr: *const core::ffi::c_void) -> Self;
+
+    /// Tries to convert a foreign-owned object back to a Rust-owned one.
+    ///
+    /// A convenience wrapper over [`ForeignOwnable::from_foreign`] that returns [`None`] if `ptr`
+    /// is null.
+    ///
+    /// # Safety
+    ///
+    /// `ptr` must either be null or satisfy the safety requirements for
+    /// [`ForeignOwnable::from_foreign`].
+    unsafe fn try_from_foreign(ptr: *const core::ffi::c_void) -> Option<Self> {
+        if ptr.is_null() {
+            None
+        } else {
+            // SAFETY: Since `ptr` is not null here, then `ptr` satisfies the safety requirements
+            // of `from_foreign` given the safety requirements of this function.
+            unsafe { Some(Self::from_foreign(ptr)) }
+        }
+    }
 }
 
 impl<T: 'static> ForeignOwnable for Box<T> {
@@ -90,6 +109,7 @@ impl ForeignOwnable for () {
 ///
 /// In the example below, we have multiple exit paths and we want to log regardless of which one is
 /// taken:
+///
 /// ```
 /// # use kernel::types::ScopeGuard;
 /// fn example1(arg: bool) {
@@ -108,6 +128,7 @@ impl ForeignOwnable for () {
 ///
 /// In the example below, we want to log the same message on all early exits but a different one on
 /// the main exit path:
+///
 /// ```
 /// # use kernel::types::ScopeGuard;
 /// fn example2(arg: bool) {
@@ -129,6 +150,7 @@ impl ForeignOwnable for () {
 ///
 /// In the example below, we need a mutable object (the vector) to be accessible within the log
 /// function, so we wrap it in the [`ScopeGuard`]:
+///
 /// ```
 /// # use kernel::types::ScopeGuard;
 /// fn example3(arg: bool) -> Result {

@@ -41,9 +41,7 @@ properties:
 
           pwm-names: true
 
-          active-low:
-            description: For PWMs where the LED is wired to supply rather than ground.
-            type: boolean
+          active-low: true
 
           color: true
 

@@ -201,10 +201,12 @@ struct va_macro {
 	unsigned long active_ch_cnt[VA_MACRO_MAX_DAIS];
 	u16 dmic_clk_div;
 	bool has_swr_master;
+	bool has_npl_clk;
 
 	int dec_mode[VA_MACRO_NUM_DECIMATORS];
 	struct regmap *regmap;
 	struct clk *mclk;
+	struct clk *npl;
 	struct clk *macro;
 	struct clk *dcodec;
 	struct clk *fsgen;
@@ -225,14 +227,22 @@ struct va_macro {
 
 struct va_macro_data {
 	bool has_swr_master;
+	bool has_npl_clk;
 };
 
 static const struct va_macro_data sm8250_va_data = {
 	.has_swr_master = false,
+	.has_npl_clk = false,
 };
 
 static const struct va_macro_data sm8450_va_data = {
 	.has_swr_master = true,
+	.has_npl_clk = true,
+};
+
+static const struct va_macro_data sm8550_va_data = {
+	.has_swr_master = true,
+	.has_npl_clk = false,
 };
 
 static bool va_is_volatile_register(struct device *dev, unsigned int reg)
@@ -1332,6 +1342,12 @@ static int fsgen_gate_enable(struct clk_hw *hw)
 	struct regmap *regmap = va->regmap;
 	int ret;
 
+	if (va->has_swr_master) {
+		ret = clk_prepare_enable(va->mclk);
+		if (ret)
+			return ret;
+	}
+
 	ret = va_macro_mclk_enable(va, true);
 	if (va->has_swr_master)
 		regmap_update_bits(regmap, CDC_VA_CLK_RST_CTRL_SWR_CONTROL,
@@ -1350,6 +1366,8 @@ static void fsgen_gate_disable(struct clk_hw *hw)
 			   CDC_VA_SWR_CLK_EN_MASK, 0x0);
 
 	va_macro_mclk_enable(va, false);
+	if (va->has_swr_master)
+		clk_disable_unprepare(va->mclk);
 }
 
 static int fsgen_gate_is_enabled(struct clk_hw *hw)
@@ -1377,6 +1395,9 @@ static int va_macro_register_fsgen_output(struct va_macro *va)
 	const char *clk_name = "fsgen";
 	struct clk_init_data init;
 	int ret;
+
+	if (va->has_npl_clk)
+		parent = va->npl;
 
 	parent_clk_name = __clk_get_name(parent);
 
@@ -1500,9 +1521,20 @@ static int va_macro_probe(struct platform_device *pdev)
 
 	data = of_device_get_match_data(dev);
 	va->has_swr_master = data->has_swr_master;
+	va->has_npl_clk = data->has_npl_clk;
 
 	/* mclk rate */
 	clk_set_rate(va->mclk, 2 * VA_MACRO_MCLK_FREQ);
+
+	if (va->has_npl_clk) {
+		va->npl = devm_clk_get(dev, "npl");
+		if (IS_ERR(va->npl)) {
+			ret = PTR_ERR(va->npl);
+			goto err;
+		}
+
+		clk_set_rate(va->npl, 2 * VA_MACRO_MCLK_FREQ);
+	}
 
 	ret = clk_prepare_enable(va->macro);
 	if (ret)
@@ -1515,6 +1547,12 @@ static int va_macro_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(va->mclk);
 	if (ret)
 		goto err_mclk;
+
+	if (va->has_npl_clk) {
+		ret = clk_prepare_enable(va->npl);
+		if (ret)
+			goto err_npl;
+	}
 
 	if (va->has_swr_master) {
 		/* Set default CLK div to 1 */
@@ -1564,6 +1602,9 @@ static int va_macro_probe(struct platform_device *pdev)
 	return 0;
 
 err_clkout:
+	if (va->has_npl_clk)
+		clk_disable_unprepare(va->npl);
+err_npl:
 	clk_disable_unprepare(va->mclk);
 err_mclk:
 	clk_disable_unprepare(va->dcodec);
@@ -1579,6 +1620,9 @@ static void va_macro_remove(struct platform_device *pdev)
 {
 	struct va_macro *va = dev_get_drvdata(&pdev->dev);
 
+	if (va->has_npl_clk)
+		clk_disable_unprepare(va->npl);
+
 	clk_disable_unprepare(va->mclk);
 	clk_disable_unprepare(va->dcodec);
 	clk_disable_unprepare(va->macro);
@@ -1592,6 +1636,9 @@ static int __maybe_unused va_macro_runtime_suspend(struct device *dev)
 
 	regcache_cache_only(va->regmap, true);
 	regcache_mark_dirty(va->regmap);
+
+	if (va->has_npl_clk)
+		clk_disable_unprepare(va->npl);
 
 	clk_disable_unprepare(va->mclk);
 
@@ -1609,6 +1656,15 @@ static int __maybe_unused va_macro_runtime_resume(struct device *dev)
 		return ret;
 	}
 
+	if (va->has_npl_clk) {
+		ret = clk_prepare_enable(va->npl);
+		if (ret) {
+			clk_disable_unprepare(va->mclk);
+			dev_err(va->dev, "unable to prepare npl\n");
+			return ret;
+		}
+	}
+
 	regcache_cache_only(va->regmap, false);
 	regcache_sync(va->regmap);
 
@@ -1624,6 +1680,7 @@ static const struct of_device_id va_macro_dt_match[] = {
 	{ .compatible = "qcom,sc7280-lpass-va-macro", .data = &sm8250_va_data },
 	{ .compatible = "qcom,sm8250-lpass-va-macro", .data = &sm8250_va_data },
 	{ .compatible = "qcom,sm8450-lpass-va-macro", .data = &sm8450_va_data },
+	{ .compatible = "qcom,sm8550-lpass-va-macro", .data = &sm8550_va_data },
 	{ .compatible = "qcom,sc8280xp-lpass-va-macro", .data = &sm8450_va_data },
 	{}
 };

@@ -28,6 +28,8 @@ Optional properties:
 			      available with tcan4552/4553.
 	- device-wake-gpios: Wake up GPIO to wake up the TCAN device. Not
 			     available with tcan4552/4553.
+	- wakeup-source: Leave the chip running when suspended, and configure
+			 the RX interrupt to wake up the device.
 
 Example:
 tcan4x5x: tcan4x5x@0 {
@@ -42,4 +44,5 @@ tcan4x5x: tcan4x5x@0 {
 		device-state-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
 		device-wake-gpios = <&gpio1 15 GPIO_ACTIVE_HIGH>;
 		reset-gpios = <&gpio1 27 GPIO_ACTIVE_HIGH>;
+		wakeup-source;
 };

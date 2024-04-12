@@ -10,9 +10,9 @@ maintainers:
   - Linus Walleij <linus.walleij@linaro.org>
 
 description: |+
-  The ARM RealView series of reference designs were built to explore the ARM
-  11, Cortex A-8 and Cortex A-9 CPUs. This included new features compared to
-  the earlier CPUs such as TrustZone and multicore (MPCore).
+  The ARM RealView series of reference designs were built to explore the Arm11,
+  Cortex-A8, and Cortex-A9 CPUs. This included new features compared to the
+  earlier CPUs such as TrustZone and multicore (MPCore).
 
 properties:
   $nodename:

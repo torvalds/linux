@@ -3,9 +3,17 @@
 #ifndef BTRFS_EXTENT_MAP_H
 #define BTRFS_EXTENT_MAP_H
 
+#include <linux/compiler_types.h>
+#include <linux/rwlock_types.h>
 #include <linux/rbtree.h>
+#include <linux/list.h>
 #include <linux/refcount.h>
+#include "misc.h"
+#include "extent_map.h"
 #include "compression.h"
+
+struct btrfs_inode;
+struct btrfs_fs_info;
 
 #define EXTENT_MAP_LAST_BYTE ((u64)-4)
 #define EXTENT_MAP_HOLE ((u64)-3)

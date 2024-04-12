@@ -919,6 +919,19 @@ void aq_ring_free(struct aq_ring_s *self)
 	}
 }
 
+void aq_ring_hwts_rx_free(struct aq_ring_s *self)
+{
+	if (!self)
+		return;
+
+	if (self->dx_ring) {
+		dma_free_coherent(aq_nic_get_dev(self->aq_nic),
+				  self->size * self->dx_size + AQ_CFG_RXDS_DEF,
+				  self->dx_ring, self->dx_ring_pa);
+		self->dx_ring = NULL;
+	}
+}
+
 unsigned int aq_ring_fill_stats_data(struct aq_ring_s *self, u64 *data)
 {
 	unsigned int count;
