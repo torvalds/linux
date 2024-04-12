@@ -722,7 +722,22 @@ void disk_uevent(struct gendisk *disk, enum kobject_action action);
 
 static inline u8 bdev_partno(const struct block_device *bdev)
 {
-	return bdev->bd_partno;
+	return atomic_read(&bdev->__bd_flags) & BD_PARTNO;
+}
+
+static inline bool bdev_test_flag(const struct block_device *bdev, unsigned flag)
+{
+	return atomic_read(&bdev->__bd_flags) & flag;
+}
+
+static inline void bdev_set_flag(struct block_device *bdev, unsigned flag)
+{
+	atomic_or(flag, &bdev->__bd_flags);
+}
+
+static inline void bdev_clear_flag(struct block_device *bdev, unsigned flag)
+{
+	atomic_andnot(flag, &bdev->__bd_flags);
 }
 
 static inline int get_disk_ro(struct gendisk *disk)
