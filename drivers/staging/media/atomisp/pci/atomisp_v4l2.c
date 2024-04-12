@@ -1058,6 +1058,7 @@ int atomisp_register_device_nodes(struct atomisp_device *isp)
 		input->type = RAW_CAMERA;
 		input->port = i;
 		input->camera = isp->sensor_subdevs[i];
+		input->csi_port = &isp->csi2_port[i].subdev;
 
 		atomisp_init_sensor(input);
 

@@ -644,7 +644,7 @@ static int atomisp_link_setup(struct media_entity *entity,
 					      entity);
 	struct atomisp_sub_device *asd = v4l2_get_subdevdata(sd);
 	struct atomisp_device *isp = asd->isp;
-	int i, csi_idx, ret;
+	int i, ret;
 
 	/* ISP's source is immutable */
 	if (local != &asd->pads[ATOMISP_SUBDEV_PAD_SINK]) {
@@ -653,24 +653,13 @@ static int atomisp_link_setup(struct media_entity *entity,
 		return -EINVAL;
 	}
 
-	for (csi_idx = 0; csi_idx < ATOMISP_CAMERA_NR_PORTS; csi_idx++) {
-		if (&isp->csi2_port[csi_idx].pads[CSI2_PAD_SOURCE] == remote)
-			break;
-	}
-
-	if (csi_idx == ATOMISP_CAMERA_NR_PORTS) {
-		v4l2_err(sd, "Error cannot find CSI receiver for remote pad\n");
-		return -EINVAL;
-	}
-
-
 	for (i = 0; i < isp->input_cnt; i++) {
-		if (isp->inputs[i].camera == isp->sensor_subdevs[csi_idx])
+		if (&isp->inputs[i].csi_port->entity.pads[CSI2_PAD_SOURCE] == remote)
 			break;
 	}
 
 	if (i == isp->input_cnt) {
-		v4l2_err(sd, "Error no sensor for CSI receiver %d\n", csi_idx);
+		v4l2_err(sd, "Error no sensor for selected CSI receiver\n");
 		return -EINVAL;
 	}
 
