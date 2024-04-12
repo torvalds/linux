@@ -473,10 +473,11 @@ static void __add_to_kill(struct task_struct *tsk, struct page *p,
 }
 
 static void add_to_kill_anon_file(struct task_struct *tsk, struct page *p,
-				  struct vm_area_struct *vma,
-				  struct list_head *to_kill)
+		struct vm_area_struct *vma, struct list_head *to_kill,
+		unsigned long addr)
 {
-	unsigned long addr = page_address_in_vma(p, vma);
+	if (addr == -EFAULT)
+		return;
 	__add_to_kill(tsk, p, vma, to_kill, addr);
 }
 
@@ -601,7 +602,6 @@ struct task_struct *task_early_kill(struct task_struct *tsk, int force_early)
 static void collect_procs_anon(struct folio *folio, struct page *page,
 		struct list_head *to_kill, int force_early)
 {
-	struct vm_area_struct *vma;
 	struct task_struct *tsk;
 	struct anon_vma *av;
 	pgoff_t pgoff;
@@ -613,8 +613,10 @@ static void collect_procs_anon(struct folio *folio, struct page *page,
 	pgoff = page_to_pgoff(page);
 	rcu_read_lock();
 	for_each_process(tsk) {
+		struct vm_area_struct *vma;
 		struct anon_vma_chain *vmac;
 		struct task_struct *t = task_early_kill(tsk, force_early);
+		unsigned long addr;
 
 		if (!t)
 			continue;
@@ -623,9 +625,8 @@ static void collect_procs_anon(struct folio *folio, struct page *page,
 			vma = vmac->vma;
 			if (vma->vm_mm != t->mm)
 				continue;
-			if (!page_mapped_in_vma(page, vma))
-				continue;
-			add_to_kill_anon_file(t, page, vma, to_kill);
+			addr = page_mapped_in_vma(page, vma);
+			add_to_kill_anon_file(t, page, vma, to_kill, addr);
 		}
 	}
 	rcu_read_unlock();
@@ -648,6 +649,7 @@ static void collect_procs_file(struct folio *folio, struct page *page,
 	pgoff = page_to_pgoff(page);
 	for_each_process(tsk) {
 		struct task_struct *t = task_early_kill(tsk, force_early);
+		unsigned long addr;
 
 		if (!t)
 			continue;
@@ -660,8 +662,10 @@ static void collect_procs_file(struct folio *folio, struct page *page,
 			 * Assume applications who requested early kill want
 			 * to be informed of all such data corruptions.
 			 */
-			if (vma->vm_mm == t->mm)
-				add_to_kill_anon_file(t, page, vma, to_kill);
+			if (vma->vm_mm != t->mm)
+				continue;
+			addr = page_address_in_vma(page, vma);
+			add_to_kill_anon_file(t, page, vma, to_kill, addr);
 		}
 	}
 	rcu_read_unlock();
