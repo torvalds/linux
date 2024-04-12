@@ -4689,6 +4689,10 @@ static void rtw89_scan_get_6g_disabled_chan(struct rtw89_dev *rtwdev,
 	u8 i, idx;
 
 	sband = rtwdev->hw->wiphy->bands[NL80211_BAND_6GHZ];
+	if (!sband) {
+		option->prohib_chan = U64_MAX;
+		return;
+	}
 
 	for (i = 0; i < sband->n_channels; i++) {
 		chan = &sband->channels[i];
