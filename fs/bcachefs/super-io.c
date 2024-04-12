@@ -700,8 +700,11 @@ retry:
 		return -ENOMEM;
 
 	sb->sb_name = kstrdup(path, GFP_KERNEL);
-	if (!sb->sb_name)
-		return -ENOMEM;
+	if (!sb->sb_name) {
+		ret = -ENOMEM;
+		prt_printf(&err, "error allocating memory for sb_name");
+		goto err;
+	}
 
 #ifndef __KERNEL__
 	if (opt_get(*opts, direct_io) == false)
