@@ -905,39 +905,39 @@ static void hsw_power_well_sync_hw(struct drm_i915_private *dev_priv,
 static void bxt_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 					   struct i915_power_well *power_well)
 {
-	bxt_ddi_phy_init(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
+	bxt_dpio_phy_init(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
 }
 
 static void bxt_dpio_cmn_power_well_disable(struct drm_i915_private *dev_priv,
 					    struct i915_power_well *power_well)
 {
-	bxt_ddi_phy_uninit(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
+	bxt_dpio_phy_uninit(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
 }
 
 static bool bxt_dpio_cmn_power_well_enabled(struct drm_i915_private *dev_priv,
 					    struct i915_power_well *power_well)
 {
-	return bxt_ddi_phy_is_enabled(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
+	return bxt_dpio_phy_is_enabled(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
 }
 
-static void bxt_verify_ddi_phy_power_wells(struct drm_i915_private *dev_priv)
+static void bxt_verify_dpio_phy_power_wells(struct drm_i915_private *dev_priv)
 {
 	struct i915_power_well *power_well;
 
 	power_well = lookup_power_well(dev_priv, BXT_DISP_PW_DPIO_CMN_A);
 	if (intel_power_well_refcount(power_well) > 0)
-		bxt_ddi_phy_verify_state(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
+		bxt_dpio_phy_verify_state(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
 
 	power_well = lookup_power_well(dev_priv, VLV_DISP_PW_DPIO_CMN_BC);
 	if (intel_power_well_refcount(power_well) > 0)
-		bxt_ddi_phy_verify_state(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
+		bxt_dpio_phy_verify_state(dev_priv, i915_power_well_instance(power_well)->bxt.phy);
 
 	if (IS_GEMINILAKE(dev_priv)) {
 		power_well = lookup_power_well(dev_priv,
 					       GLK_DISP_PW_DPIO_CMN_C);
 		if (intel_power_well_refcount(power_well) > 0)
-			bxt_ddi_phy_verify_state(dev_priv,
-						 i915_power_well_instance(power_well)->bxt.phy);
+			bxt_dpio_phy_verify_state(dev_priv,
+						  i915_power_well_instance(power_well)->bxt.phy);
 	}
 }
 
@@ -986,7 +986,7 @@ void gen9_disable_dc_states(struct drm_i915_private *dev_priv)
 	gen9_assert_dbuf_enabled(dev_priv);
 
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
-		bxt_verify_ddi_phy_power_wells(dev_priv);
+		bxt_verify_dpio_phy_power_wells(dev_priv);
 
 	if (DISPLAY_VER(dev_priv) >= 11)
 		/*

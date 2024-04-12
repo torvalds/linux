@@ -3522,8 +3522,8 @@ intel_ddi_pre_pll_enable(struct intel_atomic_state *state,
 		 */
 		intel_tc_port_set_fia_lane_count(dig_port, crtc_state->lane_count);
 	else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
-		bxt_ddi_phy_set_lane_optim_mask(encoder,
-						crtc_state->lane_lat_optim_mask);
+		bxt_dpio_phy_set_lane_optim_mask(encoder,
+						 crtc_state->lane_lat_optim_mask);
 }
 
 static void adlp_tbt_to_dp_alt_switch_wa(struct intel_encoder *encoder)
@@ -3955,7 +3955,7 @@ static void intel_ddi_get_config(struct intel_encoder *encoder,
 
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		pipe_config->lane_lat_optim_mask =
-			bxt_ddi_phy_get_lane_lat_optim_mask(encoder);
+			bxt_dpio_phy_get_lane_lat_optim_mask(encoder);
 
 	intel_ddi_compute_min_voltage_level(pipe_config);
 
@@ -4232,7 +4232,7 @@ static int intel_ddi_compute_config(struct intel_encoder *encoder,
 
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		pipe_config->lane_lat_optim_mask =
-			bxt_ddi_phy_calc_lane_lat_optim_mask(pipe_config->lane_count);
+			bxt_dpio_phy_calc_lane_lat_optim_mask(pipe_config->lane_count);
 
 	intel_ddi_compute_min_voltage_level(pipe_config);
 
@@ -5084,7 +5084,7 @@ void intel_ddi_init(struct drm_i915_private *dev_priv,
 		else
 			encoder->set_signal_levels = icl_mg_phy_set_signal_levels;
 	} else if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv)) {
-		encoder->set_signal_levels = bxt_ddi_phy_set_signal_levels;
+		encoder->set_signal_levels = bxt_dpio_phy_set_signal_levels;
 	} else {
 		encoder->set_signal_levels = hsw_set_signal_levels;
 	}

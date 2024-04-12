@@ -645,7 +645,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		pipe_config->lane_lat_optim_mask =
-			bxt_ddi_phy_calc_lane_lat_optim_mask(pipe_config->lane_count);
+			bxt_dpio_phy_calc_lane_lat_optim_mask(pipe_config->lane_count);
 
 	intel_dp_audio_compute_config(encoder, pipe_config, conn_state);
 
