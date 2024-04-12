@@ -537,12 +537,16 @@
 	add		$7*16, KEY
 .else
 	add		$(15+7)*16, KEY
-.endif
 
-	// Check whether the data length is a multiple of the AES block length.
+	// When decrypting a message whose length isn't a multiple of the AES
+	// block length, exclude the last full block from the main loop by
+	// subtracting 16 from LEN.  This is needed because ciphertext stealing
+	// decryption uses the last two tweaks in reverse order.  We'll handle
+	// the last full block and the partial block specially at the end.
 	test		$15, LEN
-	jnz		.Lneed_cts\@
+	jnz		.Lneed_cts_dec\@
 .Lxts_init\@:
+.endif
 
 	// Cache as many round keys as possible.
 	_load_round_keys
@@ -685,31 +689,31 @@
 	_vaes_4x	\enc, 1, 12
 	jmp		.Lencrypt_4x_done\@
 
-.Lneed_cts\@:
-	// The data length isn't a multiple of the AES block length, so
-	// ciphertext stealing (CTS) will be needed.  Subtract one block from
-	// LEN so that the main loop doesn't process the last full block.  The
-	// CTS step will process it specially along with the partial block.
+.if !\enc
+.Lneed_cts_dec\@:
 	sub		$16, LEN
 	jmp		.Lxts_init\@
+.endif
 
 .Lcts\@:
 	// Do ciphertext stealing (CTS) to en/decrypt the last full block and
-	// the partial block.  CTS needs two tweaks.  TWEAK0_XMM contains the
-	// next tweak; compute the one after that.  Decryption uses these two
-	// tweaks in reverse order, so also define aliases to handle that.
-	_next_tweak	TWEAK0_XMM, %xmm0, TWEAK1_XMM
-.if \enc
-	.set		CTS_TWEAK0,	TWEAK0_XMM
-	.set		CTS_TWEAK1,	TWEAK1_XMM
-.else
-	.set		CTS_TWEAK0,	TWEAK1_XMM
-	.set		CTS_TWEAK1,	TWEAK0_XMM
-.endif
+	// the partial block.  TWEAK0_XMM contains the next tweak.
 
-	// En/decrypt the last full block.
+.if \enc
+	// If encrypting, the main loop already encrypted the last full block to
+	// create the CTS intermediate ciphertext.  Prepare for the rest of CTS
+	// by rewinding the pointers and loading the intermediate ciphertext.
+	sub		$16, SRC
+	sub		$16, DST
+	vmovdqu		(DST), %xmm0
+.else
+	// If decrypting, the main loop didn't decrypt the last full block
+	// because CTS decryption uses the last two tweaks in reverse order.
+	// Do it now by advancing the tweak and decrypting the last full block.
+	_next_tweak	TWEAK0_XMM, %xmm0, TWEAK1_XMM
 	vmovdqu		(SRC), %xmm0
-	_aes_crypt	\enc, _XMM, CTS_TWEAK0, %xmm0
+	_aes_crypt	\enc, _XMM, TWEAK1_XMM, %xmm0
+.endif
 
 .if USE_AVX10
 	// Create a mask that has the first LEN bits set.
@@ -717,9 +721,10 @@
 	bzhi		LEN, %rax, %rax
 	kmovq		%rax, %k1
 
-	// Swap the first LEN bytes of the above result with the partial block.
-	// Note that to support in-place en/decryption, the load from the src
-	// partial block must happen before the store to the dst partial block.
+	// Swap the first LEN bytes of the en/decryption of the last full block
+	// with the partial block.  Note that to support in-place en/decryption,
+	// the load from the src partial block must happen before the store to
+	// the dst partial block.
 	vmovdqa		%xmm0, %xmm1
 	vmovdqu8	16(SRC), %xmm0{%k1}
 	vmovdqu8	%xmm1, 16(DST){%k1}
@@ -750,7 +755,7 @@
 	vpblendvb	%xmm3, %xmm0, %xmm1, %xmm0
 .endif
 	// En/decrypt again and store the last full block.
-	_aes_crypt	\enc, _XMM, CTS_TWEAK1, %xmm0
+	_aes_crypt	\enc, _XMM, TWEAK0_XMM, %xmm0
 	vmovdqu		%xmm0, (DST)
 	jmp		.Ldone\@
 .endm
