@@ -2620,6 +2620,7 @@ static const struct adsp_data niobe_soccp_resource = {
 	.ssr_name = "soccp",
 	.sysmon_name = "soccp",
 	.check_status = true,
+	.auto_boot = true,
 };
 
 static const struct adsp_data monaco_auto_gpdsp_resource = {
