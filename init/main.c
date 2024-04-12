@@ -633,11 +633,11 @@ static void __init setup_command_line(char *command_line)
 		ilen = strlen(extra_init_args) + 4; /* for " -- " */
 	}
 
-	len = xlen + strlen(boot_command_line) + 1;
+	len = xlen + strlen(boot_command_line) + ilen + 1;
 
-	saved_command_line = memblock_alloc(len + ilen, SMP_CACHE_BYTES);
+	saved_command_line = memblock_alloc(len, SMP_CACHE_BYTES);
 	if (!saved_command_line)
-		panic("%s: Failed to allocate %zu bytes\n", __func__, len + ilen);
+		panic("%s: Failed to allocate %zu bytes\n", __func__, len);
 
 	len = xlen + strlen(command_line) + 1;
 
