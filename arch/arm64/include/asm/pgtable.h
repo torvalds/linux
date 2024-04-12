@@ -1010,6 +1010,8 @@ static inline p4d_t *p4d_offset_kimg(pgd_t *pgdp, u64 addr)
 
 static inline bool pgtable_l5_enabled(void) { return false; }
 
+#define p4d_index(addr)		(((addr) >> P4D_SHIFT) & (PTRS_PER_P4D - 1))
+
 /* Match p4d_offset folding in <asm/generic/pgtable-nop4d.h> */
 #define p4d_set_fixmap(addr)		NULL
 #define p4d_set_fixmap_offset(p4dp, addr)	((p4d_t *)p4dp)
