@@ -1192,6 +1192,22 @@ static int mtl_crtc_compute_clock(struct intel_atomic_state *state,
 	return 0;
 }
 
+static int ilk_fb_cb_factor(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS) &&
+	    ((intel_panel_use_ssc(i915) && i915->display.vbt.lvds_ssc_freq == 100000) ||
+	     (HAS_PCH_IBX(i915) && intel_is_dual_link_lvds(i915))))
+		return 25;
+
+	if (crtc_state->sdvo_tv_clock)
+		return 20;
+
+	return 21;
+}
+
 static bool ilk_needs_fb_cb_tune(const struct dpll *dpll, int factor)
 {
 	return dpll->m < factor * dpll->n;
@@ -1201,22 +1217,8 @@ static void ilk_update_pll_dividers(struct intel_crtc_state *crtc_state,
 				    const struct dpll *clock,
 				    const struct dpll *reduced_clock)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	int factor = ilk_fb_cb_factor(crtc_state);
 	u32 fp, fp2;
-	int factor;
-
-	/* Enable autotuning of the PLL clock (if permissible) */
-	factor = 21;
-	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
-		if ((intel_panel_use_ssc(dev_priv) &&
-		     dev_priv->display.vbt.lvds_ssc_freq == 100000) ||
-		    (HAS_PCH_IBX(dev_priv) &&
-		     intel_is_dual_link_lvds(dev_priv)))
-			factor = 25;
-	} else if (crtc_state->sdvo_tv_clock) {
-		factor = 20;
-	}
 
 	fp = i9xx_dpll_compute_fp(clock);
 	if (ilk_needs_fb_cb_tune(clock, factor))
