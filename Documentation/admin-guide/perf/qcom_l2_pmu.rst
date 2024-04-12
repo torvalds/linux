@@ -10,7 +10,7 @@ There is one logical L2 PMU exposed, which aggregates the results from
 the physical PMUs.
 
 The driver provides a description of its available events and configuration
-options in sysfs, see /sys/devices/l2cache_0.
+options in sysfs, see /sys/bus/event_source/devices/l2cache_0.
 
 The "format" directory describes the format of the events.
 
