@@ -134,22 +134,24 @@ static int soc_card_test_case_init(struct kunit *test)
 
 	test->priv = priv;
 
+	priv->card = kunit_kzalloc(test, sizeof(*priv->card), GFP_KERNEL);
+	if (!priv->card)
+		return -ENOMEM;
+
 	priv->card_dev = kunit_device_register(test, "sound-soc-card-test");
 	priv->card_dev = get_device(priv->card_dev);
 	if (!priv->card_dev)
 		return -ENODEV;
-
-	priv->card = kunit_kzalloc(test, sizeof(*priv->card), GFP_KERNEL);
-	if (!priv->card)
-		return -ENOMEM;
 
 	priv->card->name = "soc-card-test";
 	priv->card->dev = priv->card_dev;
 	priv->card->owner = THIS_MODULE;
 
 	ret = snd_soc_register_card(priv->card);
-	if (!ret)
+	if (ret) {
+		put_device(priv->card_dev);
 		return ret;
+	}
 
 	return 0;
 }
