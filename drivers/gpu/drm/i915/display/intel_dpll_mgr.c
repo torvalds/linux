@@ -64,7 +64,8 @@ struct intel_shared_dpll_funcs {
 	 * the pll is not already enabled.
 	 */
 	void (*enable)(struct drm_i915_private *i915,
-		       struct intel_shared_dpll *pll);
+		       struct intel_shared_dpll *pll,
+		       const struct intel_dpll_hw_state *dpll_hw_state);
 
 	/*
 	 * Hook for disabling the pll, called from intel_disable_shared_dpll()
@@ -227,7 +228,7 @@ static void _intel_enable_shared_dpll(struct drm_i915_private *i915,
 	if (pll->info->power_domain)
 		pll->wakeref = intel_display_power_get(i915, pll->info->power_domain);
 
-	pll->info->funcs->enable(i915, pll);
+	pll->info->funcs->enable(i915, pll, &pll->state.hw_state);
 	pll->on = true;
 }
 
@@ -553,9 +554,9 @@ static void ibx_assert_pch_refclk_enabled(struct drm_i915_private *i915)
 }
 
 static void ibx_pch_dpll_enable(struct drm_i915_private *i915,
-				struct intel_shared_dpll *pll)
+				struct intel_shared_dpll *pll,
+				const struct intel_dpll_hw_state *hw_state)
 {
-	const struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
 	const enum intel_dpll_id id = pll->info->id;
 
 	/* PCH refclock must be enabled first */
@@ -677,9 +678,9 @@ static const struct intel_dpll_mgr pch_pll_mgr = {
 };
 
 static void hsw_ddi_wrpll_enable(struct drm_i915_private *i915,
-				 struct intel_shared_dpll *pll)
+				 struct intel_shared_dpll *pll,
+				 const struct intel_dpll_hw_state *hw_state)
 {
-	const struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
 	const enum intel_dpll_id id = pll->info->id;
 
 	intel_de_write(i915, WRPLL_CTL(id), hw_state->wrpll);
@@ -688,10 +689,9 @@ static void hsw_ddi_wrpll_enable(struct drm_i915_private *i915,
 }
 
 static void hsw_ddi_spll_enable(struct drm_i915_private *i915,
-				struct intel_shared_dpll *pll)
+				struct intel_shared_dpll *pll,
+				const struct intel_dpll_hw_state *hw_state)
 {
-	const struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
-
 	intel_de_write(i915, SPLL_CTL, hw_state->spll);
 	intel_de_posting_read(i915, SPLL_CTL);
 	udelay(20);
@@ -1259,7 +1259,8 @@ static const struct intel_shared_dpll_funcs hsw_ddi_spll_funcs = {
 };
 
 static void hsw_ddi_lcpll_enable(struct drm_i915_private *i915,
-				 struct intel_shared_dpll *pll)
+				 struct intel_shared_dpll *pll,
+				 const struct intel_dpll_hw_state *hw_state)
 {
 }
 
@@ -1337,9 +1338,9 @@ static const struct skl_dpll_regs skl_dpll_regs[4] = {
 };
 
 static void skl_ddi_pll_write_ctrl1(struct drm_i915_private *i915,
-				    struct intel_shared_dpll *pll)
+				    struct intel_shared_dpll *pll,
+				    const struct intel_dpll_hw_state *hw_state)
 {
-	const struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
 	const enum intel_dpll_id id = pll->info->id;
 
 	intel_de_rmw(i915, DPLL_CTRL1,
@@ -1351,13 +1352,13 @@ static void skl_ddi_pll_write_ctrl1(struct drm_i915_private *i915,
 }
 
 static void skl_ddi_pll_enable(struct drm_i915_private *i915,
-			       struct intel_shared_dpll *pll)
+			       struct intel_shared_dpll *pll,
+			       const struct intel_dpll_hw_state *hw_state)
 {
-	const struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
 	const struct skl_dpll_regs *regs = skl_dpll_regs;
 	const enum intel_dpll_id id = pll->info->id;
 
-	skl_ddi_pll_write_ctrl1(i915, pll);
+	skl_ddi_pll_write_ctrl1(i915, pll, hw_state);
 
 	intel_de_write(i915, regs[id].cfgcr1, hw_state->cfgcr1);
 	intel_de_write(i915, regs[id].cfgcr2, hw_state->cfgcr2);
@@ -1372,9 +1373,10 @@ static void skl_ddi_pll_enable(struct drm_i915_private *i915,
 }
 
 static void skl_ddi_dpll0_enable(struct drm_i915_private *i915,
-				 struct intel_shared_dpll *pll)
+				 struct intel_shared_dpll *pll,
+				 const struct intel_dpll_hw_state *hw_state)
 {
-	skl_ddi_pll_write_ctrl1(i915, pll);
+	skl_ddi_pll_write_ctrl1(i915, pll, hw_state);
 }
 
 static void skl_ddi_pll_disable(struct drm_i915_private *i915,
@@ -1996,9 +1998,9 @@ static const struct intel_dpll_mgr skl_pll_mgr = {
 };
 
 static void bxt_ddi_pll_enable(struct drm_i915_private *i915,
-			       struct intel_shared_dpll *pll)
+			       struct intel_shared_dpll *pll,
+			       const struct intel_dpll_hw_state *hw_state)
 {
-	const struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
 	enum port port = (enum port)pll->info->id; /* 1:1 port->PLL mapping */
 	enum dpio_phy phy;
 	enum dpio_channel ch;
@@ -3697,9 +3699,9 @@ static bool tbt_pll_get_hw_state(struct drm_i915_private *i915,
 }
 
 static void icl_dpll_write(struct drm_i915_private *i915,
-			   struct intel_shared_dpll *pll)
+			   struct intel_shared_dpll *pll,
+			   const struct intel_dpll_hw_state *hw_state)
 {
-	struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
 	const enum intel_dpll_id id = pll->info->id;
 	i915_reg_t cfgcr0_reg, cfgcr1_reg, div0_reg = INVALID_MMIO_REG;
 
@@ -3739,9 +3741,9 @@ static void icl_dpll_write(struct drm_i915_private *i915,
 }
 
 static void icl_mg_pll_write(struct drm_i915_private *i915,
-			     struct intel_shared_dpll *pll)
+			     struct intel_shared_dpll *pll,
+			     const struct intel_dpll_hw_state *hw_state)
 {
-	struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
 	enum tc_port tc_port = icl_pll_id_to_tc_port(pll->info->id);
 
 	/*
@@ -3782,9 +3784,9 @@ static void icl_mg_pll_write(struct drm_i915_private *i915,
 }
 
 static void dkl_pll_write(struct drm_i915_private *i915,
-			  struct intel_shared_dpll *pll)
+			  struct intel_shared_dpll *pll,
+			  const struct intel_dpll_hw_state *hw_state)
 {
-	struct intel_dpll_hw_state *hw_state = &pll->state.hw_state;
 	enum tc_port tc_port = icl_pll_id_to_tc_port(pll->info->id);
 	u32 val;
 
@@ -3897,13 +3899,14 @@ static void adlp_cmtg_clock_gating_wa(struct drm_i915_private *i915, struct inte
 }
 
 static void combo_pll_enable(struct drm_i915_private *i915,
-			     struct intel_shared_dpll *pll)
+			     struct intel_shared_dpll *pll,
+			     const struct intel_dpll_hw_state *hw_state)
 {
 	i915_reg_t enable_reg = intel_combo_pll_enable_reg(i915, pll);
 
 	icl_pll_power_enable(i915, pll, enable_reg);
 
-	icl_dpll_write(i915, pll);
+	icl_dpll_write(i915, pll, hw_state);
 
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
@@ -3919,11 +3922,12 @@ static void combo_pll_enable(struct drm_i915_private *i915,
 }
 
 static void tbt_pll_enable(struct drm_i915_private *i915,
-			   struct intel_shared_dpll *pll)
+			   struct intel_shared_dpll *pll,
+			   const struct intel_dpll_hw_state *hw_state)
 {
 	icl_pll_power_enable(i915, pll, TBT_PLL_ENABLE);
 
-	icl_dpll_write(i915, pll);
+	icl_dpll_write(i915, pll, hw_state);
 
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
@@ -3937,16 +3941,17 @@ static void tbt_pll_enable(struct drm_i915_private *i915,
 }
 
 static void mg_pll_enable(struct drm_i915_private *i915,
-			  struct intel_shared_dpll *pll)
+			  struct intel_shared_dpll *pll,
+			  const struct intel_dpll_hw_state *hw_state)
 {
 	i915_reg_t enable_reg = intel_tc_pll_enable_reg(i915, pll);
 
 	icl_pll_power_enable(i915, pll, enable_reg);
 
 	if (DISPLAY_VER(i915) >= 12)
-		dkl_pll_write(i915, pll);
+		dkl_pll_write(i915, pll, hw_state);
 	else
-		icl_mg_pll_write(i915, pll);
+		icl_mg_pll_write(i915, pll, hw_state);
 
 	/*
 	 * DVFS pre sequence would be here, but in our driver the cdclk code
