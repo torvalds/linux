@@ -674,7 +674,8 @@ static void __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool dying)
 
 	lockdep_assert_held(&ctx->uring_lock);
 
-	if (__io_cqring_events(ctx) == ctx->cq_entries)
+	/* don't abort if we're dying, entries must get freed */
+	if (!dying && __io_cqring_events(ctx) == ctx->cq_entries)
 		return;
 
 	if (ctx->flags & IORING_SETUP_CQE32)
