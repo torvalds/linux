@@ -230,11 +230,13 @@ struct icl_dpll_hw_state {
 };
 
 struct intel_dpll_hw_state {
-	struct i9xx_dpll_hw_state i9xx;
-	struct hsw_dpll_hw_state hsw;
-	struct skl_dpll_hw_state skl;
-	struct bxt_dpll_hw_state bxt;
-	struct icl_dpll_hw_state icl;
+	union {
+		struct i9xx_dpll_hw_state i9xx;
+		struct hsw_dpll_hw_state hsw;
+		struct skl_dpll_hw_state skl;
+		struct bxt_dpll_hw_state bxt;
+		struct icl_dpll_hw_state icl;
+	};
 };
 
 /**
