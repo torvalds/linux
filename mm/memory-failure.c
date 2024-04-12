@@ -443,7 +443,7 @@ static void __add_to_kill(struct task_struct *tsk, struct page *p,
 		return;
 	}
 
-	tk->addr = addr ? addr : page_address_in_vma(p, vma);
+	tk->addr = addr;
 	if (is_zone_device_page(p))
 		tk->size_shift = dev_pagemap_mapping_shift(vma, tk->addr);
 	else
@@ -476,7 +476,8 @@ static void add_to_kill_anon_file(struct task_struct *tsk, struct page *p,
 				  struct vm_area_struct *vma,
 				  struct list_head *to_kill)
 {
-	__add_to_kill(tsk, p, vma, to_kill, 0);
+	unsigned long addr = page_address_in_vma(p, vma);
+	__add_to_kill(tsk, p, vma, to_kill, addr);
 }
 
 #ifdef CONFIG_KSM
@@ -492,6 +493,7 @@ static bool task_in_to_kill_list(struct list_head *to_kill,
 
 	return false;
 }
+
 void add_to_kill_ksm(struct task_struct *tsk, struct page *p,
 		     struct vm_area_struct *vma, struct list_head *to_kill,
 		     unsigned long addr)
