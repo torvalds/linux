@@ -16,8 +16,7 @@
 #include "fs.h"
 
 struct kmem_cache *btrfs_delayed_ref_head_cachep;
-struct kmem_cache *btrfs_delayed_tree_ref_cachep;
-struct kmem_cache *btrfs_delayed_data_ref_cachep;
+struct kmem_cache *btrfs_delayed_ref_node_cachep;
 struct kmem_cache *btrfs_delayed_extent_op_cachep;
 /*
  * delayed back reference update tracking.  For subvolume trees
@@ -1082,26 +1081,26 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	is_system = (generic_ref->tree_ref.ref_root == BTRFS_CHUNK_TREE_OBJECTID);
 
 	ASSERT(generic_ref->type == BTRFS_REF_METADATA && generic_ref->action);
-	ref = kmem_cache_alloc(btrfs_delayed_tree_ref_cachep, GFP_NOFS);
-	if (!ref)
+	node = kmem_cache_alloc(btrfs_delayed_ref_node_cachep, GFP_NOFS);
+	if (!node)
 		return -ENOMEM;
 
 	head_ref = kmem_cache_alloc(btrfs_delayed_ref_head_cachep, GFP_NOFS);
 	if (!head_ref) {
-		kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
+		kmem_cache_free(btrfs_delayed_ref_node_cachep, node);
 		return -ENOMEM;
 	}
 
 	if (btrfs_qgroup_full_accounting(fs_info) && !generic_ref->skip_qgroup) {
 		record = kzalloc(sizeof(*record), GFP_NOFS);
 		if (!record) {
-			kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
+			kmem_cache_free(btrfs_delayed_ref_node_cachep, node);
 			kmem_cache_free(btrfs_delayed_ref_head_cachep, head_ref);
 			return -ENOMEM;
 		}
 	}
 
-	node = btrfs_delayed_tree_ref_to_node(ref);
+	ref = btrfs_delayed_node_to_tree_ref(node);
 
 	if (parent)
 		ref_type = BTRFS_SHARED_BLOCK_REF_KEY;
@@ -1143,7 +1142,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 				   action == BTRFS_ADD_DELAYED_EXTENT ?
 				   BTRFS_ADD_DELAYED_REF : action);
 	if (merged)
-		kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
+		kmem_cache_free(btrfs_delayed_ref_node_cachep, node);
 
 	if (qrecord_inserted)
 		btrfs_qgroup_trace_extent_post(trans, record);
@@ -1176,11 +1175,11 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	u8 ref_type;
 
 	ASSERT(generic_ref->type == BTRFS_REF_DATA && action);
-	ref = kmem_cache_alloc(btrfs_delayed_data_ref_cachep, GFP_NOFS);
-	if (!ref)
+	node = kmem_cache_alloc(btrfs_delayed_ref_node_cachep, GFP_NOFS);
+	if (!node)
 		return -ENOMEM;
 
-	node = btrfs_delayed_data_ref_to_node(ref);
+	ref = btrfs_delayed_node_to_data_ref(node);
 
 	if (parent)
 	        ref_type = BTRFS_SHARED_DATA_REF_KEY;
@@ -1196,14 +1195,14 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 
 	head_ref = kmem_cache_alloc(btrfs_delayed_ref_head_cachep, GFP_NOFS);
 	if (!head_ref) {
-		kmem_cache_free(btrfs_delayed_data_ref_cachep, ref);
+		kmem_cache_free(btrfs_delayed_ref_node_cachep, node);
 		return -ENOMEM;
 	}
 
 	if (btrfs_qgroup_full_accounting(fs_info) && !generic_ref->skip_qgroup) {
 		record = kzalloc(sizeof(*record), GFP_NOFS);
 		if (!record) {
-			kmem_cache_free(btrfs_delayed_data_ref_cachep, ref);
+			kmem_cache_free(btrfs_delayed_ref_node_cachep, node);
 			kmem_cache_free(btrfs_delayed_ref_head_cachep,
 					head_ref);
 			return -ENOMEM;
@@ -1237,7 +1236,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 				   action == BTRFS_ADD_DELAYED_EXTENT ?
 				   BTRFS_ADD_DELAYED_REF : action);
 	if (merged)
-		kmem_cache_free(btrfs_delayed_data_ref_cachep, ref);
+		kmem_cache_free(btrfs_delayed_ref_node_cachep, node);
 
 
 	if (qrecord_inserted)
@@ -1280,18 +1279,7 @@ void btrfs_put_delayed_ref(struct btrfs_delayed_ref_node *ref)
 {
 	if (refcount_dec_and_test(&ref->refs)) {
 		WARN_ON(!RB_EMPTY_NODE(&ref->ref_node));
-		switch (ref->type) {
-		case BTRFS_TREE_BLOCK_REF_KEY:
-		case BTRFS_SHARED_BLOCK_REF_KEY:
-			kmem_cache_free(btrfs_delayed_tree_ref_cachep, ref);
-			break;
-		case BTRFS_EXTENT_DATA_REF_KEY:
-		case BTRFS_SHARED_DATA_REF_KEY:
-			kmem_cache_free(btrfs_delayed_data_ref_cachep, ref);
-			break;
-		default:
-			BUG();
-		}
+		kmem_cache_free(btrfs_delayed_ref_node_cachep, ref);
 	}
 }
 
@@ -1310,8 +1298,7 @@ btrfs_find_delayed_ref_head(struct btrfs_delayed_ref_root *delayed_refs, u64 byt
 void __cold btrfs_delayed_ref_exit(void)
 {
 	kmem_cache_destroy(btrfs_delayed_ref_head_cachep);
-	kmem_cache_destroy(btrfs_delayed_tree_ref_cachep);
-	kmem_cache_destroy(btrfs_delayed_data_ref_cachep);
+	kmem_cache_destroy(btrfs_delayed_ref_node_cachep);
 	kmem_cache_destroy(btrfs_delayed_extent_op_cachep);
 }
 
@@ -1321,12 +1308,8 @@ int __init btrfs_delayed_ref_init(void)
 	if (!btrfs_delayed_ref_head_cachep)
 		goto fail;
 
-	btrfs_delayed_tree_ref_cachep = KMEM_CACHE(btrfs_delayed_tree_ref, 0);
-	if (!btrfs_delayed_tree_ref_cachep)
-		goto fail;
-
-	btrfs_delayed_data_ref_cachep = KMEM_CACHE(btrfs_delayed_data_ref, 0);
-	if (!btrfs_delayed_data_ref_cachep)
+	btrfs_delayed_ref_node_cachep = KMEM_CACHE(btrfs_delayed_ref_node, 0);
+	if (!btrfs_delayed_ref_node_cachep)
 		goto fail;
 
 	btrfs_delayed_extent_op_cachep = KMEM_CACHE(btrfs_delayed_extent_op, 0);

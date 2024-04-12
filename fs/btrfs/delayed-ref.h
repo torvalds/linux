@@ -30,6 +30,19 @@ enum btrfs_delayed_ref_action {
 	BTRFS_UPDATE_DELAYED_HEAD,
 } __packed;
 
+struct btrfs_delayed_tree_ref {
+	u64 root;
+	u64 parent;
+	int level;
+};
+
+struct btrfs_delayed_data_ref {
+	u64 root;
+	u64 parent;
+	u64 objectid;
+	u64 offset;
+};
+
 struct btrfs_delayed_ref_node {
 	struct rb_node ref_node;
 	/*
@@ -64,6 +77,11 @@ struct btrfs_delayed_ref_node {
 
 	unsigned int action:8;
 	unsigned int type:8;
+
+	union {
+		struct btrfs_delayed_tree_ref tree_ref;
+		struct btrfs_delayed_data_ref data_ref;
+	};
 };
 
 struct btrfs_delayed_extent_op {
@@ -149,21 +167,6 @@ struct btrfs_delayed_ref_head {
 	bool is_data;
 	bool is_system;
 	bool processing;
-};
-
-struct btrfs_delayed_tree_ref {
-	struct btrfs_delayed_ref_node node;
-	u64 root;
-	u64 parent;
-	int level;
-};
-
-struct btrfs_delayed_data_ref {
-	struct btrfs_delayed_ref_node node;
-	u64 root;
-	u64 parent;
-	u64 objectid;
-	u64 offset;
 };
 
 enum btrfs_delayed_ref_flags {
@@ -279,8 +282,7 @@ struct btrfs_ref {
 };
 
 extern struct kmem_cache *btrfs_delayed_ref_head_cachep;
-extern struct kmem_cache *btrfs_delayed_tree_ref_cachep;
-extern struct kmem_cache *btrfs_delayed_data_ref_cachep;
+extern struct kmem_cache *btrfs_delayed_ref_node_cachep;
 extern struct kmem_cache *btrfs_delayed_extent_op_cachep;
 
 int __init btrfs_delayed_ref_init(void);
@@ -404,25 +406,25 @@ bool btrfs_check_space_for_delayed_refs(struct btrfs_fs_info *fs_info);
 static inline struct btrfs_delayed_tree_ref *
 btrfs_delayed_node_to_tree_ref(struct btrfs_delayed_ref_node *node)
 {
-	return container_of(node, struct btrfs_delayed_tree_ref, node);
+	return &node->tree_ref;
 }
 
 static inline struct btrfs_delayed_data_ref *
 btrfs_delayed_node_to_data_ref(struct btrfs_delayed_ref_node *node)
 {
-	return container_of(node, struct btrfs_delayed_data_ref, node);
+	return &node->data_ref;
 }
 
 static inline struct btrfs_delayed_ref_node *
 btrfs_delayed_tree_ref_to_node(struct btrfs_delayed_tree_ref *ref)
 {
-	return &ref->node;
+	return container_of(ref, struct btrfs_delayed_ref_node, tree_ref);
 }
 
 static inline struct btrfs_delayed_ref_node *
 btrfs_delayed_data_ref_to_node(struct btrfs_delayed_data_ref *ref)
 {
-	return &ref->node;
+	return container_of(ref, struct btrfs_delayed_ref_node, data_ref);
 }
 
 #endif
