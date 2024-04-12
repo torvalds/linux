@@ -270,6 +270,24 @@ void bxt_port_to_phy_channel(struct drm_i915_private *dev_priv, enum port port,
 	*ch = DPIO_CH0;
 }
 
+/*
+ * Like intel_de_rmw() but reads from a single per-lane register and
+ * writes to the group register to write the same value to all the lanes.
+ */
+static u32 bxt_ddi_phy_rmw_grp(struct drm_i915_private *i915,
+			       i915_reg_t reg_single,
+			       i915_reg_t reg_group,
+			       u32 clear, u32 set)
+{
+	u32 old, val;
+
+	old = intel_de_read(i915, reg_single);
+	val = (old & ~clear) | set;
+	intel_de_write(i915, reg_group, val);
+
+	return old;
+}
+
 void bxt_ddi_phy_set_signal_levels(struct intel_encoder *encoder,
 				   const struct intel_crtc_state *crtc_state)
 {
@@ -291,35 +309,34 @@ void bxt_ddi_phy_set_signal_levels(struct intel_encoder *encoder,
 	 * While we write to the group register to program all lanes at once we
 	 * can read only lane registers and we pick lanes 0/1 for that.
 	 */
-	val = intel_de_read(dev_priv, BXT_PORT_PCS_DW10_LN01(phy, ch));
-	val &= ~(TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT);
-	intel_de_write(dev_priv, BXT_PORT_PCS_DW10_GRP(phy, ch), val);
+	bxt_ddi_phy_rmw_grp(dev_priv, BXT_PORT_PCS_DW10_LN01(phy, ch),
+			    BXT_PORT_PCS_DW10_GRP(phy, ch),
+			    TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT, 0);
 
-	val = intel_de_read(dev_priv, BXT_PORT_TX_DW2_LN(phy, ch, 0));
-	val &= ~(MARGIN_000_MASK | UNIQ_TRANS_SCALE_MASK);
-	val |= MARGIN_000(trans->entries[level].bxt.margin) |
-		UNIQ_TRANS_SCALE(trans->entries[level].bxt.scale);
-	intel_de_write(dev_priv, BXT_PORT_TX_DW2_GRP(phy, ch), val);
+	bxt_ddi_phy_rmw_grp(dev_priv, BXT_PORT_TX_DW2_LN(phy, ch, 0),
+			    BXT_PORT_TX_DW2_GRP(phy, ch),
+			    MARGIN_000_MASK | UNIQ_TRANS_SCALE_MASK,
+			    MARGIN_000(trans->entries[level].bxt.margin) |
+			    UNIQ_TRANS_SCALE(trans->entries[level].bxt.scale));
+
+	bxt_ddi_phy_rmw_grp(dev_priv, BXT_PORT_TX_DW3_LN(phy, ch, 0),
+			    BXT_PORT_TX_DW3_GRP(phy, ch),
+			    SCALE_DCOMP_METHOD,
+			    trans->entries[level].bxt.enable ?
+			    SCALE_DCOMP_METHOD : 0);
 
 	val = intel_de_read(dev_priv, BXT_PORT_TX_DW3_LN(phy, ch, 0));
-	val &= ~SCALE_DCOMP_METHOD;
-	if (trans->entries[level].bxt.enable)
-		val |= SCALE_DCOMP_METHOD;
-
 	if ((val & UNIQUE_TRANGE_EN_METHOD) && !(val & SCALE_DCOMP_METHOD))
 		drm_err(&dev_priv->drm,
 			"Disabled scaling while ouniqetrangenmethod was set");
 
-	intel_de_write(dev_priv, BXT_PORT_TX_DW3_GRP(phy, ch), val);
+	bxt_ddi_phy_rmw_grp(dev_priv, BXT_PORT_TX_DW4_LN(phy, ch, 0),
+			    BXT_PORT_TX_DW4_GRP(phy, ch), DE_EMPHASIS_MASK,
+			    DE_EMPHASIS(trans->entries[level].bxt.deemphasis));
 
-	val = intel_de_read(dev_priv, BXT_PORT_TX_DW4_LN(phy, ch, 0));
-	val &= ~DE_EMPHASIS_MASK;
-	val |= DE_EMPHASIS(trans->entries[level].bxt.deemphasis);
-	intel_de_write(dev_priv, BXT_PORT_TX_DW4_GRP(phy, ch), val);
-
-	val = intel_de_read(dev_priv, BXT_PORT_PCS_DW10_LN01(phy, ch));
-	val |= TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT;
-	intel_de_write(dev_priv, BXT_PORT_PCS_DW10_GRP(phy, ch), val);
+	bxt_ddi_phy_rmw_grp(dev_priv, BXT_PORT_PCS_DW10_LN01(phy, ch),
+			    BXT_PORT_PCS_DW10_GRP(phy, ch),
+			    0, TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT);
 }
 
 bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,
