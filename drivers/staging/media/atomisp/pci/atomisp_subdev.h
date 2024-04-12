@@ -49,6 +49,7 @@ struct atomisp_video_pipe {
 	struct video_device vdev;
 	enum v4l2_buf_type type;
 	struct media_pad pad;
+	struct media_pipeline pipe;
 	struct vb2_queue vb_queue;
 	/* Lock for vb_queue, when also taking isp->mutex this must be taken first! */
 	struct mutex vb_queue_mutex;

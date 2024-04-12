@@ -902,6 +902,20 @@ int atomisp_start_streaming(struct vb2_queue *vq, unsigned int count)
 	if (ret)
 		goto out_unlock;
 
+	/*
+	 * When running a classic v4l2 app after a media-controller aware
+	 * app, the CSI-receiver -> ISP link for the current sensor may be
+	 * disabled. Fix this up before marking the pipeline as started.
+	 */
+	mutex_lock(&isp->media_dev.graph_mutex);
+	atomisp_setup_input_links(isp);
+	ret = __media_pipeline_start(&asd->video_out.vdev.entity.pads[0], &asd->video_out.pipe);
+	mutex_unlock(&isp->media_dev.graph_mutex);
+	if (ret) {
+		dev_err(isp->dev, "Error starting mc pipline: %d\n", ret);
+		goto out_unlock;
+	}
+
 	/* Input system HW workaround */
 	atomisp_dma_burst_len_cfg(asd);
 
@@ -1054,6 +1068,7 @@ void atomisp_stop_streaming(struct vb2_queue *vq)
 	if (ret)
 		dev_warn(isp->dev, "Recreating streams failed: %d\n", ret);
 
+	media_pipeline_stop(&asd->video_out.vdev.entity.pads[0]);
 	mutex_unlock(&isp->mutex);
 }
 
