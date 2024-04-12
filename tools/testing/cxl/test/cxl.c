@@ -986,10 +986,12 @@ static void dpa_perf_setup(struct cxl_port *endpoint, struct range *range,
 {
 	dpa_perf->qos_class = FAKE_QTG_ID;
 	dpa_perf->dpa_range = *range;
-	dpa_perf->coord.read_latency = 500;
-	dpa_perf->coord.write_latency = 500;
-	dpa_perf->coord.read_bandwidth = 1000;
-	dpa_perf->coord.write_bandwidth = 1000;
+	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++) {
+		dpa_perf->coord[i].read_latency = 500;
+		dpa_perf->coord[i].write_latency = 500;
+		dpa_perf->coord[i].read_bandwidth = 1000;
+		dpa_perf->coord[i].write_bandwidth = 1000;
+	}
 }
 
 static void mock_cxl_endpoint_parse_cdat(struct cxl_port *port)

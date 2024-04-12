@@ -401,7 +401,7 @@ enum cxl_devtype {
  */
 struct cxl_dpa_perf {
 	struct range dpa_range;
-	struct access_coordinate coord;
+	struct access_coordinate coord[ACCESS_COORDINATE_MAX];
 	int qos_class;
 };
 

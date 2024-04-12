@@ -525,22 +525,11 @@ static int get_genport_coordinates(struct device *dev, struct cxl_dport *dport)
 {
 	struct acpi_device *hb = to_cxl_host_bridge(NULL, dev);
 	u32 uid;
-	int rc;
 
 	if (kstrtou32(acpi_device_uid(hb), 0, &uid))
 		return -EINVAL;
 
-	rc = acpi_get_genport_coordinates(uid, dport->hb_coord);
-	if (rc < 0)
-		return rc;
-
-	/* Adjust back to picoseconds from nanoseconds */
-	for (int i = 0; i < ACCESS_COORDINATE_MAX; i++) {
-		dport->hb_coord[i].read_latency *= 1000;
-		dport->hb_coord[i].write_latency *= 1000;
-	}
-
-	return 0;
+	return acpi_get_genport_coordinates(uid, dport->coord);
 }
 
 static int add_host_bridge_dport(struct device *match, void *arg)

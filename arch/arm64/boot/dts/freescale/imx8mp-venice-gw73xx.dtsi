@@ -14,6 +14,7 @@
 		pinctrl-0 = <&pinctrl_usbcon1>;
 		type = "micro";
 		label = "otg";
+		vbus-supply = <&reg_usb1_vbus>;
 		id-gpios = <&gpio3 21 GPIO_ACTIVE_HIGH>;
 
 		port {
@@ -202,7 +203,6 @@
 };
 
 &usb3_phy0 {
-	vbus-supply = <&reg_usb1_vbus>;
 	status = "okay";
 };
 
