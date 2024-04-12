@@ -415,20 +415,20 @@ void i9xx_dpll_get_hw_state(struct intel_crtc *crtc,
 }
 
 /* Returns the clock of the currently programmed mode of the given pipe. */
-void i9xx_crtc_clock_get(struct intel_crtc_state *pipe_config)
+void i9xx_crtc_clock_get(struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	u32 dpll = pipe_config->dpll_hw_state.dpll;
+	u32 dpll = crtc_state->dpll_hw_state.dpll;
 	u32 fp;
 	struct dpll clock;
 	int port_clock;
-	int refclk = i9xx_pll_refclk(pipe_config);
+	int refclk = i9xx_pll_refclk(crtc_state);
 
 	if ((dpll & DISPLAY_RATE_SELECT_FPA1) == 0)
-		fp = pipe_config->dpll_hw_state.fp0;
+		fp = crtc_state->dpll_hw_state.fp0;
 	else
-		fp = pipe_config->dpll_hw_state.fp1;
+		fp = crtc_state->dpll_hw_state.fp1;
 
 	clock.m1 = (fp & FP_M1_DIV_MASK) >> FP_M1_DIV_SHIFT;
 	if (IS_PINEVIEW(dev_priv)) {
@@ -503,12 +503,12 @@ void i9xx_crtc_clock_get(struct intel_crtc_state *pipe_config)
 	 * port_clock to compute adjusted_mode.crtc_clock in the
 	 * encoder's get_config() function.
 	 */
-	pipe_config->port_clock = port_clock;
+	crtc_state->port_clock = port_clock;
 }
 
-void vlv_crtc_clock_get(struct intel_crtc_state *pipe_config)
+void vlv_crtc_clock_get(struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
 	struct dpll clock;
@@ -516,7 +516,7 @@ void vlv_crtc_clock_get(struct intel_crtc_state *pipe_config)
 	int refclk = 100000;
 
 	/* In case of DSI, DPLL will not be used */
-	if ((pipe_config->dpll_hw_state.dpll & DPLL_VCO_ENABLE) == 0)
+	if ((crtc_state->dpll_hw_state.dpll & DPLL_VCO_ENABLE) == 0)
 		return;
 
 	vlv_dpio_get(dev_priv);
@@ -529,12 +529,12 @@ void vlv_crtc_clock_get(struct intel_crtc_state *pipe_config)
 	clock.p1 = (mdiv >> DPIO_P1_SHIFT) & 7;
 	clock.p2 = (mdiv >> DPIO_P2_SHIFT) & 0x1f;
 
-	pipe_config->port_clock = vlv_calc_dpll_params(refclk, &clock);
+	crtc_state->port_clock = vlv_calc_dpll_params(refclk, &clock);
 }
 
-void chv_crtc_clock_get(struct intel_crtc_state *pipe_config)
+void chv_crtc_clock_get(struct intel_crtc_state *crtc_state)
 {
-	struct intel_crtc *crtc = to_intel_crtc(pipe_config->uapi.crtc);
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum dpio_channel port = vlv_pipe_to_channel(crtc->pipe);
 	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
@@ -543,7 +543,7 @@ void chv_crtc_clock_get(struct intel_crtc_state *pipe_config)
 	int refclk = 100000;
 
 	/* In case of DSI, DPLL will not be used */
-	if ((pipe_config->dpll_hw_state.dpll & DPLL_VCO_ENABLE) == 0)
+	if ((crtc_state->dpll_hw_state.dpll & DPLL_VCO_ENABLE) == 0)
 		return;
 
 	vlv_dpio_get(dev_priv);
@@ -562,7 +562,7 @@ void chv_crtc_clock_get(struct intel_crtc_state *pipe_config)
 	clock.p1 = (cmn_dw13 >> DPIO_CHV_P1_DIV_SHIFT) & 0x7;
 	clock.p2 = (cmn_dw13 >> DPIO_CHV_P2_DIV_SHIFT) & 0x1f;
 
-	pipe_config->port_clock = chv_calc_dpll_params(refclk, &clock);
+	crtc_state->port_clock = chv_calc_dpll_params(refclk, &clock);
 }
 
 /*
