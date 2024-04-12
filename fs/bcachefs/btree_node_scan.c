@@ -133,7 +133,17 @@ static void try_read_btree_node(struct find_btree_nodes *f, struct bch_dev *ca,
 	if (le64_to_cpu(bn->magic) != bset_magic(c))
 		return;
 
+	if (bch2_csum_type_is_encryption(BSET_CSUM_TYPE(&bn->keys))) {
+		struct nonce nonce = btree_nonce(&bn->keys, 0);
+		unsigned bytes = (void *) &bn->keys - (void *) &bn->flags;
+
+		bch2_encrypt(c, BSET_CSUM_TYPE(&bn->keys), nonce, &bn->flags, bytes);
+	}
+
 	if (btree_id_is_alloc(BTREE_NODE_ID(bn)))
+		return;
+
+	if (BTREE_NODE_LEVEL(bn) >= BTREE_MAX_DEPTH)
 		return;
 
 	rcu_read_lock();
