@@ -759,7 +759,8 @@ void submit_bio_noacct(struct bio *bio)
 	if (!bio_flagged(bio, BIO_REMAPPED)) {
 		if (unlikely(bio_check_eod(bio)))
 			goto end_io;
-		if (bdev->bd_partno && unlikely(blk_partition_remap(bio)))
+		if (bdev_is_partition(bdev) &&
+		    unlikely(blk_partition_remap(bio)))
 			goto end_io;
 	}
 
@@ -989,7 +990,7 @@ again:
 		if (likely(try_cmpxchg(&part->bd_stamp, &stamp, now)))
 			__part_stat_add(part, io_ticks, end ? now - stamp : 1);
 	}
-	if (part->bd_partno) {
+	if (bdev_is_partition(part)) {
 		part = bdev_whole(part);
 		goto again;
 	}
