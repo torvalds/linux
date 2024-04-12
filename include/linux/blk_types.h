@@ -48,7 +48,7 @@ struct block_device {
 	atomic_t		__bd_flags;	// partition number + flags
 #define BD_PARTNO		255	// lower 8 bits; assign-once
 #define BD_READ_ONLY		(1u<<8) // read-only policy
-	bool			bd_write_holder;
+#define BD_WRITE_HOLDER		(1u<<9)
 	bool			bd_has_submit_bio;
 	dev_t			bd_dev;
 	struct inode		*bd_inode;	/* will die */
