@@ -11,15 +11,7 @@
 static   int                        g_connected;
 static   int                        g_num_deferred_callbacks;
 static   void (*g_deferred_callback[MAX_CALLBACKS])(void);
-static   int                        g_once_init;
 static   DEFINE_MUTEX(g_connected_mutex);
-
-/* Function to initialize our lock */
-static void connected_init(void)
-{
-	if (!g_once_init)
-		g_once_init = 1;
-}
 
 /*
  * This function is used to defer initialization until the vchiq stack is
@@ -29,8 +21,6 @@ static void connected_init(void)
  */
 void vchiq_add_connected_callback(struct vchiq_device *device, void (*callback)(void))
 {
-	connected_init();
-
 	if (mutex_lock_killable(&g_connected_mutex))
 		return;
 
@@ -59,8 +49,6 @@ EXPORT_SYMBOL(vchiq_add_connected_callback);
 void vchiq_call_connected_callbacks(void)
 {
 	int i;
-
-	connected_init();
 
 	if (mutex_lock_killable(&g_connected_mutex))
 		return;
