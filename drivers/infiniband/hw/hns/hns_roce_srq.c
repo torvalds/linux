@@ -518,6 +518,7 @@ err_srq_db:
 err_srq_buf:
 	free_srq_buf(hr_dev, srq);
 err_out:
+	mutex_destroy(&srq->mutex);
 	atomic64_inc(&hr_dev->dfx_cnt[HNS_ROCE_DFX_SRQ_CREATE_ERR_CNT]);
 
 	return ret;
@@ -532,6 +533,7 @@ int hns_roce_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
 	free_srqn(hr_dev, srq);
 	free_srq_db(hr_dev, srq, udata);
 	free_srq_buf(hr_dev, srq);
+	mutex_destroy(&srq->mutex);
 	return 0;
 }
 

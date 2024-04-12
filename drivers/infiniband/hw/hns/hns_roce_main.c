@@ -429,6 +429,9 @@ static int hns_roce_alloc_ucontext(struct ib_ucontext *uctx,
 	return 0;
 
 error_fail_copy_to_udata:
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_CQ_RECORD_DB ||
+	    hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB)
+		mutex_destroy(&context->page_mutex);
 	hns_roce_dealloc_uar_entry(context);
 
 error_fail_uar_entry:
@@ -444,6 +447,10 @@ static void hns_roce_dealloc_ucontext(struct ib_ucontext *ibcontext)
 {
 	struct hns_roce_ucontext *context = to_hr_ucontext(ibcontext);
 	struct hns_roce_dev *hr_dev = to_hr_dev(ibcontext->device);
+
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_CQ_RECORD_DB ||
+	    hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB)
+		mutex_destroy(&context->page_mutex);
 
 	hns_roce_dealloc_uar_entry(context);
 
@@ -933,6 +940,15 @@ err_unmap_dmpt:
 	return ret;
 }
 
+static void hns_roce_teardown_hca(struct hns_roce_dev *hr_dev)
+{
+	hns_roce_cleanup_bitmap(hr_dev);
+
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_CQ_RECORD_DB ||
+	    hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB)
+		mutex_destroy(&hr_dev->pgdir_mutex);
+}
+
 /**
  * hns_roce_setup_hca - setup host channel adapter
  * @hr_dev: pointer to hns roce device
@@ -981,6 +997,10 @@ static int hns_roce_setup_hca(struct hns_roce_dev *hr_dev)
 
 err_uar_table_free:
 	ida_destroy(&hr_dev->uar_ida.ida);
+	if (hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_CQ_RECORD_DB ||
+	    hr_dev->caps.flags & HNS_ROCE_CAP_FLAG_QP_RECORD_DB)
+		mutex_destroy(&hr_dev->pgdir_mutex);
+
 	return ret;
 }
 
@@ -1126,7 +1146,7 @@ error_failed_register_device:
 		hr_dev->hw->hw_exit(hr_dev);
 
 error_failed_engine_init:
-	hns_roce_cleanup_bitmap(hr_dev);
+	hns_roce_teardown_hca(hr_dev);
 
 error_failed_setup_hca:
 	hns_roce_cleanup_hem(hr_dev);
@@ -1156,7 +1176,7 @@ void hns_roce_exit(struct hns_roce_dev *hr_dev)
 
 	if (hr_dev->hw->hw_exit)
 		hr_dev->hw->hw_exit(hr_dev);
-	hns_roce_cleanup_bitmap(hr_dev);
+	hns_roce_teardown_hca(hr_dev);
 	hns_roce_cleanup_hem(hr_dev);
 
 	if (hr_dev->cmd_mod)
