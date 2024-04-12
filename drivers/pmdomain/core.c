@@ -1255,10 +1255,7 @@ static int genpd_prepare(struct device *dev)
 		return -EINVAL;
 
 	genpd_lock(genpd);
-
-	if (genpd->prepared_count++ == 0)
-		genpd->suspended_count = 0;
-
+	genpd->prepared_count++;
 	genpd_unlock(genpd);
 
 	ret = pm_generic_prepare(dev);
