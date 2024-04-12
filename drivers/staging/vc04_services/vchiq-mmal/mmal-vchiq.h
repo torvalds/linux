@@ -25,6 +25,7 @@
 #define MMAL_FORMAT_EXTRADATA_MAX_SIZE 128
 
 struct vchiq_mmal_instance;
+struct device;
 
 enum vchiq_mmal_es_type {
 	MMAL_ES_TYPE_UNKNOWN,     /**< Unknown elementary stream type */
@@ -94,7 +95,7 @@ struct vchiq_mmal_component {
 	u32 client_component;	/* Used to ref back to client struct */
 };
 
-int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance);
+int vchiq_mmal_init(struct device *dev, struct vchiq_mmal_instance **out_instance);
 int vchiq_mmal_finalise(struct vchiq_mmal_instance *instance);
 
 /* Initialise a mmal component and its ports

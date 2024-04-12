@@ -52,6 +52,8 @@ struct vchiq_drv_mgmt {
 	unsigned int fragments_size;
 
 	void __iomem *regs;
+
+	struct vchiq_state state;
 };
 
 struct user_service {
@@ -97,11 +99,6 @@ struct vchiq_instance {
 
 	struct vchiq_debugfs_node debugfs_node;
 };
-
-extern struct vchiq_state g_state;
-
-extern struct vchiq_state *
-vchiq_get_state(void);
 
 int
 vchiq_use_service(struct vchiq_instance *instance, unsigned int handle);

@@ -48,6 +48,7 @@ struct vchiq_element {
 };
 
 struct vchiq_instance;
+struct vchiq_state;
 
 struct vchiq_service_base {
 	int fourcc;
@@ -78,7 +79,8 @@ struct vchiq_service_params_kernel {
 	short version_min;   /* Update for incompatible changes */
 };
 
-extern int vchiq_initialise(struct vchiq_instance **pinstance);
+extern int vchiq_initialise(struct vchiq_state *state,
+			    struct vchiq_instance **pinstance);
 extern int vchiq_shutdown(struct vchiq_instance *instance);
 extern int vchiq_connect(struct vchiq_instance *instance);
 extern int vchiq_open_service(struct vchiq_instance *instance,

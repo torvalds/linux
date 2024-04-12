@@ -208,7 +208,7 @@ static int vchiq_ioc_dequeue_message(struct vchiq_instance *instance,
 	struct vchiq_header *header;
 	int ret;
 
-	DEBUG_INITIALISE(g_state.local);
+	DEBUG_INITIALISE(instance->state->local);
 	DEBUG_TRACE(DEQUEUE_MESSAGE_LINE);
 	service = find_service_for_instance(instance, args->handle);
 	if (!service)
@@ -435,7 +435,7 @@ static int vchiq_ioc_await_completion(struct vchiq_instance *instance,
 	int remove;
 	int ret;
 
-	DEBUG_INITIALISE(g_state.local);
+	DEBUG_INITIALISE(instance->state->local);
 
 	DEBUG_TRACE(AWAIT_COMPLETION_LINE);
 	if (!instance->connected)
@@ -1163,7 +1163,9 @@ vchiq_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 static int vchiq_open(struct inode *inode, struct file *file)
 {
-	struct vchiq_state *state = vchiq_get_state();
+	struct miscdevice *vchiq_miscdev = file->private_data;
+	struct vchiq_drv_mgmt *mgmt = dev_get_drvdata(vchiq_miscdev->parent);
+	struct vchiq_state *state = &mgmt->state;
 	struct vchiq_instance *instance;
 
 	dev_dbg(state->dev, "arm: vchiq open\n");
@@ -1196,7 +1198,7 @@ static int vchiq_open(struct inode *inode, struct file *file)
 static int vchiq_release(struct inode *inode, struct file *file)
 {
 	struct vchiq_instance *instance = file->private_data;
-	struct vchiq_state *state = vchiq_get_state();
+	struct vchiq_state *state = instance->state;
 	struct vchiq_service *service;
 	int ret = 0;
 	int i;

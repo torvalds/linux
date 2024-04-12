@@ -1555,7 +1555,7 @@ static int mmal_init(struct bcm2835_mmal_dev *dev)
 	u32 param_size;
 	struct vchiq_mmal_component  *camera;
 
-	ret = vchiq_mmal_init(&dev->instance);
+	ret = vchiq_mmal_init(dev->v4l2_dev.dev, &dev->instance);
 	if (ret < 0) {
 		v4l2_err(&dev->v4l2_dev, "%s: vchiq mmal init failed %d\n",
 			 __func__, ret);
@@ -1854,7 +1854,7 @@ static int bcm2835_mmal_probe(struct vchiq_device *device)
 		return ret;
 	}
 
-	ret = vchiq_mmal_init(&instance);
+	ret = vchiq_mmal_init(&device->dev, &instance);
 	if (ret < 0)
 		return ret;
 

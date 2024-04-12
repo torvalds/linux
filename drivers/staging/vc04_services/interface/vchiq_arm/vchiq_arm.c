@@ -59,8 +59,6 @@
 #define KEEPALIVE_VER 1
 #define KEEPALIVE_VER_MIN KEEPALIVE_VER
 
-struct vchiq_state g_state;
-
 /*
  * The devices implemented in the VCHIQ firmware are not discoverable,
  * so we need to maintain a list of them in order to register them with
@@ -698,9 +696,8 @@ void vchiq_dump_platform_state(struct seq_file *f)
 }
 
 #define VCHIQ_INIT_RETRIES 10
-int vchiq_initialise(struct vchiq_instance **instance_out)
+int vchiq_initialise(struct vchiq_state *state, struct vchiq_instance **instance_out)
 {
-	struct vchiq_state *state;
 	struct vchiq_instance *instance = NULL;
 	int i, ret;
 
@@ -710,7 +707,6 @@ int vchiq_initialise(struct vchiq_instance **instance_out)
 	 * block forever.
 	 */
 	for (i = 0; i < VCHIQ_INIT_RETRIES; i++) {
-		state = vchiq_get_state();
 		if (state)
 			break;
 		usleep_range(500, 600);
@@ -1026,9 +1022,10 @@ add_completion(struct vchiq_instance *instance, enum vchiq_reason reason,
 	       void *bulk_userdata)
 {
 	struct vchiq_completion_data_kernel *completion;
+	struct vchiq_drv_mgmt *mgmt = dev_get_drvdata(instance->state->dev);
 	int insert;
 
-	DEBUG_INITIALISE(g_state.local);
+	DEBUG_INITIALISE(mgmt->state.local);
 
 	insert = instance->completion_insert;
 	while ((insert - instance->completion_remove) >= MAX_COMPLETIONS) {
@@ -1091,11 +1088,12 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 	 * containing the original callback and the user state structure, which
 	 * contains a circular buffer for completion records.
 	 */
+	struct vchiq_drv_mgmt *mgmt = dev_get_drvdata(instance->state->dev);
 	struct user_service *user_service;
 	struct vchiq_service *service;
 	bool skip_completion = false;
 
-	DEBUG_INITIALISE(g_state.local);
+	DEBUG_INITIALISE(mgmt->state.local);
 
 	DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 
@@ -1200,9 +1198,8 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 		bulk_userdata);
 }
 
-void vchiq_dump_platform_instances(struct seq_file *f)
+void vchiq_dump_platform_instances(struct vchiq_state *state, struct seq_file *f)
 {
-	struct vchiq_state *state = vchiq_get_state();
 	int i;
 
 	if (!state)
@@ -1277,23 +1274,6 @@ void vchiq_dump_platform_service_state(struct seq_file *f,
 	seq_puts(f, "\n");
 }
 
-struct vchiq_state *
-vchiq_get_state(void)
-{
-	if (!g_state.remote) {
-		pr_err("%s: g_state.remote == NULL\n", __func__);
-		return NULL;
-	}
-
-	if (g_state.remote->initialised != 1) {
-		pr_notice("%s: g_state.remote->initialised != 1 (%d)\n",
-			  __func__, g_state.remote->initialised);
-		return NULL;
-	}
-
-	return &g_state;
-}
-
 /*
  * Autosuspend related functionality
  */
@@ -1327,7 +1307,7 @@ vchiq_keepalive_thread_func(void *v)
 		.version_min = KEEPALIVE_VER_MIN
 	};
 
-	ret = vchiq_initialise(&instance);
+	ret = vchiq_initialise(state, &instance);
 	if (ret) {
 		dev_err(state->dev, "suspend: %s: vchiq_initialise failed %d\n", __func__, ret);
 		goto exit;
@@ -1775,7 +1755,7 @@ static int vchiq_probe(struct platform_device *pdev)
 	mgmt->info = info;
 	platform_set_drvdata(pdev, mgmt);
 
-	err = vchiq_platform_init(pdev, &g_state);
+	err = vchiq_platform_init(pdev, &mgmt->state);
 	if (err)
 		goto failed_platform_init;
 

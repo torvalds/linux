@@ -3505,7 +3505,7 @@ void vchiq_dump_state(struct seq_file *f, struct vchiq_state *state)
 
 	vchiq_dump_shared_state(f, state, state->remote, "Remote");
 
-	vchiq_dump_platform_instances(f);
+	vchiq_dump_platform_instances(state, f);
 
 	for (i = 0; i < state->unused_service; i++) {
 		struct vchiq_service *service = find_service_by_port(state, i);

@@ -527,7 +527,7 @@ void remote_event_signal(struct vchiq_state *state, struct remote_event *event);
 
 void vchiq_dump_platform_state(struct seq_file *f);
 
-void vchiq_dump_platform_instances(struct seq_file *f);
+void vchiq_dump_platform_instances(struct vchiq_state *state, struct seq_file *f);
 
 void vchiq_dump_platform_service_state(struct seq_file *f, struct vchiq_service *service);
 

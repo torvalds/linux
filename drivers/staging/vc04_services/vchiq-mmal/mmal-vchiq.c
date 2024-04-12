@@ -26,6 +26,7 @@
 #include <media/videobuf2-vmalloc.h>
 
 #include "../include/linux/raspberrypi/vchiq.h"
+#include "../interface/vchiq_arm/vchiq_arm.h"
 #include "mmal-common.h"
 #include "mmal-vchiq.h"
 #include "mmal-msg.h"
@@ -1852,7 +1853,7 @@ int vchiq_mmal_finalise(struct vchiq_mmal_instance *instance)
 }
 EXPORT_SYMBOL_GPL(vchiq_mmal_finalise);
 
-int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
+int vchiq_mmal_init(struct device *dev, struct vchiq_mmal_instance **out_instance)
 {
 	int status;
 	int err = -ENODEV;
@@ -1865,6 +1866,7 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 		.callback		= mmal_service_callback,
 		.userdata		= NULL,
 	};
+	struct vchiq_drv_mgmt *mgmt = dev_get_drvdata(dev->parent);
 
 	/* compile time checks to ensure structure size as they are
 	 * directly (de)serialised from memory.
@@ -1880,7 +1882,7 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 	BUILD_BUG_ON(sizeof(struct mmal_port) != 64);
 
 	/* create a vchi instance */
-	status = vchiq_initialise(&vchiq_instance);
+	status = vchiq_initialise(&mgmt->state, &vchiq_instance);
 	if (status) {
 		pr_err("Failed to initialise VCHI instance (status=%d)\n",
 		       status);
