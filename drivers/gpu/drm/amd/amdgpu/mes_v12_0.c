@@ -440,7 +440,7 @@ static int mes_v12_0_set_hw_resources(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.enable_reg_active_poll = 1;
 	mes_set_hw_res_pkt.oversubscription_timer = 50;
 
-	mes_set_hw_res_pkt.enable_mes_event_int_logging = 1;
+	mes_set_hw_res_pkt.enable_mes_event_int_logging = 0;
 	mes_set_hw_res_pkt.event_intr_history_gpu_mc_ptr = mes->event_log_gpu_addr;
 
 	return mes_v12_0_submit_pkt_and_poll_completion(mes,
