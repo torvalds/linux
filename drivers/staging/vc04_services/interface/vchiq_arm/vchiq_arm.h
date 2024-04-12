@@ -23,6 +23,7 @@
 #define VCHIQ_DRV_MAX_CALLBACKS 10
 
 struct rpi_firmware;
+struct vchiq_device;
 
 enum USE_TYPE_E {
 	USE_TYPE_SERVICE,
@@ -131,6 +132,10 @@ vchiq_instance_get_trace(struct vchiq_instance *instance);
 
 extern void
 vchiq_instance_set_trace(struct vchiq_instance *instance, int trace);
+
+extern void
+vchiq_add_connected_callback(struct vchiq_device *device,
+			     void (*callback)(void));
 
 #if IS_ENABLED(CONFIG_VCHIQ_CDEV)
 

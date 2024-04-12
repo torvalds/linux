@@ -36,7 +36,6 @@
 #include "vchiq_arm.h"
 #include "vchiq_bus.h"
 #include "vchiq_debugfs.h"
-#include "vchiq_connected.h"
 #include "vchiq_pagelist.h"
 
 #define DEVICE_NAME "vchiq"
@@ -188,6 +187,56 @@ is_adjacent_block(u32 *addrs, u32 addr, unsigned int k)
 
 	return tmp == (addr & PAGE_MASK);
 }
+
+/*
+ * This function is called by the vchiq stack once it has been connected to
+ * the videocore and clients can start to use the stack.
+ */
+static void vchiq_call_connected_callbacks(struct vchiq_drv_mgmt *drv_mgmt)
+{
+	int i;
+
+	if (mutex_lock_killable(&drv_mgmt->connected_mutex))
+		return;
+
+	for (i = 0; i < drv_mgmt->num_deferred_callbacks; i++)
+		drv_mgmt->deferred_callback[i]();
+
+	drv_mgmt->num_deferred_callbacks = 0;
+	drv_mgmt->connected = true;
+	mutex_unlock(&drv_mgmt->connected_mutex);
+}
+
+/*
+ * This function is used to defer initialization until the vchiq stack is
+ * initialized. If the stack is already initialized, then the callback will
+ * be made immediately, otherwise it will be deferred until
+ * vchiq_call_connected_callbacks is called.
+ */
+void vchiq_add_connected_callback(struct vchiq_device *device, void (*callback)(void))
+{
+	struct vchiq_drv_mgmt *drv_mgmt = device->drv_mgmt;
+
+	if (mutex_lock_killable(&drv_mgmt->connected_mutex))
+		return;
+
+	if (drv_mgmt->connected) {
+		/* We're already connected. Call the callback immediately. */
+		callback();
+	} else {
+		if (drv_mgmt->num_deferred_callbacks >= VCHIQ_DRV_MAX_CALLBACKS) {
+			dev_err(&device->dev,
+				"core: deferred callbacks(%d) exceeded the maximum limit(%d)\n",
+				drv_mgmt->num_deferred_callbacks, VCHIQ_DRV_MAX_CALLBACKS);
+		} else {
+			drv_mgmt->deferred_callback[drv_mgmt->num_deferred_callbacks] =
+				callback;
+			drv_mgmt->num_deferred_callbacks++;
+		}
+	}
+	mutex_unlock(&drv_mgmt->connected_mutex);
+}
+EXPORT_SYMBOL(vchiq_add_connected_callback);
 
 /* There is a potential problem with partial cache lines (pages?)
  * at the ends of the block when reading. If the CPU accessed anything in
