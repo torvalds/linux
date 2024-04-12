@@ -82,6 +82,9 @@ static struct ieee80211_channel rtw89_channels_5ghz[] = {
 	RTW89_DEF_CHAN_5G(5885, 177),
 };
 
+static_assert(RTW89_5GHZ_UNII4_START_INDEX + RTW89_5GHZ_UNII4_CHANNEL_NUM ==
+	      ARRAY_SIZE(rtw89_channels_5ghz));
+
 static struct ieee80211_channel rtw89_channels_6ghz[] = {
 	RTW89_DEF_CHAN_6G(5955, 1),
 	RTW89_DEF_CHAN_6G(5975, 5),

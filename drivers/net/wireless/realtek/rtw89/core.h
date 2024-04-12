@@ -4752,10 +4752,13 @@ struct rtw89_regd {
 };
 
 #define RTW89_REGD_MAX_COUNTRY_NUM U8_MAX
+#define RTW89_5GHZ_UNII4_CHANNEL_NUM 3
+#define RTW89_5GHZ_UNII4_START_INDEX 25
 
 struct rtw89_regulatory_info {
 	const struct rtw89_regd *regd;
 	enum rtw89_reg_6ghz_power reg_6ghz_power;
+	DECLARE_BITMAP(block_unii4, RTW89_REGD_MAX_COUNTRY_NUM);
 	DECLARE_BITMAP(block_6ghz, RTW89_REGD_MAX_COUNTRY_NUM);
 };
 

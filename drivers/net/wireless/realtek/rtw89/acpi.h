@@ -12,7 +12,12 @@ enum rtw89_acpi_dsm_func {
 	RTW89_ACPI_DSM_FUNC_6G_DIS = 3,
 	RTW89_ACPI_DSM_FUNC_6G_BP = 4,
 	RTW89_ACPI_DSM_FUNC_TAS_EN = 5,
-	RTW89_ACPI_DSM_FUNC_59G_EN = 6,
+	RTW89_ACPI_DSM_FUNC_UNII4_SUP = 6,
+};
+
+enum rtw89_acpi_conf_unii4 {
+	RTW89_ACPI_CONF_UNII4_FCC = BIT(0),
+	RTW89_ACPI_CONF_UNII4_IC = BIT(1),
 };
 
 enum rtw89_acpi_policy_mode {
