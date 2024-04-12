@@ -229,6 +229,43 @@ struct icl_dpll_hw_state {
 	u32 mg_pll_tdc_coldst_bias_mask;
 };
 
+struct intel_mpllb_state {
+	u32 clock; /* in KHz */
+	u32 ref_control;
+	u32 mpllb_cp;
+	u32 mpllb_div;
+	u32 mpllb_div2;
+	u32 mpllb_fracn1;
+	u32 mpllb_fracn2;
+	u32 mpllb_sscen;
+	u32 mpllb_sscstep;
+};
+
+struct intel_c10pll_state {
+	u32 clock; /* in KHz */
+	u8 tx;
+	u8 cmn;
+	u8 pll[20];
+};
+
+struct intel_c20pll_state {
+	u32 clock; /* in kHz */
+	u16 tx[3];
+	u16 cmn[4];
+	union {
+		u16 mplla[10];
+		u16 mpllb[11];
+	};
+};
+
+struct intel_cx0pll_state {
+	union {
+		struct intel_c10pll_state c10;
+		struct intel_c20pll_state c20;
+	};
+	bool ssc_enabled;
+};
+
 struct intel_dpll_hw_state {
 	union {
 		struct i9xx_dpll_hw_state i9xx;
@@ -236,6 +273,8 @@ struct intel_dpll_hw_state {
 		struct skl_dpll_hw_state skl;
 		struct bxt_dpll_hw_state bxt;
 		struct icl_dpll_hw_state icl;
+		struct intel_mpllb_state mpllb;
+		struct intel_cx0pll_state cx0pll;
 	};
 };
 

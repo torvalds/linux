@@ -1004,18 +1004,6 @@ enum intel_output_format {
 	INTEL_OUTPUT_FORMAT_YCBCR444,
 };
 
-struct intel_mpllb_state {
-	u32 clock; /* in KHz */
-	u32 ref_control;
-	u32 mpllb_cp;
-	u32 mpllb_div;
-	u32 mpllb_div2;
-	u32 mpllb_fracn1;
-	u32 mpllb_fracn2;
-	u32 mpllb_sscen;
-	u32 mpllb_sscstep;
-};
-
 /* Used by dp and fdi links */
 struct intel_link_m_n {
 	u32 tu;
@@ -1029,31 +1017,6 @@ struct intel_csc_matrix {
 	u16 coeff[9];
 	u16 preoff[3];
 	u16 postoff[3];
-};
-
-struct intel_c10pll_state {
-	u32 clock; /* in KHz */
-	u8 tx;
-	u8 cmn;
-	u8 pll[20];
-};
-
-struct intel_c20pll_state {
-	u32 clock; /* in kHz */
-	u16 tx[3];
-	u16 cmn[4];
-	union {
-		u16 mplla[10];
-		u16 mpllb[11];
-	};
-};
-
-struct intel_cx0pll_state {
-	union {
-		struct intel_c10pll_state c10;
-		struct intel_c20pll_state c20;
-	};
-	bool ssc_enabled;
 };
 
 struct intel_crtc_state {
@@ -1200,11 +1163,7 @@ struct intel_crtc_state {
 	struct intel_shared_dpll *shared_dpll;
 
 	/* Actual register state of the dpll, for shared dpll cross-checking. */
-	union {
-		struct intel_dpll_hw_state dpll_hw_state;
-		struct intel_mpllb_state mpllb_state;
-		struct intel_cx0pll_state cx0pll_state;
-	};
+	struct intel_dpll_hw_state dpll_hw_state;
 
 	/*
 	 * ICL reserved DPLLs for the CRTC/port. The active PLL is selected by
