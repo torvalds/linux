@@ -1729,6 +1729,22 @@ btree_path_idx_t bch2_path_get(struct btree_trans *trans,
 	return path_idx;
 }
 
+btree_path_idx_t bch2_path_get_unlocked_mut(struct btree_trans *trans,
+					    enum btree_id btree_id,
+					    unsigned level,
+					    struct bpos pos)
+{
+	btree_path_idx_t path_idx = bch2_path_get(trans, btree_id, pos, level + 1, level,
+			     BTREE_ITER_nopreserve|
+			     BTREE_ITER_intent, _RET_IP_);
+	path_idx = bch2_btree_path_make_mut(trans, path_idx, true, _RET_IP_);
+
+	struct btree_path *path = trans->paths + path_idx;
+	bch2_btree_path_downgrade(trans, path);
+	__bch2_btree_path_unlock(trans, path);
+	return path_idx;
+}
+
 struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *path, struct bkey *u)
 {
 

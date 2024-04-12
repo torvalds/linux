@@ -227,6 +227,9 @@ static inline int __must_check bch2_btree_path_traverse(struct btree_trans *tran
 
 btree_path_idx_t bch2_path_get(struct btree_trans *, enum btree_id, struct bpos,
 				 unsigned, unsigned, unsigned, unsigned long);
+btree_path_idx_t bch2_path_get_unlocked_mut(struct btree_trans *, enum btree_id,
+					    unsigned, struct bpos);
+
 struct bkey_s_c bch2_btree_path_peek_slot(struct btree_path *, struct bkey *);
 
 /*
