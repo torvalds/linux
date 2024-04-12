@@ -74,7 +74,7 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 	 * num_comp_vectors needs to set to the max MSIX index
 	 * when interrupts and event queues are implemented
 	 */
-	dev->ib_dev.num_comp_vectors = 1;
+	dev->ib_dev.num_comp_vectors = mdev->gdma_context->max_num_queues;
 	dev->ib_dev.dev.parent = mdev->gdma_context->dev;
 
 	ret = mana_gd_register_device(&mdev->gdma_context->mana_ib);

@@ -12,19 +12,14 @@ int mana_ib_create_cq(struct ib_cq *ibcq, const struct ib_cq_init_attr *attr,
 	struct ib_device *ibdev = ibcq->device;
 	struct mana_ib_create_cq ucmd = {};
 	struct mana_ib_dev *mdev;
-	struct gdma_context *gc;
 	int err;
 
 	mdev = container_of(ibdev, struct mana_ib_dev, ib_dev);
-	gc = mdev_to_gc(mdev);
 
 	if (udata->inlen < sizeof(ucmd))
 		return -EINVAL;
 
-	if (attr->comp_vector > gc->max_num_queues)
-		return -EINVAL;
-
-	cq->comp_vector = attr->comp_vector;
+	cq->comp_vector = attr->comp_vector % ibdev->num_comp_vectors;
 
 	err = ib_copy_from_udata(&ucmd, udata, min(sizeof(ucmd), udata->inlen));
 	if (err) {
