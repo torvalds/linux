@@ -69,6 +69,19 @@ static const char * const scan_test_status[] = {
 
 static void message_not_tested(struct device *dev, int cpu, union ifs_status status)
 {
+	struct ifs_data *ifsd = ifs_get_data(dev);
+
+	/*
+	 * control_error is set when the microcode runs into a problem
+	 * loading the image from the reserved BIOS memory, or it has
+	 * been corrupted. Reloading the image may fix this issue.
+	 */
+	if (status.control_error) {
+		dev_warn(dev, "CPU(s) %*pbl: Scan controller error. Batch: %02x version: 0x%x\n",
+			 cpumask_pr_args(cpu_smt_mask(cpu)), ifsd->cur_batch, ifsd->loaded_version);
+		return;
+	}
+
 	if (status.error_code < ARRAY_SIZE(scan_test_status)) {
 		dev_info(dev, "CPU(s) %*pbl: SCAN operation did not start. %s\n",
 			 cpumask_pr_args(cpu_smt_mask(cpu)),
@@ -89,16 +102,6 @@ static void message_not_tested(struct device *dev, int cpu, union ifs_status sta
 static void message_fail(struct device *dev, int cpu, union ifs_status status)
 {
 	struct ifs_data *ifsd = ifs_get_data(dev);
-
-	/*
-	 * control_error is set when the microcode runs into a problem
-	 * loading the image from the reserved BIOS memory, or it has
-	 * been corrupted. Reloading the image may fix this issue.
-	 */
-	if (status.control_error) {
-		dev_err(dev, "CPU(s) %*pbl: could not execute from loaded scan image. Batch: %02x version: 0x%x\n",
-			cpumask_pr_args(cpu_smt_mask(cpu)), ifsd->cur_batch, ifsd->loaded_version);
-	}
 
 	/*
 	 * signature_error is set when the output from the scan chains does not
@@ -285,10 +288,10 @@ static void ifs_test_core(int cpu, struct device *dev)
 	/* Update status for this core */
 	ifsd->scan_details = status.data;
 
-	if (status.control_error || status.signature_error) {
+	if (status.signature_error) {
 		ifsd->status = SCAN_TEST_FAIL;
 		message_fail(dev, cpu, status);
-	} else if (status.error_code) {
+	} else if (status.control_error || status.error_code) {
 		ifsd->status = SCAN_NOT_TESTED;
 		message_not_tested(dev, cpu, status);
 	} else {
