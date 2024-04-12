@@ -214,40 +214,26 @@ static int ad7944_4wire_mode_init_msg(struct device *dev, struct ad7944_adc *adc
 	return devm_add_action_or_reset(dev, ad7944_unoptimize_msg, &adc->msg);
 }
 
-/*
- * ad7944_3wire_cs_mode_conversion - Perform a 3-wire CS mode conversion and
- *                                   acquisition
+/**
+ * ad7944_convert_and_acquire - Perform a single conversion and acquisition
  * @adc: The ADC device structure
  * @chan: The channel specification
  * Return: 0 on success, a negative error code on failure
  *
- * This performs a conversion and reads data when the chip is wired in 3-wire
- * mode with the CNV line on the ADC tied to the CS line on the SPI controller.
+ * Perform a conversion and acquisition of a single sample using the
+ * pre-optimized adc->msg.
  *
  * Upon successful return adc->sample.raw will contain the conversion result.
  */
-static int ad7944_3wire_cs_mode_conversion(struct ad7944_adc *adc,
-					   const struct iio_chan_spec *chan)
-{
-	return spi_sync(adc->spi, &adc->msg);
-}
-
-/*
- * ad7944_4wire_mode_conversion - Perform a 4-wire mode conversion and acquisition
- * @adc: The ADC device structure
- * @chan: The channel specification
- * Return: 0 on success, a negative error code on failure
- *
- * Upon successful return adc->sample.raw will contain the conversion result.
- */
-static int ad7944_4wire_mode_conversion(struct ad7944_adc *adc,
-					const struct iio_chan_spec *chan)
+static int ad7944_convert_and_acquire(struct ad7944_adc *adc,
+				      const struct iio_chan_spec *chan)
 {
 	int ret;
 
 	/*
 	 * In 4-wire mode, the CNV line is held high for the entire conversion
-	 * and acquisition process.
+	 * and acquisition process. In other modes adc->cnv is NULL and is
+	 * ignored (CS is wired to CNV in those cases).
 	 */
 	gpiod_set_value_cansleep(adc->cnv, 1);
 	ret = spi_sync(adc->spi, &adc->msg);
@@ -262,22 +248,9 @@ static int ad7944_single_conversion(struct ad7944_adc *adc,
 {
 	int ret;
 
-	switch (adc->spi_mode) {
-	case AD7944_SPI_MODE_DEFAULT:
-		ret = ad7944_4wire_mode_conversion(adc, chan);
-		if (ret)
-			return ret;
-
-		break;
-	case AD7944_SPI_MODE_SINGLE:
-		ret = ad7944_3wire_cs_mode_conversion(adc, chan);
-		if (ret)
-			return ret;
-
-		break;
-	default:
-		return -EOPNOTSUPP;
-	}
+	ret = ad7944_convert_and_acquire(adc, chan);
+	if (ret)
+		return ret;
 
 	if (chan->scan_type.storagebits > 16)
 		*val = adc->sample.raw.u32;
@@ -338,23 +311,9 @@ static irqreturn_t ad7944_trigger_handler(int irq, void *p)
 	struct ad7944_adc *adc = iio_priv(indio_dev);
 	int ret;
 
-	switch (adc->spi_mode) {
-	case AD7944_SPI_MODE_DEFAULT:
-		ret = ad7944_4wire_mode_conversion(adc, &indio_dev->channels[0]);
-		if (ret)
-			goto out;
-
-		break;
-	case AD7944_SPI_MODE_SINGLE:
-		ret = ad7944_3wire_cs_mode_conversion(adc, &indio_dev->channels[0]);
-		if (ret)
-			goto out;
-
-		break;
-	default:
-		/* not supported */
+	ret = ad7944_convert_and_acquire(adc, &indio_dev->channels[0]);
+	if (ret)
 		goto out;
-	}
 
 	iio_push_to_buffers_with_timestamp(indio_dev, &adc->sample.raw,
 					   pf->timestamp);
