@@ -336,6 +336,7 @@ static void update_inode_attr(struct dentry *dentry, struct inode *inode,
 
 /**
  * lookup_file - look up a file in the tracefs filesystem
+ * @parent_ei: Pointer to the eventfs_inode that represents parent of the file
  * @dentry: the dentry to look up
  * @mode: the permission that the file should have.
  * @attr: saved attributes changed by user
@@ -389,6 +390,7 @@ static struct dentry *lookup_file(struct eventfs_inode *parent_ei,
 /**
  * lookup_dir_entry - look up a dir in the tracefs filesystem
  * @dentry: the directory to look up
+ * @pei: Pointer to the parent eventfs_inode if available
  * @ei: the eventfs_inode that represents the directory to create
  *
  * This function will look up a dentry for a directory represented by
@@ -478,16 +480,20 @@ void eventfs_d_release(struct dentry *dentry)
 
 /**
  * lookup_file_dentry - create a dentry for a file of an eventfs_inode
+ * @dentry: The parent dentry under which the new file's dentry will be created
  * @ei: the eventfs_inode that the file will be created under
  * @idx: the index into the entry_attrs[] of the @ei
- * @parent: The parent dentry of the created file.
- * @name: The name of the file to create
  * @mode: The mode of the file.
  * @data: The data to use to set the inode of the file with on open()
  * @fops: The fops of the file to be created.
  *
- * Create a dentry for a file of an eventfs_inode @ei and place it into the
- * address located at @e_dentry.
+ * This function creates a dentry for a file associated with an
+ * eventfs_inode @ei. It uses the entry attributes specified by @idx,
+ * if available. The file will have the specified @mode and its inode will be
+ * set up with @data upon open. The file operations will be set to @fops.
+ *
+ * Return: Returns a pointer to the newly created file's dentry or an error
+ * pointer.
  */
 static struct dentry *
 lookup_file_dentry(struct dentry *dentry,
