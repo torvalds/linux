@@ -27,6 +27,7 @@
 #include "vmwgfx_kms.h"
 
 #include "vmwgfx_bo.h"
+#include "vmwgfx_vkms.h"
 #include "vmw_surface_cache.h"
 
 #include <drm/drm_atomic.h>
@@ -37,9 +38,16 @@
 #include <drm/drm_sysfs.h>
 #include <drm/drm_edid.h>
 
+void vmw_du_init(struct vmw_display_unit *du)
+{
+	hrtimer_init(&du->vkms.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	du->vkms.timer.function = &vmw_vkms_vblank_simulate;
+}
+
 void vmw_du_cleanup(struct vmw_display_unit *du)
 {
 	struct vmw_private *dev_priv = vmw_priv(du->primary.dev);
+	hrtimer_cancel(&du->vkms.timer);
 	drm_plane_cleanup(&du->primary);
 	if (vmw_cmd_supported(dev_priv))
 		drm_plane_cleanup(&du->cursor.base);
@@ -956,13 +964,6 @@ void vmw_du_crtc_atomic_begin(struct drm_crtc *crtc,
 			      struct drm_atomic_state *state)
 {
 }
-
-
-void vmw_du_crtc_atomic_flush(struct drm_crtc *crtc,
-			      struct drm_atomic_state *state)
-{
-}
-
 
 /**
  * vmw_du_crtc_duplicate_state - duplicate crtc state

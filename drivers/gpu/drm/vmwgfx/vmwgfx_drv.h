@@ -615,6 +615,8 @@ struct vmw_private {
 
 	uint32 *devcaps;
 
+	bool vkms_enabled;
+
 	/*
 	 * mksGuestStat instance-descriptor and pid arrays
 	 */

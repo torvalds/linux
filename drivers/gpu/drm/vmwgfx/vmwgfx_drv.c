@@ -32,6 +32,7 @@
 #include "vmwgfx_binding.h"
 #include "vmwgfx_devcaps.h"
 #include "vmwgfx_mksstat.h"
+#include "vmwgfx_vkms.h"
 #include "ttm_object.h"
 
 #include <drm/drm_aperture.h>
@@ -909,6 +910,8 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 		drm_err_once(&dev_priv->drm,
 			     "Please switch to a supported graphics device to avoid problems.");
 	}
+
+	vmw_vkms_init(dev_priv);
 
 	ret = vmw_dma_select_mode(dev_priv);
 	if (unlikely(ret != 0)) {
