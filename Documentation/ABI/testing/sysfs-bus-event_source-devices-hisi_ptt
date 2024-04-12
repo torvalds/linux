@@ -1,4 +1,4 @@
-What:		/sys/devices/hisi_ptt<sicl_id>_<core_id>/tune
+What:		/sys/bus/event_source/devices/hisi_ptt<sicl_id>_<core_id>/tune
 Date:		October 2022
 KernelVersion:	6.1
 Contact:	Yicong Yang <yangyicong@hisilicon.com>
@@ -8,7 +8,7 @@ Description:	This directory contains files for tuning the PCIe link
 
 		See Documentation/trace/hisi-ptt.rst for more information.
 
-What:		/sys/devices/hisi_ptt<sicl_id>_<core_id>/tune/qos_tx_cpl
+What:		/sys/bus/event_source/devices/hisi_ptt<sicl_id>_<core_id>/tune/qos_tx_cpl
 Date:		October 2022
 KernelVersion:	6.1
 Contact:	Yicong Yang <yangyicong@hisilicon.com>
@@ -18,7 +18,7 @@ Description:	(RW) Controls the weight of Tx completion TLPs, which influence
 		will return an error, and out of range values will be converted
 		to 2. The value indicates a probable level of the event.
 
-What:		/sys/devices/hisi_ptt<sicl_id>_<core_id>/tune/qos_tx_np
+What:		/sys/bus/event_source/devices/hisi_ptt<sicl_id>_<core_id>/tune/qos_tx_np
 Date:		October 2022
 KernelVersion:	6.1
 Contact:	Yicong Yang <yangyicong@hisilicon.com>
@@ -28,7 +28,7 @@ Description:	(RW) Controls the weight of Tx non-posted TLPs, which influence
 		will return an error, and out of range values will be converted
 		to 2. The value indicates a probable level of the event.
 
-What:		/sys/devices/hisi_ptt<sicl_id>_<core_id>/tune/qos_tx_p
+What:		/sys/bus/event_source/devices/hisi_ptt<sicl_id>_<core_id>/tune/qos_tx_p
 Date:		October 2022
 KernelVersion:	6.1
 Contact:	Yicong Yang <yangyicong@hisilicon.com>
@@ -38,7 +38,7 @@ Description:	(RW) Controls the weight of Tx posted TLPs, which influence the
 		will return an error, and out of range values will be converted
 		to 2. The value indicates a probable level of the event.
 
-What:		/sys/devices/hisi_ptt<sicl_id>_<core_id>/tune/rx_alloc_buf_level
+What:		/sys/bus/event_source/devices/hisi_ptt<sicl_id>_<core_id>/tune/rx_alloc_buf_level
 Date:		October 2022
 KernelVersion:	6.1
 Contact:	Yicong Yang <yangyicong@hisilicon.com>
@@ -49,7 +49,7 @@ Description:	(RW) Control the allocated buffer watermark for inbound packets.
 		will return an error, and out of range values will be converted
 		to 2. The value indicates a probable level of the event.
 
-What:		/sys/devices/hisi_ptt<sicl_id>_<core_id>/tune/tx_alloc_buf_level
+What:		/sys/bus/event_source/devices/hisi_ptt<sicl_id>_<core_id>/tune/tx_alloc_buf_level
 Date:		October 2022
 KernelVersion:	6.1
 Contact:	Yicong Yang <yangyicong@hisilicon.com>
