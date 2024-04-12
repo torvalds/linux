@@ -74,7 +74,6 @@
 			pinmux = <PINMUX_GPIO8__FUNC_SDA0>,
 				 <PINMUX_GPIO9__FUNC_SCL0>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
-			mediatek,drive-strength-adv = <0>;
 			drive-strength = <6>;
 		};
 	};
@@ -84,7 +83,6 @@
 			pinmux = <PINMUX_GPIO10__FUNC_SDA1>,
 				 <PINMUX_GPIO11__FUNC_SCL1>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
-			mediatek,drive-strength-adv = <0>;
 			drive-strength = <6>;
 		};
 	};
@@ -94,7 +92,7 @@
 			pinmux = <PINMUX_GPIO16__FUNC_SDA4>,
 				 <PINMUX_GPIO17__FUNC_SCL4>;
 			bias-pull-up = <MTK_PUPD_SET_R1R0_01>;
-			mediatek,drive-strength-adv = <7>;
+			drive-strength-microamp = <1000>;
 		};
 	};
 
