@@ -413,4 +413,16 @@ btrfs_delayed_node_to_data_ref(struct btrfs_delayed_ref_node *node)
 	return container_of(node, struct btrfs_delayed_data_ref, node);
 }
 
+static inline struct btrfs_delayed_ref_node *
+btrfs_delayed_tree_ref_to_node(struct btrfs_delayed_tree_ref *ref)
+{
+	return &ref->node;
+}
+
+static inline struct btrfs_delayed_ref_node *
+btrfs_delayed_data_ref_to_node(struct btrfs_delayed_data_ref *ref)
+{
+	return &ref->node;
+}
+
 #endif

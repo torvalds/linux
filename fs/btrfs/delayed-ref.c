@@ -310,7 +310,9 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 static int comp_tree_refs(struct btrfs_delayed_tree_ref *ref1,
 			  struct btrfs_delayed_tree_ref *ref2)
 {
-	if (ref1->node.type == BTRFS_TREE_BLOCK_REF_KEY) {
+	struct btrfs_delayed_ref_node *node = btrfs_delayed_tree_ref_to_node(ref1);
+
+	if (node->type == BTRFS_TREE_BLOCK_REF_KEY) {
 		if (ref1->root < ref2->root)
 			return -1;
 		if (ref1->root > ref2->root)
@@ -330,7 +332,9 @@ static int comp_tree_refs(struct btrfs_delayed_tree_ref *ref1,
 static int comp_data_refs(struct btrfs_delayed_data_ref *ref1,
 			  struct btrfs_delayed_data_ref *ref2)
 {
-	if (ref1->node.type == BTRFS_EXTENT_DATA_REF_KEY) {
+	struct btrfs_delayed_ref_node *node = btrfs_delayed_data_ref_to_node(ref1);
+
+	if (node->type == BTRFS_EXTENT_DATA_REF_KEY) {
 		if (ref1->root < ref2->root)
 			return -1;
 		if (ref1->root > ref2->root)
@@ -1061,6 +1065,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_tree_ref *ref;
+	struct btrfs_delayed_ref_node *node;
 	struct btrfs_delayed_ref_head *head_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_qgroup_extent_record *record = NULL;
@@ -1096,12 +1101,14 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 		}
 	}
 
+	node = btrfs_delayed_tree_ref_to_node(ref);
+
 	if (parent)
 		ref_type = BTRFS_SHARED_BLOCK_REF_KEY;
 	else
 		ref_type = BTRFS_TREE_BLOCK_REF_KEY;
 
-	init_delayed_ref_common(fs_info, &ref->node, bytenr, num_bytes,
+	init_delayed_ref_common(fs_info, node, bytenr, num_bytes,
 				generic_ref->tree_ref.ref_root, action,
 				ref_type);
 	ref->root = generic_ref->tree_ref.ref_root;
@@ -1123,7 +1130,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	head_ref = add_delayed_ref_head(trans, head_ref, record,
 					action, &qrecord_inserted);
 
-	merged = insert_delayed_ref(trans, head_ref, &ref->node);
+	merged = insert_delayed_ref(trans, head_ref, node);
 	spin_unlock(&delayed_refs->lock);
 
 	/*
@@ -1132,7 +1139,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	 */
 	btrfs_update_delayed_refs_rsv(trans);
 
-	trace_add_delayed_tree_ref(fs_info, &ref->node, ref,
+	trace_add_delayed_tree_ref(fs_info, node, ref,
 				   action == BTRFS_ADD_DELAYED_EXTENT ?
 				   BTRFS_ADD_DELAYED_REF : action);
 	if (merged)
@@ -1153,6 +1160,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_data_ref *ref;
+	struct btrfs_delayed_ref_node *node;
 	struct btrfs_delayed_ref_head *head_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_qgroup_extent_record *record = NULL;
@@ -1172,12 +1180,14 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	if (!ref)
 		return -ENOMEM;
 
+	node = btrfs_delayed_data_ref_to_node(ref);
+
 	if (parent)
 	        ref_type = BTRFS_SHARED_DATA_REF_KEY;
 	else
 	        ref_type = BTRFS_EXTENT_DATA_REF_KEY;
-	init_delayed_ref_common(fs_info, &ref->node, bytenr, num_bytes,
-				ref_root, action, ref_type);
+	init_delayed_ref_common(fs_info, node, bytenr, num_bytes, ref_root,
+				action, ref_type);
 	ref->root = ref_root;
 	ref->parent = parent;
 	ref->objectid = owner;
@@ -1214,7 +1224,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	head_ref = add_delayed_ref_head(trans, head_ref, record,
 					action, &qrecord_inserted);
 
-	merged = insert_delayed_ref(trans, head_ref, &ref->node);
+	merged = insert_delayed_ref(trans, head_ref, node);
 	spin_unlock(&delayed_refs->lock);
 
 	/*
@@ -1223,7 +1233,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	 */
 	btrfs_update_delayed_refs_rsv(trans);
 
-	trace_add_delayed_data_ref(trans->fs_info, &ref->node, ref,
+	trace_add_delayed_data_ref(trans->fs_info, node, ref,
 				   action == BTRFS_ADD_DELAYED_EXTENT ?
 				   BTRFS_ADD_DELAYED_REF : action);
 	if (merged)
