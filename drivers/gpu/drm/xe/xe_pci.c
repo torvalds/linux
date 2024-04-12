@@ -15,9 +15,9 @@
 #include <drm/drm_drv.h>
 #include <drm/xe_pciids.h>
 
+#include "display/xe_display.h"
 #include "regs/xe_gt_regs.h"
 #include "xe_device.h"
-#include "xe_display.h"
 #include "xe_drv.h"
 #include "xe_gt.h"
 #include "xe_macros.h"
@@ -165,7 +165,7 @@ static const struct xe_graphics_desc graphics_xelpg = {
 	.has_asid = 1, \
 	.has_flat_ccs = 1, \
 	.has_range_tlb_invalidation = 1, \
-	.has_usm = 0 /* FIXME: implementation missing */, \
+	.has_usm = 1, \
 	.va_bits = 48, \
 	.vm_max_level = 4, \
 	.hw_engine_mask = \
@@ -340,14 +340,14 @@ static const struct xe_device_desc lnl_desc = {
 __diag_pop();
 
 /* Map of GMD_ID values to graphics IP */
-static struct gmdid_map graphics_ip_map[] = {
+static const struct gmdid_map graphics_ip_map[] = {
 	{ 1270, &graphics_xelpg },
 	{ 1271, &graphics_xelpg },
 	{ 2004, &graphics_xe2 },
 };
 
 /* Map of GMD_ID values to media IP */
-static struct gmdid_map media_ip_map[] = {
+static const struct gmdid_map media_ip_map[] = {
 	{ 1300, &media_xelpmp },
 	{ 2000, &media_xe2 },
 };
@@ -773,6 +773,8 @@ static int xe_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	drm_dbg(&xe->drm, "SR-IOV support: %s (mode: %s)\n",
 		str_yes_no(xe_device_has_sriov(xe)),
 		xe_sriov_mode_to_string(xe_device_sriov_mode(xe)));
+
+	xe_pm_init_early(xe);
 
 	err = xe_device_probe(xe);
 	if (err)

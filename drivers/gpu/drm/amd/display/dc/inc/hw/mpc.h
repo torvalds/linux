@@ -23,13 +23,28 @@
  */
 
 /**
- * DOC: mpc-overview
+ * DOC: overview
  *
- * Multiple Pipe/Plane Combined (MPC) is a component in the hardware pipeline
+ * Multiple Pipe/Plane Combiner (MPC) is a component in the hardware pipeline
  * that performs blending of multiple planes, using global and per-pixel alpha.
  * It also performs post-blending color correction operations according to the
  * hardware capabilities, such as color transformation matrix and gamma 1D and
  * 3D LUT.
+ *
+ * MPC receives output from all DPP pipes and combines them to multiple outputs
+ * supporting "M MPC inputs -> N MPC outputs" flexible composition
+ * architecture. It features:
+ *
+ * - Programmable blending structure to allow software controlled blending and
+ *   cascading;
+ * - Programmable window location of each DPP in active region of display;
+ * - Combining multiple DPP pipes in one active region when a single DPP pipe
+ *   cannot process very large surface;
+ * - Combining multiple DPP from different SLS with blending;
+ * - Stereo formats from single DPP in top-bottom or side-by-side modes;
+ * - Stereo formats from 2 DPPs;
+ * - Alpha blending of multiple layers from different DPP pipes;
+ * - Programmable background color;
  */
 
 #ifndef __DC_MPCC_H__
@@ -83,34 +98,65 @@ enum mpcc_alpha_blend_mode {
 
 /**
  * struct mpcc_blnd_cfg - MPCC blending configuration
- *
- * @black_color: background color
- * @alpha_mode: alpha blend mode (MPCC_ALPHA_BLND_MODE)
- * @pre_multiplied_alpha: whether pixel color values were pre-multiplied by the
- * alpha channel (MPCC_ALPHA_MULTIPLIED_MODE)
- * @global_gain: used when blend mode considers both pixel alpha and plane
- * alpha value and assumes the global alpha value.
- * @global_alpha: plane alpha value
- * @overlap_only: whether overlapping of different planes is allowed
- * @bottom_gain_mode: blend mode for bottom gain setting
- * @background_color_bpc: background color for bpc
- * @top_gain: top gain setting
- * @bottom_inside_gain: blend mode for bottom inside
- * @bottom_outside_gain:  blend mode for bottom outside
  */
 struct mpcc_blnd_cfg {
-	struct tg_color black_color;	/* background color */
-	enum mpcc_alpha_blend_mode alpha_mode;	/* alpha blend mode */
-	bool pre_multiplied_alpha;	/* alpha pre-multiplied mode flag */
+	/**
+	 * @black_color: background color.
+	 */
+	struct tg_color black_color;
+
+	/**
+	 * @alpha_mode: alpha blend mode (MPCC_ALPHA_BLND_MODE).
+	 */
+	enum mpcc_alpha_blend_mode alpha_mode;
+
+	/**
+	 * @pre_multiplied_alpha:
+	 * Whether pixel color values were pre-multiplied by the alpha channel
+	 * (MPCC_ALPHA_MULTIPLIED_MODE).
+	 */
+	bool pre_multiplied_alpha;
+
+	/**
+	 * @global_gain: Used when blend mode considers both pixel alpha and plane.
+	 */
 	int global_gain;
+
+	/**
+	 * @global_alpha: Plane alpha value.
+	 */
 	int global_alpha;
+
+	/**
+	 * @overlap_only: Whether overlapping of different planes is allowed.
+	 */
 	bool overlap_only;
 
 	/* MPCC top/bottom gain settings */
+
+	/**
+	 * @bottom_gain_mode: Blend mode for bottom gain setting.
+	 */
 	int bottom_gain_mode;
+
+	/**
+	 * @background_color_bpc: Background color for bpc.
+	 */
 	int background_color_bpc;
+
+	/**
+	 * @top_gain: Top gain setting.
+	 */
 	int top_gain;
+
+	/**
+	 * @bottom_inside_gain: Blend mode for bottom inside.
+	 */
 	int bottom_inside_gain;
+
+	/**
+	 * @bottom_outside_gain: Blend mode for bottom outside.
+	 */
 	int bottom_outside_gain;
 };
 
@@ -150,34 +196,58 @@ struct mpc_dwb_flow_control {
 
 /**
  * struct mpcc - MPCC connection and blending configuration for a single MPCC instance.
- * @mpcc_id: MPCC physical instance
- * @dpp_id: DPP input to this MPCC
- * @mpcc_bot: pointer to bottom layer MPCC. NULL when not connected.
- * @blnd_cfg: the blending configuration for this MPCC
- * @sm_cfg: stereo mix setting for this MPCC
- * @shared_bottom: if MPCC output to both OPP and DWB endpoints, true. Otherwise, false.
  *
  * This struct is used as a node in an MPC tree.
  */
 struct mpcc {
-	int mpcc_id;			/* MPCC physical instance */
-	int dpp_id;			/* DPP input to this MPCC */
-	struct mpcc *mpcc_bot;		/* pointer to bottom layer MPCC.  NULL when not connected */
-	struct mpcc_blnd_cfg blnd_cfg;	/* The blending configuration for this MPCC */
-	struct mpcc_sm_cfg sm_cfg;	/* stereo mix setting for this MPCC */
-	bool shared_bottom;		/* TRUE if MPCC output to both OPP and DWB endpoints, else FALSE */
+	/**
+	 * @mpcc_id: MPCC physical instance.
+	 */
+	int mpcc_id;
+
+	/**
+	 * @dpp_id: DPP input to this MPCC
+	 */
+	int dpp_id;
+
+	/**
+	 * @mpcc_bot: Pointer to bottom layer MPCC. NULL when not connected.
+	 */
+	struct mpcc *mpcc_bot;
+
+	/**
+	 * @blnd_cfg: The blending configuration for this MPCC.
+	 */
+	struct mpcc_blnd_cfg blnd_cfg;
+
+	/**
+	 * @sm_cfg: stereo mix setting for this MPCC
+	 */
+	struct mpcc_sm_cfg sm_cfg;
+
+	/**
+	 * @shared_bottom:
+	 *
+	 * If MPCC output to both OPP and DWB endpoints, true. Otherwise, false.
+	 */
+	bool shared_bottom;
 };
 
 /**
  * struct mpc_tree - MPC tree represents all MPCC connections for a pipe.
  *
- * @opp_id: the OPP instance that owns this MPC tree
- * @opp_list: the top MPCC layer of the MPC tree that outputs to OPP endpoint
  *
  */
 struct mpc_tree {
-	int opp_id;			/* The OPP instance that owns this MPC tree */
-	struct mpcc *opp_list;		/* The top MPCC layer of the MPC tree that outputs to OPP endpoint */
+	/**
+	 * @opp_id: The OPP instance that owns this MPC tree.
+	 */
+	int opp_id;
+
+	/**
+	 * @opp_list: the top MPCC layer of the MPC tree that outputs to OPP endpoint
+	 */
+	struct mpcc *opp_list;
 };
 
 struct mpc {
@@ -199,6 +269,13 @@ struct mpcc_state {
 	uint32_t overlap_only;
 	uint32_t idle;
 	uint32_t busy;
+	uint32_t shaper_lut_mode;
+	uint32_t lut3d_mode;
+	uint32_t lut3d_bit_depth;
+	uint32_t lut3d_size;
+	uint32_t rgam_mode;
+	uint32_t rgam_lut;
+	struct mpc_grph_gamut_adjustment gamut_remap;
 };
 
 /**
@@ -217,16 +294,20 @@ struct mpc_funcs {
 	 * Only used for planes that are part of blending chain for OPP output
 	 *
 	 * Parameters:
-	 * [in/out] mpc		- MPC context.
-	 * [in/out] tree	- MPC tree structure that plane will be added to.
-	 * [in]	blnd_cfg	- MPCC blending configuration for the new blending layer.
-	 * [in]	sm_cfg		- MPCC stereo mix configuration for the new blending layer.
-	 *			  stereo mix must disable for the very bottom layer of the tree config.
-	 * [in]	insert_above_mpcc - Insert new plane above this MPCC.  If NULL, insert as bottom plane.
-	 * [in]	dpp_id		 - DPP instance for the plane to be added.
-	 * [in]	mpcc_id		 - The MPCC physical instance to use for blending.
 	 *
-	 * Return:  struct mpcc* - MPCC that was added.
+	 * - [in/out] mpc  - MPC context.
+	 * - [in/out] tree - MPC tree structure that plane will be added to.
+	 * - [in] blnd_cfg - MPCC blending configuration for the new blending layer.
+	 * - [in] sm_cfg   - MPCC stereo mix configuration for the new blending layer.
+	 *                   stereo mix must disable for the very bottom layer of the tree config.
+	 * - [in] insert_above_mpcc - Insert new plane above this MPCC.
+	 *                          If NULL, insert as bottom plane.
+	 * - [in] dpp_id  - DPP instance for the plane to be added.
+	 * - [in] mpcc_id - The MPCC physical instance to use for blending.
+	 *
+	 * Return:
+	 *
+	 * struct mpcc* - MPCC that was added.
 	 */
 	struct mpcc* (*insert_plane)(
 			struct mpc *mpc,
@@ -243,11 +324,14 @@ struct mpc_funcs {
 	 * Remove a specified MPCC from the MPC tree.
 	 *
 	 * Parameters:
-	 * [in/out] mpc		- MPC context.
-	 * [in/out] tree	- MPC tree structure that plane will be removed from.
-	 * [in/out] mpcc	- MPCC to be removed from tree.
 	 *
-	 * Return:  void
+	 * - [in/out] mpc   - MPC context.
+	 * - [in/out] tree  - MPC tree structure that plane will be removed from.
+	 * - [in/out] mpcc  - MPCC to be removed from tree.
+	 *
+	 * Return:
+	 *
+	 * void
 	 */
 	void (*remove_mpcc)(
 			struct mpc *mpc,
@@ -260,9 +344,12 @@ struct mpc_funcs {
 	 * Reset the MPCC HW status by disconnecting all muxes.
 	 *
 	 * Parameters:
-	 * [in/out] mpc		- MPC context.
 	 *
-	 * Return:  void
+	 * - [in/out] mpc - MPC context.
+	 *
+	 * Return:
+	 *
+	 * void
 	 */
 	void (*mpc_init)(struct mpc *mpc);
 	void (*mpc_init_single_inst)(
@@ -275,11 +362,14 @@ struct mpc_funcs {
 	 * Update the blending configuration for a specified MPCC.
 	 *
 	 * Parameters:
-	 * [in/out] mpc		- MPC context.
-	 * [in]     blnd_cfg	- MPCC blending configuration.
-	 * [in]     mpcc_id	- The MPCC physical instance.
 	 *
-	 * Return:  void
+	 * - [in/out] mpc - MPC context.
+	 * - [in] blnd_cfg - MPCC blending configuration.
+	 * - [in] mpcc_id  - The MPCC physical instance.
+	 *
+	 * Return:
+	 *
+	 * void
 	 */
 	void (*update_blending)(
 		struct mpc *mpc,
@@ -289,15 +379,18 @@ struct mpc_funcs {
 	/**
 	 * @cursor_lock:
 	 *
-	 * Lock cursor updates for the specified OPP.
-	 * OPP defines the set of MPCC that are locked together for cursor.
+	 * Lock cursor updates for the specified OPP. OPP defines the set of
+	 * MPCC that are locked together for cursor.
 	 *
 	 * Parameters:
-	 * [in] 	mpc		- MPC context.
-	 * [in]     opp_id	- The OPP to lock cursor updates on
-	 * [in]		lock	- lock/unlock the OPP
 	 *
-	 * Return:  void
+	 * - [in] mpc - MPC context.
+	 * - [in] opp_id  - The OPP to lock cursor updates on
+	 * - [in] lock - lock/unlock the OPP
+	 *
+	 * Return:
+	 *
+	 * void
 	 */
 	void (*cursor_lock)(
 			struct mpc *mpc,
@@ -307,20 +400,25 @@ struct mpc_funcs {
 	/**
 	 * @insert_plane_to_secondary:
 	 *
-	 * Add DPP into secondary MPC tree based on specified blending position.
-	 * Only used for planes that are part of blending chain for DWB output
+	 * Add DPP into secondary MPC tree based on specified blending
+	 * position.  Only used for planes that are part of blending chain for
+	 * DWB output
 	 *
 	 * Parameters:
-	 * [in/out] mpc		- MPC context.
-	 * [in/out] tree		- MPC tree structure that plane will be added to.
-	 * [in]	blnd_cfg	- MPCC blending configuration for the new blending layer.
-	 * [in]	sm_cfg		- MPCC stereo mix configuration for the new blending layer.
-	 *			  stereo mix must disable for the very bottom layer of the tree config.
-	 * [in]	insert_above_mpcc - Insert new plane above this MPCC.  If NULL, insert as bottom plane.
-	 * [in]	dpp_id		- DPP instance for the plane to be added.
-	 * [in]	mpcc_id		- The MPCC physical instance to use for blending.
 	 *
-	 * Return:  struct mpcc* - MPCC that was added.
+	 * - [in/out] mpc  - MPC context.
+	 * - [in/out] tree - MPC tree structure that plane will be added to.
+	 * - [in] blnd_cfg - MPCC blending configuration for the new blending layer.
+	 * - [in] sm_cfg   - MPCC stereo mix configuration for the new blending layer.
+	 *	    stereo mix must disable for the very bottom layer of the tree config.
+	 * - [in] insert_above_mpcc - Insert new plane above this MPCC.  If
+	 *          NULL, insert as bottom plane.
+	 * - [in] dpp_id - DPP instance for the plane to be added.
+	 * - [in] mpcc_id - The MPCC physical instance to use for blending.
+	 *
+	 * Return:
+	 *
+	 * struct mpcc* - MPCC that was added.
 	 */
 	struct mpcc* (*insert_plane_to_secondary)(
 			struct mpc *mpc,
@@ -337,10 +435,14 @@ struct mpc_funcs {
 	 * Remove a specified DPP from the 'secondary' MPC tree.
 	 *
 	 * Parameters:
-	 * [in/out] mpc		- MPC context.
-	 * [in/out] tree	- MPC tree structure that plane will be removed from.
-	 * [in]     mpcc	- MPCC to be removed from tree.
-	 * Return:  void
+	 *
+	 * - [in/out] mpc  - MPC context.
+	 * - [in/out] tree - MPC tree structure that plane will be removed from.
+	 * - [in]     mpcc - MPCC to be removed from tree.
+	 *
+	 * Return:
+	 *
+	 * void
 	 */
 	void (*remove_mpcc_from_secondary)(
 			struct mpc *mpc,

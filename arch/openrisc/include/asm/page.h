@@ -18,7 +18,7 @@
 
 /* PAGE_SHIFT determines the page size */
 
-#define PAGE_SHIFT      13
+#define PAGE_SHIFT      CONFIG_PAGE_SHIFT
 #ifdef __ASSEMBLY__
 #define PAGE_SIZE       (1 << PAGE_SHIFT)
 #else
@@ -75,11 +75,6 @@ typedef struct page *pgtable_t;
 static inline unsigned long virt_to_pfn(const void *kaddr)
 {
 	return __pa(kaddr) >> PAGE_SHIFT;
-}
-
-static inline void * pfn_to_virt(unsigned long pfn)
-{
-	return (void *)((unsigned long)__va(pfn) << PAGE_SHIFT);
 }
 
 #define virt_to_page(addr) \

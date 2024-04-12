@@ -72,12 +72,13 @@ hwm_locked_with_pm_intel_uncore_rmw(struct hwm_drvdata *ddat,
 	struct intel_uncore *uncore = ddat->uncore;
 	intel_wakeref_t wakeref;
 
-	mutex_lock(&hwmon->hwmon_lock);
+	with_intel_runtime_pm(uncore->rpm, wakeref) {
+		mutex_lock(&hwmon->hwmon_lock);
 
-	with_intel_runtime_pm(uncore->rpm, wakeref)
 		intel_uncore_rmw(uncore, reg, clear, set);
 
-	mutex_unlock(&hwmon->hwmon_lock);
+		mutex_unlock(&hwmon->hwmon_lock);
+	}
 }
 
 /*
@@ -136,20 +137,21 @@ hwm_energy(struct hwm_drvdata *ddat, long *energy)
 	else
 		rgaddr = hwmon->rg.energy_status_all;
 
-	mutex_lock(&hwmon->hwmon_lock);
+	with_intel_runtime_pm(uncore->rpm, wakeref) {
+		mutex_lock(&hwmon->hwmon_lock);
 
-	with_intel_runtime_pm(uncore->rpm, wakeref)
 		reg_val = intel_uncore_read(uncore, rgaddr);
 
-	if (reg_val >= ei->reg_val_prev)
-		ei->accum_energy += reg_val - ei->reg_val_prev;
-	else
-		ei->accum_energy += UINT_MAX - ei->reg_val_prev + reg_val;
-	ei->reg_val_prev = reg_val;
+		if (reg_val >= ei->reg_val_prev)
+			ei->accum_energy += reg_val - ei->reg_val_prev;
+		else
+			ei->accum_energy += UINT_MAX - ei->reg_val_prev + reg_val;
+		ei->reg_val_prev = reg_val;
 
-	*energy = mul_u64_u32_shr(ei->accum_energy, SF_ENERGY,
-				  hwmon->scl_shift_energy);
-	mutex_unlock(&hwmon->hwmon_lock);
+		*energy = mul_u64_u32_shr(ei->accum_energy, SF_ENERGY,
+					  hwmon->scl_shift_energy);
+		mutex_unlock(&hwmon->hwmon_lock);
+	}
 }
 
 static ssize_t
@@ -404,6 +406,7 @@ hwm_power_max_write(struct hwm_drvdata *ddat, long val)
 
 	/* Block waiting for GuC reset to complete when needed */
 	for (;;) {
+		wakeref = intel_runtime_pm_get(ddat->uncore->rpm);
 		mutex_lock(&hwmon->hwmon_lock);
 
 		prepare_to_wait(&ddat->waitq, &wait, TASK_INTERRUPTIBLE);
@@ -417,14 +420,13 @@ hwm_power_max_write(struct hwm_drvdata *ddat, long val)
 		}
 
 		mutex_unlock(&hwmon->hwmon_lock);
+		intel_runtime_pm_put(ddat->uncore->rpm, wakeref);
 
 		schedule();
 	}
 	finish_wait(&ddat->waitq, &wait);
 	if (ret)
-		goto unlock;
-
-	wakeref = intel_runtime_pm_get(ddat->uncore->rpm);
+		goto exit;
 
 	/* Disable PL1 limit and verify, because the limit cannot be disabled on all platforms */
 	if (val == PL1_DISABLE) {
@@ -444,9 +446,8 @@ hwm_power_max_write(struct hwm_drvdata *ddat, long val)
 	intel_uncore_rmw(ddat->uncore, hwmon->rg.pkg_rapl_limit,
 			 PKG_PWR_LIM_1_EN | PKG_PWR_LIM_1, nval);
 exit:
-	intel_runtime_pm_put(ddat->uncore->rpm, wakeref);
-unlock:
 	mutex_unlock(&hwmon->hwmon_lock);
+	intel_runtime_pm_put(ddat->uncore->rpm, wakeref);
 	return ret;
 }
 

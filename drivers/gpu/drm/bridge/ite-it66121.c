@@ -874,33 +874,33 @@ static void it66121_bridge_hpd_disable(struct drm_bridge *bridge)
 		dev_err(ctx->dev, "failed to disable HPD IRQ\n");
 }
 
-static struct edid *it66121_bridge_get_edid(struct drm_bridge *bridge,
-					    struct drm_connector *connector)
+static const struct drm_edid *it66121_bridge_edid_read(struct drm_bridge *bridge,
+						       struct drm_connector *connector)
 {
 	struct it66121_ctx *ctx = container_of(bridge, struct it66121_ctx, bridge);
-	struct edid *edid;
+	const struct drm_edid *drm_edid;
 	int ret;
 
 	mutex_lock(&ctx->lock);
 	ret = it66121_preamble_ddc(ctx);
 	if (ret) {
-		edid = NULL;
+		drm_edid = NULL;
 		goto out_unlock;
 	}
 
 	ret = regmap_write(ctx->regmap, IT66121_DDC_HEADER_REG,
 			   IT66121_DDC_HEADER_EDID);
 	if (ret) {
-		edid = NULL;
+		drm_edid = NULL;
 		goto out_unlock;
 	}
 
-	edid = drm_do_get_edid(connector, it66121_get_edid_block, ctx);
+	drm_edid = drm_edid_read_custom(connector, it66121_get_edid_block, ctx);
 
 out_unlock:
 	mutex_unlock(&ctx->lock);
 
-	return edid;
+	return drm_edid;
 }
 
 static const struct drm_bridge_funcs it66121_bridge_funcs = {
@@ -916,7 +916,7 @@ static const struct drm_bridge_funcs it66121_bridge_funcs = {
 	.mode_set = it66121_bridge_mode_set,
 	.mode_valid = it66121_bridge_mode_valid,
 	.detect = it66121_bridge_detect,
-	.get_edid = it66121_bridge_get_edid,
+	.edid_read = it66121_bridge_edid_read,
 	.hpd_enable = it66121_bridge_hpd_enable,
 	.hpd_disable = it66121_bridge_hpd_disable,
 };

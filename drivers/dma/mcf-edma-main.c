@@ -202,7 +202,7 @@ static int mcf_edma_probe(struct platform_device *pdev)
 		vchan_init(&mcf_chan->vchan, &mcf_edma->dma_dev);
 		mcf_chan->tcd = mcf_edma->membase + EDMA_TCD
 				+ i * sizeof(struct fsl_edma_hw_tcd);
-		iowrite32(0x0, &mcf_chan->tcd->csr);
+		edma_write_tcdreg(mcf_chan, cpu_to_le32(0), csr);
 	}
 
 	iowrite32(~0, regs->inth);

@@ -63,11 +63,12 @@ int bch2_btree_delete_range(struct bch_fs *, enum btree_id,
 			    struct bpos, struct bpos, unsigned, u64 *);
 
 int bch2_btree_bit_mod(struct btree_trans *, enum btree_id, struct bpos, bool);
+int bch2_btree_bit_mod_buffered(struct btree_trans *, enum btree_id, struct bpos, bool);
 
 static inline int bch2_btree_delete_at_buffered(struct btree_trans *trans,
 						enum btree_id btree, struct bpos pos)
 {
-	return bch2_btree_bit_mod(trans, btree, pos, false);
+	return bch2_btree_bit_mod_buffered(trans, btree, pos, false);
 }
 
 int __bch2_insert_snapshot_whiteouts(struct btree_trans *, enum btree_id,

@@ -8,7 +8,7 @@ source "drivers/platform/x86/amd/pmc/Kconfig"
 
 config AMD_HSMP
 	tristate "AMD HSMP Driver"
-	depends on AMD_NB && X86_64
+	depends on AMD_NB && X86_64 && ACPI
 	help
 	  The driver provides a way for user space tools to monitor and manage
 	  system management functionality on EPYC server CPUs from AMD.

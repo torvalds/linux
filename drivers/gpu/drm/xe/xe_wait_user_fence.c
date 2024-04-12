@@ -148,7 +148,7 @@ int xe_wait_user_fence_ioctl(struct drm_device *dev, void *data,
 
 		if (q) {
 			if (q->ops->reset_status(q)) {
-				drm_info(&xe->drm, "exec gueue reset detected\n");
+				drm_info(&xe->drm, "exec queue reset detected\n");
 				err = -EIO;
 				break;
 			}

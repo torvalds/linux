@@ -7,6 +7,7 @@
 #include <linux/errno.h>
 #include <linux/minmax.h>
 #include <linux/tty.h>
+#include <linux/tty_buffer.h>
 #include <linux/tty_driver.h>
 #include <linux/tty_flip.h>
 #include <linux/timer.h>

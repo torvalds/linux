@@ -5,6 +5,7 @@
 #include <linux/list.h>
 #include <linux/rhashtable.h>
 
+#include "bbpos_types.h"
 #include "btree_key_cache_types.h"
 #include "buckets_types.h"
 #include "darray.h"
@@ -173,6 +174,11 @@ struct btree_cache {
 	 */
 	struct task_struct	*alloc_lock;
 	struct closure_waitlist	alloc_wait;
+
+	struct bbpos		pinned_nodes_start;
+	struct bbpos		pinned_nodes_end;
+	u64			pinned_nodes_leaf_mask;
+	u64			pinned_nodes_interior_mask;
 };
 
 struct btree_node_iter {
@@ -358,7 +364,21 @@ struct btree_insert_entry {
 	unsigned long		ip_allocated;
 };
 
+/* Number of btree paths we preallocate, usually enough */
 #define BTREE_ITER_INITIAL		64
+/*
+ * Lmiit for btree_trans_too_many_iters(); this is enough that almost all code
+ * paths should run inside this limit, and if they don't it usually indicates a
+ * bug (leaking/duplicated btree paths).
+ *
+ * exception: some fsck paths
+ *
+ * bugs with excessive path usage seem to have possibly been eliminated now, so
+ * we might consider eliminating this (and btree_trans_too_many_iter()) at some
+ * point.
+ */
+#define BTREE_ITER_NORMAL_LIMIT		256
+/* never exceed limit */
 #define BTREE_ITER_MAX			(1U << 10)
 
 struct btree_trans_commit_hook;
@@ -654,6 +674,7 @@ const char *bch2_btree_node_type_str(enum btree_node_type);
 	 BIT_ULL(BKEY_TYPE_inodes)|			\
 	 BIT_ULL(BKEY_TYPE_stripes)|			\
 	 BIT_ULL(BKEY_TYPE_reflink)|			\
+	 BIT_ULL(BKEY_TYPE_subvolumes)|			\
 	 BIT_ULL(BKEY_TYPE_btree))
 
 #define BTREE_NODE_TYPE_HAS_ATOMIC_TRIGGERS		\
@@ -727,7 +748,7 @@ struct btree_root {
 	__BKEY_PADDED(key, BKEY_BTREE_PTR_VAL_U64s_MAX);
 	u8			level;
 	u8			alive;
-	s8			error;
+	s16			error;
 };
 
 enum btree_gc_coalesce_fail_reason {

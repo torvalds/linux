@@ -214,7 +214,7 @@ void test_sock_destroy(void)
 cleanup:
 	if (nstoken)
 		close_netns(nstoken);
-	SYS_NOFAIL("ip netns del " TEST_NS " &> /dev/null");
+	SYS_NOFAIL("ip netns del " TEST_NS);
 	if (cgroup_fd >= 0)
 		close(cgroup_fd);
 	sock_destroy_prog__destroy(skel);

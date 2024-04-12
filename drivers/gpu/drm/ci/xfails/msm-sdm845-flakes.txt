@@ -1,12 +1,22 @@
-kms_cursor_legacy@basic-flip-after-cursor-atomic
-kms_cursor_legacy@basic-flip-before-cursor-varying-size
-kms_cursor_legacy@cursorA-vs-flipA-toggle
-kms_cursor_legacy@flip-vs-cursor-atomic-transitions
+# Board Name: msm:sdm845
+# Bug Report: https://lore.kernel.org/dri-devel/46287831-edfa-78e8-6055-d7a08831c445@collabora.com/T/#u
+# Failure Rate: 50
+# IGT Version: 1.28-gd2af13d9f
+# Linux Version: 6.7.0-rc3
+
+# Reported by deqp-runner
+kms_cursor_legacy@basic-flip-after-cursor-legacy
 kms_cursor_legacy@flip-vs-cursor-toggle
 kms_cursor_legacy@flip-vs-cursor-varying-size
+kms_cursor_legacy@short-flip-after-cursor-toggle
 kms_cursor_legacy@short-flip-before-cursor-atomic-transitions
-kms_cursor_legacy@short-flip-before-cursor-toggle
-kms_flip@flip-vs-modeset-vs-hang
-kms_flip@flip-vs-panning-vs-hang
-kms_plane@pixel-format
-kms_plane@pixel-format-source-clamping
+kms_cursor_legacy@short-flip-before-cursor-atomic-transitions-varying-size
+msm_shrink@copy-gpu-32
+msm_shrink@copy-gpu-oom-32
+
+# The below test shows inconsistency across multiple runs, giving
+# results of Pass and Fail alternately.
+kms_cursor_legacy@basic-flip-before-cursor-varying-size
+kms_cursor_legacy@flip-vs-cursor-atomic-transitions
+kms_cursor_legacy@short-flip-after-cursor-atomic-transitions
+kms_cursor_legacy@short-flip-after-cursor-atomic-transitions-varying-size

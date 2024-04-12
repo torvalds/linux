@@ -10,20 +10,18 @@
 
 #include "lkc.h"
 #include "internal.h"
+#include "list.h"
 
 static const char nohelp_text[] = "There is no help available for this option.";
 
 struct menu rootmenu;
 static struct menu **last_entry_ptr;
 
-struct file *file_list;
-struct file *current_file;
-
 void menu_warn(struct menu *menu, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	fprintf(stderr, "%s:%d:warning: ", menu->file->name, menu->lineno);
+	fprintf(stderr, "%s:%d:warning: ", menu->filename, menu->lineno);
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	va_end(ap);
@@ -33,7 +31,7 @@ static void prop_warn(struct property *prop, const char *fmt, ...)
 {
 	va_list ap;
 	va_start(ap, fmt);
-	fprintf(stderr, "%s:%d:warning: ", prop->file->name, prop->lineno);
+	fprintf(stderr, "%s:%d:warning: ", prop->filename, prop->lineno);
 	vfprintf(stderr, fmt, ap);
 	fprintf(stderr, "\n");
 	va_end(ap);
@@ -53,14 +51,16 @@ void menu_add_entry(struct symbol *sym)
 	memset(menu, 0, sizeof(*menu));
 	menu->sym = sym;
 	menu->parent = current_menu;
-	menu->file = current_file;
-	menu->lineno = zconf_lineno();
+	menu->filename = cur_filename;
+	menu->lineno = cur_lineno;
 
 	*last_entry_ptr = menu;
 	last_entry_ptr = &menu->next;
 	current_entry = menu;
-	if (sym)
+	if (sym) {
 		menu_add_symbol(P_SYMBOL, sym, NULL);
+		list_add_tail(&menu->link, &sym->menus);
+	}
 }
 
 struct menu *menu_add_menu(void)
@@ -134,8 +134,8 @@ static struct property *menu_add_prop(enum prop_type type, struct expr *expr,
 	prop = xmalloc(sizeof(*prop));
 	memset(prop, 0, sizeof(*prop));
 	prop->type = type;
-	prop->file = current_file;
-	prop->lineno = zconf_lineno();
+	prop->filename = cur_filename;
+	prop->lineno = cur_lineno;
 	prop->menu = current_entry;
 	prop->expr = expr;
 	prop->visible.expr = dep;
@@ -282,7 +282,7 @@ static void sym_check_prop(struct symbol *sym)
 	}
 }
 
-void menu_finalize(struct menu *parent)
+static void _menu_finalize(struct menu *parent, bool inside_choice)
 {
 	struct menu *menu, *last_menu;
 	struct symbol *sym;
@@ -296,7 +296,12 @@ void menu_finalize(struct menu *parent)
 		 * and propagate parent dependencies before moving on.
 		 */
 
-		if (sym && sym_is_choice(sym)) {
+		bool is_choice = false;
+
+		if (sym && sym_is_choice(sym))
+			is_choice = true;
+
+		if (is_choice) {
 			if (sym->type == S_UNKNOWN) {
 				/* find the first choice value to find out choice type */
 				current_entry = parent;
@@ -306,12 +311,6 @@ void menu_finalize(struct menu *parent)
 						break;
 					}
 				}
-			}
-			/* set the type of the remaining choice values */
-			for (menu = parent->list; menu; menu = menu->next) {
-				current_entry = menu;
-				if (menu->sym && menu->sym->type == S_UNKNOWN)
-					menu_set_type(sym->type);
 			}
 
 			/*
@@ -400,7 +399,7 @@ void menu_finalize(struct menu *parent)
 			}
 		}
 
-		if (sym && sym_is_choice(sym))
+		if (is_choice)
 			expr_free(parentdep);
 
 		/*
@@ -408,8 +407,8 @@ void menu_finalize(struct menu *parent)
 		 * moving on
 		 */
 		for (menu = parent->list; menu; menu = menu->next)
-			menu_finalize(menu);
-	} else if (sym) {
+			_menu_finalize(menu, is_choice);
+	} else if (!inside_choice && sym) {
 		/*
 		 * Automatic submenu creation. If sym is a symbol and A, B, C,
 		 * ... are consecutive items (symbols, menus, ifs, etc.) that
@@ -469,7 +468,7 @@ void menu_finalize(struct menu *parent)
 			/* Superset, put in submenu */
 			expr_free(dep2);
 		next:
-			menu_finalize(menu);
+			_menu_finalize(menu, false);
 			menu->parent = parent;
 			last_menu = menu;
 		}
@@ -567,9 +566,6 @@ void menu_finalize(struct menu *parent)
 		if (sym->type == S_UNKNOWN)
 			menu_warn(parent, "config symbol defined without type");
 
-		if (sym_is_choice(sym) && !parent->prompt)
-			menu_warn(parent, "choice must have a prompt");
-
 		/* Check properties connected to this symbol */
 		sym_check_prop(sym);
 		sym->flags |= SYMBOL_WARNED;
@@ -589,6 +585,11 @@ void menu_finalize(struct menu *parent)
 				expr_alloc_and(parent->prompt->visible.expr,
 					expr_alloc_symbol(&symbol_mod)));
 	}
+}
+
+void menu_finalize(void)
+{
+	_menu_finalize(&rootmenu, false);
 }
 
 bool menu_has_prompt(struct menu *menu)
@@ -676,7 +677,7 @@ struct menu *menu_get_parent_menu(struct menu *menu)
 static void get_def_str(struct gstr *r, struct menu *menu)
 {
 	str_printf(r, "Defined at %s:%d\n",
-		   menu->file->name, menu->lineno);
+		   menu->filename, menu->lineno);
 }
 
 static void get_dep_str(struct gstr *r, struct expr *expr, const char *prefix)
@@ -777,6 +778,7 @@ static void get_symbol_str(struct gstr *r, struct symbol *sym,
 		    struct list_head *head)
 {
 	struct property *prop;
+	struct menu *menu;
 
 	if (sym && sym->name) {
 		str_printf(r, "Symbol: %s [=%s]\n", sym->name,
@@ -793,17 +795,17 @@ static void get_symbol_str(struct gstr *r, struct symbol *sym,
 	}
 
 	/* Print the definitions with prompts before the ones without */
-	for_all_properties(sym, prop, P_SYMBOL) {
-		if (prop->menu->prompt) {
-			get_def_str(r, prop->menu);
-			get_prompt_str(r, prop->menu->prompt, head);
+	list_for_each_entry(menu, &sym->menus, link) {
+		if (menu->prompt) {
+			get_def_str(r, menu);
+			get_prompt_str(r, menu->prompt, head);
 		}
 	}
 
-	for_all_properties(sym, prop, P_SYMBOL) {
-		if (!prop->menu->prompt) {
-			get_def_str(r, prop->menu);
-			get_dep_str(r, prop->menu->dep, "  Depends on: ");
+	list_for_each_entry(menu, &sym->menus, link) {
+		if (!menu->prompt) {
+			get_def_str(r, menu);
+			get_dep_str(r, menu->dep, "  Depends on: ");
 		}
 	}
 

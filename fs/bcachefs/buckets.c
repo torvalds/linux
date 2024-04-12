@@ -525,6 +525,7 @@ int bch2_mark_metadata_bucket(struct bch_fs *c, struct bch_dev *ca,
 			"different types of data in same bucket: %s, %s",
 			bch2_data_type_str(g->data_type),
 			bch2_data_type_str(data_type))) {
+		BUG();
 		ret = -EIO;
 		goto err;
 	}
@@ -628,6 +629,7 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 			bch2_data_type_str(ptr_data_type),
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
+		BUG();
 		ret = -EIO;
 		goto err;
 	}
@@ -815,14 +817,14 @@ static int __mark_pointer(struct btree_trans *trans,
 static int bch2_trigger_pointer(struct btree_trans *trans,
 			enum btree_id btree_id, unsigned level,
 			struct bkey_s_c k, struct extent_ptr_decoded p,
-			s64 *sectors,
-			unsigned flags)
+			const union bch_extent_entry *entry,
+			s64 *sectors, unsigned flags)
 {
 	bool insert = !(flags & BTREE_TRIGGER_OVERWRITE);
 	struct bpos bucket;
 	struct bch_backpointer bp;
 
-	bch2_extent_ptr_to_bp(trans->c, btree_id, level, k, p, &bucket, &bp);
+	bch2_extent_ptr_to_bp(trans->c, btree_id, level, k, p, entry, &bucket, &bp);
 	*sectors = insert ? bp.bucket_len : -((s64) bp.bucket_len);
 
 	if (flags & BTREE_TRIGGER_TRANSACTIONAL) {
@@ -851,7 +853,7 @@ static int bch2_trigger_pointer(struct btree_trans *trans,
 	if (flags & BTREE_TRIGGER_GC) {
 		struct bch_fs *c = trans->c;
 		struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
-		enum bch_data_type data_type = bkey_ptr_data_type(btree_id, level, k, p);
+		enum bch_data_type data_type = bch2_bkey_ptr_data_type(k, p, entry);
 
 		percpu_down_read(&c->mark_lock);
 		struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
@@ -979,7 +981,7 @@ static int __trigger_extent(struct btree_trans *trans,
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		s64 disk_sectors;
-		ret = bch2_trigger_pointer(trans, btree_id, level, k, p, &disk_sectors, flags);
+		ret = bch2_trigger_pointer(trans, btree_id, level, k, p, entry, &disk_sectors, flags);
 		if (ret < 0)
 			return ret;
 
@@ -990,8 +992,8 @@ static int __trigger_extent(struct btree_trans *trans,
 				ret = !gc
 					? bch2_update_cached_sectors_list(trans, p.ptr.dev, disk_sectors)
 					: update_cached_sectors(c, k, p.ptr.dev, disk_sectors, 0, true);
-				bch2_fs_fatal_err_on(ret && gc, c, "%s(): no replicas entry while updating cached sectors",
-						     __func__);
+				bch2_fs_fatal_err_on(ret && gc, c, "%s: no replicas entry while updating cached sectors",
+						     bch2_err_str(ret));
 				if (ret)
 					return ret;
 			}
@@ -1020,7 +1022,7 @@ static int __trigger_extent(struct btree_trans *trans,
 			struct printbuf buf = PRINTBUF;
 
 			bch2_bkey_val_to_text(&buf, c, k);
-			bch2_fs_fatal_error(c, "%s(): no replicas entry for %s", __func__, buf.buf);
+			bch2_fs_fatal_error(c, ": no replicas entry for %s", buf.buf);
 			printbuf_exit(&buf);
 		}
 		if (ret)
@@ -1053,7 +1055,8 @@ int bch2_trigger_extent(struct btree_trans *trans,
 			  (int) bch2_bkey_needs_rebalance(c, old);
 
 		if (mod) {
-			int ret = bch2_btree_bit_mod(trans, BTREE_ID_rebalance_work, new.k->p, mod > 0);
+			int ret = bch2_btree_bit_mod_buffered(trans, BTREE_ID_rebalance_work,
+							      new.k->p, mod > 0);
 			if (ret)
 				return ret;
 		}
@@ -1335,7 +1338,7 @@ static void bucket_gens_free_rcu(struct rcu_head *rcu)
 	struct bucket_gens *buckets =
 		container_of(rcu, struct bucket_gens, rcu);
 
-	kvpfree(buckets, sizeof(*buckets) + buckets->nbuckets);
+	kvfree(buckets);
 }
 
 int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
@@ -1345,16 +1348,16 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 	bool resize = ca->bucket_gens != NULL;
 	int ret;
 
-	if (!(bucket_gens	= kvpmalloc(sizeof(struct bucket_gens) + nbuckets,
-					    GFP_KERNEL|__GFP_ZERO))) {
+	if (!(bucket_gens	= kvmalloc(sizeof(struct bucket_gens) + nbuckets,
+					   GFP_KERNEL|__GFP_ZERO))) {
 		ret = -BCH_ERR_ENOMEM_bucket_gens;
 		goto err;
 	}
 
 	if ((c->opts.buckets_nouse &&
-	     !(buckets_nouse	= kvpmalloc(BITS_TO_LONGS(nbuckets) *
-					    sizeof(unsigned long),
-					    GFP_KERNEL|__GFP_ZERO)))) {
+	     !(buckets_nouse	= kvmalloc(BITS_TO_LONGS(nbuckets) *
+					   sizeof(unsigned long),
+					   GFP_KERNEL|__GFP_ZERO)))) {
 		ret = -BCH_ERR_ENOMEM_buckets_nouse;
 		goto err;
 	}
@@ -1397,8 +1400,7 @@ int bch2_dev_buckets_resize(struct bch_fs *c, struct bch_dev *ca, u64 nbuckets)
 
 	ret = 0;
 err:
-	kvpfree(buckets_nouse,
-		BITS_TO_LONGS(nbuckets) * sizeof(unsigned long));
+	kvfree(buckets_nouse);
 	if (bucket_gens)
 		call_rcu(&bucket_gens->rcu, bucket_gens_free_rcu);
 
@@ -1407,27 +1409,21 @@ err:
 
 void bch2_dev_buckets_free(struct bch_dev *ca)
 {
-	unsigned i;
+	kvfree(ca->buckets_nouse);
+	kvfree(rcu_dereference_protected(ca->bucket_gens, 1));
 
-	kvpfree(ca->buckets_nouse,
-		BITS_TO_LONGS(ca->mi.nbuckets) * sizeof(unsigned long));
-	kvpfree(rcu_dereference_protected(ca->bucket_gens, 1),
-		sizeof(struct bucket_gens) + ca->mi.nbuckets);
-
-	for (i = 0; i < ARRAY_SIZE(ca->usage); i++)
+	for (unsigned i = 0; i < ARRAY_SIZE(ca->usage); i++)
 		free_percpu(ca->usage[i]);
 	kfree(ca->usage_base);
 }
 
 int bch2_dev_buckets_alloc(struct bch_fs *c, struct bch_dev *ca)
 {
-	unsigned i;
-
 	ca->usage_base = kzalloc(sizeof(struct bch_dev_usage), GFP_KERNEL);
 	if (!ca->usage_base)
 		return -BCH_ERR_ENOMEM_usage_init;
 
-	for (i = 0; i < ARRAY_SIZE(ca->usage); i++) {
+	for (unsigned i = 0; i < ARRAY_SIZE(ca->usage); i++) {
 		ca->usage[i] = alloc_percpu(struct bch_dev_usage);
 		if (!ca->usage[i])
 			return -BCH_ERR_ENOMEM_usage_init;

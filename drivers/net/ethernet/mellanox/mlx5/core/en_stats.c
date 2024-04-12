@@ -561,11 +561,23 @@ static const struct counter_desc drop_rq_stats_desc[] = {
 #define NUM_Q_COUNTERS			ARRAY_SIZE(q_stats_desc)
 #define NUM_DROP_RQ_COUNTERS		ARRAY_SIZE(drop_rq_stats_desc)
 
+static bool q_counter_any(struct mlx5e_priv *priv)
+{
+	struct mlx5_core_dev *pos;
+	int i;
+
+	mlx5_sd_for_each_dev(i, priv->mdev, pos)
+		if (priv->q_counter[i++])
+			return true;
+
+	return false;
+}
+
 static MLX5E_DECLARE_STATS_GRP_OP_NUM_STATS(qcnt)
 {
 	int num_stats = 0;
 
-	if (priv->q_counter)
+	if (q_counter_any(priv))
 		num_stats += NUM_Q_COUNTERS;
 
 	if (priv->drop_rq_q_counter)
@@ -578,7 +590,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STRS(qcnt)
 {
 	int i;
 
-	for (i = 0; i < NUM_Q_COUNTERS && priv->q_counter; i++)
+	for (i = 0; i < NUM_Q_COUNTERS && q_counter_any(priv); i++)
 		strcpy(data + (idx++) * ETH_GSTRING_LEN,
 		       q_stats_desc[i].format);
 
@@ -593,7 +605,7 @@ static MLX5E_DECLARE_STATS_GRP_OP_FILL_STATS(qcnt)
 {
 	int i;
 
-	for (i = 0; i < NUM_Q_COUNTERS && priv->q_counter; i++)
+	for (i = 0; i < NUM_Q_COUNTERS && q_counter_any(priv); i++)
 		data[idx++] = MLX5E_READ_CTR32_CPU(&priv->stats.qcnt,
 						   q_stats_desc, i);
 	for (i = 0; i < NUM_DROP_RQ_COUNTERS && priv->drop_rq_q_counter; i++)
@@ -607,18 +619,23 @@ static MLX5E_DECLARE_STATS_GRP_OP_UPDATE_STATS(qcnt)
 	struct mlx5e_qcounter_stats *qcnt = &priv->stats.qcnt;
 	u32 out[MLX5_ST_SZ_DW(query_q_counter_out)] = {};
 	u32 in[MLX5_ST_SZ_DW(query_q_counter_in)] = {};
-	int ret;
+	struct mlx5_core_dev *pos;
+	u32 rx_out_of_buffer = 0;
+	int ret, i;
 
 	MLX5_SET(query_q_counter_in, in, opcode, MLX5_CMD_OP_QUERY_Q_COUNTER);
 
-	if (priv->q_counter) {
-		MLX5_SET(query_q_counter_in, in, counter_set_id,
-			 priv->q_counter);
-		ret = mlx5_cmd_exec_inout(priv->mdev, query_q_counter, in, out);
-		if (!ret)
-			qcnt->rx_out_of_buffer = MLX5_GET(query_q_counter_out,
-							  out, out_of_buffer);
+	mlx5_sd_for_each_dev(i, priv->mdev, pos) {
+		if (priv->q_counter[i]) {
+			MLX5_SET(query_q_counter_in, in, counter_set_id,
+				 priv->q_counter[i]);
+			ret = mlx5_cmd_exec_inout(pos, query_q_counter, in, out);
+			if (!ret)
+				rx_out_of_buffer += MLX5_GET(query_q_counter_out,
+							     out, out_of_buffer);
+		}
 	}
+	qcnt->rx_out_of_buffer = rx_out_of_buffer;
 
 	if (priv->drop_rq_q_counter) {
 		MLX5_SET(query_q_counter_in, in, counter_set_id,

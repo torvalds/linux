@@ -96,4 +96,5 @@ static struct platform_driver avs_dmic_driver = {
 
 module_platform_driver(avs_dmic_driver);
 
+MODULE_DESCRIPTION("Intel DMIC machine driver");
 MODULE_LICENSE("GPL");

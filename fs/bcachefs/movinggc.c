@@ -155,8 +155,7 @@ static int bch2_copygc_get_buckets(struct moving_context *ctxt,
 	if (bch2_err_matches(ret, EROFS))
 		return ret;
 
-	if (bch2_fs_fatal_err_on(ret, c, "%s: error %s from bch2_btree_write_buffer_tryflush()",
-				 __func__, bch2_err_str(ret)))
+	if (bch2_fs_fatal_err_on(ret, c, "%s: from bch2_btree_write_buffer_tryflush()", bch2_err_str(ret)))
 		return ret;
 
 	ret = for_each_btree_key_upto(trans, iter, BTREE_ID_lru,

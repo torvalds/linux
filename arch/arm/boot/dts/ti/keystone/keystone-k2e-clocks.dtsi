@@ -2,7 +2,7 @@
 /*
  * Keystone 2 Edison SoC specific device tree
  *
- * Copyright (C) 2014-2017 Texas Instruments Incorporated - http://www.ti.com/
+ * Copyright (C) 2014-2017 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 clocks {

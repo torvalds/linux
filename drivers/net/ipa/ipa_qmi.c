@@ -96,7 +96,7 @@ static void ipa_server_init_complete(struct ipa_qmi *ipa_qmi)
 				   IPA_QMI_INIT_COMPLETE_IND_SZ,
 				   ipa_init_complete_ind_ei, &ind);
 	if (ret)
-		dev_err(&ipa->pdev->dev,
+		dev_err(ipa->dev,
 			"error %d sending init complete indication\n", ret);
 	else
 		ipa_qmi->indication_sent = true;
@@ -148,7 +148,7 @@ static void ipa_qmi_ready(struct ipa_qmi *ipa_qmi)
 	ipa = container_of(ipa_qmi, struct ipa, qmi);
 	ret = ipa_modem_start(ipa);
 	if (ret)
-		dev_err(&ipa->pdev->dev, "error %d starting modem\n", ret);
+		dev_err(ipa->dev, "error %d starting modem\n", ret);
 }
 
 /* All QMI clients from the modem node are gone (modem shut down or crashed). */
@@ -199,7 +199,7 @@ static void ipa_server_indication_register(struct qmi_handle *qmi,
 		ipa_qmi->indication_requested = true;
 		ipa_qmi_ready(ipa_qmi);		/* We might be ready now */
 	} else {
-		dev_err(&ipa->pdev->dev,
+		dev_err(ipa->dev,
 			"error %d sending register indication response\n", ret);
 	}
 }
@@ -228,7 +228,7 @@ static void ipa_server_driver_init_complete(struct qmi_handle *qmi,
 		ipa_qmi->uc_ready = true;
 		ipa_qmi_ready(ipa_qmi);		/* We might be ready now */
 	} else {
-		dev_err(&ipa->pdev->dev,
+		dev_err(ipa->dev,
 			"error %d sending init complete response\n", ret);
 	}
 }
@@ -417,7 +417,7 @@ static void ipa_client_init_driver_work(struct work_struct *work)
 	qmi = &ipa_qmi->client_handle;
 
 	ipa = container_of(ipa_qmi, struct ipa, qmi);
-	dev = &ipa->pdev->dev;
+	dev = ipa->dev;
 
 	ret = qmi_txn_init(qmi, &txn, NULL, NULL);
 	if (ret < 0) {

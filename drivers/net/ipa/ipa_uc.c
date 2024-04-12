@@ -127,7 +127,7 @@ static struct ipa_uc_mem_area *ipa_uc_shared(struct ipa *ipa)
 static void ipa_uc_event_handler(struct ipa *ipa)
 {
 	struct ipa_uc_mem_area *shared = ipa_uc_shared(ipa);
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 
 	if (shared->event == IPA_UC_EVENT_ERROR)
 		dev_err(dev, "microcontroller error event\n");
@@ -141,7 +141,7 @@ static void ipa_uc_event_handler(struct ipa *ipa)
 static void ipa_uc_response_hdlr(struct ipa *ipa)
 {
 	struct ipa_uc_mem_area *shared = ipa_uc_shared(ipa);
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 
 	/* An INIT_COMPLETED response message is sent to the AP by the
 	 * microcontroller when it is operational.  Other than this, the AP
@@ -191,7 +191,7 @@ void ipa_uc_config(struct ipa *ipa)
 /* Inverse of ipa_uc_config() */
 void ipa_uc_deconfig(struct ipa *ipa)
 {
-	struct device *dev = &ipa->pdev->dev;
+	struct device *dev = ipa->dev;
 
 	ipa_interrupt_disable(ipa, IPA_IRQ_UC_1);
 	ipa_interrupt_disable(ipa, IPA_IRQ_UC_0);
@@ -208,8 +208,8 @@ void ipa_uc_deconfig(struct ipa *ipa)
 /* Take a proxy power reference for the microcontroller */
 void ipa_uc_power(struct ipa *ipa)
 {
+	struct device *dev = ipa->dev;
 	static bool already;
-	struct device *dev;
 	int ret;
 
 	if (already)
@@ -217,7 +217,6 @@ void ipa_uc_power(struct ipa *ipa)
 	already = true;		/* Only do this on first boot */
 
 	/* This power reference dropped in ipa_uc_response_hdlr() above */
-	dev = &ipa->pdev->dev;
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
 		pm_runtime_put_noidle(dev);

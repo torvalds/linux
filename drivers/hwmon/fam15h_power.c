@@ -209,7 +209,7 @@ static ssize_t power1_average_show(struct device *dev,
 	 * With the new x86 topology modelling, x86_max_cores is the
 	 * compute unit number.
 	 */
-	cu_num = boot_cpu_data.x86_max_cores;
+	cu_num = topology_num_cores_per_package();
 
 	ret = read_registers(data);
 	if (ret)

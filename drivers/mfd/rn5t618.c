@@ -62,7 +62,7 @@ static const struct regmap_config rn5t618_regmap_config = {
 	.val_bits	= 8,
 	.volatile_reg	= rn5t618_volatile_reg,
 	.max_register	= RN5T618_MAX_REG,
-	.cache_type	= REGCACHE_RBTREE,
+	.cache_type	= REGCACHE_MAPLE,
 };
 
 static const struct regmap_irq rc5t619_irqs[] = {

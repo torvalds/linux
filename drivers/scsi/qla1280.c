@@ -2478,7 +2478,6 @@ qla1280_mailbox_command(struct scsi_qla_host *ha, uint8_t mr, uint16_t *mb)
 	/* Load return mailbox registers. */
 	optr = mb;
 	iptr = (uint16_t *) &ha->mailbox_out[0];
-	mr = MAILBOX_REGISTER_COUNT;
 	memcpy(optr, iptr, MAILBOX_REGISTER_COUNT * sizeof(uint16_t));
 
 	if (ha->flags.reset_marker)

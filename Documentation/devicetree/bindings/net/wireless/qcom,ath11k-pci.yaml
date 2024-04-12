@@ -9,6 +9,7 @@ title: Qualcomm Technologies ath11k wireless devices (PCIe)
 
 maintainers:
   - Kalle Valo <kvalo@kernel.org>
+  - Jeff Johnson <jjohnson@kernel.org>
 
 description: |
   Qualcomm Technologies IEEE 802.11ax PCIe devices

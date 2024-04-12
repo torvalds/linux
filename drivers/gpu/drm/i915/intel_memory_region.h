@@ -50,8 +50,6 @@ enum intel_region_id {
 		for_each_if((mr) = (i915)->mm.regions[id])
 
 struct intel_memory_region_ops {
-	unsigned int flags;
-
 	int (*init)(struct intel_memory_region *mem);
 	int (*release)(struct intel_memory_region *mem);
 
@@ -71,8 +69,7 @@ struct intel_memory_region {
 	struct io_mapping iomap;
 	struct resource region;
 
-	resource_size_t io_start;
-	resource_size_t io_size;
+	struct resource io;
 	resource_size_t min_page_size;
 	resource_size_t total;
 

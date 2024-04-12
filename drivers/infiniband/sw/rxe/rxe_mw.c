@@ -198,7 +198,7 @@ int rxe_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	}
 
 	if (access & ~RXE_ACCESS_SUPPORTED_MW) {
-		rxe_err_mw(mw, "access %#x not supported", access);
+		rxe_err_mw(mw, "access %#x not supported\n", access);
 		ret = -EOPNOTSUPP;
 		goto err_drop_mr;
 	}

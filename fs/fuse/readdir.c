@@ -592,15 +592,11 @@ int fuse_readdir(struct file *file, struct dir_context *ctx)
 	if (fuse_is_bad(inode))
 		return -EIO;
 
-	mutex_lock(&ff->readdir.lock);
-
 	err = UNCACHED;
 	if (ff->open_flags & FOPEN_CACHE_DIR)
 		err = fuse_readdir_cached(file, ctx);
 	if (err == UNCACHED)
 		err = fuse_readdir_uncached(file, ctx);
-
-	mutex_unlock(&ff->readdir.lock);
 
 	return err;
 }

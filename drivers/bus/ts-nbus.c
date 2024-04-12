@@ -39,45 +39,39 @@ struct ts_nbus {
 /*
  * request all gpios required by the bus.
  */
-static int ts_nbus_init_pdata(struct platform_device *pdev, struct ts_nbus
-		*ts_nbus)
+static int ts_nbus_init_pdata(struct platform_device *pdev,
+			      struct ts_nbus *ts_nbus)
 {
 	ts_nbus->data = devm_gpiod_get_array(&pdev->dev, "ts,data",
 			GPIOD_OUT_HIGH);
-	if (IS_ERR(ts_nbus->data)) {
-		dev_err(&pdev->dev, "failed to retrieve ts,data-gpio from dts\n");
-		return PTR_ERR(ts_nbus->data);
-	}
+	if (IS_ERR(ts_nbus->data))
+		return dev_err_probe(&pdev->dev, PTR_ERR(ts_nbus->data),
+				     "failed to retrieve ts,data-gpio from dts\n");
 
 	ts_nbus->csn = devm_gpiod_get(&pdev->dev, "ts,csn", GPIOD_OUT_HIGH);
-	if (IS_ERR(ts_nbus->csn)) {
-		dev_err(&pdev->dev, "failed to retrieve ts,csn-gpio from dts\n");
-		return PTR_ERR(ts_nbus->csn);
-	}
+	if (IS_ERR(ts_nbus->csn))
+		return dev_err_probe(&pdev->dev, PTR_ERR(ts_nbus->csn),
+			      "failed to retrieve ts,csn-gpio from dts\n");
 
 	ts_nbus->txrx = devm_gpiod_get(&pdev->dev, "ts,txrx", GPIOD_OUT_HIGH);
-	if (IS_ERR(ts_nbus->txrx)) {
-		dev_err(&pdev->dev, "failed to retrieve ts,txrx-gpio from dts\n");
-		return PTR_ERR(ts_nbus->txrx);
-	}
+	if (IS_ERR(ts_nbus->txrx))
+		return dev_err_probe(&pdev->dev, PTR_ERR(ts_nbus->txrx),
+				     "failed to retrieve ts,txrx-gpio from dts\n");
 
 	ts_nbus->strobe = devm_gpiod_get(&pdev->dev, "ts,strobe", GPIOD_OUT_HIGH);
-	if (IS_ERR(ts_nbus->strobe)) {
-		dev_err(&pdev->dev, "failed to retrieve ts,strobe-gpio from dts\n");
-		return PTR_ERR(ts_nbus->strobe);
-	}
+	if (IS_ERR(ts_nbus->strobe))
+		return dev_err_probe(&pdev->dev, PTR_ERR(ts_nbus->strobe),
+				     "failed to retrieve ts,strobe-gpio from dts\n");
 
 	ts_nbus->ale = devm_gpiod_get(&pdev->dev, "ts,ale", GPIOD_OUT_HIGH);
-	if (IS_ERR(ts_nbus->ale)) {
-		dev_err(&pdev->dev, "failed to retrieve ts,ale-gpio from dts\n");
-		return PTR_ERR(ts_nbus->ale);
-	}
+	if (IS_ERR(ts_nbus->ale))
+		return dev_err_probe(&pdev->dev, PTR_ERR(ts_nbus->ale),
+				     "failed to retrieve ts,ale-gpio from dts\n");
 
 	ts_nbus->rdy = devm_gpiod_get(&pdev->dev, "ts,rdy", GPIOD_IN);
-	if (IS_ERR(ts_nbus->rdy)) {
-		dev_err(&pdev->dev, "failed to retrieve ts,rdy-gpio from dts\n");
-		return PTR_ERR(ts_nbus->rdy);
-	}
+	if (IS_ERR(ts_nbus->rdy))
+		return dev_err_probe(&pdev->dev, PTR_ERR(ts_nbus->rdy),
+				     "failed to retrieve ts,rdy-gpio from dts\n");
 
 	return 0;
 }
@@ -273,7 +267,7 @@ EXPORT_SYMBOL_GPL(ts_nbus_write);
 static int ts_nbus_probe(struct platform_device *pdev)
 {
 	struct pwm_device *pwm;
-	struct pwm_args pargs;
+	struct pwm_state state;
 	struct device *dev = &pdev->dev;
 	struct ts_nbus *ts_nbus;
 	int ret;
@@ -289,32 +283,24 @@ static int ts_nbus_probe(struct platform_device *pdev)
 		return ret;
 
 	pwm = devm_pwm_get(dev, NULL);
-	if (IS_ERR(pwm)) {
-		ret = PTR_ERR(pwm);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "unable to request PWM\n");
-		return ret;
-	}
+	if (IS_ERR(pwm))
+		return dev_err_probe(dev, PTR_ERR(pwm),
+				     "unable to request PWM\n");
 
-	pwm_get_args(pwm, &pargs);
-	if (!pargs.period) {
-		dev_err(&pdev->dev, "invalid PWM period\n");
-		return -EINVAL;
-	}
+	pwm_init_state(pwm, &state);
+	if (!state.period)
+		return dev_err_probe(dev, -EINVAL, "invalid PWM period\n");
 
-	/*
-	 * FIXME: pwm_apply_args() should be removed when switching to
-	 * the atomic PWM API.
-	 */
-	pwm_apply_args(pwm);
-	ret = pwm_config(pwm, pargs.period, pargs.period);
+	state.duty_cycle = state.period;
+	state.enabled = true;
+
+	ret = pwm_apply_state(pwm, &state);
 	if (ret < 0)
-		return ret;
+		return dev_err_probe(dev, ret, "failed to configure PWM\n");
 
 	/*
 	 * we can now start the FPGA and populate the peripherals.
 	 */
-	pwm_enable(pwm);
 	ts_nbus->pwm = pwm;
 
 	/*
@@ -324,7 +310,8 @@ static int ts_nbus_probe(struct platform_device *pdev)
 
 	ret = of_platform_populate(dev->of_node, NULL, NULL, dev);
 	if (ret < 0)
-		return ret;
+		return dev_err_probe(dev, ret,
+				     "failed to populate platform devices on bus\n");
 
 	dev_info(dev, "initialized\n");
 

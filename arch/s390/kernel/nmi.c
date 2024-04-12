@@ -23,16 +23,14 @@
 #include <linux/export.h>
 #include <asm/lowcore.h>
 #include <asm/ctlreg.h>
+#include <asm/fpu.h>
 #include <asm/smp.h>
 #include <asm/stp.h>
 #include <asm/cputime.h>
 #include <asm/nmi.h>
 #include <asm/crw.h>
-#include <asm/switch_to.h>
 #include <asm/asm-offsets.h>
 #include <asm/pai.h>
-#include <asm/vx-insn.h>
-#include <asm/fpu/api.h>
 
 struct mcck_struct {
 	unsigned int kill_task : 1;
@@ -204,133 +202,63 @@ void s390_handle_mcck(void)
 	}
 }
 
-/*
- * returns 0 if register contents could be validated
- * returns 1 otherwise
+/**
+ * nmi_registers_valid - verify if registers are valid
+ * @mci: machine check interruption code
+ *
+ * Inspect a machine check interruption code and verify if all required
+ * registers are valid. For some registers the corresponding validity bit is
+ * ignored and the registers are set to the expected value.
+ * Returns true if all registers are valid, otherwise false.
  */
-static int notrace s390_validate_registers(union mci mci)
+static bool notrace nmi_registers_valid(union mci mci)
 {
-	struct mcesa *mcesa;
-	void *fpt_save_area;
 	union ctlreg2 cr2;
-	int kill_task;
-	u64 zero;
 
-	kill_task = 0;
-	zero = 0;
-
-	if (!mci.gr || !mci.fp)
-		kill_task = 1;
-	fpt_save_area = &S390_lowcore.floating_pt_save_area;
-	if (!mci.fc) {
-		kill_task = 1;
-		asm volatile(
-			"	lfpc	%0\n"
-			:
-			: "Q" (zero));
-	} else {
-		asm volatile(
-			"	lfpc	%0\n"
-			:
-			: "Q" (S390_lowcore.fpt_creg_save_area));
-	}
-
-	mcesa = __va(S390_lowcore.mcesad & MCESA_ORIGIN_MASK);
-	if (!cpu_has_vx()) {
-		/* Validate floating point registers */
-		asm volatile(
-			"	ld	0,0(%0)\n"
-			"	ld	1,8(%0)\n"
-			"	ld	2,16(%0)\n"
-			"	ld	3,24(%0)\n"
-			"	ld	4,32(%0)\n"
-			"	ld	5,40(%0)\n"
-			"	ld	6,48(%0)\n"
-			"	ld	7,56(%0)\n"
-			"	ld	8,64(%0)\n"
-			"	ld	9,72(%0)\n"
-			"	ld	10,80(%0)\n"
-			"	ld	11,88(%0)\n"
-			"	ld	12,96(%0)\n"
-			"	ld	13,104(%0)\n"
-			"	ld	14,112(%0)\n"
-			"	ld	15,120(%0)\n"
-			:
-			: "a" (fpt_save_area)
-			: "memory");
-	} else {
-		/* Validate vector registers */
-		union ctlreg0 cr0;
-
-		/*
-		 * The vector validity must only be checked if not running a
-		 * KVM guest. For KVM guests the machine check is forwarded by
-		 * KVM and it is the responsibility of the guest to take
-		 * appropriate actions. The host vector or FPU values have been
-		 * saved by KVM and will be restored by KVM.
-		 */
-		if (!mci.vr && !test_cpu_flag(CIF_MCCK_GUEST))
-			kill_task = 1;
-		cr0.reg = S390_lowcore.cregs_save_area[0];
-		cr0.afp = cr0.vx = 1;
-		local_ctl_load(0, &cr0.reg);
-		asm volatile(
-			"	la	1,%0\n"
-			"	VLM	0,15,0,1\n"
-			"	VLM	16,31,256,1\n"
-			:
-			: "Q" (*(struct vx_array *)mcesa->vector_save_area)
-			: "1");
-		local_ctl_load(0, &S390_lowcore.cregs_save_area[0]);
-	}
-	/* Validate access registers */
-	asm volatile(
-		"	lam	0,15,0(%0)\n"
-		:
-		: "a" (&S390_lowcore.access_regs_save_area)
-		: "memory");
-	if (!mci.ar)
-		kill_task = 1;
-	/* Validate guarded storage registers */
-	cr2.reg = S390_lowcore.cregs_save_area[2];
-	if (cr2.gse) {
-		if (!mci.gs) {
-			/*
-			 * 2 cases:
-			 * - machine check in kernel or userspace
-			 * - machine check while running SIE (KVM guest)
-			 * For kernel or userspace the userspace values of
-			 * guarded storage control can not be recreated, the
-			 * process must be terminated.
-			 * For SIE the guest values of guarded storage can not
-			 * be recreated. This is either due to a bug or due to
-			 * GS being disabled in the guest. The guest will be
-			 * notified by KVM code and the guests machine check
-			 * handling must take care of this.  The host values
-			 * are saved by KVM and are not affected.
-			 */
-			if (!test_cpu_flag(CIF_MCCK_GUEST))
-				kill_task = 1;
-		} else {
-			load_gs_cb((struct gs_cb *)mcesa->guarded_storage_save_area);
-		}
-	}
 	/*
-	 * The getcpu vdso syscall reads CPU number from the programmable
+	 * The getcpu vdso syscall reads the CPU number from the programmable
 	 * field of the TOD clock. Disregard the TOD programmable register
-	 * validity bit and load the CPU number into the TOD programmable
-	 * field unconditionally.
+	 * validity bit and load the CPU number into the TOD programmable field
+	 * unconditionally.
 	 */
 	set_tod_programmable_field(raw_smp_processor_id());
-	/* Validate clock comparator register */
+	/*
+	 * Set the clock comparator register to the next expected value.
+	 */
 	set_clock_comparator(S390_lowcore.clock_comparator);
-
+	if (!mci.gr || !mci.fp || !mci.fc)
+		return false;
+	/*
+	 * The vector validity must only be checked if not running a
+	 * KVM guest. For KVM guests the machine check is forwarded by
+	 * KVM and it is the responsibility of the guest to take
+	 * appropriate actions. The host vector or FPU values have been
+	 * saved by KVM and will be restored by KVM.
+	 */
+	if (!mci.vr && !test_cpu_flag(CIF_MCCK_GUEST))
+		return false;
+	if (!mci.ar)
+		return false;
+	/*
+	 * Two cases for guarded storage registers:
+	 * - machine check in kernel or userspace
+	 * - machine check while running SIE (KVM guest)
+	 * For kernel or userspace the userspace values of guarded storage
+	 * control can not be recreated, the process must be terminated.
+	 * For SIE the guest values of guarded storage can not be recreated.
+	 * This is either due to a bug or due to GS being disabled in the
+	 * guest. The guest will be notified by KVM code and the guests machine
+	 * check handling must take care of this. The host values are saved by
+	 * KVM and are not affected.
+	 */
+	cr2.reg = S390_lowcore.cregs_save_area[2];
+	if (cr2.gse && !mci.gs && !test_cpu_flag(CIF_MCCK_GUEST))
+		return false;
 	if (!mci.ms || !mci.pm || !mci.ia)
-		kill_task = 1;
-
-	return kill_task;
+		return false;
+	return true;
 }
-NOKPROBE_SYMBOL(s390_validate_registers);
+NOKPROBE_SYMBOL(nmi_registers_valid);
 
 /*
  * Backup the guest's machine check info to its description block
@@ -428,7 +356,7 @@ void notrace s390_do_machine_check(struct pt_regs *regs)
 			s390_handle_damage();
 		}
 	}
-	if (s390_validate_registers(mci)) {
+	if (!nmi_registers_valid(mci)) {
 		if (!user_mode(regs))
 			s390_handle_damage();
 		/*

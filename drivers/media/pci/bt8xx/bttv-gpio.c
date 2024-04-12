@@ -55,7 +55,7 @@ static void bttv_sub_remove(struct device *dev)
 		sub->remove(sdev);
 }
 
-struct bus_type bttv_sub_bus_type = {
+const struct bus_type bttv_sub_bus_type = {
 	.name   = "bttv-sub",
 	.match  = &bttv_sub_bus_match,
 	.probe  = bttv_sub_probe,

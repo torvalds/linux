@@ -9,9 +9,15 @@
 /*
  * Trace sequences are used to allow a function to call several other functions
  * to create a string of data to use.
+ *
+ * Have the trace seq to be 8K which is typically PAGE_SIZE * 2 on
+ * most architectures. The TRACE_SEQ_BUFFER_SIZE (which is
+ * TRACE_SEQ_SIZE minus the other fields of trace_seq), is the
+ * max size the output of a trace event may be.
  */
 
-#define TRACE_SEQ_BUFFER_SIZE	(PAGE_SIZE * 2 - \
+#define TRACE_SEQ_SIZE		8192
+#define TRACE_SEQ_BUFFER_SIZE	(TRACE_SEQ_SIZE - \
 	(sizeof(struct seq_buf) + sizeof(size_t) + sizeof(int)))
 
 struct trace_seq {

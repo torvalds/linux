@@ -37,9 +37,6 @@
 
 #define RTO_ONLINK	0x01
 
-#define RT_CONN_FLAGS(sk)   (RT_TOS(READ_ONCE(inet_sk(sk)->tos)) | sock_flag(sk, SOCK_LOCALROUTE))
-#define RT_CONN_FLAGS_TOS(sk,tos)   (RT_TOS(tos) | sock_flag(sk, SOCK_LOCALROUTE))
-
 static inline __u8 ip_sock_rt_scope(const struct sock *sk)
 {
 	if (sock_flag(sk, SOCK_LOCALROUTE))
@@ -163,8 +160,8 @@ static inline struct rtable *ip_route_output_ports(struct net *net, struct flowi
 						   __u8 proto, __u8 tos, int oif)
 {
 	flowi4_init_output(fl4, oif, sk ? READ_ONCE(sk->sk_mark) : 0, tos,
-			   RT_SCOPE_UNIVERSE, proto,
-			   sk ? inet_sk_flowi_flags(sk) : 0,
+			   sk ? ip_sock_rt_scope(sk) : RT_SCOPE_UNIVERSE,
+			   proto, sk ? inet_sk_flowi_flags(sk) : 0,
 			   daddr, saddr, dport, sport, sock_net_uid(net, sk));
 	if (sk)
 		security_sk_classify_flow(sk, flowi4_to_flowi_common(fl4));

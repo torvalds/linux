@@ -21,6 +21,7 @@
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
 #include <linux/statfs.h>
+#include <linux/fs_context.h>
 #include "qnx4.h"
 
 #define QNX4_VERSION  4
@@ -30,27 +31,32 @@ static const struct super_operations qnx4_sops;
 
 static struct inode *qnx4_alloc_inode(struct super_block *sb);
 static void qnx4_free_inode(struct inode *inode);
-static int qnx4_remount(struct super_block *sb, int *flags, char *data);
 static int qnx4_statfs(struct dentry *, struct kstatfs *);
+static int qnx4_get_tree(struct fs_context *fc);
 
 static const struct super_operations qnx4_sops =
 {
 	.alloc_inode	= qnx4_alloc_inode,
 	.free_inode	= qnx4_free_inode,
 	.statfs		= qnx4_statfs,
-	.remount_fs	= qnx4_remount,
 };
 
-static int qnx4_remount(struct super_block *sb, int *flags, char *data)
+static int qnx4_reconfigure(struct fs_context *fc)
 {
+	struct super_block *sb = fc->root->d_sb;
 	struct qnx4_sb_info *qs;
 
 	sync_filesystem(sb);
 	qs = qnx4_sb(sb);
 	qs->Version = QNX4_VERSION;
-	*flags |= SB_RDONLY;
+	fc->sb_flags |= SB_RDONLY;
 	return 0;
 }
+
+static const struct fs_context_operations qnx4_context_opts = {
+	.get_tree	= qnx4_get_tree,
+	.reconfigure	= qnx4_reconfigure,
+};
 
 static int qnx4_get_block( struct inode *inode, sector_t iblock, struct buffer_head *bh, int create )
 {
@@ -183,12 +189,13 @@ static const char *qnx4_checkroot(struct super_block *sb,
 	return "bitmap file not found.";
 }
 
-static int qnx4_fill_super(struct super_block *s, void *data, int silent)
+static int qnx4_fill_super(struct super_block *s, struct fs_context *fc)
 {
 	struct buffer_head *bh;
 	struct inode *root;
 	const char *errmsg;
 	struct qnx4_sb_info *qs;
+	int silent = fc->sb_flags & SB_SILENT;
 
 	qs = kzalloc(sizeof(struct qnx4_sb_info), GFP_KERNEL);
 	if (!qs)
@@ -216,7 +223,7 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
 	errmsg = qnx4_checkroot(s, (struct qnx4_super_block *) bh->b_data);
 	brelse(bh);
 	if (errmsg != NULL) {
- 		if (!silent)
+		if (!silent)
 			printk(KERN_ERR "qnx4: %s\n", errmsg);
 		return -EINVAL;
 	}
@@ -231,6 +238,18 @@ static int qnx4_fill_super(struct super_block *s, void *data, int silent)
  	s->s_root = d_make_root(root);
  	if (s->s_root == NULL)
  		return -ENOMEM;
+
+	return 0;
+}
+
+static int qnx4_get_tree(struct fs_context *fc)
+{
+	return get_tree_bdev(fc, qnx4_fill_super);
+}
+
+static int qnx4_init_fs_context(struct fs_context *fc)
+{
+	fc->ops = &qnx4_context_opts;
 
 	return 0;
 }
@@ -359,7 +378,7 @@ static int init_inodecache(void)
 	qnx4_inode_cachep = kmem_cache_create("qnx4_inode_cache",
 					     sizeof(struct qnx4_inode_info),
 					     0, (SLAB_RECLAIM_ACCOUNT|
-						SLAB_MEM_SPREAD|SLAB_ACCOUNT),
+						SLAB_ACCOUNT),
 					     init_once);
 	if (qnx4_inode_cachep == NULL)
 		return -ENOMEM;
@@ -376,18 +395,12 @@ static void destroy_inodecache(void)
 	kmem_cache_destroy(qnx4_inode_cachep);
 }
 
-static struct dentry *qnx4_mount(struct file_system_type *fs_type,
-	int flags, const char *dev_name, void *data)
-{
-	return mount_bdev(fs_type, flags, dev_name, data, qnx4_fill_super);
-}
-
 static struct file_system_type qnx4_fs_type = {
-	.owner		= THIS_MODULE,
-	.name		= "qnx4",
-	.mount		= qnx4_mount,
-	.kill_sb	= qnx4_kill_sb,
-	.fs_flags	= FS_REQUIRES_DEV,
+	.owner			= THIS_MODULE,
+	.name			= "qnx4",
+	.kill_sb		= qnx4_kill_sb,
+	.fs_flags		= FS_REQUIRES_DEV,
+	.init_fs_context	= qnx4_init_fs_context,
 };
 MODULE_ALIAS_FS("qnx4");
 

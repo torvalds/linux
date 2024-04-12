@@ -419,21 +419,10 @@ static bool partition_overlaps(struct gendisk *disk, sector_t start,
 int bdev_add_partition(struct gendisk *disk, int partno, sector_t start,
 		sector_t length)
 {
-	sector_t capacity = get_capacity(disk), end;
 	struct block_device *part;
 	int ret;
 
 	mutex_lock(&disk->open_mutex);
-	if (check_add_overflow(start, length, &end)) {
-		ret = -EINVAL;
-		goto out;
-	}
-
-	if (start >= capacity || end > capacity) {
-		ret = -EINVAL;
-		goto out;
-	}
-
 	if (!disk_live(disk)) {
 		ret = -ENXIO;
 		goto out;

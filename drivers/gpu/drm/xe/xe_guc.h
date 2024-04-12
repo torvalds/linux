@@ -13,6 +13,7 @@
 
 struct drm_printer;
 
+void xe_guc_comm_init_early(struct xe_guc *guc);
 int xe_guc_init(struct xe_guc *guc);
 int xe_guc_init_post_hwconfig(struct xe_guc *guc);
 int xe_guc_post_load_init(struct xe_guc *guc);

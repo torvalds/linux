@@ -53,6 +53,8 @@
 
 MODULE_FIRMWARE("amdgpu/smu_14_0_2.bin");
 
+#define ENABLE_IMU_ARG_GFXOFF_ENABLE		1
+
 int smu_v14_0_init_microcode(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
@@ -229,10 +231,12 @@ int smu_v14_0_check_fw_version(struct smu_context *smu)
 		smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_SMU_V14_0_2;
 		break;
 	case IP_VERSION(14, 0, 0):
-		if ((smu->smc_fw_version < 0x5d3a00))
-			dev_warn(smu->adev->dev, "The PMFW version(%x) is behind in this BIOS!\n", smu->smc_fw_version);
 		smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_SMU_V14_0_0;
 		break;
+	case IP_VERSION(14, 0, 1):
+		smu->smc_driver_if_version = SMU14_DRIVER_IF_VERSION_SMU_V14_0_0;
+		break;
+
 	default:
 		dev_err(adev->dev, "smu unsupported IP version: 0x%x.\n",
 			amdgpu_ip_version(adev, MP1_HWIP, 0));
@@ -736,6 +740,7 @@ int smu_v14_0_gfx_off_control(struct smu_context *smu, bool enable)
 	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
 	case IP_VERSION(14, 0, 2):
 	case IP_VERSION(14, 0, 0):
+	case IP_VERSION(14, 0, 1):
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
 		if (enable)
@@ -892,7 +897,7 @@ int smu_v14_0_register_irq_handler(struct smu_context *smu)
 	// TODO: THM related
 
 	ret = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_MP1,
-				0xfe,
+				SMU_IH_INTERRUPT_ID_TO_DRIVER,
 				irq_src);
 	if (ret)
 		return ret;
@@ -1397,9 +1402,22 @@ int smu_v14_0_set_vcn_enable(struct smu_context *smu,
 		if (adev->vcn.harvest_config & (1 << i))
 			continue;
 
-		ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
-						      SMU_MSG_PowerUpVcn : SMU_MSG_PowerDownVcn,
-						      i << 16U, NULL);
+		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
+		    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1)) {
+			if (i == 0)
+				ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
+								      SMU_MSG_PowerUpVcn0 : SMU_MSG_PowerDownVcn0,
+								      i << 16U, NULL);
+			else if (i == 1)
+				ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
+								      SMU_MSG_PowerUpVcn1 : SMU_MSG_PowerDownVcn1,
+								      i << 16U, NULL);
+		} else {
+			ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
+							      SMU_MSG_PowerUpVcn : SMU_MSG_PowerDownVcn,
+							      i << 16U, NULL);
+		}
+
 		if (ret)
 			return ret;
 	}
@@ -1410,9 +1428,34 @@ int smu_v14_0_set_vcn_enable(struct smu_context *smu,
 int smu_v14_0_set_jpeg_enable(struct smu_context *smu,
 			      bool enable)
 {
-	return smu_cmn_send_smc_msg_with_param(smu, enable ?
-					       SMU_MSG_PowerUpJpeg : SMU_MSG_PowerDownJpeg,
-					       0, NULL);
+	struct amdgpu_device *adev = smu->adev;
+	int i, ret = 0;
+
+	for (i = 0; i < adev->jpeg.num_jpeg_inst; i++) {
+		if (adev->jpeg.harvest_config & (1 << i))
+			continue;
+
+		if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 0) ||
+		    amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1)) {
+			if (i == 0)
+				ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
+								      SMU_MSG_PowerUpJpeg0 : SMU_MSG_PowerDownJpeg0,
+								      i << 16U, NULL);
+			else if (i == 1 && amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(14, 0, 1))
+				ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
+								      SMU_MSG_PowerUpJpeg1 : SMU_MSG_PowerDownJpeg1,
+								      i << 16U, NULL);
+		} else {
+			ret = smu_cmn_send_smc_msg_with_param(smu, enable ?
+							      SMU_MSG_PowerUpJpeg : SMU_MSG_PowerDownJpeg,
+							      i << 16U, NULL);
+		}
+
+		if (ret)
+			return ret;
+	}
+
+	return ret;
 }
 
 int smu_v14_0_run_btc(struct smu_context *smu)
@@ -1630,11 +1673,16 @@ int smu_v14_0_baco_exit(struct smu_context *smu)
 int smu_v14_0_set_gfx_power_up_by_imu(struct smu_context *smu)
 {
 	uint16_t index;
+	struct amdgpu_device *adev = smu->adev;
+
+	if (adev->firmware.load_type == AMDGPU_FW_LOAD_PSP) {
+		return smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_EnableGfxImu,
+						       ENABLE_IMU_ARG_GFXOFF_ENABLE, NULL);
+	}
 
 	index = smu_cmn_to_asic_specific_index(smu, CMN2ASIC_MAPPING_MSG,
 					       SMU_MSG_EnableGfxImu);
-	/* Param 1 to tell PMFW to enable GFXOFF feature */
-	return smu_cmn_send_msg_without_waiting(smu, index, 1);
+	return smu_cmn_send_msg_without_waiting(smu, index, ENABLE_IMU_ARG_GFXOFF_ENABLE);
 }
 
 int smu_v14_0_set_default_dpm_tables(struct smu_context *smu)

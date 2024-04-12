@@ -108,6 +108,7 @@ static int go_tx(struct net_device *dev);
 
 static int debug = ARCNET_DEBUG;
 module_param(debug, int, 0);
+MODULE_DESCRIPTION("ARCnet core driver");
 MODULE_LICENSE("GPL");
 
 static int __init arcnet_init(void)

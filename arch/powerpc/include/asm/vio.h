@@ -39,7 +39,7 @@
  */
 #define VIO_CMO_MIN_ENT 1562624
 
-extern struct bus_type vio_bus_type;
+extern const struct bus_type vio_bus_type;
 
 struct iommu_table;
 

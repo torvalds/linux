@@ -5,10 +5,12 @@
 // Copyright (C) 2023 Cirrus Logic, Inc. and
 //                    Cirrus Logic International Semiconductor Ltd.
 
+#include <linux/firmware/cirrus/wmfw.h>
 #include <linux/gpio/consumer.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
 #include <linux/types.h>
+#include <sound/cs-amp-lib.h>
 
 #include "cs35l56.h"
 
@@ -36,6 +38,8 @@ int cs35l56_set_patch(struct cs35l56_base *cs35l56_base)
 EXPORT_SYMBOL_NS_GPL(cs35l56_set_patch, SND_SOC_CS35L56_SHARED);
 
 static const struct reg_default cs35l56_reg_defaults[] = {
+	/* no defaults for OTP_MEM - first read populates cache */
+
 	{ CS35L56_ASP1_ENABLES1,		0x00000000 },
 	{ CS35L56_ASP1_CONTROL1,		0x00000028 },
 	{ CS35L56_ASP1_CONTROL2,		0x18180200 },
@@ -91,6 +95,9 @@ static bool cs35l56_readable_reg(struct device *dev, unsigned int reg)
 	case CS35L56_BLOCK_ENABLES2:
 	case CS35L56_REFCLK_INPUT:
 	case CS35L56_GLOBAL_SAMPLE_RATE:
+	case CS35L56_OTP_MEM_53:
+	case CS35L56_OTP_MEM_54:
+	case CS35L56_OTP_MEM_55:
 	case CS35L56_ASP1_ENABLES1:
 	case CS35L56_ASP1_CONTROL1:
 	case CS35L56_ASP1_CONTROL2:
@@ -629,6 +636,82 @@ void cs35l56_init_cs_dsp(struct cs35l56_base *cs35l56_base, struct cs_dsp *cs_ds
 }
 EXPORT_SYMBOL_NS_GPL(cs35l56_init_cs_dsp, SND_SOC_CS35L56_SHARED);
 
+struct cs35l56_pte {
+	u8 x;
+	u8 wafer_id;
+	u8 pte[2];
+	u8 lot[3];
+	u8 y;
+	u8 unused[3];
+	u8 dvs;
+} __packed;
+static_assert((sizeof(struct cs35l56_pte) % sizeof(u32)) == 0);
+
+static int cs35l56_read_silicon_uid(struct cs35l56_base *cs35l56_base, u64 *uid)
+{
+	struct cs35l56_pte pte;
+	u64 unique_id;
+	int ret;
+
+	ret = regmap_raw_read(cs35l56_base->regmap, CS35L56_OTP_MEM_53, &pte, sizeof(pte));
+	if (ret) {
+		dev_err(cs35l56_base->dev, "Failed to read OTP: %d\n", ret);
+		return ret;
+	}
+
+	unique_id = (u32)pte.lot[2] | ((u32)pte.lot[1] << 8) | ((u32)pte.lot[0] << 16);
+	unique_id <<= 32;
+	unique_id |= (u32)pte.x | ((u32)pte.y << 8) | ((u32)pte.wafer_id << 16) |
+		     ((u32)pte.dvs << 24);
+
+	dev_dbg(cs35l56_base->dev, "UniqueID = %#llx\n", unique_id);
+
+	*uid = unique_id;
+
+	return 0;
+}
+
+/* Firmware calibration controls */
+const struct cirrus_amp_cal_controls cs35l56_calibration_controls = {
+	.alg_id =	0x9f210,
+	.mem_region =	WMFW_ADSP2_YM,
+	.ambient =	"CAL_AMBIENT",
+	.calr =		"CAL_R",
+	.status =	"CAL_STATUS",
+	.checksum =	"CAL_CHECKSUM",
+};
+EXPORT_SYMBOL_NS_GPL(cs35l56_calibration_controls, SND_SOC_CS35L56_SHARED);
+
+int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base)
+{
+	u64 silicon_uid;
+	int ret;
+
+	/* Driver can't apply calibration to a secured part, so skip */
+	if (cs35l56_base->secured)
+		return 0;
+
+	ret = cs35l56_read_silicon_uid(cs35l56_base, &silicon_uid);
+	if (ret < 0)
+		return ret;
+
+	ret = cs_amp_get_efi_calibration_data(cs35l56_base->dev, silicon_uid,
+					      cs35l56_base->cal_index,
+					      &cs35l56_base->cal_data);
+
+	/* Only return an error status if probe should be aborted */
+	if ((ret == -ENOENT) || (ret == -EOVERFLOW))
+		return 0;
+
+	if (ret < 0)
+		return ret;
+
+	cs35l56_base->cal_data_valid = true;
+
+	return 0;
+}
+EXPORT_SYMBOL_NS_GPL(cs35l56_get_calibration, SND_SOC_CS35L56_SHARED);
+
 int cs35l56_read_prot_status(struct cs35l56_base *cs35l56_base,
 			     bool *fw_missing, unsigned int *fw_version)
 {
@@ -693,12 +776,16 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	devid &= CS35L56_DEVID_MASK;
 
 	switch (devid) {
+	case 0x35A54:
 	case 0x35A56:
+	case 0x35A57:
 		break;
 	default:
 		dev_err(cs35l56_base->dev, "Unknown device %x\n", devid);
 		return ret;
 	}
+
+	cs35l56_base->type = devid & 0xFF;
 
 	ret = regmap_read(cs35l56_base->regmap, CS35L56_DSP_RESTRICT_STS1, &secured);
 	if (ret) {
@@ -720,8 +807,8 @@ int cs35l56_hw_init(struct cs35l56_base *cs35l56_base)
 	if (ret)
 		return ret;
 
-	dev_info(cs35l56_base->dev, "Cirrus Logic CS35L56%s Rev %02X OTP%d fw:%d.%d.%d (patched=%u)\n",
-		 cs35l56_base->secured ? "s" : "", cs35l56_base->rev, otpid,
+	dev_info(cs35l56_base->dev, "Cirrus Logic CS35L%02X%s Rev %02X OTP%d fw:%d.%d.%d (patched=%u)\n",
+		 cs35l56_base->type, cs35l56_base->secured ? "s" : "", cs35l56_base->rev, otpid,
 		 fw_ver >> 16, (fw_ver >> 8) & 0xff, fw_ver & 0xff, !fw_missing);
 
 	/* Wake source and *_BLOCKED interrupts default to unmasked, so mask them */
@@ -923,3 +1010,4 @@ MODULE_DESCRIPTION("ASoC CS35L56 Shared");
 MODULE_AUTHOR("Richard Fitzgerald <rf@opensource.cirrus.com>");
 MODULE_AUTHOR("Simon Trimmer <simont@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(SND_SOC_CS_AMP_LIB);

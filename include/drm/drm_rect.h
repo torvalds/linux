@@ -129,7 +129,7 @@ static inline void drm_rect_adjust_size(struct drm_rect *r, int dw, int dh)
 
 /**
  * drm_rect_translate - translate the rectangle
- * @r: rectangle to be tranlated
+ * @r: rectangle to be translated
  * @dx: horizontal translation
  * @dy: vertical translation
  *
@@ -146,7 +146,7 @@ static inline void drm_rect_translate(struct drm_rect *r, int dx, int dy)
 
 /**
  * drm_rect_translate_to - translate the rectangle to an absolute position
- * @r: rectangle to be tranlated
+ * @r: rectangle to be translated
  * @x: horizontal position
  * @y: vertical position
  *

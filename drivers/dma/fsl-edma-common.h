@@ -88,6 +88,20 @@ struct fsl_edma_hw_tcd {
 	__le16	biter;
 };
 
+struct fsl_edma_hw_tcd64 {
+	__le64  saddr;
+	__le16  soff;
+	__le16  attr;
+	__le32  nbytes;
+	__le64  slast;
+	__le64  daddr;
+	__le64  dlast_sga;
+	__le16  doff;
+	__le16  citer;
+	__le16  csr;
+	__le16  biter;
+} __packed;
+
 struct fsl_edma3_ch_reg {
 	__le32	ch_csr;
 	__le32	ch_es;
@@ -97,7 +111,10 @@ struct fsl_edma3_ch_reg {
 	__le32	ch_mux;
 	__le32  ch_mattr; /* edma4, reserved for edma3 */
 	__le32  ch_reserved;
-	struct fsl_edma_hw_tcd tcd;
+	union {
+		struct fsl_edma_hw_tcd tcd;
+		struct fsl_edma_hw_tcd64 tcd64;
+	};
 } __packed;
 
 /*
@@ -126,7 +143,7 @@ struct edma_regs {
 
 struct fsl_edma_sw_tcd {
 	dma_addr_t			ptcd;
-	struct fsl_edma_hw_tcd		*vtcd;
+	void				*vtcd;
 };
 
 struct fsl_edma_chan {
@@ -145,7 +162,8 @@ struct fsl_edma_chan {
 	u32				dma_dev_size;
 	enum dma_data_direction		dma_dir;
 	char				chan_name[32];
-	struct fsl_edma_hw_tcd __iomem *tcd;
+	void __iomem			*tcd;
+	void __iomem			*mux_addr;
 	u32				real_count;
 	struct work_struct		issue_worker;
 	struct platform_device		*pdev;
@@ -188,6 +206,7 @@ struct fsl_edma_desc {
 #define FSL_EDMA_DRV_CLEAR_DONE_E_SG	BIT(13)
 /* Need clean CHn_CSR DONE before enable TCD's MAJORELINK */
 #define FSL_EDMA_DRV_CLEAR_DONE_E_LINK	BIT(14)
+#define FSL_EDMA_DRV_TCD64		BIT(15)
 
 #define FSL_EDMA_DRV_EDMA3	(FSL_EDMA_DRV_SPLIT_REG |	\
 				 FSL_EDMA_DRV_BUS_8BYTE |	\
@@ -207,6 +226,8 @@ struct fsl_edma_drvdata {
 	u32			chreg_off;
 	u32			chreg_space_sz;
 	u32			flags;
+	u32			mux_off;	/* channel mux register offset */
+	u32			mux_skip;	/* how much skip for each channel */
 	int			(*setup_irq)(struct platform_device *pdev,
 					     struct fsl_edma_engine *fsl_edma);
 };
@@ -229,23 +250,108 @@ struct fsl_edma_engine {
 	struct fsl_edma_chan	chans[] __counted_by(n_chans);
 };
 
-#define edma_read_tcdreg(chan, __name)				\
-(sizeof(chan->tcd->__name) == sizeof(u32) ?			\
-	edma_readl(chan->edma, &chan->tcd->__name) :		\
-	edma_readw(chan->edma, &chan->tcd->__name))
+#define edma_read_tcdreg_c(chan, _tcd,  __name)				\
+(sizeof((_tcd)->__name) == sizeof(u64) ?				\
+	edma_readq(chan->edma, &(_tcd)->__name) :			\
+		((sizeof((_tcd)->__name) == sizeof(u32)) ?		\
+			edma_readl(chan->edma, &(_tcd)->__name) :	\
+			edma_readw(chan->edma, &(_tcd)->__name)		\
+		))
 
-#define edma_write_tcdreg(chan, val, __name)			\
-(sizeof(chan->tcd->__name) == sizeof(u32) ?			\
-	edma_writel(chan->edma, (u32 __force)val, &chan->tcd->__name) :	\
-	edma_writew(chan->edma, (u16 __force)val, &chan->tcd->__name))
+#define edma_read_tcdreg(chan, __name)								\
+((fsl_edma_drvflags(chan) & FSL_EDMA_DRV_TCD64) ?						\
+	edma_read_tcdreg_c(chan, ((struct fsl_edma_hw_tcd64 __iomem *)chan->tcd), __name) :	\
+	edma_read_tcdreg_c(chan, ((struct fsl_edma_hw_tcd __iomem *)chan->tcd), __name)		\
+)
+
+#define edma_write_tcdreg_c(chan, _tcd, _val, __name)				\
+do {										\
+	switch (sizeof(_tcd->__name)) {						\
+	case sizeof(u64):							\
+		edma_writeq(chan->edma, (u64 __force)_val, &_tcd->__name);	\
+		break;								\
+	case sizeof(u32):							\
+		edma_writel(chan->edma, (u32 __force)_val, &_tcd->__name);	\
+		break;								\
+	case sizeof(u16):							\
+		edma_writew(chan->edma, (u16 __force)_val, &_tcd->__name);	\
+		break;								\
+	case sizeof(u8):							\
+		edma_writeb(chan->edma, (u8 __force)_val, &_tcd->__name);	\
+		break;								\
+	}									\
+} while (0)
+
+#define edma_write_tcdreg(chan, val, __name)							   \
+do {												   \
+	struct fsl_edma_hw_tcd64 __iomem *tcd64_r = (struct fsl_edma_hw_tcd64 __iomem *)chan->tcd; \
+	struct fsl_edma_hw_tcd __iomem *tcd_r = (struct fsl_edma_hw_tcd __iomem *)chan->tcd;	   \
+												   \
+	if (fsl_edma_drvflags(chan) & FSL_EDMA_DRV_TCD64)					   \
+		edma_write_tcdreg_c(chan, tcd64_r, val, __name);				   \
+	else											   \
+		edma_write_tcdreg_c(chan, tcd_r, val, __name);					   \
+} while (0)
+
+#define edma_cp_tcd_to_reg(chan, __tcd, __name)							   \
+do {	\
+	struct fsl_edma_hw_tcd64 __iomem *tcd64_r = (struct fsl_edma_hw_tcd64 __iomem *)chan->tcd; \
+	struct fsl_edma_hw_tcd __iomem *tcd_r = (struct fsl_edma_hw_tcd __iomem *)chan->tcd;	   \
+	struct fsl_edma_hw_tcd64 *tcd64_m = (struct fsl_edma_hw_tcd64 *)__tcd;			   \
+	struct fsl_edma_hw_tcd *tcd_m = (struct fsl_edma_hw_tcd *)__tcd;			   \
+												   \
+	if (fsl_edma_drvflags(chan) & FSL_EDMA_DRV_TCD64)					   \
+		edma_write_tcdreg_c(chan, tcd64_r,  tcd64_m->__name, __name);			   \
+	else											   \
+		edma_write_tcdreg_c(chan, tcd_r, tcd_m->__name, __name);			   \
+} while (0)
 
 #define edma_readl_chreg(chan, __name)				\
 	edma_readl(chan->edma,					\
-		   (void __iomem *)&(container_of(chan->tcd, struct fsl_edma3_ch_reg, tcd)->__name))
+		   (void __iomem *)&(container_of(((__force void *)chan->tcd),\
+						  struct fsl_edma3_ch_reg, tcd)->__name))
 
 #define edma_writel_chreg(chan, val,  __name)			\
 	edma_writel(chan->edma, val,				\
-		   (void __iomem *)&(container_of(chan->tcd, struct fsl_edma3_ch_reg, tcd)->__name))
+		   (void __iomem *)&(container_of(((__force void *)chan->tcd),\
+						  struct fsl_edma3_ch_reg, tcd)->__name))
+
+#define fsl_edma_get_tcd(_chan, _tcd, _field)			\
+(fsl_edma_drvflags(_chan) & FSL_EDMA_DRV_TCD64 ? (((struct fsl_edma_hw_tcd64 *)_tcd)->_field) : \
+						 (((struct fsl_edma_hw_tcd *)_tcd)->_field))
+
+#define fsl_edma_le_to_cpu(x)						\
+(sizeof(x) == sizeof(u64) ? le64_to_cpu((__force __le64)(x)) :		\
+	(sizeof(x) == sizeof(u32) ? le32_to_cpu((__force __le32)(x)) :	\
+				    le16_to_cpu((__force __le16)(x))))
+
+#define fsl_edma_get_tcd_to_cpu(_chan, _tcd, _field)				\
+(fsl_edma_drvflags(_chan) & FSL_EDMA_DRV_TCD64 ?				\
+	fsl_edma_le_to_cpu(((struct fsl_edma_hw_tcd64 *)_tcd)->_field) :	\
+	fsl_edma_le_to_cpu(((struct fsl_edma_hw_tcd *)_tcd)->_field))
+
+#define fsl_edma_set_tcd_to_le_c(_tcd, _val, _field)					\
+do {											\
+	switch (sizeof((_tcd)->_field)) {						\
+	case sizeof(u64):								\
+		*(__force __le64 *)(&((_tcd)->_field)) = cpu_to_le64(_val);		\
+		break;									\
+	case sizeof(u32):								\
+		*(__force __le32 *)(&((_tcd)->_field)) = cpu_to_le32(_val);		\
+		break;									\
+	case sizeof(u16):								\
+		*(__force __le16 *)(&((_tcd)->_field)) = cpu_to_le16(_val);		\
+		break;									\
+	}										\
+} while (0)
+
+#define fsl_edma_set_tcd_to_le(_chan, _tcd, _val, _field)	\
+do {								\
+	if (fsl_edma_drvflags(_chan) & FSL_EDMA_DRV_TCD64)	\
+		fsl_edma_set_tcd_to_le_c((struct fsl_edma_hw_tcd64 *)_tcd, _val, _field);	\
+	else											\
+		fsl_edma_set_tcd_to_le_c((struct fsl_edma_hw_tcd *)_tcd, _val, _field);		\
+} while (0)
 
 /*
  * R/W functions for big- or little-endian registers:
@@ -253,6 +359,21 @@ struct fsl_edma_engine {
  * For the big-endian IP module, the offset for 8-bit or 16-bit registers
  * should also be swapped opposite to that in little-endian IP.
  */
+static inline u64 edma_readq(struct fsl_edma_engine *edma, void __iomem *addr)
+{
+	u64 l, h;
+
+	if (edma->big_endian) {
+		l = ioread32be(addr);
+		h = ioread32be(addr + 4);
+	} else {
+		l = ioread32(addr);
+		h = ioread32(addr + 4);
+	}
+
+	return (h << 32) | l;
+}
+
 static inline u32 edma_readl(struct fsl_edma_engine *edma, void __iomem *addr)
 {
 	if (edma->big_endian)
@@ -296,6 +417,18 @@ static inline void edma_writel(struct fsl_edma_engine *edma,
 		iowrite32be(val, addr);
 	else
 		iowrite32(val, addr);
+}
+
+static inline void edma_writeq(struct fsl_edma_engine *edma,
+			       u64 val, void __iomem *addr)
+{
+	if (edma->big_endian) {
+		iowrite32be(val & 0xFFFFFFFF, addr);
+		iowrite32be(val >> 32, addr + 4);
+	} else {
+		iowrite32(val & 0xFFFFFFFF, addr);
+		iowrite32(val >> 32, addr + 4);
+	}
 }
 
 static inline struct fsl_edma_chan *to_fsl_edma_chan(struct dma_chan *chan)

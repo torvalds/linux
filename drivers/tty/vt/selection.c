@@ -7,7 +7,7 @@
  *     'int set_selection_kernel(struct tiocl_selection *, struct tty_struct *)'
  *     'void clear_selection(void)'
  *     'int paste_selection(struct tty_struct *)'
- *     'int sel_loadlut(char __user *)'
+ *     'int sel_loadlut(u32 __user *)'
  *
  * Now that /dev/vcs exists, most of this can disappear again.
  */
@@ -73,10 +73,12 @@ sel_pos(int n, bool unicode)
 }
 
 /**
- *	clear_selection		-	remove current selection
+ * clear_selection - remove current selection
  *
- *	Remove the current selection highlight, if any from the console
- *	holding the selection. The caller must hold the console lock.
+ * Remove the current selection highlight, if any from the console holding the
+ * selection.
+ *
+ * Locking: The caller must hold the console lock.
  */
 void clear_selection(void)
 {
@@ -88,7 +90,7 @@ void clear_selection(void)
 }
 EXPORT_SYMBOL_GPL(clear_selection);
 
-bool vc_is_sel(struct vc_data *vc)
+bool vc_is_sel(const struct vc_data *vc)
 {
 	return vc == vc_sel.cons;
 }
@@ -110,18 +112,25 @@ static inline int inword(const u32 c)
 }
 
 /**
- *	sel_loadlut()		-	load the LUT table
- *	@p: user table
+ * sel_loadlut() - load the LUT table
+ * @lut: user table
  *
- *	Load the LUT table from user space. The caller must hold the console
- *	lock. Make a temporary copy so a partial update doesn't make a mess.
+ * Load the LUT table from user space. Make a temporary copy so a partial
+ * update doesn't make a mess.
+ *
+ * Locking: The console lock is acquired.
  */
-int sel_loadlut(char __user *p)
+int sel_loadlut(u32 __user *lut)
 {
 	u32 tmplut[ARRAY_SIZE(inwordLut)];
-	if (copy_from_user(tmplut, (u32 __user *)(p+4), sizeof(inwordLut)))
+
+	if (copy_from_user(tmplut, lut, sizeof(inwordLut)))
 		return -EFAULT;
+
+	console_lock();
 	memcpy(inwordLut, tmplut, sizeof(inwordLut));
+	console_unlock();
+
 	return 0;
 }
 
@@ -166,14 +175,14 @@ static int store_utf8(u32 c, char *p)
 }
 
 /**
- *	set_selection_user	-	set the current selection.
- *	@sel: user selection info
- *	@tty: the console tty
+ * set_selection_user - set the current selection.
+ * @sel: user selection info
+ * @tty: the console tty
  *
- *	Invoked by the ioctl handle for the vt layer.
+ * Invoked by the ioctl handle for the vt layer.
  *
- *	The entire selection process is managed under the console_lock. It's
- *	 a lot under the lock but its hardly a performance path
+ * Locking: The entire selection process is managed under the console_lock.
+ * It's a lot under the lock but its hardly a performance path.
  */
 int set_selection_user(const struct tiocl_selection __user *sel,
 		       struct tty_struct *tty)

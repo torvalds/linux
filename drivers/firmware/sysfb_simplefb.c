@@ -91,7 +91,8 @@ __init bool sysfb_parse_mode(const struct screen_info *si,
 }
 
 __init struct platform_device *sysfb_create_simplefb(const struct screen_info *si,
-						     const struct simplefb_platform_data *mode)
+						     const struct simplefb_platform_data *mode,
+						     struct device *parent)
 {
 	struct platform_device *pd;
 	struct resource res;
@@ -142,6 +143,8 @@ __init struct platform_device *sysfb_create_simplefb(const struct screen_info *s
 	pd = platform_device_alloc("simple-framebuffer", 0);
 	if (!pd)
 		return ERR_PTR(-ENOMEM);
+
+	pd->dev.parent = parent;
 
 	sysfb_set_efifb_fwnode(pd);
 

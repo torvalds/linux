@@ -239,6 +239,9 @@
 #define GCC_USB30_PRIM_BCR					26
 #define GCC_USB30_SEC_BCR					27
 #define GCC_USB_PHY_CFG_AHB2PHY_BCR				28
+#define GCC_VIDEO_AXIC_CLK_BCR					29
+#define GCC_VIDEO_AXI0_CLK_BCR					30
+#define GCC_VIDEO_AXI1_CLK_BCR					31
 
 /* GCC GDSCRs */
 #define PCIE_0_GDSC						0

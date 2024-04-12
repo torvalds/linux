@@ -325,7 +325,7 @@ static int intel_dsb_dewake_scanline(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
 	const struct drm_display_mode *adjusted_mode = &crtc_state->hw.adjusted_mode;
-	unsigned int latency = skl_watermark_max_latency(i915);
+	unsigned int latency = skl_watermark_max_latency(i915, 0);
 	int vblank_start;
 
 	if (crtc_state->vrr.enable) {
@@ -338,6 +338,17 @@ static int intel_dsb_dewake_scanline(const struct intel_crtc_state *crtc_state)
 	}
 
 	return max(0, vblank_start - intel_usecs_to_scanlines(adjusted_mode, latency));
+}
+
+static u32 dsb_chicken(struct intel_crtc *crtc)
+{
+	if (crtc->mode_flags & I915_MODE_FLAG_VRR)
+		return DSB_CTRL_WAIT_SAFE_WINDOW |
+			DSB_CTRL_NO_WAIT_VBLANK |
+			DSB_INST_WAIT_SAFE_WINDOW |
+			DSB_INST_NO_WAIT_VBLANK;
+	else
+		return 0;
 }
 
 static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
@@ -360,6 +371,9 @@ static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,
 
 	intel_de_write_fw(dev_priv, DSB_CTRL(pipe, dsb->id),
 			  ctrl | DSB_ENABLE);
+
+	intel_de_write_fw(dev_priv, DSB_CHICKEN(pipe, dsb->id),
+			  dsb_chicken(crtc));
 
 	intel_de_write_fw(dev_priv, DSB_HEAD(pipe, dsb->id),
 			  intel_dsb_buffer_ggtt_offset(&dsb->dsb_buf));
@@ -451,6 +465,10 @@ struct intel_dsb *intel_dsb_prepare(const struct intel_crtc_state *crtc_state,
 	unsigned int size;
 
 	if (!HAS_DSB(i915))
+		return NULL;
+
+	/* TODO: DSB is broken in Xe KMD, so disabling it until fixed */
+	if (!IS_ENABLED(I915))
 		return NULL;
 
 	dsb = kzalloc(sizeof(*dsb), GFP_KERNEL);

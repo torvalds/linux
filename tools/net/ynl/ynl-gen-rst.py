@@ -189,12 +189,19 @@ def parse_operations(operations: List[Dict[str, Any]]) -> str:
 
 def parse_entries(entries: List[Dict[str, Any]], level: int) -> str:
     """Parse a list of entries"""
+    ignored = ["pad"]
     lines = []
     for entry in entries:
         if isinstance(entry, dict):
             # entries could be a list or a dictionary
+            field_name = entry.get("name", "")
+            if field_name in ignored:
+                continue
+            type_ = entry.get("type")
+            if type_:
+                field_name += f" ({inline(type_)})"
             lines.append(
-                rst_fields(entry.get("name", ""), sanitize(entry.get("doc", "")), level)
+                rst_fields(field_name, sanitize(entry.get("doc", "")), level)
             )
         elif isinstance(entry, list):
             lines.append(rst_list_inline(entry, level))

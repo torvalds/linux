@@ -24,11 +24,6 @@
 #include "zcrypt_ep11misc.h"
 #include "zcrypt_ccamisc.h"
 
-#define DEBUG_DBG(...)	ZCRYPT_DBF(DBF_DEBUG, ##__VA_ARGS__)
-#define DEBUG_INFO(...) ZCRYPT_DBF(DBF_INFO, ##__VA_ARGS__)
-#define DEBUG_WARN(...) ZCRYPT_DBF(DBF_WARN, ##__VA_ARGS__)
-#define DEBUG_ERR(...)	ZCRYPT_DBF(DBF_ERR, ##__VA_ARGS__)
-
 #define EP11_PINBLOB_V1_BYTES 56
 
 /* default iv used here */
@@ -510,7 +505,7 @@ static int check_reply_pl(const u8 *pl, const char *func)
 
 	/* start tag */
 	if (*pl++ != 0x30) {
-		DEBUG_ERR("%s reply start tag mismatch\n", func);
+		ZCRYPT_DBF_ERR("%s reply start tag mismatch\n", func);
 		return -EIO;
 	}
 
@@ -527,40 +522,41 @@ static int check_reply_pl(const u8 *pl, const char *func)
 		len = *((u16 *)pl);
 		pl += 2;
 	} else {
-		DEBUG_ERR("%s reply start tag lenfmt mismatch 0x%02hhx\n",
-			  func, *pl);
+		ZCRYPT_DBF_ERR("%s reply start tag lenfmt mismatch 0x%02hhx\n",
+			       func, *pl);
 		return -EIO;
 	}
 
 	/* len should cover at least 3 fields with 32 bit value each */
 	if (len < 3 * 6) {
-		DEBUG_ERR("%s reply length %d too small\n", func, len);
+		ZCRYPT_DBF_ERR("%s reply length %d too small\n", func, len);
 		return -EIO;
 	}
 
 	/* function tag, length and value */
 	if (pl[0] != 0x04 || pl[1] != 0x04) {
-		DEBUG_ERR("%s function tag or length mismatch\n", func);
+		ZCRYPT_DBF_ERR("%s function tag or length mismatch\n", func);
 		return -EIO;
 	}
 	pl += 6;
 
 	/* dom tag, length and value */
 	if (pl[0] != 0x04 || pl[1] != 0x04) {
-		DEBUG_ERR("%s dom tag or length mismatch\n", func);
+		ZCRYPT_DBF_ERR("%s dom tag or length mismatch\n", func);
 		return -EIO;
 	}
 	pl += 6;
 
 	/* return value tag, length and value */
 	if (pl[0] != 0x04 || pl[1] != 0x04) {
-		DEBUG_ERR("%s return value tag or length mismatch\n", func);
+		ZCRYPT_DBF_ERR("%s return value tag or length mismatch\n",
+			       func);
 		return -EIO;
 	}
 	pl += 2;
 	ret = *((u32 *)pl);
 	if (ret != 0) {
-		DEBUG_ERR("%s return value 0x%04x != 0\n", func, ret);
+		ZCRYPT_DBF_ERR("%s return value 0x%04x != 0\n", func, ret);
 		return -EIO;
 	}
 
@@ -626,9 +622,8 @@ static int ep11_query_info(u16 cardnr, u16 domain, u32 query_type,
 
 	rc = zcrypt_send_ep11_cprb(urb);
 	if (rc) {
-		DEBUG_ERR(
-			"%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
-			__func__, (int)cardnr, (int)domain, rc);
+		ZCRYPT_DBF_ERR("%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
+			       __func__, (int)cardnr, (int)domain, rc);
 		goto out;
 	}
 
@@ -636,13 +631,13 @@ static int ep11_query_info(u16 cardnr, u16 domain, u32 query_type,
 	if (rc)
 		goto out;
 	if (rep_pl->data_tag != 0x04 || rep_pl->data_lenfmt != 0x82) {
-		DEBUG_ERR("%s unknown reply data format\n", __func__);
+		ZCRYPT_DBF_ERR("%s unknown reply data format\n", __func__);
 		rc = -EIO;
 		goto out;
 	}
 	if (rep_pl->data_len > buflen) {
-		DEBUG_ERR("%s mismatch between reply data len and buffer len\n",
-			  __func__);
+		ZCRYPT_DBF_ERR("%s mismatch between reply data len and buffer len\n",
+			       __func__);
 		rc = -ENOSPC;
 		goto out;
 	}
@@ -816,9 +811,8 @@ static int _ep11_genaeskey(u16 card, u16 domain,
 	case 256:
 		break;
 	default:
-		DEBUG_ERR(
-			"%s unknown/unsupported keybitsize %d\n",
-			__func__, keybitsize);
+		ZCRYPT_DBF_ERR("%s unknown/unsupported keybitsize %d\n",
+			       __func__, keybitsize);
 		rc = -EINVAL;
 		goto out;
 	}
@@ -878,9 +872,8 @@ static int _ep11_genaeskey(u16 card, u16 domain,
 
 	rc = zcrypt_send_ep11_cprb(urb);
 	if (rc) {
-		DEBUG_ERR(
-			"%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
-			__func__, (int)card, (int)domain, rc);
+		ZCRYPT_DBF_ERR("%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
+			       __func__, (int)card, (int)domain, rc);
 		goto out;
 	}
 
@@ -888,13 +881,13 @@ static int _ep11_genaeskey(u16 card, u16 domain,
 	if (rc)
 		goto out;
 	if (rep_pl->data_tag != 0x04 || rep_pl->data_lenfmt != 0x82) {
-		DEBUG_ERR("%s unknown reply data format\n", __func__);
+		ZCRYPT_DBF_ERR("%s unknown reply data format\n", __func__);
 		rc = -EIO;
 		goto out;
 	}
 	if (rep_pl->data_len > *keybufsize) {
-		DEBUG_ERR("%s mismatch reply data len / key buffer len\n",
-			  __func__);
+		ZCRYPT_DBF_ERR("%s mismatch reply data len / key buffer len\n",
+			       __func__);
 		rc = -ENOSPC;
 		goto out;
 	}
@@ -1030,9 +1023,8 @@ static int ep11_cryptsingle(u16 card, u16 domain,
 
 	rc = zcrypt_send_ep11_cprb(urb);
 	if (rc) {
-		DEBUG_ERR(
-			"%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
-			__func__, (int)card, (int)domain, rc);
+		ZCRYPT_DBF_ERR("%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
+			       __func__, (int)card, (int)domain, rc);
 		goto out;
 	}
 
@@ -1040,7 +1032,7 @@ static int ep11_cryptsingle(u16 card, u16 domain,
 	if (rc)
 		goto out;
 	if (rep_pl->data_tag != 0x04) {
-		DEBUG_ERR("%s unknown reply data format\n", __func__);
+		ZCRYPT_DBF_ERR("%s unknown reply data format\n", __func__);
 		rc = -EIO;
 		goto out;
 	}
@@ -1053,14 +1045,14 @@ static int ep11_cryptsingle(u16 card, u16 domain,
 		n = *((u16 *)p);
 		p += 2;
 	} else {
-		DEBUG_ERR("%s unknown reply data length format 0x%02hhx\n",
-			  __func__, rep_pl->data_lenfmt);
+		ZCRYPT_DBF_ERR("%s unknown reply data length format 0x%02hhx\n",
+			       __func__, rep_pl->data_lenfmt);
 		rc = -EIO;
 		goto out;
 	}
 	if (n > *outbufsize) {
-		DEBUG_ERR("%s mismatch reply data len %d / output buffer %zu\n",
-			  __func__, n, *outbufsize);
+		ZCRYPT_DBF_ERR("%s mismatch reply data len %d / output buffer %zu\n",
+			       __func__, n, *outbufsize);
 		rc = -ENOSPC;
 		goto out;
 	}
@@ -1188,9 +1180,8 @@ static int _ep11_unwrapkey(u16 card, u16 domain,
 
 	rc = zcrypt_send_ep11_cprb(urb);
 	if (rc) {
-		DEBUG_ERR(
-			"%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
-			__func__, (int)card, (int)domain, rc);
+		ZCRYPT_DBF_ERR("%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
+			       __func__, (int)card, (int)domain, rc);
 		goto out;
 	}
 
@@ -1198,13 +1189,13 @@ static int _ep11_unwrapkey(u16 card, u16 domain,
 	if (rc)
 		goto out;
 	if (rep_pl->data_tag != 0x04 || rep_pl->data_lenfmt != 0x82) {
-		DEBUG_ERR("%s unknown reply data format\n", __func__);
+		ZCRYPT_DBF_ERR("%s unknown reply data format\n", __func__);
 		rc = -EIO;
 		goto out;
 	}
 	if (rep_pl->data_len > *keybufsize) {
-		DEBUG_ERR("%s mismatch reply data len / key buffer len\n",
-			  __func__);
+		ZCRYPT_DBF_ERR("%s mismatch reply data len / key buffer len\n",
+			       __func__);
 		rc = -ENOSPC;
 		goto out;
 	}
@@ -1343,9 +1334,8 @@ static int _ep11_wrapkey(u16 card, u16 domain,
 
 	rc = zcrypt_send_ep11_cprb(urb);
 	if (rc) {
-		DEBUG_ERR(
-			"%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
-			__func__, (int)card, (int)domain, rc);
+		ZCRYPT_DBF_ERR("%s zcrypt_send_ep11_cprb(card=%d dom=%d) failed, rc=%d\n",
+			       __func__, (int)card, (int)domain, rc);
 		goto out;
 	}
 
@@ -1353,13 +1343,13 @@ static int _ep11_wrapkey(u16 card, u16 domain,
 	if (rc)
 		goto out;
 	if (rep_pl->data_tag != 0x04 || rep_pl->data_lenfmt != 0x82) {
-		DEBUG_ERR("%s unknown reply data format\n", __func__);
+		ZCRYPT_DBF_ERR("%s unknown reply data format\n", __func__);
 		rc = -EIO;
 		goto out;
 	}
 	if (rep_pl->data_len > *datasize) {
-		DEBUG_ERR("%s mismatch reply data len / data buffer len\n",
-			  __func__);
+		ZCRYPT_DBF_ERR("%s mismatch reply data len / data buffer len\n",
+			       __func__);
 		rc = -ENOSPC;
 		goto out;
 	}
@@ -1386,9 +1376,8 @@ int ep11_clr2keyblob(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
 	if (keybitsize == 128 || keybitsize == 192 || keybitsize == 256) {
 		clrkeylen = keybitsize / 8;
 	} else {
-		DEBUG_ERR(
-			"%s unknown/unsupported keybitsize %d\n",
-			__func__, keybitsize);
+		ZCRYPT_DBF_ERR("%s unknown/unsupported keybitsize %d\n",
+			       __func__, keybitsize);
 		return -EINVAL;
 	}
 
@@ -1405,9 +1394,8 @@ int ep11_clr2keyblob(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
 			     0x00006c00, /* EN/DECRYPT, WRAP/UNWRAP */
 			     kek, &keklen);
 	if (rc) {
-		DEBUG_ERR(
-			"%s generate kek key failed, rc=%d\n",
-			__func__, rc);
+		ZCRYPT_DBF_ERR("%s generate kek key failed, rc=%d\n",
+			       __func__, rc);
 		goto out;
 	}
 
@@ -1415,9 +1403,8 @@ int ep11_clr2keyblob(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
 	rc = ep11_cryptsingle(card, domain, 0, 0, def_iv, kek, keklen,
 			      clrkey, clrkeylen, encbuf, &encbuflen);
 	if (rc) {
-		DEBUG_ERR(
-			"%s encrypting key value with kek key failed, rc=%d\n",
-			__func__, rc);
+		ZCRYPT_DBF_ERR("%s encrypting key value with kek key failed, rc=%d\n",
+			       __func__, rc);
 		goto out;
 	}
 
@@ -1426,9 +1413,8 @@ int ep11_clr2keyblob(u16 card, u16 domain, u32 keybitsize, u32 keygenflags,
 			    encbuf, encbuflen, 0, def_iv,
 			    keybitsize, 0, keybuf, keybufsize, keytype);
 	if (rc) {
-		DEBUG_ERR(
-			"%s importing key value as new key failed,, rc=%d\n",
-			__func__, rc);
+		ZCRYPT_DBF_ERR("%s importing key value as new key failed,, rc=%d\n",
+			       __func__, rc);
 		goto out;
 	}
 
@@ -1476,17 +1462,16 @@ int ep11_kblob2protkey(u16 card, u16 dom,
 	rc = _ep11_wrapkey(card, dom, (u8 *)key, keylen,
 			   0, def_iv, wkbuf, &wkbuflen);
 	if (rc) {
-		DEBUG_ERR(
-			"%s rewrapping ep11 key to pkey failed, rc=%d\n",
-			__func__, rc);
+		ZCRYPT_DBF_ERR("%s rewrapping ep11 key to pkey failed, rc=%d\n",
+			       __func__, rc);
 		goto out;
 	}
 	wki = (struct wk_info *)wkbuf;
 
 	/* check struct version and pkey type */
 	if (wki->version != 1 || wki->pkeytype < 1 || wki->pkeytype > 5) {
-		DEBUG_ERR("%s wk info version %d or pkeytype %d mismatch.\n",
-			  __func__, (int)wki->version, (int)wki->pkeytype);
+		ZCRYPT_DBF_ERR("%s wk info version %d or pkeytype %d mismatch.\n",
+			       __func__, (int)wki->version, (int)wki->pkeytype);
 		rc = -EIO;
 		goto out;
 	}
@@ -1511,8 +1496,8 @@ int ep11_kblob2protkey(u16 card, u16 dom,
 				*protkeytype = PKEY_KEYTYPE_AES_256;
 			break;
 		default:
-			DEBUG_ERR("%s unknown/unsupported AES pkeysize %d\n",
-				  __func__, (int)wki->pkeysize);
+			ZCRYPT_DBF_ERR("%s unknown/unsupported AES pkeysize %d\n",
+				       __func__, (int)wki->pkeysize);
 			rc = -EIO;
 			goto out;
 		}
@@ -1525,16 +1510,16 @@ int ep11_kblob2protkey(u16 card, u16 dom,
 		break;
 	case 2: /* TDES */
 	default:
-		DEBUG_ERR("%s unknown/unsupported key type %d\n",
-			  __func__, (int)wki->pkeytype);
+		ZCRYPT_DBF_ERR("%s unknown/unsupported key type %d\n",
+			       __func__, (int)wki->pkeytype);
 		rc = -EIO;
 		goto out;
 	}
 
 	/* copy the translated protected key */
 	if (wki->pkeysize > *protkeylen) {
-		DEBUG_ERR("%s wk info pkeysize %llu > protkeysize %u\n",
-			  __func__, wki->pkeysize, *protkeylen);
+		ZCRYPT_DBF_ERR("%s wk info pkeysize %llu > protkeysize %u\n",
+			       __func__, wki->pkeysize, *protkeylen);
 		rc = -EINVAL;
 		goto out;
 	}

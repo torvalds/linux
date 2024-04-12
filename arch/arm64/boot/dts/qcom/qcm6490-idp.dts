@@ -5,8 +5,14 @@
 
 /dts-v1/;
 
+/* PM7250B is configured to use SID8/9 */
+#define PM7250B_SID 8
+#define PM7250B_SID1 9
+
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include "sc7280.dtsi"
+#include "pm7250b.dtsi"
 #include "pm7325.dtsi"
 #include "pm8350c.dtsi"
 #include "pmk8350.dtsi"
@@ -109,7 +115,7 @@
 			no-map;
 		};
 
-		trusted_apps_mem: trusted_apps@c1800000 {
+		trusted_apps_mem: trusted-apps@c1800000 {
 			reg = <0x0 0xc1800000 0x0 0x1c00000>;
 			no-map;
 		};
@@ -123,8 +129,8 @@
 	vph_pwr: vph-pwr-regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "vph_pwr";
-		regulator-min-microvolt = <2500000>;
-		regulator-max-microvolt = <4350000>;
+		regulator-min-microvolt = <3700000>;
+		regulator-max-microvolt = <3700000>;
 	};
 };
 
@@ -411,6 +417,33 @@
 		vreg_bob_3p296: bob {
 			regulator-min-microvolt = <3008000>;
 			regulator-max-microvolt = <3960000>;
+		};
+	};
+};
+
+&pm8350c_pwm {
+	status = "okay";
+
+	multi-led {
+		color = <LED_COLOR_ID_RGB>;
+		function = LED_FUNCTION_STATUS;
+
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		led@1 {
+			reg = <1>;
+			color = <LED_COLOR_ID_RED>;
+		};
+
+		led@2 {
+			reg = <2>;
+			color = <LED_COLOR_ID_GREEN>;
+		};
+
+		led@3 {
+			reg = <3>;
+			color = <LED_COLOR_ID_BLUE>;
 		};
 	};
 };

@@ -1,0 +1,180 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/regulator/microchip,mcp16502.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: MCP16502 - High-Performance PMIC
+
+maintainers:
+  - Andrei Simion <andrei.simion@microchip.com>
+
+description:
+  The MCP16502 is an optimally integrated PMIC compatible
+  with Microchip's eMPUs(Embedded Microprocessor Units),
+  requiring Dynamic Voltage Scaling (DVS) with the use
+  of High-Performance mode (HPM).
+
+properties:
+  compatible:
+    const: microchip,mcp16502
+
+  lpm-gpios:
+    maxItems: 1
+    description: GPIO for LPM pin.
+      Note that this GPIO must remain high during
+      suspend-to-ram, keeping the PMIC into HIBERNATE mode.
+
+  reg:
+    maxItems: 1
+
+  regulators:
+    type: object
+    additionalProperties: false
+    description: List of regulators and its properties.
+
+    patternProperties:
+      "^(VDD_(IO|CORE|DDR|OTHER)|LDO[1-2])$":
+        type: object
+        $ref: regulator.yaml#
+        unevaluatedProperties: false
+
+        properties:
+          regulator-initial-mode:
+            enum: [2, 4]
+            default: 2
+            description: Initial operating mode
+
+          regulator-allowed-modes:
+            items:
+              enum: [2, 4]
+            description: Supported modes
+              2 - FPWM higher precision, higher consumption
+              4 - AutoPFM lower precision, lower consumption
+
+required:
+  - compatible
+  - reg
+  - regulators
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        pmic@5b {
+            compatible = "microchip,mcp16502";
+            reg = <0x5b>;
+
+            regulators {
+                VDD_IO {
+                    regulator-name = "VDD_IO";
+                    regulator-min-microvolt = <3300000>;
+                    regulator-max-microvolt = <3300000>;
+                    regulator-initial-mode = <2>;
+                    regulator-allowed-modes = <2>, <4>;
+                    regulator-always-on;
+
+                    regulator-state-standby {
+                        regulator-on-in-suspend;
+                        regulator-mode = <4>;
+                    };
+
+                    regulator-state-mem {
+                        regulator-off-in-suspend;
+                        regulator-mode = <4>;
+                    };
+                };
+
+                VDD_DDR {
+                    regulator-name = "VDD_DDR";
+                    regulator-min-microvolt = <1350000>;
+                    regulator-max-microvolt = <1350000>;
+                    regulator-initial-mode = <2>;
+                    regulator-allowed-modes = <2>, <4>;
+                    regulator-always-on;
+
+                    regulator-state-standby {
+                        regulator-on-in-suspend;
+                        regulator-mode = <4>;
+                    };
+
+                    regulator-state-mem {
+                        regulator-on-in-suspend;
+                        regulator-mode = <4>;
+                    };
+                };
+
+                VDD_CORE {
+                    regulator-name = "VDD_CORE";
+                    regulator-min-microvolt = <1150000>;
+                    regulator-max-microvolt = <1150000>;
+                    regulator-initial-mode = <2>;
+                    regulator-allowed-modes = <2>, <4>;
+                    regulator-always-on;
+
+                    regulator-state-standby {
+                        regulator-on-in-suspend;
+                        regulator-mode = <4>;
+                    };
+
+                    regulator-state-mem {
+                        regulator-off-in-suspend;
+                        regulator-mode = <4>;
+                    };
+                };
+
+                VDD_OTHER {
+                    regulator-name = "VDD_OTHER";
+                    regulator-min-microvolt = <1050000>;
+                    regulator-max-microvolt = <1250000>;
+                    regulator-initial-mode = <2>;
+                    regulator-allowed-modes = <2>, <4>;
+                    regulator-always-on;
+
+                    regulator-state-standby {
+                        regulator-on-in-suspend;
+                        regulator-mode = <4>;
+                    };
+
+                    regulator-state-mem {
+                        regulator-off-in-suspend;
+                        regulator-mode = <4>;
+                    };
+                };
+
+                LDO1 {
+                    regulator-name = "LDO1";
+                    regulator-min-microvolt = <1800000>;
+                    regulator-max-microvolt = <1800000>;
+                    regulator-always-on;
+
+                    regulator-state-standby {
+                        regulator-on-in-suspend;
+                    };
+
+                    regulator-state-mem {
+                        regulator-off-in-suspend;
+                    };
+                };
+
+                LDO2 {
+                    regulator-name = "LDO2";
+                    regulator-min-microvolt = <1200000>;
+                    regulator-max-microvolt = <3700000>;
+                    regulator-always-on;
+
+                    regulator-state-standby {
+                        regulator-on-in-suspend;
+                    };
+
+                    regulator-state-mem {
+                        regulator-off-in-suspend;
+                    };
+                };
+            };
+        };
+    };

@@ -120,8 +120,8 @@ static void paiext_event_destroy(struct perf_event *event)
 	struct paiext_mapptr *mp = per_cpu_ptr(paiext_root.mapptr, event->cpu);
 	struct paiext_map *cpump = mp->mapptr;
 
+	free_page(PAI_SAVE_AREA(event));
 	mutex_lock(&paiext_reserve_mutex);
-	cpump->event = NULL;
 	if (refcount_dec_and_test(&cpump->refcnt))	/* Last reference gone */
 		paiext_free(mp);
 	paiext_root_free();
@@ -202,7 +202,6 @@ static int paiext_alloc(struct perf_event_attr *a, struct perf_event *event)
 	}
 
 	rc = 0;
-	cpump->event = event;
 
 undo:
 	if (rc) {
@@ -256,10 +255,18 @@ static int paiext_event_init(struct perf_event *event)
 	/* Prohibit exclude_user event selection */
 	if (a->exclude_user)
 		return -EINVAL;
+	/* Get a page to store last counter values for sampling */
+	if (a->sample_period) {
+		PAI_SAVE_AREA(event) = get_zeroed_page(GFP_KERNEL);
+		if (!PAI_SAVE_AREA(event))
+			return -ENOMEM;
+	}
 
 	rc = paiext_alloc(a, event);
-	if (rc)
+	if (rc) {
+		free_page(PAI_SAVE_AREA(event));
 		return rc;
+	}
 	event->destroy = paiext_event_destroy;
 
 	if (a->sample_period) {
@@ -319,15 +326,15 @@ static void paiext_read(struct perf_event *event)
 
 static void paiext_start(struct perf_event *event, int flags)
 {
+	struct paiext_mapptr *mp = this_cpu_ptr(paiext_root.mapptr);
+	struct paiext_map *cpump = mp->mapptr;
 	u64 sum;
 
 	if (!event->attr.sample_period) {	/* Counting */
-		if (!event->hw.last_tag) {
-			event->hw.last_tag = 1;
-			sum = paiext_getall(event);	/* Get current value */
-			local64_set(&event->hw.prev_count, sum);
-		}
+		sum = paiext_getall(event);	/* Get current value */
+		local64_set(&event->hw.prev_count, sum);
 	} else {				/* Sampling */
+		cpump->event = event;
 		perf_sched_cb_inc(event->pmu);
 	}
 }
@@ -346,7 +353,6 @@ static int paiext_add(struct perf_event *event, int flags)
 		debug_sprintf_event(paiext_dbg, 4, "%s 1508 %llx acc %llx\n",
 				    __func__, S390_lowcore.aicd, pcb->acc);
 	}
-	cpump->event = event;
 	if (flags & PERF_EF_START)
 		paiext_start(event, PERF_EF_RELOAD);
 	event->hw.state = 0;
@@ -355,10 +361,15 @@ static int paiext_add(struct perf_event *event, int flags)
 
 static void paiext_stop(struct perf_event *event, int flags)
 {
-	if (!event->attr.sample_period)	/* Counting */
+	struct paiext_mapptr *mp = this_cpu_ptr(paiext_root.mapptr);
+	struct paiext_map *cpump = mp->mapptr;
+
+	if (!event->attr.sample_period) {	/* Counting */
 		paiext_read(event);
-	else				/* Sampling */
+	} else {				/* Sampling */
 		perf_sched_cb_dec(event->pmu);
+		cpump->event = NULL;
+	}
 	event->hw.state = PERF_HES_STOPPED;
 }
 
@@ -384,13 +395,19 @@ static void paiext_del(struct perf_event *event, int flags)
  * 2 bytes: Number of counter
  * 8 bytes: Value of counter
  */
-static size_t paiext_copy(struct pai_userdata *userdata, unsigned long *area)
+static size_t paiext_copy(struct pai_userdata *userdata, unsigned long *area,
+			  unsigned long *area_old)
 {
 	int i, outidx = 0;
 
 	for (i = 1; i <= paiext_cnt; i++) {
 		u64 val = paiext_getctr(area, i);
+		u64 val_old = paiext_getctr(area_old, i);
 
+		if (val >= val_old)
+			val -= val_old;
+		else
+			val = (~0ULL - val_old) + val + 1;
 		if (val) {
 			userdata[outidx].num = i;
 			userdata[outidx].value = val;
@@ -446,8 +463,9 @@ static int paiext_push_sample(size_t rawsize, struct paiext_map *cpump,
 
 	overflow = perf_event_overflow(event, &data, &regs);
 	perf_event_update_userpage(event);
-	/* Clear lowcore area after read */
-	memset(cpump->area, 0, PAIE1_CTRBLOCK_SZ);
+	/* Save NNPA lowcore area after read in event */
+	memcpy((void *)PAI_SAVE_AREA(event), cpump->area,
+	       PAIE1_CTRBLOCK_SZ);
 	return overflow;
 }
 
@@ -462,7 +480,8 @@ static int paiext_have_sample(void)
 
 	if (!event)
 		return 0;
-	rawsize = paiext_copy(cpump->save, cpump->area);
+	rawsize = paiext_copy(cpump->save, cpump->area,
+			      (unsigned long *)PAI_SAVE_AREA(event));
 	if (rawsize)			/* Incremented counters */
 		rc = paiext_push_sample(rawsize, cpump, event);
 	return rc;
@@ -584,6 +603,12 @@ static int __init attr_event_init_one(struct attribute **attrs, int num)
 {
 	struct perf_pmu_events_attr *pa;
 
+	/* Index larger than array_size, no counter name available */
+	if (num >= ARRAY_SIZE(paiext_ctrnames)) {
+		attrs[num] = NULL;
+		return 0;
+	}
+
 	pa = kzalloc(sizeof(*pa), GFP_KERNEL);
 	if (!pa)
 		return -ENOMEM;
@@ -604,14 +629,13 @@ static int __init attr_event_init(void)
 	struct attribute **attrs;
 	int ret, i;
 
-	attrs = kmalloc_array(ARRAY_SIZE(paiext_ctrnames) + 1, sizeof(*attrs),
-			      GFP_KERNEL);
+	attrs = kmalloc_array(paiext_cnt + 2, sizeof(*attrs), GFP_KERNEL);
 	if (!attrs)
 		return -ENOMEM;
-	for (i = 0; i < ARRAY_SIZE(paiext_ctrnames); i++) {
+	for (i = 0; i <= paiext_cnt; i++) {
 		ret = attr_event_init_one(attrs, i);
 		if (ret) {
-			attr_event_free(attrs, i - 1);
+			attr_event_free(attrs, i);
 			return ret;
 		}
 	}

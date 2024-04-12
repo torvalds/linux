@@ -36,6 +36,41 @@ PROVIDE(__pi___memcpy			= __pi_memcpy);
 PROVIDE(__pi___memmove			= __pi_memmove);
 PROVIDE(__pi___memset			= __pi_memset);
 
+PROVIDE(__pi_id_aa64isar1_override	= id_aa64isar1_override);
+PROVIDE(__pi_id_aa64isar2_override	= id_aa64isar2_override);
+PROVIDE(__pi_id_aa64mmfr0_override	= id_aa64mmfr0_override);
+PROVIDE(__pi_id_aa64mmfr1_override	= id_aa64mmfr1_override);
+PROVIDE(__pi_id_aa64mmfr2_override	= id_aa64mmfr2_override);
+PROVIDE(__pi_id_aa64pfr0_override	= id_aa64pfr0_override);
+PROVIDE(__pi_id_aa64pfr1_override	= id_aa64pfr1_override);
+PROVIDE(__pi_id_aa64smfr0_override	= id_aa64smfr0_override);
+PROVIDE(__pi_id_aa64zfr0_override	= id_aa64zfr0_override);
+PROVIDE(__pi_arm64_sw_feature_override	= arm64_sw_feature_override);
+PROVIDE(__pi_arm64_use_ng_mappings	= arm64_use_ng_mappings);
+#ifdef CONFIG_CAVIUM_ERRATUM_27456
+PROVIDE(__pi_cavium_erratum_27456_cpus	= cavium_erratum_27456_cpus);
+#endif
+PROVIDE(__pi__ctype			= _ctype);
+PROVIDE(__pi_memstart_offset_seed	= memstart_offset_seed);
+
+PROVIDE(__pi_init_idmap_pg_dir		= init_idmap_pg_dir);
+PROVIDE(__pi_init_idmap_pg_end		= init_idmap_pg_end);
+PROVIDE(__pi_init_pg_dir		= init_pg_dir);
+PROVIDE(__pi_init_pg_end		= init_pg_end);
+PROVIDE(__pi_swapper_pg_dir		= swapper_pg_dir);
+
+PROVIDE(__pi__text			= _text);
+PROVIDE(__pi__stext               	= _stext);
+PROVIDE(__pi__etext               	= _etext);
+PROVIDE(__pi___start_rodata       	= __start_rodata);
+PROVIDE(__pi___inittext_begin     	= __inittext_begin);
+PROVIDE(__pi___inittext_end       	= __inittext_end);
+PROVIDE(__pi___initdata_begin     	= __initdata_begin);
+PROVIDE(__pi___initdata_end       	= __initdata_end);
+PROVIDE(__pi__data                	= _data);
+PROVIDE(__pi___bss_start		= __bss_start);
+PROVIDE(__pi__end			= _end);
+
 #ifdef CONFIG_KVM
 
 /*

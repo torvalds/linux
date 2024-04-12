@@ -38,6 +38,9 @@ static noinline int extent_front_merge(struct btree_trans *trans,
 	struct bkey_i *update;
 	int ret;
 
+	if (unlikely(trans->journal_replay_not_finished))
+		return 0;
+
 	update = bch2_bkey_make_mut_noupdate(trans, k);
 	ret = PTR_ERR_OR_ZERO(update);
 	if (ret)
@@ -68,6 +71,9 @@ static noinline int extent_back_merge(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	int ret;
+
+	if (unlikely(trans->journal_replay_not_finished))
+		return 0;
 
 	ret =   bch2_key_has_snapshot_overwrites(trans, iter->btree_id, insert->k.p) ?:
 		bch2_key_has_snapshot_overwrites(trans, iter->btree_id, k.k->p);
@@ -452,7 +458,7 @@ bch2_trans_update_by_path(struct btree_trans *trans, btree_path_idx_t path_idx,
 	 * the key cache - but the key has to exist in the btree for that to
 	 * work:
 	 */
-	if (path->cached && bkey_deleted(&i->old_k))
+	if (path->cached && !i->old_btree_u64s)
 		return flush_new_cached_update(trans, i, flags, ip);
 
 	return 0;
@@ -787,6 +793,27 @@ int bch2_btree_delete_range(struct bch_fs *c, enum btree_id id,
 
 int bch2_btree_bit_mod(struct btree_trans *trans, enum btree_id btree,
 		       struct bpos pos, bool set)
+{
+	struct bkey_i *k = bch2_trans_kmalloc(trans, sizeof(*k));
+	int ret = PTR_ERR_OR_ZERO(k);
+	if (ret)
+		return ret;
+
+	bkey_init(&k->k);
+	k->k.type = set ? KEY_TYPE_set : KEY_TYPE_deleted;
+	k->k.p = pos;
+
+	struct btree_iter iter;
+	bch2_trans_iter_init(trans, &iter, btree, pos, BTREE_ITER_INTENT);
+
+	ret   = bch2_btree_iter_traverse(&iter) ?:
+		bch2_trans_update(trans, &iter, k, 0);
+	bch2_trans_iter_exit(trans, &iter);
+	return ret;
+}
+
+int bch2_btree_bit_mod_buffered(struct btree_trans *trans, enum btree_id btree,
+				struct bpos pos, bool set)
 {
 	struct bkey_i k;
 

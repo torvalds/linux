@@ -251,8 +251,8 @@ static struct clocksource clocksource_tod = {
 	.rating		= 400,
 	.read		= read_tod_clock,
 	.mask		= CLOCKSOURCE_MASK(64),
-	.mult		= 1000,
-	.shift		= 12,
+	.mult		= 4096000,
+	.shift		= 24,
 	.flags		= CLOCK_SOURCE_IS_CONTINUOUS,
 	.vdso_clock_mode = VDSO_CLOCKMODE_TOD,
 };
@@ -716,7 +716,7 @@ out_unlock:
 /*
  * STP subsys sysfs interface functions
  */
-static struct bus_type stp_subsys = {
+static const struct bus_type stp_subsys = {
 	.name		= "stp",
 	.dev_name	= "stp",
 };

@@ -577,7 +577,7 @@ static int dw_spi_dma_transfer_one(struct dw_spi *dws,
 	sg_init_table(&tx_tmp, 1);
 	sg_init_table(&rx_tmp, 1);
 
-	for (base = 0, len = 0; base < xfer->len; base += len) {
+	for (base = 0; base < xfer->len; base += len) {
 		/* Fetch next Tx DMA data chunk */
 		if (!tx_len) {
 			tx_sg = !tx_sg ? &xfer->tx_sg.sgl[0] : sg_next(tx_sg);

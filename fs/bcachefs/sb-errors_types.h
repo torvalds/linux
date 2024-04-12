@@ -231,7 +231,7 @@
 	x(dirent_name_dot_or_dotdot,				223)	\
 	x(dirent_name_has_slash,				224)	\
 	x(dirent_d_type_wrong,					225)	\
-	x(dirent_d_parent_subvol_wrong,				226)	\
+	x(inode_bi_parent_wrong,				226)	\
 	x(dirent_in_missing_dir_inode,				227)	\
 	x(dirent_in_non_dir_inode,				228)	\
 	x(dirent_to_missing_inode,				229)	\
@@ -250,7 +250,27 @@
 	x(hash_table_key_duplicate,				242)	\
 	x(hash_table_key_wrong_offset,				243)	\
 	x(unlinked_inode_not_on_deleted_list,			244)	\
-	x(reflink_p_front_pad_bad,				245)
+	x(reflink_p_front_pad_bad,				245)	\
+	x(journal_entry_dup_same_device,			246)	\
+	x(inode_bi_subvol_missing,				247)	\
+	x(inode_bi_subvol_wrong,				248)	\
+	x(inode_points_to_missing_dirent,			249)	\
+	x(inode_points_to_wrong_dirent,				250)	\
+	x(inode_bi_parent_nonzero,				251)	\
+	x(dirent_to_missing_parent_subvol,			252)	\
+	x(dirent_not_visible_in_parent_subvol,			253)	\
+	x(subvol_fs_path_parent_wrong,				254)	\
+	x(subvol_root_fs_path_parent_nonzero,			255)	\
+	x(subvol_children_not_set,				256)	\
+	x(subvol_children_bad,					257)	\
+	x(subvol_loop,						258)	\
+	x(subvol_unreachable,					259)	\
+	x(btree_node_bkey_bad_u64s,				260)	\
+	x(btree_node_topology_empty_interior_node,		261)	\
+	x(btree_ptr_v2_min_key_bad,				262)	\
+	x(btree_root_unreadable_and_scan_found_nothing,		263)	\
+	x(snapshot_node_missing,				264)	\
+	x(dup_backpointer_to_bad_csum_extent,			265)
 
 enum bch_sb_error_id {
 #define x(t, n) BCH_FSCK_ERR_##t = n,

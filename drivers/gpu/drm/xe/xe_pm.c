@@ -10,11 +10,11 @@
 #include <drm/drm_managed.h>
 #include <drm/ttm/ttm_placement.h>
 
+#include "display/xe_display.h"
 #include "xe_bo.h"
 #include "xe_bo_evict.h"
 #include "xe_device.h"
 #include "xe_device_sysfs.h"
-#include "xe_display.h"
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_guc.h"
@@ -125,17 +125,26 @@ int xe_pm_resume(struct xe_device *xe)
 	return 0;
 }
 
-static bool xe_pm_pci_d3cold_capable(struct pci_dev *pdev)
+static bool xe_pm_pci_d3cold_capable(struct xe_device *xe)
 {
+	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
 	struct pci_dev *root_pdev;
 
 	root_pdev = pcie_find_root_port(pdev);
 	if (!root_pdev)
 		return false;
 
-	/* D3Cold requires PME capability and _PR3 power resource */
-	if (!pci_pme_capable(root_pdev, PCI_D3cold) || !pci_pr3_present(root_pdev))
+	/* D3Cold requires PME capability */
+	if (!pci_pme_capable(root_pdev, PCI_D3cold)) {
+		drm_dbg(&xe->drm, "d3cold: PME# not supported\n");
 		return false;
+	}
+
+	/* D3Cold requires _PR3 power resource */
+	if (!pci_pr3_present(root_pdev)) {
+		drm_dbg(&xe->drm, "d3cold: ACPI _PR3 not present\n");
+		return false;
+	}
 
 	return true;
 }
@@ -163,17 +172,21 @@ static void xe_pm_runtime_init(struct xe_device *xe)
 	pm_runtime_put(dev);
 }
 
+void xe_pm_init_early(struct xe_device *xe)
+{
+	INIT_LIST_HEAD(&xe->mem_access.vram_userfault.list);
+	drmm_mutex_init(&xe->drm, &xe->mem_access.vram_userfault.lock);
+}
+
 void xe_pm_init(struct xe_device *xe)
 {
-	struct pci_dev *pdev = to_pci_dev(xe->drm.dev);
-
 	/* For now suspend/resume is only allowed with GuC */
 	if (!xe_device_uc_enabled(xe))
 		return;
 
 	drmm_mutex_init(&xe->drm, &xe->d3cold.lock);
 
-	xe->d3cold.capable = xe_pm_pci_d3cold_capable(pdev);
+	xe->d3cold.capable = xe_pm_pci_d3cold_capable(xe);
 
 	if (xe->d3cold.capable) {
 		xe_device_sysfs_init(xe);
@@ -214,6 +227,7 @@ struct task_struct *xe_pm_read_callback_task(struct xe_device *xe)
 
 int xe_pm_runtime_suspend(struct xe_device *xe)
 {
+	struct xe_bo *bo, *on;
 	struct xe_gt *gt;
 	u8 id;
 	int err = 0;
@@ -246,6 +260,16 @@ int xe_pm_runtime_suspend(struct xe_device *xe)
 	 * the potential lock inversion and give us a nice splat.
 	 */
 	lock_map_acquire(&xe_device_mem_access_lockdep_map);
+
+	/*
+	 * Applying lock for entire list op as xe_ttm_bo_destroy and xe_bo_move_notify
+	 * also checks and delets bo entry from user fault list.
+	 */
+	mutex_lock(&xe->mem_access.vram_userfault.lock);
+	list_for_each_entry_safe(bo, on,
+				 &xe->mem_access.vram_userfault.list, vram_userfault_link)
+		xe_bo_runtime_pm_release_mmap_offset(bo);
+	mutex_unlock(&xe->mem_access.vram_userfault.lock);
 
 	if (xe->d3cold.allowed) {
 		err = xe_bo_evict_all(xe);
@@ -330,7 +354,7 @@ int xe_pm_runtime_put(struct xe_device *xe)
 
 int xe_pm_runtime_get_if_active(struct xe_device *xe)
 {
-	return pm_runtime_get_if_active(xe->drm.dev, true);
+	return pm_runtime_get_if_active(xe->drm.dev);
 }
 
 void xe_pm_assert_unbounded_bridge(struct xe_device *xe)

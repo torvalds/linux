@@ -101,6 +101,40 @@ void convert_float_matrix(
 	}
 }
 
+static struct fixed31_32 int_frac_to_fixed_point(uint16_t arg,
+						 uint8_t integer_bits,
+						 uint8_t fractional_bits)
+{
+	struct fixed31_32 result;
+	uint16_t sign_mask = 1 << (fractional_bits + integer_bits);
+	uint16_t value_mask = sign_mask - 1;
+
+	result.value = (long long)(arg & value_mask) <<
+		       (FIXED31_32_BITS_PER_FRACTIONAL_PART - fractional_bits);
+
+	if (arg & sign_mask)
+		result = dc_fixpt_neg(result);
+
+	return result;
+}
+
+/**
+ * convert_hw_matrix - converts HW values into fixed31_32 matrix.
+ * @matrix: fixed point 31.32 matrix
+ * @reg: array of register values
+ * @buffer_size: size of the array of register values
+ *
+ * Converts HW register spec defined format S2D13 into a fixed-point 31.32
+ * matrix.
+ */
+void convert_hw_matrix(struct fixed31_32 *matrix,
+		       uint16_t *reg,
+		       uint32_t buffer_size)
+{
+	for (int i = 0; i < buffer_size; ++i)
+		matrix[i] = int_frac_to_fixed_point(reg[i], 2, 13);
+}
+
 static uint32_t find_gcd(uint32_t a, uint32_t b)
 {
 	uint32_t remainder;

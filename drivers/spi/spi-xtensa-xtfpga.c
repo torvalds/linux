@@ -93,7 +93,7 @@ static int xtfpga_spi_probe(struct platform_device *pdev)
 	host->dev.of_node = pdev->dev.of_node;
 
 	xspi = spi_controller_get_devdata(host);
-	xspi->bitbang.master = host;
+	xspi->bitbang.ctlr = host;
 	xspi->bitbang.chipselect = xtfpga_spi_chipselect;
 	xspi->bitbang.txrx_word[SPI_MODE_0] = xtfpga_spi_txrx_word;
 	xspi->regs = devm_platform_ioremap_resource(pdev, 0);

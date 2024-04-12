@@ -101,7 +101,8 @@ void rtl92c_read_chip_version(struct ieee80211_hw *hw)
 		rtlphy->rf_type = RF_1T1R;
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 		"Chip RF Type: %s\n",
-		rtlphy->rf_type == RF_2T2R ? "RF_2T2R" : "RF_1T1R");
+		rtlphy->rf_type == RF_2T2R ? "RF_2T2R" :
+		rtlphy->rf_type == RF_1T2R ? "RF_1T2R" : "RF_1T1R");
 	if (get_rf_type(rtlphy) == RF_1T1R)
 		rtlpriv->dm.rfpath_rxenable[0] = true;
 	else

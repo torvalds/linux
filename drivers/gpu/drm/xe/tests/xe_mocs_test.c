@@ -9,6 +9,7 @@
 
 static struct kunit_case xe_mocs_tests[] = {
 	KUNIT_CASE(xe_live_mocs_kernel_kunit),
+	KUNIT_CASE(xe_live_mocs_reset_kunit),
 	{}
 };
 

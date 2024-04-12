@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
 #include "error.h"
+#include "journal.h"
+#include "recovery_passes.h"
 #include "super.h"
 #include "thread_with_file.h"
 
@@ -15,7 +17,8 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 		return false;
 	case BCH_ON_ERROR_ro:
 		if (bch2_fs_emergency_read_only(c))
-			bch_err(c, "inconsistency detected - emergency read only");
+			bch_err(c, "inconsistency detected - emergency read only at journal seq %llu",
+				journal_cur_seq(&c->journal));
 		return true;
 	case BCH_ON_ERROR_panic:
 		panic(bch2_fmt(c, "panic after error"));
@@ -25,11 +28,16 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 	}
 }
 
-void bch2_topology_error(struct bch_fs *c)
+int bch2_topology_error(struct bch_fs *c)
 {
 	set_bit(BCH_FS_topology_error, &c->flags);
-	if (!test_bit(BCH_FS_fsck_running, &c->flags))
+	if (!test_bit(BCH_FS_fsck_running, &c->flags)) {
 		bch2_inconsistent_error(c);
+		return -BCH_ERR_btree_need_topology_repair;
+	} else {
+		return bch2_run_explicit_recovery_pass(c, BCH_RECOVERY_PASS_check_topology) ?:
+			-BCH_ERR_btree_node_read_validate_error;
+	}
 }
 
 void bch2_fatal_error(struct bch_fs *c)

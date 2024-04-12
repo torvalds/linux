@@ -361,32 +361,32 @@ void dcn35_smu_set_zstate_support(struct clk_mgr_internal *clk_mgr, enum dcn_zst
 	case DCN_ZSTATE_SUPPORT_ALLOW:
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
 		param = (1 << 10) | (1 << 9) | (1 << 8);
-		smu_print("%s: SMC_MSG_AllowZstatesEntry msg = ALLOW, param = %d\n", __func__, param);
+		smu_print("%s: SMC_MSG_AllowZstatesEntry msg = ALLOW, param = 0x%x\n", __func__, param);
 		break;
 
 	case DCN_ZSTATE_SUPPORT_DISALLOW:
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
 		param = 0;
-		smu_print("%s: SMC_MSG_AllowZstatesEntry msg_id = DISALLOW, param = %d\n",  __func__, param);
+		smu_print("%s: SMC_MSG_AllowZstatesEntry msg_id = DISALLOW, param = 0x%x\n",  __func__, param);
 		break;
 
 
 	case DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY:
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
 		param = (1 << 10);
-		smu_print("%s: SMC_MSG_AllowZstatesEntry msg = ALLOW_Z10_ONLY, param = %d\n", __func__, param);
+		smu_print("%s: SMC_MSG_AllowZstatesEntry msg = ALLOW_Z10_ONLY, param = 0x%x\n", __func__, param);
 		break;
 
 	case DCN_ZSTATE_SUPPORT_ALLOW_Z8_Z10_ONLY:
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
 		param = (1 << 10) | (1 << 8);
-		smu_print("%s: SMC_MSG_AllowZstatesEntry msg = ALLOW_Z8_Z10_ONLY, param = %d\n", __func__, param);
+		smu_print("%s: SMC_MSG_AllowZstatesEntry msg = ALLOW_Z8_Z10_ONLY, param = 0x%x\n", __func__, param);
 		break;
 
 	case DCN_ZSTATE_SUPPORT_ALLOW_Z8_ONLY:
 		msg_id = VBIOSSMC_MSG_AllowZstatesEntry;
 		param = (1 << 8);
-		smu_print("%s: SMC_MSG_AllowZstatesEntry msg = ALLOW_Z8_ONLY, param = %d\n", __func__, param);
+		smu_print("%s: SMC_MSG_AllowZstatesEntry msg = ALLOW_Z8_ONLY, param = 0x%x\n", __func__, param);
 		break;
 
 	default: //DCN_ZSTATE_SUPPORT_UNKNOWN
@@ -400,7 +400,7 @@ void dcn35_smu_set_zstate_support(struct clk_mgr_internal *clk_mgr, enum dcn_zst
 		clk_mgr,
 		msg_id,
 		param);
-	smu_print("%s:  msg_id = %d, param = 0x%x, return = %d\n", __func__, msg_id, param, retv);
+	smu_print("%s:  msg_id = %d, param = 0x%x, return = 0x%x\n", __func__, msg_id, param, retv);
 }
 
 int dcn35_smu_get_dprefclk(struct clk_mgr_internal *clk_mgr)
@@ -447,6 +447,9 @@ void dcn35_smu_set_dtbclk(struct clk_mgr_internal *clk_mgr, bool enable)
 
 void dcn35_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *clk_mgr, bool enable)
 {
+	if (!clk_mgr->smu_present)
+		return;
+
 	dcn35_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_EnableTmdp48MHzRefclkPwrDown,
@@ -457,6 +460,9 @@ void dcn35_vbios_smu_enable_48mhz_tmdp_refclk_pwrdwn(struct clk_mgr_internal *cl
 int dcn35_smu_exit_low_power_state(struct clk_mgr_internal *clk_mgr)
 {
 	int retv;
+
+	if (!clk_mgr->smu_present)
+		return 0;
 
 	retv = dcn35_smu_send_msg_with_param(
 		clk_mgr,
@@ -470,6 +476,9 @@ int dcn35_smu_get_ips_supported(struct clk_mgr_internal *clk_mgr)
 {
 	int retv;
 
+	if (!clk_mgr->smu_present)
+		return 0;
+
 	retv = dcn35_smu_send_msg_with_param(
 			clk_mgr,
 			VBIOSSMC_MSG_QueryIPS2Support,
@@ -481,6 +490,9 @@ int dcn35_smu_get_ips_supported(struct clk_mgr_internal *clk_mgr)
 
 void dcn35_smu_write_ips_scratch(struct clk_mgr_internal *clk_mgr, uint32_t param)
 {
+	if (!clk_mgr->smu_present)
+		return;
+
 	REG_WRITE(MP1_SMN_C2PMSG_71, param);
 	//smu_print("%s: write_ips_scratch = %x\n", __func__, param);
 }
@@ -488,6 +500,9 @@ void dcn35_smu_write_ips_scratch(struct clk_mgr_internal *clk_mgr, uint32_t para
 uint32_t dcn35_smu_read_ips_scratch(struct clk_mgr_internal *clk_mgr)
 {
 	uint32_t retv;
+
+	if (!clk_mgr->smu_present)
+		return 0;
 
 	retv = REG_READ(MP1_SMN_C2PMSG_71);
 	//smu_print("%s: dcn35_smu_read_ips_scratch = %x\n",  __func__, retv);

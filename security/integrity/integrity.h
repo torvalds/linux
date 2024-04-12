@@ -18,60 +18,7 @@
 #include <crypto/hash.h>
 #include <linux/key.h>
 #include <linux/audit.h>
-
-/* iint action cache flags */
-#define IMA_MEASURE		0x00000001
-#define IMA_MEASURED		0x00000002
-#define IMA_APPRAISE		0x00000004
-#define IMA_APPRAISED		0x00000008
-/*#define IMA_COLLECT		0x00000010  do not use this flag */
-#define IMA_COLLECTED		0x00000020
-#define IMA_AUDIT		0x00000040
-#define IMA_AUDITED		0x00000080
-#define IMA_HASH		0x00000100
-#define IMA_HASHED		0x00000200
-
-/* iint policy rule cache flags */
-#define IMA_NONACTION_FLAGS	0xff000000
-#define IMA_DIGSIG_REQUIRED	0x01000000
-#define IMA_PERMIT_DIRECTIO	0x02000000
-#define IMA_NEW_FILE		0x04000000
-#define EVM_IMMUTABLE_DIGSIG	0x08000000
-#define IMA_FAIL_UNVERIFIABLE_SIGS	0x10000000
-#define IMA_MODSIG_ALLOWED	0x20000000
-#define IMA_CHECK_BLACKLIST	0x40000000
-#define IMA_VERITY_REQUIRED	0x80000000
-
-#define IMA_DO_MASK		(IMA_MEASURE | IMA_APPRAISE | IMA_AUDIT | \
-				 IMA_HASH | IMA_APPRAISE_SUBMASK)
-#define IMA_DONE_MASK		(IMA_MEASURED | IMA_APPRAISED | IMA_AUDITED | \
-				 IMA_HASHED | IMA_COLLECTED | \
-				 IMA_APPRAISED_SUBMASK)
-
-/* iint subaction appraise cache flags */
-#define IMA_FILE_APPRAISE	0x00001000
-#define IMA_FILE_APPRAISED	0x00002000
-#define IMA_MMAP_APPRAISE	0x00004000
-#define IMA_MMAP_APPRAISED	0x00008000
-#define IMA_BPRM_APPRAISE	0x00010000
-#define IMA_BPRM_APPRAISED	0x00020000
-#define IMA_READ_APPRAISE	0x00040000
-#define IMA_READ_APPRAISED	0x00080000
-#define IMA_CREDS_APPRAISE	0x00100000
-#define IMA_CREDS_APPRAISED	0x00200000
-#define IMA_APPRAISE_SUBMASK	(IMA_FILE_APPRAISE | IMA_MMAP_APPRAISE | \
-				 IMA_BPRM_APPRAISE | IMA_READ_APPRAISE | \
-				 IMA_CREDS_APPRAISE)
-#define IMA_APPRAISED_SUBMASK	(IMA_FILE_APPRAISED | IMA_MMAP_APPRAISED | \
-				 IMA_BPRM_APPRAISED | IMA_READ_APPRAISED | \
-				 IMA_CREDS_APPRAISED)
-
-/* iint cache atomic_flags */
-#define IMA_CHANGE_XATTR	0
-#define IMA_UPDATE_XATTR	1
-#define IMA_CHANGE_ATTR		2
-#define IMA_DIGSIG		3
-#define IMA_MUST_MEASURE	4
+#include <linux/lsm_hooks.h>
 
 enum evm_ima_xattr_type {
 	IMA_XATTR_DIGEST = 0x01,
@@ -154,31 +101,6 @@ struct ima_file_id {
 	__u8 hash_algorithm;	/* Digest algorithm [enum hash_algo] */
 	__u8 hash[HASH_MAX_DIGESTSIZE];
 } __packed;
-
-/* integrity data associated with an inode */
-struct integrity_iint_cache {
-	struct rb_node rb_node;	/* rooted in integrity_iint_tree */
-	struct mutex mutex;	/* protects: version, flags, digest */
-	struct inode *inode;	/* back pointer to inode in question */
-	u64 version;		/* track inode changes */
-	unsigned long flags;
-	unsigned long measured_pcrs;
-	unsigned long atomic_flags;
-	unsigned long real_ino;
-	dev_t real_dev;
-	enum integrity_status ima_file_status:4;
-	enum integrity_status ima_mmap_status:4;
-	enum integrity_status ima_bprm_status:4;
-	enum integrity_status ima_read_status:4;
-	enum integrity_status ima_creds_status:4;
-	enum integrity_status evm_status:4;
-	struct ima_digest_data *ima_hash;
-};
-
-/* rbtree tree calls to lookup, insert, delete
- * integrity data associated with an inode.
- */
-struct integrity_iint_cache *integrity_iint_find(struct inode *inode);
 
 int integrity_kernel_read(struct file *file, loff_t offset,
 			  void *addr, unsigned long count);

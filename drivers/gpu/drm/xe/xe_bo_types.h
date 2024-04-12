@@ -56,25 +56,6 @@ struct xe_bo {
 	 */
 	struct list_head client_link;
 #endif
-	/** @props: BO user controlled properties */
-	struct {
-		/** @preferred_mem: preferred memory class for this BO */
-		s16 preferred_mem_class;
-		/** @prefered_gt: preferred GT for this BO */
-		s16 preferred_gt;
-		/** @preferred_mem_type: preferred memory type */
-		s32 preferred_mem_type;
-		/**
-		 * @cpu_atomic: the CPU expects to do atomics operations to
-		 * this BO
-		 */
-		bool cpu_atomic;
-		/**
-		 * @device_atomic: the device expects to do atomics operations
-		 * to this BO
-		 */
-		bool device_atomic;
-	} props;
 	/** @freed: List node for delayed put. */
 	struct llist_node freed;
 	/** @created: Whether the bo has passed initial creation */
@@ -88,6 +69,9 @@ struct xe_bo {
 	 * objects.
 	 */
 	u16 cpu_caching;
+
+	/** @vram_userfault_link: Link into @mem_access.vram_userfault.list */
+		struct list_head vram_userfault_link;
 };
 
 #define intel_bo_to_drm_bo(bo) (&(bo)->ttm.base)

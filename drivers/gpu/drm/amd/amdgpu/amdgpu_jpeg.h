@@ -32,6 +32,34 @@
 #define AMDGPU_JPEG_HARVEST_JPEG0 (1 << 0)
 #define AMDGPU_JPEG_HARVEST_JPEG1 (1 << 1)
 
+#define WREG32_SOC15_JPEG_DPG_MODE(inst_idx, offset, value, indirect)			\
+	do {										\
+		if (!indirect) {							\
+			WREG32_SOC15(JPEG, GET_INST(JPEG, inst_idx),			\
+				     mmUVD_DPG_LMA_DATA, value);			\
+			WREG32_SOC15(							\
+				JPEG, GET_INST(JPEG, inst_idx),				\
+				mmUVD_DPG_LMA_CTL,					\
+				(UVD_DPG_LMA_CTL__READ_WRITE_MASK |			\
+				 offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT |	\
+				 indirect << UVD_DPG_LMA_CTL__SRAM_SEL__SHIFT));	\
+		} else {								\
+			*adev->jpeg.inst[inst_idx].dpg_sram_curr_addr++ =		\
+				offset;							\
+			*adev->jpeg.inst[inst_idx].dpg_sram_curr_addr++ =		\
+				value;							\
+		}									\
+	} while (0)
+
+#define RREG32_SOC15_JPEG_DPG_MODE(inst_idx, offset, mask_en)					\
+	({											\
+		WREG32_SOC15(JPEG, inst_idx, mmUVD_DPG_LMA_CTL,					\
+			(0x0 << UVD_DPG_LMA_CTL__READ_WRITE__SHIFT |				\
+			mask_en << UVD_DPG_LMA_CTL__MASK_EN__SHIFT |				\
+			offset << UVD_DPG_LMA_CTL__READ_WRITE_ADDR__SHIFT));			\
+		RREG32_SOC15(JPEG, inst_idx, mmUVD_DPG_LMA_DATA);				\
+	})
+
 struct amdgpu_jpeg_reg{
 	unsigned jpeg_pitch[AMDGPU_MAX_JPEG_RINGS];
 };
@@ -41,6 +69,11 @@ struct amdgpu_jpeg_inst {
 	struct amdgpu_irq_src irq;
 	struct amdgpu_irq_src ras_poison_irq;
 	struct amdgpu_jpeg_reg external;
+	struct amdgpu_bo	*dpg_sram_bo;
+	struct dpg_pause_state	pause_state;
+	void			*dpg_sram_cpu_addr;
+	uint64_t		dpg_sram_gpu_addr;
+	uint32_t		*dpg_sram_curr_addr;
 	uint8_t aid_id;
 };
 
@@ -63,6 +96,7 @@ struct amdgpu_jpeg {
 
 	uint16_t inst_mask;
 	uint8_t num_inst_per_aid;
+	bool	indirect_sram;
 };
 
 int amdgpu_jpeg_sw_init(struct amdgpu_device *adev);
@@ -82,5 +116,7 @@ int amdgpu_jpeg_process_poison_irq(struct amdgpu_device *adev,
 int amdgpu_jpeg_ras_late_init(struct amdgpu_device *adev,
 				struct ras_common_if *ras_block);
 int amdgpu_jpeg_ras_sw_init(struct amdgpu_device *adev);
+int amdgpu_jpeg_psp_update_sram(struct amdgpu_device *adev, int inst_idx,
+			       enum AMDGPU_UCODE_ID ucode_id);
 
 #endif /*__AMDGPU_JPEG_H__*/

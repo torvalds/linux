@@ -15,7 +15,7 @@
 #include "ionic_debugfs.h"
 
 MODULE_DESCRIPTION(IONIC_DRV_DESCRIPTION);
-MODULE_AUTHOR("Pensando Systems, Inc");
+MODULE_AUTHOR("Shannon Nelson <shannon.nelson@amd.com>");
 MODULE_LICENSE("GPL");
 
 static const char *ionic_error_to_str(enum ionic_status_code code)
@@ -190,7 +190,8 @@ static const char *ionic_opcode_to_str(enum ionic_cmd_opcode opcode)
 
 static void ionic_adminq_flush(struct ionic_lif *lif)
 {
-	struct ionic_desc_info *desc_info;
+	struct ionic_admin_desc_info *desc_info;
+	struct ionic_admin_cmd *desc;
 	unsigned long irqflags;
 	struct ionic_queue *q;
 
@@ -203,10 +204,10 @@ static void ionic_adminq_flush(struct ionic_lif *lif)
 	q = &lif->adminqcq->q;
 
 	while (q->tail_idx != q->head_idx) {
-		desc_info = &q->info[q->tail_idx];
-		memset(desc_info->desc, 0, sizeof(union ionic_adminq_cmd));
-		desc_info->cb = NULL;
-		desc_info->cb_arg = NULL;
+		desc = &q->adminq[q->tail_idx];
+		desc_info = &q->admin_info[q->tail_idx];
+		memset(desc, 0, sizeof(union ionic_adminq_cmd));
+		desc_info->ctx = NULL;
 		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
 	}
 	spin_unlock_irqrestore(&lif->adminq_lock, irqflags);
@@ -246,25 +247,93 @@ static int ionic_adminq_check_err(struct ionic_lif *lif,
 	return err;
 }
 
-static void ionic_adminq_cb(struct ionic_queue *q,
-			    struct ionic_desc_info *desc_info,
-			    struct ionic_cq_info *cq_info, void *cb_arg)
+bool ionic_notifyq_service(struct ionic_cq *cq)
 {
-	struct ionic_admin_ctx *ctx = cb_arg;
+	struct ionic_deferred_work *work;
+	union ionic_notifyq_comp *comp;
+	struct net_device *netdev;
+	struct ionic_queue *q;
+	struct ionic_lif *lif;
+	u64 eid;
+
+	comp = &((union ionic_notifyq_comp *)cq->base)[cq->tail_idx];
+
+	q = cq->bound_q;
+	lif = q->admin_info[0].ctx;
+	netdev = lif->netdev;
+	eid = le64_to_cpu(comp->event.eid);
+
+	/* Have we run out of new completions to process? */
+	if ((s64)(eid - lif->last_eid) <= 0)
+		return false;
+
+	lif->last_eid = eid;
+
+	dev_dbg(lif->ionic->dev, "notifyq event:\n");
+	dynamic_hex_dump("event ", DUMP_PREFIX_OFFSET, 16, 1,
+			 comp, sizeof(*comp), true);
+
+	switch (le16_to_cpu(comp->event.ecode)) {
+	case IONIC_EVENT_LINK_CHANGE:
+		ionic_link_status_check_request(lif, CAN_NOT_SLEEP);
+		break;
+	case IONIC_EVENT_RESET:
+		if (lif->ionic->idev.fw_status_ready &&
+		    !test_bit(IONIC_LIF_F_FW_RESET, lif->state) &&
+		    !test_and_set_bit(IONIC_LIF_F_FW_STOPPING, lif->state)) {
+			work = kzalloc(sizeof(*work), GFP_ATOMIC);
+			if (!work) {
+				netdev_err(lif->netdev, "Reset event dropped\n");
+				clear_bit(IONIC_LIF_F_FW_STOPPING, lif->state);
+			} else {
+				work->type = IONIC_DW_TYPE_LIF_RESET;
+				ionic_lif_deferred_enqueue(&lif->deferred, work);
+			}
+		}
+		break;
+	default:
+		netdev_warn(netdev, "Notifyq event ecode=%d eid=%lld\n",
+			    comp->event.ecode, eid);
+		break;
+	}
+
+	return true;
+}
+
+bool ionic_adminq_service(struct ionic_cq *cq)
+{
+	struct ionic_admin_desc_info *desc_info;
+	struct ionic_queue *q = cq->bound_q;
 	struct ionic_admin_comp *comp;
+	u16 index;
 
-	if (!ctx)
-		return;
+	comp = &((struct ionic_admin_comp *)cq->base)[cq->tail_idx];
 
-	comp = cq_info->cq_desc;
+	if (!color_match(comp->color, cq->done_color))
+		return false;
 
-	memcpy(&ctx->comp, comp, sizeof(*comp));
+	/* check for empty queue */
+	if (q->tail_idx == q->head_idx)
+		return false;
 
-	dev_dbg(q->dev, "comp admin queue command:\n");
-	dynamic_hex_dump("comp ", DUMP_PREFIX_OFFSET, 16, 1,
-			 &ctx->comp, sizeof(ctx->comp), true);
+	do {
+		desc_info = &q->admin_info[q->tail_idx];
+		index = q->tail_idx;
+		q->tail_idx = (q->tail_idx + 1) & (q->num_descs - 1);
+		if (likely(desc_info->ctx)) {
+			struct ionic_admin_ctx *ctx = desc_info->ctx;
 
-	complete_all(&ctx->work);
+			memcpy(&ctx->comp, comp, sizeof(*comp));
+
+			dev_dbg(q->dev, "comp admin queue command:\n");
+			dynamic_hex_dump("comp ", DUMP_PREFIX_OFFSET, 16, 1,
+					 &ctx->comp, sizeof(ctx->comp), true);
+			complete_all(&ctx->work);
+			desc_info->ctx = NULL;
+		}
+	} while (index != le16_to_cpu(comp->comp_index));
+
+	return true;
 }
 
 bool ionic_adminq_poke_doorbell(struct ionic_queue *q)
@@ -298,7 +367,8 @@ bool ionic_adminq_poke_doorbell(struct ionic_queue *q)
 
 int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 {
-	struct ionic_desc_info *desc_info;
+	struct ionic_admin_desc_info *desc_info;
+	struct ionic_admin_cmd *desc;
 	unsigned long irqflags;
 	struct ionic_queue *q;
 	int err = 0;
@@ -320,14 +390,17 @@ int ionic_adminq_post(struct ionic_lif *lif, struct ionic_admin_ctx *ctx)
 	if (err)
 		goto err_out;
 
-	desc_info = &q->info[q->head_idx];
-	memcpy(desc_info->desc, &ctx->cmd, sizeof(ctx->cmd));
+	desc_info = &q->admin_info[q->head_idx];
+	desc_info->ctx = ctx;
+
+	desc = &q->adminq[q->head_idx];
+	memcpy(desc, &ctx->cmd, sizeof(ctx->cmd));
 
 	dev_dbg(&lif->netdev->dev, "post admin queue command:\n");
 	dynamic_hex_dump("cmd ", DUMP_PREFIX_OFFSET, 16, 1,
 			 &ctx->cmd, sizeof(ctx->cmd), true);
 
-	ionic_q_post(q, true, ionic_adminq_cb, ctx);
+	ionic_q_post(q, true);
 
 err_out:
 	spin_unlock_irqrestore(&lif->adminq_lock, irqflags);

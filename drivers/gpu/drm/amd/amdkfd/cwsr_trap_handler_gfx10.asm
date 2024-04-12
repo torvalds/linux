@@ -44,6 +44,7 @@
 #define HAVE_SENDMSG_RTN (ASIC_FAMILY >= CHIP_PLUM_BONITO)
 #define HAVE_BUFFER_LDS_LOAD (ASIC_FAMILY < CHIP_PLUM_BONITO)
 #define SW_SA_TRAP (ASIC_FAMILY >= CHIP_PLUM_BONITO)
+#define SAVE_AFTER_XNACK_ERROR (HAVE_XNACK && !NO_SQC_STORE) // workaround for TCP store failure after XNACK error when ALLOW_REPLAY=0, for debugger
 
 var SINGLE_STEP_MISSED_WORKAROUND		= 1	//workaround for lost MODE.DEBUG_EN exception when SAVECTX raised
 
@@ -81,6 +82,12 @@ var SQ_WAVE_TRAPSTS_POST_SAVECTX_SHIFT		= 11
 var SQ_WAVE_TRAPSTS_POST_SAVECTX_SIZE		= 21
 var SQ_WAVE_TRAPSTS_ILLEGAL_INST_MASK		= 0x800
 var SQ_WAVE_TRAPSTS_EXCP_HI_MASK		= 0x7000
+#if ASIC_FAMILY >= CHIP_PLUM_BONITO
+var SQ_WAVE_TRAPSTS_WAVE_START_MASK		= 0x20000
+var SQ_WAVE_TRAPSTS_WAVE_END_MASK		= 0x40000
+var SQ_WAVE_TRAPSTS_TRAP_AFTER_INST_MASK	= 0x100000
+#endif
+var SQ_WAVE_TRAPSTS_XNACK_ERROR_MASK		= 0x10000000
 
 var SQ_WAVE_MODE_EXCP_EN_SHIFT			= 12
 var SQ_WAVE_MODE_EXCP_EN_ADDR_WATCH_SHIFT	= 19
@@ -91,6 +98,16 @@ var SQ_WAVE_IB_STS_REPLAY_W64H_MASK		= 0x02000000
 var SQ_WAVE_IB_STS_RCNT_FIRST_REPLAY_MASK	= 0x003F8000
 
 var SQ_WAVE_MODE_DEBUG_EN_MASK			= 0x800
+
+#if ASIC_FAMILY < CHIP_PLUM_BONITO
+var S_TRAPSTS_NON_MASKABLE_EXCP_MASK		= SQ_WAVE_TRAPSTS_MEM_VIOL_MASK|SQ_WAVE_TRAPSTS_ILLEGAL_INST_MASK
+#else
+var S_TRAPSTS_NON_MASKABLE_EXCP_MASK		= SQ_WAVE_TRAPSTS_MEM_VIOL_MASK		|\
+						  SQ_WAVE_TRAPSTS_ILLEGAL_INST_MASK	|\
+						  SQ_WAVE_TRAPSTS_WAVE_START_MASK	|\
+						  SQ_WAVE_TRAPSTS_WAVE_END_MASK		|\
+						  SQ_WAVE_TRAPSTS_TRAP_AFTER_INST_MASK
+#endif
 
 // bits [31:24] unused by SPI debug data
 var TTMP11_SAVE_REPLAY_W64H_SHIFT		= 31
@@ -224,7 +241,7 @@ L_NOT_HALTED:
 	// Check non-maskable exceptions. memory_violation, illegal_instruction
 	// and xnack_error exceptions always cause the wave to enter the trap
 	// handler.
-	s_and_b32	ttmp2, s_save_trapsts, SQ_WAVE_TRAPSTS_MEM_VIOL_MASK|SQ_WAVE_TRAPSTS_ILLEGAL_INST_MASK
+	s_and_b32	ttmp2, s_save_trapsts, S_TRAPSTS_NON_MASKABLE_EXCP_MASK
 	s_cbranch_scc1	L_FETCH_2ND_TRAP
 
 	// Check for maskable exceptions in trapsts.excp and trapsts.excp_hi.
@@ -460,6 +477,16 @@ L_SAVE_4VGPR_WAVE32:
 
 	// VGPR Allocated in 4-GPR granularity
 
+#if SAVE_AFTER_XNACK_ERROR
+	check_if_tcp_store_ok()
+	s_cbranch_scc1 L_SAVE_FIRST_VGPRS32_WITH_TCP
+
+	write_vgprs_to_mem_with_sqc_w32(v0, 4, s_save_buf_rsrc0, s_save_mem_offset)
+	s_branch L_SAVE_HWREG
+
+L_SAVE_FIRST_VGPRS32_WITH_TCP:
+#endif
+
 #if !NO_SQC_STORE
 	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
 #endif
@@ -472,6 +499,16 @@ L_SAVE_4VGPR_WAVE64:
 	s_mov_b32	s_save_buf_rsrc2, 0x1000000				//NUM_RECORDS in bytes
 
 	// VGPR Allocated in 4-GPR granularity
+
+#if  SAVE_AFTER_XNACK_ERROR
+	check_if_tcp_store_ok()
+	s_cbranch_scc1 L_SAVE_FIRST_VGPRS64_WITH_TCP
+
+	write_vgprs_to_mem_with_sqc_w64(v0, 4, s_save_buf_rsrc0, s_save_mem_offset)
+	s_branch L_SAVE_HWREG
+
+L_SAVE_FIRST_VGPRS64_WITH_TCP:
+#endif
 
 #if !NO_SQC_STORE
 	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
@@ -645,6 +682,26 @@ L_SAVE_LDS_NORMAL:
 	s_cbranch_scc1	L_SAVE_LDS_W64
 
 L_SAVE_LDS_W32:
+#if SAVE_AFTER_XNACK_ERROR
+	check_if_tcp_store_ok()
+	s_cbranch_scc1 L_SAVE_LDS_WITH_TCP_W32
+
+L_SAVE_LDS_LOOP_SQC_W32:
+	ds_read_b32	v1, v0
+	s_waitcnt	0
+
+	write_vgprs_to_mem_with_sqc_w32(v1, 1, s_save_buf_rsrc0, s_save_mem_offset)
+
+	s_add_u32	m0, m0, 128						//every buffer_store_lds does 128 bytes
+	v_add_nc_u32	v0, v0, 128						//mem offset increased by 128 bytes
+	s_cmp_lt_u32	m0, s_save_alloc_size					//scc=(m0 < s_save_alloc_size) ? 1 : 0
+	s_cbranch_scc1	L_SAVE_LDS_LOOP_SQC_W32					//LDS save is complete?
+
+	s_branch	L_SAVE_LDS_DONE
+
+L_SAVE_LDS_WITH_TCP_W32:
+#endif
+
 	s_mov_b32	s3, 128
 	s_nop		0
 	s_nop		0
@@ -654,7 +711,7 @@ L_SAVE_LDS_LOOP_W32:
 	s_waitcnt	0
 	buffer_store_dword	v1, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
 
-	s_add_u32	m0, m0, s3						//every buffer_store_lds does 256 bytes
+	s_add_u32	m0, m0, s3						//every buffer_store_lds does 128 bytes
 	s_add_u32	s_save_mem_offset, s_save_mem_offset, s3
 	v_add_nc_u32	v0, v0, 128						//mem offset increased by 128 bytes
 	s_cmp_lt_u32	m0, s_save_alloc_size					//scc=(m0 < s_save_alloc_size) ? 1 : 0
@@ -663,6 +720,26 @@ L_SAVE_LDS_LOOP_W32:
 	s_branch	L_SAVE_LDS_DONE
 
 L_SAVE_LDS_W64:
+#if  SAVE_AFTER_XNACK_ERROR
+	check_if_tcp_store_ok()
+	s_cbranch_scc1 L_SAVE_LDS_WITH_TCP_W64
+
+L_SAVE_LDS_LOOP_SQC_W64:
+	ds_read_b32	v1, v0
+	s_waitcnt	0
+
+	write_vgprs_to_mem_with_sqc_w64(v1, 1, s_save_buf_rsrc0, s_save_mem_offset)
+
+	s_add_u32	m0, m0, 256						//every buffer_store_lds does 256 bytes
+	v_add_nc_u32	v0, v0, 256						//mem offset increased by 256 bytes
+	s_cmp_lt_u32	m0, s_save_alloc_size					//scc=(m0 < s_save_alloc_size) ? 1 : 0
+	s_cbranch_scc1	L_SAVE_LDS_LOOP_SQC_W64					//LDS save is complete?
+
+	s_branch	L_SAVE_LDS_DONE
+
+L_SAVE_LDS_WITH_TCP_W64:
+#endif
+
 	s_mov_b32	s3, 256
 	s_nop		0
 	s_nop		0
@@ -712,6 +789,25 @@ L_SAVE_VGPR_NORMAL:
 	s_cmp_lt_u32	m0, s_save_alloc_size
 	s_cbranch_scc0	L_SAVE_VGPR_END
 
+#if  SAVE_AFTER_XNACK_ERROR
+	check_if_tcp_store_ok()
+	s_cbranch_scc1 L_SAVE_VGPR_W32_LOOP
+
+L_SAVE_VGPR_LOOP_SQC_W32:
+	v_movrels_b32	v0, v0							//v0 = v[0+m0]
+	v_movrels_b32	v1, v1							//v1 = v[1+m0]
+	v_movrels_b32	v2, v2							//v2 = v[2+m0]
+	v_movrels_b32	v3, v3							//v3 = v[3+m0]
+
+	write_vgprs_to_mem_with_sqc_w32(v0, 4, s_save_buf_rsrc0, s_save_mem_offset)
+
+	s_add_u32 m0, m0, 4
+	s_cmp_lt_u32 m0, s_save_alloc_size
+	s_cbranch_scc1 L_SAVE_VGPR_LOOP_SQC_W32
+
+	s_branch L_SAVE_VGPR_END
+#endif
+
 L_SAVE_VGPR_W32_LOOP:
 	v_movrels_b32	v0, v0							//v0 = v[0+m0]
 	v_movrels_b32	v1, v1							//v1 = v[1+m0]
@@ -737,6 +833,25 @@ L_SAVE_VGPR_WAVE64:
 	s_mov_b32	m0, 0x4							//VGPR initial index value =4
 	s_cmp_lt_u32	m0, s_save_alloc_size
 	s_cbranch_scc0	L_SAVE_SHARED_VGPR
+
+#if  SAVE_AFTER_XNACK_ERROR
+	check_if_tcp_store_ok()
+	s_cbranch_scc1 L_SAVE_VGPR_W64_LOOP
+
+L_SAVE_VGPR_LOOP_SQC_W64:
+	v_movrels_b32	v0, v0							//v0 = v[0+m0]
+	v_movrels_b32	v1, v1							//v1 = v[1+m0]
+	v_movrels_b32	v2, v2							//v2 = v[2+m0]
+	v_movrels_b32	v3, v3							//v3 = v[3+m0]
+
+	write_vgprs_to_mem_with_sqc_w64(v0, 4, s_save_buf_rsrc0, s_save_mem_offset)
+
+	s_add_u32 m0, m0, 4
+	s_cmp_lt_u32 m0, s_save_alloc_size
+	s_cbranch_scc1 L_SAVE_VGPR_LOOP_SQC_W64
+
+	s_branch L_SAVE_VGPR_END
+#endif
 
 L_SAVE_VGPR_W64_LOOP:
 	v_movrels_b32	v0, v0							//v0 = v[0+m0]
@@ -765,6 +880,23 @@ L_SAVE_SHARED_VGPR:
 	s_add_u32	s_save_alloc_size, s_save_alloc_size, m0
 	s_mov_b32	exec_lo, 0xFFFFFFFF
 	s_mov_b32	exec_hi, 0x00000000
+
+#if  SAVE_AFTER_XNACK_ERROR
+	check_if_tcp_store_ok()
+	s_cbranch_scc1 L_SAVE_SHARED_VGPR_WAVE64_LOOP
+
+L_SAVE_SHARED_VGPR_WAVE64_LOOP_SQC:
+	v_movrels_b32	v0, v0
+
+	write_vgprs_to_mem_with_sqc_w64(v0, 1, s_save_buf_rsrc0, s_save_mem_offset)
+
+	s_add_u32 m0, m0, 1
+	s_cmp_lt_u32 m0, s_save_alloc_size
+	s_cbranch_scc1 L_SAVE_SHARED_VGPR_WAVE64_LOOP_SQC
+
+	s_branch L_SAVE_VGPR_END
+#endif
+
 L_SAVE_SHARED_VGPR_WAVE64_LOOP:
 	v_movrels_b32	v0, v0							//v0 = v[0+m0]
 	buffer_store_dword	v0, v0, s_save_buf_rsrc0, s_save_mem_offset slc:1 glc:1
@@ -1175,6 +1307,43 @@ function read_4sgpr_from_mem(s, s_rsrc, s_mem_offset)
 	s_buffer_load_dwordx4	s, s_rsrc, s_mem_offset glc:1
 end
 
+#if SAVE_AFTER_XNACK_ERROR
+function check_if_tcp_store_ok
+	// If TRAPSTS.XNACK_ERROR=1 then TCP stores will fail.
+	s_getreg_b32 s_save_tmp, hwreg(HW_REG_TRAPSTS)
+	s_andn2_b32 s_save_tmp, SQ_WAVE_TRAPSTS_XNACK_ERROR_MASK, s_save_tmp
+
+L_TCP_STORE_CHECK_DONE:
+end
+
+function write_vgpr_to_mem_with_sqc(vgpr, n_lanes, s_rsrc, s_mem_offset)
+	s_mov_b32 s4, 0
+
+L_WRITE_VGPR_LANE_LOOP:
+	for var lane = 0; lane < 4; ++lane
+		v_readlane_b32 s[lane], vgpr, s4
+		s_add_u32 s4, s4, 1
+	end
+
+	s_buffer_store_dwordx4 s[0:3], s_rsrc, s_mem_offset glc:1
+
+	s_add_u32 s_mem_offset, s_mem_offset, 0x10
+	s_cmp_eq_u32 s4, n_lanes
+	s_cbranch_scc0 L_WRITE_VGPR_LANE_LOOP
+end
+
+function write_vgprs_to_mem_with_sqc_w32(vgpr0, n_vgprs, s_rsrc, s_mem_offset)
+	for var vgpr = 0; vgpr < n_vgprs; ++vgpr
+		write_vgpr_to_mem_with_sqc(vgpr0[vgpr], 32, s_rsrc, s_mem_offset)
+	end
+end
+
+function write_vgprs_to_mem_with_sqc_w64(vgpr0, n_vgprs, s_rsrc, s_mem_offset)
+	for var vgpr = 0; vgpr < n_vgprs; ++vgpr
+		write_vgpr_to_mem_with_sqc(vgpr0[vgpr], 64, s_rsrc, s_mem_offset)
+	end
+end
+#endif
 
 function get_lds_size_bytes(s_lds_size_byte)
 	s_getreg_b32	s_lds_size_byte, hwreg(HW_REG_LDS_ALLOC, SQ_WAVE_LDS_ALLOC_LDS_SIZE_SHIFT, SQ_WAVE_LDS_ALLOC_LDS_SIZE_SIZE)

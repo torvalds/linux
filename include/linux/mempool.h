@@ -95,6 +95,19 @@ static inline mempool_t *mempool_create_kmalloc_pool(int min_nr, size_t size)
 			      (void *) size);
 }
 
+void *mempool_kvmalloc(gfp_t gfp_mask, void *pool_data);
+void mempool_kvfree(void *element, void *pool_data);
+
+static inline int mempool_init_kvmalloc_pool(mempool_t *pool, int min_nr, size_t size)
+{
+	return mempool_init(pool, min_nr, mempool_kvmalloc, mempool_kvfree, (void *) size);
+}
+
+static inline mempool_t *mempool_create_kvmalloc_pool(int min_nr, size_t size)
+{
+	return mempool_create(min_nr, mempool_kvmalloc, mempool_kvfree, (void *) size);
+}
+
 /*
  * A mempool_alloc_t and mempool_free_t for a simple page allocator that
  * allocates pages of the order specified by pool_data

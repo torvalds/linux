@@ -169,6 +169,7 @@ static void bkey_cached_move_to_freelist(struct btree_key_cache *bc,
 	} else {
 		mutex_lock(&bc->lock);
 		list_move_tail(&ck->list, &bc->freed_pcpu);
+		bc->nr_freed_pcpu++;
 		mutex_unlock(&bc->lock);
 	}
 }
@@ -245,6 +246,7 @@ bkey_cached_alloc(struct btree_trans *trans, struct btree_path *path,
 		if (!list_empty(&bc->freed_pcpu)) {
 			ck = list_last_entry(&bc->freed_pcpu, struct bkey_cached, list);
 			list_del_init(&ck->list);
+			bc->nr_freed_pcpu--;
 		}
 		mutex_unlock(&bc->lock);
 	}
@@ -380,9 +382,11 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 	struct bkey_i *new_k = NULL;
 	int ret;
 
-	k = bch2_bkey_get_iter(trans, &iter, ck->key.btree_id, ck->key.pos,
-			       BTREE_ITER_KEY_CACHE_FILL|
-			       BTREE_ITER_CACHED_NOFILL);
+	bch2_trans_iter_init(trans, &iter, ck->key.btree_id, ck->key.pos,
+			     BTREE_ITER_KEY_CACHE_FILL|
+			     BTREE_ITER_CACHED_NOFILL);
+	iter.flags &= ~BTREE_ITER_WITH_JOURNAL;
+	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -657,7 +661,7 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 		commit_flags |= BCH_WATERMARK_reclaim;
 
 	if (ck->journal.seq != journal_last_seq(j) ||
-	    j->watermark == BCH_WATERMARK_stripe)
+	    !test_bit(JOURNAL_SPACE_LOW, &c->journal.flags))
 		commit_flags |= BCH_TRANS_COMMIT_no_journal_res;
 
 	ret   = bch2_btree_iter_traverse(&b_iter) ?:
@@ -674,7 +678,7 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 			     !bch2_err_matches(ret, BCH_ERR_transaction_restart) &&
 			     !bch2_err_matches(ret, BCH_ERR_journal_reclaim_would_deadlock) &&
 			     !bch2_journal_error(j), c,
-			     "error flushing key cache: %s", bch2_err_str(ret));
+			     "flushing key cache: %s", bch2_err_str(ret));
 	if (ret)
 		goto out;
 

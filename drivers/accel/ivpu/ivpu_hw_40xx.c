@@ -80,11 +80,11 @@ static char *ivpu_platform_to_str(u32 platform)
 {
 	switch (platform) {
 	case IVPU_PLATFORM_SILICON:
-		return "IVPU_PLATFORM_SILICON";
+		return "SILICON";
 	case IVPU_PLATFORM_SIMICS:
-		return "IVPU_PLATFORM_SIMICS";
+		return "SIMICS";
 	case IVPU_PLATFORM_FPGA:
-		return "IVPU_PLATFORM_FPGA";
+		return "FPGA";
 	default:
 		return "Invalid platform";
 	}
@@ -768,7 +768,7 @@ static int ivpu_hw_40xx_reset(struct ivpu_device *vdev)
 	int ret = 0;
 
 	if (ivpu_hw_40xx_ip_reset(vdev)) {
-		ivpu_err(vdev, "Failed to reset VPU IP\n");
+		ivpu_err(vdev, "Failed to reset NPU IP\n");
 		ret = -EIO;
 	}
 
@@ -926,7 +926,7 @@ static int ivpu_hw_40xx_power_down(struct ivpu_device *vdev)
 	ivpu_hw_40xx_save_d0i3_entry_timestamp(vdev);
 
 	if (!ivpu_hw_40xx_is_idle(vdev) && ivpu_hw_40xx_ip_reset(vdev))
-		ivpu_warn(vdev, "Failed to reset the VPU\n");
+		ivpu_warn(vdev, "Failed to reset the NPU\n");
 
 	if (ivpu_pll_disable(vdev)) {
 		ivpu_err(vdev, "Failed to disable PLL\n");

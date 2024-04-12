@@ -47,6 +47,10 @@ struct scmi_clock_info {
 	bool rate_discrete;
 	bool rate_changed_notifications;
 	bool rate_change_requested_notifications;
+	bool state_ctrl_forbidden;
+	bool rate_ctrl_forbidden;
+	bool parent_ctrl_forbidden;
+	bool extended_config;
 	union {
 		struct {
 			int num_rates;
@@ -71,6 +75,13 @@ enum scmi_power_scale {
 struct scmi_handle;
 struct scmi_device;
 struct scmi_protocol_handle;
+
+enum scmi_clock_oem_config {
+	SCMI_CLOCK_CFG_DUTY_CYCLE = 0x1,
+	SCMI_CLOCK_CFG_PHASE,
+	SCMI_CLOCK_CFG_OEM_START = 0x80,
+	SCMI_CLOCK_CFG_OEM_END = 0xFF,
+};
 
 /**
  * struct scmi_clk_proto_ops - represents the various operations provided
@@ -104,10 +115,11 @@ struct scmi_clk_proto_ops {
 	int (*state_get)(const struct scmi_protocol_handle *ph, u32 clk_id,
 			 bool *enabled, bool atomic);
 	int (*config_oem_get)(const struct scmi_protocol_handle *ph, u32 clk_id,
-			      u8 oem_type, u32 *oem_val, u32 *attributes,
-			      bool atomic);
+			      enum scmi_clock_oem_config oem_type,
+			      u32 *oem_val, u32 *attributes, bool atomic);
 	int (*config_oem_set)(const struct scmi_protocol_handle *ph, u32 clk_id,
-			      u8 oem_type, u32 oem_val, bool atomic);
+			      enum scmi_clock_oem_config oem_type,
+			      u32 oem_val, bool atomic);
 	int (*parent_get)(const struct scmi_protocol_handle *ph, u32 clk_id, u32 *parent_id);
 	int (*parent_set)(const struct scmi_protocol_handle *ph, u32 clk_id, u32 parent_id);
 };
@@ -128,6 +140,8 @@ struct scmi_perf_domain_info {
  * @level_set: sets the performance level of a domain
  * @level_get: gets the performance level of a domain
  * @transition_latency_get: gets the DVFS transition latency for a given device
+ * @rate_limit_get: gets the minimum time (us) required between successive
+ *	requests
  * @device_opps_add: adds all the OPPs for a given device
  * @freq_set: sets the frequency for a given device using sustained frequency
  *	to sustained performance level mapping
@@ -137,6 +151,8 @@ struct scmi_perf_domain_info {
  *	at a given frequency
  * @fast_switch_possible: indicates if fast DVFS switching is possible or not
  *	for a given device
+ * @fast_switch_rate_limit: gets the minimum time (us) required between
+ *	successive fast_switching requests
  * @power_scale_mw_get: indicates if the power values provided are in milliWatts
  *	or in some other (abstract) scale
  */
@@ -154,6 +170,8 @@ struct scmi_perf_proto_ops {
 			 u32 *level, bool poll);
 	int (*transition_latency_get)(const struct scmi_protocol_handle *ph,
 				      u32 domain);
+	int (*rate_limit_get)(const struct scmi_protocol_handle *ph,
+			      u32 domain, u32 *rate_limit);
 	int (*device_opps_add)(const struct scmi_protocol_handle *ph,
 			       struct device *dev, u32 domain);
 	int (*freq_set)(const struct scmi_protocol_handle *ph, u32 domain,
@@ -164,6 +182,8 @@ struct scmi_perf_proto_ops {
 			     unsigned long *rate, unsigned long *power);
 	bool (*fast_switch_possible)(const struct scmi_protocol_handle *ph,
 				     u32 domain);
+	int (*fast_switch_rate_limit)(const struct scmi_protocol_handle *ph,
+				      u32 domain, u32 *rate_limit);
 	enum scmi_power_scale (*power_scale_get)(const struct scmi_protocol_handle *ph);
 };
 
@@ -953,6 +973,8 @@ struct scmi_perf_limits_report {
 	unsigned int	domain_id;
 	unsigned int	range_max;
 	unsigned int	range_min;
+	unsigned long	range_max_freq;
+	unsigned long	range_min_freq;
 };
 
 struct scmi_perf_level_report {
@@ -960,6 +982,7 @@ struct scmi_perf_level_report {
 	unsigned int	agent_id;
 	unsigned int	domain_id;
 	unsigned int	performance_level;
+	unsigned long	performance_level_freq;
 };
 
 struct scmi_sensor_trip_point_report {

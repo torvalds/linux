@@ -34,7 +34,7 @@
 static int s5p_mfc_alloc_dec_temp_buffers_v5(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_buf_size_v5 *buf_size = dev->variant->buf_size->priv;
+	const struct s5p_mfc_buf_size_v5 *buf_size = dev->variant->buf_size->priv;
 	int ret;
 
 	ctx->dsc.size = buf_size->dsc;
@@ -200,7 +200,7 @@ static void s5p_mfc_release_codec_buffers_v5(struct s5p_mfc_ctx *ctx)
 static int s5p_mfc_alloc_instance_buffer_v5(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_buf_size_v5 *buf_size = dev->variant->buf_size->priv;
+	const struct s5p_mfc_buf_size_v5 *buf_size = dev->variant->buf_size->priv;
 	int ret;
 
 	if (ctx->codec_mode == S5P_MFC_CODEC_H264_DEC ||
@@ -345,7 +345,7 @@ static void s5p_mfc_enc_calc_src_size_v5(struct s5p_mfc_ctx *ctx)
 static void s5p_mfc_set_dec_desc_buffer(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_buf_size_v5 *buf_size = dev->variant->buf_size->priv;
+	const struct s5p_mfc_buf_size_v5 *buf_size = dev->variant->buf_size->priv;
 
 	mfc_write(dev, OFFSETA(ctx->dsc.dma), S5P_FIMV_SI_CH0_DESC_ADR);
 	mfc_write(dev, buf_size->dsc, S5P_FIMV_SI_CH0_DESC_SIZE);
@@ -676,7 +676,7 @@ static int s5p_mfc_set_enc_ref_buffer_v5(struct s5p_mfc_ctx *ctx)
 static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
 	unsigned int reg;
 	unsigned int shm;
 
@@ -759,8 +759,8 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 static int s5p_mfc_set_enc_params_h264(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_h264_enc_params *p_264 = &p->codec.h264;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_h264_enc_params *p_264 = &p->codec.h264;
 	unsigned int reg;
 	unsigned int shm;
 
@@ -916,8 +916,8 @@ static int s5p_mfc_set_enc_params_h264(struct s5p_mfc_ctx *ctx)
 static int s5p_mfc_set_enc_params_mpeg4(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_mpeg4_enc_params *p_mpeg4 = &p->codec.mpeg4;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_mpeg4_enc_params *p_mpeg4 = &p->codec.mpeg4;
 	unsigned int reg;
 	unsigned int shm;
 	unsigned int framerate;
@@ -995,8 +995,8 @@ static int s5p_mfc_set_enc_params_mpeg4(struct s5p_mfc_ctx *ctx)
 static int s5p_mfc_set_enc_params_h263(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_mpeg4_enc_params *p_h263 = &p->codec.mpeg4;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_mpeg4_enc_params *p_h263 = &p->codec.mpeg4;
 	unsigned int reg;
 	unsigned int shm;
 
@@ -1348,7 +1348,7 @@ static void s5p_mfc_try_run_v5(struct s5p_mfc_dev *dev)
 	 * Last frame has already been sent to MFC.
 	 * Now obtaining frames from MFC buffer
 	 */
-	s5p_mfc_clock_on();
+	s5p_mfc_clock_on(dev);
 	s5p_mfc_clean_ctx_int_flags(ctx);
 
 	if (ctx->type == MFCINST_DECODER) {
@@ -1424,7 +1424,7 @@ static void s5p_mfc_try_run_v5(struct s5p_mfc_dev *dev)
 		 * scheduled, reduce the clock count as no one will
 		 * ever do this, because no interrupt related to this try_run
 		 * will ever come from hardware. */
-		s5p_mfc_clock_off();
+		s5p_mfc_clock_off(dev);
 	}
 }
 
@@ -1593,7 +1593,7 @@ static unsigned int s5p_mfc_get_crop_info_v_v5(struct s5p_mfc_ctx *ctx)
 }
 
 /* Initialize opr function pointers for MFC v5 */
-static struct s5p_mfc_hw_ops s5p_mfc_ops_v5 = {
+static const struct s5p_mfc_hw_ops s5p_mfc_ops_v5 = {
 	.alloc_dec_temp_buffers = s5p_mfc_alloc_dec_temp_buffers_v5,
 	.release_dec_desc_buffer = s5p_mfc_release_dec_desc_buffer_v5,
 	.alloc_codec_buffers = s5p_mfc_alloc_codec_buffers_v5,
@@ -1633,7 +1633,7 @@ static struct s5p_mfc_hw_ops s5p_mfc_ops_v5 = {
 	.get_crop_info_v = s5p_mfc_get_crop_info_v_v5,
 };
 
-struct s5p_mfc_hw_ops *s5p_mfc_init_hw_ops_v5(void)
+const struct s5p_mfc_hw_ops *s5p_mfc_init_hw_ops_v5(void)
 {
 	return &s5p_mfc_ops_v5;
 }

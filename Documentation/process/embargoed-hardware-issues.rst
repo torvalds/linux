@@ -255,7 +255,7 @@ an involved disclosed party. The current ambassadors list:
   IBM Power	Anton Blanchard <anton@linux.ibm.com>
   IBM Z		Christian Borntraeger <borntraeger@de.ibm.com>
   Intel		Tony Luck <tony.luck@intel.com>
-  Qualcomm	Trilok Soni <tsoni@codeaurora.org>
+  Qualcomm	Trilok Soni <quic_tsoni@quicinc.com>
   RISC-V	Palmer Dabbelt <palmer@dabbelt.com>
   Samsung	Javier González <javier.gonz@samsung.com>
 

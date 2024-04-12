@@ -127,6 +127,24 @@ config PINCTRL_AXP209
 	  selected.
 	  Say Y to enable pinctrl and GPIO support for the AXP209 PMIC.
 
+config PINCTRL_AW9523
+	tristate "Awinic AW9523/AW9523B I2C GPIO expander pinctrl driver"
+	depends on OF && I2C
+	select PINMUX
+	select PINCONF
+	select GENERIC_PINCONF
+	select GPIOLIB
+	select GPIOLIB_IRQCHIP
+	select REGMAP
+	select REGMAP_I2C
+	help
+	  The Awinic AW9523/AW9523B is a multi-function I2C GPIO
+	  expander with PWM functionality. This driver bundles a
+	  pinctrl driver to select the function muxing and a GPIO
+	  driver to handle GPIO, when the GPIO function is selected.
+
+	  Say yes to enable pinctrl and GPIO support for the AW9523(B).
+
 config PINCTRL_BM1880
 	bool "Bitmain BM1880 Pinctrl driver"
 	depends on OF && (ARCH_BITMAIN || COMPILE_TEST)

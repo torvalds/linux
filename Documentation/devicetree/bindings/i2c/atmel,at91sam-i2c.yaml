@@ -25,7 +25,9 @@ properties:
               - atmel,sama5d2-i2c
               - microchip,sam9x60-i2c
       - items:
-          - const: microchip,sama7g5-i2c
+          - enum:
+              - microchip,sama7g5-i2c
+              - microchip,sam9x7-i2c
           - const: microchip,sam9x60-i2c
 
   reg:

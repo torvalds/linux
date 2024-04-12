@@ -9,7 +9,7 @@
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2007-2010, Intel Corporation
  * Copyright 2017	Intel Deutschland GmbH
- * Copyright(c) 2020-2023 Intel Corporation
+ * Copyright(c) 2020-2024 Intel Corporation
  */
 
 #include <linux/ieee80211.h>
@@ -257,7 +257,7 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 	if (WARN_ON(!link_conf))
 		width = NL80211_CHAN_WIDTH_20_NOHT;
 	else
-		width = link_conf->chandef.width;
+		width = link_conf->chanreq.oper.width;
 
 	switch (width) {
 	default:
@@ -602,6 +602,8 @@ void ieee80211_request_smps(struct ieee80211_vif *vif, unsigned int link_id,
 	link = rcu_dereference(sdata->link[link_id]);
 	if (WARN_ON(!link))
 		goto out;
+
+	trace_api_request_smps(sdata->local, sdata, link, smps_mode);
 
 	if (link->u.mgd.driver_smps_mode == smps_mode)
 		goto out;

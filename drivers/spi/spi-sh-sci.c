@@ -136,9 +136,9 @@ static int sh_sci_spi_probe(struct platform_device *dev)
 	}
 
 	/* setup spi bitbang adaptor */
-	sp->bitbang.master = host;
-	sp->bitbang.master->bus_num = sp->info->bus_num;
-	sp->bitbang.master->num_chipselect = sp->info->num_chipselect;
+	sp->bitbang.ctlr = host;
+	sp->bitbang.ctlr->bus_num = sp->info->bus_num;
+	sp->bitbang.ctlr->num_chipselect = sp->info->num_chipselect;
 	sp->bitbang.chipselect = sh_sci_spi_chipselect;
 
 	sp->bitbang.txrx_word[SPI_MODE_0] = sh_sci_spi_txrx_mode0;
@@ -166,7 +166,7 @@ static int sh_sci_spi_probe(struct platform_device *dev)
 	setbits(sp, PIN_INIT, 0);
 	iounmap(sp->membase);
  err1:
-	spi_controller_put(sp->bitbang.master);
+	spi_controller_put(sp->bitbang.ctlr);
  err0:
 	return ret;
 }
@@ -178,7 +178,7 @@ static void sh_sci_spi_remove(struct platform_device *dev)
 	spi_bitbang_stop(&sp->bitbang);
 	setbits(sp, PIN_INIT, 0);
 	iounmap(sp->membase);
-	spi_controller_put(sp->bitbang.master);
+	spi_controller_put(sp->bitbang.ctlr);
 }
 
 static struct platform_driver sh_sci_spi_drv = {

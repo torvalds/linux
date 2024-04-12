@@ -383,7 +383,7 @@ static void s5p_mfc_release_codec_buffers_v6(struct s5p_mfc_ctx *ctx)
 static int s5p_mfc_alloc_instance_buffer_v6(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
-	struct s5p_mfc_buf_size_v6 *buf_size = dev->variant->buf_size->priv;
+	const struct s5p_mfc_buf_size_v6 *buf_size = dev->variant->buf_size->priv;
 	int ret;
 
 	mfc_debug_enter();
@@ -443,7 +443,7 @@ static void s5p_mfc_release_instance_buffer_v6(struct s5p_mfc_ctx *ctx)
 /* Allocate context buffers for SYS_INIT */
 static int s5p_mfc_alloc_dev_context_buffer_v6(struct s5p_mfc_dev *dev)
 {
-	struct s5p_mfc_buf_size_v6 *buf_size = dev->variant->buf_size->priv;
+	const struct s5p_mfc_buf_size_v6 *buf_size = dev->variant->buf_size->priv;
 	int ret;
 
 	mfc_debug_enter();
@@ -587,7 +587,7 @@ static int s5p_mfc_set_dec_stream_buffer_v6(struct s5p_mfc_ctx *ctx,
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	const struct s5p_mfc_regs *mfc_regs = dev->mfc_regs;
-	struct s5p_mfc_buf_size *buf_size = dev->variant->buf_size;
+	const struct s5p_mfc_buf_size *buf_size = dev->variant->buf_size;
 
 	mfc_debug_enter();
 	mfc_debug(2, "inst_no: %d, buf_addr: 0x%08x,\n"
@@ -863,7 +863,7 @@ static int s5p_mfc_set_enc_params(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	const struct s5p_mfc_regs *mfc_regs = dev->mfc_regs;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
 	unsigned int reg = 0;
 
 	mfc_debug_enter();
@@ -1349,8 +1349,8 @@ static int s5p_mfc_set_enc_params_mpeg4(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	const struct s5p_mfc_regs *mfc_regs = dev->mfc_regs;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_mpeg4_enc_params *p_mpeg4 = &p->codec.mpeg4;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_mpeg4_enc_params *p_mpeg4 = &p->codec.mpeg4;
 	unsigned int reg = 0;
 
 	mfc_debug_enter();
@@ -1431,8 +1431,8 @@ static int s5p_mfc_set_enc_params_h263(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	const struct s5p_mfc_regs *mfc_regs = dev->mfc_regs;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_mpeg4_enc_params *p_h263 = &p->codec.mpeg4;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_mpeg4_enc_params *p_h263 = &p->codec.mpeg4;
 	unsigned int reg = 0;
 
 	mfc_debug_enter();
@@ -1501,8 +1501,8 @@ static int s5p_mfc_set_enc_params_vp8(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	const struct s5p_mfc_regs *mfc_regs = dev->mfc_regs;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_vp8_enc_params *p_vp8 = &p->codec.vp8;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_vp8_enc_params *p_vp8 = &p->codec.vp8;
 	unsigned int reg = 0;
 	unsigned int val = 0;
 
@@ -1897,8 +1897,8 @@ static int s5p_mfc_h264_set_aso_slice_order_v6(struct s5p_mfc_ctx *ctx)
 {
 	struct s5p_mfc_dev *dev = ctx->dev;
 	const struct s5p_mfc_regs *mfc_regs = dev->mfc_regs;
-	struct s5p_mfc_enc_params *p = &ctx->enc_params;
-	struct s5p_mfc_h264_enc_params *p_h264 = &p->codec.h264;
+	const struct s5p_mfc_enc_params *p = &ctx->enc_params;
+	const struct s5p_mfc_h264_enc_params *p_h264 = &p->codec.h264;
 	int i;
 
 	if (p_h264->aso) {
@@ -2165,7 +2165,7 @@ static void s5p_mfc_try_run_v6(struct s5p_mfc_dev *dev)
 	/* Last frame has already been sent to MFC
 	 * Now obtaining frames from MFC buffer */
 
-	s5p_mfc_clock_on();
+	s5p_mfc_clock_on(dev);
 	s5p_mfc_clean_ctx_int_flags(ctx);
 
 	if (ctx->type == MFCINST_DECODER) {
@@ -2245,7 +2245,7 @@ static void s5p_mfc_try_run_v6(struct s5p_mfc_dev *dev)
 		 * scheduled, reduce the clock count as no one will
 		 * ever do this, because no interrupt related to this try_run
 		 * will ever come from hardware. */
-		s5p_mfc_clock_off();
+		s5p_mfc_clock_off(dev);
 	}
 }
 
@@ -2261,9 +2261,9 @@ s5p_mfc_read_info_v6(struct s5p_mfc_ctx *ctx, unsigned long ofs)
 {
 	int ret;
 
-	s5p_mfc_clock_on();
+	s5p_mfc_clock_on(ctx->dev);
 	ret = readl((void __iomem *)ofs);
-	s5p_mfc_clock_off();
+	s5p_mfc_clock_off(ctx->dev);
 
 	return ret;
 }
@@ -2657,7 +2657,7 @@ done:
 }
 
 /* Initialize opr function pointers for MFC v6 */
-static struct s5p_mfc_hw_ops s5p_mfc_ops_v6 = {
+static const struct s5p_mfc_hw_ops s5p_mfc_ops_v6 = {
 	.alloc_dec_temp_buffers = s5p_mfc_alloc_dec_temp_buffers_v6,
 	.release_dec_desc_buffer = s5p_mfc_release_dec_desc_buffer_v6,
 	.alloc_codec_buffers = s5p_mfc_alloc_codec_buffers_v6,
@@ -2701,7 +2701,7 @@ static struct s5p_mfc_hw_ops s5p_mfc_ops_v6 = {
 	.get_e_min_scratch_buf_size = s5p_mfc_get_e_min_scratch_buf_size,
 };
 
-struct s5p_mfc_hw_ops *s5p_mfc_init_hw_ops_v6(void)
+const struct s5p_mfc_hw_ops *s5p_mfc_init_hw_ops_v6(void)
 {
 	return &s5p_mfc_ops_v6;
 }

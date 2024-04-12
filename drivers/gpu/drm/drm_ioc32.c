@@ -229,7 +229,7 @@ typedef struct drm_update_draw32 {
 	unsigned int num;
 	/* 64-bit version has a 32-bit pad here */
 	u64 data;	/**< Pointer */
-} __attribute__((packed)) drm_update_draw32_t;
+} __packed drm_update_draw32_t;
 
 static int compat_drm_update_draw(struct file *file, unsigned int cmd,
 				  unsigned long arg)
@@ -296,7 +296,7 @@ typedef struct drm_mode_fb_cmd232 {
 	u32 pitches[4];
 	u32 offsets[4];
 	u64 modifier[4];
-} __attribute__((packed)) drm_mode_fb_cmd232_t;
+} __packed drm_mode_fb_cmd232_t;
 
 static int compat_drm_mode_addfb2(struct file *file, unsigned int cmd,
 				  unsigned long arg)

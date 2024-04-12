@@ -13,8 +13,7 @@
 
 #include <linux/power/bq27xxx_battery.h>
 
-static DEFINE_IDR(battery_id);
-static DEFINE_MUTEX(battery_mutex);
+static DEFINE_IDA(battery_id);
 
 static irqreturn_t bq27xxx_battery_irq_handler_thread(int irq, void *data)
 {
@@ -136,30 +135,39 @@ static int bq27xxx_battery_i2c_bulk_write(struct bq27xxx_device_info *di,
 	return 0;
 }
 
+static void bq27xxx_battery_i2c_devm_ida_free(void *data)
+{
+	int num = (long)data;
+
+	ida_free(&battery_id, num);
+}
+
 static int bq27xxx_battery_i2c_probe(struct i2c_client *client)
 {
 	const struct i2c_device_id *id = i2c_client_get_device_id(client);
 	struct bq27xxx_device_info *di;
 	int ret;
 	char *name;
-	int num;
+	long num;
 
 	/* Get new ID for the new battery device */
-	mutex_lock(&battery_mutex);
-	num = idr_alloc(&battery_id, client, 0, 0, GFP_KERNEL);
-	mutex_unlock(&battery_mutex);
+	num = ida_alloc(&battery_id, GFP_KERNEL);
 	if (num < 0)
 		return num;
+	ret = devm_add_action_or_reset(&client->dev,
+				       bq27xxx_battery_i2c_devm_ida_free,
+				       (void *)num);
+	if (ret)
+		return ret;
 
-	name = devm_kasprintf(&client->dev, GFP_KERNEL, "%s-%d", id->name, num);
+	name = devm_kasprintf(&client->dev, GFP_KERNEL, "%s-%ld", id->name, num);
 	if (!name)
-		goto err_mem;
+		return -ENOMEM;
 
 	di = devm_kzalloc(&client->dev, sizeof(*di), GFP_KERNEL);
 	if (!di)
-		goto err_mem;
+		return -ENOMEM;
 
-	di->id = num;
 	di->dev = &client->dev;
 	di->chip = id->driver_data;
 	di->name = name;
@@ -171,7 +179,7 @@ static int bq27xxx_battery_i2c_probe(struct i2c_client *client)
 
 	ret = bq27xxx_battery_setup(di);
 	if (ret)
-		goto err_failed;
+		return ret;
 
 	/* Schedule a polling after about 1 min */
 	schedule_delayed_work(&di->work, 60 * HZ);
@@ -188,21 +196,11 @@ static int bq27xxx_battery_i2c_probe(struct i2c_client *client)
 				"Unable to register IRQ %d error %d\n",
 				client->irq, ret);
 			bq27xxx_battery_teardown(di);
-			goto err_failed;
+			return ret;
 		}
 	}
 
 	return 0;
-
-err_mem:
-	ret = -ENOMEM;
-
-err_failed:
-	mutex_lock(&battery_mutex);
-	idr_remove(&battery_id, num);
-	mutex_unlock(&battery_mutex);
-
-	return ret;
 }
 
 static void bq27xxx_battery_i2c_remove(struct i2c_client *client)
@@ -213,10 +211,6 @@ static void bq27xxx_battery_i2c_remove(struct i2c_client *client)
 		free_irq(client->irq, di);
 
 	bq27xxx_battery_teardown(di);
-
-	mutex_lock(&battery_mutex);
-	idr_remove(&battery_id, di->id);
-	mutex_unlock(&battery_mutex);
 }
 
 static const struct i2c_device_id bq27xxx_i2c_id_table[] = {

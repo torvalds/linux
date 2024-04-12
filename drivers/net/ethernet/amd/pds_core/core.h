@@ -197,6 +197,7 @@ struct pdsc {
 	struct pdsc_qcq notifyqcq;
 	u64 last_eid;
 	struct pdsc_viftype *viftype_status;
+	struct work_struct pci_reset_work;
 };
 
 /** enum pds_core_dbell_bits - bitwise composition of dbell values.
@@ -282,9 +283,7 @@ int pdsc_devcmd_locked(struct pdsc *pdsc, union pds_core_dev_cmd *cmd,
 int pdsc_devcmd_init(struct pdsc *pdsc);
 int pdsc_devcmd_reset(struct pdsc *pdsc);
 int pdsc_dev_init(struct pdsc *pdsc);
-
-void pdsc_reset_prepare(struct pci_dev *pdev);
-void pdsc_reset_done(struct pci_dev *pdev);
+void pdsc_dev_uninit(struct pdsc *pdsc);
 
 int pdsc_intr_alloc(struct pdsc *pdsc, char *name,
 		    irq_handler_t handler, void *data);
@@ -315,5 +314,6 @@ int pdsc_firmware_update(struct pdsc *pdsc, const struct firmware *fw,
 
 void pdsc_fw_down(struct pdsc *pdsc);
 void pdsc_fw_up(struct pdsc *pdsc);
+void pdsc_pci_reset_thread(struct work_struct *work);
 
 #endif /* _PDSC_H_ */

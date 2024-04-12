@@ -1135,7 +1135,7 @@
 			compatible = "mediatek,mt6397-rtc";
 		};
 
-		syscfg_pctl_pmic: syscfg_pctl_pmic@c000 {
+		syscfg_pctl_pmic: syscon@c000 {
 			compatible = "mediatek,mt6397-pctl-pmic-syscfg",
 				     "syscon";
 			reg = <0 0x0000c000 0 0x0108>;
@@ -1155,6 +1155,7 @@
 		spi-max-frequency = <12000000>;
 		interrupts-extended = <&pio 0 IRQ_TYPE_LEVEL_LOW>;
 		google,cros-ec-spi-msg-delay = <500>;
+		wakeup-source;
 
 		i2c_tunnel: i2c-tunnel0 {
 			compatible = "google,cros-ec-i2c-tunnel";

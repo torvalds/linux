@@ -47,7 +47,7 @@ static inline int hl_mmu_v2_hr_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
-	return hl_mmu_hr_init(hdev, &hdev->mmu_priv.hr, prop->mmu_hop_table_size,
+	return hl_mmu_hr_init(hdev, &hdev->mmu_priv.hr, prop->pmmu.hop_table_size,
 				prop->mmu_pgt_size);
 }
 
@@ -65,7 +65,7 @@ static inline void hl_mmu_v2_hr_fini(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 
-	hl_mmu_hr_fini(hdev, &hdev->mmu_priv.hr, prop->mmu_hop_table_size);
+	hl_mmu_hr_fini(hdev, &hdev->mmu_priv.hr, prop->pmmu.hop_table_size);
 }
 
 /**
@@ -108,7 +108,7 @@ static void hl_mmu_v2_hr_ctx_fini(struct hl_ctx *ctx)
 			"pgt_info of addr 0x%llx of asid %d was not destroyed, num_ptes: %d\n",
 			pgt_info->phys_addr, ctx->asid, pgt_info->num_of_ptes);
 		hl_mmu_hr_free_hop_remove_pgt(pgt_info, &ctx->hdev->mmu_priv.hr,
-							ctx->hdev->asic_prop.mmu_hop_table_size);
+							ctx->hdev->asic_prop.pmmu.hop_table_size);
 	}
 }
 
@@ -150,7 +150,7 @@ static int _hl_mmu_v2_hr_unmap(struct hl_ctx *ctx,
 
 		curr_pte = *(u64 *) (uintptr_t) hl_mmu_hr_pte_phys_to_virt(ctx, hops_pgt_info[i],
 							hop_pte_phys_addr[i],
-							ctx->hdev->asic_prop.mmu_hop_table_size);
+							ctx->hdev->asic_prop.pmmu.hop_table_size);
 
 		if ((i < hop_last) && (curr_pte & mmu_prop->last_mask)) {
 			hop_last = i;
@@ -169,14 +169,14 @@ static int _hl_mmu_v2_hr_unmap(struct hl_ctx *ctx,
 
 	for (i = hop_last ; i > 0 ; i--) {
 		hl_mmu_hr_clear_pte(ctx, hops_pgt_info[i], hop_pte_phys_addr[i],
-						ctx->hdev->asic_prop.mmu_hop_table_size);
+						ctx->hdev->asic_prop.pmmu.hop_table_size);
 
 		if (hl_mmu_hr_put_pte(ctx, hops_pgt_info[i], &ctx->hdev->mmu_priv.hr,
-						ctx->hdev->asic_prop.mmu_hop_table_size))
+						ctx->hdev->asic_prop.pmmu.hop_table_size))
 			goto mapped;
 	}
 	hl_mmu_hr_clear_pte(ctx, hops_pgt_info[0], hop_pte_phys_addr[0],
-						ctx->hdev->asic_prop.mmu_hop_table_size);
+						ctx->hdev->asic_prop.pmmu.hop_table_size);
 
 mapped:
 	return 0;
@@ -255,7 +255,7 @@ static int _hl_mmu_v2_hr_map(struct hl_ctx *ctx,
 									scrambled_virt_addr);
 		curr_pte = *(u64 *) (uintptr_t) hl_mmu_hr_pte_phys_to_virt(ctx, hops_pgt_info[i],
 							hop_pte_phys_addr[i],
-							ctx->hdev->asic_prop.mmu_hop_table_size);
+							ctx->hdev->asic_prop.pmmu.hop_table_size);
 	}
 
 	if (curr_pte & PAGE_PRESENT_MASK) {
@@ -268,7 +268,7 @@ static int _hl_mmu_v2_hr_map(struct hl_ctx *ctx,
 					*(u64 *) (uintptr_t)
 					hl_mmu_hr_pte_phys_to_virt(ctx, hops_pgt_info[i],
 							hop_pte_phys_addr[i],
-							ctx->hdev->asic_prop.mmu_hop_table_size),
+							ctx->hdev->asic_prop.pmmu.hop_table_size),
 					hop_pte_phys_addr[i]);
 		rc = -EINVAL;
 		goto err;
@@ -279,7 +279,7 @@ static int _hl_mmu_v2_hr_map(struct hl_ctx *ctx,
 
 	/* Write the PTEs */
 	hl_mmu_hr_write_pte(ctx, hops_pgt_info[hop_last], hop_pte_phys_addr[hop_last], curr_pte,
-							ctx->hdev->asic_prop.mmu_hop_table_size);
+							ctx->hdev->asic_prop.pmmu.hop_table_size);
 
 	/* for each new hop, add its address to the table of previous-hop */
 	for (i = 1 ; i <= hop_last ; i++) {
@@ -287,7 +287,7 @@ static int _hl_mmu_v2_hr_map(struct hl_ctx *ctx,
 			curr_pte = (hops_pgt_info[i]->phys_addr & HOP_PHYS_ADDR_MASK) |
 							PAGE_PRESENT_MASK;
 			hl_mmu_hr_write_pte(ctx, hops_pgt_info[i - 1], hop_pte_phys_addr[i - 1],
-						curr_pte, ctx->hdev->asic_prop.mmu_hop_table_size);
+						curr_pte, ctx->hdev->asic_prop.pmmu.hop_table_size);
 			if (i - 1)
 				hl_mmu_hr_get_pte(ctx, &ctx->hdev->mmu_func[MMU_HR_PGT].hr_funcs,
 								hops_pgt_info[i - 1]->phys_addr);
@@ -303,7 +303,7 @@ err:
 	for (i = 1 ; i <= hop_last ; i++)
 		if (hop_new[i] && hops_pgt_info[i])
 			hl_mmu_hr_free_hop_remove_pgt(hops_pgt_info[i], &ctx->hdev->mmu_priv.hr,
-							ctx->hdev->asic_prop.mmu_hop_table_size);
+							ctx->hdev->asic_prop.pmmu.hop_table_size);
 
 	return rc;
 }

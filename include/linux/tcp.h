@@ -264,10 +264,10 @@ struct tcp_sock {
 	u32	pushed_seq;	/* Last pushed seq, required to talk to windows */
 	u32	lsndtime;
 	u32	mdev_us;	/* medium deviation			*/
+	u32	rtt_seq;	/* sequence number to update rttvar	*/
 	u64	tcp_wstamp_ns;	/* departure time for next sent data packet */
 	u64	tcp_clock_cache; /* cache last tcp_clock_ns() (see tcp_mstamp_refresh()) */
 	u64	tcp_mstamp;	/* most recent packet received/sent */
-	u32	rtt_seq;	/* sequence number to update rttvar	*/
 	struct list_head tsorted_sent_queue; /* time-sorted sent but un-SACKed skbs */
 	struct sk_buff *highest_sack;   /* skb just after the highest
 					 * skb with SACKed bit set
@@ -304,7 +304,7 @@ struct tcp_sock {
 	__cacheline_group_end(tcp_sock_write_txrx);
 
 	/* RX read-write hotpath cache lines */
-	__cacheline_group_begin(tcp_sock_write_rx);
+	__cacheline_group_begin(tcp_sock_write_rx) __aligned(8);
 	u64	bytes_received;
 				/* RFC4898 tcpEStatsAppHCThruOctetsReceived
 				 * sum(delta(rcv_nxt)), or how many bytes
@@ -350,7 +350,6 @@ struct tcp_sock {
 	u32	dsack_dups;	/* RFC4898 tcpEStatsStackDSACKDups
 				 * total number of DSACK blocks received
 				 */
-	u32	last_oow_ack_time;  /* timestamp of last out-of-window ACK */
 	u32	compressed_ack_rcv_nxt;
 	struct list_head tsq_node; /* anchor in tsq_tasklet.head list */
 
@@ -384,12 +383,12 @@ struct tcp_sock {
 		syn_fastopen_ch:1, /* Active TFO re-enabling probe */
 		syn_data_acked:1;/* data in SYN is acked by SYN-ACK */
 
+	u8	keepalive_probes; /* num of allowed keep alive probes	*/
 	u32	tcp_tx_delay;	/* delay (in usec) added to TX packets */
 
 /* RTT measurement */
 	u32	mdev_max_us;	/* maximal mdev for the last rtt period	*/
 
-	u8	keepalive_probes; /* num of allowed keep alive probes	*/
 	u32	reord_seen;	/* number of data packet reordering events */
 
 /*
@@ -402,6 +401,7 @@ struct tcp_sock {
 	u32	prior_cwnd;	/* cwnd right before starting loss recovery */
 	u32	prr_delivered;	/* Number of newly delivered packets to
 				 * receiver in Recovery. */
+	u32	last_oow_ack_time;  /* timestamp of last out-of-window ACK */
 
 	struct hrtimer	pacing_timer;
 	struct hrtimer	compressed_ack_timer;
@@ -477,8 +477,8 @@ struct tcp_sock {
 	bool	is_mptcp;
 #endif
 #if IS_ENABLED(CONFIG_SMC)
-	bool	(*smc_hs_congested)(const struct sock *sk);
 	bool	syn_smc;	/* SYN includes SMC */
+	bool	(*smc_hs_congested)(const struct sock *sk);
 #endif
 
 #if defined(CONFIG_TCP_MD5SIG) || defined(CONFIG_TCP_AO)

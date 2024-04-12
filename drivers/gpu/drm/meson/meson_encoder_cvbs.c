@@ -219,7 +219,7 @@ static const struct drm_bridge_funcs meson_encoder_cvbs_bridge_funcs = {
 	.atomic_reset = drm_atomic_helper_bridge_reset,
 };
 
-int meson_encoder_cvbs_init(struct meson_drm *priv)
+int meson_encoder_cvbs_probe(struct meson_drm *priv)
 {
 	struct drm_device *drm = priv->drm;
 	struct meson_encoder_cvbs *meson_encoder_cvbs;
@@ -240,10 +240,9 @@ int meson_encoder_cvbs_init(struct meson_drm *priv)
 
 	meson_encoder_cvbs->next_bridge = of_drm_find_bridge(remote);
 	of_node_put(remote);
-	if (!meson_encoder_cvbs->next_bridge) {
-		dev_err(priv->dev, "Failed to find CVBS Connector bridge\n");
-		return -EPROBE_DEFER;
-	}
+	if (!meson_encoder_cvbs->next_bridge)
+		return dev_err_probe(priv->dev, -EPROBE_DEFER,
+				     "Failed to find CVBS Connector bridge\n");
 
 	/* CVBS Encoder Bridge */
 	meson_encoder_cvbs->bridge.funcs = &meson_encoder_cvbs_bridge_funcs;
@@ -259,10 +258,9 @@ int meson_encoder_cvbs_init(struct meson_drm *priv)
 	/* Encoder */
 	ret = drm_simple_encoder_init(priv->drm, &meson_encoder_cvbs->encoder,
 				      DRM_MODE_ENCODER_TVDAC);
-	if (ret) {
-		dev_err(priv->dev, "Failed to init CVBS encoder: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(priv->dev, ret,
+				     "Failed to init CVBS encoder\n");
 
 	meson_encoder_cvbs->encoder.possible_crtcs = BIT(0);
 
@@ -276,10 +274,10 @@ int meson_encoder_cvbs_init(struct meson_drm *priv)
 
 	/* Initialize & attach Bridge Connector */
 	connector = drm_bridge_connector_init(priv->drm, &meson_encoder_cvbs->encoder);
-	if (IS_ERR(connector)) {
-		dev_err(priv->dev, "Unable to create CVBS bridge connector\n");
-		return PTR_ERR(connector);
-	}
+	if (IS_ERR(connector))
+		return dev_err_probe(priv->dev, PTR_ERR(connector),
+				     "Unable to create CVBS bridge connector\n");
+
 	drm_connector_attach_encoder(connector, &meson_encoder_cvbs->encoder);
 
 	priv->encoders[MESON_ENC_CVBS] = meson_encoder_cvbs;

@@ -7,7 +7,7 @@
 #include "chardev.h"
 #include "journal.h"
 #include "move.h"
-#include "recovery.h"
+#include "recovery_passes.h"
 #include "replicas.h"
 #include "super.h"
 #include "super-io.h"
@@ -21,12 +21,6 @@
 #include <linux/sched/task.h>
 #include <linux/slab.h>
 #include <linux/uaccess.h>
-
-__must_check
-static int copy_to_user_errcode(void __user *to, const void *from, unsigned long n)
-{
-	return copy_to_user(to, from, n) ? -EFAULT : 0;
-}
 
 /* returns with ref on ca->ref */
 static struct bch_dev *bch2_device_lookup(struct bch_fs *c, u64 dev,
@@ -140,39 +134,51 @@ static long bch2_ioctl_incremental(struct bch_ioctl_incremental __user *user_arg
 struct fsck_thread {
 	struct thread_with_stdio thr;
 	struct bch_fs		*c;
-	char			**devs;
-	size_t			nr_devs;
 	struct bch_opts		opts;
 };
 
 static void bch2_fsck_thread_exit(struct thread_with_stdio *_thr)
 {
 	struct fsck_thread *thr = container_of(_thr, struct fsck_thread, thr);
-	if (thr->devs)
-		for (size_t i = 0; i < thr->nr_devs; i++)
-			kfree(thr->devs[i]);
-	kfree(thr->devs);
 	kfree(thr);
 }
 
-static int bch2_fsck_offline_thread_fn(void *arg)
+static int bch2_fsck_offline_thread_fn(struct thread_with_stdio *stdio)
 {
-	struct fsck_thread *thr = container_of(arg, struct fsck_thread, thr);
-	struct bch_fs *c = bch2_fs_open(thr->devs, thr->nr_devs, thr->opts);
+	struct fsck_thread *thr = container_of(stdio, struct fsck_thread, thr);
+	struct bch_fs *c = thr->c;
 
-	thr->thr.thr.ret = PTR_ERR_OR_ZERO(c);
-	if (!thr->thr.thr.ret)
-		bch2_fs_stop(c);
+	int ret = PTR_ERR_OR_ZERO(c);
+	if (ret)
+		return ret;
 
-	thread_with_stdio_done(&thr->thr);
-	return 0;
+	ret = bch2_fs_start(thr->c);
+	if (ret)
+		goto err;
+
+	if (test_bit(BCH_FS_errors_fixed, &c->flags)) {
+		bch2_stdio_redirect_printf(&stdio->stdio, false, "%s: errors fixed\n", c->name);
+		ret |= 1;
+	}
+	if (test_bit(BCH_FS_error, &c->flags)) {
+		bch2_stdio_redirect_printf(&stdio->stdio, false, "%s: still has errors\n", c->name);
+		ret |= 4;
+	}
+err:
+	bch2_fs_stop(c);
+	return ret;
 }
+
+static const struct thread_with_stdio_ops bch2_offline_fsck_ops = {
+	.exit		= bch2_fsck_thread_exit,
+	.fn		= bch2_fsck_offline_thread_fn,
+};
 
 static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_arg)
 {
 	struct bch_ioctl_fsck_offline arg;
 	struct fsck_thread *thr = NULL;
-	u64 *devs = NULL;
+	darray_str(devs) = {};
 	long ret = 0;
 
 	if (copy_from_user(&arg, user_arg, sizeof(arg)))
@@ -184,28 +190,31 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	if (!(devs = kcalloc(arg.nr_devs, sizeof(*devs), GFP_KERNEL)) ||
-	    !(thr = kzalloc(sizeof(*thr), GFP_KERNEL)) ||
-	    !(thr->devs = kcalloc(arg.nr_devs, sizeof(*thr->devs), GFP_KERNEL))) {
+	for (size_t i = 0; i < arg.nr_devs; i++) {
+		u64 dev_u64;
+		ret = copy_from_user_errcode(&dev_u64, &user_arg->devs[i], sizeof(u64));
+		if (ret)
+			goto err;
+
+		char *dev_str = strndup_user((char __user *)(unsigned long) dev_u64, PATH_MAX);
+		ret = PTR_ERR_OR_ZERO(dev_str);
+		if (ret)
+			goto err;
+
+		ret = darray_push(&devs, dev_str);
+		if (ret) {
+			kfree(dev_str);
+			goto err;
+		}
+	}
+
+	thr = kzalloc(sizeof(*thr), GFP_KERNEL);
+	if (!thr) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
 	thr->opts = bch2_opts_empty();
-	thr->nr_devs = arg.nr_devs;
-
-	if (copy_from_user(devs, &user_arg->devs[0],
-			   array_size(sizeof(user_arg->devs[0]), arg.nr_devs))) {
-		ret = -EINVAL;
-		goto err;
-	}
-
-	for (size_t i = 0; i < arg.nr_devs; i++) {
-		thr->devs[i] = strndup_user((char __user *)(unsigned long) devs[i], PATH_MAX);
-		ret = PTR_ERR_OR_ZERO(thr->devs[i]);
-		if (ret)
-			goto err;
-	}
 
 	if (arg.opts) {
 		char *optstr = strndup_user((char __user *)(unsigned long) arg.opts, 1 << 16);
@@ -220,17 +229,26 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 
 	opt_set(thr->opts, stdio, (u64)(unsigned long)&thr->thr.stdio);
 
-	ret = bch2_run_thread_with_stdio(&thr->thr,
-			bch2_fsck_thread_exit,
-			bch2_fsck_offline_thread_fn);
-err:
-	if (ret < 0) {
-		if (thr)
-			bch2_fsck_thread_exit(&thr->thr);
-		pr_err("ret %s", bch2_err_str(ret));
-	}
-	kfree(devs);
+	/* We need request_key() to be called before we punt to kthread: */
+	opt_set(thr->opts, nostart, true);
+
+	thr->c = bch2_fs_open(devs.data, arg.nr_devs, thr->opts);
+
+	if (!IS_ERR(thr->c) &&
+	    thr->c->opts.errors == BCH_ON_ERROR_panic)
+		thr->c->opts.errors = BCH_ON_ERROR_ro;
+
+	ret = bch2_run_thread_with_stdio(&thr->thr, &bch2_offline_fsck_ops);
+out:
+	darray_for_each(devs, i)
+		kfree(*i);
+	darray_exit(&devs);
 	return ret;
+err:
+	if (thr)
+		bch2_fsck_thread_exit(&thr->thr);
+	pr_err("ret %s", bch2_err_str(ret));
+	goto out;
 }
 
 static long bch2_global_ioctl(unsigned cmd, void __user *arg)
@@ -763,9 +781,9 @@ static long bch2_ioctl_disk_resize_journal(struct bch_fs *c,
 	return ret;
 }
 
-static int bch2_fsck_online_thread_fn(void *arg)
+static int bch2_fsck_online_thread_fn(struct thread_with_stdio *stdio)
 {
-	struct fsck_thread *thr = container_of(arg, struct fsck_thread, thr);
+	struct fsck_thread *thr = container_of(stdio, struct fsck_thread, thr);
 	struct bch_fs *c = thr->c;
 
 	c->stdio_filter = current;
@@ -793,12 +811,15 @@ static int bch2_fsck_online_thread_fn(void *arg)
 	c->stdio_filter = NULL;
 	c->opts.fix_errors = old_fix_errors;
 
-	thread_with_stdio_done(&thr->thr);
-
 	up(&c->online_fsck_mutex);
 	bch2_ro_ref_put(c);
-	return 0;
+	return ret;
 }
+
+static const struct thread_with_stdio_ops bch2_online_fsck_ops = {
+	.exit		= bch2_fsck_thread_exit,
+	.fn		= bch2_fsck_online_thread_fn,
+};
 
 static long bch2_ioctl_fsck_online(struct bch_fs *c,
 				   struct bch_ioctl_fsck_online arg)
@@ -840,9 +861,7 @@ static long bch2_ioctl_fsck_online(struct bch_fs *c,
 			goto err;
 	}
 
-	ret = bch2_run_thread_with_stdio(&thr->thr,
-			bch2_fsck_thread_exit,
-			bch2_fsck_online_thread_fn);
+	ret = bch2_run_thread_with_stdio(&thr->thr, &bch2_online_fsck_ops);
 err:
 	if (ret < 0) {
 		bch_err_fn(c, ret);

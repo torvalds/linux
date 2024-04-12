@@ -46,6 +46,7 @@ properties:
           - enum:
               - renesas,etheravb-r8a779a0     # R-Car V3U
               - renesas,etheravb-r8a779g0     # R-Car V4H
+              - renesas,etheravb-r8a779h0     # R-Car V4M
           - const: renesas,etheravb-rcar-gen4 # R-Car Gen4
 
       - items:

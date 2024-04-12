@@ -203,17 +203,7 @@ static struct platform_driver gpu_cc_sdm845_driver = {
 	},
 };
 
-static int __init gpu_cc_sdm845_init(void)
-{
-	return platform_driver_register(&gpu_cc_sdm845_driver);
-}
-subsys_initcall(gpu_cc_sdm845_init);
-
-static void __exit gpu_cc_sdm845_exit(void)
-{
-	platform_driver_unregister(&gpu_cc_sdm845_driver);
-}
-module_exit(gpu_cc_sdm845_exit);
+module_platform_driver(gpu_cc_sdm845_driver);
 
 MODULE_DESCRIPTION("QTI GPUCC SDM845 Driver");
 MODULE_LICENSE("GPL v2");

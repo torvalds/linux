@@ -622,6 +622,9 @@ static void _rtl92cu_init_chipn_two_out_ep_priority(struct ieee80211_hw *hw,
 	u16 valuelow;
 
 	switch (queue_sel) {
+	default:
+		WARN_ON(1);
+		fallthrough;
 	case (TX_SELE_HQ | TX_SELE_LQ):
 		valuehi = QUEUE_HIGH;
 		valuelow = QUEUE_LOW;
@@ -633,9 +636,6 @@ static void _rtl92cu_init_chipn_two_out_ep_priority(struct ieee80211_hw *hw,
 	case (TX_SELE_HQ | TX_SELE_NQ):
 		valuehi = QUEUE_HIGH;
 		valuelow = QUEUE_NORMAL;
-		break;
-	default:
-		WARN_ON(1);
 		break;
 	}
 	if (!wmm_enable) {

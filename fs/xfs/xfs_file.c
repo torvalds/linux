@@ -879,7 +879,7 @@ xfs_break_dax_layouts(
 {
 	struct page		*page;
 
-	ASSERT(xfs_isilocked(XFS_I(inode), XFS_MMAPLOCK_EXCL));
+	xfs_assert_ilocked(XFS_I(inode), XFS_MMAPLOCK_EXCL);
 
 	page = dax_layout_busy_page(inode->i_mapping);
 	if (!page)
@@ -900,7 +900,7 @@ xfs_break_layouts(
 	bool			retry;
 	int			error;
 
-	ASSERT(xfs_isilocked(XFS_I(inode), XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL));
+	xfs_assert_ilocked(XFS_I(inode), XFS_IOLOCK_SHARED | XFS_IOLOCK_EXCL);
 
 	do {
 		retry = false;

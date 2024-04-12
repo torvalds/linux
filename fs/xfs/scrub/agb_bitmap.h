@@ -65,4 +65,9 @@ int xagb_bitmap_set_btblocks(struct xagb_bitmap *bitmap,
 int xagb_bitmap_set_btcur_path(struct xagb_bitmap *bitmap,
 		struct xfs_btree_cur *cur);
 
+static inline uint32_t xagb_bitmap_count_set_regions(struct xagb_bitmap *b)
+{
+	return xbitmap32_count_set_regions(&b->agbitmap);
+}
+
 #endif	/* __XFS_SCRUB_AGB_BITMAP_H__ */

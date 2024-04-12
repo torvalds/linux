@@ -264,16 +264,18 @@ static int __init simdisk_setup(struct simdisk *dev, int which,
 		struct proc_dir_entry *procdir)
 {
 	char tmp[2] = { '0' + which, 0 };
-	int err = -ENOMEM;
+	int err;
 
 	dev->fd = -1;
 	dev->filename = NULL;
 	spin_lock_init(&dev->lock);
 	dev->users = 0;
 
-	dev->gd = blk_alloc_disk(NUMA_NO_NODE);
-	if (!dev->gd)
+	dev->gd = blk_alloc_disk(NULL, NUMA_NO_NODE);
+	if (IS_ERR(dev->gd)) {
+		err = PTR_ERR(dev->gd);
 		goto out;
+	}
 	dev->gd->major = simdisk_major;
 	dev->gd->first_minor = which;
 	dev->gd->minors = SIMDISK_MINORS;

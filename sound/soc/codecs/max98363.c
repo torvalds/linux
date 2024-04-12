@@ -314,7 +314,7 @@ static int max98363_update_status(struct sdw_slave *slave,
 	return max98363_io_init(slave);
 }
 
-static struct sdw_slave_ops max98363_slave_ops = {
+static const struct sdw_slave_ops max98363_slave_ops = {
 	.read_prop = max98363_read_prop,
 	.update_status = max98363_update_status,
 };

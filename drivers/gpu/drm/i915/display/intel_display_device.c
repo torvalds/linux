@@ -1012,7 +1012,7 @@ static void __intel_display_device_info_runtime_init(struct drm_i915_private *i9
 		goto display_fused_off;
 	}
 
-	if (IS_GRAPHICS_VER(i915, 7, 8) && HAS_PCH_SPLIT(i915)) {
+	if (IS_DISPLAY_VER(i915, 7, 8) && HAS_PCH_SPLIT(i915)) {
 		u32 fuse_strap = intel_de_read(i915, FUSE_STRAP);
 		u32 sfuse_strap = intel_de_read(i915, SFUSE_STRAP);
 

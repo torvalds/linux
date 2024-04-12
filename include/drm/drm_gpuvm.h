@@ -518,7 +518,7 @@ struct drm_gpuvm_exec {
 	/**
 	 * @flags: the flags for the struct drm_exec
 	 */
-	uint32_t flags;
+	u32 flags;
 
 	/**
 	 * @vm: the &drm_gpuvm to lock its DMA reservations

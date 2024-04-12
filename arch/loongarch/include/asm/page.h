@@ -11,15 +11,7 @@
 /*
  * PAGE_SHIFT determines the page size
  */
-#ifdef CONFIG_PAGE_SIZE_4KB
-#define PAGE_SHIFT	12
-#endif
-#ifdef CONFIG_PAGE_SIZE_16KB
-#define PAGE_SHIFT	14
-#endif
-#ifdef CONFIG_PAGE_SIZE_64KB
-#define PAGE_SHIFT	16
-#endif
+#define PAGE_SHIFT	CONFIG_PAGE_SHIFT
 #define PAGE_SIZE	(_AC(1, UL) << PAGE_SHIFT)
 #define PAGE_MASK	(~(PAGE_SIZE - 1))
 
@@ -83,13 +75,40 @@ typedef struct { unsigned long pgprot; } pgprot_t;
 #define pfn_to_kaddr(pfn)	__va((pfn) << PAGE_SHIFT)
 #define sym_to_pfn(x)		__phys_to_pfn(__pa_symbol(x))
 
-#define virt_to_pfn(kaddr)	PFN_DOWN(PHYSADDR(kaddr))
+struct page *dmw_virt_to_page(unsigned long kaddr);
+struct page *tlb_virt_to_page(unsigned long kaddr);
+
+#define pfn_to_phys(pfn)	__pfn_to_phys(pfn)
+#define phys_to_pfn(paddr)	__phys_to_pfn(paddr)
+
+#define page_to_phys(page)	pfn_to_phys(page_to_pfn(page))
+#define phys_to_page(paddr)	pfn_to_page(phys_to_pfn(paddr))
+
+#ifndef CONFIG_KFENCE
+
+#define page_to_virt(page)	__va(page_to_phys(page))
+#define virt_to_page(kaddr)	phys_to_page(__pa(kaddr))
+
+#else
+
+#define WANT_PAGE_VIRTUAL
+
+#define page_to_virt(page)								\
+({											\
+	extern char *__kfence_pool;							\
+	(__kfence_pool == NULL) ? __va(page_to_phys(page)) : page_address(page);	\
+})
 
 #define virt_to_page(kaddr)								\
 ({											\
 	(likely((unsigned long)kaddr < vm_map_base)) ?					\
 	dmw_virt_to_page((unsigned long)kaddr) : tlb_virt_to_page((unsigned long)kaddr);\
 })
+
+#endif
+
+#define pfn_to_virt(pfn)	page_to_virt(pfn_to_page(pfn))
+#define virt_to_pfn(kaddr)	page_to_pfn(virt_to_page(kaddr))
 
 extern int __virt_addr_valid(volatile void *kaddr);
 #define virt_addr_valid(kaddr)	__virt_addr_valid((volatile void *)(kaddr))

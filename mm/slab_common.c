@@ -50,7 +50,7 @@ static DECLARE_WORK(slab_caches_to_rcu_destroy_work,
  */
 #define SLAB_NEVER_MERGE (SLAB_RED_ZONE | SLAB_POISON | SLAB_STORE_USER | \
 		SLAB_TRACE | SLAB_TYPESAFE_BY_RCU | SLAB_NOLEAKTRACE | \
-		SLAB_FAILSLAB | SLAB_NO_MERGE | kasan_never_merge())
+		SLAB_FAILSLAB | SLAB_NO_MERGE)
 
 #define SLAB_MERGE_SAME (SLAB_RECLAIM_ACCOUNT | SLAB_CACHE_DMA | \
 			 SLAB_CACHE_DMA32 | SLAB_ACCOUNT)
@@ -172,7 +172,7 @@ struct kmem_cache *find_mergeable(unsigned int size, unsigned int align,
 	size = ALIGN(size, sizeof(void *));
 	align = calculate_alignment(flags, align, size);
 	size = ALIGN(size, align);
-	flags = kmem_cache_flags(size, flags, name);
+	flags = kmem_cache_flags(flags, name);
 
 	if (flags & SLAB_NEVER_MERGE)
 		return NULL;
@@ -282,7 +282,7 @@ kmem_cache_create_usercopy(const char *name,
 
 #ifdef CONFIG_SLUB_DEBUG
 	/*
-	 * If no slub_debug was enabled globally, the static key is not yet
+	 * If no slab_debug was enabled globally, the static key is not yet
 	 * enabled by setup_slub_debug(). Enable it if the cache is being
 	 * created with any of the debugging flags passed explicitly.
 	 * It's also possible that this is the first cache created with
@@ -404,8 +404,12 @@ EXPORT_SYMBOL(kmem_cache_create);
  */
 static void kmem_cache_release(struct kmem_cache *s)
 {
-	sysfs_slab_unlink(s);
-	sysfs_slab_release(s);
+	if (slab_state >= FULL) {
+		sysfs_slab_unlink(s);
+		sysfs_slab_release(s);
+	} else {
+		slab_kmem_cache_release(s);
+	}
 }
 #else
 static void kmem_cache_release(struct kmem_cache *s)
@@ -651,7 +655,7 @@ static struct kmem_cache *__init create_kmalloc_cache(const char *name,
 
 struct kmem_cache *
 kmalloc_caches[NR_KMALLOC_TYPES][KMALLOC_SHIFT_HIGH + 1] __ro_after_init =
-{ /* initialization for https://bugs.llvm.org/show_bug.cgi?id=42570 */ };
+{ /* initialization for https://llvm.org/pr42570 */ };
 EXPORT_SYMBOL(kmalloc_caches);
 
 #ifdef CONFIG_RANDOM_KMALLOC_CACHES
@@ -766,7 +770,7 @@ EXPORT_SYMBOL(kmalloc_size_roundup);
 }
 
 /*
- * kmalloc_info[] is to make slub_debug=,kmalloc-xx option work at boot time.
+ * kmalloc_info[] is to make slab_debug=,kmalloc-xx option work at boot time.
  * kmalloc_index() supports up to 2^21=2MB, so the final entry of the table is
  * kmalloc-2M.
  */
@@ -853,9 +857,10 @@ static unsigned int __kmalloc_minalign(void)
 	return max(minalign, arch_slab_minalign());
 }
 
-void __init
-new_kmalloc_cache(int idx, enum kmalloc_cache_type type, slab_flags_t flags)
+static void __init
+new_kmalloc_cache(int idx, enum kmalloc_cache_type type)
 {
+	slab_flags_t flags = 0;
 	unsigned int minalign = __kmalloc_minalign();
 	unsigned int aligned_size = kmalloc_info[idx].size;
 	int aligned_idx = idx;
@@ -902,7 +907,7 @@ new_kmalloc_cache(int idx, enum kmalloc_cache_type type, slab_flags_t flags)
  * may already have been created because they were needed to
  * enable allocations for slab creation.
  */
-void __init create_kmalloc_caches(slab_flags_t flags)
+void __init create_kmalloc_caches(void)
 {
 	int i;
 	enum kmalloc_cache_type type;
@@ -913,7 +918,7 @@ void __init create_kmalloc_caches(slab_flags_t flags)
 	for (type = KMALLOC_NORMAL; type < NR_KMALLOC_TYPES; type++) {
 		for (i = KMALLOC_SHIFT_LOW; i <= KMALLOC_SHIFT_HIGH; i++) {
 			if (!kmalloc_caches[type][i])
-				new_kmalloc_cache(i, type, flags);
+				new_kmalloc_cache(i, type);
 
 			/*
 			 * Caches that are not of the two-to-the-power-of size.
@@ -922,10 +927,10 @@ void __init create_kmalloc_caches(slab_flags_t flags)
 			 */
 			if (KMALLOC_MIN_SIZE <= 32 && i == 6 &&
 					!kmalloc_caches[type][1])
-				new_kmalloc_cache(1, type, flags);
+				new_kmalloc_cache(1, type);
 			if (KMALLOC_MIN_SIZE <= 64 && i == 7 &&
 					!kmalloc_caches[type][2])
-				new_kmalloc_cache(2, type, flags);
+				new_kmalloc_cache(2, type);
 		}
 	}
 #ifdef CONFIG_RANDOM_KMALLOC_CACHES

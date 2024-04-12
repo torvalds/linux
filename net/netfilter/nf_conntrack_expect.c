@@ -722,9 +722,7 @@ int nf_conntrack_expect_init(void)
 			nf_ct_expect_hsize = 1;
 	}
 	nf_ct_expect_max = nf_ct_expect_hsize * 4;
-	nf_ct_expect_cachep = kmem_cache_create("nf_conntrack_expect",
-				sizeof(struct nf_conntrack_expect),
-				0, 0, NULL);
+	nf_ct_expect_cachep = KMEM_CACHE(nf_conntrack_expect, 0);
 	if (!nf_ct_expect_cachep)
 		return -ENOMEM;
 

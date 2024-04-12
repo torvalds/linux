@@ -28,6 +28,8 @@
 
 #include "hw_sequencer_private.h"
 
+void dcn20_log_color_state(struct dc *dc,
+			   struct dc_log_buffer_ctx *log_ctx);
 bool dcn20_set_blend_lut(
 	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state);
 bool dcn20_set_shaper_3dlut(

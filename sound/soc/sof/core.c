@@ -339,8 +339,7 @@ static int sof_init_environment(struct snd_sof_dev *sdev)
 	ret = snd_sof_probe(sdev);
 	if (ret < 0) {
 		dev_err(sdev->dev, "failed to probe DSP %d\n", ret);
-		sof_ops_free(sdev);
-		return ret;
+		goto err_sof_probe;
 	}
 
 	/* check machine info */
@@ -358,15 +357,18 @@ static int sof_init_environment(struct snd_sof_dev *sdev)
 		ret = validate_sof_ops(sdev);
 		if (ret < 0) {
 			snd_sof_remove(sdev);
+			snd_sof_remove_late(sdev);
 			return ret;
 		}
 	}
 
+	return 0;
+
 err_machine_check:
-	if (ret) {
-		snd_sof_remove(sdev);
-		sof_ops_free(sdev);
-	}
+	snd_sof_remove(sdev);
+err_sof_probe:
+	snd_sof_remove_late(sdev);
+	sof_ops_free(sdev);
 
 	return ret;
 }
@@ -678,6 +680,16 @@ int snd_sof_device_remove(struct device *dev)
 	 * before freeing the snd_card.
 	 */
 	snd_sof_machine_unregister(sdev, pdata);
+
+	/*
+	 * Balance the runtime pm usage count in case we are faced with an
+	 * exception and we forcably prevented D3 power state to preserve
+	 * context
+	 */
+	if (sdev->d3_prevented) {
+		sdev->d3_prevented = false;
+		pm_runtime_put_noidle(sdev->dev);
+	}
 
 	if (sdev->fw_state > SOF_FW_BOOT_NOT_STARTED) {
 		sof_fw_trace_free(sdev);

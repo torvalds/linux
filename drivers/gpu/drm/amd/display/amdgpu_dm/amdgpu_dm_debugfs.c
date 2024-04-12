@@ -1483,7 +1483,7 @@ static ssize_t dp_dsc_clock_en_read(struct file *f, char __user *buf,
 	const uint32_t rd_buf_size = 10;
 	struct pipe_ctx *pipe_ctx;
 	ssize_t result = 0;
-	int i, r, str_len = 30;
+	int i, r, str_len = 10;
 
 	rd_buf = kcalloc(rd_buf_size, sizeof(char), GFP_KERNEL);
 
@@ -2971,6 +2971,53 @@ static int allow_edp_hotplug_detection_set(void *data, u64 val)
 	return 0;
 }
 
+/* check if kernel disallow eDP enter psr state
+ * cat /sys/kernel/debug/dri/0/eDP-X/disallow_edp_enter_psr
+ * 0: allow edp enter psr; 1: disallow
+ */
+static int disallow_edp_enter_psr_get(void *data, u64 *val)
+{
+	struct amdgpu_dm_connector *aconnector = data;
+
+	*val = (u64) aconnector->disallow_edp_enter_psr;
+	return 0;
+}
+
+/* set kernel disallow eDP enter psr state
+ * echo 0x0 /sys/kernel/debug/dri/0/eDP-X/disallow_edp_enter_psr
+ * 0: allow edp enter psr; 1: disallow
+ *
+ * usage: test app read crc from PSR eDP rx.
+ *
+ * during kernel boot up, kernel write dpcd 0x170 = 5.
+ * this notify eDP rx psr enable and let rx check crc.
+ * rx fw will start checking crc for rx internal logic.
+ * crc read count within dpcd 0x246 is not updated and
+ * value is 0. when eDP tx driver wants to read rx crc
+ * from dpcd 0x246, 0x270, read count 0 lead tx driver
+ * timeout.
+ *
+ * to avoid this, we add this debugfs to let test app to disbable
+ * rx crc checking for rx internal logic. then test app can read
+ * non-zero crc read count.
+ *
+ * expected app sequence is as below:
+ * 1. disable eDP PHY and notify eDP rx with dpcd 0x600 = 2.
+ * 2. echo 0x1 /sys/kernel/debug/dri/0/eDP-X/disallow_edp_enter_psr
+ * 3. enable eDP PHY and notify eDP rx with dpcd 0x600 = 1 but
+ *    without dpcd 0x170 = 5.
+ * 4. read crc from rx dpcd 0x270, 0x246, etc.
+ * 5. echo 0x0 /sys/kernel/debug/dri/0/eDP-X/disallow_edp_enter_psr.
+ *    this will let eDP back to normal with psr setup dpcd 0x170 = 5.
+ */
+static int disallow_edp_enter_psr_set(void *data, u64 val)
+{
+	struct amdgpu_dm_connector *aconnector = data;
+
+	aconnector->disallow_edp_enter_psr = val ? true : false;
+	return 0;
+}
+
 static int dmub_trace_mask_set(void *data, u64 val)
 {
 	struct amdgpu_device *adev = data;
@@ -3091,6 +3138,10 @@ DEFINE_DEBUGFS_ATTRIBUTE(psr_residency_fops, psr_read_residency, NULL,
 DEFINE_DEBUGFS_ATTRIBUTE(allow_edp_hotplug_detection_fops,
 			allow_edp_hotplug_detection_get,
 			allow_edp_hotplug_detection_set, "%llu\n");
+
+DEFINE_DEBUGFS_ATTRIBUTE(disallow_edp_enter_psr_fops,
+			disallow_edp_enter_psr_get,
+			disallow_edp_enter_psr_set, "%llu\n");
 
 DEFINE_SHOW_ATTRIBUTE(current_backlight);
 DEFINE_SHOW_ATTRIBUTE(target_backlight);
@@ -3265,6 +3316,8 @@ void connector_debugfs_init(struct amdgpu_dm_connector *connector)
 					&edp_ilr_debugfs_fops);
 		debugfs_create_file("allow_edp_hotplug_detection", 0644, dir, connector,
 					&allow_edp_hotplug_detection_fops);
+		debugfs_create_file("disallow_edp_enter_psr", 0644, dir, connector,
+					&disallow_edp_enter_psr_fops);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(connector_debugfs_entries); i++) {

@@ -129,7 +129,7 @@ static const struct mlx4_profile default_profile = {
 	.num_cq		= 1 << 16,
 	.num_mcg	= 1 << 13,
 	.num_mpt	= 1 << 19,
-	.num_mtt	= 1 << 20, /* It is really num mtt segements */
+	.num_mtt	= 1 << 20, /* It is really num mtt segments */
 };
 
 static const struct mlx4_profile low_mem_profile = {
@@ -1508,7 +1508,7 @@ static int mlx4_port_map_set(struct mlx4_dev *dev, struct mlx4_port_map *v2p)
 			priv->v2p.port1 = port1;
 			priv->v2p.port2 = port2;
 		} else {
-			mlx4_err(dev, "Failed to change port mape: %d\n", err);
+			mlx4_err(dev, "Failed to change port map: %d\n", err);
 		}
 	}
 

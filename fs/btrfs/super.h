@@ -3,6 +3,13 @@
 #ifndef BTRFS_SUPER_H
 #define BTRFS_SUPER_H
 
+#include <linux/types.h>
+#include <linux/fs.h>
+#include "fs.h"
+
+struct super_block;
+struct btrfs_fs_info;
+
 bool btrfs_check_options(struct btrfs_fs_info *info, unsigned long *mount_opt,
 			 unsigned long flags);
 int btrfs_sync_fs(struct super_block *sb, int wait);

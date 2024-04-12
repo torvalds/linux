@@ -1868,6 +1868,10 @@ static void ath9k_htc_channel_switch_beacon(struct ieee80211_hw *hw,
 }
 
 struct ieee80211_ops ath9k_htc_ops = {
+	.add_chanctx = ieee80211_emulate_add_chanctx,
+	.remove_chanctx = ieee80211_emulate_remove_chanctx,
+	.change_chanctx = ieee80211_emulate_change_chanctx,
+	.switch_vif_chanctx = ieee80211_emulate_switch_vif_chanctx,
 	.tx                 = ath9k_htc_tx,
 	.wake_tx_queue      = ieee80211_handle_wake_tx_queue,
 	.start              = ath9k_htc_start,

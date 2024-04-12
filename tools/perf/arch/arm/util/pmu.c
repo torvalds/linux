@@ -13,6 +13,7 @@
 #include "hisi-ptt.h"
 #include "../../../util/pmu.h"
 #include "../../../util/cs-etm.h"
+#include "../../arm64/util/mem-events.h"
 
 void perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused)
 {
@@ -26,6 +27,8 @@ void perf_pmu__arch_init(struct perf_pmu *pmu __maybe_unused)
 		pmu->selectable = true;
 		pmu->is_uncore = false;
 		pmu->perf_event_attr_init_default = arm_spe_pmu_default_config;
+		if (!strcmp(pmu->name, "arm_spe_0"))
+			pmu->mem_events = perf_mem_events_arm;
 	} else if (strstarts(pmu->name, HISI_PTT_PMU_NAME)) {
 		pmu->selectable = true;
 #endif

@@ -41,6 +41,8 @@ struct mm_struct;
 
 #ifndef __ASSEMBLY__
 
+#define PFN_PTE_SHIFT		PTE_RPN_SHIFT
+
 void set_ptes(struct mm_struct *mm, unsigned long addr, pte_t *ptep,
 		pte_t pte, unsigned int nr);
 #define set_ptes set_ptes
@@ -98,10 +100,6 @@ void poking_init(void);
 
 extern unsigned long ioremap_bot;
 extern const pgprot_t protection_map[16];
-
-#ifndef CONFIG_TRANSPARENT_HUGEPAGE
-#define pmd_large(pmd)		0
-#endif
 
 /* can we use this in kvm */
 unsigned long vmalloc_to_phys(void *vmalloc_addr);
@@ -177,30 +175,6 @@ static inline void *pte_frag_get(mm_context_t *ctx)
 
 static inline void pte_frag_set(mm_context_t *ctx, void *p)
 {
-}
-#endif
-
-#ifndef pmd_is_leaf
-#define pmd_is_leaf pmd_is_leaf
-static inline bool pmd_is_leaf(pmd_t pmd)
-{
-	return false;
-}
-#endif
-
-#ifndef pud_is_leaf
-#define pud_is_leaf pud_is_leaf
-static inline bool pud_is_leaf(pud_t pud)
-{
-	return false;
-}
-#endif
-
-#ifndef p4d_is_leaf
-#define p4d_is_leaf p4d_is_leaf
-static inline bool p4d_is_leaf(p4d_t p4d)
-{
-	return false;
 }
 #endif
 

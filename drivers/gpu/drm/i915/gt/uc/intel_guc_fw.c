@@ -184,7 +184,7 @@ static int guc_wait_ucode(struct intel_guc *guc)
 	 * in the seconds range. However, there is a limit on how long an
 	 * individual wait_for() can wait. So wrap it in a loop.
 	 */
-	before_freq = intel_rps_read_actual_frequency(&uncore->gt->rps);
+	before_freq = intel_rps_read_actual_frequency(&gt->rps);
 	before = ktime_get();
 	for (count = 0; count < GUC_LOAD_RETRY_LIMIT; count++) {
 		ret = wait_for(guc_load_done(uncore, &status, &success), 1000);
@@ -192,7 +192,7 @@ static int guc_wait_ucode(struct intel_guc *guc)
 			break;
 
 		guc_dbg(guc, "load still in progress, count = %d, freq = %dMHz, status = 0x%08X [0x%02X/%02X]\n",
-			count, intel_rps_read_actual_frequency(&uncore->gt->rps), status,
+			count, intel_rps_read_actual_frequency(&gt->rps), status,
 			REG_FIELD_GET(GS_BOOTROM_MASK, status),
 			REG_FIELD_GET(GS_UKERNEL_MASK, status));
 	}
@@ -204,7 +204,7 @@ static int guc_wait_ucode(struct intel_guc *guc)
 		u32 bootrom = REG_FIELD_GET(GS_BOOTROM_MASK, status);
 
 		guc_info(guc, "load failed: status = 0x%08X, time = %lldms, freq = %dMHz, ret = %d\n",
-			 status, delta_ms, intel_rps_read_actual_frequency(&uncore->gt->rps), ret);
+			 status, delta_ms, intel_rps_read_actual_frequency(&gt->rps), ret);
 		guc_info(guc, "load failed: status: Reset = %d, BootROM = 0x%02X, UKernel = 0x%02X, MIA = 0x%02X, Auth = 0x%02X\n",
 			 REG_FIELD_GET(GS_MIA_IN_RESET, status),
 			 bootrom, ukernel,
@@ -254,11 +254,11 @@ static int guc_wait_ucode(struct intel_guc *guc)
 		guc_warn(guc, "excessive init time: %lldms! [status = 0x%08X, count = %d, ret = %d]\n",
 			 delta_ms, status, count, ret);
 		guc_warn(guc, "excessive init time: [freq = %dMHz, before = %dMHz, perf_limit_reasons = 0x%08X]\n",
-			 intel_rps_read_actual_frequency(&uncore->gt->rps), before_freq,
+			 intel_rps_read_actual_frequency(&gt->rps), before_freq,
 			 intel_uncore_read(uncore, intel_gt_perf_limit_reasons_reg(gt)));
 	} else {
 		guc_dbg(guc, "init took %lldms, freq = %dMHz, before = %dMHz, status = 0x%08X, count = %d, ret = %d\n",
-			delta_ms, intel_rps_read_actual_frequency(&uncore->gt->rps),
+			delta_ms, intel_rps_read_actual_frequency(&gt->rps),
 			before_freq, status, count, ret);
 	}
 

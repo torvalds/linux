@@ -94,6 +94,14 @@ static int literal(yyscan_t scanner, const struct expr_scanner_ctx *sctx)
 	}
 	return LITERAL;
 }
+
+static int nan_value(yyscan_t scanner)
+{
+	YYSTYPE *yylval = expr_get_lval(scanner);
+
+	yylval->num = NAN;
+	return NUMBER;
+}
 %}
 
 number		([0-9]+\.?[0-9]*|[0-9]*\.?[0-9]+)(e-?[0-9]+)?
@@ -115,6 +123,7 @@ else		{ return ELSE; }
 source_count	{ return SOURCE_COUNT; }
 has_event	{ return HAS_EVENT; }
 strcmp_cpuid_str	{ return STRCMP_CPUID_STR; }
+NaN		{ return nan_value(yyscanner); }
 {literal}	{ return literal(yyscanner, sctx); }
 {number}	{ return value(yyscanner); }
 {symbol}	{ return str(yyscanner, ID, sctx->runtime); }

@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0-only OR MIT
 /*
  * Device Tree file for the AM62P MCU domain peripherals
- * Copyright (C) 2023 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2023-2024 Texas Instruments Incorporated - https://www.ti.com/
  */
 
 &cbass_mcu {
@@ -187,6 +187,8 @@
 		ranges = <0x79000000 0x00 0x79000000 0x8000>,
 			 <0x79020000 0x00 0x79020000 0x8000>;
 		power-domains = <&k3_pds 7 TI_SCI_PD_EXCLUSIVE>;
+		status = "disabled";
+
 		mcu_r5fss0_core0: r5f@79000000 {
 			compatible = "ti,am62-r5f";
 			reg = <0x79000000 0x00008000>,

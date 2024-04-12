@@ -37,7 +37,6 @@ static int resume_logged_op(struct btree_trans *trans, struct btree_iter *iter,
 	const struct bch_logged_op_fn *fn = logged_op_fn(k.k->type);
 	struct bkey_buf sk;
 	u32 restart_count = trans->restart_count;
-	int ret;
 
 	if (!fn)
 		return 0;
@@ -45,11 +44,11 @@ static int resume_logged_op(struct btree_trans *trans, struct btree_iter *iter,
 	bch2_bkey_buf_init(&sk);
 	bch2_bkey_buf_reassemble(&sk, c, k);
 
-	ret =   drop_locks_do(trans, (bch2_fs_lazy_rw(c), 0)) ?:
-		fn->resume(trans, sk.k) ?: trans_was_restarted(trans, restart_count);
+	fn->resume(trans, sk.k);
 
 	bch2_bkey_buf_exit(&sk, c);
-	return ret;
+
+	return trans_was_restarted(trans, restart_count);
 }
 
 int bch2_resume_logged_ops(struct bch_fs *c)
@@ -101,8 +100,8 @@ void bch2_logged_op_finish(struct btree_trans *trans, struct bkey_i *k)
 		struct printbuf buf = PRINTBUF;
 
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(k));
-		bch2_fs_fatal_error(c, "%s: error deleting logged operation %s: %s",
-				     __func__, buf.buf, bch2_err_str(ret));
+		bch2_fs_fatal_error(c, "deleting logged operation %s: %s",
+				    buf.buf, bch2_err_str(ret));
 		printbuf_exit(&buf);
 	}
 }

@@ -114,7 +114,7 @@ static int is_tracepoint_available(const char *str, struct evlist *evlist)
 
 	parse_events_error__init(&err);
 	ret = parse_events(evlist, str, &err);
-	if (err.str)
+	if (ret)
 		parse_events_error__print(&err, "tracepoint");
 	parse_events_error__exit(&err);
 	return ret;

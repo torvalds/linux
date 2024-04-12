@@ -464,8 +464,9 @@ static int adin1110_mdio_read(struct mii_bus *bus, int phy_id, int reg)
 	 * bitfield of ADIN1110_MDIOACC register will contain
 	 * the requested register value.
 	 */
-	ret = readx_poll_timeout(adin1110_read_mdio_acc, priv, val,
-				 (val & ADIN1110_MDIO_TRDONE), 10000, 30000);
+	ret = readx_poll_timeout_atomic(adin1110_read_mdio_acc, priv, val,
+					(val & ADIN1110_MDIO_TRDONE),
+					100, 30000);
 	if (ret < 0)
 		return ret;
 
@@ -495,8 +496,9 @@ static int adin1110_mdio_write(struct mii_bus *bus, int phy_id,
 	if (ret < 0)
 		return ret;
 
-	return readx_poll_timeout(adin1110_read_mdio_acc, priv, val,
-				  (val & ADIN1110_MDIO_TRDONE), 10000, 30000);
+	return readx_poll_timeout_atomic(adin1110_read_mdio_acc, priv, val,
+					 (val & ADIN1110_MDIO_TRDONE),
+					 100, 30000);
 }
 
 /* ADIN1110 MAC-PHY contains an ADIN1100 PHY.

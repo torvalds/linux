@@ -27,7 +27,7 @@ int rxe_cq_chk_attr(struct rxe_dev *rxe, struct rxe_cq *cq,
 	if (cq) {
 		count = queue_count(cq->queue, QUEUE_TYPE_TO_CLIENT);
 		if (cqe < count) {
-			rxe_dbg_cq(cq, "cqe(%d) < current # elements in queue (%d)",
+			rxe_dbg_cq(cq, "cqe(%d) < current # elements in queue (%d)\n",
 					cqe, count);
 			goto err1;
 		}
@@ -96,7 +96,7 @@ int rxe_cq_post(struct rxe_cq *cq, struct rxe_cqe *cqe, int solicited)
 
 	full = queue_full(cq->queue, QUEUE_TYPE_TO_CLIENT);
 	if (unlikely(full)) {
-		rxe_err_cq(cq, "queue full");
+		rxe_err_cq(cq, "queue full\n");
 		spin_unlock_irqrestore(&cq->cq_lock, flags);
 		if (cq->ibcq.event_handler) {
 			ev.device = cq->ibcq.device;

@@ -291,6 +291,14 @@ static int adf_handle_vf2pf_msg(struct adf_accel_dev *accel_dev, u8 vf_nr,
 		vf_info->init = false;
 		}
 		break;
+	case ADF_VF2PF_MSGTYPE_RESTARTING_COMPLETE:
+		{
+		dev_dbg(&GET_DEV(accel_dev),
+			"Restarting Complete received from VF%d\n", vf_nr);
+		vf_info->restarting = false;
+		vf_info->init = false;
+		}
+		break;
 	case ADF_VF2PF_MSGTYPE_LARGE_BLOCK_REQ:
 	case ADF_VF2PF_MSGTYPE_MEDIUM_BLOCK_REQ:
 	case ADF_VF2PF_MSGTYPE_SMALL_BLOCK_REQ:

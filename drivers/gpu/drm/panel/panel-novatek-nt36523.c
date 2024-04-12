@@ -933,8 +933,7 @@ static int j606f_boe_init_sequence(struct panel_info *pinfo)
 
 static const struct drm_display_mode elish_boe_modes[] = {
 	{
-		/* There is only one 120 Hz timing, but it doesn't work perfectly, 104 Hz preferred */
-		.clock = (1600 + 60 + 8 + 60) * (2560 + 26 + 4 + 168) * 104 / 1000,
+		.clock = (1600 + 60 + 8 + 60) * (2560 + 26 + 4 + 168) * 120 / 1000,
 		.hdisplay = 1600,
 		.hsync_start = 1600 + 60,
 		.hsync_end = 1600 + 60 + 8,
@@ -948,8 +947,7 @@ static const struct drm_display_mode elish_boe_modes[] = {
 
 static const struct drm_display_mode elish_csot_modes[] = {
 	{
-		/* There is only one 120 Hz timing, but it doesn't work perfectly, 104 Hz preferred */
-		.clock = (1600 + 200 + 40 + 52) * (2560 + 26 + 4 + 168) * 104 / 1000,
+		.clock = (1600 + 200 + 40 + 52) * (2560 + 26 + 4 + 168) * 120 / 1000,
 		.hdisplay = 1600,
 		.hsync_start = 1600 + 200,
 		.hsync_end = 1600 + 200 + 40,
@@ -1269,6 +1267,8 @@ static int nt36523_probe(struct mipi_dsi_device *dsi)
 		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_node, ret);
 		return ret;
 	}
+
+	pinfo->panel.prepare_prev_first = true;
 
 	if (pinfo->desc->has_dcs_backlight) {
 		pinfo->panel.backlight = nt36523_create_backlight(dsi);

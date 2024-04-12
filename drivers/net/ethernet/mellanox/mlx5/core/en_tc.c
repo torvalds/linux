@@ -766,7 +766,7 @@ static int mlx5e_hairpin_create_indirect_rqt(struct mlx5e_hairpin *hp)
 		return err;
 
 	mlx5e_rss_params_indir_init_uniform(&indir, hp->num_channels);
-	err = mlx5e_rqt_init_indir(&hp->indir_rqt, mdev, hp->pair->rqn, hp->num_channels,
+	err = mlx5e_rqt_init_indir(&hp->indir_rqt, mdev, hp->pair->rqn, NULL, hp->num_channels,
 				   mlx5e_rx_res_get_current_hash(priv->rx_res).hfunc,
 				   &indir);
 
@@ -1169,7 +1169,7 @@ static int mlx5e_hairpin_flow_add(struct mlx5e_priv *priv,
 			MLX5_CAP_GEN(priv->mdev, log_min_hairpin_wq_data_sz),
 			MLX5_CAP_GEN(priv->mdev, log_max_hairpin_wq_data_sz));
 
-	params.q_counter = priv->q_counter;
+	params.q_counter = priv->q_counter[0];
 	err = devl_param_driverinit_value_get(
 		devlink, MLX5_DEVLINK_PARAM_ID_HAIRPIN_NUM_QUEUES, &val);
 	if (err) {

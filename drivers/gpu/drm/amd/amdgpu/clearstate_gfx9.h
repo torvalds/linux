@@ -21,8 +21,7 @@
  *
  */
 
-static const unsigned int gfx9_SECT_CONTEXT_def_1[] =
-{
+static const unsigned int gfx9_SECT_CONTEXT_def_1[] = {
     0x00000000, // DB_RENDER_CONTROL
     0x00000000, // DB_COUNT_CONTROL
     0x00000000, // DB_DEPTH_VIEW
@@ -236,8 +235,7 @@ static const unsigned int gfx9_SECT_CONTEXT_def_1[] =
     0x00000000, // PA_SC_VPORT_ZMIN_15
     0x3f800000, // PA_SC_VPORT_ZMAX_15
 };
-static const unsigned int gfx9_SECT_CONTEXT_def_2[] =
-{
+static const unsigned int gfx9_SECT_CONTEXT_def_2[] = {
     0x00000000, // PA_SC_SCREEN_EXTENT_CONTROL
     0x00000000, // PA_SC_TILE_STEERING_OVERRIDE
     0x00000000, // CP_PERFMON_CNTX_CNTL
@@ -521,15 +519,13 @@ static const unsigned int gfx9_SECT_CONTEXT_def_2[] =
     0x00000000, // CB_MRT6_EPITCH
     0x00000000, // CB_MRT7_EPITCH
 };
-static const unsigned int gfx9_SECT_CONTEXT_def_3[] =
-{
+static const unsigned int gfx9_SECT_CONTEXT_def_3[] = {
     0x00000000, // PA_CL_POINT_X_RAD
     0x00000000, // PA_CL_POINT_Y_RAD
     0x00000000, // PA_CL_POINT_SIZE
     0x00000000, // PA_CL_POINT_CULL_RAD
 };
-static const unsigned int gfx9_SECT_CONTEXT_def_4[] =
-{
+static const unsigned int gfx9_SECT_CONTEXT_def_4[] = {
     0x00000000, // DB_DEPTH_CONTROL
     0x00000000, // DB_EQAA
     0x00000000, // CB_COLOR_CONTROL
@@ -688,17 +684,14 @@ static const unsigned int gfx9_SECT_CONTEXT_def_4[] =
     0x00000000, // VGT_GS_OUT_PRIM_TYPE
     0x00000000, // IA_ENHANCE
 };
-static const unsigned int gfx9_SECT_CONTEXT_def_5[] =
-{
+static const unsigned int gfx9_SECT_CONTEXT_def_5[] = {
     0x00000000, // WD_ENHANCE
     0x00000000, // VGT_PRIMITIVEID_EN
 };
-static const unsigned int gfx9_SECT_CONTEXT_def_6[] =
-{
+static const unsigned int gfx9_SECT_CONTEXT_def_6[] = {
     0x00000000, // VGT_PRIMITIVEID_RESET
 };
-static const unsigned int gfx9_SECT_CONTEXT_def_7[] =
-{
+static const unsigned int gfx9_SECT_CONTEXT_def_7[] = {
     0x00000000, // VGT_GS_MAX_PRIMS_PER_SUBGROUP
     0x00000000, // VGT_DRAW_PAYLOAD_CNTL
     0, // HOLE
@@ -766,8 +759,7 @@ static const unsigned int gfx9_SECT_CONTEXT_def_7[] =
     0x00000000, // VGT_STRMOUT_CONFIG
     0x00000000, // VGT_STRMOUT_BUFFER_CONFIG
 };
-static const unsigned int gfx9_SECT_CONTEXT_def_8[] =
-{
+static const unsigned int gfx9_SECT_CONTEXT_def_8[] = {
     0x00000000, // PA_SC_CENTROID_PRIORITY_0
     0x00000000, // PA_SC_CENTROID_PRIORITY_1
     0x00001000, // PA_SC_LINE_CNTL
@@ -924,8 +916,7 @@ static const unsigned int gfx9_SECT_CONTEXT_def_8[] =
     0x00000000, // CB_COLOR7_DCC_BASE
     0x00000000, // CB_COLOR7_DCC_BASE_EXT
 };
-static const struct cs_extent_def gfx9_SECT_CONTEXT_defs[] =
-{
+static const struct cs_extent_def gfx9_SECT_CONTEXT_defs[] = {
     {gfx9_SECT_CONTEXT_def_1, 0x0000a000, 212 },
     {gfx9_SECT_CONTEXT_def_2, 0x0000a0d6, 282 },
     {gfx9_SECT_CONTEXT_def_3, 0x0000a1f5, 4 },

@@ -965,7 +965,6 @@ static void snd_intel8x0m_free(struct snd_card *card)
 		free_irq(chip->irq, chip);
 }
 
-#ifdef CONFIG_PM_SLEEP
 /*
  * power management
  */
@@ -1006,11 +1005,7 @@ static int intel8x0m_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(intel8x0m_pm, intel8x0m_suspend, intel8x0m_resume);
-#define INTEL8X0M_PM_OPS	&intel8x0m_pm
-#else
-#define INTEL8X0M_PM_OPS	NULL
-#endif /* CONFIG_PM_SLEEP */
+static DEFINE_SIMPLE_DEV_PM_OPS(intel8x0m_pm, intel8x0m_suspend, intel8x0m_resume);
 
 static void snd_intel8x0m_proc_read(struct snd_info_entry * entry,
 				   struct snd_info_buffer *buffer)
@@ -1236,7 +1231,7 @@ static struct pci_driver intel8x0m_driver = {
 	.id_table = snd_intel8x0m_ids,
 	.probe = snd_intel8x0m_probe,
 	.driver = {
-		.pm = INTEL8X0M_PM_OPS,
+		.pm = &intel8x0m_pm,
 	},
 };
 

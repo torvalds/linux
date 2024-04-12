@@ -91,7 +91,7 @@ static void idxd_conf_engine_release(struct device *dev)
 	kfree(engine);
 }
 
-struct device_type idxd_engine_device_type = {
+const struct device_type idxd_engine_device_type = {
 	.name = "engine",
 	.release = idxd_conf_engine_release,
 	.groups = idxd_engine_attribute_groups,
@@ -577,7 +577,7 @@ static void idxd_conf_group_release(struct device *dev)
 	kfree(group);
 }
 
-struct device_type idxd_group_device_type = {
+const struct device_type idxd_group_device_type = {
 	.name = "group",
 	.release = idxd_conf_group_release,
 	.groups = idxd_group_attribute_groups,
@@ -1369,7 +1369,7 @@ static void idxd_conf_wq_release(struct device *dev)
 	kfree(wq);
 }
 
-struct device_type idxd_wq_device_type = {
+const struct device_type idxd_wq_device_type = {
 	.name = "wq",
 	.release = idxd_conf_wq_release,
 	.groups = idxd_wq_attribute_groups,
@@ -1798,13 +1798,13 @@ static void idxd_conf_device_release(struct device *dev)
 	kfree(idxd);
 }
 
-struct device_type dsa_device_type = {
+const struct device_type dsa_device_type = {
 	.name = "dsa",
 	.release = idxd_conf_device_release,
 	.groups = idxd_attribute_groups,
 };
 
-struct device_type iax_device_type = {
+const struct device_type iax_device_type = {
 	.name = "iax",
 	.release = idxd_conf_device_release,
 	.groups = idxd_attribute_groups,

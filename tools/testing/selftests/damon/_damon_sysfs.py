@@ -70,18 +70,65 @@ class DamosAccessPattern:
         if err != None:
             return err
 
+class DamosQuota:
+    sz = None                   # size quota, in bytes
+    ms = None                   # time quota
+    reset_interval_ms = None    # quota reset interval
+    scheme = None               # owner scheme
+
+    def __init__(self, sz=0, ms=0, reset_interval_ms=0):
+        self.sz = sz
+        self.ms = ms
+        self.reset_interval_ms = reset_interval_ms
+
+    def sysfs_dir(self):
+        return os.path.join(self.scheme.sysfs_dir(), 'quotas')
+
+    def stage(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'bytes'), self.sz)
+        if err != None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'ms'), self.ms)
+        if err != None:
+            return err
+        err = write_file(os.path.join(self.sysfs_dir(), 'reset_interval_ms'),
+                         self.reset_interval_ms)
+        if err != None:
+            return err
+
+class DamosStats:
+    nr_tried = None
+    sz_tried = None
+    nr_applied = None
+    sz_applied = None
+    qt_exceeds = None
+
+    def __init__(self, nr_tried, sz_tried, nr_applied, sz_applied, qt_exceeds):
+        self.nr_tried = nr_tried
+        self.sz_tried = sz_tried
+        self.nr_applied = nr_applied
+        self.sz_applied = sz_applied
+        self.qt_exceeds = qt_exceeds
+
 class Damos:
     action = None
     access_pattern = None
-    # todo: Support quotas, watermarks, stats, tried_regions
+    quota = None
+    apply_interval_us = None
+    # todo: Support watermarks, stats, tried_regions
     idx = None
     context = None
     tried_bytes = None
+    stats = None
 
-    def __init__(self, action='stat', access_pattern=DamosAccessPattern()):
+    def __init__(self, action='stat', access_pattern=DamosAccessPattern(),
+                 quota=DamosQuota(), apply_interval_us=0):
         self.action = action
         self.access_pattern = access_pattern
         self.access_pattern.scheme = self
+        self.quota = quota
+        self.quota.scheme = self
+        self.apply_interval_us = apply_interval_us
 
     def sysfs_dir(self):
         return os.path.join(
@@ -94,13 +141,12 @@ class Damos:
         err = self.access_pattern.stage()
         if err != None:
             return err
-
-        # disable quotas
-        err = write_file(os.path.join(self.sysfs_dir(), 'quotas', 'ms'), '0')
+        err = write_file(os.path.join(self.sysfs_dir(), 'apply_interval_us'),
+                         '%d' % self.apply_interval_us)
         if err != None:
             return err
-        err = write_file(
-                os.path.join(self.sysfs_dir(), 'quotas', 'bytes'), '0')
+
+        err = self.quota.stage()
         if err != None:
             return err
 
@@ -297,6 +343,23 @@ class Kdamond:
                 if err != None:
                     return err
                 scheme.tried_bytes = int(content)
+
+    def update_schemes_stats(self):
+        err = write_file(os.path.join(self.sysfs_dir(), 'state'),
+                'update_schemes_stats')
+        if err != None:
+            return err
+        for context in self.contexts:
+            for scheme in context.schemes:
+                stat_values = []
+                for stat in ['nr_tried', 'sz_tried', 'nr_applied',
+                             'sz_applied', 'qt_exceeds']:
+                    content, err = read_file(
+                            os.path.join(scheme.sysfs_dir(), 'stats', stat))
+                    if err != None:
+                        return err
+                    stat_values.append(int(content))
+                scheme.stats = DamosStats(*stat_values)
 
 class Kdamonds:
     kdamonds = []

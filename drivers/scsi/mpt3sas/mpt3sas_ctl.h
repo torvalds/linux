@@ -98,6 +98,8 @@
 	struct mpt3_diag_read_buffer)
 #define MPT3ADDNLDIAGQUERY _IOWR(MPT3_MAGIC_NUMBER, 32, \
 	struct mpt3_addnl_diag_query)
+#define MPT3ENABLEDIAGSBRRELOAD _IOWR(MPT3_MAGIC_NUMBER, 33, \
+	struct mpt3_enable_diag_sbr_reload)
 
 /* Trace Buffer default UniqueId */
 #define MPT2DIAGBUFFUNIQUEID (0x07075900)
@@ -446,6 +448,14 @@ struct mpt3_addnl_diag_query {
 	uint32_t unique_id;
 	struct htb_rel_query rel_query;
 	uint32_t reserved2[2];
+};
+
+/**
+ * struct mpt3_enable_diag_sbr_reload - enable sbr reload
+ * @hdr - generic header
+ */
+struct mpt3_enable_diag_sbr_reload {
+	struct mpt3_ioctl_header hdr;
 };
 
 #endif /* MPT3SAS_CTL_H_INCLUDED */

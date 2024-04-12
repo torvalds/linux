@@ -181,7 +181,7 @@ static int gb_raw_probe(struct gb_bundle *bundle,
 	raw->connection = connection;
 	greybus_set_drvdata(bundle, raw);
 
-	minor = ida_simple_get(&minors, 0, 0, GFP_KERNEL);
+	minor = ida_alloc(&minors, GFP_KERNEL);
 	if (minor < 0) {
 		retval = minor;
 		goto error_connection_destroy;
@@ -214,7 +214,7 @@ error_connection_disable:
 	gb_connection_disable(connection);
 
 error_remove_ida:
-	ida_simple_remove(&minors, minor);
+	ida_free(&minors, minor);
 
 error_connection_destroy:
 	gb_connection_destroy(connection);
@@ -235,7 +235,7 @@ static void gb_raw_disconnect(struct gb_bundle *bundle)
 	device_destroy(&raw_class, raw->dev);
 	cdev_del(&raw->cdev);
 	gb_connection_disable(connection);
-	ida_simple_remove(&minors, MINOR(raw->dev));
+	ida_free(&minors, MINOR(raw->dev));
 	gb_connection_destroy(connection);
 
 	mutex_lock(&raw->list_lock);

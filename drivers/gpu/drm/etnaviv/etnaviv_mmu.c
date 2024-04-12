@@ -70,7 +70,7 @@ static int etnaviv_context_map(struct etnaviv_iommu_context *context,
 }
 
 static int etnaviv_iommu_map(struct etnaviv_iommu_context *context, u32 iova,
-			     struct sg_table *sgt, unsigned len, int prot)
+			     struct sg_table *sgt, int prot)
 {	struct scatterlist *sg;
 	unsigned int da = iova;
 	unsigned int i;
@@ -314,7 +314,7 @@ int etnaviv_iommu_map_gem(struct etnaviv_iommu_context *context,
 		goto unlock;
 
 	mapping->iova = node->start;
-	ret = etnaviv_iommu_map(context, node->start, sgt, etnaviv_obj->base.size,
+	ret = etnaviv_iommu_map(context, node->start, sgt,
 				ETNAVIV_PROT_READ | ETNAVIV_PROT_WRITE);
 
 	if (ret < 0) {

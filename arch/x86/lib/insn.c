@@ -71,7 +71,7 @@ void insn_init(struct insn *insn, const void *kaddr, int buf_len, int x86_64)
 	insn->kaddr = kaddr;
 	insn->end_kaddr = kaddr + buf_len;
 	insn->next_byte = kaddr;
-	insn->x86_64 = x86_64 ? 1 : 0;
+	insn->x86_64 = x86_64;
 	insn->opnd_bytes = 4;
 	if (x86_64)
 		insn->addr_bytes = 8;
@@ -268,11 +268,9 @@ int insn_get_opcode(struct insn *insn)
 	if (opcode->got)
 		return 0;
 
-	if (!insn->prefixes.got) {
-		ret = insn_get_prefixes(insn);
-		if (ret)
-			return ret;
-	}
+	ret = insn_get_prefixes(insn);
+	if (ret)
+		return ret;
 
 	/* Get first opcode */
 	op = get_next(insn_byte_t, insn);
@@ -339,11 +337,9 @@ int insn_get_modrm(struct insn *insn)
 	if (modrm->got)
 		return 0;
 
-	if (!insn->opcode.got) {
-		ret = insn_get_opcode(insn);
-		if (ret)
-			return ret;
-	}
+	ret = insn_get_opcode(insn);
+	if (ret)
+		return ret;
 
 	if (inat_has_modrm(insn->attr)) {
 		mod = get_next(insn_byte_t, insn);
@@ -386,11 +382,9 @@ int insn_rip_relative(struct insn *insn)
 	if (!insn->x86_64)
 		return 0;
 
-	if (!modrm->got) {
-		ret = insn_get_modrm(insn);
-		if (ret)
-			return 0;
-	}
+	ret = insn_get_modrm(insn);
+	if (ret)
+		return 0;
 	/*
 	 * For rip-relative instructions, the mod field (top 2 bits)
 	 * is zero and the r/m field (bottom 3 bits) is 0x5.
@@ -417,11 +411,9 @@ int insn_get_sib(struct insn *insn)
 	if (insn->sib.got)
 		return 0;
 
-	if (!insn->modrm.got) {
-		ret = insn_get_modrm(insn);
-		if (ret)
-			return ret;
-	}
+	ret = insn_get_modrm(insn);
+	if (ret)
+		return ret;
 
 	if (insn->modrm.nbytes) {
 		modrm = insn->modrm.bytes[0];
@@ -460,11 +452,9 @@ int insn_get_displacement(struct insn *insn)
 	if (insn->displacement.got)
 		return 0;
 
-	if (!insn->sib.got) {
-		ret = insn_get_sib(insn);
-		if (ret)
-			return ret;
-	}
+	ret = insn_get_sib(insn);
+	if (ret)
+		return ret;
 
 	if (insn->modrm.nbytes) {
 		/*
@@ -628,11 +618,9 @@ int insn_get_immediate(struct insn *insn)
 	if (insn->immediate.got)
 		return 0;
 
-	if (!insn->displacement.got) {
-		ret = insn_get_displacement(insn);
-		if (ret)
-			return ret;
-	}
+	ret = insn_get_displacement(insn);
+	if (ret)
+		return ret;
 
 	if (inat_has_moffset(insn->attr)) {
 		if (!__get_moffset(insn))
@@ -703,11 +691,9 @@ int insn_get_length(struct insn *insn)
 	if (insn->length)
 		return 0;
 
-	if (!insn->immediate.got) {
-		ret = insn_get_immediate(insn);
-		if (ret)
-			return ret;
-	}
+	ret = insn_get_immediate(insn);
+	if (ret)
+		return ret;
 
 	insn->length = (unsigned char)((unsigned long)insn->next_byte
 				     - (unsigned long)insn->kaddr);

@@ -352,7 +352,7 @@ static const struct regmap_config axp192_regmap_config = {
 	.wr_table	= &axp192_writeable_table,
 	.volatile_table	= &axp192_volatile_table,
 	.max_register	= AXP20X_CC_CTRL,
-	.cache_type	= REGCACHE_RBTREE,
+	.cache_type	= REGCACHE_MAPLE,
 };
 
 static const struct regmap_config axp20x_regmap_config = {
@@ -388,7 +388,7 @@ static const struct regmap_config axp313a_regmap_config = {
 	.wr_table = &axp313a_writeable_table,
 	.volatile_table = &axp313a_volatile_table,
 	.max_register = AXP313A_IRQ_STATE,
-	.cache_type = REGCACHE_RBTREE,
+	.cache_type = REGCACHE_MAPLE,
 };
 
 static const struct regmap_config axp806_regmap_config = {

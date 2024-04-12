@@ -694,6 +694,6 @@ module_init(pptp_init_module);
 module_exit(pptp_exit_module);
 
 MODULE_DESCRIPTION("Point-to-Point Tunneling Protocol");
-MODULE_AUTHOR("D. Kozlov (xeb@mail.ru)");
+MODULE_AUTHOR("D. Kozlov <xeb@mail.ru>");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS_NET_PF_PROTO(PF_PPPOX, PX_PROTO_PPTP);

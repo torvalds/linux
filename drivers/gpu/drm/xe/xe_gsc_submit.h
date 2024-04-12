@@ -14,6 +14,7 @@ struct xe_gsc;
 
 u32 xe_gsc_emit_header(struct xe_device *xe, struct iosys_map *map, u32 offset,
 		       u8 heci_client_id, u64 host_session_id, u32 payload_size);
+void xe_gsc_poison_header(struct xe_device *xe, struct iosys_map *map, u32 offset);
 
 bool xe_gsc_check_and_update_pending(struct xe_device *xe,
 				     struct iosys_map *in, u32 offset_in,

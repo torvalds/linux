@@ -1162,7 +1162,7 @@ static int pwrdm_save_context(struct powerdomain *pwrdm, void *unused)
 }
 
 /**
- * pwrdm_save_context - restore powerdomain registers
+ * pwrdm_restore_context - restore powerdomain registers
  *
  * Restore powerdomain control registers after a suspend or resume
  * event.

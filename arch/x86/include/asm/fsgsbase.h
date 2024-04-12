@@ -6,7 +6,7 @@
 
 #ifdef CONFIG_X86_64
 
-#include <asm/msr-index.h>
+#include <asm/msr.h>
 
 /*
  * Read/write a task's FSBASE or GSBASE. This returns the value that

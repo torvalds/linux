@@ -96,7 +96,8 @@ static void heartbeat_commit(struct i915_request *rq,
 static void show_heartbeat(const struct i915_request *rq,
 			   struct intel_engine_cs *engine)
 {
-	struct drm_printer p = drm_debug_printer("heartbeat");
+	struct drm_printer p =
+		drm_dbg_printer(&engine->i915->drm, DRM_UT_DRIVER, "heartbeat");
 
 	if (!rq) {
 		intel_engine_dump(engine, &p,
@@ -289,6 +290,9 @@ static int __intel_engine_pulse(struct intel_engine_cs *engine)
 
 	heartbeat_commit(rq, &attr);
 	GEM_BUG_ON(rq->sched.attr.priority < I915_PRIORITY_BARRIER);
+
+	/* Ensure the forced pulse gets a full period to execute */
+	next_heartbeat(engine);
 
 	return 0;
 }

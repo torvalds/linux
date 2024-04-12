@@ -10,6 +10,7 @@
 #include "xe_gt_topology.h"
 #include "xe_gt_types.h"
 #include "xe_mmio.h"
+#include "xe_sriov.h"
 
 /**
  * DOC: GT Multicast/Replicated (MCR) Register Support
@@ -38,6 +39,8 @@
  * ``init_steering_*()`` functions is to apply the platform-specific rules for
  * each MCR register type to identify a steering target that will select a
  * non-terminated instance.
+ *
+ * MCR registers are not available on Virtual Function (VF).
  */
 
 #define STEER_SEMAPHORE		XE_REG(0xFD0)
@@ -352,6 +355,9 @@ void xe_gt_mcr_init(struct xe_gt *gt)
 	BUILD_BUG_ON(IMPLICIT_STEERING + 1 != NUM_STEERING_TYPES);
 	BUILD_BUG_ON(ARRAY_SIZE(xe_steering_types) != NUM_STEERING_TYPES);
 
+	if (IS_SRIOV_VF(xe))
+		return;
+
 	spin_lock_init(&gt->mcr_lock);
 
 	if (gt->info.type == XE_GT_TYPE_MEDIA) {
@@ -404,6 +410,9 @@ void xe_gt_mcr_init(struct xe_gt *gt)
 void xe_gt_mcr_set_implicit_defaults(struct xe_gt *gt)
 {
 	struct xe_device *xe = gt_to_xe(gt);
+
+	if (IS_SRIOV_VF(xe))
+		return;
 
 	if (xe->info.platform == XE_DG2) {
 		u32 steer_val = REG_FIELD_PREP(MCR_SLICE_MASK, 0) |
@@ -588,6 +597,8 @@ u32 xe_gt_mcr_unicast_read_any(struct xe_gt *gt, struct xe_reg_mcr reg_mcr)
 	u32 val;
 	bool steer;
 
+	xe_gt_assert(gt, !IS_SRIOV_VF(gt_to_xe(gt)));
+
 	steer = xe_gt_mcr_get_nonterminated_steering(gt, reg_mcr,
 						     &group, &instance);
 
@@ -619,6 +630,8 @@ u32 xe_gt_mcr_unicast_read(struct xe_gt *gt,
 {
 	u32 val;
 
+	xe_gt_assert(gt, !IS_SRIOV_VF(gt_to_xe(gt)));
+
 	mcr_lock(gt);
 	val = rw_with_mcr_steering(gt, reg_mcr, MCR_OP_READ, group, instance, 0);
 	mcr_unlock(gt);
@@ -640,6 +653,8 @@ u32 xe_gt_mcr_unicast_read(struct xe_gt *gt,
 void xe_gt_mcr_unicast_write(struct xe_gt *gt, struct xe_reg_mcr reg_mcr,
 			     u32 value, int group, int instance)
 {
+	xe_gt_assert(gt, !IS_SRIOV_VF(gt_to_xe(gt)));
+
 	mcr_lock(gt);
 	rw_with_mcr_steering(gt, reg_mcr, MCR_OP_WRITE, group, instance, value);
 	mcr_unlock(gt);
@@ -657,6 +672,8 @@ void xe_gt_mcr_multicast_write(struct xe_gt *gt, struct xe_reg_mcr reg_mcr,
 			       u32 value)
 {
 	struct xe_reg reg = to_xe_reg(reg_mcr);
+
+	xe_gt_assert(gt, !IS_SRIOV_VF(gt_to_xe(gt)));
 
 	/*
 	 * Synchronize with any unicast operations.  Once we have exclusive

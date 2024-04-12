@@ -13,7 +13,7 @@
 int  mdev_bus_register(void);
 void mdev_bus_unregister(void);
 
-extern struct bus_type mdev_bus_type;
+extern const struct bus_type mdev_bus_type;
 extern const struct attribute_group *mdev_device_groups[];
 
 #define to_mdev_type_attr(_attr)	\

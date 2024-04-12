@@ -57,6 +57,9 @@ struct snd_sof_dsp_ops sof_hda_common_ops = {
 	.pcm_pointer	= hda_dsp_pcm_pointer,
 	.pcm_ack	= hda_dsp_pcm_ack,
 
+	.get_dai_frame_counter = hda_dsp_get_stream_llp,
+	.get_host_byte_counter = hda_dsp_get_stream_ldp,
+
 	/* firmware loading */
 	.load_firmware = snd_sof_load_firmware_raw,
 
@@ -83,6 +86,7 @@ struct snd_sof_dsp_ops sof_hda_common_ops = {
 	/* DAI drivers */
 	.drv		= skl_dai,
 	.num_drv	= SOF_SKL_NUM_DAIS,
+	.is_chain_dma_supported	= hda_is_chain_dma_supported,
 
 	/* PM */
 	.suspend		= hda_dsp_suspend,

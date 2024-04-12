@@ -540,22 +540,17 @@ static int wm8350_power_probe(struct platform_device *pdev)
 	struct wm8350_charger_policy *policy = power->policy;
 	int ret;
 
-	power->ac = power_supply_register(&pdev->dev, &wm8350_ac_desc, NULL);
+	power->ac = devm_power_supply_register(&pdev->dev, &wm8350_ac_desc, NULL);
 	if (IS_ERR(power->ac))
 		return PTR_ERR(power->ac);
 
-	power->battery = power_supply_register(&pdev->dev, &wm8350_battery_desc,
-					       NULL);
-	if (IS_ERR(power->battery)) {
-		ret = PTR_ERR(power->battery);
-		goto battery_failed;
-	}
+	power->battery = devm_power_supply_register(&pdev->dev, &wm8350_battery_desc, NULL);
+	if (IS_ERR(power->battery))
+		return PTR_ERR(power->battery);
 
-	power->usb = power_supply_register(&pdev->dev, &wm8350_usb_desc, NULL);
-	if (IS_ERR(power->usb)) {
-		ret = PTR_ERR(power->usb);
-		goto usb_failed;
-	}
+	power->usb = devm_power_supply_register(&pdev->dev, &wm8350_usb_desc, NULL);
+	if (IS_ERR(power->usb))
+		return PTR_ERR(power->usb);
 
 	ret = device_create_file(&pdev->dev, &dev_attr_charger_state);
 	if (ret < 0)
@@ -570,25 +565,14 @@ static int wm8350_power_probe(struct platform_device *pdev)
 	}
 
 	return ret;
-
-usb_failed:
-	power_supply_unregister(power->battery);
-battery_failed:
-	power_supply_unregister(power->ac);
-
-	return ret;
 }
 
 static void wm8350_power_remove(struct platform_device *pdev)
 {
 	struct wm8350 *wm8350 = platform_get_drvdata(pdev);
-	struct wm8350_power *power = &wm8350->power;
 
 	free_charger_irq(wm8350);
 	device_remove_file(&pdev->dev, &dev_attr_charger_state);
-	power_supply_unregister(power->battery);
-	power_supply_unregister(power->ac);
-	power_supply_unregister(power->usb);
 }
 
 static struct platform_driver wm8350_power_driver = {

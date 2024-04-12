@@ -7,16 +7,6 @@
 #include <linux/vmalloc.h>
 #include "nvme.h"
 
-int nvme_revalidate_zones(struct nvme_ns *ns)
-{
-	struct request_queue *q = ns->queue;
-
-	blk_queue_chunk_sectors(q, ns->head->zsze);
-	blk_queue_max_zone_append_sectors(q, ns->ctrl->max_zone_append);
-
-	return blk_revalidate_disk_zones(ns->disk, NULL);
-}
-
 static int nvme_set_max_append(struct nvme_ctrl *ctrl)
 {
 	struct nvme_command c = { };
@@ -45,10 +35,10 @@ static int nvme_set_max_append(struct nvme_ctrl *ctrl)
 	return 0;
 }
 
-int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
+int nvme_query_zone_info(struct nvme_ns *ns, unsigned lbaf,
+		struct nvme_zone_info *zi)
 {
 	struct nvme_effects_log *log = ns->head->effects;
-	struct request_queue *q = ns->queue;
 	struct nvme_command c = { };
 	struct nvme_id_ns_zns *id;
 	int status;
@@ -99,23 +89,32 @@ int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 		goto free_data;
 	}
 
-	ns->head->zsze =
-		nvme_lba_to_sect(ns->head, le64_to_cpu(id->lbafe[lbaf].zsze));
-	if (!is_power_of_2(ns->head->zsze)) {
+	zi->zone_size = le64_to_cpu(id->lbafe[lbaf].zsze);
+	if (!is_power_of_2(zi->zone_size)) {
 		dev_warn(ns->ctrl->device,
-			"invalid zone size:%llu for namespace:%u\n",
-			ns->head->zsze, ns->head->ns_id);
+			"invalid zone size: %llu for namespace: %u\n",
+			zi->zone_size, ns->head->ns_id);
 		status = -ENODEV;
 		goto free_data;
 	}
+	zi->max_open_zones = le32_to_cpu(id->mor) + 1;
+	zi->max_active_zones = le32_to_cpu(id->mar) + 1;
 
-	disk_set_zoned(ns->disk);
-	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, q);
-	disk_set_max_open_zones(ns->disk, le32_to_cpu(id->mor) + 1);
-	disk_set_max_active_zones(ns->disk, le32_to_cpu(id->mar) + 1);
 free_data:
 	kfree(id);
 	return status;
+}
+
+void nvme_update_zone_info(struct nvme_ns *ns, struct queue_limits *lim,
+		struct nvme_zone_info *zi)
+{
+	lim->zoned = 1;
+	lim->max_open_zones = zi->max_open_zones;
+	lim->max_active_zones = zi->max_active_zones;
+	lim->max_zone_append_sectors = ns->ctrl->max_zone_append;
+	lim->chunk_sectors = ns->head->zsze =
+		nvme_lba_to_sect(ns->head, zi->zone_size);
+	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, ns->queue);
 }
 
 static void *nvme_zns_alloc_report_buffer(struct nvme_ns *ns,

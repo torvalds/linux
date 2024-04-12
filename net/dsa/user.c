@@ -210,7 +210,7 @@ static int dsa_user_sync_uc(struct net_device *dev,
 		return 0;
 
 	return dsa_user_vlan_for_each(dev, dsa_user_host_vlan_rx_filtering,
-				       &ctx);
+				      &ctx);
 }
 
 static int dsa_user_unsync_uc(struct net_device *dev,
@@ -230,7 +230,7 @@ static int dsa_user_unsync_uc(struct net_device *dev,
 		return 0;
 
 	return dsa_user_vlan_for_each(dev, dsa_user_host_vlan_rx_filtering,
-				       &ctx);
+				      &ctx);
 }
 
 static int dsa_user_sync_mc(struct net_device *dev,
@@ -250,7 +250,7 @@ static int dsa_user_sync_mc(struct net_device *dev,
 		return 0;
 
 	return dsa_user_vlan_for_each(dev, dsa_user_host_vlan_rx_filtering,
-				       &ctx);
+				      &ctx);
 }
 
 static int dsa_user_unsync_mc(struct net_device *dev,
@@ -270,7 +270,7 @@ static int dsa_user_unsync_mc(struct net_device *dev,
 		return 0;
 
 	return dsa_user_vlan_for_each(dev, dsa_user_host_vlan_rx_filtering,
-				       &ctx);
+				      &ctx);
 }
 
 void dsa_user_sync_ha(struct net_device *dev)
@@ -352,7 +352,7 @@ void dsa_user_mii_bus_init(struct dsa_switch *ds)
 /* user device handling ****************************************************/
 static int dsa_user_get_iflink(const struct net_device *dev)
 {
-	return dsa_user_to_conduit(dev)->ifindex;
+	return READ_ONCE(dsa_user_to_conduit(dev)->ifindex);
 }
 
 static int dsa_user_open(struct net_device *dev)
@@ -875,8 +875,8 @@ static int dsa_user_port_obj_del(struct net_device *dev, const void *ctx,
 	return err;
 }
 
-static inline netdev_tx_t dsa_user_netpoll_send_skb(struct net_device *dev,
-						    struct sk_buff *skb)
+static netdev_tx_t dsa_user_netpoll_send_skb(struct net_device *dev,
+					     struct sk_buff *skb)
 {
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	struct dsa_user_priv *p = netdev_priv(dev);
@@ -1222,7 +1222,7 @@ static int dsa_user_set_wol(struct net_device *dev, struct ethtool_wolinfo *w)
 	return ret;
 }
 
-static int dsa_user_set_eee(struct net_device *dev, struct ethtool_eee *e)
+static int dsa_user_set_eee(struct net_device *dev, struct ethtool_keee *e)
 {
 	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct dsa_switch *ds = dp->ds;
@@ -1242,7 +1242,7 @@ static int dsa_user_set_eee(struct net_device *dev, struct ethtool_eee *e)
 	return phylink_ethtool_set_eee(dp->pl, e);
 }
 
-static int dsa_user_get_eee(struct net_device *dev, struct ethtool_eee *e)
+static int dsa_user_get_eee(struct net_device *dev, struct ethtool_keee *e)
 {
 	struct dsa_port *dp = dsa_user_to_port(dev);
 	struct dsa_switch *ds = dp->ds;
@@ -2429,7 +2429,7 @@ static const struct net_device_ops dsa_user_netdev_ops = {
 	.ndo_fill_forward_path	= dsa_user_fill_forward_path,
 };
 
-static struct device_type dsa_type = {
+static const struct device_type dsa_type = {
 	.name	= "dsa",
 };
 
@@ -2625,11 +2625,7 @@ int dsa_user_create(struct dsa_port *port)
 	user_dev->vlan_features = conduit->vlan_features;
 
 	p = netdev_priv(user_dev);
-	user_dev->tstats = netdev_alloc_pcpu_stats(struct pcpu_sw_netstats);
-	if (!user_dev->tstats) {
-		free_netdev(user_dev);
-		return -ENOMEM;
-	}
+	user_dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 
 	ret = gro_cells_init(&p->gcells, user_dev);
 	if (ret)
@@ -2695,7 +2691,6 @@ out_phy:
 out_gcells:
 	gro_cells_destroy(&p->gcells);
 out_free:
-	free_percpu(user_dev->tstats);
 	free_netdev(user_dev);
 	port->user = NULL;
 	return ret;
@@ -2716,7 +2711,6 @@ void dsa_user_destroy(struct net_device *user_dev)
 
 	dsa_port_phylink_destroy(dp);
 	gro_cells_destroy(&p->gcells);
-	free_percpu(user_dev->tstats);
 	free_netdev(user_dev);
 }
 

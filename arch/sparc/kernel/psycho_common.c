@@ -50,7 +50,7 @@ static void psycho_check_stc_error(struct pci_pbm_info *pbm)
 	spin_lock(&stc_buf_lock);
 
 	/* This is __REALLY__ dangerous.  When we put the streaming
-	 * buffer into diagnostic mode to probe it's tags and error
+	 * buffer into diagnostic mode to probe its tags and error
 	 * status, we _must_ clear all of the line tag valid bits
 	 * before re-enabling the streaming buffer.  If any dirty data
 	 * lives in the STC when we do this, we will end up

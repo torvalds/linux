@@ -29,6 +29,7 @@
 #include "dc.h"
 #include "amdgpu.h"
 #include "amdgpu_dm_psr.h"
+#include "amdgpu_dm_replay.h"
 #include "amdgpu_dm_crtc.h"
 #include "amdgpu_dm_plane.h"
 #include "amdgpu_dm_trace.h"
@@ -95,6 +96,61 @@ bool amdgpu_dm_crtc_vrr_active(struct dm_crtc_state *dm_state)
 	       dm_state->freesync_config.state == VRR_STATE_ACTIVE_FIXED;
 }
 
+/**
+ * amdgpu_dm_crtc_set_panel_sr_feature() - Manage panel self-refresh features.
+ *
+ * @vblank_work:    is a pointer to a struct vblank_control_work object.
+ * @vblank_enabled: indicates whether the DRM vblank counter is currently
+ *                  enabled (true) or disabled (false).
+ * @allow_sr_entry: represents whether entry into the self-refresh mode is
+ *                  allowed (true) or not allowed (false).
+ *
+ * The DRM vblank counter enable/disable action is used as the trigger to enable
+ * or disable various panel self-refresh features:
+ *
+ * Panel Replay and PSR SU
+ * - Enable when:
+ *      - vblank counter is disabled
+ *      - entry is allowed: usermode demonstrates an adequate number of fast
+ *        commits)
+ *     - CRC capture window isn't active
+ * - Keep enabled even when vblank counter gets enabled
+ *
+ * PSR1
+ * - Enable condition same as above
+ * - Disable when vblank counter is enabled
+ */
+static void amdgpu_dm_crtc_set_panel_sr_feature(
+	struct vblank_control_work *vblank_work,
+	bool vblank_enabled, bool allow_sr_entry)
+{
+	struct dc_link *link = vblank_work->stream->link;
+	bool is_sr_active = (link->replay_settings.replay_allow_active ||
+				 link->psr_settings.psr_allow_active);
+	bool is_crc_window_active = false;
+
+#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
+	is_crc_window_active =
+		amdgpu_dm_crc_window_is_activated(&vblank_work->acrtc->base);
+#endif
+
+	if (link->replay_settings.replay_feature_enabled &&
+		allow_sr_entry && !is_sr_active && !is_crc_window_active) {
+		amdgpu_dm_replay_enable(vblank_work->stream, true);
+	} else if (vblank_enabled) {
+		if (link->psr_settings.psr_version < DC_PSR_VERSION_SU_1 && is_sr_active)
+			amdgpu_dm_psr_disable(vblank_work->stream);
+	} else if (link->psr_settings.psr_feature_enabled &&
+		allow_sr_entry && !is_sr_active && !is_crc_window_active) {
+
+		struct amdgpu_dm_connector *aconn =
+			(struct amdgpu_dm_connector *) vblank_work->stream->dm_stream_context;
+
+		if (!aconn->disallow_edp_enter_psr)
+			amdgpu_dm_psr_enable(vblank_work->stream);
+	}
+}
+
 static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 {
 	struct vblank_control_work *vblank_work =
@@ -123,18 +179,10 @@ static void amdgpu_dm_crtc_vblank_control_worker(struct work_struct *work)
 	 * fill_dc_dirty_rects().
 	 */
 	if (vblank_work->stream && vblank_work->stream->link) {
-		if (vblank_work->enable) {
-			if (vblank_work->stream->link->psr_settings.psr_version < DC_PSR_VERSION_SU_1 &&
-			    vblank_work->stream->link->psr_settings.psr_allow_active)
-				amdgpu_dm_psr_disable(vblank_work->stream);
-		} else if (vblank_work->stream->link->psr_settings.psr_feature_enabled &&
-			   !vblank_work->stream->link->psr_settings.psr_allow_active &&
-#ifdef CONFIG_DRM_AMD_SECURE_DISPLAY
-			   !amdgpu_dm_crc_window_is_activated(&vblank_work->acrtc->base) &&
-#endif
-			   vblank_work->acrtc->dm_irq_params.allow_psr_entry) {
-			amdgpu_dm_psr_enable(vblank_work->stream);
-		}
+		amdgpu_dm_crtc_set_panel_sr_feature(
+			vblank_work, vblank_work->enable,
+			vblank_work->acrtc->dm_irq_params.allow_psr_entry ||
+			vblank_work->stream->link->replay_settings.replay_feature_enabled);
 	}
 
 	mutex_unlock(&dm->dc_lock);

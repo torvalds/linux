@@ -105,23 +105,20 @@ static struct {
 			    .public_name = "Mixer"}
 };
 
-typedef int (*create_t)(struct hw *, void **);
-typedef int (*destroy_t)(void *);
-
 static struct {
 	int (*create)(struct hw *hw, void **rmgr);
 	int (*destroy)(void *mgr);
 } rsc_mgr_funcs[NUM_RSCTYP] = {
-	[SRC] 		= { .create 	= (create_t)src_mgr_create,
-			    .destroy 	= (destroy_t)src_mgr_destroy	},
-	[SRCIMP] 	= { .create 	= (create_t)srcimp_mgr_create,
-			    .destroy 	= (destroy_t)srcimp_mgr_destroy	},
-	[AMIXER]	= { .create	= (create_t)amixer_mgr_create,
-			    .destroy	= (destroy_t)amixer_mgr_destroy	},
-	[SUM]		= { .create	= (create_t)sum_mgr_create,
-			    .destroy	= (destroy_t)sum_mgr_destroy	},
-	[DAIO]		= { .create	= (create_t)daio_mgr_create,
-			    .destroy	= (destroy_t)daio_mgr_destroy	}
+	[SRC] 		= { .create 	= src_mgr_create,
+			    .destroy 	= src_mgr_destroy	},
+	[SRCIMP] 	= { .create 	= srcimp_mgr_create,
+			    .destroy 	= srcimp_mgr_destroy	},
+	[AMIXER]	= { .create	= amixer_mgr_create,
+			    .destroy	= amixer_mgr_destroy	},
+	[SUM]		= { .create	= sum_mgr_create,
+			    .destroy	= sum_mgr_destroy	},
+	[DAIO]		= { .create	= daio_mgr_create,
+			    .destroy	= daio_mgr_destroy	}
 };
 
 static int

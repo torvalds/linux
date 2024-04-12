@@ -252,34 +252,32 @@ struct drm_nouveau_vm_init {
 struct drm_nouveau_vm_bind_op {
 	/**
 	 * @op: the operation type
+	 *
+	 * Supported values:
+	 *
+	 * %DRM_NOUVEAU_VM_BIND_OP_MAP - Map a GEM object to the GPU's VA
+	 * space. Optionally, the &DRM_NOUVEAU_VM_BIND_SPARSE flag can be
+	 * passed to instruct the kernel to create sparse mappings for the
+	 * given range.
+	 *
+	 * %DRM_NOUVEAU_VM_BIND_OP_UNMAP - Unmap an existing mapping in the
+	 * GPU's VA space. If the region the mapping is located in is a
+	 * sparse region, new sparse mappings are created where the unmapped
+	 * (memory backed) mapping was mapped previously. To remove a sparse
+	 * region the &DRM_NOUVEAU_VM_BIND_SPARSE must be set.
 	 */
 	__u32 op;
-/**
- * @DRM_NOUVEAU_VM_BIND_OP_MAP:
- *
- * Map a GEM object to the GPU's VA space. Optionally, the
- * &DRM_NOUVEAU_VM_BIND_SPARSE flag can be passed to instruct the kernel to
- * create sparse mappings for the given range.
- */
 #define DRM_NOUVEAU_VM_BIND_OP_MAP 0x0
-/**
- * @DRM_NOUVEAU_VM_BIND_OP_UNMAP:
- *
- * Unmap an existing mapping in the GPU's VA space. If the region the mapping
- * is located in is a sparse region, new sparse mappings are created where the
- * unmapped (memory backed) mapping was mapped previously. To remove a sparse
- * region the &DRM_NOUVEAU_VM_BIND_SPARSE must be set.
- */
 #define DRM_NOUVEAU_VM_BIND_OP_UNMAP 0x1
 	/**
 	 * @flags: the flags for a &drm_nouveau_vm_bind_op
+	 *
+	 * Supported values:
+	 *
+	 * %DRM_NOUVEAU_VM_BIND_SPARSE - Indicates that an allocated VA
+	 * space region should be sparse.
 	 */
 	__u32 flags;
-/**
- * @DRM_NOUVEAU_VM_BIND_SPARSE:
- *
- * Indicates that an allocated VA space region should be sparse.
- */
 #define DRM_NOUVEAU_VM_BIND_SPARSE (1 << 8)
 	/**
 	 * @handle: the handle of the DRM GEM object to map
@@ -315,17 +313,17 @@ struct drm_nouveau_vm_bind {
 	__u32 op_count;
 	/**
 	 * @flags: the flags for a &drm_nouveau_vm_bind ioctl
+	 *
+	 * Supported values:
+	 *
+	 * %DRM_NOUVEAU_VM_BIND_RUN_ASYNC - Indicates that the given VM_BIND
+	 * operation should be executed asynchronously by the kernel.
+	 *
+	 * If this flag is not supplied the kernel executes the associated
+	 * operations synchronously and doesn't accept any &drm_nouveau_sync
+	 * objects.
 	 */
 	__u32 flags;
-/**
- * @DRM_NOUVEAU_VM_BIND_RUN_ASYNC:
- *
- * Indicates that the given VM_BIND operation should be executed asynchronously
- * by the kernel.
- *
- * If this flag is not supplied the kernel executes the associated operations
- * synchronously and doesn't accept any &drm_nouveau_sync objects.
- */
 #define DRM_NOUVEAU_VM_BIND_RUN_ASYNC 0x1
 	/**
 	 * @wait_count: the number of wait &drm_nouveau_syncs

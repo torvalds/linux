@@ -162,6 +162,28 @@ static int intel_dp_init_lttpr(struct intel_dp *intel_dp, const u8 dpcd[DP_RECEI
 	return lttpr_count;
 }
 
+int intel_dp_read_dprx_caps(struct intel_dp *intel_dp, u8 dpcd[DP_RECEIVER_CAP_SIZE])
+{
+	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
+
+	if (intel_dp_is_edp(intel_dp))
+		return 0;
+
+	/*
+	 * Detecting LTTPRs must be avoided on platforms with an AUX timeout
+	 * period < 3.2ms. (see DP Standard v2.0, 2.11.2, 3.6.6.1).
+	 */
+	if (DISPLAY_VER(i915) >= 10 && !IS_GEMINILAKE(i915))
+		if (drm_dp_dpcd_probe(&intel_dp->aux,
+				      DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV))
+			return -EIO;
+
+	if (drm_dp_read_dpcd_caps(&intel_dp->aux, dpcd))
+		return -EIO;
+
+	return 0;
+}
+
 /**
  * intel_dp_init_lttpr_and_dprx_caps - detect LTTPR and DPRX caps, init the LTTPR link training mode
  * @intel_dp: Intel DP struct
@@ -192,12 +214,10 @@ int intel_dp_init_lttpr_and_dprx_caps(struct intel_dp *intel_dp)
 	if (!intel_dp_is_edp(intel_dp) &&
 	    (DISPLAY_VER(i915) >= 10 && !IS_GEMINILAKE(i915))) {
 		u8 dpcd[DP_RECEIVER_CAP_SIZE];
+		int err = intel_dp_read_dprx_caps(intel_dp, dpcd);
 
-		if (drm_dp_dpcd_probe(&intel_dp->aux, DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV))
-			return -EIO;
-
-		if (drm_dp_read_dpcd_caps(&intel_dp->aux, dpcd))
-			return -EIO;
+		if (err != 0)
+			return err;
 
 		lttpr_count = intel_dp_init_lttpr(intel_dp, dpcd);
 	}
@@ -1075,7 +1095,6 @@ static void intel_dp_schedule_fallback_link_training(struct intel_dp *intel_dp,
 						     const struct intel_crtc_state *crtc_state)
 {
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
-	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 
 	if (!intel_digital_port_connected(&dp_to_dig_port(intel_dp)->base)) {
 		lt_dbg(intel_dp, DP_PHY_DPRX, "Link Training failed on disconnected sink.\n");
@@ -1093,7 +1112,7 @@ static void intel_dp_schedule_fallback_link_training(struct intel_dp *intel_dp,
 	}
 
 	/* Schedule a Hotplug Uevent to userspace to start modeset */
-	queue_work(i915->unordered_wq, &intel_connector->modeset_retry_work);
+	intel_dp_queue_modeset_retry_work(intel_connector);
 }
 
 /* Perform the link training on all LTTPRs and the DPRX on a link. */

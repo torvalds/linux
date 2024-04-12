@@ -70,6 +70,14 @@ Synopsis of fprobe-events
 
 For the details of TYPE, see :ref:`kprobetrace documentation <kprobetrace_types>`.
 
+Function arguments at exit
+--------------------------
+Function arguments can be accessed at exit probe using $arg<N> fetcharg. This
+is useful to record the function parameter and return value at once, and
+trace the difference of structure fields (for debuging a function whether it
+correctly updates the given data structure or not)
+See the :ref:`sample<fprobetrace_exit_args_sample>` below for how it works.
+
 BTF arguments
 -------------
 BTF (BPF Type Format) argument allows user to trace function and tracepoint
@@ -218,3 +226,26 @@ traceprobe event, you can trace that field as below.
            <idle>-0       [000] d..3.  5606.690317: sched_switch: (__probestub_sched_switch+0x4/0x10) comm="kworker/0:1" usage=1 start_time=137000000
       kworker/0:1-14      [000] d..3.  5606.690339: sched_switch: (__probestub_sched_switch+0x4/0x10) comm="swapper/0" usage=2 start_time=0
            <idle>-0       [000] d..3.  5606.692368: sched_switch: (__probestub_sched_switch+0x4/0x10) comm="kworker/0:1" usage=1 start_time=137000000
+
+.. _fprobetrace_exit_args_sample:
+
+The return probe allows us to access the results of some functions, which returns
+the error code and its results are passed via function parameter, such as an
+structure-initialization function.
+
+For example, vfs_open() will link the file structure to the inode and update
+mode. You can trace that changes with return probe.
+::
+
+ # echo 'f vfs_open mode=file->f_mode:x32 inode=file->f_inode:x64' >> dynamic_events
+ # echo 'f vfs_open%%return mode=file->f_mode:x32 inode=file->f_inode:x64' >> dynamic_events
+ # echo 1 > events/fprobes/enable
+ # cat trace
+              sh-131     [006] ...1.  1945.714346: vfs_open__entry: (vfs_open+0x4/0x40) mode=0x2 inode=0x0
+              sh-131     [006] ...1.  1945.714358: vfs_open__exit: (do_open+0x274/0x3d0 <- vfs_open) mode=0x4d801e inode=0xffff888008470168
+             cat-143     [007] ...1.  1945.717949: vfs_open__entry: (vfs_open+0x4/0x40) mode=0x1 inode=0x0
+             cat-143     [007] ...1.  1945.717956: vfs_open__exit: (do_open+0x274/0x3d0 <- vfs_open) mode=0x4a801d inode=0xffff888005f78d28
+             cat-143     [007] ...1.  1945.720616: vfs_open__entry: (vfs_open+0x4/0x40) mode=0x1 inode=0x0
+             cat-143     [007] ...1.  1945.728263: vfs_open__exit: (do_open+0x274/0x3d0 <- vfs_open) mode=0xa800d inode=0xffff888004ada8d8
+
+You can see the `file::f_mode` and `file::f_inode` are upated in `vfs_open()`.

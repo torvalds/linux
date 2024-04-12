@@ -13,7 +13,6 @@
 #include <linux/security.h>
 #include <linux/workqueue.h>
 #include <linux/random.h>
-#include <linux/ima.h>
 #include <linux/err.h>
 #include "internal.h"
 
@@ -930,8 +929,8 @@ static key_ref_t __key_create_or_update(key_ref_t keyring_ref,
 		goto error_link_end;
 	}
 
-	ima_post_key_create_or_update(keyring, key, payload, plen,
-				      flags, true);
+	security_key_post_create_or_update(keyring, key, payload, plen, flags,
+					   true);
 
 	key_ref = make_key_ref(key, is_key_possessed(keyring_ref));
 
@@ -964,9 +963,8 @@ error:
 	key_ref = __key_update(key_ref, &prep);
 
 	if (!IS_ERR(key_ref))
-		ima_post_key_create_or_update(keyring, key,
-					      payload, plen,
-					      flags, false);
+		security_key_post_create_or_update(keyring, key, payload, plen,
+						   flags, false);
 
 	goto error_free_prep;
 }

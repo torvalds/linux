@@ -25,7 +25,6 @@
 #include "btrfs_inode.h"
 #include "transaction.h"
 #include "compression.h"
-#include "xattr.h"
 #include "print-tree.h"
 #include "accessors.h"
 #include "dir-item.h"
@@ -777,7 +776,12 @@ static int begin_cmd(struct send_ctx *sctx, int cmd)
 	if (WARN_ON(!sctx->send_buf))
 		return -EINVAL;
 
-	BUG_ON(sctx->send_size);
+	if (unlikely(sctx->send_size != 0)) {
+		btrfs_err(sctx->send_root->fs_info,
+			  "send: command header buffer not empty cmd %d offset %llu",
+			  cmd, sctx->send_off);
+		return -EINVAL;
+	}
 
 	sctx->send_size += sizeof(*hdr);
 	hdr = (struct btrfs_cmd_header *)sctx->send_buf;
@@ -1070,7 +1074,15 @@ static int iterate_inode_ref(struct btrfs_root *root, struct btrfs_path *path,
 					ret = PTR_ERR(start);
 					goto out;
 				}
-				BUG_ON(start < p->buf);
+				if (unlikely(start < p->buf)) {
+					btrfs_err(root->fs_info,
+			"send: path ref buffer underflow for key (%llu %u %llu)",
+						  found_key->objectid,
+						  found_key->type,
+						  found_key->offset);
+					ret = -EINVAL;
+					goto out;
+				}
 			}
 			p->start = start;
 		} else {
@@ -1406,7 +1418,7 @@ static bool lookup_backref_cache(u64 leaf_bytenr, void *ctx,
 	struct btrfs_lru_cache_entry *raw_entry;
 	struct backref_cache_entry *entry;
 
-	if (btrfs_lru_cache_size(&sctx->backref_cache) == 0)
+	if (sctx->backref_cache.size == 0)
 		return false;
 
 	/*
@@ -1504,7 +1516,7 @@ static void store_backref_cache(u64 leaf_bytenr, const struct ulist *root_ids,
 	 * transaction handle or holding fs_info->commit_root_sem, so no need
 	 * to take any lock here.
 	 */
-	if (btrfs_lru_cache_size(&sctx->backref_cache) == 1)
+	if (sctx->backref_cache.size == 1)
 		sctx->backref_cache_last_reloc_trans = fs_info->last_reloc_trans;
 }
 
@@ -2809,8 +2821,7 @@ static int cache_dir_utimes(struct send_ctx *sctx, u64 dir, u64 gen)
 
 static int trim_dir_utimes_cache(struct send_ctx *sctx)
 {
-	while (btrfs_lru_cache_size(&sctx->dir_utimes_cache) >
-	       SEND_MAX_DIR_UTIMES_CACHE_SIZE) {
+	while (sctx->dir_utimes_cache.size > SEND_MAX_DIR_UTIMES_CACHE_SIZE) {
 		struct btrfs_lru_cache_entry *lru;
 		int ret;
 
@@ -4182,7 +4193,13 @@ static int process_recorded_refs(struct send_ctx *sctx, int *pending_move)
 	 * This should never happen as the root dir always has the same ref
 	 * which is always '..'
 	 */
-	BUG_ON(sctx->cur_ino <= BTRFS_FIRST_FREE_OBJECTID);
+	if (unlikely(sctx->cur_ino <= BTRFS_FIRST_FREE_OBJECTID)) {
+		btrfs_err(fs_info,
+			  "send: unexpected inode %llu in process_recorded_refs()",
+			  sctx->cur_ino);
+		ret = -EINVAL;
+		goto out;
+	}
 
 	valid_path = fs_path_alloc();
 	if (!valid_path) {
@@ -6140,7 +6157,7 @@ static int send_write_or_clone(struct send_ctx *sctx,
 	int ret = 0;
 	u64 offset = key->offset;
 	u64 end;
-	u64 bs = sctx->send_root->fs_info->sb->s_blocksize;
+	u64 bs = sctx->send_root->fs_info->sectorsize;
 
 	end = min_t(u64, btrfs_file_extent_end(path), sctx->cur_inode_size);
 	if (offset >= end)
@@ -6458,21 +6475,18 @@ static int maybe_send_hole(struct send_ctx *sctx, struct btrfs_path *path,
 	if (sctx->cur_ino != key->objectid || !need_send_hole(sctx))
 		return 0;
 
-	if (sctx->cur_inode_last_extent == (u64)-1) {
-		ret = get_last_extent(sctx, key->offset - 1);
-		if (ret)
-			return ret;
-	}
-
-	if (path->slots[0] == 0 &&
-	    sctx->cur_inode_last_extent < key->offset) {
-		/*
-		 * We might have skipped entire leafs that contained only
-		 * file extent items for our current inode. These leafs have
-		 * a generation number smaller (older) than the one in the
-		 * current leaf and the leaf our last extent came from, and
-		 * are located between these 2 leafs.
-		 */
+	/*
+	 * Get last extent's end offset (exclusive) if we haven't determined it
+	 * yet (we're processing the first file extent item that is new), or if
+	 * we're at the first slot of a leaf and the last extent's end is less
+	 * than the current extent's offset, because we might have skipped
+	 * entire leaves that contained only file extent items for our current
+	 * inode. These leaves have a generation number smaller (older) than the
+	 * one in the current leaf and the leaf our last extent came from, and
+	 * are located between these 2 leaves.
+	 */
+	if ((sctx->cur_inode_last_extent == (u64)-1) ||
+	    (path->slots[0] == 0 && sctx->cur_inode_last_extent < key->offset)) {
 		ret = get_last_extent(sctx, key->offset - 1);
 		if (ret)
 			return ret;
@@ -7429,8 +7443,8 @@ static int tree_move_down(struct btrfs_path *path, int *level, u64 reada_min_gen
 	u64 reada_done = 0;
 
 	lockdep_assert_held_read(&parent->fs_info->commit_root_sem);
+	ASSERT(*level != 0);
 
-	BUG_ON(*level == 0);
 	eb = btrfs_read_node_slot(parent, slot);
 	if (IS_ERR(eb))
 		return PTR_ERR(eb);

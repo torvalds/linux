@@ -527,6 +527,7 @@ ice_dpll_hw_input_prio_set(struct ice_pf *pf, struct ice_dpll *dpll,
  * @dpll: registered dpll pointer
  * @dpll_priv: private data pointer passed on dpll registration
  * @status: on success holds dpll's lock status
+ * @status_error: status error value
  * @extack: error reporting
  *
  * Dpll subsystem callback, provides dpll's lock status.
@@ -539,6 +540,7 @@ ice_dpll_hw_input_prio_set(struct ice_pf *pf, struct ice_dpll *dpll,
 static int
 ice_dpll_lock_status_get(const struct dpll_device *dpll, void *dpll_priv,
 			 enum dpll_lock_status *status,
+			 enum dpll_lock_status_error *status_error,
 			 struct netlink_ext_ack *extack)
 {
 	struct ice_dpll *d = dpll_priv;
@@ -1597,7 +1599,7 @@ static void ice_dpll_deinit_rclk_pin(struct ice_pf *pf)
 	}
 	if (WARN_ON_ONCE(!vsi || !vsi->netdev))
 		return;
-	netdev_dpll_pin_clear(vsi->netdev);
+	dpll_netdev_pin_clear(vsi->netdev);
 	dpll_pin_put(rclk->pin);
 }
 
@@ -1641,7 +1643,7 @@ ice_dpll_init_rclk_pins(struct ice_pf *pf, struct ice_dpll_pin *pin,
 	}
 	if (WARN_ON((!vsi || !vsi->netdev)))
 		return -EINVAL;
-	netdev_dpll_pin_set(vsi->netdev, pf->dplls.rclk.pin);
+	dpll_netdev_pin_set(vsi->netdev, pf->dplls.rclk.pin);
 
 	return 0;
 
@@ -2120,6 +2122,7 @@ void ice_dpll_init(struct ice_pf *pf)
 	struct ice_dplls *d = &pf->dplls;
 	int err = 0;
 
+	mutex_init(&d->lock);
 	err = ice_dpll_init_info(pf, cgu);
 	if (err)
 		goto err_exit;
@@ -2132,7 +2135,6 @@ void ice_dpll_init(struct ice_pf *pf)
 	err = ice_dpll_init_pins(pf, cgu);
 	if (err)
 		goto deinit_pps;
-	mutex_init(&d->lock);
 	if (cgu) {
 		err = ice_dpll_init_worker(pf);
 		if (err)

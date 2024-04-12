@@ -62,4 +62,6 @@ int xbitmap32_walk(struct xbitmap32 *bitmap, xbitmap32_walk_fn fn,
 bool xbitmap32_empty(struct xbitmap32 *bitmap);
 bool xbitmap32_test(struct xbitmap32 *bitmap, uint32_t start, uint32_t *len);
 
+uint32_t xbitmap32_count_set_regions(struct xbitmap32 *bitmap);
+
 #endif	/* __XFS_SCRUB_BITMAP_H__ */

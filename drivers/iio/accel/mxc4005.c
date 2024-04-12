@@ -8,7 +8,7 @@
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/iio/iio.h>
-#include <linux/acpi.h>
+#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/iio/sysfs.h>
 #include <linux/iio/trigger.h>
@@ -472,6 +472,7 @@ static int mxc4005_probe(struct i2c_client *client)
 static const struct acpi_device_id mxc4005_acpi_match[] = {
 	{"MXC4005",	0},
 	{"MXC6655",	0},
+	{"MDA6655",	0},
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, mxc4005_acpi_match);
@@ -493,7 +494,7 @@ MODULE_DEVICE_TABLE(i2c, mxc4005_id);
 static struct i2c_driver mxc4005_driver = {
 	.driver = {
 		.name = MXC4005_DRV_NAME,
-		.acpi_match_table = ACPI_PTR(mxc4005_acpi_match),
+		.acpi_match_table = mxc4005_acpi_match,
 		.of_match_table = mxc4005_of_match,
 	},
 	.probe		= mxc4005_probe,

@@ -9,6 +9,7 @@
 #include <asm/asmmacro.h>
 #include <asm/cpu.h>
 #include <asm/regdef.h>
+#include <asm/unwind_hints.h>
 
 .macro fill_to_64 r0
 	bstrins.d \r0, \r0, 15, 8
@@ -166,3 +167,5 @@ SYM_FUNC_START(__memset_fast)
 	jr	ra
 SYM_FUNC_END(__memset_fast)
 _ASM_NOKPROBE(__memset_fast)
+
+STACK_FRAME_NON_STANDARD __memset_fast

@@ -489,5 +489,5 @@ module_init(dm_bio_prison_init);
 module_exit(dm_bio_prison_exit);
 
 MODULE_DESCRIPTION(DM_NAME " bio prison");
-MODULE_AUTHOR("Joe Thornber <dm-devel@redhat.com>");
+MODULE_AUTHOR("Joe Thornber <dm-devel@lists.linux.dev>");
 MODULE_LICENSE("GPL");

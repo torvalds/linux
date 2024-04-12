@@ -6,6 +6,10 @@
 #ifndef BTRFS_RAID_STRIPE_TREE_H
 #define BTRFS_RAID_STRIPE_TREE_H
 
+#include <linux/types.h>
+#include <uapi/linux/btrfs_tree.h>
+#include "fs.h"
+
 #define BTRFS_RST_SUPP_BLOCK_GROUP_MASK    (BTRFS_BLOCK_GROUP_DUP |		\
 					    BTRFS_BLOCK_GROUP_RAID1_MASK |	\
 					    BTRFS_BLOCK_GROUP_RAID0 |		\
@@ -13,6 +17,7 @@
 
 struct btrfs_io_context;
 struct btrfs_io_stripe;
+struct btrfs_fs_info;
 struct btrfs_ordered_extent;
 struct btrfs_trans_handle;
 

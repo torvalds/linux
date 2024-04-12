@@ -163,6 +163,6 @@ snd_seq_oss_fill_addr(struct seq_oss_devinfo *dp, struct snd_seq_event *ev,
 
 
 /* misc. functions for proc interface */
-char *enabled_str(int bool);
+char *enabled_str(bool b);
 
 #endif /* __SEQ_OSS_DEVICE_H */
