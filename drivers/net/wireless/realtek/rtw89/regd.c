@@ -572,10 +572,8 @@ static void rtw89_regd_apply_policy_6ghz(struct rtw89_dev *rtwdev,
 	int i;
 
 	index = rtw89_regd_get_index(regd);
-	if (index == RTW89_REGD_MAX_COUNTRY_NUM)
-		return;
-
-	if (!test_bit(index, regulatory->block_6ghz))
+	if (index != RTW89_REGD_MAX_COUNTRY_NUM &&
+	    !test_bit(index, regulatory->block_6ghz))
 		return;
 
 	rtw89_debug(rtwdev, RTW89_DBG_REGD, "%c%c 6 GHz is blocked by policy\n",
