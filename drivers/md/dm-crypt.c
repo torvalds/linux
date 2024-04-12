@@ -3431,8 +3431,12 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 						  common_wq_flags | WQ_CPU_INTENSIVE,
 						  1, devname, wq_id);
 	} else {
+		/*
+		 * While crypt_queue is certainly CPU intensive, the use of
+		 * WQ_CPU_INTENSIVE is meaningless with WQ_UNBOUND.
+		 */
 		cc->crypt_queue = alloc_workqueue("kcryptd-%s-%d",
-						  common_wq_flags | WQ_CPU_INTENSIVE | WQ_UNBOUND,
+						  common_wq_flags | WQ_UNBOUND,
 						  num_online_cpus(), devname, wq_id);
 	}
 	if (!cc->crypt_queue) {
