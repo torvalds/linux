@@ -548,9 +548,9 @@ static void bulk_abort_cb(struct vchiq_mmal_instance *instance,
 }
 
 /* incoming event service callback */
-static int service_callback(struct vchiq_instance *vchiq_instance,
-			    enum vchiq_reason reason, struct vchiq_header *header,
-			    unsigned int handle, void *bulk_ctx)
+static int mmal_service_callback(struct vchiq_instance *vchiq_instance,
+				 enum vchiq_reason reason, struct vchiq_header *header,
+				 unsigned int handle, void *bulk_ctx)
 {
 	struct vchiq_mmal_instance *instance = vchiq_get_service_userdata(vchiq_instance, handle);
 	u32 msg_len;
@@ -1862,7 +1862,7 @@ int vchiq_mmal_init(struct vchiq_mmal_instance **out_instance)
 		.version		= VC_MMAL_VER,
 		.version_min		= VC_MMAL_MIN_VER,
 		.fourcc			= VCHIQ_MAKE_FOURCC('m', 'm', 'a', 'l'),
-		.callback		= service_callback,
+		.callback		= mmal_service_callback,
 		.userdata		= NULL,
 	};
 
