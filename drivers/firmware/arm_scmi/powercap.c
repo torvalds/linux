@@ -736,7 +736,7 @@ static void scmi_powercap_domain_init_fc(const struct scmi_protocol_handle *ph,
 	ph->hops->fastchannel_init(ph, POWERCAP_DESCRIBE_FASTCHANNEL,
 				   POWERCAP_PAI_GET, 4, domain,
 				   &fc[POWERCAP_FC_PAI].get_addr, NULL,
-				   &fc[POWERCAP_PAI_GET].rate_limit);
+				   &fc[POWERCAP_FC_PAI].rate_limit);
 
 	*p_fc = fc;
 }
