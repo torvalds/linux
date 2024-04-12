@@ -1178,8 +1178,12 @@ static void genpd_sync_power_off(struct generic_pm_domain *genpd, bool use_lock,
 
 	/* Choose the deepest state when suspending */
 	genpd->state_idx = genpd->state_count - 1;
-	if (_genpd_power_off(genpd, false))
+	if (_genpd_power_off(genpd, false)) {
+		genpd->states[genpd->state_idx].rejected++;
 		return;
+	} else {
+		genpd->states[genpd->state_idx].usage++;
+	}
 
 	genpd->status = GENPD_STATE_OFF;
 
