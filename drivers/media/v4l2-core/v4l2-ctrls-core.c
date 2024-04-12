@@ -2567,6 +2567,9 @@ int v4l2_ctrl_new_fwnode_properties(struct v4l2_ctrl_handler *hdl,
 				    const struct v4l2_ctrl_ops *ctrl_ops,
 				    const struct v4l2_fwnode_device_properties *p)
 {
+	if (hdl->error)
+		return hdl->error;
+
 	if (p->orientation != V4L2_FWNODE_PROPERTY_UNSET) {
 		u32 orientation_ctrl;
 
