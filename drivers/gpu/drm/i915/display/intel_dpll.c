@@ -1008,6 +1008,11 @@ static void i9xx_update_pll_dividers(struct intel_crtc_state *crtc_state,
 	crtc_state->dpll_hw_state.fp1 = fp2;
 }
 
+static u32 i965_dpll_md(const struct intel_crtc_state *crtc_state)
+{
+	return (crtc_state->pixel_multiplier - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
+}
+
 static void i9xx_compute_dpll(struct intel_crtc_state *crtc_state,
 			      const struct dpll *clock,
 			      const struct dpll *reduced_clock)
@@ -1080,11 +1085,8 @@ static void i9xx_compute_dpll(struct intel_crtc_state *crtc_state,
 	dpll |= DPLL_VCO_ENABLE;
 	crtc_state->dpll_hw_state.dpll = dpll;
 
-	if (DISPLAY_VER(dev_priv) >= 4) {
-		u32 dpll_md = (crtc_state->pixel_multiplier - 1)
-			<< DPLL_MD_UDI_MULTIPLIER_SHIFT;
-		crtc_state->dpll_hw_state.dpll_md = dpll_md;
-	}
+	if (DISPLAY_VER(dev_priv) >= 4)
+		crtc_state->dpll_hw_state.dpll_md = i965_dpll_md(crtc_state);
 }
 
 static void i8xx_compute_dpll(struct intel_crtc_state *crtc_state,
@@ -1425,8 +1427,7 @@ void vlv_compute_dpll(struct intel_crtc_state *crtc_state)
 		crtc_state->dpll_hw_state.dpll |= DPLL_VCO_ENABLE |
 			DPLL_EXT_BUFFER_ENABLE_VLV;
 
-	crtc_state->dpll_hw_state.dpll_md =
-		(crtc_state->pixel_multiplier - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
+	crtc_state->dpll_hw_state.dpll_md = i965_dpll_md(crtc_state);
 }
 
 void chv_compute_dpll(struct intel_crtc_state *crtc_state)
@@ -1442,8 +1443,7 @@ void chv_compute_dpll(struct intel_crtc_state *crtc_state)
 	if (!intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
 		crtc_state->dpll_hw_state.dpll |= DPLL_VCO_ENABLE;
 
-	crtc_state->dpll_hw_state.dpll_md =
-		(crtc_state->pixel_multiplier - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
+	crtc_state->dpll_hw_state.dpll_md = i965_dpll_md(crtc_state);
 }
 
 static int chv_crtc_compute_clock(struct intel_atomic_state *state,
