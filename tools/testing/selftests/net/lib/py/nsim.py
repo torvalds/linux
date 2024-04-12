@@ -28,6 +28,7 @@ class NetdevSim:
         self.dfs_dir = "%s/ports/%u/" % (nsimdev.dfs_dir, port_index)
         ret = ip("-j link show dev %s" % ifname, ns=ns)
         self.dev = json.loads(ret.stdout)[0]
+        self.ifindex = self.dev["ifindex"]
 
     def dfs_write(self, path, val):
         self.nsimdev.dfs_write(f'ports/{self.port_index}/' + path, val)

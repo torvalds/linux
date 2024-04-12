@@ -2,6 +2,7 @@
 
 import builtins
 import inspect
+import time
 import traceback
 from .consts import KSFT_MAIN_NAME
 
@@ -48,6 +49,17 @@ def ksft_in(a, b, comment=""):
 def ksft_ge(a, b, comment=""):
     if a < b:
         _fail("Check failed", a, "<", b, comment)
+
+
+def ksft_busy_wait(cond, sleep=0.005, deadline=1, comment=""):
+    end = time.monotonic() + deadline
+    while True:
+        if cond():
+            return
+        if time.monotonic() > end:
+            _fail("Waiting for condition timed out", comment)
+            return
+        time.sleep(sleep)
 
 
 def ktap_result(ok, cnt=1, case="", comment=""):
