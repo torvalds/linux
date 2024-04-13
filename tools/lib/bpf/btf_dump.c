@@ -1929,6 +1929,7 @@ static int btf_dump_int_data(struct btf_dump *d,
 			if (d->typed_dump->is_array_terminated)
 				break;
 			if (*(char *)data == '\0') {
+				btf_dump_type_values(d, "'\\0'");
 				d->typed_dump->is_array_terminated = true;
 				break;
 			}
