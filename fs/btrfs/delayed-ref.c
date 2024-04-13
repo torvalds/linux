@@ -1064,7 +1064,6 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 			       struct btrfs_delayed_extent_op *extent_op)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_delayed_tree_ref *ref;
 	struct btrfs_delayed_ref_node *node;
 	struct btrfs_delayed_ref_head *head_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
@@ -1093,8 +1092,6 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	ref = btrfs_delayed_node_to_tree_ref(node);
-
 	init_delayed_ref_common(fs_info, node, generic_ref);
 
 	init_delayed_ref_head(head_ref, generic_ref, record, 0);
@@ -1119,9 +1116,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	 */
 	btrfs_update_delayed_refs_rsv(trans);
 
-	trace_add_delayed_tree_ref(fs_info, node, ref,
-				   action == BTRFS_ADD_DELAYED_EXTENT ?
-				   BTRFS_ADD_DELAYED_REF : action);
+	trace_add_delayed_tree_ref(fs_info, node);
 	if (merged)
 		kmem_cache_free(btrfs_delayed_ref_node_cachep, node);
 
@@ -1139,7 +1134,6 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 			       u64 reserved)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_delayed_data_ref *ref;
 	struct btrfs_delayed_ref_node *node;
 	struct btrfs_delayed_ref_head *head_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
@@ -1152,8 +1146,6 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	node = kmem_cache_alloc(btrfs_delayed_ref_node_cachep, GFP_NOFS);
 	if (!node)
 		return -ENOMEM;
-
-	ref = btrfs_delayed_node_to_data_ref(node);
 
 	init_delayed_ref_common(fs_info, node, generic_ref);
 
@@ -1195,9 +1187,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	 */
 	btrfs_update_delayed_refs_rsv(trans);
 
-	trace_add_delayed_data_ref(trans->fs_info, node, ref,
-				   action == BTRFS_ADD_DELAYED_EXTENT ?
-				   BTRFS_ADD_DELAYED_REF : action);
+	trace_add_delayed_data_ref(trans->fs_info, node);
 	if (merged)
 		kmem_cache_free(btrfs_delayed_ref_node_cachep, node);
 
