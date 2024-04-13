@@ -91,6 +91,7 @@ enum hclge_opcode_type {
 	HCLGE_OPC_DFX_RCB_REG		= 0x004D,
 	HCLGE_OPC_DFX_TQP_REG		= 0x004E,
 	HCLGE_OPC_DFX_SSU_REG_2		= 0x004F,
+	HCLGE_OPC_DFX_GEN_REG		= 0x7038,
 
 	HCLGE_OPC_QUERY_DEV_SPECS	= 0x0050,
 	HCLGE_OPC_GET_QUEUE_ERR_VF      = 0x0067,
@@ -246,6 +247,9 @@ enum hclge_opcode_type {
 	HCLGE_OPC_QCN_AJUST_INIT	= 0x1A07,
 	HCLGE_OPC_QCN_DFX_CNT_STATUS    = 0x1A08,
 
+	/* SCC commands */
+	HCLGE_OPC_QUERY_SCC_VER		= 0x1A84,
+
 	/* Mailbox command */
 	HCLGEVF_OPC_MBX_PF_TO_VF	= 0x2000,
 	HCLGEVF_OPC_MBX_VF_TO_PF	= 0x2001,
@@ -353,6 +357,7 @@ enum HCLGE_COMM_CAP_BITS {
 	HCLGE_COMM_CAP_LANE_NUM_B = 27,
 	HCLGE_COMM_CAP_WOL_B = 28,
 	HCLGE_COMM_CAP_TM_FLUSH_B = 31,
+	HCLGE_COMM_CAP_ERR_MOD_GEN_REG_B = 32,
 };
 
 enum HCLGE_COMM_API_CAP_BITS {
@@ -392,6 +397,11 @@ struct hclge_comm_query_version_cmd {
 	__le32 caps[HCLGE_COMM_QUERY_CAP_LENGTH]; /* capabilities of device */
 };
 
+struct hclge_comm_query_scc_cmd {
+	__le32 scc_version;
+	u8 rsv[20];
+};
+
 #define HCLGE_DESC_DATA_LEN		6
 struct hclge_desc {
 	__le16 opcode;
@@ -423,11 +433,22 @@ enum hclge_comm_cmd_status {
 	HCLGE_COMM_ERR_CSQ_ERROR	= -3,
 };
 
+struct hclge_comm_hw;
+struct hclge_comm_cmq_ops {
+	void (*trace_cmd_send)(struct hclge_comm_hw *hw,
+			       struct hclge_desc *desc,
+			       int num, bool is_special);
+	void (*trace_cmd_get)(struct hclge_comm_hw *hw,
+			      struct hclge_desc *desc,
+			      int num, bool is_special);
+};
+
 struct hclge_comm_cmq {
 	struct hclge_comm_cmq_ring csq;
 	struct hclge_comm_cmq_ring crq;
 	u16 tx_timeout;
 	enum hclge_comm_cmd_status last_status;
+	struct hclge_comm_cmq_ops ops;
 };
 
 struct hclge_comm_hw {
@@ -474,5 +495,6 @@ int hclge_comm_cmd_queue_init(struct pci_dev *pdev, struct hclge_comm_hw *hw);
 int hclge_comm_cmd_init(struct hnae3_ae_dev *ae_dev, struct hclge_comm_hw *hw,
 			u32 *fw_version, bool is_pf,
 			unsigned long reset_pending);
-
+void hclge_comm_cmd_init_ops(struct hclge_comm_hw *hw,
+			     const struct hclge_comm_cmq_ops *ops);
 #endif
