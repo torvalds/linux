@@ -1686,6 +1686,14 @@ perf_event_addr_filters(struct perf_event *event)
 	return ifh;
 }
 
+static inline struct fasync_struct **perf_event_fasync(struct perf_event *event)
+{
+	/* Only the parent has fasync state */
+	if (event->parent)
+		event = event->parent;
+	return &event->fasync;
+}
+
 extern void perf_event_addr_filters_sync(struct perf_event *event);
 extern void perf_report_aux_output_id(struct perf_event *event, u64 hw_id);
 
