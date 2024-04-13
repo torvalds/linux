@@ -1160,9 +1160,8 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		if (flags & BCH_TRANS_COMMIT_journal_reclaim)
 			return ERR_PTR(-BCH_ERR_journal_reclaim_would_deadlock);
 
-		bch2_trans_unlock(trans);
-		wait_event(c->journal.wait, !test_bit(JOURNAL_SPACE_LOW, &c->journal.flags));
-		ret = bch2_trans_relock(trans);
+		ret = drop_locks_do(trans,
+			({ wait_event(c->journal.wait, !test_bit(JOURNAL_SPACE_LOW, &c->journal.flags)); 0; }));
 		if (ret)
 			return ERR_PTR(ret);
 	}
