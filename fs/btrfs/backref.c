@@ -919,28 +919,29 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 		switch (node->type) {
 		case BTRFS_TREE_BLOCK_REF_KEY: {
 			/* NORMAL INDIRECT METADATA backref */
-			struct btrfs_delayed_tree_ref *ref;
 			struct btrfs_key *key_ptr = NULL;
+			/* The owner of a tree block ref is the level. */
+			int level = btrfs_delayed_ref_owner(node);
 
 			if (head->extent_op && head->extent_op->update_key) {
 				btrfs_disk_key_to_cpu(&key, &head->extent_op->key);
 				key_ptr = &key;
 			}
 
-			ref = btrfs_delayed_node_to_tree_ref(node);
 			ret = add_indirect_ref(fs_info, preftrees, node->ref_root,
-					       key_ptr, ref->level + 1,
-					       node->bytenr, count, sc,
-					       GFP_ATOMIC);
+					       key_ptr, level + 1, node->bytenr,
+					       count, sc, GFP_ATOMIC);
 			break;
 		}
 		case BTRFS_SHARED_BLOCK_REF_KEY: {
-			/* SHARED DIRECT METADATA backref */
-			struct btrfs_delayed_tree_ref *ref;
+			/*
+			 * SHARED DIRECT METADATA backref
+			 *
+			 * The owner of a tree block ref is the level.
+			 */
+			int level = btrfs_delayed_ref_owner(node);
 
-			ref = btrfs_delayed_node_to_tree_ref(node);
-
-			ret = add_direct_ref(fs_info, preftrees, ref->level + 1,
+			ret = add_direct_ref(fs_info, preftrees, level + 1,
 					     node->parent, node->bytenr, count,
 					     sc, GFP_ATOMIC);
 			break;

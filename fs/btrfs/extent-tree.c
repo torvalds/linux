@@ -4865,16 +4865,16 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	struct btrfs_extent_inline_ref *iref;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
-	struct btrfs_delayed_tree_ref *ref;
 	u32 size = sizeof(*extent_item) + sizeof(*iref);
 	u64 flags = extent_op->flags_to_set;
+	/* The owner of a tree block is the level. */
+	int level = btrfs_delayed_ref_owner(node);
 	bool skinny_metadata = btrfs_fs_incompat(fs_info, SKINNY_METADATA);
-
-	ref = btrfs_delayed_node_to_tree_ref(node);
 
 	extent_key.objectid = node->bytenr;
 	if (skinny_metadata) {
-		extent_key.offset = ref->level;
+		/* The owner of a tree block is the level. */
+		extent_key.offset = level;
 		extent_key.type = BTRFS_METADATA_ITEM_KEY;
 	} else {
 		extent_key.offset = node->num_bytes;
@@ -4907,7 +4907,7 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	} else {
 		block_info = (struct btrfs_tree_block_info *)(extent_item + 1);
 		btrfs_set_tree_block_key(leaf, block_info, &extent_op->key);
-		btrfs_set_tree_block_level(leaf, block_info, ref->level);
+		btrfs_set_tree_block_level(leaf, block_info, level);
 		iref = (struct btrfs_extent_inline_ref *)(block_info + 1);
 	}
 
