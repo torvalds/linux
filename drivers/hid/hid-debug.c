@@ -3582,8 +3582,15 @@ static const char **names[EV_MAX + 1] = {
 
 static void hid_resolv_event(__u8 type, __u16 code, struct seq_file *f)
 {
-	seq_printf(f, "%s.%s", events[type] ? events[type] : "?",
-		names[type] ? (names[type][code] ? names[type][code] : "?") : "?");
+	if (events[type])
+		seq_printf(f, "%s.", events[type]);
+	else
+		seq_printf(f, "%02x.", type);
+
+	if (names[type] && names[type][code])
+		seq_printf(f, "%s", names[type][code]);
+	else
+		seq_printf(f, "%04x", code);
 }
 
 static void hid_dump_input_mapping(struct hid_device *hid, struct seq_file *f)
