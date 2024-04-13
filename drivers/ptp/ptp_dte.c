@@ -258,7 +258,7 @@ static int ptp_dte_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ptp_dte_remove(struct platform_device *pdev)
+static void ptp_dte_remove(struct platform_device *pdev)
 {
 	struct ptp_dte *ptp_dte = platform_get_drvdata(pdev);
 	u8 i;
@@ -267,8 +267,6 @@ static int ptp_dte_remove(struct platform_device *pdev)
 
 	for (i = 0; i < DTE_NUM_REGS_TO_RESTORE; i++)
 		writel(0, ptp_dte->regs + (i * sizeof(u32)));
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP
@@ -329,7 +327,7 @@ static struct platform_driver ptp_dte_driver = {
 		.of_match_table = ptp_dte_of_match,
 	},
 	.probe    = ptp_dte_probe,
-	.remove   = ptp_dte_remove,
+	.remove_new = ptp_dte_remove,
 };
 module_platform_driver(ptp_dte_driver);
 
