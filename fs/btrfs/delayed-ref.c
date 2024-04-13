@@ -1007,6 +1007,17 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
 	ref->type = btrfs_ref_type(generic_ref);
 	RB_CLEAR_NODE(&ref->ref_node);
 	INIT_LIST_HEAD(&ref->add_list);
+
+	if (generic_ref->type == BTRFS_REF_DATA) {
+		ref->data_ref.root = generic_ref->ref_root;
+		ref->data_ref.parent = generic_ref->parent;
+		ref->data_ref.objectid = generic_ref->data_ref.ino;
+		ref->data_ref.offset = generic_ref->data_ref.offset;
+	} else {
+		ref->tree_ref.root = generic_ref->ref_root;
+		ref->tree_ref.parent = generic_ref->parent;
+		ref->tree_ref.level = generic_ref->tree_ref.level;
+	}
 }
 
 void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level, u64 mod_root,
@@ -1061,8 +1072,6 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	bool qrecord_inserted;
 	bool merged;
 	int action = generic_ref->action;
-	int level = generic_ref->tree_ref.level;
-	u64 parent = generic_ref->parent;
 
 	ASSERT(generic_ref->type == BTRFS_REF_METADATA && generic_ref->action);
 	node = kmem_cache_alloc(btrfs_delayed_ref_node_cachep, GFP_NOFS);
@@ -1087,9 +1096,6 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	ref = btrfs_delayed_node_to_tree_ref(node);
 
 	init_delayed_ref_common(fs_info, node, generic_ref);
-	ref->root = generic_ref->ref_root;
-	ref->parent = parent;
-	ref->level = level;
 
 	init_delayed_ref_head(head_ref, generic_ref, record, 0);
 	head_ref->extent_op = extent_op;
@@ -1141,10 +1147,6 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	bool qrecord_inserted;
 	int action = generic_ref->action;
 	bool merged;
-	u64 parent = generic_ref->parent;
-	u64 ref_root = generic_ref->ref_root;
-	u64 owner = generic_ref->data_ref.ino;
-	u64 offset = generic_ref->data_ref.offset;
 
 	ASSERT(generic_ref->type == BTRFS_REF_DATA && action);
 	node = kmem_cache_alloc(btrfs_delayed_ref_node_cachep, GFP_NOFS);
@@ -1154,11 +1156,6 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	ref = btrfs_delayed_node_to_data_ref(node);
 
 	init_delayed_ref_common(fs_info, node, generic_ref);
-	ref->root = ref_root;
-	ref->parent = parent;
-	ref->objectid = owner;
-	ref->offset = offset;
-
 
 	head_ref = kmem_cache_alloc(btrfs_delayed_ref_head_cachep, GFP_NOFS);
 	if (!head_ref) {
