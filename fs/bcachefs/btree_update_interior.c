@@ -1926,6 +1926,16 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	BUG_ON(!trans->paths[path].should_be_locked);
 	BUG_ON(!btree_node_locked(&trans->paths[path], level));
 
+	/*
+	 * Work around a deadlock caused by the btree write buffer not doing
+	 * merges and leaving tons of merges for us to do - we really don't need
+	 * to be doing merges at all from the interior update path, and if the
+	 * interior update path is generating too many new interior updates we
+	 * deadlock:
+	 */
+	if ((flags & BCH_WATERMARK_MASK) == BCH_WATERMARK_interior_updates)
+		return 0;
+
 	flags &= ~BCH_WATERMARK_MASK;
 
 	b = trans->paths[path].l[level].b;
