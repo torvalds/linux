@@ -1207,7 +1207,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	as->start_time		= start_time;
 	as->ip_started		= _RET_IP_;
 	as->mode		= BTREE_UPDATE_none;
-	as->watermark		= watermark;
+	as->flags		= flags;
 	as->took_gc_lock	= true;
 	as->btree_id		= path->btree_id;
 	as->update_level_start	= level_start;
@@ -2565,12 +2565,13 @@ void bch2_btree_root_alloc_fake(struct bch_fs *c, enum btree_id id, unsigned lev
 
 static void bch2_btree_update_to_text(struct printbuf *out, struct btree_update *as)
 {
-	prt_printf(out, "%ps: btree=%s l=%u-%u watermark=%s mode=%s nodes_written=%u cl.remaining=%u journal_seq=%llu\n",
-		   (void *) as->ip_started,
+	prt_printf(out, "%ps: ", (void *) as->ip_started);
+	bch2_trans_commit_flags_to_text(out, as->flags);
+
+	prt_printf(out, " btree=%s l=%u-%u mode=%s nodes_written=%u cl.remaining=%u journal_seq=%llu\n",
 		   bch2_btree_id_str(as->btree_id),
 		   as->update_level_start,
 		   as->update_level_end,
-		   bch2_watermarks[as->watermark],
 		   bch2_btree_update_modes[as->mode],
 		   as->nodes_written,
 		   closure_nr_remaining(&as->cl),

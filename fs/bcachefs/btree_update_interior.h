@@ -52,7 +52,7 @@ struct btree_update {
 	struct list_head		unwritten_list;
 
 	enum btree_update_mode		mode;
-	enum bch_watermark		watermark;
+	enum bch_trans_commit_flags	flags;
 	unsigned			nodes_written:1;
 	unsigned			took_gc_lock:1;
 

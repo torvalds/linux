@@ -44,6 +44,8 @@ enum bch_trans_commit_flags {
 #undef x
 };
 
+void bch2_trans_commit_flags_to_text(struct printbuf *, enum bch_trans_commit_flags);
+
 int bch2_btree_delete_extent_at(struct btree_trans *, struct btree_iter *,
 				unsigned, unsigned);
 int bch2_btree_delete_at(struct btree_trans *, struct btree_iter *, unsigned);

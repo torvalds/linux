@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 #include "bcachefs.h"
+#include "alloc_foreground.h"
 #include "btree_gc.h"
 #include "btree_io.h"
 #include "btree_iter.h"
@@ -18,6 +19,26 @@
 #include "snapshot.h"
 
 #include <linux/prefetch.h>
+
+static const char * const trans_commit_flags_strs[] = {
+#define x(n, ...) #n,
+	BCH_TRANS_COMMIT_FLAGS()
+#undef x
+	NULL
+};
+
+void bch2_trans_commit_flags_to_text(struct printbuf *out, enum bch_trans_commit_flags flags)
+{
+	enum bch_watermark watermark = flags & BCH_WATERMARK_MASK;
+
+	prt_printf(out, "watermark=%s", bch2_watermarks[watermark]);
+
+	flags >>= BCH_WATERMARK_BITS;
+	if (flags) {
+		prt_char(out, ' ');
+		bch2_prt_bitflags(out, trans_commit_flags_strs, flags);
+	}
+}
 
 static void verify_update_old_key(struct btree_trans *trans, struct btree_insert_entry *i)
 {
