@@ -85,14 +85,16 @@
 				// advanced to point to 7th-from-last round key
 .set	SRC,		%rsi	// Pointer to next source data
 .set	DST,		%rdx	// Pointer to next destination data
-.set	LEN,		%rcx	// Remaining length in bytes
+.set	LEN,		%ecx	// Remaining length in bytes
+.set	LEN8,		%cl
+.set	LEN64,		%rcx
 .set	TWEAK,		%r8	// Pointer to next tweak
 
-// %r9 holds the AES key length in bytes.
-.set	KEYLEN,		%r9d
-.set	KEYLEN64,	%r9
+// %rax holds the AES key length in bytes.
+.set	KEYLEN,		%eax
+.set	KEYLEN64,	%rax
 
-// %rax and %r10-r11 are available as temporaries.
+// %r9-r11 are available as temporaries.
 
 .macro	_define_Vi	i
 .if VL == 16
@@ -565,9 +567,9 @@
 	// subtracting 16 from LEN.  This is needed because ciphertext stealing
 	// decryption uses the last two tweaks in reverse order.  We'll handle
 	// the last full block and the partial block specially at the end.
-	lea		-16(LEN), %rax
-	test		$15, LEN
-	cmovnz		%rax, LEN
+	lea		-16(LEN), %eax
+	test		$15, LEN8
+	cmovnz		%eax, LEN
 .endif
 
 	// Load the AES key length: 16 (AES-128), 24 (AES-192), or 32 (AES-256).
@@ -650,7 +652,7 @@
 	// Check for the uncommon case where the data length isn't a multiple of
 	// 4*VL.  Handle it out-of-line in order to optimize for the common
 	// case.  In the common case, just fall through to the ret.
-	test		$4*VL-1, LEN
+	test		$4*VL-1, LEN8
 	jnz		.Lhandle_remainder\@
 .Ldone\@:
 	// Store the next tweak back to *TWEAK to support continuation calls.
@@ -718,9 +720,9 @@
 
 .if USE_AVX10
 	// Create a mask that has the first LEN bits set.
-	mov		$-1, %rax
-	bzhi		LEN, %rax, %rax
-	kmovq		%rax, %k1
+	mov		$-1, %r9d
+	bzhi		LEN, %r9d, %r9d
+	kmovd		%r9d, %k1
 
 	// Swap the first LEN bytes of the en/decryption of the last full block
 	// with the partial block.  Note that to support in-place en/decryption,
@@ -730,23 +732,23 @@
 	vmovdqu8	16(SRC), %xmm0{%k1}
 	vmovdqu8	%xmm1, 16(DST){%k1}
 .else
-	lea		.Lcts_permute_table(%rip), %rax
+	lea		.Lcts_permute_table(%rip), %r9
 
 	// Load the src partial block, left-aligned.  Note that to support
 	// in-place en/decryption, this must happen before the store to the dst
 	// partial block.
-	vmovdqu		(SRC, LEN, 1), %xmm1
+	vmovdqu		(SRC, LEN64, 1), %xmm1
 
 	// Shift the first LEN bytes of the en/decryption of the last full block
 	// to the end of a register, then store it to DST+LEN.  This stores the
 	// dst partial block.  It also writes to the second part of the dst last
 	// full block, but that part is overwritten later.
-	vpshufb		(%rax, LEN, 1), %xmm0, %xmm2
-	vmovdqu		%xmm2, (DST, LEN, 1)
+	vpshufb		(%r9, LEN64, 1), %xmm0, %xmm2
+	vmovdqu		%xmm2, (DST, LEN64, 1)
 
 	// Make xmm3 contain [16-LEN,16-LEN+1,...,14,15,0x80,0x80,...].
-	sub		LEN, %rax
-	vmovdqu		32(%rax), %xmm3
+	sub		LEN64, %r9
+	vmovdqu		32(%r9), %xmm3
 
 	// Shift the src partial block to the beginning of its register.
 	vpshufb		%xmm3, %xmm1, %xmm1
@@ -795,7 +797,7 @@ SYM_FUNC_END(aes_xts_encrypt_iv)
 // instantiated from the above macro.  They all have the following prototype:
 //
 // void (*xts_asm_func)(const struct crypto_aes_ctx *key,
-//			const u8 *src, u8 *dst, size_t len,
+//			const u8 *src, u8 *dst, unsigned int len,
 //			u8 tweak[AES_BLOCK_SIZE]);
 //
 // |key| is the data key.  |tweak| contains the next tweak; the encryption of
