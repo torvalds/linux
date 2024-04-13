@@ -64,5 +64,3 @@ blocklist vsock
 blocklist vsock_diag
 blocklist xc4000
 blocklist xc5000
-blocklist cnss2
-blocklist qca_cld3_kiwi_v2
