@@ -513,26 +513,26 @@ fail:
 
 static noinline int insert_extent_data_ref(struct btrfs_trans_handle *trans,
 					   struct btrfs_path *path,
-					   u64 bytenr, u64 parent,
-					   u64 root_objectid, u64 owner,
-					   u64 offset, int refs_to_add)
+					   struct btrfs_delayed_ref_node *node,
+					   u64 bytenr)
 {
 	struct btrfs_root *root = btrfs_extent_root(trans->fs_info, bytenr);
 	struct btrfs_key key;
 	struct extent_buffer *leaf;
+	u64 owner = btrfs_delayed_ref_owner(node);
+	u64 offset = btrfs_delayed_ref_offset(node);
 	u32 size;
 	u32 num_refs;
 	int ret;
 
 	key.objectid = bytenr;
-	if (parent) {
+	if (node->parent) {
 		key.type = BTRFS_SHARED_DATA_REF_KEY;
-		key.offset = parent;
+		key.offset = node->parent;
 		size = sizeof(struct btrfs_shared_data_ref);
 	} else {
 		key.type = BTRFS_EXTENT_DATA_REF_KEY;
-		key.offset = hash_extent_data_ref(root_objectid,
-						  owner, offset);
+		key.offset = hash_extent_data_ref(node->ref_root, owner, offset);
 		size = sizeof(struct btrfs_extent_data_ref);
 	}
 
@@ -541,15 +541,15 @@ static noinline int insert_extent_data_ref(struct btrfs_trans_handle *trans,
 		goto fail;
 
 	leaf = path->nodes[0];
-	if (parent) {
+	if (node->parent) {
 		struct btrfs_shared_data_ref *ref;
 		ref = btrfs_item_ptr(leaf, path->slots[0],
 				     struct btrfs_shared_data_ref);
 		if (ret == 0) {
-			btrfs_set_shared_data_ref_count(leaf, ref, refs_to_add);
+			btrfs_set_shared_data_ref_count(leaf, ref, node->ref_mod);
 		} else {
 			num_refs = btrfs_shared_data_ref_count(leaf, ref);
-			num_refs += refs_to_add;
+			num_refs += node->ref_mod;
 			btrfs_set_shared_data_ref_count(leaf, ref, num_refs);
 		}
 	} else {
@@ -557,7 +557,7 @@ static noinline int insert_extent_data_ref(struct btrfs_trans_handle *trans,
 		while (ret == -EEXIST) {
 			ref = btrfs_item_ptr(leaf, path->slots[0],
 					     struct btrfs_extent_data_ref);
-			if (match_extent_data_ref(leaf, ref, root_objectid,
+			if (match_extent_data_ref(leaf, ref, node->ref_root,
 						  owner, offset))
 				break;
 			btrfs_release_path(path);
@@ -572,14 +572,13 @@ static noinline int insert_extent_data_ref(struct btrfs_trans_handle *trans,
 		ref = btrfs_item_ptr(leaf, path->slots[0],
 				     struct btrfs_extent_data_ref);
 		if (ret == 0) {
-			btrfs_set_extent_data_ref_root(leaf, ref,
-						       root_objectid);
+			btrfs_set_extent_data_ref_root(leaf, ref, node->ref_root);
 			btrfs_set_extent_data_ref_objectid(leaf, ref, owner);
 			btrfs_set_extent_data_ref_offset(leaf, ref, offset);
-			btrfs_set_extent_data_ref_count(leaf, ref, refs_to_add);
+			btrfs_set_extent_data_ref_count(leaf, ref, node->ref_mod);
 		} else {
 			num_refs = btrfs_extent_data_ref_count(leaf, ref);
-			num_refs += refs_to_add;
+			num_refs += node->ref_mod;
 			btrfs_set_extent_data_ref_count(leaf, ref, num_refs);
 		}
 	}
@@ -703,20 +702,20 @@ static noinline int lookup_tree_block_ref(struct btrfs_trans_handle *trans,
 
 static noinline int insert_tree_block_ref(struct btrfs_trans_handle *trans,
 					  struct btrfs_path *path,
-					  u64 bytenr, u64 parent,
-					  u64 root_objectid)
+					  struct btrfs_delayed_ref_node *node,
+					  u64 bytenr)
 {
 	struct btrfs_root *root = btrfs_extent_root(trans->fs_info, bytenr);
 	struct btrfs_key key;
 	int ret;
 
 	key.objectid = bytenr;
-	if (parent) {
+	if (node->parent) {
 		key.type = BTRFS_SHARED_BLOCK_REF_KEY;
-		key.offset = parent;
+		key.offset = node->parent;
 	} else {
 		key.type = BTRFS_TREE_BLOCK_REF_KEY;
-		key.offset = root_objectid;
+		key.offset = node->ref_root;
 	}
 
 	ret = btrfs_insert_empty_item(trans, root, path, &key, 0);
@@ -1509,12 +1508,9 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 
 	/* now insert the actual backref */
 	if (owner < BTRFS_FIRST_FREE_OBJECTID)
-		ret = insert_tree_block_ref(trans, path, bytenr, node->parent,
-					    node->ref_root);
+		ret = insert_tree_block_ref(trans, path, node, bytenr);
 	else
-		ret = insert_extent_data_ref(trans, path, bytenr, node->parent,
-					     node->ref_root, owner, offset,
-					     refs_to_add);
+		ret = insert_extent_data_ref(trans, path, node, bytenr);
 
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
