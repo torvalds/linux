@@ -222,9 +222,9 @@ test_queue()
 	local expected=$1
 	local last=""
 
-	# spawn nf-queue listeners
-	ip netns exec ${nsrouter} ./nf-queue -c -q 0 -t $timeout > "$TMPFILE0" &
-	ip netns exec ${nsrouter} ./nf-queue -c -q 1 -t $timeout > "$TMPFILE1" &
+	# spawn nf_queue listeners
+	ip netns exec ${nsrouter} ./nf_queue -c -q 0 -t $timeout > "$TMPFILE0" &
+	ip netns exec ${nsrouter} ./nf_queue -c -q 1 -t $timeout > "$TMPFILE1" &
 	sleep 1
 	test_ping
 	ret=$?
@@ -259,7 +259,7 @@ test_queue()
 
 test_tcp_forward()
 {
-	ip netns exec ${nsrouter} ./nf-queue -q 2 -t $timeout &
+	ip netns exec ${nsrouter} ./nf_queue -q 2 -t $timeout &
 	local nfqpid=$!
 
 	tmpfile=$(mktemp) || exit 1
@@ -285,7 +285,7 @@ test_tcp_localhost()
 	ip netns exec ${nsrouter} nc -w 5 -l -p 12345 <"$tmpfile" >/dev/null &
 	local rpid=$!
 
-	ip netns exec ${nsrouter} ./nf-queue -q 3 -t $timeout &
+	ip netns exec ${nsrouter} ./nf_queue -q 3 -t $timeout &
 	local nfqpid=$!
 
 	sleep 1
@@ -303,7 +303,7 @@ test_tcp_localhost_connectclose()
 
 	ip netns exec ${nsrouter} ./connect_close -p 23456 -t $timeout &
 
-	ip netns exec ${nsrouter} ./nf-queue -q 3 -t $timeout &
+	ip netns exec ${nsrouter} ./nf_queue -q 3 -t $timeout &
 	local nfqpid=$!
 
 	sleep 1
@@ -334,11 +334,11 @@ EOF
 	ip netns exec ${nsrouter} nc -w 5 -l -p 12345 <"$tmpfile" >/dev/null &
 	local rpid=$!
 
-	ip netns exec ${nsrouter} ./nf-queue -c -q 1 -t $timeout > "$TMPFILE2" &
+	ip netns exec ${nsrouter} ./nf_queue -c -q 1 -t $timeout > "$TMPFILE2" &
 
 	# nfqueue 1 will be called via output hook.  But this time,
         # re-queue the packet to nfqueue program on queue 2.
-	ip netns exec ${nsrouter} ./nf-queue -G -d 150 -c -q 0 -Q 1 -t $timeout > "$TMPFILE3" &
+	ip netns exec ${nsrouter} ./nf_queue -G -d 150 -c -q 0 -Q 1 -t $timeout > "$TMPFILE3" &
 
 	sleep 1
 	ip netns exec ${nsrouter} nc -w 5 127.0.0.1 12345 <"$tmpfile" > /dev/null
@@ -380,7 +380,7 @@ table inet filter {
 	}
 }
 EOF
-	ip netns exec ${ns1} ./nf-queue -q 1 -t $timeout &
+	ip netns exec ${ns1} ./nf_queue -q 1 -t $timeout &
 	local nfqpid=$!
 
 	sleep 1

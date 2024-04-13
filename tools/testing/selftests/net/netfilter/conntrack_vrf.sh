@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # This script demonstrates interaction of conntrack and vrf.
 # The vrf driver calls the netfilter hooks again, with oif/iif
@@ -28,84 +28,65 @@
 # that was supposed to be fixed by the commit mentioned above to make sure
 # that any fix to test case 1 won't break masquerade again.
 
-ksft_skip=4
+source lib.sh
 
 IP0=172.30.30.1
 IP1=172.30.30.2
 PFXL=30
 ret=0
 
-sfx=$(mktemp -u "XXXXXXXX")
-ns0="ns0-$sfx"
-ns1="ns1-$sfx"
-
 cleanup()
 {
 	ip netns pids $ns0 | xargs kill 2>/dev/null
 	ip netns pids $ns1 | xargs kill 2>/dev/null
 
-	ip netns del $ns0 $ns1
+	cleanup_all_ns
 }
 
-nft --version > /dev/null 2>&1
-if [ $? -ne 0 ];then
+if ! nft --version > /dev/null 2>&1;then
 	echo "SKIP: Could not run test without nft tool"
 	exit $ksft_skip
 fi
 
-ip -Version > /dev/null 2>&1
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not run test without ip tool"
+if ! conntrack --version > /dev/null 2>&1;then
+	echo "SKIP: Could not run test without conntrack tool"
 	exit $ksft_skip
 fi
-
-ip netns add "$ns0"
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not create net namespace $ns0"
-	exit $ksft_skip
-fi
-ip netns add "$ns1"
 
 trap cleanup EXIT
 
-ip netns exec $ns0 sysctl -q -w net.ipv4.conf.default.rp_filter=0
-ip netns exec $ns0 sysctl -q -w net.ipv4.conf.all.rp_filter=0
-ip netns exec $ns0 sysctl -q -w net.ipv4.conf.all.rp_filter=0
+setup_ns ns0 ns1
 
-ip link add veth0 netns "$ns0" type veth peer name veth0 netns "$ns1" > /dev/null 2>&1
-if [ $? -ne 0 ];then
+ip netns exec "$ns0" sysctl -q -w net.ipv4.conf.default.rp_filter=0
+ip netns exec "$ns0" sysctl -q -w net.ipv4.conf.all.rp_filter=0
+ip netns exec "$ns0" sysctl -q -w net.ipv4.conf.all.rp_filter=0
+
+if ! ip link add veth0 netns "$ns0" type veth peer name veth0 netns "$ns1" > /dev/null 2>&1; then
 	echo "SKIP: Could not add veth device"
 	exit $ksft_skip
 fi
 
-ip -net $ns0 li add tvrf type vrf table 9876
-if [ $? -ne 0 ];then
+if ! ip -net "$ns0" li add tvrf type vrf table 9876; then
 	echo "SKIP: Could not add vrf device"
 	exit $ksft_skip
 fi
 
-ip -net $ns0 li set lo up
+ip -net "$ns0" li set veth0 master tvrf
+ip -net "$ns0" li set tvrf up
+ip -net "$ns0" li set veth0 up
+ip -net "$ns1" li set veth0 up
 
-ip -net $ns0 li set veth0 master tvrf
-ip -net $ns0 li set tvrf up
-ip -net $ns0 li set veth0 up
-ip -net $ns1 li set veth0 up
+ip -net "$ns0" addr add $IP0/$PFXL dev veth0
+ip -net "$ns1" addr add $IP1/$PFXL dev veth0
 
-ip -net $ns0 addr add $IP0/$PFXL dev veth0
-ip -net $ns1 addr add $IP1/$PFXL dev veth0
-
-ip netns exec $ns1 iperf3 -s > /dev/null 2>&1&
-if [ $? -ne 0 ];then
-	echo "SKIP: Could not start iperf3"
-	exit $ksft_skip
-fi
+ip netns exec "$ns1" iperf3 -s > /dev/null 2>&1 &
 
 # test vrf ingress handling.
 # The incoming connection should be placed in conntrack zone 1,
 # as decided by the first iteration of the ruleset.
 test_ct_zone_in()
 {
-ip netns exec $ns0 nft -f - <<EOF
+ip netns exec "$ns0" nft -f - <<EOF
 table testct {
 	chain rawpre {
 		type filter hook prerouting priority raw;
@@ -126,21 +107,21 @@ table testct {
 	}
 }
 EOF
-	ip netns exec $ns1 ping -W 1 -c 1 -I veth0 $IP0 > /dev/null
+	ip netns exec "$ns1" ping -W 1 -c 1 -I veth0 "$IP0" > /dev/null
 
 	# should be in zone 1, not zone 2
-	count=$(ip netns exec $ns0 conntrack -L -s $IP1 -d $IP0 -p icmp --zone 1 2>/dev/null | wc -l)
-	if [ $count -eq 1 ]; then
+	count=$(ip netns exec "$ns0" conntrack -L -s $IP1 -d $IP0 -p icmp --zone 1 2>/dev/null | wc -l)
+	if [ "$count" -eq 1 ]; then
 		echo "PASS: entry found in conntrack zone 1"
 	else
 		echo "FAIL: entry not found in conntrack zone 1"
-		count=$(ip netns exec $ns0 conntrack -L -s $IP1 -d $IP0 -p icmp --zone 2 2> /dev/null | wc -l)
-		if [ $count -eq 1 ]; then
+		count=$(ip netns exec "$ns0" conntrack -L -s $IP1 -d $IP0 -p icmp --zone 2 2> /dev/null | wc -l)
+		if [ "$count" -eq 1 ]; then
 			echo "FAIL: entry found in zone 2 instead"
 		else
 			echo "FAIL: entry not in zone 1 or 2, dumping table"
-			ip netns exec $ns0 conntrack -L
-			ip netns exec $ns0 nft list ruleset
+			ip netns exec "$ns0" conntrack -L
+			ip netns exec "$ns0" nft list ruleset
 		fi
 	fi
 }
@@ -153,12 +134,12 @@ test_masquerade_vrf()
 	local qdisc=$1
 
 	if [ "$qdisc" != "default" ]; then
-		tc -net $ns0 qdisc add dev tvrf root $qdisc
+		tc -net "$ns0" qdisc add dev tvrf root "$qdisc"
 	fi
 
-	ip netns exec $ns0 conntrack -F 2>/dev/null
+	ip netns exec "$ns0" conntrack -F 2>/dev/null
 
-ip netns exec $ns0 nft -f - <<EOF
+ip netns exec "$ns0" nft -f - <<EOF
 flush ruleset
 table ip nat {
 	chain rawout {
@@ -179,17 +160,15 @@ table ip nat {
 	}
 }
 EOF
-	ip netns exec $ns0 ip vrf exec tvrf iperf3 -t 1 -c $IP1 >/dev/null
-	if [ $? -ne 0 ]; then
+	if ! ip netns exec "$ns0" ip vrf exec tvrf iperf3 -t 1 -c $IP1 >/dev/null; then
 		echo "FAIL: iperf3 connect failure with masquerade + sport rewrite on vrf device"
 		ret=1
 		return
 	fi
 
 	# must also check that nat table was evaluated on second (lower device) iteration.
-	ip netns exec $ns0 nft list table ip nat |grep -q 'counter packets 2' &&
-	ip netns exec $ns0 nft list table ip nat |grep -q 'untracked counter packets [1-9]'
-	if [ $? -eq 0 ]; then
+	ip netns exec "$ns0" nft list table ip nat |grep -q 'counter packets 2' &&
+	if ip netns exec "$ns0" nft list table ip nat |grep -q 'untracked counter packets [1-9]'; then
 		echo "PASS: iperf3 connect with masquerade + sport rewrite on vrf device ($qdisc qdisc)"
 	else
 		echo "FAIL: vrf rules have unexpected counter value"
@@ -197,7 +176,7 @@ EOF
 	fi
 
 	if [ "$qdisc" != "default" ]; then
-		tc -net $ns0 qdisc del dev tvrf root
+		tc -net "$ns0" qdisc del dev tvrf root
 	fi
 }
 
@@ -206,8 +185,8 @@ EOF
 # oifname is the lower device (veth0 in this case).
 test_masquerade_veth()
 {
-	ip netns exec $ns0 conntrack -F 2>/dev/null
-ip netns exec $ns0 nft -f - <<EOF
+	ip netns exec "$ns0" conntrack -F 2>/dev/null
+ip netns exec "$ns0" nft -f - <<EOF
 flush ruleset
 table ip nat {
 	chain postrouting {
@@ -216,16 +195,14 @@ table ip nat {
 	}
 }
 EOF
-	ip netns exec $ns0 ip vrf exec tvrf iperf3 -t 1 -c $IP1 > /dev/null
-	if [ $? -ne 0 ]; then
+	if ! ip netns exec "$ns0" ip vrf exec tvrf iperf3 -t 1 -c $IP1 > /dev/null; then
 		echo "FAIL: iperf3 connect failure with masquerade + sport rewrite on veth device"
 		ret=1
 		return
 	fi
 
 	# must also check that nat table was evaluated on second (lower device) iteration.
-	ip netns exec $ns0 nft list table ip nat |grep -q 'counter packets 2'
-	if [ $? -eq 0 ]; then
+	if ip netns exec "$ns0" nft list table ip nat |grep -q 'counter packets 2'; then
 		echo "PASS: iperf3 connect with masquerade + sport rewrite on veth device"
 	else
 		echo "FAIL: vrf masq rule has unexpected counter value"
