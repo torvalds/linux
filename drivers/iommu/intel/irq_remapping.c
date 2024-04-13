@@ -22,6 +22,7 @@
 
 #include "iommu.h"
 #include "../irq_remapping.h"
+#include "../iommu-pages.h"
 #include "cap_audit.h"
 
 enum irq_mode {
@@ -527,7 +528,7 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 	struct ir_table *ir_table;
 	struct fwnode_handle *fn;
 	unsigned long *bitmap;
-	struct page *pages;
+	void *ir_table_base;
 
 	if (iommu->ir_table)
 		return 0;
@@ -536,9 +537,9 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 	if (!ir_table)
 		return -ENOMEM;
 
-	pages = alloc_pages_node(iommu->node, GFP_KERNEL | __GFP_ZERO,
-				 INTR_REMAP_PAGE_ORDER);
-	if (!pages) {
+	ir_table_base = iommu_alloc_pages_node(iommu->node, GFP_KERNEL,
+					       INTR_REMAP_PAGE_ORDER);
+	if (!ir_table_base) {
 		pr_err("IR%d: failed to allocate pages of order %d\n",
 		       iommu->seq_id, INTR_REMAP_PAGE_ORDER);
 		goto out_free_table;
@@ -573,7 +574,7 @@ static int intel_setup_irq_remapping(struct intel_iommu *iommu)
 	else
 		iommu->ir_domain->msi_parent_ops = &dmar_msi_parent_ops;
 
-	ir_table->base = page_address(pages);
+	ir_table->base = ir_table_base;
 	ir_table->bitmap = bitmap;
 	iommu->ir_table = ir_table;
 
@@ -622,7 +623,7 @@ out_free_fwnode:
 out_free_bitmap:
 	bitmap_free(bitmap);
 out_free_pages:
-	__free_pages(pages, INTR_REMAP_PAGE_ORDER);
+	iommu_free_pages(ir_table_base, INTR_REMAP_PAGE_ORDER);
 out_free_table:
 	kfree(ir_table);
 
@@ -643,8 +644,7 @@ static void intel_teardown_irq_remapping(struct intel_iommu *iommu)
 			irq_domain_free_fwnode(fn);
 			iommu->ir_domain = NULL;
 		}
-		free_pages((unsigned long)iommu->ir_table->base,
-			   INTR_REMAP_PAGE_ORDER);
+		iommu_free_pages(iommu->ir_table->base, INTR_REMAP_PAGE_ORDER);
 		bitmap_free(iommu->ir_table->bitmap);
 		kfree(iommu->ir_table);
 		iommu->ir_table = NULL;
