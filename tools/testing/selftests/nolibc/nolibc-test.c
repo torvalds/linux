@@ -27,6 +27,7 @@
 #include <sys/syscall.h>
 #include <sys/sysmacros.h>
 #include <sys/time.h>
+#include <sys/utsname.h>
 #include <sys/wait.h>
 #include <dirent.h>
 #include <errno.h>
@@ -780,6 +781,45 @@ int test_stat_timestamps(void)
 	return 0;
 }
 
+int test_uname(void)
+{
+	struct utsname buf;
+	char osrelease[sizeof(buf.release)];
+	ssize_t r;
+	int fd;
+
+	memset(&buf.domainname, 'P', sizeof(buf.domainname));
+
+	if (uname(&buf))
+		return 1;
+
+	if (strncmp("Linux", buf.sysname, sizeof(buf.sysname)))
+		return 1;
+
+	fd = open("/proc/sys/kernel/osrelease", O_RDONLY);
+	if (fd == -1)
+		return 1;
+
+	r = read(fd, osrelease, sizeof(osrelease));
+	if (r == -1)
+		return 1;
+
+	close(fd);
+
+	if (osrelease[r - 1] == '\n')
+		r--;
+
+	/* Validate one of the later fields to ensure field sizes are correct */
+	if (strncmp(osrelease, buf.release, r))
+		return 1;
+
+	/* Ensure the field domainname is set, it is missing from struct old_utsname */
+	if (strnlen(buf.domainname, sizeof(buf.domainname)) == sizeof(buf.domainname))
+		return 1;
+
+	return 0;
+}
+
 int test_mmap_munmap(void)
 {
 	int ret, fd, i, page_size;
@@ -985,6 +1025,8 @@ int run_syscall(int min, int max)
 		CASE_TEST(stat_fault);        EXPECT_SYSER(1, stat(NULL, &stat_buf), -1, EFAULT); break;
 		CASE_TEST(stat_timestamps);   EXPECT_SYSZR(1, test_stat_timestamps()); break;
 		CASE_TEST(symlink_root);      EXPECT_SYSER(1, symlink("/", "/"), -1, EEXIST); break;
+		CASE_TEST(uname);             EXPECT_SYSZR(proc, test_uname()); break;
+		CASE_TEST(uname_fault);       EXPECT_SYSER(1, uname(NULL), -1, EFAULT); break;
 		CASE_TEST(unlink_root);       EXPECT_SYSER(1, unlink("/"), -1, EISDIR); break;
 		CASE_TEST(unlink_blah);       EXPECT_SYSER(1, unlink("/proc/self/blah"), -1, ENOENT); break;
 		CASE_TEST(wait_child);        EXPECT_SYSER(1, wait(&tmp), -1, ECHILD); break;
