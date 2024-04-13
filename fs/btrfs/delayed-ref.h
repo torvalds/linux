@@ -31,14 +31,10 @@ enum btrfs_delayed_ref_action {
 } __packed;
 
 struct btrfs_delayed_tree_ref {
-	u64 root;
-	u64 parent;
 	int level;
 };
 
 struct btrfs_delayed_data_ref {
-	u64 root;
-	u64 parent;
 	u64 objectid;
 	u64 offset;
 };
@@ -60,6 +56,15 @@ struct btrfs_delayed_ref_node {
 
 	/* seq number to keep track of insertion order */
 	u64 seq;
+
+	/* The ref_root for this ref */
+	u64 ref_root;
+
+	/*
+	 * The parent for this ref, if this isn't set the ref_root is the
+	 * reference owner.
+	 */
+	u64 parent;
 
 	/* ref count on this data structure */
 	refcount_t refs;

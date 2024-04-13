@@ -887,8 +887,8 @@ DECLARE_EVENT_CLASS(btrfs_delayed_tree_ref,
 		__entry->bytenr		= ref->bytenr;
 		__entry->num_bytes	= ref->num_bytes;
 		__entry->action		= ref->action;
-		__entry->parent		= ref->tree_ref.parent;
-		__entry->ref_root	= ref->tree_ref.root;
+		__entry->parent		= ref->parent;
+		__entry->ref_root	= ref->ref_root;
 		__entry->level		= ref->tree_ref.level;
 		__entry->type		= ref->type;
 		__entry->seq		= ref->seq;
@@ -945,8 +945,8 @@ DECLARE_EVENT_CLASS(btrfs_delayed_data_ref,
 		__entry->bytenr		= ref->bytenr;
 		__entry->num_bytes	= ref->num_bytes;
 		__entry->action		= ref->action;
-		__entry->parent		= ref->data_ref.parent;
-		__entry->ref_root	= ref->data_ref.root;
+		__entry->parent		= ref->parent;
+		__entry->ref_root	= ref->ref_root;
 		__entry->owner		= ref->data_ref.objectid;
 		__entry->offset		= ref->data_ref.offset;
 		__entry->type		= ref->type;

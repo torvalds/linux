@@ -1577,7 +1577,7 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 	trace_run_delayed_data_ref(trans->fs_info, node);
 
 	if (node->type == BTRFS_SHARED_DATA_REF_KEY)
-		parent = ref->parent;
+		parent = node->parent;
 
 	if (node->action == BTRFS_ADD_DELAYED_REF && insert_reserved) {
 		struct btrfs_key key;
@@ -1596,7 +1596,7 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 		key.type = BTRFS_EXTENT_ITEM_KEY;
 		key.offset = node->num_bytes;
 
-		ret = alloc_reserved_file_extent(trans, parent, ref->root,
+		ret = alloc_reserved_file_extent(trans, parent, node->ref_root,
 						 flags, ref->objectid,
 						 ref->offset, &key,
 						 node->ref_mod, href->owning_root);
@@ -1604,12 +1604,12 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 		if (!ret)
 			ret = btrfs_record_squota_delta(trans->fs_info, &delta);
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
-		ret = __btrfs_inc_extent_ref(trans, node, parent, ref->root,
+		ret = __btrfs_inc_extent_ref(trans, node, parent, node->ref_root,
 					     ref->objectid, ref->offset,
 					     extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
 		ret = __btrfs_free_extent(trans, href, node, parent,
-					  ref->root, ref->objectid,
+					  node->ref_root, ref->objectid,
 					  ref->offset, extent_op);
 	} else {
 		BUG();
@@ -1740,8 +1740,8 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	trace_run_delayed_tree_ref(trans->fs_info, node);
 
 	if (node->type == BTRFS_SHARED_BLOCK_REF_KEY)
-		parent = ref->parent;
-	ref_root = ref->root;
+		parent = node->parent;
+	ref_root = node->ref_root;
 
 	if (unlikely(node->ref_mod != 1)) {
 		btrfs_err(trans->fs_info,
@@ -2359,7 +2359,7 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 		 * If our ref doesn't match the one we're currently looking at
 		 * then we have a cross reference.
 		 */
-		if (data_ref->root != root->root_key.objectid ||
+		if (ref->ref_root != root->root_key.objectid ||
 		    data_ref->objectid != objectid ||
 		    data_ref->offset != offset) {
 			ret = 1;
@@ -4946,11 +4946,11 @@ static int alloc_reserved_tree_block(struct btrfs_trans_handle *trans,
 	if (node->type == BTRFS_SHARED_BLOCK_REF_KEY) {
 		btrfs_set_extent_inline_ref_type(leaf, iref,
 						 BTRFS_SHARED_BLOCK_REF_KEY);
-		btrfs_set_extent_inline_ref_offset(leaf, iref, ref->parent);
+		btrfs_set_extent_inline_ref_offset(leaf, iref, node->parent);
 	} else {
 		btrfs_set_extent_inline_ref_type(leaf, iref,
 						 BTRFS_TREE_BLOCK_REF_KEY);
-		btrfs_set_extent_inline_ref_offset(leaf, iref, ref->root);
+		btrfs_set_extent_inline_ref_offset(leaf, iref, node->ref_root);
 	}
 
 	btrfs_mark_buffer_dirty(trans, leaf);

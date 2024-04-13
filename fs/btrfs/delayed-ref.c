@@ -304,54 +304,19 @@ int btrfs_delayed_refs_rsv_refill(struct btrfs_fs_info *fs_info,
 }
 
 /*
- * compare two delayed tree backrefs with same bytenr and type
- */
-static int comp_tree_refs(struct btrfs_delayed_tree_ref *ref1,
-			  struct btrfs_delayed_tree_ref *ref2)
-{
-	struct btrfs_delayed_ref_node *node = btrfs_delayed_tree_ref_to_node(ref1);
-
-	if (node->type == BTRFS_TREE_BLOCK_REF_KEY) {
-		if (ref1->root < ref2->root)
-			return -1;
-		if (ref1->root > ref2->root)
-			return 1;
-	} else {
-		if (ref1->parent < ref2->parent)
-			return -1;
-		if (ref1->parent > ref2->parent)
-			return 1;
-	}
-	return 0;
-}
-
-/*
  * compare two delayed data backrefs with same bytenr and type
  */
-static int comp_data_refs(struct btrfs_delayed_data_ref *ref1,
-			  struct btrfs_delayed_data_ref *ref2)
+static int comp_data_refs(struct btrfs_delayed_ref_node *ref1,
+			  struct btrfs_delayed_ref_node *ref2)
 {
-	struct btrfs_delayed_ref_node *node = btrfs_delayed_data_ref_to_node(ref1);
-
-	if (node->type == BTRFS_EXTENT_DATA_REF_KEY) {
-		if (ref1->root < ref2->root)
-			return -1;
-		if (ref1->root > ref2->root)
-			return 1;
-		if (ref1->objectid < ref2->objectid)
-			return -1;
-		if (ref1->objectid > ref2->objectid)
-			return 1;
-		if (ref1->offset < ref2->offset)
-			return -1;
-		if (ref1->offset > ref2->offset)
-			return 1;
-	} else {
-		if (ref1->parent < ref2->parent)
-			return -1;
-		if (ref1->parent > ref2->parent)
-			return 1;
-	}
+	if (ref1->data_ref.objectid < ref2->data_ref.objectid)
+		return -1;
+	if (ref1->data_ref.objectid > ref2->data_ref.objectid)
+		return 1;
+	if (ref1->data_ref.offset < ref2->data_ref.offset)
+		return -1;
+	if (ref1->data_ref.offset > ref2->data_ref.offset)
+		return 1;
 	return 0;
 }
 
@@ -365,13 +330,20 @@ static int comp_refs(struct btrfs_delayed_ref_node *ref1,
 		return -1;
 	if (ref1->type > ref2->type)
 		return 1;
-	if (ref1->type == BTRFS_TREE_BLOCK_REF_KEY ||
-	    ref1->type == BTRFS_SHARED_BLOCK_REF_KEY)
-		ret = comp_tree_refs(btrfs_delayed_node_to_tree_ref(ref1),
-				     btrfs_delayed_node_to_tree_ref(ref2));
-	else
-		ret = comp_data_refs(btrfs_delayed_node_to_data_ref(ref1),
-				     btrfs_delayed_node_to_data_ref(ref2));
+	if (ref1->type == BTRFS_SHARED_BLOCK_REF_KEY ||
+	    ref1->type == BTRFS_SHARED_DATA_REF_KEY) {
+		if (ref1->parent < ref2->parent)
+			return -1;
+		if (ref1->parent > ref2->parent)
+			return 1;
+	} else {
+		if (ref1->ref_root < ref2->ref_root)
+			return -1;
+		if (ref1->ref_root > ref2->ref_root)
+			return -1;
+		if (ref1->type == BTRFS_EXTENT_DATA_REF_KEY)
+			ret = comp_data_refs(ref1, ref2);
+	}
 	if (ret)
 		return ret;
 	if (check_seq) {
@@ -1005,17 +977,15 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
 	ref->action = action;
 	ref->seq = seq;
 	ref->type = btrfs_ref_type(generic_ref);
+	ref->ref_root = generic_ref->ref_root;
+	ref->parent = generic_ref->parent;
 	RB_CLEAR_NODE(&ref->ref_node);
 	INIT_LIST_HEAD(&ref->add_list);
 
 	if (generic_ref->type == BTRFS_REF_DATA) {
-		ref->data_ref.root = generic_ref->ref_root;
-		ref->data_ref.parent = generic_ref->parent;
 		ref->data_ref.objectid = generic_ref->data_ref.ino;
 		ref->data_ref.offset = generic_ref->data_ref.offset;
 	} else {
-		ref->tree_ref.root = generic_ref->ref_root;
-		ref->tree_ref.parent = generic_ref->parent;
 		ref->tree_ref.level = generic_ref->tree_ref.level;
 	}
 }

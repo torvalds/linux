@@ -928,7 +928,7 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 			}
 
 			ref = btrfs_delayed_node_to_tree_ref(node);
-			ret = add_indirect_ref(fs_info, preftrees, ref->root,
+			ret = add_indirect_ref(fs_info, preftrees, node->ref_root,
 					       key_ptr, ref->level + 1,
 					       node->bytenr, count, sc,
 					       GFP_ATOMIC);
@@ -941,7 +941,7 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 			ref = btrfs_delayed_node_to_tree_ref(node);
 
 			ret = add_direct_ref(fs_info, preftrees, ref->level + 1,
-					     ref->parent, node->bytenr, count,
+					     node->parent, node->bytenr, count,
 					     sc, GFP_ATOMIC);
 			break;
 		}
@@ -972,18 +972,14 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 			if (sc && count < 0)
 				sc->have_delayed_delete_refs = true;
 
-			ret = add_indirect_ref(fs_info, preftrees, ref->root,
+			ret = add_indirect_ref(fs_info, preftrees, node->ref_root,
 					       &key, 0, node->bytenr, count, sc,
 					       GFP_ATOMIC);
 			break;
 		}
 		case BTRFS_SHARED_DATA_REF_KEY: {
 			/* SHARED DIRECT FULL backref */
-			struct btrfs_delayed_data_ref *ref;
-
-			ref = btrfs_delayed_node_to_data_ref(node);
-
-			ret = add_direct_ref(fs_info, preftrees, 0, ref->parent,
+			ret = add_direct_ref(fs_info, preftrees, 0, node->parent,
 					     node->bytenr, count, sc,
 					     GFP_ATOMIC);
 			break;
