@@ -30,7 +30,7 @@ BTF COMMANDS
 | *BTF_SRC* := { **id** *BTF_ID* | **prog** *PROG* | **map** *MAP* [{**key** | **value** | **kv** | **all**}] | **file** *FILE* }
 | *FORMAT* := { **raw** | **c** }
 | *MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
-| *PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
+| *PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* | **name** *PROG_NAME* }
 
 DESCRIPTION
 ===========

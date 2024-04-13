@@ -28,7 +28,7 @@ NET COMMANDS
 | **bpftool** **net detach** *ATTACH_TYPE* **dev** *NAME*
 | **bpftool** **net help**
 |
-| *PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
+| *PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* | **name** *PROG_NAME* }
 | *ATTACH_TYPE* := { **xdp** | **xdpgeneric** | **xdpdrv** | **xdpoffload** }
 
 DESCRIPTION

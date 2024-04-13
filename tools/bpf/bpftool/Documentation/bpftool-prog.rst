@@ -39,7 +39,7 @@ PROG COMMANDS
 | **bpftool** **prog profile** *PROG* [**duration** *DURATION*] *METRICs*
 | **bpftool** **prog help**
 |
-| *MAP* := { **id** *MAP_ID* | **pinned** *FILE* }
+| *MAP* := { **id** *MAP_ID* | **pinned** *FILE* | **name** *MAP_NAME* }
 | *PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* | **name** *PROG_NAME* }
 | *TYPE* := {
 |     **socket** | **kprobe** | **kretprobe** | **classifier** | **action** |

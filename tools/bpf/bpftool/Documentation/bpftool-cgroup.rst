@@ -30,7 +30,7 @@ CGROUP COMMANDS
 | **bpftool** **cgroup detach** *CGROUP* *ATTACH_TYPE* *PROG*
 | **bpftool** **cgroup help**
 |
-| *PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* }
+| *PROG* := { **id** *PROG_ID* | **pinned** *FILE* | **tag** *PROG_TAG* | **name** *PROG_NAME* }
 | *ATTACH_TYPE* := { **cgroup_inet_ingress** | **cgroup_inet_egress** |
 |     **cgroup_inet_sock_create** | **cgroup_sock_ops** |
 |     **cgroup_device** | **cgroup_inet4_bind** | **cgroup_inet6_bind** |
