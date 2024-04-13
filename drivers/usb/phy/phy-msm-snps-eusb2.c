@@ -987,7 +987,7 @@ static int msm_eusb2_phy_probe(struct platform_device *pdev)
 		goto err_ret;
 	}
 
-	phy->ref_clk = devm_clk_get(dev, "ref_clk");
+	phy->ref_clk = devm_clk_get_optional(dev, "ref_clk");
 	if (IS_ERR(phy->ref_clk)) {
 		dev_err(dev, "clk get failed for ref_clk\n");
 		ret = PTR_ERR(phy->ref_clk);
