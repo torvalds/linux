@@ -3572,12 +3572,38 @@ static const char *software[SW_CNT] = {
 	[SW_MACHINE_COVER] = "MachineCover",
 };
 
+static const char *force[FF_CNT] = {
+	[FF_RUMBLE] = "FF_RUMBLE",
+	[FF_PERIODIC] = "FF_PERIODIC",
+	[FF_CONSTANT] = "FF_CONSTANT",
+	[FF_SPRING] = "FF_SPRING",
+	[FF_FRICTION] = "FF_FRICTION",
+	[FF_DAMPER] = "FF_DAMPER",
+	[FF_INERTIA] = "FF_INERTIA",
+	[FF_RAMP] = "FF_RAMP",
+	[FF_SQUARE] = "FF_SQUARE",
+	[FF_TRIANGLE] = "FF_TRIANGLE",
+	[FF_SINE] = "FF_SINE",
+	[FF_SAW_UP] = "FF_SAW_UP",
+	[FF_SAW_DOWN] = "FF_SAW_DOWN",
+	[FF_CUSTOM] = "FF_CUSTOM",
+	[FF_GAIN] = "FF_GAIN",
+	[FF_AUTOCENTER] = "FF_AUTOCENTER",
+	[FF_MAX] = "FF_MAX",
+};
+
+static const char *force_status[FF_STATUS_MAX + 1] = {
+	[FF_STATUS_STOPPED] = "FF_STATUS_STOPPED",
+	[FF_STATUS_PLAYING] = "FF_STATUS_PLAYING",
+};
+
 static const char **names[EV_MAX + 1] = {
 	[EV_SYN] = syncs,			[EV_KEY] = keys,
 	[EV_REL] = relatives,			[EV_ABS] = absolutes,
 	[EV_MSC] = misc,			[EV_LED] = leds,
 	[EV_SND] = sounds,			[EV_REP] = repeats,
-	[EV_SW]  = software,
+	[EV_SW]  = software,			[EV_FF] = force,
+	[EV_FF_STATUS] = force_status,
 };
 
 static void hid_resolv_event(__u8 type, __u16 code, struct seq_file *f)
