@@ -1105,7 +1105,8 @@ static int cifs_get_fattr(struct cifs_open_info_data *data,
 		} else {
 			cifs_open_info_to_fattr(fattr, data, sb);
 		}
-		if (!rc && fattr->cf_flags & CIFS_FATTR_DELETE_PENDING)
+		if (!rc && *inode &&
+		    (fattr->cf_flags & CIFS_FATTR_DELETE_PENDING))
 			cifs_mark_open_handles_for_deleted_file(*inode, full_path);
 		break;
 	case -EREMOTE:
