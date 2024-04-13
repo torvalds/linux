@@ -947,12 +947,9 @@ static int add_delayed_refs(const struct btrfs_fs_info *fs_info,
 		}
 		case BTRFS_EXTENT_DATA_REF_KEY: {
 			/* NORMAL INDIRECT DATA backref */
-			struct btrfs_delayed_data_ref *ref;
-			ref = btrfs_delayed_node_to_data_ref(node);
-
-			key.objectid = ref->objectid;
+			key.objectid = btrfs_delayed_ref_owner(node);
 			key.type = BTRFS_EXTENT_DATA_KEY;
-			key.offset = ref->offset;
+			key.offset = btrfs_delayed_ref_offset(node);
 
 			/*
 			 * If we have a share check context and a reference for

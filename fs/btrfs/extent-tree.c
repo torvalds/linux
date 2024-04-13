@@ -1543,11 +1543,9 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 				bool insert_reserved)
 {
 	int ret = 0;
-	struct btrfs_delayed_data_ref *ref;
 	u64 parent = 0;
 	u64 flags = 0;
 
-	ref = btrfs_delayed_node_to_data_ref(node);
 	trace_run_delayed_data_ref(trans->fs_info, node);
 
 	if (node->type == BTRFS_SHARED_DATA_REF_KEY)
@@ -1562,6 +1560,8 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 			.is_inc	= true,
 			.generation = trans->transid,
 		};
+		u64 owner = btrfs_delayed_ref_owner(node);
+		u64 offset = btrfs_delayed_ref_offset(node);
 
 		if (extent_op)
 			flags |= extent_op->flags_to_set;
@@ -1571,9 +1571,9 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 		key.offset = node->num_bytes;
 
 		ret = alloc_reserved_file_extent(trans, parent, node->ref_root,
-						 flags, ref->objectid,
-						 ref->offset, &key,
-						 node->ref_mod, href->owning_root);
+						 flags, owner, offset, &key,
+						 node->ref_mod,
+						 href->owning_root);
 		free_head_ref_squota_rsv(trans->fs_info, href);
 		if (!ret)
 			ret = btrfs_record_squota_delta(trans->fs_info, &delta);
@@ -2258,7 +2258,6 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 {
 	struct btrfs_delayed_ref_head *head;
 	struct btrfs_delayed_ref_node *ref;
-	struct btrfs_delayed_data_ref *data_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_transaction *cur_trans;
 	struct rb_node *node;
@@ -2312,6 +2311,9 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 	 */
 	for (node = rb_first_cached(&head->ref_tree); node;
 	     node = rb_next(node)) {
+		u64 ref_owner;
+		u64 ref_offset;
+
 		ref = rb_entry(node, struct btrfs_delayed_ref_node, ref_node);
 		/* If it's a shared ref we know a cross reference exists */
 		if (ref->type != BTRFS_EXTENT_DATA_REF_KEY) {
@@ -2319,15 +2321,15 @@ static noinline int check_delayed_ref(struct btrfs_root *root,
 			break;
 		}
 
-		data_ref = btrfs_delayed_node_to_data_ref(ref);
+		ref_owner = btrfs_delayed_ref_owner(ref);
+		ref_offset = btrfs_delayed_ref_offset(ref);
 
 		/*
 		 * If our ref doesn't match the one we're currently looking at
 		 * then we have a cross reference.
 		 */
 		if (ref->ref_root != root->root_key.objectid ||
-		    data_ref->objectid != objectid ||
-		    data_ref->offset != offset) {
+		    ref_owner != objectid || ref_offset != offset) {
 			ret = 1;
 			break;
 		}
