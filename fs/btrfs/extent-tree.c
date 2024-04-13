@@ -46,9 +46,7 @@
 
 static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			       struct btrfs_delayed_ref_head *href,
-			       struct btrfs_delayed_ref_node *node, u64 parent,
-			       u64 root_objectid, u64 owner_objectid,
-			       u64 owner_offset,
+			       struct btrfs_delayed_ref_node *node,
 			       struct btrfs_delayed_extent_op *extra_op);
 static void __run_delayed_extent_op(struct btrfs_delayed_extent_op *extent_op,
 				    struct extent_buffer *leaf,
@@ -1586,9 +1584,7 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
 		ret = __btrfs_inc_extent_ref(trans, node, extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
-		ret = __btrfs_free_extent(trans, href, node, parent,
-					  node->ref_root, ref->objectid,
-					  ref->offset, extent_op);
+		ret = __btrfs_free_extent(trans, href, node, extent_op);
 	} else {
 		BUG();
 	}
@@ -1710,11 +1706,9 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 {
 	int ret = 0;
 	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_delayed_tree_ref *ref;
 	u64 parent = 0;
 	u64 ref_root = 0;
 
-	ref = btrfs_delayed_node_to_tree_ref(node);
 	trace_run_delayed_tree_ref(trans->fs_info, node);
 
 	if (node->type == BTRFS_SHARED_BLOCK_REF_KEY)
@@ -1744,8 +1738,7 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
 		ret = __btrfs_inc_extent_ref(trans, node, extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
-		ret = __btrfs_free_extent(trans, href, node, parent, ref_root,
-					  ref->level, 0, extent_op);
+		ret = __btrfs_free_extent(trans, href, node, extent_op);
 	} else {
 		BUG();
 	}
@@ -3077,9 +3070,7 @@ static int do_free_extent_accounting(struct btrfs_trans_handle *trans,
  */
 static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 			       struct btrfs_delayed_ref_head *href,
-			       struct btrfs_delayed_ref_node *node, u64 parent,
-			       u64 root_objectid, u64 owner_objectid,
-			       u64 owner_offset,
+			       struct btrfs_delayed_ref_node *node,
 			       struct btrfs_delayed_extent_op *extent_op)
 {
 	struct btrfs_fs_info *info = trans->fs_info;
@@ -3099,6 +3090,8 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	u64 refs;
 	u64 bytenr = node->bytenr;
 	u64 num_bytes = node->num_bytes;
+	u64 owner_objectid = btrfs_delayed_ref_owner(node);
+	u64 owner_offset = btrfs_delayed_ref_offset(node);
 	bool skinny_metadata = btrfs_fs_incompat(info, SKINNY_METADATA);
 	u64 delayed_ref_root = href->owning_root;
 
@@ -3124,7 +3117,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		skinny_metadata = false;
 
 	ret = lookup_extent_backref(trans, path, &iref, bytenr, num_bytes,
-				    parent, root_objectid, owner_objectid,
+				    node->parent, node->ref_root, owner_objectid,
 				    owner_offset);
 	if (ret == 0) {
 		/*
@@ -3226,7 +3219,7 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 	} else if (WARN_ON(ret == -ENOENT)) {
 		abort_and_dump(trans, path,
 "unable to find ref byte nr %llu parent %llu root %llu owner %llu offset %llu slot %d",
-			       bytenr, parent, root_objectid, owner_objectid,
+			       bytenr, node->parent, node->ref_root, owner_objectid,
 			       owner_offset, path->slots[0]);
 		goto out;
 	} else {
