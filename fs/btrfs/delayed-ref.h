@@ -260,7 +260,7 @@ struct btrfs_ref {
 	u64 real_root;
 #endif
 	u64 bytenr;
-	u64 len;
+	u64 num_bytes;
 	u64 owning_root;
 
 	/*

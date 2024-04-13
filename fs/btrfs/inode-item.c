@@ -673,7 +673,7 @@ delete:
 			struct btrfs_ref ref = {
 				.action = BTRFS_DROP_DELAYED_REF,
 				.bytenr = extent_start,
-				.len = extent_num_bytes,
+				.num_bytes = extent_num_bytes,
 				.owning_root = root->root_key.objectid,
 				.ref_root = btrfs_header_owner(leaf),
 			};

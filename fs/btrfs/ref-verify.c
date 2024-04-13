@@ -673,7 +673,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 	int ret = 0;
 	bool metadata;
 	u64 bytenr = generic_ref->bytenr;
-	u64 num_bytes = generic_ref->len;
+	u64 num_bytes = generic_ref->num_bytes;
 	u64 parent = generic_ref->parent;
 	u64 ref_root = 0;
 	u64 owner = 0;

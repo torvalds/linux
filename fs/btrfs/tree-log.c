@@ -764,7 +764,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 				struct btrfs_ref ref = {
 					.action = BTRFS_ADD_DELAYED_REF,
 					.bytenr = ins.objectid,
-					.len = ins.offset,
+					.num_bytes = ins.offset,
 					.owning_root = root->root_key.objectid,
 					.ref_root = root->root_key.objectid,
 				};

@@ -375,7 +375,7 @@ next_slot:
 				struct btrfs_ref ref = {
 					.action = BTRFS_ADD_DELAYED_REF,
 					.bytenr = disk_bytenr,
-					.len = num_bytes,
+					.num_bytes = num_bytes,
 					.parent = 0,
 					.owning_root = root->root_key.objectid,
 					.ref_root = root->root_key.objectid,
@@ -468,7 +468,7 @@ delete_extent_item:
 				struct btrfs_ref ref = {
 					.action = BTRFS_DROP_DELAYED_REF,
 					.bytenr = disk_bytenr,
-					.len = num_bytes,
+					.num_bytes = num_bytes,
 					.parent = 0,
 					.owning_root = root->root_key.objectid,
 					.ref_root = root->root_key.objectid,
@@ -753,7 +753,7 @@ again:
 
 		ref.action = BTRFS_ADD_DELAYED_REF;
 		ref.bytenr = bytenr;
-		ref.len = num_bytes;
+		ref.num_bytes = num_bytes;
 		ref.parent = 0;
 		ref.owning_root = root->root_key.objectid;
 		ref.ref_root = root->root_key.objectid;
@@ -783,7 +783,7 @@ again:
 
 	ref.action = BTRFS_DROP_DELAYED_REF;
 	ref.bytenr = bytenr;
-	ref.len = num_bytes;
+	ref.num_bytes = num_bytes;
 	ref.parent = 0;
 	ref.owning_root = root->root_key.objectid;
 	ref.ref_root = root->root_key.objectid;
@@ -2492,7 +2492,7 @@ static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
 		struct btrfs_ref ref = {
 			.action = BTRFS_ADD_DELAYED_REF,
 			.bytenr = extent_info->disk_offset,
-			.len = extent_info->disk_len,
+			.num_bytes = extent_info->disk_len,
 			.owning_root = root->root_key.objectid,
 			.ref_root = root->root_key.objectid,
 		};

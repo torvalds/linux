@@ -2542,7 +2542,7 @@ static int __btrfs_mod_ref(struct btrfs_trans_handle *trans,
 			if (ref.bytenr == 0)
 				continue;
 
-			ref.len = btrfs_file_extent_disk_num_bytes(buf, fi);
+			ref.num_bytes = btrfs_file_extent_disk_num_bytes(buf, fi);
 			ref.owning_root = ref_root;
 
 			key.offset -= btrfs_file_extent_offset(buf, fi);
@@ -2557,7 +2557,7 @@ static int __btrfs_mod_ref(struct btrfs_trans_handle *trans,
 		} else {
 			/* We don't know the owning_root, leave as 0. */
 			ref.bytenr = btrfs_node_blockptr(buf, i);
-			ref.len = fs_info->nodesize;
+			ref.num_bytes = fs_info->nodesize;
 
 			btrfs_init_tree_ref(&ref, level - 1,
 					    root->root_key.objectid, for_reloc);
@@ -3466,7 +3466,7 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 		struct btrfs_ref generic_ref = {
 			.action = BTRFS_DROP_DELAYED_REF,
 			.bytenr = buf->start,
-			.len = buf->len,
+			.num_bytes = buf->len,
 			.parent = parent,
 			.owning_root = btrfs_header_owner(buf),
 			.ref_root = root_id,
@@ -3560,7 +3560,7 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_ref *ref)
 	 * tree, just update pinning info and exit early.
 	 */
 	if (ref->ref_root == BTRFS_TREE_LOG_OBJECTID) {
-		btrfs_pin_extent(trans, ref->bytenr, ref->len, 1);
+		btrfs_pin_extent(trans, ref->bytenr, ref->num_bytes, 1);
 		ret = 0;
 	} else if (ref->type == BTRFS_REF_METADATA) {
 		ret = btrfs_add_delayed_tree_ref(trans, ref, NULL);
@@ -4967,7 +4967,7 @@ int btrfs_alloc_reserved_file_extent(struct btrfs_trans_handle *trans,
 	struct btrfs_ref generic_ref = {
 		.action = BTRFS_ADD_DELAYED_EXTENT,
 		.bytenr = ins->objectid,
-		.len = ins->offset,
+		.num_bytes = ins->offset,
 		.owning_root = root->root_key.objectid,
 		.ref_root = root->root_key.objectid,
 	};
@@ -5201,7 +5201,7 @@ struct extent_buffer *btrfs_alloc_tree_block(struct btrfs_trans_handle *trans,
 		struct btrfs_ref generic_ref = {
 			.action = BTRFS_ADD_DELAYED_EXTENT,
 			.bytenr = ins.objectid,
-			.len = ins.offset,
+			.num_bytes = ins.offset,
 			.parent = parent,
 			.owning_root = owning_root,
 			.ref_root = root_objectid,
@@ -5586,7 +5586,7 @@ skip:
 		struct btrfs_ref ref = {
 			.action = BTRFS_DROP_DELAYED_REF,
 			.bytenr = bytenr,
-			.len = fs_info->nodesize,
+			.num_bytes = fs_info->nodesize,
 			.owning_root = owner_root,
 			.ref_root = root->root_key.objectid,
 		};

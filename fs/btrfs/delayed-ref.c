@@ -874,7 +874,7 @@ static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
 
 	refcount_set(&head_ref->refs, 1);
 	head_ref->bytenr = generic_ref->bytenr;
-	head_ref->num_bytes = generic_ref->len;
+	head_ref->num_bytes = generic_ref->num_bytes;
 	head_ref->ref_mod = count_mod;
 	head_ref->reserved_bytes = reserved;
 	head_ref->must_insert_reserved = must_insert_reserved;
@@ -895,7 +895,7 @@ static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
 			qrecord->data_rsv_refroot = generic_ref->ref_root;
 		}
 		qrecord->bytenr = generic_ref->bytenr;
-		qrecord->num_bytes = generic_ref->len;
+		qrecord->num_bytes = generic_ref->num_bytes;
 		qrecord->old_roots = NULL;
 	}
 }
@@ -1000,7 +1000,7 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
 
 	refcount_set(&ref->refs, 1);
 	ref->bytenr = generic_ref->bytenr;
-	ref->num_bytes = generic_ref->len;
+	ref->num_bytes = generic_ref->num_bytes;
 	ref->ref_mod = 1;
 	ref->action = action;
 	ref->seq = seq;
@@ -1155,7 +1155,7 @@ int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 		.type = BTRFS_REF_METADATA,
 		.action = BTRFS_UPDATE_DELAYED_HEAD,
 		.bytenr = bytenr,
-		.len = num_bytes,
+		.num_bytes = num_bytes,
 	};
 
 	head_ref = kmem_cache_alloc(btrfs_delayed_ref_head_cachep, GFP_NOFS);
