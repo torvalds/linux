@@ -30,13 +30,30 @@ enum btrfs_delayed_ref_action {
 	BTRFS_UPDATE_DELAYED_HEAD,
 } __packed;
 
-struct btrfs_delayed_tree_ref {
-	int level;
+struct btrfs_data_ref {
+	/* For EXTENT_DATA_REF */
+
+	/* Inode which refers to this data extent */
+	u64 objectid;
+
+	/*
+	 * file_offset - extent_offset
+	 *
+	 * file_offset is the key.offset of the EXTENT_DATA key.
+	 * extent_offset is btrfs_file_extent_offset() of the EXTENT_DATA data.
+	 */
+	u64 offset;
 };
 
-struct btrfs_delayed_data_ref {
-	u64 objectid;
-	u64 offset;
+struct btrfs_tree_ref {
+	/*
+	 * Level of this tree block.
+	 *
+	 * Shared for skinny (TREE_BLOCK_REF) and normal tree ref.
+	 */
+	int level;
+
+	/* For non-skinny metadata, no special member needed */
 };
 
 struct btrfs_delayed_ref_node {
@@ -84,8 +101,8 @@ struct btrfs_delayed_ref_node {
 	unsigned int type:8;
 
 	union {
-		struct btrfs_delayed_tree_ref tree_ref;
-		struct btrfs_delayed_data_ref data_ref;
+		struct btrfs_tree_ref tree_ref;
+		struct btrfs_data_ref data_ref;
 	};
 };
 
@@ -221,32 +238,6 @@ enum btrfs_ref_type {
 	BTRFS_REF_METADATA,
 	BTRFS_REF_LAST,
 } __packed;
-
-struct btrfs_data_ref {
-	/* For EXTENT_DATA_REF */
-
-	/* Inode which refers to this data extent */
-	u64 objectid;
-
-	/*
-	 * file_offset - extent_offset
-	 *
-	 * file_offset is the key.offset of the EXTENT_DATA key.
-	 * extent_offset is btrfs_file_extent_offset() of the EXTENT_DATA data.
-	 */
-	u64 offset;
-};
-
-struct btrfs_tree_ref {
-	/*
-	 * Level of this tree block
-	 *
-	 * Shared for skinny (TREE_BLOCK_REF) and normal tree ref.
-	 */
-	int level;
-
-	/* For non-skinny metadata, no special member needed */
-};
 
 struct btrfs_ref {
 	enum btrfs_ref_type type;

@@ -982,12 +982,10 @@ static void init_delayed_ref_common(struct btrfs_fs_info *fs_info,
 	RB_CLEAR_NODE(&ref->ref_node);
 	INIT_LIST_HEAD(&ref->add_list);
 
-	if (generic_ref->type == BTRFS_REF_DATA) {
-		ref->data_ref.objectid = generic_ref->data_ref.objectid;
-		ref->data_ref.offset = generic_ref->data_ref.offset;
-	} else {
-		ref->tree_ref.level = generic_ref->tree_ref.level;
-	}
+	if (generic_ref->type == BTRFS_REF_DATA)
+		ref->data_ref = generic_ref->data_ref;
+	else
+		ref->tree_ref = generic_ref->tree_ref;
 }
 
 void btrfs_init_tree_ref(struct btrfs_ref *generic_ref, int level, u64 mod_root,
