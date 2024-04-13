@@ -1926,6 +1926,8 @@ int __bch2_foreground_maybe_merge(struct btree_trans *trans,
 	BUG_ON(!trans->paths[path].should_be_locked);
 	BUG_ON(!btree_node_locked(&trans->paths[path], level));
 
+	flags &= ~BCH_WATERMARK_MASK;
+
 	b = trans->paths[path].l[level].b;
 
 	if ((sib == btree_prev_sib && bpos_eq(b->data->min_key, POS_MIN)) ||
@@ -2071,6 +2073,10 @@ err:
 		bch2_path_put(trans, new_path, true);
 	bch2_path_put(trans, sib_path, true);
 	bch2_trans_verify_locks(trans);
+	if (ret == -BCH_ERR_journal_reclaim_would_deadlock)
+		ret = 0;
+	if (!ret)
+		ret = bch2_trans_relock(trans);
 	return ret;
 err_free_update:
 	bch2_btree_node_free_never_used(as, trans, n);
