@@ -157,6 +157,7 @@ static int imsic_irq_domain_alloc(struct irq_domain *domain, unsigned int virq,
 			    handle_simple_irq, NULL, NULL);
 	irq_set_noprobe(virq);
 	irq_set_affinity(virq, cpu_online_mask);
+	irq_data_update_effective_affinity(irq_get_irq_data(virq), cpumask_of(vec->cpu));
 
 	return 0;
 }
