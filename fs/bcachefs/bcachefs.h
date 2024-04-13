@@ -709,6 +709,8 @@ struct btree_trans_buf {
 	x(stripe_delete)						\
 	x(reflink)							\
 	x(fallocate)							\
+	x(fsync)							\
+	x(dio_write)							\
 	x(discard)							\
 	x(discard_fast)							\
 	x(invalidate)							\
