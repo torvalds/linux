@@ -831,18 +831,20 @@ static noinline void update_existing_head_ref(struct btrfs_trans_handle *trans,
 }
 
 static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
+				  struct btrfs_ref *generic_ref,
 				  struct btrfs_qgroup_extent_record *qrecord,
-				  u64 bytenr, u64 num_bytes, u64 ref_root,
-				  u64 reserved, int action, bool is_data,
-				  bool is_system, u64 owning_root)
+				  u64 reserved)
 {
 	int count_mod = 1;
 	bool must_insert_reserved = false;
 
 	/* If reserved is provided, it must be a data extent. */
-	BUG_ON(!is_data && reserved);
+	BUG_ON(generic_ref->type != BTRFS_REF_DATA && reserved);
 
-	switch (action) {
+	switch (generic_ref->action) {
+	case BTRFS_ADD_DELAYED_REF:
+		/* count_mod is already set to 1. */
+		break;
 	case BTRFS_UPDATE_DELAYED_HEAD:
 		count_mod = 0;
 		break;
@@ -871,14 +873,14 @@ static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
 	}
 
 	refcount_set(&head_ref->refs, 1);
-	head_ref->bytenr = bytenr;
-	head_ref->num_bytes = num_bytes;
+	head_ref->bytenr = generic_ref->bytenr;
+	head_ref->num_bytes = generic_ref->len;
 	head_ref->ref_mod = count_mod;
 	head_ref->reserved_bytes = reserved;
 	head_ref->must_insert_reserved = must_insert_reserved;
-	head_ref->owning_root = owning_root;
-	head_ref->is_data = is_data;
-	head_ref->is_system = is_system;
+	head_ref->owning_root = generic_ref->owning_root;
+	head_ref->is_data = (generic_ref->type == BTRFS_REF_DATA);
+	head_ref->is_system = (generic_ref->ref_root == BTRFS_CHUNK_TREE_OBJECTID);
 	head_ref->ref_tree = RB_ROOT_CACHED;
 	INIT_LIST_HEAD(&head_ref->ref_add_list);
 	RB_CLEAR_NODE(&head_ref->href_node);
@@ -888,12 +890,12 @@ static void init_delayed_ref_head(struct btrfs_delayed_ref_head *head_ref,
 	mutex_init(&head_ref->mutex);
 
 	if (qrecord) {
-		if (ref_root && reserved) {
+		if (generic_ref->ref_root && reserved) {
 			qrecord->data_rsv = reserved;
-			qrecord->data_rsv_refroot = ref_root;
+			qrecord->data_rsv_refroot = generic_ref->ref_root;
 		}
-		qrecord->bytenr = bytenr;
-		qrecord->num_bytes = num_bytes;
+		qrecord->bytenr = generic_ref->bytenr;
+		qrecord->num_bytes = generic_ref->len;
 		qrecord->old_roots = NULL;
 	}
 }
@@ -1057,15 +1059,10 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_qgroup_extent_record *record = NULL;
 	bool qrecord_inserted;
-	bool is_system;
 	bool merged;
 	int action = generic_ref->action;
 	int level = generic_ref->tree_ref.level;
-	u64 bytenr = generic_ref->bytenr;
-	u64 num_bytes = generic_ref->len;
 	u64 parent = generic_ref->parent;
-
-	is_system = (generic_ref->ref_root == BTRFS_CHUNK_TREE_OBJECTID);
 
 	ASSERT(generic_ref->type == BTRFS_REF_METADATA && generic_ref->action);
 	node = kmem_cache_alloc(btrfs_delayed_ref_node_cachep, GFP_NOFS);
@@ -1094,9 +1091,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	ref->parent = parent;
 	ref->level = level;
 
-	init_delayed_ref_head(head_ref, record, bytenr, num_bytes,
-			      generic_ref->ref_root, 0, action,
-			      false, is_system, generic_ref->owning_root);
+	init_delayed_ref_head(head_ref, generic_ref, record, 0);
 	head_ref->extent_op = extent_op;
 
 	delayed_refs = &trans->transaction->delayed_refs;
@@ -1146,8 +1141,6 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 	bool qrecord_inserted;
 	int action = generic_ref->action;
 	bool merged;
-	u64 bytenr = generic_ref->bytenr;
-	u64 num_bytes = generic_ref->len;
 	u64 parent = generic_ref->parent;
 	u64 ref_root = generic_ref->ref_root;
 	u64 owner = generic_ref->data_ref.ino;
@@ -1183,8 +1176,7 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	init_delayed_ref_head(head_ref, record, bytenr, num_bytes, ref_root,
-			      reserved, action, true, false, generic_ref->owning_root);
+	init_delayed_ref_head(head_ref, generic_ref, record, reserved);
 	head_ref->extent_op = NULL;
 
 	delayed_refs = &trans->transaction->delayed_refs;
@@ -1224,13 +1216,18 @@ int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_delayed_ref_head *head_ref;
 	struct btrfs_delayed_ref_root *delayed_refs;
+	struct btrfs_ref generic_ref = {
+		.type = BTRFS_REF_METADATA,
+		.action = BTRFS_UPDATE_DELAYED_HEAD,
+		.bytenr = bytenr,
+		.len = num_bytes,
+	};
 
 	head_ref = kmem_cache_alloc(btrfs_delayed_ref_head_cachep, GFP_NOFS);
 	if (!head_ref)
 		return -ENOMEM;
 
-	init_delayed_ref_head(head_ref, NULL, bytenr, num_bytes, 0, 0,
-			      BTRFS_UPDATE_DELAYED_HEAD, false, false, 0);
+	init_delayed_ref_head(head_ref, &generic_ref, NULL, 0);
 	head_ref->extent_op = extent_op;
 
 	delayed_refs = &trans->transaction->delayed_refs;
