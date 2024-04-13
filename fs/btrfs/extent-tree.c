@@ -1462,34 +1462,12 @@ int btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
  * @node:	    The delayed ref node used to get the bytenr/length for
  *		    extent whose references are incremented.
  *
- * @parent:	    If this is a shared extent (BTRFS_SHARED_DATA_REF_KEY/
- *		    BTRFS_SHARED_BLOCK_REF_KEY) then it holds the logical
- *		    bytenr of the parent block. Since new extents are always
- *		    created with indirect references, this will only be the case
- *		    when relocating a shared extent. In that case, root_objectid
- *		    will be BTRFS_TREE_RELOC_OBJECTID. Otherwise, parent must
- *		    be 0
- *
- * @root_objectid:  The id of the root where this modification has originated,
- *		    this can be either one of the well-known metadata trees or
- *		    the subvolume id which references this extent.
- *
- * @owner:	    For data extents it is the inode number of the owning file.
- *		    For metadata extents this parameter holds the level in the
- *		    tree of the extent.
- *
- * @offset:	    For metadata extents the offset is ignored and is currently
- *		    always passed as 0. For data extents it is the fileoffset
- *		    this extent belongs to.
- *
  * @extent_op       Pointer to a structure, holding information necessary when
  *                  updating a tree block's flags
  *
  */
 static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 				  struct btrfs_delayed_ref_node *node,
-				  u64 parent, u64 root_objectid,
-				  u64 owner, u64 offset,
 				  struct btrfs_delayed_extent_op *extent_op)
 {
 	struct btrfs_path *path;
@@ -1498,6 +1476,8 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_key key;
 	u64 bytenr = node->bytenr;
 	u64 num_bytes = node->num_bytes;
+	u64 owner = btrfs_delayed_ref_owner(node);
+	u64 offset = btrfs_delayed_ref_offset(node);
 	u64 refs;
 	int refs_to_add = node->ref_mod;
 	int ret;
@@ -1508,7 +1488,7 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 
 	/* this will setup the path even if it fails to insert the back ref */
 	ret = insert_inline_extent_backref(trans, path, bytenr, num_bytes,
-					   parent, root_objectid, owner,
+					   node->parent, node->ref_root, owner,
 					   offset, refs_to_add, extent_op);
 	if ((ret < 0 && ret != -EAGAIN) || !ret)
 		goto out;
@@ -1531,11 +1511,11 @@ static int __btrfs_inc_extent_ref(struct btrfs_trans_handle *trans,
 
 	/* now insert the actual backref */
 	if (owner < BTRFS_FIRST_FREE_OBJECTID)
-		ret = insert_tree_block_ref(trans, path, bytenr, parent,
-					    root_objectid);
+		ret = insert_tree_block_ref(trans, path, bytenr, node->parent,
+					    node->ref_root);
 	else
-		ret = insert_extent_data_ref(trans, path, bytenr, parent,
-					     root_objectid, owner, offset,
+		ret = insert_extent_data_ref(trans, path, bytenr, node->parent,
+					     node->ref_root, owner, offset,
 					     refs_to_add);
 
 	if (ret)
@@ -1604,9 +1584,7 @@ static int run_delayed_data_ref(struct btrfs_trans_handle *trans,
 		if (!ret)
 			ret = btrfs_record_squota_delta(trans->fs_info, &delta);
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
-		ret = __btrfs_inc_extent_ref(trans, node, parent, node->ref_root,
-					     ref->objectid, ref->offset,
-					     extent_op);
+		ret = __btrfs_inc_extent_ref(trans, node, extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
 		ret = __btrfs_free_extent(trans, href, node, parent,
 					  node->ref_root, ref->objectid,
@@ -1764,8 +1742,7 @@ static int run_delayed_tree_ref(struct btrfs_trans_handle *trans,
 		if (!ret)
 			btrfs_record_squota_delta(fs_info, &delta);
 	} else if (node->action == BTRFS_ADD_DELAYED_REF) {
-		ret = __btrfs_inc_extent_ref(trans, node, parent, ref_root,
-					     ref->level, 0, extent_op);
+		ret = __btrfs_inc_extent_ref(trans, node, extent_op);
 	} else if (node->action == BTRFS_DROP_DELAYED_REF) {
 		ret = __btrfs_free_extent(trans, href, node, parent, ref_root,
 					  ref->level, 0, extent_op);

@@ -426,6 +426,22 @@ btrfs_delayed_data_ref_to_node(struct btrfs_delayed_data_ref *ref)
 	return container_of(ref, struct btrfs_delayed_ref_node, data_ref);
 }
 
+static inline u64 btrfs_delayed_ref_owner(struct btrfs_delayed_ref_node *node)
+{
+	if (node->type == BTRFS_EXTENT_DATA_REF_KEY ||
+	    node->type == BTRFS_SHARED_DATA_REF_KEY)
+		return node->data_ref.objectid;
+	return node->tree_ref.level;
+}
+
+static inline u64 btrfs_delayed_ref_offset(struct btrfs_delayed_ref_node *node)
+{
+	if (node->type == BTRFS_EXTENT_DATA_REF_KEY ||
+	    node->type == BTRFS_SHARED_DATA_REF_KEY)
+		return node->data_ref.offset;
+	return 0;
+}
+
 static inline u8 btrfs_ref_type(struct btrfs_ref *ref)
 {
 	ASSERT(ref->type == BTRFS_REF_DATA || ref->type == BTRFS_REF_METADATA);
