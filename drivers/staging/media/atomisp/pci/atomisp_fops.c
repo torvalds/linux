@@ -520,21 +520,12 @@ static int atomisp_open(struct file *file)
 	}
 
 	atomisp_dev_init_struct(isp);
-
-	ret = v4l2_subdev_call(isp->flash, core, s_power, 1);
-	if (ret < 0 && ret != -ENODEV && ret != -ENOIOCTLCMD) {
-		dev_err(isp->dev, "Failed to power-on flash\n");
-		goto css_error;
-	}
-
 	atomisp_subdev_init_struct(asd);
 
 	pipe->users++;
 	mutex_unlock(&isp->mutex);
 	return 0;
 
-css_error:
-	pm_runtime_put(vdev->v4l2_dev->dev);
 error:
 	mutex_unlock(&isp->mutex);
 	v4l2_fh_release(file);
@@ -549,7 +540,6 @@ static int atomisp_release(struct file *file)
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct v4l2_subdev_fh fh;
 	struct v4l2_rect clear_compose = {0};
-	int ret;
 
 	v4l2_fh_init(&fh.vfh, vdev);
 
@@ -583,10 +573,6 @@ static int atomisp_release(struct file *file)
 	atomisp_s_sensor_power(isp, asd->input_curr, 0);
 
 	atomisp_destroy_pipes_stream(asd);
-
-	ret = v4l2_subdev_call(isp->flash, core, s_power, 0);
-	if (ret < 0 && ret != -ENODEV && ret != -ENOIOCTLCMD)
-		dev_warn(isp->dev, "Failed to power-off flash\n");
 
 	if (pm_runtime_put_sync(vdev->v4l2_dev->dev) < 0)
 		dev_err(isp->dev, "Failed to power off device\n");

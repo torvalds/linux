@@ -2834,7 +2834,6 @@ init_vf_frameinfo_defaults(struct ia_css_pipe *pipe,
 	assert(vf_frame);
 
 	sh_css_pipe_get_viewfinder_frame_info(pipe, &vf_frame->frame_info, idx);
-	vf_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_VF_OUTPUT_FRAME + idx, thread_id, &queue_id);
 	vf_frame->dynamic_queue_id = queue_id;
@@ -3012,7 +3011,6 @@ init_in_frameinfo_memory_defaults(struct ia_css_pipe *pipe,
 	in_frame->frame_info.raw_bit_depth = ia_css_pipe_util_pipe_input_format_bpp(pipe);
 	ia_css_frame_info_set_width(&in_frame->frame_info,
 				    pipe->stream->config.input_config.input_res.width, 0);
-	in_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_INPUT_FRAME, thread_id, &queue_id);
 	in_frame->dynamic_queue_id = queue_id;
@@ -3040,7 +3038,6 @@ init_out_frameinfo_defaults(struct ia_css_pipe *pipe,
 	assert(out_frame);
 
 	sh_css_pipe_get_output_frame_info(pipe, &out_frame->frame_info, idx);
-	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_OUTPUT_FRAME + idx, thread_id, &queue_id);
 	out_frame->dynamic_queue_id = queue_id;
@@ -3821,12 +3818,6 @@ ia_css_pipe_dequeue_buffer(struct ia_css_pipe *pipe,
 				buffer->exp_id = ddr_buffer.payload.frame.exp_id;
 				frame->exp_id = ddr_buffer.payload.frame.exp_id;
 				frame->isp_config_id = ddr_buffer.payload.frame.isp_parameters_id;
-				if (ddr_buffer.payload.frame.flashed == 1)
-					frame->flash_state =
-					    IA_CSS_FRAME_FLASH_STATE_PARTIAL;
-				if (ddr_buffer.payload.frame.flashed == 2)
-					frame->flash_state =
-					    IA_CSS_FRAME_FLASH_STATE_FULL;
 				frame->valid = pipe->num_invalid_frames == 0;
 				if (!frame->valid)
 					pipe->num_invalid_frames--;
@@ -6788,8 +6779,6 @@ create_host_copy_pipeline(struct ia_css_pipe *pipe,
 	ia_css_pipeline_clean(me);
 
 	/* Construct out_frame info */
-	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
-
 	if (copy_on_sp(pipe) &&
 	    pipe->stream->config.input_config.format == ATOMISP_INPUT_FORMAT_BINARY_8) {
 		ia_css_frame_info_init(&out_frame->frame_info, JPEG_BYTES, 1,
@@ -6837,7 +6826,6 @@ create_host_isyscopy_capture_pipeline(struct ia_css_pipe *pipe)
 	err = sh_css_pipe_get_output_frame_info(pipe, &out_frame->frame_info, 0);
 	if (err)
 		return err;
-	out_frame->flash_state = IA_CSS_FRAME_FLASH_STATE_NONE;
 	ia_css_pipeline_get_sp_thread_id(ia_css_pipe_get_pipe_num(pipe), &thread_id);
 	ia_css_query_internal_queue_id(IA_CSS_BUFFER_TYPE_OUTPUT_FRAME, thread_id, &queue_id);
 	out_frame->dynamic_queue_id = queue_id;
@@ -7490,27 +7478,6 @@ int ia_css_stream_capture(struct ia_css_stream *stream, int num_captures,
 			    return_err);
 
 	return return_err;
-}
-
-void ia_css_stream_request_flash(struct ia_css_stream *stream)
-{
-	(void)stream;
-
-	assert(stream);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_stream_request_flash() enter: void\n");
-
-	if (!IS_ISP2401 || sh_css_sp_is_running()) {
-		if (!sh_css_write_host2sp_command(host2sp_cmd_start_flash) && IS_ISP2401) {
-			IA_CSS_ERROR("Call to 'sh-css_write_host2sp_command()' failed");
-			ia_css_debug_dump_sp_sw_debug_info();
-		}
-	} else {
-		IA_CSS_LOG("SP is not running!");
-	}
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_stream_request_flash() leave: return_void\n");
 }
 
 static void

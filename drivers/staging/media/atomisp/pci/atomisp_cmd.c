@@ -61,14 +61,6 @@
 #include "ia_css_debug.h"
 #include "bits.h"
 
-/* We should never need to run the flash for more than 2 frames.
- * At 15fps this means 133ms. We set the timeout a bit longer.
- * Each flash driver is supposed to set its own timeout, but
- * just in case someone else changed the timeout, we set it
- * here to make sure we don't damage the flash hardware.
- */
-#define FLASH_TIMEOUT 800 /* ms */
-
 union host {
 	struct {
 		void *kernel_ptr;
@@ -677,7 +669,6 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 	struct atomisp_metadata_buf *md_buf = NULL, *_md_buf_tmp, *md_iter;
 	enum atomisp_metadata_type md_type;
 	struct atomisp_device *isp = asd->isp;
-	struct v4l2_control ctrl;
 	int i, err;
 
 	lockdep_assert_held(&isp->mutex);
@@ -792,19 +783,6 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 
 		dev_dbg(isp->dev, "%s: vf frame with exp_id %d is ready\n",
 			__func__, frame->exp_id);
-		if (asd->params.flash_state == ATOMISP_FLASH_ONGOING) {
-			if (frame->flash_state
-			    == IA_CSS_FRAME_FLASH_STATE_PARTIAL)
-				dev_dbg(isp->dev, "%s thumb partially flashed\n",
-					__func__);
-			else if (frame->flash_state
-				 == IA_CSS_FRAME_FLASH_STATE_FULL)
-				dev_dbg(isp->dev, "%s thumb completely flashed\n",
-					__func__);
-			else
-				dev_dbg(isp->dev, "%s thumb no flash in this frame\n",
-					__func__);
-		}
 		pipe->frame_config_id[frame->vb.vb2_buf.index] = frame->isp_config_id;
 		break;
 	case IA_CSS_BUFFER_TYPE_OUTPUT_FRAME:
@@ -835,40 +813,7 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		}
 
 		pipe->frame_config_id[i] = frame->isp_config_id;
-		ctrl.id = V4L2_CID_FLASH_MODE;
-		if (asd->params.flash_state == ATOMISP_FLASH_ONGOING) {
-			if (frame->flash_state == IA_CSS_FRAME_FLASH_STATE_PARTIAL) {
-				asd->frame_status[i] = ATOMISP_FRAME_STATUS_FLASH_PARTIAL;
-				dev_dbg(isp->dev, "%s partially flashed\n", __func__);
-			} else if (frame->flash_state == IA_CSS_FRAME_FLASH_STATE_FULL) {
-				asd->frame_status[i] = ATOMISP_FRAME_STATUS_FLASH_EXPOSED;
-				asd->params.num_flash_frames--;
-				dev_dbg(isp->dev, "%s completely flashed\n", __func__);
-			} else {
-				asd->frame_status[i] = ATOMISP_FRAME_STATUS_OK;
-				dev_dbg(isp->dev, "%s no flash in this frame\n", __func__);
-			}
-
-			/* Check if flashing sequence is done */
-			if (asd->frame_status[i] == ATOMISP_FRAME_STATUS_FLASH_EXPOSED)
-				asd->params.flash_state = ATOMISP_FLASH_DONE;
-		} else if (isp->flash) {
-			if (v4l2_g_ctrl(isp->flash->ctrl_handler, &ctrl) == 0 &&
-			    ctrl.value == ATOMISP_FLASH_MODE_TORCH) {
-				ctrl.id = V4L2_CID_FLASH_TORCH_INTENSITY;
-				if (v4l2_g_ctrl(isp->flash->ctrl_handler, &ctrl) == 0 &&
-				    ctrl.value > 0)
-					asd->frame_status[i] = ATOMISP_FRAME_STATUS_FLASH_EXPOSED;
-				else
-					asd->frame_status[i] = ATOMISP_FRAME_STATUS_OK;
-			} else {
-				asd->frame_status[i] = ATOMISP_FRAME_STATUS_OK;
-			}
-		} else {
-			asd->frame_status[i] = ATOMISP_FRAME_STATUS_OK;
-		}
-
-		asd->params.last_frame_status = asd->frame_status[i];
+		asd->frame_status[i] = ATOMISP_FRAME_STATUS_OK;
 
 		if (asd->params.css_update_params_needed) {
 			atomisp_apply_css_parameters(asd,
@@ -1011,36 +956,6 @@ out_unlock:
 	mutex_unlock(&isp->mutex);
 }
 
-void atomisp_setup_flash(struct atomisp_sub_device *asd)
-{
-	struct atomisp_device *isp = asd->isp;
-	struct v4l2_control ctrl;
-
-	if (!isp->flash)
-		return;
-
-	if (asd->params.flash_state != ATOMISP_FLASH_REQUESTED &&
-	    asd->params.flash_state != ATOMISP_FLASH_DONE)
-		return;
-
-	if (asd->params.num_flash_frames) {
-		/* make sure the timeout is set before setting flash mode */
-		ctrl.id = V4L2_CID_FLASH_TIMEOUT;
-		ctrl.value = FLASH_TIMEOUT;
-
-		if (v4l2_s_ctrl(NULL, isp->flash->ctrl_handler, &ctrl)) {
-			dev_err(isp->dev, "flash timeout configure failed\n");
-			return;
-		}
-
-		ia_css_stream_request_flash(asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream);
-
-		asd->params.flash_state = ATOMISP_FLASH_ONGOING;
-	} else {
-		asd->params.flash_state = ATOMISP_FLASH_IDLE;
-	}
-}
-
 irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 {
 	struct atomisp_device *isp = isp_ptr;
@@ -1083,14 +998,8 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 	 * time, instead, dequue one and process one, then another
 	 */
 	mutex_lock(&isp->mutex);
-	if (atomisp_css_isr_thread(isp))
-		goto out;
-
-	if (isp->asd.streaming)
-		atomisp_setup_flash(&isp->asd);
-out:
+	atomisp_css_isr_thread(isp);
 	mutex_unlock(&isp->mutex);
-	dev_dbg(isp->dev, "<%s\n", __func__);
 
 	return IRQ_HANDLED;
 }
@@ -4579,28 +4488,6 @@ out:
 		atomisp_css_shading_table_free(free_table);
 
 	return ret;
-}
-
-int atomisp_flash_enable(struct atomisp_sub_device *asd, int num_frames)
-{
-	struct atomisp_device *isp = asd->isp;
-
-	if (num_frames < 0) {
-		dev_dbg(isp->dev, "%s ERROR: num_frames: %d\n", __func__,
-			num_frames);
-		return -EINVAL;
-	}
-	/* a requested flash is still in progress. */
-	if (num_frames && asd->params.flash_state != ATOMISP_FLASH_IDLE) {
-		dev_dbg(isp->dev, "%s flash busy: %d frames left: %d\n",
-			__func__, asd->params.flash_state,
-			asd->params.num_flash_frames);
-		return -EBUSY;
-	}
-
-	asd->params.num_flash_frames = num_frames;
-	asd->params.flash_state = ATOMISP_FLASH_REQUESTED;
-	return 0;
 }
 
 static int __checking_exp_id(struct atomisp_sub_device *asd, int exp_id)

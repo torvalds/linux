@@ -825,13 +825,6 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 			isp->sensor_lanes[mipi_port] = subdevs->lanes;
 			isp->sensor_subdevs[subdevs->port] = subdevs->subdev;
 			break;
-		case LED_FLASH:
-			if (isp->flash) {
-				dev_warn(isp->dev, "too many atomisp flash devices\n");
-				continue;
-			}
-			isp->flash = subdevs->subdev;
-			break;
 		default:
 			dev_dbg(isp->dev, "unknown subdev probed\n");
 			break;

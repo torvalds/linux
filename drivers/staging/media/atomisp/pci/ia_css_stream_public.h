@@ -457,20 +457,6 @@ ia_css_stream_send_input_embedded_line(const struct ia_css_stream *stream,
 void
 ia_css_stream_end_input_frame(const struct ia_css_stream *stream);
 
-/* @brief send a request flash command to SP
- *
- * @param[in]	stream The stream.
- * @return	None
- *
- * Driver needs to call this function to send a flash request command
- * to SP, SP will be responsible for switching on/off the flash at proper
- * time. Due to the SP multi-threading environment, this request may have
- * one-frame delay, the driver needs to check the flashed flag in frame info
- * to determine which frame is being flashed.
- */
-void
-ia_css_stream_request_flash(struct ia_css_stream *stream);
-
 /* @brief Configure a stream with filter coefficients.
  *	   @deprecated {Replaced by
  *				   ia_css_pipe_set_isp_config_on_pipe()}

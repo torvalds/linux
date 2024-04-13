@@ -108,14 +108,6 @@ struct atomisp_pad_format {
 	struct v4l2_rect compose;
 };
 
-/* Internal states for flash process */
-enum atomisp_flash_state {
-	ATOMISP_FLASH_IDLE,
-	ATOMISP_FLASH_REQUESTED,
-	ATOMISP_FLASH_ONGOING,
-	ATOMISP_FLASH_DONE
-};
-
 /*
  * This structure is used to cache the CSS parameters, it aligns to
  * struct ia_css_isp_config but without un-supported and deprecated parts.
@@ -220,11 +212,6 @@ struct atomisp_subdev_params {
 	int  dvs_ver_coef_bytes;
 	int  dvs_ver_proj_bytes;
 	int  dvs_hor_proj_bytes;
-
-	/* Flash */
-	int num_flash_frames;
-	enum atomisp_flash_state flash_state;
-	enum atomisp_frame_status last_frame_status;
 
 	/* Flag to check if driver needs to update params to css */
 	bool css_update_params_needed;
