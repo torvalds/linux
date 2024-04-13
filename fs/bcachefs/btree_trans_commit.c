@@ -397,12 +397,13 @@ static int btree_key_can_insert_cached(struct btree_trans *trans, unsigned flags
 	struct bkey_cached *ck = (void *) path->l[0].b;
 	unsigned new_u64s;
 	struct bkey_i *new_k;
+	unsigned watermark = flags & BCH_WATERMARK_MASK;
 
 	EBUG_ON(path->level);
 
-	if (!test_bit(BKEY_CACHED_DIRTY, &ck->flags) &&
-	    bch2_btree_key_cache_must_wait(c) &&
-	    !(flags & BCH_TRANS_COMMIT_journal_reclaim))
+	if (watermark < BCH_WATERMARK_reclaim &&
+	    !test_bit(BKEY_CACHED_DIRTY, &ck->flags) &&
+	    bch2_btree_key_cache_must_wait(c))
 		return -BCH_ERR_btree_insert_need_journal_reclaim;
 
 	/*
