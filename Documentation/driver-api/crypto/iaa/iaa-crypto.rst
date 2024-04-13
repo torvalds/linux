@@ -457,7 +457,6 @@ Use the following commands to enable zswap::
   # echo deflate-iaa > /sys/module/zswap/parameters/compressor
   # echo zsmalloc > /sys/module/zswap/parameters/zpool
   # echo 1 > /sys/module/zswap/parameters/enabled
-  # echo 0 > /sys/module/zswap/parameters/same_filled_pages_enabled
   # echo 100 > /proc/sys/vm/swappiness
   # echo never > /sys/kernel/mm/transparent_hugepage/enabled
   # echo 1 > /proc/sys/vm/overcommit_memory
@@ -599,7 +598,6 @@ the 'fixed' compression mode::
   echo deflate-iaa > /sys/module/zswap/parameters/compressor
   echo zsmalloc > /sys/module/zswap/parameters/zpool
   echo 1 > /sys/module/zswap/parameters/enabled
-  echo 0 > /sys/module/zswap/parameters/same_filled_pages_enabled
 
   echo 100 > /proc/sys/vm/swappiness
   echo never > /sys/kernel/mm/transparent_hugepage/enabled
