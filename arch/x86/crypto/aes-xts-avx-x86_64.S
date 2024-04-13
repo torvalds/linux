@@ -559,19 +559,19 @@
 .macro	_aes_xts_crypt	enc
 	_define_aliases
 
-	// Load the AES key length: 16 (AES-128), 24 (AES-192), or 32 (AES-256).
-	movl		480(KEY), KEYLEN
-
 .if !\enc
 	// When decrypting a message whose length isn't a multiple of the AES
 	// block length, exclude the last full block from the main loop by
 	// subtracting 16 from LEN.  This is needed because ciphertext stealing
 	// decryption uses the last two tweaks in reverse order.  We'll handle
 	// the last full block and the partial block specially at the end.
+	lea		-16(LEN), %rax
 	test		$15, LEN
-	jnz		.Lneed_cts_dec\@
-.Lxts_init\@:
+	cmovnz		%rax, LEN
 .endif
+
+	// Load the AES key length: 16 (AES-128), 24 (AES-192), or 32 (AES-256).
+	movl		480(KEY), KEYLEN
 
 	// Setup the pointer to the round keys and cache as many as possible.
 	_setup_round_keys	\enc
@@ -661,11 +661,10 @@
 	RET
 
 .Lhandle_remainder\@:
-	add		$4*VL, LEN	// Undo the extra sub from earlier.
 
 	// En/decrypt any remaining full blocks, one vector at a time.
 .if VL > 16
-	sub		$VL, LEN
+	add		$3*VL, LEN	// Undo extra sub of 4*VL, then sub VL.
 	jl		.Lvec_at_a_time_done\@
 .Lvec_at_a_time\@:
 	_vmovdqu	(SRC), V0
@@ -677,9 +676,9 @@
 	sub		$VL, LEN
 	jge		.Lvec_at_a_time\@
 .Lvec_at_a_time_done\@:
-	add		$VL-16, LEN	// Undo the extra sub from earlier.
+	add		$VL-16, LEN	// Undo extra sub of VL, then sub 16.
 .else
-	sub		$16, LEN
+	add		$4*VL-16, LEN	// Undo extra sub of 4*VL, then sub 16.
 .endif
 
 	// En/decrypt any remaining full blocks, one at a time.
@@ -694,24 +693,12 @@
 	sub		$16, LEN
 	jge		.Lblock_at_a_time\@
 .Lblock_at_a_time_done\@:
-	add		$16, LEN	// Undo the extra sub from earlier.
+	add		$16, LEN	// Undo the extra sub of 16.
+	// Now 0 <= LEN <= 15.  If LEN is zero, we're done.
+	jz		.Ldone\@
 
-.Lfull_blocks_done\@:
-	// Now 0 <= LEN <= 15.  If LEN is nonzero, do ciphertext stealing to
-	// process the last 16 + LEN bytes.  If LEN is zero, we're done.
-	test		LEN, LEN
-	jnz		.Lcts\@
-	jmp		.Ldone\@
-
-.if !\enc
-.Lneed_cts_dec\@:
-	sub		$16, LEN
-	jmp		.Lxts_init\@
-.endif
-
-.Lcts\@:
-	// Do ciphertext stealing (CTS) to en/decrypt the last full block and
-	// the partial block.  TWEAK0_XMM contains the next tweak.
+	// Otherwise 1 <= LEN <= 15, but the real remaining length is 16 + LEN.
+	// Do ciphertext stealing to process the last 16 + LEN bytes.
 
 .if \enc
 	// If encrypting, the main loop already encrypted the last full block to
