@@ -209,8 +209,8 @@ static int mlx5e_devcom_init_mpv(struct mlx5e_priv *priv, u64 *data)
 						      *data,
 						      mlx5e_devcom_event_mpv,
 						      priv);
-	if (IS_ERR_OR_NULL(priv->devcom))
-		return -EOPNOTSUPP;
+	if (IS_ERR(priv->devcom))
+		return PTR_ERR(priv->devcom);
 
 	if (mlx5_core_is_mp_master(priv->mdev)) {
 		mlx5_devcom_send_event(priv->devcom, MPV_DEVCOM_MASTER_UP,

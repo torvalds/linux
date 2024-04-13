@@ -956,7 +956,7 @@ static void mlx5_register_hca_devcom_comp(struct mlx5_core_dev *dev)
 		mlx5_devcom_register_component(dev->priv.devc, MLX5_DEVCOM_HCA_PORTS,
 					       mlx5_query_nic_system_image_guid(dev),
 					       NULL, dev);
-	if (IS_ERR_OR_NULL(dev->priv.hca_devcom_comp))
+	if (IS_ERR(dev->priv.hca_devcom_comp))
 		mlx5_core_err(dev, "Failed to register devcom HCA component\n");
 }
 
@@ -1699,12 +1699,15 @@ int mlx5_init_one_light(struct mlx5_core_dev *dev)
 	err = mlx5_devlink_params_register(priv_to_devlink(dev));
 	if (err) {
 		mlx5_core_warn(dev, "mlx5_devlink_param_reg err = %d\n", err);
-		goto query_hca_caps_err;
+		goto params_reg_err;
 	}
 
 	devl_unlock(devlink);
 	return 0;
 
+params_reg_err:
+	devl_unregister(devlink);
+	devl_unlock(devlink);
 query_hca_caps_err:
 	devl_unregister(devlink);
 	devl_unlock(devlink);

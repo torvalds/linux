@@ -75,7 +75,6 @@ static int mlx5_sf_dev_probe(struct auxiliary_device *adev, const struct auxilia
 		goto peer_devlink_set_err;
 	}
 
-	devlink_register(devlink);
 	return 0;
 
 peer_devlink_set_err:
