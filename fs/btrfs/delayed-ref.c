@@ -1054,14 +1054,10 @@ void btrfs_init_data_ref(struct btrfs_ref *generic_ref, u64 ino, u64 offset,
 		generic_ref->skip_qgroup = false;
 }
 
-/*
- * add a delayed tree ref.  This does all of the accounting required
- * to make sure the delayed ref is eventually processed before this
- * transaction commits.
- */
-int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
-			       struct btrfs_ref *generic_ref,
-			       struct btrfs_delayed_extent_op *extent_op)
+static int add_delayed_ref(struct btrfs_trans_handle *trans,
+			   struct btrfs_ref *generic_ref,
+			   struct btrfs_delayed_extent_op *extent_op,
+			   u64 reserved)
 {
 	struct btrfs_fs_info *fs_info = trans->fs_info;
 	struct btrfs_delayed_ref_node *node;
@@ -1069,10 +1065,9 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	struct btrfs_delayed_ref_root *delayed_refs;
 	struct btrfs_qgroup_extent_record *record = NULL;
 	bool qrecord_inserted;
-	bool merged;
 	int action = generic_ref->action;
+	bool merged;
 
-	ASSERT(generic_ref->type == BTRFS_REF_METADATA && generic_ref->action);
 	node = kmem_cache_alloc(btrfs_delayed_ref_node_cachep, GFP_NOFS);
 	if (!node)
 		return -ENOMEM;
@@ -1093,8 +1088,7 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	}
 
 	init_delayed_ref_common(fs_info, node, generic_ref);
-
-	init_delayed_ref_head(head_ref, generic_ref, record, 0);
+	init_delayed_ref_head(head_ref, generic_ref, record, reserved);
 	head_ref->extent_op = extent_op;
 
 	delayed_refs = &trans->transaction->delayed_refs;
@@ -1116,14 +1110,28 @@ int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
 	 */
 	btrfs_update_delayed_refs_rsv(trans);
 
-	trace_add_delayed_tree_ref(fs_info, node);
+	if (generic_ref->type == BTRFS_REF_DATA)
+		trace_add_delayed_data_ref(trans->fs_info, node);
+	else
+		trace_add_delayed_tree_ref(trans->fs_info, node);
 	if (merged)
 		kmem_cache_free(btrfs_delayed_ref_node_cachep, node);
 
 	if (qrecord_inserted)
-		btrfs_qgroup_trace_extent_post(trans, record);
-
+		return btrfs_qgroup_trace_extent_post(trans, record);
 	return 0;
+}
+
+/*
+ * Add a delayed tree ref. This does all of the accounting required to make sure
+ * the delayed ref is eventually processed before this transaction commits.
+ */
+int btrfs_add_delayed_tree_ref(struct btrfs_trans_handle *trans,
+			       struct btrfs_ref *generic_ref,
+			       struct btrfs_delayed_extent_op *extent_op)
+{
+	ASSERT(generic_ref->type == BTRFS_REF_METADATA && generic_ref->action);
+	return add_delayed_ref(trans, generic_ref, extent_op, 0);
 }
 
 /*
@@ -1133,68 +1141,8 @@ int btrfs_add_delayed_data_ref(struct btrfs_trans_handle *trans,
 			       struct btrfs_ref *generic_ref,
 			       u64 reserved)
 {
-	struct btrfs_fs_info *fs_info = trans->fs_info;
-	struct btrfs_delayed_ref_node *node;
-	struct btrfs_delayed_ref_head *head_ref;
-	struct btrfs_delayed_ref_root *delayed_refs;
-	struct btrfs_qgroup_extent_record *record = NULL;
-	bool qrecord_inserted;
-	int action = generic_ref->action;
-	bool merged;
-
-	ASSERT(generic_ref->type == BTRFS_REF_DATA && action);
-	node = kmem_cache_alloc(btrfs_delayed_ref_node_cachep, GFP_NOFS);
-	if (!node)
-		return -ENOMEM;
-
-	init_delayed_ref_common(fs_info, node, generic_ref);
-
-	head_ref = kmem_cache_alloc(btrfs_delayed_ref_head_cachep, GFP_NOFS);
-	if (!head_ref) {
-		kmem_cache_free(btrfs_delayed_ref_node_cachep, node);
-		return -ENOMEM;
-	}
-
-	if (btrfs_qgroup_full_accounting(fs_info) && !generic_ref->skip_qgroup) {
-		record = kzalloc(sizeof(*record), GFP_NOFS);
-		if (!record) {
-			kmem_cache_free(btrfs_delayed_ref_node_cachep, node);
-			kmem_cache_free(btrfs_delayed_ref_head_cachep,
-					head_ref);
-			return -ENOMEM;
-		}
-	}
-
-	init_delayed_ref_head(head_ref, generic_ref, record, reserved);
-	head_ref->extent_op = NULL;
-
-	delayed_refs = &trans->transaction->delayed_refs;
-	spin_lock(&delayed_refs->lock);
-
-	/*
-	 * insert both the head node and the new ref without dropping
-	 * the spin lock
-	 */
-	head_ref = add_delayed_ref_head(trans, head_ref, record,
-					action, &qrecord_inserted);
-
-	merged = insert_delayed_ref(trans, head_ref, node);
-	spin_unlock(&delayed_refs->lock);
-
-	/*
-	 * Need to update the delayed_refs_rsv with any changes we may have
-	 * made.
-	 */
-	btrfs_update_delayed_refs_rsv(trans);
-
-	trace_add_delayed_data_ref(trans->fs_info, node);
-	if (merged)
-		kmem_cache_free(btrfs_delayed_ref_node_cachep, node);
-
-
-	if (qrecord_inserted)
-		return btrfs_qgroup_trace_extent_post(trans, record);
-	return 0;
+	ASSERT(generic_ref->type == BTRFS_REF_DATA && generic_ref->action);
+	return add_delayed_ref(trans, generic_ref, NULL, reserved);
 }
 
 int btrfs_add_delayed_extent_op(struct btrfs_trans_handle *trans,
