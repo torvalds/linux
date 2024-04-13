@@ -274,9 +274,6 @@ struct atomisp_sub_device {
 	struct list_head dis_stats_in_css;
 	spinlock_t dis_stats_lock;
 
-	struct ia_css_frame *vf_frame; /* TODO: needed? */
-	enum atomisp_frame_status frame_status[VIDEO_MAX_FRAME];
-
 	/* This field specifies which camera (v4l2 input) is selected. */
 	int input_curr;
 

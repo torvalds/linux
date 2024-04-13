@@ -813,7 +813,6 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 		}
 
 		pipe->frame_config_id[i] = frame->isp_config_id;
-		asd->frame_status[i] = ATOMISP_FRAME_STATUS_OK;
 
 		if (asd->params.css_update_params_needed) {
 			atomisp_apply_css_parameters(asd,

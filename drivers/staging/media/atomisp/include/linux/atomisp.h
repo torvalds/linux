@@ -614,21 +614,6 @@ enum atomisp_camera_port {
 	ATOMISP_CAMERA_NR_PORTS
 };
 
-/* Frame status. This is used to detect corrupted frames and flash
- * exposed frames. Usually, the first 2 frames coming out of the sensor
- * are corrupted. When using flash, the frame before and the frame after
- * the flash exposed frame may be partially exposed by flash. The ISP
- * statistics for these frames should not be used by the 3A library.
- * The frame status value can be found in the "reserved" field in the
- * v4l2_buffer struct. */
-enum atomisp_frame_status {
-	ATOMISP_FRAME_STATUS_OK,
-	ATOMISP_FRAME_STATUS_CORRUPTED,
-	ATOMISP_FRAME_STATUS_FLASH_EXPOSED,
-	ATOMISP_FRAME_STATUS_FLASH_PARTIAL,
-	ATOMISP_FRAME_STATUS_FLASH_FAILED,
-};
-
 enum atomisp_ext_isp_id {
 	EXT_ISP_CID_ISO = 0,
 	EXT_ISP_CID_CAPTURE_HDR,

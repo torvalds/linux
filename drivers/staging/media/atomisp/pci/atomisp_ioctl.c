@@ -826,7 +826,6 @@ static int atomisp_dqbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer
 {
 	struct video_device *vdev = video_devdata(file);
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
-	struct atomisp_sub_device *asd = pipe->asd;
 	struct atomisp_device *isp = video_get_drvdata(vdev);
 	struct ia_css_frame *frame;
 	struct vb2_buffer *vb;
@@ -839,15 +838,8 @@ static int atomisp_dqbuf_wrapper(struct file *file, void *fh, struct v4l2_buffer
 	vb = vb2_get_buffer(&pipe->vb_queue, buf->index);
 	frame = vb_to_frame(vb);
 
-	buf->reserved = asd->frame_status[buf->index];
-
-	/*
-	 * Hack:
-	 * Currently frame_status in the enum type which takes no more lower
-	 * 8 bit.
-	 * use bit[31:16] for exp_id as it is only in the range of 1~255
-	 */
-	buf->reserved &= 0x0000ffff;
+	/* reserved bit[31:16] is used for exp_id */
+	buf->reserved = 0;
 	if (!(buf->flags & V4L2_BUF_FLAG_ERROR))
 		buf->reserved |= frame->exp_id;
 	buf->reserved2 = pipe->frame_config_id[buf->index];
