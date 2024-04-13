@@ -226,7 +226,7 @@ struct btrfs_data_ref {
 	/* For EXTENT_DATA_REF */
 
 	/* Inode which refers to this data extent */
-	u64 ino;
+	u64 objectid;
 
 	/*
 	 * file_offset - extent_offset

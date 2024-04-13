@@ -688,7 +688,7 @@ int btrfs_ref_tree_mod(struct btrfs_fs_info *fs_info,
 		owner = generic_ref->tree_ref.level;
 	} else if (!parent) {
 		ref_root = generic_ref->ref_root;
-		owner = generic_ref->data_ref.ino;
+		owner = generic_ref->data_ref.objectid;
 		offset = generic_ref->data_ref.offset;
 	}
 	metadata = owner < BTRFS_FIRST_FREE_OBJECTID;
