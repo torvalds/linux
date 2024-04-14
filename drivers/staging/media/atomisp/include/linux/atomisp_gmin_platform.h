@@ -28,7 +28,4 @@ gmin_camera_platform_data(
     struct v4l2_subdev *subdev,
     enum atomisp_input_format csi_format,
     enum atomisp_bayer_order csi_bayer);
-
-int atomisp_gmin_register_vcm_control(struct camera_vcm_control *);
-
 #endif

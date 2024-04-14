@@ -147,25 +147,6 @@ struct atomisp_input_stream_info {
 	struct atomisp_isys_config_info isys_info[MAX_STREAMS_PER_CHANNEL];
 };
 
-struct camera_vcm_control;
-struct camera_vcm_ops {
-	int (*power_up)(struct v4l2_subdev *sd, struct camera_vcm_control *vcm);
-	int (*power_down)(struct v4l2_subdev *sd,
-			  struct camera_vcm_control *vcm);
-	int (*queryctrl)(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc,
-			 struct camera_vcm_control *vcm);
-	int (*g_ctrl)(struct v4l2_subdev *sd, struct v4l2_control *ctrl,
-		      struct camera_vcm_control *vcm);
-	int (*s_ctrl)(struct v4l2_subdev *sd, struct v4l2_control *ctrl,
-		      struct camera_vcm_control *vcm);
-};
-
-struct camera_vcm_control {
-	char camera_module[CAMERA_MODULE_ID_LEN];
-	struct camera_vcm_ops *ops;
-	struct list_head list;
-};
-
 struct camera_sensor_platform_data {
 	int (*flisclk_ctrl)(struct v4l2_subdev *subdev, int flag);
 	int (*csi_cfg)(struct v4l2_subdev *subdev, int flag);
@@ -179,8 +160,6 @@ struct camera_sensor_platform_data {
 	int (*v1p8_ctrl)(struct v4l2_subdev *subdev, int on);
 	int (*v2p8_ctrl)(struct v4l2_subdev *subdev, int on);
 	int (*v1p2_ctrl)(struct v4l2_subdev *subdev, int on);
-	struct camera_vcm_control *(*get_vcm_ctrl)(struct v4l2_subdev *subdev,
-		char *module_id);
 };
 
 struct camera_mipi_info {

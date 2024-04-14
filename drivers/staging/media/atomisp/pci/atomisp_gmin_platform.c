@@ -75,7 +75,6 @@ struct gmin_subdev {
 	struct regulator *v1p8_reg;
 	struct regulator *v2p8_reg;
 	struct regulator *v1p2_reg;
-	struct regulator *v2p8_vcm_reg;
 	enum atomisp_camera_port csi_port;
 	unsigned int csi_lanes;
 	enum atomisp_input_format csi_fmt;
@@ -85,7 +84,6 @@ struct gmin_subdev {
 	bool v1p8_on;
 	bool v2p8_on;
 	bool v1p2_on;
-	bool v2p8_vcm_on;
 
 	int v1p8_gpio;
 	int v2p8_gpio;
@@ -132,9 +130,6 @@ static struct intel_v4l2_subdev_table pdata_subdevs[MAX_SUBDEVS + 1];
 static const struct atomisp_platform_data pdata = {
 	.subdevs = pdata_subdevs,
 };
-
-static LIST_HEAD(vcm_devices);
-static DEFINE_MUTEX(vcm_lock);
 
 static struct gmin_subdev *find_gmin_subdev(struct v4l2_subdev *subdev);
 
@@ -214,7 +209,6 @@ int atomisp_gmin_remove_subdev(struct v4l2_subdev *sd)
 				regulator_put(gmin_subdevs[i].v1p8_reg);
 				regulator_put(gmin_subdevs[i].v2p8_reg);
 				regulator_put(gmin_subdevs[i].v1p2_reg);
-				regulator_put(gmin_subdevs[i].v2p8_vcm_reg);
 			}
 			gmin_subdevs[i].subdev = NULL;
 		}
@@ -664,7 +658,6 @@ static int gmin_subdev_add(struct gmin_subdev *gs)
 		gs->v2p8_reg = regulator_get(dev, "V2P8SX");
 
 		gs->v1p2_reg = regulator_get(dev, "V1P2A");
-		gs->v2p8_vcm_reg = regulator_get(dev, "VPROG4B");
 
 		/* Note: ideally we would initialize v[12]p8_on to the
 		 * output of regulator_is_enabled(), but sadly that
@@ -1167,31 +1160,6 @@ void atomisp_unregister_subdev(struct v4l2_subdev *subdev)
 }
 EXPORT_SYMBOL_GPL(atomisp_unregister_subdev);
 
-static struct camera_vcm_control *gmin_get_vcm_ctrl(struct v4l2_subdev *subdev,
-	char *camera_module)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(subdev);
-	struct gmin_subdev *gs = find_gmin_subdev(subdev);
-	struct camera_vcm_control *vcm;
-
-	if (!client || !gs)
-		return NULL;
-
-	if (!camera_module)
-		return NULL;
-
-	mutex_lock(&vcm_lock);
-	list_for_each_entry(vcm, &vcm_devices, list) {
-		if (!strcmp(camera_module, vcm->camera_module)) {
-			mutex_unlock(&vcm_lock);
-			return vcm;
-		}
-	}
-
-	mutex_unlock(&vcm_lock);
-	return NULL;
-}
-
 static struct camera_sensor_platform_data pmic_gmin_plat = {
 	.gpio0_ctrl = gmin_gpio0_ctrl,
 	.gpio1_ctrl = gmin_gpio1_ctrl,
@@ -1200,7 +1168,6 @@ static struct camera_sensor_platform_data pmic_gmin_plat = {
 	.v1p2_ctrl = gmin_v1p2_ctrl,
 	.flisclk_ctrl = gmin_flisclk_ctrl,
 	.csi_cfg = gmin_csi_cfg,
-	.get_vcm_ctrl = gmin_get_vcm_ctrl,
 };
 
 static struct camera_sensor_platform_data acpi_gmin_plat = {
@@ -1211,7 +1178,6 @@ static struct camera_sensor_platform_data acpi_gmin_plat = {
 	.v1p2_ctrl = gmin_acpi_pm_ctrl,
 	.flisclk_ctrl = gmin_acpi_pm_ctrl,
 	.csi_cfg = gmin_csi_cfg,
-	.get_vcm_ctrl = gmin_get_vcm_ctrl,
 };
 
 struct camera_sensor_platform_data *
@@ -1235,19 +1201,6 @@ gmin_camera_platform_data(struct v4l2_subdev *subdev,
 		return &acpi_gmin_plat;
 }
 EXPORT_SYMBOL_GPL(gmin_camera_platform_data);
-
-int atomisp_gmin_register_vcm_control(struct camera_vcm_control *vcmCtrl)
-{
-	if (!vcmCtrl)
-		return -EINVAL;
-
-	mutex_lock(&vcm_lock);
-	list_add_tail(&vcmCtrl->list, &vcm_devices);
-	mutex_unlock(&vcm_lock);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(atomisp_gmin_register_vcm_control);
 
 static int gmin_get_hardcoded_var(struct device *dev,
 				  struct gmin_cfg_var *varlist,
