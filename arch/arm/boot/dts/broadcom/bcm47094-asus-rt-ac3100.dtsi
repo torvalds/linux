@@ -6,6 +6,8 @@
 #include "bcm47094.dtsi"
 #include "bcm5301x-nand-cs0-bch8.dtsi"
 
+#include <dt-bindings/leds/common.h>
+
 / {
 	chosen {
 		bootargs = "earlycon";
@@ -25,38 +27,46 @@
 	leds {
 		compatible = "gpio-leds";
 
+		led-lan {
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_LAN;
+			gpios = <&chipcommon 21 GPIO_ACTIVE_LOW>;
+		};
+
 		led-power {
-			label = "white:power";
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_POWER;
 			gpios = <&chipcommon 3 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "default-on";
 		};
 
-		led-wan-red {
-			label = "red:wan";
-			gpios = <&chipcommon 5 GPIO_ACTIVE_HIGH>;
-		};
-
-		led-lan {
-			label = "white:lan";
-			gpios = <&chipcommon 21 GPIO_ACTIVE_LOW>;
-		};
-
 		led-usb2 {
-			label = "white:usb2";
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_USB;
+			function-enumerator = <1>;
 			gpios = <&chipcommon 16 GPIO_ACTIVE_LOW>;
 			trigger-sources = <&ehci_port2>;
 			linux,default-trigger = "usbport";
 		};
 
 		led-usb3 {
-			label = "white:usb3";
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_USB;
+			function-enumerator = <2>;
 			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
 			trigger-sources = <&ehci_port1>, <&xhci_port1>;
 			linux,default-trigger = "usbport";
 		};
 
+		led-wan-red {
+			color = <LED_COLOR_ID_RED>;
+			function = LED_FUNCTION_WAN;
+			gpios = <&chipcommon 5 GPIO_ACTIVE_HIGH>;
+		};
+
 		led-wps {
-			label = "white:wps";
+			color = <LED_COLOR_ID_WHITE>;
+			function = LED_FUNCTION_WPS;
 			gpios = <&chipcommon 19 GPIO_ACTIVE_LOW>;
 		};
 	};
@@ -64,10 +74,10 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		button-wps {
-			label = "WPS";
-			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&chipcommon 20 GPIO_ACTIVE_LOW>;
+		button-led {
+			label = "Backlight";
+			linux,code = <KEY_BRIGHTNESS_ZERO>;
+			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
 		};
 
 		button-reset {
@@ -82,10 +92,10 @@
 			gpios = <&chipcommon 18 GPIO_ACTIVE_LOW>;
 		};
 
-		button-led {
-			label = "Backlight";
-			linux,code = <KEY_BRIGHTNESS_ZERO>;
-			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
+		button-wps {
+			label = "WPS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&chipcommon 20 GPIO_ACTIVE_LOW>;
 		};
 	};
 };
