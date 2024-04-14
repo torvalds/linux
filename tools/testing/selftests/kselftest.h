@@ -377,7 +377,7 @@ static inline __noreturn __printf(1, 2) int ksft_exit_fail_msg(const char *msg, 
 	exit(KSFT_FAIL);
 }
 
-static inline void ksft_exit_fail_perror(const char *msg)
+static inline __noreturn void ksft_exit_fail_perror(const char *msg)
 {
 #ifndef NOLIBC
 	ksft_exit_fail_msg("%s: %s (%d)\n", msg, strerror(errno), errno);
