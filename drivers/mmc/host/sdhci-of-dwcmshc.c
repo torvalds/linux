@@ -807,7 +807,7 @@ static const struct sdhci_ops sdhci_dwcmshc_th1520_ops = {
 	.reset			= th1520_sdhci_reset,
 	.adma_write_desc	= dwcmshc_adma_write_desc,
 	.voltage_switch		= dwcmshc_phy_1_8v_init,
-	.platform_execute_tuning = &th1520_execute_tuning,
+	.platform_execute_tuning = th1520_execute_tuning,
 };
 
 static const struct sdhci_ops sdhci_dwcmshc_cv18xx_ops = {
