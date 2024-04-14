@@ -195,6 +195,7 @@ config VIDEO_IMX334
 config VIDEO_IMX335
 	tristate "Sony IMX335 sensor support"
 	depends on OF_GPIO
+	select V4L2_CCI_I2C
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX335 camera.
