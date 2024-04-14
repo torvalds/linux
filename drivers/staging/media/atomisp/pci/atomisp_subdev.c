@@ -149,18 +149,6 @@ static long isp_subdev_ioctl(struct v4l2_subdev *sd,
 	return 0;
 }
 
-/*
- * isp_subdev_set_power - Power on/off the CCDC module
- * @sd: ISP V4L2 subdevice
- * @on: power on/off
- *
- * Return 0 on success or a negative error code otherwise.
- */
-static int isp_subdev_set_power(struct v4l2_subdev *sd, int on)
-{
-	return 0;
-}
-
 static int isp_subdev_subscribe_event(struct v4l2_subdev *sd,
 				      struct v4l2_fh *fh,
 				      struct v4l2_event_subscription *sub)
@@ -596,7 +584,7 @@ static int isp_subdev_set_format(struct v4l2_subdev *sd,
 
 /* V4L2 subdev core operations */
 static const struct v4l2_subdev_core_ops isp_subdev_v4l2_core_ops = {
-	.ioctl = isp_subdev_ioctl, .s_power = isp_subdev_set_power,
+	.ioctl = isp_subdev_ioctl,
 	.subscribe_event = isp_subdev_subscribe_event,
 	.unsubscribe_event = isp_subdev_unsubscribe_event,
 };
