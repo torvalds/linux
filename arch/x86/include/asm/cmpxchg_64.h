@@ -20,6 +20,12 @@
 	arch_try_cmpxchg((ptr), (po), (n));				\
 })
 
+#define arch_try_cmpxchg64_local(ptr, po, n)				\
+({									\
+	BUILD_BUG_ON(sizeof(*(ptr)) != 8);				\
+	arch_try_cmpxchg_local((ptr), (po), (n));			\
+})
+
 union __u128_halves {
 	u128 full;
 	struct {

@@ -64,6 +64,11 @@ static __always_inline bool __try_cmpxchg64(volatile u64 *ptr, u64 *oldp, u64 ne
 	return __arch_try_cmpxchg64(ptr, oldp, new, LOCK_PREFIX);
 }
 
+static __always_inline bool __try_cmpxchg64_local(volatile u64 *ptr, u64 *oldp, u64 new)
+{
+	return __arch_try_cmpxchg64(ptr, oldp, new,);
+}
+
 #ifdef CONFIG_X86_CMPXCHG64
 
 #define arch_cmpxchg64 __cmpxchg64
@@ -71,6 +76,8 @@ static __always_inline bool __try_cmpxchg64(volatile u64 *ptr, u64 *oldp, u64 ne
 #define arch_cmpxchg64_local __cmpxchg64_local
 
 #define arch_try_cmpxchg64 __try_cmpxchg64
+
+#define arch_try_cmpxchg64_local __try_cmpxchg64_local
 
 #else
 
@@ -149,6 +156,33 @@ static __always_inline bool arch_try_cmpxchg64(volatile u64 *ptr, u64 *oldp, u64
 	return __arch_try_cmpxchg64_emu(ptr, oldp, new);
 }
 #define arch_try_cmpxchg64 arch_try_cmpxchg64
+
+#define __arch_try_cmpxchg64_emu_local(_ptr, _oldp, _new)		\
+({									\
+	union __u64_halves o = { .full = *(_oldp), },			\
+			   n = { .full = (_new), };			\
+	bool ret;							\
+									\
+	asm volatile(ALTERNATIVE("call cmpxchg8b_emu",			\
+				 "cmpxchg8b %[ptr]", X86_FEATURE_CX8)	\
+		     CC_SET(e)						\
+		     : CC_OUT(e) (ret),					\
+		       [ptr] "+m" (*(_ptr)),				\
+		       "+a" (o.low), "+d" (o.high)			\
+		     : "b" (n.low), "c" (n.high), "S" (_ptr)		\
+		     : "memory");					\
+									\
+	if (unlikely(!ret))						\
+		*(_oldp) = o.full;					\
+									\
+	likely(ret);							\
+})
+
+static __always_inline bool arch_try_cmpxchg64_local(volatile u64 *ptr, u64 *oldp, u64 new)
+{
+	return __arch_try_cmpxchg64_emu_local(ptr, oldp, new);
+}
+#define arch_try_cmpxchg64_local arch_try_cmpxchg64_local
 
 #endif
 
