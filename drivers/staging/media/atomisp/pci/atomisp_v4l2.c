@@ -783,19 +783,12 @@ int atomisp_csi_lane_config(struct atomisp_device *isp)
 
 static int atomisp_subdev_probe(struct atomisp_device *isp)
 {
-	const struct atomisp_platform_data *pdata;
-	struct intel_v4l2_subdev_table *subdevs;
+	const struct intel_v4l2_subdev_table *subdevs;
 	int ret, mipi_port;
 
 	ret = atomisp_csi2_bridge_parse_firmware(isp);
 	if (ret)
 		return ret;
-
-	pdata = atomisp_get_platform_data();
-	if (!pdata) {
-		dev_err(isp->dev, "no platform data available\n");
-		return 0;
-	}
 
 	/*
 	 * TODO: this is left here for now to allow testing atomisp-sensor
@@ -803,7 +796,7 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 	 * converting them to standard v4l2 sensor drivers using runtime-pm +
 	 * ACPI for pm and v4l2_async_register_subdev_sensor() registration.
 	 */
-	for (subdevs = pdata->subdevs; subdevs->subdev; subdevs++) {
+	for (subdevs = atomisp_platform_get_subdevs(); subdevs->subdev; subdevs++) {
 		ret = v4l2_device_register_subdev(&isp->v4l2_dev, subdevs->subdev);
 		if (ret)
 			continue;
@@ -1186,7 +1179,6 @@ static void atomisp_pm_uninit(struct atomisp_device *isp)
 
 static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
-	const struct atomisp_platform_data *pdata;
 	struct atomisp_device *isp;
 	unsigned int start;
 	u32 val;
@@ -1194,10 +1186,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	/* Pointer to struct device. */
 	atomisp_dev = &pdev->dev;
-
-	pdata = atomisp_get_platform_data();
-	if (!pdata)
-		dev_warn(&pdev->dev, "no platform data available\n");
 
 	start = pci_resource_start(pdev, ATOM_ISP_PCI_BAR);
 	dev_dbg(&pdev->dev, "start: 0x%x\n", start);

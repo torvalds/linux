@@ -115,10 +115,6 @@ struct intel_v4l2_subdev_table {
 	struct v4l2_subdev *subdev;
 };
 
-struct atomisp_platform_data {
-	struct intel_v4l2_subdev_table *subdevs;
-};
-
 /*
  *  Sensor of external ISP can send multiple steams with different mipi data
  * type in the same virtual channel. This information needs to come from the
@@ -173,7 +169,7 @@ struct camera_mipi_info {
 	const u32                       *metadata_effective_width;
 };
 
-const struct atomisp_platform_data *atomisp_get_platform_data(void);
+const struct intel_v4l2_subdev_table *atomisp_platform_get_subdevs(void);
 int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
 				    enum atomisp_input_format format,
 				    enum atomisp_bayer_order bayer_order);

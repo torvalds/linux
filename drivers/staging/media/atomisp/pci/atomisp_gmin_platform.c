@@ -127,17 +127,13 @@ static int gmin_v2p8_enable_count;
 /* The atomisp uses subdev==NULL for the end-of-list marker, so leave space. */
 static struct intel_v4l2_subdev_table pdata_subdevs[MAX_SUBDEVS + 1];
 
-static const struct atomisp_platform_data pdata = {
-	.subdevs = pdata_subdevs,
-};
-
 static struct gmin_subdev *find_gmin_subdev(struct v4l2_subdev *subdev);
 
-const struct atomisp_platform_data *atomisp_get_platform_data(void)
+const struct intel_v4l2_subdev_table *atomisp_platform_get_subdevs(void)
 {
-	return &pdata;
+	return pdata_subdevs;
 }
-EXPORT_SYMBOL_GPL(atomisp_get_platform_data);
+EXPORT_SYMBOL_GPL(atomisp_platform_get_subdevs);
 
 int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 				struct camera_sensor_platform_data *plat_data)
@@ -164,7 +160,7 @@ int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 	adev->power.flags.power_resources = 0;
 
 	for (i = 0; i < MAX_SUBDEVS; i++)
-		if (!pdata.subdevs[i].subdev)
+		if (!pdata_subdevs[i].subdev)
 			break;
 
 	if (i == MAX_SUBDEVS)
@@ -179,9 +175,9 @@ int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 	if (!gs)
 		return -ENODEV;
 
-	pdata.subdevs[i].port = gs->csi_port;
-	pdata.subdevs[i].lanes = gs->csi_lanes;
-	pdata.subdevs[i].subdev = subdev;
+	pdata_subdevs[i].port = gs->csi_port;
+	pdata_subdevs[i].lanes = gs->csi_lanes;
+	pdata_subdevs[i].subdev = subdev;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(atomisp_register_i2c_module);
@@ -194,9 +190,9 @@ int atomisp_gmin_remove_subdev(struct v4l2_subdev *sd)
 		return 0;
 
 	for (i = 0; i < MAX_SUBDEVS; i++) {
-		if (pdata.subdevs[i].subdev == sd) {
+		if (pdata_subdevs[i].subdev == sd) {
 			for (j = i + 1; j <= MAX_SUBDEVS; j++)
-				pdata.subdevs[j - 1] = pdata.subdevs[j];
+				pdata_subdevs[j - 1] = pdata_subdevs[j];
 		}
 		if (gmin_subdevs[i].subdev == sd) {
 			if (gmin_subdevs[i].gpio0)
@@ -1125,7 +1121,7 @@ int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
 	}
 
 	for (i = 0; i < MAX_SUBDEVS; i++)
-		if (!pdata.subdevs[i].subdev)
+		if (!pdata_subdevs[i].subdev)
 			break;
 
 	if (i >= MAX_SUBDEVS) {
@@ -1137,9 +1133,9 @@ int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
 	if (ret)
 		return ret;
 
-	pdata.subdevs[i].port = port;
-	pdata.subdevs[i].lanes = lanes;
-	pdata.subdevs[i].subdev = subdev;
+	pdata_subdevs[i].port = port;
+	pdata_subdevs[i].lanes = lanes;
+	pdata_subdevs[i].subdev = subdev;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(atomisp_register_sensor_no_gmin);
@@ -1149,12 +1145,12 @@ void atomisp_unregister_subdev(struct v4l2_subdev *subdev)
 	int i;
 
 	for (i = 0; i < MAX_SUBDEVS; i++) {
-		if (pdata.subdevs[i].subdev != subdev)
+		if (pdata_subdevs[i].subdev != subdev)
 			continue;
 
 		camera_sensor_csi_free(subdev);
-		pdata.subdevs[i].subdev = NULL;
-		pdata.subdevs[i].port = 0;
+		pdata_subdevs[i].subdev = NULL;
+		pdata_subdevs[i].port = 0;
 		break;
 	}
 }

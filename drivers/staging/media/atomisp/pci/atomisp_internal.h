@@ -175,7 +175,6 @@ struct atomisp_device {
 	struct media_device media_dev;
 	struct atomisp_sub_device asd;
 	struct v4l2_async_notifier notifier;
-	struct atomisp_platform_data *pdata;
 	void *mmu_l1_base;
 	void __iomem *base;
 	const struct firmware *firmware;
