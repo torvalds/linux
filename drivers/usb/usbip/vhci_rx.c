@@ -118,7 +118,7 @@ static struct vhci_unlink *dequeue_pending_unlink(struct vhci_device *vdev,
 	spin_lock_irqsave(&vdev->priv_lock, flags);
 
 	list_for_each_entry_safe(unlink, tmp, &vdev->unlink_rx, list) {
-		pr_info("unlink->seqnum %lu\n", unlink->seqnum);
+		pr_debug("unlink->seqnum %lu\n", unlink->seqnum);
 		if (unlink->seqnum == pdu->base.seqnum) {
 			usbip_dbg_vhci_rx("found pending unlink, %lu\n",
 					  unlink->seqnum);
@@ -169,7 +169,7 @@ static void vhci_recv_ret_unlink(struct vhci_device *vdev,
 
 		/* If unlink is successful, status is -ECONNRESET */
 		urb->status = pdu->u.ret_unlink.status;
-		pr_info("urb->status %d\n", urb->status);
+		pr_debug("urb->status %d\n", urb->status);
 
 		spin_lock_irqsave(&vhci->lock, flags);
 		usb_hcd_unlink_urb_from_ep(vhci_hcd_to_hcd(vhci_hcd), urb);
