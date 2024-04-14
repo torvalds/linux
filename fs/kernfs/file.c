@@ -636,10 +636,17 @@ static int kernfs_fop_open(struct inode *inode, struct file *file)
 	 * each file a separate locking class.  Let's differentiate on
 	 * whether the file has mmap or not for now.
 	 *
-	 * Both paths of the branch look the same.  They're supposed to
+	 * For similar reasons, writable and readonly files are given different
+	 * lockdep key, because the writable file /sys/power/resume may call vfs
+	 * lookup helpers for arbitrary paths and readonly files can be read by
+	 * overlayfs from vfs helpers when sysfs is a lower layer of overalyfs.
+	 *
+	 * All three cases look the same.  They're supposed to
 	 * look that way and give @of->mutex different static lockdep keys.
 	 */
 	if (has_mmap)
+		mutex_init(&of->mutex);
+	else if (file->f_mode & FMODE_WRITE)
 		mutex_init(&of->mutex);
 	else
 		mutex_init(&of->mutex);

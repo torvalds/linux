@@ -36,8 +36,8 @@ static int rt711_sdca_index_write(struct rt711_sdca_priv *rt711,
 	ret = regmap_write(regmap, addr, value);
 	if (ret < 0)
 		dev_err(&rt711->slave->dev,
-			"Failed to set private value: %06x <= %04x ret=%d\n",
-			addr, value, ret);
+			"%s: Failed to set private value: %06x <= %04x ret=%d\n",
+			__func__, addr, value, ret);
 
 	return ret;
 }
@@ -52,8 +52,8 @@ static int rt711_sdca_index_read(struct rt711_sdca_priv *rt711,
 	ret = regmap_read(regmap, addr, value);
 	if (ret < 0)
 		dev_err(&rt711->slave->dev,
-			"Failed to get private value: %06x => %04x ret=%d\n",
-			addr, *value, ret);
+			"%s: Failed to get private value: %06x => %04x ret=%d\n",
+			__func__, addr, *value, ret);
 
 	return ret;
 }
@@ -1293,13 +1293,13 @@ static int rt711_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 	retval = sdw_stream_add_slave(rt711->slave, &stream_config,
 					&port_config, 1, sdw_stream);
 	if (retval) {
-		dev_err(dai->dev, "Unable to configure port\n");
+		dev_err(dai->dev, "%s: Unable to configure port\n", __func__);
 		return retval;
 	}
 
 	if (params_channels(params) > 16) {
-		dev_err(component->dev, "Unsupported channels %d\n",
-			params_channels(params));
+		dev_err(component->dev, "%s: Unsupported channels %d\n",
+			__func__, params_channels(params));
 		return -EINVAL;
 	}
 
@@ -1318,8 +1318,8 @@ static int rt711_sdca_pcm_hw_params(struct snd_pcm_substream *substream,
 		sampling_rate = RT711_SDCA_RATE_192000HZ;
 		break;
 	default:
-		dev_err(component->dev, "Rate %d is not supported\n",
-			params_rate(params));
+		dev_err(component->dev, "%s: Rate %d is not supported\n",
+			__func__, params_rate(params));
 		return -EINVAL;
 	}
 

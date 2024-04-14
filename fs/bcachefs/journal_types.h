@@ -134,6 +134,7 @@ enum journal_flags {
 	JOURNAL_STARTED,
 	JOURNAL_MAY_SKIP_FLUSH,
 	JOURNAL_NEED_FLUSH_WRITE,
+	JOURNAL_SPACE_LOW,
 };
 
 /* Reasons we may fail to get a journal reservation: */

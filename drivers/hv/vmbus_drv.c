@@ -131,7 +131,7 @@ static ssize_t id_show(struct device *dev, struct device_attribute *dev_attr,
 
 	if (!hv_dev->channel)
 		return -ENODEV;
-	return sprintf(buf, "%d\n", hv_dev->channel->offermsg.child_relid);
+	return sysfs_emit(buf, "%d\n", hv_dev->channel->offermsg.child_relid);
 }
 static DEVICE_ATTR_RO(id);
 
@@ -142,7 +142,7 @@ static ssize_t state_show(struct device *dev, struct device_attribute *dev_attr,
 
 	if (!hv_dev->channel)
 		return -ENODEV;
-	return sprintf(buf, "%d\n", hv_dev->channel->state);
+	return sysfs_emit(buf, "%d\n", hv_dev->channel->state);
 }
 static DEVICE_ATTR_RO(state);
 
@@ -153,7 +153,7 @@ static ssize_t monitor_id_show(struct device *dev,
 
 	if (!hv_dev->channel)
 		return -ENODEV;
-	return sprintf(buf, "%d\n", hv_dev->channel->offermsg.monitorid);
+	return sysfs_emit(buf, "%d\n", hv_dev->channel->offermsg.monitorid);
 }
 static DEVICE_ATTR_RO(monitor_id);
 
@@ -164,8 +164,8 @@ static ssize_t class_id_show(struct device *dev,
 
 	if (!hv_dev->channel)
 		return -ENODEV;
-	return sprintf(buf, "{%pUl}\n",
-		       &hv_dev->channel->offermsg.offer.if_type);
+	return sysfs_emit(buf, "{%pUl}\n",
+			  &hv_dev->channel->offermsg.offer.if_type);
 }
 static DEVICE_ATTR_RO(class_id);
 
@@ -176,8 +176,8 @@ static ssize_t device_id_show(struct device *dev,
 
 	if (!hv_dev->channel)
 		return -ENODEV;
-	return sprintf(buf, "{%pUl}\n",
-		       &hv_dev->channel->offermsg.offer.if_instance);
+	return sysfs_emit(buf, "{%pUl}\n",
+			  &hv_dev->channel->offermsg.offer.if_instance);
 }
 static DEVICE_ATTR_RO(device_id);
 
@@ -186,7 +186,7 @@ static ssize_t modalias_show(struct device *dev,
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
 
-	return sprintf(buf, "vmbus:%*phN\n", UUID_SIZE, &hv_dev->dev_type);
+	return sysfs_emit(buf, "vmbus:%*phN\n", UUID_SIZE, &hv_dev->dev_type);
 }
 static DEVICE_ATTR_RO(modalias);
 
@@ -199,7 +199,7 @@ static ssize_t numa_node_show(struct device *dev,
 	if (!hv_dev->channel)
 		return -ENODEV;
 
-	return sprintf(buf, "%d\n", cpu_to_node(hv_dev->channel->target_cpu));
+	return sysfs_emit(buf, "%d\n", cpu_to_node(hv_dev->channel->target_cpu));
 }
 static DEVICE_ATTR_RO(numa_node);
 #endif
@@ -212,9 +212,8 @@ static ssize_t server_monitor_pending_show(struct device *dev,
 
 	if (!hv_dev->channel)
 		return -ENODEV;
-	return sprintf(buf, "%d\n",
-		       channel_pending(hv_dev->channel,
-				       vmbus_connection.monitor_pages[0]));
+	return sysfs_emit(buf, "%d\n", channel_pending(hv_dev->channel,
+			  vmbus_connection.monitor_pages[0]));
 }
 static DEVICE_ATTR_RO(server_monitor_pending);
 
@@ -226,9 +225,8 @@ static ssize_t client_monitor_pending_show(struct device *dev,
 
 	if (!hv_dev->channel)
 		return -ENODEV;
-	return sprintf(buf, "%d\n",
-		       channel_pending(hv_dev->channel,
-				       vmbus_connection.monitor_pages[1]));
+	return sysfs_emit(buf, "%d\n", channel_pending(hv_dev->channel,
+			  vmbus_connection.monitor_pages[1]));
 }
 static DEVICE_ATTR_RO(client_monitor_pending);
 
@@ -240,9 +238,8 @@ static ssize_t server_monitor_latency_show(struct device *dev,
 
 	if (!hv_dev->channel)
 		return -ENODEV;
-	return sprintf(buf, "%d\n",
-		       channel_latency(hv_dev->channel,
-				       vmbus_connection.monitor_pages[0]));
+	return sysfs_emit(buf, "%d\n", channel_latency(hv_dev->channel,
+			  vmbus_connection.monitor_pages[0]));
 }
 static DEVICE_ATTR_RO(server_monitor_latency);
 
@@ -254,9 +251,8 @@ static ssize_t client_monitor_latency_show(struct device *dev,
 
 	if (!hv_dev->channel)
 		return -ENODEV;
-	return sprintf(buf, "%d\n",
-		       channel_latency(hv_dev->channel,
-				       vmbus_connection.monitor_pages[1]));
+	return sysfs_emit(buf, "%d\n", channel_latency(hv_dev->channel,
+			  vmbus_connection.monitor_pages[1]));
 }
 static DEVICE_ATTR_RO(client_monitor_latency);
 
@@ -268,9 +264,8 @@ static ssize_t server_monitor_conn_id_show(struct device *dev,
 
 	if (!hv_dev->channel)
 		return -ENODEV;
-	return sprintf(buf, "%d\n",
-		       channel_conn_id(hv_dev->channel,
-				       vmbus_connection.monitor_pages[0]));
+	return sysfs_emit(buf, "%d\n", channel_conn_id(hv_dev->channel,
+			  vmbus_connection.monitor_pages[0]));
 }
 static DEVICE_ATTR_RO(server_monitor_conn_id);
 
@@ -282,9 +277,8 @@ static ssize_t client_monitor_conn_id_show(struct device *dev,
 
 	if (!hv_dev->channel)
 		return -ENODEV;
-	return sprintf(buf, "%d\n",
-		       channel_conn_id(hv_dev->channel,
-				       vmbus_connection.monitor_pages[1]));
+	return sysfs_emit(buf, "%d\n", channel_conn_id(hv_dev->channel,
+			  vmbus_connection.monitor_pages[1]));
 }
 static DEVICE_ATTR_RO(client_monitor_conn_id);
 
@@ -303,7 +297,7 @@ static ssize_t out_intr_mask_show(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", outbound.current_interrupt_mask);
+	return sysfs_emit(buf, "%d\n", outbound.current_interrupt_mask);
 }
 static DEVICE_ATTR_RO(out_intr_mask);
 
@@ -321,7 +315,7 @@ static ssize_t out_read_index_show(struct device *dev,
 					  &outbound);
 	if (ret < 0)
 		return ret;
-	return sprintf(buf, "%d\n", outbound.current_read_index);
+	return sysfs_emit(buf, "%d\n", outbound.current_read_index);
 }
 static DEVICE_ATTR_RO(out_read_index);
 
@@ -340,7 +334,7 @@ static ssize_t out_write_index_show(struct device *dev,
 					  &outbound);
 	if (ret < 0)
 		return ret;
-	return sprintf(buf, "%d\n", outbound.current_write_index);
+	return sysfs_emit(buf, "%d\n", outbound.current_write_index);
 }
 static DEVICE_ATTR_RO(out_write_index);
 
@@ -359,7 +353,7 @@ static ssize_t out_read_bytes_avail_show(struct device *dev,
 					  &outbound);
 	if (ret < 0)
 		return ret;
-	return sprintf(buf, "%d\n", outbound.bytes_avail_toread);
+	return sysfs_emit(buf, "%d\n", outbound.bytes_avail_toread);
 }
 static DEVICE_ATTR_RO(out_read_bytes_avail);
 
@@ -378,7 +372,7 @@ static ssize_t out_write_bytes_avail_show(struct device *dev,
 					  &outbound);
 	if (ret < 0)
 		return ret;
-	return sprintf(buf, "%d\n", outbound.bytes_avail_towrite);
+	return sysfs_emit(buf, "%d\n", outbound.bytes_avail_towrite);
 }
 static DEVICE_ATTR_RO(out_write_bytes_avail);
 
@@ -396,7 +390,7 @@ static ssize_t in_intr_mask_show(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", inbound.current_interrupt_mask);
+	return sysfs_emit(buf, "%d\n", inbound.current_interrupt_mask);
 }
 static DEVICE_ATTR_RO(in_intr_mask);
 
@@ -414,7 +408,7 @@ static ssize_t in_read_index_show(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", inbound.current_read_index);
+	return sysfs_emit(buf, "%d\n", inbound.current_read_index);
 }
 static DEVICE_ATTR_RO(in_read_index);
 
@@ -432,7 +426,7 @@ static ssize_t in_write_index_show(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", inbound.current_write_index);
+	return sysfs_emit(buf, "%d\n", inbound.current_write_index);
 }
 static DEVICE_ATTR_RO(in_write_index);
 
@@ -451,7 +445,7 @@ static ssize_t in_read_bytes_avail_show(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", inbound.bytes_avail_toread);
+	return sysfs_emit(buf, "%d\n", inbound.bytes_avail_toread);
 }
 static DEVICE_ATTR_RO(in_read_bytes_avail);
 
@@ -470,7 +464,7 @@ static ssize_t in_write_bytes_avail_show(struct device *dev,
 	if (ret < 0)
 		return ret;
 
-	return sprintf(buf, "%d\n", inbound.bytes_avail_towrite);
+	return sysfs_emit(buf, "%d\n", inbound.bytes_avail_towrite);
 }
 static DEVICE_ATTR_RO(in_write_bytes_avail);
 
@@ -480,7 +474,7 @@ static ssize_t channel_vp_mapping_show(struct device *dev,
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
 	struct vmbus_channel *channel = hv_dev->channel, *cur_sc;
-	int buf_size = PAGE_SIZE, n_written, tot_written;
+	int n_written;
 	struct list_head *cur;
 
 	if (!channel)
@@ -488,25 +482,21 @@ static ssize_t channel_vp_mapping_show(struct device *dev,
 
 	mutex_lock(&vmbus_connection.channel_mutex);
 
-	tot_written = snprintf(buf, buf_size, "%u:%u\n",
-		channel->offermsg.child_relid, channel->target_cpu);
+	n_written = sysfs_emit(buf, "%u:%u\n",
+			       channel->offermsg.child_relid,
+			       channel->target_cpu);
 
 	list_for_each(cur, &channel->sc_list) {
-		if (tot_written >= buf_size - 1)
-			break;
 
 		cur_sc = list_entry(cur, struct vmbus_channel, sc_list);
-		n_written = scnprintf(buf + tot_written,
-				     buf_size - tot_written,
-				     "%u:%u\n",
-				     cur_sc->offermsg.child_relid,
-				     cur_sc->target_cpu);
-		tot_written += n_written;
+		n_written += sysfs_emit_at(buf, n_written, "%u:%u\n",
+					  cur_sc->offermsg.child_relid,
+					  cur_sc->target_cpu);
 	}
 
 	mutex_unlock(&vmbus_connection.channel_mutex);
 
-	return tot_written;
+	return n_written;
 }
 static DEVICE_ATTR_RO(channel_vp_mapping);
 
@@ -516,7 +506,7 @@ static ssize_t vendor_show(struct device *dev,
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
 
-	return sprintf(buf, "0x%x\n", hv_dev->vendor_id);
+	return sysfs_emit(buf, "0x%x\n", hv_dev->vendor_id);
 }
 static DEVICE_ATTR_RO(vendor);
 
@@ -526,7 +516,7 @@ static ssize_t device_show(struct device *dev,
 {
 	struct hv_device *hv_dev = device_to_hv_device(dev);
 
-	return sprintf(buf, "0x%x\n", hv_dev->device_id);
+	return sysfs_emit(buf, "0x%x\n", hv_dev->device_id);
 }
 static DEVICE_ATTR_RO(device);
 
@@ -551,7 +541,7 @@ static ssize_t driver_override_show(struct device *dev,
 	ssize_t len;
 
 	device_lock(dev);
-	len = snprintf(buf, PAGE_SIZE, "%s\n", hv_dev->driver_override);
+	len = sysfs_emit(buf, "%s\n", hv_dev->driver_override);
 	device_unlock(dev);
 
 	return len;

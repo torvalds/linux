@@ -1843,7 +1843,8 @@ static void acpi_scan_dep_init(struct acpi_device *adev)
 			if (dep->honor_dep)
 				adev->flags.honor_deps = 1;
 
-			adev->dep_unmet++;
+			if (!dep->met)
+				adev->dep_unmet++;
 		}
 	}
 }

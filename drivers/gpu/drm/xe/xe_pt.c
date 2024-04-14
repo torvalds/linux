@@ -1135,8 +1135,7 @@ static int invalidation_fence_init(struct xe_gt *gt,
 	spin_lock_irq(&gt->tlb_invalidation.lock);
 	dma_fence_init(&ifence->base.base, &invalidation_fence_ops,
 		       &gt->tlb_invalidation.lock,
-		       gt->tlb_invalidation.fence_context,
-		       ++gt->tlb_invalidation.fence_seqno);
+		       dma_fence_context_alloc(1), 1);
 	spin_unlock_irq(&gt->tlb_invalidation.lock);
 
 	INIT_LIST_HEAD(&ifence->base.link);
@@ -1236,6 +1235,13 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 	err = xe_pt_prepare_bind(tile, vma, entries, &num_entries);
 	if (err)
 		goto err;
+
+	err = dma_resv_reserve_fences(xe_vm_resv(vm), 1);
+	if (!err && !xe_vma_has_no_bo(vma) && !xe_vma_bo(vma)->vm)
+		err = dma_resv_reserve_fences(xe_vma_bo(vma)->ttm.base.resv, 1);
+	if (err)
+		goto err;
+
 	xe_tile_assert(tile, num_entries <= ARRAY_SIZE(entries));
 
 	xe_vm_dbg_print_entries(tile_to_xe(tile), entries, num_entries);
@@ -1254,11 +1260,13 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 	 * non-faulting LR, in particular on user-space batch buffer chaining,
 	 * it needs to be done here.
 	 */
-	if ((rebind && !xe_vm_in_lr_mode(vm) && !vm->batch_invalidate_tlb) ||
-	    (!rebind && xe_vm_has_scratch(vm) && xe_vm_in_preempt_fence_mode(vm))) {
+	if ((!rebind && xe_vm_has_scratch(vm) && xe_vm_in_preempt_fence_mode(vm))) {
 		ifence = kzalloc(sizeof(*ifence), GFP_KERNEL);
 		if (!ifence)
 			return ERR_PTR(-ENOMEM);
+	} else if (rebind && !xe_vm_in_lr_mode(vm)) {
+		/* We bump also if batch_invalidate_tlb is true */
+		vm->tlb_flush_seqno++;
 	}
 
 	rfence = kzalloc(sizeof(*rfence), GFP_KERNEL);
@@ -1297,7 +1305,7 @@ __xe_pt_bind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queue 
 		}
 
 		/* add shared fence now for pagetable delayed destroy */
-		dma_resv_add_fence(xe_vm_resv(vm), fence, !rebind &&
+		dma_resv_add_fence(xe_vm_resv(vm), fence, rebind ||
 				   last_munmap_rebind ?
 				   DMA_RESV_USAGE_KERNEL :
 				   DMA_RESV_USAGE_BOOKKEEP);
@@ -1576,6 +1584,7 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queu
 	struct dma_fence *fence = NULL;
 	struct invalidation_fence *ifence;
 	struct xe_range_fence *rfence;
+	int err;
 
 	LLIST_HEAD(deferred);
 
@@ -1592,6 +1601,12 @@ __xe_pt_unbind_vma(struct xe_tile *tile, struct xe_vma *vma, struct xe_exec_queu
 	xe_vm_dbg_print_entries(tile_to_xe(tile), entries, num_entries);
 	xe_pt_calc_rfence_interval(vma, &unbind_pt_update, entries,
 				   num_entries);
+
+	err = dma_resv_reserve_fences(xe_vm_resv(vm), 1);
+	if (!err && !xe_vma_has_no_bo(vma) && !xe_vma_bo(vma)->vm)
+		err = dma_resv_reserve_fences(xe_vma_bo(vma)->ttm.base.resv, 1);
+	if (err)
+		return ERR_PTR(err);
 
 	ifence = kzalloc(sizeof(*ifence), GFP_KERNEL);
 	if (!ifence)

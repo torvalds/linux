@@ -8,6 +8,7 @@
  *
  *  Started by: Thomas Gleixner and Ingo Molnar
  */
+#include <linux/compiler.h>
 #include <linux/cpu.h>
 #include <linux/err.h>
 #include <linux/hrtimer.h>
@@ -204,7 +205,7 @@ static inline void tick_sched_flag_clear(struct tick_sched *ts,
 
 static void tick_sched_do_timer(struct tick_sched *ts, ktime_t now)
 {
-	int cpu = smp_processor_id();
+	int tick_cpu, cpu = smp_processor_id();
 
 	/*
 	 * Check if the do_timer duty was dropped. We don't care about
@@ -216,16 +217,18 @@ static void tick_sched_do_timer(struct tick_sched *ts, ktime_t now)
 	 * If nohz_full is enabled, this should not happen because the
 	 * 'tick_do_timer_cpu' CPU never relinquishes.
 	 */
-	if (IS_ENABLED(CONFIG_NO_HZ_COMMON) &&
-	    unlikely(tick_do_timer_cpu == TICK_DO_TIMER_NONE)) {
+	tick_cpu = READ_ONCE(tick_do_timer_cpu);
+
+	if (IS_ENABLED(CONFIG_NO_HZ_COMMON) && unlikely(tick_cpu == TICK_DO_TIMER_NONE)) {
 #ifdef CONFIG_NO_HZ_FULL
 		WARN_ON_ONCE(tick_nohz_full_running);
 #endif
-		tick_do_timer_cpu = cpu;
+		WRITE_ONCE(tick_do_timer_cpu, cpu);
+		tick_cpu = cpu;
 	}
 
 	/* Check if jiffies need an update */
-	if (tick_do_timer_cpu == cpu)
+	if (tick_cpu == cpu)
 		tick_do_update_jiffies64(now);
 
 	/*
@@ -610,7 +613,7 @@ bool tick_nohz_cpu_hotpluggable(unsigned int cpu)
 	 * timers, workqueues, timekeeping, ...) on behalf of full dynticks
 	 * CPUs. It must remain online when nohz full is enabled.
 	 */
-	if (tick_nohz_full_running && tick_do_timer_cpu == cpu)
+	if (tick_nohz_full_running && READ_ONCE(tick_do_timer_cpu) == cpu)
 		return false;
 	return true;
 }
@@ -697,6 +700,7 @@ bool tick_nohz_tick_stopped_cpu(int cpu)
 
 /**
  * tick_nohz_update_jiffies - update jiffies when idle was interrupted
+ * @now: current ktime_t
  *
  * Called from interrupt entry when the CPU was idle
  *
@@ -794,7 +798,7 @@ static u64 get_cpu_sleep_time_us(struct tick_sched *ts, ktime_t *sleeptime,
  * This time is measured via accounting rather than sampling,
  * and is as accurate as ktime_get() is.
  *
- * This function returns -1 if NOHZ is not enabled.
+ * Return: -1 if NOHZ is not enabled, else total idle time of the @cpu
  */
 u64 get_cpu_idle_time_us(int cpu, u64 *last_update_time)
 {
@@ -820,7 +824,7 @@ EXPORT_SYMBOL_GPL(get_cpu_idle_time_us);
  * This time is measured via accounting rather than sampling,
  * and is as accurate as ktime_get() is.
  *
- * This function returns -1 if NOHZ is not enabled.
+ * Return: -1 if NOHZ is not enabled, else total iowait time of @cpu
  */
 u64 get_cpu_iowait_time_us(int cpu, u64 *last_update_time)
 {
@@ -890,6 +894,7 @@ static ktime_t tick_nohz_next_event(struct tick_sched *ts, int cpu)
 {
 	u64 basemono, next_tick, delta, expires;
 	unsigned long basejiff;
+	int tick_cpu;
 
 	basemono = get_jiffies_update(&basejiff);
 	ts->last_jiffies = basejiff;
@@ -946,9 +951,9 @@ static ktime_t tick_nohz_next_event(struct tick_sched *ts, int cpu)
 	 * Otherwise we can sleep as long as we want.
 	 */
 	delta = timekeeping_max_deferment();
-	if (cpu != tick_do_timer_cpu &&
-	    (tick_do_timer_cpu != TICK_DO_TIMER_NONE ||
-	     !tick_sched_flag_test(ts, TS_FLAG_DO_TIMER_LAST)))
+	tick_cpu = READ_ONCE(tick_do_timer_cpu);
+	if (tick_cpu != cpu &&
+	    (tick_cpu != TICK_DO_TIMER_NONE || !tick_sched_flag_test(ts, TS_FLAG_DO_TIMER_LAST)))
 		delta = KTIME_MAX;
 
 	/* Calculate the next expiry time */
@@ -969,6 +974,7 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 	unsigned long basejiff = ts->last_jiffies;
 	u64 basemono = ts->timer_expires_base;
 	bool timer_idle = tick_sched_flag_test(ts, TS_FLAG_STOPPED);
+	int tick_cpu;
 	u64 expires;
 
 	/* Make sure we won't be trying to stop it twice in a row. */
@@ -1006,10 +1012,11 @@ static void tick_nohz_stop_tick(struct tick_sched *ts, int cpu)
 	 * do_timer() never gets invoked. Keep track of the fact that it
 	 * was the one which had the do_timer() duty last.
 	 */
-	if (cpu == tick_do_timer_cpu) {
-		tick_do_timer_cpu = TICK_DO_TIMER_NONE;
+	tick_cpu = READ_ONCE(tick_do_timer_cpu);
+	if (tick_cpu == cpu) {
+		WRITE_ONCE(tick_do_timer_cpu, TICK_DO_TIMER_NONE);
 		tick_sched_flag_set(ts, TS_FLAG_DO_TIMER_LAST);
-	} else if (tick_do_timer_cpu != TICK_DO_TIMER_NONE) {
+	} else if (tick_cpu != TICK_DO_TIMER_NONE) {
 		tick_sched_flag_clear(ts, TS_FLAG_DO_TIMER_LAST);
 	}
 
@@ -1172,15 +1179,17 @@ static bool can_stop_idle_tick(int cpu, struct tick_sched *ts)
 		return false;
 
 	if (tick_nohz_full_enabled()) {
+		int tick_cpu = READ_ONCE(tick_do_timer_cpu);
+
 		/*
 		 * Keep the tick alive to guarantee timekeeping progression
 		 * if there are full dynticks CPUs around
 		 */
-		if (tick_do_timer_cpu == cpu)
+		if (tick_cpu == cpu)
 			return false;
 
 		/* Should not happen for nohz-full */
-		if (WARN_ON_ONCE(tick_do_timer_cpu == TICK_DO_TIMER_NONE))
+		if (WARN_ON_ONCE(tick_cpu == TICK_DO_TIMER_NONE))
 			return false;
 	}
 
@@ -1287,6 +1296,8 @@ void tick_nohz_irq_exit(void)
 
 /**
  * tick_nohz_idle_got_tick - Check whether or not the tick handler has run
+ *
+ * Return: %true if the tick handler has run, otherwise %false
  */
 bool tick_nohz_idle_got_tick(void)
 {
@@ -1305,6 +1316,8 @@ bool tick_nohz_idle_got_tick(void)
  * stopped, it returns the next hrtimer.
  *
  * Called from power state control code with interrupts disabled
+ *
+ * Return: the next expiration time
  */
 ktime_t tick_nohz_get_next_hrtimer(void)
 {
@@ -1320,6 +1333,8 @@ ktime_t tick_nohz_get_next_hrtimer(void)
  * The return value of this function and/or the value returned by it through the
  * @delta_next pointer can be negative which must be taken into account by its
  * callers.
+ *
+ * Return: the expected length of the current sleep
  */
 ktime_t tick_nohz_get_sleep_length(ktime_t *delta_next)
 {
@@ -1357,8 +1372,11 @@ ktime_t tick_nohz_get_sleep_length(ktime_t *delta_next)
 /**
  * tick_nohz_get_idle_calls_cpu - return the current idle calls counter value
  * for a particular CPU.
+ * @cpu: target CPU number
  *
  * Called from the schedutil frequency scaling governor in scheduler context.
+ *
+ * Return: the current idle calls counter value for @cpu
  */
 unsigned long tick_nohz_get_idle_calls_cpu(int cpu)
 {
@@ -1371,6 +1389,8 @@ unsigned long tick_nohz_get_idle_calls_cpu(int cpu)
  * tick_nohz_get_idle_calls - return the current idle calls counter value
  *
  * Called from the schedutil frequency scaling governor in scheduler context.
+ *
+ * Return: the current idle calls counter value for the current CPU
  */
 unsigned long tick_nohz_get_idle_calls(void)
 {
@@ -1559,7 +1579,7 @@ early_param("skew_tick", skew_tick);
 
 /**
  * tick_setup_sched_timer - setup the tick emulation timer
- * @mode: tick_nohz_mode to setup for
+ * @hrtimer: whether to use the hrtimer or not
  */
 void tick_setup_sched_timer(bool hrtimer)
 {

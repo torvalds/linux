@@ -56,6 +56,9 @@ struct hdac_ext_stream {
 	u32 pphcldpl;
 	u32 pphcldpu;
 
+	u32 pplcllpl;
+	u32 pplcllpu;
+
 	bool decoupled:1;
 	bool link_locked:1;
 	bool link_prepared;

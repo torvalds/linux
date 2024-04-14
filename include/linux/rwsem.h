@@ -167,14 +167,14 @@ static __always_inline int rwsem_is_locked(const struct rw_semaphore *sem)
 	return rw_base_is_locked(&sem->rwbase);
 }
 
-static inline void rwsem_assert_held_nolockdep(const struct rw_semaphore *sem)
+static __always_inline void rwsem_assert_held_nolockdep(const struct rw_semaphore *sem)
 {
 	WARN_ON(!rwsem_is_locked(sem));
 }
 
-static inline void rwsem_assert_held_write_nolockdep(const struct rw_semaphore *sem)
+static __always_inline void rwsem_assert_held_write_nolockdep(const struct rw_semaphore *sem)
 {
-	rw_base_assert_held_write(sem);
+	WARN_ON(!rw_base_is_write_locked(&sem->rwbase));
 }
 
 static __always_inline int rwsem_is_contended(struct rw_semaphore *sem)

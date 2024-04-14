@@ -1635,7 +1635,7 @@ static void gfx_v11_0_setup_rb(struct amdgpu_device *adev)
 			active_rb_bitmap |= (0x3 << (i * rb_bitmap_width_per_sa));
 	}
 
-	active_rb_bitmap |= global_active_rb_bitmap;
+	active_rb_bitmap &= global_active_rb_bitmap;
 	adev->gfx.config.backend_enable_mask = active_rb_bitmap;
 	adev->gfx.config.num_rbs = hweight32(active_rb_bitmap);
 }
@@ -5465,6 +5465,7 @@ static void gfx_v11_0_ring_emit_vm_flush(struct amdgpu_ring *ring,
 	/* Make sure that we can't skip the SET_Q_MODE packets when the VM
 	 * changed in any way.
 	 */
+	ring->set_q_mode_offs = 0;
 	ring->set_q_mode_ptr = NULL;
 }
 

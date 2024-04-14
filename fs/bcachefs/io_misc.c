@@ -264,6 +264,7 @@ static int __bch2_resume_logged_op_truncate(struct btree_trans *trans,
 		ret = 0;
 err:
 	bch2_logged_op_finish(trans, op_k);
+	bch_err_fn(c, ret);
 	return ret;
 }
 
@@ -476,6 +477,7 @@ case LOGGED_OP_FINSERT_finish:
 	break;
 	}
 err:
+	bch_err_fn(c, ret);
 	bch2_logged_op_finish(trans, op_k);
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;

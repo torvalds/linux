@@ -75,7 +75,7 @@ static enum fault_type get_fault_type(struct pt_regs *regs)
 		if (!IS_ENABLED(CONFIG_PGSTE))
 			return KERNEL_FAULT;
 		gmap = (struct gmap *)S390_lowcore.gmap;
-		if (regs->cr1 == gmap->asce)
+		if (gmap && gmap->asce == regs->cr1)
 			return GMAP_FAULT;
 		return KERNEL_FAULT;
 	}

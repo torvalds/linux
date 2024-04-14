@@ -1371,9 +1371,6 @@ static struct pci_driver pata_macio_pci_driver = {
 	.suspend	= pata_macio_pci_suspend,
 	.resume		= pata_macio_pci_resume,
 #endif
-	.driver = {
-		.owner		= THIS_MODULE,
-	},
 };
 MODULE_DEVICE_TABLE(pci, pata_macio_pci_match);
 

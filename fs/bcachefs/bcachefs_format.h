@@ -818,6 +818,7 @@ struct bch_sb_field_ext {
 	struct bch_sb_field	field;
 	__le64			recovery_passes_required[2];
 	__le64			errors_silent[8];
+	__le64			btrees_lost_data;
 };
 
 struct bch_sb_field_downgrade_entry {
@@ -1533,6 +1534,20 @@ enum btree_id {
 #undef x
 	BTREE_ID_NR
 };
+
+static inline bool btree_id_is_alloc(enum btree_id id)
+{
+	switch (id) {
+	case BTREE_ID_alloc:
+	case BTREE_ID_backpointers:
+	case BTREE_ID_need_discard:
+	case BTREE_ID_freespace:
+	case BTREE_ID_bucket_gens:
+		return true;
+	default:
+		return false;
+	}
+}
 
 #define BTREE_MAX_DEPTH		4U
 

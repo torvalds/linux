@@ -155,7 +155,7 @@ Setting this parameter to 100 will disable the hysteresis.
 
 Some users cannot tolerate the swapping that comes with zswap store failures
 and zswap writebacks. Swapping can be disabled entirely (without disabling
-zswap itself) on a cgroup-basis as follows:
+zswap itself) on a cgroup-basis as follows::
 
 	echo 0 > /sys/fs/cgroup/<cgroup-name>/memory.zswap.writeback
 
@@ -166,7 +166,7 @@ writeback (because the same pages might be rejected again and again).
 When there is a sizable amount of cold memory residing in the zswap pool, it
 can be advantageous to proactively write these cold pages to swap and reclaim
 the memory for other use cases. By default, the zswap shrinker is disabled.
-User can enable it as follows:
+User can enable it as follows::
 
   echo Y > /sys/module/zswap/parameters/shrinker_enabled
 

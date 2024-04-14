@@ -1664,6 +1664,16 @@ static int create_auto_flow_group(struct mlx5_flow_table *ft,
 	return err;
 }
 
+static bool mlx5_pkt_reformat_cmp(struct mlx5_pkt_reformat *p1,
+				  struct mlx5_pkt_reformat *p2)
+{
+	return p1->owner == p2->owner &&
+		(p1->owner == MLX5_FLOW_RESOURCE_OWNER_FW ?
+		 p1->id == p2->id :
+		 mlx5_fs_dr_action_get_pkt_reformat_id(p1) ==
+		 mlx5_fs_dr_action_get_pkt_reformat_id(p2));
+}
+
 static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,
 				struct mlx5_flow_destination *d2)
 {
@@ -1675,8 +1685,8 @@ static bool mlx5_flow_dests_cmp(struct mlx5_flow_destination *d1,
 		     ((d1->vport.flags & MLX5_FLOW_DEST_VPORT_VHCA_ID) ?
 		      (d1->vport.vhca_id == d2->vport.vhca_id) : true) &&
 		     ((d1->vport.flags & MLX5_FLOW_DEST_VPORT_REFORMAT_ID) ?
-		      (d1->vport.pkt_reformat->id ==
-		       d2->vport.pkt_reformat->id) : true)) ||
+		      mlx5_pkt_reformat_cmp(d1->vport.pkt_reformat,
+					    d2->vport.pkt_reformat) : true)) ||
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE &&
 		     d1->ft == d2->ft) ||
 		    (d1->type == MLX5_FLOW_DESTINATION_TYPE_TIR &&
@@ -1808,8 +1818,9 @@ static struct mlx5_flow_handle *add_rule_fg(struct mlx5_flow_group *fg,
 	}
 	trace_mlx5_fs_set_fte(fte, false);
 
+	/* Link newly added rules into the tree. */
 	for (i = 0; i < handle->num_rules; i++) {
-		if (refcount_read(&handle->rule[i]->node.refcount) == 1) {
+		if (!handle->rule[i]->node.parent) {
 			tree_add_node(&handle->rule[i]->node, &fte->node);
 			trace_mlx5_fs_add_rule(handle->rule[i]);
 		}

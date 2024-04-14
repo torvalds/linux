@@ -326,6 +326,19 @@
 	ALTERNATIVE "", __stringify(verw _ASM_RIP(mds_verw_sel)), X86_FEATURE_CLEAR_CPU_BUF
 .endm
 
+#ifdef CONFIG_X86_64
+.macro CLEAR_BRANCH_HISTORY
+	ALTERNATIVE "", "call clear_bhb_loop", X86_FEATURE_CLEAR_BHB_LOOP
+.endm
+
+.macro CLEAR_BRANCH_HISTORY_VMEXIT
+	ALTERNATIVE "", "call clear_bhb_loop", X86_FEATURE_CLEAR_BHB_LOOP_ON_VMEXIT
+.endm
+#else
+#define CLEAR_BRANCH_HISTORY
+#define CLEAR_BRANCH_HISTORY_VMEXIT
+#endif
+
 #else /* __ASSEMBLY__ */
 
 #define ANNOTATE_RETPOLINE_SAFE					\
@@ -367,6 +380,10 @@ extern void srso_alias_return_thunk(void);
 
 extern void entry_untrain_ret(void);
 extern void entry_ibpb(void);
+
+#ifdef CONFIG_X86_64
+extern void clear_bhb_loop(void);
+#endif
 
 extern void (*x86_return_thunk)(void);
 
