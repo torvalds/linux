@@ -959,17 +959,14 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 {
 	struct atomisp_device *isp = isp_ptr;
 	unsigned long flags;
-
-	dev_dbg(isp->dev, ">%s\n", __func__);
+	bool streaming;
 
 	spin_lock_irqsave(&isp->lock, flags);
-
-	if (!isp->asd.streaming) {
-		spin_unlock_irqrestore(&isp->lock, flags);
-		return IRQ_HANDLED;
-	}
-
+	streaming = isp->asd.streaming;
 	spin_unlock_irqrestore(&isp->lock, flags);
+
+	if (!streaming)
+		return IRQ_HANDLED;
 
 	/*
 	 * The standard CSS2.0 API tells the following calling sequence of
