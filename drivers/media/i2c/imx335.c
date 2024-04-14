@@ -49,10 +49,10 @@
 #define IMX335_REG_AREA3_ST_ADR_1	CCI_REG16_LE(0x3074)
 #define IMX335_REG_AREA3_WIDTH_1	CCI_REG16_LE(0x3076)
 
-/* Analog gain control */
-#define IMX335_REG_AGAIN		CCI_REG8(0x30e8)
+/* Analog and Digital gain control */
+#define IMX335_REG_GAIN			CCI_REG8(0x30e8)
 #define IMX335_AGAIN_MIN		0
-#define IMX335_AGAIN_MAX		240
+#define IMX335_AGAIN_MAX		100
 #define IMX335_AGAIN_STEP		1
 #define IMX335_AGAIN_DEFAULT		0
 
@@ -479,7 +479,7 @@ static int imx335_update_exp_gain(struct imx335 *imx335, u32 exposure, u32 gain)
 	cci_write(imx335->cci, IMX335_REG_HOLD, 1, &ret);
 	cci_write(imx335->cci, IMX335_REG_VMAX, lpfr, &ret);
 	cci_write(imx335->cci, IMX335_REG_SHUTTER, shutter, &ret);
-	cci_write(imx335->cci, IMX335_REG_AGAIN, gain, &ret);
+	cci_write(imx335->cci, IMX335_REG_GAIN, gain, &ret);
 	/*
 	 * Unconditionally attempt to release the hold, but track the
 	 * error if the unhold itself fails.
@@ -1183,6 +1183,14 @@ static int imx335_init_controls(struct imx335 *imx335)
 					     IMX335_EXPOSURE_STEP,
 					     IMX335_EXPOSURE_DEFAULT);
 
+	/*
+	 * The sensor has an analog gain and a digital gain, both controlled
+	 * through a single gain value, expressed in 0.3dB increments. Values
+	 * from 0.0dB (0) to 30.0dB (100) apply analog gain only, higher values
+	 * up to 72.0dB (240) add further digital gain. Limit the range to
+	 * analog gain only, support for digital gain can be added separately
+	 * if needed.
+	 */
 	imx335->again_ctrl = v4l2_ctrl_new_std(ctrl_hdlr,
 					       &imx335_ctrl_ops,
 					       V4L2_CID_ANALOGUE_GAIN,
