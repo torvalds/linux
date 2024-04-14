@@ -540,9 +540,9 @@ reconstruct_root:
 			if (!bch2_btree_has_scanned_nodes(c, i)) {
 				mustfix_fsck_err(c, btree_root_unreadable_and_scan_found_nothing,
 						 "no nodes found for btree %s, continue?", bch2_btree_id_str(i));
-				bch2_btree_root_alloc_fake(c, i, 0);
+				bch2_btree_root_alloc_fake_trans(trans, i, 0);
 			} else {
-				bch2_btree_root_alloc_fake(c, i, 1);
+				bch2_btree_root_alloc_fake_trans(trans, i, 1);
 				bch2_shoot_down_journal_keys(c, i, 1, BTREE_MAX_DEPTH, POS_MIN, SPOS_MAX);
 				ret = bch2_get_scanned_nodes(c, i, 0, POS_MIN, SPOS_MAX);
 				if (ret)
@@ -570,7 +570,7 @@ reconstruct_root:
 				goto reconstruct_root;
 
 			bch_err(c, "empty btree root %s", bch2_btree_id_str(i));
-			bch2_btree_root_alloc_fake(c, i, 0);
+			bch2_btree_root_alloc_fake_trans(trans, i, 0);
 			r->alive = false;
 			ret = 0;
 		}

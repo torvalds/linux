@@ -2513,7 +2513,7 @@ void bch2_btree_set_root_for_read(struct bch_fs *c, struct btree *b)
 	bch2_btree_set_root_inmem(c, b);
 }
 
-static int __bch2_btree_root_alloc_fake(struct btree_trans *trans, enum btree_id id, unsigned level)
+int bch2_btree_root_alloc_fake_trans(struct btree_trans *trans, enum btree_id id, unsigned level)
 {
 	struct bch_fs *c = trans->c;
 	struct closure cl;
@@ -2561,7 +2561,7 @@ static int __bch2_btree_root_alloc_fake(struct btree_trans *trans, enum btree_id
 
 void bch2_btree_root_alloc_fake(struct bch_fs *c, enum btree_id id, unsigned level)
 {
-	bch2_trans_run(c, __bch2_btree_root_alloc_fake(trans, id, level));
+	bch2_trans_run(c, bch2_btree_root_alloc_fake_trans(trans, id, level));
 }
 
 static void bch2_btree_update_to_text(struct printbuf *out, struct btree_update *as)
