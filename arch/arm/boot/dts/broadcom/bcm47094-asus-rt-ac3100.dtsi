@@ -101,7 +101,6 @@
 };
 
 &srab {
-	compatible = "brcm,bcm53012-srab", "brcm,bcm5301x-srab";
 	status = "okay";
 
 	ports {
