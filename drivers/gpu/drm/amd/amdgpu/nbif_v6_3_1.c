@@ -424,6 +424,20 @@ static void nbif_v6_3_1_program_aspm(struct amdgpu_device *adev)
 #endif
 }
 
+#define MMIO_REG_HOLE_OFFSET (0x80000 - PAGE_SIZE)
+
+static void nbif_v6_3_1_set_reg_remap(struct amdgpu_device *adev)
+{
+	if (!amdgpu_sriov_vf(adev) && (PAGE_SIZE <= 4096)) {
+		adev->rmmio_remap.reg_offset = MMIO_REG_HOLE_OFFSET;
+		adev->rmmio_remap.bus_addr = adev->rmmio_base + MMIO_REG_HOLE_OFFSET;
+	} else {
+		adev->rmmio_remap.reg_offset = SOC15_REG_OFFSET(NBIO, 0,
+			regBIF_BX_PF0_HDP_MEM_COHERENCY_FLUSH_CNTL) << 2;
+		adev->rmmio_remap.bus_addr = 0;
+	}
+}
+
 const struct amdgpu_nbio_funcs nbif_v6_3_1_funcs = {
 	.get_hdp_flush_req_offset = nbif_v6_3_1_get_hdp_flush_req_offset,
 	.get_hdp_flush_done_offset = nbif_v6_3_1_get_hdp_flush_done_offset,
@@ -446,6 +460,7 @@ const struct amdgpu_nbio_funcs nbif_v6_3_1_funcs = {
 	.remap_hdp_registers = nbif_v6_3_1_remap_hdp_registers,
 	.get_rom_offset = nbif_v6_3_1_get_rom_offset,
 	.program_aspm = nbif_v6_3_1_program_aspm,
+	.set_reg_remap = nbif_v6_3_1_set_reg_remap,
 };
 
 
@@ -492,4 +507,5 @@ const struct amdgpu_nbio_funcs nbif_v6_3_1_sriov_funcs = {
 	.init_registers = nbif_v6_3_1_init_registers,
 	.remap_hdp_registers = nbif_v6_3_1_remap_hdp_registers,
 	.get_rom_offset = nbif_v6_3_1_get_rom_offset,
+	.set_reg_remap = nbif_v6_3_1_set_reg_remap,
 };
