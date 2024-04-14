@@ -992,7 +992,7 @@ static int ov2722_probe(struct i2c_client *client)
 	if (ret)
 		ov2722_remove(client);
 
-	return atomisp_register_i2c_module(&dev->sd, ovpdev, RAW_CAMERA);
+	return atomisp_register_i2c_module(&dev->sd, ovpdev);
 
 out_ctrl_handler_free:
 	v4l2_ctrl_handler_free(&dev->ctrl_handler);

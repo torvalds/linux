@@ -121,7 +121,6 @@
 	round_down((2 * (n) + (d) * (step)) / (2 * (d)), (step))
 
 struct atomisp_input_subdev {
-	unsigned int type;
 	enum atomisp_camera_port port;
 	u32 code; /* MEDIA_BUS_FMT_* */
 	bool binning_support;

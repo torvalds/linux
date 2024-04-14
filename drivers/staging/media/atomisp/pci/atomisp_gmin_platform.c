@@ -126,7 +126,7 @@ static DEFINE_MUTEX(gmin_regulator_mutex);
 static int gmin_v1p8_enable_count;
 static int gmin_v2p8_enable_count;
 
-/* The atomisp uses type==0 for the end-of-list marker, so leave space. */
+/* The atomisp uses subdev==NULL for the end-of-list marker, so leave space. */
 static struct intel_v4l2_subdev_table pdata_subdevs[MAX_SUBDEVS + 1];
 
 static const struct atomisp_platform_data pdata = {
@@ -145,15 +145,12 @@ const struct atomisp_platform_data *atomisp_get_platform_data(void)
 EXPORT_SYMBOL_GPL(atomisp_get_platform_data);
 
 int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
-				struct camera_sensor_platform_data *plat_data,
-				enum intel_v4l2_subdev_type type)
+				struct camera_sensor_platform_data *plat_data)
 {
 	int i;
 	struct gmin_subdev *gs;
 	struct i2c_client *client = v4l2_get_subdevdata(subdev);
 	struct acpi_device *adev = ACPI_COMPANION(&client->dev);
-
-	dev_info(&client->dev, "register atomisp i2c module type %d\n", type);
 
 	/* The windows driver model (and thus most BIOSes by default)
 	 * uses ACPI runtime power management for camera devices, but
@@ -172,10 +169,10 @@ int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 	adev->power.flags.power_resources = 0;
 
 	for (i = 0; i < MAX_SUBDEVS; i++)
-		if (!pdata.subdevs[i].type)
+		if (!pdata.subdevs[i].subdev)
 			break;
 
-	if (pdata.subdevs[i].type)
+	if (i == MAX_SUBDEVS)
 		return -ENOMEM;
 
 	/* Note subtlety of initialization order: at the point where
@@ -187,7 +184,6 @@ int atomisp_register_i2c_module(struct v4l2_subdev *subdev,
 	if (!gs)
 		return -ENODEV;
 
-	pdata.subdevs[i].type = type;
 	pdata.subdevs[i].port = gs->csi_port;
 	pdata.subdevs[i].lanes = gs->csi_lanes;
 	pdata.subdevs[i].subdev = subdev;
@@ -1136,7 +1132,7 @@ int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
 	}
 
 	for (i = 0; i < MAX_SUBDEVS; i++)
-		if (!pdata.subdevs[i].type)
+		if (!pdata.subdevs[i].subdev)
 			break;
 
 	if (i >= MAX_SUBDEVS) {
@@ -1148,7 +1144,6 @@ int atomisp_register_sensor_no_gmin(struct v4l2_subdev *subdev, u32 lanes,
 	if (ret)
 		return ret;
 
-	pdata.subdevs[i].type = RAW_CAMERA;
 	pdata.subdevs[i].port = port;
 	pdata.subdevs[i].lanes = lanes;
 	pdata.subdevs[i].subdev = subdev;
@@ -1166,7 +1161,6 @@ void atomisp_unregister_subdev(struct v4l2_subdev *subdev)
 
 		camera_sensor_csi_free(subdev);
 		pdata.subdevs[i].subdev = NULL;
-		pdata.subdevs[i].type = 0;
 		pdata.subdevs[i].port = 0;
 		break;
 	}

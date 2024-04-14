@@ -803,32 +803,25 @@ static int atomisp_subdev_probe(struct atomisp_device *isp)
 	 * converting them to standard v4l2 sensor drivers using runtime-pm +
 	 * ACPI for pm and v4l2_async_register_subdev_sensor() registration.
 	 */
-	for (subdevs = pdata->subdevs; subdevs->type; ++subdevs) {
+	for (subdevs = pdata->subdevs; subdevs->subdev; subdevs++) {
 		ret = v4l2_device_register_subdev(&isp->v4l2_dev, subdevs->subdev);
 		if (ret)
 			continue;
 
-		switch (subdevs->type) {
-		case RAW_CAMERA:
-			if (subdevs->port >= ATOMISP_CAMERA_NR_PORTS) {
-				dev_err(isp->dev, "port %d not supported\n", subdevs->port);
-				break;
-			}
-
-			if (isp->sensor_subdevs[subdevs->port]) {
-				dev_err(isp->dev, "port %d already has a sensor attached\n",
-					subdevs->port);
-				break;
-			}
-
-			mipi_port = atomisp_port_to_mipi_port(isp, subdevs->port);
-			isp->sensor_lanes[mipi_port] = subdevs->lanes;
-			isp->sensor_subdevs[subdevs->port] = subdevs->subdev;
-			break;
-		default:
-			dev_dbg(isp->dev, "unknown subdev probed\n");
-			break;
+		if (subdevs->port >= ATOMISP_CAMERA_NR_PORTS) {
+			dev_err(isp->dev, "port %d not supported\n", subdevs->port);
+			continue;
 		}
+
+		if (isp->sensor_subdevs[subdevs->port]) {
+			dev_err(isp->dev, "port %d already has a sensor attached\n",
+				subdevs->port);
+			continue;
+		}
+
+		mipi_port = atomisp_port_to_mipi_port(isp, subdevs->port);
+		isp->sensor_lanes[mipi_port] = subdevs->lanes;
+		isp->sensor_subdevs[subdevs->port] = subdevs->subdev;
 	}
 
 	return atomisp_csi_lane_config(isp);
@@ -1039,7 +1032,6 @@ int atomisp_register_device_nodes(struct atomisp_device *isp)
 
 		input = &isp->inputs[isp->input_cnt];
 
-		input->type = RAW_CAMERA;
 		input->port = i;
 		input->camera = isp->sensor_subdevs[i];
 		input->csi_port = &isp->csi2_port[i].subdev;

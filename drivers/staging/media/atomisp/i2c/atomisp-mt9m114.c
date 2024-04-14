@@ -1552,7 +1552,7 @@ static int mt9m114_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	ret = atomisp_register_i2c_module(&dev->sd, pdata, RAW_CAMERA);
+	ret = atomisp_register_i2c_module(&dev->sd, pdata);
 	if (ret) {
 		v4l2_device_unregister_subdev(&dev->sd);
 		kfree(dev);

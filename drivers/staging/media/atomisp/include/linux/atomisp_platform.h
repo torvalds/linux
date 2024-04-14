@@ -109,18 +109,7 @@ enum atomisp_input_format {
 
 #define N_ATOMISP_INPUT_FORMAT (ATOMISP_INPUT_FORMAT_USER_DEF8 + 1)
 
-enum intel_v4l2_subdev_type {
-	RAW_CAMERA = 1,
-};
-
-struct intel_v4l2_subdev_id {
-	char name[17];
-	enum intel_v4l2_subdev_type type;
-	enum atomisp_camera_port    port;
-};
-
 struct intel_v4l2_subdev_table {
-	enum intel_v4l2_subdev_type type;
 	enum atomisp_camera_port port;
 	unsigned int lanes;
 	struct v4l2_subdev *subdev;
