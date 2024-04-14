@@ -439,7 +439,7 @@ static void sdhci_sprd_set_power(struct sdhci_host *host, unsigned char mode,
 	}
 }
 
-static struct sdhci_ops sdhci_sprd_ops = {
+static const struct sdhci_ops sdhci_sprd_ops = {
 	.read_l = sdhci_sprd_readl,
 	.write_l = sdhci_sprd_writel,
 	.write_w = sdhci_sprd_writew,
