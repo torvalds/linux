@@ -9,10 +9,6 @@
 #include <dt-bindings/leds/common.h>
 
 / {
-	chosen {
-		bootargs = "earlycon";
-	};
-
 	memory@0 {
 		device_type = "memory";
 		reg = <0x00000000 0x08000000>,
