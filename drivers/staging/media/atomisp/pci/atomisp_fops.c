@@ -539,7 +539,6 @@ static int atomisp_release(struct file *file)
 	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	struct atomisp_sub_device *asd = pipe->asd;
 	struct v4l2_subdev_fh fh;
-	struct v4l2_rect clear_compose = {0};
 
 	v4l2_fh_init(&fh.vfh, vdev);
 
@@ -552,21 +551,6 @@ static int atomisp_release(struct file *file)
 
 	pipe->users--;
 
-	/*
-	 * A little trick here:
-	 * file injection input resolution is recorded in the sink pad,
-	 * therefore can not be cleared when releaseing one device node.
-	 * The sink pad setting can only be cleared when all device nodes
-	 * get released.
-	 */
-	{
-		struct v4l2_mbus_framefmt isp_sink_fmt = { 0 };
-
-		atomisp_subdev_set_ffmt(&asd->subdev, fh.state,
-					V4L2_SUBDEV_FORMAT_ACTIVE,
-					ATOMISP_SUBDEV_PAD_SINK, &isp_sink_fmt);
-	}
-
 	atomisp_css_free_stat_buffers(asd);
 	atomisp_free_internal_buffers(asd);
 
@@ -577,11 +561,6 @@ static int atomisp_release(struct file *file)
 	if (pm_runtime_put_sync(vdev->v4l2_dev->dev) < 0)
 		dev_err(isp->dev, "Failed to power off device\n");
 
-	atomisp_subdev_set_selection(&asd->subdev, fh.state,
-				     V4L2_SUBDEV_FORMAT_ACTIVE,
-				     ATOMISP_SUBDEV_PAD_SOURCE,
-				     V4L2_SEL_TGT_COMPOSE, 0,
-				     &clear_compose);
 	mutex_unlock(&isp->mutex);
 	return 0;
 }
