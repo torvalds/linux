@@ -1116,13 +1116,6 @@ static int ov2680_parse_dt(struct ov2680_dev *sensor)
 	sensor->pixel_rate = sensor->link_freq[0] * 2;
 	do_div(sensor->pixel_rate, 10);
 
-	/* Verify bus cfg */
-	if (bus_cfg.bus.mipi_csi2.num_data_lanes != 1) {
-		ret = dev_err_probe(dev, -EINVAL,
-				    "only a 1-lane CSI2 config is supported");
-		goto out_free_bus_cfg;
-	}
-
 	if (!bus_cfg.nr_of_link_frequencies) {
 		dev_warn(dev, "Consider passing 'link-frequencies' in DT\n");
 		goto skip_link_freq_validation;
