@@ -9583,9 +9583,9 @@ out:
 	return ret;
 }
 
-static int perf_event_set_bpf_handler(struct perf_event *event,
-				      struct bpf_prog *prog,
-				      u64 bpf_cookie)
+static inline int perf_event_set_bpf_handler(struct perf_event *event,
+					     struct bpf_prog *prog,
+					     u64 bpf_cookie)
 {
 	if (event->overflow_handler_context)
 		/* hw breakpoint or kernel counter */
@@ -9619,7 +9619,7 @@ static int perf_event_set_bpf_handler(struct perf_event *event,
 	return 0;
 }
 
-static void perf_event_free_bpf_handler(struct perf_event *event)
+static inline void perf_event_free_bpf_handler(struct perf_event *event)
 {
 	struct bpf_prog *prog = event->prog;
 
