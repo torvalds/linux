@@ -29,11 +29,21 @@ static bool parse_8000_0008(struct topo_scan *tscan)
 	if (!sft)
 		sft = get_count_order(ecx.cpu_nthreads + 1);
 
-	topology_set_dom(tscan, TOPO_SMT_DOMAIN, sft, ecx.cpu_nthreads + 1);
+	/*
+	 * cpu_nthreads describes the number of threads in the package
+	 * sft is the number of APIC ID bits per package
+	 *
+	 * As the number of actual threads per core is not described in
+	 * this leaf, just set the CORE domain shift and let the later
+	 * parsers set SMT shift. Assume one thread per core by default
+	 * which is correct if there are no other CPUID leafs to parse.
+	 */
+	topology_update_dom(tscan, TOPO_SMT_DOMAIN, 0, 1);
+	topology_set_dom(tscan, TOPO_CORE_DOMAIN, sft, ecx.cpu_nthreads + 1);
 	return true;
 }
 
-static void store_node(struct topo_scan *tscan, unsigned int nr_nodes, u16 node_id)
+static void store_node(struct topo_scan *tscan, u16 nr_nodes, u16 node_id)
 {
 	/*
 	 * Starting with Fam 17h the DIE domain could probably be used to
@@ -73,12 +83,14 @@ static bool parse_8000_001e(struct topo_scan *tscan, bool has_0xb)
 	tscan->c->topo.initial_apicid = leaf.ext_apic_id;
 
 	/*
-	 * If leaf 0xb is available, then SMT shift is set already. If not
-	 * take it from ecx.threads_per_core and use topo_update_dom() -
-	 * topology_set_dom() would propagate and overwrite the already
-	 * propagated CORE level.
+	 * If leaf 0xb is available, then the domain shifts are set
+	 * already and nothing to do here.
 	 */
 	if (!has_0xb) {
+		/*
+		 * Leaf 0x80000008 set the CORE domain shift already.
+		 * Update the SMT domain, but do not propagate it.
+		 */
 		unsigned int nthreads = leaf.core_nthreads + 1;
 
 		topology_update_dom(tscan, TOPO_SMT_DOMAIN, get_count_order(nthreads), nthreads);
@@ -109,13 +121,13 @@ static bool parse_8000_001e(struct topo_scan *tscan, bool has_0xb)
 
 static bool parse_fam10h_node_id(struct topo_scan *tscan)
 {
-	struct {
-		union {
+	union {
+		struct {
 			u64	node_id		:  3,
 				nodes_per_pkg	:  3,
 				unused		: 58;
-			u64	msr;
 		};
+		u64		msr;
 	} nid;
 
 	if (!boot_cpu_has(X86_FEATURE_NODEID_MSR))
@@ -133,6 +145,26 @@ static void legacy_set_llc(struct topo_scan *tscan)
 
 	/* parse_8000_0008() set everything up except llc_id */
 	tscan->c->topo.llc_id = apicid >> tscan->dom_shifts[TOPO_CORE_DOMAIN];
+}
+
+static void topoext_fixup(struct topo_scan *tscan)
+{
+	struct cpuinfo_x86 *c = tscan->c;
+	u64 msrval;
+
+	/* Try to re-enable TopologyExtensions if switched off by BIOS */
+	if (cpu_has(c, X86_FEATURE_TOPOEXT) || c->x86_vendor != X86_VENDOR_AMD ||
+	    c->x86 != 0x15 || c->x86_model < 0x10 || c->x86_model > 0x6f)
+		return;
+
+	if (msr_set_bit(0xc0011005, 54) <= 0)
+		return;
+
+	rdmsrl(0xc0011005, msrval);
+	if (msrval & BIT_64(54)) {
+		set_cpu_cap(c, X86_FEATURE_TOPOEXT);
+		pr_info_once(FW_INFO "CPU: Re-enabling disabled Topology Extensions Support.\n");
+	}
 }
 
 static void parse_topology_amd(struct topo_scan *tscan)
@@ -164,6 +196,7 @@ static void parse_topology_amd(struct topo_scan *tscan)
 void cpu_parse_topology_amd(struct topo_scan *tscan)
 {
 	tscan->amd_nodes_per_pkg = 1;
+	topoext_fixup(tscan);
 	parse_topology_amd(tscan);
 
 	if (tscan->amd_nodes_per_pkg > 1)

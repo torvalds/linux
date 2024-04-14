@@ -123,7 +123,6 @@ static void topo_set_cpuids(unsigned int cpu, u32 apic_id, u32 acpi_id)
 	early_per_cpu(x86_cpu_to_apicid, cpu) = apic_id;
 	early_per_cpu(x86_cpu_to_acpiid, cpu) = acpi_id;
 #endif
-	set_cpu_possible(cpu, true);
 	set_cpu_present(cpu, true);
 }
 
@@ -210,7 +209,11 @@ static __init void topo_register_apic(u32 apic_id, u32 acpi_id, bool present)
 		topo_info.nr_disabled_cpus++;
 	}
 
-	/* Register present and possible CPUs in the domain maps */
+	/*
+	 * Register present and possible CPUs in the domain
+	 * maps. cpu_possible_map will be updated in
+	 * topology_init_possible_cpus() after enumeration is done.
+	 */
 	for (dom = TOPO_SMT_DOMAIN; dom < TOPO_MAX_DOMAIN; dom++)
 		set_bit(topo_apicid(apic_id, dom), apic_maps[dom].map);
 }
