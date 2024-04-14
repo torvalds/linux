@@ -438,7 +438,7 @@ void uio_event_notify(struct uio_info *info)
 EXPORT_SYMBOL_GPL(uio_event_notify);
 
 /**
- * uio_interrupt - hardware interrupt handler
+ * uio_interrupt_handler - hardware interrupt handler
  * @irq: IRQ number, can be UIO_IRQ_CYCLIC for cyclic timer
  * @dev_id: Pointer to the devices uio_device structure
  */
@@ -454,6 +454,11 @@ static irqreturn_t uio_interrupt_handler(int irq, void *dev_id)
 	return ret;
 }
 
+/**
+ * uio_interrupt_thread - irq thread handler
+ * @irq: IRQ number
+ * @dev_id: Pointer to the devices uio_device structure
+ */
 static irqreturn_t uio_interrupt_thread(int irq, void *dev_id)
 {
 	struct uio_device *idev = (struct uio_device *)dev_id;
