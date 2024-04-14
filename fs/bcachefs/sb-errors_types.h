@@ -130,7 +130,7 @@
 	x(bucket_gens_nonzero_for_invalid_buckets,		122)	\
 	x(need_discard_freespace_key_to_invalid_dev_bucket,	123)	\
 	x(need_discard_freespace_key_bad,			124)	\
-	x(backpointer_pos_wrong,				125)	\
+	x(backpointer_bucket_offset_wrong,			125)	\
 	x(backpointer_to_missing_device,			126)	\
 	x(backpointer_to_missing_alloc,				127)	\
 	x(backpointer_to_missing_ptr,				128)	\
