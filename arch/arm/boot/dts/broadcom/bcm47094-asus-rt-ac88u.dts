@@ -13,6 +13,7 @@
 
 	nvram@1c080000 {
 		et1macaddr: et1macaddr {
+			#nvmem-cell-cells = <1>;
 		};
 	};
 
@@ -117,6 +118,11 @@
 };
 
 &gmac1 {
-	nvmem-cells = <&et1macaddr>;
+	nvmem-cells = <&et1macaddr 0>;
+	nvmem-cell-names = "mac-address";
+};
+
+&gmac2 {
+	nvmem-cells = <&et1macaddr 1>;
 	nvmem-cell-names = "mac-address";
 };
