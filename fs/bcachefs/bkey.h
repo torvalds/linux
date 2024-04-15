@@ -314,6 +314,12 @@ static inline unsigned bkeyp_key_u64s(const struct bkey_format *format,
 	return bkey_packed(k) ? format->key_u64s : BKEY_U64s;
 }
 
+static inline bool bkeyp_u64s_valid(const struct bkey_format *f,
+				    const struct bkey_packed *k)
+{
+	return ((unsigned) k->u64s - bkeyp_key_u64s(f, k) <= U8_MAX - BKEY_U64s);
+}
+
 static inline unsigned bkeyp_key_bytes(const struct bkey_format *format,
 				       const struct bkey_packed *k)
 {
