@@ -2281,8 +2281,6 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	iwl_mvm_scan_umac_dwell(mvm, cmd, params);
 
-	mvm->scan_uid_status[uid] = type;
-
 	cmd->uid = cpu_to_le32(uid);
 	gen_flags = iwl_mvm_scan_umac_flags(mvm, params, vif);
 	cmd->general_flags = cpu_to_le16(gen_flags);
@@ -2323,10 +2321,8 @@ static int iwl_mvm_scan_umac(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	ret = iwl_mvm_fill_scan_sched_params(params, tail_v2->schedule,
 					     &tail_v2->delay);
-	if (ret) {
-		mvm->scan_uid_status[uid] = 0;
+	if (ret)
 		return ret;
-	}
 
 	if (iwl_mvm_is_scan_ext_chan_supported(mvm)) {
 		tail_v2->preq = params->preq;
@@ -2476,8 +2472,6 @@ static int iwl_mvm_scan_umac_v12(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	int ret;
 	u16 gen_flags;
 
-	mvm->scan_uid_status[uid] = type;
-
 	cmd->ooc_priority = cpu_to_le32(iwl_mvm_scan_umac_ooc_priority(type));
 	cmd->uid = cpu_to_le32(uid);
 
@@ -2512,8 +2506,6 @@ static int iwl_mvm_scan_umac_v14_and_above(struct iwl_mvm *mvm,
 	u16 gen_flags;
 	u8 gen_flags2;
 	u32 bitmap_ssid = 0;
-
-	mvm->scan_uid_status[uid] = type;
 
 	cmd->ooc_priority = cpu_to_le32(iwl_mvm_scan_umac_ooc_priority(type));
 	cmd->uid = cpu_to_le32(uid);
@@ -2558,10 +2550,8 @@ static int iwl_mvm_scan_umac_v14_and_above(struct iwl_mvm *mvm,
 							 params->n_channels,
 							 pb, cp, vif->type,
 							 version);
-	if (!cp->count) {
-		mvm->scan_uid_status[uid] = 0;
+	if (!cp->count)
 		return -EINVAL;
-	}
 
 	if (!params->n_ssids ||
 	    (params->n_ssids == 1 && !params->ssids[0].ssid_len))
@@ -3026,11 +3016,13 @@ static int _iwl_mvm_single_scan_start(struct iwl_mvm *mvm,
 		 */
 		IWL_ERR(mvm, "Scan failed! ret %d\n", ret);
 		iwl_mvm_resume_tcm(mvm);
-		mvm->scan_uid_status[uid] = 0;
 		return ret;
 	}
 
-	IWL_DEBUG_SCAN(mvm, "Scan request was sent successfully\n");
+	IWL_DEBUG_SCAN(mvm, "Scan request send success: type=%u, uid=%u\n",
+		       type, uid);
+
+	mvm->scan_uid_status[uid] = type;
 	mvm->scan_status |= type;
 
 	if (type == IWL_MVM_SCAN_REGULAR) {
@@ -3169,7 +3161,9 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 	ret = iwl_mvm_send_cmd(mvm, &hcmd);
 	if (!ret) {
 		IWL_DEBUG_SCAN(mvm,
-			       "Sched scan request was sent successfully\n");
+			       "Sched scan request send success: type=%u, uid=%u\n",
+			       type, uid);
+		mvm->scan_uid_status[uid] = type;
 		mvm->scan_status |= type;
 	} else {
 		/* If the scan failed, it usually means that the FW was unable
@@ -3177,7 +3171,6 @@ int iwl_mvm_sched_scan_start(struct iwl_mvm *mvm,
 		 * should try to send the command again with different params.
 		 */
 		IWL_ERR(mvm, "Sched scan failed! ret %d\n", ret);
-		mvm->scan_uid_status[uid] = 0;
 		mvm->sched_scan_pass_all = SCHED_SCAN_PASS_ALL_DISABLED;
 	}
 
