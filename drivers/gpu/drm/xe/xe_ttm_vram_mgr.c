@@ -478,3 +478,15 @@ void xe_ttm_vram_get_used(struct ttm_resource_manager *man,
 	*used_visible = mgr->visible_size - mgr->visible_avail;
 	mutex_unlock(&mgr->lock);
 }
+
+u64 xe_ttm_vram_get_avail(struct ttm_resource_manager *man)
+{
+	struct xe_ttm_vram_mgr *mgr = to_xe_ttm_vram_mgr(man);
+	u64 avail;
+
+	mutex_lock(&mgr->lock);
+	avail =  mgr->mm.avail;
+	mutex_unlock(&mgr->lock);
+
+	return avail;
+}
