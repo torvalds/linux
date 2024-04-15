@@ -512,12 +512,8 @@ static int nau8821_left_adc_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		msleep(nau8821->adc_delay);
-		regmap_update_bits(nau8821->regmap, NAU8821_R01_ENA_CTRL,
-			NAU8821_EN_ADCL, NAU8821_EN_ADCL);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		regmap_update_bits(nau8821->regmap,
-			NAU8821_R01_ENA_CTRL, NAU8821_EN_ADCL, 0);
 		break;
 	default:
 		return -EINVAL;
@@ -536,12 +532,8 @@ static int nau8821_right_adc_event(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		msleep(nau8821->adc_delay);
-		regmap_update_bits(nau8821->regmap, NAU8821_R01_ENA_CTRL,
-			NAU8821_EN_ADCR, NAU8821_EN_ADCR);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		regmap_update_bits(nau8821->regmap,
-			NAU8821_R01_ENA_CTRL, NAU8821_EN_ADCR, 0);
 		break;
 	default:
 		return -EINVAL;
