@@ -3,6 +3,7 @@
 
 #include <asm/unaligned.h>
 #include <linux/acpi.h>
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
@@ -636,6 +637,7 @@ struct hi556 {
 
 	/* GPIOs, clocks, etc. */
 	struct gpio_desc *reset_gpio;
+	struct clk *clk;
 
 	/* Current mode */
 	const struct hi556_mode *cur_mode;
@@ -1286,6 +1288,7 @@ static int hi556_suspend(struct device *dev)
 	struct hi556 *hi556 = to_hi556(sd);
 
 	gpiod_set_value_cansleep(hi556->reset_gpio, 1);
+	clk_disable_unprepare(hi556->clk);
 	return 0;
 }
 
@@ -1293,6 +1296,11 @@ static int hi556_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct hi556 *hi556 = to_hi556(sd);
+	int ret;
+
+	ret = clk_prepare_enable(hi556->clk);
+	if (ret)
+		return ret;
 
 	gpiod_set_value_cansleep(hi556->reset_gpio, 0);
 	usleep_range(5000, 5500);
@@ -1323,6 +1331,11 @@ static int hi556_probe(struct i2c_client *client)
 	if (IS_ERR(hi556->reset_gpio))
 		return dev_err_probe(&client->dev, PTR_ERR(hi556->reset_gpio),
 				     "failed to get reset GPIO\n");
+
+	hi556->clk = devm_clk_get_optional(&client->dev, "clk");
+	if (IS_ERR(hi556->clk))
+		return dev_err_probe(&client->dev, PTR_ERR(hi556->clk),
+				     "failed to get clock\n");
 
 	full_power = acpi_dev_state_d0(&client->dev);
 	if (full_power) {
