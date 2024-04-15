@@ -38,6 +38,7 @@ IWL_BIOS_TABLE_LOADER_DATA(tas_table, struct iwl_tas_data);
 IWL_BIOS_TABLE_LOADER_DATA(pwr_limit, u64);
 IWL_BIOS_TABLE_LOADER_DATA(mcc, char);
 IWL_BIOS_TABLE_LOADER_DATA(eckv, u32);
+IWL_BIOS_TABLE_LOADER_DATA(wbem, u32);
 
 
 static const struct dmi_system_id dmi_ppag_approved_list[] = {
@@ -496,6 +497,9 @@ static size_t iwl_get_lari_config_cmd_size(u8 cmd_ver)
 	size_t cmd_size;
 
 	switch (cmd_ver) {
+	case 10:
+		cmd_size = sizeof(struct iwl_lari_config_change_cmd);
+		break;
 	case 9:
 	case 8:
 	case 7:
@@ -524,7 +528,7 @@ static size_t iwl_get_lari_config_cmd_size(u8 cmd_ver)
 }
 
 int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
-			 struct iwl_lari_config_change_cmd_v7 *cmd,
+			 struct iwl_lari_config_change_cmd *cmd,
 			 size_t *cmd_size)
 {
 	int ret;
@@ -572,13 +576,18 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 	if (!ret)
 		cmd->edt_bitmap = cpu_to_le32(value);
 
+	ret = iwl_bios_get_wbem(fwrt, &value);
+	if (!ret)
+		cmd->oem_320mhz_allow_bitmap = cpu_to_le32(value);
+
 	if (cmd->config_bitmap ||
 	    cmd->oem_uhb_allow_bitmap ||
 	    cmd->oem_11ax_allow_bitmap ||
 	    cmd->oem_unii4_allow_bitmap ||
 	    cmd->chan_state_active_bitmap ||
 	    cmd->force_disable_channels_bitmap ||
-	    cmd->edt_bitmap) {
+	    cmd->edt_bitmap ||
+	    cmd->oem_320mhz_allow_bitmap) {
 		IWL_DEBUG_RADIO(fwrt,
 				"sending LARI_CONFIG_CHANGE, config_bitmap=0x%x, oem_11ax_allow_bitmap=0x%x\n",
 				le32_to_cpu(cmd->config_bitmap),
@@ -593,8 +602,9 @@ int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
 				le32_to_cpu(cmd->oem_uhb_allow_bitmap),
 				le32_to_cpu(cmd->force_disable_channels_bitmap));
 		IWL_DEBUG_RADIO(fwrt,
-				"sending LARI_CONFIG_CHANGE, edt_bitmap=0x%x\n",
-				le32_to_cpu(cmd->edt_bitmap));
+				"sending LARI_CONFIG_CHANGE, edt_bitmap=0x%x, oem_320mhz_allow_bitmap=0x%x\n",
+				le32_to_cpu(cmd->edt_bitmap),
+				le32_to_cpu(cmd->oem_320mhz_allow_bitmap));
 	} else {
 		return 1;
 	}

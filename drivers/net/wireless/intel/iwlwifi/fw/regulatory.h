@@ -201,9 +201,10 @@ int iwl_bios_get_pwr_limit(struct iwl_fw_runtime *fwrt,
 
 int iwl_bios_get_mcc(struct iwl_fw_runtime *fwrt, char *mcc);
 int iwl_bios_get_eckv(struct iwl_fw_runtime *fwrt, u32 *ext_clk);
+int iwl_bios_get_wbem(struct iwl_fw_runtime *fwrt, u32 *value);
 
 int iwl_fill_lari_config(struct iwl_fw_runtime *fwrt,
-			 struct iwl_lari_config_change_cmd_v7 *cmd,
+			 struct iwl_lari_config_change_cmd *cmd,
 			 size_t *cmd_size);
 
 int iwl_bios_get_dsm(struct iwl_fw_runtime *fwrt, enum iwl_dsm_funcs func,

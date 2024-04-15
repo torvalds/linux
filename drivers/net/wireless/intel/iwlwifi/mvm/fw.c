@@ -1225,9 +1225,9 @@ static bool iwl_mvm_eval_dsm_rfi(struct iwl_mvm *mvm)
 
 static void iwl_mvm_lari_cfg(struct iwl_mvm *mvm)
 {
-	int ret;
+	struct iwl_lari_config_change_cmd cmd;
 	size_t cmd_size;
-	struct iwl_lari_config_change_cmd_v7 cmd;
+	int ret;
 
 	ret = iwl_fill_lari_config(&mvm->fwrt, &cmd, &cmd_size);
 	if (!ret) {
