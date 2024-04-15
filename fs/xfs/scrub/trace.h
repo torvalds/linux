@@ -2757,6 +2757,261 @@ DEFINE_EVENT(xrep_symlink_class, name, \
 DEFINE_XREP_SYMLINK_EVENT(xrep_symlink_rebuild);
 DEFINE_XREP_SYMLINK_EVENT(xrep_symlink_reset_fork);
 
+TRACE_EVENT(xrep_iunlink_visit,
+	TP_PROTO(struct xfs_perag *pag, unsigned int bucket,
+		 xfs_agino_t bucket_agino, struct xfs_inode *ip),
+	TP_ARGS(pag, bucket, bucket_agino, ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(unsigned int, bucket)
+		__field(xfs_agino_t, bucket_agino)
+		__field(xfs_agino_t, prev_agino)
+		__field(xfs_agino_t, next_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
+		__entry->agino = XFS_INO_TO_AGINO(pag->pag_mount, ip->i_ino);
+		__entry->bucket = bucket;
+		__entry->bucket_agino = bucket_agino;
+		__entry->prev_agino = ip->i_prev_unlinked;
+		__entry->next_agino = ip->i_next_unlinked;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x bucket_agino 0x%x prev_agino 0x%x next_agino 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->bucket,
+		  __entry->agino,
+		  __entry->bucket_agino,
+		  __entry->prev_agino,
+		  __entry->next_agino)
+);
+
+TRACE_EVENT(xrep_iunlink_reload_next,
+	TP_PROTO(struct xfs_inode *ip, xfs_agino_t prev_agino),
+	TP_ARGS(ip, prev_agino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(xfs_agino_t, old_prev_agino)
+		__field(xfs_agino_t, prev_agino)
+		__field(xfs_agino_t, next_agino)
+		__field(unsigned int, nlink)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
+		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+		__entry->old_prev_agino = ip->i_prev_unlinked;
+		__entry->prev_agino = prev_agino;
+		__entry->next_agino = ip->i_next_unlinked;
+		__entry->nlink = VFS_I(ip)->i_nlink;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x nlink %u old_prev_agino %u prev_agino 0x%x next_agino 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agino % XFS_AGI_UNLINKED_BUCKETS,
+		  __entry->agino,
+		  __entry->nlink,
+		  __entry->old_prev_agino,
+		  __entry->prev_agino,
+		  __entry->next_agino)
+);
+
+TRACE_EVENT(xrep_iunlink_reload_ondisk,
+	TP_PROTO(struct xfs_inode *ip),
+	TP_ARGS(ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(unsigned int, nlink)
+		__field(xfs_agino_t, next_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
+		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+		__entry->nlink = VFS_I(ip)->i_nlink;
+		__entry->next_agino = ip->i_next_unlinked;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x nlink %u next_agino 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agino % XFS_AGI_UNLINKED_BUCKETS,
+		  __entry->agino,
+		  __entry->nlink,
+		  __entry->next_agino)
+);
+
+TRACE_EVENT(xrep_iunlink_walk_ondisk_bucket,
+	TP_PROTO(struct xfs_perag *pag, unsigned int bucket,
+		 xfs_agino_t prev_agino, xfs_agino_t next_agino),
+	TP_ARGS(pag, bucket, prev_agino, next_agino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(unsigned int, bucket)
+		__field(xfs_agino_t, prev_agino)
+		__field(xfs_agino_t, next_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
+		__entry->bucket = bucket;
+		__entry->prev_agino = prev_agino;
+		__entry->next_agino = next_agino;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u prev_agino 0x%x next_agino 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->bucket,
+		  __entry->prev_agino,
+		  __entry->next_agino)
+);
+
+DECLARE_EVENT_CLASS(xrep_iunlink_resolve_class,
+	TP_PROTO(struct xfs_perag *pag, unsigned int bucket,
+		 xfs_agino_t prev_agino, xfs_agino_t next_agino),
+	TP_ARGS(pag, bucket, prev_agino, next_agino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(unsigned int, bucket)
+		__field(xfs_agino_t, prev_agino)
+		__field(xfs_agino_t, next_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
+		__entry->bucket = bucket;
+		__entry->prev_agino = prev_agino;
+		__entry->next_agino = next_agino;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u prev_agino 0x%x next_agino 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->bucket,
+		  __entry->prev_agino,
+		  __entry->next_agino)
+);
+#define DEFINE_REPAIR_IUNLINK_RESOLVE_EVENT(name) \
+DEFINE_EVENT(xrep_iunlink_resolve_class, name, \
+	TP_PROTO(struct xfs_perag *pag, unsigned int bucket, \
+		 xfs_agino_t prev_agino, xfs_agino_t next_agino), \
+	TP_ARGS(pag, bucket, prev_agino, next_agino))
+DEFINE_REPAIR_IUNLINK_RESOLVE_EVENT(xrep_iunlink_resolve_uncached);
+DEFINE_REPAIR_IUNLINK_RESOLVE_EVENT(xrep_iunlink_resolve_wronglist);
+DEFINE_REPAIR_IUNLINK_RESOLVE_EVENT(xrep_iunlink_resolve_nolist);
+DEFINE_REPAIR_IUNLINK_RESOLVE_EVENT(xrep_iunlink_resolve_ok);
+
+TRACE_EVENT(xrep_iunlink_relink_next,
+	TP_PROTO(struct xfs_inode *ip, xfs_agino_t next_agino),
+	TP_ARGS(ip, next_agino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(xfs_agino_t, next_agino)
+		__field(xfs_agino_t, new_next_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
+		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+		__entry->next_agino = ip->i_next_unlinked;
+		__entry->new_next_agino = next_agino;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x next_agino 0x%x -> 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agino % XFS_AGI_UNLINKED_BUCKETS,
+		  __entry->agino,
+		  __entry->next_agino,
+		  __entry->new_next_agino)
+);
+
+TRACE_EVENT(xrep_iunlink_relink_prev,
+	TP_PROTO(struct xfs_inode *ip, xfs_agino_t prev_agino),
+	TP_ARGS(ip, prev_agino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agino_t, agino)
+		__field(xfs_agino_t, prev_agino)
+		__field(xfs_agino_t, new_prev_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->agno = XFS_INO_TO_AGNO(ip->i_mount, ip->i_ino);
+		__entry->agino = XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino);
+		__entry->prev_agino = ip->i_prev_unlinked;
+		__entry->new_prev_agino = prev_agino;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x prev_agino 0x%x -> 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agino % XFS_AGI_UNLINKED_BUCKETS,
+		  __entry->agino,
+		  __entry->prev_agino,
+		  __entry->new_prev_agino)
+);
+
+TRACE_EVENT(xrep_iunlink_add_to_bucket,
+	TP_PROTO(struct xfs_perag *pag, unsigned int bucket,
+		 xfs_agino_t agino, xfs_agino_t curr_head),
+	TP_ARGS(pag, bucket, agino, curr_head),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(unsigned int, bucket)
+		__field(xfs_agino_t, agino)
+		__field(xfs_agino_t, next_agino)
+	),
+	TP_fast_assign(
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
+		__entry->bucket = bucket;
+		__entry->agino = agino;
+		__entry->next_agino = curr_head;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x next_agino 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->bucket,
+		  __entry->agino,
+		  __entry->next_agino)
+);
+
+TRACE_EVENT(xrep_iunlink_commit_bucket,
+	TP_PROTO(struct xfs_perag *pag, unsigned int bucket,
+		 xfs_agino_t old_agino, xfs_agino_t agino),
+	TP_ARGS(pag, bucket, old_agino, agino),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_agnumber_t, agno)
+		__field(unsigned int, bucket)
+		__field(xfs_agino_t, old_agino)
+		__field(xfs_agino_t, agino)
+	),
+	TP_fast_assign(
+		__entry->dev = pag->pag_mount->m_super->s_dev;
+		__entry->agno = pag->pag_agno;
+		__entry->bucket = bucket;
+		__entry->old_agino = old_agino;
+		__entry->agino = agino;
+	),
+	TP_printk("dev %d:%d agno 0x%x bucket %u agino 0x%x -> 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->bucket,
+		  __entry->old_agino,
+		  __entry->agino)
+);
+
 #endif /* IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR) */
 
 #endif /* _TRACE_XFS_SCRUB_TRACE_H */
