@@ -4576,8 +4576,9 @@ Directory rebuilding uses a :ref:`coordinated inode scan <iscan>` and
 a :ref:`directory entry live update hook <liveupdate>` as follows:
 
 1. Set up a temporary directory for generating the new directory structure,
-   an xfblob for storing entry names, and an xfarray for stashing directory
-   updates.
+   an xfblob for storing entry names, and an xfarray for stashing the fixed
+   size fields involved in a directory update: ``(child inumber, add vs.
+   remove, name cookie, ftype)``.
 
 2. Set up an inode scanner and hook into the directory entry code to receive
    updates on directory operations.
@@ -4586,35 +4587,34 @@ a :ref:`directory entry live update hook <liveupdate>` as follows:
    pointer references the directory of interest.
    If so:
 
-   a. Stash an addname entry for this dirent in the xfarray for later.
+   a. Stash the parent pointer name and an addname entry for this dirent in the
+      xfblob and xfarray, respectively.
 
-   b. When finished scanning that file, flush the stashed updates to the
-      temporary directory.
+   b. When finished scanning that file or the kernel memory consumption exceeds
+      a threshold, flush the stashed updates to the temporary directory.
 
 4. For each live directory update received via the hook, decide if the child
    has already been scanned.
    If so:
 
-   a. Stash an addname or removename entry for this dirent update in the
-      xfarray for later.
+   a. Stash the parent pointer name an addname or removename entry for this
+      dirent update in the xfblob and xfarray for later.
       We cannot write directly to the temporary directory because hook
       functions are not allowed to modify filesystem metadata.
       Instead, we stash updates in the xfarray and rely on the scanner thread
       to apply the stashed updates to the temporary directory.
 
-5. When the scan is complete, atomically exchange the contents of the temporary
+5. When the scan is complete, replay any stashed entries in the xfarray.
+
+6. When the scan is complete, atomically exchange the contents of the temporary
    directory and the directory being repaired.
    The temporary directory now contains the damaged directory structure.
 
-6. Reap the temporary directory.
-
-7. Update the dirent position field of parent pointers as necessary.
-   This may require the queuing of a substantial number of xattr log intent
-   items.
+7. Reap the temporary directory.
 
 The proposed patchset is the
 `parent pointers directory repair
-<https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfs-linux.git/log/?h=pptrs-online-dir-repair>`_
+<https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfs-linux.git/log/?h=pptrs-fsck>`_
 series.
 
 Case Study: Repairing Parent Pointers
@@ -4624,8 +4624,9 @@ Online reconstruction of a file's parent pointer information works similarly to
 directory reconstruction:
 
 1. Set up a temporary file for generating a new extended attribute structure,
-   an `xfblob<xfblob>` for storing parent pointer names, and an xfarray for
-   stashing parent pointer updates.
+   an xfblob for storing parent pointer names, and an xfarray for stashing the
+   fixed size fields involved in a parent pointer update: ``(parent inumber,
+   parent generation, add vs. remove, name cookie)``.
 
 2. Set up an inode scanner and hook into the directory entry code to receive
    updates on directory operations.
@@ -4634,34 +4635,36 @@ directory reconstruction:
    dirent references the file of interest.
    If so:
 
-   a. Stash an addpptr entry for this parent pointer in the xfblob and xfarray
-      for later.
+   a. Stash the dirent name and an addpptr entry for this parent pointer in the
+      xfblob and xfarray, respectively.
 
-   b. When finished scanning the directory, flush the stashed updates to the
-      temporary directory.
+   b. When finished scanning the directory or the kernel memory consumption
+      exceeds a threshold, flush the stashed updates to the temporary file.
 
 4. For each live directory update received via the hook, decide if the parent
    has already been scanned.
    If so:
 
-   a. Stash an addpptr or removepptr entry for this dirent update in the
-      xfarray for later.
+   a. Stash the dirent name and an addpptr or removepptr entry for this dirent
+      update in the xfblob and xfarray for later.
       We cannot write parent pointers directly to the temporary file because
       hook functions are not allowed to modify filesystem metadata.
       Instead, we stash updates in the xfarray and rely on the scanner thread
       to apply the stashed parent pointer updates to the temporary file.
 
-5. Copy all non-parent pointer extended attributes to the temporary file.
+5. When the scan is complete, replay any stashed entries in the xfarray.
 
-6. When the scan is complete, atomically exchange the mappings of the attribute
+6. Copy all non-parent pointer extended attributes to the temporary file.
+
+7. When the scan is complete, atomically exchange the mappings of the attribute
    forks of the temporary file and the file being repaired.
    The temporary file now contains the damaged extended attribute structure.
 
-7. Reap the temporary file.
+8. Reap the temporary file.
 
 The proposed patchset is the
 `parent pointers repair
-<https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfs-linux.git/log/?h=pptrs-online-parent-repair>`_
+<https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfs-linux.git/log/?h=pptrs-fsck>`_
 series.
 
 Digression: Offline Checking of Parent Pointers
