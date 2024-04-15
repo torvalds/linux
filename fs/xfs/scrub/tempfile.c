@@ -153,6 +153,7 @@ xrep_tempfile_create(
 	xfs_qm_dqrele(pdqp);
 
 	/* Finish setting up the incore / vfs context. */
+	xfs_iunlock(sc->tempip, XFS_ILOCK_EXCL);
 	xfs_setup_iops(sc->tempip);
 	xfs_finish_inode_setup(sc->tempip);
 
@@ -168,6 +169,7 @@ out_release_inode:
 	 * transactions and deadlocks from xfs_inactive.
 	 */
 	if (sc->tempip) {
+		xfs_iunlock(sc->tempip, XFS_ILOCK_EXCL);
 		xfs_finish_inode_setup(sc->tempip);
 		xchk_irele(sc, sc->tempip);
 	}
