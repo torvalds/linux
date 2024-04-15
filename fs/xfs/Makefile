@@ -67,6 +67,7 @@ xfs-y				+= xfs_aops.o \
 				   xfs_dir2_readdir.o \
 				   xfs_discard.o \
 				   xfs_error.o \
+				   xfs_exchrange.o \
 				   xfs_export.o \
 				   xfs_extent_busy.o \
 				   xfs_file.o \
