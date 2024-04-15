@@ -13,7 +13,8 @@
 struct io_notif_data {
 	struct file		*file;
 	struct ubuf_info	uarg;
-	unsigned long		account_pages;
+
+	unsigned		account_pages;
 	bool			zc_report;
 	bool			zc_used;
 	bool			zc_copied;
