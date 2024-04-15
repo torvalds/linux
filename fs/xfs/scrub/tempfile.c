@@ -19,12 +19,14 @@
 #include "xfs_trans_space.h"
 #include "xfs_dir2.h"
 #include "xfs_exchrange.h"
+#include "xfs_exchmaps.h"
 #include "xfs_defer.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/repair.h"
 #include "scrub/trace.h"
 #include "scrub/tempfile.h"
+#include "scrub/tempexch.h"
 #include "scrub/xfile.h"
 
 /*
@@ -444,5 +446,194 @@ xrep_tempfile_roll_trans(
 		return error;
 
 	xfs_trans_ijoin(sc->tp, sc->tempip, 0);
+	return 0;
+}
+
+/* Enable file content exchanges. */
+int
+xrep_tempexch_enable(
+	struct xfs_scrub	*sc)
+{
+	if (sc->flags & XREP_FSGATES_EXCHANGE_RANGE)
+		return 0;
+
+	if (!xfs_has_exchange_range(sc->mp))
+		return -EOPNOTSUPP;
+
+	trace_xchk_fsgates_enable(sc, XREP_FSGATES_EXCHANGE_RANGE);
+
+	sc->flags |= XREP_FSGATES_EXCHANGE_RANGE;
+	return 0;
+}
+
+/*
+ * Fill out the mapping exchange request in preparation for atomically
+ * committing the contents of a metadata file that we've rebuilt in the temp
+ * file.
+ */
+STATIC int
+xrep_tempexch_prep_request(
+	struct xfs_scrub	*sc,
+	int			whichfork,
+	struct xrep_tempexch	*tx)
+{
+	struct xfs_exchmaps_req	*req = &tx->req;
+
+	memset(tx, 0, sizeof(struct xrep_tempexch));
+
+	/* COW forks don't exist on disk. */
+	if (whichfork == XFS_COW_FORK) {
+		ASSERT(0);
+		return -EINVAL;
+	}
+
+	/* Both files should have the relevant forks. */
+	if (!xfs_ifork_ptr(sc->ip, whichfork) ||
+	    !xfs_ifork_ptr(sc->tempip, whichfork)) {
+		ASSERT(xfs_ifork_ptr(sc->ip, whichfork) != NULL);
+		ASSERT(xfs_ifork_ptr(sc->tempip, whichfork) != NULL);
+		return -EINVAL;
+	}
+
+	/* Exchange all mappings in both forks. */
+	req->ip1 = sc->tempip;
+	req->ip2 = sc->ip;
+	req->startoff1 = 0;
+	req->startoff2 = 0;
+	switch (whichfork) {
+	case XFS_ATTR_FORK:
+		req->flags |= XFS_EXCHMAPS_ATTR_FORK;
+		break;
+	case XFS_DATA_FORK:
+		/* Always exchange sizes when exchanging data fork mappings. */
+		req->flags |= XFS_EXCHMAPS_SET_SIZES;
+		break;
+	}
+	req->blockcount = XFS_MAX_FILEOFF;
+
+	return 0;
+}
+
+/*
+ * Obtain a quota reservation to make sure we don't hit EDQUOT.  We can skip
+ * this if quota enforcement is disabled or if both inodes' dquots are the
+ * same.  The qretry structure must be initialized to zeroes before the first
+ * call to this function.
+ */
+STATIC int
+xrep_tempexch_reserve_quota(
+	struct xfs_scrub		*sc,
+	const struct xrep_tempexch	*tx)
+{
+	struct xfs_trans		*tp = sc->tp;
+	const struct xfs_exchmaps_req	*req = &tx->req;
+	int64_t				ddelta, rdelta;
+	int				error;
+
+	/*
+	 * Don't bother with a quota reservation if we're not enforcing them
+	 * or the two inodes have the same dquots.
+	 */
+	if (!XFS_IS_QUOTA_ON(tp->t_mountp) || req->ip1 == req->ip2 ||
+	    (req->ip1->i_udquot == req->ip2->i_udquot &&
+	     req->ip1->i_gdquot == req->ip2->i_gdquot &&
+	     req->ip1->i_pdquot == req->ip2->i_pdquot))
+		return 0;
+
+	/*
+	 * Quota reservation for each file comes from two sources.  First, we
+	 * need to account for any net gain in mapped blocks during the
+	 * exchange.  Second, we need reservation for the gross gain in mapped
+	 * blocks so that we don't trip over any quota block reservation
+	 * assertions.  We must reserve the gross gain because the quota code
+	 * subtracts from bcount the number of blocks that we unmap; it does
+	 * not add that quantity back to the quota block reservation.
+	 */
+	ddelta = max_t(int64_t, 0, req->ip2_bcount - req->ip1_bcount);
+	rdelta = max_t(int64_t, 0, req->ip2_rtbcount - req->ip1_rtbcount);
+	error = xfs_trans_reserve_quota_nblks(tp, req->ip1,
+			ddelta + req->ip1_bcount, rdelta + req->ip1_rtbcount,
+			true);
+	if (error)
+		return error;
+
+	ddelta = max_t(int64_t, 0, req->ip1_bcount - req->ip2_bcount);
+	rdelta = max_t(int64_t, 0, req->ip1_rtbcount - req->ip2_rtbcount);
+	return xfs_trans_reserve_quota_nblks(tp, req->ip2,
+			ddelta + req->ip2_bcount, rdelta + req->ip2_rtbcount,
+			true);
+}
+
+/*
+ * Prepare an existing transaction for an atomic file contents exchange.
+ *
+ * This function fills out the mapping exchange request and resource estimation
+ * structures in preparation for exchanging the contents of a metadata file
+ * that has been rebuilt in the temp file.  Next, it reserves space and quota
+ * for the transaction.
+ *
+ * The caller must hold ILOCK_EXCL of the scrub target file and the temporary
+ * file.  The caller must join both inodes to the transaction with no unlock
+ * flags, and is responsible for dropping both ILOCKs when appropriate.  Only
+ * use this when those ILOCKs cannot be dropped.
+ */
+int
+xrep_tempexch_trans_reserve(
+	struct xfs_scrub	*sc,
+	int			whichfork,
+	struct xrep_tempexch	*tx)
+{
+	int			error;
+
+	ASSERT(sc->tp != NULL);
+	xfs_assert_ilocked(sc->ip, XFS_ILOCK_EXCL);
+	xfs_assert_ilocked(sc->tempip, XFS_ILOCK_EXCL);
+
+	error = xrep_tempexch_prep_request(sc, whichfork, tx);
+	if (error)
+		return error;
+
+	error = xfs_exchmaps_estimate(&tx->req);
+	if (error)
+		return error;
+
+	error = xfs_trans_reserve_more(sc->tp, tx->req.resblks, 0);
+	if (error)
+		return error;
+
+	return xrep_tempexch_reserve_quota(sc, tx);
+}
+
+/*
+ * Exchange file mappings (and hence file contents) between the file being
+ * repaired and the temporary file.  Returns with both inodes locked and joined
+ * to a clean scrub transaction.
+ */
+int
+xrep_tempexch_contents(
+	struct xfs_scrub	*sc,
+	struct xrep_tempexch	*tx)
+{
+	int			error;
+
+	ASSERT(sc->flags & XREP_FSGATES_EXCHANGE_RANGE);
+
+	xfs_exchange_mappings(sc->tp, &tx->req);
+	error = xfs_defer_finish(&sc->tp);
+	if (error)
+		return error;
+
+	/*
+	 * If we exchanged the ondisk sizes of two metadata files, we must
+	 * exchanged the incore sizes as well.
+	 */
+	if (tx->req.flags & XFS_EXCHMAPS_SET_SIZES) {
+		loff_t	temp;
+
+		temp = i_size_read(VFS_I(sc->ip));
+		i_size_write(VFS_I(sc->ip), i_size_read(VFS_I(sc->tempip)));
+		i_size_write(VFS_I(sc->tempip), temp);
+	}
+
 	return 0;
 }

@@ -131,6 +131,7 @@ struct xfs_scrub {
 #define XCHK_FSGATES_QUOTA	(1U << 4)  /* quota live update enabled */
 #define XCHK_FSGATES_DIRENTS	(1U << 5)  /* directory live update enabled */
 #define XCHK_FSGATES_RMAP	(1U << 6)  /* rmapbt live update enabled */
+#define XREP_FSGATES_EXCHANGE_RANGE (1U << 29) /* uses file content exchange */
 #define XREP_RESET_PERAG_RESV	(1U << 30) /* must reset AG space reservation */
 #define XREP_ALREADY_FIXED	(1U << 31) /* checking our repair work */
 
@@ -144,6 +145,12 @@ struct xfs_scrub {
 				 XCHK_FSGATES_QUOTA | \
 				 XCHK_FSGATES_DIRENTS | \
 				 XCHK_FSGATES_RMAP)
+
+/*
+ * The sole XREP_FSGATES* flag reflects a log intent item that is protected
+ * by a log-incompat feature flag.  No code patching in use here.
+ */
+#define XREP_FSGATES_ALL	(XREP_FSGATES_EXCHANGE_RANGE)
 
 /* Metadata scrubbers */
 int xchk_tester(struct xfs_scrub *sc);
