@@ -122,3 +122,20 @@ void xe_sriov_print_info(struct xe_device *xe, struct drm_printer *p)
 	drm_printf(p, "enabled: %s\n", str_yes_no(IS_SRIOV(xe)));
 	drm_printf(p, "mode: %s\n", xe_sriov_mode_to_string(xe_device_sriov_mode(xe)));
 }
+
+/**
+ * xe_sriov_function_name() - Get SR-IOV Function name.
+ * @n: the Function number (identifier) to get name of
+ * @buf: the buffer to format to
+ * @size: size of the buffer (shall be at least 5 bytes)
+ *
+ * Return: formatted function name ("PF" or "VF%u").
+ */
+const char *xe_sriov_function_name(unsigned int n, char *buf, size_t size)
+{
+	if (n)
+		snprintf(buf, size, "VF%u", n);
+	else
+		strscpy(buf, "PF", size);
+	return buf;
+}

@@ -13,6 +13,7 @@
 struct drm_printer;
 
 const char *xe_sriov_mode_to_string(enum xe_sriov_mode mode);
+const char *xe_sriov_function_name(unsigned int n, char *buf, size_t len);
 
 void xe_sriov_probe_early(struct xe_device *xe);
 void xe_sriov_print_info(struct xe_device *xe, struct drm_printer *p);
