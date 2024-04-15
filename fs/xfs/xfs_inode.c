@@ -418,7 +418,7 @@ xfs_lock_inumorder(
  * lock more than one at a time, lockdep will report false positives saying we
  * have violated locking orders.
  */
-static void
+void
 xfs_lock_inodes(
 	struct xfs_inode	**ips,
 	int			inodes,
@@ -2802,7 +2802,7 @@ xfs_sort_for_rename(
 	struct xfs_inode	**i_tab,/* out: sorted array of inodes */
 	int			*num_inodes)  /* in/out: inodes in array */
 {
-	int			i, j;
+	int			i;
 
 	ASSERT(*num_inodes == __XFS_SORT_INODES);
 	memset(i_tab, 0, *num_inodes * sizeof(struct xfs_inode *));
@@ -2824,17 +2824,26 @@ xfs_sort_for_rename(
 		i_tab[i++] = wip;
 	*num_inodes = i;
 
+	xfs_sort_inodes(i_tab, *num_inodes);
+}
+
+void
+xfs_sort_inodes(
+	struct xfs_inode	**i_tab,
+	unsigned int		num_inodes)
+{
+	int			i, j;
+
+	ASSERT(num_inodes <= __XFS_SORT_INODES);
+
 	/*
 	 * Sort the elements via bubble sort.  (Remember, there are at
 	 * most 5 elements to sort, so this is adequate.)
 	 */
-	for (i = 0; i < *num_inodes; i++) {
-		for (j = 1; j < *num_inodes; j++) {
-			if (i_tab[j]->i_ino < i_tab[j-1]->i_ino) {
-				struct xfs_inode *temp = i_tab[j];
-				i_tab[j] = i_tab[j-1];
-				i_tab[j-1] = temp;
-			}
+	for (i = 0; i < num_inodes; i++) {
+		for (j = 1; j < num_inodes; j++) {
+			if (i_tab[j]->i_ino < i_tab[j-1]->i_ino)
+				swap(i_tab[j], i_tab[j - 1]);
 		}
 	}
 }

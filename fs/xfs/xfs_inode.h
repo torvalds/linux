@@ -627,6 +627,8 @@ int xfs_ilock2_io_mmap(struct xfs_inode *ip1, struct xfs_inode *ip2);
 void xfs_iunlock2_io_mmap(struct xfs_inode *ip1, struct xfs_inode *ip2);
 void xfs_iunlock2_remapping(struct xfs_inode *ip1, struct xfs_inode *ip2);
 void xfs_bumplink(struct xfs_trans *tp, struct xfs_inode *ip);
+void xfs_lock_inodes(struct xfs_inode **ips, int inodes, uint lock_mode);
+void xfs_sort_inodes(struct xfs_inode **i_tab, unsigned int num_inodes);
 
 static inline bool
 xfs_inode_unlinked_incomplete(
