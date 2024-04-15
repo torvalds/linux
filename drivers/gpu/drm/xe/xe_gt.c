@@ -29,6 +29,7 @@
 #include "xe_gt_mcr.h"
 #include "xe_gt_pagefault.h"
 #include "xe_gt_printk.h"
+#include "xe_gt_sriov_pf.h"
 #include "xe_gt_sysfs.h"
 #include "xe_gt_tlb_invalidation.h"
 #include "xe_gt_topology.h"
@@ -310,6 +311,12 @@ put_exec_queue:
 int xe_gt_init_early(struct xe_gt *gt)
 {
 	int err;
+
+	if (IS_SRIOV_PF(gt_to_xe(gt))) {
+		err = xe_gt_sriov_pf_init_early(gt);
+		if (err)
+			return err;
+	}
 
 	err = xe_force_wake_get(gt_to_fw(gt), XE_FW_GT);
 	if (err)
