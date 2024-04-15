@@ -267,8 +267,10 @@ static int vfio_intx_enable(struct vfio_pci_core_device *vdev,
 		return -ENOMEM;
 
 	ctx = vfio_irq_ctx_alloc(vdev, 0);
-	if (!ctx)
+	if (!ctx) {
+		kfree(name);
 		return -ENOMEM;
+	}
 
 	ctx->name = name;
 	ctx->trigger = trigger;
