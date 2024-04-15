@@ -89,7 +89,7 @@ static struct budget_info x_var ## _info = { \
 	.type = x_type };	\
 static struct saa7146_pci_extension_data x_var = { \
 	.ext_priv = &x_var ## _info, \
-	.ext = &budget_extension };
+	.ext = &budget_extension }
 
 #define BUDGET_TT		   0
 #define BUDGET_TT_HW_DISEQC	   1

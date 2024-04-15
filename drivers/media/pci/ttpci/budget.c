@@ -782,7 +782,6 @@ error_out:
 	printk("budget: Frontend registration failed!\n");
 	dvb_frontend_detach(budget->dvb_frontend);
 	budget->dvb_frontend = NULL;
-	return;
 }
 
 static int budget_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data *info)
