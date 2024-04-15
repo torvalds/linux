@@ -616,23 +616,22 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
 
-	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
+	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].r, name, len, &r);
 	if (error)
-		goto do_toss;
+		goto do_new;
 	
 	/*
 	 * rsb is active, so we can't check master_nodeid without lock_rsb.
 	 */
+
+	if (rsb_flag(r, RSB_TOSS))
+		goto do_toss;
 
 	kref_get(&r->res_ref);
 	goto out_unlock;
 
 
  do_toss:
-	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
-	if (error)
-		goto do_new;
-
 	/*
 	 * rsb found inactive (master_nodeid may be out of date unless
 	 * we are the dir_nodeid or were the master)  No other thread
@@ -669,8 +668,7 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 		r->res_first_lkid = 0;
 	}
 
-	rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
-	error = rsb_insert(r, &ls->ls_rsbtbl[b].keep);
+	rsb_clear_flag(r, RSB_TOSS);
 	goto out_unlock;
 
 
@@ -731,7 +729,7 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 	}
 
  out_add:
-	error = rsb_insert(r, &ls->ls_rsbtbl[b].keep);
+	error = rsb_insert(r, &ls->ls_rsbtbl[b].r);
  out_unlock:
 	spin_unlock_bh(&ls->ls_rsbtbl_lock);
  out:
@@ -760,8 +758,11 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
 
-	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
+	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].r, name, len, &r);
 	if (error)
+		goto do_new;
+
+	if (rsb_flag(r, RSB_TOSS))
 		goto do_toss;
 
 	/*
@@ -773,10 +774,6 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 
 
  do_toss:
-	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
-	if (error)
-		goto do_new;
-
 	/*
 	 * rsb found inactive. No other thread is using this rsb because
 	 * it's on the toss list, so we can look at or update
@@ -804,8 +801,7 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 		r->res_nodeid = 0;
 	}
 
-	rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
-	error = rsb_insert(r, &ls->ls_rsbtbl[b].keep);
+	rsb_clear_flag(r, RSB_TOSS);
 	goto out_unlock;
 
 
@@ -829,7 +825,7 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 	r->res_nodeid = (dir_nodeid == our_nodeid) ? 0 : dir_nodeid;
 	kref_init(&r->res_ref);
 
-	error = rsb_insert(r, &ls->ls_rsbtbl[b].keep);
+	error = rsb_insert(r, &ls->ls_rsbtbl[b].r);
  out_unlock:
 	spin_unlock_bh(&ls->ls_rsbtbl_lock);
  out:
@@ -1049,8 +1045,11 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 		return error;
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
-	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
+	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].r, name, len, &r);
 	if (!error) {
+		if (rsb_flag(r, RSB_TOSS))
+			goto do_toss;
+
 		/* because the rsb is active, we need to lock_rsb before
 		 * checking/changing re_master_nodeid
 		 */
@@ -1067,12 +1066,11 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 		put_rsb(r);
 
 		return 0;
+	} else {
+		goto not_found;
 	}
 
-	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
-	if (error)
-		goto not_found;
-
+ do_toss:
 	/* because the rsb is inactive (on toss list), it's not refcounted
 	 * and lock_rsb is not used, but is protected by the rsbtbl lock
 	 */
@@ -1102,8 +1100,9 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 	r->res_nodeid = from_nodeid;
 	kref_init(&r->res_ref);
 	r->res_toss_time = jiffies;
+	rsb_set_flag(r, RSB_TOSS);
 
-	error = rsb_insert(r, &ls->ls_rsbtbl[b].toss);
+	error = rsb_insert(r, &ls->ls_rsbtbl[b].r);
 	if (error) {
 		/* should never happen */
 		dlm_free_rsb(r);
@@ -1127,8 +1126,11 @@ static void dlm_dump_rsb_hash(struct dlm_ls *ls, uint32_t hash)
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		for (n = rb_first(&ls->ls_rsbtbl[i].keep); n; n = rb_next(n)) {
+		for (n = rb_first(&ls->ls_rsbtbl[i].r); n; n = rb_next(n)) {
 			r = rb_entry(n, struct dlm_rsb, res_hashnode);
+			if (rsb_flag(r, RSB_TOSS))
+				continue;
+
 			if (r->res_hash == hash)
 				dlm_dump_rsb(r);
 		}
@@ -1146,14 +1148,10 @@ void dlm_dump_rsb_name(struct dlm_ls *ls, const char *name, int len)
 	b = hash & (ls->ls_rsbtbl_size - 1);
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
-	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
+	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].r, name, len, &r);
 	if (!error)
-		goto out_dump;
-
-	error = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
-	if (error)
 		goto out;
- out_dump:
+
 	dlm_dump_rsb(r);
  out:
 	spin_unlock_bh(&ls->ls_rsbtbl_lock);
@@ -1166,8 +1164,8 @@ static void toss_rsb(struct kref *kref)
 
 	DLM_ASSERT(list_empty(&r->res_root_list), dlm_print_rsb(r););
 	kref_init(&r->res_ref);
-	rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[r->res_bucket].keep);
-	rsb_insert(r, &ls->ls_rsbtbl[r->res_bucket].toss);
+	WARN_ON(rsb_flag(r, RSB_TOSS));
+	rsb_set_flag(r, RSB_TOSS);
 	r->res_toss_time = jiffies;
 	set_bit(DLM_RTF_SHRINK_BIT, &ls->ls_rsbtbl[r->res_bucket].flags);
 	if (r->res_lvbptr) {
@@ -1627,9 +1625,11 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 		return;
 	}
 
-	for (n = rb_first(&ls->ls_rsbtbl[b].toss); n; n = next) {
+	for (n = rb_first(&ls->ls_rsbtbl[b].r); n; n = next) {
 		next = rb_next(n);
 		r = rb_entry(n, struct dlm_rsb, res_hashnode);
+		if (!rsb_flag(r, RSB_TOSS))
+			continue;
 
 		/* If we're the directory record for this rsb, and
 		   we're not the master of it, then we need to wait
@@ -1672,7 +1672,7 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 			continue;
 		}
 
-		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
+		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].r);
 		dlm_free_rsb(r);
 	}
 
@@ -1696,8 +1696,14 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 		len = ls->ls_remove_lens[i];
 
 		spin_lock_bh(&ls->ls_rsbtbl_lock);
-		rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
+		rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].r, name, len, &r);
 		if (rv) {
+			spin_unlock_bh(&ls->ls_rsbtbl_lock);
+			log_error(ls, "remove_name not found %s", name);
+			continue;
+		}
+
+		if (!rsb_flag(r, RSB_TOSS)) {
 			spin_unlock_bh(&ls->ls_rsbtbl_lock);
 			log_debug(ls, "remove_name not toss %s", name);
 			continue;
@@ -1734,7 +1740,7 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 			continue;
 		}
 
-		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
+		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].r);
 		send_remove(r);
 		spin_unlock_bh(&ls->ls_rsbtbl_lock);
 
@@ -4202,17 +4208,16 @@ static void receive_remove(struct dlm_ls *ls, const struct dlm_message *ms)
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
 
-	rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].toss, name, len, &r);
+	rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].r, name, len, &r);
 	if (rv) {
-		/* verify the rsb is on keep list per comment above */
-		rv = dlm_search_rsb_tree(&ls->ls_rsbtbl[b].keep, name, len, &r);
-		if (rv) {
-			/* should not happen */
-			log_error(ls, "receive_remove from %d not found %s",
-				  from_nodeid, name);
-			spin_unlock_bh(&ls->ls_rsbtbl_lock);
-			return;
-		}
+		/* should not happen */
+		log_error(ls, "%s from %d not found %s", __func__,
+			  from_nodeid, name);
+		spin_unlock_bh(&ls->ls_rsbtbl_lock);
+		return;
+	}
+
+	if (!rsb_flag(r, RSB_TOSS)) {
 		if (r->res_master_nodeid != from_nodeid) {
 			/* should not happen */
 			log_error(ls, "receive_remove keep from %d master %d",
@@ -4238,7 +4243,7 @@ static void receive_remove(struct dlm_ls *ls, const struct dlm_message *ms)
 	}
 
 	if (kref_put(&r->res_ref, kill_rsb)) {
-		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].toss);
+		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].r);
 		spin_unlock_bh(&ls->ls_rsbtbl_lock);
 		dlm_free_rsb(r);
 	} else {
@@ -5314,8 +5319,10 @@ static struct dlm_rsb *find_grant_rsb(struct dlm_ls *ls, int bucket)
 	struct dlm_rsb *r;
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
-	for (n = rb_first(&ls->ls_rsbtbl[bucket].keep); n; n = rb_next(n)) {
+	for (n = rb_first(&ls->ls_rsbtbl[bucket].r); n; n = rb_next(n)) {
 		r = rb_entry(n, struct dlm_rsb, res_hashnode);
+		if (rsb_flag(r, RSB_TOSS))
+			continue;
 
 		if (!rsb_flag(r, RSB_RECOVER_GRANT))
 			continue;

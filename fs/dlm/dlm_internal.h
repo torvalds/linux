@@ -103,8 +103,7 @@ do { \
 #define DLM_RTF_SHRINK_BIT	0
 
 struct dlm_rsbtable {
-	struct rb_root		keep;
-	struct rb_root		toss;
+	struct rb_root          r;
 	unsigned long		flags;
 };
 
@@ -376,6 +375,7 @@ enum rsb_flags {
 	RSB_RECOVER_CONVERT,
 	RSB_RECOVER_GRANT,
 	RSB_RECOVER_LVB_INVAL,
+	RSB_TOSS,
 };
 
 static inline void rsb_set_flag(struct dlm_rsb *r, enum rsb_flags flag)

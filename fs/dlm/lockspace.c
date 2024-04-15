@@ -503,8 +503,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	if (!ls->ls_rsbtbl)
 		goto out_lsfree;
 	for (i = 0; i < size; i++) {
-		ls->ls_rsbtbl[i].keep.rb_node = NULL;
-		ls->ls_rsbtbl[i].toss.rb_node = NULL;
+		ls->ls_rsbtbl[i].r.rb_node = NULL;
 	}
 
 	for (i = 0; i < DLM_REMOVE_NAMES_MAX; i++) {
@@ -837,15 +836,9 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	 */
 
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		while ((n = rb_first(&ls->ls_rsbtbl[i].keep))) {
+		while ((n = rb_first(&ls->ls_rsbtbl[i].r))) {
 			rsb = rb_entry(n, struct dlm_rsb, res_hashnode);
-			rb_erase(n, &ls->ls_rsbtbl[i].keep);
-			dlm_free_rsb(rsb);
-		}
-
-		while ((n = rb_first(&ls->ls_rsbtbl[i].toss))) {
-			rsb = rb_entry(n, struct dlm_rsb, res_hashnode);
-			rb_erase(n, &ls->ls_rsbtbl[i].toss);
+			rb_erase(n, &ls->ls_rsbtbl[i].r);
 			dlm_free_rsb(rsb);
 		}
 	}

@@ -35,9 +35,9 @@ static int dlm_create_masters_list(struct dlm_ls *ls)
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		for (n = rb_first(&ls->ls_rsbtbl[i].keep); n; n = rb_next(n)) {
+		for (n = rb_first(&ls->ls_rsbtbl[i].r); n; n = rb_next(n)) {
 			r = rb_entry(n, struct dlm_rsb, res_hashnode);
-			if (r->res_nodeid)
+			if (rsb_flag(r, RSB_TOSS) || r->res_nodeid)
 				continue;
 
 			list_add(&r->res_masters_list, &ls->ls_masters_list);
@@ -70,14 +70,14 @@ static void dlm_create_root_list(struct dlm_ls *ls, struct list_head *root_list)
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		for (n = rb_first(&ls->ls_rsbtbl[i].keep); n; n = rb_next(n)) {
+		for (n = rb_first(&ls->ls_rsbtbl[i].r); n; n = rb_next(n)) {
 			r = rb_entry(n, struct dlm_rsb, res_hashnode);
+			if (WARN_ON_ONCE(rsb_flag(r, RSB_TOSS)))
+				continue;
+
 			list_add(&r->res_root_list, root_list);
 			dlm_hold_rsb(r);
 		}
-
-		if (!RB_EMPTY_ROOT(&ls->ls_rsbtbl[i].toss))
-			log_error(ls, "%s toss not empty", __func__);
 	}
 	spin_unlock_bh(&ls->ls_rsbtbl_lock);
 }

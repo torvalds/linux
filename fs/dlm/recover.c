@@ -888,10 +888,13 @@ void dlm_clear_toss(struct dlm_ls *ls)
 
 	spin_lock(&ls->ls_rsbtbl_lock);
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		for (n = rb_first(&ls->ls_rsbtbl[i].toss); n; n = next) {
+		for (n = rb_first(&ls->ls_rsbtbl[i].r); n; n = next) {
 			next = rb_next(n);
 			r = rb_entry(n, struct dlm_rsb, res_hashnode);
-			rb_erase(n, &ls->ls_rsbtbl[i].toss);
+			if (!rsb_flag(r, RSB_TOSS))
+				continue;
+
+			rb_erase(n, &ls->ls_rsbtbl[i].r);
 			dlm_free_rsb(r);
 			count++;
 		}

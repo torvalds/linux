@@ -450,12 +450,20 @@ static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 	if (seq->op == &format4_seq_ops)
 		ri->format = 4;
 
-	tree = toss ? &ls->ls_rsbtbl[bucket].toss : &ls->ls_rsbtbl[bucket].keep;
+	tree = &ls->ls_rsbtbl[bucket].r;
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
 	if (!RB_EMPTY_ROOT(tree)) {
 		for (node = rb_first(tree); node; node = rb_next(node)) {
 			r = rb_entry(node, struct dlm_rsb, res_hashnode);
+			if (toss) {
+				if (!rsb_flag(r, RSB_TOSS))
+					continue;
+			} else {
+				if (rsb_flag(r, RSB_TOSS))
+					continue;
+			}
+
 			if (!entry--) {
 				dlm_hold_rsb(r);
 				ri->rsb = r;
@@ -482,12 +490,20 @@ static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 			kfree(ri);
 			return NULL;
 		}
-		tree = toss ? &ls->ls_rsbtbl[bucket].toss : &ls->ls_rsbtbl[bucket].keep;
+		tree = &ls->ls_rsbtbl[bucket].r;
 
 		spin_lock_bh(&ls->ls_rsbtbl_lock);
 		if (!RB_EMPTY_ROOT(tree)) {
 			node = rb_first(tree);
 			r = rb_entry(node, struct dlm_rsb, res_hashnode);
+			if (toss) {
+				if (!rsb_flag(r, RSB_TOSS))
+					continue;
+			} else {
+				if (rsb_flag(r, RSB_TOSS))
+					continue;
+			}
+
 			dlm_hold_rsb(r);
 			ri->rsb = r;
 			ri->bucket = bucket;
@@ -548,12 +564,19 @@ static void *table_seq_next(struct seq_file *seq, void *iter_ptr, loff_t *pos)
 			++*pos;
 			return NULL;
 		}
-		tree = toss ? &ls->ls_rsbtbl[bucket].toss : &ls->ls_rsbtbl[bucket].keep;
+		tree = &ls->ls_rsbtbl[bucket].r;
 
 		spin_lock_bh(&ls->ls_rsbtbl_lock);
 		if (!RB_EMPTY_ROOT(tree)) {
 			next = rb_first(tree);
 			r = rb_entry(next, struct dlm_rsb, res_hashnode);
+			if (toss) {
+				if (!rsb_flag(r, RSB_TOSS))
+					continue;
+			} else {
+				if (rsb_flag(r, RSB_TOSS))
+					continue;
+			}
 			dlm_hold_rsb(r);
 			ri->rsb = r;
 			ri->bucket = bucket;
