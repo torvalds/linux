@@ -20,6 +20,7 @@ obj-$(CONFIG_DWMAC_LPC18XX)	+= dwmac-lpc18xx.o
 obj-$(CONFIG_DWMAC_MEDIATEK)	+= dwmac-mediatek.o
 obj-$(CONFIG_DWMAC_MESON)	+= dwmac-meson.o dwmac-meson8b.o
 obj-$(CONFIG_DWMAC_OXNAS)	+= dwmac-oxnas.o
+obj-$(CONFIG_EMAC_MDIO_FE)	+= emac_mdio_fe.o
 obj-$(CONFIG_DWMAC_QCOM_ETHQOS) += dwmac-qcom-eth.o
 dwmac-qcom-eth-objs := dwmac-qcom-ethqos.o dwmac-qcom-gpio.o
 obj-$(CONFIG_ETHQOS_QCOM_SERDES) += dwmac-qcom-serdes.o
