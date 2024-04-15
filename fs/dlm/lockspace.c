@@ -495,6 +495,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	 */
 	ls->ls_exflags = (flags & ~(DLM_LSFL_FS | DLM_LSFL_NEWEXCL));
 
+	spin_lock_init(&ls->ls_rsbtbl_lock);
 	size = READ_ONCE(dlm_config.ci_rsbtbl_size);
 	ls->ls_rsbtbl_size = size;
 
@@ -504,7 +505,6 @@ static int new_lockspace(const char *name, const char *cluster,
 	for (i = 0; i < size; i++) {
 		ls->ls_rsbtbl[i].keep.rb_node = NULL;
 		ls->ls_rsbtbl[i].toss.rb_node = NULL;
-		spin_lock_init(&ls->ls_rsbtbl[i].lock);
 	}
 
 	for (i = 0; i < DLM_REMOVE_NAMES_MAX; i++) {

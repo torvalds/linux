@@ -105,7 +105,6 @@ do { \
 struct dlm_rsbtable {
 	struct rb_root		keep;
 	struct rb_root		toss;
-	spinlock_t		lock;
 	unsigned long		flags;
 };
 
@@ -593,6 +592,7 @@ struct dlm_ls {
 	spinlock_t		ls_lkbidr_spin;
 
 	struct dlm_rsbtable	*ls_rsbtbl;
+	spinlock_t		ls_rsbtbl_lock;
 	uint32_t		ls_rsbtbl_size;
 
 	spinlock_t		ls_waiters_lock;
