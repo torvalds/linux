@@ -268,7 +268,7 @@ xfs_iwalk_ag_start(
 
 	/* Set up a fresh cursor and empty the inobt cache. */
 	iwag->nr_recs = 0;
-	error = xfs_ialloc_read_agi(pag, tp, agi_bpp);
+	error = xfs_ialloc_read_agi(pag, tp, 0, agi_bpp);
 	if (error)
 		return error;
 	*curpp = xfs_inobt_init_cursor(pag, tp, *agi_bpp);
@@ -386,7 +386,7 @@ xfs_iwalk_run_callbacks(
 	}
 
 	/* ...and recreate the cursor just past where we left off. */
-	error = xfs_ialloc_read_agi(iwag->pag, iwag->tp, agi_bpp);
+	error = xfs_ialloc_read_agi(iwag->pag, iwag->tp, 0, agi_bpp);
 	if (error)
 		return error;
 	*curpp = xfs_inobt_init_cursor(iwag->pag, iwag->tp, *agi_bpp);

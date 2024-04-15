@@ -281,7 +281,7 @@ xchk_iscan_advance(
 		if (!pag)
 			return -ECANCELED;
 
-		ret = xfs_ialloc_read_agi(pag, sc->tp, &agi_bp);
+		ret = xfs_ialloc_read_agi(pag, sc->tp, 0, &agi_bp);
 		if (ret)
 			goto out_pag;
 

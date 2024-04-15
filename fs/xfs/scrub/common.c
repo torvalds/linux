@@ -445,7 +445,7 @@ xchk_perag_read_headers(
 {
 	int			error;
 
-	error = xfs_ialloc_read_agi(sa->pag, sc->tp, &sa->agi_bp);
+	error = xfs_ialloc_read_agi(sa->pag, sc->tp, 0, &sa->agi_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGI))
 		return error;
 
@@ -827,7 +827,7 @@ again:
 	 * in the iget cache miss path.
 	 */
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, inum));
-	error = xfs_ialloc_read_agi(pag, tp, agi_bpp);
+	error = xfs_ialloc_read_agi(pag, tp, 0, agi_bpp);
 	xfs_perag_put(pag);
 	if (error)
 		return error;
