@@ -40,6 +40,7 @@
 #include "xfs_btree_mem.h"
 #include "xfs_bmap.h"
 #include "xfs_exchmaps.h"
+#include "xfs_exchrange.h"
 
 /*
  * We include this last to have the helpers above available for the trace
