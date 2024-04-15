@@ -42,6 +42,7 @@
 #include "scrub/readdir.h"
 #include "scrub/reap.h"
 #include "scrub/findparent.h"
+#include "scrub/orphanage.h"
 
 /*
  * Directory Repair
@@ -115,11 +116,20 @@ struct xrep_dir {
 	 */
 	struct xrep_parent_scan_info pscan;
 
+	/*
+	 * Context information for attaching this directory to the lost+found
+	 * if this directory does not have a parent.
+	 */
+	struct xrep_adoption	adoption;
+
 	/* How many subdirectories did we find? */
 	uint64_t		subdirs;
 
 	/* How many dirents did we find? */
 	unsigned int		dirents;
+
+	/* Should we move this directory to the orphanage? */
+	bool			needs_adoption;
 
 	/* Directory entry name, plus the trailing null. */
 	struct xfs_name		xname;
@@ -147,6 +157,10 @@ xrep_setup_directory(
 	int			error;
 
 	xchk_fsgates_enable(sc, XCHK_FSGATES_DIRENTS);
+
+	error = xrep_orphanage_try_create(sc);
+	if (error)
+		return error;
 
 	error = xrep_tempfile_create(sc, S_IFDIR);
 	if (error)
@@ -1137,10 +1151,8 @@ xrep_dir_set_nlink(
 	/*
 	 * The directory is not on the incore unlinked list, which means that
 	 * it needs to be reachable via the directory tree.  Update the nlink
-	 * with our observed link count.
-	 *
-	 * XXX: A subsequent patch will handle parentless directories by moving
-	 * them to the lost and found instead of aborting the repair.
+	 * with our observed link count.  If the directory has no parent, it
+	 * will be moved to the orphanage.
 	 */
 	if (!xfs_inode_on_unlinked_list(dp))
 		goto reset_nlink;
@@ -1151,6 +1163,7 @@ xrep_dir_set_nlink(
 	 * inactivate when the last reference drops.
 	 */
 	if (rd->dirents == 0) {
+		rd->needs_adoption = false;
 		new_nlink = 0;
 		goto reset_nlink;
 	}
@@ -1159,7 +1172,8 @@ xrep_dir_set_nlink(
 	 * The directory is on the unlinked list and we found dirents.  This
 	 * directory needs to be reachable via the directory tree.  Remove the
 	 * dir from the unlinked list and update nlink with the observed link
-	 * count.
+	 * count.  If the directory has no parent, it will be moved to the
+	 * orphanage.
 	 */
 	pag = xfs_perag_get(sc->mp, XFS_INO_TO_AGNO(sc->mp, dp->i_ino));
 	if (!pag) {
@@ -1195,12 +1209,16 @@ xrep_dir_swap(
 		return -EFSCORRUPTED;
 
 	/*
-	 * If we never found the parent for this directory, we can't fix this
-	 * directory.
+	 * If we never found the parent for this directory, temporarily assign
+	 * the root dir as the parent; we'll move this to the orphanage after
+	 * exchanging the dir contents.  We hold the ILOCK of the dir being
+	 * repaired, so we're not worried about racy updates of dotdot.
 	 */
 	ASSERT(sc->ilock_flags & XFS_ILOCK_EXCL);
-	if (rd->pscan.parent_ino == NULLFSINO)
-		return -EFSCORRUPTED;
+	if (rd->pscan.parent_ino == NULLFSINO) {
+		rd->needs_adoption = true;
+		rd->pscan.parent_ino = rd->sc->mp->m_sb.sb_rootino;
+	}
 
 	/*
 	 * Reset the temporary directory's '..' entry to point to the parent
@@ -1359,6 +1377,91 @@ out_xfarray:
 }
 
 /*
+ * Move the current file to the orphanage.
+ *
+ * Caller must hold IOLOCK_EXCL on @sc->ip, and no other inode locks.  Upon
+ * successful return, the scrub transaction will have enough extra reservation
+ * to make the move; it will hold IOLOCK_EXCL and ILOCK_EXCL of @sc->ip and the
+ * orphanage; and both inodes will be ijoined.
+ */
+STATIC int
+xrep_dir_move_to_orphanage(
+	struct xrep_dir		*rd)
+{
+	struct xfs_scrub	*sc = rd->sc;
+	xfs_ino_t		orig_parent, new_parent;
+	int			error;
+
+	/*
+	 * We are about to drop the ILOCK on sc->ip to lock the orphanage and
+	 * prepare for the adoption.  Therefore, look up the old dotdot entry
+	 * for sc->ip so that we can compare it after we re-lock sc->ip.
+	 */
+	error = xchk_dir_lookup(sc, sc->ip, &xfs_name_dotdot, &orig_parent);
+	if (error)
+		return error;
+
+	/*
+	 * Drop the ILOCK on the scrub target and commit the transaction.
+	 * Adoption computes its own resource requirements and gathers the
+	 * necessary components.
+	 */
+	error = xrep_trans_commit(sc);
+	if (error)
+		return error;
+	xchk_iunlock(sc, XFS_ILOCK_EXCL);
+
+	/* If we can take the orphanage's iolock then we're ready to move. */
+	if (!xrep_orphanage_ilock_nowait(sc, XFS_IOLOCK_EXCL)) {
+		xchk_iunlock(sc, sc->ilock_flags);
+		error = xrep_orphanage_iolock_two(sc);
+		if (error)
+			return error;
+	}
+
+	/* Grab transaction and ILOCK the two files. */
+	error = xrep_adoption_trans_alloc(sc, &rd->adoption);
+	if (error)
+		return error;
+
+	error = xrep_adoption_compute_name(&rd->adoption, &rd->xname);
+	if (error)
+		return error;
+
+	/*
+	 * Now that we've reacquired the ILOCK on sc->ip, look up the dotdot
+	 * entry again.  If the parent changed or the child was unlinked while
+	 * the child directory was unlocked, we don't need to move the child to
+	 * the orphanage after all.
+	 */
+	error = xchk_dir_lookup(sc, sc->ip, &xfs_name_dotdot, &new_parent);
+	if (error)
+		return error;
+
+	/*
+	 * Attach to the orphanage if we still have a linked directory and it
+	 * hasn't been moved.
+	 */
+	if (orig_parent == new_parent && VFS_I(sc->ip)->i_nlink > 0) {
+		error = xrep_adoption_move(&rd->adoption);
+		if (error)
+			return error;
+	}
+
+	/*
+	 * Launder the scrub transaction so we can drop the orphanage ILOCK
+	 * and IOLOCK.  Return holding the scrub target's ILOCK and IOLOCK.
+	 */
+	error = xrep_adoption_trans_roll(&rd->adoption);
+	if (error)
+		return error;
+
+	xrep_orphanage_iunlock(sc, XFS_ILOCK_EXCL);
+	xrep_orphanage_iunlock(sc, XFS_IOLOCK_EXCL);
+	return 0;
+}
+
+/*
  * Repair the directory metadata.
  *
  * XXX: Directory entry buffers can be multiple fsblocks in size.  The buffer
@@ -1395,6 +1498,15 @@ xrep_directory(
 	error = xrep_dir_rebuild_tree(rd);
 	if (error)
 		goto out_teardown;
+
+	if (rd->needs_adoption) {
+		if (!xrep_orphanage_can_adopt(rd->sc))
+			error = -EFSCORRUPTED;
+		else
+			error = xrep_dir_move_to_orphanage(rd);
+		if (error)
+			goto out_teardown;
+	}
 
 out_teardown:
 	xrep_dir_teardown(sc);

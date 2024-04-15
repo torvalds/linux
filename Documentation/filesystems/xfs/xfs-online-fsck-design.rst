@@ -4778,14 +4778,21 @@ Orphaned files are adopted by the orphanage as follows:
    The ``xrep_orphanage_iolock_two`` function follows the inode locking
    strategy discussed earlier.
 
-3. Call ``xrep_orphanage_compute_blkres`` and ``xrep_orphanage_compute_name``
-   to compute the new name in the orphanage and the block reservation required.
-
-4. Use ``xrep_orphanage_adoption_prep`` to reserve resources to the repair
+3. Use ``xrep_adoption_trans_alloc`` to reserve resources to the repair
    transaction.
 
-5. Call ``xrep_orphanage_adopt`` to reparent the orphaned file into the lost
-   and found, and update the kernel dentry cache.
+4. Call ``xrep_orphanage_compute_name`` to compute the new name in the
+   orphanage.
+
+5. If the adoption is going to happen, call ``xrep_adoption_reparent`` to
+   reparent the orphaned file into the lost and found and invalidate the dentry
+   cache.
+
+6. Call ``xrep_adoption_finish`` to commit any filesystem updates, release the
+   orphanage ILOCK, and clean the scrub transaction.
+
+7. If a runtime error happens, call ``xrep_adoption_cancel`` to release all
+   resources.
 
 The proposed patches are in the
 `orphanage adoption

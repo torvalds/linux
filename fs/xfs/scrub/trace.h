@@ -2588,6 +2588,34 @@ DEFINE_EVENT(xrep_dirent_class, name, \
 DEFINE_XREP_DIRENT_EVENT(xrep_dir_salvage_entry);
 DEFINE_XREP_DIRENT_EVENT(xrep_dir_stash_createname);
 DEFINE_XREP_DIRENT_EVENT(xrep_dir_replay_createname);
+DEFINE_XREP_DIRENT_EVENT(xrep_adoption_reparent);
+
+DECLARE_EVENT_CLASS(xrep_adoption_class,
+	TP_PROTO(struct xfs_inode *dp, struct xfs_inode *ip, bool moved),
+	TP_ARGS(dp, ip, moved),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, dir_ino)
+		__field(xfs_ino_t, child_ino)
+		__field(bool, moved)
+	),
+	TP_fast_assign(
+		__entry->dev = dp->i_mount->m_super->s_dev;
+		__entry->dir_ino = dp->i_ino;
+		__entry->child_ino = ip->i_ino;
+		__entry->moved = moved;
+	),
+	TP_printk("dev %d:%d dir 0x%llx child 0x%llx moved? %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dir_ino,
+		  __entry->child_ino,
+		  __entry->moved)
+);
+#define DEFINE_XREP_ADOPTION_EVENT(name) \
+DEFINE_EVENT(xrep_adoption_class, name, \
+	TP_PROTO(struct xfs_inode *dp, struct xfs_inode *ip, bool moved), \
+	TP_ARGS(dp, ip, moved))
+DEFINE_XREP_ADOPTION_EVENT(xrep_adoption_trans_roll);
 
 DECLARE_EVENT_CLASS(xrep_parent_salvage_class,
 	TP_PROTO(struct xfs_inode *dp, xfs_ino_t ino),

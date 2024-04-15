@@ -27,6 +27,7 @@
 #include "scrub/stats.h"
 #include "scrub/xfile.h"
 #include "scrub/tempfile.h"
+#include "scrub/orphanage.h"
 
 /*
  * Online Scrub and Repair
@@ -217,6 +218,7 @@ xchk_teardown(
 	}
 
 	xrep_tempfile_rele(sc);
+	xrep_orphanage_rele(sc);
 	xchk_fsgates_disable(sc);
 	return error;
 }
