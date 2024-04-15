@@ -125,19 +125,19 @@ static int SetVoltage_Activy(struct budget *budget,
 	dprintk(2, "budget: %p\n", budget);
 
 	switch (voltage) {
-		case SEC_VOLTAGE_13:
-			saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTHI);
-			saa7146_setgpio(dev, 2, SAA7146_GPIO_OUTLO);
-			break;
-		case SEC_VOLTAGE_18:
-			saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTHI);
-			saa7146_setgpio(dev, 2, SAA7146_GPIO_OUTHI);
-			break;
-		case SEC_VOLTAGE_OFF:
-			saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTLO);
-			break;
-		default:
-			return -EINVAL;
+	case SEC_VOLTAGE_13:
+		saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTHI);
+		saa7146_setgpio(dev, 2, SAA7146_GPIO_OUTLO);
+		break;
+	case SEC_VOLTAGE_18:
+		saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTHI);
+		saa7146_setgpio(dev, 2, SAA7146_GPIO_OUTHI);
+		break;
+	case SEC_VOLTAGE_OFF:
+		saa7146_setgpio(dev, 1, SAA7146_GPIO_OUTLO);
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
