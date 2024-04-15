@@ -4047,9 +4047,6 @@ series.
 | one ``struct rw_semaphore`` for each feature.                            |
 | The log cleaning code tries to take this rwsem in exclusive mode to      |
 | clear the bit; if the lock attempt fails, the feature bit remains set.   |
-| Filesystem code signals its intention to use a log incompat feature in a |
-| transaction by calling ``xlog_use_incompat_feat``, which takes the rwsem |
-| in shared mode.                                                          |
 | The code supporting a log incompat feature should create wrapper         |
 | functions to obtain the log feature and call                             |
 | ``xfs_add_incompat_log_feature`` to set the feature bits in the primary  |
