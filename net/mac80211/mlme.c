@@ -1933,13 +1933,14 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 
 	WARN_ON(!link->conf->csa_active);
 
-	if (sdata->csa_blocked_tx) {
+	if (sdata->csa_blocked_queues) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_tx = false;
+		sdata->csa_blocked_queues = false;
 	}
 
 	link->conf->csa_active = false;
+	link->u.mgd.csa_blocked_tx = false;
 	link->u.mgd.csa_waiting_bcn = false;
 
 	ret = drv_post_channel_switch(link);
@@ -1999,13 +2000,14 @@ ieee80211_sta_abort_chanswitch(struct ieee80211_link_data *link)
 
 	ieee80211_link_unreserve_chanctx(link);
 
-	if (sdata->csa_blocked_tx) {
+	if (sdata->csa_blocked_queues) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_tx = false;
+		sdata->csa_blocked_queues = false;
 	}
 
 	link->conf->csa_active = false;
+	link->u.mgd.csa_blocked_tx = false;
 
 	drv_abort_channel_switch(link);
 }
@@ -2165,12 +2167,13 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	link->csa_chanreq = csa_ie.chanreq;
 	link->u.mgd.csa_ignored_same_chan = false;
 	link->u.mgd.beacon_crc_valid = false;
+	link->u.mgd.csa_blocked_tx = csa_ie.mode;
 
 	if (csa_ie.mode &&
 	    !ieee80211_hw_check(&local->hw, HANDLES_QUIET_CSA)) {
 		ieee80211_stop_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_tx = true;
+		sdata->csa_blocked_queues = true;
 	}
 
 	cfg80211_ch_switch_started_notify(sdata->dev, &csa_ie.chanreq.oper,
@@ -2199,7 +2202,8 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 	 * reset when the disconnection worker runs.
 	 */
 	link->conf->csa_active = true;
-	sdata->csa_blocked_tx =
+	link->u.mgd.csa_blocked_tx = csa_ie.mode;
+	sdata->csa_blocked_queues =
 		csa_ie.mode && !ieee80211_hw_check(&local->hw, HANDLES_QUIET_CSA);
 
 	wiphy_work_queue(sdata->local->hw.wiphy,
@@ -3252,12 +3256,13 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	sdata->vif.bss_conf.csa_active = false;
+	sdata->deflink.u.mgd.csa_blocked_tx = false;
 	sdata->deflink.u.mgd.csa_waiting_bcn = false;
 	sdata->deflink.u.mgd.csa_ignored_same_chan = false;
-	if (sdata->csa_blocked_tx) {
+	if (sdata->csa_blocked_queues) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_tx = false;
+		sdata->csa_blocked_queues = false;
 	}
 
 	/* existing TX TSPEC sessions no longer exist */
@@ -3563,19 +3568,32 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
-	bool tx;
+	bool tx = false;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (!ifmgd->associated)
 		return;
 
-	/*
-	 * MLO drivers should have HANDLES_QUIET_CSA, so that csa_blocked_tx
-	 * is always false; if they don't then this may try to transmit the
-	 * frame but queues will be stopped.
-	 */
-	tx = !sdata->csa_blocked_tx;
+	/* only transmit if we have a link that makes that worthwhile */
+	for (unsigned int link_id = 0;
+	     link_id < ARRAY_SIZE(sdata->link);
+	     link_id++) {
+		struct ieee80211_link_data *link;
+
+		if (!ieee80211_vif_link_active(&sdata->vif, link_id))
+			continue;
+
+		link = sdata_dereference(sdata->link[link_id], sdata);
+		if (WARN_ON_ONCE(!link))
+			continue;
+
+		if (link->u.mgd.csa_blocked_tx)
+			continue;
+
+		tx = true;
+		break;
+	}
 
 	if (!ifmgd->driver_disconnect) {
 		unsigned int link_id;
@@ -3608,10 +3626,11 @@ static void __ieee80211_disconnect(struct ieee80211_sub_if_data *sdata)
 	/* the other links will be destroyed */
 	sdata->vif.bss_conf.csa_active = false;
 	sdata->deflink.u.mgd.csa_waiting_bcn = false;
-	if (sdata->csa_blocked_tx) {
+	sdata->deflink.u.mgd.csa_blocked_tx = false;
+	if (sdata->csa_blocked_queues) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->csa_blocked_tx = false;
+		sdata->csa_blocked_queues = false;
 	}
 
 	ieee80211_report_disconnect(sdata, frame_buf, sizeof(frame_buf), tx,

@@ -974,6 +974,7 @@ struct ieee80211_link_data_managed {
 
 	bool csa_waiting_bcn;
 	bool csa_ignored_same_chan;
+	bool csa_blocked_tx;
 	struct wiphy_delayed_work chswitch_work;
 
 	struct wiphy_work request_smps_work;
@@ -1092,7 +1093,7 @@ struct ieee80211_sub_if_data {
 
 	unsigned long state;
 
-	bool csa_blocked_tx;
+	bool csa_blocked_queues;
 
 	char name[IFNAMSIZ];
 
