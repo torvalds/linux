@@ -20,6 +20,7 @@
 #include <uapi/linux/hgsl.h>
 #include <linux/delay.h>
 #include <trace/events/gpu_mem.h>
+#include <linux/suspend.h>
 
 #include "hgsl.h"
 #include "hgsl_tcsr.h"
@@ -159,7 +160,6 @@ struct ctx_queue_header {
 	uint32_t unused0;
 	uint32_t unused1;
 };
-
 
 static inline bool _timestamp_retired(struct hgsl_context *ctxt,
 				unsigned int timestamp);
@@ -839,9 +839,9 @@ static int hgsl_init_global_db(struct qcom_hgsl *hgsl,
 
 	if (!is_sender && !hgsl->wq) {
 		hgsl->wq = alloc_workqueue("hgsl-wq", WQ_HIGHPRI, 0);
-		if (IS_ERR_OR_NULL(hgsl->wq)) {
+		if (!hgsl->wq) {
 			dev_err(dev, "failed to create workqueue\n");
-			ret = PTR_ERR(hgsl->wq);
+			ret = -ENOMEM;
 			goto fail;
 		}
 		INIT_WORK(&hgsl->ts_retire_work, ts_retire_worker);
@@ -878,8 +878,10 @@ static int hgsl_init_global_db(struct qcom_hgsl *hgsl,
 free_tcsr:
 	hgsl_tcsr_free(tcsr);
 destroy_wq:
-	if (hgsl->wq)
+	if (hgsl->wq) {
 		destroy_workqueue(hgsl->wq);
+		hgsl->wq = NULL;
+	}
 fail:
 	return ret;
 }
@@ -4262,6 +4264,43 @@ exit:
 	return ret;
 }
 
+static int hgsl_suspend(struct device *dev)
+{
+	/* Do nothing */
+	return 0;
+}
+
+static int hgsl_resume(struct device *dev)
+{
+	struct platform_device *pdev = to_platform_device(dev);
+	struct qcom_hgsl *hgsl = platform_get_drvdata(pdev);
+	struct hgsl_tcsr *tcsr = NULL;
+	int tcsr_idx = 0;
+
+	if (pm_suspend_target_state == PM_SUSPEND_MEM) {
+		for (tcsr_idx = 0; tcsr_idx < HGSL_TCSR_NUM; tcsr_idx++) {
+			tcsr = hgsl->tcsr[tcsr_idx][HGSL_TCSR_ROLE_RECEIVER];
+			if (tcsr != NULL) {
+				hgsl_tcsr_irq_enable(tcsr,
+					GLB_DB_DEST_TS_RETIRE_IRQ_MASK, true);
+			}
+		}
+		/*
+		 * There could be a scenario when GVM submit some work to GMU
+		 * just before going to suspend, in this case, the GMU will
+		 * not submit it to RB and when GMU resume(FW reload) happens,
+		 * it submits the work to GPU and fire the ts_retire to GVM.
+		 * At this point, the GVM is not up so it may miss the
+		 * interrupt from GMU so check if there is any ts_retire by
+		 * reading the shadow timestamp.
+		 */
+		if (hgsl->wq != NULL)
+			queue_work(hgsl->wq, &hgsl->ts_retire_work);
+	}
+
+	return 0;
+}
+
 static int qcom_hgsl_probe(struct platform_device *pdev)
 {
 	struct qcom_hgsl *hgsl_dev;
@@ -4342,6 +4381,7 @@ static int qcom_hgsl_remove(struct platform_device *pdev)
 			hgsl_tcsr_free(tcsr_receiver);
 			flush_workqueue(hgsl->wq);
 			destroy_workqueue(hgsl->wq);
+			hgsl->wq = NULL;
 		}
 	}
 
@@ -4358,6 +4398,11 @@ static int qcom_hgsl_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static const struct dev_pm_ops hgsl_pm_ops = {
+	.suspend         = hgsl_suspend,
+	.resume          = hgsl_resume,
+};
+
 static const struct of_device_id qcom_hgsl_of_match[] = {
 	{ .compatible = "qcom,hgsl" },
 	{}
@@ -4370,6 +4415,7 @@ static struct platform_driver qcom_hgsl_driver = {
 	.driver  = {
 		.name  = "qcom-hgsl",
 		.of_match_table = qcom_hgsl_of_match,
+		.pm = &hgsl_pm_ops,
 	},
 };
 
