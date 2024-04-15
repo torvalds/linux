@@ -410,9 +410,9 @@ static int new_lockspace(const char *name, const char *cluster,
 			 int *ops_result, dlm_lockspace_t **lockspace)
 {
 	struct dlm_ls *ls;
-	int i, size, error;
 	int do_unreg = 0;
 	int namelen = strlen(name);
+	int i, error;
 
 	if (namelen > DLM_LOCKSPACE_LEN || namelen == 0)
 		return -EINVAL;
@@ -498,15 +498,10 @@ static int new_lockspace(const char *name, const char *cluster,
 	INIT_LIST_HEAD(&ls->ls_toss);
 	INIT_LIST_HEAD(&ls->ls_keep);
 	spin_lock_init(&ls->ls_rsbtbl_lock);
-	size = READ_ONCE(dlm_config.ci_rsbtbl_size);
-	ls->ls_rsbtbl_size = size;
 
-	ls->ls_rsbtbl = vmalloc(array_size(size, sizeof(struct dlm_rsbtable)));
-	if (!ls->ls_rsbtbl)
+	error = rhashtable_init(&ls->ls_rsbtbl, &dlm_rhash_rsb_params);
+	if (error)
 		goto out_lsfree;
-	for (i = 0; i < size; i++) {
-		ls->ls_rsbtbl[i].r.rb_node = NULL;
-	}
 
 	for (i = 0; i < DLM_REMOVE_NAMES_MAX; i++) {
 		ls->ls_remove_names[i] = kzalloc(DLM_RESNAME_MAXLEN+1,
@@ -669,7 +664,7 @@ static int new_lockspace(const char *name, const char *cluster,
  out_rsbtbl:
 	for (i = 0; i < DLM_REMOVE_NAMES_MAX; i++)
 		kfree(ls->ls_remove_names[i]);
-	vfree(ls->ls_rsbtbl);
+	rhashtable_destroy(&ls->ls_rsbtbl);
  out_lsfree:
 	if (do_unreg)
 		kobject_put(&ls->ls_kobj);
@@ -772,10 +767,16 @@ static int lockspace_busy(struct dlm_ls *ls, int force)
 	return rv;
 }
 
+static void rhash_free_rsb(void *ptr, void *arg)
+{
+	struct dlm_rsb *rsb = ptr;
+
+	dlm_free_rsb(rsb);
+}
+
 static int release_lockspace(struct dlm_ls *ls, int force)
 {
 	struct dlm_rsb *rsb;
-	struct rb_node *n;
 	int i, busy, rv;
 
 	busy = lockspace_busy(ls, force);
@@ -834,19 +835,9 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	idr_destroy(&ls->ls_lkbidr);
 
 	/*
-	 * Free all rsb's on rsbtbl[] lists
+	 * Free all rsb's on rsbtbl
 	 */
-
-	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		while ((n = rb_first(&ls->ls_rsbtbl[i].r))) {
-			rsb = rb_entry(n, struct dlm_rsb, res_hashnode);
-			list_del(&rsb->res_rsbs_list);
-			rb_erase(n, &ls->ls_rsbtbl[i].r);
-			dlm_free_rsb(rsb);
-		}
-	}
-
-	vfree(ls->ls_rsbtbl);
+	rhashtable_free_and_destroy(&ls->ls_rsbtbl, rhash_free_rsb, NULL);
 
 	for (i = 0; i < DLM_REMOVE_NAMES_MAX; i++)
 		kfree(ls->ls_remove_names[i]);

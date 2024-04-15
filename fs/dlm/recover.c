@@ -887,7 +887,8 @@ void dlm_clear_toss(struct dlm_ls *ls)
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
 	list_for_each_entry_safe(r, safe, &ls->ls_toss, res_rsbs_list) {
 		list_del(&r->res_rsbs_list);
-		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[r->res_bucket].r);
+		rhashtable_remove_fast(&ls->ls_rsbtbl, &r->res_node,
+				       dlm_rhash_rsb_params);
 		dlm_free_rsb(r);
 		count++;
 	}

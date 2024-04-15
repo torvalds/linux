@@ -34,6 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/jhash.h>
 #include <linux/miscdevice.h>
+#include <linux/rhashtable.h>
 #include <linux/mutex.h>
 #include <linux/idr.h>
 #include <linux/ratelimit.h>
@@ -98,15 +99,6 @@ do { \
     panic("DLM:  Record message above and reboot.\n"); \
   } \
 }
-
-
-#define DLM_RTF_SHRINK_BIT	0
-
-struct dlm_rsbtable {
-	struct rb_root          r;
-	unsigned long		flags;
-};
-
 
 /*
  * Lockspace member (per node in a ls)
@@ -327,13 +319,12 @@ struct dlm_rsb {
 	int			res_id;		/* for ls_recover_idr */
 	uint32_t                res_lvbseq;
 	uint32_t		res_hash;
-	uint32_t		res_bucket;	/* rsbtbl */
 	unsigned long		res_toss_time;
 	uint32_t		res_first_lkid;
 	struct list_head	res_lookup;	/* lkbs waiting on first */
 	union {
 		struct list_head	res_hashchain;
-		struct rb_node		res_hashnode;	/* rsbtbl */
+		struct rhash_head	res_node; /* rsbtbl */
 	};
 	struct list_head	res_grantqueue;
 	struct list_head	res_convertqueue;
@@ -592,9 +583,10 @@ struct dlm_ls {
 	struct idr		ls_lkbidr;
 	spinlock_t		ls_lkbidr_spin;
 
-	struct dlm_rsbtable	*ls_rsbtbl;
+	struct rhashtable	ls_rsbtbl;
+#define DLM_RTF_SHRINK_BIT	0
+	unsigned long		ls_rsbtbl_flags;
 	spinlock_t		ls_rsbtbl_lock;
-	uint32_t		ls_rsbtbl_size;
 
 	struct list_head	ls_toss;
 	struct list_head	ls_keep;
