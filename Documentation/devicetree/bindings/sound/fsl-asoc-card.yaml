@@ -77,6 +77,7 @@ properties:
               - fsl,imx-audio-tlv320aic31xx
               - fsl,imx-audio-tlv320aic32x4
               - fsl,imx-audio-wm8524
+              - fsl,imx-audio-wm8904
               - fsl,imx-audio-wm8960
               - fsl,imx-audio-wm8962
               - fsl,imx-audio-wm8958
