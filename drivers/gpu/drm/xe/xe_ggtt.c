@@ -460,6 +460,50 @@ void xe_ggtt_remove_bo(struct xe_ggtt *ggtt, struct xe_bo *bo)
 			    bo->flags & XE_BO_FLAG_GGTT_INVALIDATE);
 }
 
+#ifdef CONFIG_PCI_IOV
+static u64 xe_encode_vfid_pte(u16 vfid)
+{
+	return FIELD_PREP(GGTT_PTE_VFID, vfid) | XE_PAGE_PRESENT;
+}
+
+static void xe_ggtt_assign_locked(struct xe_ggtt *ggtt, const struct drm_mm_node *node, u16 vfid)
+{
+	u64 start = node->start;
+	u64 size = node->size;
+	u64 end = start + size - 1;
+	u64 pte = xe_encode_vfid_pte(vfid);
+
+	lockdep_assert_held(&ggtt->lock);
+
+	if (!drm_mm_node_allocated(node))
+		return;
+
+	while (start < end) {
+		xe_ggtt_set_pte(ggtt, start, pte);
+		start += XE_PAGE_SIZE;
+	}
+
+	xe_ggtt_invalidate(ggtt);
+}
+
+/**
+ * xe_ggtt_assign - assign a GGTT region to the VF
+ * @ggtt: the &xe_ggtt where the node belongs
+ * @node: the &drm_mm_node to update
+ * @vfid: the VF identifier
+ *
+ * This function is used by the PF driver to assign a GGTT region to the VF.
+ * In addition to PTE's VFID bits 11:2 also PRESENT bit 0 is set as on some
+ * platforms VFs can't modify that either.
+ */
+void xe_ggtt_assign(struct xe_ggtt *ggtt, const struct drm_mm_node *node, u16 vfid)
+{
+	mutex_lock(&ggtt->lock);
+	xe_ggtt_assign_locked(ggtt, node, vfid);
+	mutex_unlock(&ggtt->lock);
+}
+#endif
+
 int xe_ggtt_dump(struct xe_ggtt *ggtt, struct drm_printer *p)
 {
 	int err;
