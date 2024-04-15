@@ -1036,6 +1036,29 @@ static inline bool spi_is_last_cs(struct spi_device *spi)
 	return last;
 }
 
+static void spi_toggle_csgpiod(struct spi_device *spi, u8 idx, bool enable, bool activate)
+{
+	/*
+	 * Historically ACPI has no means of the GPIO polarity and
+	 * thus the SPISerialBus() resource defines it on the per-chip
+	 * basis. In order to avoid a chain of negations, the GPIO
+	 * polarity is considered being Active High. Even for the cases
+	 * when _DSD() is involved (in the updated versions of ACPI)
+	 * the GPIO CS polarity must be defined Active High to avoid
+	 * ambiguity. That's why we use enable, that takes SPI_CS_HIGH
+	 * into account.
+	 */
+	if (has_acpi_companion(&spi->dev))
+		gpiod_set_value_cansleep(spi_get_csgpiod(spi, idx), !enable);
+	else
+		/* Polarity handled by GPIO library */
+		gpiod_set_value_cansleep(spi_get_csgpiod(spi, idx), activate);
+
+	if (activate)
+		spi_delay_exec(&spi->cs_setup, NULL);
+	else
+		spi_delay_exec(&spi->cs_inactive, NULL);
+}
 
 static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 {
@@ -1072,31 +1095,9 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 
 	if (spi_is_csgpiod(spi)) {
 		if (!(spi->mode & SPI_NO_CS)) {
-			/*
-			 * Historically ACPI has no means of the GPIO polarity and
-			 * thus the SPISerialBus() resource defines it on the per-chip
-			 * basis. In order to avoid a chain of negations, the GPIO
-			 * polarity is considered being Active High. Even for the cases
-			 * when _DSD() is involved (in the updated versions of ACPI)
-			 * the GPIO CS polarity must be defined Active High to avoid
-			 * ambiguity. That's why we use enable, that takes SPI_CS_HIGH
-			 * into account.
-			 */
 			for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
-				if ((spi->cs_index_mask & BIT(idx)) && spi_get_csgpiod(spi, idx)) {
-					if (has_acpi_companion(&spi->dev))
-						gpiod_set_value_cansleep(spi_get_csgpiod(spi, idx),
-									 !enable);
-					else
-						/* Polarity handled by GPIO library */
-						gpiod_set_value_cansleep(spi_get_csgpiod(spi, idx),
-									 activate);
-
-					if (activate)
-						spi_delay_exec(&spi->cs_setup, NULL);
-					else
-						spi_delay_exec(&spi->cs_inactive, NULL);
-				}
+				if ((spi->cs_index_mask & BIT(idx)) && spi_get_csgpiod(spi, idx))
+					spi_toggle_csgpiod(spi, idx, enable, activate);
 			}
 		}
 		/* Some SPI masters need both GPIO CS & slave_select */
