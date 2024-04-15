@@ -273,9 +273,6 @@ const struct nbio_hdp_flush_reg nbio_v7_0_hdp_flush_reg = {
 
 static void nbio_v7_0_init_registers(struct amdgpu_device *adev)
 {
-	if (amdgpu_sriov_vf(adev))
-		adev->rmmio_remap.reg_offset =
-			SOC15_REG_OFFSET(NBIO, 0, mmHDP_MEM_COHERENCY_FLUSH_CNTL) << 2;
 }
 
 #define MMIO_REG_HOLE_OFFSET (0x80000 - PAGE_SIZE)
