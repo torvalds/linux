@@ -2416,6 +2416,89 @@ TRACE_EVENT(xreap_bmapi_binval_scan,
 		  __entry->scan_blocks)
 );
 
+TRACE_EVENT(xrep_xattr_recover_leafblock,
+	TP_PROTO(struct xfs_inode *ip, xfs_dablk_t dabno, uint16_t magic),
+	TP_ARGS(ip, dabno, magic),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_dablk_t, dabno)
+		__field(uint16_t, magic)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->dabno = dabno;
+		__entry->magic = magic;
+	),
+	TP_printk("dev %d:%d ino 0x%llx dablk 0x%x magic 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->dabno,
+		  __entry->magic)
+);
+
+DECLARE_EVENT_CLASS(xrep_xattr_salvage_class,
+	TP_PROTO(struct xfs_inode *ip, unsigned int flags, char *name,
+		 unsigned int namelen, unsigned int valuelen),
+	TP_ARGS(ip, flags, name, namelen, valuelen),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(unsigned int, flags)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, namelen)
+		__field(unsigned int, valuelen)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->flags = flags;
+		__entry->namelen = namelen;
+		memcpy(__get_str(name), name, namelen);
+		__entry->valuelen = valuelen;
+	),
+	TP_printk("dev %d:%d ino 0x%llx flags %s name '%.*s' valuelen 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		   __print_flags(__entry->flags, "|", XFS_ATTR_NAMESPACE_STR),
+		  __entry->namelen,
+		  __get_str(name),
+		  __entry->valuelen)
+);
+#define DEFINE_XREP_XATTR_SALVAGE_EVENT(name) \
+DEFINE_EVENT(xrep_xattr_salvage_class, name, \
+	TP_PROTO(struct xfs_inode *ip, unsigned int flags, char *name, \
+		 unsigned int namelen, unsigned int valuelen), \
+	TP_ARGS(ip, flags, name, namelen, valuelen))
+DEFINE_XREP_XATTR_SALVAGE_EVENT(xrep_xattr_salvage_rec);
+DEFINE_XREP_XATTR_SALVAGE_EVENT(xrep_xattr_insert_rec);
+
+TRACE_EVENT(xrep_xattr_class,
+	TP_PROTO(struct xfs_inode *ip, struct xfs_inode *arg_ip),
+	TP_ARGS(ip, arg_ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_ino_t, src_ino)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->src_ino = arg_ip->i_ino;
+	),
+	TP_printk("dev %d:%d ino 0x%llx src 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->src_ino)
+)
+#define DEFINE_XREP_XATTR_EVENT(name) \
+DEFINE_EVENT(xrep_xattr_class, name, \
+	TP_PROTO(struct xfs_inode *ip, struct xfs_inode *arg_ip), \
+	TP_ARGS(ip, arg_ip))
+DEFINE_XREP_XATTR_EVENT(xrep_xattr_rebuild_tree);
+DEFINE_XREP_XATTR_EVENT(xrep_xattr_reset_fork);
+
 #endif /* IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR) */
 
 #endif /* _TRACE_XFS_SCRUB_TRACE_H */

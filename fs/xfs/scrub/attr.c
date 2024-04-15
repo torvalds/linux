@@ -10,6 +10,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_log_format.h"
+#include "xfs_trans.h"
 #include "xfs_inode.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -20,6 +21,7 @@
 #include "scrub/common.h"
 #include "scrub/dabtree.h"
 #include "scrub/attr.h"
+#include "scrub/repair.h"
 
 /* Free the buffers linked from the xattr buffer. */
 static void
@@ -35,6 +37,8 @@ xchk_xattr_buf_cleanup(
 	kvfree(ab->value);
 	ab->value = NULL;
 	ab->value_sz = 0;
+	kvfree(ab->name);
+	ab->name = NULL;
 }
 
 /*
@@ -65,7 +69,7 @@ xchk_xattr_want_freemap(
  * reallocating the buffer if necessary.  Buffer contents are not preserved
  * across a reallocation.
  */
-static int
+int
 xchk_setup_xattr_buf(
 	struct xfs_scrub	*sc,
 	size_t			value_size)
@@ -95,6 +99,12 @@ xchk_setup_xattr_buf(
 			return -ENOMEM;
 	}
 
+	if (xchk_could_repair(sc)) {
+		ab->name = kvmalloc(XATTR_NAME_MAX + 1, XCHK_GFP_FLAGS);
+		if (!ab->name)
+			return -ENOMEM;
+	}
+
 resize_value:
 	if (ab->value_sz >= value_size)
 		return 0;
@@ -120,6 +130,12 @@ xchk_setup_xattr(
 	struct xfs_scrub	*sc)
 {
 	int			error;
+
+	if (xchk_could_repair(sc)) {
+		error = xrep_setup_xattr(sc);
+		if (error)
+			return error;
+	}
 
 	/*
 	 * We failed to get memory while checking attrs, so this time try to
@@ -247,7 +263,7 @@ fail_xref:
  * Within a char, the lowest bit of the char represents the byte with
  * the smallest address
  */
-STATIC bool
+bool
 xchk_xattr_set_map(
 	struct xfs_scrub	*sc,
 	unsigned long		*map,

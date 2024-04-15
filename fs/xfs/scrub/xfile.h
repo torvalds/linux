@@ -27,4 +27,9 @@ struct folio *xfile_get_folio(struct xfile *xf, loff_t offset, size_t len,
 		unsigned int flags);
 void xfile_put_folio(struct xfile *xf, struct folio *folio);
 
+static inline unsigned long long xfile_bytes(struct xfile *xf)
+{
+	return file_inode(xf->file)->i_blocks << SECTOR_SHIFT;
+}
+
 #endif /* __XFS_SCRUB_XFILE_H__ */

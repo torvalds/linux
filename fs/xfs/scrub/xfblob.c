@@ -149,3 +149,20 @@ xfblob_free(
 	xfile_discard(blob->xfile, cookie, sizeof(key) + key.xb_size);
 	return 0;
 }
+
+/* How many bytes is this blob storage object consuming? */
+unsigned long long
+xfblob_bytes(
+	struct xfblob		*blob)
+{
+	return xfile_bytes(blob->xfile);
+}
+
+/* Drop all the blobs. */
+void
+xfblob_truncate(
+	struct xfblob	*blob)
+{
+	xfile_discard(blob->xfile, PAGE_SIZE, MAX_LFS_FILESIZE - PAGE_SIZE);
+	blob->last_offset = PAGE_SIZE;
+}

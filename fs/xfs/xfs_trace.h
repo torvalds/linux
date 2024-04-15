@@ -31,6 +31,8 @@
  * pos: file offset, in bytes
  * bytecount: number of bytes
  *
+ * dablk: directory or xattr block offset, in filesystem blocks
+ *
  * disize: ondisk file size, in bytes
  * isize: incore file size, in bytes
  *

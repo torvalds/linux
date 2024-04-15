@@ -44,6 +44,8 @@ int xfarray_unset(struct xfarray *array, xfarray_idx_t idx);
 int xfarray_store(struct xfarray *array, xfarray_idx_t idx, const void *ptr);
 int xfarray_store_anywhere(struct xfarray *array, const void *ptr);
 bool xfarray_element_is_null(struct xfarray *array, const void *ptr);
+void xfarray_truncate(struct xfarray *array);
+unsigned long long xfarray_bytes(struct xfarray *array);
 
 /*
  * Load an array element, but zero the buffer if there's no data because we

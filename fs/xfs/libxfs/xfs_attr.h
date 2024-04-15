@@ -618,4 +618,6 @@ extern struct kmem_cache *xfs_attr_intent_cache;
 int __init xfs_attr_intent_init_cache(void);
 void xfs_attr_intent_destroy_cache(void);
 
+int xfs_attr_sf_totsize(struct xfs_inode *dp);
+
 #endif	/* __XFS_ATTR_H__ */
