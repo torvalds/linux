@@ -567,7 +567,7 @@ enum iwl_ppag_flags {
  * union iwl_ppag_table_cmd - union for all versions of PPAG command
  * @v1: version 1
  * @v2: version 2
- * version 3, 4 and 5 are the same structure as v2,
+ * version 3, 4, 5 and 6 are the same structure as v2,
  *	but has a different format of the flags bitmap
  * @flags: values from &enum iwl_ppag_flags
  * @gain: table of antenna gain values per chain and sub-band

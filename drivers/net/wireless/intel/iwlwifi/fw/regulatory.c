@@ -347,7 +347,7 @@ int iwl_fill_ppag_table(struct iwl_fw_runtime *fwrt,
 					"PPAG table rev is %d, send truncated table\n",
 					fwrt->ppag_ver);
 		}
-	} else if (cmd_ver >= 2 && cmd_ver <= 5) {
+	} else if (cmd_ver >= 2 && cmd_ver <= 6) {
 		num_sub_bands = IWL_NUM_SUB_BANDS_V2;
 		gain = cmd->v2.gain[0];
 		*cmd_size = sizeof(cmd->v2);
