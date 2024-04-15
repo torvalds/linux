@@ -322,7 +322,7 @@ static void stm32_irq_handler(struct irq_desc *desc)
 		while ((pending = stm32_exti_pending(gc))) {
 			for_each_set_bit(n, &pending, IRQS_PER_BANK)
 				generic_handle_domain_irq(domain, irq_base + n);
- 		}
+		}
 	}
 
 	chained_irq_exit(chip, desc);
