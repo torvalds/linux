@@ -1699,8 +1699,13 @@ static void ieee80211_activate_links_work(struct wiphy *wiphy,
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data,
 			     activate_links_work);
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	if (local->in_reconfig)
+		return;
 
 	ieee80211_set_active_links(&sdata->vif, sdata->desired_active_links);
+	sdata->desired_active_links = 0;
 }
 
 /*
