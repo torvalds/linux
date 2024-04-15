@@ -1539,6 +1539,7 @@ DEFINE_EVENT(xrep_extent_class, name, \
 DEFINE_REPAIR_EXTENT_EVENT(xreap_dispose_unmap_extent);
 DEFINE_REPAIR_EXTENT_EVENT(xreap_dispose_free_extent);
 DEFINE_REPAIR_EXTENT_EVENT(xreap_agextent_binval);
+DEFINE_REPAIR_EXTENT_EVENT(xreap_bmapi_binval);
 DEFINE_REPAIR_EXTENT_EVENT(xrep_agfl_insert);
 
 DECLARE_EVENT_CLASS(xrep_reap_find_class,
@@ -1572,6 +1573,7 @@ DEFINE_EVENT(xrep_reap_find_class, name, \
 		 bool crosslinked), \
 	TP_ARGS(pag, agbno, len, crosslinked))
 DEFINE_REPAIR_REAP_FIND_EVENT(xreap_agextent_select);
+DEFINE_REPAIR_REAP_FIND_EVENT(xreap_bmapi_select);
 
 DECLARE_EVENT_CLASS(xrep_rmap_class,
 	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno,
@@ -2310,6 +2312,67 @@ TRACE_EVENT(xrep_tempfile_create,
 		  __entry->gen,
 		  __entry->flags,
 		  __entry->temp_inum)
+);
+
+TRACE_EVENT(xreap_ifork_extent,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *ip, int whichfork,
+		 const struct xfs_bmbt_irec *irec),
+	TP_ARGS(sc, ip, whichfork, irec),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(int, whichfork)
+		__field(xfs_fileoff_t, fileoff)
+		__field(xfs_filblks_t, len)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agblock_t, agbno)
+		__field(int, state)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->whichfork = whichfork;
+		__entry->fileoff = irec->br_startoff;
+		__entry->len = irec->br_blockcount;
+		__entry->agno = XFS_FSB_TO_AGNO(sc->mp, irec->br_startblock);
+		__entry->agbno = XFS_FSB_TO_AGBNO(sc->mp, irec->br_startblock);
+		__entry->state = irec->br_state;
+	),
+	TP_printk("dev %d:%d ip 0x%llx whichfork %s agno 0x%x agbno 0x%x fileoff 0x%llx fsbcount 0x%llx state 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __print_symbolic(__entry->whichfork, XFS_WHICHFORK_STRINGS),
+		  __entry->agno,
+		  __entry->agbno,
+		  __entry->fileoff,
+		  __entry->len,
+		  __entry->state)
+);
+
+TRACE_EVENT(xreap_bmapi_binval_scan,
+	TP_PROTO(struct xfs_scrub *sc, const struct xfs_bmbt_irec *irec,
+		 xfs_extlen_t scan_blocks),
+	TP_ARGS(sc, irec, scan_blocks),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_filblks_t, len)
+		__field(xfs_agnumber_t, agno)
+		__field(xfs_agblock_t, agbno)
+		__field(xfs_extlen_t, scan_blocks)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->len = irec->br_blockcount;
+		__entry->agno = XFS_FSB_TO_AGNO(sc->mp, irec->br_startblock);
+		__entry->agbno = XFS_FSB_TO_AGBNO(sc->mp, irec->br_startblock);
+		__entry->scan_blocks = scan_blocks;
+	),
+	TP_printk("dev %d:%d agno 0x%x agbno 0x%x fsbcount 0x%llx scan_blocks 0x%x",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->agno,
+		  __entry->agbno,
+		  __entry->len,
+		  __entry->scan_blocks)
 );
 
 #endif /* IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR) */
