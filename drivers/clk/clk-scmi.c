@@ -19,6 +19,7 @@
 
 enum scmi_clk_feats {
 	SCMI_CLK_ATOMIC_SUPPORTED,
+	SCMI_CLK_STATE_CTRL_SUPPORTED,
 	SCMI_CLK_FEATS_COUNT
 };
 
@@ -230,14 +231,18 @@ scmi_clk_ops_alloc(struct device *dev, unsigned long feats_key)
 	 * only the prepare/unprepare API, as allowed by the clock framework
 	 * when atomic calls are not available.
 	 */
-	if (feats_key & BIT(SCMI_CLK_ATOMIC_SUPPORTED)) {
-		ops->enable = scmi_clk_atomic_enable;
-		ops->disable = scmi_clk_atomic_disable;
-		ops->is_enabled = scmi_clk_atomic_is_enabled;
-	} else {
-		ops->prepare = scmi_clk_enable;
-		ops->unprepare = scmi_clk_disable;
+	if (feats_key & BIT(SCMI_CLK_STATE_CTRL_SUPPORTED)) {
+		if (feats_key & BIT(SCMI_CLK_ATOMIC_SUPPORTED)) {
+			ops->enable = scmi_clk_atomic_enable;
+			ops->disable = scmi_clk_atomic_disable;
+		} else {
+			ops->prepare = scmi_clk_enable;
+			ops->unprepare = scmi_clk_disable;
+		}
 	}
+
+	if (feats_key & BIT(SCMI_CLK_ATOMIC_SUPPORTED))
+		ops->is_enabled = scmi_clk_atomic_is_enabled;
 
 	/* Rate ops */
 	ops->recalc_rate = scmi_clk_recalc_rate;
@@ -293,6 +298,9 @@ scmi_clk_ops_select(struct scmi_clk *sclk, bool atomic_capable,
 	 */
 	if (atomic_capable && ci->enable_latency <= atomic_threshold_us)
 		feats_key |= BIT(SCMI_CLK_ATOMIC_SUPPORTED);
+
+	if (!ci->state_ctrl_forbidden)
+		feats_key |= BIT(SCMI_CLK_STATE_CTRL_SUPPORTED);
 
 	if (WARN_ON(feats_key >= db_size))
 		return NULL;
