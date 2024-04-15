@@ -511,7 +511,7 @@ static int nau8821_left_adc_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		msleep(125);
+		msleep(nau8821->adc_delay);
 		regmap_update_bits(nau8821->regmap, NAU8821_R01_ENA_CTRL,
 			NAU8821_EN_ADCL, NAU8821_EN_ADCL);
 		break;
@@ -535,7 +535,7 @@ static int nau8821_right_adc_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		msleep(125);
+		msleep(nau8821->adc_delay);
 		regmap_update_bits(nau8821->regmap, NAU8821_R01_ENA_CTRL,
 			NAU8821_EN_ADCR, NAU8821_EN_ADCR);
 		break;
@@ -1697,6 +1697,7 @@ static void nau8821_print_device_properties(struct nau8821 *nau8821)
 	dev_dbg(dev, "dmic-clk-threshold:       %d\n",
 		nau8821->dmic_clk_threshold);
 	dev_dbg(dev, "key_enable:       %d\n", nau8821->key_enable);
+	dev_dbg(dev, "adc-delay-ms:		%d\n", nau8821->adc_delay);
 }
 
 static int nau8821_read_device_properties(struct device *dev,
@@ -1742,6 +1743,12 @@ static int nau8821_read_device_properties(struct device *dev,
 		&nau8821->dmic_slew_rate);
 	if (ret)
 		nau8821->dmic_slew_rate = 0;
+	ret = device_property_read_u32(dev, "nuvoton,adc-delay-ms",
+		&nau8821->adc_delay);
+	if (ret)
+		nau8821->adc_delay = 125;
+	if (nau8821->adc_delay < 125 || nau8821->adc_delay > 500)
+		dev_warn(dev, "Please set the suitable delay time!\n");
 
 	return 0;
 }
