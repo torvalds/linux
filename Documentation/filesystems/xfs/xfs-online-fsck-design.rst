@@ -4789,7 +4789,8 @@ Orphaned files are adopted by the orphanage as follows:
    cache.
 
 6. Call ``xrep_adoption_finish`` to commit any filesystem updates, release the
-   orphanage ILOCK, and clean the scrub transaction.
+   orphanage ILOCK, and clean the scrub transaction.  Call
+   ``xrep_adoption_commit`` to commit the updates and the scrub transaction.
 
 7. If a runtime error happens, call ``xrep_adoption_cancel`` to release all
    resources.
