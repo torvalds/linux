@@ -357,6 +357,18 @@ static int _ieee80211_set_active_links(struct ieee80211_sub_if_data *sdata,
 		ieee80211_teardown_tdls_peers(link);
 
 		__ieee80211_link_release_channel(link, true);
+
+		/*
+		 * If CSA is (still) active while the link is deactivated,
+		 * just schedule the channel switch work for the time we
+		 * had previously calculated, and we'll take the process
+		 * from there.
+		 */
+		if (link->conf->csa_active)
+			wiphy_delayed_work_queue(local->hw.wiphy,
+						 &link->u.mgd.chswitch_work,
+						 link->u.mgd.csa_time -
+						 jiffies);
 	}
 
 	list_for_each_entry(sta, &local->sta_list, list) {

@@ -978,6 +978,7 @@ struct ieee80211_link_data_managed {
 	bool csa_waiting_bcn;
 	bool csa_ignored_same_chan;
 	bool csa_blocked_tx;
+	unsigned long csa_time;
 	struct wiphy_delayed_work chswitch_work;
 
 	struct wiphy_work request_smps_work;

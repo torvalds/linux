@@ -2080,6 +2080,18 @@ static void ieee80211_chswitch_work(struct wiphy *wiphy,
 		return;
 
 	/*
+	 * If the link isn't active (now), we cannot wait for beacons, won't
+	 * have a reserved chanctx, etc. Just switch over the chandef and
+	 * update cfg80211 directly.
+	 */
+	if (!ieee80211_vif_link_active(&sdata->vif, link->link_id)) {
+		link->conf->chanreq = link->csa_chanreq;
+		cfg80211_ch_switch_notify(sdata->dev, &link->csa_chanreq.oper,
+					  link->link_id);
+		return;
+	}
+
+	/*
 	 * using reservation isn't immediate as it may be deferred until later
 	 * with multi-vif. once reservation is complete it will re-schedule the
 	 * work with no reserved_chanctx so verify chandef to check if it
@@ -2097,9 +2109,9 @@ static void ieee80211_chswitch_work(struct wiphy *wiphy,
 
 		ret = ieee80211_link_use_reserved_context(link);
 		if (ret) {
-			sdata_info(sdata,
-				   "failed to use reserved channel context, disconnecting (err=%d)\n",
-				   ret);
+			link_info(link,
+				  "failed to use reserved channel context, disconnecting (err=%d)\n",
+				  ret);
 			wiphy_work_queue(sdata->local->hw.wiphy,
 					 &ifmgd->csa_connection_drop_work);
 		}
@@ -2108,8 +2120,8 @@ static void ieee80211_chswitch_work(struct wiphy *wiphy,
 
 	if (!ieee80211_chanreq_identical(&link->conf->chanreq,
 					 &link->csa_chanreq)) {
-		sdata_info(sdata,
-			   "failed to finalize channel switch, disconnecting\n");
+		link_info(link,
+			  "failed to finalize channel switch, disconnecting\n");
 		wiphy_work_queue(sdata->local->hw.wiphy,
 				 &ifmgd->csa_connection_drop_work);
 		return;
@@ -2144,14 +2156,14 @@ static void ieee80211_chswitch_post_beacon(struct ieee80211_link_data *link)
 
 	ret = drv_post_channel_switch(link);
 	if (ret) {
-		sdata_info(sdata,
-			   "driver post channel switch failed, disconnecting\n");
+		link_info(link,
+			  "driver post channel switch failed, disconnecting\n");
 		wiphy_work_queue(sdata->local->hw.wiphy,
 				 &ifmgd->csa_connection_drop_work);
 		return;
 	}
 
-	cfg80211_ch_switch_notify(sdata->dev, &link->reserved.oper,
+	cfg80211_ch_switch_notify(sdata->dev, &link->conf->chanreq.oper,
 				  link->link_id);
 }
 
@@ -2166,7 +2178,8 @@ void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success,
 
 	if (!success) {
 		sdata_info(sdata,
-			   "driver channel switch failed, disconnecting\n");
+			   "driver channel switch failed (link %d), disconnecting\n",
+			   link_id);
 		wiphy_work_queue(sdata->local->hw.wiphy,
 				 &sdata->u.mgd.csa_connection_drop_work);
 	} else {
@@ -2211,69 +2224,221 @@ ieee80211_sta_abort_chanswitch(struct ieee80211_link_data *link)
 	drv_abort_channel_switch(link);
 }
 
+struct sta_csa_rnr_iter_data {
+	struct ieee80211_link_data *link;
+	struct ieee80211_channel *chan;
+	u8 mld_id;
+};
+
+static enum cfg80211_rnr_iter_ret
+ieee80211_sta_csa_rnr_iter(void *_data, u8 type,
+			   const struct ieee80211_neighbor_ap_info *info,
+			   const u8 *tbtt_info, u8 tbtt_info_len)
+{
+	struct sta_csa_rnr_iter_data *data = _data;
+	struct ieee80211_link_data *link = data->link;
+	struct ieee80211_sub_if_data *sdata = link->sdata;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	const struct ieee80211_tbtt_info_ge_11 *ti;
+	enum nl80211_band band;
+	unsigned int center_freq;
+	int link_id;
+
+	if (type != IEEE80211_TBTT_INFO_TYPE_TBTT)
+		return RNR_ITER_CONTINUE;
+
+	if (tbtt_info_len < sizeof(*ti))
+		return RNR_ITER_CONTINUE;
+
+	ti = (const void *)tbtt_info;
+
+	if (ti->mld_params.mld_id != data->mld_id)
+		return RNR_ITER_CONTINUE;
+
+	link_id = le16_get_bits(ti->mld_params.params,
+				IEEE80211_RNR_MLD_PARAMS_LINK_ID);
+	if (link_id != data->link->link_id)
+		return RNR_ITER_CONTINUE;
+
+	/* we found the entry for our link! */
+
+	/* this AP is confused, it had this right before ... just disconnect */
+	if (!ieee80211_operating_class_to_band(info->op_class, &band)) {
+		link_info(link,
+			  "AP now has invalid operating class in RNR, disconnect\n");
+		wiphy_work_queue(sdata->local->hw.wiphy,
+				 &ifmgd->csa_connection_drop_work);
+		return RNR_ITER_BREAK;
+	}
+
+	center_freq = ieee80211_channel_to_frequency(info->channel, band);
+	data->chan = ieee80211_get_channel(sdata->local->hw.wiphy, center_freq);
+
+	return RNR_ITER_BREAK;
+}
+
+static void
+ieee80211_sta_other_link_csa_disappeared(struct ieee80211_link_data *link,
+					 struct ieee802_11_elems *elems)
+{
+	struct ieee80211_sub_if_data *sdata = link->sdata;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct sta_csa_rnr_iter_data data = {
+		.link = link,
+	};
+
+	/*
+	 * If we get here, we see a beacon from another link without
+	 * CSA still being reported for it, so now we have to check
+	 * if the CSA was aborted or completed. This may not even be
+	 * perfectly possible if the CSA was only done for changing
+	 * the puncturing, but in that case if the link in inactive
+	 * we don't really care, and if it's an active link (or when
+	 * it's activated later) we'll get a beacon and adjust.
+	 */
+
+	if (WARN_ON(!elems->ml_basic))
+		return;
+
+	data.mld_id = ieee80211_mle_get_mld_id((const void *)elems->ml_basic);
+
+	/*
+	 * So in order to do this, iterate the RNR element(s) and see
+	 * what channel is reported now.
+	 */
+	cfg80211_iter_rnr(elems->ie_start, elems->total_len,
+			  ieee80211_sta_csa_rnr_iter, &data);
+
+	if (!data.chan) {
+		link_info(link,
+			  "couldn't find (valid) channel in RNR for CSA, disconnect\n");
+		wiphy_work_queue(sdata->local->hw.wiphy,
+				 &ifmgd->csa_connection_drop_work);
+		return;
+	}
+
+	/*
+	 * If it doesn't match the CSA, then assume it aborted. This
+	 * may erroneously detect that it was _not_ aborted when it
+	 * was in fact aborted, but only changed the bandwidth or the
+	 * puncturing configuration, but we don't have enough data to
+	 * detect that.
+	 */
+	if (data.chan != link->csa_chanreq.oper.chan)
+		ieee80211_sta_abort_chanswitch(link);
+}
+
+enum ieee80211_csa_source {
+	IEEE80211_CSA_SOURCE_BEACON,
+	IEEE80211_CSA_SOURCE_OTHER_LINK,
+	IEEE80211_CSA_SOURCE_ACTION,
+};
+
 static void
 ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 				 u64 timestamp, u32 device_timestamp,
-				 struct ieee802_11_elems *elems,
-				 bool beacon)
+				 struct ieee802_11_elems *full_elems,
+				 struct ieee802_11_elems *csa_elems,
+				 enum ieee80211_csa_source source)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
-	struct cfg80211_bss *cbss = link->conf->bss;
+	struct ieee80211_chanctx *chanctx = NULL;
 	struct ieee80211_chanctx_conf *conf;
-	struct ieee80211_chanctx *chanctx;
-	enum nl80211_band current_band;
-	struct ieee80211_csa_ie csa_ie;
+	struct ieee80211_csa_ie csa_ie = {};
 	struct ieee80211_channel_switch ch_switch = {
 		.link_id = link->link_id,
+		.timestamp = timestamp,
+		.device_timestamp = device_timestamp,
 	};
-	struct ieee80211_bss *bss;
-	unsigned long timeout;
+	unsigned long now;
 	int res;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
 
-	if (!cbss)
-		return;
+	if (csa_elems) {
+		struct cfg80211_bss *cbss = link->conf->bss;
+		enum nl80211_band current_band;
+		struct ieee80211_bss *bss;
 
-	current_band = cbss->channel->band;
-	bss = (void *)cbss->priv;
-	res = ieee80211_parse_ch_switch_ie(sdata, elems, current_band,
-					   bss->vht_cap_info,
-					   &link->u.mgd.conn,
-					   link->u.mgd.bssid, &csa_ie);
+		if (WARN_ON(!cbss))
+			return;
 
-	if (!res) {
-		ch_switch.timestamp = timestamp;
-		ch_switch.device_timestamp = device_timestamp;
-		ch_switch.block_tx = csa_ie.mode;
-		ch_switch.chandef = csa_ie.chanreq.oper;
-		ch_switch.count = csa_ie.count;
-		ch_switch.delay = csa_ie.max_switch_time;
+		current_band = cbss->channel->band;
+		bss = (void *)cbss->priv;
+
+		res = ieee80211_parse_ch_switch_ie(sdata, csa_elems,
+						   current_band,
+						   bss->vht_cap_info,
+						   &link->u.mgd.conn,
+						   link->u.mgd.bssid, &csa_ie);
+		if (res == 0) {
+			ch_switch.block_tx = csa_ie.mode;
+			ch_switch.chandef = csa_ie.chanreq.oper;
+			ch_switch.count = csa_ie.count;
+			ch_switch.delay = csa_ie.max_switch_time;
+		}
+	} else {
+		/*
+		 * If there was no per-STA profile for this link, we
+		 * get called with csa_elems == NULL. This of course means
+		 * there are no CSA elements, so set res=1 indicating
+		 * no more CSA.
+		 */
+		res = 1;
 	}
 
 	if (res < 0)
 		goto drop_connection;
 
 	if (link->conf->csa_active) {
-		/* already processing - disregard action frames */
-		if (!beacon)
+		switch (source) {
+		case IEEE80211_CSA_SOURCE_ACTION:
+			/* already processing - disregard action frames */
 			return;
+		case IEEE80211_CSA_SOURCE_BEACON:
+			if (link->u.mgd.csa_waiting_bcn) {
+				ieee80211_chswitch_post_beacon(link);
+				/*
+				 * If the CSA is still present after the switch
+				 * we need to consider it as a new CSA (possibly
+				 * to self). This happens by not returning here
+				 * so we'll get to the check below.
+				 */
+			} else if (res) {
+				ieee80211_sta_abort_chanswitch(link);
+				return;
+			} else {
+				drv_channel_switch_rx_beacon(sdata, &ch_switch);
+				return;
+			}
+			break;
+		case IEEE80211_CSA_SOURCE_OTHER_LINK:
+			/* active link: we want to see the beacon to continue */
+			if (ieee80211_vif_link_active(&sdata->vif,
+						      link->link_id))
+				return;
 
-		if (link->u.mgd.csa_waiting_bcn) {
-			ieee80211_chswitch_post_beacon(link);
-			/*
-			 * If the CSA IE is still present in the beacon after
-			 * the switch, we need to consider it as a new CSA
-			 * (possibly to self) - this happens by not returning
-			 * here so we'll get to the check below.
-			 */
-		} else if (res) {
-			ieee80211_sta_abort_chanswitch(link);
-			return;
-		} else {
-			drv_channel_switch_rx_beacon(sdata, &ch_switch);
+			/* switch work ran, so just complete the process */
+			if (link->u.mgd.csa_waiting_bcn) {
+				ieee80211_chswitch_post_beacon(link);
+				/*
+				 * If the CSA is still present after the switch
+				 * we need to consider it as a new CSA (possibly
+				 * to self). This happens by not returning here
+				 * so we'll get to the check below.
+				 */
+				break;
+			}
+
+			/* link still has CSA but we already know, do nothing */
+			if (!res)
+				return;
+
+			/* check in the RNR if the CSA aborted */
+			ieee80211_sta_other_link_csa_disappeared(link,
+								 full_elems);
 			return;
 		}
 	}
@@ -2284,40 +2449,38 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 
 	if (link->conf->chanreq.oper.chan->band !=
 	    csa_ie.chanreq.oper.chan->band) {
-		sdata_info(sdata,
-			   "AP %pM switches to different band (%d MHz, width:%d, CF1/2: %d/%d MHz), disconnecting\n",
-			   link->u.mgd.bssid,
-			   csa_ie.chanreq.oper.chan->center_freq,
-			   csa_ie.chanreq.oper.width,
-			   csa_ie.chanreq.oper.center_freq1,
-			   csa_ie.chanreq.oper.center_freq2);
+		link_info(link,
+			  "AP %pM switches to different band (%d MHz, width:%d, CF1/2: %d/%d MHz), disconnecting\n",
+			  link->u.mgd.bssid,
+			  csa_ie.chanreq.oper.chan->center_freq,
+			  csa_ie.chanreq.oper.width,
+			  csa_ie.chanreq.oper.center_freq1,
+			  csa_ie.chanreq.oper.center_freq2);
 		goto drop_connection;
 	}
 
 	if (!cfg80211_chandef_usable(local->hw.wiphy, &csa_ie.chanreq.oper,
 				     IEEE80211_CHAN_DISABLED)) {
-		sdata_info(sdata,
-			   "AP %pM switches to unsupported channel "
-			   "(%d.%03d MHz, width:%d, CF1/2: %d.%03d/%d MHz), "
-			   "disconnecting\n",
-			   link->u.mgd.bssid,
-			   csa_ie.chanreq.oper.chan->center_freq,
-			   csa_ie.chanreq.oper.chan->freq_offset,
-			   csa_ie.chanreq.oper.width,
-			   csa_ie.chanreq.oper.center_freq1,
-			   csa_ie.chanreq.oper.freq1_offset,
-			   csa_ie.chanreq.oper.center_freq2);
+		link_info(link,
+			  "AP %pM switches to unsupported channel (%d.%03d MHz, width:%d, CF1/2: %d.%03d/%d MHz), disconnecting\n",
+			  link->u.mgd.bssid,
+			  csa_ie.chanreq.oper.chan->center_freq,
+			  csa_ie.chanreq.oper.chan->freq_offset,
+			  csa_ie.chanreq.oper.width,
+			  csa_ie.chanreq.oper.center_freq1,
+			  csa_ie.chanreq.oper.freq1_offset,
+			  csa_ie.chanreq.oper.center_freq2);
 		goto drop_connection;
 	}
 
 	if (cfg80211_chandef_identical(&csa_ie.chanreq.oper,
 				       &link->conf->chanreq.oper) &&
-	    (!csa_ie.mode || !beacon)) {
+	    (!csa_ie.mode || source != IEEE80211_CSA_SOURCE_BEACON)) {
 		if (link->u.mgd.csa_ignored_same_chan)
 			return;
-		sdata_info(sdata,
-			   "AP %pM tries to chanswitch to same channel, ignore\n",
-			   link->u.mgd.bssid);
+		link_info(link,
+			  "AP %pM tries to chanswitch to same channel, ignore\n",
+			  link->u.mgd.bssid);
 		link->u.mgd.csa_ignored_same_chan = true;
 		return;
 	}
@@ -2333,33 +2496,36 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 
 	conf = rcu_dereference_protected(link->conf->chanctx_conf,
 					 lockdep_is_held(&local->hw.wiphy->mtx));
-	if (!conf) {
-		sdata_info(sdata,
-			   "no channel context assigned to vif?, disconnecting\n");
+	if (ieee80211_vif_link_active(&sdata->vif, link->link_id) && !conf) {
+		link_info(link,
+			  "no channel context assigned to vif?, disconnecting\n");
 		goto drop_connection;
 	}
 
-	chanctx = container_of(conf, struct ieee80211_chanctx, conf);
+	if (conf)
+		chanctx = container_of(conf, struct ieee80211_chanctx, conf);
 
 	if (!ieee80211_hw_check(&local->hw, CHANCTX_STA_CSA)) {
-		sdata_info(sdata,
-			   "driver doesn't support chan-switch with channel contexts\n");
+		link_info(link,
+			  "driver doesn't support chan-switch with channel contexts\n");
 		goto drop_connection;
 	}
 
 	if (drv_pre_channel_switch(sdata, &ch_switch)) {
-		sdata_info(sdata,
-			   "preparing for channel switch failed, disconnecting\n");
+		link_info(link,
+			  "preparing for channel switch failed, disconnecting\n");
 		goto drop_connection;
 	}
 
-	res = ieee80211_link_reserve_chanctx(link, &csa_ie.chanreq,
-					     chanctx->mode, false);
-	if (res) {
-		sdata_info(sdata,
-			   "failed to reserve channel context for channel switch, disconnecting (err=%d)\n",
-			   res);
-		goto drop_connection;
+	if (chanctx) {
+		res = ieee80211_link_reserve_chanctx(link, &csa_ie.chanreq,
+						     chanctx->mode, false);
+		if (res) {
+			link_info(link,
+				  "failed to reserve channel context for channel switch, disconnecting (err=%d)\n",
+				  res);
+			goto drop_connection;
+		}
 	}
 
 	link->conf->csa_active = true;
@@ -2379,18 +2545,28 @@ ieee80211_sta_process_chanswitch(struct ieee80211_link_data *link,
 					  link->link_id, csa_ie.count,
 					  csa_ie.mode);
 
-	if (local->ops->channel_switch) {
-		/* use driver's channel switch callback */
+	/* we may have to handle timeout for deactivated link in software */
+	now = jiffies;
+	link->u.mgd.csa_time = now +
+			       TU_TO_JIFFIES((max_t(int, csa_ie.count, 1) - 1) *
+					     link->conf->beacon_int);
+
+	if (ieee80211_vif_link_active(&sdata->vif, link->link_id) &&
+	    local->ops->channel_switch) {
+		/*
+		 * Use driver's channel switch callback, the driver will
+		 * later call ieee80211_chswitch_done(). It may deactivate
+		 * the link as well, we handle that elsewhere and queue
+		 * the chswitch_work for the calculated time then.
+		 */
 		drv_channel_switch(local, sdata, &ch_switch);
 		return;
 	}
 
 	/* channel switch handled in software */
-	timeout = TU_TO_JIFFIES((max_t(int, csa_ie.count, 1) - 1) *
-				cbss->beacon_interval);
 	wiphy_delayed_work_queue(local->hw.wiphy,
 				 &link->u.mgd.chswitch_work,
-				 timeout);
+				 link->u.mgd.csa_time - now);
 	return;
  drop_connection:
 	/*
@@ -6328,6 +6504,110 @@ static void ieee80211_process_adv_ttlm(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
+static void
+ieee80211_mgd_check_cross_link_csa(struct ieee80211_sub_if_data *sdata,
+				   int reporting_link_id,
+				   struct ieee802_11_elems *elems)
+{
+	const struct element *sta_profiles[IEEE80211_MLD_MAX_NUM_LINKS] = {};
+	ssize_t sta_profiles_len[IEEE80211_MLD_MAX_NUM_LINKS] = {};
+	const struct element *sub;
+	const u8 *subelems;
+	size_t subelems_len;
+	u8 common_size;
+	int link_id;
+
+	if (!ieee80211_mle_size_ok((u8 *)elems->ml_basic, elems->ml_basic_len))
+		return;
+
+	common_size = ieee80211_mle_common_size((u8 *)elems->ml_basic);
+	subelems = (u8 *)elems->ml_basic + common_size;
+	subelems_len = elems->ml_basic_len - common_size;
+
+	for_each_element_id(sub, IEEE80211_MLE_SUBELEM_PER_STA_PROFILE,
+			    subelems, subelems_len) {
+		struct ieee80211_mle_per_sta_profile *prof = (void *)sub->data;
+		struct ieee80211_link_data *link;
+		ssize_t len;
+
+		if (!ieee80211_mle_basic_sta_prof_size_ok(sub->data,
+							  sub->datalen))
+			continue;
+
+		link_id = le16_get_bits(prof->control,
+					IEEE80211_MLE_STA_CONTROL_LINK_ID);
+		/* need a valid link ID, but also not our own, both AP bugs */
+		if (link_id == reporting_link_id ||
+		    link_id >= IEEE80211_MLD_MAX_NUM_LINKS)
+			continue;
+
+		link = sdata_dereference(sdata->link[link_id], sdata);
+		if (!link)
+			continue;
+
+		len = cfg80211_defragment_element(sub, subelems, subelems_len,
+						  NULL, 0,
+						  IEEE80211_MLE_SUBELEM_FRAGMENT);
+		if (WARN_ON(len < 0))
+			continue;
+
+		sta_profiles[link_id] = sub;
+		sta_profiles_len[link_id] = len;
+	}
+
+	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++) {
+		struct ieee80211_mle_per_sta_profile *prof;
+		struct ieee802_11_elems *prof_elems;
+		struct ieee80211_link_data *link;
+		ssize_t len;
+
+		if (link_id == reporting_link_id)
+			continue;
+
+		link = sdata_dereference(sdata->link[link_id], sdata);
+		if (!link)
+			continue;
+
+		if (!sta_profiles[link_id]) {
+			prof_elems = NULL;
+			goto handle;
+		}
+
+		/* we can defragment in-place, won't use the buffer again */
+		len = cfg80211_defragment_element(sta_profiles[link_id],
+						  subelems, subelems_len,
+						  (void *)sta_profiles[link_id],
+						  sta_profiles_len[link_id],
+						  IEEE80211_MLE_SUBELEM_FRAGMENT);
+		if (WARN_ON(len != sta_profiles_len[link_id]))
+			continue;
+
+		prof = (void *)sta_profiles[link_id];
+		prof_elems = ieee802_11_parse_elems(prof->variable +
+						    (prof->sta_info_len - 1),
+						    len -
+						    (prof->sta_info_len - 1),
+						    false, NULL);
+
+		/* memory allocation failed - let's hope that's transient */
+		if (!prof_elems)
+			continue;
+
+handle:
+		/*
+		 * FIXME: the timings here are obviously incorrect,
+		 * but only older Intel drivers seem to care, and
+		 * those don't have MLO. If you really need this,
+		 * the problem is having to calculate it with the
+		 * TSF offset etc. The device_timestamp is still
+		 * correct, of course.
+		 */
+		ieee80211_sta_process_chanswitch(link, 0, 0, elems, prof_elems,
+						 IEEE80211_CSA_SOURCE_OTHER_LINK);
+		kfree(prof_elems);
+	}
+}
+
 static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 				     struct ieee80211_hdr *hdr, size_t len,
 				     struct ieee80211_rx_status *rx_status)
@@ -6552,7 +6832,11 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 
 	ieee80211_sta_process_chanswitch(link, rx_status->mactime,
 					 rx_status->device_timestamp,
-					 elems, true);
+					 elems, elems,
+					 IEEE80211_CSA_SOURCE_BEACON);
+
+	/* note that after this elems->ml_basic can no longer be used fully */
+	ieee80211_mgd_check_cross_link_csa(sdata, rx_status->link_id, elems);
 
 	if (!link->u.mgd.disable_wmm_tracking &&
 	    ieee80211_sta_wmm_params(local, link, elems->wmm_param,
@@ -7148,7 +7432,8 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				ieee80211_sta_process_chanswitch(link,
 								 rx_status->mactime,
 								 rx_status->device_timestamp,
-								 elems, false);
+								 elems, elems,
+								 IEEE80211_CSA_SOURCE_ACTION);
 			kfree(elems);
 		} else if (mgmt->u.action.category == WLAN_CATEGORY_PUBLIC) {
 			struct ieee802_11_elems *elems;
@@ -7176,7 +7461,8 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 				ieee80211_sta_process_chanswitch(link,
 								 rx_status->mactime,
 								 rx_status->device_timestamp,
-								 elems, false);
+								 elems, elems,
+								 IEEE80211_CSA_SOURCE_ACTION);
 			}
 
 			kfree(elems);
