@@ -351,8 +351,9 @@ static int ciintf_init(struct budget_av *budget_av)
 	budget_av->budget.ci_present = 1;
 	budget_av->slot_status = SLOTSTATUS_NONE;
 
-	if ((result = dvb_ca_en50221_init(&budget_av->budget.dvb_adapter,
-					  &budget_av->ca, 0, 1)) != 0) {
+	result = dvb_ca_en50221_init(&budget_av->budget.dvb_adapter,
+				     &budget_av->ca, 0, 1);
+	if (result != 0) {
 		pr_err("ci initialisation failed\n");
 		goto error;
 	}
@@ -1270,7 +1271,8 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBS2_KNC1_OEM:
 	case SUBID_DVBS2_EASYWATCH:
 		budget_av->reinitialise_demod = 1;
-		if ((fe = dvb_attach(stb0899_attach, &knc1_dvbs2_config, &budget_av->budget.i2c_adap)))
+		fe = dvb_attach(stb0899_attach, &knc1_dvbs2_config, &budget_av->budget.i2c_adap);
+		if (fe)
 			dvb_attach(tda8261_attach, fe, &sd1878c_config, &budget_av->budget.i2c_adap);
 
 		break;
@@ -1435,7 +1437,8 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	dprintk(2, "dev: %p\n", dev);
 
-	if (!(budget_av = kzalloc(sizeof(struct budget_av), GFP_KERNEL)))
+	budget_av = kzalloc(sizeof(struct budget_av), GFP_KERNEL);
+	if (!budget_av)
 		return -ENOMEM;
 
 	budget_av->has_saa7113 = 0;
@@ -1468,7 +1471,8 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 		vv_data.vid_ops.vidioc_g_input = vidioc_g_input;
 		vv_data.vid_ops.vidioc_s_input = vidioc_s_input;
 
-		if ((err = saa7146_register_device(&budget_av->vd, dev, "knc1", VFL_TYPE_VIDEO))) {
+		err = saa7146_register_device(&budget_av->vd, dev, "knc1", VFL_TYPE_VIDEO);
+		if (err) {
 			saa7146_vv_release(dev);
 			ttpci_budget_deinit(&budget_av->budget);
 			kfree(budget_av);

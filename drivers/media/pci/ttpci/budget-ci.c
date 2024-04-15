@@ -481,9 +481,10 @@ static int ciintf_init(struct budget_ci *budget_ci)
 	budget_ci->ca.slot_ts_enable = ciintf_slot_ts_enable;
 	budget_ci->ca.poll_slot_status = ciintf_poll_slot_status;
 	budget_ci->ca.data = budget_ci;
-	if ((result = dvb_ca_en50221_init(&budget_ci->budget.dvb_adapter,
-					  &budget_ci->ca,
-					  ca_flags, 1)) != 0) {
+
+	result = dvb_ca_en50221_init(&budget_ci->budget.dvb_adapter,
+				     &budget_ci->ca, ca_flags, 1);
+	if (result != 0) {
 		printk("budget_ci: CI interface detected, but initialisation failed.\n");
 		goto error;
 	}
