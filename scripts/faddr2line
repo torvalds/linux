@@ -85,15 +85,17 @@ command -v ${ADDR2LINE} >/dev/null 2>&1 || die "${ADDR2LINE} isn't installed"
 # init/main.c!  This only works for vmlinux.  Otherwise it falls back to
 # printing the absolute path.
 find_dir_prefix() {
-	local objfile=$1
-
 	local start_kernel_addr=$(echo "${ELF_SYMS}" | sed 's/\[.*\]//' |
 		${AWK} '$8 == "start_kernel" {printf "0x%s", $2}')
 	[[ -z $start_kernel_addr ]] && return
 
-	local file_line=$(${ADDR2LINE} -e $objfile $start_kernel_addr)
-	[[ -z $file_line ]] && return
+	run_addr2line ${start_kernel_addr} ""
+	[[ -z $ADDR2LINE_OUT ]] && return
 
+	local file_line=${ADDR2LINE_OUT#* at }
+	if [[ -z $file_line ]] || [[ $file_line = $ADDR2LINE_OUT ]]; then
+		return
+	fi
 	local prefix=${file_line%init/main.c:*}
 	if [[ -z $prefix ]] || [[ $prefix = $file_line ]]; then
 		return
@@ -350,7 +352,7 @@ echo "${ELF_SECHEADERS}" | ${GREP} -q '\.debug_info' || die "CONFIG_DEBUG_INFO n
 init_addr2line $objfile
 
 DIR_PREFIX=supercalifragilisticexpialidocious
-find_dir_prefix $objfile
+find_dir_prefix
 
 FIRST=1
 while [[ $# -gt 0 ]]; do
