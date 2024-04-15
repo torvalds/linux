@@ -10941,7 +10941,7 @@ F:	drivers/idle/intel_idle.c
 
 INTEL IDXD DRIVER
 M:	Fenghua Yu <fenghua.yu@intel.com>
-M:	Dave Jiang <dave.jiang@intel.com>
+R:	Dave Jiang <dave.jiang@intel.com>
 L:	dmaengine@vger.kernel.org
 S:	Supported
 F:	drivers/dma/idxd/*
