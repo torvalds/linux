@@ -171,7 +171,7 @@ static int dps310_temp_workaround(struct dps310_data *data)
 	int reg;
 
 	rc = regmap_read(data->regmap, 0x32, &reg);
-	if (rc)
+	if (rc < 0)
 		return rc;
 
 	/*
