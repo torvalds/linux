@@ -442,7 +442,7 @@ static int saa7113_setinput(struct budget_av *budget_av, int input)
 {
 	struct budget *budget = &budget_av->budget;
 
-	if (1 != budget_av->has_saa7113)
+	if (budget_av->has_saa7113 != 1)
 		return -ENODEV;
 
 	if (input == 1) {
@@ -1366,7 +1366,7 @@ static int budget_av_detach(struct saa7146_dev *dev)
 
 	dprintk(2, "dev: %p\n", dev);
 
-	if (1 == budget_av->has_saa7113) {
+	if (budget_av->has_saa7113 == 1) {
 		saa7146_setgpio(dev, 0, SAA7146_GPIO_OUTLO);
 
 		msleep(200);

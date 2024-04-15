@@ -791,7 +791,7 @@ static int budget_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_d
 	int err;
 
 	budget = kmalloc(sizeof(struct budget), GFP_KERNEL);
-	if (NULL == budget)
+	if (budget == NULL)
 		return -ENOMEM;
 
 	dprintk(2, "dev:%p, info:%p, budget:%p\n", dev, info, budget);

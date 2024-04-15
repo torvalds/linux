@@ -516,7 +516,7 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 	ttpci_eeprom_parse_mac(&budget->i2c_adap, budget->dvb_adapter.proposed_mac);
 
 	budget->grabbing = saa7146_vmalloc_build_pgtable(dev->pci, budget->buffer_size, &budget->pt);
-	if (NULL == budget->grabbing) {
+	if (budget->grabbing == NULL) {
 		ret = -ENOMEM;
 		goto err_del_i2c;
 	}
