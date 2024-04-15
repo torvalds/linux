@@ -843,6 +843,36 @@ free_mv_buffers:
 	return ret;
 }
 
+static u32 wave5_vpu_dec_validate_sec_axi(struct vpu_instance *inst)
+{
+	struct dec_info *p_dec_info = &inst->codec_info->dec_info;
+	u32 bit_size = 0, ip_size = 0, lf_size = 0, ret = 0;
+	u32 sram_size = inst->dev->sram_size;
+
+	if (!sram_size)
+		return 0;
+
+	/*
+	 * TODO: calculate bit_size, ip_size, lf_size from inst->src_fmt.width
+	 * and inst->codec_info->dec_info.initial_info.luma_bitdepth
+	 */
+
+	if (p_dec_info->sec_axi_info.use_bit_enable && sram_size >= bit_size) {
+		ret |= BIT(0);
+		sram_size -= bit_size;
+	}
+
+	if (p_dec_info->sec_axi_info.use_ip_enable && sram_size >= ip_size) {
+		ret |= BIT(9);
+		sram_size -= ip_size;
+	}
+
+	if (p_dec_info->sec_axi_info.use_lf_row_enable && sram_size >= lf_size)
+		ret |= BIT(15);
+
+	return ret;
+}
+
 int wave5_vpu_decode(struct vpu_instance *inst, u32 *fail_res)
 {
 	u32 reg_val;
@@ -855,9 +885,7 @@ int wave5_vpu_decode(struct vpu_instance *inst, u32 *fail_res)
 	vpu_write_reg(inst->dev, W5_BS_OPTION, get_bitstream_options(p_dec_info));
 
 	/* secondary AXI */
-	reg_val = p_dec_info->sec_axi_info.use_bit_enable |
-		(p_dec_info->sec_axi_info.use_ip_enable << 9) |
-		(p_dec_info->sec_axi_info.use_lf_row_enable << 15);
+	reg_val = wave5_vpu_dec_validate_sec_axi(inst);
 	vpu_write_reg(inst->dev, W5_USE_SEC_AXI, reg_val);
 
 	/* set attributes of user buffer */
@@ -1938,6 +1966,31 @@ free_vb_fbc_y_tbl:
 	return ret;
 }
 
+static u32 wave5_vpu_enc_validate_sec_axi(struct vpu_instance *inst)
+{
+	struct enc_info *p_enc_info = &inst->codec_info->enc_info;
+	u32 rdo_size = 0, lf_size = 0, ret = 0;
+	u32 sram_size = inst->dev->sram_size;
+
+	if (!sram_size)
+		return 0;
+
+	/*
+	 * TODO: calculate rdo_size and lf_size from inst->src_fmt.width and
+	 * inst->codec_info->enc_info.open_param.wave_param.internal_bit_depth
+	 */
+
+	if (p_enc_info->sec_axi_info.use_enc_rdo_enable && sram_size >= rdo_size) {
+		ret |= BIT(11);
+		sram_size -= rdo_size;
+	}
+
+	if (p_enc_info->sec_axi_info.use_enc_lf_enable && sram_size >= lf_size)
+		ret |= BIT(15);
+
+	return ret;
+}
+
 int wave5_vpu_encode(struct vpu_instance *inst, struct enc_param *option, u32 *fail_res)
 {
 	u32 src_frame_format;
@@ -1959,8 +2012,7 @@ int wave5_vpu_encode(struct vpu_instance *inst, struct enc_param *option, u32 *f
 
 	vpu_write_reg(inst->dev, W5_CMD_ENC_PIC_SRC_AXI_SEL, DEFAULT_SRC_AXI);
 	/* secondary AXI */
-	reg_val = (p_enc_info->sec_axi_info.use_enc_rdo_enable << 11) |
-		(p_enc_info->sec_axi_info.use_enc_lf_enable << 15);
+	reg_val = wave5_vpu_enc_validate_sec_axi(inst);
 	vpu_write_reg(inst->dev, W5_CMD_ENC_PIC_USE_SEC_AXI, reg_val);
 
 	vpu_write_reg(inst->dev, W5_CMD_ENC_PIC_REPORT_PARAM, 0);

@@ -174,16 +174,19 @@ int wave5_vdi_allocate_array(struct vpu_device *vpu_dev, struct vpu_buf *array, 
 void wave5_vdi_allocate_sram(struct vpu_device *vpu_dev)
 {
 	struct vpu_buf *vb = &vpu_dev->sram_buf;
+	dma_addr_t daddr;
+	void *vaddr;
+	size_t size;
 
-	if (!vpu_dev->sram_pool || !vpu_dev->sram_size)
+	if (!vpu_dev->sram_pool || vb->vaddr)
 		return;
 
-	if (!vb->vaddr) {
-		vb->size = vpu_dev->sram_size;
-		vb->vaddr = gen_pool_dma_alloc(vpu_dev->sram_pool, vb->size,
-					       &vb->daddr);
-		if (!vb->vaddr)
-			vb->size = 0;
+	size = min_t(size_t, vpu_dev->sram_size, gen_pool_avail(vpu_dev->sram_pool));
+	vaddr = gen_pool_dma_alloc(vpu_dev->sram_pool, size, &daddr);
+	if (vaddr) {
+		vb->vaddr = vaddr;
+		vb->daddr = daddr;
+		vb->size = size;
 	}
 
 	dev_dbg(vpu_dev->dev, "%s: sram daddr: %pad, size: %zu, vaddr: 0x%p\n",
@@ -197,9 +200,7 @@ void wave5_vdi_free_sram(struct vpu_device *vpu_dev)
 	if (!vb->size || !vb->vaddr)
 		return;
 
-	if (vb->vaddr)
-		gen_pool_free(vpu_dev->sram_pool, (unsigned long)vb->vaddr,
-			      vb->size);
+	gen_pool_free(vpu_dev->sram_pool, (unsigned long)vb->vaddr, vb->size);
 
 	memset(vb, 0, sizeof(*vb));
 }
