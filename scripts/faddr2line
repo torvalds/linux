@@ -260,9 +260,12 @@ __faddr2line() {
 
 		# Pass section address to addr2line and strip absolute paths
 		# from the output:
-		local args="--functions --pretty-print --inlines --exe=$objfile"
+		local args="--functions --pretty-print --inlines --addresses --exe=$objfile"
 		[[ $IS_VMLINUX = 0 ]] && args="$args --section=$sec_name"
-		local output=$(${ADDR2LINE} $args $addr | sed "s; $dir_prefix\(\./\)*; ;")
+		local output_with_addr=$(${ADDR2LINE} $args $addr | sed "s; $dir_prefix\(\./\)*; ;")
+		[[ -z $output_with_addr ]] && continue
+
+		local output=$(echo "${output_with_addr}" | sed 's/^0x[0-9a-fA-F]*: //')
 		[[ -z $output ]] && continue
 
 		# Default output (non --list):
