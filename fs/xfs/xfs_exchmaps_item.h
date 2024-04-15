@@ -56,4 +56,9 @@ struct xfs_xmd_log_item {
 extern struct kmem_cache	*xfs_xmi_cache;
 extern struct kmem_cache	*xfs_xmd_cache;
 
+struct xfs_exchmaps_intent;
+
+void xfs_exchmaps_defer_add(struct xfs_trans *tp,
+		struct xfs_exchmaps_intent *xmi);
+
 #endif	/* __XFS_EXCHMAPS_ITEM_H__ */

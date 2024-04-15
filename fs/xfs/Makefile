@@ -34,6 +34,7 @@ xfs-y				+= $(addprefix libxfs/, \
 				   xfs_dir2_node.o \
 				   xfs_dir2_sf.o \
 				   xfs_dquot_buf.o \
+				   xfs_exchmaps.o \
 				   xfs_ialloc.o \
 				   xfs_ialloc_btree.o \
 				   xfs_iext_tree.o \
