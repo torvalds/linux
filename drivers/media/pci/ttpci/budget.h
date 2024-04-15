@@ -83,10 +83,10 @@ struct budget {
 	void *priv;
 };
 
-#define MAKE_BUDGET_INFO(x_var,x_name,x_type) \
+#define MAKE_BUDGET_INFO(x_var, x_name, x_type) \
 static struct budget_info x_var ## _info = { \
-	.name=x_name,	\
-	.type=x_type };	\
+	.name = x_name,	\
+	.type = x_type };	\
 static struct saa7146_pci_extension_data x_var = { \
 	.ext_priv = &x_var ## _info, \
 	.ext = &budget_extension };
@@ -119,7 +119,7 @@ extern int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 			     struct module *owner, short *adapter_nums);
 extern void ttpci_budget_init_hooks(struct budget *budget);
 extern int ttpci_budget_deinit(struct budget *budget);
-extern void ttpci_budget_irq10_handler(struct saa7146_dev *dev, u32 * isr);
+extern void ttpci_budget_irq10_handler(struct saa7146_dev *dev, u32 *isr);
 extern void ttpci_budget_set_video_port(struct saa7146_dev *dev, int video_port);
 extern int ttpci_budget_debiread(struct budget *budget, u32 config, int addr, int count,
 				 int uselocks, int nobusyloop);

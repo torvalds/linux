@@ -42,9 +42,10 @@ MODULE_PARM_DESC(diseqc_method, "Select DiSEqC method for subsystem id 13c2:1003
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-static void Set22K (struct budget *budget, int state)
+static void Set22K(struct budget *budget, int state)
 {
-	struct saa7146_dev *dev=budget->dev;
+	struct saa7146_dev *dev = budget->dev;
+
 	dprintk(2, "budget: %p\n", budget);
 	saa7146_setgpio(dev, 3, (state ? SAA7146_GPIO_OUTHI : SAA7146_GPIO_OUTLO));
 }
@@ -53,9 +54,10 @@ static void Set22K (struct budget *budget, int state)
 /* taken from the Skyvision DVB driver by
    Ralph Metzler <rjkm@metzlerbros.de> */
 
-static void DiseqcSendBit (struct budget *budget, int data)
+static void DiseqcSendBit(struct budget *budget, int data)
 {
-	struct saa7146_dev *dev=budget->dev;
+	struct saa7146_dev *dev = budget->dev;
+
 	dprintk(2, "budget: %p\n", budget);
 
 	saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTHI);
@@ -64,13 +66,13 @@ static void DiseqcSendBit (struct budget *budget, int data)
 	udelay(data ? 1000 : 500);
 }
 
-static void DiseqcSendByte (struct budget *budget, int data)
+static void DiseqcSendByte(struct budget *budget, int data)
 {
-	int i, par=1, d;
+	int i, par = 1, d;
 
 	dprintk(2, "budget: %p\n", budget);
 
-	for (i=7; i>=0; i--) {
+	for (i = 7; i >= 0; i--) {
 		d = (data>>i)&1;
 		par ^= d;
 		DiseqcSendBit(budget, d);
@@ -79,9 +81,9 @@ static void DiseqcSendByte (struct budget *budget, int data)
 	DiseqcSendBit(budget, par);
 }
 
-static int SendDiSEqCMsg (struct budget *budget, int len, u8 *msg, unsigned long burst)
+static int SendDiSEqCMsg(struct budget *budget, int len, u8 *msg, unsigned long burst)
 {
-	struct saa7146_dev *dev=budget->dev;
+	struct saa7146_dev *dev = budget->dev;
 	int i;
 
 	dprintk(2, "budget: %p\n", budget);
@@ -89,12 +91,12 @@ static int SendDiSEqCMsg (struct budget *budget, int len, u8 *msg, unsigned long
 	saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTLO);
 	mdelay(16);
 
-	for (i=0; i<len; i++)
+	for (i = 0; i < len; i++)
 		DiseqcSendByte(budget, msg[i]);
 
 	mdelay(16);
 
-	if (burst!=-1) {
+	if (burst != -1) {
 		if (burst)
 			DiseqcSendByte(budget, 0xff);
 		else {
@@ -118,7 +120,7 @@ static int SendDiSEqCMsg (struct budget *budget, int len, u8 *msg, unsigned long
 static int SetVoltage_Activy(struct budget *budget,
 			     enum fe_sec_voltage voltage)
 {
-	struct saa7146_dev *dev=budget->dev;
+	struct saa7146_dev *dev = budget->dev;
 
 	dprintk(2, "budget: %p\n", budget);
 
@@ -146,7 +148,7 @@ static int siemens_budget_set_voltage(struct dvb_frontend *fe,
 {
 	struct budget *budget = fe->dvb->priv;
 
-	return SetVoltage_Activy (budget, voltage);
+	return SetVoltage_Activy(budget, voltage);
 }
 
 static int budget_set_tone(struct dvb_frontend *fe,
@@ -156,11 +158,11 @@ static int budget_set_tone(struct dvb_frontend *fe,
 
 	switch (tone) {
 	case SEC_TONE_ON:
-		Set22K (budget, 1);
+		Set22K(budget, 1);
 		break;
 
 	case SEC_TONE_OFF:
-		Set22K (budget, 0);
+		Set22K(budget, 0);
 		break;
 
 	default:
@@ -170,11 +172,11 @@ static int budget_set_tone(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int budget_diseqc_send_master_cmd(struct dvb_frontend* fe, struct dvb_diseqc_master_cmd* cmd)
+static int budget_diseqc_send_master_cmd(struct dvb_frontend *fe, struct dvb_diseqc_master_cmd *cmd)
 {
 	struct budget *budget = fe->dvb->priv;
 
-	SendDiSEqCMsg (budget, cmd->msg_len, cmd->msg, 0);
+	SendDiSEqCMsg(budget, cmd->msg_len, cmd->msg, 0);
 
 	return 0;
 }
@@ -184,7 +186,7 @@ static int budget_diseqc_send_burst(struct dvb_frontend *fe,
 {
 	struct budget *budget = fe->dvb->priv;
 
-	SendDiSEqCMsg (budget, 0, NULL, minicmd);
+	SendDiSEqCMsg(budget, 0, NULL, minicmd);
 
 	return 0;
 }
@@ -220,7 +222,7 @@ static int alps_bsrv2_tuner_set_params(struct dvb_frontend *fe)
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1) return -EIO;
 	return 0;
 }
 
@@ -248,7 +250,7 @@ static int alps_tdbe2_tuner_set_params(struct dvb_frontend *fe)
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1) return -EIO;
 	return 0;
 }
 
@@ -303,7 +305,7 @@ static int grundig_29504_401_tuner_set_params(struct dvb_frontend *fe)
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1) return -EIO;
 	return 0;
 }
 
@@ -333,7 +335,7 @@ static int grundig_29504_451_tuner_set_params(struct dvb_frontend *fe)
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1) return -EIO;
 	return 0;
 }
 
@@ -365,7 +367,7 @@ static int s5h1420_tuner_set_params(struct dvb_frontend *fe)
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer (&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1) return -EIO;
 
 	return 0;
 }
@@ -422,12 +424,12 @@ static int i2c_readreg(struct i2c_adapter *i2c, u8 adr, u8 reg)
 	return (i2c_transfer(i2c, msg, 2) != 2) ? -EIO : val;
 }
 
-static u8 read_pwm(struct budget* budget)
+static u8 read_pwm(struct budget *budget)
 {
 	u8 b = 0xff;
 	u8 pwm;
-	struct i2c_msg msg[] = { { .addr = 0x50,.flags = 0,.buf = &b,.len = 1 },
-				 { .addr = 0x50,.flags = I2C_M_RD,.buf = &pwm,.len = 1} };
+	struct i2c_msg msg[] = { { .addr = 0x50, .flags = 0, .buf = &b, .len = 1 },
+				 { .addr = 0x50, .flags = I2C_M_RD, .buf = &pwm, .len = 1} };
 
 	if ((i2c_transfer(&budget->i2c_adap, msg, 2) != 2) || (pwm == 0xff))
 		pwm = 0x48;
@@ -478,7 +480,7 @@ static void frontend_init(struct budget *budget)
 {
 	(void)alps_bsbe1_config; /* avoid warning */
 
-	switch(budget->dev->pci->subsystem_device) {
+	switch (budget->dev->pci->subsystem_device) {
 	case 0x1003: // Hauppauge/TT Nova budget (stv0299/ALPS BSRU6(tsa5059) OR ves1893/ALPS BSRV2(sp5659))
 	case 0x1013:
 		// try the ALPS BSRV2 first of all
@@ -642,6 +644,7 @@ static void frontend_init(struct budget *budget)
 
 	case 0x101c: { /* TT S2-1600 */
 			const struct stv6110x_devctl *ctl;
+
 			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTLO);
 			msleep(50);
 			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTHI);
@@ -695,6 +698,7 @@ static void frontend_init(struct budget *budget)
 
 	case 0x1020: { /* Omicom S2 */
 			const struct stv6110x_devctl *ctl;
+
 			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTLO);
 			msleep(50);
 			saa7146_setgpio(budget->dev, 2, SAA7146_GPIO_OUTHI);
@@ -769,13 +773,13 @@ error_out:
 	return;
 }
 
-static int budget_attach (struct saa7146_dev* dev, struct saa7146_pci_extension_data *info)
+static int budget_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data *info)
 {
 	struct budget *budget = NULL;
 	int err;
 
 	budget = kmalloc(sizeof(struct budget), GFP_KERNEL);
-	if( NULL == budget ) {
+	if (NULL == budget) {
 		return -ENOMEM;
 	}
 
@@ -786,7 +790,7 @@ static int budget_attach (struct saa7146_dev* dev, struct saa7146_pci_extension_
 	err = ttpci_budget_init(budget, dev, info, THIS_MODULE, adapter_nr);
 	if (err) {
 		printk("==> failed\n");
-		kfree (budget);
+		kfree(budget);
 		return err;
 	}
 
@@ -798,7 +802,7 @@ static int budget_attach (struct saa7146_dev* dev, struct saa7146_pci_extension_
 	return 0;
 }
 
-static int budget_detach (struct saa7146_dev* dev)
+static int budget_detach(struct saa7146_dev *dev)
 {
 	struct budget *budget = dev->ext_priv;
 	int err;
@@ -808,9 +812,9 @@ static int budget_detach (struct saa7146_dev* dev)
 		dvb_frontend_detach(budget->dvb_frontend);
 	}
 
-	err = ttpci_budget_deinit (budget);
+	err = ttpci_budget_deinit(budget);
 
-	kfree (budget);
+	kfree(budget);
 	dev->ext_priv = NULL;
 
 	return err;
@@ -839,8 +843,8 @@ static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbs,  0x13c2, 0x1016),
 	MAKE_EXTENSION_PCI(ttbs1401, 0x13c2, 0x1018),
 	MAKE_EXTENSION_PCI(tt1600, 0x13c2, 0x101c),
-	MAKE_EXTENSION_PCI(fsacs1,0x1131, 0x4f60),
-	MAKE_EXTENSION_PCI(fsacs0,0x1131, 0x4f61),
+	MAKE_EXTENSION_PCI(fsacs1, 0x1131, 0x4f60),
+	MAKE_EXTENSION_PCI(fsacs0, 0x1131, 0x4f61),
 	MAKE_EXTENSION_PCI(fsact1, 0x1131, 0x5f60),
 	MAKE_EXTENSION_PCI(fsact, 0x1131, 0x5f61),
 	MAKE_EXTENSION_PCI(omicom, 0x14c4, 0x1020),

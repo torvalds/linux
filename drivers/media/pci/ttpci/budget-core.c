@@ -80,7 +80,7 @@ static int start_ts_capture(struct budget *budget)
 	 *      Pitch: 188, NumBytes3: 188, NumLines3: 1024
 	 */
 
-	switch(budget->card->type) {
+	switch (budget->card->type) {
 	case BUDGET_FS_ACTIVY:
 		saa7146_write(dev, DD1_INIT, 0x04000000);
 		saa7146_write(dev, MC2, (MASK_09 | MASK_25));
@@ -423,7 +423,7 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 	budget->card = bi;
 	budget->dev = (struct saa7146_dev *) dev;
 
-	switch(budget->card->type) {
+	switch (budget->card->type) {
 	case BUDGET_FS_ACTIVY:
 		budget->buffer_width = TS_WIDTH_ACTIVY;
 		max_bufsize = TS_MAX_BUFSIZE_K_ACTIVY;
@@ -568,7 +568,7 @@ int ttpci_budget_deinit(struct budget *budget)
 	return 0;
 }
 
-void ttpci_budget_irq10_handler(struct saa7146_dev *dev, u32 * isr)
+void ttpci_budget_irq10_handler(struct saa7146_dev *dev, u32 *isr)
 {
 	struct budget *budget = dev->ext_priv;
 

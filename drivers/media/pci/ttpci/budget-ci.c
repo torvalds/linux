@@ -551,7 +551,7 @@ static void ciintf_deinit(struct budget_ci *budget_ci)
 	saa7146_write(saa, MC1, MASK_27);
 }
 
-static void budget_ci_irq(struct saa7146_dev *dev, u32 * isr)
+static void budget_ci_irq(struct saa7146_dev *dev, u32 *isr)
 {
 	struct budget_ci *budget_ci = dev->ext_priv;
 
@@ -651,7 +651,7 @@ static int philips_su1278_tt_tuner_set_params(struct dvb_frontend *fe)
 	struct budget_ci *budget_ci = fe->dvb->priv;
 	u32 div;
 	u8 buf[4];
-	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = buf,.len = sizeof(buf) };
+	struct i2c_msg msg = {.addr = 0x60, .flags = 0, .buf = buf, .len = sizeof(buf) };
 
 	if ((p->frequency < 950000) || (p->frequency > 2150000))
 		return -EINVAL;
@@ -701,7 +701,7 @@ static int philips_tdm1316l_tuner_init(struct dvb_frontend *fe)
 	struct budget_ci *budget_ci = fe->dvb->priv;
 	static u8 td1316_init[] = { 0x0b, 0xf5, 0x85, 0xab };
 	static u8 disable_mc44BC374c[] = { 0x1d, 0x74, 0xa0, 0x68 };
-	struct i2c_msg tuner_msg = {.addr = budget_ci->tuner_pll_address,.flags = 0,.buf = td1316_init,.len =
+	struct i2c_msg tuner_msg = {.addr = budget_ci->tuner_pll_address, .flags = 0, .buf = td1316_init, .len =
 			sizeof(td1316_init) };
 
 	// setup PLL configuration
@@ -731,7 +731,7 @@ static int philips_tdm1316l_tuner_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *p = &fe->dtv_property_cache;
 	struct budget_ci *budget_ci = fe->dvb->priv;
 	u8 tuner_buf[4];
-	struct i2c_msg tuner_msg = {.addr = budget_ci->tuner_pll_address,.flags = 0,.buf = tuner_buf,.len = sizeof(tuner_buf) };
+	struct i2c_msg tuner_msg = {.addr = budget_ci->tuner_pll_address, .flags = 0, .buf = tuner_buf, .len = sizeof(tuner_buf) };
 	int tuner_frequency = 0;
 	u8 band, cp, filter;
 
@@ -1427,8 +1427,8 @@ static void frontend_init(struct budget_ci *budget_ci)
 					budget_ci->budget.dvb_frontend = NULL;
 				}
 			} else {
-					dvb_frontend_detach(budget_ci->budget.dvb_frontend);
-					budget_ci->budget.dvb_frontend = NULL;
+				dvb_frontend_detach(budget_ci->budget.dvb_frontend);
+				budget_ci->budget.dvb_frontend = NULL;
 			}
 		}
 		break;
@@ -1538,7 +1538,7 @@ static const struct pci_device_id pci_tbl[] = {
 	MAKE_EXTENSION_PCI(ttbs1500b, 0x13c2, 0x101b),
 	{
 	 .vendor = 0,
-	 }
+	}
 };
 
 MODULE_DEVICE_TABLE(pci, pci_tbl);

@@ -95,12 +95,12 @@ static u8 i2c_readreg(struct i2c_adapter *i2c, u8 id, u8 reg)
 	return mm2[0];
 }
 
-static int i2c_readregs(struct i2c_adapter *i2c, u8 id, u8 reg, u8 * buf, u8 len)
+static int i2c_readregs(struct i2c_adapter *i2c, u8 id, u8 reg, u8 *buf, u8 len)
 {
 	u8 mm1[] = { reg };
 	struct i2c_msg msgs[2] = {
-		{.addr = id / 2,.flags = 0,.buf = mm1,.len = 1},
-		{.addr = id / 2,.flags = I2C_M_RD,.buf = buf,.len = len}
+		{.addr = id / 2, .flags = 0, .buf = mm1, .len = 1},
+		{.addr = id / 2, .flags = I2C_M_RD, .buf = buf, .len = len}
 	};
 
 	if (i2c_transfer(i2c, msgs, 2) != 2)
@@ -492,7 +492,7 @@ static int philips_su1278_ty_ci_tuner_set_params(struct dvb_frontend *fe)
 	u32 div;
 	u8 buf[4];
 	struct budget *budget = fe->dvb->priv;
-	struct i2c_msg msg = {.addr = 0x61,.flags = 0,.buf = buf,.len = sizeof(buf) };
+	struct i2c_msg msg = {.addr = 0x61, .flags = 0, .buf = buf, .len = sizeof(buf) };
 
 	if ((c->frequency < 950000) || (c->frequency > 2150000))
 		return -EINVAL;
@@ -606,7 +606,7 @@ static int philips_cu1216_tuner_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget *budget = fe->dvb->priv;
 	u8 buf[6];
-	struct i2c_msg msg = {.addr = 0x60,.flags = 0,.buf = buf,.len = sizeof(buf) };
+	struct i2c_msg msg = {.addr = 0x60, .flags = 0, .buf = buf, .len = sizeof(buf) };
 	int i;
 
 #define CU1216_IF 36125000
@@ -670,7 +670,7 @@ static int philips_tu1216_tuner_init(struct dvb_frontend *fe)
 {
 	struct budget *budget = fe->dvb->priv;
 	static u8 tu1216_init[] = { 0x0b, 0xf5, 0x85, 0xab };
-	struct i2c_msg tuner_msg = {.addr = 0x60,.flags = 0,.buf = tu1216_init,.len = sizeof(tu1216_init) };
+	struct i2c_msg tuner_msg = {.addr = 0x60, .flags = 0, .buf = tu1216_init, .len = sizeof(tu1216_init) };
 
 	// setup PLL configuration
 	if (fe->ops.i2c_gate_ctrl)
@@ -687,7 +687,7 @@ static int philips_tu1216_tuner_set_params(struct dvb_frontend *fe)
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct budget *budget = fe->dvb->priv;
 	u8 tuner_buf[4];
-	struct i2c_msg tuner_msg = {.addr = 0x60,.flags = 0,.buf = tuner_buf,.len =
+	struct i2c_msg tuner_msg = {.addr = 0x60, .flags = 0, .buf = tuner_buf, .len =
 			sizeof(tuner_buf) };
 	int tuner_frequency = 0;
 	u8 band, cp, filter;
@@ -865,7 +865,7 @@ static int philips_sd1878_ci_set_symbol_rate(struct dvb_frontend *fe,
 
 static const struct stv0299_config philips_sd1878_config = {
 	.demod_address = 0x68,
-     .inittab = philips_sd1878_inittab,
+	.inittab = philips_sd1878_inittab,
 	.mclk = 88000000UL,
 	.invert = 0,
 	.skip_reinit = 0,
@@ -1153,8 +1153,8 @@ static u8 read_pwm(struct budget_av *budget_av)
 {
 	u8 b = 0xff;
 	u8 pwm;
-	struct i2c_msg msg[] = { {.addr = 0x50,.flags = 0,.buf = &b,.len = 1},
-	{.addr = 0x50,.flags = I2C_M_RD,.buf = &pwm,.len = 1}
+	struct i2c_msg msg[] = { {.addr = 0x50, .flags = 0, .buf = &b, .len = 1},
+	{.addr = 0x50, .flags = I2C_M_RD, .buf = &pwm, .len = 1}
 	};
 
 	if ((i2c_transfer(&budget_av->budget.i2c_adap, msg, 2) != 2)
@@ -1196,8 +1196,8 @@ static u8 read_pwm(struct budget_av *budget_av)
 
 static void frontend_init(struct budget_av *budget_av)
 {
-	struct saa7146_dev * saa = budget_av->budget.dev;
-	struct dvb_frontend * fe = NULL;
+	struct saa7146_dev *saa = budget_av->budget.dev;
+	struct dvb_frontend *fe = NULL;
 
 	/* Enable / PowerON Frontend */
 	saa7146_setgpio(saa, 0, SAA7146_GPIO_OUTLO);
@@ -1351,7 +1351,7 @@ static void frontend_init(struct budget_av *budget_av)
 }
 
 
-static void budget_av_irq(struct saa7146_dev *dev, u32 * isr)
+static void budget_av_irq(struct saa7146_dev *dev, u32 *isr)
 {
 	struct budget_av *budget_av = dev->ext_priv;
 
@@ -1532,8 +1532,8 @@ static struct saa7146_ext_vv vv_data = {
 static struct saa7146_extension budget_extension;
 
 MAKE_BUDGET_INFO(knc1s, "KNC1 DVB-S", BUDGET_KNC1S);
-MAKE_BUDGET_INFO(knc1s2,"KNC1 DVB-S2", BUDGET_KNC1S2);
-MAKE_BUDGET_INFO(sates2,"Satelco EasyWatch DVB-S2", BUDGET_KNC1S2);
+MAKE_BUDGET_INFO(knc1s2, "KNC1 DVB-S2", BUDGET_KNC1S2);
+MAKE_BUDGET_INFO(sates2, "Satelco EasyWatch DVB-S2", BUDGET_KNC1S2);
 MAKE_BUDGET_INFO(knc1c, "KNC1 DVB-C", BUDGET_KNC1C);
 MAKE_BUDGET_INFO(knc1t, "KNC1 DVB-T", BUDGET_KNC1T);
 MAKE_BUDGET_INFO(kncxs, "KNC TV STAR DVB-S", BUDGET_TVSTAR);
