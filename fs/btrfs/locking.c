@@ -97,7 +97,7 @@ void btrfs_set_buffer_lockdep_class(u64 objectid, struct extent_buffer *eb, int 
 void btrfs_maybe_reset_lockdep_class(struct btrfs_root *root, struct extent_buffer *eb)
 {
 	if (test_bit(BTRFS_ROOT_RESET_LOCKDEP_CLASS, &root->state))
-		btrfs_set_buffer_lockdep_class(root->root_key.objectid,
+		btrfs_set_buffer_lockdep_class(btrfs_root_id(root),
 					       eb, btrfs_header_level(eb));
 }
 

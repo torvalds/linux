@@ -674,14 +674,14 @@ delete:
 				.action = BTRFS_DROP_DELAYED_REF,
 				.bytenr = extent_start,
 				.num_bytes = extent_num_bytes,
-				.owning_root = root->root_key.objectid,
+				.owning_root = btrfs_root_id(root),
 				.ref_root = btrfs_header_owner(leaf),
 			};
 
 			bytes_deleted += extent_num_bytes;
 
 			btrfs_init_data_ref(&ref, control->ino, extent_offset,
-					    root->root_key.objectid, false);
+					    btrfs_root_id(root), false);
 			ret = btrfs_free_extent(trans, &ref);
 			if (ret) {
 				btrfs_abort_transaction(trans, ret);

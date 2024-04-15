@@ -665,7 +665,7 @@ static int btrfs_extent_same(struct inode *src, u64 loff, u64 olen,
 	if (root_dst->send_in_progress) {
 		btrfs_warn_rl(root_dst->fs_info,
 "cannot deduplicate to root %llu while send operations are using it (%d in progress)",
-			      root_dst->root_key.objectid,
+			      btrfs_root_id(root_dst),
 			      root_dst->send_in_progress);
 		spin_unlock(&root_dst->root_item_lock);
 		return -EAGAIN;

@@ -254,7 +254,7 @@ static void print_data_reloc_error(const struct btrfs_inode *inode, u64 file_off
 		btrfs_warn_rl(fs_info, "has data reloc tree but no running relocation");
 		btrfs_warn_rl(fs_info,
 "csum failed root %lld ino %llu off %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
-			inode->root->root_key.objectid, btrfs_ino(inode), file_off,
+			btrfs_root_id(inode->root), btrfs_ino(inode), file_off,
 			CSUM_FMT_VALUE(csum_size, csum),
 			CSUM_FMT_VALUE(csum_size, csum_expected),
 			mirror_num);
@@ -264,7 +264,7 @@ static void print_data_reloc_error(const struct btrfs_inode *inode, u64 file_off
 	logical += file_off;
 	btrfs_warn_rl(fs_info,
 "csum failed root %lld ino %llu off %llu logical %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
-			inode->root->root_key.objectid,
+			btrfs_root_id(inode->root),
 			btrfs_ino(inode), file_off, logical,
 			CSUM_FMT_VALUE(csum_size, csum),
 			CSUM_FMT_VALUE(csum_size, csum_expected),
@@ -331,15 +331,15 @@ static void __cold btrfs_print_data_csum_error(struct btrfs_inode *inode,
 	const u32 csum_size = root->fs_info->csum_size;
 
 	/* For data reloc tree, it's better to do a backref lookup instead. */
-	if (root->root_key.objectid == BTRFS_DATA_RELOC_TREE_OBJECTID)
+	if (btrfs_root_id(root) == BTRFS_DATA_RELOC_TREE_OBJECTID)
 		return print_data_reloc_error(inode, logical_start, csum,
 					      csum_expected, mirror_num);
 
 	/* Output without objectid, which is more meaningful */
-	if (root->root_key.objectid >= BTRFS_LAST_FREE_OBJECTID) {
+	if (btrfs_root_id(root) >= BTRFS_LAST_FREE_OBJECTID) {
 		btrfs_warn_rl(root->fs_info,
 "csum failed root %lld ino %lld off %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
-			root->root_key.objectid, btrfs_ino(inode),
+			btrfs_root_id(root), btrfs_ino(inode),
 			logical_start,
 			CSUM_FMT_VALUE(csum_size, csum),
 			CSUM_FMT_VALUE(csum_size, csum_expected),
@@ -347,7 +347,7 @@ static void __cold btrfs_print_data_csum_error(struct btrfs_inode *inode,
 	} else {
 		btrfs_warn_rl(root->fs_info,
 "csum failed root %llu ino %llu off %llu csum " CSUM_FMT " expected csum " CSUM_FMT " mirror %d",
-			root->root_key.objectid, btrfs_ino(inode),
+			btrfs_root_id(root), btrfs_ino(inode),
 			logical_start,
 			CSUM_FMT_VALUE(csum_size, csum),
 			CSUM_FMT_VALUE(csum_size, csum_expected),
@@ -1218,7 +1218,7 @@ out_free_reserve:
 		kthread_associate_blkcg(NULL);
 	btrfs_debug(fs_info,
 "async extent submission failed root=%lld inode=%llu start=%llu len=%llu ret=%d",
-		    root->root_key.objectid, btrfs_ino(inode), start,
+		    btrfs_root_id(root), btrfs_ino(inode), start,
 		    async_extent->ram_size, ret);
 	kfree(async_extent);
 }
@@ -3239,7 +3239,7 @@ out:
 			 * Actually free the qgroup rsv which was released when
 			 * the ordered extent was created.
 			 */
-			btrfs_qgroup_free_refroot(fs_info, inode->root->root_key.objectid,
+			btrfs_qgroup_free_refroot(fs_info, btrfs_root_id(inode->root),
 						  ordered_extent->qgroup_rsv,
 						  BTRFS_QGROUP_RSV_DATA);
 		}
@@ -3906,7 +3906,7 @@ cache_acl:
 			btrfs_err(fs_info,
 				  "error loading props for ino %llu (root %llu): %d",
 				  btrfs_ino(BTRFS_I(inode)),
-				  root->root_key.objectid, ret);
+				  btrfs_root_id(root), ret);
 	}
 	if (path != in_path)
 		btrfs_free_path(path);
@@ -4265,7 +4265,7 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 	/* This needs to handle no-key deletions later on */
 
 	if (btrfs_ino(inode) == BTRFS_FIRST_FREE_OBJECTID) {
-		objectid = inode->root->root_key.objectid;
+		objectid = btrfs_root_id(inode->root);
 	} else if (btrfs_ino(inode) == BTRFS_EMPTY_SUBVOL_DIR_OBJECTID) {
 		objectid = inode->location.objectid;
 	} else {
@@ -4323,7 +4323,7 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 		btrfs_release_path(path);
 	} else {
 		ret = btrfs_del_root_ref(trans, objectid,
-					 root->root_key.objectid, dir_ino,
+					 btrfs_root_id(root), dir_ino,
 					 &index, &fname.disk_name);
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
@@ -4373,7 +4373,7 @@ static noinline int may_destroy_subvol(struct btrfs_root *root)
 				   dir_id, &name, 0);
 	if (di && !IS_ERR(di)) {
 		btrfs_dir_item_key_to_cpu(path->nodes[0], di, &key);
-		if (key.objectid == root->root_key.objectid) {
+		if (key.objectid == btrfs_root_id(root)) {
 			ret = -EPERM;
 			btrfs_err(fs_info,
 				  "deleting default subvolume %llu is not allowed",
@@ -4383,7 +4383,7 @@ static noinline int may_destroy_subvol(struct btrfs_root *root)
 		btrfs_release_path(path);
 	}
 
-	key.objectid = root->root_key.objectid;
+	key.objectid = btrfs_root_id(root);
 	key.type = BTRFS_ROOT_REF_KEY;
 	key.offset = (u64)-1;
 
@@ -4403,8 +4403,7 @@ static noinline int may_destroy_subvol(struct btrfs_root *root)
 	if (path->slots[0] > 0) {
 		path->slots[0]--;
 		btrfs_item_key_to_cpu(path->nodes[0], &key, path->slots[0]);
-		if (key.objectid == root->root_key.objectid &&
-		    key.type == BTRFS_ROOT_REF_KEY)
+		if (key.objectid == btrfs_root_id(root) && key.type == BTRFS_ROOT_REF_KEY)
 			ret = -ENOTEMPTY;
 	}
 out:
@@ -4462,7 +4461,7 @@ int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry)
 		spin_unlock(&dest->root_item_lock);
 		btrfs_warn(fs_info,
 			   "attempt to delete subvolume %llu during send",
-			   dest->root_key.objectid);
+			   btrfs_root_id(dest));
 		ret = -EPERM;
 		goto out_up_write;
 	}
@@ -4470,7 +4469,7 @@ int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry)
 		spin_unlock(&dest->root_item_lock);
 		btrfs_warn(fs_info,
 			   "attempt to delete subvolume %llu with active swapfile",
-			   root->root_key.objectid);
+			   btrfs_root_id(root));
 		ret = -EPERM;
 		goto out_up_write;
 	}
@@ -4531,7 +4530,7 @@ int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry)
 	if (!test_and_set_bit(BTRFS_ROOT_ORPHAN_ITEM_INSERTED, &dest->state)) {
 		ret = btrfs_insert_orphan_item(trans,
 					fs_info->tree_root,
-					dest->root_key.objectid);
+					btrfs_root_id(dest));
 		if (ret) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_end_trans;
@@ -4539,8 +4538,7 @@ int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry)
 	}
 
 	ret = btrfs_uuid_tree_remove(trans, dest->root_item.uuid,
-				  BTRFS_UUID_KEY_SUBVOL,
-				  dest->root_key.objectid);
+				     BTRFS_UUID_KEY_SUBVOL, btrfs_root_id(dest));
 	if (ret && ret != -ENOENT) {
 		btrfs_abort_transaction(trans, ret);
 		goto out_end_trans;
@@ -4549,7 +4547,7 @@ int btrfs_delete_subvolume(struct btrfs_inode *dir, struct dentry *dentry)
 		ret = btrfs_uuid_tree_remove(trans,
 					  dest->root_item.received_uuid,
 					  BTRFS_UUID_KEY_RECEIVED_SUBVOL,
-					  dest->root_key.objectid);
+					  btrfs_root_id(dest));
 		if (ret && ret != -ENOENT) {
 			btrfs_abort_transaction(trans, ret);
 			goto out_end_trans;
@@ -5229,7 +5227,7 @@ void btrfs_evict_inode(struct inode *inode)
 
 	if (inode->i_nlink &&
 	    ((btrfs_root_refs(&root->root_item) != 0 &&
-	      root->root_key.objectid != BTRFS_ROOT_TREE_OBJECTID) ||
+	      btrfs_root_id(root) != BTRFS_ROOT_TREE_OBJECTID) ||
 	     btrfs_is_free_space_inode(BTRFS_I(inode))))
 		goto out;
 
@@ -5241,7 +5239,7 @@ void btrfs_evict_inode(struct inode *inode)
 
 	if (inode->i_nlink > 0) {
 		BUG_ON(btrfs_root_refs(&root->root_item) != 0 &&
-		       root->root_key.objectid != BTRFS_ROOT_TREE_OBJECTID);
+		       btrfs_root_id(root) != BTRFS_ROOT_TREE_OBJECTID);
 		goto out;
 	}
 
@@ -5413,7 +5411,7 @@ static int fixup_tree_root_location(struct btrfs_fs_info *fs_info,
 	}
 
 	err = -ENOENT;
-	key.objectid = dir->root->root_key.objectid;
+	key.objectid = btrfs_root_id(dir->root);
 	key.type = BTRFS_ROOT_REF_KEY;
 	key.offset = location->objectid;
 
@@ -6372,8 +6370,7 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 	if (ret) {
 		btrfs_err(fs_info,
 			  "error inheriting props for ino %llu (root %llu): %d",
-			  btrfs_ino(BTRFS_I(inode)), root->root_key.objectid,
-			  ret);
+			  btrfs_ino(BTRFS_I(inode)), btrfs_root_id(root), ret);
 	}
 
 	/*
@@ -6446,7 +6443,7 @@ int btrfs_add_link(struct btrfs_trans_handle *trans,
 
 	if (unlikely(ino == BTRFS_FIRST_FREE_OBJECTID)) {
 		ret = btrfs_add_root_ref(trans, key.objectid,
-					 root->root_key.objectid, parent_ino,
+					 btrfs_root_id(root), parent_ino,
 					 index, name);
 	} else if (add_backref) {
 		ret = btrfs_insert_inode_ref(trans, root, name,
@@ -6489,7 +6486,7 @@ fail_dir_item:
 		u64 local_index;
 		int err;
 		err = btrfs_del_root_ref(trans, key.objectid,
-					 root->root_key.objectid, parent_ino,
+					 btrfs_root_id(root), parent_ino,
 					 &local_index, name);
 		if (err)
 			btrfs_abort_transaction(trans, err);
@@ -6587,7 +6584,7 @@ static int btrfs_link(struct dentry *old_dentry, struct inode *dir,
 	int drop_inode = 0;
 
 	/* do not allow sys_link's with other subvols of the same device */
-	if (root->root_key.objectid != BTRFS_I(inode)->root->root_key.objectid)
+	if (btrfs_root_id(root) != btrfs_root_id(BTRFS_I(inode)->root))
 		return -EXDEV;
 
 	if (inode->i_nlink >= BTRFS_LINK_MAX)
@@ -9433,7 +9430,7 @@ free_qgroup:
 	 * or we leak qgroup data reservation.
 	 */
 	btrfs_qgroup_free_refroot(inode->root->fs_info,
-			inode->root->root_key.objectid, qgroup_released,
+			btrfs_root_id(inode->root), qgroup_released,
 			BTRFS_QGROUP_RSV_DATA);
 	return ERR_PTR(ret);
 }
@@ -10534,7 +10531,7 @@ static int btrfs_swap_activate(struct swap_info_struct *sis, struct file *file,
 		btrfs_exclop_finish(fs_info);
 		btrfs_warn(fs_info,
 		"cannot activate swapfile because subvolume %llu is being deleted",
-			root->root_key.objectid);
+			btrfs_root_id(root));
 		return -EPERM;
 	}
 	atomic_inc(&root->nr_swapfiles);
@@ -10760,7 +10757,7 @@ void btrfs_assert_inode_range_clean(struct btrfs_inode *inode, u64 start, u64 en
 	if (ordered) {
 		btrfs_err(root->fs_info,
 "found unexpected ordered extent in file range [%llu, %llu] for inode %llu root %llu (ordered range [%llu, %llu])",
-			  start, end, btrfs_ino(inode), root->root_key.objectid,
+			  start, end, btrfs_ino(inode), btrfs_root_id(root),
 			  ordered->file_offset,
 			  ordered->file_offset + ordered->num_bytes - 1);
 		btrfs_put_ordered_extent(ordered);

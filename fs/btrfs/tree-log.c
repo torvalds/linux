@@ -391,7 +391,7 @@ static int overwrite_item(struct btrfs_trans_handle *trans,
 	 * the leaf before writing into the log tree. See the comments at
 	 * copy_items() for more details.
 	 */
-	ASSERT(root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID);
+	ASSERT(btrfs_root_id(root) != BTRFS_TREE_LOG_OBJECTID);
 
 	item_size = btrfs_item_size(eb, slot);
 	src_ptr = btrfs_item_ptr_offset(eb, slot);
@@ -765,8 +765,8 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 					.action = BTRFS_ADD_DELAYED_REF,
 					.bytenr = ins.objectid,
 					.num_bytes = ins.offset,
-					.owning_root = root->root_key.objectid,
-					.ref_root = root->root_key.objectid,
+					.owning_root = btrfs_root_id(root),
+					.ref_root = btrfs_root_id(root),
 				};
 				btrfs_init_data_ref(&ref, key->objectid, offset,
 						    0, false);
@@ -779,7 +779,7 @@ static noinline int replay_one_extent(struct btrfs_trans_handle *trans,
 				 * allocation tree
 				 */
 				ret = btrfs_alloc_logged_file_extent(trans,
-						root->root_key.objectid,
+						btrfs_root_id(root),
 						key->objectid, offset, &ins);
 				if (ret)
 					goto out;
@@ -3047,7 +3047,7 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		if (ret != -ENOSPC)
 			btrfs_err(fs_info,
 				  "failed to update log for root %llu ret %d",
-				  root->root_key.objectid, ret);
+				  btrfs_root_id(root), ret);
 		btrfs_wait_tree_log_extents(log, mark);
 		mutex_unlock(&log_root_tree->log_mutex);
 		goto out;

@@ -430,8 +430,7 @@ blk_status_t btrfs_lookup_bio_sums(struct btrfs_bio *bbio)
 			memset(csum_dst, 0, csum_size);
 			count = 1;
 
-			if (inode->root->root_key.objectid ==
-			    BTRFS_DATA_RELOC_TREE_OBJECTID) {
+			if (btrfs_root_id(inode->root) == BTRFS_DATA_RELOC_TREE_OBJECTID) {
 				u64 file_offset = bbio->file_offset + bio_offset;
 
 				set_extent_bit(&inode->io_tree, file_offset,
@@ -885,8 +884,8 @@ int btrfs_del_csums(struct btrfs_trans_handle *trans,
 	const u32 csum_size = fs_info->csum_size;
 	u32 blocksize_bits = fs_info->sectorsize_bits;
 
-	ASSERT(root->root_key.objectid == BTRFS_CSUM_TREE_OBJECTID ||
-	       root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID);
+	ASSERT(btrfs_root_id(root) == BTRFS_CSUM_TREE_OBJECTID ||
+	       btrfs_root_id(root) == BTRFS_TREE_LOG_OBJECTID);
 
 	path = btrfs_alloc_path();
 	if (!path)
@@ -1186,7 +1185,7 @@ extend_csum:
 		 * search, etc, because log trees are temporary anyway and it
 		 * would only save a few bytes of leaf space.
 		 */
-		if (root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID) {
+		if (btrfs_root_id(root) == BTRFS_TREE_LOG_OBJECTID) {
 			if (path->slots[0] + 1 >=
 			    btrfs_header_nritems(path->nodes[0])) {
 				ret = find_next_csum_offset(root, path, &next_offset);
@@ -1328,7 +1327,7 @@ void btrfs_extent_item_to_extent_map(struct btrfs_inode *inode,
 		btrfs_err(fs_info,
 			  "unknown file extent item type %d, inode %llu, offset %llu, "
 			  "root %llu", type, btrfs_ino(inode), extent_start,
-			  root->root_key.objectid);
+			  btrfs_root_id(root));
 	}
 }
 

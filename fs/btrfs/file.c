@@ -245,7 +245,7 @@ int btrfs_drop_extents(struct btrfs_trans_handle *trans,
 	if (args->start >= inode->disk_i_size && !args->replace_extent)
 		modify_tree = 0;
 
-	update_refs = (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID);
+	update_refs = (btrfs_root_id(root) != BTRFS_TREE_LOG_OBJECTID);
 	while (1) {
 		recow = 0;
 		ret = btrfs_lookup_file_extent(trans, root, path, ino,
@@ -377,8 +377,8 @@ next_slot:
 					.bytenr = disk_bytenr,
 					.num_bytes = num_bytes,
 					.parent = 0,
-					.owning_root = root->root_key.objectid,
-					.ref_root = root->root_key.objectid,
+					.owning_root = btrfs_root_id(root),
+					.ref_root = btrfs_root_id(root),
 				};
 				btrfs_init_data_ref(&ref, new_key.objectid,
 						    args->start - extent_offset,
@@ -470,8 +470,8 @@ delete_extent_item:
 					.bytenr = disk_bytenr,
 					.num_bytes = num_bytes,
 					.parent = 0,
-					.owning_root = root->root_key.objectid,
-					.ref_root = root->root_key.objectid,
+					.owning_root = btrfs_root_id(root),
+					.ref_root = btrfs_root_id(root),
 				};
 				btrfs_init_data_ref(&ref, key.objectid,
 						    key.offset - extent_offset,
@@ -755,8 +755,8 @@ again:
 		ref.bytenr = bytenr;
 		ref.num_bytes = num_bytes;
 		ref.parent = 0;
-		ref.owning_root = root->root_key.objectid;
-		ref.ref_root = root->root_key.objectid;
+		ref.owning_root = btrfs_root_id(root);
+		ref.ref_root = btrfs_root_id(root);
 		btrfs_init_data_ref(&ref, ino, orig_offset, 0, false);
 		ret = btrfs_inc_extent_ref(trans, &ref);
 		if (ret) {
@@ -785,8 +785,8 @@ again:
 	ref.bytenr = bytenr;
 	ref.num_bytes = num_bytes;
 	ref.parent = 0;
-	ref.owning_root = root->root_key.objectid;
-	ref.ref_root = root->root_key.objectid;
+	ref.owning_root = btrfs_root_id(root);
+	ref.ref_root = btrfs_root_id(root);
 	btrfs_init_data_ref(&ref, ino, orig_offset, 0, false);
 	if (extent_mergeable(leaf, path->slots[0] + 1,
 			     ino, bytenr, orig_offset,
@@ -2493,8 +2493,8 @@ static int btrfs_insert_replace_extent(struct btrfs_trans_handle *trans,
 			.action = BTRFS_ADD_DELAYED_REF,
 			.bytenr = extent_info->disk_offset,
 			.num_bytes = extent_info->disk_len,
-			.owning_root = root->root_key.objectid,
-			.ref_root = root->root_key.objectid,
+			.owning_root = btrfs_root_id(root),
+			.ref_root = btrfs_root_id(root),
 		};
 		u64 ref_offset;
 

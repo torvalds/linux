@@ -992,7 +992,7 @@ int btrfs_compress_filemap_get_folio(struct address_space *mapping, u64 start,
 
 		btrfs_crit(inode->root->fs_info,
 		"failed to get page cache, root %lld ino %llu file offset %llu",
-			   inode->root->root_key.objectid, btrfs_ino(inode), start);
+			   btrfs_root_id(inode->root), btrfs_ino(inode), start);
 		return -ENOENT;
 	}
 	*in_folio_ret = in_folio;
