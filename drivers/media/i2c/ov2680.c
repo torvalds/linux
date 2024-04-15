@@ -86,9 +86,6 @@
 #define OV2680_PIXELS_PER_LINE			1704
 #define OV2680_LINES_PER_FRAME			1294
 
-/* If possible send 16 extra rows / lines to the ISP as padding */
-#define OV2680_END_MARGIN			16
-
 /* Max exposure time is VTS - 8 */
 #define OV2680_INTEGRATION_TIME_MARGIN		8
 
@@ -359,11 +356,9 @@ static void ov2680_calc_mode(struct ov2680_dev *sensor)
 	sensor->mode.v_start = (sensor->mode.crop.top +
 				(sensor->mode.crop.height - height) / 2) & ~1;
 	sensor->mode.h_end =
-		min(sensor->mode.h_start + width + OV2680_END_MARGIN - 1,
-		    OV2680_NATIVE_WIDTH - 1);
+		min(sensor->mode.h_start + width - 1, OV2680_NATIVE_WIDTH - 1);
 	sensor->mode.v_end =
-		min(sensor->mode.v_start + height + OV2680_END_MARGIN - 1,
-		    OV2680_NATIVE_HEIGHT - 1);
+		min(sensor->mode.v_start + height - 1, OV2680_NATIVE_HEIGHT - 1);
 	sensor->mode.h_output_size = orig_width;
 	sensor->mode.v_output_size = orig_height;
 	sensor->mode.hts = OV2680_PIXELS_PER_LINE;
