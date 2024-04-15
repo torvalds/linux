@@ -34,6 +34,7 @@
 #define BUFFER_WARNING_WAIT	(30*HZ)
 
 int budget_debug;
+EXPORT_SYMBOL_GPL(budget_debug);
 static int dma_buffer_size = TS_MIN_BUFSIZE_K;
 module_param_named(debug, budget_debug, int, 0644);
 module_param_named(bufsize, dma_buffer_size, int, 0444);
@@ -259,6 +260,7 @@ int ttpci_budget_debiread(struct budget *budget, u32 config, int addr, int count
 	return ttpci_budget_debiread_nolock(budget, config, addr,
 					    count, nobusyloop);
 }
+EXPORT_SYMBOL_GPL(ttpci_budget_debiread);
 
 static int ttpci_budget_debiwrite_nolock(struct budget *budget, u32 config,
 		int addr, int count, u32 value, int nobusyloop)
@@ -299,6 +301,7 @@ int ttpci_budget_debiwrite(struct budget *budget, u32 config, int addr,
 	return ttpci_budget_debiwrite_nolock(budget, config, addr,
 					     count, value, nobusyloop);
 }
+EXPORT_SYMBOL_GPL(ttpci_budget_debiwrite);
 
 
 /****************************************************************************
@@ -542,6 +545,7 @@ err_dvb_unregister:
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(ttpci_budget_init);
 
 void ttpci_budget_init_hooks(struct budget *budget)
 {
@@ -550,6 +554,7 @@ void ttpci_budget_init_hooks(struct budget *budget)
 		budget->dvb_frontend->ops.read_status = budget_read_fe_status;
 	}
 }
+EXPORT_SYMBOL_GPL(ttpci_budget_init_hooks);
 
 int ttpci_budget_deinit(struct budget *budget)
 {
@@ -569,6 +574,7 @@ int ttpci_budget_deinit(struct budget *budget)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(ttpci_budget_deinit);
 
 void ttpci_budget_irq10_handler(struct saa7146_dev *dev, u32 *isr)
 {
@@ -579,6 +585,7 @@ void ttpci_budget_irq10_handler(struct saa7146_dev *dev, u32 *isr)
 	if (*isr & MASK_10)
 		tasklet_schedule(&budget->vpe_tasklet);
 }
+EXPORT_SYMBOL_GPL(ttpci_budget_irq10_handler);
 
 void ttpci_budget_set_video_port(struct saa7146_dev *dev, int video_port)
 {
@@ -592,14 +599,6 @@ void ttpci_budget_set_video_port(struct saa7146_dev *dev, int video_port)
 	}
 	spin_unlock(&budget->feedlock);
 }
-
-EXPORT_SYMBOL_GPL(ttpci_budget_debiread);
-EXPORT_SYMBOL_GPL(ttpci_budget_debiwrite);
-EXPORT_SYMBOL_GPL(ttpci_budget_init);
-EXPORT_SYMBOL_GPL(ttpci_budget_init_hooks);
-EXPORT_SYMBOL_GPL(ttpci_budget_deinit);
-EXPORT_SYMBOL_GPL(ttpci_budget_irq10_handler);
 EXPORT_SYMBOL_GPL(ttpci_budget_set_video_port);
-EXPORT_SYMBOL_GPL(budget_debug);
 
 MODULE_LICENSE("GPL");
