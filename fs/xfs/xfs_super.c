@@ -1727,6 +1727,10 @@ xfs_fs_fill_super(
 		goto out_filestream_unmount;
 	}
 
+	if (xfs_has_exchange_range(mp))
+		xfs_warn(mp,
+	"EXPERIMENTAL exchange-range feature enabled. Use at your own risk!");
+
 	error = xfs_mountfs(mp);
 	if (error)
 		goto out_filestream_unmount;
