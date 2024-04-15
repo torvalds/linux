@@ -310,3 +310,15 @@ xfile_put_folio(
 	folio_unlock(folio);
 	folio_put(folio);
 }
+
+/* Discard the page cache that's backing a range of the xfile. */
+void
+xfile_discard(
+	struct xfile		*xf,
+	loff_t			pos,
+	u64			count)
+{
+	trace_xfile_discard(xf, pos, count);
+
+	shmem_truncate_range(file_inode(xf->file), pos, pos + count - 1);
+}
