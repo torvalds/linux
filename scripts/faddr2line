@@ -126,6 +126,48 @@ check_vmlinux() {
 	fi
 }
 
+init_addr2line() {
+	local objfile=$1
+
+	check_vmlinux
+
+	ADDR2LINE_ARGS="--functions --pretty-print --inlines --addresses --exe=$objfile"
+	if [[ $IS_VMLINUX = 1 ]]; then
+		# If the executable file is vmlinux, we don't pass section names to
+		# addr2line, so we can launch it now as a single long-running process.
+		coproc ADDR2LINE_PROC (${ADDR2LINE} ${ADDR2LINE_ARGS})
+	fi
+}
+
+run_addr2line() {
+	local addr=$1
+	local sec_name=$2
+
+	if [[ $IS_VMLINUX = 1 ]]; then
+		# We send to the addr2line process: (1) the address, then (2) a sentinel
+		# value, i.e., something that can't be interpreted as a valid address
+		# (i.e., ","). This causes addr2line to write out: (1) the answer for
+		# our address, then (2) either "?? ??:0" or "0x0...0: ..." (if
+		# using binutils' addr2line), or "," (if using LLVM's addr2line).
+		echo ${addr} >& "${ADDR2LINE_PROC[1]}"
+		echo "," >& "${ADDR2LINE_PROC[1]}"
+		local first_line
+		read -r first_line <& "${ADDR2LINE_PROC[0]}"
+		ADDR2LINE_OUT=$(echo "${first_line}" | sed 's/^0x[0-9a-fA-F]*: //')
+		while read -r line <& "${ADDR2LINE_PROC[0]}"; do
+			if [[ "$line" == "?? ??:0" ]] || [[ "$line" == "," ]] || [[ $(echo "$line" | ${GREP} "^0x00*: ") ]]; then
+				break
+			fi
+			ADDR2LINE_OUT+=$'\n'$(echo "$line" | sed 's/^0x[0-9a-fA-F]*: //')
+		done
+	else
+		# Run addr2line as a single invocation.
+		local sec_arg
+		[[ -z $sec_name ]] && sec_arg="" || sec_arg="--section=${sec_name}"
+		ADDR2LINE_OUT=$(${ADDR2LINE} ${ADDR2LINE_ARGS} ${sec_arg} ${addr} | sed 's/^0x[0-9a-fA-F]*: //')
+	fi
+}
+
 __faddr2line() {
 	local objfile=$1
 	local func_addr=$2
@@ -260,12 +302,8 @@ __faddr2line() {
 
 		# Pass section address to addr2line and strip absolute paths
 		# from the output:
-		local args="--functions --pretty-print --inlines --addresses --exe=$objfile"
-		[[ $IS_VMLINUX = 0 ]] && args="$args --section=$sec_name"
-		local output_with_addr=$(${ADDR2LINE} $args $addr | sed "s; $dir_prefix\(\./\)*; ;")
-		[[ -z $output_with_addr ]] && continue
-
-		local output=$(echo "${output_with_addr}" | sed 's/^0x[0-9a-fA-F]*: //')
+		run_addr2line $addr $sec_name
+		local output=$(echo "${ADDR2LINE_OUT}" | sed "s; $dir_prefix\(\./\)*; ;")
 		[[ -z $output ]] && continue
 
 		# Default output (non --list):
@@ -309,7 +347,7 @@ run_readelf $objfile
 
 echo "${ELF_SECHEADERS}" | ${GREP} -q '\.debug_info' || die "CONFIG_DEBUG_INFO not enabled"
 
-check_vmlinux
+init_addr2line $objfile
 
 DIR_PREFIX=supercalifragilisticexpialidocious
 find_dir_prefix $objfile
