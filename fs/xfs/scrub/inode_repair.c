@@ -282,6 +282,51 @@ xrep_dinode_findmode_dirent(
 	return 0;
 }
 
+/* Try to lock a directory, or wait a jiffy. */
+static inline int
+xrep_dinode_ilock_nowait(
+	struct xfs_inode	*dp,
+	unsigned int		lock_mode)
+{
+	if (xfs_ilock_nowait(dp, lock_mode))
+		return true;
+
+	schedule_timeout_killable(1);
+	return false;
+}
+
+/*
+ * Try to lock a directory to look for ftype hints.  Since we already hold the
+ * AGI buffer, we cannot block waiting for the ILOCK because rename can take
+ * the ILOCK and then try to lock AGIs.
+ */
+STATIC int
+xrep_dinode_trylock_directory(
+	struct xrep_inode	*ri,
+	struct xfs_inode	*dp,
+	unsigned int		*lock_modep)
+{
+	unsigned long		deadline = jiffies + msecs_to_jiffies(30000);
+	unsigned int		lock_mode;
+	int			error = 0;
+
+	do {
+		if (xchk_should_terminate(ri->sc, &error))
+			return error;
+
+		if (xfs_need_iread_extents(&dp->i_df))
+			lock_mode = XFS_ILOCK_EXCL;
+		else
+			lock_mode = XFS_ILOCK_SHARED;
+
+		if (xrep_dinode_ilock_nowait(dp, lock_mode)) {
+			*lock_modep = lock_mode;
+			return 0;
+		}
+	} while (!time_is_before_jiffies(deadline));
+	return -EBUSY;
+}
+
 /*
  * If this is a directory, walk the dirents looking for any that point to the
  * scrub target inode.
@@ -299,7 +344,9 @@ xrep_dinode_findmode_walk_directory(
 	 * Scan the directory to see if there it contains an entry pointing to
 	 * the directory that we are repairing.
 	 */
-	lock_mode = xfs_ilock_data_map_shared(dp);
+	error = xrep_dinode_trylock_directory(ri, dp, &lock_mode);
+	if (error)
+		return error;
 
 	/*
 	 * If this directory is known to be sick, we cannot scan it reliably
