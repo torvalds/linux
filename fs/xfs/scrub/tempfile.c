@@ -21,6 +21,7 @@
 #include "xfs_exchrange.h"
 #include "xfs_exchmaps.h"
 #include "xfs_defer.h"
+#include "xfs_symlink_remote.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/repair.h"
@@ -107,6 +108,18 @@ xrep_tempfile_create(
 
 	if (is_dir) {
 		error = xfs_dir_init(tp, sc->tempip, dp);
+		if (error)
+			goto out_trans_cancel;
+	} else if (S_ISLNK(VFS_I(sc->tempip)->i_mode)) {
+		/*
+		 * Initialize the temporary symlink with a meaningless target
+		 * that won't trip the verifiers.  Repair must rewrite the
+		 * target with meaningful content before swapping with the file
+		 * being repaired.  A single-byte target will not write a
+		 * remote target block, so the owner is irrelevant.
+		 */
+		error = xfs_symlink_write_target(tp, sc->tempip,
+				sc->tempip->i_ino, ".", 1, 0, 0);
 		if (error)
 			goto out_trans_cancel;
 	}

@@ -2711,6 +2711,52 @@ DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_alias);
 DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_dentry);
 DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_invalidate_child);
 
+TRACE_EVENT(xrep_symlink_salvage_target,
+	TP_PROTO(struct xfs_inode *ip, char *target, unsigned int targetlen),
+	TP_ARGS(ip, target, targetlen),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(unsigned int, targetlen)
+		__dynamic_array(char, target, targetlen + 1)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->targetlen = targetlen;
+		memcpy(__get_str(target), target, targetlen);
+		__get_str(target)[targetlen] = 0;
+	),
+	TP_printk("dev %d:%d ip 0x%llx target '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->targetlen,
+		  __get_str(target))
+);
+
+DECLARE_EVENT_CLASS(xrep_symlink_class,
+	TP_PROTO(struct xfs_inode *ip),
+	TP_ARGS(ip),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+	),
+	TP_printk("dev %d:%d ip 0x%llx",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino)
+);
+
+#define DEFINE_XREP_SYMLINK_EVENT(name) \
+DEFINE_EVENT(xrep_symlink_class, name, \
+	TP_PROTO(struct xfs_inode *ip), \
+	TP_ARGS(ip))
+DEFINE_XREP_SYMLINK_EVENT(xrep_symlink_rebuild);
+DEFINE_XREP_SYMLINK_EVENT(xrep_symlink_reset_fork);
+
 #endif /* IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR) */
 
 #endif /* _TRACE_XFS_SCRUB_TRACE_H */

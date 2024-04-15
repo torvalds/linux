@@ -10,6 +10,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_log_format.h"
+#include "xfs_trans.h"
 #include "xfs_inode.h"
 #include "xfs_symlink.h"
 #include "xfs_health.h"
@@ -17,18 +18,28 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/health.h"
+#include "scrub/repair.h"
 
 /* Set us up to scrub a symbolic link. */
 int
 xchk_setup_symlink(
 	struct xfs_scrub	*sc)
 {
+	unsigned int		resblks = 0;
+	int			error;
+
 	/* Allocate the buffer without the inode lock held. */
 	sc->buf = kvzalloc(XFS_SYMLINK_MAXLEN + 1, XCHK_GFP_FLAGS);
 	if (!sc->buf)
 		return -ENOMEM;
 
-	return xchk_setup_inode_contents(sc, 0);
+	if (xchk_could_repair(sc)) {
+		error = xrep_setup_symlink(sc, &resblks);
+		if (error)
+			return error;
+	}
+
+	return xchk_setup_inode_contents(sc, resblks);
 }
 
 /* Symbolic links. */
