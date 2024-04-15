@@ -12,13 +12,12 @@
 void io_notif_tw_complete(struct io_kiocb *notif, struct io_tw_state *ts)
 {
 	struct io_notif_data *nd = io_notif_to_data(notif);
-	struct io_ring_ctx *ctx = notif->ctx;
 
 	if (unlikely(nd->zc_report) && (nd->zc_copied || !nd->zc_used))
 		notif->cqe.res |= IORING_NOTIF_USAGE_ZC_COPIED;
 
-	if (nd->account_pages && ctx->user) {
-		__io_unaccount_mem(ctx->user, nd->account_pages);
+	if (nd->account_pages && notif->ctx->user) {
+		__io_unaccount_mem(notif->ctx->user, nd->account_pages);
 		nd->account_pages = 0;
 	}
 	io_req_task_complete(notif, ts);
