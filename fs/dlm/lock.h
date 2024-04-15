@@ -18,6 +18,7 @@ void dlm_receive_message_saved(struct dlm_ls *ls, const struct dlm_message *ms,
 			       uint32_t saved_seq);
 void dlm_receive_buffer(const union dlm_packet *p, int nodeid);
 int dlm_modes_compat(int mode1, int mode2);
+void free_toss_rsb(struct dlm_rsb *r);
 void dlm_put_rsb(struct dlm_rsb *r);
 void dlm_hold_rsb(struct dlm_rsb *r);
 int dlm_put_lkb(struct dlm_lkb *lkb);
