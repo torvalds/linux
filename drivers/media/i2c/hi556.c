@@ -1206,8 +1206,18 @@ static int hi556_check_hwcfg(struct device *dev)
 	int ret = 0;
 	unsigned int i, j;
 
-	if (!fwnode)
-		return -ENXIO;
+	/*
+	 * Sometimes the fwnode graph is initialized by the bridge driver,
+	 * wait for this.
+	 */
+	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	if (!ep)
+		return -EPROBE_DEFER;
+
+	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
+	fwnode_handle_put(ep);
+	if (ret)
+		return ret;
 
 	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
 	if (ret) {
@@ -1219,15 +1229,6 @@ static int hi556_check_hwcfg(struct device *dev)
 		dev_err(dev, "external clock %d is not supported", mclk);
 		return -EINVAL;
 	}
-
-	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
-	if (!ep)
-		return -ENXIO;
-
-	ret = v4l2_fwnode_endpoint_alloc_parse(ep, &bus_cfg);
-	fwnode_handle_put(ep);
-	if (ret)
-		return ret;
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != 2) {
 		dev_err(dev, "number of CSI2 data lanes %d is not supported",
