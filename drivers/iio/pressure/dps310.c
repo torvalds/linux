@@ -382,11 +382,11 @@ static int dps310_get_pres_k(struct dps310_data *data, int *val)
 {
 	int reg_val, rc;
 
-	rc = dps310_get_pres_precision(data, &reg_val);
-	if (rc)
+	rc = regmap_read(data->regmap, DPS310_PRS_CFG, &reg_val);
+	if (rc < 0)
 		return rc;
 
-	*val = scale_factors[ilog2(reg_val)];
+	*val = scale_factors[reg_val & GENMASK(2, 0)];
 
 	return 0;
 }
@@ -395,11 +395,11 @@ static int dps310_get_temp_k(struct dps310_data *data, int *val)
 {
 	int reg_val, rc;
 
-	rc = dps310_get_temp_precision(data, &reg_val);
-	if (rc)
+	rc = regmap_read(data->regmap, DPS310_TMP_CFG, &reg_val);
+	if (rc < 0)
 		return rc;
 
-	*val = scale_factors[ilog2(reg_val)];
+	*val = scale_factors[reg_val & GENMASK(2, 0)];
 
 	return 0;
 }
