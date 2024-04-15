@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * budget-core.c: driver for the SAA7146 based Budget DVB cards
+ * budget-core.ko: base-driver for the SAA7146 based Budget DVB cards
  *
  * Compiled from various sources by Michael Hunold <michael@mihu.de>
  *
@@ -491,8 +491,10 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 	spin_lock_init(&budget->feedlock);
 	spin_lock_init(&budget->debilock);
 
-	/* the Siemens DVB needs this if you want to have the i2c chips
-	   get recognized before the main driver is loaded */
+	/*
+	 * the Siemens DVB needs this if you want to have the i2c chips
+	 * get recognized before the main driver is loaded
+	 */
 	if (bi->type != BUDGET_FS_ACTIVY)
 		saa7146_write(dev, GPIO_CTRL, 0x500000);	/* GPIO 3 = 1 */
 

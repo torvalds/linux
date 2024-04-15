@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * budget.c: driver for the SAA7146 based Budget DVB cards
+ * budget.ko: driver for the SAA7146 based Budget DVB cards
+ *            without analog video input or CI
  *
  * Compiled from various sources by Michael Hunold <michael@mihu.de>
  *
@@ -50,9 +51,11 @@ static void Set22K(struct budget *budget, int state)
 	saa7146_setgpio(dev, 3, (state ? SAA7146_GPIO_OUTHI : SAA7146_GPIO_OUTLO));
 }
 
-/* Diseqc functions only for TT Budget card */
-/* taken from the Skyvision DVB driver by
-   Ralph Metzler <rjkm@metzlerbros.de> */
+/*
+ * Diseqc functions only for TT Budget card
+ * taken from the Skyvision DVB driver by
+ * Ralph Metzler <rjkm@metzlerbros.de>
+ */
 
 static void DiseqcSendBit(struct budget *budget, int data)
 {
@@ -675,9 +678,11 @@ static void frontend_init(struct budget *budget)
 					tt1600_stv090x_config.tuner_set_refclk	  = ctl->tuner_set_refclk;
 					tt1600_stv090x_config.tuner_get_status	  = ctl->tuner_get_status;
 
-					/* call the init function once to initialize
-					   tuner's clock output divider and demod's
-					   master clock */
+					/*
+					 * call the init function once to initialize
+					 * tuner's clock output divider and demod's
+					 * master clock
+					 */
 					if (budget->dvb_frontend->ops.init)
 						budget->dvb_frontend->ops.init(budget->dvb_frontend);
 
@@ -730,9 +735,11 @@ static void frontend_init(struct budget *budget)
 					tt1600_stv090x_config.tuner_set_refclk	  = ctl->tuner_set_refclk;
 					tt1600_stv090x_config.tuner_get_status	  = ctl->tuner_get_status;
 
-					/* call the init function once to initialize
-					   tuner's clock output divider and demod's
-					   master clock */
+					/*
+					 * call the init function once to initialize
+					 * tuner's clock output divider and demod's
+					 * master clock
+					 */
 					if (budget->dvb_frontend->ops.init)
 						budget->dvb_frontend->ops.init(budget->dvb_frontend);
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * budget-ci.c: driver for the SAA7146 based Budget DVB cards
+ * budget-ci.ko: driver for the SAA7146 based Budget DVB cards
+ *               with CI (but without analog video input)
  *
  * Compiled from various sources by Michael Hunold <michael@mihu.de>
  *

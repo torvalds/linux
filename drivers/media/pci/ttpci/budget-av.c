@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * budget-av.c: driver for the SAA7146 based Budget DVB cards
- *              with analog video in
+ * budget-av.ko: driver for the SAA7146 based Budget DVB cards
+ *               with analog video input (and optionally with CI)
  *
  * Compiled from various sources by Michael Hunold <michael@mihu.de>
  *
@@ -63,8 +63,8 @@ struct budget_av {
 
 static int ciintf_slot_shutdown(struct dvb_ca_en50221 *ca, int slot);
 
-
-/* GPIO Connections:
+/*
+ * GPIO Connections:
  * 0 - Vcc/Reset (Reset is controlled by capacitor). Resets the frontend *AS WELL*!
  * 1 - CI memory select 0=>IO memory, 1=>Attribute Memory
  * 2 - CI Card Enable (Active Low)
@@ -267,8 +267,10 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 	if (slot != 0)
 		return -EINVAL;
 
-	/* test the card detect line - needs to be done carefully
-	 * since it never goes high for some CAMs on this interface (e.g. topuptv) */
+	/*
+	 * test the card detect line - needs to be done carefully
+	 * since it never goes high for some CAMs on this interface (e.g. topuptv)
+	 */
 	if (budget_av->slot_status == SLOTSTATUS_NONE) {
 		saa7146_setgpio(saa, 3, SAA7146_GPIO_INPUT);
 		udelay(1);
@@ -281,12 +283,14 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 		saa7146_setgpio(saa, 3, SAA7146_GPIO_OUTLO);
 	}
 
-	/* We also try and read from IO memory to work round the above detection bug. If
+	/*
+	 * We also try and read from IO memory to work round the above detection bug. If
 	 * there is no CAM, we will get a timeout. Only done if there is no cam
 	 * present, since this test actually breaks some cams :(
 	 *
 	 * if the CI interface is not open, we also do the above test since we
-	 * don't care if the cam has problems - we'll be resetting it on open() anyway */
+	 * don't care if the cam has problems - we'll be resetting it on open() anyway
+	 */
 	if ((budget_av->slot_status == SLOTSTATUS_NONE) || (!open)) {
 		saa7146_setgpio(budget_av->budget.dev, 1, SAA7146_GPIO_OUTLO);
 		result = ttpci_budget_debiread(&budget_av->budget, DEBICICAM, 0, 1, 0, 1);
