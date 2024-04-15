@@ -23,7 +23,7 @@ count_tests() {
 	total_tests=0
 
 	for i in $SUPPLIES; do
-		total_tests=$(("$total_tests" + "$NUM_TESTS"))
+		total_tests=$((total_tests + NUM_TESTS))
 	done
 
 	echo "$total_tests"
