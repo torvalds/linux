@@ -291,16 +291,12 @@ void ipa_interrupt_deconfig(struct ipa *ipa)
 /* Initialize the IPA interrupt structure */
 struct ipa_interrupt *ipa_interrupt_init(struct platform_device *pdev)
 {
-	struct device *dev = &pdev->dev;
 	struct ipa_interrupt *interrupt;
 	int irq;
 
 	irq = platform_get_irq_byname(pdev, "ipa");
-	if (irq <= 0) {
-		dev_err(dev, "DT error %d getting \"ipa\" IRQ property\n", irq);
-
+	if (irq <= 0)
 		return ERR_PTR(irq ? : -EINVAL);
-	}
 
 	interrupt = kzalloc(sizeof(*interrupt), GFP_KERNEL);
 	if (!interrupt)
