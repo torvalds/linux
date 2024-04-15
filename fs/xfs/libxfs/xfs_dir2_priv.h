@@ -50,8 +50,8 @@ extern int xfs_dir_cilookup_result(struct xfs_da_args *args,
 
 
 /* xfs_dir2_block.c */
-extern int xfs_dir3_block_read(struct xfs_trans *tp, struct xfs_inode *dp,
-			       struct xfs_buf **bpp);
+int xfs_dir3_block_read(struct xfs_trans *tp, struct xfs_inode *dp,
+		xfs_ino_t owner, struct xfs_buf **bpp);
 extern int xfs_dir2_block_addname(struct xfs_da_args *args);
 extern int xfs_dir2_block_lookup(struct xfs_da_args *args);
 extern int xfs_dir2_block_removename(struct xfs_da_args *args);
