@@ -4465,18 +4465,16 @@ reconstruction of filesystem space metadata.
 The parent pointer feature, however, makes total directory reconstruction
 possible.
 
-XFS parent pointers include the dirent name and location of the entry within
-the parent directory.
+XFS parent pointers contain the information needed to identify the
+corresponding directory entry in the parent directory.
 In other words, child files use extended attributes to store pointers to
-parents in the form ``(parent_inum, parent_gen, dirent_pos) → (dirent_name)``.
+parents in the form ``(dirent_name) → (parent_inum, parent_gen)``.
 The directory checking process can be strengthened to ensure that the target of
 each dirent also contains a parent pointer pointing back to the dirent.
 Likewise, each parent pointer can be checked by ensuring that the target of
 each parent pointer is a directory and that it contains a dirent matching
 the parent pointer.
 Both online and offline repair can use this strategy.
-
-**Note**: The ondisk format of parent pointers is not yet finalized.
 
 +--------------------------------------------------------------------------+
 | **Historical Sidebar**:                                                  |
@@ -4519,7 +4517,57 @@ Both online and offline repair can use this strategy.
 | Chandan increased the maximum extent counts of both data and attribute   |
 | forks, thereby ensuring that the extended attribute structure can grow   |
 | to handle the maximum hardlink count of any file.                        |
+|                                                                          |
+| For this second effort, the ondisk parent pointer format as originally   |
+| proposed was ``(parent_inum, parent_gen, dirent_pos) → (dirent_name)``.  |
+| The format was changed during development to eliminate the requirement   |
+| of repair tools needing to to ensure that the ``dirent_pos`` field       |
+| always matched when reconstructing a directory.                          |
+|                                                                          |
+| There were a few other ways to have solved that problem:                 |
+|                                                                          |
+| 1. The field could be designated advisory, since the other three values  |
+|    are sufficient to find the entry in the parent.                       |
+|    However, this makes indexed key lookup impossible while repairs are   |
+|    ongoing.                                                              |
+|                                                                          |
+| 2. We could allow creating directory entries at specified offsets, which |
+|    solves the referential integrity problem but runs the risk that       |
+|    dirent creation will fail due to conflicts with the free space in the |
+|    directory.                                                            |
+|                                                                          |
+|    These conflicts could be resolved by appending the directory entry    |
+|    and amending the xattr code to support updating an xattr key and      |
+|    reindexing the dabtree, though this would have to be performed with   |
+|    the parent directory still locked.                                    |
+|                                                                          |
+| 3. Same as above, but remove the old parent pointer entry and add a new  |
+|    one atomically.                                                       |
+|                                                                          |
+| 4. Change the ondisk xattr format to                                     |
+|    ``(parent_inum, name) → (parent_gen)``, which would provide the attr  |
+|    name uniqueness that we require, without forcing repair code to       |
+|    update the dirent position.                                           |
+|    Unfortunately, this requires changes to the xattr code to support     |
+|    attr names as long as 263 bytes.                                      |
+|                                                                          |
+| 5. Change the ondisk xattr format to ``(parent_inum, hash(name)) →       |
+|    (name, parent_gen)``.                                                 |
+|    If the hash is sufficiently resistant to collisions (e.g. sha256)     |
+|    then this should provide the attr name uniqueness that we require.    |
+|    Names shorter than 247 bytes could be stored directly.                |
+|                                                                          |
+| 6. Change the ondisk xattr format to ``(dirent_name) → (parent_ino,      |
+|    parent_gen)``.  This format doesn't require any of the complicated    |
+|    nested name hashing of the previous suggestions.  However, it was     |
+|    discovered that multiple hardlinks to the same inode with the same    |
+|    filename caused performance problems with hashed xattr lookups, so    |
+|    the parent inumber is now xor'd into the hash index.                  |
+|                                                                          |
+| In the end, it was decided that solution #6 was the most compact and the |
+| most performant.  A new hash function was designed for parent pointers.  |
 +--------------------------------------------------------------------------+
+
 
 Case Study: Repairing Directories with Parent Pointers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -4568,42 +4616,6 @@ The proposed patchset is the
 `parent pointers directory repair
 <https://git.kernel.org/pub/scm/linux/kernel/git/djwong/xfs-linux.git/log/?h=pptrs-online-dir-repair>`_
 series.
-
-**Unresolved Question**: How will repair ensure that the ``dirent_pos`` fields
-match in the reconstructed directory?
-
-*Answer*: There are a few ways to solve this problem:
-
-1. The field could be designated advisory, since the other three values are
-   sufficient to find the entry in the parent.
-   However, this makes indexed key lookup impossible while repairs are ongoing.
-
-2. We could allow creating directory entries at specified offsets, which solves
-   the referential integrity problem but runs the risk that dirent creation
-   will fail due to conflicts with the free space in the directory.
-
-   These conflicts could be resolved by appending the directory entry and
-   amending the xattr code to support updating an xattr key and reindexing the
-   dabtree, though this would have to be performed with the parent directory
-   still locked.
-
-3. Same as above, but remove the old parent pointer entry and add a new one
-   atomically.
-
-4. Change the ondisk xattr format to ``(parent_inum, name) → (parent_gen)``,
-   which would provide the attr name uniqueness that we require, without
-   forcing repair code to update the dirent position.
-   Unfortunately, this requires changes to the xattr code to support attr
-   names as long as 263 bytes.
-
-5. Change the ondisk xattr format to ``(parent_inum, hash(name)) →
-   (name, parent_gen)``.
-   If the hash is sufficiently resistant to collisions (e.g. sha256) then
-   this should provide the attr name uniqueness that we require.
-   Names shorter than 247 bytes could be stored directly.
-
-Discussion is ongoing under the `parent pointers patch deluge
-<https://www.spinics.net/lists/linux-xfs/msg69397.html>`_.
 
 Case Study: Repairing Parent Pointers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
