@@ -42,7 +42,7 @@ static const struct snd_soc_acpi_codecs max98390_spk_codecs = {
 struct snd_soc_acpi_mach snd_soc_acpi_intel_cml_machines[] = {
 	{
 		.id = "10EC5682",
-		.drv_name = "cml_rt1011_rt5682",
+		.drv_name = "cml_rt5682_def",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &rt1011_spk_codecs,
 		.sof_tplg_filename = "sof-cml-rt1011-rt5682.tplg",

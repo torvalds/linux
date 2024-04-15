@@ -340,8 +340,19 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 		clk_id = RT5682_SCLK_S_PLL1;
 		break;
 	case CODEC_RT5682S:
-		pll_id = RT5682S_PLL2;
-		clk_id = RT5682S_SCLK_S_PLL2;
+		/*
+		 * For MCLK = 24.576MHz and sample rate = 96KHz case, use PLL1  We don't test
+		 * pll_out or params_rate() here since rt5682s PLL2 doesn't support 24.576MHz
+		 * input, so we have no choice but to use PLL1. Besides, we will not use PLL at
+		 * all if pll_in == pll_out. ex, MCLK = 24.576Mhz and sample rate = 48KHz
+		 */
+		if (pll_in == 24576000) {
+			pll_id = RT5682S_PLL1;
+			clk_id = RT5682S_SCLK_S_PLL1;
+		} else {
+			pll_id = RT5682S_PLL2;
+			clk_id = RT5682S_SCLK_S_PLL2;
+		}
 		break;
 	default:
 		dev_err(rtd->dev, "invalid codec type %d\n", ctx->codec_type);
@@ -576,7 +587,7 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 		max_98390_dai_link(dev, ctx->amp_link);
 		break;
 	case CODEC_RT1011:
-		sof_rt1011_dai_link(ctx->amp_link);
+		sof_rt1011_dai_link(dev, ctx->amp_link);
 		break;
 	case CODEC_RT1015:
 		sof_rt1015_dai_link(ctx->amp_link);
@@ -606,6 +617,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct sof_card_private *ctx;
+	char *card_name;
 	bool is_legacy_cpu = false;
 	int ret;
 
@@ -631,12 +643,25 @@ static int sof_audio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	if (ctx->codec_type == CODEC_RT5650) {
-		sof_audio_card_rt5682.name = devm_kstrdup(&pdev->dev, "rt5650",
-							  GFP_KERNEL);
+		card_name = devm_kstrdup(&pdev->dev, "rt5650", GFP_KERNEL);
+		if (!card_name)
+			return -ENOMEM;
+
+		sof_audio_card_rt5682.name = card_name;
 
 		/* create speaker dai link also */
 		if (ctx->amp_type == CODEC_NONE)
 			ctx->amp_type = CODEC_RT5650;
+	}
+
+	if (ctx->amp_type == CODEC_RT1011 && soc_intel_is_cml()) {
+		/* backward-compatible with existing cml devices */
+		card_name = devm_kstrdup(&pdev->dev, "cml_rt1011_rt5682",
+					 GFP_KERNEL);
+		if (!card_name)
+			return -ENOMEM;
+
+		sof_audio_card_rt5682.name = card_name;
 	}
 
 	if (is_legacy_cpu) {
@@ -683,7 +708,7 @@ static int sof_audio_probe(struct platform_device *pdev)
 		max_98390_set_codec_conf(&pdev->dev, &sof_audio_card_rt5682);
 		break;
 	case CODEC_RT1011:
-		sof_rt1011_codec_conf(&sof_audio_card_rt5682);
+		sof_rt1011_codec_conf(&pdev->dev, &sof_audio_card_rt5682);
 		break;
 	case CODEC_RT1015:
 		sof_rt1015_codec_conf(&sof_audio_card_rt5682);

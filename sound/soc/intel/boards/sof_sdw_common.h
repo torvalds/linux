@@ -45,6 +45,7 @@ enum {
 };
 
 #define SOF_JACK_JDSRC(quirk)		((quirk) & GENMASK(3, 0))
+/* Deprecated and no longer supported by the code */
 #define SOF_SDW_FOUR_SPK		BIT(4)
 #define SOF_SDW_TGL_HDMI		BIT(5)
 #define SOF_SDW_PCH_DMIC		BIT(6)
