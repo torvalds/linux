@@ -231,7 +231,9 @@ xfs_exchmaps_create_intent(
 	xlf = &xmi_lip->xmi_format;
 
 	xlf->xmi_inode1 = xmi->xmi_ip1->i_ino;
+	xlf->xmi_igen1 = VFS_I(xmi->xmi_ip1)->i_generation;
 	xlf->xmi_inode2 = xmi->xmi_ip2->i_ino;
+	xlf->xmi_igen2 = VFS_I(xmi->xmi_ip2)->i_generation;
 	xlf->xmi_startoff1 = xmi->xmi_startoff1;
 	xlf->xmi_startoff2 = xmi->xmi_startoff2;
 	xlf->xmi_blockcount = xmi->xmi_blockcount;
@@ -368,14 +370,25 @@ xfs_xmi_item_recover_intent(
 	/*
 	 * Grab both inodes and set IRECOVERY to prevent trimming of post-eof
 	 * mappings and freeing of unlinked inodes until we're totally done
-	 * processing files.
+	 * processing files.  The ondisk format of this new log item contains
+	 * file handle information, which is why recovery for other items do
+	 * not check the inode generation number.
 	 */
-	error = xlog_recover_iget(mp, xlf->xmi_inode1, &ip1);
-	if (error)
+	error = xlog_recover_iget_handle(mp, xlf->xmi_inode1, xlf->xmi_igen1,
+			&ip1);
+	if (error) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, xlf,
+				sizeof(*xlf));
 		return ERR_PTR(error);
-	error = xlog_recover_iget(mp, xlf->xmi_inode2, &ip2);
-	if (error)
+	}
+
+	error = xlog_recover_iget_handle(mp, xlf->xmi_inode2, xlf->xmi_igen2,
+			&ip2);
+	if (error) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, xlf,
+				sizeof(*xlf));
 		goto err_rele1;
+	}
 
 	req->ip1 = ip1;
 	req->ip2 = ip2;
@@ -485,6 +498,8 @@ xfs_exchmaps_relog_intent(
 
 	new_xlf->xmi_inode1	= old_xlf->xmi_inode1;
 	new_xlf->xmi_inode2	= old_xlf->xmi_inode2;
+	new_xlf->xmi_igen1	= old_xlf->xmi_igen1;
+	new_xlf->xmi_igen2	= old_xlf->xmi_igen2;
 	new_xlf->xmi_startoff1	= old_xlf->xmi_startoff1;
 	new_xlf->xmi_startoff2	= old_xlf->xmi_startoff2;
 	new_xlf->xmi_blockcount	= old_xlf->xmi_blockcount;

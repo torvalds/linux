@@ -896,6 +896,8 @@ struct xfs_xmi_log_format {
 
 	uint64_t		xmi_inode1;	/* inumber of first file */
 	uint64_t		xmi_inode2;	/* inumber of second file */
+	uint32_t		xmi_igen1;	/* generation of first file */
+	uint32_t		xmi_igen2;	/* generation of second file */
 	uint64_t		xmi_startoff1;	/* block offset into file1 */
 	uint64_t		xmi_startoff2;	/* block offset into file2 */
 	uint64_t		xmi_blockcount;	/* number of blocks */

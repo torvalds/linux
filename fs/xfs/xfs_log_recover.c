@@ -1767,6 +1767,37 @@ xlog_recover_iget(
 	return 0;
 }
 
+/*
+ * Get an inode so that we can recover a log operation.
+ *
+ * Log intent items that target inodes effectively contain a file handle.
+ * Check that the generation number matches the intent item like we do for
+ * other file handles.  Log intent items defined after this validation weakness
+ * was identified must use this function.
+ */
+int
+xlog_recover_iget_handle(
+	struct xfs_mount	*mp,
+	xfs_ino_t		ino,
+	uint32_t		gen,
+	struct xfs_inode	**ipp)
+{
+	struct xfs_inode	*ip;
+	int			error;
+
+	error = xlog_recover_iget(mp, ino, &ip);
+	if (error)
+		return error;
+
+	if (VFS_I(ip)->i_generation != gen) {
+		xfs_irele(ip);
+		return -EFSCORRUPTED;
+	}
+
+	*ipp = ip;
+	return 0;
+}
+
 /******************************************************************************
  *
  *		Log recover routines
