@@ -120,8 +120,10 @@ static void paiext_event_destroy(struct perf_event *event)
 	struct paiext_mapptr *mp = per_cpu_ptr(paiext_root.mapptr, event->cpu);
 	struct paiext_map *cpump = mp->mapptr;
 
-	free_page(PAI_SAVE_AREA(event));
 	mutex_lock(&paiext_reserve_mutex);
+	if (event->attr.sample_period)
+		cpump->mode &= ~PAI_MODE_SAMPLING;
+	free_page(PAI_SAVE_AREA(event));
 	if (refcount_dec_and_test(&cpump->refcnt))	/* Last reference gone */
 		paiext_free(mp);
 	paiext_root_free();
@@ -186,21 +188,19 @@ static int paiext_alloc(struct perf_event_attr *a, struct perf_event *event)
 			goto undo;
 		}
 		refcount_set(&cpump->refcnt, 1);
-		cpump->mode = a->sample_period ? PAI_MODE_SAMPLING
-					       : PAI_MODE_COUNTING;
 	} else {
 		/* Multiple invocation, check what is active.
-		 * Supported are multiple counter events or only one sampling
+		 * Supported are multiple counter events and only one sampling
 		 * event concurrently at any one time.
 		 */
-		if (cpump->mode == PAI_MODE_SAMPLING ||
-		    (cpump->mode == PAI_MODE_COUNTING && a->sample_period)) {
+		if (a->sample_period && (cpump->mode & PAI_MODE_SAMPLING)) {
 			rc = -EBUSY;
 			goto undo;
 		}
 		refcount_inc(&cpump->refcnt);
 	}
-
+	if (a->sample_period)
+		cpump->mode |= PAI_MODE_SAMPLING;
 	rc = 0;
 
 undo:
@@ -335,6 +335,8 @@ static void paiext_start(struct perf_event *event, int flags)
 		local64_set(&event->hw.prev_count, sum);
 	} else {				/* Sampling */
 		cpump->event = event;
+		memcpy((void *)PAI_SAVE_AREA(event), cpump->area,
+		       PAIE1_CTRBLOCK_SZ);
 		perf_sched_cb_inc(event->pmu);
 	}
 }
@@ -493,7 +495,7 @@ static int paiext_have_sample(void)
 static void paiext_sched_task(struct perf_event_pmu_context *pmu_ctx, bool sched_in)
 {
 	/* We started with a clean page on event installation. So read out
-	 * results on schedule_out and if page was dirty, clear values.
+	 * results on schedule_out and if page was dirty, save old values.
 	 */
 	if (!sched_in)
 		paiext_have_sample();
