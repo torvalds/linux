@@ -1204,7 +1204,6 @@ static ssize_t mapping_store(struct device *dev, struct device_attribute *attr,
 	if (rc)
 		return rc;
 
-	rc = -ENXIO;
 	rc = down_write_killable(&dax_region_rwsem);
 	if (rc)
 		return rc;
