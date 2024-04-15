@@ -205,8 +205,7 @@ static unsigned long fpll_calc_rate(unsigned long parent_rate,
 	unsigned long rate;
 
 	dividend <<= PLL_SYN_FACTOR_DOT_POS - 1;
-	rate = dividend / factor;
-	dividend %= factor;
+	rate = div64_u64_rem(dividend, factor, &dividend);
 
 	if (is_full_parent) {
 		dividend <<= 1;
