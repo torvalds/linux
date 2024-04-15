@@ -63,7 +63,13 @@ static void wave5_vpu_handle_irq(void *dev_id)
 
 		if (irq_reason & BIT(INT_WAVE5_INIT_SEQ) ||
 		    irq_reason & BIT(INT_WAVE5_ENC_SET_PARAM)) {
-			if (seq_done & BIT(inst->id)) {
+			if (dev->product_code == WAVE515_CODE &&
+			    (cmd_done & BIT(inst->id))) {
+				cmd_done &= ~BIT(inst->id);
+				wave5_vdi_write_register(dev, W5_RET_QUEUE_CMD_DONE_INST,
+							 cmd_done);
+				complete(&inst->irq_done);
+			} else if (seq_done & BIT(inst->id)) {
 				seq_done &= ~BIT(inst->id);
 				wave5_vdi_write_register(dev, W5_RET_SEQ_DONE_INSTANCE_INFO,
 							 seq_done);

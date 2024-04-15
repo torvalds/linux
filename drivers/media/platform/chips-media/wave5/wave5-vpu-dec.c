@@ -1868,7 +1868,12 @@ static int wave5_vpu_open_dec(struct file *filp)
 		goto cleanup_inst;
 	}
 
-	wave5_vdi_allocate_sram(inst->dev);
+	/*
+	 * For Wave515 SRAM memory was already allocated
+	 * at wave5_vpu_dec_register_device()
+	 */
+	if (inst->dev->product_code != WAVE515_CODE)
+		wave5_vdi_allocate_sram(inst->dev);
 
 	ret = mutex_lock_interruptible(&dev->dev_lock);
 	if (ret)
@@ -1908,6 +1913,13 @@ int wave5_vpu_dec_register_device(struct vpu_device *dev)
 	struct video_device *vdev_dec;
 	int ret;
 
+	/*
+	 * Secondary AXI setup for Wave515 is done by INIT_VPU command,
+	 * i.e. wave5_vpu_init(), that's why we allocate SRAM memory early.
+	 */
+	if (dev->product_code == WAVE515_CODE)
+		wave5_vdi_allocate_sram(dev);
+
 	vdev_dec = devm_kzalloc(dev->v4l2_dev.dev, sizeof(*vdev_dec), GFP_KERNEL);
 	if (!vdev_dec)
 		return -ENOMEM;
@@ -1941,6 +1953,13 @@ int wave5_vpu_dec_register_device(struct vpu_device *dev)
 
 void wave5_vpu_dec_unregister_device(struct vpu_device *dev)
 {
+	/*
+	 * Here is a freeing pair for Wave515 SRAM memory allocation
+	 * happened at wave5_vpu_dec_register_device().
+	 */
+	if (dev->product_code == WAVE515_CODE)
+		wave5_vdi_free_sram(dev);
+
 	video_unregister_device(dev->video_dev_dec);
 	if (dev->v4l2_m2m_dec_dev)
 		v4l2_m2m_release(dev->v4l2_m2m_dec_dev);

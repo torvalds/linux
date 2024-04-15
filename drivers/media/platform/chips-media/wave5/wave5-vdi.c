@@ -18,7 +18,11 @@ static int wave5_vdi_allocate_common_memory(struct device *dev)
 	if (!vpu_dev->common_mem.vaddr) {
 		int ret;
 
-		vpu_dev->common_mem.size = SIZE_COMMON;
+		if (vpu_dev->product_code == WAVE515_CODE)
+			vpu_dev->common_mem.size = WAVE515_SIZE_COMMON;
+		else
+			vpu_dev->common_mem.size = WAVE521_SIZE_COMMON;
+
 		ret = wave5_vdi_allocate_dma_memory(vpu_dev, &vpu_dev->common_mem);
 		if (ret) {
 			dev_err(dev, "unable to allocate common buffer\n");
