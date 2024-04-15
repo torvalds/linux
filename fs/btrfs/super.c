@@ -2371,6 +2371,21 @@ static int btrfs_show_devname(struct seq_file *m, struct dentry *root)
 	return 0;
 }
 
+static long btrfs_nr_cached_objects(struct super_block *sb, struct shrink_control *sc)
+{
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+
+	return percpu_counter_sum_positive(&fs_info->evictable_extent_maps);
+}
+
+static long btrfs_free_cached_objects(struct super_block *sb, struct shrink_control *sc)
+{
+	const long nr_to_scan = min_t(unsigned long, LONG_MAX, sc->nr_to_scan);
+	struct btrfs_fs_info *fs_info = btrfs_sb(sb);
+
+	return btrfs_free_extent_maps(fs_info, nr_to_scan);
+}
+
 static const struct super_operations btrfs_super_ops = {
 	.drop_inode	= btrfs_drop_inode,
 	.evict_inode	= btrfs_evict_inode,
@@ -2384,6 +2399,8 @@ static const struct super_operations btrfs_super_ops = {
 	.statfs		= btrfs_statfs,
 	.freeze_fs	= btrfs_freeze,
 	.unfreeze_fs	= btrfs_unfreeze,
+	.nr_cached_objects = btrfs_nr_cached_objects,
+	.free_cached_objects = btrfs_free_cached_objects,
 };
 
 static const struct file_operations btrfs_ctl_fops = {

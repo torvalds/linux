@@ -8,6 +8,7 @@
 #include "extent_map.h"
 #include "compression.h"
 #include "btrfs_inode.h"
+#include "disk-io.h"
 
 
 static struct kmem_cache *extent_map_cache;
@@ -1025,4 +1026,163 @@ out_unlock:
 out_free_pre:
 	free_extent_map(split_pre);
 	return ret;
+}
+
+static long btrfs_scan_inode(struct btrfs_inode *inode, long *scanned, long nr_to_scan)
+{
+	const u64 cur_fs_gen = btrfs_get_fs_generation(inode->root->fs_info);
+	struct extent_map_tree *tree = &inode->extent_tree;
+	long nr_dropped = 0;
+	struct rb_node *node;
+
+	/*
+	 * Take the mmap lock so that we serialize with the inode logging phase
+	 * of fsync because we may need to set the full sync flag on the inode,
+	 * in case we have to remove extent maps in the tree's list of modified
+	 * extents. If we set the full sync flag in the inode while an fsync is
+	 * in progress, we may risk missing new extents because before the flag
+	 * is set, fsync decides to only wait for writeback to complete and then
+	 * during inode logging it sees the flag set and uses the subvolume tree
+	 * to find new extents, which may not be there yet because ordered
+	 * extents haven't completed yet.
+	 *
+	 * We also do a try lock because otherwise we could deadlock. This is
+	 * because the shrinker for this filesystem may be invoked while we are
+	 * in a path that is holding the mmap lock in write mode. For example in
+	 * a reflink operation while COWing an extent buffer, when allocating
+	 * pages for a new extent buffer and under memory pressure, the shrinker
+	 * may be invoked, and therefore we would deadlock by attempting to read
+	 * lock the mmap lock while we are holding already a write lock on it.
+	 */
+	if (!down_read_trylock(&inode->i_mmap_lock))
+		return 0;
+
+	write_lock(&tree->lock);
+	node = rb_first_cached(&tree->map);
+	while (node) {
+		struct extent_map *em;
+
+		em = rb_entry(node, struct extent_map, rb_node);
+		node = rb_next(node);
+		(*scanned)++;
+
+		if (em->flags & EXTENT_FLAG_PINNED)
+			goto next;
+
+		/*
+		 * If the inode is in the list of modified extents (new) and its
+		 * generation is the same (or is greater than) the current fs
+		 * generation, it means it was not yet persisted so we have to
+		 * set the full sync flag so that the next fsync will not miss
+		 * it.
+		 */
+		if (!list_empty(&em->list) && em->generation >= cur_fs_gen)
+			btrfs_set_inode_full_sync(inode);
+
+		remove_extent_mapping(inode, em);
+		/* Drop the reference for the tree. */
+		free_extent_map(em);
+		nr_dropped++;
+next:
+		if (*scanned >= nr_to_scan)
+			break;
+
+		/*
+		 * Restart if we had to reschedule, and any extent maps that were
+		 * pinned before may have become unpinned after we released the
+		 * lock and took it again.
+		 */
+		if (cond_resched_rwlock_write(&tree->lock))
+			node = rb_first_cached(&tree->map);
+	}
+	write_unlock(&tree->lock);
+	up_read(&inode->i_mmap_lock);
+
+	return nr_dropped;
+}
+
+static long btrfs_scan_root(struct btrfs_root *root, long *scanned, long nr_to_scan)
+{
+	struct btrfs_fs_info *fs_info = root->fs_info;
+	struct btrfs_inode *inode;
+	long nr_dropped = 0;
+	u64 min_ino = fs_info->extent_map_shrinker_last_ino + 1;
+
+	inode = btrfs_find_first_inode(root, min_ino);
+	while (inode) {
+		nr_dropped += btrfs_scan_inode(inode, scanned, nr_to_scan);
+
+		min_ino = btrfs_ino(inode) + 1;
+		fs_info->extent_map_shrinker_last_ino = btrfs_ino(inode);
+		iput(&inode->vfs_inode);
+
+		if (*scanned >= nr_to_scan)
+			break;
+
+		cond_resched();
+		inode = btrfs_find_first_inode(root, min_ino);
+	}
+
+	if (inode) {
+		/*
+		 * There are still inodes in this root or we happened to process
+		 * the last one and reached the scan limit. In either case set
+		 * the current root to this one, so we'll resume from the next
+		 * inode if there is one or we will find out this was the last
+		 * one and move to the next root.
+		 */
+		fs_info->extent_map_shrinker_last_root = btrfs_root_id(root);
+	} else {
+		/*
+		 * No more inodes in this root, set extent_map_shrinker_last_ino to 0 so
+		 * that when processing the next root we start from its first inode.
+		 */
+		fs_info->extent_map_shrinker_last_ino = 0;
+		fs_info->extent_map_shrinker_last_root = btrfs_root_id(root) + 1;
+	}
+
+	return nr_dropped;
+}
+
+long btrfs_free_extent_maps(struct btrfs_fs_info *fs_info, long nr_to_scan)
+{
+	const u64 start_root_id = fs_info->extent_map_shrinker_last_root;
+	u64 next_root_id = start_root_id;
+	bool cycled = false;
+	long nr_dropped = 0;
+	long scanned = 0;
+
+	while (scanned < nr_to_scan) {
+		struct btrfs_root *root;
+		unsigned long count;
+
+		spin_lock(&fs_info->fs_roots_radix_lock);
+		count = radix_tree_gang_lookup(&fs_info->fs_roots_radix,
+					       (void **)&root,
+					       (unsigned long)next_root_id, 1);
+		if (count == 0) {
+			spin_unlock(&fs_info->fs_roots_radix_lock);
+			if (start_root_id > 0 && !cycled) {
+				next_root_id = 0;
+				fs_info->extent_map_shrinker_last_root = 0;
+				fs_info->extent_map_shrinker_last_ino = 0;
+				cycled = true;
+				continue;
+			}
+			break;
+		}
+		next_root_id = btrfs_root_id(root) + 1;
+		root = btrfs_grab_root(root);
+		spin_unlock(&fs_info->fs_roots_radix_lock);
+
+		if (!root)
+			continue;
+
+		if (is_fstree(btrfs_root_id(root)))
+			nr_dropped += btrfs_scan_root(root, &scanned, nr_to_scan);
+
+		btrfs_put_root(root);
+	}
+
+	return nr_dropped;
 }
