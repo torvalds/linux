@@ -126,8 +126,10 @@ int xrep_fscounters(struct xfs_scrub *sc);
 
 #ifdef CONFIG_XFS_RT
 int xrep_rtbitmap(struct xfs_scrub *sc);
+int xrep_rtsummary(struct xfs_scrub *sc);
 #else
 # define xrep_rtbitmap			xrep_notsupported
+# define xrep_rtsummary			xrep_notsupported
 #endif /* CONFIG_XFS_RT */
 
 #ifdef CONFIG_XFS_QUOTA
@@ -212,6 +214,7 @@ xrep_setup_nothing(
 #define xrep_quotacheck			xrep_notsupported
 #define xrep_nlinks			xrep_notsupported
 #define xrep_fscounters			xrep_notsupported
+#define xrep_rtsummary			xrep_notsupported
 
 #endif /* CONFIG_XFS_ONLINE_REPAIR */
 
