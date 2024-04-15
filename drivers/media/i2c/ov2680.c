@@ -140,8 +140,6 @@ struct ov2680_mode {
 	u16				v_end;
 	u16				h_output_size;
 	u16				v_output_size;
-	u16				hts;
-	u16				vts;
 };
 
 struct ov2680_dev {
@@ -361,8 +359,6 @@ static void ov2680_calc_mode(struct ov2680_dev *sensor)
 		min(sensor->mode.v_start + height - 1, OV2680_NATIVE_HEIGHT - 1);
 	sensor->mode.h_output_size = orig_width;
 	sensor->mode.v_output_size = orig_height;
-	sensor->mode.hts = OV2680_PIXELS_PER_LINE;
-	sensor->mode.vts = OV2680_LINES_PER_FRAME;
 }
 
 static int ov2680_set_mode(struct ov2680_dev *sensor)
@@ -397,9 +393,9 @@ static int ov2680_set_mode(struct ov2680_dev *sensor)
 	cci_write(sensor->regmap, OV2680_REG_VERTICAL_OUTPUT_SIZE,
 		  sensor->mode.v_output_size, &ret);
 	cci_write(sensor->regmap, OV2680_REG_TIMING_HTS,
-		  sensor->mode.hts, &ret);
+		  OV2680_PIXELS_PER_LINE, &ret);
 	cci_write(sensor->regmap, OV2680_REG_TIMING_VTS,
-		  sensor->mode.vts, &ret);
+		  OV2680_LINES_PER_FRAME, &ret);
 	cci_write(sensor->regmap, OV2680_REG_ISP_X_WIN, 0, &ret);
 	cci_write(sensor->regmap, OV2680_REG_ISP_Y_WIN, 0, &ret);
 	cci_write(sensor->regmap, OV2680_REG_X_INC, inc, &ret);
