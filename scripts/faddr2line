@@ -115,6 +115,17 @@ run_readelf() {
 	ELF_SYMS=$(echo "${out}" | sed -n '/Symbol table .* contains [0-9]* entries:/,$p')
 }
 
+check_vmlinux() {
+	# vmlinux uses absolute addresses in the section table rather than
+	# section offsets.
+	IS_VMLINUX=0
+	local file_type=$(echo "${ELF_FILEHEADER}" |
+		${AWK} '$1 == "Type:" { print $2; exit }')
+	if [[ $file_type = "EXEC" ]] || [[ $file_type == "DYN" ]]; then
+		IS_VMLINUX=1
+	fi
+}
+
 __faddr2line() {
 	local objfile=$1
 	local func_addr=$2
@@ -125,22 +136,12 @@ __faddr2line() {
 	local func_offset=${func_addr#*+}
 	func_offset=${func_offset%/*}
 	local user_size=
-	local file_type
-	local is_vmlinux=0
 	[[ $func_addr =~ "/" ]] && user_size=${func_addr#*/}
 
 	if [[ -z $sym_name ]] || [[ -z $func_offset ]] || [[ $sym_name = $func_addr ]]; then
 		warn "bad func+offset $func_addr"
 		DONE=1
 		return
-	fi
-
-	# vmlinux uses absolute addresses in the section table rather than
-	# section offsets.
-	local file_type=$(echo "${ELF_FILEHEADER}" |
-		${AWK} '$1 == "Type:" { print $2; exit }')
-	if [[ $file_type = "EXEC" ]] || [[ $file_type == "DYN" ]]; then
-		is_vmlinux=1
 	fi
 
 	# Go through each of the object's symbols which match the func name.
@@ -260,7 +261,7 @@ __faddr2line() {
 		# Pass section address to addr2line and strip absolute paths
 		# from the output:
 		local args="--functions --pretty-print --inlines --exe=$objfile"
-		[[ $is_vmlinux = 0 ]] && args="$args --section=$sec_name"
+		[[ $IS_VMLINUX = 0 ]] && args="$args --section=$sec_name"
 		local output=$(${ADDR2LINE} $args $addr | sed "s; $dir_prefix\(\./\)*; ;")
 		[[ -z $output ]] && continue
 
@@ -304,6 +305,8 @@ shift
 run_readelf $objfile
 
 echo "${ELF_SECHEADERS}" | ${GREP} -q '\.debug_info' || die "CONFIG_DEBUG_INFO not enabled"
+
+check_vmlinux
 
 DIR_PREFIX=supercalifragilisticexpialidocious
 find_dir_prefix $objfile
