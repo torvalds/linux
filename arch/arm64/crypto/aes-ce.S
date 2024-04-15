@@ -25,33 +25,28 @@
 	.endm
 
 	/* preload all round keys */
-	.macro		load_round_keys, rounds, rk
-	cmp		\rounds, #12
-	blo		2222f		/* 128 bits */
-	beq		1111f		/* 192 bits */
-	ld1		{v17.4s-v18.4s}, [\rk], #32
-1111:	ld1		{v19.4s-v20.4s}, [\rk], #32
-2222:	ld1		{v21.4s-v24.4s}, [\rk], #64
-	ld1		{v25.4s-v28.4s}, [\rk], #64
-	ld1		{v29.4s-v31.4s}, [\rk]
+	.macro		load_round_keys, rk, nr, tmp
+	add		\tmp, \rk, \nr, sxtw #4
+	sub		\tmp, \tmp, #160
+	ld1		{v17.4s-v20.4s}, [\rk]
+	ld1		{v21.4s-v24.4s}, [\tmp], #64
+	ld1		{v25.4s-v28.4s}, [\tmp], #64
+	ld1		{v29.4s-v31.4s}, [\tmp]
 	.endm
 
 	/* prepare for encryption with key in rk[] */
 	.macro		enc_prepare, rounds, rk, temp
-	mov		\temp, \rk
-	load_round_keys	\rounds, \temp
+	load_round_keys	\rk, \rounds, \temp
 	.endm
 
 	/* prepare for encryption (again) but with new key in rk[] */
 	.macro		enc_switch_key, rounds, rk, temp
-	mov		\temp, \rk
-	load_round_keys	\rounds, \temp
+	load_round_keys	\rk, \rounds, \temp
 	.endm
 
 	/* prepare for decryption with key in rk[] */
 	.macro		dec_prepare, rounds, rk, temp
-	mov		\temp, \rk
-	load_round_keys	\rounds, \temp
+	load_round_keys	\rk, \rounds, \temp
 	.endm
 
 	.macro		do_enc_Nx, de, mc, k, i0, i1, i2, i3, i4
@@ -110,14 +105,13 @@
 
 	/* up to 5 interleaved blocks */
 	.macro		do_block_Nx, enc, rounds, i0, i1, i2, i3, i4
-	cmp		\rounds, #12
-	blo		2222f		/* 128 bits */
-	beq		1111f		/* 192 bits */
+	tbz		\rounds, #2, .L\@	/* 128 bits */
 	round_Nx	\enc, v17, \i0, \i1, \i2, \i3, \i4
 	round_Nx	\enc, v18, \i0, \i1, \i2, \i3, \i4
-1111:	round_Nx	\enc, v19, \i0, \i1, \i2, \i3, \i4
+	tbz		\rounds, #1, .L\@	/* 192 bits */
+	round_Nx	\enc, v19, \i0, \i1, \i2, \i3, \i4
 	round_Nx	\enc, v20, \i0, \i1, \i2, \i3, \i4
-2222:	.irp		key, v21, v22, v23, v24, v25, v26, v27, v28, v29
+.L\@:	.irp		key, v21, v22, v23, v24, v25, v26, v27, v28, v29
 	round_Nx	\enc, \key, \i0, \i1, \i2, \i3, \i4
 	.endr
 	fin_round_Nx	\enc, v30, v31, \i0, \i1, \i2, \i3, \i4
