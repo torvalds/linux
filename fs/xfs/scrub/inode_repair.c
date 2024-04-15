@@ -356,6 +356,7 @@ xrep_dinode_find_mode(
 	 * so there's a real possibility that _iscan_iter can return EBUSY.
 	 */
 	xchk_iscan_start(sc, 5000, 100, &ri->ftype_iscan);
+	xchk_iscan_set_agi_trylock(&ri->ftype_iscan);
 	ri->ftype_iscan.skip_ino = sc->sm->sm_ino;
 	ri->alleged_ftype = XFS_DIR3_FT_UNKNOWN;
 	while ((error = xchk_iscan_iter(&ri->ftype_iscan, &dp)) == 1) {
