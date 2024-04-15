@@ -105,10 +105,14 @@ find_dir_prefix() {
 
 run_readelf() {
 	local objfile=$1
+	local out=$(${READELF} --file-header --section-headers --symbols --wide $objfile)
 
-	ELF_FILEHEADER=$(${READELF} --file-header $objfile)
-	ELF_SECHEADERS=$(${READELF} --section-headers --wide $objfile)
-	ELF_SYMS=$(${READELF} --symbols --wide $objfile)
+	# This assumes that readelf first prints the file header, then the section headers, then the symbols.
+	# Note: It seems that GNU readelf does not prefix section headers with the "There are X section headers"
+	# line when multiple options are given, so let's also match with the "Section Headers:" line.
+	ELF_FILEHEADER=$(echo "${out}" | sed -n '/There are [0-9]* section headers, starting at offset\|Section Headers:/q;p')
+	ELF_SECHEADERS=$(echo "${out}" | sed -n '/There are [0-9]* section headers, starting at offset\|Section Headers:/,$p' | sed -n '/Symbol table .* contains [0-9]* entries:/q;p')
+	ELF_SYMS=$(echo "${out}" | sed -n '/Symbol table .* contains [0-9]* entries:/,$p')
 }
 
 __faddr2line() {
