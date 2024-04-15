@@ -323,13 +323,11 @@ SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
 	cbz	x0, 2f
 
 	/* Set a sane SCTLR_EL1, the VHE way */
-	pre_disable_mmu_workaround
 	msr_s	SYS_SCTLR_EL12, x1
 	mov	x2, #BOOT_CPU_FLAG_E2H
 	b	3f
 
 2:
-	pre_disable_mmu_workaround
 	msr	sctlr_el1, x1
 	mov	x2, xzr
 3:
