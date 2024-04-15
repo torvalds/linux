@@ -3118,6 +3118,7 @@ static int btusb_mtk_setup(struct hci_dev *hdev)
 			bt_dev_err(hdev, "Failed to get fw flavor (%d)", err);
 			return err;
 		}
+		fw_flavor = (fw_flavor & 0x00000080) >> 7;
 	}
 
 	mediatek = hci_get_priv(hdev);
