@@ -21,6 +21,7 @@
 #include "xfs_sb.h"
 #include "xfs_icache.h"
 #include "xfs_log.h"
+#include "xfs_rtbitmap.h"
 #include <linux/fsnotify.h>
 
 /* Lock (and optionally join) two inodes for a file range exchange. */
@@ -181,6 +182,14 @@ xfs_exchrange_mappings(
 		req.flags |= XFS_EXCHMAPS_SET_SIZES;
 	if (fxr->flags & XFS_EXCHANGE_RANGE_FILE1_WRITTEN)
 		req.flags |= XFS_EXCHMAPS_INO1_WRITTEN;
+
+	/*
+	 * Round the request length up to the nearest file allocation unit.
+	 * The prep function already checked that the request offsets and
+	 * length in @fxr are safe to round up.
+	 */
+	if (xfs_inode_has_bigrtalloc(ip2))
+		req.blockcount = xfs_rtb_roundup_rtx(mp, req.blockcount);
 
 	error = xfs_exchrange_estimate(&req);
 	if (error)
