@@ -37,10 +37,11 @@ static void io_tx_ubuf_callback(struct sk_buff *skb, struct ubuf_info *uarg,
 			WRITE_ONCE(nd->zc_copied, true);
 	}
 
-	if (refcount_dec_and_test(&uarg->refcnt)) {
-		notif->io_task_work.func = io_notif_tw_complete;
-		__io_req_task_work_add(notif, IOU_F_TWQ_LAZY_WAKE);
-	}
+	if (!refcount_dec_and_test(&uarg->refcnt))
+		return;
+
+	notif->io_task_work.func = io_notif_tw_complete;
+	__io_req_task_work_add(notif, IOU_F_TWQ_LAZY_WAKE);
 }
 
 struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
