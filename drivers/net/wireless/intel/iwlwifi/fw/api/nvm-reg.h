@@ -7,7 +7,6 @@
 #ifndef __iwl_fw_api_nvm_reg_h__
 #define __iwl_fw_api_nvm_reg_h__
 
-#include "fw/regulatory.h"
 /**
  * enum iwl_regulatory_and_nvm_subcmd_ids - regulatory/NVM commands
  */
@@ -439,6 +438,7 @@ enum iwl_mcc_source {
 	MCC_SOURCE_GETTING_MCC_TEST_MODE = 0x11,
 };
 
+#define IWL_WTAS_BLACK_LIST_MAX		16
 /**
  * struct iwl_tas_config_cmd_common - configures the TAS.
  * This is also the v2 structure.

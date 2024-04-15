@@ -11,6 +11,7 @@
 #include "fw/api/power.h"
 #include "fw/api/phy.h"
 #include "fw/api/config.h"
+#include "fw/api/nvm-reg.h"
 #include "fw/img.h"
 #include "iwl-trans.h"
 
@@ -39,7 +40,6 @@
 #define IWL_PPAG_ETSI_CHINA_MASK	3
 #define IWL_PPAG_REV3_MASK		0x7FF
 
-#define IWL_WTAS_BLACK_LIST_MAX	16
 #define IWL_WTAS_ENABLED_MSK		0x1
 #define IWL_WTAS_OVERRIDE_IEC_MSK	0x2
 #define IWL_WTAS_ENABLE_IEC_MSK	0x4
