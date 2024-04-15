@@ -762,6 +762,7 @@ struct vpu_device {
 	struct kthread_worker *worker;
 	int vpu_poll_interval;
 	int num_clks;
+	struct reset_control *resets;
 };
 
 struct vpu_instance;
