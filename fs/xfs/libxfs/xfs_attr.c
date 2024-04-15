@@ -264,6 +264,8 @@ xfs_attr_get(
 	if (xfs_is_shutdown(args->dp->i_mount))
 		return -EIO;
 
+	if (!args->owner)
+		args->owner = args->dp->i_ino;
 	args->geo = args->dp->i_mount->m_attr_geo;
 	args->whichfork = XFS_ATTR_FORK;
 	args->hashval = xfs_da_hashname(args->name, args->namelen);
@@ -937,6 +939,8 @@ xfs_attr_set(
 	if (error)
 		return error;
 
+	if (!args->owner)
+		args->owner = args->dp->i_ino;
 	args->geo = mp->m_attr_geo;
 	args->whichfork = XFS_ATTR_FORK;
 	args->hashval = xfs_da_hashname(args->name, args->namelen);
