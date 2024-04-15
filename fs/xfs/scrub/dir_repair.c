@@ -1145,7 +1145,9 @@ xrep_dir_set_nlink(
 	struct xfs_scrub	*sc = rd->sc;
 	struct xfs_inode	*dp = sc->ip;
 	struct xfs_perag	*pag;
-	unsigned int		new_nlink = rd->subdirs + 2;
+	unsigned int		new_nlink = min_t(unsigned long long,
+						  rd->subdirs + 2,
+						  XFS_NLINK_PINNED);
 	int			error;
 
 	/*
@@ -1200,13 +1202,6 @@ xrep_dir_swap(
 	struct xfs_scrub	*sc = rd->sc;
 	bool			ip_local, temp_local;
 	int			error = 0;
-
-	/*
-	 * If we found enough subdirs to overflow this directory's link count,
-	 * bail out to userspace before we modify anything.
-	 */
-	if (rd->subdirs + 2 > XFS_MAXLINK)
-		return -EFSCORRUPTED;
 
 	/*
 	 * If we never found the parent for this directory, temporarily assign
