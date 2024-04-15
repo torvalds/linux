@@ -822,14 +822,10 @@ struct spi_device *spi_new_device(struct spi_controller *ctlr,
 	proxy->controller_data = chip->controller_data;
 	proxy->controller_state = NULL;
 	/*
-	 * spi->chip_select[i] gives the corresponding physical CS for logical CS i
-	 * logical CS number is represented by setting the ith bit in spi->cs_index_mask
-	 * So, for example, if spi->cs_index_mask = 0x01 then logical CS number is 0 and
-	 * spi->chip_select[0] will give the physical CS.
-	 * By default spi->chip_select[0] will hold the physical CS number so, set
-	 * spi->cs_index_mask as 0x01.
+	 * By default spi->chip_select[0] will hold the physical CS number,
+	 * so set bit 0 in spi->cs_index_mask.
 	 */
-	proxy->cs_index_mask = 0x01;
+	proxy->cs_index_mask = BIT(0);
 
 	if (chip->swnode) {
 		status = device_add_software_node(&proxy->dev, chip->swnode);
