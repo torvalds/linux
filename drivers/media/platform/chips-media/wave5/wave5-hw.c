@@ -299,6 +299,27 @@ static int wave5_send_query(struct vpu_device *vpu_dev, struct vpu_instance *ins
 	return wave5_vpu_firmware_command_queue_error_check(vpu_dev, NULL);
 }
 
+static void setup_wave5_interrupts(struct vpu_device *vpu_dev)
+{
+	u32 reg_val = 0;
+
+	if (vpu_dev->attr.support_encoders) {
+		/* Encoder interrupt */
+		reg_val |= BIT(INT_WAVE5_ENC_SET_PARAM);
+		reg_val |= BIT(INT_WAVE5_ENC_PIC);
+		reg_val |= BIT(INT_WAVE5_BSBUF_FULL);
+	}
+
+	if (vpu_dev->attr.support_decoders) {
+		/* Decoder interrupt */
+		reg_val |= BIT(INT_WAVE5_INIT_SEQ);
+		reg_val |= BIT(INT_WAVE5_DEC_PIC);
+		reg_val |= BIT(INT_WAVE5_BSBUF_EMPTY);
+	}
+
+	return vpu_write_reg(vpu_dev, W5_VPU_VINT_ENABLE, reg_val);
+}
+
 static int setup_wave5_properties(struct device *dev)
 {
 	struct vpu_device *vpu_dev = dev_get_drvdata(dev);
@@ -339,6 +360,8 @@ static int setup_wave5_properties(struct device *dev)
 	p_attr->support_backbone = FIELD_GET(FEATURE_BACKBONE, hw_config_def0);
 	p_attr->support_vcpu_backbone = FIELD_GET(FEATURE_VCPU_BACKBONE, hw_config_def0);
 	p_attr->support_vcore_backbone = FIELD_GET(FEATURE_VCORE_BACKBONE, hw_config_def0);
+
+	setup_wave5_interrupts(vpu_dev);
 
 	return 0;
 }
@@ -416,16 +439,6 @@ int wave5_vpu_init(struct device *dev, u8 *fw, size_t size)
 	wave5_fio_writel(vpu_dev, W5_BACKBONE_PROC_EXT_ADDR, 0);
 	wave5_fio_writel(vpu_dev, W5_BACKBONE_AXI_PARAM, 0);
 	vpu_write_reg(vpu_dev, W5_SEC_AXI_PARAM, 0);
-
-	/* Encoder interrupt */
-	reg_val = BIT(INT_WAVE5_ENC_SET_PARAM);
-	reg_val |= BIT(INT_WAVE5_ENC_PIC);
-	reg_val |= BIT(INT_WAVE5_BSBUF_FULL);
-	/* Decoder interrupt */
-	reg_val |= BIT(INT_WAVE5_INIT_SEQ);
-	reg_val |= BIT(INT_WAVE5_DEC_PIC);
-	reg_val |= BIT(INT_WAVE5_BSBUF_EMPTY);
-	vpu_write_reg(vpu_dev, W5_VPU_VINT_ENABLE, reg_val);
 
 	reg_val = vpu_read_reg(vpu_dev, W5_VPU_RET_VPU_CONFIG0);
 	if (FIELD_GET(FEATURE_BACKBONE, reg_val)) {
@@ -1034,16 +1047,6 @@ int wave5_vpu_re_init(struct device *dev, u8 *fw, size_t size)
 		wave5_fio_writel(vpu_dev, W5_BACKBONE_AXI_PARAM, 0);
 		vpu_write_reg(vpu_dev, W5_SEC_AXI_PARAM, 0);
 
-		/* Encoder interrupt */
-		reg_val = BIT(INT_WAVE5_ENC_SET_PARAM);
-		reg_val |= BIT(INT_WAVE5_ENC_PIC);
-		reg_val |= BIT(INT_WAVE5_BSBUF_FULL);
-		/* Decoder interrupt */
-		reg_val |= BIT(INT_WAVE5_INIT_SEQ);
-		reg_val |= BIT(INT_WAVE5_DEC_PIC);
-		reg_val |= BIT(INT_WAVE5_BSBUF_EMPTY);
-		vpu_write_reg(vpu_dev, W5_VPU_VINT_ENABLE, reg_val);
-
 		reg_val = vpu_read_reg(vpu_dev, W5_VPU_RET_VPU_CONFIG0);
 		if (FIELD_GET(FEATURE_BACKBONE, reg_val)) {
 			reg_val = ((WAVE5_PROC_AXI_ID << 28) |
@@ -1134,15 +1137,7 @@ static int wave5_vpu_sleep_wake(struct device *dev, bool i_sleep_wake, const uin
 		wave5_fio_writel(vpu_dev, W5_BACKBONE_AXI_PARAM, 0);
 		vpu_write_reg(vpu_dev, W5_SEC_AXI_PARAM, 0);
 
-		/* Encoder interrupt */
-		reg_val = BIT(INT_WAVE5_ENC_SET_PARAM);
-		reg_val |= BIT(INT_WAVE5_ENC_PIC);
-		reg_val |= BIT(INT_WAVE5_BSBUF_FULL);
-		/* Decoder interrupt */
-		reg_val |= BIT(INT_WAVE5_INIT_SEQ);
-		reg_val |= BIT(INT_WAVE5_DEC_PIC);
-		reg_val |= BIT(INT_WAVE5_BSBUF_EMPTY);
-		vpu_write_reg(vpu_dev, W5_VPU_VINT_ENABLE, reg_val);
+		setup_wave5_interrupts(vpu_dev);
 
 		reg_val = vpu_read_reg(vpu_dev, W5_VPU_RET_VPU_CONFIG0);
 		if (FIELD_GET(FEATURE_BACKBONE, reg_val)) {
