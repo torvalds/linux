@@ -11,6 +11,7 @@
 #ifndef __LOCK_DOT_H__
 #define __LOCK_DOT_H__
 
+void dlm_rsb_toss_timer(struct timer_list *timer);
 void dlm_dump_rsb(struct dlm_rsb *r);
 void dlm_dump_rsb_name(struct dlm_ls *ls, const char *name, int len);
 void dlm_print_lkb(struct dlm_lkb *lkb);
@@ -26,6 +27,7 @@ void dlm_scan_rsbs(struct dlm_ls *ls);
 int dlm_lock_recovery_try(struct dlm_ls *ls);
 void dlm_lock_recovery(struct dlm_ls *ls);
 void dlm_unlock_recovery(struct dlm_ls *ls);
+void dlm_timer_resume(struct dlm_ls *ls);
 
 int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 		      int len, unsigned int flags, int *r_nodeid, int *result);

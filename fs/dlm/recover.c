@@ -889,6 +889,11 @@ void dlm_clear_toss(struct dlm_ls *ls)
 		list_del(&r->res_rsbs_list);
 		rhashtable_remove_fast(&ls->ls_rsbtbl, &r->res_node,
 				       dlm_rhash_rsb_params);
+
+		/* remove it from the toss queue if its part of it */
+		if (!list_empty(&r->res_toss_q_list))
+			list_del_init(&r->res_toss_q_list);
+
 		free_toss_rsb(r);
 		count++;
 	}

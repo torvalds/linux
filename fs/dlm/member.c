@@ -641,6 +641,8 @@ int dlm_ls_stop(struct dlm_ls *ls)
 	spin_lock_bh(&ls->ls_recover_lock);
 	set_bit(LSFL_RECOVER_STOP, &ls->ls_flags);
 	new = test_and_clear_bit(LSFL_RUNNING, &ls->ls_flags);
+	if (new)
+		timer_delete_sync(&ls->ls_timer);
 	ls->ls_recover_seq++;
 
 	/* activate requestqueue and stop processing */

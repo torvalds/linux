@@ -334,6 +334,7 @@ struct dlm_rsb {
 	struct list_head	res_root_list;	    /* used for recovery */
 	struct list_head	res_masters_list;   /* used for recovery */
 	struct list_head	res_recover_list;   /* used for recovery */
+	struct list_head	res_toss_q_list;
 	int			res_recover_locks_count;
 
 	char			*res_lvbptr;
@@ -584,12 +585,19 @@ struct dlm_ls {
 	spinlock_t		ls_lkbidr_spin;
 
 	struct rhashtable	ls_rsbtbl;
-#define DLM_RTF_SHRINK_BIT	0
-	unsigned long		ls_rsbtbl_flags;
 	spinlock_t		ls_rsbtbl_lock;
 
 	struct list_head	ls_toss;
 	struct list_head	ls_keep;
+
+	struct timer_list	ls_timer;
+	/* this queue is ordered according the
+	 * absolute res_toss_time jiffies time
+	 * to mod_timer() with the first element
+	 * if necessary.
+	 */
+	struct list_head	ls_toss_q;
+	spinlock_t		ls_toss_q_lock;
 
 	spinlock_t		ls_waiters_lock;
 	struct list_head	ls_waiters;	/* lkbs needing a reply */
@@ -600,9 +608,6 @@ struct dlm_ls {
 	spinlock_t		ls_new_rsb_spin;
 	int			ls_new_rsb_count;
 	struct list_head	ls_new_rsb;	/* new rsb structs */
-
-	char			*ls_remove_names[DLM_REMOVE_NAMES_MAX];
-	int			ls_remove_lens[DLM_REMOVE_NAMES_MAX];
 
 	struct list_head	ls_nodes;	/* current nodes in ls */
 	struct list_head	ls_nodes_gone;	/* dead node list, recovery */
@@ -640,7 +645,6 @@ struct dlm_ls {
 
 	spinlock_t		ls_cb_lock;
 	struct list_head	ls_cb_delay; /* save for queue_work later */
-	struct timer_list	ls_timer;
 	struct task_struct	*ls_recoverd_task;
 	struct mutex		ls_recoverd_active;
 	spinlock_t		ls_recover_lock;

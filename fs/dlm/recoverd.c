@@ -98,6 +98,16 @@ static int enable_locking(struct dlm_ls *ls, uint64_t seq)
 	spin_lock_bh(&ls->ls_recover_lock);
 	if (ls->ls_recover_seq == seq) {
 		set_bit(LSFL_RUNNING, &ls->ls_flags);
+		/* Schedule next timer if recovery put something on toss.
+		 *
+		 * The rsbs that was queued while recovery on toss hasn't
+		 * started yet because LSFL_RUNNING was set everything
+		 * else recovery hasn't started as well because ls_in_recovery
+		 * is still hold. So we should not run into the case that
+		 * dlm_timer_resume() queues a timer that can occur in
+		 * a no op.
+		 */
+		dlm_timer_resume(ls);
 		/* unblocks processes waiting to enter the dlm */
 		up_write(&ls->ls_in_recovery);
 		clear_bit(LSFL_RECOVER_LOCK, &ls->ls_flags);
