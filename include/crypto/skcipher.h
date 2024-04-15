@@ -861,19 +861,20 @@ static inline struct skcipher_request *skcipher_request_cast(
  *
  * Return: allocated request handle in case of success, or NULL if out of memory
  */
-static inline struct skcipher_request *skcipher_request_alloc(
+static inline struct skcipher_request *skcipher_request_alloc_noprof(
 	struct crypto_skcipher *tfm, gfp_t gfp)
 {
 	struct skcipher_request *req;
 
-	req = kmalloc(sizeof(struct skcipher_request) +
-		      crypto_skcipher_reqsize(tfm), gfp);
+	req = kmalloc_noprof(sizeof(struct skcipher_request) +
+			     crypto_skcipher_reqsize(tfm), gfp);
 
 	if (likely(req))
 		skcipher_request_set_tfm(req, tfm);
 
 	return req;
 }
+#define skcipher_request_alloc(...)	alloc_hooks(skcipher_request_alloc_noprof(__VA_ARGS__))
 
 /**
  * skcipher_request_free() - zeroize and free request data structure

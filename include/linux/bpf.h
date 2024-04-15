@@ -2244,31 +2244,14 @@ void *bpf_map_kvcalloc(struct bpf_map *map, size_t n, size_t size,
 void __percpu *bpf_map_alloc_percpu(const struct bpf_map *map, size_t size,
 				    size_t align, gfp_t flags);
 #else
-static inline void *
-bpf_map_kmalloc_node(const struct bpf_map *map, size_t size, gfp_t flags,
-		     int node)
-{
-	return kmalloc_node(size, flags, node);
-}
-
-static inline void *
-bpf_map_kzalloc(const struct bpf_map *map, size_t size, gfp_t flags)
-{
-	return kzalloc(size, flags);
-}
-
-static inline void *
-bpf_map_kvcalloc(struct bpf_map *map, size_t n, size_t size, gfp_t flags)
-{
-	return kvcalloc(n, size, flags);
-}
-
-static inline void __percpu *
-bpf_map_alloc_percpu(const struct bpf_map *map, size_t size, size_t align,
-		     gfp_t flags)
-{
-	return __alloc_percpu_gfp(size, align, flags);
-}
+#define bpf_map_kmalloc_node(_map, _size, _flags, _node)	\
+		kmalloc_node(_size, _flags, _node)
+#define bpf_map_kzalloc(_map, _size, _flags)			\
+		kzalloc(_size, _flags)
+#define bpf_map_kvcalloc(_map, _n, _size, _flags)		\
+		kvcalloc(_n, _size, _flags)
+#define bpf_map_alloc_percpu(_map, _size, _align, _flags)	\
+		__alloc_percpu_gfp(_size, _align, _flags)
 #endif
 
 static inline int
