@@ -75,12 +75,8 @@ static __always_inline void pai_kernel_exit(struct pt_regs *regs)
 	WRITE_ONCE(S390_lowcore.ccd, S390_lowcore.ccd & ~PAI_CRYPTO_KERNEL_OFFSET);
 }
 
-enum paievt_mode {
-	PAI_MODE_NONE,
-	PAI_MODE_SAMPLING,
-	PAI_MODE_COUNTING,
-};
-
 #define PAI_SAVE_AREA(x)	((x)->hw.event_base)
 #define PAI_CPU_MASK(x)		((x)->hw.addr_filters)
+#define PAI_SWLIST(x)		(&(x)->hw.tp_list)
+
 #endif

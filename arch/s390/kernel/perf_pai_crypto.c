@@ -24,8 +24,6 @@ static debug_info_t *cfm_dbg;
 static unsigned int paicrypt_cnt;	/* Size of the mapped counter sets */
 					/* extracted with QPACI instruction */
 
-#define PAI_SWLIST(x)		(&(x)->hw.tp_list)
-
 DEFINE_STATIC_KEY_FALSE(pai_key);
 
 struct pai_userdata {
