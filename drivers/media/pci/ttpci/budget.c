@@ -213,7 +213,8 @@ static int alps_bsrv2_tuner_set_params(struct dvb_frontend *fe)
 		pwr = 0;
 	else if (c->frequency >= 1100000)
 		pwr = 1;
-	else pwr = 2;
+	else
+		pwr = 2;
 
 	buf[0] = (div >> 8) & 0x7f;
 	buf[1] = div & 0xff;
@@ -225,7 +226,8 @@ static int alps_bsrv2_tuner_set_params(struct dvb_frontend *fe)
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
+		return -EIO;
 	return 0;
 }
 
@@ -252,7 +254,8 @@ static int alps_tdbe2_tuner_set_params(struct dvb_frontend *fe)
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
+		return -EIO;
 	return 0;
 }
 
@@ -307,7 +310,8 @@ static int grundig_29504_401_tuner_set_params(struct dvb_frontend *fe)
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
+		return -EIO;
 	return 0;
 }
 
@@ -337,7 +341,8 @@ static int grundig_29504_451_tuner_set_params(struct dvb_frontend *fe)
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
+		return -EIO;
 	return 0;
 }
 
@@ -369,7 +374,8 @@ static int s5h1420_tuner_set_params(struct dvb_frontend *fe)
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 1);
-	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1) return -EIO;
+	if (i2c_transfer(&budget->i2c_adap, &msg, 1) != 1)
+		return -EIO;
 
 	return 0;
 }
