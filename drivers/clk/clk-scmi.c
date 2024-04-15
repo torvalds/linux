@@ -21,6 +21,7 @@ enum scmi_clk_feats {
 	SCMI_CLK_ATOMIC_SUPPORTED,
 	SCMI_CLK_STATE_CTRL_SUPPORTED,
 	SCMI_CLK_RATE_CTRL_SUPPORTED,
+	SCMI_CLK_PARENT_CTRL_SUPPORTED,
 	SCMI_CLK_FEATS_COUNT
 };
 
@@ -254,7 +255,8 @@ scmi_clk_ops_alloc(struct device *dev, unsigned long feats_key)
 
 	/* Parent ops */
 	ops->get_parent = scmi_clk_get_parent;
-	ops->set_parent = scmi_clk_set_parent;
+	if (feats_key & BIT(SCMI_CLK_PARENT_CTRL_SUPPORTED))
+		ops->set_parent = scmi_clk_set_parent;
 
 	return ops;
 }
@@ -306,6 +308,9 @@ scmi_clk_ops_select(struct scmi_clk *sclk, bool atomic_capable,
 
 	if (!ci->rate_ctrl_forbidden)
 		feats_key |= BIT(SCMI_CLK_RATE_CTRL_SUPPORTED);
+
+	if (!ci->parent_ctrl_forbidden)
+		feats_key |= BIT(SCMI_CLK_PARENT_CTRL_SUPPORTED);
 
 	if (WARN_ON(feats_key >= db_size))
 		return NULL;
