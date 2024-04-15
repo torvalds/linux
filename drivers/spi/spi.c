@@ -1022,16 +1022,18 @@ static void spi_res_release(struct spi_controller *ctlr, struct spi_message *mes
 }
 
 /*-------------------------------------------------------------------------*/
+#define spi_for_each_valid_cs(spi, idx)				\
+	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++)		\
+		if (!(spi->cs_index_mask & BIT(idx))) {} else
+
 static inline bool spi_is_last_cs(struct spi_device *spi)
 {
 	u8 idx;
 	bool last = false;
 
-	for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
-		if (spi->cs_index_mask & BIT(idx)) {
-			if (spi->controller->last_cs[idx] == spi_get_chipselect(spi, idx))
-				last = true;
-		}
+	spi_for_each_valid_cs(spi, idx) {
+		if (spi->controller->last_cs[idx] == spi_get_chipselect(spi, idx))
+			last = true;
 	}
 	return last;
 }
@@ -1095,8 +1097,8 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 
 	if (spi_is_csgpiod(spi)) {
 		if (!(spi->mode & SPI_NO_CS)) {
-			for (idx = 0; idx < SPI_CS_CNT_MAX; idx++) {
-				if ((spi->cs_index_mask & BIT(idx)) && spi_get_csgpiod(spi, idx))
+			spi_for_each_valid_cs(spi, idx) {
+				if (spi_get_csgpiod(spi, idx))
 					spi_toggle_csgpiod(spi, idx, enable, activate);
 			}
 		}
