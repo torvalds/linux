@@ -1925,10 +1925,10 @@ static int regmap_test_init(struct kunit *test)
 	test->priv = priv;
 
 	dev = kunit_device_register(test, "regmap_test");
-	priv->dev = get_device(dev);
-	if (!priv->dev)
-		return -ENODEV;
+	if (IS_ERR(dev))
+		return PTR_ERR(dev);
 
+	priv->dev = get_device(dev);
 	dev_set_drvdata(dev, test);
 
 	return 0;
