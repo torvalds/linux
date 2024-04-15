@@ -495,6 +495,8 @@ static int new_lockspace(const char *name, const char *cluster,
 	 */
 	ls->ls_exflags = (flags & ~(DLM_LSFL_FS | DLM_LSFL_NEWEXCL));
 
+	INIT_LIST_HEAD(&ls->ls_toss);
+	INIT_LIST_HEAD(&ls->ls_keep);
 	spin_lock_init(&ls->ls_rsbtbl_lock);
 	size = READ_ONCE(dlm_config.ci_rsbtbl_size);
 	ls->ls_rsbtbl_size = size;
@@ -838,6 +840,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
 		while ((n = rb_first(&ls->ls_rsbtbl[i].r))) {
 			rsb = rb_entry(n, struct dlm_rsb, res_hashnode);
+			list_del(&rsb->res_rsbs_list);
 			rb_erase(n, &ls->ls_rsbtbl[i].r);
 			dlm_free_rsb(rsb);
 		}

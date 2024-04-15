@@ -366,12 +366,10 @@ static void print_format4(struct dlm_rsb *r, struct seq_file *s)
 	unlock_rsb(r);
 }
 
-struct rsbtbl_iter {
-	struct dlm_rsb *rsb;
-	unsigned bucket;
-	int format;
-	int header;
-};
+static const struct seq_operations format1_seq_ops;
+static const struct seq_operations format2_seq_ops;
+static const struct seq_operations format3_seq_ops;
+static const struct seq_operations format4_seq_ops;
 
 /*
  * If the buffer is full, seq_printf can be called again, but it
@@ -382,220 +380,61 @@ struct rsbtbl_iter {
 
 static int table_seq_show(struct seq_file *seq, void *iter_ptr)
 {
-	struct rsbtbl_iter *ri = iter_ptr;
+	struct dlm_rsb *rsb = list_entry(iter_ptr, struct dlm_rsb, res_rsbs_list);
 
-	switch (ri->format) {
-	case 1:
-		print_format1(ri->rsb, seq);
-		break;
-	case 2:
-		if (ri->header) {
-			seq_puts(seq, "id nodeid remid pid xid exflags flags sts grmode rqmode time_ms r_nodeid r_len r_name\n");
-			ri->header = 0;
-		}
-		print_format2(ri->rsb, seq);
-		break;
-	case 3:
-		if (ri->header) {
-			seq_puts(seq, "rsb ptr nodeid first_lkid flags !root_list_empty !recover_list_empty recover_locks_count len\n");
-			ri->header = 0;
-		}
-		print_format3(ri->rsb, seq);
-		break;
-	case 4:
-		if (ri->header) {
-			seq_puts(seq, "rsb ptr nodeid master_nodeid dir_nodeid our_nodeid toss_time flags len str|hex name\n");
-			ri->header = 0;
-		}
-		print_format4(ri->rsb, seq);
-		break;
-	}
+	if (seq->op == &format1_seq_ops)
+		print_format1(rsb, seq);
+	else if (seq->op == &format2_seq_ops)
+		print_format2(rsb, seq);
+	else if (seq->op == &format3_seq_ops)
+		print_format3(rsb, seq);
+	else if (seq->op == &format4_seq_ops)
+		print_format4(rsb, seq);
 
 	return 0;
 }
 
-static const struct seq_operations format1_seq_ops;
-static const struct seq_operations format2_seq_ops;
-static const struct seq_operations format3_seq_ops;
-static const struct seq_operations format4_seq_ops;
-
 static void *table_seq_start(struct seq_file *seq, loff_t *pos)
 {
-	struct rb_root *tree;
-	struct rb_node *node;
 	struct dlm_ls *ls = seq->private;
-	struct rsbtbl_iter *ri;
-	struct dlm_rsb *r;
-	loff_t n = *pos;
-	unsigned bucket, entry;
-	int toss = (seq->op == &format4_seq_ops);
+	struct list_head *list;
 
-	bucket = n >> 32;
-	entry = n & ((1LL << 32) - 1);
+	if (!*pos) {
+		if (seq->op == &format2_seq_ops)
+			seq_puts(seq, "id nodeid remid pid xid exflags flags sts grmode rqmode time_ms r_nodeid r_len r_name\n");
+		else if (seq->op == &format3_seq_ops)
+			seq_puts(seq, "rsb ptr nodeid first_lkid flags !root_list_empty !recover_list_empty recover_locks_count len\n");
+		else if (seq->op == &format4_seq_ops)
+			seq_puts(seq, "rsb ptr nodeid master_nodeid dir_nodeid our_nodeid toss_time flags len str|hex name\n");
+	}
 
-	if (bucket >= ls->ls_rsbtbl_size)
-		return NULL;
-
-	ri = kzalloc(sizeof(*ri), GFP_NOFS);
-	if (!ri)
-		return NULL;
-	if (n == 0)
-		ri->header = 1;
-	if (seq->op == &format1_seq_ops)
-		ri->format = 1;
-	if (seq->op == &format2_seq_ops)
-		ri->format = 2;
-	if (seq->op == &format3_seq_ops)
-		ri->format = 3;
 	if (seq->op == &format4_seq_ops)
-		ri->format = 4;
-
-	tree = &ls->ls_rsbtbl[bucket].r;
+		list = &ls->ls_toss;
+	else
+		list = &ls->ls_keep;
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
-	if (!RB_EMPTY_ROOT(tree)) {
-		for (node = rb_first(tree); node; node = rb_next(node)) {
-			r = rb_entry(node, struct dlm_rsb, res_hashnode);
-			if (toss) {
-				if (!rsb_flag(r, RSB_TOSS))
-					continue;
-			} else {
-				if (rsb_flag(r, RSB_TOSS))
-					continue;
-			}
-
-			if (!entry--) {
-				dlm_hold_rsb(r);
-				ri->rsb = r;
-				ri->bucket = bucket;
-				spin_unlock_bh(&ls->ls_rsbtbl_lock);
-				return ri;
-			}
-		}
-	}
-	spin_unlock_bh(&ls->ls_rsbtbl_lock);
-
-	/*
-	 * move to the first rsb in the next non-empty bucket
-	 */
-
-	/* zero the entry */
-	n &= ~((1LL << 32) - 1);
-
-	while (1) {
-		bucket++;
-		n += 1LL << 32;
-
-		if (bucket >= ls->ls_rsbtbl_size) {
-			kfree(ri);
-			return NULL;
-		}
-		tree = &ls->ls_rsbtbl[bucket].r;
-
-		spin_lock_bh(&ls->ls_rsbtbl_lock);
-		if (!RB_EMPTY_ROOT(tree)) {
-			node = rb_first(tree);
-			r = rb_entry(node, struct dlm_rsb, res_hashnode);
-			if (toss) {
-				if (!rsb_flag(r, RSB_TOSS))
-					continue;
-			} else {
-				if (rsb_flag(r, RSB_TOSS))
-					continue;
-			}
-
-			dlm_hold_rsb(r);
-			ri->rsb = r;
-			ri->bucket = bucket;
-			spin_unlock_bh(&ls->ls_rsbtbl_lock);
-			*pos = n;
-			return ri;
-		}
-		spin_unlock_bh(&ls->ls_rsbtbl_lock);
-	}
+	return seq_list_start(list, *pos);
 }
 
 static void *table_seq_next(struct seq_file *seq, void *iter_ptr, loff_t *pos)
 {
 	struct dlm_ls *ls = seq->private;
-	struct rsbtbl_iter *ri = iter_ptr;
-	struct rb_root *tree;
-	struct rb_node *next;
-	struct dlm_rsb *r, *rp;
-	loff_t n = *pos;
-	unsigned bucket;
-	int toss = (seq->op == &format4_seq_ops);
+	struct list_head *list;
 
-	bucket = n >> 32;
+	if (seq->op == &format4_seq_ops)
+		list = &ls->ls_toss;
+	else
+		list = &ls->ls_keep;
 
-	/*
-	 * move to the next rsb in the same bucket
-	 */
-
-	spin_lock_bh(&ls->ls_rsbtbl_lock);
-	rp = ri->rsb;
-	next = rb_next(&rp->res_hashnode);
-
-	if (next) {
-		r = rb_entry(next, struct dlm_rsb, res_hashnode);
-		dlm_hold_rsb(r);
-		ri->rsb = r;
-		spin_unlock_bh(&ls->ls_rsbtbl_lock);
-		dlm_put_rsb(rp);
-		++*pos;
-		return ri;
-	}
-	spin_unlock_bh(&ls->ls_rsbtbl_lock);
-	dlm_put_rsb(rp);
-
-	/*
-	 * move to the first rsb in the next non-empty bucket
-	 */
-
-	/* zero the entry */
-	n &= ~((1LL << 32) - 1);
-
-	while (1) {
-		bucket++;
-		n += 1LL << 32;
-
-		if (bucket >= ls->ls_rsbtbl_size) {
-			kfree(ri);
-			++*pos;
-			return NULL;
-		}
-		tree = &ls->ls_rsbtbl[bucket].r;
-
-		spin_lock_bh(&ls->ls_rsbtbl_lock);
-		if (!RB_EMPTY_ROOT(tree)) {
-			next = rb_first(tree);
-			r = rb_entry(next, struct dlm_rsb, res_hashnode);
-			if (toss) {
-				if (!rsb_flag(r, RSB_TOSS))
-					continue;
-			} else {
-				if (rsb_flag(r, RSB_TOSS))
-					continue;
-			}
-			dlm_hold_rsb(r);
-			ri->rsb = r;
-			ri->bucket = bucket;
-			spin_unlock_bh(&ls->ls_rsbtbl_lock);
-			*pos = n;
-			return ri;
-		}
-		spin_unlock_bh(&ls->ls_rsbtbl_lock);
-	}
+	return seq_list_next(iter_ptr, list, pos);
 }
 
 static void table_seq_stop(struct seq_file *seq, void *iter_ptr)
 {
-	struct rsbtbl_iter *ri = iter_ptr;
+	struct dlm_ls *ls = seq->private;
 
-	if (ri) {
-		dlm_put_rsb(ri->rsb);
-		kfree(ri);
-	}
+	spin_unlock_bh(&ls->ls_rsbtbl_lock);
 }
 
 static const struct seq_operations format1_seq_ops = {

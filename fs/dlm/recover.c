@@ -881,23 +881,15 @@ void dlm_recover_rsbs(struct dlm_ls *ls, const struct list_head *root_list)
 
 void dlm_clear_toss(struct dlm_ls *ls)
 {
-	struct rb_node *n, *next;
-	struct dlm_rsb *r;
+	struct dlm_rsb *r, *safe;
 	unsigned int count = 0;
-	int i;
 
-	spin_lock(&ls->ls_rsbtbl_lock);
-	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		for (n = rb_first(&ls->ls_rsbtbl[i].r); n; n = next) {
-			next = rb_next(n);
-			r = rb_entry(n, struct dlm_rsb, res_hashnode);
-			if (!rsb_flag(r, RSB_TOSS))
-				continue;
-
-			rb_erase(n, &ls->ls_rsbtbl[i].r);
-			dlm_free_rsb(r);
-			count++;
-		}
+	spin_lock_bh(&ls->ls_rsbtbl_lock);
+	list_for_each_entry_safe(r, safe, &ls->ls_toss, res_rsbs_list) {
+		list_del(&r->res_rsbs_list);
+		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[r->res_bucket].r);
+		dlm_free_rsb(r);
+		count++;
 	}
 	spin_unlock_bh(&ls->ls_rsbtbl_lock);
 

@@ -22,9 +22,8 @@
 
 static int dlm_create_masters_list(struct dlm_ls *ls)
 {
-	struct rb_node *n;
 	struct dlm_rsb *r;
-	int i, error = 0;
+	int error = 0;
 
 	write_lock_bh(&ls->ls_masters_lock);
 	if (!list_empty(&ls->ls_masters_list)) {
@@ -34,15 +33,12 @@ static int dlm_create_masters_list(struct dlm_ls *ls)
 	}
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
-	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		for (n = rb_first(&ls->ls_rsbtbl[i].r); n; n = rb_next(n)) {
-			r = rb_entry(n, struct dlm_rsb, res_hashnode);
-			if (rsb_flag(r, RSB_TOSS) || r->res_nodeid)
-				continue;
+	list_for_each_entry(r, &ls->ls_keep, res_rsbs_list) {
+		if (r->res_nodeid)
+			continue;
 
-			list_add(&r->res_masters_list, &ls->ls_masters_list);
-			dlm_hold_rsb(r);
-		}
+		list_add(&r->res_masters_list, &ls->ls_masters_list);
+		dlm_hold_rsb(r);
 	}
 	spin_unlock_bh(&ls->ls_rsbtbl_lock);
  out:
@@ -64,21 +60,15 @@ static void dlm_release_masters_list(struct dlm_ls *ls)
 
 static void dlm_create_root_list(struct dlm_ls *ls, struct list_head *root_list)
 {
-	struct rb_node *n;
 	struct dlm_rsb *r;
-	int i;
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
-	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		for (n = rb_first(&ls->ls_rsbtbl[i].r); n; n = rb_next(n)) {
-			r = rb_entry(n, struct dlm_rsb, res_hashnode);
-			if (WARN_ON_ONCE(rsb_flag(r, RSB_TOSS)))
-				continue;
-
-			list_add(&r->res_root_list, root_list);
-			dlm_hold_rsb(r);
-		}
+	list_for_each_entry(r, &ls->ls_keep, res_rsbs_list) {
+		list_add(&r->res_root_list, root_list);
+		dlm_hold_rsb(r);
 	}
+
+	WARN_ON_ONCE(!list_empty(&ls->ls_toss));
 	spin_unlock_bh(&ls->ls_rsbtbl_lock);
 }
 

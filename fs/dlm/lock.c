@@ -668,6 +668,7 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 		r->res_first_lkid = 0;
 	}
 
+	list_move(&r->res_rsbs_list, &ls->ls_keep);
 	rsb_clear_flag(r, RSB_TOSS);
 	goto out_unlock;
 
@@ -730,6 +731,8 @@ static int find_rsb_dir(struct dlm_ls *ls, const void *name, int len,
 
  out_add:
 	error = rsb_insert(r, &ls->ls_rsbtbl[b].r);
+	if (!error)
+		list_add(&r->res_rsbs_list, &ls->ls_keep);
  out_unlock:
 	spin_unlock_bh(&ls->ls_rsbtbl_lock);
  out:
@@ -801,6 +804,7 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 		r->res_nodeid = 0;
 	}
 
+	list_move(&r->res_rsbs_list, &ls->ls_keep);
 	rsb_clear_flag(r, RSB_TOSS);
 	goto out_unlock;
 
@@ -826,6 +830,8 @@ static int find_rsb_nodir(struct dlm_ls *ls, const void *name, int len,
 	kref_init(&r->res_ref);
 
 	error = rsb_insert(r, &ls->ls_rsbtbl[b].r);
+	if (!error)
+		list_add(&r->res_rsbs_list, &ls->ls_keep);
  out_unlock:
 	spin_unlock_bh(&ls->ls_rsbtbl_lock);
  out:
@@ -1110,6 +1116,8 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 		goto retry;
 	}
 
+	list_add(&r->res_rsbs_list, &ls->ls_toss);
+
 	if (result)
 		*result = DLM_LU_ADD;
 	*r_nodeid = from_nodeid;
@@ -1120,20 +1128,12 @@ int dlm_master_lookup(struct dlm_ls *ls, int from_nodeid, const char *name,
 
 static void dlm_dump_rsb_hash(struct dlm_ls *ls, uint32_t hash)
 {
-	struct rb_node *n;
 	struct dlm_rsb *r;
-	int i;
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
-	for (i = 0; i < ls->ls_rsbtbl_size; i++) {
-		for (n = rb_first(&ls->ls_rsbtbl[i].r); n; n = rb_next(n)) {
-			r = rb_entry(n, struct dlm_rsb, res_hashnode);
-			if (rsb_flag(r, RSB_TOSS))
-				continue;
-
-			if (r->res_hash == hash)
-				dlm_dump_rsb(r);
-		}
+	list_for_each_entry(r, &ls->ls_keep, res_rsbs_list) {
+		if (r->res_hash == hash)
+			dlm_dump_rsb(r);
 	}
 	spin_unlock_bh(&ls->ls_rsbtbl_lock);
 }
@@ -1166,6 +1166,7 @@ static void toss_rsb(struct kref *kref)
 	kref_init(&r->res_ref);
 	WARN_ON(rsb_flag(r, RSB_TOSS));
 	rsb_set_flag(r, RSB_TOSS);
+	list_move(&r->res_rsbs_list, &ls->ls_toss);
 	r->res_toss_time = jiffies;
 	set_bit(DLM_RTF_SHRINK_BIT, &ls->ls_rsbtbl[r->res_bucket].flags);
 	if (r->res_lvbptr) {
@@ -1672,6 +1673,7 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 			continue;
 		}
 
+		list_del(&r->res_rsbs_list);
 		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].r);
 		dlm_free_rsb(r);
 	}
@@ -1740,6 +1742,7 @@ static void shrink_bucket(struct dlm_ls *ls, int b)
 			continue;
 		}
 
+		list_del(&r->res_rsbs_list);
 		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].r);
 		send_remove(r);
 		spin_unlock_bh(&ls->ls_rsbtbl_lock);
@@ -4243,6 +4246,7 @@ static void receive_remove(struct dlm_ls *ls, const struct dlm_message *ms)
 	}
 
 	if (kref_put(&r->res_ref, kill_rsb)) {
+		list_del(&r->res_rsbs_list);
 		rb_erase(&r->res_hashnode, &ls->ls_rsbtbl[b].r);
 		spin_unlock_bh(&ls->ls_rsbtbl_lock);
 		dlm_free_rsb(r);
@@ -5313,17 +5317,12 @@ void dlm_recover_purge(struct dlm_ls *ls, const struct list_head *root_list)
 			  lkb_count, nodes_count);
 }
 
-static struct dlm_rsb *find_grant_rsb(struct dlm_ls *ls, int bucket)
+static struct dlm_rsb *find_grant_rsb(struct dlm_ls *ls)
 {
-	struct rb_node *n;
 	struct dlm_rsb *r;
 
 	spin_lock_bh(&ls->ls_rsbtbl_lock);
-	for (n = rb_first(&ls->ls_rsbtbl[bucket].r); n; n = rb_next(n)) {
-		r = rb_entry(n, struct dlm_rsb, res_hashnode);
-		if (rsb_flag(r, RSB_TOSS))
-			continue;
-
+	list_for_each_entry(r, &ls->ls_keep, res_rsbs_list) {
 		if (!rsb_flag(r, RSB_RECOVER_GRANT))
 			continue;
 		if (!is_master(r)) {
@@ -5358,19 +5357,15 @@ static struct dlm_rsb *find_grant_rsb(struct dlm_ls *ls, int bucket)
 void dlm_recover_grant(struct dlm_ls *ls)
 {
 	struct dlm_rsb *r;
-	int bucket = 0;
 	unsigned int count = 0;
 	unsigned int rsb_count = 0;
 	unsigned int lkb_count = 0;
 
 	while (1) {
-		r = find_grant_rsb(ls, bucket);
-		if (!r) {
-			if (bucket == ls->ls_rsbtbl_size - 1)
-				break;
-			bucket++;
-			continue;
-		}
+		r = find_grant_rsb(ls);
+		if (!r)
+			break;
+
 		rsb_count++;
 		count = 0;
 		lock_rsb(r);

@@ -339,6 +339,7 @@ struct dlm_rsb {
 	struct list_head	res_convertqueue;
 	struct list_head	res_waitqueue;
 
+	struct list_head	res_rsbs_list;
 	struct list_head	res_root_list;	    /* used for recovery */
 	struct list_head	res_masters_list;   /* used for recovery */
 	struct list_head	res_recover_list;   /* used for recovery */
@@ -594,6 +595,9 @@ struct dlm_ls {
 	struct dlm_rsbtable	*ls_rsbtbl;
 	spinlock_t		ls_rsbtbl_lock;
 	uint32_t		ls_rsbtbl_size;
+
+	struct list_head	ls_toss;
+	struct list_head	ls_keep;
 
 	spinlock_t		ls_waiters_lock;
 	struct list_head	ls_waiters;	/* lkbs needing a reply */
