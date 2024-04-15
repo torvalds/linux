@@ -6,6 +6,7 @@
 
 struct drm_device;
 struct drm_framebuffer;
+struct drm_plane;
 struct drm_plane_state;
 struct drm_scanout_buffer;
 
@@ -20,8 +21,8 @@ void drm_fb_dma_sync_non_coherent(struct drm_device *drm,
 				  struct drm_plane_state *old_state,
 				  struct drm_plane_state *state);
 
-int drm_panic_gem_get_scanout_buffer(struct drm_plane *plane,
-				     struct drm_scanout_buffer *sb);
+int drm_fb_dma_get_scanout_buffer(struct drm_plane *plane,
+				  struct drm_scanout_buffer *sb);
 
 #endif
 
