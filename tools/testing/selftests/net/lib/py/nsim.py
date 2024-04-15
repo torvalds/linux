@@ -28,6 +28,7 @@ class NetdevSim:
         self.dfs_dir = "%s/ports/%u/" % (nsimdev.dfs_dir, port_index)
         ret = ip("-j link show dev %s" % ifname, ns=ns)
         self.dev = json.loads(ret.stdout)[0]
+        self.ifindex = self.dev["ifindex"]
 
     def dfs_write(self, path, val):
         self.nsimdev.dfs_write(f'ports/{self.port_index}/' + path, val)
@@ -84,6 +85,17 @@ class NetdevSimDev:
         for port_index in range(port_count):
             self.nsims.append(self._make_port(port_index, ifnames[port_index]))
 
+        self.removed = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, ex_type, ex_value, ex_tb):
+        """
+        __exit__ gets called at the end of a "with" block.
+        """
+        self.remove()
+
     def _make_port(self, port_index, ifname):
         return NetdevSim(self, port_index, ifname, self.ns)
 
@@ -112,7 +124,9 @@ class NetdevSimDev:
             raise Exception("netdevices did not appear within timeout")
 
     def remove(self):
-        self.ctrl_write("del_device", "%u" % (self.addr, ))
+        if not self.removed:
+            self.ctrl_write("del_device", "%u" % (self.addr, ))
+            self.removed = True
 
     def remove_nsim(self, nsim):
         self.nsims.remove(nsim)

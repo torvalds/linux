@@ -995,9 +995,11 @@ class YnlFamily(SpecFamily):
                     rsp_msg.update(self._decode_struct(decoded.raw, op.fixed_header))
                 rsp.append(rsp_msg)
 
+        if dump:
+            return rsp
         if not rsp:
             return None
-        if not dump and len(rsp) == 1:
+        if len(rsp) == 1:
             return rsp[0]
         return rsp
 

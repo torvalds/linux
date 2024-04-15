@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import builtins
+import inspect
+import time
+import traceback
 from .consts import KSFT_MAIN_NAME
 
 KSFT_RESULT = None
@@ -18,32 +21,45 @@ def ksft_pr(*objs, **kwargs):
     print("#", *objs, **kwargs)
 
 
+def _fail(*args):
+    global KSFT_RESULT
+    KSFT_RESULT = False
+
+    frame = inspect.stack()[2]
+    ksft_pr("At " + frame.filename + " line " + str(frame.lineno) + ":")
+    ksft_pr(*args)
+
+
 def ksft_eq(a, b, comment=""):
     global KSFT_RESULT
     if a != b:
-        KSFT_RESULT = False
-        ksft_pr("Check failed", a, "!=", b, comment)
+        _fail("Check failed", a, "!=", b, comment)
 
 
 def ksft_true(a, comment=""):
-    global KSFT_RESULT
     if not a:
-        KSFT_RESULT = False
-        ksft_pr("Check failed", a, "does not eval to True", comment)
+        _fail("Check failed", a, "does not eval to True", comment)
 
 
 def ksft_in(a, b, comment=""):
-    global KSFT_RESULT
     if a not in b:
-        KSFT_RESULT = False
-        ksft_pr("Check failed", a, "not in", b, comment)
+        _fail("Check failed", a, "not in", b, comment)
 
 
 def ksft_ge(a, b, comment=""):
-    global KSFT_RESULT
     if a < b:
-        KSFT_RESULT = False
-        ksft_pr("Check failed", a, "<", b, comment)
+        _fail("Check failed", a, "<", b, comment)
+
+
+def ksft_busy_wait(cond, sleep=0.005, deadline=1, comment=""):
+    end = time.monotonic() + deadline
+    while True:
+        if cond():
+            return
+        if time.monotonic() > end:
+            _fail("Waiting for condition timed out", comment)
+            return
+        time.sleep(sleep)
 
 
 def ktap_result(ok, cnt=1, case="", comment=""):
@@ -82,7 +98,8 @@ def ksft_run(cases, args=()):
             totals['xfail'] += 1
             continue
         except Exception as e:
-            for line in str(e).split('\n'):
+            tb = traceback.format_exc()
+            for line in tb.strip().split('\n'):
                 ksft_pr("Exception|", line)
             ktap_result(False, cnt, case)
             totals['fail'] += 1
