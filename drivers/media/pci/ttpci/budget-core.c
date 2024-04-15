@@ -209,7 +209,7 @@ static void vpeirq(struct tasklet_struct *t)
 		budget->buffer_warnings++;
 
 	if (budget->buffer_warnings && time_after(jiffies, budget->buffer_warning_time)) {
-		printk("%s %s: used %d times >80%% of buffer (%u bytes now)\n",
+		pr_warn("%s %s: used %d times >80%% of buffer (%u bytes now)\n",
 			budget->dev->name, __func__, budget->buffer_warnings, count);
 		budget->buffer_warning_time = jiffies + BUFFER_WARNING_WAIT;
 		budget->buffer_warnings = 0;
@@ -473,7 +473,7 @@ int ttpci_budget_init(struct budget *budget, struct saa7146_dev *dev,
 		budget->dev->name,
 		budget->buffer_size > budget->buffer_width * budget->buffer_height ? "odd/even" : "single",
 		budget->buffer_width, budget->buffer_height);
-	printk("%s: dma buffer size %u\n", budget->dev->name, budget->buffer_size);
+	pr_info("%s: dma buffer size %u\n", budget->dev->name, budget->buffer_size);
 
 	ret = dvb_register_adapter(&budget->dvb_adapter, budget->card->name,
 				   owner, &budget->dev->pci->dev, adapter_nums);

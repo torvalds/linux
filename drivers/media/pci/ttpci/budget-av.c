@@ -16,7 +16,6 @@
  * the project's page is at https://linuxtv.org
  */
 
-#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include "budget.h"
 #include "stv0299.h"
@@ -206,7 +205,7 @@ static int ciintf_slot_reset(struct dvb_ca_en50221 *ca, int slot)
 	if (slot != 0)
 		return -EINVAL;
 
-	dprintk(1, "ciintf_slot_reset\n");
+	dprintk(1, "ci slot reset\n");
 	budget_av->slot_status = SLOTSTATUS_RESET;
 
 	saa7146_setgpio(saa, 2, SAA7146_GPIO_OUTHI); /* disable card */
@@ -235,7 +234,7 @@ static int ciintf_slot_shutdown(struct dvb_ca_en50221 *ca, int slot)
 	if (slot != 0)
 		return -EINVAL;
 
-	dprintk(1, "ciintf_slot_shutdown\n");
+	dprintk(1, "ci slot shutdown\n");
 
 	ttpci_budget_set_video_port(saa, BUDGET_VIDEO_PORTB);
 	budget_av->slot_status = SLOTSTATUS_NONE;
@@ -251,7 +250,7 @@ static int ciintf_slot_ts_enable(struct dvb_ca_en50221 *ca, int slot)
 	if (slot != 0)
 		return -EINVAL;
 
-	dprintk(1, "ciintf_slot_ts_enable: %d\n", budget_av->slot_status);
+	dprintk(1, "ci slot status: %d\n", budget_av->slot_status);
 
 	ttpci_budget_set_video_port(saa, BUDGET_VIDEO_PORTA);
 
@@ -1464,7 +1463,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 		if (err != 0) {
 			ttpci_budget_deinit(&budget_av->budget);
 			kfree(budget_av);
-			ERR("cannot init vv subsystem\n");
+			pr_err("cannot init vv subsystem\n");
 			return err;
 		}
 		vv_data.vid_ops.vidioc_enum_input = vidioc_enum_input;
@@ -1476,7 +1475,7 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 			saa7146_vv_release(dev);
 			ttpci_budget_deinit(&budget_av->budget);
 			kfree(budget_av);
-			ERR("cannot register capture v4l2 device\n");
+			pr_err("cannot register capture v4l2 device\n");
 			return err;
 		}
 

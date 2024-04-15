@@ -537,7 +537,7 @@ static void frontend_init(struct budget *budget)
 	case 0x4f52: /* Cards based on Philips Semi Sylt PCI ref. design */
 		budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsru6_config, &budget->i2c_adap);
 		if (budget->dvb_frontend) {
-			printk(KERN_INFO "budget: tuner ALPS BSRU6 in Philips Semi. Sylt detected\n");
+			pr_info("tuner ALPS BSRU6 in Philips Semi. Sylt detected\n");
 			budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
 			budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
 			break;
@@ -555,7 +555,7 @@ static void frontend_init(struct budget *budget)
 			/* assume ALPS BSRU6 */
 			budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsru6_config_activy, &budget->i2c_adap);
 			if (budget->dvb_frontend) {
-				printk(KERN_INFO "budget: tuner ALPS BSRU6 detected\n");
+				pr_info("tuner ALPS BSRU6 detected\n");
 				budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsru6_tuner_set_params;
 				budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
 				budget->dvb_frontend->ops.set_voltage = siemens_budget_set_voltage;
@@ -571,7 +571,7 @@ static void frontend_init(struct budget *budget)
 			msleep(250);
 			budget->dvb_frontend = dvb_attach(stv0299_attach, &alps_bsbe1_config_activy, &budget->i2c_adap);
 			if (budget->dvb_frontend) {
-				printk(KERN_INFO "budget: tuner ALPS BSBE1 detected\n");
+				pr_info("tuner ALPS BSBE1 detected\n");
 				budget->dvb_frontend->ops.tuner_ops.set_params = alps_bsbe1_tuner_set_params;
 				budget->dvb_frontend->tuner_priv = &budget->i2c_adap;
 				budget->dvb_frontend->ops.set_voltage = siemens_budget_set_voltage;
@@ -617,7 +617,7 @@ static void frontend_init(struct budget *budget)
 			budget->dvb_frontend = fe;
 			if (dvb_attach(lnbp21_attach, fe, &budget->i2c_adap,
 				       0, 0) == NULL) {
-				printk("%s: No LNBP21 found!\n", __func__);
+				pr_err("%s(): No LNBP21 found!\n", __func__);
 				goto error_out;
 			}
 			break;
@@ -639,10 +639,10 @@ static void frontend_init(struct budget *budget)
 			budget->dvb_frontend = fe;
 			if (dvb_attach(tda826x_attach, fe, 0x60,
 				       &budget->i2c_adap, 0) == NULL)
-				printk("%s: No tda826x found!\n", __func__);
+				pr_err("%s(): No tda826x found!\n", __func__);
 			if (dvb_attach(lnbp21_attach, fe,
 				       &budget->i2c_adap, 0, 0) == NULL) {
-				printk("%s: No LNBP21 found!\n", __func__);
+				pr_err("%s(): No LNBP21 found!\n", __func__);
 				goto error_out;
 			}
 			break;
@@ -695,11 +695,11 @@ static void frontend_init(struct budget *budget)
 						       budget->dvb_frontend,
 						       &budget->i2c_adap,
 						       &tt1600_isl6423_config) == NULL) {
-						printk(KERN_ERR "%s: No Intersil ISL6423 found!\n", __func__);
+						pr_err("%s(): No Intersil ISL6423 found!\n", __func__);
 						goto error_out;
 					}
 				} else {
-					printk(KERN_ERR "%s: No STV6110(A) Silicon Tuner found!\n", __func__);
+					pr_err("%s(): No STV6110(A) Silicon Tuner found!\n", __func__);
 					goto error_out;
 				}
 			}
@@ -720,7 +720,7 @@ static void frontend_init(struct budget *budget)
 							  STV090x_DEMODULATOR_0);
 
 			if (budget->dvb_frontend) {
-				printk(KERN_INFO "budget: Omicom S2 detected\n");
+				pr_info("Omicom S2 detected\n");
 
 				ctl = dvb_attach(stv6110x_attach,
 						 budget->dvb_frontend,
@@ -753,12 +753,11 @@ static void frontend_init(struct budget *budget)
 							&budget->i2c_adap,
 							LNBH24_PCL | LNBH24_TTX,
 							LNBH24_TEN, 0x14>>1) == NULL) {
-						printk(KERN_ERR
-						"No LNBH24 found!\n");
+						pr_err("No LNBH24 found!\n");
 						goto error_out;
 					}
 				} else {
-					printk(KERN_ERR "%s: No STV6110(A) Silicon Tuner found!\n", __func__);
+					pr_err("%s(): No STV6110(A) Silicon Tuner found!\n", __func__);
 					goto error_out;
 				}
 			}
@@ -767,7 +766,7 @@ static void frontend_init(struct budget *budget)
 	}
 
 	if (budget->dvb_frontend == NULL) {
-		printk("budget: A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
+		pr_err("A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       budget->dev->pci->vendor,
 		       budget->dev->pci->device,
 		       budget->dev->pci->subsystem_vendor,
@@ -779,7 +778,7 @@ static void frontend_init(struct budget *budget)
 	return;
 
 error_out:
-	printk("budget: Frontend registration failed!\n");
+	pr_err("Frontend registration failed!\n");
 	dvb_frontend_detach(budget->dvb_frontend);
 	budget->dvb_frontend = NULL;
 }
@@ -799,7 +798,7 @@ static int budget_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_d
 
 	err = ttpci_budget_init(budget, dev, info, THIS_MODULE, adapter_nr);
 	if (err) {
-		printk("==> failed\n");
+		pr_err("==> failed\n");
 		kfree(budget);
 		return err;
 	}
