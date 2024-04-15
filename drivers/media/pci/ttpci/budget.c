@@ -100,9 +100,9 @@ static int SendDiSEqCMsg(struct budget *budget, int len, u8 *msg, unsigned long 
 	mdelay(16);
 
 	if (burst != -1) {
-		if (burst)
+		if (burst) {
 			DiseqcSendByte(budget, 0xff);
-		else {
+		} else {
 			saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTHI);
 			mdelay(12);
 			udelay(500);
@@ -229,8 +229,7 @@ static int alps_bsrv2_tuner_set_params(struct dvb_frontend *fe)
 	return 0;
 }
 
-static struct ves1x93_config alps_bsrv2_config =
-{
+static struct ves1x93_config alps_bsrv2_config = {
 	.demod_address = 0x08,
 	.xin = 90100000UL,
 	.invert_pwm = 0,
@@ -786,9 +785,8 @@ static int budget_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_d
 	int err;
 
 	budget = kmalloc(sizeof(struct budget), GFP_KERNEL);
-	if (NULL == budget) {
+	if (NULL == budget)
 		return -ENOMEM;
-	}
 
 	dprintk(2, "dev:%p, info:%p, budget:%p\n", dev, info, budget);
 

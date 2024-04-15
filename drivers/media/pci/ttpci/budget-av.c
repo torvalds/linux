@@ -309,16 +309,14 @@ static int ciintf_poll_slot_status(struct dvb_ca_en50221 *ca, int slot, int open
 	/* read from attribute memory in reset/ready state to know when the CAM is ready */
 	if (budget_av->slot_status == SLOTSTATUS_RESET) {
 		result = ciintf_read_attribute_mem(ca, slot, 0);
-		if (result == 0x1d) {
+		if (result == 0x1d)
 			budget_av->slot_status = SLOTSTATUS_READY;
-		}
 	}
 
 	/* work out correct return code */
 	if (budget_av->slot_status != SLOTSTATUS_NONE) {
-		if (budget_av->slot_status & SLOTSTATUS_READY) {
+		if (budget_av->slot_status & SLOTSTATUS_READY)
 			return DVB_CA_EN50221_POLL_CAM_PRESENT | DVB_CA_EN50221_POLL_CAM_READY;
-		}
 		return DVB_CA_EN50221_POLL_CAM_PRESENT;
 	}
 	return 0;
@@ -452,8 +450,9 @@ static int saa7113_setinput(struct budget_av *budget_av, int input)
 	} else if (input == 0) {
 		i2c_writereg(&budget->i2c_adap, 0x4a, 0x02, 0xc0);
 		i2c_writereg(&budget->i2c_adap, 0x4a, 0x09, 0x00);
-	} else
+	} else {
 		return -EINVAL;
+	}
 
 	budget_av->cur_input = input;
 	return 0;
@@ -1237,15 +1236,13 @@ static void frontend_init(struct budget_av *budget_av)
 		if (saa->pci->subsystem_vendor == 0x1894) {
 			fe = dvb_attach(stv0299_attach, &cinergy_1200s_1894_0010_config,
 					     &budget_av->budget.i2c_adap);
-			if (fe) {
+			if (fe)
 				dvb_attach(tua6100_attach, fe, 0x60, &budget_av->budget.i2c_adap);
-			}
 		} else {
 			fe = dvb_attach(stv0299_attach, &typhoon_config,
 					     &budget_av->budget.i2c_adap);
-			if (fe) {
+			if (fe)
 				fe->ops.tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
-			}
 		}
 		break;
 
@@ -1257,19 +1254,17 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBS_EASYWATCH_2:
 		fe = dvb_attach(stv0299_attach, &philips_sd1878_config,
 				&budget_av->budget.i2c_adap);
-		if (fe) {
+		if (fe)
 			dvb_attach(dvb_pll_attach, fe, 0x60,
 				   &budget_av->budget.i2c_adap,
 				   DVB_PLL_PHILIPS_SD1878_TDA8261);
-		}
 		break;
 
 	case SUBID_DVBS_TYPHOON:
 		fe = dvb_attach(stv0299_attach, &typhoon_config,
 				    &budget_av->budget.i2c_adap);
-		if (fe) {
+		if (fe)
 			fe->ops.tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
-		}
 		break;
 	case SUBID_DVBS2_KNC1:
 	case SUBID_DVBS2_KNC1_OEM:
@@ -1282,9 +1277,8 @@ static void frontend_init(struct budget_av *budget_av)
 	case SUBID_DVBS_CINERGY1200:
 		fe = dvb_attach(stv0299_attach, &cinergy_1200s_config,
 				    &budget_av->budget.i2c_adap);
-		if (fe) {
+		if (fe)
 			fe->ops.tuner_ops.set_params = philips_su1278_ty_ci_tuner_set_params;
-		}
 		break;
 
 	case SUBID_DVBC_KNC1:
@@ -1300,9 +1294,8 @@ static void frontend_init(struct budget_av *budget_av)
 			fe = dvb_attach(tda10021_attach, &philips_cu1216_config_altaddress,
 					     &budget_av->budget.i2c_adap,
 					     read_pwm(budget_av));
-		if (fe) {
+		if (fe)
 			fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set_params;
-		}
 		break;
 
 	case SUBID_DVBC_EASYWATCH_MK3:
@@ -1316,9 +1309,8 @@ static void frontend_init(struct budget_av *budget_av)
 			&philips_cu1216_tda10023_config,
 			&budget_av->budget.i2c_adap,
 			read_pwm(budget_av));
-		if (fe) {
+		if (fe)
 			fe->ops.tuner_ops.set_params = philips_cu1216_tuner_set_params;
-		}
 		break;
 
 	case SUBID_DVBT_EASYWATCH:
