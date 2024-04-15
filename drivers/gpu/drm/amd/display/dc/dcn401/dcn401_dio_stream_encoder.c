@@ -228,7 +228,27 @@ static void enc401_stream_encoder_hdmi_set_stream_attribute(
 	REG_UPDATE(HDMI_GC, HDMI_GC_AVMUTE, 0);
 }
 
+static void enc401_set_dig_input_mode(struct stream_encoder *enc, unsigned int pix_per_container)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
 
+	// The naming of this field is confusing, what it means is the output mode of otg, which
+	// is the input mode of the dig
+	switch (pix_per_container)	{
+	case 2:
+		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_PER_CYCLE, 0x1);
+		break;
+	case 4:
+		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_PER_CYCLE, 0x2);
+		break;
+	case 8:
+		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_PER_CYCLE, 0x3);
+		break;
+	default:
+		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_PER_CYCLE, 0x0);
+		break;
+	}
+}
 
 static bool is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 {
@@ -239,68 +259,28 @@ static bool is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
 	return two_pix;
 }
 
-static bool is_h_timing_divisible_by_2(const struct dc_crtc_timing *timing)
-{
-	/* math borrowed from function of same name in inc/resource
-	 * checks if h_timing is divisible by 2
-	 */
-
-	bool divisible = false;
-	uint16_t h_blank_start = 0;
-	uint16_t h_blank_end = 0;
-
-	if (timing) {
-		h_blank_start = timing->h_total - timing->h_front_porch;
-		h_blank_end = h_blank_start - timing->h_addressable;
-
-		/* HTOTAL, Hblank start/end, and Hsync start/end all must be
-		 * divisible by 2 in order for the horizontal timing params
-		 * to be considered divisible by 2. Hsync start is always 0.
-		 */
-		divisible = (timing->h_total % 2 == 0) &&
-				(h_blank_start % 2 == 0) &&
-				(h_blank_end % 2 == 0) &&
-				(timing->h_sync_width % 2 == 0);
-	}
-	return divisible;
-}
-
-static bool is_dp_dig_pixel_rate_div_policy(struct dc *dc, const struct dc_crtc_timing *timing)
-{
-	/* should be functionally the same as dcn32_is_dp_dig_pixel_rate_div_policy for DP encoders*/
-	return is_h_timing_divisible_by_2(timing) &&
-		dc->debug.enable_dp_dig_pixel_rate_div_policy;
-}
-
 static void enc401_stream_encoder_dp_unblank(
 		struct dc_link *link,
 		struct stream_encoder *enc,
 		const struct encoder_unblank_param *param)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
-	struct dc *dc = enc->ctx->dc;
 
 	if (param->link_settings.link_rate != LINK_RATE_UNKNOWN) {
 		uint32_t n_vid = 0x8000;
 		uint32_t m_vid;
-		uint32_t n_multiply = 0;
-		// TODO: Fix defined but not used
-		//uint32_t pix_per_cycle = 0;
+		uint32_t pix_per_container = 1;
 		uint64_t m_vid_l = n_vid;
 
-		/* YCbCr 4:2:0 : Computed VID_M will be 2X the input rate */
-		if (is_two_pixels_per_containter(&param->timing) || param->opp_cnt > 1
-			|| is_dp_dig_pixel_rate_div_policy(dc, &param->timing)) {
-			/*this logic should be the same in get_pixel_clock_parameters() */
-			n_multiply = 1;
-			// TODO: Fix defined but not used
-			//pix_per_cycle = 1;
+		/* YCbCr 4:2:0 or YCbCr4:2:2 simple + DSC: Computed VID_M will be 2X the input rate */
+		if (is_two_pixels_per_containter(&param->timing)) {
+			pix_per_container = 2;
 		}
+
 		/* M / N = Fstream / Flink
 		 * m_vid / n_vid = pixel rate / link rate
 		 */
-
-		m_vid_l *= param->timing.pix_clk_100hz / 10;
+		m_vid_l *= param->timing.pix_clk_100hz / pix_per_container / 10;
 		m_vid_l = div_u64(m_vid_l,
 			param->link_settings.link_rate
 				* LINK_RATE_REF_FREQ_IN_KHZ);
@@ -319,9 +299,23 @@ static void enc401_stream_encoder_dp_unblank(
 
 		REG_UPDATE(DP_VID_M, DP_VID_M, m_vid);
 
-		REG_UPDATE_2(DP_VID_TIMING,
-				DP_VID_M_N_GEN_EN, 1,
-				DP_VID_N_INTERVAL, n_multiply);
+		/* reduce jitter based on read rate */
+		switch (param->pix_per_cycle)	{
+		case 2:
+			REG_UPDATE(DP_VID_TIMING, DP_VID_N_INTERVAL, 0x1);
+			break;
+		case 4:
+			REG_UPDATE(DP_VID_TIMING, DP_VID_N_INTERVAL, 0x2);
+			break;
+		case 8:
+			REG_UPDATE(DP_VID_TIMING, DP_VID_N_INTERVAL, 0x3);
+			break;
+		default:
+			REG_UPDATE(DP_VID_TIMING, DP_VID_N_INTERVAL, 0x0);
+			break;
+		}
+
+		REG_UPDATE(DP_VID_TIMING, DP_VID_M_N_GEN_EN, 1);
 	}
 
 	/* make sure stream is disabled before resetting steer fifo */
@@ -413,27 +407,6 @@ static void enc401_read_state(struct stream_encoder *enc, struct enc_state *s)
 	}
 }
 
-static void enc401_set_dig_input_mode(struct stream_encoder *enc, unsigned int pix_per_container)
-{
-	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
-
-	// The naming of this field is confusing, what it means is the output mode of otg, which
-	// is the input mode of the dig
-	switch (pix_per_container)	{
-	case 2:
-		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_PER_CYCLE, 0x1);
-		break;
-	case 4:
-		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_PER_CYCLE, 0x2);
-		break;
-	case 8:
-		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_PER_CYCLE, 0x3);
-		break;
-	default:
-		REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_PER_CYCLE, 0x0);
-		break;
-	}
-}
 static void enc401_stream_encoder_enable(
 	struct stream_encoder *enc,
 	enum signal_type signal,

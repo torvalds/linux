@@ -49,6 +49,9 @@ void setup_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 	if (stream_enc->funcs->map_stream_to_link)
 		stream_enc->funcs->map_stream_to_link(stream_enc,
 				stream_enc->stream_enc_inst, link_enc->transmitter - TRANSMITTER_UNIPHY_A);
+	if (stream_enc->funcs->set_input_mode)
+		stream_enc->funcs->set_input_mode(stream_enc,
+				pipe_ctx->stream_res.pix_clk_params.dio_se_pix_per_cycle);
 	if (stream_enc->funcs->enable_fifo)
 		stream_enc->funcs->enable_fifo(stream_enc);
 }

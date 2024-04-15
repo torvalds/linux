@@ -2959,9 +2959,6 @@ void dcn20_enable_stream(struct pipe_ctx *pipe_ctx)
 		early_control = lane_count;
 
 	tg->funcs->set_early_control(tg, early_control);
-
-	if (dc->hwseq->funcs.set_pixels_per_cycle)
-		dc->hwseq->funcs.set_pixels_per_cycle(pipe_ctx);
 }
 
 void dcn20_program_dmdata_engine(struct pipe_ctx *pipe_ctx)

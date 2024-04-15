@@ -978,9 +978,6 @@ void dcn401_enable_stream(struct pipe_ctx *pipe_ctx)
 		dc->link_srv->dp_trace_source_sequence(link, DPCD_SOURCE_SEQ_AFTER_UPDATE_INFO_FRAME);
 
 	tg->funcs->set_early_control(tg, early_control);
-
-	if (dc->hwseq->funcs.set_pixels_per_cycle)
-		dc->hwseq->funcs.set_pixels_per_cycle(pipe_ctx);
 }
 
 void dcn401_setup_hpo_hw_control(const struct dce_hwseq *hws, bool enable)
@@ -1544,4 +1541,31 @@ void dcn401_fams2_update_config(struct dc *dc, struct dc_state *context, bool en
 	fams2_required = context->bw_ctx.bw.dcn.fams2_stream_count > 0;
 
 	dc_dmub_srv_fams2_update_config(dc, context, enable && fams2_required);
+}
+
+void dcn401_unblank_stream(struct pipe_ctx *pipe_ctx,
+		struct dc_link_settings *link_settings)
+{
+	struct encoder_unblank_param params = {0};
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->link;
+	struct dce_hwseq *hws = link->dc->hwseq;
+
+	/* calculate parameters for unblank */
+	params.opp_cnt = resource_get_odm_slice_count(pipe_ctx);
+
+	params.timing = pipe_ctx->stream->timing;
+	params.link_settings.link_rate = link_settings->link_rate;
+	params.pix_per_cycle = pipe_ctx->stream_res.pix_clk_params.dio_se_pix_per_cycle;
+
+	if (link->dc->link_srv->dp_is_128b_132b_signal(pipe_ctx)) {
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_unblank(
+				pipe_ctx->stream_res.hpo_dp_stream_enc,
+				pipe_ctx->stream_res.tg->inst);
+	} else if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(link, pipe_ctx->stream_res.stream_enc, &params);
+	}
+
+	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP)
+		hws->funcs.edp_backlight_control(link, true);
 }

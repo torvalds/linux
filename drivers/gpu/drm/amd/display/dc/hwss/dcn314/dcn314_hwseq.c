@@ -332,23 +332,6 @@ unsigned int dcn314_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsig
 	return odm_combine_factor;
 }
 
-void dcn314_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx)
-{
-	uint32_t pix_per_cycle = 1;
-	uint32_t odm_combine_factor = 1;
-
-	if (!pipe_ctx || !pipe_ctx->stream || !pipe_ctx->stream_res.stream_enc)
-		return;
-
-	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
-	if (pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container(&pipe_ctx->stream->timing) || odm_combine_factor > 1)
-		pix_per_cycle = 2;
-
-	if (pipe_ctx->stream_res.stream_enc->funcs->set_input_mode)
-		pipe_ctx->stream_res.stream_enc->funcs->set_input_mode(pipe_ctx->stream_res.stream_enc,
-				pix_per_cycle);
-}
-
 void dcn314_resync_fifo_dccg_dio(struct dce_hwseq *hws, struct dc *dc, struct dc_state *context)
 {
 	unsigned int i;

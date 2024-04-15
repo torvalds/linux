@@ -1261,6 +1261,15 @@ static void get_pixel_clock_parameters(
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 		pixel_clk_params->requested_pix_clk_100hz *= 2;
 
+	if ((pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container &&
+			pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container(&pipe_ctx->stream->timing)) ||
+			(hws->funcs.is_dp_dig_pixel_rate_div_policy &&
+			hws->funcs.is_dp_dig_pixel_rate_div_policy(pipe_ctx)) ||
+			opp_cnt > 1) {
+		pixel_clk_params->dio_se_pix_per_cycle = 2;
+	} else {
+		pixel_clk_params->dio_se_pix_per_cycle = 1;
+	}
 }
 
 static void build_clamping_params(struct dc_stream_state *stream)
