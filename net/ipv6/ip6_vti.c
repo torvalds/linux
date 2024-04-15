@@ -901,6 +901,7 @@ static void vti6_dev_setup(struct net_device *dev)
 {
 	dev->netdev_ops = &vti6_netdev_ops;
 	dev->header_ops = &ip_tunnel_header_ops;
+	dev->needs_free_netdev = true;
 
 	dev->pcpu_stat_type = NETDEV_PCPU_STAT_TSTATS;
 	dev->type = ARPHRD_TUNNEL6;
