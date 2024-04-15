@@ -43,7 +43,7 @@ __ktap_test() {
 	directive="$3" # optional
 
 	local directive_str=
-	[[ ! -z "$directive" ]] && directive_str="# $directive"
+	[ ! -z "$directive" ] && directive_str="# $directive"
 
 	echo $result $KTAP_TESTNO $description $directive_str
 
@@ -99,7 +99,7 @@ ktap_exit_fail_msg() {
 ktap_finished() {
 	ktap_print_totals
 
-	if [ $(("$KTAP_CNT_PASS" + "$KTAP_CNT_SKIP")) -eq "$KSFT_NUM_TESTS" ]; then
+	if [ $((KTAP_CNT_PASS + KTAP_CNT_SKIP)) -eq "$KSFT_NUM_TESTS" ]; then
 		exit "$KSFT_PASS"
 	else
 		exit "$KSFT_FAIL"
