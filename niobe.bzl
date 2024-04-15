@@ -168,6 +168,7 @@ def define_niobe():
         "drivers/soc/qcom/qcom_wdt_core.ko",
         "drivers/soc/qcom/qfprom-sys.ko",
         "drivers/soc/qcom/qmi_helpers.ko",
+        "drivers/soc/qcom/qsee_ipc_irq_bridge.ko",
         "drivers/soc/qcom/qti_battery_debug.ko",
         "drivers/soc/qcom/secure_buffer.ko",
         "drivers/soc/qcom/smem.ko",
