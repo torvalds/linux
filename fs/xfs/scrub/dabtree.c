@@ -320,6 +320,7 @@ xchk_da_btree_block(
 	struct xfs_da3_blkinfo		*hdr3;
 	struct xfs_da_args		*dargs = &ds->dargs;
 	struct xfs_inode		*ip = ds->dargs.dp;
+	xfs_failaddr_t			fa;
 	xfs_ino_t			owner;
 	int				*pmaxrecs;
 	struct xfs_da3_icnode_hdr	nodehdr;
@@ -438,6 +439,12 @@ xchk_da_btree_block(
 		/* XXX: Check hdr3.pad32 once we know how to fix it. */
 		break;
 	default:
+		xchk_da_set_corrupt(ds, level);
+		goto out_freebp;
+	}
+
+	fa = xfs_da3_header_check(blk->bp, dargs->owner);
+	if (fa) {
 		xchk_da_set_corrupt(ds, level);
 		goto out_freebp;
 	}
