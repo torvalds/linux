@@ -365,6 +365,9 @@ xfs_vn_link(
 	if (unlikely(error))
 		return error;
 
+	if (IS_PRIVATE(inode))
+		return -EPERM;
+
 	error = xfs_link(XFS_I(dir), XFS_I(inode), &name);
 	if (unlikely(error))
 		return error;
