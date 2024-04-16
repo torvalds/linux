@@ -19,9 +19,11 @@
 #include "ipa_cmd.h"
 #include "ipa_mem.h"
 #include "ipa_modem.h"
+#include "ipa_reg.h"
 #include "ipa_table.h"
 #include "ipa_gsi.h"
 #include "ipa_power.h"
+#include "ipa_interrupt.h"
 
 /* Hardware is told about receive buffers once a "batch" has been queued */
 #define IPA_REPLENISH_BATCH	16		/* Must be non-zero */

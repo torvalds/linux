@@ -14,7 +14,6 @@
 #include "ipa_mem.h"
 #include "ipa_qmi.h"
 #include "ipa_endpoint.h"
-#include "ipa_interrupt.h"
 
 struct clk;
 struct icc_path;
