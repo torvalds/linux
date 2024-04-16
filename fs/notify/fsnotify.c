@@ -103,7 +103,11 @@ void fsnotify_sb_delete(struct super_block *sb)
 	WARN_ON(fsnotify_sb_has_priority_watchers(sb, FSNOTIFY_PRIO_CONTENT));
 	WARN_ON(fsnotify_sb_has_priority_watchers(sb,
 						  FSNOTIFY_PRIO_PRE_CONTENT));
-	kfree(sbinfo);
+}
+
+void fsnotify_sb_free(struct super_block *sb)
+{
+	kfree(sb->s_fsnotify_info);
 }
 
 /*

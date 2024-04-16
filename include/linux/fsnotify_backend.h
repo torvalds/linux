@@ -576,6 +576,7 @@ extern int __fsnotify_parent(struct dentry *dentry, __u32 mask, const void *data
 extern void __fsnotify_inode_delete(struct inode *inode);
 extern void __fsnotify_vfsmount_delete(struct vfsmount *mnt);
 extern void fsnotify_sb_delete(struct super_block *sb);
+extern void fsnotify_sb_free(struct super_block *sb);
 extern u32 fsnotify_get_cookie(void);
 
 static inline __u32 fsnotify_parent_needed_mask(__u32 mask)
@@ -878,6 +879,9 @@ static inline void __fsnotify_vfsmount_delete(struct vfsmount *mnt)
 {}
 
 static inline void fsnotify_sb_delete(struct super_block *sb)
+{}
+
+static inline void fsnotify_sb_free(struct super_block *sb)
 {}
 
 static inline void fsnotify_update_flags(struct dentry *dentry)
