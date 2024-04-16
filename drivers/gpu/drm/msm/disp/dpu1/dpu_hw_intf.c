@@ -96,11 +96,11 @@
 #define INTF_CFG2_DCE_DATA_COMPRESS     BIT(12)
 
 
-static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *ctx,
+static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *intf,
 		const struct dpu_hw_intf_timing_params *p,
 		const struct dpu_format *fmt)
 {
-	struct dpu_hw_blk_reg_map *c = &ctx->hw;
+	struct dpu_hw_blk_reg_map *c = &intf->hw;
 	u32 hsync_period, vsync_period;
 	u32 display_v_start, display_v_end;
 	u32 hsync_start_x, hsync_end_x;
@@ -118,7 +118,7 @@ static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *ctx,
 	/* read interface_cfg */
 	intf_cfg = DPU_REG_READ(c, INTF_CONFIG);
 
-	if (ctx->cap->type == INTF_DP)
+	if (intf->cap->type == INTF_DP)
 		dp_intf = true;
 
 	hsync_period = p->hsync_pulse_width + p->h_back_porch + p->width +
@@ -223,7 +223,7 @@ static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *ctx,
 	DPU_REG_WRITE(c, INTF_FRAME_LINE_COUNT_EN, 0x3);
 	DPU_REG_WRITE(c, INTF_CONFIG, intf_cfg);
 	DPU_REG_WRITE(c, INTF_PANEL_FORMAT, panel_format);
-	if (ctx->cap->features & BIT(DPU_DATA_HCTL_EN)) {
+	if (intf->cap->features & BIT(DPU_DATA_HCTL_EN)) {
 		/*
 		 * DATA_HCTL_EN controls data timing which can be different from
 		 * video timing. It is recommended to enable it for all cases, except
@@ -518,10 +518,10 @@ static void dpu_hw_intf_disable_autorefresh(struct dpu_hw_intf *intf,
 
 }
 
-static void dpu_hw_intf_program_intf_cmd_cfg(struct dpu_hw_intf *ctx,
+static void dpu_hw_intf_program_intf_cmd_cfg(struct dpu_hw_intf *intf,
 					     struct dpu_hw_intf_cmd_mode_cfg *cmd_mode_cfg)
 {
-	u32 intf_cfg2 = DPU_REG_READ(&ctx->hw, INTF_CONFIG2);
+	u32 intf_cfg2 = DPU_REG_READ(&intf->hw, INTF_CONFIG2);
 
 	if (cmd_mode_cfg->data_compress)
 		intf_cfg2 |= INTF_CFG2_DCE_DATA_COMPRESS;
@@ -529,7 +529,7 @@ static void dpu_hw_intf_program_intf_cmd_cfg(struct dpu_hw_intf *ctx,
 	if (cmd_mode_cfg->wide_bus_en)
 		intf_cfg2 |= INTF_CFG2_DATABUS_WIDEN;
 
-	DPU_REG_WRITE(&ctx->hw, INTF_CONFIG2, intf_cfg2);
+	DPU_REG_WRITE(&intf->hw, INTF_CONFIG2, intf_cfg2);
 }
 
 struct dpu_hw_intf *dpu_hw_intf_init(struct drm_device *dev,
