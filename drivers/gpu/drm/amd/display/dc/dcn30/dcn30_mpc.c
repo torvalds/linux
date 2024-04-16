@@ -1183,7 +1183,7 @@ void mpc3_get_gamut_remap(struct mpc *mpc,
 			  struct mpc_grph_gamut_adjustment *adjust)
 {
 	struct dcn30_mpc *mpc30 = TO_DCN30_MPC(mpc);
-	uint16_t arr_reg_val[12];
+	uint16_t arr_reg_val[12] = {0};
 	int select;
 
 	read_gamut_remap(mpc30, mpcc_id, arr_reg_val, &select);
