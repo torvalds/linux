@@ -59,8 +59,10 @@ void rdma_restrack_clean(struct ib_device *dev)
  * rdma_restrack_count() - the current usage of specific object
  * @dev:  IB device
  * @type: actual type of object to operate
+ * @show_details: count driver specific objects
  */
-int rdma_restrack_count(struct ib_device *dev, enum rdma_restrack_type type)
+int rdma_restrack_count(struct ib_device *dev, enum rdma_restrack_type type,
+			bool show_details)
 {
 	struct rdma_restrack_root *rt = &dev->res[type];
 	struct rdma_restrack_entry *e;
@@ -68,8 +70,11 @@ int rdma_restrack_count(struct ib_device *dev, enum rdma_restrack_type type)
 	u32 cnt = 0;
 
 	xa_lock(&rt->xa);
-	xas_for_each(&xas, e, U32_MAX)
+	xas_for_each(&xas, e, U32_MAX) {
+		if (xa_get_mark(&rt->xa, e->id, RESTRACK_DD) && !show_details)
+			continue;
 		cnt++;
+	}
 	xa_unlock(&rt->xa);
 	return cnt;
 }
@@ -198,6 +203,9 @@ void rdma_restrack_add(struct rdma_restrack_entry *res)
 		ret = xa_insert(&rt->xa, res->id, res, GFP_KERNEL);
 		if (ret)
 			res->id = 0;
+
+		if (qp->qp_type >= IB_QPT_DRIVER)
+			xa_set_mark(&rt->xa, res->id, RESTRACK_DD);
 	} else if (res->type == RDMA_RESTRACK_COUNTER) {
 		/* Special case to ensure that cntn points to right counter */
 		struct rdma_counter *counter;
