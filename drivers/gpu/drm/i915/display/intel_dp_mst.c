@@ -1577,21 +1577,31 @@ intel_dp_mst_read_decompression_port_dsc_caps(struct intel_dp *intel_dp,
 static bool detect_dsc_hblank_expansion_quirk(const struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct drm_dp_aux *aux = connector->dp.dsc_decompression_aux;
 	struct drm_dp_desc desc;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 
-	if (!connector->dp.dsc_decompression_aux)
+	if (!aux)
 		return false;
 
-	if (drm_dp_read_desc(connector->dp.dsc_decompression_aux,
-			     &desc, true) < 0)
+	/*
+	 * A logical port's OUI (at least for affected sinks) is all 0, so
+	 * instead of that the parent port's OUI is used for identification.
+	 */
+	if (drm_dp_mst_port_is_logical(connector->port)) {
+		aux = drm_dp_mst_aux_for_parent(connector->port);
+		if (!aux)
+			aux = &connector->mst_port->aux;
+	}
+
+	if (drm_dp_read_dpcd_caps(aux, dpcd) < 0)
+		return false;
+
+	if (drm_dp_read_desc(aux, &desc, drm_dp_is_branch(dpcd)) < 0)
 		return false;
 
 	if (!drm_dp_has_quirk(&desc,
 			      DP_DPCD_QUIRK_HBLANK_EXPANSION_REQUIRES_DSC))
-		return false;
-
-	if (drm_dp_read_dpcd_caps(connector->dp.dsc_decompression_aux, dpcd) < 0)
 		return false;
 
 	if (!(dpcd[DP_RECEIVE_PORT_0_CAP_0] & DP_HBLANK_EXPANSION_CAPABLE))
