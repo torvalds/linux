@@ -1827,7 +1827,7 @@ static bool edid_block_is_zero(const void *edid)
  * This helper can be used during probing to determine if
  * edid had changed.
  */
-bool drm_edid_are_equal(const struct edid *edid1, const struct edid *edid2)
+static bool drm_edid_are_equal(const struct edid *edid1, const struct edid *edid2)
 {
 	int edid1_len, edid2_len;
 	bool edid1_present = edid1 != NULL;
@@ -1849,7 +1849,6 @@ bool drm_edid_are_equal(const struct edid *edid1, const struct edid *edid2)
 
 	return true;
 }
-EXPORT_SYMBOL(drm_edid_are_equal);
 
 enum edid_block_status {
 	EDID_BLOCK_OK = 0,
