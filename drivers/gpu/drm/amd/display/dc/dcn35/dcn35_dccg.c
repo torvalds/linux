@@ -41,6 +41,15 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
+static void dccg35_trigger_dio_fifo_resync(struct dccg *dccg)
+{
+	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
+	uint32_t dispclk_rdivider_value = 0;
+
+	REG_GET(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_RDIVIDER, &dispclk_rdivider_value);
+	REG_UPDATE(DENTIST_DISPCLK_CNTL, DENTIST_DISPCLK_WDIVIDER, dispclk_rdivider_value);
+}
+
 static void dcn35_set_dppclk_enable(struct dccg *dccg,
 				 uint32_t dpp_inst, uint32_t enable)
 {
@@ -1056,6 +1065,7 @@ static const struct dccg_funcs dccg35_funcs = {
 	.enable_dsc = dccg35_enable_dscclk,
 	.set_pixel_rate_div = dccg35_set_pixel_rate_div,
 	.get_pixel_rate_div = dccg35_get_pixel_rate_div,
+	.trigger_dio_fifo_resync = dccg35_trigger_dio_fifo_resync,
 	.set_valid_pixel_rate = dccg35_set_valid_pixel_rate,
 	.enable_symclk_se = dccg35_enable_symclk_se,
 	.disable_symclk_se = dccg35_disable_symclk_se,

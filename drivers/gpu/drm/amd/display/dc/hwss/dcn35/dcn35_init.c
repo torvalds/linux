@@ -31,6 +31,7 @@
 #include "dcn30/dcn30_hwseq.h"
 #include "dcn301/dcn301_hwseq.h"
 #include "dcn31/dcn31_hwseq.h"
+#include "dcn314/dcn314_hwseq.h"
 #include "dcn32/dcn32_hwseq.h"
 #include "dcn35/dcn35_hwseq.h"
 
@@ -158,6 +159,7 @@ static const struct hwseq_private_funcs dcn35_private_funcs = {
 	.setup_hpo_hw_control = dcn35_setup_hpo_hw_control,
 	.calculate_dccg_k1_k2_values = dcn32_calculate_dccg_k1_k2_values,
 	.set_pixels_per_cycle = dcn32_set_pixels_per_cycle,
+	.resync_fifo_dccg_dio = dcn314_resync_fifo_dccg_dio,
 	.is_dp_dig_pixel_rate_div_policy = dcn32_is_dp_dig_pixel_rate_div_policy,
 	.calculate_pix_rate_divider = dcn32_calculate_pix_rate_divider,
 	.dsc_pg_control = dcn35_dsc_pg_control,
