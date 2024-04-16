@@ -207,7 +207,7 @@ int parse_events__modifier_event(struct parse_events_state *parse_state, void *l
 				 struct list_head *list, struct parse_events_modifier mod);
 int parse_events__modifier_group(struct parse_events_state *parse_state, void *loc,
 				 struct list_head *list, struct parse_events_modifier mod);
-int parse_events_name(struct list_head *list, const char *name);
+int parse_events__set_default_name(struct list_head *list, char *name);
 int parse_events_add_tracepoint(struct list_head *list, int *idx,
 				const char *sys, const char *event,
 				struct parse_events_error *error,

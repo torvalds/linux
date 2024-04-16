@@ -247,10 +247,14 @@ event_name
 event_name:
 PE_EVENT_NAME event_def
 {
-	int err;
+	/*
+	 * When an event is parsed the text is rewound and the entire text of
+	 * the event is set to the str of PE_EVENT_NAME token matched here. If
+	 * no name was on an event via a term, set the name to the entire text
+	 * taking ownership of the allocation.
+	 */
+	int err = parse_events__set_default_name($2, $1);
 
-	err = parse_events_name($2, $1);
-	free($1);
 	if (err) {
 		free_list_evsel($2);
 		YYNOMEM;

@@ -96,6 +96,11 @@ static int drv_str(yyscan_t scanner, int token)
 	return token;
 }
 
+/*
+ * Use yyless to return all the characaters to the input. Update the column for
+ * location debugging. If __alloc is non-zero set yylval to the text for the
+ * returned token's value.
+ */
 #define REWIND(__alloc)				\
 do {								\
 	YYSTYPE *__yylval = parse_events_get_lval(yyscanner);	\

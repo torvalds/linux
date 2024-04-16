@@ -1836,18 +1836,21 @@ int parse_events__modifier_event(struct parse_events_state *parse_state, void *l
 	return parse_events__modifier_list(parse_state, loc, list, mod, /*group=*/false);
 }
 
-int parse_events_name(struct list_head *list, const char *name)
+int parse_events__set_default_name(struct list_head *list, char *name)
 {
 	struct evsel *evsel;
+	bool used_name = false;
 
 	__evlist__for_each_entry(list, evsel) {
 		if (!evsel->name) {
-			evsel->name = strdup(name);
+			evsel->name = used_name ? strdup(name) : name;
+			used_name = true;
 			if (!evsel->name)
 				return -ENOMEM;
 		}
 	}
-
+	if (!used_name)
+		free(name);
 	return 0;
 }
 
