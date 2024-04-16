@@ -3,9 +3,10 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <drm/drm_displayid.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_print.h>
+
+#include "drm_displayid_internal.h"
 
 static const struct displayid_header *
 displayid_get_header(const u8 *displayid, int length, int index)
