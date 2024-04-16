@@ -2758,7 +2758,7 @@ static int get_new_event_name(char *buf, size_t len, const char *base,
 	/* Try no suffix number */
 	ret = e_snprintf(buf, len, "%s%s", nbase, ret_event ? "__return" : "");
 	if (ret < 0) {
-		pr_debug("snprintf() failed: %d\n", ret);
+		pr_warning("snprintf() failed: %d; the event name nbase='%s' is too long\n", ret, nbase);
 		goto out;
 	}
 	if (!strlist__has_entry(namelist, buf))
