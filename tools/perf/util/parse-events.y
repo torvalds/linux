@@ -193,7 +193,10 @@ PE_NAME '{' events '}'
 {
 	struct list_head *list = $3;
 
-	/* Takes ownership of $1. */
+	/*
+	 * Set the first entry of list to be the leader. Set the group name on
+	 * the leader to $1 taking ownership.
+	 */
 	parse_events__set_leader($1, list);
 	$$ = list;
 }
@@ -202,6 +205,7 @@ PE_NAME '{' events '}'
 {
 	struct list_head *list = $2;
 
+	/* Set the first entry of list to be the leader clearing the group name. */
 	parse_events__set_leader(NULL, list);
 	$$ = list;
 }
