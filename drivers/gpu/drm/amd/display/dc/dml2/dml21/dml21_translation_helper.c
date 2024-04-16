@@ -943,7 +943,7 @@ bool dml21_map_dc_state_into_dml_display_cfg(const struct dc *in_dc, struct dc_s
 
 	memset(&dml_ctx->v21.dml_to_dc_pipe_mapping, 0, sizeof(struct dml2_dml_to_dc_pipe_mapping));
 
-	dml_dispcfg->gpuvm_enable = true;
+	dml_dispcfg->gpuvm_enable = dml_ctx->config.gpuvm_enable;
 	dml_dispcfg->gpuvm_max_page_table_levels = 4;
 	dml_dispcfg->hostvm_enable = false;
 	dml_dispcfg->minimize_det_reallocation = true;

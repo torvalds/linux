@@ -232,6 +232,7 @@ struct dml2_configuration_options {
 	bool map_dc_pipes_with_callbacks;
 
 	bool use_clock_dc_limits;
+	bool gpuvm_enable;
 };
 
 /*
