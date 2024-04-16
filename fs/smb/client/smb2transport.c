@@ -659,7 +659,7 @@ smb2_sign_rqst(struct smb_rqst *rqst, struct TCP_Server_Info *server)
 	}
 	spin_unlock(&server->srv_lock);
 	if (!is_binding && !server->session_estab) {
-		strncpy(shdr->Signature, "BSRSPYL", 8);
+		strscpy(shdr->Signature, "BSRSPYL");
 		return 0;
 	}
 

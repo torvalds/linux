@@ -961,6 +961,9 @@ static int gen8_init_rsvd(struct i915_address_space *vm)
 	struct i915_vma *vma;
 	int ret;
 
+	if (!intel_gt_needs_wa_16018031267(vm->gt))
+		return 0;
+
 	/* The memory will be used only by GPU. */
 	obj = i915_gem_object_create_lmem(i915, PAGE_SIZE,
 					  I915_BO_ALLOC_VOLATILE |

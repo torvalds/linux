@@ -74,5 +74,5 @@ quiet_cmd_compat_vdsold = VDSOLD  $@
                    rm $@.tmp
 
 # actual build commands
-quiet_cmd_compat_vdsoas = VDSOAS $@
+quiet_cmd_compat_vdsoas = VDSOAS  $@
       cmd_compat_vdsoas = $(COMPAT_CC) $(a_flags) $(COMPAT_CC_FLAGS) -c -o $@ $<
