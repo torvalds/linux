@@ -517,7 +517,7 @@ static inline bool is_rst_area_valid(const struct RESTART_HDR *rhdr)
 		seq_bits -= 1;
 	}
 
-	if (seq_bits != ra->seq_num_bits)
+	if (seq_bits != le32_to_cpu(ra->seq_num_bits))
 		return false;
 
 	/* The log page data offset and record header length must be quad-aligned. */
