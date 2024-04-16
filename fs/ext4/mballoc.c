@@ -2163,8 +2163,8 @@ static void ext4_mb_use_best_found(struct ext4_allocation_context *ac,
 	 */
 	ac->ac_bitmap_folio = e4b->bd_bitmap_folio;
 	folio_get(ac->ac_bitmap_folio);
-	ac->ac_buddy_page = &e4b->bd_buddy_folio->page;
-	get_page(ac->ac_buddy_page);
+	ac->ac_buddy_folio = e4b->bd_buddy_folio;
+	folio_get(ac->ac_buddy_folio);
 	/* store last allocated for subsequent stream allocation */
 	if (ac->ac_flags & EXT4_MB_STREAM_ALLOC) {
 		spin_lock(&sbi->s_md_lock);
@@ -6004,8 +6004,8 @@ static void ext4_mb_release_context(struct ext4_allocation_context *ac)
 	}
 	if (ac->ac_bitmap_folio)
 		folio_put(ac->ac_bitmap_folio);
-	if (ac->ac_buddy_page)
-		put_page(ac->ac_buddy_page);
+	if (ac->ac_buddy_folio)
+		folio_put(ac->ac_buddy_folio);
 	if (ac->ac_flags & EXT4_MB_HINT_GROUP_ALLOC)
 		mutex_unlock(&ac->ac_lg->lg_mutex);
 	ext4_mb_collect_stats(ac);
