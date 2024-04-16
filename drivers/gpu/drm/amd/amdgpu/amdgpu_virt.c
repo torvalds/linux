@@ -585,7 +585,7 @@ static int amdgpu_virt_write_vf2pf_data(struct amdgpu_device *adev)
 	}
 	vf2pf_info->checksum =
 		amd_sriov_msg_checksum(
-		vf2pf_info, vf2pf_info->header.size, 0, 0);
+		vf2pf_info, sizeof(*vf2pf_info), 0, 0);
 
 	return 0;
 }
