@@ -7899,13 +7899,12 @@ static void wait_subpage_spinlock(struct page *page)
 
 static bool __btrfs_release_folio(struct folio *folio, gfp_t gfp_flags)
 {
-	int ret = try_release_extent_mapping(&folio->page, gfp_flags);
-
-	if (ret == 1) {
+	if (try_release_extent_mapping(&folio->page, gfp_flags)) {
 		wait_subpage_spinlock(&folio->page);
 		clear_page_extent_mapped(&folio->page);
+		return true;
 	}
-	return ret;
+	return false;
 }
 
 static bool btrfs_release_folio(struct folio *folio, gfp_t gfp_flags)
