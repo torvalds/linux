@@ -740,16 +740,19 @@ static void bcm_sf2_sw_get_caps(struct dsa_switch *ds, int port,
 		MAC_10 | MAC_100 | MAC_1000;
 }
 
-static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
+static void bcm_sf2_sw_mac_config(struct phylink_config *config,
 				  unsigned int mode,
 				  const struct phylink_link_state *state)
 {
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	struct dsa_port *dp = dsa_phylink_to_port(config);
 	u32 id_mode_dis = 0, port_mode;
+	struct bcm_sf2_priv *priv;
 	u32 reg_rgmii_ctrl;
 	u32 reg;
 
-	if (port == core_readl(priv, CORE_IMP0_PRT_ID))
+	priv = bcm_sf2_to_priv(dp->ds);
+
+	if (dp->index == core_readl(priv, CORE_IMP0_PRT_ID))
 		return;
 
 	switch (state->interface) {
@@ -770,7 +773,7 @@ static void bcm_sf2_sw_mac_config(struct dsa_switch *ds, int port,
 		return;
 	}
 
-	reg_rgmii_ctrl = bcm_sf2_reg_rgmii_cntrl(priv, port);
+	reg_rgmii_ctrl = bcm_sf2_reg_rgmii_cntrl(priv, dp->index);
 
 	/* Clear id_mode_dis bit, and the existing port mode, let
 	 * RGMII_MODE_EN bet set by mac_link_{up,down}
@@ -809,13 +812,16 @@ static void bcm_sf2_sw_mac_link_set(struct dsa_switch *ds, int port,
 	reg_writel(priv, reg, reg_rgmii_ctrl);
 }
 
-static void bcm_sf2_sw_mac_link_down(struct dsa_switch *ds, int port,
+static void bcm_sf2_sw_mac_link_down(struct phylink_config *config,
 				     unsigned int mode,
 				     phy_interface_t interface)
 {
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct bcm_sf2_priv *priv;
+	int port = dp->index;
 	u32 reg, offset;
 
+	priv = bcm_sf2_to_priv(dp->ds);
 	if (priv->wol_ports_mask & BIT(port))
 		return;
 
@@ -824,23 +830,26 @@ static void bcm_sf2_sw_mac_link_down(struct dsa_switch *ds, int port,
 	reg &= ~LINK_STS;
 	core_writel(priv, reg, offset);
 
-	bcm_sf2_sw_mac_link_set(ds, port, interface, false);
+	bcm_sf2_sw_mac_link_set(dp->ds, port, interface, false);
 }
 
-static void bcm_sf2_sw_mac_link_up(struct dsa_switch *ds, int port,
+static void bcm_sf2_sw_mac_link_up(struct phylink_config *config,
+				   struct phy_device *phydev,
 				   unsigned int mode,
 				   phy_interface_t interface,
-				   struct phy_device *phydev,
 				   int speed, int duplex,
 				   bool tx_pause, bool rx_pause)
 {
-	struct bcm_sf2_priv *priv = bcm_sf2_to_priv(ds);
-	struct ethtool_keee *p = &priv->dev->ports[port].eee;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct bcm_sf2_priv *priv;
 	u32 reg_rgmii_ctrl = 0;
+	struct ethtool_keee *p;
+	int port = dp->index;
 	u32 reg, offset;
 
-	bcm_sf2_sw_mac_link_set(ds, port, interface, true);
+	bcm_sf2_sw_mac_link_set(dp->ds, port, interface, true);
 
+	priv = bcm_sf2_to_priv(dp->ds);
 	offset = bcm_sf2_port_override_offset(priv, port);
 
 	if (phy_interface_mode_is_rgmii(interface) ||
@@ -886,8 +895,10 @@ static void bcm_sf2_sw_mac_link_up(struct dsa_switch *ds, int port,
 
 	core_writel(priv, reg, offset);
 
-	if (mode == MLO_AN_PHY && phydev)
-		p->eee_enabled = b53_eee_init(ds, port, phydev);
+	if (mode == MLO_AN_PHY && phydev) {
+		p = &priv->dev->ports[port].eee;
+		p->eee_enabled = b53_eee_init(dp->ds, port, phydev);
+	}
 }
 
 static void bcm_sf2_sw_fixed_state(struct dsa_switch *ds, int port,
@@ -1196,6 +1207,12 @@ static int bcm_sf2_sw_get_sset_count(struct dsa_switch *ds, int port,
 	return cnt;
 }
 
+static const struct phylink_mac_ops bcm_sf2_phylink_mac_ops = {
+	.mac_config	= bcm_sf2_sw_mac_config,
+	.mac_link_down	= bcm_sf2_sw_mac_link_down,
+	.mac_link_up	= bcm_sf2_sw_mac_link_up,
+};
+
 static const struct dsa_switch_ops bcm_sf2_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= bcm_sf2_sw_setup,
@@ -1206,9 +1223,6 @@ static const struct dsa_switch_ops bcm_sf2_ops = {
 	.get_ethtool_phy_stats	= b53_get_ethtool_phy_stats,
 	.get_phy_flags		= bcm_sf2_sw_get_phy_flags,
 	.phylink_get_caps	= bcm_sf2_sw_get_caps,
-	.phylink_mac_config	= bcm_sf2_sw_mac_config,
-	.phylink_mac_link_down	= bcm_sf2_sw_mac_link_down,
-	.phylink_mac_link_up	= bcm_sf2_sw_mac_link_up,
 	.phylink_fixed_state	= bcm_sf2_sw_fixed_state,
 	.suspend		= bcm_sf2_sw_suspend,
 	.resume			= bcm_sf2_sw_resume,
@@ -1399,6 +1413,7 @@ static int bcm_sf2_sw_probe(struct platform_device *pdev)
 	priv->dev = dev;
 	ds = dev->ds;
 	ds->ops = &bcm_sf2_ops;
+	ds->phylink_mac_ops = &bcm_sf2_phylink_mac_ops;
 
 	/* Advertise the 8 egress queues */
 	ds->num_tx_queues = SF2_NUM_EGRESS_QUEUES;
