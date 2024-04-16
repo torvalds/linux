@@ -1177,30 +1177,6 @@ bool iwl_mvm_esr_allowed_on_vif(struct iwl_mvm *mvm,
 	return !(mvmvif->esr_disable_reason & ~IWL_MVM_ESR_BLOCKED_COEX);
 }
 
-/*
- * This function receives a bitmap of usable links and check if we can enter
- * eSR on those links.
- */
-static bool iwl_mvm_can_enter_esr(struct iwl_mvm *mvm,
-				  struct ieee80211_vif *vif,
-				  unsigned long desired_links)
-{
-	struct iwl_mvm_link_sel_data data[IEEE80211_MLD_MAX_NUM_LINKS];
-	u8 best_link, n_data;
-
-	if (!iwl_mvm_esr_allowed_on_vif(mvm, vif))
-		return false;
-
-	n_data = iwl_mvm_set_link_selection_data(vif, data, desired_links,
-						 &best_link);
-
-	if (n_data != 2)
-		return false;
-
-
-	return iwl_mvm_mld_valid_link_pair(vif, &data[0], &data[1]);
-}
-
 static bool iwl_mvm_mld_can_activate_links(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif,
 					   u16 desired_links)
@@ -1221,8 +1197,9 @@ static bool iwl_mvm_mld_can_activate_links(struct ieee80211_hw *hw,
 	}
 
 	/* If it is an eSR device, check that we can enter eSR */
-	if (iwl_mvm_is_esr_supported(mvm->fwrt.trans))
-		ret = iwl_mvm_can_enter_esr(mvm, vif, desired_links);
+	ret = iwl_mvm_is_esr_supported(mvm->fwrt.trans) &&
+	      iwl_mvm_esr_allowed_on_vif(mvm, vif);
+
 unlock:
 	mutex_unlock(&mvm->mutex);
 	return ret;
