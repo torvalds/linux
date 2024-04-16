@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
-/* *Copyright (C) 2022-2023 Linaro Ltd. */
+/* Copyright (C) 2022-2024 Linaro Ltd. */
 
 #ifndef _REG_H_
 #define _REG_H_
 
+#include <linux/array_size.h>
+#include <linux/bits.h>
 #include <linux/types.h>
 #include <linux/log2.h>
 #include <linux/bug.h>
