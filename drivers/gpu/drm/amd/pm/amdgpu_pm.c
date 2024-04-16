@@ -4261,6 +4261,13 @@ static int amdgpu_od_set_init(struct amdgpu_device *adev)
 		}
 	}
 
+	/*
+	 * If gpu_od is the only member in the list, that means gpu_od is an
+	 * empty directory, so remove it.
+	 */
+	if (list_is_singular(&adev->pm.od_kobj_list))
+		goto err_out;
+
 	return 0;
 
 err_out:
