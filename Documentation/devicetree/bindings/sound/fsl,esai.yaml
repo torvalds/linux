@@ -99,6 +99,9 @@ required:
 
 unevaluatedProperties: false
 
+allOf:
+  - $ref: dai-common.yaml#
+
 examples:
   - |
     esai@2024000 {
