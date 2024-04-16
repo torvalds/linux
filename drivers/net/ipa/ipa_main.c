@@ -4,32 +4,33 @@
  * Copyright (C) 2018-2024 Linaro Ltd.
  */
 
-#include <linux/types.h>
 #include <linux/bug.h>
-#include <linux/io.h>
 #include <linux/firmware.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/types.h>
+
 #include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/soc/qcom/mdt_loader.h>
 
 #include "ipa.h"
-#include "ipa_power.h"
+#include "ipa_cmd.h"
 #include "ipa_data.h"
 #include "ipa_endpoint.h"
-#include "ipa_resource.h"
-#include "ipa_cmd.h"
-#include "ipa_reg.h"
-#include "ipa_mem.h"
-#include "ipa_table.h"
-#include "ipa_smp2p.h"
-#include "ipa_modem.h"
-#include "ipa_uc.h"
 #include "ipa_interrupt.h"
+#include "ipa_mem.h"
+#include "ipa_modem.h"
+#include "ipa_power.h"
+#include "ipa_reg.h"
+#include "ipa_resource.h"
+#include "ipa_smp2p.h"
 #include "ipa_sysfs.h"
+#include "ipa_table.h"
+#include "ipa_uc.h"
 #include "ipa_version.h"
 
 /**

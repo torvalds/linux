@@ -4,16 +4,16 @@
  * Copyright (C) 2018-2024 Linaro Ltd.
  */
 
-#include <linux/types.h>
-#include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <linux/pm_runtime.h>
+#include <linux/types.h>
 
 #include "ipa.h"
+#include "ipa_interrupt.h"
+#include "ipa_power.h"
 #include "ipa_reg.h"
 #include "ipa_uc.h"
-#include "ipa_power.h"
-#include "ipa_interrupt.h"
 
 /**
  * DOC:  The IPA embedded microcontroller

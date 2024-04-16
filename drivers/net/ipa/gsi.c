@@ -4,23 +4,23 @@
  * Copyright (C) 2018-2024 Linaro Ltd.
  */
 
-#include <linux/types.h>
 #include <linux/bits.h>
-#include <linux/mutex.h>
-#include <linux/completion.h>
 #include <linux/bug.h>
+#include <linux/completion.h>
 #include <linux/interrupt.h>
-#include <linux/platform_device.h>
+#include <linux/mutex.h>
 #include <linux/netdevice.h>
+#include <linux/platform_device.h>
+#include <linux/types.h>
 
 #include "gsi.h"
-#include "reg.h"
-#include "gsi_reg.h"
 #include "gsi_private.h"
+#include "gsi_reg.h"
 #include "gsi_trans.h"
-#include "ipa_gsi.h"
 #include "ipa_data.h"
+#include "ipa_gsi.h"
 #include "ipa_version.h"
+#include "reg.h"
 
 /**
  * DOC: The IPA Generic Software Interface

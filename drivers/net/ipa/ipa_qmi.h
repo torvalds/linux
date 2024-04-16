@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/workqueue.h>
+
 #include <linux/soc/qcom/qmi.h>
 
 struct ipa;

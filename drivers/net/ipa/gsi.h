@@ -6,10 +6,10 @@
 #ifndef _GSI_H_
 #define _GSI_H_
 
-#include <linux/types.h>
-#include <linux/mutex.h>
 #include <linux/completion.h>
+#include <linux/mutex.h>
 #include <linux/netdevice.h>
+#include <linux/types.h>
 
 #include "ipa_version.h"
 

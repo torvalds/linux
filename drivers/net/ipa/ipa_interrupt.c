@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2024 Linaro Ltd.
  */
 
 /* DOC: IPA Interrupts
@@ -19,18 +19,18 @@
  * time only these three are supported.
  */
 
-#include <linux/platform_device.h>
-#include <linux/types.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_wakeirq.h>
+#include <linux/types.h>
 
 #include "ipa.h"
-#include "ipa_reg.h"
 #include "ipa_endpoint.h"
-#include "ipa_power.h"
-#include "ipa_uc.h"
 #include "ipa_interrupt.h"
+#include "ipa_power.h"
+#include "ipa_reg.h"
+#include "ipa_uc.h"
 
 /**
  * struct ipa_interrupt - IPA interrupt information

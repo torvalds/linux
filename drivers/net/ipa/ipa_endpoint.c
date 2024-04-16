@@ -4,26 +4,26 @@
  * Copyright (C) 2019-2024 Linaro Ltd.
  */
 
-#include <linux/bits.h>
-#include <linux/types.h>
-#include <linux/device.h>
 #include <linux/bitfield.h>
-#include <linux/if_rmnet.h>
+#include <linux/bits.h>
+#include <linux/device.h>
 #include <linux/dma-direction.h>
+#include <linux/if_rmnet.h>
+#include <linux/types.h>
 
 #include "gsi.h"
 #include "gsi_trans.h"
 #include "ipa.h"
+#include "ipa_cmd.h"
 #include "ipa_data.h"
 #include "ipa_endpoint.h"
-#include "ipa_cmd.h"
+#include "ipa_gsi.h"
+#include "ipa_interrupt.h"
 #include "ipa_mem.h"
 #include "ipa_modem.h"
+#include "ipa_power.h"
 #include "ipa_reg.h"
 #include "ipa_table.h"
-#include "ipa_gsi.h"
-#include "ipa_power.h"
-#include "ipa_interrupt.h"
 #include "ipa_version.h"
 
 /* Hardware is told about receive buffers once a "batch" has been queued */

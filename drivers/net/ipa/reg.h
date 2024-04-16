@@ -7,9 +7,9 @@
 
 #include <linux/array_size.h>
 #include <linux/bits.h>
-#include <linux/types.h>
-#include <linux/log2.h>
 #include <linux/bug.h>
+#include <linux/log2.h>
+#include <linux/types.h>
 
 /**
  * struct reg - A register descriptor

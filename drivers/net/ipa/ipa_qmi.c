@@ -4,9 +4,9 @@
  * Copyright (C) 2018-2024 Linaro Ltd.
  */
 
-#include <linux/types.h>
-#include <linux/string.h>
 #include <linux/qrtr.h>
+#include <linux/string.h>
+#include <linux/types.h>
 
 #include "ipa.h"
 #include "ipa_mem.h"

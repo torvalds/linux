@@ -4,16 +4,17 @@
  * Copyright (C) 2019-2024 Linaro Ltd.
  */
 
-#include <linux/types.h>
-#include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/notifier.h>
 #include <linux/panic_notifier.h>
+#include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/types.h>
+
 #include <linux/soc/qcom/smem_state.h>
 
-#include "ipa_smp2p.h"
 #include "ipa.h"
+#include "ipa_smp2p.h"
 #include "ipa_uc.h"
 
 /**

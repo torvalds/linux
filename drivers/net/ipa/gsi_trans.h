@@ -6,16 +6,16 @@
 #ifndef _GSI_TRANS_H_
 #define _GSI_TRANS_H_
 
-#include <linux/types.h>
-#include <linux/refcount.h>
 #include <linux/completion.h>
 #include <linux/dma-direction.h>
+#include <linux/refcount.h>
+#include <linux/types.h>
 
 #include "ipa_cmd.h"
 
+struct device;
 struct page;
 struct scatterlist;
-struct device;
 struct sk_buff;
 
 struct gsi;

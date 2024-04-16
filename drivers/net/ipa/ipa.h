@@ -6,20 +6,20 @@
 #ifndef _IPA_H_
 #define _IPA_H_
 
-#include <linux/types.h>
 #include <linux/notifier.h>
+#include <linux/types.h>
 
-#include "ipa_version.h"
 #include "gsi.h"
+#include "ipa_endpoint.h"
 #include "ipa_mem.h"
 #include "ipa_qmi.h"
-#include "ipa_endpoint.h"
+#include "ipa_version.h"
 
 struct net_device;
 
+struct ipa_interrupt;
 struct ipa_power;
 struct ipa_smp2p;
-struct ipa_interrupt;
 
 /**
  * struct ipa - IPA information

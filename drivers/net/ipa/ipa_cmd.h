@@ -8,10 +8,10 @@
 
 #include <linux/types.h>
 
+struct gsi_channel;
+struct gsi_trans;
 struct ipa;
 struct ipa_mem;
-struct gsi_trans;
-struct gsi_channel;
 
 /**
  * enum ipa_cmd_opcode:	IPA immediate commands
