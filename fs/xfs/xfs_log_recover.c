@@ -2656,7 +2656,7 @@ xlog_recover_clear_agi_bucket(
 	if (error)
 		goto out_error;
 
-	error = xfs_read_agi(pag, tp, &agibp);
+	error = xfs_read_agi(pag, tp, 0, &agibp);
 	if (error)
 		goto out_abort;
 
@@ -2772,7 +2772,7 @@ xlog_recover_iunlink_ag(
 	int			bucket;
 	int			error;
 
-	error = xfs_read_agi(pag, NULL, &agibp);
+	error = xfs_read_agi(pag, NULL, 0, &agibp);
 	if (error) {
 		/*
 		 * AGI is b0rked. Don't process it.
@@ -3495,21 +3495,6 @@ xlog_recover_finish(
 	 * would have problems pushing the intents out of the way.
 	 */
 	xfs_log_force(log->l_mp, XFS_LOG_SYNC);
-
-	/*
-	 * Now that we've recovered the log and all the intents, we can clear
-	 * the log incompat feature bits in the superblock because there's no
-	 * longer anything to protect.  We rely on the AIL push to write out the
-	 * updated superblock after everything else.
-	 */
-	if (xfs_clear_incompat_log_features(log->l_mp)) {
-		error = xfs_sync_sb(log->l_mp, false);
-		if (error < 0) {
-			xfs_alert(log->l_mp,
-	"Failed to clear log incompat features on recovery");
-			goto out_error;
-		}
-	}
 
 	xlog_recover_process_iunlinks(log);
 

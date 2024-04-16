@@ -1095,6 +1095,11 @@ xfs_unmountfs(
 				"Freespace may not be correct on next mount.");
 	xfs_unmount_check(mp);
 
+	/*
+	 * Indicate that it's ok to clear log incompat bits before cleaning
+	 * the log and writing the unmount record.
+	 */
+	xfs_set_done_with_log_incompat(mp);
 	xfs_log_unmount(mp);
 	xfs_da_unmount(mp);
 	xfs_uuid_unmount(mp);
@@ -1364,7 +1369,8 @@ xfs_clear_incompat_log_features(
 	if (!xfs_has_crc(mp) ||
 	    !xfs_sb_has_incompat_log_feature(&mp->m_sb,
 				XFS_SB_FEAT_INCOMPAT_LOG_ALL) ||
-	    xfs_is_shutdown(mp))
+	    xfs_is_shutdown(mp) ||
+	    !xfs_is_done_with_log_incompat(mp))
 		return false;
 
 	/*

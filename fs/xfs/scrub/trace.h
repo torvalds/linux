@@ -1300,7 +1300,7 @@ TRACE_EVENT(xchk_iscan_iget_batch,
 		  __entry->unavail)
 );
 
-TRACE_EVENT(xchk_iscan_iget_retry_wait,
+DECLARE_EVENT_CLASS(xchk_iscan_retry_wait_class,
 	TP_PROTO(struct xchk_iscan *iscan),
 	TP_ARGS(iscan),
 	TP_STRUCT__entry(
@@ -1326,7 +1326,13 @@ TRACE_EVENT(xchk_iscan_iget_retry_wait,
 		  __entry->remaining,
 		  __entry->iget_timeout,
 		  __entry->retry_delay)
-);
+)
+#define DEFINE_ISCAN_RETRY_WAIT_EVENT(name) \
+DEFINE_EVENT(xchk_iscan_retry_wait_class, name, \
+	TP_PROTO(struct xchk_iscan *iscan), \
+	TP_ARGS(iscan))
+DEFINE_ISCAN_RETRY_WAIT_EVENT(xchk_iscan_iget_retry_wait);
+DEFINE_ISCAN_RETRY_WAIT_EVENT(xchk_iscan_agi_retry_wait);
 
 TRACE_EVENT(xchk_nlinks_collect_dirent,
 	TP_PROTO(struct xfs_mount *mp, struct xfs_inode *dp,

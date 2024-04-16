@@ -22,10 +22,7 @@
 
 /*
  * Get permission to use log-assisted atomic exchange of file extents.
- *
- * Callers must not be running any transactions or hold any inode locks, and
- * they must release the permission by calling xlog_drop_incompat_feat
- * when they're done.
+ * Callers must not be running any transactions or hold any ILOCKs.
  */
 static inline int
 xfs_attr_grab_log_assist(
@@ -33,16 +30,7 @@ xfs_attr_grab_log_assist(
 {
 	int			error = 0;
 
-	/*
-	 * Protect ourselves from an idle log clearing the logged xattrs log
-	 * incompat feature bit.
-	 */
-	xlog_use_incompat_feat(mp->m_log);
-
-	/*
-	 * If log-assisted xattrs are already enabled, the caller can use the
-	 * log assisted swap functions with the log-incompat reference we got.
-	 */
+	/* xattr update log intent items are already enabled */
 	if (xfs_sb_version_haslogxattrs(&mp->m_sb))
 		return 0;
 
@@ -52,31 +40,19 @@ xfs_attr_grab_log_assist(
 	 * a V5 filesystem for the superblock field, but we'll require rmap
 	 * or reflink to avoid having to deal with really old kernels.
 	 */
-	if (!xfs_has_reflink(mp) && !xfs_has_rmapbt(mp)) {
-		error = -EOPNOTSUPP;
-		goto drop_incompat;
-	}
+	if (!xfs_has_reflink(mp) && !xfs_has_rmapbt(mp))
+		return -EOPNOTSUPP;
 
 	/* Enable log-assisted xattrs. */
 	error = xfs_add_incompat_log_feature(mp,
 			XFS_SB_FEAT_INCOMPAT_LOG_XATTRS);
 	if (error)
-		goto drop_incompat;
+		return error;
 
 	xfs_warn_mount(mp, XFS_OPSTATE_WARNED_LARP,
  "EXPERIMENTAL logged extended attributes feature in use. Use at your own risk!");
 
 	return 0;
-drop_incompat:
-	xlog_drop_incompat_feat(mp->m_log);
-	return error;
-}
-
-static inline void
-xfs_attr_rele_log_assist(
-	struct xfs_mount	*mp)
-{
-	xlog_drop_incompat_feat(mp->m_log);
 }
 
 static inline bool
@@ -100,7 +76,6 @@ xfs_attr_change(
 	struct xfs_da_args	*args)
 {
 	struct xfs_mount	*mp = args->dp->i_mount;
-	bool			use_logging = false;
 	int			error;
 
 	ASSERT(!(args->op_flags & XFS_DA_OP_LOGGED));
@@ -111,14 +86,9 @@ xfs_attr_change(
 			return error;
 
 		args->op_flags |= XFS_DA_OP_LOGGED;
-		use_logging = true;
 	}
 
-	error = xfs_attr_set(args);
-
-	if (use_logging)
-		xfs_attr_rele_log_assist(mp);
-	return error;
+	return xfs_attr_set(args);
 }
 
 
