@@ -1624,7 +1624,7 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 	};
 	unsigned int seq;
 
-	trace_f2fs_writepage(page, NODE);
+	trace_f2fs_writepage(page_folio(page), NODE);
 
 	if (unlikely(f2fs_cp_error(sbi))) {
 		/* keep node pages in remount-ro mode */
@@ -2171,7 +2171,7 @@ skip_write:
 static bool f2fs_dirty_node_folio(struct address_space *mapping,
 		struct folio *folio)
 {
-	trace_f2fs_set_page_dirty(&folio->page, NODE);
+	trace_f2fs_set_page_dirty(folio, NODE);
 
 	if (!folio_test_uptodate(folio))
 		folio_mark_uptodate(folio);

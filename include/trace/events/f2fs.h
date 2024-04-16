@@ -1304,11 +1304,11 @@ TRACE_EVENT(f2fs_write_end,
 		__entry->copied)
 );
 
-DECLARE_EVENT_CLASS(f2fs__page,
+DECLARE_EVENT_CLASS(f2fs__folio,
 
-	TP_PROTO(struct page *page, int type),
+	TP_PROTO(struct folio *folio, int type),
 
-	TP_ARGS(page, type),
+	TP_ARGS(folio, type),
 
 	TP_STRUCT__entry(
 		__field(dev_t,	dev)
@@ -1321,14 +1321,14 @@ DECLARE_EVENT_CLASS(f2fs__page,
 	),
 
 	TP_fast_assign(
-		__entry->dev	= page_file_mapping(page)->host->i_sb->s_dev;
-		__entry->ino	= page_file_mapping(page)->host->i_ino;
+		__entry->dev	= folio_file_mapping(folio)->host->i_sb->s_dev;
+		__entry->ino	= folio_file_mapping(folio)->host->i_ino;
 		__entry->type	= type;
 		__entry->dir	=
-			S_ISDIR(page_file_mapping(page)->host->i_mode);
-		__entry->index	= page->index;
-		__entry->dirty	= PageDirty(page);
-		__entry->uptodate = PageUptodate(page);
+			S_ISDIR(folio_file_mapping(folio)->host->i_mode);
+		__entry->index	= folio_index(folio);
+		__entry->dirty	= folio_test_dirty(folio);
+		__entry->uptodate = folio_test_uptodate(folio);
 	),
 
 	TP_printk("dev = (%d,%d), ino = %lu, %s, %s, index = %lu, "
@@ -1341,32 +1341,32 @@ DECLARE_EVENT_CLASS(f2fs__page,
 		__entry->uptodate)
 );
 
-DEFINE_EVENT(f2fs__page, f2fs_writepage,
+DEFINE_EVENT(f2fs__folio, f2fs_writepage,
 
-	TP_PROTO(struct page *page, int type),
+	TP_PROTO(struct folio *folio, int type),
 
-	TP_ARGS(page, type)
+	TP_ARGS(folio, type)
 );
 
-DEFINE_EVENT(f2fs__page, f2fs_do_write_data_page,
+DEFINE_EVENT(f2fs__folio, f2fs_do_write_data_page,
 
-	TP_PROTO(struct page *page, int type),
+	TP_PROTO(struct folio *folio, int type),
 
-	TP_ARGS(page, type)
+	TP_ARGS(folio, type)
 );
 
-DEFINE_EVENT(f2fs__page, f2fs_readpage,
+DEFINE_EVENT(f2fs__folio, f2fs_readpage,
 
-	TP_PROTO(struct page *page, int type),
+	TP_PROTO(struct folio *folio, int type),
 
-	TP_ARGS(page, type)
+	TP_ARGS(folio, type)
 );
 
-DEFINE_EVENT(f2fs__page, f2fs_set_page_dirty,
+DEFINE_EVENT(f2fs__folio, f2fs_set_page_dirty,
 
-	TP_PROTO(struct page *page, int type),
+	TP_PROTO(struct folio *folio, int type),
 
-	TP_ARGS(page, type)
+	TP_ARGS(folio, type)
 );
 
 TRACE_EVENT(f2fs_replace_atomic_write_block,

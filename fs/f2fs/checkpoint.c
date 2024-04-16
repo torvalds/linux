@@ -345,7 +345,7 @@ static int __f2fs_write_meta_page(struct page *page,
 {
 	struct f2fs_sb_info *sbi = F2FS_P_SB(page);
 
-	trace_f2fs_writepage(page, META);
+	trace_f2fs_writepage(page_folio(page), META);
 
 	if (unlikely(f2fs_cp_error(sbi))) {
 		if (is_sbi_flag_set(sbi, SBI_IS_CLOSE)) {
@@ -492,7 +492,7 @@ stop:
 static bool f2fs_dirty_meta_folio(struct address_space *mapping,
 		struct folio *folio)
 {
-	trace_f2fs_set_page_dirty(&folio->page, META);
+	trace_f2fs_set_page_dirty(folio, META);
 
 	if (!folio_test_uptodate(folio))
 		folio_mark_uptodate(folio);

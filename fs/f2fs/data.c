@@ -2461,7 +2461,7 @@ static int f2fs_read_data_folio(struct file *file, struct folio *folio)
 	struct inode *inode = folio_file_mapping(folio)->host;
 	int ret = -EAGAIN;
 
-	trace_f2fs_readpage(&folio->page, DATA);
+	trace_f2fs_readpage(folio, DATA);
 
 	if (!f2fs_is_compress_backend_ready(inode)) {
 		folio_unlock(folio);
@@ -2710,7 +2710,7 @@ got_it:
 		} else {
 			set_inode_flag(inode, FI_UPDATE_WRITE);
 		}
-		trace_f2fs_do_write_data_page(fio->page, IPU);
+		trace_f2fs_do_write_data_page(page_folio(page), IPU);
 		return err;
 	}
 
@@ -2739,7 +2739,7 @@ got_it:
 
 	/* LFS mode write path */
 	f2fs_outplace_write_data(&dn, fio);
-	trace_f2fs_do_write_data_page(page, OPU);
+	trace_f2fs_do_write_data_page(page_folio(page), OPU);
 	set_inode_flag(inode, FI_APPEND_WRITE);
 out_writepage:
 	f2fs_put_dnode(&dn);
@@ -2786,7 +2786,7 @@ int f2fs_write_single_data_page(struct page *page, int *submitted,
 		.last_block = last_block,
 	};
 
-	trace_f2fs_writepage(page, DATA);
+	trace_f2fs_writepage(page_folio(page), DATA);
 
 	/* we should bypass data pages to proceed the kworker jobs */
 	if (unlikely(f2fs_cp_error(sbi))) {
@@ -3760,7 +3760,7 @@ static bool f2fs_dirty_data_folio(struct address_space *mapping,
 {
 	struct inode *inode = mapping->host;
 
-	trace_f2fs_set_page_dirty(&folio->page, DATA);
+	trace_f2fs_set_page_dirty(folio, DATA);
 
 	if (!folio_test_uptodate(folio))
 		folio_mark_uptodate(folio);
