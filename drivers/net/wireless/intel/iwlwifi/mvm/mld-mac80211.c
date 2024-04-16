@@ -1294,13 +1294,13 @@ static bool iwl_mvm_can_enter_esr(struct iwl_mvm *mvm,
 				  unsigned long desired_links)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int primary_link = iwl_mvm_mld_get_primary_link(mvm, vif,
-							desired_links);
+	u16 usable_links = ieee80211_vif_usable_links(vif);
 	const struct wiphy_iftype_ext_capab *ext_capa;
 	bool ret = true;
 	int link_id;
 
-	if (primary_link < 0)
+	if (!ieee80211_vif_is_mld(vif) || !vif->cfg.assoc ||
+	    hweight16(usable_links) <= 1)
 		return false;
 
 	if (!(vif->cfg.eml_cap & IEEE80211_EML_CAP_EMLSR_SUPP))
@@ -1323,12 +1323,7 @@ static bool iwl_mvm_can_enter_esr(struct iwl_mvm *mvm,
 		if (link_conf->chanreq.oper.chan->band != NL80211_BAND_2GHZ)
 			continue;
 
-		ret = iwl_mvm_bt_coex_calculate_esr_mode(mvm, vif, link_id,
-							 primary_link);
-		// Mark eSR as disabled for the next time
-		if (!ret)
-			mvmvif->esr_disable_reason |= IWL_MVM_ESR_DISABLE_COEX;
-		break;
+		return !(mvmvif->esr_disable_reason & IWL_MVM_ESR_DISABLE_COEX);
 	}
 
 	return ret;

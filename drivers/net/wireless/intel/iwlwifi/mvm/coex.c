@@ -281,7 +281,7 @@ static void iwl_mvm_bt_coex_enable_esr(struct iwl_mvm *mvm,
  * This function receives the LB link id and checks if eSR should be
  * enabled or disabled (due to BT coex)
  */
-bool
+static bool
 iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif,
 				   int link_id, int primary_link)
@@ -338,9 +338,9 @@ iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
 	return wifi_loss_rate <= IWL_MVM_BT_COEX_WIFI_LOSS_THRESH;
 }
 
-void iwl_mvm_bt_coex_update_vif_esr(struct iwl_mvm *mvm,
-				    struct ieee80211_vif *vif,
-				    int link_id)
+void iwl_mvm_bt_coex_update_link_esr(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     int link_id)
 {
 	unsigned long usable_links = ieee80211_vif_usable_links(vif);
 	int primary_link = iwl_mvm_mld_get_primary_link(mvm, vif,
@@ -402,7 +402,7 @@ static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
 		return;
 	}
 
-	iwl_mvm_bt_coex_update_vif_esr(mvm, vif, link_id);
+	iwl_mvm_bt_coex_update_link_esr(mvm, vif, link_id);
 
 	if (fw_has_capa(&mvm->fw->ucode_capa, IWL_UCODE_TLV_CAPA_COEX_SCHEMA_2))
 		min_ag_for_static_smps = BT_VERY_HIGH_TRAFFIC;

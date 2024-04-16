@@ -889,8 +889,8 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 
 		if (link_info->phy_ctxt &&
 		    link_info->phy_ctxt->channel->band == NL80211_BAND_2GHZ)
-			iwl_mvm_bt_coex_update_vif_esr(mvm, bss_conf->vif,
-						       link_id);
+			iwl_mvm_bt_coex_update_link_esr(mvm, bss_conf->vif,
+							link_id);
 
 		/* make sure that beacon statistics don't go backwards with TCM
 		 * request to clear statistics

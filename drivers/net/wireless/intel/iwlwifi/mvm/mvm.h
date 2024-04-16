@@ -2141,12 +2141,9 @@ bool iwl_mvm_bt_coex_is_tpc_allowed(struct iwl_mvm *mvm,
 u8 iwl_mvm_bt_coex_get_single_ant_msk(struct iwl_mvm *mvm, u8 enabled_ants);
 u8 iwl_mvm_bt_coex_tx_prio(struct iwl_mvm *mvm, struct ieee80211_hdr *hdr,
 			   struct ieee80211_tx_info *info, u8 ac);
-bool iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
-					struct ieee80211_vif *vif,
-					int link_id, int primary_link);
-void iwl_mvm_bt_coex_update_vif_esr(struct iwl_mvm *mvm,
-				    struct ieee80211_vif *vif,
-				    int link_id);
+void iwl_mvm_bt_coex_update_link_esr(struct iwl_mvm *mvm,
+				     struct ieee80211_vif *vif,
+				     int link_id);
 
 /* beacon filtering */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
