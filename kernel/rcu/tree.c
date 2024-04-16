@@ -308,12 +308,20 @@ static bool rcu_watching_snap_in_eqs(int snap)
 	return !(snap & CT_RCU_WATCHING);
 }
 
-/*
- * Return true if the CPU corresponding to the specified rcu_data
- * structure has spent some time in an extended quiescent state since
- * rcu_dynticks_snap() returned the specified snapshot.
+/**
+ * rcu_watching_snap_stopped_since() - Has RCU stopped watching a given CPU
+ * since the specified @snap?
+ *
+ * @rdp: The rcu_data corresponding to the CPU for which to check EQS.
+ * @snap: rcu_watching snapshot taken when the CPU wasn't in an EQS.
+ *
+ * Returns true if the CPU corresponding to @rdp has spent some time in an
+ * extended quiescent state since @snap. Note that this doesn't check if it
+ * /still/ is in an EQS, just that it went through one since @snap.
+ *
+ * This is meant to be used in a loop waiting for a CPU to go through an EQS.
  */
-static bool rcu_dynticks_in_eqs_since(struct rcu_data *rdp, int snap)
+static bool rcu_watching_snap_stopped_since(struct rcu_data *rdp, int snap)
 {
 	/*
 	 * The first failing snapshot is already ordered against the accesses
@@ -323,6 +331,9 @@ static bool rcu_dynticks_in_eqs_since(struct rcu_data *rdp, int snap)
 	 * performed by the remote CPU prior to entering idle and therefore can
 	 * rely solely on acquire semantics.
 	 */
+	if (WARN_ON_ONCE(rcu_watching_snap_in_eqs(snap)))
+		return true;
+
 	return snap != ct_rcu_watching_cpu_acquire(rdp->cpu);
 }
 
@@ -815,7 +826,7 @@ static int rcu_implicit_dynticks_qs(struct rcu_data *rdp)
 	 * read-side critical section that started before the beginning
 	 * of the current RCU grace period.
 	 */
-	if (rcu_dynticks_in_eqs_since(rdp, rdp->dynticks_snap)) {
+	if (rcu_watching_snap_stopped_since(rdp, rdp->dynticks_snap)) {
 		trace_rcu_fqs(rcu_state.name, rdp->gp_seq, rdp->cpu, TPS("dti"));
 		rcu_gpnum_ovf(rnp, rdp);
 		return 1;

@@ -150,7 +150,7 @@ This case is handled by calls to the strongly ordered
 is invoked within ``rcu_dynticks_eqs_enter()`` at idle-entry
 time and within ``rcu_dynticks_eqs_exit()`` at idle-exit time.
 The grace-period kthread invokes first ``ct_rcu_watching_cpu_acquire()``
-(preceded by a full memory barrier) and ``rcu_dynticks_in_eqs_since()``
+(preceded by a full memory barrier) and ``rcu_watching_snap_stopped_since()``
 (both of which rely on acquire semantics) to detect idle CPUs.
 
 +-----------------------------------------------------------------------+
