@@ -132,7 +132,7 @@ void sdio_irq_work(struct work_struct *work)
 void sdio_signal_irq(struct mmc_host *host)
 {
 	host->sdio_irq_pending = true;
-	schedule_work(&host->sdio_irq_work);
+	queue_work(system_highpri_wq, &host->sdio_irq_work);
 }
 EXPORT_SYMBOL_GPL(sdio_signal_irq);
 
