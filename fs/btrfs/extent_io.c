@@ -2402,8 +2402,7 @@ int try_release_extent_mapping(struct page *page, gfp_t mask)
 	struct extent_io_tree *io_tree = &inode->io_tree;
 	struct extent_map_tree *extent_tree = &inode->extent_tree;
 
-	if (gfpflags_allow_blocking(mask) &&
-	    page->mapping->host->i_size > SZ_16M) {
+	if (gfpflags_allow_blocking(mask)) {
 		u64 len;
 		while (start <= end) {
 			const u64 cur_gen = btrfs_get_fs_generation(inode->root->fs_info);
