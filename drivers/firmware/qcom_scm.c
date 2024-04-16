@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2010,2015,2019,2021 The Linux Foundation. All rights reserved.
  * Copyright (C) 2015 Linaro Ltd.
- * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #define pr_fmt(fmt)     "qcom-scm: %s: " fmt, __func__
 
@@ -2438,6 +2438,51 @@ int qcom_scm_camera_protect_phy_lanes(bool protect, u64 regmask)
 	return qcom_scm_call(__scm->dev, &desc, NULL);
 }
 EXPORT_SYMBOL(qcom_scm_camera_protect_phy_lanes);
+
+int qcom_scm_camera_update_camnoc_qos(uint32_t use_case_id,
+	uint32_t cam_qos_cnt, struct qcom_scm_camera_qos *cam_qos)
+{
+	int ret;
+	dma_addr_t payload_phys;
+	u32 *payload_buf = NULL;
+	u32 payload_size = 0;
+
+	struct qcom_scm_desc desc = {
+		.svc = QCOM_SCM_SVC_CAMERA,
+		.cmd = QCOM_SCM_CAMERA_UPDATE_CAMNOC_QOS,
+		.owner = ARM_SMCCC_OWNER_SIP,
+		.args[0] = use_case_id,
+		.args[2] = payload_size,
+		.arginfo = QCOM_SCM_ARGS(3, QCOM_SCM_VAL, QCOM_SCM_RW, QCOM_SCM_VAL),
+	};
+
+	if ((cam_qos_cnt > QCOM_SCM_CAMERA_MAX_QOS_CNT) || (cam_qos_cnt && !cam_qos)) {
+		pr_err("Invalid input SmartQoS count: %d\n", cam_qos_cnt);
+		return -EINVAL;
+	}
+
+	payload_size = cam_qos_cnt * sizeof(struct qcom_scm_camera_qos);
+
+	/* fill all required qos settings */
+	if (use_case_id && payload_size && cam_qos) {
+		payload_buf = dma_alloc_coherent(__scm->dev,
+						 payload_size, &payload_phys, GFP_KERNEL);
+		if (!payload_buf)
+			return -ENOMEM;
+
+		memcpy(payload_buf, cam_qos, payload_size);
+		desc.args[1] = payload_phys;
+		desc.args[2] = payload_size;
+	}
+
+	ret = qcom_scm_call(__scm->dev, &desc, NULL);
+
+	if (payload_buf)
+		dma_free_coherent(__scm->dev, payload_size, payload_buf, payload_phys);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(qcom_scm_camera_update_camnoc_qos);
 
 int qcom_scm_tsens_reinit(int *tsens_ret)
 {
