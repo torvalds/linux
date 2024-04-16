@@ -333,6 +333,13 @@ xchk_dir_lookup(
 	if (xfs_is_shutdown(dp->i_mount))
 		return -EIO;
 
+	/*
+	 * A temporary directory's block headers are written with the owner
+	 * set to sc->ip, so we must switch the owner here for the lookup.
+	 */
+	if (dp == sc->tempip)
+		args.owner = sc->ip->i_ino;
+
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	xfs_assert_ilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);
 

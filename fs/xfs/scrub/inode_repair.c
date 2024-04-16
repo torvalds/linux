@@ -46,6 +46,7 @@
 #include "scrub/repair.h"
 #include "scrub/iscan.h"
 #include "scrub/readdir.h"
+#include "scrub/tempfile.h"
 
 /*
  * Inode Record Repair
@@ -339,6 +340,10 @@ xrep_dinode_findmode_walk_directory(
 	struct xfs_scrub	*sc = ri->sc;
 	unsigned int		lock_mode;
 	int			error = 0;
+
+	/* Ignore temporary repair directories. */
+	if (xrep_is_tempfile(dp))
+		return 0;
 
 	/*
 	 * Scan the directory to see if there it contains an entry pointing to

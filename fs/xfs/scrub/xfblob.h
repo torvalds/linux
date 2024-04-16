@@ -23,4 +23,28 @@ int xfblob_free(struct xfblob *blob, xfblob_cookie cookie);
 unsigned long long xfblob_bytes(struct xfblob *blob);
 void xfblob_truncate(struct xfblob *blob);
 
+static inline int
+xfblob_storename(
+	struct xfblob		*blob,
+	xfblob_cookie		*cookie,
+	const struct xfs_name	*xname)
+{
+	return xfblob_store(blob, cookie, xname->name, xname->len);
+}
+
+static inline int
+xfblob_loadname(
+	struct xfblob		*blob,
+	xfblob_cookie		cookie,
+	struct xfs_name		*xname,
+	uint32_t		size)
+{
+	int ret = xfblob_load(blob, cookie, (void *)xname->name, size);
+	if (ret)
+		return ret;
+
+	xname->len = size;
+	return 0;
+}
+
 #endif /* __XFS_SCRUB_XFBLOB_H__ */
