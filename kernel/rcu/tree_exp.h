@@ -376,7 +376,7 @@ static void __sync_rcu_exp_select_node_cpus(struct rcu_exp_work *rewp)
 			 * post grace period updater's accesses is enforced by the
 			 * below acquire semantic.
 			 */
-			snap = ct_dynticks_cpu_acquire(cpu);
+			snap = ct_rcu_watching_cpu_acquire(cpu);
 			if (rcu_dynticks_in_eqs(snap))
 				mask_ofl_test |= mask;
 			else

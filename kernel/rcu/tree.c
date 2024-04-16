@@ -323,7 +323,7 @@ static bool rcu_dynticks_in_eqs_since(struct rcu_data *rdp, int snap)
 	 * performed by the remote CPU prior to entering idle and therefore can
 	 * rely solely on acquire semantics.
 	 */
-	return snap != ct_dynticks_cpu_acquire(rdp->cpu);
+	return snap != ct_rcu_watching_cpu_acquire(rdp->cpu);
 }
 
 /*
@@ -782,7 +782,7 @@ static int dyntick_save_progress_counter(struct rcu_data *rdp)
 	 * Ordering between remote CPU's pre idle accesses and post grace period
 	 * updater's accesses is enforced by the below acquire semantic.
 	 */
-	rdp->dynticks_snap = ct_dynticks_cpu_acquire(rdp->cpu);
+	rdp->dynticks_snap = ct_rcu_watching_cpu_acquire(rdp->cpu);
 	if (rcu_dynticks_in_eqs(rdp->dynticks_snap)) {
 		trace_rcu_fqs(rcu_state.name, rdp->gp_seq, rdp->cpu, TPS("dti"));
 		rcu_gpnum_ovf(rdp->mynode, rdp);
