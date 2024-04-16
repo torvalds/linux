@@ -2211,6 +2211,7 @@ static const struct amd_ip_funcs cik_common_ip_funcs = {
 	.set_clockgating_state = cik_common_set_clockgating_state,
 	.set_powergating_state = cik_common_set_powergating_state,
 	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ip_block_version cik_common_ip_block =

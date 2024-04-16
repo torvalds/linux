@@ -1405,6 +1405,7 @@ static const struct amd_ip_funcs mes_v11_0_ip_funcs = {
 	.suspend = mes_v11_0_suspend,
 	.resume = mes_v11_0_resume,
 	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 const struct amdgpu_ip_block_version mes_v11_0_ip_block = {

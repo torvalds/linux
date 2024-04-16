@@ -2707,6 +2707,7 @@ static const struct amd_ip_funcs si_common_ip_funcs = {
 	.set_clockgating_state = si_common_set_clockgating_state,
 	.set_powergating_state = si_common_set_powergating_state,
 	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_ip_block_version si_common_ip_block =

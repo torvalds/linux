@@ -1355,6 +1355,7 @@ static const struct amd_ip_funcs gmc_v7_0_ip_funcs = {
 	.set_clockgating_state = gmc_v7_0_set_clockgating_state,
 	.set_powergating_state = gmc_v7_0_set_powergating_state,
 	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
 
 static const struct amdgpu_gmc_funcs gmc_v7_0_gmc_funcs = {

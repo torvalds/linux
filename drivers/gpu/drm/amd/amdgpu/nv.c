@@ -1132,4 +1132,5 @@ static const struct amd_ip_funcs nv_common_ip_funcs = {
 	.set_powergating_state = nv_common_set_powergating_state,
 	.get_clockgating_state = nv_common_get_clockgating_state,
 	.dump_ip_state = NULL,
+	.print_ip_state = NULL,
 };
