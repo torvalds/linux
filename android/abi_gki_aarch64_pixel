@@ -24,6 +24,7 @@
   __alloc_skb
   alloc_skb_with_frags
   alloc_workqueue
+  all_vm_events
   alt_cb_patch_nops
   amba_bustype
   amba_driver_register
@@ -230,6 +231,7 @@
   __cpu_active_mask
   cpu_all_bits
   cpu_bit_bitmap
+  cpu_busy_with_softirqs
   cpufreq_add_update_util_hook
   cpufreq_cpu_get
   cpufreq_cpu_get_raw
@@ -610,6 +612,7 @@
   dma_unmap_resource
   dma_unmap_sg_attrs
   do_SAK
+  do_send_sig_info
   do_trace_netlink_extack
   do_wait_intr_irq
   down
@@ -979,6 +982,7 @@
   get_random_u32
   __get_random_u32_below
   get_random_u8
+  get_reclaim_params
   get_sg_io_hdr
   __get_task_comm
   get_task_cred
@@ -1260,6 +1264,7 @@
   kobj_sysfs_ops
   krealloc
   ksize
+  ksoftirqd
   kstat
   kstrdup
   kstrndup
@@ -1551,6 +1556,7 @@
   of_thermal_is_trip_valid
   of_translate_address
   of_usb_host_tpl_support
+  __oom_reap_task_mm
   page_endio
   page_frag_alloc_align
   __page_frag_cache_drain
@@ -1562,6 +1568,7 @@
   param_array_ops
   param_get_int
   param_get_string
+  param_get_uint
   param_ops_bool
   param_ops_byte
   param_ops_charp
@@ -1572,6 +1579,7 @@
   param_ops_ulong
   param_set_copystring
   param_set_int
+  param_set_uint
   pci_alloc_irq_vectors_affinity
   pci_assign_resource
   pci_clear_master
@@ -1609,6 +1617,7 @@
   pci_wake_from_d3
   pci_write_config_dword
   pci_write_config_word
+  pcpu_nr_pages
   __per_cpu_offset
   perf_aux_output_begin
   perf_aux_output_end
@@ -1747,6 +1756,10 @@
   put_unused_fd
   put_vaddr_frames
   pwm_apply_state
+  pwmchip_add
+  pwmchip_remove
+  pwm_get_chip_data
+  pwm_set_chip_data
   queue_delayed_work_on
   queue_work_on
   radix_tree_delete_item
@@ -1933,6 +1946,7 @@
   sched_uclamp_used
   schedule
   schedule_timeout
+  schedule_timeout_idle
   schedule_timeout_interruptible
   scnprintf
   scsi_add_host_with_dma
@@ -1983,6 +1997,7 @@
   set_page_dirty
   set_page_dirty_lock
   __SetPageMovable
+  set_reclaim_params
   set_task_cpu
   set_user_nice
   sg_alloc_table
@@ -2001,6 +2016,7 @@
   __sg_page_iter_start
   sg_pcopy_from_buffer
   shmem_file_setup
+  si_meminfo
   simple_attr_open
   simple_attr_read
   simple_attr_release
@@ -2316,6 +2332,7 @@
   __traceiter_android_rvh_iommu_limit_align_shift
   __traceiter_android_rvh_irqs_disable
   __traceiter_android_rvh_irqs_enable
+  __traceiter_android_rvh_meminfo_proc_show
   __traceiter_android_rvh_post_init_entity_util_avg
   __traceiter_android_rvh_preempt_disable
   __traceiter_android_rvh_preempt_enable
@@ -2332,6 +2349,7 @@
   __traceiter_android_rvh_set_task_cpu
   __traceiter_android_rvh_set_user_nice
   __traceiter_android_rvh_set_user_nice_locked
+  __traceiter_android_rvh_tick_entry
   __traceiter_android_rvh_typec_tcpci_get_vbus
   __traceiter_android_rvh_uclamp_eff_get
   __traceiter_android_rvh_ufs_complete_init
@@ -2438,6 +2456,7 @@
   __tracepoint_android_rvh_iommu_limit_align_shift
   __tracepoint_android_rvh_irqs_disable
   __tracepoint_android_rvh_irqs_enable
+  __tracepoint_android_rvh_meminfo_proc_show
   __tracepoint_android_rvh_post_init_entity_util_avg
   __tracepoint_android_rvh_preempt_disable
   __tracepoint_android_rvh_preempt_enable
@@ -2454,6 +2473,7 @@
   __tracepoint_android_rvh_set_task_cpu
   __tracepoint_android_rvh_set_user_nice
   __tracepoint_android_rvh_set_user_nice_locked
+  __tracepoint_android_rvh_tick_entry
   __tracepoint_android_rvh_typec_tcpci_get_vbus
   __tracepoint_android_rvh_uclamp_eff_get
   __tracepoint_android_rvh_ufs_complete_init
@@ -2746,11 +2766,14 @@
   virtqueue_kick_prepare
   virtqueue_notify
   vmalloc
+  vmalloc_nr_pages
   vmalloc_to_page
   vmalloc_user
   vmap
   vmf_insert_pfn_prot
   vm_iomap_memory
+  vm_node_stat
+  vm_zone_stat
   vprintk
   vprintk_emit
   vring_del_virtqueue

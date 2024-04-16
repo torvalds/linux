@@ -109,6 +109,7 @@ extern int unregister_oom_notifier(struct notifier_block *nb);
 
 extern bool oom_killer_disable(signed long timeout);
 extern void oom_killer_enable(void);
+extern bool __oom_reap_task_mm(struct mm_struct *mm);
 
 extern struct task_struct *find_lock_task_mm(struct task_struct *p);
 

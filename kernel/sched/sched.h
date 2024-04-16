@@ -3278,4 +3278,5 @@ static inline void update_current_exec_runtime(struct task_struct *curr,
 	cgroup_account_cputime(curr, delta_exec);
 }
 
+extern bool cpu_busy_with_softirqs(int cpu);
 #endif /* _KERNEL_SCHED_SCHED_H */
