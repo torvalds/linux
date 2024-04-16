@@ -8,9 +8,6 @@
 
 #include <linux/types.h>
 
-struct sk_buff;
-struct scatterlist;
-
 struct ipa;
 struct ipa_mem;
 struct gsi_trans;

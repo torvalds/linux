@@ -15,8 +15,6 @@
 #include "ipa_qmi.h"
 #include "ipa_endpoint.h"
 
-struct clk;
-struct icc_path;
 struct net_device;
 
 struct ipa_power;

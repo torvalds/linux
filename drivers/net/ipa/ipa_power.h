@@ -12,7 +12,6 @@ struct device;
 
 struct ipa;
 struct ipa_power_data;
-enum ipa_irq_id;
 
 /* IPA device power management function block */
 extern const struct dev_pm_ops ipa_pm_ops;
