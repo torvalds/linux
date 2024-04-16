@@ -1781,6 +1781,7 @@ static int amdgpu_discovery_set_ih_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(4, 2, 1):
 	case IP_VERSION(4, 4, 0):
 	case IP_VERSION(4, 4, 2):
+	case IP_VERSION(4, 4, 5):
 		amdgpu_device_ip_block_add(adev, &vega20_ih_ip_block);
 		break;
 	case IP_VERSION(5, 0, 0):
@@ -2064,6 +2065,7 @@ static int amdgpu_discovery_set_sdma_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &sdma_v4_0_ip_block);
 		break;
 	case IP_VERSION(4, 4, 2):
+	case IP_VERSION(4, 4, 5):
 		amdgpu_device_ip_block_add(adev, &sdma_v4_4_2_ip_block);
 		break;
 	case IP_VERSION(5, 0, 0):
@@ -2616,6 +2618,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(4, 2, 1):
 	case IP_VERSION(4, 4, 0):
 	case IP_VERSION(4, 4, 2):
+	case IP_VERSION(4, 4, 5):
 		adev->hdp.funcs = &hdp_v4_0_funcs;
 		break;
 	case IP_VERSION(5, 0, 0):
