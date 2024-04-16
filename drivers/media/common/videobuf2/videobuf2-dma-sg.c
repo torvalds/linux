@@ -494,9 +494,15 @@ vb2_dma_sg_dmabuf_ops_end_cpu_access(struct dma_buf *dbuf,
 static int vb2_dma_sg_dmabuf_ops_vmap(struct dma_buf *dbuf,
 				      struct iosys_map *map)
 {
-	struct vb2_dma_sg_buf *buf = dbuf->priv;
+	struct vb2_dma_sg_buf *buf;
+	void *vaddr;
 
-	iosys_map_set_vaddr(map, buf->vaddr);
+	buf = dbuf->priv;
+	vaddr = vb2_dma_sg_vaddr(buf->vb, buf);
+	if (!vaddr)
+		return -EINVAL;
+
+	iosys_map_set_vaddr(map, vaddr);
 
 	return 0;
 }
