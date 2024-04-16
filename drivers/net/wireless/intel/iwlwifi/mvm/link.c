@@ -527,6 +527,7 @@ u8 iwl_mvm_set_link_selection_data(struct ieee80211_vif *vif,
 	u16 max_grade = 0;
 	unsigned long link_id;
 
+	/* TODO: don't select links that weren't discovered in the last scan */
 	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
 		struct ieee80211_bss_conf *link_conf =
 			link_conf_dereference_protected(vif, link_id);
@@ -692,6 +693,25 @@ u8 iwl_mvm_get_primary_link(struct ieee80211_vif *vif)
 	return __ffs(vif->active_links);
 }
 
+/*
+ * For non-MLO/single link, this will return the deflink/single active link,
+ * respectively
+ */
+u8 iwl_mvm_get_other_link(struct ieee80211_vif *vif, u8 link_id)
+{
+	switch (hweight16(vif->active_links)) {
+	case 0:
+		return 0;
+	default:
+		WARN_ON(1);
+		fallthrough;
+	case 1:
+		return __ffs(vif->active_links);
+	case 2:
+		return __ffs(vif->active_links & ~BIT(link_id));
+	}
+}
+
 /* API to exit eSR mode */
 void iwl_mvm_exit_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		      enum iwl_mvm_esr_state reason,
@@ -719,8 +739,6 @@ void iwl_mvm_exit_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	ieee80211_set_active_links_async(vif, new_active_links);
 }
-
-#define IWL_MVM_BLOCK_ESR_REASONS IWL_MVM_ESR_BLOCKED_COEX
 
 void iwl_mvm_block_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		       enum iwl_mvm_esr_state reason,

@@ -354,10 +354,14 @@ struct iwl_mvm_vif_link_info {
  * reasons - use iwl_mvm_exit_esr().
  *
  * @IWL_MVM_ESR_BLOCKED_COEX: COEX is preventing the enablement of EMLSR
+ * @IWL_MVM_ESR_EXIT_MISSED_BEACON: exited EMLSR due to missed beacons
  */
 enum iwl_mvm_esr_state {
 	IWL_MVM_ESR_BLOCKED_COEX	= 0x1,
+	IWL_MVM_ESR_EXIT_MISSED_BEACON	= 0x10000,
 };
+
+#define IWL_MVM_BLOCK_ESR_REASONS 0xffff
 
 /**
  * struct iwl_mvm_vif - data per Virtual Interface, it is a MAC context
@@ -1963,6 +1967,7 @@ int iwl_mvm_disable_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 void iwl_mvm_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
 u8 iwl_mvm_get_primary_link(struct ieee80211_vif *vif);
+u8 iwl_mvm_get_other_link(struct ieee80211_vif *vif, u8 link_id);
 
 #if IS_ENABLED(CONFIG_IWLWIFI_KUNIT_TESTS)
 unsigned int iwl_mvm_get_link_grade(struct ieee80211_bss_conf *link_conf);

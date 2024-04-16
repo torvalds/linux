@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
- * Copyright (C) 2013-2014, 2018-2023 Intel Corporation
+ * Copyright (C) 2013-2014, 2018-2024 Intel Corporation
  * Copyright (C) 2015 Intel Deutschland GmbH
  */
 #ifndef __MVM_CONSTANTS_H
@@ -123,5 +123,6 @@
 #define IWL_MVM_6GHZ_PASSIVE_SCAN_TIMEOUT       3000 /* in seconds */
 #define IWL_MVM_6GHZ_PASSIVE_SCAN_ASSOC_TIMEOUT 60   /* in seconds */
 #define IWL_MVM_AUTO_EML_ENABLE                 true
+#define IWL_MVM_MISSED_BEACONS_EXIT_ESR_THRESH	7
 
 #endif /* __MVM_CONSTANTS_H */
