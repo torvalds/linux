@@ -15,6 +15,7 @@ NUM_NETIFS=6
 lib_dir=$(dirname "$0")
 source "$lib_dir"/../../../net/forwarding/lib.sh
 source "$lib_dir"/../../../net/forwarding/ipip_lib.sh
+source "$lib_dir"/../../../net/forwarding/tc_common.sh
 
 setup_prepare()
 {

@@ -58,9 +58,10 @@ ksft_exit_status_merge()
 		$ksft_xfail $ksft_pass $ksft_skip $ksft_fail
 }
 
-busywait()
+loopy_wait()
 {
-	local timeout=$1; shift
+	local sleep_cmd=$1; shift
+	local timeout_ms=$1; shift
 
 	local start_time="$(date -u +%s%3N)"
 	while true
@@ -74,11 +75,20 @@ busywait()
 		fi
 
 		local current_time="$(date -u +%s%3N)"
-		if ((current_time - start_time > timeout)); then
+		if ((current_time - start_time > timeout_ms)); then
 			echo -n "$out"
 			return 1
 		fi
+
+		$sleep_cmd
 	done
+}
+
+busywait()
+{
+	local timeout_ms=$1; shift
+
+	loopy_wait : "$timeout_ms" "$@"
 }
 
 cleanup_ns()
