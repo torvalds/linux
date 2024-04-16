@@ -19,14 +19,14 @@
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-fwnode.h>
 
-#define CHIP_ID				0x004688
-#define OV4689_REG_CHIP_ID		0x300a
-
 #define OV4689_XVCLK_FREQ		24000000
 
 #define OV4689_REG_CTRL_MODE		0x0100
 #define OV4689_MODE_SW_STANDBY		0x0
 #define OV4689_MODE_STREAMING		BIT(0)
+
+#define OV4689_REG_CHIP_ID		0x300a
+#define CHIP_ID				0x004688
 
 #define OV4689_REG_EXPOSURE		0x3500
 #define OV4689_EXPOSURE_MIN		4
@@ -41,11 +41,11 @@
 #define OV4689_GAIN_STEP		1
 #define OV4689_GAIN_DEFAULT		0x80
 
+#define OV4689_REG_VTS			0x380e
+
 #define OV4689_REG_TEST_PATTERN		0x5040
 #define OV4689_TEST_PATTERN_ENABLE	0x80
 #define OV4689_TEST_PATTERN_DISABLE	0x0
-
-#define OV4689_REG_VTS			0x380e
 
 #define REG_NULL			0xFFFF
 
