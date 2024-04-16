@@ -386,9 +386,9 @@ static int asus_kbd_set_report(struct hid_device *hdev, const u8 *buf, size_t bu
 	return ret;
 }
 
-static int asus_kbd_init(struct hid_device *hdev)
+static int asus_kbd_init(struct hid_device *hdev, u8 report_id)
 {
-	const u8 buf[] = { FEATURE_KBD_REPORT_ID, 0x41, 0x53, 0x55, 0x53, 0x20, 0x54,
+	const u8 buf[] = { report_id, 0x41, 0x53, 0x55, 0x53, 0x20, 0x54,
 		     0x65, 0x63, 0x68, 0x2e, 0x49, 0x6e, 0x63, 0x2e, 0x00 };
 	int ret;
 
@@ -400,9 +400,10 @@ static int asus_kbd_init(struct hid_device *hdev)
 }
 
 static int asus_kbd_get_functions(struct hid_device *hdev,
-				  unsigned char *kbd_func)
+				  unsigned char *kbd_func,
+				  u8 report_id)
 {
-	const u8 buf[] = { FEATURE_KBD_REPORT_ID, 0x05, 0x20, 0x31, 0x00, 0x08 };
+	const u8 buf[] = { report_id, 0x05, 0x20, 0x31, 0x00, 0x08 };
 	u8 *readbuf;
 	int ret;
 
@@ -428,51 +429,6 @@ static int asus_kbd_get_functions(struct hid_device *hdev,
 	*kbd_func = readbuf[6];
 
 	kfree(readbuf);
-	return ret;
-}
-
-static int rog_nkey_led_init(struct hid_device *hdev)
-{
-	const u8 buf_init_start[] = { FEATURE_KBD_LED_REPORT_ID1, 0xB9 };
-	u8 buf_init2[] = { FEATURE_KBD_LED_REPORT_ID1, 0x41, 0x53, 0x55, 0x53, 0x20,
-				0x54, 0x65, 0x63, 0x68, 0x2e, 0x49, 0x6e, 0x63, 0x2e, 0x00 };
-	u8 buf_init3[] = { FEATURE_KBD_LED_REPORT_ID1,
-						0x05, 0x20, 0x31, 0x00, 0x08 };
-	int ret;
-
-	hid_info(hdev, "Asus initialise N-KEY Device");
-	/* The first message is an init start */
-	ret = asus_kbd_set_report(hdev, buf_init_start, sizeof(buf_init_start));
-	if (ret < 0) {
-		hid_warn(hdev, "Asus failed to send init start command: %d\n", ret);
-		return ret;
-	}
-	/* Followed by a string */
-	ret = asus_kbd_set_report(hdev, buf_init2, sizeof(buf_init2));
-	if (ret < 0) {
-		hid_warn(hdev, "Asus failed to send init command 1.0: %d\n", ret);
-		return ret;
-	}
-	/* Followed by a string */
-	ret = asus_kbd_set_report(hdev, buf_init3, sizeof(buf_init3));
-	if (ret < 0) {
-		hid_warn(hdev, "Asus failed to send init command 1.1: %d\n", ret);
-		return ret;
-	}
-
-	/* begin second report ID with same data */
-	buf_init2[0] = FEATURE_KBD_LED_REPORT_ID2;
-	buf_init3[0] = FEATURE_KBD_LED_REPORT_ID2;
-
-	ret = asus_kbd_set_report(hdev, buf_init2, sizeof(buf_init2));
-	if (ret < 0) {
-		hid_warn(hdev, "Asus failed to send init command 2.0: %d\n", ret);
-		return ret;
-	}
-	ret = asus_kbd_set_report(hdev, buf_init3, sizeof(buf_init3));
-	if (ret < 0)
-		hid_warn(hdev, "Asus failed to send init command 2.1: %d\n", ret);
-
 	return ret;
 }
 
@@ -558,17 +514,27 @@ static int asus_kbd_register_leds(struct hid_device *hdev)
 	int ret;
 
 	if (drvdata->quirks & QUIRK_ROG_NKEY_KEYBOARD) {
-		ret = rog_nkey_led_init(hdev);
+		/* Initialize keyboard */
+		ret = asus_kbd_init(hdev, FEATURE_KBD_REPORT_ID);
+		if (ret < 0)
+			return ret;
+
+		/* The LED endpoint is initialised in two HID */
+		ret = asus_kbd_init(hdev, FEATURE_KBD_LED_REPORT_ID1);
+		if (ret < 0)
+			return ret;
+
+		ret = asus_kbd_init(hdev, FEATURE_KBD_LED_REPORT_ID2);
 		if (ret < 0)
 			return ret;
 	} else {
 		/* Initialize keyboard */
-		ret = asus_kbd_init(hdev);
+		ret = asus_kbd_init(hdev, FEATURE_KBD_REPORT_ID);
 		if (ret < 0)
 			return ret;
 
 		/* Get keyboard functions */
-		ret = asus_kbd_get_functions(hdev, &kbd_func);
+		ret = asus_kbd_get_functions(hdev, &kbd_func, FEATURE_KBD_REPORT_ID);
 		if (ret < 0)
 			return ret;
 
