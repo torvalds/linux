@@ -22,6 +22,10 @@ static struct ieee80211_channel chan_2ghz = {
 	.band = NL80211_BAND_2GHZ,
 };
 
+static struct cfg80211_chan_def chandef_a = {};
+
+static struct cfg80211_chan_def chandef_b = {};
+
 static struct iwl_mvm_phy_ctxt ctx = {};
 
 static struct iwl_mvm_vif_link_info mvm_link = {
@@ -32,6 +36,8 @@ static struct iwl_mvm_vif_link_info mvm_link = {
 static struct cfg80211_bss bss = {};
 
 static struct ieee80211_bss_conf link_conf = {.bss = &bss};
+
+static struct iwl_mvm mvm = {};
 
 static const struct link_grading_case {
 	const char *desc;
@@ -212,34 +218,118 @@ kunit_test_suite(link_grading);
 static const struct valid_link_pair_case {
 	const char *desc;
 	u32 esr_disable_reason;
-	enum nl80211_band band_a;
-	enum nl80211_band band_b;
+	struct ieee80211_channel *chan_a;
+	struct ieee80211_channel *chan_b;
+	enum nl80211_chan_width cw_a;
+	enum nl80211_chan_width cw_b;
+	s32 sig_a;
+	s32 sig_b;
 	bool valid;
 } valid_link_pair_cases[] = {
 	{
 		.desc = "HB + UHB, valid.",
-		.band_a = NL80211_BAND_5GHZ,
-		.band_b = NL80211_BAND_6GHZ,
+		.chan_a = &chan_5ghz,
+		.chan_b = &chan_6ghz,
 		.valid = true,
 	},
 	{
 		.desc = "LB + HB, no BT.",
-		.band_a = NL80211_BAND_2GHZ,
-		.band_b = NL80211_BAND_5GHZ,
+		.chan_a = &chan_2ghz,
+		.chan_b = &chan_5ghz,
 		.valid = true,
 	},
 	{
 		.desc = "LB + HB, with BT.",
 		.esr_disable_reason = 0x1,
-		.band_a = NL80211_BAND_2GHZ,
-		.band_b = NL80211_BAND_5GHZ,
+		.chan_a = &chan_2ghz,
+		.chan_b = &chan_5ghz,
 		.valid = false,
 	},
 	{
 		.desc = "Same band",
-		.band_a = NL80211_BAND_2GHZ,
-		.band_b = NL80211_BAND_2GHZ,
+		.chan_a = &chan_2ghz,
+		.chan_b = &chan_2ghz,
 		.valid = false,
+	},
+	{
+		.desc = "RSSI: LB, 20 MHz, low",
+		.chan_a = &chan_2ghz,
+		.cw_a = NL80211_CHAN_WIDTH_20,
+		.sig_a = -68,
+		.chan_b = &chan_5ghz,
+		.valid = false,
+	},
+	{
+		.desc = "RSSI: LB, 20 MHz, high",
+		.chan_a = &chan_2ghz,
+		.cw_a = NL80211_CHAN_WIDTH_20,
+		.sig_a = -66,
+		.chan_b = &chan_5ghz,
+		.valid = true,
+	},
+	{
+		.desc = "RSSI: LB, 40 MHz, low",
+		.chan_a = &chan_2ghz,
+		.cw_a = NL80211_CHAN_WIDTH_40,
+		.sig_a = -65,
+		.chan_b = &chan_5ghz,
+		.valid = false,
+	},
+	{
+		.desc = "RSSI: LB, 40 MHz, high",
+		.chan_a = &chan_2ghz,
+		.cw_a = NL80211_CHAN_WIDTH_40,
+		.sig_a = -63,
+		.chan_b = &chan_5ghz,
+		.valid = true,
+	},
+	{
+		.desc = "RSSI: HB, 80 MHz, low",
+		.chan_a = &chan_5ghz,
+		.cw_a = NL80211_CHAN_WIDTH_80,
+		.sig_a = -62,
+		.chan_b = &chan_2ghz,
+		.valid = false,
+	},
+	{
+		.desc = "RSSI: HB, 80 MHz, high",
+		.chan_a = &chan_5ghz,
+		.cw_a = NL80211_CHAN_WIDTH_80,
+		.sig_a = -60,
+		.chan_b = &chan_2ghz,
+		.valid = true,
+	},
+	{
+		.desc = "RSSI: HB, 160 MHz, low",
+		.chan_a = &chan_5ghz,
+		.cw_a = NL80211_CHAN_WIDTH_160,
+		.sig_a = -59,
+		.chan_b = &chan_2ghz,
+		.valid = false,
+	},
+	{
+		.desc = "RSSI: HB, 160 MHz, high",
+		.chan_a = &chan_5ghz,
+		.cw_a = NL80211_CHAN_WIDTH_160,
+		.sig_a = -5,
+		.chan_b = &chan_2ghz,
+		.valid = true,
+	},
+	{
+		.desc = "RSSI: UHB, 320 MHz, low",
+		.chan_a = &chan_6ghz,
+		.cw_a = NL80211_CHAN_WIDTH_320,
+		.sig_a = -68,
+		.chan_b = &chan_6ghz,
+		.valid = false,
+	},
+	{
+		.desc = "RSSI: UHB, 320 MHz, high",
+		.chan_a = &chan_6ghz,
+		.cw_a = NL80211_CHAN_WIDTH_320,
+		.sig_a = -66,
+		.chan_b = &chan_5ghz,
+		.valid = true,
 	},
 };
 
@@ -251,24 +341,44 @@ static void test_valid_link_pair(struct kunit *test)
 	size_t vif_size = sizeof(struct ieee80211_vif) +
 		sizeof(struct iwl_mvm_vif);
 	struct ieee80211_vif *vif = kunit_kzalloc(test, vif_size, GFP_KERNEL);
+	struct iwl_trans *trans = kunit_kzalloc(test, sizeof(struct iwl_trans),
+						GFP_KERNEL);
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_link_sel_data link_a = {
-		.band = params->band_a,
+		.chandef = &chandef_a,
+		.link_id = 1,
+		.signal = params->sig_a,
 	};
 	struct iwl_mvm_link_sel_data link_b = {
-		.band = params->band_b,
+		.chandef = &chandef_b,
+		.link_id = 5,
+		.signal = params->sig_b,
 	};
 	bool result;
 
 	KUNIT_ASSERT_NOT_NULL(test, vif);
+	KUNIT_ASSERT_NOT_NULL(test, trans);
 
-	iwl_mvm_vif_from_mac80211(vif)->esr_disable_reason =
-		params->esr_disable_reason;
+	chandef_a.chan = params->chan_a;
+	chandef_b.chan = params->chan_b;
+
+	chandef_a.width = params->cw_a ?: NL80211_CHAN_WIDTH_20;
+	chandef_b.width = params->cw_b ?: NL80211_CHAN_WIDTH_20;
+
+#ifdef CONFIG_IWLWIFI_SUPPORT_DEBUG_OVERRIDES
+	trans->dbg_cfg = default_dbg_config;
+#endif
+	mvm.trans = trans;
+
+	mvmvif->esr_disable_reason = params->esr_disable_reason;
+	mvmvif->mvm = &mvm;
 
 	result = iwl_mvm_mld_valid_link_pair(vif, &link_a, &link_b);
 
 	KUNIT_EXPECT_EQ(test, result, params->valid);
 
 	kunit_kfree(test, vif);
+	kunit_kfree(test, trans);
 }
 
 static struct kunit_case valid_link_pair_test_cases[] = {

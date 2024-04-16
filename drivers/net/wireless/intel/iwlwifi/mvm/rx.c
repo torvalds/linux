@@ -556,8 +556,8 @@ struct iwl_mvm_stat_data_all_macs {
 	struct iwl_stats_ntfy_per_mac *per_mac;
 };
 
-static void iwl_mvm_update_vif_sig(struct ieee80211_vif *vif, int sig,
-				   struct iwl_mvm_vif_link_info *link_info)
+static void iwl_mvm_update_link_sig(struct ieee80211_vif *vif, int sig,
+				    struct iwl_mvm_vif_link_info *link_info)
 {
 	struct iwl_mvm *mvm = iwl_mvm_vif_from_mac80211(vif)->mvm;
 	struct ieee80211_bss_conf *bss_conf =
@@ -566,6 +566,7 @@ static void iwl_mvm_update_vif_sig(struct ieee80211_vif *vif, int sig,
 	int thold = bss_conf->cqm_rssi_thold;
 	int hyst = bss_conf->cqm_rssi_hyst;
 	int last_event;
+	s8 exit_esr_thresh;
 
 	if (sig == 0) {
 		IWL_DEBUG_RX(mvm, "RSSI is 0 - skip signal based decision\n");
@@ -621,6 +622,20 @@ static void iwl_mvm_update_vif_sig(struct ieee80211_vif *vif, int sig,
 			sig,
 			GFP_KERNEL);
 	}
+
+	/* ESR recalculation */
+	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif))
+		return;
+
+	exit_esr_thresh =
+		iwl_mvm_get_esr_rssi_thresh(mvm,
+					    &bss_conf->chanreq.oper,
+					    true);
+
+	if (sig < exit_esr_thresh)
+		iwl_mvm_exit_esr(mvm, vif, IWL_MVM_ESR_EXIT_LOW_RSSI,
+				 iwl_mvm_get_other_link(vif,
+							bss_conf->link_id));
 }
 
 static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
@@ -655,7 +670,7 @@ static void iwl_mvm_stat_iterator(void *_data, u8 *mac,
 			mvmvif->deflink.beacon_stats.num_beacons;
 
 	/* This is used in pre-MLO API so use deflink */
-	iwl_mvm_update_vif_sig(vif, sig, &mvmvif->deflink);
+	iwl_mvm_update_link_sig(vif, sig, &mvmvif->deflink);
 }
 
 static void iwl_mvm_stat_iterator_all_macs(void *_data, u8 *mac,
@@ -690,7 +705,7 @@ static void iwl_mvm_stat_iterator_all_macs(void *_data, u8 *mac,
 	sig = -le32_to_cpu(mac_stats->beacon_filter_average_energy);
 
 	/* This is used in pre-MLO API so use deflink */
-	iwl_mvm_update_vif_sig(vif, sig, &mvmvif->deflink);
+	iwl_mvm_update_link_sig(vif, sig, &mvmvif->deflink);
 }
 
 static inline void
@@ -906,7 +921,7 @@ iwl_mvm_stat_iterator_all_links(struct iwl_mvm *mvm,
 				mvmvif->link[link_id]->beacon_stats.num_beacons;
 
 		sig = -le32_to_cpu(link_stats->beacon_filter_average_energy);
-		iwl_mvm_update_vif_sig(bss_conf->vif, sig, link_info);
+		iwl_mvm_update_link_sig(bss_conf->vif, sig, link_info);
 
 		if (WARN_ONCE(mvmvif->id >= MAC_INDEX_AUX,
 			      "invalid mvmvif id: %d", mvmvif->id))

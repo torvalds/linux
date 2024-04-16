@@ -537,7 +537,8 @@ u8 iwl_mvm_set_link_selection_data(struct ieee80211_vif *vif,
 			continue;
 
 		data[n_data].link_id = link_id;
-		data[n_data].band = link_conf->chanreq.oper.chan->band;
+		data[n_data].chandef = &link_conf->chanreq.oper;
+		data[n_data].signal = link_conf->bss->signal / 100;
 		data[n_data].grade = iwl_mvm_get_link_grade(link_conf);
 
 		if (data[n_data].grade > max_grade) {
@@ -550,21 +551,83 @@ u8 iwl_mvm_set_link_selection_data(struct ieee80211_vif *vif,
 	return n_data;
 }
 
+struct iwl_mvm_bw_to_rssi_threshs {
+	s8 low;
+	s8 high;
+};
+
+#define BW_TO_RSSI_THRESHOLDS(_bw)				\
+	[IWL_PHY_CHANNEL_MODE ## _bw] = {			\
+		.low = IWL_MVM_LOW_RSSI_THRESH_##_bw##MHZ,	\
+		.high = IWL_MVM_HIGH_RSSI_THRESH_##_bw##MHZ	\
+	}
+
+s8 iwl_mvm_get_esr_rssi_thresh(struct iwl_mvm *mvm,
+			       const struct cfg80211_chan_def *chandef,
+			       bool low)
+{
+	const struct iwl_mvm_bw_to_rssi_threshs bw_to_rssi_threshs_map[] = {
+		BW_TO_RSSI_THRESHOLDS(20),
+		BW_TO_RSSI_THRESHOLDS(40),
+		BW_TO_RSSI_THRESHOLDS(80),
+		BW_TO_RSSI_THRESHOLDS(160)
+		/* 320 MHz has the same thresholds as 20 MHz */
+	};
+	const struct iwl_mvm_bw_to_rssi_threshs *threshs;
+	u8 chan_width = iwl_mvm_get_channel_width(chandef);
+
+	if (WARN_ON(chandef->chan->band != NL80211_BAND_2GHZ &&
+		    chandef->chan->band != NL80211_BAND_5GHZ &&
+		    chandef->chan->band != NL80211_BAND_6GHZ))
+		return S8_MAX;
+
+	/* 6 GHz will always use 20 MHz thresholds, regardless of the BW */
+	if (chan_width == IWL_PHY_CHANNEL_MODE320)
+		chan_width = IWL_PHY_CHANNEL_MODE20;
+
+	threshs = &bw_to_rssi_threshs_map[chan_width];
+
+	return low ? threshs->low : threshs->high;
+}
+
+static u32
+iwl_mvm_esr_disallowed_with_link(struct ieee80211_vif *vif,
+				 const struct iwl_mvm_link_sel_data *link)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	enum iwl_mvm_esr_state ret = 0;
+	s8 thresh;
+
+	/* BT Coex effects eSR mode only if one of the links is on LB */
+	if (link->chandef->chan->band == NL80211_BAND_2GHZ &&
+	    mvmvif->esr_disable_reason & IWL_MVM_ESR_BLOCKED_COEX)
+		ret |= IWL_MVM_ESR_BLOCKED_COEX;
+	thresh = iwl_mvm_get_esr_rssi_thresh(mvm, link->chandef,
+					     false);
+
+	if (link->signal < thresh)
+		ret |= IWL_MVM_ESR_EXIT_LOW_RSSI;
+
+	if (ret)
+		IWL_DEBUG_INFO(mvm,
+			       "Link %d is not allowed for esr. Reason: 0x%x\n",
+			       link->link_id, ret);
+	return ret;
+}
+
 VISIBLE_IF_IWLWIFI_KUNIT
 bool iwl_mvm_mld_valid_link_pair(struct ieee80211_vif *vif,
 				 const struct iwl_mvm_link_sel_data *a,
 				 const struct iwl_mvm_link_sel_data *b)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-	if (a->band == b->band)
+	/* Per-link considerations */
+	if (iwl_mvm_esr_disallowed_with_link(vif, a) ||
+	    iwl_mvm_esr_disallowed_with_link(vif, b))
 		return false;
 
-	/* BT Coex effects eSR mode only if one of the link is on LB */
-	if (a->band == NL80211_BAND_2GHZ || b->band == NL80211_BAND_2GHZ)
-		return !(mvmvif->esr_disable_reason & IWL_MVM_ESR_BLOCKED_COEX);
-
-	return true;
+	/* Per-combination considerations */
+	return a->chandef->chan->band != b->chandef->chan->band;
 }
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mvm_mld_valid_link_pair);
 
