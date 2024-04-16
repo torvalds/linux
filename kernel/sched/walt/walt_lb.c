@@ -835,10 +835,15 @@ static void walt_newidle_balance(struct rq *this_rq,
 	int has_misfit = 0;
 	int i;
 	struct task_struct *pulled_task_struct = NULL;
+	struct walt_sched_cluster *cluster;
 
 	if (unlikely(walt_disabled))
 		return;
 
+	for_each_sched_cluster(cluster) {
+		if (cluster != cpu_cluster(this_cpu))
+			update_freq_relation(cluster);
+	}
 	/*
 	 * newly idle load balance is completely handled here, so
 	 * set done to skip the load balance by the caller.
