@@ -61,11 +61,12 @@ static inline void bch2_csum_err_msg(struct printbuf *out,
 				     struct bch_csum expected,
 				     struct bch_csum got)
 {
-	prt_printf(out, "checksum error: got ");
+	prt_str(out, "checksum error, type ");
+	bch2_prt_csum_type(out, type);
+	prt_str(out, ": got ");
 	bch2_csum_to_text(out, type, got);
 	prt_str(out, " should be ");
 	bch2_csum_to_text(out, type, expected);
-	prt_printf(out, " type %s", bch2_csum_types[type]);
 }
 
 int bch2_chacha_encrypt_key(struct bch_key *, struct nonce, void *, size_t);
