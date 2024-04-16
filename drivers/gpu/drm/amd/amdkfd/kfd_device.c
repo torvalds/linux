@@ -144,6 +144,7 @@ static void kfd_device_info_set_event_interrupt_class(struct kfd_dev *kfd)
 		kfd->device_info.event_interrupt_class = &event_interrupt_class_v9;
 		break;
 	case IP_VERSION(9, 4, 3): /* GC 9.4.3 */
+	case IP_VERSION(9, 4, 4): /* GC 9.4.4 */
 		kfd->device_info.event_interrupt_class =
 						&event_interrupt_class_v9_4_3;
 		break;
@@ -333,6 +334,10 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 					   : 90401;
 			f2g = &gc_9_4_3_kfd2kgd;
 			break;
+		case IP_VERSION(9, 4, 4):
+			gfx_target_version = 90402;
+			f2g = &gc_9_4_3_kfd2kgd;
+			break;
 		/* Navi10 */
 		case IP_VERSION(10, 1, 10):
 			gfx_target_version = 100100;
@@ -481,7 +486,8 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_aldebaran_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_aldebaran_hex);
-		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3)) {
+		} else if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
+			   KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx9_4_3_hex)
 					     > KFD_CWSR_TMA_OFFSET);
 			kfd->cwsr_isa = cwsr_trap_gfx9_4_3_hex;
@@ -531,7 +537,8 @@ static int kfd_gws_init(struct kfd_node *node)
 			&& kfd->mec2_fw_version >= 0x30)   ||
 		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 2)
 			&& kfd->mec2_fw_version >= 0x28) ||
-		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 3)) ||
+		(KFD_GC_VERSION(node) == IP_VERSION(9, 4, 3) ||
+		 KFD_GC_VERSION(node) == IP_VERSION(9, 4, 4)) ||
 		(KFD_GC_VERSION(node) >= IP_VERSION(10, 3, 0)
 			&& KFD_GC_VERSION(node) < IP_VERSION(11, 0, 0)
 			&& kfd->mec2_fw_version >= 0x6b) ||
@@ -774,7 +781,10 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	 * xGMI connected in the topology so assign a unique hive id per
 	 * device based on the pci device location if device is in PCIe mode.
 	 */
-	if (!kfd->hive_id && (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3)) && kfd->num_nodes > 1)
+	if (!kfd->hive_id &&
+	    (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
+	     KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4)) &&
+	    kfd->num_nodes > 1)
 		kfd->hive_id = pci_dev_id(kfd->adev->pdev);
 
 	kfd->noretry = kfd->adev->gmc.noretry;
@@ -812,7 +822,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 				KFD_XCP_MEMORY_SIZE(node->adev, node->node_id) >> 20);
 		}
 
-		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) &&
+		if ((KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
+		     KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4)) &&
 		    partition_mode == AMDGPU_CPX_PARTITION_MODE &&
 		    kfd->num_nodes != 1) {
 			/* For GFX9.4.3 and CPX mode, first XCD gets VMID range
@@ -840,7 +851,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 		amdgpu_amdkfd_get_local_mem_info(kfd->adev,
 					&node->local_mem_info, node->xcp);
 
-		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3))
+		if (KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 3) ||
+		    KFD_GC_VERSION(kfd) == IP_VERSION(9, 4, 4))
 			kfd_setup_interrupt_bitmap(node, i);
 
 		/* Initialize the KFD node */

@@ -41,7 +41,9 @@
 #include "amdgpu_aca.h"
 
 MODULE_FIRMWARE("amdgpu/gc_9_4_3_mec.bin");
+MODULE_FIRMWARE("amdgpu/gc_9_4_4_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_9_4_3_rlc.bin");
+MODULE_FIRMWARE("amdgpu/gc_9_4_4_rlc.bin");
 
 #define GFX9_MEC_HPD_SIZE 4096
 #define RLCG_UCODE_LOADING_START_ADDRESS 0x00002000L
@@ -755,6 +757,7 @@ static int gfx_v9_4_3_gpu_early_init(struct amdgpu_device *adev)
 
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -2502,6 +2505,7 @@ static int gfx_v9_4_3_set_clockgating_state(void *handle,
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
 		for (i = 0; i < num_xcc; i++)
 			gfx_v9_4_3_xcc_update_gfx_clock_gating(
 				adev, state == AMD_CG_STATE_GATE, i);
@@ -4138,6 +4142,7 @@ static void gfx_v9_4_3_set_gds_init(struct amdgpu_device *adev)
 	/* init asci gds info */
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
 		/* 9.4.3 removed all the GDS internal memory,
 		 * only support GWS opcode in kernel, like barrier
 		 * semaphore.etc */
@@ -4150,6 +4155,7 @@ static void gfx_v9_4_3_set_gds_init(struct amdgpu_device *adev)
 
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
 		/* deprecated for 9.4.3, no usage at all */
 		adev->gds.gds_compute_max_wave_id = 0;
 		break;

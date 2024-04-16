@@ -1174,6 +1174,7 @@ static int soc15_common_early_init(void *handle)
 		adev->external_rev_id = adev->rev_id + 0x3c;
 		break;
 	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
 		adev->asic_funcs = &aqua_vanjaram_asic_funcs;
 		adev->cg_flags =
 			AMD_CG_SUPPORT_GFX_MGCG | AMD_CG_SUPPORT_GFX_CGCG |
@@ -1185,6 +1186,7 @@ static int soc15_common_early_init(void *handle)
 			AMD_PG_SUPPORT_VCN |
 			AMD_PG_SUPPORT_VCN_DPG |
 			AMD_PG_SUPPORT_JPEG;
+		/*TODO: need a new external_rev_id for GC 9.4.4? */
 		adev->external_rev_id = adev->rev_id + 0x46;
 		/* GC 9.4.3 uses MMIO register region hole at a different offset */
 		if (!amdgpu_sriov_vf(adev)) {

@@ -1308,6 +1308,7 @@ static int amdgpu_device_asic_init(struct amdgpu_device *adev)
 	amdgpu_asic_pre_asic_init(adev);
 
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4) ||
 	    amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(11, 0, 0)) {
 		amdgpu_psp_wait_for_bootloader(adev);
 		ret = amdgpu_atomfirmware_asic_init(adev, true);
@@ -5126,6 +5127,7 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 	/* Aldebaran and gfx_11_0_3 support ras in SRIOV, so need resume ras during reset */
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 2) ||
 	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4) ||
 	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(11, 0, 3))
 		amdgpu_ras_resume(adev);
 	return 0;
@@ -6275,8 +6277,9 @@ pci_ers_result_t amdgpu_pci_slot_reset(struct pci_dev *pdev)
 		amdgpu_put_xgmi_hive(hive);
 	}
 	ras = amdgpu_ras_get_context(adev);
-	if ((amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3)) &&
-		 ras && (atomic_read(&ras->in_recovery) || hive_ras_recovery))
+	if ((amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
+	     amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)) &&
+	    ras && (atomic_read(&ras->in_recovery) || hive_ras_recovery))
 		return PCI_ERS_RESULT_RECOVERED;
 
 	DRM_INFO("PCI error: slot reset callback!!\n");

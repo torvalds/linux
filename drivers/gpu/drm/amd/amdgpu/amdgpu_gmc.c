@@ -881,6 +881,7 @@ void amdgpu_gmc_noretry_set(struct amdgpu_device *adev)
 				gc_ver == IP_VERSION(9, 4, 1) ||
 				gc_ver == IP_VERSION(9, 4, 2) ||
 				gc_ver == IP_VERSION(9, 4, 3) ||
+				gc_ver == IP_VERSION(9, 4, 4) ||
 				gc_ver >= IP_VERSION(10, 3, 0));
 
 	if (!amdgpu_sriov_xnack_support(adev))

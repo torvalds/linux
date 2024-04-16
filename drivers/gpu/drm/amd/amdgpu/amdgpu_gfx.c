@@ -539,7 +539,8 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev, int xcc_id)
 	}
 
 	ras = amdgpu_ras_get_context(adev);
-	if ((amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3)) &&
+	if ((amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
+	     amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4)) &&
 		ras && (atomic_read(&ras->in_recovery) || hive_ras_recovery)) {
 		spin_unlock(&kiq->ring_lock);
 		return 0;

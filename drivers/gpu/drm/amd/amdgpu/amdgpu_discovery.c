@@ -1424,7 +1424,8 @@ static void amdgpu_discovery_harvest_ip(struct amdgpu_device *adev)
 	 * harvest configuration.
 	 */
 	if (amdgpu_ip_version(adev, GC_HWIP, 0) < IP_VERSION(10, 2, 0) &&
-	    amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(9, 4, 3)) {
+	    amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(9, 4, 3) &&
+	    amdgpu_ip_version(adev, GC_HWIP, 0) != IP_VERSION(9, 4, 4)) {
 		if ((adev->pdev->device == 0x731E &&
 			(adev->pdev->revision == 0xC6 ||
 			 adev->pdev->revision == 0xC7)) ||
@@ -1677,6 +1678,7 @@ static int amdgpu_discovery_set_common_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
 	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
 		amdgpu_device_ip_block_add(adev, &vega10_common_ip_block);
 		break;
 	case IP_VERSION(10, 1, 10):
@@ -1729,6 +1731,7 @@ static int amdgpu_discovery_set_gmc_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
 	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
 		amdgpu_device_ip_block_add(adev, &gmc_v9_0_ip_block);
 		break;
 	case IP_VERSION(10, 1, 10):
@@ -2019,6 +2022,7 @@ static int amdgpu_discovery_set_gc_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_device_ip_block_add(adev, &gfx_v9_0_ip_block);
 		break;
 	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
 		amdgpu_device_ip_block_add(adev, &gfx_v9_4_3_ip_block);
 		break;
 	case IP_VERSION(10, 1, 10):
@@ -2243,6 +2247,7 @@ static void amdgpu_discovery_init_soc_config(struct amdgpu_device *adev)
 {
 	switch (amdgpu_ip_version(adev, GC_HWIP, 0)) {
 	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
 		aqua_vanjaram_init_soc_config(adev);
 		break;
 	default:
@@ -2468,6 +2473,7 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(9, 4, 1):
 	case IP_VERSION(9, 4, 2):
 	case IP_VERSION(9, 4, 3):
+	case IP_VERSION(9, 4, 4):
 		adev->family = AMDGPU_FAMILY_AI;
 		break;
 	case IP_VERSION(9, 1, 0):
@@ -2539,7 +2545,8 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	if (amdgpu_ip_version(adev, XGMI_HWIP, 0) == IP_VERSION(4, 8, 0))
 		adev->gmc.xgmi.supported = true;
 
-	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3))
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 4))
 		adev->ip_versions[XGMI_HWIP][0] = IP_VERSION(6, 4, 0);
 
 	/* set NBIO version */
