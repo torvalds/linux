@@ -162,7 +162,6 @@ static void meson_uart_start_tx(struct uart_port *port)
 			break;
 
 		writel(ch, port->membase + AML_UART_WFIFO);
-		uart_xmit_advance(port, 1);
 	}
 
 	if (!kfifo_is_empty(&tport->xmit_fifo)) {
