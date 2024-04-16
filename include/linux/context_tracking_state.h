@@ -75,7 +75,7 @@ static __always_inline int ct_rcu_watching_cpu_acquire(int cpu)
 	return atomic_read_acquire(&ct->state) & CT_RCU_WATCHING_MASK;
 }
 
-static __always_inline long ct_dynticks_nesting(void)
+static __always_inline long ct_nesting(void)
 {
 	return __this_cpu_read(context_tracking.nesting);
 }
