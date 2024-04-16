@@ -214,6 +214,7 @@ xfs_attr_node_list_lookup(
 	struct xfs_mount		*mp = dp->i_mount;
 	struct xfs_trans		*tp = context->tp;
 	struct xfs_buf			*bp;
+	xfs_failaddr_t			fa;
 	int				i;
 	int				error = 0;
 	unsigned int			expected_level = 0;
@@ -237,6 +238,10 @@ xfs_attr_node_list_lookup(
 					node, sizeof(*node));
 			goto out_corruptbuf;
 		}
+
+		fa = xfs_da3_node_header_check(bp, dp->i_ino);
+		if (fa)
+			goto out_corruptbuf;
 
 		xfs_da3_node_hdr_from_disk(mp, &nodehdr, node);
 
@@ -273,6 +278,12 @@ xfs_attr_node_list_lookup(
 		}
 	}
 
+	fa = xfs_attr3_leaf_header_check(bp, dp->i_ino);
+	if (fa) {
+		__xfs_buf_mark_corrupt(bp, fa);
+		goto out_releasebuf;
+	}
+
 	if (expected_level != 0)
 		goto out_corruptbuf;
 
@@ -281,6 +292,7 @@ xfs_attr_node_list_lookup(
 
 out_corruptbuf:
 	xfs_buf_mark_corrupt(bp);
+out_releasebuf:
 	xfs_trans_brelse(tp, bp);
 	xfs_dirattr_mark_sick(dp, XFS_ATTR_FORK);
 	return -EFSCORRUPTED;
@@ -297,6 +309,7 @@ xfs_attr_node_list(
 	struct xfs_buf			*bp;
 	struct xfs_inode		*dp = context->dp;
 	struct xfs_mount		*mp = dp->i_mount;
+	xfs_failaddr_t			fa;
 	int				error = 0;
 
 	trace_xfs_attr_node_list(context);
@@ -310,46 +323,60 @@ xfs_attr_node_list(
 	 */
 	bp = NULL;
 	if (cursor->blkno > 0) {
+		struct xfs_attr_leaf_entry *entries;
+
 		error = xfs_da3_node_read(context->tp, dp, cursor->blkno, &bp,
 				XFS_ATTR_FORK);
 		if (xfs_metadata_is_sick(error))
 			xfs_dirattr_mark_sick(dp, XFS_ATTR_FORK);
-		if ((error != 0) && (error != -EFSCORRUPTED))
+		if (error != 0 && error != -EFSCORRUPTED)
 			return error;
-		if (bp) {
-			struct xfs_attr_leaf_entry *entries;
+		if (!bp)
+			goto need_lookup;
 
-			node = bp->b_addr;
-			switch (be16_to_cpu(node->hdr.info.magic)) {
-			case XFS_DA_NODE_MAGIC:
-			case XFS_DA3_NODE_MAGIC:
+		node = bp->b_addr;
+		switch (be16_to_cpu(node->hdr.info.magic)) {
+		case XFS_DA_NODE_MAGIC:
+		case XFS_DA3_NODE_MAGIC:
+			trace_xfs_attr_list_wrong_blk(context);
+			fa = xfs_da3_node_header_check(bp, dp->i_ino);
+			if (fa) {
+				__xfs_buf_mark_corrupt(bp, fa);
+				xfs_dirattr_mark_sick(dp, XFS_ATTR_FORK);
+			}
+			xfs_trans_brelse(context->tp, bp);
+			bp = NULL;
+			break;
+		case XFS_ATTR_LEAF_MAGIC:
+		case XFS_ATTR3_LEAF_MAGIC:
+			leaf = bp->b_addr;
+			fa = xfs_attr3_leaf_header_check(bp, dp->i_ino);
+			if (fa) {
+				__xfs_buf_mark_corrupt(bp, fa);
+				xfs_trans_brelse(context->tp, bp);
+				xfs_dirattr_mark_sick(dp, XFS_ATTR_FORK);
+				bp = NULL;
+				break;
+			}
+			xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo,
+						     &leafhdr, leaf);
+			entries = xfs_attr3_leaf_entryp(leaf);
+			if (cursor->hashval > be32_to_cpu(
+					entries[leafhdr.count - 1].hashval)) {
 				trace_xfs_attr_list_wrong_blk(context);
 				xfs_trans_brelse(context->tp, bp);
 				bp = NULL;
-				break;
-			case XFS_ATTR_LEAF_MAGIC:
-			case XFS_ATTR3_LEAF_MAGIC:
-				leaf = bp->b_addr;
-				xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo,
-							     &leafhdr, leaf);
-				entries = xfs_attr3_leaf_entryp(leaf);
-				if (cursor->hashval > be32_to_cpu(
-						entries[leafhdr.count - 1].hashval)) {
-					trace_xfs_attr_list_wrong_blk(context);
-					xfs_trans_brelse(context->tp, bp);
-					bp = NULL;
-				} else if (cursor->hashval <= be32_to_cpu(
-						entries[0].hashval)) {
-					trace_xfs_attr_list_wrong_blk(context);
-					xfs_trans_brelse(context->tp, bp);
-					bp = NULL;
-				}
-				break;
-			default:
+			} else if (cursor->hashval <= be32_to_cpu(
+					entries[0].hashval)) {
 				trace_xfs_attr_list_wrong_blk(context);
 				xfs_trans_brelse(context->tp, bp);
 				bp = NULL;
 			}
+			break;
+		default:
+			trace_xfs_attr_list_wrong_blk(context);
+			xfs_trans_brelse(context->tp, bp);
+			bp = NULL;
 		}
 	}
 
@@ -359,6 +386,7 @@ xfs_attr_node_list(
 	 * Note that start of node block is same as start of leaf block.
 	 */
 	if (bp == NULL) {
+need_lookup:
 		error = xfs_attr_node_list_lookup(context, cursor, &bp);
 		if (error || !bp)
 			return error;
@@ -380,8 +408,8 @@ xfs_attr_node_list(
 			break;
 		cursor->blkno = leafhdr.forw;
 		xfs_trans_brelse(context->tp, bp);
-		error = xfs_attr3_leaf_read(context->tp, dp, cursor->blkno,
-					    &bp);
+		error = xfs_attr3_leaf_read(context->tp, dp, dp->i_ino,
+				cursor->blkno, &bp);
 		if (error)
 			return error;
 	}
@@ -501,7 +529,8 @@ xfs_attr_leaf_list(
 	trace_xfs_attr_leaf_list(context);
 
 	context->cursor.blkno = 0;
-	error = xfs_attr3_leaf_read(context->tp, context->dp, 0, &bp);
+	error = xfs_attr3_leaf_read(context->tp, context->dp,
+			context->dp->i_ino, 0, &bp);
 	if (error)
 		return error;
 
