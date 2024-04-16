@@ -204,6 +204,54 @@ DEFINE_EVENT(cgroup_event, cgroup_notify_frozen,
 	TP_ARGS(cgrp, path, val)
 );
 
+DECLARE_EVENT_CLASS(cgroup_rstat,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu_in_loop, bool contended),
+
+	TP_ARGS(cgrp, cpu_in_loop, contended),
+
+	TP_STRUCT__entry(
+		__field(	int,		root			)
+		__field(	int,		level			)
+		__field(	u64,		id			)
+		__field(	int,		cpu_in_loop		)
+		__field(	bool,		contended		)
+	),
+
+	TP_fast_assign(
+		__entry->root = cgrp->root->hierarchy_id;
+		__entry->id = cgroup_id(cgrp);
+		__entry->level = cgrp->level;
+		__entry->cpu_in_loop = cpu_in_loop;
+		__entry->contended = contended;
+	),
+
+	TP_printk("root=%d id=%llu level=%d cpu_in_loop=%d lock contended:%d",
+		  __entry->root, __entry->id, __entry->level,
+		  __entry->cpu_in_loop, __entry->contended)
+);
+
+DEFINE_EVENT(cgroup_rstat, cgroup_rstat_lock_contended,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
+
+	TP_ARGS(cgrp, cpu, contended)
+);
+
+DEFINE_EVENT(cgroup_rstat, cgroup_rstat_locked,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
+
+	TP_ARGS(cgrp, cpu, contended)
+);
+
+DEFINE_EVENT(cgroup_rstat, cgroup_rstat_unlock,
+
+	TP_PROTO(struct cgroup *cgrp, int cpu, bool contended),
+
+	TP_ARGS(cgrp, cpu, contended)
+);
+
 #endif /* _TRACE_CGROUP_H */
 
 /* This part must be outside protection */
