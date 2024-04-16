@@ -17,8 +17,7 @@
  *
  * A typical table entry would be to match a specific CPU
  *
- * X86_MATCH_VENDOR_FAM_MODEL_FEATURE(INTEL, 6, INTEL_FAM6_BROADWELL,
- *				      X86_FEATURE_ANY, NULL);
+ * X86_MATCH_VFM_FEATURE(INTEL_BROADWELL, X86_FEATURE_ANY, NULL);
  *
  * Fields can be wildcarded with %X86_VENDOR_ANY, %X86_FAMILY_ANY,
  * %X86_MODEL_ANY, %X86_FEATURE_ANY (except for vendor)
