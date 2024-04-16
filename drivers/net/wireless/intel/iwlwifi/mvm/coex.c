@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2013-2014, 2018-2020, 2022-2023 Intel Corporation
+ * Copyright (C) 2013-2014, 2018-2020, 2022-2024 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  */
 #include <linux/ieee80211.h>
@@ -259,7 +259,6 @@ static void iwl_mvm_bt_coex_enable_esr(struct iwl_mvm *mvm,
 				       struct ieee80211_vif *vif, bool enable)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	int link_id;
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -267,30 +266,15 @@ static void iwl_mvm_bt_coex_enable_esr(struct iwl_mvm *mvm,
 		return;
 
 	/* Done already */
-	if (mvmvif->bt_coex_esr_disabled == !enable)
+	if ((mvmvif->esr_disable_reason & IWL_MVM_ESR_DISABLE_COEX) == !enable)
 		return;
 
-	mvmvif->bt_coex_esr_disabled = !enable;
+	if (enable)
+		mvmvif->esr_disable_reason &= ~IWL_MVM_ESR_DISABLE_COEX;
+	else
+		mvmvif->esr_disable_reason |= IWL_MVM_ESR_DISABLE_COEX;
 
-	/* Nothing to do */
-	if (mvmvif->esr_active == enable)
-		return;
-
-	if (enable) {
-		/* Try to re-enable eSR*/
-		iwl_mvm_mld_select_links(mvm, vif, false);
-		return;
-	}
-
-	/*
-	 * Find the primary link, as we want to switch to it and drop the
-	 * secondary one.
-	 */
-	link_id = iwl_mvm_mld_get_primary_link(mvm, vif, vif->active_links);
-	WARN_ON(link_id < 0);
-
-	ieee80211_set_active_links_async(vif,
-					 vif->active_links & BIT(link_id));
+	iwl_mvm_recalc_esr(mvm, vif);
 }
 
 /*
@@ -338,7 +322,7 @@ iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
 	if (!link_rssi)
 		wifi_loss_rate = mvm->last_bt_notif.wifi_loss_mid_high_rssi;
 
-	else if (!mvmvif->bt_coex_esr_disabled)
+	else if (!(mvmvif->esr_disable_reason & IWL_MVM_ESR_DISABLE_COEX))
 		 /* RSSI needs to get really low to disable eSR... */
 		wifi_loss_rate =
 			link_rssi <= -IWL_MVM_BT_COEX_DISABLE_ESR_THRESH ?

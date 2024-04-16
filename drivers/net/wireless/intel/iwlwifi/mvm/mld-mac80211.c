@@ -1258,6 +1258,33 @@ int iwl_mvm_mld_get_primary_link(struct iwl_mvm *mvm,
 	return data[1].link_id;
 }
 
+void iwl_mvm_recalc_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	bool enable = !mvmvif->esr_disable_reason;
+	int link_id;
+
+	/* Nothing to do */
+	if (mvmvif->esr_active == enable)
+		return;
+
+	if (enable) {
+		/* Try to re-enable eSR */
+		iwl_mvm_mld_select_links(mvm, vif, false);
+		return;
+	}
+
+	/*
+	 * Find the primary link, as we want to switch to it and drop the
+	 * secondary one.
+	 */
+	link_id = iwl_mvm_mld_get_primary_link(mvm, vif, vif->active_links);
+	WARN_ON(link_id < 0);
+
+	ieee80211_set_active_links_async(vif,
+					 vif->active_links & BIT(link_id));
+}
+
 /*
  * This function receives a bitmap of usable links and check if we can enter
  * eSR on those links.
@@ -1300,7 +1327,7 @@ static bool iwl_mvm_can_enter_esr(struct iwl_mvm *mvm,
 							 primary_link);
 		// Mark eSR as disabled for the next time
 		if (!ret)
-			mvmvif->bt_coex_esr_disabled = true;
+			mvmvif->esr_disable_reason |= IWL_MVM_ESR_DISABLE_COEX;
 		break;
 	}
 

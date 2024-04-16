@@ -347,6 +347,14 @@ struct iwl_mvm_vif_link_info {
 };
 
 /**
+ * enum iwl_mvm_esr_disable_reason - reasons for which we can't enable EMLSR
+ * @IWL_MVM_ESR_DISABLE_COEX: COEX is preventing the enablement of EMLSR
+ */
+enum iwl_mvm_esr_disable_reason {
+	IWL_MVM_ESR_DISABLE_COEX	= BIT(0),
+};
+
+/**
  * struct iwl_mvm_vif - data per Virtual Interface, it is a MAC context
  * @mvm: pointer back to the mvm struct
  * @id: between 0 and 3
@@ -361,7 +369,6 @@ struct iwl_mvm_vif_link_info {
  * @pm_enabled - indicate if MAC power management is allowed
  * @monitor_active: indicates that monitor context is configured, and that the
  *	interface should get quota etc.
- * @bt_coex_esr_disabled: indicates if esr is disabled due to bt coex
  * @low_latency: bit flags for low latency
  *	see enum &iwl_mvm_low_latency_cause for causes.
  * @low_latency_actual: boolean, indicates low latency is set,
@@ -378,6 +385,7 @@ struct iwl_mvm_vif_link_info {
  * @deflink: default link data for use in non-MLO
  * @link: link data for each link in MLO
  * @esr_active: indicates eSR mode is active
+ * @esr_disable_reason: a bitmap of enum iwl_mvm_esr_disable_reason
  * @pm_enabled: indicates powersave is enabled
  */
 struct iwl_mvm_vif {
@@ -392,7 +400,6 @@ struct iwl_mvm_vif {
 	bool pm_enabled;
 	bool monitor_active;
 	bool esr_active;
-	bool bt_coex_esr_disabled;
 
 	u8 low_latency: 6;
 	u8 low_latency_actual: 1;
@@ -400,6 +407,7 @@ struct iwl_mvm_vif {
 	u8 authorized:1;
 	bool ps_disabled;
 
+	u32 esr_disable_reason;
 	u32 ap_beacon_time;
 	struct iwl_mvm_vif_bf_data bf_data;
 
@@ -1578,7 +1586,7 @@ static inline int iwl_mvm_max_active_links(struct iwl_mvm *mvm,
 		return mvm->fw->ucode_capa.num_beacons;
 
 	if ((iwl_mvm_is_esr_supported(trans) &&
-	     !mvmvif->bt_coex_esr_disabled) ||
+	     !mvmvif->esr_disable_reason) ||
 	    ((CSR_HW_RFID_TYPE(trans->hw_rf_id) == IWL_CFG_RF_TYPE_FM &&
 	     CSR_HW_RFID_IS_CDB(trans->hw_rf_id))))
 		return IWL_MVM_FW_MAX_ACTIVE_LINKS_NUM;
@@ -2779,4 +2787,8 @@ int iwl_mvm_roc_add_cmd(struct iwl_mvm *mvm,
 			struct ieee80211_channel *channel,
 			struct ieee80211_vif *vif,
 			int duration, u32 activity);
+
+/* EMLSR */
+void iwl_mvm_recalc_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+
 #endif /* __IWL_MVM_H__ */
