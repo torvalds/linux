@@ -1285,7 +1285,7 @@ static const struct phy_ops rk_udphy_dp_phy_ops = {
 static int rk_udphy_usb3_phy_init(struct phy *phy)
 {
 	struct rk_udphy *udphy = phy_get_drvdata(phy);
-	int ret;
+	int ret = 0;
 
 	mutex_lock(&udphy->mutex);
 	/* DP only or high-speed, disable U3 port */
