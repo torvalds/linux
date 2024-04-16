@@ -603,6 +603,11 @@ event_term
 }
 
 name_or_raw: PE_RAW | PE_NAME | PE_LEGACY_CACHE
+|
+PE_TERM_HW
+{
+	$$ = $1.str;
+}
 
 event_term:
 PE_RAW
@@ -639,20 +644,6 @@ name_or_raw '=' PE_VALUE
 
 	if (err) {
 		free($1);
-		PE_ABORT(err);
-	}
-	$$ = term;
-}
-|
-name_or_raw '=' PE_TERM_HW
-{
-	struct parse_events_term *term;
-	int err = parse_events_term__str(&term, PARSE_EVENTS__TERM_TYPE_USER,
-					 $1, $3.str, &@1, &@3);
-
-	if (err) {
-		free($1);
-		free($3.str);
 		PE_ABORT(err);
 	}
 	$$ = term;
@@ -705,18 +696,6 @@ PE_TERM '=' name_or_raw
 
 	if (err) {
 		free($3);
-		PE_ABORT(err);
-	}
-	$$ = term;
-}
-|
-PE_TERM '=' PE_TERM_HW
-{
-	struct parse_events_term *term;
-	int err = parse_events_term__str(&term, $1, /*config=*/NULL, $3.str, &@1, &@3);
-
-	if (err) {
-		free($3.str);
 		PE_ABORT(err);
 	}
 	$$ = term;
