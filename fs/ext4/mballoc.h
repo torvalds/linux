@@ -215,7 +215,7 @@ struct ext4_allocation_context {
 #define AC_STATUS_BREAK		3
 
 struct ext4_buddy {
-	struct page *bd_buddy_page;
+	struct folio *bd_buddy_folio;
 	void *bd_buddy;
 	struct folio *bd_bitmap_folio;
 	void *bd_bitmap;
