@@ -29,8 +29,8 @@
 #include "ipa_modem.h"
 #include "ipa_uc.h"
 #include "ipa_interrupt.h"
-#include "gsi_trans.h"
 #include "ipa_sysfs.h"
+#include "ipa_version.h"
 
 /**
  * DOC: The IP Accelerator

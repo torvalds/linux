@@ -9,9 +9,7 @@
 #include <linux/qrtr.h>
 
 #include "ipa.h"
-#include "ipa_endpoint.h"
 #include "ipa_mem.h"
-#include "ipa_table.h"
 #include "ipa_modem.h"
 #include "ipa_qmi_msg.h"
 

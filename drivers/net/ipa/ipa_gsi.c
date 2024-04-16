@@ -11,6 +11,7 @@
 #include "ipa.h"
 #include "ipa_endpoint.h"
 #include "ipa_data.h"
+#include "ipa_version.h"
 
 void ipa_gsi_trans_complete(struct gsi_trans *trans)
 {

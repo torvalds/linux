@@ -4,7 +4,6 @@
 
 #include <linux/array_size.h>
 #include <linux/bits.h>
-#include <linux/kernel.h>
 #include <linux/types.h>
 
 #include "../ipa_reg.h"

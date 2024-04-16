@@ -6,8 +6,8 @@
 #include <linux/bits.h>
 #include <linux/types.h>
 
-#include "../ipa.h"
 #include "../ipa_reg.h"
+#include "../ipa_version.h"
 
 static const u32 reg_flavor_0_fmask[] = {
 	[MAX_PIPES]					= GENMASK(7, 0),
