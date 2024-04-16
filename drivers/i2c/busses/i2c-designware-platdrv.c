@@ -46,6 +46,7 @@ static const struct acpi_device_id dw_i2c_acpi_match[] = {
 	{ "INT33C3", 0 },
 	{ "INT3432", 0 },
 	{ "INT3433", 0 },
+	{ "INTC10EF", 0 },
 	{ "80860F41", ACCESS_NO_IRQ_SUSPEND },
 	{ "808622C1", ACCESS_NO_IRQ_SUSPEND },
 	{ "AMD0010", ACCESS_INTR_MASK },
