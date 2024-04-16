@@ -2398,9 +2398,9 @@ int try_release_extent_mapping(struct page *page, gfp_t mask)
 	struct extent_map *em;
 	u64 start = page_offset(page);
 	u64 end = start + PAGE_SIZE - 1;
-	struct btrfs_inode *btrfs_inode = page_to_inode(page);
-	struct extent_io_tree *tree = &btrfs_inode->io_tree;
-	struct extent_map_tree *map = &btrfs_inode->extent_tree;
+	struct btrfs_inode *inode = page_to_inode(page);
+	struct extent_io_tree *io_tree = &inode->io_tree;
+	struct extent_map_tree *extent_tree = &inode->extent_tree;
 
 	if (gfpflags_allow_blocking(mask) &&
 	    page->mapping->host->i_size > SZ_16M) {
@@ -2410,19 +2410,19 @@ int try_release_extent_mapping(struct page *page, gfp_t mask)
 			u64 cur_gen;
 
 			len = end - start + 1;
-			write_lock(&map->lock);
-			em = lookup_extent_mapping(map, start, len);
+			write_lock(&extent_tree->lock);
+			em = lookup_extent_mapping(extent_tree, start, len);
 			if (!em) {
-				write_unlock(&map->lock);
+				write_unlock(&extent_tree->lock);
 				break;
 			}
 			if ((em->flags & EXTENT_FLAG_PINNED) ||
 			    em->start != start) {
-				write_unlock(&map->lock);
+				write_unlock(&extent_tree->lock);
 				free_extent_map(em);
 				break;
 			}
-			if (test_range_bit_exists(tree, em->start,
+			if (test_range_bit_exists(io_tree, em->start,
 						  extent_map_end(em) - 1,
 						  EXTENT_LOCKED))
 				goto next;
@@ -2442,7 +2442,7 @@ int try_release_extent_mapping(struct page *page, gfp_t mask)
 			 * Otherwise don't remove it, we could be racing with an
 			 * ongoing fast fsync that could miss the new extent.
 			 */
-			fs_info = btrfs_inode->root->fs_info;
+			fs_info = inode->root->fs_info;
 			spin_lock(&fs_info->trans_lock);
 			cur_gen = fs_info->generation;
 			spin_unlock(&fs_info->trans_lock);
@@ -2457,12 +2457,12 @@ remove_em:
 			 * hurts the fsync performance for workloads with a data
 			 * size that exceeds or is close to the system's memory).
 			 */
-			remove_extent_mapping(btrfs_inode, em);
+			remove_extent_mapping(inode, em);
 			/* once for the rb tree */
 			free_extent_map(em);
 next:
 			start = extent_map_end(em);
-			write_unlock(&map->lock);
+			write_unlock(&extent_tree->lock);
 
 			/* once for us */
 			free_extent_map(em);
@@ -2470,7 +2470,7 @@ next:
 			cond_resched(); /* Allow large-extent preemption. */
 		}
 	}
-	return try_release_extent_state(tree, page, mask);
+	return try_release_extent_state(io_tree, page, mask);
 }
 
 struct btrfs_fiemap_entry {
