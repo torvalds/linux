@@ -498,17 +498,15 @@ sh_css_config_input_network_2400(struct ia_css_stream *stream)
 	}
 
 	if (stream->config.mode == IA_CSS_INPUT_MODE_PRBS) {
-		unsigned int hblank_cycles = 100,
-		vblank_lines = 6,
-		width,
-		height,
-		vblank_cycles;
-		width  = (stream->config.input_config.input_res.width) / (1 +
-			(stream->config.pixels_per_clock == 2));
+		unsigned int width, height, vblank_cycles;
+		const unsigned int hblank_cycles = 100;
+		const unsigned int vblank_lines = 6;
+
+		width = (stream->config.input_config.input_res.width) /
+			(1 + (stream->config.pixels_per_clock == 2));
 		height = stream->config.input_config.input_res.height;
 		vblank_cycles = vblank_lines * (width + hblank_cycles);
-		sh_css_sp_configure_sync_gen(width, height, hblank_cycles,
-					     vblank_cycles);
+		sh_css_sp_configure_sync_gen(width, height, hblank_cycles, vblank_cycles);
 	}
 	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE_PRIVATE,
 			    "sh_css_config_input_network() leave:\n");
