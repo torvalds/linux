@@ -55,9 +55,10 @@ static const u8 *drm_find_displayid_extension(const struct drm_edid *drm_edid,
 					      int *length, int *idx,
 					      int *ext_index)
 {
-	const u8 *displayid = drm_find_edid_extension(drm_edid, DISPLAYID_EXT, ext_index);
 	const struct displayid_header *base;
+	const u8 *displayid;
 
+	displayid = drm_edid_find_extension(drm_edid, DISPLAYID_EXT, ext_index);
 	if (!displayid)
 		return NULL;
 
