@@ -875,19 +875,21 @@ static int ov4689_probe(struct i2c_client *client)
 		goto err_clean_entity;
 	}
 
-	ret = v4l2_async_register_subdev_sensor(sd);
-	if (ret) {
-		dev_err(dev, "v4l2 async register subdev failed\n");
-		goto err_clean_subdev;
-	}
-
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
 
+	ret = v4l2_async_register_subdev_sensor(sd);
+	if (ret) {
+		dev_err(dev, "v4l2 async register subdev failed\n");
+		goto err_clean_subdev_pm;
+	}
+
 	return 0;
 
-err_clean_subdev:
+err_clean_subdev_pm:
+	pm_runtime_disable(dev);
+	pm_runtime_set_suspended(dev);
 	v4l2_subdev_cleanup(sd);
 err_clean_entity:
 	media_entity_cleanup(&sd->entity);
