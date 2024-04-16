@@ -51,43 +51,39 @@
 #include "intel_vdsc.h"
 #include "skl_scaler.h"
 
-static int intel_dp_mst_check_constraints(struct drm_i915_private *i915, int bpp,
-					  const struct drm_display_mode *adjusted_mode,
-					  struct intel_crtc_state *crtc_state,
-					  bool dsc)
+static int intel_dp_mst_max_dpt_bpp(const struct intel_crtc_state *crtc_state,
+				    bool dsc)
 {
-	if (intel_dp_is_uhbr(crtc_state) && DISPLAY_VER(i915) < 20 && dsc) {
-		int output_bpp = bpp;
-		int symbol_clock = intel_dp_link_symbol_clock(crtc_state->port_clock);
-		/*
-		 * Bspec/49259 suggests that the FEC overhead needs to be
-		 * applied here, though HW people claim that neither this FEC
-		 * or any other overhead is applicable here (that is the actual
-		 * available_bw is just symbol_clock * 72). However based on
-		 * testing on MTL-P the
-		 * - DELL U3224KBA display
-		 * - Unigraf UCD-500 CTS test sink
-		 * devices the
-		 * - 5120x2880/995.59Mhz
-		 * - 6016x3384/1357.23Mhz
-		 * - 6144x3456/1413.39Mhz
-		 * modes (all the ones having a DPT limit on the above devices),
-		 * both the channel coding efficiency and an additional 3%
-		 * overhead needs to be accounted for.
-		 */
-		int available_bw = mul_u32_u32(symbol_clock * 72,
-					       drm_dp_bw_channel_coding_efficiency(true)) /
-				   1030000;
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
 
-		if (output_bpp * adjusted_mode->crtc_clock >
-		    available_bw) {
-			drm_dbg_kms(&i915->drm, "UHBR check failed(required bw %d available %d)\n",
-				    output_bpp * adjusted_mode->crtc_clock, available_bw);
-			return -EINVAL;
-		}
-	}
+	if (!intel_dp_is_uhbr(crtc_state) || DISPLAY_VER(i915) >= 20 || !dsc)
+		return INT_MAX;
 
-	return 0;
+	/*
+	 * DSC->DPT interface width:
+	 *   ICL-MTL: 72 bits (each branch has 72 bits, only left branch is used)
+	 *   LNL+:    144 bits (not a bottleneck in any config)
+	 *
+	 * Bspec/49259 suggests that the FEC overhead needs to be
+	 * applied here, though HW people claim that neither this FEC
+	 * or any other overhead is applicable here (that is the actual
+	 * available_bw is just symbol_clock * 72). However based on
+	 * testing on MTL-P the
+	 * - DELL U3224KBA display
+	 * - Unigraf UCD-500 CTS test sink
+	 * devices the
+	 * - 5120x2880/995.59Mhz
+	 * - 6016x3384/1357.23Mhz
+	 * - 6144x3456/1413.39Mhz
+	 * modes (all the ones having a DPT limit on the above devices),
+	 * both the channel coding efficiency and an additional 3%
+	 * overhead needs to be accounted for.
+	 */
+	return div64_u64(mul_u32_u32(intel_dp_link_symbol_clock(crtc_state->port_clock) * 72,
+				     drm_dp_bw_channel_coding_efficiency(true)),
+			 mul_u32_u32(adjusted_mode->crtc_clock, 1030000));
 }
 
 static int intel_dp_mst_bw_overhead(const struct intel_crtc_state *crtc_state,
@@ -175,6 +171,7 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 	int bpp, slots = -EINVAL;
+	int max_dpt_bpp;
 	int ret = 0;
 
 	mst_state = drm_atomic_get_mst_topology_state(state, &intel_dp->mst_mgr);
@@ -195,6 +192,13 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 						      crtc_state->port_clock,
 						      crtc_state->lane_count);
 
+	max_dpt_bpp = intel_dp_mst_max_dpt_bpp(crtc_state, dsc);
+	if (max_bpp > max_dpt_bpp) {
+		drm_dbg_kms(&i915->drm, "Limiting bpp to max DPT bpp (%d -> %d)\n",
+			    max_bpp, max_dpt_bpp);
+		max_bpp = max_dpt_bpp;
+	}
+
 	drm_dbg_kms(&i915->drm, "Looking for slots in range min bpp %d max bpp %d\n",
 		    min_bpp, max_bpp);
 
@@ -205,10 +209,6 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		int remote_tu;
 
 		drm_dbg_kms(&i915->drm, "Trying bpp %d\n", bpp);
-
-		ret = intel_dp_mst_check_constraints(i915, bpp, adjusted_mode, crtc_state, dsc);
-		if (ret)
-			continue;
 
 		link_bpp_x16 = to_bpp_x16(dsc ? bpp :
 					  intel_dp_output_bpp(crtc_state->output_format, bpp));
