@@ -613,7 +613,7 @@ static int usbhs_probe(struct platform_device *pdev)
 
 	info = of_device_get_match_data(dev);
 	if (!info) {
-		info = renesas_usbhs_get_info(pdev);
+		info = dev_get_platdata(dev);
 		if (!info)
 			return dev_err_probe(dev, -EINVAL, "no platform info\n");
 	}

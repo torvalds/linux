@@ -194,9 +194,4 @@ struct renesas_usbhs_platform_info {
 	struct renesas_usbhs_driver_param	driver_param;
 };
 
-/*
- * macro for platform
- */
-#define renesas_usbhs_get_info(pdev)\
-	((struct renesas_usbhs_platform_info *)(pdev)->dev.platform_data)
 #endif /* RENESAS_USB_H */
