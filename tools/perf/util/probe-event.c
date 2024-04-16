@@ -236,7 +236,7 @@ static int convert_exec_to_group(const char *exec, char **result)
 		}
 	}
 
-	ret = e_snprintf(buf, 64, "%s_%s", PERFPROBE_GROUP, ptr1);
+	ret = e_snprintf(buf, sizeof(buf), "%s_%s", PERFPROBE_GROUP, ptr1);
 	if (ret < 0)
 		goto out;
 
@@ -2867,7 +2867,7 @@ static int probe_trace_event__set_name(struct probe_trace_event *tev,
 		group = PERFPROBE_GROUP;
 
 	/* Get an unused new event name */
-	ret = get_new_event_name(buf, 64, event, namelist,
+	ret = get_new_event_name(buf, sizeof(buf), event, namelist,
 				 tev->point.retprobe, allow_suffix);
 	if (ret < 0)
 		return ret;
