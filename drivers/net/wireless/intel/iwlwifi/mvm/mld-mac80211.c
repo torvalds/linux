@@ -468,6 +468,52 @@ static void iwl_mvm_mld_unassign_vif_chanctx(struct ieee80211_hw *hw,
 	mutex_unlock(&mvm->mutex);
 }
 
+static void
+iwl_mvm_send_ap_tx_power_constraint_cmd(struct iwl_mvm *mvm,
+					struct ieee80211_vif *vif,
+					struct ieee80211_bss_conf *bss_conf)
+{
+	struct iwl_txpower_constraints_cmd cmd = {};
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm_vif_link_info *link_info =
+			mvmvif->link[bss_conf->link_id];
+	u32 cmd_id = WIDE_ID(PHY_OPS_GROUP, AP_TX_POWER_CONSTRAINTS_CMD);
+	u32 cmd_ver = iwl_fw_lookup_cmd_ver(mvm->fw, cmd_id,
+					    IWL_FW_CMD_VER_UNKNOWN);
+	int ret;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (cmd_ver == IWL_FW_CMD_VER_UNKNOWN)
+		return;
+
+	if (!link_info->active ||
+	    link_info->fw_link_id == IWL_MVM_FW_LINK_ID_INVALID)
+		return;
+
+	if (bss_conf->chanreq.oper.chan->band != NL80211_BAND_6GHZ ||
+	    bss_conf->chanreq.oper.chan->flags &
+		    IEEE80211_CHAN_NO_6GHZ_VLP_CLIENT)
+		return;
+
+	cmd.link_id = cpu_to_le16(link_info->fw_link_id);
+	/*
+	 * Currently supporting VLP Soft AP only.
+	 */
+	cmd.ap_type = cpu_to_le16(IWL_6GHZ_AP_TYPE_VLP);
+	memset(cmd.psd_pwr, DEFAULT_TPE_TX_POWER, sizeof(cmd.psd_pwr));
+	memset(cmd.eirp_pwr, DEFAULT_TPE_TX_POWER, sizeof(cmd.eirp_pwr));
+
+	ret = iwl_mvm_send_cmd_pdu(mvm,
+				   WIDE_ID(PHY_OPS_GROUP,
+					   AP_TX_POWER_CONSTRAINTS_CMD),
+				   0, sizeof(cmd), &cmd);
+	if (ret)
+		IWL_ERR(mvm,
+			"failed to send AP_TX_POWER_CONSTRAINTS_CMD (%d)\n",
+			ret);
+}
+
 static int iwl_mvm_mld_start_ap_ibss(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *link_conf)
@@ -477,6 +523,10 @@ static int iwl_mvm_mld_start_ap_ibss(struct ieee80211_hw *hw,
 	int ret;
 
 	mutex_lock(&mvm->mutex);
+
+	if (vif->type == NL80211_IFTYPE_AP)
+		iwl_mvm_send_ap_tx_power_constraint_cmd(mvm, vif, link_conf);
+
 	/* Send the beacon template */
 	ret = iwl_mvm_mac_ctxt_beacon_changed(mvm, vif, link_conf);
 	if (ret)
