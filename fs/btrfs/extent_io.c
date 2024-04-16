@@ -2406,8 +2406,7 @@ int try_release_extent_mapping(struct page *page, gfp_t mask)
 	    page->mapping->host->i_size > SZ_16M) {
 		u64 len;
 		while (start <= end) {
-			struct btrfs_fs_info *fs_info;
-			u64 cur_gen;
+			const u64 cur_gen = btrfs_get_fs_generation(inode->root->fs_info);
 
 			len = end - start + 1;
 			write_lock(&extent_tree->lock);
@@ -2442,10 +2441,6 @@ int try_release_extent_mapping(struct page *page, gfp_t mask)
 			 * Otherwise don't remove it, we could be racing with an
 			 * ongoing fast fsync that could miss the new extent.
 			 */
-			fs_info = inode->root->fs_info;
-			spin_lock(&fs_info->trans_lock);
-			cur_gen = fs_info->generation;
-			spin_unlock(&fs_info->trans_lock);
 			if (em->generation >= cur_gen)
 				goto next;
 remove_em:
