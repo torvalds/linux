@@ -790,9 +790,15 @@ sep_slash_slash_dc: '/' '/' | ':' |
 
 %%
 
-void parse_events_error(YYLTYPE *loc, void *parse_state,
+void parse_events_error(YYLTYPE *loc, void *_parse_state,
 			void *scanner __maybe_unused,
 			char const *msg __maybe_unused)
 {
-	parse_events_evlist_error(parse_state, loc->last_column, "parser error");
+	struct parse_events_state *parse_state = _parse_state;
+
+	if (!parse_state->error || !list_empty(&parse_state->error->list))
+		return;
+
+	parse_events_error__handle(parse_state->error, loc->last_column,
+				   strdup("Unrecognized input"), NULL);
 }
