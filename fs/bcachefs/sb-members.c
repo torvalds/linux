@@ -415,6 +415,9 @@ static void __bch2_dev_btree_bitmap_mark(struct bch_sb_field_members_v2 *mi, uns
 		m->btree_bitmap_shift += resize;
 	}
 
+	BUG_ON(m->btree_bitmap_shift > 57);
+	BUG_ON(end > 64ULL << m->btree_bitmap_shift);
+
 	for (unsigned bit = start >> m->btree_bitmap_shift;
 	     (u64) bit << m->btree_bitmap_shift < end;
 	     bit++)
