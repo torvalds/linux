@@ -1071,7 +1071,7 @@ enum dc_status dpcd_set_link_settings(
 		 * MUX chip gets link rate set back before link training.
 		 */
 		if (link->connector_signal == SIGNAL_TYPE_EDP) {
-			uint8_t supported_link_rates[16];
+			uint8_t supported_link_rates[16] = {0};
 
 			core_link_read_dpcd(link, DP_SUPPORTED_LINK_RATES,
 					supported_link_rates, sizeof(supported_link_rates));
