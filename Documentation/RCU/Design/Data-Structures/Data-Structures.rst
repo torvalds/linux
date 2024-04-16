@@ -936,7 +936,7 @@ This portion of the rcu_data structure is declared as follows:
 ::
 
      1   long nesting;
-     2   long dynticks_nmi_nesting;
+     2   long nmi_nesting;
      3   atomic_t dynticks;
      4   bool rcu_need_heavy_qs;
      5   bool rcu_urgent_qs;
@@ -948,11 +948,11 @@ the corresponding CPU (and from tracing) unless otherwise stated.
 The ``->nesting`` field counts the nesting depth of process
 execution, so that in normal circumstances this counter has value zero
 or one. NMIs, irqs, and tracers are counted by the
-``->dynticks_nmi_nesting`` field. Because NMIs cannot be masked, changes
+``->nmi_nesting`` field. Because NMIs cannot be masked, changes
 to this variable have to be undertaken carefully using an algorithm
 provided by Andy Lutomirski. The initial transition from idle adds one,
 and nested transitions add two, so that a nesting level of five is
-represented by a ``->dynticks_nmi_nesting`` value of nine. This counter
+represented by a ``->nmi_nesting`` value of nine. This counter
 can therefore be thought of as counting the number of reasons why this
 CPU cannot be permitted to enter dyntick-idle mode, aside from
 process-level transitions.
@@ -961,11 +961,11 @@ However, it turns out that when running in non-idle kernel context, the
 Linux kernel is fully capable of entering interrupt handlers that never
 exit and perhaps also vice versa. Therefore, whenever the
 ``->nesting`` field is incremented up from zero, the
-``->dynticks_nmi_nesting`` field is set to a large positive number, and
+``->nmi_nesting`` field is set to a large positive number, and
 whenever the ``->nesting`` field is decremented down to zero,
-the ``->dynticks_nmi_nesting`` field is set to zero. Assuming that
+the ``->nmi_nesting`` field is set to zero. Assuming that
 the number of misnested interrupts is not sufficient to overflow the
-counter, this approach corrects the ``->dynticks_nmi_nesting`` field
+counter, this approach corrects the ``->nmi_nesting`` field
 every time the corresponding CPU enters the idle loop from process
 context.
 
@@ -993,7 +993,7 @@ code.
 | **Quick Quiz**:                                                       |
 +-----------------------------------------------------------------------+
 | Why not simply combine the ``->nesting`` and                          |
-| ``->dynticks_nmi_nesting`` counters into a single counter that just   |
+| ``->nmi_nesting`` counters into a single counter that just            |
 | counts the number of reasons that the corresponding CPU is non-idle?  |
 +-----------------------------------------------------------------------+
 | **Answer**:                                                           |

@@ -40,7 +40,7 @@ struct context_tracking {
 #endif
 #ifdef CONFIG_CONTEXT_TRACKING_IDLE
 	long nesting;		/* Track process nesting level. */
-	long dynticks_nmi_nesting;	/* Track irq/NMI nesting level. */
+	long nmi_nesting;	/* Track irq/NMI nesting level. */
 #endif
 };
 
@@ -89,14 +89,14 @@ static __always_inline long ct_nesting_cpu(int cpu)
 
 static __always_inline long ct_dynticks_nmi_nesting(void)
 {
-	return __this_cpu_read(context_tracking.dynticks_nmi_nesting);
+	return __this_cpu_read(context_tracking.nmi_nesting);
 }
 
 static __always_inline long ct_dynticks_nmi_nesting_cpu(int cpu)
 {
 	struct context_tracking *ct = per_cpu_ptr(&context_tracking, cpu);
 
-	return ct->dynticks_nmi_nesting;
+	return ct->nmi_nesting;
 }
 #endif /* #ifdef CONFIG_CONTEXT_TRACKING_IDLE */
 
