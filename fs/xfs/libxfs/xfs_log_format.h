@@ -117,8 +117,9 @@ struct xfs_unmount_log_format {
 #define XLOG_REG_TYPE_ATTRD_FORMAT	28
 #define XLOG_REG_TYPE_ATTR_NAME	29
 #define XLOG_REG_TYPE_ATTR_VALUE	30
-#define XLOG_REG_TYPE_MAX		30
-
+#define XLOG_REG_TYPE_XMI_FORMAT	31
+#define XLOG_REG_TYPE_XMD_FORMAT	32
+#define XLOG_REG_TYPE_MAX		32
 
 /*
  * Flags to log operation header
@@ -243,6 +244,8 @@ typedef struct xfs_trans_header {
 #define	XFS_LI_BUD		0x1245
 #define	XFS_LI_ATTRI		0x1246  /* attr set/remove intent*/
 #define	XFS_LI_ATTRD		0x1247  /* attr set/remove done */
+#define	XFS_LI_XMI		0x1248  /* mapping exchange intent */
+#define	XFS_LI_XMD		0x1249  /* mapping exchange done */
 
 #define XFS_LI_TYPE_DESC \
 	{ XFS_LI_EFI,		"XFS_LI_EFI" }, \
@@ -260,7 +263,9 @@ typedef struct xfs_trans_header {
 	{ XFS_LI_BUI,		"XFS_LI_BUI" }, \
 	{ XFS_LI_BUD,		"XFS_LI_BUD" }, \
 	{ XFS_LI_ATTRI,		"XFS_LI_ATTRI" }, \
-	{ XFS_LI_ATTRD,		"XFS_LI_ATTRD" }
+	{ XFS_LI_ATTRD,		"XFS_LI_ATTRD" }, \
+	{ XFS_LI_XMI,		"XFS_LI_XMI" }, \
+	{ XFS_LI_XMD,		"XFS_LI_XMD" }
 
 /*
  * Inode Log Item Format definitions.
@@ -876,6 +881,61 @@ struct xfs_bud_log_format {
 	uint16_t		bud_size;	/* size of this item */
 	uint32_t		__pad;
 	uint64_t		bud_bui_id;	/* id of corresponding bui */
+};
+
+/*
+ * XMI/XMD (file mapping exchange) log format definitions
+ */
+
+/* This is the structure used to lay out an mapping exchange log item. */
+struct xfs_xmi_log_format {
+	uint16_t		xmi_type;	/* xmi log item type */
+	uint16_t		xmi_size;	/* size of this item */
+	uint32_t		__pad;		/* must be zero */
+	uint64_t		xmi_id;		/* xmi identifier */
+
+	uint64_t		xmi_inode1;	/* inumber of first file */
+	uint64_t		xmi_inode2;	/* inumber of second file */
+	uint32_t		xmi_igen1;	/* generation of first file */
+	uint32_t		xmi_igen2;	/* generation of second file */
+	uint64_t		xmi_startoff1;	/* block offset into file1 */
+	uint64_t		xmi_startoff2;	/* block offset into file2 */
+	uint64_t		xmi_blockcount;	/* number of blocks */
+	uint64_t		xmi_flags;	/* XFS_EXCHMAPS_* */
+	uint64_t		xmi_isize1;	/* intended file1 size */
+	uint64_t		xmi_isize2;	/* intended file2 size */
+};
+
+/* Exchange mappings between extended attribute forks instead of data forks. */
+#define XFS_EXCHMAPS_ATTR_FORK		(1ULL << 0)
+
+/* Set the file sizes when finished. */
+#define XFS_EXCHMAPS_SET_SIZES		(1ULL << 1)
+
+/*
+ * Exchange the mappings of the two files only if the file allocation units
+ * mapped to file1's range have been written.
+ */
+#define XFS_EXCHMAPS_INO1_WRITTEN	(1ULL << 2)
+
+/* Clear the reflink flag from inode1 after the operation. */
+#define XFS_EXCHMAPS_CLEAR_INO1_REFLINK	(1ULL << 3)
+
+/* Clear the reflink flag from inode2 after the operation. */
+#define XFS_EXCHMAPS_CLEAR_INO2_REFLINK	(1ULL << 4)
+
+#define XFS_EXCHMAPS_LOGGED_FLAGS	(XFS_EXCHMAPS_ATTR_FORK | \
+					 XFS_EXCHMAPS_SET_SIZES | \
+					 XFS_EXCHMAPS_INO1_WRITTEN | \
+					 XFS_EXCHMAPS_CLEAR_INO1_REFLINK | \
+					 XFS_EXCHMAPS_CLEAR_INO2_REFLINK)
+
+/* This is the structure used to lay out an mapping exchange done log item. */
+struct xfs_xmd_log_format {
+	uint16_t		xmd_type;	/* xmd log item type */
+	uint16_t		xmd_size;	/* size of this item */
+	uint32_t		__pad;
+	uint64_t		xmd_xmi_id;	/* id of corresponding xmi */
 };
 
 /*
