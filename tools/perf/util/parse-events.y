@@ -125,6 +125,10 @@ static void free_list_evsel(struct list_head* list_evsel)
 }
 %%
 
+ /*
+  * Entry points. We are either parsing events or terminals. Just terminal
+  * parsing is used for parsing events in sysfs.
+  */
 start:
 PE_START_EVENTS start_events
 |
@@ -132,31 +136,36 @@ PE_START_TERMS  start_terms
 
 start_events: groups
 {
+	/* Take the parsed events, groups.. and place into parse_state. */
+	struct list_head *groups  = $1;
 	struct parse_events_state *parse_state = _parse_state;
 
-	/* frees $1 */
-	parse_events_update_lists($1, &parse_state->list);
+	list_splice_tail(groups, &parse_state->list);
+	free(groups);
 }
 
-groups:
+groups: /* A list of groups or events. */
 groups ',' group
 {
-	struct list_head *list  = $1;
-	struct list_head *group = $3;
+	/* Merge group into the list of events/groups. */
+	struct list_head *groups  = $1;
+	struct list_head *group  = $3;
 
-	/* frees $3 */
-	parse_events_update_lists(group, list);
-	$$ = list;
+	list_splice_tail(group, groups);
+	free(group);
+	$$ = groups;
 }
 |
 groups ',' event
 {
-	struct list_head *list  = $1;
+	/* Merge event into the list of events/groups. */
+	struct list_head *groups  = $1;
 	struct list_head *event = $3;
 
-	/* frees $3 */
-	parse_events_update_lists(event, list);
-	$$ = list;
+
+	list_splice_tail(event, groups);
+	free(event);
+	$$ = groups;
 }
 |
 group
@@ -206,12 +215,12 @@ PE_NAME '{' events '}'
 events:
 events ',' event
 {
+	struct list_head *events  = $1;
 	struct list_head *event = $3;
-	struct list_head *list  = $1;
 
-	/* frees $3 */
-	parse_events_update_lists(event, list);
-	$$ = list;
+	list_splice_tail(event, events);
+	free(event);
+	$$ = events;
 }
 |
 event

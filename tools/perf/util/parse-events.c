@@ -1720,19 +1720,6 @@ void parse_events__set_leader(char *name, struct list_head *list)
 	leader->group_name = name;
 }
 
-/* list_event is assumed to point to malloc'ed memory */
-void parse_events_update_lists(struct list_head *list_event,
-			       struct list_head *list_all)
-{
-	/*
-	 * Called for single event definition. Update the
-	 * 'all event' list, and reinit the 'single event'
-	 * list, for next event definition.
-	 */
-	list_splice_tail(list_event, list_all);
-	free(list_event);
-}
-
 struct event_modifier {
 	int eu;
 	int ek;
