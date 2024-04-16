@@ -1156,6 +1156,8 @@ int btrfs_write_marked_extents(struct btrfs_fs_info *fs_info,
 		else if (wait_writeback)
 			werr = filemap_fdatawait_range(mapping, start, end);
 		free_extent_state(cached_state);
+		if (werr)
+			break;
 		cached_state = NULL;
 		cond_resched();
 		start = end + 1;
@@ -1198,6 +1200,8 @@ static int __btrfs_wait_marked_extents(struct btrfs_fs_info *fs_info,
 		if (err)
 			werr = err;
 		free_extent_state(cached_state);
+		if (werr)
+			break;
 		cached_state = NULL;
 		cond_resched();
 		start = end + 1;
