@@ -56,7 +56,7 @@ static __always_inline int __ct_state(void)
 #endif
 
 #ifdef CONFIG_CONTEXT_TRACKING_IDLE
-static __always_inline int ct_dynticks(void)
+static __always_inline int ct_rcu_watching(void)
 {
 	return atomic_read(this_cpu_ptr(&context_tracking.state)) & CT_RCU_WATCHING_MASK;
 }

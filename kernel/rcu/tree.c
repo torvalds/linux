@@ -294,7 +294,7 @@ void rcu_softirq_qs(void)
  */
 static void rcu_dynticks_eqs_online(void)
 {
-	if (ct_dynticks() & CT_RCU_WATCHING)
+	if (ct_rcu_watching() & CT_RCU_WATCHING)
 		return;
 	ct_state_inc(CT_RCU_WATCHING);
 }
