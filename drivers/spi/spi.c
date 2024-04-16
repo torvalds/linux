@@ -605,6 +605,11 @@ static void spi_dev_set_name(struct spi_device *spi)
 		return;
 	}
 
+	if (is_software_node(fwnode)) {
+		dev_set_name(dev, "spi-%pfwP", fwnode);
+		return;
+	}
+
 	dev_set_name(&spi->dev, "%s.%u", dev_name(&spi->controller->dev),
 		     spi_get_chipselect(spi, 0));
 }
