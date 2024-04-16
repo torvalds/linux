@@ -4230,11 +4230,21 @@ static bool drm_edid_has_cta_extension(const struct drm_edid *drm_edid)
 {
 	const struct displayid_block *block;
 	struct displayid_iter iter;
-	int ext_index = 0;
+	struct drm_edid_iter edid_iter;
+	const u8 *ext;
 	bool found = false;
 
 	/* Look for a top level CEA extension block */
-	if (drm_edid_find_extension(drm_edid, CEA_EXT, &ext_index))
+	drm_edid_iter_begin(drm_edid, &edid_iter);
+	drm_edid_iter_for_each(ext, &edid_iter) {
+		if (ext[0] == CEA_EXT) {
+			found = true;
+			break;
+		}
+	}
+	drm_edid_iter_end(&edid_iter);
+
+	if (found)
 		return true;
 
 	/* CEA blocks can also be found embedded in a DisplayID block */
