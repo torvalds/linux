@@ -201,6 +201,11 @@ int bch2_btree_ptr_v2_invalid(struct bch_fs *c, struct bkey_s_c k,
 			 c, err, btree_ptr_v2_min_key_bad,
 			 "min_key > key");
 
+	if (flags & BKEY_INVALID_WRITE)
+		bkey_fsck_err_on(!bp.v->sectors_written,
+				 c, err, btree_ptr_v2_written_0,
+				 "sectors_written == 0");
+
 	ret = bch2_bkey_ptrs_invalid(c, k, flags, err);
 fsck_err:
 	return ret;
