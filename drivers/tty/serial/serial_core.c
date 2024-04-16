@@ -558,7 +558,7 @@ static int uart_put_char(struct tty_struct *tty, u8 c)
 	int ret = 0;
 
 	port = uart_port_lock(state, flags);
-	if (WARN_ON_ONCE(!state->port.xmit_buf)) {
+	if (!state->port.xmit_buf) {
 		uart_port_unlock(port, flags);
 		return 0;
 	}
