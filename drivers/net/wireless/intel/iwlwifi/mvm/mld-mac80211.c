@@ -1151,28 +1151,6 @@ iwl_mvm_mld_change_sta_links(struct ieee80211_hw *hw,
 	return ret;
 }
 
-void iwl_mvm_recalc_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-	bool enable = !mvmvif->esr_disable_reason;
-	u16 new_active_links;
-
-	/* Nothing to do */
-	if (mvmvif->esr_active == enable)
-		return;
-
-	/* The next link selection will enter eSR if possible */
-	if (enable)
-		return;
-
-	/*
-	 * Find the primary link, as we want to switch to it and drop the
-	 * secondary one.
-	 */
-	new_active_links = BIT(iwl_mvm_get_primary_link(vif));
-	ieee80211_set_active_links_async(vif, new_active_links);
-}
-
 bool iwl_mvm_esr_allowed_on_vif(struct iwl_mvm *mvm,
 				struct ieee80211_vif *vif)
 {
@@ -1194,7 +1172,7 @@ bool iwl_mvm_esr_allowed_on_vif(struct iwl_mvm *mvm,
 	    !(ext_capa->eml_capabilities & IEEE80211_EML_CAP_EMLSR_SUPP))
 		return false;
 
-	return !(mvmvif->esr_disable_reason & ~IWL_MVM_ESR_DISABLE_COEX);
+	return !(mvmvif->esr_disable_reason & ~IWL_MVM_ESR_BLOCKED_COEX);
 }
 
 /*

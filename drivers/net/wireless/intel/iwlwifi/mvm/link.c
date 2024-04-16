@@ -560,7 +560,7 @@ bool iwl_mvm_mld_valid_link_pair(struct ieee80211_vif *vif,
 
 	/* BT Coex effects eSR mode only if one of the link is on LB */
 	if (a->band == NL80211_BAND_2GHZ || b->band == NL80211_BAND_2GHZ)
-		return !(mvmvif->esr_disable_reason & IWL_MVM_ESR_DISABLE_COEX);
+		return !(mvmvif->esr_disable_reason & IWL_MVM_ESR_BLOCKED_COEX);
 
 	return true;
 }
@@ -690,4 +690,73 @@ u8 iwl_mvm_get_primary_link(struct ieee80211_vif *vif)
 		return mvmvif->primary_link;
 
 	return __ffs(vif->active_links);
+}
+
+/* API to exit eSR mode */
+void iwl_mvm_exit_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		      enum iwl_mvm_esr_state reason,
+		      u8 link_to_keep)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u16 new_active_links;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* Nothing to do */
+	if (!mvmvif->esr_active)
+		return;
+
+	if (WARN_ON(!ieee80211_vif_is_mld(vif) || !mvmvif->authorized))
+		return;
+
+	if (WARN_ON(!(vif->active_links & BIT(link_to_keep))))
+		link_to_keep = __ffs(vif->active_links);
+
+	new_active_links = BIT(link_to_keep);
+	IWL_DEBUG_INFO(mvm,
+		       "Exiting EMLSR. Reason = 0x%x. Current active links=0x%x, new active links = 0x%x\n",
+		       reason, vif->active_links, new_active_links);
+
+	ieee80211_set_active_links_async(vif, new_active_links);
+}
+
+#define IWL_MVM_BLOCK_ESR_REASONS IWL_MVM_ESR_BLOCKED_COEX
+
+void iwl_mvm_block_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		       enum iwl_mvm_esr_state reason,
+		       u8 link_to_keep)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* This should be called only with disable reasons */
+	if (WARN_ON(!(reason & IWL_MVM_BLOCK_ESR_REASONS)))
+		return;
+
+	if (!(mvmvif->esr_disable_reason & reason))
+		IWL_DEBUG_INFO(mvm, "Blocking EMSLR mode. reason = 0x%x\n",
+			       reason);
+
+	mvmvif->esr_disable_reason |= reason;
+
+	iwl_mvm_exit_esr(mvm, vif, reason, link_to_keep);
+}
+
+void iwl_mvm_unblock_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			 enum iwl_mvm_esr_state reason)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* This should be called only with disable reasons */
+	if (WARN_ON(!(reason & IWL_MVM_BLOCK_ESR_REASONS)))
+		return;
+
+	if (mvmvif->esr_disable_reason & reason)
+		IWL_DEBUG_INFO(mvm, "Unblocking EMSLR mode. reason = 0x%x\n",
+			       reason);
+
+	mvmvif->esr_disable_reason &= ~reason;
 }

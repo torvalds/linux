@@ -253,28 +253,6 @@ static void iwl_mvm_bt_coex_tcm_based_ci(struct iwl_mvm *mvm,
 	swap(data->primary, data->secondary);
 }
 
-static void iwl_mvm_bt_coex_enable_esr(struct iwl_mvm *mvm,
-				       struct ieee80211_vif *vif, bool enable)
-{
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-
-	lockdep_assert_held(&mvm->mutex);
-
-	if (!vif->cfg.assoc || !ieee80211_vif_is_mld(vif))
-		return;
-
-	/* Done already */
-	if ((mvmvif->esr_disable_reason & IWL_MVM_ESR_DISABLE_COEX) == !enable)
-		return;
-
-	if (enable)
-		mvmvif->esr_disable_reason &= ~IWL_MVM_ESR_DISABLE_COEX;
-	else
-		mvmvif->esr_disable_reason |= IWL_MVM_ESR_DISABLE_COEX;
-
-	iwl_mvm_recalc_esr(mvm, vif);
-}
-
 /*
  * This function receives the LB link id and checks if eSR should be
  * enabled or disabled (due to BT coex)
@@ -320,7 +298,7 @@ iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
 	if (!link_rssi)
 		wifi_loss_rate = mvm->last_bt_notif.wifi_loss_mid_high_rssi;
 
-	else if (!(mvmvif->esr_disable_reason & IWL_MVM_ESR_DISABLE_COEX))
+	else if (!(mvmvif->esr_disable_reason & IWL_MVM_ESR_BLOCKED_COEX))
 		 /* RSSI needs to get really low to disable eSR... */
 		wifi_loss_rate =
 			link_rssi <= -IWL_MVM_BT_COEX_DISABLE_ESR_THRESH ?
@@ -348,7 +326,12 @@ void iwl_mvm_bt_coex_update_link_esr(struct iwl_mvm *mvm,
 
 	enable = iwl_mvm_bt_coex_calculate_esr_mode(mvm, vif, link_id);
 
-	iwl_mvm_bt_coex_enable_esr(mvm, vif, enable);
+	if (enable)
+		iwl_mvm_unblock_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_COEX);
+	else
+		/* In case we decided to exit eSR - stay with the primary */
+		iwl_mvm_block_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_COEX,
+				  iwl_mvm_get_primary_link(vif));
 }
 
 static void iwl_mvm_bt_notif_per_link(struct iwl_mvm *mvm,
@@ -534,7 +517,7 @@ static void iwl_mvm_bt_notif_iterator(void *_data, u8 *mac,
 
 	/* When BT is off this will be 0 */
 	if (data->notif->wifi_loss_low_rssi == BT_OFF)
-		iwl_mvm_bt_coex_enable_esr(mvm, vif, true);
+		iwl_mvm_unblock_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_COEX);
 
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++)
 		iwl_mvm_bt_notif_per_link(mvm, vif, data, link_id);
