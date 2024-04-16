@@ -354,14 +354,28 @@ struct iwl_mvm_vif_link_info {
  * reasons - use iwl_mvm_exit_esr().
  *
  * @IWL_MVM_ESR_BLOCKED_COEX: COEX is preventing the enablement of EMLSR
+ * @IWL_MVM_ESR_BLOCKED_PREVENTION: Prevent EMLSR to avoid entering and exiting
+ *	in a loop.
  * @IWL_MVM_ESR_EXIT_MISSED_BEACON: exited EMLSR due to missed beacons
  */
 enum iwl_mvm_esr_state {
 	IWL_MVM_ESR_BLOCKED_COEX	= 0x1,
+	IWL_MVM_ESR_BLOCKED_PREVENTION	= 0x2,
 	IWL_MVM_ESR_EXIT_MISSED_BEACON	= 0x10000,
 };
 
 #define IWL_MVM_BLOCK_ESR_REASONS 0xffff
+
+/**
+ * struct iwl_mvm_esr_exit - details of the last exit from EMLSR mode.
+ * @reason: The reason for the last exit from EMLSR.
+ *	&iwl_mvm_prevent_esr_reasons. Will be 0 before exiting EMLSR.
+ * @ts: the time stamp of the last time we existed EMLSR.
+ */
+struct iwl_mvm_esr_exit {
+	unsigned long ts;
+	enum iwl_mvm_esr_state reason;
+};
 
 /**
  * struct iwl_mvm_vif - data per Virtual Interface, it is a MAC context
@@ -404,6 +418,11 @@ enum iwl_mvm_esr_state {
  * @link_selection_primary: primary link selected by link selection
  * @primary_link: primary link in eSR. Valid only for an associated MLD vif,
  *	and in eSR mode. Valid only for a STA.
+ * @last_esr_exit: Details of the last exit from EMLSR.
+ * @exit_same_reason_count: The number of times we exited due to the specified
+ *	@last_esr_exit::reason, only counting exits due to
+ *	&IWL_MVM_ESR_PREVENT_REASONS.
+ * @prevent_esr_done_wk: work that should be done when esr prevention ends.
  */
 struct iwl_mvm_vif {
 	struct iwl_mvm *mvm;
@@ -497,6 +516,10 @@ struct iwl_mvm_vif {
 	u16 link_selection_res;
 	u8 link_selection_primary;
 	u8 primary_link;
+	struct iwl_mvm_esr_exit last_esr_exit;
+	u8 exit_same_reason_count;
+	struct wiphy_delayed_work prevent_esr_done_wk;
+
 	struct iwl_mvm_vif_link_info deflink;
 	struct iwl_mvm_vif_link_info *link[IEEE80211_MLD_MAX_NUM_LINKS];
 };

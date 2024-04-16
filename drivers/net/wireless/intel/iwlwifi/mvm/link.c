@@ -712,6 +712,55 @@ u8 iwl_mvm_get_other_link(struct ieee80211_vif *vif, u8 link_id)
 	}
 }
 
+/* Reasons that can cause esr prevention */
+#define IWL_MVM_ESR_PREVENT_REASONS	IWL_MVM_ESR_EXIT_MISSED_BEACON
+#define IWL_MVM_PREVENT_ESR_TIMEOUT	(HZ * 400)
+#define IWL_MVM_ESR_PREVENT_SHORT	(HZ * 300)
+#define IWL_MVM_ESR_PREVENT_LONG	(HZ * 600)
+
+static void iwl_mvm_recalc_esr_prevention(struct iwl_mvm *mvm,
+					  struct iwl_mvm_vif *mvmvif,
+					  enum iwl_mvm_esr_state reason)
+{
+	unsigned long now = jiffies;
+	unsigned long delay;
+	bool timeout_expired =
+		time_after(now, mvmvif->last_esr_exit.ts +
+				IWL_MVM_PREVENT_ESR_TIMEOUT);
+
+	if (WARN_ON(!(IWL_MVM_ESR_PREVENT_REASONS & reason)))
+		return;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	mvmvif->last_esr_exit.ts = now;
+
+	if (timeout_expired ||
+	    mvmvif->last_esr_exit.reason != reason) {
+		mvmvif->last_esr_exit.reason = reason;
+		mvmvif->exit_same_reason_count = 1;
+		return;
+	}
+
+	mvmvif->exit_same_reason_count++;
+	if (WARN_ON(mvmvif->exit_same_reason_count < 2 ||
+		    mvmvif->exit_same_reason_count > 3))
+		return;
+
+	mvmvif->esr_disable_reason |= IWL_MVM_ESR_BLOCKED_PREVENTION;
+
+	delay = mvmvif->exit_same_reason_count == 2 ?
+		IWL_MVM_ESR_PREVENT_SHORT :
+		IWL_MVM_ESR_PREVENT_LONG;
+
+	IWL_DEBUG_INFO(mvm,
+		       "Preventing EMLSR for %ld seconds due to %u exits with the reason 0x%x\n",
+		       delay / HZ, mvmvif->exit_same_reason_count, reason);
+
+	wiphy_delayed_work_queue(mvm->hw->wiphy,
+				 &mvmvif->prevent_esr_done_wk, delay);
+}
+
 /* API to exit eSR mode */
 void iwl_mvm_exit_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		      enum iwl_mvm_esr_state reason,
@@ -738,6 +787,9 @@ void iwl_mvm_exit_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		       reason, vif->active_links, new_active_links);
 
 	ieee80211_set_active_links_async(vif, new_active_links);
+
+	if (IWL_MVM_ESR_PREVENT_REASONS & reason)
+		iwl_mvm_recalc_esr_prevention(mvm, mvmvif, reason);
 }
 
 void iwl_mvm_block_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,

@@ -1612,6 +1612,19 @@ static int iwl_mvm_alloc_bcast_mcast_sta(struct iwl_mvm *mvm,
 					IWL_STA_MULTICAST);
 }
 
+static void iwl_mvm_prevent_esr_done_wk(struct wiphy *wiphy,
+					struct wiphy_work *wk)
+{
+	struct iwl_mvm_vif *mvmvif =
+		container_of(wk, struct iwl_mvm_vif, prevent_esr_done_wk.work);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	struct ieee80211_vif *vif = iwl_mvm_get_bss_vif(mvm);
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_unblock_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_PREVENTION);
+	mutex_unlock(&mvm->mutex);
+}
+
 void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 {
 	lockdep_assert_held(&mvm->mutex);
@@ -1621,6 +1634,9 @@ void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
 
 	INIT_DELAYED_WORK(&mvmvif->csa_work,
 			  iwl_mvm_channel_switch_disconnect_wk);
+
+	wiphy_delayed_work_init(&mvmvif->prevent_esr_done_wk,
+				iwl_mvm_prevent_esr_done_wk);
 }
 
 static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
@@ -1763,6 +1779,9 @@ void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 		 */
 		flush_work(&mvm->roc_done_wk);
 	}
+
+	wiphy_delayed_work_cancel(mvm->hw->wiphy,
+				  &mvmvif->prevent_esr_done_wk);
 
 	cancel_delayed_work_sync(&mvmvif->csa_work);
 }
@@ -3906,6 +3925,9 @@ iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 		callbacks->mac_ctxt_changed(mvm, vif, false);
 		iwl_mvm_mei_host_associated(mvm, vif, mvm_sta);
 
+		memset(&mvmvif->last_esr_exit, 0,
+		       sizeof(mvmvif->last_esr_exit));
+
 		/* Calculate eSR mode due to BT coex */
 		iwl_mvm_bt_coex_update_vif_esr(mvm, vif);
 
@@ -3962,6 +3984,9 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 
 		/* disable beacon filtering */
 		iwl_mvm_disable_beacon_filter(mvm, vif);
+
+		wiphy_delayed_work_cancel(mvm->hw->wiphy,
+					  &mvmvif->prevent_esr_done_wk);
 	}
 
 	return 0;
