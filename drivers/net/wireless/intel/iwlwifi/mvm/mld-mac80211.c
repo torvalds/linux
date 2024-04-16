@@ -697,6 +697,30 @@ iwl_mvm_set_link_selection_data(struct ieee80211_vif *vif,
 	return n_data;
 }
 
+static bool iwl_mvm_esr_allowed_on_vif(struct iwl_mvm *mvm,
+				       struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	const struct wiphy_iftype_ext_capab *ext_capa;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	if (!ieee80211_vif_is_mld(vif) || !vif->cfg.assoc ||
+	    hweight16(ieee80211_vif_usable_links(vif)) == 1)
+		return false;
+
+	if (!(vif->cfg.eml_cap & IEEE80211_EML_CAP_EMLSR_SUPP))
+		return false;
+
+	ext_capa = cfg80211_get_iftype_ext_capa(mvm->hw->wiphy,
+						ieee80211_vif_type_p2p(vif));
+	if (!ext_capa ||
+	    !(ext_capa->eml_capabilities & IEEE80211_EML_CAP_EMLSR_SUPP))
+		return false;
+
+	return !(mvmvif->esr_disable_reason & ~IWL_MVM_ESR_DISABLE_COEX);
+}
+
 void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			      bool valid_links_changed)
 {
@@ -707,9 +731,6 @@ void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	u8 n_data, i, j;
 
 	if (!IWL_MVM_AUTO_EML_ENABLE)
-		return;
-
-	if (!ieee80211_vif_is_mld(vif) || usable_links == 1)
 		return;
 
 	/* The logic below is a simple version that doesn't suit more than 2
@@ -727,6 +748,9 @@ void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 * any change. This can later be optimized to pick a 'better' link pair.
 	 */
 	if (hweight16(vif->active_links) == max_active_links)
+		return;
+
+	if (!iwl_mvm_esr_allowed_on_vif(mvm, vif))
 		return;
 
 	n_data = iwl_mvm_set_link_selection_data(vif, data, usable_links);
@@ -1367,22 +1391,10 @@ static bool iwl_mvm_can_enter_esr(struct iwl_mvm *mvm,
 				  struct ieee80211_vif *vif,
 				  unsigned long desired_links)
 {
-	u16 usable_links = ieee80211_vif_usable_links(vif);
 	struct iwl_mvm_link_sel_data data[IEEE80211_MLD_MAX_NUM_LINKS];
-	const struct wiphy_iftype_ext_capab *ext_capa;
 	u8 n_data;
 
-	if (!ieee80211_vif_is_mld(vif) || !vif->cfg.assoc ||
-	    hweight16(usable_links) <= 1)
-		return false;
-
-	if (!(vif->cfg.eml_cap & IEEE80211_EML_CAP_EMLSR_SUPP))
-		return false;
-
-	ext_capa = cfg80211_get_iftype_ext_capa(mvm->hw->wiphy,
-						ieee80211_vif_type_p2p(vif));
-	if (!ext_capa ||
-	    !(ext_capa->eml_capabilities & IEEE80211_EML_CAP_EMLSR_SUPP))
+	if (!iwl_mvm_esr_allowed_on_vif(mvm, vif))
 		return false;
 
 	n_data = iwl_mvm_set_link_selection_data(vif, data, desired_links);
