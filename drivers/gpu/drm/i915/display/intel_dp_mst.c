@@ -59,11 +59,30 @@ static int intel_dp_mst_check_constraints(struct drm_i915_private *i915, int bpp
 	if (intel_dp_is_uhbr(crtc_state) && DISPLAY_VER(i915) < 14 && dsc) {
 		int output_bpp = bpp;
 		int symbol_clock = intel_dp_link_symbol_clock(crtc_state->port_clock);
+		/*
+		 * Bspec/49259 suggests that the FEC overhead needs to be
+		 * applied here, though HW people claim that neither this FEC
+		 * or any other overhead is applicable here (that is the actual
+		 * available_bw is just symbol_clock * 72). However based on
+		 * testing on MTL-P the
+		 * - DELL U3224KBA display
+		 * - Unigraf UCD-500 CTS test sink
+		 * devices the
+		 * - 5120x2880/995.59Mhz
+		 * - 6016x3384/1357.23Mhz
+		 * - 6144x3456/1413.39Mhz
+		 * modes (all the ones having a DPT limit on the above devices),
+		 * both the channel coding efficiency and an additional 3%
+		 * overhead needs to be accounted for.
+		 */
+		int available_bw = mul_u32_u32(symbol_clock * 72,
+					       drm_dp_bw_channel_coding_efficiency(true)) /
+				   1030000;
 
 		if (output_bpp * adjusted_mode->crtc_clock >
-		    symbol_clock * 72) {
+		    available_bw) {
 			drm_dbg_kms(&i915->drm, "UHBR check failed(required bw %d available %d)\n",
-				    output_bpp * adjusted_mode->crtc_clock, symbol_clock * 72);
+				    output_bpp * adjusted_mode->crtc_clock, available_bw);
 			return -EINVAL;
 		}
 	}
