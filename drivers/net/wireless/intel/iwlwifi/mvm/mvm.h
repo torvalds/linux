@@ -356,11 +356,13 @@ struct iwl_mvm_vif_link_info {
  * @IWL_MVM_ESR_BLOCKED_COEX: COEX is preventing the enablement of EMLSR
  * @IWL_MVM_ESR_BLOCKED_PREVENTION: Prevent EMLSR to avoid entering and exiting
  *	in a loop.
+ * @IWL_MVM_ESR_BLOCKED_WOWLAN: WOWLAN is preventing the enablement of EMLSR
  * @IWL_MVM_ESR_EXIT_MISSED_BEACON: exited EMLSR due to missed beacons
  */
 enum iwl_mvm_esr_state {
 	IWL_MVM_ESR_BLOCKED_COEX	= 0x1,
 	IWL_MVM_ESR_BLOCKED_PREVENTION	= 0x2,
+	IWL_MVM_ESR_BLOCKED_WOWLAN	= 0x4,
 	IWL_MVM_ESR_EXIT_MISSED_BEACON	= 0x10000,
 };
 

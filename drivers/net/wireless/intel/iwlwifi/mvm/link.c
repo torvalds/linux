@@ -678,7 +678,9 @@ u8 iwl_mvm_get_primary_link(struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	lockdep_assert_held(&mvmvif->mvm->mutex);
+	/* relevant data is written with both locks held, so read with either */
+	lockdep_assert(lockdep_is_held(&mvmvif->mvm->mutex) ||
+		       lockdep_is_held(&mvmvif->mvm->hw->wiphy->mtx));
 
 	if (!ieee80211_vif_is_mld(vif))
 		return 0;
