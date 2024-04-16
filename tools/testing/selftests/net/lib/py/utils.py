@@ -33,7 +33,8 @@ class cmd:
         if self.proc.returncode != 0 and fail:
             if len(stderr) > 0 and stderr[-1] == "\n":
                 stderr = stderr[:-1]
-            raise Exception("Command failed: %s\n%s" % (self.proc.args, stderr))
+            raise Exception("Command failed: %s\nSTDOUT: %s\nSTDERR: %s" %
+                            (self.proc.args, stdout, stderr))
 
 
 def ip(args, json=None, ns=None):
