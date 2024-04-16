@@ -944,7 +944,7 @@ ath12k_dp_mon_rx_merg_msdus(struct ath12k *ar,
 			goto err_merge_fail;
 
 		ath12k_dbg(ab, ATH12K_DBG_DATA,
-			   "mpdu_buf %pK mpdu_buf->len %u",
+			   "mpdu_buf %p mpdu_buf->len %u",
 			   prev_buf, prev_buf->len);
 	} else {
 		ath12k_dbg(ab, ATH12K_DBG_DATA,
@@ -958,7 +958,7 @@ ath12k_dp_mon_rx_merg_msdus(struct ath12k *ar,
 err_merge_fail:
 	if (mpdu_buf && decap_format != DP_RX_DECAP_TYPE_RAW) {
 		ath12k_dbg(ab, ATH12K_DBG_DATA,
-			   "err_merge_fail mpdu_buf %pK", mpdu_buf);
+			   "err_merge_fail mpdu_buf %p", mpdu_buf);
 		/* Free the head buffer */
 		dev_kfree_skb_any(mpdu_buf);
 	}
@@ -1092,7 +1092,7 @@ static void ath12k_dp_mon_rx_deliver_msdu(struct ath12k *ar, struct napi_struct 
 	spin_unlock_bh(&ar->ab->base_lock);
 
 	ath12k_dbg(ar->ab, ATH12K_DBG_DATA,
-		   "rx skb %pK len %u peer %pM %u %s %s%s%s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
+		   "rx skb %p len %u peer %pM %u %s %s%s%s%s%s%s%s%s %srate_idx %u vht_nss %u freq %u band %u flag 0x%x fcs-err %i mic-err %i amsdu-more %i\n",
 		   msdu,
 		   msdu->len,
 		   peer ? peer->addr : NULL,

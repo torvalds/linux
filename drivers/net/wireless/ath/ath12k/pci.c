@@ -872,7 +872,7 @@ static int ath12k_pci_claim(struct ath12k_pci *ab_pci, struct pci_dev *pdev)
 		goto release_region;
 	}
 
-	ath12k_dbg(ab, ATH12K_DBG_BOOT, "boot pci_mem 0x%pK\n", ab->mem);
+	ath12k_dbg(ab, ATH12K_DBG_BOOT, "boot pci_mem 0x%p\n", ab->mem);
 	return 0;
 
 release_region:
