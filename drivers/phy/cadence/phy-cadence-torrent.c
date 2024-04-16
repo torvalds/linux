@@ -2699,19 +2699,28 @@ static int cdns_torrent_reset(struct cdns_torrent_phy *cdns_phy)
 	return 0;
 }
 
+static int cdns_torrent_of_get_clk(struct cdns_torrent_phy *cdns_phy)
+{
+	/* refclk: Input reference clock for PLL0 */
+	cdns_phy->clk = devm_clk_get(cdns_phy->dev, "refclk");
+	if (IS_ERR(cdns_phy->clk))
+		return dev_err_probe(cdns_phy->dev, PTR_ERR(cdns_phy->clk),
+				     "phy ref clock not found\n");
+
+	/* refclk1: Input reference clock for PLL1 */
+	cdns_phy->clk1 = devm_clk_get_optional(cdns_phy->dev, "pll1_refclk");
+	if (IS_ERR(cdns_phy->clk1))
+		return dev_err_probe(cdns_phy->dev, PTR_ERR(cdns_phy->clk1),
+				     "phy PLL1 ref clock not found\n");
+
+	return 0;
+}
+
 static int cdns_torrent_clk(struct cdns_torrent_phy *cdns_phy)
 {
-	struct device *dev = cdns_phy->dev;
 	unsigned long ref_clk1_rate;
 	unsigned long ref_clk_rate;
 	int ret;
-
-	/* refclk: Input reference clock for PLL0 */
-	cdns_phy->clk = devm_clk_get(dev, "refclk");
-	if (IS_ERR(cdns_phy->clk)) {
-		dev_err(dev, "phy ref clock not found\n");
-		return PTR_ERR(cdns_phy->clk);
-	}
 
 	ret = clk_prepare_enable(cdns_phy->clk);
 	if (ret) {
@@ -2742,14 +2751,6 @@ static int cdns_torrent_clk(struct cdns_torrent_phy *cdns_phy)
 	default:
 		dev_err(cdns_phy->dev, "Invalid ref clock rate\n");
 		ret = -EINVAL;
-		goto disable_clk;
-	}
-
-	/* refclk1: Input reference clock for PLL1 */
-	cdns_phy->clk1 = devm_clk_get_optional(dev, "pll1_refclk");
-	if (IS_ERR(cdns_phy->clk1)) {
-		dev_err(dev, "phy PLL1 ref clock not found\n");
-		ret = PTR_ERR(cdns_phy->clk1);
 		goto disable_clk;
 	}
 
@@ -2845,6 +2846,10 @@ static int cdns_torrent_phy_probe(struct platform_device *pdev)
 	ret = cdns_torrent_clk_register(cdns_phy);
 	if (ret)
 		return ret;
+
+	ret = cdns_torrent_of_get_clk(cdns_phy);
+	if (ret)
+		goto clk_cleanup;
 
 	regmap_field_read(cdns_phy->phy_pma_cmn_ctrl_1, &already_configured);
 
