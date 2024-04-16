@@ -377,7 +377,7 @@ static void __sync_rcu_exp_select_node_cpus(struct rcu_exp_work *rewp)
 			 * below acquire semantic.
 			 */
 			snap = ct_rcu_watching_cpu_acquire(cpu);
-			if (rcu_dynticks_in_eqs(snap))
+			if (rcu_watching_snap_in_eqs(snap))
 				mask_ofl_test |= mask;
 			else
 				rdp->exp_dynticks_snap = snap;
