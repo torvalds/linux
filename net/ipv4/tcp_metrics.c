@@ -988,6 +988,7 @@ static struct genl_family tcp_metrics_nl_family __ro_after_init = {
 	.maxattr	= TCP_METRICS_ATTR_MAX,
 	.policy = tcp_metrics_nl_policy,
 	.netnsok	= true,
+	.parallel_ops	= true,
 	.module		= THIS_MODULE,
 	.small_ops	= tcp_metrics_nl_ops,
 	.n_small_ops	= ARRAY_SIZE(tcp_metrics_nl_ops),
