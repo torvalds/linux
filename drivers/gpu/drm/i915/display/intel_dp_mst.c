@@ -58,8 +58,7 @@ static int intel_dp_mst_check_constraints(struct drm_i915_private *i915, int bpp
 {
 	if (intel_dp_is_uhbr(crtc_state) && DISPLAY_VER(i915) < 14 && dsc) {
 		int output_bpp = bpp;
-		/* DisplayPort 2 128b/132b, bits per lane is always 32 */
-		int symbol_clock = crtc_state->port_clock / 32;
+		int symbol_clock = intel_dp_link_symbol_clock(crtc_state->port_clock);
 
 		if (output_bpp * adjusted_mode->crtc_clock >=
 		    symbol_clock * 72) {
