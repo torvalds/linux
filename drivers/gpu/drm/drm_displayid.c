@@ -6,6 +6,7 @@
 #include <drm/drm_edid.h>
 #include <drm/drm_print.h>
 
+#include "drm_crtc_internal.h"
 #include "drm_displayid_internal.h"
 
 static const struct displayid_header *
