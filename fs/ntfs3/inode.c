@@ -1216,11 +1216,10 @@ out:
  *
  * NOTE: if fnd != NULL (ntfs_atomic_open) then @dir is locked
  */
-struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
-				struct dentry *dentry,
-				const struct cpu_str *uni, umode_t mode,
-				dev_t dev, const char *symname, u32 size,
-				struct ntfs_fnd *fnd)
+int ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
+		      struct dentry *dentry, const struct cpu_str *uni,
+		      umode_t mode, dev_t dev, const char *symname, u32 size,
+		      struct ntfs_fnd *fnd)
 {
 	int err;
 	struct super_block *sb = dir->i_sb;
@@ -1244,6 +1243,9 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 	struct NTFS_DE *e, *new_de = NULL;
 	struct REPARSE_DATA_BUFFER *rp = NULL;
 	bool rp_inserted = false;
+
+	/* New file will be resident or non resident. */
+	const bool new_file_resident = 1;
 
 	if (!fnd)
 		ni_lock_dir(dir_ni);
@@ -1484,7 +1486,7 @@ struct inode *ntfs_create_inode(struct mnt_idmap *idmap, struct inode *dir,
 		attr->size = cpu_to_le32(SIZEOF_RESIDENT);
 		attr->name_off = SIZEOF_RESIDENT_LE;
 		attr->res.data_off = SIZEOF_RESIDENT_LE;
-	} else if (S_ISREG(mode)) {
+	} else if (!new_file_resident && S_ISREG(mode)) {
 		/*
 		 * Regular file. Create empty non resident data attribute.
 		 */
@@ -1721,12 +1723,10 @@ out1:
 	if (!fnd)
 		ni_unlock(dir_ni);
 
-	if (err)
-		return ERR_PTR(err);
+	if (!err)
+		unlock_new_inode(inode);
 
-	unlock_new_inode(inode);
-
-	return inode;
+	return err;
 }
 
 int ntfs_link_inode(struct inode *inode, struct dentry *dentry)
