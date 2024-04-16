@@ -18,26 +18,34 @@
 
 char *parse_events_get_text(yyscan_t yyscanner);
 YYSTYPE *parse_events_get_lval(yyscan_t yyscanner);
+int parse_events_get_column(yyscan_t yyscanner);
+int parse_events_get_leng(yyscan_t yyscanner);
 
-static int __value(YYSTYPE *yylval, char *str, int base, int token)
+static int get_column(yyscan_t scanner)
 {
-	u64 num;
-
-	errno = 0;
-	num = strtoull(str, NULL, base);
-	if (errno)
-		return PE_ERROR;
-
-	yylval->num = num;
-	return token;
+	return parse_events_get_column(scanner) - parse_events_get_leng(scanner);
 }
 
-static int value(yyscan_t scanner, int base)
+static int value(struct parse_events_state *parse_state, yyscan_t scanner, int base)
 {
 	YYSTYPE *yylval = parse_events_get_lval(scanner);
 	char *text = parse_events_get_text(scanner);
+	u64 num;
 
-	return __value(yylval, text, base, PE_VALUE);
+	errno = 0;
+	num = strtoull(text, NULL, base);
+	if (errno) {
+		struct parse_events_error *error = parse_state->error;
+		char *help = NULL;
+
+		if (asprintf(&help, "Bad base %d number \"%s\"", base, text) > 0)
+			parse_events_error__handle(error, get_column(scanner), help , NULL);
+
+		return PE_ERROR;
+	}
+
+	yylval->num = num;
+	return PE_VALUE;
 }
 
 static int str(yyscan_t scanner, int token)
@@ -283,8 +291,8 @@ r0x{num_raw_hex}	{ return str(yyscanner, PE_RAW); }
 	 */
 "/"/{digit}		{ return PE_BP_SLASH; }
 "/"/{non_digit}		{ BEGIN(config); return '/'; }
-{num_dec}		{ return value(yyscanner, 10); }
-{num_hex}		{ return value(yyscanner, 16); }
+{num_dec}		{ return value(_parse_state, yyscanner, 10); }
+{num_hex}		{ return value(_parse_state, yyscanner, 16); }
 	/*
 	 * We need to separate 'mem:' scanner part, in order to get specific
 	 * modifier bits parsed out. Otherwise we would need to handle PE_NAME
@@ -330,8 +338,8 @@ cgroup-switches					{ return sym(yyscanner, PERF_COUNT_SW_CGROUP_SWITCHES); }
 {lc_type}-{lc_op_result}-{lc_op_result}	{ return str(yyscanner, PE_LEGACY_CACHE); }
 mem:			{ BEGIN(mem); return PE_PREFIX_MEM; }
 r{num_raw_hex}		{ return str(yyscanner, PE_RAW); }
-{num_dec}		{ return value(yyscanner, 10); }
-{num_hex}		{ return value(yyscanner, 16); }
+{num_dec}		{ return value(_parse_state, yyscanner, 10); }
+{num_hex}		{ return value(_parse_state, yyscanner, 16); }
 
 {modifier_event}	{ return str(yyscanner, PE_MODIFIER_EVENT); }
 {name}			{ return str(yyscanner, PE_NAME); }
