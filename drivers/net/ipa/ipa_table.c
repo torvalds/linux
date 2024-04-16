@@ -5,10 +5,7 @@
  */
 
 #include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/bits.h>
 #include <linux/bitops.h>
-#include <linux/bitfield.h>
 #include <linux/io.h>
 #include <linux/build_bug.h>
 #include <linux/device.h>

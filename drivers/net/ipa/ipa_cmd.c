@@ -7,7 +7,6 @@
 #include <linux/bits.h>
 #include <linux/types.h>
 #include <linux/device.h>
-#include <linux/slab.h>
 #include <linux/bitfield.h>
 #include <linux/dma-direction.h>
 

@@ -8,7 +8,6 @@
 
 #include <linux/types.h>
 #include <linux/workqueue.h>
-#include <linux/if_ether.h>
 
 #include "gsi.h"
 #include "ipa_reg.h"
