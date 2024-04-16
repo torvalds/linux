@@ -80,7 +80,7 @@ static __always_inline long ct_nesting(void)
 	return __this_cpu_read(context_tracking.nesting);
 }
 
-static __always_inline long ct_dynticks_nesting_cpu(int cpu)
+static __always_inline long ct_nesting_cpu(int cpu)
 {
 	struct context_tracking *ct = per_cpu_ptr(&context_tracking, cpu);
 
