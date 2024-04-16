@@ -2161,8 +2161,8 @@ static void ext4_mb_use_best_found(struct ext4_allocation_context *ac,
 	 * double allocate blocks. The reference is dropped
 	 * in ext4_mb_release_context
 	 */
-	ac->ac_bitmap_page = &e4b->bd_bitmap_folio->page;
-	get_page(ac->ac_bitmap_page);
+	ac->ac_bitmap_folio = e4b->bd_bitmap_folio;
+	folio_get(ac->ac_bitmap_folio);
 	ac->ac_buddy_page = &e4b->bd_buddy_folio->page;
 	get_page(ac->ac_buddy_page);
 	/* store last allocated for subsequent stream allocation */
@@ -6002,8 +6002,8 @@ static void ext4_mb_release_context(struct ext4_allocation_context *ac)
 
 		ext4_mb_put_pa(ac, ac->ac_sb, pa);
 	}
-	if (ac->ac_bitmap_page)
-		put_page(ac->ac_bitmap_page);
+	if (ac->ac_bitmap_folio)
+		folio_put(ac->ac_bitmap_folio);
 	if (ac->ac_buddy_page)
 		put_page(ac->ac_buddy_page);
 	if (ac->ac_flags & EXT4_MB_HINT_GROUP_ALLOC)
