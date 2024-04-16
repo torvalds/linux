@@ -67,6 +67,7 @@ properties:
 
   fsl,fifo-depth:
     $ref: /schemas/types.yaml#/definitions/uint32
+    default: 64
     description:
       The number of elements in the transmit and receive
       FIFOs. This number is the maximum allowed value for
@@ -95,8 +96,6 @@ required:
   - clock-names
   - dmas
   - dma-names
-  - fsl,fifo-depth
-  - fsl,esai-synchronous
 
 unevaluatedProperties: false
 
