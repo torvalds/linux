@@ -2104,6 +2104,7 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 	int in, out;
 	ssize_t ret;
 	struct snd_soc_dapm_path *p = NULL;
+	const char *c_name;
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (!buf)
@@ -2145,11 +2146,13 @@ static ssize_t dapm_widget_power_read_file(struct file *file,
 			if (!p->connect)
 				continue;
 
+			c_name = p->node[rdir]->dapm->component ?
+				p->node[rdir]->dapm->component->name : NULL;
 			ret += scnprintf(buf + ret, PAGE_SIZE - ret,
-					" %s  \"%s\" \"%s\"\n",
+					" %s  \"%s\" \"%s\" \"%s\"\n",
 					(rdir == SND_SOC_DAPM_DIR_IN) ? "in" : "out",
 					p->name ? p->name : "static",
-					p->node[rdir]->name);
+					p->node[rdir]->name, c_name);
 		}
 	}
 
