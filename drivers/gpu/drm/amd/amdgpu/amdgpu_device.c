@@ -5353,6 +5353,7 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 	struct amdgpu_device *tmp_adev = NULL;
 	bool need_full_reset, skip_hw_reset, vram_lost = false;
 	int r = 0;
+	uint32_t i;
 
 	/* Try reset handler method first */
 	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
@@ -5360,6 +5361,12 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 
 	if (!test_bit(AMDGPU_SKIP_COREDUMP, &reset_context->flags))
 		amdgpu_reset_reg_dumps(tmp_adev);
+
+	/* Trigger ip dump before we reset the asic */
+	for (i = 0; i < tmp_adev->num_ip_blocks; i++)
+		if (tmp_adev->ip_blocks[i].version->funcs->dump_ip_state)
+			tmp_adev->ip_blocks[i].version->funcs->dump_ip_state(
+				(void *)tmp_adev);
 
 	reset_context->reset_device_list = device_list_handle;
 	r = amdgpu_reset_perform_reset(tmp_adev, reset_context);
