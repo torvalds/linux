@@ -289,13 +289,12 @@ void __init arch_init_irq(void)
 	bitmap_set(hub_irq_map, NI_BRDCAST_ERR_A, MSC_PANIC_INTR - NI_BRDCAST_ERR_A + 1);
 
 	fn = irq_domain_alloc_named_fwnode("HUB");
-	WARN_ON(fn == NULL);
-	if (!fn)
+	if (WARN_ON(fn == NULL))
 		return;
+
 	domain = irq_domain_create_linear(fn, IP27_HUB_IRQ_COUNT,
 					  &hub_domain_ops, NULL);
-	WARN_ON(domain == NULL);
-	if (!domain)
+	if (WARN_ON(domain == NULL))
 		return;
 
 	irq_set_default_host(domain);
