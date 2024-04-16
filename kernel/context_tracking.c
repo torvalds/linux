@@ -212,7 +212,7 @@ void noinstr ct_nmi_exit(void)
 	 * to us!)
 	 */
 	WARN_ON_ONCE(ct_nmi_nesting() <= 0);
-	WARN_ON_ONCE(rcu_dynticks_curr_cpu_in_eqs());
+	WARN_ON_ONCE(!rcu_is_watching_curr_cpu());
 
 	/*
 	 * If the nesting level is not 1, the CPU wasn't RCU-idle, so
@@ -271,7 +271,7 @@ void noinstr ct_nmi_enter(void)
 	 * to be in the outermost NMI handler that interrupted an RCU-idle
 	 * period (observation due to Andy Lutomirski).
 	 */
-	if (rcu_dynticks_curr_cpu_in_eqs()) {
+	if (!rcu_is_watching_curr_cpu()) {
 
 		if (!in_nmi())
 			rcu_task_enter();
@@ -281,7 +281,7 @@ void noinstr ct_nmi_enter(void)
 		// ... but is watching here.
 
 		instrumentation_begin();
-		// instrumentation for the noinstr rcu_dynticks_curr_cpu_in_eqs()
+		// instrumentation for the noinstr rcu_is_watching_curr_cpu()
 		instrument_atomic_read(&ct->state, sizeof(ct->state));
 		// instrumentation for the noinstr ct_kernel_enter_state()
 		instrument_atomic_write(&ct->state, sizeof(ct->state));

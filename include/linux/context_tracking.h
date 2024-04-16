@@ -113,13 +113,17 @@ extern void ct_idle_enter(void);
 extern void ct_idle_exit(void);
 
 /*
- * Is the current CPU in an extended quiescent state?
+ * Is RCU watching the current CPU (IOW, it is not in an extended quiescent state)?
+ *
+ * Note that this returns the actual boolean data (watching / not watching),
+ * whereas ct_rcu_watching() returns the RCU_WATCHING subvariable of
+ * context_tracking.state.
  *
  * No ordering, as we are sampling CPU-local information.
  */
-static __always_inline bool rcu_dynticks_curr_cpu_in_eqs(void)
+static __always_inline bool rcu_is_watching_curr_cpu(void)
 {
-	return !(raw_atomic_read(this_cpu_ptr(&context_tracking.state)) & CT_RCU_WATCHING);
+	return raw_atomic_read(this_cpu_ptr(&context_tracking.state)) & CT_RCU_WATCHING;
 }
 
 /*
@@ -140,7 +144,7 @@ static __always_inline bool warn_rcu_enter(void)
 	 * lots of the actual reporting also relies on RCU.
 	 */
 	preempt_disable_notrace();
-	if (rcu_dynticks_curr_cpu_in_eqs()) {
+	if (!rcu_is_watching_curr_cpu()) {
 		ret = true;
 		ct_state_inc(CT_RCU_WATCHING);
 	}
