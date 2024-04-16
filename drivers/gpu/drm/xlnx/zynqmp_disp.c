@@ -18,6 +18,7 @@
 #include <linux/dma/xilinx_dpdma.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/platform_device.h>
@@ -77,12 +78,14 @@ enum zynqmp_dpsub_layer_mode {
 /**
  * struct zynqmp_disp_format - Display subsystem format information
  * @drm_fmt: DRM format (4CC)
+ * @bus_fmt: Media bus format
  * @buf_fmt: AV buffer format
  * @swap: Flag to swap R & B for RGB formats, and U & V for YUV formats
  * @sf: Scaling factors for color components
  */
 struct zynqmp_disp_format {
 	u32 drm_fmt;
+	u32 bus_fmt;
 	u32 buf_fmt;
 	bool swap;
 	const u32 *sf;
@@ -180,6 +183,12 @@ static const u32 scaling_factors_565[] = {
 	ZYNQMP_DISP_AV_BUF_5BIT_SF,
 	ZYNQMP_DISP_AV_BUF_6BIT_SF,
 	ZYNQMP_DISP_AV_BUF_5BIT_SF,
+};
+
+static const u32 scaling_factors_666[] = {
+	ZYNQMP_DISP_AV_BUF_6BIT_SF,
+	ZYNQMP_DISP_AV_BUF_6BIT_SF,
+	ZYNQMP_DISP_AV_BUF_6BIT_SF,
 };
 
 static const u32 scaling_factors_888[] = {
@@ -361,6 +370,41 @@ static const struct zynqmp_disp_format avbuf_gfx_fmts[] = {
 		.buf_fmt	= ZYNQMP_DISP_AV_BUF_FMT_NL_GFX_RGB565,
 		.swap		= true,
 		.sf		= scaling_factors_565,
+	},
+};
+
+/* List of live video layer formats */
+static const struct zynqmp_disp_format avbuf_live_fmts[] = {
+	{
+		.drm_fmt	= DRM_FORMAT_RGB565,
+		.bus_fmt	= MEDIA_BUS_FMT_RGB666_1X18,
+		.buf_fmt	= ZYNQMP_DISP_AV_BUF_LIVE_CONFIG_BPC_6 |
+				  ZYNQMP_DISP_AV_BUF_LIVE_CONFIG_FMT_RGB,
+		.sf		= scaling_factors_666,
+	}, {
+		.drm_fmt	= DRM_FORMAT_RGB888,
+		.bus_fmt	= MEDIA_BUS_FMT_RGB888_1X24,
+		.buf_fmt	= ZYNQMP_DISP_AV_BUF_LIVE_CONFIG_BPC_8 |
+				  ZYNQMP_DISP_AV_BUF_LIVE_CONFIG_FMT_RGB,
+		.sf		= scaling_factors_888,
+	}, {
+		.drm_fmt	= DRM_FORMAT_YUV422,
+		.bus_fmt	= MEDIA_BUS_FMT_UYVY8_1X16,
+		.buf_fmt	= ZYNQMP_DISP_AV_BUF_LIVE_CONFIG_BPC_8 |
+				  ZYNQMP_DISP_AV_BUF_LIVE_CONFIG_FMT_YUV422,
+		.sf		= scaling_factors_888,
+	}, {
+		.drm_fmt	= DRM_FORMAT_YUV444,
+		.bus_fmt	= MEDIA_BUS_FMT_VUY8_1X24,
+		.buf_fmt	= ZYNQMP_DISP_AV_BUF_LIVE_CONFIG_BPC_8 |
+				  ZYNQMP_DISP_AV_BUF_LIVE_CONFIG_FMT_YUV444,
+		.sf		= scaling_factors_888,
+	}, {
+		.drm_fmt	= DRM_FORMAT_P210,
+		.bus_fmt	= MEDIA_BUS_FMT_UYVY10_1X20,
+		.buf_fmt	= ZYNQMP_DISP_AV_BUF_LIVE_CONFIG_BPC_10 |
+				  ZYNQMP_DISP_AV_BUF_LIVE_CONFIG_FMT_YUV422,
+		.sf		= scaling_factors_101010,
 	},
 };
 
@@ -887,6 +931,11 @@ zynqmp_disp_layer_find_format(struct zynqmp_disp_layer *layer,
  * @layer: The layer
  * @num_formats: Pointer to the returned number of formats
  *
+ * NOTE: This function doesn't make sense for live video layers and will
+ * always return an empty list in such cases. zynqmp_disp_live_layer_formats()
+ * should be used to query a list of media bus formats supported by the live
+ * video input layer.
+ *
  * Return: A newly allocated u32 array that stores all the DRM formats
  * supported by the layer. The number of formats in the array is returned
  * through the num_formats argument.
@@ -897,13 +946,57 @@ u32 *zynqmp_disp_layer_drm_formats(struct zynqmp_disp_layer *layer,
 	unsigned int i;
 	u32 *formats;
 
+	if (WARN_ON(!layer->mode == ZYNQMP_DPSUB_LAYER_NONLIVE)) {
+		*num_formats = 0;
+		return NULL;
+	}
+
 	formats = kcalloc(layer->info->num_formats, sizeof(*formats),
 			  GFP_KERNEL);
-	if (!formats)
+	if (!formats) {
+		*num_formats = 0;
 		return NULL;
+	}
 
 	for (i = 0; i < layer->info->num_formats; ++i)
 		formats[i] = layer->info->formats[i].drm_fmt;
+
+	*num_formats = layer->info->num_formats;
+	return formats;
+}
+
+/**
+ * zynqmp_disp_live_layer_formats - Return the media bus formats supported by
+ * the live video layer
+ * @layer: The layer
+ * @num_formats: Pointer to the returned number of formats
+ *
+ * NOTE: This function should be used only for live video input layers.
+ *
+ * Return: A newly allocated u32 array of media bus formats supported by the
+ * layer. The number of formats in the array is returned through the
+ * @num_formats argument.
+ */
+u32 *zynqmp_disp_live_layer_formats(struct zynqmp_disp_layer *layer,
+				    unsigned int *num_formats)
+{
+	unsigned int i;
+	u32 *formats;
+
+	if (WARN_ON(layer->mode != ZYNQMP_DPSUB_LAYER_LIVE)) {
+		*num_formats = 0;
+		return NULL;
+	}
+
+	formats = kcalloc(layer->info->num_formats, sizeof(*formats),
+			  GFP_KERNEL);
+	if (!formats) {
+		*num_formats = 0;
+		return NULL;
+	}
+
+	for (i = 0; i < layer->info->num_formats; ++i)
+		formats[i] = layer->info->formats[i].bus_fmt;
 
 	*num_formats = layer->info->num_formats;
 	return formats;
@@ -1131,6 +1224,11 @@ static int zynqmp_disp_create_layers(struct zynqmp_disp *disp)
 			.num_channels = 1,
 		},
 	};
+	static const struct zynqmp_disp_layer_info live_layer_info = {
+		.formats = avbuf_live_fmts,
+		.num_formats = ARRAY_SIZE(avbuf_live_fmts),
+		.num_channels = 0,
+	};
 
 	unsigned int i;
 	int ret;
@@ -1140,13 +1238,17 @@ static int zynqmp_disp_create_layers(struct zynqmp_disp *disp)
 
 		layer->id = i;
 		layer->disp = disp;
-		layer->info = &layer_info[i];
 		/*
 		 * For now assume dpsub works in either live or non-live mode for both layers.
 		 * Hybrid mode is not supported yet.
 		 */
-		layer->mode = disp->dpsub->dma_enabled ? ZYNQMP_DPSUB_LAYER_NONLIVE
-						       : ZYNQMP_DPSUB_LAYER_LIVE;
+		if (disp->dpsub->dma_enabled) {
+			layer->mode = ZYNQMP_DPSUB_LAYER_NONLIVE;
+			layer->info = &layer_info[i];
+		} else {
+			layer->mode = ZYNQMP_DPSUB_LAYER_LIVE;
+			layer->info = &live_layer_info;
+		}
 
 		ret = zynqmp_disp_layer_request_dma(disp, layer);
 		if (ret)
