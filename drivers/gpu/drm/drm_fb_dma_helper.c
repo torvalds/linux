@@ -153,7 +153,7 @@ EXPORT_SYMBOL_GPL(drm_fb_dma_sync_non_coherent);
 /**
  * drm_fb_dma_get_scanout_buffer - Provide a scanout buffer in case of panic
  * @plane: DRM primary plane
- * @drm_scanout_buffer: scanout buffer for the panic handler
+ * @sb: scanout buffer for the panic handler
  * Returns: 0 or negative error code
  *
  * Generic get_scanout_buffer() implementation, for drivers that uses the
