@@ -602,10 +602,49 @@ struct iwl_mvm_link_sel_data {
 	bool active;
 };
 
-static bool iwl_mvm_mld_valid_link_pair(struct iwl_mvm_link_sel_data *a,
+static bool iwl_mvm_mld_valid_link_pair(struct ieee80211_vif *vif,
+					struct iwl_mvm_link_sel_data *a,
 					struct iwl_mvm_link_sel_data *b)
 {
-	return a->band != b->band;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	if (a->band == b->band)
+		return false;
+
+	/* BT Coex effects eSR mode only if one of the link is on LB */
+	if (a->band == NL80211_BAND_2GHZ || b->band == NL80211_BAND_2GHZ)
+		return !(mvmvif->esr_disable_reason & IWL_MVM_ESR_DISABLE_COEX);
+
+	return true;
+}
+
+static u8
+iwl_mvm_set_link_selection_data(struct ieee80211_vif *vif,
+				struct iwl_mvm_link_sel_data *data,
+				unsigned long usable_links)
+{
+	u8 n_data = 0;
+	unsigned long link_id;
+
+	rcu_read_lock();
+
+	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct ieee80211_bss_conf *link_conf =
+			rcu_dereference(vif->link_conf[link_id]);
+
+		if (WARN_ON_ONCE(!link_conf))
+			continue;
+
+		data[n_data].link_id = link_id;
+		data[n_data].band = link_conf->chanreq.oper.chan->band;
+		data[n_data].width = link_conf->chanreq.oper.width;
+		data[n_data].active = vif->active_links & BIT(link_id);
+		n_data++;
+	}
+
+	rcu_read_unlock();
+
+	return n_data;
 }
 
 void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
@@ -615,7 +654,7 @@ void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	unsigned long usable_links = ieee80211_vif_usable_links(vif);
 	u32 max_active_links = iwl_mvm_max_active_links(mvm, vif);
 	u16 new_active_links;
-	u8 link_id, n_data = 0, i, j;
+	u8 n_data, i, j;
 
 	if (!IWL_MVM_AUTO_EML_ENABLE)
 		return;
@@ -640,23 +679,7 @@ void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	if (hweight16(vif->active_links) == max_active_links)
 		return;
 
-	rcu_read_lock();
-
-	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
-		struct ieee80211_bss_conf *link_conf =
-			rcu_dereference(vif->link_conf[link_id]);
-
-		if (WARN_ON_ONCE(!link_conf))
-			continue;
-
-		data[n_data].link_id = link_id;
-		data[n_data].band = link_conf->chanreq.oper.chan->band;
-		data[n_data].width = link_conf->chanreq.oper.width;
-		data[n_data].active = vif->active_links & BIT(link_id);
-		n_data++;
-	}
-
-	rcu_read_unlock();
+	n_data = iwl_mvm_set_link_selection_data(vif, data, usable_links);
 
 	/* this is expected to be the current active link */
 	if (n_data == 1)
@@ -680,7 +703,8 @@ void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			if (i == j)
 				continue;
 
-			if (iwl_mvm_mld_valid_link_pair(&data[i], &data[j]))
+			if (iwl_mvm_mld_valid_link_pair(vif, &data[i],
+							&data[j]))
 				break;
 		}
 
@@ -696,7 +720,7 @@ void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 				if (i == j)
 					continue;
 
-				if (iwl_mvm_mld_valid_link_pair(&data[i],
+				if (iwl_mvm_mld_valid_link_pair(vif, &data[i],
 								&data[j]))
 					break;
 			}
@@ -1293,11 +1317,10 @@ static bool iwl_mvm_can_enter_esr(struct iwl_mvm *mvm,
 				  struct ieee80211_vif *vif,
 				  unsigned long desired_links)
 {
-	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u16 usable_links = ieee80211_vif_usable_links(vif);
+	struct iwl_mvm_link_sel_data data[IEEE80211_MLD_MAX_NUM_LINKS];
 	const struct wiphy_iftype_ext_capab *ext_capa;
-	bool ret = true;
-	int link_id;
+	u8 n_data;
 
 	if (!ieee80211_vif_is_mld(vif) || !vif->cfg.assoc ||
 	    hweight16(usable_links) <= 1)
@@ -1312,21 +1335,13 @@ static bool iwl_mvm_can_enter_esr(struct iwl_mvm *mvm,
 	    !(ext_capa->eml_capabilities & IEEE80211_EML_CAP_EMLSR_SUPP))
 		return false;
 
-	for_each_set_bit(link_id, &desired_links, IEEE80211_MLD_MAX_NUM_LINKS) {
-		struct ieee80211_bss_conf *link_conf =
-			link_conf_dereference_protected(vif, link_id);
+	n_data = iwl_mvm_set_link_selection_data(vif, data, desired_links);
 
-		if (WARN_ON_ONCE(!link_conf))
-			continue;
+	if (n_data != 2)
+		return false;
 
-		/* BT Coex effects eSR mode only if one of the link is on LB */
-		if (link_conf->chanreq.oper.chan->band != NL80211_BAND_2GHZ)
-			continue;
 
-		return !(mvmvif->esr_disable_reason & IWL_MVM_ESR_DISABLE_COEX);
-	}
-
-	return ret;
+	return iwl_mvm_mld_valid_link_pair(vif, &data[0], &data[1]);
 }
 
 static bool iwl_mvm_mld_can_activate_links(struct ieee80211_hw *hw,
