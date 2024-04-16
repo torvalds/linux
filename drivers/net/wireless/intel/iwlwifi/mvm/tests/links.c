@@ -208,3 +208,77 @@ static struct kunit_suite link_grading = {
 };
 
 kunit_test_suite(link_grading);
+
+static const struct valid_link_pair_case {
+	const char *desc;
+	u32 esr_disable_reason;
+	enum nl80211_band band_a;
+	enum nl80211_band band_b;
+	bool valid;
+} valid_link_pair_cases[] = {
+	{
+		.desc = "HB + UHB, valid.",
+		.band_a = NL80211_BAND_5GHZ,
+		.band_b = NL80211_BAND_6GHZ,
+		.valid = true,
+	},
+	{
+		.desc = "LB + HB, no BT.",
+		.band_a = NL80211_BAND_2GHZ,
+		.band_b = NL80211_BAND_5GHZ,
+		.valid = true,
+	},
+	{
+		.desc = "LB + HB, with BT.",
+		.esr_disable_reason = 0x1,
+		.band_a = NL80211_BAND_2GHZ,
+		.band_b = NL80211_BAND_5GHZ,
+		.valid = false,
+	},
+	{
+		.desc = "Same band",
+		.band_a = NL80211_BAND_2GHZ,
+		.band_b = NL80211_BAND_2GHZ,
+		.valid = false,
+	},
+};
+
+KUNIT_ARRAY_PARAM_DESC(valid_link_pair, valid_link_pair_cases, desc)
+
+static void test_valid_link_pair(struct kunit *test)
+{
+	const struct valid_link_pair_case *params = test->param_value;
+	size_t vif_size = sizeof(struct ieee80211_vif) +
+		sizeof(struct iwl_mvm_vif);
+	struct ieee80211_vif *vif = kunit_kzalloc(test, vif_size, GFP_KERNEL);
+	struct iwl_mvm_link_sel_data link_a = {
+		.band = params->band_a,
+	};
+	struct iwl_mvm_link_sel_data link_b = {
+		.band = params->band_b,
+	};
+	bool result;
+
+	KUNIT_ASSERT_NOT_NULL(test, vif);
+
+	iwl_mvm_vif_from_mac80211(vif)->esr_disable_reason =
+		params->esr_disable_reason;
+
+	result = iwl_mvm_mld_valid_link_pair(vif, &link_a, &link_b);
+
+	KUNIT_EXPECT_EQ(test, result, params->valid);
+
+	kunit_kfree(test, vif);
+}
+
+static struct kunit_case valid_link_pair_test_cases[] = {
+	KUNIT_CASE_PARAM(test_valid_link_pair, valid_link_pair_gen_params),
+	{},
+};
+
+static struct kunit_suite valid_link_pair = {
+	.name = "iwlmvm-valid-link-pair",
+	.test_cases = valid_link_pair_test_cases,
+};
+
+kunit_test_suite(valid_link_pair);

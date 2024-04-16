@@ -401,20 +401,24 @@ iwl_mvm_get_puncturing_factor(const struct ieee80211_bss_conf *link_conf)
 }
 
 static unsigned int
-iwl_mvm_get_chan_load_factor(struct ieee80211_bss_conf *link_conf)
+iwl_mvm_get_chan_load(struct ieee80211_bss_conf *link_conf)
 {
 	struct iwl_mvm_vif_link_info *mvm_link =
 		iwl_mvm_vif_from_mac80211(link_conf->vif)->link[link_conf->link_id];
-	const struct element *bss_load_elem =
-		ieee80211_bss_get_elem(link_conf->bss, WLAN_EID_QBSS_LOAD);
+	const struct element *bss_load_elem;
 	const struct ieee80211_bss_load_elem *bss_load;
 	enum nl80211_band band = link_conf->chanreq.oper.chan->band;
 	unsigned int chan_load;
 	u32 chan_load_by_us;
 
+	rcu_read_lock();
+	bss_load_elem = ieee80211_bss_get_elem(link_conf->bss,
+					       WLAN_EID_QBSS_LOAD);
+
 	/* If there isn't BSS Load element, take the defaults */
 	if (!bss_load_elem ||
 	    bss_load_elem->datalen != sizeof(*bss_load)) {
+		rcu_read_unlock();
 		switch (band) {
 		case NL80211_BAND_2GHZ:
 			chan_load = DEFAULT_CHAN_LOAD_LB;
@@ -430,20 +434,21 @@ iwl_mvm_get_chan_load_factor(struct ieee80211_bss_conf *link_conf)
 			break;
 		}
 		/* The defaults are given in percentage */
-		return SCALE_FACTOR - NORMALIZE_PERCENT_TO_255(chan_load);
+		return NORMALIZE_PERCENT_TO_255(chan_load);
 	}
 
 	bss_load = (const void *)bss_load_elem->data;
 	/* Channel util is in range 0-255 */
 	chan_load = bss_load->channel_util;
+	rcu_read_unlock();
 
 	if (!mvm_link || !mvm_link->active)
-		goto done;
+		return chan_load;
 
 	if (WARN_ONCE(!mvm_link->phy_ctxt,
 		      "Active link (%u) without phy ctxt assigned!\n",
 		      link_conf->link_id))
-		goto done;
+		return chan_load;
 
 	/* channel load by us is given in percentage */
 	chan_load_by_us =
@@ -452,11 +457,18 @@ iwl_mvm_get_chan_load_factor(struct ieee80211_bss_conf *link_conf)
 	/* Use only values that firmware sends that can possibly be valid */
 	if (chan_load_by_us <= chan_load)
 		chan_load -= chan_load_by_us;
-done:
-	return  SCALE_FACTOR - chan_load;
+
+	return chan_load;
+}
+
+static unsigned int
+iwl_mvm_get_chan_load_factor(struct ieee80211_bss_conf *link_conf)
+{
+	return SCALE_FACTOR - iwl_mvm_get_chan_load(link_conf);
 }
 
 /* This function calculates the grade of a link. Returns 0 in error case */
+VISIBLE_IF_IWLWIFI_KUNIT
 unsigned int iwl_mvm_get_link_grade(struct ieee80211_bss_conf *link_conf)
 {
 	enum nl80211_band band;
@@ -484,6 +496,10 @@ unsigned int iwl_mvm_get_link_grade(struct ieee80211_bss_conf *link_conf)
 
 	rssi_idx = band == NL80211_BAND_2GHZ ? 0 : 1;
 
+	/* No valid RSSI - take the lowest grade */
+	if (!link_rssi)
+		link_rssi = rssi_to_grade_map[0].rssi[rssi_idx];
+
 	/* Get grade based on RSSI */
 	for (i = 0; i < ARRAY_SIZE(rssi_to_grade_map); i++) {
 		const struct iwl_mvm_rssi_to_grade *line =
@@ -502,20 +518,14 @@ unsigned int iwl_mvm_get_link_grade(struct ieee80211_bss_conf *link_conf)
 }
 EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mvm_get_link_grade);
 
-/*
- * This function receives a subset of the usable links bitmap and
- * returns the primary link id, and -1 if such link doesn't exist
- * (e.g. non-MLO connection) or wasn't found.
- */
-int iwl_mvm_mld_get_primary_link(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif,
-				 unsigned long usable_links)
+u8 iwl_mvm_set_link_selection_data(struct ieee80211_vif *vif,
+				   struct iwl_mvm_link_sel_data *data,
+				   unsigned long usable_links,
+				   u8 *best_link_idx)
 {
-	struct iwl_mvm_link_sel_data data[IEEE80211_MLD_MAX_NUM_LINKS];
-	u8 link_id, n_data = 0;
-
-	if (!ieee80211_vif_is_mld(vif) || !vif->cfg.assoc)
-		return -1;
+	u8 n_data = 0;
+	u16 max_grade = 0;
+	unsigned long link_id;
 
 	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
 		struct ieee80211_bss_conf *link_conf =
@@ -526,59 +536,22 @@ int iwl_mvm_mld_get_primary_link(struct iwl_mvm *mvm,
 
 		data[n_data].link_id = link_id;
 		data[n_data].band = link_conf->chanreq.oper.chan->band;
-		data[n_data].width = link_conf->chanreq.oper.width;
-		data[n_data].active = true;
+		data[n_data].grade = iwl_mvm_get_link_grade(link_conf);
+
+		if (data[n_data].grade > max_grade) {
+			max_grade = data[n_data].grade;
+			*best_link_idx = n_data;
+		}
 		n_data++;
 	}
-
-	if (n_data <= 1)
-		return -1;
-
-	/* The logic should be modified to handle more than 2 links */
-	WARN_ON_ONCE(n_data > 2);
-
-	/* Primary link is the link with the wider bandwidth or higher band */
-	if (data[0].width > data[1].width)
-		return data[0].link_id;
-	if (data[0].width < data[1].width)
-		return data[1].link_id;
-	if (data[0].band >= data[1].band)
-		return data[0].link_id;
-
-	return data[1].link_id;
-}
-
-u8 iwl_mvm_set_link_selection_data(struct ieee80211_vif *vif,
-				   struct iwl_mvm_link_sel_data *data,
-				   unsigned long usable_links)
-{
-	u8 n_data = 0;
-	unsigned long link_id;
-
-	rcu_read_lock();
-
-	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
-		struct ieee80211_bss_conf *link_conf =
-			rcu_dereference(vif->link_conf[link_id]);
-
-		if (WARN_ON_ONCE(!link_conf))
-			continue;
-
-		data[n_data].link_id = link_id;
-		data[n_data].band = link_conf->chanreq.oper.chan->band;
-		data[n_data].width = link_conf->chanreq.oper.width;
-		data[n_data].active = vif->active_links & BIT(link_id);
-		n_data++;
-	}
-
-	rcu_read_unlock();
 
 	return n_data;
 }
 
+VISIBLE_IF_IWLWIFI_KUNIT
 bool iwl_mvm_mld_valid_link_pair(struct ieee80211_vif *vif,
-				 struct iwl_mvm_link_sel_data *a,
-				 struct iwl_mvm_link_sel_data *b)
+				 const struct iwl_mvm_link_sel_data *a,
+				 const struct iwl_mvm_link_sel_data *b)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
@@ -591,15 +564,58 @@ bool iwl_mvm_mld_valid_link_pair(struct ieee80211_vif *vif,
 
 	return true;
 }
+EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mvm_mld_valid_link_pair);
 
-void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			      bool valid_links_changed)
+/*
+ * Returns the combined eSR grade of two given links.
+ * Returns 0 if eSR is not allowed with these 2 links.
+ */
+static
+unsigned int iwl_mvm_get_esr_grade(struct ieee80211_vif *vif,
+				   const struct iwl_mvm_link_sel_data *a,
+				   const struct iwl_mvm_link_sel_data *b,
+				   u8 *primary_id)
+{
+	struct ieee80211_bss_conf *primary_conf;
+	struct wiphy *wiphy = ieee80211_vif_to_wdev(vif)->wiphy;
+	unsigned int primary_load;
+
+	lockdep_assert_wiphy(wiphy);
+
+	/* a is always primary, b is always secondary */
+	if (b->grade > a->grade)
+		swap(a, b);
+
+	*primary_id = a->link_id;
+
+	if (!iwl_mvm_mld_valid_link_pair(vif, a, b))
+		return 0;
+
+	primary_conf = wiphy_dereference(wiphy, vif->link_conf[*primary_id]);
+
+	if (WARN_ON_ONCE(!primary_conf))
+		return 0;
+
+	primary_load = iwl_mvm_get_chan_load(primary_conf);
+
+	return a->grade +
+		((b->grade * primary_load) / SCALE_FACTOR);
+}
+
+void iwl_mvm_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_link_sel_data data[IEEE80211_MLD_MAX_NUM_LINKS];
-	unsigned long usable_links = ieee80211_vif_usable_links(vif);
+	struct iwl_mvm_link_sel_data *best_link;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	u32 max_active_links = iwl_mvm_max_active_links(mvm, vif);
-	u16 new_active_links;
-	u8 n_data, i, j;
+	u16 usable_links = ieee80211_vif_usable_links(vif);
+	u8 best, primary_link, best_in_pair, n_data;
+	u16 max_esr_grade = 0, new_active_links;
+
+	lockdep_assert_wiphy(mvm->hw->wiphy);
+
+	if (!mvmvif->authorized || !ieee80211_vif_is_mld(vif))
+		return;
 
 	if (!IWL_MVM_AUTO_EML_ENABLE)
 		return;
@@ -609,79 +625,69 @@ void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	 */
 	WARN_ON_ONCE(max_active_links > 2);
 
-	/* if only a single active link is supported, assume that the one
-	 * selected by higher layer for connection establishment is the best.
-	 */
-	if (max_active_links == 1 && !valid_links_changed)
+	n_data = iwl_mvm_set_link_selection_data(vif, data, usable_links,
+						 &best);
+
+	if (WARN(!n_data, "Couldn't find a valid grade for any link!\n"))
 		return;
 
-	/* If we are already using the maximal number of active links, don't do
-	 * any change. This can later be optimized to pick a 'better' link pair.
-	 */
-	if (hweight16(vif->active_links) == max_active_links)
-		return;
+	best_link = &data[best];
+	primary_link = best_link->link_id;
+	new_active_links = BIT(best_link->link_id);
 
-	if (!iwl_mvm_esr_allowed_on_vif(mvm, vif))
-		return;
+	/* eSR is not supported/allowed, or only one usable link */
+	if (max_active_links == 1 || !iwl_mvm_esr_allowed_on_vif(mvm, vif) ||
+	    n_data == 1)
+		goto set_active;
 
-	n_data = iwl_mvm_set_link_selection_data(vif, data, usable_links);
+	for (u8 a = 0; a < n_data; a++)
+		for (u8 b = a + 1; b < n_data; b++) {
+			u16 esr_grade = iwl_mvm_get_esr_grade(vif, &data[a],
+							      &data[b],
+							      &best_in_pair);
 
-	/* this is expected to be the current active link */
-	if (n_data == 1)
-		return;
-
-	new_active_links = 0;
-
-	/* Assume that after association only a single link is active, thus,
-	 * select only the 2nd link
-	 */
-	if (!valid_links_changed) {
-		for (i = 0; i < n_data; i++) {
-			if (data[i].active)
-				break;
-		}
-
-		if (WARN_ON_ONCE(i == n_data))
-			return;
-
-		for (j = 0; j < n_data; j++) {
-			if (i == j)
+			if (esr_grade <= max_esr_grade)
 				continue;
 
-			if (iwl_mvm_mld_valid_link_pair(vif, &data[i],
-							&data[j]))
-				break;
+			max_esr_grade = esr_grade;
+			primary_link = best_in_pair;
+			new_active_links = BIT(data[a].link_id) |
+					   BIT(data[b].link_id);
 		}
 
-		if (j != n_data)
-			new_active_links = BIT(data[i].link_id) |
-				BIT(data[j].link_id);
-	} else {
-		/* Try to find a valid link pair for EMLSR operation. If a pair
-		 * is not found continue using the current active link.
-		 */
-		for (i = 0; i < n_data; i++) {
-			for (j = 0; j < n_data; j++) {
-				if (i == j)
-					continue;
+	/* No valid pair was found, go with the best link */
+	if (hweight16(new_active_links) <= 1)
+		goto set_active;
 
-				if (iwl_mvm_mld_valid_link_pair(vif, &data[i],
-								&data[j]))
-					break;
-			}
-
-			/* found a valid pair for EMLSR, use it */
-			if (j != n_data) {
-				new_active_links = BIT(data[i].link_id) |
-					BIT(data[j].link_id);
-				break;
-			}
-		}
+	/* prefer single link over marginal eSR improvement */
+	if (best_link->grade * 110 / 100 >= max_esr_grade) {
+		primary_link = best_link->link_id;
+		new_active_links = BIT(best_link->link_id);
 	}
+set_active:
+	IWL_DEBUG_INFO(mvm, "Link selection result: 0x%x. Primary = %d\n",
+		       new_active_links, primary_link);
+	ieee80211_set_active_links_async(vif, new_active_links);
+	mvmvif->link_selection_res = new_active_links;
+	mvmvif->link_selection_primary = primary_link;
+}
 
-	if (!new_active_links)
-		return;
+u8 iwl_mvm_get_primary_link(struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 
-	if (vif->active_links != new_active_links)
-		ieee80211_set_active_links_async(vif, new_active_links);
+	lockdep_assert_held(&mvmvif->mvm->mutex);
+
+	if (!ieee80211_vif_is_mld(vif))
+		return 0;
+
+	/* In AP mode, there is no primary link */
+	if (vif->type == NL80211_IFTYPE_AP)
+		return __ffs(vif->active_links);
+
+	if (mvmvif->esr_active &&
+	    !WARN_ON(!(BIT(mvmvif->primary_link) & vif->active_links)))
+		return mvmvif->primary_link;
+
+	return __ffs(vif->active_links);
 }

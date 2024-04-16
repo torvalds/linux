@@ -232,6 +232,12 @@ static int iwl_mvm_esr_mode_active(struct iwl_mvm *mvm,
 		link->phy_ctxt->rlc_disabled = true;
 	}
 
+	if (vif->active_links == mvmvif->link_selection_res &&
+	    !WARN_ON(!(vif->active_links & BIT(mvmvif->link_selection_primary))))
+		mvmvif->primary_link = mvmvif->link_selection_primary;
+	else
+		mvmvif->primary_link = __ffs(vif->active_links);
+
 	return ret;
 }
 
@@ -689,9 +695,6 @@ iwl_mvm_mld_link_info_changed_station(struct iwl_mvm *mvm,
 	if (ret)
 		IWL_ERR(mvm, "failed to update MAC %pM\n", vif->addr);
 
-	if (changes & BSS_CHANGED_MLD_VALID_LINKS)
-		iwl_mvm_mld_select_links(mvm, vif, true);
-
 	memcpy(mvmvif->link[link_conf->link_id]->bssid, link_conf->bssid,
 	       ETH_ALEN);
 
@@ -1112,6 +1115,14 @@ iwl_mvm_mld_change_vif_links(struct ieee80211_hw *hw,
 	if (new_links == 0) {
 		mvmvif->link[0] = &mvmvif->deflink;
 		err = iwl_mvm_add_link(mvm, vif, &vif->bss_conf);
+		if (err == 0)
+			mvmvif->primary_link = 0;
+	} else if (!(new_links & BIT(mvmvif->primary_link))) {
+		/*
+		 * Ensure we always have a valid primary_link, the real
+		 * decision happens later when PHY is activated.
+		 */
+		mvmvif->primary_link = BIT(__ffs(new_links));
 	}
 
 out_err:
@@ -1144,27 +1155,22 @@ void iwl_mvm_recalc_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	bool enable = !mvmvif->esr_disable_reason;
-	int link_id;
+	u16 new_active_links;
 
 	/* Nothing to do */
 	if (mvmvif->esr_active == enable)
 		return;
 
-	if (enable) {
-		/* Try to re-enable eSR */
-		iwl_mvm_mld_select_links(mvm, vif, false);
+	/* The next link selection will enter eSR if possible */
+	if (enable)
 		return;
-	}
 
 	/*
 	 * Find the primary link, as we want to switch to it and drop the
 	 * secondary one.
 	 */
-	link_id = iwl_mvm_mld_get_primary_link(mvm, vif, vif->active_links);
-	WARN_ON(link_id < 0);
-
-	ieee80211_set_active_links_async(vif,
-					 vif->active_links & BIT(link_id));
+	new_active_links = BIT(iwl_mvm_get_primary_link(vif));
+	ieee80211_set_active_links_async(vif, new_active_links);
 }
 
 bool iwl_mvm_esr_allowed_on_vif(struct iwl_mvm *mvm,
@@ -1200,12 +1206,13 @@ static bool iwl_mvm_can_enter_esr(struct iwl_mvm *mvm,
 				  unsigned long desired_links)
 {
 	struct iwl_mvm_link_sel_data data[IEEE80211_MLD_MAX_NUM_LINKS];
-	u8 n_data;
+	u8 best_link, n_data;
 
 	if (!iwl_mvm_esr_allowed_on_vif(mvm, vif))
 		return false;
 
-	n_data = iwl_mvm_set_link_selection_data(vif, data, desired_links);
+	n_data = iwl_mvm_set_link_selection_data(vif, data, desired_links,
+						 &best_link);
 
 	if (n_data != 2)
 		return false;

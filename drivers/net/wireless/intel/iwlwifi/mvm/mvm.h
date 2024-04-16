@@ -388,6 +388,12 @@ enum iwl_mvm_esr_disable_reason {
  * @esr_active: indicates eSR mode is active
  * @esr_disable_reason: a bitmap of enum iwl_mvm_esr_disable_reason
  * @pm_enabled: indicates powersave is enabled
+ * @link_selection_res: bitmap of active links as it was decided in the last
+ *	link selection. Valid only for a MLO vif after assoc. 0 if there wasn't
+ *	any link selection yet.
+ * @link_selection_primary: primary link selected by link selection
+ * @primary_link: primary link in eSR. Valid only for an associated MLD vif,
+ *	and in eSR mode. Valid only for a STA.
  */
 struct iwl_mvm_vif {
 	struct iwl_mvm *mvm;
@@ -478,6 +484,9 @@ struct iwl_mvm_vif {
 		struct ieee80211_key_conf __rcu *keys[2];
 	} bcn_prot;
 
+	u16 link_selection_res;
+	u8 link_selection_primary;
+	u8 primary_link;
 	struct iwl_mvm_vif_link_info deflink;
 	struct iwl_mvm_vif_link_info *link[IEEE80211_MLD_MAX_NUM_LINKS];
 };
@@ -1944,24 +1953,27 @@ int iwl_mvm_remove_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 int iwl_mvm_disable_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 			 struct ieee80211_bss_conf *link_conf);
 
-void iwl_mvm_mld_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
-			      bool valid_links_changed);
-int iwl_mvm_mld_get_primary_link(struct iwl_mvm *mvm,
-				 struct ieee80211_vif *vif,
-				 unsigned long usable_links);
+void iwl_mvm_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif);
+u8 iwl_mvm_get_primary_link(struct ieee80211_vif *vif);
+
+#if IS_ENABLED(CONFIG_IWLWIFI_KUNIT_TESTS)
+unsigned int iwl_mvm_get_link_grade(struct ieee80211_bss_conf *link_conf);
+#endif
+
 struct iwl_mvm_link_sel_data {
 	u8 link_id;
 	enum nl80211_band band;
-	enum nl80211_chan_width width;
-	bool active;
+	u16 grade;
 };
 
 u8 iwl_mvm_set_link_selection_data(struct ieee80211_vif *vif,
 				   struct iwl_mvm_link_sel_data *data,
-				   unsigned long usable_links);
+				   unsigned long usable_links,
+				   u8 *best_link_idx);
 bool iwl_mvm_mld_valid_link_pair(struct ieee80211_vif *vif,
-				 struct iwl_mvm_link_sel_data *a,
-				 struct iwl_mvm_link_sel_data *b);
+				 const struct iwl_mvm_link_sel_data *a,
+				 const struct iwl_mvm_link_sel_data *b);
+
 /* AP and IBSS */
 bool iwl_mvm_start_ap_ibss_common(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif, int *ret);
@@ -2461,7 +2473,6 @@ u32 iwl_mvm_get_sec_flags(struct iwl_mvm *mvm,
 			  struct ieee80211_vif *vif,
 			  struct ieee80211_sta *sta,
 			  struct ieee80211_key_conf *keyconf);
-unsigned int iwl_mvm_get_link_grade(struct ieee80211_bss_conf *link_conf);
 
 bool iwl_rfi_supported(struct iwl_mvm *mvm);
 int iwl_rfi_send_config_cmd(struct iwl_mvm *mvm,

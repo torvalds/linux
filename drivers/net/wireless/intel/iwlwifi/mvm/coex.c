@@ -282,7 +282,7 @@ static void iwl_mvm_bt_coex_enable_esr(struct iwl_mvm *mvm,
 static bool
 iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
 				   struct ieee80211_vif *vif,
-				   int link_id, int primary_link)
+				   int link_id)
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_vif_link_info *link_info = mvmvif->link[link_id];
@@ -298,7 +298,7 @@ iwl_mvm_bt_coex_calculate_esr_mode(struct iwl_mvm *mvm,
 		return true;
 
 	 /* If LB link is the primary one we should always disable eSR */
-	if (link_id == primary_link)
+	if (link_id == iwl_mvm_get_primary_link(vif))
 		return false;
 
 	/* The feature is not supported */
@@ -340,17 +340,13 @@ void iwl_mvm_bt_coex_update_link_esr(struct iwl_mvm *mvm,
 				     struct ieee80211_vif *vif,
 				     int link_id)
 {
-	unsigned long usable_links = ieee80211_vif_usable_links(vif);
-	int primary_link = iwl_mvm_mld_get_primary_link(mvm, vif,
-							usable_links);
 	bool enable;
 
-	/* Not assoc, not MLD vif or only one usable link */
-	if (primary_link < 0)
+	if (!ieee80211_vif_is_mld(vif) ||
+	    !iwl_mvm_vif_from_mac80211(vif)->authorized)
 		return;
 
-	enable = iwl_mvm_bt_coex_calculate_esr_mode(mvm, vif, link_id,
-						    primary_link);
+	enable = iwl_mvm_bt_coex_calculate_esr_mode(mvm, vif, link_id);
 
 	iwl_mvm_bt_coex_enable_esr(mvm, vif, enable);
 }
