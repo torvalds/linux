@@ -17,12 +17,6 @@
 #define USB4_DATA_RETRIES		3
 #define USB4_DATA_DWORDS		16
 
-enum usb4_sb_target {
-	USB4_SB_TARGET_ROUTER,
-	USB4_SB_TARGET_PARTNER,
-	USB4_SB_TARGET_RETIMER,
-};
-
 #define USB4_NVM_READ_OFFSET_MASK	GENMASK(23, 2)
 #define USB4_NVM_READ_OFFSET_SHIFT	2
 #define USB4_NVM_READ_LENGTH_MASK	GENMASK(27, 24)
@@ -1289,8 +1283,20 @@ static int usb4_port_write_data(struct tb_port *port, const void *data,
 			     dwords);
 }
 
-static int usb4_port_sb_read(struct tb_port *port, enum usb4_sb_target target,
-			     u8 index, u8 reg, void *buf, u8 size)
+/**
+ * usb4_port_sb_read() - Read from sideband register
+ * @port: USB4 port to read
+ * @target: Sideband target
+ * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
+ * @reg: Sideband register index
+ * @buf: Buffer where the sideband data is copied
+ * @size: Size of @buf
+ *
+ * Reads data from sideband register @reg and copies it into @buf.
+ * Returns %0 in case of success and negative errno in case of failure.
+ */
+int usb4_port_sb_read(struct tb_port *port, enum usb4_sb_target target, u8 index,
+		      u8 reg, void *buf, u8 size)
 {
 	size_t dwords = DIV_ROUND_UP(size, 4);
 	int ret;
@@ -1329,8 +1335,20 @@ static int usb4_port_sb_read(struct tb_port *port, enum usb4_sb_target target,
 	return buf ? usb4_port_read_data(port, buf, dwords) : 0;
 }
 
-static int usb4_port_sb_write(struct tb_port *port, enum usb4_sb_target target,
-			      u8 index, u8 reg, const void *buf, u8 size)
+/**
+ * usb4_port_sb_write() - Write to sideband register
+ * @port: USB4 port to write
+ * @target: Sideband target
+ * @index: Retimer index if taget is %USB4_SB_TARGET_RETIMER
+ * @reg: Sideband register index
+ * @buf: Data to write
+ * @size: Size of @buf
+ *
+ * Writes @buf to sideband register @reg. Returns %0 in case of success
+ * and negative errno in case of failure.
+ */
+int usb4_port_sb_write(struct tb_port *port, enum usb4_sb_target target,
+		       u8 index, u8 reg, const void *buf, u8 size)
 {
 	size_t dwords = DIV_ROUND_UP(size, 4);
 	int ret;
@@ -1777,47 +1795,6 @@ int usb4_port_retimer_unset_inbound_sbtx(struct tb_port *port, u8 index)
 }
 
 /**
- * usb4_port_retimer_read() - Read from retimer sideband registers
- * @port: USB4 port
- * @index: Retimer index
- * @reg: Sideband register to read
- * @buf: Data from @reg is stored here
- * @size: Number of bytes to read
- *
- * Function reads retimer sideband registers starting from @reg. The
- * retimer is connected to @port at @index. Returns %0 in case of
- * success, and read data is copied to @buf. If there is no retimer
- * present at given @index returns %-ENODEV. In any other failure
- * returns negative errno.
- */
-int usb4_port_retimer_read(struct tb_port *port, u8 index, u8 reg, void *buf,
-			   u8 size)
-{
-	return usb4_port_sb_read(port, USB4_SB_TARGET_RETIMER, index, reg, buf,
-				 size);
-}
-
-/**
- * usb4_port_retimer_write() - Write to retimer sideband registers
- * @port: USB4 port
- * @index: Retimer index
- * @reg: Sideband register to write
- * @buf: Data that is written starting from @reg
- * @size: Number of bytes to write
- *
- * Writes retimer sideband registers starting from @reg. The retimer is
- * connected to @port at @index. Returns %0 in case of success. If there
- * is no retimer present at given @index returns %-ENODEV. In any other
- * failure returns negative errno.
- */
-int usb4_port_retimer_write(struct tb_port *port, u8 index, u8 reg,
-			    const void *buf, u8 size)
-{
-	return usb4_port_sb_write(port, USB4_SB_TARGET_RETIMER, index, reg, buf,
-				  size);
-}
-
-/**
  * usb4_port_retimer_is_last() - Is the retimer last on-board retimer
  * @port: USB4 port
  * @index: Retimer index
@@ -1837,8 +1814,8 @@ int usb4_port_retimer_is_last(struct tb_port *port, u8 index)
 	if (ret)
 		return ret;
 
-	ret = usb4_port_retimer_read(port, index, USB4_SB_METADATA, &metadata,
-				     sizeof(metadata));
+	ret = usb4_port_sb_read(port, USB4_SB_TARGET_RETIMER, index,
+				USB4_SB_METADATA, &metadata, sizeof(metadata));
 	return ret ? ret : metadata & 1;
 }
 
@@ -1863,8 +1840,8 @@ int usb4_port_retimer_nvm_sector_size(struct tb_port *port, u8 index)
 	if (ret)
 		return ret;
 
-	ret = usb4_port_retimer_read(port, index, USB4_SB_METADATA, &metadata,
-				     sizeof(metadata));
+	ret = usb4_port_sb_read(port, USB4_SB_TARGET_RETIMER, index,
+				USB4_SB_METADATA, &metadata, sizeof(metadata));
 	return ret ? ret : metadata & USB4_NVM_SECTOR_SIZE_MASK;
 }
 
@@ -1889,8 +1866,8 @@ int usb4_port_retimer_nvm_set_offset(struct tb_port *port, u8 index,
 	metadata = (dwaddress << USB4_NVM_SET_OFFSET_SHIFT) &
 		  USB4_NVM_SET_OFFSET_MASK;
 
-	ret = usb4_port_retimer_write(port, index, USB4_SB_METADATA, &metadata,
-				      sizeof(metadata));
+	ret = usb4_port_sb_write(port, USB4_SB_TARGET_RETIMER, index,
+				 USB4_SB_METADATA, &metadata, sizeof(metadata));
 	if (ret)
 		return ret;
 
@@ -1912,8 +1889,8 @@ static int usb4_port_retimer_nvm_write_next_block(void *data,
 	u8 index = info->index;
 	int ret;
 
-	ret = usb4_port_retimer_write(port, index, USB4_SB_DATA,
-				      buf, dwords * 4);
+	ret = usb4_port_sb_write(port, USB4_SB_TARGET_RETIMER, index,
+				 USB4_SB_DATA, buf, dwords * 4);
 	if (ret)
 		return ret;
 
@@ -1992,8 +1969,8 @@ int usb4_port_retimer_nvm_authenticate_status(struct tb_port *port, u8 index,
 	u32 metadata, val;
 	int ret;
 
-	ret = usb4_port_retimer_read(port, index, USB4_SB_OPCODE, &val,
-				     sizeof(val));
+	ret = usb4_port_sb_read(port, USB4_SB_TARGET_RETIMER, index,
+				USB4_SB_OPCODE, &val, sizeof(val));
 	if (ret)
 		return ret;
 
@@ -2004,8 +1981,9 @@ int usb4_port_retimer_nvm_authenticate_status(struct tb_port *port, u8 index,
 		return 0;
 
 	case -EAGAIN:
-		ret = usb4_port_retimer_read(port, index, USB4_SB_METADATA,
-					     &metadata, sizeof(metadata));
+		ret = usb4_port_sb_read(port, USB4_SB_TARGET_RETIMER, index,
+					USB4_SB_METADATA, &metadata,
+					sizeof(metadata));
 		if (ret)
 			return ret;
 
@@ -2030,8 +2008,8 @@ static int usb4_port_retimer_nvm_read_block(void *data, unsigned int dwaddress,
 	if (dwords < USB4_DATA_DWORDS)
 		metadata |= dwords << USB4_NVM_READ_LENGTH_SHIFT;
 
-	ret = usb4_port_retimer_write(port, index, USB4_SB_METADATA, &metadata,
-				      sizeof(metadata));
+	ret = usb4_port_sb_write(port, USB4_SB_TARGET_RETIMER, index,
+				 USB4_SB_METADATA, &metadata, sizeof(metadata));
 	if (ret)
 		return ret;
 
@@ -2039,8 +2017,8 @@ static int usb4_port_retimer_nvm_read_block(void *data, unsigned int dwaddress,
 	if (ret)
 		return ret;
 
-	return usb4_port_retimer_read(port, index, USB4_SB_DATA, buf,
-				      dwords * 4);
+	return usb4_port_sb_read(port, USB4_SB_TARGET_RETIMER, index,
+				 USB4_SB_DATA, buf, dwords * 4);
 }
 
 /**

@@ -372,16 +372,16 @@ static int tb_retimer_add(struct tb_port *port, u8 index, u32 auth_status)
 	u32 vendor, device;
 	int ret;
 
-	ret = usb4_port_retimer_read(port, index, USB4_SB_VENDOR_ID, &vendor,
-				     sizeof(vendor));
+	ret = usb4_port_sb_read(port, USB4_SB_TARGET_RETIMER, index,
+				USB4_SB_VENDOR_ID, &vendor, sizeof(vendor));
 	if (ret) {
 		if (ret != -ENODEV)
 			tb_port_warn(port, "failed read retimer VendorId: %d\n", ret);
 		return ret;
 	}
 
-	ret = usb4_port_retimer_read(port, index, USB4_SB_PRODUCT_ID, &device,
-				     sizeof(device));
+	ret = usb4_port_sb_read(port, USB4_SB_TARGET_RETIMER, index,
+				USB4_SB_PRODUCT_ID, &device, sizeof(device));
 	if (ret) {
 		if (ret != -ENODEV)
 			tb_port_warn(port, "failed read retimer ProductId: %d\n", ret);
