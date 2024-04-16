@@ -8,6 +8,8 @@
 
 #include <linux/types.h>
 
+struct platform_device;
+
 struct ipa;
 struct ipa_interrupt;
 enum ipa_irq_id;

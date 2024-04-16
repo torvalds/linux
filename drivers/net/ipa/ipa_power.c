@@ -9,7 +9,6 @@
 #include <linux/interconnect.h>
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
-#include <linux/bitops.h>
 
 #include "linux/soc/qcom/qcom_aoss.h"
 
