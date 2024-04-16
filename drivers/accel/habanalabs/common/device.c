@@ -1082,6 +1082,8 @@ static bool hl_device_eq_heartbeat_received(struct hl_device *hdev)
 			atomic_read(&hdev->kernel_queues[cpu_q_id].ci),
 			atomic_read(&hdev->kernel_queues[cpu_q_id].ci) & pq_pi_mask);
 
+		hl_eq_dump(hdev, &hdev->event_queue);
+
 		return false;
 	}
 
