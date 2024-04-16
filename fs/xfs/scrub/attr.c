@@ -10,6 +10,7 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_log_format.h"
+#include "xfs_trans.h"
 #include "xfs_inode.h"
 #include "xfs_da_format.h"
 #include "xfs_da_btree.h"
@@ -20,6 +21,8 @@
 #include "scrub/common.h"
 #include "scrub/dabtree.h"
 #include "scrub/attr.h"
+#include "scrub/listxattr.h"
+#include "scrub/repair.h"
 
 /* Free the buffers linked from the xattr buffer. */
 static void
@@ -35,6 +38,8 @@ xchk_xattr_buf_cleanup(
 	kvfree(ab->value);
 	ab->value = NULL;
 	ab->value_sz = 0;
+	kvfree(ab->name);
+	ab->name = NULL;
 }
 
 /*
@@ -65,7 +70,7 @@ xchk_xattr_want_freemap(
  * reallocating the buffer if necessary.  Buffer contents are not preserved
  * across a reallocation.
  */
-static int
+int
 xchk_setup_xattr_buf(
 	struct xfs_scrub	*sc,
 	size_t			value_size)
@@ -95,6 +100,12 @@ xchk_setup_xattr_buf(
 			return -ENOMEM;
 	}
 
+	if (xchk_could_repair(sc)) {
+		ab->name = kvmalloc(XATTR_NAME_MAX + 1, XCHK_GFP_FLAGS);
+		if (!ab->name)
+			return -ENOMEM;
+	}
+
 resize_value:
 	if (ab->value_sz >= value_size)
 		return 0;
@@ -121,6 +132,12 @@ xchk_setup_xattr(
 {
 	int			error;
 
+	if (xchk_could_repair(sc)) {
+		error = xrep_setup_xattr(sc);
+		if (error)
+			return error;
+	}
+
 	/*
 	 * We failed to get memory while checking attrs, so this time try to
 	 * get all the memory we're ever going to need.  Allocate the buffer
@@ -137,90 +154,81 @@ xchk_setup_xattr(
 
 /* Extended Attributes */
 
-struct xchk_xattr {
-	struct xfs_attr_list_context	context;
-	struct xfs_scrub		*sc;
-};
-
 /*
  * Check that an extended attribute key can be looked up by hash.
  *
- * We use the XFS attribute list iterator (i.e. xfs_attr_list_ilocked)
- * to call this function for every attribute key in an inode.  Once
- * we're here, we load the attribute value to see if any errors happen,
- * or if we get more or less data than we expected.
+ * We use the extended attribute walk helper to call this function for every
+ * attribute key in an inode.  Once we're here, we load the attribute value to
+ * see if any errors happen, or if we get more or less data than we expected.
  */
-static void
-xchk_xattr_listent(
-	struct xfs_attr_list_context	*context,
-	int				flags,
-	unsigned char			*name,
-	int				namelen,
-	int				valuelen)
+static int
+xchk_xattr_actor(
+	struct xfs_scrub	*sc,
+	struct xfs_inode	*ip,
+	unsigned int		attr_flags,
+	const unsigned char	*name,
+	unsigned int		namelen,
+	const void		*value,
+	unsigned int		valuelen,
+	void			*priv)
 {
 	struct xfs_da_args		args = {
 		.op_flags		= XFS_DA_OP_NOTIME,
-		.attr_filter		= flags & XFS_ATTR_NSP_ONDISK_MASK,
-		.geo			= context->dp->i_mount->m_attr_geo,
+		.attr_filter		= attr_flags & XFS_ATTR_NSP_ONDISK_MASK,
+		.geo			= sc->mp->m_attr_geo,
 		.whichfork		= XFS_ATTR_FORK,
-		.dp			= context->dp,
+		.dp			= ip,
 		.name			= name,
 		.namelen		= namelen,
 		.hashval		= xfs_da_hashname(name, namelen),
-		.trans			= context->tp,
+		.trans			= sc->tp,
 		.valuelen		= valuelen,
-		.owner			= context->dp->i_ino,
+		.owner			= ip->i_ino,
 	};
 	struct xchk_xattr_buf		*ab;
-	struct xchk_xattr		*sx;
 	int				error = 0;
 
-	sx = container_of(context, struct xchk_xattr, context);
-	ab = sx->sc->buf;
+	ab = sc->buf;
 
-	if (xchk_should_terminate(sx->sc, &error)) {
-		context->seen_enough = error;
-		return;
-	}
+	if (xchk_should_terminate(sc, &error))
+		return error;
 
-	if (flags & XFS_ATTR_INCOMPLETE) {
+	if (attr_flags & XFS_ATTR_INCOMPLETE) {
 		/* Incomplete attr key, just mark the inode for preening. */
-		xchk_ino_set_preen(sx->sc, context->dp->i_ino);
-		return;
+		xchk_ino_set_preen(sc, ip->i_ino);
+		return 0;
 	}
 
 	/* Only one namespace bit allowed. */
-	if (hweight32(flags & XFS_ATTR_NSP_ONDISK_MASK) > 1) {
-		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK, args.blkno);
-		goto fail_xref;
+	if (hweight32(attr_flags & XFS_ATTR_NSP_ONDISK_MASK) > 1) {
+		xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, args.blkno);
+		return -ECANCELED;
 	}
 
 	/* Does this name make sense? */
 	if (!xfs_attr_namecheck(name, namelen)) {
-		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK, args.blkno);
-		goto fail_xref;
+		xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, args.blkno);
+		return -ECANCELED;
 	}
 
 	/*
-	 * Local xattr values are stored in the attr leaf block, so we don't
-	 * need to retrieve the value from a remote block to detect corruption
-	 * problems.
+	 * Local and shortform xattr values are stored in the attr leaf block,
+	 * so we don't need to retrieve the value from a remote block to detect
+	 * corruption problems.
 	 */
-	if (flags & XFS_ATTR_LOCAL)
-		goto fail_xref;
+	if (value)
+		return 0;
 
 	/*
-	 * Try to allocate enough memory to extrat the attr value.  If that
-	 * doesn't work, we overload the seen_enough variable to convey
-	 * the error message back to the main scrub function.
+	 * Try to allocate enough memory to extract the attr value.  If that
+	 * doesn't work, return -EDEADLOCK as a signal to try again with a
+	 * maximally sized buffer.
 	 */
-	error = xchk_setup_xattr_buf(sx->sc, valuelen);
+	error = xchk_setup_xattr_buf(sc, valuelen);
 	if (error == -ENOMEM)
 		error = -EDEADLOCK;
-	if (error) {
-		context->seen_enough = error;
-		return;
-	}
+	if (error)
+		return error;
 
 	args.value = ab->value;
 
@@ -228,16 +236,13 @@ xchk_xattr_listent(
 	/* ENODATA means the hash lookup failed and the attr is bad */
 	if (error == -ENODATA)
 		error = -EFSCORRUPTED;
-	if (!xchk_fblock_process_error(sx->sc, XFS_ATTR_FORK, args.blkno,
+	if (!xchk_fblock_process_error(sc, XFS_ATTR_FORK, args.blkno,
 			&error))
-		goto fail_xref;
+		return error;
 	if (args.valuelen != valuelen)
-		xchk_fblock_set_corrupt(sx->sc, XFS_ATTR_FORK,
-					     args.blkno);
-fail_xref:
-	if (sx->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
-		context->seen_enough = 1;
-	return;
+		xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, args.blkno);
+
+	return 0;
 }
 
 /*
@@ -247,7 +252,7 @@ fail_xref:
  * Within a char, the lowest bit of the char represents the byte with
  * the smallest address
  */
-STATIC bool
+bool
 xchk_xattr_set_map(
 	struct xfs_scrub	*sc,
 	unsigned long		*map,
@@ -404,6 +409,17 @@ xchk_xattr_block(
 	xfs_attr3_leaf_hdr_from_disk(mp->m_attr_geo, &leafhdr, leaf);
 	hdrsize = xfs_attr3_leaf_hdr_size(leaf);
 
+	/*
+	 * Empty xattr leaf blocks mapped at block 0 are probably a byproduct
+	 * of a race between setxattr and a log shutdown.  Anywhere else in the
+	 * attr fork is a corruption.
+	 */
+	if (leafhdr.count == 0) {
+		if (blk->blkno == 0)
+			xchk_da_set_preen(ds, level);
+		else
+			xchk_da_set_corrupt(ds, level);
+	}
 	if (leafhdr.usedbytes > mp->m_attr_geo->blksize)
 		xchk_da_set_corrupt(ds, level);
 	if (leafhdr.firstused > mp->m_attr_geo->blksize)
@@ -412,6 +428,8 @@ xchk_xattr_block(
 		xchk_da_set_corrupt(ds, level);
 	if (!xchk_xattr_set_map(ds->sc, ab->usedmap, 0, hdrsize))
 		xchk_da_set_corrupt(ds, level);
+	if (leafhdr.holes)
+		xchk_da_set_preen(ds, level);
 
 	if (ds->sc->sm->sm_flags & XFS_SCRUB_OFLAG_CORRUPT)
 		goto out;
@@ -589,16 +607,6 @@ int
 xchk_xattr(
 	struct xfs_scrub		*sc)
 {
-	struct xchk_xattr		sx = {
-		.sc			= sc,
-		.context		= {
-			.dp		= sc->ip,
-			.tp		= sc->tp,
-			.resynch	= 1,
-			.put_listent	= xchk_xattr_listent,
-			.allow_incomplete = true,
-		},
-	};
 	xfs_dablk_t			last_checked = -1U;
 	int				error = 0;
 
@@ -627,12 +635,6 @@ xchk_xattr(
 	/*
 	 * Look up every xattr in this file by name and hash.
 	 *
-	 * Use the backend implementation of xfs_attr_list to call
-	 * xchk_xattr_listent on every attribute key in this inode.
-	 * In other words, we use the same iterator/callback mechanism
-	 * that listattr uses to scrub extended attributes, though in our
-	 * _listent function, we check the value of the attribute.
-	 *
 	 * The VFS only locks i_rwsem when modifying attrs, so keep all
 	 * three locks held because that's the only way to ensure we're
 	 * the only thread poking into the da btree.  We traverse the da
@@ -640,13 +642,9 @@ xchk_xattr(
 	 * iteration, which doesn't really follow the usual buffer
 	 * locking order.
 	 */
-	error = xfs_attr_list_ilocked(&sx.context);
+	error = xchk_xattr_walk(sc, sc->ip, xchk_xattr_actor, NULL);
 	if (!xchk_fblock_process_error(sc, XFS_ATTR_FORK, 0, &error))
 		return error;
-
-	/* Did our listent function try to return any errors? */
-	if (sx.context.seen_enough < 0)
-		return sx.context.seen_enough;
 
 	return 0;
 }

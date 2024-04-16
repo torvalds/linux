@@ -1055,7 +1055,7 @@ out_trans_cancel:
  * External routines when attribute list is inside the inode
  *========================================================================*/
 
-static inline int xfs_attr_sf_totsize(struct xfs_inode *dp)
+int xfs_attr_sf_totsize(struct xfs_inode *dp)
 {
 	struct xfs_attr_sf_hdr *sf = dp->i_af.if_data;
 

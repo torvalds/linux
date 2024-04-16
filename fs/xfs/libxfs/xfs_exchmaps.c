@@ -675,7 +675,7 @@ xfs_exchmaps_rmapbt_blocks(
 }
 
 /* Estimate the bmbt and rmapbt overhead required to exchange mappings. */
-static int
+int
 xfs_exchmaps_estimate_overhead(
 	struct xfs_exchmaps_req		*req)
 {

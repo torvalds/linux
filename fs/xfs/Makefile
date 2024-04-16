@@ -165,6 +165,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   ialloc.o \
 				   inode.o \
 				   iscan.o \
+				   listxattr.o \
 				   nlinks.o \
 				   parent.o \
 				   readdir.o \
@@ -194,6 +195,7 @@ ifeq ($(CONFIG_XFS_ONLINE_REPAIR),y)
 xfs-y				+= $(addprefix scrub/, \
 				   agheader_repair.o \
 				   alloc_repair.o \
+				   attr_repair.o \
 				   bmap_repair.o \
 				   cow_repair.o \
 				   fscounters_repair.o \
@@ -208,6 +210,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   repair.o \
 				   rmap_repair.o \
 				   tempfile.o \
+				   xfblob.o \
 				   )
 
 xfs-$(CONFIG_XFS_RT)		+= $(addprefix scrub/, \

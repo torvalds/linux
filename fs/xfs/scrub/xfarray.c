@@ -1051,3 +1051,20 @@ out_free:
 	kvfree(si);
 	return error;
 }
+
+/* How many bytes is this array consuming? */
+unsigned long long
+xfarray_bytes(
+	struct xfarray		*array)
+{
+	return xfile_bytes(array->xfile);
+}
+
+/* Empty the entire array. */
+void
+xfarray_truncate(
+	struct xfarray	*array)
+{
+	xfile_discard(array->xfile, 0, MAX_LFS_FILESIZE);
+	array->nr = 0;
+}

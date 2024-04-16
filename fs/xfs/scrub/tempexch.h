@@ -14,6 +14,8 @@ struct xrep_tempexch {
 int xrep_tempexch_enable(struct xfs_scrub *sc);
 int xrep_tempexch_trans_reserve(struct xfs_scrub *sc, int whichfork,
 		struct xrep_tempexch *ti);
+int xrep_tempexch_trans_alloc(struct xfs_scrub *sc, int whichfork,
+		struct xrep_tempexch *ti);
 
 int xrep_tempexch_contents(struct xfs_scrub *sc, struct xrep_tempexch *ti);
 #endif /* CONFIG_XFS_ONLINE_REPAIR */

@@ -97,6 +97,7 @@ xfs_exchmaps_reqfork(const struct xfs_exchmaps_req *req)
 	return XFS_DATA_FORK;
 }
 
+int xfs_exchmaps_estimate_overhead(struct xfs_exchmaps_req *req);
 int xfs_exchmaps_estimate(struct xfs_exchmaps_req *req);
 
 extern struct kmem_cache	*xfs_exchmaps_intent_cache;
