@@ -41,12 +41,22 @@
 #define OV4689_DIG_GAIN_STEP		1
 #define OV4689_DIG_GAIN_DEFAULT		0x800
 
+#define OV4689_REG_H_CROP_START		CCI_REG16(0x3800)
+#define OV4689_REG_V_CROP_START		CCI_REG16(0x3802)
+#define OV4689_REG_H_CROP_END		CCI_REG16(0x3804)
+#define OV4689_REG_V_CROP_END		CCI_REG16(0x3806)
+#define OV4689_REG_H_OUTPUT_SIZE	CCI_REG16(0x3808)
+#define OV4689_REG_V_OUTPUT_SIZE	CCI_REG16(0x380a)
+
 #define OV4689_REG_HTS			CCI_REG16(0x380c)
 #define OV4689_HTS_DIVIDER		4
 #define OV4689_HTS_MAX			0x7fff
 
 #define OV4689_REG_VTS			CCI_REG16(0x380e)
 #define OV4689_VTS_MAX			0x7fff
+
+#define OV4689_REG_H_WIN_OFF		CCI_REG16(0x3810)
+#define OV4689_REG_V_WIN_OFF		CCI_REG16(0x3812)
 
 #define OV4689_REG_TIMING_FORMAT1	CCI_REG8(0x3820) /* Vertical */
 #define OV4689_REG_TIMING_FORMAT2	CCI_REG8(0x3821) /* Horizontal */
@@ -55,6 +65,17 @@
 #define OV4689_TIMING_FLIP_DIGITAL	BIT(2)
 #define OV4689_TIMING_FLIP_BOTH		(OV4689_TIMING_FLIP_ARRAY |\
 					 OV4689_TIMING_FLIP_DIGITAL)
+
+#define OV4689_REG_ANCHOR_LEFT_START	CCI_REG16(0x4020)
+#define OV4689_ANCHOR_LEFT_START_DEF	576
+#define OV4689_REG_ANCHOR_LEFT_END	CCI_REG16(0x4022)
+#define OV4689_ANCHOR_LEFT_END_DEF	831
+#define OV4689_REG_ANCHOR_RIGHT_START	CCI_REG16(0x4024)
+#define OV4689_ANCHOR_RIGHT_START_DEF	1984
+#define OV4689_REG_ANCHOR_RIGHT_END	CCI_REG16(0x4026)
+#define OV4689_ANCHOR_RIGHT_END_DEF	2239
+
+#define OV4689_REG_VFIFO_CTRL_01	CCI_REG8(0x4601)
 
 #define OV4689_REG_WB_GAIN_RED		CCI_REG16(0x500c)
 #define OV4689_REG_WB_GAIN_BLUE		CCI_REG16(0x5010)
@@ -199,10 +220,6 @@ static const struct cci_reg_sequence ov4689_2688x1520_regs[] = {
 	{ CCI_REG8(0x3798), 0x1b },
 
 	/* Timing control */
-	{ CCI_REG8(0x3801), 0x08 }, /* H_CROP_START_L h_crop_start[7:0] = 0x08 */
-	{ CCI_REG8(0x3805), 0x97 }, /* H_CROP_END_L h_crop_end[7:0] = 0x97 */
-	{ CCI_REG8(0x3811), 0x08 }, /* H_WIN_OFF_L h_win_off[7:0] = 0x08*/
-	{ CCI_REG8(0x3813), 0x04 }, /* V_WIN_OFF_L v_win_off[7:0] = 0x04 */
 	{ CCI_REG8(0x3819), 0x01 }, /* VSYNC_END_L vsync_end_point[7:0] = 0x01 */
 
 	/* OTP control */
@@ -218,21 +235,10 @@ static const struct cci_reg_sequence ov4689_2688x1520_regs[] = {
 	{ CCI_REG8(0x401b), 0x00 }, /* DEBUG_MODE */
 	{ CCI_REG8(0x401d), 0x00 }, /* DEBUG_MODE */
 	{ CCI_REG8(0x401f), 0x00 }, /* DEBUG_MODE */
-	{ CCI_REG8(0x4020), 0x00 }, /* ANCHOR_LEFT_START_H anchor_left_start[11:8] = 0 */
-	{ CCI_REG8(0x4021), 0x10 }, /* ANCHOR_LEFT_START_L anchor_left_start[7:0] = 0x10 */
-	{ CCI_REG8(0x4022), 0x07 }, /* ANCHOR_LEFT_END_H anchor_left_end[11:8] = 0x07 */
-	{ CCI_REG8(0x4023), 0xcf }, /* ANCHOR_LEFT_END_L anchor_left_end[7:0] = 0xcf */
-	{ CCI_REG8(0x4024), 0x09 }, /* ANCHOR_RIGHT_START_H anchor_right_start[11:8] = 0x09 */
-	{ CCI_REG8(0x4025), 0x60 }, /* ANCHOR_RIGHT_START_L anchor_right_start[7:0] = 0x60 */
-	{ CCI_REG8(0x4026), 0x09 }, /* ANCHOR_RIGHT_END_H anchor_right_end[11:8] = 0x09 */
-	{ CCI_REG8(0x4027), 0x6f }, /* ANCHOR_RIGHT_END_L anchor_right_end[7:0] = 0x6f */
 
 	/* ADC sync control */
 	{ CCI_REG8(0x4500), 0x6c }, /* ADC_SYNC_CTRL */
 	{ CCI_REG8(0x4503), 0x01 }, /* ADC_SYNC_CTRL */
-
-	/* VFIFO */
-	{ CCI_REG8(0x4601), 0xa7 }, /* VFIFO_CTRL_01 r_vfifo_read_start[7:0] = 0xa7 */
 
 	/* Temperature monitor */
 	{ CCI_REG8(0x4d00), 0x04 }, /* TPM_CTRL_00 tmp_slope[15:8] = 0x04 */
@@ -406,6 +412,41 @@ static int ov4689_get_selection(struct v4l2_subdev *sd,
 	return -EINVAL;
 }
 
+static int ov4689_setup_timings(struct ov4689 *ov4689)
+{
+	const struct ov4689_mode *mode = ov4689->cur_mode;
+	struct regmap *rm = ov4689->regmap;
+	int ret = 0;
+
+	cci_write(rm, OV4689_REG_H_CROP_START, 8, &ret);
+	cci_write(rm, OV4689_REG_V_CROP_START, 8, &ret);
+	cci_write(rm, OV4689_REG_H_CROP_END, 2711, &ret);
+	cci_write(rm, OV4689_REG_V_CROP_END, 1531, &ret);
+
+	cci_write(rm, OV4689_REG_H_OUTPUT_SIZE, mode->width, &ret);
+	cci_write(rm, OV4689_REG_V_OUTPUT_SIZE, mode->height, &ret);
+
+	cci_write(rm, OV4689_REG_H_WIN_OFF, 8, &ret);
+	cci_write(rm, OV4689_REG_V_WIN_OFF, 4, &ret);
+
+	cci_write(rm, OV4689_REG_VFIFO_CTRL_01, 167, &ret);
+
+	return ret;
+}
+
+static int ov4689_setup_blc_anchors(struct ov4689 *ov4689)
+{
+	struct regmap *rm = ov4689->regmap;
+	int ret = 0;
+
+	cci_write(rm, OV4689_REG_ANCHOR_LEFT_START, 16, &ret);
+	cci_write(rm, OV4689_REG_ANCHOR_LEFT_END, 1999, &ret);
+	cci_write(rm, OV4689_REG_ANCHOR_RIGHT_START, 2400, &ret);
+	cci_write(rm, OV4689_REG_ANCHOR_RIGHT_END, 2415, &ret);
+
+	return ret;
+}
+
 static int ov4689_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct ov4689 *ov4689 = to_ov4689(sd);
@@ -424,6 +465,18 @@ static int ov4689_s_stream(struct v4l2_subdev *sd, int on)
 					  ov4689->cur_mode->reg_list,
 					  ov4689->cur_mode->num_regs,
 					  NULL);
+		if (ret) {
+			pm_runtime_put(dev);
+			goto unlock_and_return;
+		}
+
+		ret = ov4689_setup_timings(ov4689);
+		if (ret) {
+			pm_runtime_put(dev);
+			goto unlock_and_return;
+		}
+
+		ret = ov4689_setup_blc_anchors(ov4689);
 		if (ret) {
 			pm_runtime_put(dev);
 			goto unlock_and_return;
