@@ -2481,6 +2481,7 @@ static void amdgpu_drv_delayed_reset_work_handler(struct work_struct *work)
 
 	/* Use a common context, just need to make sure full reset is done */
 	set_bit(AMDGPU_SKIP_HW_RESET, &reset_context.flags);
+	set_bit(AMDGPU_SKIP_COREDUMP, &reset_context.flags);
 	r = amdgpu_do_asic_reset(&device_list, &reset_context);
 
 	if (r) {

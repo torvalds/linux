@@ -5357,7 +5357,9 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 	/* Try reset handler method first */
 	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
 				    reset_list);
-	amdgpu_reset_reg_dumps(tmp_adev);
+
+	if (!test_bit(AMDGPU_SKIP_COREDUMP, &reset_context->flags))
+		amdgpu_reset_reg_dumps(tmp_adev);
 
 	reset_context->reset_device_list = device_list_handle;
 	r = amdgpu_reset_perform_reset(tmp_adev, reset_context);
@@ -5430,7 +5432,8 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 
 				vram_lost = amdgpu_device_check_vram_lost(tmp_adev);
 
-				amdgpu_coredump(tmp_adev, vram_lost, reset_context);
+				if (!test_bit(AMDGPU_SKIP_COREDUMP, &reset_context->flags))
+					amdgpu_coredump(tmp_adev, vram_lost, reset_context);
 
 				if (vram_lost) {
 					DRM_INFO("VRAM is lost due to GPU reset!\n");
