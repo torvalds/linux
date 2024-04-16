@@ -4931,12 +4931,6 @@ static int __init init_f2fs_fs(void)
 {
 	int err;
 
-	if (PAGE_SIZE != F2FS_BLKSIZE) {
-		printk("F2FS not supported on PAGE_SIZE(%lu) != BLOCK_SIZE(%lu)\n",
-				PAGE_SIZE, F2FS_BLKSIZE);
-		return -EINVAL;
-	}
-
 	err = init_inodecache();
 	if (err)
 		goto fail;
