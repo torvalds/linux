@@ -60,7 +60,7 @@ static int intel_dp_mst_check_constraints(struct drm_i915_private *i915, int bpp
 		int output_bpp = bpp;
 		int symbol_clock = intel_dp_link_symbol_clock(crtc_state->port_clock);
 
-		if (output_bpp * adjusted_mode->crtc_clock >=
+		if (output_bpp * adjusted_mode->crtc_clock >
 		    symbol_clock * 72) {
 			drm_dbg_kms(&i915->drm, "UHBR check failed(required bw %d available %d)\n",
 				    output_bpp * adjusted_mode->crtc_clock, symbol_clock * 72);
