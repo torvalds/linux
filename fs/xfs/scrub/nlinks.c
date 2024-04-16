@@ -24,6 +24,7 @@
 #include "scrub/xfile.h"
 #include "scrub/xfarray.h"
 #include "scrub/iscan.h"
+#include "scrub/orphanage.h"
 #include "scrub/nlinks.h"
 #include "scrub/trace.h"
 #include "scrub/readdir.h"
@@ -44,11 +45,23 @@ int
 xchk_setup_nlinks(
 	struct xfs_scrub	*sc)
 {
+	struct xchk_nlink_ctrs	*xnc;
+	int			error;
+
 	xchk_fsgates_enable(sc, XCHK_FSGATES_DIRENTS);
 
-	sc->buf = kzalloc(sizeof(struct xchk_nlink_ctrs), XCHK_GFP_FLAGS);
-	if (!sc->buf)
+	if (xchk_could_repair(sc)) {
+		error = xrep_setup_nlinks(sc);
+		if (error)
+			return error;
+	}
+
+	xnc = kvzalloc(sizeof(struct xchk_nlink_ctrs), XCHK_GFP_FLAGS);
+	if (!xnc)
 		return -ENOMEM;
+	xnc->xname.name = xnc->namebuf;
+	xnc->sc = sc;
+	sc->buf = xnc;
 
 	return xchk_setup_fs(sc);
 }
@@ -872,9 +885,6 @@ xchk_nlinks_setup_scan(
 	xfs_agnumber_t		last_agno = mp->m_sb.sb_agcount - 1;
 	xfs_agino_t		first_agino, last_agino;
 	int			error;
-
-	ASSERT(xnc->sc == NULL);
-	xnc->sc = sc;
 
 	mutex_init(&xnc->lock);
 

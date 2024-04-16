@@ -105,6 +105,10 @@ struct xfs_scrub {
 	/* Lock flags for @ip. */
 	uint				ilock_flags;
 
+	/* The orphanage, for stashing files that have lost their parent. */
+	uint				orphanage_ilock_flags;
+	struct xfs_inode		*orphanage;
+
 	/* A temporary file on this filesystem, for staging new metadata. */
 	struct xfs_inode		*tempip;
 	uint				temp_ilock_flags;
