@@ -13,8 +13,8 @@ maintainers:
 properties:
   compatible:
     enum:
-      - starfive,jh8100-crypto
       - starfive,jh7110-crypto
+      - starfive,jh8100-crypto
 
   reg:
     maxItems: 1
