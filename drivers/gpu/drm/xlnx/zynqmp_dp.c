@@ -1299,15 +1299,20 @@ static void zynqmp_dp_disp_enable(struct zynqmp_dp *dp,
 				  struct drm_bridge_state *old_bridge_state)
 {
 	struct zynqmp_disp_layer *layer;
-	const struct drm_format_info *info;
+	struct drm_bridge_state *bridge_state;
+	u32 bus_fmt;
 
 	layer = zynqmp_dp_disp_connected_live_layer(dp);
 	if (!layer)
 		return;
 
-	/* TODO: Make the format configurable. */
-	info = drm_format_info(DRM_FORMAT_YUV422);
-	zynqmp_disp_layer_set_format(layer, info);
+	bridge_state = drm_atomic_get_new_bridge_state(old_bridge_state->base.state,
+						       old_bridge_state->bridge);
+	if (WARN_ON(!bridge_state))
+		return;
+
+	bus_fmt = bridge_state->input_bus_cfg.format;
+	zynqmp_disp_layer_set_live_format(layer, bus_fmt);
 	zynqmp_disp_layer_enable(layer);
 
 	if (layer == dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_GFX])
