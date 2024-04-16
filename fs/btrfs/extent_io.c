@@ -2395,73 +2395,75 @@ static int try_release_extent_state(struct extent_io_tree *tree,
  */
 int try_release_extent_mapping(struct page *page, gfp_t mask)
 {
-	struct extent_map *em;
 	u64 start = page_offset(page);
 	u64 end = start + PAGE_SIZE - 1;
 	struct btrfs_inode *inode = page_to_inode(page);
 	struct extent_io_tree *io_tree = &inode->io_tree;
-	struct extent_map_tree *extent_tree = &inode->extent_tree;
 
-	if (gfpflags_allow_blocking(mask)) {
-		u64 len;
-		while (start <= end) {
-			const u64 cur_gen = btrfs_get_fs_generation(inode->root->fs_info);
+	while (start <= end) {
+		const u64 cur_gen = btrfs_get_fs_generation(inode->root->fs_info);
+		const u64 len = end - start + 1;
+		struct extent_map_tree *extent_tree = &inode->extent_tree;
+		struct extent_map *em;
 
-			len = end - start + 1;
-			write_lock(&extent_tree->lock);
-			em = lookup_extent_mapping(extent_tree, start, len);
-			if (!em) {
-				write_unlock(&extent_tree->lock);
-				break;
-			}
-			if ((em->flags & EXTENT_FLAG_PINNED) ||
-			    em->start != start) {
-				write_unlock(&extent_tree->lock);
-				free_extent_map(em);
-				break;
-			}
-			if (test_range_bit_exists(io_tree, em->start,
-						  extent_map_end(em) - 1,
-						  EXTENT_LOCKED))
-				goto next;
-			/*
-			 * If it's not in the list of modified extents, used
-			 * by a fast fsync, we can remove it. If it's being
-			 * logged we can safely remove it since fsync took an
-			 * extra reference on the em.
-			 */
-			if (list_empty(&em->list) ||
-			    (em->flags & EXTENT_FLAG_LOGGING))
-				goto remove_em;
-			/*
-			 * If it's in the list of modified extents, remove it
-			 * only if its generation is older then the current one,
-			 * in which case we don't need it for a fast fsync.
-			 * Otherwise don't remove it, we could be racing with an
-			 * ongoing fast fsync that could miss the new extent.
-			 */
-			if (em->generation >= cur_gen)
-				goto next;
-remove_em:
-			/*
-			 * We only remove extent maps that are not in the list of
-			 * modified extents or that are in the list but with a
-			 * generation lower then the current generation, so there
-			 * is no need to set the full fsync flag on the inode (it
-			 * hurts the fsync performance for workloads with a data
-			 * size that exceeds or is close to the system's memory).
-			 */
-			remove_extent_mapping(inode, em);
-			/* once for the rb tree */
-			free_extent_map(em);
-next:
-			start = extent_map_end(em);
+		write_lock(&extent_tree->lock);
+		em = lookup_extent_mapping(extent_tree, start, len);
+		if (!em) {
 			write_unlock(&extent_tree->lock);
-
-			/* once for us */
+			break;
+		}
+		if ((em->flags & EXTENT_FLAG_PINNED) || em->start != start) {
+			write_unlock(&extent_tree->lock);
 			free_extent_map(em);
+			break;
+		}
+		if (test_range_bit_exists(io_tree, em->start,
+					  extent_map_end(em) - 1, EXTENT_LOCKED))
+			goto next;
+		/*
+		 * If it's not in the list of modified extents, used by a fast
+		 * fsync, we can remove it. If it's being logged we can safely
+		 * remove it since fsync took an extra reference on the em.
+		 */
+		if (list_empty(&em->list) || (em->flags & EXTENT_FLAG_LOGGING))
+			goto remove_em;
+		/*
+		 * If it's in the list of modified extents, remove it only if
+		 * its generation is older then the current one, in which case
+		 * we don't need it for a fast fsync. Otherwise don't remove it,
+		 * we could be racing with an ongoing fast fsync that could miss
+		 * the new extent.
+		 */
+		if (em->generation >= cur_gen)
+			goto next;
+remove_em:
+		/*
+		 * We only remove extent maps that are not in the list of
+		 * modified extents or that are in the list but with a
+		 * generation lower then the current generation, so there is no
+		 * need to set the full fsync flag on the inode (it hurts the
+		 * fsync performance for workloads with a data size that exceeds
+		 * or is close to the system's memory).
+		 */
+		remove_extent_mapping(inode, em);
+		/* Once for the inode's extent map tree. */
+		free_extent_map(em);
+next:
+		start = extent_map_end(em);
+		write_unlock(&extent_tree->lock);
 
-			cond_resched(); /* Allow large-extent preemption. */
+		/* Once for us, for the lookup_extent_mapping() reference. */
+		free_extent_map(em);
+
+		if (need_resched()) {
+			/*
+			 * If we need to resched but we can't block just exit
+			 * and leave any remaining extent maps.
+			 */
+			if (!gfpflags_allow_blocking(mask))
+				break;
+
+			cond_resched();
 		}
 	}
 	return try_release_extent_state(io_tree, page, mask);
