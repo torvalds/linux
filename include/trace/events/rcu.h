@@ -469,7 +469,7 @@ TRACE_EVENT(rcu_stall_warning,
  * polarity: "Start", "End", "StillNonIdle" for entering, exiting or still not
  *            being in dyntick-idle mode.
  * context: "USER" or "IDLE" or "IRQ".
- * NMIs nested in IRQs are inferred with dynticks_nesting > 1 in IRQ context.
+ * NMIs nested in IRQs are inferred with nesting > 1 in IRQ context.
  *
  * These events also take a pair of numbers, which indicate the nesting
  * depth before and after the event of interest, and a third number that is

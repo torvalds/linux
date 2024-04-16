@@ -935,7 +935,7 @@ This portion of the rcu_data structure is declared as follows:
 
 ::
 
-     1   long dynticks_nesting;
+     1   long nesting;
      2   long dynticks_nmi_nesting;
      3   atomic_t dynticks;
      4   bool rcu_need_heavy_qs;
@@ -945,7 +945,7 @@ These fields in the rcu_data structure maintain the per-CPU dyntick-idle
 state for the corresponding CPU. The fields may be accessed only from
 the corresponding CPU (and from tracing) unless otherwise stated.
 
-The ``->dynticks_nesting`` field counts the nesting depth of process
+The ``->nesting`` field counts the nesting depth of process
 execution, so that in normal circumstances this counter has value zero
 or one. NMIs, irqs, and tracers are counted by the
 ``->dynticks_nmi_nesting`` field. Because NMIs cannot be masked, changes
@@ -960,9 +960,9 @@ process-level transitions.
 However, it turns out that when running in non-idle kernel context, the
 Linux kernel is fully capable of entering interrupt handlers that never
 exit and perhaps also vice versa. Therefore, whenever the
-``->dynticks_nesting`` field is incremented up from zero, the
+``->nesting`` field is incremented up from zero, the
 ``->dynticks_nmi_nesting`` field is set to a large positive number, and
-whenever the ``->dynticks_nesting`` field is decremented down to zero,
+whenever the ``->nesting`` field is decremented down to zero,
 the ``->dynticks_nmi_nesting`` field is set to zero. Assuming that
 the number of misnested interrupts is not sufficient to overflow the
 counter, this approach corrects the ``->dynticks_nmi_nesting`` field
@@ -992,7 +992,7 @@ code.
 +-----------------------------------------------------------------------+
 | **Quick Quiz**:                                                       |
 +-----------------------------------------------------------------------+
-| Why not simply combine the ``->dynticks_nesting`` and                 |
+| Why not simply combine the ``->nesting`` and                          |
 | ``->dynticks_nmi_nesting`` counters into a single counter that just   |
 | counts the number of reasons that the corresponding CPU is non-idle?  |
 +-----------------------------------------------------------------------+

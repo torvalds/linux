@@ -28,7 +28,7 @@
 
 DEFINE_PER_CPU(struct context_tracking, context_tracking) = {
 #ifdef CONFIG_CONTEXT_TRACKING_IDLE
-	.dynticks_nesting = 1,
+	.nesting = 1,
 	.dynticks_nmi_nesting = DYNTICK_IRQ_NONIDLE,
 #endif
 	.state = ATOMIC_INIT(CT_RCU_WATCHING),
@@ -131,7 +131,7 @@ static void noinstr ct_kernel_exit(bool user, int offset)
 		     ct_dynticks_nesting() == 0);
 	if (ct_dynticks_nesting() != 1) {
 		// RCU will still be watching, so just do accounting and leave.
-		ct->dynticks_nesting--;
+		ct->nesting--;
 		return;
 	}
 
@@ -145,7 +145,7 @@ static void noinstr ct_kernel_exit(bool user, int offset)
 	instrument_atomic_write(&ct->state, sizeof(ct->state));
 
 	instrumentation_end();
-	WRITE_ONCE(ct->dynticks_nesting, 0); /* Avoid irq-access tearing. */
+	WRITE_ONCE(ct->nesting, 0); /* Avoid irq-access tearing. */
 	// RCU is watching here ...
 	ct_kernel_exit_state(offset);
 	// ... but is no longer watching here.
@@ -170,7 +170,7 @@ static void noinstr ct_kernel_enter(bool user, int offset)
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && oldval < 0);
 	if (oldval) {
 		// RCU was already watching, so just do accounting and leave.
-		ct->dynticks_nesting++;
+		ct->nesting++;
 		return;
 	}
 	rcu_dynticks_task_exit();
@@ -184,7 +184,7 @@ static void noinstr ct_kernel_enter(bool user, int offset)
 
 	trace_rcu_dyntick(TPS("End"), ct_dynticks_nesting(), 1, ct_rcu_watching());
 	WARN_ON_ONCE(IS_ENABLED(CONFIG_RCU_EQS_DEBUG) && !user && !is_idle_task(current));
-	WRITE_ONCE(ct->dynticks_nesting, 1);
+	WRITE_ONCE(ct->nesting, 1);
 	WARN_ON_ONCE(ct_dynticks_nmi_nesting());
 	WRITE_ONCE(ct->dynticks_nmi_nesting, DYNTICK_IRQ_NONIDLE);
 	instrumentation_end();
