@@ -1,0 +1,178 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Samsung's Exynos4412 based SMDK board device tree source
+ *
+ * Copyright (c) 2012-2013 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com
+ *
+ * Device tree source file for Samsung's SMDK4412 board which is based on
+ * Samsung's Exynos4412 SoC.
+ */
+
+/dts-v1/;
+#include "exynos4412.dtsi"
+#include "exynos-mfc-reserved-memory.dtsi"
+
+/ {
+	model = "Samsung SMDK evaluation board based on Exynos4412";
+	compatible = "samsung,smdk4412", "samsung,exynos4412", "samsung,exynos4";
+
+	memory@40000000 {
+		device_type = "memory";
+		reg = <0x40000000 0x40000000>;
+	};
+
+	chosen {
+		bootargs = "root=/dev/ram0 rw ramdisk=8192 initrd=0x41000000,8M init=/linuxrc";
+		stdout-path = "serial1:115200n8";
+	};
+
+	fixed-rate-clocks {
+		xxti {
+			compatible = "samsung,clock-xxti";
+			clock-frequency = <0>;
+		};
+
+		xusbxti {
+			compatible = "samsung,clock-xusbxti";
+			clock-frequency = <24000000>;
+		};
+
+		pmic_ap_clk: pmic-ap-clk {
+			/* Workaround for missing clock on PMIC */
+			compatible = "fixed-clock";
+			#clock-cells = <0>;
+			clock-frequency = <32768>;
+		};
+	};
+};
+
+&cpu_thermal {
+	cooling-maps {
+		cooling_map0: map0 {
+			/* Corresponds to 800MHz at freq_table */
+			cooling-device = <&cpu0 7 7>, <&cpu1 7 7>,
+					 <&cpu2 7 7>, <&cpu3 7 7>;
+		};
+		cooling_map1: map1 {
+			/* Corresponds to 200MHz at freq_table */
+			cooling-device = <&cpu0 13 13>, <&cpu1 13 13>,
+					 <&cpu2 13 13>, <&cpu3 13 13>;
+		};
+	};
+};
+
+&keypad {
+	samsung,keypad-num-rows = <3>;
+	samsung,keypad-num-columns = <8>;
+	linux,keypad-no-autorepeat;
+	wakeup-source;
+	pinctrl-0 = <&keypad_rows &keypad_cols>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	key-1 {
+		keypad,row = <1>;
+		keypad,column = <3>;
+		linux,code = <2>;
+	};
+
+	key-2 {
+		keypad,row = <1>;
+		keypad,column = <4>;
+		linux,code = <3>;
+	};
+
+	key-3 {
+		keypad,row = <1>;
+		keypad,column = <5>;
+		linux,code = <4>;
+	};
+
+	key-4 {
+		keypad,row = <1>;
+		keypad,column = <6>;
+		linux,code = <5>;
+	};
+
+	key-5 {
+		keypad,row = <1>;
+		keypad,column = <7>;
+		linux,code = <6>;
+	};
+
+	key-A {
+		keypad,row = <2>;
+		keypad,column = <6>;
+		linux,code = <30>;
+	};
+
+	key-B {
+		keypad,row = <2>;
+		keypad,column = <7>;
+		linux,code = <48>;
+	};
+
+	key-C {
+		keypad,row = <0>;
+		keypad,column = <5>;
+		linux,code = <46>;
+	};
+
+	key-D {
+		keypad,row = <2>;
+		keypad,column = <5>;
+		linux,code = <32>;
+	};
+
+	key-E {
+		keypad,row = <0>;
+		keypad,column = <7>;
+		linux,code = <18>;
+	};
+};
+
+&pinctrl_1 {
+	keypad_rows: keypad-rows-pins {
+		samsung,pins = "gpx2-0", "gpx2-1", "gpx2-2";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+
+	keypad_cols: keypad-cols-pins {
+		samsung,pins = "gpx1-0", "gpx1-1", "gpx1-2", "gpx1-3",
+			       "gpx1-4", "gpx1-5", "gpx1-6", "gpx1-7";
+		samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
+		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+	};
+};
+
+&rtc {
+	clocks = <&clock CLK_RTC>, <&pmic_ap_clk>;
+	clock-names = "rtc", "rtc_src";
+};
+
+&sdhci_2 {
+	bus-width = <4>;
+	pinctrl-0 = <&sd2_clk &sd2_cmd &sd2_bus4 &sd2_cd>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&serial_0 {
+	status = "okay";
+};
+
+&serial_1 {
+	status = "okay";
+};
+
+&serial_2 {
+	status = "okay";
+};
+
+&serial_3 {
+	status = "okay";
+};

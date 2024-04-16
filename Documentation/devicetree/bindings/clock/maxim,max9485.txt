@@ -1,0 +1,59 @@
+Devicetree bindings for Maxim MAX9485 Programmable Audio Clock Generator
+
+This device exposes 4 clocks in total:
+
+- MAX9485_MCLKOUT: 	A gated, buffered output of the input clock of 27 MHz
+- MAX9485_CLKOUT:	A PLL that can be configured to 16 different discrete
+			frequencies
+- MAX9485_CLKOUT[1,2]:	Two gated outputs for MAX9485_CLKOUT
+
+MAX9485_CLKOUT[1,2] are children of MAX9485_CLKOUT which upchain all rate set
+requests.
+
+Required properties:
+- compatible:	"maxim,max9485"
+- clocks:	Input clock, must provice 27.000 MHz
+- clock-names:	Must be set to "xclk"
+- #clock-cells: From common clock binding; shall be set to 1
+
+Optional properties:
+- reset-gpios:		GPIO descriptor connected to the #RESET input pin
+- vdd-supply:		A regulator node for Vdd
+- clock-output-names:	Name of output clocks, as defined in common clock
+			bindings
+
+If not explicitly set, the output names are "mclkout", "clkout", "clkout1"
+and "clkout2".
+
+Clocks are defined as preprocessor macros in the dt-binding header.
+
+Example:
+
+	#include <dt-bindings/clock/maxim,max9485.h>
+
+	xo-27mhz: xo-27mhz {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <27000000>;
+	};
+
+	&i2c0 {
+		max9485: audio-clock@63 {
+			reg = <0x63>;
+			compatible = "maxim,max9485";
+			clock-names = "xclk";
+			clocks = <&xo-27mhz>;
+			reset-gpios = <&gpio 1 GPIO_ACTIVE_HIGH>;
+			vdd-supply = <&3v3-reg>;
+			#clock-cells = <1>;
+		};
+	};
+
+	// Clock consumer node
+
+	foo@0 {
+		compatible = "bar,foo";
+		/* ... */
+		clock-names = "foo-input-clk";
+		clocks = <&max9485 MAX9485_CLKOUT1>;
+	};

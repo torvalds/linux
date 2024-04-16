@@ -1,0 +1,269 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/opp/opp-v2-kryo-cpu.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Technologies, Inc. NVMEM OPP bindings
+
+maintainers:
+  - Ilia Lin <ilia.lin@kernel.org>
+
+allOf:
+  - $ref: opp-v2-base.yaml#
+
+description: |
+  In certain Qualcomm Technologies, Inc. SoCs like APQ8096 and MSM8996,
+  the CPU frequencies subset and voltage value of each OPP varies based on
+  the silicon variant in use.
+  Qualcomm Technologies, Inc. Process Voltage Scaling Tables
+  defines the voltage and frequency value based on the speedbin blown in
+  the efuse combination.
+  The qcom-cpufreq-nvmem driver reads the efuse value from the SoC to provide
+  the OPP framework with required information (existing HW bitmap).
+  This is used to determine the voltage and frequency value for each OPP of
+  operating-points-v2 table when it is parsed by the OPP framework.
+
+properties:
+  compatible:
+    const: operating-points-v2-kryo-cpu
+
+  nvmem-cells:
+    description: |
+      A phandle pointing to a nvmem-cells node representing the
+      efuse registers that has information about the
+      speedbin that is used to select the right frequency/voltage
+      value pair.
+
+  opp-shared: true
+
+patternProperties:
+  '^opp-?[0-9]+$':
+    type: object
+    additionalProperties: false
+
+    properties:
+      opp-hz: true
+
+      opp-microvolt: true
+
+      opp-supported-hw:
+        description: |
+          A single 32 bit bitmap value, representing compatible HW.
+          Bitmap:
+          0:  MSM8996, speedbin 0
+          1:  MSM8996, speedbin 1
+          2:  MSM8996, speedbin 2
+          3-31:  unused
+        maximum: 0x7
+
+      clock-latency-ns: true
+
+      required-opps: true
+
+    required:
+      - opp-hz
+
+required:
+  - compatible
+
+if:
+  required:
+    - nvmem-cells
+then:
+  patternProperties:
+    '^opp-?[0-9]+$':
+      required:
+        - opp-supported-hw
+
+additionalProperties: false
+
+examples:
+  - |
+    / {
+        model = "Qualcomm Technologies, Inc. DB820c";
+        compatible = "arrow,apq8096-db820c", "qcom,apq8096-sbc", "qcom,apq8096";
+        #address-cells = <2>;
+        #size-cells = <2>;
+
+        cpus {
+            #address-cells = <2>;
+            #size-cells = <0>;
+
+            CPU0: cpu@0 {
+                device_type = "cpu";
+                compatible = "qcom,kryo";
+                reg = <0x0 0x0>;
+                enable-method = "psci";
+                cpu-idle-states = <&CPU_SLEEP_0>;
+                capacity-dmips-mhz = <1024>;
+                clocks = <&kryocc 0>;
+                operating-points-v2 = <&cluster0_opp>;
+                power-domains = <&cpr>;
+                power-domain-names = "cpr";
+                #cooling-cells = <2>;
+                next-level-cache = <&L2_0>;
+                L2_0: l2-cache {
+                    compatible = "cache";
+                    cache-level = <2>;
+                };
+            };
+
+            CPU1: cpu@1 {
+                device_type = "cpu";
+                compatible = "qcom,kryo";
+                reg = <0x0 0x1>;
+                enable-method = "psci";
+                cpu-idle-states = <&CPU_SLEEP_0>;
+                capacity-dmips-mhz = <1024>;
+                clocks = <&kryocc 0>;
+                operating-points-v2 = <&cluster0_opp>;
+                power-domains = <&cpr>;
+                power-domain-names = "cpr";
+                #cooling-cells = <2>;
+                next-level-cache = <&L2_0>;
+            };
+
+            CPU2: cpu@100 {
+                device_type = "cpu";
+                compatible = "qcom,kryo";
+                reg = <0x0 0x100>;
+                enable-method = "psci";
+                cpu-idle-states = <&CPU_SLEEP_0>;
+                capacity-dmips-mhz = <1024>;
+                clocks = <&kryocc 1>;
+                operating-points-v2 = <&cluster1_opp>;
+                power-domains = <&cpr>;
+                power-domain-names = "cpr";
+                #cooling-cells = <2>;
+                next-level-cache = <&L2_1>;
+                L2_1: l2-cache {
+                    compatible = "cache";
+                    cache-level = <2>;
+                };
+            };
+
+            CPU3: cpu@101 {
+                device_type = "cpu";
+                compatible = "qcom,kryo";
+                reg = <0x0 0x101>;
+                enable-method = "psci";
+                cpu-idle-states = <&CPU_SLEEP_0>;
+                capacity-dmips-mhz = <1024>;
+                clocks = <&kryocc 1>;
+                operating-points-v2 = <&cluster1_opp>;
+                power-domains = <&cpr>;
+                power-domain-names = "cpr";
+                #cooling-cells = <2>;
+                next-level-cache = <&L2_1>;
+            };
+
+            cpu-map {
+                cluster0 {
+                    core0 {
+                        cpu = <&CPU0>;
+                    };
+
+                    core1 {
+                        cpu = <&CPU1>;
+                    };
+                };
+
+                cluster1 {
+                    core0 {
+                        cpu = <&CPU2>;
+                    };
+
+                    core1 {
+                        cpu = <&CPU3>;
+                    };
+                };
+            };
+        };
+
+        cluster0_opp: opp-table-0 {
+            compatible = "operating-points-v2-kryo-cpu";
+            nvmem-cells = <&speedbin_efuse>;
+            opp-shared;
+
+            opp-307200000 {
+                opp-hz = /bits/ 64 <307200000>;
+                opp-microvolt = <905000 905000 1140000>;
+                opp-supported-hw = <0x7>;
+                clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp1>;
+            };
+            opp-1401600000 {
+                opp-hz = /bits/ 64 <1401600000>;
+                opp-microvolt = <1140000 905000 1140000>;
+                opp-supported-hw = <0x5>;
+                clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp2>;
+            };
+            opp-1593600000 {
+                opp-hz = /bits/ 64 <1593600000>;
+                opp-microvolt = <1140000 905000 1140000>;
+                opp-supported-hw = <0x1>;
+                clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp3>;
+            };
+        };
+
+        cluster1_opp: opp-table-1 {
+            compatible = "operating-points-v2-kryo-cpu";
+            nvmem-cells = <&speedbin_efuse>;
+            opp-shared;
+
+            opp-307200000 {
+                opp-hz = /bits/ 64 <307200000>;
+                opp-microvolt = <905000 905000 1140000>;
+                opp-supported-hw = <0x7>;
+                clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp1>;
+            };
+            opp-1804800000 {
+                opp-hz = /bits/ 64 <1804800000>;
+                opp-microvolt = <1140000 905000 1140000>;
+                opp-supported-hw = <0x6>;
+                clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp4>;
+            };
+            opp-1900800000 {
+                opp-hz = /bits/ 64 <1900800000>;
+                opp-microvolt = <1140000 905000 1140000>;
+                opp-supported-hw = <0x4>;
+                clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp5>;
+            };
+            opp-2150400000 {
+                opp-hz = /bits/ 64 <2150400000>;
+                opp-microvolt = <1140000 905000 1140000>;
+                opp-supported-hw = <0x1>;
+                clock-latency-ns = <200000>;
+                required-opps = <&cpr_opp6>;
+            };
+        };
+
+        smem {
+            compatible = "qcom,smem";
+            memory-region = <&smem_mem>;
+            hwlocks = <&tcsr_mutex 3>;
+        };
+
+        soc {
+            #address-cells = <1>;
+            #size-cells = <1>;
+
+            qfprom: qfprom@74000 {
+                compatible = "qcom,msm8996-qfprom", "qcom,qfprom";
+                reg = <0x00074000 0x8ff>;
+                #address-cells = <1>;
+                #size-cells = <1>;
+
+                speedbin_efuse: speedbin@133 {
+                    reg = <0x133 0x1>;
+                    bits = <5 3>;
+                };
+            };
+        };
+    };

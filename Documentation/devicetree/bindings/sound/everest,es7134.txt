@@ -1,0 +1,15 @@
+ES7134 i2s DA converter
+
+Required properties:
+- compatible : "everest,es7134" or
+               "everest,es7144" or
+	       "everest,es7154"
+- VDD-supply : regulator phandle for the VDD supply
+- PVDD-supply: regulator phandle for the PVDD supply for the es7154
+
+Example:
+
+i2s_codec: external-codec {
+	compatible = "everest,es7134";
+	VDD-supply = <&vcc_5v>;
+};

@@ -1,0 +1,9 @@
+What:		/sys/class/fpga_region/<region>/compat_id
+Date:		June 2018
+KernelVersion:	4.19
+Contact:	Wu Hao <hao.wu@intel.com>
+Description:	FPGA region id for compatibility check, e.g. compatibility
+		of the FPGA reconfiguration hardware and image. This value
+		is defined or calculated by the layer that is creating the
+		FPGA region. This interface returns the compat_id value or
+		just error code -ENOENT in case compat_id is not used.

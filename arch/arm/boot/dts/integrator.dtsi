@@ -1,0 +1,154 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * SoC core Device Tree for the ARM Integrator platforms
+ */
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	memory {
+		device_type = "memory";
+		reg = <0x0 0x0>;
+	};
+
+	core-module@10000000 {
+		compatible = "arm,core-module-integrator", "syscon", "simple-mfd";
+		reg = <0x10000000 0x200>;
+		ranges = <0x0 0x10000000 0x200>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* Use core module LED to indicate CPU load */
+		led@c,0 {
+			compatible = "register-bit-led";
+			reg = <0x0c 0x04>;
+			offset = <0x0c>;
+			mask = <0x01>;
+			label = "integrator:core_module";
+			linux,default-trigger = "cpu0";
+			default-state = "on";
+		};
+	};
+
+	ebi@12000000 {
+		compatible = "arm,external-bus-interface";
+		reg = <0x12000000 0x100>;
+	};
+
+	timer@13000000 {
+		reg = <0x13000000 0x100>;
+		interrupt-parent = <&pic>;
+		interrupts = <5>;
+	};
+
+	timer@13000100 {
+		reg = <0x13000100 0x100>;
+		interrupt-parent = <&pic>;
+		interrupts = <6>;
+	};
+
+	timer@13000200 {
+		reg = <0x13000200 0x100>;
+		interrupt-parent = <&pic>;
+		interrupts = <7>;
+	};
+
+	pic@14000000 {
+		compatible = "arm,versatile-fpga-irq";
+		#interrupt-cells = <1>;
+		interrupt-controller;
+		reg = <0x14000000 0x100>;
+		clear-mask = <0xffffffff>;
+	};
+
+	flash@24000000 {
+		compatible = "arm,versatile-flash", "cfi-flash";
+		reg = <0x24000000 0x02000000>;
+		bank-width = <4>;
+		partitions {
+			compatible = "arm,arm-firmware-suite";
+		};
+	};
+
+	fpga {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges;
+		interrupt-parent = <&pic>;
+
+		/*
+		 * These PrimeCells are in the same locations and using the
+		 * same interrupts in all Integrators, however the silicon
+		 * version deployed is different.
+		 */
+		rtc@15000000 {
+			reg = <0x15000000 0x1000>;
+			interrupts = <8>;
+		};
+
+		uart@16000000 {
+			reg = <0x16000000 0x1000>;
+			interrupts = <1>;
+		};
+
+		uart@17000000 {
+			reg = <0x17000000 0x1000>;
+			interrupts = <2>;
+		};
+
+		kmi@18000000 {
+			reg = <0x18000000 0x1000>;
+			interrupts = <3>;
+		};
+
+		kmi@19000000 {
+			reg = <0x19000000 0x1000>;
+			interrupts = <4>;
+		};
+
+		syscon@1a000000 {
+			/* Debug registers mapped as syscon */
+			compatible = "syscon", "simple-mfd";
+			reg = <0x1a000000 0x10>;
+			ranges = <0x0 0x1a000000 0x10>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			led@4,0 {
+				compatible = "register-bit-led";
+				reg = <0x04 0x04>;
+				offset = <0x04>;
+				mask = <0x01>;
+				label = "integrator:green0";
+				linux,default-trigger = "heartbeat";
+				default-state = "on";
+			};
+			led@4,1 {
+				compatible = "register-bit-led";
+				reg = <0x04 0x04>;
+				offset = <0x04>;
+				mask = <0x02>;
+				label = "integrator:yellow";
+				default-state = "off";
+			};
+			led@4,2 {
+				compatible = "register-bit-led";
+				reg = <0x04 0x04>;
+				offset = <0x04>;
+				mask = <0x04>;
+				label = "integrator:red";
+				default-state = "off";
+			};
+			led@4,3 {
+				compatible = "register-bit-led";
+				reg = <0x04 0x04>;
+				offset = <0x04>;
+				mask = <0x08>;
+				label = "integrator:green1";
+				default-state = "off";
+			};
+		};
+	};
+};

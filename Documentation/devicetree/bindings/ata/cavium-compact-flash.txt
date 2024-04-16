@@ -1,0 +1,30 @@
+* Compact Flash
+
+The Cavium Compact Flash device is connected to the Octeon Boot Bus,
+and is thus a child of the Boot Bus device.  It can read and write
+industry standard compact flash devices.
+
+Properties:
+- compatible: "cavium,ebt3000-compact-flash";
+
+  Compatibility with many Cavium evaluation boards.
+
+- reg: The base address of the CF chip select banks.  Depending on
+  the device configuration, there may be one or two banks.
+
+- cavium,bus-width: The width of the connection to the CF devices.  Valid
+  values are 8 and 16.
+
+- cavium,true-ide: Optional, if present the CF connection is in True IDE mode.
+
+- cavium,dma-engine-handle: Optional, a phandle for the DMA Engine connected
+  to this device.
+
+Example:
+	compact-flash@5,0 {
+		compatible = "cavium,ebt3000-compact-flash";
+		reg = <5 0 0x10000>, <6 0 0x10000>;
+		cavium,bus-width = <16>;
+		cavium,true-ide;
+		cavium,dma-engine-handle = <&dma0>;
+	};

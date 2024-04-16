@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/adi,ad5380.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD5380 and similar DACs
+
+maintainers:
+  - Lars-Peter Clausen <lars@metafoo.de>
+  - Jonathan Cameron <jic23@kernel.org>
+
+description: |
+  DAC devices supporting both SPI and I2C interfaces.
+properties:
+  compatible:
+    enum:
+      - adi,ad5380-3
+      - adi,ad5380-5
+      - adi,ad5381-3
+      - adi,ad5381-5
+      - adi,ad5382-3
+      - adi,ad5382-5
+      - adi,ad5383-3
+      - adi,ad5383-5
+      - adi,ad5384-3
+      - adi,ad5384-5
+      - adi,ad5390-3
+      - adi,ad5390-5
+      - adi,ad5391-3
+      - adi,ad5391-5
+      - adi,ad5392-3
+      - adi,ad5392-5
+
+  reg:
+    maxItems: 1
+
+  vref-supply:
+    description:
+      If not supplied devices will use internal regulators.
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        dac@0 {
+           reg = <0>;
+           compatible = "adi,ad5390-5";
+           vref-supply = <&dacvref>;
+        };
+    };
+  - |
+    i2c {
+       #address-cells = <1>;
+       #size-cells = <0>;
+       dac@42 {
+          reg = <0x42>;
+          compatible = "adi,ad5380-3";
+       };
+    };
+...

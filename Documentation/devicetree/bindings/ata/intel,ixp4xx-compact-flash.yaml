@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ata/intel,ixp4xx-compact-flash.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Intel IXP4xx CompactFlash Card Controller
+
+maintainers:
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description: |
+  The IXP4xx network processors have a CompactFlash interface that presents
+  a CompactFlash card to the system as a true IDE (parallel ATA) device. The
+  device is always connected to the expansion bus of the IXP4xx SoCs using one
+  or two chip select areas and address translating logic on the board. The
+  node must be placed inside a chip select node on the IXP4xx expansion bus.
+
+properties:
+  compatible:
+    const: intel,ixp4xx-compact-flash
+
+  reg:
+    items:
+      - description: Command interface registers
+      - description: Control interface registers
+
+  interrupts:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+allOf:
+  - $ref: pata-common.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    bus@c4000000 {
+      compatible = "intel,ixp43x-expansion-bus-controller", "syscon";
+      reg = <0xc4000000 0x1000>;
+      native-endian;
+      #address-cells = <2>;
+      #size-cells = <1>;
+      ranges = <0 0x0 0x50000000 0x01000000>, <1 0x0 0x51000000 0x01000000>;
+      dma-ranges = <0 0x0 0x50000000 0x01000000>, <1 0x0 0x51000000 0x01000000>;
+      ide@1,0 {
+        compatible = "intel,ixp4xx-compact-flash";
+        reg = <1 0x00000000 0x1000>, <1 0x00040000 0x1000>;
+        interrupt-parent = <&gpio0>;
+        interrupts = <12 IRQ_TYPE_EDGE_RISING>;
+      };
+    };
+
+...

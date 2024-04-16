@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config SCSI_QLA_FC
+	tristate "QLogic QLA2XXX Fibre Channel Support"
+	depends on PCI && SCSI
+	depends on SCSI_FC_ATTRS
+	depends on NVME_FC || !NVME_FC
+	select FW_LOADER
+	select BTREE
+	help
+	This qla2xxx driver supports all QLogic Fibre Channel
+	PCI and PCIe host adapters.
+
+	By default, firmware for the ISP parts will be loaded
+	via the Firmware Loader interface.
+
+	ISP               Firmware Filename
+	----------        -----------------
+	21xx              ql2100_fw.bin
+	22xx              ql2200_fw.bin
+	2300, 2312, 6312  ql2300_fw.bin
+	2322, 6322        ql2322_fw.bin
+	24xx, 54xx        ql2400_fw.bin
+	25xx              ql2500_fw.bin
+
+	Upon request, the driver caches the firmware image until
+	the driver is unloaded.
+
+	Firmware images can be retrieved from:
+
+		http://ldriver.qlogic.com/firmware/
+
+	They are also included in the linux-firmware tree as well.
+
+config TCM_QLA2XXX
+	tristate "TCM_QLA2XXX fabric module for QLogic 24xx+ series target mode HBAs"
+	depends on SCSI_QLA_FC && TARGET_CORE
+	depends on LIBFC
+	select BTREE
+	default n
+	help
+	Say Y here to enable the TCM_QLA2XXX fabric module for QLogic 24xx+ series target mode HBAs
+
+if TCM_QLA2XXX
+config TCM_QLA2XXX_DEBUG
+	bool "TCM_QLA2XXX fabric module DEBUG mode for QLogic 24xx+ series target mode HBAs"
+	default n
+	help
+	Say Y here to enable the TCM_QLA2XXX fabric module DEBUG for QLogic 24xx+ series target mode HBAs
+	This will include code to enable the SCSI command jammer
+endif

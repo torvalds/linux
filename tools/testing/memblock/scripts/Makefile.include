@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: GPL-2.0
+# Definitions for user-provided arguments
+
+# Simulate CONFIG_NUMA=y
+ifeq ($(NUMA), 1)
+	CFLAGS += -D CONFIG_NUMA -D CONFIG_NODES_SHIFT=4
+endif
+
+# Use 32 bit physical addresses.
+# Remember to install 32-bit version of dependencies.
+ifeq ($(32BIT_PHYS_ADDR_T), 1)
+	CFLAGS += -m32 -U CONFIG_PHYS_ADDR_T_64BIT
+	LDFLAGS += -m32
+endif
+
+# Enable memblock_dbg() messages
+ifeq ($(MEMBLOCK_DEBUG), 1)
+	CFLAGS += -D MEMBLOCK_DEBUG
+endif

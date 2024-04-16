@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: GPL-2.0
+menu "SoC Audio support for Renesas SoCs"
+	depends on SUPERH || ARCH_RENESAS || COMPILE_TEST
+
+config SND_SOC_PCM_SH7760
+	tristate "SoC Audio support for Renesas SH7760"
+	depends on CPU_SUBTYPE_SH7760 && SH_DMABRG
+	help
+	  Enable this option for SH7760 AC97/I2S audio support.
+
+
+##
+## Audio unit modules
+##
+
+config SND_SOC_SH4_HAC
+	tristate
+	select AC97_BUS
+	select SND_SOC_AC97_BUS
+
+config SND_SOC_SH4_SSI
+	tristate
+
+config SND_SOC_SH4_FSI
+	tristate "SH4 FSI support"
+	depends on SUPERH || COMMON_CLK
+	select SND_SIMPLE_CARD
+	help
+	  This option enables FSI sound support
+
+config SND_SOC_SH4_SIU
+	tristate
+	depends on ARCH_SHMOBILE && HAVE_CLK
+	depends on DMADEVICES
+	select DMA_ENGINE
+	select SH_DMAE
+	select FW_LOADER
+
+config SND_SOC_RCAR
+	tristate "R-Car series SRU/SCU/SSIU/SSI support"
+	depends on COMMON_CLK
+	depends on OF || COMPILE_TEST
+	select SND_SIMPLE_CARD_UTILS
+	select REGMAP_MMIO
+	help
+	  This option enables R-Car SRU/SCU/SSIU/SSI sound support
+
+config SND_SOC_RZ
+	tristate "RZ/G2L series SSIF-2 support"
+	depends on ARCH_RZG2L || COMPILE_TEST
+	help
+	  This option enables RZ/G2L SSIF-2 sound support.
+
+##
+## Boards
+##
+
+config SND_SH7760_AC97
+	tristate "SH7760 AC97 sound support"
+	depends on CPU_SUBTYPE_SH7760 && SND_SOC_PCM_SH7760
+	select SND_SOC_SH4_HAC
+	select SND_SOC_AC97_CODEC
+	help
+	  This option enables generic sound support for the first
+	  AC97 unit of the SH7760.
+
+config SND_SIU_MIGOR
+	tristate "SIU sound support on Migo-R"
+	depends on SH_MIGOR && I2C
+	select SND_SOC_SH4_SIU
+	select SND_SOC_WM8978
+	help
+	  This option enables sound support for the SH7722 Migo-R board
+
+endmenu

@@ -1,0 +1,7 @@
+config SF_PDMA
+	tristate "Sifive PDMA controller driver"
+	depends on HAS_IOMEM
+	select DMA_ENGINE
+	select DMA_VIRTUAL_CHANNELS
+	help
+	  Support the SiFive PDMA controller.

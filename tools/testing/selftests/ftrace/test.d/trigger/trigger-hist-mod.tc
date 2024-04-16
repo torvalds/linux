@@ -1,0 +1,50 @@
+#!/bin/sh
+# SPDX-License-Identifier: GPL-2.0
+# description: event trigger - test histogram modifiers
+# requires: set_event events/sched/sched_process_fork/trigger events/sched/sched_process_fork/hist
+# flags: instance
+
+fail() { #msg
+    echo $1
+    exit_fail
+}
+
+echo "Test histogram with execname modifier"
+
+echo 'hist:keys=common_pid.execname' > events/sched/sched_process_fork/trigger
+for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
+COMM=`cat /proc/$$/comm`
+grep "common_pid: $COMM" events/sched/sched_process_fork/hist > /dev/null || \
+    fail "execname modifier on sched_process_fork did not work"
+
+reset_trigger
+
+echo "Test histogram with hex modifier"
+
+echo 'hist:keys=parent_pid.hex' > events/sched/sched_process_fork/trigger
+for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
+# Note that $$ is the parent pid. $PID is current PID.
+HEX=`printf %x $PID`
+grep "parent_pid: $HEX" events/sched/sched_process_fork/hist > /dev/null || \
+    fail "hex modifier on sched_process_fork did not work"
+
+reset_trigger
+
+echo "Test histogram with syscall modifier"
+
+echo 'hist:keys=id.syscall' > events/raw_syscalls/sys_exit/trigger
+for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
+grep "id: \(unknown_\|sys_\)" events/raw_syscalls/sys_exit/hist > /dev/null || \
+    fail "syscall modifier on raw_syscalls/sys_exit did not work"
+
+
+reset_trigger
+
+echo "Test histgram with log2 modifier"
+
+echo 'hist:keys=bytes_req.log2' > events/kmem/kmalloc/trigger
+for i in `seq 1 10` ; do ( echo "forked" > /dev/null); done
+grep 'bytes_req: ~ 2^[0-9]*' events/kmem/kmalloc/hist > /dev/null || \
+    fail "log2 modifier on kmem/kmalloc did not work"
+
+exit 0

@@ -1,0 +1,196 @@
+* Freescale Management Complex
+
+The Freescale Management Complex (fsl-mc) is a hardware resource
+manager that manages specialized hardware objects used in
+network-oriented packet processing applications. After the fsl-mc
+block is enabled, pools of hardware resources are available, such as
+queues, buffer pools, I/O interfaces. These resources are building
+blocks that can be used to create functional hardware objects/devices
+such as network interfaces, crypto accelerator instances, L2 switches,
+etc.
+
+For an overview of the DPAA2 architecture and fsl-mc bus see:
+Documentation/networking/device_drivers/ethernet/freescale/dpaa2/overview.rst
+
+As described in the above overview, all DPAA2 objects in a DPRC share the
+same hardware "isolation context" and a 10-bit value called an ICID
+(isolation context id) is expressed by the hardware to identify
+the requester.
+
+The generic 'iommus' property is insufficient to describe the relationship
+between ICIDs and IOMMUs, so an iommu-map property is used to define
+the set of possible ICIDs under a root DPRC and how they map to
+an IOMMU.
+
+For generic IOMMU bindings, see
+Documentation/devicetree/bindings/iommu/iommu.txt.
+
+For arm-smmu binding, see:
+Documentation/devicetree/bindings/iommu/arm,smmu.yaml.
+
+The MSI writes are accompanied by sideband data which is derived from the ICID.
+The msi-map property is used to associate the devices with both the ITS
+controller and the sideband data which accompanies the writes.
+
+For generic MSI bindings, see
+Documentation/devicetree/bindings/interrupt-controller/msi.txt.
+
+For GICv3 and GIC ITS bindings, see:
+Documentation/devicetree/bindings/interrupt-controller/arm,gic-v3.yaml.
+
+Required properties:
+
+    - compatible
+        Value type: <string>
+        Definition: Must be "fsl,qoriq-mc".  A Freescale Management Complex
+                    compatible with this binding must have Block Revision
+                    Registers BRR1 and BRR2 at offset 0x0BF8 and 0x0BFC in
+                    the MC control register region.
+
+    - reg
+        Value type: <prop-encoded-array>
+        Definition: A standard property.  Specifies one or two regions
+                    defining the MC's registers:
+
+                       -the first region is the command portal for the
+                        this machine and must always be present
+
+                       -the second region is the MC control registers. This
+                        region may not be present in some scenarios, such
+                        as in the device tree presented to a virtual machine.
+
+    - ranges
+        Value type: <prop-encoded-array>
+        Definition: A standard property.  Defines the mapping between the child
+                    MC address space and the parent system address space.
+
+                    The MC address space is defined by 3 components:
+                       <region type> <offset hi> <offset lo>
+
+                    Valid values for region type are
+                       0x0 - MC portals
+                       0x1 - QBMAN portals
+
+    - #address-cells
+        Value type: <u32>
+        Definition: Must be 3.  (see definition in 'ranges' property)
+
+    - #size-cells
+        Value type: <u32>
+        Definition: Must be 1.
+
+Sub-nodes:
+
+        The fsl-mc node may optionally have dpmac sub-nodes that describe
+        the relationship between the Ethernet MACs which belong to the MC
+        and the Ethernet PHYs on the system board.
+
+        The dpmac nodes must be under a node named "dpmacs" which contains
+        the following properties:
+
+            - #address-cells
+              Value type: <u32>
+              Definition: Must be present if dpmac sub-nodes are defined and must
+                          have a value of 1.
+
+            - #size-cells
+              Value type: <u32>
+              Definition: Must be present if dpmac sub-nodes are defined and must
+                          have a value of 0.
+
+        These nodes must have the following properties:
+
+            - compatible
+              Value type: <string>
+              Definition: Must be "fsl,qoriq-mc-dpmac".
+
+            - reg
+              Value type: <prop-encoded-array>
+              Definition: Specifies the id of the dpmac.
+
+            - phy-handle
+              Value type: <phandle>
+              Definition: Specifies the phandle to the PHY device node associated
+                          with the this dpmac.
+Optional properties:
+
+- iommu-map: Maps an ICID to an IOMMU and associated iommu-specifier
+  data.
+
+  The property is an arbitrary number of tuples of
+  (icid-base,iommu,iommu-base,length).
+
+  Any ICID i in the interval [icid-base, icid-base + length) is
+  associated with the listed IOMMU, with the iommu-specifier
+  (i - icid-base + iommu-base).
+
+- msi-map: Maps an ICID to a GIC ITS and associated msi-specifier
+  data.
+
+  The property is an arbitrary number of tuples of
+  (icid-base,gic-its,msi-base,length).
+
+  Any ICID in the interval [icid-base, icid-base + length) is
+  associated with the listed GIC ITS, with the msi-specifier
+  (i - icid-base + msi-base).
+
+Deprecated properties:
+
+    - msi-parent
+        Value type: <phandle>
+        Definition: Describes the MSI controller node handling message
+                    interrupts for the MC. When there is no translation
+                    between the ICID and deviceID this property can be used
+                    to describe the MSI controller used by the devices on the
+                    mc-bus.
+                    The use of this property for mc-bus is deprecated. Please
+                    use msi-map.
+
+Example:
+
+        smmu: iommu@5000000 {
+               compatible = "arm,mmu-500";
+               #iommu-cells = <1>;
+               stream-match-mask = <0x7C00>;
+               ...
+        };
+
+        gic: interrupt-controller@6000000 {
+               compatible = "arm,gic-v3";
+               ...
+        }
+        its: gic-its@6020000 {
+               compatible = "arm,gic-v3-its";
+               msi-controller;
+               ...
+        };
+
+        fsl_mc: fsl-mc@80c000000 {
+                compatible = "fsl,qoriq-mc";
+                reg = <0x00000008 0x0c000000 0 0x40>,    /* MC portal base */
+                      <0x00000000 0x08340000 0 0x40000>; /* MC control reg */
+                /* define map for ICIDs 23-64 */
+                iommu-map = <23 &smmu 23 41>;
+                /* define msi map for ICIDs 23-64 */
+                msi-map = <23 &its 23 41>;
+                #address-cells = <3>;
+                #size-cells = <1>;
+
+                /*
+                 * Region type 0x0 - MC portals
+                 * Region type 0x1 - QBMAN portals
+                 */
+                ranges = <0x0 0x0 0x0 0x8 0x0c000000 0x4000000
+                          0x1 0x0 0x0 0x8 0x18000000 0x8000000>;
+
+                dpmacs {
+                    #address-cells = <1>;
+                    #size-cells = <0>;
+
+                    dpmac@1 {
+                        compatible = "fsl,qoriq-mc-dpmac";
+                        reg = <1>;
+                        phy-handle = <&mdio0_phy0>;
+                    }
+                }
+        };

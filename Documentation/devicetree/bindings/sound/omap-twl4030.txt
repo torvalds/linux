@@ -1,0 +1,62 @@
+* Texas Instruments SoC with twl4030 based audio setups
+
+Required properties:
+- compatible: "ti,omap-twl4030"
+- ti,model: Name of the sound card (for example "omap3beagle")
+- ti,mcbsp: phandle for the McBSP node
+
+Optional properties:
+- ti,codec: phandle for the twl4030 audio node
+- ti,mcbsp-voice: phandle for the McBSP node connected to the voice port of twl
+- ti, jack-det-gpio: Jack detect GPIO
+- ti,audio-routing: List of connections between audio components.
+  Each entry is a pair of strings, the first being the connection's sink,
+  the second being the connection's source.
+  If the routing is not provided all possible connection will be available
+
+Available audio endpoints for the audio-routing table:
+
+Board connectors:
+ * Headset Stereophone
+ * Earpiece Spk
+ * Handsfree Spk
+ * Ext Spk
+ * Main Mic
+ * Sub Mic
+ * Headset Mic
+ * Carkit Mic
+ * Digital0 Mic
+ * Digital1 Mic
+ * Line In
+
+twl4030 pins:
+ * HSOL
+ * HSOR
+ * EARPIECE
+ * HFL
+ * HFR
+ * PREDRIVEL
+ * PREDRIVER
+ * CARKITL
+ * CARKITR
+ * MAINMIC
+ * SUBMIC
+ * HSMIC
+ * DIGIMIC0
+ * DIGIMIC1
+ * CARKITMIC
+ * AUXL
+ * AUXR
+
+ * Headset Mic Bias
+ * Mic Bias 1 /* Used for Main Mic or Digimic0 */
+ * Mic Bias 2 /* Used for Sub Mic or Digimic1 */
+
+Example:
+
+sound {
+	compatible = "ti,omap-twl4030";
+	ti,model = "omap3beagle";
+
+	ti,mcbsp = <&mcbsp2>;
+};

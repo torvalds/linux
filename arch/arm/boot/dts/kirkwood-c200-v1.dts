@@ -1,0 +1,310 @@
+// SPDX-License-Identifier: GPL-2.0-or-later
+/*
+ * Ctera C200 V1 Board Description
+ * Copyright 2021-2022 Pawel Dembicki <paweldembicki@gmail.com>
+ */
+
+/dts-v1/;
+
+#include "kirkwood.dtsi"
+#include "kirkwood-6281.dtsi"
+#include <dt-bindings/leds/common.h>
+
+/ {
+	model = "Ctera C200 V1";
+	compatible = "ctera,c200-v1", "marvell,kirkwood-88f6281", "marvell,kirkwood";
+
+	chosen {
+		bootargs = "console=ttyS0,115200";
+		stdout-path = &uart0;
+	};
+
+	memory@0 {
+		device_type = "memory";
+		reg = <0x00000000 0x20000000>;
+	};
+
+	keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&pmx_buttons>;
+		pinctrl-names = "default";
+
+		power {
+			label = "Power Button";
+			linux,code = <KEY_POWER>;
+			gpios = <&gpio1 16 GPIO_ACTIVE_HIGH>;
+		};
+
+		reset {
+			label = "Reset Button";
+			linux,code = <KEY_RESTART>;
+			gpios = <&gpio1 17 GPIO_ACTIVE_LOW>;
+		};
+
+		usb1 {
+			label = "USB1 Button";
+			linux,code = <BTN_0>;
+			gpios = <&gpio0 28 GPIO_ACTIVE_LOW>;
+		};
+
+		usb2 {
+			label = "USB2 Button";
+			linux,code = <BTN_1>;
+			gpios = <&gpio0 29 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-poweroff {
+		compatible = "gpio-poweroff";
+		pinctrl-0 = <&pmx_poweroff>;
+		pinctrl-names = "default";
+		gpios = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_leds>;
+		pinctrl-names = "default";
+
+		led-0 {
+			function = LED_FUNCTION_DISK;
+			function-enumerator = <2>;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio0 14 GPIO_ACTIVE_LOW>;
+		};
+
+		led-1 {
+			function = LED_FUNCTION_DISK;
+			function-enumerator = <1>;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
+		};
+
+		led-2 {
+			function = LED_FUNCTION_DISK;
+			function-enumerator = <2>;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio0 16 GPIO_ACTIVE_LOW>;
+		};
+
+		led-3 {
+			function = LED_FUNCTION_DISK;
+			function-enumerator = <1>;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
+		};
+
+		led-4 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio1 6 GPIO_ACTIVE_LOW>;
+		};
+
+		led-5 {
+			function = LED_FUNCTION_STATUS;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio1 7 GPIO_ACTIVE_LOW>;
+		};
+
+		led-6 {
+			function = LED_FUNCTION_INDICATOR;
+			color = <LED_COLOR_ID_BLUE>;
+			gpios = <&gpio1 8 GPIO_ACTIVE_LOW>;
+		};
+
+		led-7 {
+			function = LED_FUNCTION_DISK_ERR;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;
+		};
+
+		led-8 {
+			function = LED_FUNCTION_DISK_ERR;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+		};
+
+		led-9 {
+			function = LED_FUNCTION_USB;
+			function-enumerator = <1>;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+		};
+
+		led-10 {
+			function = LED_FUNCTION_USB;
+			function-enumerator = <1>;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio1 13 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "usbport";
+			trigger-sources = <&hub_port2>;
+		};
+
+		led-11 {
+			function = LED_FUNCTION_USB;
+			function-enumerator = <2>;
+			color = <LED_COLOR_ID_RED>;
+			gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
+		};
+
+		led-12 {
+			function = LED_FUNCTION_USB;
+			function-enumerator = <2>;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio1 15 GPIO_ACTIVE_LOW>;
+			linux,default-trigger = "usbport";
+			trigger-sources = <&hub_port1>;
+		};
+	};
+};
+
+&eth0 {
+	status = "okay";
+};
+
+&eth0port {
+	phy-handle = <&ethphy9>;
+};
+
+&i2c0 {
+	status = "okay";
+
+	rtc@30 {
+		compatible = "s35390a";
+		reg = <0x30>;
+	};
+
+	lm63@4c {
+		compatible = "national,lm63";
+		reg = <0x4c>;
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy9: ethernet-phy@9 {
+		reg = <9>;
+	};
+};
+
+&nand {
+	status = "okay";
+	chip-delay = <40>;
+
+	partition@0 {
+		label = "uboot";
+		reg = <0x0000000 0x200000>;
+	};
+
+	partition@200000 {
+		label = "certificate";
+		reg = <0x0200000 0x100000>;
+	};
+
+	partition@300000 {
+		label = "preset_cfg";
+		reg = <0x0300000 0x100000>;
+	};
+
+	partition@400000 {
+		label = "dev_params";
+		reg = <0x0400000 0x100000>;
+	};
+
+	partition@500000 {
+		label = "active_bank";
+		reg = <0x0500000 0x0100000>;
+	};
+
+	partition@600000 {
+		label = "magic";
+		reg = <0x0600000 0x0100000>;
+	};
+
+	partition@700000 {
+		label = "bank1";
+		reg = <0x0700000 0x2800000>;
+	};
+
+	partition@2f00000 {
+		label = "bank2";
+		reg = <0x2f00000 0x2800000>;
+	};
+
+	/* 0x5700000-0x5a00000 undefined in vendor firmware */
+
+	partition@5a00000 {
+		label = "reserved";
+		reg = <0x5a00000 0x2000000>;
+	};
+
+	partition@7a00000 {
+		label = "rootfs";
+		reg = <0x7a00000 0x8600000>;
+	};
+};
+
+&pinctrl {
+	/* Buzzer gpios are connected to two pins of buzzer.
+	 * This buzzer require a modulated signal from gpio.
+	 * Leave it as is due lack of proper driver.
+	 */
+	pmx_buzzer: pmx-buzzer {
+		marvell,pins = "mpp12", "mpp13";
+		marvell,function = "gpio";
+	};
+
+	pmx_leds: pmx-leds {
+		marvell,pins = "mpp14", "mpp15", "mpp16", "mpp17", "mpp38",
+			       "mpp39", "mpp40", "mpp42", "mpp43", "mpp44",
+			       "mpp45", "mpp46", "mpp47";
+		marvell,function = "gpio";
+	};
+
+	pmx_buttons: pmx-buttons {
+		marvell,pins = "mpp28", "mpp29", "mpp48", "mpp49";
+		marvell,function = "gpio";
+	};
+
+	pmx_poweroff: pmx-poweroff {
+		marvell,pins = "mpp34";
+		marvell,function = "gpio";
+	};
+};
+
+&rtc {
+	status = "disabled";
+};
+
+&sata {
+	status = "okay";
+	nr-ports = <2>;
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&usb0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	port@1 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg = <1>;
+		#trigger-source-cells = <0>;
+
+		hub_port1: port@1 {
+			reg = <1>;
+			#trigger-source-cells = <0>;
+		};
+
+		hub_port2: port@2 {
+			reg = <2>;
+			#trigger-source-cells = <0>;
+		};
+	};
+};

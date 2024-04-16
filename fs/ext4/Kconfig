@@ -1,0 +1,119 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# Ext3 configs are here for backward compatibility with old configs which may
+# have EXT3_FS set but not EXT4_FS set and thus would result in non-bootable
+# kernels after the removal of ext3 driver.
+config EXT3_FS
+	tristate "The Extended 3 (ext3) filesystem"
+	select EXT4_FS
+	help
+	  This config option is here only for backward compatibility. ext3
+	  filesystem is now handled by the ext4 driver.
+
+config EXT3_FS_POSIX_ACL
+	bool "Ext3 POSIX Access Control Lists"
+	depends on EXT3_FS
+	select EXT4_FS_POSIX_ACL
+	select FS_POSIX_ACL
+	help
+	  This config option is here only for backward compatibility. ext3
+	  filesystem is now handled by the ext4 driver.
+
+config EXT3_FS_SECURITY
+	bool "Ext3 Security Labels"
+	depends on EXT3_FS
+	select EXT4_FS_SECURITY
+	help
+	  This config option is here only for backward compatibility. ext3
+	  filesystem is now handled by the ext4 driver.
+
+config EXT4_FS
+	tristate "The Extended 4 (ext4) filesystem"
+	select JBD2
+	select CRC16
+	select CRYPTO
+	select CRYPTO_CRC32C
+	select FS_IOMAP
+	select FS_ENCRYPTION_ALGS if FS_ENCRYPTION
+	help
+	  This is the next generation of the ext3 filesystem.
+
+	  Unlike the change from ext2 filesystem to ext3 filesystem,
+	  the on-disk format of ext4 is not forwards compatible with
+	  ext3; it is based on extent maps and it supports 48-bit
+	  physical block numbers.  The ext4 filesystem also supports delayed
+	  allocation, persistent preallocation, high resolution time stamps,
+	  and a number of other features to improve performance and speed
+	  up fsck time.  For more information, please see the web pages at
+	  http://ext4.wiki.kernel.org.
+
+	  The ext4 filesystem supports mounting an ext3 filesystem; while there
+	  are some performance gains from the delayed allocation and inode
+	  table readahead, the best performance gains require enabling ext4
+	  features in the filesystem using tune2fs, or formatting a new
+	  filesystem as an ext4 filesystem initially. Without explicit enabling
+	  of ext4 features, the on disk filesystem format stays fully backward
+	  compatible.
+
+	  To compile this file system support as a module, choose M here. The
+	  module will be called ext4.
+
+	  If unsure, say N.
+
+config EXT4_USE_FOR_EXT2
+	bool "Use ext4 for ext2 file systems"
+	depends on EXT4_FS
+	depends on EXT2_FS=n
+	default y
+	help
+	  Allow the ext4 file system driver code to be used for ext2
+	  file system mounts.  This allows users to reduce their
+	  compiled kernel size by using one file system driver for
+	  ext2, ext3, and ext4 file systems.
+
+config EXT4_FS_POSIX_ACL
+	bool "Ext4 POSIX Access Control Lists"
+	depends on EXT4_FS
+	select FS_POSIX_ACL
+	help
+	  POSIX Access Control Lists (ACLs) support permissions for users and
+	  groups beyond the owner/group/world scheme.
+
+	  If you don't know what Access Control Lists are, say N
+
+config EXT4_FS_SECURITY
+	bool "Ext4 Security Labels"
+	depends on EXT4_FS
+	help
+	  Security labels support alternative access control models
+	  implemented by security modules like SELinux.  This option
+	  enables an extended attribute handler for file security
+	  labels in the ext4 filesystem.
+
+	  If you are not using a security module that requires using
+	  extended attributes for file security labels, say N.
+
+config EXT4_DEBUG
+	bool "Ext4 debugging support"
+	depends on EXT4_FS
+	help
+	  Enables run-time debugging support for the ext4 filesystem.
+
+	  If you select Y here, then you will be able to turn on debugging
+	  using dynamic debug control for mb_debug() / ext_debug() msgs.
+
+config EXT4_KUNIT_TESTS
+	tristate "KUnit tests for ext4" if !KUNIT_ALL_TESTS
+	depends on EXT4_FS && KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  This builds the ext4 KUnit tests.
+
+	  KUnit tests run during boot and output the results to the debug log
+	  in TAP format (https://testanything.org/). Only useful for kernel devs
+	  running KUnit test harness and are not for inclusion into a production
+	  build.
+
+	  For more information on KUnit and unit tests in general please refer
+	  to the KUnit documentation in Documentation/dev-tools/kunit/.
+
+	  If unsure, say N.

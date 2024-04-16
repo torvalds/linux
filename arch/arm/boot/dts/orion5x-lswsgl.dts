@@ -1,0 +1,277 @@
+/*
+ * Copyright (C) 2015 Benjamin Cama <benoar@dolka.fr>
+ * Copyright (C) 2014 Thomas Petazzoni <thomas.petazzoni@free-electrons.com>
+ * Based on the board file arch/arm/mach-orion5x/lsmini-setup.c,
+ * Copyright (C) 2008 Alexey Kopytko <alexey@kopytko.ru>
+ *
+ * This file is dual-licensed: you can use it either under the terms
+ * of the GPL or the X11 license, at your option. Note that this dual
+ * licensing only applies to this file, and not this project as a
+ * whole.
+ *
+ *  a) This file is free software; you can redistribute it and/or
+ *     modify it under the terms of the GNU General Public License as
+ *     published by the Free Software Foundation; either version 2 of the
+ *     License, or (at your option) any later version.
+ *
+ *     This file is distributed in the hope that it will be useful,
+ *     but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *     GNU General Public License for more details.
+ *
+ * Or, alternatively,
+ *
+ *  b) Permission is hereby granted, free of charge, to any person
+ *     obtaining a copy of this software and associated documentation
+ *     files (the "Software"), to deal in the Software without
+ *     restriction, including without limitation the rights to use,
+ *     copy, modify, merge, publish, distribute, sublicense, and/or
+ *     sell copies of the Software, and to permit persons to whom the
+ *     Software is furnished to do so, subject to the following
+ *     conditions:
+ *
+ *     The above copyright notice and this permission notice shall be
+ *     included in all copies or substantial portions of the Software.
+ *
+ *     THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ *     EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ *     OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ *     NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ *     HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ *     WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ *     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ *     OTHER DEALINGS IN THE SOFTWARE.
+ */
+
+/dts-v1/;
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+#include "orion5x-mv88f5182.dtsi"
+
+/ {
+	model = "Buffalo Linkstation Mini (LS-WSGL)";
+	compatible = "buffalo,lswsgl", "marvell,orion5x-88f5182", "marvell,orion5x";
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x8000000>; /* 128 MB */
+	};
+
+	chosen {
+		bootargs = "console=ttyS0,115200 earlyprintk";
+		stdout-path = &uart0;
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000>,
+			 <MBUS_ID(0x09, 0x00) 0 0xf2200000 0x800>,
+			 <MBUS_ID(0x01, 0x0f) 0 0xf4000000 0x40000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&pmx_buttons>;
+		pinctrl-names = "default";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		func {
+			label = "Function Button";
+			linux,code = <KEY_OPTION>;
+			gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
+		};
+
+		power {
+			label = "Power-on Switch";
+			linux,input-type = <5>; /* EV_SW */
+			linux,code = <KEY_RESERVED>; /* LSMINI_SW_POWER */
+			gpios = <&gpio0 18 GPIO_ACTIVE_LOW>;
+		};
+
+		autopower {
+			label = "Power-auto Switch";
+			linux,input-type = <5>; /* EV_SW */
+			linux,code = <KEY_ESC>; /* LSMINI_SW_AUTOPOWER */
+			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+		pinctrl-0 = <&pmx_led_alarm &pmx_led_info &pmx_led_func
+			     &pmx_led_power>;
+		pinctrl-names = "default";
+
+		alarm {
+			label = "lswsgl:alarm:red";
+			gpio = <&gpio0 2 GPIO_ACTIVE_LOW>;
+		};
+
+		info {
+			label = "lswsgl:info:amber";
+			gpio = <&gpio0 3 GPIO_ACTIVE_LOW>;
+		};
+
+		func {
+			label = "lswsgl:func:blue:top";
+			gpio = <&gpio0 9 GPIO_ACTIVE_LOW>;
+		};
+
+		power {
+			label = "lswsgl:power:blue:bottom";
+			gpio = <&gpio0 14 GPIO_ACTIVE_LOW>;
+			default-state = "on";
+		};
+	};
+
+	restart_poweroff {
+		compatible = "restart-poweroff";
+	};
+
+	regulators {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		pinctrl-0 = <&pmx_sata0_power &pmx_sata1_power &pmx_usb_power>;
+		pinctrl-names = "default";
+
+		sata0_power: regulator@0 {
+			compatible = "regulator-fixed";
+			reg = <0>;
+			regulator-name = "SATA0 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+		};
+
+		sata1_power: regulator@1 {
+			compatible = "regulator-fixed";
+			reg = <1>;
+			regulator-name = "SATA1 Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 19 GPIO_ACTIVE_HIGH>;
+		};
+
+		usb_power: regulator@2 {
+			compatible = "regulator-fixed";
+			reg = <2>;
+			regulator-name = "USB Power";
+			regulator-min-microvolt = <5000000>;
+			regulator-max-microvolt = <5000000>;
+			enable-active-high;
+			regulator-always-on;
+			regulator-boot-on;
+			gpio = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&devbus_bootcs {
+	status = "okay";
+
+	devbus,keep-config;
+
+	flash@0 {
+		compatible = "cfi-flash";
+		reg = <0 0x40000>;
+		bank-width = <1>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partition@0 {
+			label = "Full256Kb";
+			reg = <0 0x40000>;
+			read-only;
+		};
+	};
+};
+
+&mdio {
+	status = "okay";
+
+	ethphy: ethernet-phy {
+		reg = <8>;
+	};
+};
+
+&ehci0 {
+	status = "okay";
+};
+
+&eth {
+	status = "okay";
+
+	ethernet-port@0 {
+		phy-handle = <&ethphy>;
+	};
+};
+
+&i2c {
+	status = "okay";
+	clock-frequency = <100000>;
+	#address-cells = <1>;
+
+	rtc@32 {
+		compatible = "ricoh,rs5c372a";
+		reg = <0x32>;
+	};
+};
+
+&pinctrl {
+	pmx_buttons: pmx-buttons {
+		marvell,pins = "mpp15", "mpp17", "mpp18";
+		marvell,function = "gpio";
+	};
+
+	pmx_led_alarm: pmx-leds {
+		marvell,pins = "mpp2";
+		marvell,function = "gpio";
+	};
+
+	pmx_led_info: pmx-leds {
+		marvell,pins = "mpp3";
+		marvell,function = "gpio";
+	};
+
+	pmx_led_func: pmx-leds {
+		marvell,pins = "mpp9";
+		marvell,function = "gpio";
+	};
+
+	pmx_led_power: pmx-leds {
+		marvell,pins = "mpp14";
+		marvell,function = "gpio";
+	};
+
+	pmx_sata0_power: pmx-sata0-power {
+		marvell,pins = "mpp1";
+		marvell,function = "gpio";
+	};
+
+	pmx_sata1_power: pmx-sata1-power {
+		marvell,pins = "mpp19";
+		marvell,function = "gpio";
+	};
+
+	pmx_usb_power: pmx-usb-power {
+		marvell,pins = "mpp16";
+		marvell,function = "gpio";
+	};
+};
+
+&sata {
+	status = "okay";
+	nr-ports = <2>;
+};
+
+&uart0 {
+	status = "okay";
+};

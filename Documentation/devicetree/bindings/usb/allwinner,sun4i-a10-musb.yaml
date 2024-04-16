@@ -1,0 +1,104 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/allwinner,sun4i-a10-musb.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Allwinner A10 mUSB OTG Controller
+
+maintainers:
+  - Chen-Yu Tsai <wens@csie.org>
+  - Maxime Ripard <mripard@kernel.org>
+
+properties:
+  compatible:
+    oneOf:
+      - const: allwinner,sun4i-a10-musb
+      - const: allwinner,sun6i-a31-musb
+      - const: allwinner,sun8i-a33-musb
+      - const: allwinner,sun8i-h3-musb
+      - items:
+          - enum:
+              - allwinner,sun8i-a83t-musb
+              - allwinner,sun20i-d1-musb
+              - allwinner,sun50i-h6-musb
+          - const: allwinner,sun8i-a33-musb
+      - items:
+          - const: allwinner,sun50i-h616-musb
+          - const: allwinner,sun8i-h3-musb
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  interrupt-names:
+    const: mc
+
+  clocks:
+    maxItems: 1
+
+  resets:
+    maxItems: 1
+
+  phys:
+    maxItems: 1
+
+  phy-names:
+    const: usb
+
+  extcon:
+    description: Extcon specifier for the OTG PHY
+
+  dr_mode:
+    enum:
+      - host
+      - otg
+      - peripheral
+
+  allwinner,sram:
+    description: Phandle to the device SRAM
+    $ref: /schemas/types.yaml#/definitions/phandle-array
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - clocks
+  - phys
+  - phy-names
+  - dr_mode
+  - extcon
+
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - allwinner,sun6i-a31-musb
+          - allwinner,sun8i-a33-musb
+          - allwinner,sun8i-h3-musb
+
+then:
+  required:
+    - resets
+
+additionalProperties: false
+
+examples:
+  - |
+    usb_otg: usb@1c13000 {
+      compatible = "allwinner,sun4i-a10-musb";
+      reg = <0x01c13000 0x0400>;
+      clocks = <&ahb_gates 0>;
+      interrupts = <38>;
+      interrupt-names = "mc";
+      phys = <&usbphy 0>;
+      phy-names = "usb";
+      extcon = <&usbphy 0>;
+      dr_mode = "peripheral";
+    };
+
+...

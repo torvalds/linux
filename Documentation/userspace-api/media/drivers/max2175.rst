@@ -1,0 +1,64 @@
+.. SPDX-License-Identifier: GPL-2.0
+
+Maxim Integrated MAX2175 RF to bits tuner driver
+================================================
+
+The MAX2175 driver implements the following driver-specific controls:
+
+``V4L2_CID_MAX2175_I2S_ENABLE``
+-------------------------------
+    Enable/Disable I2S output of the tuner. This is a private control
+    that can be accessed only using the subdev interface.
+    Refer to Documentation/driver-api/media/v4l2-controls.rst for more details.
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 4
+
+    * - ``(0)``
+      - I2S output is disabled.
+    * - ``(1)``
+      - I2S output is enabled.
+
+``V4L2_CID_MAX2175_HSLS``
+-------------------------
+    The high-side/low-side (HSLS) control of the tuner for a given band.
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 4
+
+    * - ``(0)``
+      - The LO frequency position is below the desired frequency.
+    * - ``(1)``
+      - The LO frequency position is above the desired frequency.
+
+``V4L2_CID_MAX2175_RX_MODE (menu)``
+-----------------------------------
+    The Rx mode controls a number of preset parameters of the tuner like
+    sample clock (sck), sampling rate etc. These multiple settings are
+    provided under one single label called Rx mode in the datasheet. The
+    list below shows the supported modes with a brief description.
+
+.. flat-table::
+    :header-rows:  0
+    :stub-columns: 0
+    :widths:       1 4
+
+    * - ``"Europe modes"``
+    * - ``"FM 1.2" (0)``
+      - This configures FM band with a sample rate of 0.512 million
+        samples/sec with a 10.24 MHz sck.
+    * - ``"DAB 1.2" (1)``
+      - This configures VHF band with a sample rate of 2.048 million
+        samples/sec with a 32.768 MHz sck.
+
+    * - ``"North America modes"``
+    * - ``"FM 1.0" (0)``
+      - This configures FM band with a sample rate of 0.7441875 million
+        samples/sec with a 14.88375 MHz sck.
+    * - ``"DAB 1.2" (1)``
+      - This configures FM band with a sample rate of 0.372 million
+        samples/sec with a 7.441875 MHz sck.

@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config MSTAR_MSC313_MPLL
+	bool "MStar MPLL driver"
+	depends on ARCH_MSTARV7 || COMPILE_TEST
+	default ARCH_MSTARV7
+	select REGMAP_MMIO
+	help
+	  Support for the MPLL PLL and dividers block present on
+	  MStar/Sigmastar SoCs.

@@ -1,0 +1,91 @@
+What:		/sys/class/rtc/
+Date:		March 2006
+KernelVersion:	2.6.17
+Contact:	linux-rtc@vger.kernel.org
+Description:
+		The rtc/ class subdirectory belongs to the RTC subsystem.
+
+What:		/sys/class/rtc/rtcX/
+Date:		March 2006
+KernelVersion:	2.6.17
+Contact:	linux-rtc@vger.kernel.org
+Description:
+		The /sys/class/rtc/rtc{0,1,2,3,...} directories correspond
+		to each RTC device.
+
+What:		/sys/class/rtc/rtcX/date
+Date:		March 2006
+KernelVersion:	2.6.17
+Contact:	linux-rtc@vger.kernel.org
+Description:
+		(RO) RTC-provided date in YYYY-MM-DD format
+
+What:		/sys/class/rtc/rtcX/hctosys
+Date:		September 2009
+KernelVersion:	2.6.32
+Contact:	linux-rtc@vger.kernel.org
+Description:
+		(RO) 1 if the RTC provided the system time at boot via the
+		CONFIG_RTC_HCTOSYS kernel option, 0 otherwise
+
+What:		/sys/class/rtc/rtcX/max_user_freq
+Date:		October 2007
+KernelVersion:	2.6.24
+Contact:	linux-rtc@vger.kernel.org
+Description:
+		(RW) The maximum interrupt rate an unprivileged user may request
+		from this RTC.
+
+What:		/sys/class/rtc/rtcX/name
+Date:		March 2006
+KernelVersion:	2.6.17
+Contact:	linux-rtc@vger.kernel.org
+Description:
+		(RO) The name of the RTC corresponding to this sysfs directory
+
+What:		/sys/class/rtc/rtcX/range
+Date:		January 2018
+KernelVersion:	4.16
+Contact:	linux-rtc@vger.kernel.org
+Description:
+		Valid time range for the RTC, as seconds from epoch, formatted
+		as [min, max]
+
+What:		/sys/class/rtc/rtcX/since_epoch
+Date:		March 2006
+KernelVersion:	2.6.17
+Contact:	linux-rtc@vger.kernel.org
+Description:
+		(RO) RTC-provided time as the number of seconds since the epoch
+
+What:		/sys/class/rtc/rtcX/time
+Date:		March 2006
+KernelVersion:	2.6.17
+Contact:	linux-rtc@vger.kernel.org
+Description:
+		(RO) RTC-provided time in 24-hour notation (hh:mm:ss)
+
+What:		/sys/class/rtc/rtcX/offset
+Date:		February 2016
+KernelVersion:	4.6
+Contact:	linux-rtc@vger.kernel.org
+Description:
+		(RW) The amount which the rtc clock has been adjusted in
+		firmware. Visible only if the driver supports clock offset
+		adjustment. The unit is parts per billion, i.e. The number of
+		clock ticks which are added to or removed from the rtc's base
+		clock per billion ticks. A positive value makes a day pass more
+		slowly, longer, and a negative value makes a day pass more
+		quickly.
+
+What:		/sys/class/rtc/rtcX/wakealarm
+Date:		February 2007
+KernelVersion:	2.6.20
+Contact:	linux-rtc@vger.kernel.org
+Description:
+		(RW) The time at which the clock will generate a system wakeup
+		event. This is a one shot wakeup event, so must be reset after
+		wake if a daily wakeup is required. Format is seconds since the
+		epoch by default, or if there's a leading +, seconds in the
+		future, or if there is a leading +=, seconds ahead of the
+		current alarm.

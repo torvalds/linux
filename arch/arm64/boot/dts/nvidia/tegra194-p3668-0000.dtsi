@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: GPL-2.0
+#include "tegra194-p3668.dtsi"
+
+/ {
+	model = "NVIDIA Jetson Xavier NX (SD-card)";
+	compatible = "nvidia,p3668-0000", "nvidia,tegra194";
+
+	aliases {
+		mmc0 = "/bus@0/mmc@3400000";
+	};
+
+	bus@0 {
+		/* SDMMC1 (SD/MMC) */
+		mmc@3400000 {
+			status = "okay";
+			bus-width = <4>;
+			cd-gpios = <&gpio TEGRA194_MAIN_GPIO(G, 7) GPIO_ACTIVE_LOW>;
+			disable-wp;
+			vmmc-supply = <&vdd_3v3_sd>;
+		};
+	};
+
+	vdd_3v3_sd: regulator-vdd-3v3-sd {
+		compatible = "regulator-fixed";
+		regulator-name = "VDD_3V3_SD";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		gpio = <&gpio TEGRA194_MAIN_GPIO(G, 2) GPIO_ACTIVE_HIGH>;
+		regulator-boot-on;
+		enable-active-high;
+	};
+};

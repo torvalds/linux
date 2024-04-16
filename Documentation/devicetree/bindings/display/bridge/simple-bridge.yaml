@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/bridge/simple-bridge.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Transparent non-programmable DRM bridges
+
+maintainers:
+  - Laurent Pinchart <laurent.pinchart+renesas@ideasonboard.com>
+  - Maxime Ripard <mripard@kernel.org>
+
+description: |
+  This binding supports transparent non-programmable bridges that don't require
+  any configuration, with a single input and a single output.
+
+properties:
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - ti,ths8134a
+              - ti,ths8134b
+          - const: ti,ths8134
+      - items:
+          - const: corpro,gm7123
+          - const: adi,adv7123
+      - enum:
+          - adi,adv7123
+          - dumb-vga-dac
+          - ti,opa362
+          - ti,ths8134
+          - ti,ths8135
+
+  ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    properties:
+      port@0:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: The bridge input
+
+      port@1:
+        $ref: /schemas/graph.yaml#/properties/port
+        description: The bridge output
+
+    required:
+      - port@0
+      - port@1
+
+  enable-gpios:
+    maxItems: 1
+    description: GPIO controlling bridge enable
+
+  vdd-supply:
+    description: Power supply for the bridge
+
+required:
+  - compatible
+  - ports
+
+additionalProperties: false
+
+examples:
+  - |
+    bridge {
+        compatible = "ti,ths8134a", "ti,ths8134";
+
+        ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            port@0 {
+                reg = <0>;
+
+                vga_bridge_in: endpoint {
+                    remote-endpoint = <&tcon0_out_vga>;
+                };
+            };
+
+            port@1 {
+                reg = <1>;
+
+                vga_bridge_out: endpoint {
+                    remote-endpoint = <&vga_con_in>;
+                };
+            };
+        };
+    };
+
+...

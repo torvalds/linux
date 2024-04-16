@@ -1,0 +1,193 @@
+# SPDX-License-Identifier: GPL-2.0
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/dwc2.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: DesignWare HS OTG USB 2.0 controller Bindings
+
+maintainers:
+  - Rob Herring <robh@kernel.org>
+
+allOf:
+  - $ref: usb-drd.yaml#
+  - $ref: usb-hcd.yaml#
+
+properties:
+  compatible:
+    oneOf:
+      - const: brcm,bcm2835-usb
+      - const: hisilicon,hi6220-usb
+      - const: ingenic,jz4775-otg
+      - const: ingenic,jz4780-otg
+      - const: ingenic,x1000-otg
+      - const: ingenic,x1600-otg
+      - const: ingenic,x1700-otg
+      - const: ingenic,x1830-otg
+      - const: ingenic,x2000-otg
+      - items:
+          - const: rockchip,rk3066-usb
+          - const: snps,dwc2
+      - items:
+          - enum:
+              - rockchip,px30-usb
+              - rockchip,rk3036-usb
+              - rockchip,rk3128-usb
+              - rockchip,rk3188-usb
+              - rockchip,rk3228-usb
+              - rockchip,rk3288-usb
+              - rockchip,rk3308-usb
+              - rockchip,rk3328-usb
+              - rockchip,rk3368-usb
+              - rockchip,rv1108-usb
+          - const: rockchip,rk3066-usb
+          - const: snps,dwc2
+      - const: lantiq,arx100-usb
+      - const: lantiq,xrx200-usb
+      - items:
+          - enum:
+              - amlogic,meson8-usb
+              - amlogic,meson8b-usb
+              - amlogic,meson-gxbb-usb
+              - amlogic,meson-g12a-usb
+              - intel,socfpga-agilex-hsotg
+          - const: snps,dwc2
+      - const: amcc,dwc-otg
+      - const: apm,apm82181-dwc-otg
+      - const: snps,dwc2
+      - const: st,stm32f4x9-fsotg
+      - const: st,stm32f4x9-hsotg
+      - const: st,stm32f7-hsotg
+      - const: st,stm32mp15-fsotg
+      - items:
+          - const: st,stm32mp15-hsotg
+          - const: snps,dwc2
+      - const: samsung,s3c6400-hsotg
+      - const: intel,socfpga-agilex-hsotg
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: otg
+
+  disable-over-current:
+    type: boolean
+    description: whether to disable detection of over-current condition.
+
+  iommus:
+    maxItems: 1
+
+  resets:
+    items:
+      - description: common reset
+      - description: ecc reset
+    minItems: 1
+
+  reset-names:
+    items:
+      - const: dwc2
+      - const: dwc2-ecc
+    minItems: 1
+
+  phys:
+    maxItems: 1
+
+  phy-names:
+    const: usb2-phy
+
+  power-domains:
+    maxItems: 1
+
+  vbus-supply:
+    description: reference to the VBUS regulator. Depending on the current mode
+      this is enabled (in "host" mode") or disabled (in "peripheral" mode). The
+      regulator is updated if the controller is configured in "otg" mode and the
+      status changes between "host" and "peripheral".
+
+  vusb_d-supply:
+    description: phandle to voltage regulator of digital section,
+
+  vusb_a-supply:
+    description: phandle to voltage regulator of analog section.
+
+  usb33d-supply:
+    description: reference to the VBUS and ID sensing comparators supply, in
+      order to perform OTG operation, used on STM32MP15 SoCs.
+
+  dr_mode: true
+
+  otg-rev: true
+
+  hnp-disable: true
+
+  srp-disable: true
+
+  usb-role-switch: true
+
+  role-switch-default-mode: true
+
+  g-rx-fifo-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: size of rx fifo size in gadget mode.
+
+  g-np-tx-fifo-size:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: size of non-periodic tx fifo size in gadget mode.
+
+  g-tx-fifo-size:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
+    description: size of periodic tx fifo per endpoint (except ep0) in gadget mode.
+
+  snps,need-phy-for-wake:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: If present indicates that the phy needs to be left on for
+      remote wakeup during suspend.
+
+  snps,reset-phy-on-wake:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: If present indicates that we need to reset the PHY when we
+      detect a wakeup. This is due to a hardware errata.
+
+  port:
+    description:
+      Any connector to the data bus of this controller should be modelled
+      using the OF graph bindings specified, if the "usb-role-switch"
+      property is used.
+    $ref: /schemas/graph.yaml#/properties/port
+
+  tpl-support: true
+
+dependencies:
+  port: [ usb-role-switch ]
+  role-switch-default-mode: [ usb-role-switch ]
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+      usb@101c0000 {
+        compatible = "rockchip,rk3066-usb", "snps,dwc2";
+        reg = <0x10180000 0x40000>;
+        interrupts = <18>;
+        clocks = <&usb_otg_ahb_clk>;
+        clock-names = "otg";
+        phys = <&usbphy>;
+        phy-names = "usb2-phy";
+      };
+
+...

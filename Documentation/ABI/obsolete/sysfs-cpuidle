@@ -1,0 +1,9 @@
+What:		/sys/devices/system/cpu/cpuidle/current_governor_ro
+Date:		April, 2020
+Contact:	linux-pm@vger.kernel.org
+Description:
+	current_governor_ro shows current using cpuidle governor, but read only.
+	with the update that cpuidle governor can be changed at runtime in default,
+	both current_governor and current_governor_ro co-exist under
+	/sys/devices/system/cpu/cpuidle/ file, it's duplicate so make
+	current_governor_ro obsolete.

@@ -1,0 +1,164 @@
+[
+    {
+        "ArchStdEvent": "L1I_CACHE_REFILL"
+    },
+    {
+        "ArchStdEvent": "L1I_TLB_REFILL"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_REFILL"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE"
+    },
+    {
+        "ArchStdEvent": "L1D_TLB_REFILL"
+    },
+    {
+        "ArchStdEvent": "L1I_CACHE"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_WB"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_REFILL"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_WB"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_ALLOCATE"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_ALLOCATE"
+    },
+    {
+        "ArchStdEvent": "L1D_TLB"
+    },
+    {
+        "ArchStdEvent": "L1I_TLB"
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_ALLOCATE"
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_REFILL"
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE"
+    },
+    {
+        "ArchStdEvent": "L2D_TLB_REFILL"
+    },
+    {
+        "ArchStdEvent": "L2D_TLB"
+    },
+    {
+        "ArchStdEvent": "L2I_TLB"
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK"
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK"
+    },
+    {
+        "ArchStdEvent": "LL_CACHE_RD"
+    },
+    {
+        "ArchStdEvent": "LL_CACHE_MISS_RD"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_RD"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_WR"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_WB_VICTIM"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_WB_CLEAN"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_INVAL"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_RD"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_WR"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_WB_VICTIM"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_WB_CLEAN"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_INVAL"
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_RD"
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_REFILL_RD"
+    },
+    {
+        "PublicDescription": "Number of ways read in the instruction cache - Tag RAM",
+        "EventCode": "0xC2",
+        "EventName": "I_TAG_RAM_RD",
+        "BriefDescription": "Number of ways read in the instruction cache - Tag RAM"
+    },
+    {
+        "PublicDescription": "Number of ways read in the instruction cache - Data RAM",
+        "EventCode": "0xC3",
+        "EventName": "I_DATA_RAM_RD",
+        "BriefDescription": "Number of ways read in the instruction cache - Data RAM"
+    },
+    {
+        "PublicDescription": "Number of ways read in the instruction BTAC RAM",
+        "EventCode": "0xC4",
+        "EventName": "I_BTAC_RAM_RD",
+        "BriefDescription": "Number of ways read in the instruction BTAC RAM"
+    },
+    {
+        "PublicDescription": "Level 1 PLD TLB refill",
+        "EventCode": "0xE7",
+        "EventName": "L1PLD_TLB_REFILL",
+        "BriefDescription": "Level 1 PLD TLB refill"
+    },
+    {
+        "PublicDescription": "Level 2 preload and MMU prefetcher TLB access. This event only counts software and hardware prefetches at Level 2",
+        "EventCode": "0xE8",
+        "EventName": "L2PLD_TLB",
+        "BriefDescription": "Level 2 preload and MMU prefetcher TLB access. This event only counts software and hardware prefetches at Level 2"
+    },
+    {
+        "PublicDescription": "Level 1 TLB flush",
+        "EventCode": "0xE9",
+        "EventName": "UTLB_FLUSH",
+        "BriefDescription": "Level 1 TLB flush"
+    },
+    {
+        "PublicDescription": "Level 2 TLB access",
+        "EventCode": "0xEA",
+        "EventName": "TLB_ACCESS",
+        "BriefDescription": "Level 2 TLB access"
+    },
+    {
+        "PublicDescription": "Level 1 preload TLB access. This event only counts software and hardware prefetches at Level 1. This event counts all accesses to the preload data micro TLB, that is L1 prefetcher and preload instructions. This event does not take into account whether the MMU is enabled or not",
+        "EventCode": "0xEB",
+        "EventName": "L1PLD_TLB",
+        "BriefDescription": "Level 1 preload TLB access. This event only counts software and hardware prefetches at Level 1. This event counts all accesses to the preload data micro TLB, that is L1 prefetcher and preload instructions. This event does not take into account whether the MMU is enabled or not"
+    },
+    {
+        "PublicDescription": "Prefetch access to unified TLB that caused a page table walk. This event counts software and hardware prefetches",
+        "EventCode": "0xEC",
+        "EventName": "PLDTLB_WALK",
+        "BriefDescription": "Prefetch access to unified TLB that caused a page table walk. This event counts software and hardware prefetches"
+    }
+]

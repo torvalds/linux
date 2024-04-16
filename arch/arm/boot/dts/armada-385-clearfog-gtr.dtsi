@@ -1,0 +1,450 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Device Tree file for Clearfog GTR machines rev 1.0 (88F6825)
+ *
+ *  Rabeeh Khoury <rabeeh@solid-run.com>, based on Russell King clearfog work
+ */
+
+/*
+	SERDES mapping -
+	0. SATA1 on CON18, or optionally mini PCIe CON3 - PCIe0
+	1. 6141 switch (2.5Gbps capable)
+	2. SATA0 on CON17, or optionally mini PCIe CON4 - PCIe1
+	3. USB 3.0 Host
+	4. mini PCIe CON2 - PCIe2
+	5. SFP connector, or optionally SGMII Ethernet 1512 PHY
+
+	USB 2.0 mapping -
+	0. USB 2.0 - 0 USB pins header CON12
+	1. USB 2.0 - 1 mini PCIe CON2
+	2. USB 2.0 - 2 to USB 3.0 connector (used with SERDES #3)
+
+	Pin mapping -
+	0,1 - console UART
+	2,3 - I2C0 - connected to I2C EEPROM, two temperature sensors,
+	      front panel and PSE controller
+	4,5 - MDC/MDIO
+	6..17 - RGMII
+	18 - Topaz switch reset (active low)
+	19 - 1512 phy reset
+	20 - 1512 phy reset (eth2, optional)
+	21,28,37,38,39,40 - SD0
+	22 - USB 3.0 current limiter enable (active high)
+	24 - SFP TX fault (input active high)
+	25 - SFP present (input active low)
+	26,27 - I2C1 - connected to SFP
+	29 - Fan PWM
+	30 - CON4 mini PCIe wifi disable
+	31 - CON3 mini PCIe wifi disable
+	32 - Fuse programming power toggle (1.8v)
+	33 - CON4 mini PCIe reset
+	34 - CON2 mini PCIe wifi disable
+	35 - CON3 mini PCIe reset
+	36 - Rear button (GPIO active low)
+	41 - CON1 front panel connector
+	42 - Front LED1, or front panel CON1
+	43 - Micron L-PBGA 24 ball SPI (1Gb) CS, or TPM SPI CS
+	44 - CON2 mini PCIe reset
+	45 - TPM PIRQ signal, or front panel CON1
+	46 - SFP TX disable
+	47 - Control isolation of boot sensitive SAR signals
+	48 - PSE reset
+	49 - PSE OSS signal
+	50 - PSE interrupt
+	52 - Front LED2, or front panel
+	53 - Front button
+	54 - SFP LOS (input active high)
+	55 - Fan sense
+	56(mosi),57(clk),58(miso) - SPI interface - 32Mb SPI, 1Gb SPI and TPM
+	59 - SPI 32Mb W25Q32BVZPIG CS0 chip select (bootable)
+*/
+
+/dts-v1/;
+#include <dt-bindings/input/input.h>
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
+#include "armada-385.dtsi"
+
+/ {
+	compatible = "marvell,armada385", "marvell,armada380";
+
+	aliases {
+		/* So that mvebu u-boot can update the MAC addresses */
+		ethernet1 = &eth0;
+		ethernet2 = &eth1;
+		ethernet3 = &eth2;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		device_type = "memory";
+		reg = <0x00000000 0x10000000>; /* 256 MB */
+	};
+
+	reg_3p3v: regulator-3p3v {
+		compatible = "regulator-fixed";
+		regulator-name = "3P3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	reg_5p0v: regulator-5p0v {
+		compatible = "regulator-fixed";
+		regulator-name = "5P0V";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		regulator-always-on;
+	};
+
+	v_usb3_con: regulator-v-usb3-con {
+		compatible = "regulator-fixed";
+		gpio = <&gpio0 22 GPIO_ACTIVE_LOW>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&cf_gtr_usb3_con_vbus>;
+		regulator-max-microvolt = <5000000>;
+		regulator-min-microvolt = <5000000>;
+		regulator-name = "v_usb3_con";
+		vin-supply = <&reg_5p0v>;
+		regulator-boot-on;
+		regulator-always-on;
+	};
+
+	soc {
+		ranges = <MBUS_ID(0xf0, 0x01) 0 0xf1000000 0x100000
+			  MBUS_ID(0x01, 0x1d) 0 0xfff00000 0x100000
+			  MBUS_ID(0x09, 0x19) 0 0xf1100000 0x10000
+			  MBUS_ID(0x09, 0x15) 0 0xf1110000 0x10000
+			  MBUS_ID(0x0c, 0x04) 0 0xf1200000 0x100000>;
+
+		internal-regs {
+
+			rtc@a3800 {
+				status = "okay";
+			};
+
+			i2c@11000 { /* ROM, temp sensor and front panel */
+				pinctrl-0 = <&i2c0_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+			};
+
+			i2c@11100 { /* SFP (CON5/CON6) */
+				pinctrl-0 = <&cf_gtr_i2c1_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+			};
+
+			pinctrl@18000 {
+				cf_gtr_switch_reset_pins: cf-gtr-switch-reset-pins {
+					marvell,pins = "mpp18";
+					marvell,function = "gpio";
+				};
+
+				cf_gtr_usb3_con_vbus: cf-gtr-usb3-con-vbus {
+					marvell,pins = "mpp22";
+					marvell,function = "gpio";
+				};
+
+				cf_gtr_fan_pwm: cf-gtr-fan-pwm {
+					marvell,pins = "mpp23";
+					marvell,function = "gpio";
+				};
+
+				cf_gtr_i2c1_pins: i2c1-pins {
+					/* SFP */
+					marvell,pins = "mpp26", "mpp27";
+					marvell,function = "i2c1";
+				};
+
+				cf_gtr_sdhci_pins: cf-gtr-sdhci-pins {
+					marvell,pins = "mpp21", "mpp28",
+						       "mpp37", "mpp38",
+						       "mpp39", "mpp40";
+					marvell,function = "sd0";
+				};
+
+				cf_gtr_isolation_pins: cf-gtr-isolation-pins {
+					marvell,pins = "mpp47";
+					marvell,function = "gpio";
+				};
+
+				cf_gtr_poe_reset_pins: cf-gtr-poe-reset-pins {
+					marvell,pins = "mpp48";
+					marvell,function = "gpio";
+				};
+
+				cf_gtr_spi1_cs_pins: spi1-cs-pins {
+					marvell,pins = "mpp59";
+					marvell,function = "spi1";
+				};
+
+				cf_gtr_front_button_pins: cf-gtr-front-button-pins {
+					marvell,pins = "mpp53";
+					marvell,function = "gpio";
+				};
+
+				cf_gtr_rear_button_pins: cf-gtr-rear-button-pins {
+					marvell,pins = "mpp36";
+					marvell,function = "gpio";
+				};
+			};
+
+			sdhci@d8000 {
+				bus-width = <4>;
+				no-1-8-v;
+				non-removable;
+				pinctrl-0 = <&cf_gtr_sdhci_pins>;
+				pinctrl-names = "default";
+				status = "okay";
+				vmmc = <&reg_3p3v>;
+				wp-inverted;
+			};
+
+			usb@58000 {
+				status = "okay";
+			};
+
+			usb3@f0000 {
+				status = "okay";
+			};
+
+			usb3@f8000 {
+				vbus-supply = <&v_usb3_con>;
+				status = "okay";
+			};
+		};
+
+		pcie {
+			status = "okay";
+			/*
+			 * The PCIe units are accessible through
+			 * the mini-PCIe connectors on the board.
+			 */
+			pcie@1,0 {
+				reset-gpios = <&gpio1 3 GPIO_ACTIVE_LOW>;
+				status = "okay";
+			};
+
+			pcie@2,0 {
+				reset-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
+				status = "okay";
+			};
+
+			pcie@3,0 {
+				reset-gpios = <&gpio1 12 GPIO_ACTIVE_LOW>;
+				status = "okay";
+			};
+		};
+	};
+
+	sfp0: sfp {
+		compatible = "sff,sfp";
+		i2c-bus = <&i2c1>;
+		los-gpio = <&gpio1 22 GPIO_ACTIVE_HIGH>;
+		mod-def0-gpio = <&gpio0 25 GPIO_ACTIVE_LOW>;
+		tx-disable-gpio = <&gpio1 14 GPIO_ACTIVE_HIGH>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+		pinctrl-0 = <&cf_gtr_rear_button_pins &cf_gtr_front_button_pins>;
+		pinctrl-names = "default";
+
+		button-0 {
+			label = "Rear Button";
+			gpios = <&gpio1 4 GPIO_ACTIVE_LOW>;
+			linux,can-disable;
+			linux,code = <BTN_0>;
+		};
+
+		button-1 {
+			label = "Front Button";
+			gpios = <&gpio1 21 GPIO_ACTIVE_LOW>;
+			linux,can-disable;
+			linux,code = <BTN_1>;
+		};
+	};
+
+	gpio-leds {
+		compatible = "gpio-leds";
+
+		led1 {
+			function = LED_FUNCTION_CPU;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio1 10 GPIO_ACTIVE_HIGH>;
+		};
+
+		led2 {
+			function = LED_FUNCTION_HEARTBEAT;
+			color = <LED_COLOR_ID_GREEN>;
+			gpios = <&gpio1 20 GPIO_ACTIVE_HIGH>;
+		};
+	};
+};
+
+&bm {
+	status = "okay";
+};
+
+&bm_bppi {
+	status = "okay";
+};
+
+&eth0 {
+	/* ethernet@70000 */
+	pinctrl-0 = <&ge0_rgmii_pins>;
+	pinctrl-names = "default";
+	phy = <&phy_dedicated>;
+	phy-mode = "rgmii-id";
+	buffer-manager = <&bm>;
+	bm,pool-long = <0>;
+	bm,pool-short = <1>;
+	status = "okay";
+};
+
+&eth1 {
+	/* ethernet@30000 */
+	bm,pool-long = <2>;
+	bm,pool-short = <1>;
+	buffer-manager = <&bm>;
+	phys = <&comphy1 1>;
+	phy-mode = "2500base-x";
+	status = "okay";
+
+	fixed-link {
+		speed = <2500>;
+		full-duplex;
+	};
+};
+
+&eth2 {
+	/* ethernet@34000 */
+	bm,pool-long = <3>;
+	bm,pool-short = <1>;
+	buffer-manager = <&bm>;
+	managed = "in-band-status";
+	phys = <&comphy5 1>;
+	phy-mode = "sgmii";
+	sfp = <&sfp0>;
+	status = "okay";
+};
+
+&mdio {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mdio_pins>;
+	status = "okay";
+
+	phy_dedicated: ethernet-phy@0 {
+		/*
+		 * Annoyingly, the marvell phy driver configures the LED
+		 * register, rather than preserving reset-loaded setting.
+		 * We undo that rubbish here.
+		 */
+		marvell,reg-init = <3 16 0 0x1017>;
+		reg = <0>;
+	};
+};
+
+&uart0 {
+	pinctrl-0 = <&uart0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+};
+
+&spi1 {
+	/*
+	 * CS0: W25Q32 flash
+	 */
+	pinctrl-0 = <&spi1_pins &cf_gtr_spi1_cs_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		compatible = "w25q32", "jedec,spi-nor";
+		reg = <0>; /* Chip select 0 */
+		spi-max-frequency = <3000000>;
+		status = "okay";
+	};
+};
+
+&i2c0 {
+	pinctrl-0 = <&i2c0_pins>;
+	pinctrl-names = "default";
+	status = "okay";
+
+	/* U26 temperature sensor placed near SoC */
+	temp1: nct75@4c {
+		compatible = "lm75";
+		reg = <0x4c>;
+	};
+
+	/* U27 temperature sensor placed near RTC battery */
+	temp2: nct75@4d {
+		compatible = "lm75";
+		reg = <0x4d>;
+	};
+
+	/* 2Kb eeprom */
+	eeprom@53 {
+		compatible = "atmel,24c02";
+		reg = <0x53>;
+	};
+};
+
+&ahci0 {
+	status = "okay";
+};
+
+&ahci1 {
+	status = "okay";
+};
+
+&gpio0 {
+	pinctrl-0 = <&cf_gtr_fan_pwm>;
+	pinctrl-names = "default";
+
+	wifi-disable {
+		gpio-hog;
+		gpios = <30 GPIO_ACTIVE_LOW>, <31 GPIO_ACTIVE_LOW>;
+		output-low;
+		line-name = "wifi-disable";
+	};
+};
+
+&gpio1 {
+	pinctrl-0 = <&cf_gtr_isolation_pins &cf_gtr_poe_reset_pins>;
+	pinctrl-names = "default";
+
+	lte-disable {
+		gpio-hog;
+		gpios = <2 GPIO_ACTIVE_LOW>;
+		output-low;
+		line-name = "lte-disable";
+	};
+
+	/*
+	 * This signal, when asserted, isolates Armada 38x sample at reset pins
+	 * from control of external devices. Should be de-asserted after reset.
+	 */
+	sar-isolation {
+		gpio-hog;
+		gpios = <15 GPIO_ACTIVE_LOW>;
+		output-low;
+		line-name = "sar-isolation";
+	};
+
+	poe-reset {
+		gpio-hog;
+		gpios = <16 GPIO_ACTIVE_LOW>;
+		output-low;
+		line-name = "poe-reset";
+	};
+};

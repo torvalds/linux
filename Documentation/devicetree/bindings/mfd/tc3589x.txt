@@ -1,0 +1,107 @@
+* Toshiba TC3589x multi-purpose expander
+
+The Toshiba TC3589x series are I2C-based MFD devices which may expose the
+following built-in devices: gpio, keypad, rotator (vibrator), PWM (for
+e.g. LEDs or vibrators) The included models are:
+
+- TC35890
+- TC35892
+- TC35893
+- TC35894
+- TC35895
+- TC35896
+
+Required properties:
+ - compatible : must be "toshiba,tc35890", "toshiba,tc35892", "toshiba,tc35893",
+   "toshiba,tc35894", "toshiba,tc35895" or "toshiba,tc35896"
+ - reg : I2C address of the device
+ - interrupts : the interrupt on the parent the controller is connected to
+ - interrupt-controller : marks the device node as an interrupt controller
+ - #interrupt-cells : should be <1>, the first cell is the IRQ offset on this
+   TC3589x interrupt controller.
+
+Optional nodes:
+
+- GPIO
+  This GPIO module inside the TC3589x has 24 (TC35890, TC35892) or 20
+  (other models) GPIO lines.
+ - compatible : must be "toshiba,tc3589x-gpio"
+ - interrupts : interrupt on the parent, which must be the tc3589x MFD device
+ - interrupt-controller : marks the device node as an interrupt controller
+ - #interrupt-cells : should be <2>, the first cell is the IRQ offset on this
+   TC3589x GPIO interrupt controller, the second cell is the interrupt flags
+   in accordance with <dt-bindings/interrupt-controller/irq.h>. The following
+   flags are valid:
+   - IRQ_TYPE_LEVEL_LOW
+   - IRQ_TYPE_LEVEL_HIGH
+   - IRQ_TYPE_EDGE_RISING
+   - IRQ_TYPE_EDGE_FALLING
+   - IRQ_TYPE_EDGE_BOTH
+ - gpio-controller : marks the device node as a GPIO controller
+ - #gpio-cells : should be <2>, the first cell is the GPIO offset on this
+   GPIO controller, the second cell is the flags.
+
+- Keypad
+  This keypad is the same on all variants, supporting up to 96 different
+  keys. The linux-specific properties are modeled on those already existing
+  in other input drivers.
+ - compatible : must be "toshiba,tc3589x-keypad"
+ - debounce-delay-ms : debounce interval in milliseconds
+ - keypad,num-rows : number of rows in the matrix, see
+   bindings/input/matrix-keymap.txt
+ - keypad,num-columns : number of columns in the matrix, see
+   bindings/input/matrix-keymap.txt
+ - linux,keymap: the definition can be found in
+   bindings/input/matrix-keymap.txt
+ - linux,no-autorepeat: do no enable autorepeat feature.
+ - wakeup-source: use any event on keypad as wakeup event.
+		  (Legacy property supported: "linux,wakeup")
+
+Example:
+
+tc35893@44 {
+	compatible = "toshiba,tc35893";
+	reg = <0x44>;
+	interrupt-parent = <&gpio6>;
+	interrupts = <26 IRQ_TYPE_EDGE_RISING>;
+
+	interrupt-controller;
+	#interrupt-cells = <1>;
+
+	tc3589x_gpio {
+		compatible = "toshiba,tc3589x-gpio";
+		interrupts = <0>;
+
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+	tc3589x_keypad {
+		compatible = "toshiba,tc3589x-keypad";
+		interrupts = <6>;
+		debounce-delay-ms = <4>;
+		keypad,num-columns = <8>;
+		keypad,num-rows = <8>;
+		linux,no-autorepeat;
+		linux,keymap = <0x0301006b
+				0x04010066
+				0x06040072
+				0x040200d7
+				0x0303006a
+				0x0205000e
+				0x0607008b
+				0x0500001c
+				0x0403000b
+				0x03040034
+				0x05020067
+				0x0305006c
+				0x040500e7
+				0x0005009e
+				0x06020073
+				0x01030039
+				0x07060069
+				0x050500d9>;
+		wakeup-source;
+	};
+};

@@ -1,0 +1,157 @@
+What:		/sys/bus/platform/devices/INT3407:00/dptf_power/charger_type
+Date:		Jul, 2016
+KernelVersion:	v4.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The charger type - Traditional, Hybrid or NVDC.
+
+What:		/sys/bus/platform/devices/INT3407:00/dptf_power/adapter_rating_mw
+Date:		Jul, 2016
+KernelVersion:	v4.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) Adapter rating in milliwatts (the maximum Adapter power).
+		Must be 0 if no AC Adaptor is plugged in.
+
+What:		/sys/bus/platform/devices/INT3407:00/dptf_power/max_platform_power_mw
+Date:		Jul, 2016
+KernelVersion:	v4.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) Maximum platform power that can be supported by the battery
+		in milliwatts.
+
+What:		/sys/bus/platform/devices/INT3407:00/dptf_power/platform_power_source
+Date:		Jul, 2016
+KernelVersion:	v4.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) Display the platform power source
+
+		========= ============================
+		bits[3:0] Current power source
+			  - 0x00 = DC
+			  - 0x01 = AC
+			  - 0x02 = USB
+			  - 0x03 = Wireless Charger
+		bits[7:4] Power source sequence number
+		========= ============================
+
+What:		/sys/bus/platform/devices/INT3407:00/dptf_power/battery_steady_power
+Date:		Jul, 2016
+KernelVersion:	v4.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The maximum sustained power for battery in milliwatts.
+
+What:		/sys/bus/platform/devices/INT3407:00/dptf_power/rest_of_platform_power_mw
+Date:		June, 2020
+KernelVersion:	v5.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) Shows the rest (outside of SoC) of worst-case platform power.
+
+What:		/sys/bus/platform/devices/INT3407:00/dptf_power/prochot_confirm
+Date:		June, 2020
+KernelVersion:	v5.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(WO) Confirm embedded controller about a prochot notification.
+
+What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/max_platform_power_mw
+Date:		June, 2020
+KernelVersion:	v5.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The maximum platform power that can be supported by the battery in milli watts.
+
+What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/max_steady_state_power_mw
+Date:		June, 2020
+KernelVersion:	v5.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The maximum sustained power for battery in milli watts.
+
+What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/high_freq_impedance_mohm
+Date:		June, 2020
+KernelVersion:	v5.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The high frequency impedance value that can be obtained from battery
+		fuel gauge in milli Ohms.
+
+What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/no_load_voltage_mv
+Date:		June, 2020
+KernelVersion:	v5.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The no-load voltage that can be obtained from battery fuel gauge in
+		milli volts.
+
+What:		/sys/bus/platform/devices/INT3532:00/dptf_battery/current_discharge_capbility_ma
+Date:		June, 2020
+KernelVersion:	v5.8
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) The battery discharge current capability obtained from battery fuel gauge in
+		milli Amps.
+
+What:		/sys/bus/platform/devices/INTC1045:00/pch_fivr_switch_frequency/freq_mhz_low_clock
+Date:		November, 2020
+KernelVersion:	v5.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RW) The PCH FIVR (Fully Integrated Voltage Regulator) switching frequency in MHz,
+		when FIVR clock is 19.2MHz or 24MHz.
+
+What:		/sys/bus/platform/devices/INTC1045:00/pch_fivr_switch_frequency/freq_mhz_high_clock
+Date:		November, 2020
+KernelVersion:	v5.10
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RW) The PCH FIVR (Fully Integrated Voltage Regulator) switching frequency in MHz,
+		when FIVR clock is 38.4MHz.
+
+What:		/sys/bus/platform/devices/INTC1045:00/pch_fivr_switch_frequency/fivr_switching_freq_mhz
+Date:		September, 2021
+KernelVersion:	v5.15
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) Get the FIVR switching control frequency in MHz.
+
+What:		/sys/bus/platform/devices/INTC1045:00/pch_fivr_switch_frequency/fivr_switching_fault_status
+Date:		September, 2021
+KernelVersion:	v5.15
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) Read the FIVR switching frequency control fault status.
+
+What:		/sys/bus/platform/devices/INTC1045:00/pch_fivr_switch_frequency/ssc_clock_info
+Date:		September, 2021
+KernelVersion:	v5.15
+Contact:	linux-acpi@vger.kernel.org
+Description:
+		(RO) Presents SSC (spread spectrum clock) information for EMI
+		(Electro magnetic interference) control. This is a bit mask.
+
+		=======	==========================================
+		Bits	Description
+		=======	==========================================
+		[7:0]	Sets clock spectrum spread percentage:
+			0x00=0.2% , 0x3F=10%
+			1 LSB = 0.1% increase in spread (for
+			settings 0x01 thru 0x1C)
+			1 LSB = 0.2% increase in spread (for
+			settings 0x1E thru 0x3F)
+		[8]	When set to 1, enables spread
+			spectrum clock
+		[9]	0: Triangle mode. FFC frequency
+			walks around the Fcenter in a linear
+			fashion
+			1: Random walk mode. FFC frequency
+			changes randomly within the SSC
+			(Spread spectrum clock) range
+		[10]	0: No white noise. 1: Add white noise
+			to spread waveform
+		[11]	When 1, future writes are ignored.
+		=======	==========================================

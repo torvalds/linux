@@ -1,0 +1,42 @@
+C Z6.0+pooncelock+poonceLock+pombonce
+
+(*
+ * Result: Never
+ *
+ * This litmus test demonstrates how smp_mb__after_spinlock() may be
+ * used to ensure that accesses in different critical sections for a
+ * given lock running on different CPUs are nevertheless seen in order
+ * by CPUs not holding that lock.
+ *)
+
+{}
+
+P0(int *x, int *y, spinlock_t *mylock)
+{
+	spin_lock(mylock);
+	WRITE_ONCE(*x, 1);
+	WRITE_ONCE(*y, 1);
+	spin_unlock(mylock);
+}
+
+P1(int *y, int *z, spinlock_t *mylock)
+{
+	int r0;
+
+	spin_lock(mylock);
+	smp_mb__after_spinlock();
+	r0 = READ_ONCE(*y);
+	WRITE_ONCE(*z, 1);
+	spin_unlock(mylock);
+}
+
+P2(int *x, int *z)
+{
+	int r1;
+
+	WRITE_ONCE(*z, 2);
+	smp_mb();
+	r1 = READ_ONCE(*x);
+}
+
+exists (1:r0=1 /\ z=2 /\ 2:r1=0)

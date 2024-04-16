@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/watchdog/realtek,otto-wdt.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Realtek Otto watchdog timer
+
+maintainers:
+  - Sander Vanheule <sander@svanheule.net>
+
+description: |
+  The timer has two timeout phases. Both phases have a maximum duration of 32
+  prescaled clock ticks, which is ca. 43s with a bus clock of 200MHz. The
+  minimum duration of each phase is one tick. Each phase can trigger an
+  interrupt, although the phase 2 interrupt will occur with the system reset.
+  - Phase 1: During this phase, the WDT can be pinged to reset the timeout.
+  - Phase 2: Starts after phase 1 has timed out, and only serves to give the
+    system some time to clean up, or notify others that it's going to reset.
+    During this phase, pinging the WDT has no effect, and a reset is
+    unavoidable, unless the WDT is disabled.
+
+allOf:
+  - $ref: watchdog.yaml#
+
+properties:
+  compatible:
+    enum:
+      - realtek,rtl8380-wdt
+      - realtek,rtl8390-wdt
+      - realtek,rtl9300-wdt
+      - realtek,rtl9310-wdt
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: interrupt specifier for pretimeout
+      - description: interrupt specifier for timeout
+
+  interrupt-names:
+    items:
+      - const: phase1
+      - const: phase2
+
+  realtek,reset-mode:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: |
+      Specify how the system is reset after a timeout. Defaults to "cpu" if
+      left unspecified.
+    oneOf:
+      - description: Reset the entire chip
+        const: soc
+      - description: |
+          Reset the CPU and IPsec engine, but leave other peripherals untouched
+        const: cpu
+      - description: |
+          Reset the execution pointer, but don't actually reset any hardware
+        const: software
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - interrupts
+
+unevaluatedProperties: false
+
+dependencies:
+  interrupts: [ interrupt-names ]
+
+examples:
+  - |
+    watchdog: watchdog@3150 {
+        compatible = "realtek,rtl8380-wdt";
+        reg = <0x3150 0xc>;
+
+        realtek,reset-mode = "soc";
+
+        clocks = <&lxbus_clock>;
+        timeout-sec = <20>;
+
+        interrupt-parent = <&rtlintc>;
+        interrupt-names = "phase1", "phase2";
+        interrupts = <19>, <18>;
+    };
+
+...

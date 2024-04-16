@@ -1,0 +1,217 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/xlnx,zynq-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Xilinx Zynq Pinctrl
+
+maintainers:
+  - Sai Krishna Potthuri <lakshmi.sai.krishna.potthuri@xilinx.com>
+
+description: |
+  Please refer to pinctrl-bindings.txt in this directory for details of the
+  common pinctrl bindings used by client devices, including the meaning of the
+  phrase "pin configuration node".
+
+  Zynq's pin configuration nodes act as a container for an arbitrary number of
+  subnodes. Each of these subnodes represents some desired configuration for a
+  pin, a group, or a list of pins or groups. This configuration can include the
+  mux function to select on those pin(s)/group(s), and various pin configuration
+  parameters, such as pull-up, slew rate, etc.
+
+  Each configuration node can consist of multiple nodes describing the pinmux and
+  pinconf options. Those nodes can be pinmux nodes or pinconf nodes.
+
+  The name of each subnode is not important; all subnodes should be enumerated
+  and processed purely based on their content.
+
+properties:
+  compatible:
+    const: xlnx,zynq-pinctrl
+
+  reg:
+    description: Specifies the base address and size of the SLCR space.
+    maxItems: 1
+
+  syscon:
+    description:
+      phandle to the SLCR.
+
+patternProperties:
+  '^(.*-)?(default|gpio)$':
+    type: object
+    patternProperties:
+      '^mux':
+        type: object
+        description:
+          Pinctrl node's client devices use subnodes for pin muxes,
+          which in turn use below standard properties.
+        $ref: pinmux-node.yaml#
+
+        properties:
+          groups:
+            description:
+              List of groups to select (either this or "pins" must be
+              specified), available groups for this subnode.
+            items:
+              enum: [ethernet0_0_grp, ethernet1_0_grp, mdio0_0_grp,
+                     mdio1_0_grp, qspi0_0_grp, qspi1_0_grp, qspi_fbclk,
+                     qspi_cs1_grp, spi0_0_grp, spi0_1_grp, spi0_2_grp,
+                     spi0_0_ss0, spi0_0_ss1, spi0_0_ss2, spi0_1_ss0,
+                     spi0_1_ss1, spi0_1_ss2, spi0_2_ss0, spi0_2_ss1,
+                     spi0_2_ss2, spi1_0_grp, spi1_1_grp, spi1_2_grp,
+                     spi1_3_grp, spi1_0_ss0, spi1_0_ss1, spi1_0_ss2,
+                     spi1_1_ss0, spi1_1_ss1, spi1_1_ss2, spi1_2_ss0,
+                     spi1_2_ss1, spi1_2_ss2, spi1_3_ss0, spi1_3_ss1,
+                     spi1_3_ss2, sdio0_0_grp, sdio0_1_grp, sdio0_2_grp,
+                     sdio1_0_grp, sdio1_1_grp, sdio1_2_grp, sdio1_3_grp,
+                     sdio0_emio_wp, sdio0_emio_cd, sdio1_emio_wp,
+                     sdio1_emio_cd, smc0_nor, smc0_nor_cs1_grp,
+                     smc0_nor_addr25_grp, smc0_nand, can0_0_grp, can0_1_grp,
+                     can0_2_grp, can0_3_grp, can0_4_grp, can0_5_grp,
+                     can0_6_grp, can0_7_grp, can0_8_grp, can0_9_grp,
+                     can0_10_grp, can1_0_grp, can1_1_grp, can1_2_grp,
+                     can1_3_grp, can1_4_grp, can1_5_grp, can1_6_grp,
+                     can1_7_grp, can1_8_grp, can1_9_grp, can1_10_grp,
+                     can1_11_grp, uart0_0_grp, uart0_1_grp, uart0_2_grp,
+                     uart0_3_grp, uart0_4_grp, uart0_5_grp, uart0_6_grp,
+                     uart0_7_grp, uart0_8_grp, uart0_9_grp, uart0_10_grp,
+                     uart1_0_grp, uart1_1_grp, uart1_2_grp, uart1_3_grp,
+                     uart1_4_grp, uart1_5_grp, uart1_6_grp, uart1_7_grp,
+                     uart1_8_grp, uart1_9_grp, uart1_10_grp, uart1_11_grp,
+                     i2c0_0_grp, i2c0_1_grp, i2c0_2_grp, i2c0_3_grp,
+                     i2c0_4_grp, i2c0_5_grp, i2c0_6_grp, i2c0_7_grp,
+                     i2c0_8_grp, i2c0_9_grp, i2c0_10_grp, i2c1_0_grp,
+                     i2c1_1_grp, i2c1_2_grp, i2c1_3_grp, i2c1_4_grp,
+                     i2c1_5_grp, i2c1_6_grp, i2c1_7_grp, i2c1_8_grp,
+                     i2c1_9_grp, i2c1_10_grp, ttc0_0_grp, ttc0_1_grp,
+                     ttc0_2_grp, ttc1_0_grp, ttc1_1_grp, ttc1_2_grp,
+                     swdt0_0_grp, swdt0_1_grp, swdt0_2_grp, swdt0_3_grp,
+                     swdt0_4_grp, gpio0_0_grp, gpio0_1_grp, gpio0_2_grp,
+                     gpio0_3_grp, gpio0_4_grp, gpio0_5_grp, gpio0_6_grp,
+                     gpio0_7_grp, gpio0_8_grp, gpio0_9_grp, gpio0_10_grp,
+                     gpio0_11_grp, gpio0_12_grp, gpio0_13_grp, gpio0_14_grp,
+                     gpio0_15_grp, gpio0_16_grp, gpio0_17_grp, gpio0_18_grp,
+                     gpio0_19_grp, gpio0_20_grp, gpio0_21_grp, gpio0_22_grp,
+                     gpio0_23_grp, gpio0_24_grp, gpio0_25_grp, gpio0_26_grp,
+                     gpio0_27_grp, gpio0_28_grp, gpio0_29_grp, gpio0_30_grp,
+                     gpio0_31_grp, gpio0_32_grp, gpio0_33_grp, gpio0_34_grp,
+                     gpio0_35_grp, gpio0_36_grp, gpio0_37_grp, gpio0_38_grp,
+                     gpio0_39_grp, gpio0_40_grp, gpio0_41_grp, gpio0_42_grp,
+                     gpio0_43_grp, gpio0_44_grp, gpio0_45_grp, gpio0_46_grp,
+                     gpio0_47_grp, gpio0_48_grp, gpio0_49_grp, gpio0_50_grp,
+                     gpio0_51_grp, gpio0_52_grp, gpio0_53_grp, usb0_0_grp,
+                     usb1_0_grp]
+            maxItems: 54
+
+          function:
+            description:
+              Specify the alternative function to be configured for the
+              given pin groups.
+            enum: [ethernet0, ethernet1, mdio0, mdio1, qspi0, qspi1, qspi_fbclk,
+                   qspi_cs1, spi0, spi0_ss, spi1, spi1_ss, sdio0, sdio0_pc,
+                   sdio0_cd, sdio0_wp, sdio1, sdio1_pc, sdio1_cd, sdio1_wp,
+                   smc0_nor, smc0_nor_cs1, smc0_nor_addr25, smc0_nand, can0,
+                   can1, uart0, uart1, i2c0, i2c1, ttc0, ttc1, swdt0, gpio0,
+                   usb0, usb1]
+
+        required:
+          - groups
+          - function
+
+        additionalProperties: false
+
+      '^conf':
+        type: object
+        description:
+          Pinctrl node's client devices use subnodes for pin configurations,
+          which in turn use the standard properties below.
+        $ref: pincfg-node.yaml#
+
+        properties:
+          groups:
+            description:
+              List of pin groups as mentioned above.
+
+          pins:
+            description:
+              List of pin names to select in this subnode.
+            items:
+              pattern: '^MIO([0-9]|[1-4][0-9]|5[0-3])$'
+            maxItems: 54
+
+          bias-pull-up: true
+
+          bias-pull-down: true
+
+          bias-disable: true
+
+          bias-high-impedance: true
+
+          low-power-enable: true
+
+          low-power-disable: true
+
+          slew-rate:
+            enum: [0, 1]
+
+          power-source:
+            enum: [1, 2, 3, 4]
+
+        oneOf:
+          - required: [ groups ]
+          - required: [ pins ]
+
+        additionalProperties: false
+
+    additionalProperties: false
+
+allOf:
+  - $ref: "pinctrl.yaml#"
+
+required:
+  - compatible
+  - reg
+  - syscon
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/pinctrl/pinctrl-zynq.h>
+    pinctrl0: pinctrl@700 {
+       compatible = "xlnx,zynq-pinctrl";
+       reg = <0x700 0x200>;
+       syscon = <&slcr>;
+
+       pinctrl_uart1_default: uart1-default {
+           mux {
+               groups = "uart1_10_grp";
+               function = "uart1";
+           };
+
+           conf {
+               groups = "uart1_10_grp";
+               slew-rate = <0>;
+               power-source = <IO_STANDARD_LVCMOS18>;
+           };
+
+           conf-rx {
+               pins = "MIO49";
+               bias-high-impedance;
+           };
+
+           conf-tx {
+               pins = "MIO48";
+               bias-disable;
+           };
+       };
+    };
+
+    uart1 {
+         pinctrl-names = "default";
+         pinctrl-0 = <&pinctrl_uart1_default>;
+    };
+
+...

@@ -1,0 +1,8 @@
+What:		/sys/block/<device>/iosched/target_latency
+Date:		March 2012
+contact:	Tao Ma <boyu.mt@taobao.com>
+Description:
+		The /sys/block/<device>/iosched/target_latency only exists
+		when the user sets cfq to /sys/block/<device>/scheduler.
+		It contains an estimated latency time for the cfq. cfq will
+		use it to calculate the time slice used for every task.

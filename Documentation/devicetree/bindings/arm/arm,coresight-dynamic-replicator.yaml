@@ -1,0 +1,129 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/arm/arm,coresight-dynamic-replicator.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Arm Coresight Programmable Trace Bus Replicator
+
+maintainers:
+  - Mathieu Poirier <mathieu.poirier@linaro.org>
+  - Mike Leach <mike.leach@linaro.org>
+  - Leo Yan <leo.yan@linaro.org>
+  - Suzuki K Poulose <suzuki.poulose@arm.com>
+
+description: |
+  CoreSight components are compliant with the ARM CoreSight architecture
+  specification and can be connected in various topologies to suit a particular
+  SoCs tracing needs. These trace components can generally be classified as
+  sinks, links and sources. Trace data produced by one or more sources flows
+  through the intermediate links connecting the source to the currently selected
+  sink.
+
+  The Coresight replicator splits a single trace stream into two trace streams
+  for systems that have more than one trace sink component.
+
+# Need a custom select here or 'arm,primecell' will match on lots of nodes
+select:
+  properties:
+    compatible:
+      contains:
+        const: arm,coresight-dynamic-replicator
+  required:
+    - compatible
+
+allOf:
+  - $ref: /schemas/arm/primecell.yaml#
+
+properties:
+  compatible:
+    items:
+      - const: arm,coresight-dynamic-replicator
+      - const: arm,primecell
+
+  reg:
+    maxItems: 1
+
+  clocks:
+    minItems: 1
+    maxItems: 2
+
+  clock-names:
+    minItems: 1
+    items:
+      - const: apb_pclk
+      - const: atclk
+
+  power-domains:
+    maxItems: 1
+
+  qcom,replicator-loses-context:
+    type: boolean
+    description:
+      Indicates that the replicator will lose register context when AMBA clock
+      is removed which is observed in some replicator designs.
+
+  in-ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+    additionalProperties: false
+
+    properties:
+      port:
+        description: Input connection from CoreSight Trace bus
+        $ref: /schemas/graph.yaml#/properties/port
+
+  out-ports:
+    $ref: /schemas/graph.yaml#/properties/ports
+
+    patternProperties:
+      '^port(@[01])?$':
+        description: Output connections to CoreSight Trace bus
+        $ref: /schemas/graph.yaml#/properties/port
+
+required:
+  - compatible
+  - reg
+  - clocks
+  - clock-names
+  - in-ports
+  - out-ports
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    replicator@20120000 {
+        compatible = "arm,coresight-dynamic-replicator", "arm,primecell";
+        reg = <0x20120000 0x1000>;
+
+        clocks = <&soc_smc50mhz>;
+        clock-names = "apb_pclk";
+
+        out-ports {
+            #address-cells = <1>;
+            #size-cells = <0>;
+
+            /* replicator output ports */
+            port@0 {
+                reg = <0>;
+                replicator_out_port0: endpoint {
+                    remote-endpoint = <&tpiu_in_port>;
+                };
+            };
+
+            port@1 {
+                reg = <1>;
+                replicator_out_port1: endpoint {
+                    remote-endpoint = <&etr_in_port>;
+                };
+            };
+        };
+        in-ports {
+            port {
+                replicator_in_port0: endpoint {
+                    remote-endpoint = <&csys2_funnel_out_port>;
+                };
+            };
+        };
+    };
+...

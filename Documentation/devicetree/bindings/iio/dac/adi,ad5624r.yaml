@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/dac/adi,ad5624r.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Analog Devices AD5624r and similar DACs
+
+maintainers:
+  - Jonathan Cameron <jic23@kernel.org>
+
+properties:
+  compatible:
+    enum:
+      - adi,ad5624r3
+      - adi,ad5644r3
+      - adi,ad5664r3
+      - adi,ad5624r5
+      - adi,ad5644r5
+      - adi,ad5664r5
+
+  reg:
+    maxItems: 1
+
+  vref-supply:
+    description: If not present, internal reference will be used.
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        dac@0 {
+            reg = <0>;
+            compatible = "adi,ad5624r3";
+            vref-supply = <&vref>;
+        };
+    };
+...

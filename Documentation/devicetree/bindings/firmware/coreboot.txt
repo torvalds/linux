@@ -1,0 +1,33 @@
+COREBOOT firmware information
+
+The device tree node to communicate the location of coreboot's memory-resident
+bookkeeping structures to the kernel. Since coreboot itself cannot boot a
+device-tree-based kernel (yet), this node needs to be inserted by a
+second-stage bootloader (a coreboot "payload").
+
+Required properties:
+ - compatible: Should be "coreboot"
+ - reg: Address and length of the following two memory regions, in order:
+	1.) The coreboot table. This is a list of variable-sized descriptors
+	that contain various compile- and run-time generated firmware
+	parameters. It is identified by the magic string "LBIO" in its first
+	four bytes.
+	See coreboot's src/commonlib/include/commonlib/coreboot_tables.h for
+	details.
+	2.) The CBMEM area. This is a downward-growing memory region used by
+	coreboot to dynamically allocate data structures that remain resident.
+	It may or may not include the coreboot table as one of its members. It
+	is identified by a root node descriptor with the magic number
+	0xc0389481 that resides in the topmost 8 bytes of the area.
+	See coreboot's src/include/imd.h for details.
+
+Example:
+	firmware {
+		ranges;
+
+		coreboot {
+			compatible = "coreboot";
+			reg = <0xfdfea000 0x264>,
+			      <0xfdfea000 0x16000>;
+		}
+	};

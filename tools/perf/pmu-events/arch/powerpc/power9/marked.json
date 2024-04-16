@@ -1,0 +1,627 @@
+[
+  {
+    "EventCode": "0x3013E",
+    "EventName": "PM_MRK_STALL_CMPLU_CYC",
+    "BriefDescription": "Number of cycles the marked instruction is experiencing a stall while it is next to complete (NTC)"
+  },
+  {
+    "EventCode": "0x4F056",
+    "EventName": "PM_RADIX_PWC_L1_PDE_FROM_L3MISS",
+    "BriefDescription": "A Page Directory Entry was reloaded to a level 1 page walk cache from beyond the core's L3 data cache. The source could be local/remote/distant memory or another core's cache"
+  },
+  {
+    "EventCode": "0x24158",
+    "EventName": "PM_MRK_INST",
+    "BriefDescription": "An instruction was marked. Includes both Random Instruction Sampling (RIS) at decode time and Random Event Sampling (RES) at the time the configured event happens"
+  },
+  {
+    "EventCode": "0x1E046",
+    "EventName": "PM_DPTEG_FROM_L31_SHR",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another core's L3 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+  },
+  {
+    "EventCode": "0x3C04A",
+    "EventName": "PM_DATA_FROM_RMEM",
+    "BriefDescription": "The processor's data cache was reloaded from another chip's memory on the same Node or Group ( Remote) due to a demand load"
+  },
+  {
+    "EventCode": "0x2C01C",
+    "EventName": "PM_CMPLU_STALL_DMISS_REMOTE",
+    "BriefDescription": "Completion stall by Dcache miss which resolved from remote chip (cache or memory)"
+  },
+  {
+    "EventCode": "0x44040",
+    "EventName": "PM_INST_FROM_L2_DISP_CONFLICT_OTHER",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 with dispatch conflict due to an instruction fetch (not prefetch)"
+  },
+  {
+    "EventCode": "0x2E050",
+    "EventName": "PM_DARQ0_7_9_ENTRIES",
+    "BriefDescription": "Cycles in which 7,8, or 9 DARQ entries (out of 12) are in use"
+  },
+  {
+    "EventCode": "0x2D02E",
+    "EventName": "PM_RADIX_PWC_L3_PTE_FROM_L2",
+    "BriefDescription": "A Page Table Entry was reloaded to a level 3 page walk cache from the core's L2 data cache. This implies that a level 4 PWC access was not necessary for this translation"
+  },
+  {
+    "EventCode": "0x3F05E",
+    "EventName": "PM_RADIX_PWC_L3_PTE_FROM_L3",
+    "BriefDescription": "A Page Table Entry was reloaded to a level 3 page walk cache from the core's L3 data cache. This implies that a level 4 PWC access was not necessary for this translation"
+  },
+  {
+    "EventCode": "0x2E01E",
+    "EventName": "PM_CMPLU_STALL_NTC_FLUSH",
+    "BriefDescription": "Completion stall due to ntc flush"
+  },
+  {
+    "EventCode": "0x1F14C",
+    "EventName": "PM_MRK_DPTEG_FROM_LL4",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from the local chip's L4 cache due to a marked data side request.. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+  },
+  {
+    "EventCode": "0x20130",
+    "EventName": "PM_MRK_INST_DECODED",
+    "BriefDescription": "An instruction was marked at decode time. Random Instruction Sampling (RIS) only"
+  },
+  {
+    "EventCode": "0x3F144",
+    "EventName": "PM_MRK_DPTEG_FROM_L31_ECO_SHR",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another core's ECO L3 on the same chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+  },
+  {
+    "EventCode": "0x4D058",
+    "EventName": "PM_VECTOR_FLOP_CMPL",
+    "BriefDescription": "Vector FP instruction completed"
+  },
+  {
+    "EventCode": "0x14040",
+    "EventName": "PM_INST_FROM_L2_NO_CONFLICT",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 without conflict due to an instruction fetch (not prefetch)"
+  },
+  {
+    "EventCode": "0x4404E",
+    "EventName": "PM_INST_FROM_L3MISS_MOD",
+    "BriefDescription": "The processor's Instruction cache was reloaded from a location other than the local core's L3 due to a instruction fetch"
+  },
+  {
+    "EventCode": "0x3003A",
+    "EventName": "PM_CMPLU_STALL_EXCEPTION",
+    "BriefDescription": "Cycles in which the NTC instruction is not allowed to complete because it was interrupted by ANY exception, which has to be serviced before the instruction can complete"
+  },
+  {
+    "EventCode": "0x4F144",
+    "EventName": "PM_MRK_DPTEG_FROM_L31_ECO_MOD",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's ECO L3 on the same chip due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+  },
+  {
+    "EventCode": "0x3E044",
+    "EventName": "PM_DPTEG_FROM_L31_ECO_SHR",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another core's ECO L3 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+  },
+  {
+    "EventCode": "0x300F6",
+    "EventName": "PM_L1_DCACHE_RELOAD_VALID",
+    "BriefDescription": "DL1 reloaded due to Demand Load"
+  },
+  {
+    "EventCode": "0x1415E",
+    "EventName": "PM_MRK_DATA_FROM_L3MISS_CYC",
+    "BriefDescription": "Duration in cycles to reload from a location other than the local core's L3 due to a marked load"
+  },
+  {
+    "EventCode": "0x1E052",
+    "EventName": "PM_CMPLU_STALL_SLB",
+    "BriefDescription": "Finish stall because the NTF instruction was awaiting L2 response for an SLB"
+  },
+  {
+    "EventCode": "0x4404C",
+    "EventName": "PM_INST_FROM_DMEM",
+    "BriefDescription": "The processor's Instruction cache was reloaded from another chip's memory on the same Node or Group (Distant) due to an instruction fetch (not prefetch)"
+  },
+  {
+    "EventCode": "0x3000E",
+    "EventName": "PM_FXU_1PLUS_BUSY",
+    "BriefDescription": "At least one of the 4 FXU units is busy"
+  },
+  {
+    "EventCode": "0x2C048",
+    "EventName": "PM_DATA_FROM_LMEM",
+    "BriefDescription": "The processor's data cache was reloaded from the local chip's Memory due to a demand load"
+  },
+  {
+    "EventCode": "0x3000A",
+    "EventName": "PM_CMPLU_STALL_PM",
+    "BriefDescription": "Finish stall because the NTF instruction was issued to the Permute execution pipe and waiting to finish. Includes permute and decimal fixed point instructions (128 bit BCD arithmetic) + a few 128 bit fixpoint add/subtract instructions with carry. Not qualified by vector or multicycle"
+  },
+  {
+    "EventCode": "0x1504E",
+    "EventName": "PM_IPTEG_FROM_L2MISS",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from a location other than the local core's L2 due to a instruction side request"
+  },
+  {
+    "EventCode": "0x1C052",
+    "EventName": "PM_DATA_GRP_PUMP_MPRED_RTY",
+    "BriefDescription": "Final Pump Scope (Group) ended up larger than Initial Pump Scope (Chip) for a demand load"
+  },
+  {
+    "EventCode": "0x30008",
+    "EventName": "PM_DISP_STARVED",
+    "BriefDescription": "Dispatched Starved"
+  },
+  {
+    "EventCode": "0x14042",
+    "EventName": "PM_INST_FROM_L2",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 due to an instruction fetch (not prefetch)"
+  },
+  {
+    "EventCode": "0x4000C",
+    "EventName": "PM_FREQ_UP",
+    "BriefDescription": "Power Management: Above Threshold A"
+  },
+  {
+    "EventCode": "0x3C050",
+    "EventName": "PM_DATA_SYS_PUMP_CPRED",
+    "BriefDescription": "Initial and Final Pump Scope was system pump (prediction=correct) for a demand load"
+  },
+  {
+    "EventCode": "0x25040",
+    "EventName": "PM_IPTEG_FROM_L2_MEPF",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 hit without dispatch conflicts on Mepf state. due to a instruction side request"
+  },
+  {
+    "EventCode": "0x10132",
+    "EventName": "PM_MRK_INST_ISSUED",
+    "BriefDescription": "Marked instruction issued"
+  },
+  {
+    "EventCode": "0x1C046",
+    "EventName": "PM_DATA_FROM_L31_SHR",
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another core's L3 on the same chip due to a demand load"
+  },
+  {
+    "EventCode": "0x2C044",
+    "EventName": "PM_DATA_FROM_L31_MOD",
+    "BriefDescription": "The processor's data cache was reloaded with Modified (M) data from another core's L3 on the same chip due to a demand load"
+  },
+  {
+    "EventCode": "0x2C04A",
+    "EventName": "PM_DATA_FROM_RL4",
+    "BriefDescription": "The processor's data cache was reloaded from another chip's L4 on the same Node or Group ( Remote) due to a demand load"
+  },
+  {
+    "EventCode": "0x24044",
+    "EventName": "PM_INST_FROM_L31_MOD",
+    "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from another core's L3 on the same chip due to an instruction fetch (not prefetch)"
+  },
+  {
+    "EventCode": "0x4C050",
+    "EventName": "PM_DATA_SYS_PUMP_MPRED_RTY",
+    "BriefDescription": "Final Pump Scope (system) ended up larger than Initial Pump Scope (Chip/Group) for a demand load"
+  },
+  {
+    "EventCode": "0x2C052",
+    "EventName": "PM_DATA_GRP_PUMP_MPRED",
+    "BriefDescription": "Final Pump Scope (Group) ended up either larger or smaller than Initial Pump Scope for a demand load"
+  },
+  {
+    "EventCode": "0x2F148",
+    "EventName": "PM_MRK_DPTEG_FROM_LMEM",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from the local chip's Memory due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+  },
+  {
+    "EventCode": "0x4D01A",
+    "EventName": "PM_CMPLU_STALL_EIEIO",
+    "BriefDescription": "Finish stall because the NTF instruction is an EIEIO waiting for response from L2"
+  },
+  {
+    "EventCode": "0x4F14E",
+    "EventName": "PM_MRK_DPTEG_FROM_L3MISS",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from a location other than the local core's L3 due to a marked data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+  },
+  {
+    "EventCode": "0x4F05A",
+    "EventName": "PM_RADIX_PWC_L4_PTE_FROM_L3",
+    "BriefDescription": "A Page Table Entry was reloaded to a level 4 page walk cache from the core's L3 data cache. This is the deepest level of PWC possible for a translation"
+  },
+  {
+    "EventCode": "0x1F05A",
+    "EventName": "PM_RADIX_PWC_L4_PTE_FROM_L2",
+    "BriefDescription": "A Page Table Entry was reloaded to a level 4 page walk cache from the core's L2 data cache. This is the deepest level of PWC possible for a translation"
+  },
+  {
+    "EventCode": "0x30068",
+    "EventName": "PM_L1_ICACHE_RELOADED_PREF",
+    "BriefDescription": "Counts all Icache prefetch reloads ( includes demand turned into prefetch)"
+  },
+  {
+    "EventCode": "0x4C04A",
+    "EventName": "PM_DATA_FROM_OFF_CHIP_CACHE",
+    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on a different chip (remote or distant) due to a demand load"
+  },
+  {
+    "EventCode": "0x400FE",
+    "EventName": "PM_DATA_FROM_MEMORY",
+    "BriefDescription": "The processor's data cache was reloaded from a memory location including L4 from local remote or distant due to a demand load"
+  },
+  {
+    "EventCode": "0x3F058",
+    "EventName": "PM_RADIX_PWC_L1_PDE_FROM_L3",
+    "BriefDescription": "A Page Directory Entry was reloaded to a level 1 page walk cache from the core's L3 data cache"
+  },
+  {
+    "EventCode": "0x3C052",
+    "EventName": "PM_DATA_SYS_PUMP_MPRED",
+    "BriefDescription": "Final Pump Scope (system) mispredicted. Either the original scope was too small (Chip/Group) or the original scope was System and it should have been smaller. Counts for a demand load"
+  },
+  {
+    "EventCode": "0x4D142",
+    "EventName": "PM_MRK_DATA_FROM_L3",
+    "BriefDescription": "The processor's data cache was reloaded from local core's L3 due to a marked load"
+  },
+  {
+    "EventCode": "0x30050",
+    "EventName": "PM_SYS_PUMP_CPRED",
+    "BriefDescription": "Initial and Final Pump Scope was system pump for all data types excluding data prefetch (demand load,inst prefetch,inst fetch,xlate)"
+  },
+  {
+    "EventCode": "0x30028",
+    "EventName": "PM_CMPLU_STALL_SPEC_FINISH",
+    "BriefDescription": "Finish stall while waiting for the non-speculative finish of either a stcx waiting for its result or a load waiting for non-critical sectors of data and ECC"
+  },
+  {
+    "EventCode": "0x400F4",
+    "EventName": "PM_RUN_PURR",
+    "BriefDescription": "Run_PURR"
+  },
+  {
+    "EventCode": "0x3404C",
+    "EventName": "PM_INST_FROM_DL4",
+    "BriefDescription": "The processor's Instruction cache was reloaded from another chip's L4 on a different Node or Group (Distant) due to an instruction fetch (not prefetch)"
+  },
+  {
+    "EventCode": "0x3D05A",
+    "EventName": "PM_NTC_ISSUE_HELD_OTHER",
+    "BriefDescription": "The NTC instruction is being held at dispatch during regular pipeline cycles, or because the VSU is busy with multi-cycle instructions, or because of a write-back collision with VSU"
+  },
+  {
+    "EventCode": "0x2E048",
+    "EventName": "PM_DPTEG_FROM_LMEM",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from the local chip's Memory due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+  },
+  {
+    "EventCode": "0x2D02A",
+    "EventName": "PM_RADIX_PWC_L3_PDE_FROM_L2",
+    "BriefDescription": "A Page Directory Entry was reloaded to a level 3 page walk cache from the core's L2 data cache"
+  },
+  {
+    "EventCode": "0x1F05C",
+    "EventName": "PM_RADIX_PWC_L3_PDE_FROM_L3",
+    "BriefDescription": "A Page Directory Entry was reloaded to a level 3 page walk cache from the core's L3 data cache"
+  },
+  {
+    "EventCode": "0x4D04A",
+    "EventName": "PM_DARQ0_0_3_ENTRIES",
+    "BriefDescription": "Cycles in which 3 or less DARQ entries (out of 12) are in use"
+  },
+  {
+    "EventCode": "0x1404C",
+    "EventName": "PM_INST_FROM_LL4",
+    "BriefDescription": "The processor's Instruction cache was reloaded from the local chip's L4 cache due to an instruction fetch (not prefetch)"
+  },
+  {
+    "EventCode": "0x200FD",
+    "EventName": "PM_L1_ICACHE_MISS",
+    "BriefDescription": "Demand iCache Miss"
+  },
+  {
+    "EventCode": "0x34040",
+    "EventName": "PM_INST_FROM_L2_DISP_CONFLICT_LDHITST",
+    "BriefDescription": "The processor's Instruction cache was reloaded from local core's L2 with load hit store conflict due to an instruction fetch (not prefetch)"
+  },
+  {
+    "EventCode": "0x20138",
+    "EventName": "PM_MRK_ST_NEST",
+    "BriefDescription": "Marked store sent to nest"
+  },
+  {
+    "EventCode": "0x44048",
+    "EventName": "PM_INST_FROM_DL2L3_MOD",
+    "BriefDescription": "The processor's Instruction cache was reloaded with Modified (M) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to an instruction fetch (not prefetch)"
+  },
+  {
+    "EventCode": "0x35046",
+    "EventName": "PM_IPTEG_FROM_L21_SHR",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another core's L2 on the same chip due to a instruction side request"
+  },
+  {
+    "EventCode": "0x4C04E",
+    "EventName": "PM_DATA_FROM_L3MISS_MOD",
+    "BriefDescription": "The processor's data cache was reloaded from a location other than the local core's L3 due to a demand load"
+  },
+  {
+    "EventCode": "0x401E0",
+    "EventName": "PM_MRK_INST_CMPL",
+    "BriefDescription": "marked instruction completed"
+  },
+  {
+    "EventCode": "0x2C128",
+    "EventName": "PM_MRK_DATA_FROM_DL2L3_SHR_CYC",
+    "BriefDescription": "Duration in cycles to reload with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to a marked load"
+  },
+  {
+    "EventCode": "0x34044",
+    "EventName": "PM_INST_FROM_L31_ECO_SHR",
+    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another core's ECO L3 on the same chip due to an instruction fetch (not prefetch)"
+  },
+  {
+    "EventCode": "0x4E018",
+    "EventName": "PM_CMPLU_STALL_NTC_DISP_FIN",
+    "BriefDescription": "Finish stall because the NTF instruction was one that must finish at dispatch."
+  },
+  {
+    "EventCode": "0x2E05E",
+    "EventName": "PM_LMQ_EMPTY_CYC",
+    "BriefDescription": "Cycles in which the LMQ has no pending load misses for this thread"
+  },
+  {
+    "EventCode": "0x4C122",
+    "EventName": "PM_DARQ1_0_3_ENTRIES",
+    "BriefDescription": "Cycles in which 3 or fewer DARQ1 entries (out of 12) are in use"
+  },
+  {
+    "EventCode": "0x4F058",
+    "EventName": "PM_RADIX_PWC_L2_PTE_FROM_L3",
+    "BriefDescription": "A Page Table Entry was reloaded to a level 2 page walk cache from the core's L3 data cache. This implies that level 3 and level 4 PWC accesses were not necessary for this translation"
+  },
+  {
+    "EventCode": "0x14046",
+    "EventName": "PM_INST_FROM_L31_SHR",
+    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another core's L3 on the same chip due to an instruction fetch (not prefetch)"
+  },
+  {
+    "EventCode": "0x3012C",
+    "EventName": "PM_MRK_ST_FWD",
+    "BriefDescription": "Marked st forwards"
+  },
+  {
+    "EventCode": "0x101E0",
+    "EventName": "PM_MRK_INST_DISP",
+    "BriefDescription": "The thread has dispatched a randomly sampled marked instruction"
+  },
+  {
+    "EventCode": "0x1D058",
+    "EventName": "PM_DARQ0_10_12_ENTRIES",
+    "BriefDescription": "Cycles in which 10 or more DARQ entries (out of 12) are in use"
+  },
+  {
+    "EventCode": "0x300FE",
+    "EventName": "PM_DATA_FROM_L3MISS",
+    "BriefDescription": "Demand LD - L3 Miss (not L2 hit and not L3 hit)"
+  },
+  {
+    "EventCode": "0x30006",
+    "EventName": "PM_CMPLU_STALL_OTHER_CMPL",
+    "BriefDescription": "Instructions the core completed while this tread was stalled"
+  },
+  {
+    "EventCode": "0x1005C",
+    "EventName": "PM_CMPLU_STALL_DP",
+    "BriefDescription": "Finish stall because the NTF instruction was a scalar instruction issued to the Double Precision execution pipe and waiting to finish. Includes binary floating point instructions in 32 and 64 bit binary floating point format. Not qualified multicycle. Qualified by NOT vector"
+  },
+  {
+    "EventCode": "0x1E042",
+    "EventName": "PM_DPTEG_FROM_L2",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+  },
+  {
+    "EventCode": "0x1016E",
+    "EventName": "PM_MRK_BR_CMPL",
+    "BriefDescription": "Branch Instruction completed"
+  },
+  {
+    "EventCode": "0x2013A",
+    "EventName": "PM_MRK_BRU_FIN",
+    "BriefDescription": "bru marked instr finish"
+  },
+  {
+    "EventCode": "0x4F05E",
+    "EventName": "PM_RADIX_PWC_L3_PTE_FROM_L3MISS",
+    "BriefDescription": "A Page Table Entry was reloaded to a level 3 page walk cache from beyond the core's L3 data cache. This implies that a level 4 PWC access was not necessary for this translation. The source could be local/remote/distant memory or another core's cache"
+  },
+  {
+    "EventCode": "0x400FC",
+    "EventName": "PM_ITLB_MISS",
+    "BriefDescription": "ITLB Reloaded. Counts 1 per ITLB miss for HPT but multiple for radix depending on number of levels traveresed"
+  },
+  {
+    "EventCode": "0x1E044",
+    "EventName": "PM_DPTEG_FROM_L3_NO_CONFLICT",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 without conflict due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+  },
+  {
+    "EventCode": "0x4D05A",
+    "EventName": "PM_NON_MATH_FLOP_CMPL",
+    "BriefDescription": "Non FLOP operation completed"
+  },
+  {
+    "EventCode": "0x101E2",
+    "EventName": "PM_MRK_BR_TAKEN_CMPL",
+    "BriefDescription": "Marked Branch Taken completed"
+  },
+  {
+    "EventCode": "0x3E158",
+    "EventName": "PM_MRK_STCX_FAIL",
+    "BriefDescription": "marked stcx failed"
+  },
+  {
+    "EventCode": "0x1C048",
+    "EventName": "PM_DATA_FROM_ON_CHIP_CACHE",
+    "BriefDescription": "The processor's data cache was reloaded either shared or modified data from another core's L2/L3 on the same chip due to a demand load"
+  },
+  {
+    "EventCode": "0x1C054",
+    "EventName": "PM_DATA_PUMP_CPRED",
+    "BriefDescription": "Pump prediction correct. Counts across all types of pumps for a demand load"
+  },
+  {
+    "EventCode": "0x4405E",
+    "EventName": "PM_DARQ_STORE_REJECT",
+    "BriefDescription": "The DARQ attempted to transmit a store into an LSAQ or SRQ entry but It was rejected. Divide by PM_DARQ_STORE_XMIT to get reject ratio"
+  },
+  {
+    "EventCode": "0x1C042",
+    "EventName": "PM_DATA_FROM_L2",
+    "BriefDescription": "The processor's data cache was reloaded from local core's L2 due to a demand load"
+  },
+  {
+    "EventCode": "0x1D14C",
+    "EventName": "PM_MRK_DATA_FROM_LL4",
+    "BriefDescription": "The processor's data cache was reloaded from the local chip's L4 cache due to a marked load"
+  },
+  {
+    "EventCode": "0x1006C",
+    "EventName": "PM_RUN_CYC_ST_MODE",
+    "BriefDescription": "Cycles run latch is set and core is in ST mode"
+  },
+  {
+    "EventCode": "0x3C044",
+    "EventName": "PM_DATA_FROM_L31_ECO_SHR",
+    "BriefDescription": "The processor's data cache was reloaded with Shared (S) data from another core's ECO L3 on the same chip due to a demand load"
+  },
+  {
+    "EventCode": "0x4C052",
+    "EventName": "PM_DATA_PUMP_MPRED",
+    "BriefDescription": "Pump misprediction. Counts across all types of pumps for a demand load"
+  },
+  {
+    "EventCode": "0x20050",
+    "EventName": "PM_GRP_PUMP_CPRED",
+    "BriefDescription": "Initial and Final Pump Scope and data sourced across this scope was group pump for all data types excluding data prefetch (demand load,inst prefetch,inst fetch,xlate)"
+  },
+  {
+    "EventCode": "0x1F150",
+    "EventName": "PM_MRK_ST_L2DISP_TO_CMPL_CYC",
+    "BriefDescription": "cycles from L2 rc disp to l2 rc completion"
+  },
+  {
+    "EventCode": "0x4505A",
+    "EventName": "PM_SP_FLOP_CMPL",
+    "BriefDescription": "SP instruction completed"
+  },
+  {
+    "EventCode": "0x4000A",
+    "EventName": "PM_ISQ_36_44_ENTRIES",
+    "BriefDescription": "Cycles in which 36 or more Issue Queue entries are in use. This is a shared event, not per thread. There are 44 issue queue entries across 4 slices in the whole core"
+  },
+  {
+    "EventCode": "0x2C12E",
+    "EventName": "PM_MRK_DATA_FROM_LL4_CYC",
+    "BriefDescription": "Duration in cycles to reload from the local chip's L4 cache due to a marked load"
+  },
+  {
+    "EventCode": "0x2C058",
+    "EventName": "PM_MEM_PREF",
+    "BriefDescription": "Memory prefetch for this thread. Includes L4"
+  },
+  {
+    "EventCode": "0x40012",
+    "EventName": "PM_L1_ICACHE_RELOADED_ALL",
+    "BriefDescription": "Counts all Icache reloads includes demand, prefetch, prefetch turned into demand and demand turned into prefetch"
+  },
+  {
+    "EventCode": "0x3003C",
+    "EventName": "PM_CMPLU_STALL_NESTED_TEND",
+    "BriefDescription": "Completion stall because the ISU is updating the TEXASR to keep track of the nested tend and decrement the TEXASR nested level. This is a short delay"
+  },
+  {
+    "EventCode": "0x3D05C",
+    "EventName": "PM_DISP_HELD_HB_FULL",
+    "BriefDescription": "Dispatch held due to History Buffer full. Could be GPR/VSR/VMR/FPR/CR/XVF; CR; XVF (XER/VSCR/FPSCR)"
+  },
+  {
+    "EventCode": "0x30052",
+    "EventName": "PM_SYS_PUMP_MPRED",
+    "BriefDescription": "Final Pump Scope (system) mispredicted. Either the original scope was too small (Chip/Group) or the original scope was System and it should have been smaller. Counts for all data types excluding data prefetch (demand load,inst prefetch,inst fetch,xlate)"
+  },
+  {
+    "EventCode": "0x2E044",
+    "EventName": "PM_DPTEG_FROM_L31_MOD",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's L3 on the same chip due to a data side request. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+  },
+  {
+    "EventCode": "0x34048",
+    "EventName": "PM_INST_FROM_DL2L3_SHR",
+    "BriefDescription": "The processor's Instruction cache was reloaded with Shared (S) data from another chip's L2 or L3 on a different Node or Group (Distant), as this chip due to an instruction fetch (not prefetch)"
+  },
+  {
+    "EventCode": "0x45042",
+    "EventName": "PM_IPTEG_FROM_L3",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L3 due to a instruction side request"
+  },
+  {
+    "EventCode": "0x15042",
+    "EventName": "PM_IPTEG_FROM_L2",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB from local core's L2 due to a instruction side request"
+  },
+  {
+    "EventCode": "0x1C05E",
+    "EventName": "PM_MEM_LOC_THRESH_LSU_MED",
+    "BriefDescription": "Local memory above threshold for data prefetch"
+  },
+  {
+    "EventCode": "0x40134",
+    "EventName": "PM_MRK_INST_TIMEO",
+    "BriefDescription": "marked Instruction finish timeout (instruction lost)"
+  },
+  {
+    "EventCode": "0x1002C",
+    "EventName": "PM_L1_DCACHE_RELOADED_ALL",
+    "BriefDescription": "L1 data cache reloaded for demand. If MMCR1[16] is 1, prefetches will be included as well"
+  },
+  {
+    "EventCode": "0x30130",
+    "EventName": "PM_MRK_INST_FIN",
+    "BriefDescription": "marked instruction finished"
+  },
+  {
+    "EventCode": "0x1F14A",
+    "EventName": "PM_MRK_DPTEG_FROM_RL2L3_SHR",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Shared (S) data from another chip's L2 or L3 on the same Node or Group (Remote), as this chip due to a marked data side request.. When using Radix Page Translation, this count excludes PDE reloads. Only PTE reloads are included"
+  },
+  {
+    "EventCode": "0x3504E",
+    "EventName": "PM_DARQ0_4_6_ENTRIES",
+    "BriefDescription": "Cycles in which 4, 5, or 6 DARQ entries (out of 12) are in use"
+  },
+  {
+    "EventCode": "0x30064",
+    "EventName": "PM_DARQ_STORE_XMIT",
+    "BriefDescription": "The DARQ attempted to transmit a store into an LSAQ or SRQ entry. Includes rejects. Not qualified by thread, so it includes counts for the whole core"
+  },
+  {
+    "EventCode": "0x45046",
+    "EventName": "PM_IPTEG_FROM_L21_MOD",
+    "BriefDescription": "A Page Table Entry was loaded into the TLB with Modified (M) data from another core's L2 on the same chip due to a instruction side request"
+  },
+  {
+    "EventCode": "0x2C016",
+    "EventName": "PM_CMPLU_STALL_PASTE",
+    "BriefDescription": "Finish stall because the NTF instruction was a paste waiting for response from L2"
+  },
+  {
+    "EventCode": "0x24156",
+    "EventName": "PM_MRK_STCX_FIN",
+    "BriefDescription": "Number of marked stcx instructions finished. This includes instructions in the speculative path of a branch that may be flushed"
+  },
+  {
+    "EventCode": "0x15150",
+    "EventName": "PM_SYNC_MRK_PROBE_NOP",
+    "BriefDescription": "Marked probeNops which can cause synchronous interrupts"
+  },
+  {
+    "EventCode": "0x301E4",
+    "EventName": "PM_MRK_BR_MPRED_CMPL",
+    "BriefDescription": "Marked Branch Mispredicted"
+  }
+]

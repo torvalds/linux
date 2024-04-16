@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/ptp/ptp-idtcm.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: IDT ClockMatrix (TM) PTP Clock
+
+maintainers:
+  - Vincent Cheng <vincent.cheng.xh@renesas.com>
+
+properties:
+  compatible:
+    enum:
+      # For System Synchronizer
+      - idt,8a34000
+      - idt,8a34001
+      - idt,8a34002
+      - idt,8a34003
+      - idt,8a34004
+      - idt,8a34005
+      - idt,8a34006
+      - idt,8a34007
+      - idt,8a34008
+      - idt,8a34009
+      # For Port Synchronizer
+      - idt,8a34010
+      - idt,8a34011
+      - idt,8a34012
+      - idt,8a34013
+      - idt,8a34014
+      - idt,8a34015
+      - idt,8a34016
+      - idt,8a34017
+      - idt,8a34018
+      - idt,8a34019
+      # For Universal Frequency Translator (UFT)
+      - idt,8a34040
+      - idt,8a34041
+      - idt,8a34042
+      - idt,8a34043
+      - idt,8a34044
+      - idt,8a34045
+      - idt,8a34046
+      - idt,8a34047
+      - idt,8a34048
+      - idt,8a34049
+
+  reg:
+    maxItems: 1
+    description:
+      I2C slave address of the device.
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        phc@5b {
+            compatible = "idt,8a34000";
+            reg = <0x5b>;
+        };
+    };

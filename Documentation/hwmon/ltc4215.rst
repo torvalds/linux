@@ -1,0 +1,59 @@
+Kernel driver ltc4215
+=====================
+
+Supported chips:
+
+  * Linear Technology LTC4215
+
+    Prefix: 'ltc4215'
+
+    Addresses scanned: 0x44
+
+    Datasheet:
+
+	http://www.linear.com/pc/downloadDocument.do?navId=H0,C1,C1003,C1006,C1163,P17572,D12697
+
+Author: Ira W. Snyder <iws@ovro.caltech.edu>
+
+
+Description
+-----------
+
+The LTC4215 controller allows a board to be safely inserted and removed
+from a live backplane.
+
+
+Usage Notes
+-----------
+
+This driver does not probe for LTC4215 devices, due to the fact that some
+of the possible addresses are unfriendly to probing. You will have to
+instantiate the devices explicitly.
+
+Example: the following will load the driver for an LTC4215 at address 0x44
+on I2C bus #0::
+
+	$ modprobe ltc4215
+	$ echo ltc4215 0x44 > /sys/bus/i2c/devices/i2c-0/new_device
+
+
+Sysfs entries
+-------------
+
+The LTC4215 has built-in limits for overvoltage, undervoltage, and
+undercurrent warnings. This makes it very likely that the reference
+circuit will be used.
+
+======================= =========================
+in1_input		input voltage
+in2_input		output voltage
+
+in1_min_alarm		input undervoltage alarm
+in1_max_alarm		input overvoltage alarm
+
+curr1_input		current
+curr1_max_alarm		overcurrent alarm
+
+power1_input		power usage
+power1_alarm		power bad alarm
+======================= =========================

@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config MODULES
+	bool "Enable loadable module support"
+	modules
+	default y
+
+choice
+	prompt "boolean choice"
+	default BOOL_CHOICE1
+
+config BOOL_CHOICE0
+	bool "choice 0"
+
+config BOOL_CHOICE1
+	bool "choice 1"
+
+endchoice
+
+choice
+	prompt "optional boolean choice"
+	optional
+	default OPT_BOOL_CHOICE1
+
+config OPT_BOOL_CHOICE0
+	bool "choice 0"
+
+config OPT_BOOL_CHOICE1
+	bool "choice 1"
+
+endchoice
+
+choice
+	prompt "tristate choice"
+	default TRI_CHOICE1
+
+config TRI_CHOICE0
+	tristate "choice 0"
+
+config TRI_CHOICE1
+	tristate "choice 1"
+
+endchoice
+
+choice
+	prompt "optional tristate choice"
+	optional
+	default OPT_TRI_CHOICE1
+
+config OPT_TRI_CHOICE0
+	tristate "choice 0"
+
+config OPT_TRI_CHOICE1
+	tristate "choice 1"
+
+endchoice

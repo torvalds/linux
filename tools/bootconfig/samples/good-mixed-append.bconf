@@ -1,0 +1,4 @@
+key = foo
+keyx.subkey = value
+key += bar
+

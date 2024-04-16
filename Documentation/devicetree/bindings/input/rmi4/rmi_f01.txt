@@ -1,0 +1,39 @@
+Synaptics RMI4 F01 Device Binding
+
+The Synaptics RMI4 core is able to support RMI4 devices using different
+transports and different functions. This file describes the device tree
+bindings for devices which contain Function 1. Complete documentation
+for transports and other functions can be found in:
+Documentation/devicetree/bindings/input/rmi4.
+
+Additional documentation for F01 can be found at:
+http://www.synaptics.com/sites/default/files/511-000136-01-Rev-E-RMI4-Interfacing-Guide.pdf
+
+Optional Properties:
+- syna,nosleep-mode: If set the device will run at full power without sleeping.
+			nosleep has 3 modes, 0 will not change the default
+			setting, 1 will disable nosleep (allow sleeping),
+			and 2 will enable nosleep (disabling sleep).
+- syna,wakeup-threshold: Defines the amplitude of the disturbance to the
+				background capacitance that will cause the
+				device to wake from dozing.
+- syna,doze-holdoff-ms: The delay to wait after the last finger lift and the
+				first doze cycle.
+- syna,doze-interval-ms: The time period that the device sleeps between finger
+				activity.
+
+
+Example of a RMI4 I2C device with F01:
+	Example:
+	&i2c1 {
+		rmi4-i2c-dev@2c {
+			compatible = "syna,rmi4-i2c";
+
+			...
+
+			rmi4-f01@1 {
+				reg = <0x1>;
+				syna,nosleep-mode = <1>;
+			};
+		};
+	};

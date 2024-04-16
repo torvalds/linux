@@ -1,0 +1,168 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/altr,tse.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Altera Triple Speed Ethernet MAC driver (TSE)
+
+maintainers:
+  - Maxime Chevallier <maxime.chevallier@bootlin.com>
+
+properties:
+  compatible:
+    oneOf:
+      - const: altr,tse-1.0
+      - const: ALTR,tse-1.0
+        deprecated: true
+      - const: altr,tse-msgdma-1.0
+
+  interrupts:
+    minItems: 2
+
+  interrupt-names:
+    items:
+      - const: rx_irq
+      - const: tx_irq
+
+  rx-fifo-depth:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Depth in bytes of the RX FIFO
+
+  tx-fifo-depth:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Depth in bytes of the TX FIFO
+
+  altr,has-supplementary-unicast:
+    type: boolean
+    description:
+      If present, TSE supports additional unicast addresses.
+
+  altr,has-hash-multicast-filter:
+    type: boolean
+    description:
+      If present, TSE supports hash based multicast filter.
+
+  mdio:
+    $ref: mdio.yaml#
+    unevaluatedProperties: false
+    description:
+      Creates and registers an MDIO bus.
+
+    properties:
+      compatible:
+        const: altr,tse-mdio
+
+    required:
+      - compatible
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - rx-fifo-depth
+  - tx-fifo-depth
+
+allOf:
+  - $ref: "ethernet-controller.yaml#"
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - const: altr,tse-1.0
+              - const: ALTR,tse-1.0
+    then:
+      properties:
+        reg:
+          minItems: 4
+        reg-names:
+          items:
+            - const: control_port
+            - const: rx_csr
+            - const: tx_csr
+            - const: s1
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - altr,tse-msgdma-1.0
+    then:
+      properties:
+        reg:
+          minItems: 6
+          maxItems: 7
+        reg-names:
+          minItems: 6
+          items:
+            - const: control_port
+            - const: rx_csr
+            - const: rx_desc
+            - const: rx_resp
+            - const: tx_csr
+            - const: tx_desc
+            - const: pcs
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    tse_sub_0: ethernet@c0100000 {
+        compatible = "altr,tse-msgdma-1.0";
+        reg = <0xc0100000 0x00000400>,
+              <0xc0101000 0x00000020>,
+              <0xc0102000 0x00000020>,
+              <0xc0103000 0x00000008>,
+              <0xc0104000 0x00000020>,
+              <0xc0105000 0x00000020>,
+              <0xc0106000 0x00000100>;
+        reg-names = "control_port", "rx_csr", "rx_desc", "rx_resp", "tx_csr", "tx_desc", "pcs";
+        interrupt-parent = <&intc>;
+        interrupts = <0 44 4>,<0 45 4>;
+        interrupt-names = "rx_irq","tx_irq";
+        rx-fifo-depth = <2048>;
+        tx-fifo-depth = <2048>;
+        max-frame-size = <1500>;
+        local-mac-address = [ 00 00 00 00 00 00 ];
+        altr,has-supplementary-unicast;
+        altr,has-hash-multicast-filter;
+        sfp = <&sfp0>;
+        phy-mode = "sgmii";
+        managed = "in-band-status";
+    };
+  - |
+    tse_sub_1_eth_tse_0: ethernet@1,00001000 {
+        compatible = "altr,tse-msgdma-1.0";
+        reg = <0x00001000 0x00000400>,
+              <0x00001460 0x00000020>,
+              <0x00001480 0x00000020>,
+              <0x000014A0 0x00000008>,
+              <0x00001400 0x00000020>,
+              <0x00001420 0x00000020>;
+        reg-names = "control_port", "rx_csr", "rx_desc", "rx_resp", "tx_csr", "tx_desc";
+        interrupt-parent = <&hps_0_arm_gic_0>;
+        interrupts = <0 43 4>, <0 42 4>;
+        interrupt-names = "rx_irq", "tx_irq";
+        rx-fifo-depth = <2048>;
+        tx-fifo-depth = <2048>;
+        max-frame-size = <1500>;
+        local-mac-address = [ 00 00 00 00 00 00 ];
+        phy-mode = "gmii";
+        altr,has-supplementary-unicast;
+        altr,has-hash-multicast-filter;
+        phy-handle = <&phy1>;
+        mdio {
+            compatible = "altr,tse-mdio";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            phy1: ethernet-phy@1 {
+                reg = <0x1>;
+            };
+        };
+    };
+
+...

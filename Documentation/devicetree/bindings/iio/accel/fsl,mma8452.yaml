@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/accel/fsl,mma8452.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title:
+  Freescale MMA8451Q, MMA8452Q, MMA8453Q, MMA8652FC, MMA8653FC or FXLS8471Q
+  triaxial accelerometer
+
+maintainers:
+  - Martin Kepplinger <martin.kepplinger@theobroma-systems.com>
+
+properties:
+  compatible:
+    enum:
+      - fsl,mma8451
+      - fsl,mma8452
+      - fsl,mma8453
+      - fsl,mma8652
+      - fsl,mma8653
+      - fsl,fxls8471
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    description:
+      2 highly configurable interrupt lines exist.
+    minItems: 1
+    maxItems: 2
+
+  interrupt-names:
+    description: Specify which interrupt line is in use.
+    items:
+      enum:
+        - INT1
+        - INT2
+    minItems: 1
+    maxItems: 2
+
+  vdd-supply: true
+  vddio-supply: true
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        accel@1d {
+            compatible = "fsl,mma8453";
+            reg = <0x1d>;
+            interrupt-parent = <&gpio1>;
+            interrupts = <5 0>;
+            interrupt-names = "INT2";
+        };
+    };
+...

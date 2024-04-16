@@ -1,0 +1,118 @@
+/*
+ *  BSD LICENSE
+ *
+ *  Copyright(c) 2016-2017 Broadcom.  All rights reserved.
+ *
+ *  Redistribution and use in source and binary forms, with or without
+ *  modification, are permitted provided that the following conditions
+ *  are met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in
+ *      the documentation and/or other materials provided with the
+ *      distribution.
+ *    * Neither the name of Broadcom nor the names of its
+ *      contributors may be used to endorse or promote products derived
+ *      from this software without specific prior written permission.
+ *
+ *  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ *  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ *  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ *  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ *  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ *  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ *  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ *  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ *  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ *  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ *  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+	fs4: fs4 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0x67000000 0x00800000>;
+
+		crypto_mbox: crypto_mbox@0 {
+			compatible = "brcm,iproc-flexrm-mbox";
+			reg = <0x00000000 0x200000>;
+			msi-parent = <&gic_its 0x4100>;
+			#mbox-cells = <3>;
+			dma-coherent;
+		};
+
+		raid_mbox: raid_mbox@400000 {
+			compatible = "brcm,iproc-flexrm-mbox";
+			reg = <0x00400000 0x200000>;
+			dma-coherent;
+			msi-parent = <&gic_its 0x4300>;
+			#mbox-cells = <3>;
+		};
+
+		raid0: raid@0 {
+			compatible = "brcm,iproc-sba-v2";
+			mboxes = <&raid_mbox 0 0x1 0xff00>,
+				 <&raid_mbox 1 0x1 0xff00>,
+				 <&raid_mbox 2 0x1 0xff00>,
+				 <&raid_mbox 3 0x1 0xff00>;
+		};
+
+		raid1: raid@1 {
+			compatible = "brcm,iproc-sba-v2";
+			mboxes = <&raid_mbox 4 0x1 0xff00>,
+				 <&raid_mbox 5 0x1 0xff00>,
+				 <&raid_mbox 6 0x1 0xff00>,
+				 <&raid_mbox 7 0x1 0xff00>;
+		};
+
+		raid2: raid@2 {
+			compatible = "brcm,iproc-sba-v2";
+			mboxes = <&raid_mbox 8 0x1 0xff00>,
+				 <&raid_mbox 9 0x1 0xff00>,
+				 <&raid_mbox 10 0x1 0xff00>,
+				 <&raid_mbox 11 0x1 0xff00>;
+		};
+
+		raid3: raid@3 {
+			compatible = "brcm,iproc-sba-v2";
+			mboxes = <&raid_mbox 12 0x1 0xff00>,
+				 <&raid_mbox 13 0x1 0xff00>,
+				 <&raid_mbox 14 0x1 0xff00>,
+				 <&raid_mbox 15 0x1 0xff00>;
+		};
+
+		raid4: raid@4 {
+			compatible = "brcm,iproc-sba-v2";
+			mboxes = <&raid_mbox 16 0x1 0xff00>,
+				 <&raid_mbox 17 0x1 0xff00>,
+				 <&raid_mbox 18 0x1 0xff00>,
+				 <&raid_mbox 19 0x1 0xff00>;
+		};
+
+		raid5: raid@5 {
+			compatible = "brcm,iproc-sba-v2";
+			mboxes = <&raid_mbox 20 0x1 0xff00>,
+				 <&raid_mbox 21 0x1 0xff00>,
+				 <&raid_mbox 22 0x1 0xff00>,
+				 <&raid_mbox 23 0x1 0xff00>;
+		};
+
+		raid6: raid@6 {
+			compatible = "brcm,iproc-sba-v2";
+			mboxes = <&raid_mbox 24 0x1 0xff00>,
+				 <&raid_mbox 25 0x1 0xff00>,
+				 <&raid_mbox 26 0x1 0xff00>,
+				 <&raid_mbox 27 0x1 0xff00>;
+		};
+
+		raid7: raid@7 {
+			compatible = "brcm,iproc-sba-v2";
+			mboxes = <&raid_mbox 28 0x1 0xff00>,
+				 <&raid_mbox 29 0x1 0xff00>,
+				 <&raid_mbox 30 0x1 0xff00>,
+				 <&raid_mbox 31 0x1 0xff00>;
+		};
+	};

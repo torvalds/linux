@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: GPL-2.0-only
+# tools/power/acpi/Makefile.rules - ACPI tool Makefile
+#
+# Copyright (c) 2015, Intel Corporation
+#   Author: Lv Zheng <lv.zheng@intel.com>
+#
+
+objdir := $(OUTPUT)tools/$(TOOL)/
+toolobjs := $(addprefix $(objdir),$(TOOL_OBJS))
+$(OUTPUT)$(TOOL): $(toolobjs) FORCE
+	$(ECHO) "  LD      " $(subst $(OUTPUT),,$@)
+	$(QUIET) $(LD) $(CFLAGS) $(toolobjs) $(LDFLAGS) -L$(OUTPUT) -o $@
+	$(ECHO) "  STRIP   " $(subst $(OUTPUT),,$@)
+	$(QUIET) $(STRIPCMD) $@
+
+$(KERNEL_INCLUDE):
+	$(ECHO) "  MKDIR   " $(subst $(OUTPUT),,$@)
+	$(QUIET) mkdir -p $(KERNEL_INCLUDE)
+	$(ECHO) "  CP      " $(subst $(OUTPUT),,$@)
+	$(QUIET) cp -rf $(srctree)/../../../include/acpi $(KERNEL_INCLUDE)/
+
+$(objdir)%.o: %.c $(KERNEL_INCLUDE)
+	$(ECHO) "  CC      " $(subst $(OUTPUT),,$@)
+	$(QUIET) $(MKDIR) -p $(objdir) 2>/dev/null
+	$(QUIET) $(CC) -c $(CFLAGS) -o $@ $<
+
+all: $(OUTPUT)$(TOOL)
+clean:
+	$(ECHO) "  RMOBJ   " $(subst $(OUTPUT),,$(objdir))
+	$(QUIET) find $(objdir) \( -not -type d \)\
+		 -and \( -name '*~' -o -name '*.[oas]' \)\
+		 -type f -print | xargs rm -f
+	$(ECHO) "  RM      " $(TOOL)
+	$(QUIET) rm -f $(OUTPUT)$(TOOL)
+	$(ECHO) "  RMINC   " $(subst $(OUTPUT),,$(KERNEL_INCLUDE))
+	$(QUIET) rm -rf $(KERNEL_INCLUDE)
+
+install-tools:
+	$(ECHO) "  INST    " $(TOOL)
+	$(QUIET) $(INSTALL) -d $(DESTDIR)$(sbindir)
+	$(QUIET) $(INSTALL_PROGRAM) $(OUTPUT)$(TOOL) $(DESTDIR)$(sbindir)
+uninstall-tools:
+	$(ECHO) "  UNINST  " $(TOOL)
+	$(QUIET) rm -f $(DESTDIR)$(sbindir)/$(TOOL)
+
+install: all install-tools $(EXTRA_INSTALL)
+uninstall: uninstall-tools $(EXTRA_UNINSTALL)
+
+.PHONY: FORCE

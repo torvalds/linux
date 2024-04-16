@@ -1,0 +1,22 @@
+* OMAP PWM for dual-mode timers
+
+Required properties:
+- compatible: Shall contain "ti,omap-dmtimer-pwm".
+- ti,timers: phandle to PWM capable OMAP timer. See timer/ti,timer-dm.yaml for info
+  about these timers.
+- #pwm-cells: Should be 3. See pwm.yaml in this directory for a description of
+  the cells format.
+
+Optional properties:
+- ti,prescaler: Should be a value between 0 and 7, see the timers datasheet
+- ti,clock-source: Set dmtimer parent clock, values between 0 and 2:
+  - 0x00 - high-frequency system clock (timer_sys_ck)
+  - 0x01 - 32-kHz always-on clock (timer_32k_ck)
+  - 0x02 - external clock (timer_ext_ck, OMAP2 only)
+
+Example:
+	pwm9: dmtimer-pwm@9 {
+		compatible = "ti,omap-dmtimer-pwm";
+		ti,timers = <&timer9>;
+		#pwm-cells = <3>;
+	};

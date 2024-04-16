@@ -1,0 +1,29 @@
+* Broadcom SBA RAID engine
+
+Required properties:
+- compatible: Should be one of the following
+	      "brcm,iproc-sba"
+	      "brcm,iproc-sba-v2"
+  The "brcm,iproc-sba" has support for only 6 PQ coefficients
+  The "brcm,iproc-sba-v2" has support for only 30 PQ coefficients
+- mboxes: List of phandle and mailbox channel specifiers
+
+Example:
+
+raid_mbox: mbox@67400000 {
+	...
+	#mbox-cells = <3>;
+	...
+};
+
+raid0 {
+	compatible = "brcm,iproc-sba-v2";
+	mboxes = <&raid_mbox 0 0x1 0xffff>,
+		 <&raid_mbox 1 0x1 0xffff>,
+		 <&raid_mbox 2 0x1 0xffff>,
+		 <&raid_mbox 3 0x1 0xffff>,
+		 <&raid_mbox 4 0x1 0xffff>,
+		 <&raid_mbox 5 0x1 0xffff>,
+		 <&raid_mbox 6 0x1 0xffff>,
+		 <&raid_mbox 7 0x1 0xffff>;
+};

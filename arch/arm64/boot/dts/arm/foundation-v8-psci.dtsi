@@ -1,0 +1,28 @@
+/*
+ * ARM Ltd.
+ *
+ * ARMv8 Foundation model DTS (PSCI configuration)
+ */
+
+/ {
+	psci {
+		compatible = "arm,psci-1.0";
+		method = "smc";
+	};
+};
+
+&cpu0 {
+	enable-method = "psci";
+};
+
+&cpu1 {
+	enable-method = "psci";
+};
+
+&cpu2 {
+	enable-method = "psci";
+};
+
+&cpu3 {
+	enable-method = "psci";
+};

@@ -1,0 +1,194 @@
+[
+  {
+    "ArchStdEvent": "STALL_FRONTEND"
+  },
+  {
+    "ArchStdEvent": "STALL_BACKEND"
+  },
+  {
+    "PublicDescription": "This event counts valid cycles of EAGA pipeline.",
+    "EventCode": "0x1A0",
+    "EventName": "EAGA_VAL",
+    "BriefDescription": "This event counts valid cycles of EAGA pipeline."
+  },
+  {
+    "PublicDescription": "This event counts valid cycles of EAGB pipeline.",
+    "EventCode": "0x1A1",
+    "EventName": "EAGB_VAL",
+    "BriefDescription": "This event counts valid cycles of EAGB pipeline."
+  },
+  {
+    "PublicDescription": "This event counts valid cycles of EXA pipeline.",
+    "EventCode": "0x1A2",
+    "EventName": "EXA_VAL",
+    "BriefDescription": "This event counts valid cycles of EXA pipeline."
+  },
+  {
+    "PublicDescription": "This event counts valid cycles of EXB pipeline.",
+    "EventCode": "0x1A3",
+    "EventName": "EXB_VAL",
+    "BriefDescription": "This event counts valid cycles of EXB pipeline."
+  },
+  {
+    "PublicDescription": "This event counts valid cycles of FLA pipeline.",
+    "EventCode": "0x1A4",
+    "EventName": "FLA_VAL",
+    "BriefDescription": "This event counts valid cycles of FLA pipeline."
+  },
+  {
+    "PublicDescription": "This event counts valid cycles of FLB pipeline.",
+    "EventCode": "0x1A5",
+    "EventName": "FLB_VAL",
+    "BriefDescription": "This event counts valid cycles of FLB pipeline."
+  },
+  {
+    "PublicDescription": "This event counts valid cycles of PRX pipeline.",
+    "EventCode": "0x1A6",
+    "EventName": "PRX_VAL",
+    "BriefDescription": "This event counts valid cycles of PRX pipeline."
+  },
+  {
+    "PublicDescription": "This event counts the number of 1's in the predicate bits of request in FLA pipeline, where it is corrected so that it becomes 16 when all bits are 1.",
+    "EventCode": "0x1B4",
+    "EventName": "FLA_VAL_PRD_CNT",
+    "BriefDescription": "This event counts the number of 1's in the predicate bits of request in FLA pipeline, where it is corrected so that it becomes 16 when all bits are 1."
+  },
+  {
+    "PublicDescription": "This event counts the number of 1's in the predicate bits of request in FLB pipeline, where it is corrected so that it becomes 16 when all bits are 1.",
+    "EventCode": "0x1B5",
+    "EventName": "FLB_VAL_PRD_CNT",
+    "BriefDescription": "This event counts the number of 1's in the predicate bits of request in FLB pipeline, where it is corrected so that it becomes 16 when all bits are 1."
+  },
+  {
+    "PublicDescription": "This event counts valid cycles of L1D cache pipeline#0.",
+    "EventCode": "0x240",
+    "EventName": "L1_PIPE0_VAL",
+    "BriefDescription": "This event counts valid cycles of L1D cache pipeline#0."
+  },
+  {
+    "PublicDescription": "This event counts valid cycles of L1D cache pipeline#1.",
+    "EventCode": "0x241",
+    "EventName": "L1_PIPE1_VAL",
+    "BriefDescription": "This event counts valid cycles of L1D cache pipeline#1."
+  },
+  {
+    "PublicDescription": "This event counts requests in L1D cache pipeline#0 that its sce bit of tagged address is 1.",
+    "EventCode": "0x250",
+    "EventName": "L1_PIPE0_VAL_IU_TAG_ADRS_SCE",
+    "BriefDescription": "This event counts requests in L1D cache pipeline#0 that its sce bit of tagged address is 1."
+  },
+  {
+    "PublicDescription": "This event counts requests in L1D cache pipeline#0 that its pfe bit of tagged address is 1.",
+    "EventCode": "0x251",
+    "EventName": "L1_PIPE0_VAL_IU_TAG_ADRS_PFE",
+    "BriefDescription": "This event counts requests in L1D cache pipeline#0 that its pfe bit of tagged address is 1."
+  },
+  {
+    "PublicDescription": "This event counts requests in L1D cache pipeline#1 that its sce bit of tagged address is 1.",
+    "EventCode": "0x252",
+    "EventName": "L1_PIPE1_VAL_IU_TAG_ADRS_SCE",
+    "BriefDescription": "This event counts requests in L1D cache pipeline#1 that its sce bit of tagged address is 1."
+  },
+  {
+    "PublicDescription": "This event counts requests in L1D cache pipeline#1 that its pfe bit of tagged address is 1.",
+    "EventCode": "0x253",
+    "EventName": "L1_PIPE1_VAL_IU_TAG_ADRS_PFE",
+    "BriefDescription": "This event counts requests in L1D cache pipeline#1 that its pfe bit of tagged address is 1."
+  },
+  {
+    "PublicDescription": "This event counts completed requests in L1D cache pipeline#0.",
+    "EventCode": "0x260",
+    "EventName": "L1_PIPE0_COMP",
+    "BriefDescription": "This event counts completed requests in L1D cache pipeline#0."
+  },
+  {
+    "PublicDescription": "This event counts completed requests in L1D cache pipeline#1.",
+    "EventCode": "0x261",
+    "EventName": "L1_PIPE1_COMP",
+    "BriefDescription": "This event counts completed requests in L1D cache pipeline#1."
+  },
+  {
+    "PublicDescription": "This event counts completed requests in L1I cache pipeline.",
+    "EventCode": "0x268",
+    "EventName": "L1I_PIPE_COMP",
+    "BriefDescription": "This event counts completed requests in L1I cache pipeline."
+  },
+  {
+    "PublicDescription": "This event counts valid cycles of L1I cache pipeline.",
+    "EventCode": "0x269",
+    "EventName": "L1I_PIPE_VAL",
+    "BriefDescription": "This event counts valid cycles of L1I cache pipeline."
+  },
+  {
+    "PublicDescription": "This event counts aborted requests in L1D pipelines that due to store-load interlock.",
+    "EventCode": "0x274",
+    "EventName": "L1_PIPE_ABORT_STLD_INTLK",
+    "BriefDescription": "This event counts aborted requests in L1D pipelines that due to store-load interlock."
+  },
+  {
+    "PublicDescription": "This event counts requests in L1D cache pipeline#0 that its sector cache ID is not 0.",
+    "EventCode": "0x2A0",
+    "EventName": "L1_PIPE0_VAL_IU_NOT_SEC0",
+    "BriefDescription": "This event counts requests in L1D cache pipeline#0 that its sector cache ID is not 0."
+  },
+  {
+    "PublicDescription": "This event counts requests in L1D cache pipeline#1 that its sector cache ID is not 0.",
+    "EventCode": "0x2A1",
+    "EventName": "L1_PIPE1_VAL_IU_NOT_SEC0",
+    "BriefDescription": "This event counts requests in L1D cache pipeline#1 that its sector cache ID is not 0."
+  },
+  {
+    "PublicDescription": "This event counts the number of times where 2 elements of the gather instructions became 2 flows because 2 elements could not be combined.",
+    "EventCode": "0x2B0",
+    "EventName": "L1_PIPE_COMP_GATHER_2FLOW",
+    "BriefDescription": "This event counts the number of times where 2 elements of the gather instructions became 2 flows because 2 elements could not be combined."
+  },
+  {
+    "PublicDescription": "This event counts the number of times where 2 elements of the gather instructions became 1 flow because 2 elements could be combined.",
+    "EventCode": "0x2B1",
+    "EventName": "L1_PIPE_COMP_GATHER_1FLOW",
+    "BriefDescription": "This event counts the number of times where 2 elements of the gather instructions became 1 flow because 2 elements could be combined."
+  },
+  {
+    "PublicDescription": "This event counts the number of times where 2 elements of the gather instructions became 0 flow because both predicate values are 0.",
+    "EventCode": "0x2B2",
+    "EventName": "L1_PIPE_COMP_GATHER_0FLOW",
+    "BriefDescription": "This event counts the number of times where 2 elements of the gather instructions became 0 flow because both predicate values are 0."
+  },
+  {
+    "PublicDescription": "This event counts the number of flows of the scatter instructions.",
+    "EventCode": "0x2B3",
+    "EventName": "L1_PIPE_COMP_SCATTER_1FLOW",
+    "BriefDescription": "This event counts the number of flows of the scatter instructions."
+  },
+  {
+    "PublicDescription": "This event counts the number of 1's in the predicate bits of request in L1D cache pipeline#0, where it is corrected so that it becomes 16 when all bits are 1.",
+    "EventCode": "0x2B8",
+    "EventName": "L1_PIPE0_COMP_PRD_CNT",
+    "BriefDescription": "This event counts the number of 1's in the predicate bits of request in L1D cache pipeline#0, where it is corrected so that it becomes 16 when all bits are 1."
+  },
+  {
+    "PublicDescription": "This event counts the number of 1's in the predicate bits of request in L1D cache pipeline#1, where it is corrected so that it becomes 16 when all bits are 1.",
+    "EventCode": "0x2B9",
+    "EventName": "L1_PIPE1_COMP_PRD_CNT",
+    "BriefDescription": "This event counts the number of 1's in the predicate bits of request in L1D cache pipeline#1, where it is corrected so that it becomes 16 when all bits are 1."
+  },
+  {
+    "PublicDescription": "This event counts valid cycles of L2 cache pipeline.",
+    "EventCode": "0x330",
+    "EventName": "L2_PIPE_VAL",
+    "BriefDescription": "This event counts valid cycles of L2 cache pipeline."
+  },
+  {
+    "PublicDescription": "This event counts completed requests in L2 cache pipeline.",
+    "EventCode": "0x350",
+    "EventName": "L2_PIPE_COMP_ALL",
+    "BriefDescription": "This event counts completed requests in L2 cache pipeline."
+  },
+  {
+    "PublicDescription": "This event counts operations where software or hardware prefetch hits an L2 cache refill buffer allocated by demand access.",
+    "EventCode": "0x370",
+    "EventName": "L2_PIPE_COMP_PF_L2MIB_MCH",
+    "BriefDescription": "This event counts operations where software or hardware prefetch hits an L2 cache refill buffer allocated by demand access."
+  }
+]

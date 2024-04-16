@@ -1,0 +1,30 @@
+NXP LPC32xx Clock Controller
+
+Required properties:
+- compatible: should be "nxp,lpc3220-clk"
+- reg:  should contain clock controller registers location and length
+- #clock-cells: must be 1, the cell holds id of a clock provided by the
+  clock controller
+- clocks: phandles of external oscillators, the list must contain one
+  32768 Hz oscillator and may have one optional high frequency oscillator
+- clock-names: list of external oscillator clock names, must contain
+  "xtal_32k" and may have optional "xtal"
+
+Examples:
+
+	/* System Control Block */
+	scb {
+		compatible = "simple-bus";
+		ranges = <0x0 0x040004000 0x00001000>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		clk: clock-controller@0 {
+			compatible = "nxp,lpc3220-clk";
+			reg = <0x00 0x114>;
+			#clock-cells = <1>;
+
+			clocks = <&xtal_32k>, <&xtal>;
+			clock-names = "xtal_32k", "xtal";
+		};
+	};

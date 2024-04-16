@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/lltc,ltc2497.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Linear Technology / Analog Devices LTC2497 ADC
+
+maintainers:
+  - Michael Hennerich <michael.hennerich@analog.com>
+
+description: |
+  16bit ADC supporting up to 16 single ended or 8 differential inputs.
+  I2C interface.
+
+  https://www.analog.com/media/en/technical-documentation/data-sheets/2497fb.pdf
+  https://www.analog.com/media/en/technical-documentation/data-sheets/2499fe.pdf
+
+properties:
+  compatible:
+    enum:
+      - lltc,ltc2497
+      - lltc,ltc2499
+
+  reg: true
+  vref-supply: true
+  "#io-channel-cells":
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - vref-supply
+
+additionalProperties: false
+
+examples:
+  - |
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        adc@76 {
+            compatible = "lltc,ltc2497";
+            reg = <0x76>;
+            vref-supply = <&ltc2497_reg>;
+            #io-channel-cells = <1>;
+        };
+    };
+...

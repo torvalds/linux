@@ -1,0 +1,117 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include <dt-bindings/interrupt-controller/irq.h>
+#include <dt-bindings/interrupt-controller/mips-gic.h>
+
+/memreserve/ 0x00000000 0x00001000;	/* YAMON exception vectors */
+/memreserve/ 0x00001000 0x000ef000;	/* YAMON */
+/memreserve/ 0x000f0000 0x00010000;	/* PIIX4 ISA memory */
+
+/ {
+	#address-cells = <1>;
+	#size-cells = <1>;
+	compatible = "mti,malta";
+
+	cpu_intc: interrupt-controller {
+		compatible = "mti,cpu-interrupt-controller";
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+	};
+
+	gic: interrupt-controller@1bdc0000 {
+		compatible = "mti,gic";
+		reg = <0x1bdc0000 0x20000>;
+
+		interrupt-controller;
+		#interrupt-cells = <3>;
+
+		/*
+		 * Declare the interrupt-parent even though the mti,gic
+		 * binding doesn't require it, such that the kernel can
+		 * figure out that cpu_intc is the root interrupt
+		 * controller & should be probed first.
+		 */
+		interrupt-parent = <&cpu_intc>;
+
+		timer {
+			compatible = "mti,gic-timer";
+			interrupts = <GIC_LOCAL 1 IRQ_TYPE_NONE>;
+		};
+	};
+
+	i8259: interrupt-controller@20 {
+		compatible = "intel,i8259";
+
+		interrupt-controller;
+		#interrupt-cells = <1>;
+
+		interrupt-parent = <&gic>;
+		interrupts = <GIC_SHARED 3 IRQ_TYPE_LEVEL_HIGH>;
+	};
+
+	flash@1e000000 {
+		compatible = "intel,dt28f160", "cfi-flash";
+		reg = <0x1e000000 0x400000>;
+		bank-width = <4>;
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		partitions {
+			compatible = "fixed-partitions";
+			#address-cells = <1>;
+			#size-cells = <1>;
+
+			yamon@0 {
+				label = "YAMON";
+				reg = <0x0 0x100000>;
+				read-only;
+			};
+
+			user-fs@100000 {
+				label = "User FS";
+				reg = <0x100000 0x2e0000>;
+			};
+
+			board-config@3e0000 {
+				label = "Board Config";
+				reg = <0x3e0000 0x20000>;
+				read-only;
+			};
+		};
+	};
+
+	fpga_regs: system-controller@1f000000 {
+		compatible = "mti,malta-fpga", "syscon", "simple-mfd";
+		reg = <0x1f000000 0x1000>;
+		native-endian;
+
+		lcd@410 {
+			compatible = "mti,malta-lcd";
+			offset = <0x410>;
+		};
+
+		reboot {
+			compatible = "syscon-reboot";
+			regmap = <&fpga_regs>;
+			offset = <0x500>;
+			mask = <0x42>;
+		};
+	};
+
+	isa {
+		compatible = "isa";
+		#address-cells = <2>;
+		#size-cells = <1>;
+		ranges = <1 0 0 0x1000>;
+
+		rtc@70 {
+			compatible = "motorola,mc146818";
+			reg = <1 0x70 0x8>;
+
+			interrupt-parent = <&i8259>;
+			interrupts = <8>;
+		};
+	};
+};

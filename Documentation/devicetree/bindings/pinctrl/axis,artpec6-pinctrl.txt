@@ -1,0 +1,87 @@
+Axis ARTPEC-6 Pin Controller
+
+Required properties:
+- compatible: "axis,artpec6-pinctrl".
+- reg: Should contain the register physical address and length for the pin
+       controller.
+
+A pinctrl node should contain at least one subnode representing the pinctrl
+groups available on the machine. Each subnode will list the mux function
+required and what pin group it will use. Each subnode will also configure the
+drive strength and bias pullup of the pin group. If either of these options is
+not set, its actual value will be unspecified.
+
+
+Required subnode-properties:
+- function: Function to mux.
+- groups: Name of the pin group to use for the function above.
+
+	Available functions and groups (function: group0, group1...):
+		gpio: cpuclkoutgrp0, udlclkoutgrp0, i2c1grp0, i2c2grp0,
+		      i2c3grp0, i2s0grp0, i2s1grp0, i2srefclkgrp0, spi0grp0,
+		      spi1grp0, pciedebuggrp0, uart0grp0, uart0grp1, uart0grp2,
+		      uart1grp0, uart1grp1, uart2grp0, uart2grp1, uart2grp2,
+		      uart3grp0, uart4grp0, uart4grp1, uart5grp0, uart5grp1,
+		      uart5nocts
+		cpuclkout: cpuclkoutgrp0
+		udlclkout: udlclkoutgrp0
+		i2c1: i2c1grp0
+		i2c2: i2c2grp0
+		i2c3: i2c3grp0
+		i2s0: i2s0grp0
+		i2s1: i2s1grp0
+		i2srefclk: i2srefclkgrp0
+		spi0: spi0grp0
+		spi1: spi1grp0
+		pciedebug: pciedebuggrp0
+		uart0: uart0grp0, uart0grp1, uart0grp2
+		uart1: uart1grp0, uart1grp1
+		uart2: uart2grp0, uart2grp1, uart2grp2
+		uart3: uart3grp0
+		uart4: uart4grp0, uart4grp1
+		uart5: uart5grp0, uart5grp1, uart5nocts
+		nand: nandgrp0
+		sdio0: sdio0grp0
+		sdio1: sdio1grp0
+		ethernet: ethernetgrp0
+
+
+Optional subnode-properties (see pinctrl-bindings.txt):
+- drive-strength: 4, 6, 8, 9 mA.  For SD and NAND pins, this is for 3.3V VCCQ3.
+- bias-pull-up
+- bias-disable
+
+Examples:
+pinctrl@f801d000 {
+	compatible = "axis,artpec6-pinctrl";
+	reg = <0xf801d000 0x400>;
+
+	pinctrl_uart0: uart0grp {
+		function = "uart0";
+		groups = "uart0grp0";
+		drive-strength = <4>;
+		bias-pull-up;
+	};
+	pinctrl_uart3: uart3grp {
+		function = "uart3";
+		groups = "uart3grp0";
+	};
+};
+uart0: uart@f8036000 {
+	compatible = "arm,pl011", "arm,primecell";
+	reg = <0xf8036000 0x1000>;
+	interrupts = <0 104 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&pll2div24>, <&apb_pclk>;
+	clock-names = "uart_clk", "apb_pclk";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart0>;
+};
+uart3: uart@f8039000 {
+	compatible = "arm,pl011", "arm,primecell";
+	reg = <0xf8039000 0x1000>;
+	interrupts = <0 128 IRQ_TYPE_LEVEL_HIGH>;
+	clocks = <&pll2div24>, <&apb_pclk>;
+	clock-names = "uart_clk", "apb_pclk";
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_uart3>;
+};

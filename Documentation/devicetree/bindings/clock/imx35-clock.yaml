@@ -1,0 +1,131 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/clock/imx35-clock.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Clock bindings for Freescale i.MX35
+
+maintainers:
+  - Steffen Trumtrar <s.trumtrar@pengutronix.de>
+
+description: |
+  The clock consumer should specify the desired clock by having the clock
+  ID in its "clocks" phandle cell. The following is a full list of i.MX35
+  clocks and IDs.
+
+        Clock			ID
+        ---------------------------
+        ckih			0
+        mpll			1
+        ppll			2
+        mpll_075		3
+        arm			4
+        hsp			5
+        hsp_div			6
+        hsp_sel			7
+        ahb			8
+        ipg			9
+        arm_per_div		10
+        ahb_per_div		11
+        ipg_per			12
+        uart_sel		13
+        uart_div		14
+        esdhc_sel		15
+        esdhc1_div		16
+        esdhc2_div		17
+        esdhc3_div		18
+        spdif_sel		19
+        spdif_div_pre		20
+        spdif_div_post		21
+        ssi_sel			22
+        ssi1_div_pre		23
+        ssi1_div_post		24
+        ssi2_div_pre		25
+        ssi2_div_post		26
+        usb_sel			27
+        usb_div			28
+        nfc_div			29
+        asrc_gate		30
+        pata_gate		31
+        audmux_gate		32
+        can1_gate		33
+        can2_gate		34
+        cspi1_gate		35
+        cspi2_gate		36
+        ect_gate		37
+        edio_gate		38
+        emi_gate		39
+        epit1_gate		40
+        epit2_gate		41
+        esai_gate		42
+        esdhc1_gate		43
+        esdhc2_gate		44
+        esdhc3_gate		45
+        fec_gate		46
+        gpio1_gate		47
+        gpio2_gate		48
+        gpio3_gate		49
+        gpt_gate		50
+        i2c1_gate		51
+        i2c2_gate		52
+        i2c3_gate		53
+        iomuxc_gate		54
+        ipu_gate		55
+        kpp_gate		56
+        mlb_gate		57
+        mshc_gate		58
+        owire_gate		59
+        pwm_gate		60
+        rngc_gate		61
+        rtc_gate		62
+        rtic_gate		63
+        scc_gate		64
+        sdma_gate		65
+        spba_gate		66
+        spdif_gate		67
+        ssi1_gate		68
+        ssi2_gate		69
+        uart1_gate		70
+        uart2_gate		71
+        uart3_gate		72
+        usbotg_gate		73
+        wdog_gate		74
+        max_gate		75
+        admux_gate		76
+        csi_gate		77
+        csi_div			78
+        csi_sel			79
+        iim_gate		80
+        gpu2d_gate		81
+        ckli_gate		82
+
+properties:
+  compatible:
+    const: fsl,imx35-ccm
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  '#clock-cells':
+    const: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - '#clock-cells'
+
+additionalProperties: false
+
+examples:
+  - |
+    clock-controller@53f80000 {
+        compatible = "fsl,imx35-ccm";
+        reg = <0x53f80000 0x4000>;
+        interrupts = <31>;
+        #clock-cells = <1>;
+    };

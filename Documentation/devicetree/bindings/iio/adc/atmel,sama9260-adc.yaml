@@ -1,0 +1,121 @@
+# SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/iio/adc/atmel,sama9260-adc.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: AT91 sama9260 and similar Analog to Digital Converter (ADC)
+
+maintainers:
+  - Alexandre Belloni <alexandre.belloni@bootlin.com>
+
+properties:
+  compatible:
+    enum:
+      - atmel,at91sam9260-adc
+      - atmel,at91sam9rl-adc
+      - atmel,at91sam9g45-adc
+      - atmel,at91sam9x5-adc
+      - atmel,at91sama5d3-adc
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  clocks:
+    minItems: 2
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: adc_clk
+      - const: adc_op_clk
+
+  atmel,adc-channels-used:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Bitmask of the channels muxed and enabled for this device
+
+  atmel,adc-startup-time:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Startup Time of the ADC in microseconds as defined in the datasheet
+
+  atmel,adc-vref:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Reference voltage in millivolts for the conversions
+
+  atmel,adc-use-external-triggers:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Enable the external triggers
+
+  atmel,adc-use-res:
+    $ref: /schemas/types.yaml#/definitions/string
+    description:
+      String corresponding to an identifier from atmel,adc-res-names property.
+      If not specified, the highest resolution will be used.
+    enum:
+      - "lowres"
+      - "highres"
+
+  atmel,adc-sleep-mode:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description: Enable sleep mode when no conversion
+
+  atmel,adc-sample-hold-time:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Sample and Hold Time in microseconds
+
+  atmel,adc-ts-wires:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: |
+      Number of touchscreen wires. Must be set to enable touchscreen.
+      NOTE: when adc touchscreen is enabled, the adc hardware trigger will be
+      disabled. Since touchscreen will occupy the trigger register.
+    enum:
+      - 4
+      - 5
+
+  atmel,adc-ts-pressure-threshold:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description:
+      Pressure threshold for touchscreen.
+
+  "#io-channel-cells":
+    const: 1
+
+additionalProperties: false
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - clocks
+  - clock-names
+  - atmel,adc-channels-used
+  - atmel,adc-startup-time
+  - atmel,adc-vref
+
+examples:
+  - |
+    #include <dt-bindings/dma/at91.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+    soc {
+        #address-cells = <1>;
+        #size-cells = <1>;
+
+        adc@fffb0000 {
+            compatible = "atmel,at91sam9260-adc";
+            reg = <0xfffb0000 0x100>;
+            interrupts = <20 IRQ_TYPE_LEVEL_HIGH 0>;
+            clocks = <&adc_clk>, <&adc_op_clk>;
+            clock-names = "adc_clk", "adc_op_clk";
+            atmel,adc-channels-used = <0xff>;
+            atmel,adc-startup-time = <40>;
+            atmel,adc-use-external-triggers;
+            atmel,adc-vref = <3300>;
+            atmel,adc-use-res = "lowres";
+        };
+    };
+...

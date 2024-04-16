@@ -1,0 +1,5 @@
+* currently the code introduces new IOCTLs. I'm afraid this is a bad idea.
+  -> Replace this with another interface, hints are welcome!
+* Some missing data (marked with ###) needs to be added in the documentation
+* Change (struct pi433_tx_cfg)->bit_rate to be a u32 so that we can support
+    bit rates up to 300kbps per the spec.

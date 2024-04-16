@@ -1,0 +1,73 @@
+What:		/sys/class/leds/dell::kbd_backlight/als_enabled
+Date:		December 2014
+KernelVersion:	3.19
+Contact:	Gabriele Mazzotta <gabriele.mzt@gmail.com>,
+		Pali Rohár <pali@kernel.org>
+Description:
+		This file allows to control the automatic keyboard
+		illumination mode on some systems that have an ambient
+		light sensor. Write 1 to this file to enable the auto
+		mode, 0 to disable it.
+
+What:		/sys/class/leds/dell::kbd_backlight/als_setting
+Date:		December 2014
+KernelVersion:	3.19
+Contact:	Gabriele Mazzotta <gabriele.mzt@gmail.com>,
+		Pali Rohár <pali@kernel.org>
+Description:
+		This file allows to specifiy the on/off threshold value,
+		as reported by the ambient light sensor.
+
+What:		/sys/class/leds/dell::kbd_backlight/start_triggers
+Date:		December 2014
+KernelVersion:	3.19
+Contact:	Gabriele Mazzotta <gabriele.mzt@gmail.com>,
+		Pali Rohár <pali@kernel.org>
+Description:
+		This file allows to control the input triggers that
+		turn on the keyboard backlight illumination that is
+		disabled because of inactivity.
+		Read the file to see the triggers available. The ones
+		enabled are preceded by '+', those disabled by '-'.
+
+		To enable a trigger, write its name preceded by '+' to
+		this file. To disable a trigger, write its name preceded
+		by '-' instead.
+
+		For example, to enable the keyboard as trigger run::
+
+		    echo +keyboard > /sys/class/leds/dell::kbd_backlight/start_triggers
+
+		To disable it::
+
+		    echo -keyboard > /sys/class/leds/dell::kbd_backlight/start_triggers
+
+		Note that not all the available triggers can be configured.
+
+What:		/sys/class/leds/dell::kbd_backlight/stop_timeout
+Date:		December 2014
+KernelVersion:	3.19
+Contact:	Gabriele Mazzotta <gabriele.mzt@gmail.com>,
+		Pali Rohár <pali@kernel.org>
+Description:
+		This file allows to specify the interval after which the
+		keyboard illumination is disabled because of inactivity.
+		The timeouts are expressed in seconds, minutes, hours and
+		days, for which the symbols are 's', 'm', 'h' and 'd'
+		respectively.
+
+		To configure the timeout, write to this file a value along
+		with any the above units. If no unit is specified, the value
+		is assumed to be expressed in seconds.
+
+		For example, to set the timeout to 10 minutes run::
+
+		    echo 10m > /sys/class/leds/dell::kbd_backlight/stop_timeout
+
+		Note that when this file is read, the returned value might be
+		expressed in a different unit than the one used when the timeout
+		was set.
+
+		Also note that only some timeouts are supported and that
+		some systems might fall back to a specific timeout in case
+		an invalid timeout is written to this file.

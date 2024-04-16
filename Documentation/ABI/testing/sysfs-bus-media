@@ -1,0 +1,6 @@
+What:		/sys/bus/media/devices/.../model
+Date:		January 2011
+Contact:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
+		linux-media@vger.kernel.org
+Description:	Contains the device model name in UTF-8. The device version is
+		is not be appended to the model name.

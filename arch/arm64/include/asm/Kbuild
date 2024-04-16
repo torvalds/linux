@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0
+generic-y += early_ioremap.h
+generic-y += mcs_spinlock.h
+generic-y += qrwlock.h
+generic-y += qspinlock.h
+generic-y += parport.h
+generic-y += user.h
+
+generated-y += cpucaps.h
+generated-y += sysreg-defs.h

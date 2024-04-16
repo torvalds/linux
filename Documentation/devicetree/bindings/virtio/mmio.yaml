@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/virtio/mmio.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: virtio memory mapped devices
+
+maintainers:
+  - Jean-Philippe Brucker <jean-philippe@linaro.org>
+
+description:
+  See https://www.oasis-open.org/committees/tc_home.php?wg_abbrev=virtio for
+  more details.
+
+properties:
+  compatible:
+    const: virtio,mmio
+
+  reg:
+    maxItems: 1
+
+  dma-coherent: true
+
+  interrupts:
+    maxItems: 1
+
+  '#iommu-cells':
+    description: Required when the node corresponds to a virtio-iommu device.
+    const: 1
+
+  iommus:
+    description: Required for devices making accesses thru an IOMMU.
+    maxItems: 1
+
+  wakeup-source:
+    type: boolean
+    description: Required for setting irq of a virtio_mmio device as wakeup source.
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+additionalProperties:
+  type: object
+
+examples:
+  - |
+    virtio@3000 {
+        compatible = "virtio,mmio";
+        reg = <0x3000 0x100>;
+        interrupts = <41>;
+
+        /* Device has endpoint ID 23 */
+        iommus = <&viommu 23>;
+    };
+
+    viommu: iommu@3100 {
+        compatible = "virtio,mmio";
+        reg = <0x3100 0x100>;
+        interrupts = <42>;
+
+        #iommu-cells = <1>;
+    };
+
+...

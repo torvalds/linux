@@ -1,0 +1,39 @@
+* Altera I2C Controller
+* This is Altera's synthesizable logic block I2C Controller for use
+* in Altera's FPGAs.
+
+Required properties :
+ - compatible : should be "altr,softip-i2c-v1.0"
+ - reg        : Offset and length of the register set for the device
+ - interrupts : <IRQ> where IRQ is the interrupt number.
+ - clocks     : phandle to input clock.
+ - #address-cells = <1>;
+ - #size-cells = <0>;
+
+Recommended properties :
+ - clock-frequency : desired I2C bus clock frequency in Hz.
+
+Optional properties :
+ - fifo-size : Size of the RX and TX FIFOs in bytes.
+ - Child nodes conforming to i2c bus binding
+
+Example :
+
+	i2c@100080000 {
+		compatible = "altr,softip-i2c-v1.0";
+		reg = <0x00000001 0x00080000 0x00000040>;
+		interrupt-parent = <&intc>;
+		interrupts = <0 43 4>;
+		clocks = <&clk_0>;
+		clock-frequency = <100000>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		fifo-size = <4>;
+
+		eeprom@51 {
+			compatible = "atmel,24c32";
+			reg = <0x51>;
+			pagesize = <32>;
+		};
+	};
+

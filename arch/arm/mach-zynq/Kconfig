@@ -1,0 +1,17 @@
+# SPDX-License-Identifier: GPL-2.0
+config ARCH_ZYNQ
+	bool "Xilinx Zynq ARM Cortex A9 Platform"
+	depends on ARCH_MULTI_V7
+	select ARCH_HAS_RESET_CONTROLLER
+	select ARM_AMBA
+	select ARM_GIC
+	select ARM_GLOBAL_TIMER
+	select CADENCE_TTC_TIMER
+	select HAVE_ARM_SCU if SMP
+	select HAVE_ARM_TWD if SMP
+	select MFD_SYSCON
+	select PINCTRL
+	select PINCTRL_ZYNQ
+	select SOC_BUS
+	help
+	  Support for Xilinx Zynq ARM Cortex A9 Platform

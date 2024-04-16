@@ -1,0 +1,50 @@
+# SPDX-License-Identifier: GPL-2.0
+
+config BOOTPARAM
+	bool "Compiled-in Kernel Boot Parameter"
+
+config BOOTPARAM_STRING
+	string "Kernel Boot Parameter"
+	default "console=ttyS0,19200"
+	depends on BOOTPARAM
+
+config EARLY_PRINTK
+	bool "Early printk"
+	depends on !(SUN3 || M68000 || COLDFIRE)
+	help
+	  Write kernel log output directly to a serial port.
+	  Where implemented, output goes to the framebuffer as well.
+	  PROM console functionality on Sun 3x is not affected by this option.
+
+	  Pass "earlyprintk" on the kernel command line to get a
+	  boot console.
+
+	  This is useful for kernel debugging when your machine crashes very
+	  early, i.e. before the normal console driver is loaded.
+	  You should normally say N here, unless you want to debug such a crash.
+
+if !MMU
+
+config FULLDEBUG
+	bool "Full Symbolic/Source Debugging support"
+	help
+	  Enable debugging symbols on kernel build.
+
+config HIGHPROFILE
+	bool "Use fast second timer for profiling"
+	depends on COLDFIRE
+	help
+	  Use a fast secondary clock to produce profiling information.
+
+config NO_KERNEL_MSG
+	bool "Suppress Kernel BUG Messages"
+	help
+	  Do not output any debug BUG messages within the kernel.
+
+config BDM_DISABLE
+	bool "Disable BDM signals"
+	depends on COLDFIRE
+	help
+	  Disable the ColdFire CPU's BDM signals.
+
+endif

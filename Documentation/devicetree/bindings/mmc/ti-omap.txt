@@ -1,0 +1,26 @@
+* TI MMC host controller for OMAP1 and 2420
+
+The MMC Host Controller on TI OMAP1 and 2420 family provides
+an interface for MMC, SD, and SDIO types of memory cards.
+
+This file documents differences between the core properties described
+by mmc.txt and the properties used by the omap mmc driver.
+
+Note that this driver will not work with omap2430 or later omaps,
+please see the omap hsmmc driver for the current omaps.
+
+Required properties:
+- compatible: Must be "ti,omap2420-mmc", for OMAP2420 controllers
+- ti,hwmods: For 2420, must be "msdi<n>", where n is controller
+  instance starting 1
+
+Examples:
+
+	msdi1: mmc@4809c000 {
+		compatible = "ti,omap2420-mmc";
+		ti,hwmods = "msdi1";
+		reg = <0x4809c000 0x80>;
+		interrupts = <83>;
+		dmas = <&sdma 61 &sdma 62>;
+		dma-names = "tx", "rx";
+	};
