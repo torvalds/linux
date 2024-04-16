@@ -54,15 +54,12 @@ static int aplic_direct_set_affinity(struct irq_data *d, const struct cpumask *m
 	struct aplic_direct *direct = container_of(priv, struct aplic_direct, priv);
 	struct aplic_idc *idc;
 	unsigned int cpu, val;
-	struct cpumask amask;
 	void __iomem *target;
 
-	cpumask_and(&amask, &direct->lmask, mask_val);
-
 	if (force)
-		cpu = cpumask_first(&amask);
+		cpu = cpumask_first_and(&direct->lmask, mask_val);
 	else
-		cpu = cpumask_any_and(&amask, cpu_online_mask);
+		cpu = cpumask_first_and_and(&direct->lmask, mask_val, cpu_online_mask);
 
 	if (cpu >= nr_cpu_ids)
 		return -EINVAL;
