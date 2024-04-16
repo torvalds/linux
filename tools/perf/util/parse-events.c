@@ -1700,12 +1700,6 @@ int parse_events_multi_pmu_add_or_add_pmu(struct parse_events_state *parse_state
 	return -EINVAL;
 }
 
-int parse_events__modifier_group(struct list_head *list,
-				 char *event_mod)
-{
-	return parse_events__modifier_event(list, event_mod, true);
-}
-
 void parse_events__set_leader(char *name, struct list_head *list)
 {
 	struct evsel *leader;
@@ -1720,183 +1714,125 @@ void parse_events__set_leader(char *name, struct list_head *list)
 	leader->group_name = name;
 }
 
-struct event_modifier {
-	int eu;
-	int ek;
-	int eh;
-	int eH;
-	int eG;
-	int eI;
-	int precise;
-	int precise_max;
-	int exclude_GH;
-	int sample_read;
-	int pinned;
-	int weak;
-	int exclusive;
-	int bpf_counter;
-};
-
-static int get_event_modifier(struct event_modifier *mod, char *str,
-			       struct evsel *evsel)
+static int parse_events__modifier_list(struct parse_events_state *parse_state,
+				       YYLTYPE *loc,
+				       struct list_head *list,
+				       struct parse_events_modifier mod,
+				       bool group)
 {
-	int eu = evsel ? evsel->core.attr.exclude_user : 0;
-	int ek = evsel ? evsel->core.attr.exclude_kernel : 0;
-	int eh = evsel ? evsel->core.attr.exclude_hv : 0;
-	int eH = evsel ? evsel->core.attr.exclude_host : 0;
-	int eG = evsel ? evsel->core.attr.exclude_guest : 0;
-	int eI = evsel ? evsel->core.attr.exclude_idle : 0;
-	int precise = evsel ? evsel->core.attr.precise_ip : 0;
-	int precise_max = 0;
-	int sample_read = 0;
-	int pinned = evsel ? evsel->core.attr.pinned : 0;
-	int exclusive = evsel ? evsel->core.attr.exclusive : 0;
+	struct evsel *evsel;
 
-	int exclude = eu | ek | eh;
-	int exclude_GH = evsel ? evsel->exclude_GH : 0;
-	int weak = 0;
-	int bpf_counter = 0;
+	if (!group && mod.weak) {
+		parse_events_error__handle(parse_state->error, loc->first_column,
+					   strdup("Weak modifier is for use with groups"), NULL);
+		return -EINVAL;
+	}
 
-	memset(mod, 0, sizeof(*mod));
+	__evlist__for_each_entry(list, evsel) {
+		/* Translate modifiers into the equivalent evsel excludes. */
+		int eu = group ? evsel->core.attr.exclude_user : 0;
+		int ek = group ? evsel->core.attr.exclude_kernel : 0;
+		int eh = group ? evsel->core.attr.exclude_hv : 0;
+		int eH = group ? evsel->core.attr.exclude_host : 0;
+		int eG = group ? evsel->core.attr.exclude_guest : 0;
+		int exclude = eu | ek | eh;
+		int exclude_GH = group ? evsel->exclude_GH : 0;
 
-	while (*str) {
-		if (*str == 'u') {
+		if (mod.precise) {
+			/* use of precise requires exclude_guest */
+			eG = 1;
+		}
+		if (mod.user) {
 			if (!exclude)
 				exclude = eu = ek = eh = 1;
 			if (!exclude_GH && !perf_guest)
 				eG = 1;
 			eu = 0;
-		} else if (*str == 'k') {
+		}
+		if (mod.kernel) {
 			if (!exclude)
 				exclude = eu = ek = eh = 1;
 			ek = 0;
-		} else if (*str == 'h') {
+		}
+		if (mod.hypervisor) {
 			if (!exclude)
 				exclude = eu = ek = eh = 1;
 			eh = 0;
-		} else if (*str == 'G') {
+		}
+		if (mod.guest) {
 			if (!exclude_GH)
 				exclude_GH = eG = eH = 1;
 			eG = 0;
-		} else if (*str == 'H') {
+		}
+		if (mod.host) {
 			if (!exclude_GH)
 				exclude_GH = eG = eH = 1;
 			eH = 0;
-		} else if (*str == 'I') {
-			eI = 1;
-		} else if (*str == 'p') {
-			precise++;
-			/* use of precise requires exclude_guest */
-			if (!exclude_GH)
-				eG = 1;
-		} else if (*str == 'P') {
-			precise_max = 1;
-		} else if (*str == 'S') {
-			sample_read = 1;
-		} else if (*str == 'D') {
-			pinned = 1;
-		} else if (*str == 'e') {
-			exclusive = 1;
-		} else if (*str == 'W') {
-			weak = 1;
-		} else if (*str == 'b') {
-			bpf_counter = 1;
-		} else
-			break;
-
-		++str;
-	}
-
-	/*
-	 * precise ip:
-	 *
-	 *  0 - SAMPLE_IP can have arbitrary skid
-	 *  1 - SAMPLE_IP must have constant skid
-	 *  2 - SAMPLE_IP requested to have 0 skid
-	 *  3 - SAMPLE_IP must have 0 skid
-	 *
-	 *  See also PERF_RECORD_MISC_EXACT_IP
-	 */
-	if (precise > 3)
-		return -EINVAL;
-
-	mod->eu = eu;
-	mod->ek = ek;
-	mod->eh = eh;
-	mod->eH = eH;
-	mod->eG = eG;
-	mod->eI = eI;
-	mod->precise = precise;
-	mod->precise_max = precise_max;
-	mod->exclude_GH = exclude_GH;
-	mod->sample_read = sample_read;
-	mod->pinned = pinned;
-	mod->weak = weak;
-	mod->bpf_counter = bpf_counter;
-	mod->exclusive = exclusive;
-
-	return 0;
-}
-
-/*
- * Basic modifier sanity check to validate it contains only one
- * instance of any modifier (apart from 'p') present.
- */
-static int check_modifier(char *str)
-{
-	char *p = str;
-
-	/* The sizeof includes 0 byte as well. */
-	if (strlen(str) > (sizeof("ukhGHpppPSDIWeb") - 1))
-		return -1;
-
-	while (*p) {
-		if (*p != 'p' && strchr(p + 1, *p))
-			return -1;
-		p++;
-	}
-
-	return 0;
-}
-
-int parse_events__modifier_event(struct list_head *list, char *str, bool add)
-{
-	struct evsel *evsel;
-	struct event_modifier mod;
-
-	if (str == NULL)
-		return 0;
-
-	if (check_modifier(str))
-		return -EINVAL;
-
-	if (!add && get_event_modifier(&mod, str, NULL))
-		return -EINVAL;
-
-	__evlist__for_each_entry(list, evsel) {
-		if (add && get_event_modifier(&mod, str, evsel))
-			return -EINVAL;
-
-		evsel->core.attr.exclude_user   = mod.eu;
-		evsel->core.attr.exclude_kernel = mod.ek;
-		evsel->core.attr.exclude_hv     = mod.eh;
-		evsel->core.attr.precise_ip     = mod.precise;
-		evsel->core.attr.exclude_host   = mod.eH;
-		evsel->core.attr.exclude_guest  = mod.eG;
-		evsel->core.attr.exclude_idle   = mod.eI;
-		evsel->exclude_GH          = mod.exclude_GH;
-		evsel->sample_read         = mod.sample_read;
-		evsel->precise_max         = mod.precise_max;
-		evsel->weak_group	   = mod.weak;
-		evsel->bpf_counter	   = mod.bpf_counter;
-
-		if (evsel__is_group_leader(evsel)) {
-			evsel->core.attr.pinned = mod.pinned;
-			evsel->core.attr.exclusive = mod.exclusive;
 		}
-	}
+		evsel->core.attr.exclude_user   = eu;
+		evsel->core.attr.exclude_kernel = ek;
+		evsel->core.attr.exclude_hv     = eh;
+		evsel->core.attr.exclude_host   = eH;
+		evsel->core.attr.exclude_guest  = eG;
+		evsel->exclude_GH               = exclude_GH;
 
+		/* Simple modifiers copied to the evsel. */
+		if (mod.precise) {
+			u8 precise = evsel->core.attr.precise_ip + mod.precise;
+			/*
+			 * precise ip:
+			 *
+			 *  0 - SAMPLE_IP can have arbitrary skid
+			 *  1 - SAMPLE_IP must have constant skid
+			 *  2 - SAMPLE_IP requested to have 0 skid
+			 *  3 - SAMPLE_IP must have 0 skid
+			 *
+			 *  See also PERF_RECORD_MISC_EXACT_IP
+			 */
+			if (precise > 3) {
+				char *help;
+
+				if (asprintf(&help,
+					     "Maximum combined precise value is 3, adding precision to \"%s\"",
+					     evsel__name(evsel)) > 0) {
+					parse_events_error__handle(parse_state->error,
+								   loc->first_column,
+								   help, NULL);
+				}
+				return -EINVAL;
+			}
+			evsel->core.attr.precise_ip = precise;
+		}
+		if (mod.precise_max)
+			evsel->precise_max = 1;
+		if (mod.non_idle)
+			evsel->core.attr.exclude_idle = 1;
+		if (mod.sample_read)
+			evsel->sample_read = 1;
+		if (mod.pinned && evsel__is_group_leader(evsel))
+			evsel->core.attr.pinned = 1;
+		if (mod.exclusive && evsel__is_group_leader(evsel))
+			evsel->core.attr.exclusive = 1;
+		if (mod.weak)
+			evsel->weak_group = true;
+		if (mod.bpf)
+			evsel->bpf_counter = true;
+	}
 	return 0;
+}
+
+int parse_events__modifier_group(struct parse_events_state *parse_state, void *loc,
+				 struct list_head *list,
+				 struct parse_events_modifier mod)
+{
+	return parse_events__modifier_list(parse_state, loc, list, mod, /*group=*/true);
+}
+
+int parse_events__modifier_event(struct parse_events_state *parse_state, void *loc,
+				 struct list_head *list,
+				 struct parse_events_modifier mod)
+{
+	return parse_events__modifier_list(parse_state, loc, list, mod, /*group=*/false);
 }
 
 int parse_events_name(struct list_head *list, const char *name)

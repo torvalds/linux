@@ -142,6 +142,77 @@ static int hw(yyscan_t scanner, int config)
 	return PE_TERM_HW;
 }
 
+static void modifiers_error(struct parse_events_state *parse_state, yyscan_t scanner,
+			    int pos, char mod_char, const char *mod_name)
+{
+	struct parse_events_error *error = parse_state->error;
+	char *help = NULL;
+
+	if (asprintf(&help, "Duplicate modifier '%c' (%s)", mod_char, mod_name) > 0)
+		parse_events_error__handle(error, get_column(scanner) + pos, help , NULL);
+}
+
+static int modifiers(struct parse_events_state *parse_state, yyscan_t scanner)
+{
+	YYSTYPE *yylval = parse_events_get_lval(scanner);
+	char *text = parse_events_get_text(scanner);
+	struct parse_events_modifier mod = { .precise = 0, };
+
+	for (size_t i = 0, n = strlen(text); i < n; i++) {
+#define CASE(c, field)							\
+		case c:							\
+			if (mod.field) {				\
+				modifiers_error(parse_state, scanner, i, c, #field); \
+				return PE_ERROR;			\
+			}						\
+			mod.field = true;				\
+			break
+
+		switch (text[i]) {
+		CASE('u', user);
+		CASE('k', kernel);
+		CASE('h', hypervisor);
+		CASE('I', non_idle);
+		CASE('G', guest);
+		CASE('H', host);
+		case 'p':
+			mod.precise++;
+			/*
+			 * precise ip:
+			 *
+			 *  0 - SAMPLE_IP can have arbitrary skid
+			 *  1 - SAMPLE_IP must have constant skid
+			 *  2 - SAMPLE_IP requested to have 0 skid
+			 *  3 - SAMPLE_IP must have 0 skid
+			 *
+			 *  See also PERF_RECORD_MISC_EXACT_IP
+			 */
+			if (mod.precise > 3) {
+				struct parse_events_error *error = parse_state->error;
+				char *help = strdup("Maximum precise value is 3");
+
+				if (help) {
+					parse_events_error__handle(error, get_column(scanner) + i,
+								   help , NULL);
+				}
+				return PE_ERROR;
+			}
+			break;
+		CASE('P', precise_max);
+		CASE('S', sample_read);
+		CASE('D', pinned);
+		CASE('W', weak);
+		CASE('e', exclusive);
+		CASE('b', bpf);
+		default:
+			return PE_ERROR;
+		}
+#undef CASE
+	}
+	yylval->mod = mod;
+	return PE_MODIFIER_EVENT;
+}
+
 #define YY_USER_ACTION					\
 do {							\
 	yylloc->last_column  = yylloc->first_column;	\
@@ -174,7 +245,7 @@ drv_cfg_term	[a-zA-Z0-9_\.]+(=[a-zA-Z0-9_*?\.:]+)?
  * If you add a modifier you need to update check_modifier().
  * Also, the letters in modifier_event must not be in modifier_bp.
  */
-modifier_event	[ukhpPGHSDIWeb]+
+modifier_event	[ukhpPGHSDIWeb]{1,15}
 modifier_bp	[rwx]{1,3}
 lc_type 	(L1-dcache|l1-d|l1d|L1-data|L1-icache|l1-i|l1i|L1-instruction|LLC|L2|dTLB|d-tlb|Data-TLB|iTLB|i-tlb|Instruction-TLB|branch|branches|bpu|btb|bpc|node)
 lc_op_result	(load|loads|read|store|stores|write|prefetch|prefetches|speculative-read|speculative-load|refs|Reference|ops|access|misses|miss)
@@ -341,7 +412,7 @@ r{num_raw_hex}		{ return str(yyscanner, PE_RAW); }
 {num_dec}		{ return value(_parse_state, yyscanner, 10); }
 {num_hex}		{ return value(_parse_state, yyscanner, 16); }
 
-{modifier_event}	{ return str(yyscanner, PE_MODIFIER_EVENT); }
+{modifier_event}	{ return modifiers(_parse_state, yyscanner); }
 {name}			{ return str(yyscanner, PE_NAME); }
 {name_tag}		{ return str(yyscanner, PE_NAME); }
 "/"			{ BEGIN(config); return '/'; }

@@ -186,8 +186,27 @@ void parse_events_terms__init(struct parse_events_terms *terms);
 void parse_events_terms__exit(struct parse_events_terms *terms);
 int parse_events_terms(struct parse_events_terms *terms, const char *str, FILE *input);
 int parse_events_terms__to_strbuf(const struct parse_events_terms *terms, struct strbuf *sb);
-int parse_events__modifier_event(struct list_head *list, char *str, bool add);
-int parse_events__modifier_group(struct list_head *list, char *event_mod);
+
+struct parse_events_modifier {
+	u8 precise;	/* Number of repeated 'p' for precision. */
+	bool precise_max : 1;	/* 'P' */
+	bool non_idle : 1;	/* 'I' */
+	bool sample_read : 1;	/* 'S' */
+	bool pinned : 1;	/* 'D' */
+	bool exclusive : 1;	/* 'e' */
+	bool weak : 1;		/* 'W' */
+	bool bpf : 1;		/* 'b' */
+	bool user : 1;		/* 'u' */
+	bool kernel : 1;	/* 'k' */
+	bool hypervisor : 1;	/* 'h' */
+	bool guest : 1;		/* 'G' */
+	bool host : 1;		/* 'H' */
+};
+
+int parse_events__modifier_event(struct parse_events_state *parse_state, void *loc,
+				 struct list_head *list, struct parse_events_modifier mod);
+int parse_events__modifier_group(struct parse_events_state *parse_state, void *loc,
+				 struct list_head *list, struct parse_events_modifier mod);
 int parse_events_name(struct list_head *list, const char *name);
 int parse_events_add_tracepoint(struct list_head *list, int *idx,
 				const char *sys, const char *event,

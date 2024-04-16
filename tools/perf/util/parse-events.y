@@ -68,11 +68,11 @@ static void free_list_evsel(struct list_head* list_evsel)
 %type <num> PE_VALUE
 %type <num> PE_VALUE_SYM_SW
 %type <num> PE_VALUE_SYM_TOOL
+%type <mod> PE_MODIFIER_EVENT
 %type <term_type> PE_TERM
 %type <str> PE_RAW
 %type <str> PE_NAME
 %type <str> PE_LEGACY_CACHE
-%type <str> PE_MODIFIER_EVENT
 %type <str> PE_MODIFIER_BP
 %type <str> PE_EVENT_NAME
 %type <str> PE_DRV_CFG_TERM
@@ -110,6 +110,7 @@ static void free_list_evsel(struct list_head* list_evsel)
 {
 	char *str;
 	u64 num;
+	struct parse_events_modifier mod;
 	enum parse_events__term_type term_type;
 	struct list_head *list_evsel;
 	struct parse_events_terms *list_terms;
@@ -175,20 +176,13 @@ event
 group:
 group_def ':' PE_MODIFIER_EVENT
 {
+	/* Apply the modifier to the events in the group_def. */
 	struct list_head *list = $1;
 	int err;
 
-	err = parse_events__modifier_group(list, $3);
-	free($3);
-	if (err) {
-		struct parse_events_state *parse_state = _parse_state;
-		struct parse_events_error *error = parse_state->error;
-
-		parse_events_error__handle(error, @3.first_column,
-					   strdup("Bad modifier"), NULL);
-		free_list_evsel(list);
+	err = parse_events__modifier_group(_parse_state, &@3, list, $3);
+	if (err)
 		YYABORT;
-	}
 	$$ = list;
 }
 |
@@ -238,17 +232,9 @@ event_name PE_MODIFIER_EVENT
 	 * (there could be more events added for multiple tracepoint
 	 * definitions via '*?'.
 	 */
-	err = parse_events__modifier_event(list, $2, false);
-	free($2);
-	if (err) {
-		struct parse_events_state *parse_state = _parse_state;
-		struct parse_events_error *error = parse_state->error;
-
-		parse_events_error__handle(error, @2.first_column,
-					   strdup("Bad modifier"), NULL);
-		free_list_evsel(list);
+	err = parse_events__modifier_event(_parse_state, &@2, list, $2);
+	if (err)
 		YYABORT;
-	}
 	$$ = list;
 }
 |
