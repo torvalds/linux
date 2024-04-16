@@ -329,3 +329,175 @@ int iwl_mvm_disable_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	return ret;
 }
+
+struct iwl_mvm_rssi_to_grade {
+	s8 rssi[2];
+	u16 grade;
+};
+
+#define RSSI_TO_GRADE_LINE(_lb, _hb_uhb, _grade) \
+	{ \
+		.rssi = {_lb, _hb_uhb}, \
+		.grade = _grade \
+	}
+
+/*
+ * This array must be sorted by increasing RSSI for proper functionality.
+ * The grades are actually estimated throughput, represented as fixed-point
+ * with a scale factor of 1/10.
+ */
+static const struct iwl_mvm_rssi_to_grade rssi_to_grade_map[] = {
+	RSSI_TO_GRADE_LINE(-85, -89, 177),
+	RSSI_TO_GRADE_LINE(-83, -86, 344),
+	RSSI_TO_GRADE_LINE(-82, -85, 516),
+	RSSI_TO_GRADE_LINE(-80, -83, 688),
+	RSSI_TO_GRADE_LINE(-77, -79, 1032),
+	RSSI_TO_GRADE_LINE(-73, -76, 1376),
+	RSSI_TO_GRADE_LINE(-70, -74, 1548),
+	RSSI_TO_GRADE_LINE(-69, -72, 1750),
+	RSSI_TO_GRADE_LINE(-65, -68, 2064),
+	RSSI_TO_GRADE_LINE(-61, -66, 2294),
+	RSSI_TO_GRADE_LINE(-58, -61, 2580),
+	RSSI_TO_GRADE_LINE(-55, -58, 2868),
+	RSSI_TO_GRADE_LINE(-46, -55, 3098),
+	RSSI_TO_GRADE_LINE(-43, -54, 3442)
+};
+
+#define MAX_GRADE (rssi_to_grade_map[ARRAY_SIZE(rssi_to_grade_map) - 1].grade)
+
+#define DEFAULT_CHAN_LOAD_LB	30
+#define DEFAULT_CHAN_LOAD_HB	15
+#define DEFAULT_CHAN_LOAD_UHB	0
+
+/* Factors calculation is done with fixed-point with a scaling factor of 1/256 */
+#define SCALE_FACTOR 256
+
+/* Convert a percentage from [0,100] to [0,255] */
+#define NORMALIZE_PERCENT_TO_255(percentage) ((percentage) * SCALE_FACTOR / 100)
+
+static unsigned int
+iwl_mvm_get_puncturing_factor(const struct ieee80211_bss_conf *link_conf)
+{
+	enum nl80211_chan_width chan_width =
+		link_conf->chanreq.oper.width;
+	int mhz = nl80211_chan_width_to_mhz(chan_width);
+	unsigned int n_subchannels, n_punctured, puncturing_penalty;
+
+	if (WARN_ONCE(mhz < 20 || mhz > 320,
+		      "Invalid channel width : (%d)\n", mhz))
+		return SCALE_FACTOR;
+
+	/* No puncturing, no penalty */
+	if (mhz < 80)
+		return SCALE_FACTOR;
+
+	/* total number of subchannels */
+	n_subchannels = mhz / 20;
+	/* how many of these are punctured */
+	n_punctured = hweight16(link_conf->chanreq.oper.punctured);
+
+	puncturing_penalty = n_punctured * SCALE_FACTOR / n_subchannels;
+	return SCALE_FACTOR - puncturing_penalty;
+}
+
+static unsigned int
+iwl_mvm_get_chan_load_factor(struct ieee80211_bss_conf *link_conf)
+{
+	struct iwl_mvm_vif_link_info *mvm_link =
+		iwl_mvm_vif_from_mac80211(link_conf->vif)->link[link_conf->link_id];
+	const struct element *bss_load_elem =
+		ieee80211_bss_get_elem(link_conf->bss, WLAN_EID_QBSS_LOAD);
+	const struct ieee80211_bss_load_elem *bss_load;
+	enum nl80211_band band = link_conf->chanreq.oper.chan->band;
+	unsigned int chan_load;
+	u32 chan_load_by_us;
+
+	/* If there isn't BSS Load element, take the defaults */
+	if (!bss_load_elem ||
+	    bss_load_elem->datalen != sizeof(*bss_load)) {
+		switch (band) {
+		case NL80211_BAND_2GHZ:
+			chan_load = DEFAULT_CHAN_LOAD_LB;
+			break;
+		case NL80211_BAND_5GHZ:
+			chan_load = DEFAULT_CHAN_LOAD_HB;
+			break;
+		case NL80211_BAND_6GHZ:
+			chan_load = DEFAULT_CHAN_LOAD_UHB;
+			break;
+		default:
+			chan_load = 0;
+			break;
+		}
+		/* The defaults are given in percentage */
+		return SCALE_FACTOR - NORMALIZE_PERCENT_TO_255(chan_load);
+	}
+
+	bss_load = (const void *)bss_load_elem->data;
+	/* Channel util is in range 0-255 */
+	chan_load = bss_load->channel_util;
+
+	if (!mvm_link || !mvm_link->active)
+		goto done;
+
+	if (WARN_ONCE(!mvm_link->phy_ctxt,
+		      "Active link (%u) without phy ctxt assigned!\n",
+		      link_conf->link_id))
+		goto done;
+
+	/* channel load by us is given in percentage */
+	chan_load_by_us =
+		NORMALIZE_PERCENT_TO_255(mvm_link->phy_ctxt->channel_load_by_us);
+
+	/* Use only values that firmware sends that can possibly be valid */
+	if (chan_load_by_us <= chan_load)
+		chan_load -= chan_load_by_us;
+done:
+	return  SCALE_FACTOR - chan_load;
+}
+
+/* This function calculates the grade of a link. Returns 0 in error case */
+unsigned int iwl_mvm_get_link_grade(struct ieee80211_bss_conf *link_conf)
+{
+	enum nl80211_band band;
+	int i, rssi_idx;
+	s32 link_rssi;
+	unsigned int grade = MAX_GRADE;
+
+	if (WARN_ON_ONCE(!link_conf))
+		return 0;
+
+	band = link_conf->chanreq.oper.chan->band;
+	if (WARN_ONCE(band != NL80211_BAND_2GHZ &&
+		      band != NL80211_BAND_5GHZ &&
+		      band != NL80211_BAND_6GHZ,
+		      "Invalid band (%u)\n", band))
+		return 0;
+
+	link_rssi = MBM_TO_DBM(link_conf->bss->signal);
+	/*
+	 * For 6 GHz the RSSI of the beacons is lower than
+	 * the RSSI of the data.
+	 */
+	if (band == NL80211_BAND_6GHZ)
+		link_rssi += 4;
+
+	rssi_idx = band == NL80211_BAND_2GHZ ? 0 : 1;
+
+	/* Get grade based on RSSI */
+	for (i = 0; i < ARRAY_SIZE(rssi_to_grade_map); i++) {
+		const struct iwl_mvm_rssi_to_grade *line =
+			&rssi_to_grade_map[i];
+
+		if (link_rssi > line->rssi[rssi_idx])
+			continue;
+		grade = line->grade;
+		break;
+	}
+
+	/* apply the channel load and puncturing factors */
+	grade = grade * iwl_mvm_get_chan_load_factor(link_conf) / SCALE_FACTOR;
+	grade = grade * iwl_mvm_get_puncturing_factor(link_conf) / SCALE_FACTOR;
+	return grade;
+}
+EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mvm_get_link_grade);
