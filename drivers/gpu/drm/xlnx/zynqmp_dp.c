@@ -1276,28 +1276,40 @@ static void zynqmp_dp_encoder_mode_set_stream(struct zynqmp_dp *dp,
  * DISP Configuration
  */
 
+/**
+ * zynqmp_dp_disp_connected_live_layer - Return the first connected live layer
+ * @dp: DisplayPort IP core structure
+ *
+ * Return: The first connected live display layer or NULL if none of the live
+ * layers are connected.
+ */
+static struct zynqmp_disp_layer *
+zynqmp_dp_disp_connected_live_layer(struct zynqmp_dp *dp)
+{
+	if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO))
+		return dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_VID];
+	else if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX))
+		return dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_GFX];
+	else
+		return NULL;
+}
+
 static void zynqmp_dp_disp_enable(struct zynqmp_dp *dp,
 				  struct drm_bridge_state *old_bridge_state)
 {
-	enum zynqmp_dpsub_layer_id layer_id;
 	struct zynqmp_disp_layer *layer;
 	const struct drm_format_info *info;
 
-	if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO))
-		layer_id = ZYNQMP_DPSUB_LAYER_VID;
-	else if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX))
-		layer_id = ZYNQMP_DPSUB_LAYER_GFX;
-	else
+	layer = zynqmp_dp_disp_connected_live_layer(dp);
+	if (!layer)
 		return;
-
-	layer = dp->dpsub->layers[layer_id];
 
 	/* TODO: Make the format configurable. */
 	info = drm_format_info(DRM_FORMAT_YUV422);
 	zynqmp_disp_layer_set_format(layer, info);
 	zynqmp_disp_layer_enable(layer);
 
-	if (layer_id == ZYNQMP_DPSUB_LAYER_GFX)
+	if (layer == dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_GFX])
 		zynqmp_disp_blend_set_global_alpha(dp->dpsub->disp, true, 255);
 	else
 		zynqmp_disp_blend_set_global_alpha(dp->dpsub->disp, false, 0);
@@ -1310,11 +1322,8 @@ static void zynqmp_dp_disp_disable(struct zynqmp_dp *dp,
 {
 	struct zynqmp_disp_layer *layer;
 
-	if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_VIDEO))
-		layer = dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_VID];
-	else if (dp->dpsub->connected_ports & BIT(ZYNQMP_DPSUB_PORT_LIVE_GFX))
-		layer = dp->dpsub->layers[ZYNQMP_DPSUB_LAYER_GFX];
-	else
+	layer = zynqmp_dp_disp_connected_live_layer(dp);
+	if (!layer)
 		return;
 
 	zynqmp_disp_disable(dp->dpsub->disp);
