@@ -900,6 +900,12 @@ static inline uint xfs_dinode_size(int version)
 #define	XFS_MAXLINK		((1U << 31) - 1U)
 
 /*
+ * Any file that hits the maximum ondisk link count should be pinned to avoid
+ * a use-after-free situation.
+ */
+#define	XFS_NLINK_PINNED	(~0U)
+
+/*
  * Values for di_format
  *
  * This enum is used in string mapping in xfs_trace.h; please keep the
