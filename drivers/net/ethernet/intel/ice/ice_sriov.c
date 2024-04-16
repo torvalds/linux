@@ -360,13 +360,14 @@ static void ice_ena_vf_mappings(struct ice_vf *vf)
  * @vf: VF to calculate the register index for
  * @q_vector: a q_vector associated to the VF
  */
-int ice_calc_vf_reg_idx(struct ice_vf *vf, struct ice_q_vector *q_vector)
+void ice_calc_vf_reg_idx(struct ice_vf *vf, struct ice_q_vector *q_vector)
 {
 	if (!vf || !q_vector)
-		return -EINVAL;
+		return;
 
 	/* always add one to account for the OICR being the first MSIX */
-	return vf->first_vector_idx + q_vector->v_idx + 1;
+	q_vector->vf_reg_idx = q_vector->v_idx + ICE_NONQ_VECS_VF;
+	q_vector->reg_idx = vf->first_vector_idx + q_vector->vf_reg_idx;
 }
 
 /**
@@ -830,11 +831,6 @@ static int ice_create_vf_entries(struct ice_pf *pf, u16 num_vfs)
 		vf->vf_sw_id = pf->first_sw;
 
 		pci_dev_get(vfdev);
-
-		/* set default number of MSI-X */
-		vf->num_msix = pf->vfs.num_msix_per;
-		vf->num_vf_qs = pf->vfs.num_qps_per;
-		ice_vc_set_default_allowlist(vf);
 
 		hash_add_rcu(vfs->table, &vf->entry, vf_id);
 	}
