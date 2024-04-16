@@ -578,22 +578,8 @@ xrep_rmap_scan_inode(
 	struct xrep_rmap	*rr,
 	struct xfs_inode	*ip)
 {
-	unsigned int		lock_mode = 0;
+	unsigned int		lock_mode = xrep_rmap_scan_ilock(ip);
 	int			error;
-
-	/*
-	 * Directory updates (create/link/unlink/rename) drop the directory's
-	 * ILOCK before finishing any rmapbt updates associated with directory
-	 * shape changes.  For this scan to coordinate correctly with the live
-	 * update hook, we must take the only lock (i_rwsem) that is held all
-	 * the way to dir op completion.  This will get fixed by the parent
-	 * pointer patchset.
-	 */
-	if (S_ISDIR(VFS_I(ip)->i_mode)) {
-		lock_mode = XFS_IOLOCK_SHARED;
-		xfs_ilock(ip, lock_mode);
-	}
-	lock_mode |= xrep_rmap_scan_ilock(ip);
 
 	/* Check the data fork. */
 	error = xrep_rmap_scan_ifork(rr, ip, XFS_DATA_FORK);
