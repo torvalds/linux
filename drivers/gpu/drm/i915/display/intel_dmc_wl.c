@@ -51,9 +51,10 @@ static struct intel_dmc_wl_range lnl_wl_range[] = {
 	{ .start = 0x60000, .end = 0x7ffff },
 };
 
-static void __intel_dmc_wl_release(struct drm_i915_private *i915)
+static void __intel_dmc_wl_release(struct intel_display *display)
 {
-	struct intel_dmc_wl *wl = &i915->display.wl;
+	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct intel_dmc_wl *wl = &display->wl;
 
 	WARN_ON(refcount_read(&wl->refcount));
 
@@ -106,23 +107,25 @@ static bool intel_dmc_wl_check_range(u32 address)
 	return wl_needed;
 }
 
-static bool __intel_dmc_wl_supported(struct drm_i915_private *i915)
+static bool __intel_dmc_wl_supported(struct intel_display *display)
 {
+	struct drm_i915_private *i915 = to_i915(display->drm);
+
 	if (DISPLAY_VER(i915) < 20 ||
 	    !intel_dmc_has_payload(i915) ||
-	    !i915->display.params.enable_dmc_wl)
+	    !display->params.enable_dmc_wl)
 		return false;
 
 	return true;
 }
 
-void intel_dmc_wl_init(struct drm_i915_private *i915)
+void intel_dmc_wl_init(struct intel_display *display)
 {
-	struct intel_dmc_wl *wl = &i915->display.wl;
+	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct intel_dmc_wl *wl = &display->wl;
 
 	/* don't call __intel_dmc_wl_supported(), DMC is not loaded yet */
-	if (DISPLAY_VER(i915) < 20 ||
-	    !i915->display.params.enable_dmc_wl)
+	if (DISPLAY_VER(i915) < 20 || !display->params.enable_dmc_wl)
 		return;
 
 	INIT_DELAYED_WORK(&wl->work, intel_dmc_wl_work);
@@ -130,12 +133,13 @@ void intel_dmc_wl_init(struct drm_i915_private *i915)
 	refcount_set(&wl->refcount, 0);
 }
 
-void intel_dmc_wl_enable(struct drm_i915_private *i915)
+void intel_dmc_wl_enable(struct intel_display *display)
 {
-	struct intel_dmc_wl *wl = &i915->display.wl;
+	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct intel_dmc_wl *wl = &display->wl;
 	unsigned long flags;
 
-	if (!__intel_dmc_wl_supported(i915))
+	if (!__intel_dmc_wl_supported(display))
 		return;
 
 	spin_lock_irqsave(&wl->lock, flags);
@@ -157,12 +161,13 @@ out_unlock:
 	spin_unlock_irqrestore(&wl->lock, flags);
 }
 
-void intel_dmc_wl_disable(struct drm_i915_private *i915)
+void intel_dmc_wl_disable(struct intel_display *display)
 {
-	struct intel_dmc_wl *wl = &i915->display.wl;
+	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct intel_dmc_wl *wl = &display->wl;
 	unsigned long flags;
 
-	if (!__intel_dmc_wl_supported(i915))
+	if (!__intel_dmc_wl_supported(display))
 		return;
 
 	flush_delayed_work(&wl->work);
@@ -183,12 +188,13 @@ out_unlock:
 	spin_unlock_irqrestore(&wl->lock, flags);
 }
 
-void intel_dmc_wl_get(struct drm_i915_private *i915, i915_reg_t reg)
+void intel_dmc_wl_get(struct intel_display *display, i915_reg_t reg)
 {
-	struct intel_dmc_wl *wl = &i915->display.wl;
+	struct drm_i915_private *i915 = to_i915(display->drm);
+	struct intel_dmc_wl *wl = &display->wl;
 	unsigned long flags;
 
-	if (!__intel_dmc_wl_supported(i915))
+	if (!__intel_dmc_wl_supported(display))
 		return;
 
 	if (!intel_dmc_wl_check_range(reg.reg))
@@ -231,12 +237,12 @@ out_unlock:
 	spin_unlock_irqrestore(&wl->lock, flags);
 }
 
-void intel_dmc_wl_put(struct drm_i915_private *i915, i915_reg_t reg)
+void intel_dmc_wl_put(struct intel_display *display, i915_reg_t reg)
 {
-	struct intel_dmc_wl *wl = &i915->display.wl;
+	struct intel_dmc_wl *wl = &display->wl;
 	unsigned long flags;
 
-	if (!__intel_dmc_wl_supported(i915))
+	if (!__intel_dmc_wl_supported(display))
 		return;
 
 	if (!intel_dmc_wl_check_range(reg.reg))
@@ -252,7 +258,7 @@ void intel_dmc_wl_put(struct drm_i915_private *i915, i915_reg_t reg)
 		goto out_unlock;
 
 	if (refcount_dec_and_test(&wl->refcount)) {
-		__intel_dmc_wl_release(i915);
+		__intel_dmc_wl_release(display);
 
 		goto out_unlock;
 	}

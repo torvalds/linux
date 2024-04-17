@@ -198,7 +198,7 @@ void intel_display_driver_early_probe(struct drm_i915_private *i915)
 	intel_dpll_init_clock_hook(i915);
 	intel_init_display_hooks(i915);
 	intel_fdi_init_hook(i915);
-	intel_dmc_wl_init(i915);
+	intel_dmc_wl_init(&i915->display);
 }
 
 /* part #1: call before irq install */

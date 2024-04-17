@@ -553,7 +553,7 @@ void intel_dmc_disable_program(struct drm_i915_private *i915)
 	disable_all_event_handlers(i915);
 	pipedmc_clock_gating_wa(i915, false);
 
-	intel_dmc_wl_disable(i915);
+	intel_dmc_wl_disable(&i915->display);
 }
 
 void assert_dmc_loaded(struct drm_i915_private *i915)
@@ -1083,7 +1083,7 @@ void intel_dmc_suspend(struct drm_i915_private *i915)
 	if (dmc)
 		flush_work(&dmc->work);
 
-	intel_dmc_wl_disable(i915);
+	intel_dmc_wl_disable(&i915->display);
 
 	/* Drop the reference held in case DMC isn't loaded. */
 	if (!intel_dmc_has_payload(i915))

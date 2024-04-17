@@ -15,11 +15,11 @@ intel_de_read(struct drm_i915_private *i915, i915_reg_t reg)
 {
 	u32 val;
 
-	intel_dmc_wl_get(i915, reg);
+	intel_dmc_wl_get(&i915->display, reg);
 
 	val = intel_uncore_read(&i915->uncore, reg);
 
-	intel_dmc_wl_put(i915, reg);
+	intel_dmc_wl_put(&i915->display, reg);
 
 	return val;
 }
@@ -29,11 +29,11 @@ intel_de_read8(struct drm_i915_private *i915, i915_reg_t reg)
 {
 	u8 val;
 
-	intel_dmc_wl_get(i915, reg);
+	intel_dmc_wl_get(&i915->display, reg);
 
 	val = intel_uncore_read8(&i915->uncore, reg);
 
-	intel_dmc_wl_put(i915, reg);
+	intel_dmc_wl_put(&i915->display, reg);
 
 	return val;
 }
@@ -44,13 +44,13 @@ intel_de_read64_2x32(struct drm_i915_private *i915,
 {
 	u64 val;
 
-	intel_dmc_wl_get(i915, lower_reg);
-	intel_dmc_wl_get(i915, upper_reg);
+	intel_dmc_wl_get(&i915->display, lower_reg);
+	intel_dmc_wl_get(&i915->display, upper_reg);
 
 	val = intel_uncore_read64_2x32(&i915->uncore, lower_reg, upper_reg);
 
-	intel_dmc_wl_put(i915, upper_reg);
-	intel_dmc_wl_put(i915, lower_reg);
+	intel_dmc_wl_put(&i915->display, upper_reg);
+	intel_dmc_wl_put(&i915->display, lower_reg);
 
 	return val;
 }
@@ -58,21 +58,21 @@ intel_de_read64_2x32(struct drm_i915_private *i915,
 static inline void
 intel_de_posting_read(struct drm_i915_private *i915, i915_reg_t reg)
 {
-	intel_dmc_wl_get(i915, reg);
+	intel_dmc_wl_get(&i915->display, reg);
 
 	intel_uncore_posting_read(&i915->uncore, reg);
 
-	intel_dmc_wl_put(i915, reg);
+	intel_dmc_wl_put(&i915->display, reg);
 }
 
 static inline void
 intel_de_write(struct drm_i915_private *i915, i915_reg_t reg, u32 val)
 {
-	intel_dmc_wl_get(i915, reg);
+	intel_dmc_wl_get(&i915->display, reg);
 
 	intel_uncore_write(&i915->uncore, reg, val);
 
-	intel_dmc_wl_put(i915, reg);
+	intel_dmc_wl_put(&i915->display, reg);
 }
 
 static inline u32
@@ -87,11 +87,11 @@ intel_de_rmw(struct drm_i915_private *i915, i915_reg_t reg, u32 clear, u32 set)
 {
 	u32 val;
 
-	intel_dmc_wl_get(i915, reg);
+	intel_dmc_wl_get(&i915->display, reg);
 
 	val = __intel_de_rmw_nowl(i915, reg, clear, set);
 
-	intel_dmc_wl_put(i915, reg);
+	intel_dmc_wl_put(&i915->display, reg);
 
 	return val;
 }
@@ -110,11 +110,11 @@ intel_de_wait(struct drm_i915_private *i915, i915_reg_t reg,
 {
 	int ret;
 
-	intel_dmc_wl_get(i915, reg);
+	intel_dmc_wl_get(&i915->display, reg);
 
 	ret = __intel_de_wait_for_register_nowl(i915, reg, mask, value, timeout);
 
-	intel_dmc_wl_put(i915, reg);
+	intel_dmc_wl_put(&i915->display, reg);
 
 	return ret;
 }
@@ -125,11 +125,11 @@ intel_de_wait_fw(struct drm_i915_private *i915, i915_reg_t reg,
 {
 	int ret;
 
-	intel_dmc_wl_get(i915, reg);
+	intel_dmc_wl_get(&i915->display, reg);
 
 	ret = intel_wait_for_register_fw(&i915->uncore, reg, mask, value, timeout);
 
-	intel_dmc_wl_put(i915, reg);
+	intel_dmc_wl_put(&i915->display, reg);
 
 	return ret;
 }
@@ -142,12 +142,12 @@ intel_de_wait_custom(struct drm_i915_private *i915, i915_reg_t reg,
 {
 	int ret;
 
-	intel_dmc_wl_get(i915, reg);
+	intel_dmc_wl_get(&i915->display, reg);
 
 	ret = __intel_wait_for_register(&i915->uncore, reg, mask, value,
 					fast_timeout_us, slow_timeout_ms, out_value);
 
-	intel_dmc_wl_put(i915, reg);
+	intel_dmc_wl_put(&i915->display, reg);
 
 	return ret;
 }
