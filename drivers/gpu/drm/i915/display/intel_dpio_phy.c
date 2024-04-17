@@ -294,13 +294,13 @@ void bxt_ddi_phy_set_signal_levels(struct intel_encoder *encoder,
 	val &= ~(TX2_SWING_CALC_INIT | TX1_SWING_CALC_INIT);
 	intel_de_write(dev_priv, BXT_PORT_PCS_DW10_GRP(phy, ch), val);
 
-	val = intel_de_read(dev_priv, BXT_PORT_TX_DW2_LN0(phy, ch));
+	val = intel_de_read(dev_priv, BXT_PORT_TX_DW2_LN(phy, ch, 0));
 	val &= ~(MARGIN_000_MASK | UNIQ_TRANS_SCALE_MASK);
 	val |= MARGIN_000(trans->entries[level].bxt.margin) |
 		UNIQ_TRANS_SCALE(trans->entries[level].bxt.scale);
 	intel_de_write(dev_priv, BXT_PORT_TX_DW2_GRP(phy, ch), val);
 
-	val = intel_de_read(dev_priv, BXT_PORT_TX_DW3_LN0(phy, ch));
+	val = intel_de_read(dev_priv, BXT_PORT_TX_DW3_LN(phy, ch, 0));
 	val &= ~SCALE_DCOMP_METHOD;
 	if (trans->entries[level].bxt.enable)
 		val |= SCALE_DCOMP_METHOD;
@@ -311,7 +311,7 @@ void bxt_ddi_phy_set_signal_levels(struct intel_encoder *encoder,
 
 	intel_de_write(dev_priv, BXT_PORT_TX_DW3_GRP(phy, ch), val);
 
-	val = intel_de_read(dev_priv, BXT_PORT_TX_DW4_LN0(phy, ch));
+	val = intel_de_read(dev_priv, BXT_PORT_TX_DW4_LN(phy, ch, 0));
 	val &= ~DE_EMPHASIS_MASK;
 	val |= DE_EMPHASIS(trans->entries[level].bxt.deemphasis);
 	intel_de_write(dev_priv, BXT_PORT_TX_DW4_GRP(phy, ch), val);

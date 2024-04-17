@@ -555,6 +555,10 @@
 					 (reg_ch1) - _BXT_PHY0_BASE))
 #define _MMIO_BXT_PHY_CH(phy, ch, reg_ch0, reg_ch1)		\
 	_MMIO(_BXT_PHY_CH(phy, ch, reg_ch0, reg_ch1))
+#define _BXT_LANE_OFFSET(lane)           (((lane) >> 1) * 0x200 + \
+					  ((lane) & 1) * 0x80)
+#define _MMIO_BXT_PHY_CH_LN(phy, ch, lane, reg_ch0, reg_ch1) \
+	_MMIO(_BXT_PHY_CH(phy, ch, reg_ch0, reg_ch1) + _BXT_LANE_OFFSET(lane))
 
 #define BXT_P_CR_GT_DISP_PWRON		_MMIO(0x138090)
 #define  MIPIO_RST_CTRL				(1 << 2)
@@ -747,18 +751,15 @@
 							 _PORT_PCS_DW12_GRP_C)
 
 /* BXT PHY TX registers */
-#define _BXT_LANE_OFFSET(lane)           (((lane) >> 1) * 0x200 +	\
-					  ((lane) & 1) * 0x80)
-
 #define _PORT_TX_DW2_LN0_A		0x162508
 #define _PORT_TX_DW2_LN0_B		0x6C508
 #define _PORT_TX_DW2_LN0_C		0x6C908
 #define _PORT_TX_DW2_GRP_A		0x162D08
 #define _PORT_TX_DW2_GRP_B		0x6CD08
 #define _PORT_TX_DW2_GRP_C		0x6CF08
-#define BXT_PORT_TX_DW2_LN0(phy, ch)	_MMIO_BXT_PHY_CH(phy, ch, \
-							 _PORT_TX_DW2_LN0_B, \
-							 _PORT_TX_DW2_LN0_C)
+#define BXT_PORT_TX_DW2_LN(phy, ch, lane)	_MMIO_BXT_PHY_CH_LN(phy, ch, lane, \
+								    _PORT_TX_DW2_LN0_B,	\
+								    _PORT_TX_DW2_LN0_C)
 #define BXT_PORT_TX_DW2_GRP(phy, ch)	_MMIO_BXT_PHY_CH(phy, ch, \
 							 _PORT_TX_DW2_GRP_B, \
 							 _PORT_TX_DW2_GRP_C)
@@ -773,9 +774,9 @@
 #define _PORT_TX_DW3_GRP_A		0x162D0C
 #define _PORT_TX_DW3_GRP_B		0x6CD0C
 #define _PORT_TX_DW3_GRP_C		0x6CF0C
-#define BXT_PORT_TX_DW3_LN0(phy, ch)	_MMIO_BXT_PHY_CH(phy, ch, \
-							 _PORT_TX_DW3_LN0_B, \
-							 _PORT_TX_DW3_LN0_C)
+#define BXT_PORT_TX_DW3_LN(phy, ch, lane)	_MMIO_BXT_PHY_CH_LN(phy, ch, lane, \
+								    _PORT_TX_DW3_LN0_B, \
+								    _PORT_TX_DW3_LN0_C)
 #define BXT_PORT_TX_DW3_GRP(phy, ch)	_MMIO_BXT_PHY_CH(phy, ch, \
 							 _PORT_TX_DW3_GRP_B, \
 							 _PORT_TX_DW3_GRP_C)
@@ -788,9 +789,9 @@
 #define _PORT_TX_DW4_GRP_A		0x162D10
 #define _PORT_TX_DW4_GRP_B		0x6CD10
 #define _PORT_TX_DW4_GRP_C		0x6CF10
-#define BXT_PORT_TX_DW4_LN0(phy, ch)	_MMIO_BXT_PHY_CH(phy, ch, \
-							 _PORT_TX_DW4_LN0_B, \
-							 _PORT_TX_DW4_LN0_C)
+#define BXT_PORT_TX_DW4_LN(phy, ch, lane)	_MMIO_BXT_PHY_CH_LN(phy, ch, lane, \
+								    _PORT_TX_DW4_LN0_B, \
+								    _PORT_TX_DW4_LN0_C)
 #define BXT_PORT_TX_DW4_GRP(phy, ch)	_MMIO_BXT_PHY_CH(phy, ch, \
 							 _PORT_TX_DW4_GRP_B, \
 							 _PORT_TX_DW4_GRP_C)
@@ -803,9 +804,9 @@
 #define _PORT_TX_DW5_GRP_A		0x162D14
 #define _PORT_TX_DW5_GRP_B		0x6CD14
 #define _PORT_TX_DW5_GRP_C		0x6CF14
-#define BXT_PORT_TX_DW5_LN0(phy, ch)	_MMIO_BXT_PHY_CH(phy, ch, \
-							 _PORT_TX_DW5_LN0_B, \
-							 _PORT_TX_DW5_LN0_C)
+#define BXT_PORT_TX_DW5_LN(phy, ch, lane)	_MMIO_BXT_PHY_CH_LN(phy, ch, lane, \
+								    _PORT_TX_DW5_LN0_B, \
+								    _PORT_TX_DW5_LN0_C)
 #define BXT_PORT_TX_DW5_GRP(phy, ch)	_MMIO_BXT_PHY_CH(phy, ch, \
 							 _PORT_TX_DW5_GRP_B, \
 							 _PORT_TX_DW5_GRP_C)
@@ -816,10 +817,9 @@
 #define _PORT_TX_DW14_LN0_B		0x6C538
 #define _PORT_TX_DW14_LN0_C		0x6C938
 #define   LATENCY_OPTIM			REG_BIT(30)
-#define BXT_PORT_TX_DW14_LN(phy, ch, lane)				\
-	_MMIO(_BXT_PHY_CH(phy, ch, _PORT_TX_DW14_LN0_B,			\
-				   _PORT_TX_DW14_LN0_C) +		\
-	      _BXT_LANE_OFFSET(lane))
+#define BXT_PORT_TX_DW14_LN(phy, ch, lane)	_MMIO_BXT_PHY_CH_LN(phy, ch, lane, \
+								    _PORT_TX_DW14_LN0_B, \
+								    _PORT_TX_DW14_LN0_C)
 
 /* UAIMI scratch pad register 1 */
 #define UAIMI_SPR1			_MMIO(0x4F074)
