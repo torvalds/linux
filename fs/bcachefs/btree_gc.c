@@ -627,13 +627,14 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 				p.ptr.gen, g->gen,
 				(printbuf_reset(&buf),
 				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
-			if (!p.ptr.cached) {
+			if (!p.ptr.cached &&
+			    (g->data_type != BCH_DATA_btree ||
+			     data_type == BCH_DATA_btree)) {
 				g->gen_valid		= true;
 				g->gen			= p.ptr.gen;
 				g->data_type		= 0;
 				g->dirty_sectors	= 0;
 				g->cached_sectors	= 0;
-				set_bit(BCH_FS_need_another_gc, &c->flags);
 			} else {
 				do_update = true;
 			}
@@ -666,16 +667,19 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 
 		if (fsck_err_on(bucket_data_type_mismatch(g->data_type, data_type),
 				c, ptr_bucket_data_type_mismatch,
-				"bucket %u:%zu different types of data in same bucket: %s, %s\n"
+				"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"
 				"while marking %s",
-				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
+				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr), g->gen,
 				bch2_data_type_str(g->data_type),
 				bch2_data_type_str(data_type),
 				(printbuf_reset(&buf),
 				 bch2_bkey_val_to_text(&buf, c, *k), buf.buf))) {
 			if (data_type == BCH_DATA_btree) {
-				g->data_type	= data_type;
-				set_bit(BCH_FS_need_another_gc, &c->flags);
+				g->gen_valid		= true;
+				g->gen			= p.ptr.gen;
+				g->data_type		= data_type;
+				g->dirty_sectors	= 0;
+				g->cached_sectors	= 0;
 			} else {
 				do_update = true;
 			}
@@ -749,7 +753,7 @@ restart_drop_ptrs:
 				     gen_cmp(p.ptr.gen, g->gen) < 0) ||
 				    gen_cmp(g->gen, p.ptr.gen) > BUCKET_GC_GEN_MAX ||
 				    (g->data_type &&
-				     g->data_type != data_type)) {
+				     bucket_data_type(g->data_type) != data_type)) {
 					bch2_bkey_drop_ptr(bkey_i_to_s(new), &entry->ptr);
 					goto restart_drop_ptrs;
 				}
@@ -1182,19 +1186,6 @@ static int bch2_gc_start(struct bch_fs *c)
 	return 0;
 }
 
-static int bch2_gc_reset(struct bch_fs *c)
-{
-	for_each_member_device(c, ca) {
-		free_percpu(ca->usage_gc);
-		ca->usage_gc = NULL;
-	}
-
-	free_percpu(c->usage_gc);
-	c->usage_gc = NULL;
-
-	return bch2_gc_start(c);
-}
-
 /* returns true if not equal */
 static inline bool bch2_alloc_v4_cmp(struct bch_alloc_v4 l,
 				     struct bch_alloc_v4 r)
@@ -1363,20 +1354,6 @@ static int bch2_gc_alloc_start(struct bch_fs *c)
 	return ret;
 }
 
-static void bch2_gc_alloc_reset(struct bch_fs *c)
-{
-	for_each_member_device(c, ca) {
-		struct bucket_array *buckets = gc_bucket_array(ca);
-		struct bucket *g;
-
-		for_each_bucket(g, buckets) {
-			g->data_type = 0;
-			g->dirty_sectors = 0;
-			g->cached_sectors = 0;
-		}
-	}
-}
-
 static int bch2_gc_write_reflink_key(struct btree_trans *trans,
 				     struct btree_iter *iter,
 				     struct bkey_s_c k,
@@ -1469,15 +1446,6 @@ static int bch2_gc_reflink_start(struct bch_fs *c)
 	return ret;
 }
 
-static void bch2_gc_reflink_reset(struct bch_fs *c)
-{
-	struct genradix_iter iter;
-	struct reflink_gc *r;
-
-	genradix_for_each(&c->reflink_gc_table, iter, r)
-		r->refcount = 0;
-}
-
 static int bch2_gc_write_stripes_key(struct btree_trans *trans,
 				     struct btree_iter *iter,
 				     struct bkey_s_c k)
@@ -1541,11 +1509,6 @@ static int bch2_gc_stripes_done(struct bch_fs *c)
 			bch2_gc_write_stripes_key(trans, &iter, k)));
 }
 
-static void bch2_gc_stripes_reset(struct bch_fs *c)
-{
-	genradix_free(&c->gc_stripes);
-}
-
 /**
  * bch2_gc - walk _all_ references to buckets, and recompute them:
  *
@@ -1571,7 +1534,6 @@ static void bch2_gc_stripes_reset(struct bch_fs *c)
  */
 static int bch2_gc(struct bch_fs *c, bool initial)
 {
-	unsigned iter = 0;
 	int ret;
 
 	lockdep_assert_held(&c->state_lock);
@@ -1585,7 +1547,7 @@ static int bch2_gc(struct bch_fs *c, bool initial)
 		bch2_gc_reflink_start(c);
 	if (ret)
 		goto out;
-again:
+
 	gc_pos_set(c, gc_phase(GC_PHASE_START));
 
 	ret = bch2_mark_superblocks(c);
@@ -1597,43 +1559,14 @@ again:
 
 	c->gc_count++;
 
-	if (test_bit(BCH_FS_need_another_gc, &c->flags) ||
-	    (!iter && bch2_test_restart_gc)) {
-		if (iter++ > 2) {
-			bch_info(c, "Unable to fix bucket gens, looping");
-			ret = -EINVAL;
-			goto out;
-		}
-
-		/*
-		 * XXX: make sure gens we fixed got saved
-		 */
-		bch_info(c, "Second GC pass needed, restarting:");
-		clear_bit(BCH_FS_need_another_gc, &c->flags);
-		__gc_pos_set(c, gc_phase(GC_PHASE_NOT_RUNNING));
-
-		bch2_gc_stripes_reset(c);
-		bch2_gc_alloc_reset(c);
-		bch2_gc_reflink_reset(c);
-		ret = bch2_gc_reset(c);
-		if (ret)
-			goto out;
-
-		/* flush fsck errors, reset counters */
-		bch2_flush_fsck_errs(c);
-		goto again;
-	}
+	bch2_journal_block(&c->journal);
 out:
-	if (!ret) {
-		bch2_journal_block(&c->journal);
+	ret   = bch2_gc_alloc_done(c) ?:
+		bch2_gc_done(c) ?:
+		bch2_gc_stripes_done(c) ?:
+		bch2_gc_reflink_done(c);
 
-		ret   = bch2_gc_alloc_done(c) ?:
-			bch2_gc_done(c) ?:
-			bch2_gc_stripes_done(c) ?:
-			bch2_gc_reflink_done(c);
-
-		bch2_journal_unblock(&c->journal);
-	}
+	bch2_journal_unblock(&c->journal);
 
 	percpu_down_write(&c->mark_lock);
 	/* Indicates that gc is no longer in progress: */

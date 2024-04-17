@@ -630,7 +630,6 @@ struct bch_dev {
 	x(clean_shutdown)		\
 	x(fsck_running)			\
 	x(initial_gc_unfixed)		\
-	x(need_another_gc)		\
 	x(need_delete_dead_snapshots)	\
 	x(error)			\
 	x(topology_error)		\
