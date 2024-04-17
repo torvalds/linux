@@ -225,7 +225,6 @@ static void gve_tx_free_ring_gqi(struct gve_priv *priv, struct gve_tx_ring *tx,
 
 	if (!tx->raw_addressing) {
 		gve_tx_fifo_release(priv, &tx->tx_fifo);
-		gve_unassign_qpl(cfg->qpl_cfg, tx->tx_fifo.qpl->id);
 		tx->tx_fifo.qpl = NULL;
 	}
 
@@ -280,12 +279,12 @@ static int gve_tx_alloc_ring_gqi(struct gve_priv *priv,
 	tx->raw_addressing = cfg->raw_addressing;
 	tx->dev = hdev;
 	if (!tx->raw_addressing) {
-		tx->tx_fifo.qpl = gve_assign_tx_qpl(cfg, idx);
-		if (!tx->tx_fifo.qpl)
-			goto abort_with_desc;
+		u32 qpl_id = gve_tx_qpl_id(priv, tx->q_num);
+
+		tx->tx_fifo.qpl = &cfg->qpls[qpl_id];
 		/* map Tx FIFO */
 		if (gve_tx_fifo_init(priv, &tx->tx_fifo))
-			goto abort_with_qpl;
+			goto abort_with_desc;
 	}
 
 	tx->q_resources =
@@ -301,9 +300,6 @@ static int gve_tx_alloc_ring_gqi(struct gve_priv *priv,
 abort_with_fifo:
 	if (!tx->raw_addressing)
 		gve_tx_fifo_release(priv, &tx->tx_fifo);
-abort_with_qpl:
-	if (!tx->raw_addressing)
-		gve_unassign_qpl(cfg->qpl_cfg, tx->tx_fifo.qpl->id);
 abort_with_desc:
 	dma_free_coherent(hdev, bytes, tx->desc, tx->bus);
 	tx->desc = NULL;

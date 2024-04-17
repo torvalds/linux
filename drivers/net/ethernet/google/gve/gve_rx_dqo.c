@@ -247,10 +247,8 @@ static void gve_rx_free_ring_dqo(struct gve_priv *priv, struct gve_rx_ring *rx,
 		if (bs->page_info.page)
 			gve_free_page_dqo(priv, bs, !rx->dqo.qpl);
 	}
-	if (rx->dqo.qpl) {
-		gve_unassign_qpl(cfg->qpl_cfg, rx->dqo.qpl->id);
-		rx->dqo.qpl = NULL;
-	}
+
+	rx->dqo.qpl = NULL;
 
 	if (rx->dqo.bufq.desc_ring) {
 		size = sizeof(rx->dqo.bufq.desc_ring[0]) * buffer_queue_slots;
@@ -359,9 +357,9 @@ static int gve_rx_alloc_ring_dqo(struct gve_priv *priv,
 		goto err;
 
 	if (!cfg->raw_addressing) {
-		rx->dqo.qpl = gve_assign_rx_qpl(cfg, rx->q_num);
-		if (!rx->dqo.qpl)
-			goto err;
+		u32 qpl_id = gve_get_rx_qpl_id(cfg->qcfg_tx, rx->q_num);
+
+		rx->dqo.qpl = &cfg->qpls[qpl_id];
 		rx->dqo.next_qpl_page_idx = 0;
 	}
 

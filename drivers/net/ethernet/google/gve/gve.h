@@ -639,7 +639,6 @@ struct gve_ptype_lut {
 
 /* Parameters for allocating queue page lists */
 struct gve_qpls_alloc_cfg {
-	struct gve_qpl_config *qpl_cfg;
 	struct gve_queue_config *tx_cfg;
 	struct gve_queue_config *rx_cfg;
 
@@ -655,9 +654,8 @@ struct gve_qpls_alloc_cfg {
 struct gve_tx_alloc_rings_cfg {
 	struct gve_queue_config *qcfg;
 
-	/* qpls and qpl_cfg must already be allocated */
+	/* qpls must already be allocated */
 	struct gve_queue_page_list *qpls;
-	struct gve_qpl_config *qpl_cfg;
 
 	u16 ring_size;
 	u16 start_idx;
@@ -674,9 +672,8 @@ struct gve_rx_alloc_rings_cfg {
 	struct gve_queue_config *qcfg;
 	struct gve_queue_config *qcfg_tx;
 
-	/* qpls and qpl_cfg must already be allocated */
+	/* qpls must already be allocated */
 	struct gve_queue_page_list *qpls;
-	struct gve_qpl_config *qpl_cfg;
 
 	u16 ring_size;
 	u16 packet_buffer_size;
@@ -732,7 +729,6 @@ struct gve_priv {
 	u16 num_xdp_queues;
 	struct gve_queue_config tx_cfg;
 	struct gve_queue_config rx_cfg;
-	struct gve_qpl_config qpl_cfg; /* map used QPL ids */
 	u32 num_ntfy_blks; /* spilt between TX and RX so must be even */
 
 	struct gve_registers __iomem *reg_bar0; /* see gve_register.h */
@@ -1051,37 +1047,6 @@ static inline u32 gve_get_rx_pages_per_qpl_dqo(u32 rx_desc_cnt)
 	 * out-of-order completions. Set it to two times of ring size.
 	 */
 	return 2 * rx_desc_cnt;
-}
-
-/* Returns a pointer to the next available tx qpl in the list of qpls */
-static inline
-struct gve_queue_page_list *gve_assign_tx_qpl(struct gve_tx_alloc_rings_cfg *cfg,
-					      int tx_qid)
-{
-	/* QPL already in use */
-	if (test_bit(tx_qid, cfg->qpl_cfg->qpl_id_map))
-		return NULL;
-	set_bit(tx_qid, cfg->qpl_cfg->qpl_id_map);
-	return &cfg->qpls[tx_qid];
-}
-
-/* Returns a pointer to the next available rx qpl in the list of qpls */
-static inline
-struct gve_queue_page_list *gve_assign_rx_qpl(struct gve_rx_alloc_rings_cfg *cfg,
-					      int rx_qid)
-{
-	int id = gve_get_rx_qpl_id(cfg->qcfg_tx, rx_qid);
-	/* QPL already in use */
-	if (test_bit(id, cfg->qpl_cfg->qpl_id_map))
-		return NULL;
-	set_bit(id, cfg->qpl_cfg->qpl_id_map);
-	return &cfg->qpls[id];
-}
-
-/* Unassigns the qpl with the given id */
-static inline void gve_unassign_qpl(struct gve_qpl_config *qpl_cfg, int id)
-{
-	clear_bit(id, qpl_cfg->qpl_id_map);
 }
 
 /* Returns the correct dma direction for tx and rx qpls */

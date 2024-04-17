@@ -38,7 +38,6 @@ static void gve_rx_unfill_pages(struct gve_priv *priv,
 		for (i = 0; i < slots; i++)
 			page_ref_sub(rx->data.page_info[i].page,
 				     rx->data.page_info[i].pagecnt_bias - 1);
-		gve_unassign_qpl(cfg->qpl_cfg, rx->data.qpl->id);
 		rx->data.qpl = NULL;
 
 		for (i = 0; i < rx->qpl_copy_pool_mask + 1; i++) {
@@ -145,13 +144,11 @@ static int gve_rx_prefill_pages(struct gve_rx_ring *rx,
 		return -ENOMEM;
 
 	if (!rx->data.raw_addressing) {
-		rx->data.qpl = gve_assign_rx_qpl(cfg, rx->q_num);
-		if (!rx->data.qpl) {
-			kvfree(rx->data.page_info);
-			rx->data.page_info = NULL;
-			return -ENOMEM;
-		}
+		u32 qpl_id = gve_get_rx_qpl_id(cfg->qcfg_tx, rx->q_num);
+
+		rx->data.qpl = &cfg->qpls[qpl_id];
 	}
+
 	for (i = 0; i < slots; i++) {
 		if (!rx->data.raw_addressing) {
 			struct page *page = rx->data.qpl->pages[i];
@@ -204,7 +201,6 @@ alloc_err_qpl:
 		page_ref_sub(rx->data.page_info[i].page,
 			     rx->data.page_info[i].pagecnt_bias - 1);
 
-	gve_unassign_qpl(cfg->qpl_cfg, rx->data.qpl->id);
 	rx->data.qpl = NULL;
 
 	return err;

@@ -829,7 +829,6 @@ static void gve_tx_get_curr_alloc_cfg(struct gve_priv *priv,
 	cfg->qcfg = &priv->tx_cfg;
 	cfg->raw_addressing = !gve_is_qpl(priv);
 	cfg->qpls = priv->qpls;
-	cfg->qpl_cfg = &priv->qpl_cfg;
 	cfg->ring_size = priv->tx_desc_cnt;
 	cfg->start_idx = 0;
 	cfg->num_rings = gve_num_tx_queues(priv);
@@ -1119,22 +1118,13 @@ static int gve_alloc_qpls(struct gve_priv *priv, struct gve_qpls_alloc_cfg *cfg,
 	if (!qpls)
 		return -ENOMEM;
 
-	cfg->qpl_cfg->qpl_map_size = BITS_TO_LONGS(max_queues) *
-		sizeof(unsigned long) * BITS_PER_BYTE;
-	cfg->qpl_cfg->qpl_id_map = kvcalloc(BITS_TO_LONGS(max_queues),
-					    sizeof(unsigned long), GFP_KERNEL);
-	if (!cfg->qpl_cfg->qpl_id_map) {
-		err = -ENOMEM;
-		goto free_qpl_array;
-	}
-
 	/* Allocate TX QPLs */
 	page_count = priv->tx_pages_per_qpl;
 	tx_num_qpls = gve_num_tx_qpls(cfg->tx_cfg, cfg->num_xdp_queues,
 				      gve_is_qpl(priv));
 	err = gve_alloc_n_qpls(priv, qpls, page_count, 0, tx_num_qpls);
 	if (err)
-		goto free_qpl_map;
+		goto free_qpl_array;
 
 	/* Allocate RX QPLs */
 	rx_start_id = gve_rx_start_qpl_id(cfg->tx_cfg);
@@ -1157,9 +1147,6 @@ static int gve_alloc_qpls(struct gve_priv *priv, struct gve_qpls_alloc_cfg *cfg,
 
 free_tx_qpls:
 	gve_free_n_qpls(priv, qpls, 0, tx_num_qpls);
-free_qpl_map:
-	kvfree(cfg->qpl_cfg->qpl_id_map);
-	cfg->qpl_cfg->qpl_id_map = NULL;
 free_qpl_array:
 	kvfree(qpls);
 	return err;
@@ -1174,9 +1161,6 @@ static void gve_free_qpls(struct gve_priv *priv,
 
 	if (!qpls)
 		return;
-
-	kvfree(cfg->qpl_cfg->qpl_id_map);
-	cfg->qpl_cfg->qpl_id_map = NULL;
 
 	for (i = 0; i < max_queues; i++)
 		gve_free_queue_page_list(priv, &qpls[i], i);
@@ -1292,7 +1276,6 @@ static void gve_qpls_get_curr_alloc_cfg(struct gve_priv *priv,
 	  cfg->raw_addressing = !gve_is_qpl(priv);
 	  cfg->is_gqi = gve_is_gqi(priv);
 	  cfg->num_xdp_queues = priv->num_xdp_queues;
-	  cfg->qpl_cfg = &priv->qpl_cfg;
 	  cfg->tx_cfg = &priv->tx_cfg;
 	  cfg->rx_cfg = &priv->rx_cfg;
 	  cfg->qpls = priv->qpls;
@@ -1306,7 +1289,6 @@ static void gve_rx_get_curr_alloc_cfg(struct gve_priv *priv,
 	cfg->raw_addressing = !gve_is_qpl(priv);
 	cfg->enable_header_split = priv->header_split_enabled;
 	cfg->qpls = priv->qpls;
-	cfg->qpl_cfg = &priv->qpl_cfg;
 	cfg->ring_size = priv->rx_desc_cnt;
 	cfg->packet_buffer_size = gve_is_gqi(priv) ?
 				  GVE_DEFAULT_RX_BUFFER_SIZE :
@@ -1419,7 +1401,6 @@ static int gve_queues_start(struct gve_priv *priv,
 	priv->rx = rx_alloc_cfg->rx;
 
 	/* Record new configs into priv */
-	priv->qpl_cfg = *qpls_alloc_cfg->qpl_cfg;
 	priv->tx_cfg = *tx_alloc_cfg->qcfg;
 	priv->rx_cfg = *rx_alloc_cfg->qcfg;
 	priv->tx_desc_cnt = tx_alloc_cfg->ring_size;
@@ -1916,19 +1897,10 @@ int gve_adjust_queues(struct gve_priv *priv,
 	struct gve_tx_alloc_rings_cfg tx_alloc_cfg = {0};
 	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
 	struct gve_qpls_alloc_cfg qpls_alloc_cfg = {0};
-	struct gve_qpl_config new_qpl_cfg;
 	int err;
 
 	gve_get_curr_alloc_cfgs(priv, &qpls_alloc_cfg,
 				&tx_alloc_cfg, &rx_alloc_cfg);
-
-	/* qpl_cfg is not read-only, it contains a map that gets updated as
-	 * rings are allocated, which is why we cannot use the yet unreleased
-	 * one in priv.
-	 */
-	qpls_alloc_cfg.qpl_cfg = &new_qpl_cfg;
-	tx_alloc_cfg.qpl_cfg = &new_qpl_cfg;
-	rx_alloc_cfg.qpl_cfg = &new_qpl_cfg;
 
 	/* Relay the new config from ethtool */
 	qpls_alloc_cfg.tx_cfg = &new_tx_config;
@@ -2121,18 +2093,10 @@ static int gve_set_features(struct net_device *netdev,
 	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
 	struct gve_qpls_alloc_cfg qpls_alloc_cfg = {0};
 	struct gve_priv *priv = netdev_priv(netdev);
-	struct gve_qpl_config new_qpl_cfg;
 	int err;
 
 	gve_get_curr_alloc_cfgs(priv, &qpls_alloc_cfg,
 				&tx_alloc_cfg, &rx_alloc_cfg);
-	/* qpl_cfg is not read-only, it contains a map that gets updated as
-	 * rings are allocated, which is why we cannot use the yet unreleased
-	 * one in priv.
-	 */
-	qpls_alloc_cfg.qpl_cfg = &new_qpl_cfg;
-	tx_alloc_cfg.qpl_cfg = &new_qpl_cfg;
-	rx_alloc_cfg.qpl_cfg = &new_qpl_cfg;
 
 	if ((netdev->features & NETIF_F_LRO) != (features & NETIF_F_LRO)) {
 		netdev->features ^= NETIF_F_LRO;

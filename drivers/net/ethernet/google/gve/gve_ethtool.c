@@ -510,7 +510,6 @@ static int gve_adjust_ring_sizes(struct gve_priv *priv,
 	struct gve_tx_alloc_rings_cfg tx_alloc_cfg = {0};
 	struct gve_rx_alloc_rings_cfg rx_alloc_cfg = {0};
 	struct gve_qpls_alloc_cfg qpls_alloc_cfg = {0};
-	struct gve_qpl_config new_qpl_cfg;
 	int err;
 
 	/* get current queue configuration */
@@ -520,14 +519,6 @@ static int gve_adjust_ring_sizes(struct gve_priv *priv,
 	/* copy over the new ring_size from ethtool */
 	tx_alloc_cfg.ring_size = new_tx_desc_cnt;
 	rx_alloc_cfg.ring_size = new_rx_desc_cnt;
-
-	/* qpl_cfg is not read-only, it contains a map that gets updated as
-	 * rings are allocated, which is why we cannot use the yet unreleased
-	 * one in priv.
-	 */
-	qpls_alloc_cfg.qpl_cfg = &new_qpl_cfg;
-	tx_alloc_cfg.qpl_cfg = &new_qpl_cfg;
-	rx_alloc_cfg.qpl_cfg = &new_qpl_cfg;
 
 	if (netif_running(priv->dev)) {
 		err = gve_adjust_config(priv, &qpls_alloc_cfg,
