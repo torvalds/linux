@@ -5880,7 +5880,7 @@ int dlm_user_adopt_orphan(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 	int found_other_mode = 0;
 	int rv = 0;
 
-	mutex_lock(&ls->ls_orphans_mutex);
+	spin_lock_bh(&ls->ls_orphans_lock);
 	list_for_each_entry(iter, &ls->ls_orphans, lkb_ownqueue) {
 		if (iter->lkb_resource->res_length != namelen)
 			continue;
@@ -5897,7 +5897,7 @@ int dlm_user_adopt_orphan(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 		*lkid = iter->lkb_id;
 		break;
 	}
-	mutex_unlock(&ls->ls_orphans_mutex);
+	spin_unlock_bh(&ls->ls_orphans_lock);
 
 	if (!lkb && found_other_mode) {
 		rv = -EAGAIN;
@@ -6089,9 +6089,9 @@ static int orphan_proc_lock(struct dlm_ls *ls, struct dlm_lkb *lkb)
 	int error;
 
 	hold_lkb(lkb); /* reference for the ls_orphans list */
-	mutex_lock(&ls->ls_orphans_mutex);
+	spin_lock_bh(&ls->ls_orphans_lock);
 	list_add_tail(&lkb->lkb_ownqueue, &ls->ls_orphans);
-	mutex_unlock(&ls->ls_orphans_mutex);
+	spin_unlock_bh(&ls->ls_orphans_lock);
 
 	set_unlock_args(0, lkb->lkb_ua, &args);
 
@@ -6241,7 +6241,7 @@ static void do_purge(struct dlm_ls *ls, int nodeid, int pid)
 {
 	struct dlm_lkb *lkb, *safe;
 
-	mutex_lock(&ls->ls_orphans_mutex);
+	spin_lock_bh(&ls->ls_orphans_lock);
 	list_for_each_entry_safe(lkb, safe, &ls->ls_orphans, lkb_ownqueue) {
 		if (pid && lkb->lkb_ownpid != pid)
 			continue;
@@ -6249,7 +6249,7 @@ static void do_purge(struct dlm_ls *ls, int nodeid, int pid)
 		list_del_init(&lkb->lkb_ownqueue);
 		dlm_put_lkb(lkb);
 	}
-	mutex_unlock(&ls->ls_orphans_mutex);
+	spin_unlock_bh(&ls->ls_orphans_lock);
 }
 
 static int send_purge(struct dlm_ls *ls, int nodeid, int pid)

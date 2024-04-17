@@ -602,7 +602,7 @@ struct dlm_ls {
 	spinlock_t		ls_waiters_lock;
 	struct list_head	ls_waiters;	/* lkbs needing a reply */
 
-	struct mutex		ls_orphans_mutex;
+	spinlock_t		ls_orphans_lock;
 	struct list_head	ls_orphans;
 
 	spinlock_t		ls_new_rsb_spin;
