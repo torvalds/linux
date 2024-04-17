@@ -25,7 +25,7 @@
  *	SW_OFF - SD2 is connected to SoC
  *	SW_ON  - SCIF1, SSI0, IRQ0, IRQ1 connected to SoC
  */
-#define SW_CONFIG2	SW_ON
+#define SW_CONFIG2	SW_OFF
 #define SW_CONFIG3	SW_ON
 
 / {
