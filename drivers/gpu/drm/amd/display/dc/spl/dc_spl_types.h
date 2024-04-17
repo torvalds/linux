@@ -441,6 +441,7 @@ struct basic_out {
 	bool always_scale;	// Is always scale enabled? Required for getting SCL_MODE
 	int max_downscale_src_width; // Required to get optimal no of taps
 	bool alpha_en;
+	bool use_two_pixels_per_container;
 };
 enum explicit_sharpness	{
 	SHARPNESS_LOW = 0,

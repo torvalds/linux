@@ -173,6 +173,9 @@ static struct spl_rect calculate_odm_slice_in_timing_active(struct spl_in *spl_i
 	int odm_slice_width = h_active / odm_slice_count;
 	struct spl_rect odm_rec;
 
+	if (spl_in->basic_out.use_two_pixels_per_container && (odm_slice_width % 2))
+		odm_slice_width++;
+
 	odm_rec.x = odm_slice_width * odm_slice_idx;
 	odm_rec.width = is_last_odm_slice ?
 			/* last slice width is the reminder of h_active */
