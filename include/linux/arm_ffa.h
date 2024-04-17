@@ -126,6 +126,7 @@
 /* FFA Bus/Device/Driver related */
 struct ffa_device {
 	u32 id;
+	u32 properties;
 	int vm_id;
 	bool mode_32bit;
 	uuid_t uuid;
@@ -221,11 +222,28 @@ struct ffa_partition_info {
 #define FFA_PARTITION_DIRECT_SEND	BIT(1)
 /* partition can send and receive indirect messages. */
 #define FFA_PARTITION_INDIRECT_MSG	BIT(2)
+/* partition can receive notifications */
+#define FFA_PARTITION_NOTIFICATION_RECV	BIT(3)
 /* partition runs in the AArch64 execution state. */
 #define FFA_PARTITION_AARCH64_EXEC	BIT(8)
 	u32 properties;
 	u32 uuid[4];
 };
+
+static inline
+bool ffa_partition_check_property(struct ffa_device *dev, u32 property)
+{
+	return dev->properties & property;
+}
+
+#define ffa_partition_supports_notify_recv(dev)	\
+	ffa_partition_check_property(dev, FFA_PARTITION_NOTIFICATION_RECV)
+
+#define ffa_partition_supports_indirect_msg(dev)	\
+	ffa_partition_check_property(dev, FFA_PARTITION_INDIRECT_MSG)
+
+#define ffa_partition_supports_direct_recv(dev)	\
+	ffa_partition_check_property(dev, FFA_PARTITION_DIRECT_RECV)
 
 /* For use with FFA_MSG_SEND_DIRECT_{REQ,RESP} which pass data via registers */
 struct ffa_send_direct_data {

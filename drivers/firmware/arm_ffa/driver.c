@@ -1228,6 +1228,8 @@ static int ffa_setup_partitions(void)
 			continue;
 		}
 
+		ffa_dev->properties = tpbuf->properties;
+
 		if (drv_info->version > FFA_VERSION_1_0 &&
 		    !(tpbuf->properties & FFA_PARTITION_AARCH64_EXEC))
 			ffa_mode_32bit_set(ffa_dev);
