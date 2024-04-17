@@ -75,14 +75,6 @@ struct driver_data {
 	struct gpio_desc *gpiod_ready;
 };
 
-struct chip_data {
-	u32 cr1;
-	u32 dds_rate;
-	u32 threshold;
-	u16 lpss_rx_threshold;
-	u16 lpss_tx_threshold;
-};
-
 static inline u32 pxa2xx_spi_read(const struct driver_data *drv_data, u32 reg)
 {
 	return pxa_ssp_read_reg(drv_data->ssp, reg);

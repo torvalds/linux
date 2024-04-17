@@ -66,6 +66,14 @@ MODULE_ALIAS("platform:pxa2xx-spi");
 				| CE4100_SSCR1_RFT | CE4100_SSCR1_TFT | SSCR1_MWDS \
 				| SSCR1_SPH | SSCR1_SPO | SSCR1_LBM)
 
+struct chip_data {
+	u32 cr1;
+	u32 dds_rate;
+	u32 threshold;
+	u16 lpss_rx_threshold;
+	u16 lpss_tx_threshold;
+};
+
 #define LPSS_GENERAL_REG_RXTO_HOLDOFF_DISABLE	BIT(24)
 #define LPSS_CS_CONTROL_SW_MODE			BIT(0)
 #define LPSS_CS_CONTROL_CS_HIGH			BIT(1)
