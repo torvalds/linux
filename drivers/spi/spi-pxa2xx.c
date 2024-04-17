@@ -934,11 +934,11 @@ static bool pxa2xx_spi_can_dma(struct spi_controller *controller,
 			       struct spi_device *spi,
 			       struct spi_transfer *xfer)
 {
-	struct chip_data *chip = spi_get_ctldata(spi);
+	struct driver_data *drv_data = spi_controller_get_devdata(controller);
 
-	return chip->enable_dma &&
+	return drv_data->controller_info->enable_dma &&
 	       xfer->len <= MAX_DMA_LEN &&
-	       xfer->len >= chip->dma_burst_size;
+	       xfer->len >= drv_data->controller_info->dma_burst_size;
 }
 
 static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
@@ -947,9 +947,8 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 {
 	struct driver_data *drv_data = spi_controller_get_devdata(controller);
 	struct chip_data *chip = spi_get_ctldata(spi);
-	u32 dma_thresh = chip->dma_threshold;
-	u32 dma_burst = chip->dma_burst_size;
 	u32 change_mask = pxa2xx_spi_get_ssrc1_change_mask(drv_data);
+	u32 dma_thresh;
 	u32 clk_div;
 	u8 bits;
 	u32 speed;
@@ -959,7 +958,7 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 	int dma_mapped;
 
 	/* Check if we can DMA this transfer */
-	if (transfer->len > MAX_DMA_LEN && chip->enable_dma) {
+	if (transfer->len > MAX_DMA_LEN && drv_data->controller_info->enable_dma) {
 		/* Warn ... we force this to PIO mode */
 		dev_warn_ratelimited(&spi->dev,
 				     "DMA disabled for transfer length %u greater than %d\n",
@@ -995,19 +994,8 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 		drv_data->read = drv_data->rx ? u32_reader : null_reader;
 		drv_data->write = drv_data->tx ? u32_writer : null_writer;
 	}
-	/*
-	 * If bits per word is changed in DMA mode, then must check
-	 * the thresholds and burst also.
-	 */
-	if (chip->enable_dma) {
-		if (pxa2xx_spi_set_dma_burst_and_threshold(chip,
-						spi,
-						bits, &dma_burst,
-						&dma_thresh))
-			dev_warn_ratelimited(&spi->dev,
-					     "DMA burst size reduced to match bits_per_word\n");
-	}
 
+	dma_thresh = SSCR1_RxTresh(RX_THRESH_DFLT) | SSCR1_TxTresh(TX_THRESH_DFLT);
 	dma_mapped = controller->can_dma &&
 		     controller->can_dma(controller, spi, transfer) &&
 		     controller->cur_msg_mapped;
@@ -1213,7 +1201,6 @@ static int setup(struct spi_device *spi)
 		if (!chip)
 			return -ENOMEM;
 
-		chip->enable_dma = drv_data->controller_info->enable_dma;
 		chip->timeout = TIMOUT_DFLT;
 	}
 
@@ -1234,20 +1221,6 @@ static int setup(struct spi_device *spi)
 	if (is_mrfld_ssp(drv_data)) {
 		chip->lpss_rx_threshold = rx_thres;
 		chip->lpss_tx_threshold = tx_thres;
-	}
-
-	if (chip->enable_dma) {
-		/* Set up legal burst and threshold for DMA */
-		if (pxa2xx_spi_set_dma_burst_and_threshold(chip, spi,
-						spi->bits_per_word,
-						&chip->dma_burst_size,
-						&chip->dma_threshold)) {
-			dev_warn(&spi->dev,
-				 "in setup: DMA burst size reduced to match bits_per_word\n");
-		}
-		dev_dbg(&spi->dev,
-			"in setup: DMA burst size set to %u\n",
-			chip->dma_burst_size);
 	}
 
 	switch (drv_data->ssp_type) {
@@ -1439,6 +1412,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 		if (IS_ERR(platform_info))
 			return dev_err_probe(dev, PTR_ERR(platform_info), "missing platform data\n");
 	}
+	dev_dbg(dev, "DMA burst size set to %u\n", platform_info->dma_burst_size);
 
 	ssp = pxa_ssp_request(pdev->id, pdev->name);
 	if (!ssp)

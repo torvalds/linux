@@ -68,8 +68,6 @@ pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 			   enum dma_transfer_direction dir,
 			   struct spi_transfer *xfer)
 {
-	struct chip_data *chip =
-		spi_get_ctldata(drv_data->controller->cur_msg->spi);
 	enum dma_slave_buswidth width;
 	struct dma_slave_config cfg;
 	struct dma_chan *chan;
@@ -94,14 +92,14 @@ pxa2xx_spi_dma_prepare_one(struct driver_data *drv_data,
 	if (dir == DMA_MEM_TO_DEV) {
 		cfg.dst_addr = drv_data->ssp->phys_base + SSDR;
 		cfg.dst_addr_width = width;
-		cfg.dst_maxburst = chip->dma_burst_size;
+		cfg.dst_maxburst = drv_data->controller_info->dma_burst_size;
 
 		sgt = &xfer->tx_sg;
 		chan = drv_data->controller->dma_tx;
 	} else {
 		cfg.src_addr = drv_data->ssp->phys_base + SSDR;
 		cfg.src_addr_width = width;
-		cfg.src_maxburst = chip->dma_burst_size;
+		cfg.src_maxburst = drv_data->controller_info->dma_burst_size;
 
 		sgt = &xfer->rx_sg;
 		chan = drv_data->controller->dma_rx;
@@ -224,20 +222,4 @@ void pxa2xx_spi_dma_release(struct driver_data *drv_data)
 		dma_release_channel(controller->dma_tx);
 		controller->dma_tx = NULL;
 	}
-}
-
-int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,
-					   struct spi_device *spi,
-					   u8 bits_per_word, u32 *burst_code,
-					   u32 *threshold)
-{
-	struct driver_data *drv_data = spi_controller_get_devdata(spi->controller);
-	u32 dma_burst_size = drv_data->controller_info->dma_burst_size;
-
-	/* We use the default the DMA burst size and FIFO thresholds for now */
-	*burst_code = dma_burst_size;
-	*threshold = SSCR1_RxTresh(RX_THRESH_DFLT)
-		   | SSCR1_TxTresh(TX_THRESH_DFLT);
-
-	return 0;
 }

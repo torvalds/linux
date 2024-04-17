@@ -79,9 +79,6 @@ struct chip_data {
 	u32 cr1;
 	u32 dds_rate;
 	u32 timeout;
-	u8 enable_dma;
-	u32 dma_burst_size;
-	u32 dma_threshold;
 	u32 threshold;
 	u16 lpss_rx_threshold;
 	u16 lpss_tx_threshold;
@@ -142,10 +139,5 @@ extern void pxa2xx_spi_dma_start(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_stop(struct driver_data *drv_data);
 extern int pxa2xx_spi_dma_setup(struct driver_data *drv_data);
 extern void pxa2xx_spi_dma_release(struct driver_data *drv_data);
-extern int pxa2xx_spi_set_dma_burst_and_threshold(struct chip_data *chip,
-						  struct spi_device *spi,
-						  u8 bits_per_word,
-						  u32 *burst_code,
-						  u32 *threshold);
 
 #endif /* SPI_PXA2XX_H */
