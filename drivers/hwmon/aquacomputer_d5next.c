@@ -202,12 +202,14 @@ static u16 aquastreamult_sensor_fan_offsets[] = { AQUASTREAMULT_FAN_OFFSET };
 #define OCTO_NUM_FANS			8
 #define OCTO_NUM_SENSORS		4
 #define OCTO_NUM_VIRTUAL_SENSORS	16
+#define OCTO_NUM_FLOW_SENSORS		1
 #define OCTO_CTRL_REPORT_SIZE		0x65F
 
 /* Sensor report offsets for the Octo */
 #define OCTO_POWER_CYCLES		0x18
 #define OCTO_SENSOR_START		0x3D
 #define OCTO_VIRTUAL_SENSORS_START	0x45
+#define OCTO_FLOW_SENSOR_OFFSET		0x7B
 static u16 octo_sensor_fan_offsets[] = { 0x7D, 0x8A, 0x97, 0xA4, 0xB1, 0xBE, 0xCB, 0xD8 };
 
 /* Control report offsets for the Octo */
@@ -363,18 +365,6 @@ static const char *const label_aquaero_calc_temp_sensors[] = {
 	"Calc. virtual sensor 4"
 };
 
-/* Labels for Octo and Quadro (except speed) */
-static const char *const label_fan_speed[] = {
-	"Fan 1 speed",
-	"Fan 2 speed",
-	"Fan 3 speed",
-	"Fan 4 speed",
-	"Fan 5 speed",
-	"Fan 6 speed",
-	"Fan 7 speed",
-	"Fan 8 speed"
-};
-
 static const char *const label_fan_power[] = {
 	"Fan 1 power",
 	"Fan 2 power",
@@ -406,6 +396,19 @@ static const char *const label_fan_current[] = {
 	"Fan 6 current",
 	"Fan 7 current",
 	"Fan 8 current"
+};
+
+/* Labels for Octo fan speeds */
+static const char *const label_octo_speeds[] = {
+	"Fan 1 speed",
+	"Fan 2 speed",
+	"Fan 3 speed",
+	"Fan 4 speed",
+	"Fan 5 speed",
+	"Fan 6 speed",
+	"Fan 7 speed",
+	"Fan 8 speed",
+	"Flow speed [dL/h]",
 };
 
 /* Labels for Quadro fan speeds */
@@ -844,6 +847,7 @@ static umode_t aqc_is_visible(const void *data, enum hwmon_sensor_types type, u3
 					return 0444;
 				break;
 			case aquaero:
+			case octo:
 			case quadro:
 			case highflow:
 				/* Special case to support flow sensors */
@@ -1289,6 +1293,7 @@ static const struct hwmon_channel_info * const aqc_info[] = {
 			   HWMON_F_INPUT | HWMON_F_LABEL | HWMON_F_PULSES,
 			   HWMON_F_INPUT | HWMON_F_LABEL,
 			   HWMON_F_INPUT | HWMON_F_LABEL,
+			   HWMON_F_INPUT | HWMON_F_LABEL,
 			   HWMON_F_INPUT | HWMON_F_LABEL),
 	HWMON_CHANNEL_INFO(power,
 			   HWMON_P_INPUT | HWMON_P_LABEL,
@@ -1658,6 +1663,9 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->temp_sensor_start_offset = OCTO_SENSOR_START;
 		priv->num_virtual_temp_sensors = OCTO_NUM_VIRTUAL_SENSORS;
 		priv->virtual_temp_sensor_start_offset = OCTO_VIRTUAL_SENSORS_START;
+		priv->num_flow_sensors = OCTO_NUM_FLOW_SENSORS;
+		priv->flow_sensors_start_offset = OCTO_FLOW_SENSOR_OFFSET;
+
 		priv->temp_ctrl_offset = OCTO_TEMP_CTRL_OFFSET;
 
 		priv->buffer_size = OCTO_CTRL_REPORT_SIZE;
@@ -1667,7 +1675,7 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 		priv->temp_label = label_temp_sensors;
 		priv->virtual_temp_label = label_virtual_temp_sensors;
-		priv->speed_label = label_fan_speed;
+		priv->speed_label = label_octo_speeds;
 		priv->power_label = label_fan_power;
 		priv->voltage_label = label_fan_voltage;
 		priv->current_label = label_fan_current;
