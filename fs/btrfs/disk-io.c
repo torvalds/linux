@@ -646,7 +646,7 @@ struct extent_buffer *read_tree_block(struct btrfs_fs_info *fs_info, u64 bytenr,
 static void __setup_root(struct btrfs_root *root, struct btrfs_fs_info *fs_info,
 			 u64 objectid)
 {
-	bool dummy = test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state);
+	bool dummy = btrfs_is_testing(fs_info);
 
 	memset(&root->root_key, 0, sizeof(root->root_key));
 	memset(&root->root_item, 0, sizeof(root->root_item));
@@ -1075,7 +1075,7 @@ static struct btrfs_root *read_tree_root_path(struct btrfs_root *tree_root,
 	 * For real fs, and not log/reloc trees, root owner must
 	 * match its root node owner
 	 */
-	if (!test_bit(BTRFS_FS_STATE_DUMMY_FS_INFO, &fs_info->fs_state) &&
+	if (!btrfs_is_testing(fs_info) &&
 	    btrfs_root_id(root) != BTRFS_TREE_LOG_OBJECTID &&
 	    btrfs_root_id(root) != BTRFS_TREE_RELOC_OBJECTID &&
 	    btrfs_root_id(root) != btrfs_header_owner(root->node)) {
