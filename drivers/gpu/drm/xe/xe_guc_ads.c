@@ -282,6 +282,33 @@ static size_t calculate_golden_lrc_size(struct xe_guc_ads *ads)
 	return total_size;
 }
 
+static void guc_waklv_enable_one_word(struct xe_guc_ads *ads,
+				      enum xe_guc_klv_ids klv_id,
+				      u32 value,
+				      u32 *offset, u32 *remain)
+{
+	u32 size;
+	u32 klv_entry[] = {
+		/* 16:16 key/length */
+		FIELD_PREP(GUC_KLV_0_KEY, klv_id) |
+		FIELD_PREP(GUC_KLV_0_LEN, 1),
+		value,
+		/* 1 dword data */
+	};
+
+	size = sizeof(klv_entry);
+
+	if (*remain < size) {
+		drm_warn(&ads_to_xe(ads)->drm,
+			 "w/a klv buffer too small to add klv id %d\n", klv_id);
+	} else {
+		xe_map_memcpy_to(ads_to_xe(ads), ads_to_map(ads), *offset,
+				 klv_entry, size);
+		*offset += size;
+		*remain -= size;
+	}
+}
+
 static void guc_waklv_enable_simple(struct xe_guc_ads *ads,
 				    enum xe_guc_klv_ids klv_id, u32 *offset, u32 *remain)
 {
@@ -326,6 +353,17 @@ static void guc_waklv_init(struct xe_guc_ads *ads)
 		guc_waklv_enable_simple(ads,
 					GUC_WORKAROUND_KLV_ID_DISABLE_MTP_DURING_ASYNC_COMPUTE,
 					&offset, &remain);
+
+	/*
+	 * On RC6 exit, GuC will write register 0xB04 with the default value provided. As of now,
+	 * the default value for this register is determined to be 0xC40. This could change in the
+	 * future, so GuC depends on KMD to send it the correct value.
+	 */
+	if (XE_WA(gt, 13011645652))
+		guc_waklv_enable_one_word(ads,
+					  GUC_WA_KLV_NP_RD_WRITE_TO_CLEAR_RCSM_AT_CGP_LATE_RESTORE,
+					  0xC40,
+					  &offset, &remain);
 
 	size = guc_ads_waklv_size(ads) - remain;
 	if (!size)
