@@ -296,7 +296,7 @@ struct atmel_mci_dma {
  *	rate and timeout calculations.
  * @mapbase: Physical address of the MMIO registers.
  * @mck: The peripheral bus clock hooked up to the MMC controller.
- * @pdev: Platform device associated with the MMC controller.
+ * @dev: Device associated with the MMC controller.
  * @slot: Slots sharing this MMC controller.
  * @caps: MCI capabilities depending on MCI version.
  * @prepare_data: function to setup MCI before data transfer which
@@ -373,7 +373,7 @@ struct atmel_mci {
 	unsigned long		bus_hz;
 	unsigned long		mapbase;
 	struct clk		*mck;
-	struct platform_device	*pdev;
+	struct device		*dev;
 
 	struct atmel_mci_slot	*slot[ATMCI_MAX_NR_SLOTS];
 
@@ -526,7 +526,7 @@ static void atmci_show_status_reg(struct seq_file *s,
 static int atmci_regs_show(struct seq_file *s, void *v)
 {
 	struct atmel_mci	*host = s->private;
-	struct device		*dev = &host->pdev->dev;
+	struct device		*dev = host->dev;
 	u32			*buf;
 	int			ret = 0;
 
@@ -726,7 +726,7 @@ static inline unsigned int atmci_convert_chksize(struct atmel_mci *host,
 static void atmci_timeout_timer(struct timer_list *t)
 {
 	struct atmel_mci *host = from_timer(host, t, timer);
-	struct device *dev = &host->pdev->dev;
+	struct device *dev = host->dev;
 
 	dev_dbg(dev, "software timeout\n");
 
@@ -846,7 +846,7 @@ static u32 atmci_prepare_command(struct mmc_host *mmc,
 static void atmci_send_command(struct atmel_mci *host,
 		struct mmc_command *cmd, u32 cmd_flags)
 {
-	struct device *dev = &host->pdev->dev;
+	struct device *dev = host->dev;
 	unsigned int timeout_ms = cmd->busy_timeout ? cmd->busy_timeout :
 		ATMCI_CMD_TIMEOUT_MS;
 
@@ -863,7 +863,7 @@ static void atmci_send_command(struct atmel_mci *host,
 
 static void atmci_send_stop_cmd(struct atmel_mci *host, struct mmc_data *data)
 {
-	struct device *dev = &host->pdev->dev;
+	struct device *dev = host->dev;
 
 	dev_dbg(dev, "send stop command\n");
 	atmci_send_command(host, data->stop, host->stop_cmdr);
@@ -937,8 +937,8 @@ static void atmci_pdc_set_both_buf(struct atmel_mci *host, int dir)
  */
 static void atmci_pdc_cleanup(struct atmel_mci *host)
 {
-	struct device		*dev = &host->pdev->dev;
 	struct mmc_data         *data = host->data;
+	struct device		*dev = host->dev;
 
 	if (data)
 		dma_unmap_sg(dev, data->sg, data->sg_len, mmc_get_dma_dir(data));
@@ -951,7 +951,7 @@ static void atmci_pdc_cleanup(struct atmel_mci *host)
  */
 static void atmci_pdc_complete(struct atmel_mci *host)
 {
-	struct device *dev = &host->pdev->dev;
+	struct device *dev = host->dev;
 	int transfer_size = host->data->blocks * host->data->blksz;
 	int i;
 
@@ -989,8 +989,8 @@ static void atmci_dma_cleanup(struct atmel_mci *host)
 static void atmci_dma_complete(void *arg)
 {
 	struct atmel_mci	*host = arg;
-	struct device		*dev = &host->pdev->dev;
 	struct mmc_data		*data = host->data;
+	struct device		*dev = host->dev;
 
 	dev_vdbg(dev, "DMA complete\n");
 
@@ -1079,7 +1079,7 @@ static u32 atmci_prepare_data(struct atmel_mci *host, struct mmc_data *data)
 static u32
 atmci_prepare_data_pdc(struct atmel_mci *host, struct mmc_data *data)
 {
-	struct device *dev = &host->pdev->dev;
+	struct device *dev = host->dev;
 	u32 iflags, tmp;
 	int i;
 
@@ -1231,7 +1231,7 @@ atmci_submit_data_dma(struct atmel_mci *host, struct mmc_data *data)
 
 static void atmci_stop_transfer(struct atmel_mci *host)
 {
-	struct device *dev = &host->pdev->dev;
+	struct device *dev = host->dev;
 
 	dev_dbg(dev, "(%s) set pending xfer complete\n", __func__);
 	atmci_set_pending(host, EVENT_XFER_COMPLETE);
@@ -1249,7 +1249,7 @@ static void atmci_stop_transfer_pdc(struct atmel_mci *host)
 static void atmci_stop_transfer_dma(struct atmel_mci *host)
 {
 	struct dma_chan *chan = host->data_chan;
-	struct device *dev = &host->pdev->dev;
+	struct device *dev = host->dev;
 
 	if (chan) {
 		dmaengine_terminate_all(chan);
@@ -1269,7 +1269,7 @@ static void atmci_stop_transfer_dma(struct atmel_mci *host)
 static void atmci_start_request(struct atmel_mci *host,
 		struct atmel_mci_slot *slot)
 {
-	struct device		*dev = &host->pdev->dev;
+	struct device		*dev = host->dev;
 	struct mmc_request	*mrq;
 	struct mmc_command	*cmd;
 	struct mmc_data		*data;
@@ -1364,7 +1364,7 @@ static void atmci_start_request(struct atmel_mci *host,
 static void atmci_queue_request(struct atmel_mci *host,
 		struct atmel_mci_slot *slot, struct mmc_request *mrq)
 {
-	struct device *dev = &host->pdev->dev;
+	struct device *dev = host->dev;
 
 	dev_vdbg(&slot->mmc->class_dev, "queue request: state=%d\n",
 			host->state);
@@ -1385,7 +1385,7 @@ static void atmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 {
 	struct atmel_mci_slot	*slot = mmc_priv(mmc);
 	struct atmel_mci	*host = slot->host;
-	struct device		*dev = &host->pdev->dev;
+	struct device		*dev = host->dev;
 	struct mmc_data		*data;
 
 	WARN_ON(slot->mrq);
@@ -1599,7 +1599,7 @@ static void atmci_request_end(struct atmel_mci *host, struct mmc_request *mrq)
 {
 	struct atmel_mci_slot	*slot = NULL;
 	struct mmc_host		*prev_mmc = host->cur_slot->mmc;
-	struct device		*dev = &host->pdev->dev;
+	struct device		*dev = host->dev;
 
 	WARN_ON(host->cmd || host->data);
 
@@ -1760,9 +1760,9 @@ static void atmci_detect_change(struct timer_list *t)
 static void atmci_tasklet_func(struct tasklet_struct *t)
 {
 	struct atmel_mci        *host = from_tasklet(host, t, tasklet);
-	struct device		*dev = &host->pdev->dev;
 	struct mmc_request	*mrq = host->mrq;
 	struct mmc_data		*data = host->data;
+	struct device		*dev = host->dev;
 	enum atmel_mci_state	state = host->state;
 	enum atmel_mci_state	prev_state;
 	u32			status;
@@ -2108,7 +2108,7 @@ static void atmci_sdio_interrupt(struct atmel_mci *host, u32 status)
 static irqreturn_t atmci_interrupt(int irq, void *dev_id)
 {
 	struct atmel_mci	*host = dev_id;
-	struct device		*dev = &host->pdev->dev;
+	struct device		*dev = host->dev;
 	u32			status, mask, pending;
 	unsigned int		pass_count = 0;
 
@@ -2253,7 +2253,7 @@ static int atmci_init_slot(struct atmel_mci *host,
 		struct mci_slot_pdata *slot_data, unsigned int id,
 		u32 sdc_reg, u32 sdio_irq)
 {
-	struct device			*dev = &host->pdev->dev;
+	struct device			*dev = host->dev;
 	struct mmc_host			*mmc;
 	struct atmel_mci_slot		*slot;
 	int ret;
@@ -2377,7 +2377,7 @@ static void atmci_cleanup_slot(struct atmel_mci_slot *slot,
 
 static int atmci_configure_dma(struct atmel_mci *host)
 {
-	struct device *dev = &host->pdev->dev;
+	struct device *dev = host->dev;
 
 	host->dma.chan = dma_request_chan(dev, "rxtx");
 	if (IS_ERR(host->dma.chan))
@@ -2403,7 +2403,7 @@ static int atmci_configure_dma(struct atmel_mci *host)
  */
 static void atmci_get_cap(struct atmel_mci *host)
 {
-	struct device *dev = &host->pdev->dev;
+	struct device *dev = host->dev;
 	unsigned int version;
 
 	version = atmci_get_version(host);
@@ -2481,7 +2481,7 @@ static int atmci_probe(struct platform_device *pdev)
 	if (!host)
 		return -ENOMEM;
 
-	host->pdev = pdev;
+	host->dev = dev;
 	spin_lock_init(&host->lock);
 	INIT_LIST_HEAD(&host->queue);
 
