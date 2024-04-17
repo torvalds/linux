@@ -782,6 +782,8 @@ void dml2_destroy(struct dml2_context *dml2)
 	if (!dml2)
 		return;
 
+	if (dml2->architecture == dml2_architecture_21)
+		dml21_destroy(dml2);
 	kfree(dml2);
 }
 

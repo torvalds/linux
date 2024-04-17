@@ -107,6 +107,12 @@ bool dml21_create(const struct dc *in_dc, struct dml2_context **dml_ctx, const s
 	return true;
 }
 
+void dml21_destroy(struct dml2_context *dml2)
+{
+	kfree(dml2->v21.dml_init.dml2_instance);
+	kfree(dml2->v21.mode_programming.programming);
+}
+
 static void dml21_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_state *context, struct resource_context *out_new_hw_state,
 	struct dml2_context *in_ctx, unsigned int pipe_cnt)
 {

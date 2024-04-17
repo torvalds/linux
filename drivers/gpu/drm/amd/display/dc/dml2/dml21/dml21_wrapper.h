@@ -27,6 +27,7 @@ struct dml2_context;
  * Return: True if dml2 is successfully created, false otherwise.
  */
 bool dml21_create(const struct dc *in_dc, struct dml2_context **dml_ctx, const struct dml2_configuration_options *config);
+void dml21_destroy(struct dml2_context *dml2);
 void dml21_copy(struct dml2_context *dst_dml_ctx,
 	struct dml2_context *src_dml_ctx);
 bool dml21_create_copy(struct dml2_context **dst_dml_ctx,
