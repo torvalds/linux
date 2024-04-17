@@ -106,7 +106,10 @@ def ksft_run(cases, args=()):
             continue
 
         ktap_result(KSFT_RESULT, cnt, case)
-        totals['pass'] += 1
+        if KSFT_RESULT:
+            totals['pass'] += 1
+        else:
+            totals['fail'] += 1
 
     print(
         f"# Totals: pass:{totals['pass']} fail:{totals['fail']} xfail:{totals['xfail']} xpass:0 skip:{totals['skip']} error:0"
