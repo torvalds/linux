@@ -66,8 +66,8 @@ static void intel_dmc_wl_work(struct work_struct *work)
 {
 	struct intel_dmc_wl *wl =
 		container_of(work, struct intel_dmc_wl, work.work);
-	struct drm_i915_private *i915 =
-		container_of(wl, struct drm_i915_private, display.wl);
+	struct intel_display *display =
+		container_of(wl, struct intel_display, wl);
 	unsigned long flags;
 
 	spin_lock_irqsave(&wl->lock, flags);
@@ -76,9 +76,9 @@ static void intel_dmc_wl_work(struct work_struct *work)
 	if (!refcount_read(&wl->refcount))
 		goto out_unlock;
 
-	__intel_de_rmw_nowl(i915, DMC_WAKELOCK1_CTL, DMC_WAKELOCK_CTL_REQ, 0);
+	__intel_de_rmw_nowl(display, DMC_WAKELOCK1_CTL, DMC_WAKELOCK_CTL_REQ, 0);
 
-	if (__intel_de_wait_for_register_nowl(i915, DMC_WAKELOCK1_CTL,
+	if (__intel_de_wait_for_register_nowl(display, DMC_WAKELOCK1_CTL,
 					      DMC_WAKELOCK_CTL_ACK, 0,
 					      DMC_WAKELOCK_CTL_TIMEOUT)) {
 		WARN_RATELIMIT(1, "DMC wakelock release timed out");
@@ -111,7 +111,7 @@ static bool __intel_dmc_wl_supported(struct intel_display *display)
 {
 	struct drm_i915_private *i915 = to_i915(display->drm);
 
-	if (DISPLAY_VER(i915) < 20 ||
+	if (DISPLAY_VER(display) < 20 ||
 	    !intel_dmc_has_payload(i915) ||
 	    !display->params.enable_dmc_wl)
 		return false;
@@ -121,11 +121,10 @@ static bool __intel_dmc_wl_supported(struct intel_display *display)
 
 void intel_dmc_wl_init(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_dmc_wl *wl = &display->wl;
 
 	/* don't call __intel_dmc_wl_supported(), DMC is not loaded yet */
-	if (DISPLAY_VER(i915) < 20 || !display->params.enable_dmc_wl)
+	if (DISPLAY_VER(display) < 20 || !display->params.enable_dmc_wl)
 		return;
 
 	INIT_DELAYED_WORK(&wl->work, intel_dmc_wl_work);
@@ -135,7 +134,6 @@ void intel_dmc_wl_init(struct intel_display *display)
 
 void intel_dmc_wl_enable(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_dmc_wl *wl = &display->wl;
 	unsigned long flags;
 
@@ -152,7 +150,7 @@ void intel_dmc_wl_enable(struct intel_display *display)
 	 * wakelock, because we're just enabling it, so call the
 	 * non-locking version directly here.
 	 */
-	__intel_de_rmw_nowl(i915, DMC_WAKELOCK_CFG, 0, DMC_WAKELOCK_CFG_ENABLE);
+	__intel_de_rmw_nowl(display, DMC_WAKELOCK_CFG, 0, DMC_WAKELOCK_CFG_ENABLE);
 
 	wl->enabled = true;
 	wl->taken = false;
@@ -163,7 +161,6 @@ out_unlock:
 
 void intel_dmc_wl_disable(struct intel_display *display)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_dmc_wl *wl = &display->wl;
 	unsigned long flags;
 
@@ -178,7 +175,7 @@ void intel_dmc_wl_disable(struct intel_display *display)
 		goto out_unlock;
 
 	/* Disable wakelock in DMC */
-	__intel_de_rmw_nowl(i915, DMC_WAKELOCK_CFG, DMC_WAKELOCK_CFG_ENABLE, 0);
+	__intel_de_rmw_nowl(display, DMC_WAKELOCK_CFG, DMC_WAKELOCK_CFG_ENABLE, 0);
 
 	refcount_set(&wl->refcount, 0);
 	wl->enabled = false;
@@ -190,7 +187,6 @@ out_unlock:
 
 void intel_dmc_wl_get(struct intel_display *display, i915_reg_t reg)
 {
-	struct drm_i915_private *i915 = to_i915(display->drm);
 	struct intel_dmc_wl *wl = &display->wl;
 	unsigned long flags;
 
@@ -219,10 +215,10 @@ void intel_dmc_wl_get(struct intel_display *display, i915_reg_t reg)
 	 * run yet.
 	 */
 	if (!wl->taken) {
-		__intel_de_rmw_nowl(i915, DMC_WAKELOCK1_CTL, 0,
+		__intel_de_rmw_nowl(display, DMC_WAKELOCK1_CTL, 0,
 				    DMC_WAKELOCK_CTL_REQ);
 
-		if (__intel_de_wait_for_register_nowl(i915, DMC_WAKELOCK1_CTL,
+		if (__intel_de_wait_for_register_nowl(display, DMC_WAKELOCK1_CTL,
 						      DMC_WAKELOCK_CTL_ACK,
 						      DMC_WAKELOCK_CTL_ACK,
 						      DMC_WAKELOCK_CTL_TIMEOUT)) {
