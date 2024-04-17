@@ -2,7 +2,8 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import time
-from lib.py import ksft_run, ksft_pr, ksft_eq, ksft_ge, ksft_busy_wait
+from lib.py import ksft_run, ksft_exit, ksft_pr
+from lib.py import ksft_eq, ksft_ge, ksft_busy_wait
 from lib.py import NetdevFamily, NetdevSimDev, ip
 
 
@@ -90,6 +91,7 @@ def main() -> None:
     nf = NetdevFamily()
     ksft_run([empty_check, lo_check, page_pool_check],
              args=(nf, ))
+    ksft_exit()
 
 
 if __name__ == "__main__":

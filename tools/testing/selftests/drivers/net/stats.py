@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0
 
-from lib.py import ksft_run, ksft_in, ksft_true, KsftSkipEx, KsftXfailEx
+from lib.py import ksft_run, ksft_exit
+from lib.py import ksft_in, ksft_true, KsftSkipEx, KsftXfailEx
 from lib.py import EthtoolFamily, NetdevFamily, RtnlFamily, NlError
 from lib.py import NetDrvEnv
 
@@ -80,6 +81,7 @@ def main() -> None:
     with NetDrvEnv(__file__) as cfg:
         ksft_run([check_pause, check_fec, pkt_byte_sum],
                  args=(cfg, ))
+    ksft_exit()
 
 
 if __name__ == "__main__":

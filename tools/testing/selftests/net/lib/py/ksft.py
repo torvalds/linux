@@ -2,11 +2,13 @@
 
 import builtins
 import inspect
+import sys
 import time
 import traceback
 from .consts import KSFT_MAIN_NAME
 
 KSFT_RESULT = None
+KSFT_RESULT_ALL = True
 
 
 class KsftSkipEx(Exception):
@@ -63,6 +65,9 @@ def ksft_busy_wait(cond, sleep=0.005, deadline=1, comment=""):
 
 
 def ktap_result(ok, cnt=1, case="", comment=""):
+    global KSFT_RESULT_ALL
+    KSFT_RESULT_ALL = KSFT_RESULT_ALL and ok
+
     res = ""
     if not ok:
         res += "not "
@@ -114,3 +119,8 @@ def ksft_run(cases, args=()):
     print(
         f"# Totals: pass:{totals['pass']} fail:{totals['fail']} xfail:{totals['xfail']} xpass:0 skip:{totals['skip']} error:0"
     )
+
+
+def ksft_exit():
+    global KSFT_RESULT_ALL
+    sys.exit(0 if KSFT_RESULT_ALL else 1)
