@@ -28,6 +28,16 @@
 
 bool dexcr_exists(void);
 
+bool pr_dexcr_aspect_supported(unsigned long which);
+
+bool pr_dexcr_aspect_editable(unsigned long which);
+
+int pr_get_dexcr(unsigned long pr_aspect);
+
+int pr_set_dexcr(unsigned long pr_aspect, unsigned long ctrl);
+
+unsigned int pr_which_to_aspect(unsigned long which);
+
 bool hashchk_triggers(void);
 
 enum dexcr_source {
