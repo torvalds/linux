@@ -78,7 +78,6 @@ struct driver_data {
 struct chip_data {
 	u32 cr1;
 	u32 dds_rate;
-	u32 timeout;
 	u32 threshold;
 	u16 lpss_rx_threshold;
 	u16 lpss_tx_threshold;
