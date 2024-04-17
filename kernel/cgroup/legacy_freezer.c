@@ -106,8 +106,7 @@ freezer_css_alloc(struct cgroup_subsys_state *parent_css)
  * @css: css being created
  *
  * We're committing to creation of @css.  Mark it online and inherit
- * parent's freezing state while holding both parent's and our
- * freezer->lock.
+ * parent's freezing state while holding cpus read lock and freezer_mutex.
  */
 static int freezer_css_online(struct cgroup_subsys_state *css)
 {
