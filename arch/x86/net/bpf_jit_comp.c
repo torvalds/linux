@@ -1439,7 +1439,7 @@ static int do_jit(struct bpf_prog *bpf_prog, int *addrs, u8 *image, u8 *rw_image
 #ifdef CONFIG_SMP
 				/* add <dst>, gs:[<off>] */
 				EMIT2(0x65, add_1mod(0x48, dst_reg));
-				EMIT3(0x03, add_1reg(0x04, dst_reg), 0x25);
+				EMIT3(0x03, add_2reg(0x04, 0, dst_reg), 0x25);
 				EMIT((u32)(unsigned long)&this_cpu_off, 4);
 #endif
 				break;
