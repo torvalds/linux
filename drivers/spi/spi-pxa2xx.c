@@ -1357,6 +1357,7 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 	struct ssp_device *ssp = NULL;
 	const void *match;
 	bool is_lpss_priv;
+	u32 num_cs = 1;
 	int status;
 
 	is_lpss_priv = platform_get_resource_byname(pdev, IORESOURCE_MEM, "lpss_priv");
@@ -1395,8 +1396,11 @@ pxa2xx_spi_init_pdata(struct platform_device *pdev)
 		pdata->dma_filter = pxa2xx_spi_idma_filter;
 	}
 
+	/* Read number of chip select pins, if provided */
+	device_property_read_u32(dev, "num-cs", &num_cs);
+
+	pdata->num_chipselect = num_cs;
 	pdata->is_target = device_property_read_bool(dev, "spi-slave");
-	pdata->num_chipselect = 1;
 	pdata->enable_dma = true;
 	pdata->dma_burst_size = 1;
 
