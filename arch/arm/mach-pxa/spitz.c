@@ -18,10 +18,10 @@
 #include <linux/i2c.h>
 #include <linux/platform_data/i2c-pxa.h>
 #include <linux/platform_data/pca953x.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/spi/corgi_lcd.h>
-#include <linux/spi/pxa2xx_spi.h>
 #include <linux/mtd/sharpsl.h>
 #include <linux/mtd/physmap.h>
 #include <linux/input-event-codes.h>
@@ -569,10 +569,6 @@ static struct spi_board_info spitz_spi_devices[] = {
 	},
 };
 
-static struct pxa2xx_spi_controller spitz_spi_info = {
-	.num_chipselect	= 3,
-};
-
 static struct gpiod_lookup_table spitz_spi_gpio_table = {
 	.dev_id = "spi2",
 	.table = {
@@ -583,10 +579,20 @@ static struct gpiod_lookup_table spitz_spi_gpio_table = {
 	},
 };
 
+static const struct property_entry spitz_spi_properties[] = {
+	PROPERTY_ENTRY_U32("num-cs", 3),
+	{ }
+};
+
+static const struct software_node spitz_spi_node = {
+	.properties = spitz_spi_properties,
+};
+
 static void __init spitz_spi_init(void)
 {
 	struct platform_device *pd;
 	int id = 2;
+	int err;
 
 	if (machine_is_akita())
 		gpiod_add_lookup_table(&akita_lcdcon_gpio_table);
@@ -601,8 +607,13 @@ static void __init spitz_spi_init(void)
 	if (pd == NULL) {
 		pr_err("pxa2xx-spi: failed to allocate device id %d\n", id);
 	} else {
-		pd->dev.platform_data = &spitz_spi_info;
-		platform_device_add(pd);
+		err = device_add_software_node(&pd->dev, &spitz_spi_node);
+		if (err) {
+			platform_device_put(pd);
+			pr_err("pxa2xx-spi: failed to add software node\n");
+		} else {
+			platform_device_add(pd);
+		}
 	}
 
 	spi_register_board_info(ARRAY_AND_SIZE(spitz_spi_devices));
