@@ -65,7 +65,6 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 {
 	const struct thermal_trip *trip;
 	int low = -INT_MAX, high = INT_MAX;
-	bool same_trip = false;
 	int ret;
 
 	lockdep_assert_held(&tz->lock);
@@ -74,34 +73,20 @@ void __thermal_zone_set_trips(struct thermal_zone_device *tz)
 		return;
 
 	for_each_trip(tz, trip) {
-		bool low_set = false;
 		int trip_low;
 
 		trip_low = trip->temperature - trip->hysteresis;
 
-		if (trip_low < tz->temperature && trip_low > low) {
+		if (trip_low < tz->temperature && trip_low > low)
 			low = trip_low;
-			low_set = true;
-			same_trip = false;
-		}
 
 		if (trip->temperature > tz->temperature &&
-		    trip->temperature < high) {
+		    trip->temperature < high)
 			high = trip->temperature;
-			same_trip = low_set;
-		}
 	}
 
 	/* No need to change trip points */
 	if (tz->prev_low_trip == low && tz->prev_high_trip == high)
-		return;
-
-	/*
-	 * If "high" and "low" are the same, skip the change unless this is the
-	 * first time.
-	 */
-	if (same_trip && (tz->prev_low_trip != -INT_MAX ||
-	    tz->prev_high_trip != INT_MAX))
 		return;
 
 	tz->prev_low_trip = low;

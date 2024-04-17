@@ -191,7 +191,7 @@ static int pruss_probe(struct platform_device *pdev)
 		p->mem[1].size = sram_pool_sz;
 		p->mem[1].memtype = UIO_MEM_PHYS;
 
-		p->mem[2].addr = (phys_addr_t) gdev->ddr_vaddr;
+		p->mem[2].addr = (uintptr_t) gdev->ddr_vaddr;
 		p->mem[2].dma_addr = gdev->ddr_paddr;
 		p->mem[2].size = extram_pool_sz;
 		p->mem[2].memtype = UIO_MEM_DMA_COHERENT;

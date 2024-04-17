@@ -2439,6 +2439,8 @@ config USE_X86_SEG_SUPPORT
 	# with named address spaces - see GCC PR sanitizer/111736.
 	#
 	depends on !KASAN
+	# -fsanitize=thread (KCSAN) is also incompatible.
+	depends on !KCSAN
 
 config CC_HAS_SLS
 	def_bool $(cc-option,-mharden-sls=all)

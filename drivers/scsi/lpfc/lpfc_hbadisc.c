@@ -257,7 +257,9 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 		if (evtp->evt_arg1) {
 			evtp->evt = LPFC_EVT_DEV_LOSS;
 			list_add_tail(&evtp->evt_listp, &phba->work_list);
+			spin_unlock_irqrestore(&phba->hbalock, iflags);
 			lpfc_worker_wake_up(phba);
+			return;
 		}
 		spin_unlock_irqrestore(&phba->hbalock, iflags);
 	} else {
@@ -275,10 +277,7 @@ lpfc_dev_loss_tmo_callbk(struct fc_rport *rport)
 			lpfc_disc_state_machine(vport, ndlp, NULL,
 						NLP_EVT_DEVICE_RM);
 		}
-
 	}
-
-	return;
 }
 
 /**
@@ -3429,7 +3428,7 @@ static void
 lpfc_mbx_cmpl_read_sparam(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
+	struct lpfc_dmabuf *mp = pmb->ctx_buf;
 	struct lpfc_vport  *vport = pmb->vport;
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 	struct serv_parm *sp = &vport->fc_sparam;
@@ -3737,7 +3736,7 @@ lpfc_mbx_cmpl_read_topology(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_mbx_read_top *la;
 	struct lpfc_sli_ring *pring;
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
+	struct lpfc_dmabuf *mp = pmb->ctx_buf;
 	uint8_t attn_type;
 
 	/* Unblock ELS traffic */
@@ -3851,8 +3850,8 @@ void
 lpfc_mbx_cmpl_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport  *vport = pmb->vport;
-	struct lpfc_dmabuf *mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+	struct lpfc_dmabuf *mp = pmb->ctx_buf;
+	struct lpfc_nodelist *ndlp = pmb->ctx_ndlp;
 
 	/* The driver calls the state machine with the pmb pointer
 	 * but wants to make sure a stale ctx_buf isn't acted on.
@@ -4066,7 +4065,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 		 * the dump routine is a single-use construct.
 		 */
 		if (pmb->ctx_buf) {
-			mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
+			mp = pmb->ctx_buf;
 			lpfc_mbuf_free(phba, mp->virt, mp->phys);
 			kfree(mp);
 			pmb->ctx_buf = NULL;
@@ -4089,7 +4088,7 @@ lpfc_create_static_vport(struct lpfc_hba *phba)
 
 		if (phba->sli_rev == LPFC_SLI_REV4) {
 			byte_count = pmb->u.mqe.un.mb_words[5];
-			mp = (struct lpfc_dmabuf *)pmb->ctx_buf;
+			mp = pmb->ctx_buf;
 			if (byte_count > sizeof(struct static_vport_info) -
 					offset)
 				byte_count = sizeof(struct static_vport_info)
@@ -4169,7 +4168,7 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+	struct lpfc_nodelist *ndlp = pmb->ctx_ndlp;
 
 	pmb->ctx_ndlp = NULL;
 
@@ -4307,7 +4306,7 @@ void
 lpfc_mbx_cmpl_ns_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+	struct lpfc_nodelist *ndlp = pmb->ctx_ndlp;
 	struct lpfc_vport *vport = pmb->vport;
 	int rc;
 
@@ -4431,7 +4430,7 @@ lpfc_mbx_cmpl_fc_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport *vport = pmb->vport;
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+	struct lpfc_nodelist *ndlp = pmb->ctx_ndlp;
 
 	pmb->ctx_ndlp = NULL;
 	if (mb->mbxStatus) {
@@ -5174,7 +5173,7 @@ lpfc_nlp_logo_unreg(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_vport  *vport = pmb->vport;
 	struct lpfc_nodelist *ndlp;
 
-	ndlp = (struct lpfc_nodelist *)(pmb->ctx_ndlp);
+	ndlp = pmb->ctx_ndlp;
 	if (!ndlp)
 		return;
 	lpfc_issue_els_logo(vport, ndlp, 0);
@@ -5496,7 +5495,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if ((mb = phba->sli.mbox_active)) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   !(mb->mbox_flag & LPFC_MBX_IMED_UNREG) &&
-		   (ndlp == (struct lpfc_nodelist *)mb->ctx_ndlp)) {
+		   (ndlp == mb->ctx_ndlp)) {
 			mb->ctx_ndlp = NULL;
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		}
@@ -5507,7 +5506,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	list_for_each_entry(mb, &phba->sli.mboxq_cmpl, list) {
 		if ((mb->u.mb.mbxCommand != MBX_REG_LOGIN64) ||
 			(mb->mbox_flag & LPFC_MBX_IMED_UNREG) ||
-			(ndlp != (struct lpfc_nodelist *)mb->ctx_ndlp))
+			(ndlp != mb->ctx_ndlp))
 			continue;
 
 		mb->ctx_ndlp = NULL;
@@ -5517,7 +5516,7 @@ lpfc_cleanup_node(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
 		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) &&
 		   !(mb->mbox_flag & LPFC_MBX_IMED_UNREG) &&
-		    (ndlp == (struct lpfc_nodelist *)mb->ctx_ndlp)) {
+		    (ndlp == mb->ctx_ndlp)) {
 			list_del(&mb->list);
 			lpfc_mbox_rsrc_cleanup(phba, mb, MBOX_THD_LOCKED);
 
@@ -6357,7 +6356,7 @@ void
 lpfc_mbx_cmpl_fdmi_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	MAILBOX_t *mb = &pmb->u.mb;
-	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
+	struct lpfc_nodelist *ndlp = pmb->ctx_ndlp;
 	struct lpfc_vport    *vport = pmb->vport;
 
 	pmb->ctx_ndlp = NULL;

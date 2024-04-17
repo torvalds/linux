@@ -7,6 +7,7 @@
 #include "disk_groups.h"
 #include "error.h"
 #include "opts.h"
+#include "recovery_passes.h"
 #include "super-io.h"
 #include "util.h"
 
@@ -204,6 +205,9 @@ const struct bch_option bch2_opt_table[] = {
 				.min = _min, .max = _max
 #define OPT_STR(_choices)	.type = BCH_OPT_STR,			\
 				.min = 0, .max = ARRAY_SIZE(_choices),	\
+				.choices = _choices
+#define OPT_STR_NOLIMIT(_choices)	.type = BCH_OPT_STR,		\
+				.min = 0, .max = U64_MAX,		\
 				.choices = _choices
 #define OPT_FN(_fn)		.type = BCH_OPT_FN, .fn	= _fn
 

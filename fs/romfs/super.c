@@ -594,7 +594,7 @@ static void romfs_kill_sb(struct super_block *sb)
 #ifdef CONFIG_ROMFS_ON_BLOCK
 	if (sb->s_bdev) {
 		sync_blockdev(sb->s_bdev);
-		fput(sb->s_bdev_file);
+		bdev_fput(sb->s_bdev_file);
 	}
 #endif
 }

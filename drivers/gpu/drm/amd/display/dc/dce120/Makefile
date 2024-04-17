@@ -24,7 +24,7 @@
 # It provides the control and status of HW CRTC block.
 
 
-CFLAGS_$(AMDDALPATH)/dc/dce120/dce120_resource.o = $(call cc-disable-warning, override-init)
+CFLAGS_$(AMDDALPATH)/dc/dce120/dce120_resource.o = -Wno-override-init
 
 DCE120 = dce120_timing_generator.o
 

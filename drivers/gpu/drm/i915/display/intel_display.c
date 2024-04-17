@@ -2709,15 +2709,6 @@ static void intel_set_pipe_src_size(const struct intel_crtc_state *crtc_state)
 	 */
 	intel_de_write(dev_priv, PIPESRC(pipe),
 		       PIPESRC_WIDTH(width - 1) | PIPESRC_HEIGHT(height - 1));
-
-	if (!crtc_state->enable_psr2_su_region_et)
-		return;
-
-	width = drm_rect_width(&crtc_state->psr2_su_area);
-	height = drm_rect_height(&crtc_state->psr2_su_area);
-
-	intel_de_write(dev_priv, PIPE_SRCSZ_ERLY_TPT(pipe),
-		       PIPESRC_WIDTH(width - 1) | PIPESRC_HEIGHT(height - 1));
 }
 
 static bool intel_pipe_is_interlaced(const struct intel_crtc_state *crtc_state)

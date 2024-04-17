@@ -631,10 +631,6 @@ static inline void memset_u64s_tail(void *s, int c, unsigned bytes)
 	memset(s + bytes, c, rem);
 }
 
-void sort_cmp_size(void *base, size_t num, size_t size,
-	  int (*cmp_func)(const void *, const void *, size_t),
-	  void (*swap_func)(void *, void *, size_t));
-
 /* just the memmove, doesn't update @_nr */
 #define __array_insert_item(_array, _nr, _pos)				\
 	memmove(&(_array)[(_pos) + 1],					\
@@ -795,6 +791,16 @@ static inline int copy_from_user_errcode(void *to, const void __user *from, unsi
 static inline void __set_bit_le64(size_t bit, __le64 *addr)
 {
 	addr[bit / 64] |= cpu_to_le64(BIT_ULL(bit % 64));
+}
+
+static inline void __clear_bit_le64(size_t bit, __le64 *addr)
+{
+	addr[bit / 64] &= !cpu_to_le64(BIT_ULL(bit % 64));
+}
+
+static inline bool test_bit_le64(size_t bit, __le64 *addr)
+{
+	return (addr[bit / 64] & cpu_to_le64(BIT_ULL(bit % 64))) != 0;
 }
 
 #endif /* _BCACHEFS_UTIL_H */

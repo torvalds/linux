@@ -89,7 +89,7 @@ void menu_add_visibility(struct expr *dep);
 struct property *menu_add_prompt(enum prop_type type, char *prompt, struct expr *dep);
 void menu_add_expr(enum prop_type type, struct expr *expr, struct expr *dep);
 void menu_add_symbol(enum prop_type type, struct symbol *sym, struct expr *dep);
-void menu_finalize(struct menu *parent);
+void menu_finalize(void);
 void menu_set_type(int type);
 
 extern struct menu rootmenu;

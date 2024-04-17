@@ -37,7 +37,7 @@
 #include "rfc1002pdu.h"
 #include "fs_context.h"
 
-static DEFINE_MUTEX(cifs_mount_mutex);
+DEFINE_MUTEX(cifs_mount_mutex);
 
 static const match_table_t cifs_smb_version_tokens = {
 	{ Smb_1, SMB1_VERSION_STRING },
@@ -783,9 +783,9 @@ static int smb3_get_tree(struct fs_context *fc)
 
 	if (err)
 		return err;
-	mutex_lock(&cifs_mount_mutex);
+	cifs_mount_lock();
 	ret = smb3_get_tree_common(fc);
-	mutex_unlock(&cifs_mount_mutex);
+	cifs_mount_unlock();
 	return ret;
 }
 
