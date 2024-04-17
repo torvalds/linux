@@ -276,17 +276,19 @@ static int udf_write_end(struct file *file, struct address_space *mapping,
 			 struct page *page, void *fsdata)
 {
 	struct inode *inode = file_inode(file);
+	struct folio *folio;
 	loff_t last_pos;
 
 	if (UDF_I(inode)->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB)
 		return generic_write_end(file, mapping, pos, len, copied, page,
 					 fsdata);
+	folio = page_folio(page);
 	last_pos = pos + copied;
 	if (last_pos > inode->i_size)
 		i_size_write(inode, last_pos);
-	set_page_dirty(page);
-	unlock_page(page);
-	put_page(page);
+	folio_mark_dirty(folio);
+	folio_unlock(folio);
+	folio_put(folio);
 
 	return copied;
 }
