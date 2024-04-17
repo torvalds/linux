@@ -2814,7 +2814,7 @@ void bpf_prog_free(struct bpf_prog *fp)
 }
 EXPORT_SYMBOL_GPL(bpf_prog_free);
 
-/* RNG for unpriviledged user space with separated state from prandom_u32(). */
+/* RNG for unprivileged user space with separated state from prandom_u32(). */
 static DEFINE_PER_CPU(struct rnd_state, bpf_user_rnd_state);
 
 void bpf_user_rnd_init_once(void)

@@ -1539,7 +1539,7 @@ static void htab_map_free(struct bpf_map *map)
 	 */
 
 	/* htab no longer uses call_rcu() directly. bpf_mem_alloc does it
-	 * underneath and is reponsible for waiting for callbacks to finish
+	 * underneath and is responsible for waiting for callbacks to finish
 	 * during bpf_mem_alloc_destroy().
 	 */
 	if (!htab_is_prealloc(htab)) {
