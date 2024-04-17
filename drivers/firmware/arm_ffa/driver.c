@@ -345,6 +345,38 @@ static int ffa_msg_send_direct_req(u16 src_id, u16 dst_id, bool mode_32bit,
 	return -EINVAL;
 }
 
+static int ffa_msg_send2(u16 src_id, u16 dst_id, void *buf, size_t sz)
+{
+	u32 src_dst_ids = PACK_TARGET_INFO(src_id, dst_id);
+	struct ffa_indirect_msg_hdr *msg;
+	ffa_value_t ret;
+	int retval = 0;
+
+	if (sz > (RXTX_BUFFER_SIZE - sizeof(*msg)))
+		return -ERANGE;
+
+	mutex_lock(&drv_info->tx_lock);
+
+	msg = drv_info->tx_buffer;
+	msg->flags = 0;
+	msg->res0 = 0;
+	msg->offset = sizeof(*msg);
+	msg->send_recv_id = src_dst_ids;
+	msg->size = sz;
+	memcpy(msg + msg->offset, buf, sz);
+
+	/* flags = 0, sender VMID = 0 works for both physical/virtual NS */
+	invoke_ffa_fn((ffa_value_t){
+		      .a0 = FFA_MSG_SEND2, .a1 = 0, .a2 = 0
+		      }, &ret);
+
+	if (ret.a0 == FFA_ERROR)
+		retval = ffa_to_linux_errno((int)ret.a2);
+
+	mutex_unlock(&drv_info->tx_lock);
+	return retval;
+}
+
 static int ffa_mem_first_frag(u32 func_id, phys_addr_t buf, u32 buf_sz,
 			      u32 frag_len, u32 len, u64 *handle)
 {
@@ -871,6 +903,11 @@ static int ffa_sync_send_receive(struct ffa_device *dev,
 				       dev->mode_32bit, data);
 }
 
+static int ffa_indirect_msg_send(struct ffa_device *dev, void *buf, size_t sz)
+{
+	return ffa_msg_send2(drv_info->vm_id, dev->vm_id, buf, sz);
+}
+
 static int ffa_memory_share(struct ffa_mem_ops_args *args)
 {
 	if (drv_info->mem_ops_native)
@@ -1146,6 +1183,7 @@ static const struct ffa_info_ops ffa_drv_info_ops = {
 static const struct ffa_msg_ops ffa_drv_msg_ops = {
 	.mode_32bit_set = ffa_mode_32bit_set,
 	.sync_send_receive = ffa_sync_send_receive,
+	.indirect_send = ffa_indirect_msg_send,
 };
 
 static const struct ffa_mem_ops ffa_drv_mem_ops = {

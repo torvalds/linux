@@ -254,6 +254,14 @@ struct ffa_send_direct_data {
 	unsigned long data4; /* w7/x7 */
 };
 
+struct ffa_indirect_msg_hdr {
+	u32 flags;
+	u32 res0;
+	u32 offset;
+	u32 send_recv_id;
+	u32 size;
+};
+
 struct ffa_mem_region_addr_range {
 	/* The base IPA of the constituent memory region, aligned to 4 kiB */
 	u64 address;
@@ -414,6 +422,7 @@ struct ffa_msg_ops {
 	void (*mode_32bit_set)(struct ffa_device *dev);
 	int (*sync_send_receive)(struct ffa_device *dev,
 				 struct ffa_send_direct_data *data);
+	int (*indirect_send)(struct ffa_device *dev, void *buf, size_t sz);
 };
 
 struct ffa_mem_ops {
