@@ -48,17 +48,20 @@ struct pse_control_status {
  * struct pse_controller_ops - PSE controller driver callbacks
  *
  * @ethtool_get_status: get PSE control status for ethtool interface
- * @ethtool_set_config: set PSE control configuration over ethtool interface
  * @setup_pi_matrix: setup PI matrix of the PSE controller
+ * @pi_is_enabled: Return 1 if the PSE PI is enabled, 0 if not.
+ *		   May also return negative errno.
+ * @pi_enable: Configure the PSE PI as enabled.
+ * @pi_disable: Configure the PSE PI as disabled.
  */
 struct pse_controller_ops {
 	int (*ethtool_get_status)(struct pse_controller_dev *pcdev,
 		unsigned long id, struct netlink_ext_ack *extack,
 		struct pse_control_status *status);
-	int (*ethtool_set_config)(struct pse_controller_dev *pcdev,
-		unsigned long id, struct netlink_ext_ack *extack,
-		const struct pse_control_config *config);
 	int (*setup_pi_matrix)(struct pse_controller_dev *pcdev);
+	int (*pi_is_enabled)(struct pse_controller_dev *pcdev, int id);
+	int (*pi_enable)(struct pse_controller_dev *pcdev, int id);
+	int (*pi_disable)(struct pse_controller_dev *pcdev, int id);
 };
 
 struct module;
@@ -90,10 +93,14 @@ struct pse_pi_pairset {
  *
  * @pairset: table of the PSE PI pinout alternative for the two pairset
  * @np: device node pointer of the PSE PI node
+ * @rdev: regulator represented by the PSE PI
+ * @admin_state_enabled: PI enabled state
  */
 struct pse_pi {
 	struct pse_pi_pairset pairset[2];
 	struct device_node *np;
+	struct regulator_dev *rdev;
+	bool admin_state_enabled;
 };
 
 /**
