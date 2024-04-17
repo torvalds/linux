@@ -3,6 +3,7 @@
  * Copyright © 2020 Intel Corporation
  */
 
+#include "display/bxt_dpio_phy_regs.h"
 #include "display/intel_audio_regs.h"
 #include "display/intel_backlight_regs.h"
 #include "display/intel_color_regs.h"

@@ -36,6 +36,7 @@
 #include "i915_reg.h"
 #include "gvt.h"
 
+#include "display/bxt_dpio_phy_regs.h"
 #include "display/intel_display.h"
 #include "display/intel_dpio_phy.h"
 
