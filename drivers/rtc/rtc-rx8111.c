@@ -170,14 +170,14 @@ static int rx8111_read_time(struct device *dev, struct rtc_time *tm)
 	}
 
 	if (FIELD_GET(RX8111_FLAG_XST_BIT, regval)) {
-		dev_warn(data->dev,
-			 "Crystal oscillation stopped, time is not reliable\n");
+		dev_dbg(data->dev,
+			"Crystal oscillation stopped, time is not reliable\n");
 		return -EINVAL;
 	}
 
 	if (FIELD_GET(RX8111_FLAG_VLF_BIT, regval)) {
-		dev_warn(data->dev,
-			 "Low voltage detected, time is not reliable\n");
+		dev_dbg(data->dev,
+			"Low voltage detected, time is not reliable\n");
 		return -EINVAL;
 	}
 
@@ -188,7 +188,7 @@ static int rx8111_read_time(struct device *dev, struct rtc_time *tm)
 	}
 
 	if (regval) {
-		dev_warn(data->dev, "Clock stopped, time is not reliable\n");
+		dev_dbg(data->dev, "Clock stopped, time is not reliable\n");
 		return -EINVAL;
 	}
 
