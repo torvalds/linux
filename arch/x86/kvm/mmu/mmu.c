@@ -4501,6 +4501,9 @@ int kvm_handle_page_fault(struct kvm_vcpu *vcpu, u64 error_code,
 		return -EFAULT;
 #endif
 
+	/* Ensure the above sanity check also covers KVM-defined flags. */
+	BUILD_BUG_ON(lower_32_bits(PFERR_SYNTHETIC_MASK));
+
 	vcpu->arch.l1tf_flush_l1d = true;
 	if (!flags) {
 		trace_kvm_page_fault(vcpu, fault_address, error_code);
@@ -5784,17 +5787,6 @@ int noinline kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gpa_t cr2_or_gpa, u64 err
 {
 	int r, emulation_type = EMULTYPE_PF;
 	bool direct = vcpu->arch.mmu->root_role.direct;
-
-	/*
-	 * IMPLICIT_ACCESS is a KVM-defined flag used to correctly perform SMAP
-	 * checks when emulating instructions that triggers implicit access.
-	 * WARN if hardware generates a fault with an error code that collides
-	 * with the KVM-defined value.  Clear the flag and continue on, i.e.
-	 * don't terminate the VM, as KVM can't possibly be relying on a flag
-	 * that KVM doesn't know about.
-	 */
-	if (WARN_ON_ONCE(error_code & PFERR_IMPLICIT_ACCESS))
-		error_code &= ~PFERR_IMPLICIT_ACCESS;
 
 	if (WARN_ON_ONCE(!VALID_PAGE(vcpu->arch.mmu->root.hpa)))
 		return RET_PF_RETRY;
