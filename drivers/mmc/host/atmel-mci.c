@@ -226,13 +226,9 @@ struct mci_slot_pdata {
 
 /**
  * struct mci_platform_data - board-specific MMC/SDcard configuration
- * @dma_slave: DMA slave interface to use in data transfers.
- * @dma_filter: Filtering function to filter the DMA channel
  * @slot: Per-slot configuration data.
  */
 struct mci_platform_data {
-	void			*dma_slave;
-	dma_filter_fn		dma_filter;
 	struct mci_slot_pdata	slot[ATMCI_MAX_NR_SLOTS];
 };
 
@@ -626,7 +622,6 @@ static void atmci_init_debugfs(struct atmel_mci_slot *slot)
 			   &host->completed_events);
 }
 
-#if defined(CONFIG_OF)
 static const struct of_device_id atmci_dt_ids[] = {
 	{ .compatible = "atmel,hsmci" },
 	{ /* sentinel */ }
@@ -700,13 +695,6 @@ atmci_of_init(struct platform_device *pdev)
 
 	return pdata;
 }
-#else /* CONFIG_OF */
-static inline struct mci_platform_data*
-atmci_of_init(struct platform_device *dev)
-{
-	return ERR_PTR(-EINVAL);
-}
-#endif
 
 static inline unsigned int atmci_get_version(struct atmel_mci *host)
 {
@@ -2388,23 +2376,6 @@ static void atmci_cleanup_slot(struct atmel_mci_slot *slot,
 static int atmci_configure_dma(struct atmel_mci *host)
 {
 	host->dma.chan = dma_request_chan(&host->pdev->dev, "rxtx");
-
-	if (PTR_ERR(host->dma.chan) == -ENODEV) {
-		struct mci_platform_data *pdata = host->pdev->dev.platform_data;
-		dma_cap_mask_t mask;
-
-		if (!pdata || !pdata->dma_filter)
-			return -ENODEV;
-
-		dma_cap_zero(mask);
-		dma_cap_set(DMA_SLAVE, mask);
-
-		host->dma.chan = dma_request_channel(mask, pdata->dma_filter,
-						     pdata->dma_slave);
-		if (!host->dma.chan)
-			host->dma.chan = ERR_PTR(-ENODEV);
-	}
-
 	if (IS_ERR(host->dma.chan))
 		return PTR_ERR(host->dma.chan);
 
@@ -2492,13 +2463,11 @@ static int atmci_probe(struct platform_device *pdev)
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
 		return -ENXIO;
-	pdata = pdev->dev.platform_data;
-	if (!pdata) {
-		pdata = atmci_of_init(pdev);
-		if (IS_ERR(pdata)) {
-			dev_err(&pdev->dev, "platform data not available\n");
-			return PTR_ERR(pdata);
-		}
+
+	pdata = atmci_of_init(pdev);
+	if (IS_ERR(pdata)) {
+		dev_err(&pdev->dev, "platform data not available\n");
+		return PTR_ERR(pdata);
 	}
 
 	irq = platform_get_irq(pdev, 0);
@@ -2701,7 +2670,7 @@ static struct platform_driver atmci_driver = {
 	.driver		= {
 		.name		= "atmel_mci",
 		.probe_type	= PROBE_PREFER_ASYNCHRONOUS,
-		.of_match_table	= of_match_ptr(atmci_dt_ids),
+		.of_match_table	= atmci_dt_ids,
 		.pm		= &atmci_dev_pm_ops,
 	},
 };
