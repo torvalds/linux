@@ -80,11 +80,13 @@ struct meta_anchor {
 };
 #define mp_anchor(page) ((struct meta_anchor *)page_private(page))
 
-static inline struct metapage *page_to_mp(struct page *page, int offset)
+static inline struct metapage *folio_to_mp(struct folio *folio, int offset)
 {
-	if (!PagePrivate(page))
+	struct meta_anchor *anchor = folio->private;
+
+	if (!anchor)
 		return NULL;
-	return mp_anchor(page)->mp[offset >> L2PSIZE];
+	return anchor->mp[offset >> L2PSIZE];
 }
 
 static inline int insert_metapage(struct folio *folio, struct metapage *mp)
@@ -144,9 +146,9 @@ static inline void dec_io(struct folio *folio, void (*handler) (struct folio *))
 }
 
 #else
-static inline struct metapage *page_to_mp(struct page *page, int offset)
+static inline struct metapage *folio_to_mp(struct folio *folio, int offset)
 {
-	return PagePrivate(page) ? (struct metapage *)page_private(page) : NULL;
+	return folio->private;
 }
 
 static inline int insert_metapage(struct folio *folio, struct metapage *mp)
@@ -303,7 +305,7 @@ static void last_write_complete(struct folio *folio)
 	unsigned int offset;
 
 	for (offset = 0; offset < PAGE_SIZE; offset += PSIZE) {
-		mp = page_to_mp(&folio->page, offset);
+		mp = folio_to_mp(folio, offset);
 		if (mp && test_bit(META_io, &mp->flag)) {
 			if (mp->lsn)
 				remove_from_logsync(mp);
@@ -359,7 +361,7 @@ static int metapage_write_folio(struct folio *folio,
 	folio_start_writeback(folio);
 
 	for (offset = 0; offset < PAGE_SIZE; offset += PSIZE) {
-		mp = page_to_mp(&folio->page, offset);
+		mp = folio_to_mp(folio, offset);
 
 		if (!mp || !test_bit(META_dirty, &mp->flag))
 			continue;
@@ -526,7 +528,7 @@ static bool metapage_release_folio(struct folio *folio, gfp_t gfp_mask)
 	int offset;
 
 	for (offset = 0; offset < PAGE_SIZE; offset += PSIZE) {
-		mp = page_to_mp(&folio->page, offset);
+		mp = folio_to_mp(folio, offset);
 
 		if (!mp)
 			continue;
@@ -620,7 +622,7 @@ struct metapage *__get_metapage(struct inode *inode, unsigned long lblock,
 		folio_lock(folio);
 	}
 
-	mp = page_to_mp(&folio->page, page_offset);
+	mp = folio_to_mp(folio, page_offset);
 	if (mp) {
 		if (mp->logical_size != size) {
 			jfs_error(inode->i_sb,
@@ -804,7 +806,7 @@ void __invalidate_metapages(struct inode *ip, s64 addr, int len)
 		if (IS_ERR(folio))
 			continue;
 		for (offset = 0; offset < PAGE_SIZE; offset += PSIZE) {
-			mp = page_to_mp(&folio->page, offset);
+			mp = folio_to_mp(folio, offset);
 			if (!mp)
 				continue;
 			if (mp->index < addr)
