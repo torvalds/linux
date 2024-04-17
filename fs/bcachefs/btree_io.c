@@ -555,6 +555,7 @@ static int __btree_err(int ret,
 		       const char *fmt, ...)
 {
 	struct printbuf out = PRINTBUF;
+	bool silent = c->curr_recovery_pass == BCH_RECOVERY_PASS_scan_for_btree_nodes;
 	va_list args;
 
 	btree_err_msg(&out, c, ca, b, i, b->written, write);
@@ -576,12 +577,14 @@ static int __btree_err(int ret,
 	if (!have_retry && ret == -BCH_ERR_btree_node_read_err_must_retry)
 		ret = -BCH_ERR_btree_node_read_err_bad_node;
 
-	if (ret != -BCH_ERR_btree_node_read_err_fixable)
+	if (!silent && ret != -BCH_ERR_btree_node_read_err_fixable)
 		bch2_sb_error_count(c, err_type);
 
 	switch (ret) {
 	case -BCH_ERR_btree_node_read_err_fixable:
-		ret = bch2_fsck_err(c, FSCK_CAN_FIX, err_type, "%s", out.buf);
+		ret = !silent
+			? bch2_fsck_err(c, FSCK_CAN_FIX, err_type, "%s", out.buf)
+			: -BCH_ERR_fsck_fix;
 		if (ret != -BCH_ERR_fsck_fix &&
 		    ret != -BCH_ERR_fsck_ignore)
 			goto fsck_err;
@@ -589,14 +592,17 @@ static int __btree_err(int ret,
 		break;
 	case -BCH_ERR_btree_node_read_err_want_retry:
 	case -BCH_ERR_btree_node_read_err_must_retry:
-		bch2_print_string_as_lines(KERN_ERR, out.buf);
+		if (!silent)
+			bch2_print_string_as_lines(KERN_ERR, out.buf);
 		break;
 	case -BCH_ERR_btree_node_read_err_bad_node:
-		bch2_print_string_as_lines(KERN_ERR, out.buf);
+		if (!silent)
+			bch2_print_string_as_lines(KERN_ERR, out.buf);
 		ret = bch2_topology_error(c);
 		break;
 	case -BCH_ERR_btree_node_read_err_incompatible:
-		bch2_print_string_as_lines(KERN_ERR, out.buf);
+		if (!silent)
+			bch2_print_string_as_lines(KERN_ERR, out.buf);
 		ret = -BCH_ERR_fsck_errors_not_fixed;
 		break;
 	default:
