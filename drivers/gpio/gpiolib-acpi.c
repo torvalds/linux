@@ -1066,6 +1066,10 @@ int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *con_id, 
 			acpi_gpio_update_gpiod_lookup_flags(&lflags, &info);
 
 			snprintf(label, sizeof(label), "%pfwP GpioInt(%d)", fwnode, index);
+			ret = gpiod_set_consumer_name(desc, con_id ?: label);
+			if (ret)
+				return ret;
+
 			ret = gpiod_configure_flags(desc, label, lflags, dflags);
 			if (ret < 0)
 				return ret;
