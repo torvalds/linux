@@ -24,7 +24,6 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 
-#include <linux/spi/pxa2xx_spi.h>
 #include <linux/spi/spi.h>
 
 #include "spi-pxa2xx.h"

@@ -12,7 +12,6 @@
 #include <linux/scatterlist.h>
 #include <linux/sizes.h>
 
-#include <linux/spi/pxa2xx_spi.h>
 #include <linux/spi/spi.h>
 
 #include "spi-pxa2xx.h"
