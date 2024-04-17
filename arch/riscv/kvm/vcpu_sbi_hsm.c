@@ -18,12 +18,18 @@ static int kvm_sbi_hsm_vcpu_start(struct kvm_vcpu *vcpu)
 	struct kvm_cpu_context *cp = &vcpu->arch.guest_context;
 	struct kvm_vcpu *target_vcpu;
 	unsigned long target_vcpuid = cp->a0;
+	int ret = 0;
 
 	target_vcpu = kvm_get_vcpu_by_id(vcpu->kvm, target_vcpuid);
 	if (!target_vcpu)
 		return SBI_ERR_INVALID_PARAM;
-	if (!target_vcpu->arch.power_off)
-		return SBI_ERR_ALREADY_AVAILABLE;
+
+	spin_lock(&target_vcpu->arch.mp_state_lock);
+
+	if (!kvm_riscv_vcpu_stopped(target_vcpu)) {
+		ret = SBI_ERR_ALREADY_AVAILABLE;
+		goto out;
+	}
 
 	reset_cntx = &target_vcpu->arch.guest_reset_context;
 	/* start address */
@@ -34,19 +40,31 @@ static int kvm_sbi_hsm_vcpu_start(struct kvm_vcpu *vcpu)
 	reset_cntx->a1 = cp->a2;
 	kvm_make_request(KVM_REQ_VCPU_RESET, target_vcpu);
 
-	kvm_riscv_vcpu_power_on(target_vcpu);
+	__kvm_riscv_vcpu_power_on(target_vcpu);
 
-	return 0;
+out:
+	spin_unlock(&target_vcpu->arch.mp_state_lock);
+
+	return ret;
 }
 
 static int kvm_sbi_hsm_vcpu_stop(struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.power_off)
-		return SBI_ERR_FAILURE;
+	int ret = 0;
 
-	kvm_riscv_vcpu_power_off(vcpu);
+	spin_lock(&vcpu->arch.mp_state_lock);
 
-	return 0;
+	if (kvm_riscv_vcpu_stopped(vcpu)) {
+		ret = SBI_ERR_FAILURE;
+		goto out;
+	}
+
+	__kvm_riscv_vcpu_power_off(vcpu);
+
+out:
+	spin_unlock(&vcpu->arch.mp_state_lock);
+
+	return ret;
 }
 
 static int kvm_sbi_hsm_vcpu_get_status(struct kvm_vcpu *vcpu)
@@ -58,7 +76,7 @@ static int kvm_sbi_hsm_vcpu_get_status(struct kvm_vcpu *vcpu)
 	target_vcpu = kvm_get_vcpu_by_id(vcpu->kvm, target_vcpuid);
 	if (!target_vcpu)
 		return SBI_ERR_INVALID_PARAM;
-	if (!target_vcpu->arch.power_off)
+	if (!kvm_riscv_vcpu_stopped(target_vcpu))
 		return SBI_HSM_STATE_STARTED;
 	else if (vcpu->stat.generic.blocking)
 		return SBI_HSM_STATE_SUSPENDED;
@@ -71,14 +89,11 @@ static int kvm_sbi_ext_hsm_handler(struct kvm_vcpu *vcpu, struct kvm_run *run,
 {
 	int ret = 0;
 	struct kvm_cpu_context *cp = &vcpu->arch.guest_context;
-	struct kvm *kvm = vcpu->kvm;
 	unsigned long funcid = cp->a6;
 
 	switch (funcid) {
 	case SBI_EXT_HSM_HART_START:
-		mutex_lock(&kvm->lock);
 		ret = kvm_sbi_hsm_vcpu_start(vcpu);
-		mutex_unlock(&kvm->lock);
 		break;
 	case SBI_EXT_HSM_HART_STOP:
 		ret = kvm_sbi_hsm_vcpu_stop(vcpu);
