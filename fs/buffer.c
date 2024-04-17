@@ -2225,21 +2225,22 @@ int block_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
 		struct page **pagep, get_block_t *get_block)
 {
 	pgoff_t index = pos >> PAGE_SHIFT;
-	struct page *page;
+	struct folio *folio;
 	int status;
 
-	page = grab_cache_page_write_begin(mapping, index);
-	if (!page)
-		return -ENOMEM;
+	folio = __filemap_get_folio(mapping, index, FGP_WRITEBEGIN,
+			mapping_gfp_mask(mapping));
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 
-	status = __block_write_begin(page, pos, len, get_block);
+	status = __block_write_begin_int(folio, pos, len, get_block, NULL);
 	if (unlikely(status)) {
-		unlock_page(page);
-		put_page(page);
-		page = NULL;
+		folio_unlock(folio);
+		folio_put(folio);
+		folio = NULL;
 	}
 
-	*pagep = page;
+	*pagep = &folio->page;
 	return status;
 }
 EXPORT_SYMBOL(block_write_begin);
