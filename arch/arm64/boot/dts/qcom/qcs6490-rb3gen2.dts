@@ -17,7 +17,6 @@
 #include "pmk8350.dtsi"
 
 /delete-node/ &ipa_fw_mem;
-/delete-node/ &remoteproc_mpss;
 /delete-node/ &rmtfs_mem;
 /delete-node/ &adsp_mem;
 /delete-node/ &cdsp_mem;
@@ -614,6 +613,16 @@
 
 &remoteproc_cdsp {
 	firmware-name = "qcom/qcs6490/cdsp.mbn";
+	status = "okay";
+};
+
+&remoteproc_mpss {
+	firmware-name = "qcom/qcs6490/modem.mdt";
+	status = "okay";
+};
+
+&remoteproc_wpss {
+	firmware-name = "qcom/qcs6490/wpss.mbn";
 	status = "okay";
 };
 
