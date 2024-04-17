@@ -1035,6 +1035,7 @@ struct gpio_desc *acpi_find_gpio(struct fwnode_handle *fwnode,
 int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *con_id, int index,
 				  bool *wake_capable)
 {
+	struct fwnode_handle *fwnode = acpi_fwnode_handle(adev);
 	int idx, i;
 	unsigned int irq_flags;
 	int ret;
@@ -1044,7 +1045,7 @@ int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *con_id, 
 		struct gpio_desc *desc;
 
 		/* Ignore -EPROBE_DEFER, it only matters if idx matches */
-		desc = __acpi_find_gpio(acpi_fwnode_handle(adev), con_id, i, true, &info);
+		desc = __acpi_find_gpio(fwnode, con_id, i, true, &info);
 		if (IS_ERR(desc) && PTR_ERR(desc) != -EPROBE_DEFER)
 			return PTR_ERR(desc);
 
@@ -1064,7 +1065,7 @@ int acpi_dev_gpio_irq_wake_get_by(struct acpi_device *adev, const char *con_id, 
 			acpi_gpio_update_gpiod_flags(&dflags, &info);
 			acpi_gpio_update_gpiod_lookup_flags(&lflags, &info);
 
-			snprintf(label, sizeof(label), "GpioInt() %d", index);
+			snprintf(label, sizeof(label), "%pfwP GpioInt(%d)", fwnode, index);
 			ret = gpiod_configure_flags(desc, label, lflags, dflags);
 			if (ret < 0)
 				return ret;
