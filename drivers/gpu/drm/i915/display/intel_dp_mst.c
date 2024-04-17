@@ -421,15 +421,22 @@ static int mode_hblank_period_ns(const struct drm_display_mode *mode)
 
 static bool
 hblank_expansion_quirk_needs_dsc(const struct intel_connector *connector,
-				 const struct intel_crtc_state *crtc_state)
+				 const struct intel_crtc_state *crtc_state,
+				 const struct link_config_limits *limits)
 {
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
+	bool is_uhbr_sink = connector->mst_port &&
+			    drm_dp_128b132b_supported(connector->mst_port->dpcd);
+	int hblank_limit = is_uhbr_sink ? 500 : 300;
 
 	if (!connector->dp.dsc_hblank_expansion_quirk)
 		return false;
 
-	if (mode_hblank_period_ns(adjusted_mode) > 300)
+	if (is_uhbr_sink && !drm_dp_is_uhbr_rate(limits->max_rate))
+		return false;
+
+	if (mode_hblank_period_ns(adjusted_mode) > hblank_limit)
 		return false;
 
 	return true;
@@ -445,7 +452,7 @@ adjust_limits_for_dsc_hblank_expansion_quirk(const struct intel_connector *conne
 	const struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	int min_bpp_x16 = limits->link.min_bpp_x16;
 
-	if (!hblank_expansion_quirk_needs_dsc(connector, crtc_state))
+	if (!hblank_expansion_quirk_needs_dsc(connector, crtc_state, limits))
 		return true;
 
 	if (!dsc) {
@@ -1604,7 +1611,14 @@ static bool detect_dsc_hblank_expansion_quirk(const struct intel_connector *conn
 			      DP_DPCD_QUIRK_HBLANK_EXPANSION_REQUIRES_DSC))
 		return false;
 
-	if (!(dpcd[DP_RECEIVE_PORT_0_CAP_0] & DP_HBLANK_EXPANSION_CAPABLE))
+	/*
+	 * UHBR (MST sink) devices requiring this quirk don't advertise the
+	 * HBLANK expansion support. Presuming that they perform HBLANK
+	 * expansion internally, or are affected by this issue on modes with a
+	 * short HBLANK for other reasons.
+	 */
+	if (!drm_dp_128b132b_supported(dpcd) &&
+	    !(dpcd[DP_RECEIVE_PORT_0_CAP_0] & DP_HBLANK_EXPANSION_CAPABLE))
 		return false;
 
 	drm_dbg_kms(&i915->drm,
