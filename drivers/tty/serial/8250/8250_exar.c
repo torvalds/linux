@@ -711,12 +711,28 @@ static unsigned int exar_get_nr_ports(struct exar8250_board *board,
 {
 	unsigned int nr_ports = 0;
 
-	if (pcidev->vendor == PCI_VENDOR_ID_ACCESSIO)
+	if (pcidev->vendor == PCI_VENDOR_ID_ACCESSIO) {
 		nr_ports = BIT(((pcidev->device & 0x38) >> 3) - 1);
-	else if (board->num_ports)
+	} else if (board->num_ports > 0) {
+		// Check if board struct overrides number of ports
 		nr_ports = board->num_ports;
-	else
+	} else if (pcidev->vendor == PCI_VENDOR_ID_EXAR) {
+		// Exar encodes # ports in last nibble of PCI Device ID ex. 0358
 		nr_ports = pcidev->device & 0x0f;
+	} else  if (pcidev->vendor == PCI_VENDOR_ID_CONNECT_TECH) {
+		// Handle CTI FPGA cards
+		switch (pcidev->device) {
+		case PCI_DEVICE_ID_CONNECT_TECH_PCI_XR79X_12_XIG00X:
+		case PCI_DEVICE_ID_CONNECT_TECH_PCI_XR79X_12_XIG01X:
+			nr_ports = 12;
+			break;
+		case PCI_DEVICE_ID_CONNECT_TECH_PCI_XR79X_16:
+			nr_ports = 16;
+			break;
+		default:
+			break;
+		}
+	}
 
 	return nr_ports;
 }
