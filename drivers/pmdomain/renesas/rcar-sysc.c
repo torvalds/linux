@@ -439,18 +439,6 @@ out_put:
 }
 early_initcall(rcar_sysc_pd_init);
 
-void __init rcar_sysc_nullify(struct rcar_sysc_area *areas,
-			      unsigned int num_areas, u8 id)
-{
-	unsigned int i;
-
-	for (i = 0; i < num_areas; i++)
-		if (areas[i].isr_bit == id) {
-			areas[i].name = NULL;
-			return;
-		}
-}
-
 #ifdef CONFIG_ARCH_R8A7779
 static int rcar_sysc_power_cpu(unsigned int idx, bool on)
 {

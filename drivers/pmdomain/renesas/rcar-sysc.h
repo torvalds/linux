@@ -71,12 +71,4 @@ extern const struct rcar_sysc_info r8a77980_sysc_info;
 extern const struct rcar_sysc_info r8a77990_sysc_info;
 extern const struct rcar_sysc_info r8a77995_sysc_info;
 
-
-    /*
-     * Helpers for fixing up power area tables depending on SoC revision
-     */
-
-extern void rcar_sysc_nullify(struct rcar_sysc_area *areas,
-			      unsigned int num_areas, u8 id);
-
 #endif /* __SOC_RENESAS_RCAR_SYSC_H__ */
