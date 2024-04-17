@@ -135,11 +135,6 @@ static inline u32 bch2_snapshot_equiv(struct bch_fs *c, u32 id)
 	return id;
 }
 
-static inline bool bch2_snapshot_is_equiv(struct bch_fs *c, u32 id)
-{
-	return id == bch2_snapshot_equiv(c, id);
-}
-
 static inline int bch2_snapshot_is_internal_node(struct bch_fs *c, u32 id)
 {
 	rcu_read_lock();
