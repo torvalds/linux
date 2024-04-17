@@ -328,6 +328,7 @@ void cgroup_rstat_flush_hold(struct cgroup *cgrp)
 
 /**
  * cgroup_rstat_flush_release - release cgroup_rstat_flush_hold()
+ * @cgrp: cgroup used by tracepoint
  */
 void cgroup_rstat_flush_release(struct cgroup *cgrp)
 	__releases(&cgroup_rstat_lock)
