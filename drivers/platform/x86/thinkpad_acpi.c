@@ -2679,7 +2679,7 @@ static ssize_t hotkey_bios_enabled_show(struct device *dev,
 			   struct device_attribute *attr,
 			   char *buf)
 {
-	return sprintf(buf, "0\n");
+	return sysfs_emit(buf, "0\n");
 }
 
 static DEVICE_ATTR_RO(hotkey_bios_enabled);
@@ -9789,7 +9789,7 @@ static ssize_t tpacpi_battery_show(int what,
 		battery = BAT_PRIMARY;
 	if (tpacpi_battery_get(what, battery, &ret))
 		return -ENODEV;
-	return sprintf(buf, "%d\n", ret);
+	return sysfs_emit(buf, "%d\n", ret);
 }
 
 static ssize_t charge_control_start_threshold_show(struct device *device,
