@@ -2,12 +2,13 @@
 /*
  * Copyright (C) 2022 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
  *
- * The "Virtual Machine Generation ID" is exposed via ACPI and changes when a
+ * The "Virtual Machine Generation ID" is exposed via ACPI or DT and changes when a
  * virtual machine forks or is cloned. This driver exists for shepherding that
  * information to random.c.
  */
 
 #include <linux/acpi.h>
+#include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -41,6 +42,7 @@ static void setup_vmgenid_state(struct vmgenid_state *state, void *virt_addr)
 	add_device_randomness(state->this_id, sizeof(state->this_id));
 }
 
+#ifdef CONFIG_ACPI
 static void vmgenid_acpi_handler(acpi_handle __always_unused handle,
 				 u32 __always_unused event, void *dev)
 {
@@ -92,6 +94,43 @@ out:
 	ACPI_FREE(parsed.pointer);
 	return ret;
 }
+#else
+static int vmgenid_add_acpi(struct device *dev, struct vmgenid_state *state)
+{
+	return -EINVAL;
+}
+#endif
+
+static irqreturn_t vmgenid_of_irq_handler(int __always_unused irq, void *dev)
+{
+	vmgenid_notify(dev);
+	return IRQ_HANDLED;
+}
+
+static int vmgenid_add_of(struct platform_device *pdev,
+			  struct vmgenid_state *state)
+{
+	void *virt_addr;
+	int ret;
+
+	virt_addr = devm_platform_get_and_ioremap_resource(pdev, 0, NULL);
+	if (IS_ERR(virt_addr))
+		return PTR_ERR(virt_addr);
+
+	setup_vmgenid_state(state, virt_addr);
+
+	ret = platform_get_irq(pdev, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = devm_request_irq(&pdev->dev, ret, vmgenid_of_irq_handler,
+			       IRQF_SHARED, "vmgenid", &pdev->dev);
+	if (ret < 0)
+		return ret;
+
+	pdev->dev.driver_data = state;
+	return 0;
+}
 
 static int vmgenid_add(struct platform_device *pdev)
 {
@@ -103,12 +142,21 @@ static int vmgenid_add(struct platform_device *pdev)
 	if (!state)
 		return -ENOMEM;
 
-	ret = vmgenid_add_acpi(dev, state);
+	if (dev->of_node)
+		ret = vmgenid_add_of(pdev, state);
+	else
+		ret = vmgenid_add_acpi(dev, state);
 
 	if (ret < 0)
 		devm_kfree(dev, state);
 	return ret;
 }
+
+static const struct of_device_id vmgenid_of_ids[] = {
+	{ .compatible = "microsoft,vmgenid", },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, vmgenid_of_ids);
 
 static const struct acpi_device_id vmgenid_acpi_ids[] = {
 	{ "VMGENCTR", 0 },
@@ -122,6 +170,7 @@ static struct platform_driver vmgenid_plaform_driver = {
 	.driver     = {
 		.name   = "vmgenid",
 		.acpi_match_table = vmgenid_acpi_ids,
+		.of_match_table = vmgenid_of_ids,
 	},
 };
 
