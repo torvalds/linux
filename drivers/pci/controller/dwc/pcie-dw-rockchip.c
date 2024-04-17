@@ -245,7 +245,7 @@ static int rockchip_pcie_resource_get(struct platform_device *pdev,
 				     "failed to map apb registers\n");
 
 	rockchip->rst_gpio = devm_gpiod_get_optional(&pdev->dev, "reset",
-						     GPIOD_OUT_HIGH);
+						     GPIOD_OUT_LOW);
 	if (IS_ERR(rockchip->rst_gpio))
 		return dev_err_probe(&pdev->dev, PTR_ERR(rockchip->rst_gpio),
 				     "failed to get reset gpio\n");
