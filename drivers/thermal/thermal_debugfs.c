@@ -754,6 +754,11 @@ static int tze_seq_show(struct seq_file *s, void *v)
 
 	for_each_trip_desc(tz, td) {
 		const struct thermal_trip *trip = &td->trip;
+		struct trip_stats *trip_stats;
+
+		/* Skip invalid trips. */
+		if (trip->temperature == THERMAL_TEMP_INVALID)
+			continue;
 
 		/*
 		 * There is no possible mitigation happening at the
@@ -763,6 +768,13 @@ static int tze_seq_show(struct seq_file *s, void *v)
 		if (trip->type == THERMAL_TRIP_CRITICAL)
 			continue;
 
+		trip_id = thermal_zone_trip_id(tz, trip);
+		trip_stats = &tze->trip_stats[trip_id];
+
+		/* Skip trips without any stats. */
+		if (trip_stats->min > trip_stats->max)
+			continue;
+
 		if (trip->type == THERMAL_TRIP_PASSIVE)
 			type = "passive";
 		else if (trip->type == THERMAL_TRIP_ACTIVE)
@@ -770,17 +782,15 @@ static int tze_seq_show(struct seq_file *s, void *v)
 		else
 			type = "hot";
 
-		trip_id = thermal_zone_trip_id(tz, trip);
-
 		seq_printf(s, "| %*d | %*s | %*d | %*d | %*lld | %*d | %*d | %*d |\n",
 			   4 , trip_id,
 			   8, type,
 			   9, trip->temperature,
 			   9, trip->hysteresis,
-			   10, ktime_to_ms(tze->trip_stats[trip_id].duration),
-			   9, tze->trip_stats[trip_id].avg,
-			   9, tze->trip_stats[trip_id].min,
-			   9, tze->trip_stats[trip_id].max);
+			   10, ktime_to_ms(trip_stats->duration),
+			   9, trip_stats->avg,
+			   9, trip_stats->min,
+			   9, trip_stats->max);
 	}
 
 	return 0;
