@@ -427,6 +427,7 @@
   devm_device_add_group
   devm_device_add_groups
   devm_device_remove_group
+  devm_drm_bridge_add
   __devm_drm_dev_alloc
   devm_drm_of_get_bridge
   devm_drm_panel_bridge_add_typed
