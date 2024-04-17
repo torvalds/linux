@@ -11,7 +11,7 @@ void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 			      const struct thermal_trip *trip);
 void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
 				const struct thermal_trip *trip);
-void thermal_debug_update_temp(struct thermal_zone_device *tz);
+void thermal_debug_update_trip_stats(struct thermal_zone_device *tz);
 #else
 static inline void thermal_debug_init(void) {}
 static inline void thermal_debug_cdev_add(struct thermal_cooling_device *cdev) {}
@@ -24,5 +24,5 @@ static inline void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 					    const struct thermal_trip *trip) {};
 static inline void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
 					      const struct thermal_trip *trip) {}
-static inline void thermal_debug_update_temp(struct thermal_zone_device *tz) {}
+static inline void thermal_debug_update_trip_stats(struct thermal_zone_device *tz) {}
 #endif /* CONFIG_THERMAL_DEBUGFS */

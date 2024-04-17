@@ -504,7 +504,7 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 	if (governor->manage)
 		governor->manage(tz);
 
-	thermal_debug_update_temp(tz);
+	thermal_debug_update_trip_stats(tz);
 
 	monitor_thermal_zone(tz);
 }

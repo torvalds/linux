@@ -676,7 +676,7 @@ out:
 	mutex_unlock(&thermal_dbg->lock);
 }
 
-void thermal_debug_update_temp(struct thermal_zone_device *tz)
+void thermal_debug_update_trip_stats(struct thermal_zone_device *tz)
 {
 	struct thermal_debugfs *thermal_dbg = tz->debugfs;
 	struct tz_debugfs *tz_dbg;
