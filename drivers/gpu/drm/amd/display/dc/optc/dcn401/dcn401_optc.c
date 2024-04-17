@@ -107,11 +107,17 @@ static void optc401_set_odm_combine(struct timing_generator *optc, int *opp_id,
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 	uint32_t h_active = timing->h_addressable +
 			timing->h_border_left + timing->h_border_right;
-	uint32_t odm_segment_width = h_active / opp_cnt;
-	uint32_t odm_segment_width_last =
-			h_active - odm_segment_width * (opp_cnt - 1);
 	uint32_t odm_mem_bit_map = decide_odm_mem_bit_map(
 			opp_id, opp_cnt, h_active);
+	uint32_t odm_segment_width;
+	uint32_t odm_segment_width_last;
+	bool is_two_pixels_per_container = optc->funcs->is_two_pixels_per_container(timing);
+
+	odm_segment_width = h_active / opp_cnt;
+	if ((odm_segment_width % 2) && is_two_pixels_per_container)
+		odm_segment_width++;
+	odm_segment_width_last =
+			h_active - odm_segment_width * (opp_cnt - 1);
 
 	REG_SET(OPTC_MEMORY_CONFIG, 0,
 		OPTC_MEM_SEL, odm_mem_bit_map);
@@ -277,7 +283,7 @@ static void optc401_set_odm_bypass(struct timing_generator *optc,
 			OPTC_SEG3_SRC_SEL, 0xf
 			);
 
-	h_div = optc1_is_two_pixels_per_containter(dc_crtc_timing);
+	h_div = optc->funcs->is_two_pixels_per_container(dc_crtc_timing);
 	REG_UPDATE(OTG_H_TIMING_CNTL,
 			OTG_H_TIMING_DIV_MODE, h_div);
 
@@ -461,6 +467,7 @@ static struct timing_generator_funcs dcn401_tg_funcs = {
 		.program_manual_trigger = optc2_program_manual_trigger,
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
+		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
 };
 
 void dcn401_timing_generator_init(struct optc *optc1)

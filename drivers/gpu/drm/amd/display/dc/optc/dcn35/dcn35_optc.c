@@ -438,6 +438,7 @@ static struct timing_generator_funcs dcn35_tg_funcs = {
 		.get_hw_timing = optc1_get_hw_timing,
 		.init_odm = optc3_init_odm,
 		.set_long_vtotal = optc35_set_long_vtotal,
+		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
 };
 
 void dcn35_timing_generator_init(struct optc *optc1)

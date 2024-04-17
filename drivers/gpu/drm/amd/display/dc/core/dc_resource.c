@@ -827,6 +827,11 @@ static struct rect calculate_odm_slice_in_timing_active(struct pipe_ctx *pipe_ct
 			stream->timing.h_border_right;
 	int odm_slice_width = h_active / odm_slice_count;
 	struct rect odm_rec;
+	bool is_two_pixels_per_container =
+			pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container(&stream->timing);
+
+	if ((odm_slice_width % 2) && is_two_pixels_per_container)
+		odm_slice_width++;
 
 	odm_rec.x = odm_slice_width * odm_slice_idx;
 	odm_rec.width = is_last_odm_slice ?
@@ -1464,6 +1469,7 @@ void resource_build_test_pattern_params(struct resource_context *res_ctx,
 	int v_active = otg_master->stream->timing.v_addressable +
 		otg_master->stream->timing.v_border_bottom +
 		otg_master->stream->timing.v_border_top;
+	bool is_two_pixels_per_container = otg_master->stream_res.tg->funcs->is_two_pixels_per_container(&otg_master->stream->timing);
 	int i;
 
 	controller_test_pattern = convert_dp_to_controller_test_pattern(
@@ -1477,6 +1483,8 @@ void resource_build_test_pattern_params(struct resource_context *res_ctx,
 	odm_cnt = resource_get_opp_heads_for_otg_master(otg_master, res_ctx, opp_heads);
 
 	odm_slice_width = h_active / odm_cnt;
+	if ((odm_slice_width % 2) && is_two_pixels_per_container)
+		odm_slice_width++;
 	last_odm_slice_width = h_active - odm_slice_width * (odm_cnt - 1);
 
 	for (i = 0; i < odm_cnt; i++) {

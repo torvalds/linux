@@ -118,7 +118,6 @@ void optc2_lock_doublebuffer_disable(struct timing_generator *optc);
 void optc2_lock_doublebuffer_enable(struct timing_generator *optc);
 void optc2_setup_manual_trigger(struct timing_generator *optc);
 void optc2_program_manual_trigger(struct timing_generator *optc);
-bool optc2_is_two_pixels_per_containter(const struct dc_crtc_timing *timing);
 bool optc2_configure_crc(struct timing_generator *optc,
 			  const struct crc_params *params);
 #endif /* __DC_OPTC_DCN20_H__ */

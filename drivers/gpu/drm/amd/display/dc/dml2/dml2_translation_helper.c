@@ -941,7 +941,7 @@ static struct scaler_data get_scaler_data_for_plane(const struct dc_plane_state 
 			temp_pipe->stream = pipe->stream;
 			temp_pipe->plane_state = pipe->plane_state;
 			temp_pipe->plane_res.scl_data.taps = pipe->plane_res.scl_data.taps;
-
+			temp_pipe->stream_res = pipe->stream_res;
 			resource_build_scaling_params(temp_pipe);
 			break;
 		}

@@ -158,13 +158,6 @@ void optc2_get_dsc_status(struct timing_generator *optc,
 		OPTC_DSC_MODE, dsc_mode);
 }
 
-
-/*TEMP: Need to figure out inheritance model here.*/
-bool optc2_is_two_pixels_per_containter(const struct dc_crtc_timing *timing)
-{
-	return optc1_is_two_pixels_per_containter(timing);
-}
-
 void optc2_set_odm_bypass(struct timing_generator *optc,
 		const struct dc_crtc_timing *dc_crtc_timing)
 {
@@ -177,7 +170,7 @@ void optc2_set_odm_bypass(struct timing_generator *optc,
 			OPTC_SEG1_SRC_SEL, 0xf);
 	REG_WRITE(OTG_H_TIMING_CNTL, 0);
 
-	h_div_2 = optc2_is_two_pixels_per_containter(dc_crtc_timing);
+	h_div_2 = optc->funcs->is_two_pixels_per_container(dc_crtc_timing);
 	REG_UPDATE(OTG_H_TIMING_CNTL,
 			OTG_H_TIMING_DIV_BY2, h_div_2);
 	REG_SET(OPTC_MEMORY_CONFIG, 0,
@@ -560,6 +553,7 @@ static struct timing_generator_funcs dcn20_tg_funcs = {
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
 		.align_vblanks = optc2_align_vblanks,
+		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
 };
 
 void dcn20_timing_generator_init(struct optc *optc1)

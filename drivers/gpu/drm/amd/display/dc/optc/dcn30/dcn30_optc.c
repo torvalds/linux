@@ -206,7 +206,7 @@ void optc3_set_odm_bypass(struct timing_generator *optc,
 			OPTC_SEG3_SRC_SEL, 0xf
 			);
 
-	h_div = optc1_is_two_pixels_per_containter(dc_crtc_timing);
+	h_div = optc->funcs->is_two_pixels_per_container(dc_crtc_timing);
 	REG_UPDATE(OTG_H_TIMING_CNTL,
 			OTG_H_TIMING_DIV_MODE, h_div);
 
@@ -376,6 +376,7 @@ static struct timing_generator_funcs dcn30_tg_funcs = {
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
 		.wait_drr_doublebuffer_pending_clear = optc3_wait_drr_doublebuffer_pending_clear,
+		.is_two_pixels_per_container = optc1_is_two_pixels_per_container,
 };
 
 void dcn30_timing_generator_init(struct optc *optc1)

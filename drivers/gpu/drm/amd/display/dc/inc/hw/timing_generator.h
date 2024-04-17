@@ -276,6 +276,7 @@ struct timing_generator_funcs {
 			uint32_t *num_of_input_segments,
 			uint32_t *seg0_src_sel,
 			uint32_t *seg1_src_sel);
+	bool (*is_two_pixels_per_container)(const struct dc_crtc_timing *timing);
 
 	/**
 	 * Configure CRCs for the given timing generator. Return false if TG is
