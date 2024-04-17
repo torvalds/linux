@@ -165,7 +165,7 @@
 	};
 
 	pmu {
-		compatible = "arm,cortex-a53-pmu", "arm,armv8-pmuv3";
+		compatible = "arm,cortex-a53-pmu";
 		interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 123 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>,

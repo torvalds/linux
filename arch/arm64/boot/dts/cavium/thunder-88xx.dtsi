@@ -361,7 +361,7 @@
 	};
 
 	pmu {
-		compatible = "cavium,thunder-pmu", "arm,armv8-pmuv3";
+		compatible = "cavium,thunder-pmu";
 		interrupts = <1 7 4>;
 	};
 
