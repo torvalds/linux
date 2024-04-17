@@ -1154,7 +1154,6 @@ static int pxa2xx_spi_unprepare_transfer(struct spi_controller *controller)
 
 static int setup(struct spi_device *spi)
 {
-	struct pxa2xx_spi_chip *chip_info;
 	struct chip_data *chip;
 	const struct lpss_config *config;
 	struct driver_data *drv_data =
@@ -1218,25 +1217,6 @@ static int setup(struct spi_device *spi)
 		chip->timeout = TIMOUT_DFLT;
 	}
 
-	/*
-	 * Protocol drivers may change the chip settings, so...
-	 * if chip_info exists, use it.
-	 */
-	chip_info = spi->controller_data;
-
-	/* chip_info isn't always needed */
-	if (chip_info) {
-		if (chip_info->timeout)
-			chip->timeout = chip_info->timeout;
-		if (chip_info->tx_threshold)
-			tx_thres = chip_info->tx_threshold;
-		if (chip_info->tx_hi_threshold)
-			tx_hi_thres = chip_info->tx_hi_threshold;
-		if (chip_info->rx_threshold)
-			rx_thres = chip_info->rx_threshold;
-		chip->dma_threshold = 0;
-	}
-
 	chip->cr1 = 0;
 	if (spi_controller_is_target(drv_data->controller)) {
 		chip->cr1 |= SSCR1_SCFR;
@@ -1256,11 +1236,6 @@ static int setup(struct spi_device *spi)
 		chip->lpss_tx_threshold = tx_thres;
 	}
 
-	/*
-	 * Set DMA burst and threshold outside of chip_info path so that if
-	 * chip_info goes away after setting chip->enable_dma, the burst and
-	 * threshold can still respond to changes in bits_per_word.
-	 */
 	if (chip->enable_dma) {
 		/* Set up legal burst and threshold for DMA */
 		if (pxa2xx_spi_set_dma_burst_and_threshold(chip, spi,

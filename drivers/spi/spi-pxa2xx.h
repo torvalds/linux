@@ -35,20 +35,6 @@ struct pxa2xx_spi_controller {
 	struct ssp_device ssp;
 };
 
-/*
- * The controller specific data for SPI target devices
- * (resides in spi_board_info.controller_data),
- * copied to spi_device.platform_data ... mostly for
- * DMA tuning.
- */
-struct pxa2xx_spi_chip {
-	u8 tx_threshold;
-	u8 tx_hi_threshold;
-	u8 rx_threshold;
-	u8 dma_burst_size;
-	u32 timeout;
-};
-
 struct spi_controller;
 struct spi_device;
 struct spi_transfer;
