@@ -7,3 +7,4 @@ Power Sourcing Equipment (PSE) Documentation
    :maxdepth: 2
 
    introduction
+   pse-pi

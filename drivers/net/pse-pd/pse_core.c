@@ -27,38 +27,182 @@ struct pse_control {
 	struct kref refcnt;
 };
 
-/**
- * of_pse_zero_xlate - dummy function for controllers with one only control
- * @pcdev: a pointer to the PSE controller device
- * @pse_spec: PSE line specifier as found in the device tree
- *
- * This static translation function is used by default if of_xlate in
- * :c:type:`pse_controller_dev` is not set. It is useful for all PSE
- * controllers with #pse-cells = <0>.
- */
-static int of_pse_zero_xlate(struct pse_controller_dev *pcdev,
-			     const struct of_phandle_args *pse_spec)
+static int of_load_single_pse_pi_pairset(struct device_node *node,
+					 struct pse_pi *pi,
+					 int pairset_num)
 {
+	struct device_node *pairset_np;
+	const char *name;
+	int ret;
+
+	ret = of_property_read_string_index(node, "pairset-names",
+					    pairset_num, &name);
+	if (ret)
+		return ret;
+
+	if (!strcmp(name, "alternative-a")) {
+		pi->pairset[pairset_num].pinout = ALTERNATIVE_A;
+	} else if (!strcmp(name, "alternative-b")) {
+		pi->pairset[pairset_num].pinout = ALTERNATIVE_B;
+	} else {
+		pr_err("pse: wrong pairset-names value %s (%pOF)\n",
+		       name, node);
+		return -EINVAL;
+	}
+
+	pairset_np = of_parse_phandle(node, "pairsets", pairset_num);
+	if (!pairset_np)
+		return -ENODEV;
+
+	pi->pairset[pairset_num].np = pairset_np;
+
 	return 0;
 }
 
 /**
- * of_pse_simple_xlate - translate pse_spec to the PSE line number
- * @pcdev: a pointer to the PSE controller device
- * @pse_spec: PSE line specifier as found in the device tree
+ * of_load_pse_pi_pairsets - load PSE PI pairsets pinout and polarity
+ * @node: a pointer of the device node
+ * @pi: a pointer of the PSE PI to fill
+ * @npairsets: the number of pairsets (1 or 2) used by the PI
  *
- * This static translation function is used by default if of_xlate in
- * :c:type:`pse_controller_dev` is not set. It is useful for all PSE
- * controllers with 1:1 mapping, where PSE lines can be indexed by number
- * without gaps.
+ * Return: 0 on success and failure value on error
  */
-static int of_pse_simple_xlate(struct pse_controller_dev *pcdev,
-			       const struct of_phandle_args *pse_spec)
+static int of_load_pse_pi_pairsets(struct device_node *node,
+				   struct pse_pi *pi,
+				   int npairsets)
 {
-	if (pse_spec->args[0] >= pcdev->nr_lines)
-		return -EINVAL;
+	int i, ret;
 
-	return pse_spec->args[0];
+	ret = of_property_count_strings(node, "pairset-names");
+	if (ret != npairsets) {
+		pr_err("pse: amount of pairsets and pairset-names is not equal %d != %d (%pOF)\n",
+		       npairsets, ret, node);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < npairsets; i++) {
+		ret = of_load_single_pse_pi_pairset(node, pi, i);
+		if (ret)
+			goto out;
+	}
+
+	if (npairsets == 2 &&
+	    pi->pairset[0].pinout == pi->pairset[1].pinout) {
+		pr_err("pse: two PI pairsets can not have identical pinout (%pOF)",
+		       node);
+		ret = -EINVAL;
+	}
+
+out:
+	/* If an error appears, release all the pairset device node kref */
+	if (ret) {
+		of_node_put(pi->pairset[0].np);
+		pi->pairset[0].np = NULL;
+		of_node_put(pi->pairset[1].np);
+		pi->pairset[1].np = NULL;
+	}
+
+	return ret;
+}
+
+static void pse_release_pis(struct pse_controller_dev *pcdev)
+{
+	int i;
+
+	for (i = 0; i <= pcdev->nr_lines; i++) {
+		of_node_put(pcdev->pi[i].pairset[0].np);
+		of_node_put(pcdev->pi[i].pairset[1].np);
+		of_node_put(pcdev->pi[i].np);
+	}
+	kfree(pcdev->pi);
+}
+
+/**
+ * of_load_pse_pis - load all the PSE PIs
+ * @pcdev: a pointer to the PSE controller device
+ *
+ * Return: 0 on success and failure value on error
+ */
+static int of_load_pse_pis(struct pse_controller_dev *pcdev)
+{
+	struct device_node *np = pcdev->dev->of_node;
+	struct device_node *node, *pis;
+	int ret;
+
+	if (!np)
+		return -ENODEV;
+
+	pis = of_get_child_by_name(np, "pse-pis");
+	if (!pis) {
+		/* no description of PSE PIs */
+		pcdev->no_of_pse_pi = true;
+		return 0;
+	}
+
+	pcdev->pi = kcalloc(pcdev->nr_lines, sizeof(*pcdev->pi), GFP_KERNEL);
+	if (!pcdev->pi) {
+		of_node_put(pis);
+		return -ENOMEM;
+	}
+
+	for_each_child_of_node(pis, node) {
+		struct pse_pi pi = {0};
+		u32 id;
+
+		if (!of_node_name_eq(node, "pse-pi"))
+			continue;
+
+		ret = of_property_read_u32(node, "reg", &id);
+		if (ret) {
+			dev_err(pcdev->dev,
+				"can't get reg property for node '%pOF'",
+				node);
+			goto out;
+		}
+
+		if (id >= pcdev->nr_lines) {
+			dev_err(pcdev->dev,
+				"reg value (%u) is out of range (%u) (%pOF)\n",
+				id, pcdev->nr_lines, node);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (pcdev->pi[id].np) {
+			dev_err(pcdev->dev,
+				"other node with same reg value was already registered. %pOF : %pOF\n",
+				pcdev->pi[id].np, node);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		ret = of_count_phandle_with_args(node, "pairsets", NULL);
+		/* npairsets is limited to value one or two */
+		if (ret == 1 || ret == 2) {
+			ret = of_load_pse_pi_pairsets(node, &pi, ret);
+			if (ret)
+				goto out;
+		} else if (ret != ENOENT) {
+			dev_err(pcdev->dev,
+				"error: wrong number of pairsets. Should be 1 or 2, got %d (%pOF)\n",
+				ret, node);
+			ret = -EINVAL;
+			goto out;
+		}
+
+		of_node_get(node);
+		pi.np = node;
+		memcpy(&pcdev->pi[id], &pi, sizeof(pi));
+	}
+
+	of_node_put(pis);
+	return 0;
+
+out:
+	pse_release_pis(pcdev);
+	of_node_put(node);
+	of_node_put(pis);
+	return ret;
 }
 
 /**
@@ -67,15 +211,17 @@ static int of_pse_simple_xlate(struct pse_controller_dev *pcdev,
  */
 int pse_controller_register(struct pse_controller_dev *pcdev)
 {
-	if (!pcdev->of_xlate) {
-		if (pcdev->of_pse_n_cells == 0)
-			pcdev->of_xlate = of_pse_zero_xlate;
-		else if (pcdev->of_pse_n_cells == 1)
-			pcdev->of_xlate = of_pse_simple_xlate;
-	}
+	int ret;
 
 	mutex_init(&pcdev->lock);
 	INIT_LIST_HEAD(&pcdev->pse_control_head);
+
+	if (!pcdev->nr_lines)
+		pcdev->nr_lines = 1;
+
+	ret = of_load_pse_pis(pcdev);
+	if (ret)
+		return ret;
 
 	mutex_lock(&pse_list_mutex);
 	list_add(&pcdev->list, &pse_controller_list);
@@ -91,6 +237,7 @@ EXPORT_SYMBOL_GPL(pse_controller_register);
  */
 void pse_controller_unregister(struct pse_controller_dev *pcdev)
 {
+	pse_release_pis(pcdev);
 	mutex_lock(&pse_list_mutex);
 	list_del(&pcdev->list);
 	mutex_unlock(&pse_list_mutex);
@@ -203,8 +350,48 @@ pse_control_get_internal(struct pse_controller_dev *pcdev, unsigned int index)
 	return psec;
 }
 
-struct pse_control *
-of_pse_control_get(struct device_node *node)
+/**
+ * of_pse_match_pi - Find the PSE PI id matching the device node phandle
+ * @pcdev: a pointer to the PSE controller device
+ * @np: a pointer to the device node
+ *
+ * Return: id of the PSE PI, -EINVAL if not found
+ */
+static int of_pse_match_pi(struct pse_controller_dev *pcdev,
+			   struct device_node *np)
+{
+	int i;
+
+	for (i = 0; i <= pcdev->nr_lines; i++) {
+		if (pcdev->pi[i].np == np)
+			return i;
+	}
+
+	return -EINVAL;
+}
+
+/**
+ * psec_id_xlate - translate pse_spec to the PSE line number according
+ *		   to the number of pse-cells in case of no pse_pi node
+ * @pcdev: a pointer to the PSE controller device
+ * @pse_spec: PSE line specifier as found in the device tree
+ *
+ * Return: 0 if #pse-cells = <0>. Return PSE line number otherwise.
+ */
+static int psec_id_xlate(struct pse_controller_dev *pcdev,
+			 const struct of_phandle_args *pse_spec)
+{
+	if (!pcdev->of_pse_n_cells)
+		return 0;
+
+	if (pcdev->of_pse_n_cells > 1 ||
+	    pse_spec->args[0] >= pcdev->nr_lines)
+		return -EINVAL;
+
+	return pse_spec->args[0];
+}
+
+struct pse_control *of_pse_control_get(struct device_node *node)
 {
 	struct pse_controller_dev *r, *pcdev;
 	struct of_phandle_args args;
@@ -222,7 +409,14 @@ of_pse_control_get(struct device_node *node)
 	mutex_lock(&pse_list_mutex);
 	pcdev = NULL;
 	list_for_each_entry(r, &pse_controller_list, list) {
-		if (args.np == r->dev->of_node) {
+		if (!r->no_of_pse_pi) {
+			ret = of_pse_match_pi(r, args.np);
+			if (ret >= 0) {
+				pcdev = r;
+				psec_id = ret;
+				break;
+			}
+		} else if (args.np == r->dev->of_node) {
 			pcdev = r;
 			break;
 		}
@@ -238,10 +432,12 @@ of_pse_control_get(struct device_node *node)
 		goto out;
 	}
 
-	psec_id = pcdev->of_xlate(pcdev, &args);
-	if (psec_id < 0) {
-		psec = ERR_PTR(psec_id);
-		goto out;
+	if (pcdev->no_of_pse_pi) {
+		psec_id = psec_id_xlate(pcdev, &args);
+		if (psec_id < 0) {
+			psec = ERR_PTR(psec_id);
+			goto out;
+		}
 	}
 
 	/* pse_list_mutex also protects the pcdev's pse_control list */
