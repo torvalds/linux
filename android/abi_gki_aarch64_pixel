@@ -476,6 +476,7 @@
   devm_pinctrl_register_and_init
   devm_platform_ioremap_resource
   devm_platform_ioremap_resource_byname
+  devm_pm_runtime_enable
   devm_power_supply_register
   devm_pwm_get
   devm_regmap_add_irq_chip
