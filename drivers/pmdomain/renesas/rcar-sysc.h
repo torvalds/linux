@@ -16,6 +16,7 @@
 #define PD_CPU		BIT(0)	/* Area contains main CPU core */
 #define PD_SCU		BIT(1)	/* Area contains SCU and L2 cache */
 #define PD_NO_CR	BIT(2)	/* Area lacks PWR{ON,OFF}CR registers */
+#define PD_OFF_DELAY	BIT(3)	/* Area is subject to power-off delay quirk */
 
 #define PD_CPU_CR	PD_CPU		  /* CPU area has CR (R-Car H1) */
 #define PD_CPU_NOCR	PD_CPU | PD_NO_CR /* CPU area lacks CR (R-Car Gen2/3) */

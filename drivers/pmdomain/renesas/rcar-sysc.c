@@ -90,6 +90,10 @@ static int rcar_sysc_pwr_on_off(const struct rcar_sysc_pd *pd, bool on)
 	if (ret)
 		return -EAGAIN;
 
+	/* Power-off delay quirk */
+	if (!on && (pd->flags & PD_OFF_DELAY))
+		udelay(1);
+
 	/* Submit power shutoff or power resume request */
 	iowrite32(BIT(pd->chan_bit), rcar_sysc_base + pd->chan_offs + reg_offs);
 
