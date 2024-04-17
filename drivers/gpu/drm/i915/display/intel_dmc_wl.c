@@ -77,9 +77,9 @@ static void intel_dmc_wl_work(struct work_struct *work)
 
 	__intel_de_rmw_nowl(i915, DMC_WAKELOCK1_CTL, DMC_WAKELOCK_CTL_REQ, 0);
 
-	if (__intel_wait_for_register_nowl(i915,  DMC_WAKELOCK1_CTL,
-					   DMC_WAKELOCK_CTL_ACK, 0,
-					   DMC_WAKELOCK_CTL_TIMEOUT)) {
+	if (__intel_de_wait_for_register_nowl(i915, DMC_WAKELOCK1_CTL,
+					      DMC_WAKELOCK_CTL_ACK, 0,
+					      DMC_WAKELOCK_CTL_TIMEOUT)) {
 		WARN_RATELIMIT(1, "DMC wakelock release timed out");
 		goto out_unlock;
 	}
@@ -216,10 +216,10 @@ void intel_dmc_wl_get(struct drm_i915_private *i915, i915_reg_t reg)
 		__intel_de_rmw_nowl(i915, DMC_WAKELOCK1_CTL, 0,
 				    DMC_WAKELOCK_CTL_REQ);
 
-		if (__intel_wait_for_register_nowl(i915,  DMC_WAKELOCK1_CTL,
-						   DMC_WAKELOCK_CTL_ACK,
-						   DMC_WAKELOCK_CTL_ACK,
-						   DMC_WAKELOCK_CTL_TIMEOUT)) {
+		if (__intel_de_wait_for_register_nowl(i915, DMC_WAKELOCK1_CTL,
+						      DMC_WAKELOCK_CTL_ACK,
+						      DMC_WAKELOCK_CTL_ACK,
+						      DMC_WAKELOCK_CTL_TIMEOUT)) {
 			WARN_RATELIMIT(1, "DMC wakelock ack timed out");
 			goto out_unlock;
 		}

@@ -97,8 +97,8 @@ intel_de_rmw(struct drm_i915_private *i915, i915_reg_t reg, u32 clear, u32 set)
 }
 
 static inline int
-__intel_wait_for_register_nowl(struct drm_i915_private *i915, i915_reg_t reg,
-			       u32 mask, u32 value, unsigned int timeout)
+__intel_de_wait_for_register_nowl(struct drm_i915_private *i915, i915_reg_t reg,
+				  u32 mask, u32 value, unsigned int timeout)
 {
 	return intel_wait_for_register(&i915->uncore, reg, mask,
 				       value, timeout);
@@ -112,7 +112,7 @@ intel_de_wait(struct drm_i915_private *i915, i915_reg_t reg,
 
 	intel_dmc_wl_get(i915, reg);
 
-	ret = __intel_wait_for_register_nowl(i915, reg, mask, value, timeout);
+	ret = __intel_de_wait_for_register_nowl(i915, reg, mask, value, timeout);
 
 	intel_dmc_wl_put(i915, reg);
 
