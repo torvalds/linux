@@ -11,6 +11,12 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 
+#define STRCMP_LARGE_BUF_LEN 2048
+#define STRCMP_CHANGE_POINT 1337
+#define STRCMP_TEST_EXPECT_EQUAL(test, fn, ...) KUNIT_EXPECT_EQ(test, fn(__VA_ARGS__), 0)
+#define STRCMP_TEST_EXPECT_LOWER(test, fn, ...) KUNIT_EXPECT_LT(test, fn(__VA_ARGS__), 0)
+#define STRCMP_TEST_EXPECT_GREATER(test, fn, ...) KUNIT_EXPECT_GT(test, fn(__VA_ARGS__), 0)
+
 static void test_memset16(struct kunit *test)
 {
 	unsigned i, j, k;
@@ -179,6 +185,147 @@ static void test_strspn(struct kunit *test)
 	}
 }
 
+static char strcmp_buffer1[STRCMP_LARGE_BUF_LEN];
+static char strcmp_buffer2[STRCMP_LARGE_BUF_LEN];
+
+static void strcmp_fill_buffers(char fill1, char fill2)
+{
+	memset(strcmp_buffer1, fill1, STRCMP_LARGE_BUF_LEN);
+	memset(strcmp_buffer2, fill2, STRCMP_LARGE_BUF_LEN);
+	strcmp_buffer1[STRCMP_LARGE_BUF_LEN - 1] = 0;
+	strcmp_buffer2[STRCMP_LARGE_BUF_LEN - 1] = 0;
+}
+
+static void test_strcmp(struct kunit *test)
+{
+	/* Equal strings */
+	STRCMP_TEST_EXPECT_EQUAL(test, strcmp, "Hello, Kernel!", "Hello, Kernel!");
+	/* First string is lexicographically less than the second */
+	STRCMP_TEST_EXPECT_LOWER(test, strcmp, "Hello, KUnit!", "Hello, Kernel!");
+	/* First string is lexicographically larger than the second */
+	STRCMP_TEST_EXPECT_GREATER(test, strcmp, "Hello, Kernel!", "Hello, KUnit!");
+	/* Empty string is always lexicographically less than any non-empty string */
+	STRCMP_TEST_EXPECT_LOWER(test, strcmp, "", "Non-empty string");
+	/* Two empty strings should be equal */
+	STRCMP_TEST_EXPECT_EQUAL(test, strcmp, "", "");
+	/* Compare two strings which have only one char difference */
+	STRCMP_TEST_EXPECT_LOWER(test, strcmp, "Abacaba", "Abadaba");
+	/* Compare two strings which have the same prefix*/
+	STRCMP_TEST_EXPECT_LOWER(test, strcmp, "Just a string", "Just a string and something else");
+}
+
+static void test_strcmp_long_strings(struct kunit *test)
+{
+	strcmp_fill_buffers('B', 'B');
+	STRCMP_TEST_EXPECT_EQUAL(test, strcmp, strcmp_buffer1, strcmp_buffer2);
+
+	strcmp_buffer1[STRCMP_CHANGE_POINT] = 'A';
+	STRCMP_TEST_EXPECT_LOWER(test, strcmp, strcmp_buffer1, strcmp_buffer2);
+
+	strcmp_buffer1[STRCMP_CHANGE_POINT] = 'C';
+	STRCMP_TEST_EXPECT_GREATER(test, strcmp, strcmp_buffer1, strcmp_buffer2);
+}
+
+static void test_strncmp(struct kunit *test)
+{
+	/* Equal strings */
+	STRCMP_TEST_EXPECT_EQUAL(test, strncmp, "Hello, KUnit!", "Hello, KUnit!", 13);
+	/* First string is lexicographically less than the second */
+	STRCMP_TEST_EXPECT_LOWER(test, strncmp, "Hello, KUnit!", "Hello, Kernel!", 13);
+	/* Result is always 'equal' when count = 0 */
+	STRCMP_TEST_EXPECT_EQUAL(test, strncmp, "Hello, Kernel!", "Hello, KUnit!", 0);
+	/* Strings with common prefix are equal if count = length of prefix */
+	STRCMP_TEST_EXPECT_EQUAL(test, strncmp, "Abacaba", "Abadaba", 3);
+	/* Strings with common prefix are not equal when count = length of prefix + 1 */
+	STRCMP_TEST_EXPECT_LOWER(test, strncmp, "Abacaba", "Abadaba", 4);
+	/* If one string is a prefix of another, the shorter string is lexicographically smaller */
+	STRCMP_TEST_EXPECT_LOWER(test, strncmp, "Just a string", "Just a string and something else",
+				 strlen("Just a string and something else"));
+	/*
+	 * If one string is a prefix of another, and we check first length
+	 * of prefix chars, the result is 'equal'
+	 */
+	STRCMP_TEST_EXPECT_EQUAL(test, strncmp, "Just a string", "Just a string and something else",
+				 strlen("Just a string"));
+}
+
+static void test_strncmp_long_strings(struct kunit *test)
+{
+	strcmp_fill_buffers('B', 'B');
+	STRCMP_TEST_EXPECT_EQUAL(test, strncmp, strcmp_buffer1,
+				 strcmp_buffer2, STRCMP_LARGE_BUF_LEN);
+
+	strcmp_buffer1[STRCMP_CHANGE_POINT] = 'A';
+	STRCMP_TEST_EXPECT_LOWER(test, strncmp, strcmp_buffer1,
+				 strcmp_buffer2, STRCMP_LARGE_BUF_LEN);
+
+	strcmp_buffer1[STRCMP_CHANGE_POINT] = 'C';
+	STRCMP_TEST_EXPECT_GREATER(test, strncmp, strcmp_buffer1,
+				   strcmp_buffer2, STRCMP_LARGE_BUF_LEN);
+	/* the strings are equal up to STRCMP_CHANGE_POINT */
+	STRCMP_TEST_EXPECT_EQUAL(test, strncmp, strcmp_buffer1,
+				 strcmp_buffer2, STRCMP_CHANGE_POINT);
+	STRCMP_TEST_EXPECT_GREATER(test, strncmp, strcmp_buffer1,
+				   strcmp_buffer2, STRCMP_CHANGE_POINT + 1);
+}
+
+static void test_strcasecmp(struct kunit *test)
+{
+	/* Same strings in different case should be equal */
+	STRCMP_TEST_EXPECT_EQUAL(test, strcasecmp, "Hello, Kernel!", "HeLLO, KErNeL!");
+	/* Empty strings should be equal */
+	STRCMP_TEST_EXPECT_EQUAL(test, strcasecmp, "", "");
+	/* Despite ascii code for 'a' is larger than ascii code for 'B', 'a' < 'B' */
+	STRCMP_TEST_EXPECT_LOWER(test, strcasecmp, "a", "B");
+	STRCMP_TEST_EXPECT_GREATER(test, strcasecmp, "B", "a");
+	/* Special symbols and numbers should be processed correctly */
+	STRCMP_TEST_EXPECT_EQUAL(test, strcasecmp, "-+**.1230ghTTT~^", "-+**.1230Ghttt~^");
+}
+
+static void test_strcasecmp_long_strings(struct kunit *test)
+{
+	strcmp_fill_buffers('b', 'B');
+	STRCMP_TEST_EXPECT_EQUAL(test, strcasecmp, strcmp_buffer1, strcmp_buffer2);
+
+	strcmp_buffer1[STRCMP_CHANGE_POINT] = 'a';
+	STRCMP_TEST_EXPECT_LOWER(test, strcasecmp, strcmp_buffer1, strcmp_buffer2);
+
+	strcmp_buffer1[STRCMP_CHANGE_POINT] = 'C';
+	STRCMP_TEST_EXPECT_GREATER(test, strcasecmp, strcmp_buffer1, strcmp_buffer2);
+}
+
+static void test_strncasecmp(struct kunit *test)
+{
+	/* Same strings in different case should be equal */
+	STRCMP_TEST_EXPECT_EQUAL(test, strncasecmp, "AbAcAbA", "Abacaba", strlen("Abacaba"));
+	/* strncasecmp should check 'count' chars only */
+	STRCMP_TEST_EXPECT_EQUAL(test, strncasecmp, "AbaCaBa", "abaCaDa", 5);
+	STRCMP_TEST_EXPECT_LOWER(test, strncasecmp, "a", "B", 1);
+	STRCMP_TEST_EXPECT_GREATER(test, strncasecmp, "B", "a", 1);
+	/* Result is always 'equal' when count = 0 */
+	STRCMP_TEST_EXPECT_EQUAL(test, strncasecmp, "Abacaba", "Not abacaba", 0);
+}
+
+static void test_strncasecmp_long_strings(struct kunit *test)
+{
+	strcmp_fill_buffers('b', 'B');
+	STRCMP_TEST_EXPECT_EQUAL(test, strncasecmp, strcmp_buffer1,
+				 strcmp_buffer2, STRCMP_LARGE_BUF_LEN);
+
+	strcmp_buffer1[STRCMP_CHANGE_POINT] = 'a';
+	STRCMP_TEST_EXPECT_LOWER(test, strncasecmp, strcmp_buffer1,
+				 strcmp_buffer2, STRCMP_LARGE_BUF_LEN);
+
+	strcmp_buffer1[STRCMP_CHANGE_POINT] = 'C';
+	STRCMP_TEST_EXPECT_GREATER(test, strncasecmp, strcmp_buffer1,
+				   strcmp_buffer2, STRCMP_LARGE_BUF_LEN);
+
+	STRCMP_TEST_EXPECT_EQUAL(test, strncasecmp, strcmp_buffer1,
+				 strcmp_buffer2, STRCMP_CHANGE_POINT);
+	STRCMP_TEST_EXPECT_GREATER(test, strncasecmp, strcmp_buffer1,
+				   strcmp_buffer2, STRCMP_CHANGE_POINT + 1);
+}
+
 static struct kunit_case string_test_cases[] = {
 	KUNIT_CASE(test_memset16),
 	KUNIT_CASE(test_memset32),
@@ -186,6 +333,14 @@ static struct kunit_case string_test_cases[] = {
 	KUNIT_CASE(test_strchr),
 	KUNIT_CASE(test_strnchr),
 	KUNIT_CASE(test_strspn),
+	KUNIT_CASE(test_strcmp),
+	KUNIT_CASE(test_strcmp_long_strings),
+	KUNIT_CASE(test_strncmp),
+	KUNIT_CASE(test_strncmp_long_strings),
+	KUNIT_CASE(test_strcasecmp),
+	KUNIT_CASE(test_strcasecmp_long_strings),
+	KUNIT_CASE(test_strncasecmp),
+	KUNIT_CASE(test_strncasecmp_long_strings),
 	{}
 };
 
