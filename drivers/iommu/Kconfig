@@ -379,10 +379,14 @@ config ARM_SMMU_QCOM_DEBUG
 	depends on ARM_SMMU_QCOM
 	help
 	  Support for implementation specific debug features in ARM SMMU
-	  hardware found in QTI platforms.
+	  hardware found in QTI platforms. This include support for
+	  the Translation Buffer Units (TBU) that can be used to obtain
+	  additional information when debugging memory management issues
+	  like context faults.
 
-	  Say Y here to enable debug for issues such as TLB sync timeouts
-	  which requires implementation defined register dumps.
+	  Say Y here to enable debug for issues such as context faults
+	  or TLB sync timeouts which requires implementation defined
+	  register dumps.
 
 config ARM_SMMU_V3
 	tristate "ARM Ltd. System MMU Version 3 (SMMUv3) Support"
