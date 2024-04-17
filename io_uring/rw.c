@@ -455,7 +455,7 @@ static bool __io_complete_rw_common(struct io_kiocb *req, long res)
 			 * current cycle.
 			 */
 			io_req_io_end(req);
-			req->flags |= REQ_F_REISSUE | REQ_F_BL_NO_RECYCLE;
+			io_tw_queue_iowq(req);
 			return true;
 		}
 		req_set_fail(req);
@@ -521,7 +521,7 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res)
 		io_req_end_write(req);
 	if (unlikely(res != req->cqe.res)) {
 		if (res == -EAGAIN && io_rw_should_reissue(req)) {
-			req->flags |= REQ_F_REISSUE | REQ_F_BL_NO_RECYCLE;
+			io_tw_queue_iowq(req);
 			return;
 		}
 		req->cqe.res = res;
@@ -839,7 +839,8 @@ static int __io_read(struct io_kiocb *req, unsigned int issue_flags)
 	ret = io_iter_do_read(rw, &io->iter);
 
 	if (ret == -EAGAIN || (req->flags & REQ_F_REISSUE)) {
-		req->flags &= ~REQ_F_REISSUE;
+		if (req->flags & REQ_F_REISSUE)
+			return IOU_ISSUE_SKIP_COMPLETE;
 		/* If we can poll, just do that. */
 		if (io_file_can_poll(req))
 			return -EAGAIN;
@@ -1034,10 +1035,8 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	else
 		ret2 = -EINVAL;
 
-	if (req->flags & REQ_F_REISSUE) {
-		req->flags &= ~REQ_F_REISSUE;
-		ret2 = -EAGAIN;
-	}
+	if (req->flags & REQ_F_REISSUE)
+		return IOU_ISSUE_SKIP_COMPLETE;
 
 	/*
 	 * Raw bdev writes will return -EOPNOTSUPP for IOCB_NOWAIT. Just
