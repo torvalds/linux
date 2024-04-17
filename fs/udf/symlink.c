@@ -137,12 +137,12 @@ static int udf_symlink_getattr(struct mnt_idmap *idmap,
 {
 	struct dentry *dentry = path->dentry;
 	struct inode *inode = d_backing_inode(dentry);
-	struct page *page;
+	struct folio *folio;
 
 	generic_fillattr(&nop_mnt_idmap, request_mask, inode, stat);
-	page = read_mapping_page(inode->i_mapping, 0, NULL);
-	if (IS_ERR(page))
-		return PTR_ERR(page);
+	folio = read_mapping_folio(inode->i_mapping, 0, NULL);
+	if (IS_ERR(folio))
+		return PTR_ERR(folio);
 	/*
 	 * UDF uses non-trivial encoding of symlinks so i_size does not match
 	 * number of characters reported by readlink(2) which apparently some
@@ -152,8 +152,8 @@ static int udf_symlink_getattr(struct mnt_idmap *idmap,
 	 * let's report the length of string returned by readlink(2) for
 	 * st_size.
 	 */
-	stat->size = strlen(page_address(page));
-	put_page(page);
+	stat->size = strlen(folio_address(folio));
+	folio_put(folio);
 
 	return 0;
 }
