@@ -6,15 +6,21 @@
  * Author: Mika Westerberg <mika.westerberg@linux.intel.com>
  */
 
-#include <linux/device.h>
+#include <linux/atomic.h>
+#include <linux/dev_printk.h>
 #include <linux/dma-mapping.h>
 #include <linux/dmaengine.h>
+#include <linux/errno.h>
+#include <linux/irqreturn.h>
 #include <linux/scatterlist.h>
-#include <linux/sizes.h>
+#include <linux/string.h>
+#include <linux/types.h>
 
 #include <linux/spi/spi.h>
 
 #include "spi-pxa2xx.h"
+
+struct device;
 
 static void pxa2xx_spi_dma_transfer_complete(struct driver_data *drv_data,
 					     bool error)

@@ -8,8 +8,7 @@
 #define SPI_PXA2XX_H
 
 #include <linux/dmaengine.h>
-#include <linux/interrupt.h>
-#include <linux/io.h>
+#include <linux/irqreturn.h>
 #include <linux/types.h>
 #include <linux/sizes.h>
 
