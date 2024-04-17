@@ -1536,10 +1536,4 @@ unsigned int i_blocks_per_folio(struct inode *inode, struct folio *folio)
 {
 	return folio_size(folio) >> inode->i_blkbits;
 }
-
-static inline
-unsigned int i_blocks_per_page(struct inode *inode, struct page *page)
-{
-	return i_blocks_per_folio(inode, page_folio(page));
-}
 #endif /* _LINUX_PAGEMAP_H */
