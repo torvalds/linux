@@ -427,7 +427,6 @@ static void update_temperature(struct thermal_zone_device *tz)
 	trace_thermal_temperature(tz);
 
 	thermal_genl_sampling_temp(tz->id, temp);
-	thermal_debug_update_temp(tz);
 }
 
 static void thermal_zone_device_check(struct work_struct *work)
@@ -504,6 +503,8 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 
 	if (governor->manage)
 		governor->manage(tz);
+
+	thermal_debug_update_temp(tz);
 
 	monitor_thermal_zone(tz);
 }
