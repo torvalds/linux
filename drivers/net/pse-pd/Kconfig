@@ -20,4 +20,15 @@ config PSE_REGULATOR
 	  Sourcing Equipment without automatic classification support. For
 	  example for basic implementation of PoDL (802.3bu) specification.
 
+config PSE_PD692X0
+	tristate "PD692X0 PSE controller"
+	depends on I2C
+	select FW_UPLOAD
+	help
+	  This module provides support for PD692x0 regulator based Ethernet
+	  Power Sourcing Equipment.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called pd692x0.
+
 endif
