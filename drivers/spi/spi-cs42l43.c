@@ -345,11 +345,9 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 
 	if (is_of_node(fwnode)) {
 		fwnode = fwnode_get_named_child_node(fwnode, "spi");
-		ret = devm_add_action(priv->dev, cs42l43_release_of_node, fwnode);
-		if (ret) {
-			fwnode_handle_put(fwnode);
+		ret = devm_add_action_or_reset(priv->dev, cs42l43_release_of_node, fwnode);
+		if (ret)
 			return ret;
-		}
 	}
 
 	if (has_sidecar) {
@@ -358,11 +356,9 @@ static int cs42l43_spi_probe(struct platform_device *pdev)
 			return dev_err_probe(priv->dev, ret,
 					     "Failed to register gpio swnode\n");
 
-		ret = devm_add_action(priv->dev, cs42l43_release_sw_node, NULL);
-		if (ret) {
-			software_node_unregister(&cs42l43_gpiochip_swnode);
+		ret = devm_add_action_or_reset(priv->dev, cs42l43_release_sw_node, NULL);
+		if (ret)
 			return ret;
-		}
 
 		ret = device_create_managed_software_node(&priv->ctlr->dev,
 							  cs42l43_cs_props, NULL);
