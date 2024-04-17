@@ -679,9 +679,9 @@ out:
 void thermal_debug_update_temp(struct thermal_zone_device *tz)
 {
 	struct thermal_debugfs *thermal_dbg = tz->debugfs;
-	struct tz_episode *tze;
 	struct tz_debugfs *tz_dbg;
-	int trip_id, i;
+	struct tz_episode *tze;
+	int i;
 
 	if (!thermal_dbg)
 		return;
@@ -693,15 +693,16 @@ void thermal_debug_update_temp(struct thermal_zone_device *tz)
 	if (!tz_dbg->nr_trips)
 		goto out;
 
+	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
+
 	for (i = 0; i < tz_dbg->nr_trips; i++) {
-		trip_id = tz_dbg->trips_crossed[i];
-		tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
-		tze->trip_stats[trip_id].count++;
-		tze->trip_stats[trip_id].max = max(tze->trip_stats[trip_id].max, tz->temperature);
-		tze->trip_stats[trip_id].min = min(tze->trip_stats[trip_id].min, tz->temperature);
-		tze->trip_stats[trip_id].avg = tze->trip_stats[trip_id].avg +
-			(tz->temperature - tze->trip_stats[trip_id].avg) /
-			tze->trip_stats[trip_id].count;
+		int trip_id = tz_dbg->trips_crossed[i];
+		struct trip_stats *trip_stats = &tze->trip_stats[trip_id];
+
+		trip_stats->max = max(trip_stats->max, tz->temperature);
+		trip_stats->min = min(trip_stats->min, tz->temperature);
+		trip_stats->avg += (tz->temperature - trip_stats->avg) /
+					++trip_stats->count;
 	}
 out:
 	mutex_unlock(&thermal_dbg->lock);
