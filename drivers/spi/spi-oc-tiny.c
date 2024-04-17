@@ -184,8 +184,6 @@ static irqreturn_t tiny_spi_irq(int irq, void *dev)
 }
 
 #ifdef CONFIG_OF
-#include <linux/of_gpio.h>
-
 static int tiny_spi_of_probe(struct platform_device *pdev)
 {
 	struct tiny_spi *hw = platform_get_drvdata(pdev);
