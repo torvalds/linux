@@ -749,37 +749,35 @@ void put_metapage(struct metapage *mp)
 
 void release_metapage(struct metapage * mp)
 {
-	struct page *page = mp->page;
+	struct folio *folio = page_folio(mp->page);
 	jfs_info("release_metapage: mp = 0x%p, flag = 0x%lx", mp, mp->flag);
 
-	BUG_ON(!page);
-
-	lock_page(page);
+	folio_lock(folio);
 	unlock_metapage(mp);
 
 	assert(mp->count);
 	if (--mp->count || mp->nohomeok) {
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 		return;
 	}
 
 	if (test_bit(META_dirty, &mp->flag)) {
-		set_page_dirty(page);
+		folio_mark_dirty(folio);
 		if (test_bit(META_sync, &mp->flag)) {
 			clear_bit(META_sync, &mp->flag);
-			if (metapage_write_one(page))
+			if (metapage_write_one(&folio->page))
 				jfs_error(mp->sb, "metapage_write_one() failed\n");
-			lock_page(page);
+			folio_lock(folio);
 		}
 	} else if (mp->lsn)	/* discard_metapage doesn't remove it */
 		remove_from_logsync(mp);
 
 	/* Try to keep metapages from using up too much memory */
-	drop_metapage(page, mp);
+	drop_metapage(&folio->page, mp);
 
-	unlock_page(page);
-	put_page(page);
+	folio_unlock(folio);
+	folio_put(folio);
 }
 
 void __invalidate_metapages(struct inode *ip, s64 addr, int len)
