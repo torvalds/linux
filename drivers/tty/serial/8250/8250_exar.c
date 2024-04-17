@@ -704,6 +704,21 @@ static irqreturn_t exar_misc_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+static unsigned int exar_get_nr_ports(struct exar8250_board *board,
+					struct pci_dev *pcidev)
+{
+	unsigned int nr_ports = 0;
+
+	if (pcidev->vendor == PCI_VENDOR_ID_ACCESSIO)
+		nr_ports = BIT(((pcidev->device & 0x38) >> 3) - 1);
+	else if (board->num_ports)
+		nr_ports = board->num_ports;
+	else
+		nr_ports = pcidev->device & 0x0f;
+
+	return nr_ports;
+}
+
 static int
 exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 {
@@ -723,12 +738,12 @@ exar_pci_probe(struct pci_dev *pcidev, const struct pci_device_id *ent)
 
 	maxnr = pci_resource_len(pcidev, bar) >> (board->reg_shift + 3);
 
-	if (pcidev->vendor == PCI_VENDOR_ID_ACCESSIO)
-		nr_ports = BIT(((pcidev->device & 0x38) >> 3) - 1);
-	else if (board->num_ports)
-		nr_ports = board->num_ports;
-	else
-		nr_ports = pcidev->device & 0x0f;
+	nr_ports = exar_get_nr_ports(board, pcidev);
+	if (nr_ports == 0) {
+		dev_err_probe(&pcidev->dev, -ENODEV,
+				"failed to get number of ports\n");
+		return -ENODEV;
+	}
 
 	priv = devm_kzalloc(&pcidev->dev, struct_size(priv, line, nr_ports), GFP_KERNEL);
 	if (!priv)
