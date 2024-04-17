@@ -1755,6 +1755,9 @@ static int vsc9959_stream_identify(struct flow_cls_offload *f,
 	      BIT_ULL(FLOW_DISSECTOR_KEY_ETH_ADDRS)))
 		return -EOPNOTSUPP;
 
+	if (flow_rule_match_has_control_flags(rule, f->common.extack))
+		return -EOPNOTSUPP;
+
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
 		struct flow_match_eth_addrs match;
 
