@@ -32,6 +32,7 @@
 #include "dcn401_hwseq.h"
 #include "dcn401/dcn401_resource.h"
 #include "dc_state_priv.h"
+#include "link_enc_cfg.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -966,6 +967,8 @@ void dcn401_enable_stream(struct pipe_ctx *pipe_ctx)
 	int dp_hpo_inst = 0;
 	unsigned int tmds_div = PIXEL_RATE_DIV_NA;
 	unsigned int unused_div = PIXEL_RATE_DIV_NA;
+	struct link_encoder *link_enc = link_enc_cfg_get_link_enc(pipe_ctx->stream->link);
+	struct stream_encoder *stream_enc = pipe_ctx->stream_res.stream_enc;
 
 	dcn401_enable_stream_calc(pipe_ctx, &dp_hpo_inst, &phyd32clk,
 				&tmds_div, &early_control);
@@ -978,6 +981,8 @@ void dcn401_enable_stream(struct pipe_ctx *pipe_ctx)
 		} else {
 			/* need to set DTBCLK_P source to DPREFCLK for DP8B10B */
 			dccg->funcs->set_dtbclk_p_src(dccg, DPREFCLK, tg->inst);
+			dccg->funcs->enable_symclk_se(dccg, stream_enc->stream_enc_inst,
+					link_enc->transmitter - TRANSMITTER_UNIPHY_A);
 		}
 	}
 
