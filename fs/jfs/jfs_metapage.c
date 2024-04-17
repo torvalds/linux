@@ -135,10 +135,12 @@ static inline void inc_io(struct page *page)
 	atomic_inc(&mp_anchor(page)->io_count);
 }
 
-static inline void dec_io(struct page *page, void (*handler) (struct page *))
+static inline void dec_io(struct folio *folio, void (*handler) (struct folio *))
 {
-	if (atomic_dec_and_test(&mp_anchor(page)->io_count))
-		handler(page);
+	struct meta_anchor *anchor = folio->private;
+
+	if (atomic_dec_and_test(&anchor->io_count))
+		handler(folio);
 }
 
 #else
@@ -163,7 +165,7 @@ static inline void remove_metapage(struct folio *folio, struct metapage *mp)
 }
 
 #define inc_io(page) do {} while(0)
-#define dec_io(page, handler) handler(page)
+#define dec_io(folio, handler) handler(folio)
 
 #endif
 
@@ -253,11 +255,11 @@ static sector_t metapage_get_blocks(struct inode *inode, sector_t lblock,
 	return lblock;
 }
 
-static void last_read_complete(struct page *page)
+static void last_read_complete(struct folio *folio)
 {
-	if (!PageError(page))
-		SetPageUptodate(page);
-	unlock_page(page);
+	if (!folio_test_error(folio))
+		folio_mark_uptodate(folio);
+	folio_unlock(folio);
 }
 
 static void metapage_read_end_io(struct bio *bio)
@@ -269,7 +271,7 @@ static void metapage_read_end_io(struct bio *bio)
 		folio_set_error(folio);
 	}
 
-	dec_io(&folio->page, last_read_complete);
+	dec_io(folio, last_read_complete);
 	bio_put(bio);
 }
 
@@ -295,13 +297,13 @@ static void remove_from_logsync(struct metapage *mp)
 	LOGSYNC_UNLOCK(log, flags);
 }
 
-static void last_write_complete(struct page *page)
+static void last_write_complete(struct folio *folio)
 {
 	struct metapage *mp;
 	unsigned int offset;
 
 	for (offset = 0; offset < PAGE_SIZE; offset += PSIZE) {
-		mp = page_to_mp(page, offset);
+		mp = page_to_mp(&folio->page, offset);
 		if (mp && test_bit(META_io, &mp->flag)) {
 			if (mp->lsn)
 				remove_from_logsync(mp);
@@ -312,7 +314,7 @@ static void last_write_complete(struct page *page)
 		 * safe unless I have the page locked
 		 */
 	}
-	end_page_writeback(page);
+	folio_end_writeback(folio);
 }
 
 static void metapage_write_end_io(struct bio *bio)
@@ -326,7 +328,7 @@ static void metapage_write_end_io(struct bio *bio)
 		printk(KERN_ERR "metapage_write_end_io: I/O error\n");
 		mapping_set_error(folio->mapping, err);
 	}
-	dec_io(&folio->page, last_write_complete);
+	dec_io(folio, last_write_complete);
 	bio_put(bio);
 }
 
@@ -449,10 +451,10 @@ dump_bio:
 		       4, bio, sizeof(*bio), 0);
 	bio_put(bio);
 	folio_unlock(folio);
-	dec_io(&folio->page, last_write_complete);
+	dec_io(folio, last_write_complete);
 err_out:
 	while (bad_blocks--)
-		dec_io(&folio->page, last_write_complete);
+		dec_io(folio, last_write_complete);
 	return -EIO;
 }
 
