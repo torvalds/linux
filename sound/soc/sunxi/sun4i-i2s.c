@@ -156,7 +156,7 @@ struct sun4i_i2s;
 /**
  * struct sun4i_i2s_quirks - Differences between SoC variants.
  * @has_reset: SoC needs reset deasserted.
- * @pcm_formats: available PCM formats
+ * @pcm_formats: available PCM formats.
  * @reg_offset_txdata: offset of the tx fifo.
  * @sun4i_i2s_regmap: regmap config to use.
  * @field_clkdiv_mclk_en: regmap field to enable mclk output.
@@ -176,7 +176,7 @@ struct sun4i_i2s;
  */
 struct sun4i_i2s_quirks {
 	bool				has_reset;
-	snd_pcm_format_t		pcm_formats;
+	u64				pcm_formats;
 	unsigned int			reg_offset_txdata;	/* TX FIFO */
 	const struct regmap_config	*sun4i_i2s_regmap;
 
