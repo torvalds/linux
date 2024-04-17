@@ -1,6 +1,5 @@
-/* SPDX-License-Identifier: MIT */
 /*
- * Copyright 2023 Advanced Micro Devices, Inc.
+ * Copyright 2024 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -21,33 +20,34 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  *
  * Authors: AMD
- *
  */
 
-#include "core_types.h"
-#include "dcn35_dpp.h"
-#include "reg_helper.h"
+#ifndef __DC_VPG_H__
+#define __DC_VPG_H__
 
-#define REG(reg) dpp->tf_regs->reg
+struct dc_context;
+struct dc_info_packet;
 
-#define CTX dpp->base.ctx
+struct vpg;
 
-#undef FN
-#define FN(reg_name, field_name)                                       \
-	((const struct dcn35_dpp_shift *)(dpp->tf_shift))->field_name, \
-	((const struct dcn35_dpp_mask *)(dpp->tf_mask))->field_name
+struct vpg_funcs {
+	void (*update_generic_info_packet)(
+		struct vpg *vpg,
+		uint32_t packet_index,
+		const struct dc_info_packet *info_packet,
+		bool immediate_update);
 
-bool dpp35_construct(struct dcn3_dpp *dpp, struct dc_context *ctx,
-		     uint32_t inst, const struct dcn3_dpp_registers *tf_regs,
-		     const struct dcn35_dpp_shift *tf_shift,
-		     const struct dcn35_dpp_mask *tf_mask)
-{
-	return dpp32_construct(dpp, ctx, inst, tf_regs,
-			      (const struct dcn3_dpp_shift *)(tf_shift),
-			      (const struct dcn3_dpp_mask *)(tf_mask));
-}
+	void (*vpg_poweron)(
+		struct vpg *vpg);
 
-void dpp35_set_fgcg(struct dcn3_dpp *dpp, bool enable)
-{
-	REG_UPDATE(DPP_CONTROL, DPP_FGCG_REP_DIS, !enable);
-}
+	void (*vpg_powerdown)(
+		struct vpg *vpg);
+};
+
+struct vpg {
+	const struct vpg_funcs *funcs;
+	struct dc_context *ctx;
+	int inst;
+};
+
+#endif /* DC_INC_VPG_H_ */

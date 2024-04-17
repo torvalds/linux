@@ -31,6 +31,8 @@
 #include "dml_assert.h"
 
 #define DML2_MAX_FMT_420_BUFFER_WIDTH 4096
+#define TB_BORROWED_MAX 400
+
 // ---------------------------
 //  Declaration Begins
 // ---------------------------
@@ -2782,6 +2784,8 @@ static dml_float_t TruncToValidBPP(
 		}
 	}
 
+	*RequiredSlots = (dml_uint_t)(dml_ceil(DesiredBPP / MaxLinkBPP * 64, 1));
+
 	if (DesiredBPP == 0) {
 		if (DSCEnable) {
 			if (MaxLinkBPP < MinDSCBPP) {
@@ -2810,10 +2814,6 @@ static dml_float_t TruncToValidBPP(
 			return DesiredBPP;
 		}
 	}
-
-	*RequiredSlots = (dml_uint_t)(dml_ceil(DesiredBPP / MaxLinkBPP * 64, 1));
-
-	return __DML_DPP_INVALID__;
 } // TruncToValidBPP
 
 static void CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
@@ -3790,9 +3790,9 @@ static void CalculateStutterEfficiency(struct display_mode_lib_scratch_st *scrat
 	dml_bool_t FoundCriticalSurface = false;
 
 	dml_uint_t TotalNumberOfActiveOTG = 0;
-	dml_float_t SinglePixelClock;
-	dml_uint_t SingleHTotal;
-	dml_uint_t SingleVTotal;
+	dml_float_t SinglePixelClock = 0;
+	dml_uint_t SingleHTotal = 0;
+	dml_uint_t SingleVTotal = 0;
 	dml_bool_t SameTiming = true;
 
 	dml_float_t LastStutterPeriod = 0.0;
@@ -10214,6 +10214,7 @@ dml_get_var_func(fraction_of_urgent_bandwidth_imm_flip, dml_float_t, mode_lib->m
 dml_get_var_func(urgent_latency, dml_float_t, mode_lib->mp.UrgentLatency);
 dml_get_var_func(clk_dcf_deepsleep, dml_float_t, mode_lib->mp.DCFCLKDeepSleep);
 dml_get_var_func(wm_writeback_dram_clock_change, dml_float_t, mode_lib->mp.Watermark.WritebackDRAMClockChangeWatermark);
+dml_get_var_func(wm_writeback_urgent, dml_float_t, mode_lib->mp.Watermark.WritebackUrgentWatermark);
 dml_get_var_func(stutter_efficiency, dml_float_t, mode_lib->mp.StutterEfficiency);
 dml_get_var_func(stutter_efficiency_no_vblank, dml_float_t, mode_lib->mp.StutterEfficiencyNotIncludingVBlank);
 dml_get_var_func(stutter_efficiency_z8, dml_float_t, mode_lib->mp.Z8StutterEfficiency);

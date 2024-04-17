@@ -27,6 +27,7 @@
 
 #define SMU14_DRIVER_IF_VERSION_INV 0xFFFFFFFF
 #define SMU14_DRIVER_IF_VERSION_SMU_V14_0_0 0x7
+#define SMU14_DRIVER_IF_VERSION_SMU_V14_0_1 0x6
 #define SMU14_DRIVER_IF_VERSION_SMU_V14_0_2 0x1
 
 #define FEATURE_MASK(feature) (1ULL << feature)
@@ -159,7 +160,7 @@ int smu_v14_0_register_irq_handler(struct smu_context *smu);
 int smu_v14_0_baco_set_armd3_sequence(struct smu_context *smu,
 				      enum smu_baco_seq baco_seq);
 
-bool smu_v14_0_baco_is_support(struct smu_context *smu);
+int smu_v14_0_get_bamaco_support(struct smu_context *smu);
 
 enum smu_baco_state smu_v14_0_baco_get_state(struct smu_context *smu);
 

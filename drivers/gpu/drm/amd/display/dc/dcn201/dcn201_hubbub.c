@@ -52,7 +52,7 @@
 
 static bool hubbub201_program_watermarks(
 		struct hubbub *hubbub,
-		struct dcn_watermark_set *watermarks,
+		union dcn_watermark_set *watermarks,
 		unsigned int refclk_mhz,
 		bool safe_to_lower)
 {
@@ -103,5 +103,5 @@ void hubbub201_construct(struct dcn20_hubbub *hubbub,
 	hubbub->masks = hubbub_mask;
 
 	hubbub->debug_test_index_pstate = 0xB;
-	hubbub->detile_buf_size = 164 * 1024;
+	hubbub->detile_buf_size = 164 * 1024; /* 164KB for DCN2.0 */
 }

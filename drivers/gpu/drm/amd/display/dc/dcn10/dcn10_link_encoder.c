@@ -1439,7 +1439,6 @@ enum signal_type dcn10_get_dig_mode(
 	default:
 		return SIGNAL_TYPE_NONE;
 	}
-	return SIGNAL_TYPE_NONE;
 }
 
 void dcn10_link_encoder_get_max_link_cap(struct link_encoder *enc,

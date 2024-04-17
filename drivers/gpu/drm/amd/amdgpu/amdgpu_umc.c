@@ -177,7 +177,7 @@ static void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 		void *ras_error_status,
 		struct amdgpu_iv_entry *entry,
-		bool reset)
+		uint32_t reset)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
@@ -186,9 +186,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 	amdgpu_umc_handle_bad_pages(adev, ras_error_status);
 
 	if (err_data->ue_count && reset) {
-		/* use mode-2 reset for poison consumption */
-		if (!entry)
-			con->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		con->gpu_reset_flags |= reset;
 		amdgpu_ras_reset_gpu(adev);
 	}
 
@@ -196,7 +194,7 @@ static int amdgpu_umc_do_page_retirement(struct amdgpu_device *adev,
 }
 
 int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
-			bool reset, uint32_t timeout_ms)
+			uint32_t reset, uint32_t timeout_ms)
 {
 	struct ras_err_data err_data;
 	struct ras_common_if head = {
@@ -238,8 +236,7 @@ int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
 	if (reset) {
 		struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
-		/* use mode-2 reset for poison consumption */
-		con->gpu_reset_flags |= AMDGPU_RAS_GPU_RESET_MODE2_RESET;
+		con->gpu_reset_flags |= reset;
 		amdgpu_ras_reset_gpu(adev);
 	}
 
@@ -247,7 +244,7 @@ int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
 }
 
 int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
-			enum amdgpu_ras_block block, bool reset)
+			enum amdgpu_ras_block block, uint32_t reset)
 {
 	int ret = AMDGPU_RAS_SUCCESS;
 
@@ -311,7 +308,8 @@ int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
 		void *ras_error_status,
 		struct amdgpu_iv_entry *entry)
 {
-	return amdgpu_umc_do_page_retirement(adev, ras_error_status, entry, true);
+	return amdgpu_umc_do_page_retirement(adev, ras_error_status, entry,
+				AMDGPU_RAS_GPU_RESET_MODE1_RESET);
 }
 
 int amdgpu_umc_ras_sw_init(struct amdgpu_device *adev)

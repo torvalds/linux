@@ -125,7 +125,6 @@
 #include "link_enc_cfg.h"
 
 #define DCN3_16_MAX_DET_SIZE 384
-#define DCN3_16_MIN_COMPBUF_SIZE_KB 128
 #define DCN3_16_CRB_SEGMENT_SIZE_KB 64
 
 enum dcn31_clk_src_array_id {
@@ -1614,7 +1613,7 @@ static int dcn316_populate_dml_pipes_from_context(
 {
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
-	struct pipe_ctx *pipe;
+	struct pipe_ctx *pipe = 0;
 	const int max_usable_det = context->bw_ctx.dml.ip.config_return_buffer_size_in_kbytes - DCN3_16_MIN_COMPBUF_SIZE_KB;
 
 	DC_FP_START();

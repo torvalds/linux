@@ -735,8 +735,9 @@ static int smu_early_init(void *handle)
 	smu->adev = adev;
 	smu->pm_enabled = !!amdgpu_dpm;
 	smu->is_apu = false;
-	smu->smu_baco.state = SMU_BACO_STATE_EXIT;
+	smu->smu_baco.state = SMU_BACO_STATE_NONE;
 	smu->smu_baco.platform_support = false;
+	smu->smu_baco.maco_support = false;
 	smu->user_dpm_profile.fan_mode = -1;
 
 	mutex_init(&smu->message_lock);
@@ -1966,10 +1967,25 @@ static int smu_smc_hw_cleanup(struct smu_context *smu)
 	return 0;
 }
 
+static int smu_reset_mp1_state(struct smu_context *smu)
+{
+	struct amdgpu_device *adev = smu->adev;
+	int ret = 0;
+
+	if ((!adev->in_runpm) && (!adev->in_suspend) &&
+		(!amdgpu_in_reset(adev)) && amdgpu_ip_version(adev, MP1_HWIP, 0) ==
+									IP_VERSION(13, 0, 10) &&
+		!amdgpu_device_has_display_hardware(adev))
+		ret = smu_set_mp1_state(smu, PP_MP1_STATE_UNLOAD);
+
+	return ret;
+}
+
 static int smu_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 	struct smu_context *smu = adev->powerplay.pp_handle;
+	int ret;
 
 	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
 		return 0;
@@ -1987,7 +2003,15 @@ static int smu_hw_fini(void *handle)
 
 	adev->pm.dpm_enabled = false;
 
-	return smu_smc_hw_cleanup(smu);
+	ret = smu_smc_hw_cleanup(smu);
+	if (ret)
+		return ret;
+
+	ret = smu_reset_mp1_state(smu);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static void smu_late_fini(void *handle)
@@ -3200,17 +3224,17 @@ static int smu_set_xgmi_pstate(void *handle,
 	return ret;
 }
 
-static bool smu_get_baco_capability(void *handle)
+static int smu_get_baco_capability(void *handle)
 {
 	struct smu_context *smu = handle;
 
 	if (!smu->pm_enabled)
 		return false;
 
-	if (!smu->ppt_funcs || !smu->ppt_funcs->baco_is_support)
+	if (!smu->ppt_funcs || !smu->ppt_funcs->get_bamaco_support)
 		return false;
 
-	return smu->ppt_funcs->baco_is_support(smu);
+	return smu->ppt_funcs->get_bamaco_support(smu);
 }
 
 static int smu_baco_set_state(void *handle, int state)

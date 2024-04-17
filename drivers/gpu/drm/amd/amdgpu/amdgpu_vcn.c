@@ -93,7 +93,7 @@ static void amdgpu_vcn_idle_work_handler(struct work_struct *work);
 
 int amdgpu_vcn_early_init(struct amdgpu_device *adev)
 {
-	char ucode_prefix[30];
+	char ucode_prefix[25];
 	char fw_name[40];
 	int r, i;
 

@@ -74,6 +74,7 @@
 #include "amdgpu_fru_eeprom.h"
 #include "amdgpu_reset.h"
 #include "amdgpu_virt.h"
+#include "amdgpu_dev_coredump.h"
 
 #include <linux/suspend.h>
 #include <drm/task_barrier.h>
@@ -142,6 +143,8 @@ const char *amdgpu_asic_name[] = {
 	"IP DISCOVERY",
 	"LAST",
 };
+
+static inline void amdgpu_device_stop_pending_resets(struct amdgpu_device *adev);
 
 /**
  * DOC: pcie_replay_count
@@ -335,10 +338,12 @@ bool amdgpu_device_supports_boco(struct drm_device *dev)
  *
  * @dev: drm_device pointer
  *
- * Returns true if the device supporte BACO,
- * otherwise return false.
+ * Return:
+ * 1 if the device supporte BACO;
+ * 3 if the device support MACO (only works if BACO is supported)
+ * otherwise return 0.
  */
-bool amdgpu_device_supports_baco(struct drm_device *dev)
+int amdgpu_device_supports_baco(struct drm_device *dev)
 {
 	struct amdgpu_device *adev = drm_to_adev(dev);
 
@@ -4069,6 +4074,13 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	/* Enable TMZ based on IP_VERSION */
 	amdgpu_gmc_tmz_set(adev);
 
+	if (amdgpu_sriov_vf(adev) &&
+	    amdgpu_ip_version(adev, GC_HWIP, 0) >= IP_VERSION(10, 3, 0))
+		/* VF MMIO access (except mailbox range) from CPU
+		 * will be blocked during sriov runtime
+		 */
+		adev->virt.caps |= AMDGPU_VF_MMIO_ACCESS_PROTECT;
+
 	amdgpu_gmc_noretry_set(adev);
 	/* Need to get xgmi info early to decide the reset behavior*/
 	if (adev->gmc.xgmi.supported) {
@@ -4135,18 +4147,22 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 					adev->ip_blocks[i].status.hw = true;
 				}
 			}
+		} else if (amdgpu_ip_version(adev, MP1_HWIP, 0) == IP_VERSION(13, 0, 10) &&
+				   !amdgpu_device_has_display_hardware(adev)) {
+					r = psp_gpu_reset(adev);
 		} else {
-			tmp = amdgpu_reset_method;
-			/* It should do a default reset when loading or reloading the driver,
-			 * regardless of the module parameter reset_method.
-			 */
-			amdgpu_reset_method = AMD_RESET_METHOD_NONE;
-			r = amdgpu_asic_reset(adev);
-			amdgpu_reset_method = tmp;
-			if (r) {
-				dev_err(adev->dev, "asic reset on init failed\n");
-				goto failed;
-			}
+				tmp = amdgpu_reset_method;
+				/* It should do a default reset when loading or reloading the driver,
+				 * regardless of the module parameter reset_method.
+				 */
+				amdgpu_reset_method = AMD_RESET_METHOD_NONE;
+				r = amdgpu_asic_reset(adev);
+				amdgpu_reset_method = tmp;
+		}
+
+		if (r) {
+		  dev_err(adev->dev, "asic reset on init failed\n");
+		  goto failed;
 		}
 	}
 
@@ -4970,12 +4986,15 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 retry:
 	amdgpu_amdkfd_pre_reset(adev);
 
+	amdgpu_device_stop_pending_resets(adev);
+
 	if (from_hypervisor)
 		r = amdgpu_virt_request_full_gpu(adev, true);
 	else
 		r = amdgpu_virt_reset_gpu(adev);
 	if (r)
 		return r;
+	amdgpu_ras_set_fed(adev, false);
 	amdgpu_irq_gpu_reset_resume_helper(adev);
 
 	/* some sw clean up VF needs to do before recover */
@@ -5534,6 +5553,23 @@ static inline void amdgpu_device_stop_pending_resets(struct amdgpu_device *adev)
 
 }
 
+static int amdgpu_device_health_check(struct list_head *device_list_handle)
+{
+	struct amdgpu_device *tmp_adev;
+	int ret = 0;
+	u32 status;
+
+	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
+		pci_read_config_dword(tmp_adev->pdev, PCI_COMMAND, &status);
+		if (PCI_POSSIBLE_ERROR(status)) {
+			dev_err(tmp_adev->dev, "device lost from bus!");
+			ret = -ENODEV;
+		}
+	}
+
+	return ret;
+}
+
 /**
  * amdgpu_device_gpu_recover - reset the asic and recover scheduler
  *
@@ -5603,6 +5639,12 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	} else {
 		list_add_tail(&adev->reset_list, &device_list);
 		device_list_handle = &device_list;
+	}
+
+	if (!amdgpu_sriov_vf(adev)) {
+		r = amdgpu_device_health_check(device_list_handle);
+		if (r)
+			goto end_reset;
 	}
 
 	/* We need to lock reset domain only once both for XGMI and single device */
@@ -5687,11 +5729,12 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 			tmp_adev->asic_reset_res = r;
 		}
 
-		/*
-		 * Drop all pending non scheduler resets. Scheduler resets
-		 * were already dropped during drm_sched_stop
-		 */
-		amdgpu_device_stop_pending_resets(tmp_adev);
+		if (!amdgpu_sriov_vf(tmp_adev))
+			/*
+			* Drop all pending non scheduler resets. Scheduler resets
+			* were already dropped during drm_sched_stop
+			*/
+			amdgpu_device_stop_pending_resets(tmp_adev);
 	}
 
 	/* Actual ASIC resets if needed.*/
@@ -5770,6 +5813,7 @@ skip_sched_resume:
 					    reset_list);
 	amdgpu_device_unlock_reset_domain(tmp_adev->reset_domain);
 
+end_reset:
 	if (hive) {
 		mutex_unlock(&hive->hive_lock);
 		amdgpu_put_xgmi_hive(hive);

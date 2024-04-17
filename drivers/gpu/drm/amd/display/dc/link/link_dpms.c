@@ -55,6 +55,8 @@
 #include "dccg.h"
 #include "clk_mgr.h"
 #include "atomfirmware.h"
+#include "vpg.h"
+
 #define DC_LOGGER \
 	dc_logger
 #define DC_LOGGER_INIT(logger) \
@@ -67,7 +69,6 @@
 #define RETIMER_REDRIVER_INFO(...) \
 	DC_LOG_RETIMER_REDRIVER(  \
 		__VA_ARGS__)
-#include "dc/dcn30/dcn30_vpg.h"
 
 #define MAX_MTP_SLOT_COUNT 64
 #define LINK_TRAINING_ATTEMPTS 4
@@ -127,7 +128,7 @@ void link_blank_dp_stream(struct dc_link *link, bool hw_init)
 		if (link->ep_type == DISPLAY_ENDPOINT_PHY &&
 			link->link_enc->funcs->get_dig_frontend &&
 			link->link_enc->funcs->is_dig_enabled(link->link_enc)) {
-			unsigned int fe = link->link_enc->funcs->get_dig_frontend(link->link_enc);
+			int fe = link->link_enc->funcs->get_dig_frontend(link->link_enc);
 
 			if (fe != ENGINE_ID_UNKNOWN)
 				for (j = 0; j < dc->res_pool->stream_enc_count; j++) {
@@ -2285,6 +2286,7 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct dc_link *link = stream->sink->link;
 	struct vpg *vpg = pipe_ctx->stream_res.stream_enc->vpg;
+	enum dp_panel_mode panel_mode_dp = dp_get_panel_mode(link);
 
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
 
@@ -2310,6 +2312,8 @@ void link_set_dpms_off(struct pipe_ctx *pipe_ctx)
 	}
 
 	dc->hwss.disable_audio_stream(pipe_ctx);
+
+	edp_set_panel_assr(link, pipe_ctx, &panel_mode_dp, false);
 
 	update_psp_stream_config(pipe_ctx, true);
 	dc->hwss.blank_stream(pipe_ctx);

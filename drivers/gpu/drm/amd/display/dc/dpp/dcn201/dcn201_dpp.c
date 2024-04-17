@@ -28,7 +28,7 @@
 #include "core_types.h"
 
 #include "reg_helper.h"
-#include "dcn201_dpp.h"
+#include "dcn201/dcn201_dpp.h"
 #include "basics/conversion.h"
 
 #define REG(reg)\

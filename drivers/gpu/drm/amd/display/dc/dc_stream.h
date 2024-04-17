@@ -190,7 +190,7 @@ struct dc_stream_state {
 	PHYSICAL_ADDRESS_LOC dmdata_address;
 	bool   use_dynamic_meta;
 
-	struct dc_transfer_func *out_transfer_func;
+	struct dc_transfer_func out_transfer_func;
 	struct colorspace_transform gamut_remap_matrix;
 	struct dc_csc_transform csc_color_matrix;
 
@@ -427,14 +427,6 @@ bool dc_stream_set_dynamic_metadata(struct dc *dc,
 
 enum dc_status dc_validate_stream(struct dc *dc, struct dc_stream_state *stream);
 
-/*
- * Set up streams and links associated to drive sinks
- * The streams parameter is an absolute set of all active streams.
- *
- * After this call:
- *   Phy, Encoder, Timing Generator are programmed and enabled.
- *   New streams are enabled with blank stream; no memory read.
- */
 /*
  * Enable stereo when commit_streams is not required,
  * for example, frame alternate.

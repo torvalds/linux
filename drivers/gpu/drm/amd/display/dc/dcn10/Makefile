@@ -24,9 +24,9 @@
 
 DCN10 = dcn10_ipp.o \
 		dcn10_hw_sequencer_debug.o \
-		dcn10_dpp.o dcn10_opp.o \
+		dcn10_opp.o \
 		dcn10_hubp.o dcn10_mpc.o \
-		dcn10_dpp_dscl.o dcn10_dpp_cm.o dcn10_cm_common.o \
+		dcn10_cm_common.o \
 		dcn10_hubbub.o dcn10_stream_encoder.o dcn10_link_encoder.o
 
 AMD_DAL_DCN10 = $(addprefix $(AMDDALPATH)/dc/dcn10/,$(DCN10))

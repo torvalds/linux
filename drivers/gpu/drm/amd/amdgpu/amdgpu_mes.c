@@ -40,7 +40,6 @@ int amdgpu_mes_doorbell_process_slice(struct amdgpu_device *adev)
 }
 
 static int amdgpu_mes_kernel_doorbell_get(struct amdgpu_device *adev,
-					 struct amdgpu_mes_process *process,
 					 int ip_type, uint64_t *doorbell_index)
 {
 	unsigned int offset, found;
@@ -65,7 +64,6 @@ static int amdgpu_mes_kernel_doorbell_get(struct amdgpu_device *adev,
 }
 
 static void amdgpu_mes_kernel_doorbell_free(struct amdgpu_device *adev,
-					   struct amdgpu_mes_process *process,
 					   uint32_t doorbell_index)
 {
 	unsigned int old, rel_index;
@@ -102,7 +100,10 @@ static int amdgpu_mes_event_log_init(struct amdgpu_device *adev)
 {
 	int r;
 
-	r = amdgpu_bo_create_kernel(adev, PAGE_SIZE, PAGE_SIZE,
+	if (!amdgpu_mes_log_enable)
+		return 0;
+
+	r = amdgpu_bo_create_kernel(adev, AMDGPU_MES_LOG_BUFFER_SIZE, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_GTT,
 				    &adev->mes.event_log_gpu_obj,
 				    &adev->mes.event_log_gpu_addr,
@@ -653,7 +654,7 @@ int amdgpu_mes_add_hw_queue(struct amdgpu_device *adev, int gang_id,
 	*queue_id = queue->queue_id = r;
 
 	/* allocate a doorbell index for the queue */
-	r = amdgpu_mes_kernel_doorbell_get(adev, gang->process,
+	r = amdgpu_mes_kernel_doorbell_get(adev,
 					  qprops->queue_type,
 					  &qprops->doorbell_off);
 	if (r)
@@ -711,8 +712,7 @@ int amdgpu_mes_add_hw_queue(struct amdgpu_device *adev, int gang_id,
 	return 0;
 
 clean_up_doorbell:
-	amdgpu_mes_kernel_doorbell_free(adev, gang->process,
-				       qprops->doorbell_off);
+	amdgpu_mes_kernel_doorbell_free(adev, qprops->doorbell_off);
 clean_up_queue_id:
 	spin_lock_irqsave(&adev->mes.queue_id_lock, flags);
 	idr_remove(&adev->mes.queue_id_idr, queue->queue_id);
@@ -766,8 +766,7 @@ int amdgpu_mes_remove_hw_queue(struct amdgpu_device *adev, int queue_id)
 			  queue_id);
 
 	list_del(&queue->list);
-	amdgpu_mes_kernel_doorbell_free(adev, gang->process,
-				       queue->doorbell_off);
+	amdgpu_mes_kernel_doorbell_free(adev, queue->doorbell_off);
 	amdgpu_mes_unlock(&adev->mes);
 
 	amdgpu_mes_queue_free_mqd(queue);
@@ -1471,7 +1470,7 @@ int amdgpu_mes_init_microcode(struct amdgpu_device *adev, int pipe)
 	const struct mes_firmware_header_v1_0 *mes_hdr;
 	struct amdgpu_firmware_info *info;
 	char ucode_prefix[30];
-	char fw_name[40];
+	char fw_name[50];
 	bool need_retry = false;
 	int r;
 
@@ -1549,11 +1548,10 @@ static int amdgpu_debugfs_mes_event_log_show(struct seq_file *m, void *unused)
 	uint32_t *mem = (uint32_t *)(adev->mes.event_log_cpu_addr);
 
 	seq_hex_dump(m, "", DUMP_PREFIX_OFFSET, 32, 4,
-		     mem, PAGE_SIZE, false);
+		     mem, AMDGPU_MES_LOG_BUFFER_SIZE, false);
 
 	return 0;
 }
-
 
 DEFINE_SHOW_ATTRIBUTE(amdgpu_debugfs_mes_event_log);
 
@@ -1565,7 +1563,7 @@ void amdgpu_debugfs_mes_event_log_init(struct amdgpu_device *adev)
 #if defined(CONFIG_DEBUG_FS)
 	struct drm_minor *minor = adev_to_drm(adev)->primary;
 	struct dentry *root = minor->debugfs_root;
-	if (adev->enable_mes)
+	if (adev->enable_mes && amdgpu_mes_log_enable)
 		debugfs_create_file("amdgpu_mes_event_log", 0444, root,
 				    adev, &amdgpu_debugfs_mes_event_log_fops);
 

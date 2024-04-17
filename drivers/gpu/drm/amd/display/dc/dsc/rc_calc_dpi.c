@@ -101,7 +101,6 @@ int dscc_compute_dsc_parameters(const struct drm_dsc_config *pps,
 {
 	int              ret;
 	struct drm_dsc_config   dsc_cfg;
-	unsigned long long tmp;
 
 	dsc_params->pps = *pps;
 	dsc_params->pps.initial_scale_value = 8 * rc->rc_model_size / (rc->rc_model_size - rc->initial_fullness_offset);
@@ -112,9 +111,9 @@ int dscc_compute_dsc_parameters(const struct drm_dsc_config *pps,
 	dsc_cfg.mux_word_size = dsc_params->pps.bits_per_component <= 10 ? 48 : 64;
 
 	ret = drm_dsc_compute_rc_parameters(&dsc_cfg);
-	tmp = (unsigned long long)dsc_cfg.slice_chunk_size * 0x10000000 + (dsc_cfg.slice_width - 1);
-	do_div(tmp, (uint32_t)dsc_cfg.slice_width);  //ROUND-UP
-	dsc_params->bytes_per_pixel = (uint32_t)tmp;
+	dsc_params->bytes_per_pixel =
+			(uint32_t)(div_u64(((uint64_t)dsc_cfg.slice_chunk_size * 0x10000000 + (dsc_cfg.slice_width - 1)),
+							(uint32_t)dsc_cfg.slice_width));  /* Round-up */
 
 	copy_pps_fields(&dsc_params->pps, &dsc_cfg);
 	dsc_params->rc_buffer_model_size = dsc_cfg.rc_bits;
