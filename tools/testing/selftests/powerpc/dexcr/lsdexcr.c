@@ -12,52 +12,6 @@ static unsigned int dexcr;
 static unsigned int hdexcr;
 static unsigned int effective;
 
-struct dexcr_aspect {
-	const char *name;
-	const char *desc;
-	unsigned int index;
-	unsigned long prctl;
-	const char *sysctl;
-};
-
-static const struct dexcr_aspect aspects[] = {
-	{
-		.name = "SBHE",
-		.desc = "Speculative branch hint enable",
-		.index = 0,
-		.prctl = PR_PPC_DEXCR_SBHE,
-		.sysctl = "speculative_branch_hint_enable",
-	},
-	{
-		.name = "IBRTPD",
-		.desc = "Indirect branch recurrent target prediction disable",
-		.index = 3,
-		.prctl = PR_PPC_DEXCR_IBRTPD,
-		.sysctl = "indirect_branch_recurrent_target_prediction_disable",
-	},
-	{
-		.name = "SRAPD",
-		.desc = "Subroutine return address prediction disable",
-		.index = 4,
-		.prctl = PR_PPC_DEXCR_SRAPD,
-		.sysctl = "subroutine_return_address_prediction_disable",
-	},
-	{
-		.name = "NPHIE",
-		.desc = "Non-privileged hash instruction enable",
-		.index = 5,
-		.prctl = PR_PPC_DEXCR_NPHIE,
-		.sysctl = "nonprivileged_hash_instruction_enable",
-	},
-	{
-		.name = "PHIE",
-		.desc = "Privileged hash instruction enable",
-		.index = 6,
-		.prctl = -1,
-		.sysctl = NULL,
-	},
-};
-
 static void print_list(const char *list[], size_t len)
 {
 	for (size_t i = 0; i < len; i++) {
@@ -117,89 +71,57 @@ static void print_aspect(const struct dexcr_aspect *aspect)
 
 static void print_aspect_config(const struct dexcr_aspect *aspect)
 {
-	char sysctl_path[128] = "/proc/sys/kernel/dexcr/";
-	const char *reason = "unknown";
+	const char *reason = NULL;
 	const char *reason_hyp = NULL;
-	const char *reason_sysctl = "no sysctl";
 	const char *reason_prctl = "no prctl";
 	bool actual = effective & DEXCR_PR_BIT(aspect->index);
-	bool expected = false;
+	bool expected = actual;  /* Assume it's fine if we don't expect a specific set/clear value */
 
-	long sysctl_ctrl = 0;
-	int prctl_ctrl = 0;
-	int err;
+	if (actual)
+		reason = "set by unknown";
+	else
+		reason = "cleared by unknown";
 
-	if (aspect->prctl >= 0) {
-		prctl_ctrl = pr_get_dexcr(aspect->prctl);
-		if (prctl_ctrl < 0)
-			reason_prctl = "(failed to read prctl)";
-		else {
-			if (prctl_ctrl & PR_PPC_DEXCR_CTRL_SET) {
+	if (aspect->prctl != -1) {
+		int ctrl = pr_get_dexcr(aspect->prctl);
+
+		if (ctrl < 0) {
+			reason_prctl = "failed to read prctl";
+		} else {
+			if (ctrl & PR_PPC_DEXCR_CTRL_SET) {
 				reason_prctl = "set by prctl";
 				expected = true;
-			} else if (prctl_ctrl & PR_PPC_DEXCR_CTRL_CLEAR) {
+			} else if (ctrl & PR_PPC_DEXCR_CTRL_CLEAR) {
 				reason_prctl = "cleared by prctl";
 				expected = false;
-			} else
+			} else {
 				reason_prctl = "unknown prctl";
+			}
 
 			reason = reason_prctl;
 		}
 	}
 
-	if (aspect->sysctl) {
-		strcat(sysctl_path, aspect->sysctl);
-		err = read_long(sysctl_path, &sysctl_ctrl, 10);
-		if (err)
-			reason_sysctl = "(failed to read sysctl)";
-		else {
-			switch (sysctl_ctrl) {
-			case 0:
-				reason_sysctl = "cleared by sysctl";
-				reason = reason_sysctl;
-				expected = false;
-				break;
-			case 1:
-				reason_sysctl = "set by sysctl";
-				reason = reason_sysctl;
-				expected = true;
-				break;
-			case 2:
-				reason_sysctl = "not modified by sysctl";
-				break;
-			case 3:
-				reason_sysctl = "cleared by sysctl (permanent)";
-				reason = reason_sysctl;
-				expected = false;
-				break;
-			case 4:
-				reason_sysctl = "set by sysctl (permanent)";
-				reason = reason_sysctl;
-				expected = true;
-				break;
-			default:
-				reason_sysctl = "unknown sysctl";
-				break;
-			}
-		}
-	}
-
-
 	if (hdexcr & DEXCR_PR_BIT(aspect->index)) {
 		reason_hyp = "set by hypervisor";
 		reason = reason_hyp;
 		expected = true;
-	} else
+	} else {
 		reason_hyp = "not modified by hypervisor";
+	}
 
-	printf("%12s (%d): %-28s (%s, %s, %s)\n",
+	printf("%12s (%d): %-28s (%s, %s)\n",
 	       aspect->name,
 	       aspect->index,
 	       reason,
 	       reason_hyp,
-	       reason_sysctl,
 	       reason_prctl);
 
+	/*
+	 * The checks are not atomic, so this can technically trigger if the
+	 * hypervisor makes a change while we are checking each source. It's
+	 * far more likely to be a bug if we see this though.
+	 */
 	if (actual != expected)
 		printf("                : ! actual %s does not match config\n", aspect->name);
 }
