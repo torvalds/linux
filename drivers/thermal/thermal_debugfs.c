@@ -555,7 +555,6 @@ void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 	struct tz_episode *tze;
 	struct tz_debugfs *tz_dbg;
 	struct thermal_debugfs *thermal_dbg = tz->debugfs;
-	int temperature = tz->temperature;
 	int trip_id = thermal_zone_trip_id(tz, trip);
 	ktime_t now = ktime_get();
 
@@ -624,12 +623,6 @@ void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 
 	tze = list_first_entry(&tz_dbg->tz_episodes, struct tz_episode, node);
 	tze->trip_stats[trip_id].timestamp = now;
-	tze->trip_stats[trip_id].max = max(tze->trip_stats[trip_id].max, temperature);
-	tze->trip_stats[trip_id].min = min(tze->trip_stats[trip_id].min, temperature);
-	tze->trip_stats[trip_id].count++;
-	tze->trip_stats[trip_id].avg = tze->trip_stats[trip_id].avg +
-		(temperature - tze->trip_stats[trip_id].avg) /
-		tze->trip_stats[trip_id].count;
 
 unlock:
 	mutex_unlock(&thermal_dbg->lock);
