@@ -6971,7 +6971,7 @@ static int check_mem_access(struct bpf_verifier_env *env, int insn_idx, u32 regn
 }
 
 static int save_aux_ptr_type(struct bpf_verifier_env *env, enum bpf_reg_type type,
-			     bool allow_trust_missmatch);
+			     bool allow_trust_mismatch);
 
 static int check_atomic(struct bpf_verifier_env *env, int insn_idx, struct bpf_insn *insn)
 {
@@ -17530,7 +17530,7 @@ static bool reg_type_mismatch(enum bpf_reg_type src, enum bpf_reg_type prev)
 }
 
 static int save_aux_ptr_type(struct bpf_verifier_env *env, enum bpf_reg_type type,
-			     bool allow_trust_missmatch)
+			     bool allow_trust_mismatch)
 {
 	enum bpf_reg_type *prev_type = &env->insn_aux_data[env->insn_idx].ptr_type;
 
@@ -17548,7 +17548,7 @@ static int save_aux_ptr_type(struct bpf_verifier_env *env, enum bpf_reg_type typ
 		 * src_reg == stack|map in some other branch.
 		 * Reject it.
 		 */
-		if (allow_trust_missmatch &&
+		if (allow_trust_mismatch &&
 		    base_type(type) == PTR_TO_BTF_ID &&
 		    base_type(*prev_type) == PTR_TO_BTF_ID) {
 			/*
