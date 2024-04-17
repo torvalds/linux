@@ -266,14 +266,14 @@ static void last_read_complete(struct page *page)
 
 static void metapage_read_end_io(struct bio *bio)
 {
-	struct page *page = bio->bi_private;
+	struct folio *folio = bio->bi_private;
 
 	if (bio->bi_status) {
 		printk(KERN_ERR "metapage_read_end_io: I/O error\n");
-		SetPageError(page);
+		folio_set_error(folio);
 	}
 
-	dec_io(page, last_read_complete);
+	dec_io(&folio->page, last_read_complete);
 	bio_put(bio);
 }
 
@@ -469,20 +469,18 @@ err_out:
 
 static int metapage_read_folio(struct file *fp, struct folio *folio)
 {
-	struct page *page = &folio->page;
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct bio *bio = NULL;
 	int block_offset;
-	int blocks_per_page = i_blocks_per_page(inode, page);
+	int blocks_per_page = i_blocks_per_folio(inode, folio);
 	sector_t page_start;	/* address of page in fs blocks */
 	sector_t pblock;
 	int xlen;
 	unsigned int len;
 	int offset;
 
-	BUG_ON(!PageLocked(page));
-	page_start = (sector_t)page->index <<
-		     (PAGE_SHIFT - inode->i_blkbits);
+	BUG_ON(!folio_test_locked(folio));
+	page_start = folio_pos(folio) >> inode->i_blkbits;
 
 	block_offset = 0;
 	while (block_offset < blocks_per_page) {
@@ -490,9 +488,9 @@ static int metapage_read_folio(struct file *fp, struct folio *folio)
 		pblock = metapage_get_blocks(inode, page_start + block_offset,
 					     &xlen);
 		if (pblock) {
-			if (!PagePrivate(page))
-				insert_metapage(page, NULL);
-			inc_io(page);
+			if (!folio->private)
+				insert_metapage(&folio->page, NULL);
+			inc_io(&folio->page);
 			if (bio)
 				submit_bio(bio);
 
@@ -501,11 +499,10 @@ static int metapage_read_folio(struct file *fp, struct folio *folio)
 			bio->bi_iter.bi_sector =
 				pblock << (inode->i_blkbits - 9);
 			bio->bi_end_io = metapage_read_end_io;
-			bio->bi_private = page;
+			bio->bi_private = folio;
 			len = xlen << inode->i_blkbits;
 			offset = block_offset << inode->i_blkbits;
-			if (bio_add_page(bio, page, len, offset) < len)
-				goto add_failed;
+			bio_add_folio_nofail(bio, folio, len, offset);
 			block_offset += xlen;
 		} else
 			block_offset++;
@@ -513,15 +510,9 @@ static int metapage_read_folio(struct file *fp, struct folio *folio)
 	if (bio)
 		submit_bio(bio);
 	else
-		unlock_page(page);
+		folio_unlock(folio);
 
 	return 0;
-
-add_failed:
-	printk(KERN_ERR "JFS: bio_add_page failed unexpectedly\n");
-	bio_put(bio);
-	dec_io(page, last_read_complete);
-	return -EIO;
 }
 
 static bool metapage_release_folio(struct folio *folio, gfp_t gfp_mask)
