@@ -2554,10 +2554,6 @@ static ssize_t register_bcache(struct kobject *k, struct kobj_attribute *attr,
 	if (IS_ERR(bdev_file))
 		goto out_free_sb;
 
-	err = "failed to set blocksize";
-	if (set_blocksize(file_bdev(bdev_file), 4096))
-		goto out_blkdev_put;
-
 	err = read_super(sb, file_bdev(bdev_file), &sb_disk);
 	if (err)
 		goto out_blkdev_put;
