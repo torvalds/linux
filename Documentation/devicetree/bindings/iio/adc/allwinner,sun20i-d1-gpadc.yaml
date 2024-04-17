@@ -11,8 +11,13 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - allwinner,sun20i-d1-gpadc
+    oneOf:
+      - enum:
+          - allwinner,sun20i-d1-gpadc
+      - items:
+          - enum:
+              - allwinner,sun50i-h616-gpadc
+          - const: allwinner,sun20i-d1-gpadc
 
   "#io-channel-cells":
     const: 1
