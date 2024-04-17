@@ -214,6 +214,7 @@ static u16 octo_sensor_fan_offsets[] = { 0x7D, 0x8A, 0x97, 0xA4, 0xB1, 0xBE, 0xC
 
 /* Control report offsets for the Octo */
 #define OCTO_TEMP_CTRL_OFFSET		0xA
+#define OCTO_FLOW_PULSES_CTRL_OFFSET	0x6
 /* Fan speed offsets (0-100%) */
 static u16 octo_ctrl_fan_offsets[] = { 0x5B, 0xB0, 0x105, 0x15A, 0x1AF, 0x204, 0x259, 0x2AE };
 
@@ -861,9 +862,16 @@ static umode_t aqc_is_visible(const void *data, enum hwmon_sensor_types type, u3
 			}
 			break;
 		case hwmon_fan_pulses:
-			/* Special case for Quadro flow sensor */
-			if (priv->kind == quadro && channel == priv->num_fans)
-				return 0644;
+			/* Special case for Quadro/Octo flow sensor */
+			if (channel == priv->num_fans) {
+				switch (priv->kind) {
+				case quadro:
+				case octo:
+					return 0644;
+				default:
+					break;
+				}
+			}
 			break;
 		case hwmon_fan_min:
 		case hwmon_fan_max:
@@ -1294,7 +1302,7 @@ static const struct hwmon_channel_info * const aqc_info[] = {
 			   HWMON_F_INPUT | HWMON_F_LABEL,
 			   HWMON_F_INPUT | HWMON_F_LABEL,
 			   HWMON_F_INPUT | HWMON_F_LABEL,
-			   HWMON_F_INPUT | HWMON_F_LABEL),
+			   HWMON_F_INPUT | HWMON_F_LABEL | HWMON_F_PULSES),
 	HWMON_CHANNEL_INFO(power,
 			   HWMON_P_INPUT | HWMON_P_LABEL,
 			   HWMON_P_INPUT | HWMON_P_LABEL,
@@ -1671,6 +1679,7 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		priv->buffer_size = OCTO_CTRL_REPORT_SIZE;
 		priv->ctrl_report_delay = CTRL_REPORT_DELAY;
 
+		priv->flow_pulses_ctrl_offset = OCTO_FLOW_PULSES_CTRL_OFFSET;
 		priv->power_cycle_count_offset = OCTO_POWER_CYCLES;
 
 		priv->temp_label = label_temp_sensors;
