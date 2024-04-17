@@ -1641,6 +1641,13 @@ void arch_setup_new_exec(void)
 	current->thread.regs->amr  = default_amr;
 	current->thread.regs->iamr  = default_iamr;
 #endif
+
+#ifdef CONFIG_PPC_BOOK3S_64
+	if (cpu_has_feature(CPU_FTR_ARCH_31)) {
+		current->thread.dexcr = current->thread.dexcr_onexec;
+		mtspr(SPRN_DEXCR, current->thread.dexcr);
+	}
+#endif /* CONFIG_PPC_BOOK3S_64 */
 }
 
 #ifdef CONFIG_PPC64
