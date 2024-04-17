@@ -1350,7 +1350,7 @@ static void pps_init_delays_bios(struct intel_dp *intel_dp,
 static void pps_init_delays_vbt(struct intel_dp *intel_dp,
 				struct edp_power_seq *vbt)
 {
-	struct drm_i915_private *dev_priv = dp_to_i915(intel_dp);
+	struct intel_display *display = to_intel_display(intel_dp);
 	struct intel_connector *connector = intel_dp->attached_connector;
 
 	*vbt = connector->panel.vbt.edp.pps;
@@ -1363,9 +1363,9 @@ static void pps_init_delays_vbt(struct intel_dp *intel_dp,
 	 * just fails to power back on. Increasing the delay to 800ms
 	 * seems sufficient to avoid this problem.
 	 */
-	if (intel_has_quirk(dev_priv, QUIRK_INCREASE_T12_DELAY)) {
+	if (intel_has_quirk(display, QUIRK_INCREASE_T12_DELAY)) {
 		vbt->t11_t12 = max_t(u16, vbt->t11_t12, 1300 * 10);
-		drm_dbg_kms(&dev_priv->drm,
+		drm_dbg_kms(display->drm,
 			    "Increasing T12 panel delay as per the quirk to %d\n",
 			    vbt->t11_t12);
 	}
