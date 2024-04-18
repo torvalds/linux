@@ -12,6 +12,7 @@
 #include "xe_gt_sriov_printk.h"
 #include "xe_guc_ct.h"
 #include "xe_guc_klv_helpers.h"
+#include "xe_pm.h"
 
 /*
  * Return: number of KLVs that were successfully parsed and saved,
@@ -368,7 +369,7 @@ int xe_gt_sriov_pf_policy_reprovision(struct xe_gt *gt, bool reset)
 {
 	int err = 0;
 
-	xe_device_mem_access_get(gt_to_xe(gt));
+	xe_pm_runtime_get_noresume(gt_to_xe(gt));
 
 	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
 	if (reset)
@@ -378,7 +379,7 @@ int xe_gt_sriov_pf_policy_reprovision(struct xe_gt *gt, bool reset)
 	err |= pf_reprovision_sample_period(gt);
 	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
 
-	xe_device_mem_access_put(gt_to_xe(gt));
+	xe_pm_runtime_put(gt_to_xe(gt));
 
 	return err ? -ENXIO : 0;
 }
