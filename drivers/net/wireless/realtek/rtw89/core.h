@@ -2856,6 +2856,7 @@ enum btf_fw_event_report {
 	BTC_RPT_TYPE_CYSTA,
 	BTC_RPT_TYPE_STEP,
 	BTC_RPT_TYPE_NULLSTA,
+	BTC_RPT_TYPE_FDDT, /* added by ver->fwevntrptl == 1 */
 	BTC_RPT_TYPE_MREG,
 	BTC_RPT_TYPE_GPIO_DBG,
 	BTC_RPT_TYPE_BT_VER,
@@ -2863,7 +2864,10 @@ enum btf_fw_event_report {
 	BTC_RPT_TYPE_BT_AFH,
 	BTC_RPT_TYPE_BT_DEVICE,
 	BTC_RPT_TYPE_TEST,
-	BTC_RPT_TYPE_MAX = 31
+	BTC_RPT_TYPE_MAX = 31,
+
+	__BTC_RPT_TYPE_V0_SAME = BTC_RPT_TYPE_NULLSTA,
+	__BTC_RPT_TYPE_V0_MAX = 12,
 };
 
 enum rtw_btc_btf_reg_type {
@@ -3005,6 +3009,7 @@ struct rtw89_btc_ver {
 	u8 fcxctrl;
 	u8 fcxinit;
 
+	u8 fwevntrptl;
 	u8 drvinfo_type;
 	u16 info_buf;
 	u8 max_role_num;
