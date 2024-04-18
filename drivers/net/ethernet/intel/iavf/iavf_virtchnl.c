@@ -288,10 +288,6 @@ void iavf_configure_queues(struct iavf_adapter *adapter)
 	if (!vqci)
 		return;
 
-	/* Limit maximum frame size when jumbo frames is not enabled */
-	if (adapter->netdev->mtu <= ETH_DATA_LEN)
-		max_frame = IAVF_RXBUFFER_1536 - NET_IP_ALIGN;
-
 	vqci->vsi_id = adapter->vsi_res->vsi_id;
 	vqci->num_queue_pairs = pairs;
 	vqpi = vqci->qpair;
@@ -308,9 +304,7 @@ void iavf_configure_queues(struct iavf_adapter *adapter)
 		vqpi->rxq.ring_len = adapter->rx_rings[i].count;
 		vqpi->rxq.dma_ring_addr = adapter->rx_rings[i].dma;
 		vqpi->rxq.max_pkt_size = max_frame;
-		vqpi->rxq.databuffer_size =
-			ALIGN(adapter->rx_rings[i].rx_buf_len,
-			      BIT_ULL(IAVF_RXQ_CTX_DBUFF_SHIFT));
+		vqpi->rxq.databuffer_size = IAVF_RXBUFFER_3072;
 		if (CRC_OFFLOAD_ALLOWED(adapter))
 			vqpi->rxq.crc_disable = !!(adapter->netdev->features &
 						   NETIF_F_RXFCS);

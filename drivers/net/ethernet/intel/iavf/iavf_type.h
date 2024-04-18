@@ -10,8 +10,6 @@
 #include "iavf_adminq.h"
 #include "iavf_devids.h"
 
-#define IAVF_RXQ_CTX_DBUFF_SHIFT 7
-
 /* IAVF_MASK is a macro used on 32 bit registers */
 #define IAVF_MASK(mask, shift) ((u32)(mask) << (shift))
 
