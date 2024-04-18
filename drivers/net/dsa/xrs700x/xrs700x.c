@@ -780,6 +780,7 @@ struct xrs700x *xrs700x_switch_alloc(struct device *base, void *devpriv)
 	INIT_DELAYED_WORK(&priv->mib_work, xrs700x_mib_work);
 
 	ds->ops = &xrs700x_ops;
+	ds->phylink_mac_ops = &xrs700x_phylink_mac_ops;
 	ds->priv = priv;
 	priv->dev = base;
 
