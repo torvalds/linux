@@ -2444,13 +2444,17 @@ static void reinsert_swap_info(struct swap_info_struct *p)
 	spin_unlock(&swap_lock);
 }
 
+static bool __has_usable_swap(void)
+{
+	return !plist_head_empty(&swap_active_head);
+}
+
 bool has_usable_swap(void)
 {
-	bool ret = true;
+	bool ret;
 
 	spin_lock(&swap_lock);
-	if (plist_head_empty(&swap_active_head))
-		ret = false;
+	ret = __has_usable_swap();
 	spin_unlock(&swap_lock);
 	return ret;
 }
@@ -3708,6 +3712,9 @@ void __folio_throttle_swaprate(struct folio *folio, gfp_t gfp)
 	int nid = folio_nid(folio);
 
 	if (!(gfp & __GFP_IO))
+		return;
+
+	if (!__has_usable_swap())
 		return;
 
 	if (!blk_cgroup_congested())
