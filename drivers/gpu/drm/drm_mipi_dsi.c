@@ -346,8 +346,7 @@ static int mipi_dsi_remove_device_fn(struct device *dev, void *priv)
 {
 	struct mipi_dsi_device *dsi = to_mipi_dsi_device(dev);
 
-	if (dsi->attached)
-		mipi_dsi_detach(dsi);
+	mipi_dsi_detach(dsi);
 	mipi_dsi_device_unregister(dsi);
 
 	return 0;
@@ -370,18 +369,11 @@ EXPORT_SYMBOL(mipi_dsi_host_unregister);
 int mipi_dsi_attach(struct mipi_dsi_device *dsi)
 {
 	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
-	int ret;
 
 	if (!ops || !ops->attach)
 		return -ENOSYS;
 
-	ret = ops->attach(dsi->host, dsi);
-	if (ret)
-		return ret;
-
-	dsi->attached = true;
-
-	return 0;
+	return ops->attach(dsi->host, dsi);
 }
 EXPORT_SYMBOL(mipi_dsi_attach);
 
@@ -393,13 +385,8 @@ int mipi_dsi_detach(struct mipi_dsi_device *dsi)
 {
 	const struct mipi_dsi_host_ops *ops = dsi->host->ops;
 
-	if (WARN_ON(!dsi->attached))
-		return -EINVAL;
-
 	if (!ops || !ops->detach)
 		return -ENOSYS;
-
-	dsi->attached = false;
 
 	return ops->detach(dsi->host, dsi);
 }
