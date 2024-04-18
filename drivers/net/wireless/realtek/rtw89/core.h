@@ -1308,6 +1308,7 @@ struct rtw89_btc_wl_smap {
 	u32 scan: 1;
 	u32 connecting: 1;
 	u32 roaming: 1;
+	u32 transacting: 1;
 	u32 _4way: 1;
 	u32 rf_off: 1;
 	u32 lps: 2;
@@ -1316,6 +1317,8 @@ struct rtw89_btc_wl_smap {
 	u32 traffic_dir : 2;
 	u32 rf_off_pre: 1;
 	u32 lps_pre: 2;
+	u32 lps_exiting: 1;
+	u32 emlsr: 1;
 };
 
 enum rtw89_tfc_lv {

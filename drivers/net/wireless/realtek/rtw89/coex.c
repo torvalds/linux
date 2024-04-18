@@ -212,6 +212,16 @@ static const struct rtw89_btc_ver rtw89_btc_ver_defs[] = {
 
 #define RTW89_DEFAULT_BTC_VER_IDX (ARRAY_SIZE(rtw89_btc_ver_defs) - 1)
 
+static const union rtw89_btc_wl_state_map btc_scanning_map = {
+	.map = {
+		.scan = 1,
+		.connecting = 1,
+		.roaming = 1,
+		.transacting = 1,
+		._4way = 1,
+	},
+};
+
 struct rtw89_btc_btf_tlv {
 	u8 type;
 	u8 len;
@@ -4848,6 +4858,30 @@ static void _action_wl_2g_sta(struct rtw89_dev *rtwdev)
 	_action_by_bt(rtwdev);
 }
 
+static void _action_wl_25g_mcc(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	u16 policy_type = BTC_CXP_OFF_BT;
+
+	if (btc->ant_type == BTC_ANT_SHARED) {
+		if (btc->cx.wl.status.map._4way)
+			policy_type = BTC_CXP_OFFE_WL;
+		else if (btc->cx.wl.status.val & btc_scanning_map.val)
+			policy_type = BTC_CXP_OFFE_2GBWMIXB;
+		else if (btc->cx.bt.link_info.profile_cnt.now == 0)
+			policy_type = BTC_CXP_OFFE_2GISOB;
+		else
+			policy_type = BTC_CXP_OFFE_2GBWISOB;
+	} else { /* dedicated-antenna */
+		policy_type = BTC_CXP_OFF_EQ0;
+	}
+
+	btc->dm.e2g_slot_limit = BTC_E2G_LIMIT_DEF;
+
+	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W25G);
+	_set_policy(rtwdev, policy_type, BTC_ACT_WL_25G_MCC);
+}
+
 static void _action_wl_scan(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
@@ -4855,14 +4889,7 @@ static void _action_wl_scan(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_wl_dbcc_info *wl_dinfo = &wl->dbcc_info;
 
 	if (RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD, &rtwdev->fw)) {
-		_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W25G);
-		if (btc->ant_type == BTC_ANT_SHARED)
-			_set_policy(rtwdev, BTC_CXP_OFFE_DEF,
-				    BTC_RSN_NTFY_SCAN_START);
-		else
-			_set_policy(rtwdev, BTC_CXP_OFF_EQ0,
-				    BTC_RSN_NTFY_SCAN_START);
-
+		_action_wl_25g_mcc(rtwdev);
 		rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], Scan offload!\n");
 	} else if (rtwdev->dbcc_en) {
 		if (wl_dinfo->real_band[RTW89_PHY_0] != RTW89_BAND_2G &&
@@ -4875,24 +4902,6 @@ static void _action_wl_scan(struct rtw89_dev *rtwdev)
 			_action_wl_5g(rtwdev);
 		else
 			_action_by_bt(rtwdev);
-	}
-}
-
-static void _action_wl_25g_mcc(struct rtw89_dev *rtwdev)
-{
-	struct rtw89_btc *btc = &rtwdev->btc;
-
-	_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W25G);
-
-	if (btc->ant_type == BTC_ANT_SHARED) {
-		if (btc->cx.bt.link_info.profile_cnt.now == 0)
-			_set_policy(rtwdev, BTC_CXP_OFFE_DEF2,
-				    BTC_ACT_WL_25G_MCC);
-		else
-			_set_policy(rtwdev, BTC_CXP_OFFE_DEF,
-				    BTC_ACT_WL_25G_MCC);
-	} else { /* dedicated-antenna */
-		_set_policy(rtwdev, BTC_CXP_OFF_EQ0, BTC_ACT_WL_25G_MCC);
 	}
 }
 
