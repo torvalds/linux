@@ -1497,10 +1497,10 @@ EXPORT_SYMBOL(ecc_is_key_valid);
  * This method generates a private key uniformly distributed in the range
  * [2, n-3].
  */
-int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits, u64 *privkey)
+int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits,
+		    u64 *private_key)
 {
 	const struct ecc_curve *curve = ecc_get_curve(curve_id);
-	u64 priv[ECC_MAX_DIGITS];
 	unsigned int nbytes = ndigits << ECC_DIGITS_TO_BYTES_SHIFT;
 	unsigned int nbits = vli_num_bits(curve->n, ndigits);
 	int err;
@@ -1509,7 +1509,7 @@ int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits, u64 *privkey)
 	 * Step 1 & 2: check that N is included in Table 1 of FIPS 186-5,
 	 * section 6.1.1.
 	 */
-	if (nbits < 224 || ndigits > ARRAY_SIZE(priv))
+	if (nbits < 224)
 		return -EINVAL;
 
 	/*
@@ -1527,16 +1527,15 @@ int ecc_gen_privkey(unsigned int curve_id, unsigned int ndigits, u64 *privkey)
 		return -EFAULT;
 
 	/* Step 3: obtain N returned_bits from the DRBG. */
-	err = crypto_rng_get_bytes(crypto_default_rng, (u8 *)priv, nbytes);
+	err = crypto_rng_get_bytes(crypto_default_rng,
+				   (u8 *)private_key, nbytes);
 	crypto_put_default_rng();
 	if (err)
 		return err;
 
 	/* Step 4: make sure the private key is in the valid range. */
-	if (__ecc_is_key_valid(curve, priv, ndigits))
+	if (__ecc_is_key_valid(curve, private_key, ndigits))
 		return -EINVAL;
-
-	ecc_swap_digits(priv, privkey, ndigits);
 
 	return 0;
 }
@@ -1547,15 +1546,12 @@ int ecc_make_pub_key(unsigned int curve_id, unsigned int ndigits,
 {
 	int ret = 0;
 	struct ecc_point *pk;
-	u64 priv[ECC_MAX_DIGITS];
 	const struct ecc_curve *curve = ecc_get_curve(curve_id);
 
-	if (!private_key || ndigits > ARRAY_SIZE(priv)) {
+	if (!private_key) {
 		ret = -EINVAL;
 		goto out;
 	}
-
-	ecc_swap_digits(private_key, priv, ndigits);
 
 	pk = ecc_alloc_point(ndigits);
 	if (!pk) {
@@ -1563,7 +1559,7 @@ int ecc_make_pub_key(unsigned int curve_id, unsigned int ndigits,
 		goto out;
 	}
 
-	ecc_point_mult(pk, &curve->g, priv, NULL, curve, ndigits);
+	ecc_point_mult(pk, &curve->g, private_key, NULL, curve, ndigits);
 
 	/* SP800-56A rev 3 5.6.2.1.3 key check */
 	if (ecc_is_pubkey_valid_full(curve, pk)) {
@@ -1647,13 +1643,11 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 {
 	int ret = 0;
 	struct ecc_point *product, *pk;
-	u64 priv[ECC_MAX_DIGITS];
 	u64 rand_z[ECC_MAX_DIGITS];
 	unsigned int nbytes;
 	const struct ecc_curve *curve = ecc_get_curve(curve_id);
 
-	if (!private_key || !public_key ||
-	    ndigits > ARRAY_SIZE(priv) || ndigits > ARRAY_SIZE(rand_z)) {
+	if (!private_key || !public_key || ndigits > ARRAY_SIZE(rand_z)) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -1674,15 +1668,13 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 	if (ret)
 		goto err_alloc_product;
 
-	ecc_swap_digits(private_key, priv, ndigits);
-
 	product = ecc_alloc_point(ndigits);
 	if (!product) {
 		ret = -ENOMEM;
 		goto err_alloc_product;
 	}
 
-	ecc_point_mult(product, pk, priv, rand_z, curve, ndigits);
+	ecc_point_mult(product, pk, private_key, rand_z, curve, ndigits);
 
 	if (ecc_point_is_zero(product)) {
 		ret = -EFAULT;
@@ -1692,7 +1684,6 @@ int crypto_ecdh_shared_secret(unsigned int curve_id, unsigned int ndigits,
 	ecc_swap_digits(product->x, secret, ndigits);
 
 err_validity:
-	memzero_explicit(priv, sizeof(priv));
 	memzero_explicit(rand_z, sizeof(rand_z));
 	ecc_free_point(product);
 err_alloc_product:
