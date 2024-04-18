@@ -30,6 +30,9 @@
 #define PCIE_MSG_TYPE_R_LOCAL	4
 #define PCIE_MSG_TYPE_R_GATHER	5
 
+/* Power Management Messages; PCIe r6.0, sec 2.2.8.2 */
+#define PCIE_MSG_CODE_PME_TURN_OFF	0x19
+
 /* INTx Mechanism Messages; PCIe r6.0, sec 2.2.8.1 */
 #define PCIE_MSG_CODE_ASSERT_INTA	0x20
 #define PCIE_MSG_CODE_ASSERT_INTB	0x21
