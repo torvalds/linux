@@ -1099,6 +1099,10 @@
 				  0xc2000000 0x1 0xf8230000  0x1 0xf8230000  0x0 0x020000
 				  /* BAR4 (PF5) - non-prefetchable memory */
 				  0x82000000 0x1 0xfc000000  0x1 0xfc000000  0x0 0x400000>;
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0 0 0 7>;
+			interrupt-map = <0000 0 0 1 &gic 0 0 GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>,
+					<0000 0 0 2 &gic 0 0 GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 
 			enetc_port0: ethernet@0,0 {
 				compatible = "fsl,enetc";
@@ -1143,7 +1147,7 @@
 			mscc_felix: ethernet-switch@0,5 {
 				reg = <0x000500 0 0 0 0>;
 				/* IEP INT_B */
-				interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <2>;
 				status = "disabled";
 
 				mscc_felix_ports: ports {
@@ -1216,7 +1220,7 @@
 			rcec@1f,0 {
 				reg = <0x00f800 0 0 0 0>;
 				/* IEP INT_A */
-				interrupts = <GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
+				interrupts = <1>;
 			};
 		};
 
