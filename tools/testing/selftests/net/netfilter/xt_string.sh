@@ -5,43 +5,45 @@
 ksft_skip=4
 rc=0
 
-if ! iptables --version >/dev/null 2>&1; then
-	echo "SKIP: Test needs iptables"
-	exit $ksft_skip
-fi
-if ! ip -V >/dev/null 2>&1; then
-	echo "SKIP: Test needs iproute2"
-	exit $ksft_skip
-fi
-if ! nc -h >/dev/null 2>&1; then
-	echo "SKIP: Test needs netcat"
-	exit $ksft_skip
-fi
+source lib.sh
+
+checktool "socat -h" "run test without socat"
+checktool "iptables --version" "test needs iptables"
+
+infile=$(mktemp)
+
+cleanup()
+{
+	ip netns del "$netns"
+	rm -f "$infile"
+}
+
+trap cleanup EXIT
+
+setup_ns netns
+
+ip -net "$netns" link add d0 type dummy
+ip -net "$netns" link set d0 up
+ip -net "$netns" addr add 10.1.2.1/24 dev d0
 
 pattern="foo bar baz"
 patlen=11
 hdrlen=$((20 + 8)) # IPv4 + UDP
-ns="ns-$(mktemp -u XXXXXXXX)"
-trap 'ip netns del $ns' EXIT
-ip netns add "$ns"
-ip -net "$ns" link add d0 type dummy
-ip -net "$ns" link set d0 up
-ip -net "$ns" addr add 10.1.2.1/24 dev d0
 
-#ip netns exec "$ns" tcpdump -npXi d0 &
+#ip netns exec "$netns" tcpdump -npXi d0 &
 #tcpdump_pid=$!
-#trap 'kill $tcpdump_pid; ip netns del $ns' EXIT
+#trap 'kill $tcpdump_pid; ip netns del $netns' EXIT
 
 add_rule() { # (alg, from, to)
-	ip netns exec "$ns" \
+	ip netns exec "$netns" \
 		iptables -A OUTPUT -o d0 -m string \
 			--string "$pattern" --algo $1 --from $2 --to $3
 }
 showrules() { # ()
-	ip netns exec "$ns" iptables -v -S OUTPUT | grep '^-A'
+	ip netns exec "$netns" iptables -v -S OUTPUT | grep '^-A'
 }
 zerorules() {
-	ip netns exec "$ns" iptables -Z OUTPUT
+	ip netns exec "$netns" iptables -Z OUTPUT
 }
 countrule() { # (pattern)
 	showrules | grep -c -- "$*"
@@ -51,7 +53,9 @@ send() { # (offset)
 		printf " "
 	  done
 	  printf "$pattern"
-	) | ip netns exec "$ns" nc -w 1 -u 10.1.2.2 27374
+	) > "$infile"
+
+	ip netns exec "$netns" socat -t 1 -u STDIN UDP-SENDTO:10.1.2.2:27374 < "$infile"
 }
 
 add_rule bm 1000 1500
@@ -125,4 +129,5 @@ if [ $(countrule -c 1) -ne 0 ]; then
 	((rc--))
 fi
 
+[ $rc -eq 0 ] && echo "PASS: string match tests"
 exit $rc
