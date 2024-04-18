@@ -2057,8 +2057,17 @@ static int do_attach(struct iommu_dev_data *dev_data,
 		if (ret)
 			return ret;
 
-		if (pdev)
+		if (pdev) {
 			pdev_enable_caps(pdev);
+
+			/*
+			 * Device can continue to function even if IOPF
+			 * enablement failed. Hence in error path just
+			 * disable device PRI support.
+			 */
+			if (amd_iommu_iopf_add_device(iommu, dev_data))
+				pdev_disable_cap_pri(pdev);
+		}
 	} else if (pdev) {
 		pdev_enable_cap_ats(pdev);
 	}
@@ -2130,12 +2139,11 @@ out:
  */
 static void detach_device(struct device *dev)
 {
-	struct protection_domain *domain;
-	struct iommu_dev_data *dev_data;
+	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
+	struct protection_domain *domain = dev_data->domain;
+	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
 	unsigned long flags;
-
-	dev_data = dev_iommu_priv_get(dev);
-	domain   = dev_data->domain;
+	bool ppr = dev_data->ppr;
 
 	spin_lock_irqsave(&domain->lock, flags);
 
@@ -2150,7 +2158,18 @@ static void detach_device(struct device *dev)
 	if (WARN_ON(!dev_data->domain))
 		goto out;
 
+	if (ppr) {
+		iopf_queue_flush_dev(dev);
+
+		/* Updated here so that it gets reflected in DTE */
+		dev_data->ppr = false;
+	}
+
 	do_detach(dev_data);
+
+	/* Remove IOPF handler */
+	if (ppr)
+		amd_iommu_iopf_remove_device(iommu, dev_data);
 
 	if (dev_is_pci(dev))
 		pdev_disable_caps(to_pci_dev(dev));
@@ -2814,9 +2833,11 @@ static const struct iommu_dirty_ops amd_dirty_ops = {
 static int amd_iommu_dev_enable_feature(struct device *dev,
 					enum iommu_dev_features feat)
 {
-	int ret;
+	int ret = 0;
 
 	switch (feat) {
+	case IOMMU_DEV_FEAT_IOPF:
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -2827,9 +2848,11 @@ static int amd_iommu_dev_enable_feature(struct device *dev,
 static int amd_iommu_dev_disable_feature(struct device *dev,
 					 enum iommu_dev_features feat)
 {
-	int ret;
+	int ret = 0;
 
 	switch (feat) {
+	case IOMMU_DEV_FEAT_IOPF:
+		break;
 	default:
 		ret = -EINVAL;
 		break;
