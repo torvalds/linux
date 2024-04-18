@@ -74,6 +74,7 @@ static const struct hw_sequencer_funcs dcn314_funcs = {
 	.set_avmute = dcn30_set_avmute,
 	.log_hw_state = dcn10_log_hw_state,
 	.get_hw_state = dcn10_get_hw_state,
+	.log_color_state = dcn30_log_color_state,
 	.clear_status_bits = dcn10_clear_status_bits,
 	.wait_for_mpcc_disconnect = dcn10_wait_for_mpcc_disconnect,
 	.edp_backlight_control = dce110_edp_backlight_control,
