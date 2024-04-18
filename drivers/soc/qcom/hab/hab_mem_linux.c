@@ -317,7 +317,8 @@ err:
 static int habmem_compress_pfns(
 		struct export_desc_super *exp_super,
 		struct compressed_pfns *pfns,
-		uint32_t *data_size)
+		uint32_t *data_size,
+		int mmid_grp_index)
 {
 	int ret = 0;
 	struct exp_platform_data *platform_data =
@@ -349,7 +350,7 @@ static int habmem_compress_pfns(
 
 	/* DMA buffer from fd */
 	if (dmabuf->ops != &dma_buf_ops) {
-		attach = dma_buf_attach(dmabuf, hab_driver.dev);
+		attach = dma_buf_attach(dmabuf, hab_driver.dev[mmid_grp_index]);
 		if (IS_ERR_OR_NULL(attach)) {
 			pr_err("dma_buf_attach failed %d\n", -EBADF);
 			ret = -EBADF;
@@ -491,7 +492,7 @@ static int habmem_add_export_compress(struct virtual_channel *vchan,
 	kref_init(&exp_super->refcount);
 
 	pfns = (struct compressed_pfns *)&exp->payload[0];
-	ret = habmem_compress_pfns(exp_super, pfns, payload_size);
+	ret = habmem_compress_pfns(exp_super, pfns, payload_size, vchan->ctx->mmid_grp_index);
 	if (ret) {
 		pr_err("hab compressed pfns failed %d\n", ret);
 		*payload_size = 0;

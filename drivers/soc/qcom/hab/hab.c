@@ -975,6 +975,8 @@ static int hab_generate_pchan_group(struct local_vmid *settings,
 				HABCFG_GET_KERNEL(settings, i, j));
 	}
 
+	ret += hab_create_cdev_node(HABCFG_GET_MMID(settings, i, j));
+
 	return ret;
 }
 
