@@ -482,10 +482,12 @@ btrfs_get_bdev_and_sb(const char *device_path, blk_mode_t flags, void *holder,
 
 	if (flush)
 		sync_blockdev(bdev);
-	ret = set_blocksize(bdev, BTRFS_BDEV_BLOCKSIZE);
-	if (ret) {
-		fput(*bdev_file);
-		goto error;
+	if (holder) {
+		ret = set_blocksize(bdev, BTRFS_BDEV_BLOCKSIZE);
+		if (ret) {
+			fput(*bdev_file);
+			goto error;
+		}
 	}
 	invalidate_bdev(bdev);
 	*disk_super = btrfs_read_dev_super(bdev);
@@ -498,6 +500,7 @@ btrfs_get_bdev_and_sb(const char *device_path, blk_mode_t flags, void *holder,
 	return 0;
 
 error:
+	*disk_super = NULL;
 	*bdev_file = NULL;
 	return ret;
 }
