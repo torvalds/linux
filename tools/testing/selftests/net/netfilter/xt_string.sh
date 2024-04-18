@@ -37,7 +37,7 @@ hdrlen=$((20 + 8)) # IPv4 + UDP
 add_rule() { # (alg, from, to)
 	ip netns exec "$netns" \
 		iptables -A OUTPUT -o d0 -m string \
-			--string "$pattern" --algo $1 --from $2 --to $3
+			--string "$pattern" --algo "$1" --from "$2" --to "$3"
 }
 showrules() { # ()
 	ip netns exec "$netns" iptables -v -S OUTPUT | grep '^-A'
@@ -49,10 +49,10 @@ countrule() { # (pattern)
 	showrules | grep -c -- "$*"
 }
 send() { # (offset)
-	( for ((i = 0; i < $1 - $hdrlen; i++)); do
-		printf " "
+	( for ((i = 0; i < $1 - hdrlen; i++)); do
+		echo -n " "
 	  done
-	  printf "$pattern"
+	  echo -n "$pattern"
 	) > "$infile"
 
 	ip netns exec "$netns" socat -t 1 -u STDIN UDP-SENDTO:10.1.2.2:27374 < "$infile"
@@ -65,8 +65,8 @@ add_rule kmp 1400 1600
 
 zerorules
 send 0
-send $((1000 - $patlen))
-if [ $(countrule -c 0 0) -ne 4 ]; then
+send $((1000 - patlen))
+if [ "$(countrule -c 0 0)" -ne 4 ]; then
 	echo "FAIL: rules match data before --from"
 	showrules
 	((rc--))
@@ -74,16 +74,16 @@ fi
 
 zerorules
 send 1000
-send $((1400 - $patlen))
-if [ $(countrule -c 2) -ne 2 ]; then
+send $((1400 - patlen))
+if [ "$(countrule -c 2)" -ne 2 ]; then
 	echo "FAIL: only two rules should match at low offset"
 	showrules
 	((rc--))
 fi
 
 zerorules
-send $((1500 - $patlen))
-if [ $(countrule -c 1) -ne 4 ]; then
+send $((1500 - patlen))
+if [ "$(countrule -c 1)" -ne 4 ]; then
 	echo "FAIL: all rules should match at end of packet"
 	showrules
 	((rc--))
@@ -91,7 +91,7 @@ fi
 
 zerorules
 send 1495
-if [ $(countrule -c 1) -ne 1 ]; then
+if [ "$(countrule -c 1)" -ne 1 ]; then
 	echo "FAIL: only kmp with proper --to should match pattern spanning fragments"
 	showrules
 	((rc--))
@@ -99,23 +99,23 @@ fi
 
 zerorules
 send 1500
-if [ $(countrule -c 1) -ne 2 ]; then
+if [ "$(countrule -c 1)" -ne 2 ]; then
 	echo "FAIL: two rules should match pattern at start of second fragment"
 	showrules
 	((rc--))
 fi
 
 zerorules
-send $((1600 - $patlen))
-if [ $(countrule -c 1) -ne 2 ]; then
+send $((1600 - patlen))
+if [ "$(countrule -c 1)" -ne 2 ]; then
 	echo "FAIL: two rules should match pattern at end of largest --to"
 	showrules
 	((rc--))
 fi
 
 zerorules
-send $((1600 - $patlen + 1))
-if [ $(countrule -c 1) -ne 0 ]; then
+send $((1600 - patlen + 1))
+if [ "$(countrule -c 1)" -ne 0 ]; then
 	echo "FAIL: no rules should match pattern extending largest --to"
 	showrules
 	((rc--))
@@ -123,7 +123,7 @@ fi
 
 zerorules
 send 1600
-if [ $(countrule -c 1) -ne 0 ]; then
+if [ "$(countrule -c 1)" -ne 0 ]; then
 	echo "FAIL: no rule should match pattern past largest --to"
 	showrules
 	((rc--))
