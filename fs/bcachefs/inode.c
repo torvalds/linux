@@ -534,12 +534,13 @@ fsck_err:
 static void __bch2_inode_unpacked_to_text(struct printbuf *out,
 					  struct bch_inode_unpacked *inode)
 {
+	prt_printf(out, "\n");
 	printbuf_indent_add(out, 2);
 	prt_printf(out, "mode=%o\n", inode->bi_mode);
 
 	prt_str(out, "flags=");
 	prt_bitflags(out, bch2_inode_flag_strs, inode->bi_flags & ((1U << 20) - 1));
-	prt_printf(out, " (%x)\n", inode->bi_flags);
+	prt_printf(out, "(%x)\n", inode->bi_flags);
 
 	prt_printf(out, "journal_seq=%llu\n",	inode->bi_journal_seq);
 	prt_printf(out, "bi_size=%llu\n",	inode->bi_size);
