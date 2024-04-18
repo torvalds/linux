@@ -547,8 +547,10 @@ static void ieee80211_change_chanctx(struct ieee80211_local *local,
 	_ieee80211_change_chanctx(local, ctx, old_ctx, chanreq, NULL);
 }
 
+/* Note: if successful, the returned chanctx is reserved for the link */
 static struct ieee80211_chanctx *
 ieee80211_find_chanctx(struct ieee80211_local *local,
+		       struct ieee80211_link_data *link,
 		       const struct ieee80211_chan_req *chanreq,
 		       enum ieee80211_chanctx_mode mode)
 {
@@ -558,6 +560,9 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 	lockdep_assert_wiphy(local->hw.wiphy);
 
 	if (mode == IEEE80211_CHANCTX_EXCLUSIVE)
+		return NULL;
+
+	if (WARN_ON(link->reserved_chanctx))
 		return NULL;
 
 	list_for_each_entry(ctx, &local->chanctx_list, list) {
@@ -577,6 +582,16 @@ ieee80211_find_chanctx(struct ieee80211_local *local,
 							    compat, &tmp);
 		if (!compat)
 			continue;
+
+		/*
+		 * Reserve the chanctx temporarily, as the driver might change
+		 * active links during callbacks we make into it below and/or
+		 * later during assignment, which could (otherwise) cause the
+		 * context to actually be removed.
+		 */
+		link->reserved_chanctx = ctx;
+		list_add(&link->reserved_chanctx_list,
+			 &ctx->reserved_links);
 
 		ieee80211_change_chanctx(local, ctx, ctx, compat);
 
@@ -1701,6 +1716,7 @@ int ieee80211_link_use_channel(struct ieee80211_link_data *link,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx *ctx;
 	u8 radar_detect_width = 0;
+	bool reserved = false;
 	int ret;
 
 	lockdep_assert_wiphy(local->hw.wiphy);
@@ -1727,8 +1743,11 @@ int ieee80211_link_use_channel(struct ieee80211_link_data *link,
 
 	__ieee80211_link_release_channel(link, false);
 
-	ctx = ieee80211_find_chanctx(local, chanreq, mode);
-	if (!ctx)
+	ctx = ieee80211_find_chanctx(local, link, chanreq, mode);
+	/* Note: context is now reserved */
+	if (ctx)
+		reserved = true;
+	else
 		ctx = ieee80211_new_chanctx(local, chanreq, mode);
 	if (IS_ERR(ctx)) {
 		ret = PTR_ERR(ctx);
@@ -1738,6 +1757,14 @@ int ieee80211_link_use_channel(struct ieee80211_link_data *link,
 	ieee80211_link_update_chanreq(link, chanreq);
 
 	ret = ieee80211_assign_link_chanctx(link, ctx);
+
+	if (reserved) {
+		/* remove reservation */
+		WARN_ON(link->reserved_chanctx != ctx);
+		link->reserved_chanctx = NULL;
+		list_del(&link->reserved_chanctx_list);
+	}
+
 	if (ret) {
 		/* if assign fails refcount stays the same */
 		if (ieee80211_chanctx_refcount(local, ctx) == 0)
