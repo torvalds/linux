@@ -207,7 +207,7 @@ static int i2c_mux_gpio_probe(struct platform_device *pdev)
 	for (i = 0; i < mux->data.n_values; i++) {
 		u32 nr = mux->data.base_nr ? (mux->data.base_nr + i) : 0;
 
-		ret = i2c_mux_add_adapter(muxc, nr, mux->data.values[i], 0);
+		ret = i2c_mux_add_adapter(muxc, nr, mux->data.values[i]);
 		if (ret)
 			goto add_adapter_failed;
 	}

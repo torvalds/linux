@@ -1866,7 +1866,7 @@ static int m88ds3103_probe(struct i2c_client *client)
 		goto err_kfree;
 	}
 	dev->muxc->priv = dev;
-	ret = i2c_mux_add_adapter(dev->muxc, 0, 0, 0);
+	ret = i2c_mux_add_adapter(dev->muxc, 0, 0);
 	if (ret)
 		goto err_kfree;
 

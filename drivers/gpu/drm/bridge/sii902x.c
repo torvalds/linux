@@ -1092,7 +1092,7 @@ static int sii902x_init(struct sii902x *sii902x)
 	}
 
 	sii902x->i2cmux->priv = sii902x;
-	ret = i2c_mux_add_adapter(sii902x->i2cmux, 0, 0, 0);
+	ret = i2c_mux_add_adapter(sii902x->i2cmux, 0, 0);
 	if (ret)
 		goto err_unreg_audio;
 
