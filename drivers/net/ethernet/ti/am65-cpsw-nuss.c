@@ -391,6 +391,9 @@ static void am65_cpsw_destroy_xdp_rxqs(struct am65_cpsw_common *common)
 	int i;
 
 	for (i = 0; i < common->port_num; i++) {
+		if (!common->ports[i].ndev)
+			continue;
+
 		rxq = &common->ports[i].xdp_rxq;
 
 		if (xdp_rxq_info_is_reg(rxq))
@@ -426,6 +429,9 @@ static int am65_cpsw_create_xdp_rxqs(struct am65_cpsw_common *common)
 	rx_chn->page_pool = pool;
 
 	for (i = 0; i < common->port_num; i++) {
+		if (!common->ports[i].ndev)
+			continue;
+
 		rxq = &common->ports[i].xdp_rxq;
 
 		ret = xdp_rxq_info_reg(rxq, common->ports[i].ndev, i, 0);
