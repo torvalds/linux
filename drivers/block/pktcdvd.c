@@ -2215,7 +2215,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, bool write)
 		}
 		dev_info(ddev, "%lukB available on disc\n", lba << 1);
 	}
-	set_blocksize(file_bdev(bdev_file), CD_FRAMESIZE);
+	set_blocksize(bdev_file, CD_FRAMESIZE);
 
 	return 0;
 
