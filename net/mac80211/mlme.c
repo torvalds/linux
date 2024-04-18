@@ -753,8 +753,10 @@ again:
 	}
 
 	/* the mode can only decrease, so this must terminate */
-	if (ap_mode != conn->mode)
+	if (ap_mode != conn->mode) {
+		kfree(elems);
 		goto again;
+	}
 
 	mlme_link_id_dbg(sdata, link_id,
 			 "connecting with %s mode, max bandwidth %d MHz\n",
