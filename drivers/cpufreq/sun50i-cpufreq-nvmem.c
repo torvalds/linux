@@ -58,6 +58,41 @@ static const struct of_device_id cpu_opp_match_list[] = {
 };
 
 /**
+ * dt_has_supported_hw() - Check if any OPPs use opp-supported-hw
+ *
+ * If we ask the cpufreq framework to use the opp-supported-hw feature, it
+ * will ignore every OPP node without that DT property. If none of the OPPs
+ * have it, the driver will fail probing, due to the lack of OPPs.
+ *
+ * Returns true if we have at least one OPP with the opp-supported-hw property.
+ */
+static bool dt_has_supported_hw(void)
+{
+	bool has_opp_supported_hw = false;
+	struct device_node *np, *opp;
+	struct device *cpu_dev;
+
+	cpu_dev = get_cpu_device(0);
+	if (!cpu_dev)
+		return -ENODEV;
+
+	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
+	if (!np)
+		return -ENOENT;
+
+	for_each_child_of_node(np, opp) {
+		if (of_find_property(opp, "opp-supported-hw", NULL)) {
+			has_opp_supported_hw = true;
+			break;
+		}
+	}
+
+	of_node_put(np);
+
+	return has_opp_supported_hw;
+}
+
+/**
  * sun50i_cpufreq_get_efuse() - Determine speed grade from efuse value
  *
  * Returns non-negative speed bin index on success, a negative error
@@ -110,7 +145,8 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 {
 	int *opp_tokens;
 	char name[MAX_NAME_LEN];
-	unsigned int cpu;
+	unsigned int cpu, supported_hw;
+	struct dev_pm_opp_config config = {};
 	int speed;
 	int ret;
 
@@ -125,7 +161,18 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 		return speed;
 	}
 
+	/*
+	 * We need at least one OPP with the "opp-supported-hw" property,
+	 * or else the upper layers will ignore every OPP and will bail out.
+	 */
+	if (dt_has_supported_hw()) {
+		supported_hw = 1U << speed;
+		config.supported_hw = &supported_hw;
+		config.supported_hw_count = 1;
+	}
+
 	snprintf(name, MAX_NAME_LEN, "speed%d", speed);
+	config.prop_name = name;
 
 	for_each_possible_cpu(cpu) {
 		struct device *cpu_dev = get_cpu_device(cpu);
@@ -135,12 +182,11 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 			goto free_opp;
 		}
 
-		opp_tokens[cpu] = dev_pm_opp_set_prop_name(cpu_dev, name);
-		if (opp_tokens[cpu] < 0) {
-			ret = opp_tokens[cpu];
-			pr_err("Failed to set prop name\n");
+		ret = dev_pm_opp_set_config(cpu_dev, &config);
+		if (ret < 0)
 			goto free_opp;
-		}
+
+		opp_tokens[cpu] = ret;
 	}
 
 	cpufreq_dt_pdev = platform_device_register_simple("cpufreq-dt", -1,
@@ -155,7 +201,7 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 
 free_opp:
 	for_each_possible_cpu(cpu)
-		dev_pm_opp_put_prop_name(opp_tokens[cpu]);
+		dev_pm_opp_clear_config(opp_tokens[cpu]);
 	kfree(opp_tokens);
 
 	return ret;
@@ -169,7 +215,7 @@ static void sun50i_cpufreq_nvmem_remove(struct platform_device *pdev)
 	platform_device_unregister(cpufreq_dt_pdev);
 
 	for_each_possible_cpu(cpu)
-		dev_pm_opp_put_prop_name(opp_tokens[cpu]);
+		dev_pm_opp_clear_config(opp_tokens[cpu]);
 
 	kfree(opp_tokens);
 }
