@@ -762,23 +762,11 @@ void dcn316_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_param
 				break;
 			}
 		}
-		// Ported from DCN315
-		if (clk_table->num_entries == 1) {
-			/*smu gives one DPM level, let's take the highest one*/
-			closest_clk_lvl = dcn3_16_soc.num_states - 1;
-		}
 
 		s[i].state = i;
 
 		/* Clocks dependent on voltage level. */
 		s[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
-		if (clk_table->num_entries == 1 &&
-		    s[i].dcfclk_mhz <
-		    dcn3_16_soc.clock_limits[closest_clk_lvl].dcfclk_mhz) {
-			/*SMU fix not released yet*/
-			s[i].dcfclk_mhz =
-				dcn3_16_soc.clock_limits[closest_clk_lvl].dcfclk_mhz;
-		}
 		s[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
 		s[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
 		s[i].dram_speed_mts = clk_table->entries[i].memclk_mhz *
