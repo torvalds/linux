@@ -609,6 +609,26 @@ static int rtl8192cu_power_on(struct rtl8xxxu_priv *priv)
 	return 0;
 }
 
+static int rtl8192cu_led_brightness_set(struct led_classdev *led_cdev,
+					enum led_brightness brightness)
+{
+	struct rtl8xxxu_priv *priv = container_of(led_cdev,
+						  struct rtl8xxxu_priv,
+						  led_cdev);
+	u8 ledcfg = rtl8xxxu_read8(priv, REG_LEDCFG0);
+
+	if (brightness == LED_OFF)
+		ledcfg = LEDCFG2_SW_LED_CONTROL | LEDCFG2_SW_LED_DISABLE;
+	else if (brightness == LED_ON)
+		ledcfg = LEDCFG2_SW_LED_CONTROL;
+	else if (brightness == RTL8XXXU_HW_LED_CONTROL)
+		ledcfg = LEDCFG2_HW_LED_CONTROL | LEDCFG2_HW_LED_ENABLE;
+
+	rtl8xxxu_write8(priv, REG_LEDCFG0, ledcfg);
+
+	return 0;
+}
+
 struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.identify_chip = rtl8192cu_identify_chip,
 	.parse_efuse = rtl8192cu_parse_efuse,
@@ -635,6 +655,7 @@ struct rtl8xxxu_fileops rtl8192cu_fops = {
 	.report_rssi = rtl8xxxu_gen1_report_rssi,
 	.fill_txdesc = rtl8xxxu_fill_txdesc_v1,
 	.cck_rssi = rtl8723a_cck_rssi,
+	.led_classdev_brightness_set = rtl8192cu_led_brightness_set,
 	.writeN_block_size = 128,
 	.rx_agg_buf_size = 16000,
 	.tx_desc_size = sizeof(struct rtl8xxxu_txdesc32),
