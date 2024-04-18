@@ -616,7 +616,6 @@ ieee80211_determine_chan_mode(struct ieee80211_sub_if_data *sdata,
 		.from_ap = true,
 		.start = ies->data,
 		.len = ies->len,
-		.mode = conn->mode,
 	};
 	struct ieee802_11_elems *elems;
 	struct ieee80211_supported_band *sband;
@@ -625,6 +624,7 @@ ieee80211_determine_chan_mode(struct ieee80211_sub_if_data *sdata,
 	int ret;
 
 again:
+	parse_params.mode = conn->mode;
 	elems = ieee802_11_parse_elems_full(&parse_params);
 	if (!elems)
 		return ERR_PTR(-ENOMEM);
