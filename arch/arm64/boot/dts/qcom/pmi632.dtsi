@@ -200,5 +200,11 @@
 
 			status = "disabled";
 		};
+
+		pmi632_vib: vibrator@5700 {
+			compatible = "qcom,pmi632-vib";
+			reg = <0x5700>;
+			status = "disabled";
+		};
 	};
 };
