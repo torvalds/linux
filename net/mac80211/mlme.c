@@ -5844,8 +5844,11 @@ static void ieee80211_ml_reconfiguration(struct ieee80211_sub_if_data *sdata,
 			continue;
 		}
 
-		link_delay = link_conf->beacon_int *
-			link_removal_timeout[link_id];
+		if (link_removal_timeout[link_id] < 1)
+			link_delay = 0;
+		else
+			link_delay = link_conf->beacon_int *
+				(link_removal_timeout[link_id] - 1);
 
 		if (!delay)
 			delay = link_delay;
