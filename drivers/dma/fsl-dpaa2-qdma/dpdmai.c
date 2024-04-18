@@ -251,6 +251,7 @@ EXPORT_SYMBOL_GPL(dpdmai_get_attributes);
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPDMAI object
+ * @queue_idx:	DMA queue index
  * @priority:	Select the queue relative to number of
  *		priorities configured at DPDMAI creation
  * @cfg:	Rx queue configuration
@@ -286,6 +287,7 @@ EXPORT_SYMBOL_GPL(dpdmai_set_rx_queue);
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPDMAI object
+ * @queue_idx:	DMA Queue index
  * @priority:	Select the queue relative to number of
  *				priorities configured at DPDMAI creation
  * @attr:	Returned Rx queue attributes
@@ -328,9 +330,10 @@ EXPORT_SYMBOL_GPL(dpdmai_get_rx_queue);
  * @mc_io:	Pointer to MC portal's I/O object
  * @cmd_flags:	Command flags; one or more of 'MC_CMD_FLAG_'
  * @token:	Token of DPDMAI object
+ * @queue_idx:	DMA queue index
  * @priority:	Select the queue relative to number of
  *			priorities configured at DPDMAI creation
- * @fqid:	Returned Tx queue
+ * @attr:	Returned DMA Tx queue attributes
  *
  * Return:	'0' on Success; Error code otherwise.
  */

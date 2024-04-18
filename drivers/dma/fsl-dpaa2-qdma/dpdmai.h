@@ -45,25 +45,26 @@
  * Contains initialization APIs and runtime control APIs for DPDMAI
  */
 
-/**
+/*
  * Maximum number of Tx/Rx priorities per DPDMAI object
  */
 #define DPDMAI_PRIO_NUM		2
 
 /* DPDMAI queue modification options */
 
-/**
+/*
  * Select to modify the user's context associated with the queue
  */
 #define DPDMAI_QUEUE_OPT_USER_CTX	0x1
 
-/**
+/*
  * Select to modify the queue's destination
  */
 #define DPDMAI_QUEUE_OPT_DEST		0x2
 
 /**
  * struct dpdmai_cfg - Structure representing DPDMAI configuration
+ * @num_queues:	Number of the DMA queues
  * @priorities: Priorities for the DMA hardware processing; valid priorities are
  *	configured with values 1-8; the entry following last valid entry
  *	should be configured with 0
@@ -77,15 +78,13 @@ struct dpdmai_cfg {
  * struct dpdmai_attr - Structure representing DPDMAI attributes
  * @id: DPDMAI object ID
  * @version: DPDMAI version
+ * @version.major: DPDMAI major version
+ * @version.minor: DPDMAI minor version
  * @num_of_priorities: number of priorities
+ * @num_of_queues: number of the DMA queues
  */
 struct dpdmai_attr {
 	int	id;
-	/**
-	 * struct version - DPDMAI version
-	 * @major: DPDMAI major version
-	 * @minor: DPDMAI minor version
-	 */
 	struct {
 		u16 major;
 		u16 minor;
