@@ -2274,9 +2274,18 @@ struct rtw89_btc_fbtc_mreg_val_v2 {
 	__le32 mreg_val[CXMREG_MAX_V2];
 } __packed;
 
+struct rtw89_btc_fbtc_mreg_val_v7 {
+	u8 fver;
+	u8 reg_num;
+	u8 rsvd0;
+	u8 rsvd1;
+	__le32 mreg_val[CXMREG_MAX_V2];
+} __packed;
+
 union rtw89_btc_fbtc_mreg_val {
 	struct rtw89_btc_fbtc_mreg_val_v1 v1;
 	struct rtw89_btc_fbtc_mreg_val_v2 v2;
+	struct rtw89_btc_fbtc_mreg_val_v7 v7;
 };
 
 #define RTW89_DEF_FBTC_MREG(__type, __bytes, __offset) \
