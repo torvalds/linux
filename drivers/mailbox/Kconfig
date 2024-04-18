@@ -23,6 +23,18 @@ config ARM_MHU_V2
 	  Say Y here if you want to build the ARM MHUv2 controller driver,
 	  which provides unidirectional mailboxes between processing elements.
 
+config ARM_MHU_V3
+	tristate "ARM MHUv3 Mailbox"
+	depends on HAS_IOMEM || COMPILE_TEST
+	depends on OF
+	help
+	  Say Y here if you want to build the ARM MHUv3 controller driver,
+	  which provides unidirectional mailboxes between processing elements.
+
+	  ARM MHUv3 controllers can implement a varying number of extensions
+	  that provides different means of transports: supported extensions
+	  will be discovered and possibly managed at probe-time.
+
 config IMX_MBOX
 	tristate "i.MX Mailbox"
 	depends on ARCH_MXC || COMPILE_TEST
