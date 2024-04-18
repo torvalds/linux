@@ -2251,14 +2251,31 @@ enum rtw89_btc_afh_map_type { /*AFH MAP TYPE */
 };
 
 #define BTC_DBG_MAX1  32
-struct rtw89_btc_fbtc_gpio_dbg {
+struct rtw89_btc_fbtc_gpio_dbg_v1 {
 	u8 fver; /* btc_ver::fcxgpiodbg */
 	u8 rsvd;
-	u16 rsvd2;
-	u32 en_map; /* which debug signal (see btc_wl_gpio_debug) is enable */
-	u32 pre_state; /* the debug signal is 1 or 0  */
+	__le16 rsvd2;
+	__le32 en_map; /* which debug signal (see btc_wl_gpio_debug) is enable */
+	__le32 pre_state; /* the debug signal is 1 or 0  */
 	u8 gpio_map[BTC_DBG_MAX1]; /*the debug signals to GPIO-Position */
 } __packed;
+
+struct rtw89_btc_fbtc_gpio_dbg_v7 {
+	u8 fver;
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 rsvd2;
+
+	u8 gpio_map[BTC_DBG_MAX1];
+
+	__le32 en_map;
+	__le32 pre_state;
+} __packed;
+
+union rtw89_btc_fbtc_gpio_dbg {
+	struct rtw89_btc_fbtc_gpio_dbg_v1 v1;
+	struct rtw89_btc_fbtc_gpio_dbg_v7 v7;
+};
 
 struct rtw89_btc_fbtc_mreg_val_v1 {
 	u8 fver; /* btc_ver::fcxmreg */
@@ -2870,7 +2887,7 @@ struct rtw89_btc_rpt_fbtc_mreg {
 
 struct rtw89_btc_rpt_fbtc_gpio_dbg {
 	struct rtw89_btc_rpt_cmn_info cinfo; /* common info, by driver */
-	struct rtw89_btc_fbtc_gpio_dbg finfo; /* info from fw */
+	union rtw89_btc_fbtc_gpio_dbg finfo; /* info from fw */
 };
 
 struct rtw89_btc_rpt_fbtc_btver {
