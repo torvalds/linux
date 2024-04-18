@@ -497,6 +497,17 @@ struct dmub_visual_confirm_color {
 #define DMUB_FW_META_OFFSET 0x24
 
 /**
+ * union dmub_fw_meta_feature_bits - Static feature bits for pre-initialization
+ */
+union dmub_fw_meta_feature_bits {
+	struct {
+		uint32_t shared_state_link_detection : 1; /**< 1 supports link detection via shared state */
+		uint32_t reserved : 31;
+	} bits; /**< status bits */
+	uint32_t all; /**< 32-bit access to status bits */
+};
+
+/**
  * struct dmub_fw_meta_info - metadata associated with fw binary
  *
  * NOTE: This should be considered a stable API. Fields should
@@ -521,6 +532,7 @@ struct dmub_fw_meta_info {
 	uint32_t shared_state_size; /**< size of the shared state region in bytes */
 	uint16_t shared_state_features; /**< number of shared state features */
 	uint16_t reserved2; /**< padding bytes */
+	union dmub_fw_meta_feature_bits feature_bits; /**< static feature bits */
 };
 
 /**
@@ -698,7 +710,8 @@ union dmub_shared_state_ips_fw_signals {
 		uint32_t ips1_commit : 1;  /**< 1 if in IPS1 */
 		uint32_t ips2_commit : 1; /**< 1 if in IPS2 */
 		uint32_t in_idle : 1; /**< 1 if DMCUB is in idle */
-		uint32_t reserved_bits : 29; /**< Reversed */
+		uint32_t detection_required : 1; /**< 1 if detection is required */
+		uint32_t reserved_bits : 28; /**< Reversed */
 	} bits;
 	uint32_t all;
 };

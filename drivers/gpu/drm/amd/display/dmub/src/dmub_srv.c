@@ -510,6 +510,8 @@ enum dmub_status
 	fw_info = dmub_get_fw_meta_info(params);
 
 	if (fw_info) {
+		memcpy(&dmub->meta_info, fw_info, sizeof(*fw_info));
+
 		fw_state_size = fw_info->fw_region_size;
 		trace_buffer_size = fw_info->trace_buffer_size;
 

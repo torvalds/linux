@@ -1460,6 +1460,36 @@ void dc_dmub_srv_set_power_state(struct dc_dmub_srv *dc_dmub_srv, enum dc_acpi_c
 		dmub_srv_set_power_state(dmub, DMUB_POWER_STATE_D3);
 }
 
+bool dc_dmub_srv_should_detect(struct dc_dmub_srv *dc_dmub_srv)
+{
+	volatile const struct dmub_shared_state_ips_fw *ips_fw;
+	bool reallow_idle = false, should_detect = false;
+
+	if (!dc_dmub_srv || !dc_dmub_srv->dmub)
+		return false;
+
+	if (dc_dmub_srv->dmub->shared_state &&
+	    dc_dmub_srv->dmub->meta_info.feature_bits.bits.shared_state_link_detection) {
+		ips_fw = &dc_dmub_srv->dmub->shared_state[DMUB_SHARED_SHARE_FEATURE__IPS_FW].data.ips_fw;
+		return ips_fw->signals.bits.detection_required;
+	}
+
+	/* Detection may require reading scratch 0 - exit out of idle prior to the read. */
+	if (dc_dmub_srv->idle_allowed) {
+		dc_dmub_srv_apply_idle_power_optimizations(dc_dmub_srv->ctx->dc, false);
+		reallow_idle = true;
+	}
+
+	should_detect = dmub_srv_should_detect(dc_dmub_srv->dmub);
+
+	/* Re-enter idle if we're not about to immediately redetect links. */
+	if (!should_detect && reallow_idle && dc_dmub_srv->idle_exit_counter == 0 &&
+	    !dc_dmub_srv->ctx->dc->debug.disable_dmub_reallow_idle)
+		dc_dmub_srv_apply_idle_power_optimizations(dc_dmub_srv->ctx->dc, true);
+
+	return should_detect;
+}
+
 void dc_dmub_srv_apply_idle_power_optimizations(const struct dc *dc, bool allow_idle)
 {
 	struct dc_dmub_srv *dc_dmub_srv = dc->ctx->dmub_srv;
