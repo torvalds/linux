@@ -2073,15 +2073,9 @@ static unsigned int tcp_mss_split_point(const struct sock *sk,
 /* Can at least one segment of SKB be sent right now, according to the
  * congestion window rules?  If so, return how many segments are allowed.
  */
-static inline unsigned int tcp_cwnd_test(const struct tcp_sock *tp,
-					 const struct sk_buff *skb)
+static u32 tcp_cwnd_test(const struct tcp_sock *tp)
 {
 	u32 in_flight, cwnd, halfcwnd;
-
-	/* Don't be strict about the congestion window for the final FIN.  */
-	if ((TCP_SKB_CB(skb)->tcp_flags & TCPHDR_FIN) &&
-	    tcp_skb_pcount(skb) == 1)
-		return 1;
 
 	in_flight = tcp_packets_in_flight(tp);
 	cwnd = tcp_snd_cwnd(tp);
@@ -2706,10 +2700,9 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	unsigned int tso_segs, sent_pkts;
-	int cwnd_quota;
+	u32 cwnd_quota, max_segs;
 	int result;
 	bool is_cwnd_limited = false, is_rwnd_limited = false;
-	u32 max_segs;
 
 	sent_pkts = 0;
 
@@ -2743,7 +2736,7 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		tso_segs = tcp_init_tso_segs(skb, mss_now);
 		BUG_ON(!tso_segs);
 
-		cwnd_quota = tcp_cwnd_test(tp, skb);
+		cwnd_quota = tcp_cwnd_test(tp);
 		if (!cwnd_quota) {
 			if (push_one == 2)
 				/* Force out a loss probe pkt. */
@@ -2772,9 +2765,8 @@ static bool tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 		limit = mss_now;
 		if (tso_segs > 1 && !tcp_urg_mode(tp))
 			limit = tcp_mss_split_point(sk, skb, mss_now,
-						    min_t(unsigned int,
-							  cwnd_quota,
-							  max_segs),
+						    min(cwnd_quota,
+							max_segs),
 						    nonagle);
 
 		if (skb->len > limit &&
