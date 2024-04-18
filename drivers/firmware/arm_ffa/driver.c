@@ -1435,6 +1435,7 @@ static int ffa_init_pcpu_irq(void)
 		if (ret) {
 			pr_err("Error registering percpu SRI nIRQ %d : %d\n",
 			       drv_info->sched_recv_irq, ret);
+			drv_info->sched_recv_irq = 0;
 			return ret;
 		}
 	}
@@ -1446,6 +1447,7 @@ static int ffa_init_pcpu_irq(void)
 		if (ret) {
 			pr_err("Error registering percpu NPI nIRQ %d : %d\n",
 			       drv_info->notif_pend_irq, ret);
+			drv_info->notif_pend_irq = 0;
 			return ret;
 		}
 	}
