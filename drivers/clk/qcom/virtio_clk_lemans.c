@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -134,6 +134,12 @@ static const struct virtio_clk_init_data lemans_gcc_virtio_clocks[] = {
 	[GCC_UFS_CARD_TX_SYMBOL_0_CLK] = {.name = "gcc_ufs_card_tx_symbol_0_clk",},
 	[GCC_UFS_CARD_RX_SYMBOL_0_CLK] = {.name = "gcc_ufs_card_rx_symbol_0_clk",},
 	[GCC_UFS_CARD_RX_SYMBOL_1_CLK] = {.name = "gcc_ufs_card_rx_symbol_1_clk",},
+	[GCC_EMAC1_AXI_CLK] = {.name = "gcc_emac1_axi_clk",},
+	[GCC_EMAC1_SLV_AHB_CLK] = {.name = "gcc_emac1_slv_ahb_clk",},
+	[GCC_EMAC1_PTP_CLK] = {.name = "gcc_emac1_ptp_clk",},
+	[GCC_EMAC1_PHY_AUX_CLK] = {.name = "gcc_emac1_phy_aux_clk",},
+	[GCC_SGMI_CLKREF_EN] = {.name = "gcc_sgmi_clkref_en",},
+	[GCC_EMAC1_RGMII_CLK] = {.name = "gcc_emac1_rgmii_clk",},
 };
 
 static const char * const lemans_gcc_virtio_resets[] = {
