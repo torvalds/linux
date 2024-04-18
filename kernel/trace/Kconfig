@@ -974,6 +974,19 @@ config FTRACE_RECORD_RECURSION_SIZE
 	  This file can be reset, but the limit can not change in
 	  size at runtime.
 
+config FTRACE_VALIDATE_RCU_IS_WATCHING
+	bool "Validate RCU is on during ftrace execution"
+	depends on FUNCTION_TRACER
+	depends on ARCH_WANTS_NO_INSTR
+	help
+	  All callbacks that attach to the function tracing have some sort of
+	  protection against recursion. This option is only to verify that
+	  ftrace (and other users of ftrace_test_recursion_trylock()) are not
+	  called outside of RCU, as if they are, it can cause a race. But it
+	  also has a noticeable overhead when enabled.
+
+	  If unsure, say N
+
 config RING_BUFFER_RECORD_RECURSION
 	bool "Record functions that recurse in the ring buffer"
 	depends on FTRACE_RECORD_RECURSION
