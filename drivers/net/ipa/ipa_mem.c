@@ -1,25 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2023 Linaro Ltd.
+ * Copyright (C) 2019-2024 Linaro Ltd.
  */
 
-#include <linux/types.h>
-#include <linux/bitfield.h>
-#include <linux/bug.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
 #include <linux/iommu.h>
 #include <linux/platform_device.h>
-#include <linux/io.h>
+#include <linux/types.h>
+
 #include <linux/soc/qcom/smem.h>
 
-#include "ipa.h"
-#include "ipa_reg.h"
-#include "ipa_data.h"
-#include "ipa_cmd.h"
-#include "ipa_mem.h"
-#include "ipa_table.h"
 #include "gsi_trans.h"
+#include "ipa.h"
+#include "ipa_cmd.h"
+#include "ipa_data.h"
+#include "ipa_mem.h"
+#include "ipa_reg.h"
+#include "ipa_table.h"
 
 /* "Canary" value placed between memory regions to detect overflow */
 #define IPA_MEM_CANARY_VAL		cpu_to_le32(0xdeadbeef)

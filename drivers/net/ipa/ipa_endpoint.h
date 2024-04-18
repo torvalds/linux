@@ -8,14 +8,14 @@
 
 #include <linux/types.h>
 #include <linux/workqueue.h>
-#include <linux/if_ether.h>
 
-#include "gsi.h"
 #include "ipa_reg.h"
+#include "ipa_version.h"
 
 struct net_device;
 struct sk_buff;
 
+struct gsi_trans;
 struct ipa;
 struct ipa_gsi_endpoint_data;
 

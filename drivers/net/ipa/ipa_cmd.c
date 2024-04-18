@@ -1,22 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2019-2023 Linaro Ltd.
+ * Copyright (C) 2019-2024 Linaro Ltd.
  */
 
-#include <linux/types.h>
-#include <linux/device.h>
-#include <linux/slab.h>
 #include <linux/bitfield.h>
+#include <linux/bits.h>
+#include <linux/device.h>
 #include <linux/dma-direction.h>
+#include <linux/types.h>
 
 #include "gsi.h"
 #include "gsi_trans.h"
 #include "ipa.h"
-#include "ipa_endpoint.h"
-#include "ipa_table.h"
 #include "ipa_cmd.h"
+#include "ipa_endpoint.h"
 #include "ipa_mem.h"
+#include "ipa_reg.h"
+#include "ipa_table.h"
 
 /**
  * DOC:  IPA Immediate Commands

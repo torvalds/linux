@@ -4,25 +4,22 @@
  * Copyright (C) 2018-2023 Linaro Ltd.
  */
 
-#include <linux/types.h>
-#include <linux/kernel.h>
-#include <linux/bits.h>
 #include <linux/bitops.h>
-#include <linux/bitfield.h>
-#include <linux/io.h>
 #include <linux/build_bug.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
+#include <linux/types.h>
 
-#include "ipa.h"
-#include "ipa_version.h"
-#include "ipa_endpoint.h"
-#include "ipa_table.h"
-#include "ipa_reg.h"
-#include "ipa_mem.h"
-#include "ipa_cmd.h"
 #include "gsi.h"
 #include "gsi_trans.h"
+#include "ipa.h"
+#include "ipa_cmd.h"
+#include "ipa_endpoint.h"
+#include "ipa_mem.h"
+#include "ipa_reg.h"
+#include "ipa_table.h"
+#include "ipa_version.h"
 
 /**
  * DOC: IPA Filter and Route Tables

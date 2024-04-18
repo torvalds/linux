@@ -1,38 +1,37 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2023 Linaro Ltd.
+ * Copyright (C) 2018-2024 Linaro Ltd.
  */
 
-#include <linux/types.h>
-#include <linux/atomic.h>
-#include <linux/bitfield.h>
 #include <linux/bug.h>
-#include <linux/io.h>
 #include <linux/firmware.h>
+#include <linux/io.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/types.h>
+
 #include <linux/firmware/qcom/qcom_scm.h>
 #include <linux/soc/qcom/mdt_loader.h>
 
 #include "ipa.h"
-#include "ipa_power.h"
+#include "ipa_cmd.h"
 #include "ipa_data.h"
 #include "ipa_endpoint.h"
-#include "ipa_resource.h"
-#include "ipa_cmd.h"
-#include "ipa_reg.h"
-#include "ipa_mem.h"
-#include "ipa_table.h"
-#include "ipa_smp2p.h"
-#include "ipa_modem.h"
-#include "ipa_uc.h"
 #include "ipa_interrupt.h"
-#include "gsi_trans.h"
+#include "ipa_mem.h"
+#include "ipa_modem.h"
+#include "ipa_power.h"
+#include "ipa_reg.h"
+#include "ipa_resource.h"
+#include "ipa_smp2p.h"
 #include "ipa_sysfs.h"
+#include "ipa_table.h"
+#include "ipa_uc.h"
+#include "ipa_version.h"
 
 /**
  * DOC: The IP Accelerator

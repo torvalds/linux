@@ -1,16 +1,17 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 
 /* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
- * Copyright (C) 2018-2022 Linaro Ltd.
+ * Copyright (C) 2018-2024 Linaro Ltd.
  */
 #ifndef _IPA_POWER_H_
 #define _IPA_POWER_H_
+
+#include <linux/types.h>
 
 struct device;
 
 struct ipa;
 struct ipa_power_data;
-enum ipa_irq_id;
 
 /* IPA device power management function block */
 extern const struct dev_pm_ops ipa_pm_ops;
