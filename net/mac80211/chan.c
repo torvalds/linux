@@ -688,7 +688,8 @@ static int ieee80211_add_chanctx(struct ieee80211_local *local,
 static struct ieee80211_chanctx *
 ieee80211_new_chanctx(struct ieee80211_local *local,
 		      const struct ieee80211_chan_req *chanreq,
-		      enum ieee80211_chanctx_mode mode)
+		      enum ieee80211_chanctx_mode mode,
+		      bool assign_on_failure)
 {
 	struct ieee80211_chanctx *ctx;
 	int err;
@@ -700,10 +701,12 @@ ieee80211_new_chanctx(struct ieee80211_local *local,
 		return ERR_PTR(-ENOMEM);
 
 	err = ieee80211_add_chanctx(local, ctx);
-	if (err) {
+	if (!assign_on_failure && err) {
 		kfree(ctx);
 		return ERR_PTR(err);
 	}
+	/* We ignored a driver error, see _ieee80211_set_active_links */
+	WARN_ON_ONCE(err && !local->in_reconfig);
 
 	list_add_rcu(&ctx->list, &local->chanctx_list);
 	return ctx;
@@ -809,7 +812,8 @@ static void ieee80211_recalc_radar_chanctx(struct ieee80211_local *local,
 }
 
 static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
-					 struct ieee80211_chanctx *new_ctx)
+					 struct ieee80211_chanctx *new_ctx,
+					 bool assign_on_failure)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
@@ -836,7 +840,11 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 		ieee80211_recalc_chanctx_min_def(local, new_ctx, link);
 
 		ret = drv_assign_vif_chanctx(local, sdata, link->conf, new_ctx);
-		if (!ret) {
+		if (assign_on_failure || !ret) {
+			/* Need to continue, see _ieee80211_set_active_links */
+			WARN_ON_ONCE(ret && !local->in_reconfig);
+			ret = 0;
+
 			/* succeeded, so commit it to the data structures */
 			conf = &new_ctx->conf;
 			list_add(&link->assigned_chanctx_list,
@@ -1046,7 +1054,8 @@ int ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 	new_ctx = ieee80211_find_reservation_chanctx(local, chanreq, mode);
 	if (!new_ctx) {
 		if (ieee80211_can_create_new_chanctx(local)) {
-			new_ctx = ieee80211_new_chanctx(local, chanreq, mode);
+			new_ctx = ieee80211_new_chanctx(local, chanreq, mode,
+							false);
 			if (IS_ERR(new_ctx))
 				return PTR_ERR(new_ctx);
 		} else {
@@ -1302,7 +1311,7 @@ ieee80211_link_use_reserved_assign(struct ieee80211_link_data *link)
 	list_del(&link->reserved_chanctx_list);
 	link->reserved_chanctx = NULL;
 
-	err = ieee80211_assign_link_chanctx(link, new_ctx);
+	err = ieee80211_assign_link_chanctx(link, new_ctx, false);
 	if (err) {
 		if (ieee80211_chanctx_refcount(local, new_ctx) == 0)
 			ieee80211_free_chanctx(local, new_ctx, false);
@@ -1698,7 +1707,7 @@ void __ieee80211_link_release_channel(struct ieee80211_link_data *link,
 		ieee80211_link_unreserve_chanctx(link);
 	}
 
-	ieee80211_assign_link_chanctx(link, NULL);
+	ieee80211_assign_link_chanctx(link, NULL, false);
 	if (ieee80211_chanctx_refcount(local, ctx) == 0)
 		ieee80211_free_chanctx(local, ctx, skip_idle_recalc);
 
@@ -1709,9 +1718,10 @@ void __ieee80211_link_release_channel(struct ieee80211_link_data *link,
 		ieee80211_vif_use_reserved_switch(local);
 }
 
-int ieee80211_link_use_channel(struct ieee80211_link_data *link,
-			       const struct ieee80211_chan_req *chanreq,
-			       enum ieee80211_chanctx_mode mode)
+int _ieee80211_link_use_channel(struct ieee80211_link_data *link,
+				const struct ieee80211_chan_req *chanreq,
+				enum ieee80211_chanctx_mode mode,
+				bool assign_on_failure)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
@@ -1749,7 +1759,8 @@ int ieee80211_link_use_channel(struct ieee80211_link_data *link,
 	if (ctx)
 		reserved = true;
 	else
-		ctx = ieee80211_new_chanctx(local, chanreq, mode);
+		ctx = ieee80211_new_chanctx(local, chanreq, mode,
+					    assign_on_failure);
 	if (IS_ERR(ctx)) {
 		ret = PTR_ERR(ctx);
 		goto out;
@@ -1757,7 +1768,7 @@ int ieee80211_link_use_channel(struct ieee80211_link_data *link,
 
 	ieee80211_link_update_chanreq(link, chanreq);
 
-	ret = ieee80211_assign_link_chanctx(link, ctx);
+	ret = ieee80211_assign_link_chanctx(link, ctx, assign_on_failure);
 
 	if (reserved) {
 		/* remove reservation */

@@ -2554,9 +2554,19 @@ bool ieee80211_chanreq_identical(const struct ieee80211_chan_req *a,
 				 const struct ieee80211_chan_req *b);
 
 int __must_check
+_ieee80211_link_use_channel(struct ieee80211_link_data *link,
+			    const struct ieee80211_chan_req *req,
+			    enum ieee80211_chanctx_mode mode,
+			    bool assign_on_failure);
+
+static inline int __must_check
 ieee80211_link_use_channel(struct ieee80211_link_data *link,
 			   const struct ieee80211_chan_req *req,
-			   enum ieee80211_chanctx_mode mode);
+			   enum ieee80211_chanctx_mode mode)
+{
+	return _ieee80211_link_use_channel(link, req, mode, false);
+}
+
 int __must_check
 ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 			       const struct ieee80211_chan_req *req,
