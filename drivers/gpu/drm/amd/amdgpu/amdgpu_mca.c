@@ -267,7 +267,8 @@ static int amdgpu_mca_smu_get_mca_entry(struct amdgpu_device *adev, enum amdgpu_
 	return mca_funcs->mca_get_mca_entry(adev, type, idx, entry);
 }
 
-static int amdgpu_mca_smu_get_mca_set(struct amdgpu_device *adev, enum amdgpu_mca_error_type type, struct mca_bank_set *mca_set)
+static int amdgpu_mca_smu_get_mca_set(struct amdgpu_device *adev, enum amdgpu_mca_error_type type, struct mca_bank_set *mca_set,
+				      struct ras_query_context *qctx)
 {
 	struct mca_bank_entry entry;
 	uint32_t count = 0, i;
@@ -287,6 +288,8 @@ static int amdgpu_mca_smu_get_mca_set(struct amdgpu_device *adev, enum amdgpu_mc
 			return ret;
 
 		amdgpu_mca_bank_set_add_entry(mca_set, &entry);
+
+		amdgpu_mca_smu_mca_bank_dump(adev, i, &entry, qctx);
 	}
 
 	return 0;
@@ -306,35 +309,35 @@ static int amdgpu_mca_smu_parse_mca_error_count(struct amdgpu_device *adev, enum
 	return mca_funcs->mca_parse_mca_error_count(adev, blk, type, entry, count);
 }
 
-int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_block blk, enum amdgpu_mca_error_type type,
-				 struct ras_err_data *err_data, struct ras_query_context *qctx)
+static int amdgpu_mca_dispatch_mca_set(struct amdgpu_device *adev, enum amdgpu_ras_block blk, enum amdgpu_mca_error_type type,
+				       struct mca_bank_set *mca_set, struct ras_err_data *err_data)
 {
+	struct ras_err_addr err_addr;
 	struct amdgpu_smuio_mcm_config_info mcm_info;
-	struct ras_err_addr err_addr = {0};
-	struct mca_bank_set mca_set;
 	struct mca_bank_node *node;
 	struct mca_bank_entry *entry;
 	uint32_t count;
-	int ret, i = 0;
+	int ret;
 
-	amdgpu_mca_bank_set_init(&mca_set);
+	if (!mca_set)
+		return -EINVAL;
 
-	ret = amdgpu_mca_smu_get_mca_set(adev, type, &mca_set);
-	if (ret)
-		goto out_mca_release;
+	if (!mca_set->nr_entries)
+		return 0;
 
-	list_for_each_entry(node, &mca_set.list, node) {
+	list_for_each_entry(node, &mca_set->list, node) {
 		entry = &node->entry;
-
-		amdgpu_mca_smu_mca_bank_dump(adev, i++, entry, qctx);
 
 		count = 0;
 		ret = amdgpu_mca_smu_parse_mca_error_count(adev, blk, type, entry, &count);
 		if (ret)
-			goto out_mca_release;
+			return ret;
 
 		if (!count)
 			continue;
+
+		memset(&mcm_info, 0, sizeof(mcm_info));
+		memset(&err_addr, 0, sizeof(err_addr));
 
 		mcm_info.socket_id = entry->info.socket_id;
 		mcm_info.die_id = entry->info.aid;
@@ -345,18 +348,35 @@ int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_blo
 			err_addr.err_addr = entry->regs[MCA_REG_IDX_ADDR];
 		}
 
-		if (type == AMDGPU_MCA_ERROR_TYPE_UE)
+		if (type == AMDGPU_MCA_ERROR_TYPE_UE) {
 			amdgpu_ras_error_statistic_ue_count(err_data,
-				&mcm_info, &err_addr, (uint64_t)count);
-		else {
+							    &mcm_info, &err_addr, (uint64_t)count);
+		} else {
 			if (amdgpu_mca_is_deferred_error(adev, entry->regs[MCA_REG_IDX_STATUS]))
 				amdgpu_ras_error_statistic_de_count(err_data,
-					&mcm_info, &err_addr, (uint64_t)count);
+								    &mcm_info, &err_addr, (uint64_t)count);
 			else
 				amdgpu_ras_error_statistic_ce_count(err_data,
-					&mcm_info, &err_addr, (uint64_t)count);
+								    &mcm_info, &err_addr, (uint64_t)count);
 		}
 	}
+
+	return 0;
+}
+
+int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_block blk, enum amdgpu_mca_error_type type,
+				 struct ras_err_data *err_data, struct ras_query_context *qctx)
+{
+	struct mca_bank_set mca_set;
+	int ret;
+
+	amdgpu_mca_bank_set_init(&mca_set);
+
+	ret = amdgpu_mca_smu_get_mca_set(adev, type, &mca_set, qctx);
+	if (ret)
+		goto out_mca_release;
+
+	ret = amdgpu_mca_dispatch_mca_set(adev, blk, type, &mca_set, err_data);
 
 out_mca_release:
 	amdgpu_mca_bank_set_release(&mca_set);
@@ -402,36 +422,29 @@ static void mca_dump_entry(struct seq_file *m, struct mca_bank_entry *entry)
 static int mca_dump_show(struct seq_file *m, enum amdgpu_mca_error_type type)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
-	struct mca_bank_entry *entry;
-	uint32_t count = 0;
-	int i, ret;
+	struct mca_bank_node *node;
+	struct mca_bank_set mca_set;
+	struct ras_query_context qctx;
+	int ret;
 
-	ret = amdgpu_mca_smu_get_valid_mca_count(adev, type, &count);
+	amdgpu_mca_bank_set_init(&mca_set);
+
+	qctx.event_id = 0ULL;
+	ret = amdgpu_mca_smu_get_mca_set(adev, type, &mca_set, &qctx);
 	if (ret)
-		return ret;
+		goto err_free_mca_set;
 
 	seq_printf(m, "amdgpu smu %s valid mca count: %d\n",
-		   type == AMDGPU_MCA_ERROR_TYPE_UE ? "UE" : "CE", count);
+		   type == AMDGPU_MCA_ERROR_TYPE_UE ? "UE" : "CE", mca_set.nr_entries);
 
-	if (!count)
-		return 0;
+	if (!mca_set.nr_entries)
+		goto err_free_mca_set;
 
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return -ENOMEM;
+	list_for_each_entry(node, &mca_set.list, node)
+		mca_dump_entry(m, &node->entry);
 
-	for (i = 0; i < count; i++) {
-		memset(entry, 0, sizeof(*entry));
-
-		ret = amdgpu_mca_smu_get_mca_entry(adev, type, i, entry);
-		if (ret)
-			goto err_free_entry;
-
-		mca_dump_entry(m, entry);
-	}
-
-err_free_entry:
-	kfree(entry);
+err_free_mca_set:
+	amdgpu_mca_bank_set_release(&mca_set);
 
 	return ret;
 }
