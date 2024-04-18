@@ -16,6 +16,7 @@ FILES=(
   "include/uapi/linux/in.h"
   "include/uapi/linux/perf_event.h"
   "include/uapi/linux/seccomp.h"
+  "include/uapi/linux/stat.h"
   "include/linux/bits.h"
   "include/vdso/bits.h"
   "include/linux/const.h"
