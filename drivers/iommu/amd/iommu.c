@@ -2104,6 +2104,7 @@ static struct iommu_device *amd_iommu_probe_device(struct device *dev)
 {
 	struct iommu_device *iommu_dev;
 	struct amd_iommu *iommu;
+	struct iommu_dev_data *dev_data;
 	int ret;
 
 	if (!check_device(dev))
@@ -2128,6 +2129,17 @@ static struct iommu_device *amd_iommu_probe_device(struct device *dev)
 	} else {
 		amd_iommu_set_pci_msi_domain(dev, iommu);
 		iommu_dev = &iommu->iommu;
+	}
+
+	/*
+	 * If IOMMU and device supports PASID then it will contain max
+	 * supported PASIDs, else it will be zero.
+	 */
+	dev_data = dev_iommu_priv_get(dev);
+	if (amd_iommu_pasid_supported() && dev_is_pci(dev) &&
+	    pdev_pasid_supported(dev_data)) {
+		dev_data->max_pasids = min_t(u32, iommu->iommu.max_pasids,
+					     pci_max_pasids(to_pci_dev(dev)));
 	}
 
 	iommu_completion_wait(iommu);
