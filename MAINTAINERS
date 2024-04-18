@@ -7829,9 +7829,8 @@ W:	http://aeschi.ch.eu.org/efs/
 F:	fs/efs/
 
 EHEA (IBM pSeries eHEA 10Gb ethernet adapter) DRIVER
-M:	Douglas Miller <dougmill@linux.ibm.com>
 L:	netdev@vger.kernel.org
-S:	Maintained
+S:	Orphan
 F:	drivers/net/ethernet/ibm/ehea/
 
 ELM327 CAN NETWORK DRIVER
