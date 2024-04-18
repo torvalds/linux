@@ -139,3 +139,9 @@ void amd_iommu_iopf_uninit(struct amd_iommu *iommu)
 	iopf_queue_free(iommu->iopf_queue);
 	iommu->iopf_queue = NULL;
 }
+
+void amd_iommu_page_response(struct device *dev, struct iopf_fault *evt,
+			     struct iommu_page_response *resp)
+{
+	amd_iommu_complete_ppr(dev, resp->pasid, resp->code, resp->grpid);
+}
