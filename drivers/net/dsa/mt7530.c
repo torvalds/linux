@@ -74,81 +74,6 @@ static const struct mt7530_mib_desc mt7530_mib[] = {
 	MIB_DESC(1, 0xb8, "RxArlDrop"),
 };
 
-/* Since phy_device has not yet been created and
- * phy_{read,write}_mmd_indirect is not available, we provide our own
- * core_{read,write}_mmd_indirect with core_{clear,write,set} wrappers
- * to complete this function.
- */
-static int
-core_read_mmd_indirect(struct mt7530_priv *priv, int prtad, int devad)
-{
-	struct mii_bus *bus = priv->bus;
-	int value, ret;
-
-	/* Write the desired MMD Devad */
-	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
-			 MII_MMD_CTRL, devad);
-	if (ret < 0)
-		goto err;
-
-	/* Write the desired MMD register address */
-	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
-			 MII_MMD_DATA, prtad);
-	if (ret < 0)
-		goto err;
-
-	/* Select the Function : DATA with no post increment */
-	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
-			 MII_MMD_CTRL, devad | MII_MMD_CTRL_NOINCR);
-	if (ret < 0)
-		goto err;
-
-	/* Read the content of the MMD's selected register */
-	value = bus->read(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
-			  MII_MMD_DATA);
-
-	return value;
-err:
-	dev_err(&bus->dev,  "failed to read mmd register\n");
-
-	return ret;
-}
-
-static int
-core_write_mmd_indirect(struct mt7530_priv *priv, int prtad,
-			int devad, u32 data)
-{
-	struct mii_bus *bus = priv->bus;
-	int ret;
-
-	/* Write the desired MMD Devad */
-	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
-			 MII_MMD_CTRL, devad);
-	if (ret < 0)
-		goto err;
-
-	/* Write the desired MMD register address */
-	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
-			 MII_MMD_DATA, prtad);
-	if (ret < 0)
-		goto err;
-
-	/* Select the Function : DATA with no post increment */
-	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
-			 MII_MMD_CTRL, devad | MII_MMD_CTRL_NOINCR);
-	if (ret < 0)
-		goto err;
-
-	/* Write the data into MMD's selected register */
-	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
-			 MII_MMD_DATA, data);
-err:
-	if (ret < 0)
-		dev_err(&bus->dev,
-			"failed to write mmd register\n");
-	return ret;
-}
-
 static void
 mt7530_mutex_lock(struct mt7530_priv *priv)
 {
@@ -166,9 +91,35 @@ mt7530_mutex_unlock(struct mt7530_priv *priv)
 static void
 core_write(struct mt7530_priv *priv, u32 reg, u32 val)
 {
+	struct mii_bus *bus = priv->bus;
+	int ret;
+
 	mt7530_mutex_lock(priv);
 
-	core_write_mmd_indirect(priv, reg, MDIO_MMD_VEND2, val);
+	/* Write the desired MMD Devad */
+	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
+			 MII_MMD_CTRL, MDIO_MMD_VEND2);
+	if (ret < 0)
+		goto err;
+
+	/* Write the desired MMD register address */
+	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
+			 MII_MMD_DATA, reg);
+	if (ret < 0)
+		goto err;
+
+	/* Select the Function : DATA with no post increment */
+	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
+			 MII_MMD_CTRL, MDIO_MMD_VEND2 | MII_MMD_CTRL_NOINCR);
+	if (ret < 0)
+		goto err;
+
+	/* Write the data into MMD's selected register */
+	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
+			 MII_MMD_DATA, val);
+err:
+	if (ret < 0)
+		dev_err(&bus->dev, "failed to write mmd register\n");
 
 	mt7530_mutex_unlock(priv);
 }
@@ -176,14 +127,41 @@ core_write(struct mt7530_priv *priv, u32 reg, u32 val)
 static void
 core_rmw(struct mt7530_priv *priv, u32 reg, u32 mask, u32 set)
 {
+	struct mii_bus *bus = priv->bus;
 	u32 val;
+	int ret;
 
 	mt7530_mutex_lock(priv);
 
-	val = core_read_mmd_indirect(priv, reg, MDIO_MMD_VEND2);
+	/* Write the desired MMD Devad */
+	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
+			 MII_MMD_CTRL, MDIO_MMD_VEND2);
+	if (ret < 0)
+		goto err;
+
+	/* Write the desired MMD register address */
+	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
+			 MII_MMD_DATA, reg);
+	if (ret < 0)
+		goto err;
+
+	/* Select the Function : DATA with no post increment */
+	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
+			 MII_MMD_CTRL, MDIO_MMD_VEND2 | MII_MMD_CTRL_NOINCR);
+	if (ret < 0)
+		goto err;
+
+	/* Read the content of the MMD's selected register */
+	val = bus->read(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
+			MII_MMD_DATA);
 	val &= ~mask;
 	val |= set;
-	core_write_mmd_indirect(priv, reg, MDIO_MMD_VEND2, val);
+	/* Write the data into MMD's selected register */
+	ret = bus->write(bus, MT753X_CTRL_PHY_ADDR(priv->mdiodev->addr),
+			 MII_MMD_DATA, val);
+err:
+	if (ret < 0)
+		dev_err(&bus->dev, "failed to write mmd register\n");
 
 	mt7530_mutex_unlock(priv);
 }
