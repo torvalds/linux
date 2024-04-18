@@ -6,10 +6,32 @@
 SKIP_RC=4
 RC=0
 
+if [ -r /var/run/auditd.pid ];then
+	read pid < /var/run/auditd.pid
+	p=$(pgrep ^auditd$)
+
+	if [ "$pid" -eq "$p" ]; then
+		echo "SKIP: auditd is running"
+		exit $SKIP_RC
+	fi
+fi
+
 nft --version >/dev/null 2>&1 || {
 	echo "SKIP: missing nft tool"
 	exit $SKIP_RC
 }
+
+# nft must be recent enough to support "reset" keyword.
+nft --check -f /dev/stdin >/dev/null 2>&1 <<EOF
+add table t
+add chain t c
+reset rules t c
+EOF
+
+if [ "$?" -ne 0 ];then
+	echo "SKIP: nft reset feature test failed"
+	exit $SKIP_RC
+fi
 
 # Run everything in a separate network namespace
 [ "${1}" != "run" ] && { unshare -n "${0}" run; exit $?; }
@@ -73,7 +95,7 @@ done
 
 for ((i = 0; i < 500; i++)); do
 	echo "add rule t2 c3 counter accept comment \"rule $i\""
-done >$rulefile
+done > "$rulefile"
 do_test "nft -f $rulefile" \
 'table=t2 family=2 entries=500 op=nft_register_rule'
 
@@ -101,7 +123,7 @@ do_test 'nft add counter t2 c1; add counter t2 c2' \
 
 for ((i = 3; i <= 500; i++)); do
 	echo "add counter t2 c$i"
-done >$rulefile
+done > "$rulefile"
 do_test "nft -f $rulefile" \
 'table=t2 family=2 entries=498 op=nft_register_obj'
 
@@ -115,7 +137,7 @@ do_test 'nft add quota t2 q1 { 10 bytes }; add quota t2 q2 { 10 bytes }' \
 
 for ((i = 3; i <= 500; i++)); do
 	echo "add quota t2 q$i { 10 bytes }"
-done >$rulefile
+done > "$rulefile"
 do_test "nft -f $rulefile" \
 'table=t2 family=2 entries=498 op=nft_register_obj'
 
@@ -157,7 +179,7 @@ table=t2 family=2 entries=135 op=nft_reset_rule'
 
 # resetting sets and elements
 
-elem=(22 ,80 ,443)
+elem=(22 ",80" ",443")
 relem=""
 for i in {1..3}; do
 	relem+="${elem[((i - 1))]}"
