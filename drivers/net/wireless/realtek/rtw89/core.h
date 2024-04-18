@@ -1180,9 +1180,13 @@ enum rtw89_btc_ncnt {
 	BTC_NCNT_CUSTOMERIZE,
 	BTC_NCNT_WL_RFK,
 	BTC_NCNT_WL_STA,
+	BTC_NCNT_WL_STA_LAST,
 	BTC_NCNT_FWINFO,
 	BTC_NCNT_TIMER,
-	BTC_NCNT_NUM
+	BTC_NCNT_SWITCH_CHBW,
+	BTC_NCNT_RESUME_DL_FW,
+	BTC_NCNT_COUNTRYCODE,
+	BTC_NCNT_NUM,
 };
 
 enum rtw89_btc_btinfo {
@@ -1211,6 +1215,7 @@ enum rtw89_btc_dcnt {
 	BTC_DCNT_TDMA_NONSYNC,
 	BTC_DCNT_SLOT_NONSYNC,
 	BTC_DCNT_BTCNT_HANG,
+	BTC_DCNT_BTTX_HANG,
 	BTC_DCNT_WL_SLOT_DRIFT,
 	BTC_DCNT_WL_STA_LAST,
 	BTC_DCNT_BT_SLOT_DRIFT,
@@ -1218,7 +1223,10 @@ enum rtw89_btc_dcnt {
 	BTC_DCNT_FDDT_TRIG,
 	BTC_DCNT_E2G,
 	BTC_DCNT_E2G_HANG,
-	BTC_DCNT_NUM
+	BTC_DCNT_WL_FW_VER_MATCH,
+	BTC_DCNT_NULL_TX_FAIL,
+	BTC_DCNT_WL_STA_NTFY,
+	BTC_DCNT_NUM,
 };
 
 enum rtw89_btc_wl_state_cnt {
@@ -1262,8 +1270,10 @@ enum rtw89_btc_bt_state_cnt {
 	BTC_BCNT_LOPRI_TX,
 	BTC_BCNT_LOPRI_RX,
 	BTC_BCNT_POLUT,
+	BTC_BCNT_POLUT_NOW,
+	BTC_BCNT_POLUT_DIFF,
 	BTC_BCNT_RATECHG,
-	BTC_BCNT_NUM
+	BTC_BCNT_NUM,
 };
 
 enum rtw89_btc_bt_profile {
@@ -1675,6 +1685,9 @@ struct rtw89_btc_wl_rfk_info {
 	u32 band: 2;
 	u32 type: 8;
 	u32 rsvd: 14;
+
+	u32 start_time;
+	u32 proc_time;
 };
 
 struct rtw89_btc_bt_smap {
@@ -1813,6 +1826,7 @@ struct rtw89_btc_wl_info {
 	bool pta_reg_mac_chg;
 	bool bg_mode;
 	bool scbd_change;
+	bool fw_ver_mismatch;
 	u32 scbd;
 };
 
@@ -2084,6 +2098,20 @@ struct rtw89_btc_fbtc_rpt_ctrl_info_v5 {
 	__le16 cnt_aoac_rf_off; /* rf-off counter for aoac switch notify */
 } __packed;
 
+struct rtw89_btc_fbtc_rpt_ctrl_info_v8 {
+	__le16 cnt; /* fw report counter */
+	__le16 cnt_c2h; /* fw send c2h counter  */
+	__le16 cnt_h2c; /* fw recv h2c counter */
+	__le16 len_c2h; /* The total length of the last C2H  */
+
+	__le16 cnt_aoac_rf_on;  /* rf-on counter for aoac switch notify */
+	__le16 cnt_aoac_rf_off; /* rf-off counter for aoac switch notify */
+
+	__le32 cx_ver; /* match which driver's coex version */
+	__le32 fw_ver;
+	__le32 en; /* report map */
+} __packed;
+
 struct rtw89_btc_fbtc_rpt_ctrl_wl_fw_info {
 	__le32 cx_ver; /* match which driver's coex version */
 	__le32 cx_offload;
@@ -2140,11 +2168,25 @@ struct rtw89_btc_fbtc_rpt_ctrl_v105 {
 	struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox bt_mbx_info;
 } __packed;
 
+struct rtw89_btc_fbtc_rpt_ctrl_v8 {
+	u8 fver;
+	u8 rsvd0;
+	u8 rpt_len_max_l; /* BTC_RPT_MAX bit0~7 */
+	u8 rpt_len_max_h; /* BTC_RPT_MAX bit8~15 */
+
+	u8 gnt_val[RTW89_PHY_MAX][4];
+	__le16 bt_cnt[BTC_BCNT_STA_MAX_V105];
+
+	struct rtw89_btc_fbtc_rpt_ctrl_info_v8 rpt_info;
+	struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox bt_mbx_info;
+} __packed;
+
 union rtw89_btc_fbtc_rpt_ctrl_ver_info {
 	struct rtw89_btc_fbtc_rpt_ctrl_v1 v1;
 	struct rtw89_btc_fbtc_rpt_ctrl_v4 v4;
 	struct rtw89_btc_fbtc_rpt_ctrl_v5 v5;
 	struct rtw89_btc_fbtc_rpt_ctrl_v105 v105;
+	struct rtw89_btc_fbtc_rpt_ctrl_v8 v8;
 };
 
 enum rtw89_fbtc_ext_ctrl_type {
@@ -2992,6 +3034,7 @@ struct rtw89_btc {
 	u8 btg_pos;
 	u16 policy_len;
 	u16 policy_type;
+	u32 hubmsg_cnt;
 	bool bt_req_en;
 	bool update_policy_force;
 	bool lps;
