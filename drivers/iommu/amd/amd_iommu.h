@@ -46,10 +46,6 @@ extern int amd_iommu_gpt_level;
 
 bool amd_iommu_pasid_supported(void);
 
-/* Device capabilities */
-int amd_iommu_pdev_enable_cap_pri(struct pci_dev *pdev);
-void amd_iommu_pdev_disable_cap_pri(struct pci_dev *pdev);
-
 /* GCR3 setup */
 int amd_iommu_set_gcr3(struct iommu_dev_data *dev_data,
 		       ioasid_t pasid, unsigned long gcr3);
