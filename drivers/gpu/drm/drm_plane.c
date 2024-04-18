@@ -1750,7 +1750,7 @@ int drm_plane_create_scaling_filter_property(struct drm_plane *plane,
 EXPORT_SYMBOL(drm_plane_create_scaling_filter_property);
 
 /**
- * drm_plane_add_size_hint_property - create a size hint property
+ * drm_plane_add_size_hints_property - create a size hints property
  *
  * @plane: drm plane
  * @hints: size hints
