@@ -1807,6 +1807,7 @@ struct rtw89_btc_wl_info {
 	u8 cn_report;
 	u8 coex_mode;
 	u8 pta_req_mac;
+	u8 bt_polut_type[RTW89_PHY_MAX]; /* BT polluted WL-Tx type for phy0/1  */
 
 	bool is_5g_hi_channel;
 	bool pta_reg_mac_chg;

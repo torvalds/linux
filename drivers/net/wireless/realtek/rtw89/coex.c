@@ -3800,21 +3800,32 @@ EXPORT_SYMBOL(rtw89_btc_set_policy_v1);
 static void _set_bt_plut(struct rtw89_dev *rtwdev, u8 phy_map,
 			 u8 tx_val, u8 rx_val)
 {
+	struct rtw89_btc_wl_info *wl = &rtwdev->btc.cx.wl;
 	struct rtw89_mac_ax_plt plt;
 
-	plt.band = RTW89_MAC_0;
 	plt.tx = tx_val;
 	plt.rx = rx_val;
 
-	if (phy_map & BTC_PHY_0)
-		rtw89_mac_cfg_plt(rtwdev, &plt);
+	if (rtwdev->btc.ver->fwlrole == 8) {
+		plt.band = wl->pta_req_mac;
+		if (wl->bt_polut_type[plt.band] == tx_val)
+			return;
 
-	if (!rtwdev->dbcc_en)
-		return;
-
-	plt.band = RTW89_MAC_1;
-	if (phy_map & BTC_PHY_1)
+		wl->bt_polut_type[plt.band] = tx_val;
 		rtw89_mac_cfg_plt(rtwdev, &plt);
+	} else {
+		plt.band = RTW89_MAC_0;
+
+		if (phy_map & BTC_PHY_0)
+			rtw89_mac_cfg_plt(rtwdev, &plt);
+
+		if (!rtwdev->dbcc_en)
+			return;
+
+		plt.band = RTW89_MAC_1;
+		if (phy_map & BTC_PHY_1)
+			rtw89_mac_cfg_plt(rtwdev, &plt);
+	}
 }
 
 static void _set_ant_v0(struct rtw89_dev *rtwdev, bool force_exec,
@@ -7842,6 +7853,21 @@ static void _show_bt_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 #define CASE_BTC_EVT_STR(e) case CXEVNT_## e: return #e
 #define CASE_BTC_INIT(e) case BTC_MODE_## e: return #e
 #define CASE_BTC_ANTPATH_STR(e) case BTC_ANT_##e: return #e
+#define CASE_BTC_POLUT_STR(e) case BTC_PLT_## e: return #e
+
+static const char *id_to_polut(u32 id)
+{
+	switch (id) {
+	CASE_BTC_POLUT_STR(NONE);
+	CASE_BTC_POLUT_STR(GNT_BT_TX);
+	CASE_BTC_POLUT_STR(GNT_BT_RX);
+	CASE_BTC_POLUT_STR(GNT_WL);
+	CASE_BTC_POLUT_STR(BT);
+	CASE_BTC_POLUT_STR(ALL);
+	default:
+		return "unknown";
+	}
+}
 
 static const char *steps_to_str(u16 step)
 {
@@ -9345,12 +9371,13 @@ static void _show_mreg_v2(struct rtw89_dev *rtwdev, struct seq_file *m)
 
 	gnt = gnt_cfg.band[0];
 	seq_printf(m,
-		   " %-15s : pta_owner:%s, phy-0[gnt_wl:%s-%d/gnt_bt:%s-%d], ",
+		   " %-15s : pta_owner:%s, phy-0[gnt_wl:%s-%d/gnt_bt:%s-%d], polut_type:%s",
 		   "[gnt_status]",
 		   chip->chip_id == RTL8852C ? "HW" :
 		   btc->dm.pta_owner == BTC_CTRL_BY_WL ? "WL" : "BT",
 		   gnt.gnt_wl_sw_en ? "SW" : "HW", gnt.gnt_wl,
-		   gnt.gnt_bt_sw_en ? "SW" : "HW", gnt.gnt_bt);
+		   gnt.gnt_bt_sw_en ? "SW" : "HW", gnt.gnt_bt,
+		   id_to_polut(wl->bt_polut_type[wl->pta_req_mac]));
 
 	gnt = gnt_cfg.band[1];
 	seq_printf(m, "phy-1[gnt_wl:%s-%d/gnt_bt:%s-%d]\n",
