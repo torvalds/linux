@@ -97,8 +97,9 @@ static const struct dc_debug_options debug_defaults_drv = {
 		.underflow_assert_delay_us = 0xFFFFFFFF,
 		.dwb_fi_phase = -1, // -1 = disable,
 		.dmub_command_table = true,
+		.use_max_lb = true,
 		.exit_idle_opt_for_cursor_updates = true,
-		.disable_idle_power_optimizations = false,
+		.enable_legacy_fast_update = false,
 		.using_dml2 = false,
 };
 
@@ -145,9 +146,9 @@ static const struct dc_plane_cap plane_cap = {
 				.fp16 = 16000
 		},
 		.max_downscale_factor = {
-				.argb8888 = 600,
-				.nv12 = 600,
-				.fp16 = 600
+				.argb8888 = 167,
+				.nv12 = 167,
+				.fp16 = 167
 		},
 		16,
 		16
@@ -1171,6 +1172,8 @@ static bool dcn303_resource_construct(
 	dc->caps.cursor_cache_size =
 		dc->caps.max_cursor_size * dc->caps.max_cursor_size * 8;
 	dc->caps.max_slave_planes = 1;
+	dc->caps.max_slave_yuv_planes = 1;
+	dc->caps.max_slave_rgb_planes = 1;
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.extended_aux_timeout_support = true;
