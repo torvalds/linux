@@ -7,7 +7,7 @@
 #include "rk3588.dtsi"
 
 / {
-	model = "Radxa ROCK 5 Model B";
+	model = "Radxa ROCK 5B";
 	compatible = "radxa,rock-5b", "rockchip,rk3588";
 
 	aliases {
