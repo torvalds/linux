@@ -359,6 +359,7 @@ static int vcn_v3_0_hw_init(void *handle)
 		}
 	}
 
+	return 0;
 done:
 	if (!r)
 		DRM_INFO("VCN decode and encode initialized successfully(under %s).\n",
