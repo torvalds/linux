@@ -41,7 +41,7 @@
 #include "mpc.h"
 #include "reg_helper.h"
 #include "dcn10_hubp.h"
-#include "dcn10_hubbub.h"
+#include "dcn10/dcn10_hubbub.h"
 #include "dcn10_cm_common.h"
 #include "clk_mgr.h"
 

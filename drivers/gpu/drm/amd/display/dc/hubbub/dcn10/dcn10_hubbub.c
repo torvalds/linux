@@ -24,7 +24,7 @@
  */
 
 #include "dm_services.h"
-#include "dcn10_hubp.h"
+#include "dcn10/dcn10_hubp.h"
 #include "dcn10_hubbub.h"
 #include "reg_helper.h"
 

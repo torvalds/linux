@@ -27,7 +27,7 @@
 #define __DC_HUBBUB_DCN20_H__
 
 #include "dcn10/dcn10_hubbub.h"
-#include "dcn20_vmid.h"
+#include "dcn20/dcn20_vmid.h"
 
 #define TO_DCN20_HUBBUB(hubbub)\
 	container_of(hubbub, struct dcn20_hubbub, base)
