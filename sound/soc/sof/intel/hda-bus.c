@@ -72,7 +72,12 @@ void sof_hda_bus_init(struct snd_sof_dev *sdev, struct device *dev)
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_LINK)
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_AUDIO_CODEC)
+	const struct sof_intel_dsp_desc *chip = get_chip_info(sdev->pdata);
+
 	snd_hdac_ext_bus_init(bus, dev, &bus_core_ops, sof_hda_ext_ops);
+
+	if (chip && chip->hw_ip_version == SOF_INTEL_ACE_2_0)
+		bus->use_pio_for_commands = true;
 #else
 	snd_hdac_ext_bus_init(bus, dev, NULL, NULL);
 #endif

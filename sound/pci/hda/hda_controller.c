@@ -914,7 +914,7 @@ static int azx_send_cmd(struct hdac_bus *bus, unsigned int val)
 
 	if (chip->disabled)
 		return 0;
-	if (chip->single_cmd)
+	if (chip->single_cmd || bus->use_pio_for_commands)
 		return azx_single_send_cmd(bus, val);
 	else
 		return snd_hdac_bus_send_cmd(bus, val);
@@ -928,7 +928,7 @@ static int azx_get_response(struct hdac_bus *bus, unsigned int addr,
 
 	if (chip->disabled)
 		return 0;
-	if (chip->single_cmd)
+	if (chip->single_cmd || bus->use_pio_for_commands)
 		return azx_single_get_response(bus, addr, res);
 	else
 		return azx_rirb_get_response(bus, addr, res);
@@ -1187,6 +1187,9 @@ int azx_bus_init(struct azx *chip, const char *model)
 
 	if (chip->driver_caps & AZX_DCAPS_4K_BDLE_BOUNDARY)
 		bus->core.align_bdle_4k = true;
+
+	if (chip->driver_caps & AZX_DCAPS_PIO_COMMANDS)
+		bus->core.use_pio_for_commands = true;
 
 	/* enable sync_write flag for stable communication as default */
 	bus->core.sync_write = 1;
