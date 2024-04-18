@@ -802,19 +802,15 @@ static int pci_epf_test_alloc_space(struct pci_epf *epf)
 	size_t msix_table_size = 0;
 	size_t test_reg_bar_size;
 	size_t pba_size = 0;
-	bool msix_capable;
 	void *base;
 	enum pci_barno test_reg_bar = epf_test->test_reg_bar;
 	enum pci_barno bar;
-	const struct pci_epc_features *epc_features;
+	const struct pci_epc_features *epc_features = epf_test->epc_features;
 	size_t test_reg_size;
-
-	epc_features = epf_test->epc_features;
 
 	test_reg_bar_size = ALIGN(sizeof(struct pci_epf_test_reg), 128);
 
-	msix_capable = epc_features->msix_capable;
-	if (msix_capable) {
+	if (epc_features->msix_capable) {
 		msix_table_size = PCI_MSIX_ENTRY_SIZE * epf->msix_interrupts;
 		epf_test->msix_table_offset = test_reg_bar_size;
 		/* Align to QWORD or 8 Bytes */
