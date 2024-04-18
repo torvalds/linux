@@ -12390,6 +12390,26 @@ F:	drivers/ata/
 F:	include/linux/ata.h
 F:	include/linux/libata.h
 
+LIBETH COMMON ETHERNET LIBRARY
+M:	Alexander Lobakin <aleksander.lobakin@intel.com>
+L:	netdev@vger.kernel.org
+L:	intel-wired-lan@lists.osuosl.org (moderated for non-subscribers)
+S:	Supported
+T:	git https://github.com/alobakin/linux.git
+F:	drivers/net/ethernet/intel/libeth/
+F:	include/net/libeth/
+K:	libeth
+
+LIBIE COMMON INTEL ETHERNET LIBRARY
+M:	Alexander Lobakin <aleksander.lobakin@intel.com>
+L:	intel-wired-lan@lists.osuosl.org (moderated for non-subscribers)
+L:	netdev@vger.kernel.org
+S:	Supported
+T:	git https://github.com/alobakin/linux.git
+F:	drivers/net/ethernet/intel/libie/
+F:	include/linux/net/intel/libie/
+K:	libie
+
 LIBNVDIMM BTT: BLOCK TRANSLATION TABLE
 M:	Vishal Verma <vishal.l.verma@intel.com>
 M:	Dan Williams <dan.j.williams@intel.com>
