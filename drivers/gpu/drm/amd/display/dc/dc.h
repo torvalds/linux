@@ -1026,6 +1026,7 @@ struct dc_debug_options {
 	bool disable_extblankadj;
 	bool enable_idle_reg_checks;
 	unsigned int static_screen_wait_frames;
+	uint32_t pwm_freq;
 	bool force_chroma_subsampling_1tap;
 	bool disable_422_left_edge_pixel;
 	bool dml21_force_pstate_method;
