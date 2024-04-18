@@ -5705,7 +5705,7 @@ bool rtw89_mac_get_ctrl_path(struct rtw89_dev *rtwdev)
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 val = 0;
 
-	if (chip->chip_id == RTL8852C)
+	if (chip->chip_id == RTL8852C || chip->chip_id == RTL8922A)
 		return false;
 	else if (chip->chip_id == RTL8852A || chip->chip_id == RTL8852B ||
 		 chip->chip_id == RTL8851B)
