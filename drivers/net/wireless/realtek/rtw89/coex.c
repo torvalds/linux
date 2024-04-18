@@ -133,7 +133,7 @@ static const struct rtw89_btc_ver rtw89_btc_ver_defs[] = {
 	 .fcxbtcrpt = 8, .fcxtdma = 7,    .fcxslots = 7, .fcxcysta = 7,
 	 .fcxstep = 7,   .fcxnullsta = 7, .fcxmreg = 7,  .fcxgpiodbg = 7,
 	 .fcxbtver = 7,  .fcxbtscan = 7,  .fcxbtafh = 7, .fcxbtdevinfo = 7,
-	 .fwlrole = 8,   .frptmap = 7,    .fcxctrl = 7,  .fcxinit = 7,
+	 .fwlrole = 8,   .frptmap = 3,    .fcxctrl = 7,  .fcxinit = 7,
 	 .drvinfo_type = 1, .info_buf = 1800, .max_role_num = 6,
 	},
 	{RTL8851B, RTW89_FW_VER_CODE(0, 29, 29, 0),
@@ -252,12 +252,23 @@ enum btc_btf_set_report_en {
 	RPT_EN_MONITER,
 };
 
-#define BTF_SET_REPORT_VER 1
-struct rtw89_btc_btf_set_report {
+struct rtw89_btc_btf_set_report_v1 {
 	u8 fver;
 	__le32 enable;
 	__le32 para;
 } __packed;
+
+struct rtw89_btc_btf_set_report_v8 {
+	u8 type;
+	u8 fver;
+	u8 len;
+	__le32 map;
+} __packed;
+
+union rtw89_fbtc_rtp_ctrl {
+	struct rtw89_btc_btf_set_report_v1 v1;
+	struct rtw89_btc_btf_set_report_v8 v8;
+};
 
 #define BTF_SET_SLOT_TABLE_VER 1
 struct rtw89_btc_btf_set_slot_table {
@@ -2187,7 +2198,7 @@ static void rtw89_btc_fw_en_rpt(struct rtw89_dev *rtwdev,
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_smap *wl_smap = &btc->cx.wl.status.map;
 	struct rtw89_btc_btf_fwinfo *fwinfo = &btc->fwinfo;
-	struct rtw89_btc_btf_set_report r = {0};
+	union rtw89_fbtc_rtp_ctrl r;
 	u32 val, bit_map;
 	int ret;
 
@@ -2208,11 +2219,24 @@ static void rtw89_btc_fw_en_rpt(struct rtw89_dev *rtwdev,
 	if (val == fwinfo->rpt_en_map)
 		return;
 
-	r.fver = BTF_SET_REPORT_VER;
-	r.enable = cpu_to_le32(val);
-	r.para = cpu_to_le32(rpt_state);
+	if (btc->ver->fcxbtcrpt == 8) {
+		r.v8.type = SET_REPORT_EN;
+		r.v8.fver = btc->ver->fcxbtcrpt;
+		r.v8.len = sizeof(r.v8.map);
+		r.v8.map = cpu_to_le32(val);
+		ret = _send_fw_cmd(rtwdev, BTFC_SET, SET_REPORT_EN, &r.v8,
+				   sizeof(r.v8));
+	} else {
+		if (btc->ver->fcxbtcrpt == 105)
+			r.v1.fver = 5;
+		else
+			r.v1.fver = btc->ver->fcxbtcrpt;
+		r.v1.enable = cpu_to_le32(val);
+		r.v1.para = cpu_to_le32(rpt_state);
+		ret = _send_fw_cmd(rtwdev, BTFC_SET, SET_REPORT_EN, &r.v1,
+				   sizeof(r.v1));
+	}
 
-	ret = _send_fw_cmd(rtwdev, BTFC_SET, SET_REPORT_EN, &r, sizeof(r));
 	if (!ret)
 		fwinfo->rpt_en_map = val;
 }
