@@ -9,6 +9,7 @@
 
 #define BTC_H2C_MAXLEN 2020
 #define BTC_TLV_SLOT_ID_LEN_V7 1
+#define BTC_SLOT_REQ_TH 2
 
 enum btc_mode {
 	BTC_MODE_NORMAL,

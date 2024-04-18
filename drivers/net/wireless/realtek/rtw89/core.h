@@ -1435,6 +1435,11 @@ struct rtw89_btc_bt_a2dp_desc {
 	u8 type: 3;
 	u8 active: 1;
 	u8 sink: 1;
+	u32 handle_update: 1;
+	u32 devinfo_query: 1;
+	u32 no_empty_streak_2s: 8;
+	u32 no_empty_streak_max: 8;
+	u32 rsvd: 6;
 
 	u8 bitpool;
 	u16 vendor_id;
@@ -2437,6 +2442,12 @@ struct rtw89_btc_fbtc_cycle_leak_info {
 	__le16 tmax; /* max leak-slot time */
 } __packed;
 
+struct rtw89_btc_fbtc_cycle_leak_info_v7 {
+	__le16 tavg;
+	__le16 tamx;
+	__le32 cnt_rximr;
+} __packed;
+
 #define RTW89_BTC_FDDT_PHASE_CYCLE GENMASK(9, 0)
 #define RTW89_BTC_FDDT_TRAIN_STEP GENMASK(15, 10)
 
@@ -2549,11 +2560,36 @@ struct rtw89_btc_fbtc_cysta_v5 { /* statistics for cycles */
 	__le32 except_map;
 } __packed;
 
+struct rtw89_btc_fbtc_cysta_v7 { /* statistics for cycles */
+	u8 fver;
+	u8 rsvd;
+	u8 collision_cnt; /* counter for event/timer occur at the same time */
+	u8 except_cnt;
+
+	u8 wl_rx_err_ratio[BTC_CYCLE_SLOT_MAX];
+
+	struct rtw89_btc_fbtc_a2dp_trx_stat_v4 a2dp_trx[BTC_CYCLE_SLOT_MAX];
+
+	__le16 skip_cnt;
+	__le16 cycles; /* total cycle number */
+
+	__le16 slot_step_time[BTC_CYCLE_SLOT_MAX]; /* record the wl/bt slot time */
+	__le16 slot_cnt[CXST_MAX]; /* slot count */
+	__le16 bcn_cnt[CXBCN_MAX];
+
+	struct rtw89_btc_fbtc_cycle_time_info_v5 cycle_time;
+	struct rtw89_btc_fbtc_cycle_a2dp_empty_info a2dp_ept;
+	struct rtw89_btc_fbtc_cycle_leak_info_v7 leak_slot;
+
+	__le32 except_map;
+} __packed;
+
 union rtw89_btc_fbtc_cysta_info {
 	struct rtw89_btc_fbtc_cysta_v2 v2;
 	struct rtw89_btc_fbtc_cysta_v3 v3;
 	struct rtw89_btc_fbtc_cysta_v4 v4;
 	struct rtw89_btc_fbtc_cysta_v5 v5;
+	struct rtw89_btc_fbtc_cysta_v7 v7;
 };
 
 struct rtw89_btc_fbtc_cynullsta_v1 { /* cycle null statistics */
@@ -2694,6 +2730,7 @@ struct rtw89_btc_dm {
 	u32 wl_btg_rx_rb: 2;
 
 	u16 slot_dur[CXST_MAX];
+	u16 bt_slot_flood;
 
 	u8 run_reason;
 	u8 run_action;
@@ -2702,6 +2739,7 @@ struct rtw89_btc_dm {
 	u8 wl_lna2: 1;
 	u8 wl_pre_agc_rb: 2;
 	u8 bt_select: 2; /* 0:s0, 1:s1, 2:s0 & s1, refer to enum btc_bt_index */
+	u8 slot_req_more: 1;
 };
 
 struct rtw89_btc_ctrl {

@@ -1182,10 +1182,10 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 	struct rtw89_btc_prpt *btc_prpt = NULL;
 	void *rpt_content = NULL, *pfinfo = NULL;
 	u8 rpt_type = 0;
-	u16 wl_slot_set = 0, wl_slot_real = 0;
+	u16 wl_slot_set = 0, wl_slot_real = 0, val16;
 	u32 trace_step = 0, rpt_len = 0, diff_t = 0;
 	u32 cnt_leak_slot, bt_slot_real, bt_slot_set, cnt_rx_imr;
-	u8 i, val = 0;
+	u8 i, val = 0, val1, val2;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): index:%d\n",
@@ -1273,6 +1273,10 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			pfinfo = &pfwinfo->rpt_fbtc_cysta.finfo.v5;
 			pcysta->v5 = pfwinfo->rpt_fbtc_cysta.finfo.v5;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_cysta.finfo.v5);
+		} else if (ver->fcxcysta == 7) {
+			pfinfo = &pfwinfo->rpt_fbtc_cysta.finfo.v7;
+			pcysta->v7 = pfwinfo->rpt_fbtc_cysta.finfo.v7;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_cysta.finfo.v7);
 		} else {
 			goto err;
 		}
@@ -1723,6 +1727,55 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 				     le16_to_cpu(pcysta->v5.slot_cnt[CXST_B1]));
 			_chk_btc_err(rtwdev, BTC_DCNT_CYCLE_HANG,
 				     le16_to_cpu(pcysta->v5.cycles));
+		} else if (ver->fcxcysta == 7) {
+			if (dm->fddt_train == BTC_FDDT_ENABLE)
+				break;
+
+			pcysta = &pfwinfo->rpt_fbtc_cysta.finfo;
+
+			if (dm->tdma_now.type != CXTDMA_OFF) {
+				/* Check diff time between real WL slot and W1 slot */
+				val16 = le16_to_cpu(pcysta->v7.cycle_time.tavg[CXT_WL]);
+				_chk_btc_err(rtwdev, BTC_DCNT_WL_SLOT_DRIFT, val16);
+
+				/* Check Leak-AP */
+				val1 = le32_to_cpu(pcysta->v7.leak_slot.cnt_rximr) *
+				       BTC_LEAK_AP_TH;
+				val2 = le16_to_cpu(pcysta->v7.slot_cnt[CXST_LK]);
+
+				val16 = le16_to_cpu(pcysta->v7.cycles);
+				if (dm->tdma_now.rxflctrl &&
+				    val16 >= BTC_CYSTA_CHK_PERIOD && val1 > val2)
+					dm->leak_ap = 1;
+			} else if (dm->tdma_now.ext_ctrl == CXECTL_EXT) {
+				val16 = le16_to_cpu(pcysta->v7.cycle_time.tavg[CXT_BT]);
+				/* Check diff between real BT slot and EBT/E5G slot */
+				_chk_btc_err(rtwdev, BTC_DCNT_BT_SLOT_DRIFT, val16);
+
+				/* Check bt slot length for P2P mode*/
+				val1 = le16_to_cpu(pcysta->v7.a2dp_ept.cnt_timeout) *
+				       BTC_SLOT_REQ_TH;
+				val2 = le16_to_cpu(pcysta->v7.a2dp_ept.cnt);
+
+				val16 = le16_to_cpu(pcysta->v7.cycles);
+				if (val16 >= BTC_CYSTA_CHK_PERIOD && val1 > val2)
+					dm->slot_req_more = 1;
+				else if (bt->link_info.status.map.connect == 0)
+					dm->slot_req_more = 0;
+			}
+
+			_chk_btc_err(rtwdev, BTC_DCNT_E2G_HANG,
+				     le16_to_cpu(pcysta->v7.slot_cnt[CXST_E2G]));
+			_chk_btc_err(rtwdev, BTC_DCNT_W1_HANG,
+				     le16_to_cpu(pcysta->v7.slot_cnt[CXST_W1]));
+			_chk_btc_err(rtwdev, BTC_DCNT_B1_HANG,
+				     le16_to_cpu(pcysta->v7.slot_cnt[CXST_B1]));
+
+			/* "BT_SLOT_FLOOD" error-check MUST before "CYCLE_HANG" */
+			_chk_btc_err(rtwdev, BTC_DCNT_BT_SLOT_FLOOD,
+				     le16_to_cpu(pcysta->v7.cycles));
+			_chk_btc_err(rtwdev, BTC_DCNT_CYCLE_HANG,
+				     le16_to_cpu(pcysta->v7.cycles));
 		} else {
 			goto err;
 		}
@@ -8102,6 +8155,10 @@ static void _show_error(struct rtw89_dev *rtwdev, struct seq_file *m)
 		pcysta->v5 = pfwinfo->rpt_fbtc_cysta.finfo.v5;
 		except_cnt = pcysta->v5.except_cnt;
 		exception_map = le32_to_cpu(pcysta->v5.except_map);
+	} else if (ver->fcxcysta == 7) {
+		pcysta->v7 = pfwinfo->rpt_fbtc_cysta.finfo.v7;
+		except_cnt = pcysta->v7.except_cnt;
+		exception_map = le32_to_cpu(pcysta->v7.except_map);
 	} else {
 		return;
 	}
@@ -8734,6 +8791,136 @@ static void _show_fbtc_cysta_v5(struct rtw89_dev *rtwdev, struct seq_file *m)
 	}
 }
 
+static void _show_fbtc_cysta_v7(struct rtw89_dev *rtwdev, struct seq_file *m)
+{
+	struct rtw89_btc_bt_info *bt = &rtwdev->btc.cx.bt;
+	struct rtw89_btc_bt_a2dp_desc *a2dp = &bt->link_info.a2dp_desc;
+	struct rtw89_btc_btf_fwinfo *pfwinfo = &rtwdev->btc.fwinfo;
+	struct rtw89_btc_fbtc_cysta_v7 *pcysta = NULL;
+	struct rtw89_btc_dm *dm = &rtwdev->btc.dm;
+	struct rtw89_btc_rpt_cmn_info *pcinfo;
+	u16 cycle, c_begin, c_end, s_id;
+	u8 i, cnt = 0, divide_cnt;
+	u8 slot_pair;
+
+	pcinfo = &pfwinfo->rpt_fbtc_cysta.cinfo;
+	if (!pcinfo->valid)
+		return;
+
+	pcysta = &pfwinfo->rpt_fbtc_cysta.finfo.v7;
+	seq_printf(m, "\n\r %-15s : cycle:%d", "[slot_stat]",
+		   le16_to_cpu(pcysta->cycles));
+
+	for (i = 0; i < CXST_MAX; i++) {
+		if (!le16_to_cpu(pcysta->slot_cnt[i]))
+			continue;
+		seq_printf(m, ", %s:%d",
+			   id_to_slot(i), le16_to_cpu(pcysta->slot_cnt[i]));
+	}
+
+	if (dm->tdma_now.rxflctrl)
+		seq_printf(m, ", leak_rx:%d",
+			   le32_to_cpu(pcysta->leak_slot.cnt_rximr));
+
+	if (pcysta->collision_cnt)
+		seq_printf(m, ", collision:%d", pcysta->collision_cnt);
+
+	if (pcysta->skip_cnt)
+		seq_printf(m, ", skip:%d", le16_to_cpu(pcysta->skip_cnt));
+
+	seq_printf(m, "\n\r %-15s : avg_t[wl:%d/bt:%d/lk:%d.%03d]",
+		   "[cycle_stat]",
+		   le16_to_cpu(pcysta->cycle_time.tavg[CXT_WL]),
+		   le16_to_cpu(pcysta->cycle_time.tavg[CXT_BT]),
+		   le16_to_cpu(pcysta->leak_slot.tavg) / 1000,
+		   le16_to_cpu(pcysta->leak_slot.tavg) % 1000);
+	seq_printf(m, ", max_t[wl:%d/bt:%d(>%dms:%d)/lk:%d.%03d]",
+		   le16_to_cpu(pcysta->cycle_time.tmax[CXT_WL]),
+		   le16_to_cpu(pcysta->cycle_time.tmax[CXT_BT]),
+		   dm->bt_slot_flood, dm->cnt_dm[BTC_DCNT_BT_SLOT_FLOOD],
+		   le16_to_cpu(pcysta->leak_slot.tamx) / 1000,
+		   le16_to_cpu(pcysta->leak_slot.tamx) % 1000);
+	seq_printf(m, ", bcn[all:%d/ok:%d/in_bt:%d/in_bt_ok:%d]",
+		   le16_to_cpu(pcysta->bcn_cnt[CXBCN_ALL]),
+		   le16_to_cpu(pcysta->bcn_cnt[CXBCN_ALL_OK]),
+		   le16_to_cpu(pcysta->bcn_cnt[CXBCN_BT_SLOT]),
+		   le16_to_cpu(pcysta->bcn_cnt[CXBCN_BT_OK]));
+
+	if (a2dp->exist) {
+		seq_printf(m,
+			   "\n\r %-15s : a2dp_ept:%d, a2dp_late:%d(streak 2S:%d/max:%d)",
+			   "[a2dp_stat]",
+			   le16_to_cpu(pcysta->a2dp_ept.cnt),
+			   le16_to_cpu(pcysta->a2dp_ept.cnt_timeout),
+			   a2dp->no_empty_streak_2s, a2dp->no_empty_streak_max);
+
+		seq_printf(m, ", avg_t:%d, max_t:%d",
+			   le16_to_cpu(pcysta->a2dp_ept.tavg),
+			   le16_to_cpu(pcysta->a2dp_ept.tmax));
+	}
+
+	if (le16_to_cpu(pcysta->cycles) <= 1)
+		return;
+
+	/* 1 cycle = 1 wl-slot + 1 bt-slot */
+	slot_pair = BTC_CYCLE_SLOT_MAX / 2;
+
+	if (le16_to_cpu(pcysta->cycles) <= slot_pair)
+		c_begin = 1;
+	else
+		c_begin = le16_to_cpu(pcysta->cycles) - slot_pair + 1;
+
+	c_end = le16_to_cpu(pcysta->cycles);
+
+	if (a2dp->exist)
+		divide_cnt = 2;
+	else
+		divide_cnt = 6;
+
+	if (c_begin > c_end)
+		return;
+
+	for (cycle = c_begin; cycle <= c_end; cycle++) {
+		cnt++;
+		s_id = ((cycle - 1) % slot_pair) * 2;
+
+		if (cnt % divide_cnt == 1) {
+			if (a2dp->exist)
+				seq_printf(m, "\n\r %-15s : ", "[slotT_wermtan]");
+			else
+				seq_printf(m, "\n\r %-15s : ", "[slotT_rxerr]");
+		}
+
+		seq_printf(m, "->b%d", le16_to_cpu(pcysta->slot_step_time[s_id]));
+
+		if (a2dp->exist)
+			seq_printf(m, "(%d/%d/%d/%dM/%d/%d/%d)",
+				   pcysta->wl_rx_err_ratio[s_id],
+				   pcysta->a2dp_trx[s_id].empty_cnt,
+				   pcysta->a2dp_trx[s_id].retry_cnt,
+				   (pcysta->a2dp_trx[s_id].tx_rate ? 3 : 2),
+				   pcysta->a2dp_trx[s_id].tx_cnt,
+				   pcysta->a2dp_trx[s_id].ack_cnt,
+				   pcysta->a2dp_trx[s_id].nack_cnt);
+		else
+			seq_printf(m, "(%d)", pcysta->wl_rx_err_ratio[s_id]);
+
+		seq_printf(m, "->w%d", le16_to_cpu(pcysta->slot_step_time[s_id + 1]));
+
+		if (a2dp->exist)
+			seq_printf(m, "(%d/%d/%d/%dM/%d/%d/%d)",
+				   pcysta->wl_rx_err_ratio[s_id + 1],
+				   pcysta->a2dp_trx[s_id + 1].empty_cnt,
+				   pcysta->a2dp_trx[s_id + 1].retry_cnt,
+				   (pcysta->a2dp_trx[s_id + 1].tx_rate ? 3 : 2),
+				   pcysta->a2dp_trx[s_id + 1].tx_cnt,
+				   pcysta->a2dp_trx[s_id + 1].ack_cnt,
+				   pcysta->a2dp_trx[s_id + 1].nack_cnt);
+		else
+			seq_printf(m, "(%d)", pcysta->wl_rx_err_ratio[s_id + 1]);
+	}
+}
+
 static void _show_fbtc_nullsta(struct rtw89_dev *rtwdev, struct seq_file *m)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
@@ -8946,6 +9133,8 @@ static void _show_fw_dm_msg(struct rtw89_dev *rtwdev, struct seq_file *m)
 		_show_fbtc_cysta_v4(rtwdev, m);
 	else if (ver->fcxcysta == 5)
 		_show_fbtc_cysta_v5(rtwdev, m);
+	else if (ver->fcxcysta == 7)
+		_show_fbtc_cysta_v7(rtwdev, m);
 
 	_show_fbtc_nullsta(rtwdev, m);
 
