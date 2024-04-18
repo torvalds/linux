@@ -77,11 +77,22 @@ struct amdgpu_mca_ras {
 	struct amdgpu_mca_ras_block *ras;
 };
 
+struct mca_bank_set {
+	int nr_entries;
+	struct list_head list;
+};
+
+struct mca_bank_cache {
+	struct mca_bank_set mca_set;
+	struct mutex lock;
+};
+
 struct amdgpu_mca {
 	struct amdgpu_mca_ras mp0;
 	struct amdgpu_mca_ras mp1;
 	struct amdgpu_mca_ras mpio;
 	const struct amdgpu_mca_smu_funcs *mca_funcs;
+	struct mca_bank_cache mca_caches[AMDGPU_MCA_ERROR_TYPE_DE];
 };
 
 enum mca_reg_idx {
@@ -111,11 +122,6 @@ struct mca_bank_entry {
 struct mca_bank_node {
 	struct mca_bank_entry entry;
 	struct list_head node;
-};
-
-struct mca_bank_set {
-	int nr_entries;
-	struct list_head list;
 };
 
 struct amdgpu_mca_smu_funcs {
@@ -149,6 +155,9 @@ int amdgpu_mca_mp1_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_mca_mpio_ras_sw_init(struct amdgpu_device *adev);
 
 void amdgpu_mca_smu_init_funcs(struct amdgpu_device *adev, const struct amdgpu_mca_smu_funcs *mca_funcs);
+int amdgpu_mca_init(struct amdgpu_device *adev);
+void amdgpu_mca_fini(struct amdgpu_device *adev);
+int amdgpu_mca_reset(struct amdgpu_device *adev);
 int amdgpu_mca_smu_set_debug_mode(struct amdgpu_device *adev, bool enable);
 int amdgpu_mca_smu_get_mca_set_error_count(struct amdgpu_device *adev, enum amdgpu_ras_block blk,
 					   enum amdgpu_mca_error_type type, uint32_t *total);
