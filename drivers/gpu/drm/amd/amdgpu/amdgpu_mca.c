@@ -153,7 +153,7 @@ int amdgpu_mca_mpio_ras_sw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
-void amdgpu_mca_bank_set_init(struct mca_bank_set *mca_set)
+static void amdgpu_mca_bank_set_init(struct mca_bank_set *mca_set)
 {
 	if (!mca_set)
 		return;
@@ -162,7 +162,7 @@ void amdgpu_mca_bank_set_init(struct mca_bank_set *mca_set)
 	INIT_LIST_HEAD(&mca_set->list);
 }
 
-int amdgpu_mca_bank_set_add_entry(struct mca_bank_set *mca_set, struct mca_bank_entry *entry)
+static int amdgpu_mca_bank_set_add_entry(struct mca_bank_set *mca_set, struct mca_bank_entry *entry)
 {
 	struct mca_bank_node *node;
 
@@ -183,7 +183,7 @@ int amdgpu_mca_bank_set_add_entry(struct mca_bank_set *mca_set, struct mca_bank_
 	return 0;
 }
 
-void amdgpu_mca_bank_set_release(struct mca_bank_set *mca_set)
+static void amdgpu_mca_bank_set_release(struct mca_bank_set *mca_set)
 {
 	struct mca_bank_node *node, *tmp;
 
@@ -228,6 +228,84 @@ static void amdgpu_mca_smu_mca_bank_dump(struct amdgpu_device *adev, int idx, st
 		      idx, entry->regs[MCA_REG_IDX_SYND]);
 }
 
+static int amdgpu_mca_smu_get_valid_mca_count(struct amdgpu_device *adev, enum amdgpu_mca_error_type type, uint32_t *count)
+{
+	const struct amdgpu_mca_smu_funcs *mca_funcs = adev->mca.mca_funcs;
+
+	if (!count)
+		return -EINVAL;
+
+	if (mca_funcs && mca_funcs->mca_get_valid_mca_count)
+		return mca_funcs->mca_get_valid_mca_count(adev, type, count);
+
+	return -EOPNOTSUPP;
+}
+
+static int amdgpu_mca_smu_get_mca_entry(struct amdgpu_device *adev, enum amdgpu_mca_error_type type,
+					int idx, struct mca_bank_entry *entry)
+{
+	const struct amdgpu_mca_smu_funcs *mca_funcs = adev->mca.mca_funcs;
+	int count;
+
+	if (!mca_funcs || !mca_funcs->mca_get_mca_entry)
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case AMDGPU_MCA_ERROR_TYPE_UE:
+		count = mca_funcs->max_ue_count;
+		break;
+	case AMDGPU_MCA_ERROR_TYPE_CE:
+		count = mca_funcs->max_ce_count;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (idx >= count)
+		return -EINVAL;
+
+	return mca_funcs->mca_get_mca_entry(adev, type, idx, entry);
+}
+
+static int amdgpu_mca_smu_get_mca_set(struct amdgpu_device *adev, enum amdgpu_mca_error_type type, struct mca_bank_set *mca_set)
+{
+	struct mca_bank_entry entry;
+	uint32_t count = 0, i;
+	int ret;
+
+	if (!mca_set)
+		return -EINVAL;
+
+	ret = amdgpu_mca_smu_get_valid_mca_count(adev, type, &count);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < count; i++) {
+		memset(&entry, 0, sizeof(entry));
+		ret = amdgpu_mca_smu_get_mca_entry(adev, type, i, &entry);
+		if (ret)
+			return ret;
+
+		amdgpu_mca_bank_set_add_entry(mca_set, &entry);
+	}
+
+	return 0;
+}
+
+static int amdgpu_mca_smu_parse_mca_error_count(struct amdgpu_device *adev, enum amdgpu_ras_block blk,
+						enum amdgpu_mca_error_type type, struct mca_bank_entry *entry, uint32_t *count)
+{
+	const struct amdgpu_mca_smu_funcs *mca_funcs = adev->mca.mca_funcs;
+
+	if (!count || !entry)
+		return -EINVAL;
+
+	if (!mca_funcs || !mca_funcs->mca_parse_mca_error_count)
+		return -EOPNOTSUPP;
+
+	return mca_funcs->mca_parse_mca_error_count(adev, blk, type, entry, count);
+}
+
 int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_block blk, enum amdgpu_mca_error_type type,
 				 struct ras_err_data *err_data, struct ras_query_context *qctx)
 {
@@ -241,7 +319,7 @@ int amdgpu_mca_smu_log_ras_error(struct amdgpu_device *adev, enum amdgpu_ras_blo
 
 	amdgpu_mca_bank_set_init(&mca_set);
 
-	ret = amdgpu_mca_smu_get_mca_set(adev, blk, type, &mca_set);
+	ret = amdgpu_mca_smu_get_mca_set(adev, type, &mca_set);
 	if (ret)
 		goto out_mca_release;
 
@@ -284,119 +362,6 @@ out_mca_release:
 	amdgpu_mca_bank_set_release(&mca_set);
 
 	return ret;
-}
-
-
-int amdgpu_mca_smu_get_valid_mca_count(struct amdgpu_device *adev, enum amdgpu_mca_error_type type, uint32_t *count)
-{
-	const struct amdgpu_mca_smu_funcs *mca_funcs = adev->mca.mca_funcs;
-
-	if (!count)
-		return -EINVAL;
-
-	if (mca_funcs && mca_funcs->mca_get_valid_mca_count)
-		return mca_funcs->mca_get_valid_mca_count(adev, type, count);
-
-	return -EOPNOTSUPP;
-}
-
-int amdgpu_mca_smu_get_mca_set_error_count(struct amdgpu_device *adev, enum amdgpu_ras_block blk,
-					    enum amdgpu_mca_error_type type, uint32_t *total)
-{
-	const struct amdgpu_mca_smu_funcs *mca_funcs = adev->mca.mca_funcs;
-	struct mca_bank_set mca_set;
-	struct mca_bank_node *node;
-	struct mca_bank_entry *entry;
-	uint32_t count;
-	int ret;
-
-	if (!total)
-		return -EINVAL;
-
-	if (!mca_funcs)
-		return -EOPNOTSUPP;
-
-	if (!mca_funcs->mca_get_ras_mca_set || !mca_funcs->mca_get_valid_mca_count)
-		return -EOPNOTSUPP;
-
-	amdgpu_mca_bank_set_init(&mca_set);
-
-	ret = mca_funcs->mca_get_ras_mca_set(adev, blk, type, &mca_set);
-	if (ret)
-		goto err_mca_set_release;
-
-	*total = 0;
-	list_for_each_entry(node, &mca_set.list, node) {
-		entry = &node->entry;
-
-		count = 0;
-		ret = mca_funcs->mca_parse_mca_error_count(adev, blk, type, entry, &count);
-		if (ret)
-			goto err_mca_set_release;
-
-		*total += count;
-	}
-
-err_mca_set_release:
-	amdgpu_mca_bank_set_release(&mca_set);
-
-	return ret;
-}
-
-int amdgpu_mca_smu_parse_mca_error_count(struct amdgpu_device *adev, enum amdgpu_ras_block blk,
-					 enum amdgpu_mca_error_type type, struct mca_bank_entry *entry, uint32_t *count)
-{
-	const struct amdgpu_mca_smu_funcs *mca_funcs = adev->mca.mca_funcs;
-	if (!count || !entry)
-		return -EINVAL;
-
-	if (!mca_funcs || !mca_funcs->mca_parse_mca_error_count)
-		return -EOPNOTSUPP;
-
-
-	return mca_funcs->mca_parse_mca_error_count(adev, blk, type, entry, count);
-}
-
-int amdgpu_mca_smu_get_mca_set(struct amdgpu_device *adev, enum amdgpu_ras_block blk,
-			       enum amdgpu_mca_error_type type, struct mca_bank_set *mca_set)
-{
-	const struct amdgpu_mca_smu_funcs *mca_funcs = adev->mca.mca_funcs;
-
-	if (!mca_set)
-		return -EINVAL;
-
-	if (!mca_funcs || !mca_funcs->mca_get_ras_mca_set)
-		return -EOPNOTSUPP;
-
-	WARN_ON(!list_empty(&mca_set->list));
-
-	return mca_funcs->mca_get_ras_mca_set(adev, blk, type, mca_set);
-}
-
-int amdgpu_mca_smu_get_mca_entry(struct amdgpu_device *adev, enum amdgpu_mca_error_type type,
-				 int idx, struct mca_bank_entry *entry)
-{
-	const struct amdgpu_mca_smu_funcs *mca_funcs = adev->mca.mca_funcs;
-	int count;
-
-	if (!mca_funcs || !mca_funcs->mca_get_mca_entry)
-		return -EOPNOTSUPP;
-
-	switch (type) {
-	case AMDGPU_MCA_ERROR_TYPE_UE:
-		count = mca_funcs->max_ue_count;
-		break;
-	case AMDGPU_MCA_ERROR_TYPE_CE:
-		count = mca_funcs->max_ce_count;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	if (idx >= count)
-		return -EINVAL;
-
-	return mca_funcs->mca_get_mca_entry(adev, type, idx, entry);
 }
 
 #if defined(CONFIG_DEBUG_FS)
