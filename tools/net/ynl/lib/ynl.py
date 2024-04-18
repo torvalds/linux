@@ -386,12 +386,9 @@ class NetlinkProtocol:
     def _decode(self, nl_msg):
         return nl_msg
 
-    def decode(self, ynl, nl_msg):
+    def decode(self, ynl, nl_msg, op):
         msg = self._decode(nl_msg)
-        fixed_header_size = 0
-        if ynl:
-            op = ynl.rsp_by_value[msg.cmd()]
-            fixed_header_size = ynl._struct_size(op.fixed_header)
+        fixed_header_size = ynl._struct_size(op.fixed_header)
         msg.raw_attrs = NlAttrs(msg.raw, fixed_header_size)
         return msg
 
@@ -797,7 +794,7 @@ class YnlFamily(SpecFamily):
         if 'bad-attr-offs' not in extack:
             return
 
-        msg = self.nlproto.decode(self, NlMsg(request, 0, op.attr_set))
+        msg = self.nlproto.decode(self, NlMsg(request, 0, op.attr_set), op)
         offset = self.nlproto.msghdr_size() + self._struct_size(op.fixed_header)
         path = self._decode_extack_path(msg.raw_attrs, op.attr_set, offset,
                                         extack['bad-attr-offs'])
@@ -922,7 +919,8 @@ class YnlFamily(SpecFamily):
                     print("Netlink done while checking for ntf!?")
                     continue
 
-                decoded = self.nlproto.decode(self, nl_msg)
+                op = self.rsp_by_value[nl_msg.cmd()]
+                decoded = self.nlproto.decode(self, nl_msg, op)
                 if decoded.cmd() not in self.async_msg_ids:
                     print("Unexpected msg id done while checking for ntf", decoded)
                     continue
@@ -979,7 +977,7 @@ class YnlFamily(SpecFamily):
                     done = True
                     break
 
-                decoded = self.nlproto.decode(self, nl_msg)
+                decoded = self.nlproto.decode(self, nl_msg, op)
 
                 # Check if this is a reply to our request
                 if nl_msg.nl_seq != req_seq or decoded.cmd() != op.rsp_value:
