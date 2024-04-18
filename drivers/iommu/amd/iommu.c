@@ -89,6 +89,21 @@ static inline bool pdom_is_v2_pgtbl_mode(struct protection_domain *pdom)
 	return (pdom && (pdom->pd_mode == PD_MODE_V2));
 }
 
+static inline bool pdom_is_in_pt_mode(struct protection_domain *pdom)
+{
+	return (pdom->domain.type == IOMMU_DOMAIN_IDENTITY);
+}
+
+/*
+ * We cannot support PASID w/ existing v1 page table in the same domain
+ * since it will be nested. However, existing domain w/ v2 page table
+ * or passthrough mode can be used for PASID.
+ */
+static inline bool pdom_is_sva_capable(struct protection_domain *pdom)
+{
+	return pdom_is_v2_pgtbl_mode(pdom) || pdom_is_in_pt_mode(pdom);
+}
+
 static inline int get_acpihid_device_id(struct device *dev,
 					struct acpihid_map_entry **entry)
 {
@@ -1964,6 +1979,58 @@ void amd_iommu_dev_update_dte(struct iommu_dev_data *dev_data, bool set)
 	iommu_completion_wait(iommu);
 }
 
+/*
+ * If domain is SVA capable then initialize GCR3 table. Also if domain is
+ * in v2 page table mode then update GCR3[0].
+ */
+static int init_gcr3_table(struct iommu_dev_data *dev_data,
+			   struct protection_domain *pdom)
+{
+	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
+	int max_pasids = dev_data->max_pasids;
+	int ret = 0;
+
+	 /*
+	  * If domain is in pt mode then setup GCR3 table only if device
+	  * is PASID capable
+	  */
+	if (pdom_is_in_pt_mode(pdom) && !pdev_pasid_supported(dev_data))
+		return ret;
+
+	/*
+	 * By default, setup GCR3 table to support MAX PASIDs
+	 * supported by the device/IOMMU.
+	 */
+	ret = setup_gcr3_table(&dev_data->gcr3_info, iommu,
+			       max_pasids > 0 ?  max_pasids : 1);
+	if (ret)
+		return ret;
+
+	/* Setup GCR3[0] only if domain is setup with v2 page table mode */
+	if (!pdom_is_v2_pgtbl_mode(pdom))
+		return ret;
+
+	ret = update_gcr3(dev_data, 0, iommu_virt_to_phys(pdom->iop.pgd), true);
+	if (ret)
+		free_gcr3_table(&dev_data->gcr3_info);
+
+	return ret;
+}
+
+static void destroy_gcr3_table(struct iommu_dev_data *dev_data,
+			       struct protection_domain *pdom)
+{
+	struct gcr3_tbl_info *gcr3_info = &dev_data->gcr3_info;
+
+	if (pdom_is_v2_pgtbl_mode(pdom))
+		update_gcr3(dev_data, 0, 0, false);
+
+	if (gcr3_info->gcr3_tbl == NULL)
+		return;
+
+	free_gcr3_table(gcr3_info);
+}
+
 static int do_attach(struct iommu_dev_data *dev_data,
 		     struct protection_domain *domain)
 {
@@ -1982,19 +2049,10 @@ static int do_attach(struct iommu_dev_data *dev_data,
 	domain->dev_iommu[iommu->index] += 1;
 	domain->dev_cnt                 += 1;
 
-	/* Init GCR3 table and update device table */
-	if (domain->pd_mode == PD_MODE_V2) {
-		/* By default, setup GCR3 table to support single PASID */
-		ret = setup_gcr3_table(&dev_data->gcr3_info, iommu, 1);
+	if (pdom_is_sva_capable(domain)) {
+		ret = init_gcr3_table(dev_data, domain);
 		if (ret)
 			return ret;
-
-		ret = update_gcr3(dev_data, 0,
-				  iommu_virt_to_phys(domain->iop.pgd), true);
-		if (ret) {
-			free_gcr3_table(&dev_data->gcr3_info);
-			return ret;
-		}
 	}
 
 	/* Update device table */
@@ -2009,10 +2067,8 @@ static void do_detach(struct iommu_dev_data *dev_data)
 	struct amd_iommu *iommu = get_amd_iommu_from_dev_data(dev_data);
 
 	/* Clear GCR3 table */
-	if (domain->pd_mode == PD_MODE_V2) {
-		update_gcr3(dev_data, 0, 0, false);
-		free_gcr3_table(&dev_data->gcr3_info);
-	}
+	if (pdom_is_sva_capable(domain))
+		destroy_gcr3_table(dev_data, domain);
 
 	/* Update data structures */
 	dev_data->domain = NULL;
