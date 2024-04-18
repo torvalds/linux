@@ -328,7 +328,7 @@ static void test_bind(struct sock_addr_test *test)
 		goto cleanup;
 
 	/* Try to connect to server just in case */
-	client = connect_to_addr(&expected_addr, expected_addr_len, test->socket_type);
+	client = connect_to_addr(test->socket_type, &expected_addr, expected_addr_len, NULL);
 	if (!ASSERT_GE(client, 0, "connect_to_addr"))
 		goto cleanup;
 
@@ -357,7 +357,7 @@ static void test_connect(struct sock_addr_test *test)
 	if (!ASSERT_EQ(err, 0, "make_sockaddr"))
 		goto cleanup;
 
-	client = connect_to_addr(&addr, addr_len, test->socket_type);
+	client = connect_to_addr(test->socket_type, &addr, addr_len, NULL);
 	if (!ASSERT_GE(client, 0, "connect_to_addr"))
 		goto cleanup;
 
@@ -538,7 +538,7 @@ static void test_getpeername(struct sock_addr_test *test)
 	if (!ASSERT_EQ(err, 0, "make_sockaddr"))
 		goto cleanup;
 
-	client = connect_to_addr(&addr, addr_len, test->socket_type);
+	client = connect_to_addr(test->socket_type, &addr, addr_len, NULL);
 	if (!ASSERT_GE(client, 0, "connect_to_addr"))
 		goto cleanup;
 
