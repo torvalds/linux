@@ -4539,7 +4539,7 @@ set_rps_cpu(struct net_device *dev, struct sk_buff *skb,
 		rps_input_queue_tail_save(&rflow->last_qtail, head);
 	}
 
-	rflow->cpu = next_cpu;
+	WRITE_ONCE(rflow->cpu, next_cpu);
 	return rflow;
 }
 
