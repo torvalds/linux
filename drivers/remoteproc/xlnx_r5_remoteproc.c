@@ -301,36 +301,6 @@ static void zynqmp_r5_rproc_kick(struct rproc *rproc, int vqid)
 }
 
 /*
- * zynqmp_r5_set_mode()
- *
- * set RPU cluster and TCM operation mode
- *
- * @r5_core: pointer to zynqmp_r5_core type object
- * @fw_reg_val: value expected by firmware to configure RPU cluster mode
- * @tcm_mode: value expected by fw to configure TCM mode (lockstep or split)
- *
- * Return: 0 for success and < 0 for failure
- */
-static int zynqmp_r5_set_mode(struct zynqmp_r5_core *r5_core,
-			      enum rpu_oper_mode fw_reg_val,
-			      enum rpu_tcm_comb tcm_mode)
-{
-	int ret;
-
-	ret = zynqmp_pm_set_rpu_mode(r5_core->pm_domain_id, fw_reg_val);
-	if (ret < 0) {
-		dev_err(r5_core->dev, "failed to set RPU mode\n");
-		return ret;
-	}
-
-	ret = zynqmp_pm_set_tcm_config(r5_core->pm_domain_id, tcm_mode);
-	if (ret < 0)
-		dev_err(r5_core->dev, "failed to configure TCM\n");
-
-	return ret;
-}
-
-/*
  * zynqmp_r5_rproc_start()
  * @rproc: single R5 core's corresponding rproc instance
  *
@@ -941,7 +911,7 @@ static int zynqmp_r5_core_init(struct zynqmp_r5_cluster *cluster,
 	/* Maintain backward compatibility for zynqmp by using hardcode TCM address. */
 	if (of_find_property(r5_core->np, "reg", NULL))
 		ret = zynqmp_r5_get_tcm_node_from_dt(cluster);
-	else
+	else if (device_is_compatible(dev, "xlnx,zynqmp-r5fss"))
 		ret = zynqmp_r5_get_tcm_node(cluster);
 
 	if (ret) {
@@ -960,11 +930,20 @@ static int zynqmp_r5_core_init(struct zynqmp_r5_cluster *cluster,
 			return ret;
 		}
 
-		ret = zynqmp_r5_set_mode(r5_core, fw_reg_val, tcm_mode);
-		if (ret) {
-			dev_err(dev, "failed to set r5 cluster mode %d, err %d\n",
-				cluster->mode, ret);
+		ret = zynqmp_pm_set_rpu_mode(r5_core->pm_domain_id, fw_reg_val);
+		if (ret < 0) {
+			dev_err(r5_core->dev, "failed to set RPU mode\n");
 			return ret;
+		}
+
+		if (of_find_property(dev_of_node(dev), "xlnx,tcm-mode", NULL) ||
+		    device_is_compatible(dev, "xlnx,zynqmp-r5fss")) {
+			ret = zynqmp_pm_set_tcm_config(r5_core->pm_domain_id,
+						       tcm_mode);
+			if (ret < 0) {
+				dev_err(r5_core->dev, "failed to configure TCM\n");
+				return ret;
+			}
 		}
 	}
 
@@ -1022,7 +1001,7 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 		ret = of_property_read_u32(dev_node, "xlnx,tcm-mode", (u32 *)&tcm_mode);
 		if (ret)
 			return ret;
-	} else {
+	} else if (device_is_compatible(dev, "xlnx,zynqmp-r5fss")) {
 		if (cluster_mode == LOCKSTEP_MODE)
 			tcm_mode = PM_RPU_TCM_COMB;
 		else
@@ -1212,6 +1191,8 @@ static int zynqmp_r5_remoteproc_probe(struct platform_device *pdev)
 
 /* Match table for OF platform binding */
 static const struct of_device_id zynqmp_r5_remoteproc_match[] = {
+	{ .compatible = "xlnx,versal-net-r52fss", },
+	{ .compatible = "xlnx,versal-r5fss", },
 	{ .compatible = "xlnx,zynqmp-r5fss", },
 	{ /* end of list */ },
 };
