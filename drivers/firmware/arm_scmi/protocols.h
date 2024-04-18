@@ -29,6 +29,8 @@
 #define PROTOCOL_REV_MAJOR(x)	((u16)(FIELD_GET(PROTOCOL_REV_MAJOR_MASK, (x))))
 #define PROTOCOL_REV_MINOR(x)	((u16)(FIELD_GET(PROTOCOL_REV_MINOR_MASK, (x))))
 
+#define SCMI_PROTOCOL_VENDOR_BASE	0x80
+
 enum scmi_common_cmd {
 	PROTOCOL_VERSION = 0x0,
 	PROTOCOL_ATTRIBUTES = 0x1,
@@ -323,6 +325,16 @@ typedef int (*scmi_prot_init_ph_fn_t)(const struct scmi_protocol_handle *);
  *		       protocol by the agent. Each protocol implementation
  *		       in the agent is supposed to downgrade to match the
  *		       protocol version supported by the platform.
+ * @vendor_id: A firmware vendor string for vendor protocols matching.
+ *	       Ignored when @id identifies a standard protocol, cannot be NULL
+ *	       otherwise.
+ * @sub_vendor_id: A firmware sub_vendor string for vendor protocols matching.
+ *		   Ignored if NULL or when @id identifies a standard protocol.
+ * @impl_ver: A firmware implementation version for vendor protocols matching.
+ *	      Ignored if zero or if @id identifies a standard protocol.
+ *
+ * Note that vendor protocols matching at load time is performed by attempting
+ * the closest match first against the tuple (vendor, sub_vendor, impl_ver)
  */
 struct scmi_protocol {
 	const u8				id;
@@ -332,6 +344,9 @@ struct scmi_protocol {
 	const void				*ops;
 	const struct scmi_protocol_events	*events;
 	unsigned int				supported_version;
+	char					*vendor_id;
+	char					*sub_vendor_id;
+	u32					impl_ver;
 };
 
 #define DEFINE_SCMI_PROTOCOL_REGISTER_UNREGISTER(name, proto)	\
