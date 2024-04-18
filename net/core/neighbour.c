@@ -2723,7 +2723,6 @@ static int neigh_dump_table(struct neigh_table *tbl, struct sk_buff *skb,
 	if (filter->dev_idx || filter->master_idx)
 		flags |= NLM_F_DUMP_FILTERED;
 
-	rcu_read_lock();
 	nht = rcu_dereference(tbl->nht);
 
 	for (h = s_h; h < (1 << nht->hash_shift); h++) {
@@ -2747,7 +2746,6 @@ next:
 		}
 	}
 out:
-	rcu_read_unlock();
 	cb->args[1] = h;
 	cb->args[2] = idx;
 	return err;
@@ -2881,8 +2879,9 @@ static int neigh_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 
 	s_t = cb->args[0];
 
+	rcu_read_lock();
 	for (t = 0; t < NEIGH_NR_TABLES; t++) {
-		tbl = rcu_dereference_rtnl(neigh_tables[t]);
+		tbl = rcu_dereference(neigh_tables[t]);
 
 		if (!tbl)
 			continue;
@@ -2898,6 +2897,7 @@ static int neigh_dump_info(struct sk_buff *skb, struct netlink_callback *cb)
 		if (err < 0)
 			break;
 	}
+	rcu_read_unlock();
 
 	cb->args[0] = t;
 	return err;
@@ -3894,7 +3894,8 @@ static int __init neigh_init(void)
 {
 	rtnl_register(PF_UNSPEC, RTM_NEWNEIGH, neigh_add, NULL, 0);
 	rtnl_register(PF_UNSPEC, RTM_DELNEIGH, neigh_delete, NULL, 0);
-	rtnl_register(PF_UNSPEC, RTM_GETNEIGH, neigh_get, neigh_dump_info, 0);
+	rtnl_register(PF_UNSPEC, RTM_GETNEIGH, neigh_get, neigh_dump_info,
+		      RTNL_FLAG_DUMP_UNLOCKED);
 
 	rtnl_register(PF_UNSPEC, RTM_GETNEIGHTBL, NULL, neightbl_dump_info,
 		      0);
