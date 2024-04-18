@@ -722,7 +722,7 @@ properties:
           - const: qnap,ts433
           - const: rockchip,rk3568
 
-      - description: Radxa Compute Module 3(CM3)
+      - description: Radxa Compute Module 3 (CM3)
         items:
           - enum:
               - radxa,cm3-io
@@ -784,7 +784,7 @@ properties:
           - const: radxa,rockpis
           - const: rockchip,rk3308
 
-      - description: Radxa Rock2 Square
+      - description: Radxa Rock 2 Square
         items:
           - const: radxa,rock2-square
           - const: rockchip,rk3288
@@ -794,12 +794,12 @@ properties:
           - const: radxa,rock3a
           - const: rockchip,rk3568
 
-      - description: Radxa ROCK 5 Model A
+      - description: Radxa ROCK 5A
         items:
           - const: radxa,rock-5a
           - const: rockchip,rk3588s
 
-      - description: Radxa ROCK 5 Model B
+      - description: Radxa ROCK 5B
         items:
           - const: radxa,rock-5b
           - const: rockchip,rk3588
