@@ -443,27 +443,27 @@ otherwise identical operations, and indicates the base64 conformance
 group unless otherwise specified.
 The 'code' field encodes the operation as below:
 
-========  =====  =======  ===============================  ===================================================
-code      value  src_reg  description                      notes
-========  =====  =======  ===============================  ===================================================
-JA        0x0    0x0      PC += offset                     {JA, K, JMP} only
-JA        0x0    0x0      PC += imm                        {JA, K, JMP32} only
+========  =====  =======  =================================  ===================================================
+code      value  src_reg  description                        notes
+========  =====  =======  =================================  ===================================================
+JA        0x0    0x0      PC += offset                       {JA, K, JMP} only
+JA        0x0    0x0      PC += imm                          {JA, K, JMP32} only
 JEQ       0x1    any      PC += offset if dst == src
-JGT       0x2    any      PC += offset if dst > src        unsigned
-JGE       0x3    any      PC += offset if dst >= src       unsigned
+JGT       0x2    any      PC += offset if dst > src          unsigned
+JGE       0x3    any      PC += offset if dst >= src         unsigned
 JSET      0x4    any      PC += offset if dst & src
 JNE       0x5    any      PC += offset if dst != src
-JSGT      0x6    any      PC += offset if dst > src        signed
-JSGE      0x7    any      PC += offset if dst >= src       signed
-CALL      0x8    0x0      call helper function by address  {CALL, K, JMP} only, see `Helper functions`_
-CALL      0x8    0x1      call PC += imm                   {CALL, K, JMP} only, see `Program-local functions`_
-CALL      0x8    0x2      call helper function by BTF ID   {CALL, K, JMP} only, see `Helper functions`_
-EXIT      0x9    0x0      return                           {CALL, K, JMP} only
-JLT       0xa    any      PC += offset if dst < src        unsigned
-JLE       0xb    any      PC += offset if dst <= src       unsigned
-JSLT      0xc    any      PC += offset if dst < src        signed
-JSLE      0xd    any      PC += offset if dst <= src       signed
-========  =====  =======  ===============================  ===================================================
+JSGT      0x6    any      PC += offset if dst > src          signed
+JSGE      0x7    any      PC += offset if dst >= src         signed
+CALL      0x8    0x0      call helper function by static ID  {CALL, K, JMP} only, see `Helper functions`_
+CALL      0x8    0x1      call PC += imm                     {CALL, K, JMP} only, see `Program-local functions`_
+CALL      0x8    0x2      call helper function by BTF ID     {CALL, K, JMP} only, see `Helper functions`_
+EXIT      0x9    0x0      return                             {CALL, K, JMP} only
+JLT       0xa    any      PC += offset if dst < src          unsigned
+JLE       0xb    any      PC += offset if dst <= src         unsigned
+JSLT      0xc    any      PC += offset if dst < src          signed
+JSLE      0xd    any      PC += offset if dst <= src         signed
+========  =====  =======  =================================  ===================================================
 
 The BPF program needs to store the return value into register R0 before doing an
 ``EXIT``.
@@ -498,9 +498,9 @@ Helper functions
 Helper functions are a concept whereby BPF programs can call into a
 set of function calls exposed by the underlying platform.
 
-Historically, each helper function was identified by an address
+Historically, each helper function was identified by a static ID
 encoded in the 'imm' field.  The available helper functions may differ
-for each program type, but address values are unique across all program types.
+for each program type, but static IDs are unique across all program types.
 
 Platforms that support the BPF Type Format (BTF) support identifying
 a helper function by a BTF ID encoded in the 'imm' field, where the BTF ID
@@ -667,11 +667,11 @@ src_reg  pseudocode                                 imm type     dst type
 =======  =========================================  ===========  ==============
 0x0      dst = (next_imm << 32) | imm               integer      integer
 0x1      dst = map_by_fd(imm)                       map fd       map
-0x2      dst = map_val(map_by_fd(imm)) + next_imm   map fd       data pointer
-0x3      dst = var_addr(imm)                        variable id  data pointer
-0x4      dst = code_addr(imm)                       integer      code pointer
+0x2      dst = map_val(map_by_fd(imm)) + next_imm   map fd       data address
+0x3      dst = var_addr(imm)                        variable id  data address
+0x4      dst = code_addr(imm)                       integer      code address
 0x5      dst = map_by_idx(imm)                      map index    map
-0x6      dst = map_val(map_by_idx(imm)) + next_imm  map index    data pointer
+0x6      dst = map_val(map_by_idx(imm)) + next_imm  map index    data address
 =======  =========================================  ===========  ==============
 
 where
