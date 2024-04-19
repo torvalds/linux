@@ -550,12 +550,17 @@ xe_hwmon_curr_is_visible(const struct xe_hwmon *hwmon, u32 attr, int channel)
 {
 	u32 uval;
 
+	/* hwmon sysfs attribute of current available only for package */
+	if (channel != CHANNEL_PKG)
+		return 0;
+
 	switch (attr) {
 	case hwmon_curr_crit:
-	case hwmon_curr_label:
-		if (channel == CHANNEL_PKG)
 			return (xe_hwmon_pcode_read_i1(hwmon->gt, &uval) ||
 				(uval & POWER_SETUP_I1_WATTS)) ? 0 : 0644;
+	case hwmon_curr_label:
+			return (xe_hwmon_pcode_read_i1(hwmon->gt, &uval) ||
+				(uval & POWER_SETUP_I1_WATTS)) ? 0 : 0444;
 		break;
 	default:
 		return 0;
