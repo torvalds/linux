@@ -1,0 +1,56 @@
+################################################################################
+# Common configuration for building kernel for SXR products
+if [[ "${MSM_ARCH}" == "anorak" ]]; then
+    DEFCONFIG="gki_defconfig"
+else
+	DEFCONFIG="generic_sxr_defconfig"
+fi
+
+OPENSSL_DIR=${KERNEL_DIR}/../build/build-tools/path/linux-x86/openssl
+# Kernel platform missing aosp/1843323
+DISABLE_HERMETIC_SYSROOT=1
+
+append_cmd POST_DEFCONFIG_CMDS 'update_signing_keys_config'
+
+function update_signing_keys_config() {
+	if test -f "${OPENSSL_DIR}"; then
+		${OPENSSL_DIR} req -new -nodes -utf8 -newkey rsa:1024 -days 36500 \
+		             -batch -x509 -config ${KERNEL_DIR}/certs/qcom_x509.genkey \
+		             -outform PEM -out ${OUT_DIR}/verity_cert.pem -keyout ${OUT_DIR}/verity_key.pem
+
+		${OPENSSL_DIR} req -new -nodes -utf8 -sha256 -days 36500 \
+		             -batch -x509 -config ${KERNEL_DIR}/certs/qcom_x509.genkey \
+		             -outform PEM -out ${OUT_DIR}/signing_key.pem -keyout ${OUT_DIR}/signing_key.pem
+
+		${KERNEL_DIR}/scripts/config --file ${OUT_DIR}/.config \
+		--set-str CONFIG_MODULE_SIG_KEY "${OUT_DIR}/signing_key.pem" \
+		--set-str CONFIG_SYSTEM_TRUSTED_KEYS "${OUT_DIR}/verity_cert.pem"
+
+		(cd ${OUT_DIR} && \
+		make ${CC_LD_ARG} O=${OUT_DIR} ${MAKE_ARGS} olddefconfig)
+	fi
+}
+
+append_cmd POST_KERNEL_BUILD_CMDS 'move_signing_keys'
+
+function move_signing_keys() {
+  cp ${OUT_DIR}/signing_key.pem ${OUT_DIR}/certs
+  cp ${OUT_DIR}/verity_key.pem ${OUT_DIR}/certs
+  cp ${OUT_DIR}/verity_cert.pem ${OUT_DIR}/certs
+}
+
+function build_defconfig_fragments() {
+	if [[ "${VARIANT}" =~ ^(gki|consolidate)$ ]]; then
+		apply_defconfig_fragment ${KERNEL_DIR}/arch/${ARCH}/configs/vendor/${MSM_ARCH}.config vendor/${MSM_ARCH}_defconfig
+
+		if [ "${VARIANT}" = gki ]; then
+			return
+		fi
+
+		apply_defconfig_fragment ${KERNEL_DIR}/arch/${ARCH}/configs/vendor/${MSM_ARCH}_debug.config vendor/${MSM_ARCH}-debug_defconfig
+	else
+		echo "Variant '${VARIANT}' unsupported by gki"
+		exit 1
+	fi
+}
+build_defconfig_fragments
