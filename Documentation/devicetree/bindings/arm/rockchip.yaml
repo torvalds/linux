@@ -789,7 +789,7 @@ properties:
           - const: radxa,rock2-square
           - const: rockchip,rk3288
 
-      - description: Radxa ROCK3 Model A
+      - description: Radxa ROCK 3A
         items:
           - const: radxa,rock3a
           - const: rockchip,rk3568
