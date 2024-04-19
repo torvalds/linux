@@ -9,6 +9,8 @@
 #include <linux/mlx5/mlx5_ifc.h>
 
 /* Forward declarations */
+struct mlx5e_rq;
+struct mlx5e_txqsq;
 struct work_struct;
 
 /* convert a boolean value for cqe mode to appropriate dim constant
@@ -37,5 +39,7 @@ mlx5e_cq_period_mode(enum dim_cq_period_mode cq_period_mode)
 
 void mlx5e_rx_dim_work(struct work_struct *work);
 void mlx5e_tx_dim_work(struct work_struct *work);
+int mlx5e_dim_rx_change(struct mlx5e_rq *rq, bool enabled);
+int mlx5e_dim_tx_change(struct mlx5e_txqsq *sq, bool enabled);
 
 #endif /* __MLX5_EN_DIM_H__ */
