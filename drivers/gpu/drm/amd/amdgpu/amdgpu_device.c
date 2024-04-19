@@ -1482,13 +1482,17 @@ static int amdgpu_device_wb_init(struct amdgpu_device *adev)
  */
 int amdgpu_device_wb_get(struct amdgpu_device *adev, u32 *wb)
 {
-	unsigned long offset = find_first_zero_bit(adev->wb.used, adev->wb.num_wb);
+	unsigned long flags, offset;
 
+	spin_lock_irqsave(&adev->wb.lock, flags);
+	offset = find_first_zero_bit(adev->wb.used, adev->wb.num_wb);
 	if (offset < adev->wb.num_wb) {
 		__set_bit(offset, adev->wb.used);
+		spin_unlock_irqrestore(&adev->wb.lock, flags);
 		*wb = offset << 3; /* convert to dw offset */
 		return 0;
 	} else {
+		spin_unlock_irqrestore(&adev->wb.lock, flags);
 		return -EINVAL;
 	}
 }
@@ -1503,9 +1507,13 @@ int amdgpu_device_wb_get(struct amdgpu_device *adev, u32 *wb)
  */
 void amdgpu_device_wb_free(struct amdgpu_device *adev, u32 wb)
 {
+	unsigned long flags;
+
 	wb >>= 3;
+	spin_lock_irqsave(&adev->wb.lock, flags);
 	if (wb < adev->wb.num_wb)
 		__clear_bit(wb, adev->wb.used);
+	spin_unlock_irqrestore(&adev->wb.lock, flags);
 }
 
 /**
@@ -4061,6 +4069,7 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	spin_lock_init(&adev->se_cac_idx_lock);
 	spin_lock_init(&adev->audio_endpt_idx_lock);
 	spin_lock_init(&adev->mm_stats.lock);
+	spin_lock_init(&adev->wb.lock);
 
 	INIT_LIST_HEAD(&adev->shadow_list);
 	mutex_init(&adev->shadow_list_lock);
