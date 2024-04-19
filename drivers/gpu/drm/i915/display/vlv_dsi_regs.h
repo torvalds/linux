@@ -93,9 +93,6 @@
 #define  TEARING_EFFECT_DELAY_SHIFT			0
 #define  TEARING_EFFECT_DELAY_MASK			(0xffff << 0)
 
-/* XXX: all bits reserved */
-#define _MIPIA_AUTOPWG			(VLV_DISPLAY_BASE + 0x611a0)
-
 /* MIPI DSI Controller and D-PHY registers */
 
 #define _MIPIA_DEVICE_READY		(_MIPI_MMIO_BASE(dev_priv) + 0xb000)
