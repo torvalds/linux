@@ -46,6 +46,8 @@
 
 #include "dmub/inc/dmub_cmd.h"
 
+#include "spl/dc_spl_types.h"
+
 struct abm_save_restore;
 
 /* forward declaration */

@@ -30,6 +30,8 @@
 #include "dc_hw_types.h"
 #include "fixed31_32.h"
 
+#include "spl/dc_spl_types.h"
+
 #define CSC_TEMPERATURE_MATRIX_SIZE 12
 
 struct bit_depth_reduction_params;
@@ -108,22 +110,6 @@ enum graphics_gamut_adjust_type {
 	GRAPHICS_GAMUT_ADJUST_TYPE_BYPASS = 0,
 	GRAPHICS_GAMUT_ADJUST_TYPE_HW, /* without adjustments */
 	GRAPHICS_GAMUT_ADJUST_TYPE_SW /* use adjustments */
-};
-
-enum lb_memory_config {
-	/* Enable all 3 pieces of memory */
-	LB_MEMORY_CONFIG_0 = 0,
-
-	/* Enable only the first piece of memory */
-	LB_MEMORY_CONFIG_1 = 1,
-
-	/* Enable only the second piece of memory */
-	LB_MEMORY_CONFIG_2 = 2,
-
-	/* Only applicable in 4:2:0 mode, enable all 3 pieces of memory and the
-	 * last piece of chroma memory used for the luma storage
-	 */
-	LB_MEMORY_CONFIG_3 = 3
 };
 
 struct xfm_grph_csc_adjustment {
