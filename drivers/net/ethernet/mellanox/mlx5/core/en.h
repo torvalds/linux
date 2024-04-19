@@ -430,7 +430,7 @@ struct mlx5e_txqsq {
 	u16                        cc;
 	u16                        skb_fifo_cc;
 	u32                        dma_fifo_cc;
-	struct dim                 dim; /* Adaptive Moderation */
+	struct dim                *dim; /* Adaptive Moderation */
 
 	/* dirtied @xmit */
 	u16                        pc ____cacheline_aligned_in_smp;
@@ -722,7 +722,7 @@ struct mlx5e_rq {
 	int                    ix;
 	unsigned int           hw_mtu;
 
-	struct dim         dim; /* Dynamic Interrupt Moderation */
+	struct dim            *dim; /* Dynamic Interrupt Moderation */
 
 	/* XDP */
 	struct bpf_prog __rcu *xdp_prog;

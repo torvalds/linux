@@ -962,11 +962,20 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 		}
 	}
 
-	INIT_WORK(&rq->dim.work, mlx5e_rx_dim_work);
-	rq->dim.mode = params->rx_cq_moderation.cq_period_mode;
+	rq->dim = kvzalloc_node(sizeof(*rq->dim), GFP_KERNEL, node);
+	if (!rq->dim) {
+		err = -ENOMEM;
+		goto err_unreg_xdp_rxq_info;
+	}
+
+	rq->dim->priv = rq;
+	INIT_WORK(&rq->dim->work, mlx5e_rx_dim_work);
+	rq->dim->mode = params->rx_cq_moderation.cq_period_mode;
 
 	return 0;
 
+err_unreg_xdp_rxq_info:
+	xdp_rxq_info_unreg(&rq->xdp_rxq);
 err_destroy_page_pool:
 	page_pool_destroy(rq->page_pool);
 err_free_by_rq_type:
@@ -1014,6 +1023,7 @@ static void mlx5e_free_rq(struct mlx5e_rq *rq)
 		mlx5e_free_wqe_alloc_info(rq);
 	}
 
+	kvfree(rq->dim);
 	xdp_rxq_info_unreg(&rq->xdp_rxq);
 	page_pool_destroy(rq->page_pool);
 	mlx5_wq_destroy(&rq->wq_ctrl);
@@ -1341,7 +1351,7 @@ void mlx5e_deactivate_rq(struct mlx5e_rq *rq)
 
 void mlx5e_close_rq(struct mlx5e_rq *rq)
 {
-	cancel_work_sync(&rq->dim.work);
+	cancel_work_sync(&rq->dim->work);
 	cancel_work_sync(&rq->recover_work);
 	mlx5e_destroy_rq(rq);
 	mlx5e_free_rx_descs(rq);
@@ -1616,12 +1626,20 @@ static int mlx5e_alloc_txqsq(struct mlx5e_channel *c,
 	err = mlx5e_alloc_txqsq_db(sq, cpu_to_node(c->cpu));
 	if (err)
 		goto err_sq_wq_destroy;
+	sq->dim = kvzalloc_node(sizeof(*sq->dim), GFP_KERNEL, cpu_to_node(c->cpu));
+	if (!sq->dim) {
+		err = -ENOMEM;
+		goto err_free_txqsq_db;
+	}
 
-	INIT_WORK(&sq->dim.work, mlx5e_tx_dim_work);
-	sq->dim.mode = params->tx_cq_moderation.cq_period_mode;
+	sq->dim->priv = sq;
+	INIT_WORK(&sq->dim->work, mlx5e_tx_dim_work);
+	sq->dim->mode = params->tx_cq_moderation.cq_period_mode;
 
 	return 0;
 
+err_free_txqsq_db:
+	mlx5e_free_txqsq_db(sq);
 err_sq_wq_destroy:
 	mlx5_wq_destroy(&sq->wq_ctrl);
 
@@ -1630,6 +1648,7 @@ err_sq_wq_destroy:
 
 void mlx5e_free_txqsq(struct mlx5e_txqsq *sq)
 {
+	kvfree(sq->dim);
 	mlx5e_free_txqsq_db(sq);
 	mlx5_wq_destroy(&sq->wq_ctrl);
 }
@@ -1841,7 +1860,7 @@ void mlx5e_close_txqsq(struct mlx5e_txqsq *sq)
 	struct mlx5_core_dev *mdev = sq->mdev;
 	struct mlx5_rate_limit rl = {0};
 
-	cancel_work_sync(&sq->dim.work);
+	cancel_work_sync(&sq->dim->work);
 	cancel_work_sync(&sq->recover_work);
 	mlx5e_destroy_sq(mdev, sq->sqn);
 	if (sq->rate_limit) {
