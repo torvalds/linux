@@ -103,7 +103,7 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 							      DRM_BUDDY_RANGE_ALLOCATION),
 				       "buddy_alloc i failed with bias(%x-%x), size=%u, ps=%u\n",
 				       bias_start, bias_end, bias_size, bias_size);
-		drm_buddy_free_list(&mm, &tmp);
+		drm_buddy_free_list(&mm, &tmp, 0);
 
 		/* single page with internal round_up */
 		KUNIT_ASSERT_FALSE_MSG(test,
@@ -113,7 +113,7 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 							      DRM_BUDDY_RANGE_ALLOCATION),
 				       "buddy_alloc failed with bias(%x-%x), size=%u, ps=%u\n",
 				       bias_start, bias_end, ps, bias_size);
-		drm_buddy_free_list(&mm, &tmp);
+		drm_buddy_free_list(&mm, &tmp, 0);
 
 		/* random size within */
 		size = max(round_up(prandom_u32_state(&prng) % bias_rem, ps), ps);
@@ -153,14 +153,14 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 			 * unallocated, and ideally not always on the bias
 			 * boundaries.
 			 */
-			drm_buddy_free_list(&mm, &tmp);
+			drm_buddy_free_list(&mm, &tmp, 0);
 		} else {
 			list_splice_tail(&tmp, &allocated);
 		}
 	}
 
 	kfree(order);
-	drm_buddy_free_list(&mm, &allocated);
+	drm_buddy_free_list(&mm, &allocated, 0);
 	drm_buddy_fini(&mm);
 
 	/*
@@ -220,7 +220,7 @@ static void drm_test_buddy_alloc_range_bias(struct kunit *test)
 			      "buddy_alloc passed with bias(%x-%x), size=%u\n",
 			      bias_start, bias_end, ps);
 
-	drm_buddy_free_list(&mm, &allocated);
+	drm_buddy_free_list(&mm, &allocated, 0);
 	drm_buddy_fini(&mm);
 }
 
@@ -269,7 +269,7 @@ static void drm_test_buddy_alloc_contiguous(struct kunit *test)
 							   DRM_BUDDY_CONTIGUOUS_ALLOCATION),
 			       "buddy_alloc didn't error size=%lu\n", 3 * ps);
 
-	drm_buddy_free_list(&mm, &middle);
+	drm_buddy_free_list(&mm, &middle, 0);
 	KUNIT_ASSERT_TRUE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
 							   3 * ps, ps, &allocated,
 							   DRM_BUDDY_CONTIGUOUS_ALLOCATION),
@@ -279,7 +279,7 @@ static void drm_test_buddy_alloc_contiguous(struct kunit *test)
 							   DRM_BUDDY_CONTIGUOUS_ALLOCATION),
 			       "buddy_alloc didn't error size=%lu\n", 2 * ps);
 
-	drm_buddy_free_list(&mm, &right);
+	drm_buddy_free_list(&mm, &right, 0);
 	KUNIT_ASSERT_TRUE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
 							   3 * ps, ps, &allocated,
 							   DRM_BUDDY_CONTIGUOUS_ALLOCATION),
@@ -294,7 +294,7 @@ static void drm_test_buddy_alloc_contiguous(struct kunit *test)
 							    DRM_BUDDY_CONTIGUOUS_ALLOCATION),
 			       "buddy_alloc hit an error size=%lu\n", 2 * ps);
 
-	drm_buddy_free_list(&mm, &left);
+	drm_buddy_free_list(&mm, &left, 0);
 	KUNIT_ASSERT_FALSE_MSG(test, drm_buddy_alloc_blocks(&mm, 0, mm_size,
 							    3 * ps, ps, &allocated,
 							    DRM_BUDDY_CONTIGUOUS_ALLOCATION),
@@ -306,7 +306,7 @@ static void drm_test_buddy_alloc_contiguous(struct kunit *test)
 
 	KUNIT_ASSERT_EQ(test, total, ps * 2 + ps * 3);
 
-	drm_buddy_free_list(&mm, &allocated);
+	drm_buddy_free_list(&mm, &allocated, 0);
 	drm_buddy_fini(&mm);
 }
 
@@ -375,7 +375,7 @@ static void drm_test_buddy_alloc_pathological(struct kunit *test)
 							  top, max_order);
 	}
 
-	drm_buddy_free_list(&mm, &holes);
+	drm_buddy_free_list(&mm, &holes, 0);
 
 	/* Nothing larger than blocks of chunk_size now available */
 	for (order = 1; order <= max_order; order++) {
@@ -387,7 +387,7 @@ static void drm_test_buddy_alloc_pathological(struct kunit *test)
 	}
 
 	list_splice_tail(&holes, &blocks);
-	drm_buddy_free_list(&mm, &blocks);
+	drm_buddy_free_list(&mm, &blocks, 0);
 	drm_buddy_fini(&mm);
 }
 
@@ -482,7 +482,7 @@ static void drm_test_buddy_alloc_pessimistic(struct kunit *test)
 
 	list_del(&block->link);
 	drm_buddy_free_block(&mm, block);
-	drm_buddy_free_list(&mm, &blocks);
+	drm_buddy_free_list(&mm, &blocks, 0);
 	drm_buddy_fini(&mm);
 }
 
@@ -528,7 +528,7 @@ static void drm_test_buddy_alloc_optimistic(struct kunit *test)
 							   size, size, &tmp, flags),
 						  "buddy_alloc unexpectedly succeeded, it should be full!");
 
-	drm_buddy_free_list(&mm, &blocks);
+	drm_buddy_free_list(&mm, &blocks, 0);
 	drm_buddy_fini(&mm);
 }
 
@@ -563,7 +563,7 @@ static void drm_test_buddy_alloc_limit(struct kunit *test)
 						drm_buddy_block_size(&mm, block),
 						BIT_ULL(mm.max_order) * PAGE_SIZE);
 
-	drm_buddy_free_list(&mm, &allocated);
+	drm_buddy_free_list(&mm, &allocated, 0);
 	drm_buddy_fini(&mm);
 }
 
