@@ -204,4 +204,5 @@ static struct platform_driver avs_i2s_test_driver = {
 
 module_platform_driver(avs_i2s_test_driver);
 
+MODULE_DESCRIPTION("Intel i2s test machine driver");
 MODULE_LICENSE("GPL");

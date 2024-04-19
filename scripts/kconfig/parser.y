@@ -515,7 +515,7 @@ void conf_parse(const char *name)
 		menu_add_prompt(P_MENU, "Main menu", NULL);
 	}
 
-	menu_finalize(&rootmenu);
+	menu_finalize();
 
 	menu = &rootmenu;
 	while (menu) {

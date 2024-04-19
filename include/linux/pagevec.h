@@ -11,8 +11,8 @@
 
 #include <linux/types.h>
 
-/* 15 pointers + header align the folio_batch structure to a power of two */
-#define PAGEVEC_SIZE	15
+/* 31 pointers + header align the folio_batch structure to a power of two */
+#define PAGEVEC_SIZE	31
 
 struct folio;
 

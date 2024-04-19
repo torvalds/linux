@@ -7,7 +7,7 @@
 #include "chardev.h"
 #include "journal.h"
 #include "move.h"
-#include "recovery.h"
+#include "recovery_passes.h"
 #include "replicas.h"
 #include "super.h"
 #include "super-io.h"
