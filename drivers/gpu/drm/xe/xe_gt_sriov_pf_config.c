@@ -1932,13 +1932,16 @@ int xe_gt_sriov_pf_config_print_available_ggtt(struct xe_gt *gt, struct drm_prin
 	const struct drm_mm *mm = &ggtt->mm;
 	const struct drm_mm_node *entry;
 	u64 alignment = pf_get_ggtt_alignment(gt);
-	u64 spare = pf_get_spare_ggtt(gt);
 	u64 hole_min_start = xe_wopcm_size(gt_to_xe(gt));
 	u64 hole_start, hole_end, hole_size;
-	u64 avail, total = 0;
+	u64 spare, avail, total = 0;
 	char buf[10];
 
 	xe_gt_assert(gt, IS_SRIOV_PF(gt_to_xe(gt)));
+
+	mutex_lock(xe_gt_sriov_pf_master_mutex(gt));
+
+	spare = pf_get_spare_ggtt(gt);
 
 	mutex_lock(&ggtt->lock);
 
@@ -1957,6 +1960,7 @@ int xe_gt_sriov_pf_config_print_available_ggtt(struct xe_gt *gt, struct drm_prin
 	}
 
 	mutex_unlock(&ggtt->lock);
+	mutex_unlock(xe_gt_sriov_pf_master_mutex(gt));
 
 	string_get_size(total, 1, STRING_UNITS_2, buf, sizeof(buf));
 	drm_printf(p, "total:\t%llu\t(%s)\n", total, buf);
