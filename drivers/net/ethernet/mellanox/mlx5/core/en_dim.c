@@ -30,8 +30,8 @@
  * SOFTWARE.
  */
 
-#include <linux/dim.h>
 #include "en.h"
+#include "en/dim.h"
 
 static void
 mlx5e_complete_dim_work(struct dim *dim, struct dim_cq_moder moder,

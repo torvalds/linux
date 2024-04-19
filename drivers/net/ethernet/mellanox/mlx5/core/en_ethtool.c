@@ -33,6 +33,7 @@
 #include <linux/ethtool_netlink.h>
 
 #include "en.h"
+#include "en/dim.h"
 #include "en/port.h"
 #include "en/params.h"
 #include "en/ptp.h"
