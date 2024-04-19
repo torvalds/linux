@@ -717,6 +717,11 @@ static void check_gsc_availability(struct xe_gt *gt)
 	 */
 	if (!xe_uc_fw_is_available(&gt->uc.gsc.fw)) {
 		gt->info.engine_mask &= ~BIT(XE_HW_ENGINE_GSCCS0);
+
+		/* interrupts where previously enabled, so turn them off */
+		xe_mmio_write32(gt, GUNIT_GSC_INTR_ENABLE, 0);
+		xe_mmio_write32(gt, GUNIT_GSC_INTR_MASK, ~0);
+
 		drm_info(&xe->drm, "gsccs disabled due to lack of FW\n");
 	}
 }
