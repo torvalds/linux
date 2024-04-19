@@ -4385,10 +4385,10 @@ enum {
 	MLX5_CQC_ST_FIRED                                 = 0xa,
 };
 
-enum {
+enum mlx5_cq_period_mode {
 	MLX5_CQ_PERIOD_MODE_START_FROM_EQE = 0x0,
 	MLX5_CQ_PERIOD_MODE_START_FROM_CQE = 0x1,
-	MLX5_CQ_PERIOD_NUM_MODES
+	MLX5_CQ_PERIOD_NUM_MODES,
 };
 
 struct mlx5_ifc_cqc_bits {

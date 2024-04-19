@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include <linux/dim.h>
 #include <linux/ethtool_netlink.h>
 
 #include "en.h"
@@ -627,15 +628,6 @@ mlx5e_set_priv_channels_rx_coalesce(struct mlx5e_priv *priv, struct ethtool_coal
 	}
 }
 
-/* convert a boolean value of cq_mode to mlx5 period mode
- * true  : MLX5_CQ_PERIOD_MODE_START_FROM_CQE
- * false : MLX5_CQ_PERIOD_MODE_START_FROM_EQE
- */
-static int cqe_mode_to_period_mode(bool val)
-{
-	return val ? MLX5_CQ_PERIOD_MODE_START_FROM_CQE : MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
-}
-
 int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 			       struct ethtool_coalesce *coal,
 			       struct kernel_ethtool_coalesce *kernel_coal,
@@ -688,13 +680,13 @@ int mlx5e_ethtool_set_coalesce(struct mlx5e_priv *priv,
 	reset_rx = !!coal->use_adaptive_rx_coalesce != priv->channels.params.rx_dim_enabled;
 	reset_tx = !!coal->use_adaptive_tx_coalesce != priv->channels.params.tx_dim_enabled;
 
-	cq_period_mode = cqe_mode_to_period_mode(kernel_coal->use_cqe_mode_rx);
+	cq_period_mode = mlx5e_dim_cq_period_mode(kernel_coal->use_cqe_mode_rx);
 	if (cq_period_mode != rx_moder->cq_period_mode) {
 		mlx5e_set_rx_cq_mode_params(&new_params, cq_period_mode);
 		reset_rx = true;
 	}
 
-	cq_period_mode = cqe_mode_to_period_mode(kernel_coal->use_cqe_mode_tx);
+	cq_period_mode = mlx5e_dim_cq_period_mode(kernel_coal->use_cqe_mode_tx);
 	if (cq_period_mode != tx_moder->cq_period_mode) {
 		mlx5e_set_tx_cq_mode_params(&new_params, cq_period_mode);
 		reset_tx = true;
@@ -1915,7 +1907,7 @@ static int set_pflag_cqe_based_moder(struct net_device *netdev, bool enable,
 	if (enable && !MLX5_CAP_GEN(priv->mdev, cq_period_start_from_cqe))
 		return -EOPNOTSUPP;
 
-	cq_period_mode = cqe_mode_to_period_mode(enable);
+	cq_period_mode = mlx5e_dim_cq_period_mode(enable);
 
 	current_cq_period_mode = is_rx_cq ?
 		priv->channels.params.rx_cq_moderation.cq_period_mode :

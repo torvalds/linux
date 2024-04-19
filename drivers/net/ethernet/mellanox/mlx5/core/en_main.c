@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include <linux/dim.h>
 #include <net/tc_act/tc_gact.h>
 #include <linux/mlx5/fs.h>
 #include <net/vxlan.h>
@@ -962,15 +963,7 @@ static int mlx5e_alloc_rq(struct mlx5e_params *params,
 	}
 
 	INIT_WORK(&rq->dim.work, mlx5e_rx_dim_work);
-
-	switch (params->rx_cq_moderation.cq_period_mode) {
-	case MLX5_CQ_PERIOD_MODE_START_FROM_CQE:
-		rq->dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_CQE;
-		break;
-	case MLX5_CQ_PERIOD_MODE_START_FROM_EQE:
-	default:
-		rq->dim.mode = DIM_CQ_PERIOD_MODE_START_FROM_EQE;
-	}
+	rq->dim.mode = params->rx_cq_moderation.cq_period_mode;
 
 	return 0;
 
@@ -2090,7 +2083,7 @@ static int mlx5e_create_cq(struct mlx5e_cq *cq, struct mlx5e_cq_param *param)
 	mlx5_fill_page_frag_array(&cq->wq_ctrl.buf,
 				  (__be64 *)MLX5_ADDR_OF(create_cq_in, in, pas));
 
-	MLX5_SET(cqc,   cqc, cq_period_mode, param->cq_period_mode);
+	MLX5_SET(cqc,   cqc, cq_period_mode, mlx5e_cq_period_mode(param->cq_period_mode));
 	MLX5_SET(cqc,   cqc, c_eqn_or_apu_element, eqn);
 	MLX5_SET(cqc,   cqc, uar_page,      mdev->priv.uar->index);
 	MLX5_SET(cqc,   cqc, log_page_size, cq->wq_ctrl.buf.page_shift -
@@ -5059,13 +5052,12 @@ void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 
 	params->packet_merge.timeout = mlx5e_choose_lro_timeout(mdev, MLX5E_DEFAULT_LRO_TIMEOUT);
 
 	/* CQ moderation params */
-	rx_cq_period_mode = MLX5_CAP_GEN(mdev, cq_period_start_from_cqe) ?
-			MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
-			MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
+	rx_cq_period_mode =
+		mlx5e_dim_cq_period_mode(MLX5_CAP_GEN(mdev, cq_period_start_from_cqe));
 	params->rx_dim_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
 	params->tx_dim_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
 	mlx5e_set_rx_cq_mode_params(params, rx_cq_period_mode);
-	mlx5e_set_tx_cq_mode_params(params, MLX5_CQ_PERIOD_MODE_START_FROM_EQE);
+	mlx5e_set_tx_cq_mode_params(params, DIM_CQ_PERIOD_MODE_START_FROM_EQE);
 
 	/* TX inline */
 	mlx5_query_min_inline(mdev, &params->tx_min_inline_mode);
