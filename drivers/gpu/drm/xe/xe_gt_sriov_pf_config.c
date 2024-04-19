@@ -187,14 +187,20 @@ static int pf_push_vf_cfg_dbs(struct xe_gt *gt, unsigned int vfid, u32 begin, u3
 	return pf_push_vf_cfg_klvs(gt, vfid, 2, klvs, ARRAY_SIZE(klvs));
 }
 
-static int pf_push_vf_cfg_exec_quantum(struct xe_gt *gt, unsigned int vfid, u32 exec_quantum)
+static int pf_push_vf_cfg_exec_quantum(struct xe_gt *gt, unsigned int vfid, u32 *exec_quantum)
 {
-	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_EXEC_QUANTUM_KEY, exec_quantum);
+	/* GuC will silently clamp values exceeding max */
+	*exec_quantum = min_t(u32, *exec_quantum, GUC_KLV_VF_CFG_EXEC_QUANTUM_MAX_VALUE);
+
+	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_EXEC_QUANTUM_KEY, *exec_quantum);
 }
 
-static int pf_push_vf_cfg_preempt_timeout(struct xe_gt *gt, unsigned int vfid, u32 preempt_timeout)
+static int pf_push_vf_cfg_preempt_timeout(struct xe_gt *gt, unsigned int vfid, u32 *preempt_timeout)
 {
-	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY, preempt_timeout);
+	/* GuC will silently clamp values exceeding max */
+	*preempt_timeout = min_t(u32, *preempt_timeout, GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_MAX_VALUE);
+
+	return pf_push_vf_cfg_u32(gt, vfid, GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY, *preempt_timeout);
 }
 
 static int pf_push_vf_cfg_lmem(struct xe_gt *gt, unsigned int vfid, u64 size)
@@ -1604,7 +1610,7 @@ static int pf_provision_exec_quantum(struct xe_gt *gt, unsigned int vfid,
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
 	int err;
 
-	err = pf_push_vf_cfg_exec_quantum(gt, vfid, exec_quantum);
+	err = pf_push_vf_cfg_exec_quantum(gt, vfid, &exec_quantum);
 	if (unlikely(err))
 		return err;
 
@@ -1674,7 +1680,7 @@ static int pf_provision_preempt_timeout(struct xe_gt *gt, unsigned int vfid,
 	struct xe_gt_sriov_config *config = pf_pick_vf_config(gt, vfid);
 	int err;
 
-	err = pf_push_vf_cfg_preempt_timeout(gt, vfid, preempt_timeout);
+	err = pf_push_vf_cfg_preempt_timeout(gt, vfid, &preempt_timeout);
 	if (unlikely(err))
 		return err;
 
