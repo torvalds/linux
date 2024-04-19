@@ -853,7 +853,7 @@ static u32 parse_dmc_fw_css(struct intel_dmc *dmc,
 	return sizeof(struct intel_css_header);
 }
 
-static void parse_dmc_fw(struct intel_dmc *dmc, const struct firmware *fw)
+static int parse_dmc_fw(struct intel_dmc *dmc, const struct firmware *fw)
 {
 	struct drm_i915_private *i915 = dmc->i915;
 	struct intel_css_header *css_header;
@@ -866,13 +866,13 @@ static void parse_dmc_fw(struct intel_dmc *dmc, const struct firmware *fw)
 	u32 r, offset;
 
 	if (!fw)
-		return;
+		return -EINVAL;
 
 	/* Extract CSS Header information */
 	css_header = (struct intel_css_header *)fw->data;
 	r = parse_dmc_fw_css(dmc, css_header, fw->size);
 	if (!r)
-		return;
+		return -EINVAL;
 
 	readcount += r;
 
@@ -880,7 +880,7 @@ static void parse_dmc_fw(struct intel_dmc *dmc, const struct firmware *fw)
 	package_header = (struct intel_package_header *)&fw->data[readcount];
 	r = parse_dmc_fw_package(dmc, package_header, si, fw->size - readcount);
 	if (!r)
-		return;
+		return -EINVAL;
 
 	readcount += r;
 
@@ -897,6 +897,13 @@ static void parse_dmc_fw(struct intel_dmc *dmc, const struct firmware *fw)
 		dmc_header = (struct intel_dmc_header_base *)&fw->data[offset];
 		parse_dmc_fw_header(dmc, dmc_header, fw->size - offset, dmc_id);
 	}
+
+	if (!intel_dmc_has_payload(i915)) {
+		drm_err(&i915->drm, "DMC firmware main program not found\n");
+		return -ENOENT;
+	}
+
+	return 0;
 }
 
 static void intel_dmc_runtime_pm_get(struct drm_i915_private *i915)
@@ -951,22 +958,22 @@ static void dmc_load_work_fn(struct work_struct *work)
 		return;
 	}
 
-	parse_dmc_fw(dmc, fw);
-
-	if (intel_dmc_has_payload(i915)) {
-		intel_dmc_load_program(i915);
-		intel_dmc_runtime_pm_put(i915);
-
-		drm_info(&i915->drm, "Finished loading DMC firmware %s (v%u.%u)\n",
-			 dmc->fw_path, DMC_VERSION_MAJOR(dmc->version),
-			 DMC_VERSION_MINOR(dmc->version));
-	} else {
+	err = parse_dmc_fw(dmc, fw);
+	if (err) {
 		drm_notice(&i915->drm,
-			   "Failed to load DMC firmware %s."
-			   " Disabling runtime power management.\n",
-			   dmc->fw_path);
+			   "Failed to parse DMC firmware %s (%pe). Disabling runtime power management.\n",
+			   dmc->fw_path, ERR_PTR(err));
+		goto out;
 	}
 
+	intel_dmc_load_program(i915);
+	intel_dmc_runtime_pm_put(i915);
+
+	drm_info(&i915->drm, "Finished loading DMC firmware %s (v%u.%u)\n",
+		 dmc->fw_path, DMC_VERSION_MAJOR(dmc->version),
+		 DMC_VERSION_MINOR(dmc->version));
+
+out:
 	release_firmware(fw);
 }
 
