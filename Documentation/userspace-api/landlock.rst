@@ -8,7 +8,7 @@ Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: October 2023
+:Date: April 2024
 
 The goal of Landlock is to enable to restrict ambient rights (e.g. global
 filesystem or network access) for a set of processes.  Because Landlock
@@ -76,7 +76,8 @@ to be explicit about the denied-by-default access rights.
             LANDLOCK_ACCESS_FS_MAKE_BLOCK |
             LANDLOCK_ACCESS_FS_MAKE_SYM |
             LANDLOCK_ACCESS_FS_REFER |
-            LANDLOCK_ACCESS_FS_TRUNCATE,
+            LANDLOCK_ACCESS_FS_TRUNCATE |
+            LANDLOCK_ACCESS_FS_IOCTL_DEV,
         .handled_access_net =
             LANDLOCK_ACCESS_NET_BIND_TCP |
             LANDLOCK_ACCESS_NET_CONNECT_TCP,
@@ -85,10 +86,10 @@ to be explicit about the denied-by-default access rights.
 Because we may not know on which kernel version an application will be
 executed, it is safer to follow a best-effort security approach.  Indeed, we
 should try to protect users as much as possible whatever the kernel they are
-using.  To avoid binary enforcement (i.e. either all security features or
-none), we can leverage a dedicated Landlock command to get the current version
-of the Landlock ABI and adapt the handled accesses.  Let's check if we should
-remove access rights which are only supported in higher versions of the ABI.
+using.
+
+To be compatible with older Linux versions, we detect the available Landlock ABI
+version, and only use the available subset of access rights:
 
 .. code-block:: c
 
@@ -114,6 +115,10 @@ remove access rights which are only supported in higher versions of the ABI.
         ruleset_attr.handled_access_net &=
             ~(LANDLOCK_ACCESS_NET_BIND_TCP |
               LANDLOCK_ACCESS_NET_CONNECT_TCP);
+        __attribute__((fallthrough));
+    case 4:
+        /* Removes LANDLOCK_ACCESS_FS_IOCTL_DEV for ABI < 5 */
+        ruleset_attr.handled_access_fs &= ~LANDLOCK_ACCESS_FS_IOCTL_DEV;
     }
 
 This enables to create an inclusive ruleset that will contain our rules.
@@ -225,6 +230,7 @@ access rights per directory enables to change the location of such directory
 without relying on the destination directory access rights (except those that
 are required for this operation, see ``LANDLOCK_ACCESS_FS_REFER``
 documentation).
+
 Having self-sufficient hierarchies also helps to tighten the required access
 rights to the minimal set of data.  This also helps avoid sinkhole directories,
 i.e.  directories where data can be linked to but not linked from.  However,
@@ -318,18 +324,26 @@ It should also be noted that truncating files does not require the
 system call, this can also be done through :manpage:`open(2)` with the flags
 ``O_RDONLY | O_TRUNC``.
 
-When opening a file, the availability of the ``LANDLOCK_ACCESS_FS_TRUNCATE``
-right is associated with the newly created file descriptor and will be used for
-subsequent truncation attempts using :manpage:`ftruncate(2)`.  The behavior is
-similar to opening a file for reading or writing, where permissions are checked
-during :manpage:`open(2)`, but not during the subsequent :manpage:`read(2)` and
+The truncate right is associated with the opened file (see below).
+
+Rights associated with file descriptors
+---------------------------------------
+
+When opening a file, the availability of the ``LANDLOCK_ACCESS_FS_TRUNCATE`` and
+``LANDLOCK_ACCESS_FS_IOCTL_DEV`` rights is associated with the newly created
+file descriptor and will be used for subsequent truncation and ioctl attempts
+using :manpage:`ftruncate(2)` and :manpage:`ioctl(2)`.  The behavior is similar
+to opening a file for reading or writing, where permissions are checked during
+:manpage:`open(2)`, but not during the subsequent :manpage:`read(2)` and
 :manpage:`write(2)` calls.
 
-As a consequence, it is possible to have multiple open file descriptors for the
-same file, where one grants the right to truncate the file and the other does
-not.  It is also possible to pass such file descriptors between processes,
-keeping their Landlock properties, even when these processes do not have an
-enforced Landlock ruleset.
+As a consequence, it is possible that a process has multiple open file
+descriptors referring to the same file, but Landlock enforces different things
+when operating with these file descriptors.  This can happen when a Landlock
+ruleset gets enforced and the process keeps file descriptors which were opened
+both before and after the enforcement.  It is also possible to pass such file
+descriptors between processes, keeping their Landlock properties, even when some
+of the involved processes do not have an enforced Landlock ruleset.
 
 Compatibility
 =============
@@ -458,6 +472,28 @@ Memory usage
 Kernel memory allocated to create rulesets is accounted and can be restricted
 by the Documentation/admin-guide/cgroup-v1/memory.rst.
 
+IOCTL support
+-------------
+
+The ``LANDLOCK_ACCESS_FS_IOCTL_DEV`` right restricts the use of
+:manpage:`ioctl(2)`, but it only applies to *newly opened* device files.  This
+means specifically that pre-existing file descriptors like stdin, stdout and
+stderr are unaffected.
+
+Users should be aware that TTY devices have traditionally permitted to control
+other processes on the same TTY through the ``TIOCSTI`` and ``TIOCLINUX`` IOCTL
+commands.  Both of these require ``CAP_SYS_ADMIN`` on modern Linux systems, but
+the behavior is configurable for ``TIOCSTI``.
+
+On older systems, it is therefore recommended to close inherited TTY file
+descriptors, or to reopen them from ``/proc/self/fd/*`` without the
+``LANDLOCK_ACCESS_FS_IOCTL_DEV`` right, if possible.
+
+Landlock's IOCTL support is coarse-grained at the moment, but may become more
+fine-grained in the future.  Until then, users are advised to establish the
+guarantees that they need through the file hierarchy, by only allowing the
+``LANDLOCK_ACCESS_FS_IOCTL_DEV`` right on files where it is really required.
+
 Previous limitations
 ====================
 
@@ -494,6 +530,16 @@ Starting with the Landlock ABI version 4, it is now possible to restrict TCP
 bind and connect actions to only a set of allowed ports thanks to the new
 ``LANDLOCK_ACCESS_NET_BIND_TCP`` and ``LANDLOCK_ACCESS_NET_CONNECT_TCP``
 access rights.
+
+IOCTL (ABI < 5)
+---------------
+
+IOCTL operations could not be denied before the fifth Landlock ABI, so
+:manpage:`ioctl(2)` is always allowed when using a kernel that only supports an
+earlier ABI.
+
+Starting with the Landlock ABI version 5, it is possible to restrict the use of
+:manpage:`ioctl(2)` using the new ``LANDLOCK_ACCESS_FS_IOCTL_DEV`` right.
 
 .. _kernel_support:
 
