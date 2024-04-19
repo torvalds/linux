@@ -1193,18 +1193,16 @@ static int ice_devlink_set_parent(struct devlink_rate *devlink_rate,
 static int ice_devlink_reinit_up(struct ice_pf *pf)
 {
 	struct ice_vsi *vsi = ice_get_main_vsi(pf);
-	struct ice_vsi_cfg_params params;
 	int err;
 
 	err = ice_init_dev(pf);
 	if (err)
 		return err;
 
-	params = ice_vsi_to_params(vsi);
-	params.flags = ICE_VSI_FLAG_INIT;
+	vsi->flags = ICE_VSI_FLAG_INIT;
 
 	rtnl_lock();
-	err = ice_vsi_cfg(vsi, &params);
+	err = ice_vsi_cfg(vsi);
 	rtnl_unlock();
 	if (err)
 		goto err_vsi_cfg;
