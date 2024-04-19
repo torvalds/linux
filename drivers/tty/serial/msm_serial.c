@@ -499,15 +499,18 @@ static int msm_handle_tx_dma(struct msm_port *msm_port, unsigned int count)
 	struct uart_port *port = &msm_port->uart;
 	struct tty_port *tport = &port->state->port;
 	struct msm_dma *dma = &msm_port->tx_dma;
+	unsigned int mapped;
 	int ret;
 	u32 val;
 
 	sg_init_table(&dma->tx_sg, 1);
 	kfifo_dma_out_prepare(&tport->xmit_fifo, &dma->tx_sg, 1, count);
 
-	ret = dma_map_sg(port->dev, &dma->tx_sg, 1, dma->dir);
-	if (ret)
-		return ret;
+	mapped = dma_map_sg(port->dev, &dma->tx_sg, 1, dma->dir);
+	if (!mapped) {
+		ret = -EIO;
+		goto zero_sg;
+	}
 
 	dma->desc = dmaengine_prep_slave_sg(dma->chan, &dma->tx_sg, 1,
 						DMA_MEM_TO_DEV,
@@ -548,6 +551,7 @@ static int msm_handle_tx_dma(struct msm_port *msm_port, unsigned int count)
 	return 0;
 unmap:
 	dma_unmap_sg(port->dev, &dma->tx_sg, 1, dma->dir);
+zero_sg:
 	sg_init_table(&dma->tx_sg, 1);
 	return ret;
 }
