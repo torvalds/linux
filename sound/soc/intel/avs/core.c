@@ -336,6 +336,86 @@ static irqreturn_t avs_dsp_irq_thread(int irq, void *dev_id)
 	return avs_dsp_op(adev, irq_thread);
 }
 
+static irqreturn_t avs_hda_interrupt(struct hdac_bus *bus)
+{
+	irqreturn_t ret = IRQ_NONE;
+	u32 status;
+
+	status = snd_hdac_chip_readl(bus, INTSTS);
+	if (snd_hdac_bus_handle_stream_irq(bus, status, hdac_update_stream))
+		ret = IRQ_HANDLED;
+
+	spin_lock_irq(&bus->reg_lock);
+	/* Clear RIRB interrupt. */
+	status = snd_hdac_chip_readb(bus, RIRBSTS);
+	if (status & RIRB_INT_MASK) {
+		if (status & RIRB_INT_RESPONSE)
+			snd_hdac_bus_update_rirb(bus);
+		snd_hdac_chip_writeb(bus, RIRBSTS, RIRB_INT_MASK);
+		ret = IRQ_HANDLED;
+	}
+
+	spin_unlock_irq(&bus->reg_lock);
+	return ret;
+}
+
+__maybe_unused
+static irqreturn_t avs_hda_irq_handler(int irq, void *dev_id)
+{
+	struct hdac_bus *bus = dev_id;
+	u32 intsts;
+
+	intsts = snd_hdac_chip_readl(bus, INTSTS);
+	if (intsts == UINT_MAX || !(intsts & AZX_INT_GLOBAL_EN))
+		return IRQ_NONE;
+
+	/* Mask GIE, unmasked in irq_thread(). */
+	snd_hdac_chip_updatel(bus, INTCTL, AZX_INT_GLOBAL_EN, 0);
+
+	return IRQ_WAKE_THREAD;
+}
+
+__maybe_unused
+static irqreturn_t avs_hda_irq_thread(int irq, void *dev_id)
+{
+	struct hdac_bus *bus = dev_id;
+	u32 status;
+
+	status = snd_hdac_chip_readl(bus, INTSTS);
+	if (status & ~AZX_INT_GLOBAL_EN)
+		avs_hda_interrupt(bus);
+
+	/* Unmask GIE, masked in irq_handler(). */
+	snd_hdac_chip_updatel(bus, INTCTL, AZX_INT_GLOBAL_EN, AZX_INT_GLOBAL_EN);
+
+	return IRQ_HANDLED;
+}
+
+__maybe_unused
+static irqreturn_t avs_dsp_irq_handler2(int irq, void *dev_id)
+{
+	struct avs_dev *adev = dev_id;
+
+	return avs_hda_irq_handler(irq, &adev->base.core);
+}
+
+__maybe_unused
+static irqreturn_t avs_dsp_irq_thread2(int irq, void *dev_id)
+{
+	struct avs_dev *adev = dev_id;
+	struct hdac_bus *bus = &adev->base.core;
+	u32 status;
+
+	status = readl(bus->ppcap + AZX_REG_PP_PPSTS);
+	if (status & AZX_PPCTL_PIE)
+		avs_dsp_op(adev, dsp_interrupt);
+
+	/* Unmask GIE, masked in irq_handler(). */
+	snd_hdac_chip_updatel(bus, INTCTL, AZX_INT_GLOBAL_EN, AZX_INT_GLOBAL_EN);
+
+	return IRQ_HANDLED;
+}
+
 static int avs_hdac_acquire_irq(struct avs_dev *adev)
 {
 	struct hdac_bus *bus = &adev->base.core;

@@ -24,6 +24,7 @@ int hda_cldma_reset(struct hda_cldma *cl);
 
 void hda_cldma_set_data(struct hda_cldma *cl, void *data, unsigned int size);
 void hda_cldma_setup(struct hda_cldma *cl);
+void hda_cldma_interrupt(struct hda_cldma *cl);
 int hda_cldma_init(struct hda_cldma *cl, struct hdac_bus *bus, void __iomem *dsp_ba,
 		   unsigned int buffer_size);
 void hda_cldma_free(struct hda_cldma *cl);

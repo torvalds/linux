@@ -8,10 +8,27 @@
 
 #include <linux/devcoredump.h>
 #include <linux/slab.h>
+#include <sound/hdaudio_ext.h>
 #include "avs.h"
 #include "messages.h"
 #include "path.h"
 #include "topology.h"
+
+static irqreturn_t avs_apl_dsp_interrupt(struct avs_dev *adev)
+{
+	u32 adspis = snd_hdac_adsp_readl(adev, AVS_ADSP_REG_ADSPIS);
+	irqreturn_t ret = IRQ_NONE;
+
+	if (adspis == UINT_MAX)
+		return ret;
+
+	if (adspis & AVS_ADSP_ADSPIS_IPC) {
+		avs_skl_ipc_interrupt(adev);
+		ret = IRQ_HANDLED;
+	}
+
+	return ret;
+}
 
 #ifdef CONFIG_DEBUG_FS
 int avs_apl_enable_logs(struct avs_dev *adev, enum avs_log_enable enable, u32 aging_period,
@@ -237,6 +254,7 @@ const struct avs_dsp_ops avs_apl_dsp_ops = {
 	.power = avs_dsp_core_power,
 	.reset = avs_dsp_core_reset,
 	.stall = avs_dsp_core_stall,
+	.dsp_interrupt = avs_apl_dsp_interrupt,
 	.irq_handler = avs_irq_handler,
 	.irq_thread = avs_skl_irq_thread,
 	.int_control = avs_dsp_interrupt_control,

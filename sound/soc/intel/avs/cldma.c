@@ -270,6 +270,17 @@ static irqreturn_t cldma_irq_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+void hda_cldma_interrupt(struct hda_cldma *cl)
+{
+	/* disable CLDMA interrupt */
+	snd_hdac_adsp_updatel(cl, AVS_ADSP_REG_ADSPIC, AVS_ADSP_ADSPIC_CLDMA, 0);
+
+	cl->sd_status = snd_hdac_stream_readb(cl, SD_STS);
+	dev_dbg(cl->dev, "%s sd_status: 0x%08x\n", __func__, cl->sd_status);
+
+	complete(&cl->completion);
+}
+
 int hda_cldma_init(struct hda_cldma *cl, struct hdac_bus *bus, void __iomem *dsp_ba,
 		   unsigned int buffer_size)
 {

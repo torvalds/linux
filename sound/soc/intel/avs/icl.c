@@ -188,6 +188,7 @@ const struct avs_dsp_ops avs_icl_dsp_ops = {
 	.power = avs_dsp_core_power,
 	.reset = avs_dsp_core_reset,
 	.stall = avs_dsp_core_stall,
+	.dsp_interrupt = avs_cnl_dsp_interrupt,
 	.irq_handler = avs_irq_handler,
 	.irq_thread = avs_cnl_irq_thread,
 	.int_control = avs_dsp_interrupt_control,
