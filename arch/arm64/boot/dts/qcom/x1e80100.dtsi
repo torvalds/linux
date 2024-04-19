@@ -4095,8 +4095,6 @@
 
 						mdss_dp3_in: endpoint {
 							remote-endpoint = <&mdss_intf5_out>;
-
-							link-frequencies = /bits/ 64 <8100000000>;
 						};
 					};
 
