@@ -16,6 +16,7 @@
 #include <linux/jump_label.h>
 #include <linux/kobject.h>
 #include <linux/kstrtox.h>
+#include <linux/sched/task_stack.h>
 #include <linux/slab.h>
 #include <linux/sysfs.h>
 
@@ -135,6 +136,56 @@ static __always_inline bool str_has_suffix(const char *str, const char *suffix)
 }
 
 /*
+ * The dynamic linker, or interpreter, operates within the process context
+ * of the binary that necessitated dynamic linking.
+ *
+ * Consequently, process context identifiers; like PID, comm, ...; cannot
+ * be used to differentiate whether the execution context belongs to the
+ * dynamic linker or not.
+ *
+ * linker_ctx() deduces whether execution is currently in the dynamic linker's
+ * context by correlating the current userspace instruction pointer with the
+ * VMAs of the current task.
+ *
+ * Returns true if in linker context, otherwise false.
+ *
+ * Caller must hold mmap lock in read mode.
+ */
+static inline bool linker_ctx(void)
+{
+	struct pt_regs *regs = task_pt_regs(current);
+	struct mm_struct *mm = current->mm;
+	struct vm_area_struct *vma;
+	struct file *file;
+
+	if (!regs)
+		return false;
+
+	vma = find_vma(mm, instruction_pointer(regs));
+
+	/* Current execution context, the VMA must be present */
+	BUG_ON(!vma);
+
+	file = vma->vm_file;
+	if (!file)
+		return false;
+
+	if ((vma->vm_flags & VM_EXEC)) {
+		char buf[64];
+		const int bufsize = sizeof(buf);
+		char *path;
+
+		memset(buf, 0, bufsize);
+		path = d_path(&file->f_path, buf, bufsize);
+
+		if (!strcmp(path, "/system/bin/linker64"))
+			return true;
+	}
+
+	return false;
+}
+
+/*
  * Saves the number of padding pages for an ELF segment mapping
  * in vm_flags.
  *
@@ -146,6 +197,7 @@ static __always_inline bool str_has_suffix(const char *str, const char *suffix)
  *    4) The number of the pages in the range does not exceed VM_TOTAL_PAD_PAGES.
  *    5) The VMA is a regular file backed VMA (filemap_fault)
  *    6) The file backing the VMA is a shared library (*.so)
+ *    7) The madvise was requested by bionic's dynamic linker.
  */
 void madvise_vma_pad_pages(struct vm_area_struct *vma,
 			   unsigned long start, unsigned long end)
@@ -155,18 +207,9 @@ void madvise_vma_pad_pages(struct vm_area_struct *vma,
 	if (!is_pgsize_migration_enabled())
 		return;
 
-	/* Only handle this for file backed VMAs */
-	if (!vma->vm_file || !vma->vm_ops || vma->vm_ops->fault != filemap_fault)
-		return;
-
-
-	/* Limit this to only shared libraries (*.so) */
-	if (!str_has_suffix(vma->vm_file->f_path.dentry->d_name.name, ".so"))
-		return;
-
 	/*
 	 * If the madvise range is it at the end of the file save the number of
-	 * pages in vm_flags (only need 4 bits are needed for 16kB aligned ELFs).
+	 * pages in vm_flags (only need 4 bits are needed for up to 64kB aligned ELFs).
 	 */
 	if (start <= vma->vm_start || end != vma->vm_end)
 		return;
@@ -174,6 +217,18 @@ void madvise_vma_pad_pages(struct vm_area_struct *vma,
 	nr_pad_pages = (end - start) >> PAGE_SHIFT;
 
 	if (!nr_pad_pages || nr_pad_pages > VM_TOTAL_PAD_PAGES)
+		return;
+
+	/* Only handle this for file backed VMAs */
+	if (!vma->vm_file || !vma->vm_ops || vma->vm_ops->fault != filemap_fault)
+		return;
+
+	/* Limit this to only shared libraries (*.so) */
+	if (!str_has_suffix(vma->vm_file->f_path.dentry->d_name.name, ".so"))
+		return;
+
+	/* Only bionic's dynamic linker needs to hint padding pages. */
+	if (!linker_ctx())
 		return;
 
 	vma_set_pad_pages(vma, nr_pad_pages);
