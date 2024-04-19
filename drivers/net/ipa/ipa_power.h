@@ -32,20 +32,6 @@ u32 ipa_core_clock_rate(struct ipa *ipa);
 void ipa_power_retention(struct ipa *ipa, bool enable);
 
 /**
- * ipa_power_setup() - Set up IPA power management
- * @ipa:	IPA pointer
- *
- * Return:	0 if successful, or a negative error code
- */
-int ipa_power_setup(struct ipa *ipa);
-
-/**
- * ipa_power_teardown() - Inverse of ipa_power_setup()
- * @ipa:	IPA pointer
- */
-void ipa_power_teardown(struct ipa *ipa);
-
-/**
  * ipa_power_init() - Initialize IPA power management
  * @dev:	IPA device
  * @data:	Clock configuration data
