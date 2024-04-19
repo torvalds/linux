@@ -17,7 +17,7 @@
 #define STRCMP_TEST_EXPECT_LOWER(test, fn, ...) KUNIT_EXPECT_LT(test, fn(__VA_ARGS__), 0)
 #define STRCMP_TEST_EXPECT_GREATER(test, fn, ...) KUNIT_EXPECT_GT(test, fn(__VA_ARGS__), 0)
 
-static void test_memset16(struct kunit *test)
+static void string_test_memset16(struct kunit *test)
 {
 	unsigned i, j, k;
 	u16 v, *p;
@@ -46,7 +46,7 @@ static void test_memset16(struct kunit *test)
 	}
 }
 
-static void test_memset32(struct kunit *test)
+static void string_test_memset32(struct kunit *test)
 {
 	unsigned i, j, k;
 	u32 v, *p;
@@ -75,7 +75,7 @@ static void test_memset32(struct kunit *test)
 	}
 }
 
-static void test_memset64(struct kunit *test)
+static void string_test_memset64(struct kunit *test)
 {
 	unsigned i, j, k;
 	u64 v, *p;
@@ -104,7 +104,7 @@ static void test_memset64(struct kunit *test)
 	}
 }
 
-static void test_strchr(struct kunit *test)
+static void string_test_strchr(struct kunit *test)
 {
 	const char *test_string = "abcdefghijkl";
 	const char *empty_string = "";
@@ -127,7 +127,7 @@ static void test_strchr(struct kunit *test)
 	KUNIT_ASSERT_NULL(test, result);
 }
 
-static void test_strnchr(struct kunit *test)
+static void string_test_strnchr(struct kunit *test)
 {
 	const char *test_string = "abcdefghijkl";
 	const char *empty_string = "";
@@ -160,7 +160,7 @@ static void test_strnchr(struct kunit *test)
 	KUNIT_ASSERT_NULL(test, result);
 }
 
-static void test_strspn(struct kunit *test)
+static void string_test_strspn(struct kunit *test)
 {
 	static const struct strspn_test {
 		const char str[16];
@@ -196,7 +196,7 @@ static void strcmp_fill_buffers(char fill1, char fill2)
 	strcmp_buffer2[STRCMP_LARGE_BUF_LEN - 1] = 0;
 }
 
-static void test_strcmp(struct kunit *test)
+static void string_test_strcmp(struct kunit *test)
 {
 	/* Equal strings */
 	STRCMP_TEST_EXPECT_EQUAL(test, strcmp, "Hello, Kernel!", "Hello, Kernel!");
@@ -214,7 +214,7 @@ static void test_strcmp(struct kunit *test)
 	STRCMP_TEST_EXPECT_LOWER(test, strcmp, "Just a string", "Just a string and something else");
 }
 
-static void test_strcmp_long_strings(struct kunit *test)
+static void string_test_strcmp_long_strings(struct kunit *test)
 {
 	strcmp_fill_buffers('B', 'B');
 	STRCMP_TEST_EXPECT_EQUAL(test, strcmp, strcmp_buffer1, strcmp_buffer2);
@@ -226,7 +226,7 @@ static void test_strcmp_long_strings(struct kunit *test)
 	STRCMP_TEST_EXPECT_GREATER(test, strcmp, strcmp_buffer1, strcmp_buffer2);
 }
 
-static void test_strncmp(struct kunit *test)
+static void string_test_strncmp(struct kunit *test)
 {
 	/* Equal strings */
 	STRCMP_TEST_EXPECT_EQUAL(test, strncmp, "Hello, KUnit!", "Hello, KUnit!", 13);
@@ -249,7 +249,7 @@ static void test_strncmp(struct kunit *test)
 				 strlen("Just a string"));
 }
 
-static void test_strncmp_long_strings(struct kunit *test)
+static void string_test_strncmp_long_strings(struct kunit *test)
 {
 	strcmp_fill_buffers('B', 'B');
 	STRCMP_TEST_EXPECT_EQUAL(test, strncmp, strcmp_buffer1,
@@ -269,7 +269,7 @@ static void test_strncmp_long_strings(struct kunit *test)
 				   strcmp_buffer2, STRCMP_CHANGE_POINT + 1);
 }
 
-static void test_strcasecmp(struct kunit *test)
+static void string_test_strcasecmp(struct kunit *test)
 {
 	/* Same strings in different case should be equal */
 	STRCMP_TEST_EXPECT_EQUAL(test, strcasecmp, "Hello, Kernel!", "HeLLO, KErNeL!");
@@ -282,7 +282,7 @@ static void test_strcasecmp(struct kunit *test)
 	STRCMP_TEST_EXPECT_EQUAL(test, strcasecmp, "-+**.1230ghTTT~^", "-+**.1230Ghttt~^");
 }
 
-static void test_strcasecmp_long_strings(struct kunit *test)
+static void string_test_strcasecmp_long_strings(struct kunit *test)
 {
 	strcmp_fill_buffers('b', 'B');
 	STRCMP_TEST_EXPECT_EQUAL(test, strcasecmp, strcmp_buffer1, strcmp_buffer2);
@@ -294,7 +294,7 @@ static void test_strcasecmp_long_strings(struct kunit *test)
 	STRCMP_TEST_EXPECT_GREATER(test, strcasecmp, strcmp_buffer1, strcmp_buffer2);
 }
 
-static void test_strncasecmp(struct kunit *test)
+static void string_test_strncasecmp(struct kunit *test)
 {
 	/* Same strings in different case should be equal */
 	STRCMP_TEST_EXPECT_EQUAL(test, strncasecmp, "AbAcAbA", "Abacaba", strlen("Abacaba"));
@@ -306,7 +306,7 @@ static void test_strncasecmp(struct kunit *test)
 	STRCMP_TEST_EXPECT_EQUAL(test, strncasecmp, "Abacaba", "Not abacaba", 0);
 }
 
-static void test_strncasecmp_long_strings(struct kunit *test)
+static void string_test_strncasecmp_long_strings(struct kunit *test)
 {
 	strcmp_fill_buffers('b', 'B');
 	STRCMP_TEST_EXPECT_EQUAL(test, strncasecmp, strcmp_buffer1,
@@ -398,7 +398,7 @@ static void strscpy_check(struct kunit *test, char *src, int count,
 	}
 }
 
-static void test_strscpy(struct kunit *test)
+static void string_test_strscpy(struct kunit *test)
 {
 	char dest[8];
 
@@ -447,7 +447,7 @@ static void test_strscpy(struct kunit *test)
 
 static volatile int unconst;
 
-static void test_strcat(struct kunit *test)
+static void string_test_strcat(struct kunit *test)
 {
 	char dest[8];
 
@@ -466,7 +466,7 @@ static void test_strcat(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, dest, "fourAB");
 }
 
-static void test_strncat(struct kunit *test)
+static void string_test_strncat(struct kunit *test)
 {
 	char dest[8];
 
@@ -493,7 +493,7 @@ static void test_strncat(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, dest, "fourAB");
 }
 
-static void test_strlcat(struct kunit *test)
+static void string_test_strlcat(struct kunit *test)
 {
 	char dest[8] = "";
 	int len = sizeof(dest) + unconst;
@@ -525,24 +525,24 @@ static void test_strlcat(struct kunit *test)
 }
 
 static struct kunit_case string_test_cases[] = {
-	KUNIT_CASE(test_memset16),
-	KUNIT_CASE(test_memset32),
-	KUNIT_CASE(test_memset64),
-	KUNIT_CASE(test_strchr),
-	KUNIT_CASE(test_strnchr),
-	KUNIT_CASE(test_strspn),
-	KUNIT_CASE(test_strcmp),
-	KUNIT_CASE(test_strcmp_long_strings),
-	KUNIT_CASE(test_strncmp),
-	KUNIT_CASE(test_strncmp_long_strings),
-	KUNIT_CASE(test_strcasecmp),
-	KUNIT_CASE(test_strcasecmp_long_strings),
-	KUNIT_CASE(test_strncasecmp),
-	KUNIT_CASE(test_strncasecmp_long_strings),
-	KUNIT_CASE(test_strscpy),
-	KUNIT_CASE(test_strcat),
-	KUNIT_CASE(test_strncat),
-	KUNIT_CASE(test_strlcat),
+	KUNIT_CASE(string_test_memset16),
+	KUNIT_CASE(string_test_memset32),
+	KUNIT_CASE(string_test_memset64),
+	KUNIT_CASE(string_test_strchr),
+	KUNIT_CASE(string_test_strnchr),
+	KUNIT_CASE(string_test_strspn),
+	KUNIT_CASE(string_test_strcmp),
+	KUNIT_CASE(string_test_strcmp_long_strings),
+	KUNIT_CASE(string_test_strncmp),
+	KUNIT_CASE(string_test_strncmp_long_strings),
+	KUNIT_CASE(string_test_strcasecmp),
+	KUNIT_CASE(string_test_strcasecmp_long_strings),
+	KUNIT_CASE(string_test_strncasecmp),
+	KUNIT_CASE(string_test_strncasecmp_long_strings),
+	KUNIT_CASE(string_test_strscpy),
+	KUNIT_CASE(string_test_strcat),
+	KUNIT_CASE(string_test_strncat),
+	KUNIT_CASE(string_test_strlcat),
 	{}
 };
 
