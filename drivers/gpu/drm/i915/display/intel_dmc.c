@@ -942,6 +942,15 @@ static void dmc_load_work_fn(struct work_struct *work)
 		}
 	}
 
+	if (err) {
+		drm_notice(&i915->drm,
+			   "Failed to load DMC firmware %s (%pe). Disabling runtime power management.\n",
+			   dmc->fw_path, ERR_PTR(err));
+		drm_notice(&i915->drm, "DMC firmware homepage: %s",
+			   INTEL_DMC_FIRMWARE_URL);
+		return;
+	}
+
 	parse_dmc_fw(dmc, fw);
 
 	if (intel_dmc_has_payload(i915)) {
@@ -956,8 +965,6 @@ static void dmc_load_work_fn(struct work_struct *work)
 			   "Failed to load DMC firmware %s."
 			   " Disabling runtime power management.\n",
 			   dmc->fw_path);
-		drm_notice(&i915->drm, "DMC firmware homepage: %s",
-			   INTEL_DMC_FIRMWARE_URL);
 	}
 
 	release_firmware(fw);
