@@ -201,7 +201,11 @@ enum  {
  *      it to take effect. Such cases might typically happen on a 1PF+1VF
  *      Virtualization config enabled for heavier workloads like AI/ML.
  *
+ *      The max value for this KLV is 100 seconds, anything exceeding that
+ *      will be clamped to the max.
+ *
  *      :0: infinite exec quantum (default)
+ *      :100000: maximum exec quantum (100000ms == 100s)
  *
  * _`GUC_KLV_VF_CFG_PREEMPT_TIMEOUT` : 0x8A02
  *      This config sets the VF-preemption-timeout in microseconds.
@@ -219,7 +223,11 @@ enum  {
  *      on a 1PF+1VF Virtualization config enabled for heavier workloads like
  *      AI/ML.
  *
+ *      The max value for this KLV is 100 seconds, anything exceeding that
+ *      will be clamped to the max.
+ *
  *      :0: no preemption timeout (default)
+ *      :100000000: maximum preemption timeout (100000000us == 100s)
  *
  * _`GUC_KLV_VF_CFG_THRESHOLD_CAT_ERR` : 0x8A03
  *      This config sets threshold for CAT errors caused by the VF.
@@ -291,9 +299,11 @@ enum  {
 
 #define GUC_KLV_VF_CFG_EXEC_QUANTUM_KEY		0x8a01
 #define GUC_KLV_VF_CFG_EXEC_QUANTUM_LEN		1u
+#define GUC_KLV_VF_CFG_EXEC_QUANTUM_MAX_VALUE	100000u
 
-#define GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY	0x8a02
-#define GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_LEN	1u
+#define GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_KEY		0x8a02
+#define GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_LEN		1u
+#define GUC_KLV_VF_CFG_PREEMPT_TIMEOUT_MAX_VALUE	100000000u
 
 #define GUC_KLV_VF_CFG_THRESHOLD_CAT_ERR_KEY		0x8a03
 #define GUC_KLV_VF_CFG_THRESHOLD_CAT_ERR_LEN		1u
