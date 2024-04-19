@@ -4,6 +4,7 @@
  */
 
 #include <dt-bindings/clock/imx93-clock.h>
+#include <dt-bindings/dma/fsl-edma.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
@@ -375,7 +376,7 @@
 				interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX93_CLK_LPUART1_GATE>;
 				clock-names = "ipg";
-				dmas = <&edma1 17 0 1>, <&edma1 16 0 0>;
+				dmas = <&edma1 17 0 FSL_EDMA_RX>, <&edma1 16 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -386,7 +387,7 @@
 				interrupts = <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX93_CLK_LPUART2_GATE>;
 				clock-names = "ipg";
-				dmas = <&edma1 19 0 1>, <&edma1 18 0 0>;
+				dmas = <&edma1 19 0 FSL_EDMA_RX>, <&edma1 18 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -414,7 +415,7 @@
 					 <&clk IMX93_CLK_SAI1_GATE>, <&clk IMX93_CLK_DUMMY>,
 					 <&clk IMX93_CLK_DUMMY>;
 				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
-				dmas = <&edma1 22 0 1>, <&edma1 21 0 0>;
+				dmas = <&edma1 22 0 FSL_EDMA_RX>, <&edma1 21 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -751,7 +752,7 @@
 				interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX93_CLK_LPUART3_GATE>;
 				clock-names = "ipg";
-				dmas = <&edma2 18 0 1>, <&edma2 17 0 0>;
+				dmas = <&edma2 18 0 FSL_EDMA_RX>, <&edma2 17 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -762,7 +763,7 @@
 				interrupts = <GIC_SPI 69 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX93_CLK_LPUART4_GATE>;
 				clock-names = "ipg";
-				dmas = <&edma2 20 0 1>, <&edma2 19 0 0>;
+				dmas = <&edma2 20 0 FSL_EDMA_RX>, <&edma2 19 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -773,7 +774,7 @@
 				interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX93_CLK_LPUART5_GATE>;
 				clock-names = "ipg";
-				dmas = <&edma2 22 0 1>, <&edma2 21 0 0>;
+				dmas = <&edma2 22 0 FSL_EDMA_RX>, <&edma2 21 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -784,7 +785,7 @@
 				interrupts = <GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX93_CLK_LPUART6_GATE>;
 				clock-names = "ipg";
-				dmas = <&edma2 24 0 1>, <&edma2 23 0 0>;
+				dmas = <&edma2 24 0 FSL_EDMA_RX>, <&edma2 23 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -827,7 +828,7 @@
 					 <&clk IMX93_CLK_SAI2_GATE>, <&clk IMX93_CLK_DUMMY>,
 					 <&clk IMX93_CLK_DUMMY>;
 				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
-				dmas = <&edma2 59 0 1>, <&edma2 58 0 0>;
+				dmas = <&edma2 59 0 FSL_EDMA_RX>, <&edma2 58 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -840,7 +841,7 @@
 					 <&clk IMX93_CLK_SAI3_GATE>, <&clk IMX93_CLK_DUMMY>,
 					 <&clk IMX93_CLK_DUMMY>;
 				clock-names = "bus", "mclk0", "mclk1", "mclk2", "mclk3";
-				dmas = <&edma2 61 0 1>, <&edma2 60 0 0>;
+				dmas = <&edma2 61 0 FSL_EDMA_RX>, <&edma2 60 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -859,7 +860,7 @@
 					 <&clk IMX93_CLK_DUMMY>,
 					 <&clk IMX93_CLK_AUD_XCVR_GATE>;
 				clock-names = "ipg", "phy", "spba", "pll_ipg";
-				dmas = <&edma2 65 0 1>, <&edma2 66 0 0>;
+				dmas = <&edma2 65 0 FSL_EDMA_RX>, <&edma2 66 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -870,7 +871,7 @@
 				interrupts = <GIC_SPI 210 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX93_CLK_LPUART7_GATE>;
 				clock-names = "ipg";
-				dmas = <&edma2 88 0 1>, <&edma2 87 0 0>;
+				dmas = <&edma2 88 0 FSL_EDMA_RX>, <&edma2 87 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
@@ -881,7 +882,7 @@
 				interrupts = <GIC_SPI 211 IRQ_TYPE_LEVEL_HIGH>;
 				clocks = <&clk IMX93_CLK_LPUART8_GATE>;
 				clock-names = "ipg";
-				dmas = <&edma2 90 0 1>, <&edma2 89 0 0>;
+				dmas = <&edma2 90 0 FSL_EDMA_RX>, <&edma2 89 0 0>;
 				dma-names = "rx", "tx";
 				status = "disabled";
 			};
