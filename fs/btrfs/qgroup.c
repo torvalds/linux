@@ -1889,6 +1889,41 @@ out:
 	return ret;
 }
 
+int btrfs_qgroup_cleanup_dropped_subvolume(struct btrfs_fs_info *fs_info, u64 subvolid)
+{
+	struct btrfs_trans_handle *trans;
+	int ret;
+
+	if (!is_fstree(subvolid) || !btrfs_qgroup_enabled(fs_info) || !fs_info->quota_root)
+		return 0;
+
+	/*
+	 * Commit current transaction to make sure all the rfer/excl numbers
+	 * get updated.
+	 */
+	trans = btrfs_start_transaction(fs_info->quota_root, 0);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+
+	ret = btrfs_commit_transaction(trans);
+	if (ret < 0)
+		return ret;
+
+	/* Start new trans to delete the qgroup info and limit items. */
+	trans = btrfs_start_transaction(fs_info->quota_root, 2);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
+	ret = btrfs_remove_qgroup(trans, subvolid);
+	btrfs_end_transaction(trans);
+	/*
+	 * It's squota and the subvolume still has numbers needed for future
+	 * accounting, in this case we can not delete it.  Just skip it.
+	 */
+	if (ret == -EBUSY)
+		ret = 0;
+	return ret;
+}
+
 int btrfs_limit_qgroup(struct btrfs_trans_handle *trans, u64 qgroupid,
 		       struct btrfs_qgroup_limit *limit)
 {
