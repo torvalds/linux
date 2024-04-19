@@ -1013,6 +1013,8 @@ static int zswap_writeback_entry(struct zpool *pool, unsigned long handle)
 		if (zswap_rb_search(&tree->rbroot, entry->offset) != entry) {
 			spin_unlock(&tree->lock);
 			delete_from_swap_cache(page_folio(page));
+			unlock_page(page);
+			put_page(page);
 			ret = -ENOMEM;
 			goto fail;
 		}
