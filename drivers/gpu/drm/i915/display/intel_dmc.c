@@ -73,6 +73,21 @@ static struct intel_dmc *i915_to_dmc(struct drm_i915_private *i915)
 	return i915->display.dmc.dmc;
 }
 
+static const char *dmc_firmware_param(struct drm_i915_private *i915)
+{
+	const char *p = i915->params.dmc_firmware_path;
+
+	return p && *p ? p : NULL;
+}
+
+static bool dmc_firmware_param_disabled(struct drm_i915_private *i915)
+{
+	const char *p = dmc_firmware_param(i915);
+
+	/* Magic path to indicate disabled */
+	return p && !strcmp(p, "/dev/null");
+}
+
 #define DMC_VERSION(major, minor)	((major) << 16 | (minor))
 #define DMC_VERSION_MAJOR(version)	((version) >> 16)
 #define DMC_VERSION_MINOR(version)	((version) & 0xffff)
@@ -991,7 +1006,7 @@ static void dmc_load_work_fn(struct work_struct *work)
 
 	err = request_firmware(&fw, dmc->fw_path, i915->drm.dev);
 
-	if (err == -ENOENT && !i915->params.dmc_firmware_path) {
+	if (err == -ENOENT && !dmc_firmware_param(i915)) {
 		fallback_path = dmc_fallback_path(i915);
 		if (fallback_path) {
 			drm_dbg_kms(&i915->drm, "%s not found, falling back to %s\n",
@@ -1064,15 +1079,13 @@ void intel_dmc_init(struct drm_i915_private *i915)
 
 	dmc->fw_path = dmc_firmware_default(i915, &dmc->max_fw_size);
 
-	if (i915->params.dmc_firmware_path) {
-		if (strlen(i915->params.dmc_firmware_path) == 0) {
-			drm_info(&i915->drm,
-				 "Disabling DMC firmware and runtime PM\n");
-			goto out;
-		}
-
-		dmc->fw_path = i915->params.dmc_firmware_path;
+	if (dmc_firmware_param_disabled(i915)) {
+		drm_info(&i915->drm, "Disabling DMC firmware and runtime PM\n");
+		goto out;
 	}
+
+	if (dmc_firmware_param(i915))
+		dmc->fw_path = dmc_firmware_param(i915);
 
 	if (!dmc->fw_path) {
 		drm_dbg_kms(&i915->drm,
