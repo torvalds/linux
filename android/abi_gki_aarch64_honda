@@ -11,6 +11,8 @@
 
 # commonly required by ledtrig-*.ko modules
   led_blink_set_oneshot
+  led_get_default_pattern
+  led_set_brightness
   led_set_brightness_nosleep
   led_stop_software_blink
 
