@@ -337,9 +337,9 @@ int bch2_replicas_deltas_realloc(struct btree_trans *, unsigned);
 
 void bch2_fs_usage_initialize(struct bch_fs *);
 
-int bch2_check_bucket_ref(struct btree_trans *, struct bkey_s_c,
-			  const struct bch_extent_ptr *,
-			  s64, enum bch_data_type, u8, u8, u32);
+int bch2_bucket_ref_update(struct btree_trans *, struct bkey_s_c,
+			   const struct bch_extent_ptr *,
+			   s64, enum bch_data_type, u8, u8, u32 *);
 
 int bch2_trigger_extent(struct btree_trans *, enum btree_id, unsigned,
 			struct bkey_s_c, struct bkey_s,

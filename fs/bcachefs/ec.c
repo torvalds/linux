@@ -243,13 +243,13 @@ static int __mark_stripe_bucket(struct btree_trans *trans,
 		}
 	}
 
-	ret = bch2_check_bucket_ref(trans, s.s_c, ptr, sectors, data_type,
-				    bucket_gen, *bucket_data_type,
-				    *bucket_dirty_sectors);
-	if (ret)
-		goto err;
-
-	*bucket_dirty_sectors += sectors;
+	if (sectors) {
+		ret = bch2_bucket_ref_update(trans, s.s_c, ptr, sectors, data_type,
+					     bucket_gen, *bucket_data_type,
+					     bucket_dirty_sectors);
+		if (ret)
+			goto err;
+	}
 
 	if (!deleting) {
 		*bucket_stripe			= s.k->p.offset;

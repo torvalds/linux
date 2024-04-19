@@ -485,18 +485,21 @@ int bch2_update_cached_sectors_list(struct btree_trans *trans, unsigned dev, s64
 	return bch2_update_replicas_list(trans, &r.e, sectors);
 }
 
-int bch2_check_bucket_ref(struct btree_trans *trans,
+int bch2_bucket_ref_update(struct btree_trans *trans,
 			  struct bkey_s_c k,
 			  const struct bch_extent_ptr *ptr,
 			  s64 sectors, enum bch_data_type ptr_data_type,
 			  u8 b_gen, u8 bucket_data_type,
-			  u32 bucket_sectors)
+			  u32 *bucket_sectors)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
 	size_t bucket_nr = PTR_BUCKET_NR(ca, ptr);
 	struct printbuf buf = PRINTBUF;
+	bool inserting = sectors > 0;
 	int ret = 0;
+
+	BUG_ON(!sectors);
 
 	if (gen_after(ptr->gen, b_gen)) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
@@ -507,8 +510,9 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
 			ptr->gen,
 			(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		ret = -EIO;
-		goto err;
+		if (inserting)
+			goto err;
+		goto out;
 	}
 
 	if (gen_cmp(b_gen, ptr->gen) > BUCKET_GC_GEN_MAX) {
@@ -521,11 +525,17 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 			ptr->gen,
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		ret = -EIO;
-		goto err;
+		if (inserting)
+			goto err;
+		goto out;
 	}
 
-	if (b_gen != ptr->gen && !ptr->cached) {
+	if (b_gen != ptr->gen && ptr->cached) {
+		ret = 1;
+		goto out;
+	}
+
+	if (b_gen != ptr->gen) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
 			      BCH_FSCK_ERR_stale_dirty_ptr,
 			"bucket %u:%zu gen %u (mem gen %u) data type %s: stale dirty ptr (gen %u)\n"
@@ -536,12 +546,8 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 			ptr->gen,
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		ret = -EIO;
-		goto err;
-	}
-
-	if (b_gen != ptr->gen) {
-		ret = 1;
+		if (inserting)
+			goto err;
 		goto out;
 	}
 
@@ -555,28 +561,33 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 			bch2_data_type_str(ptr_data_type),
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		ret = -EIO;
-		goto err;
+		if (inserting)
+			goto err;
+		goto out;
 	}
 
-	if ((u64) bucket_sectors + sectors > U32_MAX) {
+	if ((u64) *bucket_sectors + sectors > U32_MAX) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
 			      BCH_FSCK_ERR_bucket_sector_count_overflow,
 			"bucket %u:%zu gen %u data type %s sector count overflow: %u + %lli > U32_MAX\n"
 			"while marking %s",
 			ptr->dev, bucket_nr, b_gen,
 			bch2_data_type_str(bucket_data_type ?: ptr_data_type),
-			bucket_sectors, sectors,
+			*bucket_sectors, sectors,
 			(printbuf_reset(&buf),
 			 bch2_bkey_val_to_text(&buf, c, k), buf.buf));
-		ret = -EIO;
-		goto err;
+		if (inserting)
+			goto err;
+		sectors = -*bucket_sectors;
 	}
+
+	*bucket_sectors += sectors;
 out:
 	printbuf_exit(&buf);
 	return ret;
 err:
 	bch2_dump_trans_updates(trans);
+	ret = -EIO;
 	goto out;
 }
 
@@ -723,13 +734,11 @@ static int __mark_pointer(struct btree_trans *trans,
 	u32 *dst_sectors = !ptr->cached
 		? dirty_sectors
 		: cached_sectors;
-	int ret = bch2_check_bucket_ref(trans, k, ptr, sectors, ptr_data_type,
-				   bucket_gen, *bucket_data_type, *dst_sectors);
+	int ret = bch2_bucket_ref_update(trans, k, ptr, sectors, ptr_data_type,
+					 bucket_gen, *bucket_data_type, dst_sectors);
 
 	if (ret)
 		return ret;
-
-	*dst_sectors += sectors;
 
 	if (!*dirty_sectors && !*cached_sectors)
 		*bucket_data_type = 0;
