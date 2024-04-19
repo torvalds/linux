@@ -1082,6 +1082,8 @@
 				fsl,num-tx-queues = <3>;
 				fsl,num-rx-queues = <3>;
 				fsl,stop-mode = <&wakeupmix_gpr 0x0c 1>;
+				nvmem-cells = <&eth_mac1>;
+				nvmem-cell-names = "mac-address";
 				status = "disabled";
 			};
 
@@ -1191,6 +1193,11 @@
 			reg = <0x47510000 0x10000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+
+			eth_mac1: mac-address@4ec {
+				reg = <0x4ec 0x6>;
+			};
+
 		};
 
 		s4muap: mailbox@47520000 {
