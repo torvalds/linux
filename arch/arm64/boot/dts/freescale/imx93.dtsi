@@ -1106,6 +1106,8 @@
 				assigned-clock-rates = <100000000>, <250000000>;
 				intf_mode = <&wakeupmix_gpr 0x28>;
 				snps,clk-csr = <0>;
+				nvmem-cells = <&eth_mac2>;
+				nvmem-cell-names = "mac-address";
 				status = "disabled";
 			};
 
@@ -1196,6 +1198,10 @@
 
 			eth_mac1: mac-address@4ec {
 				reg = <0x4ec 0x6>;
+			};
+
+			eth_mac2: mac-address@4f2 {
+				reg = <0x4f2 0x6>;
 			};
 
 		};
