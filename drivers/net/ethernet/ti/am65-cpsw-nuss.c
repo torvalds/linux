@@ -3061,7 +3061,8 @@ static void am65_cpsw_init_port_switch_ale(struct am65_cpsw_port *port)
 }
 
 static int am65_cpsw_dl_switch_mode_set(struct devlink *dl, u32 id,
-					struct devlink_param_gset_ctx *ctx)
+					struct devlink_param_gset_ctx *ctx,
+					struct netlink_ext_ack *extack)
 {
 	struct am65_cpsw_devlink *dl_priv = devlink_priv(dl);
 	struct am65_cpsw_common *cpsw = dl_priv->common;

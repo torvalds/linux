@@ -32,7 +32,8 @@ static int otx2_dl_mcam_count_validate(struct devlink *devlink, u32 id,
 }
 
 static int otx2_dl_mcam_count_set(struct devlink *devlink, u32 id,
-				  struct devlink_param_gset_ctx *ctx)
+				  struct devlink_param_gset_ctx *ctx,
+				  struct netlink_ext_ack *extack)
 {
 	struct otx2_devlink *otx2_dl = devlink_priv(devlink);
 	struct otx2_nic *pfvf = otx2_dl->pfvf;
