@@ -581,10 +581,11 @@ static int __iommu_probe_device(struct device *dev, struct list_head *group_list
 		if (list_empty(&group->entry))
 			list_add_tail(&group->entry, group_list);
 	}
-	mutex_unlock(&group->mutex);
 
-	if (dev_is_pci(dev))
-		iommu_dma_set_pci_32bit_workaround(dev);
+	if (group->default_domain)
+		iommu_setup_dma_ops(dev);
+
+	mutex_unlock(&group->mutex);
 
 	return 0;
 
@@ -1828,6 +1829,8 @@ int bus_iommu_probe(const struct bus_type *bus)
 			mutex_unlock(&group->mutex);
 			return ret;
 		}
+		for_each_group_device(group, gdev)
+			iommu_setup_dma_ops(gdev->dev);
 		mutex_unlock(&group->mutex);
 
 		/*
@@ -3066,18 +3069,9 @@ static ssize_t iommu_group_store_type(struct iommu_group *group,
 	if (ret)
 		goto out_unlock;
 
-	/*
-	 * Release the mutex here because ops->probe_finalize() call-back of
-	 * some vendor IOMMU drivers calls arm_iommu_attach_device() which
-	 * in-turn might call back into IOMMU core code, where it tries to take
-	 * group->mutex, resulting in a deadlock.
-	 */
-	mutex_unlock(&group->mutex);
-
 	/* Make sure dma_ops is appropriatley set */
 	for_each_group_device(group, gdev)
-		iommu_group_do_probe_finalize(gdev->dev);
-	return count;
+		iommu_setup_dma_ops(gdev->dev);
 
 out_unlock:
 	mutex_unlock(&group->mutex);
