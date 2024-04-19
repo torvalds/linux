@@ -1058,10 +1058,10 @@ static int process_g2h_msg(struct xe_guc_ct *ct, u32 *msg, u32 len)
 							   adj_len);
 		break;
 	case XE_GUC_ACTION_GUC2PF_RELAY_FROM_VF:
-		ret = xe_guc_relay_process_guc2pf(&guc->relay, payload, adj_len);
+		ret = xe_guc_relay_process_guc2pf(&guc->relay, hxg, hxg_len);
 		break;
 	case XE_GUC_ACTION_GUC2VF_RELAY_FROM_PF:
-		ret = xe_guc_relay_process_guc2vf(&guc->relay, payload, adj_len);
+		ret = xe_guc_relay_process_guc2vf(&guc->relay, hxg, hxg_len);
 		break;
 	case GUC_ACTION_GUC2PF_VF_STATE_NOTIFY:
 		ret = xe_gt_sriov_pf_control_process_guc2pf(gt, hxg, hxg_len);
