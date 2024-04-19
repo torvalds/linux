@@ -403,7 +403,6 @@ void tcp_twsk_purge(struct list_head *net_exit_list)
 		}
 	}
 }
-EXPORT_SYMBOL_GPL(tcp_twsk_purge);
 
 /* Warning : This function is called without sk_listener being locked.
  * Be sure to read socket fields once, as their value could change under us.
