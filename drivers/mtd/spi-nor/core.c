@@ -1463,22 +1463,12 @@ static void spi_nor_unlock_and_unprep_rd(struct spi_nor *nor, loff_t start, size
 	spi_nor_unprep(nor);
 }
 
-static u32 spi_nor_convert_addr(struct spi_nor *nor, loff_t addr)
-{
-	if (!nor->params->convert_addr)
-		return addr;
-
-	return nor->params->convert_addr(nor, addr);
-}
-
 /*
  * Initiate the erasure of a single sector
  */
 int spi_nor_erase_sector(struct spi_nor *nor, u32 addr)
 {
 	int i;
-
-	addr = spi_nor_convert_addr(nor, addr);
 
 	if (nor->spimem) {
 		struct spi_mem_op op =
@@ -2064,8 +2054,6 @@ static int spi_nor_read(struct mtd_info *mtd, loff_t from, size_t len,
 	while (len) {
 		loff_t addr = from;
 
-		addr = spi_nor_convert_addr(nor, addr);
-
 		ret = spi_nor_read_data(nor, addr, len, buf);
 		if (ret == 0) {
 			/* We shouldn't see 0-length reads */
@@ -2098,7 +2086,7 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 	size_t *retlen, const u_char *buf)
 {
 	struct spi_nor *nor = mtd_to_spi_nor(mtd);
-	size_t page_offset, page_remain, i;
+	size_t i;
 	ssize_t ret;
 	u32 page_size = nor->params->page_size;
 
@@ -2111,23 +2099,9 @@ static int spi_nor_write(struct mtd_info *mtd, loff_t to, size_t len,
 	for (i = 0; i < len; ) {
 		ssize_t written;
 		loff_t addr = to + i;
-
-		/*
-		 * If page_size is a power of two, the offset can be quickly
-		 * calculated with an AND operation. On the other cases we
-		 * need to do a modulus operation (more expensive).
-		 */
-		if (is_power_of_2(page_size)) {
-			page_offset = addr & (page_size - 1);
-		} else {
-			u64 aux = addr;
-
-			page_offset = do_div(aux, page_size);
-		}
+		size_t page_offset = addr & (page_size - 1);
 		/* the size of data remaining on the first page */
-		page_remain = min_t(size_t, page_size - page_offset, len - i);
-
-		addr = spi_nor_convert_addr(nor, addr);
+		size_t page_remain = min_t(size_t, page_size - page_offset, len - i);
 
 		ret = spi_nor_lock_device(nor);
 		if (ret)
@@ -3054,7 +3028,14 @@ static int spi_nor_init_params(struct spi_nor *nor)
 		spi_nor_init_params_deprecated(nor);
 	}
 
-	return spi_nor_late_init_params(nor);
+	ret = spi_nor_late_init_params(nor);
+	if (ret)
+		return ret;
+
+	if (WARN_ON(!is_power_of_2(nor->params->page_size)))
+		return -EINVAL;
+
+	return 0;
 }
 
 /** spi_nor_set_octal_dtr() - enable or disable Octal DTR I/O.
