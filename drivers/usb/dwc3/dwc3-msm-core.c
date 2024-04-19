@@ -4655,7 +4655,7 @@ skip_update:
 	 * only in case of power event irq in lpm.
 	 */
 	if (mdwc->resume_pending) {
-		dwc3_msm_resume(mdwc);
+		pm_runtime_resume(mdwc->dev);
 		mdwc->resume_pending = false;
 	}
 
