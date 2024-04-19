@@ -481,7 +481,7 @@ static void vlv_dsi_device_ready(struct intel_encoder *encoder)
 		 * Common bit for both MIPI Port A & MIPI Port C
 		 * No similar bit in MIPI Port C reg
 		 */
-		intel_de_rmw(dev_priv, MIPI_PORT_CTRL(PORT_A), 0, LP_OUTPUT_HOLD);
+		intel_de_rmw(dev_priv, VLV_MIPI_PORT_CTRL(PORT_A), 0, LP_OUTPUT_HOLD);
 		usleep_range(1000, 1500);
 
 		intel_de_write(dev_priv, MIPI_DEVICE_READY(port),
@@ -563,7 +563,7 @@ static void glk_dsi_clear_device_ready(struct intel_encoder *encoder)
 static i915_reg_t port_ctrl_reg(struct drm_i915_private *i915, enum port port)
 {
 	return IS_GEMINILAKE(i915) || IS_BROXTON(i915) ?
-		BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(port);
+		BXT_MIPI_PORT_CTRL(port) : VLV_MIPI_PORT_CTRL(port);
 }
 
 static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
@@ -576,7 +576,7 @@ static void vlv_dsi_clear_device_ready(struct intel_encoder *encoder)
 	for_each_dsi_port(port, intel_dsi->ports) {
 		/* Common bit for both MIPI Port A & MIPI Port C on VLV/CHV */
 		i915_reg_t port_ctrl = IS_BROXTON(dev_priv) ?
-			BXT_MIPI_PORT_CTRL(port) : MIPI_PORT_CTRL(PORT_A);
+			BXT_MIPI_PORT_CTRL(port) : VLV_MIPI_PORT_CTRL(PORT_A);
 
 		intel_de_write(dev_priv, MIPI_DEVICE_READY(port),
 			       DEVICE_READY | ULPS_STATE_ENTER);
