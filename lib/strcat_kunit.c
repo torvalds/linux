@@ -10,7 +10,7 @@
 
 static volatile int unconst;
 
-static void strcat_test(struct kunit *test)
+static void test_strcat(struct kunit *test)
 {
 	char dest[8];
 
@@ -29,7 +29,7 @@ static void strcat_test(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, dest, "fourAB");
 }
 
-static void strncat_test(struct kunit *test)
+static void test_strncat(struct kunit *test)
 {
 	char dest[8];
 
@@ -56,7 +56,7 @@ static void strncat_test(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, dest, "fourAB");
 }
 
-static void strlcat_test(struct kunit *test)
+static void test_strlcat(struct kunit *test)
 {
 	char dest[8] = "";
 	int len = sizeof(dest) + unconst;
@@ -88,9 +88,9 @@ static void strlcat_test(struct kunit *test)
 }
 
 static struct kunit_case strcat_test_cases[] = {
-	KUNIT_CASE(strcat_test),
-	KUNIT_CASE(strncat_test),
-	KUNIT_CASE(strlcat_test),
+	KUNIT_CASE(test_strcat),
+	KUNIT_CASE(test_strncat),
+	KUNIT_CASE(test_strlcat),
 	{}
 };
 
