@@ -370,7 +370,7 @@ Note that there are varying definitions of the signed modulo operation
 when the dividend or divisor are negative, where implementations often
 vary by language such that Python, Ruby, etc.  differ from C, Go, Java,
 etc. This specification requires that signed modulo use truncated division
-(where -13 % 3 == -1) as implemented in C, Go, etc.:
+(where -13 % 3 == -1) as implemented in C, Go, etc.::
 
    a % n = a - n * trunc(a / n)
 
