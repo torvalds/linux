@@ -14,15 +14,16 @@
 // foundation of this driver
 //
 
+#include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <acpi/nhlt.h>
 #include <sound/hda_codec.h>
 #include <sound/hda_i915.h>
 #include <sound/hda_register.h>
 #include <sound/hdaudio.h>
 #include <sound/hdaudio_ext.h>
 #include <sound/intel-dsp-config.h>
-#include <sound/intel-nhlt.h>
 #include "../../codecs/hda.h"
 #include "avs.h"
 #include "cldma.h"
@@ -214,9 +215,7 @@ static void avs_hda_probe_work(struct work_struct *work)
 	if (ret < 0)
 		return;
 
-	adev->nhlt = intel_nhlt_init(adev->dev);
-	if (!adev->nhlt)
-		dev_info(bus->dev, "platform has no NHLT\n");
+	acpi_nhlt_get_gbl_table();
 	avs_debugfs_init(adev);
 
 	avs_register_all_boards(adev);
@@ -549,8 +548,7 @@ static void avs_pci_remove(struct pci_dev *pci)
 	avs_unregister_all_boards(adev);
 
 	avs_debugfs_exit(adev);
-	if (adev->nhlt)
-		intel_nhlt_free(adev->nhlt);
+	acpi_nhlt_put_gbl_table();
 
 	if (avs_platattr_test(adev, CLDMA))
 		hda_cldma_free(&code_loader);
