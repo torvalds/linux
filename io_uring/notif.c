@@ -24,7 +24,7 @@ static void io_notif_complete_tw_ext(struct io_kiocb *notif, struct io_tw_state 
 	io_req_task_complete(notif, ts);
 }
 
-static void io_tx_ubuf_callback(struct sk_buff *skb, struct ubuf_info *uarg,
+static void io_tx_ubuf_complete(struct sk_buff *skb, struct ubuf_info *uarg,
 				bool success)
 {
 	struct io_notif_data *nd = container_of(uarg, struct io_notif_data, uarg);
@@ -45,19 +45,27 @@ static void io_tx_ubuf_callback_ext(struct sk_buff *skb, struct ubuf_info *uarg,
 		else if (!success && !nd->zc_copied)
 			WRITE_ONCE(nd->zc_copied, true);
 	}
-	io_tx_ubuf_callback(skb, uarg, success);
+	io_tx_ubuf_complete(skb, uarg, success);
 }
+
+static const struct ubuf_info_ops io_ubuf_ops = {
+	.complete = io_tx_ubuf_complete,
+};
+
+static const struct ubuf_info_ops io_ubuf_ops_ext = {
+	.complete = io_tx_ubuf_callback_ext,
+};
 
 void io_notif_set_extended(struct io_kiocb *notif)
 {
 	struct io_notif_data *nd = io_notif_to_data(notif);
 
-	if (nd->uarg.callback != io_tx_ubuf_callback_ext) {
+	if (nd->uarg.ops != &io_ubuf_ops_ext) {
 		nd->account_pages = 0;
 		nd->zc_report = false;
 		nd->zc_used = false;
 		nd->zc_copied = false;
-		nd->uarg.callback = io_tx_ubuf_callback_ext;
+		nd->uarg.ops = &io_ubuf_ops_ext;
 		notif->io_task_work.func = io_notif_complete_tw_ext;
 	}
 }
@@ -80,7 +88,7 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 
 	nd = io_notif_to_data(notif);
 	nd->uarg.flags = IO_NOTIF_UBUF_FLAGS;
-	nd->uarg.callback = io_tx_ubuf_callback;
+	nd->uarg.ops = &io_ubuf_ops;
 	refcount_set(&nd->uarg.refcnt, 1);
 	return notif;
 }
