@@ -25,11 +25,11 @@
 
 static struct page *fb_deferred_io_page(struct fb_info *info, unsigned long offs)
 {
-	void *screen_base = (void __force *) info->screen_base;
+	const void *screen_buffer = info->screen_buffer;
 	struct page *page;
 
-	if (is_vmalloc_addr(screen_base + offs))
-		page = vmalloc_to_page(screen_base + offs);
+	if (is_vmalloc_addr(screen_buffer + offs))
+		page = vmalloc_to_page(screen_buffer + offs);
 	else
 		page = pfn_to_page((info->fix.smem_start + offs) >> PAGE_SHIFT);
 
