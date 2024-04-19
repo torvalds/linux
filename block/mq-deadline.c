@@ -128,34 +128,6 @@ static u8 dd_rq_ioclass(struct request *rq)
 }
 
 /*
- * get the request before `rq' in sector-sorted order
- */
-static inline struct request *
-deadline_earlier_request(struct request *rq)
-{
-	struct rb_node *node = rb_prev(&rq->rb_node);
-
-	if (node)
-		return rb_entry_rq(node);
-
-	return NULL;
-}
-
-/*
- * get the request after `rq' in sector-sorted order
- */
-static inline struct request *
-deadline_latter_request(struct request *rq)
-{
-	struct rb_node *node = rb_next(&rq->rb_node);
-
-	if (node)
-		return rb_entry_rq(node);
-
-	return NULL;
-}
-
-/*
  * Return the first request for which blk_rq_pos() >= @pos.
  */
 static inline struct request *deadline_from_pos(struct dd_per_prio *per_prio,
