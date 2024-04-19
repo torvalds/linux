@@ -589,6 +589,68 @@ static int mlx5e_get_coalesce(struct net_device *netdev,
 	return mlx5e_ethtool_get_coalesce(priv, coal, kernel_coal);
 }
 
+static int mlx5e_ethtool_get_per_queue_coalesce(struct mlx5e_priv *priv, u32 queue,
+						struct ethtool_coalesce *coal)
+{
+	struct dim_cq_moder cur_moder;
+	struct mlx5e_channels *chs;
+	struct mlx5e_channel *c;
+
+	if (!MLX5_CAP_GEN(priv->mdev, cq_moderation))
+		return -EOPNOTSUPP;
+
+	mutex_lock(&priv->state_lock);
+
+	chs = &priv->channels;
+	if (chs->num <= queue) {
+		mutex_unlock(&priv->state_lock);
+		return -EINVAL;
+	}
+
+	c = chs->c[queue];
+
+	coal->use_adaptive_rx_coalesce = !!c->rq.dim;
+	if (coal->use_adaptive_rx_coalesce) {
+		cur_moder = net_dim_get_rx_moderation(c->rq.dim->mode,
+						      c->rq.dim->profile_ix);
+
+		coal->rx_coalesce_usecs = cur_moder.usec;
+		coal->rx_max_coalesced_frames = cur_moder.pkts;
+	} else {
+		coal->rx_coalesce_usecs = c->rx_cq_moder.usec;
+		coal->rx_max_coalesced_frames = c->rx_cq_moder.pkts;
+	}
+
+	coal->use_adaptive_tx_coalesce = !!c->sq[0].dim;
+	if (coal->use_adaptive_tx_coalesce) {
+		/* NOTE: Will only display DIM coalesce profile information of
+		 * first channel. The current interface cannot display this
+		 * information for all tc.
+		 */
+		cur_moder = net_dim_get_tx_moderation(c->sq[0].dim->mode,
+						      c->sq[0].dim->profile_ix);
+
+		coal->tx_coalesce_usecs = cur_moder.usec;
+		coal->tx_max_coalesced_frames = cur_moder.pkts;
+
+	} else {
+		coal->tx_coalesce_usecs = c->tx_cq_moder.usec;
+		coal->tx_max_coalesced_frames = c->tx_cq_moder.pkts;
+	}
+
+	mutex_unlock(&priv->state_lock);
+
+	return 0;
+}
+
+int mlx5e_get_per_queue_coalesce(struct net_device *dev, u32 queue,
+				 struct ethtool_coalesce *coal)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	return mlx5e_ethtool_get_per_queue_coalesce(priv, queue, coal);
+}
+
 #define MLX5E_MAX_COAL_TIME		MLX5_MAX_CQ_PERIOD
 #define MLX5E_MAX_COAL_FRAMES		MLX5_MAX_CQ_COUNT
 
@@ -745,6 +807,88 @@ static int mlx5e_set_coalesce(struct net_device *netdev,
 	struct mlx5e_priv *priv = netdev_priv(netdev);
 
 	return mlx5e_ethtool_set_coalesce(priv, coal, kernel_coal, extack);
+}
+
+static int mlx5e_ethtool_set_per_queue_coalesce(struct mlx5e_priv *priv, u32 queue,
+						struct ethtool_coalesce *coal)
+{
+	struct mlx5_core_dev *mdev = priv->mdev;
+	bool rx_dim_enabled, tx_dim_enabled;
+	struct mlx5e_channels *chs;
+	struct mlx5e_channel *c;
+	int err = 0;
+	int tc;
+
+	if (!MLX5_CAP_GEN(mdev, cq_moderation))
+		return -EOPNOTSUPP;
+
+	if (coal->tx_coalesce_usecs > MLX5E_MAX_COAL_TIME ||
+	    coal->rx_coalesce_usecs > MLX5E_MAX_COAL_TIME) {
+		netdev_info(priv->netdev, "%s: maximum coalesce time supported is %lu usecs\n",
+			    __func__, MLX5E_MAX_COAL_TIME);
+		return -ERANGE;
+	}
+
+	if (coal->tx_max_coalesced_frames > MLX5E_MAX_COAL_FRAMES ||
+	    coal->rx_max_coalesced_frames > MLX5E_MAX_COAL_FRAMES) {
+		netdev_info(priv->netdev, "%s: maximum coalesced frames supported is %lu\n",
+			    __func__, MLX5E_MAX_COAL_FRAMES);
+		return -ERANGE;
+	}
+
+	rx_dim_enabled = !!coal->use_adaptive_rx_coalesce;
+	tx_dim_enabled = !!coal->use_adaptive_tx_coalesce;
+
+	mutex_lock(&priv->state_lock);
+
+	chs = &priv->channels;
+	if (chs->num <= queue) {
+		mutex_unlock(&priv->state_lock);
+		return -EINVAL;
+	}
+
+	c = chs->c[queue];
+
+	err = mlx5e_dim_rx_change(&c->rq, rx_dim_enabled);
+	if (err)
+		goto state_unlock;
+
+	for (tc = 0; tc < c->num_tc; tc++) {
+		err = mlx5e_dim_tx_change(&c->sq[tc], tx_dim_enabled);
+		if (err)
+			goto state_unlock;
+	}
+
+	if (!rx_dim_enabled) {
+		c->rx_cq_moder.usec = coal->rx_coalesce_usecs;
+		c->rx_cq_moder.pkts = coal->rx_max_coalesced_frames;
+
+		mlx5_core_modify_cq_moderation(mdev, &c->rq.cq.mcq,
+					       coal->rx_coalesce_usecs,
+					       coal->rx_max_coalesced_frames);
+	}
+
+	if (!tx_dim_enabled) {
+		c->tx_cq_moder.usec = coal->tx_coalesce_usecs;
+		c->tx_cq_moder.pkts = coal->tx_max_coalesced_frames;
+
+		for (tc = 0; tc < c->num_tc; tc++)
+			mlx5_core_modify_cq_moderation(mdev, &c->sq[tc].cq.mcq,
+						       coal->tx_coalesce_usecs,
+						       coal->tx_max_coalesced_frames);
+	}
+
+state_unlock:
+	mutex_unlock(&priv->state_lock);
+	return err;
+}
+
+int mlx5e_set_per_queue_coalesce(struct net_device *dev, u32 queue,
+				 struct ethtool_coalesce *coal)
+{
+	struct mlx5e_priv *priv = netdev_priv(dev);
+
+	return mlx5e_ethtool_set_per_queue_coalesce(priv, queue, coal);
 }
 
 static void ptys2ethtool_supported_link(struct mlx5_core_dev *mdev,
@@ -2472,6 +2616,8 @@ const struct ethtool_ops mlx5e_ethtool_ops = {
 	.set_channels      = mlx5e_set_channels,
 	.get_coalesce      = mlx5e_get_coalesce,
 	.set_coalesce      = mlx5e_set_coalesce,
+	.get_per_queue_coalesce = mlx5e_get_per_queue_coalesce,
+	.set_per_queue_coalesce = mlx5e_set_per_queue_coalesce,
 	.get_link_ksettings  = mlx5e_get_link_ksettings,
 	.set_link_ksettings  = mlx5e_set_link_ksettings,
 	.get_rxfh_key_size   = mlx5e_get_rxfh_key_size,

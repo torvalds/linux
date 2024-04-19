@@ -428,6 +428,8 @@ static const struct ethtool_ops mlx5e_rep_ethtool_ops = {
 	.set_channels      = mlx5e_rep_set_channels,
 	.get_coalesce      = mlx5e_rep_get_coalesce,
 	.set_coalesce      = mlx5e_rep_set_coalesce,
+	.get_per_queue_coalesce = mlx5e_get_per_queue_coalesce,
+	.set_per_queue_coalesce = mlx5e_set_per_queue_coalesce,
 	.get_rxfh_key_size   = mlx5e_rep_get_rxfh_key_size,
 	.get_rxfh_indir_size = mlx5e_rep_get_rxfh_indir_size,
 };
