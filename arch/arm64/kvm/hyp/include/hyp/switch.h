@@ -27,6 +27,7 @@
 #include <asm/kvm_hyp.h>
 #include <asm/kvm_mmu.h>
 #include <asm/kvm_nested.h>
+#include <asm/kvm_ptrauth.h>
 #include <asm/fpsimd.h>
 #include <asm/debug-monitors.h>
 #include <asm/processor.h>
@@ -447,82 +448,6 @@ static inline bool handle_tx2_tvm(struct kvm_vcpu *vcpu)
 	return true;
 }
 
-static inline bool esr_is_ptrauth_trap(u64 esr)
-{
-	switch (esr_sys64_to_sysreg(esr)) {
-	case SYS_APIAKEYLO_EL1:
-	case SYS_APIAKEYHI_EL1:
-	case SYS_APIBKEYLO_EL1:
-	case SYS_APIBKEYHI_EL1:
-	case SYS_APDAKEYLO_EL1:
-	case SYS_APDAKEYHI_EL1:
-	case SYS_APDBKEYLO_EL1:
-	case SYS_APDBKEYHI_EL1:
-	case SYS_APGAKEYLO_EL1:
-	case SYS_APGAKEYHI_EL1:
-		return true;
-	}
-
-	return false;
-}
-
-#define __ptrauth_save_key(ctxt, key)					\
-	do {								\
-	u64 __val;                                                      \
-	__val = read_sysreg_s(SYS_ ## key ## KEYLO_EL1);                \
-	ctxt_sys_reg(ctxt, key ## KEYLO_EL1) = __val;                   \
-	__val = read_sysreg_s(SYS_ ## key ## KEYHI_EL1);                \
-	ctxt_sys_reg(ctxt, key ## KEYHI_EL1) = __val;                   \
-} while(0)
-
-DECLARE_PER_CPU(struct kvm_cpu_context, kvm_hyp_ctxt);
-
-static bool kvm_hyp_handle_ptrauth(struct kvm_vcpu *vcpu, u64 *exit_code)
-{
-	struct kvm_cpu_context *ctxt;
-	u64 enable = 0;
-
-	if (!vcpu_has_ptrauth(vcpu))
-		return false;
-
-	/*
-	 * NV requires us to handle API and APK independently, just in
-	 * case the hypervisor is totally nuts. Please barf >here<.
-	 */
-	if (vcpu_has_nv(vcpu) && !is_hyp_ctxt(vcpu)) {
-		switch (ESR_ELx_EC(kvm_vcpu_get_esr(vcpu))) {
-		case ESR_ELx_EC_PAC:
-			if (!(__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_API))
-				return false;
-
-			enable |= HCR_API;
-			break;
-
-		case ESR_ELx_EC_SYS64:
-			if (!(__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_APK))
-				return false;
-
-			enable |= HCR_APK;
-			break;
-		}
-	} else {
-		enable = HCR_API | HCR_APK;
-	}
-
-	ctxt = this_cpu_ptr(&kvm_hyp_ctxt);
-	__ptrauth_save_key(ctxt, APIA);
-	__ptrauth_save_key(ctxt, APIB);
-	__ptrauth_save_key(ctxt, APDA);
-	__ptrauth_save_key(ctxt, APDB);
-	__ptrauth_save_key(ctxt, APGA);
-
-
-	vcpu->arch.hcr_el2 |= enable;
-	sysreg_clear_set(hcr_el2, 0, enable);
-
-	return true;
-}
-
 static bool kvm_hyp_handle_cntpct(struct kvm_vcpu *vcpu)
 {
 	struct arch_timer_context *ctxt;
@@ -609,9 +534,6 @@ static bool kvm_hyp_handle_sysreg(struct kvm_vcpu *vcpu, u64 *exit_code)
 	if (static_branch_unlikely(&vgic_v3_cpuif_trap) &&
 	    __vgic_v3_perform_cpuif_access(vcpu) == 1)
 		return true;
-
-	if (esr_is_ptrauth_trap(kvm_vcpu_get_esr(vcpu)))
-		return kvm_hyp_handle_ptrauth(vcpu, exit_code);
 
 	if (kvm_hyp_handle_cntpct(vcpu))
 		return true;

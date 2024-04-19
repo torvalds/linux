@@ -41,9 +41,8 @@ DEFINE_PER_CPU(unsigned long, kvm_hyp_vector);
  * - TGE: we want the guest to use EL1, which is incompatible with
  *   this bit being set
  *
- * - API/APK: for hysterical raisins, we enable PAuth lazily, which
- *   means that the guest's bits cannot be directly applied (we really
- *   want to see the traps). Revisit this at some point.
+ * - API/APK: they are already accounted for by vcpu_load(), and can
+ *   only take effect across a load/put cycle (such as ERET)
  */
 #define NV_HCR_GUEST_EXCLUDE	(HCR_TGE | HCR_API | HCR_APK)
 
@@ -268,7 +267,6 @@ static const exit_handler_fn hyp_exit_handlers[] = {
 	[ESR_ELx_EC_IABT_LOW]		= kvm_hyp_handle_iabt_low,
 	[ESR_ELx_EC_DABT_LOW]		= kvm_hyp_handle_dabt_low,
 	[ESR_ELx_EC_WATCHPT_LOW]	= kvm_hyp_handle_watchpt_low,
-	[ESR_ELx_EC_PAC]		= kvm_hyp_handle_ptrauth,
 	[ESR_ELx_EC_ERET]		= kvm_hyp_handle_eret,
 	[ESR_ELx_EC_MOPS]		= kvm_hyp_handle_mops,
 };

@@ -217,14 +217,12 @@ static int handle_sve(struct kvm_vcpu *vcpu)
  * Two possibilities to handle a trapping ptrauth instruction:
  *
  * - Guest usage of a ptrauth instruction (which the guest EL1 did not
- *   turn into a NOP). If we get here, it is that we didn't fixup
- *   ptrauth on exit, and all that we can do is give the guest an
- *   UNDEF (as the guest isn't supposed to use ptrauth without being
- *   told it could).
+ *   turn into a NOP). If we get here, it is because we didn't enable
+ *   ptrauth for the guest. This results in an UNDEF, as it isn't
+ *   supposed to use ptrauth without being told it could.
  *
  * - Running an L2 NV guest while L1 has left HCR_EL2.API==0, and for
- *   which we reinject the exception into L1. API==1 is handled as a
- *   fixup so the only way to get here is when API==0.
+ *   which we reinject the exception into L1.
  *
  * Anything else is an emulation bug (hence the WARN_ON + UNDEF).
  */
