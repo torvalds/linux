@@ -208,7 +208,8 @@ void kvm_vcpu_put_vhe(struct kvm_vcpu *vcpu)
 
 static bool kvm_hyp_handle_eret(struct kvm_vcpu *vcpu, u64 *exit_code)
 {
-	u64 spsr, mode;
+	u64 esr = kvm_vcpu_get_esr(vcpu);
+	u64 spsr, elr, mode;
 
 	/*
 	 * Going through the whole put/load motions is a waste of time
@@ -242,10 +243,18 @@ static bool kvm_hyp_handle_eret(struct kvm_vcpu *vcpu, u64 *exit_code)
 		return false;
 	}
 
+	/* If ERETAx fails, take the slow path */
+	if (esr_iss_is_eretax(esr)) {
+		if (!(vcpu_has_ptrauth(vcpu) && kvm_auth_eretax(vcpu, &elr)))
+			return false;
+	} else {
+		elr = read_sysreg_el1(SYS_ELR);
+	}
+
 	spsr = (spsr & ~(PSR_MODE_MASK | PSR_MODE32_BIT)) | mode;
 
 	write_sysreg_el2(spsr, SYS_SPSR);
-	write_sysreg_el2(read_sysreg_el1(SYS_ELR), SYS_ELR);
+	write_sysreg_el2(elr, SYS_ELR);
 
 	return true;
 }

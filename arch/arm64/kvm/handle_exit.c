@@ -248,7 +248,8 @@ static int kvm_handle_ptrauth(struct kvm_vcpu *vcpu)
 
 static int kvm_handle_eret(struct kvm_vcpu *vcpu)
 {
-	if (esr_iss_is_eretax(kvm_vcpu_get_esr(vcpu)))
+	if (esr_iss_is_eretax(kvm_vcpu_get_esr(vcpu)) &&
+	    !vcpu_has_ptrauth(vcpu))
 		return kvm_handle_ptrauth(vcpu);
 
 	/*
