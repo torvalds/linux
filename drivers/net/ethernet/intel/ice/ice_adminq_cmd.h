@@ -1684,6 +1684,15 @@ struct ice_aqc_nvm {
 
 #define ICE_AQC_NVM_START_POINT			0
 
+#define ICE_AQC_NVM_TX_TOPO_MOD_ID		0x14B
+
+struct ice_aqc_nvm_tx_topo_user_sel {
+	__le16 length;
+	u8 data;
+#define ICE_AQC_NVM_TX_TOPO_USER_SEL	BIT(4)
+	u8 reserved;
+};
+
 /* NVM Checksum Command (direct, 0x0706) */
 struct ice_aqc_nvm_checksum {
 	u8 flags;
