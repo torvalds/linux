@@ -42,7 +42,7 @@ int regulatory_hint_user(const char *alpha2,
  * device is operating in an indoor environment.
  * @portid: the netlink port ID on which the hint was given.
  */
-int regulatory_hint_indoor(bool is_indoor, u32 portid);
+void regulatory_hint_indoor(bool is_indoor, u32 portid);
 
 /**
  * regulatory_netlink_notify - notify on released netlink socket
@@ -82,9 +82,9 @@ bool reg_last_request_cell_base(void);
  * on a newly found BSS. If you cannot make use of this feature you can
  * set the wiphy->disable_beacon_hints to true.
  */
-int regulatory_hint_found_beacon(struct wiphy *wiphy,
-				 struct ieee80211_channel *beacon_chan,
-				 gfp_t gfp);
+void regulatory_hint_found_beacon(struct wiphy *wiphy,
+				  struct ieee80211_channel *beacon_chan,
+				  gfp_t gfp);
 
 /**
  * regulatory_hint_country_ie - hints a country IE as a regulatory domain
