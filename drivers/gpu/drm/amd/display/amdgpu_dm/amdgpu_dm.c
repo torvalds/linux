@@ -8497,7 +8497,8 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 			if ((fb && crtc == pcrtc) ||
 			    (old_plane_state->fb && old_plane_state->crtc == pcrtc)) {
 				cursor_update = true;
-				amdgpu_dm_update_cursor(plane, old_plane_state, &bundle->stream_update);
+				if (amdgpu_ip_version(dm->adev, DCE_HWIP, 0) != 0)
+					amdgpu_dm_update_cursor(plane, old_plane_state, &bundle->stream_update);
 			}
 
 			continue;
@@ -8849,7 +8850,8 @@ static void amdgpu_dm_commit_planes(struct drm_atomic_state *state,
 	 * This avoids redundant programming in the case where we're going
 	 * to be disabling a single plane - those pipes are being disabled.
 	 */
-	if (acrtc_state->active_planes && !updated_planes_and_streams)
+	if (acrtc_state->active_planes &&
+	    (!updated_planes_and_streams || amdgpu_ip_version(dm->adev, DCE_HWIP, 0) == 0))
 		amdgpu_dm_commit_cursors(state);
 
 cleanup:
