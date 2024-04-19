@@ -480,10 +480,34 @@ DECLARE_PER_CPU(struct kvm_cpu_context, kvm_hyp_ctxt);
 static bool kvm_hyp_handle_ptrauth(struct kvm_vcpu *vcpu, u64 *exit_code)
 {
 	struct kvm_cpu_context *ctxt;
-	u64 val;
+	u64 enable = 0;
 
 	if (!vcpu_has_ptrauth(vcpu))
 		return false;
+
+	/*
+	 * NV requires us to handle API and APK independently, just in
+	 * case the hypervisor is totally nuts. Please barf >here<.
+	 */
+	if (vcpu_has_nv(vcpu) && !is_hyp_ctxt(vcpu)) {
+		switch (ESR_ELx_EC(kvm_vcpu_get_esr(vcpu))) {
+		case ESR_ELx_EC_PAC:
+			if (!(__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_API))
+				return false;
+
+			enable |= HCR_API;
+			break;
+
+		case ESR_ELx_EC_SYS64:
+			if (!(__vcpu_sys_reg(vcpu, HCR_EL2) & HCR_APK))
+				return false;
+
+			enable |= HCR_APK;
+			break;
+		}
+	} else {
+		enable = HCR_API | HCR_APK;
+	}
 
 	ctxt = this_cpu_ptr(&kvm_hyp_ctxt);
 	__ptrauth_save_key(ctxt, APIA);
@@ -492,11 +516,9 @@ static bool kvm_hyp_handle_ptrauth(struct kvm_vcpu *vcpu, u64 *exit_code)
 	__ptrauth_save_key(ctxt, APDB);
 	__ptrauth_save_key(ctxt, APGA);
 
-	vcpu_ptrauth_enable(vcpu);
 
-	val = read_sysreg(hcr_el2);
-	val |= (HCR_API | HCR_APK);
-	write_sysreg(val, hcr_el2);
+	vcpu->arch.hcr_el2 |= enable;
+	sysreg_clear_set(hcr_el2, 0, enable);
 
 	return true;
 }
