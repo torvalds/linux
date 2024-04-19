@@ -75,7 +75,7 @@ static struct intel_dmc *i915_to_dmc(struct drm_i915_private *i915)
 
 static const char *dmc_firmware_param(struct drm_i915_private *i915)
 {
-	const char *p = i915->params.dmc_firmware_path;
+	const char *p = i915->display.params.dmc_firmware_path;
 
 	return p && *p ? p : NULL;
 }
