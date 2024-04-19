@@ -435,12 +435,12 @@ struct kfd_dev *kgd2kfd_probe(struct amdgpu_device *adev, bool vf)
 
 	if (!f2g) {
 		if (amdgpu_ip_version(adev, GC_HWIP, 0))
-			dev_err(kfd_device,
+			dev_info(kfd_device,
 				"GC IP %06x %s not supported in kfd\n",
 				amdgpu_ip_version(adev, GC_HWIP, 0),
 				vf ? "VF" : "");
 		else
-			dev_err(kfd_device, "%s %s not supported in kfd\n",
+			dev_info(kfd_device, "%s %s not supported in kfd\n",
 				amdgpu_asic_name[adev->asic_type], vf ? "VF" : "");
 		return NULL;
 	}
