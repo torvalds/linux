@@ -3722,8 +3722,8 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 					 struct intel_crtc_state *pipe_config,
 					 struct intel_display_power_domain_set *power_domain_set)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_display *display = to_intel_display(crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder;
 	enum port port;
 	u32 tmp;
@@ -3749,11 +3749,11 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 			break;
 
 		/* XXX: this works for video mode only */
-		tmp = intel_de_read(dev_priv, BXT_MIPI_PORT_CTRL(port));
+		tmp = intel_de_read(display, BXT_MIPI_PORT_CTRL(port));
 		if (!(tmp & DPI_ENABLE))
 			continue;
 
-		tmp = intel_de_read(dev_priv, MIPI_CTRL(port));
+		tmp = intel_de_read(display, MIPI_CTRL(display, port));
 		if ((tmp & BXT_PIPE_SELECT_MASK) != BXT_PIPE_SELECT(crtc->pipe))
 			continue;
 
