@@ -1154,6 +1154,67 @@ send_end:
 	return copied > 0 ? copied : ret;
 }
 
+/*
+ * Handle unexpected EOF during splice without SPLICE_F_MORE set.
+ */
+void tls_sw_splice_eof(struct socket *sock)
+{
+	struct sock *sk = sock->sk;
+	struct tls_context *tls_ctx = tls_get_ctx(sk);
+	struct tls_sw_context_tx *ctx = tls_sw_ctx_tx(tls_ctx);
+	struct tls_rec *rec;
+	struct sk_msg *msg_pl;
+	ssize_t copied = 0;
+	bool retrying = false;
+	int ret = 0;
+
+	if (!ctx->open_rec)
+		return;
+
+	mutex_lock(&tls_ctx->tx_lock);
+	lock_sock(sk);
+
+retry:
+	/* same checks as in tls_sw_push_pending_record() */
+	rec = ctx->open_rec;
+	if (!rec)
+		goto unlock;
+
+	msg_pl = &rec->msg_plaintext;
+	if (msg_pl->sg.size == 0)
+		goto unlock;
+
+	/* Check the BPF advisor and perform transmission. */
+	ret = bpf_exec_tx_verdict(msg_pl, sk, false, TLS_RECORD_TYPE_DATA,
+				  &copied, 0);
+	switch (ret) {
+	case 0:
+	case -EAGAIN:
+		if (retrying)
+			goto unlock;
+		retrying = true;
+		goto retry;
+	case -EINPROGRESS:
+		break;
+	default:
+		goto unlock;
+	}
+
+	/* Wait for pending encryptions to get completed */
+	if (tls_encrypt_async_wait(ctx))
+		goto unlock;
+
+	/* Transmit if any encryptions have completed */
+	if (test_and_clear_bit(BIT_TX_SCHEDULED, &ctx->tx_bitmask)) {
+		cancel_delayed_work(&ctx->tx_work.work);
+		tls_tx_records(sk, 0);
+	}
+
+unlock:
+	release_sock(sk);
+	mutex_unlock(&tls_ctx->tx_lock);
+}
+
 static int tls_sw_do_sendpage(struct sock *sk, struct page *page,
 			      int offset, size_t size, int flags)
 {
@@ -2133,7 +2194,6 @@ recv_end:
 		else
 			err = process_rx_list(ctx, msg, &control, 0,
 					      async_copy_bytes, is_peek);
-		decrypted += max(err, 0);
 	}
 
 	copied += decrypted;
