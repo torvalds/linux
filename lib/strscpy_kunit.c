@@ -8,22 +8,23 @@
 #include <kunit/test.h>
 #include <linux/string.h>
 
-/*
- * tc() - Run a specific test case.
+/**
+ * strscpy_check() - Run a specific test case.
+ * @test: KUnit test context pointer
  * @src: Source string, argument to strscpy_pad()
  * @count: Size of destination buffer, argument to strscpy_pad()
  * @expected: Expected return value from call to strscpy_pad()
- * @terminator: 1 if there should be a terminating null byte 0 otherwise.
  * @chars: Number of characters from the src string expected to be
  *         written to the dst buffer.
+ * @terminator: 1 if there should be a terminating null byte 0 otherwise.
  * @pad: Number of pad characters expected (in the tail of dst buffer).
  *       (@pad does not include the null terminator byte.)
  *
  * Calls strscpy_pad() and verifies the return value and state of the
  * destination buffer after the call returns.
  */
-static void tc(struct kunit *test, char *src, int count, int expected,
-	       int chars, int terminator, int pad)
+static void strscpy_check(struct kunit *test, char *src, int count,
+			  int expected, int chars, int terminator, int pad)
 {
 	int nr_bytes_poison;
 	int max_expected;
@@ -79,12 +80,12 @@ static void tc(struct kunit *test, char *src, int count, int expected,
 	}
 }
 
-static void strscpy_test(struct kunit *test)
+static void test_strscpy(struct kunit *test)
 {
 	char dest[8];
 
 	/*
-	 * tc() uses a destination buffer of size 6 and needs at
+	 * strscpy_check() uses a destination buffer of size 6 and needs at
 	 * least 2 characters spare (one for null and one to check for
 	 * overflow).  This means we should only call tc() with
 	 * strings up to a maximum of 4 characters long and 'count'
@@ -92,27 +93,27 @@ static void strscpy_test(struct kunit *test)
 	 * the buffer size in tc().
 	 */
 
-	/* tc(test, src, count, expected, chars, terminator, pad) */
-	tc(test, "a", 0, -E2BIG, 0, 0, 0);
-	tc(test, "",  0, -E2BIG, 0, 0, 0);
+	/* strscpy_check(test, src, count, expected, chars, terminator, pad) */
+	strscpy_check(test, "a", 0, -E2BIG, 0, 0, 0);
+	strscpy_check(test, "",  0, -E2BIG, 0, 0, 0);
 
-	tc(test, "a", 1, -E2BIG, 0, 1, 0);
-	tc(test, "",  1, 0,	 0, 1, 0);
+	strscpy_check(test, "a", 1, -E2BIG, 0, 1, 0);
+	strscpy_check(test, "",  1, 0,	 0, 1, 0);
 
-	tc(test, "ab", 2, -E2BIG, 1, 1, 0);
-	tc(test, "a",  2, 1,	  1, 1, 0);
-	tc(test, "",   2, 0,	  0, 1, 1);
+	strscpy_check(test, "ab", 2, -E2BIG, 1, 1, 0);
+	strscpy_check(test, "a",  2, 1,	  1, 1, 0);
+	strscpy_check(test, "",   2, 0,	  0, 1, 1);
 
-	tc(test, "abc", 3, -E2BIG, 2, 1, 0);
-	tc(test, "ab",  3, 2,	   2, 1, 0);
-	tc(test, "a",   3, 1,	   1, 1, 1);
-	tc(test, "",    3, 0,	   0, 1, 2);
+	strscpy_check(test, "abc", 3, -E2BIG, 2, 1, 0);
+	strscpy_check(test, "ab",  3, 2,	   2, 1, 0);
+	strscpy_check(test, "a",   3, 1,	   1, 1, 1);
+	strscpy_check(test, "",    3, 0,	   0, 1, 2);
 
-	tc(test, "abcd", 4, -E2BIG, 3, 1, 0);
-	tc(test, "abc",  4, 3,	    3, 1, 0);
-	tc(test, "ab",   4, 2,	    2, 1, 1);
-	tc(test, "a",    4, 1,	    1, 1, 2);
-	tc(test, "",     4, 0,	    0, 1, 3);
+	strscpy_check(test, "abcd", 4, -E2BIG, 3, 1, 0);
+	strscpy_check(test, "abc",  4, 3,	    3, 1, 0);
+	strscpy_check(test, "ab",   4, 2,	    2, 1, 1);
+	strscpy_check(test, "a",    4, 1,	    1, 1, 2);
+	strscpy_check(test, "",     4, 0,	    0, 1, 3);
 
 	/* Compile-time-known source strings. */
 	KUNIT_EXPECT_EQ(test, strscpy(dest, "", ARRAY_SIZE(dest)), 0);
@@ -127,7 +128,7 @@ static void strscpy_test(struct kunit *test)
 }
 
 static struct kunit_case strscpy_test_cases[] = {
-	KUNIT_CASE(strscpy_test),
+	KUNIT_CASE(test_strscpy),
 	{}
 };
 
