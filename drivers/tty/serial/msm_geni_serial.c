@@ -4317,6 +4317,11 @@ static void msm_geni_serial_termios_cfg(struct uart_port *uport,
 						rx_trans_cfg, rx_parity_cfg);
 	UART_LOG_DBG(port->ipc_log_misc, uport->dev, "BitsChar%d stop bit%d\n",
 				bits_per_char, stop_bit_len);
+
+	/* check if MSM CTS line signal is being ignored */
+	if (tx_trans_cfg & UART_CTS_MASK)
+		UART_LOG_DBG(port->ipc_log_misc, uport->dev,
+			     "Check : MSM CTS line signal is being ignored during Tx\n");
 }
 
 /*
