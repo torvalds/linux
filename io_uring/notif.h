@@ -14,6 +14,9 @@ struct io_notif_data {
 	struct file		*file;
 	struct ubuf_info	uarg;
 
+	struct io_notif_data	*next;
+	struct io_notif_data	*head;
+
 	unsigned		account_pages;
 	bool			zc_report;
 	bool			zc_used;
