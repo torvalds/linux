@@ -142,6 +142,59 @@ MODULE_FIRMWARE(SKL_DMC_PATH);
 #define BXT_DMC_MAX_FW_SIZE		0x3000
 MODULE_FIRMWARE(BXT_DMC_PATH);
 
+static const char *dmc_firmware_default(struct drm_i915_private *i915, u32 *size)
+{
+	const char *fw_path = NULL;
+	u32 max_fw_size = 0;
+
+	if (DISPLAY_VER_FULL(i915) == IP_VER(20, 0)) {
+		fw_path = XE2LPD_DMC_PATH;
+		max_fw_size = XE2LPD_DMC_MAX_FW_SIZE;
+	} else if (DISPLAY_VER_FULL(i915) == IP_VER(14, 0)) {
+		fw_path = MTL_DMC_PATH;
+		max_fw_size = XELPDP_DMC_MAX_FW_SIZE;
+	} else if (IS_DG2(i915)) {
+		fw_path = DG2_DMC_PATH;
+		max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
+	} else if (IS_ALDERLAKE_P(i915)) {
+		fw_path = ADLP_DMC_PATH;
+		max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
+	} else if (IS_ALDERLAKE_S(i915)) {
+		fw_path = ADLS_DMC_PATH;
+		max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
+	} else if (IS_DG1(i915)) {
+		fw_path = DG1_DMC_PATH;
+		max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
+	} else if (IS_ROCKETLAKE(i915)) {
+		fw_path = RKL_DMC_PATH;
+		max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
+	} else if (IS_TIGERLAKE(i915)) {
+		fw_path = TGL_DMC_PATH;
+		max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
+	} else if (DISPLAY_VER(i915) == 11) {
+		fw_path = ICL_DMC_PATH;
+		max_fw_size = ICL_DMC_MAX_FW_SIZE;
+	} else if (IS_GEMINILAKE(i915)) {
+		fw_path = GLK_DMC_PATH;
+		max_fw_size = GLK_DMC_MAX_FW_SIZE;
+	} else if (IS_KABYLAKE(i915) ||
+		   IS_COFFEELAKE(i915) ||
+		   IS_COMETLAKE(i915)) {
+		fw_path = KBL_DMC_PATH;
+		max_fw_size = KBL_DMC_MAX_FW_SIZE;
+	} else if (IS_SKYLAKE(i915)) {
+		fw_path = SKL_DMC_PATH;
+		max_fw_size = SKL_DMC_MAX_FW_SIZE;
+	} else if (IS_BROXTON(i915)) {
+		fw_path = BXT_DMC_PATH;
+		max_fw_size = BXT_DMC_MAX_FW_SIZE;
+	}
+
+	*size = max_fw_size;
+
+	return fw_path;
+}
+
 #define DMC_DEFAULT_FW_OFFSET		0xFFFFFFFF
 #define PACKAGE_MAX_FW_INFO_ENTRIES	20
 #define PACKAGE_V2_MAX_FW_INFO_ENTRIES	32
@@ -1009,48 +1062,7 @@ void intel_dmc_init(struct drm_i915_private *i915)
 
 	INIT_WORK(&dmc->work, dmc_load_work_fn);
 
-	if (DISPLAY_VER_FULL(i915) == IP_VER(20, 0)) {
-		dmc->fw_path = XE2LPD_DMC_PATH;
-		dmc->max_fw_size = XE2LPD_DMC_MAX_FW_SIZE;
-	} else if (DISPLAY_VER_FULL(i915) == IP_VER(14, 0)) {
-		dmc->fw_path = MTL_DMC_PATH;
-		dmc->max_fw_size = XELPDP_DMC_MAX_FW_SIZE;
-	} else if (IS_DG2(i915)) {
-		dmc->fw_path = DG2_DMC_PATH;
-		dmc->max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
-	} else if (IS_ALDERLAKE_P(i915)) {
-		dmc->fw_path = ADLP_DMC_PATH;
-		dmc->max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
-	} else if (IS_ALDERLAKE_S(i915)) {
-		dmc->fw_path = ADLS_DMC_PATH;
-		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
-	} else if (IS_DG1(i915)) {
-		dmc->fw_path = DG1_DMC_PATH;
-		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
-	} else if (IS_ROCKETLAKE(i915)) {
-		dmc->fw_path = RKL_DMC_PATH;
-		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
-	} else if (IS_TIGERLAKE(i915)) {
-		dmc->fw_path = TGL_DMC_PATH;
-		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
-	} else if (DISPLAY_VER(i915) == 11) {
-		dmc->fw_path = ICL_DMC_PATH;
-		dmc->max_fw_size = ICL_DMC_MAX_FW_SIZE;
-	} else if (IS_GEMINILAKE(i915)) {
-		dmc->fw_path = GLK_DMC_PATH;
-		dmc->max_fw_size = GLK_DMC_MAX_FW_SIZE;
-	} else if (IS_KABYLAKE(i915) ||
-		   IS_COFFEELAKE(i915) ||
-		   IS_COMETLAKE(i915)) {
-		dmc->fw_path = KBL_DMC_PATH;
-		dmc->max_fw_size = KBL_DMC_MAX_FW_SIZE;
-	} else if (IS_SKYLAKE(i915)) {
-		dmc->fw_path = SKL_DMC_PATH;
-		dmc->max_fw_size = SKL_DMC_MAX_FW_SIZE;
-	} else if (IS_BROXTON(i915)) {
-		dmc->fw_path = BXT_DMC_PATH;
-		dmc->max_fw_size = BXT_DMC_MAX_FW_SIZE;
-	}
+	dmc->fw_path = dmc_firmware_default(i915, &dmc->max_fw_size);
 
 	if (i915->params.dmc_firmware_path) {
 		if (strlen(i915->params.dmc_firmware_path) == 0) {
