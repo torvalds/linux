@@ -343,12 +343,13 @@ static int intel_dsb_dewake_scanline(const struct intel_crtc_state *crtc_state)
 static u32 dsb_chicken(struct intel_crtc *crtc)
 {
 	if (crtc->mode_flags & I915_MODE_FLAG_VRR)
-		return DSB_CTRL_WAIT_SAFE_WINDOW |
+		return DSB_SKIP_WAITS_EN |
+			DSB_CTRL_WAIT_SAFE_WINDOW |
 			DSB_CTRL_NO_WAIT_VBLANK |
 			DSB_INST_WAIT_SAFE_WINDOW |
 			DSB_INST_NO_WAIT_VBLANK;
 	else
-		return 0;
+		return DSB_SKIP_WAITS_EN;
 }
 
 static void _intel_dsb_commit(struct intel_dsb *dsb, u32 ctrl,

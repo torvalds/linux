@@ -105,7 +105,7 @@ static int query_geometry_subslices(struct drm_i915_private *i915,
 	struct intel_engine_cs *engine;
 	struct i915_engine_class_instance classinstance;
 
-	if (GRAPHICS_VER_FULL(i915) < IP_VER(12, 50))
+	if (GRAPHICS_VER_FULL(i915) < IP_VER(12, 55))
 		return -ENODEV;
 
 	classinstance = *((struct i915_engine_class_instance *)&query_item->flags);
