@@ -46,8 +46,7 @@ void arch_teardown_dma_ops(struct device *dev)
 }
 #endif
 
-void arch_setup_dma_ops(struct device *dev, u64 dma_base, u64 size,
-			bool coherent)
+void arch_setup_dma_ops(struct device *dev, bool coherent)
 {
 	int cls = cache_line_size_of_cpu();
 
