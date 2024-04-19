@@ -240,11 +240,11 @@ struct sdma_script_start_addrs {
 	s32 utra_addr;
 	s32 ram_code_start_addr;
 	/* End of v1 array */
-	s32 mcu_2_ssish_addr;
+	union {	s32 v1_end; s32 mcu_2_ssish_addr; };
 	s32 ssish_2_mcu_addr;
 	s32 hdmi_dma_addr;
 	/* End of v2 array */
-	s32 zcanfd_2_mcu_addr;
+	union { s32 v2_end; s32 zcanfd_2_mcu_addr; };
 	s32 zqspi_2_mcu_addr;
 	s32 mcu_2_ecspi_addr;
 	s32 mcu_2_sai_addr;
@@ -252,8 +252,9 @@ struct sdma_script_start_addrs {
 	s32 uart_2_mcu_rom_addr;
 	s32 uartsh_2_mcu_rom_addr;
 	/* End of v3 array */
-	s32 mcu_2_zqspi_addr;
+	union { s32 v3_end; s32 mcu_2_zqspi_addr; };
 	/* End of v4 array */
+	s32 v4_end[0];
 };
 
 /*
@@ -1915,10 +1916,17 @@ static void sdma_issue_pending(struct dma_chan *chan)
 	spin_unlock_irqrestore(&sdmac->vc.lock, flags);
 }
 
-#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1	34
-#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2	38
-#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3	45
-#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V4	46
+#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1	\
+(offsetof(struct sdma_script_start_addrs, v1_end) / sizeof(s32))
+
+#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V2 \
+(offsetof(struct sdma_script_start_addrs, v2_end) / sizeof(s32))
+
+#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3 \
+(offsetof(struct sdma_script_start_addrs, v3_end) / sizeof(s32))
+
+#define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V4 \
+(offsetof(struct sdma_script_start_addrs, v4_end) / sizeof(s32))
 
 static void sdma_add_scripts(struct sdma_engine *sdma,
 			     const struct sdma_script_start_addrs *addr)
