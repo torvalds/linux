@@ -8,6 +8,12 @@
 #ifndef SELFTEST_KVM_SBI_H
 #define SELFTEST_KVM_SBI_H
 
+/* SBI spec version fields */
+#define SBI_SPEC_VERSION_DEFAULT	0x1
+#define SBI_SPEC_VERSION_MAJOR_SHIFT	24
+#define SBI_SPEC_VERSION_MAJOR_MASK	0x7f
+#define SBI_SPEC_VERSION_MINOR_MASK	0xffffff
+
 /* SBI return error codes */
 #define SBI_SUCCESS				 0
 #define SBI_ERR_FAILURE				-1
@@ -33,6 +39,9 @@ enum sbi_ext_id {
 };
 
 enum sbi_ext_base_fid {
+	SBI_EXT_BASE_GET_SPEC_VERSION = 0,
+	SBI_EXT_BASE_GET_IMP_ID,
+	SBI_EXT_BASE_GET_IMP_VERSION,
 	SBI_EXT_BASE_PROBE_EXT = 3,
 };
 enum sbi_ext_pmu_fid {
@@ -58,6 +67,12 @@ union sbi_pmu_ctr_info {
 #endif
 		unsigned long type:1;
 	};
+};
+
+struct riscv_pmu_snapshot_data {
+	u64 ctr_overflow_mask;
+	u64 ctr_values[64];
+	u64 reserved[447];
 };
 
 struct sbiret {
@@ -112,5 +127,15 @@ struct sbiret sbi_ecall(int ext, int fid, unsigned long arg0,
 			unsigned long arg5);
 
 bool guest_sbi_probe_extension(int extid, long *out_val);
+
+/* Make SBI version */
+static inline unsigned long sbi_mk_version(unsigned long major,
+					    unsigned long minor)
+{
+	return ((major & SBI_SPEC_VERSION_MAJOR_MASK) << SBI_SPEC_VERSION_MAJOR_SHIFT)
+		| (minor & SBI_SPEC_VERSION_MINOR_MASK);
+}
+
+unsigned long get_host_sbi_spec_version(void);
 
 #endif /* SELFTEST_KVM_SBI_H */
