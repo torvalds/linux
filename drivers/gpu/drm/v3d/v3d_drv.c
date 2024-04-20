@@ -142,6 +142,15 @@ v3d_postclose(struct drm_device *dev, struct drm_file *file)
 	kfree(v3d_priv);
 }
 
+void v3d_get_stats(const struct v3d_stats *stats, u64 timestamp,
+		   u64 *active_runtime, u64 *jobs_completed)
+{
+	*active_runtime = stats->enabled_ns;
+	if (stats->start_ns)
+		*active_runtime += timestamp - stats->start_ns;
+	*jobs_completed = stats->jobs_completed;
+}
+
 static void v3d_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 {
 	struct v3d_file_priv *file_priv = file->driver_priv;
@@ -150,20 +159,21 @@ static void v3d_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 
 	for (queue = 0; queue < V3D_MAX_QUEUES; queue++) {
 		struct v3d_stats *stats = &file_priv->stats[queue];
+		u64 active_runtime, jobs_completed;
+
+		v3d_get_stats(stats, timestamp, &active_runtime, &jobs_completed);
 
 		/* Note that, in case of a GPU reset, the time spent during an
 		 * attempt of executing the job is not computed in the runtime.
 		 */
 		drm_printf(p, "drm-engine-%s: \t%llu ns\n",
-			   v3d_queue_to_string(queue),
-			   stats->start_ns ? stats->enabled_ns + timestamp - stats->start_ns
-					   : stats->enabled_ns);
+			   v3d_queue_to_string(queue), active_runtime);
 
 		/* Note that we only count jobs that completed. Therefore, jobs
 		 * that were resubmitted due to a GPU reset are not computed.
 		 */
 		drm_printf(p, "v3d-jobs-%s: \t%llu jobs\n",
-			   v3d_queue_to_string(queue), stats->jobs_completed);
+			   v3d_queue_to_string(queue), jobs_completed);
 	}
 }
 

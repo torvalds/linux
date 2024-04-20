@@ -510,6 +510,10 @@ struct drm_gem_object *v3d_prime_import_sg_table(struct drm_device *dev,
 /* v3d_debugfs.c */
 void v3d_debugfs_init(struct drm_minor *minor);
 
+/* v3d_drv.c */
+void v3d_get_stats(const struct v3d_stats *stats, u64 timestamp,
+		   u64 *active_runtime, u64 *jobs_completed);
+
 /* v3d_fence.c */
 extern const struct dma_fence_ops v3d_fence_ops;
 struct dma_fence *v3d_fence_create(struct v3d_dev *v3d, enum v3d_queue queue);
