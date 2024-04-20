@@ -1838,6 +1838,8 @@ static void mark_ptr_not_null_reg(struct bpf_reg_state *reg)
 			 */
 			if (btf_record_has_field(map->inner_map_meta->record, BPF_TIMER))
 				reg->map_uid = reg->id;
+			if (btf_record_has_field(map->inner_map_meta->record, BPF_WORKQUEUE))
+				reg->map_uid = reg->id;
 		} else if (map->map_type == BPF_MAP_TYPE_XSKMAP) {
 			reg->type = PTR_TO_XDP_SOCK;
 		} else if (map->map_type == BPF_MAP_TYPE_SOCKMAP ||
@@ -18137,6 +18139,13 @@ static int check_map_prog_compatibility(struct bpf_verifier_env *env,
 	if (btf_record_has_field(map->record, BPF_TIMER)) {
 		if (is_tracing_prog_type(prog_type)) {
 			verbose(env, "tracing progs cannot use bpf_timer yet\n");
+			return -EINVAL;
+		}
+	}
+
+	if (btf_record_has_field(map->record, BPF_WORKQUEUE)) {
+		if (is_tracing_prog_type(prog_type)) {
+			verbose(env, "tracing progs cannot use bpf_wq yet\n");
 			return -EINVAL;
 		}
 	}
