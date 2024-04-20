@@ -1129,7 +1129,7 @@ static void disk_zone_wplug_unplug_bio(struct gendisk *disk,
 	/* Schedule submission of the next plugged BIO if we have one. */
 	if (!bio_list_empty(&zwplug->bio_list)) {
 		spin_unlock_irqrestore(&zwplug->lock, flags);
-		kblockd_schedule_work(&zwplug->bio_work);
+		queue_work(disk->zone_wplugs_wq, &zwplug->bio_work);
 		return;
 	}
 
@@ -1332,7 +1332,7 @@ static void disk_zone_wplug_handle_error(struct gendisk *disk,
 	/* Restart BIO submission if we still have any BIO left. */
 	if (!bio_list_empty(&zwplug->bio_list)) {
 		WARN_ON_ONCE(!(zwplug->flags & BLK_ZONE_WPLUG_PLUGGED));
-		kblockd_schedule_work(&zwplug->bio_work);
+		queue_work(disk->zone_wplugs_wq, &zwplug->bio_work);
 		goto unlock;
 	}
 
@@ -1409,14 +1409,25 @@ static int disk_alloc_zone_resources(struct gendisk *disk,
 
 	disk->zone_wplugs_pool = mempool_create_kmalloc_pool(pool_size,
 						sizeof(struct blk_zone_wplug));
-	if (!disk->zone_wplugs_pool) {
-		kfree(disk->zone_wplugs_hash);
-		disk->zone_wplugs_hash = NULL;
-		disk->zone_wplugs_hash_bits = 0;
-		return -ENOMEM;
-	}
+	if (!disk->zone_wplugs_pool)
+		goto free_hash;
+
+	disk->zone_wplugs_wq =
+		alloc_workqueue("%s_zwplugs", WQ_MEM_RECLAIM | WQ_HIGHPRI,
+				pool_size, disk->disk_name);
+	if (!disk->zone_wplugs_wq)
+		goto destroy_pool;
 
 	return 0;
+
+destroy_pool:
+	mempool_destroy(disk->zone_wplugs_pool);
+	disk->zone_wplugs_pool = NULL;
+free_hash:
+	kfree(disk->zone_wplugs_hash);
+	disk->zone_wplugs_hash = NULL;
+	disk->zone_wplugs_hash_bits = 0;
+	return -ENOMEM;
 }
 
 static void disk_destroy_zone_wplugs_hash_table(struct gendisk *disk)
@@ -1446,6 +1457,11 @@ static void disk_destroy_zone_wplugs_hash_table(struct gendisk *disk)
 void disk_free_zone_resources(struct gendisk *disk)
 {
 	cancel_work_sync(&disk->zone_wplugs_work);
+
+	if (disk->zone_wplugs_wq) {
+		destroy_workqueue(disk->zone_wplugs_wq);
+		disk->zone_wplugs_wq = NULL;
+	}
 
 	disk_destroy_zone_wplugs_hash_table(disk);
 

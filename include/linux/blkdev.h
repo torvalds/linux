@@ -191,6 +191,7 @@ struct gendisk {
 	struct hlist_head       *zone_wplugs_hash;
 	struct list_head        zone_wplugs_err_list;
 	struct work_struct	zone_wplugs_work;
+	struct workqueue_struct *zone_wplugs_wq;
 #endif /* CONFIG_BLK_DEV_ZONED */
 
 #if IS_ENABLED(CONFIG_CDROM)
