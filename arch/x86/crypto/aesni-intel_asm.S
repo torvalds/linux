@@ -83,9 +83,6 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 
 .text
 
-
-#define	STACK_OFFSET    8*3
-
 #define AadHash 16*0
 #define AadLen 16*1
 #define InLen (16*1)+8
@@ -116,11 +113,6 @@ ALL_F:      .octa 0xffffffffffffffffffffffffffffffff
 #define arg4 rcx
 #define arg5 r8
 #define arg6 r9
-#define arg7 STACK_OFFSET+8(%rsp)
-#define arg8 STACK_OFFSET+16(%rsp)
-#define arg9 STACK_OFFSET+24(%rsp)
-#define arg10 STACK_OFFSET+32(%rsp)
-#define arg11 STACK_OFFSET+40(%rsp)
 #define keysize 2*15*16(%arg1)
 #endif
 
@@ -1507,184 +1499,6 @@ _esb_loop_\@:
 	MOVADQ		(%r10),\TMP1
 	aesenclast	\TMP1,\XMM0
 .endm
-/*****************************************************************************
-* void aesni_gcm_dec(void *aes_ctx,    // AES Key schedule. Starts on a 16 byte boundary.
-*                   struct gcm_context_data *data
-*                                      // Context data
-*                   u8 *out,           // Plaintext output. Encrypt in-place is allowed.
-*                   const u8 *in,      // Ciphertext input
-*                   u64 plaintext_len, // Length of data in bytes for decryption.
-*                   u8 *iv,            // Pre-counter block j0: 4 byte salt (from Security Association)
-*                                      // concatenated with 8 byte Initialisation Vector (from IPSec ESP Payload)
-*                                      // concatenated with 0x00000001. 16-byte aligned pointer.
-*                   u8 *hash_subkey,   // H, the Hash sub key input. Data starts on a 16-byte boundary.
-*                   const u8 *aad,     // Additional Authentication Data (AAD)
-*                   u64 aad_len,       // Length of AAD in bytes. With RFC4106 this is going to be 8 or 12 bytes
-*                   u8  *auth_tag,     // Authenticated Tag output. The driver will compare this to the
-*                                      // given authentication tag and only return the plaintext if they match.
-*                   u64 auth_tag_len); // Authenticated Tag Length in bytes. Valid values are 16
-*                                      // (most likely), 12 or 8.
-*
-* Assumptions:
-*
-* keys:
-*       keys are pre-expanded and aligned to 16 bytes. we are using the first
-*       set of 11 keys in the data structure void *aes_ctx
-*
-* iv:
-*       0                   1                   2                   3
-*       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                             Salt  (From the SA)               |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                     Initialization Vector                     |
-*       |         (This is the sequence number from IPSec header)       |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                              0x1                              |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*
-*
-*
-* AAD:
-*       AAD padded to 128 bits with 0
-*       for example, assume AAD is a u32 vector
-*
-*       if AAD is 8 bytes:
-*       AAD[3] = {A0, A1};
-*       padded AAD in xmm register = {A1 A0 0 0}
-*
-*       0                   1                   2                   3
-*       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                               SPI (A1)                        |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                     32-bit Sequence Number (A0)               |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                              0x0                              |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*
-*                                       AAD Format with 32-bit Sequence Number
-*
-*       if AAD is 12 bytes:
-*       AAD[3] = {A0, A1, A2};
-*       padded AAD in xmm register = {A2 A1 A0 0}
-*
-*       0                   1                   2                   3
-*       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                               SPI (A2)                        |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                 64-bit Extended Sequence Number {A1,A0}       |
-*       |                                                               |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                              0x0                              |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*
-*                        AAD Format with 64-bit Extended Sequence Number
-*
-* poly = x^128 + x^127 + x^126 + x^121 + 1
-*
-*****************************************************************************/
-SYM_FUNC_START(aesni_gcm_dec)
-	FUNC_SAVE
-
-	GCM_INIT %arg6, arg7, arg8, arg9
-	GCM_ENC_DEC dec
-	GCM_COMPLETE arg10, arg11
-	FUNC_RESTORE
-	RET
-SYM_FUNC_END(aesni_gcm_dec)
-
-
-/*****************************************************************************
-* void aesni_gcm_enc(void *aes_ctx,      // AES Key schedule. Starts on a 16 byte boundary.
-*                    struct gcm_context_data *data
-*                                        // Context data
-*                    u8 *out,            // Ciphertext output. Encrypt in-place is allowed.
-*                    const u8 *in,       // Plaintext input
-*                    u64 plaintext_len,  // Length of data in bytes for encryption.
-*                    u8 *iv,             // Pre-counter block j0: 4 byte salt (from Security Association)
-*                                        // concatenated with 8 byte Initialisation Vector (from IPSec ESP Payload)
-*                                        // concatenated with 0x00000001. 16-byte aligned pointer.
-*                    u8 *hash_subkey,    // H, the Hash sub key input. Data starts on a 16-byte boundary.
-*                    const u8 *aad,      // Additional Authentication Data (AAD)
-*                    u64 aad_len,        // Length of AAD in bytes. With RFC4106 this is going to be 8 or 12 bytes
-*                    u8 *auth_tag,       // Authenticated Tag output.
-*                    u64 auth_tag_len);  // Authenticated Tag Length in bytes. Valid values are 16 (most likely),
-*                                        // 12 or 8.
-*
-* Assumptions:
-*
-* keys:
-*       keys are pre-expanded and aligned to 16 bytes. we are using the
-*       first set of 11 keys in the data structure void *aes_ctx
-*
-*
-* iv:
-*       0                   1                   2                   3
-*       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                             Salt  (From the SA)               |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                     Initialization Vector                     |
-*       |         (This is the sequence number from IPSec header)       |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                              0x1                              |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*
-*
-*
-* AAD:
-*       AAD padded to 128 bits with 0
-*       for example, assume AAD is a u32 vector
-*
-*       if AAD is 8 bytes:
-*       AAD[3] = {A0, A1};
-*       padded AAD in xmm register = {A1 A0 0 0}
-*
-*       0                   1                   2                   3
-*       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                               SPI (A1)                        |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                     32-bit Sequence Number (A0)               |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                              0x0                              |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*
-*                                 AAD Format with 32-bit Sequence Number
-*
-*       if AAD is 12 bytes:
-*       AAD[3] = {A0, A1, A2};
-*       padded AAD in xmm register = {A2 A1 A0 0}
-*
-*       0                   1                   2                   3
-*       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                               SPI (A2)                        |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                 64-bit Extended Sequence Number {A1,A0}       |
-*       |                                                               |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*       |                              0x0                              |
-*       +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-*
-*                         AAD Format with 64-bit Extended Sequence Number
-*
-* poly = x^128 + x^127 + x^126 + x^121 + 1
-***************************************************************************/
-SYM_FUNC_START(aesni_gcm_enc)
-	FUNC_SAVE
-
-	GCM_INIT %arg6, arg7, arg8, arg9
-	GCM_ENC_DEC enc
-
-	GCM_COMPLETE arg10, arg11
-	FUNC_RESTORE
-	RET
-SYM_FUNC_END(aesni_gcm_enc)
 
 /*****************************************************************************
 * void aesni_gcm_init(void *aes_ctx,      // AES Key schedule. Starts on a 16 byte boundary.
