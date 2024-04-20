@@ -938,7 +938,8 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 				break;
 			}
 		} else {
-			ob[nr_got] = bch2_bucket_alloc(c, ca, BCH_WATERMARK_normal, cl);
+			ob[nr_got] = bch2_bucket_alloc(c, ca, BCH_WATERMARK_normal,
+						       BCH_DATA_journal, cl);
 			ret = PTR_ERR_OR_ZERO(ob[nr_got]);
 			if (ret)
 				break;

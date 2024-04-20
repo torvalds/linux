@@ -31,7 +31,8 @@ void bch2_dev_stripe_increment(struct bch_dev *, struct dev_stripe_state *);
 long bch2_bucket_alloc_new_fs(struct bch_dev *);
 
 struct open_bucket *bch2_bucket_alloc(struct bch_fs *, struct bch_dev *,
-				      enum bch_watermark, struct closure *);
+				      enum bch_watermark, enum bch_data_type,
+				      struct closure *);
 
 static inline void ob_push(struct bch_fs *c, struct open_buckets *obs,
 			   struct open_bucket *ob)

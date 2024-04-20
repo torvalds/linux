@@ -516,6 +516,7 @@ again:
  * @trans:	transaction object
  * @ca:		device to allocate from
  * @watermark:	how important is this allocation?
+ * @data_type:	BCH_DATA_journal, btree, user...
  * @cl:		if not NULL, closure to be used to wait if buckets not available
  * @usage:	for secondarily also returning the current device usage
  *
@@ -524,6 +525,7 @@ again:
 static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 				      struct bch_dev *ca,
 				      enum bch_watermark watermark,
+				      enum bch_data_type data_type,
 				      struct closure *cl,
 				      struct bch_dev_usage *usage)
 {
@@ -578,6 +580,9 @@ err:
 		ob = ERR_PTR(-BCH_ERR_no_buckets_found);
 
 	if (!IS_ERR(ob))
+		ob->data_type = data_type;
+
+	if (!IS_ERR(ob))
 		trace_and_count(c, bucket_alloc, ca,
 				bch2_watermarks[watermark],
 				ob->bucket,
@@ -605,6 +610,7 @@ err:
 
 struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 				      enum bch_watermark watermark,
+				      enum bch_data_type data_type,
 				      struct closure *cl)
 {
 	struct bch_dev_usage usage;
@@ -612,7 +618,7 @@ struct open_bucket *bch2_bucket_alloc(struct bch_fs *c, struct bch_dev *ca,
 
 	bch2_trans_do(c, NULL, NULL, 0,
 		      PTR_ERR_OR_ZERO(ob = bch2_bucket_alloc_trans(trans, ca, watermark,
-							cl, &usage)));
+							data_type, cl, &usage)));
 	return ob;
 }
 
@@ -738,7 +744,7 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 			continue;
 		}
 
-		ob = bch2_bucket_alloc_trans(trans, ca, watermark, cl, &usage);
+		ob = bch2_bucket_alloc_trans(trans, ca, watermark, data_type, cl, &usage);
 		if (!IS_ERR(ob))
 			bch2_dev_stripe_increment_inlined(ca, stripe, &usage);
 		percpu_ref_put(&ca->ref);
@@ -749,8 +755,6 @@ int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 				break;
 			continue;
 		}
-
-		ob->data_type = data_type;
 
 		if (add_new_bucket(c, ptrs, devs_may_alloc,
 				   nr_replicas, nr_effective,
