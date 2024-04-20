@@ -2198,7 +2198,7 @@ netlink_ack_tlv_len(struct netlink_sock *nlk, int err,
 
 static void
 netlink_ack_tlv_fill(struct sk_buff *in_skb, struct sk_buff *skb,
-		     struct nlmsghdr *nlh, int err,
+		     const struct nlmsghdr *nlh, int err,
 		     const struct netlink_ext_ack *extack)
 {
 	if (extack->_msg)
@@ -2214,7 +2214,7 @@ netlink_ack_tlv_fill(struct sk_buff *in_skb, struct sk_buff *skb,
 	    !WARN_ON((u8 *)extack->bad_attr < in_skb->data ||
 		     (u8 *)extack->bad_attr >= in_skb->data + in_skb->len))
 		WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_OFFS,
-				    (u8 *)extack->bad_attr - (u8 *)nlh));
+				    (u8 *)extack->bad_attr - (const u8 *)nlh));
 	if (extack->policy)
 		netlink_policy_dump_write_attr(skb, extack->policy,
 					       NLMSGERR_ATTR_POLICY);
@@ -2225,7 +2225,7 @@ netlink_ack_tlv_fill(struct sk_buff *in_skb, struct sk_buff *skb,
 	    !WARN_ON((u8 *)extack->miss_nest < in_skb->data ||
 		     (u8 *)extack->miss_nest > in_skb->data + in_skb->len))
 		WARN_ON(nla_put_u32(skb, NLMSGERR_ATTR_MISS_NEST,
-				    (u8 *)extack->miss_nest - (u8 *)nlh));
+				    (u8 *)extack->miss_nest - (const u8 *)nlh));
 }
 
 /*
@@ -2238,6 +2238,7 @@ static int netlink_dump_done(struct netlink_sock *nlk, struct sk_buff *skb,
 			     struct netlink_ext_ack *extack)
 {
 	struct nlmsghdr *nlh;
+	size_t extack_len;
 
 	nlh = nlmsg_put_answer(skb, cb, NLMSG_DONE, sizeof(nlk->dump_done_errno),
 			       NLM_F_MULTI | cb->answer_flags);
@@ -2247,10 +2248,14 @@ static int netlink_dump_done(struct netlink_sock *nlk, struct sk_buff *skb,
 	nl_dump_check_consistent(cb, nlh);
 	memcpy(nlmsg_data(nlh), &nlk->dump_done_errno, sizeof(nlk->dump_done_errno));
 
-	if (extack->_msg && test_bit(NETLINK_F_EXT_ACK, &nlk->flags)) {
+	extack_len = netlink_ack_tlv_len(nlk, nlk->dump_done_errno, extack);
+	if (extack_len) {
 		nlh->nlmsg_flags |= NLM_F_ACK_TLVS;
-		if (!nla_put_string(skb, NLMSGERR_ATTR_MSG, extack->_msg))
+		if (skb_tailroom(skb) >= extack_len) {
+			netlink_ack_tlv_fill(cb->skb, skb, cb->nlh,
+					     nlk->dump_done_errno, extack);
 			nlmsg_end(skb, nlh);
+		}
 	}
 
 	return 0;
