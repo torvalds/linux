@@ -118,6 +118,14 @@ v3d_job_start_stats(struct v3d_job *job, enum v3d_queue queue)
 	global_stats->start_ns = now;
 }
 
+static void
+v3d_stats_update(struct v3d_stats *stats, u64 now)
+{
+	stats->enabled_ns += now - stats->start_ns;
+	stats->jobs_completed++;
+	stats->start_ns = 0;
+}
+
 void
 v3d_job_update_stats(struct v3d_job *job, enum v3d_queue queue)
 {
@@ -127,13 +135,8 @@ v3d_job_update_stats(struct v3d_job *job, enum v3d_queue queue)
 	struct v3d_stats *local_stats = &file->stats[queue];
 	u64 now = local_clock();
 
-	local_stats->enabled_ns += now - local_stats->start_ns;
-	local_stats->jobs_completed++;
-	local_stats->start_ns = 0;
-
-	global_stats->enabled_ns += now - global_stats->start_ns;
-	global_stats->jobs_completed++;
-	global_stats->start_ns = 0;
+	v3d_stats_update(local_stats, now);
+	v3d_stats_update(global_stats, now);
 }
 
 static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
