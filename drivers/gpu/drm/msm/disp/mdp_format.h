@@ -25,6 +25,16 @@ enum msm_format_flags {
 #define MSM_FORMAT_FLAG_UNPACK_ALIGN_MSB BIT(MSM_FORMAT_FLAG_UNPACK_ALIGN_MSB_BIT)
 
 /**
+ * DPU HW,Component order color map
+ */
+enum {
+	C0_G_Y = 0,
+	C1_B_Cb = 1,
+	C2_R_Cr = 2,
+	C3_ALPHA = 3
+};
+
+/**
  * struct msm_format: defines the format configuration
  * @pixel_format: format fourcc
  * @element: element color ordering

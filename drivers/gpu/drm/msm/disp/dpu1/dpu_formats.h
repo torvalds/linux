@@ -10,17 +10,6 @@
 #include "dpu_hw_mdss.h"
 
 /**
- * dpu_get_dpu_format_ext() - Returns dpu format structure pointer.
- * @format:          DRM FourCC Code
- * @modifiers:       format modifier array from client, one per plane
- */
-const struct msm_format *dpu_get_dpu_format_ext(
-		const uint32_t format,
-		const uint64_t modifier);
-
-#define dpu_get_dpu_format(f) dpu_get_dpu_format_ext(f, 0)
-
-/**
  * dpu_find_format - validate if the pixel format is supported
  * @format:		dpu format
  * @supported_formats:	supported formats by dpu HW
@@ -41,18 +30,6 @@ static inline bool dpu_find_format(u32 format, const u32 *supported_formats,
 
 	return false;
 }
-
-/**
- * dpu_get_msm_format - get an msm_format by its msm_format base
- *                     callback function registers with the msm_kms layer
- * @kms:             kms driver
- * @format:          DRM FourCC Code
- * @modifiers:       data layout modifier
- */
-const struct msm_format *dpu_get_msm_format(
-		struct msm_kms *kms,
-		const uint32_t format,
-		const uint64_t modifiers);
 
 /**
  * dpu_format_check_modified_format - validate format and buffers for

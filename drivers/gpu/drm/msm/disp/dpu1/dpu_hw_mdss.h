@@ -271,16 +271,6 @@ enum dpu_vbif {
 };
 
 /**
- * DPU HW,Component order color map
- */
-enum {
-	C0_G_Y = 0,
-	C1_B_Cb = 1,
-	C2_R_Cr = 2,
-	C3_ALPHA = 3
-};
-
-/**
  * enum dpu_3d_blend_mode
  * Desribes how the 3d data is blended
  * @BLEND_3D_NONE      : 3d blending not enabled
