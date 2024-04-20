@@ -169,20 +169,79 @@ static int bch2_trans_mark_stripe_bucket(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	const struct bch_extent_ptr *ptr = s.v->ptrs + ptr_idx;
-	struct btree_iter iter;
-	struct bkey_i_alloc_v4 *a;
 	unsigned nr_data = s.v->nr_blocks - s.v->nr_redundant;
 	bool parity = ptr_idx >= nr_data;
 	enum bch_data_type data_type = parity ? BCH_DATA_parity : BCH_DATA_stripe;
 	s64 sectors = parity ? le16_to_cpu(s.v->sectors) : 0;
+	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
 	if (deleting)
 		sectors = -sectors;
 
-	a = bch2_trans_start_alloc_update(trans, &iter, PTR_BUCKET_POS(c, ptr));
-	if (IS_ERR(a))
-		return PTR_ERR(a);
+	struct btree_iter iter;
+	struct bkey_i_alloc_v4 *a =
+		bch2_trans_start_alloc_update(trans, &iter, PTR_BUCKET_POS(c, ptr));
+	ret = PTR_ERR_OR_ZERO(a);
+	if (ret)
+		goto err;
+
+	if (!deleting) {
+		if (bch2_trans_inconsistent_on(a->v.stripe ||
+					       a->v.stripe_redundancy, trans,
+				"bucket %llu:%llu gen %u data type %s dirty_sectors %u: multiple stripes using same bucket (%u, %llu)\n%s",
+				iter.pos.inode, iter.pos.offset, a->v.gen,
+				bch2_data_type_str(a->v.data_type),
+				a->v.dirty_sectors,
+				a->v.stripe, s.k->p.offset,
+				(bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
+			ret = -EIO;
+			goto err;
+		}
+
+		if (bch2_trans_inconsistent_on(parity && (a->v.dirty_sectors || a->v.cached_sectors), trans,
+				"bucket %llu:%llu gen %u data type %s dirty_sectors %u cached_sectors %u: data already in parity bucket\n%s",
+				iter.pos.inode, iter.pos.offset, a->v.gen,
+				bch2_data_type_str(a->v.data_type),
+				a->v.dirty_sectors,
+				a->v.cached_sectors,
+				(bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
+			ret = -EIO;
+			goto err;
+		}
+	} else {
+		if (bch2_trans_inconsistent_on(a->v.stripe != s.k->p.offset ||
+					       a->v.stripe_redundancy != s.v->nr_redundant, trans,
+				"bucket %llu:%llu gen %u: not marked as stripe when deleting stripe (got %u)\n%s",
+				iter.pos.inode, iter.pos.offset, a->v.gen,
+				a->v.stripe,
+				(bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
+			ret = -EIO;
+			goto err;
+		}
+
+		if (bch2_trans_inconsistent_on(a->v.data_type != data_type, trans,
+				"bucket %llu:%llu gen %u data type %s: wrong data type when stripe, should be %s\n%s",
+				iter.pos.inode, iter.pos.offset, a->v.gen,
+				bch2_data_type_str(a->v.data_type),
+				bch2_data_type_str(data_type),
+				(bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
+			ret = -EIO;
+			goto err;
+		}
+
+		if (bch2_trans_inconsistent_on(parity &&
+					       (a->v.dirty_sectors != -sectors ||
+						a->v.cached_sectors), trans,
+				"bucket %llu:%llu gen %u dirty_sectors %u cached_sectors %u: wrong sectors when deleting parity block of stripe\n%s",
+				iter.pos.inode, iter.pos.offset, a->v.gen,
+				a->v.dirty_sectors,
+				a->v.cached_sectors,
+				(bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf))) {
+			ret = -EIO;
+			goto err;
+		}
+	}
 
 	ret = bch2_check_bucket_ref(trans, s.s_c, ptr, sectors, data_type,
 				    a->v.gen, a->v.data_type,
@@ -190,70 +249,38 @@ static int bch2_trans_mark_stripe_bucket(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
+	a->v.dirty_sectors += sectors;
+
 	if (!deleting) {
-		if (bch2_trans_inconsistent_on(a->v.stripe ||
-					       a->v.stripe_redundancy, trans,
-				"bucket %llu:%llu gen %u data type %s dirty_sectors %u: multiple stripes using same bucket (%u, %llu)",
-				iter.pos.inode, iter.pos.offset, a->v.gen,
-				bch2_data_type_str(a->v.data_type),
-				a->v.dirty_sectors,
-				a->v.stripe, s.k->p.offset)) {
-			ret = -EIO;
-			goto err;
-		}
-
-		if (bch2_trans_inconsistent_on(parity && a->v.dirty_sectors, trans,
-				"bucket %llu:%llu gen %u data type %s dirty_sectors %u: data already in parity bucket %llu",
-				iter.pos.inode, iter.pos.offset, a->v.gen,
-				bch2_data_type_str(a->v.data_type),
-				a->v.dirty_sectors,
-				s.k->p.offset)) {
-			ret = -EIO;
-			goto err;
-		}
-
 		a->v.stripe		= s.k->p.offset;
 		a->v.stripe_redundancy	= s.v->nr_redundant;
 		a->v.data_type		= data_type;
 	} else {
-		if (bch2_trans_inconsistent_on(a->v.stripe != s.k->p.offset ||
-					       a->v.stripe_redundancy != s.v->nr_redundant, trans,
-				"bucket %llu:%llu gen %u: not marked as stripe when deleting stripe %llu (got %u)",
-				iter.pos.inode, iter.pos.offset, a->v.gen,
-				s.k->p.offset, a->v.stripe)) {
-			ret = -EIO;
-			goto err;
-		}
-
 		a->v.stripe		= 0;
 		a->v.stripe_redundancy	= 0;
 		a->v.data_type		= alloc_data_type(a->v, BCH_DATA_user);
 	}
-
-	a->v.dirty_sectors += sectors;
 
 	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
 	if (ret)
 		goto err;
 err:
 	bch2_trans_iter_exit(trans, &iter);
+	printbuf_exit(&buf);
 	return ret;
 }
 
 static int mark_stripe_bucket(struct btree_trans *trans,
-			      struct bkey_s_c k,
+			      struct bkey_s_c_stripe s,
 			      unsigned ptr_idx,
 			      enum btree_iter_update_trigger_flags flags)
 {
 	struct bch_fs *c = trans->c;
-	const struct bch_stripe *s = bkey_s_c_to_stripe(k).v;
-	unsigned nr_data = s->nr_blocks - s->nr_redundant;
+	const struct bch_extent_ptr *ptr = s.v->ptrs + ptr_idx;
+	unsigned nr_data = s.v->nr_blocks - s.v->nr_redundant;
 	bool parity = ptr_idx >= nr_data;
 	enum bch_data_type data_type = parity ? BCH_DATA_parity : BCH_DATA_stripe;
-	s64 sectors = parity ? le16_to_cpu(s->sectors) : 0;
-	const struct bch_extent_ptr *ptr = s->ptrs + ptr_idx;
-	struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
-	struct bucket old, new, *g;
+	s64 sectors = parity ? le16_to_cpu(s.v->sectors) : 0;
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
@@ -261,15 +288,18 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 
 	/* * XXX doesn't handle deletion */
 
+	struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
+	struct bucket old, new, *g;
+
 	percpu_down_read(&c->mark_lock);
 	g = PTR_GC_BUCKET(ca, ptr);
 
 	if (g->dirty_sectors ||
-	    (g->stripe && g->stripe != k.k->p.offset)) {
+	    (g->stripe && g->stripe != s.k->p.offset)) {
 		bch2_fs_inconsistent(c,
 			      "bucket %u:%zu gen %u: multiple stripes using same bucket\n%s",
 			      ptr->dev, PTR_BUCKET_NR(ca, ptr), g->gen,
-			      (bch2_bkey_val_to_text(&buf, c, k), buf.buf));
+			      (bch2_bkey_val_to_text(&buf, c, s.s_c), buf.buf));
 		ret = -EINVAL;
 		goto err;
 	}
@@ -277,7 +307,7 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 	bucket_lock(g);
 	old = *g;
 
-	ret = bch2_check_bucket_ref(trans, k, ptr, sectors, data_type,
+	ret = bch2_check_bucket_ref(trans, s.s_c, ptr, sectors, data_type,
 				    g->gen, g->data_type,
 				    g->dirty_sectors);
 	if (ret)
@@ -286,8 +316,8 @@ static int mark_stripe_bucket(struct btree_trans *trans,
 	g->data_type = data_type;
 	g->dirty_sectors += sectors;
 
-	g->stripe		= k.k->p.offset;
-	g->stripe_redundancy	= s->nr_redundant;
+	g->stripe		= s.k->p.offset;
+	g->stripe_redundancy	= s.v->nr_redundant;
 	new = *g;
 err:
 	bucket_unlock(g);
@@ -439,7 +469,7 @@ int bch2_trigger_stripe(struct btree_trans *trans,
 		memset(m->block_sectors, 0, sizeof(m->block_sectors));
 
 		for (unsigned i = 0; i < new_s->nr_blocks; i++) {
-			int ret = mark_stripe_bucket(trans, new, i, flags);
+			int ret = mark_stripe_bucket(trans, bkey_s_c_to_stripe(new), i, flags);
 			if (ret)
 				return ret;
 		}
