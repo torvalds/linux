@@ -40,7 +40,6 @@
 #define AESNI_ALIGN	16
 #define AESNI_ALIGN_ATTR __attribute__ ((__aligned__(AESNI_ALIGN)))
 #define AES_BLOCK_MASK	(~(AES_BLOCK_SIZE - 1))
-#define RFC4106_HASH_SUBKEY_SIZE 16
 #define AESNI_ALIGN_EXTRA ((AESNI_ALIGN - 1) & ~(CRYPTO_MINALIGN - 1))
 #define CRYPTO_AES_CTX_SIZE (sizeof(struct crypto_aes_ctx) + AESNI_ALIGN_EXTRA)
 #define XTS_AES_CTX_SIZE (sizeof(struct aesni_xts_ctx) + AESNI_ALIGN_EXTRA)
@@ -590,23 +589,12 @@ static int xctr_crypt(struct skcipher_request *req)
 	return err;
 }
 
-static int
-rfc4106_set_hash_subkey(u8 *hash_subkey, const u8 *key, unsigned int key_len)
+static int aes_gcm_derive_hash_subkey(const struct crypto_aes_ctx *aes_key,
+				      u8 hash_subkey[AES_BLOCK_SIZE])
 {
-	struct crypto_aes_ctx ctx;
-	int ret;
+	static const u8 zeroes[AES_BLOCK_SIZE];
 
-	ret = aes_expandkey(&ctx, key, key_len);
-	if (ret)
-		return ret;
-
-	/* Clear the data in the hash sub key container to zero.*/
-	/* We want to cipher all zeros to create the hash sub key. */
-	memset(hash_subkey, 0, RFC4106_HASH_SUBKEY_SIZE);
-
-	aes_encrypt(&ctx, hash_subkey, hash_subkey);
-
-	memzero_explicit(&ctx, sizeof(ctx));
+	aes_encrypt(aes_key, hash_subkey, zeroes);
 	return 0;
 }
 
@@ -624,7 +612,8 @@ static int common_rfc4106_set_key(struct crypto_aead *aead, const u8 *key,
 	memcpy(ctx->nonce, key + key_len, sizeof(ctx->nonce));
 
 	return aes_set_key_common(&ctx->aes_key_expanded, key, key_len) ?:
-	       rfc4106_set_hash_subkey(ctx->hash_subkey, key, key_len);
+	       aes_gcm_derive_hash_subkey(&ctx->aes_key_expanded,
+					  ctx->hash_subkey);
 }
 
 /* This is the Integrity Check Value (aka the authentication tag) length and can
@@ -1327,7 +1316,8 @@ static int generic_gcmaes_set_key(struct crypto_aead *aead, const u8 *key,
 	struct generic_gcmaes_ctx *ctx = generic_gcmaes_ctx_get(aead);
 
 	return aes_set_key_common(&ctx->aes_key_expanded, key, key_len) ?:
-	       rfc4106_set_hash_subkey(ctx->hash_subkey, key, key_len);
+	       aes_gcm_derive_hash_subkey(&ctx->aes_key_expanded,
+					  ctx->hash_subkey);
 }
 
 static int generic_gcmaes_encrypt(struct aead_request *req)
