@@ -121,6 +121,7 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 				      1, NULL);
 
 		memset(&v3d_priv->stats[i], 0, sizeof(v3d_priv->stats[i]));
+		seqcount_init(&v3d_priv->stats[i].lock);
 	}
 
 	v3d_perfmon_open_file(v3d_priv);
@@ -145,10 +146,15 @@ v3d_postclose(struct drm_device *dev, struct drm_file *file)
 void v3d_get_stats(const struct v3d_stats *stats, u64 timestamp,
 		   u64 *active_runtime, u64 *jobs_completed)
 {
-	*active_runtime = stats->enabled_ns;
-	if (stats->start_ns)
-		*active_runtime += timestamp - stats->start_ns;
-	*jobs_completed = stats->jobs_completed;
+	unsigned int seq;
+
+	do {
+		seq = read_seqcount_begin(&stats->lock);
+		*active_runtime = stats->enabled_ns;
+		if (stats->start_ns)
+			*active_runtime += timestamp - stats->start_ns;
+		*jobs_completed = stats->jobs_completed;
+	} while (read_seqcount_retry(&stats->lock, seq));
 }
 
 static void v3d_show_fdinfo(struct drm_printer *p, struct drm_file *file)
