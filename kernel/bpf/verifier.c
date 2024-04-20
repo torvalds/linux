@@ -11720,6 +11720,11 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 		case KF_ARG_PTR_TO_NULL:
 			continue;
 		case KF_ARG_PTR_TO_MAP:
+			if (!reg->map_ptr) {
+				verbose(env, "pointer in R%d isn't map pointer\n", regno);
+				return -EINVAL;
+			}
+			fallthrough;
 		case KF_ARG_PTR_TO_ALLOC_BTF_ID:
 		case KF_ARG_PTR_TO_BTF_ID:
 			if (!is_kfunc_trusted_args(meta) && !is_kfunc_rcu(meta))
