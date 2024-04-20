@@ -1988,7 +1988,12 @@ int smb2_tree_connect(struct ksmbd_work *work)
 	write_unlock(&sess->tree_conns_lock);
 	rsp->StructureSize = cpu_to_le16(16);
 out_err1:
-	rsp->Capabilities = 0;
+	if (server_conf.flags & KSMBD_GLOBAL_FLAG_DURABLE_HANDLE &&
+	    test_share_config_flag(share,
+				   KSMBD_SHARE_FLAG_CONTINUOUS_AVAILABILITY))
+		rsp->Capabilities = SMB2_SHARE_CAP_CONTINUOUS_AVAILABILITY;
+	else
+		rsp->Capabilities = 0;
 	rsp->Reserved = 0;
 	/* default manual caching */
 	rsp->ShareFlags = SMB2_SHAREFLAG_MANUAL_CACHING;
@@ -3502,7 +3507,9 @@ int smb2_open(struct ksmbd_work *work)
 	memcpy(fp->client_guid, conn->ClientGUID, SMB2_CLIENT_GUID_SIZE);
 
 	if (dh_info.type == DURABLE_REQ_V2 || dh_info.type == DURABLE_REQ) {
-		if (dh_info.type == DURABLE_REQ_V2 && dh_info.persistent)
+		if (dh_info.type == DURABLE_REQ_V2 && dh_info.persistent &&
+		    test_share_config_flag(work->tcon->share_conf,
+					   KSMBD_SHARE_FLAG_CONTINUOUS_AVAILABILITY))
 			fp->is_persistent = true;
 		else
 			fp->is_durable = true;
