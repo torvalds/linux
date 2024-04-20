@@ -822,6 +822,8 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 	int srcu_idx;
 
 	mutex_lock(&bc->lock);
+	bc->requested_to_free += sc->nr_to_scan;
+
 	srcu_idx = srcu_read_lock(&c->btree_trans_barrier);
 	flags = memalloc_nofs_save();
 
@@ -840,6 +842,7 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 		atomic_long_dec(&bc->nr_freed);
 		freed++;
 		bc->nr_freed_nonpcpu--;
+		bc->freed++;
 	}
 
 	list_for_each_entry_safe(ck, t, &bc->freed_pcpu, list) {
@@ -853,6 +856,7 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 		atomic_long_dec(&bc->nr_freed);
 		freed++;
 		bc->nr_freed_pcpu--;
+		bc->freed++;
 	}
 
 	rcu_read_lock();
@@ -871,13 +875,18 @@ static unsigned long bch2_btree_key_cache_scan(struct shrinker *shrink,
 			ck = container_of(pos, struct bkey_cached, hash);
 
 			if (test_bit(BKEY_CACHED_DIRTY, &ck->flags)) {
+				bc->skipped_dirty++;
 				goto next;
 			} else if (test_bit(BKEY_CACHED_ACCESSED, &ck->flags)) {
 				clear_bit(BKEY_CACHED_ACCESSED, &ck->flags);
+				bc->skipped_accessed++;
 				goto next;
 			} else if (bkey_cached_lock_for_evict(ck)) {
 				bkey_cached_evict(bc, ck);
 				bkey_cached_free(bc, ck);
+				bc->moved_to_freelist++;
+			} else {
+				bc->skipped_lock_fail++;
 			}
 
 			scanned++;
@@ -1024,11 +1033,47 @@ int bch2_fs_btree_key_cache_init(struct btree_key_cache *bc)
 	return 0;
 }
 
-void bch2_btree_key_cache_to_text(struct printbuf *out, struct btree_key_cache *c)
+void bch2_btree_key_cache_to_text(struct printbuf *out, struct btree_key_cache *bc)
 {
-	prt_printf(out, "nr_freed:\t%lu\n",	atomic_long_read(&c->nr_freed));
-	prt_printf(out, "nr_keys:\t%lu\n",	atomic_long_read(&c->nr_keys));
-	prt_printf(out, "nr_dirty:\t%lu\n",	atomic_long_read(&c->nr_dirty));
+	struct bch_fs *c = container_of(bc, struct bch_fs, btree_key_cache);
+
+	printbuf_tabstop_push(out, 24);
+	printbuf_tabstop_push(out, 12);
+
+	unsigned flags = memalloc_nofs_save();
+	mutex_lock(&bc->lock);
+	prt_printf(out, "keys:\t%lu\r\n",		atomic_long_read(&bc->nr_keys));
+	prt_printf(out, "dirty:\t%lu\r\n",		atomic_long_read(&bc->nr_dirty));
+	prt_printf(out, "freelist:\t%lu\r\n",		atomic_long_read(&bc->nr_freed));
+	prt_printf(out, "nonpcpu freelist:\t%lu\r\n",	bc->nr_freed_nonpcpu);
+	prt_printf(out, "pcpu freelist:\t%lu\r\n",	bc->nr_freed_pcpu);
+
+	prt_printf(out, "\nshrinker:\n");
+	prt_printf(out, "requested_to_free:\t%lu\r\n",	bc->requested_to_free);
+	prt_printf(out, "freed:\t%lu\r\n",		bc->freed);
+	prt_printf(out, "moved_to_freelist:\t%lu\r\n",	bc->moved_to_freelist);
+	prt_printf(out, "skipped_dirty:\t%lu\r\n",	bc->skipped_dirty);
+	prt_printf(out, "skipped_accessed:\t%lu\r\n",	bc->skipped_accessed);
+	prt_printf(out, "skipped_lock_fail:\t%lu\r\n",	bc->skipped_lock_fail);
+
+	prt_printf(out, "srcu seq:\t%lu\r\n",		get_state_synchronize_srcu(&c->btree_trans_barrier));
+
+	struct bkey_cached *ck;
+	unsigned iter = 0;
+	list_for_each_entry(ck, &bc->freed_nonpcpu, list) {
+		prt_printf(out, "freed_nonpcpu:\t%lu\r\n", ck->btree_trans_barrier_seq);
+		if (++iter > 10)
+			break;
+	}
+
+	iter = 0;
+	list_for_each_entry(ck, &bc->freed_pcpu, list) {
+		prt_printf(out, "freed_pcpu:\t%lu\r\n", ck->btree_trans_barrier_seq);
+		if (++iter > 10)
+			break;
+	}
+	mutex_unlock(&bc->lock);
+	memalloc_flags_restore(flags);
 }
 
 void bch2_btree_key_cache_exit(void)
