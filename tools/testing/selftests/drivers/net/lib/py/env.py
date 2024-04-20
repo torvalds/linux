@@ -3,7 +3,8 @@
 import os
 import shlex
 from pathlib import Path
-from lib.py import ip
+from lib.py import KsftSkipEx
+from lib.py import cmd, ip
 from lib.py import NetNS, NetdevSimDev
 from .remote import Remote
 
@@ -118,6 +119,8 @@ class NetDrvEpEnv:
         self.ifname = self.dev['ifname']
         self.ifindex = self.dev['ifindex']
 
+        self._required_cmd = {}
+
     def create_local(self):
         self._netns = NetNS()
         self._ns = NetdevSimDev()
@@ -160,3 +163,27 @@ class NetDrvEpEnv:
         if self.remote:
             del self.remote
             self.remote = None
+
+    def require_v4(self):
+        if not self.v4 or not self.remote_v4:
+            raise KsftSkipEx("Test requires IPv4 connectivity")
+
+    def require_v6(self):
+        if not self.v6 or not self.remote_v6:
+            raise KsftSkipEx("Test requires IPv6 connectivity")
+
+    def _require_cmd(self, comm, key, host=None):
+        cached = self._required_cmd.get(comm, {})
+        if cached.get(key) is None:
+            cached[key] = cmd("command -v -- " + comm, fail=False,
+                              shell=True, host=host).ret == 0
+        self._required_cmd[comm] = cached
+        return cached[key]
+
+    def require_cmd(self, comm, local=True, remote=False):
+        if local:
+            if not self._require_cmd(comm, "local"):
+                raise KsftSkipEx("Test requires command: " + comm)
+        if remote:
+            if not self._require_cmd(comm, "remote"):
+                raise KsftSkipEx("Test requires (remote) command: " + comm)
