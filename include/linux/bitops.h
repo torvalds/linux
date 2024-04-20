@@ -200,7 +200,7 @@ static __always_inline __s64 sign_extend64(__u64 value, int index)
 	return (__s64)(value << shift) >> shift;
 }
 
-static inline unsigned fls_long(unsigned long l)
+static inline unsigned int fls_long(unsigned long l)
 {
 	if (sizeof(l) == 4)
 		return fls(l);
@@ -236,7 +236,7 @@ static inline int get_count_order_long(unsigned long l)
  * The result is not defined if no bits are set, so check that @word
  * is non-zero before calling this.
  */
-static inline unsigned long __ffs64(u64 word)
+static inline unsigned int __ffs64(u64 word)
 {
 #if BITS_PER_LONG == 32
 	if (((u32)word) == 0UL)
@@ -252,7 +252,7 @@ static inline unsigned long __ffs64(u64 word)
  * @word: The word to search
  * @n: Bit to find
  */
-static inline unsigned long fns(unsigned long word, unsigned int n)
+static inline unsigned int fns(unsigned long word, unsigned int n)
 {
 	unsigned int bit;
 
