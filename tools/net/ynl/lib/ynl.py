@@ -182,6 +182,7 @@ class NlMsg:
             self.done = 1
             extack_off = 20
         elif self.nl_type == Netlink.NLMSG_DONE:
+            self.error = struct.unpack("i", self.raw[0:4])[0]
             self.done = 1
             extack_off = 4
 
