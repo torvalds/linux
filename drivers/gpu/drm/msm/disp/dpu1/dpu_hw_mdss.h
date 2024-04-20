@@ -9,6 +9,7 @@
 #include <linux/err.h>
 
 #include "msm_drv.h"
+#include "mdp_common.xml.h"
 
 #define DPU_DBG_NAME			"dpu"
 
@@ -49,12 +50,12 @@ enum dpu_format_flags {
 	(test_bit(DPU_FORMAT_FLAG_YUV_BIT, (X)->flag))
 #define DPU_FORMAT_IS_DX(X)		\
 	(test_bit(DPU_FORMAT_FLAG_DX_BIT, (X)->flag))
-#define DPU_FORMAT_IS_LINEAR(X)		((X)->fetch_mode == DPU_FETCH_LINEAR)
+#define DPU_FORMAT_IS_LINEAR(X)		((X)->fetch_mode == MDP_FETCH_LINEAR)
 #define DPU_FORMAT_IS_TILE(X) \
-	(((X)->fetch_mode == DPU_FETCH_UBWC) && \
+	(((X)->fetch_mode == MDP_FETCH_UBWC) && \
 			!test_bit(DPU_FORMAT_FLAG_COMPRESSED_BIT, (X)->flag))
 #define DPU_FORMAT_IS_UBWC(X) \
-	(((X)->fetch_mode == DPU_FETCH_UBWC) && \
+	(((X)->fetch_mode == MDP_FETCH_UBWC) && \
 			test_bit(DPU_FORMAT_FLAG_COMPRESSED_BIT, (X)->flag))
 
 #define DPU_BLEND_FG_ALPHA_FG_CONST	(0 << 0)
@@ -301,57 +302,6 @@ enum {
 };
 
 /**
- * enum dpu_plane_type - defines how the color component pixel packing
- * @DPU_PLANE_INTERLEAVED   : Color components in single plane
- * @DPU_PLANE_PLANAR        : Color component in separate planes
- * @DPU_PLANE_PSEUDO_PLANAR : Chroma components interleaved in separate plane
- */
-enum dpu_plane_type {
-	DPU_PLANE_INTERLEAVED,
-	DPU_PLANE_PLANAR,
-	DPU_PLANE_PSEUDO_PLANAR,
-};
-
-/**
- * enum dpu_chroma_samp_type - chroma sub-samplng type
- * @DPU_CHROMA_RGB   : No chroma subsampling
- * @DPU_CHROMA_H2V1  : Chroma pixels are horizontally subsampled
- * @DPU_CHROMA_H1V2  : Chroma pixels are vertically subsampled
- * @DPU_CHROMA_420   : 420 subsampling
- */
-enum dpu_chroma_samp_type {
-	DPU_CHROMA_RGB,
-	DPU_CHROMA_H2V1,
-	DPU_CHROMA_H1V2,
-	DPU_CHROMA_420
-};
-
-/**
- * dpu_fetch_type - Defines How DPU HW fetches data
- * @DPU_FETCH_LINEAR   : fetch is line by line
- * @DPU_FETCH_TILE     : fetches data in Z order from a tile
- * @DPU_FETCH_UBWC     : fetch and decompress data
- */
-enum dpu_fetch_type {
-	DPU_FETCH_LINEAR,
-	DPU_FETCH_TILE,
-	DPU_FETCH_UBWC
-};
-
-/**
- * Value of enum chosen to fit the number of bits
- * expected by the HW programming.
- */
-enum {
-	COLOR_ALPHA_1BIT = 0,
-	COLOR_ALPHA_4BIT = 1,
-	COLOR_4BIT = 0,
-	COLOR_5BIT = 1, /* No 5-bit Alpha */
-	COLOR_6BIT = 2, /* 6-Bit Alpha also = 2 */
-	COLOR_8BIT = 3, /* 8-Bit Alpha also = 3 */
-};
-
-/**
  * enum dpu_3d_blend_mode
  * Desribes how the 3d data is blended
  * @BLEND_3D_NONE      : 3d blending not enabled
@@ -390,17 +340,17 @@ enum dpu_3d_blend_mode {
  */
 struct dpu_format {
 	struct msm_format base;
-	enum dpu_plane_type fetch_planes;
+	enum mdp_fetch_type fetch_planes;
 	u8 element[DPU_MAX_PLANES];
 	u8 bits[DPU_MAX_PLANES];
-	enum dpu_chroma_samp_type chroma_sample;
+	enum mdp_chroma_samp_type chroma_sample;
 	u8 unpack_align_msb;
 	u8 unpack_tight;
 	u8 unpack_count;
 	u8 bpp;
 	u8 alpha_enable;
 	u8 num_planes;
-	enum dpu_fetch_type fetch_mode;
+	enum mdp_fetch_mode fetch_mode;
 	DECLARE_BITMAP(flag, DPU_FORMAT_FLAG_BIT_MAX);
 	u16 tile_width;
 	u16 tile_height;

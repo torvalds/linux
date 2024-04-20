@@ -2223,19 +2223,19 @@ void dpu_encoder_helper_phys_setup_cdm(struct dpu_encoder_phys *phys_enc,
 
 	/* enable 10 bit logic */
 	switch (cdm_cfg->output_fmt->chroma_sample) {
-	case DPU_CHROMA_RGB:
+	case CHROMA_FULL:
 		cdm_cfg->h_cdwn_type = CDM_CDWN_DISABLE;
 		cdm_cfg->v_cdwn_type = CDM_CDWN_DISABLE;
 		break;
-	case DPU_CHROMA_H2V1:
+	case CHROMA_H2V1:
 		cdm_cfg->h_cdwn_type = CDM_CDWN_COSITE;
 		cdm_cfg->v_cdwn_type = CDM_CDWN_DISABLE;
 		break;
-	case DPU_CHROMA_420:
+	case CHROMA_420:
 		cdm_cfg->h_cdwn_type = CDM_CDWN_COSITE;
 		cdm_cfg->v_cdwn_type = CDM_CDWN_OFFSITE;
 		break;
-	case DPU_CHROMA_H1V2:
+	case CHROMA_H1V2:
 	default:
 		DPU_ERROR("[enc:%d] unsupported chroma sampling type\n",
 			  DRMID(phys_enc->parent));

@@ -35,11 +35,11 @@
 bp, flg, fm, np)                                                          \
 {                                                                         \
 	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = DPU_PLANE_INTERLEAVED,                            \
+	.fetch_planes = MDP_PLANE_INTERLEAVED,                            \
 	.alpha_enable = alpha,                                            \
 	.element = { (e0), (e1), (e2), (e3) },                            \
 	.bits = { g, b, r, a },                                           \
-	.chroma_sample = DPU_CHROMA_RGB,                                  \
+	.chroma_sample = CHROMA_FULL,                                     \
 	.unpack_align_msb = 0,                                            \
 	.unpack_tight = 1,                                                \
 	.unpack_count = uc,                                               \
@@ -54,11 +54,11 @@ bp, flg, fm, np)                                                          \
 alpha, bp, flg, fm, np, th)                                               \
 {                                                                         \
 	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = DPU_PLANE_INTERLEAVED,                            \
+	.fetch_planes = MDP_PLANE_INTERLEAVED,                            \
 	.alpha_enable = alpha,                                            \
 	.element = { (e0), (e1), (e2), (e3) },                            \
 	.bits = { g, b, r, a },                                           \
-	.chroma_sample = DPU_CHROMA_RGB,                                  \
+	.chroma_sample = CHROMA_FULL,                                     \
 	.unpack_align_msb = 0,                                            \
 	.unpack_tight = 1,                                                \
 	.unpack_count = uc,                                               \
@@ -74,7 +74,7 @@ alpha, bp, flg, fm, np, th)                                               \
 alpha, chroma, count, bp, flg, fm, np)                                    \
 {                                                                         \
 	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = DPU_PLANE_INTERLEAVED,                            \
+	.fetch_planes = MDP_PLANE_INTERLEAVED,                            \
 	.alpha_enable = alpha,                                            \
 	.element = { (e0), (e1), (e2), (e3)},                             \
 	.bits = { g, b, r, a },                                           \
@@ -92,7 +92,7 @@ alpha, chroma, count, bp, flg, fm, np)                                    \
 #define PSEUDO_YUV_FMT(fmt, a, r, g, b, e0, e1, chroma, flg, fm, np)      \
 {                                                                         \
 	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = DPU_PLANE_PSEUDO_PLANAR,                          \
+	.fetch_planes = MDP_PLANE_PSEUDO_PLANAR,                          \
 	.alpha_enable = false,                                            \
 	.element = { (e0), (e1), 0, 0 },                                  \
 	.bits = { g, b, r, a },                                           \
@@ -111,7 +111,7 @@ alpha, chroma, count, bp, flg, fm, np)                                    \
 flg, fm, np, th)                                                          \
 {                                                                         \
 	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = DPU_PLANE_PSEUDO_PLANAR,                          \
+	.fetch_planes = MDP_PLANE_PSEUDO_PLANAR,                          \
 	.alpha_enable = false,                                            \
 	.element = { (e0), (e1), 0, 0 },                                  \
 	.bits = { g, b, r, a },                                           \
@@ -129,7 +129,7 @@ flg, fm, np, th)                                                          \
 #define PSEUDO_YUV_FMT_LOOSE(fmt, a, r, g, b, e0, e1, chroma, flg, fm, np)\
 {                                                                         \
 	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = DPU_PLANE_PSEUDO_PLANAR,                          \
+	.fetch_planes = MDP_PLANE_PSEUDO_PLANAR,                          \
 	.alpha_enable = false,                                            \
 	.element = { (e0), (e1), 0, 0 },                                  \
 	.bits = { g, b, r, a },                                           \
@@ -148,7 +148,7 @@ flg, fm, np, th)                                                          \
 flg, fm, np, th)                                                          \
 {                                                                         \
 	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = DPU_PLANE_PSEUDO_PLANAR,                          \
+	.fetch_planes = MDP_PLANE_PSEUDO_PLANAR,                          \
 	.alpha_enable = false,                                            \
 	.element = { (e0), (e1), 0, 0 },                                  \
 	.bits = { g, b, r, a },                                           \
@@ -168,7 +168,7 @@ flg, fm, np, th)                                                          \
 flg, fm, np)                                                      \
 {                                                                         \
 	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = DPU_PLANE_PLANAR,                                 \
+	.fetch_planes = MDP_PLANE_PLANAR,                                 \
 	.alpha_enable = alpha,                                            \
 	.element = { (e0), (e1), (e2), 0 },                               \
 	.bits = { g, b, r, a },                                           \
@@ -195,286 +195,286 @@ struct dpu_media_color_map {
 
 static const struct dpu_format dpu_format_map[] = {
 	INTERLEAVED_RGB_FMT(ARGB8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
 		true, 4, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(ABGR8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		true, 4, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(XBGR8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		false, 4, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(RGBA8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
 		true, 4, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(BGRA8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
 		true, 4, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(BGRX8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
 		false, 4, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(XRGB8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
 		false, 4, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(RGBX8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
 		false, 4, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(RGB888,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, 0, 3,
 		false, 3, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(BGR888,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, 0, 3,
 		false, 3, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(RGB565,
-		0, COLOR_5BIT, COLOR_6BIT, COLOR_5BIT,
+		0, BPC5, BPC6, BPC5,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, 0, 3,
 		false, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(BGR565,
-		0, COLOR_5BIT, COLOR_6BIT, COLOR_5BIT,
+		0, BPC5, BPC6, BPC5,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, 0, 3,
 		false, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(ARGB1555,
-		COLOR_ALPHA_1BIT, COLOR_5BIT, COLOR_5BIT, COLOR_5BIT,
+		BPC1A, BPC5, BPC5, BPC5,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
 		true, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(ABGR1555,
-		COLOR_ALPHA_1BIT, COLOR_5BIT, COLOR_5BIT, COLOR_5BIT,
+		BPC1A, BPC5, BPC5, BPC5,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		true, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(RGBA5551,
-		COLOR_ALPHA_1BIT, COLOR_5BIT, COLOR_5BIT, COLOR_5BIT,
+		BPC1A, BPC5, BPC5, BPC5,
 		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
 		true, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(BGRA5551,
-		COLOR_ALPHA_1BIT, COLOR_5BIT, COLOR_5BIT, COLOR_5BIT,
+		BPC1A, BPC5, BPC5, BPC5,
 		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
 		true, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(XRGB1555,
-		COLOR_ALPHA_1BIT, COLOR_5BIT, COLOR_5BIT, COLOR_5BIT,
+		BPC1A, BPC5, BPC5, BPC5,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
 		false, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(XBGR1555,
-		COLOR_ALPHA_1BIT, COLOR_5BIT, COLOR_5BIT, COLOR_5BIT,
+		BPC1A, BPC5, BPC5, BPC5,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		false, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(RGBX5551,
-		COLOR_ALPHA_1BIT, COLOR_5BIT, COLOR_5BIT, COLOR_5BIT,
+		BPC1A, BPC5, BPC5, BPC5,
 		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
 		false, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(BGRX5551,
-		COLOR_ALPHA_1BIT, COLOR_5BIT, COLOR_5BIT, COLOR_5BIT,
+		BPC1A, BPC5, BPC5, BPC5,
 		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
 		false, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(ARGB4444,
-		COLOR_ALPHA_4BIT, COLOR_4BIT, COLOR_4BIT, COLOR_4BIT,
+		BPC4A, BPC4, BPC4, BPC4,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
 		true, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(ABGR4444,
-		COLOR_ALPHA_4BIT, COLOR_4BIT, COLOR_4BIT, COLOR_4BIT,
+		BPC4A, BPC4, BPC4, BPC4,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		true, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(RGBA4444,
-		COLOR_ALPHA_4BIT, COLOR_4BIT, COLOR_4BIT, COLOR_4BIT,
+		BPC4A, BPC4, BPC4, BPC4,
 		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
 		true, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(BGRA4444,
-		COLOR_ALPHA_4BIT, COLOR_4BIT, COLOR_4BIT, COLOR_4BIT,
+		BPC4A, BPC4, BPC4, BPC4,
 		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
 		true, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(XRGB4444,
-		COLOR_ALPHA_4BIT, COLOR_4BIT, COLOR_4BIT, COLOR_4BIT,
+		BPC4A, BPC4, BPC4, BPC4,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
 		false, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(XBGR4444,
-		COLOR_ALPHA_4BIT, COLOR_4BIT, COLOR_4BIT, COLOR_4BIT,
+		BPC4A, BPC4, BPC4, BPC4,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		false, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(RGBX4444,
-		COLOR_ALPHA_4BIT, COLOR_4BIT, COLOR_4BIT, COLOR_4BIT,
+		BPC4A, BPC4, BPC4, BPC4,
 		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
 		false, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(BGRX4444,
-		COLOR_ALPHA_4BIT, COLOR_4BIT, COLOR_4BIT, COLOR_4BIT,
+		BPC4A, BPC4, BPC4, BPC4,
 		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
 		false, 2, 0,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(BGRA1010102,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
 		true, 4, DPU_FORMAT_FLAG_DX,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(RGBA1010102,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
 		true, 4, DPU_FORMAT_FLAG_DX,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(ABGR2101010,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		true, 4, DPU_FORMAT_FLAG_DX,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(ARGB2101010,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
 		true, 4, DPU_FORMAT_FLAG_DX,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(XRGB2101010,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
 		false, 4, DPU_FORMAT_FLAG_DX,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(BGRX1010102,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
 		false, 4, DPU_FORMAT_FLAG_DX,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(XBGR2101010,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		false, 4, DPU_FORMAT_FLAG_DX,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(RGBX1010102,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
 		false, 4, DPU_FORMAT_FLAG_DX,
-		DPU_FETCH_LINEAR, 1),
+		MDP_FETCH_LINEAR, 1),
 
 	PSEUDO_YUV_FMT(NV12,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C2_R_Cr,
-		DPU_CHROMA_420, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_LINEAR, 2),
+		CHROMA_420, DPU_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
 
 	PSEUDO_YUV_FMT(NV21,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C2_R_Cr, C1_B_Cb,
-		DPU_CHROMA_420, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_LINEAR, 2),
+		CHROMA_420, DPU_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
 
 	PSEUDO_YUV_FMT(NV16,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C2_R_Cr,
-		DPU_CHROMA_H2V1, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_LINEAR, 2),
+		CHROMA_H2V1, DPU_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
 
 	PSEUDO_YUV_FMT(NV61,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C2_R_Cr, C1_B_Cb,
-		DPU_CHROMA_H2V1, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_LINEAR, 2),
+		CHROMA_H2V1, DPU_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
 
 	PSEUDO_YUV_FMT_LOOSE(P010,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C2_R_Cr,
-		DPU_CHROMA_420, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_LINEAR, 2),
+		CHROMA_420, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
 
 	INTERLEAVED_YUV_FMT(VYUY,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C0_G_Y,
-		false, DPU_CHROMA_H2V1, 4, 2, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_LINEAR, 2),
+		false, CHROMA_H2V1, 4, 2, DPU_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
 
 	INTERLEAVED_YUV_FMT(UYVY,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, C0_G_Y,
-		false, DPU_CHROMA_H2V1, 4, 2, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_LINEAR, 2),
+		false, CHROMA_H2V1, 4, 2, DPU_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
 
 	INTERLEAVED_YUV_FMT(YUYV,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C0_G_Y, C1_B_Cb, C0_G_Y, C2_R_Cr,
-		false, DPU_CHROMA_H2V1, 4, 2, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_LINEAR, 2),
+		false, CHROMA_H2V1, 4, 2, DPU_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
 
 	INTERLEAVED_YUV_FMT(YVYU,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C0_G_Y, C2_R_Cr, C0_G_Y, C1_B_Cb,
-		false, DPU_CHROMA_H2V1, 4, 2, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_LINEAR, 2),
+		false, CHROMA_H2V1, 4, 2, DPU_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 2),
 
 	PLANAR_YUV_FMT(YUV420,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C2_R_Cr, C1_B_Cb, C0_G_Y,
-		false, DPU_CHROMA_420, 1, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_LINEAR, 3),
+		false, CHROMA_420, 1, DPU_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 3),
 
 	PLANAR_YUV_FMT(YVU420,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C2_R_Cr, C0_G_Y,
-		false, DPU_CHROMA_420, 1, DPU_FORMAT_FLAG_YUV,
-		DPU_FETCH_LINEAR, 3),
+		false, CHROMA_420, 1, DPU_FORMAT_FLAG_YUV,
+		MDP_FETCH_LINEAR, 3),
 };
 
 /*
@@ -485,88 +485,88 @@ static const struct dpu_format dpu_format_map[] = {
  */
 static const struct dpu_format dpu_format_map_ubwc[] = {
 	INTERLEAVED_RGB_FMT_TILED(BGR565,
-		0, COLOR_5BIT, COLOR_6BIT, COLOR_5BIT,
+		0, BPC5, BPC6, BPC5,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, 0, 3,
 		false, 2, DPU_FORMAT_FLAG_COMPRESSED,
-		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
+		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	INTERLEAVED_RGB_FMT_TILED(ABGR8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		true, 4, DPU_FORMAT_FLAG_COMPRESSED,
-		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
+		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	/* ARGB8888 and ABGR8888 purposely have the same color
 	 * ordering.  The hardware only supports ABGR8888 UBWC
 	 * natively.
 	 */
 	INTERLEAVED_RGB_FMT_TILED(ARGB8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		true, 4, DPU_FORMAT_FLAG_COMPRESSED,
-		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
+		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	INTERLEAVED_RGB_FMT_TILED(XBGR8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		false, 4, DPU_FORMAT_FLAG_COMPRESSED,
-		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
+		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	INTERLEAVED_RGB_FMT_TILED(XRGB8888,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		false, 4, DPU_FORMAT_FLAG_COMPRESSED,
-		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
+		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	INTERLEAVED_RGB_FMT_TILED(ABGR2101010,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		true, 4, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_COMPRESSED,
-		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
+		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	INTERLEAVED_RGB_FMT_TILED(XBGR2101010,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		true, 4, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_COMPRESSED,
-		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
+		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	INTERLEAVED_RGB_FMT_TILED(XRGB2101010,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		true, 4, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_COMPRESSED,
-		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
+		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	/* XRGB2101010 and ARGB2101010 purposely have the same color
 	* ordering.  The hardware only supports ARGB2101010 UBWC
 	* natively.
 	*/
 	INTERLEAVED_RGB_FMT_TILED(ARGB2101010,
-		COLOR_8BIT, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
 		true, 4, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_COMPRESSED,
-		DPU_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
+		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	PSEUDO_YUV_FMT_TILED(NV12,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C2_R_Cr,
-		DPU_CHROMA_420, DPU_FORMAT_FLAG_YUV |
+		CHROMA_420, DPU_FORMAT_FLAG_YUV |
 				DPU_FORMAT_FLAG_COMPRESSED,
-		DPU_FETCH_UBWC, 4, DPU_TILE_HEIGHT_NV12),
+		MDP_FETCH_UBWC, 4, DPU_TILE_HEIGHT_NV12),
 
 	PSEUDO_YUV_FMT_TILED(P010,
-		0, COLOR_8BIT, COLOR_8BIT, COLOR_8BIT,
+		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C2_R_Cr,
-		DPU_CHROMA_420, DPU_FORMAT_FLAG_DX |
+		CHROMA_420, DPU_FORMAT_FLAG_DX |
 				DPU_FORMAT_FLAG_YUV |
 				DPU_FORMAT_FLAG_COMPRESSED,
-		DPU_FETCH_UBWC, 4, DPU_TILE_HEIGHT_UBWC),
+		MDP_FETCH_UBWC, 4, DPU_TILE_HEIGHT_UBWC),
 };
 
 /* _dpu_get_v_h_subsample_rate - Get subsample rates for all formats we support
  *   Note: Not using the drm_format_*_subsampling since we have formats
  */
 static void _dpu_get_v_h_subsample_rate(
-	enum dpu_chroma_samp_type chroma_sample,
+	enum mdp_chroma_samp_type chroma_sample,
 	uint32_t *v_sample,
 	uint32_t *h_sample)
 {
@@ -574,15 +574,15 @@ static void _dpu_get_v_h_subsample_rate(
 		return;
 
 	switch (chroma_sample) {
-	case DPU_CHROMA_H2V1:
+	case CHROMA_H2V1:
 		*v_sample = 1;
 		*h_sample = 2;
 		break;
-	case DPU_CHROMA_H1V2:
+	case CHROMA_H1V2:
 		*v_sample = 2;
 		*h_sample = 1;
 		break;
-	case DPU_CHROMA_420:
+	case CHROMA_420:
 		*v_sample = 2;
 		*h_sample = 2;
 		break;
@@ -724,7 +724,7 @@ static int _dpu_format_get_plane_sizes_linear(
 	layout->num_planes = fmt->num_planes;
 
 	/* Due to memset above, only need to set planes of interest */
-	if (fmt->fetch_planes == DPU_PLANE_INTERLEAVED) {
+	if (fmt->fetch_planes == MDP_PLANE_INTERLEAVED) {
 		layout->num_planes = 1;
 		layout->plane_size[0] = width * height * layout->format->bpp;
 		layout->plane_pitch[0] = width * layout->format->bpp;
@@ -751,7 +751,7 @@ static int _dpu_format_get_plane_sizes_linear(
 		layout->plane_size[1] = layout->plane_pitch[1] *
 				(height / v_subsample);
 
-		if (fmt->fetch_planes == DPU_PLANE_PSEUDO_PLANAR) {
+		if (fmt->fetch_planes == MDP_PLANE_PSEUDO_PLANAR) {
 			layout->num_planes = 2;
 			layout->plane_size[1] *= 2;
 			layout->plane_pitch[1] *= 2;
