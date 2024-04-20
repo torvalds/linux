@@ -257,67 +257,55 @@ static void hdac_update_stream(struct hdac_bus *bus, struct hdac_stream *stream)
 	}
 }
 
-static irqreturn_t hdac_bus_irq_handler(int irq, void *context)
+static irqreturn_t avs_hda_interrupt(struct hdac_bus *bus)
 {
-	struct hdac_bus *bus = context;
-	u32 mask, int_enable;
+	irqreturn_t ret = IRQ_NONE;
 	u32 status;
-	int ret = IRQ_NONE;
-
-	if (!pm_runtime_active(bus->dev))
-		return ret;
-
-	spin_lock(&bus->reg_lock);
 
 	status = snd_hdac_chip_readl(bus, INTSTS);
-	if (status == 0 || status == UINT_MAX) {
-		spin_unlock(&bus->reg_lock);
-		return ret;
-	}
+	if (snd_hdac_bus_handle_stream_irq(bus, status, hdac_update_stream))
+		ret = IRQ_HANDLED;
 
-	/* clear rirb int */
+	spin_lock_irq(&bus->reg_lock);
+	/* Clear RIRB interrupt. */
 	status = snd_hdac_chip_readb(bus, RIRBSTS);
 	if (status & RIRB_INT_MASK) {
 		if (status & RIRB_INT_RESPONSE)
 			snd_hdac_bus_update_rirb(bus);
 		snd_hdac_chip_writeb(bus, RIRBSTS, RIRB_INT_MASK);
-	}
-
-	mask = (0x1 << bus->num_streams) - 1;
-
-	status = snd_hdac_chip_readl(bus, INTSTS);
-	status &= mask;
-	if (status) {
-		/* Disable stream interrupts; Re-enable in bottom half */
-		int_enable = snd_hdac_chip_readl(bus, INTCTL);
-		snd_hdac_chip_writel(bus, INTCTL, (int_enable & (~mask)));
-		ret = IRQ_WAKE_THREAD;
-	} else {
 		ret = IRQ_HANDLED;
 	}
 
-	spin_unlock(&bus->reg_lock);
+	spin_unlock_irq(&bus->reg_lock);
 	return ret;
 }
 
-static irqreturn_t hdac_bus_irq_thread(int irq, void *context)
+static irqreturn_t avs_hda_irq_handler(int irq, void *dev_id)
 {
-	struct hdac_bus *bus = context;
+	struct hdac_bus *bus = dev_id;
+	u32 intsts;
+
+	intsts = snd_hdac_chip_readl(bus, INTSTS);
+	if (intsts == UINT_MAX || !(intsts & AZX_INT_GLOBAL_EN))
+		return IRQ_NONE;
+
+	/* Mask GIE, unmasked in irq_thread(). */
+	snd_hdac_chip_updatel(bus, INTCTL, AZX_INT_GLOBAL_EN, 0);
+
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t avs_hda_irq_thread(int irq, void *dev_id)
+{
+	struct hdac_bus *bus = dev_id;
 	u32 status;
-	u32 int_enable;
-	u32 mask;
-	unsigned long flags;
 
 	status = snd_hdac_chip_readl(bus, INTSTS);
+	if (status & ~AZX_INT_GLOBAL_EN)
+		avs_hda_interrupt(bus);
 
-	snd_hdac_bus_handle_stream_irq(bus, status, hdac_update_stream);
-
-	/* Re-enable stream interrupts */
-	mask = (0x1 << bus->num_streams) - 1;
-	spin_lock_irqsave(&bus->reg_lock, flags);
-	int_enable = snd_hdac_chip_readl(bus, INTCTL);
-	snd_hdac_chip_writel(bus, INTCTL, (int_enable | mask));
-	spin_unlock_irqrestore(&bus->reg_lock, flags);
+	/* Unmask GIE, masked in irq_handler(). */
+	snd_hdac_chip_updatel(bus, INTCTL, AZX_INT_GLOBAL_EN, AZX_INT_GLOBAL_EN);
 
 	return IRQ_HANDLED;
 }
@@ -326,14 +314,23 @@ static irqreturn_t avs_dsp_irq_handler(int irq, void *dev_id)
 {
 	struct avs_dev *adev = dev_id;
 
-	return avs_dsp_op(adev, irq_handler);
+	return avs_hda_irq_handler(irq, &adev->base.core);
 }
 
 static irqreturn_t avs_dsp_irq_thread(int irq, void *dev_id)
 {
 	struct avs_dev *adev = dev_id;
+	struct hdac_bus *bus = &adev->base.core;
+	u32 status;
 
-	return avs_dsp_op(adev, irq_thread);
+	status = readl(bus->ppcap + AZX_REG_PP_PPSTS);
+	if (status & AZX_PPCTL_PIE)
+		avs_dsp_op(adev, dsp_interrupt);
+
+	/* Unmask GIE, masked in irq_handler(). */
+	snd_hdac_chip_updatel(bus, INTCTL, AZX_INT_GLOBAL_EN, AZX_INT_GLOBAL_EN);
+
+	return IRQ_HANDLED;
 }
 
 static int avs_hdac_acquire_irq(struct avs_dev *adev)
@@ -349,7 +346,7 @@ static int avs_hdac_acquire_irq(struct avs_dev *adev)
 		return ret;
 	}
 
-	ret = pci_request_irq(pci, 0, hdac_bus_irq_handler, hdac_bus_irq_thread, bus,
+	ret = pci_request_irq(pci, 0, avs_hda_irq_handler, avs_hda_irq_thread, bus,
 			      KBUILD_MODNAME);
 	if (ret < 0) {
 		dev_err(adev->dev, "Failed to request stream IRQ handler: %d\n", ret);
@@ -530,8 +527,6 @@ static void avs_pci_shutdown(struct pci_dev *pci)
 	snd_hdac_bus_stop_chip(bus);
 	snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
 
-	if (avs_platattr_test(adev, CLDMA))
-		pci_free_irq(pci, 0, &code_loader);
 	pci_free_irq(pci, 0, adev);
 	pci_free_irq(pci, 0, bus);
 	pci_free_irq_vectors(pci);
