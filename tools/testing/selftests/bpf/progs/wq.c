@@ -49,7 +49,8 @@ struct {
 	__type(value, struct elem);
 } lru SEC(".maps");
 
-static int test_elem_callback(void *map, int *key)
+static int test_elem_callback(void *map, int *key,
+		int (callback_fn)(void *map, int *key, struct bpf_wq *wq))
 {
 	struct elem init = {}, *val;
 	struct bpf_wq *wq;
@@ -66,10 +67,14 @@ static int test_elem_callback(void *map, int *key)
 	if (bpf_wq_init(wq, map, 0) != 0)
 		return -3;
 
+	if (bpf_wq_set_callback(wq, callback_fn, 0))
+		return -4;
+
 	return 0;
 }
 
-static int test_hmap_elem_callback(void *map, int *key)
+static int test_hmap_elem_callback(void *map, int *key,
+		int (callback_fn)(void *map, int *key, struct bpf_wq *wq))
 {
 	struct hmap_elem init = {}, *val;
 	struct bpf_wq *wq;
@@ -85,6 +90,28 @@ static int test_hmap_elem_callback(void *map, int *key)
 	if (bpf_wq_init(wq, map, 0) != 0)
 		return -3;
 
+	if (bpf_wq_set_callback(wq, callback_fn, 0))
+		return -4;
+
+	return 0;
+}
+
+__u32 ok;
+__u32 ok_sleepable;
+
+/* callback for non sleepable workqueue */
+static int wq_callback(void *map, int *key, struct bpf_wq *work)
+{
+	bpf_kfunc_common_test();
+	ok |= (1 << *key);
+	return 0;
+}
+
+/* callback for sleepable workqueue */
+static int wq_cb_sleepable(void *map, int *key, struct bpf_wq *work)
+{
+	bpf_kfunc_call_test_sleepable();
+	ok_sleepable |= (1 << *key);
 	return 0;
 }
 
@@ -95,7 +122,7 @@ long test_call_array_sleepable(void *ctx)
 {
 	int key = 0;
 
-	return test_elem_callback(&array, &key);
+	return test_elem_callback(&array, &key, wq_cb_sleepable);
 }
 
 SEC("syscall")
@@ -105,7 +132,7 @@ long test_syscall_array_sleepable(void *ctx)
 {
 	int key = 1;
 
-	return test_elem_callback(&array, &key);
+	return test_elem_callback(&array, &key, wq_cb_sleepable);
 }
 
 SEC("tc")
@@ -115,7 +142,7 @@ long test_call_hash_sleepable(void *ctx)
 {
 	int key = 2;
 
-	return test_hmap_elem_callback(&hmap, &key);
+	return test_hmap_elem_callback(&hmap, &key, wq_callback);
 }
 
 SEC("tc")
@@ -125,7 +152,7 @@ long test_call_hash_malloc_sleepable(void *ctx)
 {
 	int key = 3;
 
-	return test_hmap_elem_callback(&hmap_malloc, &key);
+	return test_hmap_elem_callback(&hmap_malloc, &key, wq_callback);
 }
 
 SEC("tc")
@@ -135,5 +162,5 @@ long test_call_lru_sleepable(void *ctx)
 {
 	int key = 4;
 
-	return test_elem_callback(&lru, &key);
+	return test_elem_callback(&lru, &key, wq_callback);
 }

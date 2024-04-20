@@ -27,6 +27,20 @@ struct {
 	__type(value, struct elem);
 } lru SEC(".maps");
 
+/* callback for non sleepable workqueue */
+static int wq_callback(void *map, int *key, struct bpf_wq *work)
+{
+	bpf_kfunc_common_test();
+	return 0;
+}
+
+/* callback for sleepable workqueue */
+static int wq_cb_sleepable(void *map, int *key, struct bpf_wq *work)
+{
+	bpf_kfunc_call_test_sleepable();
+	return 0;
+}
+
 SEC("tc")
 /* test that bpf_wq_init takes a map as a second argument
  */
@@ -75,4 +89,56 @@ long test_wq_init_wrong_map(void *ctx)
 		return -3;
 
 	return 0;
+}
+
+SEC("?tc")
+__log_level(2)
+__failure
+/* check that the first argument of bpf_wq_set_callback()
+ * is a correct bpf_wq pointer.
+ */
+__msg(": (85) call bpf_wq_set_callback_impl#") /* anchor message */
+__msg("arg#0 doesn't point to a map value")
+long test_wrong_wq_pointer(void *ctx)
+{
+	int key = 0;
+	struct bpf_wq *wq;
+
+	wq = bpf_map_lookup_elem(&array, &key);
+	if (!wq)
+		return 1;
+
+	if (bpf_wq_init(wq, &array, 0))
+		return 2;
+
+	if (bpf_wq_set_callback((void *)&wq, wq_callback, 0))
+		return 3;
+
+	return -22;
+}
+
+SEC("?tc")
+__log_level(2)
+__failure
+/* check that the first argument of bpf_wq_set_callback()
+ * is a correct bpf_wq pointer.
+ */
+__msg(": (85) call bpf_wq_set_callback_impl#") /* anchor message */
+__msg("off 1 doesn't point to 'struct bpf_wq' that is at 0")
+long test_wrong_wq_pointer_offset(void *ctx)
+{
+	int key = 0;
+	struct bpf_wq *wq;
+
+	wq = bpf_map_lookup_elem(&array, &key);
+	if (!wq)
+		return 1;
+
+	if (bpf_wq_init(wq, &array, 0))
+		return 2;
+
+	if (bpf_wq_set_callback((void *)wq + 1, wq_cb_sleepable, 0))
+		return 3;
+
+	return -22;
 }
