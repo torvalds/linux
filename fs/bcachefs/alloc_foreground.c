@@ -71,7 +71,7 @@ void bch2_reset_alloc_cursors(struct bch_fs *c)
 {
 	rcu_read_lock();
 	for_each_member_device_rcu(c, ca, NULL)
-		ca->alloc_cursor = 0;
+		memset(ca->alloc_cursor, 0, sizeof(ca->alloc_cursor));
 	rcu_read_unlock();
 }
 
@@ -389,7 +389,8 @@ bch2_bucket_alloc_early(struct btree_trans *trans,
 	struct bkey_s_c k, ck;
 	struct open_bucket *ob = NULL;
 	u64 first_bucket = max_t(u64, ca->mi.first_bucket, ca->new_fs_bucket_idx);
-	u64 alloc_start = max(first_bucket, READ_ONCE(ca->alloc_cursor));
+	u64 *dev_alloc_cursor = &ca->alloc_cursor[s->btree_bitmap];
+	u64 alloc_start = max(first_bucket, *dev_alloc_cursor);
 	u64 alloc_cursor = alloc_start;
 	int ret;
 
@@ -405,8 +406,7 @@ bch2_bucket_alloc_early(struct btree_trans *trans,
 again:
 	for_each_btree_key_norestart(trans, iter, BTREE_ID_alloc, POS(ca->dev_idx, alloc_cursor),
 			   BTREE_ITER_slots, k, ret) {
-		struct bch_alloc_v4 a_convert;
-		const struct bch_alloc_v4 *a;
+		u64 bucket = k.k->p.offset;
 
 		if (bkey_ge(k.k->p, POS(ca->dev_idx, ca->mi.nbuckets)))
 			break;
@@ -415,7 +415,24 @@ again:
 		    is_superblock_bucket(ca, k.k->p.offset))
 			continue;
 
-		a = bch2_alloc_to_v4(k, &a_convert);
+		if (s->btree_bitmap != BTREE_BITMAP_ANY &&
+		    s->btree_bitmap != bch2_dev_btree_bitmap_marked_sectors(ca,
+				bucket_to_sector(ca, bucket), ca->mi.bucket_size)) {
+			if (s->btree_bitmap == BTREE_BITMAP_YES &&
+			    bucket_to_sector(ca, bucket) > 64ULL << ca->mi.btree_bitmap_shift)
+				break;
+
+			bucket = sector_to_bucket(ca,
+					round_up(bucket_to_sector(ca, bucket) + 1,
+						 1ULL << ca->mi.btree_bitmap_shift));
+			bch2_btree_iter_set_pos(&iter, POS(ca->dev_idx, bucket));
+			s->buckets_seen++;
+			s->skipped_mi_btree_bitmap++;
+			continue;
+		}
+
+		struct bch_alloc_v4 a_convert;
+		const struct bch_alloc_v4 *a = bch2_alloc_to_v4(k, &a_convert);
 		if (a->data_type != BCH_DATA_free)
 			continue;
 
@@ -441,7 +458,6 @@ next:
 	bch2_trans_iter_exit(trans, &iter);
 
 	alloc_cursor = iter.pos.offset;
-	ca->alloc_cursor = alloc_cursor;
 
 	if (!ob && ret)
 		ob = ERR_PTR(ret);
@@ -450,6 +466,8 @@ next:
 		alloc_cursor = alloc_start = first_bucket;
 		goto again;
 	}
+
+	*dev_alloc_cursor = alloc_cursor;
 
 	return ob;
 }
@@ -463,7 +481,8 @@ static struct open_bucket *bch2_bucket_alloc_freelist(struct btree_trans *trans,
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	struct open_bucket *ob = NULL;
-	u64 alloc_start = max_t(u64, ca->mi.first_bucket, READ_ONCE(ca->alloc_cursor));
+	u64 *dev_alloc_cursor = &ca->alloc_cursor[s->btree_bitmap];
+	u64 alloc_start = max_t(u64, ca->mi.first_bucket, READ_ONCE(*dev_alloc_cursor));
 	u64 alloc_cursor = alloc_start;
 	int ret;
 
@@ -485,6 +504,26 @@ again:
 
 			s->buckets_seen++;
 
+			u64 bucket = alloc_cursor & ~(~0ULL << 56);
+			if (s->btree_bitmap != BTREE_BITMAP_ANY &&
+			    s->btree_bitmap != bch2_dev_btree_bitmap_marked_sectors(ca,
+					bucket_to_sector(ca, bucket), ca->mi.bucket_size)) {
+				if (s->btree_bitmap == BTREE_BITMAP_YES &&
+				    bucket_to_sector(ca, bucket) > 64ULL << ca->mi.btree_bitmap_shift)
+					goto fail;
+
+				bucket = sector_to_bucket(ca,
+						round_up(bucket_to_sector(ca, bucket) + 1,
+							 1ULL << ca->mi.btree_bitmap_shift));
+				u64 genbits = alloc_cursor >> 56;
+				alloc_cursor = bucket | (genbits << 56);
+
+				if (alloc_cursor > k.k->p.offset)
+					bch2_btree_iter_set_pos(&iter, POS(ca->dev_idx, alloc_cursor));
+				s->skipped_mi_btree_bitmap++;
+				continue;
+			}
+
 			ob = try_alloc_bucket(trans, ca, watermark,
 					      alloc_cursor, s, k, cl);
 			if (ob) {
@@ -496,9 +535,8 @@ again:
 		if (ob || ret)
 			break;
 	}
+fail:
 	bch2_trans_iter_exit(trans, &iter);
-
-	ca->alloc_cursor = alloc_cursor;
 
 	if (!ob && ret)
 		ob = ERR_PTR(ret);
@@ -507,6 +545,8 @@ again:
 		alloc_cursor = alloc_start = ca->mi.first_bucket;
 		goto again;
 	}
+
+	*dev_alloc_cursor = alloc_cursor;
 
 	return ob;
 }
@@ -537,6 +577,7 @@ static noinline void trace_bucket_alloc2(struct bch_fs *c, struct bch_dev *ca,
 	prt_printf(&buf, "need journal commit\t%llu\n", s->skipped_need_journal_commit);
 	prt_printf(&buf, "nocow\t%llu\n",	s->skipped_nocow);
 	prt_printf(&buf, "nouse\t%llu\n",	s->skipped_nouse);
+	prt_printf(&buf, "mi_btree_bitmap\t%llu\n", s->skipped_mi_btree_bitmap);
 
 	if (!IS_ERR(ob)) {
 		prt_printf(&buf, "allocated\t%llu\n", ob->bucket);
@@ -571,7 +612,9 @@ static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 	struct open_bucket *ob = NULL;
 	bool freespace = READ_ONCE(ca->mi.freespace_initialized);
 	u64 avail;
-	struct bucket_alloc_state s = { 0 };
+	struct bucket_alloc_state s = {
+		.btree_bitmap = data_type == BCH_DATA_btree,
+	};
 	bool waiting = false;
 again:
 	bch2_dev_usage_read_fast(ca, usage);
@@ -608,6 +651,11 @@ alloc:
 
 	if (s.skipped_need_journal_commit * 2 > avail)
 		bch2_journal_flush_async(&c->journal, NULL);
+
+	if (!ob && s.btree_bitmap != BTREE_BITMAP_ANY) {
+		s.btree_bitmap = BTREE_BITMAP_ANY;
+		goto alloc;
+	}
 
 	if (!ob && freespace && c->curr_recovery_pass <= BCH_RECOVERY_PASS_check_alloc_info) {
 		freespace = false;

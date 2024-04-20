@@ -587,7 +587,7 @@ struct bch_dev {
 
 	/* Allocator: */
 	u64			new_fs_bucket_idx;
-	u64			alloc_cursor;
+	u64			alloc_cursor[3];
 
 	unsigned		nr_open_buckets;
 	unsigned		nr_btree_reserve;
