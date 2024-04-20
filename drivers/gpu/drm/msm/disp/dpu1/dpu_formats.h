@@ -14,7 +14,7 @@
  * @format:          DRM FourCC Code
  * @modifiers:       format modifier array from client, one per plane
  */
-const struct dpu_format *dpu_get_dpu_format_ext(
+const struct msm_format *dpu_get_dpu_format_ext(
 		const uint32_t format,
 		const uint64_t modifier);
 
@@ -43,7 +43,7 @@ static inline bool dpu_find_format(u32 format, const u32 *supported_formats,
 }
 
 /**
- * dpu_get_msm_format - get an dpu_format by its msm_format base
+ * dpu_get_msm_format - get an msm_format by its msm_format base
  *                     callback function registers with the msm_kms layer
  * @kms:             kms driver
  * @format:          DRM FourCC Code
@@ -58,7 +58,7 @@ const struct msm_format *dpu_get_msm_format(
  * dpu_format_check_modified_format - validate format and buffers for
  *                   dpu non-standard, i.e. modified format
  * @kms:             kms driver
- * @msm_fmt:         pointer to the msm_fmt base pointer of an dpu_format
+ * @msm_fmt:         pointer to the msm_fmt base pointer of an msm_format
  * @cmd:             fb_cmd2 structure user request
  * @bos:             gem buffer object list
  *

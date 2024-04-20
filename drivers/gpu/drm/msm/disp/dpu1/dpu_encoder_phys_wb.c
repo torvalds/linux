@@ -322,7 +322,7 @@ static void dpu_encoder_phys_wb_setup(
 	struct dpu_encoder_phys_wb *wb_enc = to_dpu_encoder_phys_wb(phys_enc);
 	struct drm_writeback_job *wb_job;
 	const struct msm_format *format;
-	const struct dpu_format *dpu_fmt;
+	const struct msm_format *dpu_fmt;
 
 	wb_job = wb_enc->wb_job;
 	format = msm_framebuffer_format(wb_enc->wb_job->fb);
@@ -594,7 +594,7 @@ static void dpu_encoder_phys_wb_prepare_wb_job(struct dpu_encoder_phys *phys_enc
 	wb_cfg->dest.height = job->fb->height;
 	wb_cfg->dest.num_planes = wb_cfg->dest.format->num_planes;
 
-	if ((wb_cfg->dest.format->fetch_planes == MDP_PLANE_PLANAR) &&
+	if ((wb_cfg->dest.format->fetch_type == MDP_PLANE_PLANAR) &&
 			(wb_cfg->dest.format->element[0] == C1_B_Cb))
 		swap(wb_cfg->dest.plane_addr[1], wb_cfg->dest.plane_addr[2]);
 

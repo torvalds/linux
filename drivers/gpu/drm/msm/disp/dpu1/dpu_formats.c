@@ -34,18 +34,21 @@
 #define INTERLEAVED_RGB_FMT(fmt, a, r, g, b, e0, e1, e2, e3, uc, alpha,   \
 bp, flg, fm, np)                                                          \
 {                                                                         \
-	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = MDP_PLANE_INTERLEAVED,                            \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_INTERLEAVED,                              \
 	.alpha_enable = alpha,                                            \
 	.element = { (e0), (e1), (e2), (e3) },                            \
-	.bits = { g, b, r, a },                                           \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
 	.chroma_sample = CHROMA_FULL,                                     \
 	.unpack_align_msb = 0,                                            \
 	.unpack_tight = 1,                                                \
 	.unpack_count = uc,                                               \
 	.bpp = bp,                                                        \
-	.base.fetch_mode = fm,                                            \
-	.base.flags = flg,                                                \
+	.fetch_mode = fm,                                                 \
+	.flags = flg,                                                     \
 	.num_planes = np,                                                 \
 	.tile_height = DPU_TILE_HEIGHT_DEFAULT                            \
 }
@@ -53,18 +56,21 @@ bp, flg, fm, np)                                                          \
 #define INTERLEAVED_RGB_FMT_TILED(fmt, a, r, g, b, e0, e1, e2, e3, uc,    \
 alpha, bp, flg, fm, np, th)                                               \
 {                                                                         \
-	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = MDP_PLANE_INTERLEAVED,                            \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_INTERLEAVED,                              \
 	.alpha_enable = alpha,                                            \
 	.element = { (e0), (e1), (e2), (e3) },                            \
-	.bits = { g, b, r, a },                                           \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
 	.chroma_sample = CHROMA_FULL,                                     \
 	.unpack_align_msb = 0,                                            \
 	.unpack_tight = 1,                                                \
 	.unpack_count = uc,                                               \
 	.bpp = bp,                                                        \
-	.base.fetch_mode = fm,                                            \
-	.base.flags = flg,                                                \
+	.fetch_mode = fm,                                                 \
+	.flags = flg,                                                     \
 	.num_planes = np,                                                 \
 	.tile_height = th                                                 \
 }
@@ -73,36 +79,42 @@ alpha, bp, flg, fm, np, th)                                               \
 #define INTERLEAVED_YUV_FMT(fmt, a, r, g, b, e0, e1, e2, e3,              \
 alpha, chroma, count, bp, flg, fm, np)                                    \
 {                                                                         \
-	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = MDP_PLANE_INTERLEAVED,                            \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_INTERLEAVED,                              \
 	.alpha_enable = alpha,                                            \
 	.element = { (e0), (e1), (e2), (e3)},                             \
-	.bits = { g, b, r, a },                                           \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
 	.chroma_sample = chroma,                                          \
 	.unpack_align_msb = 0,                                            \
 	.unpack_tight = 1,                                                \
 	.unpack_count = count,                                            \
 	.bpp = bp,                                                        \
-	.base.fetch_mode = fm,                                            \
-	.base.flags = flg,                                                \
+	.fetch_mode = fm,                                                 \
+	.flags = flg,                                                     \
 	.num_planes = np,                                                 \
 	.tile_height = DPU_TILE_HEIGHT_DEFAULT                            \
 }
 
 #define PSEUDO_YUV_FMT(fmt, a, r, g, b, e0, e1, chroma, flg, fm, np)      \
 {                                                                         \
-	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = MDP_PLANE_PSEUDO_PLANAR,                          \
-	.alpha_enable = false,                                            \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_PSEUDO_PLANAR,                            \
+	.alpha_enable = 0,                                                \
 	.element = { (e0), (e1), 0, 0 },                                  \
-	.bits = { g, b, r, a },                                           \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
 	.chroma_sample = chroma,                                          \
 	.unpack_align_msb = 0,                                            \
 	.unpack_tight = 1,                                                \
 	.unpack_count = 2,                                                \
 	.bpp = 2,                                                         \
-	.base.fetch_mode = fm,                                            \
-	.base.flags = flg,                                                \
+	.fetch_mode = fm,                                                 \
+	.flags = flg,                                                     \
 	.num_planes = np,                                                 \
 	.tile_height = DPU_TILE_HEIGHT_DEFAULT                            \
 }
@@ -110,36 +122,42 @@ alpha, chroma, count, bp, flg, fm, np)                                    \
 #define PSEUDO_YUV_FMT_TILED(fmt, a, r, g, b, e0, e1, chroma,             \
 flg, fm, np, th)                                                          \
 {                                                                         \
-	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = MDP_PLANE_PSEUDO_PLANAR,                          \
-	.alpha_enable = false,                                            \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_PSEUDO_PLANAR,                            \
+	.alpha_enable = 0,                                                \
 	.element = { (e0), (e1), 0, 0 },                                  \
-	.bits = { g, b, r, a },                                           \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
 	.chroma_sample = chroma,                                          \
 	.unpack_align_msb = 0,                                            \
 	.unpack_tight = 1,                                                \
 	.unpack_count = 2,                                                \
 	.bpp = 2,                                                         \
-	.base.fetch_mode = fm,                                            \
-	.base.flags = flg,                                                \
+	.fetch_mode = fm,                                                 \
+	.flags = flg,                                                     \
 	.num_planes = np,                                                 \
 	.tile_height = th                                                 \
 }
 
 #define PSEUDO_YUV_FMT_LOOSE(fmt, a, r, g, b, e0, e1, chroma, flg, fm, np)\
 {                                                                         \
-	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = MDP_PLANE_PSEUDO_PLANAR,                          \
-	.alpha_enable = false,                                            \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_PSEUDO_PLANAR,                            \
+	.alpha_enable = 0,                                                \
 	.element = { (e0), (e1), 0, 0 },                                  \
-	.bits = { g, b, r, a },                                           \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
 	.chroma_sample = chroma,                                          \
 	.unpack_align_msb = 1,                                            \
 	.unpack_tight = 0,                                                \
 	.unpack_count = 2,                                                \
 	.bpp = 2,                                                         \
-	.base.fetch_mode = fm,                                            \
-	.base.flags = flg,                                                \
+	.fetch_mode = fm,                                                 \
+	.flags = flg,                                                     \
 	.num_planes = np,                                                 \
 	.tile_height = DPU_TILE_HEIGHT_DEFAULT                            \
 }
@@ -147,18 +165,21 @@ flg, fm, np, th)                                                          \
 #define PSEUDO_YUV_FMT_LOOSE_TILED(fmt, a, r, g, b, e0, e1, chroma,       \
 flg, fm, np, th)                                                          \
 {                                                                         \
-	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = MDP_PLANE_PSEUDO_PLANAR,                          \
-	.alpha_enable = false,                                            \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_PSEUDO_PLANAR,                            \
+	.alpha_enable = 0,                                                \
 	.element = { (e0), (e1), 0, 0 },                                  \
-	.bits = { g, b, r, a },                                           \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
 	.chroma_sample = chroma,                                          \
 	.unpack_align_msb = 1,                                            \
 	.unpack_tight = 0,                                                \
 	.unpack_count = 2,                                                \
 	.bpp = 2,                                                         \
-	.base.fetch_mode = fm,                                            \
-	.base.flags = flg,                                                \
+	.fetch_mode = fm,                                                 \
+	.flags = flg,                                                     \
 	.num_planes = np,                                                 \
 	.tile_height = th                                                 \
 }
@@ -167,18 +188,21 @@ flg, fm, np, th)                                                          \
 #define PLANAR_YUV_FMT(fmt, a, r, g, b, e0, e1, e2, alpha, chroma, bp,    \
 flg, fm, np)                                                      \
 {                                                                         \
-	.base.pixel_format = DRM_FORMAT_ ## fmt,                          \
-	.fetch_planes = MDP_PLANE_PLANAR,                                 \
+	.pixel_format = DRM_FORMAT_ ## fmt,                               \
+	.fetch_type = MDP_PLANE_PLANAR,                                   \
 	.alpha_enable = alpha,                                            \
 	.element = { (e0), (e1), (e2), 0 },                               \
-	.bits = { g, b, r, a },                                           \
+	.bpc_g_y = g,                                                     \
+	.bpc_b_cb = b,                                                    \
+	.bpc_r_cr = r,                                                    \
+	.bpc_a = a,                                                       \
 	.chroma_sample = chroma,                                          \
 	.unpack_align_msb = 0,                                            \
 	.unpack_tight = 1,                                                \
 	.unpack_count = 1,                                                \
 	.bpp = bp,                                                        \
-	.base.fetch_mode = fm,                                            \
-	.base.flags = flg,                                                \
+	.fetch_mode = fm,                                                 \
+	.flags = flg,                                                     \
 	.num_planes = np,                                                 \
 	.tile_height = DPU_TILE_HEIGHT_DEFAULT                            \
 }
@@ -193,7 +217,7 @@ struct dpu_media_color_map {
 	uint32_t color;
 };
 
-static const struct dpu_format dpu_format_map[] = {
+static const struct msm_format dpu_format_map[] = {
 	INTERLEAVED_RGB_FMT(ARGB8888,
 		BPC8A, BPC8, BPC8, BPC8,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
@@ -483,7 +507,7 @@ static const struct dpu_format dpu_format_map[] = {
  * If a compression ratio needs to be used for this or any other format,
  * the data will be passed by user-space.
  */
-static const struct dpu_format dpu_format_map_ubwc[] = {
+static const struct msm_format dpu_format_map_ubwc[] = {
 	INTERLEAVED_RGB_FMT_TILED(BGR565,
 		0, BPC5, BPC6, BPC5,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, 0, 3,
@@ -593,7 +617,7 @@ static void _dpu_get_v_h_subsample_rate(
 	}
 }
 
-static int _dpu_format_get_media_color_ubwc(const struct dpu_format *fmt)
+static int _dpu_format_get_media_color_ubwc(const struct msm_format *fmt)
 {
 	static const struct dpu_media_color_map dpu_media_ubwc_map[] = {
 		{DRM_FORMAT_ABGR8888, COLOR_FMT_RGBA8888_UBWC},
@@ -609,9 +633,9 @@ static int _dpu_format_get_media_color_ubwc(const struct dpu_format *fmt)
 	int color_fmt = -1;
 	int i;
 
-	if (fmt->base.pixel_format == DRM_FORMAT_NV12 ||
-	    fmt->base.pixel_format == DRM_FORMAT_P010) {
-		if (DPU_FORMAT_IS_DX(fmt)) {
+	if (fmt->pixel_format == DRM_FORMAT_NV12 ||
+	    fmt->pixel_format == DRM_FORMAT_P010) {
+		if (MSM_FORMAT_IS_DX(fmt)) {
 			if (fmt->unpack_tight)
 				color_fmt = COLOR_FMT_NV12_BPP10_UBWC;
 			else
@@ -622,7 +646,7 @@ static int _dpu_format_get_media_color_ubwc(const struct dpu_format *fmt)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(dpu_media_ubwc_map); ++i)
-		if (fmt->base.pixel_format == dpu_media_ubwc_map[i].format) {
+		if (fmt->pixel_format == dpu_media_ubwc_map[i].format) {
 			color_fmt = dpu_media_ubwc_map[i].color;
 			break;
 		}
@@ -630,14 +654,14 @@ static int _dpu_format_get_media_color_ubwc(const struct dpu_format *fmt)
 }
 
 static int _dpu_format_get_plane_sizes_ubwc(
-		const struct dpu_format *fmt,
+		const struct msm_format *fmt,
 		const uint32_t width,
 		const uint32_t height,
 		struct dpu_hw_fmt_layout *layout)
 {
 	int i;
 	int color;
-	bool meta = DPU_FORMAT_IS_UBWC(fmt);
+	bool meta = MSM_FORMAT_IS_UBWC(fmt);
 
 	memset(layout, 0, sizeof(struct dpu_hw_fmt_layout));
 	layout->format = fmt;
@@ -648,11 +672,11 @@ static int _dpu_format_get_plane_sizes_ubwc(
 	color = _dpu_format_get_media_color_ubwc(fmt);
 	if (color < 0) {
 		DRM_ERROR("UBWC format not supported for fmt: %p4cc\n",
-			  &fmt->base.pixel_format);
+			  &fmt->pixel_format);
 		return -EINVAL;
 	}
 
-	if (DPU_FORMAT_IS_YUV(layout->format)) {
+	if (MSM_FORMAT_IS_YUV(layout->format)) {
 		uint32_t y_sclines, uv_sclines;
 		uint32_t y_meta_scanlines = 0;
 		uint32_t uv_meta_scanlines = 0;
@@ -709,7 +733,7 @@ done:
 }
 
 static int _dpu_format_get_plane_sizes_linear(
-		const struct dpu_format *fmt,
+		const struct msm_format *fmt,
 		const uint32_t width,
 		const uint32_t height,
 		struct dpu_hw_fmt_layout *layout,
@@ -724,7 +748,7 @@ static int _dpu_format_get_plane_sizes_linear(
 	layout->num_planes = fmt->num_planes;
 
 	/* Due to memset above, only need to set planes of interest */
-	if (fmt->fetch_planes == MDP_PLANE_INTERLEAVED) {
+	if (fmt->fetch_type == MDP_PLANE_INTERLEAVED) {
 		layout->num_planes = 1;
 		layout->plane_size[0] = width * height * layout->format->bpp;
 		layout->plane_pitch[0] = width * layout->format->bpp;
@@ -742,8 +766,8 @@ static int _dpu_format_get_plane_sizes_linear(
 			return -EINVAL;
 		}
 
-		if ((fmt->base.pixel_format == DRM_FORMAT_NV12) &&
-			(DPU_FORMAT_IS_DX(fmt)))
+		if ((fmt->pixel_format == DRM_FORMAT_NV12) &&
+			(MSM_FORMAT_IS_DX(fmt)))
 			bpp = 2;
 		layout->plane_pitch[0] = width * bpp;
 		layout->plane_pitch[1] = layout->plane_pitch[0] / h_subsample;
@@ -751,7 +775,7 @@ static int _dpu_format_get_plane_sizes_linear(
 		layout->plane_size[1] = layout->plane_pitch[1] *
 				(height / v_subsample);
 
-		if (fmt->fetch_planes == MDP_PLANE_PSEUDO_PLANAR) {
+		if (fmt->fetch_type == MDP_PLANE_PSEUDO_PLANAR) {
 			layout->num_planes = 2;
 			layout->plane_size[1] *= 2;
 			layout->plane_pitch[1] *= 2;
@@ -781,7 +805,7 @@ static int _dpu_format_get_plane_sizes_linear(
 }
 
 static int dpu_format_get_plane_sizes(
-		const struct dpu_format *fmt,
+		const struct msm_format *fmt,
 		const uint32_t w,
 		const uint32_t h,
 		struct dpu_hw_fmt_layout *layout,
@@ -797,7 +821,7 @@ static int dpu_format_get_plane_sizes(
 		return -ERANGE;
 	}
 
-	if (DPU_FORMAT_IS_UBWC(fmt) || DPU_FORMAT_IS_TILE(fmt))
+	if (MSM_FORMAT_IS_UBWC(fmt) || MSM_FORMAT_IS_TILE(fmt))
 		return _dpu_format_get_plane_sizes_ubwc(fmt, w, h, layout);
 
 	return _dpu_format_get_plane_sizes_linear(fmt, w, h, layout, pitches);
@@ -823,10 +847,10 @@ static int _dpu_format_populate_addrs_ubwc(
 		return -EFAULT;
 	}
 
-	meta = DPU_FORMAT_IS_UBWC(layout->format);
+	meta = MSM_FORMAT_IS_UBWC(layout->format);
 
 	/* Per-format logic for verifying active planes */
-	if (DPU_FORMAT_IS_YUV(layout->format)) {
+	if (MSM_FORMAT_IS_YUV(layout->format)) {
 		/************************************************/
 		/*      UBWC            **                      */
 		/*      buffer          **      DPU PLANE       */
@@ -942,7 +966,7 @@ int dpu_format_populate_layout(
 		return -ERANGE;
 	}
 
-	layout->format = to_dpu_format(msm_framebuffer_format(fb));
+	layout->format = msm_framebuffer_format(fb);
 
 	/* Populate the plane sizes etc via get_format */
 	ret = dpu_format_get_plane_sizes(layout->format, fb->width, fb->height,
@@ -951,8 +975,8 @@ int dpu_format_populate_layout(
 		return ret;
 
 	/* Populate the addresses given the fb */
-	if (DPU_FORMAT_IS_UBWC(layout->format) ||
-			DPU_FORMAT_IS_TILE(layout->format))
+	if (MSM_FORMAT_IS_UBWC(layout->format) ||
+			MSM_FORMAT_IS_TILE(layout->format))
 		ret = _dpu_format_populate_addrs_ubwc(aspace, fb, layout);
 	else
 		ret = _dpu_format_populate_addrs_linear(aspace, fb, layout);
@@ -962,23 +986,21 @@ int dpu_format_populate_layout(
 
 int dpu_format_check_modified_format(
 		const struct msm_kms *kms,
-		const struct msm_format *msm_fmt,
+		const struct msm_format *fmt,
 		const struct drm_mode_fb_cmd2 *cmd,
 		struct drm_gem_object **bos)
 {
 	const struct drm_format_info *info;
-	const struct dpu_format *fmt;
 	struct dpu_hw_fmt_layout layout;
 	uint32_t bos_total_size = 0;
 	int ret, i;
 
-	if (!msm_fmt || !cmd || !bos) {
+	if (!fmt || !cmd || !bos) {
 		DRM_ERROR("invalid arguments\n");
 		return -EINVAL;
 	}
 
-	fmt = to_dpu_format(msm_fmt);
-	info = drm_format_info(fmt->base.pixel_format);
+	info = drm_format_info(fmt->pixel_format);
 	if (!info)
 		return -EINVAL;
 
@@ -1005,13 +1027,13 @@ int dpu_format_check_modified_format(
 	return 0;
 }
 
-const struct dpu_format *dpu_get_dpu_format_ext(
+const struct msm_format *dpu_get_dpu_format_ext(
 		const uint32_t format,
 		const uint64_t modifier)
 {
 	uint32_t i = 0;
-	const struct dpu_format *fmt = NULL;
-	const struct dpu_format *map = NULL;
+	const struct msm_format *fmt = NULL;
+	const struct msm_format *map = NULL;
 	ssize_t map_size = 0;
 
 	/*
@@ -1037,7 +1059,7 @@ const struct dpu_format *dpu_get_dpu_format_ext(
 	}
 
 	for (i = 0; i < map_size; i++) {
-		if (format == map[i].base.pixel_format) {
+		if (format == map[i].pixel_format) {
 			fmt = &map[i];
 			break;
 		}
@@ -1049,8 +1071,8 @@ const struct dpu_format *dpu_get_dpu_format_ext(
 	else
 		DRM_DEBUG_ATOMIC("fmt %4.4s mod 0x%llX ubwc %d yuv %ld\n",
 				(char *)&format, modifier,
-				DPU_FORMAT_IS_UBWC(fmt),
-				DPU_FORMAT_IS_YUV(fmt));
+				MSM_FORMAT_IS_UBWC(fmt),
+				MSM_FORMAT_IS_YUV(fmt));
 
 	return fmt;
 }
@@ -1060,9 +1082,5 @@ const struct msm_format *dpu_get_msm_format(
 		const uint32_t format,
 		const uint64_t modifiers)
 {
-	const struct dpu_format *fmt = dpu_get_dpu_format_ext(format,
-			modifiers);
-	if (fmt)
-		return &fmt->base;
-	return NULL;
+	return dpu_get_dpu_format_ext(format, modifiers);
 }

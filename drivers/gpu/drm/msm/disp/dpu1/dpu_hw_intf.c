@@ -98,7 +98,7 @@
 
 static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *intf,
 		const struct dpu_hw_intf_timing_params *p,
-		const struct dpu_format *fmt)
+		const struct msm_format *fmt)
 {
 	struct dpu_hw_blk_reg_map *c = &intf->hw;
 	u32 hsync_period, vsync_period;
@@ -194,10 +194,10 @@ static void dpu_hw_intf_setup_timing_engine(struct dpu_hw_intf *intf,
 		(p->vsync_polarity << 1) | /* VSYNC Polarity */
 		(p->hsync_polarity << 0);  /* HSYNC Polarity */
 
-	if (!DPU_FORMAT_IS_YUV(fmt))
-		panel_format = (fmt->bits[C0_G_Y] |
-				(fmt->bits[C1_B_Cb] << 2) |
-				(fmt->bits[C2_R_Cr] << 4) |
+	if (!MSM_FORMAT_IS_YUV(fmt))
+		panel_format = (fmt->bpc_g_y |
+				(fmt->bpc_b_cb << 2) |
+				(fmt->bpc_r_cr << 4) |
 				(0x21 << 8));
 	else
 		/* Interface treats all the pixel data in RGB888 format */

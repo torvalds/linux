@@ -218,7 +218,7 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 	struct mdp4_plane *mdp4_plane = to_mdp4_plane(plane);
 	struct mdp4_kms *mdp4_kms = get_kms(plane);
 	enum mdp4_pipe pipe = mdp4_plane->pipe;
-	const struct mdp_format *format;
+	const struct msm_format *format;
 	uint32_t op_mode = 0;
 	uint32_t phasex_step = MDP4_VG_PHASE_STEP_DEFAULT;
 	uint32_t phasey_step = MDP4_VG_PHASE_STEP_DEFAULT;
@@ -241,7 +241,7 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 			fb->base.id, src_x, src_y, src_w, src_h,
 			crtc->base.id, crtc_x, crtc_y, crtc_w, crtc_h);
 
-	format = to_mdp_format(msm_framebuffer_format(fb));
+	format = msm_framebuffer_format(fb);
 
 	if (src_w > (crtc_w * DOWN_SCALE_MAX)) {
 		DRM_DEV_ERROR(dev->dev, "Width down scaling exceeds limits!\n");
@@ -267,7 +267,7 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 		uint32_t sel_unit = SCALE_FIR;
 		op_mode |= MDP4_PIPE_OP_MODE_SCALEX_EN;
 
-		if (MDP_FORMAT_IS_YUV(format)) {
+		if (MSM_FORMAT_IS_YUV(format)) {
 			if (crtc_w > src_w)
 				sel_unit = SCALE_PIXEL_RPT;
 			else if (crtc_w <= (src_w / 4))
@@ -283,7 +283,7 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 		uint32_t sel_unit = SCALE_FIR;
 		op_mode |= MDP4_PIPE_OP_MODE_SCALEY_EN;
 
-		if (MDP_FORMAT_IS_YUV(format)) {
+		if (MSM_FORMAT_IS_YUV(format)) {
 
 			if (crtc_h > src_h)
 				sel_unit = SCALE_PIXEL_RPT;
@@ -316,11 +316,11 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRC_FORMAT(pipe),
 			MDP4_PIPE_SRC_FORMAT_A_BPC(format->bpc_a) |
-			MDP4_PIPE_SRC_FORMAT_R_BPC(format->bpc_r) |
-			MDP4_PIPE_SRC_FORMAT_G_BPC(format->bpc_g) |
-			MDP4_PIPE_SRC_FORMAT_B_BPC(format->bpc_b) |
+			MDP4_PIPE_SRC_FORMAT_R_BPC(format->bpc_r_cr) |
+			MDP4_PIPE_SRC_FORMAT_G_BPC(format->bpc_g_y) |
+			MDP4_PIPE_SRC_FORMAT_B_BPC(format->bpc_b_cb) |
 			COND(format->alpha_enable, MDP4_PIPE_SRC_FORMAT_ALPHA_ENABLE) |
-			MDP4_PIPE_SRC_FORMAT_CPP(format->cpp - 1) |
+			MDP4_PIPE_SRC_FORMAT_CPP(format->bpp - 1) |
 			MDP4_PIPE_SRC_FORMAT_UNPACK_COUNT(format->unpack_count - 1) |
 			MDP4_PIPE_SRC_FORMAT_FETCH_PLANES(format->fetch_type) |
 			MDP4_PIPE_SRC_FORMAT_CHROMA_SAMP(format->chroma_sample) |
@@ -328,12 +328,12 @@ static int mdp4_plane_mode_set(struct drm_plane *plane,
 			COND(format->unpack_tight, MDP4_PIPE_SRC_FORMAT_UNPACK_TIGHT));
 
 	mdp4_write(mdp4_kms, REG_MDP4_PIPE_SRC_UNPACK(pipe),
-			MDP4_PIPE_SRC_UNPACK_ELEM0(format->unpack[0]) |
-			MDP4_PIPE_SRC_UNPACK_ELEM1(format->unpack[1]) |
-			MDP4_PIPE_SRC_UNPACK_ELEM2(format->unpack[2]) |
-			MDP4_PIPE_SRC_UNPACK_ELEM3(format->unpack[3]));
+			MDP4_PIPE_SRC_UNPACK_ELEM0(format->element[0]) |
+			MDP4_PIPE_SRC_UNPACK_ELEM1(format->element[1]) |
+			MDP4_PIPE_SRC_UNPACK_ELEM2(format->element[2]) |
+			MDP4_PIPE_SRC_UNPACK_ELEM3(format->element[3]));
 
-	if (MDP_FORMAT_IS_YUV(format)) {
+	if (MSM_FORMAT_IS_YUV(format)) {
 		struct csc_cfg *csc = mdp_get_default_csc_cfg(CSC_YUV2RGB);
 
 		op_mode |= MDP4_PIPE_OP_MODE_SRC_YCBCR;

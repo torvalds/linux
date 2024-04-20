@@ -20,10 +20,38 @@ enum msm_format_flags {
 #define MSM_FORMAT_FLAG_DX		BIT(MSM_FORMAT_FLAG_DX_BIT)
 #define MSM_FORMAT_FLAG_COMPRESSED	BIT(MSM_FORMAT_FLAG_COMPRESSED_BIT)
 
+/**
+ * struct msm_format: defines the format configuration
+ * @pixel_format: format fourcc
+ * @element: element color ordering
+ * @fetch_type: how the color components are packed in pixel format
+ * @chroma_sample: chroma sub-samplng type
+ * @alpha_enable: whether the format has an alpha channel
+ * @unpack_tight: whether to use tight or loose unpack
+ * @unpack_align_msb: unpack aligned to LSB or MSB
+ * @unpack_count: number of the components to unpack
+ * @bpp: bytes per pixel
+ * @flags: usage bit flags
+ * @num_planes: number of planes (including meta data planes)
+ * @fetch_mode: linear, tiled, or ubwc hw fetch behavior
+ * @tile_height: format tile height
+ */
 struct msm_format {
 	uint32_t pixel_format;
+	enum mdp_bpc bpc_g_y, bpc_b_cb, bpc_r_cr;
+	enum mdp_bpc_alpha bpc_a;
+	u8 element[4];
+	enum mdp_fetch_type fetch_type;
+	enum mdp_chroma_samp_type chroma_sample;
+	bool alpha_enable;
+	u8 unpack_tight;
+	u8 unpack_align_msb;
+	u8 unpack_count;
+	u8 bpp;
 	unsigned long flags;
+	u8 num_planes;
 	enum mdp_fetch_mode fetch_mode;
+	u16 tile_height;
 };
 
 #define MSM_FORMAT_IS_YUV(X)		((X)->flags & MSM_FORMAT_FLAG_YUV)

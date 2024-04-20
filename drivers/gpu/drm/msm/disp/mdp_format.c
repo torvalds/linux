@@ -63,26 +63,24 @@ static struct csc_cfg csc_convert[CSC_MAX] = {
 };
 
 #define FMT(name, a, r, g, b, e0, e1, e2, e3, alpha, tight, c, cnt, fp, cs, yuv) { \
-		.base = {                                        \
-			.pixel_format = DRM_FORMAT_ ## name,     \
-			.flags = yuv ? MSM_FORMAT_FLAG_YUV : 0,  \
-		},                                               \
+		.pixel_format = DRM_FORMAT_ ## name,             \
 		.bpc_a = BPC ## a ## A,                          \
-		.bpc_r = BPC ## r,                               \
-		.bpc_g = BPC ## g,                               \
-		.bpc_b = BPC ## b,                               \
-		.unpack = { e0, e1, e2, e3 },                    \
-		.alpha_enable = alpha,                           \
-		.unpack_tight = tight,                           \
-		.cpp = c,                                        \
-		.unpack_count = cnt,                             \
+		.bpc_r_cr = BPC ## r,                            \
+		.bpc_g_y = BPC ## g,                             \
+		.bpc_b_cb = BPC ## b,                            \
+		.element = { e0, e1, e2, e3 },                   \
 		.fetch_type = fp,                                \
 		.chroma_sample = cs,                             \
+		.alpha_enable = alpha,                           \
+		.unpack_tight = tight,                           \
+		.unpack_count = cnt,                             \
+		.bpp = c,                                        \
+		.flags = yuv ? MSM_FORMAT_FLAG_YUV : 0,          \
 }
 
 #define BPC0A 0
 
-static const struct mdp_format formats[] = {
+static const struct msm_format formats[] = {
 	/*  name      a  r  g  b   e0 e1 e2 e3  alpha   tight  cpp cnt ... */
 	FMT(ARGB8888, 8, 8, 8, 8,  1, 0, 2, 3,  true,   true,  4,  4,
 			MDP_PLANE_INTERLEAVED, CHROMA_FULL, false),
@@ -141,9 +139,9 @@ const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format,
 {
 	int i;
 	for (i = 0; i < ARRAY_SIZE(formats); i++) {
-		const struct mdp_format *f = &formats[i];
-		if (f->base.pixel_format == format)
-			return &f->base;
+		const struct msm_format *f = &formats[i];
+		if (f->pixel_format == format)
+			return f;
 	}
 	return NULL;
 }

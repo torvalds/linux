@@ -235,7 +235,7 @@ static void dpu_encoder_phys_vid_setup_timing_engine(
 {
 	struct drm_display_mode mode;
 	struct dpu_hw_intf_timing_params timing_params = { 0 };
-	const struct dpu_format *fmt = NULL;
+	const struct msm_format *fmt = NULL;
 	u32 fmt_fourcc;
 	unsigned long lock_flags;
 	struct dpu_hw_intf_cfg intf_cfg = { 0 };
@@ -409,7 +409,7 @@ end:
 static void dpu_encoder_phys_vid_enable(struct dpu_encoder_phys *phys_enc)
 {
 	struct dpu_hw_ctl *ctl;
-	const struct dpu_format *fmt;
+	const struct msm_format *fmt;
 	u32 fmt_fourcc;
 
 	ctl = phys_enc->hw_ctl;

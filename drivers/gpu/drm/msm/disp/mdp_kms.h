@@ -78,19 +78,6 @@ void mdp_irq_update(struct mdp_kms *mdp_kms);
  * pixel format helpers:
  */
 
-struct mdp_format {
-	struct msm_format base;
-	enum mdp_bpc bpc_r, bpc_g, bpc_b;
-	enum mdp_bpc_alpha bpc_a;
-	uint8_t unpack[4];
-	bool alpha_enable, unpack_tight;
-	uint8_t cpp, unpack_count;
-	enum mdp_fetch_type fetch_type;
-	enum mdp_chroma_samp_type chroma_sample;
-};
-#define to_mdp_format(x) container_of(x, struct mdp_format, base)
-#define MDP_FORMAT_IS_YUV(mdp_format) (MSM_FORMAT_IS_YUV(&(mdp_format)->base))
-
 const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format, uint64_t modifier);
 
 /* MDP capabilities */

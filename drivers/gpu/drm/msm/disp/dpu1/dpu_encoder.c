@@ -675,7 +675,7 @@ static int dpu_encoder_virt_atomic_check(
 	if (disp_info->intf_type == INTF_WB && conn_state->writeback_job) {
 		fb = conn_state->writeback_job->fb;
 
-		if (fb && DPU_FORMAT_IS_YUV(to_dpu_format(msm_framebuffer_format(fb))))
+		if (fb && MSM_FORMAT_IS_YUV(msm_framebuffer_format(fb)))
 			topology.needs_cdm = true;
 	} else if (disp_info->intf_type == INTF_DP) {
 		if (msm_dp_is_yuv_420_enabled(priv->dp[disp_info->h_tile_instance[0]], adj_mode))
@@ -2184,7 +2184,7 @@ void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc)
 }
 
 void dpu_encoder_helper_phys_setup_cdm(struct dpu_encoder_phys *phys_enc,
-				       const struct dpu_format *dpu_fmt,
+				       const struct msm_format *dpu_fmt,
 				       u32 output_type)
 {
 	struct dpu_hw_cdm *hw_cdm;
@@ -2202,9 +2202,9 @@ void dpu_encoder_helper_phys_setup_cdm(struct dpu_encoder_phys *phys_enc,
 	if (!hw_cdm)
 		return;
 
-	if (!DPU_FORMAT_IS_YUV(dpu_fmt)) {
+	if (!MSM_FORMAT_IS_YUV(dpu_fmt)) {
 		DPU_DEBUG("[enc:%d] cdm_disable fmt:%p4cc\n", DRMID(phys_enc->parent),
-			  &dpu_fmt->base.pixel_format);
+			  &dpu_fmt->pixel_format);
 		if (hw_cdm->ops.bind_pingpong_blk)
 			hw_cdm->ops.bind_pingpong_blk(hw_cdm, PINGPONG_NONE);
 
@@ -2217,7 +2217,7 @@ void dpu_encoder_helper_phys_setup_cdm(struct dpu_encoder_phys *phys_enc,
 	cdm_cfg->output_height = phys_enc->cached_mode.vdisplay;
 	cdm_cfg->output_fmt = dpu_fmt;
 	cdm_cfg->output_type = output_type;
-	cdm_cfg->output_bit_depth = DPU_FORMAT_IS_DX(dpu_fmt) ?
+	cdm_cfg->output_bit_depth = MSM_FORMAT_IS_DX(dpu_fmt) ?
 			CDM_CDWN_OUTPUT_10BIT : CDM_CDWN_OUTPUT_8BIT;
 	cdm_cfg->csc_cfg = &dpu_csc10_rgb2yuv_601l;
 
@@ -2246,7 +2246,7 @@ void dpu_encoder_helper_phys_setup_cdm(struct dpu_encoder_phys *phys_enc,
 
 	DPU_DEBUG("[enc:%d] cdm_enable:%d,%d,%p4cc,%d,%d,%d,%d]\n",
 		  DRMID(phys_enc->parent), cdm_cfg->output_width,
-		  cdm_cfg->output_height, &cdm_cfg->output_fmt->base.pixel_format,
+		  cdm_cfg->output_height, &cdm_cfg->output_fmt->pixel_format,
 		  cdm_cfg->output_type, cdm_cfg->output_bit_depth,
 		  cdm_cfg->h_cdwn_type, cdm_cfg->v_cdwn_type);
 

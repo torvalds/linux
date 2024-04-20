@@ -37,12 +37,6 @@
 #define DPU_MAX_DE_CURVES		3
 #endif
 
-#define DPU_FORMAT_IS_YUV(X)		MSM_FORMAT_IS_YUV(&(X)->base)
-#define DPU_FORMAT_IS_DX(X)		MSM_FORMAT_IS_DX(&(X)->base)
-#define DPU_FORMAT_IS_LINEAR(X)		MSM_FORMAT_IS_LINEAR(&(X)->base)
-#define DPU_FORMAT_IS_TILE(X)		MSM_FORMAT_IS_TILE(&(X)->base)
-#define DPU_FORMAT_IS_UBWC(X)		MSM_FORMAT_IS_UBWC(&(X)->base)
-
 #define DPU_BLEND_FG_ALPHA_FG_CONST	(0 << 0)
 #define DPU_BLEND_FG_ALPHA_BG_CONST	(1 << 0)
 #define DPU_BLEND_FG_ALPHA_FG_PIXEL	(2 << 0)
@@ -305,39 +299,6 @@ enum dpu_3d_blend_mode {
 	BLEND_3D_MAX
 };
 
-/** struct dpu_format - defines the format configuration which
- * allows DPU HW to correctly fetch and decode the format
- * @base: base msm_format structure containing fourcc code
- * @fetch_planes: how the color components are packed in pixel format
- * @element: element color ordering
- * @bits: element bit widths
- * @chroma_sample: chroma sub-samplng type
- * @unpack_align_msb: unpack aligned, 0 to LSB, 1 to MSB
- * @unpack_tight: 0 for loose, 1 for tight
- * @unpack_count: 0 = 1 component, 1 = 2 component
- * @bpp: bytes per pixel
- * @alpha_enable: whether the format has an alpha channel
- * @num_planes: number of planes (including meta data planes)
- * @tile_width: format tile width
- * @tile_height: format tile height
- */
-struct dpu_format {
-	struct msm_format base;
-	enum mdp_fetch_type fetch_planes;
-	u8 element[DPU_MAX_PLANES];
-	u8 bits[DPU_MAX_PLANES];
-	enum mdp_chroma_samp_type chroma_sample;
-	u8 unpack_align_msb;
-	u8 unpack_tight;
-	u8 unpack_count;
-	u8 bpp;
-	u8 alpha_enable;
-	u8 num_planes;
-	u16 tile_width;
-	u16 tile_height;
-};
-#define to_dpu_format(x) container_of(x, struct dpu_format, base)
-
 /**
  * struct dpu_hw_fmt_layout - format information of the source pixel data
  * @format: pixel format parameters
@@ -350,7 +311,7 @@ struct dpu_format {
  * @plane_pitch: pitch of each plane
  */
 struct dpu_hw_fmt_layout {
-	const struct dpu_format *format;
+	const struct msm_format *format;
 	uint32_t num_planes;
 	uint32_t width;
 	uint32_t height;

@@ -393,7 +393,7 @@ void dpu_encoder_helper_phys_cleanup(struct dpu_encoder_phys *phys_enc);
  * @output_type: HDMI/WB
  */
 void dpu_encoder_helper_phys_setup_cdm(struct dpu_encoder_phys *phys_enc,
-				       const struct dpu_format *dpu_fmt,
+				       const struct msm_format *dpu_fmt,
 				       u32 output_type);
 
 /**
