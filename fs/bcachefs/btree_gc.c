@@ -1669,6 +1669,9 @@ static int gc_btree_gens_key(struct btree_trans *trans,
 	struct bkey_i *u;
 	int ret;
 
+	if (unlikely(test_bit(BCH_FS_going_ro, &c->flags)))
+		return -EROFS;
+
 	percpu_down_read(&c->mark_lock);
 	bkey_for_each_ptr(ptrs, ptr) {
 		struct bch_dev *ca = bch2_dev_bkey_exists(c, ptr->dev);
@@ -1802,80 +1805,23 @@ err:
 	return ret;
 }
 
-static int bch2_gc_thread(void *arg)
+static void bch2_gc_gens_work(struct work_struct *work)
 {
-	struct bch_fs *c = arg;
-	struct io_clock *clock = &c->io_clock[WRITE];
-	unsigned long last = atomic64_read(&clock->now);
-	unsigned last_kick = atomic_read(&c->kick_gc);
-
-	set_freezable();
-
-	while (1) {
-		while (1) {
-			set_current_state(TASK_INTERRUPTIBLE);
-
-			if (kthread_should_stop()) {
-				__set_current_state(TASK_RUNNING);
-				return 0;
-			}
-
-			if (atomic_read(&c->kick_gc) != last_kick)
-				break;
-
-			if (c->btree_gc_periodic) {
-				unsigned long next = last + c->capacity / 16;
-
-				if (atomic64_read(&clock->now) >= next)
-					break;
-
-				bch2_io_clock_schedule_timeout(clock, next);
-			} else {
-				schedule();
-			}
-
-			try_to_freeze();
-		}
-		__set_current_state(TASK_RUNNING);
-
-		last = atomic64_read(&clock->now);
-		last_kick = atomic_read(&c->kick_gc);
-
-		bch2_gc_gens(c);
-		debug_check_no_locks_held();
-	}
-
-	return 0;
+	struct bch_fs *c = container_of(work, struct bch_fs, gc_gens_work);
+	bch2_gc_gens(c);
+	bch2_write_ref_put(c, BCH_WRITE_REF_gc_gens);
 }
 
-void bch2_gc_thread_stop(struct bch_fs *c)
+void bch2_gc_gens_async(struct bch_fs *c)
 {
-	struct task_struct *p;
-
-	p = c->gc_thread;
-	c->gc_thread = NULL;
-
-	if (p) {
-		kthread_stop(p);
-		put_task_struct(p);
-	}
+	if (bch2_write_ref_tryget(c, BCH_WRITE_REF_gc_gens) &&
+	    !queue_work(c->write_ref_wq, &c->gc_gens_work))
+		bch2_write_ref_put(c, BCH_WRITE_REF_gc_gens);
 }
 
-int bch2_gc_thread_start(struct bch_fs *c)
+void bch2_fs_gc_init(struct bch_fs *c)
 {
-	struct task_struct *p;
+	seqcount_init(&c->gc_pos_lock);
 
-	if (c->gc_thread)
-		return 0;
-
-	p = kthread_create(bch2_gc_thread, c, "bch-gc/%s", c->name);
-	if (IS_ERR(p)) {
-		bch_err_fn(c, PTR_ERR(p));
-		return PTR_ERR(p);
-	}
-
-	get_task_struct(p);
-	c->gc_thread = p;
-	wake_up_process(p);
-	return 0;
+	INIT_WORK(&c->gc_gens_work, bch2_gc_gens_work);
 }

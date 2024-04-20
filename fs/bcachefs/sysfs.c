@@ -142,7 +142,6 @@ write_attribute(trigger_invalidates);
 write_attribute(trigger_journal_flush);
 write_attribute(prune_cache);
 write_attribute(btree_wakeup);
-rw_attribute(btree_gc_periodic);
 rw_attribute(gc_gens_pos);
 
 read_attribute(uuid);
@@ -408,8 +407,6 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_btree_write_stats)
 		bch2_btree_write_stats_to_text(out, c);
 
-	sysfs_printf(btree_gc_periodic, "%u",	(int) c->btree_gc_periodic);
-
 	if (attr == &sysfs_gc_gens_pos)
 		bch2_gc_gens_pos_to_text(out, c);
 
@@ -484,14 +481,6 @@ SHOW(bch2_fs)
 STORE(bch2_fs)
 {
 	struct bch_fs *c = container_of(kobj, struct bch_fs, kobj);
-
-	if (attr == &sysfs_btree_gc_periodic) {
-		ssize_t ret = strtoul_safe(buf, c->btree_gc_periodic)
-			?: (ssize_t) size;
-
-		wake_up_process(c->gc_thread);
-		return ret;
-	}
 
 	if (attr == &sysfs_copy_gc_enabled) {
 		ssize_t ret = strtoul_safe(buf, c->copy_gc_enabled)

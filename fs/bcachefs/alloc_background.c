@@ -874,7 +874,7 @@ int bch2_trigger_alloc(struct btree_trans *trans,
 			bch2_do_invalidates(c);
 
 		if (statechange(a->data_type == BCH_DATA_need_gc_gens))
-			bch2_do_gc_gens(c);
+			bch2_gc_gens_async(c);
 	}
 
 	if ((flags & BTREE_TRIGGER_gc) &&

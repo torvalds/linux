@@ -541,7 +541,7 @@ again:
 		bch2_do_discards(c);
 
 	if (usage->d[BCH_DATA_need_gc_gens].buckets > avail)
-		bch2_do_gc_gens(c);
+		bch2_gc_gens_async(c);
 
 	if (should_invalidate_buckets(ca, *usage))
 		bch2_do_invalidates(c);

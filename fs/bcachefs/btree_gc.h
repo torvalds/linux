@@ -7,9 +7,6 @@
 
 int bch2_check_topology(struct bch_fs *);
 int bch2_check_allocations(struct bch_fs *);
-int bch2_gc_gens(struct bch_fs *);
-void bch2_gc_thread_stop(struct bch_fs *);
-int bch2_gc_thread_start(struct bch_fs *);
 
 /*
  * For concurrent mark and sweep (with other index updates), we define a total
@@ -104,11 +101,8 @@ static inline bool gc_visited(struct bch_fs *c, struct gc_pos pos)
 	return ret;
 }
 
-static inline void bch2_do_gc_gens(struct bch_fs *c)
-{
-	atomic_inc(&c->kick_gc);
-	if (c->gc_thread)
-		wake_up_process(c->gc_thread);
-}
+int bch2_gc_gens(struct bch_fs *);
+void bch2_gc_gens_async(struct bch_fs *);
+void bch2_fs_gc_init(struct bch_fs *);
 
 #endif /* _BCACHEFS_BTREE_GC_H */

@@ -264,7 +264,6 @@ static void __bch2_fs_read_only(struct bch_fs *c)
 	bch2_open_buckets_stop(c, NULL, true);
 	bch2_rebalance_stop(c);
 	bch2_copygc_stop(c);
-	bch2_gc_thread_stop(c);
 	bch2_fs_ec_flush(c);
 
 	bch_verbose(c, "flushing journal and stopping allocators, journal seq %llu",
@@ -485,12 +484,6 @@ static int __bch2_fs_read_write(struct bch_fs *c, bool early)
 		atomic_long_inc(&c->writes[i]);
 	}
 #endif
-
-	ret = bch2_gc_thread_start(c);
-	if (ret) {
-		bch_err(c, "error starting gc thread");
-		return ret;
-	}
 
 	ret = bch2_journal_reclaim_start(&c->journal);
 	if (ret)
@@ -780,6 +773,7 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	for (i = 0; i < BCH_TIME_STAT_NR; i++)
 		bch2_time_stats_init(&c->times[i]);
 
+	bch2_fs_gc_init(c);
 	bch2_fs_copygc_init(c);
 	bch2_fs_btree_key_cache_init_early(&c->btree_key_cache);
 	bch2_fs_btree_iter_init_early(c);
@@ -809,8 +803,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 
 	INIT_LIST_HEAD(&c->fsck_error_msgs);
 	mutex_init(&c->fsck_error_msgs_lock);
-
-	seqcount_init(&c->gc_pos_lock);
 
 	seqcount_init(&c->usage_lock);
 

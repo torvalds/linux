@@ -718,6 +718,7 @@ struct btree_trans_buf {
 	x(discard_fast)							\
 	x(invalidate)							\
 	x(delete_dead_snapshots)					\
+	x(gc_gens)							\
 	x(snapshot_delete_pagecache)					\
 	x(sysfs)							\
 	x(btree_write_buffer)
@@ -960,8 +961,7 @@ struct bch_fs {
 	struct work_struct	discard_fast_work;
 
 	/* GARBAGE COLLECTION */
-	struct task_struct	*gc_thread;
-	atomic_t		kick_gc;
+	struct work_struct	gc_gens_work;
 	unsigned long		gc_count;
 
 	enum btree_id		gc_gens_btree;
@@ -1118,7 +1118,6 @@ struct bch_fs {
 	u64			counters_on_mount[BCH_COUNTER_NR];
 	u64 __percpu		*counters;
 
-	unsigned		btree_gc_periodic:1;
 	unsigned		copy_gc_enabled:1;
 	bool			promote_whole_extents;
 
