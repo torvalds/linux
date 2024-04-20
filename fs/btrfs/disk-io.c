@@ -3634,11 +3634,15 @@ static void btrfs_end_super_write(struct bio *bio)
 				"lost super block write due to IO error on %s (%d)",
 				btrfs_dev_name(device),
 				blk_status_to_errno(bio->bi_status));
-			folio_set_error(fi.folio);
 			btrfs_dev_stat_inc_and_print(device,
 						     BTRFS_DEV_STAT_WRITE_ERRS);
+			/* Ensure failure if the primary sb fails. */
+			if (bio->bi_opf & REQ_FUA)
+				atomic_add(BTRFS_SUPER_PRIMARY_WRITE_ERROR,
+					   &device->sb_write_errors);
+			else
+				atomic_inc(&device->sb_write_errors);
 		}
-
 		folio_unlock(fi.folio);
 		folio_put(fi.folio);
 	}
@@ -3742,9 +3746,10 @@ static int write_dev_supers(struct btrfs_device *device,
 	struct address_space *mapping = device->bdev->bd_inode->i_mapping;
 	SHASH_DESC_ON_STACK(shash, fs_info->csum_shash);
 	int i;
-	int errors = 0;
 	int ret;
 	u64 bytenr, bytenr_orig;
+
+	atomic_set(&device->sb_write_errors, 0);
 
 	if (max_mirrors == 0)
 		max_mirrors = BTRFS_SUPER_MIRROR_MAX;
@@ -3765,7 +3770,7 @@ static int write_dev_supers(struct btrfs_device *device,
 			btrfs_err(device->fs_info,
 				"couldn't get super block location for mirror %d",
 				i);
-			errors++;
+			atomic_inc(&device->sb_write_errors);
 			continue;
 		}
 		if (bytenr + BTRFS_SUPER_INFO_SIZE >=
@@ -3785,13 +3790,10 @@ static int write_dev_supers(struct btrfs_device *device,
 			btrfs_err(device->fs_info,
 			    "couldn't get super block page for bytenr %llu",
 			    bytenr);
-			errors++;
+			atomic_inc(&device->sb_write_errors);
 			continue;
 		}
 		ASSERT(folio_order(folio) == 0);
-
-		/* Bump the refcount for wait_dev_supers() */
-		folio_get(folio);
 
 		offset = offset_in_folio(folio, bytenr);
 		disk_super = folio_address(folio) + offset;
@@ -3820,16 +3822,17 @@ static int write_dev_supers(struct btrfs_device *device,
 		submit_bio(bio);
 
 		if (btrfs_advance_sb_log(device, i))
-			errors++;
+			atomic_inc(&device->sb_write_errors);
 	}
-	return errors < i ? 0 : -1;
+	return atomic_read(&device->sb_write_errors) < i ? 0 : -1;
 }
 
 /*
  * Wait for write completion of superblocks done by write_dev_supers,
  * @max_mirrors same for write and wait phases.
  *
- * Return number of errors when folio is not found or not marked up to date.
+ * Return -1 if primary super block write failed or when there were no super block
+ * copies written. Otherwise 0.
  */
 static int wait_dev_supers(struct btrfs_device *device, int max_mirrors)
 {
@@ -3860,30 +3863,19 @@ static int wait_dev_supers(struct btrfs_device *device, int max_mirrors)
 
 		folio = filemap_get_folio(device->bdev->bd_inode->i_mapping,
 					  bytenr >> PAGE_SHIFT);
-		if (IS_ERR(folio)) {
-			errors++;
-			if (i == 0)
-				primary_failed = true;
+		/* If the folio has been removed, then we know it completed. */
+		if (IS_ERR(folio))
 			continue;
-		}
 		ASSERT(folio_order(folio) == 0);
 
 		/* Folio will be unlocked once the write completes. */
 		folio_wait_locked(folio);
-		if (folio_test_error(folio)) {
-			errors++;
-			if (i == 0)
-				primary_failed = true;
-		}
-
-		/* Drop our reference */
-		folio_put(folio);
-
-		/* Drop the reference from the writing run */
 		folio_put(folio);
 	}
 
-	/* log error, force error return */
+	errors += atomic_read(&device->sb_write_errors);
+	if (errors >= BTRFS_SUPER_PRIMARY_WRITE_ERROR)
+		primary_failed = true;
 	if (primary_failed) {
 		btrfs_err(device->fs_info, "error writing primary super block to device %llu",
 			  device->devid);
