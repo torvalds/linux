@@ -228,12 +228,20 @@ struct sparx5_mdb_entry {
 	u16 pgid_idx;
 };
 
+struct sparx5_mall_mirror_entry {
+	u32 idx;
+	struct sparx5_port *port;
+};
+
 struct sparx5_mall_entry {
 	struct list_head list;
 	struct sparx5_port *port;
 	unsigned long cookie;
 	enum flow_action_id type;
 	bool ingress;
+	union {
+		struct sparx5_mall_mirror_entry mirror;
+	};
 };
 
 #define SPARX5_PTP_TIMEOUT		msecs_to_jiffies(10)
@@ -550,6 +558,10 @@ void sparx5_psfp_init(struct sparx5 *sparx5);
 /* sparx5_qos.c */
 void sparx5_new_base_time(struct sparx5 *sparx5, const u32 cycle_time,
 			  const ktime_t org_base_time, ktime_t *new_base_time);
+
+/* sparx5_mirror.c */
+int sparx5_mirror_add(struct sparx5_mall_entry *entry);
+void sparx5_mirror_del(struct sparx5_mall_entry *entry);
 
 /* Clock period in picoseconds */
 static inline u32 sparx5_clk_period(enum sparx5_core_clockfreq cclock)
