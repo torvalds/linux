@@ -3833,8 +3833,7 @@ static int write_dev_supers(struct btrfs_device *device,
  * Wait for write completion of superblocks done by write_dev_supers,
  * @max_mirrors same for write and wait phases.
  *
- * Return number of errors when page is not found or not marked up to
- * date.
+ * Return number of errors when folio is not found or not marked up to date.
  */
 static int wait_dev_supers(struct btrfs_device *device, int max_mirrors)
 {
@@ -3848,7 +3847,7 @@ static int wait_dev_supers(struct btrfs_device *device, int max_mirrors)
 		max_mirrors = BTRFS_SUPER_MIRROR_MAX;
 
 	for (i = 0; i < max_mirrors; i++) {
-		struct page *page;
+		struct folio *folio;
 
 		ret = btrfs_sb_log_location(device, i, READ, &bytenr);
 		if (ret == -ENOENT) {
@@ -3863,27 +3862,29 @@ static int wait_dev_supers(struct btrfs_device *device, int max_mirrors)
 		    device->commit_total_bytes)
 			break;
 
-		page = find_get_page(device->bdev->bd_inode->i_mapping,
-				     bytenr >> PAGE_SHIFT);
-		if (!page) {
+		folio = filemap_get_folio(device->bdev->bd_inode->i_mapping,
+					  bytenr >> PAGE_SHIFT);
+		if (IS_ERR(folio)) {
 			errors++;
 			if (i == 0)
 				primary_failed = true;
 			continue;
 		}
-		/* Page is submitted locked and unlocked once the IO completes */
-		wait_on_page_locked(page);
-		if (PageError(page)) {
+		ASSERT(folio_order(folio) == 0);
+
+		/* Folio will be unlocked once the write completes. */
+		folio_wait_locked(folio);
+		if (folio_test_error(folio)) {
 			errors++;
 			if (i == 0)
 				primary_failed = true;
 		}
 
 		/* Drop our reference */
-		put_page(page);
+		folio_put(folio);
 
 		/* Drop the reference from the writing run */
-		put_page(page);
+		folio_put(folio);
 	}
 
 	/* log error, force error return */
