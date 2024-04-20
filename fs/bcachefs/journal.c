@@ -77,9 +77,9 @@ static void bch2_journal_buf_to_text(struct printbuf *out, struct journal *j, u6
 	if (buf->write_started)
 		prt_str(out, "write_started ");
 	if (buf->write_allocated)
-		prt_str(out, "write allocated ");
+		prt_str(out, "write_allocated ");
 	if (buf->write_done)
-		prt_str(out, "write done");
+		prt_str(out, "write_done");
 	prt_newline(out);
 
 	printbuf_indent_sub(out, 2);
