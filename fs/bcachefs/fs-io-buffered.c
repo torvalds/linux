@@ -30,15 +30,8 @@ static void bch2_readpages_end_io(struct bio *bio)
 {
 	struct folio_iter fi;
 
-	bio_for_each_folio_all(fi, bio) {
-		if (!bio->bi_status) {
-			folio_mark_uptodate(fi.folio);
-		} else {
-			folio_clear_uptodate(fi.folio);
-			folio_set_error(fi.folio);
-		}
-		folio_unlock(fi.folio);
-	}
+	bio_for_each_folio_all(fi, bio)
+		folio_end_read(fi.folio, bio->bi_status == BLK_STS_OK);
 
 	bio_put(bio);
 }
@@ -408,7 +401,6 @@ static void bch2_writepage_io_done(struct bch_write_op *op)
 		bio_for_each_folio_all(fi, bio) {
 			struct bch_folio *s;
 
-			folio_set_error(fi.folio);
 			mapping_set_error(fi.folio->mapping, -EIO);
 
 			s = __bch2_folio(fi.folio);
