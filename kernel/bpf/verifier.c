@@ -332,6 +332,10 @@ struct bpf_kfunc_call_arg_meta {
 		u8 spi;
 		u8 frameno;
 	} iter;
+	struct {
+		struct bpf_map *ptr;
+		int uid;
+	} map;
 	u64 mem_size;
 };
 
@@ -7598,6 +7602,23 @@ static int process_timer_func(struct bpf_verifier_env *env, int regno,
 	return 0;
 }
 
+static int process_wq_func(struct bpf_verifier_env *env, int regno,
+			   struct bpf_kfunc_call_arg_meta *meta)
+{
+	struct bpf_reg_state *regs = cur_regs(env), *reg = &regs[regno];
+	struct bpf_map *map = reg->map_ptr;
+	u64 val = reg->var_off.value;
+
+	if (map->record->wq_off != val + reg->off) {
+		verbose(env, "off %lld doesn't point to 'struct bpf_wq' that is at %d\n",
+			val + reg->off, map->record->wq_off);
+		return -EINVAL;
+	}
+	meta->map.uid = reg->map_uid;
+	meta->map.ptr = map;
+	return 0;
+}
+
 static int process_kptr_func(struct bpf_verifier_env *env, int regno,
 			     struct bpf_call_arg_meta *meta)
 {
@@ -10843,6 +10864,7 @@ enum {
 	KF_ARG_LIST_NODE_ID,
 	KF_ARG_RB_ROOT_ID,
 	KF_ARG_RB_NODE_ID,
+	KF_ARG_WORKQUEUE_ID,
 };
 
 BTF_ID_LIST(kf_arg_btf_ids)
@@ -10851,6 +10873,7 @@ BTF_ID(struct, bpf_list_head)
 BTF_ID(struct, bpf_list_node)
 BTF_ID(struct, bpf_rb_root)
 BTF_ID(struct, bpf_rb_node)
+BTF_ID(struct, bpf_wq)
 
 static bool __is_kfunc_ptr_arg_type(const struct btf *btf,
 				    const struct btf_param *arg, int type)
@@ -10892,6 +10915,11 @@ static bool is_kfunc_arg_rbtree_root(const struct btf *btf, const struct btf_par
 static bool is_kfunc_arg_rbtree_node(const struct btf *btf, const struct btf_param *arg)
 {
 	return __is_kfunc_ptr_arg_type(btf, arg, KF_ARG_RB_NODE_ID);
+}
+
+static bool is_kfunc_arg_wq(const struct btf *btf, const struct btf_param *arg)
+{
+	return __is_kfunc_ptr_arg_type(btf, arg, KF_ARG_WORKQUEUE_ID);
 }
 
 static bool is_kfunc_arg_callback(struct bpf_verifier_env *env, const struct btf *btf,
@@ -10963,6 +10991,7 @@ enum kfunc_ptr_arg_type {
 	KF_ARG_PTR_TO_NULL,
 	KF_ARG_PTR_TO_CONST_STR,
 	KF_ARG_PTR_TO_MAP,
+	KF_ARG_PTR_TO_WORKQUEUE,
 };
 
 enum special_kfunc_type {
@@ -11118,6 +11147,9 @@ get_kfunc_ptr_arg_type(struct bpf_verifier_env *env,
 
 	if (is_kfunc_arg_map(meta->btf, &args[argno]))
 		return KF_ARG_PTR_TO_MAP;
+
+	if (is_kfunc_arg_wq(meta->btf, &args[argno]))
+		return KF_ARG_PTR_TO_WORKQUEUE;
 
 	if ((base_type(reg->type) == PTR_TO_BTF_ID || reg2btf_ids[base_type(reg->type)])) {
 		if (!btf_type_is_struct(ref_t)) {
@@ -11724,6 +11756,29 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 				verbose(env, "pointer in R%d isn't map pointer\n", regno);
 				return -EINVAL;
 			}
+			if (meta->map.ptr && reg->map_ptr->record->wq_off >= 0) {
+				/* Use map_uid (which is unique id of inner map) to reject:
+				 * inner_map1 = bpf_map_lookup_elem(outer_map, key1)
+				 * inner_map2 = bpf_map_lookup_elem(outer_map, key2)
+				 * if (inner_map1 && inner_map2) {
+				 *     wq = bpf_map_lookup_elem(inner_map1);
+				 *     if (wq)
+				 *         // mismatch would have been allowed
+				 *         bpf_wq_init(wq, inner_map2);
+				 * }
+				 *
+				 * Comparing map_ptr is enough to distinguish normal and outer maps.
+				 */
+				if (meta->map.ptr != reg->map_ptr ||
+				    meta->map.uid != reg->map_uid) {
+					verbose(env,
+						"workqueue pointer in R1 map_uid=%d doesn't match map pointer in R2 map_uid=%d\n",
+						meta->map.uid, reg->map_uid);
+					return -EINVAL;
+				}
+			}
+			meta->map.ptr = reg->map_ptr;
+			meta->map.uid = reg->map_uid;
 			fallthrough;
 		case KF_ARG_PTR_TO_ALLOC_BTF_ID:
 		case KF_ARG_PTR_TO_BTF_ID:
@@ -11757,6 +11812,7 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 		case KF_ARG_PTR_TO_CALLBACK:
 		case KF_ARG_PTR_TO_REFCOUNTED_KPTR:
 		case KF_ARG_PTR_TO_CONST_STR:
+		case KF_ARG_PTR_TO_WORKQUEUE:
 			/* Trusted by default */
 			break;
 		default:
@@ -12041,6 +12097,15 @@ static int check_kfunc_args(struct bpf_verifier_env *env, struct bpf_kfunc_call_
 			}
 			ret = check_reg_const_str(env, reg, regno);
 			if (ret)
+				return ret;
+			break;
+		case KF_ARG_PTR_TO_WORKQUEUE:
+			if (reg->type != PTR_TO_MAP_VALUE) {
+				verbose(env, "arg#%d doesn't point to a map value\n", i);
+				return -EINVAL;
+			}
+			ret = process_wq_func(env, regno, meta);
+			if (ret < 0)
 				return ret;
 			break;
 		}
