@@ -10991,13 +10991,7 @@ static struct ibm_struct auxmac_data = {
 	.name = "auxmac",
 };
 
-static ssize_t auxmac_show(struct device *dev,
-			   struct device_attribute *attr,
-			   char *buf)
-{
-	return sysfs_emit(buf, "%s\n", auxmac);
-}
-static DEVICE_ATTR_RO(auxmac);
+static DEVICE_STRING_ATTR_RO(auxmac, 0444, auxmac);
 
 static umode_t auxmac_attr_is_visible(struct kobject *kobj,
 				      struct attribute *attr, int n)
@@ -11006,7 +11000,7 @@ static umode_t auxmac_attr_is_visible(struct kobject *kobj,
 }
 
 static struct attribute *auxmac_attributes[] = {
-	&dev_attr_auxmac.attr,
+	&dev_attr_auxmac.attr.attr,
 	NULL
 };
 
