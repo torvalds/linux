@@ -1413,36 +1413,44 @@ static const struct bpf_func_proto bpf_timer_cancel_proto = {
 	.arg1_type	= ARG_PTR_TO_TIMER,
 };
 
+static struct bpf_async_cb *__bpf_async_cancel_and_free(struct bpf_async_kern *async)
+{
+	struct bpf_async_cb *cb;
+
+	/* Performance optimization: read async->cb without lock first. */
+	if (!READ_ONCE(async->cb))
+		return NULL;
+
+	__bpf_spin_lock_irqsave(&async->lock);
+	/* re-read it under lock */
+	cb = async->cb;
+	if (!cb)
+		goto out;
+	drop_prog_refcnt(cb);
+	/* The subsequent bpf_timer_start/cancel() helpers won't be able to use
+	 * this timer, since it won't be initialized.
+	 */
+	WRITE_ONCE(async->cb, NULL);
+out:
+	__bpf_spin_unlock_irqrestore(&async->lock);
+	return cb;
+}
+
 /* This function is called by map_delete/update_elem for individual element and
  * by ops->map_release_uref when the user space reference to a map reaches zero.
  */
 void bpf_timer_cancel_and_free(void *val)
 {
-	struct bpf_async_kern *timer = val;
 	struct bpf_hrtimer *t;
 
-	/* Performance optimization: read timer->timer without lock first. */
-	if (!READ_ONCE(timer->timer))
-		return;
+	t = (struct bpf_hrtimer *)__bpf_async_cancel_and_free(val);
 
-	__bpf_spin_lock_irqsave(&timer->lock);
-	/* re-read it under lock */
-	t = timer->timer;
-	if (!t)
-		goto out;
-	drop_prog_refcnt(&t->cb);
-	/* The subsequent bpf_timer_start/cancel() helpers won't be able to use
-	 * this timer, since it won't be initialized.
-	 */
-	WRITE_ONCE(timer->timer, NULL);
-out:
-	__bpf_spin_unlock_irqrestore(&timer->lock);
 	if (!t)
 		return;
 	/* Cancel the timer and wait for callback to complete if it was running.
 	 * If hrtimer_cancel() can be safely called it's safe to call kfree(t)
 	 * right after for both preallocated and non-preallocated maps.
-	 * The timer->timer = NULL was already done and no code path can
+	 * The async->cb = NULL was already done and no code path can
 	 * see address 't' anymore.
 	 *
 	 * Check that bpf_map_delete/update_elem() wasn't called from timer
@@ -1451,7 +1459,7 @@ out:
 	 * return -1). Though callback_fn is still running on this cpu it's
 	 * safe to do kfree(t) because bpf_timer_cb() read everything it needed
 	 * from 't'. The bpf subprog callback_fn won't be able to access 't',
-	 * since timer->timer = NULL was already done. The timer will be
+	 * since async->cb = NULL was already done. The timer will be
 	 * effectively cancelled because bpf_timer_cb() will return
 	 * HRTIMER_NORESTART.
 	 */
