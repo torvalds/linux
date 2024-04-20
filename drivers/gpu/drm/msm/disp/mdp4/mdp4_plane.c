@@ -371,6 +371,47 @@ static const uint64_t supported_format_modifiers[] = {
 	DRM_FORMAT_MOD_INVALID
 };
 
+static const uint32_t mdp4_rgb_formats[] = {
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_BGR565,
+};
+
+static const uint32_t mdp4_rgb_yuv_formats[] = {
+	DRM_FORMAT_ARGB8888,
+	DRM_FORMAT_ABGR8888,
+	DRM_FORMAT_RGBA8888,
+	DRM_FORMAT_BGRA8888,
+	DRM_FORMAT_XRGB8888,
+	DRM_FORMAT_XBGR8888,
+	DRM_FORMAT_RGBX8888,
+	DRM_FORMAT_BGRX8888,
+	DRM_FORMAT_RGB888,
+	DRM_FORMAT_BGR888,
+	DRM_FORMAT_RGB565,
+	DRM_FORMAT_BGR565,
+
+	DRM_FORMAT_NV12,
+	DRM_FORMAT_NV21,
+	DRM_FORMAT_NV16,
+	DRM_FORMAT_NV61,
+	DRM_FORMAT_VYUY,
+	DRM_FORMAT_UYVY,
+	DRM_FORMAT_YUYV,
+	DRM_FORMAT_YVYU,
+	DRM_FORMAT_YUV420,
+	DRM_FORMAT_YVU420,
+};
+
 /* initialize plane */
 struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 		enum mdp4_pipe pipe_id, bool private_plane)
@@ -379,6 +420,8 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 	struct mdp4_plane *mdp4_plane;
 	int ret;
 	enum drm_plane_type type;
+	const uint32_t *formats;
+	unsigned int nformats;
 
 	mdp4_plane = kzalloc(sizeof(*mdp4_plane), GFP_KERNEL);
 	if (!mdp4_plane) {
@@ -392,13 +435,17 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 	mdp4_plane->name = pipe_names[pipe_id];
 	mdp4_plane->caps = mdp4_pipe_caps(pipe_id);
 
-	mdp4_plane->nformats = mdp_get_formats(mdp4_plane->formats,
-			ARRAY_SIZE(mdp4_plane->formats),
-			!pipe_supports_yuv(mdp4_plane->caps));
-
 	type = private_plane ? DRM_PLANE_TYPE_PRIMARY : DRM_PLANE_TYPE_OVERLAY;
+
+	if (pipe_supports_yuv(mdp4_plane->caps)) {
+		formats = mdp4_rgb_yuv_formats;
+		nformats = ARRAY_SIZE(mdp4_rgb_yuv_formats);
+	} else {
+		formats = mdp4_rgb_formats;
+		nformats = ARRAY_SIZE(mdp4_rgb_formats);
+	}
 	ret = drm_universal_plane_init(dev, plane, 0xff, &mdp4_plane_funcs,
-				 mdp4_plane->formats, mdp4_plane->nformats,
+				 formats, nformats,
 				 supported_format_modifiers, type, NULL);
 	if (ret)
 		goto fail;
