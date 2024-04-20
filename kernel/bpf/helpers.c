@@ -1468,6 +1468,14 @@ void bpf_timer_cancel_and_free(void *val)
 	kfree_rcu(t, cb.rcu);
 }
 
+/* This function is called by map_delete/update_elem for individual element and
+ * by ops->map_release_uref when the user space reference to a map reaches zero.
+ */
+void bpf_wq_cancel_and_free(void *val)
+{
+	BTF_TYPE_EMIT(struct bpf_wq);
+}
+
 BPF_CALL_2(bpf_kptr_xchg, void *, map_value, void *, ptr)
 {
 	unsigned long *kptr = map_value;
