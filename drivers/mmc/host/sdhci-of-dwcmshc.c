@@ -70,6 +70,10 @@
 #define CV18XX_SDHCI_PHY_CONFIG			0x4c
 #define  CV18XX_PHY_TX_BPS			BIT(0)
 
+#define CV18XX_TUNE_MAX				128
+#define CV18XX_TUNE_STEP			1
+#define CV18XX_RETRY_TUNING_MAX			50
+
 /* Rockchip specific Registers */
 #define DWCMSHC_EMMC_DLL_CTRL		0x800
 #define DWCMSHC_EMMC_DLL_RXCLK		0x804
@@ -780,6 +784,113 @@ static void cv18xx_sdhci_reset(struct sdhci_host *host, u8 mask)
 	sdhci_writel(host, val, priv->vendor_specific_area1 + CV18XX_SDHCI_PHY_TX_RX_DLY);
 }
 
+static void cv18xx_sdhci_set_tap(struct sdhci_host *host, int tap)
+{
+	struct sdhci_pltfm_host *pltfm_host = sdhci_priv(host);
+	struct dwcmshc_priv *priv = sdhci_pltfm_priv(pltfm_host);
+	u16 clk;
+	u32 val;
+
+	clk = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	clk &= ~SDHCI_CLOCK_CARD_EN;
+	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+
+	val = sdhci_readl(host, priv->vendor_specific_area1 + CV18XX_SDHCI_MSHC_CTRL);
+	val &= ~CV18XX_LATANCY_1T;
+	sdhci_writel(host, val, priv->vendor_specific_area1 + CV18XX_SDHCI_MSHC_CTRL);
+
+	val =  (FIELD_PREP(CV18XX_PHY_TX_DLY_MSK, 0) |
+		FIELD_PREP(CV18XX_PHY_TX_SRC_MSK, CV18XX_PHY_TX_SRC_INVERT_CLK_TX) |
+		FIELD_PREP(CV18XX_PHY_RX_DLY_MSK, tap));
+	sdhci_writel(host, val, priv->vendor_specific_area1 + CV18XX_SDHCI_PHY_TX_RX_DLY);
+
+	sdhci_writel(host, 0, priv->vendor_specific_area1 + CV18XX_SDHCI_PHY_CONFIG);
+
+	clk |= SDHCI_CLOCK_CARD_EN;
+	sdhci_writew(host, clk, SDHCI_CLOCK_CONTROL);
+	usleep_range(1000, 2000);
+}
+
+static int cv18xx_retry_tuning(struct mmc_host *mmc, u32 opcode, int *cmd_error)
+{
+	int ret, retry = 0;
+
+	while (retry < CV18XX_RETRY_TUNING_MAX) {
+		ret = mmc_send_tuning(mmc, opcode, NULL);
+		if (ret)
+			return ret;
+		retry++;
+	}
+
+	return 0;
+}
+
+static void cv18xx_sdhci_post_tuning(struct sdhci_host *host)
+{
+	u32 val;
+
+	val = sdhci_readl(host, SDHCI_INT_STATUS);
+	val |= SDHCI_INT_DATA_AVAIL;
+	sdhci_writel(host, val, SDHCI_INT_STATUS);
+
+	sdhci_reset(host, SDHCI_RESET_CMD | SDHCI_RESET_DATA);
+}
+
+static int cv18xx_sdhci_execute_tuning(struct sdhci_host *host, u32 opcode)
+{
+	int min, max, avg, ret;
+	int win_length, target_min, target_max, target_win_length;
+
+	min = max = 0;
+	target_win_length = 0;
+
+	sdhci_reset_tuning(host);
+
+	while (max < CV18XX_TUNE_MAX) {
+		/* find the mininum delay first which can pass tuning */
+		while (min < CV18XX_TUNE_MAX) {
+			cv18xx_sdhci_set_tap(host, min);
+			if (!cv18xx_retry_tuning(host->mmc, opcode, NULL))
+				break;
+			min += CV18XX_TUNE_STEP;
+		}
+
+		/* find the maxinum delay which can not pass tuning */
+		max = min + CV18XX_TUNE_STEP;
+		while (max < CV18XX_TUNE_MAX) {
+			cv18xx_sdhci_set_tap(host, max);
+			if (cv18xx_retry_tuning(host->mmc, opcode, NULL)) {
+				max -= CV18XX_TUNE_STEP;
+				break;
+			}
+			max += CV18XX_TUNE_STEP;
+		}
+
+		win_length = max - min + 1;
+		/* get the largest pass window */
+		if (win_length > target_win_length) {
+			target_win_length = win_length;
+			target_min = min;
+			target_max = max;
+		}
+
+		/* continue to find the next pass window */
+		min = max + CV18XX_TUNE_STEP;
+	}
+
+	cv18xx_sdhci_post_tuning(host);
+
+	/* use average delay to get the best timing */
+	avg = (target_min + target_max) / 2;
+	cv18xx_sdhci_set_tap(host, avg);
+	ret = mmc_send_tuning(host->mmc, opcode, NULL);
+
+	dev_dbg(mmc_dev(host->mmc), "tuning %s at 0x%x ret %d\n",
+		ret ? "failed" : "passed", avg, ret);
+
+	return ret;
+}
+
 static const struct sdhci_ops sdhci_dwcmshc_ops = {
 	.set_clock		= sdhci_set_clock,
 	.set_bus_width		= sdhci_set_bus_width,
@@ -817,6 +928,7 @@ static const struct sdhci_ops sdhci_dwcmshc_cv18xx_ops = {
 	.get_max_clock		= dwcmshc_get_max_clock,
 	.reset			= cv18xx_sdhci_reset,
 	.adma_write_desc	= dwcmshc_adma_write_desc,
+	.platform_execute_tuning = cv18xx_sdhci_execute_tuning,
 };
 
 static const struct sdhci_pltfm_data sdhci_dwcmshc_pdata = {
