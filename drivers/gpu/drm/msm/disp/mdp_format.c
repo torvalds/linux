@@ -63,7 +63,10 @@ static struct csc_cfg csc_convert[CSC_MAX] = {
 };
 
 #define FMT(name, a, r, g, b, e0, e1, e2, e3, alpha, tight, c, cnt, fp, cs, yuv) { \
-		.base = { .pixel_format = DRM_FORMAT_ ## name }, \
+		.base = {                                        \
+			.pixel_format = DRM_FORMAT_ ## name,     \
+			.flags = yuv ? MSM_FORMAT_FLAG_YUV : 0,  \
+		},                                               \
 		.bpc_a = BPC ## a ## A,                          \
 		.bpc_r = BPC ## r,                               \
 		.bpc_g = BPC ## g,                               \
@@ -75,7 +78,6 @@ static struct csc_cfg csc_convert[CSC_MAX] = {
 		.unpack_count = cnt,                             \
 		.fetch_type = fp,                                \
 		.chroma_sample = cs,                             \
-		.is_yuv = yuv,                                   \
 }
 
 #define BPC0A 0

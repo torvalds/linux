@@ -44,8 +44,8 @@ bp, flg, fm, np)                                                          \
 	.unpack_tight = 1,                                                \
 	.unpack_count = uc,                                               \
 	.bpp = bp,                                                        \
-	.fetch_mode = fm,                                                 \
-	.flags = flg,                                                     \
+	.base.fetch_mode = fm,                                            \
+	.base.flags = flg,                                                \
 	.num_planes = np,                                                 \
 	.tile_height = DPU_TILE_HEIGHT_DEFAULT                            \
 }
@@ -63,8 +63,8 @@ alpha, bp, flg, fm, np, th)                                               \
 	.unpack_tight = 1,                                                \
 	.unpack_count = uc,                                               \
 	.bpp = bp,                                                        \
-	.fetch_mode = fm,                                                 \
-	.flags = flg,                                                     \
+	.base.fetch_mode = fm,                                            \
+	.base.flags = flg,                                                \
 	.num_planes = np,                                                 \
 	.tile_height = th                                                 \
 }
@@ -83,8 +83,8 @@ alpha, chroma, count, bp, flg, fm, np)                                    \
 	.unpack_tight = 1,                                                \
 	.unpack_count = count,                                            \
 	.bpp = bp,                                                        \
-	.fetch_mode = fm,                                                 \
-	.flags = flg,                                                     \
+	.base.fetch_mode = fm,                                            \
+	.base.flags = flg,                                                \
 	.num_planes = np,                                                 \
 	.tile_height = DPU_TILE_HEIGHT_DEFAULT                            \
 }
@@ -101,8 +101,8 @@ alpha, chroma, count, bp, flg, fm, np)                                    \
 	.unpack_tight = 1,                                                \
 	.unpack_count = 2,                                                \
 	.bpp = 2,                                                         \
-	.fetch_mode = fm,                                                 \
-	.flags = flg,                                                     \
+	.base.fetch_mode = fm,                                            \
+	.base.flags = flg,                                                \
 	.num_planes = np,                                                 \
 	.tile_height = DPU_TILE_HEIGHT_DEFAULT                            \
 }
@@ -120,8 +120,8 @@ flg, fm, np, th)                                                          \
 	.unpack_tight = 1,                                                \
 	.unpack_count = 2,                                                \
 	.bpp = 2,                                                         \
-	.fetch_mode = fm,                                                 \
-	.flags = flg,                                                     \
+	.base.fetch_mode = fm,                                            \
+	.base.flags = flg,                                                \
 	.num_planes = np,                                                 \
 	.tile_height = th                                                 \
 }
@@ -138,8 +138,8 @@ flg, fm, np, th)                                                          \
 	.unpack_tight = 0,                                                \
 	.unpack_count = 2,                                                \
 	.bpp = 2,                                                         \
-	.fetch_mode = fm,                                                 \
-	.flags = flg,                                                     \
+	.base.fetch_mode = fm,                                            \
+	.base.flags = flg,                                                \
 	.num_planes = np,                                                 \
 	.tile_height = DPU_TILE_HEIGHT_DEFAULT                            \
 }
@@ -157,8 +157,8 @@ flg, fm, np, th)                                                          \
 	.unpack_tight = 0,                                                \
 	.unpack_count = 2,                                                \
 	.bpp = 2,                                                         \
-	.fetch_mode = fm,                                                 \
-	.flags = flg,                                                     \
+	.base.fetch_mode = fm,                                            \
+	.base.flags = flg,                                                \
 	.num_planes = np,                                                 \
 	.tile_height = th                                                 \
 }
@@ -177,8 +177,8 @@ flg, fm, np)                                                      \
 	.unpack_tight = 1,                                                \
 	.unpack_count = 1,                                                \
 	.bpp = bp,                                                        \
-	.fetch_mode = fm,                                                 \
-	.flags = flg,                                                     \
+	.base.fetch_mode = fm,                                            \
+	.base.flags = flg,                                                \
 	.num_planes = np,                                                 \
 	.tile_height = DPU_TILE_HEIGHT_DEFAULT                            \
 }
@@ -365,115 +365,115 @@ static const struct dpu_format dpu_format_map[] = {
 	INTERLEAVED_RGB_FMT(BGRA1010102,
 		BPC8A, BPC8, BPC8, BPC8,
 		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
-		true, 4, DPU_FORMAT_FLAG_DX,
+		true, 4, MSM_FORMAT_FLAG_DX,
 		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(RGBA1010102,
 		BPC8A, BPC8, BPC8, BPC8,
 		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
-		true, 4, DPU_FORMAT_FLAG_DX,
+		true, 4, MSM_FORMAT_FLAG_DX,
 		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(ABGR2101010,
 		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, DPU_FORMAT_FLAG_DX,
+		true, 4, MSM_FORMAT_FLAG_DX,
 		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(ARGB2101010,
 		BPC8A, BPC8, BPC8, BPC8,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
-		true, 4, DPU_FORMAT_FLAG_DX,
+		true, 4, MSM_FORMAT_FLAG_DX,
 		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(XRGB2101010,
 		BPC8A, BPC8, BPC8, BPC8,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, C3_ALPHA, 4,
-		false, 4, DPU_FORMAT_FLAG_DX,
+		false, 4, MSM_FORMAT_FLAG_DX,
 		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(BGRX1010102,
 		BPC8A, BPC8, BPC8, BPC8,
 		C3_ALPHA, C2_R_Cr, C0_G_Y, C1_B_Cb, 4,
-		false, 4, DPU_FORMAT_FLAG_DX,
+		false, 4, MSM_FORMAT_FLAG_DX,
 		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(XBGR2101010,
 		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		false, 4, DPU_FORMAT_FLAG_DX,
+		false, 4, MSM_FORMAT_FLAG_DX,
 		MDP_FETCH_LINEAR, 1),
 
 	INTERLEAVED_RGB_FMT(RGBX1010102,
 		BPC8A, BPC8, BPC8, BPC8,
 		C3_ALPHA, C1_B_Cb, C0_G_Y, C2_R_Cr, 4,
-		false, 4, DPU_FORMAT_FLAG_DX,
+		false, 4, MSM_FORMAT_FLAG_DX,
 		MDP_FETCH_LINEAR, 1),
 
 	PSEUDO_YUV_FMT(NV12,
 		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C2_R_Cr,
-		CHROMA_420, DPU_FORMAT_FLAG_YUV,
+		CHROMA_420, MSM_FORMAT_FLAG_YUV,
 		MDP_FETCH_LINEAR, 2),
 
 	PSEUDO_YUV_FMT(NV21,
 		0, BPC8, BPC8, BPC8,
 		C2_R_Cr, C1_B_Cb,
-		CHROMA_420, DPU_FORMAT_FLAG_YUV,
+		CHROMA_420, MSM_FORMAT_FLAG_YUV,
 		MDP_FETCH_LINEAR, 2),
 
 	PSEUDO_YUV_FMT(NV16,
 		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C2_R_Cr,
-		CHROMA_H2V1, DPU_FORMAT_FLAG_YUV,
+		CHROMA_H2V1, MSM_FORMAT_FLAG_YUV,
 		MDP_FETCH_LINEAR, 2),
 
 	PSEUDO_YUV_FMT(NV61,
 		0, BPC8, BPC8, BPC8,
 		C2_R_Cr, C1_B_Cb,
-		CHROMA_H2V1, DPU_FORMAT_FLAG_YUV,
+		CHROMA_H2V1, MSM_FORMAT_FLAG_YUV,
 		MDP_FETCH_LINEAR, 2),
 
 	PSEUDO_YUV_FMT_LOOSE(P010,
 		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C2_R_Cr,
-		CHROMA_420, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_YUV,
+		CHROMA_420, MSM_FORMAT_FLAG_DX | MSM_FORMAT_FLAG_YUV,
 		MDP_FETCH_LINEAR, 2),
 
 	INTERLEAVED_YUV_FMT(VYUY,
 		0, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C0_G_Y,
-		false, CHROMA_H2V1, 4, 2, DPU_FORMAT_FLAG_YUV,
+		false, CHROMA_H2V1, 4, 2, MSM_FORMAT_FLAG_YUV,
 		MDP_FETCH_LINEAR, 2),
 
 	INTERLEAVED_YUV_FMT(UYVY,
 		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C0_G_Y, C2_R_Cr, C0_G_Y,
-		false, CHROMA_H2V1, 4, 2, DPU_FORMAT_FLAG_YUV,
+		false, CHROMA_H2V1, 4, 2, MSM_FORMAT_FLAG_YUV,
 		MDP_FETCH_LINEAR, 2),
 
 	INTERLEAVED_YUV_FMT(YUYV,
 		0, BPC8, BPC8, BPC8,
 		C0_G_Y, C1_B_Cb, C0_G_Y, C2_R_Cr,
-		false, CHROMA_H2V1, 4, 2, DPU_FORMAT_FLAG_YUV,
+		false, CHROMA_H2V1, 4, 2, MSM_FORMAT_FLAG_YUV,
 		MDP_FETCH_LINEAR, 2),
 
 	INTERLEAVED_YUV_FMT(YVYU,
 		0, BPC8, BPC8, BPC8,
 		C0_G_Y, C2_R_Cr, C0_G_Y, C1_B_Cb,
-		false, CHROMA_H2V1, 4, 2, DPU_FORMAT_FLAG_YUV,
+		false, CHROMA_H2V1, 4, 2, MSM_FORMAT_FLAG_YUV,
 		MDP_FETCH_LINEAR, 2),
 
 	PLANAR_YUV_FMT(YUV420,
 		0, BPC8, BPC8, BPC8,
 		C2_R_Cr, C1_B_Cb, C0_G_Y,
-		false, CHROMA_420, 1, DPU_FORMAT_FLAG_YUV,
+		false, CHROMA_420, 1, MSM_FORMAT_FLAG_YUV,
 		MDP_FETCH_LINEAR, 3),
 
 	PLANAR_YUV_FMT(YVU420,
 		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C2_R_Cr, C0_G_Y,
-		false, CHROMA_420, 1, DPU_FORMAT_FLAG_YUV,
+		false, CHROMA_420, 1, MSM_FORMAT_FLAG_YUV,
 		MDP_FETCH_LINEAR, 3),
 };
 
@@ -487,13 +487,13 @@ static const struct dpu_format dpu_format_map_ubwc[] = {
 	INTERLEAVED_RGB_FMT_TILED(BGR565,
 		0, BPC5, BPC6, BPC5,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, 0, 3,
-		false, 2, DPU_FORMAT_FLAG_COMPRESSED,
+		false, 2, MSM_FORMAT_FLAG_COMPRESSED,
 		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	INTERLEAVED_RGB_FMT_TILED(ABGR8888,
 		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, DPU_FORMAT_FLAG_COMPRESSED,
+		true, 4, MSM_FORMAT_FLAG_COMPRESSED,
 		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	/* ARGB8888 and ABGR8888 purposely have the same color
@@ -503,37 +503,37 @@ static const struct dpu_format dpu_format_map_ubwc[] = {
 	INTERLEAVED_RGB_FMT_TILED(ARGB8888,
 		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, DPU_FORMAT_FLAG_COMPRESSED,
+		true, 4, MSM_FORMAT_FLAG_COMPRESSED,
 		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	INTERLEAVED_RGB_FMT_TILED(XBGR8888,
 		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		false, 4, DPU_FORMAT_FLAG_COMPRESSED,
+		false, 4, MSM_FORMAT_FLAG_COMPRESSED,
 		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	INTERLEAVED_RGB_FMT_TILED(XRGB8888,
 		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		false, 4, DPU_FORMAT_FLAG_COMPRESSED,
+		false, 4, MSM_FORMAT_FLAG_COMPRESSED,
 		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	INTERLEAVED_RGB_FMT_TILED(ABGR2101010,
 		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_COMPRESSED,
+		true, 4, MSM_FORMAT_FLAG_DX | MSM_FORMAT_FLAG_COMPRESSED,
 		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	INTERLEAVED_RGB_FMT_TILED(XBGR2101010,
 		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_COMPRESSED,
+		true, 4, MSM_FORMAT_FLAG_DX | MSM_FORMAT_FLAG_COMPRESSED,
 		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	INTERLEAVED_RGB_FMT_TILED(XRGB2101010,
 		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_COMPRESSED,
+		true, 4, MSM_FORMAT_FLAG_DX | MSM_FORMAT_FLAG_COMPRESSED,
 		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	/* XRGB2101010 and ARGB2101010 purposely have the same color
@@ -543,22 +543,22 @@ static const struct dpu_format dpu_format_map_ubwc[] = {
 	INTERLEAVED_RGB_FMT_TILED(ARGB2101010,
 		BPC8A, BPC8, BPC8, BPC8,
 		C2_R_Cr, C0_G_Y, C1_B_Cb, C3_ALPHA, 4,
-		true, 4, DPU_FORMAT_FLAG_DX | DPU_FORMAT_FLAG_COMPRESSED,
+		true, 4, MSM_FORMAT_FLAG_DX | MSM_FORMAT_FLAG_COMPRESSED,
 		MDP_FETCH_UBWC, 2, DPU_TILE_HEIGHT_UBWC),
 
 	PSEUDO_YUV_FMT_TILED(NV12,
 		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C2_R_Cr,
-		CHROMA_420, DPU_FORMAT_FLAG_YUV |
-				DPU_FORMAT_FLAG_COMPRESSED,
+		CHROMA_420, MSM_FORMAT_FLAG_YUV |
+				MSM_FORMAT_FLAG_COMPRESSED,
 		MDP_FETCH_UBWC, 4, DPU_TILE_HEIGHT_NV12),
 
 	PSEUDO_YUV_FMT_TILED(P010,
 		0, BPC8, BPC8, BPC8,
 		C1_B_Cb, C2_R_Cr,
-		CHROMA_420, DPU_FORMAT_FLAG_DX |
-				DPU_FORMAT_FLAG_YUV |
-				DPU_FORMAT_FLAG_COMPRESSED,
+		CHROMA_420, MSM_FORMAT_FLAG_DX |
+				MSM_FORMAT_FLAG_YUV |
+				MSM_FORMAT_FLAG_COMPRESSED,
 		MDP_FETCH_UBWC, 4, DPU_TILE_HEIGHT_UBWC),
 };
 

@@ -634,10 +634,10 @@ static uint32_t get_scale_config(const struct mdp_format *format,
 		uint32_t src, uint32_t dst, bool horz)
 {
 	const struct drm_format_info *info = drm_format_info(format->base.pixel_format);
-	bool scaling = format->is_yuv ? true : (src != dst);
+	bool yuv = MDP_FORMAT_IS_YUV(format);
+	bool scaling = yuv ? true : (src != dst);
 	uint32_t sub;
 	uint32_t ya_filter, uv_filter;
-	bool yuv = format->is_yuv;
 
 	if (!scaling)
 		return 0;
@@ -666,7 +666,7 @@ static void calc_pixel_ext(const struct mdp_format *format,
 		int pix_ext_edge1[COMP_MAX], int pix_ext_edge2[COMP_MAX],
 		bool horz)
 {
-	bool scaling = format->is_yuv ? true : (src != dst);
+	bool scaling = MDP_FORMAT_IS_YUV(format) ? true : (src != dst);
 	int i;
 
 	/*
@@ -696,7 +696,7 @@ static void mdp5_write_pixel_ext(struct mdp5_kms *mdp5_kms, enum mdp5_pipe pipe,
 		uint32_t roi_w = src_w;
 		uint32_t roi_h = src_h;
 
-		if (format->is_yuv && i == COMP_1_2) {
+		if (MDP_FORMAT_IS_YUV(format) && i == COMP_1_2) {
 			roi_w /= info->hsub;
 			roi_h /= info->vsub;
 		}

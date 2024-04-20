@@ -9,7 +9,8 @@
 #include <linux/err.h>
 
 #include "msm_drv.h"
-#include "mdp_common.xml.h"
+
+#include "disp/mdp_format.h"
 
 #define DPU_DBG_NAME			"dpu"
 
@@ -36,25 +37,11 @@
 #define DPU_MAX_DE_CURVES		3
 #endif
 
-enum dpu_format_flags {
-	DPU_FORMAT_FLAG_YUV_BIT,
-	DPU_FORMAT_FLAG_DX_BIT,
-	DPU_FORMAT_FLAG_COMPRESSED_BIT,
-};
-
-#define DPU_FORMAT_FLAG_YUV		BIT(DPU_FORMAT_FLAG_YUV_BIT)
-#define DPU_FORMAT_FLAG_DX		BIT(DPU_FORMAT_FLAG_DX_BIT)
-#define DPU_FORMAT_FLAG_COMPRESSED	BIT(DPU_FORMAT_FLAG_COMPRESSED_BIT)
-
-#define DPU_FORMAT_IS_YUV(X)		((X)->flags & DPU_FORMAT_FLAG_YUV)
-#define DPU_FORMAT_IS_DX(X)		((X)->flags & DPU_FORMAT_FLAG_DX)
-#define DPU_FORMAT_IS_LINEAR(X)		((X)->fetch_mode == MDP_FETCH_LINEAR)
-#define DPU_FORMAT_IS_TILE(X) \
-	(((X)->fetch_mode == MDP_FETCH_UBWC) && \
-	 !((X)->flags & DPU_FORMAT_FLAG_COMPRESSED))
-#define DPU_FORMAT_IS_UBWC(X) \
-	(((X)->fetch_mode == MDP_FETCH_UBWC) && \
-	 ((X)->flags & DPU_FORMAT_FLAG_COMPRESSED))
+#define DPU_FORMAT_IS_YUV(X)		MSM_FORMAT_IS_YUV(&(X)->base)
+#define DPU_FORMAT_IS_DX(X)		MSM_FORMAT_IS_DX(&(X)->base)
+#define DPU_FORMAT_IS_LINEAR(X)		MSM_FORMAT_IS_LINEAR(&(X)->base)
+#define DPU_FORMAT_IS_TILE(X)		MSM_FORMAT_IS_TILE(&(X)->base)
+#define DPU_FORMAT_IS_UBWC(X)		MSM_FORMAT_IS_UBWC(&(X)->base)
 
 #define DPU_BLEND_FG_ALPHA_FG_CONST	(0 << 0)
 #define DPU_BLEND_FG_ALPHA_BG_CONST	(1 << 0)
@@ -331,8 +318,6 @@ enum dpu_3d_blend_mode {
  * @bpp: bytes per pixel
  * @alpha_enable: whether the format has an alpha channel
  * @num_planes: number of planes (including meta data planes)
- * @fetch_mode: linear, tiled, or ubwc hw fetch behavior
- * @flags: usage bit flags
  * @tile_width: format tile width
  * @tile_height: format tile height
  */
@@ -348,8 +333,6 @@ struct dpu_format {
 	u8 bpp;
 	u8 alpha_enable;
 	u8 num_planes;
-	enum mdp_fetch_mode fetch_mode;
-	unsigned long flags;
 	u16 tile_width;
 	u16 tile_height;
 };

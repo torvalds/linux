@@ -294,14 +294,14 @@ static void _dpu_plane_set_qos_lut(struct drm_plane *plane,
 
 	trace_dpu_perf_set_danger_luts(pdpu->pipe - SSPP_VIG0,
 			(fmt) ? fmt->base.pixel_format : 0,
-			(fmt) ? fmt->fetch_mode : 0,
+			(fmt) ? fmt->base.fetch_mode : 0,
 			cfg.danger_lut,
 			cfg.safe_lut);
 
 	DPU_DEBUG_PLANE(pdpu, "pnum:%d fmt: %p4cc mode:%d luts[0x%x, 0x%x]\n",
 			pdpu->pipe - SSPP_VIG0,
 			fmt ? &fmt->base.pixel_format : NULL,
-			fmt ? fmt->fetch_mode : -1,
+			fmt ? fmt->base.fetch_mode : -1,
 			cfg.danger_lut,
 			cfg.safe_lut);
 

@@ -11,6 +11,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
+#include "mdp_format.h"
 #include "msm_drv.h"
 #include "msm_kms.h"
 #include "mdp_common.xml.h"
@@ -86,10 +87,9 @@ struct mdp_format {
 	uint8_t cpp, unpack_count;
 	enum mdp_fetch_type fetch_type;
 	enum mdp_chroma_samp_type chroma_sample;
-	bool is_yuv;
 };
 #define to_mdp_format(x) container_of(x, struct mdp_format, base)
-#define MDP_FORMAT_IS_YUV(mdp_format) ((mdp_format)->is_yuv)
+#define MDP_FORMAT_IS_YUV(mdp_format) (MSM_FORMAT_IS_YUV(&(mdp_format)->base))
 
 const struct msm_format *mdp_get_format(struct msm_kms *kms, uint32_t format, uint64_t modifier);
 

@@ -239,10 +239,6 @@ struct msm_drm_private {
 	bool disable_err_irq;
 };
 
-struct msm_format {
-	uint32_t pixel_format;
-};
-
 struct msm_pending_timer;
 
 int msm_atomic_init_pending_timer(struct msm_pending_timer *timer,
