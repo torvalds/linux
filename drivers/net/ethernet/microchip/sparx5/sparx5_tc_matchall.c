@@ -36,6 +36,13 @@ static void sparx5_tc_matchall_parse_action(struct sparx5_port *port,
 	entry->cookie = cookie;
 }
 
+static void
+sparx5_tc_matchall_parse_mirror_action(struct sparx5_mall_entry *entry,
+				       struct flow_action_entry *action)
+{
+	entry->mirror.port = netdev_priv(action->dev);
+}
+
 static int sparx5_tc_matchall_replace(struct net_device *ndev,
 				      struct tc_cls_matchall_offload *tmo,
 				      bool ingress)
@@ -65,6 +72,31 @@ static int sparx5_tc_matchall_replace(struct net_device *ndev,
 
 	sparx5 = port->sparx5;
 	switch (action->id) {
+	case FLOW_ACTION_MIRRED:
+		sparx5_tc_matchall_parse_mirror_action(mall_entry, action);
+		err = sparx5_mirror_add(mall_entry);
+		if (err) {
+			switch (err) {
+			case -EEXIST:
+				NL_SET_ERR_MSG_MOD(tmo->common.extack,
+						   "Mirroring already exists");
+				break;
+			case -EINVAL:
+				NL_SET_ERR_MSG_MOD(tmo->common.extack,
+						   "Cannot mirror a monitor port");
+				break;
+			case -ENOENT:
+				NL_SET_ERR_MSG_MOD(tmo->common.extack,
+						   "No more mirror probes available");
+				break;
+			default:
+				NL_SET_ERR_MSG_MOD(tmo->common.extack,
+						   "Unknown error");
+				break;
+			}
+			return err;
+		}
+		break;
 	case FLOW_ACTION_GOTO:
 		err = vcap_enable_lookups(sparx5->vcap_ctrl, ndev,
 					  tmo->common.chain_index,
@@ -108,14 +140,16 @@ static int sparx5_tc_matchall_destroy(struct net_device *ndev,
 	struct sparx5_port *port = netdev_priv(ndev);
 	struct sparx5 *sparx5 = port->sparx5;
 	struct sparx5_mall_entry *entry;
-	int err;
+	int err = 0;
 
 	entry = sparx5_tc_matchall_entry_find(&sparx5->mall_entries,
 					      tmo->cookie);
 	if (!entry)
 		return -ENOENT;
 
-	if (entry->type == FLOW_ACTION_GOTO) {
+	if (entry->type == FLOW_ACTION_MIRRED) {
+		sparx5_mirror_del(entry);
+	} else if (entry->type == FLOW_ACTION_GOTO) {
 		err = vcap_enable_lookups(sparx5->vcap_ctrl, ndev,
 					  0, 0, tmo->cookie, false);
 	} else {
