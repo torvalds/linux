@@ -18,8 +18,7 @@ def test_v6(cfg) -> None:
 
 def main() -> None:
     with NetDrvEpEnv(__file__) as cfg:
-        ksft_run([test_v4, test_v6],
-                 args=(cfg, ))
+        ksft_run(globs=globals(), case_pfx={"test_"}, args=(cfg, ))
     ksft_exit()
 
 
