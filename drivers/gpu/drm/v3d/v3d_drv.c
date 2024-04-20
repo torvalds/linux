@@ -115,14 +115,12 @@ v3d_open(struct drm_device *dev, struct drm_file *file)
 	v3d_priv->v3d = v3d;
 
 	for (i = 0; i < V3D_MAX_QUEUES; i++) {
-		v3d_priv->enabled_ns[i] = 0;
-		v3d_priv->start_ns[i] = 0;
-		v3d_priv->jobs_sent[i] = 0;
-
 		sched = &v3d->queue[i].sched;
 		drm_sched_entity_init(&v3d_priv->sched_entity[i],
 				      DRM_SCHED_PRIORITY_NORMAL, &sched,
 				      1, NULL);
+
+		memset(&v3d_priv->stats[i], 0, sizeof(v3d_priv->stats[i]));
 	}
 
 	v3d_perfmon_open_file(v3d_priv);
@@ -151,20 +149,21 @@ static void v3d_show_fdinfo(struct drm_printer *p, struct drm_file *file)
 	enum v3d_queue queue;
 
 	for (queue = 0; queue < V3D_MAX_QUEUES; queue++) {
+		struct v3d_stats *stats = &file_priv->stats[queue];
+
 		/* Note that, in case of a GPU reset, the time spent during an
 		 * attempt of executing the job is not computed in the runtime.
 		 */
 		drm_printf(p, "drm-engine-%s: \t%llu ns\n",
 			   v3d_queue_to_string(queue),
-			   file_priv->start_ns[queue] ? file_priv->enabled_ns[queue]
-						      + timestamp - file_priv->start_ns[queue]
-						      : file_priv->enabled_ns[queue]);
+			   stats->start_ns ? stats->enabled_ns + timestamp - stats->start_ns
+					   : stats->enabled_ns);
 
 		/* Note that we only count jobs that completed. Therefore, jobs
 		 * that were resubmitted due to a GPU reset are not computed.
 		 */
 		drm_printf(p, "v3d-jobs-%s: \t%llu jobs\n",
-			   v3d_queue_to_string(queue), file_priv->jobs_sent[queue]);
+			   v3d_queue_to_string(queue), stats->jobs_completed);
 	}
 }
 

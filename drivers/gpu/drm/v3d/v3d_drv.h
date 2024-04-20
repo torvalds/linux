@@ -36,15 +36,20 @@ static inline char *v3d_queue_to_string(enum v3d_queue queue)
 	return "UNKNOWN";
 }
 
+struct v3d_stats {
+	u64 start_ns;
+	u64 enabled_ns;
+	u64 jobs_completed;
+};
+
 struct v3d_queue_state {
 	struct drm_gpu_scheduler sched;
 
 	u64 fence_context;
 	u64 emit_seqno;
 
-	u64 start_ns;
-	u64 enabled_ns;
-	u64 jobs_sent;
+	/* Stores the GPU stats for this queue in the global context. */
+	struct v3d_stats stats;
 };
 
 /* Performance monitor object. The perform lifetime is controlled by userspace
@@ -188,11 +193,8 @@ struct v3d_file_priv {
 
 	struct drm_sched_entity sched_entity[V3D_MAX_QUEUES];
 
-	u64 start_ns[V3D_MAX_QUEUES];
-
-	u64 enabled_ns[V3D_MAX_QUEUES];
-
-	u64 jobs_sent[V3D_MAX_QUEUES];
+	/* Stores the GPU stats for a specific queue for this fd. */
+	struct v3d_stats stats[V3D_MAX_QUEUES];
 };
 
 struct v3d_bo {

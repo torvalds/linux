@@ -110,10 +110,12 @@ v3d_job_start_stats(struct v3d_job *job, enum v3d_queue queue)
 {
 	struct v3d_dev *v3d = job->v3d;
 	struct v3d_file_priv *file = job->file->driver_priv;
+	struct v3d_stats *global_stats = &v3d->queue[queue].stats;
+	struct v3d_stats *local_stats = &file->stats[queue];
 	u64 now = local_clock();
 
-	file->start_ns[queue] = now;
-	v3d->queue[queue].start_ns = now;
+	local_stats->start_ns = now;
+	global_stats->start_ns = now;
 }
 
 void
@@ -121,15 +123,17 @@ v3d_job_update_stats(struct v3d_job *job, enum v3d_queue queue)
 {
 	struct v3d_dev *v3d = job->v3d;
 	struct v3d_file_priv *file = job->file->driver_priv;
+	struct v3d_stats *global_stats = &v3d->queue[queue].stats;
+	struct v3d_stats *local_stats = &file->stats[queue];
 	u64 now = local_clock();
 
-	file->enabled_ns[queue] += now - file->start_ns[queue];
-	file->jobs_sent[queue]++;
-	file->start_ns[queue] = 0;
+	local_stats->enabled_ns += now - local_stats->start_ns;
+	local_stats->jobs_completed++;
+	local_stats->start_ns = 0;
 
-	v3d->queue[queue].enabled_ns += now - v3d->queue[queue].start_ns;
-	v3d->queue[queue].jobs_sent++;
-	v3d->queue[queue].start_ns = 0;
+	global_stats->enabled_ns += now - global_stats->start_ns;
+	global_stats->jobs_completed++;
+	global_stats->start_ns = 0;
 }
 
 static struct dma_fence *v3d_bin_job_run(struct drm_sched_job *sched_job)
