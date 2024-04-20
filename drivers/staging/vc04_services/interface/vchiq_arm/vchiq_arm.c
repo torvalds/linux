@@ -257,7 +257,7 @@ create_pagelist(struct vchiq_instance *instance, char *buf, char __user *ubuf,
 	if (count >= INT_MAX - PAGE_SIZE)
 		return NULL;
 
-	drv_mgmt = dev_get_drvdata(instance->state->dev->parent);
+	drv_mgmt = dev_get_drvdata(instance->state->dev);
 
 	if (buf)
 		offset = (uintptr_t)buf & (PAGE_SIZE - 1);
@@ -436,7 +436,7 @@ free_pagelist(struct vchiq_instance *instance, struct vchiq_pagelist_info *pagel
 
 	dev_dbg(instance->state->dev, "arm: %pK, %d\n", pagelistinfo->pagelist, actual);
 
-	drv_mgmt = dev_get_drvdata(instance->state->dev->parent);
+	drv_mgmt = dev_get_drvdata(instance->state->dev);
 
 	/*
 	 * NOTE: dma_unmap_sg must be called before the
