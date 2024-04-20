@@ -96,6 +96,8 @@ static int sparx5_tc_matchall_replace(struct net_device *ndev,
 			}
 			return err;
 		}
+		/* Get baseline stats for this port */
+		sparx5_mirror_stats(mall_entry, &tmo->stats);
 		break;
 	case FLOW_ACTION_GOTO:
 		err = vcap_enable_lookups(sparx5->vcap_ctrl, ndev,
@@ -162,6 +164,29 @@ static int sparx5_tc_matchall_destroy(struct net_device *ndev,
 	return err;
 }
 
+static int sparx5_tc_matchall_stats(struct net_device *ndev,
+				    struct tc_cls_matchall_offload *tmo,
+				    bool ingress)
+{
+	struct sparx5_port *port = netdev_priv(ndev);
+	struct sparx5 *sparx5 = port->sparx5;
+	struct sparx5_mall_entry *entry;
+
+	entry = sparx5_tc_matchall_entry_find(&sparx5->mall_entries,
+					      tmo->cookie);
+	if (!entry)
+		return -ENOENT;
+
+	if (entry->type == FLOW_ACTION_MIRRED) {
+		sparx5_mirror_stats(entry, &tmo->stats);
+	} else {
+		NL_SET_ERR_MSG_MOD(tmo->common.extack, "Unsupported action");
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
 int sparx5_tc_matchall(struct net_device *ndev,
 		       struct tc_cls_matchall_offload *tmo,
 		       bool ingress)
@@ -171,6 +196,8 @@ int sparx5_tc_matchall(struct net_device *ndev,
 		return sparx5_tc_matchall_replace(ndev, tmo, ingress);
 	case TC_CLSMATCHALL_DESTROY:
 		return sparx5_tc_matchall_destroy(ndev, tmo, ingress);
+	case TC_CLSMATCHALL_STATS:
+		return sparx5_tc_matchall_stats(ndev, tmo, ingress);
 	default:
 		return -EOPNOTSUPP;
 	}

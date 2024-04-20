@@ -196,3 +196,40 @@ void sparx5_mirror_del(struct sparx5_mall_entry *entry)
 				  mirror_idx,
 				  SPX5_MIRROR_MONITOR_PORT_DEFAULT);
 }
+
+void sparx5_mirror_stats(struct sparx5_mall_entry *entry,
+			 struct flow_stats *fstats)
+{
+	struct sparx5_port *port = entry->port;
+	struct rtnl_link_stats64 new_stats;
+	struct flow_stats *old_stats;
+
+	old_stats = &entry->port->mirror_stats;
+	sparx5_get_stats64(port->ndev, &new_stats);
+
+	if (entry->ingress) {
+		flow_stats_update(fstats,
+				  new_stats.rx_bytes - old_stats->bytes,
+				  new_stats.rx_packets - old_stats->pkts,
+				  new_stats.rx_dropped - old_stats->drops,
+				  old_stats->lastused,
+				  FLOW_ACTION_HW_STATS_IMMEDIATE);
+
+		old_stats->bytes = new_stats.rx_bytes;
+		old_stats->pkts = new_stats.rx_packets;
+		old_stats->drops = new_stats.rx_dropped;
+		old_stats->lastused = jiffies;
+	} else {
+		flow_stats_update(fstats,
+				  new_stats.tx_bytes - old_stats->bytes,
+				  new_stats.tx_packets - old_stats->pkts,
+				  new_stats.tx_dropped - old_stats->drops,
+				  old_stats->lastused,
+				  FLOW_ACTION_HW_STATS_IMMEDIATE);
+
+		old_stats->bytes = new_stats.tx_bytes;
+		old_stats->pkts = new_stats.tx_packets;
+		old_stats->drops = new_stats.tx_dropped;
+		old_stats->lastused = jiffies;
+	}
+}
