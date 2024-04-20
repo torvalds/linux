@@ -208,21 +208,10 @@ static int cxl_pmu_parse_caps(struct device *dev, struct cxl_pmu_info *info)
 	return 0;
 }
 
-static ssize_t cxl_pmu_format_sysfs_show(struct device *dev,
-					 struct device_attribute *attr, char *buf)
-{
-	struct dev_ext_attribute *eattr;
-
-	eattr = container_of(attr, struct dev_ext_attribute, attr);
-
-	return sysfs_emit(buf, "%s\n", (char *)eattr->var);
-}
-
 #define CXL_PMU_FORMAT_ATTR(_name, _format)\
 	(&((struct dev_ext_attribute[]) {					\
 		{								\
-			.attr = __ATTR(_name, 0444,				\
-				       cxl_pmu_format_sysfs_show, NULL),	\
+			.attr = __ATTR(_name, 0444, device_show_string, NULL),	\
 			.var = (void *)_format					\
 		}								\
 		})[0].attr.attr)
