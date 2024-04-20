@@ -52,6 +52,7 @@ struct {
 static int test_elem_callback(void *map, int *key)
 {
 	struct elem init = {}, *val;
+	struct bpf_wq *wq;
 
 	if (map == &lru &&
 	    bpf_map_update_elem(map, key, &init, 0))
@@ -61,12 +62,17 @@ static int test_elem_callback(void *map, int *key)
 	if (!val)
 		return -2;
 
+	wq = &val->w;
+	if (bpf_wq_init(wq, map, 0) != 0)
+		return -3;
+
 	return 0;
 }
 
 static int test_hmap_elem_callback(void *map, int *key)
 {
 	struct hmap_elem init = {}, *val;
+	struct bpf_wq *wq;
 
 	if (bpf_map_update_elem(map, key, &init, 0))
 		return -1;
@@ -74,6 +80,10 @@ static int test_hmap_elem_callback(void *map, int *key)
 	val = bpf_map_lookup_elem(map, key);
 	if (!val)
 		return -2;
+
+	wq = &val->work;
+	if (bpf_wq_init(wq, map, 0) != 0)
+		return -3;
 
 	return 0;
 }
