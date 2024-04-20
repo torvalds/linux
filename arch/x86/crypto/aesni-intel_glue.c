@@ -935,16 +935,13 @@ xts_crypt_slowpath(struct skcipher_request *req, xts_crypt_func crypt_func)
 	err = skcipher_walk_virt(&walk, req, false);
 
 	while (walk.nbytes) {
-		unsigned int nbytes = walk.nbytes;
-
-		if (nbytes < walk.total)
-			nbytes = round_down(nbytes, AES_BLOCK_SIZE);
-
 		kernel_fpu_begin();
-		(*crypt_func)(&ctx->crypt_ctx, walk.src.virt.addr,
-			      walk.dst.virt.addr, nbytes, req->iv);
+		(*crypt_func)(&ctx->crypt_ctx,
+			      walk.src.virt.addr, walk.dst.virt.addr,
+			      walk.nbytes & ~(AES_BLOCK_SIZE - 1), req->iv);
 		kernel_fpu_end();
-		err = skcipher_walk_done(&walk, walk.nbytes - nbytes);
+		err = skcipher_walk_done(&walk,
+					 walk.nbytes & (AES_BLOCK_SIZE - 1));
 	}
 
 	if (err || !tail)
