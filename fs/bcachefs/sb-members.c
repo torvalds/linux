@@ -234,6 +234,14 @@ static void member_to_text(struct printbuf *out,
 		prt_printf(out, "(none)");
 	prt_newline(out);
 
+	prt_printf(out, "Btree allocated bitmap blocksize:\t");
+	prt_units_u64(out, 1ULL << m.btree_bitmap_shift);
+	prt_newline(out);
+
+	prt_printf(out, "Btree allocated bitmap:\t");
+	bch2_prt_u64_base2_nbits(out, le64_to_cpu(m.btree_allocated_bitmap), 64);
+	prt_newline(out);
+
 	prt_printf(out, "Durability:\t%llu\n", BCH_MEMBER_DURABILITY(&m) ? BCH_MEMBER_DURABILITY(&m) - 1 : 1);
 
 	prt_printf(out, "Discard:\t%llu\n", BCH_MEMBER_DISCARD(&m));
