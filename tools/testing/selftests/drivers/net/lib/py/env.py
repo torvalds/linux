@@ -110,6 +110,11 @@ class NetDrvEpEnv:
         self.addr = self.v6 if self.v6 else self.v4
         self.remote_addr = self.remote_v6 if self.remote_v6 else self.remote_v4
 
+        self.addr_ipver = "6" if self.v6 else "4"
+        # Bracketed addresses, some commands need IPv6 to be inside []
+        self.baddr = f"[{self.v6}]" if self.v6 else self.v4
+        self.remote_baddr = f"[{self.remote_v6}]" if self.remote_v6 else self.remote_v4
+
         self.ifname = self.dev['ifname']
         self.ifindex = self.dev['ifindex']
 

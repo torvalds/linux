@@ -1,7 +1,11 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import json as _json
+import random
+import re
 import subprocess
+import time
+
 
 class cmd:
     def __init__(self, comm, shell=True, fail=True, ns=None, background=False, host=None):
@@ -38,6 +42,20 @@ class cmd:
                             (self.proc.args, stdout, stderr))
 
 
+class bkg(cmd):
+    def __init__(self, comm, shell=True, fail=True, ns=None, host=None,
+                 exit_wait=False):
+        super().__init__(comm, background=True,
+                         shell=shell, fail=fail, ns=ns, host=host)
+        self.terminate = not exit_wait
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, ex_type, ex_value, ex_tb):
+        return self.process(terminate=self.terminate)
+
+
 def ip(args, json=None, ns=None, host=None):
     cmd_str = "ip "
     if json:
@@ -47,3 +65,28 @@ def ip(args, json=None, ns=None, host=None):
     if json:
         return _json.loads(cmd_obj.stdout)
     return cmd_obj
+
+
+def rand_port():
+    """
+    Get unprivileged port, for now just random, one day we may decide to check if used.
+    """
+    return random.randint(1024, 65535)
+
+
+def wait_port_listen(port, proto="tcp", ns=None, host=None, sleep=0.005, deadline=5):
+    end = time.monotonic() + deadline
+
+    pattern = f":{port:04X} .* "
+    if proto == "tcp": # for tcp protocol additionally check the socket state
+        pattern += "0A"
+    pattern = re.compile(pattern)
+
+    while True:
+        data = cmd(f'cat /proc/net/{proto}*', ns=ns, host=host, shell=True).stdout
+        for row in data.split("\n"):
+            if pattern.search(row):
+                return
+        if time.monotonic() > end:
+            raise Exception("Waiting for port listen timed out")
+        time.sleep(sleep)
