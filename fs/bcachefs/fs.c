@@ -213,19 +213,43 @@ static struct bch_inode_info *bch2_inode_insert(struct bch_fs *c, struct bch_ino
 	_ret;									\
 })
 
+static struct inode *bch2_alloc_inode(struct super_block *sb)
+{
+	BUG();
+}
+
+static struct bch_inode_info *__bch2_new_inode(struct bch_fs *c)
+{
+	struct bch_inode_info *inode = kmem_cache_alloc(bch2_inode_cache, GFP_NOFS);
+	if (!inode)
+		return NULL;
+
+	inode_init_once(&inode->v);
+	mutex_init(&inode->ei_update_lock);
+	two_state_lock_init(&inode->ei_pagecache_lock);
+	INIT_LIST_HEAD(&inode->ei_vfs_inode_list);
+	mutex_init(&inode->ei_quota_lock);
+	inode->v.i_state = 0;
+
+	if (unlikely(inode_init_always(c->vfs_sb, &inode->v))) {
+		kmem_cache_free(bch2_inode_cache, inode);
+		return NULL;
+	}
+
+	return inode;
+}
+
 /*
  * Allocate a new inode, dropping/retaking btree locks if necessary:
  */
 static struct bch_inode_info *bch2_new_inode(struct btree_trans *trans)
 {
-	struct bch_fs *c = trans->c;
-
 	struct bch_inode_info *inode =
 		memalloc_flags_do(PF_MEMALLOC_NORECLAIM|PF_MEMALLOC_NOWARN,
-				  to_bch_ei(new_inode(c->vfs_sb)));
+				  __bch2_new_inode(trans->c));
 
 	if (unlikely(!inode)) {
-		int ret = drop_locks_do(trans, (inode = to_bch_ei(new_inode(c->vfs_sb))) ? 0 : -ENOMEM);
+		int ret = drop_locks_do(trans, (inode = __bch2_new_inode(trans->c)) ? 0 : -ENOMEM);
 		if (ret && inode) {
 			__destroy_inode(&inode->v);
 			kmem_cache_free(bch2_inode_cache, inode);
@@ -290,7 +314,7 @@ __bch2_create(struct mnt_idmap *idmap,
 	if (ret)
 		return ERR_PTR(ret);
 #endif
-	inode = to_bch_ei(new_inode(c->vfs_sb));
+	inode = __bch2_new_inode(c);
 	if (unlikely(!inode)) {
 		inode = ERR_PTR(-ENOMEM);
 		goto err;
@@ -1485,23 +1509,6 @@ static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
 	}
 
 	mapping_set_large_folios(inode->v.i_mapping);
-}
-
-static struct inode *bch2_alloc_inode(struct super_block *sb)
-{
-	struct bch_inode_info *inode;
-
-	inode = kmem_cache_alloc(bch2_inode_cache, GFP_NOFS);
-	if (!inode)
-		return NULL;
-
-	inode_init_once(&inode->v);
-	mutex_init(&inode->ei_update_lock);
-	two_state_lock_init(&inode->ei_pagecache_lock);
-	INIT_LIST_HEAD(&inode->ei_vfs_inode_list);
-	mutex_init(&inode->ei_quota_lock);
-
-	return &inode->v;
 }
 
 static void bch2_i_callback(struct rcu_head *head)
