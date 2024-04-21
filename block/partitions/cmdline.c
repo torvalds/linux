@@ -70,8 +70,8 @@ static int parse_subpart(struct cmdline_subpart **subpart, char *partdef)
 	}
 
 	if (*partdef == '(') {
-		int length;
-		char *next = strchr(++partdef, ')');
+		partdef++;
+		char *next = strsep(&partdef, ")");
 
 		if (!next) {
 			pr_warn("cmdline partition format is invalid.");
@@ -79,11 +79,7 @@ static int parse_subpart(struct cmdline_subpart **subpart, char *partdef)
 			goto fail;
 		}
 
-		length = min_t(int, next - partdef,
-			       sizeof(new_subpart->name) - 1);
-		strscpy(new_subpart->name, partdef, length);
-
-		partdef = ++next;
+		strscpy(new_subpart->name, next, sizeof(new_subpart->name));
 	} else
 		new_subpart->name[0] = '\0';
 
@@ -117,14 +113,12 @@ static void free_subpart(struct cmdline_parts *parts)
 	}
 }
 
-static int parse_parts(struct cmdline_parts **parts, const char *bdevdef)
+static int parse_parts(struct cmdline_parts **parts, char *bdevdef)
 {
 	int ret = -EINVAL;
 	char *next;
-	int length;
 	struct cmdline_subpart **next_subpart;
 	struct cmdline_parts *newparts;
-	char buf[BDEVNAME_SIZE + 32 + 4];
 
 	*parts = NULL;
 
@@ -132,28 +126,19 @@ static int parse_parts(struct cmdline_parts **parts, const char *bdevdef)
 	if (!newparts)
 		return -ENOMEM;
 
-	next = strchr(bdevdef, ':');
+	next = strsep(&bdevdef, ":");
 	if (!next) {
 		pr_warn("cmdline partition has no block device.");
 		goto fail;
 	}
 
-	length = min_t(int, next - bdevdef, sizeof(newparts->name) - 1);
-	strscpy(newparts->name, bdevdef, length);
+	strscpy(newparts->name, next, sizeof(newparts->name));
 	newparts->nr_subparts = 0;
 
 	next_subpart = &newparts->subpart;
 
-	while (next && *(++next)) {
-		bdevdef = next;
-		next = strchr(bdevdef, ',');
-
-		length = (!next) ? (sizeof(buf) - 1) :
-			min_t(int, next - bdevdef, sizeof(buf) - 1);
-
-		strscpy(buf, bdevdef, length);
-
-		ret = parse_subpart(next_subpart, buf);
+	while ((next = strsep(&bdevdef, ","))) {
+		ret = parse_subpart(next_subpart, next);
 		if (ret)
 			goto fail;
 
@@ -199,23 +184,16 @@ static int cmdline_parts_parse(struct cmdline_parts **parts,
 
 	*parts = NULL;
 
-	next = pbuf = buf = kstrdup(cmdline, GFP_KERNEL);
+	pbuf = buf = kstrdup(cmdline, GFP_KERNEL);
 	if (!buf)
 		return -ENOMEM;
 
 	next_parts = parts;
 
-	while (next && *pbuf) {
-		next = strchr(pbuf, ';');
-		if (next)
-			*next = '\0';
-
-		ret = parse_parts(next_parts, pbuf);
+	while ((next = strsep(&pbuf, ";"))) {
+		ret = parse_parts(next_parts, next);
 		if (ret)
 			goto fail;
-
-		if (next)
-			pbuf = ++next;
 
 		next_parts = &(*next_parts)->next_parts;
 	}
@@ -250,7 +228,6 @@ static struct cmdline_parts *bdev_parts;
 static int add_part(int slot, struct cmdline_subpart *subpart,
 		struct parsed_partitions *state)
 {
-	int label_min;
 	struct partition_meta_info *info;
 	char tmp[sizeof(info->volname) + 4];
 
@@ -262,9 +239,7 @@ static int add_part(int slot, struct cmdline_subpart *subpart,
 
 	info = &state->parts[slot].info;
 
-	label_min = min_t(int, sizeof(info->volname) - 1,
-			  sizeof(subpart->name));
-	strscpy(info->volname, subpart->name, label_min);
+	strscpy(info->volname, subpart->name, sizeof(info->volname));
 
 	snprintf(tmp, sizeof(tmp), "(%s)", info->volname);
 	strlcat(state->pp_buf, tmp, PAGE_SIZE);
