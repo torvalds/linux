@@ -497,9 +497,8 @@ static int conf_choice(struct menu *menu)
 				printf("%*c", indent, '>');
 			} else
 				printf("%*c", indent, ' ');
-			printf(" %d. %s", cnt, menu_get_prompt(child));
-			if (child->sym->name)
-				printf(" (%s)", child->sym->name);
+			printf(" %d. %s (%s)", cnt, menu_get_prompt(child),
+			       child->sym->name);
 			if (!sym_has_value(child->sym))
 				printf(" (NEW)");
 			printf("\n");
