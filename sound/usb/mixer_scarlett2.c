@@ -3685,7 +3685,7 @@ static int scarlett2_ag_target_ctl_get(
 	struct usb_mixer_elem_info *elem = kctl->private_data;
 	struct usb_mixer_interface *mixer = elem->head.mixer;
 	struct scarlett2_data *private = mixer->private_data;
-	int err;
+	int err = 0;
 
 	mutex_lock(&private->data_mutex);
 
