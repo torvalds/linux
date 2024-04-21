@@ -878,6 +878,9 @@ use_clean:
 		write_sb = true;
 	}
 
+	if (bch2_blacklist_entries_gc(c))
+		write_sb = true;
+
 	if (write_sb)
 		bch2_write_super(c);
 	mutex_unlock(&c->sb_lock);
@@ -899,10 +902,6 @@ use_clean:
 			goto err;
 		bch_info(c, "scanning for old btree nodes done");
 	}
-
-	if (c->journal_seq_blacklist_table &&
-	    c->journal_seq_blacklist_table->nr > 128)
-		queue_work(system_long_wq, &c->journal_seq_blacklist_gc_work);
 
 	ret = 0;
 out:

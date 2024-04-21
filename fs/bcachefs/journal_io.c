@@ -122,6 +122,10 @@ static int journal_entry_add(struct bch_fs *c, struct bch_dev *ca,
 	struct printbuf buf = PRINTBUF;
 	int ret = JOURNAL_ENTRY_ADD_OK;
 
+	if (!c->journal.oldest_seq_found_ondisk ||
+	    le64_to_cpu(j->seq) < c->journal.oldest_seq_found_ondisk)
+		c->journal.oldest_seq_found_ondisk = le64_to_cpu(j->seq);
+
 	/* Is this entry older than the range we need? */
 	if (!c->opts.read_entire_journal &&
 	    le64_to_cpu(j->seq) < jlist->last_seq)

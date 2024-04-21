@@ -611,8 +611,6 @@ void __bch2_fs_stop(struct bch_fs *c)
 
 	set_bit(BCH_FS_stopping, &c->flags);
 
-	cancel_work_sync(&c->journal_seq_blacklist_gc_work);
-
 	down_write(&c->state_lock);
 	bch2_fs_read_only(c);
 	up_write(&c->state_lock);
@@ -795,9 +793,6 @@ static struct bch_fs *bch2_fs_alloc(struct bch_sb *sb, struct bch_opts opts)
 	init_rwsem(&c->snapshot_create_lock);
 
 	spin_lock_init(&c->btree_write_error_lock);
-
-	INIT_WORK(&c->journal_seq_blacklist_gc_work,
-		  bch2_blacklist_entries_gc);
 
 	INIT_LIST_HEAD(&c->journal_iters);
 

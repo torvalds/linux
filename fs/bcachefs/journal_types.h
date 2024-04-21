@@ -229,6 +229,7 @@ struct journal {
 	u64			last_seq_ondisk;
 	u64			err_seq;
 	u64			last_empty_seq;
+	u64			oldest_seq_found_ondisk;
 
 	/*
 	 * FIFO of journal entries whose btree updates have not yet been

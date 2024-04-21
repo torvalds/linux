@@ -930,7 +930,6 @@ struct bch_fs {
 	/* JOURNAL SEQ BLACKLIST */
 	struct journal_seq_blacklist_table *
 				journal_seq_blacklist_table;
-	struct work_struct	journal_seq_blacklist_gc_work;
 
 	/* ALLOCATOR */
 	spinlock_t		freelist_lock;
