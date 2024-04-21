@@ -517,20 +517,9 @@ void conf_parse(const char *name)
 
 	menu_finalize();
 
-	menu = &rootmenu;
-	while (menu) {
+	menu_for_each_entry(menu) {
 		if (menu->sym && sym_check_deps(menu->sym))
 			yynerrs++;
-
-		if (menu->list) {
-			menu = menu->list;
-			continue;
-		}
-
-		while (!menu->next && menu->parent)
-			menu = menu->parent;
-
-		menu = menu->next;
 	}
 
 	if (yynerrs)
