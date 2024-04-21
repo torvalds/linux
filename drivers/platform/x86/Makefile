@@ -78,6 +78,7 @@ obj-$(CONFIG_ACPI_QUICKSTART)  += quickstart.o
 obj-$(CONFIG_MSI_EC)		+= msi-ec.o
 obj-$(CONFIG_MSI_LAPTOP)	+= msi-laptop.o
 obj-$(CONFIG_MSI_WMI)		+= msi-wmi.o
+obj-$(CONFIG_MSI_WMI_PLATFORM)	+= msi-wmi-platform.o
 
 # OLPC
 obj-$(CONFIG_XO15_EBOOK)	+= xo15-ebook.o
