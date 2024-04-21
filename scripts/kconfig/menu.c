@@ -17,6 +17,27 @@ static const char nohelp_text[] = "There is no help available for this option.";
 struct menu rootmenu;
 static struct menu **last_entry_ptr;
 
+/**
+ * menu_next - return the next menu entry with depth-first traversal
+ * @menu: pointer to the current menu
+ * @root: root of the sub-tree to traverse. If NULL is given, the traveral
+ *        continues until it reaches the end of the entire menu tree.
+ * return: the menu to visit next, or NULL when it reaches the end.
+ */
+struct menu *menu_next(struct menu *menu, struct menu *root)
+{
+	if (menu->list)
+		return menu->list;
+
+	while (menu != root && !menu->next)
+		menu = menu->parent;
+
+	if (menu == root)
+		return NULL;
+
+	return menu->next;
+}
+
 void menu_warn(struct menu *menu, const char *fmt, ...)
 {
 	va_list ap;
