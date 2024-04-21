@@ -529,6 +529,16 @@ static irqreturn_t qmp_irq_handler(int irq, void *priv)
 {
 	struct qmp_device *mdev = (struct qmp_device *)priv;
 
+	/* QMP comes very early in cold boot, so there is
+	 * a chance to miss the interrupt from remote qmp.
+	 * In case of hibernate, early interrupt corrupts the
+	 * QMP state machine and endup with invalid values.
+	 * By ignore the first interrupt after hibernate exit
+	 * this can be avoided.
+	 */
+	if (mdev->hibernate_entry && mdev->early_boot)
+		return IRQ_NONE;
+
 	if (mdev->rx_reset_reg)
 		writel_relaxed(mdev->irq_mask, mdev->rx_reset_reg);
 
