@@ -26,6 +26,7 @@
 #include "xfs_trace.h"
 #include "xfs_attr_item.h"
 #include "xfs_xattr.h"
+#include "xfs_parent.h"
 
 struct kmem_cache		*xfs_attr_intent_cache;
 
@@ -1567,6 +1568,10 @@ xfs_attr_namecheck(
 	 */
 	if (length >= MAXNAMELEN)
 		return false;
+
+	/* Parent pointers have their own validation. */
+	if (attr_flags & XFS_ATTR_PARENT)
+		return xfs_parent_namecheck(attr_flags, name, length);
 
 	/* There shouldn't be any nulls here */
 	return !memchr(name, 0, length);

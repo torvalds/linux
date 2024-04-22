@@ -27,6 +27,7 @@
 #include "xfs_error.h"
 #include "xfs_log_priv.h"
 #include "xfs_log_recover.h"
+#include "xfs_parent.h"
 
 struct kmem_cache		*xfs_attri_cache;
 struct kmem_cache		*xfs_attrd_cache;
@@ -970,6 +971,15 @@ xfs_attri_validate_value_iovec(
 	if (iovec->i_len != xlog_calc_iovec_len(value_len)) {
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
 				attri_formatp, sizeof(*attri_formatp));
+		return NULL;
+	}
+
+	if ((attri_formatp->alfi_attr_filter & XFS_ATTR_PARENT) &&
+	    !xfs_parent_valuecheck(mp, iovec->i_addr, value_len)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				attri_formatp, sizeof(*attri_formatp));
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				iovec->i_addr, iovec->i_len);
 		return NULL;
 	}
 
