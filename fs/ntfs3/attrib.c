@@ -1266,7 +1266,7 @@ int attr_data_read_resident(struct ntfs_inode *ni, struct folio *folio)
 	return 0;
 }
 
-int attr_data_write_resident(struct ntfs_inode *ni, struct page *page)
+int attr_data_write_resident(struct ntfs_inode *ni, struct folio *folio)
 {
 	u64 vbo;
 	struct mft_inode *mi;
@@ -1282,17 +1282,13 @@ int attr_data_write_resident(struct ntfs_inode *ni, struct page *page)
 		return E_NTFS_NONRESIDENT;
 	}
 
-	vbo = page->index << PAGE_SHIFT;
+	vbo = folio->index << PAGE_SHIFT;
 	data_size = le32_to_cpu(attr->res.data_size);
 	if (vbo < data_size) {
 		char *data = resident_data(attr);
-		char *kaddr = kmap_atomic(page);
-		u32 use = data_size - vbo;
+		size_t len = min(data_size - vbo, folio_size(folio));
 
-		if (use > PAGE_SIZE)
-			use = PAGE_SIZE;
-		memcpy(data + vbo, kaddr, use);
-		kunmap_atomic(kaddr);
+		memcpy_from_folio(data + vbo, folio, 0, len);
 		mi->dirty = true;
 	}
 	ni->i_valid = data_size;

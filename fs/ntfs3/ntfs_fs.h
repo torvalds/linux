@@ -435,7 +435,7 @@ int attr_set_size(struct ntfs_inode *ni, enum ATTR_TYPE type,
 int attr_data_get_block(struct ntfs_inode *ni, CLST vcn, CLST clen, CLST *lcn,
 			CLST *len, bool *new, bool zero);
 int attr_data_read_resident(struct ntfs_inode *ni, struct folio *folio);
-int attr_data_write_resident(struct ntfs_inode *ni, struct page *page);
+int attr_data_write_resident(struct ntfs_inode *ni, struct folio *folio);
 int attr_load_runs_vcn(struct ntfs_inode *ni, enum ATTR_TYPE type,
 		       const __le16 *name, u8 name_len, struct runs_tree *run,
 		       CLST vcn);

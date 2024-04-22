@@ -871,7 +871,7 @@ static int ntfs_resident_writepage(struct folio *folio,
 		return -EIO;
 
 	ni_lock(ni);
-	ret = attr_data_write_resident(ni, &folio->page);
+	ret = attr_data_write_resident(ni, folio);
 	ni_unlock(ni);
 
 	if (ret != E_NTFS_NONRESIDENT)
@@ -959,7 +959,7 @@ int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
 
 	if (is_resident(ni)) {
 		ni_lock(ni);
-		err = attr_data_write_resident(ni, page);
+		err = attr_data_write_resident(ni, folio);
 		ni_unlock(ni);
 		if (!err) {
 			struct buffer_head *head = folio_buffers(folio);
