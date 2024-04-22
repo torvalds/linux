@@ -539,7 +539,7 @@ void chv_crtc_clock_get(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	enum dpio_channel port = vlv_pipe_to_channel(crtc->pipe);
+	enum dpio_channel ch = vlv_pipe_to_channel(crtc->pipe);
 	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
 	const struct i9xx_dpll_hw_state *hw_state = &crtc_state->dpll_hw_state.i9xx;
 	struct dpll clock;
@@ -551,11 +551,11 @@ void chv_crtc_clock_get(struct intel_crtc_state *crtc_state)
 		return;
 
 	vlv_dpio_get(dev_priv);
-	cmn_dw13 = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW13(port));
-	pll_dw0 = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW0(port));
-	pll_dw1 = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW1(port));
-	pll_dw2 = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW2(port));
-	pll_dw3 = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW3(port));
+	cmn_dw13 = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW13(ch));
+	pll_dw0 = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW0(ch));
+	pll_dw1 = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW1(ch));
+	pll_dw2 = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW2(ch));
+	pll_dw3 = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW3(ch));
 	vlv_dpio_put(dev_priv);
 
 	clock.m1 = (pll_dw1 & 0x7) == DPIO_CHV_M1_DIV_BY_2 ? 2 : 0;
@@ -2027,7 +2027,7 @@ static void chv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct dpll *clock = &crtc_state->dpll;
 	enum pipe pipe = crtc->pipe;
-	enum dpio_channel port = vlv_pipe_to_channel(pipe);
+	enum dpio_channel ch = vlv_pipe_to_channel(pipe);
 	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
 	u32 tmp, loopfilter, tribuf_calcntr;
 	u32 m2_frac;
@@ -2038,41 +2038,41 @@ static void chv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	vlv_dpio_get(dev_priv);
 
 	/* p1 and p2 divider */
-	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW13(port),
+	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW13(ch),
 		       5 << DPIO_CHV_S1_DIV_SHIFT |
 		       clock->p1 << DPIO_CHV_P1_DIV_SHIFT |
 		       clock->p2 << DPIO_CHV_P2_DIV_SHIFT |
 		       1 << DPIO_CHV_K_DIV_SHIFT);
 
 	/* Feedback post-divider - m2 */
-	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW0(port),
+	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW0(ch),
 		       clock->m2 >> 22);
 
 	/* Feedback refclk divider - n and m1 */
-	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW1(port),
+	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW1(ch),
 		       DPIO_CHV_M1_DIV_BY_2 |
 		       1 << DPIO_CHV_N_DIV_SHIFT);
 
 	/* M2 fraction division */
-	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW2(port),
+	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW2(ch),
 		       m2_frac);
 
 	/* M2 fraction division enable */
-	tmp = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW3(port));
+	tmp = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW3(ch));
 	tmp &= ~(DPIO_CHV_FEEDFWD_GAIN_MASK | DPIO_CHV_FRAC_DIV_EN);
 	tmp |= (2 << DPIO_CHV_FEEDFWD_GAIN_SHIFT);
 	if (m2_frac)
 		tmp |= DPIO_CHV_FRAC_DIV_EN;
-	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW3(port), tmp);
+	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW3(ch), tmp);
 
 	/* Program digital lock detect threshold */
-	tmp = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW9(port));
+	tmp = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW9(ch));
 	tmp &= ~(DPIO_CHV_INT_LOCK_THRESHOLD_MASK |
 					DPIO_CHV_INT_LOCK_THRESHOLD_SEL_COARSE);
 	tmp |= (0x5 << DPIO_CHV_INT_LOCK_THRESHOLD_SHIFT);
 	if (!m2_frac)
 		tmp |= DPIO_CHV_INT_LOCK_THRESHOLD_SEL_COARSE;
-	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW9(port), tmp);
+	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW9(ch), tmp);
 
 	/* Loop filter */
 	if (clock->vco == 5400000) {
@@ -2097,17 +2097,17 @@ static void chv_prepare_pll(const struct intel_crtc_state *crtc_state)
 		loopfilter |= (0x3 << DPIO_CHV_GAIN_CTRL_SHIFT);
 		tribuf_calcntr = 0;
 	}
-	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW6(port), loopfilter);
+	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW6(ch), loopfilter);
 
-	tmp = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW8(port));
+	tmp = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW8(ch));
 	tmp &= ~DPIO_CHV_TDC_TARGET_CNT_MASK;
 	tmp |= (tribuf_calcntr << DPIO_CHV_TDC_TARGET_CNT_SHIFT);
-	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW8(port), tmp);
+	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW8(ch), tmp);
 
 	/* AFC Recal */
-	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW14(port),
-			vlv_dpio_read(dev_priv, phy, CHV_CMN_DW14(port)) |
-			DPIO_AFC_RECAL);
+	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW14(ch),
+		       vlv_dpio_read(dev_priv, phy, CHV_CMN_DW14(ch)) |
+		       DPIO_AFC_RECAL);
 
 	vlv_dpio_put(dev_priv);
 }
@@ -2118,16 +2118,16 @@ static void _chv_enable_pll(const struct intel_crtc_state *crtc_state)
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct i9xx_dpll_hw_state *hw_state = &crtc_state->dpll_hw_state.i9xx;
 	enum pipe pipe = crtc->pipe;
-	enum dpio_channel port = vlv_pipe_to_channel(pipe);
+	enum dpio_channel ch = vlv_pipe_to_channel(pipe);
 	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
 	u32 tmp;
 
 	vlv_dpio_get(dev_priv);
 
 	/* Enable back the 10bit clock to display controller */
-	tmp = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW14(port));
+	tmp = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW14(ch));
 	tmp |= DPIO_DCLKP_EN;
-	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW14(port), tmp);
+	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW14(ch), tmp);
 
 	vlv_dpio_put(dev_priv);
 
@@ -2246,7 +2246,7 @@ void vlv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 
 void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 {
-	enum dpio_channel port = vlv_pipe_to_channel(pipe);
+	enum dpio_channel ch = vlv_pipe_to_channel(pipe);
 	enum dpio_phy phy = vlv_pipe_to_phy(pipe);
 	u32 val;
 
@@ -2264,9 +2264,9 @@ void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 	vlv_dpio_get(dev_priv);
 
 	/* Disable 10bit clock to display controller */
-	val = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW14(port));
+	val = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW14(ch));
 	val &= ~DPIO_DCLKP_EN;
-	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW14(port), val);
+	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW14(ch), val);
 
 	vlv_dpio_put(dev_priv);
 }
