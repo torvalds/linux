@@ -91,4 +91,9 @@ int xfs_parent_replacename(struct xfs_trans *tp,
 		struct xfs_inode *new_dp, const struct xfs_name *new_name,
 		struct xfs_inode *child);
 
+int xfs_parent_from_attr(struct xfs_mount *mp, unsigned int attr_flags,
+		const unsigned char *name, unsigned int namelen,
+		const void *value, unsigned int valuelen,
+		xfs_ino_t *parent_ino, uint32_t *parent_gen);
+
 #endif /* __XFS_PARENT_H__ */

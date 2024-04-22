@@ -35,6 +35,7 @@
 #include "xfs_health.h"
 #include "xfs_reflink.h"
 #include "xfs_ioctl.h"
+#include "xfs_xattr.h"
 #include "xfs_rtbitmap.h"
 #include "xfs_file.h"
 #include "xfs_exchrange.h"
@@ -1424,7 +1425,10 @@ xfs_file_ioctl(
 
 	case XFS_IOC_FSGETXATTRA:
 		return xfs_ioc_fsgetxattra(ip, arg);
-
+	case XFS_IOC_GETPARENTS:
+		return xfs_ioc_getparents(filp, arg);
+	case XFS_IOC_GETPARENTS_BY_HANDLE:
+		return xfs_ioc_getparents_by_handle(filp, arg);
 	case XFS_IOC_GETBMAP:
 	case XFS_IOC_GETBMAPA:
 	case XFS_IOC_GETBMAPX:

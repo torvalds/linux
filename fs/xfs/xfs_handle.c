@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
  * Copyright (c) 2000-2005 Silicon Graphics, Inc.
+ * Copyright (c) 2022-2024 Oracle.
  * All rights reserved.
  */
 #include "xfs.h"
@@ -176,6 +177,30 @@ xfs_khandle_to_dentry(
 	return exportfs_decode_fh(file->f_path.mnt, (struct fid *)&fid, 3,
 			FILEID_INO32_GEN | XFS_FILEID_TYPE_64FLAG,
 			xfs_handle_acceptable, NULL);
+}
+
+/* Convert handle already copied to kernel space into an xfs_inode. */
+static struct xfs_inode *
+xfs_khandle_to_inode(
+	struct file		*file,
+	struct xfs_handle	*handle)
+{
+	struct xfs_inode	*ip = XFS_I(file_inode(file));
+	struct xfs_mount	*mp = ip->i_mount;
+	struct inode		*inode;
+
+	if (!S_ISDIR(VFS_I(ip)->i_mode))
+		return ERR_PTR(-ENOTDIR);
+
+	if (handle->ha_fid.fid_len != xfs_filehandle_fid_len())
+		return ERR_PTR(-EINVAL);
+
+	inode = xfs_nfs_get_inode(mp->m_super, handle->ha_fid.fid_ino,
+			handle->ha_fid.fid_gen);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+
+	return XFS_I(inode);
 }
 
 /*
@@ -650,5 +675,278 @@ xfs_attrmulti_by_handle(
 	kfree(ops);
  out_dput:
 	dput(dentry);
+	return error;
+}
+
+struct xfs_getparents_ctx {
+	struct xfs_attr_list_context	context;
+	struct xfs_getparents_by_handle	gph;
+
+	/* File to target */
+	struct xfs_inode		*ip;
+
+	/* Internal buffer where we format records */
+	void				*krecords;
+
+	/* Last record filled out */
+	struct xfs_getparents_rec	*lastrec;
+
+	unsigned int			count;
+};
+
+static inline unsigned int
+xfs_getparents_rec_sizeof(
+	unsigned int		namelen)
+{
+	return round_up(sizeof(struct xfs_getparents_rec) + namelen + 1,
+			sizeof(uint64_t));
+}
+
+static void
+xfs_getparents_put_listent(
+	struct xfs_attr_list_context	*context,
+	int				flags,
+	unsigned char			*name,
+	int				namelen,
+	void				*value,
+	int				valuelen)
+{
+	struct xfs_getparents_ctx	*gpx =
+		container_of(context, struct xfs_getparents_ctx, context);
+	struct xfs_inode		*ip = context->dp;
+	struct xfs_mount		*mp = ip->i_mount;
+	struct xfs_getparents		*gp = &gpx->gph.gph_request;
+	struct xfs_getparents_rec	*gpr = gpx->krecords + context->firstu;
+	unsigned short			reclen =
+		xfs_getparents_rec_sizeof(namelen);
+	xfs_ino_t			ino;
+	uint32_t			gen;
+	int				error;
+
+	if (!(flags & XFS_ATTR_PARENT))
+		return;
+
+	error = xfs_parent_from_attr(mp, flags, name, namelen, value, valuelen,
+			&ino, &gen);
+	if (error) {
+		xfs_inode_mark_sick(ip, XFS_SICK_INO_PARENT);
+		context->seen_enough = -EFSCORRUPTED;
+		return;
+	}
+
+	/*
+	 * We found a parent pointer, but we've filled up the buffer.  Signal
+	 * to the caller that we did /not/ reach the end of the parent pointer
+	 * recordset.
+	 */
+	if (context->firstu > context->bufsize - reclen) {
+		context->seen_enough = 1;
+		return;
+	}
+
+	/* Format the parent pointer directly into the caller buffer. */
+	gpr->gpr_reclen = reclen;
+	xfs_filehandle_init(mp, ino, gen, &gpr->gpr_parent);
+	memcpy(gpr->gpr_name, name, namelen);
+	gpr->gpr_name[namelen] = 0;
+
+	trace_xfs_getparents_put_listent(ip, gp, context, gpr);
+
+	context->firstu += reclen;
+	gpx->count++;
+	gpx->lastrec = gpr;
+}
+
+/* Expand the last record to fill the rest of the caller's buffer. */
+static inline void
+xfs_getparents_expand_lastrec(
+	struct xfs_getparents_ctx	*gpx)
+{
+	struct xfs_getparents		*gp = &gpx->gph.gph_request;
+	struct xfs_getparents_rec	*gpr = gpx->lastrec;
+
+	if (!gpx->lastrec)
+		gpr = gpx->krecords;
+
+	gpr->gpr_reclen = gp->gp_bufsize - ((void *)gpr - gpx->krecords);
+
+	trace_xfs_getparents_expand_lastrec(gpx->ip, gp, &gpx->context, gpr);
+}
+
+static inline void __user *u64_to_uptr(u64 val)
+{
+	return (void __user *)(uintptr_t)val;
+}
+
+/* Retrieve the parent pointers for a given inode. */
+STATIC int
+xfs_getparents(
+	struct xfs_getparents_ctx	*gpx)
+{
+	struct xfs_getparents		*gp = &gpx->gph.gph_request;
+	struct xfs_inode		*ip = gpx->ip;
+	struct xfs_mount		*mp = ip->i_mount;
+	size_t				bufsize;
+	int				error;
+
+	/* Check size of buffer requested by user */
+	if (gp->gp_bufsize > XFS_XATTR_LIST_MAX)
+		return -ENOMEM;
+	if (gp->gp_bufsize < xfs_getparents_rec_sizeof(1))
+		return -EINVAL;
+
+	if (gp->gp_iflags & ~XFS_GETPARENTS_IFLAGS_ALL)
+		return -EINVAL;
+	if (gp->gp_reserved)
+		return -EINVAL;
+
+	bufsize = round_down(gp->gp_bufsize, sizeof(uint64_t));
+	gpx->krecords = kvzalloc(bufsize, GFP_KERNEL);
+	if (!gpx->krecords) {
+		bufsize = min(bufsize, PAGE_SIZE);
+		gpx->krecords = kvzalloc(bufsize, GFP_KERNEL);
+		if (!gpx->krecords)
+			return -ENOMEM;
+	}
+
+	gpx->context.dp = ip;
+	gpx->context.resynch = 1;
+	gpx->context.put_listent = xfs_getparents_put_listent;
+	gpx->context.bufsize = bufsize;
+	/* firstu is used to track the bytes filled in the buffer */
+	gpx->context.firstu = 0;
+
+	/* Copy the cursor provided by caller */
+	memcpy(&gpx->context.cursor, &gp->gp_cursor,
+			sizeof(struct xfs_attrlist_cursor));
+	gpx->count = 0;
+	gp->gp_oflags = 0;
+
+	trace_xfs_getparents_begin(ip, gp, &gpx->context.cursor);
+
+	error = xfs_attr_list(&gpx->context);
+	if (error)
+		goto out_free_buf;
+	if (gpx->context.seen_enough < 0) {
+		error = gpx->context.seen_enough;
+		goto out_free_buf;
+	}
+	xfs_getparents_expand_lastrec(gpx);
+
+	/* Update the caller with the current cursor position */
+	memcpy(&gp->gp_cursor, &gpx->context.cursor,
+			sizeof(struct xfs_attrlist_cursor));
+
+	/* Is this the root directory? */
+	if (ip->i_ino == mp->m_sb.sb_rootino)
+		gp->gp_oflags |= XFS_GETPARENTS_OFLAG_ROOT;
+
+	if (gpx->context.seen_enough == 0) {
+		/*
+		 * If we did not run out of buffer space, then we reached the
+		 * end of the pptr recordset, so set the DONE flag.
+		 */
+		gp->gp_oflags |= XFS_GETPARENTS_OFLAG_DONE;
+	} else if (gpx->count == 0) {
+		/*
+		 * If we ran out of buffer space before copying any parent
+		 * pointers at all, the caller's buffer was too short.  Tell
+		 * userspace that, erm, the message is too long.
+		 */
+		error = -EMSGSIZE;
+		goto out_free_buf;
+	}
+
+	trace_xfs_getparents_end(ip, gp, &gpx->context.cursor);
+
+	ASSERT(gpx->context.firstu <= gpx->gph.gph_request.gp_bufsize);
+
+	/* Copy the records to userspace. */
+	if (copy_to_user(u64_to_uptr(gpx->gph.gph_request.gp_buffer),
+				gpx->krecords, gpx->context.firstu))
+		error = -EFAULT;
+
+out_free_buf:
+	kvfree(gpx->krecords);
+	gpx->krecords = NULL;
+	return error;
+}
+
+/* Retrieve the parents of this file and pass them back to userspace. */
+int
+xfs_ioc_getparents(
+	struct file			*file,
+	struct xfs_getparents __user	*ureq)
+{
+	struct xfs_getparents_ctx	gpx = {
+		.ip			= XFS_I(file_inode(file)),
+	};
+	struct xfs_getparents		*kreq = &gpx.gph.gph_request;
+	struct xfs_mount		*mp = gpx.ip->i_mount;
+	int				error;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (!xfs_has_parent(mp))
+		return -EOPNOTSUPP;
+	if (copy_from_user(kreq, ureq, sizeof(*kreq)))
+		return -EFAULT;
+
+	error = xfs_getparents(&gpx);
+	if (error)
+		return error;
+
+	if (copy_to_user(ureq, kreq, sizeof(*kreq)))
+		return -EFAULT;
+
+	return 0;
+}
+
+/* Retrieve the parents of this file handle and pass them back to userspace. */
+int
+xfs_ioc_getparents_by_handle(
+	struct file			*file,
+	struct xfs_getparents_by_handle __user	*ureq)
+{
+	struct xfs_getparents_ctx	gpx = { };
+	struct xfs_inode		*ip = XFS_I(file_inode(file));
+	struct xfs_mount		*mp = ip->i_mount;
+	struct xfs_getparents_by_handle	*kreq = &gpx.gph;
+	struct xfs_handle		*handle = &kreq->gph_handle;
+	int				error;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+	if (!xfs_has_parent(mp))
+		return -EOPNOTSUPP;
+	if (copy_from_user(kreq, ureq, sizeof(*kreq)))
+		return -EFAULT;
+
+	/*
+	 * We don't use exportfs_decode_fh because it does too much work here.
+	 * If the handle refers to a directory, the exportfs code will walk
+	 * upwards through the directory tree to connect the dentries to the
+	 * root directory dentry.  For GETPARENTS we don't care about that
+	 * because we're not actually going to open a file descriptor; we only
+	 * want to open an inode and read its parent pointers.
+	 *
+	 * Note that xfs_scrub uses GETPARENTS to log that it will try to fix a
+	 * corrupted file's metadata.  For this usecase we would really rather
+	 * userspace single-step the path reconstruction to avoid loops or
+	 * other strange things if the directory tree is corrupt.
+	 */
+	gpx.ip = xfs_khandle_to_inode(file, handle);
+	if (IS_ERR(gpx.ip))
+		return PTR_ERR(gpx.ip);
+
+	error = xfs_getparents(&gpx);
+	if (error)
+		goto out_rele;
+
+	if (copy_to_user(ureq, kreq, sizeof(*kreq)))
+		error = -EFAULT;
+
+out_rele:
+	xfs_irele(gpx.ip);
 	return error;
 }

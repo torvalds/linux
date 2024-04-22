@@ -257,3 +257,37 @@ xfs_parent_replacename(
 	xfs_attr_defer_add(&ppargs->args, XFS_ATTR_DEFER_REPLACE);
 	return 0;
 }
+
+/*
+ * Extract parent pointer information from any parent pointer xattr into
+ * @parent_ino/gen.  The last two parameters can be NULL pointers.
+ *
+ * Returns 0 if this is not a parent pointer xattr at all; or -EFSCORRUPTED for
+ * garbage.
+ */
+int
+xfs_parent_from_attr(
+	struct xfs_mount	*mp,
+	unsigned int		attr_flags,
+	const unsigned char	*name,
+	unsigned int		namelen,
+	const void		*value,
+	unsigned int		valuelen,
+	xfs_ino_t		*parent_ino,
+	uint32_t		*parent_gen)
+{
+	const struct xfs_parent_rec	*rec = value;
+
+	ASSERT(attr_flags & XFS_ATTR_PARENT);
+
+	if (!xfs_parent_namecheck(attr_flags, name, namelen))
+		return -EFSCORRUPTED;
+	if (!xfs_parent_valuecheck(mp, value, valuelen))
+		return -EFSCORRUPTED;
+
+	if (parent_ino)
+		*parent_ino = be64_to_cpu(rec->p_ino);
+	if (parent_gen)
+		*parent_gen = be32_to_cpu(rec->p_gen);
+	return 0;
+}
