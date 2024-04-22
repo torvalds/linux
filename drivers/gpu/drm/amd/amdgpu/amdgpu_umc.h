@@ -133,4 +133,7 @@ int amdgpu_umc_build_pages_hash(struct amdgpu_device *adev,
 		uint64_t *pfns, int len, uint64_t *val);
 int amdgpu_umc_logs_ecc_err(struct amdgpu_device *adev,
 		struct radix_tree_root *ecc_tree, struct ras_ecc_err *ecc_err);
+
+void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
+			void *ras_error_status);
 #endif

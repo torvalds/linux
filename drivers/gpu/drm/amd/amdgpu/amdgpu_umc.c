@@ -89,7 +89,7 @@ out_fini_err_data:
 	return ret;
 }
 
-static void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
+void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 			void *ras_error_status)
 {
 	struct ras_err_data *err_data = (struct ras_err_data *)ras_error_status;

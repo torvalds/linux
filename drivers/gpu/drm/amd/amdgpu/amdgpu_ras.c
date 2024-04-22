@@ -122,6 +122,8 @@ const char *get_ras_block_str(struct ras_common_if *ras_block)
 
 #define MAX_UMC_POISON_POLLING_TIME_ASYNC  100  //ms
 
+#define AMDGPU_RAS_RETIRE_PAGE_INTERVAL 100  //ms
+
 enum amdgpu_ras_retire_page_reservation {
 	AMDGPU_RAS_RETIRE_PAGE_RESERVED,
 	AMDGPU_RAS_RETIRE_PAGE_PENDING,
@@ -2776,6 +2778,30 @@ static void amdgpu_ras_ecc_log_fini(struct ras_ecc_log_info *ecc_log)
 	ecc_log->de_updated = false;
 }
 
+static void amdgpu_ras_do_page_retirement(struct work_struct *work)
+{
+	struct amdgpu_ras *con = container_of(work, struct amdgpu_ras,
+					      page_retirement_dwork.work);
+	struct amdgpu_device *adev = con->adev;
+	struct ras_err_data err_data;
+
+	if (amdgpu_in_reset(adev) || atomic_read(&con->in_recovery))
+		return;
+
+	amdgpu_ras_error_data_init(&err_data);
+
+	amdgpu_umc_handle_bad_pages(adev, &err_data);
+
+	amdgpu_ras_error_data_fini(&err_data);
+
+	mutex_lock(&con->umc_ecc_log.lock);
+	if (radix_tree_tagged(&con->umc_ecc_log.de_page_tree,
+				UMC_ECC_NEW_DETECTED_TAG))
+		schedule_delayed_work(&con->page_retirement_dwork,
+			msecs_to_jiffies(AMDGPU_RAS_RETIRE_PAGE_INTERVAL));
+	mutex_unlock(&con->umc_ecc_log.lock);
+}
+
 static int amdgpu_ras_query_ecc_status(struct amdgpu_device *adev,
 			enum amdgpu_ras_block ras_block, uint32_t timeout_ms)
 {
@@ -2814,7 +2840,12 @@ static int amdgpu_ras_query_ecc_status(struct amdgpu_device *adev,
 static void amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
 					uint32_t timeout)
 {
-	amdgpu_ras_query_ecc_status(adev, AMDGPU_RAS_BLOCK__UMC, timeout);
+	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+	int ret;
+
+	ret = amdgpu_ras_query_ecc_status(adev, AMDGPU_RAS_BLOCK__UMC, timeout);
+	if (!ret)
+		schedule_delayed_work(&con->page_retirement_dwork, 0);
 }
 
 static int amdgpu_ras_page_retirement_thread(void *param)
@@ -2929,6 +2960,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "Failed to create umc_page_retirement thread!!!\n");
 	}
 
+	INIT_DELAYED_WORK(&con->page_retirement_dwork, amdgpu_ras_do_page_retirement);
 	amdgpu_ras_ecc_log_init(&con->umc_ecc_log);
 #ifdef CONFIG_X86_MCE_AMD
 	if ((adev->asic_type == CHIP_ALDEBARAN) &&
@@ -2973,6 +3005,8 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 	mutex_destroy(&con->page_rsv_lock);
 
 	cancel_work_sync(&con->recovery_work);
+
+	cancel_delayed_work_sync(&con->page_retirement_dwork);
 
 	amdgpu_ras_ecc_log_fini(&con->umc_ecc_log);
 

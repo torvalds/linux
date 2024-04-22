@@ -537,6 +537,7 @@ struct amdgpu_ras {
 	struct mutex page_rsv_lock;
 	DECLARE_KFIFO(poison_fifo, struct ras_poison_msg, 128);
 	struct ras_ecc_log_info  umc_ecc_log;
+	struct delayed_work page_retirement_dwork;
 
 	/* Fatal error detected flag */
 	atomic_t fed;
