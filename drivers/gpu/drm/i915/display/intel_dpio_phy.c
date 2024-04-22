@@ -1134,7 +1134,6 @@ void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 	vlv_dpio_get(dev_priv);
 
 	/* Enable clock channels for this port */
-	val = vlv_dpio_read(dev_priv, phy, VLV_PCS01_DW8(port));
 	val = 0;
 	if (pipe)
 		val |= (1<<21);
