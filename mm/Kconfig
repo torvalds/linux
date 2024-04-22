@@ -333,10 +333,9 @@ config SHUFFLE_PAGE_ALLOCATOR
 
 	  While the randomization improves cache utilization it may
 	  negatively impact workloads on platforms without a cache. For
-	  this reason, by default, the randomization is enabled only
-	  after runtime detection of a direct-mapped memory-side-cache.
-	  Otherwise, the randomization may be force enabled with the
-	  'page_alloc.shuffle' kernel command line parameter.
+	  this reason, by default, the randomization is not enabled even
+	  if SHUFFLE_PAGE_ALLOCATOR=y. The randomization may be force enabled
+	  with the 'page_alloc.shuffle' kernel command line parameter.
 
 	  Say Y if unsure.
 
