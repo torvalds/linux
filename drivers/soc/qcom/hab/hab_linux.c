@@ -461,7 +461,7 @@ static int __init hab_init(void)
 	pr_debug("init start, ver %X\n", HAB_API_VER);
 
 	/* prepare resources for creating hab char devices */
-	result = alloc_chrdev_region(&dev_no, 0, CDEV_NUM_MAX, "habdev");
+	result = alloc_chrdev_region(&dev_no, 0, CDEV_NUM_MAX, "hab");
 
 	if (result < 0) {
 		pr_err("alloc_chrdev_region failed: %d\n", result);
@@ -478,7 +478,7 @@ static int __init hab_init(void)
 	if (!hab_driver.cdev)
 		goto cdev_alloc_fail;
 
-	hab_driver.class = class_create(THIS_MODULE, "habdev");
+	hab_driver.class = class_create(THIS_MODULE, "hab");
 
 	if (IS_ERR(hab_driver.class)) {
 		result = PTR_ERR(hab_driver.class);
