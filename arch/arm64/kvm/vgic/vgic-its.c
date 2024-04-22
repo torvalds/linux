@@ -251,8 +251,10 @@ static struct its_ite *find_ite(struct vgic_its *its, u32 device_id,
 
 #define GIC_LPI_OFFSET 8192
 
-#define VITS_TYPER_IDBITS 16
-#define VITS_TYPER_DEVBITS 16
+#define VITS_TYPER_IDBITS		16
+#define VITS_MAX_EVENTID		(BIT(VITS_TYPER_IDBITS) - 1)
+#define VITS_TYPER_DEVBITS		16
+#define VITS_MAX_DEVID			(BIT(VITS_TYPER_DEVBITS) - 1)
 #define VITS_DTE_MAX_DEVID_OFFSET	(BIT(14) - 1)
 #define VITS_ITE_MAX_EVENTID_OFFSET	(BIT(16) - 1)
 
@@ -536,51 +538,27 @@ static unsigned long vgic_its_cache_key(u32 devid, u32 eventid)
 
 }
 
-static struct vgic_irq *__vgic_its_check_cache(struct vgic_dist *dist,
-					       phys_addr_t db,
-					       u32 devid, u32 eventid)
-{
-	struct vgic_translation_cache_entry *cte;
-
-	list_for_each_entry(cte, &dist->lpi_translation_cache, entry) {
-		/*
-		 * If we hit a NULL entry, there is nothing after this
-		 * point.
-		 */
-		if (!cte->irq)
-			break;
-
-		if (cte->db != db || cte->devid != devid ||
-		    cte->eventid != eventid)
-			continue;
-
-		/*
-		 * Move this entry to the head, as it is the most
-		 * recently used.
-		 */
-		if (!list_is_first(&cte->entry, &dist->lpi_translation_cache))
-			list_move(&cte->entry, &dist->lpi_translation_cache);
-
-		return cte->irq;
-	}
-
-	return NULL;
-}
-
 static struct vgic_irq *vgic_its_check_cache(struct kvm *kvm, phys_addr_t db,
 					     u32 devid, u32 eventid)
 {
-	struct vgic_dist *dist = &kvm->arch.vgic;
+	unsigned long cache_key = vgic_its_cache_key(devid, eventid);
+	struct vgic_its *its;
 	struct vgic_irq *irq;
-	unsigned long flags;
 
-	raw_spin_lock_irqsave(&dist->lpi_list_lock, flags);
+	if (devid > VITS_MAX_DEVID || eventid > VITS_MAX_EVENTID)
+		return NULL;
 
-	irq = __vgic_its_check_cache(dist, db, devid, eventid);
+	its = __vgic_doorbell_to_its(kvm, db);
+	if (IS_ERR(its))
+		return NULL;
+
+	rcu_read_lock();
+
+	irq = xa_load(&its->translation_cache, cache_key);
 	if (!vgic_try_get_irq_kref(irq))
 		irq = NULL;
 
-	raw_spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
+	rcu_read_unlock();
 
 	return irq;
 }
@@ -605,14 +583,7 @@ static void vgic_its_cache_translation(struct kvm *kvm, struct vgic_its *its,
 	if (unlikely(list_empty(&dist->lpi_translation_cache)))
 		goto out;
 
-	/*
-	 * We could have raced with another CPU caching the same
-	 * translation behind our back, so let's check it is not in
-	 * already
-	 */
 	db = its->vgic_its_base + GITS_TRANSLATER;
-	if (__vgic_its_check_cache(dist, db, devid, eventid))
-		goto out;
 
 	/* Always reuse the last entry (LRU policy) */
 	cte = list_last_entry(&dist->lpi_translation_cache,
@@ -958,7 +929,7 @@ static bool vgic_its_check_id(struct vgic_its *its, u64 baser, u32 id,
 
 	switch (type) {
 	case GITS_BASER_TYPE_DEVICE:
-		if (id >= BIT_ULL(VITS_TYPER_DEVBITS))
+		if (id > VITS_MAX_DEVID)
 			return false;
 		break;
 	case GITS_BASER_TYPE_COLLECTION:
