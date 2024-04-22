@@ -255,7 +255,6 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 	uint64_t vram_size;
 	u32 msg;
 	int i, ret = 0;
-	int ip_discovery_ver = 0;
 
 	/* It can take up to a second for IFWI init to complete on some dGPUs,
 	 * but generally it should be in the 60-100ms range.  Normally this starts
@@ -265,17 +264,13 @@ static int amdgpu_discovery_read_binary_from_mem(struct amdgpu_device *adev,
 	 * continue.
 	 */
 
-	ip_discovery_ver = RREG32(mmIP_DISCOVERY_VERSION);
-	if ((dev_is_removable(&adev->pdev->dev)) ||
-	    (ip_discovery_ver == IP_DISCOVERY_V2) ||
-	    (ip_discovery_ver == IP_DISCOVERY_V4)) {
-		for (i = 0; i < 1000; i++) {
-			msg = RREG32(mmMP0_SMN_C2PMSG_33);
-			if (msg & 0x80000000)
-				break;
-			msleep(1);
-		}
+	for (i = 0; i < 1000; i++) {
+		msg = RREG32(mmMP0_SMN_C2PMSG_33);
+		if (msg & 0x80000000)
+			break;
+		usleep_range(1000, 1100);
 	}
+
 	vram_size = (uint64_t)RREG32(mmRCC_CONFIG_MEMSIZE) << 20;
 
 	if (vram_size) {
@@ -1906,6 +1901,8 @@ static int amdgpu_discovery_set_smu_ip_blocks(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(14, 0, 0):
 	case IP_VERSION(14, 0, 1):
+	case IP_VERSION(14, 0, 2):
+	case IP_VERSION(14, 0, 3):
 		amdgpu_device_ip_block_add(adev, &smu_v14_0_ip_block);
 		break;
 	default:

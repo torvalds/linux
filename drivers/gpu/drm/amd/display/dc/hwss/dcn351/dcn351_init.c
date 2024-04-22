@@ -116,10 +116,10 @@ static const struct hw_sequencer_funcs dcn351_funcs = {
 	.update_visual_confirm_color = dcn10_update_visual_confirm_color,
 	.apply_idle_power_optimizations = dcn35_apply_idle_power_optimizations,
 	.update_dsc_pg = dcn32_update_dsc_pg,
-	.calc_blocks_to_gate = dcn351_calc_blocks_to_gate,
-	.calc_blocks_to_ungate = dcn351_calc_blocks_to_ungate,
-	.hw_block_power_up = dcn351_hw_block_power_up,
-	.hw_block_power_down = dcn351_hw_block_power_down,
+	.calc_blocks_to_gate = dcn35_calc_blocks_to_gate,
+	.calc_blocks_to_ungate = dcn35_calc_blocks_to_ungate,
+	.hw_block_power_up = dcn35_hw_block_power_up,
+	.hw_block_power_down = dcn35_hw_block_power_down,
 	.root_clock_control = dcn35_root_clock_control,
 };
 

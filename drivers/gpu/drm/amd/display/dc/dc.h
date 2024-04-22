@@ -53,7 +53,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.280"
+#define DC_VER "3.2.281"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -309,12 +309,12 @@ struct dc_dcc_setting {
 	unsigned int max_compressed_blk_size;
 	unsigned int max_uncompressed_blk_size;
 	bool independent_64b_blks;
-	//These bitfields to be used starting with DCN
+	//These bitfields to be used starting with DCN 3.0
 	struct {
-		uint32_t dcc_256_64_64 : 1;//available in ASICs before DCN (the worst compression case)
-		uint32_t dcc_128_128_uncontrained : 1;  //available in ASICs before DCN
-		uint32_t dcc_256_128_128 : 1;		//available starting with DCN
-		uint32_t dcc_256_256_unconstrained : 1;  //available in ASICs before DCN (the best compression case)
+		uint32_t dcc_256_64_64 : 1;//available in ASICs before DCN 3.0 (the worst compression case)
+		uint32_t dcc_128_128_uncontrained : 1;  //available in ASICs before DCN 3.0
+		uint32_t dcc_256_128_128 : 1;		//available starting with DCN 3.0
+		uint32_t dcc_256_256_unconstrained : 1;  //available in ASICs before DCN 3.0 (the best compression case)
 	} dcc_controls;
 };
 
@@ -1003,9 +1003,9 @@ struct dc_debug_options {
 	unsigned int static_screen_wait_frames;
 	bool force_chroma_subsampling_1tap;
 	bool disable_422_left_edge_pixel;
+	unsigned int force_cositing;
 };
 
-struct gpu_info_soc_bounding_box_v1_0;
 
 /* Generic structure that can be used to query properties of DC. More fields
  * can be added as required.
@@ -1285,6 +1285,7 @@ struct dc_plane_state {
 	struct tg_color visual_confirm_color;
 
 	bool is_statically_allocated;
+	enum chroma_cositing cositing;
 };
 
 struct dc_plane_info {
@@ -1303,6 +1304,7 @@ struct dc_plane_info {
 	int  global_alpha_value;
 	bool input_csc_enabled;
 	int layer_index;
+	enum chroma_cositing cositing;
 };
 
 #include "dc_stream.h"

@@ -753,23 +753,13 @@ int aca_bank_info_decode(struct aca_bank *bank, struct aca_bank_info *info)
 
 static int aca_bank_get_error_code(struct amdgpu_device *adev, struct aca_bank *bank)
 {
-	int error_code;
+	struct amdgpu_aca *aca = &adev->aca;
+	const struct aca_smu_funcs *smu_funcs = aca->smu_funcs;
 
-	switch (amdgpu_ip_version(adev, MP1_HWIP, 0)) {
-	case IP_VERSION(13, 0, 6):
-		if (!(adev->flags & AMD_IS_APU) && adev->pm.fw_version >= 0x00555600) {
-			error_code = ACA_REG__SYND__ERRORINFORMATION(bank->regs[ACA_REG_IDX_SYND]);
-			return error_code & 0xff;
-		}
-		break;
-	default:
-		break;
-	}
+	if (!smu_funcs || !smu_funcs->parse_error_code)
+		return -EOPNOTSUPP;
 
-	/* NOTE: the true error code is encoded in status.errorcode[0:7] */
-	error_code = ACA_REG__STATUS__ERRORCODE(bank->regs[ACA_REG_IDX_STATUS]);
-
-	return error_code & 0xff;
+	return smu_funcs->parse_error_code(adev, bank);
 }
 
 int aca_bank_check_error_codes(struct amdgpu_device *adev, struct aca_bank *bank, int *err_codes, int size)
@@ -780,6 +770,9 @@ int aca_bank_check_error_codes(struct amdgpu_device *adev, struct aca_bank *bank
 		return -EINVAL;
 
 	error_code = aca_bank_get_error_code(adev, bank);
+	if (error_code < 0)
+		return error_code;
+
 	for (i = 0; i < size; i++) {
 		if (err_codes[i] == error_code)
 			return 0;

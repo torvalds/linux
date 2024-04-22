@@ -495,7 +495,7 @@ bool dc_stream_remove_writeback(struct dc *dc,
 		struct dc_stream_state *stream,
 		uint32_t dwb_pipe_inst)
 {
-	int i = 0, j = 0;
+	unsigned int i, j;
 	if (stream == NULL) {
 		dm_error("DC: dc_stream is NULL!\n");
 		return false;

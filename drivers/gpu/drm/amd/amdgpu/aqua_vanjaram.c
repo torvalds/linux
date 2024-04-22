@@ -630,7 +630,7 @@ static int aqua_vanjaram_xcp_mgr_init(struct amdgpu_device *adev)
 
 int aqua_vanjaram_init_soc_config(struct amdgpu_device *adev)
 {
-	u32 mask, inst_mask = adev->sdma.sdma_mask;
+	u32 mask, avail_inst, inst_mask = adev->sdma.sdma_mask;
 	int ret, i;
 
 	/* generally 1 AID supports 4 instances */
@@ -642,7 +642,9 @@ int aqua_vanjaram_init_soc_config(struct amdgpu_device *adev)
 
 	for (mask = (1 << adev->sdma.num_inst_per_aid) - 1; inst_mask;
 	     inst_mask >>= adev->sdma.num_inst_per_aid, ++i) {
-		if ((inst_mask & mask) == mask)
+		avail_inst = inst_mask & mask;
+		if (avail_inst == mask || avail_inst == 0x3 ||
+		    avail_inst == 0xc)
 			adev->aid_mask |= (1 << i);
 	}
 

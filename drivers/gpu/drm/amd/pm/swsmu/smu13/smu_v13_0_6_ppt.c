@@ -3118,12 +3118,25 @@ static int aca_smu_get_valid_aca_bank(struct amdgpu_device *adev,
 	return 0;
 }
 
+static int aca_smu_parse_error_code(struct amdgpu_device *adev, struct aca_bank *bank)
+{
+	int error_code;
+
+	if (!(adev->flags & AMD_IS_APU) && adev->pm.fw_version >= 0x00555600)
+		error_code = ACA_REG__SYND__ERRORINFORMATION(bank->regs[ACA_REG_IDX_SYND]);
+	else
+		error_code = ACA_REG__STATUS__ERRORCODE(bank->regs[ACA_REG_IDX_STATUS]);
+
+	return error_code & 0xff;
+}
+
 static const struct aca_smu_funcs smu_v13_0_6_aca_smu_funcs = {
 	.max_ue_bank_count = 12,
 	.max_ce_bank_count = 12,
 	.set_debug_mode = aca_smu_set_debug_mode,
 	.get_valid_aca_count = aca_smu_get_valid_aca_count,
 	.get_valid_aca_bank = aca_smu_get_valid_aca_bank,
+	.parse_error_code = aca_smu_parse_error_code,
 };
 
 static int smu_v13_0_6_select_xgmi_plpd_policy(struct smu_context *smu,

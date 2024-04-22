@@ -133,7 +133,7 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 
 		} else if (!amdgpu_gmc_vram_full_visible(&adev->gmc) &&
 			   !(abo->flags & AMDGPU_GEM_CREATE_CPU_ACCESS_REQUIRED) &&
-			   amdgpu_bo_in_cpu_visible_vram(abo)) {
+			   amdgpu_res_cpu_visible(adev, bo->resource)) {
 
 			/* Try evicting to the CPU inaccessible part of VRAM
 			 * first, but only set GTT as busy placement, so this
@@ -403,40 +403,55 @@ error:
 	return r;
 }
 
+/**
+ * amdgpu_res_cpu_visible - Check that resource can be accessed by CPU
+ * @adev: amdgpu device
+ * @res: the resource to check
+ *
+ * Returns: true if the full resource is CPU visible, false otherwise.
+ */
+bool amdgpu_res_cpu_visible(struct amdgpu_device *adev,
+			    struct ttm_resource *res)
+{
+	struct amdgpu_res_cursor cursor;
+
+	if (!res)
+		return false;
+
+	if (res->mem_type == TTM_PL_SYSTEM || res->mem_type == TTM_PL_TT ||
+	    res->mem_type == AMDGPU_PL_PREEMPT)
+		return true;
+
+	if (res->mem_type != TTM_PL_VRAM)
+		return false;
+
+	amdgpu_res_first(res, 0, res->size, &cursor);
+	while (cursor.remaining) {
+		if ((cursor.start + cursor.size) >= adev->gmc.visible_vram_size)
+			return false;
+		amdgpu_res_next(&cursor, cursor.size);
+	}
+
+	return true;
+}
+
 /*
- * amdgpu_mem_visible - Check that memory can be accessed by ttm_bo_move_memcpy
+ * amdgpu_res_copyable - Check that memory can be accessed by ttm_bo_move_memcpy
  *
  * Called by amdgpu_bo_move()
  */
-static bool amdgpu_mem_visible(struct amdgpu_device *adev,
-			       struct ttm_resource *mem)
+static bool amdgpu_res_copyable(struct amdgpu_device *adev,
+				struct ttm_resource *mem)
 {
-	u64 mem_size = (u64)mem->size;
-	struct amdgpu_res_cursor cursor;
-	u64 end;
-
-	if (mem->mem_type == TTM_PL_SYSTEM ||
-	    mem->mem_type == TTM_PL_TT)
-		return true;
-	if (mem->mem_type != TTM_PL_VRAM)
+	if (!amdgpu_res_cpu_visible(adev, mem))
 		return false;
 
-	amdgpu_res_first(mem, 0, mem_size, &cursor);
-	end = cursor.start + cursor.size;
-	while (cursor.remaining) {
-		amdgpu_res_next(&cursor, cursor.size);
+	/* ttm_resource_ioremap only supports contiguous memory */
+	if (mem->mem_type == TTM_PL_VRAM &&
+	    !(mem->placement & TTM_PL_FLAG_CONTIGUOUS))
+		return false;
 
-		if (!cursor.remaining)
-			break;
-
-		/* ttm_resource_ioremap only supports contiguous memory */
-		if (end != cursor.start)
-			return false;
-
-		end = cursor.start + cursor.size;
-	}
-
-	return end <= adev->gmc.visible_vram_size;
+	return true;
 }
 
 /*
@@ -529,8 +544,8 @@ static int amdgpu_bo_move(struct ttm_buffer_object *bo, bool evict,
 
 	if (r) {
 		/* Check that all memory is CPU accessible */
-		if (!amdgpu_mem_visible(adev, old_mem) ||
-		    !amdgpu_mem_visible(adev, new_mem)) {
+		if (!amdgpu_res_copyable(adev, old_mem) ||
+		    !amdgpu_res_copyable(adev, new_mem)) {
 			pr_err("Move buffer fallback to memcpy unavailable\n");
 			return r;
 		}

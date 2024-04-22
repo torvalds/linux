@@ -1050,6 +1050,8 @@ union replay_error_status {
 struct replay_config {
 	/* Replay feature is supported */
 	bool replay_supported;
+	/* Replay caps support DPCD & EDID caps*/
+	bool replay_cap_support;
 	/* Power opt flags that are supported */
 	unsigned int replay_power_opt_supported;
 	/* SMU optimization is supported */
