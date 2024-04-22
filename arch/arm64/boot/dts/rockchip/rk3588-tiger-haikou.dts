@@ -239,12 +239,12 @@
 	status = "okay";
 };
 
-/* host0 on Q7_USB_P2, lower usb3 port */
+/* host0 on Q7_USB_P2, upper usb3 port */
 &usb_host0_ehci {
 	status = "okay";
 };
 
-/* host0 on Q7_USB_P2, lower usb3 port */
+/* host0 on Q7_USB_P2, upper usb3 port */
 &usb_host0_ohci {
 	status = "okay";
 };
@@ -259,7 +259,7 @@
 	status = "okay";
 };
 
-/* host2 on Q7_USB_P2, lower usb3 port */
+/* host2 on Q7_USB_P2, upper usb3 port */
 &usb_host2_xhci {
 	status = "okay";
 };
