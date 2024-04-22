@@ -382,7 +382,7 @@ xrep_adoption_trans_alloc(
 out_cancel:
 	xchk_trans_cancel(sc);
 	xrep_orphanage_iunlock(sc, XFS_ILOCK_EXCL);
-	xrep_orphanage_iunlock(sc, XFS_IOLOCK_EXCL);
+	xchk_iunlock(sc, XFS_ILOCK_EXCL);
 	return error;
 }
 
