@@ -734,6 +734,46 @@ const struct xfs_defer_op_type xfs_attr_defer_type = {
 	.relog_intent	= xfs_attr_relog_intent,
 };
 
+static inline void *
+xfs_attri_validate_name_iovec(
+	struct xfs_mount		*mp,
+	struct xfs_attri_log_format     *attri_formatp,
+	const struct xfs_log_iovec	*iovec,
+	unsigned int			name_len)
+{
+	if (iovec->i_len != xlog_calc_iovec_len(name_len)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				attri_formatp, sizeof(*attri_formatp));
+		return NULL;
+	}
+
+	if (!xfs_attr_namecheck(iovec->i_addr, name_len)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				attri_formatp, sizeof(*attri_formatp));
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				iovec->i_addr, iovec->i_len);
+		return NULL;
+	}
+
+	return iovec->i_addr;
+}
+
+static inline void *
+xfs_attri_validate_value_iovec(
+	struct xfs_mount		*mp,
+	struct xfs_attri_log_format     *attri_formatp,
+	const struct xfs_log_iovec	*iovec,
+	unsigned int			value_len)
+{
+	if (iovec->i_len != xlog_calc_iovec_len(value_len)) {
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
+				attri_formatp, sizeof(*attri_formatp));
+		return NULL;
+	}
+
+	return iovec->i_addr;
+}
+
 STATIC int
 xlog_recover_attri_commit_pass2(
 	struct xlog                     *log,
@@ -798,30 +838,18 @@ xlog_recover_attri_commit_pass2(
 	i++;
 
 	/* Validate the attr name */
-	if (item->ri_buf[i].i_len != xlog_calc_iovec_len(name_len)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-				attri_formatp, len);
+	attr_name = xfs_attri_validate_name_iovec(mp, attri_formatp,
+			&item->ri_buf[i], name_len);
+	if (!attr_name)
 		return -EFSCORRUPTED;
-	}
-
-	attr_name = item->ri_buf[i].i_addr;
-	if (!xfs_attr_namecheck(attr_name, name_len)) {
-		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-				attri_formatp, len);
-		return -EFSCORRUPTED;
-	}
 	i++;
 
 	/* Validate the attr value, if present */
 	if (value_len != 0) {
-		if (item->ri_buf[i].i_len != xlog_calc_iovec_len(value_len)) {
-			XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
-					item->ri_buf[0].i_addr,
-					item->ri_buf[0].i_len);
+		attr_value = xfs_attri_validate_value_iovec(mp, attri_formatp,
+				&item->ri_buf[i], value_len);
+		if (!attr_value)
 			return -EFSCORRUPTED;
-		}
-
-		attr_value = item->ri_buf[i].i_addr;
 		i++;
 	}
 
