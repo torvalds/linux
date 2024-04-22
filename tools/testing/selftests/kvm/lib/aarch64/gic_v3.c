@@ -401,3 +401,27 @@ const struct gic_common_ops gicv3_ops = {
 	.gic_irq_get_pending = gicv3_irq_get_pending,
 	.gic_irq_set_config = gicv3_irq_set_config,
 };
+
+void gic_rdist_enable_lpis(vm_paddr_t cfg_table, size_t cfg_table_size,
+			   vm_paddr_t pend_table)
+{
+	volatile void *rdist_base = gicr_base_cpu(guest_get_vcpuid());
+
+	u32 ctlr;
+	u64 val;
+
+	val = (cfg_table |
+	       GICR_PROPBASER_InnerShareable |
+	       GICR_PROPBASER_RaWaWb |
+	       ((ilog2(cfg_table_size) - 1) & GICR_PROPBASER_IDBITS_MASK));
+	writeq_relaxed(val, rdist_base + GICR_PROPBASER);
+
+	val = (pend_table |
+	       GICR_PENDBASER_InnerShareable |
+	       GICR_PENDBASER_RaWaWb);
+	writeq_relaxed(val, rdist_base + GICR_PENDBASER);
+
+	ctlr = readl_relaxed(rdist_base + GICR_CTLR);
+	ctlr |= GICR_CTLR_ENABLE_LPIS;
+	writel_relaxed(ctlr, rdist_base + GICR_CTLR);
+}
