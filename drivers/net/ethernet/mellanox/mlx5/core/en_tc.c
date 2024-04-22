@@ -2801,12 +2801,6 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 		flow_rule_match_control(rule, &match);
 		addr_type = match.key->addr_type;
 
-		/* the HW doesn't support frag first/later */
-		if (match.mask->flags & FLOW_DIS_FIRST_FRAG) {
-			NL_SET_ERR_MSG_MOD(extack, "Match on frag first/later is not supported");
-			return -EOPNOTSUPP;
-		}
-
 		if (match.mask->flags & FLOW_DIS_IS_FRAGMENT) {
 			MLX5_SET(fte_match_set_lyr_2_4, headers_c, frag, 1);
 			MLX5_SET(fte_match_set_lyr_2_4, headers_v, frag,
@@ -2819,6 +2813,10 @@ static int __parse_cls_flower(struct mlx5e_priv *priv,
 			else
 				*match_level = MLX5_MATCH_L3;
 		}
+
+		if (!flow_rule_is_supp_control_flags(FLOW_DIS_IS_FRAGMENT,
+						     match.mask->flags, extack))
+			return -EOPNOTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_BASIC)) {
