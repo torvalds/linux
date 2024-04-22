@@ -266,4 +266,5 @@ static struct platform_driver avs_rt298_driver = {
 
 module_platform_driver(avs_rt298_driver);
 
+MODULE_DESCRIPTION("Intel rt298 machine driver");
 MODULE_LICENSE("GPL");

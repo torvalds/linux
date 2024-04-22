@@ -1172,12 +1172,12 @@ config PAGE_SIZE_LESS_THAN_256KB
 
 config PAGE_SHIFT
 	int
-	default 12 if PAGE_SIZE_4KB
-	default 13 if PAGE_SIZE_8KB
-	default 14 if PAGE_SIZE_16KB
-	default 15 if PAGE_SIZE_32KB
-	default 16 if PAGE_SIZE_64KB
-	default 18 if PAGE_SIZE_256KB
+	default	12 if PAGE_SIZE_4KB
+	default	13 if PAGE_SIZE_8KB
+	default	14 if PAGE_SIZE_16KB
+	default	15 if PAGE_SIZE_32KB
+	default	16 if PAGE_SIZE_64KB
+	default	18 if PAGE_SIZE_256KB
 
 # This allows to use a set of generic functions to determine mmap base
 # address by giving priority to top-down scheme only if the process

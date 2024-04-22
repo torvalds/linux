@@ -226,6 +226,7 @@ static inline u64 bch2_dev_buckets_reserved(struct bch_dev *ca, enum bch_waterma
 		fallthrough;
 	case BCH_WATERMARK_btree_copygc:
 	case BCH_WATERMARK_reclaim:
+	case BCH_WATERMARK_interior_updates:
 		break;
 	}
 
@@ -392,14 +393,6 @@ static inline const char *bch2_data_type_str(enum bch_data_type type)
 	return type < BCH_DATA_NR
 		? __bch2_data_types[type]
 		: "(invalid data type)";
-}
-
-static inline void bch2_prt_data_type(struct printbuf *out, enum bch_data_type type)
-{
-	if (type < BCH_DATA_NR)
-		prt_str(out, __bch2_data_types[type]);
-	else
-		prt_printf(out, "(invalid data type %u)", type);
 }
 
 /* disk reservations: */

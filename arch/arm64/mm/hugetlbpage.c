@@ -276,7 +276,10 @@ pte_t *huge_pte_alloc(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_t *ptep = NULL;
 
 	pgdp = pgd_offset(mm, addr);
-	p4dp = p4d_offset(pgdp, addr);
+	p4dp = p4d_alloc(mm, pgdp, addr);
+	if (!p4dp)
+		return NULL;
+
 	pudp = pud_alloc(mm, p4dp, addr);
 	if (!pudp)
 		return NULL;

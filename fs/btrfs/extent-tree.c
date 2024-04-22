@@ -3464,6 +3464,14 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 	if (root_id != BTRFS_TREE_LOG_OBJECTID) {
 		struct btrfs_ref generic_ref = { 0 };
 
+		/*
+		 * Assert that the extent buffer is not cleared due to
+		 * EXTENT_BUFFER_ZONED_ZEROOUT. Please refer
+		 * btrfs_clear_buffer_dirty() and btree_csum_one_bio() for
+		 * detail.
+		 */
+		ASSERT(btrfs_header_bytenr(buf) != 0);
+
 		btrfs_init_generic_ref(&generic_ref, BTRFS_DROP_DELAYED_REF,
 				       buf->start, buf->len, parent,
 				       btrfs_header_owner(buf));
