@@ -80,6 +80,18 @@ static int ath12k_acpi_dsm_get_data(struct ath12k_base *ab, int func)
 			       obj->buffer.length);
 
 			break;
+		case ATH12K_ACPI_DSM_FUNC_INDEX_CCA:
+			if (obj->buffer.length != ATH12K_ACPI_DSM_CCA_DATA_SIZE) {
+				ath12k_warn(ab, "invalid ACPI DSM CCA data size: %d\n",
+					    obj->buffer.length);
+				ret = -EINVAL;
+				goto out;
+			}
+
+			memcpy(&ab->acpi.cca_data, obj->buffer.pointer,
+			       obj->buffer.length);
+
+			break;
 		}
 	} else {
 		ath12k_warn(ab, "ACPI DSM method returned an unsupported object type: %d\n",
@@ -226,6 +238,7 @@ static int ath12k_acpi_set_tas_params(struct ath12k_base *ab)
 int ath12k_acpi_start(struct ath12k_base *ab)
 {
 	acpi_status status;
+	u8 *buf;
 	int ret;
 
 	if (!ab->hw_params->acpi_guid)
@@ -295,6 +308,30 @@ int ath12k_acpi_start(struct ath12k_base *ab)
 		ret = ath12k_acpi_set_bios_sar_params(ab);
 		if (ret)
 			return ret;
+	}
+
+	if (ATH12K_ACPI_FUNC_BIT_VALID(ab->acpi, ATH12K_ACPI_FUNC_BIT_CCA)) {
+		ret = ath12k_acpi_dsm_get_data(ab, ATH12K_ACPI_DSM_FUNC_INDEX_CCA);
+		if (ret) {
+			ath12k_warn(ab, "failed to get ACPI DSM CCA threshold configuration: %d\n",
+				    ret);
+			return ret;
+		}
+
+		if (ab->acpi.cca_data[0] == ATH12K_ACPI_CCA_THR_VERSION &&
+		    ab->acpi.cca_data[ATH12K_ACPI_CCA_THR_OFFSET_DATA_OFFSET] ==
+		    ATH12K_ACPI_CCA_THR_ENABLE_FLAG) {
+			buf = ab->acpi.cca_data + ATH12K_ACPI_CCA_THR_OFFSET_DATA_OFFSET;
+			ret = ath12k_wmi_set_bios_cmd(ab,
+						      WMI_BIOS_PARAM_CCA_THRESHOLD_TYPE,
+						      buf,
+						      ATH12K_ACPI_CCA_THR_OFFSET_LEN);
+			if (ret) {
+				ath12k_warn(ab, "failed to set ACPI DSM CCA threshold: %d\n",
+					    ret);
+				return ret;
+			}
+		}
 	}
 
 	status = acpi_install_notify_handler(ACPI_HANDLE(ab->dev),
