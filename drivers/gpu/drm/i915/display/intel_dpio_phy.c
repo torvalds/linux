@@ -1078,7 +1078,7 @@ void vlv_set_phy_signal_level(struct intel_encoder *encoder,
 	vlv_dpio_write(dev_priv, phy, VLV_TX_DW3_GRP(ch), 0x0C782040);
 
 	if (tx3_demph)
-		vlv_dpio_write(dev_priv, phy, VLV_TX3_DW4(ch), tx3_demph);
+		vlv_dpio_write(dev_priv, phy, VLV_TX_DW4(ch, 3), tx3_demph);
 
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW11_GRP(ch), 0x00030000);
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW9_GRP(ch), preemph_reg_value);
