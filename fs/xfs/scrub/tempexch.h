@@ -11,7 +11,6 @@ struct xrep_tempexch {
 	struct xfs_exchmaps_req	req;
 };
 
-int xrep_tempexch_enable(struct xfs_scrub *sc);
 int xrep_tempexch_trans_reserve(struct xfs_scrub *sc, int whichfork,
 		struct xrep_tempexch *ti);
 int xrep_tempexch_trans_alloc(struct xfs_scrub *sc, int whichfork,

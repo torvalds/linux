@@ -490,6 +490,9 @@ xrep_symlink(
 	/* The rmapbt is required to reap the old data fork. */
 	if (!xfs_has_rmapbt(sc->mp))
 		return -EOPNOTSUPP;
+	/* We require atomic file exchange range to rebuild anything. */
+	if (!xfs_has_exchange_range(sc->mp))
+		return -EOPNOTSUPP;
 
 	ASSERT(sc->ilock_flags & XFS_ILOCK_EXCL);
 

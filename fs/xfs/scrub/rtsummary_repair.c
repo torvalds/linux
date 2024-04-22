@@ -62,12 +62,7 @@ xrep_setup_rtsummary(
 		return -EOPNOTSUPP;
 
 	rts->resblks += blocks;
-
-	/*
-	 * Grab support for atomic file content exchanges before we allocate
-	 * any transactions or grab ILOCKs.
-	 */
-	return xrep_tempexch_enable(sc);
+	return 0;
 }
 
 static int
@@ -110,6 +105,9 @@ xrep_rtsummary(
 
 	/* We require the rmapbt to rebuild anything. */
 	if (!xfs_has_rmapbt(mp))
+		return -EOPNOTSUPP;
+	/* We require atomic file exchange range to rebuild anything. */
+	if (!xfs_has_exchange_range(mp))
 		return -EOPNOTSUPP;
 
 	/* Walk away if we disagree on the size of the rt bitmap. */

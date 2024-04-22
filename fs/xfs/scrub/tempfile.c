@@ -486,23 +486,6 @@ xrep_tempfile_roll_trans(
 	return 0;
 }
 
-/* Enable file content exchanges. */
-int
-xrep_tempexch_enable(
-	struct xfs_scrub	*sc)
-{
-	if (sc->flags & XREP_FSGATES_EXCHANGE_RANGE)
-		return 0;
-
-	if (!xfs_has_exchange_range(sc->mp))
-		return -EOPNOTSUPP;
-
-	trace_xchk_fsgates_enable(sc, XREP_FSGATES_EXCHANGE_RANGE);
-
-	sc->flags |= XREP_FSGATES_EXCHANGE_RANGE;
-	return 0;
-}
-
 /*
  * Fill out the mapping exchange request in preparation for atomically
  * committing the contents of a metadata file that we've rebuilt in the temp
@@ -745,6 +728,7 @@ xrep_tempexch_trans_alloc(
 	int			error;
 
 	ASSERT(sc->tp == NULL);
+	ASSERT(xfs_has_exchange_range(sc->mp));
 
 	error = xrep_tempexch_prep_request(sc, whichfork, tx);
 	if (error)
@@ -756,10 +740,6 @@ xrep_tempexch_trans_alloc(
 
 	if (xfs_has_lazysbcount(sc->mp))
 		flags |= XFS_TRANS_RES_FDBLKS;
-
-	error = xrep_tempexch_enable(sc);
-	if (error)
-		return error;
 
 	error = xfs_trans_alloc(sc->mp, &M_RES(sc->mp)->tr_itruncate,
 			tx->req.resblks, 0, flags, &sc->tp);
@@ -785,7 +765,7 @@ xrep_tempexch_contents(
 {
 	int			error;
 
-	ASSERT(sc->flags & XREP_FSGATES_EXCHANGE_RANGE);
+	ASSERT(xfs_has_exchange_range(sc->mp));
 
 	xfs_exchange_mappings(sc->tp, &tx->req);
 	error = xfs_defer_finish(&sc->tp);
