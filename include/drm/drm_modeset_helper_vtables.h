@@ -48,6 +48,7 @@
  * To make this clear all the helper vtables are pulled together in this location here.
  */
 
+struct drm_scanout_buffer;
 struct drm_writeback_connector;
 struct drm_writeback_job;
 
@@ -1443,6 +1444,44 @@ struct drm_plane_helper_funcs {
 	 */
 	void (*atomic_async_update)(struct drm_plane *plane,
 				    struct drm_atomic_state *state);
+
+	/**
+	 * @get_scanout_buffer:
+	 *
+	 * Get the current scanout buffer, to display a message with drm_panic.
+	 * The driver should do the minimum changes to provide a buffer,
+	 * that can be used to display the panic screen. Currently only linear
+	 * buffers are supported. Non-linear buffer support is on the TODO list.
+	 * The device &dev.mode_config.panic_lock is taken before calling this
+	 * function, so you can safely access the &plane.state
+	 * It is called from a panic callback, and must follow its restrictions.
+	 * Please look the documentation at drm_panic_trylock() for an in-depth
+	 * discussions of what's safe and what is not allowed.
+	 * It's a best effort mode, so it's expected that in some complex cases
+	 * the panic screen won't be displayed.
+	 * The returned &drm_scanout_buffer.map must be valid if no error code is
+	 * returned.
+	 *
+	 * Return:
+	 * %0 on success, negative errno on failure.
+	 */
+	int (*get_scanout_buffer)(struct drm_plane *plane,
+				  struct drm_scanout_buffer *sb);
+
+	/**
+	 * @panic_flush:
+	 *
+	 * It is used by drm_panic, and is called after the panic screen is
+	 * drawn to the scanout buffer. In this function, the driver
+	 * can send additional commands to the hardware, to make the scanout
+	 * buffer visible.
+	 * It is only called if get_scanout_buffer() returned successfully, and
+	 * the &dev.mode_config.panic_lock is held during the entire sequence.
+	 * It is called from a panic callback, and must follow its restrictions.
+	 * Please look the documentation at drm_panic_trylock() for an in-depth
+	 * discussions of what's safe and what is not allowed.
+	 */
+	void (*panic_flush)(struct drm_plane *plane);
 };
 
 /**

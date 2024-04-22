@@ -373,8 +373,8 @@ static int fill_analog_mode(struct drm_device *dev,
 	if (!bt601 &&
 	    (hact_duration_ns < params->hact_ns.min ||
 	     hact_duration_ns > params->hact_ns.max)) {
-		DRM_ERROR("Invalid horizontal active area duration: %uns (min: %u, max %u)\n",
-			  hact_duration_ns, params->hact_ns.min, params->hact_ns.max);
+		drm_err(dev, "Invalid horizontal active area duration: %uns (min: %u, max %u)\n",
+			hact_duration_ns, params->hact_ns.min, params->hact_ns.max);
 		return -EINVAL;
 	}
 
@@ -385,8 +385,8 @@ static int fill_analog_mode(struct drm_device *dev,
 	if (!bt601 &&
 	    (hblk_duration_ns < params->hblk_ns.min ||
 	     hblk_duration_ns > params->hblk_ns.max)) {
-		DRM_ERROR("Invalid horizontal blanking duration: %uns (min: %u, max %u)\n",
-			  hblk_duration_ns, params->hblk_ns.min, params->hblk_ns.max);
+		drm_err(dev, "Invalid horizontal blanking duration: %uns (min: %u, max %u)\n",
+			hblk_duration_ns, params->hblk_ns.min, params->hblk_ns.max);
 		return -EINVAL;
 	}
 
@@ -397,8 +397,8 @@ static int fill_analog_mode(struct drm_device *dev,
 	if (!bt601 &&
 	    (hslen_duration_ns < params->hslen_ns.min ||
 	     hslen_duration_ns > params->hslen_ns.max)) {
-		DRM_ERROR("Invalid horizontal sync duration: %uns (min: %u, max %u)\n",
-			  hslen_duration_ns, params->hslen_ns.min, params->hslen_ns.max);
+		drm_err(dev, "Invalid horizontal sync duration: %uns (min: %u, max %u)\n",
+			hslen_duration_ns, params->hslen_ns.min, params->hslen_ns.max);
 		return -EINVAL;
 	}
 
@@ -409,7 +409,8 @@ static int fill_analog_mode(struct drm_device *dev,
 	if (!bt601 &&
 	    (porches_duration_ns > (params->hfp_ns.max + params->hbp_ns.max) ||
 	     porches_duration_ns < (params->hfp_ns.min + params->hbp_ns.min))) {
-		DRM_ERROR("Invalid horizontal porches duration: %uns\n", porches_duration_ns);
+		drm_err(dev, "Invalid horizontal porches duration: %uns\n",
+			porches_duration_ns);
 		return -EINVAL;
 	}
 
@@ -431,8 +432,8 @@ static int fill_analog_mode(struct drm_device *dev,
 	if (!bt601 &&
 	    (hfp_duration_ns < params->hfp_ns.min ||
 	     hfp_duration_ns > params->hfp_ns.max)) {
-		DRM_ERROR("Invalid horizontal front porch duration: %uns (min: %u, max %u)\n",
-			  hfp_duration_ns, params->hfp_ns.min, params->hfp_ns.max);
+		drm_err(dev, "Invalid horizontal front porch duration: %uns (min: %u, max %u)\n",
+			hfp_duration_ns, params->hfp_ns.min, params->hfp_ns.max);
 		return -EINVAL;
 	}
 
@@ -443,8 +444,8 @@ static int fill_analog_mode(struct drm_device *dev,
 	if (!bt601 &&
 	    (hbp_duration_ns < params->hbp_ns.min ||
 	     hbp_duration_ns > params->hbp_ns.max)) {
-		DRM_ERROR("Invalid horizontal back porch duration: %uns (min: %u, max %u)\n",
-			  hbp_duration_ns, params->hbp_ns.min, params->hbp_ns.max);
+		drm_err(dev, "Invalid horizontal back porch duration: %uns (min: %u, max %u)\n",
+			hbp_duration_ns, params->hbp_ns.min, params->hbp_ns.max);
 		return -EINVAL;
 	}
 
@@ -495,8 +496,8 @@ static int fill_analog_mode(struct drm_device *dev,
 
 	vtotal = vactive + vfp + vslen + vbp;
 	if (params->num_lines != vtotal) {
-		DRM_ERROR("Invalid vertical total: %upx (expected %upx)\n",
-			  vtotal, params->num_lines);
+		drm_err(dev, "Invalid vertical total: %upx (expected %upx)\n",
+			vtotal, params->num_lines);
 		return -EINVAL;
 	}
 
@@ -1200,9 +1201,8 @@ int of_get_drm_display_mode(struct device_node *np,
 	if (bus_flags)
 		drm_bus_flags_from_videomode(&vm, bus_flags);
 
-	pr_debug("%pOF: got %dx%d display mode\n",
-		np, vm.hactive, vm.vactive);
-	drm_mode_debug_printmodeline(dmode);
+	pr_debug("%pOF: got %dx%d display mode: " DRM_MODE_FMT "\n",
+		 np, vm.hactive, vm.vactive, DRM_MODE_ARG(dmode));
 
 	return 0;
 }
@@ -1250,7 +1250,7 @@ int of_get_drm_panel_display_mode(struct device_node *np,
 	dmode->width_mm = width_mm;
 	dmode->height_mm = height_mm;
 
-	drm_mode_debug_printmodeline(dmode);
+	pr_debug(DRM_MODE_FMT "\n", DRM_MODE_ARG(dmode));
 
 	return 0;
 }
@@ -1812,10 +1812,8 @@ void drm_mode_prune_invalid(struct drm_device *dev,
 					 DRM_MODE_FMT "\n", DRM_MODE_ARG(mode));
 			}
 			if (verbose) {
-				drm_mode_debug_printmodeline(mode);
-				DRM_DEBUG_KMS("Not using %s mode: %s\n",
-					      mode->name,
-					      drm_get_mode_status_name(mode->status));
+				drm_dbg_kms(dev, "Rejected mode: " DRM_MODE_FMT " (%s)\n",
+					    DRM_MODE_ARG(mode), drm_get_mode_status_name(mode->status));
 			}
 			drm_mode_destroy(dev, mode);
 		}

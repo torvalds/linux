@@ -19,8 +19,9 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef DRM_DISPLAYID_H
-#define DRM_DISPLAYID_H
+
+#ifndef __DRM_DISPLAYID_INTERNAL_H__
+#define __DRM_DISPLAYID_INTERNAL_H__
 
 #include <linux/types.h>
 #include <linux/bits.h>

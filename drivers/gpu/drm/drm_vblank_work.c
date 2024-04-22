@@ -245,7 +245,7 @@ void drm_vblank_work_init(struct drm_vblank_work *work, struct drm_crtc *crtc,
 {
 	kthread_init_work(&work->base, func);
 	INIT_LIST_HEAD(&work->node);
-	work->vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
+	work->vblank = drm_crtc_vblank_crtc(crtc);
 }
 EXPORT_SYMBOL(drm_vblank_work_init);
 

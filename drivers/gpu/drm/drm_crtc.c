@@ -716,10 +716,10 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 	crtc = drm_crtc_find(dev, file_priv, crtc_req->crtc_id);
 	if (!crtc) {
-		DRM_DEBUG_KMS("Unknown CRTC ID %d\n", crtc_req->crtc_id);
+		drm_dbg_kms(dev, "Unknown CRTC ID %d\n", crtc_req->crtc_id);
 		return -ENOENT;
 	}
-	DRM_DEBUG_KMS("[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
+	drm_dbg_kms(dev, "[CRTC:%d:%s]\n", crtc->base.id, crtc->name);
 
 	plane = crtc->primary;
 
@@ -742,7 +742,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 				old_fb = plane->fb;
 
 			if (!old_fb) {
-				DRM_DEBUG_KMS("CRTC doesn't have current FB\n");
+				drm_dbg_kms(dev, "CRTC doesn't have current FB\n");
 				ret = -EINVAL;
 				goto out;
 			}
@@ -753,8 +753,8 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		} else {
 			fb = drm_framebuffer_lookup(dev, file_priv, crtc_req->fb_id);
 			if (!fb) {
-				DRM_DEBUG_KMS("Unknown FB ID%d\n",
-						crtc_req->fb_id);
+				drm_dbg_kms(dev, "Unknown FB ID%d\n",
+					    crtc_req->fb_id);
 				ret = -ENOENT;
 				goto out;
 			}
@@ -767,7 +767,7 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 		}
 		if (!file_priv->aspect_ratio_allowed &&
 		    (crtc_req->mode.flags & DRM_MODE_FLAG_PIC_AR_MASK) != DRM_MODE_FLAG_PIC_AR_NONE) {
-			DRM_DEBUG_KMS("Unexpected aspect-ratio flag bits\n");
+			drm_dbg_kms(dev, "Unexpected aspect-ratio flag bits\n");
 			ret = -EINVAL;
 			goto out;
 		}
@@ -775,9 +775,9 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 		ret = drm_mode_convert_umode(dev, mode, &crtc_req->mode);
 		if (ret) {
-			DRM_DEBUG_KMS("Invalid mode (ret=%d, status=%s)\n",
-				      ret, drm_get_mode_status_name(mode->status));
-			drm_mode_debug_printmodeline(mode);
+			drm_dbg_kms(dev, "Invalid mode (%s, %pe): " DRM_MODE_FMT "\n",
+				    drm_get_mode_status_name(mode->status),
+				    ERR_PTR(ret), DRM_MODE_ARG(mode));
 			goto out;
 		}
 
@@ -793,9 +793,8 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 							   fb->format->format,
 							   fb->modifier);
 			if (ret) {
-				DRM_DEBUG_KMS("Invalid pixel format %p4cc, modifier 0x%llx\n",
-					      &fb->format->format,
-					      fb->modifier);
+				drm_dbg_kms(dev, "Invalid pixel format %p4cc, modifier 0x%llx\n",
+					    &fb->format->format, fb->modifier);
 				goto out;
 			}
 		}
@@ -808,14 +807,14 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	}
 
 	if (crtc_req->count_connectors == 0 && mode) {
-		DRM_DEBUG_KMS("Count connectors is 0 but mode set\n");
+		drm_dbg_kms(dev, "Count connectors is 0 but mode set\n");
 		ret = -EINVAL;
 		goto out;
 	}
 
 	if (crtc_req->count_connectors > 0 && (!mode || !fb)) {
-		DRM_DEBUG_KMS("Count connectors is %d but no mode or fb set\n",
-			  crtc_req->count_connectors);
+		drm_dbg_kms(dev, "Count connectors is %d but no mode or fb set\n",
+			    crtc_req->count_connectors);
 		ret = -EINVAL;
 		goto out;
 	}
@@ -847,14 +846,13 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 
 			connector = drm_connector_lookup(dev, file_priv, out_id);
 			if (!connector) {
-				DRM_DEBUG_KMS("Connector id %d unknown\n",
-						out_id);
+				drm_dbg_kms(dev, "Connector id %d unknown\n",
+					    out_id);
 				ret = -ENOENT;
 				goto out;
 			}
-			DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
-					connector->base.id,
-					connector->name);
+			drm_dbg_kms(dev, "[CONNECTOR:%d:%s]\n",
+				    connector->base.id, connector->name);
 
 			connector_set[i] = connector;
 			num_connectors++;

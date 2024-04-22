@@ -21,11 +21,21 @@
  * of the Software.
  */
 
+#include <linux/i2c-algo-bit.h>
+#include <linux/i2c.h>
+
 #include <drm/drm_managed.h>
 #include <drm/drm_print.h>
 
 #include "ast_ddc.h"
 #include "ast_drv.h"
+
+struct ast_ddc {
+	struct ast_device *ast;
+
+	struct i2c_algo_bit_data bit;
+	struct i2c_adapter adapter;
+};
 
 static void ast_ddc_algo_bit_data_setsda(void *data, int state)
 {
@@ -132,7 +142,7 @@ static void ast_ddc_release(struct drm_device *dev, void *res)
 	i2c_del_adapter(&ddc->adapter);
 }
 
-struct ast_ddc *ast_ddc_create(struct ast_device *ast)
+struct i2c_adapter *ast_ddc_create(struct ast_device *ast)
 {
 	struct drm_device *dev = &ast->base;
 	struct ast_ddc *ddc;
@@ -145,15 +155,7 @@ struct ast_ddc *ast_ddc_create(struct ast_device *ast)
 		return ERR_PTR(-ENOMEM);
 	ddc->ast = ast;
 
-	adapter = &ddc->adapter;
-	adapter->owner = THIS_MODULE;
-	adapter->dev.parent = dev->dev;
-	i2c_set_adapdata(adapter, ddc);
-	snprintf(adapter->name, sizeof(adapter->name), "AST DDC bus");
-
 	bit = &ddc->bit;
-	bit->udelay = 20;
-	bit->timeout = 2;
 	bit->data = ddc;
 	bit->setsda = ast_ddc_algo_bit_data_setsda;
 	bit->setscl = ast_ddc_algo_bit_data_setscl;
@@ -161,8 +163,16 @@ struct ast_ddc *ast_ddc_create(struct ast_device *ast)
 	bit->getscl = ast_ddc_algo_bit_data_getscl;
 	bit->pre_xfer = ast_ddc_algo_bit_data_pre_xfer;
 	bit->post_xfer = ast_ddc_algo_bit_data_post_xfer;
+	bit->udelay = 20;
+	bit->timeout = usecs_to_jiffies(2200);
 
+	adapter = &ddc->adapter;
+	adapter->owner = THIS_MODULE;
 	adapter->algo_data = bit;
+	adapter->dev.parent = dev->dev;
+	snprintf(adapter->name, sizeof(adapter->name), "AST DDC bus");
+	i2c_set_adapdata(adapter, ddc);
+
 	ret = i2c_bit_add_bus(adapter);
 	if (ret) {
 		drm_err(dev, "Failed to register bit i2c\n");
@@ -173,5 +183,5 @@ struct ast_ddc *ast_ddc_create(struct ast_device *ast)
 	if (ret)
 		return ERR_PTR(ret);
 
-	return ddc;
+	return &ddc->adapter;
 }
