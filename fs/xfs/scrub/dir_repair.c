@@ -704,7 +704,7 @@ xrep_dir_replay_update(
 	uint				resblks;
 	int				error;
 
-	resblks = XFS_LINK_SPACE_RES(mp, xname->len);
+	resblks = xfs_link_space_res(mp, xname->len);
 	error = xchk_trans_alloc(rd->sc, resblks);
 	if (error)
 		return error;
