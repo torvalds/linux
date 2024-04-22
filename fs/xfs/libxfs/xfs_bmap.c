@@ -5307,6 +5307,14 @@ xfs_bmap_del_extent_real(
 		if (xfs_is_reflink_inode(ip) && whichfork == XFS_DATA_FORK) {
 			xfs_refcount_decrease_extent(tp, del);
 		} else if (xfs_ifork_is_realtime(ip, whichfork)) {
+			/*
+			 * Ensure the bitmap and summary inodes are locked
+			 * and joined to the transaction before modifying them.
+			 */
+			if (!(tp->t_flags & XFS_TRANS_RTBITMAP_LOCKED)) {
+				tp->t_flags |= XFS_TRANS_RTBITMAP_LOCKED;
+				xfs_rtbitmap_lock(tp, mp);
+			}
 			error = xfs_rtfree_blocks(tp, del->br_startblock,
 					del->br_blockcount);
 		} else {
@@ -5407,13 +5415,6 @@ __xfs_bunmapi(
 		cur = xfs_bmbt_init_cursor(mp, tp, ip, whichfork);
 	} else
 		cur = NULL;
-
-	if (isrt) {
-		/*
-		 * Synchronize by locking the realtime bitmap.
-		 */
-		xfs_rtbitmap_lock(tp, mp);
-	}
 
 	extno = 0;
 	while (end != (xfs_fileoff_t)-1 && end >= start &&
