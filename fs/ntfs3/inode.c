@@ -950,6 +950,7 @@ out:
 int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
 		   u32 len, u32 copied, struct page *page, void *fsdata)
 {
+	struct folio *folio = page_folio(page);
 	struct inode *inode = mapping->host;
 	struct ntfs_inode *ni = ntfs_i(inode);
 	u64 valid = ni->i_valid;
@@ -961,23 +962,23 @@ int ntfs_write_end(struct file *file, struct address_space *mapping, loff_t pos,
 		err = attr_data_write_resident(ni, page);
 		ni_unlock(ni);
 		if (!err) {
+			struct buffer_head *head = folio_buffers(folio);
 			dirty = true;
-			/* Clear any buffers in page. */
-			if (page_has_buffers(page)) {
-				struct buffer_head *head, *bh;
+			/* Clear any buffers in folio. */
+			if (head) {
+				struct buffer_head *bh = head;
 
-				bh = head = page_buffers(page);
 				do {
 					clear_buffer_dirty(bh);
 					clear_buffer_mapped(bh);
 					set_buffer_uptodate(bh);
 				} while (head != (bh = bh->b_this_page));
 			}
-			SetPageUptodate(page);
+			folio_mark_uptodate(folio);
 			err = copied;
 		}
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 	} else {
 		err = generic_write_end(file, mapping, pos, len, copied, page,
 					fsdata);
