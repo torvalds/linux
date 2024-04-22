@@ -42,13 +42,38 @@ static inline u64 fadump_str_to_u64(const char *str)
 
 #define FADUMP_CPU_UNKNOWN		(~((u32)0))
 
-#define FADUMP_CRASH_INFO_MAGIC		fadump_str_to_u64("FADMPINF")
+/*
+ * The introduction of new fields in the fadump crash info header has
+ * led to a change in the magic key from `FADMPINF` to `FADMPSIG` for
+ * identifying a kernel crash from an old kernel.
+ *
+ * To prevent the need for further changes to the magic number in the
+ * event of future modifications to the fadump crash info header, a
+ * version field has been introduced to track the fadump crash info
+ * header version.
+ *
+ * Consider a few points before adding new members to the fadump crash info
+ * header structure:
+ *
+ *  - Append new members; avoid adding them in between.
+ *  - Non-primitive members should have a size member as well.
+ *  - For every change in the fadump header, increment the
+ *    fadump header version. This helps the updated kernel decide how to
+ *    handle kernel dumps from older kernels.
+ */
+#define FADUMP_CRASH_INFO_MAGIC_OLD	fadump_str_to_u64("FADMPINF")
+#define FADUMP_CRASH_INFO_MAGIC		fadump_str_to_u64("FADMPSIG")
+#define FADUMP_HEADER_VERSION		1
 
 /* fadump crash info structure */
 struct fadump_crash_info_header {
 	u64		magic_number;
-	u64		elfcorehdr_addr;
+	u32		version;
 	u32		crashing_cpu;
+	u64		vmcoreinfo_raddr;
+	u64		vmcoreinfo_size;
+	u32		pt_regs_sz;
+	u32		cpu_mask_sz;
 	struct pt_regs	regs;
 	struct cpumask	cpu_mask;
 };
@@ -94,6 +119,8 @@ struct fw_dump {
 	u64		boot_mem_regs_cnt;
 
 	unsigned long	fadumphdr_addr;
+	u64		elfcorehdr_addr;
+	u64		elfcorehdr_size;
 	unsigned long	cpu_notes_buf_vaddr;
 	unsigned long	cpu_notes_buf_size;
 
