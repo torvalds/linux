@@ -276,6 +276,8 @@ struct vgic_dist {
 
 	/* Protects the lpi_list. */
 	raw_spinlock_t		lpi_list_lock;
+
+#define LPI_XA_MARK_DEBUG_ITER	XA_MARK_0
 	struct xarray		lpi_xa;
 	atomic_t		lpi_count;
 
