@@ -229,21 +229,21 @@
 #define _VLV_PLL_DW7_CH1		0x803c
 #define VLV_PLL_DW7(ch) _PIPE(ch, _VLV_PLL_DW7_CH0, _VLV_PLL_DW7_CH1)
 
-#define _VLV_PLL_DW8_CH0		0x8040
-#define _VLV_PLL_DW8_CH1		0x8060
-#define VLV_PLL_DW8(ch) _PIPE(ch, _VLV_PLL_DW8_CH0, _VLV_PLL_DW8_CH1)
+#define _VLV_PLL_DW16_CH0		0x8040
+#define _VLV_PLL_DW16_CH1		0x8060
+#define VLV_PLL_DW16(ch) _PIPE(ch, _VLV_PLL_DW16_CH0, _VLV_PLL_DW16_CH1)
 
-#define _VLV_PLL_DW9_CH0		0x8044
-#define _VLV_PLL_DW9_CH1		0x8064
-#define VLV_PLL_DW9(ch) _PIPE(ch, _VLV_PLL_DW9_CH0, _VLV_PLL_DW9_CH1)
+#define _VLV_PLL_DW17_CH0		0x8044
+#define _VLV_PLL_DW17_CH1		0x8064
+#define VLV_PLL_DW17(ch) _PIPE(ch, _VLV_PLL_DW17_CH0, _VLV_PLL_DW17_CH1)
 
-#define _VLV_PLL_DW10_CH0		0x8048
-#define _VLV_PLL_DW10_CH1		0x8068
-#define VLV_PLL_DW10(ch) _PIPE(ch, _VLV_PLL_DW10_CH0, _VLV_PLL_DW10_CH1)
+#define _VLV_PLL_DW18_CH0		0x8048
+#define _VLV_PLL_DW18_CH1		0x8068
+#define VLV_PLL_DW18(ch) _PIPE(ch, _VLV_PLL_DW18_CH0, _VLV_PLL_DW18_CH1)
 
-#define _VLV_PLL_DW11_CH0		0x804c
-#define _VLV_PLL_DW11_CH1		0x806c
-#define VLV_PLL_DW11(ch) _PIPE(ch, _VLV_PLL_DW11_CH0, _VLV_PLL_DW11_CH1)
+#define _VLV_PLL_DW19_CH0		0x804c
+#define _VLV_PLL_DW19_CH1		0x806c
+#define VLV_PLL_DW19(ch) _PIPE(ch, _VLV_PLL_DW19_CH0, _VLV_PLL_DW19_CH1)
 
 /* Spec for ref block start counts at DW8 */
 #define VLV_REF_DW11			0x80ac

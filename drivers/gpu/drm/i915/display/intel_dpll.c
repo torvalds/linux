@@ -1875,19 +1875,19 @@ static void vlv_pllb_recal_opamp(struct drm_i915_private *dev_priv,
 	 * PLLB opamp always calibrates to max value of 0x3f, force enable it
 	 * and set it to a reasonable value instead.
 	 */
-	reg_val = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW9(1));
+	reg_val = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW17(1));
 	reg_val &= 0xffffff00;
 	reg_val |= 0x00000030;
-	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW9(1), reg_val);
+	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW17(1), reg_val);
 
 	reg_val = vlv_dpio_read(dev_priv, phy, VLV_REF_DW11);
 	reg_val &= 0x00ffffff;
 	reg_val |= 0x8c000000;
 	vlv_dpio_write(dev_priv, phy, VLV_REF_DW11, reg_val);
 
-	reg_val = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW9(1));
+	reg_val = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW17(1));
 	reg_val &= 0xffffff00;
-	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW9(1), reg_val);
+	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW17(1), reg_val);
 
 	reg_val = vlv_dpio_read(dev_priv, phy, VLV_REF_DW11);
 	reg_val &= 0x00ffffff;
@@ -1923,9 +1923,9 @@ static void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW17_BCAST, 0x0100000f);
 
 	/* Disable target IRef on PLL */
-	reg_val = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW8(pipe));
+	reg_val = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW16(pipe));
 	reg_val &= 0x00ffffff;
-	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW8(pipe), reg_val);
+	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW16(pipe), reg_val);
 
 	/* Disable fast lock */
 	vlv_dpio_write(dev_priv, phy, VLV_CMN_DW0, 0x610);
@@ -1951,10 +1951,10 @@ static void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	if (crtc_state->port_clock == 162000 ||
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG) ||
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-		vlv_dpio_write(dev_priv, phy, VLV_PLL_DW10(pipe),
+		vlv_dpio_write(dev_priv, phy, VLV_PLL_DW18(pipe),
 				 0x009f0003);
 	else
-		vlv_dpio_write(dev_priv, phy, VLV_PLL_DW10(pipe),
+		vlv_dpio_write(dev_priv, phy, VLV_PLL_DW18(pipe),
 				 0x00d0000f);
 
 	if (intel_crtc_has_dp_encoder(crtc_state)) {
@@ -1981,7 +1981,7 @@ static void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
 		coreclk |= 0x01000000;
 	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW7(pipe), coreclk);
 
-	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW11(pipe), 0x87871000);
+	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW19(pipe), 0x87871000);
 
 	vlv_dpio_put(dev_priv);
 }
