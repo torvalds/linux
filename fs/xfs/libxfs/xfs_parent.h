@@ -17,4 +17,69 @@ xfs_dahash_t xfs_parent_hashval(struct xfs_mount *mp, const uint8_t *name,
 xfs_dahash_t xfs_parent_hashattr(struct xfs_mount *mp, const uint8_t *name,
 		int namelen, const void *value, int valuelen);
 
+/* Initializes a xfs_parent_rec to be stored as an attribute name. */
+static inline void
+xfs_parent_rec_init(
+	struct xfs_parent_rec	*rec,
+	xfs_ino_t		ino,
+	uint32_t		gen)
+{
+	rec->p_ino = cpu_to_be64(ino);
+	rec->p_gen = cpu_to_be32(gen);
+}
+
+/* Initializes a xfs_parent_rec to be stored as an attribute name. */
+static inline void
+xfs_inode_to_parent_rec(
+	struct xfs_parent_rec	*rec,
+	const struct xfs_inode	*dp)
+{
+	xfs_parent_rec_init(rec, dp->i_ino, VFS_IC(dp)->i_generation);
+}
+
+extern struct kmem_cache	*xfs_parent_args_cache;
+
+/*
+ * Parent pointer information needed to pass around the deferred xattr update
+ * machinery.
+ */
+struct xfs_parent_args {
+	struct xfs_parent_rec	rec;
+	struct xfs_da_args	args;
+};
+
+/*
+ * Start a parent pointer update by allocating the context object we need to
+ * perform a parent pointer update.
+ */
+static inline int
+xfs_parent_start(
+	struct xfs_mount	*mp,
+	struct xfs_parent_args	**ppargsp)
+{
+	if (!xfs_has_parent(mp)) {
+		*ppargsp = NULL;
+		return 0;
+	}
+
+	*ppargsp = kmem_cache_zalloc(xfs_parent_args_cache, GFP_KERNEL);
+	if (!*ppargsp)
+		return -ENOMEM;
+	return 0;
+}
+
+/* Finish a parent pointer update by freeing the context object. */
+static inline void
+xfs_parent_finish(
+	struct xfs_mount	*mp,
+	struct xfs_parent_args	*ppargs)
+{
+	if (ppargs)
+		kmem_cache_free(xfs_parent_args_cache, ppargs);
+}
+
+int xfs_parent_addname(struct xfs_trans *tp, struct xfs_parent_args *ppargs,
+		struct xfs_inode *dp, const struct xfs_name *parent_name,
+		struct xfs_inode *child);
+
 #endif /* __XFS_PARENT_H__ */
