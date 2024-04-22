@@ -72,8 +72,7 @@ enum {
 /*
  * Represents a configuration symbol.
  *
- * Choices are represented as a special kind of symbol and have the
- * SYMBOL_CHOICE bit set in 'flags'.
+ * Choices are represented as a special kind of symbol with null name.
  */
 struct symbol {
 	/* link node for the hash table */
@@ -131,7 +130,6 @@ struct symbol {
 
 #define SYMBOL_CONST      0x0001  /* symbol is const */
 #define SYMBOL_CHECK      0x0008  /* used during dependency checking */
-#define SYMBOL_CHOICE     0x0010  /* start of a choice block (null name) */
 #define SYMBOL_CHOICEVAL  0x0020  /* used as a value in a choice block */
 #define SYMBOL_VALID      0x0080  /* set when symbol.curr is calculated */
 #define SYMBOL_OPTIONAL   0x0100  /* choice is optional - values can be 'n' */
