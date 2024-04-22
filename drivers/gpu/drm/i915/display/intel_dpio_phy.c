@@ -719,9 +719,8 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
-	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
+	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 	u32 val;
 	int i;
 
@@ -814,9 +813,9 @@ void chv_data_lane_soft_reset(struct intel_encoder *encoder,
 			      bool reset)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	enum dpio_channel ch = vlv_dig_port_to_channel(enc_to_dig_port(encoder));
-	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
+	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
+	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
+	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 	u32 val;
 
 	val = vlv_dpio_read(dev_priv, phy, VLV_PCS01_DW0(ch));
@@ -861,7 +860,7 @@ void chv_phy_pre_pll_enable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
-	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
+	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 	enum pipe pipe = crtc->pipe;
 	unsigned int lane_mask =
 		intel_dp_unused_lane_mask(crtc_state->lane_count);
@@ -941,9 +940,8 @@ void chv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 	struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
-	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
+	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 	int data, i, stagger;
 	u32 val;
 
@@ -1030,8 +1028,8 @@ void chv_phy_post_pll_disable(struct intel_encoder *encoder,
 			      const struct intel_crtc_state *old_crtc_state)
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	enum dpio_phy phy = vlv_dig_port_to_phy(enc_to_dig_port(encoder));
 	enum pipe pipe = to_intel_crtc(old_crtc_state->uapi.crtc)->pipe;
-	enum dpio_phy phy = vlv_pipe_to_phy(pipe);
 	u32 val;
 
 	vlv_dpio_get(dev_priv);
@@ -1068,9 +1066,8 @@ void vlv_set_phy_signal_level(struct intel_encoder *encoder,
 {
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
-	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
+	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 
 	vlv_dpio_get(dev_priv);
 
@@ -1095,9 +1092,8 @@ void vlv_phy_pre_pll_enable(struct intel_encoder *encoder,
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
-	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
+	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 
 	/* Program Tx lane resets to default */
 	vlv_dpio_get(dev_priv);
@@ -1127,8 +1123,8 @@ void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
+	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 	enum pipe pipe = crtc->pipe;
-	enum dpio_phy phy = vlv_pipe_to_phy(pipe);
 	u32 val;
 
 	vlv_dpio_get(dev_priv);
@@ -1154,9 +1150,8 @@ void vlv_phy_reset_lanes(struct intel_encoder *encoder,
 {
 	struct intel_digital_port *dig_port = enc_to_dig_port(encoder);
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
-	struct intel_crtc *crtc = to_intel_crtc(old_crtc_state->uapi.crtc);
 	enum dpio_channel ch = vlv_dig_port_to_channel(dig_port);
-	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
+	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 
 	vlv_dpio_get(dev_priv);
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW0(ch), 0x00000000);
