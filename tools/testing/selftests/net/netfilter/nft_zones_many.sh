@@ -28,7 +28,6 @@ fi
 test_zones() {
 	local max_zones=$1
 
-ip netns exec "$ns1" sysctl -q net.netfilter.nf_conntrack_udp_timeout=3600
 ip netns exec "$ns1" nft -f /dev/stdin<<EOF
 flush ruleset
 table inet raw {
@@ -46,6 +45,9 @@ if [ "$?" -ne 0 ];then
 	echo "SKIP: Cannot add nftables rules"
 	exit $ksft_skip
 fi
+
+	ip netns exec "$ns1" sysctl -q net.netfilter.nf_conntrack_udp_timeout=3600
+
 	(
 		echo "add element inet raw rndzone {"
 	for i in $(seq 1 "$max_zones");do
