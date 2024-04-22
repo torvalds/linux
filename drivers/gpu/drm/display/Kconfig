@@ -39,7 +39,6 @@ config DRM_DISPLAY_DP_AUX_CHARDEV
 config DRM_DISPLAY_DP_HELPER
 	bool "DRM DisplayPort Helpers"
 	depends on DRM_DISPLAY_HELPER
-	select DRM_KMS_HELPER
 	default y
 	help
 	  DRM display helpers for DisplayPort.
