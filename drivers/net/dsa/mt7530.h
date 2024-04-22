@@ -743,15 +743,14 @@ struct mt753x_pcs {
 
 /* struct mt753x_info -	This is the main data structure for holding the specific
  *			part for each supported device
+ * @id:			Holding the identifier to a switch model
+ * @pcs_ops:		Holding the pointer to the MAC PCS operations structure
  * @sw_setup:		Holding the handler to a device initialization
  * @phy_read_c22:	Holding the way reading PHY port using C22
  * @phy_write_c22:	Holding the way writing PHY port using C22
  * @phy_read_c45:	Holding the way reading PHY port using C45
  * @phy_write_c45:	Holding the way writing PHY port using C45
- * @phy_mode_supported:	Check if the PHY type is being supported on a certain
- *			port
- * @mac_port_validate:	Holding the way to set addition validate type for a
- *			certan MAC port
+ * @mac_port_get_caps:	Holding the handler that provides MAC capabilities
  * @mac_port_config:	Holding the way setting up the PHY attribute to a
  *			certain MAC port
  */
@@ -770,9 +769,6 @@ struct mt753x_info {
 			     int regnum, u16 val);
 	void (*mac_port_get_caps)(struct dsa_switch *ds, int port,
 				  struct phylink_config *config);
-	void (*mac_port_validate)(struct dsa_switch *ds, int port,
-				  phy_interface_t interface,
-				  unsigned long *supported);
 	void (*mac_port_config)(struct dsa_switch *ds, int port,
 				unsigned int mode,
 				phy_interface_t interface);
