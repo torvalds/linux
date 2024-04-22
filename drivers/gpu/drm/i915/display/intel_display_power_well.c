@@ -1442,9 +1442,9 @@ static void chv_dpio_cmn_power_well_enable(struct drm_i915_private *dev_priv,
 	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW28, tmp);
 
 	if (id == VLV_DISP_PW_DPIO_CMN_BC) {
-		tmp = vlv_dpio_read(dev_priv, phy, _CHV_CMN_DW6_CH1);
+		tmp = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW6_CH1);
 		tmp |= DPIO_DYNPWRDOWNEN_CH1;
-		vlv_dpio_write(dev_priv, phy, _CHV_CMN_DW6_CH1, tmp);
+		vlv_dpio_write(dev_priv, phy, CHV_CMN_DW6_CH1, tmp);
 	} else {
 		/*
 		 * Force the non-existing CL2 off. BXT does this
@@ -1520,9 +1520,9 @@ static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpi
 		return;
 
 	if (ch == DPIO_CH0)
-		reg = _CHV_CMN_DW0_CH0;
+		reg = CHV_CMN_DW0_CH0;
 	else
-		reg = _CHV_CMN_DW6_CH1;
+		reg = CHV_CMN_DW6_CH1;
 
 	vlv_dpio_get(dev_priv);
 	val = vlv_dpio_read(dev_priv, phy, reg);

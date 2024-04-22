@@ -883,21 +883,21 @@ void chv_phy_pre_pll_enable(struct intel_encoder *encoder,
 
 	/* program left/right clock distribution */
 	if (pipe != PIPE_B) {
-		val = vlv_dpio_read(dev_priv, phy, _CHV_CMN_DW5_CH0);
+		val = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW5_CH0);
 		val &= ~(CHV_BUFLEFTENA1_MASK | CHV_BUFRIGHTENA1_MASK);
 		if (ch == DPIO_CH0)
 			val |= CHV_BUFLEFTENA1_FORCE;
 		if (ch == DPIO_CH1)
 			val |= CHV_BUFRIGHTENA1_FORCE;
-		vlv_dpio_write(dev_priv, phy, _CHV_CMN_DW5_CH0, val);
+		vlv_dpio_write(dev_priv, phy, CHV_CMN_DW5_CH0, val);
 	} else {
-		val = vlv_dpio_read(dev_priv, phy, _CHV_CMN_DW1_CH1);
+		val = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW1_CH1);
 		val &= ~(CHV_BUFLEFTENA2_MASK | CHV_BUFRIGHTENA2_MASK);
 		if (ch == DPIO_CH0)
 			val |= CHV_BUFLEFTENA2_FORCE;
 		if (ch == DPIO_CH1)
 			val |= CHV_BUFRIGHTENA2_FORCE;
-		vlv_dpio_write(dev_priv, phy, _CHV_CMN_DW1_CH1, val);
+		vlv_dpio_write(dev_priv, phy, CHV_CMN_DW1_CH1, val);
 	}
 
 	/* program clock channel usage */
@@ -1036,13 +1036,13 @@ void chv_phy_post_pll_disable(struct intel_encoder *encoder,
 
 	/* disable left/right clock distribution */
 	if (pipe != PIPE_B) {
-		val = vlv_dpio_read(dev_priv, phy, _CHV_CMN_DW5_CH0);
+		val = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW5_CH0);
 		val &= ~(CHV_BUFLEFTENA1_MASK | CHV_BUFRIGHTENA1_MASK);
-		vlv_dpio_write(dev_priv, phy, _CHV_CMN_DW5_CH0, val);
+		vlv_dpio_write(dev_priv, phy, CHV_CMN_DW5_CH0, val);
 	} else {
-		val = vlv_dpio_read(dev_priv, phy, _CHV_CMN_DW1_CH1);
+		val = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW1_CH1);
 		val &= ~(CHV_BUFLEFTENA2_MASK | CHV_BUFRIGHTENA2_MASK);
-		vlv_dpio_write(dev_priv, phy, _CHV_CMN_DW1_CH1, val);
+		vlv_dpio_write(dev_priv, phy, CHV_CMN_DW1_CH1, val);
 	}
 
 	vlv_dpio_put(dev_priv);

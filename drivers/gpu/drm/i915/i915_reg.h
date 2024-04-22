@@ -459,13 +459,13 @@
 #define  DPIO_CHV_INT_LOCK_THRESHOLD_SEL_COARSE	1 /* 1: coarse & 0 : fine  */
 #define CHV_PLL_DW9(ch) _PIPE(ch, _CHV_PLL_DW9_CH0, _CHV_PLL_DW9_CH1)
 
-#define _CHV_CMN_DW0_CH0               0x8100
+#define CHV_CMN_DW0_CH0			0x8100
 #define   DPIO_ALLDL_POWERDOWN_SHIFT_CH0	19
 #define   DPIO_ANYDL_POWERDOWN_SHIFT_CH0	18
 #define   DPIO_ALLDL_POWERDOWN			(1 << 1)
 #define   DPIO_ANYDL_POWERDOWN			(1 << 0)
 
-#define _CHV_CMN_DW5_CH0               0x8114
+#define CHV_CMN_DW5_CH0			0x8114
 #define   CHV_BUFRIGHTENA1_DISABLE	(0 << 20)
 #define   CHV_BUFRIGHTENA1_NORMAL	(1 << 20)
 #define   CHV_BUFRIGHTENA1_FORCE	(3 << 20)
@@ -475,18 +475,18 @@
 #define   CHV_BUFLEFTENA1_FORCE		(3 << 22)
 #define   CHV_BUFLEFTENA1_MASK		(3 << 22)
 
-#define _CHV_CMN_DW13_CH0		0x8134
-#define _CHV_CMN_DW0_CH1		0x8080
+#define CHV_CMN_DW13_CH0		0x8134
+#define CHV_CMN_DW0_CH1			0x8080
 #define   DPIO_CHV_S1_DIV_SHIFT		21
 #define   DPIO_CHV_P1_DIV_SHIFT		13 /* 3 bits */
 #define   DPIO_CHV_P2_DIV_SHIFT		8  /* 5 bits */
 #define   DPIO_CHV_K_DIV_SHIFT		4
 #define   DPIO_PLL_FREQLOCK		(1 << 1)
 #define   DPIO_PLL_LOCK			(1 << 0)
-#define CHV_CMN_DW13(ch) _PIPE(ch, _CHV_CMN_DW13_CH0, _CHV_CMN_DW0_CH1)
+#define CHV_CMN_DW13(ch) _PIPE(ch, CHV_CMN_DW13_CH0, CHV_CMN_DW0_CH1)
 
-#define _CHV_CMN_DW14_CH0		0x8138
-#define _CHV_CMN_DW1_CH1		0x8084
+#define CHV_CMN_DW14_CH0		0x8138
+#define CHV_CMN_DW1_CH1			0x8084
 #define   DPIO_AFC_RECAL		(1 << 14)
 #define   DPIO_DCLKP_EN			(1 << 13)
 #define   CHV_BUFLEFTENA2_DISABLE	(0 << 17) /* CL2 DW1 only */
@@ -497,16 +497,15 @@
 #define   CHV_BUFRIGHTENA2_NORMAL	(1 << 19) /* CL2 DW1 only */
 #define   CHV_BUFRIGHTENA2_FORCE	(3 << 19) /* CL2 DW1 only */
 #define   CHV_BUFRIGHTENA2_MASK		(3 << 19) /* CL2 DW1 only */
-#define CHV_CMN_DW14(ch) _PIPE(ch, _CHV_CMN_DW14_CH0, _CHV_CMN_DW1_CH1)
+#define CHV_CMN_DW14(ch) _PIPE(ch, CHV_CMN_DW14_CH0, CHV_CMN_DW1_CH1)
 
-#define _CHV_CMN_DW19_CH0		0x814c
-#define _CHV_CMN_DW6_CH1		0x8098
+#define CHV_CMN_DW19_CH0		0x814c
+#define CHV_CMN_DW6_CH1		0x8098
 #define   DPIO_ALLDL_POWERDOWN_SHIFT_CH1	30 /* CL2 DW6 only */
 #define   DPIO_ANYDL_POWERDOWN_SHIFT_CH1	29 /* CL2 DW6 only */
 #define   DPIO_DYNPWRDOWNEN_CH1		(1 << 28) /* CL2 DW6 only */
 #define   CHV_CMN_USEDCLKCHANNEL	(1 << 13)
-
-#define CHV_CMN_DW19(ch) _PIPE(ch, _CHV_CMN_DW19_CH0, _CHV_CMN_DW6_CH1)
+#define CHV_CMN_DW19(ch) _PIPE(ch, CHV_CMN_DW19_CH0, CHV_CMN_DW6_CH1)
 
 #define CHV_CMN_DW28			0x8170
 #define   DPIO_CL1POWERDOWNEN		(1 << 23)
