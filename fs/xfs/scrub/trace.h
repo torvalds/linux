@@ -1685,6 +1685,10 @@ TRACE_DEFINE_ENUM(XCHK_DIRPATH_CORRUPT);
 TRACE_DEFINE_ENUM(XCHK_DIRPATH_LOOP);
 TRACE_DEFINE_ENUM(XCHK_DIRPATH_STALE);
 TRACE_DEFINE_ENUM(XCHK_DIRPATH_OK);
+TRACE_DEFINE_ENUM(XREP_DIRPATH_DELETING);
+TRACE_DEFINE_ENUM(XREP_DIRPATH_DELETED);
+TRACE_DEFINE_ENUM(XREP_DIRPATH_ADOPTING);
+TRACE_DEFINE_ENUM(XREP_DIRPATH_ADOPTED);
 
 #define XCHK_DIRPATH_OUTCOME_STRINGS \
 	{ XCHK_DIRPATH_SCANNING,	"scanning" }, \
@@ -1692,7 +1696,11 @@ TRACE_DEFINE_ENUM(XCHK_DIRPATH_OK);
 	{ XCHK_DIRPATH_CORRUPT,		"corrupt" }, \
 	{ XCHK_DIRPATH_LOOP,		"loop" }, \
 	{ XCHK_DIRPATH_STALE,		"stale" }, \
-	{ XCHK_DIRPATH_OK,		"ok" }
+	{ XCHK_DIRPATH_OK,		"ok" }, \
+	{ XREP_DIRPATH_DELETING,	"deleting" }, \
+	{ XREP_DIRPATH_DELETED,		"deleted" }, \
+	{ XREP_DIRPATH_ADOPTING,	"adopting" }, \
+	{ XREP_DIRPATH_ADOPTED,		"adopted" }
 
 DECLARE_EVENT_CLASS(xchk_dirpath_outcome_class,
 	TP_PROTO(struct xfs_scrub *sc, unsigned long long path_nr,
@@ -1738,6 +1746,7 @@ DECLARE_EVENT_CLASS(xchk_dirtree_evaluate_class,
 		__field(unsigned int, bad)
 		__field(unsigned int, suspect)
 		__field(unsigned int, good)
+		__field(bool, needs_adoption)
 	),
 	TP_fast_assign(
 		__entry->dev = dl->sc->mp->m_super->s_dev;
@@ -1747,15 +1756,17 @@ DECLARE_EVENT_CLASS(xchk_dirtree_evaluate_class,
 		__entry->bad = oc->bad;
 		__entry->suspect = oc->suspect;
 		__entry->good = oc->good;
+		__entry->needs_adoption = oc->needs_adoption ? 1 : 0;
 	),
-	TP_printk("dev %d:%d ino 0x%llx rootino 0x%llx nr_paths %u bad %u suspect %u good %u",
+	TP_printk("dev %d:%d ino 0x%llx rootino 0x%llx nr_paths %u bad %u suspect %u good %u adopt? %d",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->rootino,
 		  __entry->nr_paths,
 		  __entry->bad,
 		  __entry->suspect,
-		  __entry->good)
+		  __entry->good,
+		  __entry->needs_adoption)
 );
 #define DEFINE_XCHK_DIRTREE_EVALUATE_EVENT(name) \
 DEFINE_EVENT(xchk_dirtree_evaluate_class, name, \
@@ -3181,6 +3192,7 @@ DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_child);
 DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_alias);
 DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_dentry);
 DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_invalidate_child);
+DEFINE_REPAIR_DENTRY_EVENT(xrep_dirtree_delete_child);
 
 TRACE_EVENT(xrep_symlink_salvage_target,
 	TP_PROTO(struct xfs_inode *ip, char *target, unsigned int targetlen),
@@ -3482,6 +3494,11 @@ TRACE_EVENT(xrep_iunlink_commit_bucket,
 		  __entry->old_agino,
 		  __entry->agino)
 );
+
+DEFINE_XCHK_DIRPATH_OUTCOME_EVENT(xrep_dirpath_set_outcome);
+DEFINE_XCHK_DIRTREE_EVENT(xrep_dirtree_delete_path);
+DEFINE_XCHK_DIRTREE_EVENT(xrep_dirtree_create_adoption);
+DEFINE_XCHK_DIRTREE_EVALUATE_EVENT(xrep_dirtree_decided_fate);
 
 #endif /* IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR) */
 

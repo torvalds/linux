@@ -570,6 +570,12 @@ xrep_adoption_move(
 		xfs_bumplink(sc->tp, sc->orphanage);
 	xfs_trans_log_inode(sc->tp, sc->orphanage, XFS_ILOG_CORE);
 
+	/* Bump the link count of the child. */
+	if (adopt->bump_child_nlink) {
+		xfs_bumplink(sc->tp, sc->ip);
+		xfs_trans_log_inode(sc->tp, sc->ip, XFS_ILOG_CORE);
+	}
+
 	/* Replace the dotdot entry if the child is a subdirectory. */
 	if (isdir) {
 		error = xfs_dir_replace(sc->tp, sc->ip, &xfs_name_dotdot,

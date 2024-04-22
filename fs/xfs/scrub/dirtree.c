@@ -26,6 +26,8 @@
 #include "scrub/xfblob.h"
 #include "scrub/listxattr.h"
 #include "scrub/trace.h"
+#include "scrub/repair.h"
+#include "scrub/orphanage.h"
 #include "scrub/dirtree.h"
 
 /*
@@ -95,6 +97,12 @@ xchk_setup_dirtree(
 
 	xchk_fsgates_enable(sc, XCHK_FSGATES_DIRENTS);
 
+	if (xchk_could_repair(sc)) {
+		error = xrep_setup_dirtree(sc);
+		if (error)
+			return error;
+	}
+
 	dl = kvzalloc(sizeof(struct xchk_dirtree), XCHK_GFP_FLAGS);
 	if (!dl)
 		return -ENOMEM;
@@ -104,6 +112,7 @@ xchk_setup_dirtree(
 	INIT_LIST_HEAD(&dl->path_list);
 	dl->root_ino = NULLFSINO;
 	dl->scan_ino = NULLFSINO;
+	dl->parent_ino = NULLFSINO;
 
 	mutex_init(&dl->lock);
 
@@ -142,7 +151,7 @@ out_dl:
  * Add the parent pointer described by @dl->pptr to the given path as a new
  * step.  Returns -ELNRNG if the path is too deep.
  */
-STATIC int
+int
 xchk_dirpath_append(
 	struct xchk_dirtree		*dl,
 	struct xfs_inode		*ip,
@@ -609,6 +618,22 @@ xchk_dirpath_step_is_stale(
 	if (memcmp(dl->hook_xname.name, p->name->name, p->name->len) != 0)
 		return 0;
 
+	/*
+	 * If the update comes from the repair code itself, walk the state
+	 * machine forward.
+	 */
+	if (p->ip->i_ino == dl->scan_ino &&
+	    path->outcome == XREP_DIRPATH_ADOPTING) {
+		xchk_dirpath_set_outcome(dl, path, XREP_DIRPATH_ADOPTED);
+		return 0;
+	}
+
+	if (p->ip->i_ino == dl->scan_ino &&
+	    path->outcome == XREP_DIRPATH_DELETING) {
+		xchk_dirpath_set_outcome(dl, path, XREP_DIRPATH_DELETED);
+		return 0;
+	}
+
 	/* Exact match, scan data is out of date. */
 	trace_xchk_dirpath_changed(dl->sc, path->path_nr, step_nr, p->dp,
 			p->ip, p->name);
@@ -747,7 +772,7 @@ xchk_dirtree_load_path(
  * path was too deep; -ENOSR if there were too many parent pointers; or
  * a negative errno.
  */
-STATIC int
+int
 xchk_dirtree_find_paths_to_root(
 	struct xchk_dirtree	*dl)
 {
@@ -819,7 +844,7 @@ xchk_dirtree_find_paths_to_root(
  * Figure out what to do with the paths we tried to find.  Do not call this
  * if the scan results are stale.
  */
-STATIC void
+void
 xchk_dirtree_evaluate(
 	struct xchk_dirtree		*dl,
 	struct xchk_dirtree_outcomes	*oc)
@@ -855,6 +880,13 @@ xchk_dirtree_evaluate(
 		case XCHK_DIRPATH_OK:
 			/* This path got all the way to the root. */
 			oc->good++;
+			break;
+		case XREP_DIRPATH_DELETING:
+		case XREP_DIRPATH_DELETED:
+		case XREP_DIRPATH_ADOPTING:
+		case XREP_DIRPATH_ADOPTED:
+			/* These should not be in progress! */
+			ASSERT(0);
 			break;
 		}
 	}

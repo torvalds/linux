@@ -441,7 +441,7 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 		.setup	= xchk_setup_dirtree,
 		.scrub	= xchk_dirtree,
 		.has	= xfs_has_parent,
-		.repair	= xrep_notsupported,
+		.repair	= xrep_dirtree,
 	},
 };
 
