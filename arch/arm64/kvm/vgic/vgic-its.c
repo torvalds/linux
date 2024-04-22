@@ -69,7 +69,7 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 	irq->target_vcpu = vcpu;
 	irq->group = 1;
 
-	raw_spin_lock_irqsave(&dist->lpi_list_lock, flags);
+	xa_lock_irqsave(&dist->lpi_xa, flags);
 
 	/*
 	 * There could be a race with another vgic_add_lpi(), so we need to
@@ -84,14 +84,14 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 		goto out_unlock;
 	}
 
-	ret = xa_err(xa_store(&dist->lpi_xa, intid, irq, 0));
+	ret = xa_err(__xa_store(&dist->lpi_xa, intid, irq, 0));
 	if (ret) {
 		xa_release(&dist->lpi_xa, intid);
 		kfree(irq);
 	}
 
 out_unlock:
-	raw_spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
+	xa_unlock_irqrestore(&dist->lpi_xa, flags);
 
 	if (ret)
 		return ERR_PTR(ret);
