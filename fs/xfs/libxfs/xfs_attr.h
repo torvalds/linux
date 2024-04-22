@@ -558,7 +558,7 @@ enum xfs_attr_update {
 	XFS_ATTRUPDATE_REPLACE,	/* set value, fail if attr does not exist */
 };
 
-int xfs_attr_set(struct xfs_da_args *args, enum xfs_attr_update op);
+int xfs_attr_set(struct xfs_da_args *args, enum xfs_attr_update op, bool rsvd);
 int xfs_attr_set_iter(struct xfs_attr_intent *attr);
 int xfs_attr_remove_iter(struct xfs_attr_intent *attr);
 bool xfs_attr_check_namespace(unsigned int attr_flags);

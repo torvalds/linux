@@ -110,7 +110,7 @@ xfs_attr_change(
 	args->whichfork = XFS_ATTR_FORK;
 	xfs_attr_sethash(args);
 
-	return xfs_attr_set(args, op);
+	return xfs_attr_set(args, op, args->attr_filter & XFS_ATTR_ROOT);
 }
 
 

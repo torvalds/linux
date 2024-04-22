@@ -606,7 +606,7 @@ xrep_xattr_insert_rec(
 	 * already exists, we'll just drop it during the rebuild.
 	 */
 	xfs_attr_sethash(&args);
-	error = xfs_attr_set(&args, XFS_ATTRUPDATE_CREATE);
+	error = xfs_attr_set(&args, XFS_ATTRUPDATE_CREATE, false);
 	if (error == -EEXIST)
 		error = 0;
 
