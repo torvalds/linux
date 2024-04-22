@@ -5055,13 +5055,13 @@ static int amdgpu_device_recover_vram(struct amdgpu_device *adev)
  * amdgpu_device_reset_sriov - reset ASIC for SR-IOV vf
  *
  * @adev: amdgpu_device pointer
- * @from_hypervisor: request from hypervisor
+ * @reset_context: amdgpu reset context pointer
  *
  * do VF FLR and reinitialize Asic
  * return 0 means succeeded otherwise failed
  */
 static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
-				     bool from_hypervisor)
+				     struct amdgpu_reset_context *reset_context)
 {
 	int r;
 	struct amdgpu_hive_info *hive = NULL;
@@ -5070,12 +5070,15 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 retry:
 	amdgpu_amdkfd_pre_reset(adev);
 
-	if (from_hypervisor)
+	if (test_bit(AMDGPU_HOST_FLR, &reset_context->flags)) {
+		clear_bit(AMDGPU_HOST_FLR, &reset_context->flags);
 		r = amdgpu_virt_request_full_gpu(adev, true);
-	else
+	} else {
 		r = amdgpu_virt_reset_gpu(adev);
+	}
 	if (r)
 		return r;
+
 	amdgpu_ras_set_fed(adev, false);
 	amdgpu_irq_gpu_reset_resume_helper(adev);
 
@@ -5826,7 +5829,7 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 	/* Actual ASIC resets if needed.*/
 	/* Host driver will handle XGMI hive reset for SRIOV */
 	if (amdgpu_sriov_vf(adev)) {
-		r = amdgpu_device_reset_sriov(adev, job ? false : true);
+		r = amdgpu_device_reset_sriov(adev, reset_context);
 		if (r)
 			adev->asic_reset_res = r;
 
