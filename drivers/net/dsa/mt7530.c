@@ -896,7 +896,7 @@ static void mt7530_setup_port5(struct dsa_switch *ds, phy_interface_t interface)
 		val &= ~MHWTRAP_P5_MAC_SEL & ~MHWTRAP_P5_DIS;
 
 		/* Setup the MAC by default for the cpu port */
-		mt7530_write(priv, MT7530_PMCR_P(5), 0x56300);
+		mt7530_write(priv, MT753X_PMCR_P(5), 0x56300);
 		break;
 	case P5_INTF_SEL_GMAC5:
 		/* MT7530_P5_MODE_GMAC: P5 -> External phy or 2nd GMAC */
@@ -2444,8 +2444,8 @@ mt7530_setup(struct dsa_switch *ds)
 		/* Clear link settings and enable force mode to force link down
 		 * on all ports until they're enabled later.
 		 */
-		mt7530_rmw(priv, MT7530_PMCR_P(i), PMCR_LINK_SETTINGS_MASK |
-			   PMCR_FORCE_MODE, PMCR_FORCE_MODE);
+		mt7530_rmw(priv, MT753X_PMCR_P(i), PMCR_LINK_SETTINGS_MASK |
+			   MT7530_FORCE_MODE, MT7530_FORCE_MODE);
 
 		/* Disable forwarding by default on all ports */
 		mt7530_rmw(priv, MT7530_PCR_P(i), PCR_MATRIX_MASK,
@@ -2555,8 +2555,8 @@ mt7531_setup_common(struct dsa_switch *ds)
 		/* Clear link settings and enable force mode to force link down
 		 * on all ports until they're enabled later.
 		 */
-		mt7530_rmw(priv, MT7530_PMCR_P(i), PMCR_LINK_SETTINGS_MASK |
-			   MT7531_FORCE_MODE, MT7531_FORCE_MODE);
+		mt7530_rmw(priv, MT753X_PMCR_P(i), PMCR_LINK_SETTINGS_MASK |
+			   MT7531_FORCE_MODE_MASK, MT7531_FORCE_MODE_MASK);
 
 		/* Disable forwarding by default on all ports */
 		mt7530_rmw(priv, MT7530_PCR_P(i), PCR_MATRIX_MASK,
@@ -2639,7 +2639,7 @@ mt7531_setup(struct dsa_switch *ds)
 
 	/* Force link down on all ports before internal reset */
 	for (i = 0; i < MT7530_NUM_PORTS; i++)
-		mt7530_write(priv, MT7530_PMCR_P(i), MT7531_FORCE_LNK);
+		mt7530_write(priv, MT753X_PMCR_P(i), MT7531_FORCE_MODE_LNK);
 
 	/* Reset the switch through internal reset */
 	mt7530_write(priv, MT7530_SYS_CTRL, SYS_CTRL_SW_RST | SYS_CTRL_REG_RST);
@@ -2881,7 +2881,7 @@ mt753x_phylink_mac_config(struct phylink_config *config, unsigned int mode,
 
 	/* Are we connected to external phy */
 	if (port == 5 && dsa_is_user_port(ds, 5))
-		mt7530_set(priv, MT7530_PMCR_P(port), PMCR_EXT_PHY);
+		mt7530_set(priv, MT753X_PMCR_P(port), PMCR_EXT_PHY);
 }
 
 static void mt753x_phylink_mac_link_down(struct phylink_config *config,
@@ -2891,7 +2891,7 @@ static void mt753x_phylink_mac_link_down(struct phylink_config *config,
 	struct dsa_port *dp = dsa_phylink_to_port(config);
 	struct mt7530_priv *priv = dp->ds->priv;
 
-	mt7530_clear(priv, MT7530_PMCR_P(dp->index), PMCR_LINK_SETTINGS_MASK);
+	mt7530_clear(priv, MT753X_PMCR_P(dp->index), PMCR_LINK_SETTINGS_MASK);
 }
 
 static void mt753x_phylink_mac_link_up(struct phylink_config *config,
@@ -2905,7 +2905,7 @@ static void mt753x_phylink_mac_link_up(struct phylink_config *config,
 	struct mt7530_priv *priv = dp->ds->priv;
 	u32 mcr;
 
-	mcr = PMCR_RX_EN | PMCR_TX_EN | PMCR_FORCE_LNK;
+	mcr = PMCR_MAC_RX_EN | PMCR_MAC_TX_EN | PMCR_FORCE_LNK;
 
 	switch (speed) {
 	case SPEED_1000:
@@ -2920,9 +2920,9 @@ static void mt753x_phylink_mac_link_up(struct phylink_config *config,
 	if (duplex == DUPLEX_FULL) {
 		mcr |= PMCR_FORCE_FDX;
 		if (tx_pause)
-			mcr |= PMCR_TX_FC_EN;
+			mcr |= PMCR_FORCE_TX_FC_EN;
 		if (rx_pause)
-			mcr |= PMCR_RX_FC_EN;
+			mcr |= PMCR_FORCE_RX_FC_EN;
 	}
 
 	if (mode == MLO_AN_PHY && phydev && phy_init_eee(phydev, false) >= 0) {
@@ -2937,7 +2937,7 @@ static void mt753x_phylink_mac_link_up(struct phylink_config *config,
 		}
 	}
 
-	mt7530_set(priv, MT7530_PMCR_P(dp->index), mcr);
+	mt7530_set(priv, MT753X_PMCR_P(dp->index), mcr);
 }
 
 static void mt753x_phylink_get_caps(struct dsa_switch *ds, int port,
