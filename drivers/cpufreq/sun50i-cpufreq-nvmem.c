@@ -19,8 +19,6 @@
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
 
-#define MAX_NAME_LEN	7
-
 #define NVMEM_MASK	0x7
 #define NVMEM_SHIFT	5
 
@@ -208,7 +206,7 @@ static int sun50i_cpufreq_get_efuse(void)
 static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 {
 	int *opp_tokens;
-	char name[MAX_NAME_LEN];
+	char name[] = "speedXXXXXXXXXXX"; /* Integers can take 11 chars max */
 	unsigned int cpu, supported_hw;
 	struct dev_pm_opp_config config = {};
 	int speed;
@@ -235,7 +233,7 @@ static int sun50i_cpufreq_nvmem_probe(struct platform_device *pdev)
 		config.supported_hw_count = 1;
 	}
 
-	snprintf(name, MAX_NAME_LEN, "speed%d", speed);
+	snprintf(name, sizeof(name), "speed%d", speed);
 	config.prop_name = name;
 
 	for_each_possible_cpu(cpu) {
