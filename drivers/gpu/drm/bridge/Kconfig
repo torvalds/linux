@@ -93,9 +93,9 @@ config DRM_FSL_LDB
 config DRM_ITE_IT6505
 	tristate "ITE IT6505 DisplayPort bridge"
 	depends on DRM_DISPLAY_DP_AUX_BUS
-	depends on DRM_DISPLAY_DP_HELPER
 	depends on DRM_DISPLAY_HELPER
 	depends on OF
+	select DRM_DISPLAY_DP_HELPER
 	select DRM_DISPLAY_HDCP_HELPER
 	select DRM_KMS_HELPER
 	select EXTCON
@@ -233,9 +233,9 @@ config DRM_PARADE_PS8622
 config DRM_PARADE_PS8640
 	tristate "Parade PS8640 MIPI DSI to eDP Converter"
 	depends on DRM_DISPLAY_DP_AUX_BUS
-	depends on DRM_DISPLAY_DP_HELPER
 	depends on DRM_DISPLAY_HELPER
 	depends on OF
+	select DRM_DISPLAY_DP_HELPER
 	select DRM_KMS_HELPER
 	select DRM_MIPI_DSI
 	select DRM_PANEL
@@ -319,9 +319,9 @@ config DRM_TOSHIBA_TC358764
 
 config DRM_TOSHIBA_TC358767
 	tristate "Toshiba TC358767 eDP bridge"
-	depends on DRM_DISPLAY_DP_HELPER
 	depends on DRM_DISPLAY_HELPER
 	depends on OF
+	select DRM_DISPLAY_DP_HELPER
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	select DRM_MIPI_DSI
@@ -342,9 +342,9 @@ config DRM_TOSHIBA_TC358768
 
 config DRM_TOSHIBA_TC358775
 	tristate "Toshiba TC358775 DSI/LVDS bridge"
-	depends on DRM_DISPLAY_DP_HELPER
 	depends on DRM_DISPLAY_HELPER
 	depends on OF
+	select DRM_DISPLAY_DP_HELPER
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	select DRM_PANEL
@@ -388,9 +388,9 @@ config DRM_TI_SN65DSI83
 config DRM_TI_SN65DSI86
 	tristate "TI SN65DSI86 DSI to eDP bridge"
 	depends on DRM_DISPLAY_DP_AUX_BUS
-	depends on DRM_DISPLAY_DP_HELPER
 	depends on DRM_DISPLAY_HELPER
 	depends on OF
+	select DRM_DISPLAY_DP_HELPER
 	select DRM_KMS_HELPER
 	select REGMAP_I2C
 	select DRM_PANEL
