@@ -332,19 +332,10 @@ static inline void xfs_add_ ## name (struct xfs_mount *mp) \
 __XFS_ADD_FEAT(attr, ATTR)
 __XFS_HAS_FEAT(nlink, NLINK)
 __XFS_ADD_FEAT(quota, QUOTA)
-__XFS_HAS_FEAT(align, ALIGN)
 __XFS_HAS_FEAT(dalign, DALIGN)
-__XFS_HAS_FEAT(logv2, LOGV2)
 __XFS_HAS_FEAT(sector, SECTOR)
-__XFS_HAS_FEAT(extflg, EXTFLG)
 __XFS_HAS_FEAT(asciici, ASCIICI)
-__XFS_HAS_FEAT(lazysbcount, LAZYSBCOUNT)
-__XFS_ADD_FEAT(attr2, ATTR2)
 __XFS_HAS_FEAT(parent, PARENT)
-__XFS_ADD_FEAT(projid32, PROJID32)
-__XFS_HAS_FEAT(crc, CRC)
-__XFS_HAS_FEAT(v3inodes, V3INODES)
-__XFS_HAS_FEAT(pquotino, PQUOTINO)
 __XFS_HAS_FEAT(ftype, FTYPE)
 __XFS_HAS_FEAT(finobt, FINOBT)
 __XFS_HAS_FEAT(rmapbt, RMAPBT)
@@ -357,6 +348,37 @@ __XFS_HAS_FEAT(bigtime, BIGTIME)
 __XFS_HAS_FEAT(needsrepair, NEEDSREPAIR)
 __XFS_HAS_FEAT(large_extent_counts, NREXT64)
 __XFS_HAS_FEAT(exchange_range, EXCHANGE_RANGE)
+
+/*
+ * Some features are always on for v5 file systems, allow the compiler to
+ * eliminiate dead code when building without v4 support.
+ */
+#define __XFS_HAS_V4_FEAT(name, NAME) \
+static inline bool xfs_has_ ## name (struct xfs_mount *mp) \
+{ \
+	return !IS_ENABLED(CONFIG_XFS_SUPPORT_V4) || \
+		(mp->m_features & XFS_FEAT_ ## NAME); \
+}
+
+#define __XFS_ADD_V4_FEAT(name, NAME) \
+	__XFS_HAS_V4_FEAT(name, NAME); \
+static inline void xfs_add_ ## name (struct xfs_mount *mp) \
+{ \
+	if (IS_ENABLED(CONFIG_XFS_SUPPORT_V4)) { \
+		mp->m_features |= XFS_FEAT_ ## NAME; \
+		xfs_sb_version_add ## name(&mp->m_sb); \
+	} \
+}
+
+__XFS_HAS_V4_FEAT(align, ALIGN)
+__XFS_HAS_V4_FEAT(logv2, LOGV2)
+__XFS_HAS_V4_FEAT(extflg, EXTFLG)
+__XFS_HAS_V4_FEAT(lazysbcount, LAZYSBCOUNT)
+__XFS_ADD_V4_FEAT(attr2, ATTR2)
+__XFS_ADD_V4_FEAT(projid32, PROJID32)
+__XFS_HAS_V4_FEAT(v3inodes, V3INODES)
+__XFS_HAS_V4_FEAT(crc, CRC)
+__XFS_HAS_V4_FEAT(pquotino, PQUOTINO)
 
 /*
  * Mount features
