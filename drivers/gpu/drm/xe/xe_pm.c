@@ -69,7 +69,7 @@
  */
 
 #ifdef CONFIG_LOCKDEP
-struct lockdep_map xe_pm_runtime_lockdep_map = {
+static struct lockdep_map xe_pm_runtime_lockdep_map = {
 	.name = "xe_pm_runtime_lockdep_map"
 };
 #endif
