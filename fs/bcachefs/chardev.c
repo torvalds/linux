@@ -232,13 +232,15 @@ static long bch2_ioctl_fsck_offline(struct bch_ioctl_fsck_offline __user *user_a
 	/* We need request_key() to be called before we punt to kthread: */
 	opt_set(thr->opts, nostart, true);
 
+	bch2_thread_with_stdio_init(&thr->thr, &bch2_offline_fsck_ops);
+
 	thr->c = bch2_fs_open(devs.data, arg.nr_devs, thr->opts);
 
 	if (!IS_ERR(thr->c) &&
 	    thr->c->opts.errors == BCH_ON_ERROR_panic)
 		thr->c->opts.errors = BCH_ON_ERROR_ro;
 
-	ret = bch2_run_thread_with_stdio(&thr->thr, &bch2_offline_fsck_ops);
+	ret = __bch2_run_thread_with_stdio(&thr->thr);
 out:
 	darray_for_each(devs, i)
 		kfree(*i);

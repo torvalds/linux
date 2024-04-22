@@ -470,7 +470,7 @@ found:
 		goto err;
 	}
 
-	bio = bio_alloc(ca->disk_sb.bdev, 1, REQ_OP_READ, GFP_KERNEL);
+	bio = bio_alloc(ca->disk_sb.bdev, buf_pages(data_buf, bytes), REQ_OP_READ, GFP_KERNEL);
 	bio->bi_iter.bi_sector = p.ptr.offset;
 	bch2_bio_map(bio, data_buf, bytes);
 	ret = submit_bio_wait(bio);

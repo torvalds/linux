@@ -463,8 +463,8 @@ static void __bch2_dev_btree_bitmap_mark(struct bch_sb_field_members_v2 *mi, uns
 		m->btree_bitmap_shift += resize;
 	}
 
-	for (unsigned bit = sectors >> m->btree_bitmap_shift;
-	     bit << m->btree_bitmap_shift < end;
+	for (unsigned bit = start >> m->btree_bitmap_shift;
+	     (u64) bit << m->btree_bitmap_shift < end;
 	     bit++)
 		bitmap |= BIT_ULL(bit);
 
