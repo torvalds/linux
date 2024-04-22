@@ -10,6 +10,7 @@
 #include <linux/netdevice.h>
 #include <linux/mutex.h>
 #include <linux/refcount.h>
+#include <linux/idr.h>
 #include <net/devlink.h>
 #include <trace/events/mlxsw.h>
 
@@ -58,41 +59,43 @@ int mlxsw_sp_acl_tcam_priority_get(struct mlxsw_sp *mlxsw_sp,
 static int mlxsw_sp_acl_tcam_region_id_get(struct mlxsw_sp_acl_tcam *tcam,
 					   u16 *p_id)
 {
-	u16 id;
+	int id;
 
-	id = find_first_zero_bit(tcam->used_regions, tcam->max_regions);
-	if (id < tcam->max_regions) {
-		__set_bit(id, tcam->used_regions);
-		*p_id = id;
-		return 0;
-	}
-	return -ENOBUFS;
+	id = ida_alloc_max(&tcam->used_regions, tcam->max_regions - 1,
+			   GFP_KERNEL);
+	if (id < 0)
+		return id;
+
+	*p_id = id;
+
+	return 0;
 }
 
 static void mlxsw_sp_acl_tcam_region_id_put(struct mlxsw_sp_acl_tcam *tcam,
 					    u16 id)
 {
-	__clear_bit(id, tcam->used_regions);
+	ida_free(&tcam->used_regions, id);
 }
 
 static int mlxsw_sp_acl_tcam_group_id_get(struct mlxsw_sp_acl_tcam *tcam,
 					  u16 *p_id)
 {
-	u16 id;
+	int id;
 
-	id = find_first_zero_bit(tcam->used_groups, tcam->max_groups);
-	if (id < tcam->max_groups) {
-		__set_bit(id, tcam->used_groups);
-		*p_id = id;
-		return 0;
-	}
-	return -ENOBUFS;
+	id = ida_alloc_max(&tcam->used_groups, tcam->max_groups - 1,
+			   GFP_KERNEL);
+	if (id < 0)
+		return id;
+
+	*p_id = id;
+
+	return 0;
 }
 
 static void mlxsw_sp_acl_tcam_group_id_put(struct mlxsw_sp_acl_tcam *tcam,
 					   u16 id)
 {
-	__clear_bit(id, tcam->used_groups);
+	ida_free(&tcam->used_groups, id);
 }
 
 struct mlxsw_sp_acl_tcam_pattern {
@@ -1549,19 +1552,11 @@ int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
 	if (max_tcam_regions < max_regions)
 		max_regions = max_tcam_regions;
 
-	tcam->used_regions = bitmap_zalloc(max_regions, GFP_KERNEL);
-	if (!tcam->used_regions) {
-		err = -ENOMEM;
-		goto err_alloc_used_regions;
-	}
+	ida_init(&tcam->used_regions);
 	tcam->max_regions = max_regions;
 
 	max_groups = MLXSW_CORE_RES_GET(mlxsw_sp->core, ACL_MAX_GROUPS);
-	tcam->used_groups = bitmap_zalloc(max_groups, GFP_KERNEL);
-	if (!tcam->used_groups) {
-		err = -ENOMEM;
-		goto err_alloc_used_groups;
-	}
+	ida_init(&tcam->used_groups);
 	tcam->max_groups = max_groups;
 	tcam->max_group_size = MLXSW_CORE_RES_GET(mlxsw_sp->core,
 						  ACL_MAX_GROUP_SIZE);
@@ -1575,10 +1570,8 @@ int mlxsw_sp_acl_tcam_init(struct mlxsw_sp *mlxsw_sp,
 	return 0;
 
 err_tcam_init:
-	bitmap_free(tcam->used_groups);
-err_alloc_used_groups:
-	bitmap_free(tcam->used_regions);
-err_alloc_used_regions:
+	ida_destroy(&tcam->used_groups);
+	ida_destroy(&tcam->used_regions);
 	mlxsw_sp_acl_tcam_rehash_params_unregister(mlxsw_sp);
 err_rehash_params_register:
 	mutex_destroy(&tcam->lock);
@@ -1591,8 +1584,8 @@ void mlxsw_sp_acl_tcam_fini(struct mlxsw_sp *mlxsw_sp,
 	const struct mlxsw_sp_acl_tcam_ops *ops = mlxsw_sp->acl_tcam_ops;
 
 	ops->fini(mlxsw_sp, tcam->priv);
-	bitmap_free(tcam->used_groups);
-	bitmap_free(tcam->used_regions);
+	ida_destroy(&tcam->used_groups);
+	ida_destroy(&tcam->used_regions);
 	mlxsw_sp_acl_tcam_rehash_params_unregister(mlxsw_sp);
 	mutex_destroy(&tcam->lock);
 }
