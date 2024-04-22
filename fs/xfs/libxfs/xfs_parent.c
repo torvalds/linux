@@ -227,3 +227,33 @@ xfs_parent_removename(
 	xfs_attr_defer_add(&ppargs->args, XFS_ATTR_DEFER_REMOVE);
 	return 0;
 }
+
+/* Replace one parent pointer with another to reflect a rename. */
+int
+xfs_parent_replacename(
+	struct xfs_trans	*tp,
+	struct xfs_parent_args	*ppargs,
+	struct xfs_inode	*old_dp,
+	const struct xfs_name	*old_name,
+	struct xfs_inode	*new_dp,
+	const struct xfs_name	*new_name,
+	struct xfs_inode	*child)
+{
+	int			error;
+
+	error = xfs_parent_iread_extents(tp, child);
+	if (error)
+		return error;
+
+	xfs_inode_to_parent_rec(&ppargs->rec, old_dp);
+	xfs_parent_da_args_init(&ppargs->args, tp, &ppargs->rec, child,
+			child->i_ino, old_name);
+
+	xfs_inode_to_parent_rec(&ppargs->new_rec, new_dp);
+	ppargs->args.new_name = new_name->name;
+	ppargs->args.new_namelen = new_name->len;
+	ppargs->args.new_value = &ppargs->new_rec;
+	ppargs->args.new_valuelen = sizeof(struct xfs_parent_rec);
+	xfs_attr_defer_add(&ppargs->args, XFS_ATTR_DEFER_REPLACE);
+	return 0;
+}

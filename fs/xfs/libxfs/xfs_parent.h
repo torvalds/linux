@@ -45,6 +45,7 @@ extern struct kmem_cache	*xfs_parent_args_cache;
  */
 struct xfs_parent_args {
 	struct xfs_parent_rec	rec;
+	struct xfs_parent_rec	new_rec;
 	struct xfs_da_args	args;
 };
 
@@ -83,6 +84,11 @@ int xfs_parent_addname(struct xfs_trans *tp, struct xfs_parent_args *ppargs,
 		struct xfs_inode *child);
 int xfs_parent_removename(struct xfs_trans *tp, struct xfs_parent_args *ppargs,
 		struct xfs_inode *dp, const struct xfs_name *parent_name,
+		struct xfs_inode *child);
+int xfs_parent_replacename(struct xfs_trans *tp,
+		struct xfs_parent_args *ppargs,
+		struct xfs_inode *old_dp, const struct xfs_name *old_name,
+		struct xfs_inode *new_dp, const struct xfs_name *new_name,
 		struct xfs_inode *child);
 
 #endif /* __XFS_PARENT_H__ */
