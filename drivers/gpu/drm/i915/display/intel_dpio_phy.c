@@ -1071,18 +1071,18 @@ void vlv_set_phy_signal_level(struct intel_encoder *encoder,
 
 	vlv_dpio_get(dev_priv);
 
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW5(ch), 0x00000000);
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW4(ch), demph_reg_value);
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW2(ch),
+	vlv_dpio_write(dev_priv, phy, VLV_TX_DW5_GRP(ch), 0x00000000);
+	vlv_dpio_write(dev_priv, phy, VLV_TX_DW4_GRP(ch), demph_reg_value);
+	vlv_dpio_write(dev_priv, phy, VLV_TX_DW2_GRP(ch),
 			 uniqtranscale_reg_value);
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW3(ch), 0x0C782040);
+	vlv_dpio_write(dev_priv, phy, VLV_TX_DW3_GRP(ch), 0x0C782040);
 
 	if (tx3_demph)
 		vlv_dpio_write(dev_priv, phy, VLV_TX3_DW4(ch), tx3_demph);
 
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW11(ch), 0x00030000);
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW9(ch), preemph_reg_value);
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW5(ch), DPIO_TX_OCALINIT_EN);
+	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW11_GRP(ch), 0x00030000);
+	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW9_GRP(ch), preemph_reg_value);
+	vlv_dpio_write(dev_priv, phy, VLV_TX_DW5_GRP(ch), DPIO_TX_OCALINIT_EN);
 
 	vlv_dpio_put(dev_priv);
 }
@@ -1098,19 +1098,19 @@ void vlv_phy_pre_pll_enable(struct intel_encoder *encoder,
 	/* Program Tx lane resets to default */
 	vlv_dpio_get(dev_priv);
 
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW0(ch),
+	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW0_GRP(ch),
 			 DPIO_PCS_TX_LANE2_RESET |
 			 DPIO_PCS_TX_LANE1_RESET);
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW1(ch),
+	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW1_GRP(ch),
 			 DPIO_PCS_CLK_CRI_RXEB_EIOS_EN |
 			 DPIO_PCS_CLK_CRI_RXDIGFILTSG_EN |
 			 (1<<DPIO_PCS_CLK_DATAWIDTH_SHIFT) |
 				 DPIO_PCS_CLK_SOFT_RESET);
 
 	/* Fix up inter-pair skew failure */
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW12(ch), 0x00750f00);
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW11(ch), 0x00001500);
-	vlv_dpio_write(dev_priv, phy, VLV_TX_DW14(ch), 0x40400000);
+	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW12_GRP(ch), 0x00750f00);
+	vlv_dpio_write(dev_priv, phy, VLV_TX_DW11_GRP(ch), 0x00001500);
+	vlv_dpio_write(dev_priv, phy, VLV_TX_DW14_GRP(ch), 0x40400000);
 
 	vlv_dpio_put(dev_priv);
 }
@@ -1136,11 +1136,11 @@ void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 	else
 		val &= ~(1<<21);
 	val |= 0x001000c4;
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW8(ch), val);
+	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW8_GRP(ch), val);
 
 	/* Program lane clock */
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW14(ch), 0x00760018);
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW23(ch), 0x00400888);
+	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW14_GRP(ch), 0x00760018);
+	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW23_GRP(ch), 0x00400888);
 
 	vlv_dpio_put(dev_priv);
 }
@@ -1154,7 +1154,7 @@ void vlv_phy_reset_lanes(struct intel_encoder *encoder,
 	enum dpio_phy phy = vlv_dig_port_to_phy(dig_port);
 
 	vlv_dpio_get(dev_priv);
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW0(ch), 0x00000000);
-	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW1(ch), 0x00e00060);
+	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW0_GRP(ch), 0x00000000);
+	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW1_GRP(ch), 0x00e00060);
 	vlv_dpio_put(dev_priv);
 }
