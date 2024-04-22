@@ -446,23 +446,18 @@ static u32 max_lpis_propbaser(u64 propbaser)
 static int its_sync_lpi_pending_table(struct kvm_vcpu *vcpu)
 {
 	gpa_t pendbase = GICR_PENDBASER_ADDRESS(vcpu->arch.vgic_cpu.pendbaser);
+	struct vgic_dist *dist = &vcpu->kvm->arch.vgic;
+	unsigned long intid, flags;
 	struct vgic_irq *irq;
 	int last_byte_offset = -1;
 	int ret = 0;
-	u32 *intids;
-	int nr_irqs, i;
-	unsigned long flags;
 	u8 pendmask;
 
-	nr_irqs = vgic_copy_lpi_list(vcpu->kvm, vcpu, &intids);
-	if (nr_irqs < 0)
-		return nr_irqs;
-
-	for (i = 0; i < nr_irqs; i++) {
+	xa_for_each(&dist->lpi_xa, intid, irq) {
 		int byte_offset, bit_nr;
 
-		byte_offset = intids[i] / BITS_PER_BYTE;
-		bit_nr = intids[i] % BITS_PER_BYTE;
+		byte_offset = intid / BITS_PER_BYTE;
+		bit_nr = intid % BITS_PER_BYTE;
 
 		/*
 		 * For contiguously allocated LPIs chances are we just read
@@ -472,24 +467,22 @@ static int its_sync_lpi_pending_table(struct kvm_vcpu *vcpu)
 			ret = kvm_read_guest_lock(vcpu->kvm,
 						  pendbase + byte_offset,
 						  &pendmask, 1);
-			if (ret) {
-				kfree(intids);
+			if (ret)
 				return ret;
-			}
+
 			last_byte_offset = byte_offset;
 		}
 
-		irq = vgic_get_irq(vcpu->kvm, NULL, intids[i]);
+		irq = vgic_get_irq(vcpu->kvm, NULL, intid);
 		if (!irq)
 			continue;
 
 		raw_spin_lock_irqsave(&irq->irq_lock, flags);
-		irq->pending_latch = pendmask & (1U << bit_nr);
+		if (irq->target_vcpu == vcpu)
+			irq->pending_latch = pendmask & (1U << bit_nr);
 		vgic_queue_irq_unlock(vcpu->kvm, irq, flags);
 		vgic_put_irq(vcpu->kvm, irq);
 	}
-
-	kfree(intids);
 
 	return ret;
 }
