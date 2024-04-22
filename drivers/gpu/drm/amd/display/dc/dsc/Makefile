@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: MIT
-#
-# Makefile for the 'dsc' sub-component of DAL.
+# Copyright © 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
 
 ifdef CONFIG_DRM_AMD_DC_FP
 

@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: MIT
-#
-# Makefile for DCN.
+# Copyright © 2019-2024 Advanced Micro Devices, Inc. All rights reserved.
 
 DCN20 = dcn20_hubp.o \
 		dcn20_mpc.o dcn20_opp.o dcn20_mmhubbub.o \
