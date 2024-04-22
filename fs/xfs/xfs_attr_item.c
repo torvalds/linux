@@ -388,9 +388,14 @@ xfs_attr_log_item(
 	case XFS_ATTRI_OP_FLAGS_PPTR_REPLACE:
 		ASSERT(nv->value.i_len == nv->new_value.i_len);
 
+		attrp->alfi_igen = VFS_I(args->dp)->i_generation;
 		attrp->alfi_old_name_len = nv->name.i_len;
 		attrp->alfi_new_name_len = nv->new_name.i_len;
 		break;
+	case XFS_ATTRI_OP_FLAGS_PPTR_REMOVE:
+	case XFS_ATTRI_OP_FLAGS_PPTR_SET:
+		attrp->alfi_igen = VFS_I(args->dp)->i_generation;
+		fallthrough;
 	default:
 		attrp->alfi_name_len = nv->name.i_len;
 		break;
@@ -545,9 +550,6 @@ xfs_attri_validate(
 {
 	unsigned int			op = xfs_attr_log_item_op(attrp);
 
-	if (attrp->__pad != 0)
-		return false;
-
 	if (attrp->alfi_op_flags & ~XFS_ATTRI_OP_FLAGS_TYPE_MASK)
 		return false;
 
@@ -639,9 +641,27 @@ xfs_attri_recover_work(
 	int				local;
 	int				error;
 
-	error = xlog_recover_iget(mp,  attrp->alfi_ino, &ip);
-	if (error)
-		return ERR_PTR(error);
+	/*
+	 * Parent pointer attr items record the generation but regular logged
+	 * xattrs do not; select the right iget function.
+	 */
+	switch (xfs_attr_log_item_op(attrp)) {
+	case XFS_ATTRI_OP_FLAGS_PPTR_SET:
+	case XFS_ATTRI_OP_FLAGS_PPTR_REPLACE:
+	case XFS_ATTRI_OP_FLAGS_PPTR_REMOVE:
+		error = xlog_recover_iget_handle(mp, attrp->alfi_ino,
+				attrp->alfi_igen, &ip);
+		break;
+	default:
+		error = xlog_recover_iget(mp, attrp->alfi_ino, &ip);
+		break;
+	}
+	if (error) {
+		xfs_irele(ip);
+		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp, attrp,
+				sizeof(*attrp));
+		return ERR_PTR(-EFSCORRUPTED);
+	}
 
 	if (xfs_inode_has_attr_fork(ip)) {
 		error = xfs_attri_iread_extents(ip);
@@ -793,6 +813,7 @@ xfs_attr_relog_intent(
 	new_attrp = &new_attrip->attri_format;
 
 	new_attrp->alfi_ino = old_attrp->alfi_ino;
+	new_attrp->alfi_igen = old_attrp->alfi_igen;
 	new_attrp->alfi_op_flags = old_attrp->alfi_op_flags;
 	new_attrp->alfi_value_len = old_attrp->alfi_value_len;
 
