@@ -418,7 +418,7 @@ mt7996_mcu_cca_finish(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	if (!vif->bss_conf.color_change_active || vif->type == NL80211_IFTYPE_STATION)
 		return;
 
-	ieee80211_color_change_finish(vif);
+	ieee80211_color_change_finish(vif, 0);
 }
 
 static void
