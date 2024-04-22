@@ -123,11 +123,9 @@ xrep_xattr_want_salvage(
 		return false;
 	if (namelen > XATTR_NAME_MAX || namelen <= 0)
 		return false;
-	if (!xfs_attr_namecheck(name, namelen))
+	if (!xfs_attr_namecheck(attr_flags, name, namelen))
 		return false;
 	if (valuelen > XATTR_SIZE_MAX || valuelen < 0)
-		return false;
-	if (hweight32(attr_flags & XFS_ATTR_NSP_ONDISK_MASK) > 1)
 		return false;
 	return true;
 }
