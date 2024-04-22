@@ -789,7 +789,7 @@ static inline bool folio_test_uptodate(const struct folio *folio)
 	return ret;
 }
 
-static inline int PageUptodate(const struct page *page)
+static inline bool PageUptodate(const struct page *page)
 {
 	return folio_test_uptodate(page_folio(page));
 }
