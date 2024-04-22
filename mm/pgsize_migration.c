@@ -113,6 +113,7 @@ void vma_set_pad_pages(struct vm_area_struct *vma,
 	if (!is_pgsize_migration_enabled())
 		return;
 
+	vm_flags_clear(vma, VM_PAD_MASK);
 	vm_flags_set(vma, nr_pages << VM_PAD_SHIFT);
 }
 
@@ -323,6 +324,70 @@ void show_map_pad_vma(struct vm_area_struct *vma, struct vm_area_struct *pad,
 
 	kfree(pad);
 	kfree(vma);
+}
+
+/*
+ * When splitting a padding VMA there are a couple of cases to handle.
+ *
+ * Given:
+ *
+ *     | DDDDPPPP |
+ *
+ * where:
+ *     - D represents 1 page of data;
+ *     - P represents 1 page of padding;
+ *     - | represents the boundaries (start/end) of the VMA
+ *
+ *
+ * 1) Split exactly at the padding boundary
+ *
+ *     | DDDDPPPP | --> | DDDD | PPPP |
+ *
+ *     - Remove padding flags from the first VMA.
+ *     - The second VMA is all padding
+ *
+ * 2) Split within the padding area
+ *
+ *     | DDDDPPPP | --> | DDDDPP | PP |
+ *
+ *     - Subtract the length of the second VMA from the first VMA's padding.
+ *     - The second VMA is all padding, adjust its padding length (flags)
+ *
+ * 3) Split within the data area
+ *
+ *     | DDDDPPPP | --> | DD | DDPPPP |
+ *
+ *     - Remove padding flags from the first VMA.
+ *     - The second VMA is has the same padding as from before the split.
+ */
+void split_pad_vma(struct vm_area_struct *vma, struct vm_area_struct *new,
+		   unsigned long addr, int new_below)
+{
+	unsigned long nr_pad_pages = vma_pad_pages(vma);
+	unsigned long nr_vma2_pages;
+	struct vm_area_struct *first;
+	struct vm_area_struct *second;
+
+	if (!nr_pad_pages)
+		return;
+
+	if (new_below) {
+		first = new;
+		second = vma;
+	} else {
+		first = vma;
+		second = new;
+	}
+
+	nr_vma2_pages = vma_pages(second);
+
+	if (nr_vma2_pages >= nr_pad_pages) { 			/* Case 1 & 3*/
+		vm_flags_clear(first, VM_PAD_MASK);
+		vma_set_pad_pages(second, nr_pad_pages);
+	} else {						/* Case 2 */
+		vma_set_pad_pages(first, nr_pad_pages - nr_vma2_pages);
+		vma_set_pad_pages(second, nr_vma2_pages);
+	}
 }
 #endif /* PAGE_SIZE == SZ_4K */
 #endif /* CONFIG_64BIT */
