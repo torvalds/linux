@@ -2243,6 +2243,13 @@ static int resource_stream_to_stream_idx(struct dc_state *state,
 			stream_idx = i;
 			break;
 		}
+
+	/* never return negative array index */
+	if (stream_idx == -1) {
+		ASSERT(0);
+		return 0;
+	}
+
 	return stream_idx;
 }
 
