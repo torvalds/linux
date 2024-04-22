@@ -44,15 +44,25 @@ static int ath12k_core_rfkill_config(struct ath12k_base *ab)
 
 int ath12k_core_suspend(struct ath12k_base *ab)
 {
-	int ret;
+	struct ath12k *ar;
+	int ret, i;
 
 	if (!ab->hw_params->supports_suspend)
 		return -EOPNOTSUPP;
 
-	/* TODO: there can frames in queues so for now add delay as a hack.
-	 * Need to implement to handle and remove this delay.
-	 */
-	msleep(500);
+	rcu_read_lock();
+	for (i = 0; i < ab->num_radios; i++) {
+		ar = ath12k_mac_get_ar_by_pdev_id(ab, i);
+		if (!ar)
+			continue;
+		ret = ath12k_mac_wait_tx_complete(ar);
+		if (ret) {
+			ath12k_warn(ab, "failed to wait tx complete: %d\n", ret);
+			rcu_read_unlock();
+			return ret;
+		}
+	}
+	rcu_read_unlock();
 
 	ret = ath12k_dp_rx_pktlog_stop(ab, true);
 	if (ret) {
