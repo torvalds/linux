@@ -726,6 +726,9 @@ struct xfs_attr3_leafblock {
 					 XFS_ATTR_SECURE | \
 					 XFS_ATTR_PARENT)
 
+/* Private attr namespaces not exposed to userspace */
+#define XFS_ATTR_PRIVATE_NSP_MASK	(XFS_ATTR_PARENT)
+
 #define XFS_ATTR_ONDISK_MASK	(XFS_ATTR_NSP_ONDISK_MASK | \
 				 XFS_ATTR_LOCAL | \
 				 XFS_ATTR_INCOMPLETE)
