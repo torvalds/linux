@@ -5109,8 +5109,7 @@ xfs_bmap_del_extent_real(
 {
 	xfs_fsblock_t		del_endblock=0;	/* first block past del */
 	xfs_fileoff_t		del_endoff;	/* first offset past del */
-	int			do_fx;	/* free extent at end of routine */
-	int			error;	/* error return value */
+	int			error = 0;	/* error return value */
 	struct xfs_bmbt_irec	got;	/* current extent entry */
 	xfs_fileoff_t		got_endoff;	/* first offset past got */
 	int			i;	/* temp state */
@@ -5153,20 +5152,10 @@ xfs_bmap_del_extent_real(
 		return -ENOSPC;
 
 	*logflagsp = XFS_ILOG_CORE;
-	if (xfs_ifork_is_realtime(ip, whichfork)) {
-		if (!(bflags & XFS_BMAPI_REMAP)) {
-			error = xfs_rtfree_blocks(tp, del->br_startblock,
-					del->br_blockcount);
-			if (error)
-				return error;
-		}
-
-		do_fx = 0;
+	if (xfs_ifork_is_realtime(ip, whichfork))
 		qfield = XFS_TRANS_DQ_RTBCOUNT;
-	} else {
-		do_fx = 1;
+	else
 		qfield = XFS_TRANS_DQ_BCOUNT;
-	}
 	nblks = del->br_blockcount;
 
 	del_endblock = del->br_startblock + del->br_blockcount;
@@ -5314,18 +5303,21 @@ xfs_bmap_del_extent_real(
 	/*
 	 * If we need to, add to list of extents to delete.
 	 */
-	if (do_fx && !(bflags & XFS_BMAPI_REMAP)) {
+	if (!(bflags & XFS_BMAPI_REMAP)) {
 		if (xfs_is_reflink_inode(ip) && whichfork == XFS_DATA_FORK) {
 			xfs_refcount_decrease_extent(tp, del);
+		} else if (xfs_ifork_is_realtime(ip, whichfork)) {
+			error = xfs_rtfree_blocks(tp, del->br_startblock,
+					del->br_blockcount);
 		} else {
 			error = xfs_free_extent_later(tp, del->br_startblock,
 					del->br_blockcount, NULL,
 					XFS_AG_RESV_NONE,
 					((bflags & XFS_BMAPI_NODISCARD) ||
 					del->br_state == XFS_EXT_UNWRITTEN));
-			if (error)
-				return error;
 		}
+		if (error)
+			return error;
 	}
 
 	/*
