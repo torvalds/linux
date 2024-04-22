@@ -434,16 +434,17 @@ xrep_adoption_check_dcache(
 {
 	struct qstr		qname = QSTR_INIT(adopt->xname->name,
 						  adopt->xname->len);
+	struct xfs_scrub	*sc = adopt->sc;
 	struct dentry		*d_orphanage, *d_child;
 	int			error = 0;
 
-	d_orphanage = d_find_alias(VFS_I(adopt->sc->orphanage));
+	d_orphanage = d_find_alias(VFS_I(sc->orphanage));
 	if (!d_orphanage)
 		return 0;
 
 	d_child = d_hash_and_lookup(d_orphanage, &qname);
 	if (d_child) {
-		trace_xrep_adoption_check_child(adopt->sc->mp, d_child);
+		trace_xrep_adoption_check_child(sc->mp, d_child);
 
 		if (d_is_positive(d_child)) {
 			ASSERT(d_is_negative(d_child));
@@ -454,33 +455,15 @@ xrep_adoption_check_dcache(
 	}
 
 	dput(d_orphanage);
-	if (error)
-		return error;
-
-	/*
-	 * Do we need to update d_parent of the dentry for the file being
-	 * repaired?  There shouldn't be a hashed dentry with a parent since
-	 * the file had nonzero nlink but wasn't connected to any parent dir.
-	 */
-	d_child = d_find_alias(VFS_I(adopt->sc->ip));
-	if (!d_child)
-		return 0;
-
-	trace_xrep_adoption_check_alias(adopt->sc->mp, d_child);
-
-	if (d_child->d_parent && !d_unhashed(d_child)) {
-		ASSERT(d_child->d_parent == NULL || d_unhashed(d_child));
-		error = -EFSCORRUPTED;
-	}
-
-	dput(d_child);
 	return error;
 }
 
 /*
- * Remove all negative dentries from the dcache.  There should not be any
- * positive entries, since we've maintained our lock on the orphanage
- * directory.
+ * Invalidate all dentries for the name that was added to the orphanage
+ * directory, and all dentries pointing to the child inode that was moved.
+ *
+ * There should not be any positive entries for the name, since we've
+ * maintained our lock on the orphanage directory.
  */
 static void
 xrep_adoption_zap_dcache(
@@ -488,15 +471,17 @@ xrep_adoption_zap_dcache(
 {
 	struct qstr		qname = QSTR_INIT(adopt->xname->name,
 						  adopt->xname->len);
+	struct xfs_scrub	*sc = adopt->sc;
 	struct dentry		*d_orphanage, *d_child;
 
-	d_orphanage = d_find_alias(VFS_I(adopt->sc->orphanage));
+	/* Invalidate all dentries for the adoption name */
+	d_orphanage = d_find_alias(VFS_I(sc->orphanage));
 	if (!d_orphanage)
 		return;
 
 	d_child = d_hash_and_lookup(d_orphanage, &qname);
 	while (d_child != NULL) {
-		trace_xrep_adoption_invalidate_child(adopt->sc->mp, d_child);
+		trace_xrep_adoption_invalidate_child(sc->mp, d_child);
 
 		ASSERT(d_is_negative(d_child));
 		d_invalidate(d_child);
@@ -505,6 +490,14 @@ xrep_adoption_zap_dcache(
 	}
 
 	dput(d_orphanage);
+
+	/* Invalidate all the dentries pointing down to this file. */
+	while ((d_child = d_find_alias(VFS_I(sc->ip))) != NULL) {
+		trace_xrep_adoption_invalidate_child(sc->mp, d_child);
+
+		d_invalidate(d_child);
+		dput(d_child);
+	}
 }
 
 /*

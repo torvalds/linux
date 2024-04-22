@@ -3265,8 +3265,6 @@ DEFINE_EVENT(xrep_dentry_class, name, \
 	TP_PROTO(struct xfs_mount *mp, const struct dentry *dentry), \
 	TP_ARGS(mp, dentry))
 DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_child);
-DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_alias);
-DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_dentry);
 DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_invalidate_child);
 DEFINE_REPAIR_DENTRY_EVENT(xrep_dirtree_delete_child);
 
