@@ -706,7 +706,7 @@ EXPORT_SYMBOL_NS_GPL(cs35l56_calibration_controls, SND_SOC_CS35L56_SHARED);
 
 int cs35l56_get_calibration(struct cs35l56_base *cs35l56_base)
 {
-	u64 silicon_uid;
+	u64 silicon_uid = 0;
 	int ret;
 
 	/* Driver can't apply calibration to a secured part, so skip */
