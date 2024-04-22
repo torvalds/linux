@@ -138,11 +138,6 @@ static inline bool sym_is_choice_value(struct symbol *sym)
 	return sym->flags & SYMBOL_CHOICEVAL ? true : false;
 }
 
-static inline bool sym_is_optional(struct symbol *sym)
-{
-	return sym->flags & SYMBOL_OPTIONAL ? true : false;
-}
-
 static inline bool sym_has_value(struct symbol *sym)
 {
 	return sym->flags & SYMBOL_DEF_USER ? true : false;
