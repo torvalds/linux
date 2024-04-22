@@ -36,36 +36,55 @@ enum mt753x_id {
 #define MT753X_AGC			0xc
 #define  LOCAL_EN			BIT(7)
 
-/* Registers to mac forward control for unknown frames */
-#define MT7530_MFC			0x10
-#define  BC_FFP(x)			(((x) & 0xff) << 24)
-#define  BC_FFP_MASK			BC_FFP(~0)
-#define  UNM_FFP(x)			(((x) & 0xff) << 16)
-#define  UNM_FFP_MASK			UNM_FFP(~0)
-#define  UNU_FFP(x)			(((x) & 0xff) << 8)
-#define  UNU_FFP_MASK			UNU_FFP(~0)
-#define  CPU_EN				BIT(7)
-#define  CPU_PORT_MASK			GENMASK(6, 4)
-#define  CPU_PORT(x)			FIELD_PREP(CPU_PORT_MASK, x)
-#define  MIRROR_EN			BIT(3)
-#define  MIRROR_PORT(x)			((x) & 0x7)
-#define  MIRROR_MASK			0x7
+/* Register for MAC forward control */
+#define MT753X_MFC			0x10
+#define  BC_FFP_MASK			GENMASK(31, 24)
+#define  BC_FFP(x)			FIELD_PREP(BC_FFP_MASK, x)
+#define  UNM_FFP_MASK			GENMASK(23, 16)
+#define  UNM_FFP(x)			FIELD_PREP(UNM_FFP_MASK, x)
+#define  UNU_FFP_MASK			GENMASK(15, 8)
+#define  UNU_FFP(x)			FIELD_PREP(UNU_FFP_MASK, x)
+#define  MT7530_CPU_EN			BIT(7)
+#define  MT7530_CPU_PORT_MASK		GENMASK(6, 4)
+#define  MT7530_CPU_PORT(x)		FIELD_PREP(MT7530_CPU_PORT_MASK, x)
+#define  MT7530_MIRROR_EN		BIT(3)
+#define  MT7530_MIRROR_PORT_MASK	GENMASK(2, 0)
+#define  MT7530_MIRROR_PORT_GET(x)	FIELD_GET(MT7530_MIRROR_PORT_MASK, x)
+#define  MT7530_MIRROR_PORT_SET(x)	FIELD_PREP(MT7530_MIRROR_PORT_MASK, x)
+#define  MT7531_QRY_FFP_MASK		GENMASK(7, 0)
+#define  MT7531_QRY_FFP(x)		FIELD_PREP(MT7531_QRY_FFP_MASK, x)
 
-/* Registers for CPU forward control */
+/* Register for CPU forward control */
 #define MT7531_CFC			0x4
 #define  MT7531_MIRROR_EN		BIT(19)
-#define  MT7531_MIRROR_MASK		(MIRROR_MASK << 16)
-#define  MT7531_MIRROR_PORT_GET(x)	(((x) >> 16) & MIRROR_MASK)
-#define  MT7531_MIRROR_PORT_SET(x)	(((x) & MIRROR_MASK) << 16)
+#define  MT7531_MIRROR_PORT_MASK	GENMASK(18, 16)
+#define  MT7531_MIRROR_PORT_GET(x)	FIELD_GET(MT7531_MIRROR_PORT_MASK, x)
+#define  MT7531_MIRROR_PORT_SET(x)	FIELD_PREP(MT7531_MIRROR_PORT_MASK, x)
 #define  MT7531_CPU_PMAP_MASK		GENMASK(7, 0)
 #define  MT7531_CPU_PMAP(x)		FIELD_PREP(MT7531_CPU_PMAP_MASK, x)
 
-#define MT753X_MIRROR_REG(id)		((((id) == ID_MT7531) || ((id) == ID_MT7988)) ?	\
-					 MT7531_CFC : MT7530_MFC)
-#define MT753X_MIRROR_EN(id)		((((id) == ID_MT7531) || ((id) == ID_MT7988)) ?	\
-					 MT7531_MIRROR_EN : MIRROR_EN)
-#define MT753X_MIRROR_MASK(id)		((((id) == ID_MT7531) || ((id) == ID_MT7988)) ?	\
-					 MT7531_MIRROR_MASK : MIRROR_MASK)
+#define MT753X_MIRROR_REG(id)		((id == ID_MT7531 || \
+					  id == ID_MT7988) ? \
+					 MT7531_CFC : MT753X_MFC)
+
+#define MT753X_MIRROR_EN(id)		((id == ID_MT7531 || \
+					  id == ID_MT7988) ? \
+					 MT7531_MIRROR_EN : MT7530_MIRROR_EN)
+
+#define MT753X_MIRROR_PORT_MASK(id)	((id == ID_MT7531 || \
+					  id == ID_MT7988) ? \
+					 MT7531_MIRROR_PORT_MASK : \
+					 MT7530_MIRROR_PORT_MASK)
+
+#define MT753X_MIRROR_PORT_GET(id, val)	((id == ID_MT7531 || \
+					  id == ID_MT7988) ? \
+					 MT7531_MIRROR_PORT_GET(val) : \
+					 MT7530_MIRROR_PORT_GET(val))
+
+#define MT753X_MIRROR_PORT_SET(id, val)	((id == ID_MT7531 || \
+					  id == ID_MT7988) ? \
+					 MT7531_MIRROR_PORT_SET(val) : \
+					 MT7530_MIRROR_PORT_SET(val))
 
 /* Register for BPDU and PAE frame control */
 #define MT753X_BPC			0x24
