@@ -286,9 +286,6 @@ struct vgic_dist {
 #define LPI_XA_MARK_DEBUG_ITER	XA_MARK_0
 	struct xarray		lpi_xa;
 
-	/* LPI translation cache */
-	struct list_head	lpi_translation_cache;
-
 	/* used by vgic-debug */
 	struct vgic_state_iter *iter;
 
