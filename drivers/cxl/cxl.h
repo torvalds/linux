@@ -12,6 +12,8 @@
 #include <linux/node.h>
 #include <linux/io.h>
 
+extern const struct nvdimm_security_ops *cxl_security_ops;
+
 /**
  * DOC: cxl objects
  *
