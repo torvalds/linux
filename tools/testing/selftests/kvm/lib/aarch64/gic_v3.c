@@ -9,8 +9,19 @@
 #include "processor.h"
 #include "delay.h"
 
+#include "gic.h"
 #include "gic_v3.h"
 #include "gic_private.h"
+
+#define GICV3_MAX_CPUS			512
+
+#define GICD_INT_DEF_PRI		0xa0
+#define GICD_INT_DEF_PRI_X4		((GICD_INT_DEF_PRI << 24) |\
+					(GICD_INT_DEF_PRI << 16) |\
+					(GICD_INT_DEF_PRI << 8) |\
+					GICD_INT_DEF_PRI)
+
+#define ICC_PMR_DEF_PRIO		0xf0
 
 struct gicv3_data {
 	void *dist_base;
@@ -320,7 +331,7 @@ static void gicv3_cpu_init(unsigned int cpu, void *redist_base)
 	write_sysreg_s(ICC_PMR_DEF_PRIO, SYS_ICC_PMR_EL1);
 
 	/* Enable non-secure Group-1 interrupts */
-	write_sysreg_s(ICC_IGRPEN1_EL1_ENABLE, SYS_ICC_GRPEN1_EL1);
+	write_sysreg_s(ICC_IGRPEN1_EL1_MASK, SYS_ICC_IGRPEN1_EL1);
 
 	gicv3_data.redist_base[cpu] = redist_base_cpu;
 }

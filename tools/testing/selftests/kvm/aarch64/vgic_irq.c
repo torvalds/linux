@@ -152,7 +152,7 @@ static void reset_stats(void)
 
 static uint64_t gic_read_ap1r0(void)
 {
-	uint64_t reg = read_sysreg_s(SYS_ICV_AP1R0_EL1);
+	uint64_t reg = read_sysreg_s(SYS_ICC_AP1R0_EL1);
 
 	dsb(sy);
 	return reg;
@@ -160,7 +160,7 @@ static uint64_t gic_read_ap1r0(void)
 
 static void gic_write_ap1r0(uint64_t val)
 {
-	write_sysreg_s(val, SYS_ICV_AP1R0_EL1);
+	write_sysreg_s(val, SYS_ICC_AP1R0_EL1);
 	isb();
 }
 
