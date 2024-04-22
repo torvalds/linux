@@ -32,6 +32,7 @@
 #include "xfs_error.h"
 #include "xfs_quota.h"
 #include "xfs_exchmaps.h"
+#include "xfs_rtbitmap.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/trace.h"
