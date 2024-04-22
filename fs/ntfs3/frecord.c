@@ -122,10 +122,10 @@ void ni_clear(struct ntfs_inode *ni)
 	else {
 		run_close(&ni->file.run);
 #ifdef CONFIG_NTFS3_LZX_XPRESS
-		if (ni->file.offs_page) {
+		if (ni->file.offs_folio) {
 			/* On-demand allocated page for offsets. */
-			put_page(ni->file.offs_page);
-			ni->file.offs_page = NULL;
+			folio_put(ni->file.offs_folio);
+			ni->file.offs_folio = NULL;
 		}
 #endif
 	}
@@ -2362,9 +2362,9 @@ remove_wof:
 
 	/* Clear cached flag. */
 	ni->ni_flags &= ~NI_FLAG_COMPRESSED_MASK;
-	if (ni->file.offs_page) {
-		put_page(ni->file.offs_page);
-		ni->file.offs_page = NULL;
+	if (ni->file.offs_folio) {
+		folio_put(ni->file.offs_folio);
+		ni->file.offs_folio = NULL;
 	}
 	mapping->a_ops = &ntfs_aops;
 

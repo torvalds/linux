@@ -1380,7 +1380,7 @@ int attr_wof_frame_info(struct ntfs_inode *ni, struct ATTRIB *attr,
 	u32 voff;
 	u8 bytes_per_off;
 	char *addr;
-	struct page *page;
+	struct folio *folio;
 	int i, err;
 	__le32 *off32;
 	__le64 *off64;
@@ -1425,18 +1425,18 @@ int attr_wof_frame_info(struct ntfs_inode *ni, struct ATTRIB *attr,
 
 	wof_size = le64_to_cpu(attr->nres.data_size);
 	down_write(&ni->file.run_lock);
-	page = ni->file.offs_page;
-	if (!page) {
-		page = alloc_page(GFP_KERNEL);
-		if (!page) {
+	folio = ni->file.offs_folio;
+	if (!folio) {
+		folio = folio_alloc(GFP_KERNEL, 0);
+		if (!folio) {
 			err = -ENOMEM;
 			goto out;
 		}
-		page->index = -1;
-		ni->file.offs_page = page;
+		folio->index = -1;
+		ni->file.offs_folio = folio;
 	}
-	lock_page(page);
-	addr = page_address(page);
+	folio_lock(folio);
+	addr = folio_address(folio);
 
 	if (vbo[1]) {
 		voff = vbo[1] & (PAGE_SIZE - 1);
@@ -1452,7 +1452,8 @@ int attr_wof_frame_info(struct ntfs_inode *ni, struct ATTRIB *attr,
 	do {
 		pgoff_t index = vbo[i] >> PAGE_SHIFT;
 
-		if (index != page->index) {
+		if (index != folio->index) {
+			struct page *page = &folio->page;
 			u64 from = vbo[i] & ~(u64)(PAGE_SIZE - 1);
 			u64 to = min(from + PAGE_SIZE, wof_size);
 
@@ -1465,10 +1466,10 @@ int attr_wof_frame_info(struct ntfs_inode *ni, struct ATTRIB *attr,
 			err = ntfs_bio_pages(sbi, run, &page, 1, from,
 					     to - from, REQ_OP_READ);
 			if (err) {
-				page->index = -1;
+				folio->index = -1;
 				goto out1;
 			}
-			page->index = index;
+			folio->index = index;
 		}
 
 		if (i) {
@@ -1506,7 +1507,7 @@ int attr_wof_frame_info(struct ntfs_inode *ni, struct ATTRIB *attr,
 	*ondisk_size = off[1] - off[0];
 
 out1:
-	unlock_page(page);
+	folio_unlock(folio);
 out:
 	up_write(&ni->file.run_lock);
 	return err;
