@@ -313,13 +313,11 @@ FIXTURE_SETUP(conntrack_dump_flush)
 	self->sock = mnl_socket_open(NETLINK_NETFILTER);
 	if (!self->sock) {
 		perror("mnl_socket_open");
-		exit(EXIT_FAILURE);
+		SKIP(return, "cannot open netlink_netfilter socket");
 	}
 
-	if (mnl_socket_bind(self->sock, 0, MNL_SOCKET_AUTOPID) < 0) {
-		perror("mnl_socket_bind");
-		exit(EXIT_FAILURE);
-	}
+	ret = mnl_socket_bind(self->sock, 0, MNL_SOCKET_AUTOPID);
+	EXPECT_EQ(ret, 0);
 
 	ret = conntracK_count_zone(self->sock, TEST_ZONE_ID);
 	if (ret < 0 && errno == EPERM)
