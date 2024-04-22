@@ -23,6 +23,8 @@
 #include "vgic.h"
 #include "vgic-mmio.h"
 
+static struct kvm_device_ops kvm_arm_vgic_its_ops;
+
 static int vgic_its_save_tables_v0(struct vgic_its *its);
 static int vgic_its_restore_tables_v0(struct vgic_its *its);
 static int vgic_its_commit_v0(struct vgic_its *its);
@@ -616,8 +618,9 @@ out:
 	raw_spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
 }
 
-void vgic_its_invalidate_cache(struct kvm *kvm)
+static void vgic_its_invalidate_cache(struct vgic_its *its)
 {
+	struct kvm *kvm = its->dev->kvm;
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct vgic_translation_cache_entry *cte;
 	unsigned long flags;
@@ -637,6 +640,24 @@ void vgic_its_invalidate_cache(struct kvm *kvm)
 	}
 
 	raw_spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
+}
+
+void vgic_its_invalidate_all_caches(struct kvm *kvm)
+{
+	struct kvm_device *dev;
+	struct vgic_its *its;
+
+	rcu_read_lock();
+
+	list_for_each_entry_rcu(dev, &kvm->devices, vm_node) {
+		if (dev->ops != &kvm_arm_vgic_its_ops)
+			continue;
+
+		its = dev->private;
+		vgic_its_invalidate_cache(its);
+	}
+
+	rcu_read_unlock();
 }
 
 int vgic_its_resolve_lpi(struct kvm *kvm, struct vgic_its *its,
@@ -826,7 +847,7 @@ static int vgic_its_cmd_handle_discard(struct kvm *kvm, struct vgic_its *its,
 		 * don't bother here since we clear the ITTE anyway and the
 		 * pending state is a property of the ITTE struct.
 		 */
-		vgic_its_invalidate_cache(kvm);
+		vgic_its_invalidate_cache(its);
 
 		its_free_ite(kvm, ite);
 		return 0;
@@ -863,7 +884,7 @@ static int vgic_its_cmd_handle_movi(struct kvm *kvm, struct vgic_its *its,
 	ite->collection = collection;
 	vcpu = collection_to_vcpu(kvm, collection);
 
-	vgic_its_invalidate_cache(kvm);
+	vgic_its_invalidate_cache(its);
 
 	return update_affinity(ite->irq, vcpu);
 }
@@ -1110,7 +1131,8 @@ static int vgic_its_cmd_handle_mapi(struct kvm *kvm, struct vgic_its *its,
 }
 
 /* Requires the its_lock to be held. */
-static void vgic_its_free_device(struct kvm *kvm, struct its_device *device)
+static void vgic_its_free_device(struct kvm *kvm, struct vgic_its *its,
+				 struct its_device *device)
 {
 	struct its_ite *ite, *temp;
 
@@ -1122,7 +1144,7 @@ static void vgic_its_free_device(struct kvm *kvm, struct its_device *device)
 	list_for_each_entry_safe(ite, temp, &device->itt_head, ite_list)
 		its_free_ite(kvm, ite);
 
-	vgic_its_invalidate_cache(kvm);
+	vgic_its_invalidate_cache(its);
 
 	list_del(&device->dev_list);
 	kfree(device);
@@ -1134,7 +1156,7 @@ static void vgic_its_free_device_list(struct kvm *kvm, struct vgic_its *its)
 	struct its_device *cur, *temp;
 
 	list_for_each_entry_safe(cur, temp, &its->device_list, dev_list)
-		vgic_its_free_device(kvm, cur);
+		vgic_its_free_device(kvm, its, cur);
 }
 
 /* its lock must be held */
@@ -1193,7 +1215,7 @@ static int vgic_its_cmd_handle_mapd(struct kvm *kvm, struct vgic_its *its,
 	 * by removing the mapping and re-establishing it.
 	 */
 	if (device)
-		vgic_its_free_device(kvm, device);
+		vgic_its_free_device(kvm, its, device);
 
 	/*
 	 * The spec does not say whether unmapping a not-mapped device
@@ -1224,7 +1246,7 @@ static int vgic_its_cmd_handle_mapc(struct kvm *kvm, struct vgic_its *its,
 
 	if (!valid) {
 		vgic_its_free_collection(its, coll_id);
-		vgic_its_invalidate_cache(kvm);
+		vgic_its_invalidate_cache(its);
 	} else {
 		struct kvm_vcpu *vcpu;
 
@@ -1395,7 +1417,7 @@ static int vgic_its_cmd_handle_movall(struct kvm *kvm, struct vgic_its *its,
 		vgic_put_irq(kvm, irq);
 	}
 
-	vgic_its_invalidate_cache(kvm);
+	vgic_its_invalidate_cache(its);
 
 	return 0;
 }
@@ -1747,7 +1769,7 @@ static void vgic_mmio_write_its_ctlr(struct kvm *kvm, struct vgic_its *its,
 
 	its->enabled = !!(val & GITS_CTLR_ENABLE);
 	if (!its->enabled)
-		vgic_its_invalidate_cache(kvm);
+		vgic_its_invalidate_cache(its);
 
 	/*
 	 * Try to process any pending commands. This function bails out early
@@ -1880,7 +1902,7 @@ void vgic_lpi_translation_cache_destroy(struct kvm *kvm)
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct vgic_translation_cache_entry *cte, *tmp;
 
-	vgic_its_invalidate_cache(kvm);
+	vgic_its_invalidate_all_caches(kvm);
 
 	list_for_each_entry_safe(cte, tmp,
 				 &dist->lpi_translation_cache, entry) {
@@ -2372,7 +2394,7 @@ static int vgic_its_restore_dte(struct vgic_its *its, u32 id,
 
 	ret = vgic_its_restore_itt(its, dev);
 	if (ret) {
-		vgic_its_free_device(its->dev->kvm, dev);
+		vgic_its_free_device(its->dev->kvm, its, dev);
 		return ret;
 	}
 
