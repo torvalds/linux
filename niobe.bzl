@@ -98,6 +98,7 @@ def define_niobe():
         "drivers/power/reset/qcom-reboot-reason.ko",
         "drivers/power/reset/reboot-mode.ko",
         "drivers/power/supply/qti_battery_charger.ko",
+        "drivers/powercap/qti_epm_hardware.ko",
         "drivers/pwm/pwm-qti-lpg.ko",
         "drivers/regulator/ap72200-regulator.ko",
         "drivers/regulator/debug-regulator.ko",
