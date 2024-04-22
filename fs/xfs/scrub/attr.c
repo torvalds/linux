@@ -17,6 +17,7 @@
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_attr_sf.h"
+#include "xfs_parent.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/dabtree.h"
@@ -208,6 +209,13 @@ xchk_xattr_actor(
 		return -ECANCELED;
 	}
 
+	/* Check parent pointer record. */
+	if ((attr_flags & XFS_ATTR_PARENT) &&
+	    !xfs_parent_valuecheck(sc->mp, value, valuelen)) {
+		xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, args.blkno);
+		return -ECANCELED;
+	}
+
 	/*
 	 * Try to allocate enough memory to extract the attr value.  If that
 	 * doesn't work, return -EDEADLOCK as a signal to try again with a
@@ -218,6 +226,14 @@ xchk_xattr_actor(
 		error = -EDEADLOCK;
 	if (error)
 		return error;
+
+	/*
+	 * Parent pointers are matched on attr name and value, so we must
+	 * supply the xfs_parent_rec here when confirming that the dabtree
+	 * indexing works correctly.
+	 */
+	if (attr_flags & XFS_ATTR_PARENT)
+		memcpy(ab->value, value, valuelen);
 
 	args.value = ab->value;
 
