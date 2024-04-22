@@ -126,7 +126,6 @@ void vgic_put_irq(struct kvm *kvm, struct vgic_irq *irq)
 	__xa_erase(&dist->lpi_xa, irq->intid);
 	xa_unlock_irqrestore(&dist->lpi_xa, flags);
 
-	atomic_dec(&dist->lpi_count);
 	kfree_rcu(irq, rcu);
 }
 

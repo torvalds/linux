@@ -86,10 +86,7 @@ static struct vgic_irq *vgic_add_lpi(struct kvm *kvm, u32 intid,
 	if (ret) {
 		xa_release(&dist->lpi_xa, intid);
 		kfree(irq);
-		goto out_unlock;
 	}
-
-	atomic_inc(&dist->lpi_count);
 
 out_unlock:
 	raw_spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
@@ -314,51 +311,6 @@ static int update_lpi_config(struct kvm *kvm, struct vgic_irq *irq,
 		return its_prop_update_vlpi(irq->host_irq, prop, needs_inv);
 
 	return 0;
-}
-
-/*
- * Create a snapshot of the current LPIs targeting @vcpu, so that we can
- * enumerate those LPIs without holding any lock.
- * Returns their number and puts the kmalloc'ed array into intid_ptr.
- */
-int vgic_copy_lpi_list(struct kvm *kvm, struct kvm_vcpu *vcpu, u32 **intid_ptr)
-{
-	struct vgic_dist *dist = &kvm->arch.vgic;
-	XA_STATE(xas, &dist->lpi_xa, GIC_LPI_OFFSET);
-	struct vgic_irq *irq;
-	unsigned long flags;
-	u32 *intids;
-	int irq_count, i = 0;
-
-	/*
-	 * There is an obvious race between allocating the array and LPIs
-	 * being mapped/unmapped. If we ended up here as a result of a
-	 * command, we're safe (locks are held, preventing another
-	 * command). If coming from another path (such as enabling LPIs),
-	 * we must be careful not to overrun the array.
-	 */
-	irq_count = atomic_read(&dist->lpi_count);
-	intids = kmalloc_array(irq_count, sizeof(intids[0]), GFP_KERNEL_ACCOUNT);
-	if (!intids)
-		return -ENOMEM;
-
-	raw_spin_lock_irqsave(&dist->lpi_list_lock, flags);
-	rcu_read_lock();
-
-	xas_for_each(&xas, irq, VGIC_LPI_MAX_INTID) {
-		if (i == irq_count)
-			break;
-		/* We don't need to "get" the IRQ, as we hold the list lock. */
-		if (vcpu && irq->target_vcpu != vcpu)
-			continue;
-		intids[i++] = irq->intid;
-	}
-
-	rcu_read_unlock();
-	raw_spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
-
-	*intid_ptr = intids;
-	return i;
 }
 
 static int update_affinity(struct vgic_irq *irq, struct kvm_vcpu *vcpu)
