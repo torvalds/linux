@@ -173,7 +173,6 @@ xchk_xattr_actor(
 	void			*priv)
 {
 	struct xfs_da_args		args = {
-		.op_flags		= XFS_DA_OP_NOTIME,
 		.attr_filter		= attr_flags & XFS_ATTR_NSP_ONDISK_MASK,
 		.geo			= sc->mp->m_attr_geo,
 		.whichfork		= XFS_ATTR_FORK,
