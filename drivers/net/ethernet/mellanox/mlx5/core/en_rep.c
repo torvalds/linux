@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 
+#include <linux/dim.h>
 #include <linux/debugfs.h>
 #include <linux/mlx5/fs.h>
 #include <net/switchdev.h>
@@ -40,6 +41,7 @@
 
 #include "eswitch.h"
 #include "en.h"
+#include "en/dim.h"
 #include "en_rep.h"
 #include "en/params.h"
 #include "en/txrx.h"
@@ -426,6 +428,8 @@ static const struct ethtool_ops mlx5e_rep_ethtool_ops = {
 	.set_channels      = mlx5e_rep_set_channels,
 	.get_coalesce      = mlx5e_rep_get_coalesce,
 	.set_coalesce      = mlx5e_rep_set_coalesce,
+	.get_per_queue_coalesce = mlx5e_get_per_queue_coalesce,
+	.set_per_queue_coalesce = mlx5e_set_per_queue_coalesce,
 	.get_rxfh_key_size   = mlx5e_rep_get_rxfh_key_size,
 	.get_rxfh_indir_size = mlx5e_rep_get_rxfh_indir_size,
 };
@@ -836,10 +840,6 @@ static void mlx5e_build_rep_params(struct net_device *netdev)
 	struct mlx5_core_dev *mdev = priv->mdev;
 	struct mlx5e_params *params;
 
-	u8 cq_period_mode = MLX5_CAP_GEN(mdev, cq_period_start_from_cqe) ?
-					 MLX5_CQ_PERIOD_MODE_START_FROM_CQE :
-					 MLX5_CQ_PERIOD_MODE_START_FROM_EQE;
-
 	params = &priv->channels.params;
 
 	params->num_channels = MLX5E_REP_PARAMS_DEF_NUM_CHANNELS;
@@ -867,7 +867,7 @@ static void mlx5e_build_rep_params(struct net_device *netdev)
 
 	/* CQ moderation params */
 	params->rx_dim_enabled = MLX5_CAP_GEN(mdev, cq_moderation);
-	mlx5e_set_rx_cq_mode_params(params, cq_period_mode);
+	params->rx_moder_use_cqe_mode = !!MLX5_CAP_GEN(mdev, cq_period_start_from_cqe);
 
 	params->mqprio.num_tc       = 1;
 	if (rep->vport != MLX5_VPORT_UPLINK)

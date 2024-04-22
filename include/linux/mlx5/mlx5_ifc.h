@@ -1686,7 +1686,8 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8         cq_oi[0x1];
 	u8         cq_resize[0x1];
 	u8         cq_moderation[0x1];
-	u8         reserved_at_223[0x3];
+	u8         cq_period_mode_modify[0x1];
+	u8         reserved_at_224[0x2];
 	u8         cq_eq_remap[0x1];
 	u8         pg[0x1];
 	u8         block_lb_mc[0x1];
@@ -4385,10 +4386,10 @@ enum {
 	MLX5_CQC_ST_FIRED                                 = 0xa,
 };
 
-enum {
+enum mlx5_cq_period_mode {
 	MLX5_CQ_PERIOD_MODE_START_FROM_EQE = 0x0,
 	MLX5_CQ_PERIOD_MODE_START_FROM_CQE = 0x1,
-	MLX5_CQ_PERIOD_NUM_MODES
+	MLX5_CQ_PERIOD_NUM_MODES,
 };
 
 struct mlx5_ifc_cqc_bits {
