@@ -633,7 +633,9 @@ typedef struct xfs_fsop_attrmulti_handlereq {
 /*
  * per machine unique filesystem identifier types.
  */
-typedef struct { __u32 val[2]; } xfs_fsid_t; /* file system id type */
+typedef struct xfs_fsid {
+	__u32	val[2];			/* file system id type */
+} xfs_fsid_t;
 
 typedef struct xfs_fid {
 	__u16	fid_len;		/* length of remainder	*/
