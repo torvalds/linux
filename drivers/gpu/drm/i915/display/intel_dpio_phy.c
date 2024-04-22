@@ -757,7 +757,7 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 	for (i = 0; i < crtc_state->lane_count; i++) {
 		val = vlv_dpio_read(dev_priv, phy, CHV_TX_DW4(ch, i));
 		val &= ~DPIO_SWING_DEEMPH9P5_MASK;
-		val |= deemph_reg_value << DPIO_SWING_DEEMPH9P5_SHIFT;
+		val |= DPIO_SWING_DEEMPH9P5(deemph_reg_value);
 		vlv_dpio_write(dev_priv, phy, CHV_TX_DW4(ch, i), val);
 	}
 
@@ -766,15 +766,15 @@ void chv_set_phy_signal_level(struct intel_encoder *encoder,
 		val = vlv_dpio_read(dev_priv, phy, CHV_TX_DW2(ch, i));
 
 		val &= ~DPIO_SWING_MARGIN000_MASK;
-		val |= margin_reg_value << DPIO_SWING_MARGIN000_SHIFT;
+		val |= DPIO_SWING_MARGIN000(margin_reg_value);
 
 		/*
 		 * Supposedly this value shouldn't matter when unique transition
 		 * scale is disabled, but in fact it does matter. Let's just
 		 * always program the same value and hope it's OK.
 		 */
-		val &= ~(0xff << DPIO_UNIQ_TRANS_SCALE_SHIFT);
-		val |= 0x9a << DPIO_UNIQ_TRANS_SCALE_SHIFT;
+		val &= ~DPIO_UNIQ_TRANS_SCALE_MASK;
+		val |= DPIO_UNIQ_TRANS_SCALE(0x9a);
 
 		vlv_dpio_write(dev_priv, phy, CHV_TX_DW2(ch, i), val);
 	}
@@ -902,20 +902,20 @@ void chv_phy_pre_pll_enable(struct intel_encoder *encoder,
 
 	/* program clock channel usage */
 	val = vlv_dpio_read(dev_priv, phy, VLV_PCS01_DW8(ch));
-	val |= CHV_PCS_USEDCLKCHANNEL_OVRRIDE;
-	if (pipe != PIPE_B)
-		val &= ~CHV_PCS_USEDCLKCHANNEL;
+	val |= DPIO_PCS_USEDCLKCHANNEL_OVRRIDE;
+	if (pipe == PIPE_B)
+		val |= DPIO_PCS_USEDCLKCHANNEL;
 	else
-		val |= CHV_PCS_USEDCLKCHANNEL;
+		val &= ~DPIO_PCS_USEDCLKCHANNEL;
 	vlv_dpio_write(dev_priv, phy, VLV_PCS01_DW8(ch), val);
 
 	if (crtc_state->lane_count > 2) {
 		val = vlv_dpio_read(dev_priv, phy, VLV_PCS23_DW8(ch));
-		val |= CHV_PCS_USEDCLKCHANNEL_OVRRIDE;
-		if (pipe != PIPE_B)
-			val &= ~CHV_PCS_USEDCLKCHANNEL;
+		val |= DPIO_PCS_USEDCLKCHANNEL_OVRRIDE;
+		if (pipe == PIPE_B)
+			val |= DPIO_PCS_USEDCLKCHANNEL;
 		else
-			val |= CHV_PCS_USEDCLKCHANNEL;
+			val &= ~DPIO_PCS_USEDCLKCHANNEL;
 		vlv_dpio_write(dev_priv, phy, VLV_PCS23_DW8(ch), val);
 	}
 
@@ -925,10 +925,10 @@ void chv_phy_pre_pll_enable(struct intel_encoder *encoder,
 	 * pick the CL based on the port.
 	 */
 	val = vlv_dpio_read(dev_priv, phy, CHV_CMN_DW19(ch));
-	if (pipe != PIPE_B)
-		val &= ~CHV_CMN_USEDCLKCHANNEL;
-	else
+	if (pipe == PIPE_B)
 		val |= CHV_CMN_USEDCLKCHANNEL;
+	else
+		val &= ~CHV_CMN_USEDCLKCHANNEL;
 	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW19(ch), val);
 
 	vlv_dpio_put(dev_priv);
@@ -962,11 +962,10 @@ void chv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 	for (i = 0; i < crtc_state->lane_count; i++) {
 		/* Set the upar bit */
 		if (crtc_state->lane_count == 1)
-			data = 0x0;
+			data = 0;
 		else
-			data = (i == 1) ? 0x0 : 0x1;
-		vlv_dpio_write(dev_priv, phy, CHV_TX_DW14(ch, i),
-				data << DPIO_UPAR_SHIFT);
+			data = (i == 1) ? 0 : DPIO_UPAR;
+		vlv_dpio_write(dev_priv, phy, CHV_TX_DW14(ch, i), data);
 	}
 
 	/* Data lane stagger programming */
@@ -1099,13 +1098,13 @@ void vlv_phy_pre_pll_enable(struct intel_encoder *encoder,
 	vlv_dpio_get(dev_priv);
 
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW0_GRP(ch),
-			 DPIO_PCS_TX_LANE2_RESET |
-			 DPIO_PCS_TX_LANE1_RESET);
+		       DPIO_PCS_TX_LANE2_RESET |
+		       DPIO_PCS_TX_LANE1_RESET);
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW1_GRP(ch),
-			 DPIO_PCS_CLK_CRI_RXEB_EIOS_EN |
-			 DPIO_PCS_CLK_CRI_RXDIGFILTSG_EN |
-			 (1<<DPIO_PCS_CLK_DATAWIDTH_SHIFT) |
-				 DPIO_PCS_CLK_SOFT_RESET);
+		       DPIO_PCS_CLK_CRI_RXEB_EIOS_EN |
+		       DPIO_PCS_CLK_CRI_RXDIGFILTSG_EN |
+		       DPIO_PCS_CLK_DATAWIDTH_8_10 |
+		       DPIO_PCS_CLK_SOFT_RESET);
 
 	/* Fix up inter-pair skew failure */
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW12_GRP(ch), 0x00750f00);
@@ -1130,12 +1129,10 @@ void vlv_phy_pre_encoder_enable(struct intel_encoder *encoder,
 	vlv_dpio_get(dev_priv);
 
 	/* Enable clock channels for this port */
-	val = 0;
-	if (pipe)
-		val |= (1<<21);
-	else
-		val &= ~(1<<21);
-	val |= 0x001000c4;
+	val = DPIO_PCS_USEDCLKCHANNEL_OVRRIDE;
+	if (pipe == PIPE_B)
+		val |= DPIO_PCS_USEDCLKCHANNEL;
+	val |= 0xc4;
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW8_GRP(ch), val);
 
 	/* Program lane clock */

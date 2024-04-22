@@ -527,11 +527,11 @@ void vlv_crtc_clock_get(struct intel_crtc_state *crtc_state)
 	tmp = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW3(ch));
 	vlv_dpio_put(dev_priv);
 
-	clock.m1 = (tmp >> DPIO_M1DIV_SHIFT) & 7;
-	clock.m2 = tmp & DPIO_M2DIV_MASK;
-	clock.n = (tmp >> DPIO_N_SHIFT) & 0xf;
-	clock.p1 = (tmp >> DPIO_P1_SHIFT) & 7;
-	clock.p2 = (tmp >> DPIO_P2_SHIFT) & 0x1f;
+	clock.m1 = REG_FIELD_GET(DPIO_M1_DIV_MASK, tmp);
+	clock.m2 = REG_FIELD_GET(DPIO_M2_DIV_MASK, tmp);
+	clock.n = REG_FIELD_GET(DPIO_N_DIV_MASK, tmp);
+	clock.p1 = REG_FIELD_GET(DPIO_P1_DIV_MASK, tmp);
+	clock.p2 = REG_FIELD_GET(DPIO_P2_DIV_MASK, tmp);
 
 	crtc_state->port_clock = vlv_calc_dpll_params(refclk, &clock);
 }
@@ -559,13 +559,13 @@ void chv_crtc_clock_get(struct intel_crtc_state *crtc_state)
 	pll_dw3 = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW3(ch));
 	vlv_dpio_put(dev_priv);
 
-	clock.m1 = (pll_dw1 & 0x7) == DPIO_CHV_M1_DIV_BY_2 ? 2 : 0;
-	clock.m2 = (pll_dw0 & 0xff) << 22;
+	clock.m1 = REG_FIELD_GET(DPIO_CHV_M1_DIV_MASK, pll_dw1) == DPIO_CHV_M1_DIV_BY_2 ? 2 : 0;
+	clock.m2 = REG_FIELD_GET(DPIO_CHV_M2_DIV_MASK, pll_dw0) << 22;
 	if (pll_dw3 & DPIO_CHV_FRAC_DIV_EN)
-		clock.m2 |= pll_dw2 & 0x3fffff;
-	clock.n = (pll_dw1 >> DPIO_CHV_N_DIV_SHIFT) & 0xf;
-	clock.p1 = (cmn_dw13 >> DPIO_CHV_P1_DIV_SHIFT) & 0x7;
-	clock.p2 = (cmn_dw13 >> DPIO_CHV_P2_DIV_SHIFT) & 0x1f;
+		clock.m2 |= REG_FIELD_GET(DPIO_CHV_M2_FRAC_DIV_MASK, pll_dw2);
+	clock.n = REG_FIELD_GET(DPIO_CHV_N_DIV_MASK, pll_dw1);
+	clock.p1 = REG_FIELD_GET(DPIO_CHV_P1_DIV_MASK, cmn_dw13);
+	clock.p2 = REG_FIELD_GET(DPIO_CHV_P2_DIV_MASK, cmn_dw13);
 
 	crtc_state->port_clock = chv_calc_dpll_params(refclk, &clock);
 }
@@ -1926,19 +1926,19 @@ static void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	vlv_dpio_write(dev_priv, phy, VLV_CMN_DW0, 0x610);
 
 	/* Set idtafcrecal before PLL is enabled */
-	tmp = (clock->m1 << DPIO_M1DIV_SHIFT) |
-		(clock->m2 & DPIO_M2DIV_MASK) |
-		(clock->p1 << DPIO_P1_SHIFT) |
-		(clock->p2 << DPIO_P2_SHIFT) |
-		(clock->n << DPIO_N_SHIFT) |
-		(1 << DPIO_K_SHIFT);
+	tmp = DPIO_M1_DIV(clock->m1) |
+		DPIO_M2_DIV(clock->m2) |
+		DPIO_P1_DIV(clock->p1) |
+		DPIO_P2_DIV(clock->p2) |
+		DPIO_N_DIV(clock->n) |
+		DPIO_K_DIV(1);
 
 	/*
 	 * Post divider depends on pixel clock rate, DAC vs digital (and LVDS,
 	 * but we don't support that).
 	 * Note: don't use the DAC post divider as it seems unstable.
 	 */
-	tmp |= (DPIO_POST_DIV_HDMIDP << DPIO_POST_DIV_SHIFT);
+	tmp |= DPIO_S1_DIV(DPIO_S1_DIV_HDMIDP);
 	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW3(ch), tmp);
 
 	tmp |= DPIO_ENABLE_CALIBRATION;
@@ -2034,34 +2034,33 @@ static void chv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	u32 m2_frac;
 
 	m2_frac = clock->m2 & 0x3fffff;
-	loopfilter = 0;
 
 	vlv_dpio_get(dev_priv);
 
 	/* p1 and p2 divider */
 	vlv_dpio_write(dev_priv, phy, CHV_CMN_DW13(ch),
-		       5 << DPIO_CHV_S1_DIV_SHIFT |
-		       clock->p1 << DPIO_CHV_P1_DIV_SHIFT |
-		       clock->p2 << DPIO_CHV_P2_DIV_SHIFT |
-		       1 << DPIO_CHV_K_DIV_SHIFT);
+		       DPIO_CHV_S1_DIV(5) |
+		       DPIO_CHV_P1_DIV(clock->p1) |
+		       DPIO_CHV_P2_DIV(clock->p2) |
+		       DPIO_CHV_K_DIV(1));
 
 	/* Feedback post-divider - m2 */
 	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW0(ch),
-		       clock->m2 >> 22);
+		       DPIO_CHV_M2_DIV(clock->m2 >> 22));
 
 	/* Feedback refclk divider - n and m1 */
 	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW1(ch),
-		       DPIO_CHV_M1_DIV_BY_2 |
-		       1 << DPIO_CHV_N_DIV_SHIFT);
+		       DPIO_CHV_M1_DIV(DPIO_CHV_M1_DIV_BY_2) |
+		       DPIO_CHV_N_DIV(1));
 
 	/* M2 fraction division */
 	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW2(ch),
-		       m2_frac);
+		       DPIO_CHV_M2_FRAC_DIV(m2_frac));
 
 	/* M2 fraction division enable */
 	tmp = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW3(ch));
 	tmp &= ~(DPIO_CHV_FEEDFWD_GAIN_MASK | DPIO_CHV_FRAC_DIV_EN);
-	tmp |= (2 << DPIO_CHV_FEEDFWD_GAIN_SHIFT);
+	tmp |= DPIO_CHV_FEEDFWD_GAIN(2);
 	if (m2_frac)
 		tmp |= DPIO_CHV_FRAC_DIV_EN;
 	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW3(ch), tmp);
@@ -2069,40 +2068,40 @@ static void chv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	/* Program digital lock detect threshold */
 	tmp = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW9(ch));
 	tmp &= ~(DPIO_CHV_INT_LOCK_THRESHOLD_MASK |
-					DPIO_CHV_INT_LOCK_THRESHOLD_SEL_COARSE);
-	tmp |= (0x5 << DPIO_CHV_INT_LOCK_THRESHOLD_SHIFT);
+		      DPIO_CHV_INT_LOCK_THRESHOLD_SEL_COARSE);
+	tmp |= DPIO_CHV_INT_LOCK_THRESHOLD(0x5);
 	if (!m2_frac)
 		tmp |= DPIO_CHV_INT_LOCK_THRESHOLD_SEL_COARSE;
 	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW9(ch), tmp);
 
 	/* Loop filter */
 	if (clock->vco == 5400000) {
-		loopfilter |= (0x3 << DPIO_CHV_PROP_COEFF_SHIFT);
-		loopfilter |= (0x8 << DPIO_CHV_INT_COEFF_SHIFT);
-		loopfilter |= (0x1 << DPIO_CHV_GAIN_CTRL_SHIFT);
+		loopfilter = DPIO_CHV_PROP_COEFF(0x3) |
+			DPIO_CHV_INT_COEFF(0x8) |
+			DPIO_CHV_GAIN_CTRL(0x1);
 		tribuf_calcntr = 0x9;
 	} else if (clock->vco <= 6200000) {
-		loopfilter |= (0x5 << DPIO_CHV_PROP_COEFF_SHIFT);
-		loopfilter |= (0xB << DPIO_CHV_INT_COEFF_SHIFT);
-		loopfilter |= (0x3 << DPIO_CHV_GAIN_CTRL_SHIFT);
+		loopfilter = DPIO_CHV_PROP_COEFF(0x5) |
+			DPIO_CHV_INT_COEFF(0xB) |
+			DPIO_CHV_GAIN_CTRL(0x3);
 		tribuf_calcntr = 0x9;
 	} else if (clock->vco <= 6480000) {
-		loopfilter |= (0x4 << DPIO_CHV_PROP_COEFF_SHIFT);
-		loopfilter |= (0x9 << DPIO_CHV_INT_COEFF_SHIFT);
-		loopfilter |= (0x3 << DPIO_CHV_GAIN_CTRL_SHIFT);
+		loopfilter = DPIO_CHV_PROP_COEFF(0x4) |
+			DPIO_CHV_INT_COEFF(0x9) |
+			DPIO_CHV_GAIN_CTRL(0x3);
 		tribuf_calcntr = 0x8;
 	} else {
 		/* Not supported. Apply the same limits as in the max case */
-		loopfilter |= (0x4 << DPIO_CHV_PROP_COEFF_SHIFT);
-		loopfilter |= (0x9 << DPIO_CHV_INT_COEFF_SHIFT);
-		loopfilter |= (0x3 << DPIO_CHV_GAIN_CTRL_SHIFT);
+		loopfilter = DPIO_CHV_PROP_COEFF(0x4) |
+			DPIO_CHV_INT_COEFF(0x9) |
+			DPIO_CHV_GAIN_CTRL(0x3);
 		tribuf_calcntr = 0;
 	}
 	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW6(ch), loopfilter);
 
 	tmp = vlv_dpio_read(dev_priv, phy, CHV_PLL_DW8(ch));
 	tmp &= ~DPIO_CHV_TDC_TARGET_CNT_MASK;
-	tmp |= (tribuf_calcntr << DPIO_CHV_TDC_TARGET_CNT_SHIFT);
+	tmp |= DPIO_CHV_TDC_TARGET_CNT(tribuf_calcntr);
 	vlv_dpio_write(dev_priv, phy, CHV_PLL_DW8(ch), tmp);
 
 	/* AFC Recal */

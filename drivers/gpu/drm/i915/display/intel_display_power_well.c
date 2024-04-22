@@ -1553,10 +1553,11 @@ static void assert_chv_phy_powergate(struct drm_i915_private *dev_priv, enum dpi
 	}
 
 	if (ch == DPIO_CH0)
-		actual = val >> DPIO_ANYDL_POWERDOWN_SHIFT_CH0;
+		actual = REG_FIELD_GET(DPIO_ANYDL_POWERDOWN_CH0 |
+				       DPIO_ALLDL_POWERDOWN_CH0, val);
 	else
-		actual = val >> DPIO_ANYDL_POWERDOWN_SHIFT_CH1;
-	actual &= DPIO_ALLDL_POWERDOWN | DPIO_ANYDL_POWERDOWN;
+		actual = REG_FIELD_GET(DPIO_ANYDL_POWERDOWN_CH1 |
+				       DPIO_ALLDL_POWERDOWN_CH1, val);
 
 	drm_WARN(&dev_priv->drm, actual != expected,
 		 "Unexpected DPIO lane power down: all %d, any %d. Expected: all %d, any %d. (0x%x = 0x%08x)\n",
