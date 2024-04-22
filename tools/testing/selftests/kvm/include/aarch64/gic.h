@@ -6,10 +6,19 @@
 #ifndef SELFTEST_KVM_GIC_H
 #define SELFTEST_KVM_GIC_H
 
+#include <asm/kvm.h>
+
 enum gic_type {
 	GIC_V3,
 	GIC_TYPE_MAX,
 };
+
+#define GICD_BASE_GPA		0x8000000ULL
+#define GICR_BASE_GPA		(GICD_BASE_GPA + KVM_VGIC_V3_DIST_SIZE)
+
+/* The GIC is identity-mapped into the guest at the time of setup. */
+#define GICD_BASE_GVA		((volatile void *)GICD_BASE_GPA)
+#define GICR_BASE_GVA		((volatile void *)GICR_BASE_GPA)
 
 #define MIN_SGI			0
 #define MIN_PPI			16
@@ -21,8 +30,7 @@ enum gic_type {
 #define INTID_IS_PPI(intid)	(MIN_PPI <= (intid) && (intid) < MIN_SPI)
 #define INTID_IS_SPI(intid)	(MIN_SPI <= (intid) && (intid) <= MAX_SPI)
 
-void gic_init(enum gic_type type, unsigned int nr_cpus,
-		void *dist_base, void *redist_base);
+void gic_init(enum gic_type type, unsigned int nr_cpus);
 void gic_irq_enable(unsigned int intid);
 void gic_irq_disable(unsigned int intid);
 unsigned int gic_get_and_ack_irq(void);
