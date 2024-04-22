@@ -313,3 +313,67 @@ xfs_parent_lookup(
 	xfs_parent_da_args_init(scratch, tp, pptr, ip, ip->i_ino, parent_name);
 	return xfs_attr_get_ilocked(scratch);
 }
+
+/* Sanity-check a parent pointer before we try to perform repairs. */
+static inline bool
+xfs_parent_sanity_check(
+	struct xfs_mount		*mp,
+	const struct xfs_name		*parent_name,
+	const struct xfs_parent_rec	*pptr)
+{
+	if (!xfs_parent_namecheck(XFS_ATTR_PARENT, parent_name->name,
+				parent_name->len))
+		return false;
+
+	if (!xfs_parent_valuecheck(mp, pptr, sizeof(*pptr)))
+		return false;
+
+	return true;
+}
+
+
+/*
+ * Attach the parent pointer (@parent_name -> @pptr) to @ip immediately.
+ * Caller must not have a transaction or hold the ILOCK.  This is for
+ * specialized repair functions only.  The scratchpad need not be initialized.
+ */
+int
+xfs_parent_set(
+	struct xfs_inode	*ip,
+	xfs_ino_t		owner,
+	const struct xfs_name	*parent_name,
+	struct xfs_parent_rec	*pptr,
+	struct xfs_da_args	*scratch)
+{
+	if (!xfs_parent_sanity_check(ip->i_mount, parent_name, pptr)) {
+		ASSERT(0);
+		return -EFSCORRUPTED;
+	}
+
+	memset(scratch, 0, sizeof(struct xfs_da_args));
+	xfs_parent_da_args_init(scratch, NULL, pptr, ip, owner, parent_name);
+	return xfs_attr_set(scratch, XFS_ATTRUPDATE_CREATE, false);
+}
+
+/*
+ * Remove the parent pointer (@parent_name -> @pptr) from @ip immediately.
+ * Caller must not have a transaction or hold the ILOCK.  This is for
+ * specialized repair functions only.  The scratchpad need not be initialized.
+ */
+int
+xfs_parent_unset(
+	struct xfs_inode		*ip,
+	xfs_ino_t			owner,
+	const struct xfs_name		*parent_name,
+	struct xfs_parent_rec		*pptr,
+	struct xfs_da_args		*scratch)
+{
+	if (!xfs_parent_sanity_check(ip->i_mount, parent_name, pptr)) {
+		ASSERT(0);
+		return -EFSCORRUPTED;
+	}
+
+	memset(scratch, 0, sizeof(struct xfs_da_args));
+	xfs_parent_da_args_init(scratch, NULL, pptr, ip, owner, parent_name);
+	return xfs_attr_set(scratch, XFS_ATTRUPDATE_REMOVE, false);
+}
