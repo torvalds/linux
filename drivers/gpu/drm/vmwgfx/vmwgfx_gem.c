@@ -30,6 +30,8 @@
 #include "drm/drm_prime.h"
 #include "drm/drm_gem_ttm_helper.h"
 
+#include <linux/debugfs.h>
+
 static void vmw_gem_object_free(struct drm_gem_object *gobj)
 {
 	struct ttm_buffer_object *bo = drm_gem_ttm_of_gem(gobj);
