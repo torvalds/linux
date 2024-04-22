@@ -913,24 +913,25 @@ int ntfs_write_begin(struct file *file, struct address_space *mapping,
 
 	*pagep = NULL;
 	if (is_resident(ni)) {
-		struct page *page =
-			grab_cache_page_write_begin(mapping, pos >> PAGE_SHIFT);
+		struct folio *folio = __filemap_get_folio(mapping,
+				pos >> PAGE_SHIFT, FGP_WRITEBEGIN,
+				mapping_gfp_mask(mapping));
 
-		if (!page) {
-			err = -ENOMEM;
+		if (IS_ERR(folio)) {
+			err = PTR_ERR(folio);
 			goto out;
 		}
 
 		ni_lock(ni);
-		err = attr_data_read_resident(ni, page);
+		err = attr_data_read_resident(ni, &folio->page);
 		ni_unlock(ni);
 
 		if (!err) {
-			*pagep = page;
+			*pagep = &folio->page;
 			goto out;
 		}
-		unlock_page(page);
-		put_page(page);
+		folio_unlock(folio);
+		folio_put(folio);
 
 		if (err != E_NTFS_NONRESIDENT)
 			goto out;
