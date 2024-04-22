@@ -511,9 +511,29 @@ static unsigned long vgic_mmio_read_its_idregs(struct kvm *kvm,
 	return 0;
 }
 
+static struct vgic_its *__vgic_doorbell_to_its(struct kvm *kvm, gpa_t db)
+{
+	struct kvm_io_device *kvm_io_dev;
+	struct vgic_io_device *iodev;
+
+	kvm_io_dev = kvm_io_bus_get_dev(kvm, KVM_MMIO_BUS, db);
+	if (!kvm_io_dev)
+		return ERR_PTR(-EINVAL);
+
+	if (kvm_io_dev->ops != &kvm_io_gic_ops)
+		return ERR_PTR(-EINVAL);
+
+	iodev = container_of(kvm_io_dev, struct vgic_io_device, dev);
+	if (iodev->iodev_type != IODEV_ITS)
+		return ERR_PTR(-EINVAL);
+
+	return iodev->its;
+}
+
 static unsigned long vgic_its_cache_key(u32 devid, u32 eventid)
 {
 	return (((unsigned long)devid) << VITS_TYPER_IDBITS) | eventid;
+
 }
 
 static struct vgic_irq *__vgic_its_check_cache(struct vgic_dist *dist,
@@ -721,8 +741,6 @@ int vgic_its_resolve_lpi(struct kvm *kvm, struct vgic_its *its,
 struct vgic_its *vgic_msi_to_its(struct kvm *kvm, struct kvm_msi *msi)
 {
 	u64 address;
-	struct kvm_io_device *kvm_io_dev;
-	struct vgic_io_device *iodev;
 
 	if (!vgic_has_its(kvm))
 		return ERR_PTR(-ENODEV);
@@ -732,18 +750,7 @@ struct vgic_its *vgic_msi_to_its(struct kvm *kvm, struct kvm_msi *msi)
 
 	address = (u64)msi->address_hi << 32 | msi->address_lo;
 
-	kvm_io_dev = kvm_io_bus_get_dev(kvm, KVM_MMIO_BUS, address);
-	if (!kvm_io_dev)
-		return ERR_PTR(-EINVAL);
-
-	if (kvm_io_dev->ops != &kvm_io_gic_ops)
-		return ERR_PTR(-EINVAL);
-
-	iodev = container_of(kvm_io_dev, struct vgic_io_device, dev);
-	if (iodev->iodev_type != IODEV_ITS)
-		return ERR_PTR(-EINVAL);
-
-	return iodev->its;
+	return __vgic_doorbell_to_its(kvm, address);
 }
 
 /*
