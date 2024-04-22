@@ -118,13 +118,16 @@ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
 
 static inline enum xfs_attr_update
 xfs_xattr_flags_to_op(
-	int		flags)
+	int		flags,
+	const void	*value)
 {
+	if (!value)
+		return XFS_ATTRUPDATE_REMOVE;
 	if (flags & XATTR_CREATE)
 		return XFS_ATTRUPDATE_CREATE;
 	if (flags & XATTR_REPLACE)
 		return XFS_ATTRUPDATE_REPLACE;
-	return XFS_ATTRUPDATE_UPSERTR;
+	return XFS_ATTRUPDATE_UPSERT;
 }
 
 static int
@@ -143,7 +146,7 @@ xfs_xattr_set(const struct xattr_handler *handler,
 	};
 	int			error;
 
-	error = xfs_attr_change(&args, xfs_xattr_flags_to_op(flags));
+	error = xfs_attr_change(&args, xfs_xattr_flags_to_op(flags, value));
 	if (!error && (handler->flags & XFS_ATTR_ROOT))
 		xfs_forget_acl(inode, name);
 	return error;

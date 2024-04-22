@@ -546,7 +546,8 @@ int xfs_attr_get_ilocked(struct xfs_da_args *args);
 int xfs_attr_get(struct xfs_da_args *args);
 
 enum xfs_attr_update {
-	XFS_ATTRUPDATE_UPSERTR,	/* set/remove value, replace any existing attr */
+	XFS_ATTRUPDATE_REMOVE,	/* remove attr */
+	XFS_ATTRUPDATE_UPSERT,	/* set value, replace any existing attr */
 	XFS_ATTRUPDATE_CREATE,	/* set value, fail if attr already exists */
 	XFS_ATTRUPDATE_REPLACE,	/* set value, fail if attr does not exist */
 };

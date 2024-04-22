@@ -363,13 +363,16 @@ xfs_attr_filter(
 
 static inline enum xfs_attr_update
 xfs_xattr_flags(
-	u32			ioc_flags)
+	u32			ioc_flags,
+	void			*value)
 {
+	if (!value)
+		return XFS_ATTRUPDATE_REMOVE;
 	if (ioc_flags & XFS_IOC_ATTR_CREATE)
 		return XFS_ATTRUPDATE_CREATE;
 	if (ioc_flags & XFS_IOC_ATTR_REPLACE)
 		return XFS_ATTRUPDATE_REPLACE;
-	return XFS_ATTRUPDATE_UPSERTR;
+	return XFS_ATTRUPDATE_UPSERT;
 }
 
 int
@@ -526,7 +529,7 @@ xfs_attrmulti_attr_set(
 		args.valuelen = len;
 	}
 
-	error = xfs_attr_change(&args, xfs_xattr_flags(flags));
+	error = xfs_attr_change(&args, xfs_xattr_flags(flags, args.value));
 	if (!error && (flags & XFS_IOC_ATTR_ROOT))
 		xfs_forget_acl(inode, name);
 	kfree(args.value);
