@@ -209,14 +209,6 @@ xchk_xattr_actor(
 	}
 
 	/*
-	 * Local and shortform xattr values are stored in the attr leaf block,
-	 * so we don't need to retrieve the value from a remote block to detect
-	 * corruption problems.
-	 */
-	if (value)
-		return 0;
-
-	/*
 	 * Try to allocate enough memory to extract the attr value.  If that
 	 * doesn't work, return -EDEADLOCK as a signal to try again with a
 	 * maximally sized buffer.
@@ -229,6 +221,11 @@ xchk_xattr_actor(
 
 	args.value = ab->value;
 
+	/*
+	 * Get the attr value to ensure that lookup can find this attribute
+	 * through the dabtree indexing and that remote value retrieval also
+	 * works correctly.
+	 */
 	xfs_attr_sethash(&args);
 	error = xfs_attr_get_ilocked(&args);
 	/* ENODATA means the hash lookup failed and the attr is bad */
