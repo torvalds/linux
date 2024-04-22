@@ -27,6 +27,8 @@
 #include <linux/debugfs.h>
 #include <linux/list.h>
 #include <linux/kfifo.h>
+#include <linux/radix-tree.h>
+#include <linux/siphash.h>
 #include "ta_ras_if.h"
 #include "amdgpu_ras_eeprom.h"
 #include "amdgpu_smuio.h"
@@ -454,6 +456,26 @@ struct ras_poison_msg {
 	void *data;
 };
 
+struct ras_err_pages {
+	uint32_t count;
+	uint64_t *pfn;
+};
+
+struct ras_ecc_err {
+	u64 hash_index;
+	uint64_t status;
+	uint64_t ipid;
+	uint64_t addr;
+	struct ras_err_pages err_pages;
+};
+
+struct ras_ecc_log_info {
+	struct mutex lock;
+	siphash_key_t ecc_key;
+	struct radix_tree_root de_page_tree;
+	bool	de_updated;
+};
+
 struct amdgpu_ras {
 	/* ras infrastructure */
 	/* for ras itself. */
@@ -514,6 +536,7 @@ struct amdgpu_ras {
 	atomic_t page_retirement_req_cnt;
 	struct mutex page_rsv_lock;
 	DECLARE_KFIFO(poison_fifo, struct ras_poison_msg, 128);
+	struct ras_ecc_log_info  umc_ecc_log;
 
 	/* Fatal error detected flag */
 	atomic_t fed;

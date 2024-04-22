@@ -2737,6 +2737,35 @@ static int amdgpu_ras_get_poison_req(struct amdgpu_device *adev,
 }
 #endif
 
+static void amdgpu_ras_ecc_log_init(struct ras_ecc_log_info *ecc_log)
+{
+	mutex_init(&ecc_log->lock);
+
+	/* Set any value as siphash key */
+	memset(&ecc_log->ecc_key, 0xad, sizeof(ecc_log->ecc_key));
+
+	INIT_RADIX_TREE(&ecc_log->de_page_tree, GFP_KERNEL);
+	ecc_log->de_updated = false;
+}
+
+static void amdgpu_ras_ecc_log_fini(struct ras_ecc_log_info *ecc_log)
+{
+	struct radix_tree_iter iter;
+	void __rcu **slot;
+	struct ras_ecc_err *ecc_err;
+
+	mutex_lock(&ecc_log->lock);
+	radix_tree_for_each_slot(slot, &ecc_log->de_page_tree, &iter, 0) {
+		ecc_err = radix_tree_deref_slot(slot);
+		kfree(ecc_err->err_pages.pfn);
+		kfree(ecc_err);
+		radix_tree_iter_delete(&ecc_log->de_page_tree, &iter, slot);
+	}
+	mutex_unlock(&ecc_log->lock);
+
+	mutex_destroy(&ecc_log->lock);
+	ecc_log->de_updated = false;
+}
 static int amdgpu_ras_page_retirement_thread(void *param)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)param;
@@ -2838,6 +2867,7 @@ int amdgpu_ras_recovery_init(struct amdgpu_device *adev)
 		dev_warn(adev->dev, "Failed to create umc_page_retirement thread!!!\n");
 	}
 
+	amdgpu_ras_ecc_log_init(&con->umc_ecc_log);
 #ifdef CONFIG_X86_MCE_AMD
 	if ((adev->asic_type == CHIP_ALDEBARAN) &&
 	    (adev->gmc.xgmi.connected_to_cpu))
@@ -2881,6 +2911,8 @@ static int amdgpu_ras_recovery_fini(struct amdgpu_device *adev)
 	mutex_destroy(&con->page_rsv_lock);
 
 	cancel_work_sync(&con->recovery_work);
+
+	amdgpu_ras_ecc_log_fini(&con->umc_ecc_log);
 
 	mutex_lock(&con->recovery_lock);
 	con->eh_data = NULL;
