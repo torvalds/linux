@@ -11,20 +11,30 @@
 #define __LINUX_SND_SOC_H
 
 #include <linux/args.h>
-#include <linux/of.h>
-#include <linux/platform_device.h>
-#include <linux/types.h>
-#include <linux/notifier.h>
-#include <linux/workqueue.h>
+#include <linux/array_size.h>
+#include <linux/device.h>
+#include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/kernel.h>
-#include <linux/regmap.h>
+#include <linux/lockdep.h>
 #include <linux/log2.h>
-#include <sound/core.h>
-#include <sound/pcm.h>
+#include <linux/mutex.h>
+#include <linux/notifier.h>
+#include <linux/of.h>
+#include <linux/types.h>
+#include <linux/workqueue.h>
+
+#include <sound/ac97_codec.h>
 #include <sound/compress_driver.h>
 #include <sound/control.h>
-#include <sound/ac97_codec.h>
+#include <sound/core.h>
+#include <sound/pcm.h>
+
+struct module;
+struct platform_device;
+
+/* For the current users of sound/soc.h to avoid build issues */
+#include <linux/platform_device.h>
+#include <linux/regmap.h>
 
 /*
  * Convenience kcontrol builders
@@ -412,7 +422,6 @@
 #define SOC_ENUM_SINGLE_VIRT_DECL(name, xtexts) \
 	const struct soc_enum name = SOC_ENUM_SINGLE_VIRT(ARRAY_SIZE(xtexts), xtexts)
 
-struct device_node;
 struct snd_jack;
 struct snd_soc_card;
 struct snd_soc_pcm_stream;
@@ -427,6 +436,7 @@ struct soc_enum;
 struct snd_soc_jack;
 struct snd_soc_jack_zone;
 struct snd_soc_jack_pin;
+
 #include <sound/soc-dapm.h>
 #include <sound/soc-dpcm.h>
 #include <sound/soc-topology.h>
