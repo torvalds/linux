@@ -92,6 +92,18 @@ static int ath12k_acpi_dsm_get_data(struct ath12k_base *ab, int func)
 			       obj->buffer.length);
 
 			break;
+		case ATH12K_ACPI_DSM_FUNC_INDEX_BAND_EDGE:
+			if (obj->buffer.length != ATH12K_ACPI_DSM_BAND_EDGE_DATA_SIZE) {
+				ath12k_warn(ab, "invalid ACPI DSM band edge data size: %d\n",
+					    obj->buffer.length);
+				ret = -EINVAL;
+				goto out;
+			}
+
+			memcpy(&ab->acpi.band_edge_power, obj->buffer.pointer,
+			       obj->buffer.length);
+
+			break;
 		}
 	} else {
 		ath12k_warn(ab, "ACPI DSM method returned an unsupported object type: %d\n",
@@ -328,6 +340,30 @@ int ath12k_acpi_start(struct ath12k_base *ab)
 						      ATH12K_ACPI_CCA_THR_OFFSET_LEN);
 			if (ret) {
 				ath12k_warn(ab, "failed to set ACPI DSM CCA threshold: %d\n",
+					    ret);
+				return ret;
+			}
+		}
+	}
+
+	if (ATH12K_ACPI_FUNC_BIT_VALID(ab->acpi,
+				       ATH12K_ACPI_FUNC_BIT_BAND_EDGE_CHAN_POWER)) {
+		ret = ath12k_acpi_dsm_get_data(ab, ATH12K_ACPI_DSM_FUNC_INDEX_BAND_EDGE);
+		if (ret) {
+			ath12k_warn(ab, "failed to get ACPI DSM band edge channel power: %d\n",
+				    ret);
+			return ret;
+		}
+
+		if (ab->acpi.band_edge_power[0] == ATH12K_ACPI_BAND_EDGE_VERSION &&
+		    ab->acpi.band_edge_power[1] == ATH12K_ACPI_BAND_EDGE_ENABLE_FLAG) {
+			ret = ath12k_wmi_set_bios_cmd(ab,
+						      WMI_BIOS_PARAM_TYPE_BANDEDGE,
+						      ab->acpi.band_edge_power,
+						      sizeof(ab->acpi.band_edge_power));
+			if (ret) {
+				ath12k_warn(ab,
+					    "failed to set ACPI DSM band edge channel power: %d\n",
 					    ret);
 				return ret;
 			}
