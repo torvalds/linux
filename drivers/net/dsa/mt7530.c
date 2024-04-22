@@ -2635,7 +2635,10 @@ mt7531_setup(struct dsa_switch *ds)
 	if (!priv->p5_sgmii) {
 		mt7531_pll_setup(priv);
 	} else {
-		/* Let ds->user_mii_bus be able to access external phy. */
+		/* Unlike MT7531BE, the GPIO 6-12 pins are not used for RGMII on
+		 * MT7531AE. Set the GPIO 11-12 pins to function as MDC and MDIO
+		 * to expose the MDIO bus of the switch.
+		 */
 		mt7530_rmw(priv, MT7531_GPIO_MODE1, MT7531_GPIO11_RG_RXD2_MASK,
 			   MT7531_EXT_P_MDC_11);
 		mt7530_rmw(priv, MT7531_GPIO_MODE1, MT7531_GPIO12_RG_RXD3_MASK,
