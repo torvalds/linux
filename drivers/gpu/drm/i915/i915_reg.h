@@ -246,8 +246,8 @@
 #define _VLV_PLL_DW11_CH1		0x806c
 #define VLV_PLL_DW11(ch) _PIPE(ch, _VLV_PLL_DW11_CH0, _VLV_PLL_DW11_CH1)
 
-/* Spec for ref block start counts at DW10 */
-#define VLV_REF_DW13			0x80ac
+/* Spec for ref block start counts at DW8 */
+#define VLV_REF_DW11			0x80ac
 
 #define VLV_CMN_DW0			0x8100
 

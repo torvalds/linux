@@ -1880,19 +1880,19 @@ static void vlv_pllb_recal_opamp(struct drm_i915_private *dev_priv,
 	reg_val |= 0x00000030;
 	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW9(1), reg_val);
 
-	reg_val = vlv_dpio_read(dev_priv, phy, VLV_REF_DW13);
+	reg_val = vlv_dpio_read(dev_priv, phy, VLV_REF_DW11);
 	reg_val &= 0x00ffffff;
 	reg_val |= 0x8c000000;
-	vlv_dpio_write(dev_priv, phy, VLV_REF_DW13, reg_val);
+	vlv_dpio_write(dev_priv, phy, VLV_REF_DW11, reg_val);
 
 	reg_val = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW9(1));
 	reg_val &= 0xffffff00;
 	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW9(1), reg_val);
 
-	reg_val = vlv_dpio_read(dev_priv, phy, VLV_REF_DW13);
+	reg_val = vlv_dpio_read(dev_priv, phy, VLV_REF_DW11);
 	reg_val &= 0x00ffffff;
 	reg_val |= 0xb0000000;
-	vlv_dpio_write(dev_priv, phy, VLV_REF_DW13, reg_val);
+	vlv_dpio_write(dev_priv, phy, VLV_REF_DW11, reg_val);
 }
 
 static void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
