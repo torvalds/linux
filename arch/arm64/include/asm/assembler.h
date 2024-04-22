@@ -59,7 +59,7 @@
 	mrs	\tmp, mdscr_el1
 	bic	\tmp, \tmp, #DBG_MDSCR_SS
 	msr	mdscr_el1, \tmp
-	isb	// Synchronise with enable_dbg
+	isb	// Take effect before a subsequent clear of DAIF.D
 9990:
 	.endm
 
