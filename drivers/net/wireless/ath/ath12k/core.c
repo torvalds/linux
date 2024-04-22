@@ -566,6 +566,8 @@ static void ath12k_core_stop(struct ath12k_base *ab)
 	if (!test_bit(ATH12K_FLAG_CRASH_FLUSH, &ab->dev_flags))
 		ath12k_qmi_firmware_stop(ab);
 
+	ath12k_acpi_stop(ab);
+
 	ath12k_hif_stop(ab);
 	ath12k_wmi_detach(ab);
 	ath12k_dp_rx_pdev_reo_cleanup(ab);
@@ -806,6 +808,11 @@ static int ath12k_core_start(struct ath12k_base *ab,
 			   ret);
 		goto err_reo_cleanup;
 	}
+
+	ret = ath12k_acpi_start(ab);
+	if (ret)
+		/* ACPI is optional so continue in case of an error */
+		ath12k_dbg(ab, ATH12K_DBG_BOOT, "acpi failed: %d\n", ret);
 
 	return 0;
 
