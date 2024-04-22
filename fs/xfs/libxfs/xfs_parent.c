@@ -291,3 +291,25 @@ xfs_parent_from_attr(
 		*parent_gen = be32_to_cpu(rec->p_gen);
 	return 0;
 }
+
+/*
+ * Look up a parent pointer record (@parent_name -> @pptr) of @ip.
+ *
+ * Caller must hold at least ILOCK_SHARED.  The scratchpad need not be
+ * initialized.
+ *
+ * Returns 0 if the pointer is found, -ENOATTR if there is no match, or a
+ * negative errno.
+ */
+int
+xfs_parent_lookup(
+	struct xfs_trans		*tp,
+	struct xfs_inode		*ip,
+	const struct xfs_name		*parent_name,
+	struct xfs_parent_rec		*pptr,
+	struct xfs_da_args		*scratch)
+{
+	memset(scratch, 0, sizeof(struct xfs_da_args));
+	xfs_parent_da_args_init(scratch, tp, pptr, ip, ip->i_ino, parent_name);
+	return xfs_attr_get_ilocked(scratch);
+}

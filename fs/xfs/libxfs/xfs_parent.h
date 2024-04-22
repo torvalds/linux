@@ -96,4 +96,9 @@ int xfs_parent_from_attr(struct xfs_mount *mp, unsigned int attr_flags,
 		const void *value, unsigned int valuelen,
 		xfs_ino_t *parent_ino, uint32_t *parent_gen);
 
+/* Repair functions */
+int xfs_parent_lookup(struct xfs_trans *tp, struct xfs_inode *ip,
+		const struct xfs_name *name, struct xfs_parent_rec *pptr,
+		struct xfs_da_args *scratch);
+
 #endif /* __XFS_PARENT_H__ */
