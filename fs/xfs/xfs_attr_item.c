@@ -480,9 +480,6 @@ xfs_attri_validate(
 {
 	unsigned int			op = xfs_attr_log_item_op(attrp);
 
-	if (!xfs_is_using_logged_xattrs(mp))
-		return false;
-
 	if (attrp->__pad != 0)
 		return false;
 
@@ -499,12 +496,16 @@ xfs_attri_validate(
 	switch (op) {
 	case XFS_ATTRI_OP_FLAGS_SET:
 	case XFS_ATTRI_OP_FLAGS_REPLACE:
+		if (!xfs_is_using_logged_xattrs(mp))
+			return false;
 		if (attrp->alfi_value_len > XATTR_SIZE_MAX)
 			return false;
 		if (!xfs_attri_validate_namelen(attrp->alfi_name_len))
 			return false;
 		break;
 	case XFS_ATTRI_OP_FLAGS_REMOVE:
+		if (!xfs_is_using_logged_xattrs(mp))
+			return false;
 		if (attrp->alfi_value_len != 0)
 			return false;
 		if (!xfs_attri_validate_namelen(attrp->alfi_name_len))
