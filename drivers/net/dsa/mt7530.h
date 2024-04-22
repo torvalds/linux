@@ -495,32 +495,30 @@ enum mt7531_clk_skew {
 	MT7531_CLK_SKEW_REVERSE = 3,
 };
 
-/* Register for hw trap status */
-#define MT7530_HWTRAP			0x7800
-#define  HWTRAP_XTAL_MASK		(BIT(10) | BIT(9))
-#define  HWTRAP_XTAL_25MHZ		(BIT(10) | BIT(9))
-#define  HWTRAP_XTAL_40MHZ		(BIT(10))
-#define  HWTRAP_XTAL_20MHZ		(BIT(9))
+/* Register for trap status */
+#define MT753X_TRAP			0x7800
+#define  MT7530_XTAL_MASK		(BIT(10) | BIT(9))
+#define  MT7530_XTAL_25MHZ		(BIT(10) | BIT(9))
+#define  MT7530_XTAL_40MHZ		BIT(10)
+#define  MT7530_XTAL_20MHZ		BIT(9)
+#define  MT7531_XTAL25			BIT(7)
 
-#define MT7531_HWTRAP			0x7800
-#define  HWTRAP_XTAL_FSEL_MASK		BIT(7)
-#define  HWTRAP_XTAL_FSEL_25MHZ		BIT(7)
-#define  HWTRAP_XTAL_FSEL_40MHZ		0
-/* Unique fields of (M)HWSTRAP for MT7531 */
-#define  XTAL_FSEL_S			7
-#define  XTAL_FSEL_M			BIT(7)
-#define  PHY_EN				BIT(6)
-#define  CHG_STRAP			BIT(8)
+/* Register for trap modification */
+#define MT753X_MTRAP			0x7804
+#define  MT7530_P5_PHY0_SEL		BIT(20)
+#define  MT7530_CHG_TRAP		BIT(16)
+#define  MT7530_P5_MAC_SEL		BIT(13)
+#define  MT7530_P6_DIS			BIT(8)
+#define  MT7530_P5_RGMII_MODE		BIT(7)
+#define  MT7530_P5_DIS			BIT(6)
+#define  MT7530_PHY_INDIRECT_ACCESS	BIT(5)
+#define  MT7531_CHG_STRAP		BIT(8)
+#define  MT7531_PHY_EN			BIT(6)
 
-/* Register for hw trap modification */
-#define MT7530_MHWTRAP			0x7804
-#define  MHWTRAP_PHY0_SEL		BIT(20)
-#define  MHWTRAP_MANUAL			BIT(16)
-#define  MHWTRAP_P5_MAC_SEL		BIT(13)
-#define  MHWTRAP_P6_DIS			BIT(8)
-#define  MHWTRAP_P5_RGMII_MODE		BIT(7)
-#define  MHWTRAP_P5_DIS			BIT(6)
-#define  MHWTRAP_PHY_ACCESS		BIT(5)
+enum mt7531_xtal_fsel {
+	MT7531_XTAL_FSEL_25MHZ,
+	MT7531_XTAL_FSEL_40MHZ,
+};
 
 /* Register for TOP signal control */
 #define MT7530_TOP_SIG_CTRL		0x7808
