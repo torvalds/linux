@@ -764,7 +764,7 @@ wa_14015076503_end(struct intel_gt *gt, intel_engine_mask_t engine_mask)
 			 HECI_H_GS1_ER_PREP, 0);
 }
 
-int __intel_gt_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask)
+static int __intel_gt_reset(struct intel_gt *gt, intel_engine_mask_t engine_mask)
 {
 	const int retries = engine_mask == ALL_ENGINES ? RESET_MAX_RETRIES : 1;
 	reset_func reset;
@@ -978,7 +978,7 @@ static void __intel_gt_set_wedged(struct intel_gt *gt)
 
 	/* Even if the GPU reset fails, it should still stop the engines */
 	if (!INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
-		__intel_gt_reset(gt, ALL_ENGINES);
+		intel_gt_reset_all_engines(gt);
 
 	for_each_engine(engine, gt, id)
 		engine->submit_request = nop_submit_request;
@@ -1088,7 +1088,7 @@ static bool __intel_gt_unset_wedged(struct intel_gt *gt)
 	/* We must reset pending GPU events before restoring our submission */
 	ok = !HAS_EXECLISTS(gt->i915); /* XXX better agnosticism desired */
 	if (!INTEL_INFO(gt->i915)->gpu_reset_clobbers_display)
-		ok = __intel_gt_reset(gt, ALL_ENGINES) == 0;
+		ok = intel_gt_reset_all_engines(gt) == 0;
 	if (!ok) {
 		/*
 		 * Warn CI about the unrecoverable wedged condition.
@@ -1132,10 +1132,10 @@ static int do_reset(struct intel_gt *gt, intel_engine_mask_t stalled_mask)
 {
 	int err, i;
 
-	err = __intel_gt_reset(gt, ALL_ENGINES);
+	err = intel_gt_reset_all_engines(gt);
 	for (i = 0; err && i < RESET_MAX_RETRIES; i++) {
 		msleep(10 * (i + 1));
-		err = __intel_gt_reset(gt, ALL_ENGINES);
+		err = intel_gt_reset_all_engines(gt);
 	}
 	if (err)
 		return err;
@@ -1269,7 +1269,30 @@ error:
 	goto finish;
 }
 
-static int intel_gt_reset_engine(struct intel_engine_cs *engine)
+/**
+ * intel_gt_reset_all_engines() - Reset all engines in the given gt.
+ * @gt: the GT to reset all engines for.
+ *
+ * This function resets all engines within the given gt.
+ *
+ * Returns:
+ * Zero on success, negative error code on failure.
+ */
+int intel_gt_reset_all_engines(struct intel_gt *gt)
+{
+	return __intel_gt_reset(gt, ALL_ENGINES);
+}
+
+/**
+ * intel_gt_reset_engine() - Reset a specific engine within a gt.
+ * @engine: engine to be reset.
+ *
+ * This function resets the specified engine within a gt.
+ *
+ * Returns:
+ * Zero on success, negative error code on failure.
+ */
+int intel_gt_reset_engine(struct intel_engine_cs *engine)
 {
 	return __intel_gt_reset(engine->gt, engine->mask);
 }
