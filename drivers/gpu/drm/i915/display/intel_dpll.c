@@ -1920,7 +1920,7 @@ static void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
 		vlv_pllb_recal_opamp(dev_priv, phy);
 
 	/* Set up Tx target for periodic Rcomp update */
-	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW9_BCAST, 0x0100000f);
+	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW17_BCAST, 0x0100000f);
 
 	/* Disable target IRef on PLL */
 	reg_val = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW8(pipe));
