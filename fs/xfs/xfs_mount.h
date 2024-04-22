@@ -562,19 +562,30 @@ xfs_fdblocks_unavailable(
 	return mp->m_alloc_set_aside + atomic64_read(&mp->m_allocbt_blks);
 }
 
-int xfs_mod_freecounter(struct xfs_mount *mp, struct percpu_counter *counter,
-		int64_t delta, bool rsvd);
+int xfs_dec_freecounter(struct xfs_mount *mp, struct percpu_counter *counter,
+		uint64_t delta, bool rsvd);
+void xfs_add_freecounter(struct xfs_mount *mp, struct percpu_counter *counter,
+		uint64_t delta);
 
-static inline int
-xfs_mod_fdblocks(struct xfs_mount *mp, int64_t delta, bool reserved)
+static inline int xfs_dec_fdblocks(struct xfs_mount *mp, uint64_t delta,
+		bool reserved)
 {
-	return xfs_mod_freecounter(mp, &mp->m_fdblocks, delta, reserved);
+	return xfs_dec_freecounter(mp, &mp->m_fdblocks, delta, reserved);
 }
 
-static inline int
-xfs_mod_frextents(struct xfs_mount *mp, int64_t delta)
+static inline void xfs_add_fdblocks(struct xfs_mount *mp, uint64_t delta)
 {
-	return xfs_mod_freecounter(mp, &mp->m_frextents, delta, false);
+	xfs_add_freecounter(mp, &mp->m_fdblocks, delta);
+}
+
+static inline int xfs_dec_frextents(struct xfs_mount *mp, uint64_t delta)
+{
+	return xfs_dec_freecounter(mp, &mp->m_frextents, delta, false);
+}
+
+static inline void xfs_add_frextents(struct xfs_mount *mp, uint64_t delta)
+{
+	xfs_add_freecounter(mp, &mp->m_frextents, delta);
 }
 
 extern int	xfs_readsb(xfs_mount_t *, int);

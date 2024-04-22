@@ -163,7 +163,7 @@ xfs_trans_reserve(
 	 * fail if the count would go below zero.
 	 */
 	if (blocks > 0) {
-		error = xfs_mod_fdblocks(mp, -((int64_t)blocks), rsvd);
+		error = xfs_dec_fdblocks(mp, blocks, rsvd);
 		if (error != 0)
 			return -ENOSPC;
 		tp->t_blk_res += blocks;
@@ -210,7 +210,7 @@ xfs_trans_reserve(
 	 * fail if the count would go below zero.
 	 */
 	if (rtextents > 0) {
-		error = xfs_mod_frextents(mp, -((int64_t)rtextents));
+		error = xfs_dec_frextents(mp, rtextents);
 		if (error) {
 			error = -ENOSPC;
 			goto undo_log;
@@ -234,7 +234,7 @@ undo_log:
 
 undo_blocks:
 	if (blocks > 0) {
-		xfs_mod_fdblocks(mp, (int64_t)blocks, rsvd);
+		xfs_add_fdblocks(mp, blocks);
 		tp->t_blk_res = 0;
 	}
 	return error;
@@ -593,12 +593,10 @@ xfs_trans_unreserve_and_mod_sb(
 	struct xfs_trans	*tp)
 {
 	struct xfs_mount	*mp = tp->t_mountp;
-	bool			rsvd = (tp->t_flags & XFS_TRANS_RESERVE) != 0;
 	int64_t			blkdelta = tp->t_blk_res;
 	int64_t			rtxdelta = tp->t_rtx_res;
 	int64_t			idelta = 0;
 	int64_t			ifreedelta = 0;
-	int			error;
 
 	/*
 	 * Calculate the deltas.
@@ -631,10 +629,8 @@ xfs_trans_unreserve_and_mod_sb(
 	}
 
 	/* apply the per-cpu counters */
-	if (blkdelta) {
-		error = xfs_mod_fdblocks(mp, blkdelta, rsvd);
-		ASSERT(!error);
-	}
+	if (blkdelta)
+		xfs_add_fdblocks(mp, blkdelta);
 
 	if (idelta)
 		percpu_counter_add_batch(&mp->m_icount, idelta,
@@ -643,10 +639,8 @@ xfs_trans_unreserve_and_mod_sb(
 	if (ifreedelta)
 		percpu_counter_add(&mp->m_ifree, ifreedelta);
 
-	if (rtxdelta) {
-		error = xfs_mod_frextents(mp, rtxdelta);
-		ASSERT(!error);
-	}
+	if (rtxdelta)
+		xfs_add_frextents(mp, rtxdelta);
 
 	if (!(tp->t_flags & XFS_TRANS_SB_DIRTY))
 		return;
@@ -682,7 +676,6 @@ xfs_trans_unreserve_and_mod_sb(
 	 */
 	ASSERT(mp->m_sb.sb_imax_pct >= 0);
 	ASSERT(mp->m_sb.sb_rextslog >= 0);
-	return;
 }
 
 /* Add the given log item to the transaction's list of log items. */
@@ -1301,9 +1294,9 @@ xfs_trans_reserve_more_inode(
 		return 0;
 
 	/* Quota failed, give back the new reservation. */
-	xfs_mod_fdblocks(mp, dblocks, tp->t_flags & XFS_TRANS_RESERVE);
+	xfs_add_fdblocks(mp, dblocks);
 	tp->t_blk_res -= dblocks;
-	xfs_mod_frextents(mp, rtx);
+	xfs_add_frextents(mp, rtx);
 	tp->t_rtx_res -= rtx;
 	return error;
 }

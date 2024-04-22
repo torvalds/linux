@@ -517,7 +517,7 @@ xchk_fscounters(
 
 	/*
 	 * If the filesystem is not frozen, the counter summation calls above
-	 * can race with xfs_mod_freecounter, which subtracts a requested space
+	 * can race with xfs_dec_freecounter, which subtracts a requested space
 	 * reservation from the counter and undoes the subtraction if that made
 	 * the counter go negative.  Therefore, it's possible to see negative
 	 * values here, and we should only flag that as a corruption if we
