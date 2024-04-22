@@ -4983,9 +4983,14 @@ xfs_bmap_del_extent_delay(
 		/*
 		 * Steal as many blocks as we can to try and satisfy the worst
 		 * case indlen for both new extents.
+		 *
+		 * However, we can't just steal reservations from the data
+		 * blocks if this is an RT inodes as the data and metadata
+		 * blocks come from different pools.  We'll have to live with
+		 * under-filled indirect reservation in this case.
 		 */
 		da_new = got_indlen + new_indlen;
-		if (da_new > da_old) {
+		if (da_new > da_old && !isrt) {
 			stolen = XFS_FILBLKS_MIN(da_new - da_old,
 						 del->br_blockcount);
 			da_old += stolen;
