@@ -67,7 +67,6 @@ config DRM_DISPLAY_DP_TUNNEL_STATE_DEBUG
 config DRM_DISPLAY_HDCP_HELPER
 	bool "DRM HDCD Helpers"
 	depends on DRM_DISPLAY_HELPER
-	default y
 	help
 	  DRM display helpers for HDCP.
 
