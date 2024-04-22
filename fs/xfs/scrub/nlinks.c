@@ -434,7 +434,8 @@ xchk_nlinks_collect_dir(
 			goto out_unlock;
 		}
 
-		error = xchk_xattr_walk(sc, dp, xchk_nlinks_collect_pptr, xnc);
+		error = xchk_xattr_walk(sc, dp, xchk_nlinks_collect_pptr, NULL,
+				xnc);
 		if (error == -ECANCELED) {
 			error = 0;
 			goto out_unlock;

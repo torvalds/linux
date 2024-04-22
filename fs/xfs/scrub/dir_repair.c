@@ -1288,7 +1288,7 @@ xrep_dir_scan_file(
 		goto scan_done;
 	}
 
-	error = xchk_xattr_walk(rd->sc, ip, xrep_dir_scan_pptr, rd);
+	error = xchk_xattr_walk(rd->sc, ip, xrep_dir_scan_pptr, NULL, rd);
 	if (error)
 		goto scan_done;
 
