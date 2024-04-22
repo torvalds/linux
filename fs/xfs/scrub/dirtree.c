@@ -70,6 +70,9 @@ xchk_dirtree_buf_cleanup(
 	struct xchk_dirtree	*dl = buf;
 	struct xchk_dirpath	*path, *n;
 
+	if (dl->scan_ino != NULLFSINO)
+		xfs_dir_hook_del(dl->sc->mp, &dl->dhook);
+
 	xchk_dirtree_for_each_path_safe(dl, path, n) {
 		list_del_init(&path->list);
 		xino_bitmap_destroy(&path->seen_inodes);
@@ -90,13 +93,17 @@ xchk_setup_dirtree(
 	char			*descr;
 	int			error;
 
+	xchk_fsgates_enable(sc, XCHK_FSGATES_DIRENTS);
+
 	dl = kvzalloc(sizeof(struct xchk_dirtree), XCHK_GFP_FLAGS);
 	if (!dl)
 		return -ENOMEM;
 	dl->sc = sc;
 	dl->xname.name = dl->namebuf;
+	dl->hook_xname.name = dl->hook_namebuf;
 	INIT_LIST_HEAD(&dl->path_list);
 	dl->root_ino = NULLFSINO;
+	dl->scan_ino = NULLFSINO;
 
 	mutex_init(&dl->lock);
 
@@ -558,6 +565,133 @@ xchk_dirpath_walk_upwards(
 	return error;
 }
 
+/*
+ * Decide if this path step has been touched by this live update.  Returns
+ * 1 for yes, 0 for no, or a negative errno.
+ */
+STATIC int
+xchk_dirpath_step_is_stale(
+	struct xchk_dirtree		*dl,
+	struct xchk_dirpath		*path,
+	unsigned int			step_nr,
+	xfarray_idx_t			step_idx,
+	struct xfs_dir_update_params	*p,
+	xfs_ino_t			*cursor)
+{
+	struct xchk_dirpath_step	step;
+	xfs_ino_t			child_ino = *cursor;
+	int				error;
+
+	error = xfarray_load(dl->path_steps, step_idx, &step);
+	if (error)
+		return error;
+	*cursor = be64_to_cpu(step.pptr_rec.p_ino);
+
+	/*
+	 * If the parent and child being updated are not the ones mentioned in
+	 * this path step, the scan data is still ok.
+	 */
+	if (p->ip->i_ino != child_ino || p->dp->i_ino != *cursor)
+		return 0;
+
+	/*
+	 * If the dirent name lengths or byte sequences are different, the scan
+	 * data is still ok.
+	 */
+	if (p->name->len != step.name_len)
+		return 0;
+
+	error = xfblob_loadname(dl->path_names, step.name_cookie,
+			&dl->hook_xname, step.name_len);
+	if (error)
+		return error;
+
+	if (memcmp(dl->hook_xname.name, p->name->name, p->name->len) != 0)
+		return 0;
+
+	/* Exact match, scan data is out of date. */
+	trace_xchk_dirpath_changed(dl->sc, path->path_nr, step_nr, p->dp,
+			p->ip, p->name);
+	return 1;
+}
+
+/*
+ * Decide if this path has been touched by this live update.  Returns 1 for
+ * yes, 0 for no, or a negative errno.
+ */
+STATIC int
+xchk_dirpath_is_stale(
+	struct xchk_dirtree		*dl,
+	struct xchk_dirpath		*path,
+	struct xfs_dir_update_params	*p)
+{
+	xfs_ino_t			cursor = dl->scan_ino;
+	xfarray_idx_t			idx = path->first_step;
+	unsigned int			i;
+	int				ret;
+
+	/*
+	 * The child being updated has not been seen by this path at all; this
+	 * path cannot be stale.
+	 */
+	if (!xino_bitmap_test(&path->seen_inodes, p->ip->i_ino))
+		return 0;
+
+	ret = xchk_dirpath_step_is_stale(dl, path, 0, idx, p, &cursor);
+	if (ret != 0)
+		return ret;
+
+	for (i = 1, idx = path->second_step; i < path->nr_steps; i++, idx++) {
+		ret = xchk_dirpath_step_is_stale(dl, path, i, idx, p, &cursor);
+		if (ret != 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+/*
+ * Decide if a directory update from the regular filesystem touches any of the
+ * paths we've scanned, and invalidate the scan data if true.
+ */
+STATIC int
+xchk_dirtree_live_update(
+	struct notifier_block		*nb,
+	unsigned long			action,
+	void				*data)
+{
+	struct xfs_dir_update_params	*p = data;
+	struct xchk_dirtree		*dl;
+	struct xchk_dirpath		*path;
+	int				ret;
+
+	dl = container_of(nb, struct xchk_dirtree, dhook.dirent_hook.nb);
+
+	trace_xchk_dirtree_live_update(dl->sc, p->dp, action, p->ip, p->delta,
+			p->name);
+
+	mutex_lock(&dl->lock);
+
+	if (dl->stale || dl->aborted)
+		goto out_unlock;
+
+	xchk_dirtree_for_each_path(dl, path) {
+		ret = xchk_dirpath_is_stale(dl, path, p);
+		if (ret < 0) {
+			dl->aborted = true;
+			break;
+		}
+		if (ret == 1) {
+			dl->stale = true;
+			break;
+		}
+	}
+
+out_unlock:
+	mutex_unlock(&dl->lock);
+	return NOTIFY_DONE;
+}
+
 /* Delete all the collected path information. */
 STATIC void
 xchk_dirtree_reset(
@@ -673,6 +807,8 @@ xchk_dirtree_find_paths_to_root(
 			}
 			if (error)
 				return error;
+			if (dl->aborted)
+				return 0;
 		}
 	} while (dl->stale);
 
@@ -744,10 +880,27 @@ xchk_dirtree(
 
 	ASSERT(xfs_has_parent(sc->mp));
 
-	/* Find the root of the directory tree. */
+	/*
+	 * Find the root of the directory tree.  Remember which directory to
+	 * scan, because the hook doesn't detach until after sc->ip gets
+	 * released during teardown.
+	 */
 	dl->root_ino = sc->mp->m_rootip->i_ino;
+	dl->scan_ino = sc->ip->i_ino;
 
 	trace_xchk_dirtree_start(sc->ip, sc->sm, 0);
+
+	/*
+	 * Hook into the directory entry code so that we can capture updates to
+	 * paths that we have already scanned.  The scanner thread takes each
+	 * directory's ILOCK, which means that any in-progress directory update
+	 * will finish before we can scan the directory.
+	 */
+	ASSERT(sc->flags & XCHK_FSGATES_DIRENTS);
+	xfs_dir_hook_setup(&dl->dhook, xchk_dirtree_live_update);
+	error = xfs_dir_hook_add(sc->mp, &dl->dhook);
+	if (error)
+		goto out;
 
 	mutex_lock(&dl->lock);
 
@@ -775,6 +928,10 @@ xchk_dirtree(
 	}
 	if (error)
 		goto out_scanlock;
+	if (dl->aborted) {
+		xchk_set_incomplete(sc);
+		goto out_scanlock;
+	}
 
 	/* Assess what we found in our path evaluation. */
 	xchk_dirtree_evaluate(dl, &oc);
@@ -790,6 +947,7 @@ xchk_dirtree(
 
 out_scanlock:
 	mutex_unlock(&dl->lock);
+out:
 	trace_xchk_dirtree_done(sc->ip, sc->sm, error);
 	return error;
 }
