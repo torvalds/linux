@@ -512,6 +512,7 @@ void vlv_crtc_clock_get(struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	enum dpio_channel ch = vlv_pipe_to_channel(crtc->pipe);
 	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
 	const struct i9xx_dpll_hw_state *hw_state = &crtc_state->dpll_hw_state.i9xx;
 	int refclk = 100000;
@@ -523,7 +524,7 @@ void vlv_crtc_clock_get(struct intel_crtc_state *crtc_state)
 		return;
 
 	vlv_dpio_get(dev_priv);
-	tmp = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW3(crtc->pipe));
+	tmp = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW3(ch));
 	vlv_dpio_put(dev_priv);
 
 	clock.m1 = (tmp >> DPIO_M1DIV_SHIFT) & 7;
@@ -1867,7 +1868,7 @@ void i9xx_enable_pll(const struct intel_crtc_state *crtc_state)
 }
 
 static void vlv_pllb_recal_opamp(struct drm_i915_private *dev_priv,
-				 enum dpio_phy phy)
+				 enum dpio_phy phy, enum dpio_channel ch)
 {
 	u32 tmp;
 
@@ -1875,19 +1876,19 @@ static void vlv_pllb_recal_opamp(struct drm_i915_private *dev_priv,
 	 * PLLB opamp always calibrates to max value of 0x3f, force enable it
 	 * and set it to a reasonable value instead.
 	 */
-	tmp = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW17(1));
+	tmp = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW17(ch));
 	tmp &= 0xffffff00;
 	tmp |= 0x00000030;
-	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW17(1), tmp);
+	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW17(ch), tmp);
 
 	tmp = vlv_dpio_read(dev_priv, phy, VLV_REF_DW11);
 	tmp &= 0x00ffffff;
 	tmp |= 0x8c000000;
 	vlv_dpio_write(dev_priv, phy, VLV_REF_DW11, tmp);
 
-	tmp = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW17(1));
+	tmp = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW17(ch));
 	tmp &= 0xffffff00;
-	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW17(1), tmp);
+	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW17(ch), tmp);
 
 	tmp = vlv_dpio_read(dev_priv, phy, VLV_REF_DW11);
 	tmp &= 0x00ffffff;
@@ -1900,6 +1901,7 @@ static void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct dpll *clock = &crtc_state->dpll;
+	enum dpio_channel ch = vlv_pipe_to_channel(crtc->pipe);
 	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
 	enum pipe pipe = crtc->pipe;
 	u32 tmp, coreclk;
@@ -1910,15 +1912,15 @@ static void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
 
 	/* PLL B needs special handling */
 	if (pipe == PIPE_B)
-		vlv_pllb_recal_opamp(dev_priv, phy);
+		vlv_pllb_recal_opamp(dev_priv, phy, ch);
 
 	/* Set up Tx target for periodic Rcomp update */
 	vlv_dpio_write(dev_priv, phy, VLV_PCS_DW17_BCAST, 0x0100000f);
 
 	/* Disable target IRef on PLL */
-	tmp = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW16(pipe));
+	tmp = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW16(ch));
 	tmp &= 0x00ffffff;
-	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW16(pipe), tmp);
+	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW16(ch), tmp);
 
 	/* Disable fast lock */
 	vlv_dpio_write(dev_priv, phy, VLV_CMN_DW0, 0x610);
@@ -1937,46 +1939,46 @@ static void vlv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	 * Note: don't use the DAC post divider as it seems unstable.
 	 */
 	tmp |= (DPIO_POST_DIV_HDMIDP << DPIO_POST_DIV_SHIFT);
-	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW3(pipe), tmp);
+	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW3(ch), tmp);
 
 	tmp |= DPIO_ENABLE_CALIBRATION;
-	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW3(pipe), tmp);
+	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW3(ch), tmp);
 
 	/* Set HBR and RBR LPF coefficients */
 	if (crtc_state->port_clock == 162000 ||
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_ANALOG) ||
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI))
-		vlv_dpio_write(dev_priv, phy, VLV_PLL_DW18(pipe),
+		vlv_dpio_write(dev_priv, phy, VLV_PLL_DW18(ch),
 				 0x009f0003);
 	else
-		vlv_dpio_write(dev_priv, phy, VLV_PLL_DW18(pipe),
+		vlv_dpio_write(dev_priv, phy, VLV_PLL_DW18(ch),
 				 0x00d0000f);
 
 	if (intel_crtc_has_dp_encoder(crtc_state)) {
 		/* Use SSC source */
 		if (pipe == PIPE_A)
-			vlv_dpio_write(dev_priv, phy, VLV_PLL_DW5(pipe),
+			vlv_dpio_write(dev_priv, phy, VLV_PLL_DW5(ch),
 					 0x0df40000);
 		else
-			vlv_dpio_write(dev_priv, phy, VLV_PLL_DW5(pipe),
+			vlv_dpio_write(dev_priv, phy, VLV_PLL_DW5(ch),
 					 0x0df70000);
 	} else { /* HDMI or VGA */
 		/* Use bend source */
 		if (pipe == PIPE_A)
-			vlv_dpio_write(dev_priv, phy, VLV_PLL_DW5(pipe),
+			vlv_dpio_write(dev_priv, phy, VLV_PLL_DW5(ch),
 					 0x0df70000);
 		else
-			vlv_dpio_write(dev_priv, phy, VLV_PLL_DW5(pipe),
+			vlv_dpio_write(dev_priv, phy, VLV_PLL_DW5(ch),
 					 0x0df40000);
 	}
 
-	coreclk = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW7(pipe));
+	coreclk = vlv_dpio_read(dev_priv, phy, VLV_PLL_DW7(ch));
 	coreclk = (coreclk & 0x0000ff00) | 0x01c00000;
 	if (intel_crtc_has_dp_encoder(crtc_state))
 		coreclk |= 0x01000000;
-	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW7(pipe), coreclk);
+	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW7(ch), coreclk);
 
-	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW19(pipe), 0x87871000);
+	vlv_dpio_write(dev_priv, phy, VLV_PLL_DW19(ch), 0x87871000);
 
 	vlv_dpio_put(dev_priv);
 }
@@ -2026,8 +2028,7 @@ static void chv_prepare_pll(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct dpll *clock = &crtc_state->dpll;
-	enum pipe pipe = crtc->pipe;
-	enum dpio_channel ch = vlv_pipe_to_channel(pipe);
+	enum dpio_channel ch = vlv_pipe_to_channel(crtc->pipe);
 	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
 	u32 tmp, loopfilter, tribuf_calcntr;
 	u32 m2_frac;
@@ -2117,9 +2118,9 @@ static void _chv_enable_pll(const struct intel_crtc_state *crtc_state)
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	const struct i9xx_dpll_hw_state *hw_state = &crtc_state->dpll_hw_state.i9xx;
-	enum pipe pipe = crtc->pipe;
-	enum dpio_channel ch = vlv_pipe_to_channel(pipe);
+	enum dpio_channel ch = vlv_pipe_to_channel(crtc->pipe);
 	enum dpio_phy phy = vlv_pipe_to_phy(crtc->pipe);
+	enum pipe pipe = crtc->pipe;
 	u32 tmp;
 
 	vlv_dpio_get(dev_priv);
