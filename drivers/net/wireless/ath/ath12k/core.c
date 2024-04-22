@@ -64,36 +64,70 @@ int ath12k_core_suspend(struct ath12k_base *ab)
 	}
 	rcu_read_unlock();
 
-	ath12k_hif_irq_disable(ab);
-	ath12k_hif_ce_irq_disable(ab);
-
-	ret = ath12k_hif_suspend(ab);
-	if (ret) {
-		ath12k_warn(ab, "failed to suspend hif: %d\n", ret);
-		return ret;
-	}
+	/* PM framework skips suspend_late/resume_early callbacks
+	 * if other devices report errors in their suspend callbacks.
+	 * However ath12k_core_resume() would still be called because
+	 * here we return success thus kernel put us on dpm_suspended_list.
+	 * Since we won't go through a power down/up cycle, there is
+	 * no chance to call complete(&ab->restart_completed) in
+	 * ath12k_core_restart(), making ath12k_core_resume() timeout.
+	 * So call it here to avoid this issue. This also works in case
+	 * no error happens thus suspend_late/resume_early get called,
+	 * because it will be reinitialized in ath12k_core_resume_early().
+	 */
+	complete(&ab->restart_completed);
 
 	return 0;
 }
+EXPORT_SYMBOL(ath12k_core_suspend);
 
-int ath12k_core_resume(struct ath12k_base *ab)
+int ath12k_core_suspend_late(struct ath12k_base *ab)
+{
+	if (!ab->hw_params->supports_suspend)
+		return -EOPNOTSUPP;
+
+	ath12k_hif_irq_disable(ab);
+	ath12k_hif_ce_irq_disable(ab);
+
+	ath12k_hif_power_down(ab, true);
+
+	return 0;
+}
+EXPORT_SYMBOL(ath12k_core_suspend_late);
+
+int ath12k_core_resume_early(struct ath12k_base *ab)
 {
 	int ret;
 
 	if (!ab->hw_params->supports_suspend)
 		return -EOPNOTSUPP;
 
-	ret = ath12k_hif_resume(ab);
-	if (ret) {
-		ath12k_warn(ab, "failed to resume hif during resume: %d\n", ret);
-		return ret;
-	}
+	reinit_completion(&ab->restart_completed);
+	ret = ath12k_hif_power_up(ab);
+	if (ret)
+		ath12k_warn(ab, "failed to power up hif during resume: %d\n", ret);
 
-	ath12k_hif_ce_irq_enable(ab);
-	ath12k_hif_irq_enable(ab);
+	return ret;
+}
+EXPORT_SYMBOL(ath12k_core_resume_early);
+
+int ath12k_core_resume(struct ath12k_base *ab)
+{
+	long time_left;
+
+	if (!ab->hw_params->supports_suspend)
+		return -EOPNOTSUPP;
+
+	time_left = wait_for_completion_timeout(&ab->restart_completed,
+						ATH12K_RESET_TIMEOUT_HZ);
+	if (time_left == 0) {
+		ath12k_warn(ab, "timeout while waiting for restart complete");
+		return -ETIMEDOUT;
+	}
 
 	return 0;
 }
+EXPORT_SYMBOL(ath12k_core_resume);
 
 static int __ath12k_core_create_board_name(struct ath12k_base *ab, char *name,
 					   size_t name_len, bool with_variant,
@@ -1053,6 +1087,8 @@ static void ath12k_core_restart(struct work_struct *work)
 
 	if (ab->is_reset)
 		complete_all(&ab->reconfigure_complete);
+
+	complete(&ab->restart_completed);
 }
 
 static void ath12k_core_reset(struct work_struct *work)
@@ -1121,7 +1157,7 @@ static void ath12k_core_reset(struct work_struct *work)
 	ath12k_hif_irq_disable(ab);
 	ath12k_hif_ce_irq_disable(ab);
 
-	ath12k_hif_power_down(ab);
+	ath12k_hif_power_down(ab, false);
 	ath12k_hif_power_up(ab);
 
 	ath12k_dbg(ab, ATH12K_DBG_BOOT, "reset started\n");
@@ -1164,7 +1200,7 @@ void ath12k_core_deinit(struct ath12k_base *ab)
 
 	mutex_unlock(&ab->core_lock);
 
-	ath12k_hif_power_down(ab);
+	ath12k_hif_power_down(ab, false);
 	ath12k_mac_destroy(ab);
 	ath12k_core_soc_destroy(ab);
 	ath12k_fw_unmap(ab);
@@ -1212,6 +1248,7 @@ struct ath12k_base *ath12k_core_alloc(struct device *dev, size_t priv_size,
 
 	timer_setup(&ab->rx_replenish_retry, ath12k_ce_rx_replenish_retry, 0);
 	init_completion(&ab->htc_suspend);
+	init_completion(&ab->restart_completed);
 
 	ab->dev = dev;
 	ab->hif.bus = bus;
