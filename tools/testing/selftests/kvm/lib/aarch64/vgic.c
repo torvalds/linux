@@ -166,3 +166,21 @@ void kvm_irq_write_isactiver(int gic_fd, uint32_t intid, struct kvm_vcpu *vcpu)
 {
 	vgic_poke_irq(gic_fd, intid, vcpu, GICD_ISACTIVER);
 }
+
+int vgic_its_setup(struct kvm_vm *vm)
+{
+	int its_fd = kvm_create_device(vm, KVM_DEV_TYPE_ARM_VGIC_ITS);
+	u64 attr;
+
+	attr = GITS_BASE_GPA;
+	kvm_device_attr_set(its_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+			    KVM_VGIC_ITS_ADDR_TYPE, &attr);
+
+	kvm_device_attr_set(its_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
+
+	virt_map(vm, GITS_BASE_GPA, GITS_BASE_GPA,
+		 vm_calc_num_guest_pages(vm->mode, KVM_VGIC_V3_ITS_SIZE));
+
+	return its_fd;
+}

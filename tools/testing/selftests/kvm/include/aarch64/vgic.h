@@ -32,4 +32,6 @@ void kvm_irq_write_isactiver(int gic_fd, uint32_t intid, struct kvm_vcpu *vcpu);
 
 #define KVM_IRQCHIP_NUM_PINS	(1020 - 32)
 
+int vgic_its_setup(struct kvm_vm *vm);
+
 #endif // SELFTEST_KVM_VGIC_H

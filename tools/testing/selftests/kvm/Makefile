@@ -45,6 +45,7 @@ LIBKVM_x86_64 += lib/x86_64/vmx.c
 
 LIBKVM_aarch64 += lib/aarch64/gic.c
 LIBKVM_aarch64 += lib/aarch64/gic_v3.c
+LIBKVM_aarch64 += lib/aarch64/gic_v3_its.c
 LIBKVM_aarch64 += lib/aarch64/handlers.S
 LIBKVM_aarch64 += lib/aarch64/processor.c
 LIBKVM_aarch64 += lib/aarch64/spinlock.c
