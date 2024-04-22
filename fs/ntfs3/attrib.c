@@ -288,22 +288,21 @@ int attr_make_nonresident(struct ntfs_inode *ni, struct ATTRIB *attr,
 			if (err)
 				goto out2;
 		} else if (!page) {
-			char *kaddr;
+			struct address_space *mapping = ni->vfs_inode.i_mapping;
+			struct folio *folio;
 
-			page = grab_cache_page(ni->vfs_inode.i_mapping, 0);
-			if (!page) {
-				err = -ENOMEM;
+			folio = __filemap_get_folio(mapping, 0,
+					FGP_LOCK | FGP_ACCESSED | FGP_CREAT,
+					mapping_gfp_mask(mapping));
+			if (IS_ERR(folio)) {
+				err = PTR_ERR(folio);
 				goto out2;
 			}
-			kaddr = kmap_atomic(page);
-			memcpy(kaddr, data, rsize);
-			memset(kaddr + rsize, 0, PAGE_SIZE - rsize);
-			kunmap_atomic(kaddr);
-			flush_dcache_page(page);
-			SetPageUptodate(page);
-			set_page_dirty(page);
-			unlock_page(page);
-			put_page(page);
+			folio_fill_tail(folio, 0, data, rsize);
+			folio_mark_uptodate(folio);
+			folio_mark_dirty(folio);
+			folio_unlock(folio);
+			folio_put(folio);
 		}
 	}
 
