@@ -498,13 +498,6 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret = 0;
 
-	if (bucket_data_type == BCH_DATA_cached)
-		bucket_data_type = BCH_DATA_user;
-
-	if ((bucket_data_type == BCH_DATA_stripe && ptr_data_type == BCH_DATA_user) ||
-	    (bucket_data_type == BCH_DATA_user   && ptr_data_type == BCH_DATA_stripe))
-		bucket_data_type = ptr_data_type = BCH_DATA_stripe;
-
 	if (gen_after(ptr->gen, b_gen)) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
 			      BCH_FSCK_ERR_ptr_gen_newer_than_bucket_gen,
@@ -552,9 +545,7 @@ int bch2_check_bucket_ref(struct btree_trans *trans,
 		goto out;
 	}
 
-	if (!data_type_is_empty(bucket_data_type) &&
-	    ptr_data_type &&
-	    bucket_data_type != ptr_data_type) {
+	if (bucket_data_type_mismatch(bucket_data_type, ptr_data_type)) {
 		bch2_fsck_err(c, FSCK_CAN_IGNORE|FSCK_NEED_FSCK,
 			      BCH_FSCK_ERR_ptr_bucket_data_type_mismatch,
 			"bucket %u:%zu gen %u different types of data in same bucket: %s, %s\n"

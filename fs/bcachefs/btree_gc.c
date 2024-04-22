@@ -664,10 +664,8 @@ static int bch2_check_fix_ptrs(struct btree_trans *trans, enum btree_id btree_id
 		if (data_type != BCH_DATA_btree && p.ptr.gen != g->gen)
 			continue;
 
-		if (fsck_err_on(bucket_data_type(g->data_type) &&
-				bucket_data_type(g->data_type) !=
-				bucket_data_type(data_type), c,
-				ptr_bucket_data_type_mismatch,
+		if (fsck_err_on(bucket_data_type_mismatch(g->data_type, data_type),
+				c, ptr_bucket_data_type_mismatch,
 				"bucket %u:%zu different types of data in same bucket: %s, %s\n"
 				"while marking %s",
 				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),

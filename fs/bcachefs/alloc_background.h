@@ -67,7 +67,20 @@ static inline enum bch_data_type alloc_data_type(struct bch_alloc_v4 a,
 
 static inline enum bch_data_type bucket_data_type(enum bch_data_type data_type)
 {
-	return data_type == BCH_DATA_stripe ? BCH_DATA_user : data_type;
+	switch (data_type) {
+	case BCH_DATA_cached:
+	case BCH_DATA_stripe:
+		return BCH_DATA_user;
+	default:
+		return data_type;
+	}
+}
+
+static inline bool bucket_data_type_mismatch(enum bch_data_type bucket,
+					     enum bch_data_type ptr)
+{
+	return !data_type_is_empty(bucket) &&
+		bucket_data_type(bucket) != bucket_data_type(ptr);
 }
 
 static inline unsigned bch2_bucket_sectors(struct bch_alloc_v4 a)

@@ -165,15 +165,16 @@ void bch2_stripe_to_text(struct printbuf *out, struct bch_fs *c,
 
 static int bch2_trans_mark_stripe_bucket(struct btree_trans *trans,
 					 struct bkey_s_c_stripe s,
-					 unsigned idx, bool deleting)
+					 unsigned ptr_idx, bool deleting)
 {
 	struct bch_fs *c = trans->c;
-	const struct bch_extent_ptr *ptr = &s.v->ptrs[idx];
+	const struct bch_extent_ptr *ptr = s.v->ptrs + ptr_idx;
 	struct btree_iter iter;
 	struct bkey_i_alloc_v4 *a;
-	enum bch_data_type data_type = idx >= s.v->nr_blocks - s.v->nr_redundant
-		? BCH_DATA_parity : 0;
-	s64 sectors = data_type ? le16_to_cpu(s.v->sectors) : 0;
+	unsigned nr_data = s.v->nr_blocks - s.v->nr_redundant;
+	bool parity = ptr_idx >= nr_data;
+	enum bch_data_type data_type = parity ? BCH_DATA_parity : BCH_DATA_stripe;
+	s64 sectors = parity ? le16_to_cpu(s.v->sectors) : 0;
 	int ret = 0;
 
 	if (deleting)
@@ -201,8 +202,8 @@ static int bch2_trans_mark_stripe_bucket(struct btree_trans *trans,
 			goto err;
 		}
 
-		if (bch2_trans_inconsistent_on(data_type && a->v.dirty_sectors, trans,
-				"bucket %llu:%llu gen %u data type %s dirty_sectors %u: data already in stripe bucket %llu",
+		if (bch2_trans_inconsistent_on(parity && a->v.dirty_sectors, trans,
+				"bucket %llu:%llu gen %u data type %s dirty_sectors %u: data already in parity bucket %llu",
 				iter.pos.inode, iter.pos.offset, a->v.gen,
 				bch2_data_type_str(a->v.data_type),
 				a->v.dirty_sectors,
@@ -213,7 +214,7 @@ static int bch2_trans_mark_stripe_bucket(struct btree_trans *trans,
 
 		a->v.stripe		= s.k->p.offset;
 		a->v.stripe_redundancy	= s.v->nr_redundant;
-		a->v.data_type		= BCH_DATA_stripe;
+		a->v.data_type		= data_type;
 	} else {
 		if (bch2_trans_inconsistent_on(a->v.stripe != s.k->p.offset ||
 					       a->v.stripe_redundancy != s.v->nr_redundant, trans,
@@ -230,8 +231,6 @@ static int bch2_trans_mark_stripe_bucket(struct btree_trans *trans,
 	}
 
 	a->v.dirty_sectors += sectors;
-	if (data_type)
-		a->v.data_type = !deleting ? data_type : 0;
 
 	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
 	if (ret)
