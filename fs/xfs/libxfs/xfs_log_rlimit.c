@@ -24,6 +24,11 @@
  * because that can create the situation where a newer mkfs writes a new
  * filesystem that an older kernel won't mount.
  *
+ * Several years prior, we also discovered that the transaction reservations
+ * for rmap and reflink operations were unnecessarily large.  That was fixed,
+ * but the minimum log size computation was left alone to avoid the
+ * compatibility problems noted above.  Fix that too.
+ *
  * Therefore, we only may correct the computation starting with filesystem
  * features that didn't exist in 2023.  In other words, only turn this on if
  * the filesystem has parent pointers.
@@ -79,6 +84,15 @@ xfs_log_calc_trans_resv_for_minlogblocks(
 	struct xfs_trans_resv	*resv)
 {
 	unsigned int		rmap_maxlevels = mp->m_rmap_maxlevels;
+
+	/*
+	 * If the feature set is new enough, drop the oversized minimum log
+	 * size computation introduced by the original reflink code.
+	 */
+	if (xfs_want_minlogsize_fixes(&mp->m_sb)) {
+		xfs_trans_resv_calc(mp, resv);
+		return;
+	}
 
 	/*
 	 * In the early days of rmap+reflink, we always set the rmap maxlevels
