@@ -3,7 +3,6 @@
 config DRM_DISPLAY_HELPER
 	tristate "DRM Display Helpers"
 	depends on DRM
-	default y
 	help
 	  DRM helpers for display adapters.
 

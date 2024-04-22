@@ -544,11 +544,11 @@ config DRM_PANEL_RAYDIUM_RM68200
 
 config DRM_PANEL_RAYDIUM_RM692E5
 	tristate "Raydium RM692E5-based DSI panel"
-	depends on BACKLIGHT_CLASS_DEVICE
-	depends on DRM_DISPLAY_HELPER
-	depends on DRM_MIPI_DSI
 	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
 	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HELPER
 	help
 	  Say Y here if you want to enable support for Raydium RM692E5-based
 	  display panels, such as the one found in the Fairphone 5 smartphone.
@@ -582,11 +582,11 @@ config DRM_PANEL_SAMSUNG_S6E88A0_AMS452EF01
 
 config DRM_PANEL_SAMSUNG_ATNA33XC20
 	tristate "Samsung ATNA33XC20 eDP panel"
-	depends on BACKLIGHT_CLASS_DEVICE
-	depends on DRM_DISPLAY_HELPER
 	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
 	depends on PM
 	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_DISPLAY_DP_AUX_BUS
 	help
 	  DRM panel driver for the Samsung ATNA33XC20 panel. This panel can't
@@ -822,12 +822,12 @@ config DRM_PANEL_STARTEK_KD070FHFID015
 
 config DRM_PANEL_EDP
 	tristate "support for simple Embedded DisplayPort panels"
-	depends on BACKLIGHT_CLASS_DEVICE
-	depends on DRM_DISPLAY_HELPER
 	depends on OF
+	depends on BACKLIGHT_CLASS_DEVICE
 	depends on PM
 	select VIDEOMODE_HELPERS
 	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_DISPLAY_DP_AUX_BUS
 	select DRM_KMS_HELPER
 	help
@@ -902,11 +902,11 @@ config DRM_PANEL_TRULY_NT35597_WQXGA
 
 config DRM_PANEL_VISIONOX_R66451
 	tristate "Visionox R66451"
-	depends on BACKLIGHT_CLASS_DEVICE
-	depends on DRM_DISPLAY_HELPER
-	depends on DRM_MIPI_DSI
 	depends on OF
+	depends on DRM_MIPI_DSI
+	depends on BACKLIGHT_CLASS_DEVICE
 	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HELPER
 	help
 	  Say Y here if you want to enable support for Visionox
 	  R66451 1080x2340 AMOLED DSI panel.
