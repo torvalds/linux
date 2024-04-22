@@ -5538,7 +5538,7 @@ static void CalculateODMMode(
 			*TotalAvailablePipesSupport = false;
 		else if (HActive > 2 * DML2_MAX_FMT_420_BUFFER_WIDTH)
 			ODMUse = dml_odm_use_policy_combine_4to1;
-		else if (HActive > DML2_MAX_FMT_420_BUFFER_WIDTH)
+		else if (HActive > DML2_MAX_FMT_420_BUFFER_WIDTH && ODMUse != dml_odm_use_policy_combine_4to1)
 			ODMUse = dml_odm_use_policy_combine_2to1;
 		if (Output == dml_hdmi && ODMUse == dml_odm_use_policy_combine_2to1)
 			*TotalAvailablePipesSupport = false;
