@@ -6,7 +6,8 @@
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
 //
 
-#include <sound/intel-nhlt.h>
+#include <linux/acpi.h>
+#include <acpi/nhlt.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "avs.h"
@@ -143,10 +144,10 @@ static bool avs_dma_type_is_input(u32 dma_type)
 
 static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 {
-	struct nhlt_acpi_table *nhlt = adev->nhlt;
 	struct avs_tplg_module *t = mod->template;
 	struct avs_copier_cfg *cfg;
-	struct nhlt_specific_cfg *ep_blob;
+	struct acpi_nhlt_format_config *ep_blob;
+	struct acpi_nhlt_endpoint *ep;
 	union avs_connector_node_id node_id = {0};
 	size_t cfg_size, data_size;
 	void *data = NULL;
@@ -175,18 +176,18 @@ static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 		else
 			fmt = t->cfg_ext->copier.out_fmt;
 
-		ep_blob = intel_nhlt_get_endpoint_blob(adev->dev,
-			nhlt, t->cfg_ext->copier.vindex.i2s.instance,
-			NHLT_LINK_SSP, fmt->valid_bit_depth, fmt->bit_depth,
-			fmt->num_channels, fmt->sampling_freq, direction,
-			NHLT_DEVICE_I2S);
+		ep = acpi_nhlt_find_endpoint(ACPI_NHLT_LINKTYPE_SSP,
+					     ACPI_NHLT_DEVICETYPE_CODEC, direction,
+					     t->cfg_ext->copier.vindex.i2s.instance);
+		ep_blob = acpi_nhlt_endpoint_find_fmtcfg(ep, fmt->num_channels, fmt->sampling_freq,
+							 fmt->valid_bit_depth, fmt->bit_depth);
 		if (!ep_blob) {
 			dev_err(adev->dev, "no I2S ep_blob found\n");
 			return -ENOENT;
 		}
 
-		data = ep_blob->caps;
-		data_size = ep_blob->size;
+		data = ep_blob->config.capabilities;
+		data_size = ep_blob->config.capabilities_size;
 		/* I2S gateway's vindex is statically assigned in topology */
 		node_id.vindex = t->cfg_ext->copier.vindex.val;
 
@@ -200,17 +201,16 @@ static int avs_copier_create(struct avs_dev *adev, struct avs_path_module *mod)
 		else
 			fmt = t->in_fmt;
 
-		ep_blob = intel_nhlt_get_endpoint_blob(adev->dev, nhlt, 0,
-				NHLT_LINK_DMIC, fmt->valid_bit_depth,
-				fmt->bit_depth, fmt->num_channels,
-				fmt->sampling_freq, direction, NHLT_DEVICE_DMIC);
+		ep = acpi_nhlt_find_endpoint(ACPI_NHLT_LINKTYPE_PDM, -1, direction, 0);
+		ep_blob = acpi_nhlt_endpoint_find_fmtcfg(ep, fmt->num_channels, fmt->sampling_freq,
+							 fmt->valid_bit_depth, fmt->bit_depth);
 		if (!ep_blob) {
 			dev_err(adev->dev, "no DMIC ep_blob found\n");
 			return -ENOENT;
 		}
 
-		data = ep_blob->caps;
-		data_size = ep_blob->size;
+		data = ep_blob->config.capabilities;
+		data_size = ep_blob->config.capabilities_size;
 		/* DMIC gateway's vindex is statically assigned in topology */
 		node_id.vindex = t->cfg_ext->copier.vindex.val;
 
