@@ -393,7 +393,7 @@ of C0, which doesn't depend on M::
 
 choices::
 
-	"choice" [symbol]
+	"choice"
 	<choice options>
 	<choice block>
 	"endchoice"
@@ -412,10 +412,6 @@ the kernel, but all drivers can be compiled as modules.
 
 A choice accepts another option "optional", which allows to set the
 choice to 'n' and no entry needs to be selected.
-If no [symbol] is associated with a choice, then you can not have multiple
-definitions of that choice. If a [symbol] is associated to the choice,
-then you may define the same choice (i.e. with the same entries) in another
-place.
 
 comment::
 

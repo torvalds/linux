@@ -10,7 +10,7 @@
 #include <linux/completion.h>
 #include <linux/mod_devicetable.h>
 
-extern struct bus_type slimbus_bus;
+extern const struct bus_type slimbus_bus;
 
 /**
  * struct slim_eaddr - Enumeration address for a SLIMbus device

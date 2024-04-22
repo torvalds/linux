@@ -61,10 +61,36 @@ cp $(%{make} %{makeflags} -s image_name) %{buildroot}/lib/modules/%{KERNELRELEAS
 %{make} %{makeflags} INSTALL_HDR_PATH=%{buildroot}/usr headers_install
 cp System.map %{buildroot}/lib/modules/%{KERNELRELEASE}
 cp .config %{buildroot}/lib/modules/%{KERNELRELEASE}/config
+if %{make} %{makeflags} run-command KBUILD_RUN_COMMAND='test -d ${srctree}/arch/${SRCARCH}/boot/dts' 2>/dev/null; then
+	%{make} %{makeflags} INSTALL_DTBS_PATH=%{buildroot}/lib/modules/%{KERNELRELEASE}/dtb dtbs_install
+fi
 ln -fns /usr/src/kernels/%{KERNELRELEASE} %{buildroot}/lib/modules/%{KERNELRELEASE}/build
 %if %{with_devel}
 %{make} %{makeflags} run-command KBUILD_RUN_COMMAND='${srctree}/scripts/package/install-extmod-build %{buildroot}/usr/src/kernels/%{KERNELRELEASE}'
 %endif
+
+{
+	for x in System.map config kernel modules.builtin \
+			modules.builtin.modinfo modules.order vmlinuz; do
+		echo "/lib/modules/%{KERNELRELEASE}/${x}"
+	done
+
+	for x in alias alias.bin builtin.alias.bin builtin.bin dep dep.bin \
+					devname softdep symbols symbols.bin; do
+		echo "%ghost /lib/modules/%{KERNELRELEASE}/modules.${x}"
+	done
+
+	for x in System.map config vmlinuz; do
+		echo "%ghost /boot/${x}-%{KERNELRELEASE}"
+	done
+
+	if [ -d "%{buildroot}/lib/modules/%{KERNELRELEASE}/dtb" ];then
+		echo "/lib/modules/%{KERNELRELEASE}/dtb"
+		find "%{buildroot}/lib/modules/%{KERNELRELEASE}/dtb" -printf "%%%ghost /boot/dtb-%{KERNELRELEASE}/%%P\n"
+	fi
+
+	echo "%exclude /lib/modules/%{KERNELRELEASE}/build"
+} > %{buildroot}/kernel.list
 
 %clean
 rm -rf %{buildroot}
@@ -78,23 +104,23 @@ for file in vmlinuz System.map config; do
 		cp "/lib/modules/%{KERNELRELEASE}/${file}" "/boot/${file}-%{KERNELRELEASE}"
 	fi
 done
+if [ -d "/lib/modules/%{KERNELRELEASE}/dtb" ] && \
+   ! diff -rq "/lib/modules/%{KERNELRELEASE}/dtb" "/boot/dtb-%{KERNELRELEASE}" >/dev/null 2>&1; then
+	rm -rf "/boot/dtb-%{KERNELRELEASE}"
+	cp -r "/lib/modules/%{KERNELRELEASE}/dtb" "/boot/dtb-%{KERNELRELEASE}"
+fi
+if [ ! -e "/lib/modules/%{KERNELRELEASE}/modules.dep" ]; then
+	/usr/sbin/depmod %{KERNELRELEASE}
+fi
 
 %preun
-if [ -x /sbin/new-kernel-pkg ]; then
-new-kernel-pkg --remove %{KERNELRELEASE} --rminitrd --initrdfile=/boot/initramfs-%{KERNELRELEASE}.img
-elif [ -x /usr/bin/kernel-install ]; then
+if [ -x /usr/bin/kernel-install ]; then
 kernel-install remove %{KERNELRELEASE}
 fi
 
-%postun
-if [ -x /sbin/update-bootloader ]; then
-/sbin/update-bootloader --remove %{KERNELRELEASE}
-fi
-
-%files
+%files -f %{buildroot}/kernel.list
 %defattr (-, root, root)
-/lib/modules/%{KERNELRELEASE}
-%exclude /lib/modules/%{KERNELRELEASE}/build
+%exclude /kernel.list
 
 %files headers
 %defattr (-, root, root)

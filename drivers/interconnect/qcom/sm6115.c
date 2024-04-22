@@ -1193,7 +1193,7 @@ static struct qcom_icc_node slv_anoc_snoc = {
 	.links = slv_anoc_snoc_links,
 };
 
-static struct qcom_icc_node *bimc_nodes[] = {
+static struct qcom_icc_node * const bimc_nodes[] = {
 	[MASTER_AMPSS_M0] = &apps_proc,
 	[MASTER_SNOC_BIMC_RT] = &mas_snoc_bimc_rt,
 	[MASTER_SNOC_BIMC_NRT] = &mas_snoc_bimc_nrt,
@@ -1223,7 +1223,7 @@ static const struct qcom_icc_desc sm6115_bimc = {
 	.ab_coeff = 153,
 };
 
-static struct qcom_icc_node *config_noc_nodes[] = {
+static struct qcom_icc_node * const config_noc_nodes[] = {
 	[SNOC_CNOC_MAS] = &mas_snoc_cnoc,
 	[MASTER_QDSS_DAP] = &xm_dap,
 	[SLAVE_AHB2PHY_USB] = &qhs_ahb2phy_usb,
@@ -1294,7 +1294,7 @@ static const struct qcom_icc_desc sm6115_config_noc = {
 	.keep_alive = true,
 };
 
-static struct qcom_icc_node *sys_noc_nodes[] = {
+static struct qcom_icc_node * const sys_noc_nodes[] = {
 	[MASTER_CRYPTO_CORE0] = &crypto_c0,
 	[MASTER_SNOC_CFG] = &qhm_snoc_cfg,
 	[MASTER_TIC] = &qhm_tic,
@@ -1339,7 +1339,7 @@ static const struct qcom_icc_desc sm6115_sys_noc = {
 	.keep_alive = true,
 };
 
-static struct qcom_icc_node *clk_virt_nodes[] = {
+static struct qcom_icc_node * const clk_virt_nodes[] = {
 	[MASTER_QUP_CORE_0] = &qup0_core_master,
 	[SLAVE_QUP_CORE_0] = &qup0_core_slave,
 };
@@ -1353,7 +1353,7 @@ static const struct qcom_icc_desc sm6115_clk_virt = {
 	.keep_alive = true,
 };
 
-static struct qcom_icc_node *mmnrt_virt_nodes[] = {
+static struct qcom_icc_node * const mmnrt_virt_nodes[] = {
 	[MASTER_CAMNOC_SF] = &qnm_camera_nrt,
 	[MASTER_VIDEO_P0] = &qxm_venus0,
 	[MASTER_VIDEO_PROC] = &qxm_venus_cpu,
@@ -1370,7 +1370,7 @@ static const struct qcom_icc_desc sm6115_mmnrt_virt = {
 	.ab_coeff = 142,
 };
 
-static struct qcom_icc_node *mmrt_virt_nodes[] = {
+static struct qcom_icc_node * const mmrt_virt_nodes[] = {
 	[MASTER_CAMNOC_HF] = &qnm_camera_rt,
 	[MASTER_MDP_PORT0] = &qxm_mdp0,
 	[SLAVE_SNOC_BIMC_RT] = &slv_snoc_bimc_rt,

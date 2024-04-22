@@ -28,7 +28,7 @@ ssize_t show(struct device *dev, struct device_attribute *attr, char *buf)
 
 @rp depends on patch@
 identifier show, dev, attr, buf;
-expression BUF, SZ, FORMAT, STR;
+expression BUF, SZ, FORMAT;
 @@
 
 ssize_t show(struct device *dev, struct device_attribute *attr, char *buf)

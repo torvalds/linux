@@ -122,6 +122,13 @@ void optc32_get_odm_combine_segments(struct timing_generator *tg, int *odm_combi
 	}
 }
 
+void optc32_wait_odm_doublebuffer_pending_clear(struct timing_generator *tg)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(tg);
+
+	REG_WAIT(OTG_DOUBLE_BUFFER_CONTROL, OTG_H_TIMING_DIV_MODE_DB_UPDATE_PENDING, 0, 2, 50000);
+}
+
 void optc32_set_h_timing_div_manual_mode(struct timing_generator *optc, bool manual_mode)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
@@ -260,9 +267,6 @@ static void optc32_setup_manual_trigger(struct timing_generator *optc)
 				OTG_V_TOTAL_MAX_SEL, 1,
 				OTG_FORCE_LOCK_ON_EVENT, 0,
 				OTG_SET_V_TOTAL_MIN_MASK, (1 << 1)); /* TRIGA */
-
-		// Setup manual flow control for EOF via TRIG_A
-		optc->funcs->setup_manual_trigger(optc);
 	}
 }
 
@@ -345,6 +349,7 @@ static struct timing_generator_funcs dcn32_tg_funcs = {
 		.set_odm_bypass = optc32_set_odm_bypass,
 		.set_odm_combine = optc32_set_odm_combine,
 		.get_odm_combine_segments = optc32_get_odm_combine_segments,
+		.wait_odm_doublebuffer_pending_clear = optc32_wait_odm_doublebuffer_pending_clear,
 		.set_h_timing_div_manual_mode = optc32_set_h_timing_div_manual_mode,
 		.get_optc_source = optc2_get_optc_source,
 		.set_out_mux = optc3_set_out_mux,

@@ -119,7 +119,7 @@ int dialog_checklist(const char *title, const char *prompt, int height,
 	}
 
 do_resize:
-	if (getmaxy(stdscr) < (height + CHECKLIST_HEIGTH_MIN))
+	if (getmaxy(stdscr) < (height + CHECKLIST_HEIGHT_MIN))
 		return -ERRDISPLAYTOOSMALL;
 	if (getmaxx(stdscr) < (width + CHECKLIST_WIDTH_MIN))
 		return -ERRDISPLAYTOOSMALL;
@@ -188,9 +188,8 @@ do_resize:
 
 	print_buttons(dialog, height, width, 0);
 
-	wnoutrefresh(dialog);
-	wnoutrefresh(list);
-	doupdate();
+	wmove(list, choice, check_x + 1);
+	wrefresh(list);
 
 	while (key != KEY_ESC) {
 		key = wgetch(dialog);

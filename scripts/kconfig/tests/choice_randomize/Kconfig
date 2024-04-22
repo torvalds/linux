@@ -1,0 +1,22 @@
+choice
+	prompt "choose A or B"
+
+config A
+	bool "A"
+
+config B
+	bool "B"
+
+endchoice
+
+choice
+	prompt "choose X or Y"
+	depends on B
+
+config X
+	bool "X"
+
+config Y
+	bool "Y"
+
+endchoice

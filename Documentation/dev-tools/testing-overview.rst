@@ -104,6 +104,8 @@ Some of these tools are listed below:
   KASAN and can be used in production. See Documentation/dev-tools/kfence.rst
 * lockdep is a locking correctness validator. See
   Documentation/locking/lockdep-design.rst
+* Runtime Verification (RV) supports checking specific behaviours for a given
+  subsystem. See Documentation/trace/rv/runtime-verification.rst
 * There are several other pieces of debug instrumentation in the kernel, many
   of which can be found in lib/Kconfig.debug
 

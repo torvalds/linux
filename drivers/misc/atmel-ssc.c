@@ -251,7 +251,7 @@ static int ssc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int ssc_remove(struct platform_device *pdev)
+static void ssc_remove(struct platform_device *pdev)
 {
 	struct ssc_device *ssc = platform_get_drvdata(pdev);
 
@@ -260,8 +260,6 @@ static int ssc_remove(struct platform_device *pdev)
 	mutex_lock(&user_lock);
 	list_del(&ssc->list);
 	mutex_unlock(&user_lock);
-
-	return 0;
 }
 
 static struct platform_driver ssc_driver = {
@@ -271,7 +269,7 @@ static struct platform_driver ssc_driver = {
 	},
 	.id_table	= atmel_ssc_devtypes,
 	.probe		= ssc_probe,
-	.remove		= ssc_remove,
+	.remove_new	= ssc_remove,
 };
 module_platform_driver(ssc_driver);
 

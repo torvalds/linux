@@ -141,7 +141,7 @@ static int w1_gpio_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int w1_gpio_remove(struct platform_device *pdev)
+static void w1_gpio_remove(struct platform_device *pdev)
 {
 	struct w1_bus_master *master = platform_get_drvdata(pdev);
 	struct w1_gpio_ddata *ddata = master->data;
@@ -150,8 +150,6 @@ static int w1_gpio_remove(struct platform_device *pdev)
 		gpiod_set_value(ddata->pullup_gpiod, 0);
 
 	w1_remove_master_device(master);
-
-	return 0;
 }
 
 static struct platform_driver w1_gpio_driver = {
@@ -160,7 +158,7 @@ static struct platform_driver w1_gpio_driver = {
 		.of_match_table = of_match_ptr(w1_gpio_dt_ids),
 	},
 	.probe = w1_gpio_probe,
-	.remove = w1_gpio_remove,
+	.remove_new = w1_gpio_remove,
 };
 
 module_platform_driver(w1_gpio_driver);

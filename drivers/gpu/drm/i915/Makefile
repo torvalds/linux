@@ -33,9 +33,9 @@ endif
 subdir-ccflags-$(CONFIG_DRM_I915_WERROR) += -Werror
 
 # Fine grained warnings disable
-CFLAGS_i915_pci.o = $(call cc-disable-warning, override-init)
-CFLAGS_display/intel_display_device.o = $(call cc-disable-warning, override-init)
-CFLAGS_display/intel_fbdev.o = $(call cc-disable-warning, override-init)
+CFLAGS_i915_pci.o = -Wno-override-init
+CFLAGS_display/intel_display_device.o = -Wno-override-init
+CFLAGS_display/intel_fbdev.o = -Wno-override-init
 
 # Support compiling the display code separately for both i915 and xe
 # drivers. Define I915 when building i915.
@@ -118,6 +118,7 @@ gt-y += \
 	gt/intel_ggtt_fencing.o \
 	gt/intel_gt.o \
 	gt/intel_gt_buffer_pool.o \
+	gt/intel_gt_ccs_mode.o \
 	gt/intel_gt_clock_utils.o \
 	gt/intel_gt_debugfs.o \
 	gt/intel_gt_engines_debugfs.o \

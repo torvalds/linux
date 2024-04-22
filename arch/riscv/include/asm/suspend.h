@@ -56,4 +56,7 @@ int hibernate_resume_nonboot_cpu_disable(void);
 asmlinkage void hibernate_restore_image(unsigned long resume_satp, unsigned long satp_temp,
 					unsigned long cpu_resume);
 asmlinkage int hibernate_core_restore_code(void);
+bool riscv_sbi_hsm_is_supported(void);
+bool riscv_sbi_suspend_state_is_valid(u32 state);
+int riscv_sbi_hart_suspend(u32 state);
 #endif

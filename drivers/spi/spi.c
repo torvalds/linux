@@ -1063,10 +1063,14 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 	if (spi->mode & SPI_CS_HIGH)
 		enable = !enable;
 
-	if (spi_is_csgpiod(spi)) {
-		if (!spi->controller->set_cs_timing && !activate)
-			spi_delay_exec(&spi->cs_hold, NULL);
+	/*
+	 * Handle chip select delays for GPIO based CS or controllers without
+	 * programmable chip select timing.
+	 */
+	if ((spi_is_csgpiod(spi) || !spi->controller->set_cs_timing) && !activate)
+		spi_delay_exec(&spi->cs_hold, NULL);
 
+	if (spi_is_csgpiod(spi)) {
 		if (!(spi->mode & SPI_NO_CS)) {
 			/*
 			 * Historically ACPI has no means of the GPIO polarity and
@@ -1099,15 +1103,15 @@ static void spi_set_cs(struct spi_device *spi, bool enable, bool force)
 		if ((spi->controller->flags & SPI_CONTROLLER_GPIO_SS) &&
 		    spi->controller->set_cs)
 			spi->controller->set_cs(spi, !enable);
-
-		if (!spi->controller->set_cs_timing) {
-			if (activate)
-				spi_delay_exec(&spi->cs_setup, NULL);
-			else
-				spi_delay_exec(&spi->cs_inactive, NULL);
-		}
 	} else if (spi->controller->set_cs) {
 		spi->controller->set_cs(spi, !enable);
+	}
+
+	if (spi_is_csgpiod(spi) || !spi->controller->set_cs_timing) {
+		if (activate)
+			spi_delay_exec(&spi->cs_setup, NULL);
+		else
+			spi_delay_exec(&spi->cs_inactive, NULL);
 	}
 }
 

@@ -86,6 +86,7 @@ register unsigned long current_stack_pointer __asm__("$sp");
 #define TIF_LASX_CTX_LIVE	18	/* LASX context must be preserved */
 #define TIF_USEDLBT		19	/* LBT was used by this task this quantum (SMP) */
 #define TIF_LBT_CTX_LIVE	20	/* LBT context must be preserved */
+#define TIF_PATCH_PENDING	21	/* pending live patching update */
 
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
@@ -105,6 +106,7 @@ register unsigned long current_stack_pointer __asm__("$sp");
 #define _TIF_LASX_CTX_LIVE	(1<<TIF_LASX_CTX_LIVE)
 #define _TIF_USEDLBT		(1<<TIF_USEDLBT)
 #define _TIF_LBT_CTX_LIVE	(1<<TIF_LBT_CTX_LIVE)
+#define _TIF_PATCH_PENDING	(1<<TIF_PATCH_PENDING)
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_THREAD_INFO_H */

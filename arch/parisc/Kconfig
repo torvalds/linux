@@ -238,9 +238,9 @@ config PARISC_HUGE_KERNEL
 	def_bool y if !MODULES || UBSAN || FTRACE || COMPILE_TEST
 
 config MLONGCALLS
-	def_bool y if PARISC_HUGE_KERNEL
 	bool "Enable the -mlong-calls compiler option for big kernels" if !PARISC_HUGE_KERNEL
 	depends on PA8X00
+	default PARISC_HUGE_KERNEL
 	help
 	  If you configure the kernel to include many drivers built-in instead
 	  as modules, the kernel executable may become too big, so that the
@@ -255,9 +255,9 @@ config MLONGCALLS
 	  Enabling this option will probably slow down your kernel.
 
 config 64BIT
-	def_bool y if "$(ARCH)" = "parisc64"
 	bool "64-bit kernel" if "$(ARCH)" = "parisc"
 	depends on PA8X00
+	default "$(ARCH)" = "parisc64"
 	help
 	  Enable this if you want to support 64bit kernel on PA-RISC platform.
 

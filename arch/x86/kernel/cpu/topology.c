@@ -123,7 +123,6 @@ static void topo_set_cpuids(unsigned int cpu, u32 apic_id, u32 acpi_id)
 	early_per_cpu(x86_cpu_to_apicid, cpu) = apic_id;
 	early_per_cpu(x86_cpu_to_acpiid, cpu) = acpi_id;
 #endif
-	set_cpu_possible(cpu, true);
 	set_cpu_present(cpu, true);
 }
 
@@ -210,7 +209,11 @@ static __init void topo_register_apic(u32 apic_id, u32 acpi_id, bool present)
 		topo_info.nr_disabled_cpus++;
 	}
 
-	/* Register present and possible CPUs in the domain maps */
+	/*
+	 * Register present and possible CPUs in the domain
+	 * maps. cpu_possible_map will be updated in
+	 * topology_init_possible_cpus() after enumeration is done.
+	 */
 	for (dom = TOPO_SMT_DOMAIN; dom < TOPO_MAX_DOMAIN; dom++)
 		set_bit(topo_apicid(apic_id, dom), apic_maps[dom].map);
 }
@@ -414,6 +417,17 @@ void __init topology_init_possible_cpus(void)
 	unsigned int cnta, cntb, cpu, allowed = 1;
 	unsigned int total = assigned + disabled;
 	u32 apicid, firstid;
+
+	/*
+	 * If there was no APIC registered, then fake one so that the
+	 * topology bitmap is populated. That ensures that the code below
+	 * is valid and the various query interfaces can be used
+	 * unconditionally. This does not affect the actual APIC code in
+	 * any way because either the local APIC address has not been
+	 * registered or the local APIC was disabled on the command line.
+	 */
+	if (topo_info.boot_cpu_apic_id == BAD_APICID)
+		topology_register_boot_apic(0);
 
 	if (!restrict_to_up()) {
 		if (WARN_ON_ONCE(assigned > nr_cpu_ids)) {

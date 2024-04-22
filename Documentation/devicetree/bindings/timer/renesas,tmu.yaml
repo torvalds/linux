@@ -46,7 +46,19 @@ properties:
 
   interrupts:
     minItems: 2
-    maxItems: 3
+    items:
+      - description: Underflow interrupt, channel 0
+      - description: Underflow interrupt, channel 1
+      - description: Underflow interrupt, channel 2
+      - description: Input capture interrupt, channel 2
+
+  interrupt-names:
+    minItems: 2
+    items:
+      - const: tuni0
+      - const: tuni1
+      - const: tuni2
+      - const: ticpi2
 
   clocks:
     maxItems: 1
@@ -100,7 +112,9 @@ examples:
             reg = <0xffd80000 0x30>;
             interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
                          <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
-                         <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>;
+                         <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+            interrupt-names = "tuni0", "tuni1", "tuni2", "ticpi2";
             clocks = <&mstp0_clks R8A7779_CLK_TMU0>;
             clock-names = "fck";
             power-domains = <&sysc R8A7779_PD_ALWAYS_ON>;

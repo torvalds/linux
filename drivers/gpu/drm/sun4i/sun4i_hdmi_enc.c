@@ -166,7 +166,7 @@ sun4i_hdmi_connector_clock_valid(const struct drm_connector *connector,
 				 unsigned long long clock)
 {
 	const struct sun4i_hdmi *hdmi = drm_connector_to_sun4i_hdmi(connector);
-	unsigned long diff = clock / 200; /* +-0.5% allowed by HDMI spec */
+	unsigned long diff = div_u64(clock, 200); /* +-0.5% allowed by HDMI spec */
 	long rounded_rate;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLCLK)

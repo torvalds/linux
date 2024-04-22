@@ -31,8 +31,6 @@
  * @regs: irq regs we are faking
  * @lock: protect the evgen state
  * @inuse: mask of which irqs are connected
- * @irq_sim: interrupt simulator
- * @base: base of irq range
  * @irq_sim_domain: irq simulator domain
  */
 struct iio_dummy_eventgen {

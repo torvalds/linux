@@ -152,7 +152,7 @@ static const struct attribute_group fieldbus_group = {
 };
 __ATTRIBUTE_GROUPS(fieldbus);
 
-static struct class fieldbus_class = {
+static const struct class fieldbus_class = {
 	.name =		"fieldbus_dev",
 	.dev_groups =	fieldbus_groups,
 };
@@ -247,7 +247,7 @@ static void __fieldbus_dev_unregister(struct fieldbus_dev *fb)
 		return;
 	device_destroy(&fieldbus_class, fb->cdev.dev);
 	cdev_del(&fb->cdev);
-	ida_simple_remove(&fieldbus_ida, fb->id);
+	ida_free(&fieldbus_ida, fb->id);
 }
 
 void fieldbus_dev_unregister(struct fieldbus_dev *fb)
@@ -267,7 +267,7 @@ static int __fieldbus_dev_register(struct fieldbus_dev *fb)
 		return -EINVAL;
 	if (!fb->read_area || !fb->write_area || !fb->fieldbus_id_get)
 		return -EINVAL;
-	fb->id = ida_simple_get(&fieldbus_ida, 0, MAX_FIELDBUSES, GFP_KERNEL);
+	fb->id = ida_alloc_max(&fieldbus_ida, MAX_FIELDBUSES - 1, GFP_KERNEL);
 	if (fb->id < 0)
 		return fb->id;
 	devno = MKDEV(MAJOR(fieldbus_devt), fb->id);
@@ -290,7 +290,7 @@ static int __fieldbus_dev_register(struct fieldbus_dev *fb)
 err_dev_create:
 	cdev_del(&fb->cdev);
 err_cdev:
-	ida_simple_remove(&fieldbus_ida, fb->id);
+	ida_free(&fieldbus_ida, fb->id);
 	return err;
 }
 

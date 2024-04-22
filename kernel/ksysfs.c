@@ -39,7 +39,7 @@ static struct kobj_attribute _name##_attr = __ATTR_RW(_name)
 static ssize_t uevent_seqnum_show(struct kobject *kobj,
 				  struct kobj_attribute *attr, char *buf)
 {
-	return sysfs_emit(buf, "%llu\n", (unsigned long long)uevent_seqnum);
+	return sysfs_emit(buf, "%llu\n", (u64)atomic64_read(&uevent_seqnum));
 }
 KERNEL_ATTR_RO(uevent_seqnum);
 

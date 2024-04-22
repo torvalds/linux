@@ -321,12 +321,12 @@ static void tb_domain_release(struct device *dev)
 
 	tb_ctl_free(tb->ctl);
 	destroy_workqueue(tb->wq);
-	ida_simple_remove(&tb_domain_ida, tb->index);
+	ida_free(&tb_domain_ida, tb->index);
 	mutex_destroy(&tb->lock);
 	kfree(tb);
 }
 
-struct device_type tb_domain_type = {
+const struct device_type tb_domain_type = {
 	.name = "thunderbolt_domain",
 	.release = tb_domain_release,
 };
@@ -389,7 +389,7 @@ struct tb *tb_domain_alloc(struct tb_nhi *nhi, int timeout_msec, size_t privsize
 	tb->nhi = nhi;
 	mutex_init(&tb->lock);
 
-	tb->index = ida_simple_get(&tb_domain_ida, 0, 0, GFP_KERNEL);
+	tb->index = ida_alloc(&tb_domain_ida, GFP_KERNEL);
 	if (tb->index < 0)
 		goto err_free;
 
@@ -397,7 +397,7 @@ struct tb *tb_domain_alloc(struct tb_nhi *nhi, int timeout_msec, size_t privsize
 	if (!tb->wq)
 		goto err_remove_ida;
 
-	tb->ctl = tb_ctl_alloc(nhi, timeout_msec, tb_domain_event_cb, tb);
+	tb->ctl = tb_ctl_alloc(nhi, tb->index, timeout_msec, tb_domain_event_cb, tb);
 	if (!tb->ctl)
 		goto err_destroy_wq;
 
@@ -413,7 +413,7 @@ struct tb *tb_domain_alloc(struct tb_nhi *nhi, int timeout_msec, size_t privsize
 err_destroy_wq:
 	destroy_workqueue(tb->wq);
 err_remove_ida:
-	ida_simple_remove(&tb_domain_ida, tb->index);
+	ida_free(&tb_domain_ida, tb->index);
 err_free:
 	kfree(tb);
 
@@ -423,6 +423,7 @@ err_free:
 /**
  * tb_domain_add() - Add domain to the system
  * @tb: Domain to add
+ * @reset: Issue reset to the host router
  *
  * Starts the domain and adds it to the system. Hotplugging devices will
  * work after this has been returned successfully. In order to remove
@@ -431,7 +432,7 @@ err_free:
  *
  * Return: %0 in case of success and negative errno in case of error
  */
-int tb_domain_add(struct tb *tb)
+int tb_domain_add(struct tb *tb, bool reset)
 {
 	int ret;
 
@@ -460,7 +461,7 @@ int tb_domain_add(struct tb *tb)
 
 	/* Start the domain */
 	if (tb->cm_ops->start) {
-		ret = tb->cm_ops->start(tb);
+		ret = tb->cm_ops->start(tb, reset);
 		if (ret)
 			goto err_domain_del;
 	}
@@ -505,6 +506,10 @@ void tb_domain_remove(struct tb *tb)
 	mutex_unlock(&tb->lock);
 
 	flush_workqueue(tb->wq);
+
+	if (tb->cm_ops->deinit)
+		tb->cm_ops->deinit(tb);
+
 	device_unregister(&tb->dev);
 }
 

@@ -187,7 +187,7 @@ static struct attribute *ipack_attrs[] = {
 };
 ATTRIBUTE_GROUPS(ipack);
 
-static struct bus_type ipack_bus_type = {
+static const struct bus_type ipack_bus_type = {
 	.name      = "ipack",
 	.probe     = ipack_bus_probe,
 	.match     = ipack_bus_match,

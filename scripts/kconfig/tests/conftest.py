@@ -154,12 +154,10 @@ class Conf:
         defconfig_path = os.path.join(self._test_dir, defconfig)
         return self._run_conf('--defconfig={}'.format(defconfig_path))
 
-    def _allconfig(self, mode, all_config):
+    def _allconfig(self, mode, all_config, extra_env={}):
         if all_config:
             all_config_path = os.path.join(self._test_dir, all_config)
-            extra_env = {'KCONFIG_ALLCONFIG': all_config_path}
-        else:
-            extra_env = {}
+            extra_env['KCONFIG_ALLCONFIG'] = all_config_path
 
         return self._run_conf('--{}config'.format(mode), extra_env=extra_env)
 
@@ -195,13 +193,19 @@ class Conf:
         """
         return self._allconfig('alldef', all_config)
 
-    def randconfig(self, all_config=None):
+    def randconfig(self, all_config=None, seed=None):
         """Run randconfig.
 
         all_config: fragment config file for KCONFIG_ALLCONFIG (optional)
+        seed: the seed for randconfig (optional)
         returncode: exit status of the Kconfig executable
         """
-        return self._allconfig('rand', all_config)
+        if seed is not None:
+            extra_env = {'KCONFIG_SEED': hex(seed)}
+        else:
+            extra_env = {}
+
+        return self._allconfig('rand', all_config, extra_env=extra_env)
 
     def savedefconfig(self, dot_config):
         """Run savedefconfig.

@@ -7,11 +7,11 @@
  * IIO driver for STK3310/STK3311. 7-bit I2C address: 0x48.
  */
 
-#include <linux/acpi.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/regmap.h>
 #include <linux/iio/events.h>
 #include <linux/iio/iio.h>
@@ -712,7 +712,7 @@ static struct i2c_driver stk3310_driver = {
 		.name = "stk3310",
 		.of_match_table = stk3310_of_match,
 		.pm = pm_sleep_ptr(&stk3310_pm_ops),
-		.acpi_match_table = ACPI_PTR(stk3310_acpi_id),
+		.acpi_match_table = stk3310_acpi_id,
 	},
 	.probe =        stk3310_probe,
 	.remove =           stk3310_remove,

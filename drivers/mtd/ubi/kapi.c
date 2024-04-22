@@ -152,7 +152,7 @@ struct ubi_volume_desc *ubi_open_volume(int ubi_num, int vol_id, int mode)
 
 	spin_lock(&ubi->volumes_lock);
 	vol = ubi->volumes[vol_id];
-	if (!vol)
+	if (!vol || vol->is_dead)
 		goto out_unlock;
 
 	err = -EBUSY;
@@ -280,6 +280,41 @@ struct ubi_volume_desc *ubi_open_volume_nm(int ubi_num, const char *name,
 EXPORT_SYMBOL_GPL(ubi_open_volume_nm);
 
 /**
+ * ubi_get_num_by_path - get UBI device and volume number from device path
+ * @pathname: volume character device node path
+ * @ubi_num: pointer to UBI device number to be set
+ * @vol_id: pointer to UBI volume ID to be set
+ *
+ * Returns 0 on success and sets ubi_num and vol_id, returns error otherwise.
+ */
+int ubi_get_num_by_path(const char *pathname, int *ubi_num, int *vol_id)
+{
+	int error;
+	struct path path;
+	struct kstat stat;
+
+	error = kern_path(pathname, LOOKUP_FOLLOW, &path);
+	if (error)
+		return error;
+
+	error = vfs_getattr(&path, &stat, STATX_TYPE, AT_STATX_SYNC_AS_STAT);
+	path_put(&path);
+	if (error)
+		return error;
+
+	if (!S_ISCHR(stat.mode))
+		return -EINVAL;
+
+	*ubi_num = ubi_major2num(MAJOR(stat.rdev));
+	*vol_id = MINOR(stat.rdev) - 1;
+
+	if (*vol_id < 0 || *ubi_num < 0)
+		return -ENODEV;
+
+	return 0;
+}
+
+/**
  * ubi_open_volume_path - open UBI volume by its character device node path.
  * @pathname: volume character device node path
  * @mode: open mode
@@ -290,32 +325,17 @@ EXPORT_SYMBOL_GPL(ubi_open_volume_nm);
 struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode)
 {
 	int error, ubi_num, vol_id;
-	struct path path;
-	struct kstat stat;
 
 	dbg_gen("open volume %s, mode %d", pathname, mode);
 
 	if (!pathname || !*pathname)
 		return ERR_PTR(-EINVAL);
 
-	error = kern_path(pathname, LOOKUP_FOLLOW, &path);
+	error = ubi_get_num_by_path(pathname, &ubi_num, &vol_id);
 	if (error)
 		return ERR_PTR(error);
 
-	error = vfs_getattr(&path, &stat, STATX_TYPE, AT_STATX_SYNC_AS_STAT);
-	path_put(&path);
-	if (error)
-		return ERR_PTR(error);
-
-	if (!S_ISCHR(stat.mode))
-		return ERR_PTR(-EINVAL);
-
-	ubi_num = ubi_major2num(MAJOR(stat.rdev));
-	vol_id = MINOR(stat.rdev) - 1;
-
-	if (vol_id >= 0 && ubi_num >= 0)
-		return ubi_open_volume(ubi_num, vol_id, mode);
-	return ERR_PTR(-ENODEV);
+	return ubi_open_volume(ubi_num, vol_id, mode);
 }
 EXPORT_SYMBOL_GPL(ubi_open_volume_path);
 

@@ -25,8 +25,8 @@ lsio_subsys: bus@5d000000 {
 		compatible = "fsl,imx27-pwm";
 		reg = <0x5d000000 0x10000>;
 		clock-names = "ipg", "per";
-		clocks = <&pwm0_lpcg 4>,
-			 <&pwm0_lpcg 1>;
+		clocks = <&pwm0_lpcg IMX_LPCG_CLK_6>,
+			 <&pwm0_lpcg IMX_LPCG_CLK_1>;
 		assigned-clocks = <&clk IMX_SC_R_PWM_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
 		#pwm-cells = <3>;
@@ -38,8 +38,8 @@ lsio_subsys: bus@5d000000 {
 		compatible = "fsl,imx27-pwm";
 		reg = <0x5d010000 0x10000>;
 		clock-names = "ipg", "per";
-		clocks = <&pwm1_lpcg 4>,
-			 <&pwm1_lpcg 1>;
+		clocks = <&pwm1_lpcg IMX_LPCG_CLK_6>,
+			 <&pwm1_lpcg IMX_LPCG_CLK_1>;
 		assigned-clocks = <&clk IMX_SC_R_PWM_1 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
 		#pwm-cells = <3>;
@@ -51,8 +51,8 @@ lsio_subsys: bus@5d000000 {
 		compatible = "fsl,imx27-pwm";
 		reg = <0x5d020000 0x10000>;
 		clock-names = "ipg", "per";
-		clocks = <&pwm2_lpcg 4>,
-			 <&pwm2_lpcg 1>;
+		clocks = <&pwm2_lpcg IMX_LPCG_CLK_6>,
+			 <&pwm2_lpcg IMX_LPCG_CLK_1>;
 		assigned-clocks = <&clk IMX_SC_R_PWM_2 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
 		#pwm-cells = <3>;
@@ -64,8 +64,8 @@ lsio_subsys: bus@5d000000 {
 		compatible = "fsl,imx27-pwm";
 		reg = <0x5d030000 0x10000>;
 		clock-names = "ipg", "per";
-		clocks = <&pwm3_lpcg 4>,
-			 <&pwm3_lpcg 1>;
+		clocks = <&pwm3_lpcg IMX_LPCG_CLK_6>,
+			 <&pwm3_lpcg IMX_LPCG_CLK_1>;
 		assigned-clocks = <&clk IMX_SC_R_PWM_3 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
 		#pwm-cells = <3>;

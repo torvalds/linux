@@ -172,7 +172,6 @@ struct pwm_chip *dwc_pwm_alloc(struct device *dev)
 	dwc->clk_ns = 10;
 	chip->ops = &dwc_pwm_ops;
 
-	dev_set_drvdata(dev, chip);
 	return chip;
 }
 EXPORT_SYMBOL_GPL(dwc_pwm_alloc);

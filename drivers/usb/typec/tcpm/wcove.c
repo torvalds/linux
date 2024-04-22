@@ -535,7 +535,7 @@ static irqreturn_t wcove_typec_irq(int irq, void *data)
 				goto err;
 			}
 
-			tcpm_pd_receive(wcove->tcpm, &msg);
+			tcpm_pd_receive(wcove->tcpm, &msg, TCPC_TX_SOP);
 
 			ret = regmap_read(wcove->regmap, USBC_RXSTATUS,
 					  &status);

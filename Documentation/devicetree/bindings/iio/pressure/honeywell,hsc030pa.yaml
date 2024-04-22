@@ -99,6 +99,9 @@ required:
   - honeywell,transfer-function
   - honeywell,pressure-triplet
 
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml
+
 additionalProperties: false
 
 dependentSchemas:

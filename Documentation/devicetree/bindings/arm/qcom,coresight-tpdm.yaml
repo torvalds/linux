@@ -44,19 +44,35 @@ properties:
     minItems: 1
     maxItems: 2
 
-  qcom,dsb-element-size:
+  qcom,dsb-element-bits:
     description:
       Specifies the DSB(Discrete Single Bit) element size supported by
       the monitor. The associated aggregator will read this size before it
       is enabled. DSB element size currently only supports 32-bit and 64-bit.
-    $ref: /schemas/types.yaml#/definitions/uint8
     enum: [32, 64]
+
+  qcom,cmb-element-bits:
+    description:
+      Specifies the CMB(Continuous Multi-Bit) element size supported by
+      the monitor. The associated aggregator will read this size before it
+      is enabled. CMB element size currently only supports 8-bit, 32-bit
+      and 64-bit.
+    enum: [8, 32, 64]
 
   qcom,dsb-msrs-num:
     description:
       Specifies the number of DSB(Discrete Single Bit) MSR(mux select register)
       registers supported by the monitor. If this property is not configured
       or set to 0, it means this DSB TPDM doesn't support MSR.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 0
+    maximum: 32
+
+  qcom,cmb-msrs-num:
+    description:
+      Specifies the number of CMB MSR(mux select register) registers supported
+      by the monitor. If this property is not configured or set to 0, it means
+      this TPDM doesn't support CMB MSR.
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0
     maximum: 32
@@ -94,7 +110,7 @@ examples:
       compatible = "qcom,coresight-tpdm", "arm,primecell";
       reg = <0x0684c000 0x1000>;
 
-      qcom,dsb-element-size = /bits/ 8 <32>;
+      qcom,dsb-element-bits = <32>;
       qcom,dsb-msrs-num = <16>;
 
       clocks = <&aoss_qmp>;
@@ -110,4 +126,22 @@ examples:
       };
     };
 
+    tpdm@6c29000 {
+      compatible = "qcom,coresight-tpdm", "arm,primecell";
+      reg = <0x06c29000 0x1000>;
+
+      qcom,cmb-element-bits = <64>;
+      qcom,cmb-msrs-num = <32>;
+
+      clocks = <&aoss_qmp>;
+      clock-names = "apb_pclk";
+
+      out-ports {
+        port {
+          tpdm_ipcc_out_funnel_center: endpoint {
+            remote-endpoint = <&funnel_center_in_tpdm_ipcc>;
+          };
+        };
+      };
+    };
 ...

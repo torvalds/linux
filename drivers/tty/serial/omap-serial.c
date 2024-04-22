@@ -508,7 +508,7 @@ static void serial_omap_rdi(struct uart_omap_port *up, unsigned int lsr)
 
 	up->port.icount.rx++;
 
-	if (uart_handle_sysrq_char(&up->port, ch))
+	if (uart_prepare_sysrq_char(&up->port, ch))
 		return;
 
 	uart_insert_char(&up->port, lsr, UART_LSR_OE, ch, TTY_NORMAL);
@@ -563,7 +563,7 @@ static irqreturn_t serial_omap_irq(int irq, void *dev_id)
 		}
 	} while (max_count--);
 
-	uart_port_unlock(&up->port);
+	uart_unlock_and_check_sysrq(&up->port);
 
 	tty_flip_buffer_push(&up->port.state->port);
 
@@ -1212,13 +1212,10 @@ serial_omap_console_write(struct console *co, const char *s,
 	unsigned int ier;
 	int locked = 1;
 
-	local_irq_save(flags);
-	if (up->port.sysrq)
-		locked = 0;
-	else if (oops_in_progress)
-		locked = uart_port_trylock(&up->port);
+	if (oops_in_progress)
+		locked = uart_port_trylock_irqsave(&up->port, &flags);
 	else
-		uart_port_lock(&up->port);
+		uart_port_lock_irqsave(&up->port, &flags);
 
 	/*
 	 * First save the IER then disable the interrupts
@@ -1245,8 +1242,7 @@ serial_omap_console_write(struct console *co, const char *s,
 		check_modem_status(up);
 
 	if (locked)
-		uart_port_unlock(&up->port);
-	local_irq_restore(flags);
+		uart_port_unlock_irqrestore(&up->port, flags);
 }
 
 static int __init

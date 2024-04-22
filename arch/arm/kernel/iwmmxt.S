@@ -18,18 +18,6 @@
 #include <asm/assembler.h>
 #include "iwmmxt.h"
 
-#if defined(CONFIG_CPU_PJ4) || defined(CONFIG_CPU_PJ4B)
-#define PJ4(code...)		code
-#define XSC(code...)
-#elif defined(CONFIG_CPU_MOHAWK) || \
-	defined(CONFIG_CPU_XSC3) || \
-	defined(CONFIG_CPU_XSCALE)
-#define PJ4(code...)
-#define XSC(code...)		code
-#else
-#error "Unsupported iWMMXt architecture"
-#endif
-
 #define MMX_WR0		 	(0x00)
 #define MMX_WR1		 	(0x08)
 #define MMX_WR2		 	(0x10)
@@ -81,17 +69,13 @@ ENDPROC(iwmmxt_undef_handler)
 ENTRY(iwmmxt_task_enable)
 	inc_preempt_count r10, r3
 
-	XSC(mrc	p15, 0, r2, c15, c1, 0)
-	PJ4(mrc p15, 0, r2, c1, c0, 2)
+	mrc	p15, 0, r2, c15, c1, 0
 	@ CP0 and CP1 accessible?
-	XSC(tst	r2, #0x3)
-	PJ4(tst	r2, #0xf)
+	tst	r2, #0x3
 	bne	4f				@ if so no business here
 	@ enable access to CP0 and CP1
-	XSC(orr	r2, r2, #0x3)
-	XSC(mcr	p15, 0, r2, c15, c1, 0)
-	PJ4(orr	r2, r2, #0xf)
-	PJ4(mcr	p15, 0, r2, c1, c0, 2)
+	orr	r2, r2, #0x3
+	mcr	p15, 0, r2, c15, c1, 0
 
 	ldr	r3, =concan_owner
 	ldr	r2, [r0, #S_PC]			@ current task pc value
@@ -218,12 +202,9 @@ ENTRY(iwmmxt_task_disable)
 	bne	1f				@ no: quit
 
 	@ enable access to CP0 and CP1
-	XSC(mrc	p15, 0, r4, c15, c1, 0)
-	XSC(orr	r4, r4, #0x3)
-	XSC(mcr	p15, 0, r4, c15, c1, 0)
-	PJ4(mrc p15, 0, r4, c1, c0, 2)
-	PJ4(orr	r4, r4, #0xf)
-	PJ4(mcr	p15, 0, r4, c1, c0, 2)
+	mrc	p15, 0, r4, c15, c1, 0
+	orr	r4, r4, #0x3
+	mcr	p15, 0, r4, c15, c1, 0
 
 	mov	r0, #0				@ nothing to load
 	str	r0, [r3]			@ no more current owner
@@ -232,10 +213,8 @@ ENTRY(iwmmxt_task_disable)
 	bl	concan_save
 
 	@ disable access to CP0 and CP1
-	XSC(bic	r4, r4, #0x3)
-	XSC(mcr	p15, 0, r4, c15, c1, 0)
-	PJ4(bic	r4, r4, #0xf)
-	PJ4(mcr	p15, 0, r4, c1, c0, 2)
+	bic	r4, r4, #0x3
+	mcr	p15, 0, r4, c15, c1, 0
 
 	mrc	p15, 0, r2, c2, c0, 0
 	mov	r2, r2				@ cpwait
@@ -330,11 +309,9 @@ ENDPROC(iwmmxt_task_restore)
  */
 ENTRY(iwmmxt_task_switch)
 
-	XSC(mrc	p15, 0, r1, c15, c1, 0)
-	PJ4(mrc	p15, 0, r1, c1, c0, 2)
+	mrc	p15, 0, r1, c15, c1, 0
 	@ CP0 and CP1 accessible?
-	XSC(tst	r1, #0x3)
-	PJ4(tst	r1, #0xf)
+	tst	r1, #0x3
 	bne	1f				@ yes: block them for next task
 
 	ldr	r2, =concan_owner
@@ -344,10 +321,8 @@ ENTRY(iwmmxt_task_switch)
 	retne	lr				@ no: leave Concan disabled
 
 1:	@ flip Concan access
-	XSC(eor	r1, r1, #0x3)
-	XSC(mcr	p15, 0, r1, c15, c1, 0)
-	PJ4(eor r1, r1, #0xf)
-	PJ4(mcr	p15, 0, r1, c1, c0, 2)
+	eor	r1, r1, #0x3
+	mcr	p15, 0, r1, c15, c1, 0
 
 	mrc	p15, 0, r1, c2, c0, 0
 	sub	pc, lr, r1, lsr #32		@ cpwait and return

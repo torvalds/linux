@@ -19,8 +19,8 @@ include ../lib.mk
 
 $(OUTPUT)/subdir:
 	mkdir -p $@
-$(OUTPUT)/script:
-	echo '#!/bin/sh' > $@
+$(OUTPUT)/script: Makefile
+	echo '#!/bin/bash' > $@
 	echo 'exit $$*' >> $@
 	chmod +x $@
 $(OUTPUT)/execveat.symlink: $(OUTPUT)/execveat

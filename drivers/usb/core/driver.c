@@ -1710,9 +1710,7 @@ int usb_autoresume_device(struct usb_device *udev)
 {
 	int	status;
 
-	status = pm_runtime_get_sync(&udev->dev);
-	if (status < 0)
-		pm_runtime_put_sync(&udev->dev);
+	status = pm_runtime_resume_and_get(&udev->dev);
 	dev_vdbg(&udev->dev, "%s: cnt %d -> %d\n",
 			__func__, atomic_read(&udev->dev.power.usage_count),
 			status);
@@ -1818,9 +1816,7 @@ int usb_autopm_get_interface(struct usb_interface *intf)
 {
 	int	status;
 
-	status = pm_runtime_get_sync(&intf->dev);
-	if (status < 0)
-		pm_runtime_put_sync(&intf->dev);
+	status = pm_runtime_resume_and_get(&intf->dev);
 	dev_vdbg(&intf->dev, "%s: cnt %d -> %d\n",
 			__func__, atomic_read(&intf->dev.power.usage_count),
 			status);

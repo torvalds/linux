@@ -178,7 +178,6 @@ struct etr_buf {
  * @size:	trace buffer size for this TMC (common for all modes).
  * @max_burst_size: The maximum burst size that can be initiated by
  *		TMC-ETR on AXI bus.
- * @mode:	how this TMC is being used.
  * @config_type: TMC variant, must be of type @tmc_config_type.
  * @memwidth:	width of the memory interface databus, in bytes.
  * @trigger_cntr: amount of words to store after a trigger.
@@ -203,7 +202,6 @@ struct tmc_drvdata {
 	u32			len;
 	u32			size;
 	u32			max_burst_size;
-	u32			mode;
 	enum tmc_config_type	config_type;
 	enum tmc_mem_intf_width	memwidth;
 	u32			trigger_cntr;

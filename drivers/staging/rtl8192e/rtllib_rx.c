@@ -487,8 +487,8 @@ void rtllib_indicate_packets(struct rtllib_device *ieee,
 	}
 }
 
-void rtllib_FlushRxTsPendingPkts(struct rtllib_device *ieee,
-				 struct rx_ts_record *ts)
+void rtllib_flush_rx_ts_pending_pkts(struct rtllib_device *ieee,
+				     struct rx_ts_record *ts)
 {
 	struct rx_reorder_entry *pRxReorderEntry;
 	u8 RfdCnt = 0;
@@ -865,9 +865,6 @@ static size_t rtllib_rx_get_hdrlen(struct rtllib_device *ieee,
 		rx_stats->bContainHTC = true;
 	}
 
-	if (RTLLIB_QOS_HAS_SEQ(fc))
-		rx_stats->bIsQosData = true;
-
 	return hdrlen;
 }
 
@@ -943,10 +940,9 @@ static void rtllib_rx_extract_addr(struct rtllib_device *ieee,
 static int rtllib_rx_data_filter(struct rtllib_device *ieee, struct ieee80211_hdr *hdr,
 				 u8 *dst, u8 *src, u8 *bssid, u8 *addr2)
 {
-	u8 type, stype;
 	u16 fc = le16_to_cpu(hdr->frame_control);
-	type = WLAN_FC_GET_TYPE(fc);
-	stype = WLAN_FC_GET_STYPE(fc);
+	u8 type = WLAN_FC_GET_TYPE(fc);
+	u8 stype = WLAN_FC_GET_STYPE(fc);
 
 	/* Filter frames from different BSS */
 	if (ieee80211_has_a4(hdr->frame_control) &&
@@ -1149,9 +1145,9 @@ static void rtllib_rx_check_leave_lps(struct rtllib_device *ieee, u8 unicast,
 {
 	if (unicast) {
 		if (ieee->link_state == MAC80211_LINKED) {
-			if (((ieee->link_detect_info.NumRxUnicastOkInPeriod +
+			if (((ieee->link_detect_info.num_rx_unicast_ok_in_period +
 			    ieee->link_detect_info.num_tx_ok_in_period) > 8) ||
-			    (ieee->link_detect_info.NumRxUnicastOkInPeriod > 2)) {
+			    (ieee->link_detect_info.num_rx_unicast_ok_in_period > 2)) {
 				ieee->leisure_ps_leave(ieee->dev);
 			}
 		}
@@ -1284,7 +1280,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	/* Filter WAPI DATA Frame */
 
 	/* Update statstics for AP roaming */
-	ieee->link_detect_info.NumRecvDataInPeriod++;
+	ieee->link_detect_info.num_recv_data_in_period++;
 	ieee->link_detect_info.num_rx_ok_in_period++;
 
 	/* Data frame - extract src/dst addresses */
@@ -1363,7 +1359,7 @@ static int rtllib_rx_InfraAdhoc(struct rtllib_device *ieee, struct sk_buff *skb,
 	else
 		nr_subframes = 1;
 	if (unicast)
-		ieee->link_detect_info.NumRxUnicastOkInPeriod += nr_subframes;
+		ieee->link_detect_info.num_rx_unicast_ok_in_period += nr_subframes;
 	rtllib_rx_check_leave_lps(ieee, unicast, nr_subframes);
 
 	/* Indicate packets to upper layer or Rx Reorder */
@@ -1689,7 +1685,7 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 	    info_element->data[2] == 0x4c &&
 	    info_element->data[3] == 0x01 &&
 	    info_element->data[4] == 0x02)
-		network->Turbo_Enable = 1;
+		network->turbo_enable = 1;
 
 	if (*tmp_htcap_len == 0) {
 		if (info_element->len >= 4 &&
@@ -1819,9 +1815,9 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 		if (info_element->len == 6) {
 			memcpy(network->CcxRmState, &info_element->data[4], 2);
 			if (network->CcxRmState[0] != 0)
-				network->bCcxRmEnable = true;
+				network->ccx_rm_enable = true;
 			else
-				network->bCcxRmEnable = false;
+				network->ccx_rm_enable = false;
 			network->MBssidMask = network->CcxRmState[1] & 0x07;
 			if (network->MBssidMask != 0) {
 				network->bMBssidValid = true;
@@ -1834,7 +1830,7 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 				network->bMBssidValid = false;
 			}
 		} else {
-			network->bCcxRmEnable = false;
+			network->ccx_rm_enable = false;
 		}
 	}
 	if (info_element->len > 4  &&
@@ -1844,10 +1840,10 @@ static void rtllib_parse_mife_generic(struct rtllib_device *ieee,
 	    info_element->data[3] == 0x03) {
 		if (info_element->len == 5) {
 			network->bWithCcxVerNum = true;
-			network->BssCcxVerNumber = info_element->data[4];
+			network->bss_ccx_ver_number = info_element->data[4];
 		} else {
 			network->bWithCcxVerNum = false;
-			network->BssCcxVerNumber = 0;
+			network->bss_ccx_ver_number = 0;
 		}
 	}
 	if (info_element->len > 4  &&
@@ -2100,12 +2096,12 @@ int rtllib_parse_info_param(struct rtllib_device *ieee,
 				     & SUPPORT_CKIP_MIC) ||
 				     (info_element->data[IE_CISCO_FLAG_POSITION]
 				     & SUPPORT_CKIP_PK))
-					network->bCkipSupported = true;
+					network->ckip_supported = true;
 				else
-					network->bCkipSupported = false;
+					network->ckip_supported = false;
 			} else {
 				network->bWithAironetIE = false;
-				network->bCkipSupported = false;
+				network->ckip_supported = false;
 			}
 			break;
 		case MFIE_TYPE_QOS_PARAMETER:
@@ -2184,7 +2180,7 @@ static inline int rtllib_network_init(
 	network->realtek_cap_exit = false;
 	network->marvell_cap_exist = false;
 	network->airgo_cap_exist = false;
-	network->Turbo_Enable = 0;
+	network->turbo_enable = 0;
 	network->SignalStrength = stats->SignalStrength;
 	network->RSSI = stats->SignalStrength;
 	network->CountryIeLen = 0;
@@ -2344,20 +2340,20 @@ static inline void update_network(struct rtllib_device *ieee,
 
 	dst->SignalStrength = src->SignalStrength;
 	dst->RSSI = src->RSSI;
-	dst->Turbo_Enable = src->Turbo_Enable;
+	dst->turbo_enable = src->turbo_enable;
 
 	dst->CountryIeLen = src->CountryIeLen;
 	memcpy(dst->CountryIeBuf, src->CountryIeBuf, src->CountryIeLen);
 
 	dst->bWithAironetIE = src->bWithAironetIE;
-	dst->bCkipSupported = src->bCkipSupported;
+	dst->ckip_supported = src->ckip_supported;
 	memcpy(dst->CcxRmState, src->CcxRmState, 2);
-	dst->bCcxRmEnable = src->bCcxRmEnable;
+	dst->ccx_rm_enable = src->ccx_rm_enable;
 	dst->MBssidMask = src->MBssidMask;
 	dst->bMBssidValid = src->bMBssidValid;
 	memcpy(dst->MBssid, src->MBssid, 6);
 	dst->bWithCcxVerNum = src->bWithCcxVerNum;
-	dst->BssCcxVerNumber = src->BssCcxVerNumber;
+	dst->bss_ccx_ver_number = src->bss_ccx_ver_number;
 }
 
 static int IsPassiveChannel(struct rtllib_device *rtllib, u8 channel)
@@ -2470,7 +2466,7 @@ static inline void rtllib_process_probe_response(
 		}
 		if (ieee80211_is_beacon(frame_ctl)) {
 			if (ieee->link_state >= MAC80211_LINKED)
-				ieee->link_detect_info.NumRecvBcnInPeriod++;
+				ieee->link_detect_info.num_recv_bcn_in_period++;
 		}
 	}
 	list_for_each_entry(target, &ieee->network_list, list) {

@@ -293,6 +293,96 @@ static int write_head(struct ubifs_info *c, int jhead, void *buf, int len,
 }
 
 /**
+ * __queue_and_wait - queue a task and wait until the task is waked up.
+ * @c: UBIFS file-system description object
+ *
+ * This function adds current task in queue and waits until the task is waked
+ * up. This function should be called with @c->reserve_space_wq locked.
+ */
+static void __queue_and_wait(struct ubifs_info *c)
+{
+	DEFINE_WAIT(wait);
+
+	__add_wait_queue_entry_tail_exclusive(&c->reserve_space_wq, &wait);
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	spin_unlock(&c->reserve_space_wq.lock);
+
+	schedule();
+	finish_wait(&c->reserve_space_wq, &wait);
+}
+
+/**
+ * wait_for_reservation - try queuing current task to wait until waked up.
+ * @c: UBIFS file-system description object
+ *
+ * This function queues current task to wait until waked up, if queuing is
+ * started(@c->need_wait_space is not %0). Returns %true if current task is
+ * added in queue, otherwise %false is returned.
+ */
+static bool wait_for_reservation(struct ubifs_info *c)
+{
+	if (likely(atomic_read(&c->need_wait_space) == 0))
+		/* Quick path to check whether queuing is started. */
+		return false;
+
+	spin_lock(&c->reserve_space_wq.lock);
+	if (atomic_read(&c->need_wait_space) == 0) {
+		/* Queuing is not started, don't queue current task. */
+		spin_unlock(&c->reserve_space_wq.lock);
+		return false;
+	}
+
+	__queue_and_wait(c);
+	return true;
+}
+
+/**
+ * wake_up_reservation - wake up first task in queue or stop queuing.
+ * @c: UBIFS file-system description object
+ *
+ * This function wakes up the first task in queue if it exists, or stops
+ * queuing if no tasks in queue.
+ */
+static void wake_up_reservation(struct ubifs_info *c)
+{
+	spin_lock(&c->reserve_space_wq.lock);
+	if (waitqueue_active(&c->reserve_space_wq))
+		wake_up_locked(&c->reserve_space_wq);
+	else
+		/*
+		 * Compared with wait_for_reservation(), set @c->need_wait_space
+		 * under the protection of wait queue lock, which can avoid that
+		 * @c->need_wait_space is set to 0 after new task queued.
+		 */
+		atomic_set(&c->need_wait_space, 0);
+	spin_unlock(&c->reserve_space_wq.lock);
+}
+
+/**
+ * wake_up_reservation - add current task in queue or start queuing.
+ * @c: UBIFS file-system description object
+ *
+ * This function starts queuing if queuing is not started, otherwise adds
+ * current task in queue.
+ */
+static void add_or_start_queue(struct ubifs_info *c)
+{
+	spin_lock(&c->reserve_space_wq.lock);
+	if (atomic_cmpxchg(&c->need_wait_space, 0, 1) == 0) {
+		/* Starts queuing, task can go on directly. */
+		spin_unlock(&c->reserve_space_wq.lock);
+		return;
+	}
+
+	/*
+	 * There are at least two tasks have retried more than 32 times
+	 * at certain point, first task has started queuing, just queue
+	 * the left tasks.
+	 */
+	__queue_and_wait(c);
+}
+
+/**
  * make_reservation - reserve journal space.
  * @c: UBIFS file-system description object
  * @jhead: journal head
@@ -311,33 +401,27 @@ static int write_head(struct ubifs_info *c, int jhead, void *buf, int len,
 static int make_reservation(struct ubifs_info *c, int jhead, int len)
 {
 	int err, cmt_retries = 0, nospc_retries = 0;
+	bool blocked = wait_for_reservation(c);
 
 again:
 	down_read(&c->commit_sem);
 	err = reserve_space(c, jhead, len);
-	if (!err)
+	if (!err) {
 		/* c->commit_sem will get released via finish_reservation(). */
-		return 0;
+		goto out_wake_up;
+	}
 	up_read(&c->commit_sem);
 
 	if (err == -ENOSPC) {
 		/*
 		 * GC could not make any progress. We should try to commit
-		 * once because it could make some dirty space and GC would
-		 * make progress, so make the error -EAGAIN so that the below
+		 * because it could make some dirty space and GC would make
+		 * progress, so make the error -EAGAIN so that the below
 		 * will commit and re-try.
 		 */
-		if (nospc_retries++ < 2) {
-			dbg_jnl("no space, retry");
-			err = -EAGAIN;
-		}
-
-		/*
-		 * This means that the budgeting is incorrect. We always have
-		 * to be able to write to the media, because all operations are
-		 * budgeted. Deletions are not budgeted, though, but we reserve
-		 * an extra LEB for them.
-		 */
+		nospc_retries++;
+		dbg_jnl("no space, retry");
+		err = -EAGAIN;
 	}
 
 	if (err != -EAGAIN)
@@ -349,15 +433,37 @@ again:
 	 */
 	if (cmt_retries > 128) {
 		/*
-		 * This should not happen unless the journal size limitations
-		 * are too tough.
+		 * This should not happen unless:
+		 * 1. The journal size limitations are too tough.
+		 * 2. The budgeting is incorrect. We always have to be able to
+		 *    write to the media, because all operations are budgeted.
+		 *    Deletions are not budgeted, though, but we reserve an
+		 *    extra LEB for them.
 		 */
-		ubifs_err(c, "stuck in space allocation");
+		ubifs_err(c, "stuck in space allocation, nospc_retries %d",
+			  nospc_retries);
 		err = -ENOSPC;
 		goto out;
-	} else if (cmt_retries > 32)
-		ubifs_warn(c, "too many space allocation re-tries (%d)",
-			   cmt_retries);
+	} else if (cmt_retries > 32) {
+		/*
+		 * It's almost impossible to happen, unless there are many tasks
+		 * making reservation concurrently and someone task has retried
+		 * gc + commit for many times, generated available space during
+		 * this period are grabbed by other tasks.
+		 * But if it happens, start queuing up all tasks that will make
+		 * space reservation, then there is only one task making space
+		 * reservation at any time, and it can always make success under
+		 * the premise of correct budgeting.
+		 */
+		ubifs_warn(c, "too many space allocation cmt_retries (%d) "
+			   "nospc_retries (%d), start queuing tasks",
+			   cmt_retries, nospc_retries);
+
+		if (!blocked) {
+			blocked = true;
+			add_or_start_queue(c);
+		}
+	}
 
 	dbg_jnl("-EAGAIN, commit and retry (retried %d times)",
 		cmt_retries);
@@ -365,7 +471,7 @@ again:
 
 	err = ubifs_run_commit(c);
 	if (err)
-		return err;
+		goto out_wake_up;
 	goto again;
 
 out:
@@ -379,6 +485,27 @@ out:
 		ubifs_dump_lprops(c);
 		cmt_retries = dbg_check_lprops(c);
 		up_write(&c->commit_sem);
+	}
+out_wake_up:
+	if (blocked) {
+		/*
+		 * Only tasks that have ever started queuing or ever been queued
+		 * can wake up other queued tasks, which can make sure that
+		 * there is only one task waked up to make space reservation.
+		 * For example:
+		 *      task A          task B           task C
+		 *                 make_reservation  make_reservation
+		 * reserve_space // 0
+		 * wake_up_reservation
+		 *                  atomic_cmpxchg // 0, start queuing
+		 *                  reserve_space
+		 *                                    wait_for_reservation
+		 *                                     __queue_and_wait
+		 *                                      add_wait_queue
+		 *  if (blocked) // false
+		 *  // So that task C won't be waked up to race with task B
+		 */
+		wake_up_reservation(c);
 	}
 	return err;
 }

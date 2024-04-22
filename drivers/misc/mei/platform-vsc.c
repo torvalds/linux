@@ -384,7 +384,7 @@ err_cancel:
 	return ret;
 }
 
-static int mei_vsc_remove(struct platform_device *pdev)
+static void mei_vsc_remove(struct platform_device *pdev)
 {
 	struct mei_device *mei_dev = platform_get_drvdata(pdev);
 
@@ -395,15 +395,18 @@ static int mei_vsc_remove(struct platform_device *pdev)
 	mei_disable_interrupts(mei_dev);
 
 	mei_deregister(mei_dev);
-
-	return 0;
 }
 
 static int mei_vsc_suspend(struct device *dev)
 {
 	struct mei_device *mei_dev = dev_get_drvdata(dev);
+	struct mei_vsc_hw *hw = mei_dev_to_vsc_hw(mei_dev);
 
 	mei_stop(mei_dev);
+
+	mei_disable_interrupts(mei_dev);
+
+	vsc_tp_free_irq(hw->tp);
 
 	return 0;
 }
@@ -411,16 +414,26 @@ static int mei_vsc_suspend(struct device *dev)
 static int mei_vsc_resume(struct device *dev)
 {
 	struct mei_device *mei_dev = dev_get_drvdata(dev);
+	struct mei_vsc_hw *hw = mei_dev_to_vsc_hw(mei_dev);
 	int ret;
+
+	ret = vsc_tp_request_irq(hw->tp);
+	if (ret)
+		return ret;
 
 	ret = mei_restart(mei_dev);
 	if (ret)
-		return ret;
+		goto err_free;
 
 	/* start timer if stopped in suspend */
 	schedule_delayed_work(&mei_dev->timer_work, HZ);
 
 	return 0;
+
+err_free:
+	vsc_tp_free_irq(hw->tp);
+
+	return ret;
 }
 
 static DEFINE_SIMPLE_DEV_PM_OPS(mei_vsc_pm_ops, mei_vsc_suspend, mei_vsc_resume);
@@ -433,7 +446,7 @@ MODULE_DEVICE_TABLE(platform, mei_vsc_id_table);
 
 static struct platform_driver mei_vsc_drv = {
 	.probe = mei_vsc_probe,
-	.remove = mei_vsc_remove,
+	.remove_new = mei_vsc_remove,
 	.id_table = mei_vsc_id_table,
 	.driver = {
 		.name = MEI_VSC_DRV_NAME,

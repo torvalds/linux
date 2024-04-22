@@ -144,9 +144,6 @@ static void mei_gsc_remove(struct auxiliary_device *aux_dev)
 	struct mei_me_hw *hw;
 
 	dev = dev_get_drvdata(&aux_dev->dev);
-	if (!dev)
-		return;
-
 	hw = to_me_hw(dev);
 
 	mei_stop(dev);
@@ -168,9 +165,6 @@ static int __maybe_unused mei_gsc_pm_suspend(struct device *device)
 {
 	struct mei_device *dev = dev_get_drvdata(device);
 
-	if (!dev)
-		return -ENODEV;
-
 	mei_stop(dev);
 
 	mei_disable_interrupts(dev);
@@ -185,9 +179,6 @@ static int __maybe_unused mei_gsc_pm_resume(struct device *device)
 	struct mei_aux_device *adev;
 	int err;
 	struct mei_me_hw *hw;
-
-	if (!dev)
-		return -ENODEV;
 
 	hw = to_me_hw(dev);
 	aux_dev = to_auxiliary_dev(device);
@@ -211,8 +202,6 @@ static int __maybe_unused mei_gsc_pm_runtime_idle(struct device *device)
 {
 	struct mei_device *dev = dev_get_drvdata(device);
 
-	if (!dev)
-		return -ENODEV;
 	if (mei_write_is_idle(dev))
 		pm_runtime_autosuspend(device);
 
@@ -224,9 +213,6 @@ static int  __maybe_unused mei_gsc_pm_runtime_suspend(struct device *device)
 	struct mei_device *dev = dev_get_drvdata(device);
 	struct mei_me_hw *hw;
 	int ret;
-
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->device_lock);
 
@@ -251,9 +237,6 @@ static int __maybe_unused mei_gsc_pm_runtime_resume(struct device *device)
 	struct mei_device *dev = dev_get_drvdata(device);
 	struct mei_me_hw *hw;
 	irqreturn_t irq_ret;
-
-	if (!dev)
-		return -ENODEV;
 
 	mutex_lock(&dev->device_lock);
 
@@ -293,6 +276,10 @@ static const struct auxiliary_device_id mei_gsc_id_table[] = {
 		.driver_data = MEI_ME_GSCFI_CFG,
 	},
 	{
+		.name = "xe.mei-gscfi",
+		.driver_data = MEI_ME_GSCFI_CFG,
+	},
+	{
 		/* sentinel */
 	}
 };
@@ -312,5 +299,6 @@ module_auxiliary_driver(mei_gsc_driver);
 MODULE_AUTHOR("Intel Corporation");
 MODULE_ALIAS("auxiliary:i915.mei-gsc");
 MODULE_ALIAS("auxiliary:i915.mei-gscfi");
+MODULE_ALIAS("auxiliary:xe.mei-gscfi");
 MODULE_DESCRIPTION("Intel(R) Graphics System Controller");
 MODULE_LICENSE("GPL");

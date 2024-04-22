@@ -203,8 +203,8 @@ static int pn532_uart_rx_is_frame(struct sk_buff *skb)
 	return 0;
 }
 
-static ssize_t pn532_receive_buf(struct serdev_device *serdev,
-				 const u8 *data, size_t count)
+static size_t pn532_receive_buf(struct serdev_device *serdev,
+				const u8 *data, size_t count)
 {
 	struct pn532_uart_phy *dev = serdev_device_get_drvdata(serdev);
 	size_t i;

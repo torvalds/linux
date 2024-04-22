@@ -160,7 +160,7 @@ void _intc_enable(struct irq_data *data, unsigned long handle);
 /* core.c */
 extern struct list_head intc_list;
 extern raw_spinlock_t intc_big_lock;
-extern struct bus_type intc_subsys;
+extern const struct bus_type intc_subsys;
 
 unsigned int intc_get_dfl_prio_level(void);
 unsigned int intc_get_prio_level(unsigned int irq);

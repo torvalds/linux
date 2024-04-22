@@ -588,16 +588,14 @@ static void msm_complete_rx_dma(void *args)
 		if (!(port->read_status_mask & MSM_UART_SR_RX_BREAK))
 			flag = TTY_NORMAL;
 
-		uart_port_unlock_irqrestore(port, flags);
-		sysrq = uart_handle_sysrq_char(port, dma->virt[i]);
-		uart_port_lock_irqsave(port, &flags);
+		sysrq = uart_prepare_sysrq_char(port, dma->virt[i]);
 		if (!sysrq)
 			tty_insert_flip_char(tport, dma->virt[i], flag);
 	}
 
 	msm_start_rx_dma(msm_port);
 done:
-	uart_port_unlock_irqrestore(port, flags);
+	uart_unlock_and_check_sysrq_irqrestore(port, flags);
 
 	if (count)
 		tty_flip_buffer_push(tport);
@@ -763,9 +761,7 @@ static void msm_handle_rx_dm(struct uart_port *port, unsigned int misr)
 			if (!(port->read_status_mask & MSM_UART_SR_RX_BREAK))
 				flag = TTY_NORMAL;
 
-			uart_port_unlock(port);
-			sysrq = uart_handle_sysrq_char(port, buf[i]);
-			uart_port_lock(port);
+			sysrq = uart_prepare_sysrq_char(port, buf[i]);
 			if (!sysrq)
 				tty_insert_flip_char(tport, buf[i], flag);
 		}
@@ -825,9 +821,7 @@ static void msm_handle_rx(struct uart_port *port)
 		else if (sr & MSM_UART_SR_PAR_FRAME_ERR)
 			flag = TTY_FRAME;
 
-		uart_port_unlock(port);
-		sysrq = uart_handle_sysrq_char(port, c);
-		uart_port_lock(port);
+		sysrq = uart_prepare_sysrq_char(port, c);
 		if (!sysrq)
 			tty_insert_flip_char(tport, c, flag);
 	}
@@ -948,11 +942,10 @@ static irqreturn_t msm_uart_irq(int irq, void *dev_id)
 	struct uart_port *port = dev_id;
 	struct msm_port *msm_port = to_msm_port(port);
 	struct msm_dma *dma = &msm_port->rx_dma;
-	unsigned long flags;
 	unsigned int misr;
 	u32 val;
 
-	uart_port_lock_irqsave(port, &flags);
+	uart_port_lock(port);
 	misr = msm_read(port, MSM_UART_MISR);
 	msm_write(port, 0, MSM_UART_IMR); /* disable interrupt */
 
@@ -984,7 +977,7 @@ static irqreturn_t msm_uart_irq(int irq, void *dev_id)
 		msm_handle_delta_cts(port);
 
 	msm_write(port, msm_port->imr, MSM_UART_IMR); /* restore interrupt */
-	uart_port_unlock_irqrestore(port, flags);
+	uart_unlock_and_check_sysrq(port);
 
 	return IRQ_HANDLED;
 }
@@ -1621,14 +1614,10 @@ static void __msm_console_write(struct uart_port *port, const char *s,
 			num_newlines++;
 	count += num_newlines;
 
-	local_irq_save(flags);
-
-	if (port->sysrq)
-		locked = 0;
-	else if (oops_in_progress)
-		locked = uart_port_trylock(port);
+	if (oops_in_progress)
+		locked = uart_port_trylock_irqsave(port, &flags);
 	else
-		uart_port_lock(port);
+		uart_port_lock_irqsave(port, &flags);
 
 	if (is_uartdm)
 		msm_reset_dm_count(port, count);
@@ -1667,9 +1656,7 @@ static void __msm_console_write(struct uart_port *port, const char *s,
 	}
 
 	if (locked)
-		uart_port_unlock(port);
-
-	local_irq_restore(flags);
+		uart_port_unlock_irqrestore(port, flags);
 }
 
 static void msm_console_write(struct console *co, const char *s,

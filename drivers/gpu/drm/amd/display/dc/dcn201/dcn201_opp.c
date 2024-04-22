@@ -50,6 +50,7 @@ static struct opp_funcs dcn201_opp_funcs = {
 		.opp_set_disp_pattern_generator = opp2_set_disp_pattern_generator,
 		.opp_program_dpg_dimensions = opp2_program_dpg_dimensions,
 		.dpg_is_blanked = opp2_dpg_is_blanked,
+		.dpg_is_pending = opp2_dpg_is_pending,
 		.opp_dpg_set_blank_color = opp2_dpg_set_blank_color,
 		.opp_destroy = opp1_destroy,
 		.opp_program_left_edge_extra_pixel = opp2_program_left_edge_extra_pixel,

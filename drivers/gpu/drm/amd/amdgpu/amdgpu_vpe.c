@@ -396,6 +396,12 @@ static int vpe_hw_init(void *handle)
 	struct amdgpu_vpe *vpe = &adev->vpe;
 	int ret;
 
+	/* Power on VPE */
+	ret = amdgpu_device_ip_set_powergating_state(adev, AMD_IP_BLOCK_TYPE_VPE,
+						     AMD_PG_STATE_UNGATE);
+	if (ret)
+		return ret;
+
 	ret = vpe_load_microcode(vpe);
 	if (ret)
 		return ret;
@@ -574,9 +580,6 @@ static unsigned int vpe_ring_init_cond_exec(struct amdgpu_ring *ring,
 					    uint64_t addr)
 {
 	unsigned int ret;
-
-	if (ring->adev->vpe.collaborate_mode)
-		return ~0;
 
 	amdgpu_ring_write(ring, VPE_CMD_HEADER(VPE_CMD_OPCODE_COND_EXE, 0));
 	amdgpu_ring_write(ring, lower_32_bits(addr));

@@ -334,7 +334,7 @@ out_unmap:
 	return err;
 }
 
-static int bpp_remove(struct platform_device *op)
+static void bpp_remove(struct platform_device *op)
 {
 	struct parport *p = dev_get_drvdata(&op->dev);
 	struct parport_operations *ops = p->ops;
@@ -351,8 +351,6 @@ static int bpp_remove(struct platform_device *op)
 	kfree(ops);
 
 	dev_set_drvdata(&op->dev, NULL);
-
-	return 0;
 }
 
 static const struct of_device_id bpp_match[] = {
@@ -370,7 +368,7 @@ static struct platform_driver bpp_sbus_driver = {
 		.of_match_table = bpp_match,
 	},
 	.probe		= bpp_probe,
-	.remove		= bpp_remove,
+	.remove_new	= bpp_remove,
 };
 
 module_platform_driver(bpp_sbus_driver);

@@ -8,6 +8,15 @@ config INTERCONNECT_QCOM
 config INTERCONNECT_QCOM_BCM_VOTER
 	tristate
 
+config INTERCONNECT_QCOM_MSM8909
+	tristate "Qualcomm MSM8909 interconnect driver"
+	depends on INTERCONNECT_QCOM
+	depends on QCOM_SMD_RPM
+	select INTERCONNECT_QCOM_SMD_RPM
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on msm8909-based
+	  platforms.
+
 config INTERCONNECT_QCOM_MSM8916
 	tristate "Qualcomm MSM8916 interconnect driver"
 	depends on INTERCONNECT_QCOM
@@ -207,6 +216,15 @@ config INTERCONNECT_QCOM_SM6350
 	select INTERCONNECT_QCOM_BCM_VOTER
 	help
 	  This is a driver for the Qualcomm Network-on-Chip on sm6350-based
+	  platforms.
+
+config INTERCONNECT_QCOM_SM7150
+	tristate "Qualcomm SM7150 interconnect driver"
+	depends on INTERCONNECT_QCOM_RPMH_POSSIBLE
+	select INTERCONNECT_QCOM_RPMH
+	select INTERCONNECT_QCOM_BCM_VOTER
+	help
+	  This is a driver for the Qualcomm Network-on-Chip on sm7150-based
 	  platforms.
 
 config INTERCONNECT_QCOM_SM8150

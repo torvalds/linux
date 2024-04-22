@@ -21,6 +21,7 @@ properties:
 required:
   - compatible
   - reg
+  - vdd-supply
 
 additionalProperties: false
 

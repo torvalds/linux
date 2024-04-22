@@ -134,18 +134,24 @@ void bch2_dump_btree_node_iter(struct btree *b,
 	printbuf_exit(&buf);
 }
 
-#ifdef CONFIG_BCACHEFS_DEBUG
-
-void __bch2_verify_btree_nr_keys(struct btree *b)
+struct btree_nr_keys bch2_btree_node_count_keys(struct btree *b)
 {
 	struct bset_tree *t;
 	struct bkey_packed *k;
-	struct btree_nr_keys nr = { 0 };
+	struct btree_nr_keys nr = {};
 
 	for_each_bset(b, t)
 		bset_tree_for_each_key(b, t, k)
 			if (!bkey_deleted(k))
 				btree_keys_account_key_add(&nr, t - b->set, k);
+	return nr;
+}
+
+#ifdef CONFIG_BCACHEFS_DEBUG
+
+void __bch2_verify_btree_nr_keys(struct btree *b)
+{
+	struct btree_nr_keys nr = bch2_btree_node_count_keys(b);
 
 	BUG_ON(memcmp(&nr, &b->nr, sizeof(nr)));
 }

@@ -111,8 +111,10 @@ void xe_vram_freq_sysfs_init(struct xe_tile *tile)
 		return;
 
 	kobj = kobject_create_and_add("memory", tile->sysfs);
-	if (!kobj)
+	if (!kobj) {
 		drm_warn(&xe->drm, "failed to add memory directory, err: %d\n", -ENOMEM);
+		return;
+	}
 
 	err = sysfs_create_group(kobj, &freq_group_attrs);
 	if (err) {

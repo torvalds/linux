@@ -20,8 +20,11 @@
 #include <linux/sched/task_stack.h>
 #include <linux/panic_notifier.h>
 #include <linux/ptrace.h>
+#include <linux/random.h>
+#include <linux/efi.h>
 #include <linux/kdebug.h>
 #include <linux/kmsg_dump.h>
+#include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/dma-map-ops.h>
 #include <linux/set_memory.h>
@@ -227,19 +230,19 @@ static void hv_kmsg_dump(struct kmsg_dumper *dumper,
 	 * contain the size of the panic data in that page. Rest of the
 	 * registers are no-op when the NOTIFY_MSG flag is set.
 	 */
-	hv_set_register(HV_REGISTER_CRASH_P0, 0);
-	hv_set_register(HV_REGISTER_CRASH_P1, 0);
-	hv_set_register(HV_REGISTER_CRASH_P2, 0);
-	hv_set_register(HV_REGISTER_CRASH_P3, virt_to_phys(hv_panic_page));
-	hv_set_register(HV_REGISTER_CRASH_P4, bytes_written);
+	hv_set_msr(HV_MSR_CRASH_P0, 0);
+	hv_set_msr(HV_MSR_CRASH_P1, 0);
+	hv_set_msr(HV_MSR_CRASH_P2, 0);
+	hv_set_msr(HV_MSR_CRASH_P3, virt_to_phys(hv_panic_page));
+	hv_set_msr(HV_MSR_CRASH_P4, bytes_written);
 
 	/*
 	 * Let Hyper-V know there is crash data available along with
 	 * the panic message.
 	 */
-	hv_set_register(HV_REGISTER_CRASH_CTL,
-			(HV_CRASH_CTL_CRASH_NOTIFY |
-			 HV_CRASH_CTL_CRASH_NOTIFY_MSG));
+	hv_set_msr(HV_MSR_CRASH_CTL,
+		   (HV_CRASH_CTL_CRASH_NOTIFY |
+		    HV_CRASH_CTL_CRASH_NOTIFY_MSG));
 }
 
 static struct kmsg_dumper hv_kmsg_dumper = {
@@ -278,6 +281,14 @@ static void hv_kmsg_dump_register(void)
 int __init hv_common_init(void)
 {
 	int i;
+	union hv_hypervisor_version_info version;
+
+	/* Get information about the Hyper-V host version */
+	if (!hv_get_hypervisor_version(&version))
+		pr_info("Hyper-V: Host Build %d.%d.%d.%d-%d-%d\n",
+			version.major_version, version.minor_version,
+			version.build_number, version.service_number,
+			version.service_pack, version.service_branch);
 
 	if (hv_is_isolation_supported())
 		sysctl_record_panic_msg = 0;
@@ -310,7 +321,7 @@ int __init hv_common_init(void)
 		 * Register for panic kmsg callback only if the right
 		 * capability is supported by the hypervisor.
 		 */
-		hyperv_crash_ctl = hv_get_register(HV_REGISTER_CRASH_CTL);
+		hyperv_crash_ctl = hv_get_msr(HV_MSR_CRASH_CTL);
 		if (hyperv_crash_ctl & HV_CRASH_CTL_CRASH_NOTIFY_MSG)
 			hv_kmsg_dump_register();
 
@@ -345,6 +356,72 @@ int __init hv_common_init(void)
 		hv_vp_index[i] = VP_INVAL;
 
 	return 0;
+}
+
+void __init ms_hyperv_late_init(void)
+{
+	struct acpi_table_header *header;
+	acpi_status status;
+	u8 *randomdata;
+	u32 length, i;
+
+	/*
+	 * Seed the Linux random number generator with entropy provided by
+	 * the Hyper-V host in ACPI table OEM0.
+	 */
+	if (!IS_ENABLED(CONFIG_ACPI))
+		return;
+
+	status = acpi_get_table("OEM0", 0, &header);
+	if (ACPI_FAILURE(status) || !header)
+		return;
+
+	/*
+	 * Since the "OEM0" table name is for OEM specific usage, verify
+	 * that what we're seeing purports to be from Microsoft.
+	 */
+	if (strncmp(header->oem_table_id, "MICROSFT", 8))
+		goto error;
+
+	/*
+	 * Ensure the length is reasonable. Requiring at least 8 bytes and
+	 * no more than 4K bytes is somewhat arbitrary and just protects
+	 * against a malformed table. Hyper-V currently provides 64 bytes,
+	 * but allow for a change in a later version.
+	 */
+	if (header->length < sizeof(*header) + 8 ||
+	    header->length > sizeof(*header) + SZ_4K)
+		goto error;
+
+	length = header->length - sizeof(*header);
+	randomdata = (u8 *)(header + 1);
+
+	pr_debug("Hyper-V: Seeding rng with %d random bytes from ACPI table OEM0\n",
+			length);
+
+	add_bootloader_randomness(randomdata, length);
+
+	/*
+	 * To prevent the seed data from being visible in /sys/firmware/acpi,
+	 * zero out the random data in the ACPI table and fixup the checksum.
+	 * The zero'ing is done out of an abundance of caution in avoiding
+	 * potential security risks to the rng. Similarly, reset the table
+	 * length to just the header size so that a subsequent kexec doesn't
+	 * try to use the zero'ed out random data.
+	 */
+	for (i = 0; i < length; i++) {
+		header->checksum += randomdata[i];
+		randomdata[i] = 0;
+	}
+
+	for (i = 0; i < sizeof(header->length); i++)
+		header->checksum += ((u8 *)&header->length)[i];
+	header->length = sizeof(*header);
+	for (i = 0; i < sizeof(header->length); i++)
+		header->checksum -= ((u8 *)&header->length)[i];
+
+error:
+	acpi_put_table(header);
 }
 
 /*
@@ -409,7 +486,7 @@ int hv_common_cpu_init(unsigned int cpu)
 		*inputarg = mem;
 	}
 
-	msr_vp_index = hv_get_register(HV_REGISTER_VP_INDEX);
+	msr_vp_index = hv_get_msr(HV_MSR_VP_INDEX);
 
 	hv_vp_index[cpu] = msr_vp_index;
 
@@ -506,7 +583,7 @@ EXPORT_SYMBOL_GPL(hv_is_hibernation_supported);
  */
 static u64 __hv_read_ref_counter(void)
 {
-	return hv_get_register(HV_REGISTER_TIME_REF_COUNT);
+	return hv_get_msr(HV_MSR_TIME_REF_COUNT);
 }
 
 u64 (*hv_read_reference_counter)(void) = __hv_read_ref_counter;

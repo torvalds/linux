@@ -384,6 +384,7 @@ static const struct opp_funcs dcn10_opp_funcs = {
 		.opp_set_disp_pattern_generator = NULL,
 		.opp_program_dpg_dimensions = NULL,
 		.dpg_is_blanked = NULL,
+		.dpg_is_pending = NULL,
 		.opp_destroy = opp1_destroy
 };
 

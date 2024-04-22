@@ -143,6 +143,7 @@ EXPORT_SYMBOL_NS(sof_vangogh_ops, SND_SOC_SOF_AMD_COMMON);
 int sof_vangogh_ops_init(struct snd_sof_dev *sdev)
 {
 	const struct dmi_system_id *dmi_id;
+	struct acp_quirk_entry *quirks;
 
 	/* common defaults */
 	memcpy(&sof_vangogh_ops, &sof_acp_common_ops, sizeof(struct snd_sof_dsp_ops));
@@ -151,8 +152,12 @@ int sof_vangogh_ops_init(struct snd_sof_dev *sdev)
 	sof_vangogh_ops.num_drv = ARRAY_SIZE(vangogh_sof_dai);
 
 	dmi_id = dmi_first_match(acp_sof_quirk_table);
-	if (dmi_id && dmi_id->driver_data)
-		sof_vangogh_ops.load_firmware = acp_sof_load_signed_firmware;
+	if (dmi_id) {
+		quirks = dmi_id->driver_data;
+
+		if (quirks->signed_fw_image)
+			sof_vangogh_ops.load_firmware = acp_sof_load_signed_firmware;
+	}
 
 	return 0;
 }

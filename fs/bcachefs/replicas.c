@@ -6,12 +6,15 @@
 #include "replicas.h"
 #include "super-io.h"
 
+#include <linux/sort.h>
+
 static int bch2_cpu_replicas_to_sb_replicas(struct bch_fs *,
 					    struct bch_replicas_cpu *);
 
 /* Some (buggy!) compilers don't allow memcmp to be passed as a pointer */
-static int bch2_memcmp(const void *l, const void *r, size_t size)
+static int bch2_memcmp(const void *l, const void *r,  const void *priv)
 {
+	size_t size = (size_t) priv;
 	return memcmp(l, r, size);
 }
 
@@ -39,7 +42,8 @@ void bch2_replicas_entry_sort(struct bch_replicas_entry_v1 *e)
 
 static void bch2_cpu_replicas_sort(struct bch_replicas_cpu *r)
 {
-	eytzinger0_sort(r->entries, r->nr, r->entry_size, bch2_memcmp, NULL);
+	eytzinger0_sort_r(r->entries, r->nr, r->entry_size,
+			  bch2_memcmp, NULL, (void *)(size_t)r->entry_size);
 }
 
 static void bch2_replicas_entry_v0_to_text(struct printbuf *out,
@@ -228,7 +232,7 @@ static inline int __replicas_entry_idx(struct bch_replicas_cpu *r,
 
 	verify_replicas_entry(search);
 
-#define entry_cmp(_l, _r, size)	memcmp(_l, _r, entry_size)
+#define entry_cmp(_l, _r)	memcmp(_l, _r, entry_size)
 	idx = eytzinger0_find(r->entries, r->nr, r->entry_size,
 			      entry_cmp, search);
 #undef entry_cmp
@@ -824,10 +828,11 @@ static int bch2_cpu_replicas_validate(struct bch_replicas_cpu *cpu_r,
 {
 	unsigned i;
 
-	sort_cmp_size(cpu_r->entries,
-		      cpu_r->nr,
-		      cpu_r->entry_size,
-		      bch2_memcmp, NULL);
+	sort_r(cpu_r->entries,
+	       cpu_r->nr,
+	       cpu_r->entry_size,
+	       bch2_memcmp, NULL,
+	       (void *)(size_t)cpu_r->entry_size);
 
 	for (i = 0; i < cpu_r->nr; i++) {
 		struct bch_replicas_entry_v1 *e =

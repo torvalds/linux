@@ -13,7 +13,7 @@ config IP_DCCP_CCID2_DEBUG
 
 config IP_DCCP_CCID3
 	bool "CCID-3 (TCP-Friendly)"
-	def_bool y if (IP_DCCP = y || IP_DCCP = m)
+	default IP_DCCP = y || IP_DCCP = m
 	help
 	  CCID-3 denotes TCP-Friendly Rate Control (TFRC), an equation-based
 	  rate-controlled congestion control mechanism.  TFRC is designed to

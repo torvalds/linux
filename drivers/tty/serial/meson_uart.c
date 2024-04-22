@@ -220,7 +220,7 @@ static void meson_receive_chars(struct uart_port *port)
 				continue;
 		}
 
-		if (uart_handle_sysrq_char(port, ch))
+		if (uart_prepare_sysrq_char(port, ch))
 			continue;
 
 		if ((status & port->ignore_status_mask) == 0)
@@ -248,7 +248,7 @@ static irqreturn_t meson_uart_interrupt(int irq, void *dev_id)
 			meson_uart_start_tx(port);
 	}
 
-	uart_port_unlock(port);
+	uart_unlock_and_check_sysrq(port);
 
 	return IRQ_HANDLED;
 }
@@ -556,18 +556,13 @@ static void meson_serial_port_write(struct uart_port *port, const char *s,
 				    u_int count)
 {
 	unsigned long flags;
-	int locked;
+	int locked = 1;
 	u32 val, tmp;
 
-	local_irq_save(flags);
-	if (port->sysrq) {
-		locked = 0;
-	} else if (oops_in_progress) {
-		locked = uart_port_trylock(port);
-	} else {
-		uart_port_lock(port);
-		locked = 1;
-	}
+	if (oops_in_progress)
+		locked = uart_port_trylock_irqsave(port, &flags);
+	else
+		uart_port_lock_irqsave(port, &flags);
 
 	val = readl(port->membase + AML_UART_CONTROL);
 	tmp = val & ~(AML_UART_TX_INT_EN | AML_UART_RX_INT_EN);
@@ -577,8 +572,7 @@ static void meson_serial_port_write(struct uart_port *port, const char *s,
 	writel(val, port->membase + AML_UART_CONTROL);
 
 	if (locked)
-		uart_port_unlock(port);
-	local_irq_restore(flags);
+		uart_port_unlock_irqrestore(port, flags);
 }
 
 static void meson_serial_console_write(struct console *co, const char *s,

@@ -99,15 +99,14 @@ mmhub_v3_3_print_l2_protection_fault_status(struct amdgpu_device *adev,
 	switch (amdgpu_ip_version(adev, MMHUB_HWIP, 0)) {
 	case IP_VERSION(3, 3, 0):
 	case IP_VERSION(3, 3, 1):
-		mmhub_cid = mmhub_client_ids_v3_3[cid][rw];
+		mmhub_cid = cid < ARRAY_SIZE(mmhub_client_ids_v3_3) ?
+			    mmhub_client_ids_v3_3[cid][rw] :
+			    cid == 0x140 ? "UMSCH" : NULL;
 		break;
 	default:
 		mmhub_cid = NULL;
 		break;
 	}
-
-	if (!mmhub_cid && cid == 0x140)
-		mmhub_cid = "UMSCH";
 
 	dev_err(adev->dev, "\t Faulty UTCL2 client ID: %s (0x%x)\n",
 		mmhub_cid ? mmhub_cid : "unknown", cid);

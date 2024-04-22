@@ -193,12 +193,13 @@ devlink_get_from_attrs_lock(struct net *net, struct nlattr **attrs,
 	devname = nla_data(attrs[DEVLINK_ATTR_DEV_NAME]);
 
 	devlinks_xa_for_each_registered_get(net, index, devlink) {
-		devl_dev_lock(devlink, dev_lock);
-		if (devl_is_registered(devlink) &&
-		    strcmp(devlink->dev->bus->name, busname) == 0 &&
-		    strcmp(dev_name(devlink->dev), devname) == 0)
-			return devlink;
-		devl_dev_unlock(devlink, dev_lock);
+		if (strcmp(devlink->dev->bus->name, busname) == 0 &&
+		    strcmp(dev_name(devlink->dev), devname) == 0) {
+			devl_dev_lock(devlink, dev_lock);
+			if (devl_is_registered(devlink))
+				return devlink;
+			devl_dev_unlock(devlink, dev_lock);
+		}
 		devlink_put(devlink);
 	}
 

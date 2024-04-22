@@ -33,8 +33,8 @@ struct rxrpc_txbuf *rxrpc_alloc_data_txbuf(struct rxrpc_call *call, size_t data_
 	total = hoff + sizeof(*whdr) + data_size;
 
 	mutex_lock(&call->conn->tx_data_alloc_lock);
-	buf = page_frag_alloc_align(&call->conn->tx_data_alloc, total, gfp,
-				    ~(data_align - 1) & ~(L1_CACHE_BYTES - 1));
+	buf = __page_frag_alloc_align(&call->conn->tx_data_alloc, total, gfp,
+				      ~(data_align - 1) & ~(L1_CACHE_BYTES - 1));
 	mutex_unlock(&call->conn->tx_data_alloc_lock);
 	if (!buf) {
 		kfree(txb);

@@ -63,6 +63,52 @@
 			};
 		};
 
+		pm6150_vbus: usb-vbus-regulator@1100 {
+			compatible = "qcom,pm6150-vbus-reg,
+				      qcom,pm8150b-vbus-reg";
+			reg = <0x1100>;
+			status = "disabled";
+		};
+
+		pm6150_typec: typec@1500 {
+			compatible = "qcom,pm6150-typec,
+				      qcom,pm8150b-typec";
+			reg = <0x1500>, <0x1700>;
+			interrupts = <0x0 0x15 0x00 IRQ_TYPE_EDGE_RISING>,
+				     <0x0 0x15 0x01 IRQ_TYPE_EDGE_BOTH>,
+				     <0x0 0x15 0x02 IRQ_TYPE_EDGE_RISING>,
+				     <0x0 0x15 0x03 IRQ_TYPE_EDGE_BOTH>,
+				     <0x0 0x15 0x04 IRQ_TYPE_EDGE_RISING>,
+				     <0x0 0x15 0x05 IRQ_TYPE_EDGE_RISING>,
+				     <0x0 0x15 0x06 IRQ_TYPE_EDGE_BOTH>,
+				     <0x0 0x15 0x07 IRQ_TYPE_EDGE_RISING>,
+				     <0x0 0x17 0x00 IRQ_TYPE_EDGE_RISING>,
+				     <0x0 0x17 0x01 IRQ_TYPE_EDGE_RISING>,
+				     <0x0 0x17 0x02 IRQ_TYPE_EDGE_RISING>,
+				     <0x0 0x17 0x03 IRQ_TYPE_EDGE_RISING>,
+				     <0x0 0x17 0x04 IRQ_TYPE_EDGE_RISING>,
+				     <0x0 0x17 0x05 IRQ_TYPE_EDGE_RISING>,
+				     <0x0 0x17 0x06 IRQ_TYPE_EDGE_RISING>,
+				     <0x0 0x17 0x07 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "or-rid-detect-change",
+					  "vpd-detect",
+					  "cc-state-change",
+					  "vconn-oc",
+					  "vbus-change",
+					  "attach-detach",
+					  "legacy-cable-detect",
+					  "try-snk-src-detect",
+					  "sig-tx",
+					  "sig-rx",
+					  "msg-tx",
+					  "msg-rx",
+					  "msg-tx-failed",
+					  "msg-tx-discarded",
+					  "msg-rx-discarded",
+					  "fr-swap";
+			status = "disabled";
+		};
+
 		pm6150_temp: temp-alarm@2400 {
 			compatible = "qcom,spmi-temp-alarm";
 			reg = <0x2400>;

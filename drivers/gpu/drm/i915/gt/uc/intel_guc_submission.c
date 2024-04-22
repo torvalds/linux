@@ -1403,14 +1403,17 @@ static void guc_cancel_busyness_worker(struct intel_guc *guc)
 	 * Trying to pass a 'need_sync' or 'in_reset' flag all the way down through
 	 * every possible call stack is unfeasible. It would be too intrusive to many
 	 * areas that really don't care about the GuC backend. However, there is the
-	 * 'reset_in_progress' flag available, so just use that.
+	 * I915_RESET_BACKOFF flag and the gt->reset.mutex can be tested for is_locked.
+	 * So just use those. Note that testing both is required due to the hideously
+	 * complex nature of the i915 driver's reset code paths.
 	 *
 	 * And note that in the case of a reset occurring during driver unload
-	 * (wedge_on_fini), skipping the cancel in _prepare (when the reset flag is set
-	 * is fine because there is another cancel in _finish (when the reset flag is
-	 * not).
+	 * (wedged_on_fini), skipping the cancel in reset_prepare/reset_fini (when the
+	 * reset flag/mutex are set) is fine because there is another explicit cancel in
+	 * intel_guc_submission_fini (when the reset flag/mutex are not).
 	 */
-	if (guc_to_gt(guc)->uc.reset_in_progress)
+	if (mutex_is_locked(&guc_to_gt(guc)->reset.mutex) ||
+	    test_bit(I915_RESET_BACKOFF, &guc_to_gt(guc)->reset.flags))
 		cancel_delayed_work(&guc->timestamp.work);
 	else
 		cancel_delayed_work_sync(&guc->timestamp.work);
@@ -1423,8 +1426,6 @@ static void __reset_guc_busyness_stats(struct intel_guc *guc)
 	enum intel_engine_id id;
 	unsigned long flags;
 	ktime_t unused;
-
-	guc_cancel_busyness_worker(guc);
 
 	spin_lock_irqsave(&guc->timestamp.lock, flags);
 
@@ -2004,13 +2005,6 @@ void intel_guc_submission_cancel_requests(struct intel_guc *guc)
 
 void intel_guc_submission_reset_finish(struct intel_guc *guc)
 {
-	/*
-	 * Ensure the busyness worker gets cancelled even on a fatal wedge.
-	 * Note that reset_prepare is not allowed to because it confuses lockdep.
-	 */
-	if (guc_submission_initialized(guc))
-		guc_cancel_busyness_worker(guc);
-
 	/* Reset called during driver load or during wedge? */
 	if (unlikely(!guc_submission_initialized(guc) ||
 		     !intel_guc_is_fw_running(guc) ||
@@ -2136,6 +2130,7 @@ void intel_guc_submission_fini(struct intel_guc *guc)
 	if (!guc->submission_initialized)
 		return;
 
+	guc_fini_engine_stats(guc);
 	guc_flush_destroyed_contexts(guc);
 	guc_lrc_desc_pool_destroy_v69(guc);
 	i915_sched_engine_put(guc->sched_engine);

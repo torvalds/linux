@@ -155,16 +155,19 @@ static inline int usb4_switch_op_data(struct tb_switch *sw, u16 opcode,
 				tx_dwords, rx_data, rx_dwords);
 }
 
-static void usb4_switch_check_wakes(struct tb_switch *sw)
+/**
+ * usb4_switch_check_wakes() - Check for wakes and notify PM core about them
+ * @sw: Router whose wakes to check
+ *
+ * Checks wakes occurred during suspend and notify the PM core about them.
+ */
+void usb4_switch_check_wakes(struct tb_switch *sw)
 {
 	bool wakeup_usb4 = false;
 	struct usb4_port *usb4;
 	struct tb_port *port;
 	bool wakeup = false;
 	u32 val;
-
-	if (!device_may_wakeup(&sw->dev))
-		return;
 
 	if (tb_route(sw)) {
 		if (tb_sw_read(sw, &val, TB_CFG_SWITCH, ROUTER_CS_6, 1))
@@ -243,8 +246,6 @@ int usb4_switch_setup(struct tb_switch *sw)
 	bool tbt3, xhci;
 	u32 val = 0;
 	int ret;
-
-	usb4_switch_check_wakes(sw);
 
 	if (!tb_route(sw))
 		return 0;
@@ -1111,6 +1112,45 @@ int usb4_port_hotplug_enable(struct tb_port *port)
 
 	val &= ~ADP_CS_5_DHP;
 	return tb_port_write(port, &val, TB_CFG_PORT, ADP_CS_5, 1);
+}
+
+/**
+ * usb4_port_reset() - Issue downstream port reset
+ * @port: USB4 port to reset
+ *
+ * Issues downstream port reset to @port.
+ */
+int usb4_port_reset(struct tb_port *port)
+{
+	int ret;
+	u32 val;
+
+	if (!port->cap_usb4)
+		return -EINVAL;
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_usb4 + PORT_CS_19, 1);
+	if (ret)
+		return ret;
+
+	val |= PORT_CS_19_DPR;
+
+	ret = tb_port_write(port, &val, TB_CFG_PORT,
+			    port->cap_usb4 + PORT_CS_19, 1);
+	if (ret)
+		return ret;
+
+	fsleep(10000);
+
+	ret = tb_port_read(port, &val, TB_CFG_PORT,
+			   port->cap_usb4 + PORT_CS_19, 1);
+	if (ret)
+		return ret;
+
+	val &= ~PORT_CS_19_DPR;
+
+	return tb_port_write(port, &val, TB_CFG_PORT,
+			     port->cap_usb4 + PORT_CS_19, 1);
 }
 
 static int usb4_port_set_configured(struct tb_port *port, bool configured)
@@ -2819,8 +2859,10 @@ static int usb4_dp_port_wait_and_clear_cm_ack(struct tb_port *port,
 		usleep_range(50, 100);
 	} while (ktime_before(ktime_get(), end));
 
-	if (val & ADP_DP_CS_8_DR)
+	if (val & ADP_DP_CS_8_DR) {
+		tb_port_warn(port, "timeout waiting for DPTX request to clear\n");
 		return -ETIMEDOUT;
+	}
 
 	ret = tb_port_read(port, &val, TB_CFG_PORT,
 			   port->cap_adap + ADP_DP_CS_2, 1);

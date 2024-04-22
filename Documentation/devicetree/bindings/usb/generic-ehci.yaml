@@ -77,6 +77,7 @@ properties:
           - const: usb-ehci
       - enum:
           - generic-ehci
+          - marvell,ac5-ehci
           - marvell,armada-3700-ehci
           - marvell,orion-ehci
           - nuvoton,npcm750-ehci
