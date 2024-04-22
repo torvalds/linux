@@ -26,6 +26,7 @@ struct xchk_iscan;
 struct xchk_nlink;
 struct xchk_fscounters;
 struct xfs_rmap_update_params;
+struct xfs_parent_rec;
 
 /*
  * ftrace's __print_symbolic requires that all enum values be wrapped in the
@@ -1352,6 +1353,33 @@ TRACE_EVENT(xchk_nlinks_collect_dirent,
 		__entry->dev = mp->m_super->s_dev;
 		__entry->dir = dp->i_ino;
 		__entry->ino = ino;
+		__entry->namelen = name->len;
+		memcpy(__get_str(name), name->name, name->len);
+	),
+	TP_printk("dev %d:%d dir 0x%llx -> ino 0x%llx name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->dir,
+		  __entry->ino,
+		  __entry->namelen,
+		  __get_str(name))
+);
+
+TRACE_EVENT(xchk_nlinks_collect_pptr,
+	TP_PROTO(struct xfs_mount *mp, struct xfs_inode *dp,
+		 const struct xfs_name *name,
+		 const struct xfs_parent_rec *pptr),
+	TP_ARGS(mp, dp, name, pptr),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, dir)
+		__field(xfs_ino_t, ino)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, name->len)
+	),
+	TP_fast_assign(
+		__entry->dev = mp->m_super->s_dev;
+		__entry->dir = dp->i_ino;
+		__entry->ino = be64_to_cpu(pptr->p_ino);
 		__entry->namelen = name->len;
 		memcpy(__get_str(name), name->name, name->len);
 	),
