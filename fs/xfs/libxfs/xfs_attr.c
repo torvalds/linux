@@ -948,7 +948,7 @@ xfs_attr_lookup(
 	return error;
 }
 
-STATIC int
+int
 xfs_attr_add_fork(
 	struct xfs_inode	*ip,		/* incore inode pointer */
 	int			size,		/* space new attribute needs */

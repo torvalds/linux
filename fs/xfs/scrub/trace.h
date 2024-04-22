@@ -2539,6 +2539,8 @@ DEFINE_EVENT(xrep_xattr_salvage_class, name, \
 	TP_ARGS(ip, flags, name, namelen, valuelen))
 DEFINE_XREP_XATTR_SALVAGE_EVENT(xrep_xattr_salvage_rec);
 DEFINE_XREP_XATTR_SALVAGE_EVENT(xrep_xattr_insert_rec);
+DEFINE_XREP_XATTR_SALVAGE_EVENT(xrep_parent_stash_xattr);
+DEFINE_XREP_XATTR_SALVAGE_EVENT(xrep_parent_insert_xattr);
 
 DECLARE_EVENT_CLASS(xrep_pptr_salvage_class,
 	TP_PROTO(struct xfs_inode *ip, unsigned int flags, const void *name,

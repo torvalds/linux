@@ -648,5 +648,6 @@ int __init xfs_attr_intent_init_cache(void);
 void xfs_attr_intent_destroy_cache(void);
 
 int xfs_attr_sf_totsize(struct xfs_inode *dp);
+int xfs_attr_add_fork(struct xfs_inode *ip, int size, int rsvd);
 
 #endif	/* __XFS_ATTR_H__ */
