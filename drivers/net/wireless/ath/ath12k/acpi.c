@@ -56,6 +56,30 @@ static int ath12k_acpi_dsm_get_data(struct ath12k_base *ab, int func)
 			       obj->buffer.length);
 
 			break;
+		case ATH12K_ACPI_DSM_FUNC_BIOS_SAR:
+			if (obj->buffer.length != ATH12K_ACPI_DSM_BIOS_SAR_DATA_SIZE) {
+				ath12k_warn(ab, "invalid ACPI BIOS SAR data size: %d\n",
+					    obj->buffer.length);
+				ret = -EINVAL;
+				goto out;
+			}
+
+			memcpy(&ab->acpi.bios_sar_data, obj->buffer.pointer,
+			       obj->buffer.length);
+
+			break;
+		case ATH12K_ACPI_DSM_FUNC_GEO_OFFSET:
+			if (obj->buffer.length != ATH12K_ACPI_DSM_GEO_OFFSET_DATA_SIZE) {
+				ath12k_warn(ab, "invalid ACPI GEO OFFSET data size: %d\n",
+					    obj->buffer.length);
+				ret = -EINVAL;
+				goto out;
+			}
+
+			memcpy(&ab->acpi.geo_offset_data, obj->buffer.pointer,
+			       obj->buffer.length);
+
+			break;
 		}
 	} else {
 		ath12k_warn(ab, "ACPI DSM method returned an unsupported object type: %d\n",
@@ -93,6 +117,25 @@ static int ath12k_acpi_set_power_limit(struct ath12k_base *ab)
 	return ret;
 }
 
+static int ath12k_acpi_set_bios_sar_power(struct ath12k_base *ab)
+{
+	int ret;
+
+	if (ab->acpi.bios_sar_data[0] != ATH12K_ACPI_POWER_LIMIT_VERSION ||
+	    ab->acpi.bios_sar_data[1] != ATH12K_ACPI_POWER_LIMIT_ENABLE_FLAG) {
+		ath12k_warn(ab, "invalid latest ACPI BIOS SAR data\n");
+		return -EINVAL;
+	}
+
+	ret = ath12k_wmi_set_bios_sar_cmd(ab, ab->acpi.bios_sar_data);
+	if (ret) {
+		ath12k_warn(ab, "failed to set ACPI BIOS SAR table: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
+}
+
 static void ath12k_acpi_dsm_notify(acpi_handle handle, u32 event, void *data)
 {
 	int ret;
@@ -119,6 +162,40 @@ static void ath12k_acpi_dsm_notify(acpi_handle handle, u32 event, void *data)
 		ath12k_warn(ab, "failed to set ACPI TAS power limit data: %d", ret);
 		return;
 	}
+
+	if (!ab->acpi.acpi_bios_sar_enable)
+		return;
+
+	ret = ath12k_acpi_dsm_get_data(ab, ATH12K_ACPI_DSM_FUNC_BIOS_SAR);
+	if (ret) {
+		ath12k_warn(ab, "failed to update BIOS SAR: %d\n", ret);
+		return;
+	}
+
+	ret = ath12k_acpi_set_bios_sar_power(ab);
+	if (ret) {
+		ath12k_warn(ab, "failed to set BIOS SAR power limit: %d\n", ret);
+		return;
+	}
+}
+
+static int ath12k_acpi_set_bios_sar_params(struct ath12k_base *ab)
+{
+	int ret;
+
+	ret = ath12k_wmi_set_bios_sar_cmd(ab, ab->acpi.bios_sar_data);
+	if (ret) {
+		ath12k_warn(ab, "failed to set ACPI BIOS SAR table: %d\n", ret);
+		return ret;
+	}
+
+	ret = ath12k_wmi_set_bios_geo_cmd(ab, ab->acpi.geo_offset_data);
+	if (ret) {
+		ath12k_warn(ab, "failed to set ACPI BIOS GEO table: %d\n", ret);
+		return ret;
+	}
+
+	return 0;
 }
 
 static int ath12k_acpi_set_tas_params(struct ath12k_base *ab)
@@ -184,12 +261,40 @@ int ath12k_acpi_start(struct ath12k_base *ab)
 			ab->acpi.acpi_tas_enable = true;
 	}
 
+	if (ATH12K_ACPI_FUNC_BIT_VALID(ab->acpi, ATH12K_ACPI_FUNC_BIT_BIOS_SAR)) {
+		ret = ath12k_acpi_dsm_get_data(ab, ATH12K_ACPI_DSM_FUNC_BIOS_SAR);
+		if (ret) {
+			ath12k_warn(ab, "failed to get ACPI bios sar data: %d\n", ret);
+			return ret;
+		}
+	}
+
+	if (ATH12K_ACPI_FUNC_BIT_VALID(ab->acpi, ATH12K_ACPI_FUNC_BIT_GEO_OFFSET)) {
+		ret = ath12k_acpi_dsm_get_data(ab, ATH12K_ACPI_DSM_FUNC_GEO_OFFSET);
+		if (ret) {
+			ath12k_warn(ab, "failed to get ACPI geo offset data: %d\n", ret);
+			return ret;
+		}
+
+		if (ATH12K_ACPI_FUNC_BIT_VALID(ab->acpi, ATH12K_ACPI_FUNC_BIT_BIOS_SAR) &&
+		    ab->acpi.bios_sar_data[0] == ATH12K_ACPI_POWER_LIMIT_VERSION &&
+		    ab->acpi.bios_sar_data[1] == ATH12K_ACPI_POWER_LIMIT_ENABLE_FLAG &&
+		    !ab->acpi.acpi_tas_enable)
+			ab->acpi.acpi_bios_sar_enable = true;
+	}
+
 	if (ab->acpi.acpi_tas_enable) {
 		ret = ath12k_acpi_set_tas_params(ab);
 		if (ret) {
 			ath12k_warn(ab, "failed to send ACPI parameters: %d\n", ret);
 			return ret;
 		}
+	}
+
+	if (ab->acpi.acpi_bios_sar_enable) {
+		ret = ath12k_acpi_set_bios_sar_params(ab);
+		if (ret)
+			return ret;
 	}
 
 	status = acpi_install_notify_handler(ACPI_HANDLE(ab->dev),
