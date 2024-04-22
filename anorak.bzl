@@ -7,6 +7,19 @@ target_name = "anorak"
 def define_anorak():
     _anorak_in_tree_modules = [
         # keep sorted
+        "drivers/clk/qcom/camcc-anorak.ko",
+        "drivers/clk/qcom/clk-dummy.ko",
+        "drivers/clk/qcom/clk-qcom.ko",
+        "drivers/clk/qcom/clk-rpmh.ko",
+        "drivers/clk/qcom/debugcc-anorak.ko",
+        "drivers/clk/qcom/dispcc0-anorak.ko",
+        "drivers/clk/qcom/dispcc1-anorak.ko",
+        "drivers/clk/qcom/gcc-anorak.ko",
+        "drivers/clk/qcom/gdsc-regulator.ko",
+        "drivers/clk/qcom/gpucc-anorak.ko",
+        "drivers/clk/qcom/videocc-anorak.ko",
+        "drivers/cpufreq/qcom-cpufreq-hw.ko",
+        "drivers/cpufreq/qcom-cpufreq-hw-debug.ko",
         "drivers/dma-buf/heaps/qcom_dma_heaps.ko",
         "drivers/edac/kryo_arm64_edac.ko",
         "drivers/edac/qcom_edac.ko",
