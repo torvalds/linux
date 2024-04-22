@@ -709,7 +709,6 @@ config ROMIMAGE_MMCIF
 
 choice
 	prompt "Kernel command line"
-	optional
 	default CMDLINE_OVERWRITE
 	help
 	  Setting this option allows the kernel command line arguments
@@ -726,6 +725,11 @@ config CMDLINE_EXTEND
 	help
 	  Given string will be concatenated with arguments passed in
 	  by a bootloader.
+
+config CMDLINE_FROM_BOOTLOADER
+	bool "Use bootloader kernel arguments"
+	help
+	  Uses the command-line options passed by the boot loader.
 
 endchoice
 
