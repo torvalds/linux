@@ -26,9 +26,7 @@
 #define	TPM_MAX_TRIES		5000
 #define	TPM_INFINEON_DEV_VEN_VALUE	0x15D1
 
-#ifdef CONFIG_HAS_IOPORT
 #define TPM_INF_IO_PORT		0x0
-#endif
 #define TPM_INF_IO_MEM		0x1
 
 #define TPM_INF_ADDR		0x0
