@@ -10,6 +10,7 @@
  */
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/pm.h>
 #include <linux/pnp.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
@@ -506,7 +507,7 @@ static void serial_pnp_remove(struct pnp_dev *dev)
 		serial8250_unregister_port(line - 1);
 }
 
-static int __maybe_unused serial_pnp_suspend(struct device *dev)
+static int serial_pnp_suspend(struct device *dev)
 {
 	long line = (long)dev_get_drvdata(dev);
 
@@ -516,7 +517,7 @@ static int __maybe_unused serial_pnp_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused serial_pnp_resume(struct device *dev)
+static int serial_pnp_resume(struct device *dev)
 {
 	long line = (long)dev_get_drvdata(dev);
 
@@ -526,14 +527,14 @@ static int __maybe_unused serial_pnp_resume(struct device *dev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(serial_pnp_pm_ops, serial_pnp_suspend, serial_pnp_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(serial_pnp_pm_ops, serial_pnp_suspend, serial_pnp_resume);
 
 static struct pnp_driver serial_pnp_driver = {
 	.name		= "serial",
 	.probe		= serial_pnp_probe,
 	.remove		= serial_pnp_remove,
 	.driver         = {
-		.pm     = &serial_pnp_pm_ops,
+		.pm     = pm_sleep_ptr(&serial_pnp_pm_ops),
 	},
 	.id_table	= pnp_dev_table,
 };
