@@ -374,7 +374,8 @@ static void pll_14nm_software_reset(struct dsi_pll_14nm *pll_14nm)
 	writel(0, cmn_base + REG_DSI_14nm_PHY_CMN_PLL_CNTRL);
 
 	/* pll sw reset */
-	dsi_phy_write_udelay(cmn_base + REG_DSI_14nm_PHY_CMN_CTRL_1, 0x20, 10);
+	writel(0x20, cmn_base + REG_DSI_14nm_PHY_CMN_CTRL_1);
+	udelay(10);
 	wmb();	/* make sure register committed */
 
 	writel(0, cmn_base + REG_DSI_14nm_PHY_CMN_CTRL_1);

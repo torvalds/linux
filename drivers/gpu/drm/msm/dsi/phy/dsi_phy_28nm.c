@@ -104,9 +104,10 @@ static void pll_28nm_software_reset(struct dsi_pll_28nm *pll_28nm)
 	 * Add HW recommended delays after toggling the software
 	 * reset bit off and back on.
 	 */
-	dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_TEST_CFG,
-			     DSI_28nm_PHY_PLL_TEST_CFG_PLL_SW_RESET, 1);
-	dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_TEST_CFG, 0x00, 1);
+	writel(DSI_28nm_PHY_PLL_TEST_CFG_PLL_SW_RESET, base + REG_DSI_28nm_PHY_PLL_TEST_CFG);
+	udelay(1);
+	writel(0, base + REG_DSI_28nm_PHY_PLL_TEST_CFG);
+	udelay(1);
 }
 
 /*
@@ -303,21 +304,25 @@ static int _dsi_pll_28nm_vco_prepare_hpm(struct dsi_pll_28nm *pll_28nm)
 	 * Add necessary delays recommended by hardware.
 	 */
 	val = DSI_28nm_PHY_PLL_GLB_CFG_PLL_PWRDN_B;
-	dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 1);
+	writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+	udelay(1);
 
 	val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_PWRGEN_PWRDN_B;
-	dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 200);
+	writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+	udelay(200);
 
 	val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_LDO_PWRDN_B;
-	dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 500);
+	writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+	udelay(500);
 
 	val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_ENABLE;
-	dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 600);
+	writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+	udelay(600);
 
 	for (i = 0; i < 2; i++) {
 		/* DSI Uniphy lock detect setting */
-		dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_LKDET_CFG2,
-				     0x0c, 100);
+		writel(0x0c, base + REG_DSI_28nm_PHY_PLL_LKDET_CFG2);
+		udelay(100);
 		writel(0x0d, base + REG_DSI_28nm_PHY_PLL_LKDET_CFG2);
 
 		/* poll for PLL ready status */
@@ -333,22 +338,28 @@ static int _dsi_pll_28nm_vco_prepare_hpm(struct dsi_pll_28nm *pll_28nm)
 		 * Add necessary delays recommended by hardware.
 		 */
 		val = DSI_28nm_PHY_PLL_GLB_CFG_PLL_PWRDN_B;
-		dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 1);
+		writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+		udelay(1);
 
 		val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_PWRGEN_PWRDN_B;
-		dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 200);
+		writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+		udelay(200);
 
 		val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_LDO_PWRDN_B;
-		dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 250);
+		writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+		udelay(250);
 
 		val &= ~DSI_28nm_PHY_PLL_GLB_CFG_PLL_LDO_PWRDN_B;
-		dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 200);
+		writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+		udelay(200);
 
 		val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_LDO_PWRDN_B;
-		dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 500);
+		writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+		udelay(500);
 
 		val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_ENABLE;
-		dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 600);
+		writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+		udelay(600);
 	}
 
 	if (unlikely(!locked))
@@ -399,20 +410,23 @@ static int dsi_pll_28nm_vco_prepare_8226(struct clk_hw *hw)
 	writel(0x34, base + REG_DSI_28nm_PHY_PLL_CAL_CFG1);
 
 	val = DSI_28nm_PHY_PLL_GLB_CFG_PLL_PWRDN_B;
-	dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 200);
+	writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+	udelay(200);
 
 	val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_PWRGEN_PWRDN_B;
-	dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 200);
+	writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+	udelay(200);
 
 	val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_LDO_PWRDN_B;
 	val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_ENABLE;
-	dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 600);
+	writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+	udelay(600);
 
 	for (i = 0; i < 7; i++) {
 		/* DSI Uniphy lock detect setting */
 		writel(0x0d, base + REG_DSI_28nm_PHY_PLL_LKDET_CFG2);
-		dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_LKDET_CFG2,
-				0x0c, 100);
+		writel(0x0c, base + REG_DSI_28nm_PHY_PLL_LKDET_CFG2);
+		udelay(100);
 		writel(0x0d, base + REG_DSI_28nm_PHY_PLL_LKDET_CFG2);
 
 		/* poll for PLL ready status */
@@ -427,15 +441,18 @@ static int dsi_pll_28nm_vco_prepare_8226(struct clk_hw *hw)
 		 * PLL power up sequence.
 		 * Add necessary delays recommended by hardware.
 		 */
-		dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_PWRGEN_CFG, 0x00, 50);
+		writel(0x00, base + REG_DSI_28nm_PHY_PLL_PWRGEN_CFG);
+		udelay(50);
 
 		val = DSI_28nm_PHY_PLL_GLB_CFG_PLL_PWRDN_B;
 		val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_PWRGEN_PWRDN_B;
-		dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 100);
+		writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+		udelay(100);
 
 		val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_LDO_PWRDN_B;
 		val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_ENABLE;
-		dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 600);
+		writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+		udelay(600);
 	}
 
 	if (unlikely(!locked))
@@ -466,21 +483,27 @@ static int dsi_pll_28nm_vco_prepare_lp(struct clk_hw *hw)
 	 * PLL power up sequence.
 	 * Add necessary delays recommended by hardware.
 	 */
-	dsi_phy_write_ndelay(base + REG_DSI_28nm_PHY_PLL_CAL_CFG1, 0x34, 500);
+	writel(0x34, base + REG_DSI_28nm_PHY_PLL_CAL_CFG1);
+	ndelay(500);
 
 	val = DSI_28nm_PHY_PLL_GLB_CFG_PLL_PWRDN_B;
-	dsi_phy_write_ndelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 500);
+	writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+	ndelay(500);
 
 	val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_PWRGEN_PWRDN_B;
-	dsi_phy_write_ndelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 500);
+	writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+	ndelay(500);
 
 	val |= DSI_28nm_PHY_PLL_GLB_CFG_PLL_LDO_PWRDN_B |
 		DSI_28nm_PHY_PLL_GLB_CFG_PLL_ENABLE;
-	dsi_phy_write_ndelay(base + REG_DSI_28nm_PHY_PLL_GLB_CFG, val, 500);
+	writel(val, base + REG_DSI_28nm_PHY_PLL_GLB_CFG);
+	ndelay(500);
 
 	/* DSI PLL toggle lock detect setting */
-	dsi_phy_write_ndelay(base + REG_DSI_28nm_PHY_PLL_LKDET_CFG2, 0x04, 500);
-	dsi_phy_write_udelay(base + REG_DSI_28nm_PHY_PLL_LKDET_CFG2, 0x05, 512);
+	writel(0x04, base + REG_DSI_28nm_PHY_PLL_LKDET_CFG2);
+	ndelay(500);
+	writel(0x05, base + REG_DSI_28nm_PHY_PLL_LKDET_CFG2);
+	udelay(512);
 
 	locked = pll_28nm_poll_for_ready(pll_28nm, max_reads, timeout_us);
 
