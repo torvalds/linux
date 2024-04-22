@@ -628,6 +628,20 @@ xfs_attr_init_replace_state(struct xfs_da_args *args)
 	return xfs_attr_init_add_state(args);
 }
 
+xfs_dahash_t xfs_attr_hashname(const uint8_t *name, int namelen);
+
+xfs_dahash_t xfs_attr_hashval(struct xfs_mount *mp, unsigned int attr_flags,
+		const uint8_t *name, int namelen, const void *value,
+		int valuelen);
+
+/* Set the hash value for any extended attribute from any namespace. */
+static inline void xfs_attr_sethash(struct xfs_da_args *args)
+{
+	args->hashval = xfs_attr_hashval(args->dp->i_mount, args->attr_filter,
+					 args->name, args->namelen,
+					 args->value, args->valuelen);
+}
+
 extern struct kmem_cache *xfs_attr_intent_cache;
 int __init xfs_attr_intent_init_cache(void);
 void xfs_attr_intent_destroy_cache(void);

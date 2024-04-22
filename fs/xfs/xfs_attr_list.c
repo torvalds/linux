@@ -135,12 +135,15 @@ xfs_attr_shortform_list(
 		}
 
 		sbp->entno = i;
-		sbp->hash = xfs_da_hashname(sfe->nameval, sfe->namelen);
 		sbp->name = sfe->nameval;
 		sbp->namelen = sfe->namelen;
 		/* These are bytes, and both on-disk, don't endian-flip */
 		sbp->valuelen = sfe->valuelen;
 		sbp->flags = sfe->flags;
+		sbp->hash = xfs_attr_hashval(dp->i_mount, sfe->flags,
+					     sfe->nameval, sfe->namelen,
+					     sfe->nameval + sfe->namelen,
+					     sfe->valuelen);
 		sfe = xfs_attr_sf_nextentry(sfe);
 		sbp++;
 		nsbuf++;
