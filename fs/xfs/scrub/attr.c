@@ -536,6 +536,10 @@ xchk_xattr_rec(
 			xchk_da_set_corrupt(ds, level);
 			goto out;
 		}
+		if (ent->flags & XFS_ATTR_PARENT) {
+			xchk_da_set_corrupt(ds, level);
+			goto out;
+		}
 		calc_hash = xfs_attr_hashval(mp, ent->flags, rentry->name,
 					     rentry->namelen, NULL,
 					     be32_to_cpu(rentry->valuelen));

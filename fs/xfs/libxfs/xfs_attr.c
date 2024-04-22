@@ -437,6 +437,9 @@ xfs_attr_hashval(
 {
 	ASSERT(xfs_attr_check_namespace(attr_flags));
 
+	if (attr_flags & XFS_ATTR_PARENT)
+		return xfs_parent_hashattr(mp, name, namelen, value, valuelen);
+
 	return xfs_attr_hashname(name, namelen);
 }
 

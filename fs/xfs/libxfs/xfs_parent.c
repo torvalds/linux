@@ -90,3 +90,50 @@ xfs_parent_valuecheck(
 
 	return true;
 }
+
+/* Compute the attribute name hash for a parent pointer. */
+xfs_dahash_t
+xfs_parent_hashval(
+	struct xfs_mount		*mp,
+	const uint8_t			*name,
+	int				namelen,
+	xfs_ino_t			parent_ino)
+{
+	struct xfs_name			xname = {
+		.name			= name,
+		.len			= namelen,
+	};
+
+	/*
+	 * Use the same dirent name hash as would be used on the directory, but
+	 * mix in the parent inode number to avoid collisions on hardlinked
+	 * files with identical names but different parents.
+	 */
+	return xfs_dir2_hashname(mp, &xname) ^
+		upper_32_bits(parent_ino) ^ lower_32_bits(parent_ino);
+}
+
+/* Compute the attribute name hash from the xattr components. */
+xfs_dahash_t
+xfs_parent_hashattr(
+	struct xfs_mount		*mp,
+	const uint8_t			*name,
+	int				namelen,
+	const void			*value,
+	int				valuelen)
+{
+	const struct xfs_parent_rec	*rec = value;
+
+	/* Requires a local attr value in xfs_parent_rec format */
+	if (valuelen != sizeof(struct xfs_parent_rec)) {
+		ASSERT(valuelen == sizeof(struct xfs_parent_rec));
+		return 0;
+	}
+
+	if (!value) {
+		ASSERT(value != NULL);
+		return 0;
+	}
+
+	return xfs_parent_hashval(mp, name, namelen, be64_to_cpu(rec->p_ino));
+}
