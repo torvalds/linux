@@ -252,8 +252,9 @@ int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
 	return 0;
 }
 
-int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
-			enum amdgpu_ras_block block, uint32_t reset)
+int amdgpu_umc_pasid_poison_handler(struct amdgpu_device *adev,
+			enum amdgpu_ras_block block, uint16_t pasid,
+			pasid_notify pasid_fn, void *data, uint32_t reset)
 {
 	int ret = AMDGPU_RAS_SUCCESS;
 
@@ -291,16 +292,14 @@ int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
 
 			amdgpu_ras_error_data_fini(&err_data);
 		} else {
-			if (reset) {
-				amdgpu_umc_bad_page_polling_timeout(adev,
-							reset, MAX_UMC_POISON_POLLING_TIME_SYNC);
-			} else {
 				struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
+
+				amdgpu_ras_put_poison_req(adev,
+					block, pasid, pasid_fn, data, reset);
 
 				atomic_inc(&con->page_retirement_req_cnt);
 
 				wake_up(&con->page_retirement_wq);
-			}
 		}
 	} else {
 		if (adev->virt.ops && adev->virt.ops->ras_poison_handler)
@@ -311,6 +310,13 @@ int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
 	}
 
 	return ret;
+}
+
+int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
+			enum amdgpu_ras_block block, uint32_t reset)
+{
+	return amdgpu_umc_pasid_poison_handler(adev,
+				block, 0, NULL, NULL, reset);
 }
 
 int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,

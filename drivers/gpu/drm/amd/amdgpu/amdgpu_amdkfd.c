@@ -747,10 +747,17 @@ bool amdgpu_amdkfd_is_fed(struct amdgpu_device *adev)
 	return amdgpu_ras_get_fed_status(adev);
 }
 
+void amdgpu_amdkfd_ras_pasid_poison_consumption_handler(struct amdgpu_device *adev,
+				enum amdgpu_ras_block block, uint16_t pasid,
+				pasid_notify pasid_fn, void *data, uint32_t reset)
+{
+	amdgpu_umc_pasid_poison_handler(adev, block, pasid, pasid_fn, data, reset);
+}
+
 void amdgpu_amdkfd_ras_poison_consumption_handler(struct amdgpu_device *adev,
 	enum amdgpu_ras_block block, uint32_t reset)
 {
-	amdgpu_umc_poison_handler(adev, block, reset);
+	amdgpu_umc_pasid_poison_handler(adev, block, 0, NULL, NULL, reset);
 }
 
 int amdgpu_amdkfd_send_close_event_drain_irq(struct amdgpu_device *adev,

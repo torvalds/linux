@@ -106,6 +106,9 @@ int amdgpu_umc_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
 int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
 			enum amdgpu_ras_block block, uint32_t reset);
+int amdgpu_umc_pasid_poison_handler(struct amdgpu_device *adev,
+			enum amdgpu_ras_block block, uint16_t pasid,
+			pasid_notify pasid_fn, void *data, uint32_t reset);
 int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
 		struct amdgpu_irq_src *source,
 		struct amdgpu_iv_entry *entry);
