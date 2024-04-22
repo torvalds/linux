@@ -821,23 +821,24 @@ static int ntfs_get_frame_pages(struct address_space *mapping, pgoff_t index,
 	*frame_uptodate = true;
 
 	for (npages = 0; npages < pages_per_frame; npages++, index++) {
-		struct page *page;
+		struct folio *folio;
 
-		page = find_or_create_page(mapping, index, gfp_mask);
-		if (!page) {
+		folio = __filemap_get_folio(mapping, index,
+				FGP_LOCK | FGP_ACCESSED | FGP_CREAT, gfp_mask);
+		if (IS_ERR(folio)) {
 			while (npages--) {
-				page = pages[npages];
-				unlock_page(page);
-				put_page(page);
+				folio = page_folio(pages[npages]);
+				folio_unlock(folio);
+				folio_put(folio);
 			}
 
 			return -ENOMEM;
 		}
 
-		if (!PageUptodate(page))
+		if (!folio_test_uptodate(folio))
 			*frame_uptodate = false;
 
-		pages[npages] = page;
+		pages[npages] = &folio->page;
 	}
 
 	return 0;
