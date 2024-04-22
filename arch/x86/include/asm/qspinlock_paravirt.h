@@ -40,7 +40,7 @@ __PV_CALLEE_SAVE_REGS_THUNK(__pv_queued_spin_unlock_slowpath, ".spinlock.text");
 #define PV_UNLOCK_ASM							\
 	FRAME_BEGIN							\
 	"push  %rdx\n\t"						\
-	"mov   $0x1,%eax\n\t"						\
+	"mov   $" __stringify(_Q_LOCKED_VAL) ",%eax\n\t"		\
 	"xor   %edx,%edx\n\t"						\
 	LOCK_PREFIX "cmpxchg %dl,(%rdi)\n\t"				\
 	"jne   .slowpath\n\t"						\
