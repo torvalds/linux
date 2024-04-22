@@ -59,9 +59,6 @@ cp -v -- "${objtree}/vmlinux" "${tmpdir}/boot/vmlinux-${KERNELRELEASE}"
 #   build tree.
 #
 case "${ARCH}" in
-	x86|i386|x86_64)
-		cp -v -- "${objtree}/arch/x86/boot/bzImage" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
-		;;
 	alpha)
 		cp -v -- "${objtree}/arch/alpha/boot/vmlinux.gz" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
 		;;
@@ -110,13 +107,6 @@ case "${ARCH}" in
 		done
 		;;
 	*)
-		cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinux-kbuild-${KERNELRELEASE}"
-		echo "" >&2
-		echo '** ** **  WARNING  ** ** **' >&2
-		echo "" >&2
-		echo "Your architecture did not define any architecture-dependent files" >&2
-		echo "to be placed into the tarball. Please add those to ${0} ..." >&2
-		echo "" >&2
-		sleep 5
+		cp -v -- "${KBUILD_IMAGE}" "${tmpdir}/boot/vmlinuz-${KERNELRELEASE}"
 		;;
 esac
