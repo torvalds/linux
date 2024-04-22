@@ -64,20 +64,6 @@ int ath12k_core_suspend(struct ath12k_base *ab)
 	}
 	rcu_read_unlock();
 
-	ret = ath12k_dp_rx_pktlog_stop(ab, true);
-	if (ret) {
-		ath12k_warn(ab, "failed to stop dp rx (and timer) pktlog during suspend: %d\n",
-			    ret);
-		return ret;
-	}
-
-	ret = ath12k_dp_rx_pktlog_stop(ab, false);
-	if (ret) {
-		ath12k_warn(ab, "failed to stop dp rx pktlog during suspend: %d\n",
-			    ret);
-		return ret;
-	}
-
 	ath12k_hif_irq_disable(ab);
 	ath12k_hif_ce_irq_disable(ab);
 
@@ -105,13 +91,6 @@ int ath12k_core_resume(struct ath12k_base *ab)
 
 	ath12k_hif_ce_irq_enable(ab);
 	ath12k_hif_irq_enable(ab);
-
-	ret = ath12k_dp_rx_pktlog_start(ab);
-	if (ret) {
-		ath12k_warn(ab, "failed to start rx pktlog during resume: %d\n",
-			    ret);
-		return ret;
-	}
 
 	return 0;
 }
