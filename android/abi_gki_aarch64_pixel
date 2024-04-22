@@ -370,6 +370,7 @@
   devfreq_recommended_opp
   devfreq_register_opp_notifier
   devfreq_remove_device
+  devfreq_remove_governor
   devfreq_unregister_opp_notifier
   devfreq_update_interval
   dev_fwnode
@@ -692,6 +693,7 @@
   drm_bridge_remove
   drm_compat_ioctl
   drm_connector_attach_encoder
+  drm_connector_attach_max_bpc_property
   drm_connector_cleanup
   drm_connector_init
   drm_connector_list_iter_begin
@@ -784,6 +786,7 @@
   drm_modeset_lock_all_ctx
   drm_modeset_lock_single_interruptible
   drm_modeset_unlock
+  drm_mode_sort
   drm_mode_vrefresh
   drm_object_attach_property
   drm_object_property_set_value
@@ -1492,6 +1495,7 @@
   of_genpd_add_provider_simple
   of_get_child_by_name
   of_get_cpu_node
+  of_get_drm_panel_display_mode
   of_get_named_gpio_flags
   of_get_next_available_child
   of_get_next_child
@@ -1749,6 +1753,7 @@
   radix_tree_lookup
   radix_tree_next_chunk
   radix_tree_preload
+  raise_softirq
   ___ratelimit
   raw_notifier_call_chain
   raw_notifier_chain_register
@@ -2324,6 +2329,7 @@
   __traceiter_android_rvh_set_user_nice_locked
   __traceiter_android_rvh_typec_tcpci_get_vbus
   __traceiter_android_rvh_uclamp_eff_get
+  __traceiter_android_rvh_ufs_complete_init
   __traceiter_android_rvh_ufs_reprogram_all_keys
   __traceiter_android_rvh_update_blocked_fair
   __traceiter_android_rvh_update_load_avg
@@ -2373,7 +2379,10 @@
   __traceiter_android_vh_ufs_update_sysfs
   __traceiter_android_vh_use_amu_fie
   __traceiter_clock_set_rate
+  __traceiter_cma_alloc_finish
+  __traceiter_cma_alloc_start
   __traceiter_cpu_frequency
+  __traceiter_cpu_idle
   __traceiter_device_pm_callback_end
   __traceiter_device_pm_callback_start
   __traceiter_dwc3_readl
@@ -2439,6 +2448,7 @@
   __tracepoint_android_rvh_set_user_nice_locked
   __tracepoint_android_rvh_typec_tcpci_get_vbus
   __tracepoint_android_rvh_uclamp_eff_get
+  __tracepoint_android_rvh_ufs_complete_init
   __tracepoint_android_rvh_ufs_reprogram_all_keys
   __tracepoint_android_rvh_update_blocked_fair
   __tracepoint_android_rvh_update_load_avg
@@ -2488,7 +2498,10 @@
   __tracepoint_android_vh_ufs_update_sysfs
   __tracepoint_android_vh_use_amu_fie
   __tracepoint_clock_set_rate
+  __tracepoint_cma_alloc_finish
+  __tracepoint_cma_alloc_start
   __tracepoint_cpu_frequency
+  __tracepoint_cpu_idle
   __tracepoint_device_pm_callback_end
   __tracepoint_device_pm_callback_start
   __tracepoint_dwc3_readl
@@ -2762,6 +2775,8 @@
   woken_wake_function
   work_busy
   __write_overflow_field
+  ww_mutex_lock
+  ww_mutex_unlock
   __xa_alloc
   xa_clear_mark
   xa_destroy
