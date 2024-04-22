@@ -473,7 +473,7 @@ void workqueue_softirq_dead(unsigned int cpu);
  * @fmt: printf format for the name of the workqueue
  * @flags: WQ_* flags
  * @max_active: max in-flight work items, 0 for default
- * remaining args: args for @fmt
+ * @...: args for @fmt
  *
  * For a per-cpu workqueue, @max_active limits the number of in-flight work
  * items for each CPU. e.g. @max_active of 1 indicates that each CPU can be
