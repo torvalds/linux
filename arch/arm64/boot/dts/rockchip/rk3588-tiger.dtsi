@@ -688,6 +688,11 @@
 	status = "okay";
 };
 
+/* Routed to UART0 on the Q7 connector */
+&uart2 {
+	pinctrl-0 = <&uart2m2_xfer>;
+};
+
 /* Mule-ATtiny UPDI */
 &uart4 {
 	pinctrl-0 = <&uart4m2_xfer>;
