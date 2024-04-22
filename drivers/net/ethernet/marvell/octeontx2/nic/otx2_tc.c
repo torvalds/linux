@@ -700,10 +700,6 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 		u32 val;
 
 		flow_rule_match_control(rule, &match);
-		if (match.mask->flags & FLOW_DIS_FIRST_FRAG) {
-			NL_SET_ERR_MSG_MOD(extack, "HW doesn't support frag first/later");
-			return -EOPNOTSUPP;
-		}
 
 		if (match.mask->flags & FLOW_DIS_IS_FRAGMENT) {
 			val = match.key->flags & FLOW_DIS_IS_FRAGMENT;
@@ -721,6 +717,10 @@ static int otx2_tc_prepare_flow(struct otx2_nic *nic, struct otx2_tc_flow *node,
 				return -EOPNOTSUPP;
 			}
 		}
+
+		if (!flow_rule_is_supp_control_flags(FLOW_DIS_IS_FRAGMENT,
+						     match.mask->flags, extack))
+			return -EOPNOTSUPP;
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ETH_ADDRS)) {
