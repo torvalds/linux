@@ -63,7 +63,7 @@ xfs_initxattrs(
 			.value		= xattr->value,
 			.valuelen	= xattr->value_len,
 		};
-		error = xfs_attr_change(&args);
+		error = xfs_attr_change(&args, XFS_ATTRUPDATE_UPSERTR);
 		if (error < 0)
 			break;
 	}

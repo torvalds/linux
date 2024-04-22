@@ -203,7 +203,7 @@ __xfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 		xfs_acl_to_disk(args.value, acl);
 	}
 
-	error = xfs_attr_change(&args);
+	error = xfs_attr_change(&args, XFS_ATTRUPDATE_UPSERTR);
 	kvfree(args.value);
 
 	/*
