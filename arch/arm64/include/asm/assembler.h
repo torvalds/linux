@@ -50,10 +50,6 @@
 	msr	daif, \flags
 	.endm
 
-	.macro	enable_dbg
-	msr	daifclr, #8
-	.endm
-
 	.macro	disable_step_tsk, flgs, tmp
 	tbz	\flgs, #TIF_SINGLESTEP, 9990f
 	mrs	\tmp, mdscr_el1
