@@ -3924,7 +3924,7 @@ static void ieee80211_color_change_abort(struct ieee80211_sub_if_data  *sdata)
 
 	ieee80211_free_next_beacon(&sdata->deflink);
 
-	cfg80211_color_change_aborted_notify(sdata->dev);
+	cfg80211_color_change_aborted_notify(sdata->dev, 0);
 }
 
 static int
@@ -4772,14 +4772,14 @@ static int ieee80211_color_change_finalize(struct ieee80211_sub_if_data *sdata)
 
 	err = ieee80211_set_after_color_change_beacon(sdata, &changed);
 	if (err) {
-		cfg80211_color_change_aborted_notify(sdata->dev);
+		cfg80211_color_change_aborted_notify(sdata->dev, 0);
 		return err;
 	}
 
 	ieee80211_color_change_bss_config_notify(sdata,
 						 sdata->vif.bss_conf.color_change_color,
 						 1, changed);
-	cfg80211_color_change_notify(sdata->dev);
+	cfg80211_color_change_notify(sdata->dev, 0);
 
 	return 0;
 }
@@ -4812,7 +4812,7 @@ void ieee80211_color_collision_detection_work(struct work_struct *work)
 			     color_collision_detect_work);
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 
-	cfg80211_obss_color_collision_notify(sdata->dev, link->color_bitmap);
+	cfg80211_obss_color_collision_notify(sdata->dev, link->color_bitmap, 0);
 }
 
 void ieee80211_color_change_finish(struct ieee80211_vif *vif)
@@ -4876,7 +4876,7 @@ ieee80211_color_change(struct wiphy *wiphy, struct net_device *dev,
 	sdata->vif.bss_conf.color_change_active = true;
 	sdata->vif.bss_conf.color_change_color = params->color;
 
-	cfg80211_color_change_started_notify(sdata->dev, params->count);
+	cfg80211_color_change_started_notify(sdata->dev, params->count, 0);
 
 	if (changed)
 		ieee80211_color_change_bss_config_notify(sdata, 0, 0, changed);
