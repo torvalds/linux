@@ -1239,11 +1239,12 @@ undo1:
 	goto out;
 }
 
-int attr_data_read_resident(struct ntfs_inode *ni, struct page *page)
+int attr_data_read_resident(struct ntfs_inode *ni, struct folio *folio)
 {
 	u64 vbo;
 	struct ATTRIB *attr;
 	u32 data_size;
+	size_t len;
 
 	attr = ni_find_attr(ni, NULL, NULL, ATTR_DATA, NULL, 0, NULL, NULL);
 	if (!attr)
@@ -1252,25 +1253,15 @@ int attr_data_read_resident(struct ntfs_inode *ni, struct page *page)
 	if (attr->non_res)
 		return E_NTFS_NONRESIDENT;
 
-	vbo = page->index << PAGE_SHIFT;
+	vbo = folio->index << PAGE_SHIFT;
 	data_size = le32_to_cpu(attr->res.data_size);
-	if (vbo < data_size) {
-		const char *data = resident_data(attr);
-		char *kaddr = kmap_atomic(page);
-		u32 use = data_size - vbo;
+	if (vbo > data_size)
+		len = 0;
+	else
+		len = min(data_size - vbo, folio_size(folio));
 
-		if (use > PAGE_SIZE)
-			use = PAGE_SIZE;
-
-		memcpy(kaddr, data + vbo, use);
-		memset(kaddr + use, 0, PAGE_SIZE - use);
-		kunmap_atomic(kaddr);
-		flush_dcache_page(page);
-		SetPageUptodate(page);
-	} else if (!PageUptodate(page)) {
-		zero_user_segment(page, 0, PAGE_SIZE);
-		SetPageUptodate(page);
-	}
+	folio_fill_tail(folio, 0, resident_data(attr) + vbo, len);
+	folio_mark_uptodate(folio);
 
 	return 0;
 }

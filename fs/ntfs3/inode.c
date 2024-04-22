@@ -583,7 +583,7 @@ static noinline int ntfs_get_block_vbo(struct inode *inode, u64 vbo,
 			err = 0;
 		} else {
 			ni_lock(ni);
-			err = attr_data_read_resident(ni, &folio->page);
+			err = attr_data_read_resident(ni, folio);
 			ni_unlock(ni);
 
 			if (!err)
@@ -717,7 +717,7 @@ static int ntfs_read_folio(struct file *file, struct folio *folio)
 
 	if (is_resident(ni)) {
 		ni_lock(ni);
-		err = attr_data_read_resident(ni, &folio->page);
+		err = attr_data_read_resident(ni, folio);
 		ni_unlock(ni);
 		if (err != E_NTFS_NONRESIDENT) {
 			folio_unlock(folio);
@@ -923,7 +923,7 @@ int ntfs_write_begin(struct file *file, struct address_space *mapping,
 		}
 
 		ni_lock(ni);
-		err = attr_data_read_resident(ni, &folio->page);
+		err = attr_data_read_resident(ni, folio);
 		ni_unlock(ni);
 
 		if (!err) {
