@@ -408,6 +408,15 @@ xchk_iscan_iget_retry(
 }
 
 /*
+ * For an inode scan, we hold the AGI and want to try to grab a batch of
+ * inodes.  Holding the AGI prevents inodegc from clearing freed inodes,
+ * so we must use noretry here.  For every inode after the first one in the
+ * batch, we don't want to wait, so we use retry there too.  Finally, use
+ * dontcache to avoid polluting the cache.
+ */
+#define ISCAN_IGET_FLAGS	(XFS_IGET_NORETRY | XFS_IGET_DONTCACHE)
+
+/*
  * Grab an inode as part of an inode scan.  While scanning this inode, the
  * caller must ensure that no other threads can modify the inode until a call
  * to xchk_iscan_visit succeeds.
@@ -434,7 +443,7 @@ xchk_iscan_iget(
 	ASSERT(iscan->__inodes[0] == NULL);
 
 	/* Fill the first slot in the inode array. */
-	error = xfs_iget(sc->mp, sc->tp, ino, XFS_IGET_NORETRY, 0,
+	error = xfs_iget(sc->mp, sc->tp, ino, ISCAN_IGET_FLAGS, 0,
 			&iscan->__inodes[idx]);
 
 	trace_xchk_iscan_iget(iscan, error);
@@ -507,7 +516,7 @@ xchk_iscan_iget(
 
 		ASSERT(iscan->__inodes[idx] == NULL);
 
-		error = xfs_iget(sc->mp, sc->tp, ino, XFS_IGET_NORETRY, 0,
+		error = xfs_iget(sc->mp, sc->tp, ino, ISCAN_IGET_FLAGS, 0,
 				&iscan->__inodes[idx]);
 		if (error)
 			break;
