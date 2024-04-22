@@ -511,6 +511,11 @@ static unsigned long vgic_mmio_read_its_idregs(struct kvm *kvm,
 	return 0;
 }
 
+static unsigned long vgic_its_cache_key(u32 devid, u32 eventid)
+{
+	return (((unsigned long)devid) << VITS_TYPER_IDBITS) | eventid;
+}
+
 static struct vgic_irq *__vgic_its_check_cache(struct vgic_dist *dist,
 					       phys_addr_t db,
 					       u32 devid, u32 eventid)
@@ -564,8 +569,10 @@ static void vgic_its_cache_translation(struct kvm *kvm, struct vgic_its *its,
 				       u32 devid, u32 eventid,
 				       struct vgic_irq *irq)
 {
+	unsigned long cache_key = vgic_its_cache_key(devid, eventid);
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct vgic_translation_cache_entry *cte;
+	struct vgic_irq *old;
 	unsigned long flags;
 	phys_addr_t db;
 
@@ -604,6 +611,15 @@ static void vgic_its_cache_translation(struct kvm *kvm, struct vgic_its *its,
 	 * its_lock, as the ITE (and the reference it holds) cannot be freed.
 	 */
 	lockdep_assert_held(&its->its_lock);
+
+	/*
+	 * Yes, two references are necessary at the moment:
+	 *  - One for the global LPI translation cache
+	 *  - Another for the translation cache belonging to @its
+	 *
+	 * This will soon disappear.
+	 */
+	vgic_get_irq_kref(irq);
 	vgic_get_irq_kref(irq);
 
 	cte->db		= db;
@@ -613,6 +629,16 @@ static void vgic_its_cache_translation(struct kvm *kvm, struct vgic_its *its,
 
 	/* Move the new translation to the head of the list */
 	list_move(&cte->entry, &dist->lpi_translation_cache);
+	raw_spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
+
+	/*
+	 * The per-ITS cache is a perfect cache, so it may already have an
+	 * identical translation even if it were missing from the global
+	 * cache. Ensure we don't leak a reference if that is the case.
+	 */
+	old = xa_store(&its->translation_cache, cache_key, irq, GFP_KERNEL_ACCOUNT);
+	if (old)
+		vgic_put_irq(kvm, old);
 
 out:
 	raw_spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
@@ -623,7 +649,8 @@ static void vgic_its_invalidate_cache(struct vgic_its *its)
 	struct kvm *kvm = its->dev->kvm;
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct vgic_translation_cache_entry *cte;
-	unsigned long flags;
+	unsigned long flags, idx;
+	struct vgic_irq *irq;
 
 	raw_spin_lock_irqsave(&dist->lpi_list_lock, flags);
 
@@ -640,6 +667,11 @@ static void vgic_its_invalidate_cache(struct vgic_its *its)
 	}
 
 	raw_spin_unlock_irqrestore(&dist->lpi_list_lock, flags);
+
+	xa_for_each(&its->translation_cache, idx, irq) {
+		xa_erase(&its->translation_cache, idx);
+		vgic_put_irq(kvm, irq);
+	}
 }
 
 void vgic_its_invalidate_all_caches(struct kvm *kvm)
@@ -1962,6 +1994,7 @@ static int vgic_its_create(struct kvm_device *dev, u32 type)
 
 	INIT_LIST_HEAD(&its->device_list);
 	INIT_LIST_HEAD(&its->collection_list);
+	xa_init(&its->translation_cache);
 
 	dev->kvm->arch.vgic.msis_require_devid = true;
 	dev->kvm->arch.vgic.has_its = true;
@@ -1992,6 +2025,8 @@ static void vgic_its_destroy(struct kvm_device *kvm_dev)
 
 	vgic_its_free_device_list(kvm, its);
 	vgic_its_free_collection_list(kvm, its);
+	vgic_its_invalidate_cache(its);
+	xa_destroy(&its->translation_cache);
 
 	mutex_unlock(&its->its_lock);
 	kfree(its);
