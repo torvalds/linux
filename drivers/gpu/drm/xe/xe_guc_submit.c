@@ -35,7 +35,6 @@
 #include "xe_macros.h"
 #include "xe_map.h"
 #include "xe_mocs.h"
-#include "xe_module.h"
 #include "xe_ring_ops_types.h"
 #include "xe_sched_job.h"
 #include "xe_trace.h"
@@ -868,26 +867,38 @@ static void xe_guc_exec_queue_trigger_cleanup(struct xe_exec_queue *q)
 		xe_sched_tdr_queue_imm(&q->guc->sched);
 }
 
-static void guc_submit_wedged(struct xe_guc *guc)
+static bool guc_submit_hint_wedged(struct xe_guc *guc)
 {
+	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_exec_queue *q;
 	unsigned long index;
 	int err;
 
-	xe_device_declare_wedged(guc_to_xe(guc));
+	if (xe->wedged.mode != 2)
+		return false;
+
+	if (xe_device_wedged(xe))
+		return true;
+
+	xe_device_declare_wedged(xe);
+
 	xe_guc_submit_reset_prepare(guc);
 	xe_guc_ct_stop(&guc->ct);
 
 	err = drmm_add_action_or_reset(&guc_to_xe(guc)->drm,
 				       guc_submit_wedged_fini, guc);
-	if (err)
-		return;
+	if (err) {
+		drm_err(&xe->drm, "Failed to register xe_guc_submit clean-up on wedged.mode=2. Although device is wedged.\n");
+		return true; /* Device is wedged anyway */
+	}
 
 	mutex_lock(&guc->submission_state.lock);
 	xa_for_each(&guc->submission_state.exec_queue_lookup, index, q)
 		if (xe_exec_queue_get_unless_zero(q))
 			set_exec_queue_wedged(q);
 	mutex_unlock(&guc->submission_state.lock);
+
+	return true;
 }
 
 static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
@@ -898,15 +909,12 @@ static void xe_guc_exec_queue_lr_cleanup(struct work_struct *w)
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
 	struct xe_gpu_scheduler *sched = &ge->sched;
-	bool wedged = xe_device_wedged(xe);
+	bool wedged;
 
 	xe_assert(xe, xe_exec_queue_is_lr(q));
 	trace_xe_exec_queue_lr_cleanup(q);
 
-	if (!wedged && xe_modparam.wedged_mode == 2) {
-		guc_submit_wedged(exec_queue_to_guc(q));
-		wedged = true;
-	}
+	wedged = guc_submit_hint_wedged(exec_queue_to_guc(q));
 
 	/* Kill the run_job / process_msg entry points */
 	xe_sched_submission_stop(sched);
@@ -957,7 +965,7 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 	struct xe_device *xe = guc_to_xe(exec_queue_to_guc(q));
 	int err = -ETIME;
 	int i = 0;
-	bool wedged = xe_device_wedged(xe);
+	bool wedged;
 
 	/*
 	 * TDR has fired before free job worker. Common if exec queue
@@ -981,10 +989,7 @@ guc_exec_queue_timedout_job(struct drm_sched_job *drm_job)
 
 	trace_xe_sched_job_timedout(job);
 
-	if (!wedged && xe_modparam.wedged_mode == 2) {
-		guc_submit_wedged(exec_queue_to_guc(q));
-		wedged = true;
-	}
+	wedged = guc_submit_hint_wedged(exec_queue_to_guc(q));
 
 	/* Kill the run_job entry point */
 	xe_sched_submission_stop(sched);

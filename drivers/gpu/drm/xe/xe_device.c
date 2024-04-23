@@ -506,6 +506,8 @@ int xe_device_probe_early(struct xe_device *xe)
 	if (err)
 		return err;
 
+	xe->wedged.mode = xe_modparam.wedged_mode;
+
 	return 0;
 }
 
@@ -769,7 +771,7 @@ u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address)
  * xe_device_declare_wedged - Declare device wedged
  * @xe: xe device instance
  *
- * This is a final state that can only be cleared with a module
+ * This is a final state that can only be cleared with a mudule
  * re-probe (unbind + bind).
  * In this state every IOCTL will be blocked so the GT cannot be used.
  * In general it will be called upon any critical error such as gt reset
@@ -781,10 +783,12 @@ u64 xe_device_uncanonicalize_addr(struct xe_device *xe, u64 address)
  */
 void xe_device_declare_wedged(struct xe_device *xe)
 {
-	if (xe_modparam.wedged_mode == 0)
+	if (xe->wedged.mode == 0) {
+		drm_dbg(&xe->drm, "Wedged mode is forcebly disabled\n");
 		return;
+	}
 
-	if (!atomic_xchg(&xe->wedged, 1)) {
+	if (!atomic_xchg(&xe->wedged.flag, 1)) {
 		xe->needs_flr_on_fini = true;
 		drm_err(&xe->drm,
 			"CRITICAL: Xe has declared device %s as wedged.\n"
