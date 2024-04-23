@@ -65,7 +65,7 @@ enum {
 		.intr_detection_width = 2,		\
 	}
 
-#define SDC_QDSD_PINGROUP(pg_name, ctl, pull, drv)	\
+#define SDC_QDSD_PINGROUP(pg_name, _tile, ctl, pull, drv) \
 	{						\
 		.grp = PINCTRL_PINGROUP(#pg_name, 	\
 			pg_name##_pins, 		\
@@ -75,7 +75,7 @@ enum {
 		.intr_cfg_reg = 0,			\
 		.intr_status_reg = 0,			\
 		.intr_target_reg = 0,			\
-		.tile = SOUTH,				\
+		.tile = _tile,				\
 		.mux_bit = -1,				\
 		.pull_bit = pull,			\
 		.drv_bit = drv,				\
@@ -101,7 +101,7 @@ enum {
 		.intr_cfg_reg = 0,			\
 		.intr_status_reg = 0,			\
 		.intr_target_reg = 0,			\
-		.tile = SOUTH,				\
+		.tile = WEST,				\
 		.mux_bit = -1,				\
 		.pull_bit = 3,				\
 		.drv_bit = 0,				\
@@ -1199,13 +1199,13 @@ static const struct msm_pingroup sm7150_groups[] = {
 	[117] = PINGROUP(117, NORTH, _, _, _, _, _, _, _, _, _),
 	[118] = PINGROUP(118, NORTH, _, _, _, _, _, _, _, _, _),
 	[119] = UFS_RESET(ufs_reset, 0x9f000),
-	[120] = SDC_QDSD_PINGROUP(sdc1_rclk, 0x9a000, 15, 0),
-	[121] = SDC_QDSD_PINGROUP(sdc1_clk, 0x9a000, 13, 6),
-	[122] = SDC_QDSD_PINGROUP(sdc1_cmd, 0x9a000, 11, 3),
-	[123] = SDC_QDSD_PINGROUP(sdc1_data, 0x9a000, 9, 0),
-	[124] = SDC_QDSD_PINGROUP(sdc2_clk, 0x98000, 14, 6),
-	[125] = SDC_QDSD_PINGROUP(sdc2_cmd, 0x98000, 11, 3),
-	[126] = SDC_QDSD_PINGROUP(sdc2_data, 0x98000, 9, 0),
+	[120] = SDC_QDSD_PINGROUP(sdc1_rclk, WEST, 0x9a000, 15, 0),
+	[121] = SDC_QDSD_PINGROUP(sdc1_clk, WEST, 0x9a000, 13, 6),
+	[122] = SDC_QDSD_PINGROUP(sdc1_cmd, WEST, 0x9a000, 11, 3),
+	[123] = SDC_QDSD_PINGROUP(sdc1_data, WEST, 0x9a000, 9, 0),
+	[124] = SDC_QDSD_PINGROUP(sdc2_clk, SOUTH, 0x98000, 14, 6),
+	[125] = SDC_QDSD_PINGROUP(sdc2_cmd, SOUTH, 0x98000, 11, 3),
+	[126] = SDC_QDSD_PINGROUP(sdc2_data, SOUTH, 0x98000, 9, 0),
 };
 
 static const struct msm_gpio_wakeirq_map sm7150_pdc_map[] = {
