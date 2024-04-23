@@ -908,6 +908,8 @@ static void __bch2_journal_block(struct journal *j)
 			new.v = old.v;
 			new.cur_entry_offset = JOURNAL_ENTRY_BLOCKED_VAL;
 		} while (!atomic64_try_cmpxchg(&j->reservations.counter, &old.v, new.v));
+
+		journal_cur_buf(j)->data->u64s = cpu_to_le32(old.cur_entry_offset);
 	}
 }
 
@@ -920,7 +922,8 @@ void bch2_journal_block(struct journal *j)
 	journal_quiesce(j);
 }
 
-static struct journal_buf *__bch2_next_write_buffer_flush_journal_buf(struct journal *j, u64 max_seq)
+static struct journal_buf *__bch2_next_write_buffer_flush_journal_buf(struct journal *j,
+						u64 max_seq, bool *blocked)
 {
 	struct journal_buf *ret = NULL;
 
@@ -937,13 +940,17 @@ static struct journal_buf *__bch2_next_write_buffer_flush_journal_buf(struct jou
 		struct journal_buf *buf = j->buf + idx;
 
 		if (buf->need_flush_to_write_buffer) {
-			if (seq == journal_cur_seq(j))
-				__journal_entry_close(j, JOURNAL_ENTRY_CLOSED_VAL, true);
-
 			union journal_res_state s;
 			s.v = atomic64_read_acquire(&j->reservations.counter);
 
-			ret = journal_state_count(s, idx)
+			unsigned open = seq == journal_cur_seq(j) && __journal_entry_is_open(s);
+
+			if (open && !*blocked) {
+				__bch2_journal_block(j);
+				*blocked = true;
+			}
+
+			ret = journal_state_count(s, idx) > open
 				? ERR_PTR(-EAGAIN)
 				: buf;
 			break;
@@ -956,11 +963,17 @@ static struct journal_buf *__bch2_next_write_buffer_flush_journal_buf(struct jou
 	return ret;
 }
 
-struct journal_buf *bch2_next_write_buffer_flush_journal_buf(struct journal *j, u64 max_seq)
+struct journal_buf *bch2_next_write_buffer_flush_journal_buf(struct journal *j,
+							     u64 max_seq, bool *blocked)
 {
 	struct journal_buf *ret;
+	*blocked = false;
 
-	wait_event(j->wait, (ret = __bch2_next_write_buffer_flush_journal_buf(j, max_seq)) != ERR_PTR(-EAGAIN));
+	wait_event(j->wait, (ret = __bch2_next_write_buffer_flush_journal_buf(j,
+						max_seq, blocked)) != ERR_PTR(-EAGAIN));
+	if (IS_ERR_OR_NULL(ret) && *blocked)
+		bch2_journal_unblock(j);
+
 	return ret;
 }
 

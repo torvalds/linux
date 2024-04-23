@@ -495,10 +495,6 @@ static int bch2_journal_keys_to_write_buffer(struct bch_fs *c, struct journal_bu
 
 		entry->type = BCH_JSET_ENTRY_btree_keys;
 	}
-
-	spin_lock(&c->journal.lock);
-	buf->need_flush_to_write_buffer = false;
-	spin_unlock(&c->journal.lock);
 out:
 	ret = bch2_journal_keys_to_write_buffer_end(c, &dst) ?: ret;
 	return ret;
@@ -508,11 +504,24 @@ static int fetch_wb_keys_from_journal(struct bch_fs *c, u64 max_seq)
 {
 	struct journal *j = &c->journal;
 	struct journal_buf *buf;
+	bool blocked;
 	int ret = 0;
 
-	while (!ret && (buf = bch2_next_write_buffer_flush_journal_buf(j, max_seq))) {
+	while (!ret && (buf = bch2_next_write_buffer_flush_journal_buf(j, max_seq, &blocked))) {
 		ret = bch2_journal_keys_to_write_buffer(c, buf);
+
+		if (!blocked && !ret) {
+			spin_lock(&j->lock);
+			buf->need_flush_to_write_buffer = false;
+			spin_unlock(&j->lock);
+		}
+
 		mutex_unlock(&j->buf_lock);
+
+		if (blocked) {
+			bch2_journal_unblock(j);
+			break;
+		}
 	}
 
 	return ret;
