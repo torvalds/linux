@@ -115,7 +115,7 @@ static void swap_bytes(void *a, void *b, size_t n)
 
 struct wrapper {
 	cmp_func_t cmp;
-	swap_func_t swap;
+	swap_func_t swap_func;
 };
 
 /*
@@ -125,7 +125,7 @@ struct wrapper {
 static void do_swap(void *a, void *b, size_t size, swap_r_func_t swap_func, const void *priv)
 {
 	if (swap_func == SWAP_WRAPPER) {
-		((const struct wrapper *)priv)->swap(a, b, (int)size);
+		((const struct wrapper *)priv)->swap_func(a, b, (int)size);
 		return;
 	}
 
@@ -174,7 +174,7 @@ void eytzinger0_sort_r(void *base, size_t n, size_t size,
 	int i, c, r;
 
 	/* called from 'sort' without swap function, let's pick the default */
-	if (swap_func == SWAP_WRAPPER && !((struct wrapper *)priv)->swap)
+	if (swap_func == SWAP_WRAPPER && !((struct wrapper *)priv)->swap_func)
 		swap_func = NULL;
 
 	if (!swap_func) {
@@ -227,7 +227,7 @@ void eytzinger0_sort(void *base, size_t n, size_t size,
 {
 	struct wrapper w = {
 		.cmp  = cmp_func,
-		.swap = swap_func,
+		.swap_func = swap_func,
 	};
 
 	return eytzinger0_sort_r(base, n, size, _CMP_WRAPPER, SWAP_WRAPPER, &w);

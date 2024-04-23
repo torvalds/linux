@@ -720,4 +720,7 @@ int apmf_check_smart_pc(struct amd_pmf_dev *pmf_dev);
 void amd_pmf_populate_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *in);
 void amd_pmf_dump_ta_inputs(struct amd_pmf_dev *dev, struct ta_pmf_enact_table *in);
 
+/* Quirk infrastructure */
+void amd_pmf_quirks_init(struct amd_pmf_dev *dev);
+
 #endif /* PMF_H */

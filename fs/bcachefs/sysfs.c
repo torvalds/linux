@@ -17,7 +17,6 @@
 #include "btree_iter.h"
 #include "btree_key_cache.h"
 #include "btree_update.h"
-#include "btree_update_interior.h"
 #include "btree_gc.h"
 #include "buckets.h"
 #include "clock.h"
@@ -26,6 +25,7 @@
 #include "ec.h"
 #include "inode.h"
 #include "journal.h"
+#include "journal_reclaim.h"
 #include "keylist.h"
 #include "move.h"
 #include "movinggc.h"
@@ -139,6 +139,7 @@ do {									\
 write_attribute(trigger_gc);
 write_attribute(trigger_discards);
 write_attribute(trigger_invalidates);
+write_attribute(trigger_journal_flush);
 write_attribute(prune_cache);
 write_attribute(btree_wakeup);
 rw_attribute(btree_gc_periodic);
@@ -166,7 +167,6 @@ read_attribute(btree_write_stats);
 read_attribute(btree_cache_size);
 read_attribute(compression_stats);
 read_attribute(journal_debug);
-read_attribute(btree_updates);
 read_attribute(btree_cache);
 read_attribute(btree_key_cache);
 read_attribute(stripes_heap);
@@ -415,9 +415,6 @@ SHOW(bch2_fs)
 	if (attr == &sysfs_journal_debug)
 		bch2_journal_debug_to_text(out, &c->journal);
 
-	if (attr == &sysfs_btree_updates)
-		bch2_btree_updates_to_text(out, c);
-
 	if (attr == &sysfs_btree_cache)
 		bch2_btree_cache_to_text(out, c);
 
@@ -505,7 +502,7 @@ STORE(bch2_fs)
 
 	/* Debugging: */
 
-	if (!test_bit(BCH_FS_rw, &c->flags))
+	if (!bch2_write_ref_tryget(c, BCH_WRITE_REF_sysfs))
 		return -EROFS;
 
 	if (attr == &sysfs_prune_cache) {
@@ -538,6 +535,11 @@ STORE(bch2_fs)
 	if (attr == &sysfs_trigger_invalidates)
 		bch2_do_invalidates(c);
 
+	if (attr == &sysfs_trigger_journal_flush) {
+		bch2_journal_flush_all_pins(&c->journal);
+		bch2_journal_meta(&c->journal);
+	}
+
 #ifdef CONFIG_BCACHEFS_TESTS
 	if (attr == &sysfs_perf_test) {
 		char *tmp = kstrdup(buf, GFP_KERNEL), *p = tmp;
@@ -558,6 +560,7 @@ STORE(bch2_fs)
 			size = ret;
 	}
 #endif
+	bch2_write_ref_put(c, BCH_WRITE_REF_sysfs);
 	return size;
 }
 SYSFS_OPS(bch2_fs);
@@ -639,7 +642,6 @@ SYSFS_OPS(bch2_fs_internal);
 struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_flags,
 	&sysfs_journal_debug,
-	&sysfs_btree_updates,
 	&sysfs_btree_cache,
 	&sysfs_btree_key_cache,
 	&sysfs_new_stripes,
@@ -657,6 +659,7 @@ struct attribute *bch2_fs_internal_files[] = {
 	&sysfs_trigger_gc,
 	&sysfs_trigger_discards,
 	&sysfs_trigger_invalidates,
+	&sysfs_trigger_journal_flush,
 	&sysfs_prune_cache,
 	&sysfs_btree_wakeup,
 

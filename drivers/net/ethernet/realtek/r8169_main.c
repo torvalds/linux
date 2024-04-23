@@ -647,6 +647,8 @@ struct rtl8169_private {
 	const char *fw_name;
 	struct rtl_fw *rtl_fw;
 
+	struct r8169_led_classdev *leds;
+
 	u32 ocp_base;
 };
 
@@ -5044,6 +5046,9 @@ static void rtl_remove_one(struct pci_dev *pdev)
 
 	cancel_work_sync(&tp->wk.work);
 
+	if (IS_ENABLED(CONFIG_R8169_LEDS))
+		r8169_remove_leds(tp->leds);
+
 	unregister_netdev(tp->dev);
 
 	if (tp->dash_type != RTL_DASH_NONE)
@@ -5501,9 +5506,9 @@ static int rtl_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (IS_ENABLED(CONFIG_R8169_LEDS)) {
 		if (rtl_is_8125(tp))
-			rtl8125_init_leds(dev);
+			tp->leds = rtl8125_init_leds(dev);
 		else if (tp->mac_version > RTL_GIGA_MAC_VER_06)
-			rtl8168_init_leds(dev);
+			tp->leds = rtl8168_init_leds(dev);
 	}
 
 	netdev_info(dev, "%s, %pM, XID %03x, IRQ %d\n",
