@@ -423,41 +423,33 @@ int xe_mmio_init(struct xe_device *xe)
 u8 xe_mmio_read8(struct xe_gt *gt, struct xe_reg reg)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
+	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
 
-	if (reg.addr < gt->mmio.adj_limit)
-		reg.addr += gt->mmio.adj_offset;
-
-	return readb((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + reg.addr);
+	return readb((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
 }
 
 u16 xe_mmio_read16(struct xe_gt *gt, struct xe_reg reg)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
+	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
 
-	if (reg.addr < gt->mmio.adj_limit)
-		reg.addr += gt->mmio.adj_offset;
-
-	return readw((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + reg.addr);
+	return readw((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
 }
 
 void xe_mmio_write32(struct xe_gt *gt, struct xe_reg reg, u32 val)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
+	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
 
-	if (reg.addr < gt->mmio.adj_limit)
-		reg.addr += gt->mmio.adj_offset;
-
-	writel(val, (reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + reg.addr);
+	writel(val, (reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
 }
 
 u32 xe_mmio_read32(struct xe_gt *gt, struct xe_reg reg)
 {
 	struct xe_tile *tile = gt_to_tile(gt);
+	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
 
-	if (reg.addr < gt->mmio.adj_limit)
-		reg.addr += gt->mmio.adj_offset;
-
-	return readl((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + reg.addr);
+	return readl((reg.ext ? tile->mmio_ext.regs : tile->mmio.regs) + addr);
 }
 
 u32 xe_mmio_rmw32(struct xe_gt *gt, struct xe_reg reg, u32 clr, u32 set)
@@ -486,10 +478,9 @@ bool xe_mmio_in_range(const struct xe_gt *gt,
 		      const struct xe_mmio_range *range,
 		      struct xe_reg reg)
 {
-	if (reg.addr < gt->mmio.adj_limit)
-		reg.addr += gt->mmio.adj_offset;
+	u32 addr = xe_mmio_adjusted_addr(gt, reg.addr);
 
-	return range && reg.addr >= range->start && reg.addr <= range->end;
+	return range && addr >= range->start && addr <= range->end;
 }
 
 /**
@@ -519,10 +510,11 @@ u64 xe_mmio_read64_2x32(struct xe_gt *gt, struct xe_reg reg)
 	struct xe_reg reg_udw = { .addr = reg.addr + 0x4 };
 	u32 ldw, udw, oldudw, retries;
 
-	if (reg.addr < gt->mmio.adj_limit) {
-		reg.addr += gt->mmio.adj_offset;
-		reg_udw.addr += gt->mmio.adj_offset;
-	}
+	reg.addr = xe_mmio_adjusted_addr(gt, reg.addr);
+	reg_udw.addr = xe_mmio_adjusted_addr(gt, reg_udw.addr);
+
+	/* we shouldn't adjust just one register address */
+	xe_gt_assert(gt, reg_udw.addr == reg.addr + 0x4);
 
 	oldudw = xe_mmio_read32(gt, reg_udw);
 	for (retries = 5; retries; --retries) {
