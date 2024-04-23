@@ -97,10 +97,10 @@ struct octeon_i2c_reg_offset {
 	unsigned int mode;
 };
 
-#define SW_TWSI(x)	(x->roff.sw_twsi)
-#define TWSI_INT(x)	(x->roff.twsi_int)
-#define SW_TWSI_EXT(x)	(x->roff.sw_twsi_ext)
-#define MODE(x)		((x)->roff.mode)
+#define OCTEON_REG_SW_TWSI(x)		((x)->roff.sw_twsi)
+#define OCTEON_REG_TWSI_INT(x)		((x)->roff.twsi_int)
+#define OCTEON_REG_SW_TWSI_EXT(x)	((x)->roff.sw_twsi_ext)
+#define OCTEON_REG_MODE(x)		((x)->roff.mode)
 
 /* Set REFCLK_SRC and HS_MODE in TWSX_MODE register */
 #define TWSX_MODE_REFCLK_SRC	BIT(4)
@@ -143,16 +143,16 @@ static inline void octeon_i2c_writeq_flush(u64 val, void __iomem *addr)
  * @eop_reg: Register selector
  * @data: Value to be written
  *
- * The I2C core registers are accessed indirectly via the SW_TWSI CSR.
+ * The I2C core registers are accessed indirectly via the OCTEON_REG_SW_TWSI CSR.
  */
 static inline void octeon_i2c_reg_write(struct octeon_i2c *i2c, u64 eop_reg, u8 data)
 {
 	int tries = 1000;
 	u64 tmp;
 
-	__raw_writeq(SW_TWSI_V | eop_reg | data, i2c->twsi_base + SW_TWSI(i2c));
+	__raw_writeq(SW_TWSI_V | eop_reg | data, i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 	do {
-		tmp = __raw_readq(i2c->twsi_base + SW_TWSI(i2c));
+		tmp = __raw_readq(i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 		if (--tries < 0)
 			return;
 	} while ((tmp & SW_TWSI_V) != 0);
@@ -178,9 +178,9 @@ static inline int octeon_i2c_reg_read(struct octeon_i2c *i2c, u64 eop_reg,
 	int tries = 1000;
 	u64 tmp;
 
-	__raw_writeq(SW_TWSI_V | eop_reg | SW_TWSI_R, i2c->twsi_base + SW_TWSI(i2c));
+	__raw_writeq(SW_TWSI_V | eop_reg | SW_TWSI_R, i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 	do {
-		tmp = __raw_readq(i2c->twsi_base + SW_TWSI(i2c));
+		tmp = __raw_readq(i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 		if (--tries < 0) {
 			/* signal that the returned data is invalid */
 			if (error)
@@ -200,24 +200,24 @@ static inline int octeon_i2c_reg_read(struct octeon_i2c *i2c, u64 eop_reg,
 	octeon_i2c_reg_read(i2c, SW_TWSI_EOP_TWSI_STAT, NULL)
 
 /**
- * octeon_i2c_read_int - read the TWSI_INT register
+ * octeon_i2c_read_int - read the OCTEON_REG_TWSI_INT register
  * @i2c: The struct octeon_i2c
  *
  * Returns the value of the register.
  */
 static inline u64 octeon_i2c_read_int(struct octeon_i2c *i2c)
 {
-	return __raw_readq(i2c->twsi_base + TWSI_INT(i2c));
+	return __raw_readq(i2c->twsi_base + OCTEON_REG_TWSI_INT(i2c));
 }
 
 /**
- * octeon_i2c_write_int - write the TWSI_INT register
+ * octeon_i2c_write_int - write the OCTEON_REG_TWSI_INT register
  * @i2c: The struct octeon_i2c
  * @data: Value to be written
  */
 static inline void octeon_i2c_write_int(struct octeon_i2c *i2c, u64 data)
 {
-	octeon_i2c_writeq_flush(data, i2c->twsi_base + TWSI_INT(i2c));
+	octeon_i2c_writeq_flush(data, i2c->twsi_base + OCTEON_REG_TWSI_INT(i2c));
 }
 
 #define IS_LS_FREQ(twsi_freq)	((twsi_freq) <= 400000)

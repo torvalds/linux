@@ -85,7 +85,7 @@ static int octeon_i2c_wait(struct octeon_i2c *i2c)
 
 static bool octeon_i2c_hlc_test_valid(struct octeon_i2c *i2c)
 {
-	return (__raw_readq(i2c->twsi_base + SW_TWSI(i2c)) & SW_TWSI_V) == 0;
+	return (__raw_readq(i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c)) & SW_TWSI_V) == 0;
 }
 
 static void octeon_i2c_hlc_int_clear(struct octeon_i2c *i2c)
@@ -185,10 +185,10 @@ static int octeon_i2c_check_status(struct octeon_i2c *i2c, int final_read)
 
 	/*
 	 * This is ugly... in HLC mode the status is not in the status register
-	 * but in the lower 8 bits of SW_TWSI.
+	 * but in the lower 8 bits of OCTEON_REG_SW_TWSI.
 	 */
 	if (i2c->hlc_enabled)
-		stat = __raw_readq(i2c->twsi_base + SW_TWSI(i2c));
+		stat = __raw_readq(i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 	else
 		stat = octeon_i2c_stat_read(i2c);
 
@@ -424,12 +424,12 @@ static int octeon_i2c_hlc_read(struct octeon_i2c *i2c, struct i2c_msg *msgs)
 	else
 		cmd |= SW_TWSI_OP_7;
 
-	octeon_i2c_writeq_flush(cmd, i2c->twsi_base + SW_TWSI(i2c));
+	octeon_i2c_writeq_flush(cmd, i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 	ret = octeon_i2c_hlc_wait(i2c);
 	if (ret)
 		goto err;
 
-	cmd = __raw_readq(i2c->twsi_base + SW_TWSI(i2c));
+	cmd = __raw_readq(i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 	if ((cmd & SW_TWSI_R) == 0)
 		return octeon_i2c_check_status(i2c, false);
 
@@ -437,7 +437,7 @@ static int octeon_i2c_hlc_read(struct octeon_i2c *i2c, struct i2c_msg *msgs)
 		msgs[0].buf[j] = (cmd >> (8 * i)) & 0xff;
 
 	if (msgs[0].len > 4) {
-		cmd = __raw_readq(i2c->twsi_base + SW_TWSI_EXT(i2c));
+		cmd = __raw_readq(i2c->twsi_base + OCTEON_REG_SW_TWSI_EXT(i2c));
 		for (i = 0; i  < msgs[0].len - 4 && i < 4; i++, j--)
 			msgs[0].buf[j] = (cmd >> (8 * i)) & 0xff;
 	}
@@ -474,15 +474,15 @@ static int octeon_i2c_hlc_write(struct octeon_i2c *i2c, struct i2c_msg *msgs)
 
 		for (i = 0; i < msgs[0].len - 4 && i < 4; i++, j--)
 			ext |= (u64)msgs[0].buf[j] << (8 * i);
-		octeon_i2c_writeq_flush(ext, i2c->twsi_base + SW_TWSI_EXT(i2c));
+		octeon_i2c_writeq_flush(ext, i2c->twsi_base + OCTEON_REG_SW_TWSI_EXT(i2c));
 	}
 
-	octeon_i2c_writeq_flush(cmd, i2c->twsi_base + SW_TWSI(i2c));
+	octeon_i2c_writeq_flush(cmd, i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 	ret = octeon_i2c_hlc_wait(i2c);
 	if (ret)
 		goto err;
 
-	cmd = __raw_readq(i2c->twsi_base + SW_TWSI(i2c));
+	cmd = __raw_readq(i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 	if ((cmd & SW_TWSI_R) == 0)
 		return octeon_i2c_check_status(i2c, false);
 
@@ -515,19 +515,19 @@ static int octeon_i2c_hlc_comp_read(struct octeon_i2c *i2c, struct i2c_msg *msgs
 		cmd |= SW_TWSI_EIA;
 		ext = (u64)msgs[0].buf[0] << SW_TWSI_IA_SHIFT;
 		cmd |= (u64)msgs[0].buf[1] << SW_TWSI_IA_SHIFT;
-		octeon_i2c_writeq_flush(ext, i2c->twsi_base + SW_TWSI_EXT(i2c));
+		octeon_i2c_writeq_flush(ext, i2c->twsi_base + OCTEON_REG_SW_TWSI_EXT(i2c));
 	} else {
 		cmd |= (u64)msgs[0].buf[0] << SW_TWSI_IA_SHIFT;
 	}
 
 	octeon_i2c_hlc_int_clear(i2c);
-	octeon_i2c_writeq_flush(cmd, i2c->twsi_base + SW_TWSI(i2c));
+	octeon_i2c_writeq_flush(cmd, i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 
 	ret = octeon_i2c_hlc_wait(i2c);
 	if (ret)
 		goto err;
 
-	cmd = __raw_readq(i2c->twsi_base + SW_TWSI(i2c));
+	cmd = __raw_readq(i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 	if ((cmd & SW_TWSI_R) == 0)
 		return octeon_i2c_check_status(i2c, false);
 
@@ -535,7 +535,7 @@ static int octeon_i2c_hlc_comp_read(struct octeon_i2c *i2c, struct i2c_msg *msgs
 		msgs[1].buf[j] = (cmd >> (8 * i)) & 0xff;
 
 	if (msgs[1].len > 4) {
-		cmd = __raw_readq(i2c->twsi_base + SW_TWSI_EXT(i2c));
+		cmd = __raw_readq(i2c->twsi_base + OCTEON_REG_SW_TWSI_EXT(i2c));
 		for (i = 0; i  < msgs[1].len - 4 && i < 4; i++, j--)
 			msgs[1].buf[j] = (cmd >> (8 * i)) & 0xff;
 	}
@@ -582,16 +582,16 @@ static int octeon_i2c_hlc_comp_write(struct octeon_i2c *i2c, struct i2c_msg *msg
 		set_ext = true;
 	}
 	if (set_ext)
-		octeon_i2c_writeq_flush(ext, i2c->twsi_base + SW_TWSI_EXT(i2c));
+		octeon_i2c_writeq_flush(ext, i2c->twsi_base + OCTEON_REG_SW_TWSI_EXT(i2c));
 
 	octeon_i2c_hlc_int_clear(i2c);
-	octeon_i2c_writeq_flush(cmd, i2c->twsi_base + SW_TWSI(i2c));
+	octeon_i2c_writeq_flush(cmd, i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 
 	ret = octeon_i2c_hlc_wait(i2c);
 	if (ret)
 		goto err;
 
-	cmd = __raw_readq(i2c->twsi_base + SW_TWSI(i2c));
+	cmd = __raw_readq(i2c->twsi_base + OCTEON_REG_SW_TWSI(i2c));
 	if ((cmd & SW_TWSI_R) == 0)
 		return octeon_i2c_check_status(i2c, false);
 
@@ -737,13 +737,13 @@ void octeon_i2c_set_clock(struct octeon_i2c *i2c)
 	if (is_plat_otx2) {
 		u64 mode;
 
-		mode = __raw_readq(i2c->twsi_base + MODE(i2c));
+		mode = __raw_readq(i2c->twsi_base + OCTEON_REG_MODE(i2c));
 		/* Set REFCLK_SRC and HS_MODE in TWSX_MODE register */
 		if (!IS_LS_FREQ(i2c->twsi_freq))
 			mode |= TWSX_MODE_HS_MASK;
 		else
 			mode &= ~TWSX_MODE_HS_MASK;
-		octeon_i2c_writeq_flush(mode, i2c->twsi_base + MODE(i2c));
+		octeon_i2c_writeq_flush(mode, i2c->twsi_base + OCTEON_REG_MODE(i2c));
 	}
 }
 
