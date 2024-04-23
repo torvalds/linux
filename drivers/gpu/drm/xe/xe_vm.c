@@ -1499,6 +1499,9 @@ static void xe_vm_free(struct drm_gpuvm *gpuvm)
 	/* xe_vm_close_and_put was not called? */
 	xe_assert(xe, !vm->size);
 
+	if (xe_vm_in_preempt_fence_mode(vm))
+		flush_work(&vm->preempt.rebind_work);
+
 	mutex_destroy(&vm->snap_mutex);
 
 	if (!(vm->flags & XE_VM_FLAG_MIGRATION))
