@@ -1383,24 +1383,27 @@ static void b53_phylink_get_caps(struct dsa_switch *ds, int port,
 		dev->ops->phylink_get_caps(dev, port, config);
 }
 
-static struct phylink_pcs *b53_phylink_mac_select_pcs(struct dsa_switch *ds,
-						      int port,
+static struct phylink_pcs *b53_phylink_mac_select_pcs(struct phylink_config *config,
 						      phy_interface_t interface)
 {
-	struct b53_device *dev = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct b53_device *dev = dp->ds->priv;
 
 	if (!dev->ops->phylink_mac_select_pcs)
 		return NULL;
 
-	return dev->ops->phylink_mac_select_pcs(dev, port, interface);
+	return dev->ops->phylink_mac_select_pcs(dev, dp->index, interface);
 }
 
-static void b53_phylink_mac_config(struct dsa_switch *ds, int port,
+static void b53_phylink_mac_config(struct phylink_config *config,
 				   unsigned int mode,
 				   const struct phylink_link_state *state)
 {
+	struct dsa_port *dp = dsa_phylink_to_port(config);
 	phy_interface_t interface = state->interface;
+	struct dsa_switch *ds = dp->ds;
 	struct b53_device *dev = ds->priv;
+	int port = dp->index;
 
 	if (is63xx(dev) && port >= B53_63XX_RGMII0)
 		b53_adjust_63xx_rgmii(ds, port, interface);
@@ -1415,11 +1418,13 @@ static void b53_phylink_mac_config(struct dsa_switch *ds, int port,
 	}
 }
 
-static void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
+static void b53_phylink_mac_link_down(struct phylink_config *config,
 				      unsigned int mode,
 				      phy_interface_t interface)
 {
-	struct b53_device *dev = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct b53_device *dev = dp->ds->priv;
+	int port = dp->index;
 
 	if (mode == MLO_AN_PHY)
 		return;
@@ -1434,15 +1439,18 @@ static void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
 		dev->ops->serdes_link_set(dev, port, mode, interface, false);
 }
 
-static void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
+static void b53_phylink_mac_link_up(struct phylink_config *config,
+				    struct phy_device *phydev,
 				    unsigned int mode,
 				    phy_interface_t interface,
-				    struct phy_device *phydev,
 				    int speed, int duplex,
 				    bool tx_pause, bool rx_pause)
 {
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct dsa_switch *ds = dp->ds;
 	struct b53_device *dev = ds->priv;
-	struct ethtool_keee *p = &dev->ports[port].eee;
+	struct ethtool_keee *p = &dev->ports[dp->index].eee;
+	int port = dp->index;
 
 	if (mode == MLO_AN_PHY) {
 		/* Re-negotiate EEE if it was enabled already */
@@ -2259,6 +2267,13 @@ static int b53_get_max_mtu(struct dsa_switch *ds, int port)
 	return JMS_MAX_SIZE;
 }
 
+static const struct phylink_mac_ops b53_phylink_mac_ops = {
+	.mac_select_pcs	= b53_phylink_mac_select_pcs,
+	.mac_config	= b53_phylink_mac_config,
+	.mac_link_down	= b53_phylink_mac_link_down,
+	.mac_link_up	= b53_phylink_mac_link_up,
+};
+
 static const struct dsa_switch_ops b53_switch_ops = {
 	.get_tag_protocol	= b53_get_tag_protocol,
 	.setup			= b53_setup,
@@ -2270,10 +2285,6 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.phy_read		= b53_phy_read16,
 	.phy_write		= b53_phy_write16,
 	.phylink_get_caps	= b53_phylink_get_caps,
-	.phylink_mac_select_pcs	= b53_phylink_mac_select_pcs,
-	.phylink_mac_config	= b53_phylink_mac_config,
-	.phylink_mac_link_down	= b53_phylink_mac_link_down,
-	.phylink_mac_link_up	= b53_phylink_mac_link_up,
 	.port_enable		= b53_enable_port,
 	.port_disable		= b53_disable_port,
 	.get_mac_eee		= b53_get_mac_eee,
@@ -2716,6 +2727,7 @@ struct b53_device *b53_switch_alloc(struct device *base,
 	dev->priv = priv;
 	dev->ops = ops;
 	ds->ops = &b53_switch_ops;
+	ds->phylink_mac_ops = &b53_phylink_mac_ops;
 	dev->vlan_enabled = true;
 	/* Let DSA handle the case were multiple bridges span the same switch
 	 * device and different VLAN awareness settings are requested, which
