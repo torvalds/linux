@@ -5,6 +5,7 @@
 
 menuconfig PSE_CONTROLLER
 	bool "Ethernet Power Sourcing Equipment Support"
+	depends on REGULATOR
 	help
 	  Generic Power Sourcing Equipment Controller support.
 
@@ -14,7 +15,6 @@ if PSE_CONTROLLER
 
 config PSE_REGULATOR
 	tristate "Regulator based PSE controller"
-	depends on REGULATOR || COMPILE_TEST
 	help
 	  This module provides support for simple regulator based Ethernet Power
 	  Sourcing Equipment without automatic classification support. For
