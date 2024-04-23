@@ -22,7 +22,11 @@ config USB4_DEBUGFS_WRITE
 	bool "Enable write by debugfs to configuration spaces (DANGEROUS)"
 	help
 	  Enables writing to device configuration registers through
-	  debugfs interface.
+	  debugfs interface. You can use tools such as Thunderbolt/USB4
+	  debugging tools to access these registers. For more
+	  information see:
+
+	    https://github.com/intel/tbtools
 
 	  Only enable this if you know what you are doing! Never enable
 	  this for production systems or distro kernels.
