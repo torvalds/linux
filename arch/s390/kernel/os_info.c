@@ -18,6 +18,7 @@
 #include <asm/physmem_info.h>
 #include <asm/maccess.h>
 #include <asm/asm-offsets.h>
+#include <asm/ipl.h>
 
 /*
  * OS info structure has to be page aligned
@@ -146,7 +147,7 @@ static void os_info_old_init(void)
 
 	if (os_info_init)
 		return;
-	if (!oldmem_data.start)
+	if (!oldmem_data.start && !is_ipl_type_dump())
 		goto fail;
 	if (copy_oldmem_kernel(&addr, __LC_OS_INFO, sizeof(addr)))
 		goto fail;
