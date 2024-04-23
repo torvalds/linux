@@ -390,6 +390,14 @@ static const struct rtw89_btc_fbtc_mreg rtw89_btc_8852b_mon_reg[] = {
 static const u8 rtw89_btc_8852b_wl_rssi_thres[BTC_WL_RSSI_THMAX] = {70, 60, 50, 40};
 static const u8 rtw89_btc_8852b_bt_rssi_thres[BTC_BT_RSSI_THMAX] = {50, 40, 30, 20};
 
+static void rtw8852b_pwr_sps_ana(struct rtw89_dev *rtwdev)
+{
+	struct rtw89_efuse *efuse = &rtwdev->efuse;
+
+	if (efuse->rfe_type == 0x5)
+		rtw89_write16(rtwdev, R_AX_SPS_ANA_ON_CTRL2, RTL8852B_RFE_05_SPS_ANA);
+}
+
 static int rtw8852b_pwr_on_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
@@ -521,6 +529,10 @@ static int rtw8852b_pwr_off_func(struct rtw89_dev *rtwdev)
 {
 	u32 val32;
 	u32 ret;
+
+	/* Only do once during probe stage after reading efuse */
+	if (!test_bit(RTW89_FLAG_PROBE_DONE, rtwdev->flags))
+		rtw8852b_pwr_sps_ana(rtwdev);
 
 	ret = rtw89_mac_write_xtal_si(rtwdev, XTAL_SI_ANAPAR_WL, XTAL_SI_RFC2RF,
 				      XTAL_SI_RFC2RF);
