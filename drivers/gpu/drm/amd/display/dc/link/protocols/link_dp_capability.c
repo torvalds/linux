@@ -2062,7 +2062,7 @@ struct dc_link_settings dp_get_max_link_cap(struct dc_link *link)
 	enum dc_link_rate lttpr_max_link_rate;
 	enum dc_link_rate cable_max_link_rate;
 	struct link_encoder *link_enc = NULL;
-
+	bool is_uhbr13_5_supported = true;
 
 	link_enc = link_enc_cfg_get_link_enc(link);
 	ASSERT(link_enc);
@@ -2083,6 +2083,9 @@ struct dc_link_settings dp_get_max_link_cap(struct dc_link *link)
 		max_link_cap.link_spread =
 				link->reported_link_cap.link_spread;
 
+	if (!link->dpcd_caps.dp_128b_132b_supported_link_rates.bits.UHBR13_5)
+		is_uhbr13_5_supported = false;
+
 	/* Lower link settings based on cable attributes
 	 * Cable ID is a DP2 feature to identify max certified link rate that
 	 * a cable can carry. The cable identification method requires both
@@ -2101,9 +2104,13 @@ struct dc_link_settings dp_get_max_link_cap(struct dc_link *link)
 	cable_max_link_rate = get_cable_max_link_rate(link);
 
 	if (!link->dc->debug.ignore_cable_id &&
-			cable_max_link_rate != LINK_RATE_UNKNOWN &&
-			cable_max_link_rate < max_link_cap.link_rate)
-		max_link_cap.link_rate = cable_max_link_rate;
+			cable_max_link_rate != LINK_RATE_UNKNOWN) {
+		if (cable_max_link_rate < max_link_cap.link_rate)
+			max_link_cap.link_rate = cable_max_link_rate;
+
+		if (!link->dpcd_caps.cable_id.bits.UHBR13_5_CAPABILITY)
+			is_uhbr13_5_supported = false;
+	}
 
 	/* account for lttpr repeaters cap
 	 * notes: repeaters do not snoop in the DPRX Capabilities addresses (3.6.3).
@@ -2116,11 +2123,18 @@ struct dc_link_settings dp_get_max_link_cap(struct dc_link *link)
 		if (lttpr_max_link_rate < max_link_cap.link_rate)
 			max_link_cap.link_rate = lttpr_max_link_rate;
 
+		if (!link->dpcd_caps.lttpr_caps.supported_128b_132b_rates.bits.UHBR13_5)
+			is_uhbr13_5_supported = false;
+
 		DC_LOG_HW_LINK_TRAINING("%s\n Training with LTTPR,  max_lane count %d max_link rate %d \n",
 						__func__,
 						max_link_cap.lane_count,
 						max_link_cap.link_rate);
 	}
+
+	if (max_link_cap.link_rate == LINK_RATE_UHBR13_5 &&
+			!is_uhbr13_5_supported)
+		max_link_cap.link_rate = LINK_RATE_UHBR10;
 
 	if (link_dp_get_encoding_format(&max_link_cap) == DP_128b_132b_ENCODING &&
 			link->dc->debug.disable_uhbr)
