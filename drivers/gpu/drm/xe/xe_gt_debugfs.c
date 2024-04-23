@@ -13,6 +13,7 @@
 #include "xe_ggtt.h"
 #include "xe_gt.h"
 #include "xe_gt_mcr.h"
+#include "xe_gt_sriov_pf_debugfs.h"
 #include "xe_gt_topology.h"
 #include "xe_hw_engine.h"
 #include "xe_lrc.h"
@@ -21,6 +22,7 @@
 #include "xe_pm.h"
 #include "xe_reg_sr.h"
 #include "xe_reg_whitelist.h"
+#include "xe_sriov.h"
 #include "xe_uc_debugfs.h"
 #include "xe_wa.h"
 
@@ -288,4 +290,7 @@ void xe_gt_debugfs_register(struct xe_gt *gt)
 				 root, minor);
 
 	xe_uc_debugfs_register(&gt->uc, root);
+
+	if (IS_SRIOV_PF(xe))
+		xe_gt_sriov_pf_debugfs_register(gt, root);
 }
