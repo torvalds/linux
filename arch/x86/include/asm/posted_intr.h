@@ -15,17 +15,9 @@ struct pi_desc {
 	};
 	union {
 		struct {
-				/* bit 256 - Outstanding Notification */
-			u16	on	: 1,
-				/* bit 257 - Suppress Notification */
-				sn	: 1,
-				/* bit 271:258 - Reserved */
-				rsvd_1	: 14;
-				/* bit 279:272 - Notification Vector */
+			u16	notifications; /* Suppress and outstanding bits */
 			u8	nv;
-				/* bit 287:280 - Reserved */
 			u8	rsvd_2;
-				/* bit 319:288 - Notification Destination */
 			u32	ndst;
 		};
 		u64 control;
@@ -86,6 +78,17 @@ static inline bool pi_test_on(struct pi_desc *pi_desc)
 static inline bool pi_test_sn(struct pi_desc *pi_desc)
 {
 	return test_bit(POSTED_INTR_SN, (unsigned long *)&pi_desc->control);
+}
+
+/* Non-atomic helpers */
+static inline void __pi_set_sn(struct pi_desc *pi_desc)
+{
+	pi_desc->notifications |= BIT(POSTED_INTR_SN);
+}
+
+static inline void __pi_clear_sn(struct pi_desc *pi_desc)
+{
+	pi_desc->notifications &= ~BIT(POSTED_INTR_SN);
 }
 
 #endif /* _X86_POSTED_INTR_H */
