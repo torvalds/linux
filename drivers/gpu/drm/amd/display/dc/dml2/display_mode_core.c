@@ -9460,8 +9460,10 @@ void dml_core_mode_programming(struct display_mode_lib_st *mode_lib, const struc
 
 		/* Copy the calculated watermarks to mp.Watermark as the getter functions are
 		 * implemented by the DML team to copy the calculated values from the mp.Watermark interface.
+		 * &mode_lib->mp.Watermark and &locals->Watermark are the same address, memcpy may lead to
+		 * unexpected behavior. memmove should be used.
 		 */
-		memcpy(&mode_lib->mp.Watermark, CalculateWatermarks_params->Watermark, sizeof(struct Watermarks));
+		memmove(&mode_lib->mp.Watermark, CalculateWatermarks_params->Watermark, sizeof(struct Watermarks));
 
 		for (k = 0; k < mode_lib->ms.num_active_planes; ++k) {
 			if (mode_lib->ms.cache_display_cfg.writeback.WritebackEnable[k] == true) {
