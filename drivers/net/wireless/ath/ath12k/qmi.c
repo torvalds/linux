@@ -2023,6 +2023,12 @@ static void ath12k_host_cap_parse_mlo(struct ath12k_base *ab,
 	u8 hw_link_id = 0;
 	int i;
 
+	if (!(ab->mlo_capable_flags & ATH12K_INTRA_DEVICE_MLO_SUPPORT)) {
+		ath12k_dbg(ab, ATH12K_DBG_QMI,
+			   "intra device MLO is disabled hence skip QMI MLO cap");
+		return;
+	}
+
 	if (!ab->qmi.num_radios || ab->qmi.num_radios == U8_MAX) {
 		ab->mlo_capable_flags = 0;
 
@@ -2144,9 +2150,6 @@ static void ath12k_qmi_phy_cap_send(struct ath12k_base *ab)
 	struct qmi_txn txn;
 	int ret;
 
-	if (!ab->mlo_capable_flags)
-		goto out;
-
 	ret = qmi_txn_init(&ab->qmi.handle, &txn,
 			   qmi_wlanfw_phy_cap_resp_msg_v01_ei, &resp);
 	if (ret < 0)
@@ -2169,6 +2172,13 @@ static void ath12k_qmi_phy_cap_send(struct ath12k_base *ab)
 	if (resp.resp.result != QMI_RESULT_SUCCESS_V01) {
 		ret = -EOPNOTSUPP;
 		goto out;
+	}
+
+	if (resp.single_chip_mlo_support_valid) {
+		if (resp.single_chip_mlo_support)
+			ab->mlo_capable_flags |= ATH12K_INTRA_DEVICE_MLO_SUPPORT;
+		else
+			ab->mlo_capable_flags &= ~ATH12K_INTRA_DEVICE_MLO_SUPPORT;
 	}
 
 	if (!resp.num_phy_valid) {
