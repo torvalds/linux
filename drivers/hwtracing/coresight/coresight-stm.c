@@ -1013,18 +1013,17 @@ static int stm_platform_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int stm_platform_remove(struct platform_device *pdev)
+static void stm_platform_remove(struct platform_device *pdev)
 {
 	struct stm_drvdata *drvdata = dev_get_drvdata(&pdev->dev);
 
 	if (WARN_ON(!drvdata))
-		return -ENODEV;
+		return;
 
 	__stm_remove(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	if (!IS_ERR_OR_NULL(drvdata->pclk))
 		clk_put(drvdata->pclk);
-	return 0;
 }
 
 #ifdef CONFIG_ACPI
@@ -1037,7 +1036,7 @@ MODULE_DEVICE_TABLE(acpi, stm_acpi_ids);
 
 static struct platform_driver stm_platform_driver = {
 	.probe	= stm_platform_probe,
-	.remove	= stm_platform_remove,
+	.remove_new = stm_platform_remove,
 	.driver	= {
 		.name			= "coresight-stm-platform",
 		.acpi_match_table	= ACPI_PTR(stm_acpi_ids),
