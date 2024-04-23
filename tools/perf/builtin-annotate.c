@@ -491,7 +491,7 @@ find_next:
 				return;
 			}
 
-			if (next != NULL)
+			if (use_browser == 0 || next != NULL)
 				nd = next;
 
 			continue;
