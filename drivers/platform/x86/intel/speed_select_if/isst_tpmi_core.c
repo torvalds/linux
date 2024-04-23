@@ -313,12 +313,11 @@ static int sst_add_perf_profiles(struct auxiliary_device *auxdev,
 				 struct tpmi_per_power_domain_info *pd_info,
 				 int levels)
 {
+	struct device *dev = &auxdev->dev;
 	u64 perf_level_offsets;
 	int i;
 
-	pd_info->perf_levels = devm_kcalloc(&auxdev->dev, levels,
-					    sizeof(struct perf_level),
-					    GFP_KERNEL);
+	pd_info->perf_levels = devm_kcalloc(dev, levels, sizeof(struct perf_level), GFP_KERNEL);
 	if (!pd_info->perf_levels)
 		return 0;
 
@@ -349,6 +348,7 @@ static int sst_add_perf_profiles(struct auxiliary_device *auxdev,
 
 static int sst_main(struct auxiliary_device *auxdev, struct tpmi_per_power_domain_info *pd_info)
 {
+	struct device *dev = &auxdev->dev;
 	int i, mask, levels;
 
 	*((u64 *)&pd_info->sst_header) = readq(pd_info->sst_base);
@@ -359,13 +359,13 @@ static int sst_main(struct auxiliary_device *auxdev, struct tpmi_per_power_domai
 		return -ENODEV;
 
 	if (TPMI_MAJOR_VERSION(pd_info->sst_header.interface_version) != ISST_MAJOR_VERSION) {
-		dev_err(&auxdev->dev, "SST: Unsupported major version:%lx\n",
+		dev_err(dev, "SST: Unsupported major version:%lx\n",
 			TPMI_MAJOR_VERSION(pd_info->sst_header.interface_version));
 		return -ENODEV;
 	}
 
 	if (TPMI_MINOR_VERSION(pd_info->sst_header.interface_version) != ISST_MINOR_VERSION)
-		dev_info(&auxdev->dev, "SST: Ignore: Unsupported minor version:%lx\n",
+		dev_info(dev, "SST: Ignore: Unsupported minor version:%lx\n",
 			 TPMI_MINOR_VERSION(pd_info->sst_header.interface_version));
 
 	/* Read SST CP Header */
@@ -1273,28 +1273,29 @@ int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 {
 	bool read_blocked = 0, write_blocked = 0;
 	struct intel_tpmi_plat_info *plat_info;
+	struct device *dev = &auxdev->dev;
 	struct tpmi_sst_struct *tpmi_sst;
 	int i, ret, pkg = 0, inst = 0;
 	int num_resources;
 
 	ret = tpmi_get_feature_status(auxdev, TPMI_ID_SST, &read_blocked, &write_blocked);
 	if (ret)
-		dev_info(&auxdev->dev, "Can't read feature status: ignoring read/write blocked status\n");
+		dev_info(dev, "Can't read feature status: ignoring read/write blocked status\n");
 
 	if (read_blocked) {
-		dev_info(&auxdev->dev, "Firmware has blocked reads, exiting\n");
+		dev_info(dev, "Firmware has blocked reads, exiting\n");
 		return -ENODEV;
 	}
 
 	plat_info = tpmi_get_platform_data(auxdev);
 	if (!plat_info) {
-		dev_err(&auxdev->dev, "No platform info\n");
+		dev_err(dev, "No platform info\n");
 		return -EINVAL;
 	}
 
 	pkg = plat_info->package_id;
 	if (pkg >= topology_max_packages()) {
-		dev_err(&auxdev->dev, "Invalid package id :%x\n", pkg);
+		dev_err(dev, "Invalid package id :%x\n", pkg);
 		return -EINVAL;
 	}
 
@@ -1306,11 +1307,11 @@ int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 	if (!num_resources)
 		return -EINVAL;
 
-	tpmi_sst = devm_kzalloc(&auxdev->dev, sizeof(*tpmi_sst), GFP_KERNEL);
+	tpmi_sst = devm_kzalloc(dev, sizeof(*tpmi_sst), GFP_KERNEL);
 	if (!tpmi_sst)
 		return -ENOMEM;
 
-	tpmi_sst->power_domain_info = devm_kcalloc(&auxdev->dev, num_resources,
+	tpmi_sst->power_domain_info = devm_kcalloc(dev, num_resources,
 						   sizeof(*tpmi_sst->power_domain_info),
 						   GFP_KERNEL);
 	if (!tpmi_sst->power_domain_info)
@@ -1331,13 +1332,13 @@ int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 		tpmi_sst->power_domain_info[i].power_domain_id = i;
 		tpmi_sst->power_domain_info[i].auxdev = auxdev;
 		tpmi_sst->power_domain_info[i].write_blocked = write_blocked;
-		tpmi_sst->power_domain_info[i].sst_base = devm_ioremap_resource(&auxdev->dev, res);
+		tpmi_sst->power_domain_info[i].sst_base = devm_ioremap_resource(dev, res);
 		if (IS_ERR(tpmi_sst->power_domain_info[i].sst_base))
 			return PTR_ERR(tpmi_sst->power_domain_info[i].sst_base);
 
 		ret = sst_main(auxdev, &tpmi_sst->power_domain_info[i]);
 		if (ret) {
-			devm_iounmap(&auxdev->dev, tpmi_sst->power_domain_info[i].sst_base);
+			devm_iounmap(dev, tpmi_sst->power_domain_info[i].sst_base);
 			tpmi_sst->power_domain_info[i].sst_base =  NULL;
 			continue;
 		}
