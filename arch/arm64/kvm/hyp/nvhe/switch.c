@@ -53,7 +53,7 @@ static void __activate_traps(struct kvm_vcpu *vcpu)
 			val |= CPTR_EL2_TSM;
 	}
 
-	if (!guest_owns_fp_regs(vcpu)) {
+	if (!guest_owns_fp_regs()) {
 		if (has_hvhe())
 			val &= ~(CPACR_EL1_FPEN_EL0EN | CPACR_EL1_FPEN_EL1EN |
 				 CPACR_EL1_ZEN_EL0EN | CPACR_EL1_ZEN_EL1EN);
