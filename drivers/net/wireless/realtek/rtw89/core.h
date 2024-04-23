@@ -2705,13 +2705,29 @@ union rtw89_btc_fbtc_cynullsta_info {
 	struct rtw89_btc_fbtc_cynullsta_v7 v7;
 };
 
-struct rtw89_btc_fbtc_btver {
+struct rtw89_btc_fbtc_btver_v1 {
 	u8 fver; /* btc_ver::fcxbtver */
 	u8 rsvd;
 	__le16 rsvd2;
 	__le32 coex_ver; /*bit[15:8]->shared, bit[7:0]->non-shared */
 	__le32 fw_ver;
 	__le32 feature;
+} __packed;
+
+struct rtw89_btc_fbtc_btver_v7 {
+	u8 fver;
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 rsvd2;
+
+	__le32 coex_ver; /*bit[15:8]->shared, bit[7:0]->non-shared */
+	__le32 fw_ver;
+	__le32 feature;
+} __packed;
+
+union rtw89_btc_fbtc_btver {
+	struct rtw89_btc_fbtc_btver_v1 v1;
+	struct rtw89_btc_fbtc_btver_v7 v7;
 } __packed;
 
 struct rtw89_btc_fbtc_btafh {
@@ -2971,7 +2987,7 @@ struct rtw89_btc_rpt_fbtc_gpio_dbg {
 
 struct rtw89_btc_rpt_fbtc_btver {
 	struct rtw89_btc_rpt_cmn_info cinfo; /* common info, by driver */
-	struct rtw89_btc_fbtc_btver finfo; /* info from fw */
+	union rtw89_btc_fbtc_btver finfo; /* info from fw */
 };
 
 struct rtw89_btc_rpt_fbtc_btscan {

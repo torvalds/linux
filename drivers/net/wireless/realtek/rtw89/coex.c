@@ -1132,19 +1132,16 @@ static void _update_bt_report(struct rtw89_dev *rtwdev, u8 rpt_type, u8 *pfinfo)
 	struct rtw89_btc_bt_info *bt = &btc->cx.bt;
 	struct rtw89_btc_bt_link_info *bt_linfo = &bt->link_info;
 	struct rtw89_btc_bt_a2dp_desc *a2dp = &bt_linfo->a2dp_desc;
-	struct rtw89_btc_fbtc_btver *pver = NULL;
-	struct rtw89_btc_fbtc_btscan_v1 *pscan_v1;
-	struct rtw89_btc_fbtc_btscan_v2 *pscan_v2;
-	struct rtw89_btc_fbtc_btscan_v7 *pscan_v7;
-	struct rtw89_btc_fbtc_btafh *pafh_v1 = NULL;
+	union  rtw89_btc_fbtc_btver *pver = &btc->fwinfo.rpt_fbtc_btver.finfo;
 	struct rtw89_btc_fbtc_btafh_v2 *pafh_v2 = NULL;
 	struct rtw89_btc_fbtc_btafh_v7 *pafh_v7 = NULL;
 	struct rtw89_btc_fbtc_btdevinfo *pdev = NULL;
+	struct rtw89_btc_fbtc_btafh *pafh_v1 = NULL;
+	struct rtw89_btc_fbtc_btscan_v1 *pscan_v1;
+	struct rtw89_btc_fbtc_btscan_v2 *pscan_v2;
+	struct rtw89_btc_fbtc_btscan_v7 *pscan_v7;
 	bool scan_update = true;
 	int i;
-
-	pver = (struct rtw89_btc_fbtc_btver *)pfinfo;
-	pdev = (struct rtw89_btc_fbtc_btdevinfo *)pfinfo;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
 		    "[BTC], %s(): rpt_type:%d\n",
@@ -1152,9 +1149,19 @@ static void _update_bt_report(struct rtw89_dev *rtwdev, u8 rpt_type, u8 *pfinfo)
 
 	switch (rpt_type) {
 	case BTC_RPT_TYPE_BT_VER:
-		bt->ver_info.fw = le32_to_cpu(pver->fw_ver);
-		bt->ver_info.fw_coex = le32_get_bits(pver->coex_ver, GENMASK(7, 0));
-		bt->feature = le32_to_cpu(pver->feature);
+		if (ver->fcxbtver == 7) {
+			pver->v7 = *(struct rtw89_btc_fbtc_btver_v7 *)pfinfo;
+			bt->ver_info.fw = le32_to_cpu(pver->v7.fw_ver);
+			bt->ver_info.fw_coex = le32_get_bits(pver->v7.coex_ver,
+							     GENMASK(7, 0));
+			bt->feature = le32_to_cpu(pver->v7.feature);
+		} else {
+			pver->v1 = *(struct rtw89_btc_fbtc_btver_v1 *)pfinfo;
+			bt->ver_info.fw = le32_to_cpu(pver->v1.fw_ver);
+			bt->ver_info.fw_coex = le32_get_bits(pver->v1.coex_ver,
+							     GENMASK(7, 0));
+			bt->feature = le32_to_cpu(pver->v1.feature);
+		}
 		break;
 	case BTC_RPT_TYPE_BT_SCAN:
 		if (ver->fcxbtscan == 1) {
@@ -1218,6 +1225,7 @@ static void _update_bt_report(struct rtw89_dev *rtwdev, u8 rpt_type, u8 *pfinfo)
 		}
 		break;
 	case BTC_RPT_TYPE_BT_DEVICE:
+		pdev = (struct rtw89_btc_fbtc_btdevinfo *)pfinfo;
 		a2dp->device_name = le32_to_cpu(pdev->dev_name);
 		a2dp->vendor_id = le16_to_cpu(pdev->vendor_id);
 		a2dp->flush_time = le32_to_cpu(pdev->flush_time);
@@ -1438,8 +1446,13 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		break;
 	case BTC_RPT_TYPE_BT_VER:
 		pcinfo = &pfwinfo->rpt_fbtc_btver.cinfo;
-		pfinfo = &pfwinfo->rpt_fbtc_btver.finfo;
-		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btver.finfo);
+		if (ver->fcxbtver == 1) {
+			pfinfo = &pfwinfo->rpt_fbtc_btver.finfo.v1;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btver.finfo.v1);
+		} else if (ver->fcxbtver == 7) {
+			pfinfo = &pfwinfo->rpt_fbtc_btver.finfo.v7;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btver.finfo.v7);
+		}
 		pcinfo->req_fver = ver->fcxbtver;
 		break;
 	case BTC_RPT_TYPE_BT_SCAN:
