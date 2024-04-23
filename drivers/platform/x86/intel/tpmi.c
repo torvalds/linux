@@ -666,28 +666,37 @@ static int tpmi_create_devices(struct intel_tpmi_info *tpmi_info)
 }
 
 #define TPMI_INFO_BUS_INFO_OFFSET	0x08
+#define TPMI_INFO_MAJOR_VERSION		0x00
 
 static int tpmi_process_info(struct intel_tpmi_info *tpmi_info,
 			     struct intel_tpmi_pm_feature *pfs)
 {
 	struct tpmi_info_header header;
 	void __iomem *info_mem;
+	u64 feature_header;
+	int ret = 0;
 
-	info_mem = ioremap(pfs->vsec_offset + TPMI_INFO_BUS_INFO_OFFSET,
-			   pfs->pfs_header.entry_size * sizeof(u32) - TPMI_INFO_BUS_INFO_OFFSET);
+	info_mem = ioremap(pfs->vsec_offset, pfs->pfs_header.entry_size * sizeof(u32));
 	if (!info_mem)
 		return -ENOMEM;
 
-	memcpy_fromio(&header, info_mem, sizeof(header));
+	feature_header = readq(info_mem);
+	if (TPMI_MAJOR_VERSION(feature_header) != TPMI_INFO_MAJOR_VERSION) {
+		ret = -ENODEV;
+		goto error_info_header;
+	}
+
+	memcpy_fromio(&header, info_mem + TPMI_INFO_BUS_INFO_OFFSET, sizeof(header));
 
 	tpmi_info->plat_info.package_id = header.pkg;
 	tpmi_info->plat_info.bus_number = header.bus;
 	tpmi_info->plat_info.device_number = header.dev;
 	tpmi_info->plat_info.function_number = header.fn;
 
+error_info_header:
 	iounmap(info_mem);
 
-	return 0;
+	return ret;
 }
 
 static int tpmi_fetch_pfs_header(struct intel_tpmi_pm_feature *pfs, u64 start, int size)
