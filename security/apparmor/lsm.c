@@ -1097,11 +1097,8 @@ static int apparmor_socket_create(int family, int type, int protocol, int kern)
 
 	label = begin_current_label_crit_section();
 	if (!(kern || unconfined(label)))
-		error = af_select(family,
-				  create_perm(label, family, type, protocol),
-				  aa_af_perm(current_cred(), label,
-					     OP_CREATE, AA_MAY_CREATE,
-					     family, type, protocol));
+		error = aa_af_perm(current_cred(), label, OP_CREATE,
+				   AA_MAY_CREATE, family, type, protocol);
 	end_current_label_crit_section(label);
 
 	return error;
@@ -1150,9 +1147,7 @@ static int apparmor_socket_bind(struct socket *sock,
 	AA_BUG(!address);
 	AA_BUG(in_interrupt());
 
-	return af_select(sock->sk->sk_family,
-			 bind_perm(sock, address, addrlen),
-			 aa_sk_perm(OP_BIND, AA_MAY_BIND, sock->sk));
+	return aa_sk_perm(OP_BIND, AA_MAY_BIND, sock->sk);
 }
 
 static int apparmor_socket_connect(struct socket *sock,
@@ -1163,9 +1158,7 @@ static int apparmor_socket_connect(struct socket *sock,
 	AA_BUG(!address);
 	AA_BUG(in_interrupt());
 
-	return af_select(sock->sk->sk_family,
-			 connect_perm(sock, address, addrlen),
-			 aa_sk_perm(OP_CONNECT, AA_MAY_CONNECT, sock->sk));
+	return aa_sk_perm(OP_CONNECT, AA_MAY_CONNECT, sock->sk);
 }
 
 static int apparmor_socket_listen(struct socket *sock, int backlog)
@@ -1174,9 +1167,7 @@ static int apparmor_socket_listen(struct socket *sock, int backlog)
 	AA_BUG(!sock->sk);
 	AA_BUG(in_interrupt());
 
-	return af_select(sock->sk->sk_family,
-			 listen_perm(sock, backlog),
-			 aa_sk_perm(OP_LISTEN, AA_MAY_LISTEN, sock->sk));
+	return aa_sk_perm(OP_LISTEN, AA_MAY_LISTEN, sock->sk);
 }
 
 /*
@@ -1190,9 +1181,7 @@ static int apparmor_socket_accept(struct socket *sock, struct socket *newsock)
 	AA_BUG(!newsock);
 	AA_BUG(in_interrupt());
 
-	return af_select(sock->sk->sk_family,
-			 accept_perm(sock, newsock),
-			 aa_sk_perm(OP_ACCEPT, AA_MAY_ACCEPT, sock->sk));
+	return aa_sk_perm(OP_ACCEPT, AA_MAY_ACCEPT, sock->sk);
 }
 
 static int aa_sock_msg_perm(const char *op, u32 request, struct socket *sock,
@@ -1203,9 +1192,7 @@ static int aa_sock_msg_perm(const char *op, u32 request, struct socket *sock,
 	AA_BUG(!msg);
 	AA_BUG(in_interrupt());
 
-	return af_select(sock->sk->sk_family,
-			 msg_perm(op, request, sock, msg, size),
-			 aa_sk_perm(op, request, sock->sk));
+	return aa_sk_perm(op, request, sock->sk);
 }
 
 static int apparmor_socket_sendmsg(struct socket *sock,
@@ -1227,9 +1214,7 @@ static int aa_sock_perm(const char *op, u32 request, struct socket *sock)
 	AA_BUG(!sock->sk);
 	AA_BUG(in_interrupt());
 
-	return af_select(sock->sk->sk_family,
-			 sock_perm(op, request, sock),
-			 aa_sk_perm(op, request, sock->sk));
+	return aa_sk_perm(op, request, sock->sk);
 }
 
 static int apparmor_socket_getsockname(struct socket *sock)
@@ -1250,9 +1235,7 @@ static int aa_sock_opt_perm(const char *op, u32 request, struct socket *sock,
 	AA_BUG(!sock->sk);
 	AA_BUG(in_interrupt());
 
-	return af_select(sock->sk->sk_family,
-			 opt_perm(op, request, sock, level, optname),
-			 aa_sk_perm(op, request, sock->sk));
+	return aa_sk_perm(op, request, sock->sk);
 }
 
 static int apparmor_socket_getsockopt(struct socket *sock, int level,

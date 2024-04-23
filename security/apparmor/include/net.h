@@ -73,16 +73,6 @@ static inline struct aa_sk_ctx *aa_sock(const struct sock *sk)
 			 (SK)->sk_protocol)
 
 
-#define af_select(FAMILY, FN, DEF_FN)		\
-({						\
-	int __e;				\
-	switch ((FAMILY)) {			\
-	default:				\
-		__e = DEF_FN;			\
-	}					\
-	__e;					\
-})
-
 struct aa_secmark {
 	u8 audit;
 	u8 deny;
