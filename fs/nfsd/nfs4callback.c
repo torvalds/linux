@@ -986,14 +986,6 @@ static bool nfsd4_queue_cb(struct nfsd4_callback *cb)
 	return queue_delayed_work(callback_wq, &cb->cb_work, 0);
 }
 
-static void nfsd4_queue_cb_delayed(struct nfsd4_callback *cb,
-				   unsigned long msecs)
-{
-	trace_nfsd_cb_queue(cb->cb_clp, cb);
-	queue_delayed_work(callback_wq, &cb->cb_work,
-			   msecs_to_jiffies(msecs));
-}
-
 static void nfsd41_cb_inflight_begin(struct nfs4_client *clp)
 {
 	atomic_inc(&clp->cl_cb_inflight);
@@ -1502,16 +1494,8 @@ nfsd4_run_cb_work(struct work_struct *work)
 
 	clnt = clp->cl_cb_client;
 	if (!clnt) {
-		if (test_bit(NFSD4_CLIENT_CB_KILL, &clp->cl_flags))
-			nfsd41_destroy_cb(cb);
-		else {
-			/*
-			 * XXX: Ideally, we could wait for the client to
-			 *	reconnect, but I haven't figured out how
-			 *	to do that yet.
-			 */
-			nfsd4_queue_cb_delayed(cb, 25);
-		}
+		/* Callback channel broken, or client killed; give up: */
+		nfsd41_destroy_cb(cb);
 		return;
 	}
 
