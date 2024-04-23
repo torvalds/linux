@@ -124,6 +124,10 @@ table bridge filter {
 	}
 }
 EOF
+if [ "$?" -ne 0 ];then
+	echo "SKIP: could not add nftables ruleset"
+	exit $ksft_skip
+fi
 
 # place 1, 2 & 3 in same subnet, connected via ns0:br0.
 # ns4 is placed in same subnet as well, but its not

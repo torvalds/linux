@@ -64,12 +64,18 @@ ip -net "$ns2" a a fec0:42::1/64 dev d0 nodad
 # firewall matches to test
 [ -n "$iptables" ] && {
 	common='-t raw -A PREROUTING -s 192.168.0.0/16'
-	ip netns exec "$ns2" "$iptables" $common -m rpfilter
+	if ! ip netns exec "$ns2" "$iptables" $common -m rpfilter;then
+		echo "Cannot add rpfilter rule"
+		exit $ksft_skip
+	fi
 	ip netns exec "$ns2" "$iptables" $common -m rpfilter --invert
 }
 [ -n "$ip6tables" ] && {
 	common='-t raw -A PREROUTING -s fec0::/16'
-	ip netns exec "$ns2" "$ip6tables" $common -m rpfilter
+	if ! ip netns exec "$ns2" "$ip6tables" $common -m rpfilter;then
+		echo "Cannot add rpfilter rule"
+		exit $ksft_skip
+	fi
 	ip netns exec "$ns2" "$ip6tables" $common -m rpfilter --invert
 }
 [ -n "$nft" ] && ip netns exec "$ns2" $nft -f - <<EOF
