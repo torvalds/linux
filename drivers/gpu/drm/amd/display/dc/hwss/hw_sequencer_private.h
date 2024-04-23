@@ -128,6 +128,10 @@ struct hwseq_private_funcs {
 			struct dce_hwseq *hws,
 			unsigned int phy_inst,
 			bool clock_on);
+	void (*symclk_root_clock_control)(
+			struct dce_hwseq *hws,
+			unsigned int enc_inst,
+			bool clock_on);
 	void (*dpp_pg_control)(struct dce_hwseq *hws,
 			unsigned int dpp_inst,
 			bool power_on);

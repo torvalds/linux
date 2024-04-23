@@ -519,6 +519,17 @@ void dcn35_physymclk_root_clock_control(struct dce_hwseq *hws, unsigned int phy_
 	}
 }
 
+void dcn35_symclk_root_clock_control(struct dce_hwseq *hws, unsigned int enc_inst, bool clock_on)
+{
+	if (!hws->ctx->dc->debug.root_clock_optimization.bits.symclk_fe)
+		return;
+
+	if (hws->ctx->dc->res_pool->dccg->funcs->set_symclk_root_clock_gating) {
+		hws->ctx->dc->res_pool->dccg->funcs->set_symclk_root_clock_gating(
+				hws->ctx->dc->res_pool->dccg, enc_inst, enc_inst, clock_on);
+	}
+}
+
 void dcn35_dsc_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int dsc_inst,
@@ -1008,6 +1019,7 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 	int i = 0, j = 0;
 	int edp_num = 0;
 	struct dc_link *edp_links[MAX_NUM_EDP] = { NULL };
+	bool stream_enc_in_use[MAX_PIPES] = { false };
 
 	memset(update_state, 0, sizeof(struct pg_block_update));
 
@@ -1053,10 +1065,17 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 
 		if (pipe_ctx->stream_res.hpo_dp_stream_enc)
 			update_state->pg_pipe_res_update[PG_DPSTREAM][pipe_ctx->stream_res.hpo_dp_stream_enc->inst] = false;
+
+		if (pipe_ctx->stream_res.stream_enc &&
+				!pipe_ctx->stream_res.hpo_dp_stream_enc)
+			stream_enc_in_use[pipe_ctx->stream_res.stream_enc->stream_enc_inst] = true;
 	}
 
+	for (i = 0; i < dc->res_pool->pipe_count; i++)
+		if (stream_enc_in_use[i])
+			update_state->pg_pipe_res_update[PG_SYMCLK][i] = false;
+
 	for (i = 0; i < dc->link_count; i++) {
-		update_state->pg_pipe_res_update[PG_PHYSYMCLK][dc->links[i]->link_enc_hw_inst] = true;
 		if (dc->links[i]->type != dc_connection_none)
 			update_state->pg_pipe_res_update[PG_PHYSYMCLK][dc->links[i]->link_enc_hw_inst] = false;
 	}
@@ -1120,6 +1139,10 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 
 				if (j == PG_DPSTREAM && new_pipe->stream_res.hpo_dp_stream_enc)
 					update_state->pg_pipe_res_update[j][new_pipe->stream_res.hpo_dp_stream_enc->inst] = true;
+
+				if (j == PG_SYMCLK && new_pipe->stream_res.stream_enc &&
+						!new_pipe->stream_res.hpo_dp_stream_enc)
+					update_state->pg_pipe_res_update[j][new_pipe->stream_res.stream_enc->stream_enc_inst] = true;
 			}
 		} else if (cur_pipe->plane_state == new_pipe->plane_state ||
 				cur_pipe == new_pipe) {
@@ -1154,6 +1177,12 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 					cur_pipe->stream_res.hpo_dp_stream_enc != new_pipe->stream_res.hpo_dp_stream_enc &&
 					new_pipe->stream_res.hpo_dp_stream_enc)
 					update_state->pg_pipe_res_update[j][new_pipe->stream_res.hpo_dp_stream_enc->inst] = true;
+
+				if (j == PG_SYMCLK &&
+					new_pipe->stream_res.stream_enc &&
+					cur_pipe->stream_res.stream_enc != new_pipe->stream_res.stream_enc &&
+					!new_pipe->stream_res.hpo_dp_stream_enc)
+					update_state->pg_pipe_res_update[j][new_pipe->stream_res.stream_enc->stream_enc_inst] = true;
 			}
 		}
 	}
@@ -1312,10 +1341,15 @@ void dcn35_root_clock_control(struct dc *dc,
 					dc->hwseq->funcs.dpstream_root_clock_control(dc->hwseq, i, power_on);
 		}
 
-		for (i = 0; i < dc->res_pool->dig_link_enc_count; i++)
+		for (i = 0; i < dc->res_pool->dig_link_enc_count; i++) {
 			if (update_state->pg_pipe_res_update[PG_PHYSYMCLK][i])
 				if (dc->hwseq->funcs.physymclk_root_clock_control)
 					dc->hwseq->funcs.physymclk_root_clock_control(dc->hwseq, i, power_on);
+
+			if (update_state->pg_pipe_res_update[PG_SYMCLK][i])
+				if (dc->hwseq->funcs.symclk_root_clock_control)
+					dc->hwseq->funcs.symclk_root_clock_control(dc->hwseq, i, power_on);
+		}
 
 	}
 	for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
@@ -1342,10 +1376,15 @@ void dcn35_root_clock_control(struct dc *dc,
 					dc->hwseq->funcs.dpstream_root_clock_control(dc->hwseq, i, power_on);
 		}
 
-		for (i = 0; i < dc->res_pool->dig_link_enc_count; i++)
+		for (i = 0; i < dc->res_pool->dig_link_enc_count; i++) {
 			if (update_state->pg_pipe_res_update[PG_PHYSYMCLK][i])
 				if (dc->hwseq->funcs.physymclk_root_clock_control)
 					dc->hwseq->funcs.physymclk_root_clock_control(dc->hwseq, i, power_on);
+
+			if (update_state->pg_pipe_res_update[PG_SYMCLK][i])
+				if (dc->hwseq->funcs.symclk_root_clock_control)
+					dc->hwseq->funcs.symclk_root_clock_control(dc->hwseq, i, power_on);
+		}
 
 	}
 }

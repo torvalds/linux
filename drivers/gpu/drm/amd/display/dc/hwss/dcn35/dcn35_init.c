@@ -150,6 +150,7 @@ static const struct hwseq_private_funcs dcn35_private_funcs = {
 	.dpp_root_clock_control = dcn35_dpp_root_clock_control,
 	.dpstream_root_clock_control = dcn35_dpstream_root_clock_control,
 	.physymclk_root_clock_control = dcn35_physymclk_root_clock_control,
+	.symclk_root_clock_control = dcn35_symclk_root_clock_control,
 	.program_all_writeback_pipes_in_tree = dcn30_program_all_writeback_pipes_in_tree,
 	.update_odm = dcn35_update_odm,
 	.set_hdr_multiplier = dcn10_set_hdr_multiplier,
