@@ -716,18 +716,17 @@ static int debug_platform_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int debug_platform_remove(struct platform_device *pdev)
+static void debug_platform_remove(struct platform_device *pdev)
 {
 	struct debug_drvdata *drvdata = dev_get_drvdata(&pdev->dev);
 
 	if (WARN_ON(!drvdata))
-		return -ENODEV;
+		return;
 
 	__debug_remove(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 	if (!IS_ERR_OR_NULL(drvdata->pclk))
 		clk_put(drvdata->pclk);
-	return 0;
 }
 
 #ifdef CONFIG_ACPI
@@ -764,7 +763,7 @@ static const struct dev_pm_ops debug_dev_pm_ops = {
 
 static struct platform_driver debug_platform_driver = {
 	.probe	= debug_platform_probe,
-	.remove	= debug_platform_remove,
+	.remove_new = debug_platform_remove,
 	.driver	= {
 		.name			= "coresight-debug-platform",
 		.acpi_match_table	= ACPI_PTR(debug_platform_ids),
