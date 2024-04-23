@@ -1649,18 +1649,18 @@
 #define _PIPE_CRC_RES_4_B_IVB		0x61070
 #define _PIPE_CRC_RES_5_B_IVB		0x61074
 
-#define PIPE_CRC_CTL(pipe)		_MMIO_TRANS2(pipe, _PIPE_CRC_CTL_A)
-#define PIPE_CRC_RES_1_IVB(pipe)	_MMIO_TRANS2(pipe, _PIPE_CRC_RES_1_A_IVB)
-#define PIPE_CRC_RES_2_IVB(pipe)	_MMIO_TRANS2(pipe, _PIPE_CRC_RES_2_A_IVB)
-#define PIPE_CRC_RES_3_IVB(pipe)	_MMIO_TRANS2(pipe, _PIPE_CRC_RES_3_A_IVB)
-#define PIPE_CRC_RES_4_IVB(pipe)	_MMIO_TRANS2(pipe, _PIPE_CRC_RES_4_A_IVB)
-#define PIPE_CRC_RES_5_IVB(pipe)	_MMIO_TRANS2(pipe, _PIPE_CRC_RES_5_A_IVB)
+#define PIPE_CRC_CTL(pipe)		_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_CTL_A)
+#define PIPE_CRC_RES_1_IVB(pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_1_A_IVB)
+#define PIPE_CRC_RES_2_IVB(pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_2_A_IVB)
+#define PIPE_CRC_RES_3_IVB(pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_3_A_IVB)
+#define PIPE_CRC_RES_4_IVB(pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_4_A_IVB)
+#define PIPE_CRC_RES_5_IVB(pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_5_A_IVB)
 
-#define PIPE_CRC_RES_RED(pipe)		_MMIO_TRANS2(pipe, _PIPE_CRC_RES_RED_A)
-#define PIPE_CRC_RES_GREEN(pipe)	_MMIO_TRANS2(pipe, _PIPE_CRC_RES_GREEN_A)
-#define PIPE_CRC_RES_BLUE(pipe)		_MMIO_TRANS2(pipe, _PIPE_CRC_RES_BLUE_A)
-#define PIPE_CRC_RES_RES1_I915(pipe)	_MMIO_TRANS2(pipe, _PIPE_CRC_RES_RES1_A_I915)
-#define PIPE_CRC_RES_RES2_G4X(pipe)	_MMIO_TRANS2(pipe, _PIPE_CRC_RES_RES2_A_G4X)
+#define PIPE_CRC_RES_RED(pipe)		_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_RED_A)
+#define PIPE_CRC_RES_GREEN(pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_GREEN_A)
+#define PIPE_CRC_RES_BLUE(pipe)		_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_BLUE_A)
+#define PIPE_CRC_RES_RES1_I915(pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_RES1_A_I915)
+#define PIPE_CRC_RES_RES2_G4X(pipe)	_MMIO_TRANS2(dev_priv, pipe, _PIPE_CRC_RES_RES2_A_G4X)
 
 /* Pipe/transcoder A timing regs */
 #define _TRANS_HTOTAL_A		0x60000
@@ -1729,23 +1729,23 @@
 #define _TRANS_VSYNC_DSI1	0x6b814
 #define _TRANS_VSYNCSHIFT_DSI1	0x6b828
 
-#define TRANS_HTOTAL(trans)	_MMIO_TRANS2((trans), _TRANS_HTOTAL_A)
-#define TRANS_HBLANK(trans)	_MMIO_TRANS2((trans), _TRANS_HBLANK_A)
-#define TRANS_HSYNC(trans)	_MMIO_TRANS2((trans), _TRANS_HSYNC_A)
-#define TRANS_VTOTAL(trans)	_MMIO_TRANS2((trans), _TRANS_VTOTAL_A)
-#define TRANS_VBLANK(trans)	_MMIO_TRANS2((trans), _TRANS_VBLANK_A)
-#define TRANS_VSYNC(trans)	_MMIO_TRANS2((trans), _TRANS_VSYNC_A)
-#define BCLRPAT(trans)		_MMIO_TRANS2((trans), _BCLRPAT_A)
-#define TRANS_VSYNCSHIFT(trans)	_MMIO_TRANS2((trans), _TRANS_VSYNCSHIFT_A)
-#define PIPESRC(pipe)		_MMIO_TRANS2((pipe), _PIPEASRC)
-#define TRANS_MULT(trans)	_MMIO_TRANS2((trans), _TRANS_MULT_A)
+#define TRANS_HTOTAL(trans)	_MMIO_TRANS2(dev_priv, (trans), _TRANS_HTOTAL_A)
+#define TRANS_HBLANK(trans)	_MMIO_TRANS2(dev_priv, (trans), _TRANS_HBLANK_A)
+#define TRANS_HSYNC(trans)	_MMIO_TRANS2(dev_priv, (trans), _TRANS_HSYNC_A)
+#define TRANS_VTOTAL(trans)	_MMIO_TRANS2(dev_priv, (trans), _TRANS_VTOTAL_A)
+#define TRANS_VBLANK(trans)	_MMIO_TRANS2(dev_priv, (trans), _TRANS_VBLANK_A)
+#define TRANS_VSYNC(trans)	_MMIO_TRANS2(dev_priv, (trans), _TRANS_VSYNC_A)
+#define BCLRPAT(trans)		_MMIO_TRANS2(dev_priv, (trans), _BCLRPAT_A)
+#define TRANS_VSYNCSHIFT(trans)	_MMIO_TRANS2(dev_priv, (trans), _TRANS_VSYNCSHIFT_A)
+#define PIPESRC(pipe)		_MMIO_TRANS2(dev_priv, (pipe), _PIPEASRC)
+#define TRANS_MULT(trans)	_MMIO_TRANS2(dev_priv, (trans), _TRANS_MULT_A)
 
 /* VRR registers */
 #define _TRANS_VRR_CTL_A		0x60420
 #define _TRANS_VRR_CTL_B		0x61420
 #define _TRANS_VRR_CTL_C		0x62420
 #define _TRANS_VRR_CTL_D		0x63420
-#define TRANS_VRR_CTL(trans)			_MMIO_TRANS2(trans, _TRANS_VRR_CTL_A)
+#define TRANS_VRR_CTL(trans)			_MMIO_TRANS2(dev_priv, trans, _TRANS_VRR_CTL_A)
 #define   VRR_CTL_VRR_ENABLE			REG_BIT(31)
 #define   VRR_CTL_IGN_MAX_SHIFT			REG_BIT(30)
 #define   VRR_CTL_FLIP_LINE_EN			REG_BIT(29)
@@ -1759,21 +1759,21 @@
 #define _TRANS_VRR_VMAX_B		0x61424
 #define _TRANS_VRR_VMAX_C		0x62424
 #define _TRANS_VRR_VMAX_D		0x63424
-#define TRANS_VRR_VMAX(trans)		_MMIO_TRANS2(trans, _TRANS_VRR_VMAX_A)
+#define TRANS_VRR_VMAX(trans)		_MMIO_TRANS2(dev_priv, trans, _TRANS_VRR_VMAX_A)
 #define   VRR_VMAX_MASK			REG_GENMASK(19, 0)
 
 #define _TRANS_VRR_VMIN_A		0x60434
 #define _TRANS_VRR_VMIN_B		0x61434
 #define _TRANS_VRR_VMIN_C		0x62434
 #define _TRANS_VRR_VMIN_D		0x63434
-#define TRANS_VRR_VMIN(trans)		_MMIO_TRANS2(trans, _TRANS_VRR_VMIN_A)
+#define TRANS_VRR_VMIN(trans)		_MMIO_TRANS2(dev_priv, trans, _TRANS_VRR_VMIN_A)
 #define   VRR_VMIN_MASK			REG_GENMASK(15, 0)
 
 #define _TRANS_VRR_VMAXSHIFT_A		0x60428
 #define _TRANS_VRR_VMAXSHIFT_B		0x61428
 #define _TRANS_VRR_VMAXSHIFT_C		0x62428
 #define _TRANS_VRR_VMAXSHIFT_D		0x63428
-#define TRANS_VRR_VMAXSHIFT(trans)	_MMIO_TRANS2(trans, \
+#define TRANS_VRR_VMAXSHIFT(trans)	_MMIO_TRANS2(dev_priv, trans, \
 					_TRANS_VRR_VMAXSHIFT_A)
 #define   VRR_VMAXSHIFT_DEC_MASK	REG_GENMASK(29, 16)
 #define   VRR_VMAXSHIFT_DEC		REG_BIT(16)
@@ -1783,7 +1783,7 @@
 #define _TRANS_VRR_STATUS_B		0x6142C
 #define _TRANS_VRR_STATUS_C		0x6242C
 #define _TRANS_VRR_STATUS_D		0x6342C
-#define TRANS_VRR_STATUS(trans)		_MMIO_TRANS2(trans, _TRANS_VRR_STATUS_A)
+#define TRANS_VRR_STATUS(trans)		_MMIO_TRANS2(dev_priv, trans, _TRANS_VRR_STATUS_A)
 #define   VRR_STATUS_VMAX_REACHED	REG_BIT(31)
 #define   VRR_STATUS_NOFLIP_TILL_BNDR	REG_BIT(30)
 #define   VRR_STATUS_FLIP_BEF_BNDR	REG_BIT(29)
@@ -1803,7 +1803,7 @@
 #define _TRANS_VRR_VTOTAL_PREV_B	0x61480
 #define _TRANS_VRR_VTOTAL_PREV_C	0x62480
 #define _TRANS_VRR_VTOTAL_PREV_D	0x63480
-#define TRANS_VRR_VTOTAL_PREV(trans)	_MMIO_TRANS2(trans, \
+#define TRANS_VRR_VTOTAL_PREV(trans)	_MMIO_TRANS2(dev_priv, trans, \
 					_TRANS_VRR_VTOTAL_PREV_A)
 #define   VRR_VTOTAL_FLIP_BEFR_BNDR	REG_BIT(31)
 #define   VRR_VTOTAL_FLIP_AFTER_BNDR	REG_BIT(30)
@@ -1814,7 +1814,7 @@
 #define _TRANS_VRR_FLIPLINE_B		0x61438
 #define _TRANS_VRR_FLIPLINE_C		0x62438
 #define _TRANS_VRR_FLIPLINE_D		0x63438
-#define TRANS_VRR_FLIPLINE(trans)	_MMIO_TRANS2(trans, \
+#define TRANS_VRR_FLIPLINE(trans)	_MMIO_TRANS2(dev_priv, trans, \
 					_TRANS_VRR_FLIPLINE_A)
 #define   VRR_FLIPLINE_MASK		REG_GENMASK(19, 0)
 
@@ -1822,19 +1822,19 @@
 #define _TRANS_VRR_STATUS2_B		0x6143C
 #define _TRANS_VRR_STATUS2_C		0x6243C
 #define _TRANS_VRR_STATUS2_D		0x6343C
-#define TRANS_VRR_STATUS2(trans)	_MMIO_TRANS2(trans, _TRANS_VRR_STATUS2_A)
+#define TRANS_VRR_STATUS2(trans)	_MMIO_TRANS2(dev_priv, trans, _TRANS_VRR_STATUS2_A)
 #define   VRR_STATUS2_VERT_LN_CNT_MASK	REG_GENMASK(19, 0)
 
 #define _TRANS_PUSH_A			0x60A70
 #define _TRANS_PUSH_B			0x61A70
 #define _TRANS_PUSH_C			0x62A70
 #define _TRANS_PUSH_D			0x63A70
-#define TRANS_PUSH(trans)		_MMIO_TRANS2(trans, _TRANS_PUSH_A)
+#define TRANS_PUSH(trans)		_MMIO_TRANS2(dev_priv, trans, _TRANS_PUSH_A)
 #define   TRANS_PUSH_EN			REG_BIT(31)
 #define   TRANS_PUSH_SEND		REG_BIT(30)
 
 #define _TRANS_VRR_VSYNC_A		0x60078
-#define TRANS_VRR_VSYNC(trans)		_MMIO_TRANS2(trans, _TRANS_VRR_VSYNC_A)
+#define TRANS_VRR_VSYNC(trans)		_MMIO_TRANS2(dev_priv, trans, _TRANS_VRR_VSYNC_A)
 #define VRR_VSYNC_END_MASK		REG_GENMASK(28, 16)
 #define VRR_VSYNC_END(vsync_end)	REG_FIELD_PREP(VRR_VSYNC_END_MASK, (vsync_end))
 #define VRR_VSYNC_START_MASK		REG_GENMASK(12, 0)
@@ -2390,18 +2390,18 @@
 #define PIPESTAT_INT_ENABLE_MASK		0x7fff0000
 #define PIPESTAT_INT_STATUS_MASK		0x0000ffff
 
-#define TRANSCONF(trans)	_MMIO_PIPE2((trans), _TRANSACONF)
-#define PIPEDSL(pipe)		_MMIO_PIPE2(pipe, _PIPEADSL)
-#define PIPEFRAME(pipe)		_MMIO_PIPE2(pipe, _PIPEAFRAMEHIGH)
-#define PIPEFRAMEPIXEL(pipe)	_MMIO_PIPE2(pipe, _PIPEAFRAMEPIXEL)
-#define PIPESTAT(pipe)		_MMIO_PIPE2(pipe, _PIPEASTAT)
+#define TRANSCONF(trans)	_MMIO_PIPE2(dev_priv, (trans), _TRANSACONF)
+#define PIPEDSL(pipe)		_MMIO_PIPE2(dev_priv, pipe, _PIPEADSL)
+#define PIPEFRAME(pipe)		_MMIO_PIPE2(dev_priv, pipe, _PIPEAFRAMEHIGH)
+#define PIPEFRAMEPIXEL(pipe)	_MMIO_PIPE2(dev_priv, pipe, _PIPEAFRAMEPIXEL)
+#define PIPESTAT(pipe)		_MMIO_PIPE2(dev_priv, pipe, _PIPEASTAT)
 
 #define  _PIPEAGCMAX           0x70010
 #define  _PIPEBGCMAX           0x71010
-#define PIPEGCMAX(pipe, i)     _MMIO_PIPE2(pipe, _PIPEAGCMAX + (i) * 4) /* u1.16 */
+#define PIPEGCMAX(pipe, i)     _MMIO_PIPE2(dev_priv, pipe, _PIPEAGCMAX + (i) * 4) /* u1.16 */
 
 #define _PIPE_ARB_CTL_A			0x70028 /* icl+ */
-#define PIPE_ARB_CTL(pipe)		_MMIO_PIPE2(pipe, _PIPE_ARB_CTL_A)
+#define PIPE_ARB_CTL(pipe)		_MMIO_PIPE2(dev_priv, pipe, _PIPE_ARB_CTL_A)
 #define   PIPE_ARB_USE_PROG_SLOTS	REG_BIT(13)
 
 #define _PIPE_MISC_A			0x70030
@@ -2445,7 +2445,7 @@
 #define PIPE_MISC2(pipe)		_MMIO_PIPE(pipe, _PIPE_MISC2_A, _PIPE_MISC2_B)
 
 #define _ICL_PIPE_A_STATUS			0x70058
-#define ICL_PIPESTATUS(pipe)			_MMIO_PIPE2(pipe, _ICL_PIPE_A_STATUS)
+#define ICL_PIPESTATUS(pipe)			_MMIO_PIPE2(dev_priv, pipe, _ICL_PIPE_A_STATUS)
 #define   PIPE_STATUS_UNDERRUN				REG_BIT(31)
 #define   PIPE_STATUS_SOFT_UNDERRUN_XELPD		REG_BIT(28)
 #define   PIPE_STATUS_HARD_UNDERRUN_XELPD		REG_BIT(27)
@@ -2775,8 +2775,8 @@
 /* GM45+ just has to be different */
 #define _PIPEA_FRMCOUNT_G4X	0x70040
 #define _PIPEA_FLIPCOUNT_G4X	0x70044
-#define PIPE_FRMCOUNT_G4X(pipe) _MMIO_PIPE2(pipe, _PIPEA_FRMCOUNT_G4X)
-#define PIPE_FLIPCOUNT_G4X(pipe) _MMIO_PIPE2(pipe, _PIPEA_FLIPCOUNT_G4X)
+#define PIPE_FRMCOUNT_G4X(pipe) _MMIO_PIPE2(dev_priv, pipe, _PIPEA_FRMCOUNT_G4X)
+#define PIPE_FLIPCOUNT_G4X(pipe) _MMIO_PIPE2(dev_priv, pipe, _PIPEA_FLIPCOUNT_G4X)
 
 /* Cursor A & B regs */
 #define _CURACNTR		0x70080
@@ -2837,14 +2837,14 @@
 #define _CURBBASE_IVB		0x71084
 #define _CURBPOS_IVB		0x71088
 
-#define CURCNTR(pipe) _MMIO_CURSOR2(pipe, _CURACNTR)
-#define CURBASE(pipe) _MMIO_CURSOR2(pipe, _CURABASE)
-#define CURPOS(pipe) _MMIO_CURSOR2(pipe, _CURAPOS)
-#define CURPOS_ERLY_TPT(pipe) _MMIO_CURSOR2(pipe, _CURAPOS_ERLY_TPT)
-#define CURSIZE(pipe) _MMIO_CURSOR2(pipe, _CURASIZE)
-#define CUR_FBC_CTL(pipe) _MMIO_CURSOR2(pipe, _CUR_FBC_CTL_A)
-#define CUR_CHICKEN(pipe) _MMIO_CURSOR2(pipe, _CUR_CHICKEN_A)
-#define CURSURFLIVE(pipe) _MMIO_CURSOR2(pipe, _CURASURFLIVE)
+#define CURCNTR(pipe) _MMIO_CURSOR2(dev_priv, pipe, _CURACNTR)
+#define CURBASE(pipe) _MMIO_CURSOR2(dev_priv, pipe, _CURABASE)
+#define CURPOS(pipe) _MMIO_CURSOR2(dev_priv, pipe, _CURAPOS)
+#define CURPOS_ERLY_TPT(pipe) _MMIO_CURSOR2(dev_priv, pipe, _CURAPOS_ERLY_TPT)
+#define CURSIZE(pipe) _MMIO_CURSOR2(dev_priv, pipe, _CURASIZE)
+#define CUR_FBC_CTL(pipe) _MMIO_CURSOR2(dev_priv, pipe, _CUR_FBC_CTL_A)
+#define CUR_CHICKEN(pipe) _MMIO_CURSOR2(dev_priv, pipe, _CUR_CHICKEN_A)
+#define CURSURFLIVE(pipe) _MMIO_CURSOR2(dev_priv, pipe, _CURASURFLIVE)
 
 /* Display A control */
 #define _DSPAADDR_VLV				0x7017C /* vlv/chv */
@@ -2901,18 +2901,18 @@
 #define _DSPASURFLIVE				0x701AC
 #define _DSPAGAMC				0x701E0
 
-#define DSPADDR_VLV(plane)	_MMIO_PIPE2(plane, _DSPAADDR_VLV)
-#define DSPCNTR(plane)		_MMIO_PIPE2(plane, _DSPACNTR)
-#define DSPADDR(plane)		_MMIO_PIPE2(plane, _DSPAADDR)
-#define DSPSTRIDE(plane)	_MMIO_PIPE2(plane, _DSPASTRIDE)
-#define DSPPOS(plane)		_MMIO_PIPE2(plane, _DSPAPOS)
-#define DSPSIZE(plane)		_MMIO_PIPE2(plane, _DSPASIZE)
-#define DSPSURF(plane)		_MMIO_PIPE2(plane, _DSPASURF)
-#define DSPTILEOFF(plane)	_MMIO_PIPE2(plane, _DSPATILEOFF)
+#define DSPADDR_VLV(plane)	_MMIO_PIPE2(dev_priv, plane, _DSPAADDR_VLV)
+#define DSPCNTR(plane)		_MMIO_PIPE2(dev_priv, plane, _DSPACNTR)
+#define DSPADDR(plane)		_MMIO_PIPE2(dev_priv, plane, _DSPAADDR)
+#define DSPSTRIDE(plane)	_MMIO_PIPE2(dev_priv, plane, _DSPASTRIDE)
+#define DSPPOS(plane)		_MMIO_PIPE2(dev_priv, plane, _DSPAPOS)
+#define DSPSIZE(plane)		_MMIO_PIPE2(dev_priv, plane, _DSPASIZE)
+#define DSPSURF(plane)		_MMIO_PIPE2(dev_priv, plane, _DSPASURF)
+#define DSPTILEOFF(plane)	_MMIO_PIPE2(dev_priv, plane, _DSPATILEOFF)
 #define DSPLINOFF(plane)	DSPADDR(plane)
-#define DSPOFFSET(plane)	_MMIO_PIPE2(plane, _DSPAOFFSET)
-#define DSPSURFLIVE(plane)	_MMIO_PIPE2(plane, _DSPASURFLIVE)
-#define DSPGAMC(plane, i)	_MMIO_PIPE2(plane, _DSPAGAMC + (5 - (i)) * 4) /* plane C only, 6 x u0.8 */
+#define DSPOFFSET(plane)	_MMIO_PIPE2(dev_priv, plane, _DSPAOFFSET)
+#define DSPSURFLIVE(plane)	_MMIO_PIPE2(dev_priv, plane, _DSPASURFLIVE)
+#define DSPGAMC(plane, i)	_MMIO_PIPE2(dev_priv, plane, _DSPAGAMC + (5 - (i)) * 4) /* plane C only, 6 x u0.8 */
 
 /* CHV pipe B blender and primary plane */
 #define _CHV_BLEND_A		0x60a00
@@ -2939,11 +2939,11 @@
 #define   PRIM_CONST_ALPHA_MASK		REG_GENMASK(7, 0)
 #define   PRIM_CONST_ALPHA(alpha)	REG_FIELD_PREP(PRIM_CONST_ALPHA_MASK, (alpha))
 
-#define CHV_BLEND(pipe)		_MMIO_TRANS2(pipe, _CHV_BLEND_A)
-#define CHV_CANVAS(pipe)	_MMIO_TRANS2(pipe, _CHV_CANVAS_A)
-#define PRIMPOS(plane)		_MMIO_TRANS2(plane, _PRIMPOS_A)
-#define PRIMSIZE(plane)		_MMIO_TRANS2(plane, _PRIMSIZE_A)
-#define PRIMCNSTALPHA(plane)	_MMIO_TRANS2(plane, _PRIMCNSTALPHA_A)
+#define CHV_BLEND(pipe)		_MMIO_TRANS2(dev_priv, pipe, _CHV_BLEND_A)
+#define CHV_CANVAS(pipe)	_MMIO_TRANS2(dev_priv, pipe, _CHV_CANVAS_A)
+#define PRIMPOS(plane)		_MMIO_TRANS2(dev_priv, plane, _PRIMPOS_A)
+#define PRIMSIZE(plane)		_MMIO_TRANS2(dev_priv, plane, _PRIMSIZE_A)
+#define PRIMCNSTALPHA(plane)	_MMIO_TRANS2(dev_priv, plane, _PRIMCNSTALPHA_A)
 
 /* Display/Sprite base address macros */
 #define DISP_BASEADDR_MASK	(0xfffff000)
@@ -3742,14 +3742,14 @@
 #define _PIPEB_LINK_M2		0x61048
 #define _PIPEB_LINK_N2		0x6104c
 
-#define PIPE_DATA_M1(tran) _MMIO_TRANS2(tran, _PIPEA_DATA_M1)
-#define PIPE_DATA_N1(tran) _MMIO_TRANS2(tran, _PIPEA_DATA_N1)
-#define PIPE_DATA_M2(tran) _MMIO_TRANS2(tran, _PIPEA_DATA_M2)
-#define PIPE_DATA_N2(tran) _MMIO_TRANS2(tran, _PIPEA_DATA_N2)
-#define PIPE_LINK_M1(tran) _MMIO_TRANS2(tran, _PIPEA_LINK_M1)
-#define PIPE_LINK_N1(tran) _MMIO_TRANS2(tran, _PIPEA_LINK_N1)
-#define PIPE_LINK_M2(tran) _MMIO_TRANS2(tran, _PIPEA_LINK_M2)
-#define PIPE_LINK_N2(tran) _MMIO_TRANS2(tran, _PIPEA_LINK_N2)
+#define PIPE_DATA_M1(tran) _MMIO_TRANS2(dev_priv, tran, _PIPEA_DATA_M1)
+#define PIPE_DATA_N1(tran) _MMIO_TRANS2(dev_priv, tran, _PIPEA_DATA_N1)
+#define PIPE_DATA_M2(tran) _MMIO_TRANS2(dev_priv, tran, _PIPEA_DATA_M2)
+#define PIPE_DATA_N2(tran) _MMIO_TRANS2(dev_priv, tran, _PIPEA_DATA_N2)
+#define PIPE_LINK_M1(tran) _MMIO_TRANS2(dev_priv, tran, _PIPEA_LINK_M1)
+#define PIPE_LINK_N1(tran) _MMIO_TRANS2(dev_priv, tran, _PIPEA_LINK_N1)
+#define PIPE_LINK_M2(tran) _MMIO_TRANS2(dev_priv, tran, _PIPEA_LINK_M2)
+#define PIPE_LINK_N2(tran) _MMIO_TRANS2(dev_priv, tran, _PIPEA_LINK_N2)
 
 /* CPU panel fitter */
 /* IVB+ has 3 fitters, 0 is 7x5 capable, the other two only 3x3 */
@@ -4836,25 +4836,25 @@
 #define _ICL_VIDEO_DIP_PPS_ECC_A	0x603D4
 #define _ICL_VIDEO_DIP_PPS_ECC_B	0x613D4
 
-#define HSW_TVIDEO_DIP_CTL(trans)		_MMIO_TRANS2(trans, _HSW_VIDEO_DIP_CTL_A)
-#define HSW_TVIDEO_DIP_GCP(trans)		_MMIO_TRANS2(trans, _HSW_VIDEO_DIP_GCP_A)
-#define HSW_TVIDEO_DIP_AVI_DATA(trans, i)	_MMIO_TRANS2(trans, _HSW_VIDEO_DIP_AVI_DATA_A + (i) * 4)
-#define HSW_TVIDEO_DIP_VS_DATA(trans, i)	_MMIO_TRANS2(trans, _HSW_VIDEO_DIP_VS_DATA_A + (i) * 4)
-#define HSW_TVIDEO_DIP_SPD_DATA(trans, i)	_MMIO_TRANS2(trans, _HSW_VIDEO_DIP_SPD_DATA_A + (i) * 4)
-#define HSW_TVIDEO_DIP_GMP_DATA(trans, i)	_MMIO_TRANS2(trans, _HSW_VIDEO_DIP_GMP_DATA_A + (i) * 4)
-#define HSW_TVIDEO_DIP_VSC_DATA(trans, i)	_MMIO_TRANS2(trans, _HSW_VIDEO_DIP_VSC_DATA_A + (i) * 4)
-#define GLK_TVIDEO_DIP_DRM_DATA(trans, i)	_MMIO_TRANS2(trans, _GLK_VIDEO_DIP_DRM_DATA_A + (i) * 4)
-#define ICL_VIDEO_DIP_PPS_DATA(trans, i)	_MMIO_TRANS2(trans, _ICL_VIDEO_DIP_PPS_DATA_A + (i) * 4)
-#define ICL_VIDEO_DIP_PPS_ECC(trans, i)		_MMIO_TRANS2(trans, _ICL_VIDEO_DIP_PPS_ECC_A + (i) * 4)
+#define HSW_TVIDEO_DIP_CTL(trans)		_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_CTL_A)
+#define HSW_TVIDEO_DIP_GCP(trans)		_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_GCP_A)
+#define HSW_TVIDEO_DIP_AVI_DATA(trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_AVI_DATA_A + (i) * 4)
+#define HSW_TVIDEO_DIP_VS_DATA(trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_VS_DATA_A + (i) * 4)
+#define HSW_TVIDEO_DIP_SPD_DATA(trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_SPD_DATA_A + (i) * 4)
+#define HSW_TVIDEO_DIP_GMP_DATA(trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_GMP_DATA_A + (i) * 4)
+#define HSW_TVIDEO_DIP_VSC_DATA(trans, i)	_MMIO_TRANS2(dev_priv, trans, _HSW_VIDEO_DIP_VSC_DATA_A + (i) * 4)
+#define GLK_TVIDEO_DIP_DRM_DATA(trans, i)	_MMIO_TRANS2(dev_priv, trans, _GLK_VIDEO_DIP_DRM_DATA_A + (i) * 4)
+#define ICL_VIDEO_DIP_PPS_DATA(trans, i)	_MMIO_TRANS2(dev_priv, trans, _ICL_VIDEO_DIP_PPS_DATA_A + (i) * 4)
+#define ICL_VIDEO_DIP_PPS_ECC(trans, i)		_MMIO_TRANS2(dev_priv, trans, _ICL_VIDEO_DIP_PPS_ECC_A + (i) * 4)
 /*ADLP and later: */
-#define ADL_TVIDEO_DIP_AS_SDP_DATA(trans, i)	_MMIO_TRANS2(trans,\
+#define ADL_TVIDEO_DIP_AS_SDP_DATA(trans, i)	_MMIO_TRANS2(dev_priv, trans,\
 							     _ADL_VIDEO_DIP_AS_DATA_A + (i) * 4)
 
 #define _HSW_STEREO_3D_CTL_A		0x70020
 #define   S3D_ENABLE			(1 << 31)
 #define _HSW_STEREO_3D_CTL_B		0x71020
 
-#define HSW_STEREO_3D_CTL(trans)	_MMIO_PIPE2(trans, _HSW_STEREO_3D_CTL_A)
+#define HSW_STEREO_3D_CTL(trans)	_MMIO_PIPE2(dev_priv, trans, _HSW_STEREO_3D_CTL_A)
 
 #define _PCH_TRANS_HTOTAL_B          0xe1000
 #define _PCH_TRANS_HBLANK_B          0xe1004
@@ -5340,7 +5340,7 @@ enum skl_power_gate {
 #define _TRANS_DDI_FUNC_CTL_EDP		0x6F400
 #define _TRANS_DDI_FUNC_CTL_DSI0	0x6b400
 #define _TRANS_DDI_FUNC_CTL_DSI1	0x6bc00
-#define TRANS_DDI_FUNC_CTL(tran) _MMIO_TRANS2(tran, _TRANS_DDI_FUNC_CTL_A)
+#define TRANS_DDI_FUNC_CTL(tran) _MMIO_TRANS2(dev_priv, tran, _TRANS_DDI_FUNC_CTL_A)
 
 #define  TRANS_DDI_FUNC_ENABLE		(1 << 31)
 /* Those bits are ignored by pipe EDP since it can only connect to DDI A */
@@ -5395,7 +5395,7 @@ enum skl_power_gate {
 #define _TRANS_DDI_FUNC_CTL2_EDP	0x6f404
 #define _TRANS_DDI_FUNC_CTL2_DSI0	0x6b404
 #define _TRANS_DDI_FUNC_CTL2_DSI1	0x6bc04
-#define TRANS_DDI_FUNC_CTL2(tran)	_MMIO_TRANS2(tran, _TRANS_DDI_FUNC_CTL2_A)
+#define TRANS_DDI_FUNC_CTL2(tran)	_MMIO_TRANS2(dev_priv, tran, _TRANS_DDI_FUNC_CTL2_A)
 #define  PORT_SYNC_MODE_ENABLE			REG_BIT(4)
 #define  PORT_SYNC_MODE_MASTER_SELECT_MASK	REG_GENMASK(2, 0)
 #define  PORT_SYNC_MODE_MASTER_SELECT(x)	REG_FIELD_PREP(PORT_SYNC_MODE_MASTER_SELECT_MASK, (x))
@@ -5408,7 +5408,7 @@ enum skl_power_gate {
 #define _DP_TP_CTL_B			0x64140
 #define _TGL_DP_TP_CTL_A		0x60540
 #define DP_TP_CTL(port) _MMIO_PORT(port, _DP_TP_CTL_A, _DP_TP_CTL_B)
-#define TGL_DP_TP_CTL(tran) _MMIO_TRANS2((tran), _TGL_DP_TP_CTL_A)
+#define TGL_DP_TP_CTL(tran) _MMIO_TRANS2(dev_priv, (tran), _TGL_DP_TP_CTL_A)
 #define  DP_TP_CTL_ENABLE			(1 << 31)
 #define  DP_TP_CTL_FEC_ENABLE			(1 << 30)
 #define  DP_TP_CTL_MODE_SST			(0 << 27)
@@ -5434,7 +5434,7 @@ enum skl_power_gate {
 #define _DP_TP_STATUS_B			0x64144
 #define _TGL_DP_TP_STATUS_A		0x60544
 #define DP_TP_STATUS(port) _MMIO_PORT(port, _DP_TP_STATUS_A, _DP_TP_STATUS_B)
-#define TGL_DP_TP_STATUS(tran) _MMIO_TRANS2((tran), _TGL_DP_TP_STATUS_A)
+#define TGL_DP_TP_STATUS(tran) _MMIO_TRANS2(dev_priv, (tran), _TGL_DP_TP_STATUS_A)
 #define  DP_TP_STATUS_FEC_ENABLE_LIVE		(1 << 28)
 #define  DP_TP_STATUS_IDLE_DONE			(1 << 25)
 #define  DP_TP_STATUS_ACT_SENT			(1 << 24)
@@ -5615,14 +5615,14 @@ enum skl_power_gate {
 #define _TRANSB_MSA_MISC		0x61410
 #define _TRANSC_MSA_MISC		0x62410
 #define _TRANS_EDP_MSA_MISC		0x6f410
-#define TRANS_MSA_MISC(tran) _MMIO_TRANS2(tran, _TRANSA_MSA_MISC)
+#define TRANS_MSA_MISC(tran) _MMIO_TRANS2(dev_priv, tran, _TRANSA_MSA_MISC)
 /* See DP_MSA_MISC_* for the bit definitions */
 
 #define _TRANS_A_SET_CONTEXT_LATENCY		0x6007C
 #define _TRANS_B_SET_CONTEXT_LATENCY		0x6107C
 #define _TRANS_C_SET_CONTEXT_LATENCY		0x6207C
 #define _TRANS_D_SET_CONTEXT_LATENCY		0x6307C
-#define TRANS_SET_CONTEXT_LATENCY(tran)		_MMIO_TRANS2(tran, _TRANS_A_SET_CONTEXT_LATENCY)
+#define TRANS_SET_CONTEXT_LATENCY(tran)		_MMIO_TRANS2(dev_priv, tran, _TRANS_A_SET_CONTEXT_LATENCY)
 #define  TRANS_SET_CONTEXT_LATENCY_MASK		REG_GENMASK(15, 0)
 #define  TRANS_SET_CONTEXT_LATENCY_VALUE(x)	REG_FIELD_PREP(TRANS_SET_CONTEXT_LATENCY_MASK, (x))
 
@@ -6076,7 +6076,7 @@ enum skl_power_gate {
 
 #define _VLV_PIPE_MSA_MISC_A			0x70048
 #define VLV_PIPE_MSA_MISC(pipe)		\
-			_MMIO_PIPE2(pipe, _VLV_PIPE_MSA_MISC_A)
+			_MMIO_PIPE2(dev_priv, pipe, _VLV_PIPE_MSA_MISC_A)
 #define   VLV_MSA_MISC1_HW_ENABLE			REG_BIT(31)
 #define   VLV_MSA_MISC1_SW_S3D_MASK			REG_GENMASK(2, 0) /* MSA MISC1 3:1 */
 
@@ -6149,7 +6149,7 @@ enum skl_power_gate {
 
 #define _MTL_CLKGATE_DIS_TRANS_A			0x604E8
 #define _MTL_CLKGATE_DIS_TRANS_B			0x614E8
-#define MTL_CLKGATE_DIS_TRANS(trans)			_MMIO_TRANS2(trans, _MTL_CLKGATE_DIS_TRANS_A)
+#define MTL_CLKGATE_DIS_TRANS(trans)			_MMIO_TRANS2(dev_priv, trans, _MTL_CLKGATE_DIS_TRANS_A)
 #define  MTL_CLKGATE_DIS_TRANS_DMASC_GATING_DIS		REG_BIT(7)
 
 #define MTL_MEM_SS_INFO_GLOBAL			_MMIO(0x45700)
