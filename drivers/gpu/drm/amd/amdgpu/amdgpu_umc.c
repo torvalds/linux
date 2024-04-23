@@ -179,6 +179,7 @@ void amdgpu_umc_handle_bad_pages(struct amdgpu_device *adev,
 	}
 
 	kfree(err_data->err_addr);
+	err_data->err_addr = NULL;
 
 	mutex_unlock(&con->page_retirement_lock);
 }
