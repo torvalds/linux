@@ -2735,6 +2735,18 @@ struct rtw89_btc_fbtc_btafh_v2 {
 	u8 afh_le_b[4];
 } __packed;
 
+struct rtw89_btc_fbtc_btafh_v7 {
+	u8 fver;
+	u8 map_type;
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 afh_l[4]; /*bit0:2402, bit1:2403.... bit31:2433 */
+	u8 afh_m[4]; /*bit0:2434, bit1:2435.... bit31:2465 */
+	u8 afh_h[4]; /*bit0:2466, bit1:2467.....bit14:2480 */
+	u8 afh_le_a[4];
+	u8 afh_le_b[4];
+} __packed;
+
 struct rtw89_btc_fbtc_btdevinfo {
 	u8 fver; /* btc_ver::fcxbtdevinfo */
 	u8 rsvd;
