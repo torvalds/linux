@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/usb/usb-uhci.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Generic Platform UHCI Controller
+
+maintainers:
+  - Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+
+properties:
+  compatible:
+    oneOf:
+      - const: generic-uhci
+      - const: platform-uhci
+        deprecated: true
+      - items:
+          - enum:
+              - aspeed,ast2400-uhci
+              - aspeed,ast2500-uhci
+              - aspeed,ast2600-uhci
+          - const: generic-uhci
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    maxItems: 1
+
+  '#ports':
+    $ref: /schemas/types.yaml#/definitions/uint32
+
+  clocks:
+    maxItems: 1
+
+required:
+  - compatible
+  - reg
+  - interrupts
+
+allOf:
+  - $ref: usb-hcd.yaml
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: generic-uhci
+    then:
+      required:
+        - clocks
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/aspeed-clock.h>
+
+    usb@d8007b00 {
+        compatible = "generic-uhci";
+        reg = <0xd8007b00 0x200>;
+        interrupts = <43>;
+        clocks = <&syscon ASPEED_CLK_GATE_USBUHCICLK>;
+    };
+  - |
+    #include <dt-bindings/clock/aspeed-clock.h>
+
+    usb@1e6b0000 {
+        compatible = "aspeed,ast2500-uhci", "generic-uhci";
+        reg = <0x1e6b0000 0x100>;
+        interrupts = <14>;
+        #ports = <2>;
+        clocks = <&syscon ASPEED_CLK_GATE_USBUHCICLK>;
+    };
+...
