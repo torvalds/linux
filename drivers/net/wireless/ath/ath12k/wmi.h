@@ -4205,6 +4205,9 @@ struct wmi_peer_sta_kickout_event {
 	struct ath12k_wmi_mac_addr_params peer_macaddr;
 } __packed;
 
+#define WMI_ROAM_REASON_MASK		GENMASK(3, 0)
+#define WMI_ROAM_SUBNET_STATUS_MASK	GENMASK(5, 4)
+
 enum wmi_roam_reason {
 	WMI_ROAM_REASON_BETTER_AP = 1,
 	WMI_ROAM_REASON_BEACON_MISS = 2,

@@ -47,6 +47,7 @@
 #define ATH12K_SMBIOS_BDF_EXT_MAGIC "BDF_"
 
 #define ATH12K_INVALID_HW_MAC_ID	0xFF
+#define ATH12K_CONNECTION_LOSS_HZ	(3 * HZ)
 #define	ATH12K_RX_RATE_TABLE_NUM	320
 #define	ATH12K_RX_RATE_TABLE_11AX_NUM	576
 
@@ -276,6 +277,7 @@ struct ath12k_vif {
 	u32 aid;
 	u8 bssid[ETH_ALEN];
 	struct cfg80211_bitrate_mask bitrate_mask;
+	struct delayed_work connection_loss_work;
 	int num_legacy_stations;
 	int rtscts_prot_mode;
 	int txpower;
