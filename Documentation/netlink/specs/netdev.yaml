@@ -486,6 +486,7 @@ operations:
       dump:
         request:
           attributes:
+            - ifindex
             - scope
         reply:
           attributes:

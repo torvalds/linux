@@ -53,6 +53,24 @@ def ksft_ge(a, b, comment=""):
         _fail("Check failed", a, "<", b, comment)
 
 
+class ksft_raises:
+    def __init__(self, expected_type):
+        self.exception = None
+        self.expected_type = expected_type
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is None:
+            _fail(f"Expected exception {str(self.expected_type.__name__)}, none raised")
+        elif self.expected_type != exc_type:
+            _fail(f"Expected exception {str(self.expected_type.__name__)}, raised {str(exc_type.__name__)}")
+        self.exception = exc_val
+        # Suppress the exception if its the expected one
+        return self.expected_type == exc_type
+
+
 def ksft_busy_wait(cond, sleep=0.005, deadline=1, comment=""):
     end = time.monotonic() + deadline
     while True:
