@@ -451,7 +451,7 @@ static int guc_xfer_rsa(struct xe_guc *guc)
 	return 0;
 }
 
-static int guc_wait_ucode(struct xe_guc *guc)
+static void guc_wait_ucode(struct xe_guc *guc)
 {
 	struct xe_gt *gt = guc_to_gt(guc);
 	u32 status;
@@ -479,30 +479,26 @@ static int guc_wait_ucode(struct xe_guc *guc)
 			     200000, &status, false);
 
 	if (ret) {
-		xe_gt_info(gt, "GuC load failed: status = 0x%08X\n", status);
-		xe_gt_info(gt, "GuC status: Reset = %u, BootROM = %#X, UKernel = %#X, MIA = %#X, Auth = %#X\n",
-			   REG_FIELD_GET(GS_MIA_IN_RESET, status),
-			   REG_FIELD_GET(GS_BOOTROM_MASK, status),
-			   REG_FIELD_GET(GS_UKERNEL_MASK, status),
-			   REG_FIELD_GET(GS_MIA_MASK, status),
-			   REG_FIELD_GET(GS_AUTH_STATUS_MASK, status));
+		xe_gt_err(gt, "GuC load failed: status = 0x%08X\n", status);
+		xe_gt_err(gt, "GuC status: Reset = %u, BootROM = %#X, UKernel = %#X, MIA = %#X, Auth = %#X\n",
+			  REG_FIELD_GET(GS_MIA_IN_RESET, status),
+			  REG_FIELD_GET(GS_BOOTROM_MASK, status),
+			  REG_FIELD_GET(GS_UKERNEL_MASK, status),
+			  REG_FIELD_GET(GS_MIA_MASK, status),
+			  REG_FIELD_GET(GS_AUTH_STATUS_MASK, status));
 
-		if ((status & GS_BOOTROM_MASK) == GS_BOOTROM_RSA_FAILED) {
-			xe_gt_info(gt, "GuC firmware signature verification failed\n");
-			ret = -ENOEXEC;
-		}
+		if ((status & GS_BOOTROM_MASK) == GS_BOOTROM_RSA_FAILED)
+			xe_gt_err(gt, "GuC firmware signature verification failed\n");
 
 		if (REG_FIELD_GET(GS_UKERNEL_MASK, status) ==
-		    XE_GUC_LOAD_STATUS_EXCEPTION) {
-			xe_gt_info(gt, "GuC firmware exception. EIP: %#x\n",
-				   xe_mmio_read32(gt, SOFT_SCRATCH(13)));
-			ret = -ENXIO;
-		}
+		    XE_GUC_LOAD_STATUS_EXCEPTION)
+			xe_gt_err(gt, "GuC firmware exception. EIP: %#x\n",
+				  xe_mmio_read32(gt, SOFT_SCRATCH(13)));
+
+		xe_device_declare_wedged(gt_to_xe(gt));
 	} else {
 		xe_gt_dbg(gt, "GuC successfully loaded\n");
 	}
-
-	return ret;
 }
 
 static int __xe_guc_upload(struct xe_guc *guc)
@@ -532,9 +528,7 @@ static int __xe_guc_upload(struct xe_guc *guc)
 		goto out;
 
 	/* Wait for authentication */
-	ret = guc_wait_ucode(guc);
-	if (ret)
-		goto out;
+	guc_wait_ucode(guc);
 
 	xe_uc_fw_change_status(&guc->fw, XE_UC_FIRMWARE_RUNNING);
 	return 0;
