@@ -15,7 +15,7 @@ ACPI Device Tree - Representation of ACPI Namespace
 Abstract
 ========
 The Linux ACPI subsystem converts ACPI namespace objects into a Linux
-device tree under the /sys/devices/LNXSYSTEM:00 and updates it upon
+device tree under the /sys/devices/LNXSYSTM:00 and updates it upon
 receiving ACPI hotplug notification events.  For each device object
 in this hierarchy there is a corresponding symbolic link in the
 /sys/bus/acpi/devices.
@@ -326,7 +326,7 @@ example ACPI namespace illustrated in Figure 2 with the addition of
 fixed PWR_BUTTON/SLP_BUTTON devices is shown below::
 
    +--------------+---+-----------------+
-   | LNXSYSTEM:00 | \ | acpi:LNXSYSTEM: |
+   | LNXSYSTM:00  | \ | acpi:LNXSYSTM:  |
    +--------------+---+-----------------+
      |
      | +-------------+-----+----------------+
