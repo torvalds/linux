@@ -827,8 +827,20 @@ static void _reset_btc_var(struct rtw89_dev *rtwdev, u8 type)
 		/* set the slot_now table to original */
 		btc->dm.tdma_now = t_def[CXTD_OFF];
 		btc->dm.tdma = t_def[CXTD_OFF];
-		memcpy(&btc->dm.slot_now, s_def, sizeof(btc->dm.slot_now));
-		memcpy(&btc->dm.slot, s_def, sizeof(btc->dm.slot));
+		if (ver->fcxslots >= 7) {
+			for (i = 0; i < ARRAY_SIZE(s_def); i++) {
+				btc->dm.slot.v7[i].dur = s_def[i].dur;
+				btc->dm.slot.v7[i].cxtype = s_def[i].cxtype;
+				btc->dm.slot.v7[i].cxtbl = s_def[i].cxtbl;
+			}
+			memcpy(&btc->dm.slot_now.v7, &btc->dm.slot.v7,
+			       sizeof(btc->dm.slot_now.v7));
+		} else {
+			memcpy(&btc->dm.slot_now.v1, s_def,
+			       sizeof(btc->dm.slot_now.v1));
+			memcpy(&btc->dm.slot.v1, s_def,
+			       sizeof(btc->dm.slot.v1));
+		}
 
 		btc->policy_len = 0;
 		btc->bt_req_len = 0;
@@ -2319,7 +2331,7 @@ static void rtw89_btc_fw_set_slots(struct rtw89_dev *rtwdev)
 
 		tlv_v7->type = SET_SLOT_TABLE;
 		tlv_v7->ver = ver->fcxslots;
-		tlv_v7->len = sizeof(dm->slot.v7);
+		tlv_v7->len = ARRAY_SIZE(dm->slot.v7);
 		memcpy(tlv_v7->val, dm->slot.v7, sizeof(dm->slot.v7));
 
 		_send_fw_cmd(rtwdev, BTFC_SET, SET_SLOT_TABLE, (u8 *)tlv_v7, len);
