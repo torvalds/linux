@@ -14,6 +14,7 @@
 #include "xe_gt.h"
 #include "xe_gt_debugfs.h"
 #include "xe_gt_sriov_pf_config.h"
+#include "xe_gt_sriov_pf_control.h"
 #include "xe_gt_sriov_pf_debugfs.h"
 #include "xe_gt_sriov_pf_helpers.h"
 #include "xe_pm.h"
@@ -153,6 +154,83 @@ static void pf_add_config_attrs(struct xe_gt *gt, struct dentry *parent, unsigne
 				   &preempt_timeout_fops);
 }
 
+/*
+ *      /sys/kernel/debug/dri/0/
+ *      ├── gt0
+ *      │   ├── vf1
+ *      │   │   ├── control { stop, pause, resume }
+ */
+
+static const struct {
+	const char *cmd;
+	int (*fn)(struct xe_gt *gt, unsigned int vfid);
+} control_cmds[] = {
+	{ "stop", xe_gt_sriov_pf_control_stop_vf },
+	{ "pause", xe_gt_sriov_pf_control_pause_vf },
+	{ "resume", xe_gt_sriov_pf_control_resume_vf },
+};
+
+static ssize_t control_write(struct file *file, const char __user *buf, size_t count, loff_t *pos)
+{
+	struct dentry *dent = file_dentry(file);
+	struct dentry *parent = dent->d_parent;
+	struct xe_gt *gt = extract_gt(parent);
+	struct xe_device *xe = gt_to_xe(gt);
+	unsigned int vfid = extract_vfid(parent);
+	int ret = -EINVAL;
+	char cmd[32];
+	size_t n;
+
+	xe_gt_assert(gt, vfid);
+	xe_gt_sriov_pf_assert_vfid(gt, vfid);
+
+	if (*pos)
+		return -ESPIPE;
+
+	if (count > sizeof(cmd) - 1)
+		return -EINVAL;
+
+	ret = simple_write_to_buffer(cmd, sizeof(cmd) - 1, pos, buf, count);
+	if (ret < 0)
+		return ret;
+	cmd[ret] = '\0';
+
+	for (n = 0; n < ARRAY_SIZE(control_cmds); n++) {
+		xe_gt_assert(gt, sizeof(cmd) > strlen(control_cmds[n].cmd));
+
+		if (sysfs_streq(cmd, control_cmds[n].cmd)) {
+			xe_pm_runtime_get(xe);
+			ret = control_cmds[n].fn ? (*control_cmds[n].fn)(gt, vfid) : 0;
+			xe_pm_runtime_put(xe);
+			break;
+		}
+	}
+
+	return (ret < 0) ? ret : count;
+}
+
+static ssize_t control_read(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+{
+	char help[128];
+	size_t n;
+
+	help[0] = '\0';
+	for (n = 0; n < ARRAY_SIZE(control_cmds); n++) {
+		strlcat(help, control_cmds[n].cmd, sizeof(help));
+		strlcat(help, "\n", sizeof(help));
+	}
+
+	return simple_read_from_buffer(buf, count, ppos, help, strlen(help));
+}
+
+static const struct file_operations control_ops = {
+	.owner		= THIS_MODULE,
+	.open		= simple_open,
+	.write		= control_write,
+	.read		= control_read,
+	.llseek		= default_llseek,
+};
+
 /**
  * xe_gt_sriov_pf_debugfs_register - Register SR-IOV PF specific entries in GT debugfs.
  * @gt: the &xe_gt to register
@@ -199,5 +277,6 @@ void xe_gt_sriov_pf_debugfs_register(struct xe_gt *gt, struct dentry *root)
 		vfdentry->d_inode->i_private = (void *)(uintptr_t)n;
 
 		pf_add_config_attrs(gt, vfdentry, VFID(n));
+		debugfs_create_file("control", 0600, vfdentry, NULL, &control_ops);
 	}
 }
