@@ -1475,6 +1475,10 @@ static void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
 		return;
 
 	if (mode == MLO_AN_FIXED) {
+		/* Force flow control on BCM5301x's CPU port */
+		if (is5301x(dev) && dsa_is_cpu_port(ds, port))
+			tx_pause = rx_pause = true;
+
 		b53_force_port_config(dev, port, speed, duplex,
 				      tx_pause, rx_pause);
 		b53_force_link(dev, port, true);
