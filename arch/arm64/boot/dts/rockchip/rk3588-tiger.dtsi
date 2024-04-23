@@ -46,7 +46,7 @@
 	pcie_refclk_gen: pcie-refclk-gen-clock {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency = <1000000000>;
+		clock-frequency = <100000000>;
 	};
 
 	pcie_refclk: pcie-refclk-clock {
