@@ -141,24 +141,18 @@ struct zynqmp_disp_layer {
  * struct zynqmp_disp - Display controller
  * @dev: Device structure
  * @dpsub: Display subsystem
- * @blend.base: Register I/O base address for the blender
- * @avbuf.base: Register I/O base address for the audio/video buffer manager
- * @audio.base: Registers I/O base address for the audio mixer
+ * @blend: Register I/O base address for the blender
+ * @avbuf: Register I/O base address for the audio/video buffer manager
+ * @audio: Registers I/O base address for the audio mixer
  * @layers: Layers (planes)
  */
 struct zynqmp_disp {
 	struct device *dev;
 	struct zynqmp_dpsub *dpsub;
 
-	struct {
-		void __iomem *base;
-	} blend;
-	struct {
-		void __iomem *base;
-	} avbuf;
-	struct {
-		void __iomem *base;
-	} audio;
+	void __iomem *blend;
+	void __iomem *avbuf;
+	void __iomem *audio;
 
 	struct zynqmp_disp_layer layers[ZYNQMP_DPSUB_NUM_LAYERS];
 };
@@ -410,12 +404,12 @@ static const struct zynqmp_disp_format avbuf_live_fmts[] = {
 
 static u32 zynqmp_disp_avbuf_read(struct zynqmp_disp *disp, int reg)
 {
-	return readl(disp->avbuf.base + reg);
+	return readl(disp->avbuf + reg);
 }
 
 static void zynqmp_disp_avbuf_write(struct zynqmp_disp *disp, int reg, u32 val)
 {
-	writel(val, disp->avbuf.base + reg);
+	writel(val, disp->avbuf + reg);
 }
 
 static bool zynqmp_disp_layer_is_video(const struct zynqmp_disp_layer *layer)
@@ -651,7 +645,7 @@ static void zynqmp_disp_avbuf_disable(struct zynqmp_disp *disp)
 
 static void zynqmp_disp_blend_write(struct zynqmp_disp *disp, int reg, u32 val)
 {
-	writel(val, disp->blend.base + reg);
+	writel(val, disp->blend + reg);
 }
 
 /*
@@ -877,7 +871,7 @@ static void zynqmp_disp_blend_layer_disable(struct zynqmp_disp *disp,
 
 static void zynqmp_disp_audio_write(struct zynqmp_disp *disp, int reg, u32 val)
 {
-	writel(val, disp->audio.base + reg);
+	writel(val, disp->audio + reg);
 }
 
 /**
@@ -1412,21 +1406,21 @@ int zynqmp_disp_probe(struct zynqmp_dpsub *dpsub)
 	disp->dev = &pdev->dev;
 	disp->dpsub = dpsub;
 
-	disp->blend.base = devm_platform_ioremap_resource_byname(pdev, "blend");
-	if (IS_ERR(disp->blend.base)) {
-		ret = PTR_ERR(disp->blend.base);
+	disp->blend = devm_platform_ioremap_resource_byname(pdev, "blend");
+	if (IS_ERR(disp->blend)) {
+		ret = PTR_ERR(disp->blend);
 		goto error;
 	}
 
-	disp->avbuf.base = devm_platform_ioremap_resource_byname(pdev, "av_buf");
-	if (IS_ERR(disp->avbuf.base)) {
-		ret = PTR_ERR(disp->avbuf.base);
+	disp->avbuf = devm_platform_ioremap_resource_byname(pdev, "av_buf");
+	if (IS_ERR(disp->avbuf)) {
+		ret = PTR_ERR(disp->avbuf);
 		goto error;
 	}
 
-	disp->audio.base = devm_platform_ioremap_resource_byname(pdev, "aud");
-	if (IS_ERR(disp->audio.base)) {
-		ret = PTR_ERR(disp->audio.base);
+	disp->audio = devm_platform_ioremap_resource_byname(pdev, "aud");
+	if (IS_ERR(disp->audio)) {
+		ret = PTR_ERR(disp->audio);
 		goto error;
 	}
 
