@@ -1693,6 +1693,7 @@ void x86_perf_get_lbr(struct x86_pmu_lbr *lbr)
 	lbr->from = x86_pmu.lbr_from;
 	lbr->to = x86_pmu.lbr_to;
 	lbr->info = x86_pmu.lbr_info;
+	lbr->has_callstack = x86_pmu_has_lbr_callstack();
 }
 EXPORT_SYMBOL_GPL(x86_perf_get_lbr);
 

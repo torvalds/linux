@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
 #include "error.h"
-#include "recovery.h"
+#include "journal.h"
+#include "recovery_passes.h"
 #include "super.h"
 #include "thread_with_file.h"
 
@@ -16,7 +17,8 @@ bool bch2_inconsistent_error(struct bch_fs *c)
 		return false;
 	case BCH_ON_ERROR_ro:
 		if (bch2_fs_emergency_read_only(c))
-			bch_err(c, "inconsistency detected - emergency read only");
+			bch_err(c, "inconsistency detected - emergency read only at journal seq %llu",
+				journal_cur_seq(&c->journal));
 		return true;
 	case BCH_ON_ERROR_panic:
 		panic(bch2_fmt(c, "panic after error"));

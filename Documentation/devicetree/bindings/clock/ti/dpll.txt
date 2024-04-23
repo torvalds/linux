@@ -1,7 +1,5 @@
 Binding for Texas Instruments DPLL clock.
 
-Binding status: Unstable - ABI compatibility may be broken in the future
-
 This binding uses the common clock binding[1].  It assumes a
 register-mapped DPLL with usually two selectable input clocks
 (reference clock and bypass clock), with digital phase locked
