@@ -3238,6 +3238,43 @@ static unsigned long count_partial(struct kmem_cache_node *n,
 #endif /* CONFIG_SLUB_DEBUG || SLAB_SUPPORTS_SYSFS */
 
 #ifdef CONFIG_SLUB_DEBUG
+#define MAX_PARTIAL_TO_SCAN 10000
+
+static unsigned long count_partial_free_approx(struct kmem_cache_node *n)
+{
+	unsigned long flags;
+	unsigned long x = 0;
+	struct slab *slab;
+
+	spin_lock_irqsave(&n->list_lock, flags);
+	if (n->nr_partial <= MAX_PARTIAL_TO_SCAN) {
+		list_for_each_entry(slab, &n->partial, slab_list)
+			x += slab->objects - slab->inuse;
+	} else {
+		/*
+		 * For a long list, approximate the total count of objects in
+		 * it to meet the limit on the number of slabs to scan.
+		 * Scan from both the list's head and tail for better accuracy.
+		 */
+		unsigned long scanned = 0;
+
+		list_for_each_entry(slab, &n->partial, slab_list) {
+			x += slab->objects - slab->inuse;
+			if (++scanned == MAX_PARTIAL_TO_SCAN / 2)
+				break;
+		}
+		list_for_each_entry_reverse(slab, &n->partial, slab_list) {
+			x += slab->objects - slab->inuse;
+			if (++scanned == MAX_PARTIAL_TO_SCAN)
+				break;
+		}
+		x = mult_frac(x, n->nr_partial, scanned);
+		x = min(x, node_nr_objs(n));
+	}
+	spin_unlock_irqrestore(&n->list_lock, flags);
+	return x;
+}
+
 static noinline void
 slab_out_of_memory(struct kmem_cache *s, gfp_t gfpflags, int nid)
 {
@@ -7116,7 +7153,7 @@ void get_slabinfo(struct kmem_cache *s, struct slabinfo *sinfo)
 	for_each_kmem_cache_node(s, node, n) {
 		nr_slabs += node_nr_slabs(n);
 		nr_objs += node_nr_objs(n);
-		nr_free += count_partial(n, count_free);
+		nr_free += count_partial_free_approx(n);
 	}
 
 	sinfo->active_objs = nr_objs - nr_free;
