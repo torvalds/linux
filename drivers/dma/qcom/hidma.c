@@ -50,7 +50,6 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
-#include <linux/of_dma.h>
 #include <linux/property.h>
 #include <linux/delay.h>
 #include <linux/acpi.h>
@@ -947,22 +946,12 @@ static const struct acpi_device_id hidma_acpi_ids[] = {
 MODULE_DEVICE_TABLE(acpi, hidma_acpi_ids);
 #endif
 
-static const struct of_device_id hidma_match[] = {
-	{.compatible = "qcom,hidma-1.0",},
-	{.compatible = "qcom,hidma-1.1", .data = (void *)(HIDMA_MSI_CAP),},
-	{.compatible = "qcom,hidma-1.2",
-	 .data = (void *)(HIDMA_MSI_CAP | HIDMA_IDENTITY_CAP),},
-	{},
-};
-MODULE_DEVICE_TABLE(of, hidma_match);
-
 static struct platform_driver hidma_driver = {
 	.probe = hidma_probe,
 	.remove_new = hidma_remove,
 	.shutdown = hidma_shutdown,
 	.driver = {
 		   .name = "hidma",
-		   .of_match_table = hidma_match,
 		   .acpi_match_table = ACPI_PTR(hidma_acpi_ids),
 	},
 };
