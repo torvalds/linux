@@ -23,7 +23,7 @@ void io_notif_tw_complete(struct io_kiocb *notif, struct io_tw_state *ts)
 	io_req_task_complete(notif, ts);
 }
 
-static void io_tx_ubuf_callback(struct sk_buff *skb, struct ubuf_info *uarg,
+static void io_tx_ubuf_complete(struct sk_buff *skb, struct ubuf_info *uarg,
 				bool success)
 {
 	struct io_notif_data *nd = container_of(uarg, struct io_notif_data, uarg);
@@ -42,6 +42,10 @@ static void io_tx_ubuf_callback(struct sk_buff *skb, struct ubuf_info *uarg,
 	notif->io_task_work.func = io_notif_tw_complete;
 	__io_req_task_work_add(notif, IOU_F_TWQ_LAZY_WAKE);
 }
+
+static const struct ubuf_info_ops io_ubuf_ops = {
+	.complete = io_tx_ubuf_complete,
+};
 
 struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
@@ -62,7 +66,7 @@ struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx)
 	nd->zc_report = false;
 	nd->account_pages = 0;
 	nd->uarg.flags = IO_NOTIF_UBUF_FLAGS;
-	nd->uarg.callback = io_tx_ubuf_callback;
+	nd->uarg.ops = &io_ubuf_ops;
 	refcount_set(&nd->uarg.refcnt, 1);
 	return notif;
 }
