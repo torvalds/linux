@@ -78,8 +78,8 @@ patternProperties:
           function:
             description:
               A string containing the name of the function to mux to the group.
-            enum: [emmc, eth, i2c, i2s, ir, led, flash, pcie, pmic, pwm, sd,
-                   spi, tdm, uart, watchdog, wifi]
+            enum: [antsel, emmc, eth, i2c, i2s, ir, led, flash, pcie, pmic, pwm,
+                   sd, spi, tdm, uart, watchdog, wifi]
 
           groups:
             description:
@@ -93,6 +93,20 @@ patternProperties:
           - function
 
         allOf:
+          - if:
+              properties:
+                function:
+                  const: antsel
+            then:
+              properties:
+                groups:
+                  items:
+                    enum: [antsel0, antsel1, antsel2, antsel3, antsel4, antsel5,
+                           antsel6, antsel7, antsel8, antsel9, antsel10,
+                           antsel11, antsel12, antsel13, antsel14, antsel15,
+                           antsel16, antsel17, antsel18, antsel19, antsel20,
+                           antsel21, antsel22, antsel23, antsel24, antsel25,
+                           antsel26, antsel27, antsel28, antsel29]
           - if:
               properties:
                 function:
