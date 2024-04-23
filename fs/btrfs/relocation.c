@@ -2280,9 +2280,8 @@ struct btrfs_root *select_one_root(struct btrfs_backref_node *node)
 	return fs_root;
 }
 
-static noinline_for_stack
-u64 calcu_metadata_size(struct reloc_control *rc,
-			struct btrfs_backref_node *node, int reserve)
+static noinline_for_stack u64 calcu_metadata_size(struct reloc_control *rc,
+						  struct btrfs_backref_node *node)
 {
 	struct btrfs_fs_info *fs_info = rc->extent_root->fs_info;
 	struct btrfs_backref_node *next = node;
@@ -2291,12 +2290,12 @@ u64 calcu_metadata_size(struct reloc_control *rc,
 	u64 num_bytes = 0;
 	int index = 0;
 
-	BUG_ON(reserve && node->processed);
+	BUG_ON(node->processed);
 
 	while (next) {
 		cond_resched();
 		while (1) {
-			if (next->processed && (reserve || next != node))
+			if (next->processed)
 				break;
 
 			num_bytes += fs_info->nodesize;
@@ -2324,7 +2323,7 @@ static int reserve_metadata_space(struct btrfs_trans_handle *trans,
 	int ret;
 	u64 tmp;
 
-	num_bytes = calcu_metadata_size(rc, node, 1) * 2;
+	num_bytes = calcu_metadata_size(rc, node) * 2;
 
 	trans->block_rsv = rc->block_rsv;
 	rc->reserved_bytes += num_bytes;
