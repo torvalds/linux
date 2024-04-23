@@ -1772,7 +1772,7 @@ static int pcmdev_delay(struct pcmdevice_priv *pcm_dev,
 	int offset = 2;
 
 	if (offset + 2 > sublocksize) {
-		dev_err(pcm_dev->dev, "%s: dev-%d deley out of boundary\n",
+		dev_err(pcm_dev->dev, "%s: dev-%d delay out of boundary\n",
 			__func__, devn);
 		return -EINVAL;
 	}
