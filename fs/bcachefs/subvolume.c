@@ -245,7 +245,7 @@ static int subvolume_children_mod(struct btree_trans *trans, struct bpos pos, bo
 int bch2_subvolume_trigger(struct btree_trans *trans,
 			   enum btree_id btree_id, unsigned level,
 			   struct bkey_s_c old, struct bkey_s new,
-			   unsigned flags)
+			   enum btree_iter_update_trigger_flags flags)
 {
 	if (flags & BTREE_TRIGGER_transactional) {
 		struct bpos children_pos_old = subvolume_children_pos(old);

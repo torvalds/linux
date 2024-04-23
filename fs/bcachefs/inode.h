@@ -18,7 +18,8 @@ int bch2_inode_v3_invalid(struct bch_fs *, struct bkey_s_c,
 void bch2_inode_to_text(struct printbuf *, struct bch_fs *, struct bkey_s_c);
 
 int bch2_trigger_inode(struct btree_trans *, enum btree_id, unsigned,
-			  struct bkey_s_c, struct bkey_s, unsigned);
+		       struct bkey_s_c, struct bkey_s,
+		       enum btree_iter_update_trigger_flags);
 
 #define bch2_bkey_ops_inode ((struct bkey_ops) {	\
 	.key_invalid	= bch2_inode_invalid,		\

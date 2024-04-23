@@ -298,7 +298,7 @@ static void set_is_ancestor_bitmap(struct bch_fs *c, u32 id)
 static int __bch2_mark_snapshot(struct btree_trans *trans,
 		       enum btree_id btree, unsigned level,
 		       struct bkey_s_c old, struct bkey_s_c new,
-		       unsigned flags)
+		       enum btree_iter_update_trigger_flags flags)
 {
 	struct bch_fs *c = trans->c;
 	struct snapshot_t *t;
@@ -352,7 +352,7 @@ err:
 int bch2_mark_snapshot(struct btree_trans *trans,
 		       enum btree_id btree, unsigned level,
 		       struct bkey_s_c old, struct bkey_s new,
-		       unsigned flags)
+		       enum btree_iter_update_trigger_flags flags)
 {
 	return __bch2_mark_snapshot(trans, btree, level, old, new.s_c, flags);
 }

@@ -44,7 +44,7 @@ void bch2_indirect_inline_data_to_text(struct printbuf *,
 int bch2_trigger_indirect_inline_data(struct btree_trans *,
 					 enum btree_id, unsigned,
 			      struct bkey_s_c, struct bkey_s,
-			      unsigned);
+			      enum btree_iter_update_trigger_flags);
 
 #define bch2_bkey_ops_indirect_inline_data ((struct bkey_ops) {	\
 	.key_invalid	= bch2_indirect_inline_data_invalid,	\

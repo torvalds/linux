@@ -285,7 +285,9 @@ bool bch2_reflink_v_merge(struct bch_fs *c, struct bkey_s _l, struct bkey_s_c _r
 }
 #endif
 
-static inline void check_indirect_extent_deleting(struct bkey_s new, unsigned *flags)
+static inline void
+check_indirect_extent_deleting(struct bkey_s new,
+			       enum btree_iter_update_trigger_flags *flags)
 {
 	if ((*flags & BTREE_TRIGGER_insert) && !*bkey_refcount(new)) {
 		new.k->type = KEY_TYPE_deleted;
@@ -330,7 +332,7 @@ void bch2_indirect_inline_data_to_text(struct printbuf *out,
 int bch2_trigger_indirect_inline_data(struct btree_trans *trans,
 			      enum btree_id btree_id, unsigned level,
 			      struct bkey_s_c old, struct bkey_s new,
-			      unsigned flags)
+			      enum btree_iter_update_trigger_flags flags)
 {
 	check_indirect_extent_deleting(new, &flags);
 
