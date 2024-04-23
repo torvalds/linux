@@ -13,6 +13,7 @@
 #define QM_DFX_COMMON_LEN		0xC3
 #define QM_DFX_REGS_LEN			4UL
 #define QM_DBG_TMP_BUF_LEN		22
+#define QM_XQC_ADDR_MASK		GENMASK(31, 0)
 #define CURRENT_FUN_MASK		GENMASK(5, 0)
 #define CURRENT_Q_MASK			GENMASK(31, 16)
 #define QM_SQE_ADDR_MASK		GENMASK(7, 0)
@@ -167,7 +168,6 @@ static void dump_show(struct hisi_qm *qm, void *info,
 static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
 {
 	struct device *dev = &qm->pdev->dev;
-	struct qm_sqc *sqc_curr;
 	struct qm_sqc sqc;
 	u32 qp_id;
 	int ret;
@@ -183,6 +183,8 @@ static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
 
 	ret = qm_set_and_get_xqc(qm, QM_MB_CMD_SQC, &sqc, qp_id, 1);
 	if (!ret) {
+		sqc.base_h = cpu_to_le32(QM_XQC_ADDR_MASK);
+		sqc.base_l = cpu_to_le32(QM_XQC_ADDR_MASK);
 		dump_show(qm, &sqc, sizeof(struct qm_sqc), name);
 
 		return 0;
@@ -190,9 +192,10 @@ static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
 
 	down_read(&qm->qps_lock);
 	if (qm->sqc) {
-		sqc_curr = qm->sqc + qp_id;
-
-		dump_show(qm, sqc_curr, sizeof(*sqc_curr), "SOFT SQC");
+		memcpy(&sqc, qm->sqc + qp_id * sizeof(struct qm_sqc), sizeof(struct qm_sqc));
+		sqc.base_h = cpu_to_le32(QM_XQC_ADDR_MASK);
+		sqc.base_l = cpu_to_le32(QM_XQC_ADDR_MASK);
+		dump_show(qm, &sqc, sizeof(struct qm_sqc), "SOFT SQC");
 	}
 	up_read(&qm->qps_lock);
 
@@ -202,7 +205,6 @@ static int qm_sqc_dump(struct hisi_qm *qm, char *s, char *name)
 static int qm_cqc_dump(struct hisi_qm *qm, char *s, char *name)
 {
 	struct device *dev = &qm->pdev->dev;
-	struct qm_cqc *cqc_curr;
 	struct qm_cqc cqc;
 	u32 qp_id;
 	int ret;
@@ -218,6 +220,8 @@ static int qm_cqc_dump(struct hisi_qm *qm, char *s, char *name)
 
 	ret = qm_set_and_get_xqc(qm, QM_MB_CMD_CQC, &cqc, qp_id, 1);
 	if (!ret) {
+		cqc.base_h = cpu_to_le32(QM_XQC_ADDR_MASK);
+		cqc.base_l = cpu_to_le32(QM_XQC_ADDR_MASK);
 		dump_show(qm, &cqc, sizeof(struct qm_cqc), name);
 
 		return 0;
@@ -225,9 +229,10 @@ static int qm_cqc_dump(struct hisi_qm *qm, char *s, char *name)
 
 	down_read(&qm->qps_lock);
 	if (qm->cqc) {
-		cqc_curr = qm->cqc + qp_id;
-
-		dump_show(qm, cqc_curr, sizeof(*cqc_curr), "SOFT CQC");
+		memcpy(&cqc, qm->cqc + qp_id * sizeof(struct qm_cqc), sizeof(struct qm_cqc));
+		cqc.base_h = cpu_to_le32(QM_XQC_ADDR_MASK);
+		cqc.base_l = cpu_to_le32(QM_XQC_ADDR_MASK);
+		dump_show(qm, &cqc, sizeof(struct qm_cqc), "SOFT CQC");
 	}
 	up_read(&qm->qps_lock);
 
@@ -263,6 +268,10 @@ static int qm_eqc_aeqc_dump(struct hisi_qm *qm, char *s, char *name)
 	if (ret)
 		return ret;
 
+	aeqc.base_h = cpu_to_le32(QM_XQC_ADDR_MASK);
+	aeqc.base_l = cpu_to_le32(QM_XQC_ADDR_MASK);
+	eqc.base_h = cpu_to_le32(QM_XQC_ADDR_MASK);
+	eqc.base_l = cpu_to_le32(QM_XQC_ADDR_MASK);
 	dump_show(qm, xeqc, size, name);
 
 	return ret;
@@ -310,10 +319,10 @@ static int q_dump_param_parse(struct hisi_qm *qm, char *s,
 
 static int qm_sq_dump(struct hisi_qm *qm, char *s, char *name)
 {
-	u16 sq_depth = qm->qp_array->cq_depth;
-	void *sqe;
+	u16 sq_depth = qm->qp_array->sq_depth;
 	struct hisi_qp *qp;
 	u32 qp_id, sqe_id;
+	void *sqe;
 	int ret;
 
 	ret = q_dump_param_parse(qm, s, &sqe_id, &qp_id, sq_depth);
