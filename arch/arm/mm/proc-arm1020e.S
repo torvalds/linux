@@ -11,6 +11,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/cfi_types.h>
 #include <linux/pgtable.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
@@ -112,13 +113,13 @@ ENTRY(cpu_arm1020e_do_idle)
  *
  *	Unconditionally clean and invalidate the entire icache.
  */
-ENTRY(arm1020e_flush_icache_all)
+SYM_TYPED_FUNC_START(arm1020e_flush_icache_all)
 #ifndef CONFIG_CPU_ICACHE_DISABLE
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 #endif
 	ret	lr
-ENDPROC(arm1020e_flush_icache_all)
+SYM_FUNC_END(arm1020e_flush_icache_all)
 
 /*
  *	flush_user_cache_all()
@@ -126,14 +127,16 @@ ENDPROC(arm1020e_flush_icache_all)
  *	Invalidate all cache entries in a particular address
  *	space.
  */
-ENTRY(arm1020e_flush_user_cache_all)
-	/* FALLTHROUGH */
+SYM_TYPED_FUNC_START(arm1020e_flush_user_cache_all)
+	b	arm1020e_flush_kern_cache_all
+SYM_FUNC_END(arm1020e_flush_user_cache_all)
+
 /*
  *	flush_kern_cache_all()
  *
  *	Clean and invalidate the entire cache.
  */
-ENTRY(arm1020e_flush_kern_cache_all)
+SYM_TYPED_FUNC_START(arm1020e_flush_kern_cache_all)
 	mov	r2, #VM_EXEC
 	mov	ip, #0
 __flush_whole_cache:
@@ -153,6 +156,7 @@ __flush_whole_cache:
 #endif
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(arm1020e_flush_kern_cache_all)
 
 /*
  *	flush_user_cache_range(start, end, flags)
@@ -164,7 +168,7 @@ __flush_whole_cache:
  *	- end	- end address (exclusive)
  *	- flags	- vm_flags for this space
  */
-ENTRY(arm1020e_flush_user_cache_range)
+SYM_TYPED_FUNC_START(arm1020e_flush_user_cache_range)
 	mov	ip, #0
 	sub	r3, r1, r0			@ calculate total size
 	cmp	r3, #CACHE_DLIMIT
@@ -182,6 +186,7 @@ ENTRY(arm1020e_flush_user_cache_range)
 #endif
 	mcrne	p15, 0, ip, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(arm1020e_flush_user_cache_range)
 
 /*
  *	coherent_kern_range(start, end)
@@ -193,8 +198,10 @@ ENTRY(arm1020e_flush_user_cache_range)
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
-ENTRY(arm1020e_coherent_kern_range)
-	/* FALLTHROUGH */
+SYM_TYPED_FUNC_START(arm1020e_coherent_kern_range)
+	b	arm1020e_coherent_user_range
+SYM_FUNC_END(arm1020e_coherent_kern_range)
+
 /*
  *	coherent_user_range(start, end)
  *
@@ -205,7 +212,7 @@ ENTRY(arm1020e_coherent_kern_range)
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
-ENTRY(arm1020e_coherent_user_range)
+SYM_TYPED_FUNC_START(arm1020e_coherent_user_range)
 	mov	ip, #0
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:
@@ -221,6 +228,7 @@ ENTRY(arm1020e_coherent_user_range)
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
 	mov	r0, #0
 	ret	lr
+SYM_FUNC_END(arm1020e_coherent_user_range)
 
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
@@ -231,7 +239,7 @@ ENTRY(arm1020e_coherent_user_range)
  *	- addr	- kernel address
  *	- size	- region size
  */
-ENTRY(arm1020e_flush_kern_dcache_area)
+SYM_TYPED_FUNC_START(arm1020e_flush_kern_dcache_area)
 	mov	ip, #0
 #ifndef CONFIG_CPU_DCACHE_DISABLE
 	add	r1, r0, r1
@@ -242,6 +250,7 @@ ENTRY(arm1020e_flush_kern_dcache_area)
 #endif
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(arm1020e_flush_kern_dcache_area)
 
 /*
  *	dma_inv_range(start, end)
@@ -302,7 +311,7 @@ arm1020e_dma_clean_range:
  *	- start	- virtual start address
  *	- end	- virtual end address
  */
-ENTRY(arm1020e_dma_flush_range)
+SYM_TYPED_FUNC_START(arm1020e_dma_flush_range)
 	mov	ip, #0
 #ifndef CONFIG_CPU_DCACHE_DISABLE
 	bic	r0, r0, #CACHE_DLINESIZE - 1
@@ -313,6 +322,7 @@ ENTRY(arm1020e_dma_flush_range)
 #endif
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(arm1020e_dma_flush_range)
 
 /*
  *	dma_map_area(start, size, dir)
@@ -320,13 +330,13 @@ ENTRY(arm1020e_dma_flush_range)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(arm1020e_dma_map_area)
+SYM_TYPED_FUNC_START(arm1020e_dma_map_area)
 	add	r1, r1, r0
 	cmp	r2, #DMA_TO_DEVICE
 	beq	arm1020e_dma_clean_range
 	bcs	arm1020e_dma_inv_range
 	b	arm1020e_dma_flush_range
-ENDPROC(arm1020e_dma_map_area)
+SYM_FUNC_END(arm1020e_dma_map_area)
 
 /*
  *	dma_unmap_area(start, size, dir)
@@ -334,9 +344,9 @@ ENDPROC(arm1020e_dma_map_area)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(arm1020e_dma_unmap_area)
+SYM_TYPED_FUNC_START(arm1020e_dma_unmap_area)
 	ret	lr
-ENDPROC(arm1020e_dma_unmap_area)
+SYM_FUNC_END(arm1020e_dma_unmap_area)
 
 	.globl	arm1020e_flush_kern_cache_louis
 	.equ	arm1020e_flush_kern_cache_louis, arm1020e_flush_kern_cache_all

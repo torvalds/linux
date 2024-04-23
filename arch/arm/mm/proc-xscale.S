@@ -19,6 +19,7 @@
 
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/cfi_types.h>
 #include <linux/pgtable.h>
 #include <asm/assembler.h>
 #include <asm/hwcap.h>
@@ -186,11 +187,11 @@ ENTRY(cpu_xscale_do_idle)
  *
  *	Unconditionally clean and invalidate the entire icache.
  */
-ENTRY(xscale_flush_icache_all)
+SYM_TYPED_FUNC_START(xscale_flush_icache_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	ret	lr
-ENDPROC(xscale_flush_icache_all)
+SYM_FUNC_END(xscale_flush_icache_all)
 
 /*
  *	flush_user_cache_all()
@@ -198,15 +199,16 @@ ENDPROC(xscale_flush_icache_all)
  *	Invalidate all cache entries in a particular address
  *	space.
  */
-ENTRY(xscale_flush_user_cache_all)
-	/* FALLTHROUGH */
+SYM_TYPED_FUNC_START(xscale_flush_user_cache_all)
+	b	xscale_flush_kern_cache_all
+SYM_FUNC_END(xscale_flush_user_cache_all)
 
 /*
  *	flush_kern_cache_all()
  *
  *	Clean and invalidate the entire cache.
  */
-ENTRY(xscale_flush_kern_cache_all)
+SYM_TYPED_FUNC_START(xscale_flush_kern_cache_all)
 	mov	r2, #VM_EXEC
 	mov	ip, #0
 __flush_whole_cache:
@@ -215,6 +217,7 @@ __flush_whole_cache:
 	mcrne	p15, 0, ip, c7, c5, 0		@ Invalidate I cache & BTB
 	mcrne	p15, 0, ip, c7, c10, 4		@ Drain Write (& Fill) Buffer
 	ret	lr
+SYM_FUNC_END(xscale_flush_kern_cache_all)
 
 /*
  *	flush_user_cache_range(start, end, vm_flags)
@@ -227,7 +230,7 @@ __flush_whole_cache:
  *	- vma	- vma_area_struct describing address space
  */
 	.align	5
-ENTRY(xscale_flush_user_cache_range)
+SYM_TYPED_FUNC_START(xscale_flush_user_cache_range)
 	mov	ip, #0
 	sub	r3, r1, r0			@ calculate total size
 	cmp	r3, #MAX_AREA_SIZE
@@ -244,6 +247,7 @@ ENTRY(xscale_flush_user_cache_range)
 	mcrne	p15, 0, ip, c7, c5, 6		@ Invalidate BTB
 	mcrne	p15, 0, ip, c7, c10, 4		@ Drain Write (& Fill) Buffer
 	ret	lr
+SYM_FUNC_END(xscale_flush_user_cache_range)
 
 /*
  *	coherent_kern_range(start, end)
@@ -258,7 +262,7 @@ ENTRY(xscale_flush_user_cache_range)
  *	Note: single I-cache line invalidation isn't used here since
  *	it also trashes the mini I-cache used by JTAG debuggers.
  */
-ENTRY(xscale_coherent_kern_range)
+SYM_TYPED_FUNC_START(xscale_coherent_kern_range)
 	bic	r0, r0, #CACHELINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHELINESIZE
@@ -268,6 +272,7 @@ ENTRY(xscale_coherent_kern_range)
 	mcr	p15, 0, r0, c7, c5, 0		@ Invalidate I cache & BTB
 	mcr	p15, 0, r0, c7, c10, 4		@ Drain Write (& Fill) Buffer
 	ret	lr
+SYM_FUNC_END(xscale_coherent_kern_range)
 
 /*
  *	coherent_user_range(start, end)
@@ -279,7 +284,7 @@ ENTRY(xscale_coherent_kern_range)
  *	- start  - virtual start address
  *	- end	 - virtual end address
  */
-ENTRY(xscale_coherent_user_range)
+SYM_TYPED_FUNC_START(xscale_coherent_user_range)
 	bic	r0, r0, #CACHELINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	mcr	p15, 0, r0, c7, c5, 1		@ Invalidate I cache entry
@@ -290,6 +295,7 @@ ENTRY(xscale_coherent_user_range)
 	mcr	p15, 0, r0, c7, c5, 6		@ Invalidate BTB
 	mcr	p15, 0, r0, c7, c10, 4		@ Drain Write (& Fill) Buffer
 	ret	lr
+SYM_FUNC_END(xscale_coherent_user_range)
 
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
@@ -300,7 +306,7 @@ ENTRY(xscale_coherent_user_range)
  *	- addr	- kernel address
  *	- size	- region size
  */
-ENTRY(xscale_flush_kern_dcache_area)
+SYM_TYPED_FUNC_START(xscale_flush_kern_dcache_area)
 	add	r1, r0, r1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	mcr	p15, 0, r0, c7, c6, 1		@ invalidate D entry
@@ -311,6 +317,7 @@ ENTRY(xscale_flush_kern_dcache_area)
 	mcr	p15, 0, r0, c7, c5, 0		@ Invalidate I cache & BTB
 	mcr	p15, 0, r0, c7, c10, 4		@ Drain Write (& Fill) Buffer
 	ret	lr
+SYM_FUNC_END(xscale_flush_kern_dcache_area)
 
 /*
  *	dma_inv_range(start, end)
@@ -361,7 +368,7 @@ xscale_dma_clean_range:
  *	- start  - virtual start address
  *	- end	 - virtual end address
  */
-ENTRY(xscale_dma_flush_range)
+SYM_TYPED_FUNC_START(xscale_dma_flush_range)
 	bic	r0, r0, #CACHELINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	mcr	p15, 0, r0, c7, c6, 1		@ invalidate D entry
@@ -370,6 +377,7 @@ ENTRY(xscale_dma_flush_range)
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ Drain Write (& Fill) Buffer
 	ret	lr
+SYM_FUNC_END(xscale_dma_flush_range)
 
 /*
  *	dma_map_area(start, size, dir)
@@ -377,13 +385,13 @@ ENTRY(xscale_dma_flush_range)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(xscale_dma_map_area)
+SYM_TYPED_FUNC_START(xscale_dma_map_area)
 	add	r1, r1, r0
 	cmp	r2, #DMA_TO_DEVICE
 	beq	xscale_dma_clean_range
 	bcs	xscale_dma_inv_range
 	b	xscale_dma_flush_range
-ENDPROC(xscale_dma_map_area)
+SYM_FUNC_END(xscale_dma_map_area)
 
 /*
  *	dma_map_area(start, size, dir)
@@ -391,12 +399,12 @@ ENDPROC(xscale_dma_map_area)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(xscale_80200_A0_A1_dma_map_area)
+SYM_TYPED_FUNC_START(xscale_80200_A0_A1_dma_map_area)
 	add	r1, r1, r0
 	teq	r2, #DMA_TO_DEVICE
 	beq	xscale_dma_clean_range
 	b	xscale_dma_flush_range
-ENDPROC(xscale_80200_A0_A1_dma_map_area)
+SYM_FUNC_END(xscale_80200_A0_A1_dma_map_area)
 
 /*
  *	dma_unmap_area(start, size, dir)
@@ -404,9 +412,9 @@ ENDPROC(xscale_80200_A0_A1_dma_map_area)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(xscale_dma_unmap_area)
+SYM_TYPED_FUNC_START(xscale_dma_unmap_area)
 	ret	lr
-ENDPROC(xscale_dma_unmap_area)
+SYM_FUNC_END(xscale_dma_unmap_area)
 
 	.globl	xscale_flush_kern_cache_louis
 	.equ	xscale_flush_kern_cache_louis, xscale_flush_kern_cache_all

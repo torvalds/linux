@@ -9,6 +9,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/cfi_types.h>
 #include <asm/assembler.h>
 #include <asm/errno.h>
 #include <asm/unwind.h>
@@ -80,12 +81,12 @@ ENDPROC(v7_invalidate_l1)
  *	Registers:
  *	r0 - set to 0
  */
-ENTRY(v7_flush_icache_all)
+SYM_TYPED_FUNC_START(v7_flush_icache_all)
 	mov	r0, #0
 	ALT_SMP(mcr	p15, 0, r0, c7, c1, 0)		@ invalidate I-cache inner shareable
 	ALT_UP(mcr	p15, 0, r0, c7, c5, 0)		@ I+BTB cache invalidate
 	ret	lr
-ENDPROC(v7_flush_icache_all)
+SYM_FUNC_END(v7_flush_icache_all)
 
  /*
  *     v7_flush_dcache_louis()
@@ -193,7 +194,7 @@ ENDPROC(v7_flush_dcache_all)
  *  unification in a single instruction.
  *
  */
-ENTRY(v7_flush_kern_cache_all)
+SYM_TYPED_FUNC_START(v7_flush_kern_cache_all)
 	stmfd	sp!, {r4-r6, r9-r10, lr}
 	bl	v7_flush_dcache_all
 	mov	r0, #0
@@ -201,7 +202,7 @@ ENTRY(v7_flush_kern_cache_all)
 	ALT_UP(mcr	p15, 0, r0, c7, c5, 0)	@ I+BTB cache invalidate
 	ldmfd	sp!, {r4-r6, r9-r10, lr}
 	ret	lr
-ENDPROC(v7_flush_kern_cache_all)
+SYM_FUNC_END(v7_flush_kern_cache_all)
 
  /*
  *     v7_flush_kern_cache_louis(void)
@@ -209,7 +210,7 @@ ENDPROC(v7_flush_kern_cache_all)
  *     Flush the data cache up to Level of Unification Inner Shareable.
  *     Invalidate the I-cache to the point of unification.
  */
-ENTRY(v7_flush_kern_cache_louis)
+SYM_TYPED_FUNC_START(v7_flush_kern_cache_louis)
 	stmfd	sp!, {r4-r6, r9-r10, lr}
 	bl	v7_flush_dcache_louis
 	mov	r0, #0
@@ -217,7 +218,7 @@ ENTRY(v7_flush_kern_cache_louis)
 	ALT_UP(mcr	p15, 0, r0, c7, c5, 0)	@ I+BTB cache invalidate
 	ldmfd	sp!, {r4-r6, r9-r10, lr}
 	ret	lr
-ENDPROC(v7_flush_kern_cache_louis)
+SYM_FUNC_END(v7_flush_kern_cache_louis)
 
 /*
  *	v7_flush_cache_all()
@@ -226,8 +227,9 @@ ENDPROC(v7_flush_kern_cache_louis)
  *
  *	- mm    - mm_struct describing address space
  */
-ENTRY(v7_flush_user_cache_all)
-	/*FALLTHROUGH*/
+SYM_TYPED_FUNC_START(v7_flush_user_cache_all)
+	ret	lr
+SYM_FUNC_END(v7_flush_user_cache_all)
 
 /*
  *	v7_flush_cache_range(start, end, flags)
@@ -241,10 +243,9 @@ ENTRY(v7_flush_user_cache_all)
  *	It is assumed that:
  *	- we have a VIPT cache.
  */
-ENTRY(v7_flush_user_cache_range)
+SYM_TYPED_FUNC_START(v7_flush_user_cache_range)
 	ret	lr
-ENDPROC(v7_flush_user_cache_all)
-ENDPROC(v7_flush_user_cache_range)
+SYM_FUNC_END(v7_flush_user_cache_range)
 
 /*
  *	v7_coherent_kern_range(start,end)
@@ -259,8 +260,9 @@ ENDPROC(v7_flush_user_cache_range)
  *	It is assumed that:
  *	- the Icache does not read data from the write buffer
  */
-ENTRY(v7_coherent_kern_range)
-	/* FALLTHROUGH */
+SYM_TYPED_FUNC_START(v7_coherent_kern_range)
+	b	v7_coherent_user_range
+SYM_FUNC_END(v7_coherent_kern_range)
 
 /*
  *	v7_coherent_user_range(start,end)
@@ -275,7 +277,7 @@ ENTRY(v7_coherent_kern_range)
  *	It is assumed that:
  *	- the Icache does not read data from the write buffer
  */
-ENTRY(v7_coherent_user_range)
+SYM_TYPED_FUNC_START(v7_coherent_user_range)
  UNWIND(.fnstart		)
 	dcache_line_size r2, r3
 	sub	r3, r2, #1
@@ -321,8 +323,7 @@ ENTRY(v7_coherent_user_range)
 	mov	r0, #-EFAULT
 	ret	lr
  UNWIND(.fnend		)
-ENDPROC(v7_coherent_kern_range)
-ENDPROC(v7_coherent_user_range)
+SYM_FUNC_END(v7_coherent_user_range)
 
 /*
  *	v7_flush_kern_dcache_area(void *addr, size_t size)
@@ -333,7 +334,7 @@ ENDPROC(v7_coherent_user_range)
  *	- addr	- kernel address
  *	- size	- region size
  */
-ENTRY(v7_flush_kern_dcache_area)
+SYM_TYPED_FUNC_START(v7_flush_kern_dcache_area)
 	dcache_line_size r2, r3
 	add	r1, r0, r1
 	sub	r3, r2, #1
@@ -349,7 +350,7 @@ ENTRY(v7_flush_kern_dcache_area)
 	blo	1b
 	dsb	st
 	ret	lr
-ENDPROC(v7_flush_kern_dcache_area)
+SYM_FUNC_END(v7_flush_kern_dcache_area)
 
 /*
  *	v7_dma_inv_range(start,end)
@@ -413,7 +414,7 @@ ENDPROC(v7_dma_clean_range)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-ENTRY(v7_dma_flush_range)
+SYM_TYPED_FUNC_START(v7_dma_flush_range)
 	dcache_line_size r2, r3
 	sub	r3, r2, #1
 	bic	r0, r0, r3
@@ -428,7 +429,7 @@ ENTRY(v7_dma_flush_range)
 	blo	1b
 	dsb	st
 	ret	lr
-ENDPROC(v7_dma_flush_range)
+SYM_FUNC_END(v7_dma_flush_range)
 
 /*
  *	dma_map_area(start, size, dir)
@@ -436,12 +437,12 @@ ENDPROC(v7_dma_flush_range)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(v7_dma_map_area)
+SYM_TYPED_FUNC_START(v7_dma_map_area)
 	add	r1, r1, r0
 	teq	r2, #DMA_FROM_DEVICE
 	beq	v7_dma_inv_range
 	b	v7_dma_clean_range
-ENDPROC(v7_dma_map_area)
+SYM_FUNC_END(v7_dma_map_area)
 
 /*
  *	dma_unmap_area(start, size, dir)
@@ -449,12 +450,12 @@ ENDPROC(v7_dma_map_area)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(v7_dma_unmap_area)
+SYM_TYPED_FUNC_START(v7_dma_unmap_area)
 	add	r1, r1, r0
 	teq	r2, #DMA_TO_DEVICE
 	bne	v7_dma_inv_range
 	ret	lr
-ENDPROC(v7_dma_unmap_area)
+SYM_FUNC_END(v7_dma_unmap_area)
 
 	__INITDATA
 

@@ -23,6 +23,7 @@
 
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/cfi_types.h>
 #include <linux/pgtable.h>
 #include <asm/assembler.h>
 #include <asm/hwcap.h>
@@ -144,11 +145,11 @@ ENTRY(cpu_xsc3_do_idle)
  *
  *	Unconditionally clean and invalidate the entire icache.
  */
-ENTRY(xsc3_flush_icache_all)
+SYM_TYPED_FUNC_START(xsc3_flush_icache_all)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c5, 0		@ invalidate I cache
 	ret	lr
-ENDPROC(xsc3_flush_icache_all)
+SYM_FUNC_END(xsc3_flush_icache_all)
 
 /*
  *	flush_user_cache_all()
@@ -156,15 +157,16 @@ ENDPROC(xsc3_flush_icache_all)
  *	Invalidate all cache entries in a particular address
  *	space.
  */
-ENTRY(xsc3_flush_user_cache_all)
-	/* FALLTHROUGH */
+SYM_TYPED_FUNC_START(xsc3_flush_user_cache_all)
+	b	xsc3_flush_kern_cache_all
+SYM_FUNC_END(xsc3_flush_user_cache_all)
 
 /*
  *	flush_kern_cache_all()
  *
  *	Clean and invalidate the entire cache.
  */
-ENTRY(xsc3_flush_kern_cache_all)
+SYM_TYPED_FUNC_START(xsc3_flush_kern_cache_all)
 	mov	r2, #VM_EXEC
 	mov	ip, #0
 __flush_whole_cache:
@@ -174,6 +176,7 @@ __flush_whole_cache:
 	mcrne	p15, 0, ip, c7, c10, 4		@ data write barrier
 	mcrne	p15, 0, ip, c7, c5, 4		@ prefetch flush
 	ret	lr
+SYM_FUNC_END(xsc3_flush_kern_cache_all)
 
 /*
  *	flush_user_cache_range(start, end, vm_flags)
@@ -186,7 +189,7 @@ __flush_whole_cache:
  *	- vma	- vma_area_struct describing address space
  */
 	.align	5
-ENTRY(xsc3_flush_user_cache_range)
+SYM_TYPED_FUNC_START(xsc3_flush_user_cache_range)
 	mov	ip, #0
 	sub	r3, r1, r0			@ calculate total size
 	cmp	r3, #MAX_AREA_SIZE
@@ -203,6 +206,7 @@ ENTRY(xsc3_flush_user_cache_range)
 	mcrne	p15, 0, ip, c7, c10, 4		@ data write barrier
 	mcrne	p15, 0, ip, c7, c5, 4		@ prefetch flush
 	ret	lr
+SYM_FUNC_END(xsc3_flush_user_cache_range)
 
 /*
  *	coherent_kern_range(start, end)
@@ -217,9 +221,11 @@ ENTRY(xsc3_flush_user_cache_range)
  *	Note: single I-cache line invalidation isn't used here since
  *	it also trashes the mini I-cache used by JTAG debuggers.
  */
-ENTRY(xsc3_coherent_kern_range)
-/* FALLTHROUGH */
-ENTRY(xsc3_coherent_user_range)
+SYM_TYPED_FUNC_START(xsc3_coherent_kern_range)
+	b	xsc3_coherent_user_range
+SYM_FUNC_END(xsc3_coherent_kern_range)
+
+SYM_TYPED_FUNC_START(xsc3_coherent_user_range)
 	bic	r0, r0, #CACHELINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
 	add	r0, r0, #CACHELINESIZE
@@ -230,6 +236,7 @@ ENTRY(xsc3_coherent_user_range)
 	mcr	p15, 0, r0, c7, c10, 4		@ data write barrier
 	mcr	p15, 0, r0, c7, c5, 4		@ prefetch flush
 	ret	lr
+SYM_FUNC_END(xsc3_coherent_user_range)
 
 /*
  *	flush_kern_dcache_area(void *addr, size_t size)
@@ -240,7 +247,7 @@ ENTRY(xsc3_coherent_user_range)
  *	- addr	- kernel address
  *	- size	- region size
  */
-ENTRY(xsc3_flush_kern_dcache_area)
+SYM_TYPED_FUNC_START(xsc3_flush_kern_dcache_area)
 	add	r1, r0, r1
 1:	mcr	p15, 0, r0, c7, c14, 1		@ clean/invalidate L1 D line
 	add	r0, r0, #CACHELINESIZE
@@ -251,6 +258,7 @@ ENTRY(xsc3_flush_kern_dcache_area)
 	mcr	p15, 0, r0, c7, c10, 4		@ data write barrier
 	mcr	p15, 0, r0, c7, c5, 4		@ prefetch flush
 	ret	lr
+SYM_FUNC_END(xsc3_flush_kern_dcache_area)
 
 /*
  *	dma_inv_range(start, end)
@@ -301,7 +309,7 @@ xsc3_dma_clean_range:
  *	- start  - virtual start address
  *	- end	 - virtual end address
  */
-ENTRY(xsc3_dma_flush_range)
+SYM_TYPED_FUNC_START(xsc3_dma_flush_range)
 	bic	r0, r0, #CACHELINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c14, 1		@ clean/invalidate L1 D line
 	add	r0, r0, #CACHELINESIZE
@@ -309,6 +317,7 @@ ENTRY(xsc3_dma_flush_range)
 	blo	1b
 	mcr	p15, 0, r0, c7, c10, 4		@ data write barrier
 	ret	lr
+SYM_FUNC_END(xsc3_dma_flush_range)
 
 /*
  *	dma_map_area(start, size, dir)
@@ -316,13 +325,13 @@ ENTRY(xsc3_dma_flush_range)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(xsc3_dma_map_area)
+SYM_TYPED_FUNC_START(xsc3_dma_map_area)
 	add	r1, r1, r0
 	cmp	r2, #DMA_TO_DEVICE
 	beq	xsc3_dma_clean_range
 	bcs	xsc3_dma_inv_range
 	b	xsc3_dma_flush_range
-ENDPROC(xsc3_dma_map_area)
+SYM_FUNC_END(xsc3_dma_map_area)
 
 /*
  *	dma_unmap_area(start, size, dir)
@@ -330,9 +339,9 @@ ENDPROC(xsc3_dma_map_area)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-ENTRY(xsc3_dma_unmap_area)
+SYM_TYPED_FUNC_START(xsc3_dma_unmap_area)
 	ret	lr
-ENDPROC(xsc3_dma_unmap_area)
+SYM_FUNC_END(xsc3_dma_unmap_area)
 
 	.globl	xsc3_flush_kern_cache_louis
 	.equ	xsc3_flush_kern_cache_louis, xsc3_flush_kern_cache_all
