@@ -1527,7 +1527,6 @@ static void dlm_send_join_asserts(struct dlm_ctxt *dlm,
 {
 	int status, node, live;
 
-	status = 0;
 	node = -1;
 	while ((node = find_next_bit(node_map, O2NM_MAX_NODES,
 				     node + 1)) < O2NM_MAX_NODES) {
