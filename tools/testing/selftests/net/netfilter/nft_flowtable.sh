@@ -100,6 +100,14 @@ if ! ip -net $nsr2 link set veth1 mtu $rmtu; then
 	exit 1
 fi
 
+if ! ip -net "$nsr1" link set veth1 mtu "$lmtu"; then
+	exit 1
+fi
+
+if ! ip -net "$nsr2" link set veth0 mtu "$lmtu"; then
+	exit 1
+fi
+
 ip -net $ns2 link set eth0 mtu $rmtu
 
 # transfer-net between nsr1 and nsr2.
@@ -631,6 +639,17 @@ else
 	echo "FAIL: ipsec tunnel mode for ns1/ns2"
 	ip netns exec "$nsr1" nft list ruleset 1>&2
 	ip netns exec "$nsr1" cat /proc/net/xfrm_stat 1>&2
+fi
+
+if [ x"$1" = x ]; then
+	low=1280
+	mtu=$((65536 - low))
+	o=$(((RANDOM%mtu) + low))
+	l=$(((RANDOM%mtu) + low))
+	r=$(((RANDOM%mtu) + low))
+
+	echo "re-run with random mtus: -o $o -l $l -r $r"
+	$0 -o "$o" -l "$l" -r "$r"
 fi
 
 exit $ret
