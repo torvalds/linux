@@ -1438,6 +1438,20 @@ static void b53_phylink_mac_config(struct dsa_switch *ds, int port,
 				   unsigned int mode,
 				   const struct phylink_link_state *state)
 {
+	phy_interface_t interface = state->interface;
+	struct b53_device *dev = ds->priv;
+
+	if (is63xx(dev) && port >= B53_63XX_RGMII0)
+		b53_adjust_63xx_rgmii(ds, port, interface);
+
+	if (mode == MLO_AN_FIXED) {
+		if (is531x5(dev) && phy_interface_mode_is_rgmii(interface))
+			b53_adjust_531x5_rgmii(ds, port, interface);
+
+		/* configure MII port if necessary */
+		if (is5325(dev))
+			b53_adjust_5325_mii(ds, port);
+	}
 }
 
 static void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
@@ -1467,9 +1481,6 @@ static void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
 				    bool tx_pause, bool rx_pause)
 {
 	struct b53_device *dev = ds->priv;
-
-	if (is63xx(dev) && port >= B53_63XX_RGMII0)
-		b53_adjust_63xx_rgmii(ds, port, interface);
 
 	if (mode == MLO_AN_PHY)
 		return;
