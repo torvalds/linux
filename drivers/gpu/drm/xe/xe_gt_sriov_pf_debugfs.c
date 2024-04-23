@@ -17,6 +17,7 @@
 #include "xe_gt_sriov_pf_control.h"
 #include "xe_gt_sriov_pf_debugfs.h"
 #include "xe_gt_sriov_pf_helpers.h"
+#include "xe_gt_sriov_pf_policy.h"
 #include "xe_pm.h"
 
 /*
@@ -75,6 +76,57 @@ static const struct drm_info_list pf_info[] = {
 		.data = xe_gt_sriov_pf_config_print_dbs,
 	},
 };
+
+/*
+ *      /sys/kernel/debug/dri/0/
+ *      ├── gt0
+ *      │   ├── pf
+ *      │   │   ├── reset_engine
+ *      │   │   ├── sample_period
+ *      │   │   ├── sched_if_idle
+ */
+
+#define DEFINE_SRIOV_GT_POLICY_DEBUGFS_ATTRIBUTE(POLICY, TYPE, FORMAT)		\
+										\
+static int POLICY##_set(void *data, u64 val)					\
+{										\
+	struct xe_gt *gt = extract_gt(data);					\
+	struct xe_device *xe = gt_to_xe(gt);					\
+	int err;								\
+										\
+	if (val > (TYPE)~0ull)							\
+		return -EOVERFLOW;						\
+										\
+	xe_pm_runtime_get(xe);							\
+	err = xe_gt_sriov_pf_policy_set_##POLICY(gt, val);			\
+	xe_pm_runtime_put(xe);							\
+										\
+	return err;								\
+}										\
+										\
+static int POLICY##_get(void *data, u64 *val)					\
+{										\
+	struct xe_gt *gt = extract_gt(data);					\
+										\
+	*val = xe_gt_sriov_pf_policy_get_##POLICY(gt);				\
+	return 0;								\
+}										\
+										\
+DEFINE_DEBUGFS_ATTRIBUTE(POLICY##_fops, POLICY##_get, POLICY##_set, FORMAT)
+
+DEFINE_SRIOV_GT_POLICY_DEBUGFS_ATTRIBUTE(reset_engine, bool, "%llu\n");
+DEFINE_SRIOV_GT_POLICY_DEBUGFS_ATTRIBUTE(sched_if_idle, bool, "%llu\n");
+DEFINE_SRIOV_GT_POLICY_DEBUGFS_ATTRIBUTE(sample_period, u32, "%llu\n");
+
+static void pf_add_policy_attrs(struct xe_gt *gt, struct dentry *parent)
+{
+	xe_gt_assert(gt, gt == extract_gt(parent));
+	xe_gt_assert(gt, PFID == extract_vfid(parent));
+
+	debugfs_create_file_unsafe("reset_engine", 0644, parent, parent, &reset_engine_fops);
+	debugfs_create_file_unsafe("sched_if_idle", 0644, parent, parent, &sched_if_idle_fops);
+	debugfs_create_file_unsafe("sample_period_ms", 0644, parent, parent, &sample_period_fops);
+}
 
 /*
  *      /sys/kernel/debug/dri/0/
@@ -261,6 +313,7 @@ void xe_gt_sriov_pf_debugfs_register(struct xe_gt *gt, struct dentry *root)
 	pfdentry->d_inode->i_private = gt;
 
 	drm_debugfs_create_files(pf_info, ARRAY_SIZE(pf_info), pfdentry, minor);
+	pf_add_policy_attrs(gt, pfdentry);
 	pf_add_config_attrs(gt, pfdentry, PFID);
 
 	for (n = 1; n <= totalvfs; n++) {
