@@ -531,8 +531,7 @@ static struct tpmi_per_power_domain_info *get_instance(int pkg_id, int power_dom
 	struct tpmi_sst_struct *sst_inst;
 	u8 part;
 
-	if (pkg_id < 0 || pkg_id > isst_common.max_index ||
-	    pkg_id >= topology_max_packages())
+	if (!in_range(pkg_id, 0, topology_max_packages()) || pkg_id > isst_common.max_index)
 		return NULL;
 
 	sst_inst = isst_common.sst_inst[pkg_id];
