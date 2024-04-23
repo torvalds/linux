@@ -87,6 +87,7 @@ static int mana_ib_probe(struct auxiliary_device *adev,
 	upper_ndev = netdev_master_upper_dev_get_rcu(mc->ports[0]);
 	if (!upper_ndev) {
 		rcu_read_unlock();
+		ret = -ENODEV;
 		ibdev_err(&dev->ib_dev, "Failed to get master netdev");
 		goto free_ib_device;
 	}
