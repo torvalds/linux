@@ -1135,6 +1135,7 @@ static void _update_bt_report(struct rtw89_dev *rtwdev, u8 rpt_type, u8 *pfinfo)
 	struct rtw89_btc_fbtc_btver *pver = NULL;
 	struct rtw89_btc_fbtc_btscan_v1 *pscan_v1;
 	struct rtw89_btc_fbtc_btscan_v2 *pscan_v2;
+	struct rtw89_btc_fbtc_btscan_v7 *pscan_v7;
 	struct rtw89_btc_fbtc_btafh *pafh_v1 = NULL;
 	struct rtw89_btc_fbtc_btafh_v2 *pafh_v2 = NULL;
 	struct rtw89_btc_fbtc_btdevinfo *pdev = NULL;
@@ -1170,6 +1171,15 @@ static void _update_bt_report(struct rtw89_dev *rtwdev, u8 rpt_type, u8 *pfinfo)
 				if ((pscan_v2->type & BIT(i)) &&
 				    pscan_v2->para[i].win == 0 &&
 				    pscan_v2->para[i].intvl == 0)
+					scan_update = false;
+			}
+		} else if (ver->fcxbtscan == 7) {
+			pscan_v7 = (struct rtw89_btc_fbtc_btscan_v7 *)pfinfo;
+			for (i = 0; i < CXSCAN_MAX; i++) {
+				bt->scan_info_v2[i] = pscan_v7->para[i];
+				if ((pscan_v7->type & BIT(i)) &&
+				    pscan_v7->para[i].win == 0 &&
+				    pscan_v7->para[i].intvl == 0)
 					scan_update = false;
 			}
 		}
@@ -1428,6 +1438,11 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		} else if (ver->fcxbtscan == 2) {
 			pfinfo = &pfwinfo->rpt_fbtc_btscan.finfo.v2;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btscan.finfo.v2);
+		} else if (ver->fcxbtscan == 7) {
+			pfinfo = &pfwinfo->rpt_fbtc_btscan.finfo.v7;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btscan.finfo.v7);
+		} else {
+			goto err;
 		}
 		pcinfo->req_fver = ver->fcxbtscan;
 		break;

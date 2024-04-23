@@ -1954,9 +1954,18 @@ struct rtw89_btc_fbtc_btscan_v2 {
 	struct rtw89_btc_bt_scan_info_v2 para[CXSCAN_MAX];
 } __packed;
 
+struct rtw89_btc_fbtc_btscan_v7 {
+	u8 fver; /* btc_ver::fcxbtscan */
+	u8 type;
+	u8 rsvd0;
+	u8 rsvd1;
+	struct rtw89_btc_bt_scan_info_v2 para[CXSCAN_MAX];
+} __packed;
+
 union rtw89_btc_fbtc_btscan {
 	struct rtw89_btc_fbtc_btscan_v1 v1;
 	struct rtw89_btc_fbtc_btscan_v2 v2;
+	struct rtw89_btc_fbtc_btscan_v7 v7;
 };
 
 struct rtw89_btc_bt_info {
