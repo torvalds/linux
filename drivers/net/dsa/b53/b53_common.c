@@ -1309,6 +1309,29 @@ static void b53_adjust_531x5_rgmii(struct dsa_switch *ds, int port,
 		 phy_modes(interface));
 }
 
+static void b53_adjust_5325_mii(struct dsa_switch *ds, int port)
+{
+	struct b53_device *dev = ds->priv;
+	u8 reg = 0;
+
+	b53_read8(dev, B53_CTRL_PAGE, B53_PORT_OVERRIDE_CTRL,
+		  &reg);
+
+	/* reverse mii needs to be enabled */
+	if (!(reg & PORT_OVERRIDE_RV_MII_25)) {
+		b53_write8(dev, B53_CTRL_PAGE, B53_PORT_OVERRIDE_CTRL,
+			   reg | PORT_OVERRIDE_RV_MII_25);
+		b53_read8(dev, B53_CTRL_PAGE, B53_PORT_OVERRIDE_CTRL,
+			  &reg);
+
+		if (!(reg & PORT_OVERRIDE_RV_MII_25)) {
+			dev_err(ds->dev,
+				"Failed to enable reverse MII mode\n");
+			return;
+		}
+	}
+}
+
 static void b53_adjust_link(struct dsa_switch *ds, int port,
 			    struct phy_device *phydev)
 {
@@ -1316,7 +1339,6 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 	struct ethtool_keee *p = &dev->ports[port].eee;
 	bool tx_pause = false;
 	bool rx_pause = false;
-	u8 reg = 0;
 
 	if (!phy_is_pseudo_fixed_link(phydev))
 		return;
@@ -1342,24 +1364,8 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 		b53_adjust_531x5_rgmii(ds, port, phydev->interface);
 
 	/* configure MII port if necessary */
-	if (is5325(dev)) {
-		b53_read8(dev, B53_CTRL_PAGE, B53_PORT_OVERRIDE_CTRL,
-			  &reg);
-
-		/* reverse mii needs to be enabled */
-		if (!(reg & PORT_OVERRIDE_RV_MII_25)) {
-			b53_write8(dev, B53_CTRL_PAGE, B53_PORT_OVERRIDE_CTRL,
-				   reg | PORT_OVERRIDE_RV_MII_25);
-			b53_read8(dev, B53_CTRL_PAGE, B53_PORT_OVERRIDE_CTRL,
-				  &reg);
-
-			if (!(reg & PORT_OVERRIDE_RV_MII_25)) {
-				dev_err(ds->dev,
-					"Failed to enable reverse MII mode\n");
-				return;
-			}
-		}
-	}
+	if (is5325(dev))
+		b53_adjust_5325_mii(ds, port);
 
 	/* Re-negotiate EEE if it was enabled already */
 	p->eee_enabled = b53_eee_init(ds, port, phydev);
