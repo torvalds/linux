@@ -15,6 +15,7 @@
 #include <linux/sunrpc/addr.h>
 #include <linux/sunrpc/gss_api.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
+#include <linux/sunrpc/svc.h>
 #include <linux/module.h>
 #include <linux/fsnotify.h>
 
@@ -1651,6 +1652,148 @@ int nfsd_nl_rpc_status_get_done(struct netlink_callback *cb)
 	mutex_unlock(&nfsd_mutex);
 
 	return 0;
+}
+
+/**
+ * nfsd_nl_threads_set_doit - set the number of running threads
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * Return 0 on success or a negative errno.
+ */
+int nfsd_nl_threads_set_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	int nthreads = 0, count = 0, nrpools, ret = -EOPNOTSUPP, rem;
+	struct net *net = genl_info_net(info);
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	const struct nlattr *attr;
+	const char *scope = NULL;
+
+	if (GENL_REQ_ATTR_CHECK(info, NFSD_A_SERVER_THREADS))
+		return -EINVAL;
+
+	/* count number of SERVER_THREADS values */
+	nlmsg_for_each_attr(attr, info->nlhdr, GENL_HDRLEN, rem) {
+		if (nla_type(attr) == NFSD_A_SERVER_THREADS)
+			count++;
+	}
+
+	mutex_lock(&nfsd_mutex);
+
+	nrpools = nfsd_nrpools(net);
+	if (nrpools && count > nrpools)
+		count = nrpools;
+
+	/* XXX: make this handle non-global pool-modes */
+	if (count > 1)
+		goto out_unlock;
+
+	nthreads = nla_get_u32(info->attrs[NFSD_A_SERVER_THREADS]);
+	if (info->attrs[NFSD_A_SERVER_GRACETIME] ||
+	    info->attrs[NFSD_A_SERVER_LEASETIME] ||
+	    info->attrs[NFSD_A_SERVER_SCOPE]) {
+		ret = -EBUSY;
+		if (nn->nfsd_serv && nn->nfsd_serv->sv_nrthreads)
+			goto out_unlock;
+
+		ret = -EINVAL;
+		attr = info->attrs[NFSD_A_SERVER_GRACETIME];
+		if (attr) {
+			u32 gracetime = nla_get_u32(attr);
+
+			if (gracetime < 10 || gracetime > 3600)
+				goto out_unlock;
+
+			nn->nfsd4_grace = gracetime;
+		}
+
+		attr = info->attrs[NFSD_A_SERVER_LEASETIME];
+		if (attr) {
+			u32 leasetime = nla_get_u32(attr);
+
+			if (leasetime < 10 || leasetime > 3600)
+				goto out_unlock;
+
+			nn->nfsd4_lease = leasetime;
+		}
+
+		attr = info->attrs[NFSD_A_SERVER_SCOPE];
+		if (attr)
+			scope = nla_data(attr);
+	}
+
+	ret = nfsd_svc(nthreads, net, get_current_cred(), scope);
+
+out_unlock:
+	mutex_unlock(&nfsd_mutex);
+
+	return ret == nthreads ? 0 : ret;
+}
+
+/**
+ * nfsd_nl_threads_get_doit - get the number of running threads
+ * @skb: reply buffer
+ * @info: netlink metadata and command arguments
+ *
+ * Return 0 on success or a negative errno.
+ */
+int nfsd_nl_threads_get_doit(struct sk_buff *skb, struct genl_info *info)
+{
+	struct net *net = genl_info_net(info);
+	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
+	void *hdr;
+	int err;
+
+	skb = genlmsg_new(GENLMSG_DEFAULT_SIZE, GFP_KERNEL);
+	if (!skb)
+		return -ENOMEM;
+
+	hdr = genlmsg_iput(skb, info);
+	if (!hdr) {
+		err = -EMSGSIZE;
+		goto err_free_msg;
+	}
+
+	mutex_lock(&nfsd_mutex);
+
+	err = nla_put_u32(skb, NFSD_A_SERVER_GRACETIME,
+			  nn->nfsd4_grace) ||
+	      nla_put_u32(skb, NFSD_A_SERVER_LEASETIME,
+			  nn->nfsd4_lease) ||
+	      nla_put_string(skb, NFSD_A_SERVER_SCOPE,
+			  nn->nfsd_name);
+	if (err)
+		goto err_unlock;
+
+	if (nn->nfsd_serv) {
+		int i;
+
+		for (i = 0; i < nfsd_nrpools(net); ++i) {
+			struct svc_pool *sp = &nn->nfsd_serv->sv_pools[i];
+
+			err = nla_put_u32(skb, NFSD_A_SERVER_THREADS,
+					  atomic_read(&sp->sp_nrthreads));
+			if (err)
+				goto err_unlock;
+		}
+	} else {
+		err = nla_put_u32(skb, NFSD_A_SERVER_THREADS, 0);
+		if (err)
+			goto err_unlock;
+	}
+
+	mutex_unlock(&nfsd_mutex);
+
+	genlmsg_end(skb, hdr);
+
+	return genlmsg_reply(skb, info);
+
+err_unlock:
+	mutex_unlock(&nfsd_mutex);
+err_free_msg:
+	nlmsg_free(skb);
+
+	return err;
 }
 
 /**
