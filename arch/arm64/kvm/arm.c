@@ -72,8 +72,7 @@ int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu)
 int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 			    struct kvm_enable_cap *cap)
 {
-	int r;
-	u64 new_cap;
+	int r = -EINVAL;
 
 	if (cap->flags)
 		return -EINVAL;
@@ -86,9 +85,7 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		break;
 	case KVM_CAP_ARM_MTE:
 		mutex_lock(&kvm->lock);
-		if (!system_supports_mte() || kvm->created_vcpus) {
-			r = -EINVAL;
-		} else {
+		if (system_supports_mte() && !kvm->created_vcpus) {
 			r = 0;
 			set_bit(KVM_ARCH_FLAG_MTE_ENABLED, &kvm->arch.flags);
 		}
@@ -99,25 +96,22 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
 		set_bit(KVM_ARCH_FLAG_SYSTEM_SUSPEND_ENABLED, &kvm->arch.flags);
 		break;
 	case KVM_CAP_ARM_EAGER_SPLIT_CHUNK_SIZE:
-		new_cap = cap->args[0];
-
 		mutex_lock(&kvm->slots_lock);
 		/*
 		 * To keep things simple, allow changing the chunk
 		 * size only when no memory slots have been created.
 		 */
-		if (!kvm_are_all_memslots_empty(kvm)) {
-			r = -EINVAL;
-		} else if (new_cap && !kvm_is_block_size_supported(new_cap)) {
-			r = -EINVAL;
-		} else {
-			r = 0;
-			kvm->arch.mmu.split_page_chunk_size = new_cap;
+		if (kvm_are_all_memslots_empty(kvm)) {
+			u64 new_cap = cap->args[0];
+
+			if (!new_cap || kvm_is_block_size_supported(new_cap)) {
+				r = 0;
+				kvm->arch.mmu.split_page_chunk_size = new_cap;
+			}
 		}
 		mutex_unlock(&kvm->slots_lock);
 		break;
 	default:
-		r = -EINVAL;
 		break;
 	}
 
