@@ -648,7 +648,7 @@ properties:
           - const: phytec,rk3288-phycore-som
           - const: rockchip,rk3288
 
-      - description: Pine64 PinebookPro
+      - description: Pine64 Pinebook Pro
         items:
           - const: pine64,pinebook-pro
           - const: rockchip,rk3399
@@ -661,7 +661,7 @@ properties:
           - const: pine64,pinenote
           - const: rockchip,rk3566
 
-      - description: Pine64 PinePhonePro
+      - description: Pine64 PinePhone Pro
         items:
           - const: pine64,pinephone-pro
           - const: rockchip,rk3399
@@ -699,7 +699,7 @@ properties:
           - const: pine64,quartzpro64
           - const: rockchip,rk3588
 
-      - description: Pine64 SoQuartz SoM
+      - description: Pine64 SOQuartz
         items:
           - enum:
               - pine64,soquartz-blade
