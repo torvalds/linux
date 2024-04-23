@@ -91,4 +91,10 @@ static inline void __pi_clear_sn(struct pi_desc *pi_desc)
 	pi_desc->notifications &= ~BIT(POSTED_INTR_SN);
 }
 
+#ifdef CONFIG_X86_POSTED_MSI
+extern void intel_posted_msi_init(void);
+#else
+static inline void intel_posted_msi_init(void) {};
+#endif /* X86_POSTED_MSI */
+
 #endif /* _X86_POSTED_INTR_H */
