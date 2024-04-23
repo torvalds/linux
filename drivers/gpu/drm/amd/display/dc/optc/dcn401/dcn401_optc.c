@@ -174,8 +174,12 @@ static void optc401_set_h_timing_div_manual_mode(struct timing_generator *optc, 
 			OTG_H_TIMING_DIV_MODE_MANUAL, manual_mode ? 1 : 0);
 }
 /**
- * Enable CRTC
- * Enable CRTC - call ASIC Control Object to enable Timing generator.
+ * optc401_enable_crtc() - Enable CRTC
+ * @optc: Pointer to the timing generator structure
+ *
+ * This function calls ASIC Control Object to enable Timing generator.
+ *
+ * Return: Always returns true
  */
 static bool optc401_enable_crtc(struct timing_generator *optc)
 {
