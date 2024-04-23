@@ -43,7 +43,7 @@ u64 __read_mostly shadow_acc_track_mask;
 u64 __read_mostly shadow_nonpresent_or_rsvd_mask;
 u64 __read_mostly shadow_nonpresent_or_rsvd_lower_gfn_mask;
 
-u8 __read_mostly shadow_phys_bits;
+u8 __ro_after_init shadow_phys_bits;
 
 void __init kvm_mmu_spte_module_init(void)
 {
@@ -55,6 +55,8 @@ void __init kvm_mmu_spte_module_init(void)
 	 * will change when the vendor module is (re)loaded.
 	 */
 	allow_mmio_caching = enable_mmio_caching;
+
+	shadow_phys_bits = kvm_get_shadow_phys_bits();
 }
 
 static u64 generation_mmio_spte_mask(u64 gen)
@@ -440,8 +442,6 @@ void kvm_mmu_reset_all_pte_masks(void)
 {
 	u8 low_phys_bits;
 	u64 mask;
-
-	shadow_phys_bits = kvm_get_shadow_phys_bits();
 
 	/*
 	 * If the CPU has 46 or less physical address bits, then set an

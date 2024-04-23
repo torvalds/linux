@@ -61,7 +61,7 @@ static __always_inline u64 rsvd_bits(int s, int e)
  * The number of non-reserved physical address bits irrespective of features
  * that repurpose legal bits, e.g. MKTME.
  */
-extern u8 __read_mostly shadow_phys_bits;
+extern u8 __ro_after_init shadow_phys_bits;
 
 static inline gfn_t kvm_mmu_max_gfn(void)
 {
