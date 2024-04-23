@@ -1109,12 +1109,6 @@ bool dcn20_set_input_transfer_func(struct dc *dc,
 
 	tf = &plane_state->in_transfer_func;
 
-	if (tf == NULL) {
-		dpp_base->funcs->dpp_set_degamma(dpp_base,
-				IPP_DEGAMMA_MODE_BYPASS);
-		return true;
-	}
-
 	if (tf->type == TF_TYPE_HWPWL || tf->type == TF_TYPE_DISTRIBUTED_POINTS)
 		use_degamma_ram = true;
 
