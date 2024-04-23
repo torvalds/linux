@@ -94,11 +94,18 @@ struct octeon_i2c_reg_offset {
 	unsigned int sw_twsi;
 	unsigned int twsi_int;
 	unsigned int sw_twsi_ext;
+	unsigned int mode;
 };
 
 #define SW_TWSI(x)	(x->roff.sw_twsi)
 #define TWSI_INT(x)	(x->roff.twsi_int)
 #define SW_TWSI_EXT(x)	(x->roff.sw_twsi_ext)
+#define MODE(x)		((x)->roff.mode)
+
+/* Set REFCLK_SRC and HS_MODE in TWSX_MODE register */
+#define TWSX_MODE_REFCLK_SRC	BIT(4)
+#define TWSX_MODE_HS_MODE	BIT(0)
+#define TWSX_MODE_HS_MASK	(TWSX_MODE_REFCLK_SRC | TWSX_MODE_HS_MODE)
 
 struct octeon_i2c {
 	wait_queue_head_t queue;
@@ -213,6 +220,7 @@ static inline void octeon_i2c_write_int(struct octeon_i2c *i2c, u64 data)
 	octeon_i2c_writeq_flush(data, i2c->twsi_base + TWSI_INT(i2c));
 }
 
+#define IS_LS_FREQ(twsi_freq)	((twsi_freq) <= 400000)
 #define PCI_SUBSYS_DEVID_9XXX	0xB
 #define PCI_SUBSYS_MASK		GENMASK(15, 12)
 /**
