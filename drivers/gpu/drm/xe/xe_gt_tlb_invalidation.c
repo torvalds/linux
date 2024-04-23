@@ -245,7 +245,7 @@ int xe_gt_tlb_invalidation_ggtt(struct xe_gt *gt)
 			return seqno;
 
 		xe_gt_tlb_invalidation_wait(gt, seqno);
-	} else if (xe_device_uc_enabled(xe)) {
+	} else if (xe_device_uc_enabled(xe) && !xe_device_wedged(xe)) {
 		xe_gt_WARN_ON(gt, xe_force_wake_get(gt_to_fw(gt), XE_FW_GT));
 		if (xe->info.platform == XE_PVC || GRAPHICS_VER(xe) >= 20) {
 			xe_mmio_write32(gt, PVC_GUC_TLB_INV_DESC1,
