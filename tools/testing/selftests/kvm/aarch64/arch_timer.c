@@ -5,8 +5,6 @@
  *
  * Copyright (c) 2021, Google LLC.
  */
-#define _GNU_SOURCE
-
 #include "arch_timer.h"
 #include "delay.h"
 #include "gic.h"

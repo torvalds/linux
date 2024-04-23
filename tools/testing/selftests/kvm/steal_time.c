@@ -4,7 +4,6 @@
  *
  * Copyright (C) 2020, Red Hat, Inc.
  */
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <time.h>
 #include <sched.h>

@@ -2,8 +2,6 @@
 /*
  * Copyright (C) 2023, Tencent, Inc.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <x86intrin.h>
 
 #include "pmu.h"

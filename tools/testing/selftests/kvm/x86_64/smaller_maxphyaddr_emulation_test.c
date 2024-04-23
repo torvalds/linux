@@ -5,9 +5,6 @@
  * Test that KVM emulates instructions in response to EPT violations when
  * allow_smaller_maxphyaddr is enabled and guest.MAXPHYADDR < host.MAXPHYADDR.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
-
 #include "flds_emulation.h"
 
 #include "test_util.h"

@@ -7,9 +7,6 @@
  *
  * Copyright (c) 2024, Intel Corporation.
  */
-
-#define _GNU_SOURCE
-
 #include "arch_timer.h"
 #include "kvm_util.h"
 #include "processor.h"

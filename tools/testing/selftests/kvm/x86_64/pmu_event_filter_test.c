@@ -9,9 +9,6 @@
  * Verifies the expected behavior of allow lists and deny lists for
  * virtual PMU events.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
-
 #include "kvm_util.h"
 #include "pmu.h"
 #include "processor.h"

@@ -8,9 +8,6 @@
  * page size have been pre-allocated on your system, if you are planning to
  * use hugepages to back the guest memory for testing.
  */
-
-#define _GNU_SOURCE /* for program_invocation_name */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>

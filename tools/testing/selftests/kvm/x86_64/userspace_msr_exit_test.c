@@ -4,8 +4,6 @@
  *
  * Tests for exiting into userspace on registered MSRs
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <sys/ioctl.h>
 
 #include "kvm_test_harness.h"

@@ -9,8 +9,6 @@
  * Verifies expected behavior of controlling guest access to
  * MSR_PLATFORM_INFO.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>

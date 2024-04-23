@@ -4,9 +4,6 @@
  *
  * Test for KVM_CAP_EXIT_ON_EMULATION_FAILURE.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
-
 #include "flds_emulation.h"
 
 #include "test_util.h"

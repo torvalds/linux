@@ -19,8 +19,6 @@
  * Migration is a command line option. When used on non-numa machines will 
  * exit with error. Test is still usefull on non-numa for testing IPIs.
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <getopt.h>
 #include <pthread.h>
 #include <inttypes.h>

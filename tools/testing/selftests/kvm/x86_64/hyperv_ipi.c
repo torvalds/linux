@@ -5,8 +5,6 @@
  * Copyright (C) 2022, Red Hat, Inc.
  *
  */
-
-#define _GNU_SOURCE /* for program_invocation_short_name */
 #include <pthread.h>
 #include <inttypes.h>
 

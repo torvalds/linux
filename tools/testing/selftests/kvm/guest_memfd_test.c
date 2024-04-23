@@ -4,8 +4,6 @@
  *
  * Author: Chao Peng <chao.p.peng@linux.intel.com>
  */
-
-#define _GNU_SOURCE
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>

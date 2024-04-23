@@ -19,9 +19,6 @@
  *
  * Copyright (c) 2021, Google LLC.
  */
-
-#define _GNU_SOURCE
-
 #include <stdlib.h>
 #include <pthread.h>
 #include <linux/sizes.h>
