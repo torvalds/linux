@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/atomic.h>
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/device.h>
@@ -7,6 +8,7 @@
 #include <linux/i2c-smbus.h>
 #include <linux/io.h>
 #include <linux/kernel.h>
+#include <linux/pci.h>
 
 /* Controller command patterns */
 #define SW_TWSI_V		BIT_ULL(63)	/* Valid bit */
@@ -209,6 +211,21 @@ static inline u64 octeon_i2c_read_int(struct octeon_i2c *i2c)
 static inline void octeon_i2c_write_int(struct octeon_i2c *i2c, u64 data)
 {
 	octeon_i2c_writeq_flush(data, i2c->twsi_base + TWSI_INT(i2c));
+}
+
+#define PCI_SUBSYS_DEVID_9XXX	0xB
+#define PCI_SUBSYS_MASK		GENMASK(15, 12)
+/**
+ * octeon_i2c_is_otx2 - check for chip ID
+ * @pdev: PCI dev structure
+ *
+ * Returns true if the device is an OcteonTX2, false otherwise.
+ */
+static inline bool octeon_i2c_is_otx2(struct pci_dev *pdev)
+{
+	u32 chip_id = FIELD_GET(PCI_SUBSYS_MASK, pdev->subsystem_device);
+
+	return (chip_id == PCI_SUBSYS_DEVID_9XXX);
 }
 
 /* Prototypes */
