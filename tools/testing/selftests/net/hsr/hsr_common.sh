@@ -51,7 +51,8 @@ do_ping_long()
 	fi
 
 	VAL="$(echo $OUT | cut -d' ' -f1-8)"
-	if [ "$VAL" != "10 packets transmitted, 10 received, 0% packet loss," ]
+	SED_VAL="$(echo ${VAL} | sed -r -e 's/([0-9]{2}).*([0-9]{2}).*[[:space:]]([0-9]+%).*/\1 transmitted \2 received \3 loss/')"
+	if [ "${SED_VAL}" != "10 transmitted 10 received 0% loss" ]
 	then
 		echo "$netns -> $connect_addr ping TEST [ FAIL ]"
 		echo "Expect to send and receive 10 packets and no duplicates."
