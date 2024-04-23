@@ -450,6 +450,15 @@ static void thermal_zone_device_init(struct thermal_zone_device *tz)
 		pos->initialized = false;
 }
 
+static void thermal_governor_trip_crossed(struct thermal_governor *governor,
+					  struct thermal_zone_device *tz,
+					  const struct thermal_trip *trip,
+					  bool crossed_up)
+{
+	if (governor->trip_crossed)
+		governor->trip_crossed(tz, trip, crossed_up);
+}
+
 static int thermal_trip_notify_cmp(void *ascending, const struct list_head *a,
 				   const struct list_head *b)
 {
@@ -489,16 +498,14 @@ void __thermal_zone_device_update(struct thermal_zone_device *tz,
 	list_for_each_entry(td, &way_up_list, notify_list_node) {
 		thermal_notify_tz_trip_up(tz, &td->trip);
 		thermal_debug_tz_trip_up(tz, &td->trip);
-		if (governor->trip_crossed)
-			governor->trip_crossed(tz, &td->trip, true);
+		thermal_governor_trip_crossed(governor, tz, &td->trip, true);
 	}
 
 	list_sort(NULL, &way_down_list, thermal_trip_notify_cmp);
 	list_for_each_entry(td, &way_down_list, notify_list_node) {
 		thermal_notify_tz_trip_down(tz, &td->trip);
 		thermal_debug_tz_trip_down(tz, &td->trip);
-		if (governor->trip_crossed)
-			governor->trip_crossed(tz, &td->trip, false);
+		thermal_governor_trip_crossed(governor, tz, &td->trip, false);
 	}
 
 	if (governor->manage)
