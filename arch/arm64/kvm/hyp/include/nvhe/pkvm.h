@@ -53,6 +53,11 @@ pkvm_hyp_vcpu_to_hyp_vm(struct pkvm_hyp_vcpu *hyp_vcpu)
 	return container_of(hyp_vcpu->vcpu.kvm, struct pkvm_hyp_vm, kvm);
 }
 
+static inline bool pkvm_hyp_vcpu_is_protected(struct pkvm_hyp_vcpu *hyp_vcpu)
+{
+	return vcpu_is_protected(&hyp_vcpu->vcpu);
+}
+
 void pkvm_hyp_vm_table_init(void *tbl);
 void pkvm_host_fpsimd_state_init(void);
 
