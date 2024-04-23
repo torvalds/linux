@@ -247,6 +247,17 @@ void pkvm_hyp_vm_table_init(void *tbl)
 	vm_table = tbl;
 }
 
+void pkvm_host_fpsimd_state_init(void)
+{
+	unsigned long i;
+
+	for (i = 0; i < hyp_nr_cpus; i++) {
+		struct kvm_host_data *host_data = per_cpu_ptr(&kvm_host_data, i);
+
+		host_data->fpsimd_state = &host_data->host_ctxt.fp_regs;
+	}
+}
+
 /*
  * Return the hyp vm structure corresponding to the handle.
  */
