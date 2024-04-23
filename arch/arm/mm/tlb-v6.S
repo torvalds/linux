@@ -9,6 +9,7 @@
  */
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <linux/cfi_types.h>
 #include <asm/asm-offsets.h>
 #include <asm/assembler.h>
 #include <asm/page.h>
@@ -32,7 +33,7 @@
  *	- the "Invalidate single entry" instruction will invalidate
  *	  both the I and the D TLBs on Harvard-style TLBs
  */
-ENTRY(v6wbi_flush_user_tlb_range)
+SYM_TYPED_FUNC_START(v6wbi_flush_user_tlb_range)
 	vma_vm_mm r3, r2			@ get vma->vm_mm
 	mov	ip, #0
 	mmid	r3, r3				@ get vm_mm->context.id
@@ -56,6 +57,7 @@ ENTRY(v6wbi_flush_user_tlb_range)
 	blo	1b
 	mcr	p15, 0, ip, c7, c10, 4		@ data synchronization barrier
 	ret	lr
+SYM_FUNC_END(v6wbi_flush_user_tlb_range)
 
 /*
  *	v6wbi_flush_kern_tlb_range(start,end)
@@ -65,7 +67,7 @@ ENTRY(v6wbi_flush_user_tlb_range)
  *	- start - start address (may not be aligned)
  *	- end   - end address (exclusive, may not be aligned)
  */
-ENTRY(v6wbi_flush_kern_tlb_range)
+SYM_TYPED_FUNC_START(v6wbi_flush_kern_tlb_range)
 	mov	r2, #0
 	mcr	p15, 0, r2, c7, c10, 4		@ drain write buffer
 	mov	r0, r0, lsr #PAGE_SHIFT		@ align address
@@ -85,8 +87,4 @@ ENTRY(v6wbi_flush_kern_tlb_range)
 	mcr	p15, 0, r2, c7, c10, 4		@ data synchronization barrier
 	mcr	p15, 0, r2, c7, c5, 4		@ prefetch flush (isb)
 	ret	lr
-
-	__INIT
-
-	/* define struct cpu_tlb_fns (see <asm/tlbflush.h> and proc-macros.S) */
-	define_tlb_functions v6wbi, v6wbi_tlb_flags
+SYM_FUNC_END(v6wbi_flush_kern_tlb_range)
