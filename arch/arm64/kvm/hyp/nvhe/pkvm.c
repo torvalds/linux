@@ -200,7 +200,7 @@ static void pvm_init_trap_regs(struct kvm_vcpu *vcpu)
 }
 
 /*
- * Initialize trap register values for protected VMs.
+ * Initialize trap register values in protected mode.
  */
 void __pkvm_vcpu_init_traps(struct kvm_vcpu *vcpu)
 {
