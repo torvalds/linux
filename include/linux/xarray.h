@@ -1146,7 +1146,7 @@ static inline void xa_release(struct xarray *xa, unsigned long index)
 #define XA_CHUNK_SIZE		(1UL << XA_CHUNK_SHIFT)
 #define XA_CHUNK_MASK		(XA_CHUNK_SIZE - 1)
 #define XA_MAX_MARKS		3
-#define XA_MARK_LONGS		DIV_ROUND_UP(XA_CHUNK_SIZE, BITS_PER_LONG)
+#define XA_MARK_LONGS		BITS_TO_LONGS(XA_CHUNK_SIZE)
 
 /*
  * @count is the count of every non-NULL element in the ->slots array
