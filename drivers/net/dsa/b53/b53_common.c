@@ -1481,9 +1481,13 @@ static void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
 				    bool tx_pause, bool rx_pause)
 {
 	struct b53_device *dev = ds->priv;
+	struct ethtool_keee *p = &dev->ports[port].eee;
 
-	if (mode == MLO_AN_PHY)
+	if (mode == MLO_AN_PHY) {
+		/* Re-negotiate EEE if it was enabled already */
+		p->eee_enabled = b53_eee_init(ds, port, phydev);
 		return;
+	}
 
 	if (mode == MLO_AN_FIXED) {
 		/* Force flow control on BCM5301x's CPU port */
