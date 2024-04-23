@@ -109,7 +109,7 @@ static struct kunit_suite kunit_try_catch_test_suite = {
 	.test_cases = kunit_try_catch_test_cases,
 };
 
-#ifndef CONFIG_UML
+#if IS_ENABLED(CONFIG_KUNIT_FAULT_TEST)
 
 static void kunit_test_null_dereference(void *data)
 {
@@ -136,12 +136,12 @@ static void kunit_test_fault_null_dereference(struct kunit *test)
 	KUNIT_EXPECT_TRUE(test, ctx->function_called);
 }
 
-#endif /* !CONFIG_UML */
+#endif /* CONFIG_KUNIT_FAULT_TEST */
 
 static struct kunit_case kunit_fault_test_cases[] = {
-#ifndef CONFIG_UML
+#if IS_ENABLED(CONFIG_KUNIT_FAULT_TEST)
 	KUNIT_CASE(kunit_test_fault_null_dereference),
-#endif /* !CONFIG_UML */
+#endif /* CONFIG_KUNIT_FAULT_TEST */
 	{}
 };
 
