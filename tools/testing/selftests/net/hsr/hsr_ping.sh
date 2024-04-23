@@ -1,6 +1,7 @@
 #!/bin/bash
 # SPDX-License-Identifier: GPL-2.0
 
+source ../lib.sh
 ret=0
 ksft_skip=4
 ipv6=true
@@ -27,19 +28,7 @@ while getopts "$optstring" option;do
 esac
 done
 
-sec=$(date +%s)
-rndh=$(printf %x $sec)-$(mktemp -u XXXXXX)
-ns1="ns1-$rndh"
-ns2="ns2-$rndh"
-ns3="ns3-$rndh"
-
-cleanup()
-{
-	local netns
-	for netns in "$ns1" "$ns2" "$ns3" ;do
-		ip netns del $netns
-	done
-}
+setup_ns ns1 ns2 ns3
 
 # $1: IP address
 is_v6()
@@ -254,21 +243,10 @@ if [ $? -ne 0 ];then
 	exit $ksft_skip
 fi
 
-trap cleanup EXIT
-
-for i in "$ns1" "$ns2" "$ns3" ;do
-	ip netns add $i || exit $ksft_skip
-	ip -net $i link set lo up
-done
+trap cleanup_all_ns EXIT
 
 setup_hsr_interfaces 0
 do_complete_ping_test
-cleanup
-
-for i in "$ns1" "$ns2" "$ns3" ;do
-	ip netns add $i || exit $ksft_skip
-	ip -net $i link set lo up
-done
 
 setup_hsr_interfaces 1
 do_complete_ping_test
