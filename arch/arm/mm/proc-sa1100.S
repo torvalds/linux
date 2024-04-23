@@ -17,6 +17,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
+#include <linux/cfi_types.h>
 #include <linux/pgtable.h>
 #include <asm/assembler.h>
 #include <asm/asm-offsets.h>
@@ -36,11 +37,12 @@
 /*
  * cpu_sa1100_proc_init()
  */
-ENTRY(cpu_sa1100_proc_init)
+SYM_TYPED_FUNC_START(cpu_sa1100_proc_init)
 	mov	r0, #0
 	mcr	p15, 0, r0, c15, c1, 2		@ Enable clock switching
 	mcr	p15, 0, r0, c9, c0, 5		@ Allow read-buffer operations from userland
 	ret	lr
+SYM_FUNC_END(cpu_sa1100_proc_init)
 
 /*
  * cpu_sa1100_proc_fin()
@@ -49,13 +51,14 @@ ENTRY(cpu_sa1100_proc_init)
  *  - Disable interrupts
  *  - Clean and turn off caches.
  */
-ENTRY(cpu_sa1100_proc_fin)
+SYM_TYPED_FUNC_START(cpu_sa1100_proc_fin)
 	mcr	p15, 0, ip, c15, c2, 2		@ Disable clock switching
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x000e			@ ............wca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 	ret	lr
+SYM_FUNC_END(cpu_sa1100_proc_fin)
 
 /*
  * cpu_sa1100_reset(loc)
@@ -68,7 +71,7 @@ ENTRY(cpu_sa1100_proc_fin)
  */
 	.align	5
 	.pushsection	.idmap.text, "ax"
-ENTRY(cpu_sa1100_reset)
+SYM_TYPED_FUNC_START(cpu_sa1100_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
@@ -80,7 +83,7 @@ ENTRY(cpu_sa1100_reset)
 	bic	ip, ip, #0x1100			@ ...i...s........
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 	ret	r0
-ENDPROC(cpu_sa1100_reset)
+SYM_FUNC_END(cpu_sa1100_reset)
 	.popsection
 
 /*
@@ -95,7 +98,7 @@ ENDPROC(cpu_sa1100_reset)
  *   3 = switch to fast processor clock
  */
 	.align	5
-ENTRY(cpu_sa1100_do_idle)
+SYM_TYPED_FUNC_START(cpu_sa1100_do_idle)
 	mov	r0, r0				@ 4 nop padding
 	mov	r0, r0
 	mov	r0, r0
@@ -111,6 +114,7 @@ ENTRY(cpu_sa1100_do_idle)
 	mov	r0, r0				@ safety
 	mcr	p15, 0, r0, c15, c1, 2		@ enable clock switching
 	ret	lr
+SYM_FUNC_END(cpu_sa1100_do_idle)
 
 /* ================================= CACHE ================================ */
 
@@ -123,12 +127,13 @@ ENTRY(cpu_sa1100_do_idle)
  * addr: cache-unaligned virtual address
  */
 	.align	5
-ENTRY(cpu_sa1100_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_sa1100_dcache_clean_area)
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #DCACHELINESIZE
 	subs	r1, r1, #DCACHELINESIZE
 	bhi	1b
 	ret	lr
+SYM_FUNC_END(cpu_sa1100_dcache_clean_area)
 
 /* =============================== PageTable ============================== */
 
@@ -140,7 +145,7 @@ ENTRY(cpu_sa1100_dcache_clean_area)
  * pgd: new page tables
  */
 	.align	5
-ENTRY(cpu_sa1100_switch_mm)
+SYM_TYPED_FUNC_START(cpu_sa1100_switch_mm)
 #ifdef CONFIG_MMU
 	str	lr, [sp, #-4]!
 	bl	v4wb_flush_kern_cache_all	@ clears IP
@@ -151,6 +156,7 @@ ENTRY(cpu_sa1100_switch_mm)
 #else
 	ret	lr
 #endif
+SYM_FUNC_END(cpu_sa1100_switch_mm)
 
 /*
  * cpu_sa1100_set_pte_ext(ptep, pte, ext)
@@ -158,7 +164,7 @@ ENTRY(cpu_sa1100_switch_mm)
  * Set a PTE and flush it out
  */
 	.align	5
-ENTRY(cpu_sa1100_set_pte_ext)
+SYM_TYPED_FUNC_START(cpu_sa1100_set_pte_ext)
 #ifdef CONFIG_MMU
 	armv3_set_pte_ext wc_disable=0
 	mov	r0, r0
@@ -166,20 +172,21 @@ ENTRY(cpu_sa1100_set_pte_ext)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 #endif
 	ret	lr
+SYM_FUNC_END(cpu_sa1100_set_pte_ext)
 
 .globl	cpu_sa1100_suspend_size
 .equ	cpu_sa1100_suspend_size, 4 * 3
 #ifdef CONFIG_ARM_CPU_SUSPEND
-ENTRY(cpu_sa1100_do_suspend)
+SYM_TYPED_FUNC_START(cpu_sa1100_do_suspend)
 	stmfd	sp!, {r4 - r6, lr}
 	mrc	p15, 0, r4, c3, c0, 0		@ domain ID
 	mrc	p15, 0, r5, c13, c0, 0		@ PID
 	mrc	p15, 0, r6, c1, c0, 0		@ control reg
 	stmia	r0, {r4 - r6}			@ store cp regs
 	ldmfd	sp!, {r4 - r6, pc}
-ENDPROC(cpu_sa1100_do_suspend)
+SYM_FUNC_END(cpu_sa1100_do_suspend)
 
-ENTRY(cpu_sa1100_do_resume)
+SYM_TYPED_FUNC_START(cpu_sa1100_do_resume)
 	ldmia	r0, {r4 - r6}			@ load cp regs
 	mov	ip, #0
 	mcr	p15, 0, ip, c8, c7, 0		@ flush I+D TLBs
@@ -192,7 +199,7 @@ ENTRY(cpu_sa1100_do_resume)
 	mcr	p15, 0, r5, c13, c0, 0		@ PID
 	mov	r0, r6				@ control register
 	b	cpu_resume_mmu
-ENDPROC(cpu_sa1100_do_resume)
+SYM_FUNC_END(cpu_sa1100_do_resume)
 #endif
 
 	.type	__sa1100_setup, #function

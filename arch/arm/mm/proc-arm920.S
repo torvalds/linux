@@ -49,18 +49,20 @@
 /*
  * cpu_arm920_proc_init()
  */
-ENTRY(cpu_arm920_proc_init)
+SYM_TYPED_FUNC_START(cpu_arm920_proc_init)
 	ret	lr
+SYM_FUNC_END(cpu_arm920_proc_init)
 
 /*
  * cpu_arm920_proc_fin()
  */
-ENTRY(cpu_arm920_proc_fin)
+SYM_TYPED_FUNC_START(cpu_arm920_proc_fin)
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x000e			@ ............wca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 	ret	lr
+SYM_FUNC_END(cpu_arm920_proc_fin)
 
 /*
  * cpu_arm920_reset(loc)
@@ -73,7 +75,7 @@ ENTRY(cpu_arm920_proc_fin)
  */
 	.align	5
 	.pushsection	.idmap.text, "ax"
-ENTRY(cpu_arm920_reset)
+SYM_TYPED_FUNC_START(cpu_arm920_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
@@ -85,17 +87,17 @@ ENTRY(cpu_arm920_reset)
 	bic	ip, ip, #0x1100			@ ...i...s........
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 	ret	r0
-ENDPROC(cpu_arm920_reset)
+SYM_FUNC_END(cpu_arm920_reset)
 	.popsection
 
 /*
  * cpu_arm920_do_idle()
  */
 	.align	5
-ENTRY(cpu_arm920_do_idle)
+SYM_TYPED_FUNC_START(cpu_arm920_do_idle)
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
 	ret	lr
-
+SYM_FUNC_END(cpu_arm920_do_idle)
 
 #ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
 
@@ -314,12 +316,13 @@ SYM_FUNC_END(arm920_dma_unmap_area)
 #endif /* !CONFIG_CPU_DCACHE_WRITETHROUGH */
 
 
-ENTRY(cpu_arm920_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_arm920_dcache_clean_area)
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHE_DLINESIZE
 	subs	r1, r1, #CACHE_DLINESIZE
 	bhi	1b
 	ret	lr
+SYM_FUNC_END(cpu_arm920_dcache_clean_area)
 
 /* =============================== PageTable ============================== */
 
@@ -331,7 +334,7 @@ ENTRY(cpu_arm920_dcache_clean_area)
  * pgd: new page tables
  */
 	.align	5
-ENTRY(cpu_arm920_switch_mm)
+SYM_TYPED_FUNC_START(cpu_arm920_switch_mm)
 #ifdef CONFIG_MMU
 	mov	ip, #0
 #ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
@@ -355,6 +358,7 @@ ENTRY(cpu_arm920_switch_mm)
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
 #endif
 	ret	lr
+SYM_FUNC_END(cpu_arm920_switch_mm)
 
 /*
  * cpu_arm920_set_pte(ptep, pte, ext)
@@ -362,7 +366,7 @@ ENTRY(cpu_arm920_switch_mm)
  * Set a PTE and flush it out
  */
 	.align	5
-ENTRY(cpu_arm920_set_pte_ext)
+SYM_TYPED_FUNC_START(cpu_arm920_set_pte_ext)
 #ifdef CONFIG_MMU
 	armv3_set_pte_ext
 	mov	r0, r0
@@ -370,21 +374,22 @@ ENTRY(cpu_arm920_set_pte_ext)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 #endif
 	ret	lr
+SYM_FUNC_END(cpu_arm920_set_pte_ext)
 
 /* Suspend/resume support: taken from arch/arm/plat-s3c24xx/sleep.S */
 .globl	cpu_arm920_suspend_size
 .equ	cpu_arm920_suspend_size, 4 * 3
 #ifdef CONFIG_ARM_CPU_SUSPEND
-ENTRY(cpu_arm920_do_suspend)
+SYM_TYPED_FUNC_START(cpu_arm920_do_suspend)
 	stmfd	sp!, {r4 - r6, lr}
 	mrc	p15, 0, r4, c13, c0, 0	@ PID
 	mrc	p15, 0, r5, c3, c0, 0	@ Domain ID
 	mrc	p15, 0, r6, c1, c0, 0	@ Control register
 	stmia	r0, {r4 - r6}
 	ldmfd	sp!, {r4 - r6, pc}
-ENDPROC(cpu_arm920_do_suspend)
+SYM_FUNC_END(cpu_arm920_do_suspend)
 
-ENTRY(cpu_arm920_do_resume)
+SYM_TYPED_FUNC_START(cpu_arm920_do_resume)
 	mov	ip, #0
 	mcr	p15, 0, ip, c8, c7, 0	@ invalidate I+D TLBs
 	mcr	p15, 0, ip, c7, c7, 0	@ invalidate I+D caches
@@ -394,7 +399,7 @@ ENTRY(cpu_arm920_do_resume)
 	mcr	p15, 0, r1, c2, c0, 0	@ TTB address
 	mov	r0, r6			@ control register
 	b	cpu_resume_mmu
-ENDPROC(cpu_arm920_do_resume)
+SYM_FUNC_END(cpu_arm920_do_resume)
 #endif
 
 	.type	__arm920_setup, #function

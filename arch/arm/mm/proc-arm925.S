@@ -72,18 +72,20 @@
 /*
  * cpu_arm925_proc_init()
  */
-ENTRY(cpu_arm925_proc_init)
+SYM_TYPED_FUNC_START(cpu_arm925_proc_init)
 	ret	lr
+SYM_FUNC_END(cpu_arm925_proc_init)
 
 /*
  * cpu_arm925_proc_fin()
  */
-ENTRY(cpu_arm925_proc_fin)
+SYM_TYPED_FUNC_START(cpu_arm925_proc_fin)
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1000			@ ...i............
 	bic	r0, r0, #0x000e			@ ............wca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 	ret	lr
+SYM_FUNC_END(cpu_arm925_proc_fin)
 
 /*
  * cpu_arm925_reset(loc)
@@ -96,14 +98,14 @@ ENTRY(cpu_arm925_proc_fin)
  */
 	.align	5
 	.pushsection	.idmap.text, "ax"
-ENTRY(cpu_arm925_reset)
+SYM_TYPED_FUNC_START(cpu_arm925_reset)
 	/* Send software reset to MPU and DSP */
 	mov	ip, #0xff000000
 	orr	ip, ip, #0x00fe0000
 	orr	ip, ip, #0x0000ce00
 	mov	r4, #1
 	strh	r4, [ip, #0x10]
-ENDPROC(cpu_arm925_reset)
+SYM_FUNC_END(cpu_arm925_reset)
 	.popsection
 
 	mov	ip, #0
@@ -124,7 +126,7 @@ ENDPROC(cpu_arm925_reset)
  * Called with IRQs disabled
  */
 	.align	10
-ENTRY(cpu_arm925_do_idle)
+SYM_TYPED_FUNC_START(cpu_arm925_do_idle)
 	mov	r0, #0
 	mrc	p15, 0, r1, c1, c0, 0		@ Read control register
 	mcr	p15, 0, r0, c7, c10, 4		@ Drain write buffer
@@ -133,6 +135,7 @@ ENTRY(cpu_arm925_do_idle)
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
 	mcr	p15, 0, r1, c1, c0, 0		@ Restore ICache enable
 	ret	lr
+SYM_FUNC_END(cpu_arm925_do_idle)
 
 /*
  *	flush_icache_all()
@@ -368,7 +371,7 @@ SYM_TYPED_FUNC_START(arm925_dma_unmap_area)
 	ret	lr
 SYM_FUNC_END(arm925_dma_unmap_area)
 
-ENTRY(cpu_arm925_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_arm925_dcache_clean_area)
 #ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHE_DLINESIZE
@@ -377,6 +380,7 @@ ENTRY(cpu_arm925_dcache_clean_area)
 #endif
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(cpu_arm925_dcache_clean_area)
 
 /* =============================== PageTable ============================== */
 
@@ -388,7 +392,7 @@ ENTRY(cpu_arm925_dcache_clean_area)
  * pgd: new page tables
  */
 	.align	5
-ENTRY(cpu_arm925_switch_mm)
+SYM_TYPED_FUNC_START(cpu_arm925_switch_mm)
 #ifdef CONFIG_MMU
 	mov	ip, #0
 #ifdef CONFIG_CPU_DCACHE_WRITETHROUGH
@@ -406,6 +410,7 @@ ENTRY(cpu_arm925_switch_mm)
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
 #endif
 	ret	lr
+SYM_FUNC_END(cpu_arm925_switch_mm)
 
 /*
  * cpu_arm925_set_pte_ext(ptep, pte, ext)
@@ -413,7 +418,7 @@ ENTRY(cpu_arm925_switch_mm)
  * Set a PTE and flush it out
  */
 	.align	5
-ENTRY(cpu_arm925_set_pte_ext)
+SYM_TYPED_FUNC_START(cpu_arm925_set_pte_ext)
 #ifdef CONFIG_MMU
 	armv3_set_pte_ext
 	mov	r0, r0
@@ -423,6 +428,7 @@ ENTRY(cpu_arm925_set_pte_ext)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 #endif /* CONFIG_MMU */
 	ret	lr
+SYM_FUNC_END(cpu_arm925_set_pte_ext)
 
 	.type	__arm925_setup, #function
 __arm925_setup:

@@ -33,19 +33,24 @@
  *
  * These are not required.
  */
-ENTRY(cpu_arm946_proc_init)
-ENTRY(cpu_arm946_switch_mm)
+SYM_TYPED_FUNC_START(cpu_arm946_proc_init)
 	ret	lr
+SYM_FUNC_END(cpu_arm946_proc_init)
+
+SYM_TYPED_FUNC_START(cpu_arm946_switch_mm)
+	ret	lr
+SYM_FUNC_END(cpu_arm946_switch_mm)
 
 /*
  * cpu_arm946_proc_fin()
  */
-ENTRY(cpu_arm946_proc_fin)
+SYM_TYPED_FUNC_START(cpu_arm946_proc_fin)
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x00001000		@ i-cache
 	bic	r0, r0, #0x00000004		@ d-cache
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 	ret	lr
+SYM_FUNC_END(cpu_arm946_proc_fin)
 
 /*
  * cpu_arm946_reset(loc)
@@ -53,7 +58,7 @@ ENTRY(cpu_arm946_proc_fin)
  * Notes   : This sets up everything for a reset
  */
 	.pushsection	.idmap.text, "ax"
-ENTRY(cpu_arm946_reset)
+SYM_TYPED_FUNC_START(cpu_arm946_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c5, 0		@ flush I cache
 	mcr	p15, 0, ip, c7, c6, 0		@ flush D cache
@@ -63,16 +68,17 @@ ENTRY(cpu_arm946_reset)
 	bic	ip, ip, #0x00001000		@ i-cache
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 	ret	r0
-ENDPROC(cpu_arm946_reset)
+SYM_FUNC_END(cpu_arm946_reset)
 	.popsection
 
 /*
  * cpu_arm946_do_idle()
  */
 	.align	5
-ENTRY(cpu_arm946_do_idle)
+SYM_TYPED_FUNC_START(cpu_arm946_do_idle)
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
 	ret	lr
+SYM_FUNC_END(cpu_arm946_do_idle)
 
 /*
  *	flush_icache_all()
@@ -312,7 +318,7 @@ SYM_TYPED_FUNC_START(arm946_dma_unmap_area)
 	ret	lr
 SYM_FUNC_END(arm946_dma_unmap_area)
 
-ENTRY(cpu_arm946_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_arm946_dcache_clean_area)
 #ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHE_DLINESIZE
@@ -321,6 +327,7 @@ ENTRY(cpu_arm946_dcache_clean_area)
 #endif
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	ret	lr
+SYM_FUNC_END(cpu_arm946_dcache_clean_area)
 
 	.type	__arm946_setup, #function
 __arm946_setup:

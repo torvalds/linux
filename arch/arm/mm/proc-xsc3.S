@@ -80,18 +80,20 @@
  *
  * Nothing too exciting at the moment
  */
-ENTRY(cpu_xsc3_proc_init)
+SYM_TYPED_FUNC_START(cpu_xsc3_proc_init)
 	ret	lr
+SYM_FUNC_END(cpu_xsc3_proc_init)
 
 /*
  * cpu_xsc3_proc_fin()
  */
-ENTRY(cpu_xsc3_proc_fin)
+SYM_TYPED_FUNC_START(cpu_xsc3_proc_fin)
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1800			@ ...IZ...........
 	bic	r0, r0, #0x0006			@ .............CA.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 	ret	lr
+SYM_FUNC_END(cpu_xsc3_proc_fin)
 
 /*
  * cpu_xsc3_reset(loc)
@@ -104,7 +106,7 @@ ENTRY(cpu_xsc3_proc_fin)
  */
 	.align	5
 	.pushsection	.idmap.text, "ax"
-ENTRY(cpu_xsc3_reset)
+SYM_TYPED_FUNC_START(cpu_xsc3_reset)
 	mov	r1, #PSR_F_BIT|PSR_I_BIT|SVC_MODE
 	msr	cpsr_c, r1			@ reset CPSR
 	mrc	p15, 0, r1, c1, c0, 0		@ ctrl register
@@ -118,7 +120,7 @@ ENTRY(cpu_xsc3_reset)
 	@ already containing those two last instructions to survive.
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I and D TLBs
 	ret	r0
-ENDPROC(cpu_xsc3_reset)
+SYM_FUNC_END(cpu_xsc3_reset)
 	.popsection
 
 /*
@@ -133,10 +135,11 @@ ENDPROC(cpu_xsc3_reset)
  */
 	.align	5
 
-ENTRY(cpu_xsc3_do_idle)
+SYM_TYPED_FUNC_START(cpu_xsc3_do_idle)
 	mov	r0, #1
 	mcr	p14, 0, r0, c7, c0, 0		@ go to idle
 	ret	lr
+SYM_FUNC_END(cpu_xsc3_do_idle)
 
 /* ================================= CACHE ================================ */
 
@@ -341,12 +344,13 @@ SYM_TYPED_FUNC_START(xsc3_dma_unmap_area)
 	ret	lr
 SYM_FUNC_END(xsc3_dma_unmap_area)
 
-ENTRY(cpu_xsc3_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_xsc3_dcache_clean_area)
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
 	add	r0, r0, #CACHELINESIZE
 	subs	r1, r1, #CACHELINESIZE
 	bhi	1b
 	ret	lr
+SYM_FUNC_END(cpu_xsc3_dcache_clean_area)
 
 /* =============================== PageTable ============================== */
 
@@ -358,7 +362,7 @@ ENTRY(cpu_xsc3_dcache_clean_area)
  * pgd: new page tables
  */
 	.align	5
-ENTRY(cpu_xsc3_switch_mm)
+SYM_TYPED_FUNC_START(cpu_xsc3_switch_mm)
 	clean_d_cache r1, r2
 	mcr	p15, 0, ip, c7, c5, 0		@ invalidate L1 I cache and BTB
 	mcr	p15, 0, ip, c7, c10, 4		@ data write barrier
@@ -367,6 +371,7 @@ ENTRY(cpu_xsc3_switch_mm)
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I and D TLBs
 	cpwait_ret lr, ip
+SYM_FUNC_END(cpu_xsc3_switch_mm)
 
 /*
  * cpu_xsc3_set_pte_ext(ptep, pte, ext)
@@ -392,7 +397,7 @@ cpu_xsc3_mt_table:
 	.long	0x00						@ unused
 
 	.align	5
-ENTRY(cpu_xsc3_set_pte_ext)
+SYM_TYPED_FUNC_START(cpu_xsc3_set_pte_ext)
 	xscale_set_pte_ext_prologue
 
 	tst	r1, #L_PTE_SHARED		@ shared?
@@ -405,6 +410,7 @@ ENTRY(cpu_xsc3_set_pte_ext)
 
 	xscale_set_pte_ext_epilogue
 	ret	lr
+SYM_FUNC_END(cpu_xsc3_set_pte_ext)
 
 	.ltorg
 	.align
@@ -412,7 +418,7 @@ ENTRY(cpu_xsc3_set_pte_ext)
 .globl	cpu_xsc3_suspend_size
 .equ	cpu_xsc3_suspend_size, 4 * 6
 #ifdef CONFIG_ARM_CPU_SUSPEND
-ENTRY(cpu_xsc3_do_suspend)
+SYM_TYPED_FUNC_START(cpu_xsc3_do_suspend)
 	stmfd	sp!, {r4 - r9, lr}
 	mrc	p14, 0, r4, c6, c0, 0	@ clock configuration, for turbo mode
 	mrc	p15, 0, r5, c15, c1, 0	@ CP access reg
@@ -423,9 +429,9 @@ ENTRY(cpu_xsc3_do_suspend)
 	bic	r4, r4, #2		@ clear frequency change bit
 	stmia	r0, {r4 - r9}		@ store cp regs
 	ldmia	sp!, {r4 - r9, pc}
-ENDPROC(cpu_xsc3_do_suspend)
+SYM_FUNC_END(cpu_xsc3_do_suspend)
 
-ENTRY(cpu_xsc3_do_resume)
+SYM_TYPED_FUNC_START(cpu_xsc3_do_resume)
 	ldmia	r0, {r4 - r9}		@ load cp regs
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0	@ invalidate I & D caches, BTB
@@ -441,7 +447,7 @@ ENTRY(cpu_xsc3_do_resume)
 	mcr	p15, 0, r8, c1, c0, 1	@ auxiliary control reg
 	mov	r0, r9			@ control register
 	b	cpu_resume_mmu
-ENDPROC(cpu_xsc3_do_resume)
+SYM_FUNC_END(cpu_xsc3_do_resume)
 #endif
 
 	.type	__xsc3_setup, #function

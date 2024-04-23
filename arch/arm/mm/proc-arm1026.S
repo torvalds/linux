@@ -57,18 +57,20 @@
 /*
  * cpu_arm1026_proc_init()
  */
-ENTRY(cpu_arm1026_proc_init)
+SYM_TYPED_FUNC_START(cpu_arm1026_proc_init)
 	ret	lr
+SYM_FUNC_END(cpu_arm1026_proc_init)
 
 /*
  * cpu_arm1026_proc_fin()
  */
-ENTRY(cpu_arm1026_proc_fin)
+SYM_TYPED_FUNC_START(cpu_arm1026_proc_fin)
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1000 		@ ...i............
 	bic	r0, r0, #0x000e 		@ ............wca.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 	ret	lr
+SYM_FUNC_END(cpu_arm1026_proc_fin)
 
 /*
  * cpu_arm1026_reset(loc)
@@ -81,7 +83,7 @@ ENTRY(cpu_arm1026_proc_fin)
  */
 	.align	5
 	.pushsection	.idmap.text, "ax"
-ENTRY(cpu_arm1026_reset)
+SYM_TYPED_FUNC_START(cpu_arm1026_reset)
 	mov	ip, #0
 	mcr	p15, 0, ip, c7, c7, 0		@ invalidate I,D caches
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
@@ -93,16 +95,17 @@ ENTRY(cpu_arm1026_reset)
 	bic	ip, ip, #0x1100 		@ ...i...s........
 	mcr	p15, 0, ip, c1, c0, 0		@ ctrl register
 	ret	r0
-ENDPROC(cpu_arm1026_reset)
+SYM_FUNC_END(cpu_arm1026_reset)
 	.popsection
 
 /*
  * cpu_arm1026_do_idle()
  */
 	.align	5
-ENTRY(cpu_arm1026_do_idle)
+SYM_TYPED_FUNC_START(cpu_arm1026_do_idle)
 	mcr	p15, 0, r0, c7, c0, 4		@ Wait for interrupt
 	ret	lr
+SYM_FUNC_END(cpu_arm1026_do_idle)
 
 /* ================================= CACHE ================================ */
 
@@ -341,7 +344,7 @@ SYM_TYPED_FUNC_START(arm1026_dma_unmap_area)
 SYM_FUNC_END(arm1026_dma_unmap_area)
 
 	.align	5
-ENTRY(cpu_arm1026_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_arm1026_dcache_clean_area)
 #ifndef CONFIG_CPU_DCACHE_DISABLE
 	mov	ip, #0
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
@@ -350,6 +353,7 @@ ENTRY(cpu_arm1026_dcache_clean_area)
 	bhi	1b
 #endif
 	ret	lr
+SYM_FUNC_END(cpu_arm1026_dcache_clean_area)
 
 /* =============================== PageTable ============================== */
 
@@ -361,7 +365,7 @@ ENTRY(cpu_arm1026_dcache_clean_area)
  * pgd: new page tables
  */
 	.align	5
-ENTRY(cpu_arm1026_switch_mm)
+SYM_TYPED_FUNC_START(cpu_arm1026_switch_mm)
 #ifdef CONFIG_MMU
 	mov	r1, #0
 #ifndef CONFIG_CPU_DCACHE_DISABLE
@@ -376,14 +380,15 @@ ENTRY(cpu_arm1026_switch_mm)
 	mcr	p15, 0, r1, c8, c7, 0		@ invalidate I & D TLBs
 #endif
 	ret	lr
-        
+SYM_FUNC_END(cpu_arm1026_switch_mm)
+
 /*
  * cpu_arm1026_set_pte_ext(ptep, pte, ext)
  *
  * Set a PTE and flush it out
  */
 	.align	5
-ENTRY(cpu_arm1026_set_pte_ext)
+SYM_TYPED_FUNC_START(cpu_arm1026_set_pte_ext)
 #ifdef CONFIG_MMU
 	armv3_set_pte_ext
 	mov	r0, r0
@@ -392,6 +397,7 @@ ENTRY(cpu_arm1026_set_pte_ext)
 #endif
 #endif /* CONFIG_MMU */
 	ret	lr
+SYM_FUNC_END(cpu_arm1026_set_pte_ext)
 
 	.type	__arm1026_setup, #function
 __arm1026_setup:

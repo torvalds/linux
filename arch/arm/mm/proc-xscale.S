@@ -112,22 +112,24 @@ clean_addr:	.word	CLEAN_ADDR
  *
  * Nothing too exciting at the moment
  */
-ENTRY(cpu_xscale_proc_init)
+SYM_TYPED_FUNC_START(cpu_xscale_proc_init)
 	@ enable write buffer coalescing. Some bootloader disable it
 	mrc	p15, 0, r1, c1, c0, 1
 	bic	r1, r1, #1
 	mcr	p15, 0, r1, c1, c0, 1
 	ret	lr
+SYM_FUNC_END(cpu_xscale_proc_init)
 
 /*
  * cpu_xscale_proc_fin()
  */
-ENTRY(cpu_xscale_proc_fin)
+SYM_TYPED_FUNC_START(cpu_xscale_proc_fin)
 	mrc	p15, 0, r0, c1, c0, 0		@ ctrl register
 	bic	r0, r0, #0x1800			@ ...IZ...........
 	bic	r0, r0, #0x0006			@ .............CA.
 	mcr	p15, 0, r0, c1, c0, 0		@ disable caches
 	ret	lr
+SYM_FUNC_END(cpu_xscale_proc_fin)
 
 /*
  * cpu_xscale_reset(loc)
@@ -142,7 +144,7 @@ ENTRY(cpu_xscale_proc_fin)
  */
 	.align	5
 	.pushsection	.idmap.text, "ax"
-ENTRY(cpu_xscale_reset)
+SYM_TYPED_FUNC_START(cpu_xscale_reset)
 	mov	r1, #PSR_F_BIT|PSR_I_BIT|SVC_MODE
 	msr	cpsr_c, r1			@ reset CPSR
 	mcr	p15, 0, r1, c10, c4, 1		@ unlock I-TLB
@@ -160,7 +162,7 @@ ENTRY(cpu_xscale_reset)
 	@ already containing those two last instructions to survive.
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
 	ret	r0
-ENDPROC(cpu_xscale_reset)
+SYM_FUNC_END(cpu_xscale_reset)
 	.popsection
 
 /*
@@ -175,10 +177,11 @@ ENDPROC(cpu_xscale_reset)
  */
 	.align	5
 
-ENTRY(cpu_xscale_do_idle)
+SYM_TYPED_FUNC_START(cpu_xscale_do_idle)
 	mov	r0, #1
 	mcr	p14, 0, r0, c7, c0, 0		@ Go to IDLE
 	ret	lr
+SYM_FUNC_END(cpu_xscale_do_idle)
 
 /* ================================= CACHE ================================ */
 
@@ -428,12 +431,13 @@ SYM_TYPED_FUNC_START(xscale_dma_unmap_area)
 	ret	lr
 SYM_FUNC_END(xscale_dma_unmap_area)
 
-ENTRY(cpu_xscale_dcache_clean_area)
+SYM_TYPED_FUNC_START(cpu_xscale_dcache_clean_area)
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHELINESIZE
 	subs	r1, r1, #CACHELINESIZE
 	bhi	1b
 	ret	lr
+SYM_FUNC_END(cpu_xscale_dcache_clean_area)
 
 /* =============================== PageTable ============================== */
 
@@ -445,13 +449,14 @@ ENTRY(cpu_xscale_dcache_clean_area)
  * pgd: new page tables
  */
 	.align	5
-ENTRY(cpu_xscale_switch_mm)
+SYM_TYPED_FUNC_START(cpu_xscale_switch_mm)
 	clean_d_cache r1, r2
 	mcr	p15, 0, ip, c7, c5, 0		@ Invalidate I cache & BTB
 	mcr	p15, 0, ip, c7, c10, 4		@ Drain Write (& Fill) Buffer
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I & D TLBs
 	cpwait_ret lr, ip
+SYM_FUNC_END(cpu_xscale_switch_mm)
 
 /*
  * cpu_xscale_set_pte_ext(ptep, pte, ext)
@@ -479,7 +484,7 @@ cpu_xscale_mt_table:
 	.long	0x00						@ unused
 
 	.align	5
-ENTRY(cpu_xscale_set_pte_ext)
+SYM_TYPED_FUNC_START(cpu_xscale_set_pte_ext)
 	xscale_set_pte_ext_prologue
 
 	@
@@ -497,6 +502,7 @@ ENTRY(cpu_xscale_set_pte_ext)
 
 	xscale_set_pte_ext_epilogue
 	ret	lr
+SYM_FUNC_END(cpu_xscale_set_pte_ext)
 
 	.ltorg
 	.align
@@ -504,7 +510,7 @@ ENTRY(cpu_xscale_set_pte_ext)
 .globl	cpu_xscale_suspend_size
 .equ	cpu_xscale_suspend_size, 4 * 6
 #ifdef CONFIG_ARM_CPU_SUSPEND
-ENTRY(cpu_xscale_do_suspend)
+SYM_TYPED_FUNC_START(cpu_xscale_do_suspend)
 	stmfd	sp!, {r4 - r9, lr}
 	mrc	p14, 0, r4, c6, c0, 0	@ clock configuration, for turbo mode
 	mrc	p15, 0, r5, c15, c1, 0	@ CP access reg
@@ -515,9 +521,9 @@ ENTRY(cpu_xscale_do_suspend)
 	bic	r4, r4, #2		@ clear frequency change bit
 	stmia	r0, {r4 - r9}		@ store cp regs
 	ldmfd	sp!, {r4 - r9, pc}
-ENDPROC(cpu_xscale_do_suspend)
+SYM_FUNC_END(cpu_xscale_do_suspend)
 
-ENTRY(cpu_xscale_do_resume)
+SYM_TYPED_FUNC_START(cpu_xscale_do_resume)
 	ldmia	r0, {r4 - r9}		@ load cp regs
 	mov	ip, #0
 	mcr	p15, 0, ip, c8, c7, 0	@ invalidate I & D TLBs
@@ -530,7 +536,7 @@ ENTRY(cpu_xscale_do_resume)
 	mcr	p15, 0, r8, c1, c0, 1	@ auxiliary control reg
 	mov	r0, r9			@ control register
 	b	cpu_resume_mmu
-ENDPROC(cpu_xscale_do_resume)
+SYM_FUNC_END(cpu_xscale_do_resume)
 #endif
 
 	.type	__xscale_setup, #function
