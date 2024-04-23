@@ -482,8 +482,10 @@ static int new_lockspace(const char *name, const char *cluster,
 	 * might send less.
 	 */
 	ls->ls_recover_buf = kmalloc(DLM_MAX_SOCKET_BUFSIZE, GFP_NOFS);
-	if (!ls->ls_recover_buf)
+	if (!ls->ls_recover_buf) {
+		error = -ENOMEM;
 		goto out_lkbidr;
+	}
 
 	ls->ls_slot = 0;
 	ls->ls_num_slots = 0;
