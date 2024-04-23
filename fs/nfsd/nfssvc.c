@@ -775,7 +775,8 @@ nfsd_svc(int nrservs, struct net *net, const struct cred *cred)
 	struct nfsd_net *nn = net_generic(net, nfsd_net_id);
 	struct svc_serv *serv;
 
-	mutex_lock(&nfsd_mutex);
+	lockdep_assert_held(&nfsd_mutex);
+
 	dprintk("nfsd: creating service\n");
 
 	nrservs = max(nrservs, 0);
@@ -804,7 +805,6 @@ out_put:
 	if (serv->sv_nrthreads == 0)
 		nfsd_destroy_serv(net);
 out:
-	mutex_unlock(&nfsd_mutex);
 	return error;
 }
 
