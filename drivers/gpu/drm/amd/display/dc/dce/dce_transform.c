@@ -1408,7 +1408,7 @@ void dce110_opp_set_csc_default(
 static void program_pwl(struct dce_transform *xfm_dce,
 			const struct pwl_params *params)
 {
-	int retval;
+	uint32_t retval;
 	uint8_t max_tries = 10;
 	uint8_t counter = 0;
 	uint32_t i = 0;

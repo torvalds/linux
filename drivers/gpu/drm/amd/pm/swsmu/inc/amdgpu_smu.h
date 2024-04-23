@@ -424,6 +424,7 @@ enum smu_reset_mode {
 enum smu_baco_state {
 	SMU_BACO_STATE_ENTER = 0,
 	SMU_BACO_STATE_EXIT,
+	SMU_BACO_STATE_NONE,
 };
 
 struct smu_baco_context {
@@ -458,7 +459,7 @@ struct smu_umd_pstate_table {
 struct cmn2asic_msg_mapping {
 	int	valid_mapping;
 	int	map_to;
-	int	valid_in_vf;
+	uint32_t flags;
 };
 
 struct cmn2asic_mapping {
@@ -538,6 +539,7 @@ struct smu_context {
 	uint32_t smc_driver_if_version;
 	uint32_t smc_fw_if_version;
 	uint32_t smc_fw_version;
+	uint32_t smc_fw_caps;
 
 	bool uploading_custom_pp_table;
 	bool dc_controlled_by_gpio;
@@ -1173,9 +1175,11 @@ struct pptable_funcs {
 	int (*get_max_sustainable_clocks_by_dc)(struct smu_context *smu, struct pp_smu_nv_clock_table *max_clocks);
 
 	/**
-	 * @baco_is_support: Check if GPU supports BACO (Bus Active, Chip Off).
+	 * @get_bamaco_support: Check if GPU supports BACO/MACO
+	 * BACO: Bus Active, Chip Off
+	 * MACO: Memory Active, Chip Off
 	 */
-	bool (*baco_is_support)(struct smu_context *smu);
+	int (*get_bamaco_support)(struct smu_context *smu);
 
 	/**
 	 * @baco_get_state: Get the current BACO state.
@@ -1482,8 +1486,8 @@ enum smu_baco_seq {
 	BACO_SEQ_COUNT,
 };
 
-#define MSG_MAP(msg, index, valid_in_vf) \
-	[SMU_MSG_##msg] = {1, (index), (valid_in_vf)}
+#define MSG_MAP(msg, index, flags) \
+	[SMU_MSG_##msg] = {1, (index), (flags)}
 
 #define CLK_MAP(clk, index) \
 	[SMU_##clk] = {1, (index)}

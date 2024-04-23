@@ -86,7 +86,7 @@ static void netstat_read_type(FILE *fnetstat, struct netstat **dest, char *line)
 
 	pos = strchr(line, ' ') + 1;
 
-	if (fscanf(fnetstat, type->header_name) == EOF)
+	if (fscanf(fnetstat, "%[^ :]", type->header_name) == EOF)
 		test_error("fscanf(%s)", type->header_name);
 	if (fread(&tmp, 1, 1, fnetstat) != 1 || tmp != ':')
 		test_error("Unexpected netstat format (%c)", tmp);

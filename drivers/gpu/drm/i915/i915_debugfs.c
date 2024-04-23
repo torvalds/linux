@@ -156,18 +156,6 @@ static const char *i915_cache_level_str(struct drm_i915_gem_object *obj)
 		case 4: return " WB (2-Way Coh)";
 		default: return " not defined";
 		}
-	} else if (IS_PONTEVECCHIO(i915)) {
-		switch (obj->pat_index) {
-		case 0: return " UC";
-		case 1: return " WC";
-		case 2: return " WT";
-		case 3: return " WB";
-		case 4: return " WT (CLOS1)";
-		case 5: return " WB (CLOS1)";
-		case 6: return " WT (CLOS2)";
-		case 7: return " WT (CLOS2)";
-		default: return " not defined";
-		}
 	} else if (GRAPHICS_VER(i915) >= 12) {
 		switch (obj->pat_index) {
 		case 0: return " WB";

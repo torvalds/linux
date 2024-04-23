@@ -105,7 +105,6 @@ v3d_irq(int irq, void *arg)
 		struct v3d_file_priv *file = v3d->bin_job->base.file->driver_priv;
 		u64 runtime = local_clock() - file->start_ns[V3D_BIN];
 
-		file->enabled_ns[V3D_BIN] += local_clock() - file->start_ns[V3D_BIN];
 		file->jobs_sent[V3D_BIN]++;
 		v3d->queue[V3D_BIN].jobs_sent++;
 
@@ -126,7 +125,6 @@ v3d_irq(int irq, void *arg)
 		struct v3d_file_priv *file = v3d->render_job->base.file->driver_priv;
 		u64 runtime = local_clock() - file->start_ns[V3D_RENDER];
 
-		file->enabled_ns[V3D_RENDER] += local_clock() - file->start_ns[V3D_RENDER];
 		file->jobs_sent[V3D_RENDER]++;
 		v3d->queue[V3D_RENDER].jobs_sent++;
 
@@ -147,7 +145,6 @@ v3d_irq(int irq, void *arg)
 		struct v3d_file_priv *file = v3d->csd_job->base.file->driver_priv;
 		u64 runtime = local_clock() - file->start_ns[V3D_CSD];
 
-		file->enabled_ns[V3D_CSD] += local_clock() - file->start_ns[V3D_CSD];
 		file->jobs_sent[V3D_CSD]++;
 		v3d->queue[V3D_CSD].jobs_sent++;
 
@@ -195,7 +192,6 @@ v3d_hub_irq(int irq, void *arg)
 		struct v3d_file_priv *file = v3d->tfu_job->base.file->driver_priv;
 		u64 runtime = local_clock() - file->start_ns[V3D_TFU];
 
-		file->enabled_ns[V3D_TFU] += local_clock() - file->start_ns[V3D_TFU];
 		file->jobs_sent[V3D_TFU]++;
 		v3d->queue[V3D_TFU].jobs_sent++;
 

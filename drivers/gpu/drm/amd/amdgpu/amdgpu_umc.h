@@ -66,8 +66,6 @@ struct amdgpu_umc_ras {
 					void *ras_error_status);
 	bool (*check_ecc_err_status)(struct amdgpu_device *adev,
 			enum amdgpu_mca_error_type type, void *ras_error_status);
-	/* support different eeprom table version for different asic */
-	void (*set_eeprom_table_version)(struct amdgpu_ras_eeprom_table_header *hdr);
 };
 
 struct amdgpu_umc_funcs {
@@ -103,7 +101,7 @@ struct amdgpu_umc {
 int amdgpu_umc_ras_sw_init(struct amdgpu_device *adev);
 int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
 int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
-			enum amdgpu_ras_block block, bool reset);
+			enum amdgpu_ras_block block, uint32_t reset);
 int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
 		struct amdgpu_irq_src *source,
 		struct amdgpu_iv_entry *entry);
@@ -123,5 +121,5 @@ int amdgpu_umc_loop_channels(struct amdgpu_device *adev,
 			umc_func func, void *data);
 
 int amdgpu_umc_bad_page_polling_timeout(struct amdgpu_device *adev,
-			bool reset, uint32_t timeout_ms);
+			uint32_t reset, uint32_t timeout_ms);
 #endif

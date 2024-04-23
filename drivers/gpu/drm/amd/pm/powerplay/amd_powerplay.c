@@ -1371,7 +1371,7 @@ static int pp_set_active_display_count(void *handle, uint32_t count)
 	return phm_set_active_display_count(hwmgr, count);
 }
 
-static bool pp_get_asic_baco_capability(void *handle)
+static int pp_get_asic_baco_capability(void *handle)
 {
 	struct pp_hwmgr *hwmgr = handle;
 
@@ -1379,10 +1379,10 @@ static bool pp_get_asic_baco_capability(void *handle)
 		return false;
 
 	if (!(hwmgr->not_vf && amdgpu_dpm) ||
-		!hwmgr->hwmgr_func->get_asic_baco_capability)
+		!hwmgr->hwmgr_func->get_bamaco_support)
 		return false;
 
-	return hwmgr->hwmgr_func->get_asic_baco_capability(hwmgr);
+	return hwmgr->hwmgr_func->get_bamaco_support(hwmgr);
 }
 
 static int pp_get_asic_baco_state(void *handle, int *state)

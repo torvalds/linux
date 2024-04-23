@@ -29,9 +29,6 @@
 #include "reg_helper.h"
 #include "hw_shared.h"
 #include "dc.h"
-#include "core_types.h"
-#include <linux/delay.h>
-
 
 #define DC_LOGGER \
 		enc1->base.ctx->logger

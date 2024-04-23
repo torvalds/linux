@@ -38,6 +38,8 @@
  * low-power state and comes back to normal.
  */
 
+#define INTEL_DMC_FIRMWARE_URL "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-firmware.git"
+
 enum intel_dmc_id {
 	DMC_FW_MAIN = 0,
 	DMC_FW_PIPEA,
@@ -89,9 +91,13 @@ static struct intel_dmc *i915_to_dmc(struct drm_i915_private *i915)
 	__stringify(major) "_"			\
 	__stringify(minor) ".bin"
 
+#define XE2LPD_DMC_MAX_FW_SIZE		0x8000
 #define XELPDP_DMC_MAX_FW_SIZE		0x7000
 #define DISPLAY_VER13_DMC_MAX_FW_SIZE	0x20000
 #define DISPLAY_VER12_DMC_MAX_FW_SIZE	ICL_DMC_MAX_FW_SIZE
+
+#define XE2LPD_DMC_PATH			DMC_PATH(xe2lpd)
+MODULE_FIRMWARE(XE2LPD_DMC_PATH);
 
 #define MTL_DMC_PATH			DMC_PATH(mtl)
 MODULE_FIRMWARE(MTL_DMC_PATH);
@@ -546,6 +552,8 @@ void intel_dmc_disable_program(struct drm_i915_private *i915)
 	pipedmc_clock_gating_wa(i915, true);
 	disable_all_event_handlers(i915);
 	pipedmc_clock_gating_wa(i915, false);
+
+	intel_dmc_wl_disable(i915);
 }
 
 void assert_dmc_loaded(struct drm_i915_private *i915)
@@ -949,7 +957,7 @@ static void dmc_load_work_fn(struct work_struct *work)
 			   " Disabling runtime power management.\n",
 			   dmc->fw_path);
 		drm_notice(&i915->drm, "DMC firmware homepage: %s",
-			   INTEL_UC_FIRMWARE_URL);
+			   INTEL_DMC_FIRMWARE_URL);
 	}
 
 	release_firmware(fw);
@@ -987,7 +995,10 @@ void intel_dmc_init(struct drm_i915_private *i915)
 
 	INIT_WORK(&dmc->work, dmc_load_work_fn);
 
-	if (DISPLAY_VER_FULL(i915) == IP_VER(14, 0)) {
+	if (DISPLAY_VER_FULL(i915) == IP_VER(20, 0)) {
+		dmc->fw_path = XE2LPD_DMC_PATH;
+		dmc->max_fw_size = XE2LPD_DMC_MAX_FW_SIZE;
+	} else if (DISPLAY_VER_FULL(i915) == IP_VER(14, 0)) {
 		dmc->fw_path = MTL_DMC_PATH;
 		dmc->max_fw_size = XELPDP_DMC_MAX_FW_SIZE;
 	} else if (IS_DG2(i915)) {
@@ -1071,6 +1082,8 @@ void intel_dmc_suspend(struct drm_i915_private *i915)
 
 	if (dmc)
 		flush_work(&dmc->work);
+
+	intel_dmc_wl_disable(i915);
 
 	/* Drop the reference held in case DMC isn't loaded. */
 	if (!intel_dmc_has_payload(i915))

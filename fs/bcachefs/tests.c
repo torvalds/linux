@@ -672,7 +672,7 @@ static int __do_delete(struct btree_trans *trans, struct bpos pos)
 
 	bch2_trans_iter_init(trans, &iter, BTREE_ID_xattrs, pos,
 			     BTREE_ITER_INTENT);
-	k = bch2_btree_iter_peek(&iter);
+	k = bch2_btree_iter_peek_upto(&iter, POS(0, U64_MAX));
 	ret = bkey_err(k);
 	if (ret)
 		goto err;

@@ -53,14 +53,11 @@ static inline struct bpos bucket_pos_to_bp(const struct bch_fs *c,
 					   u64 bucket_offset)
 {
 	struct bch_dev *ca = bch_dev_bkey_exists(c, bucket.inode);
-	struct bpos ret;
-
-	ret = POS(bucket.inode,
-		  (bucket_to_sector(ca, bucket.offset) <<
-		   MAX_EXTENT_COMPRESS_RATIO_SHIFT) + bucket_offset);
+	struct bpos ret = POS(bucket.inode,
+			      (bucket_to_sector(ca, bucket.offset) <<
+			       MAX_EXTENT_COMPRESS_RATIO_SHIFT) + bucket_offset);
 
 	EBUG_ON(!bkey_eq(bucket, bp_pos_to_bucket(c, ret)));
-
 	return ret;
 }
 
@@ -90,20 +87,40 @@ static inline int bch2_bucket_backpointer_mod(struct btree_trans *trans,
 	return bch2_trans_update_buffered(trans, BTREE_ID_backpointers, &bp_k.k_i);
 }
 
-static inline enum bch_data_type bkey_ptr_data_type(enum btree_id btree_id, unsigned level,
-						    struct bkey_s_c k, struct extent_ptr_decoded p)
+static inline enum bch_data_type bch2_bkey_ptr_data_type(struct bkey_s_c k,
+							 struct extent_ptr_decoded p,
+							 const union bch_extent_entry *entry)
 {
-	return  level		? BCH_DATA_btree :
-		p.has_ec	? BCH_DATA_stripe :
-				  BCH_DATA_user;
+	switch (k.k->type) {
+	case KEY_TYPE_btree_ptr:
+	case KEY_TYPE_btree_ptr_v2:
+		return BCH_DATA_btree;
+	case KEY_TYPE_extent:
+	case KEY_TYPE_reflink_v:
+		return p.has_ec ? BCH_DATA_stripe : BCH_DATA_user;
+	case KEY_TYPE_stripe: {
+		const struct bch_extent_ptr *ptr = &entry->ptr;
+		struct bkey_s_c_stripe s = bkey_s_c_to_stripe(k);
+
+		BUG_ON(ptr < s.v->ptrs ||
+		       ptr >= s.v->ptrs + s.v->nr_blocks);
+
+		return ptr >= s.v->ptrs + s.v->nr_blocks - s.v->nr_redundant
+			? BCH_DATA_parity
+			: BCH_DATA_user;
+	}
+	default:
+		BUG();
+	}
 }
 
 static inline void bch2_extent_ptr_to_bp(struct bch_fs *c,
 			   enum btree_id btree_id, unsigned level,
 			   struct bkey_s_c k, struct extent_ptr_decoded p,
+			   const union bch_extent_entry *entry,
 			   struct bpos *bucket_pos, struct bch_backpointer *bp)
 {
-	enum bch_data_type data_type = bkey_ptr_data_type(btree_id, level, k, p);
+	enum bch_data_type data_type = bch2_bkey_ptr_data_type(k, p, entry);
 	s64 sectors = level ? btree_sectors(c) : k.k->size;
 	u32 bucket_offset;
 
