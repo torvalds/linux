@@ -27,9 +27,9 @@ enum intel_tpmi_id {
 
 /**
  * struct intel_tpmi_plat_info - Platform information for a TPMI device instance
- * @package_id:	CPU Package id
- * @bus_number:	PCI bus number
- * @device_number: PCI device number
+ * @package_id:      CPU Package id
+ * @bus_number:      PCI bus number
+ * @device_number:   PCI device number
  * @function_number: PCI function number
  *
  * Structure to store platform data for a TPMI device instance. This
