@@ -392,6 +392,20 @@ SYM_TYPED_FUNC_START(xscale_dma_map_area)
 SYM_FUNC_END(xscale_dma_map_area)
 
 /*
+ * On stepping A0/A1 of the 80200, invalidating D-cache by line doesn't
+ * clear the dirty bits, which means that if we invalidate a dirty line,
+ * the dirty data can still be written back to external memory later on.
+ *
+ * The recommended workaround is to always do a clean D-cache line before
+ * doing an invalidate D-cache line, so on the affected processors,
+ * dma_inv_range() is implemented as dma_flush_range().
+ *
+ * See erratum #25 of "Intel 80200 Processor Specification Update",
+ * revision January 22, 2003, available at:
+ *     http://www.intel.com/design/iio/specupdt/273415.htm
+ */
+
+/*
  *	dma_map_area(start, size, dir)
  *	- start	- kernel virtual start address
  *	- size	- size of region
@@ -413,49 +427,6 @@ SYM_FUNC_END(xscale_80200_A0_A1_dma_map_area)
 SYM_TYPED_FUNC_START(xscale_dma_unmap_area)
 	ret	lr
 SYM_FUNC_END(xscale_dma_unmap_area)
-
-	.globl	xscale_flush_kern_cache_louis
-	.equ	xscale_flush_kern_cache_louis, xscale_flush_kern_cache_all
-
-	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions xscale
-
-/*
- * On stepping A0/A1 of the 80200, invalidating D-cache by line doesn't
- * clear the dirty bits, which means that if we invalidate a dirty line,
- * the dirty data can still be written back to external memory later on.
- *
- * The recommended workaround is to always do a clean D-cache line before
- * doing an invalidate D-cache line, so on the affected processors,
- * dma_inv_range() is implemented as dma_flush_range().
- *
- * See erratum #25 of "Intel 80200 Processor Specification Update",
- * revision January 22, 2003, available at:
- *     http://www.intel.com/design/iio/specupdt/273415.htm
- */
-.macro a0_alias basename
-	.globl xscale_80200_A0_A1_\basename
-	.type xscale_80200_A0_A1_\basename , %function
-	.equ xscale_80200_A0_A1_\basename , xscale_\basename
-.endm
-
-/*
- * Most of the cache functions are unchanged for these processor revisions.
- * Export suitable alias symbols for the unchanged functions:
- */
-	a0_alias flush_icache_all
-	a0_alias flush_user_cache_all
-	a0_alias flush_kern_cache_all
-	a0_alias flush_kern_cache_louis
-	a0_alias flush_user_cache_range
-	a0_alias coherent_kern_range
-	a0_alias coherent_user_range
-	a0_alias flush_kern_dcache_area
-	a0_alias dma_flush_range
-	a0_alias dma_unmap_area
-
-	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions xscale_80200_A0_A1
 
 ENTRY(cpu_xscale_dcache_clean_area)
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry

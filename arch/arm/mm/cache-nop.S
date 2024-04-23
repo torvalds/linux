@@ -18,9 +18,6 @@ SYM_TYPED_FUNC_START(nop_flush_kern_cache_all)
 	ret	lr
 SYM_FUNC_END(nop_flush_kern_cache_all)
 
-	.globl nop_flush_kern_cache_louis
-	.equ nop_flush_kern_cache_louis, nop_flush_icache_all
-
 SYM_TYPED_FUNC_START(nop_flush_user_cache_all)
 	ret	lr
 SYM_FUNC_END(nop_flush_user_cache_all)
@@ -49,11 +46,6 @@ SYM_FUNC_END(nop_dma_flush_range)
 SYM_TYPED_FUNC_START(nop_dma_map_area)
 	ret	lr
 SYM_FUNC_END(nop_dma_map_area)
-
-	__INITDATA
-
-	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions nop
 
 SYM_TYPED_FUNC_START(nop_dma_unmap_area)
 	ret	lr

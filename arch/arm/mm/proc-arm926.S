@@ -331,12 +331,6 @@ SYM_TYPED_FUNC_START(arm926_dma_unmap_area)
 	ret	lr
 SYM_FUNC_END(arm926_dma_unmap_area)
 
-	.globl	arm926_flush_kern_cache_louis
-	.equ	arm926_flush_kern_cache_louis, arm926_flush_kern_cache_all
-
-	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions arm926
-
 ENTRY(cpu_arm926_dcache_clean_area)
 #ifndef CONFIG_CPU_DCACHE_WRITETHROUGH
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry

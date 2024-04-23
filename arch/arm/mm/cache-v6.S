@@ -298,11 +298,3 @@ SYM_TYPED_FUNC_START(v6_dma_unmap_area)
 	bne	v6_dma_inv_range
 	ret	lr
 SYM_FUNC_END(v6_dma_unmap_area)
-
-	.globl	v6_flush_kern_cache_louis
-	.equ	v6_flush_kern_cache_louis, v6_flush_kern_cache_all
-
-	__INITDATA
-
-	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions v6

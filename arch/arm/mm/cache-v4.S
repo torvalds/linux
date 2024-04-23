@@ -144,11 +144,3 @@ SYM_FUNC_END(v4_dma_unmap_area)
 SYM_TYPED_FUNC_START(v4_dma_map_area)
 	ret	lr
 SYM_FUNC_END(v4_dma_map_area)
-
-	.globl	v4_flush_kern_cache_louis
-	.equ	v4_flush_kern_cache_louis, v4_flush_kern_cache_all
-
-	__INITDATA
-
-	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions v4

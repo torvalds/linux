@@ -341,12 +341,6 @@ SYM_TYPED_FUNC_START(xsc3_dma_unmap_area)
 	ret	lr
 SYM_FUNC_END(xsc3_dma_unmap_area)
 
-	.globl	xsc3_flush_kern_cache_louis
-	.equ	xsc3_flush_kern_cache_louis, xsc3_flush_kern_cache_all
-
-	@ define struct cpu_cache_fns (see <asm/cacheflush.h> and proc-macros.S)
-	define_cache_functions xsc3
-
 ENTRY(cpu_xsc3_dcache_clean_area)
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
 	add	r0, r0, #CACHELINESIZE
