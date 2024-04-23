@@ -763,8 +763,11 @@ static int intel_vsec_tpmi_init(struct auxiliary_device *auxdev)
 		 * when actual device nodes created outside this
 		 * loop via tpmi_create_devices().
 		 */
-		if (pfs->pfs_header.tpmi_id == TPMI_INFO_ID)
-			tpmi_process_info(tpmi_info, pfs);
+		if (pfs->pfs_header.tpmi_id == TPMI_INFO_ID) {
+			ret = tpmi_process_info(tpmi_info, pfs);
+			if (ret)
+				return ret;
+		}
 
 		if (pfs->pfs_header.tpmi_id == TPMI_CONTROL_ID)
 			tpmi_set_control_base(auxdev, tpmi_info, pfs);
