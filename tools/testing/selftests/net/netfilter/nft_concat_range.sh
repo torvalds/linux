@@ -66,7 +66,7 @@ src
 start		1
 count		5
 src_delta	2000
-tools		sendip nc bash
+tools		sendip bash
 proto		udp
 
 race_repeat	3
@@ -91,7 +91,7 @@ src
 start		1
 count		5
 src_delta	2000
-tools		sendip socat nc bash
+tools		sendip socat bash
 proto		udp
 
 race_repeat	3
@@ -116,7 +116,7 @@ src
 start		10
 count		5
 src_delta	2000
-tools		sendip socat nc bash
+tools		sendip socat bash
 proto		udp6
 
 race_repeat	3
@@ -141,7 +141,7 @@ src
 start		1
 count		5
 src_delta	2000
-tools		sendip socat nc bash
+tools		sendip socat bash
 proto		udp
 
 race_repeat	0
@@ -163,7 +163,7 @@ src		mac
 start		10
 count		5
 src_delta	2000
-tools		sendip socat nc bash
+tools		sendip socat bash
 proto		udp6
 
 race_repeat	0
@@ -185,7 +185,7 @@ src		mac proto
 start		10
 count		5
 src_delta	2000
-tools		sendip socat nc bash
+tools		sendip socat bash
 proto		udp6
 
 race_repeat	0
@@ -207,7 +207,7 @@ src		addr4
 start		1
 count		5
 src_delta	2000
-tools		sendip socat nc bash
+tools		sendip socat bash
 proto		udp
 
 race_repeat	3
@@ -227,7 +227,7 @@ src		addr6 port
 start		10
 count		5
 src_delta	2000
-tools		sendip socat nc
+tools		sendip socat
 proto		udp6
 
 race_repeat	3
@@ -247,7 +247,7 @@ src		mac proto addr4
 start		1
 count		5
 src_delta	2000
-tools		sendip socat nc bash
+tools		sendip socat bash
 proto		udp
 
 race_repeat	0
@@ -264,7 +264,7 @@ src		mac
 start		1
 count		5
 src_delta	2000
-tools		sendip socat nc bash
+tools		sendip socat bash
 proto		udp
 
 race_repeat	0
@@ -286,7 +286,7 @@ src		mac addr4
 start		1
 count		5
 src_delta	2000
-tools		sendip socat nc bash
+tools		sendip socat bash
 proto		udp
 
 race_repeat	0
@@ -337,7 +337,7 @@ src		addr4
 start		1
 count		5
 src_delta	2000
-tools		sendip socat nc
+tools		sendip socat
 proto		udp
 
 race_repeat	3
@@ -363,7 +363,7 @@ src		mac
 start		1
 count		1
 src_delta	2000
-tools		sendip socat nc bash
+tools		sendip socat bash
 proto		udp
 
 race_repeat	0
@@ -486,12 +486,6 @@ check_tools() {
 
 	__tools=
 	for tool in ${tools}; do
-		if [ "${tool}" = "nc" ] && [ "${proto}" = "udp6" ] && \
-		   ! nc -u -w0 1.1.1.1 1 2>/dev/null; then
-			# Some GNU netcat builds might not support IPv6
-			__tools="${__tools} netcat-openbsd"
-			continue
-		fi
 		__tools="${__tools} ${tool}"
 
 		command -v "${tool}" >/dev/null && return 0
@@ -553,29 +547,6 @@ setup_send_udp() {
 			[ -z "${dst_port}" ] && dst_port=12345
 
 			echo "test4" | B socat -t 0.01 STDIN UDP4-DATAGRAM:${dst_addr4}:${dst_port}"${__socatbind}"
-
-			src_addr4=
-			src_port=
-		}
-	elif command -v nc >/dev/null; then
-		if nc -u -w0 1.1.1.1 1 2>/dev/null; then
-			# OpenBSD netcat
-			nc_opt="-w0"
-		else
-			# GNU netcat
-			nc_opt="-q0"
-		fi
-
-		send_udp() {
-			if [ -n "${src_addr4}" ]; then
-				B ip addr add "${src_addr4}" dev veth_b
-				__src_addr4="-s ${src_addr4}"
-			fi
-			ip addr add "${dst_addr4}" dev veth_a 2>/dev/null
-			[ -n "${src_port}" ] && src_port="-p ${src_port}"
-
-			echo "" | B nc -u "${nc_opt}" "${__src_addr4}" \
-				  "${src_port}" "${dst_addr4}" "${dst_port}"
 
 			src_addr4=
 			src_port=
@@ -644,25 +615,6 @@ setup_send_udp6() {
 			fi
 
 			echo "test6" | B socat -t 0.01 STDIN UDP6-DATAGRAM:[${dst_addr6}]:${dst_port}"${__socatbind6}"
-		}
-	elif command -v nc >/dev/null && nc -u -w0 1.1.1.1 1 2>/dev/null; then
-		# GNU netcat might not work with IPv6, try next tool
-		send_udp6() {
-			ip -6 addr add "${dst_addr6}" dev veth_a nodad \
-				2>/dev/null
-			if [ -n "${src_addr6}" ]; then
-				B ip addr add "${src_addr6}" dev veth_b nodad
-			else
-				src_addr6="2001:db8::2"
-			fi
-			[ -n "${src_port}" ] && src_port="-p ${src_port}"
-
-			# shellcheck disable=SC2086 # this needs split options
-			echo "" | B nc -u w0 "-s${src_addr6}" ${src_port} \
-					       ${dst_addr6} ${dst_port}
-
-			src_addr6=
-			src_port=
 		}
 	elif [ -z "$(bash -c 'type -p')" ]; then
 		send_udp6() {
