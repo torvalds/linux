@@ -1379,6 +1379,9 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		} else if (ver->fcxnullsta == 2) {
 			pfinfo = &pfwinfo->rpt_fbtc_nullsta.finfo.v2;
 			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_nullsta.finfo.v2);
+		} else if (ver->fcxnullsta == 7) {
+			pfinfo = &pfwinfo->rpt_fbtc_nullsta.finfo.v7;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_nullsta.finfo.v7);
 		} else {
 			goto err;
 		}
@@ -9185,6 +9188,27 @@ static void _show_fbtc_nullsta(struct rtw89_dev *rtwdev, struct seq_file *m)
 			seq_printf(m, "max_t:%d.%03d]\n",
 				   le32_to_cpu(ns->v1.max_t[i]) / 1000,
 				   le32_to_cpu(ns->v1.max_t[i]) % 1000);
+		}
+	} else if (ver->fcxnullsta == 7) {
+		for (i = 0; i < 2; i++) {
+			seq_printf(m, " %-15s : ", "[NULL-STA]");
+			seq_printf(m, "null-%d", i);
+			seq_printf(m, "[Tx:%d/",
+				   le32_to_cpu(ns->v7.result[i][4]));
+			seq_printf(m, "[ok:%d/",
+				   le32_to_cpu(ns->v7.result[i][1]));
+			seq_printf(m, "fail:%d/",
+				   le32_to_cpu(ns->v7.result[i][0]));
+			seq_printf(m, "on_time:%d/",
+				   le32_to_cpu(ns->v7.result[i][2]));
+			seq_printf(m, "retry:%d/",
+				   le32_to_cpu(ns->v7.result[i][3]));
+			seq_printf(m, "avg_t:%d.%03d/",
+				   le32_to_cpu(ns->v7.tavg[i]) / 1000,
+				   le32_to_cpu(ns->v7.tavg[i]) % 1000);
+			seq_printf(m, "max_t:%d.%03d]\n",
+				   le32_to_cpu(ns->v7.tmax[i]) / 1000,
+				   le32_to_cpu(ns->v7.tmax[i]) % 1000);
 		}
 	} else {
 		for (i = 0; i < 2; i++) {

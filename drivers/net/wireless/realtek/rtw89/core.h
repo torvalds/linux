@@ -2679,9 +2679,21 @@ struct rtw89_btc_fbtc_cynullsta_v2 { /* cycle null statistics */
 	__le32 result[2][5]; /* 0:fail, 1:ok, 2:on_time, 3:retry, 4:tx */
 } __packed;
 
+struct rtw89_btc_fbtc_cynullsta_v7 { /* cycle null statistics */
+	u8 fver;
+	u8 rsvd0;
+	u8 rsvd1;
+	u8 rsvd2;
+
+	__le32 tmax[2];
+	__le32 tavg[2];
+	__le32 result[2][5];
+} __packed;
+
 union rtw89_btc_fbtc_cynullsta_info {
 	struct rtw89_btc_fbtc_cynullsta_v1 v1; /* info from fw */
 	struct rtw89_btc_fbtc_cynullsta_v2 v2;
+	struct rtw89_btc_fbtc_cynullsta_v7 v7;
 };
 
 struct rtw89_btc_fbtc_btver {
