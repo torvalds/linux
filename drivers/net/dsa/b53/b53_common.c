@@ -1266,14 +1266,57 @@ static void b53_adjust_63xx_rgmii(struct dsa_switch *ds, int port,
 		phy_modes(interface));
 }
 
+static void b53_adjust_531x5_rgmii(struct dsa_switch *ds, int port,
+				   phy_interface_t interface)
+{
+	struct b53_device *dev = ds->priv;
+	u8 rgmii_ctrl = 0, off;
+
+	if (port == dev->imp_port)
+		off = B53_RGMII_CTRL_IMP;
+	else
+		off = B53_RGMII_CTRL_P(port);
+
+	/* Configure the port RGMII clock delay by DLL disabled and
+	 * tx_clk aligned timing (restoring to reset defaults)
+	 */
+	b53_read8(dev, B53_CTRL_PAGE, off, &rgmii_ctrl);
+	rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC |
+			RGMII_CTRL_TIMING_SEL);
+
+	/* PHY_INTERFACE_MODE_RGMII_TXID means TX internal delay, make
+	 * sure that we enable the port TX clock internal delay to
+	 * account for this internal delay that is inserted, otherwise
+	 * the switch won't be able to receive correctly.
+	 *
+	 * PHY_INTERFACE_MODE_RGMII means that we are not introducing
+	 * any delay neither on transmission nor reception, so the
+	 * BCM53125 must also be configured accordingly to account for
+	 * the lack of delay and introduce
+	 *
+	 * The BCM53125 switch has its RX clock and TX clock control
+	 * swapped, hence the reason why we modify the TX clock path in
+	 * the "RGMII" case
+	 */
+	if (interface == PHY_INTERFACE_MODE_RGMII_TXID)
+		rgmii_ctrl |= RGMII_CTRL_DLL_TXC;
+	if (interface == PHY_INTERFACE_MODE_RGMII)
+		rgmii_ctrl |= RGMII_CTRL_DLL_TXC | RGMII_CTRL_DLL_RXC;
+	rgmii_ctrl |= RGMII_CTRL_TIMING_SEL;
+	b53_write8(dev, B53_CTRL_PAGE, off, rgmii_ctrl);
+
+	dev_info(ds->dev, "Configured port %d for %s\n", port,
+		 phy_modes(interface));
+}
+
 static void b53_adjust_link(struct dsa_switch *ds, int port,
 			    struct phy_device *phydev)
 {
 	struct b53_device *dev = ds->priv;
 	struct ethtool_keee *p = &dev->ports[port].eee;
-	u8 rgmii_ctrl = 0, reg = 0, off;
 	bool tx_pause = false;
 	bool rx_pause = false;
+	u8 reg = 0;
 
 	if (!phy_is_pseudo_fixed_link(phydev))
 		return;
@@ -1295,43 +1338,8 @@ static void b53_adjust_link(struct dsa_switch *ds, int port,
 	if (is63xx(dev) && port >= B53_63XX_RGMII0)
 		b53_adjust_63xx_rgmii(ds, port, phydev->interface);
 
-	if (is531x5(dev) && phy_interface_is_rgmii(phydev)) {
-		if (port == dev->imp_port)
-			off = B53_RGMII_CTRL_IMP;
-		else
-			off = B53_RGMII_CTRL_P(port);
-
-		/* Configure the port RGMII clock delay by DLL disabled and
-		 * tx_clk aligned timing (restoring to reset defaults)
-		 */
-		b53_read8(dev, B53_CTRL_PAGE, off, &rgmii_ctrl);
-		rgmii_ctrl &= ~(RGMII_CTRL_DLL_RXC | RGMII_CTRL_DLL_TXC |
-				RGMII_CTRL_TIMING_SEL);
-
-		/* PHY_INTERFACE_MODE_RGMII_TXID means TX internal delay, make
-		 * sure that we enable the port TX clock internal delay to
-		 * account for this internal delay that is inserted, otherwise
-		 * the switch won't be able to receive correctly.
-		 *
-		 * PHY_INTERFACE_MODE_RGMII means that we are not introducing
-		 * any delay neither on transmission nor reception, so the
-		 * BCM53125 must also be configured accordingly to account for
-		 * the lack of delay and introduce
-		 *
-		 * The BCM53125 switch has its RX clock and TX clock control
-		 * swapped, hence the reason why we modify the TX clock path in
-		 * the "RGMII" case
-		 */
-		if (phydev->interface == PHY_INTERFACE_MODE_RGMII_TXID)
-			rgmii_ctrl |= RGMII_CTRL_DLL_TXC;
-		if (phydev->interface == PHY_INTERFACE_MODE_RGMII)
-			rgmii_ctrl |= RGMII_CTRL_DLL_TXC | RGMII_CTRL_DLL_RXC;
-		rgmii_ctrl |= RGMII_CTRL_TIMING_SEL;
-		b53_write8(dev, B53_CTRL_PAGE, off, rgmii_ctrl);
-
-		dev_info(ds->dev, "Configured port %d for %s\n", port,
-			 phy_modes(phydev->interface));
-	}
+	if (is531x5(dev) && phy_interface_is_rgmii(phydev))
+		b53_adjust_531x5_rgmii(ds, port, phydev->interface);
 
 	/* configure MII port if necessary */
 	if (is5325(dev)) {
