@@ -299,6 +299,8 @@
 
 244	nios2	cacheflush			sys_cacheflush
 
+244	or1k	or1k_atomic			sys_or1k_atomic
+
 260	time32	wait4				sys_wait4			compat_sys_wait4
 260	64	wait4				sys_wait4
 261	common	prlimit64			sys_prlimit64
