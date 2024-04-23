@@ -320,6 +320,8 @@ devm_pse_pi_regulator_register(struct pse_controller_dev *pcdev,
 /**
  * pse_controller_register - register a PSE controller device
  * @pcdev: a pointer to the initialized PSE controller device
+ *
+ * Return: 0 on success and failure value on error
  */
 int pse_controller_register(struct pse_controller_dev *pcdev)
 {
@@ -401,6 +403,8 @@ static void devm_pse_controller_release(struct device *dev, void *res)
  * Managed pse_controller_register(). For PSE controllers registered by
  * this function, pse_controller_unregister() is automatically called on
  * driver detach. See pse_controller_register() for more information.
+ *
+ * Return: 0 on success and failure value on error
  */
 int devm_pse_controller_register(struct device *dev,
 				 struct pse_controller_dev *pcdev)
@@ -627,6 +631,8 @@ EXPORT_SYMBOL_GPL(of_pse_control_get);
  * @psec: PSE control pointer
  * @extack: extack for reporting useful error messages
  * @status: struct to store PSE status
+ *
+ * Return: 0 on success and failure value on error
  */
 int pse_ethtool_get_status(struct pse_control *psec,
 			   struct netlink_ext_ack *extack,
@@ -704,6 +710,8 @@ static int pse_ethtool_podl_set_config(struct pse_control *psec,
  * @psec: PSE control pointer
  * @extack: extack for reporting useful error messages
  * @config: Configuration of the test to run
+ *
+ * Return: 0 on success and failure value on error
  */
 int pse_ethtool_set_config(struct pse_control *psec,
 			   struct netlink_ext_ack *extack,
