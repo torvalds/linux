@@ -207,6 +207,11 @@ DECLARE_RESTRICTED_HOOK(android_rvh_util_fits_cpu,
 		int cpu, bool *fits, bool *done),
 	TP_ARGS(util, uclamp_min, uclamp_max, cpu, fits, done), 1);
 
+DECLARE_RESTRICTED_HOOK(android_rvh_update_cpus_allowed,
+	TP_PROTO(struct task_struct *p, cpumask_var_t cpus_requested,
+		 const struct cpumask *new_mask, int *ret),
+	TP_ARGS(p, cpus_requested, new_mask, ret), 1);
+
 DECLARE_RESTRICTED_HOOK(android_rvh_sched_fork_init,
 	TP_PROTO(struct task_struct *p),
 	TP_ARGS(p), 1);
