@@ -326,7 +326,7 @@ static inline int devm_regulator_get_enable(struct device *dev, const char *id)
 static inline int devm_regulator_get_enable_optional(struct device *dev,
 						     const char *id)
 {
-	return -ENODEV;
+	return 0;
 }
 
 static inline struct regulator *__must_check
