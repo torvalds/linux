@@ -1332,45 +1332,6 @@ static void b53_adjust_5325_mii(struct dsa_switch *ds, int port)
 	}
 }
 
-static void b53_adjust_link(struct dsa_switch *ds, int port,
-			    struct phy_device *phydev)
-{
-	struct b53_device *dev = ds->priv;
-	struct ethtool_keee *p = &dev->ports[port].eee;
-	bool tx_pause = false;
-	bool rx_pause = false;
-
-	if (!phy_is_pseudo_fixed_link(phydev))
-		return;
-
-	/* Enable flow control on BCM5301x's CPU port */
-	if (is5301x(dev) && dsa_is_cpu_port(ds, port))
-		tx_pause = rx_pause = true;
-
-	if (phydev->pause) {
-		if (phydev->asym_pause)
-			tx_pause = true;
-		rx_pause = true;
-	}
-
-	b53_force_port_config(dev, port, phydev->speed, phydev->duplex,
-			      tx_pause, rx_pause);
-	b53_force_link(dev, port, phydev->link);
-
-	if (is63xx(dev) && port >= B53_63XX_RGMII0)
-		b53_adjust_63xx_rgmii(ds, port, phydev->interface);
-
-	if (is531x5(dev) && phy_interface_is_rgmii(phydev))
-		b53_adjust_531x5_rgmii(ds, port, phydev->interface);
-
-	/* configure MII port if necessary */
-	if (is5325(dev))
-		b53_adjust_5325_mii(ds, port);
-
-	/* Re-negotiate EEE if it was enabled already */
-	p->eee_enabled = b53_eee_init(ds, port, phydev);
-}
-
 void b53_port_event(struct dsa_switch *ds, int port)
 {
 	struct b53_device *dev = ds->priv;
@@ -2308,7 +2269,6 @@ static const struct dsa_switch_ops b53_switch_ops = {
 	.get_ethtool_phy_stats	= b53_get_ethtool_phy_stats,
 	.phy_read		= b53_phy_read16,
 	.phy_write		= b53_phy_write16,
-	.adjust_link		= b53_adjust_link,
 	.phylink_get_caps	= b53_phylink_get_caps,
 	.phylink_mac_select_pcs	= b53_phylink_mac_select_pcs,
 	.phylink_mac_config	= b53_phylink_mac_config,
