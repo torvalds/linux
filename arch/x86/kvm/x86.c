@@ -94,7 +94,6 @@
 
 struct kvm_caps kvm_caps __read_mostly = {
 	.supported_mce_cap = MCG_CTL_P | MCG_SER_P,
-	.supported_vm_types = BIT(KVM_X86_DEFAULT_VM),
 };
 EXPORT_SYMBOL_GPL(kvm_caps);
 
@@ -9775,6 +9774,8 @@ int kvm_x86_vendor_init(struct kvm_x86_init_ops *ops)
 	r = kvm_mmu_vendor_module_init();
 	if (r)
 		goto out_free_percpu;
+
+	kvm_caps.supported_vm_types = BIT(KVM_X86_DEFAULT_VM);
 
 	if (boot_cpu_has(X86_FEATURE_XSAVE)) {
 		host_xcr0 = xgetbv(XCR_XFEATURE_ENABLED_MASK);
