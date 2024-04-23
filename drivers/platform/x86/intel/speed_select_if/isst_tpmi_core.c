@@ -1271,6 +1271,7 @@ static long isst_if_def_ioctl(struct file *file, unsigned int cmd,
 
 int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 {
+	struct tpmi_per_power_domain_info *pd_info;
 	bool read_blocked = 0, write_blocked = 0;
 	struct intel_tpmi_plat_info *plat_info;
 	struct device *dev = &auxdev->dev;
@@ -1311,35 +1312,31 @@ int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 	if (!tpmi_sst)
 		return -ENOMEM;
 
-	tpmi_sst->power_domain_info = devm_kcalloc(dev, num_resources,
-						   sizeof(*tpmi_sst->power_domain_info),
-						   GFP_KERNEL);
-	if (!tpmi_sst->power_domain_info)
+	pd_info = devm_kcalloc(dev, num_resources, sizeof(*pd_info), GFP_KERNEL);
+	if (!pd_info)
 		return -ENOMEM;
-
-	tpmi_sst->number_of_power_domains = num_resources;
 
 	for (i = 0; i < num_resources; ++i) {
 		struct resource *res;
 
 		res = tpmi_get_resource_at_index(auxdev, i);
 		if (!res) {
-			tpmi_sst->power_domain_info[i].sst_base = NULL;
+			pd_info[i].sst_base = NULL;
 			continue;
 		}
 
-		tpmi_sst->power_domain_info[i].package_id = pkg;
-		tpmi_sst->power_domain_info[i].power_domain_id = i;
-		tpmi_sst->power_domain_info[i].auxdev = auxdev;
-		tpmi_sst->power_domain_info[i].write_blocked = write_blocked;
-		tpmi_sst->power_domain_info[i].sst_base = devm_ioremap_resource(dev, res);
-		if (IS_ERR(tpmi_sst->power_domain_info[i].sst_base))
-			return PTR_ERR(tpmi_sst->power_domain_info[i].sst_base);
+		pd_info[i].package_id = pkg;
+		pd_info[i].power_domain_id = i;
+		pd_info[i].auxdev = auxdev;
+		pd_info[i].write_blocked = write_blocked;
+		pd_info[i].sst_base = devm_ioremap_resource(dev, res);
+		if (IS_ERR(pd_info[i].sst_base))
+			return PTR_ERR(pd_info[i].sst_base);
 
-		ret = sst_main(auxdev, &tpmi_sst->power_domain_info[i]);
+		ret = sst_main(auxdev, &pd_info[i]);
 		if (ret) {
-			devm_iounmap(dev, tpmi_sst->power_domain_info[i].sst_base);
-			tpmi_sst->power_domain_info[i].sst_base =  NULL;
+			devm_iounmap(dev, pd_info[i].sst_base);
+			pd_info[i].sst_base = NULL;
 			continue;
 		}
 
@@ -1350,6 +1347,8 @@ int tpmi_sst_dev_add(struct auxiliary_device *auxdev)
 		return -ENODEV;
 
 	tpmi_sst->package_id = pkg;
+	tpmi_sst->power_domain_info = pd_info;
+	tpmi_sst->number_of_power_domains = num_resources;
 	auxiliary_set_drvdata(auxdev, tpmi_sst);
 
 	mutex_lock(&isst_tpmi_dev_lock);
