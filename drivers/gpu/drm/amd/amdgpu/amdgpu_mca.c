@@ -229,6 +229,8 @@ int amdgpu_mca_init(struct amdgpu_device *adev)
 	struct mca_bank_cache *mca_cache;
 	int i;
 
+	atomic_set(&mca->ue_update_flag, 0);
+
 	for (i = 0; i < ARRAY_SIZE(mca->mca_caches); i++) {
 		mca_cache = &mca->mca_caches[i];
 		mutex_init(&mca_cache->lock);
@@ -243,6 +245,8 @@ void amdgpu_mca_fini(struct amdgpu_device *adev)
 	struct amdgpu_mca *mca = &adev->mca;
 	struct mca_bank_cache *mca_cache;
 	int i;
+
+	atomic_set(&mca->ue_update_flag, 0);
 
 	for (i = 0; i < ARRAY_SIZE(mca->mca_caches); i++) {
 		mca_cache = &mca->mca_caches[i];
@@ -325,6 +329,26 @@ static int amdgpu_mca_smu_get_mca_entry(struct amdgpu_device *adev, enum amdgpu_
 	return mca_funcs->mca_get_mca_entry(adev, type, idx, entry);
 }
 
+static bool amdgpu_mca_bank_should_update(struct amdgpu_device *adev, enum amdgpu_mca_error_type type)
+{
+	struct amdgpu_mca *mca = &adev->mca;
+	bool ret = true;
+
+	/*
+	 * Because the UE Valid MCA count will only be cleared after reset,
+	 * in order to avoid repeated counting of the error count,
+	 * the aca bank is only updated once during the gpu recovery stage.
+	 */
+	if (type == AMDGPU_MCA_ERROR_TYPE_UE) {
+		if (amdgpu_ras_intr_triggered())
+			ret = atomic_cmpxchg(&mca->ue_update_flag, 0, 1) == 0;
+		else
+			atomic_set(&mca->ue_update_flag, 0);
+	}
+
+	return ret;
+}
+
 static int amdgpu_mca_smu_get_mca_set(struct amdgpu_device *adev, enum amdgpu_mca_error_type type, struct mca_bank_set *mca_set,
 				      struct ras_query_context *qctx)
 {
@@ -334,6 +358,9 @@ static int amdgpu_mca_smu_get_mca_set(struct amdgpu_device *adev, enum amdgpu_mc
 
 	if (!mca_set)
 		return -EINVAL;
+
+	if (!amdgpu_mca_bank_should_update(adev, type))
+		return 0;
 
 	ret = amdgpu_mca_smu_get_valid_mca_count(adev, type, &count);
 	if (ret)

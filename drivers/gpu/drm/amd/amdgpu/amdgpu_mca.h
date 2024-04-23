@@ -93,6 +93,7 @@ struct amdgpu_mca {
 	struct amdgpu_mca_ras mpio;
 	const struct amdgpu_mca_smu_funcs *mca_funcs;
 	struct mca_bank_cache mca_caches[AMDGPU_MCA_ERROR_TYPE_DE];
+	atomic_t ue_update_flag;
 };
 
 enum mca_reg_idx {
