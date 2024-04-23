@@ -389,7 +389,7 @@ static int br_fill_forward_path(struct net_device_path_ctx *ctx,
 	br_vlan_fill_forward_path_pvid(br, ctx, path);
 
 	f = br_fdb_find_rcu(br, ctx->daddr, path->bridge.vlan_id);
-	if (!f || !f->dst)
+	if (!f)
 		return -1;
 
 	dst = READ_ONCE(f->dst);
