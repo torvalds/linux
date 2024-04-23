@@ -337,7 +337,7 @@ int __kvm_vcpu_run(struct kvm_vcpu *vcpu)
 
 	__sysreg_restore_state_nvhe(host_ctxt);
 
-	if (*host_data_ptr(fp_owner) == FP_STATE_GUEST_OWNED)
+	if (guest_owns_fp_regs())
 		__fpsimd_save_fpexc32(vcpu);
 
 	__debug_switch_to_host(vcpu);

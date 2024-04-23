@@ -141,8 +141,7 @@ void kvm_arch_vcpu_ctxsync_fp(struct kvm_vcpu *vcpu)
 
 	WARN_ON_ONCE(!irqs_disabled());
 
-	if (*host_data_ptr(fp_owner) == FP_STATE_GUEST_OWNED) {
-
+	if (guest_owns_fp_regs()) {
 		/*
 		 * Currently we do not support SME guests so SVCR is
 		 * always 0 and we just need a variable to point to.
@@ -195,7 +194,7 @@ void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu)
 		isb();
 	}
 
-	if (*host_data_ptr(fp_owner) == FP_STATE_GUEST_OWNED) {
+	if (guest_owns_fp_regs()) {
 		if (vcpu_has_sve(vcpu)) {
 			__vcpu_sys_reg(vcpu, ZCR_EL1) = read_sysreg_el1(SYS_ZCR);
 

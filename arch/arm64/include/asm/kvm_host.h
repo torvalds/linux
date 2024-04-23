@@ -1213,6 +1213,12 @@ static inline bool guest_owns_fp_regs(void)
 	return *host_data_ptr(fp_owner) == FP_STATE_GUEST_OWNED;
 }
 
+/* Check whether the FP regs are owned by the host */
+static inline bool host_owns_fp_regs(void)
+{
+	return *host_data_ptr(fp_owner) == FP_STATE_HOST_OWNED;
+}
+
 static inline void kvm_init_host_cpu_context(struct kvm_cpu_context *cpu_ctxt)
 {
 	/* The host's MPIDR is immutable, so let's set it up at boot time */
