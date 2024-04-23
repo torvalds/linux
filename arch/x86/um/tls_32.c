@@ -36,22 +36,6 @@ static int do_set_thread_area(struct user_desc *info)
 	return ret;
 }
 
-int do_get_thread_area(struct user_desc *info)
-{
-	int ret;
-	u32 cpu;
-
-	cpu = get_cpu();
-	ret = os_get_thread_area(info, userspace_pid[cpu]);
-	put_cpu();
-
-	if (ret)
-		printk(KERN_ERR "PTRACE_GET_THREAD_AREA failed, err = %d, "
-		       "index = %d\n", ret, info->entry_number);
-
-	return ret;
-}
-
 /*
  * sys_get_thread_area: get a yet unused TLS descriptor index.
  * XXX: Consider leaving one free slot for glibc usage at first place. This must
@@ -231,7 +215,6 @@ out:
 	return ret;
 }
 
-/* XXX: use do_get_thread_area to read the host value? I'm not at all sure! */
 static int get_tls_entry(struct task_struct *task, struct user_desc *info,
 			 int idx)
 {
