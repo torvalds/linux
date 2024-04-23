@@ -294,7 +294,7 @@ devm_pse_pi_regulator_register(struct pse_controller_dev *pcdev,
 	 */
 	rdesc->id = id;
 	rdesc->name = name;
-	rdesc->type = REGULATOR_CURRENT;
+	rdesc->type = REGULATOR_VOLTAGE;
 	rdesc->ops = &pse_pi_ops;
 	rdesc->owner = pcdev->owner;
 
