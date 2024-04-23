@@ -78,12 +78,16 @@ struct vport *ovs_netdev_link(struct vport *vport, const char *name)
 	int err;
 
 	vport->dev = dev_get_by_name(ovs_dp_get_net(vport->dp), name);
+	if (!vport->dev) {
+		err = -ENODEV;
+		goto error_free_vport;
+	}
 	/* Ensure that the device exists and that the provided
 	 * name is not one of its aliases.
 	 */
-	if (!vport->dev || strcmp(name, ovs_vport_name(vport))) {
+	if (strcmp(name, ovs_vport_name(vport))) {
 		err = -ENODEV;
-		goto error_free_vport;
+		goto error_put;
 	}
 	netdev_tracker_alloc(vport->dev, &vport->dev_tracker, GFP_KERNEL);
 	if (vport->dev->flags & IFF_LOOPBACK ||
