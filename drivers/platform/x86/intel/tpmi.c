@@ -128,6 +128,9 @@ struct intel_tpmi_info {
  * @dev:	PCI device number
  * @bus:	PCI bus number
  * @pkg:	CPU Package id
+ * @segment:	PCI segment id
+ * @partition:	Package Partition id
+ * @cdie_mask:	Bitmap of compute dies in the current partition
  * @reserved:	Reserved for future use
  * @lock:	When set to 1 the register is locked and becomes read-only
  *		until next reset. Not for use by the OS driver.
@@ -139,7 +142,10 @@ struct tpmi_info_header {
 	u64 dev:5;
 	u64 bus:8;
 	u64 pkg:8;
-	u64 reserved:39;
+	u64 segment:8;
+	u64 partition:2;
+	u64 cdie_mask:16;
+	u64 reserved:13;
 	u64 lock:1;
 } __packed;
 
@@ -667,6 +673,7 @@ static int tpmi_create_devices(struct intel_tpmi_info *tpmi_info)
 
 #define TPMI_INFO_BUS_INFO_OFFSET	0x08
 #define TPMI_INFO_MAJOR_VERSION		0x00
+#define TPMI_INFO_MINOR_VERSION		0x02
 
 static int tpmi_process_info(struct intel_tpmi_info *tpmi_info,
 			     struct intel_tpmi_pm_feature *pfs)
@@ -692,6 +699,12 @@ static int tpmi_process_info(struct intel_tpmi_info *tpmi_info,
 	tpmi_info->plat_info.bus_number = header.bus;
 	tpmi_info->plat_info.device_number = header.dev;
 	tpmi_info->plat_info.function_number = header.fn;
+
+	if (TPMI_MINOR_VERSION(feature_header) >= TPMI_INFO_MINOR_VERSION) {
+		tpmi_info->plat_info.cdie_mask = header.cdie_mask;
+		tpmi_info->plat_info.partition = header.partition;
+		tpmi_info->plat_info.segment = header.segment;
+	}
 
 error_info_header:
 	iounmap(info_mem);
