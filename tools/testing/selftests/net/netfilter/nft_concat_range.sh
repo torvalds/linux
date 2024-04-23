@@ -546,7 +546,7 @@ setup_send_udp() {
 			ip addr add "${dst_addr4}" dev veth_a 2>/dev/null
 			[ -z "${dst_port}" ] && dst_port=12345
 
-			echo "test4" | B socat -t 0.01 STDIN UDP4-DATAGRAM:${dst_addr4}:${dst_port}"${__socatbind}"
+			echo "test4" | B socat -t 0.01 STDIN UDP4-DATAGRAM:"$dst_addr4":"$dst_port""${__socatbind}"
 
 			src_addr4=
 			src_port=
@@ -601,11 +601,7 @@ setup_send_udp6() {
 			__socatbind6=
 
 			if [ -n "${src_addr6}" ]; then
-				if [ -n "${src_addr6} != "${src_addr6_added} ]; then
-					B ip addr add "${src_addr6}" dev veth_b nodad
-
-					src_addr6_added=${src_addr6}
-				fi
+				B ip addr add "${src_addr6}" dev veth_b nodad
 
 				__socatbind6=",bind=[${src_addr6}]"
 
@@ -614,7 +610,7 @@ setup_send_udp6() {
 				fi
 			fi
 
-			echo "test6" | B socat -t 0.01 STDIN UDP6-DATAGRAM:[${dst_addr6}]:${dst_port}"${__socatbind6}"
+			echo "test6" | B socat -t 0.01 STDIN UDP6-DATAGRAM:["$dst_addr6"]:"$dst_port""${__socatbind6}"
 		}
 	elif [ -z "$(bash -c 'type -p')" ]; then
 		send_udp6() {
@@ -947,6 +943,7 @@ cleanup() {
 	ip link del dummy0			2>/dev/null
 	ip route del default			2>/dev/null
 	ip -6 route del default			2>/dev/null
+	ip netns pids B				2>/dev/null | xargs kill 2>/dev/null
 	ip netns del B				2>/dev/null
 	ip link del veth_a			2>/dev/null
 	timeout=
@@ -954,7 +951,7 @@ cleanup() {
 	killall iperf				2>/dev/null
 	killall netperf				2>/dev/null
 	killall netserver			2>/dev/null
-	rm -f ${tmp}
+	rm -f "$tmp"
 }
 
 # Entry point for setup functions
@@ -1237,7 +1234,7 @@ test_correctness() {
 		srcend=$((end + src_delta))
 
 		add "$(format)" || return 1
-		for j in $(seq ${start} $((range_size / 2 + 1)) ${end}); do
+		for j in $(seq "$start" $((range_size / 2 + 1)) ${end}); do
 			send_match "${j}" $((j + src_delta)) || return 1
 		done
 		send_nomatch $((end + 1)) $((end + 1 + src_delta)) || return 1
@@ -1245,7 +1242,7 @@ test_correctness() {
 		# Delete elements now and then
 		if [ $((i % 3)) -eq 0 ]; then
 			del "$(format)" || return 1
-			for j in $(seq ${start} \
+			for j in $(seq "$start" \
 				   $((range_size / 2 + 1)) ${end}); do
 				send_nomatch "${j}" $((j + src_delta)) \
 					|| return 1
@@ -1276,7 +1273,7 @@ test_concurrency() {
 	range_size=1
 	cstart=${start}
 	flood_pids=
-	for i in $(seq ${start} $((start + count))); do
+	for i in $(seq "$start" $((start + count))); do
 		end=$((start + range_size))
 		srcstart=$((start + src_delta))
 		srcend=$((end + src_delta))
@@ -1299,7 +1296,7 @@ test_concurrency() {
 			# $start needs to be local to this subshell
 			# shellcheck disable=SC2030
 			start=${cstart}
-			for i in $(seq ${start} $((start + count))); do
+			for i in $(seq "$start" $((start + count))); do
 				end=$((start + range_size))
 				srcstart=$((start + src_delta))
 				srcend=$((end + src_delta))
@@ -1314,7 +1311,7 @@ test_concurrency() {
 
 			range_size=1
 			start=${cstart}
-			for i in $(seq ${start} $((start + count))); do
+			for i in $(seq "$start" $((start + count))); do
 				end=$((start + range_size))
 				srcstart=$((start + src_delta))
 				srcend=$((end + src_delta))
@@ -1330,7 +1327,7 @@ test_concurrency() {
 
 			range_size=1
 			start=${cstart}
-			for i in $(seq ${start} $((start + count))); do
+			for i in $(seq "$start" $((start + count))); do
 				end=$((start + range_size))
 				srcstart=$((start + src_delta))
 				srcend=$((end + src_delta))
@@ -1343,7 +1340,7 @@ test_concurrency() {
 
 			range_size=1
 			start=${cstart}
-			for i in $(seq ${start} $((start + count))); do
+			for i in $(seq "$start" $((start + count))); do
 				end=$((start + range_size))
 				srcstart=$((start + src_delta))
 				srcend=$((end + src_delta))
@@ -1375,14 +1372,14 @@ test_timeout() {
 
 	timeout=3
 	range_size=1
-	for i in $(seq "${start}" $((start + count))); do
+	for i in $(seq "$start" $((start + count))); do
 		end=$((start + range_size))
 		srcstart=$((start + src_delta))
 		srcend=$((end + src_delta))
 
 		add "$(format)" || return 1
 
-		for j in $(seq ${start} $((range_size / 2 + 1)) ${end}); do
+		for j in $(seq "$start" $((range_size / 2 + 1)) ${end}); do
 			send_match "${j}" $((j + src_delta)) || return 1
 		done
 
@@ -1390,12 +1387,12 @@ test_timeout() {
 		start=$((end + range_size))
 	done
 	sleep 3
-	for i in $(seq ${start} $((start + count))); do
+	for i in $(seq "$start" $((start + count))); do
 		end=$((start + range_size))
 		srcstart=$((start + src_delta))
 		srcend=$((end + src_delta))
 
-		for j in $(seq ${start} $((range_size / 2 + 1)) ${end}); do
+		for j in $(seq "$start" $((range_size / 2 + 1)) ${end}); do
 			send_nomatch "${j}" $((j + src_delta)) || return 1
 		done
 
@@ -1420,7 +1417,7 @@ test_performance() {
 	range_size=1
 	for set in test norange noconcat; do
 		start=${first}
-		for i in $(seq ${start} $((start + perf_entries))); do
+		for i in $(seq "$start" $((start + perf_entries))); do
 			end=$((start + range_size))
 			srcstart=$((start + src_delta))
 			srcend=$((end + src_delta))
@@ -1428,7 +1425,7 @@ test_performance() {
 			if [ $((end / 65534)) -gt $((start / 65534)) ]; then
 				start=${end}
 				end=$((end + 1))
-			elif [ ${start} -eq ${end} ]; then
+			elif [ "$start" -eq "$end" ]; then
 				end=$((start + 1))
 			fi
 
@@ -1439,7 +1436,7 @@ test_performance() {
 		nft -f "${tmp}"
 	done
 
-	perf $((end - 1)) ${srcstart}
+	perf $((end - 1)) "$srcstart"
 
 	sleep 2
 
@@ -1486,11 +1483,11 @@ test_bug_flush_remove_add() {
 	set_cmd='{ set s { type ipv4_addr . inet_service; flags interval; }; }'
 	elem1='{ 10.0.0.1 . 22-25, 10.0.0.1 . 10-20 }'
 	elem2='{ 10.0.0.1 . 10-20, 10.0.0.1 . 22-25 }'
-	for i in `seq 1 100`; do
-		nft add table t ${set_cmd}	|| return ${ksft_skip}
-		nft add element t s ${elem1}	2>/dev/null || return 1
+	for i in $(seq 1 100); do
+		nft add table t "$set_cmd"	|| return ${ksft_skip}
+		nft add element t s "$elem1"	2>/dev/null || return 1
 		nft flush set t s		2>/dev/null || return 1
-		nft add element t s ${elem2}	2>/dev/null || return 1
+		nft add element t s "$elem2"	2>/dev/null || return 1
 	done
 	nft flush ruleset
 }
@@ -1537,7 +1534,7 @@ test_bug_reload() {
 		srcstart=$((start + src_delta))
 		srcend=$((end + src_delta))
 
-		for j in $(seq ${start} $((range_size / 2 + 1)) ${end}); do
+		for j in $(seq "$start" $((range_size / 2 + 1)) ${end}); do
 			send_match "${j}" $((j + src_delta)) || return 1
 		done
 
@@ -1560,7 +1557,7 @@ trap cleanup EXIT
 # Entry point for test runs
 passed=0
 for name in ${TESTS}; do
-	printf "TEST: %s\n" "$(echo ${name} | tr '_' ' ')"
+	printf "TEST: %s\n" "$(echo "$name" | tr '_' ' ')"
 	if [ "${name}" = "reported_issues" ]; then
 		SUBTESTS="${BUGS}"
 	else
