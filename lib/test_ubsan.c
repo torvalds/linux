@@ -134,7 +134,7 @@ static const test_ubsan_fp test_ubsan_array[] = {
 };
 
 /* Excluded because they Oops the module. */
-static const test_ubsan_fp skip_ubsan_array[] = {
+static __used const test_ubsan_fp skip_ubsan_array[] = {
 	test_ubsan_divrem_overflow,
 };
 

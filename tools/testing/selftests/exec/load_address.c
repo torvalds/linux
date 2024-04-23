@@ -5,6 +5,7 @@
 #include <link.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include "../kselftest.h"
 
 struct Statistics {
 	unsigned long long load_address;
@@ -41,28 +42,23 @@ int main(int argc, char **argv)
 	unsigned long long misalign;
 	int ret;
 
-	ret = dl_iterate_phdr(ExtractStatistics, &extracted);
-	if (ret != 1) {
-		fprintf(stderr, "FAILED\n");
-		return 1;
-	}
+	ksft_print_header();
+	ksft_set_plan(1);
 
-	if (extracted.alignment == 0) {
-		fprintf(stderr, "No alignment found\n");
-		return 1;
-	} else if (extracted.alignment & (extracted.alignment - 1)) {
-		fprintf(stderr, "Alignment is not a power of 2\n");
-		return 1;
-	}
+	ret = dl_iterate_phdr(ExtractStatistics, &extracted);
+	if (ret != 1)
+		ksft_exit_fail_msg("FAILED: dl_iterate_phdr\n");
+
+	if (extracted.alignment == 0)
+		ksft_exit_fail_msg("FAILED: No alignment found\n");
+	else if (extracted.alignment & (extracted.alignment - 1))
+		ksft_exit_fail_msg("FAILED: Alignment is not a power of 2\n");
 
 	misalign = extracted.load_address & (extracted.alignment - 1);
-	if (misalign) {
-		printf("alignment = %llu, load_address = %llu\n",
-			extracted.alignment, extracted.load_address);
-		fprintf(stderr, "FAILED\n");
-		return 1;
-	}
+	if (misalign)
+		ksft_exit_fail_msg("FAILED: alignment = %llu, load_address = %llu\n",
+				   extracted.alignment, extracted.load_address);
 
-	fprintf(stderr, "PASS\n");
-	return 0;
+	ksft_test_result_pass("Completed\n");
+	ksft_finished();
 }

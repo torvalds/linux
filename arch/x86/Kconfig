@@ -2439,6 +2439,8 @@ config USE_X86_SEG_SUPPORT
 	# with named address spaces - see GCC PR sanitizer/111736.
 	#
 	depends on !KASAN
+	# -fsanitize=thread (KCSAN) is also incompatible.
+	depends on !KCSAN
 
 config CC_HAS_SLS
 	def_bool $(cc-option,-mharden-sls=all)
@@ -2630,6 +2632,16 @@ config MITIGATION_RFDS
 	  allows unprivileged speculative access to stale data previously
 	  stored in floating point, vector and integer registers.
 	  See also <file:Documentation/admin-guide/hw-vuln/reg-file-data-sampling.rst>
+
+config MITIGATION_SPECTRE_BHI
+	bool "Mitigate Spectre-BHB (Branch History Injection)"
+	depends on CPU_SUP_INTEL
+	default y
+	help
+	  Enable BHI mitigations. BHI attacks are a form of Spectre V2 attacks
+	  where the branch history buffer is poisoned to speculatively steer
+	  indirect branches.
+	  See <file:Documentation/admin-guide/hw-vuln/spectre.rst>
 
 endif
 

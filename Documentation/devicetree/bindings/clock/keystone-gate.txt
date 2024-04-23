@@ -1,5 +1,3 @@
-Status: Unstable - ABI compatibility may be broken in the future
-
 Binding for Keystone gate control driver which uses PSC controller IP.
 
 This binding uses the common clock binding[1].

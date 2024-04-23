@@ -128,6 +128,8 @@ typedef unsigned int __bitwise blk_mode_t;
 #define BLK_OPEN_WRITE_IOCTL	((__force blk_mode_t)(1 << 4))
 /* open is exclusive wrt all other BLK_OPEN_WRITE opens to the device */
 #define BLK_OPEN_RESTRICT_WRITES	((__force blk_mode_t)(1 << 5))
+/* return partition scanning errors */
+#define BLK_OPEN_STRICT_SCAN	((__force blk_mode_t)(1 << 6))
 
 struct gendisk {
 	/*
@@ -1505,16 +1507,6 @@ struct blk_holder_ops {
 	 * Thaw the file system mounted on the block device.
 	 */
 	int (*thaw)(struct block_device *bdev);
-
-	/*
-	 * If needed, get a reference to the holder.
-	 */
-	void (*get_holder)(void *holder);
-
-	/*
-	 * Release the holder.
-	 */
-	void (*put_holder)(void *holder);
 };
 
 /*
@@ -1585,6 +1577,7 @@ static inline int early_lookup_bdev(const char *pathname, dev_t *dev)
 
 int bdev_freeze(struct block_device *bdev);
 int bdev_thaw(struct block_device *bdev);
+void bdev_fput(struct file *bdev_file);
 
 struct io_comp_batch {
 	struct request *req_list;

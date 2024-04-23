@@ -1105,7 +1105,8 @@ static int cifs_get_fattr(struct cifs_open_info_data *data,
 		} else {
 			cifs_open_info_to_fattr(fattr, data, sb);
 		}
-		if (!rc && fattr->cf_flags & CIFS_FATTR_DELETE_PENDING)
+		if (!rc && *inode &&
+		    (fattr->cf_flags & CIFS_FATTR_DELETE_PENDING))
 			cifs_mark_open_handles_for_deleted_file(*inode, full_path);
 		break;
 	case -EREMOTE:
@@ -1350,6 +1351,8 @@ static int
 cifs_find_inode(struct inode *inode, void *opaque)
 {
 	struct cifs_fattr *fattr = opaque;
+
+	/* [!] The compared values must be the same in struct cifs_fscache_inode_key. */
 
 	/* don't match inode with different uniqueid */
 	if (CIFS_I(inode)->uniqueid != fattr->cf_uniqueid)

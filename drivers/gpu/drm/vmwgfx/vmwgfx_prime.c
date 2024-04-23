@@ -75,8 +75,12 @@ int vmw_prime_fd_to_handle(struct drm_device *dev,
 			   int fd, u32 *handle)
 {
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
+	int ret = ttm_prime_fd_to_handle(tfile, fd, handle);
 
-	return ttm_prime_fd_to_handle(tfile, fd, handle);
+	if (ret)
+		ret = drm_gem_prime_fd_to_handle(dev, file_priv, fd, handle);
+
+	return ret;
 }
 
 int vmw_prime_handle_to_fd(struct drm_device *dev,
@@ -85,5 +89,12 @@ int vmw_prime_handle_to_fd(struct drm_device *dev,
 			   int *prime_fd)
 {
 	struct ttm_object_file *tfile = vmw_fpriv(file_priv)->tfile;
-	return ttm_prime_handle_to_fd(tfile, handle, flags, prime_fd);
+	int ret;
+
+	if (handle > VMWGFX_NUM_MOB)
+		ret = ttm_prime_handle_to_fd(tfile, handle, flags, prime_fd);
+	else
+		ret = drm_gem_prime_handle_to_fd(dev, file_priv, handle, flags, prime_fd);
+
+	return ret;
 }

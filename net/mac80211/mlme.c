@@ -5874,6 +5874,15 @@ static int ieee80211_ttlm_set_links(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (sdata->vif.active_links != active_links) {
+		/* usable links are affected when active_links are changed,
+		 * so notify the driver about the status change
+		 */
+		changed |= BSS_CHANGED_MLD_VALID_LINKS;
+		active_links &= sdata->vif.active_links;
+		if (!active_links)
+			active_links =
+				BIT(__ffs(sdata->vif.valid_links &
+				    ~dormant_links));
 		ret = ieee80211_set_active_links(&sdata->vif, active_links);
 		if (ret) {
 			sdata_info(sdata, "Failed to set TTLM active links\n");
@@ -5888,7 +5897,6 @@ static int ieee80211_ttlm_set_links(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	changed |= BSS_CHANGED_MLD_VALID_LINKS;
 	sdata->vif.suspended_links = suspended_links;
 	if (sdata->vif.suspended_links)
 		changed |= BSS_CHANGED_MLD_TTLM;
@@ -7652,7 +7660,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			sdata_info(sdata,
 				   "failed to insert STA entry for the AP (error %d)\n",
 				   err);
-			goto out_err;
+			goto out_release_chan;
 		}
 	} else
 		WARN_ON_ONCE(!ether_addr_equal(link->u.mgd.bssid, cbss->bssid));
@@ -7663,8 +7671,9 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 
 	return 0;
 
+out_release_chan:
+	ieee80211_link_release_channel(link);
 out_err:
-	ieee80211_link_release_channel(&sdata->deflink);
 	ieee80211_vif_set_links(sdata, 0, 0);
 	return err;
 }

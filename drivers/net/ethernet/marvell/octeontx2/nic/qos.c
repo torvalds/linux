@@ -382,6 +382,7 @@ static void otx2_qos_read_txschq_cfg_tl(struct otx2_qos_node *parent,
 		otx2_qos_read_txschq_cfg_tl(node, cfg);
 		cnt = cfg->static_node_pos[node->level];
 		cfg->schq_contig_list[node->level][cnt] = node->schq;
+		cfg->schq_index_used[node->level][cnt] = true;
 		cfg->schq_contig[node->level]++;
 		cfg->static_node_pos[node->level]++;
 		otx2_qos_read_txschq_cfg_schq(node, cfg);

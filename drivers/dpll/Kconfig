@@ -4,4 +4,4 @@
 #
 
 config DPLL
-  bool
+	bool

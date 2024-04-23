@@ -114,6 +114,8 @@ KBUILD_CFLAGS += $(call cc-disable-warning, format-overflow)
 KBUILD_CFLAGS += $(call cc-disable-warning, format-truncation)
 KBUILD_CFLAGS += $(call cc-disable-warning, stringop-truncation)
 
+KBUILD_CFLAGS += -Wno-override-init # alias for -Wno-initializer-overrides in clang
+
 ifdef CONFIG_CC_IS_CLANG
 # Clang before clang-16 would warn on default argument promotions.
 ifneq ($(call clang-min-version, 160000),y)
@@ -151,10 +153,6 @@ KBUILD_CFLAGS += -Wtype-limits
 KBUILD_CFLAGS += $(call cc-option, -Wmaybe-uninitialized)
 KBUILD_CFLAGS += $(call cc-option, -Wunused-macros)
 
-ifdef CONFIG_CC_IS_CLANG
-KBUILD_CFLAGS += -Winitializer-overrides
-endif
-
 KBUILD_CPPFLAGS += -DKBUILD_EXTRA_WARN2
 
 else
@@ -164,9 +162,7 @@ KBUILD_CFLAGS += -Wno-missing-field-initializers
 KBUILD_CFLAGS += -Wno-type-limits
 KBUILD_CFLAGS += -Wno-shift-negative-value
 
-ifdef CONFIG_CC_IS_CLANG
-KBUILD_CFLAGS += -Wno-initializer-overrides
-else
+ifdef CONFIG_CC_IS_GCC
 KBUILD_CFLAGS += -Wno-maybe-uninitialized
 endif
 
