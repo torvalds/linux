@@ -38,6 +38,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <linux/kernel.h>
+#include <linux/build_bug.h>
 
 #define UNUSED(x) (void)(x)
 
@@ -3467,7 +3468,7 @@ int get_rapl_counters(int cpu, int domain, struct core_data *c, struct pkg_data 
 		}
 	}
 
-	_Static_assert(NUM_RAPL_COUNTERS == 7);
+	BUILD_BUG_ON(NUM_RAPL_COUNTERS != 7);
 	write_rapl_counter(&p->energy_pkg, rci, RAPL_RCI_INDEX_ENERGY_PKG);
 	write_rapl_counter(&p->energy_cores, rci, RAPL_RCI_INDEX_ENERGY_CORES);
 	write_rapl_counter(&p->energy_dram, rci, RAPL_RCI_INDEX_DRAM);
