@@ -973,13 +973,13 @@
 #define VLV_AUD_CHICKEN_BIT_REG		_MMIO(VLV_DISPLAY_BASE + 0x62F38)
 #define VLV_CHICKEN_BIT_DBG_ENABLE	(1 << 0)
 
-#define _VLV_AUD_PORT_EN_B_DBG		(VLV_DISPLAY_BASE + 0x62F20)
-#define _VLV_AUD_PORT_EN_C_DBG		(VLV_DISPLAY_BASE + 0x62F30)
-#define _VLV_AUD_PORT_EN_D_DBG		(VLV_DISPLAY_BASE + 0x62F34)
-#define VLV_AUD_PORT_EN_DBG(port)	_MMIO_PORT3((port) - PORT_B,	   \
-						    _VLV_AUD_PORT_EN_B_DBG, \
-						    _VLV_AUD_PORT_EN_C_DBG, \
-						    _VLV_AUD_PORT_EN_D_DBG)
+#define _VLV_AUD_PORT_EN_B_DBG		0x62F20
+#define _VLV_AUD_PORT_EN_C_DBG		0x62F30
+#define _VLV_AUD_PORT_EN_D_DBG		0x62F34
+#define VLV_AUD_PORT_EN_DBG(port)	_MMIO_BASE_PORT3(VLV_DISPLAY_BASE, (port) - PORT_B, \
+							 _VLV_AUD_PORT_EN_B_DBG, \
+							 _VLV_AUD_PORT_EN_C_DBG, \
+							 _VLV_AUD_PORT_EN_D_DBG)
 #define VLV_AMP_MUTE		        (1 << 1)
 
 #define GEN6_BSD_RNCID			_MMIO(0x12198)
@@ -1147,10 +1147,11 @@
 /*
  * Clock control & power management
  */
-#define _DPLL_A (DISPLAY_MMIO_BASE(dev_priv) + 0x6014)
-#define _DPLL_B (DISPLAY_MMIO_BASE(dev_priv) + 0x6018)
-#define _CHV_DPLL_C (DISPLAY_MMIO_BASE(dev_priv) + 0x6030)
-#define DPLL(pipe) _MMIO_PIPE3((pipe), _DPLL_A, _DPLL_B, _CHV_DPLL_C)
+#define _DPLL_A			0x6014
+#define _DPLL_B			0x6018
+#define _CHV_DPLL_C		0x6030
+#define DPLL(pipe)		_MMIO_BASE_PIPE3(DISPLAY_MMIO_BASE(dev_priv), \
+						 (pipe), _DPLL_A, _DPLL_B, _CHV_DPLL_C)
 
 #define VGA0	_MMIO(0x6000)
 #define VGA1	_MMIO(0x6004)
@@ -1246,10 +1247,11 @@
 #define   SDVO_MULTIPLIER_SHIFT_HIRES		4
 #define   SDVO_MULTIPLIER_SHIFT_VGA		0
 
-#define _DPLL_A_MD (DISPLAY_MMIO_BASE(dev_priv) + 0x601c)
-#define _DPLL_B_MD (DISPLAY_MMIO_BASE(dev_priv) + 0x6020)
-#define _CHV_DPLL_C_MD (DISPLAY_MMIO_BASE(dev_priv) + 0x603c)
-#define DPLL_MD(pipe) _MMIO_PIPE3((pipe), _DPLL_A_MD, _DPLL_B_MD, _CHV_DPLL_C_MD)
+#define _DPLL_A_MD		0x601c
+#define _DPLL_B_MD		0x6020
+#define _CHV_DPLL_C_MD		0x603c
+#define DPLL_MD(pipe)		_MMIO_BASE_PIPE3(DISPLAY_MMIO_BASE(dev_priv), \
+						 (pipe), _DPLL_A_MD, _DPLL_B_MD, _CHV_DPLL_C_MD)
 
 /*
  * UDI pixel divider, controlling how many pixels are stuffed into a packet.
@@ -2718,8 +2720,8 @@
 #define _WM0_PIPEA_ILK		0x45100
 #define _WM0_PIPEB_ILK		0x45104
 #define _WM0_PIPEC_IVB		0x45200
-#define WM0_PIPE_ILK(pipe)	_MMIO_PIPE3((pipe), _WM0_PIPEA_ILK, \
-					    _WM0_PIPEB_ILK, _WM0_PIPEC_IVB)
+#define WM0_PIPE_ILK(pipe)	_MMIO_BASE_PIPE3(0, (pipe), _WM0_PIPEA_ILK, \
+						 _WM0_PIPEB_ILK, _WM0_PIPEC_IVB)
 #define  WM0_PIPE_PRIMARY_MASK	REG_GENMASK(31, 16)
 #define  WM0_PIPE_SPRITE_MASK	REG_GENMASK(15, 8)
 #define  WM0_PIPE_CURSOR_MASK	REG_GENMASK(7, 0)
@@ -4767,27 +4769,29 @@
 #define TVIDEO_DIP_GCP(pipe) _MMIO_PIPE(pipe, _VIDEO_DIP_GCP_A, _VIDEO_DIP_GCP_B)
 
 /* Per-transcoder DIP controls (VLV) */
-#define _VLV_VIDEO_DIP_CTL_A		(VLV_DISPLAY_BASE + 0x60200)
-#define _VLV_VIDEO_DIP_DATA_A		(VLV_DISPLAY_BASE + 0x60208)
-#define _VLV_VIDEO_DIP_GDCP_PAYLOAD_A	(VLV_DISPLAY_BASE + 0x60210)
+#define _VLV_VIDEO_DIP_CTL_A		0x60200
+#define _VLV_VIDEO_DIP_CTL_B		0x61170
+#define _CHV_VIDEO_DIP_CTL_C		0x611f0
+#define VLV_TVIDEO_DIP_CTL(pipe)	_MMIO_BASE_PIPE3(VLV_DISPLAY_BASE, (pipe), \
+							 _VLV_VIDEO_DIP_CTL_A, \
+							 _VLV_VIDEO_DIP_CTL_B, \
+							 _CHV_VIDEO_DIP_CTL_C)
 
-#define _VLV_VIDEO_DIP_CTL_B		(VLV_DISPLAY_BASE + 0x61170)
-#define _VLV_VIDEO_DIP_DATA_B		(VLV_DISPLAY_BASE + 0x61174)
-#define _VLV_VIDEO_DIP_GDCP_PAYLOAD_B	(VLV_DISPLAY_BASE + 0x61178)
+#define _VLV_VIDEO_DIP_DATA_A		0x60208
+#define _VLV_VIDEO_DIP_DATA_B		0x61174
+#define _CHV_VIDEO_DIP_DATA_C		0x611f4
+#define VLV_TVIDEO_DIP_DATA(pipe)	_MMIO_BASE_PIPE3(VLV_DISPLAY_BASE, (pipe), \
+							 _VLV_VIDEO_DIP_DATA_A, \
+							 _VLV_VIDEO_DIP_DATA_B, \
+							 _CHV_VIDEO_DIP_DATA_C)
 
-#define _CHV_VIDEO_DIP_CTL_C		(VLV_DISPLAY_BASE + 0x611f0)
-#define _CHV_VIDEO_DIP_DATA_C		(VLV_DISPLAY_BASE + 0x611f4)
-#define _CHV_VIDEO_DIP_GDCP_PAYLOAD_C	(VLV_DISPLAY_BASE + 0x611f8)
-
-#define VLV_TVIDEO_DIP_CTL(pipe) \
-	_MMIO_PIPE3((pipe), _VLV_VIDEO_DIP_CTL_A, \
-	       _VLV_VIDEO_DIP_CTL_B, _CHV_VIDEO_DIP_CTL_C)
-#define VLV_TVIDEO_DIP_DATA(pipe) \
-	_MMIO_PIPE3((pipe), _VLV_VIDEO_DIP_DATA_A, \
-	       _VLV_VIDEO_DIP_DATA_B, _CHV_VIDEO_DIP_DATA_C)
-#define VLV_TVIDEO_DIP_GCP(pipe) \
-	_MMIO_PIPE3((pipe), _VLV_VIDEO_DIP_GDCP_PAYLOAD_A, \
-		_VLV_VIDEO_DIP_GDCP_PAYLOAD_B, _CHV_VIDEO_DIP_GDCP_PAYLOAD_C)
+#define _VLV_VIDEO_DIP_GDCP_PAYLOAD_A	0x60210
+#define _VLV_VIDEO_DIP_GDCP_PAYLOAD_B	0x61178
+#define _CHV_VIDEO_DIP_GDCP_PAYLOAD_C	0x611f8
+#define VLV_TVIDEO_DIP_GCP(pipe)	_MMIO_BASE_PIPE3(VLV_DISPLAY_BASE, (pipe), \
+							 _VLV_VIDEO_DIP_GDCP_PAYLOAD_A, \
+							 _VLV_VIDEO_DIP_GDCP_PAYLOAD_B, \
+							 _CHV_VIDEO_DIP_GDCP_PAYLOAD_C)
 
 /* Haswell DIP controls */
 
