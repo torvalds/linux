@@ -242,12 +242,21 @@ static inline void rwsem_set_nonspinnable(struct rw_semaphore *sem)
 
 static inline bool rwsem_read_trylock(struct rw_semaphore *sem, long *cntp)
 {
+	int ret = 0;
+
 	*cntp = atomic_long_add_return_acquire(RWSEM_READER_BIAS, &sem->count);
 
 	if (WARN_ON_ONCE(*cntp < 0))
 		rwsem_set_nonspinnable(sem);
 
 	if (!(*cntp & RWSEM_READ_FAILED_MASK)) {
+		rwsem_set_reader_owned(sem);
+		trace_android_vh_record_rwsem_lock_starttime(current, jiffies);
+		return true;
+	}
+
+	trace_android_vh_rwsem_read_trylock_failed(sem, cntp, &ret);
+	if (ret) {
 		rwsem_set_reader_owned(sem);
 		trace_android_vh_record_rwsem_lock_starttime(current, jiffies);
 		return true;
@@ -1354,6 +1363,15 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 			break;
 		}
 	}
+
+	if (!ret) {
+		trace_android_vh_rwsem_read_trylock_failed(sem, NULL, &ret);
+		if (ret) {
+			rwsem_set_reader_owned(sem);
+			trace_android_vh_record_rwsem_lock_starttime(current, jiffies);
+		}
+	}
+
 	preempt_enable();
 	return ret;
 }
