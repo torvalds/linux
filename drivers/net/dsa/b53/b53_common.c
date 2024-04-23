@@ -1420,16 +1420,15 @@ static struct phylink_pcs *b53_phylink_mac_select_pcs(struct dsa_switch *ds,
 	return dev->ops->phylink_mac_select_pcs(dev, port, interface);
 }
 
-void b53_phylink_mac_config(struct dsa_switch *ds, int port,
-			    unsigned int mode,
-			    const struct phylink_link_state *state)
+static void b53_phylink_mac_config(struct dsa_switch *ds, int port,
+				   unsigned int mode,
+				   const struct phylink_link_state *state)
 {
 }
-EXPORT_SYMBOL(b53_phylink_mac_config);
 
-void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
-			       unsigned int mode,
-			       phy_interface_t interface)
+static void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
+				      unsigned int mode,
+				      phy_interface_t interface)
 {
 	struct b53_device *dev = ds->priv;
 
@@ -1445,14 +1444,13 @@ void b53_phylink_mac_link_down(struct dsa_switch *ds, int port,
 	    dev->ops->serdes_link_set)
 		dev->ops->serdes_link_set(dev, port, mode, interface, false);
 }
-EXPORT_SYMBOL(b53_phylink_mac_link_down);
 
-void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
-			     unsigned int mode,
-			     phy_interface_t interface,
-			     struct phy_device *phydev,
-			     int speed, int duplex,
-			     bool tx_pause, bool rx_pause)
+static void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
+				    unsigned int mode,
+				    phy_interface_t interface,
+				    struct phy_device *phydev,
+				    int speed, int duplex,
+				    bool tx_pause, bool rx_pause)
 {
 	struct b53_device *dev = ds->priv;
 
@@ -1473,7 +1471,6 @@ void b53_phylink_mac_link_up(struct dsa_switch *ds, int port,
 	    dev->ops->serdes_link_set)
 		dev->ops->serdes_link_set(dev, port, mode, interface, true);
 }
-EXPORT_SYMBOL(b53_phylink_mac_link_up);
 
 int b53_vlan_filtering(struct dsa_switch *ds, int port, bool vlan_filtering,
 		       struct netlink_ext_ack *extack)
