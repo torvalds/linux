@@ -17,6 +17,8 @@
  * the hardware mapping.
  */
 
+#define dev_fmt(fmt) "tpmi_sst: " fmt
+
 #include <linux/auxiliary_bus.h>
 #include <linux/delay.h>
 #include <linux/intel_tpmi.h>
