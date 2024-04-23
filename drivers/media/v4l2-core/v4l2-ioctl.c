@@ -1538,6 +1538,22 @@ static void v4l_fill_fmtdesc(struct v4l2_fmtdesc *fmt)
 		}
 	}
 
+	if (fmt->type == V4L2_BUF_TYPE_META_CAPTURE) {
+		switch (fmt->pixelformat) {
+		case V4L2_META_FMT_GENERIC_8:
+		case V4L2_META_FMT_GENERIC_CSI2_10:
+		case V4L2_META_FMT_GENERIC_CSI2_12:
+		case V4L2_META_FMT_GENERIC_CSI2_14:
+		case V4L2_META_FMT_GENERIC_CSI2_16:
+		case V4L2_META_FMT_GENERIC_CSI2_20:
+		case V4L2_META_FMT_GENERIC_CSI2_24:
+			fmt->flags |= V4L2_FMT_FLAG_META_LINE_BASED;
+			break;
+		default:
+			fmt->flags &= ~V4L2_FMT_FLAG_META_LINE_BASED;
+		}
+	}
+
 	if (descr)
 		WARN_ON(strscpy(fmt->description, descr, sz) < 0);
 	fmt->flags |= flags;
