@@ -10,14 +10,42 @@
 
 / {
 	memory@0 {
-		device_type = "memory";
 		reg = <0x00000000 0x08000000>,
 		      <0x88000000 0x18000000>;
+		device_type = "memory";
 	};
 
 	nvram@1c080000 {
 		compatible = "brcm,nvram";
 		reg = <0x1c080000 0x00180000>;
+	};
+
+	gpio-keys {
+		compatible = "gpio-keys";
+
+		button-led {
+			label = "Backlight";
+			linux,code = <KEY_BRIGHTNESS_ZERO>;
+			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
+		};
+
+		button-reset {
+			label = "Reset";
+			linux,code = <KEY_RESTART>;
+			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
+		};
+
+		button-wifi {
+			label = "Wi-Fi";
+			linux,code = <KEY_RFKILL>;
+			gpios = <&chipcommon 18 GPIO_ACTIVE_LOW>;
+		};
+
+		button-wps {
+			label = "WPS";
+			linux,code = <KEY_WPS_BUTTON>;
+			gpios = <&chipcommon 20 GPIO_ACTIVE_LOW>;
+		};
 	};
 
 	leds {
@@ -66,32 +94,29 @@
 			gpios = <&chipcommon 19 GPIO_ACTIVE_LOW>;
 		};
 	};
+};
 
-	gpio-keys {
-		compatible = "gpio-keys";
+&nandcs {
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
 
-		button-led {
-			label = "Backlight";
-			linux,code = <KEY_BRIGHTNESS_ZERO>;
-			gpios = <&chipcommon 4 GPIO_ACTIVE_LOW>;
+		partition@0 {
+			reg = <0x00000000 0x00080000>;
+			label = "boot";
+			read-only;
 		};
 
-		button-reset {
-			label = "Reset";
-			linux,code = <KEY_RESTART>;
-			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
+		partition@80000 {
+			reg = <0x00080000 0x00180000>;
+			label = "nvram";
 		};
 
-		button-wifi {
-			label = "Wi-Fi";
-			linux,code = <KEY_RFKILL>;
-			gpios = <&chipcommon 18 GPIO_ACTIVE_LOW>;
-		};
-
-		button-wps {
-			label = "WPS";
-			linux,code = <KEY_WPS_BUTTON>;
-			gpios = <&chipcommon 20 GPIO_ACTIVE_LOW>;
+		partition@200000 {
+			compatible = "brcm,trx";
+			reg = <0x00200000 0x07e00000>;
+			label = "firmware";
 		};
 	};
 };
@@ -140,29 +165,4 @@
 
 &usb3_phy {
 	status = "okay";
-};
-
-&nandcs {
-	partitions {
-		compatible = "fixed-partitions";
-		#address-cells = <1>;
-		#size-cells = <1>;
-
-		partition@0 {
-			label = "boot";
-			reg = <0x00000000 0x00080000>;
-			read-only;
-		};
-
-		partition@80000 {
-			label = "nvram";
-			reg = <0x00080000 0x00180000>;
-		};
-
-		partition@200000 {
-			label = "firmware";
-			reg = <0x00200000 0x07e00000>;
-			compatible = "brcm,trx";
-		};
-	};
 };
