@@ -904,7 +904,7 @@ static int zynqmp_r5_core_init(struct zynqmp_r5_cluster *cluster,
 {
 	struct device *dev = cluster->dev;
 	struct zynqmp_r5_core *r5_core;
-	int ret, i;
+	int ret = -EINVAL, i;
 
 	r5_core = cluster->r5_cores[0];
 
