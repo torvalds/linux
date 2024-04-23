@@ -605,44 +605,6 @@ static struct sock_addr_test tests[] = {
 	},
 };
 
-static int mk_sockaddr(int domain, const char *ip, unsigned short port,
-		       struct sockaddr *addr, socklen_t addr_len)
-{
-	struct sockaddr_in6 *addr6;
-	struct sockaddr_in *addr4;
-
-	if (domain != AF_INET && domain != AF_INET6) {
-		log_err("Unsupported address family");
-		return -1;
-	}
-
-	memset(addr, 0, addr_len);
-
-	if (domain == AF_INET) {
-		if (addr_len < sizeof(struct sockaddr_in))
-			return -1;
-		addr4 = (struct sockaddr_in *)addr;
-		addr4->sin_family = domain;
-		addr4->sin_port = htons(port);
-		if (inet_pton(domain, ip, (void *)&addr4->sin_addr) != 1) {
-			log_err("Invalid IPv4: %s", ip);
-			return -1;
-		}
-	} else if (domain == AF_INET6) {
-		if (addr_len < sizeof(struct sockaddr_in6))
-			return -1;
-		addr6 = (struct sockaddr_in6 *)addr;
-		addr6->sin6_family = domain;
-		addr6->sin6_port = htons(port);
-		if (inet_pton(domain, ip, (void *)&addr6->sin6_addr) != 1) {
-			log_err("Invalid IPv6: %s", ip);
-			return -1;
-		}
-	}
-
-	return 0;
-}
-
 static int load_insns(const struct sock_addr_test *test,
 		      const struct bpf_insn *insns, size_t insns_cnt)
 {
@@ -757,9 +719,9 @@ static int sendmsg4_rw_asm_prog_load(const struct sock_addr_test *test)
 		return -1;
 	}
 
-	if (mk_sockaddr(AF_INET, SERV4_REWRITE_IP, SERV4_REWRITE_PORT,
-			(struct sockaddr *)&dst4_rw_addr,
-			sizeof(dst4_rw_addr)) == -1)
+	if (make_sockaddr(AF_INET, SERV4_REWRITE_IP, SERV4_REWRITE_PORT,
+			  (struct sockaddr_storage *)&dst4_rw_addr,
+			  NULL) == -1)
 		return -1;
 
 	struct bpf_insn insns[] = {
@@ -820,9 +782,9 @@ static int sendmsg6_rw_dst_asm_prog_load(const struct sock_addr_test *test,
 		return -1;
 	}
 
-	if (mk_sockaddr(AF_INET6, rw_dst_ip, SERV6_REWRITE_PORT,
-			(struct sockaddr *)&dst6_rw_addr,
-			sizeof(dst6_rw_addr)) == -1)
+	if (make_sockaddr(AF_INET6, rw_dst_ip, SERV6_REWRITE_PORT,
+			  (struct sockaddr_storage *)&dst6_rw_addr,
+			  NULL) == -1)
 		return -1;
 
 	struct bpf_insn insns[] = {
@@ -1084,19 +1046,17 @@ static int init_addrs(const struct sock_addr_test *test,
 		      struct sockaddr_storage *expected_addr,
 		      struct sockaddr_storage *expected_src_addr)
 {
-	socklen_t addr_len = sizeof(struct sockaddr_storage);
-
-	if (mk_sockaddr(test->domain, test->expected_ip, test->expected_port,
-			(struct sockaddr *)expected_addr, addr_len) == -1)
+	if (make_sockaddr(test->domain, test->expected_ip, test->expected_port,
+			  expected_addr, NULL) == -1)
 		goto err;
 
-	if (mk_sockaddr(test->domain, test->requested_ip, test->requested_port,
-			(struct sockaddr *)requested_addr, addr_len) == -1)
+	if (make_sockaddr(test->domain, test->requested_ip, test->requested_port,
+			  requested_addr, NULL) == -1)
 		goto err;
 
 	if (test->expected_src_ip &&
-	    mk_sockaddr(test->domain, test->expected_src_ip, 0,
-			(struct sockaddr *)expected_src_addr, addr_len) == -1)
+	    make_sockaddr(test->domain, test->expected_src_ip, 0,
+			  expected_src_addr, NULL) == -1)
 		goto err;
 
 	return 0;
