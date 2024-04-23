@@ -199,9 +199,7 @@ SYM_FUNC_END(xscale_flush_icache_all)
  *	Invalidate all cache entries in a particular address
  *	space.
  */
-SYM_TYPED_FUNC_START(xscale_flush_user_cache_all)
-	b	xscale_flush_kern_cache_all
-SYM_FUNC_END(xscale_flush_user_cache_all)
+SYM_FUNC_ALIAS(xscale_flush_user_cache_all, xscale_flush_kern_cache_all)
 
 /*
  *	flush_kern_cache_all()

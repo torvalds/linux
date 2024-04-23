@@ -117,9 +117,7 @@ SYM_FUNC_END(arm926_flush_icache_all)
  *	Clean and invalidate all cache entries in a particular
  *	address space.
  */
-SYM_TYPED_FUNC_START(arm926_flush_user_cache_all)
-	b	arm926_flush_kern_cache_all
-SYM_FUNC_END(arm926_flush_user_cache_all)
+SYM_FUNC_ALIAS(arm926_flush_user_cache_all, arm926_flush_kern_cache_all)
 
 /*
  *	flush_kern_cache_all()

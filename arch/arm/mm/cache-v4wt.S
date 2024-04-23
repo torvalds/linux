@@ -56,9 +56,7 @@ SYM_FUNC_END(v4wt_flush_icache_all)
  *	Invalidate all cache entries in a particular address
  *	space.
  */
-SYM_TYPED_FUNC_START(v4wt_flush_user_cache_all)
-	b	v4wt_flush_kern_cache_all
-SYM_FUNC_END(v4wt_flush_user_cache_all)
+SYM_FUNC_ALIAS(v4wt_flush_user_cache_all, v4wt_flush_kern_cache_all)
 
 /*
  *	flush_kern_cache_all()

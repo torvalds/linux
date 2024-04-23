@@ -28,9 +28,7 @@ SYM_FUNC_END(v4_flush_icache_all)
  *
  *	- mm	- mm_struct describing address space
  */
-SYM_TYPED_FUNC_START(v4_flush_user_cache_all)
-	b	v4_flush_kern_cache_all
-SYM_FUNC_END(v4_flush_user_cache_all)
+SYM_FUNC_ALIAS(v4_flush_user_cache_all, v4_flush_kern_cache_all)
 
 /*
  *	flush_kern_cache_all()

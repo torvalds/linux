@@ -100,9 +100,7 @@ SYM_FUNC_END(mohawk_flush_icache_all)
  *	Clean and invalidate all cache entries in a particular
  *	address space.
  */
-SYM_TYPED_FUNC_START(mohawk_flush_user_cache_all)
-	b	mohawk_flush_kern_cache_all
-SYM_FUNC_END(mohawk_flush_user_cache_all)
+SYM_FUNC_ALIAS(mohawk_flush_user_cache_all, mohawk_flush_kern_cache_all)
 
 /*
  *	flush_kern_cache_all()

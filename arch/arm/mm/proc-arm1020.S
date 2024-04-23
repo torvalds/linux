@@ -127,9 +127,7 @@ SYM_FUNC_END(arm1020_flush_icache_all)
  *	Invalidate all cache entries in a particular address
  *	space.
  */
-SYM_TYPED_FUNC_START(arm1020_flush_user_cache_all)
-	b	arm1020_flush_kern_cache_all
-SYM_FUNC_END(arm1020_flush_user_cache_all)
+SYM_FUNC_ALIAS(arm1020_flush_user_cache_all, arm1020_flush_kern_cache_all)
 
 /*
  *	flush_kern_cache_all()

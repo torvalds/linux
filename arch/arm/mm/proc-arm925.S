@@ -151,9 +151,7 @@ SYM_FUNC_END(arm925_flush_icache_all)
  *	Clean and invalidate all cache entries in a particular
  *	address space.
  */
-SYM_TYPED_FUNC_START(arm925_flush_user_cache_all)
-	b	arm925_flush_kern_cache_all
-SYM_FUNC_END(arm925_flush_user_cache_all)
+SYM_FUNC_ALIAS(arm925_flush_user_cache_all, arm925_flush_kern_cache_all)
 
 /*
  *	flush_kern_cache_all()

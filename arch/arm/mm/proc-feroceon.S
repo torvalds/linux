@@ -136,9 +136,7 @@ SYM_FUNC_END(feroceon_flush_icache_all)
  *	address space.
  */
 	.align	5
-SYM_TYPED_FUNC_START(feroceon_flush_user_cache_all)
-	b	feroceon_flush_kern_cache_all
-SYM_FUNC_END(feroceon_flush_user_cache_all)
+SYM_FUNC_ALIAS(feroceon_flush_user_cache_all, feroceon_flush_kern_cache_all)
 
 /*
  *	flush_kern_cache_all()

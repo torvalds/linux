@@ -6,6 +6,10 @@
 
 #include "proc-macros.S"
 
+/*
+ * These are all open-coded instead of aliased, to make clear
+ * what is going on here: all functions are stubbed out.
+ */
 SYM_TYPED_FUNC_START(nop_flush_icache_all)
 	ret	lr
 SYM_FUNC_END(nop_flush_icache_all)

@@ -88,9 +88,7 @@ SYM_FUNC_END(arm946_flush_icache_all)
 /*
  *	flush_user_cache_all()
  */
-SYM_TYPED_FUNC_START(arm946_flush_user_cache_all)
-	b	arm946_flush_kern_cache_all
-SYM_FUNC_END(arm946_flush_user_cache_all)
+SYM_FUNC_ALIAS(arm946_flush_user_cache_all, arm946_flush_kern_cache_all)
 
 /*
  *	flush_kern_cache_all()
