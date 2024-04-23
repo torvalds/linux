@@ -130,6 +130,22 @@ static bool migrate_one_irq(struct irq_desc *desc)
 	 * CPU.
 	 */
 	err = irq_do_set_affinity(d, affinity, false);
+
+	/*
+	 * If there are online CPUs in the affinity mask, but they have no
+	 * vectors left to make the migration work, try to break the
+	 * affinity by migrating to any online CPU.
+	 */
+	if (err == -ENOSPC && !irqd_affinity_is_managed(d) && affinity != cpu_online_mask) {
+		pr_debug("IRQ%u: set affinity failed for %*pbl, re-try with online CPUs\n",
+			 d->irq, cpumask_pr_args(affinity));
+
+		affinity = cpu_online_mask;
+		brokeaff = true;
+
+		err = irq_do_set_affinity(d, affinity, false);
+	}
+
 	if (err) {
 		pr_warn_ratelimited("IRQ%u: set affinity failed(%d).\n",
 				    d->irq, err);
