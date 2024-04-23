@@ -175,12 +175,34 @@ void kvm_arch_vcpu_put_fp(struct kvm_vcpu *vcpu)
 		if (vcpu_has_sve(vcpu)) {
 			__vcpu_sys_reg(vcpu, ZCR_EL1) = read_sysreg_el1(SYS_ZCR);
 
-			/* Restore the VL that was saved when bound to the CPU */
+			/*
+			 * Restore the VL that was saved when bound to the CPU,
+			 * which is the maximum VL for the guest. Because the
+			 * layout of the data when saving the sve state depends
+			 * on the VL, we need to use a consistent (i.e., the
+			 * maximum) VL.
+			 * Note that this means that at guest exit ZCR_EL1 is
+			 * not necessarily the same as on guest entry.
+			 *
+			 * Restoring the VL isn't needed in VHE mode since
+			 * ZCR_EL2 (accessed via ZCR_EL1) would fulfill the same
+			 * role when doing the save from EL2.
+			 */
 			if (!has_vhe())
 				sve_cond_update_zcr_vq(vcpu_sve_max_vq(vcpu) - 1,
 						       SYS_ZCR_EL1);
 		}
 
+		/*
+		 * Flush (save and invalidate) the fpsimd/sve state so that if
+		 * the host tries to use fpsimd/sve, it's not using stale data
+		 * from the guest.
+		 *
+		 * Flushing the state sets the TIF_FOREIGN_FPSTATE bit for the
+		 * context unconditionally, in both nVHE and VHE. This allows
+		 * the kernel to restore the fpsimd/sve state, including ZCR_EL1
+		 * when needed.
+		 */
 		fpsimd_save_and_flush_cpu_state();
 	} else if (has_vhe() && system_supports_sve()) {
 		/*
