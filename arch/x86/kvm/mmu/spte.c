@@ -43,7 +43,25 @@ u64 __read_mostly shadow_acc_track_mask;
 u64 __read_mostly shadow_nonpresent_or_rsvd_mask;
 u64 __read_mostly shadow_nonpresent_or_rsvd_lower_gfn_mask;
 
-u8 __ro_after_init shadow_phys_bits;
+static u8 __init kvm_get_host_maxphyaddr(void)
+{
+	/*
+	 * boot_cpu_data.x86_phys_bits is reduced when MKTME or SME are detected
+	 * in CPU detection code, but the processor treats those reduced bits as
+	 * 'keyID' thus they are not reserved bits. Therefore KVM needs to look at
+	 * the physical address bits reported by CPUID, i.e. the raw MAXPHYADDR,
+	 * when reasoning about CPU behavior with respect to MAXPHYADDR.
+	 */
+	if (likely(boot_cpu_data.extended_cpuid_level >= 0x80000008))
+		return cpuid_eax(0x80000008) & 0xff;
+
+	/*
+	 * Quite weird to have VMX or SVM but not MAXPHYADDR; probably a VM with
+	 * custom CPUID.  Proceed with whatever the kernel found since these features
+	 * aren't virtualizable (SME/SEV also require CPUIDs higher than 0x80000008).
+	 */
+	return boot_cpu_data.x86_phys_bits;
+}
 
 void __init kvm_mmu_spte_module_init(void)
 {
@@ -56,7 +74,7 @@ void __init kvm_mmu_spte_module_init(void)
 	 */
 	allow_mmio_caching = enable_mmio_caching;
 
-	shadow_phys_bits = kvm_get_shadow_phys_bits();
+	kvm_host.maxphyaddr = kvm_get_host_maxphyaddr();
 }
 
 static u64 generation_mmio_spte_mask(u64 gen)
@@ -494,7 +512,7 @@ void kvm_mmu_reset_all_pte_masks(void)
 	 * 52-bit physical addresses then there are no reserved PA bits in the
 	 * PTEs and so the reserved PA approach must be disabled.
 	 */
-	if (shadow_phys_bits < 52)
+	if (kvm_host.maxphyaddr < 52)
 		mask = BIT_ULL(51) | PT_PRESENT_MASK;
 	else
 		mask = 0;

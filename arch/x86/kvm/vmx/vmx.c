@@ -8389,18 +8389,16 @@ static void __init vmx_setup_me_spte_mask(void)
 	u64 me_mask = 0;
 
 	/*
-	 * kvm_get_shadow_phys_bits() returns shadow_phys_bits.  Use
-	 * the former to avoid exposing shadow_phys_bits.
-	 *
 	 * On pre-MKTME system, boot_cpu_data.x86_phys_bits equals to
-	 * shadow_phys_bits.  On MKTME and/or TDX capable systems,
+	 * kvm_host.maxphyaddr.  On MKTME and/or TDX capable systems,
 	 * boot_cpu_data.x86_phys_bits holds the actual physical address
-	 * w/o the KeyID bits, and shadow_phys_bits equals to MAXPHYADDR
-	 * reported by CPUID.  Those bits between are KeyID bits.
+	 * w/o the KeyID bits, and kvm_host.maxphyaddr equals to
+	 * MAXPHYADDR reported by CPUID.  Those bits between are KeyID bits.
 	 */
-	if (boot_cpu_data.x86_phys_bits != kvm_get_shadow_phys_bits())
+	if (boot_cpu_data.x86_phys_bits != kvm_host.maxphyaddr)
 		me_mask = rsvd_bits(boot_cpu_data.x86_phys_bits,
-			kvm_get_shadow_phys_bits() - 1);
+				    kvm_host.maxphyaddr - 1);
+
 	/*
 	 * Unlike SME, host kernel doesn't support setting up any
 	 * MKTME KeyID on Intel platforms.  No memory encryption

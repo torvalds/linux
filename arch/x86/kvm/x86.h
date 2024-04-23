@@ -34,6 +34,13 @@ struct kvm_caps {
 };
 
 struct kvm_host_values {
+	/*
+	 * The host's raw MAXPHYADDR, i.e. the number of non-reserved physical
+	 * address bits irrespective of features that repurpose legal bits,
+	 * e.g. MKTME.
+	 */
+	u8 maxphyaddr;
+
 	u64 efer;
 	u64 xcr0;
 	u64 xss;

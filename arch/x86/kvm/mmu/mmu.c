@@ -4980,7 +4980,7 @@ static void reset_rsvds_bits_mask_ept(struct kvm_vcpu *vcpu,
 
 static inline u64 reserved_hpa_bits(void)
 {
-	return rsvd_bits(shadow_phys_bits, 63);
+	return rsvd_bits(kvm_host.maxphyaddr, 63);
 }
 
 /*
