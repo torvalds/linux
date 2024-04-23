@@ -298,10 +298,7 @@ dce110_set_input_transfer_func(struct dc *dc, struct pipe_ctx *pipe_ctx,
 			dce_use_lut(plane_state->format))
 		ipp->funcs->ipp_program_input_lut(ipp, &plane_state->gamma_correction);
 
-	if (tf == NULL) {
-		/* Default case if no input transfer function specified */
-		ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_HW_sRGB);
-	} else if (tf->type == TF_TYPE_PREDEFINED) {
+	if (tf->type == TF_TYPE_PREDEFINED) {
 		switch (tf->tf) {
 		case TRANSFER_FUNCTION_SRGB:
 			ipp->funcs->ipp_set_degamma(ipp, IPP_DEGAMMA_MODE_HW_sRGB);
