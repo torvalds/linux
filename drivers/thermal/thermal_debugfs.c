@@ -616,6 +616,7 @@ void thermal_debug_tz_trip_up(struct thermal_zone_device *tz,
 	tze->trip_stats[trip_id].timestamp = now;
 	tze->trip_stats[trip_id].max = max(tze->trip_stats[trip_id].max, temperature);
 	tze->trip_stats[trip_id].min = min(tze->trip_stats[trip_id].min, temperature);
+	tze->trip_stats[trip_id].count++;
 	tze->trip_stats[trip_id].avg = tze->trip_stats[trip_id].avg +
 		(temperature - tze->trip_stats[trip_id].avg) /
 		tze->trip_stats[trip_id].count;

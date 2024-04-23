@@ -28,8 +28,8 @@ dma_subsys: bus@5a000000 {
 		#size-cells = <0>;
 		interrupts = <GIC_SPI 336 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&spi0_lpcg 0>,
-			 <&spi0_lpcg 1>;
+		clocks = <&spi0_lpcg IMX_LPCG_CLK_0>,
+			 <&spi0_lpcg IMX_LPCG_CLK_4>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX_SC_R_SPI_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <60000000>;
@@ -44,8 +44,8 @@ dma_subsys: bus@5a000000 {
 		#size-cells = <0>;
 		interrupts = <GIC_SPI 337 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&spi1_lpcg 0>,
-			 <&spi1_lpcg 1>;
+		clocks = <&spi1_lpcg IMX_LPCG_CLK_0>,
+			 <&spi1_lpcg IMX_LPCG_CLK_4>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX_SC_R_SPI_1 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <60000000>;
@@ -60,8 +60,8 @@ dma_subsys: bus@5a000000 {
 		#size-cells = <0>;
 		interrupts = <GIC_SPI 338 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&spi2_lpcg 0>,
-			 <&spi2_lpcg 1>;
+		clocks = <&spi2_lpcg IMX_LPCG_CLK_0>,
+			 <&spi2_lpcg IMX_LPCG_CLK_4>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX_SC_R_SPI_2 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <60000000>;
@@ -76,8 +76,8 @@ dma_subsys: bus@5a000000 {
 		#size-cells = <0>;
 		interrupts = <GIC_SPI 339 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&spi3_lpcg 0>,
-			 <&spi3_lpcg 1>;
+		clocks = <&spi3_lpcg IMX_LPCG_CLK_0>,
+			 <&spi3_lpcg IMX_LPCG_CLK_4>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX_SC_R_SPI_3 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <60000000>;
@@ -145,8 +145,8 @@ dma_subsys: bus@5a000000 {
 		compatible = "fsl,imx8qxp-pwm", "fsl,imx27-pwm";
 		reg = <0x5a190000 0x1000>;
 		interrupts = <GIC_SPI 127 IRQ_TYPE_LEVEL_HIGH>;
-		clocks = <&adma_pwm_lpcg 1>,
-			 <&adma_pwm_lpcg 0>;
+		clocks = <&adma_pwm_lpcg IMX_LPCG_CLK_4>,
+			 <&adma_pwm_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "ipg", "per";
 		assigned-clocks = <&clk IMX_SC_R_LCD_0_PWM_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
@@ -355,8 +355,8 @@ dma_subsys: bus@5a000000 {
 		reg = <0x5a880000 0x10000>;
 		interrupts = <GIC_SPI 240 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&adc0_lpcg 0>,
-			 <&adc0_lpcg 1>;
+		clocks = <&adc0_lpcg IMX_LPCG_CLK_0>,
+			 <&adc0_lpcg IMX_LPCG_CLK_4>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX_SC_R_ADC_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
@@ -370,8 +370,8 @@ dma_subsys: bus@5a000000 {
 		reg = <0x5a890000 0x10000>;
 		interrupts = <GIC_SPI 241 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&adc1_lpcg 0>,
-			 <&adc1_lpcg 1>;
+		clocks = <&adc1_lpcg IMX_LPCG_CLK_0>,
+			 <&adc1_lpcg IMX_LPCG_CLK_4>;
 		clock-names = "per", "ipg";
 		assigned-clocks = <&clk IMX_SC_R_ADC_1 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <24000000>;
@@ -384,8 +384,8 @@ dma_subsys: bus@5a000000 {
 		reg = <0x5a8d0000 0x10000>;
 		interrupts = <GIC_SPI 235 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-parent = <&gic>;
-		clocks = <&can0_lpcg 1>,
-			 <&can0_lpcg 0>;
+		clocks = <&can0_lpcg IMX_LPCG_CLK_4>,
+			 <&can0_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "ipg", "per";
 		assigned-clocks = <&clk IMX_SC_R_CAN_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <40000000>;
@@ -405,8 +405,8 @@ dma_subsys: bus@5a000000 {
 		 * CAN1 shares CAN0's clock and to enable CAN0's clock it
 		 * has to be powered on.
 		 */
-		clocks = <&can0_lpcg 1>,
-			 <&can0_lpcg 0>;
+		clocks = <&can0_lpcg IMX_LPCG_CLK_4>,
+			 <&can0_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "ipg", "per";
 		assigned-clocks = <&clk IMX_SC_R_CAN_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <40000000>;
@@ -426,8 +426,8 @@ dma_subsys: bus@5a000000 {
 		 * CAN2 shares CAN0's clock and to enable CAN0's clock it
 		 * has to be powered on.
 		 */
-		clocks = <&can0_lpcg 1>,
-			 <&can0_lpcg 0>;
+		clocks = <&can0_lpcg IMX_LPCG_CLK_4>,
+			 <&can0_lpcg IMX_LPCG_CLK_0>;
 		clock-names = "ipg", "per";
 		assigned-clocks = <&clk IMX_SC_R_CAN_0 IMX_SC_PM_CLK_PER>;
 		assigned-clock-rates = <40000000>;

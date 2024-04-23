@@ -691,12 +691,15 @@ int intel_dp_hdcp_get_remote_capability(struct intel_connector *connector,
 	u8 bcaps;
 	int ret;
 
+	*hdcp_capable = false;
+	*hdcp2_capable = false;
 	if (!intel_encoder_is_mst(connector->encoder))
 		return -EINVAL;
 
 	ret =  _intel_dp_hdcp2_get_capability(aux, hdcp2_capable);
 	if (ret)
-		return ret;
+		drm_dbg_kms(&i915->drm,
+			    "HDCP2 DPCD capability read failed err: %d\n", ret);
 
 	ret = intel_dp_hdcp_read_bcaps(aux, i915, &bcaps);
 	if (ret)
