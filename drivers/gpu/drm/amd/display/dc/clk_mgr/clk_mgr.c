@@ -367,14 +367,13 @@ struct clk_mgr *dc_clk_mgr_create(struct dc_context *ctx, struct pp_smu_funcs *p
 	break;
 
 	case AMDGPU_FAMILY_GC_12_0_0: {
-		struct clk_mgr_internal *clk_mgr = kzalloc(sizeof(*clk_mgr), GFP_KERNEL);
+		struct clk_mgr_internal *clk_mgr = dcn401_clk_mgr_construct(ctx, dccg);
 
 		if (clk_mgr == NULL) {
 			BREAK_TO_DEBUGGER();
 			return NULL;
 		}
 
-		dcn401_clk_mgr_construct(ctx, clk_mgr, pp_smu, dccg);
 		return &clk_mgr->base;
 	}
 	break;

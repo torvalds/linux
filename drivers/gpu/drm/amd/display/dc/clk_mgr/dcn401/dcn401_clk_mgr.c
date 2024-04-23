@@ -935,14 +935,18 @@ static struct clk_mgr_funcs dcn401_funcs = {
 		.is_smu_present = dcn401_is_smu_present,
 };
 
-void dcn401_clk_mgr_construct(
+struct clk_mgr_internal *dcn401_clk_mgr_construct(
 		struct dc_context *ctx,
-		struct clk_mgr_internal *clk_mgr,
-		struct pp_smu_funcs *pp_smu,
 		struct dccg *dccg)
 {
 	struct clk_log_info log_info = {0};
+	struct dcn401_clk_mgr *clk_mgr401 = kzalloc(sizeof(struct dcn401_clk_mgr), GFP_KERNEL);
+	struct clk_mgr_internal *clk_mgr;
 
+	if (!clk_mgr401)
+		return NULL;
+
+	clk_mgr = &clk_mgr401->base;
 	clk_mgr->base.ctx = ctx;
 	clk_mgr->base.funcs = &dcn401_funcs;
 	clk_mgr->regs = &clk_mgr_regs_dcn401;
@@ -987,11 +991,24 @@ void dcn401_clk_mgr_construct(
 	clk_mgr->smu_present = false;
 
 	clk_mgr->base.bw_params = kzalloc(sizeof(*clk_mgr->base.bw_params), GFP_KERNEL);
+	if (!clk_mgr->base.bw_params) {
+		BREAK_TO_DEBUGGER();
+		kfree(clk_mgr);
+		return NULL;
+	}
 
 	/* need physical address of table to give to PMFW */
 	clk_mgr->wm_range_table = dm_helpers_allocate_gpu_mem(clk_mgr->base.ctx,
 			DC_MEM_ALLOC_TYPE_GART, sizeof(WatermarksExternal_t),
 			&clk_mgr->wm_range_table_addr);
+	if (!clk_mgr->wm_range_table) {
+		BREAK_TO_DEBUGGER();
+		kfree(clk_mgr->base.bw_params);
+		return NULL;
+	}
+
+	return &clk_mgr401->base;
+
 }
 
 void dcn401_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr)
