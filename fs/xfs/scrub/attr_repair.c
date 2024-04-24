@@ -1630,6 +1630,9 @@ xrep_xattr(
 	/* The rmapbt is required to reap the old attr fork. */
 	if (!xfs_has_rmapbt(sc->mp))
 		return -EOPNOTSUPP;
+	/* We require atomic file exchange range to rebuild anything. */
+	if (!xfs_has_exchange_range(sc->mp))
+		return -EOPNOTSUPP;
 
 	error = xrep_xattr_setup_scan(sc, &rx);
 	if (error)

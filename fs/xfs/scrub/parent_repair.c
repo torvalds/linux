@@ -1571,10 +1571,14 @@ xrep_parent(
 	/*
 	 * When the parent pointers feature is enabled, repairs are committed
 	 * by atomically committing a new xattr structure and reaping the old
-	 * attr fork.  Reaping requires rmap to be enabled.
+	 * attr fork.  Reaping requires rmap and exchange-range to be enabled.
 	 */
-	if (xfs_has_parent(sc->mp) && !xfs_has_rmapbt(sc->mp))
-		return -EOPNOTSUPP;
+	if (xfs_has_parent(sc->mp)) {
+		if (!xfs_has_rmapbt(sc->mp))
+			return -EOPNOTSUPP;
+		if (!xfs_has_exchange_range(sc->mp))
+			return -EOPNOTSUPP;
+	}
 
 	error = xrep_parent_setup_scan(rp);
 	if (error)

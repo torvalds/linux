@@ -122,7 +122,6 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_BARRIER);
 	{ XCHK_FSGATES_QUOTA,			"fsgates_quota" }, \
 	{ XCHK_FSGATES_DIRENTS,			"fsgates_dirents" }, \
 	{ XCHK_FSGATES_RMAP,			"fsgates_rmap" }, \
-	{ XREP_FSGATES_EXCHANGE_RANGE,		"fsgates_exchrange" }, \
 	{ XREP_RESET_PERAG_RESV,		"reset_perag_resv" }, \
 	{ XREP_ALREADY_FIXED,			"already_fixed" }
 
@@ -3266,8 +3265,6 @@ DEFINE_EVENT(xrep_dentry_class, name, \
 	TP_PROTO(struct xfs_mount *mp, const struct dentry *dentry), \
 	TP_ARGS(mp, dentry))
 DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_child);
-DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_alias);
-DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_dentry);
 DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_invalidate_child);
 DEFINE_REPAIR_DENTRY_EVENT(xrep_dirtree_delete_child);
 
