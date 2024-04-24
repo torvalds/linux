@@ -114,6 +114,12 @@
 		interrupts-extended = <&tlmm 12 IRQ_TYPE_EDGE_FALLING>;
 		pinctrl-0 = <&muic_int_default>;
 		pinctrl-names = "default";
+
+		usb_con: connector {
+			compatible = "usb-b-connector";
+			label = "micro-USB";
+			type = "micro";
+		};
 	};
 };
 
