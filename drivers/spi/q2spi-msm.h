@@ -176,6 +176,8 @@
 #define QSPI_NUM_CS			2
 #define QSPI_BYTES_PER_WORD		4
 
+#define Q2SPI_RESP_BUF_RETRIES		(100)
+
 #define Q2SPI_INFO(q2spi_ptr, x...) do { \
 if (q2spi_ptr) { \
 	ipc_log_string(q2spi_ptr->ipc, x); \
