@@ -648,7 +648,6 @@
 };
 
 &uart5 {
-	compatible = "qcom,geni-debug-uart";
 	status = "okay";
 };
 
