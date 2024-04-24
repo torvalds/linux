@@ -973,24 +973,33 @@ static struct rect calculate_mpc_slice_in_timing_active(
 	return mpc_rec;
 }
 
-static void adjust_recout_for_visual_confirm(struct rect *recout,
-		struct pipe_ctx *pipe_ctx)
+static void calculate_adjust_recout_for_visual_confirm(struct pipe_ctx *pipe_ctx,
+	int *base_offset, int *dpp_offset)
 {
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
-	int dpp_offset, base_offset;
+	*base_offset = 0;
+	*dpp_offset = 0;
 
 	if (dc->debug.visual_confirm == VISUAL_CONFIRM_DISABLE || !pipe_ctx->plane_res.dpp)
 		return;
 
-	dpp_offset = pipe_ctx->stream->timing.v_addressable / VISUAL_CONFIRM_DPP_OFFSET_DENO;
-	dpp_offset *= pipe_ctx->plane_res.dpp->inst;
+	*dpp_offset = pipe_ctx->stream->timing.v_addressable / VISUAL_CONFIRM_DPP_OFFSET_DENO;
+	*dpp_offset *= pipe_ctx->plane_res.dpp->inst;
 
 	if ((dc->debug.visual_confirm_rect_height >= VISUAL_CONFIRM_BASE_MIN) &&
 			dc->debug.visual_confirm_rect_height <= VISUAL_CONFIRM_BASE_MAX)
-		base_offset = dc->debug.visual_confirm_rect_height;
+		*base_offset = dc->debug.visual_confirm_rect_height;
 	else
-		base_offset = VISUAL_CONFIRM_BASE_DEFAULT;
+		*base_offset = VISUAL_CONFIRM_BASE_DEFAULT;
+}
 
+static void adjust_recout_for_visual_confirm(struct rect *recout,
+		struct pipe_ctx *pipe_ctx)
+{
+	int dpp_offset, base_offset;
+
+	calculate_adjust_recout_for_visual_confirm(pipe_ctx, &base_offset,
+		&dpp_offset);
 	recout->height -= base_offset;
 	recout->height -= dpp_offset;
 }
