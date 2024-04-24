@@ -30,7 +30,6 @@
 #include <linux/pm_runtime.h>
 #include <linux/stm.h>
 #include <linux/platform_device.h>
-#include <linux/acpi.h>
 
 #include "coresight-priv.h"
 #include "coresight-trace-id.h"
