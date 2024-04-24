@@ -520,9 +520,12 @@ void tegra_bo_free_object(struct drm_gem_object *gem)
 		tegra_bo_iommu_unmap(tegra, bo);
 
 	if (gem->import_attach) {
+		struct dma_buf *dmabuf = gem->import_attach->dmabuf;
+
 		dma_buf_unmap_attachment_unlocked(gem->import_attach, bo->sgt,
 						  DMA_TO_DEVICE);
-		drm_prime_gem_destroy(gem, NULL);
+		dma_buf_detach(dmabuf, gem->import_attach);
+		dma_buf_put(dmabuf);
 	} else {
 		tegra_bo_free(gem->dev, bo);
 	}
