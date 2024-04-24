@@ -622,7 +622,7 @@ err_free_vdebayer:
 	return ERR_PTR(ret);
 }
 
-struct vimc_ent_type vimc_debayer_type = {
+const struct vimc_ent_type vimc_debayer_type = {
 	.add = vimc_debayer_add,
 	.release = vimc_debayer_release
 };

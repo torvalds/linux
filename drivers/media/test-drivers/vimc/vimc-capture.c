@@ -494,7 +494,7 @@ err_free_vcapture:
 	return ERR_PTR(ret);
 }
 
-struct vimc_ent_type vimc_capture_type = {
+const struct vimc_ent_type vimc_capture_type = {
 	.add = vimc_capture_add,
 	.unregister = vimc_capture_unregister,
 	.release = vimc_capture_release

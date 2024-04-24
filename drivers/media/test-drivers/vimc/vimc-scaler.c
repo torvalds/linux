@@ -442,7 +442,7 @@ static struct vimc_ent_device *vimc_scaler_add(struct vimc_device *vimc,
 	return &vscaler->ved;
 }
 
-struct vimc_ent_type vimc_scaler_type = {
+const struct vimc_ent_type vimc_scaler_type = {
 	.add = vimc_scaler_add,
 	.release = vimc_scaler_release
 };

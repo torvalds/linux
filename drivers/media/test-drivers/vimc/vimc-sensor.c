@@ -448,7 +448,7 @@ err_free_vsensor:
 	return ERR_PTR(ret);
 }
 
-struct vimc_ent_type vimc_sensor_type = {
+const struct vimc_ent_type vimc_sensor_type = {
 	.add = vimc_sensor_add,
 	.release = vimc_sensor_release
 };

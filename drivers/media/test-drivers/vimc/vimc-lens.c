@@ -96,7 +96,7 @@ static void vimc_lens_release(struct vimc_ent_device *ved)
 	kfree(vlens);
 }
 
-struct vimc_ent_type vimc_lens_type = {
+const struct vimc_ent_type vimc_lens_type = {
 	.add = vimc_lens_add,
 	.release = vimc_lens_release
 };
