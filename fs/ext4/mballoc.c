@@ -1080,23 +1080,11 @@ static inline int should_optimize_scan(struct ext4_allocation_context *ac)
 }
 
 /*
- * Return next linear group for allocation. If linear traversal should not be
- * performed, this function just returns the same group
+ * Return next linear group for allocation.
  */
 static ext4_group_t
-next_linear_group(struct ext4_allocation_context *ac, ext4_group_t group,
-		  ext4_group_t ngroups)
+next_linear_group(ext4_group_t group, ext4_group_t ngroups)
 {
-	if (!should_optimize_scan(ac))
-		goto inc_and_return;
-
-	if (ac->ac_groups_linear_remaining) {
-		ac->ac_groups_linear_remaining--;
-		goto inc_and_return;
-	}
-
-	return group;
-inc_and_return:
 	/*
 	 * Artificially restricted ngroups for non-extent
 	 * files makes group > ngroups possible on first loop.
@@ -1122,8 +1110,19 @@ static void ext4_mb_choose_next_group(struct ext4_allocation_context *ac,
 {
 	*new_cr = ac->ac_criteria;
 
-	if (!should_optimize_scan(ac) || ac->ac_groups_linear_remaining) {
-		*group = next_linear_group(ac, *group, ngroups);
+	if (!should_optimize_scan(ac)) {
+		*group = next_linear_group(*group, ngroups);
+		return;
+	}
+
+	/*
+	 * Optimized scanning can return non adjacent groups which can cause
+	 * seek overhead for rotational disks. So try few linear groups before
+	 * trying optimized scan.
+	 */
+	if (ac->ac_groups_linear_remaining) {
+		*group = next_linear_group(*group, ngroups);
+		ac->ac_groups_linear_remaining--;
 		return;
 	}
 
