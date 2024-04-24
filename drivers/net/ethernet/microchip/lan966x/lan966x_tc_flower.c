@@ -76,6 +76,11 @@ lan966x_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 			goto bad_frag_out;
 	}
 
+	if (!flow_rule_is_supp_control_flags(FLOW_DIS_IS_FRAGMENT |
+					     FLOW_DIS_FIRST_FRAG,
+					     match.mask->flags, extack))
+		return -EOPNOTSUPP;
+
 	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL);
 
 	return err;
