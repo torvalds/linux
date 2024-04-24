@@ -3713,9 +3713,6 @@ static void adaptive_keyboard_s_quickview_row(void)
 
 static bool adaptive_keyboard_hotkey_notify_hotkey(const u32 hkey)
 {
-	if (tpacpi_driver_event(hkey))
-		return true;
-
 	if (hkey < TP_HKEY_EV_ADAPTIVE_KEY_START ||
 	    hkey > TP_HKEY_EV_ADAPTIVE_KEY_END) {
 		pr_info("Unhandled adaptive keyboard key: 0x%x\n", hkey);
@@ -3729,9 +3726,6 @@ static bool adaptive_keyboard_hotkey_notify_hotkey(const u32 hkey)
 
 static bool hotkey_notify_extended_hotkey(const u32 hkey)
 {
-	if (tpacpi_driver_event(hkey))
-		return true;
-
 	if (hkey >= TP_HKEY_EV_EXTENDED_KEY_START &&
 	    hkey <= TP_HKEY_EV_EXTENDED_KEY_END) {
 		unsigned int scancode = hkey - TP_HKEY_EV_EXTENDED_KEY_START +
@@ -3757,6 +3751,9 @@ static bool hotkey_notify_hotkey(const u32 hkey, bool *send_acpi_ev)
 			return true;
 	}
 
+	if (tpacpi_driver_event(hkey))
+		return true;
+
 	/*
 	 * Original events are in the 0x10XX range, the adaptive keyboard
 	 * found in 2014 X1 Carbon emits events are of 0x11XX. In 2017
@@ -3766,7 +3763,7 @@ static bool hotkey_notify_hotkey(const u32 hkey, bool *send_acpi_ev)
 	case 0:
 		if (hkey >= TP_HKEY_EV_ORIG_KEY_START &&
 		    hkey <= TP_HKEY_EV_ORIG_KEY_END) {
-			tpacpi_input_send_key_masked(scancode);
+			tpacpi_input_send_key(scancode);
 			return true;
 		}
 		break;
