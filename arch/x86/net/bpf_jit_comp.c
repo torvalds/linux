@@ -3473,3 +3473,9 @@ bool bpf_jit_supports_ptr_xchg(void)
 {
 	return true;
 }
+
+/* x86-64 JIT emits its own code to filter user addresses so return 0 here */
+u64 bpf_arch_uaddress_limit(void)
+{
+	return 0;
+}
