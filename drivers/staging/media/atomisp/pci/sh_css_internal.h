@@ -16,11 +16,13 @@
 #ifndef _SH_CSS_INTERNAL_H_
 #define _SH_CSS_INTERNAL_H_
 
+#include <linux/build_bug.h>
+#include <linux/stdarg.h>
+
 #include <system_global.h>
 #include <math_support.h>
 #include <type_support.h>
 #include <platform_support.h>
-#include <linux/stdarg.h>
 
 #include "input_formatter.h"
 #include "input_system.h"
@@ -104,7 +106,6 @@
  */
 #define CALC_ALIGNMENT_MEMBER(x, y)	(CEIL_MUL(x, y) - x)
 #define SIZE_OF_HRT_VADDRESS		sizeof(hive_uint32)
-#define SIZE_OF_IA_CSS_PTR		sizeof(uint32_t)
 
 /* Number of SP's */
 #define NUM_OF_SPS 1
@@ -201,6 +202,8 @@ struct sh_css_ddr_address_map {
 	(SIZE_OF_HRT_VADDRESS +							\
 	(SH_CSS_MAX_STAGES * IA_CSS_NUM_MEMORIES * SIZE_OF_HRT_VADDRESS) +	\
 	(16 * SIZE_OF_HRT_VADDRESS))
+
+static_assert(sizeof(struct sh_css_ddr_address_map) == SIZE_OF_SH_CSS_DDR_ADDRESS_MAP_STRUCT);
 
 /* xmem address map allocation per pipeline */
 struct sh_css_ddr_address_map_size {
@@ -705,6 +708,8 @@ struct sh_css_hmm_buffer {
 	SIZE_OF_IA_CSS_CLOCK_TICK_STRUCT +			\
 	CALC_ALIGNMENT_MEMBER(SIZE_OF_IA_CSS_CLOCK_TICK_STRUCT, 8))
 
+static_assert(sizeof(struct sh_css_hmm_buffer) == SIZE_OF_SH_CSS_HMM_BUFFER_STRUCT);
+
 enum sh_css_queue_type {
 	sh_css_invalid_queue_type = -1,
 	sh_css_host2sp_buffer_queue,
@@ -723,6 +728,8 @@ struct sh_css_event_irq_mask {
 
 #define SIZE_OF_SH_CSS_EVENT_IRQ_MASK_STRUCT				\
 	(2 * sizeof(uint16_t))
+
+static_assert(sizeof(struct sh_css_event_irq_mask) == SIZE_OF_SH_CSS_EVENT_IRQ_MASK_STRUCT);
 
 struct host_sp_communication {
 	/*
@@ -760,6 +767,8 @@ struct host_sp_communication {
 	(N_CSI_PORTS * NUM_MIPI_FRAMES_PER_STREAM * SIZE_OF_HRT_VADDRESS * 2) +			\
 	((3 + N_CSI_PORTS) * sizeof(uint32_t)) +						\
 	(NR_OF_PIPELINES * SIZE_OF_SH_CSS_EVENT_IRQ_MASK_STRUCT))
+
+static_assert(sizeof(struct host_sp_communication) == SIZE_OF_HOST_SP_COMMUNICATION_STRUCT);
 
 struct host_sp_queues {
 	/*
@@ -830,6 +839,8 @@ struct host_sp_queues {
 
 #define SIZE_OF_HOST_SP_QUEUES_STRUCT		\
 	(SIZE_OF_QUEUES_ELEMS + SIZE_OF_QUEUES_DESC)
+
+static_assert(sizeof(struct host_sp_queues) == SIZE_OF_HOST_SP_QUEUES_STRUCT);
 
 extern int  __printf(1, 0) (*sh_css_printf)(const char *fmt, va_list args);
 

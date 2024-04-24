@@ -20,6 +20,8 @@
  * This file contains types used for 3A statistics
  */
 
+#include <linux/build_bug.h>
+
 #include <math_support.h>
 #include <type_support.h>
 #include "ia_css_types.h"
@@ -79,6 +81,8 @@ struct ia_css_isp_3a_statistics {
 	 sizeof(uint32_t) +						\
 	 SIZE_OF_IA_CSS_PTR +						\
 	 4 * sizeof(uint32_t))
+
+static_assert(sizeof(struct ia_css_isp_3a_statistics) == SIZE_OF_IA_CSS_ISP_3A_STATISTICS_STRUCT);
 
 /* Map with host-side pointers to ISP-format statistics.
  * These pointers can either be copies of ISP data or memory mapped

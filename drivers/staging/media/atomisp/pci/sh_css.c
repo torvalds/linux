@@ -1345,46 +1345,8 @@ ia_css_init(struct device *dev, const struct ia_css_env *env,
 {
 	int err;
 	ia_css_spctrl_cfg spctrl_cfg;
-
 	void (*flush_func)(struct ia_css_acc_fw *fw);
 	hrt_data select, enable;
-
-	/*
-	 * The C99 standard does not specify the exact object representation of structs;
-	 * the representation is compiler dependent.
-	 *
-	 * The structs that are communicated between host and SP/ISP should have the
-	 * exact same object representation. The compiler that is used to compile the
-	 * firmware is hivecc.
-	 *
-	 * To check if a different compiler, used to compile a host application, uses
-	 * another object representation, macros are defined specifying the size of
-	 * the structs as expected by the firmware.
-	 *
-	 * A host application shall verify that a sizeof( ) of the struct is equal to
-	 * the SIZE_OF_XXX macro of the corresponding struct. If they are not
-	 * equal, functionality will break.
-	 */
-
-	/* Check struct sh_css_ddr_address_map */
-	COMPILATION_ERROR_IF(sizeof(struct sh_css_ddr_address_map)		!= SIZE_OF_SH_CSS_DDR_ADDRESS_MAP_STRUCT);
-	/* Check struct host_sp_queues */
-	COMPILATION_ERROR_IF(sizeof(struct host_sp_queues)			!= SIZE_OF_HOST_SP_QUEUES_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_circbuf_desc_s)		!= SIZE_OF_IA_CSS_CIRCBUF_DESC_S_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_circbuf_elem_s)		!= SIZE_OF_IA_CSS_CIRCBUF_ELEM_S_STRUCT);
-
-	/* Check struct host_sp_communication */
-	COMPILATION_ERROR_IF(sizeof(struct host_sp_communication)		!= SIZE_OF_HOST_SP_COMMUNICATION_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct sh_css_event_irq_mask)		!= SIZE_OF_SH_CSS_EVENT_IRQ_MASK_STRUCT);
-
-	/* Check struct sh_css_hmm_buffer */
-	COMPILATION_ERROR_IF(sizeof(struct sh_css_hmm_buffer)			!= SIZE_OF_SH_CSS_HMM_BUFFER_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_isp_3a_statistics)		!= SIZE_OF_IA_CSS_ISP_3A_STATISTICS_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_isp_dvs_statistics)		!= SIZE_OF_IA_CSS_ISP_DVS_STATISTICS_STRUCT);
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_metadata)			!= SIZE_OF_IA_CSS_METADATA_STRUCT);
-
-	/* Check struct ia_css_init_dmem_cfg */
-	COMPILATION_ERROR_IF(sizeof(struct ia_css_sp_init_dmem_cfg)		!= SIZE_OF_IA_CSS_SP_INIT_DMEM_CFG_STRUCT);
 
 	if (!env)
 		return -EINVAL;
