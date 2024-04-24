@@ -17,6 +17,7 @@
 #include "xfs_attr.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_attr_sf.h"
+#include "xfs_parent.h"
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/dabtree.h"
@@ -208,13 +209,12 @@ xchk_xattr_actor(
 		return -ECANCELED;
 	}
 
-	/*
-	 * Local and shortform xattr values are stored in the attr leaf block,
-	 * so we don't need to retrieve the value from a remote block to detect
-	 * corruption problems.
-	 */
-	if (value)
-		return 0;
+	/* Check parent pointer record. */
+	if ((attr_flags & XFS_ATTR_PARENT) &&
+	    !xfs_parent_valuecheck(sc->mp, value, valuelen)) {
+		xchk_fblock_set_corrupt(sc, XFS_ATTR_FORK, args.blkno);
+		return -ECANCELED;
+	}
 
 	/*
 	 * Try to allocate enough memory to extract the attr value.  If that
@@ -227,8 +227,21 @@ xchk_xattr_actor(
 	if (error)
 		return error;
 
+	/*
+	 * Parent pointers are matched on attr name and value, so we must
+	 * supply the xfs_parent_rec here when confirming that the dabtree
+	 * indexing works correctly.
+	 */
+	if (attr_flags & XFS_ATTR_PARENT)
+		memcpy(ab->value, value, valuelen);
+
 	args.value = ab->value;
 
+	/*
+	 * Get the attr value to ensure that lookup can find this attribute
+	 * through the dabtree indexing and that remote value retrieval also
+	 * works correctly.
+	 */
 	xfs_attr_sethash(&args);
 	error = xfs_attr_get_ilocked(&args);
 	/* ENODATA means the hash lookup failed and the attr is bad */
