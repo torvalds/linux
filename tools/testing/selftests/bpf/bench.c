@@ -281,6 +281,7 @@ extern struct argp bench_hashmap_lookup_argp;
 extern struct argp bench_local_storage_create_argp;
 extern struct argp bench_htab_mem_argp;
 extern struct argp bench_trigger_batch_argp;
+extern struct argp bench_crypto_argp;
 
 static const struct argp_child bench_parsers[] = {
 	{ &bench_ringbufs_argp, 0, "Ring buffers benchmark", 0 },
@@ -294,6 +295,7 @@ static const struct argp_child bench_parsers[] = {
 	{ &bench_local_storage_create_argp, 0, "local-storage-create benchmark", 0 },
 	{ &bench_htab_mem_argp, 0, "hash map memory benchmark", 0 },
 	{ &bench_trigger_batch_argp, 0, "BPF triggering benchmark", 0 },
+	{ &bench_crypto_argp, 0, "bpf crypto benchmark", 0 },
 	{},
 };
 
@@ -538,6 +540,8 @@ extern const struct bench bench_local_storage_tasks_trace;
 extern const struct bench bench_bpf_hashmap_lookup;
 extern const struct bench bench_local_storage_create;
 extern const struct bench bench_htab_mem;
+extern const struct bench bench_crypto_encrypt;
+extern const struct bench bench_crypto_decrypt;
 
 static const struct bench *benchs[] = {
 	&bench_count_global,
@@ -590,6 +594,8 @@ static const struct bench *benchs[] = {
 	&bench_bpf_hashmap_lookup,
 	&bench_local_storage_create,
 	&bench_htab_mem,
+	&bench_crypto_encrypt,
+	&bench_crypto_decrypt,
 };
 
 static void find_benchmark(void)
