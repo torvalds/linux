@@ -450,6 +450,15 @@ enum v4l2_subdev_pre_streamon_flags {
  *	already started or stopped subdev. Also see call_s_stream wrapper in
  *	v4l2-subdev.c.
  *
+ *	New drivers should instead implement &v4l2_subdev_pad_ops.enable_streams
+ *	and &v4l2_subdev_pad_ops.disable_streams operations, and use
+ *	v4l2_subdev_s_stream_helper for the &v4l2_subdev_video_ops.s_stream
+ *	operation to support legacy users.
+ *
+ *	Drivers should also not call the .s_stream() subdev operation directly,
+ *	but use the v4l2_subdev_enable_streams() and
+ *	v4l2_subdev_disable_streams() helpers.
+ *
  * @g_pixelaspect: callback to return the pixelaspect ratio.
  *
  * @s_rx_buffer: set a host allocated memory buffer for the subdev. The subdev
