@@ -1178,9 +1178,7 @@ out:
 static void bpf_wq_work(struct work_struct *work)
 {
 	struct bpf_work *w = container_of(work, struct bpf_work, work);
-	struct bpf_tramp_run_ctx __maybe_unused run_ctx;
 	struct bpf_async_cb *cb = &w->cb;
-	struct bpf_prog *prog = cb->prog;
 	struct bpf_map *map = cb->map;
 	bpf_callback_t callback_fn;
 	void *value = cb->value;
@@ -1190,7 +1188,7 @@ static void bpf_wq_work(struct work_struct *work)
 	BTF_TYPE_EMIT(struct bpf_wq);
 
 	callback_fn = READ_ONCE(cb->callback_fn);
-	if (!callback_fn || !prog)
+	if (!callback_fn)
 		return;
 
 	if (map->map_type == BPF_MAP_TYPE_ARRAY) {
@@ -1203,19 +1201,13 @@ static void bpf_wq_work(struct work_struct *work)
 		key = value - round_up(map->key_size, 8);
 	}
 
-	run_ctx.bpf_cookie = 0;
-
-	if (!__bpf_prog_enter_sleepable_recur(prog, &run_ctx)) {
-		/* recursion detected */
-		__bpf_prog_exit_sleepable_recur(prog, 0, &run_ctx);
-		return;
-	}
+        rcu_read_lock_trace();
+        migrate_disable();
 
 	callback_fn((u64)(long)map, (u64)(long)key, (u64)(long)value, 0, 0);
-	/* The verifier checked that return value is zero. */
 
-	__bpf_prog_exit_sleepable_recur(prog, 0 /* bpf_prog_run does runtime stats */,
-					&run_ctx);
+	migrate_enable();
+	rcu_read_unlock_trace();
 }
 
 static void bpf_wq_delete_work(struct work_struct *work)
