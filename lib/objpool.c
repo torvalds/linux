@@ -50,7 +50,7 @@ objpool_init_percpu_slots(struct objpool_head *pool, int nr_objs,
 {
 	int i, cpu_count = 0;
 
-	for (i = 0; i < pool->nr_cpus; i++) {
+	for (i = 0; i < nr_cpu_ids; i++) {
 
 		struct objpool_slot *slot;
 		int nodes, size, rc;
@@ -60,8 +60,8 @@ objpool_init_percpu_slots(struct objpool_head *pool, int nr_objs,
 			continue;
 
 		/* compute how many objects to be allocated with this slot */
-		nodes = nr_objs / num_possible_cpus();
-		if (cpu_count < (nr_objs % num_possible_cpus()))
+		nodes = nr_objs / pool->nr_possible_cpus;
+		if (cpu_count < (nr_objs % pool->nr_possible_cpus))
 			nodes++;
 		cpu_count++;
 
@@ -103,7 +103,7 @@ static void objpool_fini_percpu_slots(struct objpool_head *pool)
 	if (!pool->cpu_slots)
 		return;
 
-	for (i = 0; i < pool->nr_cpus; i++)
+	for (i = 0; i < nr_cpu_ids; i++)
 		kvfree(pool->cpu_slots[i]);
 	kfree(pool->cpu_slots);
 }
@@ -130,13 +130,13 @@ int objpool_init(struct objpool_head *pool, int nr_objs, int object_size,
 
 	/* initialize objpool pool */
 	memset(pool, 0, sizeof(struct objpool_head));
-	pool->nr_cpus = nr_cpu_ids;
+	pool->nr_possible_cpus = num_possible_cpus();
 	pool->obj_size = object_size;
 	pool->capacity = capacity;
 	pool->gfp = gfp & ~__GFP_ZERO;
 	pool->context = context;
 	pool->release = release;
-	slot_size = pool->nr_cpus * sizeof(struct objpool_slot);
+	slot_size = nr_cpu_ids * sizeof(struct objpool_slot);
 	pool->cpu_slots = kzalloc(slot_size, pool->gfp);
 	if (!pool->cpu_slots)
 		return -ENOMEM;

@@ -73,7 +73,7 @@ typedef int (*objpool_fini_cb)(struct objpool_head *head, void *context);
  * struct objpool_head - object pooling metadata
  * @obj_size:   object size, aligned to sizeof(void *)
  * @nr_objs:    total objs (to be pre-allocated with objpool)
- * @nr_cpus:    local copy of nr_cpu_ids
+ * @nr_possible_cpus: cached value of num_possible_cpus()
  * @capacity:   max objs can be managed by one objpool_slot
  * @gfp:        gfp flags for kmalloc & vmalloc
  * @ref:        refcount of objpool
@@ -85,7 +85,7 @@ typedef int (*objpool_fini_cb)(struct objpool_head *head, void *context);
 struct objpool_head {
 	int                     obj_size;
 	int                     nr_objs;
-	int                     nr_cpus;
+	int                     nr_possible_cpus;
 	int                     capacity;
 	gfp_t                   gfp;
 	refcount_t              ref;
@@ -176,7 +176,7 @@ static inline void *objpool_pop(struct objpool_head *pool)
 	raw_local_irq_save(flags);
 
 	cpu = raw_smp_processor_id();
-	for (i = 0; i < num_possible_cpus(); i++) {
+	for (i = 0; i < pool->nr_possible_cpus; i++) {
 		obj = __objpool_try_get_slot(pool, cpu);
 		if (obj)
 			break;
