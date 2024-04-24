@@ -20,6 +20,7 @@
  * This file contains types used for 3A statistics
  */
 
+#include <math_support.h>
 #include <type_support.h>
 #include "ia_css_types.h"
 #include "ia_css_err.h"
