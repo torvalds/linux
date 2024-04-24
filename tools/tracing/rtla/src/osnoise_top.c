@@ -40,6 +40,7 @@ struct osnoise_top_params {
 	int			set_sched;
 	int			cgroup;
 	int			hk_cpus;
+	int			warmup;
 	cpu_set_t		hk_cpu_set;
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
@@ -282,7 +283,7 @@ static void osnoise_top_usage(struct osnoise_top_params *params, char *usage)
 	static const char * const msg[] = {
 		" [-h] [-q] [-D] [-d s] [-a us] [-p us] [-r us] [-s us] [-S us] \\",
 		"	  [-T us] [-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] \\",
-		"	  [-c cpu-list] [-H cpu-list] [-P priority] [-C[=cgroup_name]]",
+		"	  [-c cpu-list] [-H cpu-list] [-P priority] [-C[=cgroup_name]] [--warm-up s]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us sample is hit",
@@ -307,6 +308,7 @@ static void osnoise_top_usage(struct osnoise_top_params *params, char *usage)
 		"		f:prio - use SCHED_FIFO with prio",
 		"		d:runtime[us|ms|s]:period[us|ms|s] - use SCHED_DEADLINE with runtime and period",
 		"						       in nanoseconds",
+		"	     --warm-up s: let the workload run for s seconds before collecting data",
 		NULL,
 	};
 
@@ -381,13 +383,14 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 			{"trace",		optional_argument,	0, 't'},
 			{"trigger",		required_argument,	0, '0'},
 			{"filter",		required_argument,	0, '1'},
+			{"warm-up",		required_argument,	0, '2'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:C::d:De:hH:p:P:qr:s:S:t::T:0:1:",
+		c = getopt_long(argc, argv, "a:c:C::d:De:hH:p:P:qr:s:S:t::T:0:1:2:",
 				 long_options, &option_index);
 
 		/* Detect the end of the options. */
@@ -510,6 +513,9 @@ struct osnoise_top_params *osnoise_top_parse_args(int argc, char **argv)
 			} else {
 				osnoise_top_usage(params, "--filter requires a previous -e\n");
 			}
+			break;
+		case '2':
+			params->warmup = get_llong_from_str(optarg);
 			break;
 		default:
 			osnoise_top_usage(params, "Invalid option");
@@ -731,6 +737,25 @@ int osnoise_top_main(int argc, char **argv)
 	if (params->trace_output)
 		trace_instance_start(&record->trace);
 	trace_instance_start(trace);
+
+	if (params->warmup > 0) {
+		debug_msg("Warming up for %d seconds\n", params->warmup);
+		sleep(params->warmup);
+		if (stop_tracing)
+			goto out_top;
+
+		/*
+		 * Clean up the buffer. The osnoise workload do not run
+		 * with tracing off to avoid creating a performance penalty
+		 * when not needed.
+		 */
+		retval = tracefs_instance_file_write(trace->inst, "trace", "");
+		if (retval < 0) {
+			debug_msg("Error cleaning up the buffer");
+			goto out_top;
+		}
+
+	}
 
 	tool->start_time = time(NULL);
 	osnoise_top_set_signals(params);

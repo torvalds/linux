@@ -36,13 +36,13 @@ struct osnoise_hist_params {
 	cpu_set_t		hk_cpu_set;
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
-
 	char			no_header;
 	char			no_summary;
 	char			no_index;
 	char			with_zeros;
 	int			bucket_size;
 	int			entries;
+	int			warmup;
 };
 
 struct osnoise_hist_cpu {
@@ -438,7 +438,7 @@ static void osnoise_hist_usage(char *usage)
 		"  usage: rtla osnoise hist [-h] [-D] [-d s] [-a us] [-p us] [-r us] [-s us] [-S us] \\",
 		"	  [-T us] [-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] \\",
 		"	  [-c cpu-list] [-H cpu-list] [-P priority] [-b N] [-E N] [--no-header] [--no-summary] \\",
-		"	  [--no-index] [--with-zeros] [-C[=cgroup_name]]",
+		"	  [--no-index] [--with-zeros] [-C[=cgroup_name]] [--warm-up]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us sample is hit",
@@ -468,6 +468,7 @@ static void osnoise_hist_usage(char *usage)
 		"		f:prio - use SCHED_FIFO with prio",
 		"		d:runtime[us|ms|s]:period[us|ms|s] - use SCHED_DEADLINE with runtime and period",
 		"						       in nanoseconds",
+		"	     --warm-up: let the workload run for s seconds before collecting data",
 		NULL,
 	};
 
@@ -531,13 +532,14 @@ static struct osnoise_hist_params
 			{"with-zeros",		no_argument,		0, '3'},
 			{"trigger",		required_argument,	0, '4'},
 			{"filter",		required_argument,	0, '5'},
+			{"warm-up",		required_argument,	0, '6'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:C::b:d:e:E:DhH:p:P:r:s:S:t::T:01234:5:",
+		c = getopt_long(argc, argv, "a:c:C::b:d:e:E:DhH:p:P:r:s:S:t::T:01234:5:6:",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -679,6 +681,9 @@ static struct osnoise_hist_params
 			} else {
 				osnoise_hist_usage("--filter requires a previous -e\n");
 			}
+			break;
+		case '6':
+			params->warmup = get_llong_from_str(optarg);
 			break;
 		default:
 			osnoise_hist_usage("Invalid option");
@@ -898,6 +903,25 @@ int osnoise_hist_main(int argc, char *argv[])
 	if (params->trace_output)
 		trace_instance_start(&record->trace);
 	trace_instance_start(trace);
+
+	if (params->warmup > 0) {
+		debug_msg("Warming up for %d seconds\n", params->warmup);
+		sleep(params->warmup);
+		if (stop_tracing)
+			goto out_hist;
+
+		/*
+		 * Clean up the buffer. The osnoise workload do not run
+		 * with tracing off to avoid creating a performance penalty
+		 * when not needed.
+		 */
+		retval = tracefs_instance_file_write(trace->inst, "trace", "");
+		if (retval < 0) {
+			debug_msg("Error cleaning up the buffer");
+			goto out_hist;
+		}
+
+	}
 
 	tool->start_time = time(NULL);
 	osnoise_hist_set_signals(params);

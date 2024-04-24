@@ -52,6 +52,7 @@ struct timerlat_hist_params {
 	char			with_zeros;
 	int			bucket_size;
 	int			entries;
+	int			warmup;
 };
 
 struct timerlat_hist_cpu {
@@ -628,6 +629,7 @@ static void timerlat_hist_usage(char *usage)
 		"         [-t[=file]] [-e sys[:event]] [--filter <filter>] [--trigger <trigger>] [-c cpu-list] [-H cpu-list]\\",
 		"	  [-P priority] [-E N] [-b N] [--no-irq] [--no-thread] [--no-header] [--no-summary] \\",
 		"	  [--no-index] [--with-zeros] [--dma-latency us] [-C[=cgroup_name]] [--no-aa] [--dump-task] [-u]",
+		"	  [--warm-up s]",
 		"",
 		"	  -h/--help: print this menu",
 		"	  -a/--auto: set automatic trace mode, stopping the session if argument in us latency is hit",
@@ -664,6 +666,7 @@ static void timerlat_hist_usage(char *usage)
 		"						       in nanoseconds",
 		"	  -u/--user-threads: use rtla user-space threads instead of in-kernel timerlat threads",
 		"	  -U/--user-load: enable timerlat for user-defined user-space workload",
+		"	     --warm-up s: let the workload run for s seconds before collecting data",
 		NULL,
 	};
 
@@ -738,13 +741,14 @@ static struct timerlat_hist_params
 			{"dma-latency",		required_argument,	0, '8'},
 			{"no-aa",		no_argument,		0, '9'},
 			{"dump-task",		no_argument,		0, '\1'},
+			{"warm-up",		required_argument,	0, '\2'},
 			{0, 0, 0, 0}
 		};
 
 		/* getopt_long stores the option index here. */
 		int option_index = 0;
 
-		c = getopt_long(argc, argv, "a:c:C::b:d:e:E:DhH:i:np:P:s:t::T:uU0123456:7:8:9\1",
+		c = getopt_long(argc, argv, "a:c:C::b:d:e:E:DhH:i:np:P:s:t::T:uU0123456:7:8:9\1\2:",
 				 long_options, &option_index);
 
 		/* detect the end of the options. */
@@ -912,6 +916,9 @@ static struct timerlat_hist_params
 			break;
 		case '\1':
 			params->dump_tasks = 1;
+			break;
+		case '\2':
+			params->warmup = get_llong_from_str(optarg);
 			break;
 		default:
 			timerlat_hist_usage("Invalid option");
@@ -1167,22 +1174,6 @@ int timerlat_hist_main(int argc, char *argv[])
 		}
 	}
 
-	/*
-	 * Start the tracers here, after having set all instances.
-	 *
-	 * Let the trace instance start first for the case of hitting a stop
-	 * tracing while enabling other instances. The trace instance is the
-	 * one with most valuable information.
-	 */
-	if (params->trace_output)
-		trace_instance_start(&record->trace);
-	if (!params->no_aa)
-		trace_instance_start(&aa->trace);
-	trace_instance_start(trace);
-
-	tool->start_time = time(NULL);
-	timerlat_hist_set_signals(params);
-
 	if (params->user_workload) {
 		/* rtla asked to stop */
 		params_u.should_run = 1;
@@ -1201,6 +1192,29 @@ int timerlat_hist_main(int argc, char *argv[])
 		if (retval)
 			err_msg("Error creating timerlat user-space threads\n");
 	}
+
+	if (params->warmup > 0) {
+		debug_msg("Warming up for %d seconds\n", params->warmup);
+		sleep(params->warmup);
+		if (stop_tracing)
+			goto out_hist;
+	}
+
+	/*
+	 * Start the tracers here, after having set all instances.
+	 *
+	 * Let the trace instance start first for the case of hitting a stop
+	 * tracing while enabling other instances. The trace instance is the
+	 * one with most valuable information.
+	 */
+	if (params->trace_output)
+		trace_instance_start(&record->trace);
+	if (!params->no_aa)
+		trace_instance_start(&aa->trace);
+	trace_instance_start(trace);
+
+	tool->start_time = time(NULL);
+	timerlat_hist_set_signals(params);
 
 	while (!stop_tracing) {
 		sleep(params->sleep_time);
@@ -1227,6 +1241,7 @@ int timerlat_hist_main(int argc, char *argv[])
 			}
 		}
 	}
+
 	if (params->user_workload && !params_u.stopped_running) {
 		params_u.should_run = 0;
 		sleep(1);
