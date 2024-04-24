@@ -93,7 +93,7 @@ static int onboard_dev_power_on(struct onboard_dev *onboard_dev)
 	if (err) {
 		dev_err(onboard_dev->dev, "failed to enable supplies: %pe\n",
 			ERR_PTR(err));
-		return err;
+		goto disable_clk;
 	}
 
 	fsleep(onboard_dev->pdata->reset_us);
@@ -102,6 +102,10 @@ static int onboard_dev_power_on(struct onboard_dev *onboard_dev)
 	onboard_dev->is_powered_on = true;
 
 	return 0;
+
+disable_clk:
+	clk_disable_unprepare(onboard_dev->clk);
+	return err;
 }
 
 static int onboard_dev_power_off(struct onboard_dev *onboard_dev)
