@@ -215,13 +215,13 @@ void xe_uc_stop_prepare(struct xe_uc *uc)
 	xe_guc_stop_prepare(&uc->guc);
 }
 
-int xe_uc_stop(struct xe_uc *uc)
+void xe_uc_stop(struct xe_uc *uc)
 {
 	/* GuC submission not enabled, nothing to do */
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
-		return 0;
+		return;
 
-	return xe_guc_stop(&uc->guc);
+	xe_guc_stop(&uc->guc);
 }
 
 int xe_uc_start(struct xe_uc *uc)
@@ -247,17 +247,13 @@ again:
 
 int xe_uc_suspend(struct xe_uc *uc)
 {
-	int ret;
-
 	/* GuC submission not enabled, nothing to do */
 	if (!xe_device_uc_enabled(uc_to_xe(uc)))
 		return 0;
 
 	uc_reset_wait(uc);
 
-	ret = xe_uc_stop(uc);
-	if (ret)
-		return ret;
+	xe_uc_stop(uc);
 
 	return xe_guc_suspend(&uc->guc);
 }

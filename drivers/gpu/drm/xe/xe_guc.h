@@ -35,7 +35,7 @@ void xe_guc_print_info(struct xe_guc *guc, struct drm_printer *p);
 int xe_guc_reset_prepare(struct xe_guc *guc);
 void xe_guc_reset_wait(struct xe_guc *guc);
 void xe_guc_stop_prepare(struct xe_guc *guc);
-int xe_guc_stop(struct xe_guc *guc);
+void xe_guc_stop(struct xe_guc *guc);
 int xe_guc_start(struct xe_guc *guc);
 bool xe_guc_in_reset(struct xe_guc *guc);
 

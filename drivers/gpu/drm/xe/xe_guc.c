@@ -885,17 +885,11 @@ void xe_guc_stop_prepare(struct xe_guc *guc)
 	XE_WARN_ON(xe_guc_pc_stop(&guc->pc));
 }
 
-int xe_guc_stop(struct xe_guc *guc)
+void xe_guc_stop(struct xe_guc *guc)
 {
-	int ret;
-
 	xe_guc_ct_stop(&guc->ct);
 
-	ret = xe_guc_submit_stop(guc);
-	if (ret)
-		return ret;
-
-	return 0;
+	xe_guc_submit_stop(guc);
 }
 
 int xe_guc_start(struct xe_guc *guc)

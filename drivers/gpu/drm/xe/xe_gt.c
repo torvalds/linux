@@ -658,9 +658,7 @@ static int gt_reset(struct xe_gt *gt)
 	xe_uc_stop_prepare(&gt->uc);
 	xe_gt_pagefault_reset(gt);
 
-	err = xe_uc_stop(&gt->uc);
-	if (err)
-		goto err_out;
+	xe_uc_stop(&gt->uc);
 
 	xe_gt_tlb_invalidation_reset(gt);
 
