@@ -215,6 +215,7 @@ const struct vimc_pix_map *vimc_pix_map_by_pixelformat(u32 pixelformat);
  * @num_pads:	number of pads to initialize
  * @pads:	the array of pads of the entity, the caller should set the
  *		flags of the pads
+ * @int_ops:	pointer to &struct v4l2_subdev_internal_ops.
  * @sd_ops:	pointer to &struct v4l2_subdev_ops.
  *
  * Helper function initialize and register the struct vimc_ent_device and struct
@@ -227,6 +228,7 @@ int vimc_ent_sd_register(struct vimc_ent_device *ved,
 			 u32 function,
 			 u16 num_pads,
 			 struct media_pad *pads,
+			 const struct v4l2_subdev_internal_ops *int_ops,
 			 const struct v4l2_subdev_ops *sd_ops);
 
 /**

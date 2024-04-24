@@ -424,11 +424,9 @@ static struct vimc_ent_device *vimc_sensor_add(struct vimc_device *vimc,
 	ret = vimc_ent_sd_register(&vsensor->ved, &vsensor->sd, v4l2_dev,
 				   vcfg_name,
 				   MEDIA_ENT_F_CAM_SENSOR, 1, &vsensor->pad,
-				   &vimc_sensor_ops);
+				   &vimc_sensor_internal_ops, &vimc_sensor_ops);
 	if (ret)
 		goto err_free_tpg;
-
-	vsensor->sd.internal_ops = &vimc_sensor_internal_ops;
 
 	vsensor->ved.process_frame = vimc_sensor_process_frame;
 	vsensor->ved.dev = vimc->mdev.dev;

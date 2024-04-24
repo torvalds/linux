@@ -421,13 +421,12 @@ static struct vimc_ent_device *vimc_scaler_add(struct vimc_device *vimc,
 	ret = vimc_ent_sd_register(&vscaler->ved, &vscaler->sd, v4l2_dev,
 				   vcfg_name,
 				   MEDIA_ENT_F_PROC_VIDEO_SCALER, 2,
-				   vscaler->pads, &vimc_scaler_ops);
+				   vscaler->pads, &vimc_scaler_internal_ops,
+				   &vimc_scaler_ops);
 	if (ret) {
 		kfree(vscaler);
 		return ERR_PTR(ret);
 	}
-
-	vscaler->sd.internal_ops = &vimc_scaler_internal_ops;
 
 	vscaler->ved.process_frame = vimc_scaler_process_frame;
 	vscaler->ved.dev = vimc->mdev.dev;

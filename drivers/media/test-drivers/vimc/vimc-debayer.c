@@ -591,11 +591,10 @@ static struct vimc_ent_device *vimc_debayer_add(struct vimc_device *vimc,
 	ret = vimc_ent_sd_register(&vdebayer->ved, &vdebayer->sd, v4l2_dev,
 				   vcfg_name,
 				   MEDIA_ENT_F_PROC_VIDEO_PIXEL_ENC_CONV, 2,
-				   vdebayer->pads, &vimc_debayer_ops);
+				   vdebayer->pads, &vimc_debayer_internal_ops,
+				   &vimc_debayer_ops);
 	if (ret)
 		goto err_free_hdl;
-
-	vdebayer->sd.internal_ops = &vimc_debayer_internal_ops;
 
 	vdebayer->ved.process_frame = vimc_debayer_process_frame;
 	vdebayer->ved.dev = vimc->mdev.dev;

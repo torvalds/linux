@@ -72,7 +72,7 @@ static struct vimc_ent_device *vimc_lens_add(struct vimc_device *vimc,
 
 	ret = vimc_ent_sd_register(&vlens->ved, &vlens->sd, v4l2_dev,
 				   vcfg_name, MEDIA_ENT_F_LENS, 0,
-				   NULL, &vimc_lens_ops);
+				   NULL, NULL, &vimc_lens_ops);
 	if (ret)
 		goto err_free_hdl;
 
