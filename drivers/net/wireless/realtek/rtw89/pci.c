@@ -4293,7 +4293,11 @@ int rtw89_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	rtw89_pci_link_cfg(rtwdev);
 	rtw89_pci_l1ss_cfg(rtwdev);
 
-	rtw89_core_napi_init(rtwdev);
+	ret = rtw89_core_napi_init(rtwdev);
+	if (ret) {
+		rtw89_err(rtwdev, "failed to init napi\n");
+		goto err_clear_resource;
+	}
 
 	ret = rtw89_pci_request_irq(rtwdev, pdev);
 	if (ret) {

@@ -2492,11 +2492,15 @@ void rtw89_core_napi_stop(struct rtw89_dev *rtwdev)
 }
 EXPORT_SYMBOL(rtw89_core_napi_stop);
 
-void rtw89_core_napi_init(struct rtw89_dev *rtwdev)
+int rtw89_core_napi_init(struct rtw89_dev *rtwdev)
 {
-	init_dummy_netdev(&rtwdev->netdev);
-	netif_napi_add(&rtwdev->netdev, &rtwdev->napi,
+	rtwdev->netdev = alloc_netdev_dummy(0);
+	if (!rtwdev->netdev)
+		return -ENOMEM;
+
+	netif_napi_add(rtwdev->netdev, &rtwdev->napi,
 		       rtwdev->hci.ops->napi_poll);
+	return 0;
 }
 EXPORT_SYMBOL(rtw89_core_napi_init);
 
@@ -2504,6 +2508,7 @@ void rtw89_core_napi_deinit(struct rtw89_dev *rtwdev)
 {
 	rtw89_core_napi_stop(rtwdev);
 	netif_napi_del(&rtwdev->napi);
+	free_netdev(rtwdev->netdev);
 }
 EXPORT_SYMBOL(rtw89_core_napi_deinit);
 
