@@ -2877,13 +2877,10 @@ static void __maybe_unused gup_fast_undo_dev_pagemap(int *nr, int nr_start,
 		unsigned int flags, struct page **pages)
 {
 	while ((*nr) - nr_start) {
-		struct page *page = pages[--(*nr)];
+		struct folio *folio = page_folio(pages[--(*nr)]);
 
-		ClearPageReferenced(page);
-		if (flags & FOLL_PIN)
-			unpin_user_page(page);
-		else
-			put_page(page);
+		folio_clear_referenced(folio);
+		gup_put_folio(folio, 1, flags);
 	}
 }
 
@@ -3024,6 +3021,7 @@ static int gup_fast_devmap_leaf(unsigned long pfn, unsigned long addr,
 	struct dev_pagemap *pgmap = NULL;
 
 	do {
+		struct folio *folio;
 		struct page *page = pfn_to_page(pfn);
 
 		pgmap = get_dev_pagemap(pfn, pgmap);
@@ -3037,12 +3035,13 @@ static int gup_fast_devmap_leaf(unsigned long pfn, unsigned long addr,
 			break;
 		}
 
-		SetPageReferenced(page);
-		pages[*nr] = page;
-		if (unlikely(try_grab_page(page, flags))) {
+		folio = try_grab_folio(page, 1, flags);
+		if (!folio) {
 			gup_fast_undo_dev_pagemap(nr, nr_start, flags, pages);
 			break;
 		}
+		folio_set_referenced(folio);
+		pages[*nr] = page;
 		(*nr)++;
 		pfn++;
 	} while (addr += PAGE_SIZE, addr != end);
