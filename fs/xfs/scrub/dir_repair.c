@@ -205,27 +205,6 @@ xrep_setup_directory(
 }
 
 /*
- * If we're the root of a directory tree, we are our own parent.  If we're an
- * unlinked directory, the parent /won't/ have a link to us.  Set the parent
- * directory to the root for both cases.  Returns NULLFSINO if we don't know
- * what to do.
- */
-static inline xfs_ino_t
-xrep_dir_self_parent(
-	struct xrep_dir		*rd)
-{
-	struct xfs_scrub	*sc = rd->sc;
-
-	if (sc->ip->i_ino == sc->mp->m_sb.sb_rootino)
-		return sc->mp->m_sb.sb_rootino;
-
-	if (VFS_I(sc->ip)->i_nlink == 0)
-		return sc->mp->m_sb.sb_rootino;
-
-	return NULLFSINO;
-}
-
-/*
  * Look up the dotdot entry and confirm that it's really the parent.
  * Returns NULLFSINO if we don't know what to do.
  */
