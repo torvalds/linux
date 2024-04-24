@@ -15,7 +15,7 @@
 #include "vimc-common.h"
 
 /* Pad identifier */
-enum vic_sca_pad {
+enum vimc_scaler_pad {
 	VIMC_SCALER_SINK = 0,
 	VIMC_SCALER_SRC = 1,
 };
