@@ -188,7 +188,7 @@ ATTRIBUTE_GROUPS(lcd_device);
  * or a pointer to the newly allocated device.
  */
 struct lcd_device *lcd_device_register(const char *name, struct device *parent,
-		void *devdata, struct lcd_ops *ops)
+		void *devdata, const struct lcd_ops *ops)
 {
 	struct lcd_device *new_ld;
 	int rc;
@@ -276,7 +276,7 @@ static int devm_lcd_device_match(struct device *dev, void *res, void *data)
  */
 struct lcd_device *devm_lcd_device_register(struct device *dev,
 		const char *name, struct device *parent,
-		void *devdata, struct lcd_ops *ops)
+		void *devdata, const struct lcd_ops *ops)
 {
 	struct lcd_device **ptr, *lcd;
 
