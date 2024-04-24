@@ -16,6 +16,8 @@
 #include <asm/addrspace.h>
 #include <asm/page.h>
 
+#include "misc.h"
+
 /*
  * gzip declarations
  */
