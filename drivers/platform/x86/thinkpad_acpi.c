@@ -3097,15 +3097,6 @@ static void hotkey_exit(void)
 	mutex_unlock(&hotkey_mutex);
 }
 
-static void __init hotkey_unmap(const unsigned int scancode)
-{
-	if (hotkey_keycode_map[scancode] != KEY_RESERVED) {
-		clear_bit(hotkey_keycode_map[scancode],
-			  tpacpi_inputdev->keybit);
-		hotkey_keycode_map[scancode] = KEY_RESERVED;
-	}
-}
-
 /*
  * HKEY quirks:
  *   TPACPI_HK_Q_INIMASK:	Supports FN+F3,FN+F4,FN+F12
@@ -3224,22 +3215,28 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_UNKNOWN,	/* 0x0D: FN+INSERT */
 		KEY_UNKNOWN,	/* 0x0E: FN+DELETE */
 
-		/* brightness: firmware always reacts to them */
-		KEY_RESERVED,	/* 0x0F: FN+HOME (brightness up) */
-		KEY_RESERVED,	/* 0x10: FN+END (brightness down) */
+		/* brightness: firmware always reacts to them.
+		 * Suppressed by default through hotkey_reserved_mask.
+		 */
+		KEY_BRIGHTNESSUP,	/* 0x0F: FN+HOME (brightness up) */
+		KEY_BRIGHTNESSDOWN,	/* 0x10: FN+END (brightness down) */
 
-		/* Thinklight: firmware always react to it */
-		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
+		/* Thinklight: firmware always react to it.
+		 * Suppressed by default through hotkey_reserved_mask.
+		 */
+		KEY_KBDILLUMTOGGLE,	/* 0x11: FN+PGUP (thinklight toggle) */
 
 		KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
 		KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
 
 		/* Volume: firmware always react to it and reprograms
 		 * the built-in *extra* mixer.  Never map it to control
-		 * another mixer by default. */
-		KEY_RESERVED,	/* 0x14: VOLUME UP */
-		KEY_RESERVED,	/* 0x15: VOLUME DOWN */
-		KEY_RESERVED,	/* 0x16: MUTE */
+		 * another mixer by default.
+		 * Suppressed by default through hotkey_reserved_mask.
+		 */
+		KEY_VOLUMEUP,	/* 0x14: VOLUME UP */
+		KEY_VOLUMEDOWN,	/* 0x15: VOLUME DOWN */
+		KEY_MUTE,	/* 0x16: MUTE */
 
 		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
 
@@ -3282,7 +3279,8 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		KEY_BRIGHTNESSUP,	/* 0x0F: FN+HOME (brightness up) */
 		KEY_BRIGHTNESSDOWN,	/* 0x10: FN+END (brightness down) */
 
-		KEY_RESERVED,	/* 0x11: FN+PGUP (thinklight toggle) */
+		/* Suppressed by default through hotkey_reserved_mask. */
+		KEY_KBDILLUMTOGGLE,	/* 0x11: FN+PGUP (thinklight toggle) */
 
 		KEY_UNKNOWN,	/* 0x12: FN+PGDOWN */
 		KEY_ZOOM,	/* 0x13: FN+SPACE (zoom) */
@@ -3297,10 +3295,11 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		 * change unless you get test reports from all Lenovo
 		 * models.  May cause the BIOS to interfere with the
 		 * HDA mixer.
+		 * Suppressed by default through hotkey_reserved_mask.
 		 */
-		KEY_RESERVED,	/* 0x14: VOLUME UP */
-		KEY_RESERVED,	/* 0x15: VOLUME DOWN */
-		KEY_RESERVED,	/* 0x16: MUTE */
+		KEY_VOLUMEUP,	/* 0x14: VOLUME UP */
+		KEY_VOLUMEDOWN,	/* 0x15: VOLUME DOWN */
+		KEY_MUTE,	/* 0x16: MUTE */
 
 		KEY_VENDOR,	/* 0x17: Thinkpad/AccessIBM/Lenovo */
 
@@ -3599,8 +3598,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		 * for userspace to do something even remotely sane */
 		hotkey_reserved_mask |= TP_ACPI_HKEY_BRGHTUP_MASK |
 					TP_ACPI_HKEY_BRGHTDWN_MASK;
-		hotkey_unmap(TP_ACPI_HOTKEYSCAN_FNHOME);
-		hotkey_unmap(TP_ACPI_HOTKEYSCAN_FNEND);
 	}
 
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
