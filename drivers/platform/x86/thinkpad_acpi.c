@@ -2250,7 +2250,7 @@ static void tpacpi_input_send_tabletsw(void)
 	}
 }
 
-static bool tpacpi_input_send_key(const u32 hkey)
+static bool tpacpi_input_send_key(const u32 hkey, bool *send_acpi_ev)
 {
 	unsigned int keycode, scancode;
 
@@ -2271,6 +2271,14 @@ static bool tpacpi_input_send_key(const u32 hkey)
 		scancode = hkey - TP_HKEY_EV_EXTENDED_KEY_START +
 			   TP_ACPI_HOTKEYSCAN_EXTENDED_START;
 	} else {
+		/*
+		 * Do not send ACPI netlink events for unknown hotkeys, to
+		 * avoid userspace starting to rely on them. Instead these
+		 * should be added to the keymap to send evdev events.
+		 */
+		if (send_acpi_ev)
+			*send_acpi_ev = false;
+
 		return false;
 	}
 
@@ -2298,7 +2306,7 @@ static struct tp_acpi_drv_struct ibm_hotkey_acpidriver;
 /* Do NOT call without validating scancode first */
 static void tpacpi_hotkey_send_key(unsigned int scancode)
 {
-	tpacpi_input_send_key(TP_HKEY_EV_ORIG_KEY_START + scancode);
+	tpacpi_input_send_key(TP_HKEY_EV_ORIG_KEY_START + scancode, NULL);
 }
 
 static void hotkey_read_nvram(struct tp_nvram_state *n, const u32 m)
@@ -3734,7 +3742,7 @@ static bool hotkey_notify_hotkey(const u32 hkey, bool *send_acpi_ev)
 			return true;
 	}
 
-	return tpacpi_input_send_key(hkey);
+	return tpacpi_input_send_key(hkey, send_acpi_ev);
 }
 
 /* 0x2000-0x2FFF: Wakeup reason */
