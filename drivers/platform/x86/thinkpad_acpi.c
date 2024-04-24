@@ -2250,15 +2250,28 @@ static void tpacpi_input_send_tabletsw(void)
 	}
 }
 
-/* Do NOT call without validating scancode first */
-static void tpacpi_input_send_key(const unsigned int scancode)
+static bool tpacpi_input_send_key(const u32 hkey)
 {
-	const unsigned int keycode = hotkey_keycode_map[scancode];
+	unsigned int keycode, scancode;
 
-	if (scancode < TP_ACPI_HOTKEYSCAN_ADAPTIVE_START &&
-	    !(hotkey_user_mask & (1 << scancode)))
-		return;
+	if (hkey >= TP_HKEY_EV_ORIG_KEY_START &&
+	    hkey <= TP_HKEY_EV_ORIG_KEY_END) {
+		scancode = hkey - TP_HKEY_EV_ORIG_KEY_START;
+		if (!(hotkey_user_mask & (1 << scancode)))
+			return true; /* Not reported but still a known code */
+	} else if (hkey >= TP_HKEY_EV_ADAPTIVE_KEY_START &&
+		   hkey <= TP_HKEY_EV_ADAPTIVE_KEY_END) {
+		scancode = hkey - TP_HKEY_EV_ADAPTIVE_KEY_START +
+			   TP_ACPI_HOTKEYSCAN_ADAPTIVE_START;
+	} else if (hkey >= TP_HKEY_EV_EXTENDED_KEY_START &&
+		   hkey <= TP_HKEY_EV_EXTENDED_KEY_END) {
+		scancode = hkey - TP_HKEY_EV_EXTENDED_KEY_START +
+			   TP_ACPI_HOTKEYSCAN_EXTENDED_START;
+	} else {
+		return false;
+	}
 
+	keycode = hotkey_keycode_map[scancode];
 	if (keycode != KEY_RESERVED) {
 		mutex_lock(&tpacpi_inputdev_send_mutex);
 
@@ -2272,6 +2285,8 @@ static void tpacpi_input_send_key(const unsigned int scancode)
 
 		mutex_unlock(&tpacpi_inputdev_send_mutex);
 	}
+
+	return true;
 }
 
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
@@ -2281,7 +2296,7 @@ static struct tp_acpi_drv_struct ibm_hotkey_acpidriver;
 static void tpacpi_hotkey_send_key(unsigned int scancode)
 {
 	tpacpi_driver_event(TP_HKEY_EV_ORIG_KEY_START + scancode);
-	tpacpi_input_send_key(scancode);
+	tpacpi_input_send_key(TP_HKEY_EV_ORIG_KEY_START + scancode);
 }
 
 static void hotkey_read_nvram(struct tp_nvram_state *n, const u32 m)
@@ -3704,42 +3719,15 @@ static void adaptive_keyboard_s_quickview_row(void)
 	adaptive_keyboard_set_mode(FUNCTION_MODE);
 }
 
-static bool adaptive_keyboard_hotkey_notify_hotkey(const u32 hkey)
-{
-	if (hkey < TP_HKEY_EV_ADAPTIVE_KEY_START ||
-	    hkey > TP_HKEY_EV_ADAPTIVE_KEY_END) {
-		pr_info("Unhandled adaptive keyboard key: 0x%x\n", hkey);
-		return false;
-	}
-
-	tpacpi_input_send_key(hkey - TP_HKEY_EV_ADAPTIVE_KEY_START +
-			      TP_ACPI_HOTKEYSCAN_ADAPTIVE_START);
-	return true;
-}
-
-static bool hotkey_notify_extended_hotkey(const u32 hkey)
-{
-	if (hkey >= TP_HKEY_EV_EXTENDED_KEY_START &&
-	    hkey <= TP_HKEY_EV_EXTENDED_KEY_END) {
-		unsigned int scancode = hkey - TP_HKEY_EV_EXTENDED_KEY_START +
-					TP_ACPI_HOTKEYSCAN_EXTENDED_START;
-		tpacpi_input_send_key(scancode);
-		return true;
-	}
-
-	return false;
-}
-
 /* 0x1000-0x1FFF: key presses */
 static bool hotkey_notify_hotkey(const u32 hkey, bool *send_acpi_ev)
 {
-	unsigned int scancode = hkey - TP_HKEY_EV_ORIG_KEY_START;
-
 	/* Never send ACPI netlink events for original hotkeys (hkey: 0x1001 - 0x1020) */
 	if (hkey >= TP_HKEY_EV_ORIG_KEY_START && hkey <= TP_HKEY_EV_ORIG_KEY_END) {
 		*send_acpi_ev = false;
 
 		/* Original hotkeys may be polled from NVRAM instead */
+		unsigned int scancode = hkey - TP_HKEY_EV_ORIG_KEY_START;
 		if (hotkey_source_mask & (1 << scancode))
 			return true;
 	}
@@ -3747,28 +3735,7 @@ static bool hotkey_notify_hotkey(const u32 hkey, bool *send_acpi_ev)
 	if (tpacpi_driver_event(hkey))
 		return true;
 
-	/*
-	 * Original events are in the 0x10XX range, the adaptive keyboard
-	 * found in 2014 X1 Carbon emits events are of 0x11XX. In 2017
-	 * models, additional keys are emitted through 0x13XX.
-	 */
-	switch ((hkey >> 8) & 0xf) {
-	case 0:
-		if (hkey >= TP_HKEY_EV_ORIG_KEY_START &&
-		    hkey <= TP_HKEY_EV_ORIG_KEY_END) {
-			tpacpi_input_send_key(scancode);
-			return true;
-		}
-		break;
-
-	case 1:
-		return adaptive_keyboard_hotkey_notify_hotkey(hkey);
-
-	case 3:
-		return hotkey_notify_extended_hotkey(hkey);
-	}
-
-	return false;
+	return tpacpi_input_send_key(hkey);
 }
 
 /* 0x2000-0x2FFF: Wakeup reason */
