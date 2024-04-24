@@ -2722,19 +2722,18 @@ static int ravb_setup_irq(struct ravb_private *priv, const char *irq_name,
 	struct platform_device *pdev = priv->pdev;
 	struct net_device *ndev = priv->ndev;
 	struct device *dev = &pdev->dev;
-	const char *dev_name;
+	const char *devname = dev_name(dev);
 	unsigned long flags;
 	int error, irq_num;
 
 	if (irq_name) {
-		dev_name = devm_kasprintf(dev, GFP_KERNEL, "%s:%s", ndev->name, ch);
-		if (!dev_name)
+		devname = devm_kasprintf(dev, GFP_KERNEL, "%s:%s", devname, ch);
+		if (!devname)
 			return -ENOMEM;
 
 		irq_num = platform_get_irq_byname(pdev, irq_name);
 		flags = 0;
 	} else {
-		dev_name = ndev->name;
 		irq_num = platform_get_irq(pdev, 0);
 		flags = IRQF_SHARED;
 	}
@@ -2744,9 +2743,9 @@ static int ravb_setup_irq(struct ravb_private *priv, const char *irq_name,
 	if (irq)
 		*irq = irq_num;
 
-	error = devm_request_irq(dev, irq_num, handler, flags, dev_name, ndev);
+	error = devm_request_irq(dev, irq_num, handler, flags, devname, ndev);
 	if (error)
-		netdev_err(ndev, "cannot request IRQ %s\n", dev_name);
+		netdev_err(ndev, "cannot request IRQ %s\n", devname);
 
 	return error;
 }
