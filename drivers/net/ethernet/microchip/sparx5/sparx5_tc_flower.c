@@ -159,6 +159,7 @@ out:
 static int
 sparx5_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 {
+	struct netlink_ext_ack *extack = st->fco->common.extack;
 	struct flow_match_control mt;
 	u32 value, mask;
 	int err = 0;
@@ -178,7 +179,7 @@ sparx5_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 		u8 vdt = sparx5_vcap_frag_map[is_frag_idx][first_frag_idx];
 
 		if (vdt == FRAG_INVAL) {
-			NL_SET_ERR_MSG_MOD(st->fco->common.extack,
+			NL_SET_ERR_MSG_MOD(extack,
 					   "Match on invalid fragment flag combination");
 			return -EINVAL;
 		}
@@ -199,7 +200,7 @@ sparx5_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 	return err;
 
 out:
-	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "ip_frag parse error");
+	NL_SET_ERR_MSG_MOD(extack, "ip_frag parse error");
 	return err;
 }
 
