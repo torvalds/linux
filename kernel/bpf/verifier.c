@@ -1434,6 +1434,7 @@ static int copy_verifier_state(struct bpf_verifier_state *dst_state,
 	}
 	dst_state->speculative = src->speculative;
 	dst_state->active_rcu_lock = src->active_rcu_lock;
+	dst_state->active_preempt_lock = src->active_preempt_lock;
 	dst_state->in_sleepable = src->in_sleepable;
 	dst_state->curframe = src->curframe;
 	dst_state->active_lock.ptr = src->active_lock.ptr;
@@ -9599,6 +9600,13 @@ static int check_func_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 			return -EINVAL;
 		}
 
+		/* Only global subprogs cannot be called with preemption disabled. */
+		if (env->cur_state->active_preempt_lock) {
+			verbose(env, "global function calls are not allowed with preemption disabled,\n"
+				     "use static function instead\n");
+			return -EINVAL;
+		}
+
 		if (err) {
 			verbose(env, "Caller passes invalid args into func#%d ('%s')\n",
 				subprog, sub_name);
@@ -10277,6 +10285,17 @@ static int check_helper_call(struct bpf_verifier_env *env, struct bpf_insn *insn
 	if (env->cur_state->active_rcu_lock) {
 		if (fn->might_sleep) {
 			verbose(env, "sleepable helper %s#%d in rcu_read_lock region\n",
+				func_id_name(func_id), func_id);
+			return -EINVAL;
+		}
+
+		if (in_sleepable(env) && is_storage_get_function(func_id))
+			env->insn_aux_data[insn_idx].storage_get_func_atomic = true;
+	}
+
+	if (env->cur_state->active_preempt_lock) {
+		if (fn->might_sleep) {
+			verbose(env, "sleepable helper %s#%d in non-preemptible region\n",
 				func_id_name(func_id), func_id);
 			return -EINVAL;
 		}
@@ -11027,6 +11046,8 @@ enum special_kfunc_type {
 	KF_bpf_percpu_obj_drop_impl,
 	KF_bpf_throw,
 	KF_bpf_wq_set_callback_impl,
+	KF_bpf_preempt_disable,
+	KF_bpf_preempt_enable,
 	KF_bpf_iter_css_task_new,
 };
 
@@ -11081,6 +11102,8 @@ BTF_ID(func, bpf_percpu_obj_new_impl)
 BTF_ID(func, bpf_percpu_obj_drop_impl)
 BTF_ID(func, bpf_throw)
 BTF_ID(func, bpf_wq_set_callback_impl)
+BTF_ID(func, bpf_preempt_disable)
+BTF_ID(func, bpf_preempt_enable)
 #ifdef CONFIG_CGROUPS
 BTF_ID(func, bpf_iter_css_task_new)
 #else
@@ -11105,6 +11128,16 @@ static bool is_kfunc_bpf_rcu_read_lock(struct bpf_kfunc_call_arg_meta *meta)
 static bool is_kfunc_bpf_rcu_read_unlock(struct bpf_kfunc_call_arg_meta *meta)
 {
 	return meta->func_id == special_kfunc_list[KF_bpf_rcu_read_unlock];
+}
+
+static bool is_kfunc_bpf_preempt_disable(struct bpf_kfunc_call_arg_meta *meta)
+{
+	return meta->func_id == special_kfunc_list[KF_bpf_preempt_disable];
+}
+
+static bool is_kfunc_bpf_preempt_enable(struct bpf_kfunc_call_arg_meta *meta)
+{
+	return meta->func_id == special_kfunc_list[KF_bpf_preempt_enable];
 }
 
 static enum kfunc_ptr_arg_type
@@ -12195,11 +12228,11 @@ static int check_return_code(struct bpf_verifier_env *env, int regno, const char
 static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 			    int *insn_idx_p)
 {
-	const struct btf_type *t, *ptr_type;
+	bool sleepable, rcu_lock, rcu_unlock, preempt_disable, preempt_enable;
 	u32 i, nargs, ptr_type_id, release_ref_obj_id;
 	struct bpf_reg_state *regs = cur_regs(env);
 	const char *func_name, *ptr_type_name;
-	bool sleepable, rcu_lock, rcu_unlock;
+	const struct btf_type *t, *ptr_type;
 	struct bpf_kfunc_call_arg_meta meta;
 	struct bpf_insn_aux_data *insn_aux;
 	int err, insn_idx = *insn_idx_p;
@@ -12260,6 +12293,9 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	rcu_lock = is_kfunc_bpf_rcu_read_lock(&meta);
 	rcu_unlock = is_kfunc_bpf_rcu_read_unlock(&meta);
 
+	preempt_disable = is_kfunc_bpf_preempt_disable(&meta);
+	preempt_enable = is_kfunc_bpf_preempt_enable(&meta);
+
 	if (env->cur_state->active_rcu_lock) {
 		struct bpf_func_state *state;
 		struct bpf_reg_state *reg;
@@ -12289,6 +12325,22 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		env->cur_state->active_rcu_lock = true;
 	} else if (rcu_unlock) {
 		verbose(env, "unmatched rcu read unlock (kernel function %s)\n", func_name);
+		return -EINVAL;
+	}
+
+	if (env->cur_state->active_preempt_lock) {
+		if (preempt_disable) {
+			env->cur_state->active_preempt_lock++;
+		} else if (preempt_enable) {
+			env->cur_state->active_preempt_lock--;
+		} else if (sleepable) {
+			verbose(env, "kernel func %s is sleepable within non-preemptible region\n", func_name);
+			return -EACCES;
+		}
+	} else if (preempt_disable) {
+		env->cur_state->active_preempt_lock++;
+	} else if (preempt_enable) {
+		verbose(env, "unmatched attempt to enable preemption (kernel function %s)\n", func_name);
 		return -EINVAL;
 	}
 
@@ -15439,6 +15491,11 @@ static int check_ld_abs(struct bpf_verifier_env *env, struct bpf_insn *insn)
 		return -EINVAL;
 	}
 
+	if (env->cur_state->active_preempt_lock) {
+		verbose(env, "BPF_LD_[ABS|IND] cannot be used inside bpf_preempt_disable-ed region\n");
+		return -EINVAL;
+	}
+
 	if (regs[ctx_reg].type != PTR_TO_CTX) {
 		verbose(env,
 			"at the time of BPF_LD_ABS|IND R6 != pointer to skb\n");
@@ -17006,6 +17063,9 @@ static bool states_equal(struct bpf_verifier_env *env,
 	if (old->active_rcu_lock != cur->active_rcu_lock)
 		return false;
 
+	if (old->active_preempt_lock != cur->active_preempt_lock)
+		return false;
+
 	if (old->in_sleepable != cur->in_sleepable)
 		return false;
 
@@ -17954,6 +18014,13 @@ process_bpf_exit_full:
 
 				if (env->cur_state->active_rcu_lock && !env->cur_state->curframe) {
 					verbose(env, "bpf_rcu_read_unlock is missing\n");
+					return -EINVAL;
+				}
+
+				if (env->cur_state->active_preempt_lock && !env->cur_state->curframe) {
+					verbose(env, "%d bpf_preempt_enable%s missing\n",
+						env->cur_state->active_preempt_lock,
+						env->cur_state->active_preempt_lock == 1 ? " is" : "(s) are");
 					return -EINVAL;
 				}
 
