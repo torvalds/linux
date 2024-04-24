@@ -1006,6 +1006,8 @@ static int zynqmp_r5_cluster_init(struct zynqmp_r5_cluster *cluster)
 			tcm_mode = PM_RPU_TCM_COMB;
 		else
 			tcm_mode = PM_RPU_TCM_SPLIT;
+	} else {
+		tcm_mode = PM_RPU_TCM_COMB;
 	}
 
 	/*
