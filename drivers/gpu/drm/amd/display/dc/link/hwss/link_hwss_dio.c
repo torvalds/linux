@@ -63,6 +63,8 @@ void reset_dio_stream_encoder(struct pipe_ctx *pipe_ctx)
 
 	if (stream_enc && stream_enc->funcs->disable_fifo)
 		stream_enc->funcs->disable_fifo(stream_enc);
+	if (stream_enc->funcs->set_input_mode)
+		stream_enc->funcs->set_input_mode(stream_enc, 0);
 
 	link_enc->funcs->connect_dig_be_to_fe(
 			link_enc,
