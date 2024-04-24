@@ -165,7 +165,7 @@ sparx5_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 
 	flow_rule_match_control(st->frule, &mt);
 
-	if (mt.mask->flags) {
+	if (mt.mask->flags & (FLOW_DIS_IS_FRAGMENT | FLOW_DIS_FIRST_FRAG)) {
 		u8 is_frag_key = !!(mt.key->flags & FLOW_DIS_IS_FRAGMENT);
 		u8 is_frag_mask = !!(mt.mask->flags & FLOW_DIS_IS_FRAGMENT);
 		u8 is_frag_idx = (is_frag_key << 1) | is_frag_mask;
