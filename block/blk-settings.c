@@ -188,7 +188,10 @@ static int blk_validate_limits(struct queue_limits *lim)
 	 * bvec and lower layer bio splitting is supposed to handle the two
 	 * correctly.
 	 */
-	if (!lim->virt_boundary_mask) {
+	if (lim->virt_boundary_mask) {
+		if (!lim->max_segment_size)
+			lim->max_segment_size = UINT_MAX;
+	} else {
 		/*
 		 * The maximum segment size has an odd historic 64k default that
 		 * drivers probably should override.  Just like the I/O size we
