@@ -282,8 +282,9 @@ atmel_hlcdc_plane_scaler_set_phicoeff(struct atmel_hlcdc_plane *plane,
 					    coeff_tab[i]);
 }
 
-static void atmel_hlcdc_plane_setup_scaler(struct atmel_hlcdc_plane *plane,
-					   struct atmel_hlcdc_plane_state *state)
+static
+void atmel_hlcdc_plane_setup_scaler(struct atmel_hlcdc_plane *plane,
+				    struct atmel_hlcdc_plane_state *state)
 {
 	const struct atmel_hlcdc_layer_desc *desc = plane->layer.desc;
 	u32 xfactor, yfactor;
@@ -335,6 +336,7 @@ atmel_hlcdc_plane_update_pos_and_size(struct atmel_hlcdc_plane *plane,
 				      struct atmel_hlcdc_plane_state *state)
 {
 	const struct atmel_hlcdc_layer_desc *desc = plane->layer.desc;
+	struct atmel_hlcdc_dc *dc = plane->base.dev->dev_private;
 
 	if (desc->layout.size)
 		atmel_hlcdc_layer_write_cfg(&plane->layer, desc->layout.size,
@@ -352,12 +354,12 @@ atmel_hlcdc_plane_update_pos_and_size(struct atmel_hlcdc_plane *plane,
 					ATMEL_HLCDC_LAYER_POS(state->crtc_x,
 							      state->crtc_y));
 
-	atmel_hlcdc_plane_setup_scaler(plane, state);
+	dc->desc->ops->plane_setup_scaler(plane, state);
 }
 
-static void
-atmel_hlcdc_plane_update_general_settings(struct atmel_hlcdc_plane *plane,
-					struct atmel_hlcdc_plane_state *state)
+static
+void atmel_hlcdc_plane_update_general_settings(struct atmel_hlcdc_plane *plane,
+					       struct atmel_hlcdc_plane_state *state)
 {
 	unsigned int cfg = ATMEL_HLCDC_LAYER_DMA_BLEN_INCR16 | state->ahb_id;
 	const struct atmel_hlcdc_layer_desc *desc = plane->layer.desc;
@@ -437,10 +439,33 @@ static void atmel_hlcdc_plane_update_clut(struct atmel_hlcdc_plane *plane,
 	}
 }
 
+static void atmel_hlcdc_update_buffers(struct atmel_hlcdc_plane *plane,
+				       struct atmel_hlcdc_plane_state *state,
+				       u32 sr, int i)
+{
+	atmel_hlcdc_layer_write_reg(&plane->layer,
+				    ATMEL_HLCDC_LAYER_PLANE_HEAD(i),
+				    state->dscrs[i]->self);
+
+	if (sr & ATMEL_HLCDC_LAYER_EN)
+		return;
+
+	atmel_hlcdc_layer_write_reg(&plane->layer,
+				    ATMEL_HLCDC_LAYER_PLANE_ADDR(i),
+				    state->dscrs[i]->addr);
+	atmel_hlcdc_layer_write_reg(&plane->layer,
+				    ATMEL_HLCDC_LAYER_PLANE_CTRL(i),
+				    state->dscrs[i]->ctrl);
+	atmel_hlcdc_layer_write_reg(&plane->layer,
+				    ATMEL_HLCDC_LAYER_PLANE_NEXT(i),
+				    state->dscrs[i]->self);
+}
+
 static void atmel_hlcdc_plane_update_buffers(struct atmel_hlcdc_plane *plane,
-					struct atmel_hlcdc_plane_state *state)
+					     struct atmel_hlcdc_plane_state *state)
 {
 	const struct atmel_hlcdc_layer_desc *desc = plane->layer.desc;
+	struct atmel_hlcdc_dc *dc = plane->base.dev->dev_private;
 	struct drm_framebuffer *fb = state->base.fb;
 	u32 sr;
 	int i;
@@ -452,21 +477,7 @@ static void atmel_hlcdc_plane_update_buffers(struct atmel_hlcdc_plane *plane,
 
 		state->dscrs[i]->addr = gem->dma_addr + state->offsets[i];
 
-		atmel_hlcdc_layer_write_reg(&plane->layer,
-					    ATMEL_HLCDC_LAYER_PLANE_HEAD(i),
-					    state->dscrs[i]->self);
-
-		if (!(sr & ATMEL_HLCDC_LAYER_EN)) {
-			atmel_hlcdc_layer_write_reg(&plane->layer,
-					ATMEL_HLCDC_LAYER_PLANE_ADDR(i),
-					state->dscrs[i]->addr);
-			atmel_hlcdc_layer_write_reg(&plane->layer,
-					ATMEL_HLCDC_LAYER_PLANE_CTRL(i),
-					state->dscrs[i]->ctrl);
-			atmel_hlcdc_layer_write_reg(&plane->layer,
-					ATMEL_HLCDC_LAYER_PLANE_NEXT(i),
-					state->dscrs[i]->self);
-		}
+		dc->desc->ops->lcdc_update_buffers(plane, state, sr, i);
 
 		if (desc->layout.xstride[i])
 			atmel_hlcdc_layer_write_cfg(&plane->layer,
@@ -712,11 +723,8 @@ static int atmel_hlcdc_plane_atomic_check(struct drm_plane *p,
 	return 0;
 }
 
-static void atmel_hlcdc_plane_atomic_disable(struct drm_plane *p,
-					     struct drm_atomic_state *state)
+static void atmel_hlcdc_atomic_disable(struct atmel_hlcdc_plane *plane)
 {
-	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
-
 	/* Disable interrupts */
 	atmel_hlcdc_layer_write_reg(&plane->layer, ATMEL_HLCDC_LAYER_IDR,
 				    0xffffffff);
@@ -731,30 +739,19 @@ static void atmel_hlcdc_plane_atomic_disable(struct drm_plane *p,
 	atmel_hlcdc_layer_read_reg(&plane->layer, ATMEL_HLCDC_LAYER_ISR);
 }
 
-static void atmel_hlcdc_plane_atomic_update(struct drm_plane *p,
-					    struct drm_atomic_state *state)
+static void atmel_hlcdc_plane_atomic_disable(struct drm_plane *p,
+					     struct drm_atomic_state *state)
 {
-	struct drm_plane_state *new_s = drm_atomic_get_new_plane_state(state,
-								       p);
 	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
-	struct atmel_hlcdc_plane_state *hstate =
-			drm_plane_state_to_atmel_hlcdc_plane_state(new_s);
+	struct atmel_hlcdc_dc *dc = plane->base.dev->dev_private;
+
+	dc->desc->ops->lcdc_atomic_disable(plane);
+}
+
+static void atmel_hlcdc_atomic_update(struct atmel_hlcdc_plane *plane,
+				      struct atmel_hlcdc_dc *dc)
+{
 	u32 sr;
-
-	if (!new_s->crtc || !new_s->fb)
-		return;
-
-	if (!hstate->base.visible) {
-		atmel_hlcdc_plane_atomic_disable(p, state);
-		return;
-	}
-
-	atmel_hlcdc_plane_update_pos_and_size(plane, hstate);
-	atmel_hlcdc_plane_update_general_settings(plane, hstate);
-	atmel_hlcdc_plane_update_format(plane, hstate);
-	atmel_hlcdc_plane_update_clut(plane, hstate);
-	atmel_hlcdc_plane_update_buffers(plane, hstate);
-	atmel_hlcdc_plane_update_disc_area(plane, hstate);
 
 	/* Enable the overrun interrupts. */
 	atmel_hlcdc_layer_write_reg(&plane->layer, ATMEL_HLCDC_LAYER_IER,
@@ -765,14 +762,63 @@ static void atmel_hlcdc_plane_atomic_update(struct drm_plane *p,
 	/* Apply the new config at the next SOF event. */
 	sr = atmel_hlcdc_layer_read_reg(&plane->layer, ATMEL_HLCDC_LAYER_CHSR);
 	atmel_hlcdc_layer_write_reg(&plane->layer, ATMEL_HLCDC_LAYER_CHER,
-			ATMEL_HLCDC_LAYER_UPDATE |
-			(sr & ATMEL_HLCDC_LAYER_EN ?
-			 ATMEL_HLCDC_LAYER_A2Q : ATMEL_HLCDC_LAYER_EN));
+				    ATMEL_HLCDC_LAYER_UPDATE |
+				    (sr & ATMEL_HLCDC_LAYER_EN ?
+				    ATMEL_HLCDC_LAYER_A2Q : ATMEL_HLCDC_LAYER_EN));
+}
+
+static void atmel_hlcdc_plane_atomic_update(struct drm_plane *p,
+					    struct drm_atomic_state *state)
+{
+	struct drm_plane_state *new_s = drm_atomic_get_new_plane_state(state,
+								       p);
+	struct atmel_hlcdc_plane *plane = drm_plane_to_atmel_hlcdc_plane(p);
+	struct atmel_hlcdc_plane_state *hstate =
+			drm_plane_state_to_atmel_hlcdc_plane_state(new_s);
+	struct atmel_hlcdc_dc *dc = p->dev->dev_private;
+
+	if (!new_s->crtc || !new_s->fb)
+		return;
+
+	if (!hstate->base.visible) {
+		atmel_hlcdc_plane_atomic_disable(p, state);
+		return;
+	}
+
+	atmel_hlcdc_plane_update_pos_and_size(plane, hstate);
+	dc->desc->ops->lcdc_update_general_settings(plane, hstate);
+	atmel_hlcdc_plane_update_format(plane, hstate);
+	atmel_hlcdc_plane_update_clut(plane, hstate);
+	atmel_hlcdc_plane_update_buffers(plane, hstate);
+	atmel_hlcdc_plane_update_disc_area(plane, hstate);
+
+	dc->desc->ops->lcdc_atomic_update(plane, dc);
+}
+
+static void atmel_hlcdc_csc_init(struct atmel_hlcdc_plane *plane,
+				 const struct atmel_hlcdc_layer_desc *desc)
+{
+	/*
+	 * TODO: declare a "yuv-to-rgb-conv-factors" property to let
+	 * userspace modify these factors (using a BLOB property ?).
+	 */
+	static const u32 hlcdc_csc_coeffs[] = {
+		0x4c900091,
+		0x7a5f5090,
+		0x40040890
+	};
+
+	for (int i = 0; i < ARRAY_SIZE(hlcdc_csc_coeffs); i++) {
+		atmel_hlcdc_layer_write_cfg(&plane->layer,
+					    desc->layout.csc + i,
+					    hlcdc_csc_coeffs[i]);
+	}
 }
 
 static int atmel_hlcdc_plane_init_properties(struct atmel_hlcdc_plane *plane)
 {
 	const struct atmel_hlcdc_layer_desc *desc = plane->layer.desc;
+	struct atmel_hlcdc_dc *dc = plane->base.dev->dev_private;
 
 	if (desc->type == ATMEL_HLCDC_OVERLAY_LAYER ||
 	    desc->type == ATMEL_HLCDC_CURSOR_LAYER) {
@@ -796,31 +842,16 @@ static int atmel_hlcdc_plane_init_properties(struct atmel_hlcdc_plane *plane)
 			return ret;
 	}
 
-	if (desc->layout.csc) {
-		/*
-		 * TODO: decare a "yuv-to-rgb-conv-factors" property to let
-		 * userspace modify these factors (using a BLOB property ?).
-		 */
-		atmel_hlcdc_layer_write_cfg(&plane->layer,
-					    desc->layout.csc,
-					    0x4c900091);
-		atmel_hlcdc_layer_write_cfg(&plane->layer,
-					    desc->layout.csc + 1,
-					    0x7a5f5090);
-		atmel_hlcdc_layer_write_cfg(&plane->layer,
-					    desc->layout.csc + 2,
-					    0x40040890);
-	}
+	if (desc->layout.csc)
+		dc->desc->ops->lcdc_csc_init(plane, desc);
 
 	return 0;
 }
 
-void atmel_hlcdc_plane_irq(struct atmel_hlcdc_plane *plane)
+static void atmel_hlcdc_irq_dbg(struct atmel_hlcdc_plane *plane,
+				const struct atmel_hlcdc_layer_desc *desc)
 {
-	const struct atmel_hlcdc_layer_desc *desc = plane->layer.desc;
-	u32 isr;
-
-	isr = atmel_hlcdc_layer_read_reg(&plane->layer, ATMEL_HLCDC_LAYER_ISR);
+	u32 isr = atmel_hlcdc_layer_read_reg(&plane->layer, ATMEL_HLCDC_LAYER_ISR);
 
 	/*
 	 * There's not much we can do in case of overrun except informing
@@ -833,6 +864,24 @@ void atmel_hlcdc_plane_irq(struct atmel_hlcdc_plane *plane)
 		dev_dbg(plane->base.dev->dev, "overrun on plane %s\n",
 			desc->name);
 }
+
+void atmel_hlcdc_plane_irq(struct atmel_hlcdc_plane *plane)
+{
+	const struct atmel_hlcdc_layer_desc *desc = plane->layer.desc;
+	struct atmel_hlcdc_dc *dc = plane->base.dev->dev_private;
+
+	dc->desc->ops->lcdc_irq_dbg(plane, desc);
+}
+
+const struct atmel_lcdc_dc_ops atmel_hlcdc_ops = {
+	.plane_setup_scaler = atmel_hlcdc_plane_setup_scaler,
+	.lcdc_update_buffers = atmel_hlcdc_update_buffers,
+	.lcdc_atomic_disable = atmel_hlcdc_atomic_disable,
+	.lcdc_update_general_settings = atmel_hlcdc_plane_update_general_settings,
+	.lcdc_atomic_update = atmel_hlcdc_atomic_update,
+	.lcdc_csc_init = atmel_hlcdc_csc_init,
+	.lcdc_irq_dbg = atmel_hlcdc_irq_dbg,
+};
 
 static const struct drm_plane_helper_funcs atmel_hlcdc_layer_plane_helper_funcs = {
 	.atomic_check = atmel_hlcdc_plane_atomic_check,
