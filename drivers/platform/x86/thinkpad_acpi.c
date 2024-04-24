@@ -157,15 +157,30 @@ enum {
 
 /* HKEY events */
 enum tpacpi_hkey_event_t {
-	/* Hotkey-related */
-	TP_HKEY_EV_HOTKEY_BASE		= 0x1001, /* first hotkey (FN+F1) */
+	/* Original hotkeys */
+	TP_HKEY_EV_ORIG_KEY_START	= 0x1001, /* First hotkey (FN+F1) */
 	TP_HKEY_EV_BRGHT_UP		= 0x1010, /* Brightness up */
 	TP_HKEY_EV_BRGHT_DOWN		= 0x1011, /* Brightness down */
 	TP_HKEY_EV_KBD_LIGHT		= 0x1012, /* Thinklight/kbd backlight */
 	TP_HKEY_EV_VOL_UP		= 0x1015, /* Volume up or unmute */
 	TP_HKEY_EV_VOL_DOWN		= 0x1016, /* Volume down or unmute */
 	TP_HKEY_EV_VOL_MUTE		= 0x1017, /* Mixer output mute */
+	TP_HKEY_EV_ORIG_KEY_END		= 0x1020, /* Last original hotkey code */
+
+	/* Adaptive keyboard (2014 X1 Carbon) */
+	TP_HKEY_EV_DFR_CHANGE_ROW	= 0x1101, /* Change adaptive kbd Fn row mode */
+	TP_HKEY_EV_DFR_S_QUICKVIEW_ROW	= 0x1102, /* Set adap. kbd Fn row to function mode */
+	TP_HKEY_EV_ADAPTIVE_KEY_START	= 0x1103, /* First hotkey code on adaptive kbd */
+	TP_HKEY_EV_ADAPTIVE_KEY_END	= 0x1116, /* Last hotkey code on adaptive kbd */
+
+	/* Extended hotkey events in 2017+ models */
+	TP_HKEY_EV_EXTENDED_KEY_START	= 0x1300, /* First extended hotkey code */
 	TP_HKEY_EV_PRIVACYGUARD_TOGGLE	= 0x130f, /* Toggle priv.guard on/off */
+	TP_HKEY_EV_EXTENDED_KEY_END	= 0x1319, /* Last extended hotkey code using
+						   * hkey -> scancode translation for
+						   * compat. Later codes are entered
+						   * directly in the sparse-keymap.
+						   */
 	TP_HKEY_EV_AMT_TOGGLE		= 0x131a, /* Toggle AMT on/off */
 	TP_HKEY_EV_PROFILE_TOGGLE	= 0x131f, /* Toggle platform profile */
 
@@ -1752,7 +1767,7 @@ enum {	/* hot key scan codes (derived from ACPI DSDT) */
 	TP_ACPI_HOTKEYSCAN_UNK8,
 
 	/* Adaptive keyboard keycodes */
-	TP_ACPI_HOTKEYSCAN_ADAPTIVE_START,
+	TP_ACPI_HOTKEYSCAN_ADAPTIVE_START, /* 32 / 0x20 */
 	TP_ACPI_HOTKEYSCAN_MUTE2        = TP_ACPI_HOTKEYSCAN_ADAPTIVE_START,
 	TP_ACPI_HOTKEYSCAN_BRIGHTNESS_ZERO,
 	TP_ACPI_HOTKEYSCAN_CLIPPING_TOOL,
@@ -1775,7 +1790,7 @@ enum {	/* hot key scan codes (derived from ACPI DSDT) */
 	TP_ACPI_HOTKEYSCAN_ROTATE_DISPLAY,
 
 	/* Lenovo extended keymap, starting at 0x1300 */
-	TP_ACPI_HOTKEYSCAN_EXTENDED_START,
+	TP_ACPI_HOTKEYSCAN_EXTENDED_START, /* 52 / 0x34 */
 	/* first new observed key (star, favorites) is 0x1311 */
 	TP_ACPI_HOTKEYSCAN_STAR = 69,
 	TP_ACPI_HOTKEYSCAN_CLIPPING_TOOL2,
@@ -3612,10 +3627,6 @@ static const int adaptive_keyboard_modes[] = {
 	FUNCTION_MODE
 };
 
-#define DFR_CHANGE_ROW			0x101
-#define DFR_SHOW_QUICKVIEW_ROW		0x102
-#define FIRST_ADAPTIVE_KEY		0x103
-
 /* press Fn key a while second, it will switch to Function Mode. Then
  * release Fn key, previous mode be restored.
  */
@@ -3666,13 +3677,13 @@ static int adaptive_keyboard_get_next_mode(int mode)
 	return adaptive_keyboard_modes[i];
 }
 
-static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
+static bool adaptive_keyboard_hotkey_notify_hotkey(const u32 hkey)
 {
 	int current_mode = 0;
 	int new_mode = 0;
 
-	switch (scancode) {
-	case DFR_CHANGE_ROW:
+	switch (hkey) {
+	case TP_HKEY_EV_DFR_CHANGE_ROW:
 		if (adaptive_keyboard_mode_is_saved) {
 			new_mode = adaptive_keyboard_prev_mode;
 			adaptive_keyboard_mode_is_saved = false;
@@ -3689,7 +3700,7 @@ static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
 
 		return true;
 
-	case DFR_SHOW_QUICKVIEW_ROW:
+	case TP_HKEY_EV_DFR_S_QUICKVIEW_ROW:
 		current_mode = adaptive_keyboard_get_mode();
 		if (current_mode < 0)
 			return false;
@@ -3702,15 +3713,12 @@ static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
 		return true;
 
 	default:
-		if (scancode < FIRST_ADAPTIVE_KEY ||
-		    scancode >= FIRST_ADAPTIVE_KEY +
-		    TP_ACPI_HOTKEYSCAN_EXTENDED_START -
-		    TP_ACPI_HOTKEYSCAN_ADAPTIVE_START) {
-			pr_info("Unhandled adaptive keyboard key: 0x%x\n",
-				scancode);
+		if (hkey < TP_HKEY_EV_ADAPTIVE_KEY_START ||
+		    hkey > TP_HKEY_EV_ADAPTIVE_KEY_END) {
+			pr_info("Unhandled adaptive keyboard key: 0x%x\n", hkey);
 			return false;
 		}
-		tpacpi_input_send_key(scancode - FIRST_ADAPTIVE_KEY +
+		tpacpi_input_send_key(hkey - TP_HKEY_EV_ADAPTIVE_KEY_START +
 				      TP_ACPI_HOTKEYSCAN_ADAPTIVE_START);
 		return true;
 	}
@@ -3718,8 +3726,6 @@ static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
 
 static bool hotkey_notify_extended_hotkey(const u32 hkey)
 {
-	unsigned int scancode;
-
 	switch (hkey) {
 	case TP_HKEY_EV_PRIVACYGUARD_TOGGLE:
 	case TP_HKEY_EV_AMT_TOGGLE:
@@ -3728,13 +3734,10 @@ static bool hotkey_notify_extended_hotkey(const u32 hkey)
 		return true;
 	}
 
-	/* Extended keycodes start at 0x300 and our offset into the map
-	 * TP_ACPI_HOTKEYSCAN_EXTENDED_START. The calculated scancode
-	 * will be positive, but might not be in the correct range.
-	 */
-	scancode = (hkey & 0xfff) - (0x300 - TP_ACPI_HOTKEYSCAN_EXTENDED_START);
-	if (scancode >= TP_ACPI_HOTKEYSCAN_EXTENDED_START &&
-	    scancode < TPACPI_HOTKEY_MAP_LEN) {
+	if (hkey >= TP_HKEY_EV_EXTENDED_KEY_START &&
+	    hkey <= TP_HKEY_EV_EXTENDED_KEY_END) {
+		unsigned int scancode = hkey - TP_HKEY_EV_EXTENDED_KEY_START +
+					TP_ACPI_HOTKEYSCAN_EXTENDED_START;
 		tpacpi_input_send_key(scancode);
 		return true;
 	}
@@ -3745,7 +3748,7 @@ static bool hotkey_notify_extended_hotkey(const u32 hkey)
 /* 0x1000-0x1FFF: key presses */
 static bool hotkey_notify_hotkey(const u32 hkey, bool *send_acpi_ev)
 {
-	unsigned int scancode = hkey & 0xfff;
+	unsigned int scancode = hkey - TP_HKEY_EV_ORIG_KEY_START;
 
 	/*
 	 * Original events are in the 0x10XX range, the adaptive keyboard
@@ -3754,10 +3757,8 @@ static bool hotkey_notify_hotkey(const u32 hkey, bool *send_acpi_ev)
 	 */
 	switch ((hkey >> 8) & 0xf) {
 	case 0:
-		if (scancode > 0 &&
-		    scancode <= TP_ACPI_HOTKEYSCAN_ADAPTIVE_START) {
-			/* HKEY event 0x1001 is scancode 0x00 */
-			scancode--;
+		if (hkey >= TP_HKEY_EV_ORIG_KEY_START &&
+		    hkey <= TP_HKEY_EV_ORIG_KEY_END) {
 			if (!(hotkey_source_mask & (1 << scancode)))
 				tpacpi_input_send_key_masked(scancode);
 
@@ -3767,7 +3768,7 @@ static bool hotkey_notify_hotkey(const u32 hkey, bool *send_acpi_ev)
 		break;
 
 	case 1:
-		return adaptive_keyboard_hotkey_notify_hotkey(scancode);
+		return adaptive_keyboard_hotkey_notify_hotkey(hkey);
 
 	case 3:
 		return hotkey_notify_extended_hotkey(hkey);
@@ -11150,7 +11151,7 @@ static void tpacpi_driver_event(const unsigned int hkey_event)
 
 static void hotkey_driver_event(const unsigned int scancode)
 {
-	tpacpi_driver_event(TP_HKEY_EV_HOTKEY_BASE + scancode);
+	tpacpi_driver_event(TP_HKEY_EV_ORIG_KEY_START + scancode);
 }
 
 /* --------------------------------------------------------------------- */
