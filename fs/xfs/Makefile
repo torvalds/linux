@@ -163,6 +163,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   common.o \
 				   dabtree.o \
 				   dir.o \
+				   dirtree.o \
 				   fscounters.o \
 				   health.o \
 				   ialloc.o \
@@ -203,6 +204,7 @@ xfs-y				+= $(addprefix scrub/, \
 				   bmap_repair.o \
 				   cow_repair.o \
 				   dir_repair.o \
+				   dirtree_repair.o \
 				   findparent.o \
 				   fscounters_repair.o \
 				   ialloc_repair.o \

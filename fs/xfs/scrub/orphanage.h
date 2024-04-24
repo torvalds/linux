@@ -60,6 +60,14 @@ struct xrep_adoption {
 	/* Block reservations for orphanage and child (if directory). */
 	unsigned int		orphanage_blkres;
 	unsigned int		child_blkres;
+
+	/*
+	 * Does the caller want us to bump the child link count?  This is not
+	 * needed when reattaching files that have become disconnected but have
+	 * nlink > 1.  It is necessary when changing the directory tree
+	 * structure.
+	 */
+	bool			bump_child_nlink:1;
 };
 
 bool xrep_orphanage_can_adopt(struct xfs_scrub *sc);

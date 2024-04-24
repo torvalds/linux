@@ -8,6 +8,7 @@
 
 /* xfile array index type, along with cursor initialization */
 typedef uint64_t		xfarray_idx_t;
+#define XFARRAY_NULLIDX		((__force xfarray_idx_t)-1ULL)
 #define XFARRAY_CURSOR_INIT	((__force xfarray_idx_t)0)
 
 /* Iterate each index of an xfile array. */

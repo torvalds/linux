@@ -893,7 +893,7 @@ xfs_init_new_inode(
  * link count to go to zero, move the inode to AGI unlinked list so that it can
  * be freed when the last active reference goes away via xfs_inactive().
  */
-static int			/* error */
+int
 xfs_droplink(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*ip)

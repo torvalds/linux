@@ -27,6 +27,9 @@ struct xchk_nlink;
 struct xchk_fscounters;
 struct xfs_rmap_update_params;
 struct xfs_parent_rec;
+enum xchk_dirpath_outcome;
+struct xchk_dirtree;
+struct xchk_dirtree_outcomes;
 
 /*
  * ftrace's __print_symbolic requires that all enum values be wrapped in the
@@ -65,6 +68,7 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_FSCOUNTERS);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_QUOTACHECK);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_NLINKS);
 TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_HEALTHY);
+TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_DIRTREE);
 
 #define XFS_SCRUB_TYPE_STRINGS \
 	{ XFS_SCRUB_TYPE_PROBE,		"probe" }, \
@@ -94,7 +98,8 @@ TRACE_DEFINE_ENUM(XFS_SCRUB_TYPE_HEALTHY);
 	{ XFS_SCRUB_TYPE_FSCOUNTERS,	"fscounters" }, \
 	{ XFS_SCRUB_TYPE_QUOTACHECK,	"quotacheck" }, \
 	{ XFS_SCRUB_TYPE_NLINKS,	"nlinks" }, \
-	{ XFS_SCRUB_TYPE_HEALTHY,	"healthy" }
+	{ XFS_SCRUB_TYPE_HEALTHY,	"healthy" }, \
+	{ XFS_SCRUB_TYPE_DIRTREE,	"dirtree" }
 
 #define XFS_SCRUB_FLAG_STRINGS \
 	{ XFS_SCRUB_IFLAG_REPAIR,		"repair" }, \
@@ -171,6 +176,8 @@ DEFINE_EVENT(xchk_class, name, \
 DEFINE_SCRUB_EVENT(xchk_start);
 DEFINE_SCRUB_EVENT(xchk_done);
 DEFINE_SCRUB_EVENT(xchk_deadlock_retry);
+DEFINE_SCRUB_EVENT(xchk_dirtree_start);
+DEFINE_SCRUB_EVENT(xchk_dirtree_done);
 DEFINE_SCRUB_EVENT(xrep_attempt);
 DEFINE_SCRUB_EVENT(xrep_done);
 
@@ -1576,6 +1583,263 @@ DEFINE_XCHK_PPTR_EVENT(xchk_parent_defer);
 DEFINE_XCHK_PPTR_EVENT(xchk_parent_slowpath);
 DEFINE_XCHK_PPTR_EVENT(xchk_parent_ultraslowpath);
 
+DECLARE_EVENT_CLASS(xchk_dirtree_class,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *ip,
+		 unsigned int path_nr, const struct xfs_name *name,
+		 const struct xfs_parent_rec *pptr),
+	TP_ARGS(sc, ip, path_nr, name, pptr),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, path_nr)
+		__field(xfs_ino_t, child_ino)
+		__field(unsigned int, child_gen)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, parent_gen)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, name->len)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->path_nr = path_nr;
+		__entry->child_ino = ip->i_ino;
+		__entry->child_gen = VFS_I(ip)->i_generation;
+		__entry->parent_ino = be64_to_cpu(pptr->p_ino);
+		__entry->parent_gen = be32_to_cpu(pptr->p_gen);
+		__entry->namelen = name->len;
+		memcpy(__get_str(name), name->name, name->len);
+	),
+	TP_printk("dev %d:%d path %u child_ino 0x%llx child_gen 0x%x parent_ino 0x%llx parent_gen 0x%x name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->path_nr,
+		  __entry->child_ino,
+		  __entry->child_gen,
+		  __entry->parent_ino,
+		  __entry->parent_gen,
+		  __entry->namelen,
+		  __get_str(name))
+);
+#define DEFINE_XCHK_DIRTREE_EVENT(name) \
+DEFINE_EVENT(xchk_dirtree_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *ip, \
+		 unsigned int path_nr, const struct xfs_name *name, \
+		 const struct xfs_parent_rec *pptr), \
+	TP_ARGS(sc, ip, path_nr, name, pptr))
+DEFINE_XCHK_DIRTREE_EVENT(xchk_dirtree_create_path);
+DEFINE_XCHK_DIRTREE_EVENT(xchk_dirpath_walk_upwards);
+
+DECLARE_EVENT_CLASS(xchk_dirpath_class,
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *ip,
+		 unsigned int path_nr, unsigned int step_nr,
+		 const struct xfs_name *name,
+		 const struct xfs_parent_rec *pptr),
+	TP_ARGS(sc, ip, path_nr, step_nr, name, pptr),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, path_nr)
+		__field(unsigned int, step_nr)
+		__field(xfs_ino_t, child_ino)
+		__field(unsigned int, child_gen)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, parent_gen)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, name->len)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->path_nr = path_nr;
+		__entry->step_nr = step_nr;
+		__entry->child_ino = ip->i_ino;
+		__entry->child_gen = VFS_I(ip)->i_generation;
+		__entry->parent_ino = be64_to_cpu(pptr->p_ino);
+		__entry->parent_gen = be32_to_cpu(pptr->p_gen);
+		__entry->namelen = name->len;
+		memcpy(__get_str(name), name->name, name->len);
+	),
+	TP_printk("dev %d:%d path %u step %u child_ino 0x%llx child_gen 0x%x parent_ino 0x%llx parent_gen 0x%x name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->path_nr,
+		  __entry->step_nr,
+		  __entry->child_ino,
+		  __entry->child_gen,
+		  __entry->parent_ino,
+		  __entry->parent_gen,
+		  __entry->namelen,
+		  __get_str(name))
+);
+#define DEFINE_XCHK_DIRPATH_EVENT(name) \
+DEFINE_EVENT(xchk_dirpath_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, struct xfs_inode *ip, \
+		 unsigned int path_nr, unsigned int step_nr, \
+		 const struct xfs_name *name, \
+		 const struct xfs_parent_rec *pptr), \
+	TP_ARGS(sc, ip, path_nr, step_nr, name, pptr))
+DEFINE_XCHK_DIRPATH_EVENT(xchk_dirpath_disappeared);
+DEFINE_XCHK_DIRPATH_EVENT(xchk_dirpath_badgen);
+DEFINE_XCHK_DIRPATH_EVENT(xchk_dirpath_nondir_parent);
+DEFINE_XCHK_DIRPATH_EVENT(xchk_dirpath_unlinked_parent);
+DEFINE_XCHK_DIRPATH_EVENT(xchk_dirpath_found_next_step);
+
+TRACE_DEFINE_ENUM(XCHK_DIRPATH_SCANNING);
+TRACE_DEFINE_ENUM(XCHK_DIRPATH_DELETE);
+TRACE_DEFINE_ENUM(XCHK_DIRPATH_CORRUPT);
+TRACE_DEFINE_ENUM(XCHK_DIRPATH_LOOP);
+TRACE_DEFINE_ENUM(XCHK_DIRPATH_STALE);
+TRACE_DEFINE_ENUM(XCHK_DIRPATH_OK);
+TRACE_DEFINE_ENUM(XREP_DIRPATH_DELETING);
+TRACE_DEFINE_ENUM(XREP_DIRPATH_DELETED);
+TRACE_DEFINE_ENUM(XREP_DIRPATH_ADOPTING);
+TRACE_DEFINE_ENUM(XREP_DIRPATH_ADOPTED);
+
+#define XCHK_DIRPATH_OUTCOME_STRINGS \
+	{ XCHK_DIRPATH_SCANNING,	"scanning" }, \
+	{ XCHK_DIRPATH_DELETE,		"delete" }, \
+	{ XCHK_DIRPATH_CORRUPT,		"corrupt" }, \
+	{ XCHK_DIRPATH_LOOP,		"loop" }, \
+	{ XCHK_DIRPATH_STALE,		"stale" }, \
+	{ XCHK_DIRPATH_OK,		"ok" }, \
+	{ XREP_DIRPATH_DELETING,	"deleting" }, \
+	{ XREP_DIRPATH_DELETED,		"deleted" }, \
+	{ XREP_DIRPATH_ADOPTING,	"adopting" }, \
+	{ XREP_DIRPATH_ADOPTED,		"adopted" }
+
+DECLARE_EVENT_CLASS(xchk_dirpath_outcome_class,
+	TP_PROTO(struct xfs_scrub *sc, unsigned long long path_nr,
+		 unsigned int nr_steps, \
+		 unsigned int outcome),
+	TP_ARGS(sc, path_nr, nr_steps, outcome),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned long long, path_nr)
+		__field(unsigned int, nr_steps)
+		__field(unsigned int, outcome)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->path_nr = path_nr;
+		__entry->nr_steps = nr_steps;
+		__entry->outcome = outcome;
+	),
+	TP_printk("dev %d:%d path %llu steps %u outcome %s",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->path_nr,
+		  __entry->nr_steps,
+		  __print_symbolic(__entry->outcome, XCHK_DIRPATH_OUTCOME_STRINGS))
+);
+#define DEFINE_XCHK_DIRPATH_OUTCOME_EVENT(name) \
+DEFINE_EVENT(xchk_dirpath_outcome_class, name, \
+	TP_PROTO(struct xfs_scrub *sc, unsigned long long path_nr, \
+		 unsigned int nr_steps, \
+		 unsigned int outcome), \
+	TP_ARGS(sc, path_nr, nr_steps, outcome))
+DEFINE_XCHK_DIRPATH_OUTCOME_EVENT(xchk_dirpath_set_outcome);
+DEFINE_XCHK_DIRPATH_OUTCOME_EVENT(xchk_dirpath_evaluate_path);
+
+DECLARE_EVENT_CLASS(xchk_dirtree_evaluate_class,
+	TP_PROTO(const struct xchk_dirtree *dl,
+		 const struct xchk_dirtree_outcomes *oc),
+	TP_ARGS(dl, oc),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(xfs_ino_t, rootino)
+		__field(unsigned int, nr_paths)
+		__field(unsigned int, bad)
+		__field(unsigned int, suspect)
+		__field(unsigned int, good)
+		__field(bool, needs_adoption)
+	),
+	TP_fast_assign(
+		__entry->dev = dl->sc->mp->m_super->s_dev;
+		__entry->ino = dl->sc->ip->i_ino;
+		__entry->rootino = dl->root_ino;
+		__entry->nr_paths = dl->nr_paths;
+		__entry->bad = oc->bad;
+		__entry->suspect = oc->suspect;
+		__entry->good = oc->good;
+		__entry->needs_adoption = oc->needs_adoption ? 1 : 0;
+	),
+	TP_printk("dev %d:%d ino 0x%llx rootino 0x%llx nr_paths %u bad %u suspect %u good %u adopt? %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->rootino,
+		  __entry->nr_paths,
+		  __entry->bad,
+		  __entry->suspect,
+		  __entry->good,
+		  __entry->needs_adoption)
+);
+#define DEFINE_XCHK_DIRTREE_EVALUATE_EVENT(name) \
+DEFINE_EVENT(xchk_dirtree_evaluate_class, name, \
+	TP_PROTO(const struct xchk_dirtree *dl, \
+		 const struct xchk_dirtree_outcomes *oc), \
+	TP_ARGS(dl, oc))
+DEFINE_XCHK_DIRTREE_EVALUATE_EVENT(xchk_dirtree_evaluate);
+
+TRACE_EVENT(xchk_dirpath_changed,
+	TP_PROTO(struct xfs_scrub *sc, unsigned int path_nr,
+		 unsigned int step_nr, const struct xfs_inode *dp,
+		 const struct xfs_inode *ip, const struct xfs_name *xname),
+	TP_ARGS(sc, path_nr, step_nr, dp, ip, xname),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned int, path_nr)
+		__field(unsigned int, step_nr)
+		__field(xfs_ino_t, child_ino)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, xname->len)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->path_nr = path_nr;
+		__entry->step_nr = step_nr;
+		__entry->child_ino = ip->i_ino;
+		__entry->parent_ino = dp->i_ino;
+		__entry->namelen = xname->len;
+		memcpy(__get_str(name), xname->name, xname->len);
+	),
+	TP_printk("dev %d:%d path %u step %u child_ino 0x%llx parent_ino 0x%llx name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->path_nr,
+		  __entry->step_nr,
+		  __entry->child_ino,
+		  __entry->parent_ino,
+		  __entry->namelen,
+		  __get_str(name))
+);
+
+TRACE_EVENT(xchk_dirtree_live_update,
+	TP_PROTO(struct xfs_scrub *sc, const struct xfs_inode *dp,
+		 int action, const struct xfs_inode *ip, int delta,
+		 const struct xfs_name *xname),
+	TP_ARGS(sc, dp, action, ip, delta, xname),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, parent_ino)
+		__field(int, action)
+		__field(xfs_ino_t, child_ino)
+		__field(int, delta)
+		__field(unsigned int, namelen)
+		__dynamic_array(char, name, xname->len)
+	),
+	TP_fast_assign(
+		__entry->dev = sc->mp->m_super->s_dev;
+		__entry->parent_ino = dp->i_ino;
+		__entry->action = action;
+		__entry->child_ino = ip->i_ino;
+		__entry->delta = delta;
+		__entry->namelen = xname->len;
+		memcpy(__get_str(name), xname->name, xname->len);
+	),
+	TP_printk("dev %d:%d parent_ino 0x%llx child_ino 0x%llx nlink_delta %d name '%.*s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->parent_ino,
+		  __entry->child_ino,
+		  __entry->delta,
+		  __entry->namelen,
+		  __get_str(name))
+);
+
 /* repair tracepoints */
 #if IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR)
 
@@ -2928,6 +3192,7 @@ DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_child);
 DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_alias);
 DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_check_dentry);
 DEFINE_REPAIR_DENTRY_EVENT(xrep_adoption_invalidate_child);
+DEFINE_REPAIR_DENTRY_EVENT(xrep_dirtree_delete_child);
 
 TRACE_EVENT(xrep_symlink_salvage_target,
 	TP_PROTO(struct xfs_inode *ip, char *target, unsigned int targetlen),
@@ -3229,6 +3494,11 @@ TRACE_EVENT(xrep_iunlink_commit_bucket,
 		  __entry->old_agino,
 		  __entry->agino)
 );
+
+DEFINE_XCHK_DIRPATH_OUTCOME_EVENT(xrep_dirpath_set_outcome);
+DEFINE_XCHK_DIRTREE_EVENT(xrep_dirtree_delete_path);
+DEFINE_XCHK_DIRTREE_EVENT(xrep_dirtree_create_adoption);
+DEFINE_XCHK_DIRTREE_EVALUATE_EVENT(xrep_dirtree_decided_fate);
 
 #endif /* IS_ENABLED(CONFIG_XFS_ONLINE_REPAIR) */
 
