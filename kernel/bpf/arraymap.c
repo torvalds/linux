@@ -428,17 +428,21 @@ static void *array_map_vmalloc_addr(struct bpf_array *array)
 	return (void *)round_down((unsigned long)array, PAGE_SIZE);
 }
 
-static void array_map_free_timers(struct bpf_map *map)
+static void array_map_free_timers_wq(struct bpf_map *map)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	int i;
 
-	/* We don't reset or free fields other than timer on uref dropping to zero. */
-	if (!btf_record_has_field(map->record, BPF_TIMER))
-		return;
+	/* We don't reset or free fields other than timer and workqueue
+	 * on uref dropping to zero.
+	 */
+	if (btf_record_has_field(map->record, BPF_TIMER))
+		for (i = 0; i < array->map.max_entries; i++)
+			bpf_obj_free_timer(map->record, array_map_elem_ptr(array, i));
 
-	for (i = 0; i < array->map.max_entries; i++)
-		bpf_obj_free_timer(map->record, array_map_elem_ptr(array, i));
+	if (btf_record_has_field(map->record, BPF_WORKQUEUE))
+		for (i = 0; i < array->map.max_entries; i++)
+			bpf_obj_free_workqueue(map->record, array_map_elem_ptr(array, i));
 }
 
 /* Called when map->refcnt goes to zero, either from workqueue or from syscall */
@@ -782,7 +786,7 @@ const struct bpf_map_ops array_map_ops = {
 	.map_alloc = array_map_alloc,
 	.map_free = array_map_free,
 	.map_get_next_key = array_map_get_next_key,
-	.map_release_uref = array_map_free_timers,
+	.map_release_uref = array_map_free_timers_wq,
 	.map_lookup_elem = array_map_lookup_elem,
 	.map_update_elem = array_map_update_elem,
 	.map_delete_elem = array_map_delete_elem,
