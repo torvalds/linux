@@ -66,11 +66,9 @@ specific device folder path ``/sys/bus/iio/devices/iio:deviceX``.
 +-------------------------------------------+----------------------------------------------------------+
 | in_accel_x_calibbias                      | Calibration offset for the X-axis accelerometer channel. |
 +-------------------------------------------+----------------------------------------------------------+
-| in_accel_calibbias_x                      | x-axis acceleration offset correction                    |
-+-------------------------------------------+----------------------------------------------------------+
 | in_accel_x_raw                            | Raw X-axis accelerometer channel value.                  |
 +-------------------------------------------+----------------------------------------------------------+
-| in_accel_calibbias_y                      | y-axis acceleration offset correction                    |
+| in_accel_y_calibbias                      | Calibration offset for the Y-axis accelerometer channel. |
 +-------------------------------------------+----------------------------------------------------------+
 | in_accel_y_raw                            | Raw Y-axis accelerometer channel value.                  |
 +-------------------------------------------+----------------------------------------------------------+
@@ -94,11 +92,9 @@ specific device folder path ``/sys/bus/iio/devices/iio:deviceX``.
 +---------------------------------------+------------------------------------------------------+
 | in_anglvel_x_calibbias                | Calibration offset for the X-axis gyroscope channel. |
 +---------------------------------------+------------------------------------------------------+
-| in_anglvel_calibbias_x                | x-axis gyroscope offset correction                   |
-+---------------------------------------+------------------------------------------------------+
 | in_anglvel_x_raw                      | Raw X-axis gyroscope channel value.                  |
 +---------------------------------------+------------------------------------------------------+
-| in_anglvel_calibbias_y                | y-axis gyroscope offset correction                   |
+| in_anglvel_y_calibbias                | Calibration offset for the Y-axis gyroscope channel. |
 +---------------------------------------+------------------------------------------------------+
 | in_anglvel_y_raw                      | Raw Y-axis gyroscope channel value.                  |
 +---------------------------------------+------------------------------------------------------+
