@@ -455,7 +455,6 @@ enum {
 
 /* Page group response descriptor QW0 */
 #define QI_PGRP_PASID_P(p)	(((u64)(p)) << 4)
-#define QI_PGRP_PDP(p)		(((u64)(p)) << 5)
 #define QI_PGRP_RESP_CODE(res)	(((u64)(res)) << 12)
 #define QI_PGRP_DID(rid)	(((u64)(rid)) << 16)
 #define QI_PGRP_PASID(pasid)	(((u64)(pasid)) << 32)

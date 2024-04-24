@@ -418,8 +418,7 @@ struct page_req_dsc {
 		struct {
 			u64 type:8;
 			u64 pasid_present:1;
-			u64 priv_data_present:1;
-			u64 rsvd:6;
+			u64 rsvd:7;
 			u64 rid:16;
 			u64 pasid:20;
 			u64 exe_req:1;
@@ -438,7 +437,8 @@ struct page_req_dsc {
 		};
 		u64 qw_1;
 	};
-	u64 priv_data[2];
+	u64 qw_2;
+	u64 qw_3;
 };
 
 static bool is_canonical_address(u64 addr)
@@ -572,18 +572,6 @@ static void intel_svm_prq_report(struct intel_iommu *iommu, struct device *dev,
 		event.fault.prm.flags |= IOMMU_FAULT_PAGE_REQUEST_PASID_VALID;
 		event.fault.prm.flags |= IOMMU_FAULT_PAGE_RESPONSE_NEEDS_PASID;
 	}
-	if (desc->priv_data_present) {
-		/*
-		 * Set last page in group bit if private data is present,
-		 * page response is required as it does for LPIG.
-		 * iommu_report_device_fault() doesn't understand this vendor
-		 * specific requirement thus we set last_page as a workaround.
-		 */
-		event.fault.prm.flags |= IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE;
-		event.fault.prm.flags |= IOMMU_FAULT_PAGE_REQUEST_PRIV_DATA;
-		event.fault.prm.private_data[0] = desc->priv_data[0];
-		event.fault.prm.private_data[1] = desc->priv_data[1];
-	}
 
 	iommu_report_device_fault(dev, &event);
 }
@@ -591,38 +579,22 @@ static void intel_svm_prq_report(struct intel_iommu *iommu, struct device *dev,
 static void handle_bad_prq_event(struct intel_iommu *iommu,
 				 struct page_req_dsc *req, int result)
 {
-	struct qi_desc desc;
+	struct qi_desc desc = { };
 
 	pr_err("%s: Invalid page request: %08llx %08llx\n",
 	       iommu->name, ((unsigned long long *)req)[0],
 	       ((unsigned long long *)req)[1]);
 
-	/*
-	 * Per VT-d spec. v3.0 ch7.7, system software must
-	 * respond with page group response if private data
-	 * is present (PDP) or last page in group (LPIG) bit
-	 * is set. This is an additional VT-d feature beyond
-	 * PCI ATS spec.
-	 */
-	if (!req->lpig && !req->priv_data_present)
+	if (!req->lpig)
 		return;
 
 	desc.qw0 = QI_PGRP_PASID(req->pasid) |
 			QI_PGRP_DID(req->rid) |
 			QI_PGRP_PASID_P(req->pasid_present) |
-			QI_PGRP_PDP(req->priv_data_present) |
 			QI_PGRP_RESP_CODE(result) |
 			QI_PGRP_RESP_TYPE;
 	desc.qw1 = QI_PGRP_IDX(req->prg_index) |
 			QI_PGRP_LPIG(req->lpig);
-
-	if (req->priv_data_present) {
-		desc.qw2 = req->priv_data[0];
-		desc.qw3 = req->priv_data[1];
-	} else {
-		desc.qw2 = 0;
-		desc.qw3 = 0;
-	}
 
 	qi_submit_sync(iommu, &desc, 1, 0);
 }
@@ -691,7 +663,7 @@ bad_req:
 
 		intel_svm_prq_report(iommu, dev, req);
 		trace_prq_report(iommu, dev, req->qw_0, req->qw_1,
-				 req->priv_data[0], req->priv_data[1],
+				 req->qw_2, req->qw_3,
 				 iommu->prq_seq_number++);
 		mutex_unlock(&iommu->iopf_lock);
 prq_advance:
@@ -730,7 +702,7 @@ void intel_svm_page_response(struct device *dev, struct iopf_fault *evt,
 	struct intel_iommu *iommu = info->iommu;
 	u8 bus = info->bus, devfn = info->devfn;
 	struct iommu_fault_page_request *prm;
-	bool private_present;
+	struct qi_desc desc;
 	bool pasid_present;
 	bool last_page;
 	u16 sid;
@@ -738,34 +710,17 @@ void intel_svm_page_response(struct device *dev, struct iopf_fault *evt,
 	prm = &evt->fault.prm;
 	sid = PCI_DEVID(bus, devfn);
 	pasid_present = prm->flags & IOMMU_FAULT_PAGE_REQUEST_PASID_VALID;
-	private_present = prm->flags & IOMMU_FAULT_PAGE_REQUEST_PRIV_DATA;
 	last_page = prm->flags & IOMMU_FAULT_PAGE_REQUEST_LAST_PAGE;
 
-	/*
-	 * Per VT-d spec. v3.0 ch7.7, system software must respond
-	 * with page group response if private data is present (PDP)
-	 * or last page in group (LPIG) bit is set. This is an
-	 * additional VT-d requirement beyond PCI ATS spec.
-	 */
-	if (last_page || private_present) {
-		struct qi_desc desc;
+	desc.qw0 = QI_PGRP_PASID(prm->pasid) | QI_PGRP_DID(sid) |
+			QI_PGRP_PASID_P(pasid_present) |
+			QI_PGRP_RESP_CODE(msg->code) |
+			QI_PGRP_RESP_TYPE;
+	desc.qw1 = QI_PGRP_IDX(prm->grpid) | QI_PGRP_LPIG(last_page);
+	desc.qw2 = 0;
+	desc.qw3 = 0;
 
-		desc.qw0 = QI_PGRP_PASID(prm->pasid) | QI_PGRP_DID(sid) |
-				QI_PGRP_PASID_P(pasid_present) |
-				QI_PGRP_PDP(private_present) |
-				QI_PGRP_RESP_CODE(msg->code) |
-				QI_PGRP_RESP_TYPE;
-		desc.qw1 = QI_PGRP_IDX(prm->grpid) | QI_PGRP_LPIG(last_page);
-		desc.qw2 = 0;
-		desc.qw3 = 0;
-
-		if (private_present) {
-			desc.qw2 = prm->private_data[0];
-			desc.qw3 = prm->private_data[1];
-		}
-
-		qi_submit_sync(iommu, &desc, 1, 0);
-	}
+	qi_submit_sync(iommu, &desc, 1, 0);
 }
 
 static void intel_svm_domain_free(struct iommu_domain *domain)
