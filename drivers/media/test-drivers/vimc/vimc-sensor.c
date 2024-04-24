@@ -340,6 +340,7 @@ static void vimc_sensor_release(struct vimc_ent_device *ved)
 
 	v4l2_ctrl_handler_free(&vsensor->hdl);
 	tpg_free(&vsensor->tpg);
+	v4l2_subdev_cleanup(&vsensor->sd);
 	media_entity_cleanup(vsensor->ved.ent);
 	kfree(vsensor);
 }

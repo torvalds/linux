@@ -92,6 +92,7 @@ static void vimc_lens_release(struct vimc_ent_device *ved)
 		container_of(ved, struct vimc_lens_device, ved);
 
 	v4l2_ctrl_handler_free(&vlens->hdl);
+	v4l2_subdev_cleanup(&vlens->sd);
 	media_entity_cleanup(vlens->ved.ent);
 	kfree(vlens);
 }

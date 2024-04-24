@@ -540,6 +540,7 @@ static void vimc_debayer_release(struct vimc_ent_device *ved)
 		container_of(ved, struct vimc_debayer_device, ved);
 
 	v4l2_ctrl_handler_free(&vdebayer->hdl);
+	v4l2_subdev_cleanup(&vdebayer->sd);
 	media_entity_cleanup(vdebayer->ved.ent);
 	kfree(vdebayer);
 }

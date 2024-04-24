@@ -398,6 +398,7 @@ static void vimc_scaler_release(struct vimc_ent_device *ved)
 	struct vimc_scaler_device *vscaler =
 		container_of(ved, struct vimc_scaler_device, ved);
 
+	v4l2_subdev_cleanup(&vscaler->sd);
 	media_entity_cleanup(vscaler->ved.ent);
 	kfree(vscaler);
 }
