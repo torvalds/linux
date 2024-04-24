@@ -194,9 +194,9 @@ enum  {
  *      granularity) since the GPUs clock time runs off a different crystal
  *      from the CPUs clock. Changing this KLV on a VF that is currently
  *      running a context wont take effect until a new context is scheduled in.
- *      That said, when the PF is changing this value from 0xFFFFFFFF to
- *      something else, it might never take effect if the VF is running an
- *      inifinitely long compute or shader kernel. In such a scenario, the
+ *      That said, when the PF is changing this value from 0x0 to
+ *      a non-zero value, it might never take effect if the VF is running an
+ *      infinitely long compute or shader kernel. In such a scenario, the
  *      PF would need to trigger a VM PAUSE and then change the KLV to force
  *      it to take effect. Such cases might typically happen on a 1PF+1VF
  *      Virtualization config enabled for heavier workloads like AI/ML.
@@ -215,9 +215,9 @@ enum  {
  *      different crystal from the CPUs clock. Changing this KLV on a VF
  *      that is currently running a context wont take effect until a new
  *      context is scheduled in.
- *      That said, when the PF is changing this value from 0xFFFFFFFF to
- *      something else, it might never take effect if the VF is running an
- *      inifinitely long compute or shader kernel.
+ *      That said, when the PF is changing this value from 0x0 to
+ *      a non-zero value, it might never take effect if the VF is running an
+ *      infinitely long compute or shader kernel.
  *      In this case, the PF would need to trigger a VM PAUSE and then change
  *      the KLV to force it to take effect. Such cases might typically happen
  *      on a 1PF+1VF Virtualization config enabled for heavier workloads like
