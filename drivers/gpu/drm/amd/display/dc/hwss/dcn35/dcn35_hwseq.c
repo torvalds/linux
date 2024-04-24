@@ -506,6 +506,17 @@ void dcn35_dpstream_root_clock_control(struct dce_hwseq *hws, unsigned int dp_hp
 	}
 }
 
+void dcn35_physymclk_root_clock_control(struct dce_hwseq *hws, unsigned int phy_inst, bool clock_on)
+{
+	if (!hws->ctx->dc->debug.root_clock_optimization.bits.physymclk)
+		return;
+
+	if (hws->ctx->dc->res_pool->dccg->funcs->set_physymclk_root_clock_gating) {
+		hws->ctx->dc->res_pool->dccg->funcs->set_physymclk_root_clock_gating(
+			hws->ctx->dc->res_pool->dccg, phy_inst, clock_on);
+	}
+}
+
 void dcn35_dsc_pg_control(
 		struct dce_hwseq *hws,
 		unsigned int dsc_inst,
@@ -1020,6 +1031,13 @@ void dcn35_calc_blocks_to_gate(struct dc *dc, struct dc_state *context,
 		if (pipe_ctx->stream_res.hpo_dp_stream_enc)
 			update_state->pg_pipe_res_update[PG_DPSTREAM][pipe_ctx->stream_res.hpo_dp_stream_enc->inst] = false;
 	}
+
+	for (i = 0; i < dc->link_count; i++) {
+		update_state->pg_pipe_res_update[PG_PHYSYMCLK][dc->links[i]->link_enc_hw_inst] = true;
+		if (dc->links[i]->type != dc_connection_none)
+			update_state->pg_pipe_res_update[PG_PHYSYMCLK][dc->links[i]->link_enc_hw_inst] = false;
+	}
+
 	/*domain24 controls all the otg, mpc, opp, as long as one otg is still up, avoid enabling OTG PG*/
 	for (i = 0; i < dc->res_pool->timing_generator_count; i++) {
 		struct timing_generator *tg = dc->res_pool->timing_generators[i];
@@ -1116,6 +1134,10 @@ void dcn35_calc_blocks_to_ungate(struct dc *dc, struct dc_state *context,
 			}
 		}
 	}
+
+	for (i = 0; i < dc->link_count; i++)
+		if (dc->links[i]->type != dc_connection_none)
+			update_state->pg_pipe_res_update[PG_PHYSYMCLK][dc->links[i]->link_enc_hw_inst] = true;
 
 	for (i = 0; i < dc->res_pool->hpo_dp_stream_enc_count; i++) {
 		if (context->res_ctx.is_hpo_dp_stream_enc_acquired[i] &&
@@ -1267,6 +1289,11 @@ void dcn35_root_clock_control(struct dc *dc,
 					dc->hwseq->funcs.dpstream_root_clock_control(dc->hwseq, i, power_on);
 		}
 
+		for (i = 0; i < dc->res_pool->dig_link_enc_count; i++)
+			if (update_state->pg_pipe_res_update[PG_PHYSYMCLK][i])
+				if (dc->hwseq->funcs.physymclk_root_clock_control)
+					dc->hwseq->funcs.physymclk_root_clock_control(dc->hwseq, i, power_on);
+
 	}
 	for (i = 0; i < dc->res_pool->res_cap->num_dsc; i++) {
 		if (update_state->pg_pipe_res_update[PG_DSC][i]) {
@@ -1291,6 +1318,11 @@ void dcn35_root_clock_control(struct dc *dc,
 				if (dc->hwseq->funcs.dpstream_root_clock_control)
 					dc->hwseq->funcs.dpstream_root_clock_control(dc->hwseq, i, power_on);
 		}
+
+		for (i = 0; i < dc->res_pool->dig_link_enc_count; i++)
+			if (update_state->pg_pipe_res_update[PG_PHYSYMCLK][i])
+				if (dc->hwseq->funcs.physymclk_root_clock_control)
+					dc->hwseq->funcs.physymclk_root_clock_control(dc->hwseq, i, power_on);
 
 	}
 }
