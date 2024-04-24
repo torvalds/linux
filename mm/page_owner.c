@@ -328,7 +328,7 @@ noinline void __set_page_owner(struct page *page, unsigned short order,
 	if (unlikely(!page_ext))
 		return;
 	__update_page_owner_handle(page_ext, handle, order, gfp_mask, -1,
-				   current->pid, current->tgid, ts_nsec,
+				   ts_nsec, current->pid, current->tgid,
 				   current->comm);
 	page_ext_put(page_ext);
 	inc_stack_record_count(handle, gfp_mask, 1 << order);
