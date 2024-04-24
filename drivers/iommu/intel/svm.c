@@ -26,23 +26,6 @@
 
 static irqreturn_t prq_event_thread(int irq, void *d);
 
-static DEFINE_XARRAY_ALLOC(pasid_private_array);
-static int pasid_private_add(ioasid_t pasid, void *priv)
-{
-	return xa_alloc(&pasid_private_array, &pasid, priv,
-			XA_LIMIT(pasid, pasid), GFP_ATOMIC);
-}
-
-static void pasid_private_remove(ioasid_t pasid)
-{
-	xa_erase(&pasid_private_array, pasid);
-}
-
-static void *pasid_private_find(ioasid_t pasid)
-{
-	return xa_load(&pasid_private_array, pasid);
-}
-
 int intel_svm_enable_prq(struct intel_iommu *iommu)
 {
 	struct iopf_queue *iopfq;
@@ -156,10 +139,9 @@ static void intel_arch_invalidate_secondary_tlbs(struct mmu_notifier *mn,
 					struct mm_struct *mm,
 					unsigned long start, unsigned long end)
 {
-	struct intel_svm *svm = container_of(mn, struct intel_svm, notifier);
-	struct dmar_domain *domain = svm->domain;
+	struct dmar_domain *domain = container_of(mn, struct dmar_domain, notifier);
 
-	if (start == 0 && end == -1UL) {
+	if (start == 0 && end == ULONG_MAX) {
 		cache_tag_flush_all(domain);
 		return;
 	}
@@ -174,8 +156,7 @@ static void intel_arch_invalidate_secondary_tlbs(struct mmu_notifier *mn,
 
 static void intel_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 {
-	struct intel_svm *svm = container_of(mn, struct intel_svm, notifier);
-	struct dmar_domain *domain = svm->domain;
+	struct dmar_domain *domain = container_of(mn, struct dmar_domain, notifier);
 	struct dev_pasid_info *dev_pasid;
 	struct device_domain_info *info;
 	unsigned long flags;
@@ -202,9 +183,15 @@ static void intel_mm_release(struct mmu_notifier *mn, struct mm_struct *mm)
 
 }
 
+static void intel_mm_free_notifier(struct mmu_notifier *mn)
+{
+	kfree(container_of(mn, struct dmar_domain, notifier));
+}
+
 static const struct mmu_notifier_ops intel_mmuops = {
 	.release = intel_mm_release,
 	.arch_invalidate_secondary_tlbs = intel_arch_invalidate_secondary_tlbs,
+	.free_notifier = intel_mm_free_notifier,
 };
 
 static int intel_svm_set_dev_pasid(struct iommu_domain *domain,
@@ -215,40 +202,13 @@ static int intel_svm_set_dev_pasid(struct iommu_domain *domain,
 	struct intel_iommu *iommu = info->iommu;
 	struct mm_struct *mm = domain->mm;
 	struct dev_pasid_info *dev_pasid;
-	struct intel_svm *svm;
 	unsigned long sflags;
 	unsigned long flags;
 	int ret = 0;
 
-	svm = pasid_private_find(pasid);
-	if (!svm) {
-		svm = kzalloc(sizeof(*svm), GFP_KERNEL);
-		if (!svm)
-			return -ENOMEM;
-
-		svm->pasid = pasid;
-		svm->mm = mm;
-
-		svm->notifier.ops = &intel_mmuops;
-		svm->domain = to_dmar_domain(domain);
-		ret = mmu_notifier_register(&svm->notifier, mm);
-		if (ret) {
-			kfree(svm);
-			return ret;
-		}
-
-		ret = pasid_private_add(svm->pasid, svm);
-		if (ret) {
-			mmu_notifier_unregister(&svm->notifier, mm);
-			kfree(svm);
-			return ret;
-		}
-	}
-
-	dmar_domain->svm = svm;
 	dev_pasid = kzalloc(sizeof(*dev_pasid), GFP_KERNEL);
 	if (!dev_pasid)
-		goto free_svm;
+		return -ENOMEM;
 
 	dev_pasid->dev = dev;
 	dev_pasid->pasid = pasid;
@@ -274,28 +234,8 @@ unassign_tag:
 	cache_tag_unassign_domain(to_dmar_domain(domain), dev, pasid);
 free_dev_pasid:
 	kfree(dev_pasid);
-free_svm:
-	if (list_empty(&dmar_domain->dev_pasids)) {
-		mmu_notifier_unregister(&svm->notifier, mm);
-		pasid_private_remove(pasid);
-		kfree(svm);
-	}
 
 	return ret;
-}
-
-void intel_svm_remove_dev_pasid(struct iommu_domain *domain)
-{
-	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
-	struct intel_svm *svm = dmar_domain->svm;
-	struct mm_struct *mm = domain->mm;
-
-	if (list_empty(&dmar_domain->dev_pasids)) {
-		if (svm->notifier.ops)
-			mmu_notifier_unregister(&svm->notifier, mm);
-		pasid_private_remove(svm->pasid);
-		kfree(svm);
-	}
 }
 
 /* Page request queue descriptor */
@@ -611,7 +551,10 @@ void intel_svm_page_response(struct device *dev, struct iopf_fault *evt,
 
 static void intel_svm_domain_free(struct iommu_domain *domain)
 {
-	kfree(to_dmar_domain(domain));
+	struct dmar_domain *dmar_domain = to_dmar_domain(domain);
+
+	/* dmar_domain free is deferred to the mmu free_notifier callback. */
+	mmu_notifier_put(&dmar_domain->notifier);
 }
 
 static const struct iommu_domain_ops intel_svm_domain_ops = {
@@ -619,19 +562,29 @@ static const struct iommu_domain_ops intel_svm_domain_ops = {
 	.free			= intel_svm_domain_free
 };
 
-struct iommu_domain *intel_svm_domain_alloc(void)
+struct iommu_domain *intel_svm_domain_alloc(struct device *dev,
+					    struct mm_struct *mm)
 {
 	struct dmar_domain *domain;
+	int ret;
 
 	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
+
 	domain->domain.ops = &intel_svm_domain_ops;
 	domain->use_first_level = true;
 	INIT_LIST_HEAD(&domain->dev_pasids);
 	INIT_LIST_HEAD(&domain->cache_tags);
 	spin_lock_init(&domain->cache_lock);
 	spin_lock_init(&domain->lock);
+
+	domain->notifier.ops = &intel_mmuops;
+	ret = mmu_notifier_register(&domain->notifier, mm);
+	if (ret) {
+		kfree(domain);
+		return ERR_PTR(ret);
+	}
 
 	return &domain->domain;
 }
