@@ -1918,7 +1918,7 @@ static u32 hotkey_acpi_mask;		/* events enabled in firmware */
 
 static u16 *hotkey_keycode_map;
 
-static void tpacpi_driver_event(const unsigned int hkey_event);
+static bool tpacpi_driver_event(const unsigned int hkey_event);
 static void hotkey_driver_event(const unsigned int scancode);
 static void hotkey_poll_setup(const bool may_warn);
 
@@ -3726,13 +3726,8 @@ static bool adaptive_keyboard_hotkey_notify_hotkey(const u32 hkey)
 
 static bool hotkey_notify_extended_hotkey(const u32 hkey)
 {
-	switch (hkey) {
-	case TP_HKEY_EV_PRIVACYGUARD_TOGGLE:
-	case TP_HKEY_EV_AMT_TOGGLE:
-	case TP_HKEY_EV_PROFILE_TOGGLE:
-		tpacpi_driver_event(hkey);
+	if (tpacpi_driver_event(hkey))
 		return true;
-	}
 
 	if (hkey >= TP_HKEY_EV_EXTENDED_KEY_START &&
 	    hkey <= TP_HKEY_EV_EXTENDED_KEY_END) {
@@ -11081,72 +11076,84 @@ static struct platform_driver tpacpi_hwmon_pdriver = {
  * HKEY event callout for other subdrivers go here
  * (yes, it is ugly, but it is quick, safe, and gets the job done
  */
-static void tpacpi_driver_event(const unsigned int hkey_event)
+static bool tpacpi_driver_event(const unsigned int hkey_event)
 {
-	if (ibm_backlight_device) {
-		switch (hkey_event) {
-		case TP_HKEY_EV_BRGHT_UP:
-		case TP_HKEY_EV_BRGHT_DOWN:
+	switch (hkey_event) {
+	case TP_HKEY_EV_BRGHT_UP:
+	case TP_HKEY_EV_BRGHT_DOWN:
+		if (ibm_backlight_device)
 			tpacpi_brightness_notify_change();
-		}
-	}
-	if (alsa_card) {
-		switch (hkey_event) {
-		case TP_HKEY_EV_VOL_UP:
-		case TP_HKEY_EV_VOL_DOWN:
-		case TP_HKEY_EV_VOL_MUTE:
-			volume_alsa_notify_change();
-		}
-	}
-	if (tp_features.kbdlight && hkey_event == TP_HKEY_EV_KBD_LIGHT) {
-		enum led_brightness brightness;
-
-		mutex_lock(&kbdlight_mutex);
-
 		/*
-		 * Check the brightness actually changed, setting the brightness
-		 * through kbdlight_set_level() also triggers this event.
+		 * Key press events are suppressed by default hotkey_user_mask
+		 * and should still be reported if explicitly requested.
 		 */
-		brightness = kbdlight_sysfs_get(NULL);
-		if (kbdlight_brightness != brightness) {
-			kbdlight_brightness = brightness;
-			led_classdev_notify_brightness_hw_changed(
-				&tpacpi_led_kbdlight.led_classdev, brightness);
+		return false;
+	case TP_HKEY_EV_VOL_UP:
+	case TP_HKEY_EV_VOL_DOWN:
+	case TP_HKEY_EV_VOL_MUTE:
+		if (alsa_card)
+			volume_alsa_notify_change();
+
+		/* Key events are suppressed by default hotkey_user_mask */
+		return false;
+	case TP_HKEY_EV_KBD_LIGHT:
+		if (tp_features.kbdlight) {
+			enum led_brightness brightness;
+
+			mutex_lock(&kbdlight_mutex);
+
+			/*
+			 * Check the brightness actually changed, setting the brightness
+			 * through kbdlight_set_level() also triggers this event.
+			 */
+			brightness = kbdlight_sysfs_get(NULL);
+			if (kbdlight_brightness != brightness) {
+				kbdlight_brightness = brightness;
+				led_classdev_notify_brightness_hw_changed(
+					&tpacpi_led_kbdlight.led_classdev, brightness);
+			}
+
+			mutex_unlock(&kbdlight_mutex);
 		}
-
-		mutex_unlock(&kbdlight_mutex);
-	}
-
-	if (hkey_event == TP_HKEY_EV_THM_CSM_COMPLETED) {
+		/* Key events are suppressed by default hotkey_user_mask */
+		return false;
+	case TP_HKEY_EV_THM_CSM_COMPLETED:
 		lapsensor_refresh();
 		/* If we are already accessing DYTC then skip dytc update */
 		if (!atomic_add_unless(&dytc_ignore_event, -1, 0))
 			dytc_profile_refresh();
-	}
 
-	if (lcdshadow_dev && hkey_event == TP_HKEY_EV_PRIVACYGUARD_TOGGLE) {
-		enum drm_privacy_screen_status old_hw_state;
-		bool changed;
+		return true;
+	case TP_HKEY_EV_PRIVACYGUARD_TOGGLE:
+		if (lcdshadow_dev) {
+			enum drm_privacy_screen_status old_hw_state;
+			bool changed;
 
-		mutex_lock(&lcdshadow_dev->lock);
-		old_hw_state = lcdshadow_dev->hw_state;
-		lcdshadow_get_hw_state(lcdshadow_dev);
-		changed = lcdshadow_dev->hw_state != old_hw_state;
-		mutex_unlock(&lcdshadow_dev->lock);
+			mutex_lock(&lcdshadow_dev->lock);
+			old_hw_state = lcdshadow_dev->hw_state;
+			lcdshadow_get_hw_state(lcdshadow_dev);
+			changed = lcdshadow_dev->hw_state != old_hw_state;
+			mutex_unlock(&lcdshadow_dev->lock);
 
-		if (changed)
-			drm_privacy_screen_call_notifier_chain(lcdshadow_dev);
-	}
-	if (hkey_event == TP_HKEY_EV_AMT_TOGGLE) {
+			if (changed)
+				drm_privacy_screen_call_notifier_chain(lcdshadow_dev);
+		}
+		return true;
+	case TP_HKEY_EV_AMT_TOGGLE:
 		/* If we're enabling AMT we need to force balanced mode */
 		if (!dytc_amt_active)
 			/* This will also set AMT mode enabled */
 			dytc_profile_set(NULL, PLATFORM_PROFILE_BALANCED);
 		else
 			dytc_control_amt(!dytc_amt_active);
-	}
-	if (hkey_event == TP_HKEY_EV_PROFILE_TOGGLE)
+
+		return true;
+	case TP_HKEY_EV_PROFILE_TOGGLE:
 		platform_profile_cycle();
+		return true;
+	}
+
+	return false;
 }
 
 static void hotkey_driver_event(const unsigned int scancode)
