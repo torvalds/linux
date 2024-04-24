@@ -136,11 +136,11 @@ static bool dt_has_supported_hw(void)
 
 	cpu_dev = get_cpu_device(0);
 	if (!cpu_dev)
-		return -ENODEV;
+		return false;
 
 	np = dev_pm_opp_of_get_opp_desc_node(cpu_dev);
 	if (!np)
-		return -ENOENT;
+		return false;
 
 	for_each_child_of_node(np, opp) {
 		if (of_find_property(opp, "opp-supported-hw", NULL)) {
