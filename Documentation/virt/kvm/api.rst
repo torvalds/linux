@@ -6316,7 +6316,7 @@ The "flags" field is reserved for future extensions and must be '0'.
 :Architectures: none
 :Type: vm ioctl
 :Parameters: struct kvm_create_guest_memfd(in)
-:Returns: 0 on success, <0 on error
+:Returns: A file descriptor on success, <0 on error
 
 KVM_CREATE_GUEST_MEMFD creates an anonymous file and returns a file descriptor
 that refers to it.  guest_memfd files are roughly analogous to files created
