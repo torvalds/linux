@@ -839,7 +839,8 @@ static int sdma_v5_2_ring_test_ring(struct amdgpu_ring *ring)
 	r = amdgpu_ring_alloc(ring, 20);
 	if (r) {
 		DRM_ERROR("amdgpu: dma failed to lock ring %d (%d).\n", ring->idx, r);
-		amdgpu_device_wb_free(adev, index);
+		if (!ring->is_mes_queue)
+			amdgpu_device_wb_free(adev, index);
 		return r;
 	}
 
