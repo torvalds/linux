@@ -2283,19 +2283,17 @@ static bool tpacpi_input_send_key(const u32 hkey, bool *send_acpi_ev)
 	}
 
 	keycode = hotkey_keycode_map[scancode];
-	if (keycode != KEY_RESERVED) {
-		mutex_lock(&tpacpi_inputdev_send_mutex);
 
-		input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN, scancode);
-		input_report_key(tpacpi_inputdev, keycode, 1);
-		input_sync(tpacpi_inputdev);
+	mutex_lock(&tpacpi_inputdev_send_mutex);
 
-		input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN, scancode);
-		input_report_key(tpacpi_inputdev, keycode, 0);
-		input_sync(tpacpi_inputdev);
+	input_event(tpacpi_inputdev, EV_MSC, MSC_SCAN, scancode);
+	input_report_key(tpacpi_inputdev, keycode, 1);
+	input_sync(tpacpi_inputdev);
 
-		mutex_unlock(&tpacpi_inputdev_send_mutex);
-	}
+	input_report_key(tpacpi_inputdev, keycode, 0);
+	input_sync(tpacpi_inputdev);
+
+	mutex_unlock(&tpacpi_inputdev_send_mutex);
 
 	return true;
 }
