@@ -512,9 +512,9 @@ void zone_device_page_init(struct page *page)
 EXPORT_SYMBOL_GPL(zone_device_page_init);
 
 #ifdef CONFIG_FS_DAX
-bool __put_devmap_managed_page_refs(struct page *page, int refs)
+bool __put_devmap_managed_folio_refs(struct folio *folio, int refs)
 {
-	if (page->pgmap->type != MEMORY_DEVICE_FS_DAX)
+	if (folio->page.pgmap->type != MEMORY_DEVICE_FS_DAX)
 		return false;
 
 	/*
@@ -522,9 +522,9 @@ bool __put_devmap_managed_page_refs(struct page *page, int refs)
 	 * refcount is 1, then the page is free and the refcount is
 	 * stable because nobody holds a reference on the page.
 	 */
-	if (page_ref_sub_return(page, refs) == 1)
-		wake_up_var(&page->_refcount);
+	if (folio_ref_sub_return(folio, refs) == 1)
+		wake_up_var(&folio->_refcount);
 	return true;
 }
-EXPORT_SYMBOL(__put_devmap_managed_page_refs);
+EXPORT_SYMBOL(__put_devmap_managed_folio_refs);
 #endif /* CONFIG_FS_DAX */
