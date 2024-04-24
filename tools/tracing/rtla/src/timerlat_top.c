@@ -212,6 +212,8 @@ static void timerlat_top_header(struct osnoise_tool *top)
 	trace_seq_printf(s, "\n");
 }
 
+static const char *no_value = "        -";
+
 /*
  * timerlat_top_print - prints the output of a given CPU
  */
@@ -239,10 +241,7 @@ static void timerlat_top_print(struct osnoise_tool *top, int cpu)
 	trace_seq_printf(s, "%3d #%-9d |", cpu, cpu_data->irq_count);
 
 	if (!cpu_data->irq_count) {
-		trace_seq_printf(s, "        - ");
-		trace_seq_printf(s, "        - ");
-		trace_seq_printf(s, "        - ");
-		trace_seq_printf(s, "        - |");
+		trace_seq_printf(s, "%s %s %s %s |", no_value, no_value, no_value, no_value);
 	} else {
 		trace_seq_printf(s, "%9llu ", cpu_data->cur_irq / params->output_divisor);
 		trace_seq_printf(s, "%9llu ", cpu_data->min_irq / params->output_divisor);
@@ -251,10 +250,7 @@ static void timerlat_top_print(struct osnoise_tool *top, int cpu)
 	}
 
 	if (!cpu_data->thread_count) {
-		trace_seq_printf(s, "        - ");
-		trace_seq_printf(s, "        - ");
-		trace_seq_printf(s, "        - ");
-		trace_seq_printf(s, "        -\n");
+		trace_seq_printf(s, "%s %s %s %s", no_value, no_value, no_value, no_value);
 	} else {
 		trace_seq_printf(s, "%9llu ", cpu_data->cur_thread / divisor);
 		trace_seq_printf(s, "%9llu ", cpu_data->min_thread / divisor);
@@ -271,10 +267,7 @@ static void timerlat_top_print(struct osnoise_tool *top, int cpu)
 	trace_seq_printf(s, " |");
 
 	if (!cpu_data->user_count) {
-		trace_seq_printf(s, "        - ");
-		trace_seq_printf(s, "        - ");
-		trace_seq_printf(s, "        - ");
-		trace_seq_printf(s, "        -\n");
+		trace_seq_printf(s, "%s %s %s %s\n", no_value, no_value, no_value, no_value);
 	} else {
 		trace_seq_printf(s, "%9llu ", cpu_data->cur_user / divisor);
 		trace_seq_printf(s, "%9llu ", cpu_data->min_user / divisor);
