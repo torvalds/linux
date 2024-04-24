@@ -3755,9 +3755,7 @@ static bool hotkey_notify_extended_hotkey(const u32 hkey)
 }
 
 /* 0x1000-0x1FFF: key presses */
-static bool hotkey_notify_hotkey(const u32 hkey,
-				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+static bool hotkey_notify_hotkey(const u32 hkey, bool *send_acpi_ev)
 {
 	unsigned int scancode = hkey & 0xfff;
 
@@ -3772,12 +3770,10 @@ static bool hotkey_notify_hotkey(const u32 hkey,
 		    scancode <= TP_ACPI_HOTKEYSCAN_ADAPTIVE_START) {
 			/* HKEY event 0x1001 is scancode 0x00 */
 			scancode--;
-			if (!(hotkey_source_mask & (1 << scancode))) {
+			if (!(hotkey_source_mask & (1 << scancode)))
 				tpacpi_input_send_key_masked(scancode);
-				*send_acpi_ev = false;
-			} else {
-				*ignore_acpi_ev = true;
-			}
+
+			*send_acpi_ev = false;
 			return true;
 		}
 		break;
@@ -3793,21 +3789,19 @@ static bool hotkey_notify_hotkey(const u32 hkey,
 }
 
 /* 0x2000-0x2FFF: Wakeup reason */
-static bool hotkey_notify_wakeup(const u32 hkey,
-				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+static bool hotkey_notify_wakeup(const u32 hkey, bool *send_acpi_ev)
 {
 	switch (hkey) {
 	case TP_HKEY_EV_WKUP_S3_UNDOCK: /* suspend, undock */
 	case TP_HKEY_EV_WKUP_S4_UNDOCK: /* hibernation, undock */
 		hotkey_wakeup_reason = TP_ACPI_WAKEUP_UNDOCK;
-		*ignore_acpi_ev = true;
+		*send_acpi_ev = false;
 		break;
 
 	case TP_HKEY_EV_WKUP_S3_BAYEJ: /* suspend, bay eject */
 	case TP_HKEY_EV_WKUP_S4_BAYEJ: /* hibernation, bay eject */
 		hotkey_wakeup_reason = TP_ACPI_WAKEUP_BAYEJ;
-		*ignore_acpi_ev = true;
+		*send_acpi_ev = false;
 		break;
 
 	case TP_HKEY_EV_WKUP_S3_BATLOW: /* Battery on critical low level/S3 */
@@ -3830,9 +3824,7 @@ static bool hotkey_notify_wakeup(const u32 hkey,
 }
 
 /* 0x4000-0x4FFF: dock-related events */
-static bool hotkey_notify_dockevent(const u32 hkey,
-				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+static bool hotkey_notify_dockevent(const u32 hkey, bool *send_acpi_ev)
 {
 	switch (hkey) {
 	case TP_HKEY_EV_UNDOCK_ACK:
@@ -3863,7 +3855,6 @@ static bool hotkey_notify_dockevent(const u32 hkey,
 	case TP_HKEY_EV_KBD_COVER_ATTACH:
 	case TP_HKEY_EV_KBD_COVER_DETACH:
 		*send_acpi_ev = false;
-		*ignore_acpi_ev = true;
 		return true;
 
 	default:
@@ -3872,9 +3863,7 @@ static bool hotkey_notify_dockevent(const u32 hkey,
 }
 
 /* 0x5000-0x5FFF: human interface helpers */
-static bool hotkey_notify_usrevent(const u32 hkey,
-				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+static bool hotkey_notify_usrevent(const u32 hkey, bool *send_acpi_ev)
 {
 	switch (hkey) {
 	case TP_HKEY_EV_PEN_INSERTED:  /* X61t: tablet pen inserted into bay */
@@ -3892,7 +3881,7 @@ static bool hotkey_notify_usrevent(const u32 hkey,
 	case TP_HKEY_EV_LID_OPEN:	/* Lid opened */
 	case TP_HKEY_EV_BRGHT_CHANGED:	/* brightness changed */
 		/* do not propagate these events */
-		*ignore_acpi_ev = true;
+		*send_acpi_ev = false;
 		return true;
 
 	default:
@@ -3904,9 +3893,7 @@ static void thermal_dump_all_sensors(void);
 static void palmsensor_refresh(void);
 
 /* 0x6000-0x6FFF: thermal alarms/notices and keyboard events */
-static bool hotkey_notify_6xxx(const u32 hkey,
-				 bool *send_acpi_ev,
-				 bool *ignore_acpi_ev)
+static bool hotkey_notify_6xxx(const u32 hkey, bool *send_acpi_ev)
 {
 	switch (hkey) {
 	case TP_HKEY_EV_THM_TABLE_CHANGED:
@@ -3953,14 +3940,12 @@ static bool hotkey_notify_6xxx(const u32 hkey,
 		/* key press events, we just ignore them as long as the EC
 		 * is still reporting them in the normal keyboard stream */
 		*send_acpi_ev = false;
-		*ignore_acpi_ev = true;
 		return true;
 
 	case TP_HKEY_EV_KEY_FN_ESC:
 		/* Get the media key status to force the status LED to update */
 		acpi_evalf(hkey_handle, NULL, "GMKS", "v");
 		*send_acpi_ev = false;
-		*ignore_acpi_ev = true;
 		return true;
 
 	case TP_HKEY_EV_TABLET_CHANGED:
@@ -3988,7 +3973,6 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 {
 	u32 hkey;
 	bool send_acpi_ev;
-	bool ignore_acpi_ev;
 	bool known_ev;
 
 	if (event != 0x80) {
@@ -4013,18 +3997,15 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		}
 
 		send_acpi_ev = true;
-		ignore_acpi_ev = false;
 
 		switch (hkey >> 12) {
 		case 1:
 			/* 0x1000-0x1FFF: key presses */
-			known_ev = hotkey_notify_hotkey(hkey, &send_acpi_ev,
-						 &ignore_acpi_ev);
+			known_ev = hotkey_notify_hotkey(hkey, &send_acpi_ev);
 			break;
 		case 2:
 			/* 0x2000-0x2FFF: Wakeup reason */
-			known_ev = hotkey_notify_wakeup(hkey, &send_acpi_ev,
-						 &ignore_acpi_ev);
+			known_ev = hotkey_notify_wakeup(hkey, &send_acpi_ev);
 			break;
 		case 3:
 			/* 0x3000-0x3FFF: bay-related wakeups */
@@ -4045,19 +4026,16 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			break;
 		case 4:
 			/* 0x4000-0x4FFF: dock-related events */
-			known_ev = hotkey_notify_dockevent(hkey, &send_acpi_ev,
-						&ignore_acpi_ev);
+			known_ev = hotkey_notify_dockevent(hkey, &send_acpi_ev);
 			break;
 		case 5:
 			/* 0x5000-0x5FFF: human interface helpers */
-			known_ev = hotkey_notify_usrevent(hkey, &send_acpi_ev,
-						 &ignore_acpi_ev);
+			known_ev = hotkey_notify_usrevent(hkey, &send_acpi_ev);
 			break;
 		case 6:
 			/* 0x6000-0x6FFF: thermal alarms/notices and
 			 *                keyboard events */
-			known_ev = hotkey_notify_6xxx(hkey, &send_acpi_ev,
-						 &ignore_acpi_ev);
+			known_ev = hotkey_notify_6xxx(hkey, &send_acpi_ev);
 			break;
 		case 7:
 			/* 0x7000-0x7FFF: misc */
@@ -4079,7 +4057,7 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 		}
 
 		/* netlink events */
-		if (!ignore_acpi_ev && send_acpi_ev) {
+		if (send_acpi_ev) {
 			acpi_bus_generate_netlink_event(
 					ibm->acpi->device->pnp.device_class,
 					dev_name(&ibm->acpi->device->dev),
