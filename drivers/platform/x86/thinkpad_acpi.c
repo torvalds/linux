@@ -2254,6 +2254,9 @@ static bool tpacpi_input_send_key(const u32 hkey)
 {
 	unsigned int keycode, scancode;
 
+	if (tpacpi_driver_event(hkey))
+		return true;
+
 	if (hkey >= TP_HKEY_EV_ORIG_KEY_START &&
 	    hkey <= TP_HKEY_EV_ORIG_KEY_END) {
 		scancode = hkey - TP_HKEY_EV_ORIG_KEY_START;
@@ -2295,7 +2298,6 @@ static struct tp_acpi_drv_struct ibm_hotkey_acpidriver;
 /* Do NOT call without validating scancode first */
 static void tpacpi_hotkey_send_key(unsigned int scancode)
 {
-	tpacpi_driver_event(TP_HKEY_EV_ORIG_KEY_START + scancode);
 	tpacpi_input_send_key(TP_HKEY_EV_ORIG_KEY_START + scancode);
 }
 
@@ -3731,9 +3733,6 @@ static bool hotkey_notify_hotkey(const u32 hkey, bool *send_acpi_ev)
 		if (hotkey_source_mask & (1 << scancode))
 			return true;
 	}
-
-	if (tpacpi_driver_event(hkey))
-		return true;
 
 	return tpacpi_input_send_key(hkey);
 }
