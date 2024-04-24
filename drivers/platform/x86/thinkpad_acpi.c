@@ -3670,7 +3670,6 @@ static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
 {
 	int current_mode = 0;
 	int new_mode = 0;
-	int keycode;
 
 	switch (scancode) {
 	case DFR_CHANGE_ROW:
@@ -3711,19 +3710,8 @@ static bool adaptive_keyboard_hotkey_notify_hotkey(unsigned int scancode)
 				scancode);
 			return false;
 		}
-		keycode = hotkey_keycode_map[scancode - FIRST_ADAPTIVE_KEY +
-					     TP_ACPI_HOTKEYSCAN_ADAPTIVE_START];
-		if (keycode != KEY_RESERVED) {
-			mutex_lock(&tpacpi_inputdev_send_mutex);
-
-			input_report_key(tpacpi_inputdev, keycode, 1);
-			input_sync(tpacpi_inputdev);
-
-			input_report_key(tpacpi_inputdev, keycode, 0);
-			input_sync(tpacpi_inputdev);
-
-			mutex_unlock(&tpacpi_inputdev_send_mutex);
-		}
+		tpacpi_input_send_key(scancode - FIRST_ADAPTIVE_KEY +
+				      TP_ACPI_HOTKEYSCAN_ADAPTIVE_START);
 		return true;
 	}
 }
