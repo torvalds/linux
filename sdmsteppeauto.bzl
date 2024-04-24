@@ -143,6 +143,7 @@ def define_sdmsteppeauto():
         "drivers/soc/qcom/qmi_helpers.ko",
         "drivers/soc/qcom/qsee_ipc_irq_bridge.ko",
         "drivers/soc/qcom/rpmhpd.ko",
+        "drivers/soc/qcom/rq_stats.ko",
         "drivers/soc/qcom/secure_buffer.ko",
         "drivers/soc/qcom/smem.ko",
         "drivers/soc/qcom/smp2p.ko",
