@@ -3,9 +3,7 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
 #include "bpf_misc.h"
-
-void bpf_preempt_disable(void) __ksym;
-void bpf_preempt_enable(void) __ksym;
+#include "bpf_experimental.h"
 
 SEC("?tc")
 __failure __msg("1 bpf_preempt_enable is missing")
@@ -92,8 +90,7 @@ static __noinline void preempt_balance_subprog(void)
 SEC("?tc")
 __success int preempt_balance(struct __sk_buff *ctx)
 {
-	bpf_preempt_disable();
-	bpf_preempt_enable();
+	bpf_guard_preempt();
 	return 0;
 }
 

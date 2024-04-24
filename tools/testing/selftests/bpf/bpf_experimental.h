@@ -397,6 +397,28 @@ l_true:												\
 		     , [as]"i"((dst_as << 16) | src_as));
 #endif
 
+void bpf_preempt_disable(void) __weak __ksym;
+void bpf_preempt_enable(void) __weak __ksym;
+
+typedef struct {
+} __bpf_preempt_t;
+
+static inline __bpf_preempt_t __bpf_preempt_constructor(void)
+{
+	__bpf_preempt_t ret = {};
+
+	bpf_preempt_disable();
+	return ret;
+}
+static inline void __bpf_preempt_destructor(__bpf_preempt_t *t)
+{
+	bpf_preempt_enable();
+}
+#define bpf_guard_preempt() \
+	__bpf_preempt_t ___bpf_apply(preempt, __COUNTER__)			\
+	__attribute__((__unused__, __cleanup__(__bpf_preempt_destructor))) =	\
+	__bpf_preempt_constructor()
+
 /* Description
  *	Assert that a conditional expression is true.
  * Returns
