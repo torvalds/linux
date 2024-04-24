@@ -583,12 +583,6 @@ static void intel_svm_prq_report(struct intel_iommu *iommu, struct device *dev,
 		event.fault.prm.flags |= IOMMU_FAULT_PAGE_REQUEST_PRIV_DATA;
 		event.fault.prm.private_data[0] = desc->priv_data[0];
 		event.fault.prm.private_data[1] = desc->priv_data[1];
-	} else if (dmar_latency_enabled(iommu, DMAR_LATENCY_PRQ)) {
-		/*
-		 * If the private data fields are not used by hardware, use it
-		 * to monitor the prq handle latency.
-		 */
-		event.fault.prm.private_data[0] = ktime_to_ns(ktime_get());
 	}
 
 	iommu_report_device_fault(dev, &event);
@@ -768,9 +762,6 @@ void intel_svm_page_response(struct device *dev, struct iopf_fault *evt,
 		if (private_present) {
 			desc.qw2 = prm->private_data[0];
 			desc.qw3 = prm->private_data[1];
-		} else if (prm->private_data[0]) {
-			dmar_latency_update(iommu, DMAR_LATENCY_PRQ,
-				ktime_to_ns(ktime_get()) - prm->private_data[0]);
 		}
 
 		qi_submit_sync(iommu, &desc, 1, 0);
