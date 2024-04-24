@@ -155,16 +155,13 @@ static int vimc_debayer_init_state(struct v4l2_subdev *sd,
 {
 	struct vimc_debayer_device *vdebayer = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *mf;
-	unsigned int i;
 
 	mf = v4l2_subdev_state_get_format(sd_state, 0);
 	*mf = sink_fmt_default;
 
-	for (i = 1; i < sd->entity.num_pads; i++) {
-		mf = v4l2_subdev_state_get_format(sd_state, i);
-		*mf = sink_fmt_default;
-		mf->code = vdebayer->src_code;
-	}
+	mf = v4l2_subdev_state_get_format(sd_state, 1);
+	*mf = sink_fmt_default;
+	mf->code = vdebayer->src_code;
 
 	return 0;
 }

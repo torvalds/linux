@@ -44,14 +44,10 @@ static const struct v4l2_mbus_framefmt fmt_default = {
 static int vimc_sensor_init_state(struct v4l2_subdev *sd,
 				  struct v4l2_subdev_state *sd_state)
 {
-	unsigned int i;
+	struct v4l2_mbus_framefmt *mf;
 
-	for (i = 0; i < sd->entity.num_pads; i++) {
-		struct v4l2_mbus_framefmt *mf;
-
-		mf = v4l2_subdev_state_get_format(sd_state, i);
-		*mf = fmt_default;
-	}
+	mf = v4l2_subdev_state_get_format(sd_state, 0);
+	*mf = fmt_default;
 
 	return 0;
 }
