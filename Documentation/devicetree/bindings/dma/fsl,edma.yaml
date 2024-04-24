@@ -21,7 +21,6 @@ properties:
       - enum:
           - fsl,vf610-edma
           - fsl,imx7ulp-edma
-          - fsl,imx8qm-adma
           - fsl,imx8qm-edma
           - fsl,imx8ulp-edma
           - fsl,imx93-edma3
@@ -92,7 +91,6 @@ allOf:
         compatible:
           contains:
             enum:
-              - fsl,imx8qm-adma
               - fsl,imx8qm-edma
               - fsl,imx93-edma3
               - fsl,imx93-edma4
