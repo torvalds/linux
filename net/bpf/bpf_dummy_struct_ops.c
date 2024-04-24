@@ -232,7 +232,7 @@ static void bpf_dummy_unreg(void *kdata)
 {
 }
 
-static int bpf_dummy_test_1(struct bpf_dummy_ops_state *cb)
+static int bpf_dummy_ops__test_1(struct bpf_dummy_ops_state *cb__nullable)
 {
 	return 0;
 }
@@ -249,7 +249,7 @@ static int bpf_dummy_test_sleepable(struct bpf_dummy_ops_state *cb)
 }
 
 static struct bpf_dummy_ops __bpf_bpf_dummy_ops = {
-	.test_1 = bpf_dummy_test_1,
+	.test_1 = bpf_dummy_ops__test_1,
 	.test_2 = bpf_dummy_test_2,
 	.test_sleepable = bpf_dummy_test_sleepable,
 };
