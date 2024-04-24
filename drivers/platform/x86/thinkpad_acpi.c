@@ -2256,6 +2256,10 @@ static void tpacpi_input_send_key(const unsigned int scancode)
 {
 	const unsigned int keycode = hotkey_keycode_map[scancode];
 
+	if (scancode < TP_ACPI_HOTKEYSCAN_ADAPTIVE_START &&
+	    !(hotkey_user_mask & (1 << scancode)))
+		return;
+
 	if (keycode != KEY_RESERVED) {
 		mutex_lock(&tpacpi_inputdev_send_mutex);
 
@@ -2275,8 +2279,7 @@ static void tpacpi_input_send_key(const unsigned int scancode)
 static void tpacpi_input_send_key_masked(const unsigned int scancode)
 {
 	hotkey_driver_event(scancode);
-	if (hotkey_user_mask & (1 << scancode))
-		tpacpi_input_send_key(scancode);
+	tpacpi_input_send_key(scancode);
 }
 
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
