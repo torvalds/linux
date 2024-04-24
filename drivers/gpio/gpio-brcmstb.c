@@ -694,6 +694,8 @@ static int brcmstb_gpio_probe(struct platform_device *pdev)
 		/* not all ngpio lines are valid, will use bank width later */
 		gc->ngpio = MAX_GPIO_PER_BANK;
 		gc->offset = bank->id * MAX_GPIO_PER_BANK;
+		gc->request = gpiochip_generic_request;
+		gc->free = gpiochip_generic_free;
 		if (priv->parent_irq > 0)
 			gc->to_irq = brcmstb_gpio_to_irq;
 
