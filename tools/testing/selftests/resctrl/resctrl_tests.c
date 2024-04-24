@@ -247,13 +247,13 @@ last_arg:
 	 * 2. We execute perf commands
 	 */
 	if (geteuid() != 0)
-		return ksft_exit_skip("Not running as root. Skipping...\n");
+		ksft_exit_skip("Not running as root. Skipping...\n");
 
 	if (!check_resctrlfs_support())
-		return ksft_exit_skip("resctrl FS does not exist. Enable X86_CPU_RESCTRL config option.\n");
+		ksft_exit_skip("resctrl FS does not exist. Enable X86_CPU_RESCTRL config option.\n");
 
 	if (umount_resctrlfs())
-		return ksft_exit_skip("resctrl FS unmount failed.\n");
+		ksft_exit_skip("resctrl FS unmount failed.\n");
 
 	filter_dmesg();
 
