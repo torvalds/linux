@@ -119,6 +119,37 @@ cleanup:
 	return NULL;
 }
 
+static void
+timerlat_top_reset_sum(struct timerlat_top_cpu *summary)
+{
+	memset(summary, 0, sizeof(*summary));
+	summary->min_irq = ~0;
+	summary->min_thread = ~0;
+	summary->min_user = ~0;
+}
+
+static void
+timerlat_top_update_sum(struct osnoise_tool *tool, int cpu, struct timerlat_top_cpu *sum)
+{
+	struct timerlat_top_data *data = tool->data;
+	struct timerlat_top_cpu *cpu_data = &data->cpu_data[cpu];
+
+	sum->irq_count += cpu_data->irq_count;
+	update_min(&sum->min_irq, &cpu_data->min_irq);
+	update_sum(&sum->sum_irq, &cpu_data->sum_irq);
+	update_max(&sum->max_irq, &cpu_data->max_irq);
+
+	sum->thread_count += cpu_data->thread_count;
+	update_min(&sum->min_thread, &cpu_data->min_thread);
+	update_sum(&sum->sum_thread, &cpu_data->sum_thread);
+	update_max(&sum->max_thread, &cpu_data->max_thread);
+
+	sum->user_count += cpu_data->user_count;
+	update_min(&sum->min_user, &cpu_data->min_user);
+	update_sum(&sum->sum_user, &cpu_data->sum_user);
+	update_max(&sum->max_user, &cpu_data->max_user);
+}
+
 /*
  * timerlat_hist_update - record a new timerlat occurent on cpu, updating data
  */
@@ -286,6 +317,77 @@ static void timerlat_top_print(struct osnoise_tool *top, int cpu)
 }
 
 /*
+ * timerlat_top_print_sum - prints the summary output
+ */
+static void
+timerlat_top_print_sum(struct osnoise_tool *top, struct timerlat_top_cpu *summary)
+{
+	const char *split = "----------------------------------------";
+	struct timerlat_top_params *params = top->params;
+	unsigned long long count = summary->irq_count;
+	int divisor = params->output_divisor;
+	struct trace_seq *s = top->trace.seq;
+	int e = 0;
+
+	if (divisor == 0)
+		return;
+
+	/*
+	 * Skip if no data is available: is this cpu offline?
+	 */
+	if (!summary->irq_count && !summary->thread_count)
+		return;
+
+	while (count > 999999) {
+		e++;
+		count /= 10;
+	}
+
+	trace_seq_printf(s, "%.*s|%.*s|%.*s", 15, split, 40, split, 39, split);
+	if (params->user_top)
+		trace_seq_printf(s, "-|%.*s", 39, split);
+	trace_seq_printf(s, "\n");
+
+	trace_seq_printf(s, "ALL #%-6llu e%d |", count, e);
+
+	if (!summary->irq_count) {
+		trace_seq_printf(s, "          %s %s %s |", no_value, no_value, no_value);
+	} else {
+		trace_seq_printf(s, "          ");
+		trace_seq_printf(s, "%9llu ", summary->min_irq / params->output_divisor);
+		trace_seq_printf(s, "%9llu ", (summary->sum_irq / summary->irq_count) / divisor);
+		trace_seq_printf(s, "%9llu |", summary->max_irq / divisor);
+	}
+
+	if (!summary->thread_count) {
+		trace_seq_printf(s, "%s %s %s %s", no_value, no_value, no_value, no_value);
+	} else {
+		trace_seq_printf(s, "          ");
+		trace_seq_printf(s, "%9llu ", summary->min_thread / divisor);
+		trace_seq_printf(s, "%9llu ",
+				(summary->sum_thread / summary->thread_count) / divisor);
+		trace_seq_printf(s, "%9llu", summary->max_thread / divisor);
+	}
+
+	if (!params->user_top) {
+		trace_seq_printf(s, "\n");
+		return;
+	}
+
+	trace_seq_printf(s, " |");
+
+	if (!summary->user_count) {
+		trace_seq_printf(s, "          %s %s %s |", no_value, no_value, no_value);
+	} else {
+		trace_seq_printf(s, "          ");
+		trace_seq_printf(s, "%9llu ", summary->min_user / divisor);
+		trace_seq_printf(s, "%9llu ",
+				(summary->sum_user / summary->user_count) / divisor);
+		trace_seq_printf(s, "%9llu\n", summary->max_user / divisor);
+	}
+}
+
+/*
  * clear_terminal - clears the output terminal
  */
 static void clear_terminal(struct trace_seq *seq)
@@ -301,6 +403,7 @@ static void
 timerlat_print_stats(struct timerlat_top_params *params, struct osnoise_tool *top)
 {
 	struct trace_instance *trace = &top->trace;
+	struct timerlat_top_cpu summary;
 	static int nr_cpus = -1;
 	int i;
 
@@ -313,13 +416,18 @@ timerlat_print_stats(struct timerlat_top_params *params, struct osnoise_tool *to
 	if (!params->quiet)
 		clear_terminal(trace->seq);
 
+	timerlat_top_reset_sum(&summary);
+
 	timerlat_top_header(params, top);
 
 	for (i = 0; i < nr_cpus; i++) {
 		if (params->cpus && !CPU_ISSET(i, &params->monitored_cpus))
 			continue;
 		timerlat_top_print(top, i);
+		timerlat_top_update_sum(top, i, &summary);
 	}
+
+	timerlat_top_print_sum(top, &summary);
 
 	trace_seq_do_printf(trace->seq);
 	trace_seq_reset(trace->seq);
