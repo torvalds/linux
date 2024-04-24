@@ -44,6 +44,7 @@ struct timerlat_top_params {
 	int			hk_cpus;
 	int			user_top;
 	int			user_workload;
+	int			pretty_output;
 	cpu_set_t		hk_cpu_set;
 	struct sched_attr	sched_param;
 	struct trace_events	*events;
@@ -179,19 +180,22 @@ timerlat_top_handler(struct trace_seq *s, struct tep_record *record,
 /*
  * timerlat_top_header - print the header of the tool output
  */
-static void timerlat_top_header(struct osnoise_tool *top)
+static void timerlat_top_header(struct timerlat_top_params *params, struct osnoise_tool *top)
 {
-	struct timerlat_top_params *params = top->params;
 	struct trace_seq *s = top->trace.seq;
 	char duration[26];
 
 	get_duration(top->start_time, duration, sizeof(duration));
 
-	trace_seq_printf(s, "\033[2;37;40m");
+	if (params->pretty_output)
+		trace_seq_printf(s, "\033[2;37;40m");
+
 	trace_seq_printf(s, "                                     Timer Latency                                              ");
 	if (params->user_top)
 		trace_seq_printf(s, "                                         ");
-	trace_seq_printf(s, "\033[0;0;0m");
+
+	if (params->pretty_output)
+		trace_seq_printf(s, "\033[0;0;0m");
 	trace_seq_printf(s, "\n");
 
 	trace_seq_printf(s, "%-6s   |          IRQ Timer Latency (%s)        |         Thread Timer Latency (%s)", duration,
@@ -204,11 +208,15 @@ static void timerlat_top_header(struct osnoise_tool *top)
 	}
 
 	trace_seq_printf(s, "\n");
-	trace_seq_printf(s, "\033[2;30;47m");
+	if (params->pretty_output)
+		trace_seq_printf(s, "\033[2;30;47m");
+
 	trace_seq_printf(s, "CPU COUNT      |      cur       min       avg       max |      cur       min       avg       max");
 	if (params->user_top)
 		trace_seq_printf(s, " |      cur       min       avg       max");
-	trace_seq_printf(s, "\033[0;0;0m");
+
+	if (params->pretty_output)
+		trace_seq_printf(s, "\033[0;0;0m");
 	trace_seq_printf(s, "\n");
 }
 
@@ -305,7 +313,7 @@ timerlat_print_stats(struct timerlat_top_params *params, struct osnoise_tool *to
 	if (!params->quiet)
 		clear_terminal(trace->seq);
 
-	timerlat_top_header(top);
+	timerlat_top_header(params, top);
 
 	for (i = 0; i < nr_cpus; i++) {
 		if (params->cpus && !CPU_ISSET(i, &params->monitored_cpus))
@@ -692,6 +700,9 @@ timerlat_top_apply_config(struct osnoise_tool *top, struct timerlat_top_params *
 			goto out_err;
 		}
 	}
+
+	if (isatty(1) && !params->quiet)
+		params->pretty_output = 1;
 
 	return 0;
 
