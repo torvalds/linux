@@ -606,6 +606,9 @@ struct dmar_domain {
 	struct list_head devices;	/* all devices' list */
 	struct list_head dev_pasids;	/* all attached pasids */
 
+	spinlock_t cache_lock;		/* Protect the cache tag list */
+	struct list_head cache_tags;	/* Cache tag list */
+
 	int		iommu_superpage;/* Level of superpages supported:
 					   0 == 4KiB (no superpages), 1 == 2MiB,
 					   2 == 1GiB, 3 == 512GiB, 4 == 1TiB */
@@ -1090,6 +1093,34 @@ void iommu_flush_write_buffer(struct intel_iommu *iommu);
 struct iommu_domain *intel_nested_domain_alloc(struct iommu_domain *parent,
 					       const struct iommu_user_data *user_data);
 struct device *device_rbtree_find(struct intel_iommu *iommu, u16 rid);
+
+enum cache_tag_type {
+	CACHE_TAG_IOTLB,
+	CACHE_TAG_DEVTLB,
+	CACHE_TAG_NESTING_IOTLB,
+	CACHE_TAG_NESTING_DEVTLB,
+};
+
+struct cache_tag {
+	struct list_head node;
+	enum cache_tag_type type;
+	struct intel_iommu *iommu;
+	/*
+	 * The @dev field represents the location of the cache. For IOTLB, it
+	 * resides on the IOMMU hardware. @dev stores the device pointer to
+	 * the IOMMU hardware. For DevTLB, it locates in the PCIe endpoint.
+	 * @dev stores the device pointer to that endpoint.
+	 */
+	struct device *dev;
+	u16 domain_id;
+	ioasid_t pasid;
+	unsigned int users;
+};
+
+int cache_tag_assign_domain(struct dmar_domain *domain,
+			    struct device *dev, ioasid_t pasid);
+void cache_tag_unassign_domain(struct dmar_domain *domain,
+			       struct device *dev, ioasid_t pasid);
 
 #ifdef CONFIG_INTEL_IOMMU_SVM
 void intel_svm_check(struct intel_iommu *iommu);

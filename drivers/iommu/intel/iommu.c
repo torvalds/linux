@@ -1746,7 +1746,9 @@ static struct dmar_domain *alloc_domain(unsigned int type)
 	domain->has_iotlb_device = false;
 	INIT_LIST_HEAD(&domain->devices);
 	INIT_LIST_HEAD(&domain->dev_pasids);
+	INIT_LIST_HEAD(&domain->cache_tags);
 	spin_lock_init(&domain->lock);
+	spin_lock_init(&domain->cache_lock);
 	xa_init(&domain->iommu_array);
 
 	return domain;
@@ -1757,6 +1759,9 @@ int domain_attach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
 	struct iommu_domain_info *info, *curr;
 	unsigned long ndomains;
 	int num, ret = -ENOSPC;
+
+	if (domain->domain.type == IOMMU_DOMAIN_SVA)
+		return 0;
 
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -1804,6 +1809,9 @@ err_unlock:
 void domain_detach_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
 {
 	struct iommu_domain_info *info;
+
+	if (domain->domain.type == IOMMU_DOMAIN_SVA)
+		return;
 
 	spin_lock(&iommu->lock);
 	info = xa_load(&domain->iommu_array, iommu->seq_id);
@@ -2323,6 +2331,13 @@ static int dmar_domain_attach_device(struct dmar_domain *domain,
 	ret = domain_attach_iommu(domain, iommu);
 	if (ret)
 		return ret;
+
+	ret = cache_tag_assign_domain(domain, dev, IOMMU_NO_PASID);
+	if (ret) {
+		domain_detach_iommu(domain, iommu);
+		return ret;
+	}
+
 	info->domain = domain;
 	spin_lock_irqsave(&domain->lock, flags);
 	list_add(&info->link, &domain->devices);
@@ -3811,6 +3826,7 @@ void device_block_translation(struct device *dev)
 	list_del(&info->link);
 	spin_unlock_irqrestore(&info->domain->lock, flags);
 
+	cache_tag_unassign_domain(info->domain, dev, IOMMU_NO_PASID);
 	domain_detach_iommu(info->domain, iommu);
 	info->domain = NULL;
 }
@@ -4598,6 +4614,7 @@ static void intel_iommu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
 	domain = iommu_get_domain_for_dev_pasid(dev, pasid, 0);
 	if (WARN_ON_ONCE(!domain))
 		goto out_tear_down;
+	dmar_domain = to_dmar_domain(domain);
 
 	/*
 	 * The SVA implementation needs to handle its own stuffs like the mm
@@ -4606,10 +4623,10 @@ static void intel_iommu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
 	 */
 	if (domain->type == IOMMU_DOMAIN_SVA) {
 		intel_svm_remove_dev_pasid(dev, pasid);
+		cache_tag_unassign_domain(dmar_domain, dev, pasid);
 		goto out_tear_down;
 	}
 
-	dmar_domain = to_dmar_domain(domain);
 	spin_lock_irqsave(&dmar_domain->lock, flags);
 	list_for_each_entry(curr, &dmar_domain->dev_pasids, link_domain) {
 		if (curr->dev == dev && curr->pasid == pasid) {
@@ -4621,6 +4638,7 @@ static void intel_iommu_remove_dev_pasid(struct device *dev, ioasid_t pasid)
 	WARN_ON_ONCE(!dev_pasid);
 	spin_unlock_irqrestore(&dmar_domain->lock, flags);
 
+	cache_tag_unassign_domain(dmar_domain, dev, pasid);
 	domain_detach_iommu(dmar_domain, iommu);
 	intel_iommu_debugfs_remove_dev_pasid(dev_pasid);
 	kfree(dev_pasid);
@@ -4660,6 +4678,10 @@ static int intel_iommu_set_dev_pasid(struct iommu_domain *domain,
 	if (ret)
 		goto out_free;
 
+	ret = cache_tag_assign_domain(dmar_domain, dev, pasid);
+	if (ret)
+		goto out_detach_iommu;
+
 	if (domain_type_is_si(dmar_domain))
 		ret = intel_pasid_setup_pass_through(iommu, dev, pasid);
 	else if (dmar_domain->use_first_level)
@@ -4669,7 +4691,7 @@ static int intel_iommu_set_dev_pasid(struct iommu_domain *domain,
 		ret = intel_pasid_setup_second_level(iommu, dmar_domain,
 						     dev, pasid);
 	if (ret)
-		goto out_detach_iommu;
+		goto out_unassign_tag;
 
 	dev_pasid->dev = dev;
 	dev_pasid->pasid = pasid;
@@ -4681,6 +4703,8 @@ static int intel_iommu_set_dev_pasid(struct iommu_domain *domain,
 		intel_iommu_debugfs_create_dev_pasid(dev_pasid);
 
 	return 0;
+out_unassign_tag:
+	cache_tag_unassign_domain(dmar_domain, dev, pasid);
 out_detach_iommu:
 	domain_detach_iommu(dmar_domain, iommu);
 out_free:

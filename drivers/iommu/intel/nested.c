@@ -52,13 +52,14 @@ static int intel_nested_attach_dev(struct iommu_domain *domain,
 		return ret;
 	}
 
+	ret = cache_tag_assign_domain(dmar_domain, dev, IOMMU_NO_PASID);
+	if (ret)
+		goto detach_iommu;
+
 	ret = intel_pasid_setup_nested(iommu, dev,
 				       IOMMU_NO_PASID, dmar_domain);
-	if (ret) {
-		domain_detach_iommu(dmar_domain, iommu);
-		dev_err_ratelimited(dev, "Failed to setup pasid entry\n");
-		return ret;
-	}
+	if (ret)
+		goto unassign_tag;
 
 	info->domain = dmar_domain;
 	spin_lock_irqsave(&dmar_domain->lock, flags);
@@ -68,6 +69,12 @@ static int intel_nested_attach_dev(struct iommu_domain *domain,
 	domain_update_iotlb(dmar_domain);
 
 	return 0;
+unassign_tag:
+	cache_tag_unassign_domain(dmar_domain, dev, IOMMU_NO_PASID);
+detach_iommu:
+	domain_detach_iommu(dmar_domain, iommu);
+
+	return ret;
 }
 
 static void intel_nested_domain_free(struct iommu_domain *domain)
@@ -206,7 +213,9 @@ struct iommu_domain *intel_nested_domain_alloc(struct iommu_domain *parent,
 	domain->domain.type = IOMMU_DOMAIN_NESTED;
 	INIT_LIST_HEAD(&domain->devices);
 	INIT_LIST_HEAD(&domain->dev_pasids);
+	INIT_LIST_HEAD(&domain->cache_tags);
 	spin_lock_init(&domain->lock);
+	spin_lock_init(&domain->cache_lock);
 	xa_init(&domain->iommu_array);
 
 	spin_lock(&s2_domain->s1_lock);
