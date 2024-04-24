@@ -1382,7 +1382,7 @@ void xe_lrc_snapshot_capture_delayed(struct xe_lrc_snapshot *snapshot)
 	if (!snapshot->lrc_snapshot)
 		goto put_bo;
 
-	dma_resv_lock(bo->ttm.base.resv, NULL);
+	xe_bo_lock(bo, false);
 	if (!ttm_bo_vmap(&bo->ttm, &src)) {
 		xe_map_memcpy_from(xe_bo_device(bo),
 				   snapshot->lrc_snapshot, &src, snapshot->lrc_offset,
@@ -1392,7 +1392,7 @@ void xe_lrc_snapshot_capture_delayed(struct xe_lrc_snapshot *snapshot)
 		kvfree(snapshot->lrc_snapshot);
 		snapshot->lrc_snapshot = NULL;
 	}
-	dma_resv_unlock(bo->ttm.base.resv);
+	xe_bo_unlock(bo);
 put_bo:
 	xe_bo_put(bo);
 }

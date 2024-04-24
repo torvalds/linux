@@ -3352,7 +3352,7 @@ void xe_vm_snapshot_capture_delayed(struct xe_vm_snapshot *snap)
 		}
 
 		if (bo) {
-			dma_resv_lock(bo->ttm.base.resv, NULL);
+			xe_bo_lock(bo, false);
 			err = ttm_bo_vmap(&bo->ttm, &src);
 			if (!err) {
 				xe_map_memcpy_from(xe_bo_device(bo),
@@ -3361,7 +3361,7 @@ void xe_vm_snapshot_capture_delayed(struct xe_vm_snapshot *snap)
 						   snap->snap[i].len);
 				ttm_bo_vunmap(&bo->ttm, &src);
 			}
-			dma_resv_unlock(bo->ttm.base.resv);
+			xe_bo_unlock(bo);
 		} else {
 			void __user *userptr = (void __user *)(size_t)snap->snap[i].bo_ofs;
 
