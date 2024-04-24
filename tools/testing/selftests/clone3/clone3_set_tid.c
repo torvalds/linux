@@ -412,5 +412,7 @@ int main(int argc, char *argv[])
 out:
 	ret = 0;
 
-	return !ret ? ksft_exit_pass() : ksft_exit_fail();
+	if (ret)
+		ksft_exit_fail();
+	ksft_exit_pass();
 }
