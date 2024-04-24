@@ -205,6 +205,9 @@ __weak noinline struct file *bpf_testmod_return_ptr(int arg)
 	case 5: return (void *)~(1ull << 30);	/* trigger extable */
 	case 6: return &f;			/* valid addr */
 	case 7: return (void *)((long)&f | 1);	/* kernel tricks */
+#ifdef CONFIG_X86_64
+	case 8: return (void *)VSYSCALL_ADDR;   /* vsyscall page address */
+#endif
 	default: return NULL;
 	}
 }
