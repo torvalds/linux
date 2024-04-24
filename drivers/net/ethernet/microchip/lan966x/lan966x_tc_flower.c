@@ -60,7 +60,7 @@ lan966x_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 						    VCAP_KF_L3_FRAGMENT,
 						    VCAP_BIT_0);
 		if (err)
-			goto out;
+			goto bad_frag_out;
 	}
 
 	if (match.mask->flags & FLOW_DIS_FIRST_FRAG) {
@@ -73,14 +73,14 @@ lan966x_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 						    VCAP_KF_L3_FRAG_OFS_GT0,
 						    VCAP_BIT_1);
 		if (err)
-			goto out;
+			goto bad_frag_out;
 	}
 
 	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL);
 
 	return err;
 
-out:
+bad_frag_out:
 	NL_SET_ERR_MSG_MOD(extack, "ip_frag parse error");
 	return err;
 }
