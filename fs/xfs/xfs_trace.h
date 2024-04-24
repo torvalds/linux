@@ -87,11 +87,15 @@ struct xfs_bmap_intent;
 struct xfs_exchmaps_intent;
 struct xfs_exchmaps_req;
 struct xfs_exchrange;
+struct xfs_getparents;
+struct xfs_parent_irec;
+struct xfs_attrlist_cursor_kern;
 
 #define XFS_ATTR_FILTER_FLAGS \
 	{ XFS_ATTR_ROOT,	"ROOT" }, \
 	{ XFS_ATTR_SECURE,	"SECURE" }, \
-	{ XFS_ATTR_INCOMPLETE,	"INCOMPLETE" }
+	{ XFS_ATTR_INCOMPLETE,	"INCOMPLETE" }, \
+	{ XFS_ATTR_PARENT,	"PARENT" }
 
 DECLARE_EVENT_CLASS(xfs_attr_list_class,
 	TP_PROTO(struct xfs_attr_list_context *ctx),
@@ -5094,6 +5098,95 @@ TRACE_EVENT(xfs_exchmaps_delta_nextents,
 		  __entry->ino2, __entry->nexts2,
 		  __entry->d_nexts1, __entry->d_nexts2)
 );
+
+DECLARE_EVENT_CLASS(xfs_getparents_rec_class,
+	TP_PROTO(struct xfs_inode *ip, const struct xfs_getparents *ppi,
+		 const struct xfs_attr_list_context *context,
+	         const struct xfs_getparents_rec *pptr),
+	TP_ARGS(ip, ppi, context, pptr),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(unsigned int, firstu)
+		__field(unsigned short, reclen)
+		__field(unsigned int, bufsize)
+		__field(xfs_ino_t, parent_ino)
+		__field(unsigned int, parent_gen)
+		__string(name, pptr->gpr_name)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->firstu = context->firstu;
+		__entry->reclen = pptr->gpr_reclen;
+		__entry->bufsize = ppi->gp_bufsize;
+		__entry->parent_ino = pptr->gpr_parent.ha_fid.fid_ino;
+		__entry->parent_gen = pptr->gpr_parent.ha_fid.fid_gen;
+		__assign_str(name, pptr->gpr_name);
+	),
+	TP_printk("dev %d:%d ino 0x%llx firstu %u reclen %u bufsize %u parent_ino 0x%llx parent_gen 0x%x name '%s'",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->firstu,
+		  __entry->reclen,
+		  __entry->bufsize,
+		  __entry->parent_ino,
+		  __entry->parent_gen,
+		  __get_str(name))
+)
+#define DEFINE_XFS_GETPARENTS_REC_EVENT(name) \
+DEFINE_EVENT(xfs_getparents_rec_class, name, \
+	TP_PROTO(struct xfs_inode *ip, const struct xfs_getparents *ppi, \
+		 const struct xfs_attr_list_context *context, \
+	         const struct xfs_getparents_rec *pptr), \
+	TP_ARGS(ip, ppi, context, pptr))
+DEFINE_XFS_GETPARENTS_REC_EVENT(xfs_getparents_put_listent);
+DEFINE_XFS_GETPARENTS_REC_EVENT(xfs_getparents_expand_lastrec);
+
+DECLARE_EVENT_CLASS(xfs_getparents_class,
+	TP_PROTO(struct xfs_inode *ip, const struct xfs_getparents *ppi,
+		 const struct xfs_attrlist_cursor_kern *cur),
+	TP_ARGS(ip, ppi, cur),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(unsigned short, iflags)
+		__field(unsigned short, oflags)
+		__field(unsigned int, bufsize)
+		__field(unsigned int, hashval)
+		__field(unsigned int, blkno)
+		__field(unsigned int, offset)
+		__field(int, initted)
+	),
+	TP_fast_assign(
+		__entry->dev = ip->i_mount->m_super->s_dev;
+		__entry->ino = ip->i_ino;
+		__entry->iflags = ppi->gp_iflags;
+		__entry->oflags = ppi->gp_oflags;
+		__entry->bufsize = ppi->gp_bufsize;
+		__entry->hashval = cur->hashval;
+		__entry->blkno = cur->blkno;
+		__entry->offset = cur->offset;
+		__entry->initted = cur->initted;
+	),
+	TP_printk("dev %d:%d ino 0x%llx iflags 0x%x oflags 0x%x bufsize %u cur_init? %d hashval 0x%x blkno %u offset %u",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->iflags,
+		  __entry->oflags,
+		  __entry->bufsize,
+		  __entry->initted,
+		  __entry->hashval,
+		  __entry->blkno,
+		  __entry->offset)
+)
+#define DEFINE_XFS_GETPARENTS_EVENT(name) \
+DEFINE_EVENT(xfs_getparents_class, name, \
+	TP_PROTO(struct xfs_inode *ip, const struct xfs_getparents *ppi, \
+		 const struct xfs_attrlist_cursor_kern *cur), \
+	TP_ARGS(ip, ppi, cur))
+DEFINE_XFS_GETPARENTS_EVENT(xfs_getparents_begin);
+DEFINE_XFS_GETPARENTS_EVENT(xfs_getparents_end);
 
 #endif /* _TRACE_XFS_H */
 

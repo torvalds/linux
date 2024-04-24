@@ -26,6 +26,7 @@
 #include "xfs_trace.h"
 #include "xfs_attr_item.h"
 #include "xfs_xattr.h"
+#include "xfs_parent.h"
 
 struct kmem_cache		*xfs_attr_intent_cache;
 
@@ -280,7 +281,7 @@ xfs_attr_get(
 		args->owner = args->dp->i_ino;
 	args->geo = args->dp->i_mount->m_attr_geo;
 	args->whichfork = XFS_ATTR_FORK;
-	args->hashval = xfs_da_hashname(args->name, args->namelen);
+	xfs_attr_sethash(args);
 
 	/* Entirely possible to look up a name which doesn't exist */
 	args->op_flags = XFS_DA_OP_OKNOENT;
@@ -415,6 +416,50 @@ out:
 	return error;
 }
 
+/* Compute the hash value for a user/root/secure extended attribute */
+xfs_dahash_t
+xfs_attr_hashname(
+	const uint8_t		*name,
+	int			namelen)
+{
+	return xfs_da_hashname(name, namelen);
+}
+
+/* Compute the hash value for any extended attribute from any namespace. */
+xfs_dahash_t
+xfs_attr_hashval(
+	struct xfs_mount	*mp,
+	unsigned int		attr_flags,
+	const uint8_t		*name,
+	int			namelen,
+	const void		*value,
+	int			valuelen)
+{
+	ASSERT(xfs_attr_check_namespace(attr_flags));
+
+	if (attr_flags & XFS_ATTR_PARENT)
+		return xfs_parent_hashattr(mp, name, namelen, value, valuelen);
+
+	return xfs_attr_hashname(name, namelen);
+}
+
+/*
+ * PPTR_REPLACE operations require the caller to set the old and new names and
+ * values explicitly.  Update the canonical fields to the new name and value
+ * here now that the removal phase has finished.
+ */
+static void
+xfs_attr_update_pptr_replace_args(
+	struct xfs_da_args	*args)
+{
+	ASSERT(args->new_namelen > 0);
+	args->name = args->new_name;
+	args->namelen = args->new_namelen;
+	args->value = args->new_value;
+	args->valuelen = args->new_valuelen;
+	xfs_attr_sethash(args);
+}
+
 /*
  * Handle the state change on completion of a multi-state attr operation.
  *
@@ -435,6 +480,8 @@ xfs_attr_complete_op(
 
 	if (!(args->op_flags & XFS_DA_OP_REPLACE))
 		replace_state = XFS_DAS_DONE;
+	else if (xfs_attr_intent_op(attr) == XFS_ATTRI_OP_FLAGS_PPTR_REPLACE)
+		xfs_attr_update_pptr_replace_args(args);
 
 	args->op_flags &= ~XFS_DA_OP_REPLACE;
 	args->attr_filter &= ~XFS_ATTR_INCOMPLETE;
@@ -901,37 +948,6 @@ xfs_attr_lookup(
 	return error;
 }
 
-static void
-xfs_attr_defer_add(
-	struct xfs_da_args	*args,
-	unsigned int		op_flags)
-{
-
-	struct xfs_attr_intent	*new;
-
-	new = kmem_cache_zalloc(xfs_attr_intent_cache,
-			GFP_KERNEL | __GFP_NOFAIL);
-	new->xattri_op_flags = op_flags;
-	new->xattri_da_args = args;
-
-	switch (op_flags) {
-	case XFS_ATTRI_OP_FLAGS_SET:
-		new->xattri_dela_state = xfs_attr_init_add_state(args);
-		break;
-	case XFS_ATTRI_OP_FLAGS_REPLACE:
-		new->xattri_dela_state = xfs_attr_init_replace_state(args);
-		break;
-	case XFS_ATTRI_OP_FLAGS_REMOVE:
-		new->xattri_dela_state = xfs_attr_init_remove_state(args);
-		break;
-	default:
-		ASSERT(0);
-	}
-
-	xfs_defer_add(args->trans, &new->xattri_list, &xfs_attr_defer_type);
-	trace_xfs_attr_defer_add(new->xattri_dela_state, args->dp);
-}
-
 int
 xfs_attr_set(
 	struct xfs_da_args	*args,
@@ -956,7 +972,7 @@ xfs_attr_set(
 		args->owner = args->dp->i_ino;
 	args->geo = mp->m_attr_geo;
 	args->whichfork = XFS_ATTR_FORK;
-	args->hashval = xfs_da_hashname(args->name, args->namelen);
+	xfs_attr_sethash(args);
 
 	/*
 	 * We have no control over the attribute names that userspace passes us
@@ -1021,14 +1037,14 @@ xfs_attr_set(
 	case -EEXIST:
 		if (op == XFS_ATTRUPDATE_REMOVE) {
 			/* if no value, we are performing a remove operation */
-			xfs_attr_defer_add(args, XFS_ATTRI_OP_FLAGS_REMOVE);
+			xfs_attr_defer_add(args, XFS_ATTR_DEFER_REMOVE);
 			break;
 		}
 
 		/* Pure create fails if the attr already exists */
 		if (op == XFS_ATTRUPDATE_CREATE)
 			goto out_trans_cancel;
-		xfs_attr_defer_add(args, XFS_ATTRI_OP_FLAGS_REPLACE);
+		xfs_attr_defer_add(args, XFS_ATTR_DEFER_REPLACE);
 		break;
 	case -ENOATTR:
 		/* Can't remove what isn't there. */
@@ -1038,7 +1054,7 @@ xfs_attr_set(
 		/* Pure replace fails if no existing attr to replace. */
 		if (op == XFS_ATTRUPDATE_REPLACE)
 			goto out_trans_cancel;
-		xfs_attr_defer_add(args, XFS_ATTRI_OP_FLAGS_SET);
+		xfs_attr_defer_add(args, XFS_ATTR_DEFER_SET);
 		break;
 	default:
 		goto out_trans_cancel;
@@ -1555,6 +1571,10 @@ xfs_attr_namecheck(
 	 */
 	if (length >= MAXNAMELEN)
 		return false;
+
+	/* Parent pointers have their own validation. */
+	if (attr_flags & XFS_ATTR_PARENT)
+		return xfs_parent_namecheck(attr_flags, name, length);
 
 	/* There shouldn't be any nulls here */
 	return !memchr(name, 0, length);

@@ -179,7 +179,6 @@ xchk_xattr_actor(
 		.dp			= ip,
 		.name			= name,
 		.namelen		= namelen,
-		.hashval		= xfs_da_hashname(name, namelen),
 		.trans			= sc->tp,
 		.valuelen		= valuelen,
 		.owner			= ip->i_ino,
@@ -230,6 +229,7 @@ xchk_xattr_actor(
 
 	args.value = ab->value;
 
+	xfs_attr_sethash(&args);
 	error = xfs_attr_get_ilocked(&args);
 	/* ENODATA means the hash lookup failed and the attr is bad */
 	if (error == -ENODATA)
@@ -525,7 +525,10 @@ xchk_xattr_rec(
 			xchk_da_set_corrupt(ds, level);
 			goto out;
 		}
-		calc_hash = xfs_da_hashname(lentry->nameval, lentry->namelen);
+		calc_hash = xfs_attr_hashval(mp, ent->flags, lentry->nameval,
+					     lentry->namelen,
+					     lentry->nameval + lentry->namelen,
+					     be16_to_cpu(lentry->valuelen));
 	} else {
 		rentry = (struct xfs_attr_leaf_name_remote *)
 				(((char *)bp->b_addr) + nameidx);
@@ -533,7 +536,13 @@ xchk_xattr_rec(
 			xchk_da_set_corrupt(ds, level);
 			goto out;
 		}
-		calc_hash = xfs_da_hashname(rentry->name, rentry->namelen);
+		if (ent->flags & XFS_ATTR_PARENT) {
+			xchk_da_set_corrupt(ds, level);
+			goto out;
+		}
+		calc_hash = xfs_attr_hashval(mp, ent->flags, rentry->name,
+					     rentry->namelen, NULL,
+					     be32_to_cpu(rentry->valuelen));
 	}
 	if (calc_hash != hash)
 		xchk_da_set_corrupt(ds, level);

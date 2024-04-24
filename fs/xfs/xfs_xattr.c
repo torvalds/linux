@@ -222,12 +222,17 @@ xfs_xattr_put_listent(
 	int		flags,
 	unsigned char	*name,
 	int		namelen,
+	void		*value,
 	int		valuelen)
 {
 	char *prefix;
 	int prefix_len;
 
 	ASSERT(context->count >= 0);
+
+	/* Don't expose private xattr namespaces. */
+	if (flags & XFS_ATTR_PRIVATE_NSP_MASK)
+		return;
 
 	if (flags & XFS_ATTR_ROOT) {
 #ifdef CONFIG_XFS_POSIX_ACL
