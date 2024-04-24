@@ -301,6 +301,9 @@
 
 244	or1k	or1k_atomic			sys_or1k_atomic
 
+258	riscv	riscv_hwprobe			sys_riscv_hwprobe
+259	riscv	riscv_flush_icache		sys_riscv_flush_icache
+
 260	time32	wait4				sys_wait4			compat_sys_wait4
 260	64	wait4				sys_wait4
 261	common	prlimit64			sys_prlimit64
