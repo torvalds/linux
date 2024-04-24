@@ -3677,51 +3677,51 @@ static int adaptive_keyboard_get_next_mode(int mode)
 	return adaptive_keyboard_modes[i];
 }
 
+static void adaptive_keyboard_change_row(void)
+{
+	int mode;
+
+	if (adaptive_keyboard_mode_is_saved) {
+		mode = adaptive_keyboard_prev_mode;
+		adaptive_keyboard_mode_is_saved = false;
+	} else {
+		mode = adaptive_keyboard_get_mode();
+		if (mode < 0)
+			return;
+		mode = adaptive_keyboard_get_next_mode(mode);
+	}
+
+	adaptive_keyboard_set_mode(mode);
+}
+
+static void adaptive_keyboard_s_quickview_row(void)
+{
+	int mode;
+
+	mode = adaptive_keyboard_get_mode();
+	if (mode < 0)
+		return;
+
+	adaptive_keyboard_prev_mode = mode;
+	adaptive_keyboard_mode_is_saved = true;
+
+	adaptive_keyboard_set_mode(FUNCTION_MODE);
+}
+
 static bool adaptive_keyboard_hotkey_notify_hotkey(const u32 hkey)
 {
-	int current_mode = 0;
-	int new_mode = 0;
-
-	switch (hkey) {
-	case TP_HKEY_EV_DFR_CHANGE_ROW:
-		if (adaptive_keyboard_mode_is_saved) {
-			new_mode = adaptive_keyboard_prev_mode;
-			adaptive_keyboard_mode_is_saved = false;
-		} else {
-			current_mode = adaptive_keyboard_get_mode();
-			if (current_mode < 0)
-				return false;
-			new_mode = adaptive_keyboard_get_next_mode(
-					current_mode);
-		}
-
-		if (adaptive_keyboard_set_mode(new_mode) < 0)
-			return false;
-
+	if (tpacpi_driver_event(hkey))
 		return true;
 
-	case TP_HKEY_EV_DFR_S_QUICKVIEW_ROW:
-		current_mode = adaptive_keyboard_get_mode();
-		if (current_mode < 0)
-			return false;
-
-		adaptive_keyboard_prev_mode = current_mode;
-		adaptive_keyboard_mode_is_saved = true;
-
-		if (adaptive_keyboard_set_mode (FUNCTION_MODE) < 0)
-			return false;
-		return true;
-
-	default:
-		if (hkey < TP_HKEY_EV_ADAPTIVE_KEY_START ||
-		    hkey > TP_HKEY_EV_ADAPTIVE_KEY_END) {
-			pr_info("Unhandled adaptive keyboard key: 0x%x\n", hkey);
-			return false;
-		}
-		tpacpi_input_send_key(hkey - TP_HKEY_EV_ADAPTIVE_KEY_START +
-				      TP_ACPI_HOTKEYSCAN_ADAPTIVE_START);
-		return true;
+	if (hkey < TP_HKEY_EV_ADAPTIVE_KEY_START ||
+	    hkey > TP_HKEY_EV_ADAPTIVE_KEY_END) {
+		pr_info("Unhandled adaptive keyboard key: 0x%x\n", hkey);
+		return false;
 	}
+
+	tpacpi_input_send_key(hkey - TP_HKEY_EV_ADAPTIVE_KEY_START +
+			      TP_ACPI_HOTKEYSCAN_ADAPTIVE_START);
+	return true;
 }
 
 static bool hotkey_notify_extended_hotkey(const u32 hkey)
@@ -11117,6 +11117,12 @@ static bool tpacpi_driver_event(const unsigned int hkey_event)
 		}
 		/* Key events are suppressed by default hotkey_user_mask */
 		return false;
+	case TP_HKEY_EV_DFR_CHANGE_ROW:
+		adaptive_keyboard_change_row();
+		return true;
+	case TP_HKEY_EV_DFR_S_QUICKVIEW_ROW:
+		adaptive_keyboard_s_quickview_row();
+		return true;
 	case TP_HKEY_EV_THM_CSM_COMPLETED:
 		lapsensor_refresh();
 		/* If we are already accessing DYTC then skip dytc update */
