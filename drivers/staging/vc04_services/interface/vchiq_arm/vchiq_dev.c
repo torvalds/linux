@@ -1170,11 +1170,6 @@ static int vchiq_open(struct inode *inode, struct file *file)
 
 	dev_dbg(state->dev, "arm: vchiq open\n");
 
-	if (!state) {
-		dev_err(state->dev, "arm: vchiq has no connection to VideoCore\n");
-		return -ENOTCONN;
-	}
-
 	instance = kzalloc(sizeof(*instance), GFP_KERNEL);
 	if (!instance)
 		return -ENOMEM;
