@@ -190,7 +190,7 @@ static int sparx5_port_bridge_join(struct sparx5_port *port,
 	/* Remove standalone port entry */
 	sparx5_mact_forget(sparx5, ndev->dev_addr, 0);
 
-	/* Port enters in bridge mode therefor don't need to copy to CPU
+	/* Port enters in bridge mode therefore don't need to copy to CPU
 	 * frames for multicast in case the bridge is not requesting them
 	 */
 	__dev_mc_unsync(ndev, sparx5_mc_unsync);
