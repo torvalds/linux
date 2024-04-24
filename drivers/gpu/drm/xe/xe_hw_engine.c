@@ -18,6 +18,7 @@
 #include "xe_gt.h"
 #include "xe_gt_ccs_mode.h"
 #include "xe_gt_printk.h"
+#include "xe_gt_mcr.h"
 #include "xe_gt_topology.h"
 #include "xe_hw_fence.h"
 #include "xe_irq.h"
@@ -766,6 +767,57 @@ void xe_hw_engine_handle_irq(struct xe_hw_engine *hwe, u16 intr_vec)
 		xe_hw_fence_irq_run(hwe->fence_irq);
 }
 
+static bool
+is_slice_common_per_gslice(struct xe_device *xe)
+{
+	return GRAPHICS_VERx100(xe) >= 1255;
+}
+
+static void
+xe_hw_engine_snapshot_instdone_capture(struct xe_hw_engine *hwe,
+				       struct xe_hw_engine_snapshot *snapshot)
+{
+	struct xe_gt *gt = hwe->gt;
+	struct xe_device *xe = gt_to_xe(gt);
+	unsigned int dss;
+	u16 group, instance;
+
+	snapshot->reg.instdone.ring = hw_engine_mmio_read32(hwe, RING_INSTDONE(0));
+
+	if (snapshot->hwe->class != XE_ENGINE_CLASS_RENDER)
+		return;
+
+	if (is_slice_common_per_gslice(xe) == false) {
+		snapshot->reg.instdone.slice_common[0] =
+			xe_mmio_read32(gt, SC_INSTDONE);
+		snapshot->reg.instdone.slice_common_extra[0] =
+			xe_mmio_read32(gt, SC_INSTDONE_EXTRA);
+		snapshot->reg.instdone.slice_common_extra2[0] =
+			xe_mmio_read32(gt, SC_INSTDONE_EXTRA2);
+	} else {
+		for_each_geometry_dss(dss, gt, group, instance) {
+			snapshot->reg.instdone.slice_common[dss] =
+				xe_gt_mcr_unicast_read(gt, XEHPG_SC_INSTDONE, group, instance);
+			snapshot->reg.instdone.slice_common_extra[dss] =
+				xe_gt_mcr_unicast_read(gt, XEHPG_SC_INSTDONE_EXTRA, group, instance);
+			snapshot->reg.instdone.slice_common_extra2[dss] =
+				xe_gt_mcr_unicast_read(gt, XEHPG_SC_INSTDONE_EXTRA2, group, instance);
+		}
+	}
+
+	for_each_geometry_dss(dss, gt, group, instance) {
+		snapshot->reg.instdone.sampler[dss] =
+			xe_gt_mcr_unicast_read(gt, SAMPLER_INSTDONE, group, instance);
+		snapshot->reg.instdone.row[dss] =
+			xe_gt_mcr_unicast_read(gt, ROW_INSTDONE, group, instance);
+
+		if (GRAPHICS_VERx100(xe) >= 1255)
+			snapshot->reg.instdone.geom_svg[dss] =
+				xe_gt_mcr_unicast_read(gt, XEHPG_INSTDONE_GEOM_SVGUNIT,
+						       group, instance);
+	}
+}
+
 /**
  * xe_hw_engine_snapshot_capture - Take a quick snapshot of the HW Engine.
  * @hwe: Xe HW Engine.
@@ -780,6 +832,7 @@ struct xe_hw_engine_snapshot *
 xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 {
 	struct xe_hw_engine_snapshot *snapshot;
+	size_t len;
 	u64 val;
 
 	if (!xe_hw_engine_is_valid(hwe))
@@ -789,6 +842,28 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 
 	if (!snapshot)
 		return NULL;
+
+	/* Because XE_MAX_DSS_FUSE_BITS is defined in xe_gt_types.h and it
+	 * includes xe_hw_engine_types.h the length of this 3 registers can't be
+	 * set in struct xe_hw_engine_snapshot, so here doing additional
+	 * allocations.
+	 */
+	len = (XE_MAX_DSS_FUSE_BITS * sizeof(u32));
+	snapshot->reg.instdone.slice_common = kzalloc(len, GFP_ATOMIC);
+	snapshot->reg.instdone.slice_common_extra = kzalloc(len, GFP_ATOMIC);
+	snapshot->reg.instdone.slice_common_extra2 = kzalloc(len, GFP_ATOMIC);
+	snapshot->reg.instdone.sampler = kzalloc(len, GFP_ATOMIC);
+	snapshot->reg.instdone.row = kzalloc(len, GFP_ATOMIC);
+	snapshot->reg.instdone.geom_svg = kzalloc(len, GFP_ATOMIC);
+	if (!snapshot->reg.instdone.slice_common ||
+	    !snapshot->reg.instdone.slice_common_extra ||
+	    !snapshot->reg.instdone.slice_common_extra2 ||
+	    !snapshot->reg.instdone.sampler ||
+	    !snapshot->reg.instdone.row ||
+	    !snapshot->reg.instdone.geom_svg) {
+		xe_hw_engine_snapshot_free(snapshot);
+		return NULL;
+	}
 
 	snapshot->name = kstrdup(hwe->name, GFP_ATOMIC);
 	snapshot->hwe = hwe;
@@ -841,11 +916,55 @@ xe_hw_engine_snapshot_capture(struct xe_hw_engine *hwe)
 	snapshot->reg.ring_emr = hw_engine_mmio_read32(hwe, RING_EMR(0));
 	snapshot->reg.ring_eir = hw_engine_mmio_read32(hwe, RING_EIR(0));
 	snapshot->reg.ipehr = hw_engine_mmio_read32(hwe, RING_IPEHR(0));
+	xe_hw_engine_snapshot_instdone_capture(hwe, snapshot);
 
 	if (snapshot->hwe->class == XE_ENGINE_CLASS_COMPUTE)
 		snapshot->reg.rcu_mode = xe_mmio_read32(hwe->gt, RCU_MODE);
 
 	return snapshot;
+}
+
+static void
+xe_hw_engine_snapshot_instdone_print(struct xe_hw_engine_snapshot *snapshot, struct drm_printer *p)
+{
+	struct xe_gt *gt = snapshot->hwe->gt;
+	struct xe_device *xe = gt_to_xe(gt);
+	u16 group, instance;
+	unsigned int dss;
+
+	drm_printf(p, "\tRING_INSTDONE: 0x%08x\n", snapshot->reg.instdone.ring);
+
+	if (snapshot->hwe->class != XE_ENGINE_CLASS_RENDER)
+		return;
+
+	if (is_slice_common_per_gslice(xe) == false) {
+		drm_printf(p, "\tSC_INSTDONE[0]: 0x%08x\n",
+			   snapshot->reg.instdone.slice_common[0]);
+		drm_printf(p, "\tSC_INSTDONE_EXTRA[0]: 0x%08x\n",
+			   snapshot->reg.instdone.slice_common_extra[0]);
+		drm_printf(p, "\tSC_INSTDONE_EXTRA2[0]: 0x%08x\n",
+			   snapshot->reg.instdone.slice_common_extra2[0]);
+	} else {
+		for_each_geometry_dss(dss, gt, group, instance) {
+			drm_printf(p, "\tSC_INSTDONE[%u]: 0x%08x\n", dss,
+				   snapshot->reg.instdone.slice_common[dss]);
+			drm_printf(p, "\tSC_INSTDONE_EXTRA[%u]: 0x%08x\n", dss,
+				   snapshot->reg.instdone.slice_common_extra[dss]);
+			drm_printf(p, "\tSC_INSTDONE_EXTRA2[%u]: 0x%08x\n", dss,
+				   snapshot->reg.instdone.slice_common_extra2[dss]);
+		}
+	}
+
+	for_each_geometry_dss(dss, gt, group, instance) {
+		drm_printf(p, "\tSAMPLER_INSTDONE[%u]: 0x%08x\n", dss,
+			   snapshot->reg.instdone.sampler[dss]);
+		drm_printf(p, "\tROW_INSTDONE[%u]: 0x%08x\n", dss,
+			   snapshot->reg.instdone.row[dss]);
+
+		if (GRAPHICS_VERx100(xe) >= 1255)
+			drm_printf(p, "\tINSTDONE_GEOM_SVGUNIT[%u]: 0x%08x\n",
+				   dss, snapshot->reg.instdone.geom_svg[dss]);
+	}
 }
 
 /**
@@ -887,9 +1006,12 @@ void xe_hw_engine_snapshot_print(struct xe_hw_engine_snapshot *snapshot,
 	drm_printf(p, "\tBBADDR: 0x%016llx\n", snapshot->reg.ring_bbaddr);
 	drm_printf(p, "\tDMA_FADDR: 0x%016llx\n", snapshot->reg.ring_dma_fadd);
 	drm_printf(p, "\tIPEHR: 0x%08x\n", snapshot->reg.ipehr);
+	xe_hw_engine_snapshot_instdone_print(snapshot, p);
+
 	if (snapshot->hwe->class == XE_ENGINE_CLASS_COMPUTE)
 		drm_printf(p, "\tRCU_MODE: 0x%08x\n",
 			   snapshot->reg.rcu_mode);
+	drm_puts(p, "\n");
 }
 
 /**
@@ -904,6 +1026,12 @@ void xe_hw_engine_snapshot_free(struct xe_hw_engine_snapshot *snapshot)
 	if (!snapshot)
 		return;
 
+	kfree(snapshot->reg.instdone.slice_common);
+	kfree(snapshot->reg.instdone.slice_common_extra);
+	kfree(snapshot->reg.instdone.slice_common_extra2);
+	kfree(snapshot->reg.instdone.sampler);
+	kfree(snapshot->reg.instdone.row);
+	kfree(snapshot->reg.instdone.geom_svg);
 	kfree(snapshot->name);
 	kfree(snapshot);
 }

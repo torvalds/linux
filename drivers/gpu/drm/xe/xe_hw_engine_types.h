@@ -211,6 +211,22 @@ struct xe_hw_engine_snapshot {
 		u32 ipehr;
 		/** @reg.rcu_mode: RCU_MODE */
 		u32 rcu_mode;
+		struct {
+			/** @reg.instdone.ring: RING_INSTDONE */
+			u32 ring;
+			/** @reg.instdone.slice_common: SC_INSTDONE */
+			u32 *slice_common;
+			/** @reg.instdone.slice_common_extra: SC_INSTDONE_EXTRA */
+			u32 *slice_common_extra;
+			/** @reg.instdone.slice_common_extra2: SC_INSTDONE_EXTRA2 */
+			u32 *slice_common_extra2;
+			/** @reg.instdone.sampler: SAMPLER_INSTDONE */
+			u32 *sampler;
+			/** @reg.instdone.row: ROW_INSTDONE */
+			u32 *row;
+			/** @reg.instdone.geom_svg: INSTDONE_GEOM_SVGUNIT */
+			u32 *geom_svg;
+		} instdone;
 	} reg;
 };
 
