@@ -147,6 +147,31 @@ static void test_dummy_sleepable(void)
 	dummy_st_ops_success__destroy(skel);
 }
 
+/* dummy_st_ops.test_sleepable() parameter is not marked as nullable,
+ * thus bpf_prog_test_run_opts() below should be rejected as it tries
+ * to pass NULL for this parameter.
+ */
+static void test_dummy_sleepable_reject_null(void)
+{
+	__u64 args[1] = {0};
+	LIBBPF_OPTS(bpf_test_run_opts, attr,
+		.ctx_in = args,
+		.ctx_size_in = sizeof(args),
+	);
+	struct dummy_st_ops_success *skel;
+	int fd, err;
+
+	skel = dummy_st_ops_success__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "dummy_st_ops_load"))
+		return;
+
+	fd = bpf_program__fd(skel->progs.test_sleepable);
+	err = bpf_prog_test_run_opts(fd, &attr);
+	ASSERT_EQ(err, -EINVAL, "test_run");
+
+	dummy_st_ops_success__destroy(skel);
+}
+
 void test_dummy_st_ops(void)
 {
 	if (test__start_subtest("dummy_st_ops_attach"))
@@ -159,6 +184,8 @@ void test_dummy_st_ops(void)
 		test_dummy_multiple_args();
 	if (test__start_subtest("dummy_sleepable"))
 		test_dummy_sleepable();
+	if (test__start_subtest("dummy_sleepable_reject_null"))
+		test_dummy_sleepable_reject_null();
 
 	RUN_TESTS(dummy_st_ops_fail);
 }
