@@ -649,6 +649,7 @@ struct dmar_domain {
 			struct list_head s2_link;
 		};
 	};
+	struct intel_svm *svm;
 
 	struct iommu_domain domain;	/* generic domain data structure for
 					   iommu core */
@@ -1149,23 +1150,13 @@ int intel_svm_finish_prq(struct intel_iommu *iommu);
 void intel_svm_page_response(struct device *dev, struct iopf_fault *evt,
 			     struct iommu_page_response *msg);
 struct iommu_domain *intel_svm_domain_alloc(void);
-void intel_svm_remove_dev_pasid(struct device *dev, ioasid_t pasid);
+void intel_svm_remove_dev_pasid(struct iommu_domain *domain);
 void intel_drain_pasid_prq(struct device *dev, u32 pasid);
-
-struct intel_svm_dev {
-	struct list_head list;
-	struct rcu_head rcu;
-	struct device *dev;
-	struct intel_iommu *iommu;
-	u16 did;
-	u16 sid, qdep;
-};
 
 struct intel_svm {
 	struct mmu_notifier notifier;
 	struct mm_struct *mm;
 	u32 pasid;
-	struct list_head devs;
 	struct dmar_domain *domain;
 };
 #else
@@ -1176,7 +1167,7 @@ static inline struct iommu_domain *intel_svm_domain_alloc(void)
 	return NULL;
 }
 
-static inline void intel_svm_remove_dev_pasid(struct device *dev, ioasid_t pasid)
+static inline void intel_svm_remove_dev_pasid(struct iommu_domain *domain)
 {
 }
 #endif
