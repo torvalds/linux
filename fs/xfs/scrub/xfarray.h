@@ -127,6 +127,9 @@ struct xfarray_sortinfo {
 	/* XFARRAY_SORT_* flags; see below. */
 	unsigned int		flags;
 
+	/* next time we want to cond_resched() */
+	struct xchk_relax	relax;
+
 	/* Cache a folio here for faster scanning for pivots */
 	struct folio		*folio;
 

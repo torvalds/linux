@@ -1055,30 +1055,6 @@ out_free:
 	return error;
 }
 
-STATIC int
-xfs_ioc_scrub_metadata(
-	struct file			*file,
-	void				__user *arg)
-{
-	struct xfs_scrub_metadata	scrub;
-	int				error;
-
-	if (!capable(CAP_SYS_ADMIN))
-		return -EPERM;
-
-	if (copy_from_user(&scrub, arg, sizeof(scrub)))
-		return -EFAULT;
-
-	error = xfs_scrub_metadata(file, &scrub);
-	if (error)
-		return error;
-
-	if (copy_to_user(arg, &scrub, sizeof(scrub)))
-		return -EFAULT;
-
-	return 0;
-}
-
 int
 xfs_ioc_swapext(
 	xfs_swapext_t	*sxp)
@@ -1437,6 +1413,8 @@ xfs_file_ioctl(
 	case FS_IOC_GETFSMAP:
 		return xfs_ioc_getfsmap(ip, arg);
 
+	case XFS_IOC_SCRUBV_METADATA:
+		return xfs_ioc_scrubv_metadata(filp, arg);
 	case XFS_IOC_SCRUB_METADATA:
 		return xfs_ioc_scrub_metadata(filp, arg);
 
