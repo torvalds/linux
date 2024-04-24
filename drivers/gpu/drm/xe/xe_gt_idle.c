@@ -12,6 +12,7 @@
 #include "xe_guc_pc.h"
 #include "regs/xe_gt_regs.h"
 #include "xe_mmio.h"
+#include "xe_pm.h"
 
 /**
  * DOC: Xe GT Idle
@@ -38,6 +39,15 @@ static struct xe_gt *gtidle_to_gt(struct xe_gt_idle *gtidle)
 static struct xe_guc_pc *gtidle_to_pc(struct xe_gt_idle *gtidle)
 {
 	return &gtidle_to_gt(gtidle)->uc.guc.pc;
+}
+
+static struct xe_device *
+pc_to_xe(struct xe_guc_pc *pc)
+{
+	struct xe_guc *guc = container_of(pc, struct xe_guc, pc);
+	struct xe_gt *gt = container_of(guc, struct xe_gt, uc.guc);
+
+	return gt_to_xe(gt);
 }
 
 static const char *gt_idle_state_to_string(enum xe_gt_idle_state state)
@@ -86,8 +96,14 @@ static ssize_t name_show(struct device *dev,
 			 struct device_attribute *attr, char *buff)
 {
 	struct xe_gt_idle *gtidle = dev_to_gtidle(dev);
+	struct xe_guc_pc *pc = gtidle_to_pc(gtidle);
+	ssize_t ret;
 
-	return sysfs_emit(buff, "%s\n", gtidle->name);
+	xe_pm_runtime_get(pc_to_xe(pc));
+	ret = sysfs_emit(buff, "%s\n", gtidle->name);
+	xe_pm_runtime_put(pc_to_xe(pc));
+
+	return ret;
 }
 static DEVICE_ATTR_RO(name);
 
@@ -98,7 +114,9 @@ static ssize_t idle_status_show(struct device *dev,
 	struct xe_guc_pc *pc = gtidle_to_pc(gtidle);
 	enum xe_gt_idle_state state;
 
+	xe_pm_runtime_get(pc_to_xe(pc));
 	state = gtidle->idle_status(pc);
+	xe_pm_runtime_put(pc_to_xe(pc));
 
 	return sysfs_emit(buff, "%s\n", gt_idle_state_to_string(state));
 }
@@ -111,7 +129,10 @@ static ssize_t idle_residency_ms_show(struct device *dev,
 	struct xe_guc_pc *pc = gtidle_to_pc(gtidle);
 	u64 residency;
 
+	xe_pm_runtime_get(pc_to_xe(pc));
 	residency = gtidle->idle_residency(pc);
+	xe_pm_runtime_put(pc_to_xe(pc));
+
 	return sysfs_emit(buff, "%llu\n", get_residency_ms(gtidle, residency));
 }
 static DEVICE_ATTR_RO(idle_residency_ms);
@@ -131,7 +152,7 @@ static void gt_idle_sysfs_fini(struct drm_device *drm, void *arg)
 	kobject_put(kobj);
 }
 
-void xe_gt_idle_sysfs_init(struct xe_gt_idle *gtidle)
+int xe_gt_idle_sysfs_init(struct xe_gt_idle *gtidle)
 {
 	struct xe_gt *gt = gtidle_to_gt(gtidle);
 	struct xe_device *xe = gt_to_xe(gt);
@@ -139,16 +160,14 @@ void xe_gt_idle_sysfs_init(struct xe_gt_idle *gtidle)
 	int err;
 
 	kobj = kobject_create_and_add("gtidle", gt->sysfs);
-	if (!kobj) {
-		drm_warn(&xe->drm, "%s failed, err: %d\n", __func__, -ENOMEM);
-		return;
-	}
+	if (!kobj)
+		return -ENOMEM;
 
 	if (xe_gt_is_media_type(gt)) {
-		sprintf(gtidle->name, "gt%d-mc", gt->info.id);
+		snprintf(gtidle->name, sizeof(gtidle->name), "gt%d-mc", gt->info.id);
 		gtidle->idle_residency = xe_guc_pc_mc6_residency;
 	} else {
-		sprintf(gtidle->name, "gt%d-rc", gt->info.id);
+		snprintf(gtidle->name, sizeof(gtidle->name), "gt%d-rc", gt->info.id);
 		gtidle->idle_residency = xe_guc_pc_rc6_residency;
 	}
 
@@ -159,14 +178,10 @@ void xe_gt_idle_sysfs_init(struct xe_gt_idle *gtidle)
 	err = sysfs_create_files(kobj, gt_idle_attrs);
 	if (err) {
 		kobject_put(kobj);
-		drm_warn(&xe->drm, "failed to register gtidle sysfs, err: %d\n", err);
-		return;
+		return err;
 	}
 
-	err = drmm_add_action_or_reset(&xe->drm, gt_idle_sysfs_fini, kobj);
-	if (err)
-		drm_warn(&xe->drm, "%s: drmm_add_action_or_reset failed, err: %d\n",
-			 __func__, err);
+	return drmm_add_action_or_reset(&xe->drm, gt_idle_sysfs_fini, kobj);
 }
 
 void xe_gt_idle_enable_c6(struct xe_gt *gt)

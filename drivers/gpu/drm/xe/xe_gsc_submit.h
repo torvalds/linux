@@ -28,4 +28,5 @@ int xe_gsc_read_out_header(struct xe_device *xe,
 int xe_gsc_pkt_submit_kernel(struct xe_gsc *gsc, u64 addr_in, u32 size_in,
 			     u64 addr_out, u32 size_out);
 
+u64 xe_gsc_create_host_session_id(void);
 #endif

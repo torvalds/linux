@@ -178,13 +178,6 @@ struct xe_vm {
 	struct list_head rebind_list;
 
 	/**
-	 * @destroy_work: worker to destroy VM, needed as a dma_fence signaling
-	 * from an irq context can be last put and the destroy needs to be able
-	 * to sleep.
-	 */
-	struct work_struct destroy_work;
-
-	/**
 	 * @rftree: range fence tree to track updates to page table structure.
 	 * Used to implement conflict tracking between independent bind engines.
 	 */
