@@ -11,8 +11,17 @@ int BPF_PROG(test_1, struct bpf_dummy_ops_state *state)
 {
 	int ret;
 
-	if (!state)
-		return 0xf2f3f4f5;
+	/* Check that 'state' nullable status is detected correctly.
+	 * If 'state' argument would be assumed non-null by verifier
+	 * the code below would be deleted as dead (which it shouldn't).
+	 * Hide it from the compiler behind 'asm' block to avoid
+	 * unnecessary optimizations.
+	 */
+	asm volatile (
+		"if %[state] != 0 goto +2;"
+		"r0 = 0xf2f3f4f5;"
+		"exit;"
+	::[state]"p"(state));
 
 	ret = state->val;
 	state->val = 0x5a;
