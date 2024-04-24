@@ -3754,14 +3754,12 @@ static bool hotkey_notify_extended_hotkey(const u32 hkey)
 	return false;
 }
 
+/* 0x1000-0x1FFF: key presses */
 static bool hotkey_notify_hotkey(const u32 hkey,
 				 bool *send_acpi_ev,
 				 bool *ignore_acpi_ev)
 {
-	/* 0x1000-0x1FFF: key presses */
 	unsigned int scancode = hkey & 0xfff;
-	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
 
 	/*
 	 * Original events are in the 0x10XX range, the adaptive keyboard
@@ -3794,14 +3792,11 @@ static bool hotkey_notify_hotkey(const u32 hkey,
 	return false;
 }
 
+/* 0x2000-0x2FFF: Wakeup reason */
 static bool hotkey_notify_wakeup(const u32 hkey,
 				 bool *send_acpi_ev,
 				 bool *ignore_acpi_ev)
 {
-	/* 0x2000-0x2FFF: Wakeup reason */
-	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
-
 	switch (hkey) {
 	case TP_HKEY_EV_WKUP_S3_UNDOCK: /* suspend, undock */
 	case TP_HKEY_EV_WKUP_S4_UNDOCK: /* hibernation, undock */
@@ -3834,14 +3829,11 @@ static bool hotkey_notify_wakeup(const u32 hkey,
 	return true;
 }
 
+/* 0x4000-0x4FFF: dock-related events */
 static bool hotkey_notify_dockevent(const u32 hkey,
 				 bool *send_acpi_ev,
 				 bool *ignore_acpi_ev)
 {
-	/* 0x4000-0x4FFF: dock-related events */
-	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
-
 	switch (hkey) {
 	case TP_HKEY_EV_UNDOCK_ACK:
 		/* ACPI undock operation completed after wakeup */
@@ -3879,14 +3871,11 @@ static bool hotkey_notify_dockevent(const u32 hkey,
 	}
 }
 
+/* 0x5000-0x5FFF: human interface helpers */
 static bool hotkey_notify_usrevent(const u32 hkey,
 				 bool *send_acpi_ev,
 				 bool *ignore_acpi_ev)
 {
-	/* 0x5000-0x5FFF: human interface helpers */
-	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
-
 	switch (hkey) {
 	case TP_HKEY_EV_PEN_INSERTED:  /* X61t: tablet pen inserted into bay */
 	case TP_HKEY_EV_PEN_REMOVED:   /* X61t: tablet pen removed from bay */
@@ -3914,14 +3903,11 @@ static bool hotkey_notify_usrevent(const u32 hkey,
 static void thermal_dump_all_sensors(void);
 static void palmsensor_refresh(void);
 
+/* 0x6000-0x6FFF: thermal alarms/notices and keyboard events */
 static bool hotkey_notify_6xxx(const u32 hkey,
 				 bool *send_acpi_ev,
 				 bool *ignore_acpi_ev)
 {
-	/* 0x6000-0x6FFF: thermal alarms/notices and keyboard events */
-	*send_acpi_ev = true;
-	*ignore_acpi_ev = false;
-
 	switch (hkey) {
 	case TP_HKEY_EV_THM_TABLE_CHANGED:
 		pr_debug("EC reports: Thermal Table has changed\n");
