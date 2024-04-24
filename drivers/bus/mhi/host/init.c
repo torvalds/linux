@@ -541,11 +541,9 @@ int mhi_init_mmio(struct mhi_controller *mhi_cntrl)
 	dev_dbg(dev, "Initializing MHI registers\n");
 
 	/* Read channel db offset */
-	ret = mhi_read_reg(mhi_cntrl, base, CHDBOFF, &val);
-	if (ret) {
-		dev_err(dev, "Unable to read CHDBOFF register\n");
-		return -EIO;
-	}
+	ret = mhi_get_channel_doorbell_offset(mhi_cntrl, &val);
+	if (ret)
+		return ret;
 
 	if (val >= mhi_cntrl->reg_len - (8 * MHI_DEV_WAKE_DB)) {
 		dev_err(dev, "CHDB offset: 0x%x is out of range: 0x%zx\n",
