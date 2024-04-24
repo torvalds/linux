@@ -1919,7 +1919,6 @@ static u32 hotkey_acpi_mask;		/* events enabled in firmware */
 static u16 *hotkey_keycode_map;
 
 static bool tpacpi_driver_event(const unsigned int hkey_event);
-static void hotkey_driver_event(const unsigned int scancode);
 static void hotkey_poll_setup(const bool may_warn);
 
 /* HKEY.MHKG() return bits */
@@ -2275,20 +2274,14 @@ static void tpacpi_input_send_key(const unsigned int scancode)
 	}
 }
 
-/* Do NOT call without validating scancode first */
-static void tpacpi_input_send_key_masked(const unsigned int scancode)
-{
-	hotkey_driver_event(scancode);
-	tpacpi_input_send_key(scancode);
-}
-
 #ifdef CONFIG_THINKPAD_ACPI_HOTKEY_POLL
 static struct tp_acpi_drv_struct ibm_hotkey_acpidriver;
 
 /* Do NOT call without validating scancode first */
 static void tpacpi_hotkey_send_key(unsigned int scancode)
 {
-	tpacpi_input_send_key_masked(scancode);
+	tpacpi_driver_event(TP_HKEY_EV_ORIG_KEY_START + scancode);
+	tpacpi_input_send_key(scancode);
 }
 
 static void hotkey_read_nvram(struct tp_nvram_state *n, const u32 m)
@@ -11166,11 +11159,6 @@ static bool tpacpi_driver_event(const unsigned int hkey_event)
 	}
 
 	return false;
-}
-
-static void hotkey_driver_event(const unsigned int scancode)
-{
-	tpacpi_driver_event(TP_HKEY_EV_ORIG_KEY_START + scancode);
 }
 
 /* --------------------------------------------------------------------- */
