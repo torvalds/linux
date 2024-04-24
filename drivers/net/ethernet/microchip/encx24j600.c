@@ -569,7 +569,7 @@ static void encx24j600_dump_config(struct encx24j600_priv *priv,
 	pr_info(DRV_NAME " MABBIPG: %04X\n", encx24j600_read_reg(priv,
 								 MABBIPG));
 
-	/* PHY configuation */
+	/* PHY configuration */
 	pr_info(DRV_NAME " PHCON1:  %04X\n", encx24j600_read_phy(priv, PHCON1));
 	pr_info(DRV_NAME " PHCON2:  %04X\n", encx24j600_read_phy(priv, PHCON2));
 	pr_info(DRV_NAME " PHANA:   %04X\n", encx24j600_read_phy(priv, PHANA));
@@ -837,7 +837,9 @@ static void encx24j600_hw_tx(struct encx24j600_priv *priv)
 		dump_packet("TX", priv->tx_skb->len, priv->tx_skb->data);
 
 	if (encx24j600_read_reg(priv, EIR) & TXABTIF)
-		/* Last transmition aborted due to error. Reset TX interface */
+		/* Last transmission aborted due to error.
+		 * Reset TX interface
+		 */
 		encx24j600_reset_hw_tx(priv);
 
 	/* Clear the TXIF flag if were previously set */
