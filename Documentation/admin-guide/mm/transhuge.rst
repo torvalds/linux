@@ -278,7 +278,8 @@ collapsed, resulting fewer pages being collapsed into
 THPs, and lower memory access performance.
 
 ``max_ptes_shared`` specifies how many pages can be shared across multiple
-processes. Exceeding the number would block the collapse::
+processes. khugepaged might treat pages of THPs as shared if any page of
+that THP is shared. Exceeding the number would block the collapse::
 
 	/sys/kernel/mm/transparent_hugepage/khugepaged/max_ptes_shared
 
