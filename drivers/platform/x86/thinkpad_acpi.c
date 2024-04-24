@@ -3745,6 +3745,15 @@ static bool hotkey_notify_hotkey(const u32 hkey, bool *send_acpi_ev)
 {
 	unsigned int scancode = hkey - TP_HKEY_EV_ORIG_KEY_START;
 
+	/* Never send ACPI netlink events for original hotkeys (hkey: 0x1001 - 0x1020) */
+	if (hkey >= TP_HKEY_EV_ORIG_KEY_START && hkey <= TP_HKEY_EV_ORIG_KEY_END) {
+		*send_acpi_ev = false;
+
+		/* Original hotkeys may be polled from NVRAM instead */
+		if (hotkey_source_mask & (1 << scancode))
+			return true;
+	}
+
 	/*
 	 * Original events are in the 0x10XX range, the adaptive keyboard
 	 * found in 2014 X1 Carbon emits events are of 0x11XX. In 2017
@@ -3754,10 +3763,7 @@ static bool hotkey_notify_hotkey(const u32 hkey, bool *send_acpi_ev)
 	case 0:
 		if (hkey >= TP_HKEY_EV_ORIG_KEY_START &&
 		    hkey <= TP_HKEY_EV_ORIG_KEY_END) {
-			if (!(hotkey_source_mask & (1 << scancode)))
-				tpacpi_input_send_key_masked(scancode);
-
-			*send_acpi_ev = false;
+			tpacpi_input_send_key_masked(scancode);
 			return true;
 		}
 		break;
