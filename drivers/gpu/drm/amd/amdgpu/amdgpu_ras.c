@@ -1250,6 +1250,10 @@ int amdgpu_ras_bind_aca(struct amdgpu_device *adev, enum amdgpu_ras_block blk,
 {
 	struct ras_manager *obj;
 
+	/* in resume phase, no need to create aca fs node */
+	if (adev->in_suspend || amdgpu_in_reset(adev))
+		return 0;
+
 	obj = get_ras_manager(adev, blk);
 	if (!obj)
 		return -EINVAL;
