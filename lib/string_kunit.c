@@ -524,6 +524,59 @@ static void string_test_strlcat(struct kunit *test)
 	KUNIT_EXPECT_STREQ(test, dest, "fourABE");
 }
 
+static void string_test_strtomem(struct kunit *test)
+{
+	static const char input[sizeof(unsigned long)] = "hi";
+	static const char truncate[] = "this is too long";
+	struct {
+		unsigned long canary1;
+		unsigned char output[sizeof(unsigned long)] __nonstring;
+		unsigned long canary2;
+	} wrap;
+
+	memset(&wrap, 0xFF, sizeof(wrap));
+	KUNIT_EXPECT_EQ_MSG(test, wrap.canary1, ULONG_MAX,
+			    "bad initial canary value");
+	KUNIT_EXPECT_EQ_MSG(test, wrap.canary2, ULONG_MAX,
+			    "bad initial canary value");
+
+	/* Check unpadded copy leaves surroundings untouched. */
+	strtomem(wrap.output, input);
+	KUNIT_EXPECT_EQ(test, wrap.canary1, ULONG_MAX);
+	KUNIT_EXPECT_EQ(test, wrap.output[0], input[0]);
+	KUNIT_EXPECT_EQ(test, wrap.output[1], input[1]);
+	for (size_t i = 2; i < sizeof(wrap.output); i++)
+		KUNIT_EXPECT_EQ(test, wrap.output[i], 0xFF);
+	KUNIT_EXPECT_EQ(test, wrap.canary2, ULONG_MAX);
+
+	/* Check truncated copy leaves surroundings untouched. */
+	memset(&wrap, 0xFF, sizeof(wrap));
+	strtomem(wrap.output, truncate);
+	KUNIT_EXPECT_EQ(test, wrap.canary1, ULONG_MAX);
+	for (size_t i = 0; i < sizeof(wrap.output); i++)
+		KUNIT_EXPECT_EQ(test, wrap.output[i], truncate[i]);
+	KUNIT_EXPECT_EQ(test, wrap.canary2, ULONG_MAX);
+
+	/* Check padded copy leaves only string padded. */
+	memset(&wrap, 0xFF, sizeof(wrap));
+	strtomem_pad(wrap.output, input, 0xAA);
+	KUNIT_EXPECT_EQ(test, wrap.canary1, ULONG_MAX);
+	KUNIT_EXPECT_EQ(test, wrap.output[0], input[0]);
+	KUNIT_EXPECT_EQ(test, wrap.output[1], input[1]);
+	for (size_t i = 2; i < sizeof(wrap.output); i++)
+		KUNIT_EXPECT_EQ(test, wrap.output[i], 0xAA);
+	KUNIT_EXPECT_EQ(test, wrap.canary2, ULONG_MAX);
+
+	/* Check truncated padded copy has no padding. */
+	memset(&wrap, 0xFF, sizeof(wrap));
+	strtomem(wrap.output, truncate);
+	KUNIT_EXPECT_EQ(test, wrap.canary1, ULONG_MAX);
+	for (size_t i = 0; i < sizeof(wrap.output); i++)
+		KUNIT_EXPECT_EQ(test, wrap.output[i], truncate[i]);
+	KUNIT_EXPECT_EQ(test, wrap.canary2, ULONG_MAX);
+}
+
+
 static void string_test_memtostr(struct kunit *test)
 {
 	char nonstring[7] = { 'a', 'b', 'c', 'd', 'e', 'f', 'g' };
@@ -568,6 +621,7 @@ static struct kunit_case string_test_cases[] = {
 	KUNIT_CASE(string_test_strcat),
 	KUNIT_CASE(string_test_strncat),
 	KUNIT_CASE(string_test_strlcat),
+	KUNIT_CASE(string_test_strtomem),
 	KUNIT_CASE(string_test_memtostr),
 	{}
 };
