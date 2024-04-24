@@ -1146,7 +1146,7 @@ static void handle_notif_callbacks(u64 bitmap, enum notify_type type)
 	}
 }
 
-static void notif_pcpu_irq_work_fn(struct work_struct *work)
+static void notif_get_and_handle(void *unused)
 {
 	int rc;
 	struct ffa_notify_bitmaps bitmaps;
@@ -1169,10 +1169,17 @@ ffa_self_notif_handle(u16 vcpu, bool is_per_vcpu, void *cb_data)
 	struct ffa_drv_info *info = cb_data;
 
 	if (!is_per_vcpu)
-		notif_pcpu_irq_work_fn(&info->notif_pcpu_work);
+		notif_get_and_handle(info);
 	else
-		queue_work_on(vcpu, info->notif_pcpu_wq,
-			      &info->notif_pcpu_work);
+		smp_call_function_single(vcpu, notif_get_and_handle, info, 0);
+}
+
+static void notif_pcpu_irq_work_fn(struct work_struct *work)
+{
+	struct ffa_drv_info *info = container_of(work, struct ffa_drv_info,
+						 notif_pcpu_work);
+
+	ffa_self_notif_handle(smp_processor_id(), true, info);
 }
 
 static const struct ffa_info_ops ffa_drv_info_ops = {
@@ -1345,8 +1352,10 @@ static irqreturn_t ffa_sched_recv_irq_handler(int irq, void *irq_data)
 static irqreturn_t notif_pend_irq_handler(int irq, void *irq_data)
 {
 	struct ffa_pcpu_irq *pcpu = irq_data;
+	struct ffa_drv_info *info = pcpu->info;
 
-	ffa_self_notif_handle(smp_processor_id(), true, pcpu->info);
+	queue_work_on(smp_processor_id(), info->notif_pcpu_wq,
+		      &info->notif_pcpu_work);
 
 	return IRQ_HANDLED;
 }
