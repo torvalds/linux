@@ -803,7 +803,7 @@ static int lan743x_mdiobus_read_c22(struct mii_bus *bus, int phy_id, int index)
 	u32 val, mii_access;
 	int ret;
 
-	/* comfirm MII not busy */
+	/* confirm MII not busy */
 	ret = lan743x_mac_mii_wait_till_not_busy(adapter);
 	if (ret < 0)
 		return ret;
@@ -868,7 +868,7 @@ static int lan743x_mdiobus_read_c45(struct mii_bus *bus, int phy_id,
 	u32 mmd_access;
 	int ret;
 
-	/* comfirm MII not busy */
+	/* confirm MII not busy */
 	ret = lan743x_mac_mii_wait_till_not_busy(adapter);
 	if (ret < 0)
 		return ret;
