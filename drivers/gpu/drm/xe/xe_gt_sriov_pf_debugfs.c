@@ -18,6 +18,7 @@
 #include "xe_gt_sriov_pf_debugfs.h"
 #include "xe_gt_sriov_pf_helpers.h"
 #include "xe_gt_sriov_pf_policy.h"
+#include "xe_gt_sriov_pf_service.h"
 #include "xe_pm.h"
 
 /*
@@ -52,6 +53,8 @@ static unsigned int extract_vfid(struct dentry *d)
  *      │   │   ├── ggtt_provisioned
  *      │   │   ├── contexts_provisioned
  *      │   │   ├── doorbells_provisioned
+ *      │   │   ├── runtime_registers
+ *      │   │   ├── negotiated_versions
  */
 
 static const struct drm_info_list pf_info[] = {
@@ -74,6 +77,16 @@ static const struct drm_info_list pf_info[] = {
 		"doorbells_provisioned",
 		.show = xe_gt_debugfs_simple_show,
 		.data = xe_gt_sriov_pf_config_print_dbs,
+	},
+	{
+		"runtime_registers",
+		.show = xe_gt_debugfs_simple_show,
+		.data = xe_gt_sriov_pf_service_print_runtime,
+	},
+	{
+		"negotiated_versions",
+		.show = xe_gt_debugfs_simple_show,
+		.data = xe_gt_sriov_pf_service_print_version,
 	},
 };
 
