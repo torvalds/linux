@@ -401,8 +401,135 @@ timerlat_print_summary(struct timerlat_hist_params *params,
 	trace_seq_reset(trace->seq);
 }
 
+static void
+timerlat_print_stats_all(struct timerlat_hist_params *params,
+			 struct trace_instance *trace,
+			 struct timerlat_hist_data *data)
+{
+	struct timerlat_hist_cpu *cpu_data;
+	struct timerlat_hist_cpu sum;
+	int cpu;
+
+	if (params->no_summary)
+		return;
+
+	memset(&sum, 0, sizeof(sum));
+	sum.min_irq = ~0;
+	sum.min_thread = ~0;
+	sum.min_user = ~0;
+
+	for (cpu = 0; cpu < data->nr_cpus; cpu++) {
+		if (params->cpus && !CPU_ISSET(cpu, &params->monitored_cpus))
+			continue;
+
+		if (!data->hist[cpu].irq_count && !data->hist[cpu].thread_count)
+			continue;
+
+		cpu_data = &data->hist[cpu];
+
+		sum.irq_count += cpu_data->irq_count;
+		update_min(&sum.min_irq, &cpu_data->min_irq);
+		update_sum(&sum.sum_irq, &cpu_data->sum_irq);
+		update_max(&sum.max_irq, &cpu_data->max_irq);
+
+		sum.thread_count += cpu_data->thread_count;
+		update_min(&sum.min_thread, &cpu_data->min_thread);
+		update_sum(&sum.sum_thread, &cpu_data->sum_thread);
+		update_max(&sum.max_thread, &cpu_data->max_thread);
+
+		sum.user_count += cpu_data->user_count;
+		update_min(&sum.min_user, &cpu_data->min_user);
+		update_sum(&sum.sum_user, &cpu_data->sum_user);
+		update_max(&sum.max_user, &cpu_data->max_user);
+	}
+
+	if (!params->no_index)
+		trace_seq_printf(trace->seq, "ALL:  ");
+
+	if (!params->no_irq)
+		trace_seq_printf(trace->seq, "      IRQ");
+
+	if (!params->no_thread)
+		trace_seq_printf(trace->seq, "       Thr");
+
+	if (params->user_hist)
+		trace_seq_printf(trace->seq, "       Usr");
+
+	trace_seq_printf(trace->seq, "\n");
+
+	if (!params->no_index)
+		trace_seq_printf(trace->seq, "count:");
+
+	if (!params->no_irq)
+		trace_seq_printf(trace->seq, "%9d ",
+				 sum.irq_count);
+
+	if (!params->no_thread)
+		trace_seq_printf(trace->seq, "%9d ",
+				 sum.thread_count);
+
+	if (params->user_hist)
+		trace_seq_printf(trace->seq, "%9d ",
+				 sum.user_count);
+
+	trace_seq_printf(trace->seq, "\n");
+
+	if (!params->no_index)
+		trace_seq_printf(trace->seq, "min:  ");
+
+	if (!params->no_irq)
+		trace_seq_printf(trace->seq, "%9llu ",
+				 sum.min_irq);
+
+	if (!params->no_thread)
+		trace_seq_printf(trace->seq, "%9llu ",
+				 sum.min_thread);
+
+	if (params->user_hist)
+		trace_seq_printf(trace->seq, "%9llu ",
+				 sum.min_user);
+
+	trace_seq_printf(trace->seq, "\n");
+
+	if (!params->no_index)
+		trace_seq_printf(trace->seq, "avg:  ");
+
+	if (!params->no_irq)
+		trace_seq_printf(trace->seq, "%9llu ",
+				 sum.sum_irq / sum.irq_count);
+
+	if (!params->no_thread)
+		trace_seq_printf(trace->seq, "%9llu ",
+				 sum.sum_thread / sum.thread_count);
+
+	if (params->user_hist)
+		trace_seq_printf(trace->seq, "%9llu ",
+				 sum.sum_user / sum.user_count);
+
+	trace_seq_printf(trace->seq, "\n");
+
+	if (!params->no_index)
+		trace_seq_printf(trace->seq, "max:  ");
+
+	if (!params->no_irq)
+		trace_seq_printf(trace->seq, "%9llu ",
+				 sum.max_irq);
+
+	if (!params->no_thread)
+		trace_seq_printf(trace->seq, "%9llu ",
+				 sum.max_thread);
+
+	if (params->user_hist)
+		trace_seq_printf(trace->seq, "%9llu ",
+				 sum.max_user);
+
+	trace_seq_printf(trace->seq, "\n");
+	trace_seq_do_printf(trace->seq);
+	trace_seq_reset(trace->seq);
+}
+
 /*
- * timerlat_print_stats - print data for all CPUs
+ * timerlat_print_stats - print data for each CPUs
  */
 static void
 timerlat_print_stats(struct timerlat_hist_params *params, struct osnoise_tool *tool)
@@ -485,6 +612,7 @@ timerlat_print_stats(struct timerlat_hist_params *params, struct osnoise_tool *t
 	trace_seq_reset(trace->seq);
 
 	timerlat_print_summary(params, trace, data);
+	timerlat_print_stats_all(params, trace, data);
 }
 
 /*
