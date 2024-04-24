@@ -63,6 +63,8 @@
   nf_unregister_net_hooks
   nr_running
   of_css
+  osq_lock
+  osq_unlock
   __page_file_index
   __page_mapcount
   pm_get_active_wakeup_sources
@@ -169,6 +171,8 @@
   __traceiter_android_vh_rtmutex_waiter_prio
   __traceiter_android_vh_rt_mutex_steal
   __traceiter_android_vh_rwsem_can_spin_on_owner
+  __traceiter_android_vh_rwsem_direct_rsteal
+  __traceiter_android_vh_rwsem_optimistic_rspin
   __traceiter_android_vh_rwsem_opt_spin_finish
   __traceiter_android_vh_rwsem_opt_spin_start
   __traceiter_android_vh_rwsem_wake_finish
@@ -278,6 +282,8 @@
   __tracepoint_android_vh_rtmutex_waiter_prio
   __tracepoint_android_vh_rt_mutex_steal
   __tracepoint_android_vh_rwsem_can_spin_on_owner
+  __tracepoint_android_vh_rwsem_direct_rsteal
+  __tracepoint_android_vh_rwsem_optimistic_rspin
   __tracepoint_android_vh_rwsem_opt_spin_finish
   __tracepoint_android_vh_rwsem_opt_spin_start
   __tracepoint_android_vh_rwsem_wake_finish
