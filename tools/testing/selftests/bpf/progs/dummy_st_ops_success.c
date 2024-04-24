@@ -34,7 +34,7 @@ SEC("struct_ops/test_2")
 int BPF_PROG(test_2, struct bpf_dummy_ops_state *state, int a1, unsigned short a2,
 	     char a3, unsigned long a4)
 {
-	test_2_args[0] = (unsigned long)state;
+	test_2_args[0] = state->val;
 	test_2_args[1] = a1;
 	test_2_args[2] = a2;
 	test_2_args[3] = a3;
