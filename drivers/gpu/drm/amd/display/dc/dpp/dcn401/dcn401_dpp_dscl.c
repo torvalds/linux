@@ -294,7 +294,7 @@ static void dpp401_dscl_set_scl_filter(
 	const uint16_t *filter_h_c = NULL;
 	const uint16_t *filter_v_c = NULL;
 
-	if (dpp->base.ctx->dc->config.use_spl)  {
+	if ((dpp->base.ctx->dc->config.use_spl) && (!dpp->base.ctx->dc->debug.disable_spl)) {
 		filter_h = scl_data->dscl_prog_data.filter_h;
 		filter_v = scl_data->dscl_prog_data.filter_v;
 		filter_h_c = scl_data->dscl_prog_data.filter_h_c;
@@ -523,7 +523,7 @@ static void dpp401_dscl_set_manual_ratio_init(
 {
 	uint32_t init_frac = 0;
 	uint32_t init_int = 0;
-	if (dpp->base.ctx->dc->config.use_spl)  {
+	if ((dpp->base.ctx->dc->config.use_spl) && (!dpp->base.ctx->dc->debug.disable_spl)) {
 		REG_SET(SCL_HORZ_FILTER_SCALE_RATIO, 0,
 			SCL_H_SCALE_RATIO, data->dscl_prog_data.ratios.h_scale_ratio);
 
@@ -669,7 +669,7 @@ static void dpp401_dscl_program_easf(struct dpp *dpp_base, const struct scaler_d
 			SCL_SC_MATRIX_MODE, scl_data->dscl_prog_data.easf_matrix_mode);
 	REG_UPDATE(DSCL_SC_MODE,
 			SCL_SC_LTONL_EN, scl_data->dscl_prog_data.easf_ltonl_en);
-	// DSCL_EASF_V_MODE
+	/* DSCL_EASF_V_MODE */
 	REG_UPDATE(DSCL_EASF_V_MODE,
 			SCL_EASF_V_EN, scl_data->dscl_prog_data.easf_v_en);
 	REG_UPDATE(DSCL_EASF_V_MODE,
@@ -716,7 +716,87 @@ static void dpp401_dscl_program_easf(struct dpp *dpp_base, const struct scaler_d
 			SCL_EASF_V_BF_MINA, scl_data->dscl_prog_data.easf_v_bf_mina);
 	REG_UPDATE(DSCL_EASF_V_BF_FINAL_MAX_MIN,
 			SCL_EASF_V_BF_MINB, scl_data->dscl_prog_data.easf_v_bf_minb);
-	// DSCL_EASF_H_MODE
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG0,
+			SCL_EASF_V_BF1_PWL_IN_SEG0, scl_data->dscl_prog_data.easf_v_bf1_pwl_in_seg0);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG0,
+			SCL_EASF_V_BF1_PWL_BASE_SEG0, scl_data->dscl_prog_data.easf_v_bf1_pwl_base_seg0);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG0,
+			SCL_EASF_V_BF1_PWL_SLOPE_SEG0, scl_data->dscl_prog_data.easf_v_bf1_pwl_slope_seg0);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG1,
+			SCL_EASF_V_BF1_PWL_IN_SEG1, scl_data->dscl_prog_data.easf_v_bf1_pwl_in_seg1);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG1,
+			SCL_EASF_V_BF1_PWL_BASE_SEG1, scl_data->dscl_prog_data.easf_v_bf1_pwl_base_seg1);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG1,
+			SCL_EASF_V_BF1_PWL_SLOPE_SEG1, scl_data->dscl_prog_data.easf_v_bf1_pwl_slope_seg1);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG2,
+			SCL_EASF_V_BF1_PWL_IN_SEG2, scl_data->dscl_prog_data.easf_v_bf1_pwl_in_seg2);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG2,
+			SCL_EASF_V_BF1_PWL_BASE_SEG2, scl_data->dscl_prog_data.easf_v_bf1_pwl_base_seg2);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG2,
+			SCL_EASF_V_BF1_PWL_SLOPE_SEG2, scl_data->dscl_prog_data.easf_v_bf1_pwl_slope_seg2);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG3,
+			SCL_EASF_V_BF1_PWL_IN_SEG3, scl_data->dscl_prog_data.easf_v_bf1_pwl_in_seg3);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG3,
+			SCL_EASF_V_BF1_PWL_BASE_SEG3, scl_data->dscl_prog_data.easf_v_bf1_pwl_base_seg3);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG3,
+			SCL_EASF_V_BF1_PWL_SLOPE_SEG3, scl_data->dscl_prog_data.easf_v_bf1_pwl_slope_seg3);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG4,
+			SCL_EASF_V_BF1_PWL_IN_SEG4, scl_data->dscl_prog_data.easf_v_bf1_pwl_in_seg4);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG4,
+			SCL_EASF_V_BF1_PWL_BASE_SEG4, scl_data->dscl_prog_data.easf_v_bf1_pwl_base_seg4);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG4,
+			SCL_EASF_V_BF1_PWL_SLOPE_SEG4, scl_data->dscl_prog_data.easf_v_bf1_pwl_slope_seg4);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG5,
+			SCL_EASF_V_BF1_PWL_IN_SEG5, scl_data->dscl_prog_data.easf_v_bf1_pwl_in_seg5);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG5,
+			SCL_EASF_V_BF1_PWL_BASE_SEG5, scl_data->dscl_prog_data.easf_v_bf1_pwl_base_seg5);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG5,
+			SCL_EASF_V_BF1_PWL_SLOPE_SEG5, scl_data->dscl_prog_data.easf_v_bf1_pwl_slope_seg5);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG6,
+			SCL_EASF_V_BF1_PWL_IN_SEG6, scl_data->dscl_prog_data.easf_v_bf1_pwl_in_seg6);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG6,
+			SCL_EASF_V_BF1_PWL_BASE_SEG6, scl_data->dscl_prog_data.easf_v_bf1_pwl_base_seg6);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG6,
+			SCL_EASF_V_BF1_PWL_SLOPE_SEG6, scl_data->dscl_prog_data.easf_v_bf1_pwl_slope_seg6);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG7,
+			SCL_EASF_V_BF1_PWL_IN_SEG7, scl_data->dscl_prog_data.easf_v_bf1_pwl_in_seg7);
+	REG_UPDATE(DSCL_EASF_V_BF1_PWL_SEG7,
+			SCL_EASF_V_BF1_PWL_BASE_SEG7, scl_data->dscl_prog_data.easf_v_bf1_pwl_base_seg7);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG0,
+			SCL_EASF_V_BF3_PWL_IN_SEG0, scl_data->dscl_prog_data.easf_v_bf3_pwl_in_set0);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG0,
+			SCL_EASF_V_BF3_PWL_BASE_SEG0, scl_data->dscl_prog_data.easf_v_bf3_pwl_base_set0);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG0,
+			SCL_EASF_V_BF3_PWL_SLOPE_SEG0, scl_data->dscl_prog_data.easf_v_bf3_pwl_slope_set0);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG1,
+			SCL_EASF_V_BF3_PWL_IN_SEG1, scl_data->dscl_prog_data.easf_v_bf3_pwl_in_set1);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG1,
+			SCL_EASF_V_BF3_PWL_BASE_SEG1, scl_data->dscl_prog_data.easf_v_bf3_pwl_base_set1);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG1,
+			SCL_EASF_V_BF3_PWL_SLOPE_SEG1, scl_data->dscl_prog_data.easf_v_bf3_pwl_slope_set1);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG2,
+			SCL_EASF_V_BF3_PWL_IN_SEG2, scl_data->dscl_prog_data.easf_v_bf3_pwl_in_set2);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG2,
+			SCL_EASF_V_BF3_PWL_BASE_SEG2, scl_data->dscl_prog_data.easf_v_bf3_pwl_base_set2);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG2,
+			SCL_EASF_V_BF3_PWL_SLOPE_SEG2, scl_data->dscl_prog_data.easf_v_bf3_pwl_slope_set2);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG3,
+			SCL_EASF_V_BF3_PWL_IN_SEG3, scl_data->dscl_prog_data.easf_v_bf3_pwl_in_set3);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG3,
+			SCL_EASF_V_BF3_PWL_BASE_SEG3, scl_data->dscl_prog_data.easf_v_bf3_pwl_base_set3);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG3,
+			SCL_EASF_V_BF3_PWL_SLOPE_SEG3, scl_data->dscl_prog_data.easf_v_bf3_pwl_slope_set3);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG4,
+			SCL_EASF_V_BF3_PWL_IN_SEG4, scl_data->dscl_prog_data.easf_v_bf3_pwl_in_set4);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG4,
+			SCL_EASF_V_BF3_PWL_BASE_SEG4, scl_data->dscl_prog_data.easf_v_bf3_pwl_base_set4);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG4,
+			SCL_EASF_V_BF3_PWL_SLOPE_SEG4, scl_data->dscl_prog_data.easf_v_bf3_pwl_slope_set4);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG5,
+			SCL_EASF_V_BF3_PWL_IN_SEG5, scl_data->dscl_prog_data.easf_v_bf3_pwl_in_set5);
+	REG_UPDATE(DSCL_EASF_V_BF3_PWL_SEG5,
+			SCL_EASF_V_BF3_PWL_BASE_SEG5, scl_data->dscl_prog_data.easf_v_bf3_pwl_base_set5);
+	/* DSCL_EASF_H_MODE */
 	REG_UPDATE(DSCL_EASF_H_MODE,
 			SCL_EASF_H_EN, scl_data->dscl_prog_data.easf_h_en);
 	REG_UPDATE(DSCL_EASF_H_MODE,
@@ -751,6 +831,117 @@ static void dpp401_dscl_program_easf(struct dpp *dpp_base, const struct scaler_d
 			SCL_EASF_H_BF_MINA, scl_data->dscl_prog_data.easf_h_bf_mina);
 	REG_UPDATE(DSCL_EASF_H_BF_FINAL_MAX_MIN,
 			SCL_EASF_H_BF_MINB, scl_data->dscl_prog_data.easf_h_bf_minb);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG0,
+			SCL_EASF_H_BF1_PWL_IN_SEG0, scl_data->dscl_prog_data.easf_h_bf1_pwl_in_seg0);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG0,
+			SCL_EASF_H_BF1_PWL_BASE_SEG0, scl_data->dscl_prog_data.easf_h_bf1_pwl_base_seg0);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG0,
+			SCL_EASF_H_BF1_PWL_SLOPE_SEG0, scl_data->dscl_prog_data.easf_h_bf1_pwl_slope_seg0);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG1,
+			SCL_EASF_H_BF1_PWL_IN_SEG1, scl_data->dscl_prog_data.easf_h_bf1_pwl_in_seg1);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG1,
+			SCL_EASF_H_BF1_PWL_BASE_SEG1, scl_data->dscl_prog_data.easf_h_bf1_pwl_base_seg1);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG1,
+			SCL_EASF_H_BF1_PWL_SLOPE_SEG1, scl_data->dscl_prog_data.easf_h_bf1_pwl_slope_seg1);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG2,
+			SCL_EASF_H_BF1_PWL_IN_SEG2, scl_data->dscl_prog_data.easf_h_bf1_pwl_in_seg2);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG2,
+			SCL_EASF_H_BF1_PWL_BASE_SEG2, scl_data->dscl_prog_data.easf_h_bf1_pwl_base_seg2);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG2,
+			SCL_EASF_H_BF1_PWL_SLOPE_SEG2, scl_data->dscl_prog_data.easf_h_bf1_pwl_slope_seg2);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG3,
+			SCL_EASF_H_BF1_PWL_IN_SEG3, scl_data->dscl_prog_data.easf_h_bf1_pwl_in_seg3);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG3,
+			SCL_EASF_H_BF1_PWL_BASE_SEG3, scl_data->dscl_prog_data.easf_h_bf1_pwl_base_seg3);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG3,
+			SCL_EASF_H_BF1_PWL_SLOPE_SEG3, scl_data->dscl_prog_data.easf_h_bf1_pwl_slope_seg3);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG4,
+			SCL_EASF_H_BF1_PWL_IN_SEG4, scl_data->dscl_prog_data.easf_h_bf1_pwl_in_seg4);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG4,
+			SCL_EASF_H_BF1_PWL_BASE_SEG4, scl_data->dscl_prog_data.easf_h_bf1_pwl_base_seg4);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG4,
+			SCL_EASF_H_BF1_PWL_SLOPE_SEG4, scl_data->dscl_prog_data.easf_h_bf1_pwl_slope_seg4);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG5,
+			SCL_EASF_H_BF1_PWL_IN_SEG5, scl_data->dscl_prog_data.easf_h_bf1_pwl_in_seg5);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG5,
+			SCL_EASF_H_BF1_PWL_BASE_SEG5, scl_data->dscl_prog_data.easf_h_bf1_pwl_base_seg5);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG5,
+			SCL_EASF_H_BF1_PWL_SLOPE_SEG5, scl_data->dscl_prog_data.easf_h_bf1_pwl_slope_seg5);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG6,
+			SCL_EASF_H_BF1_PWL_IN_SEG6, scl_data->dscl_prog_data.easf_h_bf1_pwl_in_seg6);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG6,
+			SCL_EASF_H_BF1_PWL_BASE_SEG6, scl_data->dscl_prog_data.easf_h_bf1_pwl_base_seg6);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG6,
+			SCL_EASF_H_BF1_PWL_SLOPE_SEG6, scl_data->dscl_prog_data.easf_h_bf1_pwl_slope_seg6);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG7,
+			SCL_EASF_H_BF1_PWL_IN_SEG7, scl_data->dscl_prog_data.easf_h_bf1_pwl_in_seg7);
+	REG_UPDATE(DSCL_EASF_H_BF1_PWL_SEG7,
+			SCL_EASF_H_BF1_PWL_BASE_SEG7, scl_data->dscl_prog_data.easf_h_bf1_pwl_base_seg7);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG0,
+			SCL_EASF_H_BF3_PWL_IN_SEG0, scl_data->dscl_prog_data.easf_h_bf3_pwl_in_set0);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG0,
+			SCL_EASF_H_BF3_PWL_BASE_SEG0, scl_data->dscl_prog_data.easf_h_bf3_pwl_base_set0);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG0,
+			SCL_EASF_H_BF3_PWL_SLOPE_SEG0, scl_data->dscl_prog_data.easf_h_bf3_pwl_slope_set0);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG1,
+			SCL_EASF_H_BF3_PWL_IN_SEG1, scl_data->dscl_prog_data.easf_h_bf3_pwl_in_set1);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG1,
+			SCL_EASF_H_BF3_PWL_BASE_SEG1, scl_data->dscl_prog_data.easf_h_bf3_pwl_base_set1);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG1,
+			SCL_EASF_H_BF3_PWL_SLOPE_SEG1, scl_data->dscl_prog_data.easf_h_bf3_pwl_slope_set1);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG2,
+			SCL_EASF_H_BF3_PWL_IN_SEG2, scl_data->dscl_prog_data.easf_h_bf3_pwl_in_set2);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG2,
+			SCL_EASF_H_BF3_PWL_BASE_SEG2, scl_data->dscl_prog_data.easf_h_bf3_pwl_base_set2);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG2,
+			SCL_EASF_H_BF3_PWL_SLOPE_SEG2, scl_data->dscl_prog_data.easf_h_bf3_pwl_slope_set2);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG3,
+			SCL_EASF_H_BF3_PWL_IN_SEG3, scl_data->dscl_prog_data.easf_h_bf3_pwl_in_set3);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG3,
+			SCL_EASF_H_BF3_PWL_BASE_SEG3, scl_data->dscl_prog_data.easf_h_bf3_pwl_base_set3);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG3,
+			SCL_EASF_H_BF3_PWL_SLOPE_SEG3, scl_data->dscl_prog_data.easf_h_bf3_pwl_slope_set3);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG4,
+			SCL_EASF_H_BF3_PWL_IN_SEG4, scl_data->dscl_prog_data.easf_h_bf3_pwl_in_set4);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG4,
+			SCL_EASF_H_BF3_PWL_BASE_SEG4, scl_data->dscl_prog_data.easf_h_bf3_pwl_base_set4);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG4,
+			SCL_EASF_H_BF3_PWL_SLOPE_SEG4, scl_data->dscl_prog_data.easf_h_bf3_pwl_slope_set4);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG5,
+			SCL_EASF_H_BF3_PWL_IN_SEG5, scl_data->dscl_prog_data.easf_h_bf3_pwl_in_set5);
+	REG_UPDATE(DSCL_EASF_H_BF3_PWL_SEG5,
+			SCL_EASF_H_BF3_PWL_BASE_SEG5, scl_data->dscl_prog_data.easf_h_bf3_pwl_base_set5);
+	/* DSCL_EASF_SC_MATRIX_C0C1, DSCL_EASF_SC_MATRIX_C2C3 */
+	REG_UPDATE(DSCL_SC_MATRIX_C0C1,
+			SCL_SC_MATRIX_C0, scl_data->dscl_prog_data.easf_matrix_c0);
+	REG_UPDATE(DSCL_SC_MATRIX_C0C1,
+			SCL_SC_MATRIX_C1, scl_data->dscl_prog_data.easf_matrix_c1);
+	REG_UPDATE(DSCL_SC_MATRIX_C2C3,
+			SCL_SC_MATRIX_C2, scl_data->dscl_prog_data.easf_matrix_c2);
+	REG_UPDATE(DSCL_SC_MATRIX_C2C3,
+			SCL_SC_MATRIX_C3, scl_data->dscl_prog_data.easf_matrix_c3);
+	PERF_TRACE();
+}
+/**
+ * dpp401_dscl_disable_easf - Disable EASF when no scaling (1:1)
+ *
+ * @dpp_base: High level DPP struct
+ * @scl_data: scalaer_data info
+ *
+ * When we have 1:1 scaling, we need to disable EASF
+ *
+ */
+static void dpp401_dscl_disable_easf(struct dpp *dpp_base, const struct scaler_data *scl_data)
+{
+	struct dcn401_dpp *dpp = TO_DCN401_DPP(dpp_base);
+
+	PERF_TRACE();
+	/* DSCL_EASF_V_MODE */
+	REG_UPDATE(DSCL_EASF_V_MODE,
+			SCL_EASF_V_EN, scl_data->dscl_prog_data.easf_v_en);
+	/* DSCL_EASF_H_MODE */
+	REG_UPDATE(DSCL_EASF_H_MODE,
+			SCL_EASF_H_EN, scl_data->dscl_prog_data.easf_h_en);
 	PERF_TRACE();
 }
 static void dpp401_dscl_set_isharp_filter(
@@ -852,7 +1043,7 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 
 	dpp->scl_data = *scl_data;
 
-	if (dpp->base.ctx->dc->config.use_spl)  {
+	if ((dpp->base.ctx->dc->config.use_spl) && (!dpp->base.ctx->dc->debug.disable_spl)) {
 		dscl_mode = (enum dscl_mode_sel) scl_data->dscl_prog_data.dscl_mode;
 		rect = (struct rect *)&scl_data->dscl_prog_data.recout;
 		mpc_width = scl_data->dscl_prog_data.mpc_size.width;
@@ -900,8 +1091,12 @@ void dpp401_dscl_set_scaler_manual_scale(struct dpp *dpp_base,
 	lb_config =  dpp401_dscl_find_lb_memory_config(dpp, scl_data);
 	dpp401_dscl_set_lb(dpp, &scl_data->lb_params, lb_config);
 
-	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS)
+	if (dscl_mode == DSCL_MODE_SCALING_444_BYPASS) {
+		if (dpp->base.ctx->dc->config.prefer_easf)
+			dpp401_dscl_disable_easf(dpp_base, scl_data);
+		dpp401_dscl_program_isharp(dpp_base, scl_data);
 		return;
+	}
 
 	/* Black offsets */
 	if (REG(SCL_BLACK_OFFSET)) {

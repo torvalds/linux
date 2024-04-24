@@ -129,6 +129,11 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 	populate_spltaps_from_taps(&spl_in->scaling_quality, &plane_state->scaling_quality);
 	// Translate edge adaptive scaler preference
 	spl_in->prefer_easf = pipe_ctx->stream->ctx->dc->config.prefer_easf;
+	spl_in->disable_easf = false;
+	if (pipe_ctx->stream->ctx->dc->debug.force_easf == 1)
+		spl_in->prefer_easf = false;
+	else if (pipe_ctx->stream->ctx->dc->debug.force_easf == 2)
+		spl_in->disable_easf = true;
 	// Translate adaptive sharpening preference
 	spl_in->adaptive_sharpness.enable = plane_state->adaptive_sharpness_en;
 	if (plane_state->sharpnessX1000 == 0)	{
@@ -141,13 +146,19 @@ void translate_SPL_in_params_from_pipe_ctx(struct pipe_ctx *pipe_ctx, struct spl
 		spl_in->adaptive_sharpness.sharpness = SHARPNESS_HIGH;
 	}
 	// Translate linear light scaling preference
-	spl_in->lls_pref = plane_state->linear_light_scaling;
-
+	if (pipe_ctx->stream->ctx->dc->debug.force_lls > 0)
+		spl_in->lls_pref = pipe_ctx->stream->ctx->dc->debug.force_lls;
+	else
+		spl_in->lls_pref = plane_state->linear_light_scaling;
 	/* Translate chroma subsampling offset ( cositing ) */
 	if (pipe_ctx->stream->ctx->dc->debug.force_cositing)
 		spl_in->basic_in.cositing = pipe_ctx->stream->ctx->dc->debug.force_cositing - 1;
 	else
 		spl_in->basic_in.cositing = plane_state->cositing;
+	/* Translate transfer function */
+	spl_in->basic_in.tf_type = (enum spl_transfer_func_type) plane_state->in_transfer_func.type;
+	spl_in->basic_in.tf_predefined_type = (enum spl_transfer_func_predefined) plane_state->in_transfer_func.tf;
+
 }
 
 /// @brief Translate SPL output parameters to pipe context

@@ -132,6 +132,26 @@ struct spl_scaler_data {
 	struct spl_inits inits;
 };
 
+enum spl_transfer_func_type {
+	SPL_TF_TYPE_PREDEFINED,
+	SPL_TF_TYPE_DISTRIBUTED_POINTS,
+	SPL_TF_TYPE_BYPASS,
+	SPL_TF_TYPE_HWPWL
+};
+
+enum spl_transfer_func_predefined {
+	SPL_TRANSFER_FUNCTION_SRGB,
+	SPL_TRANSFER_FUNCTION_BT709,
+	SPL_TRANSFER_FUNCTION_PQ,
+	SPL_TRANSFER_FUNCTION_LINEAR,
+	SPL_TRANSFER_FUNCTION_UNITY,
+	SPL_TRANSFER_FUNCTION_HLG,
+	SPL_TRANSFER_FUNCTION_HLG12,
+	SPL_TRANSFER_FUNCTION_GAMMA22,
+	SPL_TRANSFER_FUNCTION_GAMMA24,
+	SPL_TRANSFER_FUNCTION_GAMMA26
+};
+
 /*==============================================================*/
 /* Below structs are defined to hold hw register data */
 
@@ -400,7 +420,8 @@ struct basic_in	{
 	int mpc_combine_h; // MPC Horizontal Combine Factor (split_count)
 	int mpc_combine_v; // MPC Vertical Combine Factor (split_idx)
 	// Inputs for adaptive scaler - TODO
-	// struct dc_transfer_func transfer_func;	//	Transfer function
+	enum spl_transfer_func_type tf_type; /* Transfer function type */
+	enum spl_transfer_func_predefined tf_predefined_type; /* Transfer function predefined type */
 	// enum dc_transfer_func_predefined tf;
 	enum spl_color_space color_space;	//	Color Space
 	unsigned int max_luminance;	//	Max Luminance TODO: Is determined in dc_hw_sequencer.c is_sdr
@@ -441,6 +462,11 @@ struct spl_funcs	{
 		int *num_part_c);
 };
 
+struct spl_debug {
+	int visual_confirm_base_offset;
+	int visual_confirm_dpp_offset;
+};
+
 struct spl_in	{
 	struct basic_out basic_out;
 	struct basic_in basic_in;
@@ -452,6 +478,8 @@ struct spl_in	{
 	struct adaptive_sharpness adaptive_sharpness;	//	Adaptive Sharpness
 	enum linear_light_scaling lls_pref;	//	Linear Light Scaling
 	bool prefer_easf;
+	bool disable_easf;
+	struct spl_debug debug;
 };
 // end of SPL inputs
 

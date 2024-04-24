@@ -1038,6 +1038,9 @@ struct dc_debug_options {
 	union dmub_fams2_global_feature_config fams2_config;
 	bool enable_legacy_clock_update;
 	unsigned int force_cositing;
+	unsigned int disable_spl;
+	unsigned int force_easf;
+	unsigned int force_lls;
 };
 
 

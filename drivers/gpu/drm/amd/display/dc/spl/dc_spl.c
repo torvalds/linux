@@ -324,14 +324,18 @@ static void spl_calculate_recout(struct spl_in *spl_in, struct spl_out *spl_out)
 	overlapping_area = intersect_rec(&mpc_slice_of_plane_clip, &odm_slice);
 
 	if (overlapping_area.height > 0 &&
-			overlapping_area.width > 0)
+			overlapping_area.width > 0) {
 		/* shift the overlapping area so it is with respect to current
 		 * ODM slice's position
 		 */
 		spl_out->scl_data.recout = shift_rec(
 				&overlapping_area,
 				-odm_slice.x, -odm_slice.y);
-	else
+		spl_out->scl_data.recout.height -=
+			spl_in->debug.visual_confirm_base_offset;
+		spl_out->scl_data.recout.height -=
+			spl_in->debug.visual_confirm_dpp_offset;
+	} else
 		/* if there is no overlap, zero recout */
 		memset(&spl_out->scl_data.recout, 0,
 				sizeof(struct spl_rect));
@@ -493,13 +497,11 @@ static void spl_calculate_init_and_vp(bool flip_scan_dir,
 
 static bool spl_is_yuv420(enum spl_pixel_format format)
 {
-	switch (format) {
-	case SPL_PIXEL_FORMAT_420BPP8:
-	case SPL_PIXEL_FORMAT_420BPP10:
+	if ((format >= SPL_PIXEL_FORMAT_VIDEO_BEGIN) &&
+		(format <= SPL_PIXEL_FORMAT_VIDEO_END))
 		return true;
-	default:
-		return false;
-	}
+
+	return false;
 }
 
 /*Calculate inits and viewport */
@@ -969,12 +971,17 @@ static bool enable_easf(int scale_ratio, int taps,
 }
 /* Set EASF data */
 static void spl_set_easf_data(struct dscl_prog_data *dscl_prog_data,
-	bool enable_easf_v, bool enable_easf_h, enum linear_light_scaling lls_pref)
+	bool enable_easf_v, bool enable_easf_h, enum linear_light_scaling lls_pref,
+	enum spl_pixel_format format)
 {
-	dscl_prog_data->easf_matrix_mode = 0;
+	if (spl_is_yuv420(format)) /* TODO: 0 = RGB, 1 = YUV */
+		dscl_prog_data->easf_matrix_mode = 1;
+	else
+		dscl_prog_data->easf_matrix_mode = 0;
+
 	if (enable_easf_v) {
 		dscl_prog_data->easf_v_en = true;
-		dscl_prog_data->easf_v_ring = 1;
+		dscl_prog_data->easf_v_ring = 0;
 		dscl_prog_data->easf_v_sharp_factor = 1;
 		dscl_prog_data->easf_v_bf1_en = 1;	// 1-bit, BF1 calculation enable, 0=disable, 1=enable
 		dscl_prog_data->easf_v_bf2_mode = 0xF;	// 4-bit, BF2 calculation mode
@@ -1081,10 +1088,12 @@ static void spl_set_easf_data(struct dscl_prog_data *dscl_prog_data,
 				0x0780;	// FP0.6.6, BF3 Input value PWL Segment 5 (0.5)
 			dscl_prog_data->easf_v_bf3_pwl_base_set5 = -63;	// S0.6, BF3 Base PWL Segment 5
 		}
-	}
+	} else
+		dscl_prog_data->easf_v_en = false;
+
 	if (enable_easf_h) {
 		dscl_prog_data->easf_h_en = true;
-		dscl_prog_data->easf_h_ring = 1;
+		dscl_prog_data->easf_h_ring = 0;
 		dscl_prog_data->easf_h_sharp_factor = 1;
 		dscl_prog_data->easf_h_bf1_en =
 			1;	// 1-bit, BF1 calculation enable, 0=disable, 1=enable
@@ -1177,7 +1186,9 @@ static void spl_set_easf_data(struct dscl_prog_data *dscl_prog_data,
 				0x0780;	// FP0.6.6, BF3 Input value PWL Segment 5 (0.5)
 			dscl_prog_data->easf_h_bf3_pwl_base_set5 = -63;	// S0.6, BF3 Base PWL Segment 5
 		} // if (lls_pref == LLS_PREF_YES)
-	}
+	} else
+		dscl_prog_data->easf_h_en = false;
+
 	if (lls_pref == LLS_PREF_YES)	{
 		dscl_prog_data->easf_ltonl_en = 1;	// Linear input
 		dscl_prog_data->easf_matrix_c0 =
@@ -1304,12 +1315,40 @@ static bool spl_get_isharp_en(struct adaptive_sharpness adp_sharpness,
 	}
 	return enable_isharp;
 }
+
+static bool spl_choose_lls_policy(enum spl_pixel_format format,
+	enum spl_transfer_func_type tf_type,
+	enum spl_transfer_func_predefined tf_predefined_type,
+	enum linear_light_scaling *lls_pref)
+{
+	if (spl_is_yuv420(format)) {
+		*lls_pref = LLS_PREF_NO;
+		if ((tf_type == SPL_TF_TYPE_PREDEFINED) || (tf_type == SPL_TF_TYPE_DISTRIBUTED_POINTS))
+			return true;
+	} else { /* RGB or YUV444 */
+		if (tf_type == SPL_TF_TYPE_PREDEFINED) {
+			if ((tf_predefined_type == SPL_TRANSFER_FUNCTION_HLG) ||
+				(tf_predefined_type == SPL_TRANSFER_FUNCTION_HLG12))
+				*lls_pref = LLS_PREF_NO;
+			else
+				*lls_pref = LLS_PREF_YES;
+			return true;
+		} else if (tf_type == SPL_TF_TYPE_BYPASS) {
+			*lls_pref = LLS_PREF_YES;
+			return true;
+		}
+	}
+	*lls_pref = LLS_PREF_NO;
+	return false;
+}
+
 /* Caclulate scaler parameters */
 bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 {
 	bool res = false;
 	bool enable_easf_v = false;
 	bool enable_easf_h = false;
+	bool lls_enable_easf = true;
 	// All SPL calls
 	/* recout calculation */
 	/* depends on h_active */
@@ -1335,17 +1374,33 @@ bool spl_calculate_scaler_params(struct spl_in *spl_in, struct spl_out *spl_out)
 
 	if (!res)
 		return res;
+
+	/*
+	 * If lls_pref is LLS_PREF_DONT_CARE, then use pixel format and transfer
+	 *  function to determine whether to use LINEAR or NONLINEAR scaling
+	 */
+	if (spl_in->lls_pref == LLS_PREF_DONT_CARE)
+		lls_enable_easf = spl_choose_lls_policy(spl_in->basic_in.format,
+			spl_in->basic_in.tf_type, spl_in->basic_in.tf_predefined_type,
+			&spl_in->lls_pref);
+
 	// Save all calculated parameters in dscl_prog_data structure to program hw registers
 	spl_set_dscl_prog_data(spl_in, spl_out);
-	// Enable EASF on vertical?
+
 	int vratio = dc_fixpt_ceil(spl_out->scl_data.ratios.vert);
 	int hratio = dc_fixpt_ceil(spl_out->scl_data.ratios.horz);
-	enable_easf_v = enable_easf(vratio, spl_out->scl_data.taps.v_taps, spl_in->lls_pref, spl_in->prefer_easf);
-	// Enable EASF on horizontal?
-	enable_easf_h = enable_easf(hratio, spl_out->scl_data.taps.h_taps, spl_in->lls_pref, spl_in->prefer_easf);
+	if (!lls_enable_easf || spl_in->disable_easf) {
+		enable_easf_v = false;
+		enable_easf_h = false;
+	} else {
+		/* Enable EASF on vertical? */
+		enable_easf_v = enable_easf(vratio, spl_out->scl_data.taps.v_taps, spl_in->lls_pref, spl_in->prefer_easf);
+		/* Enable EASF on horizontal? */
+		enable_easf_h = enable_easf(hratio, spl_out->scl_data.taps.h_taps, spl_in->lls_pref, spl_in->prefer_easf);
+	}
 	// Set EASF
-	spl_set_easf_data(spl_out->dscl_prog_data, enable_easf_v, enable_easf_h, spl_in->lls_pref);
-	// Set iSHARP
+	spl_set_easf_data(spl_out->dscl_prog_data, enable_easf_v, enable_easf_h, spl_in->lls_pref,
+		spl_in->basic_in.format);	// Set iSHARP
 	bool enable_isharp = spl_get_isharp_en(spl_in->adaptive_sharpness, vratio, hratio,
 								spl_out->scl_data.taps);
 	if (enable_isharp)
