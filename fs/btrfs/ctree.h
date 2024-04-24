@@ -222,8 +222,11 @@ struct btrfs_root {
 	struct list_head root_list;
 
 	spinlock_t inode_lock;
-	/* red-black tree that keeps track of in-memory inodes */
-	struct rb_root inode_tree;
+	/*
+	 * Xarray that keeps track of in-memory inodes, protected by the lock
+	 * @inode_lock.
+	 */
+	struct xarray inodes;
 
 	/*
 	 * Xarray that keeps track of delayed nodes of every inode, protected

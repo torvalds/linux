@@ -5493,58 +5493,51 @@ out:
 	return err;
 }
 
-static void inode_tree_add(struct btrfs_inode *inode)
+static int btrfs_add_inode_to_root(struct btrfs_inode *inode)
+{
+	struct btrfs_root *root = inode->root;
+	struct btrfs_inode *existing;
+	const u64 ino = btrfs_ino(inode);
+	int ret;
+
+	if (inode_unhashed(&inode->vfs_inode))
+		return 0;
+
+	ret = xa_reserve(&root->inodes, ino, GFP_NOFS);
+	if (ret)
+		return ret;
+
+	spin_lock(&root->inode_lock);
+	existing = xa_store(&root->inodes, ino, inode, GFP_ATOMIC);
+	spin_unlock(&root->inode_lock);
+
+	if (xa_is_err(existing)) {
+		ret = xa_err(existing);
+		ASSERT(ret != -EINVAL);
+		ASSERT(ret != -ENOMEM);
+		return ret;
+	} else if (existing) {
+		WARN_ON(!(existing->vfs_inode.i_state & (I_WILL_FREE | I_FREEING)));
+	}
+
+	return 0;
+}
+
+static void btrfs_del_inode_from_root(struct btrfs_inode *inode)
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_inode *entry;
-	struct rb_node **p;
-	struct rb_node *parent;
-	struct rb_node *new = &inode->rb_node;
-	u64 ino = btrfs_ino(inode);
-
-	if (inode_unhashed(&inode->vfs_inode))
-		return;
-	parent = NULL;
-	spin_lock(&root->inode_lock);
-	p = &root->inode_tree.rb_node;
-	while (*p) {
-		parent = *p;
-		entry = rb_entry(parent, struct btrfs_inode, rb_node);
-
-		if (ino < btrfs_ino(entry))
-			p = &parent->rb_left;
-		else if (ino > btrfs_ino(entry))
-			p = &parent->rb_right;
-		else {
-			WARN_ON(!(entry->vfs_inode.i_state &
-				  (I_WILL_FREE | I_FREEING)));
-			rb_replace_node(parent, new, &root->inode_tree);
-			RB_CLEAR_NODE(parent);
-			spin_unlock(&root->inode_lock);
-			return;
-		}
-	}
-	rb_link_node(new, parent, p);
-	rb_insert_color(new, &root->inode_tree);
-	spin_unlock(&root->inode_lock);
-}
-
-static void inode_tree_del(struct btrfs_inode *inode)
-{
-	struct btrfs_root *root = inode->root;
-	int empty = 0;
+	bool empty = false;
 
 	spin_lock(&root->inode_lock);
-	if (!RB_EMPTY_NODE(&inode->rb_node)) {
-		rb_erase(&inode->rb_node, &root->inode_tree);
-		RB_CLEAR_NODE(&inode->rb_node);
-		empty = RB_EMPTY_ROOT(&root->inode_tree);
-	}
+	entry = xa_erase(&root->inodes, btrfs_ino(inode));
+	if (entry == inode)
+		empty = xa_empty(&root->inodes);
 	spin_unlock(&root->inode_lock);
 
 	if (empty && btrfs_root_refs(&root->root_item) == 0) {
 		spin_lock(&root->inode_lock);
-		empty = RB_EMPTY_ROOT(&root->inode_tree);
+		empty = xa_empty(&root->inodes);
 		spin_unlock(&root->inode_lock);
 		if (empty)
 			btrfs_add_dead_root(root);
@@ -5613,8 +5606,13 @@ struct inode *btrfs_iget_path(struct super_block *s, u64 ino,
 
 		ret = btrfs_read_locked_inode(inode, path);
 		if (!ret) {
-			inode_tree_add(BTRFS_I(inode));
-			unlock_new_inode(inode);
+			ret = btrfs_add_inode_to_root(BTRFS_I(inode));
+			if (ret) {
+				iget_failed(inode);
+				inode = ERR_PTR(ret);
+			} else {
+				unlock_new_inode(inode);
+			}
 		} else {
 			iget_failed(inode);
 			/*
@@ -6426,7 +6424,11 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 		}
 	}
 
-	inode_tree_add(BTRFS_I(inode));
+	ret = btrfs_add_inode_to_root(BTRFS_I(inode));
+	if (ret) {
+		btrfs_abort_transaction(trans, ret);
+		goto discard;
+	}
 
 	trace_btrfs_inode_new(inode);
 	btrfs_set_inode_last_trans(trans, BTRFS_I(inode));
@@ -8466,7 +8468,6 @@ struct inode *btrfs_alloc_inode(struct super_block *sb)
 	ei->ordered_tree_last = NULL;
 	INIT_LIST_HEAD(&ei->delalloc_inodes);
 	INIT_LIST_HEAD(&ei->delayed_iput);
-	RB_CLEAR_NODE(&ei->rb_node);
 	init_rwsem(&ei->i_mmap_lock);
 
 	return inode;
@@ -8538,7 +8539,7 @@ void btrfs_destroy_inode(struct inode *vfs_inode)
 		}
 	}
 	btrfs_qgroup_check_reserved_leak(inode);
-	inode_tree_del(inode);
+	btrfs_del_inode_from_root(inode);
 	btrfs_drop_extent_map_range(inode, 0, (u64)-1, false);
 	btrfs_inode_clear_file_extent_range(inode, 0, (u64)-1);
 	btrfs_put_root(inode->root);
@@ -10860,52 +10861,23 @@ void btrfs_assert_inode_range_clean(struct btrfs_inode *inode, u64 start, u64 en
  */
 struct btrfs_inode *btrfs_find_first_inode(struct btrfs_root *root, u64 min_ino)
 {
-	struct rb_node *node;
-	struct rb_node *prev;
 	struct btrfs_inode *inode;
+	unsigned long from = min_ino;
 
 	spin_lock(&root->inode_lock);
-again:
-	node = root->inode_tree.rb_node;
-	prev = NULL;
-	while (node) {
-		prev = node;
-		inode = rb_entry(node, struct btrfs_inode, rb_node);
-		if (min_ino < btrfs_ino(inode))
-			node = node->rb_left;
-		else if (min_ino > btrfs_ino(inode))
-			node = node->rb_right;
-		else
+	while (true) {
+		inode = xa_find(&root->inodes, &from, ULONG_MAX, XA_PRESENT);
+		if (!inode)
 			break;
-	}
+		if (igrab(&inode->vfs_inode))
+			break;
 
-	if (!node) {
-		while (prev) {
-			inode = rb_entry(prev, struct btrfs_inode, rb_node);
-			if (min_ino <= btrfs_ino(inode)) {
-				node = prev;
-				break;
-			}
-			prev = rb_next(prev);
-		}
-	}
-
-	while (node) {
-		inode = rb_entry(prev, struct btrfs_inode, rb_node);
-		if (igrab(&inode->vfs_inode)) {
-			spin_unlock(&root->inode_lock);
-			return inode;
-		}
-
-		min_ino = btrfs_ino(inode) + 1;
-		if (cond_resched_lock(&root->inode_lock))
-			goto again;
-
-		node = rb_next(node);
+		from = btrfs_ino(inode) + 1;
+		cond_resched_lock(&root->inode_lock);
 	}
 	spin_unlock(&root->inode_lock);
 
-	return NULL;
+	return inode;
 }
 
 static const struct inode_operations btrfs_dir_inode_operations = {

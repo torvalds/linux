@@ -165,9 +165,6 @@ struct btrfs_inode {
 	 */
 	struct list_head delalloc_inodes;
 
-	/* node for the red-black tree that links inodes in subvolume root */
-	struct rb_node rb_node;
-
 	unsigned long runtime_flags;
 
 	/* full 64 bit generation number, struct vfs_inode doesn't have a big
