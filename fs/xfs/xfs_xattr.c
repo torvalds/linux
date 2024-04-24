@@ -17,6 +17,7 @@
 #include "xfs_acl.h"
 #include "xfs_log.h"
 #include "xfs_xattr.h"
+#include "xfs_quota.h"
 
 #include <linux/posix_acl_xattr.h>
 
@@ -70,7 +71,9 @@ xfs_attr_want_log_assist(
 
 /*
  * Set or remove an xattr, having grabbed the appropriate logging resources
- * prior to calling libxfs.
+ * prior to calling libxfs.  Callers of this function are only required to
+ * initialize the inode, attr_filter, name, namelen, value, and valuelen fields
+ * of @args.
  */
 int
 xfs_attr_change(
@@ -80,7 +83,19 @@ xfs_attr_change(
 	struct xfs_mount	*mp = args->dp->i_mount;
 	int			error;
 
-	ASSERT(!(args->op_flags & XFS_DA_OP_LOGGED));
+	if (xfs_is_shutdown(mp))
+		return -EIO;
+
+	error = xfs_qm_dqattach(args->dp);
+	if (error)
+		return error;
+
+	/*
+	 * We have no control over the attribute names that userspace passes us
+	 * to remove, so we have to allow the name lookup prior to attribute
+	 * removal to fail as well.
+	 */
+	args->op_flags = XFS_DA_OP_OKNOENT;
 
 	if (xfs_attr_want_log_assist(mp)) {
 		error = xfs_attr_grab_log_assist(mp);
@@ -90,7 +105,12 @@ xfs_attr_change(
 		args->op_flags |= XFS_DA_OP_LOGGED;
 	}
 
-	return xfs_attr_set(args, op);
+	args->owner = args->dp->i_ino;
+	args->geo = mp->m_attr_geo;
+	args->whichfork = XFS_ATTR_FORK;
+	xfs_attr_sethash(args);
+
+	return xfs_attr_set(args, op, args->attr_filter & XFS_ATTR_ROOT);
 }
 
 
