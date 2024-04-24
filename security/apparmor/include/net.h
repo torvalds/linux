@@ -82,10 +82,14 @@ struct aa_secmark {
 
 extern struct aa_sfs_entry aa_sfs_entry_network[];
 
+/* passing in state returned by XXX_mediates(class) */
+aa_state_t aa_match_to_prot(struct aa_policydb *policy, aa_state_t state,
+			    u32 request, u16 family, int type, int protocol,
+			    struct aa_perms **p, const char **info);
 void audit_net_cb(struct audit_buffer *ab, void *va);
 int aa_profile_af_perm(struct aa_profile *profile,
 		       struct apparmor_audit_data *ad,
-		       u32 request, u16 family, int type);
+		       u32 request, u16 family, int type, int protocol);
 int aa_af_perm(const struct cred *subj_cred, struct aa_label *label,
 	       const char *op, u32 request, u16 family,
 	       int type, int protocol);
@@ -95,7 +99,7 @@ static inline int aa_profile_af_sk_perm(struct aa_profile *profile,
 					struct sock *sk)
 {
 	return aa_profile_af_perm(profile, ad, request, sk->sk_family,
-				  sk->sk_type);
+				  sk->sk_type, sk->sk_protocol);
 }
 int aa_sk_perm(const char *op, u32 request, struct sock *sk);
 

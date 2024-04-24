@@ -105,16 +105,78 @@ void audit_net_cb(struct audit_buffer *ab, void *va)
 	}
 }
 
+/* standard permission lookup pattern - supports early bailout */
+static int do_perms(struct aa_profile *profile, struct aa_policydb *policy,
+		    unsigned int state, u32 request,
+		    struct aa_perms *p, struct apparmor_audit_data *ad)
+{
+	struct aa_perms perms;
+
+	AA_BUG(!profile);
+	AA_BUG(!policy);
+
+
+	if (state || !p)
+		p = aa_lookup_perms(policy, state);
+	perms = *p;
+	aa_apply_modes_to_perms(profile, &perms);
+	return aa_check_perms(profile, &perms, request, ad,
+			      audit_net_cb);
+}
+
+/* only continue match if
+ *   insufficient current perms at current state
+ *   indicates there are more perms in later state
+ * Returns: perms struct if early match
+ */
+static struct aa_perms *early_match(struct aa_policydb *policy,
+				    aa_state_t state, u32 request)
+{
+	struct aa_perms *p;
+
+	p = aa_lookup_perms(policy, state);
+	if (((p->allow & request) != request) && (p->allow & AA_CONT_MATCH))
+		return NULL;
+	return p;
+}
+
+/* passing in state returned by PROFILE_MEDIATES_AF */
+aa_state_t aa_match_to_prot(struct aa_policydb *policy, aa_state_t state,
+			    u32 request, u16 family, int type, int protocol,
+			    struct aa_perms **p, const char **info)
+{
+	__be16 buffer;
+
+	buffer = cpu_to_be16(family);
+	state = aa_dfa_match_len(policy->dfa, state, (char *) &buffer, 2);
+	if (!state) {
+		*info = "failed af match";
+		return DFA_NOMATCH;
+	}
+	buffer = cpu_to_be16((u16)type);
+	state = aa_dfa_match_len(policy->dfa, state, (char *) &buffer, 2);
+	if (!state)
+		*info = "failed type match";
+	*p = early_match(policy, state, request);
+	if (!*p) {
+		buffer = cpu_to_be16((u16)protocol);
+		state = aa_dfa_match_len(policy->dfa, state, (char *) &buffer,
+					 2);
+		if (!state)
+			*info = "failed protocol match";
+	}
+	return state;
+}
+
 /* Generic af perm */
 int aa_profile_af_perm(struct aa_profile *profile,
 		       struct apparmor_audit_data *ad, u32 request, u16 family,
-		       int type)
+		       int type, int protocol)
 {
 	struct aa_ruleset *rules = list_first_entry(&profile->rules,
 						    typeof(*rules), list);
-	struct aa_perms perms = { };
+	struct aa_perms *p = NULL;
 	aa_state_t state;
-	__be16 buffer[2];
 
 	AA_BUG(family >= AF_MAX);
 	AA_BUG(type < 0 || type >= SOCK_MAX);
@@ -124,14 +186,9 @@ int aa_profile_af_perm(struct aa_profile *profile,
 	if (!state)
 		return 0;
 
-	buffer[0] = cpu_to_be16(family);
-	buffer[1] = cpu_to_be16((u16) type);
-	state = aa_dfa_match_len(rules->policy->dfa, state, (char *) &buffer,
-				 4);
-	perms = *aa_lookup_perms(rules->policy, state);
-	aa_apply_modes_to_perms(profile, &perms);
-
-	return aa_check_perms(profile, &perms, request, ad, audit_net_cb);
+	state = aa_match_to_prot(rules->policy, state, request, family, type,
+				 protocol, &p, &ad->info);
+	return do_perms(profile, rules->policy, state, request, p, ad);
 }
 
 int aa_af_perm(const struct cred *subj_cred, struct aa_label *label,
@@ -142,7 +199,7 @@ int aa_af_perm(const struct cred *subj_cred, struct aa_label *label,
 
 	return fn_for_each_confined(label, profile,
 			aa_profile_af_perm(profile, &ad, request, family,
-					   type));
+					   type, protocol));
 }
 
 static int aa_label_sk_perm(const struct cred *subj_cred,
