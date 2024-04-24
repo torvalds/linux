@@ -12,7 +12,6 @@
 #include <linux/io.h>
 #include <linux/perf_event.h>
 #include <linux/sched.h>
-#include <linux/amba/bus.h>
 #include <linux/platform_device.h>
 
 /* Peripheral id registers (0xFD0-0xFEC) */
