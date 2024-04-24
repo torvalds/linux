@@ -3545,6 +3545,19 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 		   "using keymap number %lu\n", keymap_id);
 
+	/* Keys which should be reserved on both IBM and Lenovo models */
+	hotkey_reserved_mask = TP_ACPI_HKEY_KBD_LIGHT_MASK |
+			       TP_ACPI_HKEY_VOLUP_MASK |
+			       TP_ACPI_HKEY_VOLDWN_MASK |
+			       TP_ACPI_HKEY_MUTE_MASK;
+	/*
+	 * Reserve brightness up/down unconditionally on IBM models, on Lenovo
+	 * models these are disabled based on acpi_video_get_backlight_type().
+	 */
+	if (keymap_id == TPACPI_KEYMAP_IBM_GENERIC)
+		hotkey_reserved_mask |= TP_ACPI_HKEY_BRGHTUP_MASK |
+					TP_ACPI_HKEY_BRGHTDWN_MASK;
+
 	hotkey_keycode_map = kmemdup(&tpacpi_keymaps[keymap_id],
 			TPACPI_HOTKEY_MAP_SIZE,	GFP_KERNEL);
 	if (!hotkey_keycode_map) {
@@ -3560,9 +3573,6 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		if (hotkey_keycode_map[i] != KEY_RESERVED) {
 			input_set_capability(tpacpi_inputdev, EV_KEY,
 						hotkey_keycode_map[i]);
-		} else {
-			if (i < sizeof(hotkey_reserved_mask)*8)
-				hotkey_reserved_mask |= 1 << i;
 		}
 	}
 
@@ -3587,9 +3597,8 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		/* Disable brightness up/down on Lenovo thinkpads when
 		 * ACPI is handling them, otherwise it is plain impossible
 		 * for userspace to do something even remotely sane */
-		hotkey_reserved_mask |=
-			(1 << TP_ACPI_HOTKEYSCAN_FNHOME)
-			| (1 << TP_ACPI_HOTKEYSCAN_FNEND);
+		hotkey_reserved_mask |= TP_ACPI_HKEY_BRGHTUP_MASK |
+					TP_ACPI_HKEY_BRGHTDWN_MASK;
 		hotkey_unmap(TP_ACPI_HOTKEYSCAN_FNHOME);
 		hotkey_unmap(TP_ACPI_HOTKEYSCAN_FNEND);
 	}
