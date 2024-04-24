@@ -231,6 +231,13 @@ reread:
 	mp->m_features |= xfs_sb_version_to_features(sbp);
 	xfs_reinit_percpu_counters(mp);
 
+	/*
+	 * If logged xattrs are enabled after log recovery finishes, then set
+	 * the opstate so that log recovery will work properly.
+	 */
+	if (xfs_sb_version_haslogxattrs(&mp->m_sb))
+		xfs_set_using_logged_xattrs(mp);
+
 	/* no need to be quiet anymore, so reset the buf ops */
 	bp->b_ops = &xfs_sb_buf_ops;
 
@@ -828,6 +835,15 @@ xfs_mountfs(
 		xfs_warn(mp, "log mount failed");
 		goto out_inodegc_shrinker;
 	}
+
+	/*
+	 * If logged xattrs are still enabled after log recovery finishes, then
+	 * they'll be available until unmount.  Otherwise, turn them off.
+	 */
+	if (xfs_sb_version_haslogxattrs(&mp->m_sb))
+		xfs_set_using_logged_xattrs(mp);
+	else
+		xfs_clear_using_logged_xattrs(mp);
 
 	/* Enable background inode inactivation workers. */
 	xfs_inodegc_start(mp);

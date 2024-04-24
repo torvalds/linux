@@ -87,6 +87,8 @@ xfs_attr_is_leaf(
 	struct xfs_iext_cursor	icur;
 	struct xfs_bmbt_irec	imap;
 
+	ASSERT(!xfs_need_iread_extents(ifp));
+
 	if (ifp->if_nextents != 1 || ifp->if_format != XFS_DINODE_FMT_EXTENTS)
 		return false;
 
@@ -224,10 +226,20 @@ int
 xfs_attr_get_ilocked(
 	struct xfs_da_args	*args)
 {
+	int			error;
+
 	xfs_assert_ilocked(args->dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);
 
 	if (!xfs_inode_hasattr(args->dp))
 		return -ENOATTR;
+
+	/*
+	 * The incore attr fork iext tree must be loaded for xfs_attr_is_leaf
+	 * to work correctly.
+	 */
+	error = xfs_iread_extents(args->trans, args->dp, XFS_ATTR_FORK);
+	if (error)
+		return error;
 
 	if (args->dp->i_af.if_format == XFS_DINODE_FMT_LOCAL)
 		return xfs_attr_shortform_getvalue(args);
@@ -420,14 +432,13 @@ xfs_attr_complete_op(
 	enum xfs_delattr_state	replace_state)
 {
 	struct xfs_da_args	*args = attr->xattri_da_args;
-	bool			do_replace = args->op_flags & XFS_DA_OP_REPLACE;
+
+	if (!(args->op_flags & XFS_DA_OP_REPLACE))
+		replace_state = XFS_DAS_DONE;
 
 	args->op_flags &= ~XFS_DA_OP_REPLACE;
 	args->attr_filter &= ~XFS_ATTR_INCOMPLETE;
-	if (do_replace)
-		return replace_state;
-
-	return XFS_DAS_DONE;
+	return replace_state;
 }
 
 static int
@@ -869,6 +880,11 @@ xfs_attr_lookup(
 			return -EEXIST;
 		return -ENOATTR;
 	}
+
+	/* Prerequisite for xfs_attr_is_leaf */
+	error = xfs_iread_extents(args->trans, args->dp, XFS_ATTR_FORK);
+	if (error)
+		return error;
 
 	if (xfs_attr_is_leaf(dp)) {
 		error = xfs_attr_leaf_hasname(args, &bp);
@@ -1516,12 +1532,23 @@ out_release:
 	return error;
 }
 
+/* Enforce that there is at most one namespace bit per attr. */
+inline bool xfs_attr_check_namespace(unsigned int attr_flags)
+{
+	return hweight32(attr_flags & XFS_ATTR_NSP_ONDISK_MASK) < 2;
+}
+
 /* Returns true if the attribute entry name is valid. */
 bool
 xfs_attr_namecheck(
+	unsigned int	attr_flags,
 	const void	*name,
 	size_t		length)
 {
+	/* Only one namespace bit allowed. */
+	if (!xfs_attr_check_namespace(attr_flags))
+		return false;
+
 	/*
 	 * MAXNAMELEN includes the trailing null, but (name/length) leave it
 	 * out, so use >= for the length check.

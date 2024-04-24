@@ -31,7 +31,7 @@ xfs_attr_grab_log_assist(
 	int			error = 0;
 
 	/* xattr update log intent items are already enabled */
-	if (xfs_sb_version_haslogxattrs(&mp->m_sb))
+	if (xfs_is_using_logged_xattrs(mp))
 		return 0;
 
 	/*
@@ -48,6 +48,7 @@ xfs_attr_grab_log_assist(
 			XFS_SB_FEAT_INCOMPAT_LOG_XATTRS);
 	if (error)
 		return error;
+	xfs_set_using_logged_xattrs(mp);
 
 	xfs_warn_mount(mp, XFS_OPSTATE_WARNED_LARP,
  "EXPERIMENTAL logged extended attributes feature in use. Use at your own risk!");
