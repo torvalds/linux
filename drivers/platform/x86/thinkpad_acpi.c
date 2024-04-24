@@ -248,6 +248,9 @@ enum tpacpi_hkey_event_t {
 
 	/* Misc */
 	TP_HKEY_EV_RFKILL_CHANGED	= 0x7000, /* rfkill switch changed */
+
+	/* Misc2 */
+	TP_HKEY_EV_TRACK_DOUBLETAP      = 0x8036, /* trackpoint doubletap */
 };
 
 /****************************************************************************
@@ -3268,6 +3271,7 @@ static const struct key_entry keymap_lenovo[] __initconst = {
 	 * after switching to sparse keymap support. The mappings above use translated
 	 * scancodes to preserve uAPI compatibility, see tpacpi_input_send_key().
 	 */
+	{ KE_KEY, TP_HKEY_EV_TRACK_DOUBLETAP /* 0x8036 */, { KEY_PROG4 } },
 	{ KE_END }
 };
 
@@ -3817,6 +3821,17 @@ static bool hotkey_notify_6xxx(const u32 hkey, bool *send_acpi_ev)
 	return true;
 }
 
+static bool hotkey_notify_8xxx(const u32 hkey, bool *send_acpi_ev)
+{
+	switch (hkey) {
+	case TP_HKEY_EV_TRACK_DOUBLETAP:
+		tpacpi_input_send_key(hkey, send_acpi_ev);
+		return true;
+	default:
+		return false;
+	}
+}
+
 static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 {
 	u32 hkey;
@@ -3892,6 +3907,10 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 				send_acpi_ev = 0;
 				known_ev = true;
 			}
+			break;
+		case 8:
+			/* 0x8000-0x8FFF: misc2 */
+			known_ev = hotkey_notify_8xxx(hkey, &send_acpi_ev);
 			break;
 		}
 		if (!known_ev) {
