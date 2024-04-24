@@ -557,7 +557,6 @@ xrep_xattr_insert_rec(
 	struct xfs_da_args		args = {
 		.dp			= rx->sc->tempip,
 		.attr_filter		= key->flags,
-		.attr_flags		= XATTR_CREATE,
 		.namelen		= key->namelen,
 		.valuelen		= key->valuelen,
 		.owner			= rx->sc->ip->i_ino,
@@ -605,7 +604,7 @@ xrep_xattr_insert_rec(
 	 * xfs_attr_set creates and commits its own transaction.  If the attr
 	 * already exists, we'll just drop it during the rebuild.
 	 */
-	error = xfs_attr_set(&args);
+	error = xfs_attr_set(&args, XFS_ATTRUPDATE_CREATE);
 	if (error == -EEXIST)
 		error = 0;
 
