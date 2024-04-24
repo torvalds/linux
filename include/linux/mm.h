@@ -1457,11 +1457,6 @@ static inline bool put_devmap_managed_page_refs(struct page *page, int refs)
 }
 #endif /* CONFIG_ZONE_DEVICE && CONFIG_FS_DAX */
 
-static inline bool put_devmap_managed_page(struct page *page)
-{
-	return put_devmap_managed_page_refs(page, 1);
-}
-
 /* 127: arbitrary random number, small enough to assemble well */
 #define folio_ref_zero_or_close_to_overflow(folio) \
 	((unsigned int) folio_ref_count(folio) + 127u <= 127u)
@@ -1580,7 +1575,7 @@ static inline void put_page(struct page *page)
 	 * For some devmap managed pages we need to catch refcount transition
 	 * from 2 to 1:
 	 */
-	if (put_devmap_managed_page(&folio->page))
+	if (put_devmap_managed_page_refs(&folio->page, 1))
 		return;
 	folio_put(folio);
 }
