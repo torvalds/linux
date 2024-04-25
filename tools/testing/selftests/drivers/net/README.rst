@@ -1,18 +1,42 @@
-Running tests
-=============
+.. SPDX-License-Identifier: GPL-2.0
 
-Tests are executed within kselftest framework like any other tests.
-By default tests execute against software drivers such as netdevsim.
-All tests must support running against a real device (SW-only tests
-should instead be placed in net/ or drivers/net/netdevsim, HW-only
-tests in drivers/net/hw).
+Running driver tests
+====================
 
-Set appropriate variables to point the tests at a real device.
+Networking driver tests are executed within kselftest framework like any
+other tests. They support testing both real device drivers and emulated /
+software drivers (latter mostly to test the core parts of the stack).
+
+SW mode
+~~~~~~~
+
+By default, when no extra parameters are set or exported, tests execute
+against software drivers such as netdevsim. No extra preparation is required
+the software devices are created and destroyed as part of the test.
+In this mode the tests are indistinguishable from other selftests and
+(for example) can be run under ``virtme-ng`` like the core networking selftests.
+
+HW mode
+~~~~~~~
+
+Executing tests against a real device requires external preparation.
+The netdevice against which tests will be run must exist, be running
+(in UP state) and be configured with an IP address.
+
+Refer to list of :ref:`Variables` later in this file to set up running
+the tests against a real device.
+
+Both modes required
+~~~~~~~~~~~~~~~~~~~
+
+All tests in drivers/net must support running both against a software device
+and a real device. SW-only tests should instead be placed in net/ or
+drivers/net/netdevsim, HW-only tests in drivers/net/hw.
 
 Variables
 =========
 
-Variables can be set in the environment or by creating a net.config
+The variables can be set in the environment or by creating a net.config
 file in the same directory as this README file. Example::
 
   $ NETIF=eth0 ./some_test.sh
@@ -23,9 +47,9 @@ or::
   # Variable set in a file
   NETIF=eth0
 
-Please note that the config parser is very simple, if there are
-any non-alphanumeric characters in the value it needs to be in
-double quotes.
+Local test (which don't require endpoint for sending / receiving traffic)
+need only the ``NETIF`` variable. Remaining variables define the endpoint
+and communication method.
 
 NETIF
 ~~~~~
@@ -61,3 +85,52 @@ Communication channel dependent::
 
   for netns - name of the "remote" namespace
   for ssh - name/address of the remote host
+
+Example
+=======
+
+Build the selftests::
+
+  # make -C tools/testing/selftests/ TARGETS="drivers/net drivers/net/hw"
+
+"Install" the tests and copy them over to the target machine::
+
+  # make -C tools/testing/selftests/ TARGETS="drivers/net drivers/net/hw" \
+     install INSTALL_PATH=/tmp/ksft-net-drv
+
+  # rsync -ra --delete /tmp/ksft-net-drv root@192.168.1.1:/root/
+
+On the target machine, running the tests will use netdevsim by default::
+
+  [/root] # ./ksft-net-drv/run_kselftest.sh -t drivers/net:ping.py
+  TAP version 13
+  1..1
+  # timeout set to 45
+  # selftests: drivers/net: ping.py
+  # KTAP version 1
+  # 1..3
+  # ok 1 ping.test_v4
+  # ok 2 ping.test_v6
+  # ok 3 ping.test_tcp
+  # # Totals: pass:3 fail:0 xfail:0 xpass:0 skip:0 error:0
+  ok 1 selftests: drivers/net: ping.py
+
+Create a config with remote info::
+
+  [/root] # cat > ./ksft-net-drv/drivers/net/net.config <<EOF
+  NETIF=eth0
+  LOCAL_V4=192.168.1.1
+  REMOTE_V4=192.168.1.2
+  REMOTE_TYPE=ssh
+  REMOTE_ARGS=root@192.168.1.2
+  EOF
+
+Run the test::
+
+  [/root] # ./ksft-net-drv/drivers/net/ping.py
+  KTAP version 1
+  1..3
+  ok 1 ping.test_v4
+  ok 2 ping.test_v6 # SKIP Test requires IPv6 connectivity
+  ok 3 ping.test_tcp
+  # Totals: pass:2 fail:0 xfail:0 xpass:0 skip:1 error:0
