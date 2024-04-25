@@ -349,14 +349,16 @@ static void _rtl92de_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 					       __le32 *pdesc,
 					       struct rx_fwinfo_92d *p_drvinfo)
 {
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
+	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct ieee80211_hdr *hdr;
+	bool packet_matchbssid;
+	bool packet_beacon;
+	bool packet_toself;
+	u16 type, cfc;
 	u8 *tmp_buf;
 	u8 *praddr;
-	u16 type, cfc;
 	__le16 fc;
-	bool packet_matchbssid, packet_toself, packet_beacon = false;
 
 	tmp_buf = skb->data + pstats->rx_drvinfo_size + pstats->rx_bufshift;
 	hdr = (struct ieee80211_hdr *)tmp_buf;
@@ -372,8 +374,7 @@ static void _rtl92de_translate_rx_signal_stuff(struct ieee80211_hw *hw,
 	     (!pstats->hwerror) && (!pstats->crc) && (!pstats->icv));
 	packet_toself = packet_matchbssid &&
 			ether_addr_equal(praddr, rtlefuse->dev_addr);
-	if (ieee80211_is_beacon(fc))
-		packet_beacon = true;
+	packet_beacon = ieee80211_is_beacon(fc);
 	_rtl92de_query_rxphystatus(hw, pstats, pdesc, p_drvinfo,
 				   packet_matchbssid, packet_toself,
 				   packet_beacon);

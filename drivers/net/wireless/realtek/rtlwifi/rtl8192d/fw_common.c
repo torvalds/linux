@@ -11,8 +11,7 @@
 
 bool rtl92d_is_fw_downloaded(struct rtl_priv *rtlpriv)
 {
-	return (rtl_read_dword(rtlpriv, REG_MCUFWDL) & MCUFWDL_RDY) ?
-		true : false;
+	return !!(rtl_read_dword(rtlpriv, REG_MCUFWDL) & MCUFWDL_RDY);
 }
 EXPORT_SYMBOL_GPL(rtl92d_is_fw_downloaded);
 
@@ -50,17 +49,22 @@ void rtl92d_write_fw(struct ieee80211_hw *hw,
 	u32 page, offset;
 
 	rtl_dbg(rtlpriv, COMP_FW, DBG_TRACE, "FW size is %d bytes,\n", size);
+
 	if (rtlhal->hw_type == HARDWARE_TYPE_RTL8192DE)
 		rtl_fill_dummy(bufferptr, &size);
+
 	pagenums = size / FW_8192D_PAGE_SIZE;
 	remainsize = size % FW_8192D_PAGE_SIZE;
+
 	if (pagenums > 8)
 		pr_err("Page numbers should not greater then 8\n");
+
 	for (page = 0; page < pagenums; page++) {
 		offset = page * FW_8192D_PAGE_SIZE;
 		rtl_fw_page_write(hw, page, (bufferptr + offset),
 				  FW_8192D_PAGE_SIZE);
 	}
+
 	if (remainsize) {
 		offset = pagenums * FW_8192D_PAGE_SIZE;
 		page = pagenums;
@@ -79,14 +83,17 @@ int rtl92d_fw_free_to_go(struct ieee80211_hw *hw)
 		value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
 	} while ((counter++ < FW_8192D_POLLING_TIMEOUT_COUNT) &&
 		 (!(value32 & FWDL_CHKSUM_RPT)));
+
 	if (counter >= FW_8192D_POLLING_TIMEOUT_COUNT) {
 		pr_err("chksum report fail! REG_MCUFWDL:0x%08x\n",
 		       value32);
 		return -EIO;
 	}
+
 	value32 = rtl_read_dword(rtlpriv, REG_MCUFWDL);
 	value32 |= MCUFWDL_RDY;
 	rtl_write_dword(rtlpriv, REG_MCUFWDL, value32);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rtl92d_fw_free_to_go);
@@ -99,7 +106,9 @@ void rtl92d_firmware_selfreset(struct ieee80211_hw *hw)
 
 	/* Set (REG_HMETFR + 3) to  0x20 is reset 8051 */
 	rtl_write_byte(rtlpriv, REG_HMETFR + 3, 0x20);
+
 	u1b_tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
+
 	while (u1b_tmp & BIT(2)) {
 		delay--;
 		if (delay == 0)
@@ -174,23 +183,22 @@ static bool _rtl92d_check_fw_read_last_h2c(struct ieee80211_hw *hw, u8 boxnum)
 	return result;
 }
 
-static void _rtl92d_fill_h2c_command(struct ieee80211_hw *hw,
-				     u8 element_id, u32 cmd_len, u8 *cmdbuffer)
+void rtl92d_fill_h2c_cmd(struct ieee80211_hw *hw,
+			 u8 element_id, u32 cmd_len, u8 *cmdbuffer)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_ps_ctl *ppsc = rtl_psc(rtl_priv(hw));
-	u8 boxnum;
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	u8 boxcontent[4], boxextcontent[2];
 	u16 box_reg = 0, box_extreg = 0;
-	u8 u1b_tmp;
-	bool isfw_read = false;
-	u8 buf_index = 0;
+	u8 wait_writeh2c_limmit = 100;
 	bool bwrite_success = false;
 	u8 wait_h2c_limmit = 100;
-	u8 wait_writeh2c_limmit = 100;
-	u8 boxcontent[4], boxextcontent[2];
 	u32 h2c_waitcounter = 0;
+	bool isfw_read = false;
 	unsigned long flag;
+	u8 u1b_tmp;
+	u8 boxnum;
 	u8 idx;
 
 	if (ppsc->rfpwr_state == ERFOFF || ppsc->inactive_pwrstate == ERFOFF) {
@@ -198,7 +206,9 @@ static void _rtl92d_fill_h2c_command(struct ieee80211_hw *hw,
 			"Return as RF is off!!!\n");
 		return;
 	}
+
 	rtl_dbg(rtlpriv, COMP_CMD, DBG_LOUD, "come in\n");
+
 	while (true) {
 		spin_lock_irqsave(&rtlpriv->locks.h2c_lock, flag);
 		if (rtlhal->h2c_setinprogress) {
@@ -228,35 +238,23 @@ static void _rtl92d_fill_h2c_command(struct ieee80211_hw *hw,
 			break;
 		}
 	}
+
 	while (!bwrite_success) {
 		wait_writeh2c_limmit--;
 		if (wait_writeh2c_limmit == 0) {
 			pr_err("Write H2C fail because no trigger for FW INT!\n");
 			break;
 		}
+
 		boxnum = rtlhal->last_hmeboxnum;
-		switch (boxnum) {
-		case 0:
-			box_reg = REG_HMEBOX_0;
-			box_extreg = REG_HMEBOX_EXT_0;
-			break;
-		case 1:
-			box_reg = REG_HMEBOX_1;
-			box_extreg = REG_HMEBOX_EXT_1;
-			break;
-		case 2:
-			box_reg = REG_HMEBOX_2;
-			box_extreg = REG_HMEBOX_EXT_2;
-			break;
-		case 3:
-			box_reg = REG_HMEBOX_3;
-			box_extreg = REG_HMEBOX_EXT_3;
-			break;
-		default:
-			pr_err("switch case %#x not processed\n",
-			       boxnum);
+		if (boxnum > 3) {
+			pr_err("boxnum %#x too big\n", boxnum);
 			break;
 		}
+
+		box_reg = REG_HMEBOX_0 + boxnum * SIZE_OF_REG_HMEBOX;
+		box_extreg = REG_HMEBOX_EXT_0 + boxnum * SIZE_OF_REG_HMEBOX_EXT;
+
 		isfw_read = _rtl92d_check_fw_read_last_h2c(hw, boxnum);
 		while (!isfw_read) {
 			wait_h2c_limmit--;
@@ -266,78 +264,70 @@ static void _rtl92d_fill_h2c_command(struct ieee80211_hw *hw,
 					boxnum);
 				break;
 			}
+
 			udelay(10);
+
 			isfw_read = _rtl92d_check_fw_read_last_h2c(hw, boxnum);
 			u1b_tmp = rtl_read_byte(rtlpriv, 0x1BF);
 			rtl_dbg(rtlpriv, COMP_CMD, DBG_LOUD,
 				"Waiting for FW read clear HMEBox(%d)!!! 0x1BF = %2x\n",
 				boxnum, u1b_tmp);
 		}
+
 		if (!isfw_read) {
 			rtl_dbg(rtlpriv, COMP_CMD, DBG_LOUD,
 				"Write H2C register BOX[%d] fail!!!!! Fw do not read.\n",
 				boxnum);
 			break;
 		}
+
 		memset(boxcontent, 0, sizeof(boxcontent));
 		memset(boxextcontent, 0, sizeof(boxextcontent));
 		boxcontent[0] = element_id;
+
 		rtl_dbg(rtlpriv, COMP_CMD, DBG_LOUD,
 			"Write element_id box_reg(%4x) = %2x\n",
 			box_reg, element_id);
+
 		switch (cmd_len) {
-		case 1:
-			boxcontent[0] &= ~(BIT(7));
-			memcpy(boxcontent + 1, cmdbuffer + buf_index, 1);
+		case 1 ... 3:
+			/* BOX:      | ID | A0 | A1 | A2 |
+			 * BOX_EXT:  --- N/A ------
+			 */
+			boxcontent[0] &= ~BIT(7);
+			memcpy(boxcontent + 1, cmdbuffer, cmd_len);
+
 			for (idx = 0; idx < 4; idx++)
 				rtl_write_byte(rtlpriv, box_reg + idx,
 					       boxcontent[idx]);
 			break;
-		case 2:
-			boxcontent[0] &= ~(BIT(7));
-			memcpy(boxcontent + 1, cmdbuffer + buf_index, 2);
-			for (idx = 0; idx < 4; idx++)
-				rtl_write_byte(rtlpriv, box_reg + idx,
-					       boxcontent[idx]);
-			break;
-		case 3:
-			boxcontent[0] &= ~(BIT(7));
-			memcpy(boxcontent + 1, cmdbuffer + buf_index, 3);
-			for (idx = 0; idx < 4; idx++)
-				rtl_write_byte(rtlpriv, box_reg + idx,
-					       boxcontent[idx]);
-			break;
-		case 4:
-			boxcontent[0] |= (BIT(7));
-			memcpy(boxextcontent, cmdbuffer + buf_index, 2);
-			memcpy(boxcontent + 1, cmdbuffer + buf_index + 2, 2);
+		case 4 ... 5:
+			/* * ID ext = ID | BIT(7)
+			 * BOX:      | ID ext | A2 | A3 | A4 |
+			 * BOX_EXT:  | A0     | A1 |
+			 */
+			boxcontent[0] |= BIT(7);
+			memcpy(boxextcontent, cmdbuffer, 2);
+			memcpy(boxcontent + 1, cmdbuffer + 2, cmd_len - 2);
+
 			for (idx = 0; idx < 2; idx++)
 				rtl_write_byte(rtlpriv, box_extreg + idx,
 					       boxextcontent[idx]);
-			for (idx = 0; idx < 4; idx++)
-				rtl_write_byte(rtlpriv, box_reg + idx,
-					       boxcontent[idx]);
-			break;
-		case 5:
-			boxcontent[0] |= (BIT(7));
-			memcpy(boxextcontent, cmdbuffer + buf_index, 2);
-			memcpy(boxcontent + 1, cmdbuffer + buf_index + 2, 3);
-			for (idx = 0; idx < 2; idx++)
-				rtl_write_byte(rtlpriv, box_extreg + idx,
-					       boxextcontent[idx]);
+
 			for (idx = 0; idx < 4; idx++)
 				rtl_write_byte(rtlpriv, box_reg + idx,
 					       boxcontent[idx]);
 			break;
 		default:
-			pr_err("switch case %#x not processed\n",
-			       cmd_len);
+			pr_err("switch case %#x not processed\n", cmd_len);
 			break;
 		}
+
 		bwrite_success = true;
 		rtlhal->last_hmeboxnum = boxnum + 1;
 		if (rtlhal->last_hmeboxnum == 4)
 			rtlhal->last_hmeboxnum = 0;
+
 		rtl_dbg(rtlpriv, COMP_CMD, DBG_LOUD,
 			"pHalData->last_hmeboxnum  = %d\n",
 			rtlhal->last_hmeboxnum);
@@ -346,16 +336,6 @@ static void _rtl92d_fill_h2c_command(struct ieee80211_hw *hw,
 	rtlhal->h2c_setinprogress = false;
 	spin_unlock_irqrestore(&rtlpriv->locks.h2c_lock, flag);
 	rtl_dbg(rtlpriv, COMP_CMD, DBG_LOUD, "go out\n");
-}
-
-void rtl92d_fill_h2c_cmd(struct ieee80211_hw *hw,
-			 u8 element_id, u32 cmd_len, u8 *cmdbuffer)
-{
-	u32 tmp_cmdbuf[2];
-
-	memset(tmp_cmdbuf, 0, 8);
-	memcpy(tmp_cmdbuf, cmdbuffer, cmd_len);
-	_rtl92d_fill_h2c_command(hw, element_id, cmd_len, (u8 *)&tmp_cmdbuf);
 }
 EXPORT_SYMBOL_GPL(rtl92d_fill_h2c_cmd);
 

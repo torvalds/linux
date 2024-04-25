@@ -16,10 +16,11 @@ void rtl92d_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
 	switch (bandwidth) {
 	case HT_CHANNEL_WIDTH_20:
 		for (rfpath = 0; rfpath < rtlphy->num_total_rfpath; rfpath++) {
-			rtlphy->rfreg_chnlval[rfpath] = ((rtlphy->rfreg_chnlval
-					[rfpath] & 0xfffff3ff) | 0x0400);
-			rtl_set_rfreg(hw, rfpath, RF_CHNLBW, BIT(10) |
-				      BIT(11), 0x01);
+			rtlphy->rfreg_chnlval[rfpath] &= 0xfffff3ff;
+			rtlphy->rfreg_chnlval[rfpath] |= 0x0400;
+
+			rtl_set_rfreg(hw, rfpath, RF_CHNLBW,
+				      BIT(10) | BIT(11), 0x01);
 
 			rtl_dbg(rtlpriv, COMP_RF, DBG_LOUD,
 				"20M RF 0x18 = 0x%x\n",
@@ -29,10 +30,11 @@ void rtl92d_phy_rf6052_set_bandwidth(struct ieee80211_hw *hw, u8 bandwidth)
 		break;
 	case HT_CHANNEL_WIDTH_20_40:
 		for (rfpath = 0; rfpath < rtlphy->num_total_rfpath; rfpath++) {
-			rtlphy->rfreg_chnlval[rfpath] =
-			    ((rtlphy->rfreg_chnlval[rfpath] & 0xfffff3ff));
-			rtl_set_rfreg(hw, rfpath, RF_CHNLBW, BIT(10) | BIT(11),
-				      0x00);
+			rtlphy->rfreg_chnlval[rfpath] &= 0xfffff3ff;
+
+			rtl_set_rfreg(hw, rfpath, RF_CHNLBW,
+				      BIT(10) | BIT(11), 0x00);
+
 			rtl_dbg(rtlpriv, COMP_RF, DBG_LOUD,
 				"40M RF 0x18 = 0x%x\n",
 				rtlphy->rfreg_chnlval[rfpath]);
@@ -135,7 +137,7 @@ static void _rtl92d_phy_get_power_base(struct ieee80211_hw *hw,
 		legacy_pwrdiff = rtlefuse->txpwr_legacyhtdiff[i][channel - 1];
 		powerbase0 = powerlevel[i] + legacy_pwrdiff;
 		powerbase0 = (powerbase0 << 24) | (powerbase0 << 16) |
-		    (powerbase0 << 8) | powerbase0;
+			     (powerbase0 << 8) | powerbase0;
 		*(ofdmbase + i) = powerbase0;
 		RTPRINT(rtlpriv, FPHY, PHY_TXPWR,
 			" [OFDM power base index rf(%c) = 0x%x]\n",
@@ -157,6 +159,31 @@ static void _rtl92d_phy_get_power_base(struct ieee80211_hw *hw,
 	}
 }
 
+static void _rtl92d_get_pwr_diff_limit(struct ieee80211_hw *hw, u8 channel,
+				       u8 index, u8 rf, u8 pwr_diff_limit[4])
+{
+	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_phy *rtlphy = &rtlpriv->phy;
+	u32 mcs_offset;
+	u8 limit;
+	int i;
+
+	mcs_offset = rtlphy->mcs_offset[0][index + (rf ? 8 : 0)];
+
+	for (i = 0; i < 4; i++) {
+		pwr_diff_limit[i] = (mcs_offset >> (i * 8)) & 0x7f;
+
+		if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_20_40)
+			limit = rtlefuse->pwrgroup_ht40[rf][channel - 1];
+		else
+			limit = rtlefuse->pwrgroup_ht20[rf][channel - 1];
+
+		if (pwr_diff_limit[i] > limit)
+			pwr_diff_limit[i] = limit;
+	}
+}
+
 static void _rtl92d_get_txpower_writeval_by_regulatory(struct ieee80211_hw *hw,
 						       u8 channel, u8 index,
 						       u32 *powerbase0,
@@ -166,107 +193,86 @@ static void _rtl92d_get_txpower_writeval_by_regulatory(struct ieee80211_hw *hw,
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
-	u8 i, chnlgroup = 0, pwr_diff_limit[4];
 	u32 writeval = 0, customer_limit, rf;
+	u8 chnlgroup = 0, pwr_diff_limit[4];
 
 	for (rf = 0; rf < 2; rf++) {
 		switch (rtlefuse->eeprom_regulatory) {
 		case 0:
-			chnlgroup = 0;
-			writeval = rtlphy->mcs_offset
-					[chnlgroup][index +
-					(rf ? 8 : 0)] + ((index < 2) ?
-					powerbase0[rf] :
-					powerbase1[rf]);
+			writeval = rtlphy->mcs_offset[0][index + (rf ? 8 : 0)];
+
 			RTPRINT(rtlpriv, FPHY, PHY_TXPWR,
-				"RTK better performance, writeval(%c) = 0x%x\n",
-				rf == 0 ? 'A' : 'B', writeval);
+				"RTK better performance\n");
 			break;
 		case 1:
 			if (rtlphy->pwrgroup_cnt == 1)
 				chnlgroup = 0;
-			if (rtlphy->pwrgroup_cnt >= MAX_PG_GROUP) {
-				chnlgroup = rtl92d_phy_get_chnlgroup_bypg(channel - 1);
-				if (rtlphy->current_chan_bw ==
-				    HT_CHANNEL_WIDTH_20)
-					chnlgroup++;
-				else
-					chnlgroup += 4;
-				writeval = rtlphy->mcs_offset
-						[chnlgroup][index +
-						(rf ? 8 : 0)] + ((index < 2) ?
-						powerbase0[rf] :
-						powerbase1[rf]);
-				RTPRINT(rtlpriv, FPHY, PHY_TXPWR,
-					"Realtek regulatory, 20MHz, writeval(%c) = 0x%x\n",
-					rf == 0 ? 'A' : 'B', writeval);
-			}
+
+			if (rtlphy->pwrgroup_cnt < MAX_PG_GROUP)
+				break;
+
+			chnlgroup = rtl92d_phy_get_chnlgroup_bypg(channel - 1);
+			if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_20)
+				chnlgroup++;
+			else
+				chnlgroup += 4;
+
+			writeval = rtlphy->mcs_offset
+					[chnlgroup][index + (rf ? 8 : 0)];
+
+			RTPRINT(rtlpriv, FPHY, PHY_TXPWR,
+				"Realtek regulatory, 20MHz\n");
 			break;
 		case 2:
-			writeval = ((index < 2) ? powerbase0[rf] :
-				   powerbase1[rf]);
-			RTPRINT(rtlpriv, FPHY, PHY_TXPWR,
-				"Better regulatory, writeval(%c) = 0x%x\n",
-				rf == 0 ? 'A' : 'B', writeval);
+			writeval = 0;
+
+			RTPRINT(rtlpriv, FPHY, PHY_TXPWR, "Better regulatory\n");
 			break;
 		case 3:
-			chnlgroup = 0;
 			if (rtlphy->current_chan_bw == HT_CHANNEL_WIDTH_20_40) {
 				RTPRINT(rtlpriv, FPHY, PHY_TXPWR,
 					"customer's limit, 40MHz rf(%c) = 0x%x\n",
 					rf == 0 ? 'A' : 'B',
-					rtlefuse->pwrgroup_ht40[rf]
-					[channel - 1]);
+					rtlefuse->pwrgroup_ht40[rf][channel - 1]);
 			} else {
 				RTPRINT(rtlpriv, FPHY, PHY_TXPWR,
 					"customer's limit, 20MHz rf(%c) = 0x%x\n",
 					rf == 0 ? 'A' : 'B',
-					rtlefuse->pwrgroup_ht20[rf]
-					[channel - 1]);
+					rtlefuse->pwrgroup_ht20[rf][channel - 1]);
 			}
-			for (i = 0; i < 4; i++) {
-				pwr_diff_limit[i] = (u8)((rtlphy->mcs_offset
-					[chnlgroup][index + (rf ? 8 : 0)] &
-					(0x7f << (i * 8))) >> (i * 8));
-				if (rtlphy->current_chan_bw ==
-				    HT_CHANNEL_WIDTH_20_40) {
-					if (pwr_diff_limit[i] >
-					    rtlefuse->pwrgroup_ht40[rf]
-					   [channel - 1])
-						pwr_diff_limit[i] =
-							rtlefuse->pwrgroup_ht40
-							[rf][channel - 1];
-				} else {
-					if (pwr_diff_limit[i] >
-					    rtlefuse->pwrgroup_ht20[rf][channel - 1])
-						pwr_diff_limit[i] =
-						   rtlefuse->pwrgroup_ht20[rf]
-						   [channel - 1];
-				}
-			}
+
+			_rtl92d_get_pwr_diff_limit(hw, channel, index, rf,
+						   pwr_diff_limit);
+
 			customer_limit = (pwr_diff_limit[3] << 24) |
 					 (pwr_diff_limit[2] << 16) |
 					 (pwr_diff_limit[1] << 8) |
 					 (pwr_diff_limit[0]);
+
 			RTPRINT(rtlpriv, FPHY, PHY_TXPWR,
 				"Customer's limit rf(%c) = 0x%x\n",
 				rf == 0 ? 'A' : 'B', customer_limit);
-			writeval = customer_limit + ((index < 2) ?
-				   powerbase0[rf] : powerbase1[rf]);
-			RTPRINT(rtlpriv, FPHY, PHY_TXPWR,
-				"Customer, writeval rf(%c)= 0x%x\n",
-				rf == 0 ? 'A' : 'B', writeval);
+
+			writeval = customer_limit;
+
+			RTPRINT(rtlpriv, FPHY, PHY_TXPWR, "Customer\n");
 			break;
 		default:
-			chnlgroup = 0;
-			writeval = rtlphy->mcs_offset[chnlgroup][index +
-				   (rf ? 8 : 0)] + ((index < 2) ?
-				   powerbase0[rf] : powerbase1[rf]);
+			writeval = rtlphy->mcs_offset[0][index + (rf ? 8 : 0)];
+
 			RTPRINT(rtlpriv, FPHY, PHY_TXPWR,
-				"RTK better performance, writeval rf(%c) = 0x%x\n",
-				rf == 0 ? 'A' : 'B', writeval);
+				"RTK better performance\n");
 			break;
 		}
+
+		if (index < 2)
+			writeval += powerbase0[rf];
+		else
+			writeval += powerbase1[rf];
+
+		RTPRINT(rtlpriv, FPHY, PHY_TXPWR, "writeval rf(%c)= 0x%x\n",
+			rf == 0 ? 'A' : 'B', writeval);
+
 		*(p_outwriteval + rf) = writeval;
 	}
 }

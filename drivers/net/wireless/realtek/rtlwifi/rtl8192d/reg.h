@@ -50,6 +50,7 @@
 #define REG_HMEBOX_EXT_1		0x008A
 #define REG_HMEBOX_EXT_2		0x008C
 #define REG_HMEBOX_EXT_3		0x008E
+#define SIZE_OF_REG_HMEBOX_EXT		2
 
 #define REG_BIST_SCAN			0x00D0
 #define REG_BIST_RPT			0x00D4
@@ -109,6 +110,7 @@
 #define REG_HMEBOX_1			0x01D4
 #define REG_HMEBOX_2			0x01D8
 #define REG_HMEBOX_3			0x01DC
+#define SIZE_OF_REG_HMEBOX		4
 
 #define REG_LLT_INIT			0x01E0
 #define REG_BB_ACCEESS_CTRL		0x01E8

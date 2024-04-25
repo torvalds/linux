@@ -363,10 +363,10 @@ static enum version_8192d _rtl92d_read_chip_version(struct ieee80211_hw *hw)
 }
 
 static void _rtl92de_readpowervalue_fromprom(struct txpower_info *pwrinfo,
-					     u8 *rom_content, bool autoloadfail)
+					     u8 *efuse, bool autoloadfail)
 {
-	u32 rfpath, eeaddr, group, offset1, offset2;
-	u8 i;
+	u32 rfpath, eeaddr, group, offset, offset1, offset2;
+	u8 i, val8;
 
 	memset(pwrinfo, 0, sizeof(struct txpower_info));
 	if (autoloadfail) {
@@ -405,98 +405,93 @@ static void _rtl92de_readpowervalue_fromprom(struct txpower_info *pwrinfo,
 	 */
 	for (rfpath = 0; rfpath < RF6052_MAX_PATH; rfpath++) {
 		for (group = 0; group < CHANNEL_GROUP_MAX_2G; group++) {
-			eeaddr = EEPROM_CCK_TX_PWR_INX_2G + (rfpath * 3)
-				 + group;
+			eeaddr = EEPROM_CCK_TX_PWR_INX_2G + (rfpath * 3) + group;
+
 			pwrinfo->cck_index[rfpath][group] =
-					(rom_content[eeaddr] == 0xFF) ?
-					     (eeaddr > 0x7B ?
-					     EEPROM_DEFAULT_TXPOWERLEVEL_5G :
-					     EEPROM_DEFAULT_TXPOWERLEVEL_2G) :
-					     rom_content[eeaddr];
+				efuse[eeaddr] == 0xFF ?
+				(eeaddr > 0x7B ?
+				 EEPROM_DEFAULT_TXPOWERLEVEL_5G :
+				 EEPROM_DEFAULT_TXPOWERLEVEL_2G) :
+				efuse[eeaddr];
 		}
 	}
 	for (rfpath = 0; rfpath < RF6052_MAX_PATH; rfpath++) {
 		for (group = 0; group < CHANNEL_GROUP_MAX; group++) {
 			offset1 = group / 3;
 			offset2 = group % 3;
-			eeaddr = EEPROM_HT40_1S_TX_PWR_INX_2G + (rfpath * 3) +
-			    offset2 + offset1 * 21;
+			eeaddr = EEPROM_HT40_1S_TX_PWR_INX_2G + (rfpath * 3);
+			eeaddr += offset2 + offset1 * 21;
+
 			pwrinfo->ht40_1sindex[rfpath][group] =
-			    (rom_content[eeaddr] == 0xFF) ? (eeaddr > 0x7B ?
-					     EEPROM_DEFAULT_TXPOWERLEVEL_5G :
-					     EEPROM_DEFAULT_TXPOWERLEVEL_2G) :
-						 rom_content[eeaddr];
+				efuse[eeaddr] == 0xFF ?
+				(eeaddr > 0x7B ?
+				 EEPROM_DEFAULT_TXPOWERLEVEL_5G :
+				 EEPROM_DEFAULT_TXPOWERLEVEL_2G) :
+				efuse[eeaddr];
 		}
 	}
+
 	/* These just for 92D efuse offset. */
 	for (group = 0; group < CHANNEL_GROUP_MAX; group++) {
 		for (rfpath = 0; rfpath < RF6052_MAX_PATH; rfpath++) {
-			int base1 = EEPROM_HT40_2S_TX_PWR_INX_DIFF_2G;
-
 			offset1 = group / 3;
 			offset2 = group % 3;
+			offset = offset2 + offset1 * 21;
 
-			if (rom_content[base1 + offset2 + offset1 * 21] != 0xFF)
+			val8 = efuse[EEPROM_HT40_2S_TX_PWR_INX_DIFF_2G + offset];
+			if (val8 != 0xFF)
 				pwrinfo->ht40_2sindexdiff[rfpath][group] =
-				    (rom_content[base1 +
-				     offset2 + offset1 * 21] >> (rfpath * 4))
-				     & 0xF;
+				    (val8 >> (rfpath * 4)) & 0xF;
 			else
 				pwrinfo->ht40_2sindexdiff[rfpath][group] =
 				    EEPROM_DEFAULT_HT40_2SDIFF;
-			if (rom_content[EEPROM_HT20_TX_PWR_INX_DIFF_2G + offset2
-			    + offset1 * 21] != 0xFF)
+
+			val8 = efuse[EEPROM_HT20_TX_PWR_INX_DIFF_2G + offset];
+			if (val8 != 0xFF)
 				pwrinfo->ht20indexdiff[rfpath][group] =
-				    (rom_content[EEPROM_HT20_TX_PWR_INX_DIFF_2G
-				    + offset2 + offset1 * 21] >> (rfpath * 4))
-				    & 0xF;
+				    (val8 >> (rfpath * 4)) & 0xF;
 			else
 				pwrinfo->ht20indexdiff[rfpath][group] =
 				    EEPROM_DEFAULT_HT20_DIFF;
-			if (rom_content[EEPROM_OFDM_TX_PWR_INX_DIFF_2G + offset2
-			    + offset1 * 21] != 0xFF)
+
+			val8 = efuse[EEPROM_OFDM_TX_PWR_INX_DIFF_2G + offset];
+			if (val8 != 0xFF)
 				pwrinfo->ofdmindexdiff[rfpath][group] =
-				    (rom_content[EEPROM_OFDM_TX_PWR_INX_DIFF_2G
-				     + offset2 + offset1 * 21] >> (rfpath * 4))
-				     & 0xF;
+				    (val8 >> (rfpath * 4)) & 0xF;
 			else
 				pwrinfo->ofdmindexdiff[rfpath][group] =
 				    EEPROM_DEFAULT_LEGACYHTTXPOWERDIFF;
-			if (rom_content[EEPROM_HT40_MAX_PWR_OFFSET_2G + offset2
-			    + offset1 * 21] != 0xFF)
+
+			val8 = efuse[EEPROM_HT40_MAX_PWR_OFFSET_2G + offset];
+			if (val8 != 0xFF)
 				pwrinfo->ht40maxoffset[rfpath][group] =
-				    (rom_content[EEPROM_HT40_MAX_PWR_OFFSET_2G
-				    + offset2 + offset1 * 21] >> (rfpath * 4))
-				    & 0xF;
+				    (val8 >> (rfpath * 4)) & 0xF;
 			else
 				pwrinfo->ht40maxoffset[rfpath][group] =
 				    EEPROM_DEFAULT_HT40_PWRMAXOFFSET;
-			if (rom_content[EEPROM_HT20_MAX_PWR_OFFSET_2G + offset2
-			    + offset1 * 21] != 0xFF)
+
+			val8 = efuse[EEPROM_HT20_MAX_PWR_OFFSET_2G + offset];
+			if (val8 != 0xFF)
 				pwrinfo->ht20maxoffset[rfpath][group] =
-				    (rom_content[EEPROM_HT20_MAX_PWR_OFFSET_2G +
-				     offset2 + offset1 * 21] >> (rfpath * 4)) &
-				     0xF;
+				    (val8 >> (rfpath * 4)) & 0xF;
 			else
 				pwrinfo->ht20maxoffset[rfpath][group] =
 				    EEPROM_DEFAULT_HT20_PWRMAXOFFSET;
 		}
 	}
-	if (rom_content[EEPROM_TSSI_A_5G] != 0xFF) {
+
+	if (efuse[EEPROM_TSSI_A_5G] != 0xFF) {
 		/* 5GL */
-		pwrinfo->tssi_a[0] = rom_content[EEPROM_TSSI_A_5G] & 0x3F;
-		pwrinfo->tssi_b[0] = rom_content[EEPROM_TSSI_B_5G] & 0x3F;
+		pwrinfo->tssi_a[0] = efuse[EEPROM_TSSI_A_5G] & 0x3F;
+		pwrinfo->tssi_b[0] = efuse[EEPROM_TSSI_B_5G] & 0x3F;
 		/* 5GM */
-		pwrinfo->tssi_a[1] = rom_content[EEPROM_TSSI_AB_5G] & 0x3F;
-		pwrinfo->tssi_b[1] =
-		    (rom_content[EEPROM_TSSI_AB_5G] & 0xC0) >> 6 |
-		    (rom_content[EEPROM_TSSI_AB_5G + 1] & 0x0F) << 2;
+		pwrinfo->tssi_a[1] = efuse[EEPROM_TSSI_AB_5G] & 0x3F;
+		pwrinfo->tssi_b[1] = (efuse[EEPROM_TSSI_AB_5G] & 0xC0) >> 6 |
+				     (efuse[EEPROM_TSSI_AB_5G + 1] & 0x0F) << 2;
 		/* 5GH */
-		pwrinfo->tssi_a[2] = (rom_content[EEPROM_TSSI_AB_5G + 1] &
-				      0xF0) >> 4 |
-		    (rom_content[EEPROM_TSSI_AB_5G + 2] & 0x03) << 4;
-		pwrinfo->tssi_b[2] = (rom_content[EEPROM_TSSI_AB_5G + 2] &
-				      0xFC) >> 2;
+		pwrinfo->tssi_a[2] = (efuse[EEPROM_TSSI_AB_5G + 1] & 0xF0) >> 4 |
+				     (efuse[EEPROM_TSSI_AB_5G + 2] & 0x03) << 4;
+		pwrinfo->tssi_b[2] = (efuse[EEPROM_TSSI_AB_5G + 2] & 0xFC) >> 2;
 	} else {
 		for (i = 0; i < 3; i++) {
 			pwrinfo->tssi_a[i] = EEPROM_DEFAULT_TSSI;
@@ -684,8 +679,6 @@ static void _rtl92de_read_adapter_info(struct ieee80211_hw *hw)
 			EEPROM_SVID, EEPROM_SMID, EEPROM_MAC_ADDR_MAC0_92D,
 			EEPROM_CHANNEL_PLAN, EEPROM_VERSION, EEPROM_CUSTOMER_ID,
 			COUNTRY_CODE_WORLD_WIDE_13};
-	int i;
-	u16 usvalue;
 	u8 *hwinfo;
 
 	hwinfo = kzalloc(HWSET_MAX_SIZE, GFP_KERNEL);
@@ -699,12 +692,10 @@ static void _rtl92de_read_adapter_info(struct ieee80211_hw *hw)
 	_rtl92de_read_macphymode_and_bandtype(hw, hwinfo);
 
 	/* Read Permanent MAC address for 2nd interface */
-	if (rtlhal->interfaceindex != 0) {
-		for (i = 0; i < 6; i += 2) {
-			usvalue = *(u16 *)&hwinfo[EEPROM_MAC_ADDR_MAC1_92D + i];
-			*((u16 *)(&rtlefuse->dev_addr[i])) = usvalue;
-		}
-	}
+	if (rtlhal->interfaceindex != 0)
+		ether_addr_copy(rtlefuse->dev_addr,
+				&hwinfo[EEPROM_MAC_ADDR_MAC1_92D]);
+
 	rtlpriv->cfg->ops->set_hw_reg(hw, HW_VAR_ETHER_ADDR,
 				      rtlefuse->dev_addr);
 	rtl_dbg(rtlpriv, COMP_INIT, DBG_DMESG, "%pM\n", rtlefuse->dev_addr);
@@ -761,22 +752,24 @@ EXPORT_SYMBOL_GPL(rtl92de_read_eeprom_info);
 static void rtl92de_update_hal_rate_table(struct ieee80211_hw *hw,
 					  struct ieee80211_sta *sta)
 {
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	u32 ratr_value;
-	u8 ratr_index = 0;
-	u8 nmode = mac->ht_enable;
+	enum wireless_mode wirelessmode;
 	u8 mimo_ps = IEEE80211_SMPS_OFF;
-	u16 shortgi_rate;
-	u32 tmp_ratr_value;
 	u8 curtxbw_40mhz = mac->bw_40;
-	u8 curshortgi_40mhz = (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40) ?
-							1 : 0;
-	u8 curshortgi_20mhz = (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ?
-							1 : 0;
-	enum wireless_mode wirelessmode = mac->mode;
+	u8 nmode = mac->ht_enable;
+	u8 curshortgi_40mhz;
+	u8 curshortgi_20mhz;
+	u32 tmp_ratr_value;
+	u8 ratr_index = 0;
+	u16 shortgi_rate;
+	u32 ratr_value;
+
+	curshortgi_40mhz = !!(sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
+	curshortgi_20mhz = !!(sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
+	wirelessmode = mac->mode;
 
 	if (rtlhal->current_bandtype == BAND_ON_5G)
 		ratr_value = sta->deflink.supp_rates[1] << 4;
@@ -844,27 +837,30 @@ static void rtl92de_update_hal_rate_mask(struct ieee80211_hw *hw,
 					 struct ieee80211_sta *sta,
 					 u8 rssi_level, bool update_bw)
 {
+	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
+	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	struct rtl_sta_info *sta_entry = NULL;
+	enum wireless_mode wirelessmode;
+	bool shortgi = false;
+	u8 curshortgi_40mhz;
+	u8 curshortgi_20mhz;
+	u8 curtxbw_40mhz;
 	u32 ratr_bitmap;
 	u8 ratr_index;
-	u8 curtxbw_40mhz = (sta->deflink.bandwidth >= IEEE80211_STA_RX_BW_40) ? 1 : 0;
-	u8 curshortgi_40mhz = (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40) ?
-							1 : 0;
-	u8 curshortgi_20mhz = (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20) ?
-							1 : 0;
-	enum wireless_mode wirelessmode = 0;
-	bool shortgi = false;
 	u32 value[2];
 	u8 macid = 0;
-	u8 mimo_ps = IEEE80211_SMPS_OFF;
+	u8 mimo_ps;
+
+	curtxbw_40mhz = sta->deflink.bandwidth >= IEEE80211_STA_RX_BW_40;
+	curshortgi_40mhz = !!(sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40);
+	curshortgi_20mhz = !!(sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20);
 
 	sta_entry = (struct rtl_sta_info *)sta->drv_priv;
 	mimo_ps = sta_entry->mimo_ps;
 	wirelessmode = sta_entry->wireless_mode;
+
 	if (mac->opmode == NL80211_IFTYPE_STATION)
 		curtxbw_40mhz = mac->bw_40;
 	else if (mac->opmode == NL80211_IFTYPE_AP ||
@@ -877,6 +873,7 @@ static void rtl92de_update_hal_rate_mask(struct ieee80211_hw *hw,
 		ratr_bitmap = sta->deflink.supp_rates[0];
 	ratr_bitmap |= (sta->deflink.ht_cap.mcs.rx_mask[1] << 20 |
 			sta->deflink.ht_cap.mcs.rx_mask[0] << 12);
+
 	switch (wirelessmode) {
 	case WIRELESS_MODE_B:
 		ratr_index = RATR_INX_WIRELESS_B;
@@ -905,6 +902,7 @@ static void rtl92de_update_hal_rate_mask(struct ieee80211_hw *hw,
 			ratr_index = RATR_INX_WIRELESS_NGB;
 		else
 			ratr_index = RATR_INX_WIRELESS_NG;
+
 		if (mimo_ps == IEEE80211_SMPS_STATIC) {
 			if (rssi_level == 1)
 				ratr_bitmap &= 0x00070000;
@@ -948,6 +946,7 @@ static void rtl92de_update_hal_rate_mask(struct ieee80211_hw *hw,
 				}
 			}
 		}
+
 		if ((curtxbw_40mhz && curshortgi_40mhz) ||
 		    (!curtxbw_40mhz && curshortgi_20mhz)) {
 			if (macid == 0)
@@ -1065,12 +1064,6 @@ void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
 		     u8 *p_macaddr, bool is_group, u8 enc_algo,
 		     bool is_wepkey, bool clear_all)
 {
-	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
-	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
-	const u8 *macaddr = p_macaddr;
-	u32 entry_id;
-	bool is_pairwise = false;
 	static const u8 cam_const_addr[4][6] = {
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
 		{0x00, 0x00, 0x00, 0x00, 0x00, 0x01},
@@ -1080,6 +1073,12 @@ void rtl92de_set_key(struct ieee80211_hw *hw, u32 key_index,
 	static const u8 cam_const_broad[] = {
 		0xff, 0xff, 0xff, 0xff, 0xff, 0xff
 	};
+	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
+	struct rtl_mac *mac = rtl_mac(rtl_priv(hw));
+	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	const u8 *macaddr = p_macaddr;
+	bool is_pairwise = false;
+	u32 entry_id;
 
 	if (clear_all) {
 		u8 idx;
