@@ -483,7 +483,7 @@ int erofs_xattr_prefixes_init(struct super_block *sb)
 		return -ENOMEM;
 
 	if (sbi->packed_inode)
-		buf.inode = sbi->packed_inode;
+		buf.mapping = sbi->packed_inode->i_mapping;
 	else
 		erofs_init_metabuf(&buf, sb);
 
