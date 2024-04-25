@@ -9,6 +9,7 @@
 
 #include "xe_gt_sriov_pf.h"
 #include "xe_gt_sriov_pf_helpers.h"
+#include "xe_gt_sriov_pf_service.h"
 #include "xe_mmio.h"
 
 /*
@@ -51,6 +52,10 @@ int xe_gt_sriov_pf_init_early(struct xe_gt *gt)
 	if (err)
 		return err;
 
+	err = xe_gt_sriov_pf_service_init(gt);
+	if (err)
+		return err;
+
 	return 0;
 }
 
@@ -74,4 +79,6 @@ void xe_gt_sriov_pf_init_hw(struct xe_gt *gt)
 {
 	if (pf_needs_enable_ggtt_guest_update(gt_to_xe(gt)))
 		pf_enable_ggtt_guest_update(gt);
+
+	xe_gt_sriov_pf_service_update(gt);
 }
