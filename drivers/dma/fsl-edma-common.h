@@ -252,12 +252,11 @@ static inline u32 fsl_edma_drvflags(struct fsl_edma_chan *fsl_chan)
 }
 
 #define edma_read_tcdreg_c(chan, _tcd,  __name)				\
-(sizeof((_tcd)->__name) == sizeof(u64) ?				\
-	edma_readq(chan->edma, &(_tcd)->__name) :			\
-		((sizeof((_tcd)->__name) == sizeof(u32)) ?		\
-			edma_readl(chan->edma, &(_tcd)->__name) :	\
-			edma_readw(chan->edma, &(_tcd)->__name)		\
-		))
+_Generic(((_tcd)->__name),						\
+	__iomem __le64 : edma_readq(chan->edma, &(_tcd)->__name),		\
+	__iomem __le32 : edma_readl(chan->edma, &(_tcd)->__name),		\
+	__iomem __le16 : edma_readw(chan->edma, &(_tcd)->__name)		\
+	)
 
 #define edma_read_tcdreg(chan, __name)								\
 ((fsl_edma_drvflags(chan) & FSL_EDMA_DRV_TCD64) ?						\
@@ -265,23 +264,13 @@ static inline u32 fsl_edma_drvflags(struct fsl_edma_chan *fsl_chan)
 	edma_read_tcdreg_c(chan, ((struct fsl_edma_hw_tcd __iomem *)chan->tcd), __name)		\
 )
 
-#define edma_write_tcdreg_c(chan, _tcd, _val, __name)				\
-do {										\
-	switch (sizeof(_tcd->__name)) {						\
-	case sizeof(u64):							\
-		edma_writeq(chan->edma, (u64 __force)_val, &_tcd->__name);	\
-		break;								\
-	case sizeof(u32):							\
-		edma_writel(chan->edma, (u32 __force)_val, &_tcd->__name);	\
-		break;								\
-	case sizeof(u16):							\
-		edma_writew(chan->edma, (u16 __force)_val, &_tcd->__name);	\
-		break;								\
-	case sizeof(u8):							\
-		edma_writeb(chan->edma, (u8 __force)_val, &_tcd->__name);	\
-		break;								\
-	}									\
-} while (0)
+#define edma_write_tcdreg_c(chan, _tcd, _val, __name)					\
+_Generic((_tcd->__name),								\
+	__iomem __le64 : edma_writeq(chan->edma, (u64 __force)(_val), &_tcd->__name),	\
+	__iomem __le32 : edma_writel(chan->edma, (u32 __force)(_val), &_tcd->__name),	\
+	__iomem __le16 : edma_writew(chan->edma, (u16 __force)(_val), &_tcd->__name),	\
+	__iomem u8 : edma_writeb(chan->edma, _val, &_tcd->__name)			\
+	)
 
 #define edma_write_tcdreg(chan, val, __name)							   \
 do {												   \
@@ -322,9 +311,11 @@ do {	\
 						 (((struct fsl_edma_hw_tcd *)_tcd)->_field))
 
 #define fsl_edma_le_to_cpu(x)						\
-(sizeof(x) == sizeof(u64) ? le64_to_cpu((__force __le64)(x)) :		\
-	(sizeof(x) == sizeof(u32) ? le32_to_cpu((__force __le32)(x)) :	\
-				    le16_to_cpu((__force __le16)(x))))
+_Generic((x),								\
+	__le64 : le64_to_cpu((x)),					\
+	__le32 : le32_to_cpu((x)),					\
+	__le16 : le16_to_cpu((x))					\
+)
 
 #define fsl_edma_get_tcd_to_cpu(_chan, _tcd, _field)				\
 (fsl_edma_drvflags(_chan) & FSL_EDMA_DRV_TCD64 ?				\
@@ -332,19 +323,11 @@ do {	\
 	fsl_edma_le_to_cpu(((struct fsl_edma_hw_tcd *)_tcd)->_field))
 
 #define fsl_edma_set_tcd_to_le_c(_tcd, _val, _field)					\
-do {											\
-	switch (sizeof((_tcd)->_field)) {						\
-	case sizeof(u64):								\
-		*(__force __le64 *)(&((_tcd)->_field)) = cpu_to_le64(_val);		\
-		break;									\
-	case sizeof(u32):								\
-		*(__force __le32 *)(&((_tcd)->_field)) = cpu_to_le32(_val);		\
-		break;									\
-	case sizeof(u16):								\
-		*(__force __le16 *)(&((_tcd)->_field)) = cpu_to_le16(_val);		\
-		break;									\
-	}										\
-} while (0)
+_Generic(((_tcd)->_field),								\
+	__le64 : (_tcd)->_field = cpu_to_le64(_val),					\
+	__le32 : (_tcd)->_field = cpu_to_le32(_val),					\
+	__le16 : (_tcd)->_field = cpu_to_le16(_val)					\
+)
 
 #define fsl_edma_set_tcd_to_le(_chan, _tcd, _val, _field)	\
 do {								\
