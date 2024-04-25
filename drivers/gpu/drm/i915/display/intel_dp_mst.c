@@ -51,25 +51,39 @@
 #include "intel_vdsc.h"
 #include "skl_scaler.h"
 
-static int intel_dp_mst_check_constraints(struct drm_i915_private *i915, int bpp,
-					  const struct drm_display_mode *adjusted_mode,
-					  struct intel_crtc_state *crtc_state,
-					  bool dsc)
+static int intel_dp_mst_max_dpt_bpp(const struct intel_crtc_state *crtc_state,
+				    bool dsc)
 {
-	if (intel_dp_is_uhbr(crtc_state) && DISPLAY_VER(i915) < 14 && dsc) {
-		int output_bpp = bpp;
-		/* DisplayPort 2 128b/132b, bits per lane is always 32 */
-		int symbol_clock = crtc_state->port_clock / 32;
+	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
+	const struct drm_display_mode *adjusted_mode =
+		&crtc_state->hw.adjusted_mode;
 
-		if (output_bpp * adjusted_mode->crtc_clock >=
-		    symbol_clock * 72) {
-			drm_dbg_kms(&i915->drm, "UHBR check failed(required bw %d available %d)\n",
-				    output_bpp * adjusted_mode->crtc_clock, symbol_clock * 72);
-			return -EINVAL;
-		}
-	}
+	if (!intel_dp_is_uhbr(crtc_state) || DISPLAY_VER(i915) >= 20 || !dsc)
+		return INT_MAX;
 
-	return 0;
+	/*
+	 * DSC->DPT interface width:
+	 *   ICL-MTL: 72 bits (each branch has 72 bits, only left branch is used)
+	 *   LNL+:    144 bits (not a bottleneck in any config)
+	 *
+	 * Bspec/49259 suggests that the FEC overhead needs to be
+	 * applied here, though HW people claim that neither this FEC
+	 * or any other overhead is applicable here (that is the actual
+	 * available_bw is just symbol_clock * 72). However based on
+	 * testing on MTL-P the
+	 * - DELL U3224KBA display
+	 * - Unigraf UCD-500 CTS test sink
+	 * devices the
+	 * - 5120x2880/995.59Mhz
+	 * - 6016x3384/1357.23Mhz
+	 * - 6144x3456/1413.39Mhz
+	 * modes (all the ones having a DPT limit on the above devices),
+	 * both the channel coding efficiency and an additional 3%
+	 * overhead needs to be accounted for.
+	 */
+	return div64_u64(mul_u32_u32(intel_dp_link_symbol_clock(crtc_state->port_clock) * 72,
+				     drm_dp_bw_channel_coding_efficiency(true)),
+			 mul_u32_u32(adjusted_mode->crtc_clock, 1030000));
 }
 
 static int intel_dp_mst_bw_overhead(const struct intel_crtc_state *crtc_state,
@@ -157,6 +171,7 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
 	int bpp, slots = -EINVAL;
+	int max_dpt_bpp;
 	int ret = 0;
 
 	mst_state = drm_atomic_get_mst_topology_state(state, &intel_dp->mst_mgr);
@@ -177,6 +192,13 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 						      crtc_state->port_clock,
 						      crtc_state->lane_count);
 
+	max_dpt_bpp = intel_dp_mst_max_dpt_bpp(crtc_state, dsc);
+	if (max_bpp > max_dpt_bpp) {
+		drm_dbg_kms(&i915->drm, "Limiting bpp to max DPT bpp (%d -> %d)\n",
+			    max_bpp, max_dpt_bpp);
+		max_bpp = max_dpt_bpp;
+	}
+
 	drm_dbg_kms(&i915->drm, "Looking for slots in range min bpp %d max bpp %d\n",
 		    min_bpp, max_bpp);
 
@@ -187,10 +209,6 @@ static int intel_dp_mst_find_vcpi_slots_for_bpp(struct intel_encoder *encoder,
 		int remote_tu;
 
 		drm_dbg_kms(&i915->drm, "Trying bpp %d\n", bpp);
-
-		ret = intel_dp_mst_check_constraints(i915, bpp, adjusted_mode, crtc_state, dsc);
-		if (ret)
-			continue;
 
 		link_bpp_x16 = to_bpp_x16(dsc ? bpp :
 					  intel_dp_output_bpp(crtc_state->output_format, bpp));
@@ -403,15 +421,22 @@ static int mode_hblank_period_ns(const struct drm_display_mode *mode)
 
 static bool
 hblank_expansion_quirk_needs_dsc(const struct intel_connector *connector,
-				 const struct intel_crtc_state *crtc_state)
+				 const struct intel_crtc_state *crtc_state,
+				 const struct link_config_limits *limits)
 {
 	const struct drm_display_mode *adjusted_mode =
 		&crtc_state->hw.adjusted_mode;
+	bool is_uhbr_sink = connector->mst_port &&
+			    drm_dp_128b132b_supported(connector->mst_port->dpcd);
+	int hblank_limit = is_uhbr_sink ? 500 : 300;
 
 	if (!connector->dp.dsc_hblank_expansion_quirk)
 		return false;
 
-	if (mode_hblank_period_ns(adjusted_mode) > 300)
+	if (is_uhbr_sink && !drm_dp_is_uhbr_rate(limits->max_rate))
+		return false;
+
+	if (mode_hblank_period_ns(adjusted_mode) > hblank_limit)
 		return false;
 
 	return true;
@@ -427,7 +452,7 @@ adjust_limits_for_dsc_hblank_expansion_quirk(const struct intel_connector *conne
 	const struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
 	int min_bpp_x16 = limits->link.min_bpp_x16;
 
-	if (!hblank_expansion_quirk_needs_dsc(connector, crtc_state))
+	if (!hblank_expansion_quirk_needs_dsc(connector, crtc_state, limits))
 		return true;
 
 	if (!dsc) {
@@ -620,7 +645,7 @@ static int intel_dp_mst_compute_config(struct intel_encoder *encoder,
 
 	if (IS_GEMINILAKE(dev_priv) || IS_BROXTON(dev_priv))
 		pipe_config->lane_lat_optim_mask =
-			bxt_ddi_phy_calc_lane_lat_optim_mask(pipe_config->lane_count);
+			bxt_dpio_phy_calc_lane_lat_optim_mask(pipe_config->lane_count);
 
 	intel_dp_audio_compute_config(encoder, pipe_config, conn_state);
 
@@ -1559,24 +1584,41 @@ intel_dp_mst_read_decompression_port_dsc_caps(struct intel_dp *intel_dp,
 static bool detect_dsc_hblank_expansion_quirk(const struct intel_connector *connector)
 {
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
+	struct drm_dp_aux *aux = connector->dp.dsc_decompression_aux;
 	struct drm_dp_desc desc;
 	u8 dpcd[DP_RECEIVER_CAP_SIZE];
 
-	if (!connector->dp.dsc_decompression_aux)
+	if (!aux)
 		return false;
 
-	if (drm_dp_read_desc(connector->dp.dsc_decompression_aux,
-			     &desc, true) < 0)
+	/*
+	 * A logical port's OUI (at least for affected sinks) is all 0, so
+	 * instead of that the parent port's OUI is used for identification.
+	 */
+	if (drm_dp_mst_port_is_logical(connector->port)) {
+		aux = drm_dp_mst_aux_for_parent(connector->port);
+		if (!aux)
+			aux = &connector->mst_port->aux;
+	}
+
+	if (drm_dp_read_dpcd_caps(aux, dpcd) < 0)
+		return false;
+
+	if (drm_dp_read_desc(aux, &desc, drm_dp_is_branch(dpcd)) < 0)
 		return false;
 
 	if (!drm_dp_has_quirk(&desc,
 			      DP_DPCD_QUIRK_HBLANK_EXPANSION_REQUIRES_DSC))
 		return false;
 
-	if (drm_dp_read_dpcd_caps(connector->dp.dsc_decompression_aux, dpcd) < 0)
-		return false;
-
-	if (!(dpcd[DP_RECEIVE_PORT_0_CAP_0] & DP_HBLANK_EXPANSION_CAPABLE))
+	/*
+	 * UHBR (MST sink) devices requiring this quirk don't advertise the
+	 * HBLANK expansion support. Presuming that they perform HBLANK
+	 * expansion internally, or are affected by this issue on modes with a
+	 * short HBLANK for other reasons.
+	 */
+	if (!drm_dp_128b132b_supported(dpcd) &&
+	    !(dpcd[DP_RECEIVE_PORT_0_CAP_0] & DP_HBLANK_EXPANSION_CAPABLE))
 		return false;
 
 	drm_dbg_kms(&i915->drm,

@@ -3071,19 +3071,16 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 
 	i9xx_get_pfit_config(pipe_config);
 
+	i9xx_dpll_get_hw_state(crtc, &pipe_config->dpll_hw_state);
+
 	if (DISPLAY_VER(dev_priv) >= 4) {
-		/* No way to read it out on pipes B and C */
-		if (IS_CHERRYVIEW(dev_priv) && crtc->pipe != PIPE_A)
-			tmp = dev_priv->display.state.chv_dpll_md[crtc->pipe];
-		else
-			tmp = intel_de_read(dev_priv, DPLL_MD(crtc->pipe));
+		tmp = pipe_config->dpll_hw_state.i9xx.dpll_md;
 		pipe_config->pixel_multiplier =
 			((tmp & DPLL_MD_UDI_MULTIPLIER_MASK)
 			 >> DPLL_MD_UDI_MULTIPLIER_SHIFT) + 1;
-		pipe_config->dpll_hw_state.dpll_md = tmp;
 	} else if (IS_I945G(dev_priv) || IS_I945GM(dev_priv) ||
 		   IS_G33(dev_priv) || IS_PINEVIEW(dev_priv)) {
-		tmp = intel_de_read(dev_priv, DPLL(crtc->pipe));
+		tmp = pipe_config->dpll_hw_state.i9xx.dpll;
 		pipe_config->pixel_multiplier =
 			((tmp & SDVO_MULTIPLIER_MASK)
 			 >> SDVO_MULTIPLIER_SHIFT_HIRES) + 1;
@@ -3093,26 +3090,13 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 		 * function. */
 		pipe_config->pixel_multiplier = 1;
 	}
-	pipe_config->dpll_hw_state.dpll = intel_de_read(dev_priv,
-							DPLL(crtc->pipe));
-	if (!IS_VALLEYVIEW(dev_priv) && !IS_CHERRYVIEW(dev_priv)) {
-		pipe_config->dpll_hw_state.fp0 = intel_de_read(dev_priv,
-							       FP0(crtc->pipe));
-		pipe_config->dpll_hw_state.fp1 = intel_de_read(dev_priv,
-							       FP1(crtc->pipe));
-	} else {
-		/* Mask out read-only status bits. */
-		pipe_config->dpll_hw_state.dpll &= ~(DPLL_LOCK_VLV |
-						     DPLL_PORTC_READY_MASK |
-						     DPLL_PORTB_READY_MASK);
-	}
 
 	if (IS_CHERRYVIEW(dev_priv))
-		chv_crtc_clock_get(crtc, pipe_config);
+		chv_crtc_clock_get(pipe_config);
 	else if (IS_VALLEYVIEW(dev_priv))
-		vlv_crtc_clock_get(crtc, pipe_config);
+		vlv_crtc_clock_get(pipe_config);
 	else
-		i9xx_crtc_clock_get(crtc, pipe_config);
+		i9xx_crtc_clock_get(pipe_config);
 
 	/*
 	 * Normally the dotclock is filled in by the encoder .get_config()
@@ -3738,8 +3722,8 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 					 struct intel_crtc_state *pipe_config,
 					 struct intel_display_power_domain_set *power_domain_set)
 {
-	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct intel_display *display = to_intel_display(crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
 	enum transcoder cpu_transcoder;
 	enum port port;
 	u32 tmp;
@@ -3765,11 +3749,11 @@ static bool bxt_get_dsi_transcoder_state(struct intel_crtc *crtc,
 			break;
 
 		/* XXX: this works for video mode only */
-		tmp = intel_de_read(dev_priv, BXT_MIPI_PORT_CTRL(port));
+		tmp = intel_de_read(display, BXT_MIPI_PORT_CTRL(port));
 		if (!(tmp & DPI_ENABLE))
 			continue;
 
-		tmp = intel_de_read(dev_priv, MIPI_CTRL(port));
+		tmp = intel_de_read(display, MIPI_CTRL(display, port));
 		if ((tmp & BXT_PIPE_SELECT_MASK) != BXT_PIPE_SELECT(crtc->pipe))
 			continue;
 

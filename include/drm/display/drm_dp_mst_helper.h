@@ -948,6 +948,13 @@ int __must_check drm_dp_mst_root_conn_atomic_check(struct drm_connector_state *n
 void drm_dp_mst_get_port_malloc(struct drm_dp_mst_port *port);
 void drm_dp_mst_put_port_malloc(struct drm_dp_mst_port *port);
 
+static inline
+bool drm_dp_mst_port_is_logical(struct drm_dp_mst_port *port)
+{
+	return port->port_num >= DP_MST_LOGICAL_PORT_0;
+}
+
+struct drm_dp_aux *drm_dp_mst_aux_for_parent(struct drm_dp_mst_port *port);
 struct drm_dp_aux *drm_dp_mst_dsc_aux_for_port(struct drm_dp_mst_port *port);
 
 static inline struct drm_dp_mst_topology_state *
