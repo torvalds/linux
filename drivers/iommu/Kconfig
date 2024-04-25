@@ -537,6 +537,16 @@ config ARM_SMMU_TESTBUS_DUMP
 
 	  If unsure, say N here.
 
+config ARM_SMMU_TESTBUS_DUMP_GEN3AUTO
+        bool "ARM SMMU testbus dump for gen3auto"
+        depends on ARM_SMMU && ARM_SMMU_TESTBUS && ARM_SMMU_TESTBUS_DUMP
+        help
+          Enables testbus dump collection on arm smmu right after TLB
+          sync timeout failure on gen3auto.
+          Note to use this only on debug builds.
+
+          If unsure, say N here.
+
 config QCOM_LAZY_MAPPING
 	tristate "Reference counted iommu-mapping support"
 	depends on QCOM_DMABUF_HEAPS
