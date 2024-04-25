@@ -58,7 +58,7 @@ exec_queue_to_guc(struct xe_exec_queue *q)
 #define EXEC_QUEUE_STATE_DESTROYED		(1 << 4)
 #define EXEC_QUEUE_STATE_SUSPENDED		(1 << 5)
 #define EXEC_QUEUE_STATE_RESET		(1 << 6)
-#define ENGINE_STATE_KILLED		(1 << 7)
+#define EXEC_QUEUE_STATE_KILLED			(1 << 7)
 #define EXEC_QUEUE_STATE_WEDGED		(1 << 8)
 
 static bool exec_queue_registered(struct xe_exec_queue *q)
@@ -168,12 +168,12 @@ static void set_exec_queue_reset(struct xe_exec_queue *q)
 
 static bool exec_queue_killed(struct xe_exec_queue *q)
 {
-	return atomic_read(&q->guc->state) & ENGINE_STATE_KILLED;
+	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_KILLED;
 }
 
 static void set_exec_queue_killed(struct xe_exec_queue *q)
 {
-	atomic_or(ENGINE_STATE_KILLED, &q->guc->state);
+	atomic_or(EXEC_QUEUE_STATE_KILLED, &q->guc->state);
 }
 
 static bool exec_queue_wedged(struct xe_exec_queue *q)
@@ -189,7 +189,7 @@ static void set_exec_queue_wedged(struct xe_exec_queue *q)
 static bool exec_queue_killed_or_banned_or_wedged(struct xe_exec_queue *q)
 {
 	return exec_queue_banned(q) || (atomic_read(&q->guc->state) &
-		(EXEC_QUEUE_STATE_WEDGED | ENGINE_STATE_KILLED));
+		(EXEC_QUEUE_STATE_WEDGED | EXEC_QUEUE_STATE_KILLED));
 }
 
 #ifdef CONFIG_PROVE_LOCKING
