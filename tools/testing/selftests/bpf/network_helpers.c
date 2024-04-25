@@ -142,13 +142,6 @@ int start_server(int family, int type, const char *addr_str, __u16 port,
 	return start_server_proto(family, type, 0, addr_str, port, timeout_ms);
 }
 
-int start_mptcp_server(int family, const char *addr_str, __u16 port,
-		       int timeout_ms)
-{
-	return start_server_proto(family, SOCK_STREAM, IPPROTO_MPTCP, addr_str,
-				  port, timeout_ms);
-}
-
 int *start_reuseport_server(int family, int type, const char *addr_str,
 			    __u16 port, int timeout_ms, unsigned int nr_listens)
 {
