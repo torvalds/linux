@@ -1156,6 +1156,8 @@ fallback:
 			}
 		}
 		mutex_unlock(&dso->lock);
+	} else if (dso->binary_type == DSO_BINARY_TYPE__NOT_FOUND) {
+		dso->binary_type = DSO_BINARY_TYPE__BUILD_ID_CACHE;
 	}
 
 	free(build_id_path);
