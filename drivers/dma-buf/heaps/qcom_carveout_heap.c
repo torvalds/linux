@@ -209,7 +209,7 @@ err_free:
 	return ERR_PTR(ret);
 }
 
-static int carveout_pages_zero(struct page *page, size_t size, pgprot_t prot);
+static int carveout_pages_zero(struct page *page, size_t size);
 
 static void carveout_heap_free(struct qcom_sg_buffer *buffer)
 {
@@ -223,7 +223,7 @@ static void carveout_heap_free(struct qcom_sg_buffer *buffer)
 
 	dev = carveout_heap->dev;
 
-	carveout_pages_zero(page, buffer->len, pgprot_writecombine(PAGE_KERNEL));
+	carveout_pages_zero(page, buffer->len);
 	carveout_free(carveout_heap, paddr, buffer->len);
 	sg_free_table(table);
 	kfree(buffer);
@@ -241,47 +241,17 @@ static struct dma_buf *carveout_heap_allocate(struct dma_heap *heap,
 					heap_flags, carveout_heap_free);
 }
 
-static int carveout_heap_clear_pages(struct page **pages, int num, pgprot_t prot)
+static int carveout_pages_zero(struct page *page, size_t size)
 {
-	void *addr = vmap(pages, num, VM_MAP, prot);
+	void __iomem *addr;
 
+	addr = ioremap_wc(page_to_phys(page), size);
 	if (!addr)
 		return -ENOMEM;
-	memset(addr, 0, PAGE_SIZE * num);
-	vunmap(addr);
+	memset(addr, 0, size);
+	iounmap(addr);
 
 	return 0;
-}
-
-static int carveout_heap_sglist_zero(struct scatterlist *sgl, unsigned int nents, pgprot_t prot)
-{
-	int p = 0;
-	int ret = 0;
-	struct sg_page_iter piter;
-	struct page *pages[32];
-
-	for_each_sg_page(sgl, &piter, nents, 0) {
-		pages[p++] = sg_page_iter_page(&piter);
-		if (p == ARRAY_SIZE(pages)) {
-			ret = carveout_heap_clear_pages(pages, p, prot);
-			if (ret)
-				return ret;
-			p = 0;
-		}
-	}
-	if (p)
-		ret = carveout_heap_clear_pages(pages, p, prot);
-
-	return ret;
-}
-
-static int carveout_pages_zero(struct page *page, size_t size, pgprot_t prot)
-{
-	struct scatterlist sg;
-
-	sg_init_table(&sg, 1);
-	sg_set_page(&sg, page, size, 0);
-	return carveout_heap_sglist_zero(&sg, 1, prot);
 }
 
 static int carveout_init_heap_memory(struct carveout_heap *co_heap,
@@ -290,7 +260,7 @@ static int carveout_init_heap_memory(struct carveout_heap *co_heap,
 	struct page *page = pfn_to_page(PFN_DOWN(base));
 	int ret = 0;
 
-	ret = carveout_pages_zero(page, size, pgprot_writecombine(PAGE_KERNEL));
+	ret = carveout_pages_zero(page, size);
 	if (ret)
 		return ret;
 
@@ -333,9 +303,6 @@ int qcom_carveout_heap_create(struct platform_heap *heap_data)
 	struct carveout_heap *carveout_heap;
 	int ret;
 
-	/*
-	 * Expect carveout heap is managing only 'no-map' memory.
-	 */
 	if (!heap_data->is_nomap) {
 		pr_err("carveout heap memory regions need to be created with no-map\n");
 		return -EINVAL;
@@ -408,7 +375,7 @@ static void sc_heap_free(struct qcom_sg_buffer *buffer)
 	sc_heap = dma_heap_get_drvdata(buffer->heap);
 
 	if (qcom_is_buffer_hlos_accessible(sc_heap->token))
-		carveout_pages_zero(page, buffer->len, pgprot_writecombine(PAGE_KERNEL));
+		carveout_pages_zero(page, buffer->len);
 	carveout_free(&sc_heap->carveout_heap, paddr, buffer->len);
 	sg_free_table(table);
 	atomic_long_sub(buffer->len, &sc_heap->total_allocated);
