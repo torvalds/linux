@@ -72,10 +72,10 @@ void erofs_init_metabuf(struct erofs_buf *buf, struct super_block *sb)
 }
 
 void *erofs_read_metabuf(struct erofs_buf *buf, struct super_block *sb,
-			 erofs_blk_t blkaddr, enum erofs_kmap_type type)
+			 erofs_off_t offset, enum erofs_kmap_type type)
 {
 	erofs_init_metabuf(buf, sb);
-	return erofs_bread(buf, erofs_pos(sb, blkaddr), type);
+	return erofs_bread(buf, offset, type);
 }
 
 static int erofs_map_blocks_flatmode(struct inode *inode,
@@ -152,7 +152,7 @@ int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
 	pos = ALIGN(erofs_iloc(inode) + vi->inode_isize +
 		    vi->xattr_isize, unit) + unit * chunknr;
 
-	kaddr = erofs_read_metabuf(&buf, sb, erofs_blknr(sb, pos), EROFS_KMAP);
+	kaddr = erofs_read_metabuf(&buf, sb, erofs_pos(sb, erofs_blknr(sb, pos)), EROFS_KMAP);
 	if (IS_ERR(kaddr)) {
 		err = PTR_ERR(kaddr);
 		goto out;
@@ -295,7 +295,7 @@ static int erofs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 
 		iomap->type = IOMAP_INLINE;
 		ptr = erofs_read_metabuf(&buf, sb,
-				erofs_blknr(sb, mdev.m_pa), EROFS_KMAP);
+				erofs_pos(sb, erofs_blknr(sb, mdev.m_pa)), EROFS_KMAP);
 		if (IS_ERR(ptr))
 			return PTR_ERR(ptr);
 		iomap->inline_data = ptr + erofs_blkoff(sb, mdev.m_pa);

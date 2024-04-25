@@ -282,7 +282,7 @@ static int erofs_fscache_data_read_slice(struct erofs_fscache_rq *req)
 		blknr = erofs_blknr(sb, map.m_pa);
 		size = map.m_llen;
 
-		src = erofs_read_metabuf(&buf, sb, blknr, EROFS_KMAP);
+		src = erofs_read_metabuf(&buf, sb, erofs_pos(sb, blknr), EROFS_KMAP);
 		if (IS_ERR(src))
 			return PTR_ERR(src);
 

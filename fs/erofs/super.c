@@ -180,7 +180,7 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 	struct file *bdev_file;
 	void *ptr;
 
-	ptr = erofs_read_metabuf(buf, sb, erofs_blknr(sb, *pos), EROFS_KMAP);
+	ptr = erofs_read_metabuf(buf, sb, erofs_pos(sb, erofs_blknr(sb, *pos)), EROFS_KMAP);
 	if (IS_ERR(ptr))
 		return PTR_ERR(ptr);
 	dis = ptr + erofs_blkoff(sb, *pos);
