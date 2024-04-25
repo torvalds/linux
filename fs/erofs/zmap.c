@@ -34,13 +34,13 @@ static int z_erofs_load_full_lcluster(struct z_erofs_maprecorder *m,
 	unsigned int advise;
 
 	m->kaddr = erofs_read_metabuf(&m->map->buf, inode->i_sb,
-				      erofs_pos(inode->i_sb, erofs_blknr(inode->i_sb, pos)), EROFS_KMAP);
+				      pos, EROFS_KMAP);
 	if (IS_ERR(m->kaddr))
 		return PTR_ERR(m->kaddr);
 
 	m->nextpackoff = pos + sizeof(struct z_erofs_lcluster_index);
 	m->lcn = lcn;
-	di = m->kaddr + erofs_blkoff(inode->i_sb, pos);
+	di = m->kaddr;
 
 	advise = le16_to_cpu(di->di_advise);
 	m->type = advise & Z_EROFS_LI_LCLUSTER_TYPE_MASK;
@@ -109,7 +109,7 @@ static int unpack_compacted_index(struct z_erofs_maprecorder *m,
 {
 	struct erofs_inode *const vi = EROFS_I(m->inode);
 	const unsigned int lclusterbits = vi->z_logical_clusterbits;
-	unsigned int vcnt, base, lo, lobits, encodebits, nblk, eofs;
+	unsigned int vcnt, lo, lobits, encodebits, nblk, bytes;
 	int i;
 	u8 *in, type;
 	bool big_pcluster;
@@ -127,11 +127,11 @@ static int unpack_compacted_index(struct z_erofs_maprecorder *m,
 	big_pcluster = vi->z_advise & Z_EROFS_ADVISE_BIG_PCLUSTER_1;
 	lobits = max(lclusterbits, ilog2(Z_EROFS_LI_D0_CBLKCNT) + 1U);
 	encodebits = ((vcnt << amortizedshift) - sizeof(__le32)) * 8 / vcnt;
-	eofs = erofs_blkoff(m->inode->i_sb, pos);
-	base = round_down(eofs, vcnt << amortizedshift);
-	in = m->kaddr + base;
+	bytes = pos & ((vcnt << amortizedshift) - 1);
 
-	i = (eofs - base) >> amortizedshift;
+	in = m->kaddr - bytes;
+
+	i = bytes >> amortizedshift;
 
 	lo = decode_compactedbits(lobits, in, encodebits * i, &type);
 	m->type = type;
@@ -256,7 +256,7 @@ static int z_erofs_load_compact_lcluster(struct z_erofs_maprecorder *m,
 out:
 	pos += lcn * (1 << amortizedshift);
 	m->kaddr = erofs_read_metabuf(&m->map->buf, inode->i_sb,
-				      erofs_pos(inode->i_sb, erofs_blknr(inode->i_sb, pos)), EROFS_KMAP);
+				      pos, EROFS_KMAP);
 	if (IS_ERR(m->kaddr))
 		return PTR_ERR(m->kaddr);
 	return unpack_compacted_index(m, amortizedshift, pos, lookahead);
