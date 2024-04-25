@@ -7,7 +7,7 @@ source net_helper.sh
 
 readonly PEER_NS="ns-peer-$(mktemp -u XXXXXX)"
 
-BPF_FILE="xdp_dummy.o"
+BPF_FILE="xdp_dummy.bpf.o"
 
 # set global exit status, but never reset nonzero one.
 check_err()
