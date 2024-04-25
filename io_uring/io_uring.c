@@ -527,19 +527,6 @@ static void io_queue_iowq(struct io_kiocb *req)
 		io_queue_linked_timeout(link);
 }
 
-static void io_tw_requeue_iowq(struct io_kiocb *req, struct io_tw_state *ts)
-{
-	req->flags &= ~REQ_F_REISSUE;
-	io_queue_iowq(req);
-}
-
-void io_tw_queue_iowq(struct io_kiocb *req)
-{
-	req->flags |= REQ_F_REISSUE | REQ_F_BL_NO_RECYCLE;
-	req->io_task_work.func = io_tw_requeue_iowq;
-	io_req_task_work_add(req);
-}
-
 static __cold void io_queue_deferred(struct io_ring_ctx *ctx)
 {
 	while (!list_empty(&ctx->defer_list)) {
