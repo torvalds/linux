@@ -43,7 +43,7 @@
 	(((type) << TYPE_SHIFT) | ((srcport) << 12) | ((dstport) << 0))
 #define VCHIQ_MSG_TYPE(msgid)          ((unsigned int)(msgid) >> TYPE_SHIFT)
 #define VCHIQ_MSG_SRCPORT(msgid) \
-	(unsigned short)(((unsigned int)(msgid) >> 12) & 0xfff)
+	((unsigned short)(((unsigned int)(msgid) >> 12) & 0xfff))
 #define VCHIQ_MSG_DSTPORT(msgid) \
 	((unsigned short)(msgid) & 0xfff)
 
