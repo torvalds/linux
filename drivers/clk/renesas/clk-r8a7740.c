@@ -26,8 +26,6 @@ struct r8a7740_cpg {
 #define CPG_USBCKCR	0x8c
 #define CPG_FRQCRC	0xe0
 
-#define CLK_ENABLE_ON_INIT BIT(0)
-
 struct div4_clk {
 	const char *name;
 	unsigned int reg;
