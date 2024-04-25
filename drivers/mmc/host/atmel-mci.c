@@ -224,14 +224,6 @@ struct mci_slot_pdata {
 	bool			non_removable;
 };
 
-/**
- * struct mci_platform_data - board-specific MMC/SDcard configuration
- * @slot: Per-slot configuration data.
- */
-struct mci_platform_data {
-	struct mci_slot_pdata	slot[ATMCI_MAX_NR_SLOTS];
-};
-
 struct atmel_mci_caps {
 	bool    has_dma_conf_reg;
 	bool    has_pdc;
@@ -297,6 +289,7 @@ struct atmel_mci_dma {
  * @mapbase: Physical address of the MMIO registers.
  * @mck: The peripheral bus clock hooked up to the MMC controller.
  * @dev: Device associated with the MMC controller.
+ * @pdata: Per-slot configuration data.
  * @slot: Slots sharing this MMC controller.
  * @caps: MCI capabilities depending on MCI version.
  * @prepare_data: function to setup MCI before data transfer which
@@ -375,6 +368,7 @@ struct atmel_mci {
 	struct clk		*mck;
 	struct device		*dev;
 
+	struct mci_slot_pdata	pdata[ATMCI_MAX_NR_SLOTS];
 	struct atmel_mci_slot	*slot[ATMCI_MAX_NR_SLOTS];
 
 	struct atmel_mci_caps   caps;
@@ -630,11 +624,11 @@ static const struct of_device_id atmci_dt_ids[] = {
 
 MODULE_DEVICE_TABLE(of, atmci_dt_ids);
 
-static struct mci_platform_data *atmci_of_init(struct device *dev)
+static int atmci_of_init(struct atmel_mci *host)
 {
+	struct device *dev = host->dev;
 	struct device_node *np = dev->of_node;
 	struct device_node *cnp;
-	struct mci_platform_data *pdata;
 	u32 slot_id;
 	int err;
 
@@ -642,10 +636,6 @@ static struct mci_platform_data *atmci_of_init(struct device *dev)
 		dev_err(dev, "device node not found\n");
 		return ERR_PTR(-EINVAL);
 	}
-
-	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
-		return ERR_PTR(-ENOMEM);
 
 	for_each_child_of_node(np, cnp) {
 		if (of_property_read_u32(cnp, "reg", &slot_id)) {
@@ -661,38 +651,38 @@ static struct mci_platform_data *atmci_of_init(struct device *dev)
 		}
 
 		if (of_property_read_u32(cnp, "bus-width",
-		                         &pdata->slot[slot_id].bus_width))
-			pdata->slot[slot_id].bus_width = 1;
+					 &host->pdata[slot_id].bus_width))
+			host->pdata[slot_id].bus_width = 1;
 
-		pdata->slot[slot_id].detect_pin =
+		host->pdata[slot_id].detect_pin =
 			devm_fwnode_gpiod_get(dev, of_fwnode_handle(cnp),
 					      "cd", GPIOD_IN, "cd-gpios");
-		err = PTR_ERR_OR_ZERO(pdata->slot[slot_id].detect_pin);
+		err = PTR_ERR_OR_ZERO(host->pdata[slot_id].detect_pin);
 		if (err) {
 			if (err != -ENOENT) {
 				of_node_put(cnp);
-				return ERR_PTR(err);
+				return err;
 			}
-			pdata->slot[slot_id].detect_pin = NULL;
+			host->pdata[slot_id].detect_pin = NULL;
 		}
 
-		pdata->slot[slot_id].non_removable =
+		host->pdata[slot_id].non_removable =
 			of_property_read_bool(cnp, "non-removable");
 
-		pdata->slot[slot_id].wp_pin =
+		host->pdata[slot_id].wp_pin =
 			devm_fwnode_gpiod_get(dev, of_fwnode_handle(cnp),
 					      "wp", GPIOD_IN, "wp-gpios");
-		err = PTR_ERR_OR_ZERO(pdata->slot[slot_id].wp_pin);
+		err = PTR_ERR_OR_ZERO(host->pdata[slot_id].wp_pin);
 		if (err) {
 			if (err != -ENOENT) {
 				of_node_put(cnp);
-				return ERR_PTR(err);
+				return err;
 			}
-			pdata->slot[slot_id].wp_pin = NULL;
+			host->pdata[slot_id].wp_pin = NULL;
 		}
 	}
 
-	return pdata;
+	return 0;
 }
 
 static inline unsigned int atmci_get_version(struct atmel_mci *host)
@@ -2456,7 +2446,6 @@ static void atmci_get_cap(struct atmel_mci *host)
 static int atmci_probe(struct platform_device *pdev)
 {
 	struct device			*dev = &pdev->dev;
-	struct mci_platform_data	*pdata;
 	struct atmel_mci		*host;
 	struct resource			*regs;
 	unsigned int			nr_slots;
@@ -2466,12 +2455,6 @@ static int atmci_probe(struct platform_device *pdev)
 	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!regs)
 		return -ENXIO;
-
-	pdata = atmci_of_init(dev);
-	if (IS_ERR(pdata)) {
-		dev_err(dev, "platform data not available\n");
-		return PTR_ERR(pdata);
-	}
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
@@ -2484,6 +2467,10 @@ static int atmci_probe(struct platform_device *pdev)
 	host->dev = dev;
 	spin_lock_init(&host->lock);
 	INIT_LIST_HEAD(&host->queue);
+
+	ret = atmci_of_init(host);
+	if (ret)
+		return dev_err_probe(dev, ret, "Slot information not available\n");
 
 	host->mck = devm_clk_get(dev, "mci_clk");
 	if (IS_ERR(host->mck))
@@ -2544,16 +2531,16 @@ static int atmci_probe(struct platform_device *pdev)
 	/* We need at least one slot to succeed */
 	nr_slots = 0;
 	ret = -ENODEV;
-	if (pdata->slot[0].bus_width) {
-		ret = atmci_init_slot(host, &pdata->slot[0],
+	if (host->pdata[0].bus_width) {
+		ret = atmci_init_slot(host, &host->pdata[0],
 				0, ATMCI_SDCSEL_SLOT_A, ATMCI_SDIOIRQA);
 		if (!ret) {
 			nr_slots++;
 			host->buf_size = host->slot[0]->mmc->max_req_size;
 		}
 	}
-	if (pdata->slot[1].bus_width) {
-		ret = atmci_init_slot(host, &pdata->slot[1],
+	if (host->pdata[1].bus_width) {
+		ret = atmci_init_slot(host, &host->pdata[1],
 				1, ATMCI_SDCSEL_SLOT_B, ATMCI_SDIOIRQB);
 		if (!ret) {
 			nr_slots++;
