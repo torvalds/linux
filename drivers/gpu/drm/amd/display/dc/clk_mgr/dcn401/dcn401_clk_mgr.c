@@ -21,7 +21,6 @@
 #include "dcn/dcn_4_1_0_offset.h"
 #include "dcn/dcn_4_1_0_sh_mask.h"
 
-#include "dcn401/dcn401_clk_mgr.h"
 #include "dml/dcn401/dcn401_fpu.h"
 
 #define mmCLK01_CLK0_CLK_PLL_REQ                        0x16E37
