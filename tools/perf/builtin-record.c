@@ -332,7 +332,7 @@ static int record__aio_complete(struct mmap *md, struct aiocb *cblock)
 	} else {
 		/*
 		 * aio write request may require restart with the
-		 * reminder if the kernel didn't write whole
+		 * remainder if the kernel didn't write whole
 		 * chunk at once.
 		 */
 		rem_off = cblock->aio_offset + written;
@@ -400,7 +400,7 @@ static int record__aio_pushfn(struct mmap *map, void *to, void *buf, size_t size
 	 *
 	 * Coping can be done in two steps in case the chunk of profiling data
 	 * crosses the upper bound of the kernel buffer. In this case we first move
-	 * part of data from map->start till the upper bound and then the reminder
+	 * part of data from map->start till the upper bound and then the remainder
 	 * from the beginning of the kernel buffer till the end of the data chunk.
 	 */
 
