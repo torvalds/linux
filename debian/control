@@ -46,7 +46,7 @@ Build-Depends:
  libclang1-15 [amd64 arm64 armhf ppc64el riscv64 s390x],
  rustc [amd64 arm64 armhf ppc64el riscv64 s390x],
  rust-src [amd64 arm64 armhf ppc64el riscv64 s390x],
- bindgen-0.56 [amd64 arm64 armhf ppc64el riscv64 s390x],
+ bindgen [amd64 arm64 armhf ppc64el riscv64 s390x],
  libstdc++-12-dev,
 Build-Depends-Indep:
  xmlto <!stage1>,

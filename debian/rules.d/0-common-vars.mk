@@ -197,7 +197,7 @@ kmake = make ARCH=$(build_arch) \
 	CROSS_COMPILE=$(CROSS_COMPILE) \
 	HOSTCC=$(HOSTCC) \
 	CC=$(CROSS_COMPILE)$(gcc) \
-	BINDGEN=bindgen-0.65 \
+	BINDGEN=bindgen \
 	KERNELRELEASE=$(abi_release)-$(target_flavour) \
 	CONFIG_DEBUG_SECTION_MISMATCH=y \
 	KBUILD_BUILD_VERSION="$(uploadnum)" \
