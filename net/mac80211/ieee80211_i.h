@@ -686,7 +686,7 @@ struct mesh_csa_settings {
 };
 
 /**
- * struct mesh_table
+ * struct mesh_table - mesh hash table
  *
  * @known_gates: list of known mesh gates and their mpaths by the station. The
  * gate's mpath may or may not be resolved and active.
@@ -976,6 +976,7 @@ struct ieee80211_link_data_managed {
 
 	bool csa_waiting_bcn;
 	bool csa_ignored_same_chan;
+	bool csa_blocked_tx;
 	struct wiphy_delayed_work chswitch_work;
 
 	struct wiphy_work request_smps_work;
@@ -1094,7 +1095,7 @@ struct ieee80211_sub_if_data {
 
 	unsigned long state;
 
-	bool csa_blocked_tx;
+	bool csa_blocked_queues;
 
 	char name[IFNAMSIZ];
 
@@ -2553,9 +2554,19 @@ bool ieee80211_chanreq_identical(const struct ieee80211_chan_req *a,
 				 const struct ieee80211_chan_req *b);
 
 int __must_check
+_ieee80211_link_use_channel(struct ieee80211_link_data *link,
+			    const struct ieee80211_chan_req *req,
+			    enum ieee80211_chanctx_mode mode,
+			    bool assign_on_failure);
+
+static inline int __must_check
 ieee80211_link_use_channel(struct ieee80211_link_data *link,
 			   const struct ieee80211_chan_req *req,
-			   enum ieee80211_chanctx_mode mode);
+			   enum ieee80211_chanctx_mode mode)
+{
+	return _ieee80211_link_use_channel(link, req, mode, false);
+}
+
 int __must_check
 ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
 			       const struct ieee80211_chan_req *req,

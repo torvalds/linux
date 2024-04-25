@@ -2106,6 +2106,13 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		if (sdata->restart_active_links)
 			ieee80211_set_active_links(&sdata->vif,
 						   sdata->restart_active_links);
+		/*
+		 * If a link switch was scheduled before the restart, and ran
+		 * before reconfig, it will do nothing, so re-schedule.
+		 */
+		if (sdata->desired_active_links)
+			wiphy_work_queue(sdata->local->hw.wiphy,
+					 &sdata->activate_links_work);
 	}
 
 	/* Reconfigure sched scan if it was interrupted by FW restart */

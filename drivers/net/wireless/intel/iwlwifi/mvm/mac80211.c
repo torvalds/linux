@@ -1350,6 +1350,7 @@ void iwl_mvm_mac_stop(struct ieee80211_hw *hw)
 	iwl_mvm_scan_stop(mvm, IWL_MVM_SCAN_INT_MLO, false);
 	mutex_unlock(&mvm->mutex);
 
+	wiphy_work_flush(mvm->hw->wiphy, &mvm->async_handlers_wiphy_wk);
 	flush_work(&mvm->async_handlers_wk);
 	flush_work(&mvm->add_stream_wk);
 
@@ -1611,6 +1612,33 @@ static int iwl_mvm_alloc_bcast_mcast_sta(struct iwl_mvm *mvm,
 					IWL_STA_MULTICAST);
 }
 
+static void iwl_mvm_prevent_esr_done_wk(struct wiphy *wiphy,
+					struct wiphy_work *wk)
+{
+	struct iwl_mvm_vif *mvmvif =
+		container_of(wk, struct iwl_mvm_vif, prevent_esr_done_wk.work);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	struct ieee80211_vif *vif = iwl_mvm_get_bss_vif(mvm);
+
+	mutex_lock(&mvm->mutex);
+	iwl_mvm_unblock_esr(mvm, vif, IWL_MVM_ESR_BLOCKED_PREVENTION);
+	mutex_unlock(&mvm->mutex);
+}
+
+void iwl_mvm_mac_init_mvmvif(struct iwl_mvm *mvm, struct iwl_mvm_vif *mvmvif)
+{
+	lockdep_assert_held(&mvm->mutex);
+
+	if (test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
+		return;
+
+	INIT_DELAYED_WORK(&mvmvif->csa_work,
+			  iwl_mvm_channel_switch_disconnect_wk);
+
+	wiphy_delayed_work_init(&mvmvif->prevent_esr_done_wk,
+				iwl_mvm_prevent_esr_done_wk);
+}
+
 static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif)
 {
@@ -1620,6 +1648,8 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 	int i;
 
 	mutex_lock(&mvm->mutex);
+
+	iwl_mvm_mac_init_mvmvif(mvm, mvmvif);
 
 	mvmvif->mvm = mvm;
 
@@ -1702,8 +1732,6 @@ static int iwl_mvm_mac_add_interface(struct ieee80211_hw *hw,
 		mvm->p2p_device_vif = vif;
 
 	iwl_mvm_tcm_add_vif(mvm, vif);
-	INIT_DELAYED_WORK(&mvmvif->csa_work,
-			  iwl_mvm_channel_switch_disconnect_wk);
 
 	if (vif->type == NL80211_IFTYPE_MONITOR) {
 		mvm->monitor_on = true;
@@ -1741,6 +1769,8 @@ out:
 void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 				 struct ieee80211_vif *vif)
 {
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
 	if (vif->type == NL80211_IFTYPE_P2P_DEVICE) {
 		/*
 		 * Flush the ROC worker which will flush the OFFCHANNEL queue.
@@ -1749,6 +1779,11 @@ void iwl_mvm_prepare_mac_removal(struct iwl_mvm *mvm,
 		 */
 		flush_work(&mvm->roc_done_wk);
 	}
+
+	wiphy_delayed_work_cancel(mvm->hw->wiphy,
+				  &mvmvif->prevent_esr_done_wk);
+
+	cancel_delayed_work_sync(&mvmvif->csa_work);
 }
 
 /* This function is doing the common part of removing the interface for
@@ -3842,6 +3877,24 @@ out:
 	return callbacks->update_sta(mvm, vif, sta);
 }
 
+static void iwl_mvm_bt_coex_update_vif_esr(struct iwl_mvm *mvm,
+					   struct ieee80211_vif *vif)
+{
+	unsigned long usable_links = ieee80211_vif_usable_links(vif);
+	u8 link_id;
+
+	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct ieee80211_bss_conf *link_conf =
+			link_conf_dereference_protected(vif, link_id);
+
+		if (WARN_ON_ONCE(!link_conf))
+			return;
+
+		if (link_conf->chanreq.oper.chan->band == NL80211_BAND_2GHZ)
+			iwl_mvm_bt_coex_update_link_esr(mvm, vif, link_id);
+	}
+}
+
 static int
 iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 				      struct ieee80211_vif *vif,
@@ -3865,16 +3918,25 @@ iwl_mvm_sta_state_assoc_to_authorized(struct iwl_mvm *mvm,
 		WARN_ON(iwl_mvm_enable_beacon_filter(mvm, vif));
 
 		mvmvif->authorized = 1;
+		mvmvif->link_selection_res = 0;
+		mvmvif->link_selection_primary =
+			vif->active_links ? __ffs(vif->active_links) : 0;
 
 		callbacks->mac_ctxt_changed(mvm, vif, false);
 		iwl_mvm_mei_host_associated(mvm, vif, mvm_sta);
 
+		memset(&mvmvif->last_esr_exit, 0,
+		       sizeof(mvmvif->last_esr_exit));
+
+		/* Calculate eSR mode due to BT coex */
+		iwl_mvm_bt_coex_update_vif_esr(mvm, vif);
+
 		/* when client is authorized (AP station marked as such),
-		 * try to enable more links
+		 * try to enable the best link(s).
 		 */
 		if (vif->type == NL80211_IFTYPE_STATION &&
 		    !test_bit(IWL_MVM_STATUS_IN_HW_RESTART, &mvm->status))
-			iwl_mvm_mld_select_links(mvm, vif, false);
+			iwl_mvm_select_links(mvm, vif);
 	}
 
 	mvm_sta->authorized = true;
@@ -3918,9 +3980,17 @@ iwl_mvm_sta_state_authorized_to_assoc(struct iwl_mvm *mvm,
 		 * time.
 		 */
 		mvmvif->authorized = 0;
+		mvmvif->link_selection_res = 0;
 
 		/* disable beacon filtering */
 		iwl_mvm_disable_beacon_filter(mvm, vif);
+
+		wiphy_delayed_work_cancel(mvm->hw->wiphy,
+					  &mvmvif->prevent_esr_done_wk);
+
+		/* No need for the periodic statistics anymore */
+		if (ieee80211_vif_is_mld(vif) && mvmvif->esr_active)
+			iwl_mvm_request_periodic_system_statistics(mvm, false);
 	}
 
 	return 0;

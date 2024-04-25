@@ -329,3 +329,570 @@ int iwl_mvm_disable_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	return ret;
 }
+
+struct iwl_mvm_rssi_to_grade {
+	s8 rssi[2];
+	u16 grade;
+};
+
+#define RSSI_TO_GRADE_LINE(_lb, _hb_uhb, _grade) \
+	{ \
+		.rssi = {_lb, _hb_uhb}, \
+		.grade = _grade \
+	}
+
+/*
+ * This array must be sorted by increasing RSSI for proper functionality.
+ * The grades are actually estimated throughput, represented as fixed-point
+ * with a scale factor of 1/10.
+ */
+static const struct iwl_mvm_rssi_to_grade rssi_to_grade_map[] = {
+	RSSI_TO_GRADE_LINE(-85, -89, 177),
+	RSSI_TO_GRADE_LINE(-83, -86, 344),
+	RSSI_TO_GRADE_LINE(-82, -85, 516),
+	RSSI_TO_GRADE_LINE(-80, -83, 688),
+	RSSI_TO_GRADE_LINE(-77, -79, 1032),
+	RSSI_TO_GRADE_LINE(-73, -76, 1376),
+	RSSI_TO_GRADE_LINE(-70, -74, 1548),
+	RSSI_TO_GRADE_LINE(-69, -72, 1750),
+	RSSI_TO_GRADE_LINE(-65, -68, 2064),
+	RSSI_TO_GRADE_LINE(-61, -66, 2294),
+	RSSI_TO_GRADE_LINE(-58, -61, 2580),
+	RSSI_TO_GRADE_LINE(-55, -58, 2868),
+	RSSI_TO_GRADE_LINE(-46, -55, 3098),
+	RSSI_TO_GRADE_LINE(-43, -54, 3442)
+};
+
+#define MAX_GRADE (rssi_to_grade_map[ARRAY_SIZE(rssi_to_grade_map) - 1].grade)
+
+#define DEFAULT_CHAN_LOAD_LB	30
+#define DEFAULT_CHAN_LOAD_HB	15
+#define DEFAULT_CHAN_LOAD_UHB	0
+
+/* Factors calculation is done with fixed-point with a scaling factor of 1/256 */
+#define SCALE_FACTOR 256
+
+/* Convert a percentage from [0,100] to [0,255] */
+#define NORMALIZE_PERCENT_TO_255(percentage) ((percentage) * SCALE_FACTOR / 100)
+
+static unsigned int
+iwl_mvm_get_puncturing_factor(const struct ieee80211_bss_conf *link_conf)
+{
+	enum nl80211_chan_width chan_width =
+		link_conf->chanreq.oper.width;
+	int mhz = nl80211_chan_width_to_mhz(chan_width);
+	unsigned int n_subchannels, n_punctured, puncturing_penalty;
+
+	if (WARN_ONCE(mhz < 20 || mhz > 320,
+		      "Invalid channel width : (%d)\n", mhz))
+		return SCALE_FACTOR;
+
+	/* No puncturing, no penalty */
+	if (mhz < 80)
+		return SCALE_FACTOR;
+
+	/* total number of subchannels */
+	n_subchannels = mhz / 20;
+	/* how many of these are punctured */
+	n_punctured = hweight16(link_conf->chanreq.oper.punctured);
+
+	puncturing_penalty = n_punctured * SCALE_FACTOR / n_subchannels;
+	return SCALE_FACTOR - puncturing_penalty;
+}
+
+static unsigned int
+iwl_mvm_get_chan_load(struct ieee80211_bss_conf *link_conf)
+{
+	struct iwl_mvm_vif_link_info *mvm_link =
+		iwl_mvm_vif_from_mac80211(link_conf->vif)->link[link_conf->link_id];
+	const struct element *bss_load_elem;
+	const struct ieee80211_bss_load_elem *bss_load;
+	enum nl80211_band band = link_conf->chanreq.oper.chan->band;
+	unsigned int chan_load;
+	u32 chan_load_by_us;
+
+	rcu_read_lock();
+	bss_load_elem = ieee80211_bss_get_elem(link_conf->bss,
+					       WLAN_EID_QBSS_LOAD);
+
+	/* If there isn't BSS Load element, take the defaults */
+	if (!bss_load_elem ||
+	    bss_load_elem->datalen != sizeof(*bss_load)) {
+		rcu_read_unlock();
+		switch (band) {
+		case NL80211_BAND_2GHZ:
+			chan_load = DEFAULT_CHAN_LOAD_LB;
+			break;
+		case NL80211_BAND_5GHZ:
+			chan_load = DEFAULT_CHAN_LOAD_HB;
+			break;
+		case NL80211_BAND_6GHZ:
+			chan_load = DEFAULT_CHAN_LOAD_UHB;
+			break;
+		default:
+			chan_load = 0;
+			break;
+		}
+		/* The defaults are given in percentage */
+		return NORMALIZE_PERCENT_TO_255(chan_load);
+	}
+
+	bss_load = (const void *)bss_load_elem->data;
+	/* Channel util is in range 0-255 */
+	chan_load = bss_load->channel_util;
+	rcu_read_unlock();
+
+	if (!mvm_link || !mvm_link->active)
+		return chan_load;
+
+	if (WARN_ONCE(!mvm_link->phy_ctxt,
+		      "Active link (%u) without phy ctxt assigned!\n",
+		      link_conf->link_id))
+		return chan_load;
+
+	/* channel load by us is given in percentage */
+	chan_load_by_us =
+		NORMALIZE_PERCENT_TO_255(mvm_link->phy_ctxt->channel_load_by_us);
+
+	/* Use only values that firmware sends that can possibly be valid */
+	if (chan_load_by_us <= chan_load)
+		chan_load -= chan_load_by_us;
+
+	return chan_load;
+}
+
+static unsigned int
+iwl_mvm_get_chan_load_factor(struct ieee80211_bss_conf *link_conf)
+{
+	return SCALE_FACTOR - iwl_mvm_get_chan_load(link_conf);
+}
+
+/* This function calculates the grade of a link. Returns 0 in error case */
+VISIBLE_IF_IWLWIFI_KUNIT
+unsigned int iwl_mvm_get_link_grade(struct ieee80211_bss_conf *link_conf)
+{
+	enum nl80211_band band;
+	int i, rssi_idx;
+	s32 link_rssi;
+	unsigned int grade = MAX_GRADE;
+
+	if (WARN_ON_ONCE(!link_conf))
+		return 0;
+
+	band = link_conf->chanreq.oper.chan->band;
+	if (WARN_ONCE(band != NL80211_BAND_2GHZ &&
+		      band != NL80211_BAND_5GHZ &&
+		      band != NL80211_BAND_6GHZ,
+		      "Invalid band (%u)\n", band))
+		return 0;
+
+	link_rssi = MBM_TO_DBM(link_conf->bss->signal);
+	/*
+	 * For 6 GHz the RSSI of the beacons is lower than
+	 * the RSSI of the data.
+	 */
+	if (band == NL80211_BAND_6GHZ)
+		link_rssi += 4;
+
+	rssi_idx = band == NL80211_BAND_2GHZ ? 0 : 1;
+
+	/* No valid RSSI - take the lowest grade */
+	if (!link_rssi)
+		link_rssi = rssi_to_grade_map[0].rssi[rssi_idx];
+
+	/* Get grade based on RSSI */
+	for (i = 0; i < ARRAY_SIZE(rssi_to_grade_map); i++) {
+		const struct iwl_mvm_rssi_to_grade *line =
+			&rssi_to_grade_map[i];
+
+		if (link_rssi > line->rssi[rssi_idx])
+			continue;
+		grade = line->grade;
+		break;
+	}
+
+	/* apply the channel load and puncturing factors */
+	grade = grade * iwl_mvm_get_chan_load_factor(link_conf) / SCALE_FACTOR;
+	grade = grade * iwl_mvm_get_puncturing_factor(link_conf) / SCALE_FACTOR;
+	return grade;
+}
+EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mvm_get_link_grade);
+
+static
+u8 iwl_mvm_set_link_selection_data(struct ieee80211_vif *vif,
+				   struct iwl_mvm_link_sel_data *data,
+				   unsigned long usable_links,
+				   u8 *best_link_idx)
+{
+	u8 n_data = 0;
+	u16 max_grade = 0;
+	unsigned long link_id;
+
+	/* TODO: don't select links that weren't discovered in the last scan */
+	for_each_set_bit(link_id, &usable_links, IEEE80211_MLD_MAX_NUM_LINKS) {
+		struct ieee80211_bss_conf *link_conf =
+			link_conf_dereference_protected(vif, link_id);
+
+		if (WARN_ON_ONCE(!link_conf))
+			continue;
+
+		data[n_data].link_id = link_id;
+		data[n_data].chandef = &link_conf->chanreq.oper;
+		data[n_data].signal = link_conf->bss->signal / 100;
+		data[n_data].grade = iwl_mvm_get_link_grade(link_conf);
+
+		if (data[n_data].grade > max_grade) {
+			max_grade = data[n_data].grade;
+			*best_link_idx = n_data;
+		}
+		n_data++;
+	}
+
+	return n_data;
+}
+
+struct iwl_mvm_bw_to_rssi_threshs {
+	s8 low;
+	s8 high;
+};
+
+#define BW_TO_RSSI_THRESHOLDS(_bw)				\
+	[IWL_PHY_CHANNEL_MODE ## _bw] = {			\
+		.low = IWL_MVM_LOW_RSSI_THRESH_##_bw##MHZ,	\
+		.high = IWL_MVM_HIGH_RSSI_THRESH_##_bw##MHZ	\
+	}
+
+s8 iwl_mvm_get_esr_rssi_thresh(struct iwl_mvm *mvm,
+			       const struct cfg80211_chan_def *chandef,
+			       bool low)
+{
+	const struct iwl_mvm_bw_to_rssi_threshs bw_to_rssi_threshs_map[] = {
+		BW_TO_RSSI_THRESHOLDS(20),
+		BW_TO_RSSI_THRESHOLDS(40),
+		BW_TO_RSSI_THRESHOLDS(80),
+		BW_TO_RSSI_THRESHOLDS(160)
+		/* 320 MHz has the same thresholds as 20 MHz */
+	};
+	const struct iwl_mvm_bw_to_rssi_threshs *threshs;
+	u8 chan_width = iwl_mvm_get_channel_width(chandef);
+
+	if (WARN_ON(chandef->chan->band != NL80211_BAND_2GHZ &&
+		    chandef->chan->band != NL80211_BAND_5GHZ &&
+		    chandef->chan->band != NL80211_BAND_6GHZ))
+		return S8_MAX;
+
+	/* 6 GHz will always use 20 MHz thresholds, regardless of the BW */
+	if (chan_width == IWL_PHY_CHANNEL_MODE320)
+		chan_width = IWL_PHY_CHANNEL_MODE20;
+
+	threshs = &bw_to_rssi_threshs_map[chan_width];
+
+	return low ? threshs->low : threshs->high;
+}
+
+static u32
+iwl_mvm_esr_disallowed_with_link(struct ieee80211_vif *vif,
+				 const struct iwl_mvm_link_sel_data *link)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	struct iwl_mvm *mvm = mvmvif->mvm;
+	enum iwl_mvm_esr_state ret = 0;
+	s8 thresh;
+
+	/* BT Coex effects eSR mode only if one of the links is on LB */
+	if (link->chandef->chan->band == NL80211_BAND_2GHZ &&
+	    mvmvif->esr_disable_reason & IWL_MVM_ESR_BLOCKED_COEX)
+		ret |= IWL_MVM_ESR_BLOCKED_COEX;
+	thresh = iwl_mvm_get_esr_rssi_thresh(mvm, link->chandef,
+					     false);
+
+	if (link->signal < thresh)
+		ret |= IWL_MVM_ESR_EXIT_LOW_RSSI;
+
+	if (ret)
+		IWL_DEBUG_INFO(mvm,
+			       "Link %d is not allowed for esr. Reason: 0x%x\n",
+			       link->link_id, ret);
+	return ret;
+}
+
+VISIBLE_IF_IWLWIFI_KUNIT
+bool iwl_mvm_mld_valid_link_pair(struct ieee80211_vif *vif,
+				 const struct iwl_mvm_link_sel_data *a,
+				 const struct iwl_mvm_link_sel_data *b)
+{
+	/* Per-link considerations */
+	if (iwl_mvm_esr_disallowed_with_link(vif, a) ||
+	    iwl_mvm_esr_disallowed_with_link(vif, b))
+		return false;
+
+	/* Per-combination considerations */
+	return a->chandef->chan->band != b->chandef->chan->band;
+}
+EXPORT_SYMBOL_IF_IWLWIFI_KUNIT(iwl_mvm_mld_valid_link_pair);
+
+/*
+ * Returns the combined eSR grade of two given links.
+ * Returns 0 if eSR is not allowed with these 2 links.
+ */
+static
+unsigned int iwl_mvm_get_esr_grade(struct ieee80211_vif *vif,
+				   const struct iwl_mvm_link_sel_data *a,
+				   const struct iwl_mvm_link_sel_data *b,
+				   u8 *primary_id)
+{
+	struct ieee80211_bss_conf *primary_conf;
+	struct wiphy *wiphy = ieee80211_vif_to_wdev(vif)->wiphy;
+	unsigned int primary_load;
+
+	lockdep_assert_wiphy(wiphy);
+
+	/* a is always primary, b is always secondary */
+	if (b->grade > a->grade)
+		swap(a, b);
+
+	*primary_id = a->link_id;
+
+	if (!iwl_mvm_mld_valid_link_pair(vif, a, b))
+		return 0;
+
+	primary_conf = wiphy_dereference(wiphy, vif->link_conf[*primary_id]);
+
+	if (WARN_ON_ONCE(!primary_conf))
+		return 0;
+
+	primary_load = iwl_mvm_get_chan_load(primary_conf);
+
+	return a->grade +
+		((b->grade * primary_load) / SCALE_FACTOR);
+}
+
+void iwl_mvm_select_links(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_link_sel_data data[IEEE80211_MLD_MAX_NUM_LINKS];
+	struct iwl_mvm_link_sel_data *best_link;
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u32 max_active_links = iwl_mvm_max_active_links(mvm, vif);
+	u16 usable_links = ieee80211_vif_usable_links(vif);
+	u8 best, primary_link, best_in_pair, n_data;
+	u16 max_esr_grade = 0, new_active_links;
+
+	lockdep_assert_wiphy(mvm->hw->wiphy);
+
+	if (!mvmvif->authorized || !ieee80211_vif_is_mld(vif))
+		return;
+
+	if (!IWL_MVM_AUTO_EML_ENABLE)
+		return;
+
+	/* The logic below is a simple version that doesn't suit more than 2
+	 * links
+	 */
+	WARN_ON_ONCE(max_active_links > 2);
+
+	n_data = iwl_mvm_set_link_selection_data(vif, data, usable_links,
+						 &best);
+
+	if (WARN(!n_data, "Couldn't find a valid grade for any link!\n"))
+		return;
+
+	best_link = &data[best];
+	primary_link = best_link->link_id;
+	new_active_links = BIT(best_link->link_id);
+
+	/* eSR is not supported/allowed, or only one usable link */
+	if (max_active_links == 1 || !iwl_mvm_esr_allowed_on_vif(mvm, vif) ||
+	    n_data == 1)
+		goto set_active;
+
+	for (u8 a = 0; a < n_data; a++)
+		for (u8 b = a + 1; b < n_data; b++) {
+			u16 esr_grade = iwl_mvm_get_esr_grade(vif, &data[a],
+							      &data[b],
+							      &best_in_pair);
+
+			if (esr_grade <= max_esr_grade)
+				continue;
+
+			max_esr_grade = esr_grade;
+			primary_link = best_in_pair;
+			new_active_links = BIT(data[a].link_id) |
+					   BIT(data[b].link_id);
+		}
+
+	/* No valid pair was found, go with the best link */
+	if (hweight16(new_active_links) <= 1)
+		goto set_active;
+
+	/* prefer single link over marginal eSR improvement */
+	if (best_link->grade * 110 / 100 >= max_esr_grade) {
+		primary_link = best_link->link_id;
+		new_active_links = BIT(best_link->link_id);
+	}
+set_active:
+	IWL_DEBUG_INFO(mvm, "Link selection result: 0x%x. Primary = %d\n",
+		       new_active_links, primary_link);
+	ieee80211_set_active_links_async(vif, new_active_links);
+	mvmvif->link_selection_res = new_active_links;
+	mvmvif->link_selection_primary = primary_link;
+}
+
+u8 iwl_mvm_get_primary_link(struct ieee80211_vif *vif)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	/* relevant data is written with both locks held, so read with either */
+	lockdep_assert(lockdep_is_held(&mvmvif->mvm->mutex) ||
+		       lockdep_is_held(&mvmvif->mvm->hw->wiphy->mtx));
+
+	if (!ieee80211_vif_is_mld(vif))
+		return 0;
+
+	/* In AP mode, there is no primary link */
+	if (vif->type == NL80211_IFTYPE_AP)
+		return __ffs(vif->active_links);
+
+	if (mvmvif->esr_active &&
+	    !WARN_ON(!(BIT(mvmvif->primary_link) & vif->active_links)))
+		return mvmvif->primary_link;
+
+	return __ffs(vif->active_links);
+}
+
+/*
+ * For non-MLO/single link, this will return the deflink/single active link,
+ * respectively
+ */
+u8 iwl_mvm_get_other_link(struct ieee80211_vif *vif, u8 link_id)
+{
+	switch (hweight16(vif->active_links)) {
+	case 0:
+		return 0;
+	default:
+		WARN_ON(1);
+		fallthrough;
+	case 1:
+		return __ffs(vif->active_links);
+	case 2:
+		return __ffs(vif->active_links & ~BIT(link_id));
+	}
+}
+
+/* Reasons that can cause esr prevention */
+#define IWL_MVM_ESR_PREVENT_REASONS	IWL_MVM_ESR_EXIT_MISSED_BEACON
+#define IWL_MVM_PREVENT_ESR_TIMEOUT	(HZ * 400)
+#define IWL_MVM_ESR_PREVENT_SHORT	(HZ * 300)
+#define IWL_MVM_ESR_PREVENT_LONG	(HZ * 600)
+
+static void iwl_mvm_recalc_esr_prevention(struct iwl_mvm *mvm,
+					  struct iwl_mvm_vif *mvmvif,
+					  enum iwl_mvm_esr_state reason)
+{
+	unsigned long now = jiffies;
+	unsigned long delay;
+	bool timeout_expired =
+		time_after(now, mvmvif->last_esr_exit.ts +
+				IWL_MVM_PREVENT_ESR_TIMEOUT);
+
+	if (WARN_ON(!(IWL_MVM_ESR_PREVENT_REASONS & reason)))
+		return;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	mvmvif->last_esr_exit.ts = now;
+
+	if (timeout_expired ||
+	    mvmvif->last_esr_exit.reason != reason) {
+		mvmvif->last_esr_exit.reason = reason;
+		mvmvif->exit_same_reason_count = 1;
+		return;
+	}
+
+	mvmvif->exit_same_reason_count++;
+	if (WARN_ON(mvmvif->exit_same_reason_count < 2 ||
+		    mvmvif->exit_same_reason_count > 3))
+		return;
+
+	mvmvif->esr_disable_reason |= IWL_MVM_ESR_BLOCKED_PREVENTION;
+
+	delay = mvmvif->exit_same_reason_count == 2 ?
+		IWL_MVM_ESR_PREVENT_SHORT :
+		IWL_MVM_ESR_PREVENT_LONG;
+
+	IWL_DEBUG_INFO(mvm,
+		       "Preventing EMLSR for %ld seconds due to %u exits with the reason 0x%x\n",
+		       delay / HZ, mvmvif->exit_same_reason_count, reason);
+
+	wiphy_delayed_work_queue(mvm->hw->wiphy,
+				 &mvmvif->prevent_esr_done_wk, delay);
+}
+
+/* API to exit eSR mode */
+void iwl_mvm_exit_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		      enum iwl_mvm_esr_state reason,
+		      u8 link_to_keep)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+	u16 new_active_links;
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* Nothing to do */
+	if (!mvmvif->esr_active)
+		return;
+
+	if (WARN_ON(!ieee80211_vif_is_mld(vif) || !mvmvif->authorized))
+		return;
+
+	if (WARN_ON(!(vif->active_links & BIT(link_to_keep))))
+		link_to_keep = __ffs(vif->active_links);
+
+	new_active_links = BIT(link_to_keep);
+	IWL_DEBUG_INFO(mvm,
+		       "Exiting EMLSR. Reason = 0x%x. Current active links=0x%x, new active links = 0x%x\n",
+		       reason, vif->active_links, new_active_links);
+
+	ieee80211_set_active_links_async(vif, new_active_links);
+
+	if (IWL_MVM_ESR_PREVENT_REASONS & reason)
+		iwl_mvm_recalc_esr_prevention(mvm, mvmvif, reason);
+}
+
+void iwl_mvm_block_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+		       enum iwl_mvm_esr_state reason,
+		       u8 link_to_keep)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* This should be called only with disable reasons */
+	if (WARN_ON(!(reason & IWL_MVM_BLOCK_ESR_REASONS)))
+		return;
+
+	if (!(mvmvif->esr_disable_reason & reason))
+		IWL_DEBUG_INFO(mvm, "Blocking EMSLR mode. reason = 0x%x\n",
+			       reason);
+
+	mvmvif->esr_disable_reason |= reason;
+
+	iwl_mvm_exit_esr(mvm, vif, reason, link_to_keep);
+}
+
+void iwl_mvm_unblock_esr(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
+			 enum iwl_mvm_esr_state reason)
+{
+	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+	lockdep_assert_held(&mvm->mutex);
+
+	/* This should be called only with disable reasons */
+	if (WARN_ON(!(reason & IWL_MVM_BLOCK_ESR_REASONS)))
+		return;
+
+	if (mvmvif->esr_disable_reason & reason)
+		IWL_DEBUG_INFO(mvm, "Unblocking EMSLR mode. reason = 0x%x\n",
+			       reason);
+
+	mvmvif->esr_disable_reason &= ~reason;
+}

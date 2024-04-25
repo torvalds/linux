@@ -783,11 +783,17 @@ void rtw_fw_beacon_filter_config(struct rtw_dev *rtwdev, bool connect,
 	static const u8 rssi_min = 0, rssi_max = 100, rssi_offset = 100;
 	struct rtw_sta_info *si =
 		sta ? (struct rtw_sta_info *)sta->drv_priv : NULL;
-	s32 threshold = bss_conf->cqm_rssi_thold + rssi_offset;
+	s32 thold = RTW_DEFAULT_CQM_THOLD;
+	u32 hyst = RTW_DEFAULT_CQM_HYST;
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
 
 	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_BCN_FILTER))
 		return;
+
+	if (bss_conf->cqm_rssi_thold)
+		thold = bss_conf->cqm_rssi_thold;
+	if (bss_conf->cqm_rssi_hyst)
+		hyst = bss_conf->cqm_rssi_hyst;
 
 	if (!connect) {
 		SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_BCN_FILTER_OFFLOAD_P1);
@@ -805,15 +811,15 @@ void rtw_fw_beacon_filter_config(struct rtw_dev *rtwdev, bool connect,
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 
 	memset(h2c_pkt, 0, sizeof(h2c_pkt));
-	threshold = clamp_t(s32, threshold, rssi_min, rssi_max);
+	thold = clamp_t(s32, thold + rssi_offset, rssi_min, rssi_max);
 	SET_H2C_CMD_ID_CLASS(h2c_pkt, H2C_CMD_BCN_FILTER_OFFLOAD_P1);
 	SET_BCN_FILTER_OFFLOAD_P1_ENABLE(h2c_pkt, connect);
 	SET_BCN_FILTER_OFFLOAD_P1_OFFLOAD_MODE(h2c_pkt,
 					       BCN_FILTER_OFFLOAD_MODE_DEFAULT);
-	SET_BCN_FILTER_OFFLOAD_P1_THRESHOLD(h2c_pkt, (u8)threshold);
+	SET_BCN_FILTER_OFFLOAD_P1_THRESHOLD(h2c_pkt, thold);
 	SET_BCN_FILTER_OFFLOAD_P1_BCN_LOSS_CNT(h2c_pkt, BCN_LOSS_CNT);
 	SET_BCN_FILTER_OFFLOAD_P1_MACID(h2c_pkt, si->mac_id);
-	SET_BCN_FILTER_OFFLOAD_P1_HYST(h2c_pkt, bss_conf->cqm_rssi_hyst);
+	SET_BCN_FILTER_OFFLOAD_P1_HYST(h2c_pkt, hyst);
 	SET_BCN_FILTER_OFFLOAD_P1_BCN_INTERVAL(h2c_pkt, bss_conf->beacon_int);
 	rtw_fw_send_h2c_command(rtwdev, h2c_pkt);
 }
