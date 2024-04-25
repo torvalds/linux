@@ -1435,10 +1435,10 @@ err_free:
  * @in: DP in adapter port
  * @out: DP out adapter port
  * @link_nr: Preferred lane adapter when the link is not bonded
- * @max_up: Maximum available upstream bandwidth for the DP tunnel (%0
- *	    if not limited)
- * @max_down: Maximum available downstream bandwidth for the DP tunnel
- *	      (%0 if not limited)
+ * @max_up: Maximum available upstream bandwidth for the DP tunnel.
+ *	    %0 if no available bandwidth.
+ * @max_down: Maximum available downstream bandwidth for the DP tunnel.
+ *	      %0 if no available bandwidth.
  *
  * Allocates a tunnel between @in and @out that is capable of tunneling
  * Display Port traffic.
