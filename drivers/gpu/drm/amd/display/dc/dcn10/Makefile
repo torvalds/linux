@@ -25,7 +25,7 @@
 DCN10 = dcn10_ipp.o \
 		dcn10_hw_sequencer_debug.o \
 		dcn10_opp.o \
-		dcn10_hubp.o dcn10_mpc.o \
+		dcn10_mpc.o \
 		dcn10_cm_common.o \
 		dcn10_stream_encoder.o dcn10_link_encoder.o
 

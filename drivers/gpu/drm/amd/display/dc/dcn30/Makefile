@@ -23,8 +23,7 @@
 #
 #
 
-DCN30 := dcn30_hubp.o \
-	dcn30_mpc.o dcn30_vpg.o \
+DCN30 := dcn30_mpc.o dcn30_vpg.o \
 	dcn30_afmt.o \
 	dcn30_dio_stream_encoder.o \
 	dcn30_dwb.o \
