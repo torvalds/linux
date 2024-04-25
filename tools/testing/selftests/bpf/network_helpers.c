@@ -120,12 +120,11 @@ error_close:
 	return -1;
 }
 
-static int start_server_proto(int family, int type, int protocol,
-			      const char *addr_str, __u16 port, int timeout_ms)
+int start_server(int family, int type, const char *addr_str, __u16 port,
+		 int timeout_ms)
 {
 	struct network_helper_opts opts = {
 		.timeout_ms	= timeout_ms,
-		.proto		= protocol,
 	};
 	struct sockaddr_storage addr;
 	socklen_t addrlen;
@@ -134,12 +133,6 @@ static int start_server_proto(int family, int type, int protocol,
 		return -1;
 
 	return __start_server(type, (struct sockaddr *)&addr, addrlen, false, &opts);
-}
-
-int start_server(int family, int type, const char *addr_str, __u16 port,
-		 int timeout_ms)
-{
-	return start_server_proto(family, type, 0, addr_str, port, timeout_ms);
 }
 
 int *start_reuseport_server(int family, int type, const char *addr_str,
