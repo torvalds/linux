@@ -461,7 +461,92 @@
 		};
 	};
 
+	clk_dummy: clock-dummy {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "clk_dummy";
+	};
+
+	clk_esai1_rx_clk: clock-esai1-rx {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "esai1_rx_clk";
+	};
+
+	clk_esai1_rx_hf_clk: clock-esai1-rx-hf {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "esai1_rx_hf_clk";
+	};
+
+	clk_esai1_tx_clk: clock-esai1-tx {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "esai1_tx_clk";
+	};
+
+	clk_esai1_tx_hf_clk: clock-esai1-tx-hf {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "esai1_tx_hf_clk";
+	};
+
+	clk_hdmi_rx_mclk: clock-hdmi-rx-mclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "hdmi-rx-mclk";
+	};
+
+	clk_mlb_clk: clock-mlb-clk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "mlb_clk";
+	};
+
+	clk_sai5_rx_bclk: clock-sai5-rx-bclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "sai5_rx_bclk";
+	};
+
+	clk_sai5_tx_bclk: clock-sai5-tx-bclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "sai5_tx_bclk";
+	};
+
+	clk_sai6_rx_bclk: clock-sai6-rx-bclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "sai6_rx_bclk";
+	};
+
+	clk_sai6_tx_bclk: clock-sai6-tx-bclk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "sai6_tx_bclk";
+	};
+
+	clk_spdif1_rx: clock-spdif1-rx {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>;
+		clock-output-names = "spdif1_rx";
+	};
+
 	/* sorted in register address */
+	#include "imx8-ss-audio.dtsi"
 	#include "imx8-ss-vpu.dtsi"
 	#include "imx8-ss-img.dtsi"
 	#include "imx8-ss-dma.dtsi"
@@ -473,3 +558,4 @@
 #include "imx8qm-ss-dma.dtsi"
 #include "imx8qm-ss-conn.dtsi"
 #include "imx8qm-ss-lsio.dtsi"
+#include "imx8qm-ss-audio.dtsi"
