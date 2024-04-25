@@ -31,8 +31,6 @@
 #include "fixed31_32.h"
 #include "spl/dc_spl_types.h"
 
-#include "spl/dc_spl_types.h"
-
 #define CSC_TEMPERATURE_MATRIX_SIZE 12
 
 struct bit_depth_reduction_params;
