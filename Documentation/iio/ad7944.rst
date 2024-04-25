@@ -24,7 +24,7 @@ Supported features
 SPI wiring modes
 ----------------
 
-The driver currently supports two of the many possible SPI wiring configurations.
+The driver currently supports three of the many possible SPI wiring configurations.
 
 CS mode, 3-wire, without busy indicator
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -68,6 +68,27 @@ CS mode, 4-wire, without busy indicator
 To select this mode in the device tree, omit the ``adi,spi-mode`` property and
 provide the ``cnv-gpios`` property.
 
+Chain mode, without busy indicator
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block::
+
+                                                                 +-------------+
+                  +-------------------------+--------------------| CS          |
+                  v                         v                    |             |
+        +--------------------+    +--------------------+         |     HOST    |
+        |        CNV         |    |        CNV         |         |             |
+   +--->| SDI   AD7944   SDO |--->| SDI   AD7944   SDO |-------->| SDI         |
+   |    |        SCK         |    |        SCK         |         |             |
+  GND   +--------------------+    +--------------------+         |             |
+                  ^                         ^                    |             |
+                  +-------------------------+--------------------| SCLK        |
+                                                                 +-------------+
+
+To select this mode in the device tree, set the ``adi,spi-mode`` property to
+``"chain"``, add the ``spi-cs-high`` flag, add the ``#daisy-chained-devices``
+property, and omit the ``cnv-gpios`` property.
+
 Reference voltage
 -----------------
 
@@ -86,7 +107,6 @@ Unimplemented features
 
 - ``BUSY`` indication
 - ``TURBO`` mode
-- Daisy chain mode
 
 
 Device attributes
@@ -108,6 +128,9 @@ AD7944 and AD7985 are pseudo-differential ADCs and have the following attributes
 | ``in_voltage0_scale``                 | Scale factor to convert raw value to mV.                     |
 +---------------------------------------+--------------------------------------------------------------+
 
+In "chain" mode, additional chips will appear as additional voltage input
+channels, e.g. ``in_voltage1_raw``.
+
 Fully-differential ADCs
 -----------------------
 
@@ -120,6 +143,9 @@ AD7986 is a fully-differential ADC and has the following attributes:
 +---------------------------------------+--------------------------------------------------------------+
 | ``in_voltage0-voltage1_scale``        | Scale factor to convert raw value to mV.                     |
 +---------------------------------------+--------------------------------------------------------------+
+
+In "chain" mode, additional chips will appear as additional voltage input
+channels, e.g. ``in_voltage2-voltage3_raw``.
 
 
 Device buffers
