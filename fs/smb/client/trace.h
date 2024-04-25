@@ -3,6 +3,9 @@
  *   Copyright (C) 2018, Microsoft Corporation.
  *
  *   Author(s): Steve French <stfrench@microsoft.com>
+ *
+ * Please use this 3-part article as a reference for writing new tracepoints:
+ * https://lwn.net/Articles/379903/
  */
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM cifs
@@ -15,9 +18,70 @@
 #include <linux/inet.h>
 
 /*
- * Please use this 3-part article as a reference for writing new tracepoints:
- * https://lwn.net/Articles/379903/
+ * Specify enums for tracing information.
  */
+#define smb3_tcon_ref_traces					      \
+	EM(netfs_trace_tcon_ref_dec_dfs_refer,		"DEC DfsRef") \
+	EM(netfs_trace_tcon_ref_free,			"FRE       ") \
+	EM(netfs_trace_tcon_ref_free_fail,		"FRE Fail  ") \
+	EM(netfs_trace_tcon_ref_free_ipc,		"FRE Ipc   ") \
+	EM(netfs_trace_tcon_ref_free_ipc_fail,		"FRE Ipc-F ") \
+	EM(netfs_trace_tcon_ref_free_reconnect_server,	"FRE Reconn") \
+	EM(netfs_trace_tcon_ref_get_cancelled_close,	"GET Cn-Cls") \
+	EM(netfs_trace_tcon_ref_get_dfs_refer,		"GET DfsRef") \
+	EM(netfs_trace_tcon_ref_get_find,		"GET Find  ") \
+	EM(netfs_trace_tcon_ref_get_find_sess_tcon,	"GET FndSes") \
+	EM(netfs_trace_tcon_ref_get_reconnect_server,	"GET Reconn") \
+	EM(netfs_trace_tcon_ref_new,			"NEW       ") \
+	EM(netfs_trace_tcon_ref_new_ipc,		"NEW Ipc   ") \
+	EM(netfs_trace_tcon_ref_new_reconnect_server,	"NEW Reconn") \
+	EM(netfs_trace_tcon_ref_put_cancelled_close,	"PUT Cn-Cls") \
+	EM(netfs_trace_tcon_ref_put_cancelled_close_fid, "PUT Cn-Fid") \
+	EM(netfs_trace_tcon_ref_put_cancelled_mid,	"PUT Cn-Mid") \
+	EM(netfs_trace_tcon_ref_put_mnt_ctx,		"PUT MntCtx") \
+	EM(netfs_trace_tcon_ref_put_reconnect_server,	"PUT Reconn") \
+	EM(netfs_trace_tcon_ref_put_tlink,		"PUT Tlink ") \
+	EM(netfs_trace_tcon_ref_see_cancelled_close,	"SEE Cn-Cls") \
+	EM(netfs_trace_tcon_ref_see_fscache_collision,	"SEE FV-CO!") \
+	EM(netfs_trace_tcon_ref_see_fscache_okay,	"SEE FV-Ok ") \
+	EM(netfs_trace_tcon_ref_see_fscache_relinq,	"SEE FV-Rlq") \
+	E_(netfs_trace_tcon_ref_see_umount,		"SEE Umount")
+
+#undef EM
+#undef E_
+
+/*
+ * Define those tracing enums.
+ */
+#ifndef __SMB3_DECLARE_TRACE_ENUMS_ONCE_ONLY
+#define __SMB3_DECLARE_TRACE_ENUMS_ONCE_ONLY
+
+#define EM(a, b) a,
+#define E_(a, b) a
+
+enum smb3_tcon_ref_trace { smb3_tcon_ref_traces } __mode(byte);
+
+#undef EM
+#undef E_
+#endif
+
+/*
+ * Export enum symbols via userspace.
+ */
+#define EM(a, b) TRACE_DEFINE_ENUM(a);
+#define E_(a, b) TRACE_DEFINE_ENUM(a);
+
+smb3_tcon_ref_traces;
+
+#undef EM
+#undef E_
+
+/*
+ * Now redefine the EM() and E_() macros to map the enums to the strings that
+ * will be printed in the output.
+ */
+#define EM(a, b)	{ a, b },
+#define E_(a, b)	{ a, b }
 
 /* For logging errors in read or write */
 DECLARE_EVENT_CLASS(smb3_rw_err_class,
@@ -1125,6 +1189,30 @@ DEFINE_SMB3_CREDIT_EVENT(waitff_credits);
 DEFINE_SMB3_CREDIT_EVENT(overflow_credits);
 DEFINE_SMB3_CREDIT_EVENT(set_credits);
 
+
+TRACE_EVENT(smb3_tcon_ref,
+	    TP_PROTO(unsigned int tcon_debug_id, int ref,
+		     enum smb3_tcon_ref_trace trace),
+	    TP_ARGS(tcon_debug_id, ref, trace),
+	    TP_STRUCT__entry(
+		    __field(unsigned int,		tcon)
+		    __field(int,			ref)
+		    __field(enum smb3_tcon_ref_trace,	trace)
+			     ),
+	    TP_fast_assign(
+		    __entry->tcon	= tcon_debug_id;
+		    __entry->ref	= ref;
+		    __entry->trace	= trace;
+			   ),
+	    TP_printk("TC=%08x %s r=%u",
+		      __entry->tcon,
+		      __print_symbolic(__entry->trace, smb3_tcon_ref_traces),
+		      __entry->ref)
+	    );
+
+
+#undef EM
+#undef E_
 #endif /* _CIFS_TRACE_H */
 
 #undef TRACE_INCLUDE_PATH

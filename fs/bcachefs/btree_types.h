@@ -321,9 +321,9 @@ struct bkey_cached {
 	struct btree_bkey_cached_common c;
 
 	unsigned long		flags;
+	unsigned long		btree_trans_barrier_seq;
 	u16			u64s;
 	bool			valid;
-	u32			btree_trans_barrier_seq;
 	struct bkey_cached_key	key;
 
 	struct rhash_head	hash;
