@@ -433,7 +433,9 @@ static void __amd_put_nb_event_constraints(struct cpu_hw_events *cpuc,
 	 * when we come here
 	 */
 	for (i = 0; i < x86_pmu.num_counters; i++) {
-		if (cmpxchg(nb->owners + i, event, NULL) == event)
+		struct perf_event *tmp = event;
+
+		if (try_cmpxchg(nb->owners + i, &tmp, NULL))
 			break;
 	}
 }
