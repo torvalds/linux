@@ -96,6 +96,10 @@ typedef uint64_t          uintmax_t;
 #define UINT_FAST32_MAX  SIZE_MAX
 #define UINT_FAST64_MAX  UINT64_MAX
 
+#define INTMAX_MIN       INT64_MIN
+#define INTMAX_MAX       INT64_MAX
+#define UINTMAX_MAX      UINT64_MAX
+
 #ifndef INT_MIN
 #define INT_MIN          (-__INT_MAX__ - 1)
 #endif
@@ -108,6 +112,21 @@ typedef uint64_t          uintmax_t;
 #endif
 #ifndef LONG_MAX
 #define LONG_MAX         __LONG_MAX__
+#endif
+
+#ifndef ULONG_MAX
+#define ULONG_MAX         ((unsigned long)(__LONG_MAX__) * 2 + 1)
+#endif
+
+#ifndef LLONG_MIN
+#define LLONG_MIN         (-__LONG_LONG_MAX__ - 1)
+#endif
+#ifndef LLONG_MAX
+#define LLONG_MAX         __LONG_LONG_MAX__
+#endif
+
+#ifndef ULLONG_MAX
+#define ULLONG_MAX         ((unsigned long long)(__LONG_LONG_MAX__) * 2 + 1)
 #endif
 
 #endif /* _NOLIBC_STDINT_H */
