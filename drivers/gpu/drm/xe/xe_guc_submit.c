@@ -449,9 +449,9 @@ static void set_min_preemption_timeout(struct xe_guc *guc, struct xe_exec_queue 
 	xe_map_wr_field(xe_, &map_, 0, struct guc_submit_parallel_scratch, \
 			field_, val_)
 
-static void __register_mlrc_engine(struct xe_guc *guc,
-				   struct xe_exec_queue *q,
-				   struct guc_ctxt_registration_info *info)
+static void __register_mlrc_exec_queue(struct xe_guc *guc,
+				       struct xe_exec_queue *q,
+				       struct guc_ctxt_registration_info *info)
 {
 #define MAX_MLRC_REG_SIZE      (13 + XE_HW_ENGINE_MAX_INSTANCE * 2)
 	struct xe_device *xe = guc_to_xe(guc);
@@ -488,8 +488,8 @@ static void __register_mlrc_engine(struct xe_guc *guc,
 	xe_guc_ct_send(&guc->ct, action, len, 0, 0);
 }
 
-static void __register_engine(struct xe_guc *guc,
-			      struct guc_ctxt_registration_info *info)
+static void __register_exec_queue(struct xe_guc *guc,
+				  struct guc_ctxt_registration_info *info)
 {
 	u32 action[] = {
 		XE_GUC_ACTION_REGISTER_CONTEXT,
@@ -509,7 +509,7 @@ static void __register_engine(struct xe_guc *guc,
 	xe_guc_ct_send(&guc->ct, action, ARRAY_SIZE(action), 0, 0);
 }
 
-static void register_engine(struct xe_exec_queue *q)
+static void register_exec_queue(struct xe_exec_queue *q)
 {
 	struct xe_guc *guc = exec_queue_to_guc(q);
 	struct xe_device *xe = guc_to_xe(guc);
@@ -557,9 +557,9 @@ static void register_engine(struct xe_exec_queue *q)
 	set_exec_queue_registered(q);
 	trace_xe_exec_queue_register(q);
 	if (xe_exec_queue_is_parallel(q))
-		__register_mlrc_engine(guc, q, &info);
+		__register_mlrc_exec_queue(guc, q, &info);
 	else
-		__register_engine(guc, &info);
+		__register_exec_queue(guc, &info);
 	init_policies(guc, q);
 }
 
@@ -729,7 +729,7 @@ guc_exec_queue_run_job(struct drm_sched_job *drm_job)
 
 	if (!exec_queue_killed_or_banned_or_wedged(q) && !xe_sched_job_is_error(job)) {
 		if (!exec_queue_registered(q))
-			register_engine(q);
+			register_exec_queue(q);
 		if (!lr)	/* LR jobs are emitted in the exec IOCTL */
 			q->ring_ops->emit_job(job);
 		submit_exec_queue(q);
