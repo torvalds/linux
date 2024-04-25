@@ -697,7 +697,8 @@ reserve_space(struct vchiq_state *state, size_t space, int is_blocking)
 
 		if (tx_pos == (state->slot_queue_available * VCHIQ_SLOT_SIZE)) {
 			complete(&state->slot_available_event);
-			pr_warn("%s: invalid tx_pos: %d\n", __func__, tx_pos);
+			dev_warn(state->dev, "%s: invalid tx_pos: %d\n",
+				 __func__, tx_pos);
 			return NULL;
 		}
 
@@ -1732,10 +1733,9 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 				break;
 			}
 			if (queue->process != queue->remote_insert) {
-				pr_err("%s: p %x != ri %x\n",
-				       __func__,
-				       queue->process,
-				       queue->remote_insert);
+				dev_err(state->dev, "%s: p %x != ri %x\n",
+					__func__, queue->process,
+					queue->remote_insert);
 				mutex_unlock(&service->bulk_mutex);
 				goto bail_not_ready;
 			}
