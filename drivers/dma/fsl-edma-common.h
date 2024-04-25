@@ -246,6 +246,11 @@ struct fsl_edma_engine {
 	struct fsl_edma_chan	chans[] __counted_by(n_chans);
 };
 
+static inline u32 fsl_edma_drvflags(struct fsl_edma_chan *fsl_chan)
+{
+	return fsl_chan->edma->drvdata->flags;
+}
+
 #define edma_read_tcdreg_c(chan, _tcd,  __name)				\
 (sizeof((_tcd)->__name) == sizeof(u64) ?				\
 	edma_readq(chan->edma, &(_tcd)->__name) :			\
@@ -349,6 +354,9 @@ do {								\
 		fsl_edma_set_tcd_to_le_c((struct fsl_edma_hw_tcd *)_tcd, _val, _field);		\
 } while (0)
 
+/* Need after struct defination */
+#include "fsl-edma-trace.h"
+
 /*
  * R/W functions for big- or little-endian registers:
  * The eDMA controller's endian is independent of the CPU core's endian.
@@ -367,23 +375,38 @@ static inline u64 edma_readq(struct fsl_edma_engine *edma, void __iomem *addr)
 		h = ioread32(addr + 4);
 	}
 
+	trace_edma_readl(edma, addr, l);
+	trace_edma_readl(edma, addr + 4, h);
+
 	return (h << 32) | l;
 }
 
 static inline u32 edma_readl(struct fsl_edma_engine *edma, void __iomem *addr)
 {
+	u32 val;
+
 	if (edma->big_endian)
-		return ioread32be(addr);
+		val = ioread32be(addr);
 	else
-		return ioread32(addr);
+		val = ioread32(addr);
+
+	trace_edma_readl(edma, addr, val);
+
+	return val;
 }
 
 static inline u16 edma_readw(struct fsl_edma_engine *edma, void __iomem *addr)
 {
+	u16 val;
+
 	if (edma->big_endian)
-		return ioread16be(addr);
+		val = ioread16be(addr);
 	else
-		return ioread16(addr);
+		val = ioread16(addr);
+
+	trace_edma_readw(edma, addr, val);
+
+	return val;
 }
 
 static inline void edma_writeb(struct fsl_edma_engine *edma,
@@ -394,6 +417,8 @@ static inline void edma_writeb(struct fsl_edma_engine *edma,
 		iowrite8(val, (void __iomem *)((unsigned long)addr ^ 0x3));
 	else
 		iowrite8(val, addr);
+
+	trace_edma_writeb(edma, addr, val);
 }
 
 static inline void edma_writew(struct fsl_edma_engine *edma,
@@ -404,6 +429,8 @@ static inline void edma_writew(struct fsl_edma_engine *edma,
 		iowrite16be(val, (void __iomem *)((unsigned long)addr ^ 0x2));
 	else
 		iowrite16(val, addr);
+
+	trace_edma_writew(edma, addr, val);
 }
 
 static inline void edma_writel(struct fsl_edma_engine *edma,
@@ -413,6 +440,8 @@ static inline void edma_writel(struct fsl_edma_engine *edma,
 		iowrite32be(val, addr);
 	else
 		iowrite32(val, addr);
+
+	trace_edma_writel(edma, addr, val);
 }
 
 static inline void edma_writeq(struct fsl_edma_engine *edma,
@@ -425,16 +454,14 @@ static inline void edma_writeq(struct fsl_edma_engine *edma,
 		iowrite32(val & 0xFFFFFFFF, addr);
 		iowrite32(val >> 32, addr + 4);
 	}
+
+	trace_edma_writel(edma, addr, val & 0xFFFFFFFF);
+	trace_edma_writel(edma, addr + 4, val >> 32);
 }
 
 static inline struct fsl_edma_chan *to_fsl_edma_chan(struct dma_chan *chan)
 {
 	return container_of(chan, struct fsl_edma_chan, vchan.chan);
-}
-
-static inline u32 fsl_edma_drvflags(struct fsl_edma_chan *fsl_chan)
-{
-	return fsl_chan->edma->drvdata->flags;
 }
 
 static inline struct fsl_edma_desc *to_fsl_edma_desc(struct virt_dma_desc *vd)
