@@ -141,7 +141,7 @@ struct rcu_cblist {
  *  |                           SEGCBLIST_KTHREAD_GP                           |
  *  |                                                                          |
  *  |   CB/GP kthreads handle callbacks holding nocb_lock, local rcu_core()    |
- *  |   handles callbacks concurrently. Bypass enqueue is enabled.             |
+ *  |   handles callbacks concurrently. Bypass enqueue is disabled.            |
  *  |   Invoke RCU core so we make sure not to preempt it in the middle with   |
  *  |   leaving some urgent work unattended within a jiffy.                    |
  *  ----------------------------------------------------------------------------
@@ -154,8 +154,7 @@ struct rcu_cblist {
  *  |                           SEGCBLIST_KTHREAD_GP                           |
  *  |                                                                          |
  *  |   CB/GP kthreads and local rcu_core() handle callbacks concurrently      |
- *  |   holding nocb_lock. Wake up CB and GP kthreads if necessary. Disable    |
- *  |   bypass enqueue.                                                        |
+ *  |   holding nocb_lock. Wake up CB and GP kthreads if necessary.            |
  *  ----------------------------------------------------------------------------
  *                                      |
  *                                      v
@@ -185,7 +184,7 @@ struct rcu_cblist {
  *  |                                                                          |
  *  | Callbacks processed by rcu_core() from softirqs or local                 |
  *  | rcuc kthread, while holding nocb_lock. Forbid nocb_timer to be armed.    |
- *  | Flush pending nocb_timer. Flush nocb bypass callbacks.                   |
+ *  | Flush pending nocb_timer.                                                |
  *  ----------------------------------------------------------------------------
  *                                      |
  *                                      v
