@@ -826,15 +826,28 @@ void thermal_debug_tz_add(struct thermal_zone_device *tz)
 void thermal_debug_tz_remove(struct thermal_zone_device *tz)
 {
 	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	struct tz_episode *tze, *tmp;
+	struct tz_debugfs *tz_dbg;
+	int *trips_crossed;
 
 	if (!thermal_dbg)
 		return;
 
+	tz_dbg = &thermal_dbg->tz_dbg;
+
 	mutex_lock(&thermal_dbg->lock);
+
+	trips_crossed = tz_dbg->trips_crossed;
+
+	list_for_each_entry_safe(tze, tmp, &tz_dbg->tz_episodes, node) {
+		list_del(&tze->node);
+		kfree(tze);
+	}
 
 	tz->debugfs = NULL;
 
 	mutex_unlock(&thermal_dbg->lock);
 
 	thermal_debugfs_remove_id(thermal_dbg);
+	kfree(trips_crossed);
 }
