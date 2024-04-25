@@ -400,6 +400,7 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree_iter dirent_iter = {};
 	subvol_inum inum = {};
+	struct printbuf buf = PRINTBUF;
 
 	struct bkey_s_c k = bch2_hash_lookup(trans, &dirent_iter, bch2_dirent_hash_desc,
 					     dir_hash_info, dir, name, 0);
@@ -426,20 +427,31 @@ static struct bch_inode_info *bch2_lookup_trans(struct btree_trans *trans,
 	ret =   bch2_subvolume_get(trans, inum.subvol, true, 0, &subvol) ?:
 		bch2_inode_find_by_inum_nowarn_trans(trans, inum, &inode_u) ?:
 		PTR_ERR_OR_ZERO(inode = bch2_new_inode(trans));
-	if (bch2_err_matches(ret, ENOENT)) {
-		struct printbuf buf = PRINTBUF;
 
-		bch2_bkey_val_to_text(&buf, c, k);
-		bch_err(c, "%s points to missing inode", buf.buf);
-		printbuf_exit(&buf);
-	}
+	bch2_fs_inconsistent_on(bch2_err_matches(ret, ENOENT),
+				c, "dirent to missing inode:\n  %s",
+				(bch2_bkey_val_to_text(&buf, c, k), buf.buf));
 	if (ret)
 		goto err;
+
+	/* regular files may have hardlinks: */
+	if (bch2_fs_inconsistent_on(bch2_inode_should_have_bp(&inode_u) &&
+				    !bkey_eq(k.k->p, POS(inode_u.bi_dir, inode_u.bi_dir_offset)),
+				    c,
+				    "dirent points to inode that does not point back:\n  %s",
+				    (bch2_bkey_val_to_text(&buf, c, k),
+				     prt_printf(&buf, "\n  "),
+				     bch2_inode_unpacked_to_text(&buf, &inode_u),
+				     buf.buf))) {
+		ret = -ENOENT;
+		goto err;
+	}
 
 	bch2_vfs_inode_init(trans, inum, inode, &inode_u, &subvol);
 	inode = bch2_inode_insert(c, inode);
 out:
 	bch2_trans_iter_exit(trans, &dirent_iter);
+	printbuf_exit(&buf);
 	return inode;
 err:
 	inode = ERR_PTR(ret);
