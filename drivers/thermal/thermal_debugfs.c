@@ -139,11 +139,13 @@ struct tz_episode {
  * we keep track of the current position in the history array.
  *
  * @tz_episodes: a list of thermal mitigation episodes
+ * @tz: thermal zone this object belongs to
  * @trips_crossed: an array of trip points crossed by id
  * @nr_trips: the number of trip points currently being crossed
  */
 struct tz_debugfs {
 	struct list_head tz_episodes;
+	struct thermal_zone_device *tz;
 	int *trips_crossed;
 	int nr_trips;
 };
@@ -716,8 +718,7 @@ out:
 
 static void *tze_seq_start(struct seq_file *s, loff_t *pos)
 {
-	struct thermal_zone_device *tz = s->private;
-	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	struct thermal_debugfs *thermal_dbg = s->private;
 	struct tz_debugfs *tz_dbg = &thermal_dbg->tz_dbg;
 
 	mutex_lock(&thermal_dbg->lock);
@@ -727,8 +728,7 @@ static void *tze_seq_start(struct seq_file *s, loff_t *pos)
 
 static void *tze_seq_next(struct seq_file *s, void *v, loff_t *pos)
 {
-	struct thermal_zone_device *tz = s->private;
-	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	struct thermal_debugfs *thermal_dbg = s->private;
 	struct tz_debugfs *tz_dbg = &thermal_dbg->tz_dbg;
 
 	return seq_list_next(v, &tz_dbg->tz_episodes, pos);
@@ -736,15 +736,15 @@ static void *tze_seq_next(struct seq_file *s, void *v, loff_t *pos)
 
 static void tze_seq_stop(struct seq_file *s, void *v)
 {
-	struct thermal_zone_device *tz = s->private;
-	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	struct thermal_debugfs *thermal_dbg = s->private;
 
 	mutex_unlock(&thermal_dbg->lock);
 }
 
 static int tze_seq_show(struct seq_file *s, void *v)
 {
-	struct thermal_zone_device *tz = s->private;
+	struct thermal_debugfs *thermal_dbg = s->private;
+	struct thermal_zone_device *tz = thermal_dbg->tz_dbg.tz;
 	struct thermal_trip *trip;
 	struct tz_episode *tze;
 	const char *type;
@@ -810,6 +810,8 @@ void thermal_debug_tz_add(struct thermal_zone_device *tz)
 
 	tz_dbg = &thermal_dbg->tz_dbg;
 
+	tz_dbg->tz = tz;
+
 	tz_dbg->trips_crossed = kzalloc(sizeof(int) * tz->num_trips, GFP_KERNEL);
 	if (!tz_dbg->trips_crossed) {
 		thermal_debugfs_remove_id(thermal_dbg);
@@ -818,20 +820,30 @@ void thermal_debug_tz_add(struct thermal_zone_device *tz)
 
 	INIT_LIST_HEAD(&tz_dbg->tz_episodes);
 
-	debugfs_create_file("mitigations", 0400, thermal_dbg->d_top, tz, &tze_fops);
+	debugfs_create_file("mitigations", 0400, thermal_dbg->d_top,
+			    thermal_dbg, &tze_fops);
 
 	tz->debugfs = thermal_dbg;
 }
 
 void thermal_debug_tz_remove(struct thermal_zone_device *tz)
 {
-	struct thermal_debugfs *thermal_dbg = tz->debugfs;
+	struct thermal_debugfs *thermal_dbg;
 	struct tz_episode *tze, *tmp;
 	struct tz_debugfs *tz_dbg;
 	int *trips_crossed;
 
-	if (!thermal_dbg)
+	mutex_lock(&tz->lock);
+
+	thermal_dbg = tz->debugfs;
+	if (!thermal_dbg) {
+		mutex_unlock(&tz->lock);
 		return;
+	}
+
+	tz->debugfs = NULL;
+
+	mutex_unlock(&tz->lock);
 
 	tz_dbg = &thermal_dbg->tz_dbg;
 
@@ -843,8 +855,6 @@ void thermal_debug_tz_remove(struct thermal_zone_device *tz)
 		list_del(&tze->node);
 		kfree(tze);
 	}
-
-	tz->debugfs = NULL;
 
 	mutex_unlock(&thermal_dbg->lock);
 
