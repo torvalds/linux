@@ -155,7 +155,9 @@ The system configuration dump (if --quiet is not used) is followed by statistics
 .PP
 \fBRAM_%\fP percent of the interval that RAPL throttling was active on DRAM.
 .PP
-\fBUncMHz\fP uncore MHz, instantaneous sample.
+\fBUncMHz\fP per-package uncore MHz, instantaneous sample.
+.PP
+\fBUMHz1.0\fP per-package uncore MHz for domain=1 and fabric_cluster=0, instantaneous sample.  System summary is the average of all packages.
 .SH TOO MUCH INFORMATION EXAMPLE
 By default, turbostat dumps all possible information -- a system configuration header, followed by columns for all counters.
 This is ideal for remote debugging, use the "--out" option to save everything to a text file, and get that file to the expert helping you debug.

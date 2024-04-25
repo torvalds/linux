@@ -59,15 +59,21 @@
 #define MAX_NOFILE 0x8000
 
 enum counter_scope { SCOPE_CPU, SCOPE_CORE, SCOPE_PACKAGE };
-enum counter_type { COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC };
-enum counter_format { FORMAT_RAW, FORMAT_DELTA, FORMAT_PERCENT };
+enum counter_type { COUNTER_ITEMS, COUNTER_CYCLES, COUNTER_SECONDS, COUNTER_USEC, COUNTER_K2M };
+enum counter_format { FORMAT_RAW, FORMAT_DELTA, FORMAT_PERCENT, FORMAT_AVERAGE };
 enum amperf_source { AMPERF_SOURCE_PERF, AMPERF_SOURCE_MSR };
 enum rapl_source { RAPL_SOURCE_NONE, RAPL_SOURCE_PERF, RAPL_SOURCE_MSR };
+
+struct sysfs_path {
+	char path[PATH_BYTES];
+	int id;
+	struct sysfs_path *next;
+};
 
 struct msr_counter {
 	unsigned int msr_num;
 	char name[NAME_BYTES];
-	char path[PATH_BYTES];
+	struct sysfs_path *sp;
 	unsigned int width;
 	enum counter_type type;
 	enum counter_format format;
@@ -79,64 +85,64 @@ struct msr_counter {
 };
 
 struct msr_counter bic[] = {
-	{ 0x0, "usec", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Time_Of_Day_Seconds", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Package", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Node", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Avg_MHz", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Busy%", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Bzy_MHz", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "TSC_MHz", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "IRQ", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "SMI", "", 32, 0, FORMAT_DELTA, NULL, 0 },
-	{ 0x0, "sysfs", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPU%c1", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPU%c3", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPU%c6", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPU%c7", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "ThreadC", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CoreTmp", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CoreCnt", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "PkgTmp", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "GFX%rc6", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "GFXMHz", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg%pc2", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg%pc3", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg%pc6", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg%pc7", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg%pc8", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg%pc9", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pk%pc10", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPU%LPI", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "SYS%LPI", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "PkgWatt", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CorWatt", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "GFXWatt", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "PkgCnt", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "RAMWatt", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "PKG_%", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "RAM_%", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Pkg_J", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Cor_J", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "GFX_J", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "RAM_J", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Mod%c6", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Totl%C0", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Any%C0", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "GFX%C0", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPUGFX%", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Core", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CPU", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "APIC", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "X2APIC", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "Die", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "GFXAMHz", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "IPC", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "CoreThr", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "UncMHz", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "SAM%mc6", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "SAMMHz", "", 0, 0, 0, NULL, 0 },
-	{ 0x0, "SAMAMHz", "", 0, 0, 0, NULL, 0 },
+	{ 0x0, "usec", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Time_Of_Day_Seconds", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Package", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Node", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Avg_MHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Busy%", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Bzy_MHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "TSC_MHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "IRQ", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "SMI", NULL, 32, 0, FORMAT_DELTA, NULL, 0 },
+	{ 0x0, "sysfs", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c1", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c3", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c6", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%c7", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "ThreadC", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CoreTmp", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CoreCnt", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "PkgTmp", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFX%rc6", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFXMHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc2", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc3", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc6", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc7", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc8", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg%pc9", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pk%pc10", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU%LPI", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "SYS%LPI", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "PkgWatt", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CorWatt", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFXWatt", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "PkgCnt", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "RAMWatt", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "PKG_%", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "RAM_%", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Pkg_J", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Cor_J", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFX_J", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "RAM_J", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Mod%c6", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Totl%C0", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Any%C0", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFX%C0", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPUGFX%", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Core", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CPU", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "APIC", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "X2APIC", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "Die", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "GFXAMHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "IPC", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "CoreThr", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "UncMHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "SAM%mc6", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "SAMMHz", NULL, 0, 0, 0, NULL, 0 },
+	{ 0x0, "SAMAMHz", NULL, 0, 0, 0, NULL, 0 },
 };
 
 #define MAX_BIC (sizeof(bic) / sizeof(struct msr_counter))
@@ -300,6 +306,9 @@ struct gfx_sysfs_info {
 static struct gfx_sysfs_info gfx_info[GFX_MAX];
 
 int get_msr(int cpu, off_t offset, unsigned long long *msr);
+int add_counter(unsigned int msr_num, char *path, char *name,
+		unsigned int width, enum counter_scope scope,
+		enum counter_type type, enum counter_format format, int flags, int package_num);
 
 /* Model specific support Start */
 
@@ -999,8 +1008,9 @@ char *progname;
 #define CPU_SUBSET_MAXCPUS	1024	/* need to use before probe... */
 cpu_set_t *cpu_present_set, *cpu_effective_set, *cpu_allowed_set, *cpu_affinity_set, *cpu_subset;
 size_t cpu_present_setsize, cpu_effective_setsize, cpu_allowed_setsize, cpu_affinity_setsize, cpu_subset_size;
-#define MAX_ADDED_COUNTERS 8
 #define MAX_ADDED_THREAD_COUNTERS 24
+#define MAX_ADDED_CORE_COUNTERS 8
+#define MAX_ADDED_PACKAGE_COUNTERS 16
 #define BITMASK_SIZE 32
 
 /* Indexes used to map data read from perf and MSRs into global variables */
@@ -1201,7 +1211,7 @@ struct core_data {
 	struct rapl_counter core_energy;	/* MSR_CORE_ENERGY_STAT */
 	unsigned int core_id;
 	unsigned long long core_throt_cnt;
-	unsigned long long counter[MAX_ADDED_COUNTERS];
+	unsigned long long counter[MAX_ADDED_CORE_COUNTERS];
 } *core_even, *core_odd;
 
 struct pkg_data {
@@ -1234,7 +1244,7 @@ struct pkg_data {
 	struct rapl_counter rapl_dram_perf_status;	/* MSR_DRAM_PERF_STATUS */
 	unsigned int pkg_temp_c;
 	unsigned int uncore_mhz;
-	unsigned long long counter[MAX_ADDED_COUNTERS];
+	unsigned long long counter[MAX_ADDED_PACKAGE_COUNTERS];
 } *package_even, *package_odd;
 
 #define ODD_COUNTERS thread_odd, core_odd, package_odd
@@ -1955,13 +1965,15 @@ void print_header(char *delim)
 		if (mp->format == FORMAT_RAW) {
 			if (mp->width == 64)
 				outp += sprintf(outp, "%s%18.18s", delim, mp->name);
-			else
+			else if (mp->width == 32)
 				outp += sprintf(outp, "%s%10.10s", delim, mp->name);
+			else
+				outp += sprintf(outp, "%s%7.7s", delim, mp->name);
 		} else {
 			if ((mp->type == COUNTER_ITEMS) && sums_need_wide_columns)
 				outp += sprintf(outp, "%s%8s", delim, mp->name);
 			else
-				outp += sprintf(outp, "%s%s", delim, mp->name);
+				outp += sprintf(outp, "%s%7.7s", delim, mp->name);
 		}
 	}
 
@@ -1993,7 +2005,7 @@ int dump_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
 			outp +=
 			    sprintf(outp, "tADDED [%d] %8s msr0x%x: %08llX %s\n", i, mp->name, mp->msr_num,
-				    t->counter[i], mp->path);
+				    t->counter[i], mp->sp->path);
 		}
 	}
 
@@ -2014,7 +2026,7 @@ int dump_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
 			outp +=
 			    sprintf(outp, "cADDED [%d] %8s msr0x%x: %08llX %s\n", i, mp->name, mp->msr_num,
-				    c->counter[i], mp->path);
+				    c->counter[i], mp->sp->path);
 		}
 		outp += sprintf(outp, "mc6_us: %016llX\n", c->mc6_us);
 	}
@@ -2050,7 +2062,7 @@ int dump_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p
 		for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
 			outp +=
 			    sprintf(outp, "pADDED [%d] %8s msr0x%x: %08llX %s\n", i, mp->name, mp->msr_num,
-				    p->counter[i], mp->path);
+				    p->counter[i], mp->sp->path);
 		}
 	}
 
@@ -2415,7 +2427,8 @@ int format_counters(struct thread_data *t, struct core_data *c, struct pkg_data 
 				outp += sprintf(outp, "%s%lld", (printed++ ? delim : ""), p->counter[i]);
 		} else if (mp->format == FORMAT_PERCENT) {
 			outp += sprintf(outp, "%s%.2f", (printed++ ? delim : ""), 100.0 * p->counter[i] / tsc);
-		}
+		} else if (mp->type == COUNTER_K2M)
+			outp += sprintf(outp, "%s%d", (printed++ ? delim : ""), (unsigned int)p->counter[i] / 1000);
 	}
 
 done:
@@ -2524,6 +2537,8 @@ int delta_package(struct pkg_data *new, struct pkg_data *old)
 
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
 		if (mp->format == FORMAT_RAW)
+			old->counter[i] = new->counter[i];
+		else if (mp->format == FORMAT_AVERAGE)
 			old->counter[i] = new->counter[i];
 		else
 			old->counter[i] = new->counter[i] - old->counter[i];
@@ -2997,7 +3012,7 @@ unsigned long long snapshot_sysfs_counter(char *path)
 	return counter;
 }
 
-int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp)
+int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp, char *counter_path)
 {
 	if (mp->msr_num != 0) {
 		assert(!no_msr);
@@ -3007,11 +3022,11 @@ int get_mp(int cpu, struct msr_counter *mp, unsigned long long *counterp)
 		char path[128 + PATH_BYTES];
 
 		if (mp->flags & SYSFS_PERCPU) {
-			sprintf(path, "/sys/devices/system/cpu/cpu%d/%s", cpu, mp->path);
+			sprintf(path, "/sys/devices/system/cpu/cpu%d/%s", cpu, mp->sp->path);
 
 			*counterp = snapshot_sysfs_counter(path);
 		} else {
-			*counterp = snapshot_sysfs_counter(mp->path);
+			*counterp = snapshot_sysfs_counter(counter_path);
 		}
 	}
 
@@ -3486,6 +3501,18 @@ int get_rapl_counters(int cpu, int domain, struct core_data *c, struct pkg_data 
 	return 0;
 }
 
+char *find_sysfs_path_by_id(struct sysfs_path *sp, int id)
+{
+	while (sp) {
+		if (sp->id == id)
+			return (sp->path);
+		sp = sp->next;
+	}
+	if (debug)
+		warnx("%s: id%d not found", __func__, id);
+	return NULL;
+}
+
 /*
  * get_counters(...)
  * migrate to cpu
@@ -3547,7 +3574,7 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 	}
 
 	for (i = 0, mp = sys.tp; mp; i++, mp = mp->next) {
-		if (get_mp(cpu, mp, &t->counter[i]))
+		if (get_mp(cpu, mp, &t->counter[i], mp->sp->path))
 			return -10;
 	}
 
@@ -3602,7 +3629,7 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		get_core_throt_cnt(cpu, &c->core_throt_cnt);
 
 	for (i = 0, mp = sys.cp; mp; i++, mp = mp->next) {
-		if (get_mp(cpu, mp, &c->counter[i]))
+		if (get_mp(cpu, mp, &c->counter[i], mp->sp->path))
 			return -10;
 	}
 
@@ -3694,7 +3721,16 @@ int get_counters(struct thread_data *t, struct core_data *c, struct pkg_data *p)
 		p->sam_act_mhz = gfx_info[SAM_ACTMHz].val;
 
 	for (i = 0, mp = sys.pp; mp; i++, mp = mp->next) {
-		if (get_mp(cpu, mp, &p->counter[i]))
+		char *path = NULL;
+
+		if (mp->msr_num == 0) {
+			path = find_sysfs_path_by_id(mp->sp, p->package_id);
+			if (path == NULL) {
+				warnx("%s: package_id %d not found", __func__, p->package_id);
+				return -10;
+			}
+		}
+		if (get_mp(cpu, mp, &p->counter[i], path))
 			return -10;
 	}
 done:
@@ -5377,8 +5413,9 @@ static void probe_intel_uncore_frequency_legacy(void)
 
 static void probe_intel_uncore_frequency_cluster(void)
 {
-	int i;
+	int i, uncore_max_id;
 	char path[256];
+	char path_base[128];
 
 	if (access("/sys/devices/system/cpu/intel_uncore_frequency/uncore00/current_freq_khz", R_OK))
 		return;
@@ -5386,16 +5423,25 @@ static void probe_intel_uncore_frequency_cluster(void)
 	if (quiet)
 		return;
 
-	for (i = 0;; ++i) {
+	for (uncore_max_id = 0;; ++uncore_max_id) {
+
+		sprintf(path_base, "/sys/devices/system/cpu/intel_uncore_frequency/uncore%02d", uncore_max_id);
+
+		/* uncore## start at 00 and skips no numbers, so stop upon first missing */
+		if (access(path_base, R_OK)) {
+			uncore_max_id -= 1;
+			break;
+		}
+	}
+	for (i = uncore_max_id; i >= 0; --i) {
 		int k, l;
-		char path_base[128];
 		int package_id, domain_id, cluster_id;
+		char name_buf[16];
 
 		sprintf(path_base, "/sys/devices/system/cpu/intel_uncore_frequency/uncore%02d", i);
 
-		/* uncore## start at 00 and skip no numbers, so stop upon first missing */
 		if (access(path_base, R_OK))
-			break;
+			err(1, "%s: %s\n", __func__, path_base);
 
 		sprintf(path, "%s/package_id", path_base);
 		package_id = read_sysfs_int(path);
@@ -5422,6 +5468,11 @@ static void probe_intel_uncore_frequency_cluster(void)
 		sprintf(path, "%s/current_freq_khz", path_base);
 		k = read_sysfs_int(path);
 		fprintf(outf, " %d MHz\n", k / 1000);
+
+		sprintf(path, "%s/current_freq_khz", path_base);
+		sprintf(name_buf, "UMHz%d.%d", domain_id, cluster_id);
+
+		add_counter(0, path, name_buf, 0, SCOPE_PACKAGE, COUNTER_K2M, FORMAT_AVERAGE, 0, package_id);
 	}
 }
 
@@ -7575,61 +7626,114 @@ void print_bootcmd(void)
 	fclose(fp);
 }
 
+struct msr_counter *find_msrp_by_name(struct msr_counter *head, char *name)
+{
+	struct msr_counter *mp;
+
+	for (mp = head; mp; mp = mp->next) {
+		if (debug)
+			printf("%s: %s %s\n", __func__, name, mp->name);
+		if (!strncmp(name, mp->name, strlen(mp->name)))
+			return mp;
+	}
+	return NULL;
+}
+
 int add_counter(unsigned int msr_num, char *path, char *name,
 		unsigned int width, enum counter_scope scope,
-		enum counter_type type, enum counter_format format, int flags)
+		enum counter_type type, enum counter_format format, int flags, int id)
 {
 	struct msr_counter *msrp;
 
 	if (no_msr && msr_num)
 		errx(1, "Requested MSR counter 0x%x, but in --no-msr mode", msr_num);
 
-	msrp = calloc(1, sizeof(struct msr_counter));
-	if (msrp == NULL) {
-		perror("calloc");
-		exit(1);
-	}
-
-	msrp->msr_num = msr_num;
-	strncpy(msrp->name, name, NAME_BYTES - 1);
-	if (path)
-		strncpy(msrp->path, path, PATH_BYTES - 1);
-	msrp->width = width;
-	msrp->type = type;
-	msrp->format = format;
-	msrp->flags = flags;
+	if (debug)
+		printf("%s(msr%d, %s, %s, width%d, scope%d, type%d, format%d, flags%x, id%d)\n", __func__, msr_num,
+		       path, name, width, scope, type, format, flags, id);
 
 	switch (scope) {
 
 	case SCOPE_CPU:
-		msrp->next = sys.tp;
-		sys.tp = msrp;
-		sys.added_thread_counters++;
-		if (sys.added_thread_counters > MAX_ADDED_THREAD_COUNTERS) {
-			fprintf(stderr, "exceeded max %d added thread counters\n", MAX_ADDED_COUNTERS);
-			exit(-1);
+		msrp = find_msrp_by_name(sys.tp, name);
+		if (msrp) {
+			if (debug)
+				printf("%s: %s FOUND\n", __func__, name);
+			break;
+		}
+		if (sys.added_thread_counters++ >= MAX_ADDED_THREAD_COUNTERS) {
+			warnx("ignoring thread counter %s", name);
+			return -1;
 		}
 		break;
-
 	case SCOPE_CORE:
-		msrp->next = sys.cp;
-		sys.cp = msrp;
-		sys.added_core_counters++;
-		if (sys.added_core_counters > MAX_ADDED_COUNTERS) {
-			fprintf(stderr, "exceeded max %d added core counters\n", MAX_ADDED_COUNTERS);
-			exit(-1);
+		msrp = find_msrp_by_name(sys.cp, name);
+		if (msrp) {
+			if (debug)
+				printf("%s: %s FOUND\n", __func__, name);
+			break;
+		}
+		if (sys.added_core_counters++ >= MAX_ADDED_CORE_COUNTERS) {
+			warnx("ignoring core counter %s", name);
+			return -1;
 		}
 		break;
-
 	case SCOPE_PACKAGE:
-		msrp->next = sys.pp;
-		sys.pp = msrp;
-		sys.added_package_counters++;
-		if (sys.added_package_counters > MAX_ADDED_COUNTERS) {
-			fprintf(stderr, "exceeded max %d added package counters\n", MAX_ADDED_COUNTERS);
-			exit(-1);
+		msrp = find_msrp_by_name(sys.pp, name);
+		if (msrp) {
+			if (debug)
+				printf("%s: %s FOUND\n", __func__, name);
+			break;
+		}
+		if (sys.added_package_counters++ >= MAX_ADDED_PACKAGE_COUNTERS) {
+			warnx("ignoring package counter %s", name);
+			return -1;
 		}
 		break;
+	default:
+		warnx("ignoring counter %s with unknown scope", name);
+		return -1;
+	}
+
+	if (msrp == NULL) {
+		msrp = calloc(1, sizeof(struct msr_counter));
+		if (msrp == NULL)
+			err(-1, "calloc msr_counter");
+		msrp->msr_num = msr_num;
+		strncpy(msrp->name, name, NAME_BYTES - 1);
+		msrp->width = width;
+		msrp->type = type;
+		msrp->format = format;
+		msrp->flags = flags;
+
+		switch (scope) {
+		case SCOPE_CPU:
+			msrp->next = sys.tp;
+			sys.tp = msrp;
+			break;
+		case SCOPE_CORE:
+			msrp->next = sys.cp;
+			sys.cp = msrp;
+			break;
+		case SCOPE_PACKAGE:
+			msrp->next = sys.pp;
+			sys.pp = msrp;
+			break;
+		}
+	}
+
+	if (path) {
+		struct sysfs_path *sp;
+
+		sp = calloc(1, sizeof(struct sysfs_path));
+		if (sp == NULL) {
+			perror("calloc");
+			exit(1);
+		}
+		strncpy(sp->path, path, PATH_BYTES - 1);
+		sp->id = id;
+		sp->next = msrp->sp;
+		msrp->sp = sp;
 	}
 
 	return 0;
@@ -7731,7 +7835,7 @@ next:
 			sprintf(name_buffer, "M0X%x%s", msr_num, format == FORMAT_PERCENT ? "%" : "");
 	}
 
-	if (add_counter(msr_num, path, name_buffer, width, scope, type, format, 0))
+	if (add_counter(msr_num, path, name_buffer, width, scope, type, format, 0, 0))
 		fail++;
 
 	if (fail) {
@@ -7796,7 +7900,7 @@ void probe_sysfs(void)
 		if (is_deferred_skip(name_buf))
 			continue;
 
-		add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_USEC, FORMAT_PERCENT, SYSFS_PERCPU);
+		add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_USEC, FORMAT_PERCENT, SYSFS_PERCPU, 0);
 	}
 
 	for (state = 10; state >= 0; --state) {
@@ -7824,7 +7928,7 @@ void probe_sysfs(void)
 		if (is_deferred_skip(name_buf))
 			continue;
 
-		add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_ITEMS, FORMAT_DELTA, SYSFS_PERCPU);
+		add_counter(0, path, name_buf, 64, SCOPE_CPU, COUNTER_ITEMS, FORMAT_DELTA, SYSFS_PERCPU, 0);
 	}
 
 }
