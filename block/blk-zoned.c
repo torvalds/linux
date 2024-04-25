@@ -1774,6 +1774,9 @@ int queue_zone_wplugs_show(void *data, struct seq_file *m)
 	unsigned int zwp_bio_list_size, i;
 	unsigned long flags;
 
+	if (!disk->zone_wplugs_hash)
+		return 0;
+
 	rcu_read_lock();
 	for (i = 0; i < disk_zone_wplugs_hash_size(disk); i++) {
 		hlist_for_each_entry_rcu(zwplug,
