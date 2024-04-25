@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import os
-import shlex
 from pathlib import Path
 from lib.py import KsftSkipEx
 from lib.py import cmd, ip
@@ -16,17 +15,20 @@ def _load_env_file(src_path):
     if not (src_dir / "net.config").exists():
         return env
 
-    lexer = shlex.shlex(open((src_dir / "net.config").as_posix(), 'r').read())
-    k = None
-    for token in lexer:
-        if k is None:
-            k = token
-            env[k] = ""
-        elif token == "=":
-            pass
-        else:
-            env[k] = token
-            k = None
+    with open((src_dir / "net.config").as_posix(), 'r') as fp:
+        for line in fp.readlines():
+            full_file = line
+            # Strip comments
+            pos = line.find("#")
+            if pos >= 0:
+                line = line[:pos]
+            line = line.strip()
+            if not line:
+                continue
+            pair = line.split('=', maxsplit=1)
+            if len(pair) != 2:
+                raise Exception("Can't parse configuration line:", full_file)
+            env[pair[0]] = pair[1]
     return env
 
 
