@@ -1851,35 +1851,7 @@ static void nft_pipapo_activate(const struct net *net,
 }
 
 /**
- * pipapo_deactivate() - Check that element is in set, mark as inactive
- * @net:	Network namespace
- * @set:	nftables API set representation
- * @data:	Input key data
- * @ext:	nftables API extension pointer, used to check for end element
- *
- * This is a convenience function that can be called from both
- * nft_pipapo_deactivate() and nft_pipapo_flush(), as they are in fact the same
- * operation.
- *
- * Return: deactivated element if found, NULL otherwise.
- */
-static void *pipapo_deactivate(const struct net *net, const struct nft_set *set,
-			       const u8 *data, const struct nft_set_ext *ext)
-{
-	struct nft_pipapo_elem *e;
-
-	e = pipapo_get(net, set, data, nft_genmask_next(net),
-		       nft_net_tstamp(net), GFP_KERNEL);
-	if (IS_ERR(e))
-		return NULL;
-
-	nft_set_elem_change_active(net, set, &e->ext);
-
-	return e;
-}
-
-/**
- * nft_pipapo_deactivate() - Call pipapo_deactivate() to make element inactive
+ * nft_pipapo_deactivate() - Search for element and make it inactive
  * @net:	Network namespace
  * @set:	nftables API set representation
  * @elem:	nftables API element representation containing key data
@@ -1890,13 +1862,20 @@ static struct nft_elem_priv *
 nft_pipapo_deactivate(const struct net *net, const struct nft_set *set,
 		      const struct nft_set_elem *elem)
 {
-	const struct nft_set_ext *ext = nft_set_elem_ext(set, elem->priv);
+	struct nft_pipapo_elem *e;
 
-	return pipapo_deactivate(net, set, (const u8 *)elem->key.val.data, ext);
+	e = pipapo_get(net, set, (const u8 *)elem->key.val.data,
+		       nft_genmask_next(net), nft_net_tstamp(net), GFP_KERNEL);
+	if (IS_ERR(e))
+		return NULL;
+
+	nft_set_elem_change_active(net, set, &e->ext);
+
+	return &e->priv;
 }
 
 /**
- * nft_pipapo_flush() - Call pipapo_deactivate() to make element inactive
+ * nft_pipapo_flush() - make element inactive
  * @net:	Network namespace
  * @set:	nftables API set representation
  * @elem_priv:	nftables API element representation containing key data
