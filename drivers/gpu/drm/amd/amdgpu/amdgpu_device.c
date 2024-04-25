@@ -5368,14 +5368,15 @@ int amdgpu_do_asic_reset(struct list_head *device_list_handle,
 	tmp_adev = list_first_entry(device_list_handle, struct amdgpu_device,
 				    reset_list);
 
-	if (!test_bit(AMDGPU_SKIP_COREDUMP, &reset_context->flags))
+	if (!test_bit(AMDGPU_SKIP_COREDUMP, &reset_context->flags)) {
 		amdgpu_reset_reg_dumps(tmp_adev);
 
-	/* Trigger ip dump before we reset the asic */
-	for (i = 0; i < tmp_adev->num_ip_blocks; i++)
-		if (tmp_adev->ip_blocks[i].version->funcs->dump_ip_state)
-			tmp_adev->ip_blocks[i].version->funcs->dump_ip_state(
-				(void *)tmp_adev);
+		/* Trigger ip dump before we reset the asic */
+		for (i = 0; i < tmp_adev->num_ip_blocks; i++)
+			if (tmp_adev->ip_blocks[i].version->funcs->dump_ip_state)
+				tmp_adev->ip_blocks[i].version->funcs
+				->dump_ip_state((void *)tmp_adev);
+	}
 
 	reset_context->reset_device_list = device_list_handle;
 	r = amdgpu_reset_perform_reset(tmp_adev, reset_context);
