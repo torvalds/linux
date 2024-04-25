@@ -1190,7 +1190,6 @@ queue_message_sync(struct vchiq_state *state, struct vchiq_service *service,
 	header->size = size;
 	header->msgid = msgid;
 
-
 	svc_fourcc = service ? service->base.fourcc
 			     : VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
 
@@ -1615,7 +1614,6 @@ parse_message(struct vchiq_state *state, struct vchiq_header *header)
 	default:
 		break;
 	}
-
 
 	svc_fourcc = service ? service->base.fourcc
 			     : VCHIQ_MAKE_FOURCC('?', '?', '?', '?');
