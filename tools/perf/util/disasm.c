@@ -1542,6 +1542,20 @@ static int symbol__disassemble_capstone(char *filename, struct symbol *sym,
 		offset += insn[i].size;
 	}
 
+	/* It failed in the middle: probably due to unknown instructions */
+	if (offset != len) {
+		struct list_head *list = &notes->src->source;
+
+		/* Discard all lines and fallback to objdump */
+		while (!list_empty(list)) {
+			dl = list_first_entry(list, struct disasm_line, al.node);
+
+			list_del_init(&dl->al.node);
+			disasm_line__free(dl);
+		}
+		count = -1;
+	}
+
 out:
 	if (needs_cs_close)
 		cs_close(&handle);
