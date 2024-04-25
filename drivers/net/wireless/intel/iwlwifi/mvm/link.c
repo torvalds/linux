@@ -279,6 +279,7 @@ int iwl_mvm_unset_link_mapping(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 
 	RCU_INIT_POINTER(mvm->link_id_to_link_conf[link_info->fw_link_id],
 			 NULL);
+	iwl_mvm_release_fw_link_id(mvm, link_info->fw_link_id);
 	return 0;
 }
 
@@ -296,7 +297,6 @@ int iwl_mvm_remove_link(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 		return 0;
 
 	cmd.link_id = cpu_to_le32(link_info->fw_link_id);
-	iwl_mvm_release_fw_link_id(mvm, link_info->fw_link_id);
 	link_info->fw_link_id = IWL_MVM_FW_LINK_ID_INVALID;
 	cmd.spec_link_id = link_conf->link_id;
 	cmd.phy_id = cpu_to_le32(FW_CTXT_INVALID);

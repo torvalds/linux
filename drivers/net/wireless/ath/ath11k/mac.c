@@ -9020,6 +9020,7 @@ static void ath11k_mac_op_ipv6_changed(struct ieee80211_hw *hw,
 	offload = &arvif->arp_ns_offload;
 	count = 0;
 
+	/* Note: read_lock_bh() calls rcu_read_lock() */
 	read_lock_bh(&idev->lock);
 
 	memset(offload->ipv6_addr, 0, sizeof(offload->ipv6_addr));
@@ -9050,7 +9051,8 @@ static void ath11k_mac_op_ipv6_changed(struct ieee80211_hw *hw,
 	}
 
 	/* get anycast address */
-	for (ifaca6 = idev->ac_list; ifaca6; ifaca6 = ifaca6->aca_next) {
+	for (ifaca6 = rcu_dereference(idev->ac_list); ifaca6;
+	     ifaca6 = rcu_dereference(ifaca6->aca_next)) {
 		if (count >= ATH11K_IPV6_MAX_COUNT)
 			goto generate;
 
