@@ -1233,11 +1233,14 @@ static inline void btree_path_copy(struct btree_trans *trans, struct btree_path 
 }
 
 static btree_path_idx_t btree_path_clone(struct btree_trans *trans, btree_path_idx_t src,
-					 bool intent)
+					 bool intent, unsigned long ip)
 {
 	btree_path_idx_t new = btree_path_alloc(trans, src);
 	btree_path_copy(trans, trans->paths + new, trans->paths + src);
 	__btree_path_get(trans->paths + new, intent);
+#ifdef TRACK_PATH_ALLOCATED
+	trans->paths[new].ip_allocated = ip;
+#endif
 	return new;
 }
 
@@ -1246,7 +1249,7 @@ btree_path_idx_t __bch2_btree_path_make_mut(struct btree_trans *trans,
 			btree_path_idx_t path, bool intent, unsigned long ip)
 {
 	__btree_path_put(trans->paths + path, intent);
-	path = btree_path_clone(trans, path, intent);
+	path = btree_path_clone(trans, path, intent, ip);
 	trans->paths[path].preserve = false;
 	return path;
 }
@@ -2491,7 +2494,8 @@ struct bkey_s_c bch2_btree_iter_peek_prev(struct btree_iter *iter)
 						bch2_path_put_nokeep(trans, saved_path,
 						      iter->flags & BTREE_ITER_intent);
 					saved_path = btree_path_clone(trans, iter->path,
-								iter->flags & BTREE_ITER_intent);
+								iter->flags & BTREE_ITER_intent,
+								_THIS_IP_);
 					path = btree_iter_path(trans, iter);
 					saved_k = *k.k;
 					saved_v = k.v;
