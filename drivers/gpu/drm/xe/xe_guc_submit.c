@@ -56,7 +56,7 @@ exec_queue_to_guc(struct xe_exec_queue *q)
 #define EXEC_QUEUE_STATE_PENDING_ENABLE	(1 << 2)
 #define EXEC_QUEUE_STATE_PENDING_DISABLE	(1 << 3)
 #define EXEC_QUEUE_STATE_DESTROYED		(1 << 4)
-#define ENGINE_STATE_SUSPENDED		(1 << 5)
+#define EXEC_QUEUE_STATE_SUSPENDED		(1 << 5)
 #define EXEC_QUEUE_STATE_RESET		(1 << 6)
 #define ENGINE_STATE_KILLED		(1 << 7)
 #define EXEC_QUEUE_STATE_WEDGED		(1 << 8)
@@ -143,17 +143,17 @@ static void set_exec_queue_banned(struct xe_exec_queue *q)
 
 static bool exec_queue_suspended(struct xe_exec_queue *q)
 {
-	return atomic_read(&q->guc->state) & ENGINE_STATE_SUSPENDED;
+	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_SUSPENDED;
 }
 
 static void set_exec_queue_suspended(struct xe_exec_queue *q)
 {
-	atomic_or(ENGINE_STATE_SUSPENDED, &q->guc->state);
+	atomic_or(EXEC_QUEUE_STATE_SUSPENDED, &q->guc->state);
 }
 
 static void clear_exec_queue_suspended(struct xe_exec_queue *q)
 {
-	atomic_and(~ENGINE_STATE_SUSPENDED, &q->guc->state);
+	atomic_and(~EXEC_QUEUE_STATE_SUSPENDED, &q->guc->state);
 }
 
 static bool exec_queue_reset(struct xe_exec_queue *q)
@@ -1471,7 +1471,7 @@ static void guc_exec_queue_stop(struct xe_guc *guc, struct xe_exec_queue *q)
 		set_exec_queue_suspended(q);
 		suspend_fence_signal(q);
 	}
-	atomic_and(EXEC_QUEUE_STATE_DESTROYED | ENGINE_STATE_SUSPENDED,
+	atomic_and(EXEC_QUEUE_STATE_DESTROYED | EXEC_QUEUE_STATE_SUSPENDED,
 		   &q->guc->state);
 	q->guc->resume_time = 0;
 	trace_xe_exec_queue_stop(q);
