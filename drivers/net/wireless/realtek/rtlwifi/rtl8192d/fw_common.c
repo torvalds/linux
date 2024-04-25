@@ -98,24 +98,45 @@ int rtl92d_fw_free_to_go(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL_GPL(rtl92d_fw_free_to_go);
 
+#define RTL_USB_DELAY_FACTOR		60
+
 void rtl92d_firmware_selfreset(struct ieee80211_hw *hw)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);
 	u8 u1b_tmp;
 	u8 delay = 100;
+
+	if (rtlhal->interface == INTF_USB) {
+		delay *= RTL_USB_DELAY_FACTOR;
+
+		rtl_write_byte(rtlpriv, REG_FSIMR, 0);
+
+		/* We need to disable other HRCV INT to influence 8051 reset. */
+		rtl_write_byte(rtlpriv, REG_FWIMR, 0x20);
+
+		/* Close mask to prevent incorrect FW write operation. */
+		rtl_write_byte(rtlpriv, REG_FTIMR, 0);
+	}
 
 	/* Set (REG_HMETFR + 3) to  0x20 is reset 8051 */
 	rtl_write_byte(rtlpriv, REG_HMETFR + 3, 0x20);
 
 	u1b_tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
 
-	while (u1b_tmp & BIT(2)) {
+	while (u1b_tmp & (FEN_CPUEN >> 8)) {
 		delay--;
 		if (delay == 0)
 			break;
 		udelay(50);
 		u1b_tmp = rtl_read_byte(rtlpriv, REG_SYS_FUNC_EN + 1);
 	}
+
+	if (rtlhal->interface == INTF_USB) {
+		if ((u1b_tmp & (FEN_CPUEN >> 8)) && delay == 0)
+			rtl_write_byte(rtlpriv, REG_FWIMR, 0);
+	}
+
 	WARN_ONCE((delay <= 0), "rtl8192de: 8051 reset failed!\n");
 	rtl_dbg(rtlpriv, COMP_FW, DBG_DMESG,
 		"=====> 8051 reset success (%d)\n", delay);

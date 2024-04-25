@@ -25,6 +25,16 @@
 #define GET_FIRMWARE_HDR_SUB_VER(__fwhdr)		\
 	le32_get_bits(*(__le32 *)((__fwhdr) + 4), GENMASK(23, 16))
 
+#define RAID_MASK               GENMASK(31, 28)
+#define RATE_MASK_MASK          GENMASK(27, 0)
+#define SHORT_GI_MASK           BIT(5)
+#define MACID_MASK              GENMASK(4, 0)
+
+struct rtl92d_rate_mask_h2c {
+	__le32 rate_mask_and_raid;
+	u8 macid_and_short_gi;
+} __packed;
+
 bool rtl92d_is_fw_downloaded(struct rtl_priv *rtlpriv);
 void rtl92d_enable_fw_download(struct ieee80211_hw *hw, bool enable);
 void rtl92d_write_fw(struct ieee80211_hw *hw,

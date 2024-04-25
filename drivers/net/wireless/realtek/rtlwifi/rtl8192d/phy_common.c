@@ -89,11 +89,11 @@ u32 rtl92d_phy_query_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
 	rtl_dbg(rtlpriv, COMP_RF, DBG_TRACE,
 		"regaddr(%#x), rfpath(%#x), bitmask(%#x)\n",
 		regaddr, rfpath, bitmask);
-	spin_lock(&rtlpriv->locks.rf_lock);
+	rtl92d_pci_lock(rtlpriv);
 	original_value = _rtl92d_phy_rf_serial_read(hw, rfpath, regaddr);
 	bitshift = calculate_bit_shift(bitmask);
 	readback_value = (original_value & bitmask) >> bitshift;
-	spin_unlock(&rtlpriv->locks.rf_lock);
+	rtl92d_pci_unlock(rtlpriv);
 	rtl_dbg(rtlpriv, COMP_RF, DBG_TRACE,
 		"regaddr(%#x), rfpath(%#x), bitmask(%#x), original_value(%#x)\n",
 		regaddr, rfpath, bitmask, original_value);
@@ -113,7 +113,7 @@ void rtl92d_phy_set_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
 		regaddr, bitmask, data, rfpath);
 	if (bitmask == 0)
 		return;
-	spin_lock(&rtlpriv->locks.rf_lock);
+	rtl92d_pci_lock(rtlpriv);
 	if (rtlphy->rf_mode != RF_OP_BY_FW) {
 		if (bitmask != RFREG_OFFSET_MASK) {
 			original_value = _rtl92d_phy_rf_serial_read(hw,
@@ -125,7 +125,7 @@ void rtl92d_phy_set_rf_reg(struct ieee80211_hw *hw, enum radio_path rfpath,
 		}
 		_rtl92d_phy_rf_serial_write(hw, rfpath, regaddr, data);
 	}
-	spin_unlock(&rtlpriv->locks.rf_lock);
+	rtl92d_pci_unlock(rtlpriv);
 	rtl_dbg(rtlpriv, COMP_RF, DBG_TRACE,
 		"regaddr(%#x), bitmask(%#x), data(%#x), rfpath(%#x)\n",
 		regaddr, bitmask, data, rfpath);
@@ -650,6 +650,8 @@ static void rtl92d_phy_set_io(struct ieee80211_hw *hw)
 	case IO_CMD_PAUSE_DM_BY_SCAN:
 		rtlphy->initgain_backup.xaagccore1 = de_digtable->cur_igvalue;
 		de_digtable->cur_igvalue = 0x37;
+		if (rtlpriv->rtlhal.interface == INTF_USB)
+			de_digtable->cur_igvalue = 0x17;
 		rtl92d_dm_write_dig(hw);
 		break;
 	default:
@@ -710,22 +712,28 @@ void rtl92d_phy_config_macphymode(struct ieee80211_hw *hw)
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
 	u8 offset = REG_MAC_PHY_CTRL_NORMAL;
+	u8 phy_ctrl = 0xf0;
+
+	if (rtlhal->interface == INTF_USB) {
+		phy_ctrl = rtl_read_byte(rtlpriv, offset);
+		phy_ctrl &= ~(BIT(0) | BIT(1) | BIT(2));
+	}
 
 	switch (rtlhal->macphymode) {
 	case DUALMAC_DUALPHY:
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 			"MacPhyMode: DUALMAC_DUALPHY\n");
-		rtl_write_byte(rtlpriv, offset, 0xF3);
+		rtl_write_byte(rtlpriv, offset, phy_ctrl | BIT(0) | BIT(1));
 		break;
 	case SINGLEMAC_SINGLEPHY:
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 			"MacPhyMode: SINGLEMAC_SINGLEPHY\n");
-		rtl_write_byte(rtlpriv, offset, 0xF4);
+		rtl_write_byte(rtlpriv, offset, phy_ctrl | BIT(2));
 		break;
 	case DUALMAC_SINGLEPHY:
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 			"MacPhyMode: DUALMAC_SINGLEPHY\n");
-		rtl_write_byte(rtlpriv, offset, 0xF1);
+		rtl_write_byte(rtlpriv, offset, phy_ctrl | BIT(0));
 		break;
 	}
 }

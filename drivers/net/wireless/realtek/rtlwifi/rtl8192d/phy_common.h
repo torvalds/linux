@@ -32,6 +32,9 @@ static inline void rtl92d_acquire_cckandrw_pagea_ctl(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 
+	if (rtlpriv->rtlhal.interface == INTF_USB)
+		return;
+
 	if (rtlpriv->rtlhal.interfaceindex == 1)
 		spin_lock_irqsave(&rtlpriv->locks.cck_and_rw_pagea_lock, *flag);
 }
@@ -40,6 +43,9 @@ static inline void rtl92d_release_cckandrw_pagea_ctl(struct ieee80211_hw *hw,
 						     unsigned long *flag)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
+
+	if (rtlpriv->rtlhal.interface == INTF_USB)
+		return;
 
 	if (rtlpriv->rtlhal.interfaceindex == 1)
 		spin_unlock_irqrestore(&rtlpriv->locks.cck_and_rw_pagea_lock,
@@ -83,5 +89,23 @@ void rtl92d_acquire_cckandrw_pagea_ctl(struct ieee80211_hw *hw,
 				       unsigned long *flag);
 void rtl92d_release_cckandrw_pagea_ctl(struct ieee80211_hw *hw,
 				       unsigned long *flag);
+
+/* Without these helpers and the declarations sparse warns about
+ * context imbalance.
+ */
+static inline void rtl92d_pci_lock(struct rtl_priv *rtlpriv)
+{
+	if (rtlpriv->rtlhal.interface == INTF_PCI)
+		spin_lock(&rtlpriv->locks.rf_lock);
+}
+
+static inline void rtl92d_pci_unlock(struct rtl_priv *rtlpriv)
+{
+	if (rtlpriv->rtlhal.interface == INTF_PCI)
+		spin_unlock(&rtlpriv->locks.rf_lock);
+}
+
+void rtl92d_pci_lock(struct rtl_priv *rtlpriv);
+void rtl92d_pci_unlock(struct rtl_priv *rtlpriv);
 
 #endif

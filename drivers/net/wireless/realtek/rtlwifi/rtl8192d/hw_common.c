@@ -618,9 +618,14 @@ static void _rtl92de_read_macphymode_from_prom(struct ieee80211_hw *hw,
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	u8 macphy_crvalue = content[EEPROM_MAC_FUNCTION];
+	bool is_single_mac = true;
 
-	if (macphy_crvalue & BIT(3)) {
+	if (rtlhal->interface == INTF_PCI)
+		is_single_mac = !!(content[EEPROM_MAC_FUNCTION] & BIT(3));
+	else if (rtlhal->interface == INTF_USB)
+		is_single_mac = !(content[EEPROM_ENDPOINT_SETTING] & BIT(0));
+
+	if (is_single_mac) {
 		rtlhal->macphymode = SINGLEMAC_SINGLEPHY;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD,
 			"MacPhyMode SINGLEMAC_SINGLEPHY\n");
@@ -659,6 +664,7 @@ static void _rtl92de_efuse_update_chip_version(struct ieee80211_hw *hw)
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "D-CUT!!!\n");
 		break;
 	case 0xCC33:
+	case 0x33CC:
 		chipver |= CHIP_92D_E_CUT;
 		rtl_dbg(rtlpriv, COMP_INIT, DBG_LOUD, "E-CUT!!!\n");
 		break;
@@ -672,14 +678,26 @@ static void _rtl92de_efuse_update_chip_version(struct ieee80211_hw *hw)
 
 static void _rtl92de_read_adapter_info(struct ieee80211_hw *hw)
 {
+	static const int params_pci[] = {
+		RTL8190_EEPROM_ID, EEPROM_VID, EEPROM_DID,
+		EEPROM_SVID, EEPROM_SMID, EEPROM_MAC_ADDR_MAC0_92D,
+		EEPROM_CHANNEL_PLAN, EEPROM_VERSION, EEPROM_CUSTOMER_ID,
+		COUNTRY_CODE_WORLD_WIDE_13
+	};
+	static const int params_usb[] = {
+		RTL8190_EEPROM_ID, EEPROM_VID_USB, EEPROM_PID_USB,
+		EEPROM_VID_USB, EEPROM_PID_USB, EEPROM_MAC_ADDR_MAC0_92DU,
+		EEPROM_CHANNEL_PLAN, EEPROM_VERSION, EEPROM_CUSTOMER_ID,
+		COUNTRY_CODE_WORLD_WIDE_13
+	};
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_efuse *rtlefuse = rtl_efuse(rtl_priv(hw));
 	struct rtl_hal *rtlhal = rtl_hal(rtl_priv(hw));
-	int params[] = {RTL8190_EEPROM_ID, EEPROM_VID, EEPROM_DID,
-			EEPROM_SVID, EEPROM_SMID, EEPROM_MAC_ADDR_MAC0_92D,
-			EEPROM_CHANNEL_PLAN, EEPROM_VERSION, EEPROM_CUSTOMER_ID,
-			COUNTRY_CODE_WORLD_WIDE_13};
+	const int *params = params_pci;
 	u8 *hwinfo;
+
+	if (rtlhal->interface == INTF_USB)
+		params = params_usb;
 
 	hwinfo = kzalloc(HWSET_MAX_SIZE, GFP_KERNEL);
 	if (!hwinfo)
@@ -842,6 +860,7 @@ static void rtl92de_update_hal_rate_mask(struct ieee80211_hw *hw,
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_phy *rtlphy = &rtlpriv->phy;
 	struct rtl_sta_info *sta_entry = NULL;
+	struct rtl92d_rate_mask_h2c rate_mask;
 	enum wireless_mode wirelessmode;
 	bool shortgi = false;
 	u8 curshortgi_40mhz;
@@ -849,7 +868,6 @@ static void rtl92de_update_hal_rate_mask(struct ieee80211_hw *hw,
 	u8 curtxbw_40mhz;
 	u32 ratr_bitmap;
 	u8 ratr_index;
-	u32 value[2];
 	u8 macid = 0;
 	u8 mimo_ps;
 
@@ -965,12 +983,28 @@ static void rtl92de_update_hal_rate_mask(struct ieee80211_hw *hw,
 		break;
 	}
 
-	value[0] = (ratr_bitmap & 0x0fffffff) | (ratr_index << 28);
-	value[1] = macid | (shortgi ? 0x20 : 0x00) | 0x80;
+	le32p_replace_bits(&rate_mask.rate_mask_and_raid, ratr_bitmap, RATE_MASK_MASK);
+	le32p_replace_bits(&rate_mask.rate_mask_and_raid, ratr_index, RAID_MASK);
+	u8p_replace_bits(&rate_mask.macid_and_short_gi, macid, MACID_MASK);
+	u8p_replace_bits(&rate_mask.macid_and_short_gi, shortgi, SHORT_GI_MASK);
+	u8p_replace_bits(&rate_mask.macid_and_short_gi, 1, BIT(7));
+
 	rtl_dbg(rtlpriv, COMP_RATR, DBG_DMESG,
-		"ratr_bitmap :%x value0:%x value1:%x\n",
-		ratr_bitmap, value[0], value[1]);
-	rtl92d_fill_h2c_cmd(hw, H2C_RA_MASK, 5, (u8 *)value);
+		"Rate_index:%x, ratr_val:%x, %5phC\n",
+		ratr_index, ratr_bitmap, &rate_mask);
+
+	if (rtlhal->interface == INTF_PCI) {
+		rtl92d_fill_h2c_cmd(hw, H2C_RA_MASK, sizeof(rate_mask),
+				    (u8 *)&rate_mask);
+	} else {
+		/* rtl92d_fill_h2c_cmd() does USB I/O and will result in a
+		 * "scheduled while atomic" if called directly
+		 */
+		memcpy(rtlpriv->rate_mask, &rate_mask,
+		       sizeof(rtlpriv->rate_mask));
+		schedule_work(&rtlpriv->works.fill_h2c_cmd);
+	}
+
 	if (macid != 0)
 		sta_entry->ratr_index = ratr_index;
 }
@@ -1014,7 +1048,8 @@ bool rtl92de_gpio_radio_on_off_checking(struct ieee80211_hw *hw, u8 *valid)
 	bool actuallyset = false;
 	unsigned long flag;
 
-	if (rtlpci->being_init_adapter)
+	if (rtlpriv->rtlhal.interface == INTF_PCI &&
+	    rtlpci->being_init_adapter)
 		return false;
 	if (ppsc->swrf_processing)
 		return false;
