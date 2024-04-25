@@ -102,22 +102,12 @@ static uint32_t decide_odm_mem_bit_map(int *opp_id, int opp_cnt, int h_active)
 }
 
 static void optc401_set_odm_combine(struct timing_generator *optc, int *opp_id,
-		int opp_cnt, struct dc_crtc_timing *timing)
+		int opp_cnt, int segment_width, int last_segment_width)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-	uint32_t h_active = timing->h_addressable +
-			timing->h_border_left + timing->h_border_right;
+	uint32_t h_active = segment_width * (opp_cnt - 1) + last_segment_width;
 	uint32_t odm_mem_bit_map = decide_odm_mem_bit_map(
 			opp_id, opp_cnt, h_active);
-	uint32_t odm_segment_width;
-	uint32_t odm_segment_width_last;
-	bool is_two_pixels_per_container = optc->funcs->is_two_pixels_per_container(timing);
-
-	odm_segment_width = h_active / opp_cnt;
-	if ((odm_segment_width % 2) && is_two_pixels_per_container)
-		odm_segment_width++;
-	odm_segment_width_last =
-			h_active - odm_segment_width * (opp_cnt - 1);
 
 	REG_SET(OPTC_MEMORY_CONFIG, 0,
 		OPTC_MEM_SEL, odm_mem_bit_map);
@@ -129,7 +119,7 @@ static void optc401_set_odm_combine(struct timing_generator *optc, int *opp_id,
 				OPTC_SEG0_SRC_SEL, opp_id[0],
 				OPTC_SEG1_SRC_SEL, opp_id[1]);
 		REG_UPDATE(OPTC_WIDTH_CONTROL,
-					OPTC_SEGMENT_WIDTH, odm_segment_width);
+					OPTC_SEGMENT_WIDTH, segment_width);
 
 		REG_UPDATE(OTG_H_TIMING_CNTL,
 				OTG_H_TIMING_DIV_MODE, H_TIMING_DIV_BY2);
@@ -141,10 +131,10 @@ static void optc401_set_odm_combine(struct timing_generator *optc, int *opp_id,
 				OPTC_SEG1_SRC_SEL, opp_id[1],
 				OPTC_SEG2_SRC_SEL, opp_id[2]);
 		REG_UPDATE(OPTC_WIDTH_CONTROL,
-				OPTC_SEGMENT_WIDTH, odm_segment_width);
+				OPTC_SEGMENT_WIDTH, segment_width);
 		REG_UPDATE(OPTC_WIDTH_CONTROL2,
 				OPTC_SEGMENT_WIDTH_LAST,
-				odm_segment_width_last);
+				last_segment_width);
 		/* In ODM combine 3:1 mode ODM packs 4 pixels per data transfer
 		 * so OTG_H_TIMING_DIV_MODE should be configured to
 		 * H_TIMING_DIV_BY4 even though ODM combines 3 OPP inputs, it
@@ -161,7 +151,7 @@ static void optc401_set_odm_combine(struct timing_generator *optc, int *opp_id,
 				OPTC_SEG2_SRC_SEL, opp_id[2],
 				OPTC_SEG3_SRC_SEL, opp_id[3]);
 		REG_UPDATE(OPTC_WIDTH_CONTROL,
-					OPTC_SEGMENT_WIDTH, odm_segment_width);
+					OPTC_SEGMENT_WIDTH, segment_width);
 		REG_UPDATE(OTG_H_TIMING_CNTL,
 				OTG_H_TIMING_DIV_MODE, H_TIMING_DIV_BY4);
 		break;

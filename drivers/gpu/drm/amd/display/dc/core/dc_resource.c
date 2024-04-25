@@ -2110,12 +2110,19 @@ struct rect resource_get_odm_slice_src_rect(struct pipe_ctx *pipe_ctx)
 	struct rect odm_slice_dst;
 	struct rect odm_slice_src;
 	struct pipe_ctx *opp_head = resource_get_opp_head(pipe_ctx);
+	struct output_pixel_processor *opp = opp_head->stream_res.opp;
 	uint32_t left_edge_extra_pixel_count;
 
 	odm_slice_dst = resource_get_odm_slice_dst_rect(opp_head);
 	odm_slice_src = odm_slice_dst;
 
-	left_edge_extra_pixel_count = 0;
+	if (opp->funcs->opp_get_left_edge_extra_pixel_count)
+		left_edge_extra_pixel_count =
+				opp->funcs->opp_get_left_edge_extra_pixel_count(
+						opp, pipe_ctx->stream->timing.pixel_encoding,
+						resource_is_pipe_type(opp_head, OTG_MASTER));
+	else
+		left_edge_extra_pixel_count = 0;
 
 	odm_slice_src.x -= left_edge_extra_pixel_count;
 	odm_slice_src.width += left_edge_extra_pixel_count;

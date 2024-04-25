@@ -744,20 +744,20 @@ static void enable_stream_timing_calc(
 		unsigned int *tmds_div,
 		int *opp_inst,
 		int *opp_cnt,
+		struct pipe_ctx *opp_heads[MAX_PIPES],
 		bool *manual_mode,
 		struct drr_params *params,
 		unsigned int *event_triggers)
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
-	struct pipe_ctx *odm_pipe;
+	int i;
 
 	if (dc_is_tmds_signal(stream->signal) || dc_is_virtual_signal(stream->signal))
 		dcn401_calculate_dccg_tmds_div_value(pipe_ctx, tmds_div);
 
-	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
-		opp_inst[*opp_cnt] = odm_pipe->stream_res.opp->inst;
-		(*opp_cnt)++;
-	}
+	*opp_cnt = resource_get_opp_heads_for_otg_master(pipe_ctx, &context->res_ctx, opp_heads);
+	for (i = 0; i < *opp_cnt; i++)
+		opp_inst[i] = opp_heads[i]->stream_res.opp->inst;
 
 	if (dc_is_tmds_signal(stream->signal)) {
 		stream->link->phy_state.symclk_ref_cnts.otg = 1;
@@ -786,18 +786,21 @@ enum dc_status dcn401_enable_stream_timing(
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct drr_params params = {0};
 	unsigned int event_triggers = 0;
-	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
-	int opp_inst[MAX_PIPES] = { pipe_ctx->stream_res.opp->inst };
+	int opp_inst[MAX_PIPES] = {0};
+	struct pipe_ctx *opp_heads[MAX_PIPES];
 	bool manual_mode;
 	unsigned int tmds_div = PIXEL_RATE_DIV_NA;
 	unsigned int unused_div = PIXEL_RATE_DIV_NA;
+	int odm_slice_width;
+	int last_odm_slice_width;
+	int i;
 
 	if (!resource_is_pipe_type(pipe_ctx, OTG_MASTER))
 		return DC_OK;
 
 	enable_stream_timing_calc(pipe_ctx, context, dc, &tmds_div, opp_inst,
-			&opp_cnt, &manual_mode, &params, &event_triggers);
+			&opp_cnt, opp_heads, &manual_mode, &params, &event_triggers);
 
 	if (dc->res_pool->dccg->funcs->set_pixel_rate_div) {
 		dc->res_pool->dccg->funcs->set_pixel_rate_div(
@@ -807,11 +810,14 @@ enum dc_status dcn401_enable_stream_timing(
 
 	/* TODO check if timing_changed, disable stream if timing changed */
 
-	if (opp_cnt > 1)
+	if (opp_cnt > 1) {
+		odm_slice_width = resource_get_odm_slice_dst_width(pipe_ctx, false);
+		last_odm_slice_width = resource_get_odm_slice_dst_width(pipe_ctx, true);
 		pipe_ctx->stream_res.tg->funcs->set_odm_combine(
 				pipe_ctx->stream_res.tg,
 				opp_inst, opp_cnt,
-				&pipe_ctx->stream->timing);
+				odm_slice_width, last_odm_slice_width);
+	}
 
 	/* HW program guide assume display already disable
 	 * by unplug sequence. OTG assume stop.
@@ -840,10 +846,15 @@ enum dc_status dcn401_enable_stream_timing(
 			pipe_ctx->stream->signal,
 			true);
 
-	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
-		odm_pipe->stream_res.opp->funcs->opp_pipe_clock_control(
-				odm_pipe->stream_res.opp,
+	for (i = 0; i < opp_cnt; i++) {
+		opp_heads[i]->stream_res.opp->funcs->opp_pipe_clock_control(
+				opp_heads[i]->stream_res.opp,
 				true);
+		opp_heads[i]->stream_res.opp->funcs->opp_program_left_edge_extra_pixel(
+				opp_heads[i]->stream_res.opp,
+				stream->timing.pixel_encoding,
+				resource_is_pipe_type(opp_heads[i], OTG_MASTER));
+	}
 
 	pipe_ctx->stream_res.opp->funcs->opp_pipe_clock_control(
 			pipe_ctx->stream_res.opp,
@@ -1593,6 +1604,8 @@ void dcn401_update_odm(struct dc *dc, struct dc_state *context,
 	struct pipe_ctx *opp_heads[MAX_PIPES];
 	int opp_inst[MAX_PIPES] = {0};
 	int opp_head_count;
+	int odm_slice_width = resource_get_odm_slice_dst_width(otg_master, false);
+	int last_odm_slice_width = resource_get_odm_slice_dst_width(otg_master, true);
 	int i;
 
 	opp_head_count = resource_get_opp_heads_for_otg_master(
@@ -1604,16 +1617,21 @@ void dcn401_update_odm(struct dc *dc, struct dc_state *context,
 		otg_master->stream_res.tg->funcs->set_odm_combine(
 				otg_master->stream_res.tg,
 				opp_inst, opp_head_count,
-				&otg_master->stream->timing);
+				odm_slice_width, last_odm_slice_width);
 	else
 		otg_master->stream_res.tg->funcs->set_odm_bypass(
 				otg_master->stream_res.tg,
 				&otg_master->stream->timing);
 
-	for (i = 0; i < opp_head_count; i++)
+	for (i = 0; i < opp_head_count; i++) {
 		opp_heads[i]->stream_res.opp->funcs->opp_pipe_clock_control(
 				opp_heads[i]->stream_res.opp,
 				true);
+		opp_heads[i]->stream_res.opp->funcs->opp_program_left_edge_extra_pixel(
+				opp_heads[i]->stream_res.opp,
+				opp_heads[i]->stream->timing.pixel_encoding,
+				resource_is_pipe_type(opp_heads[i], OTG_MASTER));
+	}
 
 	update_dsc_for_odm_change(dc, context, otg_master);
 

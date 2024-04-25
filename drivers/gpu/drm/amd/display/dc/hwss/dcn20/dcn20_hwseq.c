@@ -820,9 +820,8 @@ enum dc_status dcn20_enable_stream_timing(
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	struct drr_params params = {0};
 	unsigned int event_triggers = 0;
-	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
-	int opp_inst[MAX_PIPES] = { pipe_ctx->stream_res.opp->inst };
+	int opp_inst[MAX_PIPES] = {0};
 	bool interlace = stream->timing.flags.INTERLACE;
 	int i;
 	struct mpc_dwb_flow_control flow_control;
@@ -832,6 +831,9 @@ enum dc_status dcn20_enable_stream_timing(
 	bool rate_control_2x_pclk = (interlace || is_two_pixels_per_container);
 	unsigned int k1_div = PIXEL_RATE_DIV_NA;
 	unsigned int k2_div = PIXEL_RATE_DIV_NA;
+	int odm_slice_width;
+	int last_odm_slice_width;
+	struct pipe_ctx *opp_heads[MAX_PIPES];
 
 	if (hws->funcs.calculate_dccg_k1_k2_values && dc->res_pool->dccg->funcs->set_pixel_rate_div) {
 		hws->funcs.calculate_dccg_k1_k2_values(pipe_ctx, &k1_div, &k2_div);
@@ -850,16 +852,17 @@ enum dc_status dcn20_enable_stream_timing(
 
 	/* TODO check if timing_changed, disable stream if timing changed */
 
-	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
-		opp_inst[opp_cnt] = odm_pipe->stream_res.opp->inst;
-		opp_cnt++;
-	}
+	opp_cnt = resource_get_opp_heads_for_otg_master(pipe_ctx, &context->res_ctx, opp_heads);
+	for (i = 0; i < opp_cnt; i++)
+		opp_inst[opp_cnt] = opp_heads[i]->stream_res.opp->inst;
 
+	odm_slice_width = resource_get_odm_slice_dst_width(pipe_ctx, false);
+	last_odm_slice_width = resource_get_odm_slice_dst_width(pipe_ctx, true);
 	if (opp_cnt > 1)
 		pipe_ctx->stream_res.tg->funcs->set_odm_combine(
 				pipe_ctx->stream_res.tg,
-				opp_inst, opp_cnt,
-				&pipe_ctx->stream->timing);
+				opp_inst, opp_cnt, odm_slice_width,
+				last_odm_slice_width);
 
 	/* HW program guide assume display already disable
 	 * by unplug sequence. OTG assume stop.
@@ -927,14 +930,15 @@ enum dc_status dcn20_enable_stream_timing(
 		}
 	}
 
-	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
-		odm_pipe->stream_res.opp->funcs->opp_pipe_clock_control(
-				odm_pipe->stream_res.opp,
+	for (i = 0; i < opp_cnt; i++) {
+		opp_heads[i]->stream_res.opp->funcs->opp_pipe_clock_control(
+				opp_heads[i]->stream_res.opp,
 				true);
-
-	pipe_ctx->stream_res.opp->funcs->opp_pipe_clock_control(
-			pipe_ctx->stream_res.opp,
-			true);
+		opp_heads[i]->stream_res.opp->funcs->opp_program_left_edge_extra_pixel(
+				opp_heads[i]->stream_res.opp,
+				stream->timing.pixel_encoding,
+				resource_is_pipe_type(opp_heads[i], OTG_MASTER));
+	}
 
 	hws->funcs.blank_pixel_data(dc, pipe_ctx, true);
 
@@ -1175,6 +1179,8 @@ void dcn20_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *
 	struct pipe_ctx *odm_pipe;
 	int opp_cnt = 1;
 	int opp_inst[MAX_PIPES] = { pipe_ctx->stream_res.opp->inst };
+	int odm_slice_width = resource_get_odm_slice_dst_width(pipe_ctx, false);
+	int last_odm_slice_width = resource_get_odm_slice_dst_width(pipe_ctx, true);
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe) {
 		opp_inst[opp_cnt] = odm_pipe->stream_res.opp->inst;
@@ -1185,7 +1191,7 @@ void dcn20_update_odm(struct dc *dc, struct dc_state *context, struct pipe_ctx *
 		pipe_ctx->stream_res.tg->funcs->set_odm_combine(
 				pipe_ctx->stream_res.tg,
 				opp_inst, opp_cnt,
-				&pipe_ctx->stream->timing);
+				odm_slice_width, last_odm_slice_width);
 	else
 		pipe_ctx->stream_res.tg->funcs->set_odm_bypass(
 				pipe_ctx->stream_res.tg, &pipe_ctx->stream->timing);
@@ -1203,25 +1209,13 @@ void dcn20_blank_pixel_data(
 	enum controller_dp_test_pattern test_pattern = CONTROLLER_DP_TEST_PATTERN_SOLID_COLOR;
 	enum controller_dp_color_space test_pattern_color_space = CONTROLLER_DP_COLOR_SPACE_UDEFINED;
 	struct pipe_ctx *odm_pipe;
-	int odm_cnt = 1;
-	int h_active = stream->timing.h_addressable + stream->timing.h_border_left + stream->timing.h_border_right;
-	int v_active = stream->timing.v_addressable + stream->timing.v_border_bottom + stream->timing.v_border_top;
-	int odm_slice_width, last_odm_slice_width, offset = 0;
-	bool is_two_pixels_per_container =
-			pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container(&stream->timing);
+	struct rect odm_slice_src;
 
 	if (stream->link->test_pattern_enabled)
 		return;
 
 	/* get opp dpg blank color */
 	color_space_to_black_color(dc, color_space, &black_color);
-
-	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
-		odm_cnt++;
-	odm_slice_width = h_active / odm_cnt;
-	if ((odm_slice_width % 2) && is_two_pixels_per_container)
-		odm_slice_width++;
-	last_odm_slice_width = h_active - odm_slice_width * (odm_cnt - 1);
 
 	if (blank) {
 		dc->hwss.set_abm_immediate_disable(pipe_ctx);
@@ -1237,28 +1231,29 @@ void dcn20_blank_pixel_data(
 	odm_pipe = pipe_ctx;
 
 	while (odm_pipe->next_odm_pipe) {
+		odm_slice_src = resource_get_odm_slice_src_rect(odm_pipe);
 		dc->hwss.set_disp_pattern_generator(dc,
 				odm_pipe,
 				test_pattern,
 				test_pattern_color_space,
 				stream->timing.display_color_depth,
 				&black_color,
-				odm_slice_width,
-				v_active,
-				offset);
-		offset += odm_slice_width;
+				odm_slice_src.width,
+				odm_slice_src.height,
+				odm_slice_src.x);
 		odm_pipe = odm_pipe->next_odm_pipe;
 	}
 
+	odm_slice_src = resource_get_odm_slice_src_rect(odm_pipe);
 	dc->hwss.set_disp_pattern_generator(dc,
 			odm_pipe,
 			test_pattern,
 			test_pattern_color_space,
 			stream->timing.display_color_depth,
 			&black_color,
-			last_odm_slice_width,
-			v_active,
-			offset);
+			odm_slice_src.width,
+			odm_slice_src.height,
+			odm_slice_src.x);
 
 	if (!blank)
 		if (stream_res->abm) {

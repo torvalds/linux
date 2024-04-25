@@ -54,6 +54,7 @@ static struct opp_funcs dcn201_opp_funcs = {
 		.opp_dpg_set_blank_color = opp2_dpg_set_blank_color,
 		.opp_destroy = opp1_destroy,
 		.opp_program_left_edge_extra_pixel = opp2_program_left_edge_extra_pixel,
+		.opp_get_left_edge_extra_pixel_count = opp2_get_left_edge_extra_pixel_count,
 };
 
 void dcn201_opp_construct(struct dcn201_opp *oppn201,

@@ -179,11 +179,9 @@ void optc2_set_odm_bypass(struct timing_generator *optc,
 }
 
 void optc2_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_cnt,
-		struct dc_crtc_timing *timing)
+		int segment_width, int last_segment_width)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
-	int mpcc_hactive = (timing->h_addressable + timing->h_border_left + timing->h_border_right)
-			/ opp_cnt;
 	uint32_t memory_mask;
 
 	ASSERT(opp_cnt == 2);
@@ -213,7 +211,7 @@ void optc2_set_odm_combine(struct timing_generator *optc, int *opp_id, int opp_c
 			OPTC_SEG1_SRC_SEL, opp_id[1]);
 
 	REG_UPDATE(OPTC_WIDTH_CONTROL,
-			OPTC_SEGMENT_WIDTH, mpcc_hactive);
+			OPTC_SEGMENT_WIDTH, segment_width);
 
 	REG_SET(OTG_H_TIMING_CNTL, 0, OTG_H_TIMING_DIV_BY2, 1);
 	optc1->opp_count = opp_cnt;
