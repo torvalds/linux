@@ -556,6 +556,7 @@ static struct tz_episode *thermal_debugfs_tz_event_alloc(struct thermal_zone_dev
 
 	INIT_LIST_HEAD(&tze->node);
 	tze->timestamp = now;
+	tze->duration = KTIME_MIN;
 
 	for (i = 0; i < tz->num_trips; i++) {
 		tze->trip_stats[i].min = INT_MAX;
@@ -691,6 +692,9 @@ void thermal_debug_tz_trip_down(struct thermal_zone_device *tz,
 	tze->trip_stats[trip_id].duration =
 		ktime_add(delta, tze->trip_stats[trip_id].duration);
 
+	/* Mark the end of mitigation for this trip point. */
+	tze->trip_stats[trip_id].timestamp = KTIME_MAX;
+
 	/*
 	 * This event closes the mitigation as we are crossing the
 	 * last trip point the way down.
@@ -766,15 +770,25 @@ static int tze_seq_show(struct seq_file *s, void *v)
 	struct thermal_trip_desc *td;
 	struct tz_episode *tze;
 	const char *type;
+	u64 duration_ms;
 	int trip_id;
+	char c;
 
 	tze = list_entry((struct list_head *)v, struct tz_episode, node);
 
-	seq_printf(s, ",-Mitigation at %lluus, duration=%llums\n",
-		   ktime_to_us(tze->timestamp),
-		   ktime_to_ms(tze->duration));
+	if (tze->duration == KTIME_MIN) {
+		/* Mitigation in progress. */
+		duration_ms = ktime_to_ms(ktime_sub(ktime_get(), tze->timestamp));
+		c = '>';
+	} else {
+		duration_ms = ktime_to_ms(tze->duration);
+		c = '=';
+	}
 
-	seq_printf(s, "| trip |     type | temp(°mC) | hyst(°mC) |  duration  |  avg(°mC) |  min(°mC) |  max(°mC) |\n");
+	seq_printf(s, ",-Mitigation at %lluus, duration%c%llums\n",
+		   ktime_to_us(tze->timestamp), c, duration_ms);
+
+	seq_printf(s, "| trip |     type | temp(°mC) | hyst(°mC) |  duration   |  avg(°mC) |  min(°mC) |  max(°mC) |\n");
 
 	for_each_trip_desc(tz, td) {
 		const struct thermal_trip *trip = &td->trip;
@@ -806,12 +820,25 @@ static int tze_seq_show(struct seq_file *s, void *v)
 		else
 			type = "hot";
 
-		seq_printf(s, "| %*d | %*s | %*d | %*d | %*lld | %*d | %*d | %*d |\n",
+		if (trip_stats->timestamp != KTIME_MAX) {
+			/* Mitigation in progress. */
+			ktime_t delta = ktime_sub(ktime_get(),
+						  trip_stats->timestamp);
+
+			delta = ktime_add(delta, trip_stats->duration);
+			duration_ms = ktime_to_ms(delta);
+			c = '>';
+		} else {
+			duration_ms = ktime_to_ms(trip_stats->duration);
+			c = ' ';
+		}
+
+		seq_printf(s, "| %*d | %*s | %*d | %*d | %c%*lld | %*d | %*d | %*d |\n",
 			   4 , trip_id,
 			   8, type,
 			   9, trip->temperature,
 			   9, trip->hysteresis,
-			   10, ktime_to_ms(trip_stats->duration),
+			   c, 10, duration_ms,
 			   9, trip_stats->avg,
 			   9, trip_stats->min,
 			   9, trip_stats->max);
