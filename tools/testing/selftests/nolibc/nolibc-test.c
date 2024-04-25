@@ -621,6 +621,51 @@ int expect_str_buf_eq(size_t expr, const char *buf, size_t val, int llen, const 
 	return 0;
 }
 
+#define EXPECT_STRTOX(cond, func, input, base, expected, chars, expected_errno)				\
+	do { if (!(cond)) result(llen, SKIPPED); else ret += expect_strtox(llen, func, input, base, expected, chars, expected_errno); } while (0)
+
+static __attribute__((unused))
+int expect_strtox(int llen, void *func, const char *input, int base, intmax_t expected, int expected_chars, int expected_errno)
+{
+	char *endptr;
+	int actual_errno, actual_chars;
+	intmax_t r;
+
+	errno = 0;
+	if (func == strtol) {
+		r = strtol(input, &endptr, base);
+	} else if (func == strtoul) {
+		r = strtoul(input, &endptr, base);
+	} else {
+		result(llen, FAIL);
+		return 1;
+	}
+	actual_errno = errno;
+	actual_chars = endptr - input;
+
+	llen += printf(" %lld = %lld", (long long)expected, (long long)r);
+	if (r != expected) {
+		result(llen, FAIL);
+		return 1;
+	}
+	if (expected_chars == -1) {
+		if (*endptr != '\0') {
+			result(llen, FAIL);
+			return 1;
+		}
+	} else if (expected_chars != actual_chars) {
+		result(llen, FAIL);
+		return 1;
+	}
+	if (actual_errno != expected_errno) {
+		result(llen, FAIL);
+		return 1;
+	}
+
+	result(llen, OK);
+	return 0;
+}
+
 /* declare tests based on line numbers. There must be exactly one test per line. */
 #define CASE_TEST(name) \
 	case __LINE__: llen += printf("%d %s", test, #name);
@@ -1143,6 +1188,22 @@ int run_stdlib(int min, int max)
 		CASE_TEST(limit_ptrdiff_min);       EXPECT_EQ(1, PTRDIFF_MIN, sizeof(long) == 8 ? (ptrdiff_t) 0x8000000000000000LL  : (ptrdiff_t) 0x80000000); break;
 		CASE_TEST(limit_ptrdiff_max);       EXPECT_EQ(1, PTRDIFF_MAX, sizeof(long) == 8 ? (ptrdiff_t) 0x7fffffffffffffffLL  : (ptrdiff_t) 0x7fffffff); break;
 		CASE_TEST(limit_size_max);          EXPECT_EQ(1, SIZE_MAX,    sizeof(long) == 8 ? (size_t)    0xffffffffffffffffULL : (size_t)    0xffffffffU); break;
+		CASE_TEST(strtol_simple);           EXPECT_STRTOX(1, strtol, "35", 10, 35, -1, 0); break;
+		CASE_TEST(strtol_positive);         EXPECT_STRTOX(1, strtol, "+35", 10, 35, -1, 0); break;
+		CASE_TEST(strtol_negative);         EXPECT_STRTOX(1, strtol, "-35", 10, -35, -1, 0); break;
+		CASE_TEST(strtol_hex_auto);         EXPECT_STRTOX(1, strtol, "0xFF", 0, 255, -1, 0); break;
+		CASE_TEST(strtol_base36);           EXPECT_STRTOX(1, strtol, "12yZ", 36, 50507, -1, 0); break;
+		CASE_TEST(strtol_cutoff);           EXPECT_STRTOX(1, strtol, "1234567890", 8, 342391, 7, 0); break;
+		CASE_TEST(strtol_octal_auto);       EXPECT_STRTOX(1, strtol, "011", 0, 9, -1, 0); break;
+		CASE_TEST(strtol_hex_00);           EXPECT_STRTOX(1, strtol, "0x00", 16, 0, -1, 0); break;
+		CASE_TEST(strtol_hex_FF);           EXPECT_STRTOX(1, strtol, "FF", 16, 255, -1, 0); break;
+		CASE_TEST(strtol_hex_ff);           EXPECT_STRTOX(1, strtol, "ff", 16, 255, -1, 0); break;
+		CASE_TEST(strtol_hex_prefix);       EXPECT_STRTOX(1, strtol, "0xFF", 16, 255, -1, 0); break;
+		CASE_TEST(strtol_trailer);          EXPECT_STRTOX(1, strtol, "35foo", 10, 35, 2, 0); break;
+		CASE_TEST(strtol_overflow);         EXPECT_STRTOX(1, strtol, "0x8000000000000000", 16, LONG_MAX, -1, ERANGE); break;
+		CASE_TEST(strtol_underflow);        EXPECT_STRTOX(1, strtol, "-0x8000000000000001", 16, LONG_MIN, -1, ERANGE); break;
+		CASE_TEST(strtoul_negative);        EXPECT_STRTOX(1, strtoul, "-0x1", 16, ULONG_MAX, 4, 0); break;
+		CASE_TEST(strtoul_overflow);        EXPECT_STRTOX(1, strtoul, "0x10000000000000000", 16, ULONG_MAX, -1, ERANGE); break;
 
 		case __LINE__:
 			return ret; /* must be last */
