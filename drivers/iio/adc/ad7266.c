@@ -371,7 +371,6 @@ static void ad7266_init_channels(struct iio_dev *indio_dev)
 	indio_dev->channels = chan_info->channels;
 	indio_dev->num_channels = chan_info->num_channels;
 	indio_dev->available_scan_masks = chan_info->scan_masks;
-	indio_dev->masklength = chan_info->num_channels - 1;
 }
 
 static const char * const ad7266_gpio_labels[] = {
