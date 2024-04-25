@@ -114,7 +114,7 @@ static void dml21_calculate_rq_and_dlg_params(const struct dc *dc, struct dc_sta
 	struct dml2_per_plane_programming *pln_prog = NULL;
 	struct dml2_per_stream_programming *stream_prog = NULL;
 	struct pipe_ctx *dc_main_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__];
-	struct pipe_ctx *dc_phantom_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__];
+	struct pipe_ctx *dc_phantom_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__] = {0};
 	int num_pipes;
 
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
@@ -274,7 +274,7 @@ void dml21_prepare_mcache_programming(struct dc *in_dc, struct dc_state *context
 {
 	unsigned int num_pipes, dml_prog_idx, dml_phantom_prog_idx, dc_pipe_index;
 	struct pipe_ctx *dc_main_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__];
-	struct pipe_ctx *dc_phantom_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__];
+	struct pipe_ctx *dc_phantom_pipes[__DML2_WRAPPER_MAX_STREAMS_PLANES__] = {0};
 
 	struct dml2_per_plane_programming *pln_prog = NULL;
 	struct dml2_plane_mcache_configuration_descriptor *mcache_config = NULL;

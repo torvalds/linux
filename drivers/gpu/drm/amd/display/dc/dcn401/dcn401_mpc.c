@@ -474,7 +474,7 @@ static void read_gamut_remap(struct mpc *mpc,
 	enum mpcc_gamut_remap_id gamut_remap_block_id,
 	uint32_t *mode_select)
 {
-	struct color_matrices_reg gamut_regs;
+	struct color_matrices_reg gamut_regs = {0};
 	struct dcn401_mpc *mpc401 = TO_DCN401_MPC(mpc);
 
 	switch (gamut_remap_block_id) {
@@ -563,7 +563,7 @@ void mpc401_get_gamut_remap(struct mpc *mpc,
 	int mpcc_id,
 	struct mpc_grph_gamut_adjustment *adjust)
 {
-	uint16_t arr_reg_val[12];
+	uint16_t arr_reg_val[12] = {0};
 	uint32_t mode_select;
 
 	read_gamut_remap(mpc, mpcc_id, arr_reg_val, adjust->mpcc_gamut_remap_block_id, &mode_select);

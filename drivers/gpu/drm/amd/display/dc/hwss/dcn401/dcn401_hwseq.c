@@ -465,7 +465,9 @@ void dcn401_populate_mcm_luts(struct dc *dc,
 	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_y_g;
 	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cb_b;
 	enum hubp_3dlut_fl_crossbar_bit_slice crossbar_bit_slice_cr_r;
-	enum MCM_LUT_XABLE shaper_xable, lut3d_xable, lut1d_xable;
+	enum MCM_LUT_XABLE shaper_xable = MCM_LUT_DISABLE;
+	enum MCM_LUT_XABLE lut3d_xable = MCM_LUT_DISABLE;
+	enum MCM_LUT_XABLE lut1d_xable = MCM_LUT_DISABLE;
 
 	dcn401_get_mcm_lut_xable_from_pipe_ctx(dc, pipe_ctx, &shaper_xable, &lut3d_xable, &lut1d_xable);
 
@@ -937,7 +939,7 @@ void dcn401_enable_stream(struct pipe_ctx *pipe_ctx)
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
 	struct dccg *dccg = dc->res_pool->dccg;
 	enum phyd32clk_clock_source phyd32clk;
-	int dp_hpo_inst;
+	int dp_hpo_inst = 0;
 	unsigned int tmds_div = PIXEL_RATE_DIV_NA;
 	unsigned int unused_div = PIXEL_RATE_DIV_NA;
 
