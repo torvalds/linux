@@ -2546,8 +2546,8 @@ void panthor_sched_suspend(struct panthor_device *ptdev)
 {
 	struct panthor_scheduler *sched = ptdev->scheduler;
 	struct panthor_csg_slots_upd_ctx upd_ctx;
-	u32 suspended_slots, faulty_slots;
 	struct panthor_group *group;
+	u32 suspended_slots;
 	u32 i;
 
 	mutex_lock(&sched->lock);
@@ -2566,10 +2566,9 @@ void panthor_sched_suspend(struct panthor_device *ptdev)
 
 	csgs_upd_ctx_apply_locked(ptdev, &upd_ctx);
 	suspended_slots &= ~upd_ctx.timedout_mask;
-	faulty_slots = upd_ctx.timedout_mask;
 
-	if (faulty_slots) {
-		u32 slot_mask = faulty_slots;
+	if (upd_ctx.timedout_mask) {
+		u32 slot_mask = upd_ctx.timedout_mask;
 
 		drm_err(&ptdev->base, "CSG suspend failed, escalating to termination");
 		csgs_upd_ctx_init(&upd_ctx);
@@ -2620,9 +2619,6 @@ void panthor_sched_suspend(struct panthor_device *ptdev)
 
 			slot_mask &= ~BIT(csg_id);
 		}
-
-		if (flush_caches_failed)
-			faulty_slots |= suspended_slots;
 	}
 
 	for (i = 0; i < sched->csg_slot_count; i++) {
