@@ -2048,10 +2048,10 @@ err_free:
  * @tb: Pointer to the domain structure
  * @up: USB3 upstream adapter port
  * @down: USB3 downstream adapter port
- * @max_up: Maximum available upstream bandwidth for the USB3 tunnel (%0
- *	    if not limited).
- * @max_down: Maximum available downstream bandwidth for the USB3 tunnel
- *	      (%0 if not limited).
+ * @max_up: Maximum available upstream bandwidth for the USB3 tunnel.
+ *	    %0 if no available bandwidth.
+ * @max_down: Maximum available downstream bandwidth for the USB3 tunnel.
+ *	      %0 if no available bandwidth.
  *
  * Allocate an USB3 tunnel. The ports must be of type @TB_TYPE_USB3_UP and
  * @TB_TYPE_USB3_DOWN.
@@ -2064,7 +2064,7 @@ struct tb_tunnel *tb_tunnel_alloc_usb3(struct tb *tb, struct tb_port *up,
 {
 	struct tb_tunnel *tunnel;
 	struct tb_path *path;
-	int max_rate;
+	int max_rate = 0;
 
 	if (!tb_route(down->sw) && (max_up > 0 || max_down > 0)) {
 		/*
