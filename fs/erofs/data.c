@@ -152,7 +152,7 @@ int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
 	pos = ALIGN(erofs_iloc(inode) + vi->inode_isize +
 		    vi->xattr_isize, unit) + unit * chunknr;
 
-	kaddr = erofs_read_metabuf(&buf, sb, erofs_pos(sb, erofs_blknr(sb, pos)), EROFS_KMAP);
+	kaddr = erofs_read_metabuf(&buf, sb, pos, EROFS_KMAP);
 	if (IS_ERR(kaddr)) {
 		err = PTR_ERR(kaddr);
 		goto out;
@@ -163,7 +163,7 @@ int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
 
 	/* handle block map */
 	if (!(vi->chunkformat & EROFS_CHUNK_FORMAT_INDEXES)) {
-		__le32 *blkaddr = kaddr + erofs_blkoff(sb, pos);
+		__le32 *blkaddr = kaddr;
 
 		if (le32_to_cpu(*blkaddr) == EROFS_NULL_ADDR) {
 			map->m_flags = 0;
@@ -174,7 +174,7 @@ int erofs_map_blocks(struct inode *inode, struct erofs_map_blocks *map)
 		goto out_unlock;
 	}
 	/* parse chunk indexes */
-	idx = kaddr + erofs_blkoff(sb, pos);
+	idx = kaddr;
 	switch (le32_to_cpu(idx->blkaddr)) {
 	case EROFS_NULL_ADDR:
 		map->m_flags = 0;
@@ -294,11 +294,10 @@ static int erofs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
 		struct erofs_buf buf = __EROFS_BUF_INITIALIZER;
 
 		iomap->type = IOMAP_INLINE;
-		ptr = erofs_read_metabuf(&buf, sb,
-				erofs_pos(sb, erofs_blknr(sb, mdev.m_pa)), EROFS_KMAP);
+		ptr = erofs_read_metabuf(&buf, sb, mdev.m_pa, EROFS_KMAP);
 		if (IS_ERR(ptr))
 			return PTR_ERR(ptr);
-		iomap->inline_data = ptr + erofs_blkoff(sb, mdev.m_pa);
+		iomap->inline_data = ptr;
 		iomap->private = buf.base;
 	} else {
 		iomap->type = IOMAP_MAPPED;

@@ -178,12 +178,10 @@ static int erofs_init_device(struct erofs_buf *buf, struct super_block *sb,
 	struct erofs_fscache *fscache;
 	struct erofs_deviceslot *dis;
 	struct file *bdev_file;
-	void *ptr;
 
-	ptr = erofs_read_metabuf(buf, sb, erofs_pos(sb, erofs_blknr(sb, *pos)), EROFS_KMAP);
-	if (IS_ERR(ptr))
-		return PTR_ERR(ptr);
-	dis = ptr + erofs_blkoff(sb, *pos);
+	dis = erofs_read_metabuf(buf, sb, *pos, EROFS_KMAP);
+	if (IS_ERR(dis))
+		return PTR_ERR(dis);
 
 	if (!sbi->devs->flatdev && !dif->path) {
 		if (!dis->tag[0]) {
