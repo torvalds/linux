@@ -194,7 +194,7 @@ int cpufreq_table_index_unsorted(struct cpufreq_policy *policy,
 	}
 	if (optimal.driver_data > i) {
 		if (suboptimal.driver_data > i) {
-			WARN(1, "Invalid frequency table: %d\n", policy->cpu);
+			WARN(1, "Invalid frequency table: %u\n", policy->cpu);
 			return 0;
 		}
 
@@ -254,7 +254,7 @@ static ssize_t show_available_freqs(struct cpufreq_policy *policy, char *buf,
 		if (show_boost ^ (pos->flags & CPUFREQ_BOOST_FREQ))
 			continue;
 
-		count += sprintf(&buf[count], "%d ", pos->frequency);
+		count += sprintf(&buf[count], "%u ", pos->frequency);
 	}
 	count += sprintf(&buf[count], "\n");
 
