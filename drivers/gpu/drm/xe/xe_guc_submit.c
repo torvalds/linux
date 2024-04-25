@@ -53,13 +53,13 @@ exec_queue_to_guc(struct xe_exec_queue *q)
  */
 #define EXEC_QUEUE_STATE_REGISTERED		(1 << 0)
 #define EXEC_QUEUE_STATE_ENABLED		(1 << 1)
-#define EXEC_QUEUE_STATE_PENDING_ENABLE	(1 << 2)
+#define EXEC_QUEUE_STATE_PENDING_ENABLE		(1 << 2)
 #define EXEC_QUEUE_STATE_PENDING_DISABLE	(1 << 3)
 #define EXEC_QUEUE_STATE_DESTROYED		(1 << 4)
 #define EXEC_QUEUE_STATE_SUSPENDED		(1 << 5)
-#define EXEC_QUEUE_STATE_RESET		(1 << 6)
+#define EXEC_QUEUE_STATE_RESET			(1 << 6)
 #define EXEC_QUEUE_STATE_KILLED			(1 << 7)
-#define EXEC_QUEUE_STATE_WEDGED		(1 << 8)
+#define EXEC_QUEUE_STATE_WEDGED			(1 << 8)
 
 static bool exec_queue_registered(struct xe_exec_queue *q)
 {
