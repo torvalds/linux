@@ -808,7 +808,8 @@ xchk_directory_blocks(
 	free_lblk = XFS_B_TO_FSB(mp, XFS_DIR2_FREE_OFFSET);
 
 	/* Is this a block dir? */
-	error = xfs_dir2_isblock(&args, &is_block);
+	if (xfs_dir2_format(&args, &error) == XFS_DIR2_FMT_BLOCK)
+		is_block = true;
 	if (!xchk_fblock_process_error(sc, XFS_DATA_FORK, lblk, &error))
 		goto out;
 

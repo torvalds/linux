@@ -256,31 +256,60 @@ xfs_dir_init(
 	return error;
 }
 
+enum xfs_dir2_fmt
+xfs_dir2_format(
+	struct xfs_da_args	*args,
+	int			*error)
+{
+	struct xfs_inode	*dp = args->dp;
+	struct xfs_mount	*mp = dp->i_mount;
+	struct xfs_da_geometry	*geo = mp->m_dir_geo;
+	xfs_fileoff_t		eof;
+
+	xfs_assert_ilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);
+
+	*error = 0;
+	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
+		return XFS_DIR2_FMT_SF;
+
+	*error = xfs_bmap_last_offset(dp, &eof, XFS_DATA_FORK);
+	if (*error)
+		return XFS_DIR2_FMT_ERROR;
+
+	if (eof == XFS_B_TO_FSB(mp, geo->blksize)) {
+		if (XFS_IS_CORRUPT(mp, dp->i_disk_size != geo->blksize)) {
+			xfs_da_mark_sick(args);
+			*error = -EFSCORRUPTED;
+			return XFS_DIR2_FMT_ERROR;
+		}
+		return XFS_DIR2_FMT_BLOCK;
+	}
+	if (eof == geo->leafblk + geo->fsbcount)
+		return XFS_DIR2_FMT_LEAF;
+	return XFS_DIR2_FMT_NODE;
+}
+
 int
 xfs_dir_createname_args(
 	struct xfs_da_args	*args)
 {
-	bool			is_block, is_leaf;
 	int			error;
 
 	if (!args->inumber)
 		args->op_flags |= XFS_DA_OP_JUSTCHECK;
 
-	if (args->dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
+	switch (xfs_dir2_format(args, &error)) {
+	case XFS_DIR2_FMT_SF:
 		return xfs_dir2_sf_addname(args);
-
-	error = xfs_dir2_isblock(args, &is_block);
-	if (error)
-		return error;
-	if (is_block)
+	case XFS_DIR2_FMT_BLOCK:
 		return xfs_dir2_block_addname(args);
-
-	error = xfs_dir2_isleaf(args, &is_leaf);
-	if (error)
-		return error;
-	if (is_leaf)
+	case XFS_DIR2_FMT_LEAF:
 		return xfs_dir2_leaf_addname(args);
-	return xfs_dir2_node_addname(args);
+	case XFS_DIR2_FMT_NODE:
+		return xfs_dir2_node_addname(args);
+	default:
+		return error;
+	}
 }
 
 /*
@@ -359,36 +388,25 @@ int
 xfs_dir_lookup_args(
 	struct xfs_da_args	*args)
 {
-	bool			is_block, is_leaf;
 	int			error;
 
-	if (args->dp->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
+	switch (xfs_dir2_format(args, &error)) {
+	case XFS_DIR2_FMT_SF:
 		error = xfs_dir2_sf_lookup(args);
-		goto out;
-	}
-
-	/* dir2 functions require that the data fork is loaded */
-	error = xfs_iread_extents(args->trans, args->dp, XFS_DATA_FORK);
-	if (error)
-		goto out;
-
-	error = xfs_dir2_isblock(args, &is_block);
-	if (error)
-		goto out;
-
-	if (is_block) {
+		break;
+	case XFS_DIR2_FMT_BLOCK:
 		error = xfs_dir2_block_lookup(args);
-		goto out;
+		break;
+	case XFS_DIR2_FMT_LEAF:
+		error = xfs_dir2_leaf_lookup(args);
+		break;
+	case XFS_DIR2_FMT_NODE:
+		error = xfs_dir2_node_lookup(args);
+		break;
+	default:
+		break;
 	}
 
-	error = xfs_dir2_isleaf(args, &is_leaf);
-	if (error)
-		goto out;
-	if (is_leaf)
-		error = xfs_dir2_leaf_lookup(args);
-	else
-		error = xfs_dir2_node_lookup(args);
-out:
 	if (error != -EEXIST)
 		return error;
 	return 0;
@@ -448,24 +466,20 @@ int
 xfs_dir_removename_args(
 	struct xfs_da_args	*args)
 {
-	bool			is_block, is_leaf;
 	int			error;
 
-	if (args->dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
+	switch (xfs_dir2_format(args, &error)) {
+	case XFS_DIR2_FMT_SF:
 		return xfs_dir2_sf_removename(args);
-
-	error = xfs_dir2_isblock(args, &is_block);
-	if (error)
-		return error;
-	if (is_block)
+	case XFS_DIR2_FMT_BLOCK:
 		return xfs_dir2_block_removename(args);
-
-	error = xfs_dir2_isleaf(args, &is_leaf);
-	if (error)
-		return error;
-	if (is_leaf)
+	case XFS_DIR2_FMT_LEAF:
 		return xfs_dir2_leaf_removename(args);
-	return xfs_dir2_node_removename(args);
+	case XFS_DIR2_FMT_NODE:
+		return xfs_dir2_node_removename(args);
+	default:
+		return error;
+	}
 }
 
 /*
@@ -509,25 +523,20 @@ int
 xfs_dir_replace_args(
 	struct xfs_da_args	*args)
 {
-	bool			is_block, is_leaf;
 	int			error;
 
-	if (args->dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
+	switch (xfs_dir2_format(args, &error)) {
+	case XFS_DIR2_FMT_SF:
 		return xfs_dir2_sf_replace(args);
-
-	error = xfs_dir2_isblock(args, &is_block);
-	if (error)
-		return error;
-	if (is_block)
+	case XFS_DIR2_FMT_BLOCK:
 		return xfs_dir2_block_replace(args);
-
-	error = xfs_dir2_isleaf(args, &is_leaf);
-	if (error)
-		return error;
-	if (is_leaf)
+	case XFS_DIR2_FMT_LEAF:
 		return xfs_dir2_leaf_replace(args);
-
-	return xfs_dir2_node_replace(args);
+	case XFS_DIR2_FMT_NODE:
+		return xfs_dir2_node_replace(args);
+	default:
+		return error;
+	}
 }
 
 /*
@@ -630,57 +639,6 @@ xfs_dir2_grow_inode(
 			xfs_trans_log_inode(args->trans, dp, XFS_ILOG_CORE);
 		}
 	}
-	return 0;
-}
-
-/*
- * See if the directory is a single-block form directory.
- */
-int
-xfs_dir2_isblock(
-	struct xfs_da_args	*args,
-	bool			*isblock)
-{
-	struct xfs_mount	*mp = args->dp->i_mount;
-	xfs_fileoff_t		eof;
-	int			error;
-
-	error = xfs_bmap_last_offset(args->dp, &eof, XFS_DATA_FORK);
-	if (error)
-		return error;
-
-	*isblock = false;
-	if (XFS_FSB_TO_B(mp, eof) != args->geo->blksize)
-		return 0;
-
-	*isblock = true;
-	if (XFS_IS_CORRUPT(mp, args->dp->i_disk_size != args->geo->blksize)) {
-		xfs_da_mark_sick(args);
-		return -EFSCORRUPTED;
-	}
-	return 0;
-}
-
-/*
- * See if the directory is a single-leaf form directory.
- */
-int
-xfs_dir2_isleaf(
-	struct xfs_da_args	*args,
-	bool			*isleaf)
-{
-	xfs_fileoff_t		eof;
-	int			error;
-
-	error = xfs_bmap_last_offset(args->dp, &eof, XFS_DATA_FORK);
-	if (error)
-		return error;
-
-	*isleaf = false;
-	if (eof != args->geo->leafblk + args->geo->fsbcount)
-		return 0;
-
-	*isleaf = true;
 	return 0;
 }
 

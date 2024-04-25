@@ -516,7 +516,6 @@ xfs_readdir(
 {
 	struct xfs_da_args	args = { NULL };
 	unsigned int		lock_mode;
-	bool			isblock;
 	int			error;
 
 	trace_xfs_readdir(dp);
@@ -539,18 +538,18 @@ xfs_readdir(
 		return xfs_dir2_sf_getdents(&args, ctx);
 
 	lock_mode = xfs_ilock_data_map_shared(dp);
-	error = xfs_dir2_isblock(&args, &isblock);
-	if (error)
-		goto out_unlock;
-
-	if (isblock) {
+	switch (xfs_dir2_format(&args, &error)) {
+	case XFS_DIR2_FMT_BLOCK:
 		error = xfs_dir2_block_getdents(&args, ctx, &lock_mode);
-		goto out_unlock;
+		break;
+	case XFS_DIR2_FMT_LEAF:
+	case XFS_DIR2_FMT_NODE:
+		error = xfs_dir2_leaf_getdents(&args, ctx, bufsize, &lock_mode);
+		break;
+	default:
+		break;
 	}
 
-	error = xfs_dir2_leaf_getdents(&args, ctx, bufsize, &lock_mode);
-
-out_unlock:
 	if (lock_mode)
 		xfs_iunlock(dp, lock_mode);
 	return error;

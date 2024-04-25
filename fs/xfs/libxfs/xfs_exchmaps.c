@@ -465,16 +465,11 @@ xfs_exchmaps_dir_to_sf(
 	};
 	struct xfs_dir2_sf_hdr	sfh;
 	struct xfs_buf		*bp;
-	bool			isblock;
 	int			size;
-	int			error;
+	int			error = 0;
 
-	error = xfs_dir2_isblock(&args, &isblock);
-	if (error)
+	if (xfs_dir2_format(&args, &error) != XFS_DIR2_FMT_BLOCK)
 		return error;
-
-	if (!isblock)
-		return 0;
 
 	error = xfs_dir3_block_read(tp, xmi->xmi_ip2, xmi->xmi_ip2->i_ino, &bp);
 	if (error)

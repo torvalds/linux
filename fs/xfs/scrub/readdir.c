@@ -276,7 +276,6 @@ xchk_dir_walk(
 		.trans		= sc->tp,
 		.owner		= dp->i_ino,
 	};
-	bool			isblock;
 	int			error;
 
 	if (xfs_is_shutdown(dp->i_mount))
@@ -285,22 +284,17 @@ xchk_dir_walk(
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	xfs_assert_ilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);
 
-	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
+	switch (xfs_dir2_format(&args, &error)) {
+	case XFS_DIR2_FMT_SF:
 		return xchk_dir_walk_sf(sc, dp, dirent_fn, priv);
-
-	/* dir2 functions require that the data fork is loaded */
-	error = xfs_iread_extents(sc->tp, dp, XFS_DATA_FORK);
-	if (error)
-		return error;
-
-	error = xfs_dir2_isblock(&args, &isblock);
-	if (error)
-		return error;
-
-	if (isblock)
+	case XFS_DIR2_FMT_BLOCK:
 		return xchk_dir_walk_block(sc, dp, dirent_fn, priv);
-
-	return xchk_dir_walk_leaf(sc, dp, dirent_fn, priv);
+	case XFS_DIR2_FMT_LEAF:
+	case XFS_DIR2_FMT_NODE:
+		return xchk_dir_walk_leaf(sc, dp, dirent_fn, priv);
+	default:
+		return error;
+	}
 }
 
 /*
