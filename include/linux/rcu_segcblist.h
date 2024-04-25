@@ -80,8 +80,7 @@ struct rcu_cblist {
  *  |       SEGCBLIST_RCU_CORE | SEGCBLIST_LOCKING | SEGCBLIST_OFFLOADED       |
  *  |                                                                          |
  *  | Callbacks processed by rcu_core() from softirqs or local                 |
- *  | rcuc kthread, while holding nocb_lock. Waking up CB and GP kthreads,     |
- *  | allowing nocb_timer to be armed.                                         |
+ *  | rcuc kthread, while holding nocb_lock. Waking up CB and GP kthreads.     |
  *  ----------------------------------------------------------------------------
  *                                         |
  *                                         v
@@ -183,8 +182,7 @@ struct rcu_cblist {
  *  |                SEGCBLIST_RCU_CORE | SEGCBLIST_LOCKING                    |
  *  |                                                                          |
  *  | Callbacks processed by rcu_core() from softirqs or local                 |
- *  | rcuc kthread, while holding nocb_lock. Forbid nocb_timer to be armed.    |
- *  | Flush pending nocb_timer.                                                |
+ *  | rcuc kthread, while holding nocb_lock.                                   |
  *  ----------------------------------------------------------------------------
  *                                      |
  *                                      v
