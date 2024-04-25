@@ -78,8 +78,8 @@
  *
  * AEST - Arm Error Source Table
  *
- * Conforms to: ACPI for the Armv8 RAS Extensions 1.1 Platform Design Document
- * September 2020.
+ * Conforms to: ACPI for the Armv8 RAS Extensions 1.1(Sep 2020) and
+ * 2.0(May 2023) Platform Design Document.
  *
  ******************************************************************************/
 
@@ -109,7 +109,9 @@ struct acpi_aest_hdr {
 #define ACPI_AEST_SMMU_ERROR_NODE           2
 #define ACPI_AEST_VENDOR_ERROR_NODE         3
 #define ACPI_AEST_GIC_ERROR_NODE            4
-#define ACPI_AEST_NODE_TYPE_RESERVED        5	/* 5 and above are reserved */
+#define ACPI_AEST_PCIE_ERROR_NODE           5
+#define ACPI_AEST_PROXY_ERROR_NODE          6
+#define ACPI_AEST_NODE_TYPE_RESERVED        7 /* 7 and above are reserved */
 
 /*
  * AEST subtables (Error nodes)
@@ -188,6 +190,12 @@ typedef struct acpi_aest_vendor {
 
 } acpi_aest_vendor;
 
+struct acpi_aest_vendor_v2 {
+	char acpi_hid[8];
+	u32 acpi_uid;
+	u8 vendor_specific_data[16];
+};
+
 /* 4: Gic Error */
 
 typedef struct acpi_aest_gic {
@@ -204,6 +212,18 @@ typedef struct acpi_aest_gic {
 #define ACPI_AEST_GIC_ITS                   3
 #define ACPI_AEST_GIC_RESERVED              4	/* 4 and above are reserved */
 
+/* 5: PCIe Error */
+
+struct acpi_aest_pcie {
+	u32 iort_node_reference;
+};
+
+/* 6: Proxy Error */
+
+struct acpi_aest_proxy {
+	u64 node_address;
+};
+
 /* Node Interface Structure */
 
 typedef struct acpi_aest_node_interface {
@@ -219,11 +239,57 @@ typedef struct acpi_aest_node_interface {
 
 } acpi_aest_node_interface;
 
+/* Node Interface Structure V2 */
+
+struct acpi_aest_node_interface_header {
+	u8 type;
+	u8 group_format;
+	u8 reserved[2];
+	u32 flags;
+	u64 address;
+	u32 error_record_index;
+	u32 error_record_count;
+};
+
+#define ACPI_AEST_NODE_GROUP_FORMAT_4K          0
+#define ACPI_AEST_NODE_GROUP_FORMAT_16K         1
+#define ACPI_AEST_NODE_GROUP_FORMAT_64K         2
+
+struct acpi_aest_node_interface_common {
+	u32 error_node_device;
+	u32 processor_affinity;
+	u64 error_group_register_base;
+	u64 fault_inject_register_base;
+	u64 interrupt_config_register_base;
+};
+
+struct acpi_aest_node_interface_4k {
+	u64 error_record_implemented;
+	u64 error_status_reporting;
+	u64 addressing_mode;
+	struct acpi_aest_node_interface_common common;
+};
+
+struct acpi_aest_node_interface_16k {
+	u64 error_record_implemented[4];
+	u64 error_status_reporting[4];
+	u64 addressing_mode[4];
+	struct acpi_aest_node_interface_common common;
+};
+
+struct acpi_aest_node_interface_64k {
+	u64 error_record_implemented[14];
+	u64 error_status_reporting[14];
+	u64 addressing_mode[14];
+	struct acpi_aest_node_interface_common common;
+};
+
 /* Values for Type field above */
 
-#define ACPI_AEST_NODE_SYSTEM_REGISTER      0
-#define ACPI_AEST_NODE_MEMORY_MAPPED        1
-#define ACPI_AEST_XFACE_RESERVED            2	/* 2 and above are reserved */
+#define ACPI_AEST_NODE_SYSTEM_REGISTER			0
+#define ACPI_AEST_NODE_MEMORY_MAPPED			1
+#define ACPI_AEST_NODE_SINGLE_RECORD_MEMORY_MAPPED	2
+#define ACPI_AEST_XFACE_RESERVED			3   /* 2 and above are reserved */
 
 /* Node Interrupt Structure */
 
@@ -236,6 +302,16 @@ typedef struct acpi_aest_node_interrupt {
 	u8 reserved1[3];
 
 } acpi_aest_node_interrupt;
+
+/* Node Interrupt Structure V2 */
+
+struct acpi_aest_node_interrupt_v2 {
+	u8 type;
+	u8 reserved[2];
+	u8 flags;
+	u32 gsiv;
+	u8 reserved1[4];
+};
 
 /* Values for Type field above */
 
