@@ -787,6 +787,15 @@ static int pac1934_read_raw(struct iio_dev *indio_dev,
 	s64 curr_energy;
 	int ret, channel = chan->channel - 1;
 
+	/*
+	 * For AVG the index should be between 5 to 8.
+	 * To calculate PAC1934_CH_VOLTAGE_AVERAGE,
+	 * respectively PAC1934_CH_CURRENT real index, we need
+	 * to remove the added offset (PAC1934_MAX_NUM_CHANNELS).
+	 */
+	if (channel >= PAC1934_MAX_NUM_CHANNELS)
+		channel = channel - PAC1934_MAX_NUM_CHANNELS;
+
 	ret = pac1934_retrieve_data(info, PAC1934_MIN_UPDATE_WAIT_TIME_US);
 	if (ret < 0)
 		return ret;
