@@ -629,27 +629,6 @@ bool nvme_change_ctrl_state(struct nvme_ctrl *ctrl,
 EXPORT_SYMBOL_GPL(nvme_change_ctrl_state);
 
 /*
- * Returns true for sink states that can't ever transition back to live.
- */
-static bool nvme_state_terminal(struct nvme_ctrl *ctrl)
-{
-	switch (nvme_ctrl_state(ctrl)) {
-	case NVME_CTRL_NEW:
-	case NVME_CTRL_LIVE:
-	case NVME_CTRL_RESETTING:
-	case NVME_CTRL_CONNECTING:
-		return false;
-	case NVME_CTRL_DELETING:
-	case NVME_CTRL_DELETING_NOIO:
-	case NVME_CTRL_DEAD:
-		return true;
-	default:
-		WARN_ONCE(1, "Unhandled ctrl state:%d", ctrl->state);
-		return true;
-	}
-}
-
-/*
  * Waits for the controller state to be resetting, or returns false if it is
  * not possible to ever transition to that state.
  */
