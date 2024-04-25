@@ -142,18 +142,29 @@ static const struct host1x_info host1x05_info = {
 };
 
 static const struct host1x_sid_entry tegra186_sid_table[] = {
-	{
-		/* VIC */
-		.base = 0x1af0,
-		.offset = 0x30,
-		.limit = 0x34
-	},
-	{
-		/* NVDEC */
-		.base = 0x1b00,
-		.offset = 0x30,
-		.limit = 0x34
-	},
+	{ /* SE1      */  .base = 0x1ac8, .offset = 0x90,    .limit = 0x90    },
+	{ /* SE2      */  .base = 0x1ad0, .offset = 0x90,    .limit = 0x90    },
+	{ /* SE3      */  .base = 0x1ad8, .offset = 0x90,    .limit = 0x90    },
+	{ /* SE4      */  .base = 0x1ae0, .offset = 0x90,    .limit = 0x90    },
+	{ /* ISP      */  .base = 0x1ae8, .offset = 0x50,    .limit = 0x50    },
+	{ /* VIC      */  .base = 0x1af0, .offset = 0x30,    .limit = 0x34    },
+	{ /* NVENC    */  .base = 0x1af8, .offset = 0x30,    .limit = 0x34    },
+	{ /* NVDEC    */  .base = 0x1b00, .offset = 0x30,    .limit = 0x34    },
+	{ /* NVJPG    */  .base = 0x1b08, .offset = 0x30,    .limit = 0x34    },
+	{ /* TSEC     */  .base = 0x1b10, .offset = 0x30,    .limit = 0x34    },
+	{ /* TSECB    */  .base = 0x1b18, .offset = 0x30,    .limit = 0x34    },
+	{ /* VI 0     */  .base = 0x1b80, .offset = 0x10000, .limit = 0x10000 },
+	{ /* VI 1     */  .base = 0x1b88, .offset = 0x20000, .limit = 0x20000 },
+	{ /* VI 2     */  .base = 0x1b90, .offset = 0x30000, .limit = 0x30000 },
+	{ /* VI 3     */  .base = 0x1b98, .offset = 0x40000, .limit = 0x40000 },
+	{ /* VI 4     */  .base = 0x1ba0, .offset = 0x50000, .limit = 0x50000 },
+	{ /* VI 5     */  .base = 0x1ba8, .offset = 0x60000, .limit = 0x60000 },
+	{ /* VI 6     */  .base = 0x1bb0, .offset = 0x70000, .limit = 0x70000 },
+	{ /* VI 7     */  .base = 0x1bb8, .offset = 0x80000, .limit = 0x80000 },
+	{ /* VI 8     */  .base = 0x1bc0, .offset = 0x90000, .limit = 0x90000 },
+	{ /* VI 9     */  .base = 0x1bc8, .offset = 0xa0000, .limit = 0xa0000 },
+	{ /* VI 10    */  .base = 0x1bd0, .offset = 0xb0000, .limit = 0xb0000 },
+	{ /* VI 11    */  .base = 0x1bd8, .offset = 0xc0000, .limit = 0xc0000 },
 };
 
 static const struct host1x_info host1x06_info = {
@@ -173,24 +184,26 @@ static const struct host1x_info host1x06_info = {
 };
 
 static const struct host1x_sid_entry tegra194_sid_table[] = {
-	{
-		/* VIC */
-		.base = 0x1af0,
-		.offset = 0x30,
-		.limit = 0x34
-	},
-	{
-		/* NVDEC */
-		.base = 0x1b00,
-		.offset = 0x30,
-		.limit = 0x34
-	},
-	{
-		/* NVDEC1 */
-		.base = 0x1bc0,
-		.offset = 0x30,
-		.limit = 0x34
-	},
+	{ /* SE1          */  .base = 0x1ac8, .offset = 0x90,  .limit = 0x90  },
+	{ /* SE2          */  .base = 0x1ad0, .offset = 0x90,  .limit = 0x90  },
+	{ /* SE3          */  .base = 0x1ad8, .offset = 0x90,  .limit = 0x90  },
+	{ /* SE4          */  .base = 0x1ae0, .offset = 0x90,  .limit = 0x90  },
+	{ /* ISP          */  .base = 0x1ae8, .offset = 0x800, .limit = 0x800 },
+	{ /* VIC          */  .base = 0x1af0, .offset = 0x30,  .limit = 0x34  },
+	{ /* NVENC        */  .base = 0x1af8, .offset = 0x30,  .limit = 0x34  },
+	{ /* NVDEC        */  .base = 0x1b00, .offset = 0x30,  .limit = 0x34  },
+	{ /* NVJPG        */  .base = 0x1b08, .offset = 0x30,  .limit = 0x34  },
+	{ /* TSEC         */  .base = 0x1b10, .offset = 0x30,  .limit = 0x34  },
+	{ /* TSECB        */  .base = 0x1b18, .offset = 0x30,  .limit = 0x34  },
+	{ /* VI           */  .base = 0x1b80, .offset = 0x800, .limit = 0x800 },
+	{ /* VI_THI       */  .base = 0x1b88, .offset = 0x30,  .limit = 0x34  },
+	{ /* ISP_THI      */  .base = 0x1b90, .offset = 0x30,  .limit = 0x34  },
+	{ /* PVA0_CLUSTER */  .base = 0x1b98, .offset = 0x0,   .limit = 0x0   },
+	{ /* PVA0_CLUSTER */  .base = 0x1ba0, .offset = 0x0,   .limit = 0x0   },
+	{ /* NVDLA0       */  .base = 0x1ba8, .offset = 0x30,  .limit = 0x34  },
+	{ /* NVDLA1       */  .base = 0x1bb0, .offset = 0x30,  .limit = 0x34  },
+	{ /* NVENC1       */  .base = 0x1bb8, .offset = 0x30,  .limit = 0x34  },
+	{ /* NVDEC1       */  .base = 0x1bc0, .offset = 0x30,  .limit = 0x34  },
 };
 
 static const struct host1x_info host1x07_info = {
@@ -215,54 +228,35 @@ static const struct host1x_info host1x07_info = {
  * and firmware stream ID in the MMIO path table.
  */
 static const struct host1x_sid_entry tegra234_sid_table[] = {
-	{
-		/* SE2 MMIO */
-		.base = 0x1658,
-		.offset = 0x90,
-		.limit = 0x90
-	},
-	{
-		/* SE4 MMIO */
-		.base = 0x1660,
-		.offset = 0x90,
-		.limit = 0x90
-	},
-	{
-		/* SE2 channel */
-		.base = 0x1738,
-		.offset = 0x90,
-		.limit = 0x90
-	},
-	{
-		/* SE4 channel */
-		.base = 0x1740,
-		.offset = 0x90,
-		.limit = 0x90
-	},
-	{
-		/* VIC channel */
-		.base = 0x17b8,
-		.offset = 0x30,
-		.limit = 0x30
-	},
-	{
-		/* VIC MMIO */
-		.base = 0x1688,
-		.offset = 0x34,
-		.limit = 0x34
-	},
-	{
-		/* NVDEC channel */
-		.base = 0x17c8,
-		.offset = 0x30,
-		.limit = 0x30,
-	},
-	{
-		/* NVDEC MMIO */
-		.base = 0x1698,
-		.offset = 0x34,
-		.limit = 0x34,
-	},
+	{ /* SE1 MMIO     */  .base = 0x1650, .offset = 0x90,  .limit = 0x90  },
+	{ /* SE1 ch       */  .base = 0x1730, .offset = 0x90,  .limit = 0x90  },
+	{ /* SE2 MMIO     */  .base = 0x1658, .offset = 0x90,  .limit = 0x90  },
+	{ /* SE2 ch       */  .base = 0x1738, .offset = 0x90,  .limit = 0x90  },
+	{ /* SE4 MMIO     */  .base = 0x1660, .offset = 0x90,  .limit = 0x90  },
+	{ /* SE4 ch       */  .base = 0x1740, .offset = 0x90,  .limit = 0x90  },
+	{ /* ISP MMIO     */  .base = 0x1680, .offset = 0x800, .limit = 0x800 },
+	{ /* VIC MMIO     */  .base = 0x1688, .offset = 0x34,  .limit = 0x34  },
+	{ /* VIC ch       */  .base = 0x17b8, .offset = 0x30,  .limit = 0x30  },
+	{ /* NVENC MMIO   */  .base = 0x1690, .offset = 0x34,  .limit = 0x34  },
+	{ /* NVENC ch     */  .base = 0x17c0, .offset = 0x30,  .limit = 0x30  },
+	{ /* NVDEC MMIO   */  .base = 0x1698, .offset = 0x34,  .limit = 0x34  },
+	{ /* NVDEC ch     */  .base = 0x17c8, .offset = 0x30,  .limit = 0x30  },
+	{ /* NVJPG MMIO   */  .base = 0x16a0, .offset = 0x34,  .limit = 0x34  },
+	{ /* NVJPG ch     */  .base = 0x17d0, .offset = 0x30,  .limit = 0x30  },
+	{ /* TSEC MMIO    */  .base = 0x16a8, .offset = 0x30,  .limit = 0x34  },
+	{ /* NVJPG1 MMIO  */  .base = 0x16b0, .offset = 0x34,  .limit = 0x34  },
+	{ /* NVJPG1 ch    */  .base = 0x17a8, .offset = 0x30,  .limit = 0x30  },
+	{ /* VI MMIO      */  .base = 0x16b8, .offset = 0x800, .limit = 0x800 },
+	{ /* VI_THI MMIO  */  .base = 0x16c0, .offset = 0x30,  .limit = 0x34  },
+	{ /* ISP_THI MMIO */  .base = 0x16c8, .offset = 0x30,  .limit = 0x34  },
+	{ /* NVDLA MMIO   */  .base = 0x16d8, .offset = 0x30,  .limit = 0x34  },
+	{ /* NVDLA ch     */  .base = 0x17e0, .offset = 0x30,  .limit = 0x34  },
+	{ /* NVDLA1 MMIO  */  .base = 0x16e0, .offset = 0x30,  .limit = 0x34  },
+	{ /* NVDLA1 ch    */  .base = 0x17e8, .offset = 0x30,  .limit = 0x34  },
+	{ /* OFA MMIO     */  .base = 0x16e8, .offset = 0x34,  .limit = 0x34  },
+	{ /* OFA ch       */  .base = 0x1768, .offset = 0x30,  .limit = 0x30  },
+	{ /* VI2 MMIO     */  .base = 0x16f0, .offset = 0x800, .limit = 0x800 },
+	{ /* VI2_THI MMIO */  .base = 0x16f8, .offset = 0x30,  .limit = 0x34  },
 };
 
 static const struct host1x_info host1x08_info = {
