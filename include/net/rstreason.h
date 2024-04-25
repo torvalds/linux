@@ -103,4 +103,19 @@ enum sk_rst_reason {
 	 */
 	SK_RST_REASON_MAX,
 };
+
+/* Convert skb drop reasons to enum sk_rst_reason type */
+static inline enum sk_rst_reason
+sk_rst_convert_drop_reason(enum skb_drop_reason reason)
+{
+	switch (reason) {
+	case SKB_DROP_REASON_NOT_SPECIFIED:
+		return SK_RST_REASON_NOT_SPECIFIED;
+	case SKB_DROP_REASON_NO_SOCKET:
+		return SK_RST_REASON_NO_SOCKET;
+	default:
+		/* If we don't have our own corresponding reason */
+		return SK_RST_REASON_NOT_SPECIFIED;
+	}
+}
 #endif
