@@ -436,7 +436,8 @@ struct basic_out {
 	struct spl_size output_size; // Output Size
 	struct spl_rect dst_rect;	// Destination Rect
 	struct spl_rect src_rect;	// Source rect
-	int odm_combine_factor;	// ODM Combine Factor determine by get_odm_splits
+	int odm_combine_factor;	// deprecated
+	struct spl_rect odm_slice_rect; // OPP input rect in timing active
 	enum spl_view_3d view_format;	// TODO: View format Check if it is chroma subsampling
 	bool always_scale;	// Is always scale enabled? Required for getting SCL_MODE
 	int max_downscale_src_width; // Required to get optimal no of taps

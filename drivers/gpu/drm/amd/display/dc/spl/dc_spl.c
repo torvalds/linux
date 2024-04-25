@@ -170,22 +170,31 @@ static struct spl_rect calculate_odm_slice_in_timing_active(struct spl_in *spl_i
 	bool is_last_odm_slice = (odm_slice_idx + 1) == odm_slice_count;
 	int h_active = spl_in->basic_out.output_size.width;
 	int v_active = spl_in->basic_out.output_size.height;
-	int odm_slice_width = h_active / odm_slice_count;
+	int odm_slice_width;
 	struct spl_rect odm_rec;
 
-	if (spl_in->basic_out.use_two_pixels_per_container && (odm_slice_width % 2))
-		odm_slice_width++;
+	if (spl_in->basic_out.odm_combine_factor > 0) {
+		odm_slice_width = h_active / odm_slice_count;
+		/*
+		 * deprecated, caller must pass in odm slice rect i.e OPP input
+		 * rect in timing active for the new interface.
+		 */
+		if (spl_in->basic_out.use_two_pixels_per_container && (odm_slice_width % 2))
+			odm_slice_width++;
 
-	odm_rec.x = odm_slice_width * odm_slice_idx;
-	odm_rec.width = is_last_odm_slice ?
-			/* last slice width is the reminder of h_active */
-			h_active - odm_slice_width * (odm_slice_count - 1) :
-			/* odm slice width is the floor of h_active / count */
-			odm_slice_width;
-	odm_rec.y = 0;
-	odm_rec.height = v_active;
+		odm_rec.x = odm_slice_width * odm_slice_idx;
+		odm_rec.width = is_last_odm_slice ?
+				/* last slice width is the reminder of h_active */
+				h_active - odm_slice_width * (odm_slice_count - 1) :
+				/* odm slice width is the floor of h_active / count */
+				odm_slice_width;
+		odm_rec.y = 0;
+		odm_rec.height = v_active;
 
-	return odm_rec;
+		return odm_rec;
+	}
+
+	return spl_in->basic_out.odm_slice_rect;
 }
 
 static void spl_calculate_recout(struct spl_in *spl_in, struct spl_out *spl_out)
