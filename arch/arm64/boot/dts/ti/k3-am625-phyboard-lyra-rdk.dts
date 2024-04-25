@@ -348,6 +348,24 @@
 				  "GPIO6_ETH1_USER_RESET", "GPIO7_AUDIO_USER_RESET";
 	};
 
+	usb-pd@22 {
+		compatible = "ti,tps6598x";
+		reg = <0x22>;
+
+		connector {
+			compatible = "usb-c-connector";
+			label = "USB-C";
+			self-powered;
+			data-role = "dual";
+			power-role = "sink";
+			port {
+				usb_con_hs: endpoint {
+					remote-endpoint = <&typec_hs>;
+				};
+			};
+		};
+	};
+
 	sii9022: bridge-hdmi@39 {
 		compatible = "sil,sii9022";
 		reg = <0x39>;
@@ -449,7 +467,13 @@
 };
 
 &usb0 {
-	dr_mode = "peripheral";
+	usb-role-switch;
+
+	port {
+		typec_hs: endpoint {
+			remote-endpoint = <&usb_con_hs>;
+		};
+	};
 };
 
 &usb1 {
