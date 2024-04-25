@@ -227,6 +227,7 @@ struct vchiq_service *handle_to_service(struct vchiq_instance *instance, unsigne
 
 	return rcu_dereference(instance->state->services[idx]);
 }
+
 struct vchiq_service *
 find_service_by_handle(struct vchiq_instance *instance, unsigned int handle)
 {
@@ -2176,6 +2177,7 @@ vchiq_init_state(struct vchiq_state *state, struct vchiq_slot_zero *slot_zero, s
 
 	for (i = 0; i < VCHIQ_MAX_SERVICES; i++) {
 		struct vchiq_service_quota *quota = &state->service_quotas[i];
+
 		init_completion(&quota->quota_event);
 	}
 
