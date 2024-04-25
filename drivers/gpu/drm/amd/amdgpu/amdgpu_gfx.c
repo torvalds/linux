@@ -623,9 +623,13 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 		queue_mask |= (1ull << amdgpu_queue_mask_bit_to_set_resource_bit(adev, i));
 	}
 
-	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
-							kiq_ring->queue);
 	amdgpu_device_flush_hdp(adev, NULL);
+
+	if (adev->enable_mes)
+		queue_mask = ~0ULL;
+
+	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
+		 kiq_ring->queue);
 
 	spin_lock(&kiq->ring_lock);
 	r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
@@ -637,20 +641,34 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev, int xcc_id)
 		return r;
 	}
 
-	if (adev->enable_mes)
-		queue_mask = ~0ULL;
-
 	kiq->pmf->kiq_set_resources(kiq_ring, queue_mask);
-	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
-		j = i + xcc_id * adev->gfx.num_compute_rings;
-		kiq->pmf->kiq_map_queues(kiq_ring,
-					 &adev->gfx.compute_ring[j]);
+
+	if (!adev->enable_mes) {
+		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+			j = i + xcc_id * adev->gfx.num_compute_rings;
+			kiq->pmf->kiq_map_queues(kiq_ring,
+						 &adev->gfx.compute_ring[j]);
+		}
 	}
 
 	r = amdgpu_ring_test_helper(kiq_ring);
 	spin_unlock(&kiq->ring_lock);
 	if (r)
 		DRM_ERROR("KCQ enable failed\n");
+
+	if (adev->enable_mes) {
+		for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+			j = i + xcc_id * adev->gfx.num_compute_rings;
+			r = amdgpu_mes_map_legacy_queue(adev,
+					       &adev->gfx.compute_ring[j]);
+			if (r) {
+				DRM_ERROR("failed to map compute queue\n");
+				return r;
+			}
+		}
+
+		return 0;
+	}
 
 	return r;
 }
@@ -665,6 +683,20 @@ int amdgpu_gfx_enable_kgq(struct amdgpu_device *adev, int xcc_id)
 		return -EINVAL;
 
 	amdgpu_device_flush_hdp(adev, NULL);
+
+	if (adev->enable_mes) {
+		for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
+			j = i + xcc_id * adev->gfx.num_gfx_rings;
+			r = amdgpu_mes_map_legacy_queue(adev,
+							&adev->gfx.gfx_ring[j]);
+			if (r) {
+				DRM_ERROR("failed to map gfx queue\n");
+				return r;
+			}
+		}
+
+		return 0;
+	}
 
 	spin_lock(&kiq->ring_lock);
 	/* No need to map kcq on the slave */
