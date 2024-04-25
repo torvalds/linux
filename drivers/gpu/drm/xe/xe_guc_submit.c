@@ -52,7 +52,7 @@ exec_queue_to_guc(struct xe_exec_queue *q)
  * engine done being processed).
  */
 #define EXEC_QUEUE_STATE_REGISTERED		(1 << 0)
-#define ENGINE_STATE_ENABLED		(1 << 1)
+#define EXEC_QUEUE_STATE_ENABLED		(1 << 1)
 #define EXEC_QUEUE_STATE_PENDING_ENABLE	(1 << 2)
 #define EXEC_QUEUE_STATE_PENDING_DISABLE	(1 << 3)
 #define EXEC_QUEUE_STATE_DESTROYED		(1 << 4)
@@ -78,17 +78,17 @@ static void clear_exec_queue_registered(struct xe_exec_queue *q)
 
 static bool exec_queue_enabled(struct xe_exec_queue *q)
 {
-	return atomic_read(&q->guc->state) & ENGINE_STATE_ENABLED;
+	return atomic_read(&q->guc->state) & EXEC_QUEUE_STATE_ENABLED;
 }
 
 static void set_exec_queue_enabled(struct xe_exec_queue *q)
 {
-	atomic_or(ENGINE_STATE_ENABLED, &q->guc->state);
+	atomic_or(EXEC_QUEUE_STATE_ENABLED, &q->guc->state);
 }
 
 static void clear_exec_queue_enabled(struct xe_exec_queue *q)
 {
-	atomic_and(~ENGINE_STATE_ENABLED, &q->guc->state);
+	atomic_and(~EXEC_QUEUE_STATE_ENABLED, &q->guc->state);
 }
 
 static bool exec_queue_pending_enable(struct xe_exec_queue *q)
