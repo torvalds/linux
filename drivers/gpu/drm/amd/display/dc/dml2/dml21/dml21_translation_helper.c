@@ -104,7 +104,7 @@ void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_in
 		/* dcfclk */
 		if (dc_clk_table->num_entries_per_clk.num_dcfclk_levels) {
 			dml_clk_table->dcfclk.num_clk_values = dc_clk_table->num_entries_per_clk.num_dcfclk_levels;
-			for (i = 0; i < DML_MAX_CLK_TABLE_SIZE; i++) {
+			for (i = 0; i < min(DML_MAX_CLK_TABLE_SIZE, MAX_NUM_DPM_LVL); i++) {
 				if (i < dml_clk_table->dcfclk.num_clk_values) {
 					if (config->use_clock_dc_limits && dc_bw_params->dc_mode_limit.dcfclk_mhz &&
 							dc_clk_table->entries[i].dcfclk_mhz > dc_bw_params->dc_mode_limit.dcfclk_mhz) {
@@ -127,7 +127,7 @@ void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_in
 		/* fclk */
 		if (dc_clk_table->num_entries_per_clk.num_fclk_levels) {
 			dml_clk_table->fclk.num_clk_values = dc_clk_table->num_entries_per_clk.num_fclk_levels;
-			for (i = 0; i < DML_MAX_CLK_TABLE_SIZE; i++) {
+			for (i = 0; i < min(DML_MAX_CLK_TABLE_SIZE, MAX_NUM_DPM_LVL); i++) {
 				if (i < dml_clk_table->fclk.num_clk_values) {
 					if (config->use_clock_dc_limits && dc_bw_params->dc_mode_limit.fclk_mhz &&
 							dc_clk_table->entries[i].fclk_mhz > dc_bw_params->dc_mode_limit.fclk_mhz) {
@@ -150,7 +150,7 @@ void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_in
 		/* uclk */
 		if (dc_clk_table->num_entries_per_clk.num_memclk_levels) {
 			dml_clk_table->uclk.num_clk_values = dc_clk_table->num_entries_per_clk.num_memclk_levels;
-			for (i = 0; i < DML_MAX_CLK_TABLE_SIZE; i++) {
+			for (i = 0; i < min(DML_MAX_CLK_TABLE_SIZE, MAX_NUM_DPM_LVL); i++) {
 				if (i < dml_clk_table->uclk.num_clk_values) {
 					if (config->use_clock_dc_limits && dc_bw_params->dc_mode_limit.memclk_mhz &&
 							dc_clk_table->entries[i].memclk_mhz > dc_bw_params->dc_mode_limit.memclk_mhz) {
@@ -173,7 +173,7 @@ void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_in
 		/* dispclk */
 		if (dc_clk_table->num_entries_per_clk.num_dispclk_levels) {
 			dml_clk_table->dispclk.num_clk_values = dc_clk_table->num_entries_per_clk.num_dispclk_levels;
-			for (i = 0; i < DML_MAX_CLK_TABLE_SIZE; i++) {
+			for (i = 0; i < min(DML_MAX_CLK_TABLE_SIZE, MAX_NUM_DPM_LVL); i++) {
 				if (i < dml_clk_table->dispclk.num_clk_values) {
 					if (config->use_clock_dc_limits && dc_bw_params->dc_mode_limit.dispclk_mhz &&
 							dc_clk_table->entries[i].dispclk_mhz > dc_bw_params->dc_mode_limit.dispclk_mhz) {
@@ -196,7 +196,7 @@ void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_in
 		/* dppclk */
 		if (dc_clk_table->num_entries_per_clk.num_dppclk_levels) {
 			dml_clk_table->dppclk.num_clk_values = dc_clk_table->num_entries_per_clk.num_dppclk_levels;
-			for (i = 0; i < DML_MAX_CLK_TABLE_SIZE; i++) {
+			for (i = 0; i < min(DML_MAX_CLK_TABLE_SIZE, MAX_NUM_DPM_LVL); i++) {
 				if (i < dml_clk_table->dppclk.num_clk_values) {
 					if (config->use_clock_dc_limits && dc_bw_params->dc_mode_limit.dppclk_mhz &&
 							dc_clk_table->entries[i].dppclk_mhz > dc_bw_params->dc_mode_limit.dppclk_mhz) {
@@ -219,7 +219,7 @@ void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_in
 		/* dtbclk */
 		if (dc_clk_table->num_entries_per_clk.num_dtbclk_levels) {
 			dml_clk_table->dtbclk.num_clk_values = dc_clk_table->num_entries_per_clk.num_dtbclk_levels;
-			for (i = 0; i < DML_MAX_CLK_TABLE_SIZE; i++) {
+			for (i = 0; i < min(DML_MAX_CLK_TABLE_SIZE, MAX_NUM_DPM_LVL); i++) {
 				if (i < dml_clk_table->dtbclk.num_clk_values) {
 					if (config->use_clock_dc_limits && dc_bw_params->dc_mode_limit.dtbclk_mhz &&
 							dc_clk_table->entries[i].dtbclk_mhz > dc_bw_params->dc_mode_limit.dtbclk_mhz) {
@@ -242,7 +242,7 @@ void dml21_apply_soc_bb_overrides(struct dml2_initialize_instance_in_out *dml_in
 		/* socclk */
 		if (dc_clk_table->num_entries_per_clk.num_socclk_levels) {
 			dml_clk_table->socclk.num_clk_values = dc_clk_table->num_entries_per_clk.num_socclk_levels;
-			for (i = 0; i < DML_MAX_CLK_TABLE_SIZE; i++) {
+			for (i = 0; i < min(DML_MAX_CLK_TABLE_SIZE, MAX_NUM_DPM_LVL); i++) {
 				if (i < dml_clk_table->socclk.num_clk_values) {
 					if (config->use_clock_dc_limits && dc_bw_params->dc_mode_limit.socclk_mhz &&
 							dc_clk_table->entries[i].socclk_mhz > dc_bw_params->dc_mode_limit.socclk_mhz) {
