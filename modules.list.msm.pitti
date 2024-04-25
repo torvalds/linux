@@ -75,3 +75,4 @@ dispcc-pitti.ko
 qcom-cpufreq-hw.ko
 clk-smd-rpm.ko
 secure_buffer.ko
+ufshcd-crypto-qti.ko
