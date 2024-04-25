@@ -1106,7 +1106,7 @@ service_callback(struct vchiq_instance *instance, enum vchiq_reason reason,
 
 	user_service = (struct user_service *)service->base.userdata;
 
-	if (!instance || instance->closing) {
+	if (instance->closing) {
 		rcu_read_unlock();
 		return 0;
 	}
