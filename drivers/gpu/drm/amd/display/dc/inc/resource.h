@@ -442,6 +442,16 @@ int resource_get_odm_slice_count(const struct pipe_ctx *pipe);
 /* Get the ODM slice index counting from 0 from left most slice */
 int resource_get_odm_slice_index(const struct pipe_ctx *opp_head);
 
+/* Get ODM slice source rect in timing active as input to OPP block */
+struct rect resource_get_odm_slice_src_rect(struct pipe_ctx *pipe_ctx);
+
+/* Get ODM slice destination rect in timing active as output from OPP block */
+struct rect resource_get_odm_slice_dst_rect(struct pipe_ctx *pipe_ctx);
+
+/* Get ODM slice destination width in timing active as output from OPP block */
+int resource_get_odm_slice_dst_width(struct pipe_ctx *otg_master,
+		bool is_last_segment);
+
 /* determine if pipe topology is changed between state a and state b */
 bool resource_is_pipe_topology_changed(const struct dc_state *state_a,
 		const struct dc_state *state_b);

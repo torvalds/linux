@@ -816,37 +816,6 @@ static struct rect shift_rec(const struct rect *rec_in, int x, int y)
 	return rec_out;
 }
 
-static struct rect calculate_odm_slice_in_timing_active(struct pipe_ctx *pipe_ctx)
-{
-	const struct dc_stream_state *stream = pipe_ctx->stream;
-	int odm_slice_count = resource_get_odm_slice_count(pipe_ctx);
-	int odm_slice_idx = resource_get_odm_slice_index(pipe_ctx);
-	bool is_last_odm_slice = (odm_slice_idx + 1) == odm_slice_count;
-	int h_active = stream->timing.h_addressable +
-			stream->timing.h_border_left +
-			stream->timing.h_border_right;
-	int odm_slice_width = h_active / odm_slice_count;
-	struct rect odm_rec;
-	bool is_two_pixels_per_container =
-			pipe_ctx->stream_res.tg->funcs->is_two_pixels_per_container(&stream->timing);
-
-	if ((odm_slice_width % 2) && is_two_pixels_per_container)
-		odm_slice_width++;
-
-	odm_rec.x = odm_slice_width * odm_slice_idx;
-	odm_rec.width = is_last_odm_slice ?
-			/* last slice width is the reminder of h_active */
-			h_active - odm_slice_width * (odm_slice_count - 1) :
-			/* odm slice width is the floor of h_active / count */
-			odm_slice_width;
-	odm_rec.y = 0;
-	odm_rec.height = stream->timing.v_addressable +
-			stream->timing.v_border_bottom +
-			stream->timing.v_border_top;
-
-	return odm_rec;
-}
-
 static struct rect calculate_plane_rec_in_timing_active(
 		struct pipe_ctx *pipe_ctx,
 		const struct rect *rec_in)
@@ -1134,7 +1103,7 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx)
 	 */
 	struct rect plane_clip;
 	struct rect mpc_slice_of_plane_clip;
-	struct rect odm_slice;
+	struct rect odm_slice_src;
 	struct rect overlapping_area;
 
 	plane_clip = calculate_plane_rec_in_timing_active(pipe_ctx,
@@ -1144,16 +1113,16 @@ static void calculate_recout(struct pipe_ctx *pipe_ctx)
 				&pipe_ctx->stream->dst);
 	mpc_slice_of_plane_clip = calculate_mpc_slice_in_timing_active(
 			pipe_ctx, &plane_clip);
-	odm_slice = calculate_odm_slice_in_timing_active(pipe_ctx);
-	overlapping_area = intersect_rec(&mpc_slice_of_plane_clip, &odm_slice);
+	odm_slice_src = resource_get_odm_slice_src_rect(pipe_ctx);
+	overlapping_area = intersect_rec(&mpc_slice_of_plane_clip, &odm_slice_src);
 	if (overlapping_area.height > 0 &&
 			overlapping_area.width > 0) {
 		/* shift the overlapping area so it is with respect to current
-		 * ODM slice's position
+		 * ODM slice source's position
 		 */
 		pipe_ctx->plane_res.scl_data.recout = shift_rec(
 				&overlapping_area,
-				-odm_slice.x, -odm_slice.y);
+				-odm_slice_src.x, -odm_slice_src.y);
 		adjust_recout_for_visual_confirm(
 				&pipe_ctx->plane_res.scl_data.recout,
 				pipe_ctx);
@@ -1290,13 +1259,13 @@ static void calculate_inits_and_viewports(struct pipe_ctx *pipe_ctx)
 	struct rect recout_clip_in_active_timing;
 	struct rect recout_clip_in_recout_dst;
 	struct rect overlap_in_active_timing;
-	struct rect odm_slice = calculate_odm_slice_in_timing_active(pipe_ctx);
+	struct rect odm_slice_src = resource_get_odm_slice_src_rect(pipe_ctx);
 	int vpc_div = (data->format == PIXEL_FORMAT_420BPP8
 				|| data->format == PIXEL_FORMAT_420BPP10) ? 2 : 1;
 	bool orthogonal_rotation, flip_vert_scan_dir, flip_horz_scan_dir;
 
 	recout_clip_in_active_timing = shift_rec(
-			&data->recout, odm_slice.x, odm_slice.y);
+			&data->recout, odm_slice_src.x, odm_slice_src.y);
 	recout_dst_in_active_timing = calculate_plane_rec_in_timing_active(
 			pipe_ctx, &plane_state->dst_rect);
 	overlap_in_active_timing = intersect_rec(&recout_clip_in_active_timing,
@@ -1465,20 +1434,13 @@ static enum controller_dp_color_space convert_dp_to_controller_color_space(
 void resource_build_test_pattern_params(struct resource_context *res_ctx,
 				struct pipe_ctx *otg_master)
 {
-	int odm_slice_width, last_odm_slice_width, offset = 0;
 	struct pipe_ctx *opp_heads[MAX_PIPES];
 	struct test_pattern_params *params;
-	int odm_cnt = 1;
+	int odm_cnt;
 	enum controller_dp_test_pattern controller_test_pattern;
 	enum controller_dp_color_space controller_color_space;
 	enum dc_color_depth color_depth = otg_master->stream->timing.display_color_depth;
-	int h_active = otg_master->stream->timing.h_addressable +
-		otg_master->stream->timing.h_border_left +
-		otg_master->stream->timing.h_border_right;
-	int v_active = otg_master->stream->timing.v_addressable +
-		otg_master->stream->timing.v_border_bottom +
-		otg_master->stream->timing.v_border_top;
-	bool is_two_pixels_per_container = otg_master->stream_res.tg->funcs->is_two_pixels_per_container(&otg_master->stream->timing);
+	struct rect odm_slice_src;
 	int i;
 
 	controller_test_pattern = convert_dp_to_controller_test_pattern(
@@ -1491,25 +1453,15 @@ void resource_build_test_pattern_params(struct resource_context *res_ctx,
 
 	odm_cnt = resource_get_opp_heads_for_otg_master(otg_master, res_ctx, opp_heads);
 
-	odm_slice_width = h_active / odm_cnt;
-	if ((odm_slice_width % 2) && is_two_pixels_per_container)
-		odm_slice_width++;
-	last_odm_slice_width = h_active - odm_slice_width * (odm_cnt - 1);
-
 	for (i = 0; i < odm_cnt; i++) {
+		odm_slice_src = resource_get_odm_slice_src_rect(opp_heads[i]);
 		params = &opp_heads[i]->stream_res.test_pattern_params;
 		params->test_pattern = controller_test_pattern;
 		params->color_space = controller_color_space;
 		params->color_depth = color_depth;
-		params->height = v_active;
-		params->offset = offset;
-
-		if (i < odm_cnt - 1)
-			params->width = odm_slice_width;
-		else
-			params->width = last_odm_slice_width;
-
-		offset += odm_slice_width;
+		params->height = odm_slice_src.height;
+		params->offset = odm_slice_src.x;
+		params->width = odm_slice_src.width;
 	}
 }
 
@@ -1517,7 +1469,7 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 {
 	const struct dc_plane_state *plane_state = pipe_ctx->plane_state;
 	struct dc_crtc_timing *timing = &pipe_ctx->stream->timing;
-	const struct rect odm_slice_rec = calculate_odm_slice_in_timing_active(pipe_ctx);
+	const struct rect odm_slice_src = resource_get_odm_slice_src_rect(pipe_ctx);
 	bool res = false;
 
 	DC_LOGGER_INIT(pipe_ctx->stream->ctx->logger);
@@ -1540,8 +1492,8 @@ bool resource_build_scaling_params(struct pipe_ctx *pipe_ctx)
 	pipe_ctx->stream->dst.y += timing->v_border_top;
 
 	/* Calculate H and V active size */
-	pipe_ctx->plane_res.scl_data.h_active = odm_slice_rec.width;
-	pipe_ctx->plane_res.scl_data.v_active = odm_slice_rec.height;
+	pipe_ctx->plane_res.scl_data.h_active = odm_slice_src.width;
+	pipe_ctx->plane_res.scl_data.v_active = odm_slice_src.height;
 	pipe_ctx->plane_res.scl_data.format = convert_pixel_format_to_dalsurface(
 			pipe_ctx->plane_state->format);
 
@@ -2112,6 +2064,63 @@ int resource_get_odm_slice_index(const struct pipe_ctx *pipe_ctx)
 	}
 
 	return index;
+}
+
+int resource_get_odm_slice_dst_width(struct pipe_ctx *otg_master,
+		bool is_last_segment)
+{
+	const struct dc_crtc_timing *timing = &otg_master->stream->timing;
+	int count = resource_get_odm_slice_count(otg_master);
+	int h_active = timing->h_addressable +
+			timing->h_border_left +
+			timing->h_border_right;
+	int width = h_active / count;
+	bool two_pixel_alignment_required =
+			otg_master->stream_res.tg->funcs->is_two_pixels_per_container(timing);
+
+	if ((width % 2) && two_pixel_alignment_required)
+		width++;
+
+	return is_last_segment ?
+			h_active - width * (count - 1) :
+			width;
+}
+
+struct rect resource_get_odm_slice_dst_rect(struct pipe_ctx *pipe_ctx)
+{
+	const struct dc_stream_state *stream = pipe_ctx->stream;
+	bool is_last_odm_slice = pipe_ctx->next_odm_pipe == NULL;
+	struct pipe_ctx *otg_master = resource_get_otg_master(pipe_ctx);
+	int odm_slice_idx = resource_get_odm_slice_index(pipe_ctx);
+	int odm_segment_offset = resource_get_odm_slice_dst_width(otg_master, false);
+	struct rect odm_slice_dst;
+
+	odm_slice_dst.x = odm_segment_offset * odm_slice_idx;
+	odm_slice_dst.width = resource_get_odm_slice_dst_width(otg_master, is_last_odm_slice);
+	odm_slice_dst.y = 0;
+	odm_slice_dst.height = stream->timing.v_addressable +
+			stream->timing.v_border_bottom +
+			stream->timing.v_border_top;
+
+	return odm_slice_dst;
+}
+
+struct rect resource_get_odm_slice_src_rect(struct pipe_ctx *pipe_ctx)
+{
+	struct rect odm_slice_dst;
+	struct rect odm_slice_src;
+	struct pipe_ctx *opp_head = resource_get_opp_head(pipe_ctx);
+	uint32_t left_edge_extra_pixel_count;
+
+	odm_slice_dst = resource_get_odm_slice_dst_rect(opp_head);
+	odm_slice_src = odm_slice_dst;
+
+	left_edge_extra_pixel_count = 0;
+
+	odm_slice_src.x -= left_edge_extra_pixel_count;
+	odm_slice_src.width += left_edge_extra_pixel_count;
+
+	return odm_slice_src;
 }
 
 bool resource_is_pipe_topology_changed(const struct dc_state *state_a,
