@@ -67,6 +67,7 @@ extern int xfs_dir_canenter(struct xfs_trans *tp, struct xfs_inode *dp,
 				struct xfs_name *name);
 
 int xfs_dir_lookup_args(struct xfs_da_args *args);
+int xfs_dir_createname_args(struct xfs_da_args *args);
 
 /*
  * Direct call from the bmap code, bypassing the generic directory layer.

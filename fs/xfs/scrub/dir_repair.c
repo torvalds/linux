@@ -687,7 +687,6 @@ xrep_dir_replay_createname(
 {
 	struct xfs_scrub	*sc = rd->sc;
 	struct xfs_inode	*dp = rd->sc->tempip;
-	bool			is_block, is_leaf;
 	int			error;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
@@ -702,23 +701,7 @@ xrep_dir_replay_createname(
 	rd->args.inumber = inum;
 	rd->args.total = total;
 	rd->args.op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
-
-	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
-		return xfs_dir2_sf_addname(&rd->args);
-
-	error = xfs_dir2_isblock(&rd->args, &is_block);
-	if (error)
-		return error;
-	if (is_block)
-		return xfs_dir2_block_addname(&rd->args);
-
-	error = xfs_dir2_isleaf(&rd->args, &is_leaf);
-	if (error)
-		return error;
-	if (is_leaf)
-		return xfs_dir2_leaf_addname(&rd->args);
-
-	return xfs_dir2_node_addname(&rd->args);
+	return xfs_dir_createname_args(&rd->args);
 }
 
 /* Replay a stashed removename onto the temporary directory. */

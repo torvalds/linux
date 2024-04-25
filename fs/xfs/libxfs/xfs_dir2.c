@@ -256,6 +256,33 @@ xfs_dir_init(
 	return error;
 }
 
+int
+xfs_dir_createname_args(
+	struct xfs_da_args	*args)
+{
+	bool			is_block, is_leaf;
+	int			error;
+
+	if (!args->inumber)
+		args->op_flags |= XFS_DA_OP_JUSTCHECK;
+
+	if (args->dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
+		return xfs_dir2_sf_addname(args);
+
+	error = xfs_dir2_isblock(args, &is_block);
+	if (error)
+		return error;
+	if (is_block)
+		return xfs_dir2_block_addname(args);
+
+	error = xfs_dir2_isleaf(args, &is_leaf);
+	if (error)
+		return error;
+	if (is_leaf)
+		return xfs_dir2_leaf_addname(args);
+	return xfs_dir2_node_addname(args);
+}
+
 /*
  * Enter a name in a directory, or check for available space.
  * If inum is 0, only the available space test is performed.
@@ -270,7 +297,6 @@ xfs_dir_createname(
 {
 	struct xfs_da_args	*args;
 	int			rval;
-	bool			v;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 
@@ -297,31 +323,8 @@ xfs_dir_createname(
 	args->trans = tp;
 	args->op_flags = XFS_DA_OP_ADDNAME | XFS_DA_OP_OKNOENT;
 	args->owner = dp->i_ino;
-	if (!inum)
-		args->op_flags |= XFS_DA_OP_JUSTCHECK;
 
-	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
-		rval = xfs_dir2_sf_addname(args);
-		goto out_free;
-	}
-
-	rval = xfs_dir2_isblock(args, &v);
-	if (rval)
-		goto out_free;
-	if (v) {
-		rval = xfs_dir2_block_addname(args);
-		goto out_free;
-	}
-
-	rval = xfs_dir2_isleaf(args, &v);
-	if (rval)
-		goto out_free;
-	if (v)
-		rval = xfs_dir2_leaf_addname(args);
-	else
-		rval = xfs_dir2_node_addname(args);
-
-out_free:
+	rval = xfs_dir_createname_args(args);
 	kfree(args);
 	return rval;
 }
