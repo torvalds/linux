@@ -508,18 +508,7 @@ void bch2_trans_node_iter_init(struct btree_trans *, struct btree_iter *,
 			       unsigned, unsigned, unsigned);
 void bch2_trans_copy_iter(struct btree_iter *, struct btree_iter *);
 
-static inline void set_btree_iter_dontneed(struct btree_iter *iter)
-{
-	struct btree_trans *trans = iter->trans;
-
-	if (!iter->path || trans->restarted)
-		return;
-
-	struct btree_path *path = btree_iter_path(trans, iter);
-	path->preserve		= false;
-	if (path->ref == 1)
-		path->should_be_locked	= false;
-}
+void bch2_set_btree_iter_dontneed(struct btree_iter *);
 
 void *__bch2_trans_kmalloc(struct btree_trans *, size_t);
 

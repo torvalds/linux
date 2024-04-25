@@ -456,7 +456,7 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 	bch2_btree_node_unlock_write(trans, ck_path, ck_path->l[0].b);
 
 	/* We're not likely to need this iterator again: */
-	set_btree_iter_dontneed(&iter);
+	bch2_set_btree_iter_dontneed(&iter);
 err:
 	bch2_trans_iter_exit(trans, &iter);
 	return ret;

@@ -1822,6 +1822,19 @@ hole:
 	return (struct bkey_s_c) { u, NULL };
 }
 
+
+void bch2_set_btree_iter_dontneed(struct btree_iter *iter)
+{
+	struct btree_trans *trans = iter->trans;
+
+	if (!iter->path || trans->restarted)
+		return;
+
+	struct btree_path *path = btree_iter_path(trans, iter);
+	path->preserve		= false;
+	if (path->ref == 1)
+		path->should_be_locked	= false;
+}
 /* Btree iterators: */
 
 int __must_check

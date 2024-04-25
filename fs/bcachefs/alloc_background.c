@@ -1303,7 +1303,7 @@ static noinline_for_stack int bch2_check_discard_freespace_key(struct btree_tran
 		goto delete;
 out:
 fsck_err:
-	set_btree_iter_dontneed(&alloc_iter);
+	bch2_set_btree_iter_dontneed(&alloc_iter);
 	bch2_trans_iter_exit(trans, &alloc_iter);
 	printbuf_exit(&buf);
 	return ret;
