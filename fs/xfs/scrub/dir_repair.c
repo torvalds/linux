@@ -712,8 +712,6 @@ xrep_dir_replay_removename(
 	xfs_extlen_t		total)
 {
 	struct xfs_inode	*dp = rd->args.dp;
-	bool			is_block, is_leaf;
-	int			error;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 
@@ -722,23 +720,7 @@ xrep_dir_replay_removename(
 	rd->args.total = total;
 
 	trace_xrep_dir_replay_removename(dp, name, 0);
-
-	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
-		return xfs_dir2_sf_removename(&rd->args);
-
-	error = xfs_dir2_isblock(&rd->args, &is_block);
-	if (error)
-		return error;
-	if (is_block)
-		return xfs_dir2_block_removename(&rd->args);
-
-	error = xfs_dir2_isleaf(&rd->args, &is_leaf);
-	if (error)
-		return error;
-	if (is_leaf)
-		return xfs_dir2_leaf_removename(&rd->args);
-
-	return xfs_dir2_node_removename(&rd->args);
+	return xfs_dir_removename_args(&rd->args);
 }
 
 /*
