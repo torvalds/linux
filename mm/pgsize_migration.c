@@ -195,7 +195,7 @@ static inline bool linker_ctx(void)
  *    2) The range ends at the end address of the VMA
  *    3) The range starts at an address greater than the start address of the VMA
  *    4) The number of the pages in the range does not exceed VM_TOTAL_PAD_PAGES.
- *    5) The VMA is a regular file backed VMA (filemap_fault)
+ *    5) The VMA is a file backed VMA.
  *    6) The file backing the VMA is a shared library (*.so)
  *    7) The madvise was requested by bionic's dynamic linker.
  */
@@ -220,7 +220,7 @@ void madvise_vma_pad_pages(struct vm_area_struct *vma,
 		return;
 
 	/* Only handle this for file backed VMAs */
-	if (!vma->vm_file || !vma->vm_ops || vma->vm_ops->fault != filemap_fault)
+	if (!vma->vm_file)
 		return;
 
 	/* Limit this to only shared libraries (*.so) */
