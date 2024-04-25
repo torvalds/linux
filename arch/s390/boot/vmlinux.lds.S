@@ -99,14 +99,12 @@ SECTIONS
 
 	_decompressor_end = .;
 
-#ifndef CONFIG_PIE_BUILD
 	. = ALIGN(4);
 	.vmlinux.relocs : {
 		__vmlinux_relocs_64_start = .;
 		*(.vmlinux.relocs_64)
 		__vmlinux_relocs_64_end = .;
 	}
-#endif
 
 #ifdef CONFIG_KERNEL_UNCOMPRESSED
 	. = ALIGN(PAGE_SIZE);

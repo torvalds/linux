@@ -14,14 +14,9 @@ KBUILD_AFLAGS_MODULE += -fPIC
 KBUILD_CFLAGS_MODULE += -fPIC
 KBUILD_AFLAGS	+= -m64
 KBUILD_CFLAGS	+= -m64
-ifdef CONFIG_PIE_BUILD
-KBUILD_CFLAGS	+= -fPIE
-LDFLAGS_vmlinux	:= -pie -z notext
-else
-KBUILD_CFLAGS	+= $(call cc-option,-munaligned-symbols,)
-LDFLAGS_vmlinux	:= --emit-relocs --discard-none
+KBUILD_CFLAGS	+= -fPIC
+LDFLAGS_vmlinux	:= -no-pie --emit-relocs --discard-none
 extra_tools	:= relocs
-endif
 aflags_dwarf	:= -Wa,-gdwarf-2
 KBUILD_AFLAGS_DECOMPRESSOR := $(CLANG_FLAGS) -m64 -D__ASSEMBLY__
 ifndef CONFIG_AS_IS_LLVM

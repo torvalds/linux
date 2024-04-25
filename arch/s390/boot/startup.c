@@ -151,41 +151,6 @@ static void copy_bootdata(void)
 	memcpy((void *)vmlinux.bootdata_preserved_off, __boot_data_preserved_start, vmlinux.bootdata_preserved_size);
 }
 
-#ifdef CONFIG_PIE_BUILD
-static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr,
-				unsigned long offset, unsigned long phys_offset)
-{
-	Elf64_Rela *rela_start, *rela_end, *rela;
-	int r_type, r_sym, rc;
-	Elf64_Addr loc, val;
-	Elf64_Sym *dynsym;
-
-	rela_start = (Elf64_Rela *) vmlinux.rela_dyn_start;
-	rela_end = (Elf64_Rela *) vmlinux.rela_dyn_end;
-	dynsym = (Elf64_Sym *) vmlinux.dynsym_start;
-	for (rela = rela_start; rela < rela_end; rela++) {
-		loc = rela->r_offset + phys_offset - __START_KERNEL;
-		val = rela->r_addend;
-		r_sym = ELF64_R_SYM(rela->r_info);
-		if (r_sym) {
-			if (dynsym[r_sym].st_shndx != SHN_UNDEF)
-				val += dynsym[r_sym].st_value + offset - __START_KERNEL;
-		} else {
-			/*
-			 * 0 == undefined symbol table index (SHN_UNDEF),
-			 * used for R_390_RELATIVE, only add KASLR offset
-			 */
-			val += offset - __START_KERNEL;
-		}
-		r_type = ELF64_R_TYPE(rela->r_info);
-		rc = arch_kexec_do_relocs(r_type, (void *) loc, val, 0);
-		if (rc)
-			error("Unknown relocation type");
-	}
-}
-
-static void kaslr_adjust_got(unsigned long offset) {}
-#else
 static void kaslr_adjust_relocs(unsigned long min_addr, unsigned long max_addr,
 				unsigned long offset, unsigned long phys_offset)
 {
@@ -212,7 +177,6 @@ static void kaslr_adjust_got(unsigned long offset)
 	for (entry = (u64 *)vmlinux.got_start; entry < (u64 *)vmlinux.got_end; entry++)
 		*entry += offset - __START_KERNEL;
 }
-#endif
 
 /*
  * Merge information from several sources into a single ident_map_size value.
@@ -398,14 +362,8 @@ static void kaslr_adjust_vmlinux_info(long offset)
 {
 	vmlinux.bootdata_off += offset;
 	vmlinux.bootdata_preserved_off += offset;
-#ifdef CONFIG_PIE_BUILD
-	vmlinux.rela_dyn_start += offset;
-	vmlinux.rela_dyn_end += offset;
-	vmlinux.dynsym_start += offset;
-#else
 	vmlinux.got_start += offset;
 	vmlinux.got_end += offset;
-#endif
 	vmlinux.init_mm_off += offset;
 	vmlinux.swapper_pg_dir_off += offset;
 	vmlinux.invalid_pg_dir_off += offset;
