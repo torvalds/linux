@@ -2186,6 +2186,9 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 		amdgpu_debugfs_vcn_fwlog_init(adev, i, &adev->vcn.inst[i]);
 	}
 
+	if (amdgpu_umsch_mm & amdgpu_umsch_mm_fwlog)
+		amdgpu_debugfs_umsch_fwlog_init(adev, &adev->umsch_mm);
+
 	amdgpu_ras_debugfs_create_all(adev);
 	amdgpu_rap_debugfs_init(adev);
 	amdgpu_securedisplay_debugfs_init(adev);
