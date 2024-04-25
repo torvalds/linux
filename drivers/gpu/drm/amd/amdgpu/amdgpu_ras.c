@@ -2804,8 +2804,8 @@ static void amdgpu_ras_do_page_retirement(struct work_struct *work)
 	mutex_unlock(&con->umc_ecc_log.lock);
 }
 
-static int amdgpu_ras_query_ecc_status(struct amdgpu_device *adev,
-			enum amdgpu_ras_block ras_block, uint32_t timeout_ms)
+static void amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
+				uint32_t timeout_ms)
 {
 	int ret = 0;
 	struct ras_ecc_log_info *ecc_log;
@@ -2814,7 +2814,7 @@ static int amdgpu_ras_query_ecc_status(struct amdgpu_device *adev,
 	struct amdgpu_ras *ras = amdgpu_ras_get_context(adev);
 
 	memset(&info, 0, sizeof(info));
-	info.head.block = ras_block;
+	info.head.block = AMDGPU_RAS_BLOCK__UMC;
 
 	ecc_log = &ras->umc_ecc_log;
 	ecc_log->de_updated = false;
@@ -2822,7 +2822,7 @@ static int amdgpu_ras_query_ecc_status(struct amdgpu_device *adev,
 		ret = amdgpu_ras_query_error_status(adev, &info);
 		if (ret) {
 			dev_err(adev->dev, "Failed to query ras error! ret:%d\n", ret);
-			return ret;
+			return;
 		}
 
 		if (timeout && !ecc_log->de_updated) {
@@ -2833,21 +2833,11 @@ static int amdgpu_ras_query_ecc_status(struct amdgpu_device *adev,
 
 	if (timeout_ms && !timeout) {
 		dev_warn(adev->dev, "Can't find deferred error\n");
-		return -ETIMEDOUT;
+		return;
 	}
 
-	return 0;
-}
-
-static void amdgpu_ras_poison_creation_handler(struct amdgpu_device *adev,
-					uint32_t timeout)
-{
-	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
-	int ret;
-
-	ret = amdgpu_ras_query_ecc_status(adev, AMDGPU_RAS_BLOCK__UMC, timeout);
 	if (!ret)
-		schedule_delayed_work(&con->page_retirement_dwork, 0);
+		schedule_delayed_work(&ras->page_retirement_dwork, 0);
 }
 
 static int amdgpu_ras_poison_consumption_handler(struct amdgpu_device *adev,
