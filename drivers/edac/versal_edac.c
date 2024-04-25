@@ -865,6 +865,9 @@ static ssize_t inject_data_ue_store(struct file *file, const char __user *data,
 	for (i = 0; i < NUM_UE_BITPOS; i++)
 		token[i] = strsep(&pbuf, ",");
 
+	if (!token[0] || !token[1])
+		return -EFAULT;
+
 	ret = kstrtou8(token[0], 0, &ue0);
 	if (ret)
 		return ret;
