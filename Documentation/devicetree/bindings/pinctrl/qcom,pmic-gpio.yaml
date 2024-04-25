@@ -309,7 +309,7 @@ allOf:
 
   - if:
       properties:
-        comptaible:
+        compatible:
           contains:
             enum:
               - qcom,pmih0108-gpio
