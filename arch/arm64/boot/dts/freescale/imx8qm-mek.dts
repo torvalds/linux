@@ -104,6 +104,49 @@
 	status = "okay";
 };
 
+&i2c0 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	clock-frequency = <100000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c0>;
+	status = "okay";
+
+	accelerometer@19 {
+		compatible = "st,lsm303agr-accel";
+		reg = <0x19>;
+	};
+
+	gyrometer@20 {
+		compatible = "nxp,fxas21002c";
+		reg = <0x20>;
+	};
+
+	light-sensor@44 {
+		compatible = "isil,isl29023";
+		reg = <0x44>;
+		interrupt-parent = <&lsio_gpio4>;
+		interrupts = <11 2>;
+	};
+
+	pressure-sensor@60 {
+		compatible = "fsl,mpl3115";
+		reg = <0x60>;
+	};
+
+	max7322: gpio@68 {
+		compatible = "maxim,max7322";
+		reg = <0x68>;
+		gpio-controller;
+		#gpio-cells = <2>;
+	};
+
+	gyrometer@69 {
+		compatible = "st,l3g4200d-gyro";
+		reg = <0x69>;
+	};
+};
+
 &i2c1 {
 	#address-cells = <1>;
 	#size-cells = <0>;
@@ -279,6 +322,13 @@
 		fsl,pins = <
 			IMX8QM_MCLK_OUT0_AUD_ACM_MCLK_OUT0			0x0600004c
 			IMX8QM_SCU_GPIO0_03_LSIO_GPIO0_IO31			0x0600004c
+		>;
+	};
+
+	pinctrl_i2c0: i2c0grp {
+		fsl,pins = <
+			IMX8QM_HDMI_TX0_TS_SCL_DMA_I2C0_SCL			0x06000021
+			IMX8QM_HDMI_TX0_TS_SDA_DMA_I2C0_SDA			0x06000021
 		>;
 	};
 
