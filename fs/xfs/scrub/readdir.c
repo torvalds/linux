@@ -328,7 +328,6 @@ xchk_dir_lookup(
 		.op_flags	= XFS_DA_OP_OKNOENT,
 		.owner		= dp->i_ino,
 	};
-	bool			isblock, isleaf;
 	int			error;
 
 	if (xfs_is_shutdown(dp->i_mount))
@@ -344,39 +343,7 @@ xchk_dir_lookup(
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
 	xfs_assert_ilocked(dp, XFS_ILOCK_SHARED | XFS_ILOCK_EXCL);
 
-	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
-		error = xfs_dir2_sf_lookup(&args);
-		goto out_check_rval;
-	}
-
-	/* dir2 functions require that the data fork is loaded */
-	error = xfs_iread_extents(sc->tp, dp, XFS_DATA_FORK);
-	if (error)
-		return error;
-
-	error = xfs_dir2_isblock(&args, &isblock);
-	if (error)
-		return error;
-
-	if (isblock) {
-		error = xfs_dir2_block_lookup(&args);
-		goto out_check_rval;
-	}
-
-	error = xfs_dir2_isleaf(&args, &isleaf);
-	if (error)
-		return error;
-
-	if (isleaf) {
-		error = xfs_dir2_leaf_lookup(&args);
-		goto out_check_rval;
-	}
-
-	error = xfs_dir2_node_lookup(&args);
-
-out_check_rval:
-	if (error == -EEXIST)
-		error = 0;
+	error = xfs_dir_lookup_args(&args);
 	if (!error)
 		*ino = args.inumber;
 	return error;

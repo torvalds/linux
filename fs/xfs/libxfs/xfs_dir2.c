@@ -352,6 +352,45 @@ xfs_dir_cilookup_result(
 	return -EEXIST;
 }
 
+int
+xfs_dir_lookup_args(
+	struct xfs_da_args	*args)
+{
+	bool			is_block, is_leaf;
+	int			error;
+
+	if (args->dp->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
+		error = xfs_dir2_sf_lookup(args);
+		goto out;
+	}
+
+	/* dir2 functions require that the data fork is loaded */
+	error = xfs_iread_extents(args->trans, args->dp, XFS_DATA_FORK);
+	if (error)
+		goto out;
+
+	error = xfs_dir2_isblock(args, &is_block);
+	if (error)
+		goto out;
+
+	if (is_block) {
+		error = xfs_dir2_block_lookup(args);
+		goto out;
+	}
+
+	error = xfs_dir2_isleaf(args, &is_leaf);
+	if (error)
+		goto out;
+	if (is_leaf)
+		error = xfs_dir2_leaf_lookup(args);
+	else
+		error = xfs_dir2_node_lookup(args);
+out:
+	if (error != -EEXIST)
+		return error;
+	return 0;
+}
+
 /*
  * Lookup a name in a directory, give back the inode number.
  * If ci_name is not NULL, returns the actual name in ci_name if it differs
@@ -368,7 +407,6 @@ xfs_dir_lookup(
 {
 	struct xfs_da_args	*args;
 	int			rval;
-	bool			v;
 	int			lock_mode;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
@@ -390,30 +428,7 @@ xfs_dir_lookup(
 		args->op_flags |= XFS_DA_OP_CILOOKUP;
 
 	lock_mode = xfs_ilock_data_map_shared(dp);
-	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL) {
-		rval = xfs_dir2_sf_lookup(args);
-		goto out_check_rval;
-	}
-
-	rval = xfs_dir2_isblock(args, &v);
-	if (rval)
-		goto out_free;
-	if (v) {
-		rval = xfs_dir2_block_lookup(args);
-		goto out_check_rval;
-	}
-
-	rval = xfs_dir2_isleaf(args, &v);
-	if (rval)
-		goto out_free;
-	if (v)
-		rval = xfs_dir2_leaf_lookup(args);
-	else
-		rval = xfs_dir2_node_lookup(args);
-
-out_check_rval:
-	if (rval == -EEXIST)
-		rval = 0;
+	rval = xfs_dir_lookup_args(args);
 	if (!rval) {
 		*inum = args->inumber;
 		if (ci_name) {
@@ -421,7 +436,6 @@ out_check_rval:
 			ci_name->len = args->valuelen;
 		}
 	}
-out_free:
 	xfs_iunlock(dp, lock_mode);
 	kfree(args);
 	return rval;
