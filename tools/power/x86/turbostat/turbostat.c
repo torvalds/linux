@@ -1377,36 +1377,42 @@ struct sys_counters {
 	struct msr_counter *pp;
 } sys;
 
-void free_sys_counters(void)
+static size_t free_msr_counters_(struct msr_counter **pp)
 {
-	struct msr_counter *p = sys.tp, *pnext = NULL;
+	struct msr_counter *p = NULL;
+	size_t num_freed = 0;
 
-	while (p) {
-		pnext = p->next;
-		free(p);
-		p = pnext;
+	while (*pp) {
+		p = *pp;
+
+		if (p->msr_num != 0) {
+			*pp = p->next;
+
+			free(p);
+			++num_freed;
+
+			continue;
+		}
+
+		pp = &p->next;
 	}
 
-	p = sys.cp, pnext = NULL;
-	while (p) {
-		pnext = p->next;
-		free(p);
-		p = pnext;
-	}
+	return num_freed;
+}
 
-	p = sys.pp, pnext = NULL;
-	while (p) {
-		pnext = p->next;
-		free(p);
-		p = pnext;
-	}
+/*
+ * Free all added counters accessed via msr.
+ */
+static void free_sys_msr_counters(void)
+{
+	/* Thread counters */
+	sys.added_thread_counters -= free_msr_counters_(&sys.tp);
 
-	sys.added_thread_counters = 0;
-	sys.added_core_counters = 0;
-	sys.added_package_counters = 0;
-	sys.tp = NULL;
-	sys.cp = NULL;
-	sys.pp = NULL;
+	/* Core counters */
+	sys.added_core_counters -= free_msr_counters_(&sys.cp);
+
+	/* Package counters */
+	sys.added_package_counters -= free_msr_counters_(&sys.pp);
 }
 
 struct system_summary {
@@ -1566,7 +1572,7 @@ static void bic_disable_msr_access(void)
 
 	bic_enabled &= ~bic_msrs;
 
-	free_sys_counters();
+	free_sys_msr_counters();
 }
 
 static long perf_event_open(struct perf_event_attr *hw_event, pid_t pid, int cpu, int group_fd, unsigned long flags)
