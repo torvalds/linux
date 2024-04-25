@@ -635,8 +635,7 @@ static void call_rcu_nocb(struct rcu_data *rdp, struct rcu_head *head,
 	}
 }
 
-static int nocb_gp_toggle_rdp(struct rcu_data *rdp,
-			       bool *wake_state)
+static int nocb_gp_toggle_rdp(struct rcu_data *rdp)
 {
 	struct rcu_segcblist *cblist = &rdp->cblist;
 	unsigned long flags;
@@ -650,8 +649,6 @@ static int nocb_gp_toggle_rdp(struct rcu_data *rdp,
 		 * We will handle this rdp until it ever gets de-offloaded.
 		 */
 		rcu_segcblist_set_flags(cblist, SEGCBLIST_KTHREAD_GP);
-		if (rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB))
-			*wake_state = true;
 		ret = 1;
 	} else if (!rcu_segcblist_test_flags(cblist, SEGCBLIST_OFFLOADED) &&
 		   rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP)) {
@@ -660,8 +657,6 @@ static int nocb_gp_toggle_rdp(struct rcu_data *rdp,
 		 * We will ignore this rdp until it ever gets re-offloaded.
 		 */
 		rcu_segcblist_clear_flags(cblist, SEGCBLIST_KTHREAD_GP);
-		if (!rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB))
-			*wake_state = true;
 		ret = 0;
 	} else {
 		WARN_ON_ONCE(1);
@@ -877,16 +872,15 @@ static void nocb_gp_wait(struct rcu_data *my_rdp)
 	}
 
 	if (rdp_toggling) {
-		bool wake_state = false;
 		int ret;
 
-		ret = nocb_gp_toggle_rdp(rdp_toggling, &wake_state);
+		ret = nocb_gp_toggle_rdp(rdp_toggling);
 		if (ret == 1)
 			list_add_tail(&rdp_toggling->nocb_entry_rdp, &my_rdp->nocb_head_rdp);
 		else if (ret == 0)
 			list_del(&rdp_toggling->nocb_entry_rdp);
-		if (wake_state)
-			swake_up_one(&rdp_toggling->nocb_state_wq);
+
+		swake_up_one(&rdp_toggling->nocb_state_wq);
 	}
 
 	my_rdp->nocb_gp_seq = -1;
@@ -913,16 +907,9 @@ static int rcu_nocb_gp_kthread(void *arg)
 	return 0;
 }
 
-static inline bool nocb_cb_can_run(struct rcu_data *rdp)
-{
-	u8 flags = SEGCBLIST_OFFLOADED | SEGCBLIST_KTHREAD_CB;
-
-	return rcu_segcblist_test_flags(&rdp->cblist, flags);
-}
-
 static inline bool nocb_cb_wait_cond(struct rcu_data *rdp)
 {
-	return nocb_cb_can_run(rdp) && !READ_ONCE(rdp->nocb_cb_sleep);
+	return !READ_ONCE(rdp->nocb_cb_sleep) || kthread_should_park();
 }
 
 /*
@@ -934,21 +921,19 @@ static void nocb_cb_wait(struct rcu_data *rdp)
 	struct rcu_segcblist *cblist = &rdp->cblist;
 	unsigned long cur_gp_seq;
 	unsigned long flags;
-	bool needwake_state = false;
 	bool needwake_gp = false;
-	bool can_sleep = true;
 	struct rcu_node *rnp = rdp->mynode;
 
-	do {
-		swait_event_interruptible_exclusive(rdp->nocb_cb_wq,
-						    nocb_cb_wait_cond(rdp));
+	swait_event_interruptible_exclusive(rdp->nocb_cb_wq,
+					    nocb_cb_wait_cond(rdp));
+	if (kthread_should_park()) {
+		kthread_parkme();
+	} else if (READ_ONCE(rdp->nocb_cb_sleep)) {
+		WARN_ON(signal_pending(current));
+		trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("WokeEmpty"));
+	}
 
-		if (READ_ONCE(rdp->nocb_cb_sleep)) {
-			WARN_ON(signal_pending(current));
-			trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("WokeEmpty"));
-		}
-	} while (!nocb_cb_can_run(rdp));
-
+	WARN_ON_ONCE(!rcu_rdp_is_offloaded(rdp));
 
 	local_irq_save(flags);
 	rcu_momentary_dyntick_idle();
@@ -971,37 +956,16 @@ static void nocb_cb_wait(struct rcu_data *rdp)
 		raw_spin_unlock_rcu_node(rnp); /* irqs remain disabled. */
 	}
 
-	if (rcu_segcblist_test_flags(cblist, SEGCBLIST_OFFLOADED)) {
-		if (!rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB)) {
-			rcu_segcblist_set_flags(cblist, SEGCBLIST_KTHREAD_CB);
-			if (rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP))
-				needwake_state = true;
-		}
-		if (rcu_segcblist_ready_cbs(cblist))
-			can_sleep = false;
-	} else {
-		/*
-		 * De-offloading. Clear our flag and notify the de-offload worker.
-		 * We won't touch the callbacks and keep sleeping until we ever
-		 * get re-offloaded.
-		 */
-		WARN_ON_ONCE(!rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB));
-		rcu_segcblist_clear_flags(cblist, SEGCBLIST_KTHREAD_CB);
-		if (!rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP))
-			needwake_state = true;
-	}
-
-	WRITE_ONCE(rdp->nocb_cb_sleep, can_sleep);
-
-	if (rdp->nocb_cb_sleep)
+	if (!rcu_segcblist_ready_cbs(cblist)) {
+		WRITE_ONCE(rdp->nocb_cb_sleep, true);
 		trace_rcu_nocb_wake(rcu_state.name, rdp->cpu, TPS("CBSleep"));
+	} else {
+		WRITE_ONCE(rdp->nocb_cb_sleep, false);
+	}
 
 	rcu_nocb_unlock_irqrestore(rdp, flags);
 	if (needwake_gp)
 		rcu_gp_kthread_wake();
-
-	if (needwake_state)
-		swake_up_one(&rdp->nocb_state_wq);
 }
 
 /*
@@ -1094,16 +1058,7 @@ static int rdp_offload_toggle(struct rcu_data *rdp,
 	bool wake_gp = false;
 
 	rcu_segcblist_offload(cblist, offload);
-
-	if (rdp->nocb_cb_sleep)
-		rdp->nocb_cb_sleep = false;
 	rcu_nocb_unlock_irqrestore(rdp, flags);
-
-	/*
-	 * Ignore former value of nocb_cb_sleep and force wake up as it could
-	 * have been spuriously set to false already.
-	 */
-	swake_up_one(&rdp->nocb_cb_wq);
 
 	raw_spin_lock_irqsave(&rdp_gp->nocb_gp_lock, flags);
 	// Queue this rdp for add/del to/from the list to iterate on rcuog
@@ -1161,19 +1116,11 @@ static long rcu_nocb_rdp_deoffload(void *arg)
 		if (wake_gp)
 			wake_up_process(rdp_gp->nocb_gp_kthread);
 
-		/*
-		 * If rcuo[p] kthread spawn failed, directly remove SEGCBLIST_KTHREAD_CB.
-		 * Just wait SEGCBLIST_KTHREAD_GP to be cleared by rcuog.
-		 */
-		if (!rdp->nocb_cb_kthread) {
-			rcu_nocb_lock_irqsave(rdp, flags);
-			rcu_segcblist_clear_flags(&rdp->cblist, SEGCBLIST_KTHREAD_CB);
-			rcu_nocb_unlock_irqrestore(rdp, flags);
-		}
-
 		swait_event_exclusive(rdp->nocb_state_wq,
-					!rcu_segcblist_test_flags(cblist,
-					  SEGCBLIST_KTHREAD_CB | SEGCBLIST_KTHREAD_GP));
+				      !rcu_segcblist_test_flags(cblist,
+								SEGCBLIST_KTHREAD_GP));
+		if (rdp->nocb_cb_kthread)
+			kthread_park(rdp->nocb_cb_kthread);
 	} else {
 		/*
 		 * No kthread to clear the flags for us or remove the rdp from the nocb list
@@ -1181,8 +1128,7 @@ static long rcu_nocb_rdp_deoffload(void *arg)
 		 * but we stick to paranoia in this rare path.
 		 */
 		rcu_nocb_lock_irqsave(rdp, flags);
-		rcu_segcblist_clear_flags(&rdp->cblist,
-				SEGCBLIST_KTHREAD_CB | SEGCBLIST_KTHREAD_GP);
+		rcu_segcblist_clear_flags(&rdp->cblist, SEGCBLIST_KTHREAD_GP);
 		rcu_nocb_unlock_irqrestore(rdp, flags);
 
 		list_del(&rdp->nocb_entry_rdp);
@@ -1282,8 +1228,10 @@ static long rcu_nocb_rdp_offload(void *arg)
 	wake_gp = rdp_offload_toggle(rdp, true, flags);
 	if (wake_gp)
 		wake_up_process(rdp_gp->nocb_gp_kthread);
+
+	kthread_unpark(rdp->nocb_cb_kthread);
+
 	swait_event_exclusive(rdp->nocb_state_wq,
-			      rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_CB) &&
 			      rcu_segcblist_test_flags(cblist, SEGCBLIST_KTHREAD_GP));
 
 	/*
@@ -1468,7 +1416,7 @@ void __init rcu_init_nohz(void)
 		if (rcu_segcblist_empty(&rdp->cblist))
 			rcu_segcblist_init(&rdp->cblist);
 		rcu_segcblist_offload(&rdp->cblist, true);
-		rcu_segcblist_set_flags(&rdp->cblist, SEGCBLIST_KTHREAD_CB | SEGCBLIST_KTHREAD_GP);
+		rcu_segcblist_set_flags(&rdp->cblist, SEGCBLIST_KTHREAD_GP);
 		rcu_segcblist_clear_flags(&rdp->cblist, SEGCBLIST_RCU_CORE);
 	}
 	rcu_organize_nocb_kthreads();
@@ -1526,10 +1474,15 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
 	mutex_unlock(&rdp_gp->nocb_gp_kthread_mutex);
 
 	/* Spawn the kthread for this CPU. */
-	t = kthread_run(rcu_nocb_cb_kthread, rdp,
-			"rcuo%c/%d", rcu_state.abbr, cpu);
+	t = kthread_create(rcu_nocb_cb_kthread, rdp,
+			   "rcuo%c/%d", rcu_state.abbr, cpu);
 	if (WARN_ONCE(IS_ERR(t), "%s: Could not start rcuo CB kthread, OOM is now expected behavior\n", __func__))
 		goto end;
+
+	if (rcu_rdp_is_offloaded(rdp))
+		wake_up_process(t);
+	else
+		kthread_park(t);
 
 	if (IS_ENABLED(CONFIG_RCU_NOCB_CPU_CB_BOOST) && kthread_prio)
 		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
