@@ -20,6 +20,8 @@
 			device_type = "cpu";
 			reg = <0>;
 			enable-method = "psci";
+			power-domains = <&CPU_PD0>;
+			power-domain-names = "psci";
 		};
 	};
 
@@ -90,6 +92,20 @@
 	psci {
 		compatible = "arm,psci-1.0";
 		method = "smc";
+
+		CPU_PD0: power-domain-cpu0 {
+			#power-domain-cells = <0>;
+			power-domains = <&CLUSTER_PD>;
+		};
+
+		CLUSTER_PD: power-domain-cluster {
+			#power-domain-cells = <0>;
+			power-domains = <&RET_PD>;
+		};
+
+		RET_PD: power-domain-retention {
+			#power-domain-cells = <0>;
+		};
 	};
 
 	timer {

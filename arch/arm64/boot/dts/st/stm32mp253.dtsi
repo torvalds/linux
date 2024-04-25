@@ -12,6 +12,8 @@
 			device_type = "cpu";
 			reg = <1>;
 			enable-method = "psci";
+			power-domains = <&CPU_PD1>;
+			power-domain-names = "psci";
 		};
 	};
 
@@ -19,6 +21,13 @@
 		interrupts = <GIC_SPI 368 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 369 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-affinity = <&cpu0>, <&cpu1>;
+	};
+
+	psci {
+		CPU_PD1: power-domain-cpu1 {
+			#power-domain-cells = <0>;
+			power-domains = <&CLUSTER_PD>;
+		};
 	};
 
 	timer {
