@@ -1513,7 +1513,6 @@ xrep_dir_replace(
 	xfs_extlen_t		total)
 {
 	struct xfs_scrub	*sc = rd->sc;
-	bool			is_block, is_leaf;
 	int			error;
 
 	ASSERT(S_ISDIR(VFS_I(dp)->i_mode));
@@ -1525,23 +1524,7 @@ xrep_dir_replace(
 	xrep_dir_init_args(rd, dp, name);
 	rd->args.inumber = inum;
 	rd->args.total = total;
-
-	if (dp->i_df.if_format == XFS_DINODE_FMT_LOCAL)
-		return xfs_dir2_sf_replace(&rd->args);
-
-	error = xfs_dir2_isblock(&rd->args, &is_block);
-	if (error)
-		return error;
-	if (is_block)
-		return xfs_dir2_block_replace(&rd->args);
-
-	error = xfs_dir2_isleaf(&rd->args, &is_leaf);
-	if (error)
-		return error;
-	if (is_leaf)
-		return xfs_dir2_leaf_replace(&rd->args);
-
-	return xfs_dir2_node_replace(&rd->args);
+	return xfs_dir_replace_args(&rd->args);
 }
 
 /*
