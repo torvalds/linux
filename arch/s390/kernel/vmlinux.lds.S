@@ -209,13 +209,13 @@ SECTIONS
 	.dynstr ALIGN(8) : {
 		*(.dynstr)
 	}
-#endif
 	.hash ALIGN(8) : {
 		*(.hash)
 	}
 	.gnu.hash ALIGN(8) : {
 		*(.gnu.hash)
 	}
+#endif
 
 	. = ALIGN(PAGE_SIZE);
 	__init_end = .;		/* freed after init ends here */
