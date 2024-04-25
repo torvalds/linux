@@ -29,7 +29,8 @@ reset rules t c
 EOF
 
 if [ "$?" -ne 0 ];then
-	echo "SKIP: nft reset feature test failed"
+	echo -n "SKIP: nft reset feature test failed: "
+	nft --version
 	exit $SKIP_RC
 fi
 
