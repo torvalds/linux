@@ -8070,6 +8070,23 @@ error/annotated fault.
 
 See KVM_EXIT_MEMORY_FAULT for more information.
 
+7.35 KVM_CAP_X86_APIC_BUS_CYCLES_NS
+-----------------------------------
+
+:Architectures: x86
+:Target: VM
+:Parameters: args[0] is the desired APIC bus clock rate, in nanoseconds
+:Returns: 0 on success, -EINVAL if args[0] contains an invalid value for the
+          frequency or if any vCPUs have been created, -ENXIO if a virtual
+          local APIC has not been created using KVM_CREATE_IRQCHIP.
+
+This capability sets the VM's APIC bus clock frequency, used by KVM's in-kernel
+virtual APIC when emulating APIC timers.  KVM's default value can be retrieved
+by KVM_CHECK_EXTENSION.
+
+Note: Userspace is responsible for correctly configuring CPUID 0x15, a.k.a. the
+core crystal clock frequency, if a non-zero CPUID 0x15 is exposed to the guest.
+
 8. Other capabilities.
 ======================
 
