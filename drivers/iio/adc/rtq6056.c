@@ -520,32 +520,20 @@ static int rtq6056_adc_write_raw(struct iio_dev *indio_dev,
 {
 	struct rtq6056_priv *priv = iio_priv(indio_dev);
 	const struct richtek_dev_data *devdata = priv->devdata;
-	int ret;
 
-	ret = iio_device_claim_direct_mode(indio_dev);
-	if (ret)
-		return ret;
-
-	switch (mask) {
-	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (devdata->fixed_samp_freq) {
-			ret = -EINVAL;
-			break;
+	iio_device_claim_direct_scoped(return -EBUSY, indio_dev) {
+		switch (mask) {
+		case IIO_CHAN_INFO_SAMP_FREQ:
+			if (devdata->fixed_samp_freq)
+				return -EINVAL;
+			return rtq6056_adc_set_samp_freq(priv, chan, val);
+		case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
+			return devdata->set_average(priv, val);
+		default:
+			return -EINVAL;
 		}
-
-		ret = rtq6056_adc_set_samp_freq(priv, chan, val);
-		break;
-	case IIO_CHAN_INFO_OVERSAMPLING_RATIO:
-		ret = devdata->set_average(priv, val);
-		break;
-	default:
-		ret = -EINVAL;
-		break;
 	}
-
-	iio_device_release_direct_mode(indio_dev);
-
-	return ret;
+	unreachable();
 }
 
 static const char *rtq6056_channel_labels[RTQ6056_MAX_CHANNEL] = {
