@@ -57,15 +57,14 @@ avs_dai_find_path_template(struct snd_soc_dai *dai, bool is_fe, int direction)
 	return dw->priv;
 }
 
-static int avs_dai_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai, bool is_fe,
-			   const struct snd_soc_dai_ops *ops)
+static int avs_dai_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
 	struct avs_dev *adev = to_avs_dev(dai->component->dev);
 	struct avs_tplg_path_template *template;
 	struct avs_dma_data *data;
 
-	template = avs_dai_find_path_template(dai, is_fe, substream->stream);
+	template = avs_dai_find_path_template(dai, !rtd->dai_link->no_pcm, substream->stream);
 	if (!template) {
 		dev_err(dai->dev, "no %s path for dai %s, invalid tplg?\n",
 			snd_pcm_stream_str(substream), dai->name);
@@ -174,13 +173,6 @@ static int avs_dai_prepare(struct avs_dev *adev, struct snd_pcm_substream *subst
 	return ret;
 }
 
-static const struct snd_soc_dai_ops avs_dai_nonhda_be_ops;
-
-static int avs_dai_nonhda_be_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
-{
-	return avs_dai_startup(substream, dai, false, &avs_dai_nonhda_be_ops);
-}
-
 static int avs_dai_nonhda_be_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *hw_params, struct snd_soc_dai *dai)
 {
@@ -265,15 +257,13 @@ static int avs_dai_nonhda_be_trigger(struct snd_pcm_substream *substream, int cm
 }
 
 static const struct snd_soc_dai_ops avs_dai_nonhda_be_ops = {
-	.startup = avs_dai_nonhda_be_startup,
+	.startup = avs_dai_startup,
 	.shutdown = avs_dai_shutdown,
 	.hw_params = avs_dai_nonhda_be_hw_params,
 	.hw_free = avs_dai_nonhda_be_hw_free,
 	.prepare = avs_dai_nonhda_be_prepare,
 	.trigger = avs_dai_nonhda_be_trigger,
 };
-
-static const struct snd_soc_dai_ops avs_dai_hda_be_ops;
 
 static int avs_dai_hda_be_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
@@ -282,7 +272,7 @@ static int avs_dai_hda_be_startup(struct snd_pcm_substream *substream, struct sn
 	struct hda_codec *codec;
 	int ret;
 
-	ret = avs_dai_startup(substream, dai, false, &avs_dai_hda_be_ops);
+	ret = avs_dai_startup(substream, dai);
 	if (ret)
 		return ret;
 
@@ -479,8 +469,6 @@ static const struct snd_pcm_hw_constraint_list hw_rates = {
 	.mask = 0,
 };
 
-const struct snd_soc_dai_ops avs_dai_fe_ops;
-
 static int hw_rule_param_size(struct snd_pcm_hw_params *params, struct snd_pcm_hw_rule *rule)
 {
 	struct snd_interval *interval = hw_param_interval(params, rule->var);
@@ -509,7 +497,7 @@ static int avs_dai_fe_startup(struct snd_pcm_substream *substream, struct snd_so
 	struct hdac_ext_stream *host_stream;
 	int ret;
 
-	ret = avs_dai_startup(substream, dai, true, &avs_dai_fe_ops);
+	ret = avs_dai_startup(substream, dai);
 	if (ret)
 		return ret;
 
