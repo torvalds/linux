@@ -1155,7 +1155,9 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
 	struct ath12k_rx_desc_info *desc_info;
 	struct ath12k_tx_desc_info *tx_desc_info, *tmp1;
 	struct ath12k_dp *dp = &ab->dp;
+	struct ath12k_skb_cb *skb_cb;
 	struct sk_buff *skb;
+	struct ath12k *ar;
 	int i, j;
 	u32 pool_id, tx_spt_page;
 
@@ -1205,6 +1207,11 @@ static void ath12k_dp_cc_cleanup(struct ath12k_base *ab)
 
 			if (!skb)
 				continue;
+
+			skb_cb = ATH12K_SKB_CB(skb);
+			ar = skb_cb->ar;
+			if (atomic_dec_and_test(&ar->dp.num_tx_pending))
+				wake_up(&ar->dp.tx_empty_waitq);
 
 			dma_unmap_single(ab->dev, ATH12K_SKB_CB(skb)->paddr,
 					 skb->len, DMA_TO_DEVICE);
