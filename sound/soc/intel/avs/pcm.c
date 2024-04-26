@@ -151,8 +151,7 @@ static int avs_dai_be_hw_params(struct snd_pcm_substream *substream,
 	return avs_dai_hw_params(substream, fe_hw_params, be_hw_params, dai, dma_id);
 }
 
-static int avs_dai_prepare(struct avs_dev *adev, struct snd_pcm_substream *substream,
-			   struct snd_soc_dai *dai)
+static int avs_dai_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
 	struct avs_dma_data *data;
 	int ret;
@@ -199,11 +198,6 @@ static int avs_dai_nonhda_be_hw_free(struct snd_pcm_substream *substream, struct
 	}
 
 	return 0;
-}
-
-static int avs_dai_nonhda_be_prepare(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
-{
-	return avs_dai_prepare(to_avs_dev(dai->dev), substream, dai);
 }
 
 static int avs_dai_nonhda_be_trigger(struct snd_pcm_substream *substream, int cmd,
@@ -261,7 +255,7 @@ static const struct snd_soc_dai_ops avs_dai_nonhda_be_ops = {
 	.shutdown = avs_dai_shutdown,
 	.hw_params = avs_dai_nonhda_be_hw_params,
 	.hw_free = avs_dai_nonhda_be_hw_free,
-	.prepare = avs_dai_nonhda_be_prepare,
+	.prepare = avs_dai_prepare,
 	.trigger = avs_dai_nonhda_be_trigger,
 };
 
@@ -381,7 +375,7 @@ static int avs_dai_hda_be_prepare(struct snd_pcm_substream *substream, struct sn
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		snd_hdac_ext_bus_link_set_stream_id(link, hdac_stream(link_stream)->stream_tag);
 
-	ret = avs_dai_prepare(to_avs_dev(dai->dev), substream, dai);
+	ret = avs_dai_prepare(substream, dai);
 	if (ret)
 		return ret;
 
@@ -672,7 +666,7 @@ static int avs_dai_fe_prepare(struct snd_pcm_substream *substream, struct snd_so
 	if (ret < 0)
 		return ret;
 
-	ret = avs_dai_prepare(data->adev, substream, dai);
+	ret = avs_dai_prepare(substream, dai);
 	if (ret)
 		return ret;
 
