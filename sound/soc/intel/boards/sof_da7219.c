@@ -281,6 +281,9 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 			return -EINVAL;
 		}
 		break;
+	case CODEC_MAX98390:
+		max_98390_dai_link(dev, ctx->amp_link);
+		break;
 	default:
 		dev_err(dev, "invalid amp type %d\n", ctx->amp_type);
 		return -EINVAL;
@@ -351,6 +354,9 @@ static int audio_probe(struct platform_device *pdev)
 	switch (ctx->amp_type) {
 	case CODEC_MAX98373:
 		max_98373_set_codec_conf(&card_da7219);
+		break;
+	case CODEC_MAX98390:
+		max_98390_set_codec_conf(&pdev->dev, &card_da7219);
 		break;
 	case CODEC_MAX98360A:
 	case CODEC_NONE:
