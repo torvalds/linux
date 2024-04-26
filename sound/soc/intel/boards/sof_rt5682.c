@@ -698,6 +698,20 @@ static int sof_audio_probe(struct platform_device *pdev)
 
 		/* overwrite the DAI link order for GLK boards */
 		ctx->link_order_overwrite = GLK_LINK_ORDER;
+
+		/* backward-compatible with existing devices */
+		switch (ctx->amp_type) {
+		case CODEC_MAX98357A:
+			card_name = devm_kstrdup(&pdev->dev, "glkrt5682max",
+						 GFP_KERNEL);
+			if (!card_name)
+				return -ENOMEM;
+
+			sof_audio_card_rt5682.name = card_name;
+			break;
+		default:
+			break;
+		}
 	} else if (soc_intel_is_cml()) {
 		/* backward-compatible with existing devices */
 		switch (ctx->amp_type) {
