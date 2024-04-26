@@ -59,6 +59,7 @@ struct dc_stream_status {
 	struct dc_plane_state *plane_states[MAX_SURFACE_NUM];
 	bool is_abm_supported;
 	struct mall_stream_config mall_stream_config;
+	bool fpo_in_use;
 };
 
 enum hubp_dmdata_mode {
@@ -296,7 +297,6 @@ struct dc_stream_state {
 
 	bool has_non_synchronizable_pclk;
 	bool vblank_synchronized;
-	bool fpo_in_use;
 	bool is_phantom;
 
 	struct luminance_data lumin_data;

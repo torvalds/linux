@@ -427,6 +427,7 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 	int ramp_up_num_steps = 1; // TODO: Ramp is currently disabled. Reenable it.
 	uint8_t visual_confirm_enabled;
 	int pipe_idx = 0;
+	struct dc_stream_status *stream_status = NULL;
 
 	if (dc == NULL)
 		return false;
@@ -443,6 +444,7 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 		for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
+			stream_status = NULL;
 			if (!pipe->stream)
 				continue;
 
@@ -450,7 +452,8 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 			 * that does not use FAMS, we are in an FPO + VActive scenario.
 			 * Assign vactive stretch margin in this case.
 			 */
-			if (!pipe->stream->fpo_in_use) {
+			stream_status = dc_state_get_stream_status(context, pipe->stream);
+			if (stream_status && !stream_status->fpo_in_use) {
 				cmd.fw_assisted_mclk_switch.config_data.vactive_stretch_margin_us = dc->debug.fpo_vactive_margin_us;
 				break;
 			}
@@ -461,7 +464,12 @@ bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, stru
 	for (i = 0, k = 0; context && i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (resource_is_pipe_type(pipe, OTG_MASTER) && pipe->stream->fpo_in_use) {
+		stream_status = NULL;
+		if (!resource_is_pipe_type(pipe, OTG_MASTER))
+			continue;
+
+		stream_status = dc_state_get_stream_status(context, pipe->stream);
+		if (stream_status && stream_status->fpo_in_use) {
 			struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 			uint8_t min_refresh_in_hz = (pipe->stream->timing.min_refresh_in_uhz + 999999) / 1000000;
 

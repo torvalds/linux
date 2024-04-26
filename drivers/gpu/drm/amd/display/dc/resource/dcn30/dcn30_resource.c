@@ -1966,6 +1966,7 @@ bool dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, 
 {
 	int refresh_rate = 0;
 	const int minimum_refreshrate_supported = 120;
+	struct dc_stream_status *stream_status = NULL;
 
 	if (context == NULL || context->streams[0] == NULL)
 		return false;
@@ -1999,7 +2000,12 @@ bool dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, 
 	if (context->streams[0]->vrr_active_variable && (dc->debug.disable_fams_gaming == INGAME_FAMS_DISABLE))
 		return false;
 
-	context->streams[0]->fpo_in_use = true;
+	stream_status = dc_state_get_stream_status(context, context->streams[0]);
+
+	if (!stream_status)
+		return false;
+
+	stream_status->fpo_in_use = true;
 
 	return true;
 }
