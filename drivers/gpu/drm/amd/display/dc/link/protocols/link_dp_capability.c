@@ -209,6 +209,9 @@ static enum dc_link_rate linkRateInKHzToLinkRateMultiplier(uint32_t link_rate_in
 	case 8100000:
 		link_rate = LINK_RATE_HIGH3;	// Rate_9 (HBR3)- 8.10 Gbps/Lane
 		break;
+	case 10000000:
+		link_rate = LINK_RATE_UHBR10;	// UHBR10 - 10.0 Gbps/Lane
+		break;
 	default:
 		link_rate = LINK_RATE_UNKNOWN;
 		break;
