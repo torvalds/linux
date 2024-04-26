@@ -940,7 +940,7 @@ zynqmp_disp_layer_find_format(struct zynqmp_disp_layer *layer,
  * zynqmp_disp_layer_find_live_format - Find format information for given
  * media bus format
  * @layer: The layer
- * @drm_fmt: Media bus format to search
+ * @media_bus_format: Media bus format to search
  *
  * Search display subsystem format information corresponding to the given media
  * bus format @media_bus_format for the @layer, and return a pointer to the
@@ -1117,7 +1117,7 @@ void zynqmp_disp_layer_set_format(struct zynqmp_disp_layer *layer,
 /**
  * zynqmp_disp_layer_set_live_format - Set the live video layer format
  * @layer: The layer
- * @info: The format info
+ * @media_bus_format: Media bus format to set
  *
  * NOTE: This function should not be used to set format for non-live video
  * layer. Use zynqmp_disp_layer_set_format() instead.
