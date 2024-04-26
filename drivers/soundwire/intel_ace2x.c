@@ -10,8 +10,10 @@
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/soundwire/sdw.h>
 #include <linux/soundwire/sdw_intel.h>
-#include <sound/pcm_params.h>
+#include <sound/hdaudio.h>
 #include <sound/hda-mlink.h>
+#include <sound/hda_register.h>
+#include <sound/pcm_params.h>
 #include "cadence_master.h"
 #include "bus.h"
 #include "intel.h"
@@ -49,37 +51,56 @@ static void intel_shim_vs_set_clock_source(struct sdw_intel *sdw, u32 source)
 
 static int intel_shim_check_wake(struct sdw_intel *sdw)
 {
-	void __iomem *shim_vs;
+	u16 lsdiid = 0;
 	u16 wake_sts;
+	int ret;
 
-	shim_vs = sdw->link_res->shim_vs;
-	wake_sts = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_WAKESTS);
+	/* find out which bits are set in LSDIID for this sublink */
+	ret = hdac_bus_eml_sdw_get_lsdiid_unlocked(sdw->link_res->hbus, sdw->instance, &lsdiid);
+	if (ret < 0)
+		return ret;
 
-	return wake_sts & SDW_SHIM2_INTEL_VS_WAKEEN_PWS;
+	/*
+	 * we need to use the global HDaudio WAKEEN/STS to be able to detect
+	 * wakes in low-power modes
+	 */
+	wake_sts = snd_hdac_chip_readw(sdw->link_res->hbus, STATESTS);
+
+	return wake_sts & lsdiid;
 }
 
 static void intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
 {
-	void __iomem *shim_vs = sdw->link_res->shim_vs;
+	u16 lsdiid = 0;
 	u16 wake_en;
 	u16 wake_sts;
+	int ret;
 
-	wake_en = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_WAKEEN);
+	mutex_lock(sdw->link_res->shim_lock);
+
+	ret = hdac_bus_eml_sdw_get_lsdiid_unlocked(sdw->link_res->hbus, sdw->instance, &lsdiid);
+	if (ret < 0)
+		goto unlock;
+
+	wake_en = snd_hdac_chip_readw(sdw->link_res->hbus, WAKEEN);
 
 	if (wake_enable) {
 		/* Enable the wakeup */
-		wake_en |= SDW_SHIM2_INTEL_VS_WAKEEN_PWE;
-		intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_WAKEEN, wake_en);
+		wake_en |= lsdiid;
+
+		snd_hdac_chip_writew(sdw->link_res->hbus, WAKEEN, wake_en);
 	} else {
 		/* Disable the wake up interrupt */
-		wake_en &= ~SDW_SHIM2_INTEL_VS_WAKEEN_PWE;
-		intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_WAKEEN, wake_en);
+		wake_en &= ~lsdiid;
+		snd_hdac_chip_writew(sdw->link_res->hbus, WAKEEN, wake_en);
 
 		/* Clear wake status (W1C) */
-		wake_sts = intel_readw(shim_vs, SDW_SHIM2_INTEL_VS_WAKESTS);
-		wake_sts |= SDW_SHIM2_INTEL_VS_WAKEEN_PWS;
-		intel_writew(shim_vs, SDW_SHIM2_INTEL_VS_WAKESTS, wake_sts);
+		wake_sts = snd_hdac_chip_readw(sdw->link_res->hbus, STATESTS);
+		wake_sts |= lsdiid;
+		snd_hdac_chip_writew(sdw->link_res->hbus, STATESTS, wake_sts);
 	}
+unlock:
+	mutex_unlock(sdw->link_res->shim_lock);
 }
 
 static int intel_link_power_up(struct sdw_intel *sdw)
