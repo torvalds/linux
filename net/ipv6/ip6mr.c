@@ -2273,7 +2273,7 @@ int ip6mr_get_route(struct net *net, struct sk_buff *skb, struct rtmsg *rtm,
 	int err;
 	struct mr_table *mrt;
 	struct mfc6_cache *cache;
-	struct rt6_info *rt = (struct rt6_info *)skb_dst(skb);
+	struct rt6_info *rt = dst_rt6_info(skb_dst(skb));
 
 	mrt = ip6mr_get_table(net, RT6_TABLE_DFLT);
 	if (!mrt)

@@ -2215,7 +2215,7 @@ static int bpf_out_neigh_v6(struct net *net, struct sk_buff *skb,
 	rcu_read_lock();
 	if (!nh) {
 		dst = skb_dst(skb);
-		nexthop = rt6_nexthop(container_of(dst, struct rt6_info, dst),
+		nexthop = rt6_nexthop(dst_rt6_info(dst),
 				      &ipv6_hdr(skb)->daddr);
 	} else {
 		nexthop = &nh->ipv6_nh;

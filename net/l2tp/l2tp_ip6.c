@@ -630,7 +630,7 @@ back_from_confirm:
 	ulen = len + (skb_queue_empty(&sk->sk_write_queue) ? transhdrlen : 0);
 	err = ip6_append_data(sk, ip_generic_getfrag, msg,
 			      ulen, transhdrlen, &ipc6,
-			      &fl6, (struct rt6_info *)dst,
+			      &fl6, dst_rt6_info(dst),
 			      msg->msg_flags);
 	if (err)
 		ip6_flush_pending_frames(sk);

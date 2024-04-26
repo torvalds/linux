@@ -543,7 +543,7 @@ static int tnl_update_pmtu(struct net_device *dev, struct sk_buff *skb,
 		struct rt6_info *rt6;
 		__be32 daddr;
 
-		rt6 = skb_valid_dst(skb) ? (struct rt6_info *)skb_dst(skb) :
+		rt6 = skb_valid_dst(skb) ? dst_rt6_info(skb_dst(skb)) :
 					   NULL;
 		daddr = md ? dst : tunnel->parms.iph.daddr;
 

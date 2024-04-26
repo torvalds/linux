@@ -70,7 +70,7 @@ static int xfrm6_get_saddr(struct net *net, int oif,
 static int xfrm6_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
 			  const struct flowi *fl)
 {
-	struct rt6_info *rt = (struct rt6_info *)xdst->route;
+	struct rt6_info *rt = dst_rt6_info(xdst->route);
 
 	xdst->u.dst.dev = dev;
 	netdev_hold(dev, &xdst->u.dst.dev_tracker, GFP_ATOMIC);

@@ -540,7 +540,7 @@ mlxsw_sp_span_gretap6_route(const struct net_device *to_dev,
 	if (!dst || dst->error)
 		goto out;
 
-	rt6 = container_of(dst, struct rt6_info, dst);
+	rt6 = dst_rt6_info(dst);
 
 	dev = dst->dev;
 	*saddrp = fl6.saddr;

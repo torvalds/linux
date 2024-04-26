@@ -90,7 +90,7 @@ static int mpls_xmit(struct sk_buff *skb)
 			ttl = net->mpls.default_ttl;
 		else
 			ttl = ipv6_hdr(skb)->hop_limit;
-		rt6 = (struct rt6_info *)dst;
+		rt6 = dst_rt6_info(dst);
 	} else {
 		goto drop;
 	}
