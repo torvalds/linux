@@ -19,8 +19,9 @@
 #include "sof_maxim_common.h"
 
 /* Driver-specific board quirks: from bit 0 to 7 */
-#define SOF_DA7219_JSL_BOARD			BIT(0)
-#define SOF_DA7219_MCLK_EN			BIT(1)
+#define SOF_DA7219_CML_BOARD			BIT(0)
+#define SOF_DA7219_JSL_BOARD			BIT(1)
+#define SOF_DA7219_MCLK_EN			BIT(2)
 
 #define DIALOG_CODEC_DAI	"da7219-hifi"
 
@@ -292,6 +293,14 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 	return 0;
 }
 
+#define CML_LINK_ORDER	SOF_LINK_ORDER(SOF_LINK_AMP,         \
+					SOF_LINK_CODEC,      \
+					SOF_LINK_DMIC01,     \
+					SOF_LINK_IDISP_HDMI, \
+					SOF_LINK_DMIC16K,    \
+					SOF_LINK_NONE,       \
+					SOF_LINK_NONE)
+
 #define JSL_LINK_ORDER	SOF_LINK_ORDER(SOF_LINK_AMP,         \
 					SOF_LINK_CODEC,      \
 					SOF_LINK_DMIC01,     \
@@ -320,7 +329,10 @@ static int audio_probe(struct platform_device *pdev)
 	if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
 		ctx->hdmi.idisp_codec = true;
 
-	if (board_quirk & SOF_DA7219_JSL_BOARD) {
+	if (board_quirk & SOF_DA7219_CML_BOARD) {
+		/* overwrite the DAI link order for CML boards */
+		ctx->link_order_overwrite = CML_LINK_ORDER;
+	} else if (board_quirk & SOF_DA7219_JSL_BOARD) {
 		ctx->da7219.is_jsl_board = true;
 
 		/* overwrite the DAI link order for JSL boards */
@@ -380,6 +392,12 @@ static int audio_probe(struct platform_device *pdev)
 }
 
 static const struct platform_device_id board_ids[] = {
+	{
+		.name = "cml_da7219_def",
+		.driver_data = (kernel_ulong_t)(SOF_DA7219_CML_BOARD |
+					SOF_SSP_PORT_CODEC(0) |
+					SOF_SSP_PORT_AMP(1)),
+	},
 	{
 		.name = "jsl_da7219_def",
 		.driver_data = (kernel_ulong_t)(SOF_DA7219_JSL_BOARD |
