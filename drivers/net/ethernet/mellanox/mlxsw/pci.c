@@ -630,9 +630,7 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 	mlxsw_core_skb_receive(mlxsw_pci->core, skb, &rx_info);
 
 out:
-	/* Everything is set up, ring doorbell to pass elem to HW */
 	q->producer_counter++;
-	mlxsw_pci_queue_doorbell_producer_ring(mlxsw_pci, q);
 	return;
 }
 
@@ -666,7 +664,6 @@ static void mlxsw_pci_cq_rx_tasklet(struct tasklet_struct *t)
 		u16 wqe_counter = mlxsw_pci_cqe_wqe_counter_get(cqe);
 		u8 sendq = mlxsw_pci_cqe_sr_get(q->cq.v, cqe);
 		u8 dqn = mlxsw_pci_cqe_dqn_get(q->cq.v, cqe);
-		char ncqe[MLXSW_PCI_CQE_SIZE_MAX];
 
 		if (unlikely(sendq)) {
 			WARN_ON_ONCE(1);
@@ -678,16 +675,15 @@ static void mlxsw_pci_cq_rx_tasklet(struct tasklet_struct *t)
 			continue;
 		}
 
-		memcpy(ncqe, cqe, q->elem_size);
-		mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
-
 		mlxsw_pci_cqe_rdq_handle(mlxsw_pci, rdq,
-					 wqe_counter, q->cq.v, ncqe);
+					 wqe_counter, q->cq.v, cqe);
 
 		if (++items == MLXSW_PCI_CQ_MAX_HANDLE)
 			break;
 	}
 
+	mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
+	mlxsw_pci_queue_doorbell_producer_ring(mlxsw_pci, rdq);
 	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
 }
 
