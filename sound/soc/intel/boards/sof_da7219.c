@@ -267,6 +267,9 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 
 	/* codec-specific fields for speaker amplifier */
 	switch (ctx->amp_type) {
+	case CODEC_MAX98357A:
+		max_98357a_dai_link(ctx->amp_link);
+		break;
 	case CODEC_MAX98360A:
 		max_98360a_dai_link(ctx->amp_link);
 		break;
@@ -393,6 +396,7 @@ static int audio_probe(struct platform_device *pdev)
 	case CODEC_MAX98390:
 		max_98390_set_codec_conf(&pdev->dev, &card_da7219);
 		break;
+	case CODEC_MAX98357A:
 	case CODEC_MAX98360A:
 	case CODEC_NONE:
 		/* no codec conf required */
