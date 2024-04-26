@@ -16,9 +16,27 @@ recompiling are required for user space applications. DAPM makes power
 switching decisions based upon any audio stream (capture/playback)
 activity and audio mixer settings within the device.
 
-DAPM spans the whole machine. It covers power control within the entire
-audio subsystem, this includes internal codec power blocks and machine
-level power systems.
+DAPM is based on two basic elements, called widgets and routes:
+
+ * a **widget** is every part of the audio hardware that can be enabled by
+   software when in use and disabled to save power when not in use
+ * a **route** is an interconnection between widgets that exists when sound
+   can flow from one widget to the other
+
+All DAPM power switching decisions are made automatically by consulting an
+audio routing graph. This graph is specific to each sound card and spans
+the whole sound card, so some DAPM routes connect two widgets belonging to
+different components (e.g. the LINE OUT pin of a CODEC and the input pin of
+an amplifier).
+
+The graph for the STM32MP1-DK1 sound card is shown in picture:
+
+.. kernel-figure:: dapm-graph.svg
+    :alt:   Example DAPM graph
+    :align: center
+
+DAPM power domains
+==================
 
 There are 4 power domains within DAPM:
 
@@ -46,12 +64,6 @@ Stream domain
 
       Enabled and disabled when stream playback/capture is started and
       stopped respectively. e.g. aplay, arecord.
-
-All DAPM power switching decisions are made automatically by consulting an audio
-routing graph of the whole machine. This graph is specific to each machine and
-consists of the interconnections between every audio component (including
-internal codec components). All audio components that affect power are called
-widgets hereafter.
 
 
 DAPM Widgets
