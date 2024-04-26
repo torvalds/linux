@@ -159,13 +159,14 @@ out:
 static int
 sparx5_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 {
+	struct netlink_ext_ack *extack = st->fco->common.extack;
 	struct flow_match_control mt;
 	u32 value, mask;
 	int err = 0;
 
 	flow_rule_match_control(st->frule, &mt);
 
-	if (mt.mask->flags) {
+	if (mt.mask->flags & (FLOW_DIS_IS_FRAGMENT | FLOW_DIS_FIRST_FRAG)) {
 		u8 is_frag_key = !!(mt.key->flags & FLOW_DIS_IS_FRAGMENT);
 		u8 is_frag_mask = !!(mt.mask->flags & FLOW_DIS_IS_FRAGMENT);
 		u8 is_frag_idx = (is_frag_key << 1) | is_frag_mask;
@@ -178,7 +179,7 @@ sparx5_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 		u8 vdt = sparx5_vcap_frag_map[is_frag_idx][first_frag_idx];
 
 		if (vdt == FRAG_INVAL) {
-			NL_SET_ERR_MSG_MOD(st->fco->common.extack,
+			NL_SET_ERR_MSG_MOD(extack,
 					   "Match on invalid fragment flag combination");
 			return -EINVAL;
 		}
@@ -190,16 +191,19 @@ sparx5_tc_flower_handler_control_usage(struct vcap_tc_flower_parse_usage *st)
 		err = vcap_rule_add_key_u32(st->vrule,
 					    VCAP_KF_L3_FRAGMENT_TYPE,
 					    value, mask);
-		if (err)
-			goto out;
+		if (err) {
+			NL_SET_ERR_MSG_MOD(extack, "ip_frag parse error");
+			return err;
+		}
 	}
+
+	if (!flow_rule_is_supp_control_flags(FLOW_DIS_IS_FRAGMENT |
+					     FLOW_DIS_FIRST_FRAG,
+					     mt.mask->flags, extack))
+		return -EOPNOTSUPP;
 
 	st->used_keys |= BIT_ULL(FLOW_DISSECTOR_KEY_CONTROL);
 
-	return err;
-
-out:
-	NL_SET_ERR_MSG_MOD(st->fco->common.extack, "ip_frag parse error");
 	return err;
 }
 
