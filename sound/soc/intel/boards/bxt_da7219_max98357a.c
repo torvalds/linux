@@ -201,10 +201,7 @@ static int broxton_da7219_codec_init(struct snd_soc_pcm_runtime *rtd)
 	int clk_freq;
 
 	/* Configure sysclk for codec */
-	if (soc_intel_is_cml())
-		clk_freq = 24000000;
-	else
-		clk_freq = 19200000;
+	clk_freq = 19200000;
 
 	ret = snd_soc_dai_set_sysclk(codec_dai, DA7219_CLKSRC_MCLK, clk_freq,
 				     SND_SOC_CLOCK_IN);
@@ -721,28 +718,6 @@ static int broxton_audio_probe(struct platform_device *pdev)
 				broxton_dais[i].cpus->dai_name = "SSP2 Pin";
 			}
 		}
-	} else if (soc_intel_is_cml()) {
-		unsigned int i;
-
-		broxton_audio_card.name = "cmlda7219max";
-
-		for (i = 0; i < ARRAY_SIZE(broxton_dais); i++) {
-			if (!broxton_dais[i].codecs->dai_name)
-				continue;
-
-			/* MAXIM_CODEC is connected to SSP1. */
-			if (!strcmp(broxton_dais[i].codecs->dai_name,
-					BXT_MAXIM_CODEC_DAI)) {
-				broxton_dais[i].name = "SSP1-Codec";
-				broxton_dais[i].cpus->dai_name = "SSP1 Pin";
-			}
-			/* DIALOG_CODEC is connected to SSP0 */
-			else if (!strcmp(broxton_dais[i].codecs->dai_name,
-					BXT_DIALOG_CODEC_DAI)) {
-				broxton_dais[i].name = "SSP0-Codec";
-				broxton_dais[i].cpus->dai_name = "SSP0 Pin";
-			}
-		}
 	}
 
 	/* override platform name, if required */
@@ -762,7 +737,6 @@ static int broxton_audio_probe(struct platform_device *pdev)
 static const struct platform_device_id bxt_board_ids[] = {
 	{ .name = "bxt_da7219_mx98357a" },
 	{ .name = "glk_da7219_mx98357a" },
-	{ .name = "cml_da7219_mx98357a" },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, bxt_board_ids);
