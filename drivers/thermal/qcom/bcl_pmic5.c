@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2023, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "%s:%s " fmt, KBUILD_MODNAME, __func__
@@ -68,6 +68,13 @@
 #define BCL_IBAT_CCM_OFFSET   800
 #define BCL_IBAT_CCM_LSB      100
 #define BCL_IBAT_CCM_MAX_VAL  14
+
+#define BCL_VBAT_4G_NO_READING 0x7fff
+#define BCL_GEN4_MAJOR_REV    5
+#define BCL_VBAT_SCALING_REV5_NV   194637  /* 64.879uV (one bit) * 3 VD */
+#define BCL_IBAT_SCALING_REV5_NA   61037
+#define BCL_IBAT_THRESH_SCALING_REV5_UA   156255 /* 610.37uA * 256 */
+#define BCL_VBAT_TRIP_CNT     3
 
 #define MAX_PERPH_COUNT       2
 #define IPC_LOGPAGES          2
@@ -154,6 +161,29 @@ struct bcl_device {
 static struct bcl_device *bcl_devices[MAX_PERPH_COUNT];
 static int bcl_device_ct;
 
+static int bcl_read_multi_register(struct bcl_device *bcl_perph, int16_t reg_offset,
+				unsigned int *data, size_t len)
+{
+	int ret = 0;
+
+	if (!bcl_perph) {
+		pr_err("BCL device not initialized\n");
+		return -EINVAL;
+	}
+	ret = regmap_bulk_read(bcl_perph->regmap,
+			       (bcl_perph->fg_bcl_addr + reg_offset),
+			       data, len);
+	if (ret < 0)
+		pr_err("Error reading reg base:0x%04x len:%ld err:%d\n",
+				bcl_perph->fg_bcl_addr + reg_offset, len, ret);
+	else
+		pr_debug("Read register:0x%04x value:0x%02x len:%ld\n",
+				bcl_perph->fg_bcl_addr + reg_offset,
+				*data, len);
+
+	return ret;
+}
+
 static int bcl_read_register(struct bcl_device *bcl_perph, int16_t reg_offset,
 				unsigned int *data)
 {
@@ -210,6 +240,12 @@ static void convert_adc_to_vbat_thresh_val(struct bcl_device *bcl_perph, int *va
 		*val = (*val * BCL_VBAT_SCALING_UV) / 1000;
 	else
 		*val = (*val * BCL_VBAT_SCALING_UV) / 2000;
+}
+
+/* Common helper to convert nano unit to milli unit */
+static void convert_adc_nu_to_mu_val(unsigned int *val, unsigned int scaling_factor)
+{
+	*val = div_s64(*val * scaling_factor, 1000000);
 }
 
 static void convert_adc_to_vbat_val(int *val)
@@ -341,11 +377,19 @@ static int bcl_read_ibat(struct thermal_zone_device *tz, int *adc_value)
 		(struct bcl_peripheral_data *)tz->devdata;
 
 	*adc_value = val;
-	ret = bcl_read_register(bat_data->dev, BCL_IBAT_READ, &val);
+	if (bat_data->dev->dig_major < BCL_GEN4_MAJOR_REV)
+		ret = bcl_read_register(bat_data->dev, BCL_IBAT_READ, &val);
+	else
+		ret = bcl_read_multi_register(bat_data->dev, BCL_IBAT_READ, &val, 2);
+
 	if (ret)
-		goto bcl_read_exit;
+		return ret;
+
 	/* IBat ADC reading is in 2's compliment form */
-	*adc_value = sign_extend32(val, 7);
+	if (bat_data->dev->dig_major < BCL_GEN4_MAJOR_REV)
+		*adc_value = sign_extend32(val, 7);
+	else
+		*adc_value = sign_extend32(val, 15);
 	if (val == 0) {
 		/*
 		 * The sensor sometime can read a value 0 if there is
@@ -355,21 +399,25 @@ static int bcl_read_ibat(struct thermal_zone_device *tz, int *adc_value)
 	} else {
 		if (bat_data->dev->ibat_ccm_enabled)
 			convert_adc_to_ibat_val(bat_data->dev, adc_value,
-				BCL_IBAT_CCM_SCALING_UA * bat_data->dev->ibat_ext_range_factor);
+				BCL_IBAT_CCM_SCALING_UA *
+				bat_data->dev->ibat_ext_range_factor);
+		else if (bat_data->dev->dig_major >= BCL_GEN4_MAJOR_REV)
+			convert_adc_nu_to_mu_val(adc_value,
+				BCL_IBAT_SCALING_REV5_NA);
 		else if (bat_data->dev->dig_major >= BCL_GEN3_MAJOR_REV)
 			convert_adc_to_ibat_val(bat_data->dev, adc_value,
 				BCL_IBAT_SCALING_REV4_UA *
 					bat_data->dev->ibat_ext_range_factor);
 		else
 			convert_adc_to_ibat_val(bat_data->dev, adc_value,
-				BCL_IBAT_SCALING_UA * bat_data->dev->ibat_ext_range_factor);
+				BCL_IBAT_SCALING_UA *
+					bat_data->dev->ibat_ext_range_factor);
 		bat_data->last_val = *adc_value;
 	}
 	pr_debug("ibat:%d mA ADC:0x%02x\n", bat_data->last_val, val);
 	BCL_IPC(bat_data->dev, "ibat:%d mA ADC:0x%02x\n",
 		 bat_data->last_val, val);
 
-bcl_read_exit:
 	return ret;
 }
 
@@ -426,21 +474,33 @@ static int bcl_read_vbat_tz(struct thermal_zone_device *tzd, int *adc_value)
 		(struct bcl_peripheral_data *)tzd->devdata;
 
 	*adc_value = val;
-	ret = bcl_read_register(bat_data->dev, BCL_VBAT_READ, &val);
+	if (bat_data->dev->dig_major < BCL_GEN4_MAJOR_REV)
+		ret = bcl_read_register(bat_data->dev, BCL_VBAT_READ, &val);
+	else
+		ret = bcl_read_multi_register(bat_data->dev, BCL_VBAT_READ,
+				&val, 2);
+
 	if (ret)
-		goto bcl_read_exit;
+		return ret;
+
 	*adc_value = val;
-	if (*adc_value == BCL_VBAT_NO_READING) {
+	if ((bat_data->dev->dig_major < BCL_GEN4_MAJOR_REV &&
+			*adc_value == BCL_VBAT_NO_READING) ||
+		(bat_data->dev->dig_major >= BCL_GEN4_MAJOR_REV &&
+			*adc_value == BCL_VBAT_4G_NO_READING)) {
 		*adc_value = bat_data->last_val;
 	} else {
-		convert_adc_to_vbat_val(adc_value);
+		if (bat_data->dev->dig_major < BCL_GEN4_MAJOR_REV)
+			convert_adc_to_vbat_val(adc_value);
+		else
+			convert_adc_nu_to_mu_val(adc_value,
+				BCL_VBAT_SCALING_REV5_NV);
 		bat_data->last_val = *adc_value;
 	}
 	pr_debug("vbat:%d mv\n", bat_data->last_val);
 	BCL_IPC(bat_data->dev, "vbat:%d mv ADC:0x%02x\n",
 			bat_data->last_val, val);
 
-bcl_read_exit:
 	return ret;
 }
 
