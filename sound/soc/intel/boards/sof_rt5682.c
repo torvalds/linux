@@ -355,18 +355,23 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 			clk_id = RT5682_SCLK_S_PLL1;
 			break;
 		case CODEC_RT5682S:
-			/*
-			 * For MCLK = 24.576MHz and sample rate = 96KHz case, use PLL1  We don't test
-			 * pll_out or params_rate() here since rt5682s PLL2 doesn't support 24.576MHz
-			 * input, so we have no choice but to use PLL1. Besides, we will not use PLL at
-			 * all if pll_in == pll_out. ex, MCLK = 24.576Mhz and sample rate = 48KHz
-			 */
-			if (pll_in == 24576000) {
+			/* check plla_table and pllb_table in rt5682s.c */
+			switch (pll_in) {
+			case 3072000:
+			case 24576000:
+				/*
+				 * For MCLK = 24.576MHz and sample rate = 96KHz case, use PLL1  We don't test
+				 * pll_out or params_rate() here since rt5682s PLL2 doesn't support 24.576MHz
+				 * input, so we have no choice but to use PLL1. Besides, we will not use PLL at
+				 * all if pll_in == pll_out. ex, MCLK = 24.576Mhz and sample rate = 48KHz
+				 */
 				pll_id = RT5682S_PLL1;
 				clk_id = RT5682S_SCLK_S_PLL1;
-			} else {
+				break;
+			default:
 				pll_id = RT5682S_PLL2;
 				clk_id = RT5682S_SCLK_S_PLL2;
+				break;
 			}
 			break;
 		default:
