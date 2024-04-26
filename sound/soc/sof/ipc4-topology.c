@@ -407,6 +407,52 @@ static void sof_ipc4_widget_update_kcontrol_module_id(struct snd_sof_widget *swi
 	}
 }
 
+static int
+sof_ipc4_update_card_components_string(struct snd_sof_widget *swidget,
+				       struct snd_sof_pcm *spcm, int dir)
+{
+	struct snd_sof_widget *pipe_widget = swidget->spipe->pipe_widget;
+	struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
+	struct snd_soc_component *scomp = spcm->scomp;
+	struct snd_soc_card *card = scomp->card;
+	const char *pt_marker = "iec61937-pcm";
+
+	/*
+	 * Update the card's components list with iec61937-pcm and a list of PCM
+	 * ids where ChainDMA is enabled.
+	 * These PCMs can be used for bytestream passthrough.
+	 */
+	if (!pipeline->use_chain_dma)
+		return 0;
+
+	if (card->components) {
+		const char *tmp = card->components;
+
+		if (strstr(card->components, pt_marker))
+			card->components = devm_kasprintf(card->dev, GFP_KERNEL,
+							  "%s,%d",
+							  card->components,
+							  spcm->pcm.pcm_id);
+		else
+			card->components = devm_kasprintf(card->dev, GFP_KERNEL,
+							  "%s %s:%d",
+							  card->components,
+							  pt_marker,
+							  spcm->pcm.pcm_id);
+
+		devm_kfree(card->dev, tmp);
+	} else {
+		card->components = devm_kasprintf(card->dev, GFP_KERNEL,
+						  "%s:%d", pt_marker,
+						  spcm->pcm.pcm_id);
+	}
+
+	if (!card->components)
+		return -ENOMEM;
+
+	return 0;
+}
+
 static int sof_ipc4_widget_setup_pcm(struct snd_sof_widget *swidget)
 {
 	struct sof_ipc4_available_audio_format *available_fmt;
@@ -451,6 +497,10 @@ static int sof_ipc4_widget_setup_pcm(struct snd_sof_widget *swidget)
 	spcm = snd_sof_find_spcm_comp(scomp, swidget->comp_id, &dir);
 	if (!spcm)
 		goto skip_gtw_cfg;
+
+	ret = sof_ipc4_update_card_components_string(swidget, spcm, dir);
+	if (ret)
+		goto free_available_fmt;
 
 	if (dir == SNDRV_PCM_STREAM_PLAYBACK) {
 		struct snd_sof_pcm_stream *sps = &spcm->stream[dir];
