@@ -313,6 +313,7 @@ static int audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
 	struct sof_card_private *ctx;
+	char *card_name;
 	unsigned long board_quirk = 0;
 	int ret;
 
@@ -332,6 +333,21 @@ static int audio_probe(struct platform_device *pdev)
 	if (board_quirk & SOF_DA7219_CML_BOARD) {
 		/* overwrite the DAI link order for CML boards */
 		ctx->link_order_overwrite = CML_LINK_ORDER;
+
+		/* backward-compatible with existing devices */
+		switch (ctx->amp_type) {
+		case CODEC_MAX98390:
+			card_name = devm_kstrdup(&pdev->dev,
+						 "cml_max98390_da7219",
+						 GFP_KERNEL);
+			if (!card_name)
+				return -ENOMEM;
+
+			card_da7219.name = card_name;
+			break;
+		default:
+			break;
+		}
 	} else if (board_quirk & SOF_DA7219_JSL_BOARD) {
 		ctx->da7219.is_jsl_board = true;
 
@@ -341,13 +357,20 @@ static int audio_probe(struct platform_device *pdev)
 		/* backward-compatible with existing devices */
 		switch (ctx->amp_type) {
 		case CODEC_MAX98360A:
-			card_da7219.name = devm_kstrdup(&pdev->dev,
-							"da7219max98360a",
-							GFP_KERNEL);
+			card_name = devm_kstrdup(&pdev->dev, "da7219max98360a",
+						 GFP_KERNEL);
+			if (!card_name)
+				return -ENOMEM;
+
+			card_da7219.name = card_name;
 			break;
 		case CODEC_MAX98373:
-			card_da7219.name = devm_kstrdup(&pdev->dev, "da7219max",
-							GFP_KERNEL);
+			card_name = devm_kstrdup(&pdev->dev, "da7219max",
+						 GFP_KERNEL);
+			if (!card_name)
+				return -ENOMEM;
+
+			card_da7219.name = card_name;
 			break;
 		default:
 			break;
