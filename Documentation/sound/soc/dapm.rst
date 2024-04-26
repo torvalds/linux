@@ -253,12 +253,17 @@ This can be used to merge two signal paths together in software.
 Registering DAPM controls
 =========================
 
-In many cases the DAPM widgets implemented statically in a ``static const
-struct snd_soc_dapm_widget`` array and the routes connecting them in a
-``static const struct snd_soc_dapm_route`` array in a codec driver, and
-simply declared via the ``dapm_widgets`` and ``num_dapm_widgets`` fields of
-the ``struct snd_soc_component_driver`` so the driver registration will
-take care of populating them::
+In many cases the DAPM widgets are implemented statically in a ``static
+const struct snd_soc_dapm_widget`` array in a codec driver, and simply
+declared via the ``dapm_widgets`` and ``num_dapm_widgets`` fields of the
+``struct snd_soc_component_driver``.
+
+Similarly, routes connecting them are implemented statically in a ``static
+const struct snd_soc_dapm_route`` array and declared via the
+``dapm_routes`` and ``num_dapm_routes`` fields of the same struct.
+
+With the above declared, the driver registration will take care of
+populating them::
 
   static const struct snd_soc_dapm_widget wm2000_dapm_widgets[] = {
   	SND_SOC_DAPM_OUTPUT("SPKN"),
@@ -277,11 +282,13 @@ take care of populating them::
 	...
   	.dapm_widgets		= wm2000_dapm_widgets,
   	.num_dapm_widgets	= ARRAY_SIZE(wm2000_dapm_widgets),
+  	.dapm_routes            = wm2000_audio_map,
+  	.num_dapm_routes        = ARRAY_SIZE(wm2000_audio_map),
 	...
   };
 
 In more complex cases the list of DAPM widgets and/or routes can be only
-known at build time. This happens for example when a driver supports
+known at probe time. This happens for example when a driver supports
 different models having a different set of features. In those cases
 separate widgets and routes arrays implementing the case-specific features
 can be registered programmatically by calling snd_soc_dapm_new_controls()
