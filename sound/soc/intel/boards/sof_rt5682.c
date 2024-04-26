@@ -635,6 +635,14 @@ sof_card_dai_links_create(struct device *dev, struct snd_soc_card *card,
 	return 0;
 }
 
+#define GLK_LINK_ORDER	SOF_LINK_ORDER(SOF_LINK_AMP,         \
+					SOF_LINK_CODEC,      \
+					SOF_LINK_DMIC01,     \
+					SOF_LINK_IDISP_HDMI, \
+					SOF_LINK_NONE,       \
+					SOF_LINK_NONE,       \
+					SOF_LINK_NONE)
+
 static int sof_audio_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach = pdev->dev.platform_data;
@@ -676,24 +684,34 @@ static int sof_audio_probe(struct platform_device *pdev)
 			ctx->amp_type = CODEC_RT5650;
 	}
 
-	if (ctx->amp_type == CODEC_RT1011 && soc_intel_is_cml()) {
-		/* backward-compatible with existing cml devices */
-		card_name = devm_kstrdup(&pdev->dev, "cml_rt1011_rt5682",
-					 GFP_KERNEL);
-		if (!card_name)
-			return -ENOMEM;
-
-		sof_audio_card_rt5682.name = card_name;
-	}
+	if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
+		ctx->hdmi.idisp_codec = true;
 
 	if (is_legacy_cpu) {
 		ctx->rt5682.is_legacy_cpu = true;
 		ctx->dmic_be_num = 0;
 		/* HDMI is not supported by SOF on Baytrail/CherryTrail */
 		ctx->hdmi_num = 0;
-	} else {
-		if (mach->mach_params.codec_mask & IDISP_CODEC_MASK)
-			ctx->hdmi.idisp_codec = true;
+	} else if (soc_intel_is_glk()) {
+		/* dmic16k not support */
+		ctx->dmic_be_num = 1;
+
+		/* overwrite the DAI link order for GLK boards */
+		ctx->link_order_overwrite = GLK_LINK_ORDER;
+	} else if (soc_intel_is_cml()) {
+		/* backward-compatible with existing devices */
+		switch (ctx->amp_type) {
+		case CODEC_RT1011:
+			card_name = devm_kstrdup(&pdev->dev, "cml_rt1011_rt5682",
+						 GFP_KERNEL);
+			if (!card_name)
+				return -ENOMEM;
+
+			sof_audio_card_rt5682.name = card_name;
+			break;
+		default:
+			break;
+		}
 	}
 
 	/* need to get main clock from pmc */
@@ -767,6 +785,12 @@ static int sof_audio_probe(struct platform_device *pdev)
 static const struct platform_device_id board_ids[] = {
 	{
 		.name = "sof_rt5682",
+	},
+	{
+		.name = "glk_rt5682_def",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_SSP_PORT_CODEC(2) |
+					SOF_SSP_PORT_AMP(1)),
 	},
 	{
 		.name = "cml_rt5682_def",
