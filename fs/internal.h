@@ -267,7 +267,7 @@ struct xattr_name {
 	char name[XATTR_NAME_MAX + 1];
 };
 
-struct xattr_ctx {
+struct kernel_xattr_ctx {
 	/* Value of attribute */
 	union {
 		const void __user *cvalue;
@@ -283,11 +283,11 @@ struct xattr_ctx {
 
 ssize_t do_getxattr(struct mnt_idmap *idmap,
 		    struct dentry *d,
-		    struct xattr_ctx *ctx);
+		    struct kernel_xattr_ctx *ctx);
 
-int setxattr_copy(const char __user *name, struct xattr_ctx *ctx);
+int setxattr_copy(const char __user *name, struct kernel_xattr_ctx *ctx);
 int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
-		struct xattr_ctx *ctx);
+		struct kernel_xattr_ctx *ctx);
 int may_write_xattr(struct mnt_idmap *idmap, struct inode *inode);
 
 #ifdef CONFIG_FS_POSIX_ACL

@@ -590,7 +590,7 @@ EXPORT_SYMBOL_GPL(vfs_removexattr);
  * Extended attribute SET operations
  */
 
-int setxattr_copy(const char __user *name, struct xattr_ctx *ctx)
+int setxattr_copy(const char __user *name, struct kernel_xattr_ctx *ctx)
 {
 	int error;
 
@@ -620,7 +620,7 @@ int setxattr_copy(const char __user *name, struct xattr_ctx *ctx)
 }
 
 int do_setxattr(struct mnt_idmap *idmap, struct dentry *dentry,
-		struct xattr_ctx *ctx)
+		struct kernel_xattr_ctx *ctx)
 {
 	if (is_posix_acl_xattr(ctx->kname->name))
 		return do_set_acl(idmap, dentry, ctx->kname->name,
@@ -635,7 +635,7 @@ static int path_setxattr(const char __user *pathname,
 			 size_t size, int flags, unsigned int lookup_flags)
 {
 	struct xattr_name kname;
-	struct xattr_ctx ctx = {
+	struct kernel_xattr_ctx ctx = {
 		.cvalue   = value,
 		.kvalue   = NULL,
 		.size     = size,
@@ -687,7 +687,7 @@ SYSCALL_DEFINE5(fsetxattr, int, fd, const char __user *, name,
 		const void __user *,value, size_t, size, int, flags)
 {
 	struct xattr_name kname;
-	struct xattr_ctx ctx = {
+	struct kernel_xattr_ctx ctx = {
 		.cvalue   = value,
 		.kvalue   = NULL,
 		.size     = size,
@@ -720,7 +720,7 @@ SYSCALL_DEFINE5(fsetxattr, int, fd, const char __user *, name,
  */
 ssize_t
 do_getxattr(struct mnt_idmap *idmap, struct dentry *d,
-	struct xattr_ctx *ctx)
+	struct kernel_xattr_ctx *ctx)
 {
 	ssize_t error;
 	char *kname = ctx->kname->name;
@@ -755,7 +755,7 @@ getxattr(struct mnt_idmap *idmap, struct dentry *d,
 {
 	ssize_t error;
 	struct xattr_name kname;
-	struct xattr_ctx ctx = {
+	struct kernel_xattr_ctx ctx = {
 		.value    = value,
 		.kvalue   = NULL,
 		.size     = size,

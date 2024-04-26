@@ -18,7 +18,7 @@
 
 struct io_xattr {
 	struct file			*file;
-	struct xattr_ctx		ctx;
+	struct kernel_xattr_ctx		ctx;
 	struct filename			*filename;
 };
 
