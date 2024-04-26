@@ -527,7 +527,6 @@ static int pcf8563_probe(struct i2c_client *client)
 
 	i2c_set_clientdata(client, pcf8563);
 	pcf8563->client = client;
-	device_set_wakeup_capable(&client->dev, 1);
 
 	/* Set timer to lowest frequency to save power (ref Haoyu datasheet) */
 	buf = PCF8563_TMRC_1_60;
@@ -553,6 +552,7 @@ static int pcf8563_probe(struct i2c_client *client)
 	/* the pcf8563 alarm only supports a minute accuracy */
 	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, pcf8563->rtc->features);
 	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, pcf8563->rtc->features);
+	clear_bit(RTC_FEATURE_ALARM, pcf8563->rtc->features);
 	pcf8563->rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	pcf8563->rtc->range_max = RTC_TIMESTAMP_END_2099;
 	pcf8563->rtc->set_start_time = true;
@@ -573,7 +573,12 @@ static int pcf8563_probe(struct i2c_client *client)
 			return err;
 		}
 	} else {
-		clear_bit(RTC_FEATURE_ALARM, pcf8563->rtc->features);
+		client->irq = 0;
+	}
+
+	if (client->irq > 0 || device_property_read_bool(&client->dev, "wakeup-source")) {
+		device_init_wakeup(&client->dev, true);
+		set_bit(RTC_FEATURE_ALARM, pcf8563->rtc->features);
 	}
 
 	err = devm_rtc_register_device(pcf8563->rtc);
