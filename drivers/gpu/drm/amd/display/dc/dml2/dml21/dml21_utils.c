@@ -465,7 +465,10 @@ void dml21_build_fams2_programming(const struct dc *dc,
 		}
 
 		dml_stream_idx = dml21_helper_find_dml_pipe_idx_by_stream_id(dml_ctx, stream->stream_id);
-		ASSERT(dml_stream_idx >= 0);
+		if (dml_stream_idx < 0) {
+			ASSERT(dml_stream_idx >= 0);
+			continue;
+		}
 
 		/* copy static state from PMO */
 		memcpy(static_state,
