@@ -46,7 +46,6 @@ static LIST_HEAD(svc_xprt_class_list);
 
 /* SMP locking strategy:
  *
- *	svc_pool->sp_lock protects most of the fields of that pool.
  *	svc_serv->sv_lock protects sv_tempsocks, sv_permsocks, sv_tmpcnt.
  *	when both need to be taken (rare), svc_serv->sv_lock is first.
  *	The "service mutex" protects svc_serv->sv_nrthread.
