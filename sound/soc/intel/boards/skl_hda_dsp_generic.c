@@ -92,8 +92,6 @@ skl_hda_add_dai_link(struct snd_soc_card *card, struct snd_soc_dai_link *link)
 	return ret;
 }
 
-static char hda_soc_components[30];
-
 #define IDISP_DAI_COUNT		3
 #define HDAC_DAI_COUNT		2
 #define DMIC_DAI_COUNT		2
@@ -231,9 +229,11 @@ static int skl_hda_audio_probe(struct platform_device *pdev)
 		card->disable_route_checks = true;
 
 	if (mach->mach_params.dmic_num > 0) {
-		snprintf(hda_soc_components, sizeof(hda_soc_components),
-				"cfg-dmics:%d", mach->mach_params.dmic_num);
-		card->components = hda_soc_components;
+		card->components = devm_kasprintf(card->dev, GFP_KERNEL,
+						  "cfg-dmics:%d",
+						  mach->mach_params.dmic_num);
+		if (!card->components)
+			return -ENOMEM;
 	}
 
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
