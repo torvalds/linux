@@ -26,6 +26,7 @@
 
 /**
  * struct adc_jack_data - internal data for adc_jack device driver
+ * @dev:		The device structure associated with the adc_jack.
  * @edev:		extcon device.
  * @cable_names:	list of supported cables.
  * @adc_conditions:	list of adc value conditions.
@@ -35,6 +36,7 @@
  *			handling at handling_delay jiffies.
  * @handler:		extcon event handler called by interrupt handler.
  * @chan:		iio channel being queried.
+ * @wakeup_source:	Indicates if the device can wake up the system.
  */
 struct adc_jack_data {
 	struct device *dev;
