@@ -1869,6 +1869,34 @@ static ssize_t smu_v14_0_2_get_ecc_info(struct smu_context *smu,
 	return ret;
 }
 
+static int smu_v14_0_2_set_vcn_enable(struct smu_context *smu,
+			     bool enable)
+{
+	struct amdgpu_device *adev = smu->adev;
+	struct smu_power_gate *power_gate = &smu->smu_power.power_gate;
+	int i, ret = 0;
+
+	if (!adev->enable_jpeg_test)
+		return smu_v14_0_set_vcn_enable(smu, enable);
+
+	if (!atomic_read(&power_gate->vcn_gated) || !enable)
+		return 0;
+
+	for (i = 0; i < adev->vcn.num_vcn_inst; i++) {
+		if (adev->vcn.harvest_config & (1 << i))
+			continue;
+
+		ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_PowerUpVcn,
+						      i << 16U, NULL);
+		if (ret)
+			return ret;
+	}
+
+	atomic_set(&power_gate->vcn_gated, 0);
+
+	return ret;
+}
+
 static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.get_allowed_feature_mask = smu_v14_0_2_get_allowed_feature_mask,
 	.set_default_dpm_table = smu_v14_0_2_set_default_dpm_table,
@@ -1891,7 +1919,7 @@ static const struct pptable_funcs smu_v14_0_2_ppt_funcs = {
 	.system_features_control = smu_v14_0_system_features_control,
 	.set_allowed_mask = smu_v14_0_set_allowed_mask,
 	.get_enabled_mask = smu_cmn_get_enabled_mask,
-	.dpm_set_vcn_enable = smu_v14_0_set_vcn_enable,
+	.dpm_set_vcn_enable = smu_v14_0_2_set_vcn_enable,
 	.dpm_set_jpeg_enable = smu_v14_0_set_jpeg_enable,
 	.get_dpm_ultimate_freq = smu_v14_0_2_get_dpm_ultimate_freq,
 	.get_vbios_bootup_values = smu_v14_0_get_vbios_bootup_values,
