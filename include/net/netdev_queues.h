@@ -9,11 +9,38 @@ struct netdev_queue_stats_rx {
 	u64 bytes;
 	u64 packets;
 	u64 alloc_fail;
+
+	u64 hw_drops;
+	u64 hw_drop_overruns;
+
+	u64 csum_unnecessary;
+	u64 csum_none;
+	u64 csum_bad;
+
+	u64 hw_gro_packets;
+	u64 hw_gro_bytes;
+	u64 hw_gro_wire_packets;
+	u64 hw_gro_wire_bytes;
+
+	u64 hw_drop_ratelimits;
 };
 
 struct netdev_queue_stats_tx {
 	u64 bytes;
 	u64 packets;
+
+	u64 hw_drops;
+	u64 hw_drop_errors;
+
+	u64 csum_none;
+	u64 needs_csum;
+
+	u64 hw_gso_packets;
+	u64 hw_gso_bytes;
+	u64 hw_gso_wire_packets;
+	u64 hw_gso_wire_bytes;
+
+	u64 hw_drop_ratelimits;
 };
 
 /**
