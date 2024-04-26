@@ -11,9 +11,7 @@
  * Copyright(c) 2007 - 2011 Realtek Corporation. All rights reserved.
  */
 
-#include <linux/init.h>
 #include <linux/kernel.h>
-#include <linux/sched.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -22,8 +20,6 @@
 #include <linux/usb.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
-#include <linux/ethtool.h>
-#include <linux/wireless.h>
 #include <linux/firmware.h>
 #include <linux/moduleparam.h>
 #include <net/mac80211.h>
