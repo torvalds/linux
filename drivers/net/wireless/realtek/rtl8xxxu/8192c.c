@@ -26,7 +26,7 @@
 #include <linux/moduleparam.h>
 #include <net/mac80211.h>
 #include "rtl8xxxu.h"
-#include "rtl8xxxu_regs.h"
+#include "regs.h"
 
 #ifdef CONFIG_RTL8XXXU_UNTESTED
 static struct rtl8xxxu_power_base rtl8192c_power_base = {

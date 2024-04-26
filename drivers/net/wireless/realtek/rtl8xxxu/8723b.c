@@ -26,7 +26,7 @@
 #include <linux/moduleparam.h>
 #include <net/mac80211.h>
 #include "rtl8xxxu.h"
-#include "rtl8xxxu_regs.h"
+#include "regs.h"
 
 static const struct rtl8xxxu_reg8val rtl8723b_mac_init_table[] = {
 	{0x02f, 0x30}, {0x035, 0x00}, {0x039, 0x08}, {0x04e, 0xe0},
