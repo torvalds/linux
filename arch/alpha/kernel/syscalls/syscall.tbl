@@ -502,3 +502,7 @@
 570	common	lsm_set_self_attr		sys_lsm_set_self_attr
 571	common	lsm_list_modules		sys_lsm_list_modules
 572	common  mseal				sys_mseal
+573	common	setxattrat			sys_setxattrat
+574	common	getxattrat			sys_getxattrat
+575	common	listxattrat			sys_listxattrat
+576	common	removexattrat			sys_removexattrat

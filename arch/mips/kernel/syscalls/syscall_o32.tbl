@@ -450,3 +450,7 @@
 460	o32	lsm_set_self_attr		sys_lsm_set_self_attr
 461	o32	lsm_list_modules		sys_lsm_list_modules
 462	o32	mseal				sys_mseal
+463	o32	setxattrat			sys_setxattrat
+464	o32	getxattrat			sys_getxattrat
+465	o32	listxattrat			sys_listxattrat
+466	o32	removexattrat			sys_removexattrat

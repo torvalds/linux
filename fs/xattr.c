@@ -676,69 +676,90 @@ out:
 	return error;
 }
 
-static int path_setxattr(const char __user *pathname,
-			 const char __user *name, const void __user *value,
-			 size_t size, int flags, unsigned int lookup_flags)
+static int path_setxattrat(int dfd, const char __user *pathname,
+			   unsigned int at_flags, const char __user *name,
+			   const void __user *value, size_t size, int flags)
 {
 	struct xattr_name kname;
 	struct kernel_xattr_ctx ctx = {
-		.cvalue   = value,
-		.kvalue   = NULL,
-		.size     = size,
-		.kname    = &kname,
-		.flags    = flags,
+		.cvalue	= value,
+		.kvalue	= NULL,
+		.size	= size,
+		.kname	= &kname,
+		.flags	= flags,
 	};
+	struct filename *filename;
+	unsigned int lookup_flags = 0;
 	int error;
+
+	if ((at_flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)) != 0)
+		return -EINVAL;
+
+	if (!(at_flags & AT_SYMLINK_NOFOLLOW))
+		lookup_flags = LOOKUP_FOLLOW;
 
 	error = setxattr_copy(name, &ctx);
 	if (error)
 		return error;
 
-	error = filename_setxattr(AT_FDCWD, getname(pathname), lookup_flags,
-				  &ctx);
+	filename = getname_maybe_null(pathname, at_flags);
+	if (!filename) {
+		CLASS(fd, f)(dfd);
+		if (fd_empty(f))
+			error = -EBADF;
+		else
+			error = file_setxattr(fd_file(f), &ctx);
+	} else {
+		error = filename_setxattr(dfd, filename, lookup_flags, &ctx);
+	}
 	kvfree(ctx.kvalue);
 	return error;
+}
+
+SYSCALL_DEFINE6(setxattrat, int, dfd, const char __user *, pathname, unsigned int, at_flags,
+		const char __user *, name, const struct xattr_args __user *, uargs,
+		size_t, usize)
+{
+	struct xattr_args args = {};
+	int error;
+
+	BUILD_BUG_ON(sizeof(struct xattr_args) < XATTR_ARGS_SIZE_VER0);
+	BUILD_BUG_ON(sizeof(struct xattr_args) != XATTR_ARGS_SIZE_LATEST);
+
+	if (unlikely(usize < XATTR_ARGS_SIZE_VER0))
+		return -EINVAL;
+	if (usize > PAGE_SIZE)
+		return -E2BIG;
+
+	error = copy_struct_from_user(&args, sizeof(args), uargs, usize);
+	if (error)
+		return error;
+
+	return path_setxattrat(dfd, pathname, at_flags, name,
+			       u64_to_user_ptr(args.value), args.size,
+			       args.flags);
 }
 
 SYSCALL_DEFINE5(setxattr, const char __user *, pathname,
 		const char __user *, name, const void __user *, value,
 		size_t, size, int, flags)
 {
-	return path_setxattr(pathname, name, value, size, flags, LOOKUP_FOLLOW);
+	return path_setxattrat(AT_FDCWD, pathname, 0, name, value, size, flags);
 }
 
 SYSCALL_DEFINE5(lsetxattr, const char __user *, pathname,
 		const char __user *, name, const void __user *, value,
 		size_t, size, int, flags)
 {
-	return path_setxattr(pathname, name, value, size, flags, 0);
+	return path_setxattrat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW, name,
+			       value, size, flags);
 }
 
 SYSCALL_DEFINE5(fsetxattr, int, fd, const char __user *, name,
 		const void __user *,value, size_t, size, int, flags)
 {
-	struct xattr_name kname;
-	struct kernel_xattr_ctx ctx = {
-		.cvalue   = value,
-		.kvalue   = NULL,
-		.size     = size,
-		.kname    = &kname,
-		.flags    = flags,
-	};
-	int error;
-
-	CLASS(fd, f)(fd);
-
-	if (fd_empty(f))
-		return -EBADF;
-
-	error = setxattr_copy(name, &ctx);
-	if (error)
-		return error;
-
-	error = file_setxattr(fd_file(f), &ctx);
-	kvfree(ctx.kvalue);
-	return error;
+	return path_setxattrat(fd, NULL, AT_EMPTY_PATH, name,
+			       value, size, flags);
 }
 
 /*
@@ -804,11 +825,10 @@ out:
 	return error;
 }
 
-static ssize_t path_getxattr(const char __user *pathname,
-			     const char __user *name, void __user *value,
-			     size_t size, unsigned int lookup_flags)
+static ssize_t path_getxattrat(int dfd, const char __user *pathname,
+			       unsigned int at_flags, const char __user *name,
+			       void __user *value, size_t size)
 {
-	ssize_t error;
 	struct xattr_name kname;
 	struct kernel_xattr_ctx ctx = {
 		.value    = value,
@@ -816,44 +836,72 @@ static ssize_t path_getxattr(const char __user *pathname,
 		.kname    = &kname,
 		.flags    = 0,
 	};
+	struct filename *filename;
+	ssize_t error;
+
+	if ((at_flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)) != 0)
+		return -EINVAL;
 
 	error = import_xattr_name(&kname, name);
 	if (error)
 		return error;
-	return filename_getxattr(AT_FDCWD, getname(pathname), lookup_flags, &ctx);
+
+	filename = getname_maybe_null(pathname, at_flags);
+	if (!filename) {
+		CLASS(fd, f)(dfd);
+		if (fd_empty(f))
+			return -EBADF;
+		return file_getxattr(fd_file(f), &ctx);
+	} else {
+		int lookup_flags = 0;
+		if (!(at_flags & AT_SYMLINK_NOFOLLOW))
+			lookup_flags = LOOKUP_FOLLOW;
+		return filename_getxattr(dfd, filename, lookup_flags, &ctx);
+	}
+}
+
+SYSCALL_DEFINE6(getxattrat, int, dfd, const char __user *, pathname, unsigned int, at_flags,
+		const char __user *, name, struct xattr_args __user *, uargs, size_t, usize)
+{
+	struct xattr_args args = {};
+	int error;
+
+	BUILD_BUG_ON(sizeof(struct xattr_args) < XATTR_ARGS_SIZE_VER0);
+	BUILD_BUG_ON(sizeof(struct xattr_args) != XATTR_ARGS_SIZE_LATEST);
+
+	if (unlikely(usize < XATTR_ARGS_SIZE_VER0))
+		return -EINVAL;
+	if (usize > PAGE_SIZE)
+		return -E2BIG;
+
+	error = copy_struct_from_user(&args, sizeof(args), uargs, usize);
+	if (error)
+		return error;
+
+	if (args.flags != 0)
+		return -EINVAL;
+
+	return path_getxattrat(dfd, pathname, at_flags, name,
+			       u64_to_user_ptr(args.value), args.size);
 }
 
 SYSCALL_DEFINE4(getxattr, const char __user *, pathname,
 		const char __user *, name, void __user *, value, size_t, size)
 {
-	return path_getxattr(pathname, name, value, size, LOOKUP_FOLLOW);
+	return path_getxattrat(AT_FDCWD, pathname, 0, name, value, size);
 }
 
 SYSCALL_DEFINE4(lgetxattr, const char __user *, pathname,
 		const char __user *, name, void __user *, value, size_t, size)
 {
-	return path_getxattr(pathname, name, value, size, 0);
+	return path_getxattrat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW, name,
+			       value, size);
 }
 
 SYSCALL_DEFINE4(fgetxattr, int, fd, const char __user *, name,
 		void __user *, value, size_t, size)
 {
-	ssize_t error;
-	struct xattr_name kname;
-	struct kernel_xattr_ctx ctx = {
-		.value    = value,
-		.size     = size,
-		.kname    = &kname,
-		.flags    = 0,
-	};
-	CLASS(fd, f)(fd);
-
-	if (fd_empty(f))
-		return -EBADF;
-	error = import_xattr_name(&kname, name);
-	if (error)
-		return error;
-	return file_getxattr(fd_file(f), &ctx);
+	return path_getxattrat(fd, NULL, AT_EMPTY_PATH, name, value, size);
 }
 
 /*
@@ -918,32 +966,50 @@ out:
 	return error;
 }
 
-static ssize_t path_listxattr(const char __user *pathname, char __user *list,
-			      size_t size, unsigned int lookup_flags)
+static ssize_t path_listxattrat(int dfd, const char __user *pathname,
+				unsigned int at_flags, char __user *list,
+				size_t size)
 {
-	return filename_listxattr(AT_FDCWD, getname(pathname), lookup_flags,
-				  list, size);
+	struct filename *filename;
+	int lookup_flags;
+
+	if ((at_flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)) != 0)
+		return -EINVAL;
+
+	filename = getname_maybe_null(pathname, at_flags);
+	if (!filename) {
+		CLASS(fd, f)(dfd);
+		if (fd_empty(f))
+			return -EBADF;
+		return file_listxattr(fd_file(f), list, size);
+	}
+
+	lookup_flags = (at_flags & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	return filename_listxattr(dfd, filename, lookup_flags, list, size);
+}
+
+SYSCALL_DEFINE5(listxattrat, int, dfd, const char __user *, pathname,
+		unsigned int, at_flags,
+		char __user *, list, size_t, size)
+{
+	return path_listxattrat(dfd, pathname, at_flags, list, size);
 }
 
 SYSCALL_DEFINE3(listxattr, const char __user *, pathname, char __user *, list,
 		size_t, size)
 {
-	return path_listxattr(pathname, list, size, LOOKUP_FOLLOW);
+	return path_listxattrat(AT_FDCWD, pathname, 0, list, size);
 }
 
 SYSCALL_DEFINE3(llistxattr, const char __user *, pathname, char __user *, list,
 		size_t, size)
 {
-	return path_listxattr(pathname, list, size, 0);
+	return path_listxattrat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW, list, size);
 }
 
 SYSCALL_DEFINE3(flistxattr, int, fd, char __user *, list, size_t, size)
 {
-	CLASS(fd, f)(fd);
-
-	if (fd_empty(f))
-		return -EBADF;
-	return file_listxattr(fd_file(f), list, size);
+	return path_listxattrat(fd, NULL, AT_EMPTY_PATH, list, size);
 }
 
 /*
@@ -996,44 +1062,53 @@ out:
 	return error;
 }
 
-static int path_removexattr(const char __user *pathname,
-			    const char __user *name, unsigned int lookup_flags)
+static int path_removexattrat(int dfd, const char __user *pathname,
+			      unsigned int at_flags, const char __user *name)
 {
 	struct xattr_name kname;
+	struct filename *filename;
+	unsigned int lookup_flags;
 	int error;
+
+	if ((at_flags & ~(AT_SYMLINK_NOFOLLOW | AT_EMPTY_PATH)) != 0)
+		return -EINVAL;
 
 	error = import_xattr_name(&kname, name);
 	if (error)
 		return error;
-	return filename_removexattr(AT_FDCWD, getname(pathname), lookup_flags,
-				    &kname);
+
+	filename = getname_maybe_null(pathname, at_flags);
+	if (!filename) {
+		CLASS(fd, f)(dfd);
+		if (fd_empty(f))
+			return -EBADF;
+		return file_removexattr(fd_file(f), &kname);
+	}
+	lookup_flags = (at_flags & AT_SYMLINK_NOFOLLOW) ? 0 : LOOKUP_FOLLOW;
+	return filename_removexattr(dfd, filename, lookup_flags, &kname);
+}
+
+SYSCALL_DEFINE4(removexattrat, int, dfd, const char __user *, pathname,
+		unsigned int, at_flags, const char __user *, name)
+{
+	return path_removexattrat(dfd, pathname, at_flags, name);
 }
 
 SYSCALL_DEFINE2(removexattr, const char __user *, pathname,
 		const char __user *, name)
 {
-	return path_removexattr(pathname, name, LOOKUP_FOLLOW);
+	return path_removexattrat(AT_FDCWD, pathname, 0, name);
 }
 
 SYSCALL_DEFINE2(lremovexattr, const char __user *, pathname,
 		const char __user *, name)
 {
-	return path_removexattr(pathname, name, 0);
+	return path_removexattrat(AT_FDCWD, pathname, AT_SYMLINK_NOFOLLOW, name);
 }
 
 SYSCALL_DEFINE2(fremovexattr, int, fd, const char __user *, name)
 {
-	CLASS(fd, f)(fd);
-	struct xattr_name kname;
-	int error;
-
-	if (fd_empty(f))
-		return -EBADF;
-
-	error = import_xattr_name(&kname, name);
-	if (error)
-		return error;
-	return file_removexattr(fd_file(f), &kname);
+	return path_removexattrat(fd, NULL, AT_EMPTY_PATH, name);
 }
 
 int xattr_list_one(char **buffer, ssize_t *remaining_size, const char *name)
