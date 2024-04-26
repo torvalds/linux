@@ -56,17 +56,16 @@ struct vm_area_struct *find_vma_and_prepare_anon(struct mm_struct *mm,
 
 #ifdef CONFIG_PER_VMA_LOCK
 /*
- * lock_vma() - Lookup and lock vma corresponding to @address.
+ * uffd_lock_vma() - Lookup and lock vma corresponding to @address.
  * @mm: mm to search vma in.
  * @address: address that the vma should contain.
  *
- * Should be called without holding mmap_lock. vma should be unlocked after use
- * with unlock_vma().
+ * Should be called without holding mmap_lock.
  *
  * Return: A locked vma containing @address, -ENOENT if no vma is found, or
  * -ENOMEM if anon_vma couldn't be allocated.
  */
-static struct vm_area_struct *lock_vma(struct mm_struct *mm,
+static struct vm_area_struct *uffd_lock_vma(struct mm_struct *mm,
 				       unsigned long address)
 {
 	struct vm_area_struct *vma;
@@ -74,9 +73,8 @@ static struct vm_area_struct *lock_vma(struct mm_struct *mm,
 	vma = lock_vma_under_rcu(mm, address);
 	if (vma) {
 		/*
-		 * lock_vma_under_rcu() only checks anon_vma for private
-		 * anonymous mappings. But we need to ensure it is assigned in
-		 * private file-backed vmas as well.
+		 * We know we're going to need to use anon_vma, so check
+		 * that early.
 		 */
 		if (!(vma->vm_flags & VM_SHARED) && unlikely(!vma->anon_vma))
 			vma_end_read(vma);
@@ -107,7 +105,7 @@ static struct vm_area_struct *uffd_mfill_lock(struct mm_struct *dst_mm,
 {
 	struct vm_area_struct *dst_vma;
 
-	dst_vma = lock_vma(dst_mm, dst_start);
+	dst_vma = uffd_lock_vma(dst_mm, dst_start);
 	if (IS_ERR(dst_vma) || validate_dst_vma(dst_vma, dst_start + len))
 		return dst_vma;
 
@@ -1401,7 +1399,7 @@ static int uffd_move_lock(struct mm_struct *mm,
 	struct vm_area_struct *vma;
 	int err;
 
-	vma = lock_vma(mm, dst_start);
+	vma = uffd_lock_vma(mm, dst_start);
 	if (IS_ERR(vma))
 		return PTR_ERR(vma);
 
@@ -1416,7 +1414,7 @@ static int uffd_move_lock(struct mm_struct *mm,
 	}
 
 	/*
-	 * Using lock_vma() to get src_vma can lead to following deadlock:
+	 * Using uffd_lock_vma() to get src_vma can lead to following deadlock:
 	 *
 	 * Thread1				Thread2
 	 * -------				-------
@@ -1438,7 +1436,7 @@ static int uffd_move_lock(struct mm_struct *mm,
 	err = find_vmas_mm_locked(mm, dst_start, src_start, dst_vmap, src_vmap);
 	if (!err) {
 		/*
-		 * See comment in lock_vma() as to why not using
+		 * See comment in uffd_lock_vma() as to why not using
 		 * vma_start_read() here.
 		 */
 		down_read(&(*dst_vmap)->vm_lock->lock);
