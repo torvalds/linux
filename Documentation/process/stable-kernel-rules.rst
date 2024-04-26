@@ -79,7 +79,7 @@ it reduces the chance of accidentally exposing the fix to the public by way of
 Once the patch is mainlined it will be applied to the stable tree without
 anything else needing to be done by the author or subsystem maintainer.
 
-To sent additional instructions to the stable team, use a shell-style inline
+To send additional instructions to the stable team, use a shell-style inline
 comment to pass arbitrary or predefined notes:
 
 * Specify any additional patch prerequisites for cherry picking::
