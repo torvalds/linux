@@ -7,8 +7,8 @@ Description
 
 Dynamic Audio Power Management (DAPM) is designed to allow portable
 Linux devices to use the minimum amount of power within the audio
-subsystem at all times. It is independent of other kernel PM and as
-such, can easily co-exist with the other PM systems.
+subsystem at all times. It is independent of other kernel power
+management frameworks and, as such, can easily co-exist with them.
 
 DAPM is also completely transparent to all user space applications as
 all power switching is done within the ASoC core. No code changes or
