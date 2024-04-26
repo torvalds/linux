@@ -494,20 +494,26 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 static int emit_lse_atomic(const struct bpf_insn *insn, struct jit_ctx *ctx)
 {
 	const u8 code = insn->code;
+	const u8 arena_vm_base = bpf2a64[ARENA_VM_START];
 	const u8 dst = bpf2a64[insn->dst_reg];
 	const u8 src = bpf2a64[insn->src_reg];
 	const u8 tmp = bpf2a64[TMP_REG_1];
 	const u8 tmp2 = bpf2a64[TMP_REG_2];
 	const bool isdw = BPF_SIZE(code) == BPF_DW;
+	const bool arena = BPF_MODE(code) == BPF_PROBE_ATOMIC;
 	const s16 off = insn->off;
-	u8 reg;
+	u8 reg = dst;
 
-	if (!off) {
-		reg = dst;
-	} else {
-		emit_a64_mov_i(1, tmp, off, ctx);
-		emit(A64_ADD(1, tmp, tmp, dst), ctx);
-		reg = tmp;
+	if (off || arena) {
+		if (off) {
+			emit_a64_mov_i(1, tmp, off, ctx);
+			emit(A64_ADD(1, tmp, tmp, dst), ctx);
+			reg = tmp;
+		}
+		if (arena) {
+			emit(A64_ADD(1, tmp, reg, arena_vm_base), ctx);
+			reg = tmp;
+		}
 	}
 
 	switch (insn->imm) {
@@ -575,6 +581,12 @@ static int emit_ll_sc_atomic(const struct bpf_insn *insn, struct jit_ctx *ctx)
 	const bool isdw = BPF_SIZE(code) == BPF_DW;
 	u8 reg;
 	s32 jmp_offset;
+
+	if (BPF_MODE(code) == BPF_PROBE_ATOMIC) {
+		/* ll_sc based atomics don't support unsafe pointers yet. */
+		pr_err_once("unknown atomic opcode %02x\n", code);
+		return -EINVAL;
+	}
 
 	if (!off) {
 		reg = dst;
@@ -777,7 +789,8 @@ static int add_exception_handler(const struct bpf_insn *insn,
 
 	if (BPF_MODE(insn->code) != BPF_PROBE_MEM &&
 		BPF_MODE(insn->code) != BPF_PROBE_MEMSX &&
-			BPF_MODE(insn->code) != BPF_PROBE_MEM32)
+			BPF_MODE(insn->code) != BPF_PROBE_MEM32 &&
+				BPF_MODE(insn->code) != BPF_PROBE_ATOMIC)
 		return 0;
 
 	if (!ctx->prog->aux->extable ||
@@ -1474,10 +1487,16 @@ emit_cond_jmp:
 
 	case BPF_STX | BPF_ATOMIC | BPF_W:
 	case BPF_STX | BPF_ATOMIC | BPF_DW:
+	case BPF_STX | BPF_PROBE_ATOMIC | BPF_W:
+	case BPF_STX | BPF_PROBE_ATOMIC | BPF_DW:
 		if (cpus_have_cap(ARM64_HAS_LSE_ATOMICS))
 			ret = emit_lse_atomic(insn, ctx);
 		else
 			ret = emit_ll_sc_atomic(insn, ctx);
+		if (ret)
+			return ret;
+
+		ret = add_exception_handler(insn, ctx, dst);
 		if (ret)
 			return ret;
 		break;
@@ -2524,6 +2543,19 @@ bool bpf_jit_supports_exceptions(void)
 
 bool bpf_jit_supports_arena(void)
 {
+	return true;
+}
+
+bool bpf_jit_supports_insn(struct bpf_insn *insn, bool in_arena)
+{
+	if (!in_arena)
+		return true;
+	switch (insn->code) {
+	case BPF_STX | BPF_ATOMIC | BPF_W:
+	case BPF_STX | BPF_ATOMIC | BPF_DW:
+		if (!cpus_have_cap(ARM64_HAS_LSE_ATOMICS))
+			return false;
+	}
 	return true;
 }
 
