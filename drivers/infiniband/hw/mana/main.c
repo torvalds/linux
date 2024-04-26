@@ -658,7 +658,7 @@ int mana_ib_create_eqs(struct mana_ib_dev *mdev)
 {
 	struct gdma_context *gc = mdev_to_gc(mdev);
 	struct gdma_queue_spec spec = {};
-	int err;
+	int err, i;
 
 	spec.type = GDMA_EQ;
 	spec.monitor_avl_buf = false;
@@ -672,12 +672,42 @@ int mana_ib_create_eqs(struct mana_ib_dev *mdev)
 	if (err)
 		return err;
 
+	mdev->eqs = kcalloc(mdev->ib_dev.num_comp_vectors, sizeof(struct gdma_queue *),
+			    GFP_KERNEL);
+	if (!mdev->eqs) {
+		err = -ENOMEM;
+		goto destroy_fatal_eq;
+	}
+
+	for (i = 0; i < mdev->ib_dev.num_comp_vectors; i++) {
+		spec.eq.msix_index = (i + 1) % gc->num_msix_usable;
+		err = mana_gd_create_mana_eq(mdev->gdma_dev, &spec, &mdev->eqs[i]);
+		if (err)
+			goto destroy_eqs;
+	}
+
 	return 0;
+
+destroy_eqs:
+	while (i-- > 0)
+		mana_gd_destroy_queue(gc, mdev->eqs[i]);
+	kfree(mdev->eqs);
+destroy_fatal_eq:
+	mana_gd_destroy_queue(gc, mdev->fatal_err_eq);
+	return err;
 }
 
 void mana_ib_destroy_eqs(struct mana_ib_dev *mdev)
 {
-	mana_gd_destroy_queue(mdev_to_gc(mdev), mdev->fatal_err_eq);
+	struct gdma_context *gc = mdev_to_gc(mdev);
+	int i;
+
+	mana_gd_destroy_queue(gc, mdev->fatal_err_eq);
+
+	for (i = 0; i < mdev->ib_dev.num_comp_vectors; i++)
+		mana_gd_destroy_queue(gc, mdev->eqs[i]);
+
+	kfree(mdev->eqs);
 }
 
 int mana_ib_gd_create_rnic_adapter(struct mana_ib_dev *mdev)

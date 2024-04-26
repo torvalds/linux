@@ -56,6 +56,7 @@ struct mana_ib_dev {
 	struct gdma_dev *gdma_dev;
 	mana_handle_t adapter_handle;
 	struct gdma_queue *fatal_err_eq;
+	struct gdma_queue **eqs;
 	struct mana_ib_adapter_caps adapter_caps;
 };
 
