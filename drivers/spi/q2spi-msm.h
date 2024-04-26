@@ -209,6 +209,8 @@ if (q2spi_ptr) { \
 static unsigned int q2spi_max_speed;
 /* global storage for device Major number */
 static int q2spi_cdev_major;
+/* global variable for system restart case */
+static bool q2spi_sys_restart;
 
 enum abort_code {
 	TERMINATE_CMD = 0,
@@ -719,5 +721,6 @@ void q2spi_geni_resources_off(struct q2spi_geni *q2spi);
 int __q2spi_send_messages(struct q2spi_geni *q2spi, void *ptr);
 int q2spi_wakeup_hw_through_gpio(struct q2spi_geni *q2spi);
 int q2spi_process_hrf_flow_after_lra(struct q2spi_geni *q2spi, struct q2spi_packet *q2spi_pkt);
+void q2spi_transfer_soft_reset(struct q2spi_geni *q2spi);
 
 #endif /* _SPI_Q2SPI_MSM_H_ */
