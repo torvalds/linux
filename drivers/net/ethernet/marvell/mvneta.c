@@ -3259,7 +3259,8 @@ static void mvneta_link_change(struct mvneta_port *pp)
 {
 	u32 gmac_stat = mvreg_read(pp, MVNETA_GMAC_STATUS);
 
-	phylink_mac_change(pp->phylink, !!(gmac_stat & MVNETA_GMAC_LINK_UP));
+	phylink_pcs_change(&pp->phylink_pcs,
+			   !!(gmac_stat & MVNETA_GMAC_LINK_UP));
 }
 
 /* NAPI handler
