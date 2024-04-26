@@ -395,7 +395,7 @@ static void divvy_up_power(struct power_actor *power, int num_actors,
 	}
 }
 
-static int allocate_power(struct thermal_zone_device *tz, int control_temp)
+static void allocate_power(struct thermal_zone_device *tz, int control_temp)
 {
 	struct power_allocator_params *params = tz->governor_data;
 	unsigned int num_actors = params->num_actors;
@@ -410,7 +410,7 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 	int i = 0, ret;
 
 	if (!num_actors)
-		return -ENODEV;
+		return;
 
 	/* Clean all buffers for new power estimations */
 	memset(power, 0, params->buffer_size);
@@ -471,8 +471,6 @@ static int allocate_power(struct thermal_zone_device *tz, int control_temp)
 				      num_actors, power_range,
 				      max_allocatable_power, tz->temperature,
 				      control_temp - tz->temperature);
-
-	return 0;
 }
 
 /**
@@ -496,9 +494,11 @@ static void get_governor_trips(struct thermal_zone_device *tz,
 	const struct thermal_trip *first_passive = NULL;
 	const struct thermal_trip *last_passive = NULL;
 	const struct thermal_trip *last_active = NULL;
-	const struct thermal_trip *trip;
+	const struct thermal_trip_desc *td;
 
-	for_each_trip(tz, trip) {
+	for_each_trip_desc(tz, td) {
+		const struct thermal_trip *trip = &td->trip;
+
 		switch (trip->type) {
 		case THERMAL_TRIP_PASSIVE:
 			if (!first_passive) {
@@ -743,40 +743,29 @@ static void power_allocator_unbind(struct thermal_zone_device *tz)
 	tz->governor_data = NULL;
 }
 
-static int power_allocator_throttle(struct thermal_zone_device *tz,
-				    const struct thermal_trip *trip)
+static void power_allocator_manage(struct thermal_zone_device *tz)
 {
 	struct power_allocator_params *params = tz->governor_data;
-	bool update;
+	const struct thermal_trip *trip = params->trip_switch_on;
 
 	lockdep_assert_held(&tz->lock);
 
-	/*
-	 * We get called for every trip point but we only need to do
-	 * our calculations once
-	 */
-	if (trip != params->trip_max)
-		return 0;
-
-	trip = params->trip_switch_on;
 	if (trip && tz->temperature < trip->temperature) {
-		update = tz->passive;
-		tz->passive = 0;
 		reset_pid_controller(params);
-		allow_maximum_power(tz, update);
-		return 0;
+		allow_maximum_power(tz, tz->passive);
+		tz->passive = 0;
+		return;
 	}
 
+	allocate_power(tz, params->trip_max->temperature);
 	tz->passive = 1;
-
-	return allocate_power(tz, params->trip_max->temperature);
 }
 
 static struct thermal_governor thermal_gov_power_allocator = {
 	.name		= "power_allocator",
 	.bind_to_tz	= power_allocator_bind,
 	.unbind_from_tz	= power_allocator_unbind,
-	.throttle	= power_allocator_throttle,
+	.manage		= power_allocator_manage,
 	.update_tz	= power_allocator_update_tz,
 };
 THERMAL_GOVERNOR_DECLARE(thermal_gov_power_allocator);
