@@ -22,6 +22,7 @@ struct telem_endpoint;
 
 #define PMC_BASE_ADDR_DEFAULT			0xFE000000
 #define MAX_NUM_PMC			3
+#define S0IX_BLK_SIZE			4
 
 /* Sunrise Point Power Management Controller PCI Device ID */
 #define SPT_PMC_PCI_DEVICE_ID			0x9d21
@@ -288,6 +289,7 @@ extern const char *pmc_lpm_modes[];
 struct pmc_bit_map {
 	const char *name;
 	u32 bit_mask;
+	u8 blk;
 };
 
 /**
@@ -298,6 +300,7 @@ struct pmc_bit_map {
  * @pll_sts:		Maps name of PLL to corresponding bit status
  * @slps0_dbg_maps:	Array of SLP_S0_DBG* registers containing debug info
  * @ltr_show_sts:	Maps PCH IP Names to their MMIO register offsets
+ * @s0ix_blocker_maps:	Maps name of IP block to S0ix blocker counter
  * @slp_s0_offset:	PWRMBASE offset to read SLP_S0 residency
  * @ltr_ignore_offset:	PWRMBASE offset to read/write LTR ignore bit
  * @regmap_length:	Length of memory to map from PWRMBASE address to access
@@ -307,6 +310,7 @@ struct pmc_bit_map {
  * @pm_cfg_offset:	PWRMBASE offset to PM_CFG register
  * @pm_read_disable_bit: Bit index to read PMC_READ_DISABLE
  * @slps0_dbg_offset:	PWRMBASE offset to SLP_S0_DEBUG_REG*
+ * @s0ix_blocker_offset PWRMBASE offset to S0ix blocker counter
  *
  * Each PCH has unique set of register offsets and bit indexes. This structure
  * captures them to have a common implementation.
@@ -319,6 +323,7 @@ struct pmc_reg_map {
 	const struct pmc_bit_map *ltr_show_sts;
 	const struct pmc_bit_map *msr_sts;
 	const struct pmc_bit_map **lpm_sts;
+	const struct pmc_bit_map **s0ix_blocker_maps;
 	const u32 slp_s0_offset;
 	const int slp_s0_res_counter_step;
 	const u32 ltr_ignore_offset;
@@ -330,6 +335,7 @@ struct pmc_reg_map {
 	const u32 slps0_dbg_offset;
 	const u32 ltr_ignore_max;
 	const u32 pm_vric1_offset;
+	const u32 s0ix_blocker_offset;
 	/* Low Power Mode registers */
 	const int lpm_num_maps;
 	const int lpm_num_modes;

@@ -678,6 +678,41 @@ static int pmc_core_ltr_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(pmc_core_ltr);
 
+static int pmc_core_s0ix_blocker_show(struct seq_file *s, void *unused)
+{
+	struct pmc_dev *pmcdev = s->private;
+	unsigned int pmcidx;
+
+	for (pmcidx = 0; pmcidx < ARRAY_SIZE(pmcdev->pmcs); pmcidx++) {
+		const struct pmc_bit_map **maps;
+		unsigned int arr_size, r_idx;
+		u32 offset, counter;
+		struct pmc *pmc;
+
+		pmc = pmcdev->pmcs[pmcidx];
+		if (!pmc)
+			continue;
+		maps = pmc->map->s0ix_blocker_maps;
+		offset = pmc->map->s0ix_blocker_offset;
+		arr_size = pmc_core_lpm_get_arr_size(maps);
+
+		for (r_idx = 0; r_idx < arr_size; r_idx++) {
+			const struct pmc_bit_map *map;
+
+			for (map = maps[r_idx]; map->name; map++) {
+				if (!map->blk)
+					continue;
+				counter = pmc_core_reg_read(pmc, offset);
+				seq_printf(s, "PMC%d:%-30s %-30d\n", pmcidx,
+					   map->name, counter);
+				offset += map->blk * S0IX_BLK_SIZE;
+			}
+		}
+	}
+	return 0;
+}
+DEFINE_SHOW_ATTRIBUTE(pmc_core_s0ix_blocker);
+
 static inline u64 adjust_lpm_residency(struct pmc *pmc, u32 offset,
 				       const int lpm_adj_x2)
 {
@@ -1196,6 +1231,9 @@ static void pmc_core_dbgfs_register(struct pmc_dev *pmcdev)
 			    &pmc_core_ltr_ignore_ops);
 
 	debugfs_create_file("ltr_show", 0444, dir, pmcdev, &pmc_core_ltr_fops);
+
+	if (primary_pmc->map->s0ix_blocker_maps)
+		debugfs_create_file("s0ix_blocker", 0444, dir, pmcdev, &pmc_core_s0ix_blocker_fops);
 
 	debugfs_create_file("package_cstate_show", 0444, dir, primary_pmc,
 			    &pmc_core_pkgc_fops);
