@@ -1645,6 +1645,7 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 {
 	struct snd_sof_pdata *pdata = sdev->pdata;
 	const struct snd_soc_acpi_link_adr *link;
+	struct sdw_extended_slave_id *ids;
 	struct snd_soc_acpi_mach *mach;
 	struct sof_intel_hda_dev *hdev;
 	u32 link_mask;
@@ -1655,6 +1656,16 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 
 	if (!link_mask) {
 		dev_info(sdev->dev, "SoundWire links not enabled\n");
+		return NULL;
+	}
+
+	if (!hdev->sdw) {
+		dev_dbg(sdev->dev, "SoundWire context not allocated\n");
+		return NULL;
+	}
+
+	if (!hdev->sdw->num_slaves) {
+		dev_warn(sdev->dev, "No SoundWire peripheral detected in ACPI tables\n");
 		return NULL;
 	}
 
@@ -1740,7 +1751,11 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 		return mach;
 	}
 
-	dev_info(sdev->dev, "No SoundWire machine driver found\n");
+	dev_info(sdev->dev, "No SoundWire machine driver found for the ACPI-reported configuration:\n");
+	ids = hdev->sdw->ids;
+	for (i = 0; i < hdev->sdw->num_slaves; i++)
+		dev_info(sdev->dev, "link %d mfg_id 0x%04x part_id 0x%04x version %#x\n",
+			 ids[i].link_id, ids[i].id.mfg_id, ids[i].id.part_id, ids[i].id.sdw_version);
 
 	return NULL;
 }
