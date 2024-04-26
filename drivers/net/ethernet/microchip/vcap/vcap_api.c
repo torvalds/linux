@@ -327,7 +327,7 @@ static int vcap_find_keystream_typegroup_sw(struct vcap_control *vctrl,
 }
 
 /* Verify that the typegroup information, subword count, keyset and type id
- * are in sync and correct, return the list of matchin keysets
+ * are in sync and correct, return the list of matching keysets
  */
 int
 vcap_find_keystream_keysets(struct vcap_control *vctrl,
@@ -2943,7 +2943,7 @@ void vcap_netbytes_copy(u8 *dst, u8 *src, int count)
 }
 EXPORT_SYMBOL_GPL(vcap_netbytes_copy);
 
-/* Convert validation error code into tc extact error message */
+/* Convert validation error code into tc extack error message */
 void vcap_set_tc_exterr(struct flow_cls_offload *fco, struct vcap_rule *vrule)
 {
 	switch (vrule->exterr) {
