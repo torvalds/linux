@@ -900,7 +900,8 @@ static int check_snapshot_exists(struct btree_trans *trans, u32 id)
 	if (bch2_snapshot_equiv(c, id))
 		return 0;
 
-	u32 tree_id;
+	/* 0 is an invalid tree ID */
+	u32 tree_id = 0;
 	int ret = bch2_snapshot_tree_create(trans, id, 0, &tree_id);
 	if (ret)
 		return ret;
