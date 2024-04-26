@@ -29,6 +29,20 @@
 		stdout-path = "serial0:115200n8";
 	};
 
+	clocks {
+		clk_ext_camera: clk-ext-camera {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
+
+		clk_mco1: clk-mco1 {
+			#clock-cells = <0>;
+			compatible = "fixed-clock";
+			clock-frequency = <24000000>;
+		};
+	};
+
 	memory@c0000000 {
 		device_type = "memory";
 		reg = <0xc0000000 0x20000000>;
@@ -141,6 +155,23 @@
 	status = "okay";
 };
 
+&dcmipp {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&dcmipp_pins_a>;
+	pinctrl-1 = <&dcmipp_sleep_pins_a>;
+	status = "okay";
+
+	port {
+		dcmipp_0: endpoint {
+			remote-endpoint = <&mipid02_2>;
+			bus-width = <8>;
+			hsync-active = <0>;
+			vsync-active = <0>;
+			pclk-sample = <0>;
+		};
+	};
+};
+
 &i2c1 {
 	pinctrl-names = "default", "sleep";
 	pinctrl-0 = <&i2c1_pins_a>;
@@ -201,6 +232,62 @@
 	/* spare dmas for other usage */
 	/delete-property/dmas;
 	/delete-property/dma-names;
+
+	stmipi: csi2rx@14 {
+		compatible = "st,st-mipid02";
+		reg = <0x14>;
+		clocks = <&clk_mco1>;
+		clock-names = "xclk";
+		VDDE-supply = <&scmi_v1v8_periph>;
+		VDDIN-supply = <&scmi_v1v8_periph>;
+		reset-gpios = <&mcp23017 2 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
+		status = "okay";
+
+		ports {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			port@0 {
+				reg = <0>;
+
+				mipid02_0: endpoint {
+					data-lanes = <1 2>;
+					lane-polarities = <0 0 0>;
+					remote-endpoint = <&gc2145_ep>;
+				};
+			};
+			port@2 {
+				reg = <2>;
+
+				mipid02_2: endpoint {
+					bus-width = <8>;
+					hsync-active = <0>;
+					vsync-active = <0>;
+					pclk-sample = <0>;
+					remote-endpoint = <&dcmipp_0>;
+				};
+			};
+		};
+	};
+
+	gc2145: camera@3c {
+		compatible = "galaxycore,gc2145";
+		reg = <0x3c>;
+		clocks = <&clk_ext_camera>;
+		iovdd-supply = <&scmi_v3v3_sw>;
+		avdd-supply = <&scmi_v3v3_sw>;
+		dvdd-supply = <&scmi_v3v3_sw>;
+		powerdown-gpios = <&mcp23017 3 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
+		reset-gpios = <&mcp23017 4 (GPIO_ACTIVE_LOW | GPIO_PUSH_PULL)>;
+		status = "okay";
+
+		port {
+			gc2145_ep: endpoint {
+				remote-endpoint = <&mipid02_0>;
+				data-lanes = <1 2>;
+				link-frequencies = /bits/ 64 <120000000 192000000 240000000>;
+			};
+		};
+	};
 };
 
 &iwdg2 {
