@@ -73,6 +73,7 @@ void __init os_info_init(void)
 {
 	struct lowcore *abs_lc;
 
+	BUILD_BUG_ON(sizeof(struct os_info) != PAGE_SIZE);
 	os_info.version_major = OS_INFO_VERSION_MAJOR;
 	os_info.version_minor = OS_INFO_VERSION_MINOR;
 	os_info.magic = OS_INFO_MAGIC;

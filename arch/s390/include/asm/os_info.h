@@ -27,6 +27,7 @@
 #define OS_INFO_IMAGE_START	10
 #define OS_INFO_IMAGE_END	11
 #define OS_INFO_IMAGE_PHYS	12
+#define OS_INFO_MAX		13
 
 #define OS_INFO_FLAG_REIPL_CLEAR	(1UL << 0)
 
@@ -46,8 +47,8 @@ struct os_info {
 	u16	version_minor;
 	u64	crashkernel_addr;
 	u64	crashkernel_size;
-	struct os_info_entry entry[10];
-	u8	reserved[3864];
+	struct os_info_entry entry[OS_INFO_MAX];
+	u8	reserved[3804];
 } __packed;
 
 void os_info_init(void);
