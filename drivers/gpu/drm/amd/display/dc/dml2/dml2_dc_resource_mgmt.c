@@ -819,7 +819,16 @@ static unsigned int get_target_mpc_factor(struct dml2_context *ctx,
 
 			/* get stream id of main stream */
 			main_stream = ctx->config.svp_pstate.callbacks.get_paired_subvp_stream(state, stream);
+			if (!main_stream) {
+				ASSERT(false);
+				return 1;
+			}
+
 			main_stream_status = ctx->config.callbacks.get_stream_status(state, main_stream);
+			if (!main_stream_status) {
+				ASSERT(false);
+				return 1;
+			}
 
 			/* get plane id for associated main plane */
 			get_plane_id(ctx, state, main_stream_status->plane_states[plane_idx],
