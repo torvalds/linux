@@ -46,6 +46,8 @@
 #define MAX_DPM_LEVELS 16
 #define MAX_PCIE_CONF 3
 
+#define SMU14_TOOL_SIZE			0x19000
+
 struct smu_14_0_max_sustainable_clocks {
 	uint32_t display_clock;
 	uint32_t phy_clock;
