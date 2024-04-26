@@ -277,12 +277,36 @@ static const struct snd_soc_dai_ops avs_dai_hda_be_ops;
 
 static int avs_dai_hda_be_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
-	return avs_dai_startup(substream, dai, false, &avs_dai_hda_be_ops);
+	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct hdac_ext_stream *link_stream;
+	struct hda_codec *codec;
+	int ret;
+
+	ret = avs_dai_startup(substream, dai, false, &avs_dai_hda_be_ops);
+	if (ret)
+		return ret;
+
+	codec = dev_to_hda_codec(snd_soc_rtd_to_codec(rtd, 0)->dev);
+	link_stream = snd_hdac_ext_stream_assign(&codec->bus->core, substream,
+						 HDAC_EXT_STREAM_TYPE_LINK);
+	if (!link_stream) {
+		avs_dai_nonhda_be_shutdown(substream, dai);
+		return -EBUSY;
+	}
+
+	substream->runtime->private_data = link_stream;
+	return 0;
 }
 
 static void avs_dai_hda_be_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
 {
-	return avs_dai_nonhda_be_shutdown(substream, dai);
+	struct hdac_ext_stream *link_stream;
+
+	link_stream = substream->runtime->private_data;
+	snd_hdac_ext_stream_release(link_stream, HDAC_EXT_STREAM_TYPE_LINK);
+	substream->runtime->private_data = NULL;
+
+	avs_dai_nonhda_be_shutdown(substream, dai);
 }
 
 static int avs_dai_hda_be_hw_params(struct snd_pcm_substream *substream,
@@ -1576,8 +1600,6 @@ static int avs_component_hda_open(struct snd_soc_component *component,
 				  struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
-	struct hdac_ext_stream *link_stream;
-	struct hda_codec *codec;
 
 	if (!rtd->dai_link->no_pcm) {
 		struct snd_pcm_hardware hwparams = avs_pcm_hardware;
@@ -1609,30 +1631,6 @@ static int avs_component_hda_open(struct snd_soc_component *component,
 		return snd_soc_set_runtime_hwparams(substream, &hwparams);
 	}
 
-	codec = dev_to_hda_codec(snd_soc_rtd_to_codec(rtd, 0)->dev);
-	link_stream = snd_hdac_ext_stream_assign(&codec->bus->core, substream,
-					     HDAC_EXT_STREAM_TYPE_LINK);
-	if (!link_stream)
-		return -EBUSY;
-
-	substream->runtime->private_data = link_stream;
-	return 0;
-}
-
-static int avs_component_hda_close(struct snd_soc_component *component,
-				   struct snd_pcm_substream *substream)
-{
-	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
-	struct hdac_ext_stream *link_stream;
-
-	/* only BE DAI links are handled here */
-	if (!rtd->dai_link->no_pcm)
-		return 0;
-
-	link_stream = substream->runtime->private_data;
-	snd_hdac_ext_stream_release(link_stream, HDAC_EXT_STREAM_TYPE_LINK);
-	substream->runtime->private_data = NULL;
-
 	return 0;
 }
 
@@ -1643,7 +1641,6 @@ static const struct snd_soc_component_driver avs_hda_component_driver = {
 	.suspend		= avs_component_suspend,
 	.resume			= avs_component_resume,
 	.open			= avs_component_hda_open,
-	.close			= avs_component_hda_close,
 	.pointer		= avs_component_pointer,
 	.mmap			= avs_component_mmap,
 	.pcm_construct		= avs_component_construct,
