@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0
 
 import os
-import shlex
 from pathlib import Path
 from lib.py import KsftSkipEx
 from lib.py import cmd, ip
@@ -16,17 +15,20 @@ def _load_env_file(src_path):
     if not (src_dir / "net.config").exists():
         return env
 
-    lexer = shlex.shlex(open((src_dir / "net.config").as_posix(), 'r').read())
-    k = None
-    for token in lexer:
-        if k is None:
-            k = token
-            env[k] = ""
-        elif token == "=":
-            pass
-        else:
-            env[k] = token
-            k = None
+    with open((src_dir / "net.config").as_posix(), 'r') as fp:
+        for line in fp.readlines():
+            full_file = line
+            # Strip comments
+            pos = line.find("#")
+            if pos >= 0:
+                line = line[:pos]
+            line = line.strip()
+            if not line:
+                continue
+            pair = line.split('=', maxsplit=1)
+            if len(pair) != 2:
+                raise Exception("Can't parse configuration line:", full_file)
+            env[pair[0]] = pair[1]
     return env
 
 
@@ -86,6 +88,7 @@ class NetDrvEpEnv:
         self._ns_peer = None
 
         if "NETIF" in self.env:
+            self._check_env()
             self.dev = ip("link show dev " + self.env['NETIF'], json=True)[0]
 
             self.v4 = self.env.get("LOCAL_V4")
@@ -140,6 +143,30 @@ class NetDrvEpEnv:
         ip(f"   addr add dev {self._ns_peer.nsims[0].ifname} {self.nsim_v4_pfx}2/24", ns=self._netns)
         ip(f"-6 addr add dev {self._ns_peer.nsims[0].ifname} {self.nsim_v6_pfx}2/64 nodad", ns=self._netns)
         ip(f"   link set dev {self._ns_peer.nsims[0].ifname} up", ns=self._netns)
+
+    def _check_env(self):
+        vars_needed = [
+            ["LOCAL_V4", "LOCAL_V6"],
+            ["REMOTE_V4", "REMOTE_V6"],
+            ["REMOTE_TYPE"],
+            ["REMOTE_ARGS"]
+        ]
+        missing = []
+
+        for choice in vars_needed:
+            for entry in choice:
+                if entry in self.env:
+                    break
+            else:
+                missing.append(choice)
+        # Make sure v4 / v6 configs are symmetric
+        if ("LOCAL_V6" in self.env) != ("REMOTE_V6" in self.env):
+            missing.append(["LOCAL_V6", "REMOTE_V6"])
+        if ("LOCAL_V4" in self.env) != ("REMOTE_V4" in self.env):
+            missing.append(["LOCAL_V4", "REMOTE_V4"])
+        if missing:
+            raise Exception("Invalid environment, missing configuration:", missing,
+                            "Please see tools/testing/selftests/drivers/net/README.rst")
 
     def __enter__(self):
         return self
