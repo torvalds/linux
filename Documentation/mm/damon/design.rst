@@ -461,15 +461,17 @@ number of filters for each scheme.  Each filter specifies the type of target
 memory, and whether it should exclude the memory of the type (filter-out), or
 all except the memory of the type (filter-in).
 
-Currently, anonymous page, memory cgroup, address range, and DAMON monitoring
-target type filters are supported by the feature.  Some filter target types
-require additional arguments.  The memory cgroup filter type asks users to
-specify the file path of the memory cgroup for the filter.  The address range
-type asks the start and end addresses of the range.  The DAMON monitoring
-target type asks the index of the target from the context's monitoring targets
-list.  Hence, users can apply specific schemes to only anonymous pages,
-non-anonymous pages, pages of specific cgroups, all pages excluding those of
-specific cgroups, pages in specific address range, pages in specific DAMON
+Currently, anonymous page, memory cgroup, young page, address range, and DAMON
+monitoring target type filters are supported by the feature.  Some filter
+target types require additional arguments.  The memory cgroup filter type asks
+users to specify the file path of the memory cgroup for the filter.  The
+address range type asks the start and end addresses of the range.  The DAMON
+monitoring target type asks the index of the target from the context's
+monitoring targets list.  Hence, users can apply specific schemes to only
+anonymous pages, non-anonymous pages, pages of specific cgroups, all pages
+excluding those of specific cgroups, pages that not accessed after the last
+access check from the scheme, pages that accessed after the last access check
+from the scheme, pages in specific address range, pages in specific DAMON
 monitoring targets, and any combination of those.
 
 To handle filters efficiently, the address range and DAMON monitoring target
