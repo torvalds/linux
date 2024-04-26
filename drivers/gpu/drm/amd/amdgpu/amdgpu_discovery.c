@@ -2293,6 +2293,8 @@ static int amdgpu_discovery_set_mm_ip_blocks(struct amdgpu_device *adev)
 		case IP_VERSION(5, 0, 0):
 			amdgpu_device_ip_block_add(adev, &vcn_v5_0_0_ip_block);
 			amdgpu_device_ip_block_add(adev, &jpeg_v5_0_0_ip_block);
+			if (amdgpu_jpeg_test)
+				adev->enable_jpeg_test = true;
 			break;
 		default:
 			dev_err(adev->dev,
