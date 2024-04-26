@@ -46,7 +46,7 @@ all: $(generic-y)
 	$(if $(unwanted),$(call cmd,remove))
 	@:
 
-$(obj)/%.h:
+$(obj)/%.h: $(srctree)/$(generic)/%.h
 	$(call cmd,wrap)
 
 # Create output directory. Skip it if at least one old header exists
