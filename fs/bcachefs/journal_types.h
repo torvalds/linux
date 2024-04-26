@@ -327,6 +327,7 @@ struct journal_device {
 
 	/* for bch_journal_read_device */
 	struct closure		read;
+	u64			highest_seq_found;
 };
 
 /*
