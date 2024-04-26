@@ -652,12 +652,13 @@ static char *mlxsw_pci_cq_sw_cqe_get(struct mlxsw_pci_queue *q)
 	return elem;
 }
 
+#define MLXSW_PCI_CQ_MAX_HANDLE 64
+
 static void mlxsw_pci_cq_rx_tasklet(struct tasklet_struct *t)
 {
 	struct mlxsw_pci_queue *q = from_tasklet(q, t, tasklet);
 	struct mlxsw_pci_queue *rdq = q->cq.dq;
 	struct mlxsw_pci *mlxsw_pci = q->pci;
-	int credits = q->count >> 1;
 	int items = 0;
 	char *cqe;
 
@@ -683,7 +684,7 @@ static void mlxsw_pci_cq_rx_tasklet(struct tasklet_struct *t)
 		mlxsw_pci_cqe_rdq_handle(mlxsw_pci, rdq,
 					 wqe_counter, q->cq.v, ncqe);
 
-		if (++items == credits)
+		if (++items == MLXSW_PCI_CQ_MAX_HANDLE)
 			break;
 	}
 
