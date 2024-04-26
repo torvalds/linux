@@ -172,14 +172,13 @@ ssize_t netfs_perform_write(struct kiocb *iocb, struct iov_iter *iter,
 	if (unlikely(test_bit(NETFS_ICTX_WRITETHROUGH, &ctx->flags) ||
 		     iocb->ki_flags & (IOCB_DSYNC | IOCB_SYNC))
 	    ) {
-		if (pos < i_size_read(inode)) {
-			ret = filemap_write_and_wait_range(mapping, pos, pos + iter->count);
-			if (ret < 0) {
-				goto out;
-			}
-		}
-
 		wbc_attach_fdatawrite_inode(&wbc, mapping->host);
+
+		ret = filemap_write_and_wait_range(mapping, pos, pos + iter->count);
+		if (ret < 0) {
+			wbc_detach_inode(&wbc);
+			goto out;
+		}
 
 		wreq = netfs_begin_writethrough(iocb, iter->count);
 		if (IS_ERR(wreq)) {
