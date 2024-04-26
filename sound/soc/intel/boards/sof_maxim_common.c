@@ -12,6 +12,20 @@
 #include <uapi/sound/asound.h>
 #include "sof_maxim_common.h"
 
+/*
+ * Common structures and functions
+ */
+static const struct snd_kcontrol_new maxim_2spk_kcontrols[] = {
+	SOC_DAPM_PIN_SWITCH("Left Spk"),
+	SOC_DAPM_PIN_SWITCH("Right Spk"),
+
+};
+
+static const struct snd_soc_dapm_widget maxim_2spk_widgets[] = {
+	SND_SOC_DAPM_SPK("Left Spk", NULL),
+	SND_SOC_DAPM_SPK("Right Spk", NULL),
+};
+
 /* helper function to get the number of specific codec */
 static unsigned int get_num_codecs(const char *hid)
 {
@@ -135,12 +149,40 @@ EXPORT_SYMBOL_NS(max_98373_ops, SND_SOC_INTEL_SOF_MAXIM_COMMON);
 int max_98373_spk_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
+	unsigned int num_codecs = get_num_codecs(MAX_98373_ACPI_HID);
 	int ret;
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, max_98373_dapm_routes,
-				      ARRAY_SIZE(max_98373_dapm_routes));
-	if (ret)
-		dev_err(rtd->dev, "Speaker map addition failed: %d\n", ret);
+	switch (num_codecs) {
+	case 2:
+		ret = snd_soc_dapm_new_controls(&card->dapm, maxim_2spk_widgets,
+						ARRAY_SIZE(maxim_2spk_widgets));
+		if (ret) {
+			dev_err(rtd->dev, "fail to add max98373 widgets, ret %d\n",
+				ret);
+			return ret;
+		}
+
+		ret = snd_soc_add_card_controls(card, maxim_2spk_kcontrols,
+						ARRAY_SIZE(maxim_2spk_kcontrols));
+		if (ret) {
+			dev_err(rtd->dev, "fail to add max98373 kcontrols, ret %d\n",
+				ret);
+			return ret;
+		}
+
+		ret = snd_soc_dapm_add_routes(&card->dapm, max_98373_dapm_routes,
+					      ARRAY_SIZE(max_98373_dapm_routes));
+		if (ret) {
+			dev_err(rtd->dev, "fail to add max98373 routes, ret %d\n",
+				ret);
+			return ret;
+		}
+		break;
+	default:
+		dev_err(rtd->dev, "max98373: invalid num_codecs %d\n", num_codecs);
+		return -EINVAL;
+	}
+
 	return ret;
 }
 EXPORT_SYMBOL_NS(max_98373_spk_codec_init, SND_SOC_INTEL_SOF_MAXIM_COMMON);
@@ -287,6 +329,22 @@ static int max_98390_init(struct snd_soc_pcm_runtime *rtd)
 		fallthrough;
 	case 2:
 		/* add regular speakers dapm route */
+		ret = snd_soc_dapm_new_controls(&card->dapm, maxim_2spk_widgets,
+						ARRAY_SIZE(maxim_2spk_widgets));
+		if (ret) {
+			dev_err(rtd->dev, "fail to add max98390 woofer widgets, ret %d\n",
+				ret);
+			return ret;
+		}
+
+		ret = snd_soc_add_card_controls(card, maxim_2spk_kcontrols,
+						ARRAY_SIZE(maxim_2spk_kcontrols));
+		if (ret) {
+			dev_err(rtd->dev, "fail to add max98390 woofer kcontrols, ret %d\n",
+				ret);
+			return ret;
+		}
+
 		ret = snd_soc_dapm_add_routes(&card->dapm, max_98390_dapm_routes,
 					      ARRAY_SIZE(max_98390_dapm_routes));
 		if (ret) {

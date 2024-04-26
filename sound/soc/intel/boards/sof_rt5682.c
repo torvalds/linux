@@ -431,16 +431,11 @@ static int sof_card_late_probe(struct snd_soc_card *card)
 static const struct snd_kcontrol_new sof_controls[] = {
 	SOC_DAPM_PIN_SWITCH("Headphone Jack"),
 	SOC_DAPM_PIN_SWITCH("Headset Mic"),
-	SOC_DAPM_PIN_SWITCH("Left Spk"),
-	SOC_DAPM_PIN_SWITCH("Right Spk"),
-
 };
 
 static const struct snd_soc_dapm_widget sof_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
-	SND_SOC_DAPM_SPK("Left Spk", NULL),
-	SND_SOC_DAPM_SPK("Right Spk", NULL),
 };
 
 static const struct snd_soc_dapm_route sof_map[] = {
@@ -450,6 +445,17 @@ static const struct snd_soc_dapm_route sof_map[] = {
 
 	/* other jacks */
 	{ "IN1P", NULL, "Headset Mic" },
+};
+
+static const struct snd_kcontrol_new rt5650_spk_kcontrols[] = {
+	SOC_DAPM_PIN_SWITCH("Left Spk"),
+	SOC_DAPM_PIN_SWITCH("Right Spk"),
+
+};
+
+static const struct snd_soc_dapm_widget rt5650_spk_widgets[] = {
+	SND_SOC_DAPM_SPK("Left Spk", NULL),
+	SND_SOC_DAPM_SPK("Right Spk", NULL),
 };
 
 static const struct snd_soc_dapm_route rt5650_spk_dapm_routes[] = {
@@ -462,6 +468,22 @@ static int rt5650_spk_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	int ret;
+
+	ret = snd_soc_dapm_new_controls(&card->dapm, rt5650_spk_widgets,
+					ARRAY_SIZE(rt5650_spk_widgets));
+	if (ret) {
+		dev_err(rtd->dev, "fail to add rt5650 spk widgets, ret %d\n",
+			ret);
+		return ret;
+	}
+
+	ret = snd_soc_add_card_controls(card, rt5650_spk_kcontrols,
+					ARRAY_SIZE(rt5650_spk_kcontrols));
+	if (ret) {
+		dev_err(rtd->dev, "fail to add rt5650 spk kcontrols, ret %d\n",
+			ret);
+		return ret;
+	}
 
 	ret = snd_soc_dapm_add_routes(&card->dapm, rt5650_spk_dapm_routes,
 				      ARRAY_SIZE(rt5650_spk_dapm_routes));
