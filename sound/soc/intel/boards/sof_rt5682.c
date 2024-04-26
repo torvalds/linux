@@ -317,7 +317,12 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 			return -EINVAL;
 		}
 
-		pll_in = params_rate(params) * 50;
+		/* get the tplg configured bclk. */
+		pll_in = sof_dai_get_bclk(rtd);
+		if (pll_in <= 0) {
+			dev_err(rtd->dev, "invalid bclk freq %d\n", pll_in);
+			return -EINVAL;
+		}
 	}
 
 	pll_out = params_rate(params) * 512;
