@@ -283,6 +283,7 @@ enum ppfear_regs {
 #define LNL_PMC_LTR_OSSE			0x1B88
 #define LNL_NUM_IP_IGN_ALLOWED			27
 #define LNL_PPFEAR_NUM_ENTRIES			12
+#define LNL_S0IX_BLOCKER_OFFSET			0x2004
 
 extern const char *pmc_lpm_modes[];
 
@@ -541,6 +542,7 @@ extern const struct pmc_bit_map lnl_vnn_req_status_2_map[];
 extern const struct pmc_bit_map lnl_vnn_req_status_3_map[];
 extern const struct pmc_bit_map lnl_vnn_misc_status_map[];
 extern const struct pmc_bit_map *lnl_lpm_maps[];
+extern const struct pmc_bit_map *lnl_blk_maps[];
 extern const struct pmc_bit_map lnl_pfear_map[];
 extern const struct pmc_bit_map *ext_lnl_pfear_map[];
 extern const struct pmc_bit_map lnl_signal_status_map[];
