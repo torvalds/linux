@@ -224,6 +224,7 @@ static struct in_ifaddr *inet_alloc_ifa(void)
 static void inet_rcu_free_ifa(struct rcu_head *head)
 {
 	struct in_ifaddr *ifa = container_of(head, struct in_ifaddr, rcu_head);
+
 	if (ifa->ifa_dev)
 		in_dev_put(ifa->ifa_dev);
 	kfree(ifa);
@@ -231,7 +232,11 @@ static void inet_rcu_free_ifa(struct rcu_head *head)
 
 static void inet_free_ifa(struct in_ifaddr *ifa)
 {
-	call_rcu(&ifa->rcu_head, inet_rcu_free_ifa);
+	/* Our reference to ifa->ifa_dev must be freed ASAP
+	 * to release the reference to the netdev the same way.
+	 * in_dev_put() -> in_dev_finish_destroy() -> netdev_put()
+	 */
+	call_rcu_hurry(&ifa->rcu_head, inet_rcu_free_ifa);
 }
 
 static void in_dev_free_rcu(struct rcu_head *head)
