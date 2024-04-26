@@ -765,7 +765,7 @@ static struct table_device *open_table_device(struct mapped_device *md,
 	return td;
 
 out_blkdev_put:
-	fput(bdev_file);
+	__fput_sync(bdev_file);
 out_free_td:
 	kfree(td);
 	return ERR_PTR(r);
@@ -778,7 +778,13 @@ static void close_table_device(struct table_device *td, struct mapped_device *md
 {
 	if (md->disk->slave_dir)
 		bd_unlink_disk_holder(td->dm_dev.bdev, md->disk);
-	fput(td->dm_dev.bdev_file);
+
+	/* Leverage async fput() if DMF_DEFERRED_REMOVE set */
+	if (unlikely(test_bit(DMF_DEFERRED_REMOVE, &md->flags)))
+		fput(td->dm_dev.bdev_file);
+	else
+		__fput_sync(td->dm_dev.bdev_file);
+
 	put_dax(td->dm_dev.dax_dev);
 	list_del(&td->list);
 	kfree(td);
