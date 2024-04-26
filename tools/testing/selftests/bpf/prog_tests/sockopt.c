@@ -24,6 +24,7 @@ enum sockopt_test_error {
 static struct sockopt_test {
 	const char			*descr;
 	const struct bpf_insn		insns[64];
+	enum bpf_prog_type		prog_type;
 	enum bpf_attach_type		attach_type;
 	enum bpf_attach_type		expected_attach_type;
 
@@ -928,9 +929,40 @@ static struct sockopt_test {
 
 		.error = EPERM_SETSOCKOPT,
 	},
+
+	/* ==================== prog_type ====================  */
+
+	{
+		.descr = "can attach only BPF_CGROUP_SETSOCKOP",
+		.insns = {
+			/* return 1 */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+
+		},
+		.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+		.attach_type = BPF_CGROUP_SETSOCKOPT,
+		.expected_attach_type = 0,
+		.error = DENY_ATTACH,
+	},
+
+	{
+		.descr = "can attach only BPF_CGROUP_GETSOCKOP",
+		.insns = {
+			/* return 1 */
+			BPF_MOV64_IMM(BPF_REG_0, 1),
+			BPF_EXIT_INSN(),
+
+		},
+		.prog_type = BPF_PROG_TYPE_CGROUP_SKB,
+		.attach_type = BPF_CGROUP_GETSOCKOPT,
+		.expected_attach_type = 0,
+		.error = DENY_ATTACH,
+	},
 };
 
 static int load_prog(const struct bpf_insn *insns,
+		     enum bpf_prog_type prog_type,
 		     enum bpf_attach_type expected_attach_type)
 {
 	LIBBPF_OPTS(bpf_prog_load_opts, opts,
@@ -947,7 +979,7 @@ static int load_prog(const struct bpf_insn *insns,
 	}
 	insns_cnt++;
 
-	fd = bpf_prog_load(BPF_PROG_TYPE_CGROUP_SOCKOPT, NULL, "GPL", insns, insns_cnt, &opts);
+	fd = bpf_prog_load(prog_type, NULL, "GPL", insns, insns_cnt, &opts);
 	if (verbose && fd < 0)
 		fprintf(stderr, "%s\n", bpf_log_buf);
 
@@ -1039,11 +1071,15 @@ static int call_getsockopt(bool use_io_uring, int fd, int level, int optname,
 static int run_test(int cgroup_fd, struct sockopt_test *test, bool use_io_uring,
 		    bool use_link)
 {
+	int prog_type = BPF_PROG_TYPE_CGROUP_SOCKOPT;
 	int sock_fd, err, prog_fd, link_fd = -1;
 	void *optval = NULL;
 	int ret = 0;
 
-	prog_fd = load_prog(test->insns, test->expected_attach_type);
+	if (test->prog_type)
+		prog_type = test->prog_type;
+
+	prog_fd = load_prog(test->insns, prog_type, test->expected_attach_type);
 	if (prog_fd < 0) {
 		if (test->error == DENY_LOAD)
 			return 0;
