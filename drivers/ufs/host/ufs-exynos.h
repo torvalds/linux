@@ -10,6 +10,12 @@
 #define _UFS_EXYNOS_H_
 
 /*
+ * Component registers
+ */
+
+#define COMP_CLK_PERIOD	0x44
+
+/*
  * UNIPRO registers
  */
 #define UNIPRO_DBG_FORCE_DME_CTRL_STATE		0x150
@@ -28,6 +34,14 @@
 #define PA_DBG_LINE_RESET_REQ	0x9543
 #define PA_DBG_OPTION_SUITE	0x9564
 #define PA_DBG_OPTION_SUITE_DYN	0x9565
+
+/*
+ * Note: GS101_DBG_OPTION offsets below differ from the TRM
+ * but match the downstream driver. Following the TRM
+ * results in non-functioning UFS.
+ */
+#define PA_GS101_DBG_OPTION_SUITE1 0x956a
+#define PA_GS101_DBG_OPTION_SUITE2 0x956d
 
 /*
  * MIBs for Transport Layer debug registers
