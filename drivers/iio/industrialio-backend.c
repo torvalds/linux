@@ -226,6 +226,92 @@ int iio_backend_set_sampling_freq(struct iio_backend *back, unsigned int chan,
 }
 EXPORT_SYMBOL_NS_GPL(iio_backend_set_sampling_freq, IIO_BACKEND);
 
+/**
+ * iio_backend_test_pattern_set - Configure a test pattern
+ * @back: Backend device
+ * @chan: Channel number
+ * @pattern: Test pattern
+ *
+ * Configure a test pattern on the backend. This is typically used for
+ * calibrating the timings on the data digital interface.
+ *
+ * RETURNS:
+ * 0 on success, negative error number on failure.
+ */
+int iio_backend_test_pattern_set(struct iio_backend *back,
+				 unsigned int chan,
+				 enum iio_backend_test_pattern pattern)
+{
+	if (pattern >= IIO_BACKEND_TEST_PATTERN_MAX)
+		return -EINVAL;
+
+	return iio_backend_op_call(back, test_pattern_set, chan, pattern);
+}
+EXPORT_SYMBOL_NS_GPL(iio_backend_test_pattern_set, IIO_BACKEND);
+
+/**
+ * iio_backend_chan_status - Get the channel status
+ * @back: Backend device
+ * @chan: Channel number
+ * @error: Error indication
+ *
+ * Get the current state of the backend channel. Typically used to check if
+ * there were any errors sending/receiving data.
+ *
+ * RETURNS:
+ * 0 on success, negative error number on failure.
+ */
+int iio_backend_chan_status(struct iio_backend *back, unsigned int chan,
+			    bool *error)
+{
+	return iio_backend_op_call(back, chan_status, chan, error);
+}
+EXPORT_SYMBOL_NS_GPL(iio_backend_chan_status, IIO_BACKEND);
+
+/**
+ * iio_backend_iodelay_set - Set digital I/O delay
+ * @back: Backend device
+ * @lane: Lane number
+ * @taps: Number of taps
+ *
+ * Controls delays on sending/receiving data. One usecase for this is to
+ * calibrate the data digital interface so we get the best results when
+ * transferring data. Note that @taps has no unit since the actual delay per tap
+ * is very backend specific. Hence, frontend devices typically should go through
+ * an array of @taps (the size of that array should typically match the size of
+ * calibration points on the frontend device) and call this API.
+ *
+ * RETURNS:
+ * 0 on success, negative error number on failure.
+ */
+int iio_backend_iodelay_set(struct iio_backend *back, unsigned int lane,
+			    unsigned int taps)
+{
+	return iio_backend_op_call(back, iodelay_set, lane, taps);
+}
+EXPORT_SYMBOL_NS_GPL(iio_backend_iodelay_set, IIO_BACKEND);
+
+/**
+ * iio_backend_data_sample_trigger - Control when to sample data
+ * @back: Backend device
+ * @trigger: Data trigger
+ *
+ * Mostly useful for input backends. Configures the backend for when to sample
+ * data (eg: rising vs falling edge).
+ *
+ * RETURNS:
+ * 0 on success, negative error number on failure.
+ */
+int iio_backend_data_sample_trigger(struct iio_backend *back,
+				    enum iio_backend_sample_trigger trigger)
+{
+	if (trigger >= IIO_BACKEND_SAMPLE_TRIGGER_MAX)
+		return -EINVAL;
+
+	return iio_backend_op_call(back, data_sample_trigger, trigger);
+}
+EXPORT_SYMBOL_NS_GPL(iio_backend_data_sample_trigger, IIO_BACKEND);
+
 static void iio_backend_free_buffer(void *arg)
 {
 	struct iio_backend_buffer_pair *pair = arg;
