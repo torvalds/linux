@@ -5123,6 +5123,11 @@ static int amdgpu_device_reset_sriov(struct amdgpu_device *adev,
 	amdgpu_amdkfd_post_reset(adev);
 	amdgpu_virt_release_full_gpu(adev, true);
 
+	/* Aldebaran and gfx_11_0_3 support ras in SRIOV, so need resume ras during reset */
+	if (amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 2) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
+	    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(11, 0, 3))
+		amdgpu_ras_resume(adev);
 	return 0;
 }
 
@@ -5829,13 +5834,6 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 		}
 		if (r)
 			adev->asic_reset_res = r;
-
-		/* Aldebaran and gfx_11_0_3 support ras in SRIOV, so need resume ras during reset */
-		if (amdgpu_ip_version(adev, GC_HWIP, 0) ==
-			    IP_VERSION(9, 4, 2) ||
-		    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(9, 4, 3) ||
-		    amdgpu_ip_version(adev, GC_HWIP, 0) == IP_VERSION(11, 0, 3))
-			amdgpu_ras_resume(adev);
 	} else {
 		r = amdgpu_do_asic_reset(device_list_handle, reset_context);
 		if (r && r == -EAGAIN)
