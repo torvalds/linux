@@ -2523,14 +2523,15 @@ static u32 ksz_get_phy_flags(struct dsa_switch *ds, int port)
 	return 0;
 }
 
-static void ksz_mac_link_down(struct dsa_switch *ds, int port,
-			      unsigned int mode, phy_interface_t interface)
+static void ksz_phylink_mac_link_down(struct phylink_config *config,
+				      unsigned int mode,
+				      phy_interface_t interface)
 {
-	struct ksz_device *dev = ds->priv;
-	struct ksz_port *p = &dev->ports[port];
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct ksz_device *dev = dp->ds->priv;
 
 	/* Read all MIB counters when the link is going down. */
-	p->read = true;
+	dev->ports[dp->index].read = true;
 	/* timer started */
 	if (dev->mib_read_interval)
 		schedule_delayed_work(&dev->mib_read, 0);
@@ -3065,11 +3066,13 @@ phy_interface_t ksz_get_xmii(struct ksz_device *dev, int port, bool gbit)
 	return interface;
 }
 
-static void ksz_phylink_mac_config(struct dsa_switch *ds, int port,
+static void ksz_phylink_mac_config(struct phylink_config *config,
 				   unsigned int mode,
 				   const struct phylink_link_state *state)
 {
-	struct ksz_device *dev = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct ksz_device *dev = dp->ds->priv;
+	int port = dp->index;
 
 	if (ksz_is_ksz88x3(dev)) {
 		dev->ports[port].manual_flow = !(state->pause & MLO_PAUSE_AN);
@@ -3206,16 +3209,19 @@ static void ksz9477_phylink_mac_link_up(struct ksz_device *dev, int port,
 	ksz_duplex_flowctrl(dev, port, duplex, tx_pause, rx_pause);
 }
 
-static void ksz_phylink_mac_link_up(struct dsa_switch *ds, int port,
+static void ksz_phylink_mac_link_up(struct phylink_config *config,
+				    struct phy_device *phydev,
 				    unsigned int mode,
 				    phy_interface_t interface,
-				    struct phy_device *phydev, int speed,
-				    int duplex, bool tx_pause, bool rx_pause)
+				    int speed, int duplex, bool tx_pause,
+				    bool rx_pause)
 {
-	struct ksz_device *dev = ds->priv;
+	struct dsa_port *dp = dsa_phylink_to_port(config);
+	struct ksz_device *dev = dp->ds->priv;
 
-	dev->dev_ops->phylink_mac_link_up(dev, port, mode, interface, phydev,
-					  speed, duplex, tx_pause, rx_pause);
+	dev->dev_ops->phylink_mac_link_up(dev, dp->index, mode, interface,
+					  phydev, speed, duplex, tx_pause,
+					  rx_pause);
 }
 
 static int ksz_switch_detect(struct ksz_device *dev)
@@ -3869,6 +3875,12 @@ static int ksz_hsr_leave(struct dsa_switch *ds, int port,
 	return 0;
 }
 
+static const struct phylink_mac_ops ksz_phylink_mac_ops = {
+	.mac_config	= ksz_phylink_mac_config,
+	.mac_link_down	= ksz_phylink_mac_link_down,
+	.mac_link_up	= ksz_phylink_mac_link_up,
+};
+
 static const struct dsa_switch_ops ksz_switch_ops = {
 	.get_tag_protocol	= ksz_get_tag_protocol,
 	.connect_tag_protocol   = ksz_connect_tag_protocol,
@@ -3878,9 +3890,6 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.phy_read		= ksz_phy_read16,
 	.phy_write		= ksz_phy_write16,
 	.phylink_get_caps	= ksz_phylink_get_caps,
-	.phylink_mac_config	= ksz_phylink_mac_config,
-	.phylink_mac_link_up	= ksz_phylink_mac_link_up,
-	.phylink_mac_link_down	= ksz_mac_link_down,
 	.port_setup		= ksz_port_setup,
 	.set_ageing_time	= ksz_set_ageing_time,
 	.get_strings		= ksz_get_strings,
@@ -3936,6 +3945,7 @@ struct ksz_device *ksz_switch_alloc(struct device *base, void *priv)
 	ds->dev = base;
 	ds->num_ports = DSA_MAX_PORTS;
 	ds->ops = &ksz_switch_ops;
+	ds->phylink_mac_ops = &ksz_phylink_mac_ops;
 
 	swdev = devm_kzalloc(base, sizeof(*swdev), GFP_KERNEL);
 	if (!swdev)
