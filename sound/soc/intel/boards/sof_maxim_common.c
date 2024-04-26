@@ -10,6 +10,7 @@
 #include <sound/soc-dai.h>
 #include <sound/soc-dapm.h>
 #include <uapi/sound/asound.h>
+#include "../common/soc-intel-quirks.h"
 #include "sof_maxim_common.h"
 
 /*
@@ -219,6 +220,17 @@ static const struct snd_soc_dapm_route max_98390_tt_dapm_routes[] = {
 	{ "TR Spk", NULL, "Tweeter Right BE_OUT" },
 };
 
+static struct snd_soc_codec_conf max_98390_cml_codec_conf[] = {
+	{
+		.dlc = COMP_CODEC_CONF(MAX_98390_DEV0_NAME),
+		.name_prefix = "Left",
+	},
+	{
+		.dlc = COMP_CODEC_CONF(MAX_98390_DEV1_NAME),
+		.name_prefix = "Right",
+	},
+};
+
 static struct snd_soc_codec_conf max_98390_codec_conf[] = {
 	{
 		.dlc = COMP_CODEC_CONF(MAX_98390_DEV0_NAME),
@@ -271,6 +283,7 @@ static int max_98390_hw_params(struct snd_pcm_substream *substream,
 			       struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = snd_soc_substream_to_rtd(substream);
+	struct snd_soc_dai_link *dai_link = rtd->dai_link;
 	struct snd_soc_dai *codec_dai;
 	int i, ret;
 
@@ -280,13 +293,24 @@ static int max_98390_hw_params(struct snd_pcm_substream *substream,
 			return -ENODEV;
 		}
 
-		ret = snd_soc_dai_set_tdm_slot(codec_dai, max_98390_tdm_mask[i].tx,
-					       max_98390_tdm_mask[i].rx, 4,
-					       params_width(params));
-		if (ret < 0) {
-			dev_err(codec_dai->dev, "fail to set tdm slot, ret %d\n",
-				ret);
-			return ret;
+		switch (dai_link->dai_fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
+		case SND_SOC_DAIFMT_DSP_A:
+		case SND_SOC_DAIFMT_DSP_B:
+			/* 4-slot TDM */
+			ret = snd_soc_dai_set_tdm_slot(codec_dai,
+						       max_98390_tdm_mask[i].tx,
+						       max_98390_tdm_mask[i].rx,
+						       4,
+						       params_width(params));
+			if (ret < 0) {
+				dev_err(codec_dai->dev, "fail to set tdm slot, ret %d\n",
+					ret);
+				return ret;
+			}
+			break;
+		default:
+			dev_dbg(codec_dai->dev, "codec is in I2S mode\n");
+			break;
 		}
 	}
 	return 0;
@@ -395,6 +419,10 @@ void max_98390_set_codec_conf(struct device *dev, struct snd_soc_card *card)
 
 	switch (num_codecs) {
 	case 2:
+		if (soc_intel_is_cml())
+			card->codec_conf = max_98390_cml_codec_conf;
+
+		fallthrough;
 	case 4:
 		card->num_configs = num_codecs;
 		break;
