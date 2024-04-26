@@ -83,7 +83,7 @@ static int io_msg_exec_remote(struct io_kiocb *req, task_work_func_t func)
 		return -EOWNERDEAD;
 
 	init_task_work(&msg->tw, func);
-	if (task_work_add(ctx->submitter_task, &msg->tw, TWA_SIGNAL))
+	if (task_work_add(task, &msg->tw, TWA_SIGNAL))
 		return -EOWNERDEAD;
 
 	return IOU_ISSUE_SKIP_COMPLETE;
