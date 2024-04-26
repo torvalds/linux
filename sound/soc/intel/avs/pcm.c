@@ -448,19 +448,6 @@ static const struct snd_soc_dai_ops avs_dai_hda_be_ops = {
 	.trigger = avs_dai_hda_be_trigger,
 };
 
-static const unsigned int rates[] = {
-	8000, 11025, 12000, 16000,
-	22050, 24000, 32000, 44100,
-	48000, 64000, 88200, 96000,
-	128000, 176400, 192000,
-};
-
-static const struct snd_pcm_hw_constraint_list hw_rates = {
-	.count = ARRAY_SIZE(rates),
-	.list = rates,
-	.mask = 0,
-};
-
 static int hw_rule_param_size(struct snd_pcm_hw_params *params, struct snd_pcm_hw_rule *rule)
 {
 	struct snd_interval *interval = hw_param_interval(params, rule->var);
@@ -481,13 +468,55 @@ static int hw_rule_param_size(struct snd_pcm_hw_params *params, struct snd_pcm_h
 	return snd_interval_refine(interval, &to);
 }
 
-static int avs_dai_fe_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+static int avs_pcm_hw_constraints_init(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
+	static const unsigned int rates[] = {
+		8000, 11025, 12000, 16000,
+		22050, 24000, 32000, 44100,
+		48000, 64000, 88200, 96000,
+		128000, 176400, 192000,
+	};
+	static const struct snd_pcm_hw_constraint_list rate_list = {
+		.count = ARRAY_SIZE(rates),
+		.list = rates,
+	};
+	int ret;
+
+	ret = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	if (ret < 0)
+		return ret;
+
+	/* Avoid wrap-around with wall-clock. */
+	ret = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_TIME, 20, 178000000);
+	if (ret < 0)
+		return ret;
+
+	ret = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &rate_list);
+	if (ret < 0)
+		return ret;
+
+	/* Adjust buffer and period size based on the audio format. */
+	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, hw_rule_param_size, NULL,
+			    SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_HW_PARAM_CHANNELS,
+			    SNDRV_PCM_HW_PARAM_RATE, -1);
+	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE, hw_rule_param_size, NULL,
+			    SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_HW_PARAM_CHANNELS,
+			    SNDRV_PCM_HW_PARAM_RATE, -1);
+
+	return ret;
+}
+
+static int avs_dai_fe_startup(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
+{
+	struct hdac_ext_stream *host_stream;
 	struct avs_dma_data *data;
 	struct hdac_bus *bus;
-	struct hdac_ext_stream *host_stream;
 	int ret;
+
+	ret = avs_pcm_hw_constraints_init(substream);
+	if (ret)
+		return ret;
 
 	ret = avs_dai_startup(substream, dai);
 	if (ret)
@@ -498,42 +527,17 @@ static int avs_dai_fe_startup(struct snd_pcm_substream *substream, struct snd_so
 
 	host_stream = snd_hdac_ext_stream_assign(bus, substream, HDAC_EXT_STREAM_TYPE_HOST);
 	if (!host_stream) {
-		ret = -EBUSY;
-		goto err;
+		avs_dai_shutdown(substream, dai);
+		return -EBUSY;
 	}
 
 	data->host_stream = host_stream;
-	ret = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
-	if (ret < 0)
-		goto err;
-
-	/* avoid wrap-around with wall-clock */
-	ret = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_TIME, 20, 178000000);
-	if (ret < 0)
-		goto err;
-
-	ret = snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_RATE, &hw_rates);
-	if (ret < 0)
-		goto err;
-
-	/* Adjust buffer and period size based on the audio format. */
-	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_BUFFER_SIZE, hw_rule_param_size, NULL,
-			    SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_HW_PARAM_CHANNELS,
-			    SNDRV_PCM_HW_PARAM_RATE, -1);
-	snd_pcm_hw_rule_add(runtime, 0, SNDRV_PCM_HW_PARAM_PERIOD_SIZE, hw_rule_param_size, NULL,
-			    SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_HW_PARAM_CHANNELS,
-			    SNDRV_PCM_HW_PARAM_RATE, -1);
-
 	snd_pcm_set_sync(substream);
 
 	dev_dbg(dai->dev, "%s fe STARTUP tag %d str %p",
 		__func__, hdac_stream(host_stream)->stream_tag, substream);
 
 	return 0;
-
-err:
-	kfree(data);
-	return ret;
 }
 
 static void avs_dai_fe_shutdown(struct snd_pcm_substream *substream, struct snd_soc_dai *dai)
