@@ -51,22 +51,12 @@ static void intel_shim_vs_set_clock_source(struct sdw_intel *sdw, u32 source)
 
 static int intel_shim_check_wake(struct sdw_intel *sdw)
 {
-	u16 lsdiid = 0;
-	u16 wake_sts;
-	int ret;
-
-	/* find out which bits are set in LSDIID for this sublink */
-	ret = hdac_bus_eml_sdw_get_lsdiid_unlocked(sdw->link_res->hbus, sdw->instance, &lsdiid);
-	if (ret < 0)
-		return ret;
-
 	/*
-	 * we need to use the global HDaudio WAKEEN/STS to be able to detect
-	 * wakes in low-power modes
+	 * We follow the HDaudio example and resume unconditionally
+	 * without checking the WAKESTS bit for that specific link
 	 */
-	wake_sts = snd_hdac_chip_readw(sdw->link_res->hbus, STATESTS);
 
-	return wake_sts & lsdiid;
+	return 1;
 }
 
 static void intel_shim_wake(struct sdw_intel *sdw, bool wake_enable)
