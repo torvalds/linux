@@ -769,7 +769,7 @@ static int ioctl_getfsuuid(struct file *file, void __user *argp)
 	struct fsuuid2 u = { .len = sb->s_uuid_len, };
 
 	if (!sb->s_uuid_len)
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 
 	memcpy(&u.uuid[0], &sb->s_uuid, sb->s_uuid_len);
 
@@ -781,7 +781,7 @@ static int ioctl_get_fs_sysfs_path(struct file *file, void __user *argp)
 	struct super_block *sb = file_inode(file)->i_sb;
 
 	if (!strlen(sb->s_sysfs_name))
-		return -ENOIOCTLCMD;
+		return -ENOTTY;
 
 	struct fs_sysfs_path u = {};
 
