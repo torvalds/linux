@@ -30,6 +30,7 @@
 #include <linux/sort.h>
 #include <linux/string_helpers.h>
 
+#include <linux/debugfs.h>
 #include <drm/drm_debugfs.h>
 
 #include "display/intel_display_params.h"
