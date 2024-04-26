@@ -723,7 +723,8 @@ struct bch_sb_field_ext {
 	x(member_seq,			BCH_VERSION(1,  4))		\
 	x(subvolume_fs_parent,		BCH_VERSION(1,  5))		\
 	x(btree_subvolume_children,	BCH_VERSION(1,  6))		\
-	x(mi_btree_bitmap,		BCH_VERSION(1,  7))
+	x(mi_btree_bitmap,		BCH_VERSION(1,  7))		\
+	x(bucket_stripe_sectors,	BCH_VERSION(1,  8))
 
 enum bcachefs_metadata_version {
 	bcachefs_metadata_version_min = 9,
