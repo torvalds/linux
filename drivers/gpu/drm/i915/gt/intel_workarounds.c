@@ -16,6 +16,8 @@
 #include "intel_ring.h"
 #include "intel_workarounds.h"
 
+#include "display/intel_fbc_regs.h"
+
 /**
  * DOC: Hardware workarounds
  *
