@@ -39,6 +39,8 @@ static void log_quirks(struct device *dev)
 		dev_err(dev, "quirk SOF_SDW_NO_AGGREGATION enabled but no longer supported\n");
 	if (sof_sdw_quirk & SOF_CODEC_SPKR)
 		dev_dbg(dev, "quirk SOF_CODEC_SPKR enabled\n");
+	if (sof_sdw_quirk & SOF_SIDECAR_AMPS)
+		dev_dbg(dev, "quirk SOF_SIDECAR_AMPS enabled\n");
 }
 
 static int sof_sdw_quirk_cb(const struct dmi_system_id *id)
@@ -995,6 +997,8 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 	{
 		.part_id = 0x4243,
 		.codec_name = "cs42l43-codec",
+		.count_sidecar = bridge_cs35l56_count_sidecar,
+		.add_sidecar = bridge_cs35l56_add_sidecar,
 		.dais = {
 			{
 				.direction = {true, false},
@@ -1023,7 +1027,7 @@ static struct sof_sdw_codec_info codec_info_list[] = {
 				.dailink = {SDW_AMP_OUT_DAI_ID, SDW_UNUSED_DAI_ID},
 				.init = sof_sdw_cs42l43_spk_init,
 				.rtd_init = cs42l43_spk_rtd_init,
-				.quirk = SOF_CODEC_SPKR,
+				.quirk = SOF_CODEC_SPKR | SOF_SIDECAR_AMPS,
 			},
 		},
 		.dai_num = 4,
