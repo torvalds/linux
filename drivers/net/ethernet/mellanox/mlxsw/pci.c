@@ -87,7 +87,7 @@ struct mlxsw_pci_queue {
 		struct {
 			enum mlxsw_pci_cqe_v v;
 			struct mlxsw_pci_queue *dq;
-			struct tasklet_struct tasklet;
+			struct napi_struct napi;
 		} cq;
 		struct {
 			struct tasklet_struct tasklet;
@@ -684,15 +684,28 @@ static char *mlxsw_pci_cq_sw_cqe_get(struct mlxsw_pci_queue *q)
 	return elem;
 }
 
-#define MLXSW_PCI_CQ_MAX_HANDLE 64
-
-static void mlxsw_pci_cq_rx_tasklet(struct tasklet_struct *t)
+static bool mlxsw_pci_cq_cqe_to_handle(struct mlxsw_pci_queue *q)
 {
-	struct mlxsw_pci_queue *q = from_tasklet(q, t, u.cq.tasklet);
+	struct mlxsw_pci_queue_elem_info *elem_info;
+	bool owner_bit;
+
+	elem_info = mlxsw_pci_queue_elem_info_consumer_get(q);
+	owner_bit = mlxsw_pci_cqe_owner_get(q->u.cq.v, elem_info->elem);
+	return !mlxsw_pci_elem_hw_owned(q, owner_bit);
+}
+
+static int mlxsw_pci_napi_poll_cq_rx(struct napi_struct *napi, int budget)
+{
+	struct mlxsw_pci_queue *q = container_of(napi, struct mlxsw_pci_queue,
+						 u.cq.napi);
 	struct mlxsw_pci_queue *rdq = q->u.cq.dq;
 	struct mlxsw_pci *mlxsw_pci = q->pci;
-	int items = 0;
+	int work_done = 0;
 	char *cqe;
+
+	/* If the budget is 0, Rx processing should be skipped. */
+	if (unlikely(!budget))
+		return 0;
 
 	while ((cqe = mlxsw_pci_cq_sw_cqe_get(q))) {
 		u16 wqe_counter = mlxsw_pci_cqe_wqe_counter_get(cqe);
@@ -712,22 +725,44 @@ static void mlxsw_pci_cq_rx_tasklet(struct tasklet_struct *t)
 		mlxsw_pci_cqe_rdq_handle(mlxsw_pci, rdq,
 					 wqe_counter, q->u.cq.v, cqe);
 
-		if (++items == MLXSW_PCI_CQ_MAX_HANDLE)
+		if (++work_done == budget)
 			break;
 	}
 
 	mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
 	mlxsw_pci_queue_doorbell_producer_ring(mlxsw_pci, rdq);
-	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
+
+	if (work_done < budget)
+		goto processing_completed;
+
+	/* The driver still has outstanding work to do, budget was exhausted.
+	 * Return exactly budget. In that case, the NAPI instance will be polled
+	 * again.
+	 */
+	if (mlxsw_pci_cq_cqe_to_handle(q))
+		goto out;
+
+	/* The driver processed all the completions and handled exactly
+	 * 'budget'. Return 'budget - 1' to distinguish from the case that
+	 * driver still has completions to handle.
+	 */
+	if (work_done == budget)
+		work_done--;
+
+processing_completed:
+	if (napi_complete_done(napi, work_done))
+		mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
+out:
+	return work_done;
 }
 
-static void mlxsw_pci_cq_tx_tasklet(struct tasklet_struct *t)
+static int mlxsw_pci_napi_poll_cq_tx(struct napi_struct *napi, int budget)
 {
-	struct mlxsw_pci_queue *q = from_tasklet(q, t, u.cq.tasklet);
+	struct mlxsw_pci_queue *q = container_of(napi, struct mlxsw_pci_queue,
+						 u.cq.napi);
 	struct mlxsw_pci_queue *sdq = q->u.cq.dq;
 	struct mlxsw_pci *mlxsw_pci = q->pci;
-	int credits = q->count >> 1;
-	int items = 0;
+	int work_done = 0;
 	char *cqe;
 
 	while ((cqe = mlxsw_pci_cq_sw_cqe_get(q))) {
@@ -752,11 +787,21 @@ static void mlxsw_pci_cq_tx_tasklet(struct tasklet_struct *t)
 		mlxsw_pci_cqe_sdq_handle(mlxsw_pci, sdq,
 					 wqe_counter, q->u.cq.v, ncqe);
 
-		if (++items == credits)
-			break;
+		work_done++;
 	}
 
+	/* If the budget is 0 napi_complete_done() should never be called. */
+	if (unlikely(!budget))
+		goto processing_completed;
+
+	work_done = min(work_done, budget - 1);
+	if (unlikely(!napi_complete_done(napi, work_done)))
+		goto out;
+
+processing_completed:
 	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
+out:
+	return work_done;
 }
 
 static enum mlxsw_pci_cq_type
@@ -772,17 +817,29 @@ mlxsw_pci_cq_type(const struct mlxsw_pci *mlxsw_pci,
 	return MLXSW_PCI_CQ_RDQ;
 }
 
-static void mlxsw_pci_cq_tasklet_setup(struct mlxsw_pci_queue *q,
-				       enum mlxsw_pci_cq_type cq_type)
+static void mlxsw_pci_cq_napi_setup(struct mlxsw_pci_queue *q,
+				    enum mlxsw_pci_cq_type cq_type)
 {
+	struct mlxsw_pci *mlxsw_pci = q->pci;
+
 	switch (cq_type) {
 	case MLXSW_PCI_CQ_SDQ:
-		tasklet_setup(&q->u.cq.tasklet, mlxsw_pci_cq_tx_tasklet);
+		netif_napi_add(mlxsw_pci->napi_dev_tx, &q->u.cq.napi,
+			       mlxsw_pci_napi_poll_cq_tx);
 		break;
 	case MLXSW_PCI_CQ_RDQ:
-		tasklet_setup(&q->u.cq.tasklet, mlxsw_pci_cq_rx_tasklet);
+		netif_napi_add(mlxsw_pci->napi_dev_rx, &q->u.cq.napi,
+			       mlxsw_pci_napi_poll_cq_rx);
 		break;
 	}
+
+	napi_enable(&q->u.cq.napi);
+}
+
+static void mlxsw_pci_cq_napi_teardown(struct mlxsw_pci_queue *q)
+{
+	napi_disable(&q->u.cq.napi);
+	netif_napi_del(&q->u.cq.napi);
 }
 
 static int mlxsw_pci_cq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
@@ -817,7 +874,7 @@ static int mlxsw_pci_cq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	err = mlxsw_cmd_sw2hw_cq(mlxsw_pci->core, mbox, q->num);
 	if (err)
 		return err;
-	mlxsw_pci_cq_tasklet_setup(q, mlxsw_pci_cq_type(mlxsw_pci, q));
+	mlxsw_pci_cq_napi_setup(q, mlxsw_pci_cq_type(mlxsw_pci, q));
 	mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
 	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
 	return 0;
@@ -826,6 +883,7 @@ static int mlxsw_pci_cq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 static void mlxsw_pci_cq_fini(struct mlxsw_pci *mlxsw_pci,
 			      struct mlxsw_pci_queue *q)
 {
+	mlxsw_pci_cq_napi_teardown(q);
 	mlxsw_cmd_hw2sw_cq(mlxsw_pci->core, q->num);
 }
 
@@ -886,7 +944,7 @@ static void mlxsw_pci_eq_tasklet(struct tasklet_struct *t)
 	cq_count = mlxsw_pci->num_cqs;
 	for_each_set_bit(cqn, active_cqns, cq_count) {
 		q = mlxsw_pci_cq_get(mlxsw_pci, cqn);
-		tasklet_schedule(&q->u.cq.tasklet);
+		napi_schedule(&q->u.cq.napi);
 	}
 }
 
