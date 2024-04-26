@@ -148,7 +148,7 @@ Stream widgets have the following format:-
   SND_SOC_DAPM_AIF_IN(name, stream, slot, reg, shift, invert)
 
 NOTE: the stream name must match the corresponding stream name in your codec
-snd_soc_codec_dai.
+snd_soc_dai_driver.
 
 e.g. stream widgets for HiFi playback and capture
 ::
