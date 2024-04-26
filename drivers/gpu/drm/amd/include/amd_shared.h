@@ -291,6 +291,8 @@ enum amd_dpm_forced_level;
  * @set_clockgating_state: enable/disable cg for the IP block
  * @set_powergating_state: enable/disable pg for the IP block
  * @get_clockgating_state: get current clockgating status
+ * @dump_ip_state: dump the IP state of the ASIC during a gpu hang
+ * @print_ip_state: print the IP state in devcoredump for each IP of the ASIC
  *
  * These hooks provide an interface for controlling the operational state
  * of IP blocks. After acquiring a list of IP blocks for the GPU in use,
