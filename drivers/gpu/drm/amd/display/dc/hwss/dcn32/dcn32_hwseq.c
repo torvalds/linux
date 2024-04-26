@@ -615,10 +615,26 @@ void dcn32_update_force_pstate(struct dc *dc, struct dc_state *context)
 	 */
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = pipe->plane_res.hubp;
 
+		/* Today for MED update type we do not call update clocks. However, for FPO
+		 * the assumption is that update clocks should be called to disable P-State
+		 * switch before any HW programming since FPO in FW and driver are not
+		 * synchronized. This causes an issue where on a MED update, an FPO P-State
+		 * switch could be taking place, then driver forces P-State disallow in the below
+		 * code and prevents FPO from completing the sequence. In this case we add a check
+		 * to avoid re-programming (and thus re-setting) the P-State force register by
+		 * only reprogramming if the pipe was not previously Subvp or FPO. The assumption
+		 * is that the P-State force register should be programmed correctly the first
+		 * time SubVP / FPO was enabled, so there's no need to update / reset it if the
+		 * pipe config has never exited SubVP / FPO.
+		 */
 		if (pipe->stream && (dc_state_get_pipe_subvp_type(context, pipe) == SUBVP_MAIN ||
-				pipe->stream->fpo_in_use)) {
+				pipe->stream->fpo_in_use) &&
+				(!old_pipe->stream ||
+				(dc_state_get_pipe_subvp_type(context, old_pipe) != SUBVP_MAIN &&
+				!old_pipe->stream->fpo_in_use))) {
 			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
 				hubp->funcs->hubp_update_force_pstate_disallow(hubp, true);
 			if (hubp && hubp->funcs->hubp_update_force_cursor_pstate_disallow)
