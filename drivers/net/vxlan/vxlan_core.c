@@ -1838,6 +1838,8 @@ static int arp_reduce(struct net_device *dev, struct sk_buff *skb, __be32 vni)
 
 	if (!pskb_may_pull(skb, arp_hdr_len(dev))) {
 		dev_core_stats_tx_dropped_inc(dev);
+		vxlan_vnifilter_count(vxlan, vni, NULL,
+				      VXLAN_VNI_STATS_TX_DROPS, 0);
 		goto out;
 	}
 	parp = arp_hdr(skb);
