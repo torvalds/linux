@@ -338,6 +338,7 @@ static int rtw8852c_pwr_off_func(struct rtw89_dev *rtwdev)
 		return ret;
 
 	rtw89_write32_set(rtwdev, R_AX_SYS_PW_CTRL, B_AX_EN_WLON);
+	rtw89_write32_clr(rtwdev, R_AX_WLRF_CTRL, B_AX_AFC_AFEDIG);
 	rtw89_write8_clr(rtwdev, R_AX_SYS_FUNC_EN, B_AX_FEN_BB_GLB_RSTN | B_AX_FEN_BBRSTB);
 	rtw89_write32_clr(rtwdev, R_AX_SYS_ISO_CTRL_EXTEND,
 			  B_AX_R_SYM_FEN_WLBBGLB_1 | B_AX_R_SYM_FEN_WLBBFUN_1);
@@ -2816,6 +2817,7 @@ static int rtw8852c_mac_enable_bb_rf(struct rtw89_dev *rtwdev)
 
 static int rtw8852c_mac_disable_bb_rf(struct rtw89_dev *rtwdev)
 {
+	rtw89_write32_clr(rtwdev, R_AX_WLRF_CTRL, B_AX_AFC_AFEDIG);
 	rtw89_write8_clr(rtwdev, R_AX_SYS_FUNC_EN,
 			 B_AX_FEN_BBRSTB | B_AX_FEN_BB_GLB_RSTN);
 
