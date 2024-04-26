@@ -1713,6 +1713,15 @@ static int check_dirent_inode_dirent(struct btree_trans *trans,
 	if (inode_points_to_dirent(target, d))
 		return 0;
 
+	if (bch2_inode_should_have_bp(target) &&
+	    !fsck_err(c, inode_wrong_backpointer,
+		      "dirent points to inode that does not point back:\n  %s",
+		      (bch2_bkey_val_to_text(&buf, c, d.s_c),
+		       prt_printf(&buf, "\n  "),
+		       bch2_inode_unpacked_to_text(&buf, target),
+		       buf.buf)))
+		goto out_noiter;
+
 	if (!target->bi_dir &&
 	    !target->bi_dir_offset) {
 		target->bi_dir		= d.k->p.inode;
@@ -1781,6 +1790,7 @@ out:
 err:
 fsck_err:
 	bch2_trans_iter_exit(trans, &bp_iter);
+out_noiter:
 	printbuf_exit(&buf);
 	bch_err_fn(c, ret);
 	return ret;
