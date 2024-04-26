@@ -1523,17 +1523,9 @@ static void bch2_vfs_inode_init(struct btree_trans *trans, subvol_inum inum,
 	mapping_set_large_folios(inode->v.i_mapping);
 }
 
-static void bch2_i_callback(struct rcu_head *head)
+static void bch2_free_inode(struct inode *vinode)
 {
-	struct inode *vinode = container_of(head, struct inode, i_rcu);
-	struct bch_inode_info *inode = to_bch_ei(vinode);
-
-	kmem_cache_free(bch2_inode_cache, inode);
-}
-
-static void bch2_destroy_inode(struct inode *vinode)
-{
-	call_rcu(&vinode->i_rcu, bch2_i_callback);
+	kmem_cache_free(bch2_inode_cache, to_bch_ei(vinode));
 }
 
 static int inode_update_times_fn(struct btree_trans *trans,
@@ -1841,7 +1833,7 @@ static int bch2_unfreeze(struct super_block *sb)
 
 static const struct super_operations bch_super_operations = {
 	.alloc_inode	= bch2_alloc_inode,
-	.destroy_inode	= bch2_destroy_inode,
+	.free_inode	= bch2_free_inode,
 	.write_inode	= bch2_vfs_write_inode,
 	.evict_inode	= bch2_evict_inode,
 	.sync_fs	= bch2_sync_fs,
