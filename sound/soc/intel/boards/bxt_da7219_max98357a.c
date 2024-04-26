@@ -134,9 +134,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 
 	/* speaker */
 	{"Spk", NULL, "Speaker"},
-};
 
-static const struct snd_soc_dapm_route broxton_map[] = {
 	{"HiFi Playback", NULL, "ssp5 Tx"},
 	{"ssp5 Tx", NULL, "codec0_out"},
 
@@ -145,17 +143,6 @@ static const struct snd_soc_dapm_route broxton_map[] = {
 
 	{"codec0_in", NULL, "ssp1 Rx"},
 	{"ssp1 Rx", NULL, "Capture"},
-};
-
-static const struct snd_soc_dapm_route gemini_map[] = {
-	{"HiFi Playback", NULL, "ssp1 Tx"},
-	{"ssp1 Tx", NULL, "codec0_out"},
-
-	{"Playback", NULL, "ssp2 Tx"},
-	{"ssp2 Tx", NULL, "codec1_out"},
-
-	{"codec0_in", NULL, "ssp2 Rx"},
-	{"ssp2 Rx", NULL, "Capture"},
 };
 
 static struct snd_soc_jack_pin jack_pins[] = {
@@ -626,13 +613,6 @@ static int bxt_card_late_probe(struct snd_soc_card *card)
 	int err, i = 0;
 	char jack_name[NAME_SIZE];
 
-	if (soc_intel_is_glk())
-		snd_soc_dapm_add_routes(&card->dapm, gemini_map,
-					ARRAY_SIZE(gemini_map));
-	else
-		snd_soc_dapm_add_routes(&card->dapm, broxton_map,
-					ARRAY_SIZE(broxton_map));
-
 	if (list_empty(&ctx->hdmi_pcm_list))
 		return -EINVAL;
 
@@ -696,29 +676,6 @@ static int broxton_audio_probe(struct platform_device *pdev)
 
 	broxton_audio_card.dev = &pdev->dev;
 	snd_soc_card_set_drvdata(&broxton_audio_card, ctx);
-	if (soc_intel_is_glk()) {
-		unsigned int i;
-
-		broxton_audio_card.name = "glkda7219max";
-		/* Fixup the SSP entries for geminilake */
-		for (i = 0; i < ARRAY_SIZE(broxton_dais); i++) {
-			if (!broxton_dais[i].codecs->dai_name)
-				continue;
-
-			/* MAXIM_CODEC is connected to SSP1. */
-			if (!strcmp(broxton_dais[i].codecs->dai_name,
-				    BXT_MAXIM_CODEC_DAI)) {
-				broxton_dais[i].name = "SSP1-Codec";
-				broxton_dais[i].cpus->dai_name = "SSP1 Pin";
-			}
-			/* DIALOG_CODE is connected to SSP2 */
-			else if (!strcmp(broxton_dais[i].codecs->dai_name,
-					 BXT_DIALOG_CODEC_DAI)) {
-				broxton_dais[i].name = "SSP2-Codec";
-				broxton_dais[i].cpus->dai_name = "SSP2 Pin";
-			}
-		}
-	}
 
 	/* override platform name, if required */
 	mach = pdev->dev.platform_data;
@@ -736,7 +693,6 @@ static int broxton_audio_probe(struct platform_device *pdev)
 
 static const struct platform_device_id bxt_board_ids[] = {
 	{ .name = "bxt_da7219_mx98357a" },
-	{ .name = "glk_da7219_mx98357a" },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, bxt_board_ids);
