@@ -79,15 +79,6 @@ static const struct dmi_system_id sof_rt5682_quirk_table[] = {
 	{
 		.callback = sof_rt5682_quirk_cb,
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "Intel Corporation"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "Ice Lake Client"),
-		},
-		.driver_data = (void *)(SOF_RT5682_MCLK_EN |
-					SOF_SSP_PORT_CODEC(0)),
-	},
-	{
-		.callback = sof_rt5682_quirk_cb,
-		.matches = {
 			DMI_MATCH(DMI_PRODUCT_FAMILY, "Google_Volteer"),
 			DMI_MATCH(DMI_OEM_STRING, "AUDIO-MAX98373_ALC5682I_I2S_UP4"),
 		},
@@ -807,6 +798,11 @@ static const struct platform_device_id board_ids[] = {
 		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
 					SOF_SSP_PORT_CODEC(2) |
 					SOF_SSP_PORT_AMP(1)),
+	},
+	{
+		.name = "icl_rt5682_def",
+		.driver_data = (kernel_ulong_t)(SOF_RT5682_MCLK_EN |
+					SOF_SSP_PORT_CODEC(0)),
 	},
 	{
 		.name = "cml_rt5682_def",
