@@ -390,6 +390,8 @@ void bch2_fs_mark_clean(struct bch_fs *c)
 		goto out;
 	}
 
+	bch2_journal_pos_from_member_info_set(c);
+
 	bch2_write_super(c);
 out:
 	mutex_unlock(&c->sb_lock);

@@ -670,6 +670,8 @@ int bch2_fs_recovery(struct bch_fs *c)
 		goto err;
 	}
 
+	bch2_journal_pos_from_member_info_resume(c);
+
 	if (!c->sb.clean || c->opts.retain_recovery_info) {
 		struct genradix_iter iter;
 		struct journal_replay **i;

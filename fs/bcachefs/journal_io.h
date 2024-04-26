@@ -4,6 +4,9 @@
 
 #include "darray.h"
 
+void bch2_journal_pos_from_member_info_set(struct bch_fs *);
+void bch2_journal_pos_from_member_info_resume(struct bch_fs *);
+
 struct journal_ptr {
 	bool		csum_good;
 	u8		dev;

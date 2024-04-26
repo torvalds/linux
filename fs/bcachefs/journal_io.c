@@ -17,6 +17,34 @@
 #include "sb-clean.h"
 #include "trace.h"
 
+void bch2_journal_pos_from_member_info_set(struct bch_fs *c)
+{
+	lockdep_assert_held(&c->sb_lock);
+
+	for_each_member_device(c, ca) {
+		struct bch_member *m = bch2_members_v2_get_mut(c->disk_sb.sb, ca->dev_idx);
+
+		m->last_journal_bucket = cpu_to_le32(ca->journal.cur_idx);
+		m->last_journal_bucket_offset = cpu_to_le32(ca->mi.bucket_size - ca->journal.sectors_free);
+	}
+}
+
+void bch2_journal_pos_from_member_info_resume(struct bch_fs *c)
+{
+	mutex_lock(&c->sb_lock);
+	for_each_member_device(c, ca) {
+		struct bch_member m = bch2_sb_member_get(c->disk_sb.sb, ca->dev_idx);
+
+		unsigned idx = le32_to_cpu(m.last_journal_bucket);
+		if (idx < ca->journal.nr)
+			ca->journal.cur_idx = idx;
+		unsigned offset = le32_to_cpu(m.last_journal_bucket_offset);
+		if (offset <= ca->mi.bucket_size)
+			ca->journal.sectors_free = ca->mi.bucket_size - offset;
+	}
+	mutex_unlock(&c->sb_lock);
+}
+
 void bch2_journal_ptrs_to_text(struct printbuf *out, struct bch_fs *c,
 			       struct journal_replay *j)
 {
