@@ -2329,6 +2329,9 @@ void resource_log_pipe_topology_update(struct dc *dc, struct dc_state *state)
 					state->stream_status[stream_idx].mall_stream_config.paired_stream);
 			otg_master = resource_get_otg_master_for_stream(
 					&state->res_ctx, state->streams[phantom_stream_idx]);
+			if (!otg_master)
+				continue;
+
 			resource_log_pipe_for_stream(dc, state, otg_master, stream_idx);
 		}
 	}
