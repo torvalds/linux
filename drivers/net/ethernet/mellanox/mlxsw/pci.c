@@ -82,12 +82,17 @@ struct mlxsw_pci_queue {
 	u8 num; /* queue number */
 	u8 elem_size; /* size of one element */
 	enum mlxsw_pci_queue_type type;
-	struct tasklet_struct tasklet; /* queue processing tasklet */
 	struct mlxsw_pci *pci;
-	struct {
-		enum mlxsw_pci_cqe_v v;
-		struct mlxsw_pci_queue *dq;
-	} cq;
+	union {
+		struct {
+			enum mlxsw_pci_cqe_v v;
+			struct mlxsw_pci_queue *dq;
+			struct tasklet_struct tasklet;
+		} cq;
+		struct {
+			struct tasklet_struct tasklet;
+		} eq;
+	} u;
 };
 
 struct mlxsw_pci_queue_type_group {
@@ -161,11 +166,6 @@ static void mlxsw_pci_napi_devs_fini(struct mlxsw_pci *mlxsw_pci)
 {
 	free_netdev(mlxsw_pci->napi_dev_rx);
 	free_netdev(mlxsw_pci->napi_dev_tx);
-}
-
-static void mlxsw_pci_queue_tasklet_schedule(struct mlxsw_pci_queue *q)
-{
-	tasklet_schedule(&q->tasklet);
 }
 
 static char *__mlxsw_pci_queue_elem_get(struct mlxsw_pci_queue *q,
@@ -324,7 +324,7 @@ static int mlxsw_pci_sdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 		return err;
 
 	cq = mlxsw_pci_cq_get(mlxsw_pci, cq_num);
-	cq->cq.dq = q;
+	cq->u.cq.dq = q;
 	mlxsw_pci_queue_doorbell_producer_ring(mlxsw_pci, q);
 	return 0;
 }
@@ -433,7 +433,7 @@ static int mlxsw_pci_rdq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 		return err;
 
 	cq = mlxsw_pci_cq_get(mlxsw_pci, cq_num);
-	cq->cq.dq = q;
+	cq->u.cq.dq = q;
 
 	mlxsw_pci_queue_doorbell_producer_ring(mlxsw_pci, q);
 
@@ -455,7 +455,7 @@ rollback:
 		elem_info = mlxsw_pci_queue_elem_info_get(q, i);
 		mlxsw_pci_rdq_skb_free(mlxsw_pci, elem_info);
 	}
-	cq->cq.dq = NULL;
+	cq->u.cq.dq = NULL;
 	mlxsw_cmd_hw2sw_rdq(mlxsw_pci->core, q->num);
 
 	return err;
@@ -477,12 +477,12 @@ static void mlxsw_pci_rdq_fini(struct mlxsw_pci *mlxsw_pci,
 static void mlxsw_pci_cq_pre_init(struct mlxsw_pci *mlxsw_pci,
 				  struct mlxsw_pci_queue *q)
 {
-	q->cq.v = mlxsw_pci->max_cqe_ver;
+	q->u.cq.v = mlxsw_pci->max_cqe_ver;
 
-	if (q->cq.v == MLXSW_PCI_CQE_V2 &&
+	if (q->u.cq.v == MLXSW_PCI_CQE_V2 &&
 	    q->num < mlxsw_pci->num_sdqs &&
 	    !mlxsw_core_sdq_supports_cqe_v2(mlxsw_pci->core))
-		q->cq.v = MLXSW_PCI_CQE_V1;
+		q->u.cq.v = MLXSW_PCI_CQE_V1;
 }
 
 static unsigned int mlxsw_pci_read32_off(struct mlxsw_pci *mlxsw_pci,
@@ -676,7 +676,7 @@ static char *mlxsw_pci_cq_sw_cqe_get(struct mlxsw_pci_queue *q)
 
 	elem_info = mlxsw_pci_queue_elem_info_consumer_get(q);
 	elem = elem_info->elem;
-	owner_bit = mlxsw_pci_cqe_owner_get(q->cq.v, elem);
+	owner_bit = mlxsw_pci_cqe_owner_get(q->u.cq.v, elem);
 	if (mlxsw_pci_elem_hw_owned(q, owner_bit))
 		return NULL;
 	q->consumer_counter++;
@@ -688,16 +688,16 @@ static char *mlxsw_pci_cq_sw_cqe_get(struct mlxsw_pci_queue *q)
 
 static void mlxsw_pci_cq_rx_tasklet(struct tasklet_struct *t)
 {
-	struct mlxsw_pci_queue *q = from_tasklet(q, t, tasklet);
-	struct mlxsw_pci_queue *rdq = q->cq.dq;
+	struct mlxsw_pci_queue *q = from_tasklet(q, t, u.cq.tasklet);
+	struct mlxsw_pci_queue *rdq = q->u.cq.dq;
 	struct mlxsw_pci *mlxsw_pci = q->pci;
 	int items = 0;
 	char *cqe;
 
 	while ((cqe = mlxsw_pci_cq_sw_cqe_get(q))) {
 		u16 wqe_counter = mlxsw_pci_cqe_wqe_counter_get(cqe);
-		u8 sendq = mlxsw_pci_cqe_sr_get(q->cq.v, cqe);
-		u8 dqn = mlxsw_pci_cqe_dqn_get(q->cq.v, cqe);
+		u8 sendq = mlxsw_pci_cqe_sr_get(q->u.cq.v, cqe);
+		u8 dqn = mlxsw_pci_cqe_dqn_get(q->u.cq.v, cqe);
 
 		if (unlikely(sendq)) {
 			WARN_ON_ONCE(1);
@@ -710,7 +710,7 @@ static void mlxsw_pci_cq_rx_tasklet(struct tasklet_struct *t)
 		}
 
 		mlxsw_pci_cqe_rdq_handle(mlxsw_pci, rdq,
-					 wqe_counter, q->cq.v, cqe);
+					 wqe_counter, q->u.cq.v, cqe);
 
 		if (++items == MLXSW_PCI_CQ_MAX_HANDLE)
 			break;
@@ -723,8 +723,8 @@ static void mlxsw_pci_cq_rx_tasklet(struct tasklet_struct *t)
 
 static void mlxsw_pci_cq_tx_tasklet(struct tasklet_struct *t)
 {
-	struct mlxsw_pci_queue *q = from_tasklet(q, t, tasklet);
-	struct mlxsw_pci_queue *sdq = q->cq.dq;
+	struct mlxsw_pci_queue *q = from_tasklet(q, t, u.cq.tasklet);
+	struct mlxsw_pci_queue *sdq = q->u.cq.dq;
 	struct mlxsw_pci *mlxsw_pci = q->pci;
 	int credits = q->count >> 1;
 	int items = 0;
@@ -732,8 +732,8 @@ static void mlxsw_pci_cq_tx_tasklet(struct tasklet_struct *t)
 
 	while ((cqe = mlxsw_pci_cq_sw_cqe_get(q))) {
 		u16 wqe_counter = mlxsw_pci_cqe_wqe_counter_get(cqe);
-		u8 sendq = mlxsw_pci_cqe_sr_get(q->cq.v, cqe);
-		u8 dqn = mlxsw_pci_cqe_dqn_get(q->cq.v, cqe);
+		u8 sendq = mlxsw_pci_cqe_sr_get(q->u.cq.v, cqe);
+		u8 dqn = mlxsw_pci_cqe_dqn_get(q->u.cq.v, cqe);
 		char ncqe[MLXSW_PCI_CQE_SIZE_MAX];
 
 		if (unlikely(!sendq)) {
@@ -750,7 +750,7 @@ static void mlxsw_pci_cq_tx_tasklet(struct tasklet_struct *t)
 		mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
 
 		mlxsw_pci_cqe_sdq_handle(mlxsw_pci, sdq,
-					 wqe_counter, q->cq.v, ncqe);
+					 wqe_counter, q->u.cq.v, ncqe);
 
 		if (++items == credits)
 			break;
@@ -777,10 +777,10 @@ static void mlxsw_pci_cq_tasklet_setup(struct mlxsw_pci_queue *q,
 {
 	switch (cq_type) {
 	case MLXSW_PCI_CQ_SDQ:
-		tasklet_setup(&q->tasklet, mlxsw_pci_cq_tx_tasklet);
+		tasklet_setup(&q->u.cq.tasklet, mlxsw_pci_cq_tx_tasklet);
 		break;
 	case MLXSW_PCI_CQ_RDQ:
-		tasklet_setup(&q->tasklet, mlxsw_pci_cq_rx_tasklet);
+		tasklet_setup(&q->u.cq.tasklet, mlxsw_pci_cq_rx_tasklet);
 		break;
 	}
 }
@@ -796,13 +796,13 @@ static int mlxsw_pci_cq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	for (i = 0; i < q->count; i++) {
 		char *elem = mlxsw_pci_queue_elem_get(q, i);
 
-		mlxsw_pci_cqe_owner_set(q->cq.v, elem, 1);
+		mlxsw_pci_cqe_owner_set(q->u.cq.v, elem, 1);
 	}
 
-	if (q->cq.v == MLXSW_PCI_CQE_V1)
+	if (q->u.cq.v == MLXSW_PCI_CQE_V1)
 		mlxsw_cmd_mbox_sw2hw_cq_cqe_ver_set(mbox,
 				MLXSW_CMD_MBOX_SW2HW_CQ_CQE_VER_1);
-	else if (q->cq.v == MLXSW_PCI_CQE_V2)
+	else if (q->u.cq.v == MLXSW_PCI_CQE_V2)
 		mlxsw_cmd_mbox_sw2hw_cq_cqe_ver_set(mbox,
 				MLXSW_CMD_MBOX_SW2HW_CQ_CQE_VER_2);
 
@@ -831,13 +831,13 @@ static void mlxsw_pci_cq_fini(struct mlxsw_pci *mlxsw_pci,
 
 static u16 mlxsw_pci_cq_elem_count(const struct mlxsw_pci_queue *q)
 {
-	return q->cq.v == MLXSW_PCI_CQE_V2 ? MLXSW_PCI_CQE2_COUNT :
+	return q->u.cq.v == MLXSW_PCI_CQE_V2 ? MLXSW_PCI_CQE2_COUNT :
 					     MLXSW_PCI_CQE01_COUNT;
 }
 
 static u8 mlxsw_pci_cq_elem_size(const struct mlxsw_pci_queue *q)
 {
-	return q->cq.v == MLXSW_PCI_CQE_V2 ? MLXSW_PCI_CQE2_SIZE :
+	return q->u.cq.v == MLXSW_PCI_CQE_V2 ? MLXSW_PCI_CQE2_SIZE :
 					       MLXSW_PCI_CQE01_SIZE;
 }
 
@@ -860,7 +860,7 @@ static char *mlxsw_pci_eq_sw_eqe_get(struct mlxsw_pci_queue *q)
 static void mlxsw_pci_eq_tasklet(struct tasklet_struct *t)
 {
 	unsigned long active_cqns[BITS_TO_LONGS(MLXSW_PCI_CQS_MAX)];
-	struct mlxsw_pci_queue *q = from_tasklet(q, t, tasklet);
+	struct mlxsw_pci_queue *q = from_tasklet(q, t, u.eq.tasklet);
 	struct mlxsw_pci *mlxsw_pci = q->pci;
 	int credits = q->count >> 1;
 	u8 cqn, cq_count;
@@ -886,7 +886,7 @@ static void mlxsw_pci_eq_tasklet(struct tasklet_struct *t)
 	cq_count = mlxsw_pci->num_cqs;
 	for_each_set_bit(cqn, active_cqns, cq_count) {
 		q = mlxsw_pci_cq_get(mlxsw_pci, cqn);
-		mlxsw_pci_queue_tasklet_schedule(q);
+		tasklet_schedule(&q->u.cq.tasklet);
 	}
 }
 
@@ -922,7 +922,7 @@ static int mlxsw_pci_eq_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	err = mlxsw_cmd_sw2hw_eq(mlxsw_pci->core, mbox, q->num);
 	if (err)
 		return err;
-	tasklet_setup(&q->tasklet, mlxsw_pci_eq_tasklet);
+	tasklet_setup(&q->u.eq.tasklet, mlxsw_pci_eq_tasklet);
 	mlxsw_pci_queue_doorbell_consumer_ring(mlxsw_pci, q);
 	mlxsw_pci_queue_doorbell_arm_consumer_ring(mlxsw_pci, q);
 	return 0;
@@ -1483,7 +1483,7 @@ static irqreturn_t mlxsw_pci_eq_irq_handler(int irq, void *dev_id)
 	struct mlxsw_pci_queue *q;
 
 	q = mlxsw_pci_eq_get(mlxsw_pci);
-	mlxsw_pci_queue_tasklet_schedule(q);
+	tasklet_schedule(&q->u.eq.tasklet);
 	return IRQ_HANDLED;
 }
 
