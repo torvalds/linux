@@ -1449,7 +1449,7 @@ static int dwc3_core_get_phy(struct dwc3 *dwc)
 	struct device_node	*node = dev->of_node;
 	char phy_name[9];
 	int ret;
-	int i;
+	u8 i;
 
 	if (node) {
 		dwc->usb2_phy = devm_usb_get_phy_by_phandle(dev, "usb-phy", 0);
@@ -1479,7 +1479,7 @@ static int dwc3_core_get_phy(struct dwc3 *dwc)
 		if (dwc->num_usb2_ports == 1)
 			snprintf(phy_name, sizeof(phy_name), "usb2-phy");
 		else
-			snprintf(phy_name, sizeof(phy_name),  "usb2-%d", i);
+			snprintf(phy_name, sizeof(phy_name),  "usb2-%u", i);
 
 		dwc->usb2_generic_phy[i] = devm_phy_get(dev, phy_name);
 		if (IS_ERR(dwc->usb2_generic_phy[i])) {
@@ -1496,7 +1496,7 @@ static int dwc3_core_get_phy(struct dwc3 *dwc)
 		if (dwc->num_usb3_ports == 1)
 			snprintf(phy_name, sizeof(phy_name), "usb3-phy");
 		else
-			snprintf(phy_name, sizeof(phy_name), "usb3-%d", i);
+			snprintf(phy_name, sizeof(phy_name), "usb3-%u", i);
 
 		dwc->usb3_generic_phy[i] = devm_phy_get(dev, phy_name);
 		if (IS_ERR(dwc->usb3_generic_phy[i])) {
