@@ -306,25 +306,23 @@ This is easiest with a diagram of the codec or DSP (and schematic of the machine
 audio system), as it requires joining widgets together via their audio signal
 paths.
 
-e.g., from the WM8731 output mixer (wm8731.c)
-
-The WM8731 output mixer has 3 inputs (sources)
+For example the WM8731 output mixer (wm8731.c) has 3 inputs (sources):
 
 1. Line Bypass Input
 2. DAC (HiFi playback)
 3. Mic Sidetone Input
 
-Each input in this example has a kcontrol associated with it (defined in example
-above) and is connected to the output mixer via its kcontrol name. We can now
-connect the destination widget (wrt audio signal) with its source widgets.
-::
+Each input in this example has a kcontrol associated with it (defined in
+the example above) and is connected to the output mixer via its kcontrol
+name. We can now connect the destination widget (wrt audio signal) with its
+source widgets.  ::
 
 	/* output mixer */
 	{"Output Mixer", "Line Bypass Switch", "Line Input"},
 	{"Output Mixer", "HiFi Playback Switch", "DAC"},
 	{"Output Mixer", "Mic Sidetone Switch", "Mic Bias"},
 
-So we have :
+So we have:
 
 * Destination Widget  <=== Path Name <=== Source Widget, or
 * Sink, Path, Source, or
@@ -333,12 +331,11 @@ So we have :
 When there is no path name connecting widgets (e.g. a direct connection) we
 pass NULL for the path name.
 
-Interconnections are created with a call to:
-::
+Interconnections are created with a call to::
 
   snd_soc_dapm_connect_input(codec, sink, path, source);
 
-Finally, snd_soc_dapm_new_widgets(codec) must be called after all widgets and
+Finally, snd_soc_dapm_new_widgets() must be called after all widgets and
 interconnections have been registered with the core. This causes the core to
 scan the codec and machine so that the internal DAPM state matches the
 physical state of the machine.
