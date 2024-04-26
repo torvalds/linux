@@ -20,7 +20,7 @@ DAPM spans the whole machine. It covers power control within the entire
 audio subsystem, this includes internal codec power blocks and machine
 level power systems.
 
-There are 4 power domains within DAPM
+There are 4 power domains within DAPM:
 
 Codec bias domain
       VREF, VMID (core codec and audio power)
@@ -57,7 +57,7 @@ widgets hereafter.
 DAPM Widgets
 ============
 
-Audio DAPM widgets fall into a number of types:-
+Audio DAPM widgets fall into a number of types:
 
 Mixer
 	Mixes several analog signals into a single analog signal.
@@ -141,7 +141,7 @@ Stream Widgets relate to the stream power domain and only consist of ADCs
 (analog to digital converters), DACs (digital to analog converters),
 AIF IN and AIF OUT.
 
-Stream widgets have the following format:-
+Stream widgets have the following format:
 ::
 
   SND_SOC_DAPM_DAC(name, stream name, reg, shift, invert),
@@ -167,7 +167,7 @@ Path Domain Widgets
 -------------------
 
 Path domain widgets have a ability to control or affect the audio signal or
-audio paths within the audio subsystem. They have the following form:-
+audio paths within the audio subsystem. They have the following form:
 ::
 
   SND_SOC_DAPM_PGA(name, reg, shift, invert, controls, num_controls)
@@ -207,7 +207,7 @@ powered. e.g.
 A machine widget can have an optional call back.
 
 e.g. Jack connector widget for an external Mic that enables Mic Bias
-when the Mic is inserted:-::
+when the Mic is inserted::
 
   static int spitz_mic_bias(struct snd_soc_dapm_widget* w, int event)
   {
@@ -271,7 +271,7 @@ connect the destination widget (wrt audio signal) with its source widgets.
 	{"Output Mixer", "HiFi Playback Switch", "DAC"},
 	{"Output Mixer", "Mic Sidetone Switch", "Mic Bias"},
 
-So we have :-
+So we have :
 
 * Destination Widget  <=== Path Name <=== Source Widget, or
 * Sink, Path, Source, or
@@ -280,7 +280,7 @@ So we have :-
 When there is no path name connecting widgets (e.g. a direct connection) we
 pass NULL for the path name.
 
-Interconnections are created with a call to:-
+Interconnections are created with a call to:
 ::
 
   snd_soc_dapm_connect_input(codec, sink, path, source);
