@@ -40,7 +40,7 @@
 #include "gfxhub_v12_0.h"
 #include "mmhub_v4_1_0.h"
 #include "athub_v4_1_0.h"
-
+#include "umc_v8_14.h"
 
 static int gmc_v12_0_ecc_interrupt_state(struct amdgpu_device *adev,
 					 struct amdgpu_irq_src *src,
@@ -581,6 +581,18 @@ static void gmc_v12_0_set_gmc_funcs(struct amdgpu_device *adev)
 
 static void gmc_v12_0_set_umc_funcs(struct amdgpu_device *adev)
 {
+	switch (amdgpu_ip_version(adev, UMC_HWIP, 0)) {
+	case IP_VERSION(8, 14, 0):
+		adev->umc.channel_inst_num = UMC_V8_14_CHANNEL_INSTANCE_NUM;
+		adev->umc.umc_inst_num = UMC_V8_14_UMC_INSTANCE_NUM(adev);
+		adev->umc.node_inst_num = 0;
+		adev->umc.max_ras_err_cnt_per_query = UMC_V8_14_TOTAL_CHANNEL_NUM(adev);
+		adev->umc.channel_offs = UMC_V8_14_PER_CHANNEL_OFFSET;
+		adev->umc.ras = &umc_v8_14_ras;
+		break;
+	default:
+		break;
+	}
 }
 
 
@@ -828,6 +840,10 @@ static int gmc_v12_0_sw_init(struct amdgpu_ip_block *ip_block)
 	adev->vm_manager.first_kfd_vmid = 8;
 
 	amdgpu_vm_manager_init(adev);
+
+	r = amdgpu_gmc_ras_sw_init(adev);
+	if (r)
+		return r;
 
 	return 0;
 }
