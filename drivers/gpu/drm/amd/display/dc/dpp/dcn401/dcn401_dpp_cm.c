@@ -185,14 +185,22 @@ void dpp401_set_cursor_position(
 		rec_y_offset = y_pos - (cursor_height - y_hotspot);
 	}
 
-	if (rec_x_offset >= (int)param->recout.width)
-		cur_en = 0;  /* not visible beyond right edge*/
+	if (param->rotation == ROTATION_ANGLE_0 && !param->mirror) {
+		if (rec_x_offset >= (int)param->recout.width)
+			cur_en = 0;  /* not visible beyond right edge*/
+
+		if (rec_y_offset >= (int)param->recout.height)
+			cur_en = 0;  /* not visible beyond bottom edge*/
+	} else {
+		if (rec_x_offset > (int)param->recout.width)
+			cur_en = 0;  /* not visible beyond right edge*/
+
+		if (rec_y_offset > (int)param->recout.height)
+			cur_en = 0;  /* not visible beyond bottom edge*/
+	}
 
 	if (rec_x_offset + cursor_width <= 0)
 		cur_en = 0;  /* not visible beyond left edge*/
-
-	if (rec_y_offset >= (int)param->recout.height)
-		cur_en = 0;  /* not visible beyond bottom edge*/
 
 	if (rec_y_offset + cursor_height <= 0)
 		cur_en = 0;  /* not visible beyond top edge*/
