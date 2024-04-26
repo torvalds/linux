@@ -338,7 +338,7 @@ static inline void fib6_info_release(struct fib6_info *f6i)
 {
 	if (f6i && refcount_dec_and_test(&f6i->fib6_ref)) {
 		DEBUG_NET_WARN_ON_ONCE(!hlist_unhashed(&f6i->gc_link));
-		call_rcu(&f6i->rcu, fib6_info_destroy_rcu);
+		call_rcu_hurry(&f6i->rcu, fib6_info_destroy_rcu);
 	}
 }
 
