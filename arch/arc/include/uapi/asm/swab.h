@@ -62,7 +62,7 @@
  * 8051fdc4:	st     r2,[r1,20]	; Mem op : save result back to mem
  *
  * Joern suggested a better "C" algorithm which is great since
- * (1) It is portable to any architecure
+ * (1) It is portable to any architecture
  * (2) At the same time it takes advantage of ARC ISA (rotate intrns)
  */
 
