@@ -2710,7 +2710,7 @@ static void *vb_alloc(unsigned long size, gfp_t gfp_mask)
 		 * get_order(0) returns funny result. Just warn and terminate
 		 * early.
 		 */
-		return NULL;
+		return ERR_PTR(-EINVAL);
 	}
 	order = get_order(size);
 
