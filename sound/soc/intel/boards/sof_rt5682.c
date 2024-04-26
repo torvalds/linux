@@ -165,7 +165,7 @@ static int sof_rt5682_codec_init(struct snd_soc_pcm_runtime *rtd)
 	int extra_jack_data;
 	int ret, mclk_freq;
 
-	if (sof_rt5682_quirk & SOF_RT5682_MCLK_EN) {
+	if (ctx->rt5682.mclk_en) {
 		mclk_freq = sof_dai_get_mclk(rtd);
 		if (mclk_freq <= 0) {
 			dev_err(rtd->dev, "invalid mclk freq %d\n", mclk_freq);
@@ -278,7 +278,7 @@ static int sof_rt5682_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *codec_dai = snd_soc_rtd_to_codec(rtd, 0);
 	int pll_id, pll_source, pll_in, pll_out, clk_id, ret;
 
-	if (sof_rt5682_quirk & SOF_RT5682_MCLK_EN) {
+	if (ctx->rt5682.mclk_en) {
 		if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
 			ret = clk_prepare_enable(ctx->rt5682.mclk);
 			if (ret < 0) {
@@ -727,6 +727,9 @@ static int sof_audio_probe(struct platform_device *pdev)
 			break;
 		}
 	}
+
+	if (sof_rt5682_quirk & SOF_RT5682_MCLK_EN)
+		ctx->rt5682.mclk_en = true;
 
 	/* need to get main clock from pmc */
 	if (sof_rt5682_quirk & SOF_RT5682_MCLK_BYTCHT_EN) {
